@@ -162,6 +162,9 @@ async function loadAllData() {
           soldPhotosId: driveCache.soldPhotosId,
         }).catch(e => console.warn('Config refresh:', e));
         _maybeRenamePersonalSheet().catch(e => console.warn('Sheet rename:', e));
+        // v0.9.1269 (R10): the sheet lock's first-time entry point. See
+        // ensureSheetProtection — before this line it had none.
+        if (typeof _scheduleProtectionCheck === 'function') _scheduleProtectionCheck(state.personalSheetId);
       }
       return;
     }
@@ -186,6 +189,9 @@ async function loadAllData() {
       }).catch(e => console.warn('Config refresh:', e));
       // Auto-rename sheet if it still has the old Boxcar Files name
       _maybeRenamePersonalSheet().catch(e => console.warn('Sheet rename:', e));
+      // v0.9.1269 (R10): the sheet lock's first-time entry point. See
+      // ensureSheetProtection — before this line it had none.
+      if (typeof _scheduleProtectionCheck === 'function') _scheduleProtectionCheck(state.personalSheetId);
     }
   } catch(e) {
     showToast((typeof rrSaveError === 'function') ? rrSaveError(e, 'the load') : 'Load error: ' + e.message, 5000, true);

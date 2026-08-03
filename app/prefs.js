@@ -326,6 +326,10 @@ function buildPrefsPage() {
         <div class="pref-row-label"><strong>Clear saved copy on this device</strong><span>Your collection stays safe in Google — this only clears the copy kept here, and it reloads on next launch</span></div>
         <button class="pref-btn danger" onclick="_clearCacheOnly()">Clear Cache</button>
       </div>
+      <div class="pref-row">
+        <div class="pref-row-label"><strong>Protect key columns</strong><span>Asks "are you sure?" in Google Sheets if anyone edits the ID columns or a header row. Runs on its own — use this to put it back after changing protection by hand.</span></div>
+        <button class="pref-btn" onclick="_reapplySheetProtection()">Re-apply Protection</button>
+      </div>
 
       <div style="font-size:0.78rem;font-weight:600;color:var(--text-mid);padding:0.75rem 0.2rem 0.35rem;letter-spacing:0.03em;text-transform:uppercase">Dashboard</div>
       <div class="pref-row" style="flex-direction:column;align-items:flex-start;gap:0.4rem">
@@ -694,6 +698,51 @@ window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () 
 // ── NAVIGATION ─────────────────────────────────────────────────────
 // ── EPHEMERA ─────────────────────────────────────────────────────
 let _ephCurrentTab = 'catalogs';
+
+
+// ── Re-apply Sheet Protection ──────────────────────────────────
+// v0.9.1269 (R10). The button app-auth.js has claimed existed since Session 155.
+// Forces a re-apply even when protection is already in place — the reason to
+// press it is having changed protection by hand in Google Sheets.
+//
+// Every outcome gets a sentence a collector can act on, because the honest
+// answers here include "we turned it back off again" and that needs explaining
+// rather than a silent tick. Raw API error text stays in the console (§199g).
+let _reapplyProtectionRunning = false;
+async function _reapplySheetProtection() {
+  if (_reapplyProtectionRunning) return;
+  if (!state.personalSheetId) { showToast('No personal sheet connected', 3000, true); return; }
+  if (typeof ensureSheetProtection !== 'function') {
+    showToast('Sheet builder not loaded — refresh and try again', 3000, true);
+    return;
+  }
+  _reapplyProtectionRunning = true;
+  try {
+    showToast('Re-applying protection…', 2000);
+    const res = await ensureSheetProtection(state.personalSheetId, { force: true });
+    if (res && res.applied) {
+      showToast('Protection is on. Google will ask before anyone edits the ID columns or a header row.', 5000);
+      return;
+    }
+    const why = (res && res.reason) || '';
+    if (why === 'blocks app writes') {
+      showToast('Protection was turned back off — with it on, Google would not let the app save your changes.', 7000, true);
+    } else if (why === 'unverified') {
+      showToast('Protection was turned back off — the app could not confirm it can still save. Nothing was changed.', 7000, true);
+    } else if (why === 'formatting') {
+      showToast('The sheet is being formatted right now — try again in a moment.', 4000, true);
+    } else if (why === 'unknown state') {
+      showToast('Could not read the sheet just now, so nothing was changed. Try again in a moment.', 5000, true);
+    } else {
+      showToast('Could not apply protection. Nothing on your sheet was changed.', 5000, true);
+    }
+  } catch (e) {
+    console.error('Re-apply protection failed:', e);
+    showToast('Could not apply protection. Nothing on your sheet was changed.', 5000, true);
+  } finally {
+    _reapplyProtectionRunning = false;
+  }
+}
 
 
 // ── Rebuild Dashboard Tab ──────────────────────────────────────

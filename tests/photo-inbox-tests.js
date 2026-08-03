@@ -10274,11 +10274,11 @@ META_WRITES.length = 0; TOASTS.length = 0;
        /'\.\/write-outbox\.js'/.test(rd('app/sw.js')));
 
     section('199h. The version trio moved together');
-    ok('APP_VERSION is v0.9.1268', /const APP_VERSION = 'v0\.9\.1268';/.test(cfg));
+    ok('APP_VERSION is v0.9.1269', /const APP_VERSION = 'v0\.9\.1269';/.test(cfg));
     ok('every ?v= mark in app/index.html matches it',
-       (idx.match(/\?v=1268/g) || []).length === 69 && !/\?v=1267/.test(idx),
-       String((idx.match(/\?v=1268/g) || []).length));
-    ok('the service worker cache name moved too', /const CACHE_NAME = 'mca-v1278';/.test(rd('app/sw.js')));
+       (idx.match(/\?v=1269/g) || []).length === 69 && !/\?v=1268/.test(idx),
+       String((idx.match(/\?v=1269/g) || []).length));
+    ok('the service worker cache name moved too', /const CACHE_NAME = 'mca-v1279';/.test(rd('app/sw.js')));
     // v0.9.1259: the root page's own ?v= is gone — it registers no worker.
     // The trio is a trio again. §207 is what guards the root page now.
     ok('the landing page carries no version stamp to forget',
@@ -12512,6 +12512,429 @@ META_WRITES.length = 0; TOASTS.length = 0;
          /catch \(e\) \{ _moveErr =/.test(ws8) &&
          ws8.indexOf('_photosMoved = await driveMoveToSold(') >
          ws8.indexOf('await sheetsAppend(state.personalSheetId, \'Sold'));
+    })();
+
+    // ═══════════════════════════════════════════════════════════
+    // §219. v0.9.1269 (R10) — the sheet lock exists, and it proves itself.
+    //
+    //   Three separate things were wrong, and each one hid the next.
+    //
+    //   1. The lock had no front door. lockSheetTabs was only ever reached to
+    //      put back protection that applySheetFormatting had just taken off, so
+    //      a sheet that had never been protected could never become protected.
+    //      app-auth.js carried a comment since Session 155 saying protection was
+    //      "applied once on sign-in / via the Re-apply Protection button in
+    //      Preferences". Neither existed. The comment was an intention read as a
+    //      description for twelve sessions.
+    //   2. Even if it had run, it did nothing. warningOnly:false with no
+    //      `editors` list does not restrict the file's owner — and on a personal
+    //      sheet the owner is the collector. A hard lock aimed at exactly one
+    //      person, that that one person walks straight through, looks identical
+    //      to no lock at all. Which is why nobody noticed (1).
+    //   3. Four of the Sheets writes behind it were fire-and-forget, including
+    //      the one that clears the old protections before adding new ones. A
+    //      refused clear plus a successful add is how a sheet ends up carrying
+    //      two, then three, then four copies of the same protection.
+    //
+    //   The fix is warning-style protection — "are you sure?" for everybody,
+    //   owner included — plus the missing entry point, the button, and one
+    //   checked-write helper. And because Google documents warning protection
+    //   only in terms of a human being clicking a dialog, and says nothing
+    //   anywhere about what happens when the edit arrives through the API, the
+    //   app no longer guesses: it writes one cell it has just protected, with
+    //   the value it read out of that cell a moment earlier, and lets Google
+    //   answer. Refused, or no clean answer, and the protection comes back off.
+    //
+    //   So this section does not read the source and check for the word
+    //   "warningOnly". Text about a value is not the value, and grep has twice
+    //   now passed a mutation that inverted the fix. It RUNS the real functions
+    //   against a scripted Sheets API that actually keeps a list of protections,
+    //   and asks what came out.
+    // ═══════════════════════════════════════════════════════════
+    await (async function () {
+      section('219. The sheet lock, end to end');
+
+      const path19 = require('path');
+      const rd19 = f => fs.readFileSync(path19.join(__dirname, '..', f), 'utf8');
+      const sb19 = rd19('app/sheet-builder.js');
+      const app19 = rd19('app/app.js');
+
+      // The whole lock lives in one contiguous run at the end of sheet-builder.js.
+      const lockSrc19 = sb19.slice(sb19.indexOf('let _protectionEnsuredThisSession'));
+      const schema19 = app19.slice(app19.indexOf('const PERSONAL_SCHEMA = ['),
+                                   app19.indexOf('const PERSONAL_HEADERS'));
+
+      // A scripted Sheets API with a memory. addProtectedRange and
+      // deleteProtectedRange really add to and remove from a list, and metadata
+      // reads serve that list back — so "the protection came back off again" is
+      // something this rig can actually observe rather than infer.
+      //
+      //   opts.fail(call, st) -> null | { status, body } refuses one specific call.
+      function lockRig(o) {
+        o = o || {};
+        const st = {
+          calls: [], logs: [], warns: [], writes: [], timers: [],
+          store: Object.assign({}, o.store),
+          protections: JSON.parse(JSON.stringify(o.protections || [])),
+          nextId: 900,
+          headerCell: ('headerCell' in o) ? o.headerCell : 'Item Number',
+          tabs: o.tabs || [
+            { title: 'My Collection', sheetId: 0, columnCount: 40 },
+            { title: 'Sold',          sheetId: 1, columnCount: 30 },
+            { title: 'For Sale',      sheetId: 2, columnCount: 28 },
+            { title: 'Dashboard',     sheetId: 3, columnCount: 12 },
+          ],
+        };
+        const mk = (status, body) => ({
+          ok: status >= 200 && status < 300,
+          status: status,
+          json: async () => body,
+        });
+        async function fakeFetch(url, init) {
+          init = init || {};
+          const call = {
+            method: init.method || 'GET',
+            url: String(url),
+            body: init.body ? JSON.parse(init.body) : null,
+          };
+          st.calls.push(call);
+          const forced = o.fail ? o.fail(call, st) : null;
+          if (forced) {
+            if (forced.throwIt) throw new Error('network down');
+            return mk(forced.status || 500,
+                      forced.body || { error: { message: forced.msg || 'refused' } });
+          }
+          if (call.url.indexOf('/values/') > -1) {
+            if (call.method === 'PUT') { st.writes.push(call.body); return mk(200, { updatedCells: 1 }); }
+            if (st.headerCell === '' || st.headerCell === null) return mk(200, { range: 'x' });
+            return mk(200, { range: 'x', values: [[st.headerCell]] });
+          }
+          if (call.url.indexOf(':batchUpdate') > -1) {
+            ((call.body || {}).requests || []).forEach(r => {
+              if (r.deleteProtectedRange) {
+                st.protections = st.protections.filter(
+                  p => p.protectedRangeId !== r.deleteProtectedRange.protectedRangeId);
+              } else if (r.addProtectedRange) {
+                const p = JSON.parse(JSON.stringify(r.addProtectedRange.protectedRange));
+                p.protectedRangeId = st.nextId++;
+                st.protections.push(p);
+              }
+            });
+            return mk(200, { replies: [] });
+          }
+          return mk(200, {
+            sheets: st.tabs.map(t => ({
+              properties: {
+                sheetId: t.sheetId, title: t.title,
+                gridProperties: { columnCount: t.columnCount },
+              },
+              protectedRanges: st.protections.filter(p => p.range && p.range.sheetId === t.sheetId),
+            })),
+          });
+        }
+        const fakeConsole = {
+          log:   function () { st.logs.push(Array.prototype.join.call(arguments, ' ')); },
+          warn:  function () { st.warns.push(Array.prototype.join.call(arguments, ' ')); },
+          error: function () { st.warns.push(Array.prototype.join.call(arguments, ' ')); },
+        };
+        const fakeLS = {
+          getItem: k => (Object.prototype.hasOwnProperty.call(st.store, k) ? st.store[k] : null),
+          setItem: (k, v) => { st.store[k] = String(v); },
+          removeItem: k => { delete st.store[k]; },
+        };
+        const fakeTimeout = (fn, ms) => { st.timers.push({ fn: fn, ms: ms }); return st.timers.length; };
+        const api = new Function(
+          'fetch', 'console', 'localStorage', 'accessToken', 'setTimeout', '_formatRunning',
+          schema19 +
+          'const PERSONAL_FIELD_INDEX = {};' +
+          'PERSONAL_SCHEMA.forEach(function (s, i) { PERSONAL_FIELD_INDEX[s.field] = i; });' +
+          lockSrc19 +
+          ';return { getSheetLockState: getSheetLockState,' +
+          ' lockSheetTabs: lockSheetTabs, unlockSheetTabs: unlockSheetTabs,' +
+          ' probe: _lockProbeAllowsAppWrites, ensureSheetProtection: ensureSheetProtection,' +
+          ' schedule: _scheduleProtectionCheck, LOCK_CONFIG: LOCK_CONFIG,' +
+          ' ranges: myCollectionTechColRanges(), fieldIndex: PERSONAL_FIELD_INDEX,' +
+          ' BLOCKED_KEY: LOCK_BLOCKED_KEY, DELAY: PROTECTION_CHECK_DELAY_MS };'
+        )(fakeFetch, fakeConsole, fakeLS,
+          ('token' in o) ? o.token : 'tok', fakeTimeout, !!o.formatRunning);
+        api.st = st;
+        return api;
+      }
+
+      const isBatch19  = c => c.url.indexOf(':batchUpdate') > -1;
+      const isMeta19   = c => c.method === 'GET' && c.url.indexOf('/values/') === -1 && !isBatch19(c);
+      const isCellGet  = c => c.method === 'GET' && c.url.indexOf('/values/') > -1;
+      const hasAdd     = c => isBatch19(c) && (c.body.requests || []).some(r => r.addProtectedRange);
+      const hasDelete  = c => isBatch19(c) && (c.body.requests || []).some(r => r.deleteProtectedRange);
+
+      // Two protections already on the sheet: one current, one from the old
+      // 'boxcar-data-lock' era that a re-lock is supposed to clean up.
+      const seeded19 = [
+        { protectedRangeId: 11, description: 'railroster-structural-v1',
+          range: { sheetId: 0, startRowIndex: 0, endRowIndex: 2 }, warningOnly: true },
+        { protectedRangeId: 12, description: 'boxcar-data-lock',
+          range: { sheetId: 1, startRowIndex: 0, endRowIndex: 2 }, warningOnly: false },
+      ];
+
+      // ── 219a ──────────────────────────────────────────────────
+      section('219a. What the lock actually asks Google for');
+
+      const a19 = lockRig();
+      await a19.lockSheetTabs('SHEET');
+      const addCall19 = a19.st.calls.filter(hasAdd)[0];
+      const prs19 = addCall19
+        ? addCall19.body.requests.map(r => r.addProtectedRange.protectedRange) : [];
+
+      ok('protection is requested at all', prs19.length > 0);
+      ok('every range is warning-style — "are you sure?", not a hard block',
+         prs19.length > 0 && prs19.every(p => p.warningOnly === true),
+         JSON.stringify(prs19.map(p => p.warningOnly)));
+      ok('…and none of them names an editors list',
+         prs19.every(p => !p.editors),
+         'a hard protection with no editors list lets the file owner straight through, ' +
+         'and the owner is the collector — that is why the old lock protected nobody');
+      ok('every range is tagged so the next run can find and clear it',
+         prs19.length > 0 && prs19.every(p => p.description === a19.LOCK_CONFIG.description));
+
+      const headerPrs19 = prs19.filter(p => p.range.startRowIndex === 0 && p.range.endRowIndex === 2);
+      ok('the title + header band is locked on each data tab the sheet actually has',
+         headerPrs19.length === 3, 'got ' + headerPrs19.length);
+      ok('…and a tab the sheet does not have is skipped, not locked as sheet 0',
+         JSON.stringify(headerPrs19.map(p => p.range.sheetId).sort()) === '[0,1,2]',
+         'LOCK_CONFIG lists 12 header tabs; this sheet has 3 of them');
+      ok('…across the full width of each tab, not a remembered column count',
+         headerPrs19.some(p => p.range.sheetId === 0 && p.range.endColumnIndex === 40) &&
+         headerPrs19.some(p => p.range.sheetId === 2 && p.range.endColumnIndex === 28));
+
+      ok('the whole Dashboard is locked, with no row or column bounds',
+         prs19.some(p => p.range.sheetId === 3 &&
+                         p.range.startRowIndex === undefined &&
+                         p.range.startColumnIndex === undefined));
+
+      const techPrs19 = prs19.filter(p => p.range.sheetId === 0 && p.range.startRowIndex === 2);
+      ok('the technical columns are locked from row 3 down, below the header band',
+         techPrs19.length > 0 && techPrs19.length === a19.ranges.length,
+         techPrs19.length + ' vs ' + a19.ranges.length);
+      const covers19 = f => {
+        const i = a19.fieldIndex[f];
+        return typeof i === 'number' &&
+               techPrs19.some(p => i >= p.range.startColumnIndex && i < p.range.endColumnIndex);
+      };
+      ok('…covering Inventory ID, the identity the whole app keys off', covers19('inventoryId'));
+      ok('…and Group ID and Master Key', covers19('groupId') && covers19('masterKey'));
+      ok('…and leaving the collector\'s own columns alone',
+         !covers19('notes') && !covers19('condition') && !covers19('location'));
+
+      // ── 219b ──────────────────────────────────────────────────
+      section('219b. Nothing reports success it did not verify');
+
+      const refuse = pred => (c => pred(c) ? { status: 500 } : null);
+      const didThrow = async fn => { try { await fn(); return false; } catch (e) { return true; } };
+
+      const b1 = lockRig({ fail: refuse(isMeta19) });
+      ok('a refused read of the protection state raises, rather than answering "unprotected"',
+         await didThrow(() => b1.getSheetLockState('S')),
+         'answering false there is how a locked sheet gets treated as an unlocked one');
+
+      const b2 = lockRig({ fail: c => isMeta19(c)
+        ? { status: 200, body: { error: { message: 'quota' } } } : null });
+      ok('…and so does a 200 that carries an error inside it',
+         await didThrow(() => b2.getSheetLockState('S')));
+
+      const b3 = lockRig({ fail: refuse(isMeta19) });
+      ok('lockSheetTabs raises when it cannot read the sheet first',
+         await didThrow(() => b3.lockSheetTabs('S')));
+      ok('…and writes nothing at all', !b3.st.calls.some(isBatch19));
+
+      const b4 = lockRig({ protections: seeded19, fail: refuse(hasDelete) });
+      ok('a refused clear-out of the old protection stops the lock dead',
+         await didThrow(() => b4.lockSheetTabs('S')));
+      ok('…so a fresh set is never stacked on top of the set it failed to clear',
+         b4.st.protections.length === 2 && !b4.st.calls.some(hasAdd),
+         'refused remove + successful add is how a sheet accumulates duplicate protections');
+
+      const b5 = lockRig({ fail: refuse(hasAdd) });
+      ok('a refused apply raises', await didThrow(() => b5.lockSheetTabs('S')));
+      ok('…and does not log that protection was applied',
+         !b5.st.logs.some(l => /Applied/.test(l)),
+         'the old line said "Applied N protections" one statement after a write it never read');
+
+      const b6 = lockRig({ protections: seeded19, fail: refuse(isBatch19) });
+      ok('a refused unlock raises rather than reporting the tabs unlocked',
+         await didThrow(() => b6.unlockSheetTabs('S')));
+      ok('…and does not claim the tabs are unlocked',
+         !b6.st.logs.some(l => /unlocked/i.test(l)));
+
+      const b7 = lockRig();
+      await b7.lockSheetTabs('S');
+      ok('POSITIVE CONTROL: a healthy API does get the apply logged',
+         b7.st.logs.some(l => /Applied/.test(l)));
+      const b8 = lockRig({ protections: seeded19 });
+      await b8.unlockSheetTabs('S');
+      ok('POSITIVE CONTROL: …and a healthy unlock really clears the protections',
+         b8.st.protections.length === 0 && b8.st.logs.some(l => /unlocked/i.test(l)));
+      const b9 = lockRig({ protections: seeded19 });
+      await b9.lockSheetTabs('S');
+      ok('POSITIVE CONTROL: a re-lock clears the old set, legacy descriptions included',
+         !b9.st.protections.some(p => p.protectedRangeId === 11 || p.protectedRangeId === 12),
+         'the boxcar-data-lock era protection has to go too, or it doubles up');
+
+      // ── 219c ──────────────────────────────────────────────────
+      section('219c. The lock finally has a way to happen a first time');
+
+      const c1 = lockRig();
+      const r1 = await c1.ensureSheetProtection('S');
+      ok('an unprotected sheet gets protected',
+         r1.applied === true && r1.reason === 'verified', JSON.stringify(r1));
+      ok('…and the protection is genuinely on the sheet afterwards',
+         c1.st.protections.length > 0 &&
+         c1.st.protections.every(p => p.warningOnly === true));
+
+      const c2 = lockRig({ fail: refuse(isMeta19) });
+      const r2 = await c2.ensureSheetProtection('S');
+      ok('a sheet it could not read is left completely alone',
+         r2.applied === false && r2.reason === 'unknown state' && c2.st.calls.length === 1,
+         'a read we could not finish is not a sheet we know to be unprotected');
+
+      const c3 = lockRig({ protections: seeded19 });
+      const r3 = await c3.ensureSheetProtection('S');
+      ok('a sheet that is already protected is not protected again',
+         r3.applied === false && r3.reason === 'already protected' &&
+         !c3.st.calls.some(isBatch19));
+
+      const c4 = lockRig({ protections: seeded19 });
+      const r4 = await c4.ensureSheetProtection('S', { force: true });
+      ok('…unless the Preferences button forces it', r4.applied === true, JSON.stringify(r4));
+
+      const c5 = lockRig();
+      await c5.ensureSheetProtection('S');
+      const nCalls5 = c5.st.calls.length;
+      const r5 = await c5.ensureSheetProtection('S');
+      ok('it runs once a session, not on every load',
+         r5.reason === 'already checked' && c5.st.calls.length === nCalls5);
+      ok('…and the button still works after that',
+         (await c5.ensureSheetProtection('S', { force: true })).applied === true);
+
+      const c6 = lockRig({ formatRunning: true });
+      const r6 = await c6.ensureSheetProtection('S');
+      ok('it stands off while a full re-format is in flight',
+         r6.applied === false && r6.reason === 'formatting' && c6.st.calls.length === 0,
+         'protecting the very rows a format run is rewriting is a fight nobody wins');
+
+      const c7 = lockRig({ token: '' });
+      ok('signed out, it does nothing',
+         (await c7.ensureSheetProtection('S')).applied === false && c7.st.calls.length === 0);
+
+      const c8 = lockRig();
+      c8.schedule('S');
+      ok('the check is scheduled, not run in the middle of the load',
+         c8.st.timers.length === 1 && c8.st.calls.length === 0);
+      ok('…with real slack behind the load the collector is waiting on',
+         c8.st.timers[0].ms === c8.DELAY && c8.DELAY >= 5000, String(c8.DELAY));
+      const c9 = lockRig();
+      c9.schedule('');
+      ok('no sheet, nothing scheduled', c9.st.timers.length === 0);
+      c8.st.timers[0].fn();
+      await new Promise(r => setTimeout(r, 50));
+      ok('POSITIVE CONTROL: when the timer fires, the check really runs',
+         c8.st.calls.length > 0 && c8.st.protections.length > 0);
+
+      // ── 219d ──────────────────────────────────────────────────
+      section('219d. The lock proves itself before it is allowed to stay');
+
+      const d1 = lockRig();
+      await d1.ensureSheetProtection('S');
+      const put1 = d1.st.calls.filter(c => c.method === 'PUT')[0];
+      ok('a cell is written once the protection is on', !!put1);
+      ok('…the identical value that was just read out of it',
+         !!put1 && put1.body.values[0][0] === 'Item Number',
+         'the check has to change nothing — it is a no-op with a receipt');
+      ok('…taken literally, so Sheets cannot reinterpret it on the way in',
+         !!put1 && put1.url.indexOf('valueInputOption=RAW') > -1);
+      ok('…in a cell the lock actually covers',
+         !!put1 && put1.url.indexOf(
+           encodeURIComponent("'" + d1.LOCK_CONFIG.headerTabs[0] + "'!A2")) > -1,
+         put1 && put1.url);
+      ok('…and the read happens before the write, never the other way round',
+         d1.st.calls.findIndex(c => c.method === 'PUT') >
+         d1.st.calls.findIndex(isCellGet));
+
+      const d2 = lockRig({ fail: c => c.method === 'PUT' ? { status: 403 } : null });
+      const rd2 = await d2.ensureSheetProtection('S');
+      ok('if Google refuses the app\'s own write, the protection comes straight back off',
+         rd2.applied === false && rd2.reason === 'blocks app writes' &&
+         d2.st.protections.length === 0,
+         'protection that stops the app saving is worse than no protection');
+      ok('…and the sheet is remembered, so it is not re-tested every session',
+         d2.st.store[d2.BLOCKED_KEY] === '1');
+
+      const blocked19 = {}; blocked19[a19.BLOCKED_KEY] = '1';
+      const d3 = lockRig({ store: blocked19 });
+      const rd3 = await d3.ensureSheetProtection('S');
+      ok('a sheet already known to refuse is not poked again',
+         rd3.applied === false && rd3.reason === 'blocked before' && d3.st.calls.length === 0);
+      const rd3b = await d3.ensureSheetProtection('S', { force: true });
+      ok('…but the button overrides that, and success clears the memory',
+         rd3b.applied === true &&
+         !Object.prototype.hasOwnProperty.call(d3.st.store, d3.BLOCKED_KEY),
+         JSON.stringify(rd3b));
+
+      const d4 = lockRig({ headerCell: '' });
+      const rd4 = await d4.ensureSheetProtection('S');
+      ok('a header it could not read means no write is attempted at all',
+         !d4.st.calls.some(c => c.method === 'PUT'),
+         'writing our idea of a header we never actually read is how you erase a header');
+      ok('…and protection that proved nothing is removed rather than trusted',
+         rd4.applied === false && rd4.reason === 'unverified' && d4.st.protections.length === 0,
+         JSON.stringify(rd4));
+      ok('…without marking the sheet blocked, because nothing was proved either way',
+         !Object.prototype.hasOwnProperty.call(d4.st.store, d4.BLOCKED_KEY));
+
+      const d5 = lockRig({ fail: refuse(isCellGet) });
+      const rd5 = await d5.ensureSheetProtection('S');
+      ok('a refused read during the check counts as unproven, not as proven',
+         rd5.reason === 'unverified' && d5.st.protections.length === 0);
+
+      const d6 = lockRig({ fail: c => c.method === 'PUT'
+        ? { status: 200, body: { error: { message: 'range is protected' } } } : null });
+      const rd6 = await d6.ensureSheetProtection('S');
+      ok('a 200 with an error inside it is still a refusal',
+         rd6.reason === 'blocks app writes' && d6.st.protections.length === 0);
+
+      const d7 = lockRig({ fail: c => (c.method === 'PUT' || hasDelete(c)) ? { status: 500 } : null });
+      const rd7 = await d7.ensureSheetProtection('S');
+      ok('a failed check that also fails to clean up still refuses to claim success',
+         rd7.applied === false && rd7.reason === 'blocks app writes' &&
+         d7.st.warns.some(w => /could not be removed/i.test(w)),
+         JSON.stringify(rd7));
+
+      // ── 219e ──────────────────────────────────────────────────
+      section('219e. TRIPWIRE — the lock is wired to something');
+
+      const ad19 = rd19('app/app-data.js');
+      const pf19 = rd19('app/prefs.js');
+      const au19 = rd19('app/app-auth.js');
+
+      ok('TRIPWIRE: loadAllData schedules the check — in BOTH of its arms',
+         (ad19.match(/_scheduleProtectionCheck\(state\.personalSheetId\)/g) || []).length === 2,
+         'the finding was that nothing anywhere called it; one arm is half a fix');
+      ok('TRIPWIRE: Preferences has the button it has been claiming to have',
+         /Re-apply Protection/.test(pf19) &&
+         /onclick="_reapplySheetProtection\(\)"/.test(pf19) &&
+         /async function _reapplySheetProtection/.test(pf19));
+      ok('TRIPWIRE: …and it is guarded against a second click while it runs',
+         /_reapplyProtectionRunning/.test(pf19),
+         'project rule: any write path gets a double-execution guard');
+      ok('TRIPWIRE: …and it passes force, or the button does nothing on a protected sheet',
+         /ensureSheetProtection\(state\.personalSheetId, \{ force: true \}\)/.test(pf19));
+      ok('TRIPWIRE: …and it says plainly when protection was taken back off',
+         /blocks app writes/.test(pf19) && /would not let the app save/.test(pf19));
+      ok('TRIPWIRE: the app-auth note now describes code that exists',
+         /scheduled from loadAllData/.test(au19) &&
+         /"Protect key[\s\S]{0,8}columns" button in Preferences/.test(au19) &&
+         /Protect key columns/.test(pf19) &&
+         /_scheduleProtectionCheck/.test(ad19),
+         'that comment described an intention for twelve sessions; both halves must be real');
     })();
 
   })().then(function () {

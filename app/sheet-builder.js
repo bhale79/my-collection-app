@@ -28,6 +28,10 @@ const CONDUCTOR_URL = 'https://therailroster.com/conductor-list.png';   // v13: 
 // App header mascot — matches the app's top-left conductor exactly.
 const CONDUCTOR_HEADER_URL = 'https://therailroster.com/img/conductor-header.png';   // v13: own domain
 
+// True while a full format run is in flight. ensureSheetProtection waits rather
+// than adding protection to a sheet that is mid-rewrite.
+let _formatRunning = false;
+
 async function applySheetFormatting(sheetId, opts) {
   // Session 155 v7: opts.force=true bypasses the version check (used by
   // the "Rebuild Dashboard Tab" button so user can force a full re-apply
@@ -35,6 +39,7 @@ async function applySheetFormatting(sheetId, opts) {
   if (!sheetId || !accessToken) return;
   const _force = !!(opts && opts.force);
   let _wasLocked = false;  // accessible from catch handler
+  _formatRunning = true;   // v0.9.1269 (R10) — ensureSheetProtection stands off
   try {
     // ── 1. Fetch metadata ──────────────────────────────────────────
     const metaRes = await fetch(
@@ -65,8 +70,24 @@ async function applySheetFormatting(sheetId, opts) {
       }
     }
 
-    // Session 155: unlock structural protections before formatting,
-    // because warningOnly:false protection would otherwise block our writes.
+    // Session 155: unlock structural protections before the full re-format.
+    //
+    // v0.9.1269 (R10): the old note here said this was needed "because
+    // warningOnly:false protection would otherwise block our writes". It was
+    // wrong on both halves — a protection with no editors list never blocked
+    // the sheet's owner in the first place, and the protection is warning-based
+    // now anyway. What keeps this here is narrower: a full re-format rewrites
+    // the very rows and tabs that are protected, and doing that against a live
+    // protection is worth avoiding even when it is permitted.
+    //
+    // It deliberately stays BELOW the version check. The common path — sheet
+    // already current, only the Dashboard numbers refreshed — writes while
+    // protected, on purpose: ensureSheetProtection has already proved that
+    // works on this sheet, and unlocking on every sync would mean three extra
+    // Google calls and a window where a closed tab leaves the sheet unlocked.
+    //
+    // A failed read leaves _wasLocked false, which skips BOTH the unlock and
+    // the re-lock: protection we could not confirm is not protection we remove.
     try {
       const _lockState = await getSheetLockState(sheetId);
       _wasLocked = _lockState.locked;
@@ -523,6 +544,8 @@ async function applySheetFormatting(sheetId, opts) {
     if (_wasLocked && typeof lockSheetTabs === 'function') {
       try { await lockSheetTabs(sheetId); } catch(_) {}
     }
+  } finally {
+    _formatRunning = false;
   }
 }
 
@@ -769,26 +792,36 @@ async function _writeDashboardContent(sheetId) {
 // LOCK / UNLOCK SHEET PROTECTION
 // ══════════════════════════════════════════════════════════════════
 
+// Checked once per session by ensureSheetProtection, unless forced.
+let _protectionEnsuredThisSession = false;
+
+// Returns { locked: bool, protectionIds: [] }.
+//
+// v0.9.1269 (R10): this used to swallow every failure and answer
+// { locked: false } — so "this sheet has no protection" and "Google would not
+// tell me" were the same sentence. Three callers act on that answer, and two of
+// them would have acted wrongly: ensureSheetProtection would re-apply
+// protection the sheet already had, and unlockSheetTabs would decide there was
+// nothing to remove. It now RAISES on a failed read, the same rule R6 settled
+// for _driveItemFolderAnywhere, so `locked: false` genuinely means unprotected.
+// Callers that would rather do nothing than guess catch it and do nothing.
 async function getSheetLockState(sheetId) {
-  // Returns { locked: bool, protectionIds: [] }
-  try {
-    const res = await fetch(
-      `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}?fields=sheets(properties.title,protectedRanges)`,
-      { headers: { Authorization: `Bearer ${accessToken}` } }
-    );
-    const data = await res.json();
-    const ids = [];
-    (data.sheets || []).forEach(s => {
-      (s.protectedRanges || []).forEach(p => {
-        // Session 155: recognize current + legacy descriptions
-        if (p.description === 'railroster-structural-v1' ||
-            p.description === 'boxcar-data-lock') ids.push(p.protectedRangeId);
-      });
+  const res = await fetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}?fields=sheets(properties.title,protectedRanges)`,
+    { headers: { Authorization: `Bearer ${accessToken}` } }
+  );
+  if (!res.ok) throw new Error('Could not read sheet protection (' + res.status + ')');
+  const data = await res.json();
+  if (data.error) throw new Error('Could not read sheet protection: ' + (data.error.message || 'unknown'));
+  const ids = [];
+  (data.sheets || []).forEach(s => {
+    (s.protectedRanges || []).forEach(p => {
+      // Session 155: recognize current + legacy descriptions
+      if (p.description === 'railroster-structural-v1' ||
+          p.description === 'boxcar-data-lock') ids.push(p.protectedRangeId);
     });
-    return { locked: ids.length > 0, protectionIds: ids };
-  } catch(e) {
-    return { locked: false, protectionIds: [] };
-  }
+  });
+  return { locked: ids.length > 0, protectionIds: ids };
 }
 
 // Centralized config — every tweakable value lives here.
@@ -853,6 +886,25 @@ function myCollectionTechColRanges() {
   return ranges;
 }
 
+// One checked batchUpdate, so no caller in this file can quietly assume a write
+// landed. v0.9.1269 (R10): the four Sheets writes behind the lock were all
+// fire-and-forget, and one of them mattered a great deal — the remove step
+// below. A refused remove followed by a successful add is how a sheet ends up
+// carrying two, then three, then four copies of the same protection.
+async function _sheetsBatchUpdateChecked(sheetId, requests, what) {
+  const res = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}:batchUpdate`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ requests })
+  });
+  let json = null;
+  try { json = await res.json(); } catch (e) {}
+  if (!res.ok) throw new Error(what + ' failed (' + res.status + ')' +
+                               ((json && json.error && json.error.message) ? ': ' + json.error.message : ''));
+  if (json && json.error) throw new Error(what + ' failed: ' + (json.error.message || 'unknown'));
+  return json;
+}
+
 async function lockSheetTabs(sheetId) {
   if (!sheetId || !accessToken) return;
   try {
@@ -862,7 +914,10 @@ async function lockSheetTabs(sheetId) {
       `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}?fields=sheets(properties.sheetId,properties.title,properties.gridProperties,protectedRanges)`,
       { headers: { Authorization: `Bearer ${accessToken}` } }
     );
+    if (!stateRes.ok) throw new Error('Could not read the sheet before locking (' + stateRes.status + ')');
     const stateData = await stateRes.json();
+    if (stateData.error) throw new Error('Could not read the sheet before locking: ' +
+                                         (stateData.error.message || 'unknown'));
     const toRemove = [];
     (stateData.sheets || []).forEach(s => {
       (s.protectedRanges || []).forEach(p => {
@@ -871,11 +926,9 @@ async function lockSheetTabs(sheetId) {
     });
     if (toRemove.length > 0) {
       const removeReqs = toRemove.map(id => ({ deleteProtectedRange: { protectedRangeId: id } }));
-      await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}:batchUpdate`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ requests: removeReqs })
-      });
+      // Checked, and deliberately fatal: adding a fresh set on top of a set we
+      // failed to clear is the duplication bug, not a recovery from it.
+      await _sheetsBatchUpdateChecked(sheetId, removeReqs, 'Clearing the old sheet protection');
     }
 
     // 2. Build sheet-id lookup + col-count lookup from the already-fetched metadata
@@ -902,7 +955,14 @@ async function lockSheetTabs(sheetId) {
               endColumnIndex: tabCols[tabName],
             },
             description: LOCK_CONFIG.description,
-            warningOnly: false,
+            // v0.9.1269 (R10): was `false`. A hard protection names the people
+            // allowed through in an `editors` list; with no list, everyone with
+            // edit access gets through — and on a personal sheet that is the
+            // collector, who owns it. So the hard lock was a no-op for the only
+            // person it could ever apply to. Warning protection needs no list:
+            // it asks "are you sure?" of everybody, owner included, which is
+            // the whole point. Google ignores `editors` when this is true.
+            warningOnly: true,
           }
         }
       });
@@ -916,7 +976,7 @@ async function lockSheetTabs(sheetId) {
           protectedRange: {
             range: { sheetId: tabMap[tabName] },
             description: LOCK_CONFIG.description,
-            warningOnly: false,
+            warningOnly: true,   // see the note on the header lock above
           }
         }
       });
@@ -935,7 +995,7 @@ async function lockSheetTabs(sheetId) {
                 endColumnIndex: colRange.end,
               },
               description: LOCK_CONFIG.description,
-              warningOnly: false,
+              warningOnly: true,   // see the note on the header lock above
             }
           }
         });
@@ -947,11 +1007,9 @@ async function lockSheetTabs(sheetId) {
       return;
     }
 
-    await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}:batchUpdate`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ requests })
-    });
+    await _sheetsBatchUpdateChecked(sheetId, requests, 'Applying sheet protection');
+    // Only now. The old line said this unconditionally, one statement after a
+    // write it never looked at.
     console.log('[SheetLock] Applied', requests.length, 'structural protections');
   } catch(e) {
     console.warn('[SheetLock] Lock failed:', e.message);
@@ -965,14 +1023,145 @@ async function unlockSheetTabs(sheetId) {
     const { protectionIds } = await getSheetLockState(sheetId);
     if (!protectionIds.length) return;
     const requests = protectionIds.map(id => ({ deleteProtectedRange: { protectedRangeId: id } }));
-    await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}:batchUpdate`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ requests })
-    });
+    await _sheetsBatchUpdateChecked(sheetId, requests, 'Removing sheet protection');
     console.log('[SheetLock] Tabs unlocked');
   } catch(e) {
     console.warn('[SheetLock] Unlock failed:', e.message);
     throw e;
   }
+}
+
+// Remembers a sheet that would not let the app write while protected, so we
+// stop re-testing it every session.
+const LOCK_BLOCKED_KEY = 'lv_sheet_lock_blocked';
+
+// Has the protection we just applied left the app able to write?
+//
+// v0.9.1269 (R10). Google documents warning protection as "every user can edit
+// data in the protected range, except editing will prompt a warning asking the
+// user to confirm the edit" — and says nothing whatever about what happens when
+// the edit arrives through the API instead of through somebody's hands. That
+// same sentence is all four places carry it: the REST reference, and the Java,
+// Ruby and Apps Script docs. None of them answers the question.
+//
+// The question has a price. The app writes Inventory ID, Group ID and Master
+// Key on every save, and those are the columns being protected. Guess wrong
+// about a confirm dialog nobody is there to click and nothing saves, ever.
+//
+// So this does not guess. It writes one cell it has just protected and lets
+// Google answer. The cell is row 2 of the first header tab, and what goes in is
+// exactly what came out a moment earlier — a no-op with a receipt. RAW rather
+// than USER_ENTERED so nothing is reinterpreted on the way back in.
+//
+// true  — writes get through; the protection is safe to keep.
+// false — Google refused; the protection would break saving.
+// null  — no clean answer. Notably an empty read: writing our idea of a header
+//         we could not actually read is how you erase a header.
+async function _lockProbeAllowsAppWrites(sheetId) {
+  const tab = LOCK_CONFIG.headerTabs[0];
+  const a1 = `'${tab}'!A2`;
+  const base = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${encodeURIComponent(a1)}`;
+  let existing;
+  try {
+    const readRes = await fetch(base + '?valueRenderOption=UNFORMATTED_VALUE',
+                                { headers: { Authorization: `Bearer ${accessToken}` } });
+    if (!readRes.ok) return null;
+    const data = await readRes.json();
+    if (data.error) return null;
+    existing = ((data.values || [])[0] || [])[0];
+  } catch (e) { return null; }
+  if (existing === undefined || existing === null || existing === '') return null;
+  try {
+    const writeRes = await fetch(base + '?valueInputOption=RAW', {
+      method: 'PUT',
+      headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ range: a1, majorDimension: 'ROWS', values: [[existing]] })
+    });
+    if (!writeRes.ok) return false;
+    const wrote = await writeRes.json();
+    return !(wrote && wrote.error);
+  } catch (e) { return false; }
+}
+
+// The lock's missing front door.
+//
+// v0.9.1269 (R10): app-auth.js has carried a comment since Session 155 saying
+// protection is "applied once on sign-in / via the Re-apply Protection button
+// in Preferences". Neither of those existed. lockSheetTabs was only ever
+// reached to put back protection that applySheetFormatting had just taken off —
+// so a sheet that had never been protected could never become protected. The
+// feature had no way to happen a first time, and in twelve sessions of the code
+// claiming otherwise, nobody noticed, because a hard lock with no editors list
+// looks exactly like no lock at all to the person who owns the sheet.
+//
+// opts.force is the Preferences button: re-apply even when protection is
+// already in place, which is what you want after editing it by hand in Sheets.
+async function ensureSheetProtection(sheetId, opts) {
+  const force = !!(opts && opts.force);
+  if (!sheetId || !accessToken) return { applied: false, reason: 'no sheet' };
+  if (_formatRunning) return { applied: false, reason: 'formatting' };
+  if (_protectionEnsuredThisSession && !force) return { applied: false, reason: 'already checked' };
+  try {
+    if (!force && localStorage.getItem(LOCK_BLOCKED_KEY) === '1') {
+      return { applied: false, reason: 'blocked before' };
+    }
+  } catch (e) {}
+
+  let lockState;
+  try {
+    lockState = await getSheetLockState(sheetId);
+  } catch (e) {
+    // A read we could not finish is not a sheet we know to be unprotected.
+    // Doing nothing here is always safe; acting on a guess is not.
+    console.warn('[SheetLock] Could not check protection, leaving the sheet alone:',
+                 (e && e.message) || e);
+    return { applied: false, reason: 'unknown state' };
+  }
+  _protectionEnsuredThisSession = true;
+  if (lockState.locked && !force) return { applied: false, reason: 'already protected' };
+
+  try {
+    await lockSheetTabs(sheetId);
+  } catch (e) {
+    console.warn('[SheetLock] Could not apply protection:', (e && e.message) || e);
+    return { applied: false, reason: 'lock failed' };
+  }
+
+  const writable = await _lockProbeAllowsAppWrites(sheetId);
+  if (writable === true) {
+    try { localStorage.removeItem(LOCK_BLOCKED_KEY); } catch (e) {}
+    return { applied: true, reason: 'verified' };
+  }
+
+  // Google refused the app's own write, or would not give a clean answer.
+  // Protection that stops the app is worse than no protection at all, and
+  // unverified protection is the same bet wearing a different hat.
+  if (writable === false) { try { localStorage.setItem(LOCK_BLOCKED_KEY, '1'); } catch (e) {} }
+  try {
+    await unlockSheetTabs(sheetId);
+    console.warn('[SheetLock] Protection taken back off: ' + (writable === false
+      ? 'Google refused the app\'s own write while it was on.'
+      : 'could not confirm the app can still write.'));
+  } catch (e) {
+    console.warn('[SheetLock] Protection could not be removed after a failed check:',
+                 (e && e.message) || e);
+  }
+  return { applied: false, reason: writable === false ? 'blocks app writes' : 'unverified' };
+}
+
+// Called from both arms of loadAllData. Deliberately late and deliberately
+// quiet: nothing the collector is waiting for depends on it, and a sheet that
+// has just finished loading may still have a format run chasing it (setup calls
+// applySheetFormatting and loadAllData without awaiting either). The delay is
+// slack, not correctness — _formatRunning is what actually keeps the two apart.
+const PROTECTION_CHECK_DELAY_MS = 9000;
+function _scheduleProtectionCheck(sheetId) {
+  if (!sheetId) return;
+  setTimeout(function () {
+    try {
+      ensureSheetProtection(sheetId).catch(function (e) {
+        console.warn('[SheetLock] protection check:', (e && e.message) || e);
+      });
+    } catch (e) { console.warn('[SheetLock] protection check:', (e && e.message) || e); }
+  }, PROTECTION_CHECK_DELAY_MS);
 }

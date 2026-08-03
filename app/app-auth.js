@@ -634,8 +634,15 @@ function onTokenReceived(resp) {
 
 // Refresh token when page resumes from background (e.g. returning from camera on mobile)
 // (Session 155: removed auto-lock on visibilitychange/beforeunload.
-//  lockSheetTabs is now structural-only and applied once on sign-in / via the
-//  "Re-apply Protection" button in Preferences — no per-pause API noise.)
+//  Structural protection is applied once per session by ensureSheetProtection,
+//  scheduled from loadAllData, and can be re-applied from the "Protect key
+//  columns" button in Preferences — no per-pause API noise.
+//
+//  v0.9.1269 (R10): this note used to say the same thing in the present tense
+//  while neither the sign-in call nor the button existed. It was written in
+//  Session 155 describing an intention, and read for twelve sessions as a
+//  description of the code. Both now exist; that is the only reason this
+//  sentence is allowed to stand.)
 
 document.addEventListener('visibilitychange', function() {
   if (document.visibilityState === 'visible' && state.user) {
