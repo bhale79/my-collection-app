@@ -16649,6 +16649,54 @@ META_WRITES.length = 0; TOASTS.length = 0;
          !/border:1px solid var\(--border\);background:none;/.test(vt50));
     })();
 
+    // ═══════════════════════════════════════════════════════════
+    // §251. v0.9.1301 — share-sheet photos keep their shape.
+    //
+    //   Brad: "the 54 ballast car seems squished from left to right or is
+    //   it just me." It wasn't just him: every photo was stretched into a
+    //   fixed 80×80 square. The REAL rrShareFitBox runs here — a wide
+    //   photo must come out wider than tall, inside the box, centered.
+    // ═══════════════════════════════════════════════════════════
+    section('251. Share sheet: photos are contain-fitted, never squished');
+    (function () {
+      const p51 = require('path');
+      const sh51 = fs.readFileSync(p51.join(__dirname, '..', 'app', 'share.js'), 'utf8');
+      const f0 = sh51.indexOf('function rrShareFitBox(');
+      const f1 = sh51.indexOf('// ── Build PDF using jsPDF');
+      ok('251 the fit helper exists ahead of the builder', f0 > 0 && f1 > f0);
+      const fit = new Function(sh51.slice(f0, f1) + ' return rrShareFitBox;')();
+      // The 54 Ballast Tamper shot: wide landscape (roughly 4:3-and-wider).
+      const wide = fit(1600, 900, 80, 80);
+      ok('251 a wide photo comes out wider than tall — not a square',
+         wide.w > wide.h && Math.abs(wide.w / wide.h - 1600 / 900) < 0.001,
+         JSON.stringify(wide));
+      ok('251 a wide photo fills the box width and centers vertically',
+         Math.abs(wide.w - 80) < 0.001 && wide.dx === 0 && wide.dy > 0 &&
+         Math.abs(wide.dy * 2 + wide.h - 80) < 0.001);
+      const tall = fit(900, 1600, 80, 80);
+      ok('251 a tall photo fills the height and centers horizontally',
+         tall.h === 80 && tall.dy === 0 && tall.dx > 0 && tall.w < tall.h);
+      const sq = fit(500, 500, 80, 80);
+      ok('251 a square photo still fills the square exactly',
+         sq.w === 80 && sq.h === 80 && sq.dx === 0 && sq.dy === 0);
+      ok('251 an unmeasurable photo falls back to the box, never crashes',
+         (function () { var f = fit(0, 0, 80, 80); return f.w === 80 && f.h === 80 && f.dx === 0 && f.dy === 0; })());
+      ok('251 the drawn image never escapes the box',
+         wide.w <= 80 && wide.h <= 80 && tall.w <= 80 && tall.h <= 80);
+      // The builder actually USES the fit — for the main photo AND the
+      // extras strip — measuring real dimensions via jsPDF, with the old
+      // square as the only fallback.
+      ok('251 the main photo is measured then contain-fitted',
+         /_props = doc\.getImageProperties\(it\._photoDataUrl\)/.test(sh51) &&
+         /_fit = rrShareFitBox\(_props\.width, _props\.height, boxW, boxH\)/.test(sh51) &&
+         /doc\.addImage\(it\._photoDataUrl, 'JPEG', boxX \+ _fit\.dx, boxY \+ _fit\.dy, _fit\.w, _fit\.h, '', 'FAST'\)/.test(sh51));
+      ok('251 the extras thumbnails are contain-fitted the same way',
+         /_tFit = rrShareFitBox\(_tProps\.width, _tProps\.height, _tw, _tw\)/.test(sh51) &&
+         /doc\.addImage\(_extras\[_e\], 'JPEG', _tx \+ _tFit\.dx, _ty \+ _tFit\.dy, _tFit\.w, _tFit\.h, '', 'FAST'\)/.test(sh51));
+      ok('251 the text column is sized from the BOX, so layout never shifts',
+         /textW = contentW - boxW - 28;/.test(sh51));
+    })();
+
   })().then(function () {
     console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
     process.exit(fail ? 1 : 0);

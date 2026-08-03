@@ -367,6 +367,18 @@ function rrShareCardPlan(vals, fields, split, photoPlanned, contentW) {
 }
 if (typeof window !== 'undefined') { window.rrShareCardPlan = rrShareCardPlan; window.RR_SHARE_SKINS = RR_SHARE_SKINS; }
 
+// v0.9.1301: contain-fit a photo inside a box WITHOUT distorting it — the 54
+// Ballast Tamper looked squished because every photo was stretched into a
+// fixed square. Returns the draw size and the centering offsets inside the
+// box. Pure, so the suite can exercise the math directly.
+function rrShareFitBox(iw, ih, boxW, boxH) {
+  if (!(iw > 0) || !(ih > 0)) return { w: boxW, h: boxH, dx: 0, dy: 0 };
+  var s = Math.min(boxW / iw, boxH / ih);
+  var w = iw * s, h = ih * s;
+  return { w: w, h: h, dx: (boxW - w) / 2, dy: (boxH - h) / 2 };
+}
+if (typeof window !== 'undefined') { window.rrShareFitBox = rrShareFitBox; }
+
 // ── Build PDF using jsPDF ─────────────────────────────────────────
 async function _buildPDF(items, fields, message) {
   // jsPDF is loaded from CDN in index.html
@@ -450,14 +462,20 @@ async function _buildPDF(items, fields, message) {
     var textX = margin + 12;
     var textW = contentW - 24;
 
-    // Photo
+    // Photo — the 80×80 slot stays where it was (text layout unchanged), but
+    // the photo is contain-fitted inside it so nothing gets squished.
     if (fields.photo && it._photoDataUrl) {
       try {
-        var imgW = 80, imgH = 80;
-        var imgX = margin + contentW - imgW - 12;
-        var imgY = y + (cardH - imgH) / 2;
-        doc.addImage(it._photoDataUrl, 'JPEG', imgX, imgY, imgW, imgH, '', 'FAST');
-        textW = contentW - imgW - 28;
+        var boxW = 80, boxH = 80;
+        var boxX = margin + contentW - boxW - 12;
+        var boxY = y + (cardH - boxH) / 2;
+        var _fit = { w: boxW, h: boxH, dx: 0, dy: 0 };
+        try {
+          var _props = doc.getImageProperties(it._photoDataUrl);
+          _fit = rrShareFitBox(_props.width, _props.height, boxW, boxH);
+        } catch (eP) { /* can't measure — draw square as before */ }
+        doc.addImage(it._photoDataUrl, 'JPEG', boxX + _fit.dx, boxY + _fit.dy, _fit.w, _fit.h, '', 'FAST');
+        textW = contentW - boxW - 28;
       } catch(e) { /* image failed, skip */ }
     }
 
@@ -499,7 +517,14 @@ async function _buildPDF(items, fields, message) {
     if (_extras) {
       var _tw = 44, _tx = textX, _ty = y + cardH - _tw - 8;
       for (var _e = 0; _e < _extras.length; _e++) {
-        try { doc.addImage(_extras[_e], 'JPEG', _tx, _ty, _tw, _tw, '', 'FAST'); } catch (eT) {}
+        try {
+          var _tFit = { w: _tw, h: _tw, dx: 0, dy: 0 };
+          try {
+            var _tProps = doc.getImageProperties(_extras[_e]);
+            _tFit = rrShareFitBox(_tProps.width, _tProps.height, _tw, _tw);
+          } catch (eTP) {}
+          doc.addImage(_extras[_e], 'JPEG', _tx + _tFit.dx, _ty + _tFit.dy, _tFit.w, _tFit.h, '', 'FAST');
+        } catch (eT) {}
         _tx += _tw + 6;
       }
     }
