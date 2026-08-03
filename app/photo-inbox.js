@@ -2799,6 +2799,7 @@
     var cand = (dbg.cand || []).concat(dbg.shortCand || []);
     if (cand.length) out.push('Numbers seen: ' + cand.slice(0, 4).join(', '));
     if (dbg.joined) out.push('Pieced ' + dbg.joined + ' together from split digits');
+    if (dbg.directOverJoin) out.push('Kept the number actually read: ' + dbg.directOverJoin);
     if (dbg.viaMaker) out.push(dbg.viaMaker + ' was stamped next to the maker\u2019s name');
     if ((dbg.inEra || []).length) out.push('In that catalog: ' + dbg.inEra.slice(0, 3).join(', '));
     if ((dbg.offEra || []).length) out.push('In another maker\u2019s catalog: ' + dbg.offEra.slice(0, 3).join(', '));
@@ -2855,6 +2856,7 @@
             + 'In that catalog: ' + rrEsc((dbg.inEra || []).join(', ') || 'none') + '<br>'
             + 'In another catalog: ' + rrEsc((dbg.offEra || []).join(', ') || 'none')
             + (dbg.joined ? '<br>Recovered by joining split digits: ' + rrEsc(dbg.joined) : '')
+            + (dbg.directOverJoin ? '<br>Kept the number actually read: ' + rrEsc(dbg.directOverJoin) : '')
             + ((dbg.joinTried && dbg.joinTried.length)
                 ? '<br>Reassembled and tried: ' + rrEsc(dbg.joinTried.slice(0, 10).join(', ')) : '')
             + (dbg.viaDesc ? '<br>Matched on the words: ' + rrEsc(dbg.viaDesc) : '')
@@ -5009,7 +5011,10 @@
           if (d.length < 5) return false;
           return _oneOffVariants(d).some(function (v) {
             var hit = _tryNumber(v);
-            if (hit) { jHit = hit; dbg.oneOff = d + ' \u2192 ' + hit; return true; }
+            // v0.9.1305: a repair inherits its run's trustworthiness \u2014 a
+            // solid run with one digit corrected is still a number that was
+            // READ (5464475 \u2192 6464-475); only gluing makes it ASSEMBLED.
+            if (hit) { jHit = hit; _jSrc = _runSrc[d] || ''; dbg.oneOff = d + ' \u2192 ' + hit; return true; }
             return false;
           });
         });
@@ -5109,10 +5114,31 @@
       // the more specific of a joined reconstruction and a direct hit. Length
       // only ever breaks a tie between those last two — it is meaningless
       // between two unrelated numbers, which is how a road number won earlier.
+      //
+      // v0.9.1305 (Brad's New Haven 232 asserted as "1241 — Transformer",
+      // "i scanned a few times, its a 232"): longer-wins was built for a
+      // fragment and the number that CONTAINS it — 621 losing to 3562-1,
+      // the same digits on the same car. His 232 was read off the cab and
+      // confirmed in the stamped catalog, then lost to 1241, a number WELDED
+      // from scattered stray digits, purely for being one digit longer.
+      // Length is meaningless between unrelated numbers — the road-number
+      // lesson again. A joined reconstruction now outranks a direct catalog
+      // hit only when the direct number is a digit-fragment of it, or when
+      // the run was READ unbroken ('solid') rather than glued. "A number
+      // READ beats numbers GLUED" (v0.9.1105) — applied to the one corner
+      // that never got it.
+      var _fragOfJoin = !!(direct && jHit &&
+        String(jHit).replace(/\D/g, '').indexOf(String(direct).replace(/\D/g, '')) >= 0);
       var win;
       if (dbg.viaMaker && direct) win = direct;
-      else if (jHit && digitsOf(jHit) > digitsOf(direct)) win = jHit;
-      else win = direct || jHit;
+      else if (jHit && digitsOf(jHit) > digitsOf(direct)
+               && (!direct || _jSrc === 'solid' || _fragOfJoin)) win = jHit;
+      else {
+        win = direct || jHit;
+        if (direct && jHit && win === direct && digitsOf(jHit) > digitsOf(direct)) {
+          dbg.directOverJoin = String(direct) + ' (read) kept over ' + String(jHit) + ' (assembled)';
+        }
+      }
       // A number the maker named is trustworthy however little else was read —
       // "LIONEL 6176" is corroboration in itself.
       var solid = (evidence >= THIN) || !!dbg.viaMaker;

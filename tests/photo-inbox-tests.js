@@ -16940,6 +16940,60 @@ META_WRITES.length = 0; TOASTS.length = 0;
       ok('254 all seven call sites pass the row words', wired === 7, wired + ' of 7');
     })();
 
+    // ═══════════════════════════════════════════════════════════
+    // §255. v0.9.1305 — a number READ beats a number ASSEMBLED.
+    //
+    //   Brad's New Haven Alco, plainly numbered 232 on the cab, asserted
+    //   as "1241 — Transformer": "i scanned a few times, its a 232."
+    //   The reader read 232, confirmed it in the stamped catalog, then
+    //   let 1241 — welded from scattered stray digits — outrank it purely
+    //   for being one digit longer. The REAL _numberFromText runs here.
+    // ═══════════════════════════════════════════════════════════
+    section('255. A number READ beats a number ASSEMBLED (the 232)');
+    (function () {
+      global.state = { masterByItem: new Map(), personalData: {} };
+      global.window.state = global.state;
+      const CAT = {
+        '232':      { itemNum: '232', _era: 'pw', _tab: 'Lionel PW - Items', description: 'New Haven Alco Diesel' },
+        '1241':     { itemNum: '1241', _era: 'pw', _tab: 'Lionel PW - Items', description: 'Transformer' },
+        '621':      { itemNum: '621', _era: 'pw', _tab: 'Lionel PW - Items', description: 'Gondola' },
+        '3562-1':   { itemNum: '3562-1', _era: 'pw', _tab: 'Lionel PW - Items', description: 'ATSF Operating Barrel Car' },
+        '110':      { itemNum: '110', _era: 'pw', _tab: 'Lionel PW - Items', description: 'Bumper' },
+        '6464-475': { itemNum: '6464-475', _era: 'pw', _tab: 'Lionel PW - Items', description: 'Boston & Maine Boxcar' },
+      };
+      global.findMaster = (n) => CAT[String(n)] || null;
+      // ── Brad's case: 232 on the cab; strays weld into 1241 ──
+      const NH = 'NEW HAVEN 232\nBUILT BY\nRAILROAD CAR SHELL ORANGE\n7 32 - - 3 232 3 - - - 3 80 - 3 - 2 - 3 1 7 - 5 - 5-00 4 2 1 - - 4 1 2 4 1 3 - 4 -';
+      const fp = window.__NumFromText(NH, { era: 'pw', manufacturer: 'Lionel' });
+      ok('255 the 232 read off the cab beats the 1241 welded from strays',
+         fp && fp.num === '232', JSON.stringify(fp && { num: fp.num, dbg: fp.dbg && fp.dbg.directOverJoin }));
+      ok('255 and the card says exactly why',
+         fp && fp.dbg && /232 \(read\) kept over 1241 \(assembled\)/.test(fp.dbg.directOverJoin || ''),
+         JSON.stringify(fp && fp.dbg && fp.dbg.directOverJoin));
+      // ── the rule longer-wins was BUILT for still holds: a fragment loses
+      //    to the number that contains it (the ATSF gondola, v0.9.1072b) ──
+      const GON = 'ATSF LIONEL LINES CAPY 100000 35 621 LD LMT 128000 NEW 4 54';
+      const fp2 = window.__NumFromText(GON, { era: 'pw', manufacturer: 'Lionel' });
+      ok('255 621 still loses to 3562-1 — the fragment case is untouched',
+         fp2 && fp2.num === '3562-1', JSON.stringify(fp2 && fp2.num));
+      // ── a SOLID unbroken run with one digit corrected is still a number
+      //    that was READ (5464475 → 6464-475) — it keeps outranking a small
+      //    unrelated read; only GLUING makes a number "assembled" ──
+      // 110 deliberately NOT beside the maker's name — that adjacency triggers
+      // the older maker-named-beats-everything rule (correctly) and would test
+      // the wrong thing.
+      const BM = 'BOSTON AND MAINE ROAD\nBUMPER 110 ON CAR\n5464475 BLT 5 4';
+      const fp3 = window.__NumFromText(BM, { era: 'pw', manufacturer: 'Lionel' });
+      ok('255 a solid run, one digit repaired, still beats an unrelated 3-digit read',
+         fp3 && fp3.num === '6464-475', JSON.stringify(fp3 && { num: fp3.num, oneOff: fp3.dbg && fp3.dbg.oneOff }));
+      // ── source wiring: the repair inherits its run's trustworthiness ──
+      const pin55 = fs.readFileSync(require('path').join(__dirname, '..', 'app', 'photo-inbox.js'), 'utf8');
+      ok('255 the one-off repair carries its run\'s solid/glued source',
+         /jHit = hit; _jSrc = _runSrc\[d\] \|\| '';/.test(pin55));
+      ok('255 the win rule: glued needs fragment-of, solid keeps longer-wins',
+         /_jSrc === 'solid' \|\| _fragOfJoin/.test(pin55));
+    })();
+
   })().then(function () {
     console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
     process.exit(fail ? 1 : 0);
