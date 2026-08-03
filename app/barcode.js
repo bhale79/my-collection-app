@@ -1194,6 +1194,23 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         var meta = [_eraLabel(m._era), yr, m.roadName || '', m.itemType || ''].filter(Boolean).map(_bcEsc).join(' &middot; ');
         var desc = _bcEsc(String(m.description || '').substring(0, 70));
         var url  = _bcViewUrl(m);
+        // v0.9.1296 (request #19, Brad: variation + section tag). Five
+        // identical choices meant the picker rendered NONE of the columns
+        // that differ between same-number rows: the variation letter, the
+        // variation description, and which catalog section the row lives in
+        // (a box or paper sibling looked exactly like the item itself).
+        // The section tag derives from the row's _tab ("Lionel PW - Boxes"
+        // → BOX); the plain Items section wears no tag.
+        var _variBits = [];
+        if (m.variation) _variBits.push('Var. ' + m.variation);
+        if (m.varDetail) _variBits.push(String(m.varDetail).substring(0, 90));
+        var vari = _variBits.join(' — ');
+        var _secName = String(m._tab || '').split(' - ').pop().trim().toLowerCase();
+        var _SEC_TAGS = { items: '', boxes: 'BOX', paper: 'PAPER', catalogs: 'CATALOG', sets: 'SET',
+                          companions: 'COMPANION', 'instruction sheets': 'INSTR SHEET',
+                          'service tools': 'SERVICE TOOL' };
+        var _secTag = Object.prototype.hasOwnProperty.call(_SEC_TAGS, _secName)
+          ? _SEC_TAGS[_secName] : (_secName ? _secName.toUpperCase() : '');
         // v0.9.1152: an off-filter row is never presented as a normal choice.
         // It sits below a divider, dimmed and dashed, and says which era it came
         // from and that picking it switches era — so nothing outside the filter
@@ -1212,9 +1229,12 @@ window.eraSupportsBarcode = eraSupportsBarcode;
           + (_off ? 'background:#1a1a1a;border:1px dashed #555;opacity:0.82;' : 'background:#222;border:1px solid #444;')
           + 'cursor:pointer;margin-bottom:0.5rem">'
           + '<div style="flex:1;min-width:0">'
-          +   '<div style="font-weight:700;color:' + (_off ? '#c8b88a' : '#fff') + ';font-size:0.95rem">' + _bcEsc(m.itemNum) + '</div>'
+          +   '<div style="font-weight:700;color:' + (_off ? '#c8b88a' : '#fff') + ';font-size:0.95rem">' + _bcEsc(m.itemNum)
+          +     (_secTag ? ' <span style="display:inline-block;font-size:0.66rem;font-weight:700;letter-spacing:0.04em;padding:0.1rem 0.45rem;border-radius:999px;border:1px solid #3a6ea5;color:#9ecbff;vertical-align:1px">' + _bcEsc(_secTag) + '</span>' : '')
+          +   '</div>'
           +   (_off ? '<div style="font-size:0.72rem;color:#e8a020;margin-top:0.1rem">in ' + _bcEsc(m._offEraLabel || m._offEra) + ' &mdash; choosing this switches era</div>' : '')
           +   (meta ? '<div style="font-size:0.8rem;color:#aaa;margin-top:0.1rem">' + meta + '</div>' : '')
+          +   (vari ? '<div style="font-size:0.78rem;color:#ffd27d;margin-top:0.15rem">' + _bcEsc(vari) + '</div>' : '')
           +   (desc ? '<div style="font-size:0.78rem;color:#888;margin-top:0.1rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + desc + '</div>' : '')
           +   (m._descMatch ? '<div style="font-size:0.72rem;color:#e8a020;margin-top:0.1rem">matched in the description — possible reissue</div>' : '')
           +   (m._labelRead ? '<div style="font-size:0.72rem;color:#a6e87e;margin-top:0.1rem">read from the printed label — most likely match</div>' : '')

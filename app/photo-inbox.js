@@ -235,7 +235,11 @@
     if (!g || !g.files || !g.files.length) return [];
     var body = g.files.filter(function (f) {
       var m = (f && f._meta) || {};
-      return m.role !== 'together';
+      // v0.9.1296 (request #24): a 'detail' photo is more shots of the piece
+      // ABOVE it — it is never read as a member of its own, for the same
+      // reason 'together' is skipped: reading it would attach a number to a
+      // photo that must not become an item.
+      return m.role !== 'together' && m.role !== 'detail';
     });
     // A group of nothing BUT together shots still deserves an attempt rather
     // than becoming unreadable — fall back to everything.
@@ -457,7 +461,20 @@
     { id:'aa',     label:'AA — two A units',    roles:[['p','A unit, powered'],['d','A unit, dummy'],['together','Both together']] },
     { id:'ab',     label:'AB — A and B',        roles:[['p','A unit, powered'],['b','B unit'],['together','Both together']] },
     { id:'aba',    label:'ABA — A, B, A',       roles:[['p','A unit, powered'],['b','B unit'],['d','A unit, dummy'],['together','All three together']] },
-    { id:'set',    label:'Train set',           roles:[['member','A piece of the set'],['together','The whole set']] },   // v0.9.1279 (Brad): "change set to train set"
+    // v0.9.1296 (request #24, Brad): "we need to have the pull down menu say
+    // type of car… engine, tender, boxcar, flatcar, caboose" — and a car with
+    // a detail close-up is ONE piece, not two. The role list is now the car
+    // types, plus 'detail' which chains a photo to the piece ABOVE it (his
+    // pick, 2026-08-03: one dropdown entry, matches shooting order). The old
+    // 'member' id lives on as "Other piece" so every already-tagged photo
+    // still resolves. dflt keeps the default sensible: every photo starts as
+    // a piece, nothing is guessed as an engine.
+    { id:'set',    label:'Train set',           dflt:'member',
+      roles:[['engine','Engine'],['tender','Tender'],['boxcar','Boxcar'],['flatcar','Flatcar'],
+             ['gondola','Gondola'],['tank','Tank Car'],['hopper','Hopper'],['caboose','Caboose'],
+             ['passenger','Passenger Car'],['member','Other piece'],
+             ['detail','Detail — same piece as the photo above'],
+             ['together','The whole set']] },   // v0.9.1279 (Brad): "change set to train set"
     { id:'box',    label:'Item + its box',      roles:[['item','The item'],['box','The box']] },
   ];
   function _pinKind(id) {
@@ -475,6 +492,14 @@
   function _pinDefaultRoles(kindId, n) {
     var rs = _pinKind(kindId).roles, out = [];
     if (!rs.length) return out;
+    // v0.9.1296: a kind with a declared default (Train set) starts every
+    // photo there — with eleven car types in the list, positional guessing
+    // would call photo one an engine and photo two a tender every time.
+    var _k = _pinKind(kindId);
+    if (_k.dflt) {
+      for (var j = 0; j < n; j++) out.push(_k.dflt);
+      return out;
+    }
     // 'together' is only a real possibility for kinds that HAVE one, and only
     // when there are more photos than units. A six-piece set shot one piece at
     // a time is six members and no group shot — guessing otherwise would
@@ -556,6 +581,13 @@
       });
       card.querySelector('#pin-grp-cancel').onclick = function () { ov.remove(); };
       card.querySelector('#pin-grp-save').onclick = async function () {
+        // v0.9.1296 (request #24): a detail shot chains to the photo ABOVE
+        // it — the first photo has nothing above, so the mark is impossible
+        // and would strand the photo. Say so instead of saving it.
+        if (roles[0] === 'detail') {
+          showToast('The first photo can\'t be a detail — mark the piece itself first, then its detail below it', 4500, true);
+          return;
+        }
         this.disabled = true; this.textContent = 'Saving…';
         var gid = 'G' + Date.now().toString(36);
         var okAll = 0;
@@ -3801,14 +3833,30 @@
   // with its members pre-entered. The identify step's suggestion engine
   // (suggestSets) runs off _enteredNums on render, so with six member reads
   // the right set usually appears immediately with a "This is mine" button.
-  window._pinAddSetFromGroup = function () {
-    var g = _rvGroups && _rvGroups[0];
-    if (!g) return;
-    var ids0 = _ids(), nums = [], memberPhotos = {}, numFiles = {};
-    _pinFilesToRead(g).forEach(function (f) {
+  // ══ v0.9.1296 (request #24): photos → set members, as ONE pure walk. ═════
+  // Files are walked in display order. A 'together' shot belongs to nobody.
+  // A 'detail' shot belongs to the PIECE ABOVE it — it contributes its
+  // photos, never its own number, so a car with a close-up is one member
+  // with two pictures instead of two members. A detail whose piece above
+  // never produced a number stays in the inbox with that piece (attaching it
+  // to the member before THAT would file it on the wrong car).
+  function _pinSetMemberMap(files, ids0) {
+    var nums = [], memberPhotos = {}, numFiles = {};
+    var lastNum = '', lastFailed = false;
+    (files || []).forEach(function (f) {
+      var meta = (f && f._meta) || {};
+      if (meta.role === 'together') return;
+      if (meta.role === 'detail') {
+        if (lastNum && !lastFailed) {
+          (memberPhotos[lastNum] = memberPhotos[lastNum] || []).push(f.id);
+          (numFiles[lastNum] = numFiles[lastNum] || []).push({ id: f.id, name: f.name });
+        }
+        return;
+      }
       var s0 = f && ids0[f.id];
       var n0 = (s0 && s0.num) ? String(s0.num).trim() : '';
-      if (!n0) return;
+      if (!n0) { lastFailed = true; return; }
+      lastFailed = false; lastNum = n0;
       if (nums.indexOf(n0) < 0) nums.push(n0);
       // v0.9.1117 (Brad: "its not putting the pictures in their rhs slot") —
       // each member's own inbox photo rides into that item's photo slot.
@@ -3819,6 +3867,18 @@
       // v0.9.1118: every photo that read this member's number files with it.
       (numFiles[n0] = numFiles[n0] || []).push({ id: f.id, name: f.name });
     });
+    return { nums: nums, memberPhotos: memberPhotos, numFiles: numFiles };
+  }
+  if (typeof window !== 'undefined') window._pinSetMemberMap = _pinSetMemberMap;
+
+  window._pinAddSetFromGroup = function () {
+    var g = _rvGroups && _rvGroups[0];
+    if (!g) return;
+    var ids0 = _ids();
+    // The walk sees the FULL ordered file list (not _pinFilesToRead, which
+    // strips the detail shots this walk exists to attach).
+    var _mm = _pinSetMemberMap(g.files, ids0);
+    var nums = _mm.nums, memberPhotos = _mm.memberPhotos, numFiles = _mm.numFiles;
     if (nums.length < 2) { showToast('Fewer than two member numbers are read \u2014 re-read or type them first', 3500, true); return; }
     if (typeof _buildWizardModal !== 'function' || typeof getSteps !== 'function' || typeof renderWizardStep !== 'function') {
       showToast('The add wizard is not available on this page', 3000, true); return;

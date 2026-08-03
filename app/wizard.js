@@ -691,6 +691,15 @@ function _buildWizardModal() {
       +     '<textarea id="identify-manual-input" rows="2" placeholder="e.g. 736 or paste Lens response (Enter=submit)" onkeydown="if(event.key===\'Enter\' && !event.shiftKey){event.preventDefault();useIdentifiedItem();}" style="flex:1;padding:0.5rem 0.65rem;border-radius:7px;background:var(--surface2);border:1.5px solid var(--border);color:var(--text);font-family:var(--font-mono);font-size:0.9rem;box-sizing:border-box;resize:vertical;min-height:2.4rem;line-height:1.3"></textarea>'
       +     '<button onclick="useIdentifiedItem()" style="padding:0 0.9rem;border-radius:7px;background:var(--surface2);border:1.5px solid var(--gold);color:var(--gold);font-family:var(--font-head);font-size:0.85rem;letter-spacing:0.03em;cursor:pointer;white-space:nowrap">Enter \u2192</button>'
       +   '</div>'
+      // v0.9.1296 (request #28, second half): the visible landing spot for the
+      // Lens paste. Every paste, clipboard read and screenshot read fills this
+      // box (they all pass through _identifyProcessText), so what the answer
+      // was built FROM is always on screen \u2014 especially on a hedged answer,
+      // which used to swallow the pasted text entirely.
+      +   '<div id="id-paste-echo" style="display:none;margin-top:0.5rem">'
+      +     '<div style="font-size:0.7rem;color:var(--text-dim);letter-spacing:0.06em;text-transform:uppercase;font-weight:600;margin-bottom:0.25rem">What you pasted</div>'
+      +     '<div id="id-paste-echo-text" style="max-height:96px;overflow-y:auto;background:var(--surface2);border:1px solid var(--border);border-radius:7px;padding:0.45rem 0.6rem;font-size:0.75rem;color:var(--text-mid);white-space:pre-wrap;word-break:break-word;line-height:1.45"></div>'
+      +   '</div>'
       + '</div>';
     document.body.appendChild(_identEl);
     // Wire interactive bits AFTER DOM insert (handlers live in wizard-photos.js).

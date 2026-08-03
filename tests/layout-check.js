@@ -1221,6 +1221,121 @@ ${exHtml}
       } catch (e) {}
     }
 
+    // ══════════════════════════════════════════════════════════════════
+    // The Lens paste echo, MEASURED (v0.9.1296, request #28)
+    //
+    // The echo markup is EVALUATED out of wizard.js's real string concat
+    // and filled by the REAL _identifyShowPasteEcho with a page-length
+    // paste — the render proves the box stays capped (scrolls instead of
+    // swallowing the modal) and shows text.
+    // ══════════════════════════════════════════════════════════════════
+    {
+      const wizSrc = fs.readFileSync(path.join(APP, 'wizard.js'), 'utf8');
+      const m0 = wizSrc.indexOf("'<div id=\"id-paste-echo\"");
+      const m1 = wizSrc.indexOf("+ '</div>';", m0);
+      ok('paste echo: the markup slice was found', m0 > 0 && m1 > m0);
+      // The slice is a JS string-concat expression missing its leading value;
+      // evaluate it as ('' + <slice minus trailing "+ '</div>';">).
+      const expr = "'' + " + wizSrc.slice(m0, m1).replace(/^\s*\+/, '');
+      const echoHtml = new Function('return (' + expr + ');')();
+      const wpSrc = fs.readFileSync(path.join(APP, 'wizard-photos.js'), 'utf8');
+      const e0 = wpSrc.indexOf('function _identifyShowPasteEcho(txt) {');
+      const e1 = wpSrc.indexOf('\n}', e0) + 2;
+      const echoPage = `<!doctype html><html><head><meta charset="utf-8">
+<link rel="stylesheet" href="file://${APP}/app.css">
+<style>html,body{margin:0}#modal{width:420px;padding:14px;box-sizing:border-box;background:var(--surface);border:1px solid var(--border);border-radius:12px}</style>
+</head><body><div id="modal">${echoHtml}</div>
+<script>${wpSrc.slice(e0, e1)}
+_identifyShowPasteEcho(Array(40).join('The Lionel 2331 Virginian Train Master is an O gauge diesel locomotive produced 1955-1958. '));
+</script></body></html>`;
+      const fp = path.join(dir, 'paste-echo.html');
+      fs.writeFileSync(fp, echoPage);
+      const pg = await browser.newPage({ viewport: { width: 460, height: 260 } });
+      await pg.goto('file://' + fp);
+      await pg.waitForTimeout(100);
+      const m = await pg.evaluate(function () {
+        const box = document.getElementById('id-paste-echo');
+        const body = document.getElementById('id-paste-echo-text');
+        return {
+          visible: !!(box && box.offsetHeight > 0),
+          bodyH: body ? body.getBoundingClientRect().height : 0,
+          scrolls: body ? body.scrollHeight > body.clientHeight : false,
+          label: box ? /What you pasted/i.test(box.textContent) : false,
+        };
+      });
+      const shot = await pg.screenshot({ type: 'png', fullPage: true });
+      await pg.close();
+      ok('paste echo: the box renders, labeled', m.visible && m.label, JSON.stringify(m));
+      // max-height:96px is content-box: + 0.9rem padding + 2px border ≈ 112px.
+      ok('paste echo: a page-length paste is capped and scrolls',
+         m.bodyH > 0 && m.bodyH <= 120 && m.scrolls, JSON.stringify(m));
+      try {
+        fs.mkdirSync(path.join(__dirname, '..', '_shots'), { recursive: true });
+        fs.writeFileSync(path.join(__dirname, '..', '_shots', 'paste-echo.png'), shot);
+      } catch (e) {}
+    }
+
+    // ══════════════════════════════════════════════════════════════════
+    // The candidate picker, MEASURED (v0.9.1296, request #19)
+    //
+    // The REAL showCandidatePicker renders five same-number rows that
+    // differ only in variation and section — the exact case Brad reported
+    // as "five identical choices". The render proves each row now shows
+    // something the others don't.
+    // ══════════════════════════════════════════════════════════════════
+    {
+      const bcSrc = fs.readFileSync(path.join(APP, 'barcode.js'), 'utf8');
+      const s0 = bcSrc.indexOf('function showCandidatePicker(candidates, scanResult) {');
+      const s1 = bcSrc.indexOf('function _confirmCameraUse', s0) > 0
+        ? bcSrc.indexOf('function _confirmCameraUse', s0)
+        : bcSrc.indexOf('\n  // Expose globally', s0);
+      ok('picker: the real source slice was found', s0 > 0 && s1 > s0);
+      const CANDS = JSON.stringify([
+        { itemNum: '6464-500', variation: 'A', varDetail: 'glossy yellow, black-outlined herald', description: 'Timken Boxcar', itemType: 'Boxcar', roadName: 'Timken', yearProd: '1954', _era: 'pw', _tab: 'Lionel PW - Items' },
+        { itemNum: '6464-500', variation: 'B', varDetail: 'matte yellow, solid herald', description: 'Timken Boxcar', itemType: 'Boxcar', roadName: 'Timken', yearProd: '1954', _era: 'pw', _tab: 'Lionel PW - Items' },
+        { itemNum: '6464-500', variation: 'C', varDetail: 'Hagerstown reissue', description: 'Timken Boxcar', itemType: 'Boxcar', roadName: 'Timken', yearProd: '1965', _era: 'pw', _tab: 'Lionel PW - Items' },
+        { itemNum: '6464-500', description: 'Original box', _era: 'pw', _tab: 'Lionel PW - Boxes' },
+        { itemNum: '6464-500', description: 'Inspection slip', _era: 'pw', _tab: 'Lionel PW - Paper' },
+      ]);
+      const pickPage = `<!doctype html><html><head><meta charset="utf-8">
+<style>html,body{margin:0;height:100%;background:#111}</style></head><body>
+<script>
+  function _eraLabel() { return 'Lionel Postwar'; }
+  function _bcEsc(s) { return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+  function _bcViewUrl() { return '#'; }
+</script>
+<script>${bcSrc.slice(s0, s1)}
+showCandidatePicker(${CANDS}, { itemNum: '6464-500' });
+</script></body></html>`;
+      const fp = path.join(dir, 'picker.html');
+      fs.writeFileSync(fp, pickPage);
+      const pg = await browser.newPage({ viewport: { width: 560, height: 720 } });
+      await pg.goto('file://' + fp);
+      await pg.waitForTimeout(150);
+      const m = await pg.evaluate(function () {
+        const rows = Array.prototype.slice.call(document.querySelectorAll('.bc-cand'));
+        const texts = rows.map(function (r) { return r.textContent.replace(/\s+/g, ' ').trim(); });
+        return {
+          count: rows.length,
+          distinct: new Set(texts).size,
+          hasVarA: texts.some(function (t) { return /Var\. A — glossy yellow/.test(t); }),
+          tags: rows.map(function (r) { const s = r.querySelector('span'); return s ? s.textContent : ''; }),
+        };
+      });
+      const shot = await pg.screenshot({ type: 'png', fullPage: true });
+      await pg.close();
+      ok('picker: five rows render and every one now reads differently',
+         m.count === 5 && m.distinct === 5, JSON.stringify(m));
+      ok('picker: the variation line is on the row',
+         m.hasVarA, JSON.stringify(m));
+      ok('picker: box and paper siblings wear their tags',
+         m.tags.indexOf('BOX') >= 0 && m.tags.indexOf('PAPER') >= 0, JSON.stringify(m.tags));
+      try {
+        fs.mkdirSync(path.join(__dirname, '..', '_shots'), { recursive: true });
+        fs.writeFileSync(path.join(__dirname, '..', '_shots', 'picker-real.png'), shot);
+      } catch (e) {}
+    }
+
   } finally {
     await browser.close();
     try { fs.rmSync(dir, { recursive: true, force: true }); } catch (e) {}

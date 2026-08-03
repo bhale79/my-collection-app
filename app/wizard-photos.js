@@ -258,6 +258,8 @@ function openIdentify(context) {
     var inp = document.getElementById('identify-manual-input');
     var _touch = !!window.IS_MOBILE_UA;   // v0.9.699: phone-ness, not touch
     if (inp) { inp.value = ''; if (!_touch) { inp.focus(); inp.select(); } }
+    // v0.9.1296: a fresh identify starts with an empty paste echo.
+    if (typeof _identifyShowPasteEcho === 'function') _identifyShowPasteEcho('');
     var panel = document.getElementById('identify-panel');
     if (panel && panel.parentElement) panel.parentElement.scrollTop = 0;
     if (panel) panel.scrollTop = 0;
@@ -327,9 +329,25 @@ function _identifySanitize(s) {
     .replace(/[\u200B-\u200F\u2060\uFEFF\u00AD\uFFFC\uFFF9-\uFFFB]/g, '')
     .replace(/\u00A0/g, ' ');
 }
+// v0.9.1296 (request #28, second half): the pasted text gets a visible home.
+// Called from the ONE processor below, so the Ctrl+V path, the \uD83D\uDCCB button,
+// the return-from-Lens auto-read and the screenshot reader all land here \u2014
+// the user can always see exactly what text the answer was built from.
+// Empty text hides the box (openIdentify clears it so item A's paste can
+// never sit under item B's search).
+function _identifyShowPasteEcho(txt) {
+  var box = document.getElementById('id-paste-echo');
+  var body = document.getElementById('id-paste-echo-text');
+  if (!box || !body) return;
+  txt = String(txt || '').trim();
+  if (!txt) { box.style.display = 'none'; body.textContent = ''; return; }
+  body.textContent = txt.length > 1200 ? (txt.slice(0, 1200) + ' \u2026') : txt;
+  box.style.display = '';
+}
 function _identifyProcessText(txt) {
   txt = _identifySanitize(txt).trim();
   if (!txt) return 'none';
+  _identifyShowPasteEcho(txt);
   // Run the smart metadata extractor as the single source of truth.
   // It handles hedge detection so we don't grab a cab# disguised as item#.
   var meta = extractIdentifyMetadata(txt);

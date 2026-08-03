@@ -16218,6 +16218,201 @@ META_WRITES.length = 0; TOASTS.length = 0;
          /\['manufacturer','scale','era','section'\]/.test(br43));
     })();
 
+    // ═══════════════════════════════════════════════════════════
+    // §244. v0.9.1296 — the Lens paste has a visible landing spot
+    //        (request #28, second half).
+    //
+    //   v0.9.1195 stopped the wrong answers; this shows the user WHAT
+    //   text the answer was built from. The worst case was a hedged
+    //   answer: the paste was eaten (preventDefault) and the text
+    //   appeared NOWHERE. The echo fills from the ONE processor
+    //   (_identifyProcessText), so Ctrl+V, the 📋 button, the
+    //   return-from-Lens auto-read and the screenshot reader all land in
+    //   the same visible box.
+    // ═══════════════════════════════════════════════════════════
+    section('244. The Lens paste lands somewhere visible');
+    (function () {
+      const p44 = require('path');
+      const wiz44 = fs.readFileSync(p44.join(__dirname, '..', 'app', 'wizard.js'), 'utf8');
+      const wp44 = fs.readFileSync(p44.join(__dirname, '..', 'app', 'wizard-photos.js'), 'utf8');
+
+      // ── the box exists in the modal, and return-mode never hides it ───
+      ok('244 the echo box is in the identify modal markup',
+         wiz44.indexOf('id="id-paste-echo"') > 0 && wiz44.indexOf('id="id-paste-echo-text"') > 0 &&
+         /What you pasted/.test(wiz44));
+      ok('244 …and the return-from-Lens slimming never hides it',
+         (function () {
+           const h = wp44.indexOf("_hide = _hide.concat(['id-paste-btn'");
+           return h > 0 && wp44.slice(h, wp44.indexOf(']', h)).indexOf('id-paste-echo') < 0;
+         })(), 'the echo is in the return-mode hide list — invisible exactly when it matters');
+
+      // ── every processed text fills it, BEFORE any branch can return ───
+      {
+        const f0 = wp44.indexOf('function _identifyProcessText(txt) {');
+        const call = wp44.indexOf('_identifyShowPasteEcho(txt);', f0);
+        const branch = wp44.indexOf('extractIdentifyMetadata(txt)', f0);
+        ok('244 the ONE processor echoes the text before extracting from it',
+           f0 > 0 && call > f0 && branch > call,
+           'the echo call must sit between the empty-check and the extractor, so hedge/none/applied all show it');
+      }
+      ok('244 a fresh identify clears the previous paste',
+         /_identifyShowPasteEcho\('' *\)/.test(wp44) &&
+         wp44.indexOf("_identifyShowPasteEcho('')") > wp44.indexOf('function openIdentify(context) {'));
+
+      // ── run the real echo function against a stub document ────────────
+      {
+        const e0 = wp44.indexOf('function _identifyShowPasteEcho(txt) {');
+        const e1 = wp44.indexOf('\n}', e0) + 2;
+        const els = {
+          'id-paste-echo': { style: { display: 'none' } },
+          'id-paste-echo-text': { style: {}, textContent: '' },
+        };
+        const doc = { getElementById: function (id) { return els[id] || null; } };
+        const show = new Function('document', wp44.slice(e0, e1) + ' return _identifyShowPasteEcho;')(doc);
+        show('  the text Google gave back  ');
+        ok('244 text shows, trimmed',
+           els['id-paste-echo'].style.display === '' &&
+           els['id-paste-echo-text'].textContent === 'the text Google gave back');
+        show('x'.repeat(3000));
+        ok('244 a whole pasted page is capped, not rendered in full',
+           els['id-paste-echo-text'].textContent.length === 1200 + 2 &&
+           /…$/.test(els['id-paste-echo-text'].textContent),
+           String(els['id-paste-echo-text'].textContent.length));
+        show('');
+        ok('244 empty text hides the box and clears it',
+           els['id-paste-echo'].style.display === 'none' &&
+           els['id-paste-echo-text'].textContent === '');
+      }
+    })();
+
+    // ═══════════════════════════════════════════════════════════
+    // §245. v0.9.1296 — the picker shows the columns that differ
+    //        (request #19, Brad's pick: variation + section tag).
+    //
+    //   Five identical choices meant the "Which one is yours?" picker
+    //   rendered none of the columns that differ between same-number
+    //   rows: the variation letter, the variation description, and which
+    //   catalog section the row lives in — a box or paper sibling looked
+    //   exactly like the item itself. The tag DERIVES from the row's
+    //   _tab suffix, so a new master section gets a tag without a code
+    //   change; the plain Items section wears no tag.
+    // ═══════════════════════════════════════════════════════════
+    section('245. The picker shows what differs — variation and section');
+    (function () {
+      const p45 = require('path');
+      const bc45 = fs.readFileSync(p45.join(__dirname, '..', 'app', 'barcode.js'), 'utf8');
+
+      // ── run the real derivation against real tab names ────────────────
+      {
+        const d0 = bc45.indexOf('var _variBits = [];');
+        const d1 = bc45.indexOf('var _off =', d0);
+        ok('245 the derivation sits inside the row builder', d0 > 0 && d1 > d0);
+        const derive = new Function('m', bc45.slice(d0, d1) + ' return { vari: vari, tag: _secTag };');
+        ok('245 a Boxes-tab row wears BOX, an Items-tab row wears nothing',
+           derive({ _tab: 'Lionel PW - Boxes' }).tag === 'BOX' &&
+           derive({ _tab: 'Lionel PW - Items' }).tag === '' &&
+           derive({ _tab: '' }).tag === '');
+        ok('245 the multi-word sections read as labels, not shouting plurals',
+           derive({ _tab: 'Lionel PW - Instruction Sheets' }).tag === 'INSTR SHEET' &&
+           derive({ _tab: 'Lionel PW - Service Tools' }).tag === 'SERVICE TOOL' &&
+           derive({ _tab: 'Lionel PW - Paper' }).tag === 'PAPER');
+        ok('245 an unmapped future section still gets a tag, derived not dropped',
+           derive({ _tab: 'Menards O - Widgets' }).tag === 'WIDGETS');
+        ok('245 the variation line carries letter and description, capped',
+           derive({ variation: 'B', varDetail: 'x'.repeat(200) }).vari === 'Var. B — ' + 'x'.repeat(90) &&
+           derive({ variation: 'B' }).vari === 'Var. B' &&
+           derive({}).vari === '');
+      }
+
+      // ── and the markup actually renders them ──────────────────────────
+      ok('245 the variation line renders in gold when present',
+         /\(vari \? '<div style="font-size:0\.78rem;color:#ffd27d/.test(bc45));
+      ok('245 the section tag renders as a pill beside the number',
+         /_secTag \? ' <span style="display:inline-block;font-size:0\.66rem/.test(bc45) &&
+         bc45.indexOf('_bcEsc(_secTag)') > 0);
+    })();
+
+    // ═══════════════════════════════════════════════════════════
+    // §246. v0.9.1296 — a car with a detail shot is ONE piece of the
+    //        set, and the dropdown says what the piece is (request #24).
+    //
+    //   Brad: "a car had 2 pictures, one of the car and one was a
+    //   detail. the set needs to treat both pictues as one item in a
+    //   set. also, we need to have the pull down menu say type of car…
+    //   engine, tender, boxcar, flatcar, caboose"
+    //
+    //   His chosen design (2026-08-03): one more dropdown entry —
+    //   "Detail — same piece as the photo above" — chaining a photo to
+    //   the piece above it. The photos→members walk is a PURE function
+    //   (_pinSetMemberMap) and RUNS here, because the failure that
+    //   matters is silent: a detail becoming its own member, or filing
+    //   onto the wrong car.
+    // ═══════════════════════════════════════════════════════════
+    section('246. Set pieces: car types in the dropdown, details chain up');
+    (function () {
+      const p46 = require('path');
+      const pin46 = fs.readFileSync(p46.join(__dirname, '..', 'app', 'photo-inbox.js'), 'utf8');
+
+      // ── the kind table: car types present, back-compat kept ───────────
+      const k0 = pin46.indexOf('var _PIN_KINDS = [');
+      const k1 = pin46.indexOf('function _pinKind(id)');
+      const kindsRig = new Function(pin46.slice(k0, pin46.indexOf('\n  }', pin46.indexOf('function _pinDefaultRoles')) + 4)
+        + ' return { kinds: _PIN_KINDS, kind: _pinKind, roleLabel: _pinRoleLabel, defaults: _pinDefaultRoles };')();
+      ok('246 the source region was found', k0 > 0 && k1 > k0);
+      {
+        const setRoles = kindsRig.kind('set').roles.map(function (r) { return r[0]; });
+        ok('246 the Train set dropdown lists the car types Brad named',
+           ['engine', 'tender', 'boxcar', 'flatcar', 'caboose'].every(function (t) { return setRoles.indexOf(t) >= 0; }),
+           JSON.stringify(setRoles));
+        ok('246 …plus the detail entry and the whole-set shot',
+           setRoles.indexOf('detail') >= 0 && setRoles.indexOf('together') >= 0);
+        ok('246 an already-tagged photo (old role \'member\') still resolves',
+           kindsRig.roleLabel('set', 'member') === 'Other piece');
+        ok('246 defaults never guess a car type — every photo starts as a piece',
+           JSON.stringify(kindsRig.defaults('set', 4)) === JSON.stringify(['member', 'member', 'member', 'member']));
+        ok('246 …while ABA defaults keep their positional guess (unchanged)',
+           JSON.stringify(kindsRig.defaults('aba', 4)) === JSON.stringify(['p', 'b', 'd', 'together']));
+      }
+
+      // ── run the real photos→members walk ──────────────────────────────
+      {
+        const m0 = pin46.indexOf('function _pinSetMemberMap(files, ids0) {');
+        const m1 = pin46.indexOf('if (typeof window !== \'undefined\') window._pinSetMemberMap');
+        ok('246 the walk is a pure function', m0 > 0 && m1 > m0);
+        const map = new Function(pin46.slice(m0, m1) + ' return _pinSetMemberMap;')();
+        const F = function (id, role, name) { return { id: id, name: name || (id + '.jpg'), _meta: { role: role || 'member' } }; };
+        const IDS = { a: { num: '2328' }, b: { num: '' }, c: { num: '6464' }, d: { num: '2442' }, e: { num: '2442' }, x: { num: '9999' } };
+
+        const r1 = map([F('a', 'engine'), F('a2', 'detail'), F('c', 'boxcar'), F('t', 'together')], IDS);
+        ok('246 a car + its detail is ONE member with TWO photos',
+           JSON.stringify(r1.nums) === JSON.stringify(['2328', '6464']) &&
+           r1.memberPhotos['2328'].length === 2 && r1.memberPhotos['2328'][1] === 'a2' &&
+           r1.memberPhotos['6464'].length === 1,
+           JSON.stringify(r1));
+        ok('246 the together shot joins nobody', !r1.memberPhotos['2328'].some(function (id) { return id === 't'; })
+           && !r1.memberPhotos['6464'].some(function (id) { return id === 't'; }));
+        const r2 = map([F('a', 'engine'), F('b', 'boxcar'), F('b2', 'detail'), F('c', 'flatcar')], IDS);
+        ok('246 a detail after an UNREAD piece stays put — never files onto the wrong car',
+           r2.memberPhotos['2328'].length === 1 && JSON.stringify(r2.nums) === JSON.stringify(['2328', '6464']),
+           JSON.stringify(r2));
+        const r3 = map([F('z1', 'detail'), F('a', 'engine')], IDS);
+        ok('246 a leading detail with no piece above joins nobody',
+           JSON.stringify(r3.nums) === JSON.stringify(['2328']) && r3.memberPhotos['2328'].length === 1);
+        const r4 = map([F('d', 'boxcar'), F('e', 'boxcar')], IDS);
+        ok('246 the same car twice is still one number with two photo slots (v0.9.1122 kept)',
+           JSON.stringify(r4.nums) === JSON.stringify(['2442']) && r4.memberPhotos['2442'].length === 2);
+      }
+
+      // ── the wiring around the pure core ───────────────────────────────
+      ok('246 the set add walks the FULL ordered file list through the pure map',
+         /var _mm = _pinSetMemberMap\(g\.files, ids0\);/.test(pin46));
+      ok('246 detail photos are never READ as members',
+         /return m\.role !== 'together' && m\.role !== 'detail';/.test(pin46));
+      ok('246 the first photo cannot be marked a detail',
+         /if \(roles\[0\] === 'detail'\) \{/.test(pin46) &&
+         /mark the piece itself first/.test(pin46));
+    })();
+
   })().then(function () {
     console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
     process.exit(fail ? 1 : 0);
