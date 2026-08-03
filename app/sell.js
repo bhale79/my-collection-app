@@ -328,7 +328,14 @@ async function _sellSync() {
       e.askingPrice ? _currencySymbol() + parseFloat(e.askingPrice).toLocaleString() : ''
     ]);
   });
-  try { await fetch('https://sheets.googleapis.com/v4/spreadsheets/' + id + '/values/Sheet1!A1:E1000:clear', { method: 'POST', headers: { Authorization: 'Bearer ' + _sellTok() } }); } catch (e) {}
+  // v0.9.1274 (audit 2026-08-02 round 2, finding R14): this was a raw fetch
+  // inside a bare `catch (e) {}`. When it failed — and it never checked res.ok,
+  // so a 403 did not even reach the catch — the update below wrote a shorter
+  // list over a longer one and left the rest of the old list sitting there.
+  // The customers this link is shared WITH would still be seeing items that
+  // had been sold. sheetsClear records the failure and throws; both callers
+  // already catch and say the list could not be built.
+  await sheetsClear(id, 'Sheet1!A1:E1000');
   await sheetsUpdate(id, 'Sheet1!A1', rows);
   return id;
 }

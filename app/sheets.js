@@ -137,11 +137,32 @@ async function _withTokenRetry(fetchFn) {
   return res;
 }
 
-// v0.9.1246: the three write functions below are the ONE place every write to
-// the user's sheet passes through — 193 call sites, 70 of them behind a catch
-// that swallows the error. Recording the failure HERE means those catches keep
+// v0.9.1246: the write functions below are where every VALUE write to the
+// user's sheet passes through — 193 call sites, 70 of them behind a catch that
+// swallows the error. Recording the failure HERE means those catches keep
 // swallowing the exception but no longer swallow the fact. The error is
 // rethrown untouched, so nothing downstream behaves any differently.
+//
+// v0.9.1274 (audit 2026-08-02 round 2, finding R14): this used to say "the ONE
+// place EVERY write passes through", and that was not true. Two value writes
+// went round it on raw fetch:
+//
+//   sell.js:331        a :clear of the For Sale sheet in a bare catch (e) {}
+//   sheet-builder.js   a :batchUpdate of the Dashboard tab's formatting
+//
+// The first is now sheetsClear, below, and is inside the guarantee. The second
+// is formatting — colours, merges, the title's rich text — and stays outside
+// it deliberately; losing it costs a plain-looking Dashboard tab, not data.
+// (It no longer lies about having failed, though: it checks res.ok now, which
+// it did not, so its "non-fatal" warning never actually fired on a 403.)
+//
+// Roughly fifteen STRUCTURAL writes — addSheet, protectRange, column widths —
+// are also outside, in app-setup.js, sheet-builder.js, barcode.js, contacts.js,
+// app-pages.js and wizard-handlers.js. Those create and shape tabs rather than
+// putting values in them, and the outbox has no way to replay one usefully.
+//
+// So: every write that puts a USER'S VALUE into a cell goes through here. That
+// is the claim, and it is the one worth keeping true.
 function _rrWriteFailed(kind, args, err) {
   try { if (typeof rrOutboxRecord === 'function') rrOutboxRecord(kind, args, err); } catch (e) {}
   return err;
@@ -400,6 +421,50 @@ async function sheetsAppend(spreadsheetId, range, values) {
     throw _rrWriteFailed('append', { sheetId: spreadsheetId, range: range, values: values }, e);
   }
 }
+
+// v0.9.1274 (audit 2026-08-02 round 2, finding R14): emptying a range is a
+// write, and a destructive one. sell.js did it on raw fetch inside a bare
+// `catch (e) {}` — no res.ok check, no retry, no outbox record — and then
+// wrote the new list straight over the top.
+//
+// What that cost when it failed: the clear silently does nothing, the update
+// writes a SHORTER list, and every row of the old list below the new one
+// stays exactly where it was. The user's customers open a link showing items
+// that are no longer for sale, and nothing anywhere says so.
+//
+// Same guards, same retry, same failure record as the other three. It throws
+// like they do — the two callers already catch and tell the user the list
+// could not be built, which is the honest outcome. A sale sheet that did not
+// update beats one that updated wrongly.
+async function sheetsClear(spreadsheetId, range) {
+  try { window._rrDataRev = (window._rrDataRev || 0) + 1; } catch (e) {}
+  if (window._offlineMode) {
+    if (typeof showToast === 'function') showToast("You're offline — this change needs a connection", 3500, true);
+    throw new Error('offline');
+  }
+  if (window._readOnlyMode) {
+    if (typeof showToast === 'function') showToast('Your trial has ended — subscribe to keep adding and editing', 4000, true);
+    throw new Error('readonly');
+  }
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${_encodeRange(range)}:clear`;
+  try {
+    const res = await _withTokenRetry(() => fetch(url, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+      body: '{}',
+    }));
+    const json = await res.json().catch(() => ({}));
+    if (json.error) {
+      console.error('sheetsClear error:', JSON.stringify(json.error));
+      throw new Error('Sheets clear failed: ' + (json.error.message || JSON.stringify(json.error)));
+    }
+    if (!res.ok) throw new Error('Sheets clear failed: HTTP ' + res.status);
+    return json;
+  } catch (e) {
+    throw _rrWriteFailed('clear', { sheetId: spreadsheetId, range: range }, e);
+  }
+}
+if (typeof window !== 'undefined') window.sheetsClear = sheetsClear;
 
 // v0.9.1267 (audit 2026-08-02 round 2, finding R3): `expected` is REQUIRED,
 // and omitting it throws rather than deleting.

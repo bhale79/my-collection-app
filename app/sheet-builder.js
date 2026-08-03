@@ -780,11 +780,20 @@ async function _writeDashboardContent(sheetId) {
     }] }]
   } });
 
+  // v0.9.1274 (audit 2026-08-02 round 2, finding R14): this is one of the two
+  // writes that go round sheets.js's chokepoint, and it stays outside it — it
+  // is FORMATTING (colours, merges, the title's rich text). Losing it costs a
+  // plain-looking Dashboard tab, not data, so "non-fatal" is honest.
+  //
+  // What was NOT honest: fetch only rejects on a network failure. A 403 or a
+  // 400 resolves, so the catch never ran and the warning never printed. It
+  // reported success on every kind of failure the server can return.
   try {
-    await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}:batchUpdate`, {
+    const fmtRes = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}:batchUpdate`, {
       method: 'POST', headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ requests: reqs })
     });
+    if (!fmtRes.ok) console.warn('[Dashboard] body/title format failed (non-fatal): HTTP ' + fmtRes.status);
   } catch (e) { console.warn('[Dashboard] body/title format failed (non-fatal):', e); }
 }
 
