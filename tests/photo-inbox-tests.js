@@ -9984,18 +9984,23 @@ META_WRITES.length = 0; TOASTS.length = 0;
     // swallow the exception, they no longer swallow the fact.
 
     // ── the three doors ─────────────────────────────────────────────────
-    ['update', 'append', 'delete'].forEach(k => {
+    // v0.9.1275 (R14): 'clear' is the fourth door — the For Sale sync used
+    // to empty its sheet with a raw fetch in a bare catch, outside all of this.
+    ['update', 'append', 'delete', 'clear'].forEach(k => {
       ok('a failed ' + k + ' is recorded',
          sh.indexOf("_rrWriteFailed('" + k + "'") > 0);
     });
     ok('…and the original error is rethrown, so no caller behaves differently',
-       (sh.match(/throw _rrWriteFailed\(/g) || []).length === 3 &&
+       (sh.match(/throw _rrWriteFailed\(/g) || []).length === 4 &&
        /return err;/.test(sh));
     ok('a blocked write is not a failed one — the trial gate is not queued',
        /if \(why === 'readonly'\) return null;/.test(ob));
 
     // ── THE RULE: a range is a position, not an identity ────────────────
-    const canSrc = ob.slice(ob.indexOf('function rrOutboxCanAutoRetry(entry)'),
+    // Slice from the allowlist itself, not the function below it — the
+    // function reads _AUTO_RETRYABLE, and a slice that stops short of a
+    // variable its subject reads tests nothing but its own ReferenceError.
+    const canSrc = ob.slice(ob.indexOf("var _AUTO_RETRYABLE = ['update', 'append'];"),
                             ob.indexOf('// ── retrying'));
     const can = (entry, session, moved) => new Function('entry', '_session', '_rowsMovedAt',
       '"use strict";' + canSrc + '; return rrOutboxCanAutoRetry(entry);')(
@@ -10067,7 +10072,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
     ok('the user can force a retry of what the app will not retry itself',
        /rrOutboxRetry\(\{ force: true \}\)/.test(ob));
     ok('…but a forced retry STILL will not replay a delete',
-       /opts\.force \? \(e\.kind !== 'delete'\)/.test(ob));
+       /opts\.force \? \(_AUTO_RETRYABLE\.indexOf\(e\.kind\) !== -1\)/.test(ob));
     ok('forgetting them asks first — it means the sheet will never get them',
        /appConfirm\(/.test(ob) && /Forget these changes/.test(ob));
 
@@ -10296,11 +10301,11 @@ META_WRITES.length = 0; TOASTS.length = 0;
        /'\.\/write-outbox\.js'/.test(rd('app/sw.js')));
 
     section('199h. The version trio moved together');
-    ok('APP_VERSION is v0.9.1274', /const APP_VERSION = 'v0\.9\.1274';/.test(cfg));
+    ok('APP_VERSION is v0.9.1275', /const APP_VERSION = 'v0\.9\.1275';/.test(cfg));
     ok('every ?v= mark in app/index.html matches it',
-       (idx.match(/\?v=1274/g) || []).length === 69 && !/\?v=1273/.test(idx),
-       String((idx.match(/\?v=1274/g) || []).length));
-    ok('the service worker cache name moved too', /const CACHE_NAME = 'mca-v1284';/.test(rd('app/sw.js')));
+       (idx.match(/\?v=1275/g) || []).length === 69 && !/\?v=1274/.test(idx),
+       String((idx.match(/\?v=1275/g) || []).length));
+    ok('the service worker cache name moved too', /const CACHE_NAME = 'mca-v1285';/.test(rd('app/sw.js')));
     // v0.9.1259: the root page's own ?v= is gone — it registers no worker.
     // The trio is a trio again. §207 is what guards the root page now.
     ok('the landing page carries no version stamp to forget',
@@ -13427,9 +13432,15 @@ META_WRITES.length = 0; TOASTS.length = 0;
           put: function (k) { st.put.push(k.url); }
         };
         const listeners = {};
-        new Function('self', 'CACHE_NAME', 'caches', 'fetch', 'Response', fhSrc)(
+        // v0.9.1275 (R17): the handler now reads ASSET_V (this worker's own
+        // ?v= stamp) and URL. Default to '' — the legacy no-stamp case, where
+        // the foreign-version guard stays off — and let a test opt into a
+        // stamped worker with opts.assetV.
+        new Function('self', 'CACHE_NAME', 'ASSET_V', 'URL', 'caches', 'fetch', 'Response', fhSrc)(
           { addEventListener: function (n, fn) { listeners[n] = fn; } },
           'mca-test',
+          opts.assetV || '',
+          URL,
           { open: function () { return Promise.resolve(cache); } },
           function (req) {
             st.netFetched.push(req.url);
@@ -13880,6 +13891,235 @@ META_WRITES.length = 0; TOASTS.length = 0;
         }
         ok('223 …and every app.css color-mix keeps its opaque fallback in front',
            cssUnguarded === 0, cssUnguarded + ' without a preceding background:var(--bg-card)');
+      }
+    })();
+
+    // ═══════════════════════════════════════════════════════════
+    // §224. R14 (v0.9.1275) — the fourth door, and the allowlist behind it.
+    //
+    //   sheets.js's old header claimed its three write functions were "the
+    //   ONE place every write to the user's sheet passes through." It was
+    //   false: the For Sale sync emptied its sheet with a raw fetch inside a
+    //   bare catch — a 403 read as success and the outbox never heard about
+    //   it. That write is sheetsClear now, the fourth door, with the same
+    //   guards and the same record-and-rethrow as the other three.
+    //
+    //   Adding it exposed a trap: the outbox's replay rule was a DENYLIST
+    //   (`kind === 'delete'` refused, everything else allowed), so a new
+    //   'clear' kind would have opted itself into automatic replay and then
+    //   thrown 'not replayable' from inside the retry loop. It is an
+    //   allowlist now, and these tests are what keeps the allowlist and
+    //   _replay's actual abilities from drifting apart — the comment in
+    //   write-outbox.js promises exactly that.
+    // ═══════════════════════════════════════════════════════════
+    section('224. R14 — the fourth write door, and the allowlist behind it');
+    await (async function () {
+      const p24 = require('path');
+      const rd24 = f => fs.readFileSync(p24.join(__dirname, '..', 'app', f), 'utf8');
+      const ob = rd24('write-outbox.js'), sh = rd24('sheets.js');
+
+      // ── the allowlist IS what _replay can do — same set, both ways ────
+      const alM = ob.match(/var _AUTO_RETRYABLE = \[([^\]]*)\]/);
+      const allow = (alM ? alM[1].split(',') : []).map(s => s.trim().replace(/'/g, '')).filter(Boolean).sort();
+      const repSrc = ob.slice(ob.indexOf('async function _replay'),
+                              ob.indexOf('async function rrOutboxRetry'));
+      const performs = [];
+      const RE24 = /if \(entry\.kind === '([a-z]+)'\) return sheets/g;
+      let mp;
+      while ((mp = RE24.exec(repSrc)) !== null) performs.push(mp[1]);
+      performs.sort();
+      ok('224 the allowlist and what _replay can perform are the same set',
+         allow.length > 0 && JSON.stringify(allow) === JSON.stringify(performs),
+         JSON.stringify(allow) + ' vs replay: ' + JSON.stringify(performs));
+      ok('224 …and no destructive kind is on it',
+         allow.indexOf('delete') === -1 && allow.indexOf('clear') === -1,
+         allow.join(', '));
+
+      // ── the auto path refuses a clear even in the safest conditions ───
+      const canSrc = ob.slice(ob.indexOf("var _AUTO_RETRYABLE = ['update', 'append'];"),
+                              ob.indexOf('// ── retrying'));
+      const can = (entry) => new Function('entry', '_session', '_rowsMovedAt',
+        '"use strict";' + canSrc + '; return rrOutboxCanAutoRetry(entry);')(entry, () => 'S1', 0);
+      ok('224 a clear is never retried automatically, even same-session with nothing moved',
+         can({ kind: 'clear', session: 'S1', movedAt: 0 }) === false &&
+         can({ kind: 'update', session: 'S1', movedAt: 0 }) === true,
+         'clear must be refused where an update is accepted');
+
+      // ── the FORCE path — run the real retry loop over four queued kinds ──
+      // The user choosing "retry anyway" must still only reach what _replay
+      // can perform. Lift rrOutboxRetry out and run it against fakes.
+      {
+        const retrySrc = ob.slice(ob.indexOf('async function rrOutboxRetry'),
+                                  ob.indexOf('// ── telling the user'));
+        const entries = [{ kind: 'update' }, { kind: 'append' },
+                         { kind: 'delete' }, { kind: 'clear' }];
+        let saved = null; const replayed = [];
+        const retry = new Function('_load', '_save', '_paint', '_replay',
+          'rrOutboxCanAutoRetry', '_AUTO_RETRYABLE', 'showToast',
+          '"use strict"; var _retrying = false;' + retrySrc + '; return rrOutboxRetry;')(
+            () => entries.slice(), s => { saved = s; }, () => {},
+            async e => { replayed.push(e.kind); },
+            () => false, ['update', 'append'], undefined);
+        const res = await retry({ force: true });
+        replayed.sort();
+        ok('224 a forced retry replays updates and appends…',
+           JSON.stringify(replayed) === JSON.stringify(['append', 'update']),
+           'replayed: ' + JSON.stringify(replayed));
+        ok('224 …and keeps clear and delete queued, untouched',
+           res.skipped === 2 && saved.length === 2 &&
+           saved.every(e => e.kind === 'delete' || e.kind === 'clear'),
+           'skipped=' + res.skipped + ' kept=' + JSON.stringify((saved || []).map(e => e.kind)));
+      }
+
+      // ── sheetsClear itself: records the failure, rethrows it unchanged ──
+      // Run the real function against a fetch that answers 403 — the exact
+      // response the old raw fetch swallowed as success.
+      {
+        const clrSrc = sh.slice(sh.indexOf('async function sheetsClear'),
+                                sh.indexOf('if (typeof window !== \'undefined\') window.sheetsClear'));
+        const recorded = [];
+        const mkClear = (fetchImpl) => new Function('window', 'showToast',
+          '_withTokenRetry', 'fetch', 'accessToken', '_encodeRange', '_rrWriteFailed', 'console',
+          '"use strict";' + clrSrc + '; return sheetsClear;')(
+            {}, undefined, fn => fn(), fetchImpl, 'tok', r => encodeURIComponent(r),
+            (kind, args, err) => { recorded.push({ kind: kind, range: args.range }); return err; },
+            { error: () => {} });
+        const forbidden = mkClear(async () => ({ ok: false, status: 403, json: async () => ({}) }));
+        let threw = null;
+        await forbidden('SHEET1', 'Sheet1!A1:E1000').catch(e => { threw = e; });
+        ok('224 a 403 on a clear THROWS — the old raw fetch called this success',
+           threw !== null && /403/.test(String(threw && threw.message)),
+           String(threw && threw.message));
+        ok('224 …and the outbox heard about it, as kind clear with the range',
+           recorded.length === 1 && recorded[0].kind === 'clear' &&
+           recorded[0].range === 'Sheet1!A1:E1000',
+           JSON.stringify(recorded));
+        const okServer = mkClear(async () => ({ ok: true, status: 200, json: async () => ({ cleared: 'Sheet1!A1:E1000' }) }));
+        const fine = await okServer('SHEET1', 'Sheet1!A1:E1000');
+        ok('224 a clean clear returns the server body and records nothing new',
+           fine && fine.cleared === 'Sheet1!A1:E1000' && recorded.length === 1);
+      }
+
+      // ── the chokepoint claim, checked against every other file ─────────
+      // No value-writing raw fetch outside sheets.js: nothing else may POST
+      // to a values/…:clear or :append, and the ONE PUT elsewhere is the
+      // lock probe in sheet-builder.js — a deliberate no-op write-with-
+      // receipt that writes back the very value it just read, documented as
+      // outside the chokepoint on purpose.
+      {
+        const files24 = fs.readdirSync(p24.join(__dirname, '..', 'app'))
+          .filter(n => n.endsWith('.js') && n !== 'sheets.js');
+        const strays = [];
+        let putsElsewhere = 0, probePuts = 0;
+        for (const f of files24) {
+          const src = rd24(f);
+          if (/spreadsheets\/[^\n]*values\/[^\n]*:(clear|append)/.test(src)) strays.push(f + ' -> raw :clear/:append');
+          const puts = (src.match(/method:\s*'PUT'/g) || []).length;
+          putsElsewhere += puts;
+          if (f === 'sheet-builder.js' && puts === 1 &&
+              src.indexOf("method: 'PUT'") > src.indexOf('_lockProbeAllowsAppWrites')) probePuts = 1;
+        }
+        ok('224 no raw values :clear or :append survives outside sheets.js',
+           strays.length === 0, strays.join(' | ') || files24.length + ' files scanned');
+        ok('224 the only PUT outside sheets.js is the lock probe, and only it',
+           putsElsewhere === 1 && probePuts === 1,
+           putsElsewhere + ' PUT(s) outside sheets.js');
+      }
+
+      // ── the user-facing label for the new kind exists ──────────────────
+      ok('224 the outbox can NAME a clear in plain words',
+         /'clear' \? 'Empty the for-sale list'/.test(ob));
+    })();
+
+    // ═══════════════════════════════════════════════════════════
+    // §225. R15/R16/R17 (v0.9.1275) — a partial job is reported as partial.
+    //
+    //   R15: six loops in the Photo Inbox stopped at the first failure and
+    //   let the surrounding catch describe 7-of-10 as 0-of-10 — or worse,
+    //   let a success toast describe it as 10-of-10. Each now carries its
+    //   own per-item try and reports the true count.
+    //   R16: the photo-replace flow trashed the old photo BEFORE uploading
+    //   its replacement, so a failed upload left the only copy in Drive's
+    //   trash. It uploads first now.
+    //   R17: the old service worker wrote every file of the NEXT release
+    //   into the cache the next worker deletes on arrival (~6.5MB of
+    //   pointless writes per deploy). Foreign-version stamps are served but
+    //   no longer buried.
+    //
+    //   These are shape checks on the shipped source — cheap, browser-free,
+    //   and they exist so a refactor cannot quietly put any of the three
+    //   back the way it was.
+    // ═══════════════════════════════════════════════════════════
+    section('225. R15/R16/R17 — partial jobs, replace order, doomed-cache writes');
+    await (async function () {
+      const p25 = require('path');
+      const rd25 = f => fs.readFileSync(p25.join(__dirname, '..', 'app', f), 'utf8');
+      const pin = rd25('photo-inbox.js');
+
+      // R15 — each loop's per-item catch, by its named catch variable.
+      [['a failed inbox listing page keeps what already loaded', 'catch (ePage)'],
+       ['a failed upload lets the rest of the batch continue', 'catch (eUp)'],
+       ['a failed attach-move lets the rest of the selection file', 'catch (eMv1)'],
+       ['a failed discard lets the rest of the selection discard', 'catch (eDc)'],
+      ].forEach(pair => {
+        ok('225 ' + pair[0], pin.indexOf(pair[1]) > 0, pair[1] + ' missing');
+      });
+      ok('225 …and each partial outcome is SAID, not rounded up',
+         / of ' \+ files\.length \+ ' photo/.test(pin) &&
+         /moved \+ ' of ' \+ fileList\.length/.test(pin) &&
+         /_dcOk \+ ' of ' \+ n \+ ' photo/.test(pin),
+         'one of the three of-N toasts is gone');
+      ok('225 a partial inbox listing is drawn but never passed off as complete',
+         /_pinListComplete \? '' : 'Some photos could not be loaded/.test(pin));
+      ok('225 a first-page count failure never lands a floor on the badge as a total',
+         /an incomplete count must never land on the badge as if whole/.test(pin) &&
+         /if \(files\.length < 200\) _navBadge\(files\.length\);/.test(pin));
+
+      // R16 — in the replace loop, the upload comes BEFORE the trash.
+      {
+        const co = rd25('../app/app-collection.js');
+        const seg = co.slice(co.indexOf('var replacedCount = 0'),
+                             co.indexOf('if (replacedCount > 0'));
+        const up = seg.indexOf('driveUploadFile');
+        const tr = seg.indexOf('_trashDriveFile');
+        ok('225 the replacement photo is uploaded before the old one is trashed',
+           up > 0 && tr > 0 && up < tr,
+           'upload@' + up + ' trash@' + tr + ' (both must exist, upload first)');
+      }
+
+      // R17 — the worker refuses to bury the next release in its own cache.
+      // Run the REAL handler, not a regex: a v1275-stamped worker fielding a
+      // v1276 request (the next deploy arriving) must serve it from the
+      // network and NOT cache.put it; its own v1275 files must cache as ever.
+      {
+        const sw25 = rd25('sw.js');
+        const fh25 = sw25.slice(sw25.indexOf("self.addEventListener('fetch', event => {"),
+                                sw25.indexOf('// Listen for SKIP_WAITING message'));
+        const run25 = function (url) {
+          const st = { put: [], responded: false };
+          const cache = { match: () => Promise.resolve(undefined),
+                          put: (k) => { st.put.push(k.url); } };
+          const listeners = {};
+          new Function('self', 'CACHE_NAME', 'ASSET_V', 'URL', 'caches', 'fetch', 'Response', fh25)(
+            { addEventListener: (n, fn) => { listeners[n] = fn; } },
+            'mca-v1285', '1275', URL,
+            { open: () => Promise.resolve(cache) },
+            () => Promise.resolve({ ok: true, clone: () => ({}) }),
+            { error: () => ({}) });
+          listeners.fetch({ request: { url: url, method: 'GET', mode: 'no-cors', destination: 'script' },
+                            respondWith: (p) => { st.responded = true; } });
+          return st;
+        };
+        const ownV = run25('https://x.test/app/app.js?v=1275');
+        const nextV = run25('https://x.test/app/app.js?v=1276');
+        const bare = run25('https://x.test/app/icon-192.png');
+        await new Promise(r => setTimeout(r, 0));
+        ok('225 the worker still caches its own version and bare files',
+           ownV.put.length === 1 && bare.put.length === 1,
+           JSON.stringify({ own: ownV.put, bare: bare.put }));
+        ok('225 …and serves the NEXT deploy without burying it in a doomed cache',
+           nextV.responded === true && nextV.put.length === 0,
+           JSON.stringify({ responded: nextV.responded, put: nextV.put }));
       }
     })();
 

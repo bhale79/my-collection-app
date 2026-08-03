@@ -2,9 +2,16 @@
 // app-misc.js — Miscellaneous UI helpers
 //
 // Extracted from app.js in Session 110 (App Split Round 2, Chunk 10).
-// Loaded after app.js. All functions are called only via event
-// handlers, contextual prompts, or the prefs page, so load order
-// is not strict.
+// Loaded after app.js.
+//
+// v0.9.1275 (R20): this header used to say everything here waits for an
+// event, "so load order is not strict". Three things run AT LOAD: the
+// beforeinstallprompt listener, setTimeout(_pwaMenuInit, 3000) — which
+// reaches for prefs-page DOM built by other files, held together only by
+// that 3-second head start — and setTimeout(_showIOSInstallHint, 2500).
+// Load order is therefore not strict for the FUNCTIONS, but this file does
+// act on its own; if the app shell ever takes >3s to build, _pwaMenuInit is
+// the first thing to look at.
 //
 // Includes:
 //   - showWelcomeCard / maybeShowContextualHint / resetContextualHints

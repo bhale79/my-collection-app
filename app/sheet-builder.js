@@ -846,7 +846,8 @@ const LOCK_CONFIG = {
   // Tabs locked entirely (no row/col bounds = whole sheet).
   fullLockTabs: ['Dashboard'],
   // ── My Collection technical columns to lock ──────────────────────────
-  // v0.9.1259 (audit 2026-08-02, finding 3). These used to be hand-written
+  // v0.9.1260 (audit 2026-08-02, finding 3; stamped v0.9.1259 until
+  // v0.9.1275 — it shipped in 1260). These used to be hand-written
   // column numbers — { start: 14, end: 16 } and { start: 17, end: 22 } —
   // with a comment naming the fields they were meant to cover. Columns were
   // appended to PERSONAL_SCHEMA over time, the numbers stayed put, and the

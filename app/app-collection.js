@@ -830,11 +830,20 @@ async function _uploadNonItemPhotos(type, key, entry, cfg, picks, progressCb) {
 
   // Upload each file in turn (sequential keeps order + bandwidth sane).
   // Audit fix #3 (Session 116): if a file with the same name already
-  // exists in the folder, move it to Drive trash before uploading the
-  // new one. Without this, re-uploading the Front Cover slot creates
-  // a second '8055-CON FRONT.jpg' in Drive and the gallery shows
-  // both. Trash (not permanent delete) means Brad can recover from
-  // Drive's trash if he ever needs the previous version back.
+  // exists in the folder, move it to Drive trash so re-uploading the
+  // Front Cover slot does not leave a second '8055-CON FRONT.jpg' with
+  // both showing in the gallery. Trash (not permanent delete) means
+  // Brad can recover from Drive's trash if he ever needs the previous
+  // version back.
+  //
+  // v0.9.1275 (R16): UPLOAD FIRST, THEN trash. The old order was
+  // trash-then-upload, which has a window where the photo exists
+  // nowhere but Drive's trash — a failed or interrupted upload (bad
+  // signal at a train show, a 403, a closed lid) left the slot EMPTY
+  // and the only copy in the trash, silently. Drive allows two files
+  // with the same name, so uploading beside the old one first is safe:
+  // the worst a failure can do now is leave a brief duplicate, which
+  // the next successful replace cleans up.
   var replacedCount = 0;
   for (var i = 0; i < picks.length; i++) {
     var p = picks[i];
@@ -844,19 +853,22 @@ async function _uploadNonItemPhotos(type, key, entry, cfg, picks, progressCb) {
     var dot = origName.lastIndexOf('.');
     if (dot > 0 && dot < origName.length - 1) ext = origName.substring(dot);
     var fileName = subName + ' ' + p.view.key + ext;
-    // Find any existing file with the same name in this folder.
+    // Capture the old file's id BEFORE uploading its replacement, so the
+    // name search cannot land on the new copy.
     var existingId = await _findDriveFileByName(folderId, fileName);
+    if (existingId) progressCb && progressCb('Replacing existing photo (' + (i + 1) + ' of ' + picks.length + ')…');
+    await driveUploadFile(p.file, fileName, folderId);
+    // Only after the new copy is safely up does the old one go to trash.
     if (existingId) {
-      progressCb && progressCb('Replacing existing photo (' + (i + 1) + ' of ' + picks.length + ')…');
       try {
         await _trashDriveFile(existingId);
         replacedCount++;
       } catch (e) {
-        // Non-fatal — fall through to upload, Drive will have the dup
+        // Non-fatal — the new photo is up; worst case the gallery briefly
+        // shows the old duplicate beside it.
         console.warn('[non-item photo] could not trash old version:', e);
       }
     }
-    await driveUploadFile(p.file, fileName, folderId);
   }
   if (replacedCount > 0 && typeof showToast === 'function') {
     // Quick informational toast after success — user knows the prior

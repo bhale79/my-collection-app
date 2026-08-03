@@ -202,7 +202,10 @@ function aiSpendBlocked() {
 //   hints:  { scale, type, mfrs: [] }  — woven into the AI prompt
 // Resolves:
 //   { ok:true,  text, remaining, cached }
-//   { ok:false, reason: 'noconsent'|'quota'|'offline'|'error' }
+//   { ok:false, reason: 'optout'|'noconsent'|'quota'|'offline'|'busy'|'error' }
+//   (v0.9.1275, R19: 'optout' and 'busy' — the two most common non-error
+//   outcomes — were missing from this list. The _RR_READ_FAIL copy map has
+//   always handled all six; only this JSDoc was short.)
 async function aiIdentifyImage(source, hints) {
   try {
     // v0.9.1015 (Brad): the user can switch metered photo ID reads off — the

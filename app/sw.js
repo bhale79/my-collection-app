@@ -4,7 +4,7 @@
 // fetches fresh copies in the background for next load.
 // NEVER caches Google API, OAuth, or Sheets calls.
 
-const CACHE_NAME = 'mca-v1284';
+const CACHE_NAME = 'mca-v1285';
 
 // ── v0.9.1214: the version stamp has to survive as far as the cache ──
 // Brad, on v1213: "im reset twice and it still looks the same." He was
@@ -238,6 +238,22 @@ self.addEventListener('fetch', event => {
   // match (see _stamped above), so the double-download stays solved, and a
   // request the cache has never seen now correctly goes to the network.
   const cacheKey = event.request;
+
+  // ── v0.9.1275 (R17): don't write the next release into a doomed cache ──
+  // During a deploy, THIS (old) worker is still the one answering fetches
+  // while the new worker installs. Every new ?v= file misses the cache, goes
+  // to the network — correct — and was then cache.put INTO this worker's
+  // cache, which the new worker deletes minutes later on activate. Measured:
+  // 9.54MB grew to 23MB before settling at 6.22MB, ~6.5MB of pointless
+  // writes per deploy — and on a phone near its storage quota, those writes
+  // are what make the NEW worker's precache fail. A ?v= stamp that is not
+  // this worker's own belongs to a different deploy; serve it from the
+  // network as always, just skip the burial-plot write. Unstamped files and
+  // workers registered without a ?v= (ASSET_V '') are unaffected.
+  const _reqV = (function () {
+    try { return new URL(url).searchParams.get('v'); } catch (e) { return null; }
+  })();
+  const _foreignV = !!(ASSET_V && _reqV !== null && _reqV !== ASSET_V);
   const isNav = event.request.mode === 'navigate' ||
                 (event.request.destination === 'document');
 
@@ -272,7 +288,7 @@ self.addEventListener('fetch', event => {
     caches.open(CACHE_NAME).then(cache =>
       cache.match(cacheKey).then(cached => {
         const networkFetch = fetch(event.request, netOpts).then(response => {
-          if (response && response.ok) {
+          if (response && response.ok && !_foreignV) {   // R17: see above
             cache.put(cacheKey, response.clone());
           }
           return response;
@@ -298,6 +314,14 @@ self.addEventListener('fetch', event => {
           networkFetch.catch(() => {});   // refresh behind; a failure here is fine
           return cached;
         }
+        // v0.9.1275 (R20, named not fixed): if the connection dies MID-deploy
+        // — new index.html delivered, its freshly-stamped scripts not yet —
+        // `cached` is undefined for those never-seen keys and this returns a
+        // network error, so the app fails to boot until the connection is
+        // back. The window is seconds wide and the alternative (answering a
+        // new stamp with an old file) is the exact bug v0.9.1214 dug out.
+        // Failing loudly is the right trade; this comment exists so the next
+        // reader knows it was chosen, not overlooked.
         return networkFetch.catch(() => cached || Response.error());
       })
     )

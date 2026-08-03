@@ -94,7 +94,9 @@
     return null;
   }
 
-  // ── MAIN: getTypeBucket(item) returns one of the 22 canonical bucket IDs ──
+  // ── MAIN: getTypeBucket(item) returns one of the 23 canonical bucket IDs ──
+  // (v0.9.1275, R20: this said 22 since before Trolley was added in Session
+  // 123; line 3 of this file had it right the whole time.)
   function getTypeBucket(item) {
     if (!item) return '';
     if (MANUAL_TYPE_OVERRIDES[item.itemNum]) return MANUAL_TYPE_OVERRIDES[item.itemNum];

@@ -971,9 +971,23 @@
       // whether we really reached it, because the prune below depends on that.
       var files = [], _pageTok = '', _guard = 0, _pinListComplete = true;
       do {
-        var res = await driveRequest('GET', '/files?q=' + q +
-          '&fields=nextPageToken,files(id,name,createdTime,appProperties)&orderBy=createdTime desc&pageSize=200' +
-          (_pageTok ? '&pageToken=' + _pageTok : ''));
+        // v0.9.1275 (R15): a failed SECOND page used to abort the whole
+        // render — one bad request at a train show and an inbox that had
+        // already loaded 200 photos showed nothing at all. If any page has
+        // landed, keep what we have, mark the listing incomplete (which the
+        // prune below already respects), and say so. A first-page failure
+        // still throws — there is nothing partial to show.
+        var res;
+        try {
+          res = await driveRequest('GET', '/files?q=' + q +
+            '&fields=nextPageToken,files(id,name,createdTime,appProperties)&orderBy=createdTime desc&pageSize=200' +
+            (_pageTok ? '&pageToken=' + _pageTok : ''));
+        } catch (ePage) {
+          if (!files.length) throw ePage;
+          _pinListComplete = false;
+          console.warn('[Inbox] listing page failed — showing the ' + files.length + ' already loaded:', ePage);
+          break;
+        }
         ((res && res.files) || []).forEach(function (f) { files.push(f); });
         _pageTok = (res && res.nextPageToken) || '';
         if (++_guard > 40) { _pinListComplete = false; break; }   // ~8,000 photos; never spin forever
@@ -1015,7 +1029,9 @@
         } catch (eFT) {}
       })();
       _render();
-      _status('');
+      // v0.9.1275 (R15): a partial listing is drawn, but never passed off as
+      // the whole inbox.
+      _status(_pinListComplete ? '' : 'Some photos could not be loaded — this is a partial view. Hit Refresh to try again.');
       setTimeout(function () { try { _pinAutoRead(); } catch (e) {} }, 400);
     } catch (e) {
       console.error('[Inbox] refresh:', e);
@@ -1461,6 +1477,10 @@
       // single odd item in a long run cannot leak into the next forty.
       var _era = _pinActiveEra();
       var _spentOneShot = false;
+      // v0.9.1275 (R15): one failed upload used to abandon every file after
+      // it, and the catch below turned 7-of-10 into a message that reads as
+      // 0-of-10. Each file gets its own try now; the toast tells the truth.
+      var _upOk = 0, _upFail = 0;
       for (var i = 0; i < files.length; i++) {
         _status('Uploading ' + (i + 1) + ' of ' + files.length + '…');
         var f = files[i];
@@ -1468,7 +1488,15 @@
         // Desktop drops: one group per file (phone capture will reuse the
         // same tag to group several shots of one item).
         var name = 'INBOX ' + ts + ' g' + (ts + i) + ' ' + safe;
-        var up = await driveUploadFile(f, name, fid);
+        var up;
+        try {
+          up = await driveUploadFile(f, name, fid);
+          _upOk++;
+        } catch (eUp) {
+          _upFail++;
+          console.warn('[Inbox] upload failed for ' + safe + ' — continuing:', eUp);
+          continue;
+        }
         var _thisEra = (_pinOneShot && !_spentOneShot) ? _pinOneShot : _pinHomeEra();
         if (i === 0 && _pinOneShot) _spentOneShot = true;
         if (_thisEra && up && up.id) {
@@ -1479,13 +1507,18 @@
       }
       if (_pinOneShot) { _pinOneShot = null; _pinRenderBar(); }
       _status('');
-      // v0.9.1097: a photo with no era tag reads against EVERY catalog at
-      // once and matches strangers (Brad's 3545 came back as an Atlas item).
-      // Say it at upload time, when fixing it is one Tag away.
-      var _noEraUp = !((_pinOneShot && !_spentOneShot) ? _pinOneShot : _pinHomeEra());
-      if (_noEraUp) showToast('Added ' + files.length + ' photo' + (files.length > 1 ? 's' : '')
-        + ' \u2014 no maker/era tag yet, so reads will be unfiltered. Use the Tag button to stamp them.', 5200);
-      else showToast('Added ' + files.length + ' photo' + (files.length > 1 ? 's' : '') + ' to the inbox', 2500);
+      if (_upFail) {
+        showToast('Added ' + _upOk + ' of ' + files.length + ' photo' + (files.length > 1 ? 's' : '')
+          + ' \u2014 ' + _upFail + ' failed to upload. Check your connection and add those again.', 5200, true);
+      } else {
+        // v0.9.1097: a photo with no era tag reads against EVERY catalog at
+        // once and matches strangers (Brad's 3545 came back as an Atlas item).
+        // Say it at upload time, when fixing it is one Tag away.
+        var _noEraUp = !((_pinOneShot && !_spentOneShot) ? _pinOneShot : _pinHomeEra());
+        if (_noEraUp) showToast('Added ' + files.length + ' photo' + (files.length > 1 ? 's' : '')
+          + ' \u2014 no maker/era tag yet, so reads will be unfiltered. Use the Tag button to stamp them.', 5200);
+        else showToast('Added ' + files.length + ' photo' + (files.length > 1 ? 's' : '') + ' to the inbox', 2500);
+      }
       _pinRefresh();
     } catch (e) {
       console.error('[Inbox] upload:', e);
@@ -3493,13 +3526,23 @@
       if (_attach) {
         // Already in the collection: committed action, no wizard to cancel,
         // so file the photos into its folder right away.
-        var moved = 0;
+        // v0.9.1275 (R15): `moved` used to count files it was ABOUT to move,
+        // and one failure abandoned the rest and skipped the toast entirely.
+        // Now each move gets its own try, the count is of moves that landed,
+        // and the toast below reports the real number either way.
+        var moved = 0, _mvFail = 0;
         for (var i2 = 0; i2 < fileList.length; i2++) {
-          moved++;
-          _status('Filing photo ' + moved + '…');
+          _status('Filing photo ' + (i2 + 1) + ' of ' + fileList.length + '…');
           var file = fileList[i2];
           var ext = (file.name.split('.').pop() || 'jpg').toLowerCase().slice(0, 5);
-          await driveMoveFileToFolder(file.id, fromFid, toFid);
+          try {
+            await driveMoveFileToFolder(file.id, fromFid, toFid);
+            moved++;
+          } catch (eMv1) {
+            _mvFail++;
+            console.warn('[Inbox] attach move failed — continuing:', file.id, eMv1);
+            continue;
+          }
           try { await driveRequest('PATCH', '/files/' + file.id, { name: num + ' ADD ' + (ts + moved) + '.' + ext }); } catch (eRn) {}
         }
         _sel = {};
@@ -3521,7 +3564,8 @@
             _livePd.photoItem = link;   // only true once the sheet actually took it
           } catch (eUp) { console.warn('[Inbox] photo link write failed — leaving it for the repair pass:', eUp); }
         }
-        showToast('Attached ' + moved + ' photo' + (moved > 1 ? 's' : '') + ' to ' + num, 3000);
+        if (_mvFail) showToast('Attached ' + moved + ' of ' + fileList.length + ' photo' + (fileList.length > 1 ? 's' : '') + ' to ' + num + ' \u2014 ' + _mvFail + ' stayed in the inbox. Try them again.', 5000, true);
+        else showToast('Attached ' + moved + ' photo' + (moved > 1 ? 's' : '') + ' to ' + num, 3000);
         _pinRefresh();
         // v0.9.958 (Brad): "Send to For Sale" on an item you already own —
         // photos are filed above, now open the sale-price step for it.
@@ -7135,17 +7179,28 @@
     if (!window.confirm('Discard ' + n + ' photo' + (n > 1 ? 's' : '') + '? They go to your Google Drive trash (recoverable for ~30 days).')) return;
     _busy = true;
     try {
-      var done = 0;
+      // v0.9.1275 (R15): one failed trash used to abandon the rest of the
+      // selection — photo 3 of 12 fails and 4..12 quietly stay put while the
+      // status implies the whole discard failed. Each file gets its own try
+      // now, and the toast reports what actually happened.
+      var done = 0, _dcOk = 0, _dcFail = 0;
       for (var g = 0; g < gs.length; g++) {
         for (var f = 0; f < gs[g].files.length; f++) {
           done++;
           _status('Discarding ' + done + ' of ' + n + '…');
-          await driveRequest('PATCH', '/files/' + gs[g].files[f].id, { trashed: true });
+          try {
+            await driveRequest('PATCH', '/files/' + gs[g].files[f].id, { trashed: true });
+            _dcOk++;
+          } catch (eDc) {
+            _dcFail++;
+            console.warn('[Inbox] discard failed — continuing:', gs[g].files[f].id, eDc);
+          }
         }
       }
       _sel = {};
       _status('');
-      showToast('Discarded ' + n + ' photo' + (n > 1 ? 's' : ''), 2500);
+      if (_dcFail) showToast('Discarded ' + _dcOk + ' of ' + n + ' photo' + (n > 1 ? 's' : '') + ' \u2014 ' + _dcFail + ' would not discard and are still in the inbox.', 5000, true);
+      else showToast('Discarded ' + n + ' photo' + (n > 1 ? 's' : ''), 2500);
       _pinRefresh();
       // v0.9.940 (Brad): discarding must land you back ON the Photo Inbox —
       // some entry paths were ending up on the Dashboard instead. Force it.
@@ -7180,8 +7235,20 @@
   async function _pinCountAll(q) {
     var n = 0, tok = '', guard = 0;
     do {
-      var r = await driveRequest('GET', '/files?q=' + q + '&fields=nextPageToken,files(id)&pageSize=200' +
-        (tok ? '&pageToken=' + tok : ''));
+      // v0.9.1275 (R15): a failed page used to throw the count away entirely
+      // — page 3 of 4 hiccups and the badge silently stops updating. A count
+      // that reached SOME pages is a floor, not a total; only pass it off as
+      // the total if every page landed. Callers keep the previous badge on a
+      // partial count, which is the same behaviour as a thrown error but
+      // with the reason logged once here instead of guessed at.
+      var r;
+      try {
+        r = await driveRequest('GET', '/files?q=' + q + '&fields=nextPageToken,files(id)&pageSize=200' +
+          (tok ? '&pageToken=' + tok : ''));
+      } catch (ePg) {
+        console.warn('[Inbox] count stopped at ' + n + ' — a page failed:', ePg);
+        throw ePg;   // an incomplete count must never land on the badge as if whole
+      }
       n += ((r && r.files) || []).length;
       tok = (r && r.nextPageToken) || '';
     } while (tok && ++guard < 40);
@@ -7246,8 +7313,15 @@
       var q = encodeURIComponent("'" + fid + "' in parents and mimeType contains 'image/' and trashed=false");
       var res = await driveRequest('GET', '/files?q=' + q + '&fields=files(id)&orderBy=createdTime desc&pageSize=200');
       var files = (res && res.files) || [];
-      // the panel only draws a handful, but the badge must be the TRUE total
-      _pinCountAll(q).then(function (n) { _navBadge(n); }).catch(function () { _navBadge(files.length); });
+      // the panel only draws a handful, but the badge must be the TRUE total.
+      // v0.9.1275 (R15): the old fallback put files.length on the badge when
+      // the full count failed — that is the FIRST PAGE (capped at 200) passed
+      // off as the whole inbox. A page under the cap really is the whole
+      // inbox, so it may stand in; at the cap the true total is unknown, and
+      // a stale badge is more honest than a wrong one.
+      _pinCountAll(q).then(function (n) { _navBadge(n); }).catch(function () {
+        if (files.length < 200) _navBadge(files.length);
+      });
       grid = document.getElementById('pin-panel-grid');
       if (!grid) return;
       if (!files.length) {
