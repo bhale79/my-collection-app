@@ -2283,7 +2283,7 @@ function renderWizardStep() {
           const _label = (typeof window.resolveRefLabel === 'function')
             ? window.resolveRefLabel(singleItem.refLink, { verbose: true })
             : 'View reference \u2197';
-          return '<a href="' + ((typeof window.cottAnchorUrl==='function') ? window.cottAnchorUrl(singleItem.refLink, itemNum) : singleItem.refLink) + '" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:0.4rem;margin-top:0.75rem;font-size:0.82rem;color:var(--accent2);text-decoration:none;padding:0.4rem 0.75rem;border:1px solid rgba(201,146,42,0.3);border-radius:6px;background:var(--bg-card);background:color-mix(in srgb, rgb(201,146,42) 8%, var(--bg-card));min-height:34px;box-sizing:border-box">' + _label + '</a>';
+          return '<a href="' + ((typeof window.cottAnchorUrl==='function') ? window.cottAnchorUrl(singleItem.refLink, itemNum, window.cottRowWords ? window.cottRowWords(singleItem) : '') : singleItem.refLink) + '" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:0.4rem;margin-top:0.75rem;font-size:0.82rem;color:var(--accent2);text-decoration:none;padding:0.4rem 0.75rem;border:1px solid rgba(201,146,42,0.3);border-radius:6px;background:var(--bg-card);background:color-mix(in srgb, rgb(201,146,42) 8%, var(--bg-card));min-height:34px;box-sizing:border-box">' + _label + '</a>';
         })()}
 
         </div>`;
@@ -2360,7 +2360,7 @@ function renderWizardStep() {
               // The card is a <div role="button"> now, so the anchor is a
               // normal, hit-testable link. Keyboard parity is explicit:
               // tabindex + Enter/Space, which <button> gave for free.
-              const cottLink = v.refLink ? `<a href="${(typeof window.cottAnchorUrl==='function') ? window.cottAnchorUrl(v.refLink, itemNum) : v.refLink}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="display:inline-flex;align-items:center;gap:0.3rem;font-size:0.78rem;color:var(--accent2);text-decoration:none;padding:0.42rem 0.7rem;border:1px solid rgba(201,146,42,0.45);border-radius:6px;background:var(--bg-card);background:color-mix(in srgb, rgb(201,146,42) 12%, var(--bg-card));flex-shrink:0;white-space:nowrap;font-weight:600;position:relative;z-index:1;min-height:34px;box-sizing:border-box">${_refShort}</a>` : '';
+              const cottLink = v.refLink ? `<a href="${(typeof window.cottAnchorUrl==='function') ? window.cottAnchorUrl(v.refLink, itemNum, window.cottRowWords ? window.cottRowWords(v) : '') : v.refLink}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="display:inline-flex;align-items:center;gap:0.3rem;font-size:0.78rem;color:var(--accent2);text-decoration:none;padding:0.42rem 0.7rem;border:1px solid rgba(201,146,42,0.45);border-radius:6px;background:var(--bg-card);background:color-mix(in srgb, rgb(201,146,42) 12%, var(--bg-card));flex-shrink:0;white-space:nowrap;font-weight:600;position:relative;z-index:1;min-height:34px;box-sizing:border-box">${_refShort}</a>` : '';
               return `
               <div role="button" tabindex="0" onclick="wizardChooseVariation('${v.variation}')"
                 onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();wizardChooseVariation('${v.variation}')}" style="

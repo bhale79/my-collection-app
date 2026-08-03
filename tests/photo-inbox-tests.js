@@ -16854,6 +16854,92 @@ META_WRITES.length = 0; TOASTS.length = 0;
          !/driveRequest\(/.test(tl53.slice(tl53.indexOf('function rrShareExpText'))));
     })();
 
+    // ═══════════════════════════════════════════════════════════
+    // §254. v0.9.1304 — COTT deep links: the harvested anchor map.
+    //
+    //   Brad: "This box car when to ...#SDBX6050 when it should be going
+    //   here ...#sdbx6050lio ... check and make sure if there is a direct
+    //   link to the model to use it instead of the general page."
+    //   Parallel-session harvest verified #SDBX6050 does not exist AT ALL;
+    //   the per-model anchors do. The REAL combined cott-anchors.js runs
+    //   here — base builder plus wrapper, exactly as the browser loads it.
+    // ═══════════════════════════════════════════════════════════
+    section('254. COTT deep links: dead anchors repaired, row words pick the model');
+    (function () {
+      const p54 = require('path');
+      const ca54 = fs.readFileSync(p54.join(__dirname, '..', 'app', 'cott-anchors.js'), 'utf8');
+      const win = {};
+      new Function('window', ca54)(win);
+      const url = win.cottAnchorUrl;
+      ok('254 the combined file defines the builder, the map, and the row-words helper',
+         typeof url === 'function' && !!win.COTT_DEEPLINK_MAP && typeof win.cottRowWords === 'function');
+      const B = 'https://www.cornucopiaoftoytrains.com/boxcars-small-with-non-operating-doors/';
+      const F3 = 'https://www.cornucopiaoftoytrains.com/motive-power-f-3s-a/';
+      // ── Brad's flagship case ──
+      ok('254 6050 + Savings Bank words → #sdbx6050lio (the anchor Brad verified by hand)',
+         url(B, '6050', 'Lionel Savings Bank Boxcar') === B.replace(/\/$/, '') + '/#sdbx6050lio');
+      ok('254 6050 + Libby words → #sdbx6050lib — same number, different model',
+         url(B, '6050', "Libby's Tomato Juice") === B.replace(/\/$/, '') + '/#sdbx6050lib');
+      ok('254 6050-110 → #sdbx6050swi with NO words — only one real anchor exists',
+         /#sdbx6050swi$/.test(url(B, '6050-110')));
+      // ── safety: nothing can get worse ──
+      ok('254 a pre-anchored link is never touched',
+         url(B + '#already', '6050', 'Lionel Savings Bank') === url(B + '#already', '6050'));
+      ok('254 a non-COTT link is never touched',
+         url('https://example.com/page', '6050', 'anything') === 'https://example.com/page');
+      ok('254 vague words that tie leave today\'s URL alone',
+         url(B, '6050') === url(B, '6050', '') && url(F3, '2343', 'F3 Diesel') === url(F3, '2343'));
+      // A REAL tie: on boxcars-6464-page-1-a, "1953" is a distinguishing
+      // token of BOTH #1KW1 and #1KW1B for number 6464-1. One shared word,
+      // two candidates, equal score — the wrapper must refuse to guess.
+      // (This probe exists because a drill removed the tie guard and the
+      // vague-words probe above couldn't tell the difference.)
+      const KW = 'https://www.cornucopiaoftoytrains.com/boxcars-6464-page-1-a/';
+      ok('254 a genuine token tie refuses to guess — today\'s URL survives',
+         url(KW, '6464-1', '1953') === url(KW, '6464-1'));
+      ok('254 junk input never throws', typeof url(null, null) === 'string' || url(null, null) === '');
+      // ── the motive-power P/C rule survives inside the wrapper ──
+      ok('254 2343C + B Unit words → #F32343B; plain 2343 stays put',
+         /#F32343B$/.test(url(F3, '2343C', 'Santa Fe B Unit')) &&
+         url(F3, '2343') === url(F3, '2343'));
+      // ── the map's own integrity ──
+      const deep = win.COTT_DEEPLINK_MAP;
+      const slugs = Object.keys(deep);
+      let nums = 0, anchors = 0, badShape = 0;
+      slugs.forEach(function (s) {
+        Object.keys(deep[s]).forEach(function (n) {
+          nums++;
+          const rec = deep[s][n];
+          if (!(rec && (rec.g === 0 || rec.g === 1) && Array.isArray(rec.a) && rec.a.length)) badShape++;
+          anchors += rec.a.length;
+        });
+      });
+      ok('254 the map matches the harvest report: 76 pages, 572 numbers, 904 anchors, clean shape',
+         slugs.length === 76 && nums === 572 && anchors === 904 && badShape === 0,
+         slugs.length + ' pages, ' + nums + ' numbers, ' + anchors + ' anchors, ' + badShape + ' bad');
+      // ── row-words helper builds from the master row fields ──
+      ok('254 cottRowWords joins roadName + itemType + varDesc, skips blanks',
+         win.cottRowWords({ roadName: 'New Haven', itemType: 'Boxcar', varDesc: 'TYPE 1' }) === 'New Haven Boxcar TYPE 1' &&
+         win.cottRowWords({ roadName: '', itemType: 'Boxcar' }) === 'Boxcar' &&
+         win.cottRowWords(null) === '');
+      // ── every call site passes the row's words ──
+      const sites = [
+        ['browse.js', /cottAnchorUrl\(item\.refLink, item\.itemNum, window\.cottRowWords \? window\.cottRowWords\(item\)/],
+        ['browse.js', /cottAnchorUrl\(_sib\.refLink, item\.itemNum, window\.cottRowWords \? window\.cottRowWords\(item\)/],
+        ['app-pages.js', /cottAnchorUrl\(master\.refLink \|\| '', w\.itemNum, window\.cottRowWords \? window\.cottRowWords\(master\)/],
+        ['barcode.js', /cottAnchorUrl\(rl, r\.masterItem\.itemNum, window\.cottRowWords \? window\.cottRowWords\(r\.masterItem\)/],
+        ['photo-inbox.js', /cottAnchorUrl\(_vrRef, lk\.master\.itemNum, window\.cottRowWords \? window\.cottRowWords\(lk\.master\)/],
+        ['wizard.js', /cottAnchorUrl\(singleItem\.refLink, itemNum, window\.cottRowWords \? window\.cottRowWords\(singleItem\)/],
+        ['wizard.js', /cottAnchorUrl\(v\.refLink, itemNum, window\.cottRowWords \? window\.cottRowWords\(v\)/],
+      ];
+      let wired = 0;
+      sites.forEach(function (s) {
+        const src = fs.readFileSync(p54.join(__dirname, '..', 'app', s[0]), 'utf8');
+        if (s[1].test(src)) wired++;
+      });
+      ok('254 all seven call sites pass the row words', wired === 7, wired + ' of 7');
+    })();
+
   })().then(function () {
     console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
     process.exit(fail ? 1 : 0);

@@ -1199,7 +1199,7 @@ function buildWantPage() {
             : '')
         : '';
 
-      const refLink = master ? ((typeof window.cottAnchorUrl==='function') ? window.cottAnchorUrl(master.refLink || '', w.itemNum) : (master.refLink || '')) : '';
+      const refLink = master ? ((typeof window.cottAnchorUrl==='function') ? window.cottAnchorUrl(master.refLink || '', w.itemNum, window.cottRowWords ? window.cottRowWords(master) : '') : (master.refLink || '')) : '';
       window._wantDescs[idx] = { title: (_isSet ? _setLabel : roadName) || w.itemNum, varDesc, fullDesc, refLink };
       const pColor = priorityColor[w.priority] || 'var(--text-dim)';
       const shortVar = varDesc.length > 30 ? varDesc.substring(0, 30) + '…' : varDesc;
