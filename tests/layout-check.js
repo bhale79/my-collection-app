@@ -1357,15 +1357,18 @@ showCandidatePicker(${CANDS}, { itemNum: '6464-500' });
 <script>
   window.IS_MOBILE_UA = false;
   function rrEsc(s) { return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;'); }
-  function showToast() {}
+  window.__toasts = [];
+  function showToast(m) { window.__toasts.push(String(m)); }
   function loadDriveThumb(id, img) { img.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="60" height="60"><rect width="60" height="60" fill="%232980b9"/></svg>'; }
   function _pinMetaSet() { return Promise.resolve(true); }
   function _pinKindLabel(k) { return k; }
   function _pinRefresh() {}
   function _render() {}
   var _sel = { g1: 1 }, _selPurpose = 'group';
-  function _selGroups() { return [{ key: 'g1', files: [{ id: 'a' }, { id: 'b' }, { id: 'c' }, { id: 'd' }] }]; }
-  window._pinFinishMode = function () {};
+  // honours _sel so Cancel's clear actually empties the panel (v0.9.1306)
+  function _selGroups() { return _sel.g1 ? [{ key: 'g1', files: [{ id: 'a' }, { id: 'b' }, { id: 'c' }, { id: 'd' }] }] : []; }
+  window.__finished = 0;
+  window._pinFinishMode = function () { window.__finished++; };
 </script>
 <script>${kindsSlice}
 ${pinSrc.slice(s0, s1)}
@@ -1394,7 +1397,26 @@ _pinGrpPanelRender();
         };
       });
       const shot = await pg.screenshot({ type: 'png' });
+      // v0.9.1306 (Brad: "cancel button doesn't work"): Cancel with ticks
+      // clears them and STAYS (saying so); Cancel with nothing ticked closes.
+      const cx = await pg.evaluate(function () {
+        document.getElementById('pin-grp-panel-cancel').click();
+        const p = document.getElementById('pin-grp-panel');
+        const afterClear = {
+          stays: !!p,
+          empty: p && /Nothing selected yet/.test(p.textContent),
+          toast: window.__toasts.join('|'),
+          finished: window.__finished,
+        };
+        document.getElementById('pin-grp-panel-cancel').click();
+        return { afterClear: afterClear, finishedAfterSecond: window.__finished };
+      });
       await pg.close();
+      ok('panel: Cancel with ticks clears them, stays open, and says so',
+         cx.afterClear.stays && cx.afterClear.empty && cx.afterClear.finished === 0 &&
+         /Cleared/.test(cx.afterClear.toast), JSON.stringify(cx.afterClear));
+      ok('panel: Cancel with nothing ticked closes the popup',
+         cx.finishedAfterSecond === 1, String(cx.finishedAfterSecond));
       ok('panel: it renders fixed at the top-right and survives scrolling',
          !m.missing && m.fixed && m.top === 70 && m.right === 16, JSON.stringify(m));
       ok('panel: it stays inside the viewport', m.bottom <= 700, String(m.bottom));

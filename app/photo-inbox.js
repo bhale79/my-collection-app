@@ -665,10 +665,20 @@
       _pinRefresh();
     };
     var cn = document.getElementById('pin-grp-panel-cancel');
+    // v0.9.1306 (Brad: "cancel button doesn't work"): with nothing ticked,
+    // Cancel cleared an already-empty selection and the popup just sat there.
+    // One button, both expectations: ticks present → clear them and stay for
+    // the next group (and SAY so); nothing ticked → close, same as Done.
     if (cn) cn.onclick = function () {
+      var _had = _pinGrpPanelFiles().length;
       _sel = {}; _grpPanelRoles = [];
-      _render();
-      _pinGrpPanelRender();
+      if (_had) {
+        _render();
+        _pinGrpPanelRender();
+        showToast('Cleared — tap photos to start a new group', 2500);
+      } else {
+        window._pinFinishMode();
+      }
     };
     var dn = document.getElementById('pin-grp-panel-done');
     if (dn) dn.onclick = function () { window._pinFinishMode(); };
