@@ -330,6 +330,14 @@ function buildPrefsPage() {
         <div class="pref-row-label"><strong>Protect key columns</strong><span>Asks "are you sure?" in Google Sheets if anyone edits the ID columns or a header row. Runs on its own — use this to put it back after changing protection by hand.</span></div>
         <button class="pref-btn" onclick="_reapplySheetProtection()">Re-apply Protection</button>
       </div>
+      <div class="pref-row">
+        <div class="pref-row-label"><strong>Refresh sheet styling</strong><span>Re-applies your Google Sheet's formatting — headers, colors, dropdowns and the Dashboard tab. Use it if the sheet looks off after hand edits.</span></div>
+        <!-- v0.9.1276: _rebuildDashboardTab had existed since Session 155 with
+             no caller — the button this row provides was never rendered, so a
+             documented feature ("via the Rebuild Dashboard Tab button") was
+             fiction, the same shape as R10's Re-apply Protection above. -->
+        <button class="pref-btn" onclick="_rebuildDashboardTab()">Refresh Styling</button>
+      </div>
 
       <div style="font-size:0.78rem;font-weight:600;color:var(--text-mid);padding:0.75rem 0.2rem 0.35rem;letter-spacing:0.03em;text-transform:uppercase">Dashboard</div>
       <div class="pref-row" style="flex-direction:column;align-items:flex-start;gap:0.4rem">
@@ -514,63 +522,11 @@ function _copyHealthCheckScript() {
   }
 }
 
-var _QA_ITEMS = [
-  { section: '🔐 Auth & Login', items: [
-    { id: 'auth-load',   label: 'App loads without errors', hint: 'Open the app. No red error banners, no blank screen.' },
-    { id: 'auth-login',  label: 'Google sign-in works', hint: 'Tap Sign in with Google. You are taken to your dashboard.' },
-    { id: 'auth-dash',   label: 'Dashboard shows correct counts', hint: 'Collection count, want list count, and quick entry count all show.' },
-  ]},
-  { section: '📋 My Collection List', items: [
-    { id: 'coll-load',   label: 'My Collection list loads', hint: 'Tap My Collection from sidebar. Items appear.' },
-    { id: 'coll-cols',   label: 'All 6 columns visible: Item # | Var. | Type | Description | Est. Worth | Actions', hint: 'Type and Est. Worth columns should be present.' },
-    { id: 'coll-filter', label: 'Type and Road filters work', hint: 'Select a type (e.g. Steam). List narrows correctly.' },
-    { id: 'coll-search', label: 'Search box filters results', hint: 'Type a partial item number. Matching rows appear.' },
-    { id: 'coll-detail', label: 'Tapping a row opens item detail page', hint: 'Tap any row. Item detail page opens with full info.' },
-  ]},
-  { section: '⚡ Quick Entry', items: [
-    { id: 'qe-open',       label: 'Quick Entry list loads', hint: 'Tap Quick Entry List in sidebar. Shows any pending items.' },
-    { id: 'qe-save-basic', label: 'Quick Entry saves (fast save)', hint: 'Tap card with no boxes checked. Toast confirms save. Item appears in collection.' },
-    { id: 'qe-worth-save', label: 'Est. Worth saves to sheet column N', hint: 'Enter a value, tap Confirm & Save. Column N in Google Sheets should show the value.' },
-    { id: 'qe-photo-save', label: 'Photo saves to Drive (column J)', hint: 'Take a photo, save. Column J should have a Drive folder link.' },
-    { id: 'qe-addinfo',    label: 'Add Info opens wizard pre-filled', hint: 'Tap Add Info on any quick entry item. Wizard opens with data already filled in.' },
-  ]},
-  { section: '➕ Full Add Item Wizard', items: [
-    { id: 'wiz-open',   label: 'Wizard opens from + Add button', hint: 'Tap the + Add button. Wizard opens on Step 1.' },
-    { id: 'wiz-search', label: 'Item number search finds items', hint: 'Type an item number. Matching results appear.' },
-    { id: 'wiz-save',   label: 'Full entry saves to My Collection', hint: 'Complete wizard. Toast confirms. Item appears in list.' },
-    { id: 'wiz-photo',  label: 'Photo upload in full wizard works', hint: 'Upload a photo. Drive folder link appears in sheet column J.' },
-  ]},
-  { section: '⭐ Want List', items: [
-    { id: 'want-load',   label: 'Want List page loads', hint: 'Tap Want List. Items appear if any are on the list.' },
-    { id: 'want-add',    label: 'Adding to Want List works', hint: 'Browse an item, tap Want. Item appears on Want List.' },
-    { id: 'want-remove', label: 'Removing from Want List works', hint: 'Tap Remove on a want item. It disappears from list.' },
-  ]},
-  { section: '🏷️ For Sale & Sold', items: [
-    { id: 'fs-action', label: 'For Sale button on collection row works', hint: 'Tap For Sale on any collection item. Form appears.' },
-    { id: 'fs-list',   label: 'For Sale list shows the item', hint: 'After marking for sale, go to For Sale list. Item appears.' },
-    { id: 'sold-list', label: 'Sold Items list shows the item', hint: 'After marking sold, go to Sold Items list. Item appears.' },
-  ]},
-  { section: '↑ Upgrade List', items: [
-    { id: 'upg-add',  label: 'Add to Upgrade List works', hint: 'Tap Upgrade on a collection item. Confirmation appears.' },
-    { id: 'upg-list', label: 'Upgrade List shows the item', hint: 'Go to Upgrade List. Item appears.' },
-  ]},
-  { section: '🗑️ Remove Item', items: [
-    { id: 'rem-confirm', label: 'Remove shows confirmation dialog', hint: 'Tap Remove on a collection item. Confirm dialog appears before anything is deleted.' },
-    { id: 'rem-gone',    label: 'Removed item disappears from collection', hint: 'Confirm remove. Item is no longer in My Collection.' },
-  ]},
-  { section: '🔄 Navigation & General', items: [
-    { id: 'nav-sidebar', label: 'All sidebar nav items open correct pages', hint: 'Click each sidebar link. Correct page appears each time.' },
-    { id: 'nav-back',    label: 'Browser back button works throughout the app', hint: 'Navigate a few pages deep, hit back. Goes to previous page.' },
-    { id: 'nav-prefs',   label: 'Preferences page loads and saves', hint: 'Go to Preferences. Make a change, reload. Change persisted.' },
-    { id: 'nav-sync',    label: 'Sync from Sheet refreshes data', hint: 'Tap Sync from Sheet. Data reloads. Dashboard counts update.' },
-  ]},
-  { section: '📊 Collector\'s Market', items: [
-    { id: 'vault-prefs', label: "Collector's Market row appears in Preferences", hint: 'Go to Preferences. Collector\'s Market section with opt-in toggle appears.' },
-    { id: 'vault-card',  label: 'Market card appears on item detail (if opted in)', hint: 'If opted in: open an item detail page. Market Est. card appears at bottom.' },
-  ]},
-];
-
-var _QA_STATE_KEY = 'lv_qa_checklist';
+// v0.9.1276 (R11 leftovers): a QA checklist (_QA_ITEMS and its
+// localStorage key 'lv_qa_checklist') sat here from Session ~150 with no
+// caller and no render — a feature that never shipped, kept looking like
+// one that had. Removed rather than left to mislead the next search for
+// where a stored key is written.
 
 function _onDashCardToggle(id, checked) {
   let selected = _getDashCards();

@@ -10301,11 +10301,22 @@ META_WRITES.length = 0; TOASTS.length = 0;
        /'\.\/write-outbox\.js'/.test(rd('app/sw.js')));
 
     section('199h. The version trio moved together');
-    ok('APP_VERSION is v0.9.1275', /const APP_VERSION = 'v0\.9\.1275';/.test(cfg));
+    ok('APP_VERSION is v0.9.1276', /const APP_VERSION = 'v0\.9\.1276';/.test(cfg));
     ok('every ?v= mark in app/index.html matches it',
-       (idx.match(/\?v=1275/g) || []).length === 69 && !/\?v=1274/.test(idx),
-       String((idx.match(/\?v=1275/g) || []).length));
-    ok('the service worker cache name moved too', /const CACHE_NAME = 'mca-v1285';/.test(rd('app/sw.js')));
+       (idx.match(/\?v=1276/g) || []).length === 69 && !/\?v=1275/.test(idx),
+       String((idx.match(/\?v=1276/g) || []).length));
+    ok('the service worker cache name moved too', /const CACHE_NAME = 'mca-v1286';/.test(rd('app/sw.js')));
+    // v0.9.1276 (R9): the ?v= count above cannot see a NEW local <script>
+    // added with no stamp at all — 69 stamped plus one bare is still 69, and
+    // the bare one dodges the cache-busting the stamp exists for: it would be
+    // served stale by the browser's HTTP cache across deploys. Every local
+    // script must carry the stamp; third-party (https://) tags are exempt.
+    {
+      const bare = (idx.match(/<script src="\.\/[^"]*"/g) || [])
+        .filter(t => t.indexOf('?v=') === -1);
+      ok('no local script tag ships without a version stamp',
+         bare.length === 0, bare.join(' ') || 'all local scripts stamped');
+    }
     // v0.9.1259: the root page's own ?v= is gone — it registers no worker.
     // The trio is a trio again. §207 is what guards the root page now.
     ok('the landing page carries no version stamp to forget',
@@ -10623,8 +10634,19 @@ META_WRITES.length = 0; TOASTS.length = 0;
        /var _livePd = \(_pdKey && state\.personalData\[_pdKey\]\) \|\| pd;/.test(pin));
     ok('…refuses a placeholder row, like its hardened sibling',
        /var _rowKnown = _livePd\.row && Number\(_livePd\.row\) !== 99999;/.test(pin));
-    ok('…and only records the link once the sheet has taken it',
-       /_livePd\.photoItem = link;   \/\/ only true once the sheet actually took it/.test(pin));
+    // v0.9.1276 (R9): this used to pin the line plus its comment and assert
+    // nothing about POSITION — swapping the two lines, recording the link
+    // before the sheet write, kept both spellings present and passed. Assert
+    // the order: within the attach block, the sheetsUpdate comes first, the
+    // assignment second, and no assignment to photoItem sits above the write.
+    {
+      const iWr = pin.indexOf("personalColLetter('photoItem') + _livePd.row");
+      const iAs = pin.indexOf('_livePd.photoItem = link;');
+      ok('…and only records the link once the sheet has taken it',
+         iWr > 0 && iAs > iWr && (iAs - iWr) < 300 &&
+         pin.lastIndexOf('_livePd.photoItem = link', iWr) === -1,
+         JSON.stringify({ write: iWr, assign: iAs }));
+    }
 
     section('202d. Finding 15 — a done-marker that named a moving target');
     ok('the backfill iterates entries so it has the store key',
@@ -10731,15 +10753,39 @@ META_WRITES.length = 0; TOASTS.length = 0;
        /rrRowStillIs\(state\.personalSheetId, 'Parts Needed', rowNum, _expId\)/.test(pages));
     ok('the ephemera full-row rewrite verifies',
        /rrRowStillIs\(state\.personalSheetId, sheetName, rowNum, entry\.itemNum\)/.test(pages));
-    ok('each one STOPS on a refusal rather than writing anyway',
-       (pages.match(/if \(!_ok\) \{/g) || []).length === 4,
-       String((pages.match(/if \(!_ok\) \{/g) || []).length));
-    ok('…and tells the user what happened, in their words',
-       (pages.match(/changed (somewhere else|in your sheet) — nothing was/g) || []).length === 4,
-       String((pages.match(/changed (somewhere else|in your sheet) — nothing was/g) || []).length));
-    ok('no guarded write can run before its check',
-       ['Sold!A', "Parts Needed!A' + existingRow", "Parts Needed!A' + rowNum", "sheetName + '!A' + rowNum"]
-         .every(w => pages.indexOf('rrRowStillIs') < pages.lastIndexOf(w)));
+    // v0.9.1276 (R9): the two assertions this replaces were weaker than they
+    // read. One counted `if (!_ok) {` branches without ever checking the
+    // `return;` that gives the branch meaning — deleting the return passed.
+    // The other compared the FIRST rrRowStillIs anywhere in a 4,000-line file
+    // against the LAST occurrence of each write string anywhere in it, which
+    // is a constant true for any file with a check near the top. Both are now
+    // per-site: slice the 700 characters after EACH check call and require,
+    // in order, the refusal branch, the return inside it, the user's message,
+    // and only then the write. A check moved below its write, a deleted
+    // return, or a silenced message each breaks exactly one named site.
+    {
+      const SITES = [
+        ['ephemera rewrite', /rrRowStillIs\(state\.personalSheetId, sheetName, rowNum, entry\.itemNum\)/, "sheetName + '!A' + rowNum"],
+        ['sold removal', /rrRowStillIs\(state\.personalSheetId, 'Sold', sd\.row, sd\.itemNum\)/, "'Sold!A' + sd.row"],
+        ['part save', /rrRowStillIs\(state\.personalSheetId, 'Parts Needed', existingRow, _expId\)/, "'Parts Needed!A' + existingRow"],
+        ['part removal', /rrRowStillIs\(state\.personalSheetId, 'Parts Needed', rowNum, _expId\)/, "'Parts Needed!A' + rowNum"],
+      ];
+      SITES.forEach(([name, checkRe, write]) => {
+        const m = pages.match(checkRe);
+        const at = m ? pages.indexOf(m[0]) : -1;
+        const seg = at < 0 ? '' : pages.slice(at, at + 700);
+        const iIf = seg.indexOf('if (!_ok) {');
+        const iRet = seg.indexOf('return;', iIf);
+        const iMsg = seg.search(/changed (somewhere else|in your sheet) — nothing was/);
+        const iWr = seg.indexOf(write);
+        ok('the ' + name + ' checks, refuses with a return AND a message, then writes — in that order',
+           at >= 0 && iIf > 0 && iMsg > iIf && iRet > iIf && iWr > iRet,
+           JSON.stringify({ found: at >= 0, iIf, iMsg, iRet, iWr }));
+        ok('…and the ' + name + ' has no copy of that write ABOVE its check',
+           at >= 0 && pages.lastIndexOf(write, at) === -1,
+           'a write before the check is the exact bug §203 exists for');
+      });
+    }
   })();
 
   // ═══════════════════════════════════════════════════════════
@@ -10825,8 +10871,16 @@ META_WRITES.length = 0; TOASTS.length = 0;
     const pages = rd205('app/app-pages.js');
     // The empty-state hint was the last place the old name survived, because
     // the G test read headings and never reached a hint string.
-    const hint = (pages.match(/maybeShowContextualHint\('sold_empty',[\s\S]{0,200}?\)/) || [''])[0];
-    ok('the empty-Sold hint exists to be checked', hint.length > 40);
+    // v0.9.1276 (R9): the old extraction stopped at the FIRST `)` — which sat
+    // inside the hint copy itself, so text after it was never examined and a
+    // "Sold List" reintroduced later in the sentence passed. Cut at the end
+    // of the CALL (the quote that closes the string argument), and assert the
+    // cut really reached it so a reshaped call fails loudly instead of
+    // silently checking a prefix again.
+    const hint = (pages.match(/maybeShowContextualHint\('sold_empty',\s*'(?:[^'\\]|\\.)*'/) || [''])[0];
+    ok('the empty-Sold hint exists to be checked — the WHOLE hint',
+       hint.length > 40 && /'$/.test(hint),
+       'extraction did not reach the closing quote — checking a prefix proves nothing');
     ok('…and does not say "Sold List"', !/Sold List/.test(hint));
     ok('…and still names the page', /<strong>Sold<\/strong>/.test(hint));
 
@@ -10888,9 +10942,13 @@ META_WRITES.length = 0; TOASTS.length = 0;
        'the erase runs first — a failed want write loses an owned item');
 
     section('206b. A failed save says so, in the collector’s words');
+    // v0.9.1276 (R9): the old spelling required the literal `await`, so an
+    // UNawaited sheetsUpdate in saveItem() — a write that fires and floats,
+    // the exact shape §206 exists to guard — was invisible to it. No write
+    // call of any kind belongs in the wrapper, awaited or not.
     ok('every sheet write sits inside the wrapped function',
-       !/await sheets(Update|Append)\(/.test(saveFn),
-       'an unguarded write is back in saveItem() itself');
+       !/sheets(Update|Append|Clear|DeleteRow)\(/.test(saveFn),
+       'a write is back in saveItem() itself — awaited or not, it belongs in _saveItemWrites');
     ok('the writes are awaited inside a try',
        /try \{[\s\S]{0,700}await _saveItemWrites\(\)[\s\S]{0,80}\} catch/.test(saveFn));
     // v0.9.1267 (R3): a refused row write is not an exception — it is a false
@@ -14121,6 +14179,40 @@ META_WRITES.length = 0; TOASTS.length = 0;
            nextV.responded === true && nextV.put.length === 0,
            JSON.stringify({ responded: nextV.responded, put: nextV.put }));
       }
+    })();
+
+    // ═══════════════════════════════════════════════════════════
+    // §226. v0.9.1276 — leftovers: a documented button that never existed,
+    //   and two localStorage keys that outlived their features.
+    //
+    //   _rebuildDashboardTab sat in prefs.js from Session 155 with no
+    //   caller — sheet-builder.js documented "the Rebuild Dashboard Tab
+    //   button" as if it shipped. The button exists now (Preferences →
+    //   Data → Refresh Styling). Same shape as R10's Re-apply Protection.
+    //
+    //   'lv_qa_checklist' (a QA checklist that never rendered) is deleted
+    //   outright; 'rr_capture_home_era' (the era's localStorage home before
+    //   v0.9.1057 moved it to session memory) is actively cleared, since
+    //   devices from before the change still carry the stale value.
+    // ═══════════════════════════════════════════════════════════
+    section('226. Leftovers — the styling button exists, dead keys are gone');
+    (function () {
+      const p26 = require('path');
+      const rd26 = f => fs.readFileSync(p26.join(__dirname, '..', 'app', f), 'utf8');
+      const prefs = rd26('prefs.js'), pin26 = rd26('photo-inbox.js');
+      ok('226 the Refresh Styling button is wired to the function',
+         /onclick="_rebuildDashboardTab\(\)"/.test(prefs));
+      ok('226 …and the function it names still exists',
+         /async function _rebuildDashboardTab\(\)/.test(prefs));
+      // The tombstone comment left in prefs.js NAMES the removed key so the
+      // next search finds the story — strip comments so the scan sees only
+      // code that could actually write it.
+      const prefsCode = prefs.replace(/\/\/[^\n]*/g, '');
+      ok('226 the never-rendered QA checklist is gone, key and all',
+         !/lv_qa_checklist/.test(prefsCode) && !/_QA_ITEMS/.test(prefsCode));
+      ok('226 the pre-1057 era key is cleared, not just unused',
+         /localStorage\.removeItem\('rr_capture_home_era'\)/.test(pin26) &&
+         !/_PIN_HOME_KEY/.test(pin26.replace(/\/\/[^\n]*/g, '')));
     })();
 
   })().then(function () {

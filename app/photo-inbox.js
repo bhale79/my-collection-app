@@ -607,7 +607,13 @@
   // One era key carries maker, scale and period together, so the three
   // dropdowns narrow each other and cannot produce a combination that never
   // existed (there is no Lionel prewar HO).
-  var _PIN_HOME_KEY = 'rr_capture_home_era';
+  // v0.9.1276 (R11 leftovers): _PIN_HOME_KEY ('rr_capture_home_era') was
+  // the localStorage home for the era before v0.9.1057 moved it to session
+  // memory (Brad's call — a setting that outlives the shelf you were
+  // photographing is a trap). The constant outlived its use by 200+
+  // versions; devices from before the change may still hold the stale key,
+  // so it is cleared once here rather than left forever.
+  try { localStorage.removeItem('rr_capture_home_era'); } catch (eHK) {}
   var _pinOneShot = null;          // era key armed for the next photo only
 
   // v0.9.1057: the home era used to live in localStorage and survive restarts.
