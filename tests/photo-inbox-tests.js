@@ -16577,6 +16577,54 @@ META_WRITES.length = 0; TOASTS.length = 0;
          })(), 'a render that runs before the sync draws the stale list one more time');
     })();
 
+    // ═══════════════════════════════════════════════════════════
+    // §249. v0.9.1299 — the share sheet: one plan, two skins, no overlap.
+    //
+    //   Brad's screenshots: multi-line variation descriptions drew OVER
+    //   Condition / Has Box / Est. — the height estimate counted one line
+    //   while jsPDF drew them all. And: "there are two different things
+    //   here to share. the look at what i got, and the here is somehting
+    //   i have to sale." The REAL rrShareCardPlan runs here: the same row
+    //   list sizes the card and draws it, so a drawn line the height
+    //   never counted cannot exist.
+    // ═══════════════════════════════════════════════════════════
+    section('249. Share sheet: one plan sizes and draws, two skins');
+    (function () {
+      const p49 = require('path');
+      const sh49 = fs.readFileSync(p49.join(__dirname, '..', 'app', 'share.js'), 'utf8');
+      const s0 = sh49.indexOf('var RR_SHARE_SKINS = {');
+      const s1 = sh49.indexOf('// ── Build PDF using jsPDF');
+      ok('249 the skins and the plan exist ahead of the builder', s0 > 0 && s1 > s0);
+      const rig = new Function(sh49.slice(s0, s1) + ' return { skins: RR_SHARE_SKINS, plan: rrShareCardPlan };')();
+      // A splitter like jsPDF's: honors embedded newlines, wraps nothing else.
+      const split = function (t) { return String(t).split('\n'); };
+      const SIXLINE = 'A\nB\nC\nD\nE\nF';
+      const vals = { roadName: 'Ballast Tamper', varDesc: SIXLINE, condition: '7', hasBox: 'No', price: 'Est. $75', notes: '' };
+      const FIELDS = { itemnum: 1, vardesc: 1, cond: 1, box: 1, price: 1, notes: 1 };
+      const plan = rig.plan(vals, FIELDS, split, false, 540);
+      const vd = plan.rows.find(function (r) { return r.kind === 'vardesc'; });
+      ok('249 a six-line variation is six lines tall, not one',
+         vd && vd.lines.length === 6 && vd.h === 6 * 11 + 2, JSON.stringify(vd && vd.h));
+      ok('249 the card height IS the sum of its rows — overlap cannot exist',
+         plan.cardH === 20 + 16 + plan.rows.reduce(function (a, r) { return a + r.h; }, 0),
+         plan.cardH + ' vs rows');
+      const one = rig.plan({ roadName: '', varDesc: 'ONE LINE', condition: '7', hasBox: 'No', price: '$75', notes: '' }, FIELDS, split, false, 540);
+      ok('249 a one-line variation stays compact', one.cardH < plan.cardH);
+      ok('249 the photo column narrows the text the same way for sizing and drawing',
+         rig.plan(vals, FIELDS, split, true, 540).textW === 540 - 80 - 28 - 24 && plan.textW === 540 - 24);
+      // ── skins ──
+      ok('249 two skins, and For Sale wears the sales sheet',
+         !!rig.skins.collector && !!rig.skins.sale &&
+         rig.skins.sale.title === 'ITEMS FOR SALE' &&
+         /_shareSource === 'forsale'\) \? 'sale' : 'collector'/.test(sh49));
+      ok('249 the builder sizes AND draws from the ONE plan',
+         /var cardH = _plan\.cardH;/.test(sh49) &&
+         /for \(var _r = 0; _r < _plan\.rows\.length; _r\+\+\)/.test(sh49) &&
+         /cy \+= row\.h;/.test(sh49));
+      ok('249 photos fetch four items at a time, not one by one',
+         /_queue\.splice\(0, 4\)\.map\(_fetchOne\)/.test(sh49));
+    })();
+
   })().then(function () {
     console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
     process.exit(fail ? 1 : 0);

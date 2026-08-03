@@ -228,26 +228,34 @@ async function _doShare(mode) {
     // Fetch photos if needed
     if (fields.photo) {
       if (prog) prog.textContent = 'Fetching photos (this may take a moment)…';
-      for (var i = 0; i < items.length; i++) {
-        var it = items[i];
-        if (it.pd && it.pd.photoItem) {
-          try {
-            var photos = await driveGetFolderPhotos(it.pd.photoItem);
-            if (photos && photos.length > 0) {
-              it._photoDataUrl = await _fetchPhotoAsDataUrl(photos[0].id);
-              // "All photos of item" fetches the rest too, capped at 4 extras so
-              // a 30-photo item can't turn one share into a multi-minute wait.
-              if (fields.allPhotos && photos.length > 1) {
-                it._photoExtras = [];
-                for (var p = 1; p < photos.length && p <= 4; p++) {
-                  var _ex = await _fetchPhotoAsDataUrl(photos[p].id);
-                  if (_ex) it._photoExtras.push(_ex);
-                }
+      // v0.9.1299 (Brad: audit "the speed at which it builds them"): photos
+      // used to download strictly one at a time across the whole share. They
+      // now fetch four ITEMS at a time (each item still capped at 1 main + 4
+      // extras), which is where the wait actually was.
+      var _done = 0;
+      var _fetchOne = async function (it) {
+        if (!(it.pd && it.pd.photoItem)) return;
+        try {
+          var photos = await driveGetFolderPhotos(it.pd.photoItem);
+          if (photos && photos.length > 0) {
+            it._photoDataUrl = await _fetchPhotoAsDataUrl(photos[0].id);
+            // "All photos of item" fetches the rest too, capped at 4 extras so
+            // a 30-photo item can't turn one share into a multi-minute wait.
+            if (fields.allPhotos && photos.length > 1) {
+              it._photoExtras = [];
+              for (var p = 1; p < photos.length && p <= 4; p++) {
+                var _ex = await _fetchPhotoAsDataUrl(photos[p].id);
+                if (_ex) it._photoExtras.push(_ex);
               }
             }
-          } catch(e) { /* photo failed — skip gracefully */ }
-        }
-        if (prog) prog.textContent = 'Fetching photos… (' + (i+1) + '/' + items.length + ')';
+          }
+        } catch(e) { /* photo failed — skip gracefully */ }
+        _done++;
+        if (prog) prog.textContent = 'Fetching photos… (' + _done + '/' + items.length + ')';
+      };
+      var _queue = items.slice();
+      while (_queue.length) {
+        await Promise.all(_queue.splice(0, 4).map(_fetchOne));
       }
     }
 
@@ -314,6 +322,51 @@ async function _fetchPhotoAsDataUrl(fileId) {
   });
 }
 
+// ══ v0.9.1299 (Brad): TWO share intents, one sheet builder. ══════════════
+// "there are two different things here to share. the look at what i got,
+//  and the here is somehting i have to sale."
+// The For Sale share wears a clean light sales-sheet skin; every other share
+// keeps the collector look. Colors are jsPDF rgb triplets (the canvas/PDF
+// bridge case NO_HARDCODED_COLORS.md phase 5 describes).
+var RR_SHARE_SKINS = {
+  collector: { headerBg:[15,18,32], headerTitle:[240,80,8], headerSub:[200,184,138],
+               cardBg:[22,28,52], cardBorder:[42,53,96], num:[240,80,8],
+               road:[248,232,192], field:[200,184,138], price:[212,168,67],
+               msg:[248,232,192], title:'THE RAIL ROSTER', sub:'From my collection' },
+  sale:      { headerBg:[247,240,220], headerTitle:[176,58,8], headerSub:[110,100,80],
+               cardBg:[255,255,255], cardBorder:[208,200,182], num:[26,26,26],
+               road:[96,90,78], field:[70,66,58], price:[176,58,8],
+               msg:[70,66,58], title:'ITEMS FOR SALE', sub:'The Rail Roster' },
+};
+
+// ONE plan for a card: the same line list SIZES the card and DRAWS it, so a
+// multi-line variation can never overlap the fields below it again — the
+// v0.9.1299 bug was the height counting one line while jsPDF drew them all.
+// `split` is doc.splitTextToSize bound to the doc (injected so tests can run
+// this pure).
+function rrShareCardPlan(vals, fields, split, photoPlanned, contentW) {
+  var textW = photoPlanned ? contentW - 80 - 28 - 24 : contentW - 24;
+  var rows = [];
+  if (fields.itemnum) rows.push({ kind: 'num', h: 16 });
+  if (vals.roadName)  rows.push({ kind: 'road', h: 14 });
+  if (fields.vardesc && vals.varDesc) {
+    var vl = split('Variation: ' + vals.varDesc, textW);
+    rows.push({ kind: 'vardesc', lines: vl, h: vl.length * 11 + 2 });
+  }
+  if (fields.cond && vals.condition) rows.push({ kind: 'cond', h: 13 });
+  if (fields.box && vals.hasBox)     rows.push({ kind: 'box', h: 13 });
+  if (fields.price && vals.price)    rows.push({ kind: 'price', h: 13 });
+  if (fields.notes && vals.notes) {
+    var nl = split('Notes: ' + vals.notes, textW);
+    rows.push({ kind: 'notes', lines: nl, h: nl.length * 11 + 2 });
+  }
+  var cardH = 20 + 16;
+  for (var r = 0; r < rows.length; r++) cardH += rows[r].h;
+  if (photoPlanned) cardH = Math.max(cardH, 100);
+  return { rows: rows, cardH: cardH, textW: textW };
+}
+if (typeof window !== 'undefined') { window.rrShareCardPlan = rrShareCardPlan; window.RR_SHARE_SKINS = RR_SHARE_SKINS; }
+
 // ── Build PDF using jsPDF ─────────────────────────────────────────
 async function _buildPDF(items, fields, message) {
   // jsPDF is loaded from CDN in index.html
@@ -323,16 +376,20 @@ async function _buildPDF(items, fields, message) {
   var contentW = pageW - margin * 2;
   var y = margin;
 
+  // v0.9.1299: the For Sale share is a sales sheet, everything else is the
+  // collector look. One builder, two skins.
+  var skin = RR_SHARE_SKINS[(typeof _shareSource !== 'undefined' && _shareSource === 'forsale') ? 'sale' : 'collector'];
+
   // ── Header ──
-  doc.setFillColor(15, 18, 32); // --bg color
+  doc.setFillColor(skin.headerBg[0], skin.headerBg[1], skin.headerBg[2]);
   doc.rect(0, 0, pageW, 56, 'F');
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(18);
-  doc.setTextColor(240, 80, 8); // --accent
-  doc.text('THE RAIL ROSTER', margin, 36);
+  doc.setTextColor(skin.headerTitle[0], skin.headerTitle[1], skin.headerTitle[2]);
+  doc.text(skin.title, margin, 36);
   doc.setFontSize(9);
-  doc.setTextColor(200, 184, 138); // --text-mid
-  doc.text('Share Sheet  ·  ' + new Date().toLocaleDateString('en-US', { year:'numeric', month:'long', day:'numeric' }), margin, 50);
+  doc.setTextColor(skin.headerSub[0], skin.headerSub[1], skin.headerSub[2]);
+  doc.text(skin.sub + '  ·  ' + new Date().toLocaleDateString('en-US', { year:'numeric', month:'long', day:'numeric' }), margin, 50);
 
   y = 72;
 
@@ -340,7 +397,7 @@ async function _buildPDF(items, fields, message) {
   if (message && message.trim()) {
     doc.setFont('helvetica', 'italic');
     doc.setFontSize(10);
-    doc.setTextColor(248, 232, 192);
+    doc.setTextColor(skin.msg[0], skin.msg[1], skin.msg[2]);
     var msgLines = doc.splitTextToSize(message.trim(), contentW);
     doc.text(msgLines, margin, y);
     y += msgLines.length * 14 + 12;
@@ -365,16 +422,14 @@ async function _buildPDF(items, fields, message) {
     var price   = fs.askingPrice ? (_currencySymbol() + parseFloat(fs.askingPrice).toLocaleString()) : (pd.userEstWorth ? 'Est. $' + parseFloat(pd.userEstWorth).toLocaleString() : (want.maxPrice ? 'Max $' + parseFloat(want.maxPrice).toLocaleString() : ''));
     var notes   = pd.notes || fs.notes || want.notes || '';
 
-    // Estimate card height
-    var cardH = 20; // top padding
-    if (roadName) cardH += 16;
-    if (fields.vardesc && varDesc) cardH += 14;
-    if (fields.cond && condition)  cardH += 14;
-    if (fields.box && hasBox)      cardH += 14;
-    if (fields.price && price)     cardH += 14;
-    if (fields.notes && notes)     cardH += doc.splitTextToSize(notes, contentW - (fields.photo ? 100 : 0) - 16).length * 12 + 4;
-    cardH += 16; // bottom padding
-    if (fields.photo) cardH = Math.max(cardH, 100);
+    // v0.9.1299: the ONE plan sizes the card AND drives the drawing below —
+    // the overlap bug was this estimate counting a multi-line variation as
+    // one line while jsPDF drew them all.
+    var _photoPlanned = !!(fields.photo && it._photoDataUrl);
+    var _plan = rrShareCardPlan(
+      { roadName: roadName, varDesc: varDesc, condition: condition, hasBox: hasBox, price: price, notes: notes },
+      fields, function (t, w) { return doc.splitTextToSize(t, w); }, _photoPlanned, contentW);
+    var cardH = _plan.cardH;
     // Extra photos ride in a strip under the text, so the main-photo layout
     // above is untouched for the ordinary "Main photo only" share.
     var _extras = (fields.allPhotos && it._photoExtras && it._photoExtras.length) ? it._photoExtras : null;
@@ -387,9 +442,9 @@ async function _buildPDF(items, fields, message) {
     }
 
     // Card background
-    doc.setFillColor(22, 28, 52); // --surface
+    doc.setFillColor(skin.cardBg[0], skin.cardBg[1], skin.cardBg[2]);
     doc.roundedRect(margin, y, contentW, cardH, 6, 6, 'F');
-    doc.setDrawColor(42, 53, 96); // --border
+    doc.setDrawColor(skin.cardBorder[0], skin.cardBorder[1], skin.cardBorder[2]);
     doc.roundedRect(margin, y, contentW, cardH, 6, 6, 'S');
 
     var textX = margin + 12;
@@ -408,53 +463,34 @@ async function _buildPDF(items, fields, message) {
 
     var cy = y + 14;
 
-    // Item number + road name header
-    if (fields.itemnum) {
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(13);
-      doc.setTextColor(240, 80, 8);
-      var numText = 'No. ' + itemNum + (varNum ? '  ·  Var. ' + varNum : '');
-      doc.text(numText, textX, cy);
-      cy += 16;
-    }
-
-    if (roadName) {
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(10);
-      doc.setTextColor(248, 232, 192);
-      doc.text(roadName + (itemType ? '  ·  ' + itemType : ''), textX, cy);
-      cy += 14;
-    }
-
-    // Detail fields
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(9);
-    doc.setTextColor(200, 184, 138);
-
-    if (fields.vardesc && varDesc) {
-      doc.text('Variation: ' + varDesc, textX, cy);
-      cy += 13;
-    }
-    if (fields.cond && condition) {
-      doc.text('Condition: ' + condition + '/10', textX, cy);
-      cy += 13;
-    }
-    if (fields.box && hasBox) {
-      doc.text('Has Box: ' + hasBox, textX, cy);
-      cy += 13;
-    }
-    if (fields.price && price) {
-      doc.setFont('helvetica', 'bold');
-      doc.setTextColor(212, 168, 67);
-      doc.text(price, textX, cy);
-      doc.setFont('helvetica', 'normal');
-      doc.setTextColor(200, 184, 138);
-      cy += 13;
-    }
-    if (fields.notes && notes) {
-      var noteLines = doc.splitTextToSize('Notes: ' + notes, textW);
-      doc.text(noteLines, textX, cy);
-      cy += noteLines.length * 11;
+    // v0.9.1299: the plan's rows draw in order, each advancing by the SAME
+    // height the estimate counted — overlap is impossible by construction.
+    for (var _r = 0; _r < _plan.rows.length; _r++) {
+      var row = _plan.rows[_r];
+      if (row.kind === 'num') {
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(13);
+        doc.setTextColor(skin.num[0], skin.num[1], skin.num[2]);
+        doc.text('No. ' + itemNum + (varNum ? '  ·  Var. ' + varNum : ''), textX, cy);
+      } else if (row.kind === 'road') {
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(10);
+        doc.setTextColor(skin.road[0], skin.road[1], skin.road[2]);
+        doc.text(roadName + (itemType ? '  ·  ' + itemType : ''), textX, cy);
+      } else if (row.kind === 'price') {
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(9);
+        doc.setTextColor(skin.price[0], skin.price[1], skin.price[2]);
+        doc.text(price, textX, cy);
+      } else {
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(9);
+        doc.setTextColor(skin.field[0], skin.field[1], skin.field[2]);
+        if (row.kind === 'vardesc' || row.kind === 'notes') doc.text(row.lines, textX, cy);
+        else if (row.kind === 'cond') doc.text('Condition: ' + condition + '/10', textX, cy);
+        else if (row.kind === 'box') doc.text('Has Box: ' + hasBox, textX, cy);
+      }
+      cy += row.h;
     }
 
     // Extra photos ("All photos of item") — a row of thumbnails along the
