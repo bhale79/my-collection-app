@@ -1408,6 +1408,89 @@ _pinGrpPanelRender();
       } catch (e) {}
     }
 
+    // ══════════════════════════════════════════════════════════════════
+    // The share card-actions screen, MEASURED (v0.9.1302)
+    //
+    // The REAL _rrActsStash/_rrActsBack/_rrBackBtnHtml/_rrCopyCardsToClipboard
+    // run in the page: the card screen shows Copy-for-email and Back, Back
+    // restores the original buttons, and Copy stitches two cards into ONE
+    // image (height = both cards + the seam) handed to the clipboard.
+    // ══════════════════════════════════════════════════════════════════
+    {
+      const sellSrc = fs.readFileSync(path.join(APP, 'sell.js'), 'utf8');
+      const li0 = sellSrc.indexOf('function _rrLoadImg(');
+      const li1 = sellSrc.indexOf('\n}', li0) + 2;
+      const h0 = sellSrc.indexOf('function _rrDownloadFiles(');
+      const h1 = sellSrc.indexOf('if (typeof window !== \'undefined\') { window._rrDoShareNow');
+      ok('shareacts: the real source slices were found', li0 > 0 && h0 > 0 && h1 > h0);
+      const actsPage = `<!doctype html><html><head><meta charset="utf-8">
+<link rel="stylesheet" href="file://${APP}/app.css">
+<style>html,body{margin:0;background:var(--bg)}</style>
+</head><body>
+<div style="max-width:440px;margin:2rem auto;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:1.5rem">
+  <div id="share-builder-actions" style="display:flex;flex-direction:column;gap:0.5rem">
+    <button id="home-share">Share as images</button>
+    <button id="home-pdf">Download as PDF instead</button>
+  </div>
+  <div id="share-progress" style="display:none"></div>
+</div>
+<script>
+  function showToast(m) { window.__toast = m; }
+  window.__copied = null;
+  Object.defineProperty(navigator, 'clipboard', { value: { write: function (items) { window.__copied = items; return Promise.resolve(); } }, configurable: true });
+  window.ClipboardItem = function (o) { this.parts = o; };
+</script>
+<script>${sellSrc.slice(li0, li1)}
+${sellSrc.slice(h0, h1)}
+window._rrActsBack = _rrActsBack; window._rrCopyCardsToClipboard = _rrCopyCardsToClipboard;
+// two fake cards of known sizes, as the app would have built them
+async function _mkCard(w, h) {
+  var c = document.createElement('canvas'); c.width = w; c.height = h;
+  var x = c.getContext('2d'); x.fillStyle = '#123456'; x.fillRect(0, 0, w, h);
+  var b = await new Promise(function (r) { c.toBlob(r, 'image/png'); });
+  return new File([b], 'card.png', { type: 'image/png' });
+}
+window.__ready = (async function () {
+  window._rrShareFiles = [await _mkCard(700, 300), await _mkCard(700, 500)];
+  var acts = document.getElementById('share-builder-actions');
+  _rrActsStash(acts);
+  acts.innerHTML = '<button id="do-share">Email 2 images…</button>' +
+    '<button id="do-copy" onclick="_rrCopyCardsToClipboard()">Copy for email — then paste into your message</button>' +
+    _rrBackBtnHtml();
+  return true;
+})();
+</script></body></html>`;
+      const fp2 = path.join(dir, 'share-acts.html');
+      fs.writeFileSync(fp2, actsPage);
+      const pg2 = await browser.newPage({ viewport: { width: 900, height: 700 } });
+      await pg2.goto('file://' + fp2);
+      await pg2.evaluate(function () { return window.__ready; });
+      const card = await pg2.evaluate(async function () {
+        document.getElementById('do-copy').click();
+        await new Promise(function (r) { setTimeout(r, 300); });
+        const items = window.__copied;
+        if (!items || items.length !== 1) return { items: items ? items.length : 0 };
+        const blob = items[0].parts['image/png'];
+        const im = new Image();
+        const u = URL.createObjectURL(blob);
+        await new Promise(function (r) { im.onload = r; im.src = u; });
+        return { items: 1, w: im.width, h: im.height, toast: window.__toast || '' };
+      });
+      ok('shareacts: Copy hands the clipboard ONE image, not a pile of files', card.items === 1, JSON.stringify(card));
+      ok('shareacts: the stitch is both cards tall plus the seam, widest card wide',
+         card.w === 700 && card.h === 300 + 500 + 16, card.w + 'x' + card.h);
+      ok('shareacts: the toast tells Brad to click into the email and paste',
+         /paste/.test(card.toast), card.toast);
+      const back = await pg2.evaluate(function () {
+        document.querySelector('#share-builder-actions button:last-child').click();
+        return { home: !!document.getElementById('home-pdf') && !!document.getElementById('home-share'),
+                 gone: !document.getElementById('do-copy') };
+      });
+      await pg2.close();
+      ok('shareacts: Back restores the original Share / Download-PDF buttons, picks untouched',
+         back.home && back.gone, JSON.stringify(back));
+    }
+
   } finally {
     await browser.close();
     try { fs.rmSync(dir, { recursive: true, force: true }); } catch (e) {}

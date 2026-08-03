@@ -213,6 +213,19 @@ function _getShareFields() {
   };
 }
 
+// v0.9.1302 (Brad's empty sales sheet): a For Sale share entry carries the
+// SALE record, but the photo lives on the COLLECTION record. The For Sale
+// page and the PNG-card builder both bridged the two; the PDF builder never
+// did — so every For Sale PDF came out with no pictures. ONE resolver now,
+// used by every share flow, so this can't fork again.
+function rrSharePdOf(it) {
+  if (it && it.pd) return it.pd;
+  var inv = it && it.fs && it.fs.inventoryId;
+  if (inv && typeof state !== 'undefined' && state.personalData && state.personalData[inv]) return state.personalData[inv];
+  return {};
+}
+if (typeof window !== 'undefined') { window.rrSharePdOf = rrSharePdOf; }
+
 // ── Main share action ─────────────────────────────────────────────
 async function _doShare(mode) {
   var fields  = _getShareFields();
@@ -234,9 +247,10 @@ async function _doShare(mode) {
       // extras), which is where the wait actually was.
       var _done = 0;
       var _fetchOne = async function (it) {
-        if (!(it.pd && it.pd.photoItem)) return;
+        var _pd = rrSharePdOf(it);
+        if (!(_pd && _pd.photoItem)) return;
         try {
-          var photos = await driveGetFolderPhotos(it.pd.photoItem);
+          var photos = await driveGetFolderPhotos(_pd.photoItem);
           if (photos && photos.length > 0) {
             it._photoDataUrl = await _fetchPhotoAsDataUrl(photos[0].id);
             // "All photos of item" fetches the rest too, capped at 4 extras so
@@ -271,8 +285,12 @@ async function _doShare(mode) {
       a.click();
       setTimeout(() => URL.revokeObjectURL(url), 5000);
       showToast('PDF downloaded', 2500);
-      document.getElementById('share-builder-modal').remove();
-      cancelShareMode();
+      // v0.9.1302 (Brad): "need a back button so if i change my mind, i can
+      // get the pdf with out having to click everything again." The builder
+      // now STAYS open with the picks intact after every outcome — only the
+      // ✕ here or Cancel on the bar ends it.
+      if (prog) prog.textContent = 'PDF downloaded — your picks are kept, so you can share them another way too.';
+      if (acts) acts.style.display = 'flex';
 
     } else {
       // Upload to Drive and share link
@@ -294,11 +312,19 @@ async function _doShare(mode) {
         await navigator.clipboard.writeText((message ? message + '\n\n' : '') + link);
         showToast('Link copied to clipboard', 3000);
       }
-      document.getElementById('share-builder-modal').remove();
-      cancelShareMode();
+      // v0.9.1302: stay open with the picks intact (see the pdf branch note).
+      if (prog) prog.textContent = 'Shared — your picks are kept in case you want the PDF too.';
+      if (acts) acts.style.display = 'flex';
     }
 
   } catch(err) {
+    // Backing out of the system share window isn't an error — just return
+    // to the builder quietly, picks intact.
+    if (err && err.name === 'AbortError') {
+      if (prog) prog.style.display = 'none';
+      if (acts) acts.style.display = 'flex';
+      return;
+    }
     console.error('Share error:', err);
     if (prog) prog.textContent = 'Something went wrong — please try again.';
     if (acts) acts.style.display = 'flex';

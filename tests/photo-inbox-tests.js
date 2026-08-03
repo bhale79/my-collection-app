@@ -16697,6 +16697,60 @@ META_WRITES.length = 0; TOASTS.length = 0;
          /textW = contentW - boxW - 28;/.test(sh51));
     })();
 
+    // ═══════════════════════════════════════════════════════════
+    // §252. v0.9.1302 — three share fixes in one build.
+    //
+    //   Brad: the For Sale PDF "needs the pictures"; "the share copy
+    //   button doesn't copy it to the clipboard so i can paste in my
+    //   email"; "need a back button so if i change my mind, i can get
+    //   the pdf with out having to click everything again."
+    // ═══════════════════════════════════════════════════════════
+    section('252. Share: photos on the sale sheet, copy for email, stay open');
+    (function () {
+      const p52 = require('path');
+      const sh52 = fs.readFileSync(p52.join(__dirname, '..', 'app', 'share.js'), 'utf8');
+      const sl52 = fs.readFileSync(p52.join(__dirname, '..', 'app', 'sell.js'), 'utf8');
+      // ── the ONE pd resolver, run for real ──
+      const r0 = sh52.indexOf('function rrSharePdOf(');
+      const r1 = sh52.indexOf('if (typeof window', r0);
+      ok('252 the resolver exists', r0 > 0 && r1 > r0);
+      const pdOf = new Function('state', sh52.slice(r0, r1) + ' return rrSharePdOf;')(
+        { personalData: { 'inv-9': { photoItem: 'https://drive/folder-9', condition: '7' } } });
+      ok('252 a collection entry keeps its own record',
+         pdOf({ pd: { photoItem: 'own' } }).photoItem === 'own');
+      ok('252 a FOR SALE entry finds the collection record through inventoryId — the empty-sheet bug',
+         pdOf({ fs: { inventoryId: 'inv-9', askingPrice: '20' } }).photoItem === 'https://drive/folder-9');
+      ok('252 a want entry (nothing owned) resolves to empty, not a crash',
+         JSON.stringify(pdOf({ want: { itemNum: '54' } })) === '{}');
+      ok('252 an unknown inventoryId resolves to empty',
+         JSON.stringify(pdOf({ fs: { inventoryId: 'nope' } })) === '{}');
+      // ── both flows READ the one resolver; neither keeps a private copy ──
+      ok('252 the PDF photo fetch goes through the resolver',
+         /var _pd = rrSharePdOf\(it\);/.test(sh52) &&
+         /driveGetFolderPhotos\(_pd\.photoItem\)/.test(sh52) &&
+         !/it\.pd && it\.pd\.photoItem/.test(sh52));
+      ok('252 the card builder goes through the SAME resolver — no second answer',
+         /var pd = rrSharePdOf\(it\);/.test(sl52) &&
+         !/it\.pd \|\| \(it\.fs && it\.fs\.inventoryId && state\.personalData/.test(sl52));
+      // ── copy for email ──
+      ok('252 our own copy button exists and stitches ONE image to the clipboard',
+         /_rrCopyCardsToClipboard/.test(sl52) &&
+         /new ClipboardItem\(\{ 'image\/png': blob \}\)/.test(sl52) &&
+         /Copy for email/.test(sl52));
+      ok('252 copy falls back to downloads when the browser refuses',
+         /catch \(e\) \{\s*\n\s*_rrDownloadFiles\(files\);/.test(sl52));
+      // ── stay open, picks intact ──
+      ok('252 sharing no longer wipes the picks — no auto close-and-cancel anywhere in the flows',
+         !/cancelShareMode\(\)/.test(sl52.slice(sl52.indexOf('function _rrDoShareNow'), sl52.indexOf('function _rrActsStash'))) &&
+         !/document\.getElementById\('share-builder-modal'\)\.remove\(\)/.test(sh52.slice(sh52.indexOf('async function _doShare'), sh52.indexOf('async function _fetchPhotoAsDataUrl'))));
+      ok('252 backing out of the system window returns to the builder quietly',
+         /err\.name === 'AbortError'/.test(sh52.slice(sh52.indexOf('async function _doShare'))));
+      ok('252 the card screens stash the original buttons and Back restores them',
+         /_rrActsStash\(acts\);/.test(sl52) &&
+         /function _rrActsBack\(\)/.test(sl52) &&
+         (sl52.match(/_rrBackBtnHtml\(\)/g) || []).length >= 3);
+    })();
+
   })().then(function () {
     console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
     process.exit(fail ? 1 : 0);

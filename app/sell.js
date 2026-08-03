@@ -207,7 +207,9 @@ async function shareAsCards() {
       var it = items[i];
       if (prog) prog.textContent = 'Building card ' + (i + 1) + ' of ' + items.length + '…';
       try {
-      var pd = it.pd || (it.fs && it.fs.inventoryId && state.personalData[it.fs.inventoryId]) || {};
+      // v0.9.1302: ONE resolver for "where does this share entry's collection
+      // record live" — shared with the PDF builder (rrSharePdOf in share.js).
+      var pd = rrSharePdOf(it);
       if (pd && pd.itemNum && String(pd.itemNum) !== String(it.itemNum)) {
         var _cm = findMaster(pd.itemNum, pd.variation, pd) || it.master;
         it = Object.assign({}, it, { itemNum: pd.itemNum, variation: pd.variation || '', master: _cm });
@@ -235,8 +237,10 @@ async function shareAsCards() {
       window._rrShareFiles = files; window._rrShareText = msg || title;
       if (prog) prog.style.display = 'none';
       if (acts) {
+        _rrActsStash(acts);
         acts.style.display = 'flex';
-        acts.innerHTML = '<button onclick="_rrDoShareNow()" style="padding:0.75rem;border-radius:9px;border:none;background:#2ecc71;color:#fff;font-family:var(--font-body);font-weight:700;font-size:0.95rem;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:0.5rem"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>Tap to share ' + files.length + ' image' + (files.length > 1 ? 's' : '') + '</button>';
+        acts.innerHTML = '<button onclick="_rrDoShareNow()" style="padding:0.75rem;border-radius:9px;border:none;background:#2ecc71;color:#fff;font-family:var(--font-body);font-weight:700;font-size:0.95rem;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:0.5rem"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>Tap to share ' + files.length + ' image' + (files.length > 1 ? 's' : '') + '</button>' +
+          _rrBackBtnHtml();
       }
       return;
     }
@@ -248,16 +252,26 @@ async function shareAsCards() {
       window._rrShareFiles = files; window._rrShareText = msg || title;
       if (prog) prog.style.display = 'none';
       if (acts) {
+        _rrActsStash(acts);
         acts.style.display = 'flex';
         acts.innerHTML =
           '<button onclick="_rrDoShareNow()" style="padding:0.75rem;border-radius:9px;border:none;background:#2ecc71;color:#fff;font-family:var(--font-body);font-weight:700;font-size:0.95rem;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:0.5rem">' +
             '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 6L2 7"/></svg>' +
             'Email ' + files.length + ' image' + (files.length > 1 ? 's' : '') + '…' +
           '</button>' +
+          // v0.9.1302 (Brad): "the share copy button doesn't copy it to the
+          // clipboard so i can paste in my email." The Copy in the system
+          // share window is Windows' own and hands over FILES, which email
+          // bodies won't paste. This one is OURS: it stitches the cards into
+          // one image and copies THAT, which pastes anywhere.
+          '<button onclick="_rrCopyCardsToClipboard()" style="padding:0.55rem;border-radius:9px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-weight:600;font-size:0.85rem;cursor:pointer">' +
+            'Copy for email — then paste into your message' +
+          '</button>' +
           '<button onclick="_rrDownloadFiles(window._rrShareFiles||[]);showToast(\'Saved to your downloads\',3000)" style="padding:0.55rem;border-radius:9px;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body);font-weight:600;font-size:0.85rem;cursor:pointer">' +
             'Save to downloads instead' +
           '</button>' +
-          '<div style="text-align:center;font-size:0.72rem;color:var(--text-dim)">Opens your computer’s share menu — pick your email app and the images attach automatically.</div>';
+          '<div style="text-align:center;font-size:0.72rem;color:var(--text-dim)">Opens your computer’s share menu — pick your email app and the images attach automatically.</div>' +
+          _rrBackBtnHtml();
       }
       return;
     }
@@ -284,16 +298,72 @@ function _rrDoShareNow() {
   if (!files.length) return;
   try {
     navigator.share({ files: files, text: window._rrShareText || '' }).then(function () {
-      showToast('Shared!', 2000);
-      var m = document.getElementById('share-builder-modal'); if (m) m.remove();
-      if (typeof cancelShareMode === 'function') cancelShareMode();
+      // v0.9.1302 (Brad): the builder used to close and wipe the picks the
+      // moment the system window said "done" — and Windows says "done" even
+      // when all you did was hit its Copy button. Stay open, picks intact;
+      // ✕ or Cancel on the bar ends it.
+      showToast('Shared! Your picks are kept in case you want them another way too.', 3500);
+      var _p = document.getElementById('share-progress');
+      if (_p) { _p.style.display = 'block'; _p.textContent = 'Shared — you can also copy for email, save, or go back for the PDF.'; }
     }).catch(function (err) {
       if (err && err.name === 'AbortError') return;
       _rrDownloadFiles(files); showToast('Saved images to attach', 3000);
     });
   } catch (e) { _rrDownloadFiles(files); }
 }
-if (typeof window !== 'undefined') { window._rrDoShareNow = _rrDoShareNow; window._rrDownloadFiles = _rrDownloadFiles; }
+
+// v0.9.1302: the card screens replace the builder's buttons, so stash the
+// originals once and let Back restore them — that's how "Download as PDF
+// instead" comes back without re-picking anything.
+function _rrActsStash(acts) {
+  if (!window._rrShareActsHome) window._rrShareActsHome = acts.innerHTML;
+}
+function _rrActsBack() {
+  var acts = document.getElementById('share-builder-actions');
+  var prog = document.getElementById('share-progress');
+  if (acts && window._rrShareActsHome) { acts.innerHTML = window._rrShareActsHome; acts.style.display = 'flex'; }
+  if (prog) prog.style.display = 'none';
+}
+function _rrBackBtnHtml() {
+  return '<button onclick="_rrActsBack()" style="padding:0.5rem;border-radius:9px;border:none;background:none;color:var(--text-dim);font-family:var(--font-body);font-weight:600;font-size:0.82rem;cursor:pointer">‹ Back to the share options</button>';
+}
+
+// v0.9.1302 (Brad): "the share copy button doesn't copy it to the clipboard
+// so i can paste in my email." Stitch the built cards into ONE tall image
+// and put THAT on the clipboard — a single picture pastes into any email
+// body, where a clipboard full of files does not. The seams between cards
+// are white because email bodies are; this is print-side, not themeable.
+async function _rrCopyCardsToClipboard() {
+  var files = window._rrShareFiles || [];
+  if (!files.length) return;
+  try {
+    if (!(navigator.clipboard && navigator.clipboard.write && window.ClipboardItem)) throw new Error('no clipboard api');
+    var imgs = [];
+    for (var i = 0; i < files.length; i++) {
+      var u = URL.createObjectURL(files[i]);
+      var im = await _rrLoadImg(u);
+      setTimeout(URL.revokeObjectURL.bind(URL, u), 4000);
+      if (im) imgs.push(im);
+    }
+    if (!imgs.length) throw new Error('no images');
+    var GAP = 16, W = 0, H = 0;
+    for (var j = 0; j < imgs.length; j++) { W = Math.max(W, imgs[j].width); H += imgs[j].height; }
+    H += GAP * (imgs.length - 1);
+    var c = document.createElement('canvas'); c.width = W; c.height = H;
+    var ctx = c.getContext('2d');
+    ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, W, H);
+    var y = 0;
+    for (var k = 0; k < imgs.length; k++) { ctx.drawImage(imgs[k], 0, y); y += imgs[k].height + GAP; }
+    var blob = await new Promise(function (res) { c.toBlob(res, 'image/png'); });
+    if (!blob) throw new Error('canvas failed');
+    await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+    showToast('Copied! Click into your email and paste — all ' + files.length + ' card' + (files.length > 1 ? 's' : '') + ' arrive as one picture.', 4000);
+  } catch (e) {
+    _rrDownloadFiles(files);
+    showToast('Couldn’t copy on this browser — saved the images to your downloads to attach instead', 4500, true);
+  }
+}
+if (typeof window !== 'undefined') { window._rrDoShareNow = _rrDoShareNow; window._rrDownloadFiles = _rrDownloadFiles; window._rrActsStash = _rrActsStash; window._rrActsBack = _rrActsBack; window._rrBackBtnHtml = _rrBackBtnHtml; window._rrCopyCardsToClipboard = _rrCopyCardsToClipboard; }
 
 // ═══ TIER 2 — LIVE FOR-SALE SHEET ════════════════════════════════
 async function _sellEnsureSheet() {
