@@ -577,6 +577,16 @@ function _clearHierarchyFilters() {
   _phSave(st);
   var _ftSel = document.getElementById('filter-type');
   if (_ftSel) _ftSel.value = '';
+  // v0.9.1298 (Brad: "need it to auto update the list when you hit x to
+  // clear filters"). Clearing the SELECT is not clearing the FILTER — the
+  // list renders off state.filters.type, which kept its old value, so the ✕
+  // reset the chips while the rows stayed filtered. One fact, two answers,
+  // the exact bug family this project keeps finding. Sync the state the same
+  // way applyFilters does, then the re-render below shows the honest list.
+  if (typeof state !== 'undefined' && state && state.filters) {
+    state.filters.type = '';
+    state.currentPage = 1;
+  }
   // Reuse the normal choice flow for its era-switch + re-render side effects.
   _setHierarchyChoice('manufacturer', 'any');
 }

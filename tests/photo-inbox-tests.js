@@ -16535,6 +16535,48 @@ META_WRITES.length = 0; TOASTS.length = 0;
       }
     })();
 
+    // ═══════════════════════════════════════════════════════════
+    // §248. v0.9.1298 — the ✕ clears the FILTER, not just the chip.
+    //
+    //   Brad: "the filter on my collection, need it to auto update the
+    //   list when you hit x to clear filters."
+    //
+    //   _clearHierarchyFilters blanked the #filter-type SELECT and
+    //   re-rendered — but the list renders off state.filters.type, which
+    //   kept its old value. One fact answered in two places, again. The
+    //   real function RUNS here against a stub page: after the ✕, the
+    //   STATE is clear, the page is back to 1, and the re-render was
+    //   actually asked for.
+    // ═══════════════════════════════════════════════════════════
+    section('248. The ✕ clears the filter state and redraws');
+    await (async function () {
+      const p48 = require('path');
+      const br48 = fs.readFileSync(p48.join(__dirname, '..', 'app', 'browse.js'), 'utf8');
+      const c0 = br48.indexOf('function _clearHierarchyFilters() {');
+      const c1 = br48.indexOf('\n}', c0) + 2;
+      ok('248 the function was found', c0 > 0 && c1 > c0);
+      const calls = [];
+      const fakeState = { filters: { type: 'Paper', owned: true }, currentPage: 7 };
+      const clear = new Function('state', '_phState', '_phSave', 'document', '_setHierarchyChoice',
+        br48.slice(c0, c1) + ' return _clearHierarchyFilters;')(
+        fakeState,
+        function () { return { manufacturer: 'lionel', scale: 'o', era: 'postwar', section: 'items' }; },
+        function () {},
+        { getElementById: function () { return { value: 'Paper' }; } },
+        function (lvl, val) { calls.push(lvl + '=' + val); });
+      clear();
+      ok('248 the ✕ clears the STATE the list actually renders from',
+         fakeState.filters.type === '' && fakeState.currentPage === 1,
+         JSON.stringify(fakeState));
+      ok('248 …and still runs the normal re-render flow',
+         calls.length === 1 && calls[0] === 'manufacturer=any', JSON.stringify(calls));
+      ok('248 the state sync happens BEFORE the re-render is asked for',
+         (function () {
+           const body = br48.slice(c0, c1);
+           return body.indexOf("state.filters.type = ''") < body.indexOf("_setHierarchyChoice('manufacturer', 'any')");
+         })(), 'a render that runs before the sync draws the stale list one more time');
+    })();
+
   })().then(function () {
     console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
     process.exit(fail ? 1 : 0);
