@@ -14959,10 +14959,13 @@ META_WRITES.length = 0; TOASTS.length = 0;
         // guarded set from a bare sheetsUpdate — that last one is the +1.
         // v0.9.1289: 56 -> 57. v0.9.1292: 57 -> 59 — _convertUpgradeToWantOnSell
         // in app-pages.js and _ctBlankRow in contacts.js, the two the rebuilt
-        // census found. Exact rather than a floor on purpose: a DROP means a
-        // guard was removed, and that is news in its own right.
-        ok('234 the sweep really landed — 59 sites write through the one guarded writer',
-           wrapped === 59, String(wrapped));
+        // census found. v0.9.1315: 59 -> 60 — the variation-change save's
+        // For Sale sync writes through the same guarded writer (identity-
+        // checked, state updated only after the sheet confirms). Exact rather
+        // than a floor on purpose: a DROP means a guard was removed, and that
+        // is news in its own right.
+        ok('234 the sweep really landed — 60 sites write through the one guarded writer',
+           wrapped === 60, String(wrapped));
       }
     })();
 
@@ -17465,6 +17468,56 @@ META_WRITES.length = 0; TOASTS.length = 0;
       const row3 = build({ itemNum: '6050', variation: '7', era: 'Manual' });
       ok('261 a manual row keeps its own words — no catalog description leaks in',
          row3[IDX.masterDescription] === '' && row3[IDX.variationDescription] === '');
+    })();
+
+    // ═══════════════════════════════════════════════════════════
+    // §262. v0.9.1315 — change an item's variation after entry.
+    //
+    //   Brad, with his 3419 filed as var 1 that should be var 2: "we need
+    //   to brainstorm how to change an item's variation number after it
+    //   has already been entered… I put it in wrong, i went to the update
+    //   info. No way to change it. This may cause issues, i don't know."
+    //   The issues he sensed are exactly what these assertions pin.
+    // ═══════════════════════════════════════════════════════════
+    section('262. Update Info: the variation is changeable, identity follows');
+    (function () {
+      const p62 = require('path');
+      const ac62 = fs.readFileSync(p62.join(__dirname, '..', 'app', 'app-collection.js'), 'utf8');
+      ok('262 the picker exists for catalog items only, with 2+ variations, same era',
+         /\(\(idx >= 0 && pd\.era !== 'Manual'\) \? \(function \(\) \{/.test(ac62) &&
+         /if \(_vOpts\.length < 2\) return \[\];   \/\/ one variation = nothing to change/.test(ac62) &&
+         /if \(item\._era && m\._era && m\._era !== item\._era\) return;   \/\/ same era only/.test(ac62));
+      ok('262 the options carry value + description, never a bare typed number',
+         /_vOpts\.push\(\{ v: v, t: 'Var ' \+ v \+ ' — ' \+ String\(m\.varDesc \|\| m\.description \|\| ''\)\.slice\(0, 70\) \}\)/.test(ac62) &&
+         /const _ov = \(o && typeof o === 'object'\) \? o\.v : o;/.test(ac62));
+      ok('262 the ORIGINAL variation is captured once, before any edit',
+         /const _origVariation = String\(pd\.variation \|\| item\.variation \|\| ''\);/.test(ac62));
+      ok('262 the PANEL save writes the USER\'s pick, not the master row the page opened on',
+         /const _newVariation = String\(pd\.variation \|\| item\.variation \|\| ''\);/.test(ac62) &&
+         // the v0.9.720 dateAdded comment is unique to the panel save — the
+         // variation line inside THAT call must be the pick (other flows'
+         // `item.variation` uses are their own business)
+         /dateAdded: pd\.dateAdded \|\| '',   \/\/ v0\.9\.720[^]{0,200}variation: _newVariation,/.test(ac62));
+      ok('262 a change re-derives the copy\'s stored identity — masterKey and both descriptions',
+         /const _varChanged = _newVariation !== _origVariation;/.test(ac62) &&
+         /pd\.masterKey = \(_nm && typeof rrMasterKeyOf === 'function'\) \? rrMasterKeyOf\(_nm\) : '';/.test(ac62) &&
+         /pd\.masterDescription = \(_nm && _nm\.description\)/.test(ac62) &&
+         /pd\.variationDescription = \(_nm && _nm\.varDesc\)/.test(ac62));
+      ok('262 a For Sale listing of the SAME copy syncs in the same save — identity-checked, state only after the sheet says so',
+         /state\.forSaleData\[pd\.inventoryId\]/.test(ac62) &&
+         /\[_fs\.itemNum, _newVariation, _fs\.condition \|\| '', _fs\.askingPrice \|\| '',/.test(ac62) &&
+         /\{ num: _fs\.itemNum \|\| '', invId: _fs\.inventoryId \|\| '' \}, 'For Sale list'\)\)/.test(ac62) &&
+         /_fs\.variation = _newVariation;/.test(ac62));
+      ok('262 after a change the page reopens on the NEW variation via the copy\'s id',
+         /if \(_varChanged && pd\.inventoryId && typeof _openOwnedByInvId === 'function'\) \{\s*\n\s*_openOwnedByInvId\(pd\.inventoryId\);/.test(ac62) &&
+         /'✓ Updated — now Var ' \+ _newVariation/.test(ac62));
+      // The For Sale row rebuild must match the parser's column order exactly
+      // (A–J: itemNum, variation, condition, askingPrice, dateListed, notes,
+      // originalPrice, estWorth, inventoryId, manufacturer).
+      const ad62 = fs.readFileSync(p62.join(__dirname, '..', 'app', 'app-data.js'), 'utf8');
+      ok('262 the synced row and the parser agree on the column order',
+         /_fs\.dateListed \|\| '', _fs\.notes \|\| '', _fs\.originalPrice \|\| '', _fs\.estWorth \|\| '',\s*\n\s*_fs\.inventoryId \|\| '', _fs\.manufacturer \|\| ''\]/.test(ac62) &&
+         /condition: _s\(r\[2\]\), askingPrice: _s\(r\[3\]\), dateListed: _s\(r\[4\]\),\s*\n\s*notes: _s\(r\[5\]\), originalPrice: _s\(r\[6\]\), estWorth: _s\(r\[7\]\),/.test(ad62));
     })();
 
   })().then(function () {

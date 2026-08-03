@@ -3127,9 +3127,35 @@ function showItemPanel(idx, pdKey, mode) {
   fieldsContainer.id = 'item-panel-fields-container';
   body.appendChild(fieldsContainer);
 
+  // v0.9.1315 (Brad's mis-filed 3419: "we need to brainstorm how to change an
+  // item's variation number after it has already been entered… No way to
+  // change it"): the original variation, captured ONCE — Save compares
+  // against this to know a change happened and re-derive the identity.
+  const _origVariation = String(pd.variation || item.variation || '');
+  if (pd.variation === undefined || pd.variation === '') pd.variation = _origVariation;
+
   const fields = [
     // v0.9.701 (Brad): a no-number item's TITLE is its identity — editable.
     ...((idx < 0 || pd.era === 'Manual') ? [{ label: 'Title / Name', key: 'itemNum', val: pd.itemNum || '—', type: 'textarea' }] : []),
+    // v0.9.1315: the variation is CHANGEABLE on catalog items with 2+
+    // variations — picked from the catalog's own list (value + description),
+    // never typed. Staged like any other edit; Save re-points the catalog
+    // match, refreshes both auto-descriptions and any For Sale listing.
+    ...((idx >= 0 && pd.era !== 'Manual') ? (function () {
+      var _vNum = String(pd.itemNum || item.itemNum || '').trim().toUpperCase();
+      var _seenV = {};
+      var _vOpts = [];
+      (state.masterData || []).forEach(function (m) {
+        if (String(m.itemNum || '').trim().toUpperCase() !== _vNum) return;
+        if (item._era && m._era && m._era !== item._era) return;   // same era only
+        var v = String(m.variation || '');
+        if (!v || _seenV[v]) return;
+        _seenV[v] = 1;
+        _vOpts.push({ v: v, t: 'Var ' + v + ' — ' + String(m.varDesc || m.description || '').slice(0, 70) });
+      });
+      if (_vOpts.length < 2) return [];   // one variation = nothing to change
+      return [{ label: 'Variation', key: 'variation', val: 'Var ' + (pd.variation || '—'), type: 'select', options: _vOpts }];
+    })() : []),
     // v0.9.987 (Brad): TYPE is editable on manual/off-catalog items — it
     // decides which Show chip the item appears under (Trains/Catalogs/
     // Paper Items). Catalog-matched items keep the catalog's type
@@ -3275,8 +3301,11 @@ function showItemPanel(idx, pdKey, mode) {
           inp.style.cssText = 'width:100%;background:var(--bg);border:1px solid #2980b9;border-radius:6px;padding:0.4rem 0.6rem;color:var(--text);font-family:var(--font-body);font-size:0.9rem';
           f.options.forEach(function(o) {
             const opt = document.createElement('option');
-            opt.value = o; opt.textContent = o;
-            if (o === (pd[f.key] || '')) opt.selected = true;
+            // v0.9.1315: options may be {v, t} pairs — the variation picker
+            // stores the bare number but shows the description beside it.
+            const _ov = (o && typeof o === 'object') ? o.v : o;
+            opt.value = _ov; opt.textContent = (o && typeof o === 'object') ? o.t : o;
+            if (String(_ov) === String(pd[f.key] || '')) opt.selected = true;
             inp.appendChild(opt);
           });
         } else if (f.type === 'textarea') {
@@ -3302,7 +3331,7 @@ function showItemPanel(idx, pdKey, mode) {
         doneBtn.style.cssText = 'margin-left:0.4rem;padding:0.3rem 0.6rem;border-radius:6px;border:1px solid #2980b9;background:#2980b9;color:#fff;cursor:pointer;font-size:0.85rem;flex-shrink:0';
         doneBtn.onclick = function() {
           pd[f.key] = inp.value;
-          f.val = inp.value || '—';
+          f.val = (f.key === 'variation' ? 'Var ' + inp.value : inp.value) || '—';   // v0.9.1315
           editingKey = null;
           renderFields(null);
         };
@@ -3440,10 +3469,24 @@ function showItemPanel(idx, pdKey, mode) {
       // H1 fix (Session 159): use schema-driven buildPersonalRow + full row range.
       // The old 25-cell array was in pre-Session-156 column order; every column
       // from B onward landed in the wrong cell on a 32-col schema sheet.
+      // v0.9.1315: the variation the USER picked wins over the master row the
+      // page happened to open on. When it changed, the copy's stored identity
+      // re-derives — masterKey re-points and both auto-descriptions refresh
+      // (buildPersonalRow does the sheet side; state is updated below).
+      const _newVariation = String(pd.variation || item.variation || '');
+      const _varChanged = _newVariation !== _origVariation;
+      if (_varChanged) {
+        const _nm = (typeof findMaster === 'function')
+          ? findMaster(pd.itemNum || item.itemNum, _newVariation, { era: pd.era || '', manufacturer: pd.manufacturer || '' })
+          : null;
+        pd.masterKey = (_nm && typeof rrMasterKeyOf === 'function') ? rrMasterKeyOf(_nm) : '';
+        pd.masterDescription = (_nm && _nm.description) ? String(_nm.description) : '';
+        pd.variationDescription = (_nm && _nm.varDesc) ? String(_nm.varDesc) : '';
+      }
       const newRow = buildPersonalRow({
         dateAdded: pd.dateAdded || '',   // v0.9.720: panel saves keep the original date
         itemNum: pd.itemNum || item.itemNum,   // v0.9.701: title is editable on manual items
-        variation: item.variation || '',
+        variation: _newVariation,
         condition: pd.condition || '',
         allOriginal: pd.allOriginal || '',
         priceItem: priceItem,
@@ -3486,14 +3529,35 @@ function showItemPanel(idx, pdKey, mode) {
           return;
         }
         state.personalData[pdKey] = Object.assign({}, pd, { priceComplete: calc > 0 ? calc.toFixed(2) : '' });
+        // v0.9.1315: a For Sale listing of THIS copy carries the variation
+        // too — update it in the same save so the two can never disagree.
+        if (_varChanged && pd.inventoryId && state.forSaleData && state.forSaleData[pd.inventoryId]) {
+          try {
+            const _fs = state.forSaleData[pd.inventoryId];
+            if (_fs.row && String(_fs.variation || '') !== _newVariation) {
+              const _fsRow = [_fs.itemNum, _newVariation, _fs.condition || '', _fs.askingPrice || '',
+                _fs.dateListed || '', _fs.notes || '', _fs.originalPrice || '', _fs.estWorth || '',
+                _fs.inventoryId || '', _fs.manufacturer || ''];
+              if (await rrVerifiedRowUpdate(state.personalSheetId, 'For Sale', _fs.row,
+                    `For Sale!A${_fs.row}:J${_fs.row}`, [_fsRow],
+                    { num: _fs.itemNum || '', invId: _fs.inventoryId || '' }, 'For Sale list')) {
+                _fs.variation = _newVariation;
+              }
+            }
+          } catch (eFs) { console.warn('For Sale variation sync failed:', eFs); }
+        }
         // v0.9.697: keep the offline snapshot in sync — edits were reverting
         // to pre-edit values on the next app load (cache had the old row).
         if (typeof _cachePersonalData === 'function') _cachePersonalData();
         overlay.remove();
-        showToast('✓ Item updated!');
+        showToast(_varChanged ? ('✓ Updated — now Var ' + _newVariation) : '✓ Item updated!');
         buildDashboard();
         // Re-render the detail page so edited fields + photos show immediately.
-        if (typeof window._lastDetailIdx === 'number'
+        // v0.9.1315: after a variation change the page must re-resolve to the
+        // NEW variation's catalog row — the stored index points at the old one.
+        if (_varChanged && pd.inventoryId && typeof _openOwnedByInvId === 'function') {
+          _openOwnedByInvId(pd.inventoryId);
+        } else if (typeof window._lastDetailIdx === 'number'
             && typeof showItemDetailPage === 'function') {
           showItemDetailPage(window._lastDetailIdx, window._lastDetailCopyInv);
         }
