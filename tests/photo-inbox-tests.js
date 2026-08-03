@@ -15550,6 +15550,99 @@ META_WRITES.length = 0; TOASTS.length = 0;
       }
     })();
 
+    // ═══════════════════════════════════════════════════════════
+    // §239. Nobody is ever asked to paste a sheet ID again.
+    //
+    // v0.9.1290 removed completeSetup(), the last of the old manual
+    // first-run screen. It was not merely unreachable — it was superseded.
+    // Signing in now resolves the master sheet from config and either finds
+    // the user's collection sheet or creates one, running the same header
+    // setup completeSetup() ran, without ever asking.
+    //
+    // The risk this section guards is not that the dead function comes back
+    // verbatim; it is that somebody re-adds a "paste your sheet ID" box as a
+    // quick fix when auto-discovery misbehaves, and a decision Brad made
+    // gets undone by accident. So the check is on the BEHAVIOUR — no input
+    // asking for a sheet id anywhere in the shipped app — not on the name.
+    // ═══════════════════════════════════════════════════════════
+    section('239. the app never asks a user for a sheet ID');
+    await (async function () {
+      const p39 = require('path');
+      const APP39 = p39.join(__dirname, '..', 'app');
+      const rd39 = f => fs.readFileSync(p39.join(APP39, f), 'utf8');
+      const files39 = fs.readdirSync(APP39).filter(f => /\.(js|html)$/.test(f));
+
+      // half one: the dead function is gone, and stayed gone.
+      {
+        const st = rd39('app-setup.js');
+        ok('239 completeSetup() is gone from the source',
+           !/function completeSetup\s*\(/.test(st),
+           'the superseded manual-setup handler is back');
+        ok('239 …and the note says WHY it went, not just that it went',
+           /superseded/i.test(st) && /createPersonalSheet\(\)/.test(st),
+           'the removal comment lost the reason, which is the part that stops it coming back');
+      }
+
+      // half two: the behaviour, derived rather than named.
+      //
+      // Two earlier drafts of this check were wrong in opposite directions and
+      // both are worth remembering. Matching quoted strings containing
+      // "sheet-id"/"sheet-input" walked across a quote boundary in reports.js
+      // and matched `state.personalSheetId` sitting between two unrelated
+      // string literals — source read as a flat string is not source. Matching
+      // any element id containing "sheet" flagged nineteen places, because in
+      // THIS app "sheet" nearly always means a bottom sheet: pin-help-sheet,
+      // photo-picker-sheet, vp-sheet. Neither had anything to do with a
+      // spreadsheet.
+      //
+      // What actually cannot come back is the QUESTION — copy that asks the
+      // user to enter or paste a sheet id, url or link. That is the thing Brad
+      // decided against, it is name-independent, and it catches a rebuilt
+      // version under any element id somebody invents.
+      {
+        const ASKS = /(enter|paste|type)[^'"`]{0,60}(sheet|spreadsheet)\s*(id|url|link)|(sheet|spreadsheet)\s*(id|url|link)[^'"`]{0,30}(here|below|above)/i;
+        const offenders = [];
+        files39.forEach(f => {
+          rd39(f).split('\n').forEach((line, i) => {
+            if (/^\s*(\/\/|\*|<!--)/.test(line)) return;   // comments explain history
+            const m = line.match(ASKS);
+            if (m) offenders.push(f + ':' + (i + 1) + ': ' + m[0].trim());
+          });
+        });
+        ok('239 nothing in the app asks a user to paste a sheet ID',
+           offenders.length === 0, offenders.join(' | '));
+        // and prove the matcher still has teeth, on the line that was removed
+        ok('239 …and that check would catch it if it came back',
+           ASKS.test("showToast('Please enter the Master Sheet ID.', 3000, true)") &&
+           ASKS.test('<input placeholder="Paste your spreadsheet URL here">'),
+           'the guard has gone slack — it would pass on the very code it replaced');
+      }
+
+      // half three: the replacement path is real. If auto-discovery were
+      // ever deleted, the two checks above would pass on an app that simply
+      // cannot set a new user up at all — which is worse than the thing
+      // they are guarding against.
+      {
+        const au = rd39('app-auth.js');
+        const st = rd39('app-setup.js');
+        // Live code only. The drill for this section commented the header call
+        // out rather than deleting it, and the check passed — because a regex
+        // over the whole file happily matched the call inside its own `//`.
+        // Same flat-string mistake as the first draft of half two, one section
+        // later. Anything asserting "this line runs" must look at lines that
+        // actually run.
+        const live = s => s.split('\n').filter(l => !/^\s*(\/\/|\*|\/\*)/.test(l)).join('\n');
+        ok('239 …because sign-in creates the sheet instead of asking for it',
+           /createPersonalSheet\(\)\s*\.then\(/.test(live(au)),
+           'auto-discovery is gone and nothing replaced it — a new user has no way in');
+        const cps = live(st).slice(live(st).indexOf('async function createPersonalSheet()'));
+        ok('239 …and that path still runs the header setup the old screen ran',
+           /async function createPersonalSheet\(\)/.test(live(st)) &&
+           /await initPersonalSheet\(state\.personalSheetId\)/.test(cps.slice(0, cps.indexOf('\n}') + 2)),
+           'a fresh sheet would come out without its headers');
+      }
+    })();
+
   })().then(function () {
     console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
     process.exit(fail ? 1 : 0);

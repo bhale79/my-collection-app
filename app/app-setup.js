@@ -99,8 +99,18 @@ function _buildAuthScreen() {
 
 // v0.9.1285: _buildSetupScreen removed — see the note in app-auth.js's
 // initGoogle. Its Set Up button was the only path to completeSetup(),
-// which is therefore unreachable too (left in place, written up for
+// which was therefore unreachable too (left in place, written up for
 // audit round 3 rather than removed the same night it was discovered).
+//
+// v0.9.1290: completeSetup() removed as well, with Brad's approval. It was not
+// merely unreachable, it was SUPERSEDED: it asked a new user to paste a Master
+// Sheet ID and a Personal Sheet ID by hand, and the app has not needed either
+// for a long time. initGoogle now resolves the master from config and either
+// finds the user's collection sheet or calls createPersonalSheet() to make one
+// — which runs the same initPersonalSheet() header setup completeSetup() used
+// to run, without ever asking. There is no first-run flow to revive here; the
+// automatic one IS the first-run flow. See §239, which fails if a manual
+// sheet-ID paste ever comes back without a decision to bring it back.
 
 function _buildAppShell() {
   var app = document.getElementById('app');
@@ -323,35 +333,6 @@ function updateUserUI() {
     } else {
       avatarEl.textContent = state.user.name[0].toUpperCase();
     }
-  }
-}
-
-async function completeSetup() {
-  let rawMaster = document.getElementById('master-sheet-input').value.trim();
-  let rawPersonal = document.getElementById('personal-sheet-input').value.trim();
-  if (!rawMaster) { showToast('Please enter the Master Sheet ID.', 3000, true); return; }
-  if (!rawPersonal) { showToast('Please enter your Personal Collection Sheet ID.', 3000, true); return; }
-
-  // Extract IDs if full URLs were pasted
-  const masterMatch = rawMaster.match(/\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/);
-  const personalMatch = rawPersonal.match(/\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/);
-  const masterId = masterMatch ? masterMatch[1] : rawMaster;
-  const personalId = personalMatch ? personalMatch[1] : rawPersonal;
-
-  state.masterSheetId = masterId;
-  state.personalSheetId = personalId;
-  localStorage.setItem('lv_master_id', masterId);
-  localStorage.setItem('lv_personal_id', personalId);
-
-  // Initialize personal sheet headers
-  try {
-    await initPersonalSheet(personalId);
-    applySheetFormatting(personalId).catch((e) => console.warn('[applySheetFormatting failed]', e && e.message));
-    showApp();
-    loadAllData();
-  } catch(e) {
-    console.error('Setup error:', e);
-    showToast('Could not connect to sheet. Make sure you\'re signed in and the sheet exists.', 4000, true);
   }
 }
 
