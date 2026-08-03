@@ -173,7 +173,14 @@ function _isBoxItemNum(itemNum) {
   if (!itemNum) return false;
   return /-(M)?BOX$/i.test(String(itemNum).trim());
 }
-function _lookupMasterDesc(itemNum) {
+// v0.9.1313 (Brad's mirror labelled his Savings Bank 6050s "Libby's Tomato
+// Juice Boxcar"): this looked the description up by NUMBER ONLY, so the first
+// 6050 row in the catalog (Libby's, var 1) answered for his var 7 (Savings
+// Bank). A catalog number is a MODEL, not an identity — the copy's own
+// identity decides: the stored masterKey when the row carries one (findMaster
+// honors prefer.masterKey outright), else number + variation with the
+// era/maker the save knows. Brad's call: "fix the other using inventory id."
+function _lookupMasterDesc(itemNum, variation, prefer) {
   if (!itemNum) return '';
   if (_isBoxItemNum(itemNum)) return '';
   if (typeof findMaster !== 'function') {
@@ -182,15 +189,15 @@ function _lookupMasterDesc(itemNum) {
     if (typeof console !== 'undefined') console.debug('[_lookupMasterDesc] findMaster not yet loaded for ' + itemNum);
     return '';
   }
-  const m = findMaster(itemNum);
+  const m = findMaster(itemNum, variation, prefer);
   return (m && m.description) ? String(m.description) : '';
 }
-function _lookupMasterVarDesc(itemNum, variation) {
+function _lookupMasterVarDesc(itemNum, variation, prefer) {
   if (!itemNum) return '';
   if (_isBoxItemNum(itemNum)) return '';
   if (typeof findMaster !== 'function') return '';
   if (variation == null || variation === '') return '';
-  const m = findMaster(itemNum, variation);
+  const m = findMaster(itemNum, variation, prefer);
   return (m && m.varDesc) ? String(m.varDesc) : '';
 }
 
@@ -219,11 +226,15 @@ function buildPersonalRow(fields) {
   const vari = fields.variation || '';
   const mdi = PERSONAL_FIELD_INDEX.masterDescription;
   const vdi = PERSONAL_FIELD_INDEX.variationDescription;
+  // v0.9.1313: both lookups carry the copy's full identity — variation plus
+  // era/maker/masterKey — so the description belongs to THIS row, not to the
+  // first row that shares its number.
+  const _descPrefer = { era: fields.era || '', manufacturer: fields.manufacturer || '', masterKey: fields.masterKey || '' };
   if (!_rowIsManual && mdi !== undefined && (fields.masterDescription === undefined || fields.masterDescription === '')) {
-    row[mdi] = _lookupMasterDesc(inum);
+    row[mdi] = _lookupMasterDesc(inum, vari, _descPrefer);
   }
   if (!_rowIsManual && vdi !== undefined && (fields.variationDescription === undefined || fields.variationDescription === '')) {
-    row[vdi] = _lookupMasterVarDesc(inum, vari);
+    row[vdi] = _lookupMasterVarDesc(inum, vari, _descPrefer);
   }
   // Auto-populate Item Type / Road Name / Road Number from the catalog when the
   // caller didn't supply them (e.g. suffixed engines 204-P / 217C resolve via the

@@ -17396,6 +17396,59 @@ META_WRITES.length = 0; TOASTS.length = 0;
       ok('260 empty leftovers really got trashed', F['E1'].trashed && F['E3'].trashed && !F['E2'].trashed);
     })();
 
+    // ═══════════════════════════════════════════════════════════
+    // §261. v0.9.1313 — the mirror describes THIS copy, not the first
+    //        row that shares its number.
+    //
+    //   Found while checking 6050 var 9: Brad's read-only Sheet mirror
+    //   labelled his two Savings Bank var 7 cars "Libby's Tomato Juice
+    //   Boxcar" — _lookupMasterDesc resolved by NUMBER ONLY, and Libby's
+    //   is the first 6050 row. Brad: "fix the other using inventory id."
+    //   The REAL buildPersonalRow runs here.
+    // ═══════════════════════════════════════════════════════════
+    section('261. Mirror rows carry their OWN description (the 6050 Libby\'s label)');
+    (function () {
+      const p61 = require('path');
+      const ap61 = fs.readFileSync(p61.join(__dirname, '..', 'app', 'app.js'), 'utf8');
+      const c0 = ap61.indexOf("// v0.9.1313 (Brad's mirror labelled");
+      const c1 = ap61.indexOf('\nif (typeof window !== \'undefined\') {\n  window.PERSONAL_SCHEMA');
+      ok('261 the lookup + row-builder slice was found', c0 > 0 && c1 > c0);
+      const HEADERS = ['Item Number', 'Variation', 'Master Description', 'Variation Description', 'Item Type', 'Road Name', 'Road Number', 'Manufacturer', 'Date Added', 'Matched Tender/Engine', 'Master Key', 'Era'];
+      const IDX = { itemNum: 0, variation: 1, masterDescription: 2, variationDescription: 3, itemType: 4, roadName: 5, roadNumber: 6, manufacturer: 7, dateAdded: 8, matchedTo: 9, masterKey: 10, era: 11 };
+      const CAT = [
+        { key: 'pw|6050|1', itemNum: '6050', variation: '1', description: "Libby's Tomato Juice Boxcar", varDesc: 'TYPE 3 LIBBY', roadName: "Libby's" },
+        { key: 'pw|6050|7', itemNum: '6050', variation: '7', description: 'Lionel Savings Bank Boxcar', varDesc: 'TYPE 1 BANK', roadName: 'Lionel Savings Bank' },
+      ];
+      const seenPrefer = [];
+      const mk61 = new Function('PERSONAL_HEADERS', 'PERSONAL_FIELD_INDEX', '_isBoxItemNum', 'findMaster', 'rrMasterKeyOf', '_brandOfItem', 'Date',
+        ap61.slice(c0, c1) + '\nreturn buildPersonalRow;');
+      const build = mk61(
+        HEADERS, IDX,
+        () => false,
+        function (num, vari, prefer) {
+          seenPrefer.push(prefer || null);
+          if (prefer && prefer.masterKey) { const hit = CAT.find((m) => m.key === prefer.masterKey); if (hit) return hit; }
+          return CAT.find((m) => m.itemNum === String(num) && (!vari || String(m.variation) === String(vari)))
+              || CAT.find((m) => m.itemNum === String(num)) || null;
+        },
+        (m) => m.key, () => '', function FakeDate() { return { toISOString: () => '2026-08-03T00:00:00Z' }; });
+      // ── Brad's exact case: 6050 var 7 must read Savings Bank, never Libby's ──
+      const row = build({ itemNum: '6050', variation: '7', era: 'pw', manufacturer: 'Lionel' });
+      ok('261 the var 7 mirror row says Savings Bank — the Libby\'s label is dead',
+         row[IDX.masterDescription] === 'Lionel Savings Bank Boxcar' &&
+         row[IDX.variationDescription] === 'TYPE 1 BANK', JSON.stringify(row[IDX.masterDescription]));
+      // ── the stored masterKey answers outright when the row carries one ──
+      const row2 = build({ itemNum: '6050', variation: '', era: 'pw', manufacturer: 'Lionel', masterKey: 'pw|6050|7' });
+      ok('261 a stored masterKey wins even with no variation on the row',
+         row2[IDX.masterDescription] === 'Lionel Savings Bank Boxcar');
+      ok('261 the lookups pass the copy\'s full identity (era, maker, masterKey)',
+         seenPrefer.some((p) => p && p.era === 'pw' && p.manufacturer === 'Lionel' && 'masterKey' in p));
+      // ── manual rows still never inherit catalog words ──
+      const row3 = build({ itemNum: '6050', variation: '7', era: 'Manual' });
+      ok('261 a manual row keeps its own words — no catalog description leaks in',
+         row3[IDX.masterDescription] === '' && row3[IDX.variationDescription] === '');
+    })();
+
   })().then(function () {
     console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
     process.exit(fail ? 1 : 0);
