@@ -17216,6 +17216,69 @@ META_WRITES.length = 0; TOASTS.length = 0;
          els['duplicate-checker-results'].innerHTML === '' && els._scrolled === false);
     })();
 
+    // ═══════════════════════════════════════════════════════════
+    // §259. v0.9.1311 — the Gmail compose route (Brad's email decision).
+    //
+    //   One click: sheet to Drive (anyone with the link), Gmail draft
+    //   opens with message + link pre-filled — from a FRESH click, so a
+    //   popup blocker can't eat it silently. The REAL _doShare runs here.
+    // ═══════════════════════════════════════════════════════════
+    section('259. Share: Email a link to the sheet opens a Gmail draft');
+    await (async function () {
+      const p59 = require('path');
+      const sh59 = fs.readFileSync(p59.join(__dirname, '..', 'app', 'share.js'), 'utf8');
+      const acts = { innerHTML: '', style: {} };
+      const prog = { textContent: '', style: {} };
+      const msg = { value: 'Hello Bill — a few pieces I have available.' };
+      const env = {
+        window: { _rrActsStash: () => {}, _rrBackBtnHtml: () => '<button>back</button>' },
+        document: {
+          getElementById: (id) => ({ 'share-progress': prog, 'share-builder-actions': acts, 'share-message': msg }[id] || null),
+          querySelector: () => null,
+        },
+        localStorage: { getItem: () => 'tok', setItem: () => {}, removeItem: () => {} },
+        showToast: () => {},
+        navigator: {},
+        URL: { createObjectURL: () => 'blob:x', revokeObjectURL: () => {} },
+        fetch: async () => ({ ok: true, json: async () => ({ id: 'f1' }) }),
+        state: {},
+        _currencySymbol: () => '$',
+        driveGetFolderPhotos: async () => [],
+        cancelShareMode: () => {},
+      };
+      // slice: module vars + _getShareFields + _doShare + rrSharePdOf + upload
+      const s0 = sh59.indexOf('function _getShareFields()');
+      const s1 = sh59.indexOf('// ── Fetch a Drive photo');
+      const u0 = sh59.indexOf('async function _uploadShareToDrive');
+      const u1 = sh59.indexOf('\n}', sh59.indexOf('return', u0 + 100)) + 2;
+      ok('259 the source slices were found', s0 > 0 && s1 > s0 && u0 > 0);
+      const mk = new Function('window', 'document', 'localStorage', 'showToast', 'navigator', 'URL', 'fetch', 'state', '_currencySymbol', 'driveGetFolderPhotos', 'cancelShareMode',
+        'var _shareItems = { a: { itemNum: "6050", master: {}, pd: {}, fs: {}, want: {} } };'
+        + 'var _shareSource = "forsale";'
+        + 'async function _buildPDF() { return { size: 1 }; }'
+        + sh59.slice(s0, s1) + '\n' + sh59.slice(u0, u1)
+        + '\nreturn _doShare;');
+      const doShare = mk(env.window, env.document, env.localStorage, env.showToast, env.navigator, env.URL, env.fetch, env.state, env._currencySymbol, env.driveGetFolderPhotos, env.cancelShareMode);
+      await doShare('gmail');
+      const html = acts.innerHTML;
+      const m59 = html.match(/href="([^"]+)"/);
+      ok('259 the draft opens from a fresh click — an anchor, not a window.open',
+         !!m59 && /mail\.google\.com\/mail\/\?view=cm/.test(m59[1]));
+      const q = m59 ? decodeURIComponent(m59[1]) : '';
+      ok('259 the For Sale share drafts a sales subject',
+         /su=Items for sale — The Rail Roster/.test(q));
+      ok('259 the body carries the message THEN the Drive link',
+         /Hello Bill/.test(q) && q.indexOf('Hello Bill') < q.indexOf('View the sheet here:'));
+      ok('259 a copy-instead fallback and the honest Drive note ride along',
+         /Copy the message \+ link instead/.test(html) &&
+         /anyone with the link can view it/.test(html) &&
+         /_rrGmailBody/.test(html));
+      ok('259 the builder offers the Gmail button',
+         /Email a link to the sheet \(Gmail\)/.test(sh59) && /_doShare\(\\'gmail\\'\)/.test(sh59));
+      ok('259 the upload still makes the sheet anyone-with-link before the draft exists',
+         /role: 'reader', type: 'anyone'/.test(sh59.slice(u0, u1)));
+    })();
+
   })().then(function () {
     console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
     process.exit(fail ? 1 : 0);

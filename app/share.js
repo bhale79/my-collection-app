@@ -190,6 +190,12 @@ function openShareBuilder() {
         '<button onclick="_doShare(\'pdf\')" style="padding:0.55rem;border-radius:9px;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body);font-weight:600;font-size:0.85rem;cursor:pointer">' +
           'Download as PDF instead' +
         '</button>' +
+        // v0.9.1311 (Brad's email-route decision): one click builds the sheet,
+        // parks it in his Drive (anyone with the link), and opens a Gmail
+        // draft with the message and link pre-filled.
+        '<button onclick="_doShare(\'gmail\')" style="padding:0.55rem;border-radius:9px;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body);font-weight:600;font-size:0.85rem;cursor:pointer">' +
+          'Email a link to the sheet (Gmail)' +
+        '</button>' +
       '</div>' +
 
       '<div id="share-progress" style="display:none;margin-top:1rem;text-align:center;font-size:0.85rem;color:var(--text-dim)"></div>' +
@@ -396,6 +402,37 @@ async function _doShare(mode) {
       // ✕ here or Cancel on the bar ends it.
       if (prog) prog.textContent = 'PDF downloaded — your picks are kept, so you can share them another way too.';
       if (acts) acts.style.display = 'flex';
+
+    } else if (mode === 'gmail') {
+      // v0.9.1311 (Brad: Gmail compose route). The sheet goes to his Drive
+      // with an anyone-with-link permission (same as the old share-link
+      // flow), then a Gmail draft opens with the message and link in the
+      // body. The draft opens from a FRESH click — an async upload eats the
+      // original click's popup allowance, so a blocked window.open here
+      // would look like "nothing happened".
+      if (prog) prog.textContent = 'Uploading the sheet to your Google Drive…';
+      var gLink = await _uploadShareToDrive(pdfBlob);
+      var gSubj = (typeof _shareSource !== 'undefined' && _shareSource === 'forsale')
+        ? 'Items for sale — The Rail Roster'
+        : 'From my collection — The Rail Roster';
+      var gBody = (message ? message + '\n\n' : '') + 'View the sheet here: ' + gLink;
+      window._rrGmailBody = gBody;   // the copy-instead button reads this
+      var gUrl = 'https://mail.google.com/mail/?view=cm&fs=1&su=' + encodeURIComponent(gSubj) + '&body=' + encodeURIComponent(gBody);
+      if (prog) prog.style.display = 'none';
+      if (acts) {
+        if (typeof window._rrActsStash === 'function') window._rrActsStash(acts);
+        acts.style.display = 'flex';
+        acts.innerHTML =
+          '<a href="' + gUrl + '" target="_blank" rel="noopener" style="display:flex;align-items:center;justify-content:center;gap:0.5rem;padding:0.75rem;border-radius:9px;background:#2ecc71;color:#fff;font-family:var(--font-body);font-weight:700;font-size:0.95rem;text-decoration:none">' +
+            '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 6L2 7"/></svg>' +
+            'Open the Gmail draft' +
+          '</a>' +
+          '<button onclick="navigator.clipboard.writeText(window._rrGmailBody||\'\').then(function(){showToast(\'Copied — paste it into any email\')})" style="padding:0.55rem;border-radius:9px;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body);font-weight:600;font-size:0.85rem;cursor:pointer">' +
+            'Copy the message + link instead' +
+          '</button>' +
+          '<div style="text-align:center;font-size:0.72rem;color:var(--text-dim)">The sheet lives in your Google Drive — anyone with the link can view it.</div>' +
+          (typeof window._rrBackBtnHtml === 'function' ? window._rrBackBtnHtml() : '');
+      }
 
     } else {
       // Upload to Drive and share link
