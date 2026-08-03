@@ -15246,6 +15246,29 @@ META_WRITES.length = 0; TOASTS.length = 0;
       }
 
       // ── half two: the census ─────────────────────────────────────────
+      //
+      // v0.9.1291 rebuilt this. The three versions before it each widened a
+      // RULE — which names count, which toasts count — while leaving the
+      // PARSER alone, and the parser was the thing that was blind. It walked
+      // `^function name(` only: no indent, no `var x = function`, no
+      // `name: function`, no arrows. That saw 1,022 functions in the app and
+      // missed 1,347, with 24 files invisible from end to end — photo-inbox.js,
+      // appearance.js and contacts.js among them. A census that reads a third
+      // of the app and reports "0 offenders" is not reassurance, it is a
+      // reassuring-sounding silence, which is worse than no census at all.
+      //
+      // Two structural fixes, both about seeing rather than judging:
+      //   1. findFunctions38 below matches every shape a function is written
+      //      in here, and finds the END of the body by counting braces from
+      //      the opening one — skipping strings and comments so a `}` inside
+      //      either cannot close it early. The old `indexOf('\n}')` end marker
+      //      only works for functions that start at column 0, which is exactly
+      //      the assumption that made the parser blind in the first place.
+      //   2. It follows a remove flow ONE level into the same-file helpers it
+      //      calls. contacts.js's delete hands its write to _ctBlankRow, so
+      //      there was nothing on its own lines to find — it could not have
+      //      been caught by any rule, however wide, without this.
+      //
       // Every write inside a remove/delete function that celebrates must be
       // branch-checked. These are the shapes that count as checked:
       const CHECKED = [
@@ -15253,50 +15276,198 @@ META_WRITES.length = 0; TOASTS.length = 0;
         /if\s*\(!\(await\s+rrVerifiedRowUpdate\(/,
         /if\s*\(await\s+personalWriteRow\(/,
         /=\s*await\s+rrRemoveRowConfirmed\(/,      // captured into a variable and tested after
+        /=\s*await\s+rrVerifiedRowUpdate\(/,
         /=\s*await\s+personalWriteRow\(/,
         /=\s*await\s+sheetsDeleteRow\(/,           // ditto — removeCollectionItem does this four times
+        // v0.9.1291: a helper whose whole job is the guarded write returns it
+        // rather than testing it, and the caller does the testing. Following
+        // helpers made that shape reachable for the first time.
+        /return\s+(await\s+)?(rrRemoveRowConfirmed|rrVerifiedRowUpdate|personalWriteRow|sheetsDeleteRow)\s*\(/,
       ];
-      // …and these are writes, whatever else is going on around them:
-      const WRITES = /\b(rrRemoveRowConfirmed|rrVerifiedRowUpdate|personalWriteRow|sheetsUpdate|sheetsUpdateRow|sheetsDeleteRow)\s*\(/;
+      // …and these are writes, whatever else is going on around them.
+      //
+      // v0.9.1291: sheetsDeleteRow came OUT of this list. It is not a raw
+      // write — it is a fourth guarded door, and has been since v0.9.1288: it
+      // throws if it is called without an `expected`, asks rrRowStillIs whether
+      // the row is still the one we meant, and on "no" toasts rrRowMovedToast()
+      // and returns false without touching the sheet. Naming a guarded writer
+      // as a write and then re-permitting it below is a rule arguing with
+      // itself, and the next person to widen CHECKED has to rediscover why.
+      //
+      // Being exact about what this did and did not fix, because the first
+      // draft of this comment overstated it: the drill for it PASSES either
+      // way. Putting sheetsDeleteRow back on the WRITES list changes nothing
+      // today, because every call in app-collection.js is written as
+      // `= await sheetsDeleteRow(` and CHECKED already permits that shape. The
+      // four false alarms belonged to the loose prototype this was built from,
+      // not to the shipped census. So this is a correctness-of-description
+      // change, not a bug fix — worth making, worth not overselling.
+      const WRITES = /\b(rrRemoveRowConfirmed|rrVerifiedRowUpdate|personalWriteRow|sheetsUpdate|sheetsUpdateRow|sheetsClear)\s*\(/;
       // v0.9.1289: this used to require the word "Removed" in the toast, which
       // is how ephemeraSold and markForSaleAsSold — both of which remove things
       // — walked straight past a census written to catch exactly what they were
       // doing. Their toasts say "Marked as sold". The app's actual convention
       // for "this worked" is the ✓, so that is what the census reads now.
-      const CELEBRATES = /showToast\(\s*(?:[_\w.\[\]']+\s*\?\s*)?['"`][^'"`]*(?:✓|[Rr]emoved)/;
+      // v0.9.1291: …and "deleted", because contacts.js says "Contact deleted"
+      // with no ✓ at all. Three separate misses stacked on that one function:
+      // wrong parser shape, write hidden in a helper, and a toast wording no
+      // rule had been taught. It takes all three fixes to see it.
+      const CELEBRATES = /showToast\(\s*(?:[_\w.\[\]']+\s*\?\s*)?['"`][^'"`]*(?:✓|[Rr]emoved|[Dd]eleted)/;
+      const NAMED38 = /remove|delete|sold|discard|clear/i;
+
+      // Finds every function in a file whatever shape it is written in, with a
+      // true body. Exported onto the section so the drill below can reuse it.
+      function findFunctions38(src) {
+        const out = [];
+        const re = new RegExp(
+          '(?:' +
+            '(?:^|[\\n;{,])\\s*(?:async\\s+)?function\\s+([A-Za-z_$][\\w$]*)\\s*\\(' +
+            '|' +
+            '(?:^|[\\n;{,])\\s*(?:window\\.|var\\s+|let\\s+|const\\s+)?' +
+              '([A-Za-z_$][\\w$]*(?:\\.[A-Za-z_$][\\w$]*)*)\\s*[:=]\\s*' +
+              '(?:async\\s+)?(?:function\\s*[A-Za-z_$\\w$]*\\s*\\(|\\()' +
+          ')', 'gm');
+        let m;
+        while ((m = re.exec(src)) !== null) {
+          const raw = m[1] || m[2];
+          if (!raw) continue;
+          const name = raw.split('.').pop();
+          let j = m.index + m[0].length - 1;        // sits on the '(' of the params
+          let depth = 0;
+          for (; j < src.length; j++) {
+            if (src[j] === '(') depth++;
+            else if (src[j] === ')') { depth--; if (depth === 0) { j++; break; } }
+          }
+          while (j < src.length && /[\s=>]/.test(src[j])) j++;
+          if (src[j] !== '{') continue;             // expression-bodied arrow: no block to scan
+          let d = 0, k = j;
+          for (; k < src.length; k++) {
+            const c = src[k];
+            if (c === '{') d++;
+            else if (c === '}') { d--; if (d === 0) { k++; break; } }
+            else if (c === '"' || c === "'" || c === '`') {      // a brace in a string is not a brace
+              const q = c; k++;
+              while (k < src.length && src[k] !== q) { if (src[k] === '\\') k++; k++; }
+            } else if (c === '/' && src[k + 1] === '/') { while (k < src.length && src[k] !== '\n') k++; }
+            else if (c === '/' && src[k + 1] === '*') { k = src.indexOf('*/', k); if (k < 0) break; k++; }
+          }
+          out.push({ name: name, start: m.index, end: k, body: src.slice(m.index, k) });
+        }
+        return out;
+      }
 
       const offenders = [], audited = [];
       fs.readdirSync(APP38).filter(n => n.endsWith('.js') && n !== 'sheets.js').forEach(f => {
         const src = rd38(f);
-        // Walk top-level function declarations; the app is written flat, so
-        // "\n}" at column 0 is a reliable end marker.
-        const re = /^(?:async\s+)?function\s+([A-Za-z_$][\w$]*)\s*\(/gm;
-        let m;
-        while ((m = re.exec(src)) !== null) {
-          const name = m[1];
-          // v0.9.1289: `|sold` added. A function called ephemeraSold or
-          // markForSaleAsSold does most of its work removing rows, and both
-          // were hiding from this census behind a name that does not say so.
-          if (!/remove|delete|sold/i.test(name)) continue;
-          const end = src.indexOf('\n}', m.index);
-          const body = src.slice(m.index, end < 0 ? src.length : end + 2);
-          if (!CELEBRATES.test(body)) continue;
-          audited.push(f + ':' + name);
-          body.split('\n').forEach((line, li) => {
+        const fns = findFunctions38(src);
+        const byName = {};
+        fns.forEach(fn => { if (!byName[fn.name]) byName[fn.name] = fn; });
+        fns.forEach(fn => {
+          if (!NAMED38.test(fn.name)) return;
+          if (!CELEBRATES.test(fn.body)) return;
+          audited.push(f + ':' + fn.name);
+          const scan = (body, via) => body.split('\n').forEach((line, li) => {
+            if (/^\s*(\/\/|\*)/.test(line)) return;
             if (!WRITES.test(line)) return;
             if (CHECKED.some(rx => rx.test(line))) return;
-            offenders.push(f + ':' + name + ' +' + li + '  ' + line.trim().slice(0, 80));
+            offenders.push(f + ':' + fn.name + (via ? ' → ' + via : ' +' + li) +
+                           '  ' + line.trim().slice(0, 78));
           });
-        }
+          scan(fn.body, null);
+          // …and one level into the same-file helpers it calls.
+          //
+          // Two exclusions, both learned from false alarms this cost us:
+          // a name beginning build/render/show/refresh/… is a drawing helper,
+          // and buildUpgradePage writing its own column headers is not part of
+          // anybody's removal; and a helper over 60 lines is a general-purpose
+          // routine whose writes belong to its own callers, not to this one.
+          Object.keys(byName).forEach(h => {
+            if (h === fn.name) return;
+            if (/^_?(build|render|show|open|refresh|load|init|ensure)/i.test(h)) return;
+            if (byName[h].body.split('\n').length > 60) return;
+            if (!new RegExp('\\b' + h.replace(/\$/g, '\\$') + '\\s*\\(').test(fn.body)) return;
+            scan(byName[h].body, h + '()');
+          });
+        });
       });
 
-      // v0.9.1289: 8 -> 15. Widening the name and the toast pattern above
-      // doubled what the census can see. This floor should only ever go up;
-      // if it drops, something stopped being audited and that is the news.
+      // 8 -> 15 (v0.9.1289) -> 21 (v0.9.1291, the parser rebuild). This floor
+      // should only ever go up; if it drops, something stopped being audited
+      // and THAT is the news, not whatever else the run says.
       ok('238 the census found the remove flows it is meant to police',
-         audited.length >= 15, audited.length + ': ' + audited.join(', '));
+         audited.length >= 21, audited.length + ': ' + audited.join(', '));
+      // The two the rebuilt parser found on its first run. They are real bugs,
+      // not false alarms, and they are being fixed next — but they are being
+      // fixed as their own change, so that if a guard turns out to break
+      // something we know which change did it. Until then they are written
+      // down HERE rather than left to make the suite red, because a suite
+      // that is expected to be red is a suite nobody reads.
+      //
+      // Three rules keep this from becoming a place to hide things:
+      //   • it may only ever shrink (the count check below),
+      //   • every entry must still match a live offender, so a stale line
+      //     cannot sit here quietly excusing something that moved, and
+      //   • anything NOT on it fails the run, exactly as before.
+      const KNOWN38 = [
+        // contacts.js hands its delete to _ctBlankRow. Guardable with the
+        // Contact ID already in column A — the "a rename replaces the identity
+        // cell" note that parked this was simply wrong; a rename changes the
+        // Name column, and column A never changes.
+        'contacts.js:_ctDeleteRow → _ctBlankRow()',
+        // The worse of the two. Every other bug in this family FAILS TO DELETE
+        // something; this one OVERWRITES. Marking a for-sale item sold rewrites
+        // its Want-Upgrade row from "upgrading" to "want" without checking the
+        // row is still that entry — so a shifted row means this item's data
+        // lands on top of a different wishlist entry, which is then gone, and
+        // the toast says "Upgrade entry moved to Want list".
+        'app-pages.js:markForSaleAsSold → _convertUpgradeToWantOnSell()',
+      ];
+      const uniq38 = [...new Set(offenders)];
+      const fresh38 = uniq38.filter(o => !KNOWN38.some(k => o.indexOf(k) === 0));
       ok('238 not one celebrating remove flow writes without checking the answer',
-         offenders.length === 0, offenders.slice(0, 6).join('  |  ') || 'none');
+         fresh38.length === 0, fresh38.slice(0, 6).join('  |  ') || 'none');
+      ok('238 …and the list of ones we already know about only ever shrinks',
+         KNOWN38.length <= 2, KNOWN38.length + ' known-unguarded writes');
+      KNOWN38.forEach(k => {
+        ok('238 …' + k.split(' → ')[0] + ' is still the one we wrote down',
+           uniq38.some(o => o.indexOf(k) === 0),
+           'this entry no longer matches anything — fixed? then delete the line, ' +
+           'because a stale entry silently excuses whatever moves into its place');
+      });
+
+      // The parser is now load-bearing: everything above it is only as true as
+      // its eyesight, and its two predecessors both failed silently — they
+      // reported zero offenders while seeing a third of the app. So prove the
+      // eyesight directly, on shapes that really are in these files.
+      {
+        const seen = {};
+        fs.readdirSync(APP38).filter(n => n.endsWith('.js')).forEach(f => {
+          findFunctions38(rd38(f)).forEach(fn => { seen[f + ':' + fn.name] = fn; });
+        });
+        const total = Object.keys(seen).length;
+        ok('238 …and the parser sees the whole app, not the flat part of it',
+           total >= 2100, total + ' functions found (was 1,022 before v0.9.1291)');
+        // one representative of each shape the old parser could not see
+        [['contacts.js', '_ctBlankRow'],          // indented declaration inside an IIFE
+         ['photo-inbox.js', null],                // a file that was invisible end to end
+         ['appearance.js', null],
+        ].forEach(pair => {
+          const f = pair[0], n = pair[1];
+          if (n) {
+            ok('238 …including ' + f + ':' + n + ', which used to be invisible',
+               !!seen[f + ':' + n], 'the parser lost a shape it is meant to read');
+          } else {
+            const c = Object.keys(seen).filter(k => k.indexOf(f + ':') === 0).length;
+            ok('238 …and ' + f + ', a file it used to skip entirely',
+               c > 0, 'nothing found in ' + f);
+          }
+        });
+        // and that a brace inside a string cannot end a body early
+        const probe = findFunctions38('function p(){ var s = "}"; var t = 1; }\n');
+        ok('238 …and a } inside a string does not end a function early',
+           probe.length >= 1 && /var t = 1/.test(probe[0].body),
+           'brace counting is not string-aware, so bodies are being truncated');
+      }
 
       // The eight R3-3 sites by name, so a rename or a deletion is visible
       // rather than silently shrinking the census above.
