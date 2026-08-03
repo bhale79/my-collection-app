@@ -747,6 +747,154 @@ const HARNESS = `<!doctype html><html><head><meta charset="utf-8">
       }
     }
 
+
+    // ══════════════════════════════════════════════════════════════════
+    // Every swept toolbar button, MEASURED (v0.9.1273)
+    //
+    // Brad, on a screenshot of the Photo Inbox: "the buttons do not need to
+    // be transparent." Same complaint as v0.9.1244, one floor up: those
+    // buttons carried a 12%-opacity inline background, and nothing had
+    // changed about them — what changed was the watermark. v0.9.1241 doubled
+    // #rr-logo-bg to min(110vmin,840px) at Brad's ask, and it finally reached
+    // the toolbar. A locomotive behind glass.
+    //
+    // The sweep rewrote 139 button backgrounds across 13 files from
+    //   background:rgba(R,G,B,A)
+    // to
+    //   background:var(--bg-card);background:color-mix(in srgb, rgb(R,G,B) N%, var(--bg-card))
+    // — the same tint, composited against the card colour instead of
+    // whatever happens to sit behind. Theme-aware (var(--bg-card) is defined
+    // in all four theme scopes) and budget-neutral (color-count.js counts
+    // rgb( and rgba( alike, so the total did not move).
+    //
+    // The two declarations are not decoration. A browser without color-mix
+    // drops the second as invalid and takes the first — opaque card colour,
+    // slightly wrong tint. Without the first it would drop BOTH and land on
+    // fully transparent, which is worse than the bug being fixed.
+    //
+    // No z-index here, unlike v0.9.1244. Painting order does it for free: a
+    // negative-z-index child paints at step 2, ordinary descendants'
+    // backgrounds at step 3+. Opaque is sufficient; the pixel reads below are
+    // what actually says so.
+    //
+    // Every DISTINCT declaration in the shipped source is rendered twice, over
+    // two very different backdrops, and the faces are required to match to the
+    // pixel. Pulling the declarations from source rather than listing them
+    // here means a new button with a new tint is covered the day it is
+    // written, and a hand-edit back to rgba() cannot hide.
+    // ══════════════════════════════════════════════════════════════════
+    {
+      // Deliberately NOT anchored to var(--bg-card): an extractor that only
+      // picks up declarations already in the right shape can never render a
+      // wrong one, and a color-mix against `transparent` — which reads like a
+      // fix and renders like the bug — would sail through untested. Match any
+      // second operand and let the pixels decide.
+      const MIX_RE = /color-mix\(in srgb, rgb\(\d+,\s*\d+,\s*\d+\) [\d.]+%, (?:var\(--[a-z0-9-]+\)|#[0-9a-fA-F]{3,8}|[a-zA-Z]+)\)/g;
+      const mixes = [];
+      for (const f of fs.readdirSync(APP).filter(n => n.endsWith('.js'))) {
+        const src = fs.readFileSync(path.join(APP, f), 'utf8');
+        let m;
+        MIX_RE.lastIndex = 0;
+        while ((m = MIX_RE.exec(src)) !== null) if (mixes.indexOf(m[0]) === -1) mixes.push(m[0]);
+      }
+
+      ok('swept buttons: the shipped source actually uses color-mix',
+         mixes.length >= 30, mixes.length + ' distinct declarations found');
+
+      const cells = mixes.map((mix, i) =>
+        '<button class="btn" id="sb' + i + '" style="display:block;width:200px;height:34px;' +
+        'margin:6px;border-radius:8px;background:var(--bg-card);background:' + mix + '">b' + i + '</button>'
+      ).join('');
+      // Sampling over ONE backdrop cannot work here: several of these tints are
+      // themselves green, so "did green win the middle channel" says yes for
+      // an opaque green button and proves nothing. Render the SAME buttons
+      // over two wildly different backdrops instead and require the faces to
+      // come out pixel-identical. Any transparency at all, of any tint, makes
+      // the two differ — and the check never has to know what colour a button
+      // is supposed to be.
+      const render = async function (backdrop, file) {
+        const page = `<!doctype html><html><head><meta charset="utf-8">
+<link rel="stylesheet" href="file://${APP}/app.css">
+<style>html,body{margin:0;height:100%}.app-body{display:flex;height:100%}
+.main{overflow:auto}</style></head>
+<body><div class="app-body"><div class="main">
+  <div id="rr-logo-bg" style="position:fixed;inset:0;pointer-events:none;z-index:-1;
+       background:${backdrop};opacity:1"></div>
+  ${cells}
+</div></div></body></html>`;
+        const fp = path.join(dir, file);
+        fs.writeFileSync(fp, page);
+        const pg = await browser.newPage({ viewport: { width: 400, height: 46 * mixes.length + 80 } });
+        await pg.goto('file://' + fp);
+        await pg.waitForTimeout(150);
+        const shot = await pg.screenshot({ type: 'png', fullPage: true });
+        const at = await pg.evaluate((n) => {
+          const out = [];
+          for (let i = 0; i < n; i++) {
+            const el = document.getElementById('sb' + i);
+            const b = el.getBoundingClientRect();
+            out.push({ i: i, x: Math.round(b.left + b.width / 2), y: Math.round(b.top + b.height / 2),
+                       bg: getComputedStyle(el).backgroundColor });
+          }
+          return out;
+        }, mixes.length);
+        await pg.close();
+        return { shot: shot, spots: at };
+      };
+      const green = await render('#00ff00', 'sweptbtn-g.html');
+      const magenta = await render('#ff00ff', 'sweptbtn-m.html');
+      const spots = green.spots;
+      const shot4 = green.shot;
+
+      // Which declaration won? On a browser with color-mix the computed value
+      // comes back as color(srgb …); on one without it, rgb(255,253,246) — the
+      // fallback. Both are opaque, and the suite should say WHICH out loud
+      // rather than passing on either and leaving it ambiguous.
+      const mixWon = spots.filter(s => /^color\(/.test(s.bg)).length;
+      ok('swept buttons: color-mix resolves in this browser (not the fallback)',
+         mixWon === spots.length, mixWon + ' of ' + spots.length + ' — sample: ' + (spots[0] || {}).bg);
+
+      // Opaque means no alpha component, in EITHER notation: rgba(…, 0.12)
+      // or color(srgb … / 0.12). A test that only knew rgba() would have
+      // waved the whole sweep through.
+      const seeThrough = spots.filter(s =>
+        /rgba\([^)]*,\s*0?\.\d+\s*\)/.test(s.bg) || /\/\s*0?\.\d+\s*\)/.test(s.bg));
+      ok('swept buttons: not one of them computes to a translucent colour',
+         seeThrough.length === 0,
+         seeThrough.length ? JSON.stringify(seeThrough.slice(0, 4)) : spots.length + ' checked');
+
+      const readPng = (buf) => { try { return require('pngjs').PNG.sync.read(buf); } catch (e) { return null; } };
+      const pngG = readPng(green.shot), pngM = readPng(magenta.shot);
+      if (pngG && pngM) {
+        const sample = (png, s) => {
+          const i = (png.width * s.y + s.x) << 2;
+          return [png.data[i], png.data[i + 1], png.data[i + 2]];
+        };
+        const bled = [];
+        for (const s of spots) {
+          const a = sample(pngG, s), b = sample(pngM, s);
+          if (a[0] !== b[0] || a[1] !== b[1] || a[2] !== b[2]) {
+            bled.push({ i: s.i, mix: mixes[s.i], overGreen: a, overMagenta: b });
+          }
+        }
+        ok('swept buttons: the watermark does not show through any of them',
+           bled.length === 0,
+           bled.length ? JSON.stringify(bled.slice(0, 3)) : spots.length + ' buttons, two backdrops, identical');
+
+        // Sanity: the two renders MUST differ somewhere, or the comparison
+        // above is comparing a page against itself and would pass on anything.
+        const bare = { x: 380, y: 20 };
+        const bg1 = sample(pngG, bare), bg2 = sample(pngM, bare);
+        ok('swept buttons: …and the two backdrops really did differ (control)',
+           bg1[0] !== bg2[0] || bg1[1] !== bg2[1] || bg1[2] !== bg2[2],
+           JSON.stringify(bg1) + ' vs ' + JSON.stringify(bg2));
+      } else {
+        // v0.9.1257 — see the note on the watermark pixel check above.
+        ok('swept buttons: pixel check could NOT run — pngjs missing', false, 'run npm install');
+      }
+    }
+
+
   } finally {
     await browser.close();
     try { fs.rmSync(dir, { recursive: true, force: true }); } catch (e) {}

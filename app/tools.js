@@ -32,7 +32,7 @@ function buildToolsPage() {
         'Smart Group Finder' +
       '</div>' +
       '<div class="tools-card-desc">Scans your collection for engine/tender pairs, boxes, and instruction sheets that belong together but aren\'t yet linked. Review each suggestion and group them with one click.</div>' +
-      '<button onclick="runGroupFinder()" style="padding:0.55rem 1.1rem;border-radius:8px;border:1.5px solid #8b5cf6;background:rgba(139,92,246,0.1);color:#8b5cf6;font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer">Scan My Collection</button>' +
+      '<button onclick="runGroupFinder()" style="padding:0.55rem 1.1rem;border-radius:8px;border:1.5px solid #8b5cf6;background:var(--bg-card);background:color-mix(in srgb, rgb(139,92,246) 10%, var(--bg-card));color:#8b5cf6;font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer">Scan My Collection</button>' +
       '<div id="group-finder-results" style="margin-top:1rem"></div>' +
     '</div>';
 
@@ -43,7 +43,7 @@ function buildToolsPage() {
         'Duplicate Checker' +
       '</div>' +
       '<div class="tools-card-desc">Works across all eras and manufacturers. Scans your collection for items you own more than once — same item number and variation. Review each duplicate group to decide which copy to keep, sell, or remove.</div>' +
-      '<button onclick="runDuplicateChecker()" style="padding:0.55rem 1.1rem;border-radius:8px;border:1.5px solid #d4a843;background:rgba(212,168,67,0.1);color:#d4a843;font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer">Scan for Duplicates</button>' +
+      '<button onclick="runDuplicateChecker()" style="padding:0.55rem 1.1rem;border-radius:8px;border:1.5px solid #d4a843;background:var(--bg-card);background:color-mix(in srgb, rgb(212,168,67) 10%, var(--bg-card));color:#d4a843;font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer">Scan for Duplicates</button>' +
       '<div id="duplicate-checker-results" style="margin-top:1rem"></div>' +
     '</div>';
 
@@ -67,7 +67,7 @@ function buildToolsPage() {
           '<option value="99">5+ — missing many items</option>' +
         '</select>' +
         '<label style="font-size:0.85rem;color:var(--text-mid)">or fewer items to complete</label>' +
-        '<button onclick="runSetBuilder()" style="padding:0.55rem 1.1rem;border-radius:8px;border:1.5px solid #0891b2;background:rgba(8,145,178,0.1);color:#0891b2;font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer">Scan Sets</button>' +
+        '<button onclick="runSetBuilder()" style="padding:0.55rem 1.1rem;border-radius:8px;border:1.5px solid #0891b2;background:var(--bg-card);background:color-mix(in srgb, rgb(8,145,178) 10%, var(--bg-card));color:#0891b2;font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer">Scan Sets</button>' +
       '</div>' +
       '<div id="set-builder-results" style="margin-top:0.5rem"></div>' +
     '</div>';
@@ -79,7 +79,7 @@ function buildToolsPage() {
         'Companion Suggester \u00b7 Lionel Postwar' +
       '</div>' +
       '<div class="tools-card-desc"><strong>Lionel postwar only.</strong> Scans your collection for missing Lionel postwar companions — tenders without their engine, B units without their A unit, and engines without their tender or B unit. Add any missing piece straight to your Want List.</div>' +
-      '<button onclick="runCompanionSuggester()" style="padding:0.55rem 1.1rem;border-radius:8px;border:1.5px solid #2ecc71;background:rgba(46,204,113,0.1);color:#2ecc71;font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer">Scan My Collection</button>' +
+      '<button onclick="runCompanionSuggester()" style="padding:0.55rem 1.1rem;border-radius:8px;border:1.5px solid #2ecc71;background:var(--bg-card);background:color-mix(in srgb, rgb(46,204,113) 10%, var(--bg-card));color:#2ecc71;font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer">Scan My Collection</button>' +
       '<div id="companion-suggester-results" style="margin-top:1rem"></div>' +
     '</div>';
 
@@ -214,7 +214,7 @@ function runGroupFinder() {
         '<div style="font-size:0.88rem;color:var(--text)">' + labels + '</div>' +
         (types ? '<div style="font-size:0.75rem;color:var(--text-dim);margin-top:1px">' + types + '</div>' : '') +
       '</div>' +
-      '<button onclick="confirmGroupItems(' + idx + ')" style="padding:0.35rem 0.75rem;border-radius:7px;border:1.5px solid #8b5cf6;background:rgba(139,92,246,0.1);color:#8b5cf6;font-family:var(--font-body);font-size:0.78rem;font-weight:600;cursor:pointer;white-space:nowrap">Group Them</button>' +
+      '<button onclick="confirmGroupItems(' + idx + ')" style="padding:0.35rem 0.75rem;border-radius:7px;border:1.5px solid #8b5cf6;background:var(--bg-card);background:color-mix(in srgb, rgb(139,92,246) 10%, var(--bg-card));color:#8b5cf6;font-family:var(--font-body);font-size:0.78rem;font-weight:600;cursor:pointer;white-space:nowrap">Group Them</button>' +
       '<button onclick="skipGroupSuggestion(' + idx + ')" style="padding:0.35rem 0.65rem;border-radius:7px;border:1px solid var(--border);background:var(--surface);color:var(--text-dim);font-family:var(--font-body);font-size:0.78rem;cursor:pointer;margin-left:0.35rem">Skip</button>' +
     '</div>';
   });
@@ -406,7 +406,7 @@ function _buildSetBody(r, idx) {
         _getMasterName(itm) +
         (alreadyWanted
           ? '<span style="font-size:0.72rem;color:var(--gold);margin-left:auto;white-space:nowrap">★ On want list</span>'
-          : '<button onclick="toolAddToWantList(\'' + itm.replace(/'/g, "\\'") + '\',' + idx + ')" style="margin-left:auto;padding:0.2rem 0.55rem;border-radius:6px;border:1px solid var(--gold);background:rgba(212,168,67,0.08);color:var(--gold);font-family:var(--font-body);font-size:0.72rem;cursor:pointer;white-space:nowrap;flex-shrink:0">+ Want List</button>') +
+          : '<button onclick="toolAddToWantList(\'' + itm.replace(/'/g, "\\'") + '\',' + idx + ')" style="margin-left:auto;padding:0.2rem 0.55rem;border-radius:6px;border:1px solid var(--gold);background:var(--bg-card);background:color-mix(in srgb, rgb(212,168,67) 8%, var(--bg-card));color:var(--gold);font-family:var(--font-body);font-size:0.72rem;cursor:pointer;white-space:nowrap;flex-shrink:0">+ Want List</button>') +
       '</div>';
     });
 
@@ -426,7 +426,7 @@ function _buildSetBody(r, idx) {
     html += '<div style="margin-top:0.85rem;display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap">' +
       (alreadyLinked
         ? '<span style="font-size:0.82rem;color:#0891b2;font-weight:600">✓ Set already linked in your collection</span>'
-        : '<button onclick="toolCreateSet(' + idx + ')" style="padding:0.45rem 0.9rem;border-radius:8px;border:1.5px solid #0891b2;background:rgba(8,145,178,0.1);color:#0891b2;font-family:var(--font-body);font-size:0.82rem;font-weight:600;cursor:pointer">Link Owned Pieces as Set ' + r.set.setNum + '</button>') +
+        : '<button onclick="toolCreateSet(' + idx + ')" style="padding:0.45rem 0.9rem;border-radius:8px;border:1.5px solid #0891b2;background:var(--bg-card);background:color-mix(in srgb, rgb(8,145,178) 10%, var(--bg-card));color:#0891b2;font-family:var(--font-body);font-size:0.82rem;font-weight:600;cursor:pointer">Link Owned Pieces as Set ' + r.set.setNum + '</button>') +
     '</div>';
   }
 
@@ -637,7 +637,7 @@ function runDuplicateChecker() {
         '<span style="font-size:0.78rem;color:var(--text-mid)">' + price + '</span>' +
         '<span style="font-size:0.75rem;color:var(--accent2);font-family:var(--font-mono)">' + groupedStr + '</span>' +
         '<button onclick="event.stopPropagation();listForSaleFromCollection(' + masterIdx + ',&apos;' + pdKey + '&apos;)" ' +
-          'style="padding:0.2rem 0.5rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #e67e22;background:rgba(230,126,34,0.1);color:#e67e22;font-family:var(--font-body);font-weight:600;white-space:nowrap;flex-shrink:0" ' +
+          'style="padding:0.2rem 0.5rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #e67e22;background:var(--bg-card);background:color-mix(in srgb, rgb(230,126,34) 10%, var(--bg-card));color:#e67e22;font-family:var(--font-body);font-weight:600;white-space:nowrap;flex-shrink:0" ' +
           'title="Add this copy to your For Sale list">🏷️ Add to For Sale List</button>' +
       '</div>';
     });
@@ -867,7 +867,7 @@ async function runCompanionSuggester() {
         (compDesc ? '<span style="font-size:0.78rem;color:var(--text-dim);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + compDesc + '</span>' : '<span style="flex:1"></span>') +
         (s.alreadyWanted
           ? '<span style="font-size:0.75rem;color:var(--gold);white-space:nowrap;flex-shrink:0">★ On want list</span>'
-          : '<button onclick="companionAddToWantList(&apos;' + s.companionNum + '&apos;,' + idx + ',' + sIdx + ')" style="margin-left:auto;padding:0.25rem 0.6rem;border-radius:6px;border:1px solid var(--gold);background:rgba(212,168,67,0.08);color:var(--gold);font-family:var(--font-body);font-size:0.75rem;cursor:pointer;white-space:nowrap;flex-shrink:0">+ Want List</button>'
+          : '<button onclick="companionAddToWantList(&apos;' + s.companionNum + '&apos;,' + idx + ',' + sIdx + ')" style="margin-left:auto;padding:0.25rem 0.6rem;border-radius:6px;border:1px solid var(--gold);background:var(--bg-card);background:color-mix(in srgb, rgb(212,168,67) 8%, var(--bg-card));color:var(--gold);font-family:var(--font-body);font-size:0.75rem;cursor:pointer;white-space:nowrap;flex-shrink:0">+ Want List</button>'
         ) +
       '</div>';
     });
@@ -1029,7 +1029,7 @@ async function runPhotoNameCleanup() {
     + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;font-size:0.7rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--accent2);padding-bottom:0.3rem;border-bottom:1px solid var(--border)"><span>Current name</span><span>New name</span></div>'
     + '<div style="max-height:340px;overflow-y:auto">' + rows + '</div>'
     + '<div style="display:flex;gap:0.6rem;margin-top:0.85rem">'
-    +   '<button onclick="_photoNamesApply()" style="padding:0.55rem 1.1rem;border-radius:8px;border:1.5px solid #2ecc71;background:rgba(46,204,113,0.1);color:#2ecc71;font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer">Rename ' + plan.length + ' Photo' + (plan.length > 1 ? 's' : '') + '</button>'
+    +   '<button onclick="_photoNamesApply()" style="padding:0.55rem 1.1rem;border-radius:8px;border:1.5px solid #2ecc71;background:var(--bg-card);background:color-mix(in srgb, rgb(46,204,113) 10%, var(--bg-card));color:#2ecc71;font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer">Rename ' + plan.length + ' Photo' + (plan.length > 1 ? 's' : '') + '</button>'
     +   '<button onclick="document.getElementById(\'photo-names-results\').innerHTML=\'\';_photoNamePlan=null" style="padding:0.55rem 1.1rem;border-radius:8px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer">Cancel</button>'
     + '</div>';
 }

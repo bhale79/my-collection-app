@@ -106,21 +106,21 @@
       '<div id="pin-tagbar" style="display:none"></div>' +        // v0.9.1057 tag mode
       '<div style="display:flex;flex-wrap:wrap;gap:0.5rem;align-items:center;margin-bottom:0.8rem">' +
         '<button onclick="_pinAddSource()" class="btn-primary" style="padding:0.5rem 0.9rem;border-radius:8px;border:none;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Add photos…</button>' +
-        '<button id="pin-group-btn" onclick="_pinStartMode(\'group\')" style="' + 'padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer' + '">Group photos</button>' +
-        '<button id="pin-tag-btn" onclick="_pinStartMode(\'tag\')" style="' + 'padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer' + '">Tag maker/era/scale</button>' +
+        '<button id="pin-group-btn" onclick="_pinStartMode(\'group\')" style="' + 'padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:var(--bg-card);background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card));color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer' + '">Group photos</button>' +
+        '<button id="pin-tag-btn" onclick="_pinStartMode(\'tag\')" style="' + 'padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:var(--bg-card);background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card));color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer' + '">Tag maker/era/scale</button>' +
         '<button id="pin-apply-btn" onclick="_pinApplyTags()" style="display:none;padding:0.5rem 0.9rem;border-radius:8px;border:none;background:var(--accent);color:var(--on-accent);font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Apply</button>' +
         '<button id="pin-finish-btn" onclick="_pinFinishMode()" style="display:none;padding:0.5rem 0.9rem;border-radius:8px;border:none;background:var(--accent2);color:#1a1a1a;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">✓ Finished</button>' +
-        '<button id="pin-selall-btn" onclick="_pinSelectAll()" style="display:none;padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Select all</button>' +
-        '<button id="pin-recrop-btn" onclick="_pinReadCropped()" style="display:none;padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid var(--accent2);background:rgba(212,168,67,0.14);color:var(--accent2);font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Re-read cropped</button>' +
-        '<button id="pin-idall-btn" onclick="_pinIdentifyAll()" style="display:none;padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid var(--accent2);background:rgba(212,168,67,0.14);color:var(--accent2);font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">🔍 Read with a photo ID</button>' +
-        (rrDiagnostics() ? '<button id="pin-audit-btn" onclick="_pinReaderAudit()" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:#2980b9;font-family:var(--font-body);font-weight:600;font-size:0.82rem;cursor:pointer">Reader audit (free)</button>' : '') +
-        '<button onclick="_pinRefresh()" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:#2980b9;font-family:var(--font-body);font-weight:600;font-size:0.82rem;cursor:pointer">Refresh</button>' +
+        '<button id="pin-selall-btn" onclick="_pinSelectAll()" style="display:none;padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:var(--bg-card);background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card));color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Select all</button>' +
+        '<button id="pin-recrop-btn" onclick="_pinReadCropped()" style="display:none;padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid var(--accent2);background:var(--bg-card);background:color-mix(in srgb, rgb(212,168,67) 14%, var(--bg-card));color:var(--accent2);font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Re-read cropped</button>' +
+        '<button id="pin-idall-btn" onclick="_pinIdentifyAll()" style="display:none;padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid var(--accent2);background:var(--bg-card);background:color-mix(in srgb, rgb(212,168,67) 14%, var(--bg-card));color:var(--accent2);font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">🔍 Read with a photo ID</button>' +
+        (rrDiagnostics() ? '<button id="pin-audit-btn" onclick="_pinReaderAudit()" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:var(--bg-card);background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card));color:#2980b9;font-family:var(--font-body);font-weight:600;font-size:0.82rem;cursor:pointer">Reader audit (free)</button>' : '') +
+        '<button onclick="_pinRefresh()" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:var(--bg-card);background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card));color:#2980b9;font-family:var(--font-body);font-weight:600;font-size:0.82rem;cursor:pointer">Refresh</button>' +
         '<span style="flex:1"></span>' +
         '<span id="pin-selinfo" style="font-size:0.78rem;color:var(--text-dim)"></span>' +
-        '<button id="pin-idsel-btn" onclick="_pinIdentifySelected()" style="display:none;padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Identify</button>' +
-        '<button id="pin-assign-btn" onclick="_pinReview(null)" style="display:none;padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Combine → one item…</button>' +
-        '<button id="pin-groupas-btn" onclick="_pinGroupAs()" style="display:none;padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Group as\u2026</button>' +
-        '<button id="pin-discard-btn" onclick="_pinDiscard()" style="display:none;padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:#f05008;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Discard</button>' +
+        '<button id="pin-idsel-btn" onclick="_pinIdentifySelected()" style="display:none;padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:var(--bg-card);background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card));color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Identify</button>' +
+        '<button id="pin-assign-btn" onclick="_pinReview(null)" style="display:none;padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:var(--bg-card);background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card));color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Combine → one item…</button>' +
+        '<button id="pin-groupas-btn" onclick="_pinGroupAs()" style="display:none;padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:var(--bg-card);background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card));color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Group as\u2026</button>' +
+        '<button id="pin-discard-btn" onclick="_pinDiscard()" style="display:none;padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:var(--bg-card);background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card));color:#f05008;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Discard</button>' +
       '</div>' +
       '<div id="pin-status" style="display:none;font-size:0.8rem;color:var(--text-dim);margin-bottom:0.6rem"></div>' +
       '<div id="pin-drop" style="min-height:50vh;border:2px dashed var(--border);border-radius:12px;padding:0.8rem">' +
@@ -1173,7 +1173,7 @@
         '<div class="rr-card">' +
           '<div style="font-size:0.92rem;color:var(--text-mid);line-height:1.55;margin-bottom:1.1rem">' + msg + '</div>' +
           '<div style="display:flex;gap:0.6rem;justify-content:flex-end">' +
-            '<button id="_pcc" style="padding:0.5rem 1rem;border-radius:8px;border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:var(--text-mid);font-family:var(--font-body);font-weight:600;font-size:0.85rem;cursor:pointer">Not now</button>' +
+            '<button id="_pcc" style="padding:0.5rem 1rem;border-radius:8px;border:1.5px solid #8b8e94;background:var(--bg-card);background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card));color:var(--text-mid);font-family:var(--font-body);font-weight:600;font-size:0.85rem;cursor:pointer">Not now</button>' +
             '<button id="_pco" style="padding:0.5rem 1.1rem;border-radius:8px;border:none;background:var(--accent2);color:#1a1a1a;font-family:var(--font-body);font-weight:700;font-size:0.85rem;cursor:pointer">' + (okLabel || 'Continue') + '</button>' +
           '</div>' +
         '</div>';
@@ -1772,7 +1772,7 @@
       _vfSeen[key] = 1;
       _pinVerifyRun(lk, key, el);
     } else {
-      el.innerHTML = '<button onclick="_pinVerifyClick()" style="padding:0.4rem 0.7rem;border-radius:8px;border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.78rem;cursor:pointer">📷 Double-check vs catalog photo</button>';
+      el.innerHTML = '<button onclick="_pinVerifyClick()" style="padding:0.4rem 0.7rem;border-radius:8px;border:1.5px solid #8b8e94;background:var(--bg-card);background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card));color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.78rem;cursor:pointer">📷 Double-check vs catalog photo</button>';
     }
   }
   window._pinVerifyClick = function () {
@@ -2144,7 +2144,7 @@
       ? '<div style="margin-bottom:0.55rem;display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap">'
         + '<span style="font-size:0.76rem;color:var(--text-dim)">Best guess from the photo:</span>'
         + '<button onclick="_pinPickNum(\'' + rrEsc(sugGuess).replace(/'/g, '') + '\')" '
-        + 'style="padding:0.4rem 0.8rem;border-radius:999px;border:1.5px solid #ffb454;background:rgba(255,180,84,0.12);'
+        + 'style="padding:0.4rem 0.8rem;border-radius:999px;border:1.5px solid #ffb454;background:var(--bg-card);background:color-mix(in srgb, rgb(255,180,84) 12%, var(--bg-card));'
         + 'color:#ffb454;font-family:var(--font-mono);font-weight:700;font-size:0.86rem;min-height:38px;cursor:pointer">'
         + rrEsc(sugGuess) + ' \u2014 use this</button>'
         + '</div>'
@@ -2187,7 +2187,7 @@
       : '';
     var _setBtn = (_setNums.length >= 2)
       ? _setLine
-        + '<button onclick="_pinAddSetFromGroup()" style="width:100%;padding:0.72rem;border-radius:10px;border:2px solid #e67e22;background:rgba(230,126,34,0.12);color:#e67e22;font-family:var(--font-body);font-weight:700;font-size:0.93rem;cursor:pointer;margin-bottom:0.5rem">\ud83d\ude82 '
+        + '<button onclick="_pinAddSetFromGroup()" style="width:100%;padding:0.72rem;border-radius:10px;border:2px solid #e67e22;background:var(--bg-card);background:color-mix(in srgb, rgb(230,126,34) 12%, var(--bg-card));color:#e67e22;font-family:var(--font-body);font-weight:700;font-size:0.93rem;cursor:pointer;margin-bottom:0.5rem">\ud83d\ude82 '
         + (_setGuess ? 'Add set ' + rrEsc(_setGuess.setNum) : 'Add the whole set')
         + ' \u2014 ' + _setNums.length + ' items read</button>'
       : '';
@@ -2201,15 +2201,15 @@
           '<div style="' + _lbl + '">What do you want to do with it?</div>' +
           _setBtn +
           '<button id="pin-rv-add" onclick="_pinFileToCollection()" class="btn-primary" style="width:100%;padding:0.72rem;border-radius:10px;border:none;font-family:var(--font-body);font-weight:700;font-size:0.93rem;cursor:pointer;margin-bottom:0.5rem">Add to my Collection</button>' +
-          '<button id="pin-rv-sell" onclick="_pinSendForSale()" style="width:100%;padding:0.68rem;border-radius:10px;border:1.5px solid #d4a843;background:rgba(212,168,67,0.12);color:#d4a843;font-family:var(--font-body);font-weight:700;font-size:0.9rem;cursor:pointer;margin-bottom:0.5rem">Add to Sales List</button>' +
-          '<button onclick="_pinReviewDiscard()" style="width:100%;padding:0.68rem;border-radius:10px;border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:#f05008;font-family:var(--font-body);font-weight:700;font-size:0.9rem;cursor:pointer">Discard Photo' + (n > 1 ? 's' : '') + '</button>' +
+          '<button id="pin-rv-sell" onclick="_pinSendForSale()" style="width:100%;padding:0.68rem;border-radius:10px;border:1.5px solid #d4a843;background:var(--bg-card);background:color-mix(in srgb, rgb(212,168,67) 12%, var(--bg-card));color:#d4a843;font-family:var(--font-body);font-weight:700;font-size:0.9rem;cursor:pointer;margin-bottom:0.5rem">Add to Sales List</button>' +
+          '<button onclick="_pinReviewDiscard()" style="width:100%;padding:0.68rem;border-radius:10px;border:1.5px solid #8b8e94;background:var(--bg-card);background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card));color:#f05008;font-family:var(--font-body);font-weight:700;font-size:0.9rem;cursor:pointer">Discard Photo' + (n > 1 ? 's' : '') + '</button>' +
         '</div>' +
         '<div style="flex:1 1 240px;min-width:0">' +
           '<div style="' + _lbl + '">Not sure what it is?</div>' +
           '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem">' +
-            '<button id="pin-rv-rescan" onclick="_pinRescan()" title="Forget this read and scan the photo again at higher detail" style="' + _gBtn + 'border:1.5px solid #f05008;background:rgba(240,80,8,0.10);color:#f05008">This is wrong — re-scan</button>' +
-            '<button onclick="_pinReviewResearch()" style="' + _gBtn + 'border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:#2980b9">Research Number</button>' +
-            '<button id="pin-rv-lens" onclick="_pinReviewLens()" style="' + _gBtn + 'border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:#2980b9">Google Search</button>' +
+            '<button id="pin-rv-rescan" onclick="_pinRescan()" title="Forget this read and scan the photo again at higher detail" style="' + _gBtn + 'border:1.5px solid #f05008;background:var(--bg-card);background:color-mix(in srgb, rgb(240,80,8) 10%, var(--bg-card));color:#f05008">This is wrong — re-scan</button>' +
+            '<button onclick="_pinReviewResearch()" style="' + _gBtn + 'border:1.5px solid #8b8e94;background:var(--bg-card);background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card));color:#2980b9">Research Number</button>' +
+            '<button id="pin-rv-lens" onclick="_pinReviewLens()" style="' + _gBtn + 'border:1.5px solid #8b8e94;background:var(--bg-card);background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card));color:#2980b9">Google Search</button>' +
             // v0.9.1163: don't quote a price the app will not charge. With reads
             // switched off this button still said "(1 token)" and then reported a
             // failure, which is how Brad ended up thinking it was broken.
@@ -2217,7 +2217,7 @@
               + ((typeof rrAiOptedOut === 'function' && rrAiOptedOut())
                   ? 'Photo reads are switched off — turn them on in Preferences › Photo ID'
                   : 'Identify this item straight from its photo — uses one photo ID')
-              + '" style="' + _gBtn + 'border:1.5px solid var(--accent2,#d4a843);background:rgba(212,168,67,0.14);color:var(--accent2,#d4a843)">'
+              + '" style="' + _gBtn + 'border:1.5px solid var(--accent2,#d4a843);background:var(--bg-card);background:color-mix(in srgb, rgb(212,168,67) 14%, var(--bg-card));color:var(--accent2,#d4a843)">'
               + ((typeof rrAiOptedOut === 'function' && rrAiOptedOut())
                   ? 'Read this photo (reads are off)'
                   : 'Read this photo (1 photo ID)') + '</button>' +

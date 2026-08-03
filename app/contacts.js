@@ -712,8 +712,8 @@
       + '<div class="page-title">Contacts</div>'
       + '<div style="display:flex;gap:0.5rem;align-items:center;margin-bottom:0.8rem;flex-wrap:wrap">'
       + '<input id="ct-search" type="text" placeholder="Search name, business, specialty…" oninput="_ctRenderList()" style="flex:1;min-width:200px;padding:0.6rem 0.8rem;border-radius:9px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.9rem">'
-      + '<button onclick="_ctOpenEdit(null)" style="padding:0.6rem 1.1rem;border-radius:9px;border:1.5px solid var(--accent);background:rgba(232,64,28,0.1);color:var(--accent);font-weight:700;cursor:pointer;font-family:var(--font-body)">+ Add Contact</button>'
-      + '<button onclick="_ctShareOpen()" style="padding:0.6rem 1.1rem;border-radius:9px;border:1.5px solid #3498db;background:rgba(52,152,219,0.08);color:#3498db;font-weight:700;cursor:pointer;font-family:var(--font-body)">↗ Share</button>'
+      + '<button onclick="_ctOpenEdit(null)" style="padding:0.6rem 1.1rem;border-radius:9px;border:1.5px solid var(--accent);background:var(--bg-card);background:color-mix(in srgb, rgb(232,64,28) 10%, var(--bg-card));color:var(--accent);font-weight:700;cursor:pointer;font-family:var(--font-body)">+ Add Contact</button>'
+      + '<button onclick="_ctShareOpen()" style="padding:0.6rem 1.1rem;border-radius:9px;border:1.5px solid #3498db;background:var(--bg-card);background:color-mix(in srgb, rgb(52,152,219) 8%, var(--bg-card));color:#3498db;font-weight:700;cursor:pointer;font-family:var(--font-body)">↗ Share</button>'
       + '</div>'
       + '<div id="ct-list"><div class="loading"><div class="spinner"></div></div></div>';
     await _load();
@@ -964,7 +964,7 @@
       var have = (c.specialties || '').split(',').map(function (x) { return x.trim().toLowerCase(); });
       return '<div style="display:flex;flex-wrap:wrap;gap:0.3rem;margin-bottom:0.35rem">' + list.map(function (s) {
         var on = have.indexOf(s.toLowerCase()) >= 0;
-        return '<button data-ct-chip="' + s + '" style="padding:0.22rem 0.5rem;border-radius:999px;font-size:0.73rem;cursor:pointer;font-family:var(--font-body);border:1.5px solid ' + (on ? 'var(--accent2);background:rgba(201,146,42,0.15);color:var(--accent2)' : 'var(--border);background:var(--surface2);color:var(--text-mid)') + '">' + s + '</button>';
+        return '<button data-ct-chip="' + s + '" style="padding:0.22rem 0.5rem;border-radius:999px;font-size:0.73rem;cursor:pointer;font-family:var(--font-body);border:1.5px solid ' + (on ? 'var(--accent2);background:var(--bg-card);background:color-mix(in srgb, rgb(201,146,42) 15%, var(--bg-card));color:var(--accent2)' : 'var(--border);background:var(--surface2);color:var(--text-mid)') + '">' + s + '</button>';
       }).join('') + '</div>';
     };
     var _knownChips = ERA_CHIPS.concat(SPECIALTY_CHIPS).map(function (x) { return x.toLowerCase(); });
@@ -973,8 +973,8 @@
     ov.innerHTML = '<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;max-width:480px;width:100%;padding:0.9rem 1rem;max-height:92vh;overflow-y:auto">'
       + '<div style="font-family:var(--font-head);font-size:1.05rem;color:var(--text);margin-bottom:0.5rem">' + (row ? 'Edit Contact' : '📇 New Contact') + '</div>'
       + '<div id="ct-card-dropwrap" style="display:flex;gap:0.5rem;margin-bottom:0.7rem">'
-      +   '<button onclick="document.getElementById(\'ct-card-file\').click()" style="flex:1;padding:0.75rem;border-radius:9px;border:1.5px dashed #3498db;background:rgba(52,152,219,0.08);color:#3498db;font-weight:700;cursor:pointer;font-family:var(--font-body)">📷 Take photo of card</button>'
-      +   '<button onclick="document.getElementById(\'ct-card-gallery\').click()" style="flex:1;padding:0.75rem;border-radius:9px;border:1.5px dashed #3498db;background:rgba(52,152,219,0.08);color:#3498db;font-weight:700;cursor:pointer;font-family:var(--font-body)">🖼 From gallery</button>'
+      +   '<button onclick="document.getElementById(\'ct-card-file\').click()" style="flex:1;padding:0.75rem;border-radius:9px;border:1.5px dashed #3498db;background:var(--bg-card);background:color-mix(in srgb, rgb(52,152,219) 8%, var(--bg-card));color:#3498db;font-weight:700;cursor:pointer;font-family:var(--font-body)">📷 Take photo of card</button>'
+      +   '<button onclick="document.getElementById(\'ct-card-gallery\').click()" style="flex:1;padding:0.75rem;border-radius:9px;border:1.5px dashed #3498db;background:var(--bg-card);background:color-mix(in srgb, rgb(52,152,219) 8%, var(--bg-card));color:#3498db;font-weight:700;cursor:pointer;font-family:var(--font-body)">🖼 From gallery</button>'
       + '</div>'
       + '<input type="file" id="ct-card-file" accept="image/*" capture="environment" style="display:none">'
       + '<input type="file" id="ct-card-gallery" accept="image/*" style="display:none">'

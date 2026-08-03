@@ -232,21 +232,21 @@ function showNonItemDetailPage(type, key) {
 
   // ── ACTION TOOLBAR ──
   html += '<div class="rr-detail-actions" style="display:flex;gap:0.5rem;margin-bottom:1.5rem;flex-wrap:wrap">';
-  html +=   '<button onclick="_nonItemDetailEdit(' + typeArg + ',' + keyArg + ')" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #2980b9;background:rgba(41,128,185,0.1);color:#2980b9;font-family:var(--font-body);font-size:0.82rem;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:0.4rem">'
+  html +=   '<button onclick="_nonItemDetailEdit(' + typeArg + ',' + keyArg + ')" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #2980b9;background:var(--bg-card);background:color-mix(in srgb, rgb(41,128,185) 10%, var(--bg-card));color:#2980b9;font-family:var(--font-body);font-size:0.82rem;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:0.4rem">'
        +     '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>'
        +     'Update Info/Pictures'
        +   '</button>';
-  html +=   '<button onclick="_collectionSold(' + typeArg + ',' + keyArg + ')" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #2ecc71;background:rgba(46,204,113,0.1);color:#2ecc71;font-family:var(--font-body);font-size:0.82rem;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:0.4rem">'
+  html +=   '<button onclick="_collectionSold(' + typeArg + ',' + keyArg + ')" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #2ecc71;background:var(--bg-card);background:color-mix(in srgb, rgb(46,204,113) 10%, var(--bg-card));color:#2ecc71;font-family:var(--font-body);font-size:0.82rem;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:0.4rem">'
        +     '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>'
        +     'Record Sale'
        +   '</button>';
   if (!isForSale) {
-    html += '<button onclick="_collectionForSale(' + typeArg + ',' + keyArg + ')" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #e67e22;background:rgba(230,126,34,0.1);color:#e67e22;font-family:var(--font-body);font-size:0.82rem;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:0.4rem">'
+    html += '<button onclick="_collectionForSale(' + typeArg + ',' + keyArg + ')" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #e67e22;background:var(--bg-card);background:color-mix(in srgb, rgb(230,126,34) 10%, var(--bg-card));color:#e67e22;font-family:var(--font-body);font-size:0.82rem;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:0.4rem">'
          +   '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>'
          +   'List for Sale'
          + '</button>';
   }
-  html +=   '<button onclick="_collectionUpgrade(' + typeArg + ',' + keyArg + ')" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b5cf6;background:rgba(139,92,246,0.1);color:#8b5cf6;font-family:var(--font-body);font-size:0.82rem;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:0.4rem">'
+  html +=   '<button onclick="_collectionUpgrade(' + typeArg + ',' + keyArg + ')" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b5cf6;background:var(--bg-card);background:color-mix(in srgb, rgb(139,92,246) 10%, var(--bg-card));color:#8b5cf6;font-family:var(--font-body);font-size:0.82rem;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:0.4rem">'
        +     '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 19V5M5 12l7-7 7 7"/></svg>'
        +     'Add to Upgrade List'
        +   '</button>';
@@ -291,7 +291,7 @@ function showNonItemDetailPage(type, key) {
               : '<div style="grid-column:1/-1;text-align:center;padding:2rem 1rem;color:var(--text-dim)">'
                 + '<svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" opacity="0.3" style="margin:0 auto 0.5rem;display:block"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>'
                 + '<div style="font-size:0.85rem;margin-bottom:0.5rem">No photos uploaded yet</div>'
-                + '<button onclick="_nonItemDetailPhotos(' + typeArg + ',' + keyArg + ')" style="padding:0.4rem 0.8rem;border-radius:7px;border:1.5px solid var(--gold);background:rgba(212,168,67,0.08);color:var(--gold);font-family:var(--font-body);font-size:0.78rem;cursor:pointer;font-weight:600">Add Photos</button>'
+                + '<button onclick="_nonItemDetailPhotos(' + typeArg + ',' + keyArg + ')" style="padding:0.4rem 0.8rem;border-radius:7px;border:1.5px solid var(--gold);background:var(--bg-card);background:color-mix(in srgb, rgb(212,168,67) 8%, var(--bg-card));color:var(--gold);font-family:var(--font-body);font-size:0.78rem;cursor:pointer;font-weight:600">Add Photos</button>'
                 + '</div>')
        +    '</div>'
        + '</div>';
@@ -307,7 +307,7 @@ function showNonItemDetailPage(type, key) {
         el.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:2rem 1rem;color:var(--text-dim)">'
           + '<svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" opacity="0.3" style="margin:0 auto 0.5rem;display:block"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>'
           + '<div style="font-size:0.85rem;margin-bottom:0.5rem">No photos in folder</div>'
-          + '<button onclick="_nonItemDetailPhotos(' + typeArg + ',' + keyArg + ')" style="padding:0.4rem 0.8rem;border-radius:7px;border:1.5px solid var(--gold);background:rgba(212,168,67,0.08);color:var(--gold);font-family:var(--font-body);font-size:0.78rem;cursor:pointer;font-weight:600">Add Photos</button>'
+          + '<button onclick="_nonItemDetailPhotos(' + typeArg + ',' + keyArg + ')" style="padding:0.4rem 0.8rem;border-radius:7px;border:1.5px solid var(--gold);background:var(--bg-card);background:color-mix(in srgb, rgb(212,168,67) 8%, var(--bg-card));color:var(--gold);font-family:var(--font-body);font-size:0.78rem;cursor:pointer;font-weight:600">Add Photos</button>'
           + '</div>';
         return;
       }
@@ -1108,39 +1108,39 @@ function showItemDetailPage(idx, copyInvId, opts) {
   if (_wantMode) {
     html += `
   <div class="rr-detail-actions" style="display:flex;gap:0.5rem;margin-bottom:1.5rem;flex-wrap:wrap">
-    <button onclick="wantFindOnEbay('${it.itemNum}','${(it.roadName||'').replace(/'/g,"&apos;")}')" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #e67e22;background:rgba(230,126,34,0.1);color:#e67e22;font-family:var(--font-body);font-size:0.82rem;cursor:pointer;font-weight:600">Find on eBay</button>
-    <button onclick="wantSearchOtherSites('${it.itemNum}','${(it.roadName||'').replace(/'/g,"&apos;")}')" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #2980b9;background:rgba(41,128,185,0.1);color:#2980b9;font-family:var(--font-body);font-size:0.82rem;cursor:pointer;font-weight:600">Search Other Sites</button>
-    <button onclick="moveWantToCollection('${it.itemNum}','${(it.variation||'').replace(/'/g,"&apos;")}')" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #2ecc71;background:rgba(46,204,113,0.1);color:#2ecc71;font-family:var(--font-body);font-size:0.82rem;cursor:pointer;font-weight:600">+ Add to Collection</button>
+    <button onclick="wantFindOnEbay('${it.itemNum}','${(it.roadName||'').replace(/'/g,"&apos;")}')" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #e67e22;background:var(--bg-card);background:color-mix(in srgb, rgb(230,126,34) 10%, var(--bg-card));color:#e67e22;font-family:var(--font-body);font-size:0.82rem;cursor:pointer;font-weight:600">Find on eBay</button>
+    <button onclick="wantSearchOtherSites('${it.itemNum}','${(it.roadName||'').replace(/'/g,"&apos;")}')" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #2980b9;background:var(--bg-card);background:color-mix(in srgb, rgb(41,128,185) 10%, var(--bg-card));color:#2980b9;font-family:var(--font-body);font-size:0.82rem;cursor:pointer;font-weight:600">Search Other Sites</button>
+    <button onclick="moveWantToCollection('${it.itemNum}','${(it.variation||'').replace(/'/g,"&apos;")}')" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #2ecc71;background:var(--bg-card);background:color-mix(in srgb, rgb(46,204,113) 10%, var(--bg-card));color:#2ecc71;font-family:var(--font-body);font-size:0.82rem;cursor:pointer;font-weight:600">+ Add to Collection</button>
   </div>`;
   } else {
   html += `
   <div class="rr-detail-actions" style="display:flex;gap:0.5rem;margin-bottom:1.5rem;flex-wrap:wrap">
-    <button onclick="showItemDetailPage_edit(${idx})" data-ctip="Edit this item's details and add photos all in one place." style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #2980b9;background:rgba(41,128,185,0.1);color:#2980b9;font-family:var(--font-body);font-size:0.82rem;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:0.4rem">
+    <button onclick="showItemDetailPage_edit(${idx})" data-ctip="Edit this item's details and add photos all in one place." style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #2980b9;background:var(--bg-card);background:color-mix(in srgb, rgb(41,128,185) 10%, var(--bg-card));color:#2980b9;font-family:var(--font-body);font-size:0.82rem;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:0.4rem">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
       Update Info/Pictures
     </button>
-    <button onclick="collectionActionSold(${idx},'${it.itemNum}','${(it.variation||'').replace(/'/g,"&apos;")}',${pd && pd.row ? pd.row : 0},'${pd && pd.inventoryId ? pd.inventoryId : ''}')" data-ctip="Did you sell something? Record that here." style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #2ecc71;background:rgba(46,204,113,0.1);color:#2ecc71;font-family:var(--font-body);font-size:0.82rem;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:0.4rem">
+    <button onclick="collectionActionSold(${idx},'${it.itemNum}','${(it.variation||'').replace(/'/g,"&apos;")}',${pd && pd.row ? pd.row : 0},'${pd && pd.inventoryId ? pd.inventoryId : ''}')" data-ctip="Did you sell something? Record that here." style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #2ecc71;background:var(--bg-card);background:color-mix(in srgb, rgb(46,204,113) 10%, var(--bg-card));color:#2ecc71;font-family:var(--font-body);font-size:0.82rem;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:0.4rem">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
       Record Sale
     </button>
     ${isForSale
-      ? `<button onclick="_removeForSaleFromDetail(${idx},'${_detailInvId}')" data-ctip="Remove this item from your For Sale list and keep it in your collection." style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #e67e22;background:rgba(230,126,34,0.25);color:#e67e22;font-family:var(--font-body);font-size:0.82rem;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:0.4rem">
+      ? `<button onclick="_removeForSaleFromDetail(${idx},'${_detailInvId}')" data-ctip="Remove this item from your For Sale list and keep it in your collection." style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #e67e22;background:var(--bg-card);background:color-mix(in srgb, rgb(230,126,34) 25%, var(--bg-card));color:#e67e22;font-family:var(--font-body);font-size:0.82rem;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:0.4rem">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
       Remove from For Sale
     </button>`
-      : `<button onclick="collectionActionForSale(${idx},'${it.itemNum}','${(it.variation||'').replace(/'/g,"&apos;")}',${pd && pd.row ? pd.row : 0},'${pd && pd.inventoryId ? pd.inventoryId : ''}')" data-ctip="If you want to sell an item from your collection, you can list it for sale here." style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #e67e22;background:rgba(230,126,34,0.1);color:#e67e22;font-family:var(--font-body);font-size:0.82rem;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:0.4rem">
+      : `<button onclick="collectionActionForSale(${idx},'${it.itemNum}','${(it.variation||'').replace(/'/g,"&apos;")}',${pd && pd.row ? pd.row : 0},'${pd && pd.inventoryId ? pd.inventoryId : ''}')" data-ctip="If you want to sell an item from your collection, you can list it for sale here." style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #e67e22;background:var(--bg-card);background:color-mix(in srgb, rgb(230,126,34) 10%, var(--bg-card));color:#e67e22;font-family:var(--font-body);font-size:0.82rem;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:0.4rem">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
       List for Sale
     </button>`}
-    <button onclick="showAddToUpgradeModal('${it.itemNum}','${(it.variation||'').replace(/'/g,"&apos;")}',${pd && pd.row ? pd.row : 0},'${pd && pd.inventoryId ? pd.inventoryId : ''}')" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b5cf6;background:rgba(139,92,246,0.1);color:#8b5cf6;font-family:var(--font-body);font-size:0.82rem;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:0.4rem">
+    <button onclick="showAddToUpgradeModal('${it.itemNum}','${(it.variation||'').replace(/'/g,"&apos;")}',${pd && pd.row ? pd.row : 0},'${pd && pd.inventoryId ? pd.inventoryId : ''}')" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b5cf6;background:var(--bg-card);background:color-mix(in srgb, rgb(139,92,246) 10%, var(--bg-card));color:#8b5cf6;font-family:var(--font-body);font-size:0.82rem;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:0.4rem">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
       Add to Upgrade List
     </button>
-    ${(pd && pd.groupId) ? `<button onclick="_breakUpGroupFromDetail(${idx},'${it.itemNum}','${(it.variation||'').replace(/'/g,"&apos;")}')" data-ctip="Unlink the pieces in this group — they all stay in your collection." style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid var(--accent2);background:rgba(201,146,42,0.1);color:var(--accent2);font-family:var(--font-body);font-size:0.82rem;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:0.4rem">
+    ${(pd && pd.groupId) ? `<button onclick="_breakUpGroupFromDetail(${idx},'${it.itemNum}','${(it.variation||'').replace(/'/g,"&apos;")}')" data-ctip="Unlink the pieces in this group — they all stay in your collection." style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid var(--accent2);background:var(--bg-card);background:color-mix(in srgb, rgb(201,146,42) 10%, var(--bg-card));color:var(--accent2);font-family:var(--font-body);font-size:0.82rem;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:0.4rem">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
       Break Up Group
     </button>` : ''}
-    <button onclick="_removeFromCollectionDetail(${idx},'${it.itemNum}','${(it.variation||'').replace(/'/g,"&apos;")}')" data-ctip="Remove this item from your collection." style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #e74c3c;background:rgba(231,76,60,0.1);color:#e74c3c;font-family:var(--font-body);font-size:0.82rem;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:0.4rem">
+    <button onclick="_removeFromCollectionDetail(${idx},'${it.itemNum}','${(it.variation||'').replace(/'/g,"&apos;")}')" data-ctip="Remove this item from your collection." style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #e74c3c;background:var(--bg-card);background:color-mix(in srgb, rgb(231,76,60) 10%, var(--bg-card));color:#e74c3c;font-family:var(--font-body);font-size:0.82rem;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:0.4rem">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
       Remove from Collection
     </button>
@@ -1170,7 +1170,7 @@ function showItemDetailPage(idx, copyInvId, opts) {
             + '<div style="font-size:0.64rem;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--accent3,#2ecc71)">' + role + (me ? ' · this page' : '') + '</div>'
             + '<div style="font-family:var(--font-mono);font-weight:700;color:var(--accent);font-size:0.95rem;margin:0.15rem 0">' + String(p.itemNum || '').replace(/</g, '&lt;') + (p.photoItem ? ' <span title="Has photos" style="font-size:0.78rem">📷</span>' : '') + '</div>'
             + '<div style="font-size:0.74rem;color:var(--text-mid);line-height:1.5">Cond ' + cond + (box ? ' · ' + box : '') + (worth ? '<br>Worth ' + worth : '') + '</div>'
-            + '<button onclick="_grpEditMember(' + i + ')" style="margin-top:0.45rem;width:100%;padding:0.3rem;border-radius:7px;border:1px solid #2980b9;background:rgba(41,128,185,0.08);color:#2980b9;font-size:0.7rem;cursor:pointer;font-family:var(--font-body);font-weight:600">Edit / Photos</button>'
+            + '<button onclick="_grpEditMember(' + i + ')" style="margin-top:0.45rem;width:100%;padding:0.3rem;border-radius:7px;border:1px solid #2980b9;background:var(--bg-card);background:color-mix(in srgb, rgb(41,128,185) 8%, var(--bg-card));color:#2980b9;font-size:0.7rem;cursor:pointer;font-family:var(--font-body);font-weight:600">Edit / Photos</button>'
             + '</div>';
         }).join('')
       + '</div></div>';
@@ -1303,7 +1303,7 @@ function showItemDetailPage(idx, copyInvId, opts) {
         }).join('')
         + '</div>'
       : `<div id="item-detail-photos" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:0.75rem;min-height:80px">
-      ${_photoLink ? '<div style="grid-column:1/-1;text-align:center;padding:1rem;color:var(--text-dim);font-size:0.82rem"><div class="spinner" style="margin:0 auto 0.5rem;width:20px;height:20px;border-width:2px"></div>Loading photos...</div>' : '<div style="grid-column:1/-1;text-align:center;padding:2rem 1rem;color:var(--text-dim)"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" opacity="0.3" style="margin:0 auto 0.5rem;display:block"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg><div style="font-size:0.85rem;margin-bottom:0.5rem">No photos uploaded yet</div><button onclick="showItemDetailPage_photos(' + idx + ')" style="padding:0.4rem 0.8rem;border-radius:7px;border:1.5px solid var(--gold);background:rgba(212,168,67,0.08);color:var(--gold);font-family:var(--font-body);font-size:0.78rem;cursor:pointer;font-weight:600">Add Photos</button></div>'}
+      ${_photoLink ? '<div style="grid-column:1/-1;text-align:center;padding:1rem;color:var(--text-dim);font-size:0.82rem"><div class="spinner" style="margin:0 auto 0.5rem;width:20px;height:20px;border-width:2px"></div>Loading photos...</div>' : '<div style="grid-column:1/-1;text-align:center;padding:2rem 1rem;color:var(--text-dim)"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" opacity="0.3" style="margin:0 auto 0.5rem;display:block"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg><div style="font-size:0.85rem;margin-bottom:0.5rem">No photos uploaded yet</div><button onclick="showItemDetailPage_photos(' + idx + ')" style="padding:0.4rem 0.8rem;border-radius:7px;border:1.5px solid var(--gold);background:var(--bg-card);background:color-mix(in srgb, rgb(212,168,67) 8%, var(--bg-card));color:var(--gold);font-family:var(--font-body);font-size:0.78rem;cursor:pointer;font-weight:600">Add Photos</button></div>'}
     </div>`}
   </div>`;
 
@@ -1417,7 +1417,7 @@ function showItemDetailPage(idx, copyInvId, opts) {
       const el = document.getElementById('item-detail-photos');
       if (!el) return;
       if (!photos || photos.length === 0) {
-        el.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:2rem 1rem;color:var(--text-dim)"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" opacity="0.3" style="margin:0 auto 0.5rem;display:block"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg><div style="font-size:0.85rem;margin-bottom:0.5rem">No photos in folder</div><button onclick="showItemDetailPage_photos(' + idx + ')" style="padding:0.4rem 0.8rem;border-radius:7px;border:1.5px solid var(--gold);background:rgba(212,168,67,0.08);color:var(--gold);font-family:var(--font-body);font-size:0.78rem;cursor:pointer;font-weight:600">Add Photos</button></div>';
+        el.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:2rem 1rem;color:var(--text-dim)"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" opacity="0.3" style="margin:0 auto 0.5rem;display:block"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg><div style="font-size:0.85rem;margin-bottom:0.5rem">No photos in folder</div><button onclick="showItemDetailPage_photos(' + idx + ')" style="padding:0.4rem 0.8rem;border-radius:7px;border:1.5px solid var(--gold);background:var(--bg-card);background:color-mix(in srgb, rgb(212,168,67) 8%, var(--bg-card));color:var(--gold);font-family:var(--font-body);font-size:0.78rem;cursor:pointer;font-weight:600">Add Photos</button></div>';
         return;
       }
       // v0.9.937 (Brad): hero + thumbnail-rail gallery (RSV big, other views
@@ -2072,7 +2072,7 @@ function _checkGroupBeforeForSale(globalIdx, pdKey) {
           Sell as a set<br>
           <span style="font-weight:400;font-size:0.78rem;color:var(--text-dim)">List all ${allItems.length} items together for one price</span>
         </button>
-        <button id="_grpfs-indiv" style="padding:0.8rem 1rem;border-radius:10px;border:2px solid var(--accent);background:rgba(232,64,28,0.08);color:var(--accent);font-family:var(--font-body);font-size:0.88rem;font-weight:600;cursor:pointer;text-align:left">
+        <button id="_grpfs-indiv" style="padding:0.8rem 1rem;border-radius:10px;border:2px solid var(--accent);background:var(--bg-card);background:color-mix(in srgb, rgb(232,64,28) 8%, var(--bg-card));color:var(--accent);font-family:var(--font-body);font-size:0.88rem;font-weight:600;cursor:pointer;text-align:left">
           Sell individually<br>
           <span style="font-weight:400;font-size:0.78rem;color:var(--text-dim)">List only No. ${pd.itemNum} and break up the group</span>
         </button>
@@ -2250,7 +2250,7 @@ function _checkSetBeforeAction(pdKey, leadIdx, proceed) {
     + rowsHtml
     + '<div style="font-size:0.76rem;color:var(--accent2);background:rgba(201,146,42,0.1);border-radius:6px;padding:0.5rem 0.7rem;margin-top:0.2rem">Unchecked pieces are unlinked and stay in your collection.</div>'
     + '<div style="display:flex;flex-direction:column;gap:0.5rem;margin-top:0.9rem">'
-    + '<button id="_gs-sell" style="padding:0.8rem 1rem;border-radius:10px;border:2px solid #2ecc71;background:rgba(46,204,113,0.1);color:#2ecc71;font-family:var(--font-body);font-size:0.9rem;font-weight:700;cursor:pointer;text-align:left">Continue to Sale →<br><span style="font-weight:400;font-size:0.76rem;color:var(--text-dim)">Sell the checked piece(s) for one price</span></button>'
+    + '<button id="_gs-sell" style="padding:0.8rem 1rem;border-radius:10px;border:2px solid #2ecc71;background:var(--bg-card);background:color-mix(in srgb, rgb(46,204,113) 10%, var(--bg-card));color:#2ecc71;font-family:var(--font-body);font-size:0.9rem;font-weight:700;cursor:pointer;text-align:left">Continue to Sale →<br><span style="font-weight:400;font-size:0.76rem;color:var(--text-dim)">Sell the checked piece(s) for one price</span></button>'
     + '<button id="_gs-cancel" style="padding:0.6rem;border-radius:10px;border:1px solid var(--border);background:none;color:var(--text-dim);font-family:var(--font-body);font-size:0.85rem;cursor:pointer">Cancel</button>'
     + '</div></div>';
   document.body.appendChild(overlay);

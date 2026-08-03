@@ -10296,11 +10296,11 @@ META_WRITES.length = 0; TOASTS.length = 0;
        /'\.\/write-outbox\.js'/.test(rd('app/sw.js')));
 
     section('199h. The version trio moved together');
-    ok('APP_VERSION is v0.9.1272', /const APP_VERSION = 'v0\.9\.1272';/.test(cfg));
+    ok('APP_VERSION is v0.9.1273', /const APP_VERSION = 'v0\.9\.1273';/.test(cfg));
     ok('every ?v= mark in app/index.html matches it',
-       (idx.match(/\?v=1272/g) || []).length === 69 && !/\?v=1271/.test(idx),
-       String((idx.match(/\?v=1272/g) || []).length));
-    ok('the service worker cache name moved too', /const CACHE_NAME = 'mca-v1282';/.test(rd('app/sw.js')));
+       (idx.match(/\?v=1273/g) || []).length === 69 && !/\?v=1272/.test(idx),
+       String((idx.match(/\?v=1273/g) || []).length));
+    ok('the service worker cache name moved too', /const CACHE_NAME = 'mca-v1283';/.test(rd('app/sw.js')));
     // v0.9.1259: the root page's own ?v= is gone — it registers no worker.
     // The trio is a trio again. §207 is what guards the root page now.
     ok('the landing page carries no version stamp to forget',
@@ -13706,6 +13706,135 @@ META_WRITES.length = 0; TOASTS.length = 0;
         ok('222c …and no second folder was made',
            drive.countNamed('213') === 1,
            'count ' + drive.countNamed('213'));
+      }
+    })();
+
+
+    // ═══════════════════════════════════════════════════════════
+    // §223. v0.9.1273 — a button is not a window.
+    //
+    //   Brad, on a screenshot of the Photo Inbox: "the buttons do not need
+    //   to be transparent." The buttons had not changed. The watermark had:
+    //   v0.9.1241 doubled #rr-logo-bg to min(110vmin,840px) at his ask, and
+    //   it finally reached the toolbar. The 12% wash had been there all
+    //   along with nothing behind it to show.
+    //
+    //   139 button backgrounds across 13 files were rewritten to
+    //   color-mix over var(--bg-card) — same tint, opaque, theme-aware.
+    //   layout-check.js renders every distinct declaration over two
+    //   backdrops and requires the faces to match to the pixel. That is the
+    //   real proof, and it needs a browser.
+    //
+    //   THIS is the cheap half: a source scan that runs everywhere, on
+    //   every commit, and catches the NEXT one — a button written next
+    //   month with an rgba() wash, which the pixel test could never see
+    //   because it only renders declarations that already exist.
+    //
+    //   The scan has to know which tag a style belongs to. A plain
+    //   "nearest preceding <button" lookback is wrong: it flags the icon
+    //   chips inside tutorial.js's menu items and two notice panels that
+    //   merely follow a button. Those are divs, and they are meant to be
+    //   soft. So: walk back to the last tag whose '<' comes after the last
+    //   '>' — the tag still open at that point, which is the tag the style
+    //   is on. Checked against the pre-sweep source, that rule finds
+    //   exactly the 69 buttons the sweep touched in photo-inbox/
+    //   app-pages/wizard and nothing else.
+    // ═══════════════════════════════════════════════════════════
+    section('223. v0.9.1273 — a button is not a window');
+    (function () {
+      const p23 = require('path');
+      const appDir23 = p23.join(__dirname, '..', 'app');
+      const files23 = fs.readdirSync(appDir23).filter(n => n.endsWith('.js')).sort();
+
+      const TAG23 = /<([a-zA-Z][a-zA-Z0-9]*)/g;
+      function owningTag(back) {
+        const gt = back.lastIndexOf('>');
+        let last = null, m;
+        TAG23.lastIndex = 0;
+        while ((m = TAG23.exec(back)) !== null) if (m.index > gt) last = m[1];
+        return last ? last.toLowerCase() : null;
+      }
+
+      const washed = [];
+      let banded = 0, mixCount = 0;
+      for (const f of files23) {
+        const src = fs.readFileSync(p23.join(appDir23, f), 'utf8');
+        mixCount += (src.match(/color-mix\(in srgb, rgb\(/g) || []).length;
+        const RE23 = /background:\s*rgba\((\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*([\d.]+)\)/g;
+        let m2;
+        while ((m2 = RE23.exec(src)) !== null) {
+          const r = +m2[1], g = +m2[2], b = +m2[3], a = +m2[4];
+          // rgba(0,0,0,…) is a deliberate scrim, and anything over 0.25 is a
+          // solid-enough overlay. Neither is the "see the locomotive through
+          // the toolbar" problem.
+          if ((r === 0 && g === 0 && b === 0) || a > 0.25) continue;
+          banded++;
+          const tag = owningTag(src.slice(Math.max(0, m2.index - 600), m2.index));
+          if (tag === 'button' || tag === 'a') {
+            washed.push(f + ':' + (src.slice(0, m2.index).split('\n').length) + ' ' + m2[0]);
+          }
+        }
+      }
+
+      ok('223 no button or link carries a see-through background',
+         washed.length === 0,
+         washed.length ? washed.slice(0, 6).join(' | ') : banded + ' translucent backgrounds in range, none on a button');
+
+      ok('223 …and the sweep is still in the source, not quietly reverted',
+         mixCount >= 130, mixCount + ' color-mix backgrounds');
+
+      // The scan is only worth having if it can still fail. Feed it the one
+      // shape it exists to catch and make sure it says so — otherwise a
+      // regex typo turns this into another gate that passes by not looking.
+      {
+        const bait = '<button class="btn" style="padding:4px;background:rgba(46,204,113,0.12);color:#000">x</button>';
+        ok('223 …and the scan still recognises the shape it is looking for',
+           owningTag(bait.slice(0, bait.indexOf('background:rgba'))) === 'button');
+        const notBait = '<button class="x"><div class="icon" style="background:rgba(46,204,113,0.15)">i</div></button>';
+        ok('223 …without flagging a tinted chip that merely sits inside one',
+           owningTag(notBait.slice(0, notBait.indexOf('background:rgba'))) === 'div');
+      }
+
+      // A color-mix is only opaque if what it mixes INTO is. Mixing against
+      // `transparent` or a translucent literal keeps the same wash while
+      // looking, in a diff, exactly like the fix.
+      {
+        const bad = [];
+        for (const f of files23) {
+          const src = fs.readFileSync(p23.join(appDir23, f), 'utf8');
+          const RE25 = /color-mix\(in srgb, rgb\(\d+,\s*\d+,\s*\d+\) [\d.]+%, (var\(--[a-z0-9-]+\)|[^,)]+)\)/g;
+          let m4, seen = 0;
+          while ((m4 = RE25.exec(src)) !== null) {
+            seen++;
+            if (!/^var\(--[a-z0-9-]+\)$/.test(m4[1].trim())) bad.push(f + ' -> ' + m4[0]);
+          }
+          // Anything the pattern could not parse at all is not a pass — it is
+          // a shape nobody has looked at. Count them in rather than out.
+          const total = (src.match(/color-mix\(in srgb, rgb\(/g) || []).length;
+          if (seen !== total) bad.push(f + ' -> ' + (total - seen) + ' color-mix declaration(s) in an unrecognised shape');
+        }
+        ok('223 every color-mix mixes into an opaque theme colour',
+           bad.length === 0,
+           bad.length ? bad.slice(0, 4).join(' | ') : 'all mix into a var(--…)');
+      }
+
+      // The fallback is load-bearing. color-mix is the second declaration;
+      // a browser that does not understand it drops that one and takes the
+      // first. If the first were ever removed, such a browser would drop
+      // BOTH and render the button fully transparent — worse than the bug.
+      {
+        let unguarded = 0;
+        for (const f of files23) {
+          const src = fs.readFileSync(p23.join(appDir23, f), 'utf8');
+          const RE24 = /background:color-mix\(in srgb, rgb\(/g;
+          let m3;
+          while ((m3 = RE24.exec(src)) !== null) {
+            if (!/background:var\(--bg-card\);$/.test(src.slice(Math.max(0, m3.index - 30), m3.index))) unguarded++;
+          }
+        }
+        ok('223 every color-mix background keeps its opaque fallback in front',
+           unguarded === 0,
+           unguarded + ' without a preceding background:var(--bg-card)');
       }
     })();
 

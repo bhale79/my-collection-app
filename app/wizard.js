@@ -492,7 +492,7 @@ function _buildWizardModal() {
         // here, left of the X and Next, so the big dashed block stops eating a
         // row of the form. Shown only on the item-number step (renderWizardStep).
         '<button class="btn btn-secondary" id="wizard-idphoto-btn" onclick="_wizIdentifyFromFooter()" ' +
-          'style="display:none;margin-right:auto;border-color:#2980b9;color:#2980b9;background:rgba(41,128,185,0.10);' +
+          'style="display:none;margin-right:auto;border-color:#2980b9;color:#2980b9;background:var(--bg-card);background:color-mix(in srgb, rgb(41,128,185) 10%, var(--bg-card));' +
           'align-items:center;gap:0.35rem;min-width:0" aria-label="Identify by photo">' +
           '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="flex-shrink:0">' +
           '<path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 0 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>' +
@@ -606,9 +606,9 @@ function _buildWizardModal() {
     _identEl.id = 'identify-modal';
     var _isMobileIm = !!window.IS_MOBILE_UA;   // v0.9.699: width/touch offered the WEBCAM on desktops
     var _photoButtons = _isMobileIm
-      ? '<button type="button" id="id-take-photo" style="flex:1;padding:0.6rem;border-radius:9px;border:1.5px solid var(--accent);background:rgba(232,64,28,0.08);color:var(--accent);font-family:var(--font-body);font-weight:600;font-size:0.85rem;cursor:pointer">\ud83d\udcf7 Take Photo</button>'
-        + '<button type="button" id="id-pick-photo" style="flex:1;padding:0.6rem;border-radius:9px;border:1.5px solid var(--accent2);background:rgba(201,146,42,0.08);color:var(--accent2);font-family:var(--font-body);font-weight:600;font-size:0.85rem;cursor:pointer">\ud83d\uddbc\ufe0f From Gallery</button>'
-      : '<button type="button" id="id-pick-photo" style="flex:1;padding:0.7rem;border-radius:9px;border:1.5px dashed var(--accent2);background:rgba(201,146,42,0.06);color:var(--accent2);font-family:var(--font-body);font-weight:600;font-size:0.9rem;cursor:pointer">\ud83d\udcc1 Upload Photo</button>';
+      ? '<button type="button" id="id-take-photo" style="flex:1;padding:0.6rem;border-radius:9px;border:1.5px solid var(--accent);background:var(--bg-card);background:color-mix(in srgb, rgb(232,64,28) 8%, var(--bg-card));color:var(--accent);font-family:var(--font-body);font-weight:600;font-size:0.85rem;cursor:pointer">\ud83d\udcf7 Take Photo</button>'
+        + '<button type="button" id="id-pick-photo" style="flex:1;padding:0.6rem;border-radius:9px;border:1.5px solid var(--accent2);background:var(--bg-card);background:color-mix(in srgb, rgb(201,146,42) 8%, var(--bg-card));color:var(--accent2);font-family:var(--font-body);font-weight:600;font-size:0.85rem;cursor:pointer">\ud83d\uddbc\ufe0f From Gallery</button>'
+      : '<button type="button" id="id-pick-photo" style="flex:1;padding:0.7rem;border-radius:9px;border:1.5px dashed var(--accent2);background:var(--bg-card);background:color-mix(in srgb, rgb(201,146,42) 6%, var(--bg-card));color:var(--accent2);font-family:var(--font-body);font-weight:600;font-size:0.9rem;cursor:pointer">\ud83d\udcc1 Upload Photo</button>';
     var _mfrChips = ['Lionel','MTH','Atlas','K-Line','Weaver','Williams','RMT','Menards','Marx','Not sure'].map(function(m) {
       return '<label class="id-mfr-chip" data-mfr="' + m + '" style="display:inline-flex;align-items:center;gap:0.35rem;padding:0.35rem 0.7rem;border-radius:14px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text-mid);font-size:0.78rem;cursor:pointer;user-select:none">'
         + '<input type="checkbox" data-mfr-cb="' + m + '" style="margin:0;cursor:pointer">'
@@ -667,8 +667,8 @@ function _buildWizardModal() {
       +   '</div>'
       +   '<button id="id-search-btn" type="button" disabled style="width:100%;padding:0.75rem;border-radius:9px;background:var(--surface2);border:1.5px solid var(--border);color:var(--text-dim);font-family:var(--font-head);font-size:0.95rem;letter-spacing:0.05em;cursor:not-allowed;margin-bottom:0.5rem">\ud83d\udd0d Identify from the photo</button>'
       +   '<button id="id-lens-btn" type="button" disabled style="width:100%;padding:0.6rem;border-radius:9px;background:var(--surface2);border:1.5px solid var(--border);color:var(--text);font-family:var(--font-head);font-size:0.9rem;letter-spacing:0.04em;cursor:not-allowed;opacity:0.55;margin-bottom:0.5rem">\ud83d\udd0d Search Google Lens \u2197</button>'
-      +   '<button id="id-paste-btn" type="button" style="width:100%;padding:0.6rem;border-radius:9px;background:rgba(58,110,165,0.15);border:1.5px solid #3a6ea5;color:#cfe3ff;font-family:var(--font-head);font-size:0.9rem;letter-spacing:0.04em;cursor:pointer;margin-bottom:0.5rem">\ud83d\udccb Paste Lens Result</button>'
-      +   '<button id="id-shot-btn" type="button" style="width:100%;padding:0.6rem;border-radius:9px;background:rgba(46,204,113,0.12);border:1.5px solid #2ecc71;color:#c9f5dc;font-family:var(--font-head);font-size:0.9rem;letter-spacing:0.04em;cursor:pointer;margin-bottom:0.5rem">\ud83d\udcf8 Read a Screenshot of the Results</button>'
+      +   '<button id="id-paste-btn" type="button" style="width:100%;padding:0.6rem;border-radius:9px;background:var(--bg-card);background:color-mix(in srgb, rgb(58,110,165) 15%, var(--bg-card));border:1.5px solid #3a6ea5;color:#cfe3ff;font-family:var(--font-head);font-size:0.9rem;letter-spacing:0.04em;cursor:pointer;margin-bottom:0.5rem">\ud83d\udccb Paste Lens Result</button>'
+      +   '<button id="id-shot-btn" type="button" style="width:100%;padding:0.6rem;border-radius:9px;background:var(--bg-card);background:color-mix(in srgb, rgb(46,204,113) 12%, var(--bg-card));border:1.5px solid #2ecc71;color:#c9f5dc;font-family:var(--font-head);font-size:0.9rem;letter-spacing:0.04em;cursor:pointer;margin-bottom:0.5rem">\ud83d\udcf8 Read a Screenshot of the Results</button>'
       +   '<input type="file" id="id-shot-file" accept="image/*" multiple style="display:none">'
       // v0.9.1013 (Brad): tip matches the device — phones screenshot, computers
       // copy the answer and it auto-pastes on return.
@@ -1204,7 +1204,7 @@ async function _confirmSetCancel() {
     + '<div style="font-size:0.85rem;color:var(--text-mid);line-height:1.5;margin-bottom:1.25rem">Are you sure? All ' + saved.length + ' item' + (saved.length !== 1 ? 's' : '') + ' you\'ve already entered for this set will be deleted.</div>'
     + '<div style="display:flex;gap:0.5rem;justify-content:center">'
     + '<button id="set-cancel-back" style="padding:0.55rem 1.1rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text-mid);font-family:var(--font-body);font-size:0.85rem;cursor:pointer">Go Back</button>'
-    + '<button id="set-cancel-confirm" style="padding:0.55rem 1.1rem;border-radius:8px;border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:#f05008;font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer">Yes, Delete All</button>'
+    + '<button id="set-cancel-confirm" style="padding:0.55rem 1.1rem;border-radius:8px;border:1.5px solid #8b8e94;background:var(--bg-card);background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card));color:#f05008;font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer">Yes, Delete All</button>'
     + '</div>';
   overlay.appendChild(box);
   bindOverlayClose(overlay, function() { overlay.remove(); });
@@ -2262,7 +2262,7 @@ function renderWizardStep() {
           const _label = (typeof window.resolveRefLabel === 'function')
             ? window.resolveRefLabel(singleItem.refLink, { verbose: true })
             : 'View reference \u2197';
-          return '<a href="' + ((typeof window.cottAnchorUrl==='function') ? window.cottAnchorUrl(singleItem.refLink, itemNum) : singleItem.refLink) + '" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:0.4rem;margin-top:0.75rem;font-size:0.82rem;color:var(--accent2);text-decoration:none;padding:0.4rem 0.75rem;border:1px solid rgba(201,146,42,0.3);border-radius:6px;background:rgba(201,146,42,0.08);min-height:34px;box-sizing:border-box">' + _label + '</a>';
+          return '<a href="' + ((typeof window.cottAnchorUrl==='function') ? window.cottAnchorUrl(singleItem.refLink, itemNum) : singleItem.refLink) + '" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:0.4rem;margin-top:0.75rem;font-size:0.82rem;color:var(--accent2);text-decoration:none;padding:0.4rem 0.75rem;border:1px solid rgba(201,146,42,0.3);border-radius:6px;background:var(--bg-card);background:color-mix(in srgb, rgb(201,146,42) 8%, var(--bg-card));min-height:34px;box-sizing:border-box">' + _label + '</a>';
         })()}
 
         </div>`;
@@ -2306,7 +2306,7 @@ function renderWizardStep() {
         <div style="padding-top:0.5rem">
           ${variations.length > 1 ? '<div style="font-size:0.74rem;color:var(--text-dim);margin-bottom:0.5rem;padding:0 0.1rem">Highlighted words show how each variation differs from the <strong>first</strong> one.</div>' : ''}
           <div style="display:flex;gap:0.5rem;margin-bottom:0.5rem">
-            ${_vpCanHelp ? `<button type="button" onclick="openVariationPicker()" style="flex:1;min-width:0;padding:0.45rem 0.6rem;border-radius:9px;border:2px solid var(--accent);background:rgba(232,64,28,0.10);color:var(--text);font-family:var(--font-body);font-size:0.8rem;font-weight:600;line-height:1.15;cursor:pointer">Help me pick my variation</button>` : ''}
+            ${_vpCanHelp ? `<button type="button" onclick="openVariationPicker()" style="flex:1;min-width:0;padding:0.45rem 0.6rem;border-radius:9px;border:2px solid var(--accent);background:var(--bg-card);background:color-mix(in srgb, rgb(232,64,28) 10%, var(--bg-card));color:var(--text);font-family:var(--font-body);font-size:0.8rem;font-weight:600;line-height:1.15;cursor:pointer">Help me pick my variation</button>` : ''}
             <button type="button" onclick="wizardChooseVariation('')" style="flex:1;min-width:0;padding:0.45rem 0.6rem;border-radius:9px;border:2px solid ${val==='' ? 'var(--accent)' : 'var(--border)'};background:${val==='' ? 'rgba(232,64,28,0.12)' : 'var(--surface2)'};color:var(--text);font-family:var(--font-body);font-size:0.8rem;line-height:1.15;cursor:pointer">No specific variation / not sure</button>
           </div>
           <div style="display:flex;flex-direction:column;gap:0.5rem" id="var-cards">
@@ -2339,7 +2339,7 @@ function renderWizardStep() {
               // The card is a <div role="button"> now, so the anchor is a
               // normal, hit-testable link. Keyboard parity is explicit:
               // tabindex + Enter/Space, which <button> gave for free.
-              const cottLink = v.refLink ? `<a href="${(typeof window.cottAnchorUrl==='function') ? window.cottAnchorUrl(v.refLink, itemNum) : v.refLink}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="display:inline-flex;align-items:center;gap:0.3rem;font-size:0.78rem;color:var(--accent2);text-decoration:none;padding:0.42rem 0.7rem;border:1px solid rgba(201,146,42,0.45);border-radius:6px;background:rgba(201,146,42,0.12);flex-shrink:0;white-space:nowrap;font-weight:600;position:relative;z-index:1;min-height:34px;box-sizing:border-box">${_refShort}</a>` : '';
+              const cottLink = v.refLink ? `<a href="${(typeof window.cottAnchorUrl==='function') ? window.cottAnchorUrl(v.refLink, itemNum) : v.refLink}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="display:inline-flex;align-items:center;gap:0.3rem;font-size:0.78rem;color:var(--accent2);text-decoration:none;padding:0.42rem 0.7rem;border:1px solid rgba(201,146,42,0.45);border-radius:6px;background:var(--bg-card);background:color-mix(in srgb, rgb(201,146,42) 12%, var(--bg-card));flex-shrink:0;white-space:nowrap;font-weight:600;position:relative;z-index:1;min-height:34px;box-sizing:border-box">${_refShort}</a>` : '';
               return `
               <div role="button" tabindex="0" onclick="wizardChooseVariation('${v.variation}')"
                 onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();wizardChooseVariation('${v.variation}')}" style="
@@ -2400,7 +2400,7 @@ function renderWizardStep() {
         <button onclick="_wizScanBarcode()" style="
           width:100%;margin-top:0.6rem;padding:0.65rem 1rem;
           border-radius:8px;border:1.5px dashed #2980b9;
-          background:rgba(41,128,185,0.08);color:#2980b9;
+          background:var(--bg-card);background:color-mix(in srgb, rgb(41,128,185) 8%, var(--bg-card));color:#2980b9;
           font-family:var(--font-head);font-size:0.78rem;font-weight:600;
           letter-spacing:0.08em;text-transform:uppercase;cursor:pointer;
           display:flex;align-items:center;justify-content:center;gap:0.5rem;
@@ -2433,7 +2433,7 @@ function renderWizardStep() {
           <div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-dim);font-weight:600;margin-bottom:0.4rem">${wizard.tab === 'sold' ? 'What did you sell?' : 'Or pick from your collection'}</div>
           ${wizard.tab === 'sold' ? (function () {
             const _src = wizard.data._soldPickSrc || (Object.keys(state.forSaleData || {}).length ? 'fs' : 'coll');
-            const _chip = (id, lbl, on) => '<button type="button" onclick="_soldPickSrcSet(\'' + id + '\')" style="flex:1;padding:0.5rem;border-radius:8px;font-weight:700;font-size:0.8rem;cursor:pointer;font-family:var(--font-body);border:1.5px solid ' + (on ? '#2ecc71;background:rgba(46,204,113,0.15);color:#2ecc71' : 'var(--border);background:var(--surface2);color:var(--text-mid)') + '">' + lbl + '</button>';
+            const _chip = (id, lbl, on) => '<button type="button" onclick="_soldPickSrcSet(\'' + id + '\')" style="flex:1;padding:0.5rem;border-radius:8px;font-weight:700;font-size:0.8rem;cursor:pointer;font-family:var(--font-body);border:1.5px solid ' + (on ? '#2ecc71;background:var(--bg-card);background:color-mix(in srgb, rgb(46,204,113) 15%, var(--bg-card));color:#2ecc71' : 'var(--border);background:var(--surface2);color:var(--text-mid)') + '">' + lbl + '</button>';
             return '<div style="display:flex;gap:0.4rem;margin-bottom:0.45rem">' + _chip('fs', '\uD83C\uDFF7 From For Sale List', _src === 'fs') + _chip('coll', '\uD83D\uDCE6 From My Collection', _src === 'coll') + '</div>';
           })() : ''}
           ${typeof _wpSellFilterRow === 'function' ? _wpSellFilterRow() : ''}
@@ -3406,7 +3406,7 @@ function renderWizardStep() {
       // peek at the item (photos link, condition, LOCATION for the tote hunt)
       // without losing your place in the wizard.
       if (_pdKey && _pdKey !== '__new__' && state.personalData[_pdKey]) {
-        _priceCtxHtml += '<button type="button" onclick="_wizPeekDetail()" style="width:100%;margin-bottom:0.6rem;padding:0.55rem;border-radius:8px;border:1.5px dashed var(--accent2,#c9922a);background:rgba(201,146,42,0.08);color:var(--accent2,#c9922a);font-weight:600;font-size:0.8rem;cursor:pointer;font-family:var(--font-body)">\uD83D\uDCC4 View Item Details</button>';
+        _priceCtxHtml += '<button type="button" onclick="_wizPeekDetail()" style="width:100%;margin-bottom:0.6rem;padding:0.55rem;border-radius:8px;border:1.5px dashed var(--accent2,#c9922a);background:var(--bg-card);background:color-mix(in srgb, rgb(201,146,42) 8%, var(--bg-card));color:var(--accent2,#c9922a);font-weight:600;font-size:0.8rem;cursor:pointer;font-family:var(--font-body)">\uD83D\uDCC4 View Item Details</button>';
       }
       if (_pricePaid || _estWorth) {
         _priceCtxHtml += '<div style="display:flex;gap:0.75rem;margin-bottom:0.75rem;flex-wrap:wrap">';   // v0.9.747: += — the '=' here CLOBBERED the peek button
@@ -3432,7 +3432,7 @@ function renderWizardStep() {
     const _rpShow = (s.id === 'expectedPrice' || s.id === 'askingPrice')
       && (wizard.data.itemNum || (wizard.matchedItem || {}).itemNum);
     const _rpBtn = _rpShow
-      ? `<button type="button" onclick="_wizResearchPrice()" style="flex-shrink:0;padding:0.5rem 0.8rem;border-radius:8px;border:1.5px solid #2ecc71;background:rgba(46,204,113,0.12);color:#2ecc71;font-weight:700;font-size:0.82rem;cursor:pointer;font-family:var(--font-body)">🔍 Research</button>`
+      ? `<button type="button" onclick="_wizResearchPrice()" style="flex-shrink:0;padding:0.5rem 0.8rem;border-radius:8px;border:1.5px solid #2ecc71;background:var(--bg-card);background:color-mix(in srgb, rgb(46,204,113) 12%, var(--bg-card));color:#2ecc71;font-weight:700;font-size:0.82rem;cursor:pointer;font-family:var(--font-body)">🔍 Research</button>`
       : '';
     body.innerHTML = `
       <div style="padding-top:0.75rem">
@@ -3808,7 +3808,7 @@ function renderWizardStep() {
         resRow.style.cssText = 'margin-bottom:0.75rem';
         resRow.innerHTML = '<button type="button" onclick="window._wizResearchSet()" '
           + 'style="width:100%;padding:0.55rem 0.9rem;border-radius:9px;border:1.5px solid var(--green);'
-          + 'background:rgba(46,204,113,0.12);color:var(--green);font-family:var(--font-body);'
+          + 'background:var(--bg-card);background:color-mix(in srgb, rgb(46,204,113) 12%, var(--bg-card));color:var(--green);font-family:var(--font-body);'
           + 'font-weight:700;font-size:0.85rem;cursor:pointer">' + _resLabel + '</button>';
         body.appendChild(resRow);
       }

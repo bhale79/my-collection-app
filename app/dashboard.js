@@ -580,7 +580,7 @@ function _showCardHelp(cardId) {
     + '<div style="font-size:1rem;font-weight:700;color:var(--text,#fff);margin-bottom:8px">' + ((card && card.label) || 'This card') + '</div>'
     + '<p style="margin:0 0 10px">' + txt + '</p>'
     + '<p style="margin:0 0 12px;font-size:0.78rem;color:var(--text-dim,#999)">Tip: cards only show eras/makers enabled under <strong>Preferences → What I Collect</strong>. Click anywhere on a card to swap it for a different one.</p>'
-    + '<button data-close="1" style="display:block;width:100%;padding:10px;border-radius:9px;border:2px solid var(--accent,#e8401c);background:rgba(232,64,28,0.12);color:var(--text,#fff);font-weight:600;cursor:pointer">Got it</button></div>';
+    + '<button data-close="1" style="display:block;width:100%;padding:10px;border-radius:9px;border:2px solid var(--accent,#e8401c);background:var(--bg-card);background:color-mix(in srgb, rgb(232,64,28) 12%, var(--bg-card));color:var(--text,#fff);font-weight:600;cursor:pointer">Got it</button></div>';
   d.addEventListener('click', function(e) { if ((e.target.getAttribute && e.target.getAttribute('data-close')) || e.target === d) d.remove(); });
   document.body.appendChild(d);
 }

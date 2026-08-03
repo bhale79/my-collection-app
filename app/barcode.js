@@ -648,7 +648,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
     overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:99999;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:1rem';
     overlay.innerHTML = `
       <div style="width:100%;max-width:520px;display:flex;flex-direction:column;gap:1rem;align-items:center">
-        <div style="color:#fff;font-family:var(--font-head,sans-serif);font-size:1.1rem;text-align:center;position:relative;width:100%">📷 Scan Barcode / Label<button id="bc-help" type="button" style="position:absolute;right:0;top:-4px;background:rgba(255,255,255,0.12);border:none;color:#fff;width:28px;height:28px;border-radius:50%;font-size:1rem;cursor:pointer">?</button></div>
+        <div style="color:#fff;font-family:var(--font-head,sans-serif);font-size:1.1rem;text-align:center;position:relative;width:100%">📷 Scan Barcode / Label<button id="bc-help" type="button" style="position:absolute;right:0;top:-4px;background:var(--bg-card);background:color-mix(in srgb, rgb(255,255,255) 12%, var(--bg-card));border:none;color:#fff;width:28px;height:28px;border-radius:50%;font-size:1rem;cursor:pointer">?</button></div>
         <div style="position:relative;width:100%;aspect-ratio:4/3;background:#000;border-radius:12px;overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,0.5)">
           <video id="bc-video" autoplay playsinline muted style="width:100%;height:100%;object-fit:cover"></video>
           <div style="position:absolute;inset:0;pointer-events:none;display:flex;align-items:center;justify-content:center">
@@ -664,7 +664,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
           </div>
         </div>
         <div id="bc-status" style="color:#ccc;font-size:0.85rem;text-align:center;min-height:1.4em">Fit the barcode & item number fully in the frame</div>
-        <button id="bc-tolabel" type="button" style="width:100%;padding:0.7rem;border-radius:10px;border:1px solid #3a6ea5;background:rgba(58,110,165,0.18);color:#cfe3ff;font-size:0.9rem;font-family:inherit;cursor:pointer">📸 Can't scan? Read the label instead</button>
+        <button id="bc-tolabel" type="button" style="width:100%;padding:0.7rem;border-radius:10px;border:1px solid #3a6ea5;background:var(--bg-card);background:color-mix(in srgb, rgb(58,110,165) 18%, var(--bg-card));color:#cfe3ff;font-size:0.9rem;font-family:inherit;cursor:pointer">📸 Can't scan? Read the label instead</button>
         <div style="display:flex;gap:0.6rem;width:100%">
           <button id="bc-cancel" style="flex:1;padding:0.8rem;border-radius:10px;border:1px solid #444;background:#222;color:#eee;font-size:0.95rem;font-family:inherit;cursor:pointer">Cancel</button>
           <button id="bc-manual" style="flex:2;padding:0.8rem;border-radius:10px;border:none;background:var(--accent);color:var(--on-accent);font-size:0.95rem;font-family:inherit;font-weight:600;cursor:pointer">Can't Read — Type Instead</button>
@@ -1542,7 +1542,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
     overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.95);z-index:99999;'
       + 'display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:1rem;gap:0.7rem;overflow-y:auto';
     overlay.innerHTML = ''
-      + '<div style="color:#fff;font-family:var(--font-head,sans-serif);font-size:1.1rem;position:relative;width:100%;max-width:520px;text-align:center">📷 Scan Item Label<button id="lbl-help" type="button" style="position:absolute;right:0;top:-4px;background:rgba(255,255,255,0.12);border:none;color:#fff;width:28px;height:28px;border-radius:50%;font-size:1rem;cursor:pointer">?</button></div>'
+      + '<div style="color:#fff;font-family:var(--font-head,sans-serif);font-size:1.1rem;position:relative;width:100%;max-width:520px;text-align:center">📷 Scan Item Label<button id="lbl-help" type="button" style="position:absolute;right:0;top:-4px;background:var(--bg-card);background:color-mix(in srgb, rgb(255,255,255) 12%, var(--bg-card));border:none;color:#fff;width:28px;height:28px;border-radius:50%;font-size:1rem;cursor:pointer">?</button></div>'
       + '<div style="position:relative;width:100%;max-width:520px">'
       + '  <video id="lbl-video" autoplay playsinline muted style="width:100%;max-height:46vh;object-fit:contain;border-radius:12px;background:#000"></video>'
       + '  <div style="position:absolute;inset:8% 12%;border:2px dashed rgba(255,255,255,0.6);border-radius:10px;pointer-events:none"></div>'
@@ -1893,8 +1893,8 @@ window.eraSupportsBarcode = eraSupportsBarcode;
       +     '<div style="border-radius:10px;overflow:hidden;background:#000"><img src="' + r.dataUrl + '" style="width:100%;max-height:300px;object-fit:contain;display:block"></div></div>'
       + '</div>'
       + '<div style="display:flex;gap:8px;margin-top:14px">'
-      +   '<button data-c="same" style="flex:2;padding:12px;border-radius:10px;border:2px solid #2ecc71;background:rgba(46,204,113,0.12);color:#c9f5dc;font-weight:600;font-size:0.95rem;cursor:pointer">✓ Same item — use it</button>'
-      +   '<button data-c="notit" style="flex:1;padding:12px;border-radius:10px;border:1px solid #e74c3c;background:rgba(231,76,60,0.10);color:#ffb3a7;font-size:0.9rem;cursor:pointer">✗ Not it</button>'
+      +   '<button data-c="same" style="flex:2;padding:12px;border-radius:10px;border:2px solid #2ecc71;background:var(--bg-card);background:color-mix(in srgb, rgb(46,204,113) 12%, var(--bg-card));color:#c9f5dc;font-weight:600;font-size:0.95rem;cursor:pointer">✓ Same item — use it</button>'
+      +   '<button data-c="notit" style="flex:1;padding:12px;border-radius:10px;border:1px solid #e74c3c;background:var(--bg-card);background:color-mix(in srgb, rgb(231,76,60) 10%, var(--bg-card));color:#ffb3a7;font-size:0.9rem;cursor:pointer">✗ Not it</button>'
       +   '<button data-c="back" style="flex:1;padding:12px;border-radius:10px;border:1px solid var(--border,#444);background:none;color:var(--text-mid,#ccc);font-size:0.9rem;cursor:pointer">Back</button>'
       + '</div></div>';
     ov.addEventListener('click', function (e) {
@@ -1944,12 +1944,12 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         // (v2.8 ref_photo — no reader, no reads spent, user's photo never
         // leaves the device); human eyes make the call.
         + ((info.refLink && info._verifySrc && typeof window.rrFetchRefPhoto === 'function' && !info.notInMaster)
-          ? '<button data-a="verify" style="display:block;width:100%;margin-top:10px;padding:9px;border-radius:10px;border:1px solid var(--gold,#d4a843);background:rgba(212,168,67,0.08);color:var(--gold,#d4a843);font-size:0.84rem;cursor:pointer">🔎 Compare with the catalog photo — free</button>'
+          ? '<button data-a="verify" style="display:block;width:100%;margin-top:10px;padding:9px;border-radius:10px;border:1px solid var(--gold,#d4a843);background:var(--bg-card);background:color-mix(in srgb, rgb(212,168,67) 8%, var(--bg-card));color:var(--gold,#d4a843);font-size:0.84rem;cursor:pointer">🔎 Compare with the catalog photo — free</button>'
           : '')
-        + '<button data-a="use" style="display:block;width:100%;margin-top:14px;padding:12px;border-radius:10px;border:2px solid var(--accent,#e8401c);background:rgba(232,64,28,0.12);color:var(--text,#fff);font-weight:600;font-size:0.95rem;cursor:pointer">Use this</button>'
+        + '<button data-a="use" style="display:block;width:100%;margin-top:14px;padding:12px;border-radius:10px;border:2px solid var(--accent,#e8401c);background:var(--bg-card);background:color-mix(in srgb, rgb(232,64,28) 12%, var(--bg-card));color:var(--text,#fff);font-weight:600;font-size:0.95rem;cursor:pointer">Use this</button>'
         + '<div style="display:flex;gap:8px;margin-top:8px">'
-        + (info.lensOffer ? '<button data-a="lens" style="flex:1;padding:10px 4px;border-radius:10px;border:1px solid #3a6ea5;background:rgba(58,110,165,0.12);color:#cfe3ff;font-size:0.82rem;cursor:pointer">🔍 Google Lens</button>' : '')
-        + (info.aiOffer ? '<button data-a="aionly" style="flex:1;padding:10px 4px;border-radius:10px;border:1px solid #16a085;background:rgba(22,160,133,0.12);color:#7fe0cd;font-size:0.82rem;cursor:pointer">🔍 Not this item — identify from the photo</button>' : '')
+        + (info.lensOffer ? '<button data-a="lens" style="flex:1;padding:10px 4px;border-radius:10px;border:1px solid #3a6ea5;background:var(--bg-card);background:color-mix(in srgb, rgb(58,110,165) 12%, var(--bg-card));color:#cfe3ff;font-size:0.82rem;cursor:pointer">🔍 Google Lens</button>' : '')
+        + (info.aiOffer ? '<button data-a="aionly" style="flex:1;padding:10px 4px;border-radius:10px;border:1px solid #16a085;background:var(--bg-card);background:color-mix(in srgb, rgb(22,160,133) 12%, var(--bg-card));color:#7fe0cd;font-size:0.82rem;cursor:pointer">🔍 Not this item — identify from the photo</button>' : '')
         + '<button data-a="rescan" style="flex:1;padding:10px 4px;border-radius:10px;border:1px solid var(--border,#444);background:none;color:var(--text-mid,#ccc);font-size:0.82rem;cursor:pointer">Rescan</button>'
         + '<button data-a="manual" style="flex:1;padding:10px 4px;border-radius:10px;border:1px solid var(--border,#444);background:none;color:var(--text-mid,#ccc);font-size:0.82rem;cursor:pointer">Type it instead</button>'
         + '<button data-a="cancel" style="flex:1;padding:10px 4px;border-radius:10px;border:1px solid var(--border,#444);background:none;color:var(--text-mid,#ccc);font-size:0.82rem;cursor:pointer">Cancel</button>'
@@ -2003,7 +2003,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
       + '<p>On many modern Lionel boxes the <strong>barcode does not contain the item&rsquo;s catalog number.</strong> Lionel puts a short, separate code in the barcode, so a scan can land on a <em>different</em> item that just happens to share those digits.</p>'
       + '<p>The number <strong>printed on the label</strong> (the large catalog number) is the real one. That&rsquo;s why, when they don&rsquo;t match, we show you both and let you choose.</p>'
       + '<p style="color:var(--accent2,#c9922a)"><strong>Rule of thumb:</strong> pick the option that matches the big printed number on the box.</p>'
-      + '<button data-close="1" style="display:block;width:100%;margin-top:12px;padding:11px;border-radius:10px;border:2px solid var(--accent,#e8401c);background:rgba(232,64,28,0.12);color:var(--text,#fff);font-weight:600;cursor:pointer">Got it</button></div>';
+      + '<button data-close="1" style="display:block;width:100%;margin-top:12px;padding:11px;border-radius:10px;border:2px solid var(--accent,#e8401c);background:var(--bg-card);background:color-mix(in srgb, rgb(232,64,28) 12%, var(--bg-card));color:var(--text,#fff);font-weight:600;cursor:pointer">Got it</button></div>';
     d.addEventListener('click', function (e) { if ((e.target.getAttribute && e.target.getAttribute('data-close')) || e.target === d) d.remove(); });
     document.body.appendChild(d);
     if (window.BackStack && BackStack.wire) BackStack.wire(d); // v0.9.807 TODO-012: device Back closes this pop-up
@@ -2026,7 +2026,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
     d.innerHTML = '<div class="rr-card" style="color:var(--text-mid);font-size:0.88rem;line-height:1.5;font-family:var(--font-body)">'
       + '<div style="font-size:1.05rem;font-weight:600;color:var(--text,#fff);margin-bottom:10px">' + (isLabel ? 'Scan Label \u2014 help' : 'Scan Barcode / Label \u2014 help') + '</div>'
       + body
-      + '<button data-close="1" style="display:block;width:100%;margin-top:12px;padding:11px;border-radius:10px;border:2px solid var(--accent,#e8401c);background:rgba(232,64,28,0.12);color:var(--text,#fff);font-weight:600;cursor:pointer">Got it</button></div>';
+      + '<button data-close="1" style="display:block;width:100%;margin-top:12px;padding:11px;border-radius:10px;border:2px solid var(--accent,#e8401c);background:var(--bg-card);background:color-mix(in srgb, rgb(232,64,28) 12%, var(--bg-card));color:var(--text,#fff);font-weight:600;cursor:pointer">Got it</button></div>';
     d.addEventListener('click', function (e) { if ((e.target.getAttribute && e.target.getAttribute('data-close')) || e.target === d) d.remove(); });
     document.body.appendChild(d);
     if (window.BackStack && BackStack.wire) BackStack.wire(d); // v0.9.807 TODO-012: device Back closes this pop-up
@@ -2562,7 +2562,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
       '<div style="width:100%;max-width:560px">'
       + '<div style="display:flex;align-items:center;justify-content:space-between;gap:0.5rem;margin:0.2rem 0 0.6rem">'
       + '<div style="color:var(--text,#fff);font-family:var(--font-head,sans-serif);font-size:1.02rem">🔎 Identifying…</div>'
-      + '<button id="bi-stop-btn" style="padding:0.35rem 0.85rem;border-radius:8px;border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:#f05008;font-family:var(--font-body,sans-serif);font-weight:700;font-size:0.8rem;cursor:pointer">Stop</button>'
+      + '<button id="bi-stop-btn" style="padding:0.35rem 0.85rem;border-radius:8px;border:1.5px solid #8b8e94;background:var(--bg-card);background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card));color:#f05008;font-family:var(--font-body,sans-serif);font-weight:700;font-size:0.8rem;cursor:pointer">Stop</button>'
       + '</div>'
       + '<style>@keyframes bispin{to{transform:rotate(360deg)}}.bi-spin{display:inline-block;animation:bispin 0.9s linear infinite}</style>'
       + '<div id="bi-stages" style="display:flex;flex-direction:column;gap:0.45rem;font-size:0.86rem;font-family:var(--font-body,sans-serif)"></div>'

@@ -132,7 +132,7 @@
       + _tile('sm-sell', '💰', 'Selling', 'Your For Sale list and record-a-sale')
       + (nd ? '<div style="padding:0.6rem 0.9rem;border-radius:9px;border:1.5px solid var(--accent2,#c9922a);background:rgba(201,146,42,0.1);color:var(--accent2,#c9922a);font-size:0.82rem">⚡ ' + nd + ' quick grab' + (nd > 1 ? 's' : '') + ' waiting for details (finish at home)</div>' : '')
       + '<div id="sm-hunt-list"></div>'
-      + '<button id="sm-end" style="margin-top:0.4rem;padding:0.85rem;border-radius:10px;border:1.5px solid var(--accent,#e8401c);background:rgba(232,64,28,0.1);color:var(--accent,#e8401c);font-weight:700;cursor:pointer;font-family:var(--font-body,sans-serif)">🏁 End Show & See Recap</button>'
+      + '<button id="sm-end" style="margin-top:0.4rem;padding:0.85rem;border-radius:10px;border:1.5px solid var(--accent,#e8401c);background:var(--bg-card);background:color-mix(in srgb, rgb(232,64,28) 10%, var(--bg-card));color:var(--accent,#e8401c);font-weight:700;cursor:pointer;font-family:var(--font-body,sans-serif)">🏁 End Show & See Recap</button>'
       + '</div>';
   }
 
@@ -164,10 +164,10 @@
             + (name ? ' <span style="font-size:0.78rem;color:var(--text-mid,#aaa)">' + _esc(name) + '</span>' : '')
             + (price ? '<span style="display:block;font-size:0.75rem;color:#2ecc71">max $' + Number(price).toLocaleString() + (w.priority ? ' · ' + _esc(w.priority) : '') + '</span>' : '')
             + '</div>'
-            + '<button data-sm-research="' + _esc(w.itemNum) + '" style="padding:0.4rem 0.55rem;border-radius:7px;border:1px solid #3498db;background:rgba(52,152,219,0.1);color:#3498db;cursor:pointer;font-size:0.78rem">🔍</button>'
+            + '<button data-sm-research="' + _esc(w.itemNum) + '" style="padding:0.4rem 0.55rem;border-radius:7px;border:1px solid #3498db;background:var(--bg-card);background:color-mix(in srgb, rgb(52,152,219) 10%, var(--bg-card));color:#3498db;cursor:pointer;font-size:0.78rem">🔍</button>'
             + (isFound
               ? '<span style="font-size:0.78rem;color:#2ecc71;font-weight:700">✓ found</span>'
-              : '<button data-sm-found="' + _esc(w.itemNum) + '" style="padding:0.4rem 0.6rem;border-radius:7px;border:1px solid #2ecc71;background:rgba(46,204,113,0.1);color:#2ecc71;cursor:pointer;font-size:0.78rem;font-weight:700">Found it</button>')
+              : '<button data-sm-found="' + _esc(w.itemNum) + '" style="padding:0.4rem 0.6rem;border-radius:7px;border:1px solid #2ecc71;background:var(--bg-card);background:color-mix(in srgb, rgb(46,204,113) 10%, var(--bg-card));color:#2ecc71;cursor:pointer;font-size:0.78rem;font-weight:700">Found it</button>')
             + '</div>';
         }).join('');
   }

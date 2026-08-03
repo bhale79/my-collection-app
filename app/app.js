@@ -2200,7 +2200,7 @@ function _injectQuickActionsBar() {
   var svgShare = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>';
   var actionsHtml =
     '<span class="qa-add-dropdown-wrap">'
-    + '<button class="btn qa-tr-btn qa-add-btn" onclick="_qaToggleAddMenu(event)" style="display:flex;align-items:center;gap:0.35rem;font-size:0.78rem;padding:0.45rem 0.65rem;border:1.5px solid var(--accent);color:var(--accent);background:rgba(232,64,28,0.12);font-weight:600">'
+    + '<button class="btn qa-tr-btn qa-add-btn" onclick="_qaToggleAddMenu(event)" style="display:flex;align-items:center;gap:0.35rem;font-size:0.78rem;padding:0.45rem 0.65rem;border:1.5px solid var(--accent);color:var(--accent);background:var(--bg-card);background:color-mix(in srgb, rgb(232,64,28) 12%, var(--bg-card));font-weight:600">'
     +   svgPlus + 'Add' + svgChevron
     + '</button>'
     + '<div class="qa-add-dropdown-menu" style="display:none">'
@@ -2545,7 +2545,7 @@ function showLoading() {
     if (tb3 && tb3.innerHTML.indexOf('Loading The Rail Roster') !== -1) {
       tb3.innerHTML = '<tr><td colspan="10" style="padding:2rem;text-align:center;color:var(--text-dim);font-size:0.88rem">'
         + 'The catalog finished loading but the page didn\'t refresh. '
-        + '<button onclick="location.reload()" style="margin-left:0.5rem;padding:0.35rem 0.9rem;border-radius:7px;border:1.5px solid var(--accent);background:rgba(232,64,28,0.1);color:var(--accent);cursor:pointer;font-weight:600">Reload</button>'
+        + '<button onclick="location.reload()" style="margin-left:0.5rem;padding:0.35rem 0.9rem;border-radius:7px;border:1.5px solid var(--accent);background:var(--bg-card);background:color-mix(in srgb, rgb(232,64,28) 10%, var(--bg-card));color:var(--accent);cursor:pointer;font-weight:600">Reload</button>'
         + '</td></tr>';
     }
   }, 4000);
