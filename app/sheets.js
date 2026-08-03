@@ -466,6 +466,34 @@ async function sheetsClear(spreadsheetId, range) {
 }
 if (typeof window !== 'undefined') window.sheetsClear = sheetsClear;
 
+// ══ v0.9.1284 (overnight safety sweep — the ~45 sites R3 deferred) ═══════
+// ONE guarded writer for every row-addressed update outside the four §203
+// sites. A sheet range is a position, not an identity: rows on My Collection
+// and For Sale genuinely shift (sheetsDeleteRow is used on both), so a write
+// addressed by a REMEMBERED row number must confirm the row still holds the
+// record it thinks it does — and refuse, with a message, when it does not.
+//
+// The check inherits rrRowStillIs's manners: nothing to compare -> allow;
+// verify READ failed -> write anyway (availability), the same trade §203
+// chose. `expect` carries what the caller believes: { num, invId } — pass
+// whatever the record has; blanks compare as "nothing to compare".
+// Returns true when the write landed, false when it refused. Callers whose
+// surrounding code tolerates a failed write may ignore the return; callers
+// that celebrate success must check it.
+async function rrVerifiedRowUpdate(spreadsheetId, tab, rowNum, range, values, expect, what) {
+  const _ok = await rrRowStillIs(spreadsheetId, tab, rowNum,
+    (expect && expect.num) || '', (expect && expect.invId) || '');
+  if (!_ok) {
+    if (typeof showToast === 'function') {
+      showToast('Your ' + (what || tab) + ' changed somewhere else — nothing was written. Refresh and try again.', 5000, true);
+    }
+    return false;
+  }
+  await sheetsUpdate(spreadsheetId, range, values);
+  return true;
+}
+if (typeof window !== 'undefined') window.rrVerifiedRowUpdate = rrVerifiedRowUpdate;
+
 // v0.9.1267 (audit 2026-08-02 round 2, finding R3): `expected` is REQUIRED,
 // and omitting it throws rather than deleting.
 //

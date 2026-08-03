@@ -714,7 +714,7 @@ window.ephemeraAddPhotos = function (tabId, rowKey) {
         await driveUploadPhoto(files[i], folderTitle + ' photo-' + Date.now() + '-' + (i + 1) + '.' + ext, folderId);
       }
       const link = 'https://drive.google.com/drive/folders/' + folderId;
-      await sheetsUpdate(state.personalSheetId, sheetName + '!' + photoCol + rowNum, [[link]]);
+      await rrVerifiedRowUpdate(state.personalSheetId, sheetName, rowNum, sheetName + '!' + photoCol + rowNum, [[link]], { num: entry.itemNum || '' }, 'collection');
       entry.photoLink = link;
       showToast('✓ Photo' + (files.length > 1 ? 's' : '') + ' added');
       document.querySelectorAll('.modal-overlay').forEach(function (m) { m.remove(); });
@@ -1255,7 +1255,7 @@ async function removeWantItem(itemNum, variation, row) {
   if (!(await appConfirm('Remove this item from your Want List?', { danger: true, ok: 'Remove' }))) return;
   const key = `${itemNum}|${variation}`;
   if (row) {
-    await sheetsUpdate(state.personalSheetId, `Want-Upgrade List!A${row}:I${row}`, [['','','','','','','','','']]);
+    if (!(await rrVerifiedRowUpdate(state.personalSheetId, 'Want-Upgrade List', row, `Want-Upgrade List!A${row}:I${row}`, [['','','','','','','','','']], { num: itemNum || '' }, 'Want list'))) return;
   }
   delete state.wantData[key];
   _cachePersonalData();
@@ -2222,7 +2222,7 @@ async function markForSaleAsSold(fsKey, askingPrice) {
   // from optimistic local writes that never got the real sheet row written back.
   if (fs.row && fs.row > 0 && fs.row < 1000) {
     try {
-      await sheetsUpdate(state.personalSheetId, `For Sale!A${fs.row}:J${fs.row}`, [['','','','','','','','','','']]);
+      await rrVerifiedRowUpdate(state.personalSheetId, 'For Sale', fs.row, `For Sale!A${fs.row}:J${fs.row}`, [['','','','','','','','','','']], { num: fs.itemNum || '', invId: fs.inventoryId || '' }, 'For Sale list');
     } catch (e) {
       console.warn('[Phase 3e] For Sale row clear failed at row ' + fs.row + ':', e && e.message);
     }
@@ -2236,7 +2236,9 @@ async function markForSaleAsSold(fsKey, askingPrice) {
         if (String(r[8] || '') === targetInv) realRow = idx + 3;
       });
       if (realRow > 0 && realRow < 1000) {
-        await sheetsUpdate(state.personalSheetId, `For Sale!A${realRow}:J${realRow}`, [['','','','','','','','','','']]);
+        // realRow was FOUND by inventoryId a moment ago, but the guard is kept
+        // anyway — a delete can land between the lookup and this write.
+        await rrVerifiedRowUpdate(state.personalSheetId, 'For Sale', realRow, `For Sale!A${realRow}:J${realRow}`, [['','','','','','','','','','']], { num: fs.itemNum || '', invId: fs.inventoryId || '' }, 'For Sale list');
       } else {
         console.warn('[Phase 3e] For Sale row for inventoryId ' + targetInv + ' not found on sheet');
       }
@@ -2263,13 +2265,13 @@ async function markForSaleAsSold(fsKey, askingPrice) {
       if (_mBlanked) delete state.personalData[_m.key];
     }
     for (const _m of _grpMembers.is) {
-      if (_m.rec && _m.rec.row) { try { await sheetsUpdate(state.personalSheetId, `Instruction Sheets!A${_m.rec.row}:K${_m.rec.row}`, [['','','','','','','','','','','']]); } catch(e){} }
+      if (_m.rec && _m.rec.row) { try { await rrVerifiedRowUpdate(state.personalSheetId, 'Instruction Sheets', _m.rec.row, `Instruction Sheets!A${_m.rec.row}:K${_m.rec.row}`, [['','','','','','','','','','','']], { num: _m.rec.itemNum || '' }, 'Instruction Sheets list'); } catch(e){} }
       if (state.isData) delete state.isData[_m.key];
     }
     for (const _f of _grpMembers.fs) {
       const _mk = _fsEntryKey(_f);
       if (_mk === fsKey) continue;
-      if (_f.row) { try { await sheetsUpdate(state.personalSheetId, `For Sale!A${_f.row}:J${_f.row}`, [['','','','','','','','','','']]); } catch(e){} }
+      if (_f.row) { try { await rrVerifiedRowUpdate(state.personalSheetId, 'For Sale', _f.row, `For Sale!A${_f.row}:J${_f.row}`, [['','','','','','','','','','']], { num: _f.itemNum || '', invId: _f.inventoryId || '' }, 'For Sale list'); } catch(e){} }
       delete state.forSaleData[_mk];
     }
   }
@@ -2317,7 +2319,7 @@ async function _removeForSaleFromCollection(inventoryId) {
   }
   if (!fs) { showToast('Item not found on For Sale list'); return; }
   if (fs.row) {
-    await sheetsUpdate(state.personalSheetId, `For Sale!A${fs.row}:J${fs.row}`, [['','','','','','','','','','']]);
+    await rrVerifiedRowUpdate(state.personalSheetId, 'For Sale', fs.row, `For Sale!A${fs.row}:J${fs.row}`, [['','','','','','','','','','']], { num: fs.itemNum || '', invId: fs.inventoryId || '' }, 'For Sale list');
   }
   delete state.forSaleData[fsKey];
   _cachePersonalData();
@@ -2338,7 +2340,7 @@ async function _removeUpgradeFromCollection(inventoryId) {
   }
   if (!ug) { showToast('Item not found on Upgrade list'); return; }
   if (ug.row) {
-    await sheetsUpdate(state.personalSheetId, `Want-Upgrade List!A${ug.row}:I${ug.row}`, [['','','','','','','','','']]);
+    if (!(await rrVerifiedRowUpdate(state.personalSheetId, 'Want-Upgrade List', ug.row, `Want-Upgrade List!A${ug.row}:I${ug.row}`, [['','','','','','','','','']], { num: ug.itemNum || '', invId: ug.inventoryId || '' }, 'Want list'))) return;
   }
   delete state.upgradeData[key];
   _cachePersonalData();
@@ -2362,7 +2364,7 @@ async function removeForSaleItem(fsKey) {
   const _members = _isGroup ? _grp.fs : [_lead];
   for (const _f of _members) {
     const _mk = _fsEntryKey(_f);
-    if (_f.row) { try { await sheetsUpdate(state.personalSheetId, `For Sale!A${_f.row}:J${_f.row}`, [['','','','','','','','','','']]); } catch(e){} }
+    if (_f.row) { try { await rrVerifiedRowUpdate(state.personalSheetId, 'For Sale', _f.row, `For Sale!A${_f.row}:J${_f.row}`, [['','','','','','','','','','']], { num: _f.itemNum || '', invId: _f.inventoryId || '' }, 'For Sale list'); } catch(e){} }
     delete state.forSaleData[_mk];
   }
   _cachePersonalData();
@@ -2385,7 +2387,7 @@ async function _removeForSaleFromDetail(idx, inventoryId) {
   if (!fsEntry) { showToast('Item is not on For Sale list'); return; }
   if (!(await appConfirm('Remove No. ' + fsEntry.itemNum + ' from your For Sale list?', { danger: true, ok: 'Remove' }))) return;
   if (fsEntry.row) {
-    await sheetsUpdate(state.personalSheetId, `For Sale!A${fsEntry.row}:J${fsEntry.row}`, [['','','','','','','','','','']]);
+    await rrVerifiedRowUpdate(state.personalSheetId, 'For Sale', fsEntry.row, `For Sale!A${fsEntry.row}:J${fsEntry.row}`, [['','','','','','','','','','']], { num: fsEntry.itemNum || '', invId: fsEntry.inventoryId || '' }, 'For Sale list');
   }
   delete state.forSaleData[fsKey];
   _cachePersonalData();
@@ -2411,7 +2413,7 @@ async function removeForSaleAndCollection(fsKey) {
   const _fsMembers = (_grp && _grp.fs.length) ? _grp.fs : [_lead];
   for (const _f of _fsMembers) {
     const _mk = _fsEntryKey(_f);
-    if (_f.row) { try { await sheetsUpdate(state.personalSheetId, `For Sale!A${_f.row}:J${_f.row}`, [['','','','','','','','','','']]); } catch(e){} }
+    if (_f.row) { try { await rrVerifiedRowUpdate(state.personalSheetId, 'For Sale', _f.row, `For Sale!A${_f.row}:J${_f.row}`, [['','','','','','','','','','']], { num: _f.itemNum || '', invId: _f.inventoryId || '' }, 'For Sale list'); } catch(e){} }
     delete state.forSaleData[_mk];
   }
   // My Collection rows (all members) — prefer the lead's inventoryId for single-item case
@@ -2438,7 +2440,7 @@ async function removeForSaleAndCollection(fsKey) {
   // Instruction sheets (all members)
   if (_grp && _grp.is.length) {
     for (const _m of _grp.is) {
-      if (_m.rec && _m.rec.row) { try { await sheetsUpdate(state.personalSheetId, `Instruction Sheets!A${_m.rec.row}:K${_m.rec.row}`, [['','','','','','','','','','','']]); } catch(e){} }
+      if (_m.rec && _m.rec.row) { try { await rrVerifiedRowUpdate(state.personalSheetId, 'Instruction Sheets', _m.rec.row, `Instruction Sheets!A${_m.rec.row}:K${_m.rec.row}`, [['','','','','','','','','','','']], { num: _m.rec.itemNum || '' }, 'Instruction Sheets list'); } catch(e){} }
       if (state.isData) delete state.isData[_m.key];
     }
   }
@@ -3464,7 +3466,7 @@ async function saveUpgradeGroup() {
       const _wuRow = [pc.itemNum, pc.variation || '', 'Upgrade', priority, maxPrice, targetCond, pc.invId || '', notes, mfr];
       const existing = pc.invId ? state.upgradeData[pc.invId] : null;
       if (existing && existing.row > 0) {
-        await sheetsUpdate(sheetId, `Want-Upgrade List!A${existing.row}:I${existing.row}`, [_wuRow]);
+        await rrVerifiedRowUpdate(sheetId, 'Want-Upgrade List', existing.row, `Want-Upgrade List!A${existing.row}:I${existing.row}`, [_wuRow], { num: existing.itemNum || '', invId: existing.inventoryId || '' }, 'Want list');
       } else {
         await sheetsAppend(sheetId, 'Want-Upgrade List!A:I', [_wuRow]);
       }
@@ -3509,7 +3511,7 @@ async function saveUpgradeItem(itemNum, variation, existingRow, invId) {
       // Old 8-col [itemNum,var,priority,targetCond,maxPrice,notes,invId,mfr]
       // -> 9-col [itemNum,var,'Upgrade',priority,targetPrice,targetCond,invId,notes,mfr]
       const _wuRow = [row[0], row[1], 'Upgrade', row[2], row[4], row[3], row[6], row[5], row[7]];
-      await sheetsUpdate(sheetId, `Want-Upgrade List!A${existingRow}:I${existingRow}`, [_wuRow]);
+      await rrVerifiedRowUpdate(sheetId, 'Want-Upgrade List', existingRow, `Want-Upgrade List!A${existingRow}:I${existingRow}`, [_wuRow], { num: itemNum || '', invId: invId || '' }, 'Want list');
     } else {
       // Want-Upgrade combined: append 9-col row with List Type='Upgrade'.
       const _wuAppendRow = [row[0], row[1], 'Upgrade', row[2], row[4], row[3], row[6], row[5], row[7]];
@@ -3562,7 +3564,7 @@ async function removeUpgradeItem(ugKey) {
   const ug = state.upgradeData[ugKey];
   if (!ug || !ug.row) { showToast('Upgrade entry not found'); return; }
   try {
-    await sheetsUpdate(state.personalSheetId, `Want-Upgrade List!A${ug.row}:I${ug.row}`, [['','','','','','','','','']]);
+    if (!(await rrVerifiedRowUpdate(state.personalSheetId, 'Want-Upgrade List', ug.row, `Want-Upgrade List!A${ug.row}:I${ug.row}`, [['','','','','','','','','']], { num: ug.itemNum || '', invId: ug.inventoryId || '' }, 'Want list'))) return;
     delete state.upgradeData[ugKey];
     showToast('Removed from Upgrade List');
     buildUpgradePage();
@@ -4066,9 +4068,9 @@ async function _savePartInstalled(rowNum) {
   try {
     var sheetId = state.personalSheetId;
     if (pd.row && pd.row !== 99999 && typeof personalColLetter === 'function') {
-      await sheetsUpdate(sheetId, PERSONAL_TAB + '!' + personalColLetter('notes') + pd.row, [[newNotes]]);
+      await rrVerifiedRowUpdate(sheetId, PERSONAL_TAB, pd.row, PERSONAL_TAB + '!' + personalColLetter('notes') + pd.row, [[newNotes]], { num: pd.itemNum || '', invId: pd.inventoryId || '' }, 'collection');
       if (orig && orig !== pd.allOriginal) {
-        await sheetsUpdate(sheetId, PERSONAL_TAB + '!' + personalColLetter('allOriginal') + pd.row, [[orig]]);
+        await rrVerifiedRowUpdate(sheetId, PERSONAL_TAB, pd.row, PERSONAL_TAB + '!' + personalColLetter('allOriginal') + pd.row, [[orig]], { num: pd.itemNum || '', invId: pd.inventoryId || '' }, 'collection');
       }
     }
     pd.notes = newNotes;

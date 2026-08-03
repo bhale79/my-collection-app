@@ -2342,7 +2342,7 @@ async function _removeOwnedSet(key) {
   if (!ok) return;
   if (entry.row && typeof entry.row === 'number' && entry.row >= 3 && entry.row < 1000000) {
     const blanks = [Array(14).fill('')];
-    sheetsUpdate(state.personalSheetId, 'My Sets!A' + entry.row + ':N' + entry.row, blanks)
+    rrVerifiedRowUpdate(state.personalSheetId, 'My Sets', entry.row, 'My Sets!A' + entry.row + ':N' + entry.row, blanks, { num: entry.setNum || entry.itemNum || '' }, 'sets list')
       .catch(function(e) { console.warn('remove set row', e); });
   }
   delete state.mySetsData[key];
@@ -2467,7 +2467,7 @@ async function _ncRemoveSourceRow(type, key) {
   if (entry.row && typeof entry.row === 'number' && entry.row >= 3 && entry.row < 1000000) {
     const lastCol = String.fromCharCode(64 + cfg.cols);
     const blanks = [Array(cfg.cols).fill('')];
-    sheetsUpdate(state.personalSheetId, cfg.name + '!A' + entry.row + ':' + lastCol + entry.row, blanks)
+    rrVerifiedRowUpdate(state.personalSheetId, cfg.name, entry.row, cfg.name + '!A' + entry.row + ':' + lastCol + entry.row, blanks, { num: entry.setNum || entry.itemNum || '' }, 'collection')
       .catch(function(e) { console.warn('remove source row ' + type, e); });
   }
   // Remove from local state
@@ -2578,7 +2578,7 @@ async function _removeScienceOrConstruction(type, key) {
   if (entry.row && typeof entry.row === 'number' && entry.row >= 3 && entry.row < 1000000) {
     // Sheet has 15 columns (A–O) — blank them all
     const blanks = [Array(15).fill('')];
-    sheetsUpdate(state.personalSheetId, sheetName + '!A' + entry.row + ':O' + entry.row, blanks)
+    rrVerifiedRowUpdate(state.personalSheetId, sheetName, entry.row, sheetName + '!A' + entry.row + ':O' + entry.row, blanks, { num: entry.setNum || entry.itemNum || '' }, 'collection')
       .catch(function(e) { console.warn('remove ' + type + ' row', e); });
   }
   delete bucket[key];
@@ -2599,7 +2599,7 @@ async function _removeInstructionSheet(key) {
   if (entry.row && typeof entry.row === 'number' && entry.row >= 3 && entry.row < 1000000) {
     // IS sheet has 11 columns (A–K)
     const blanks = [Array(11).fill('')];
-    sheetsUpdate(state.personalSheetId, 'Instruction Sheets!A' + entry.row + ':K' + entry.row, blanks)
+    rrVerifiedRowUpdate(state.personalSheetId, 'Instruction Sheets', entry.row, 'Instruction Sheets!A' + entry.row + ':K' + entry.row, blanks, { num: entry.setNum || entry.itemNum || '' }, 'Instruction Sheets list')
       .catch(function(e) { console.warn('remove IS row', e); });
   }
   delete state.isData[key];

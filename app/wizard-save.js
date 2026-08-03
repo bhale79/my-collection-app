@@ -814,8 +814,8 @@ async function savePhotoOnlyUpdate() {
   if (folderLink && pd.row) {
     // Write folder link to col J (index 9) of the existing row
     try {
-      await sheetsUpdate(state.personalSheetId, PERSONAL_TAB + '!' + personalColLetter('photoItem') + pd.row, [[folderLink]]);
-      pd.photoItem = folderLink;
+      if (await rrVerifiedRowUpdate(state.personalSheetId, PERSONAL_TAB, pd.row, PERSONAL_TAB + '!' + personalColLetter('photoItem') + pd.row, [[folderLink]], { num: pd.itemNum || '', invId: pd.inventoryId || '' }, 'collection'))
+        pd.photoItem = folderLink;
       try { if (typeof rrThumbBust === 'function') rrThumbBust(pd); } catch (eTB) {}   // v0.9.1201: photo set changed
       // v0.9.697: without this, the 2-hour personal-data cache reloads WITHOUT
       // the new photo link — "saved" data vanished on next app load (Brad).
@@ -1433,7 +1433,7 @@ async function saveWizardItem() {
       pd.itemNum === (itemNum.endsWith('C') ? itemNum.slice(0,-1) : itemNum+'C')
     );
     if (existingUnit && existingUnit.row && !existingUnit.setId) {
-      sheetsUpdate(state.personalSheetId, PERSONAL_TAB + '!' + personalColLetter('setId') + existingUnit.row, [[d._setId]])
+      rrVerifiedRowUpdate(state.personalSheetId, PERSONAL_TAB, existingUnit.row, PERSONAL_TAB + '!' + personalColLetter('setId') + existingUnit.row, [[d._setId]], { num: existingUnit.itemNum || '', invId: existingUnit.inventoryId || '' }, 'collection')
         .catch(e => console.warn('Set ID backfill:', e));
     }
   }
@@ -1505,7 +1505,7 @@ async function saveWizardItem() {
     const matchedEntry = Object.values(state.personalData).find(pd => pd.itemNum === matchedNum);
     if (matchedEntry && matchedEntry.row) {
       // Update col O (index 14) of the matched row
-      sheetsUpdate(state.personalSheetId, PERSONAL_TAB + '!' + personalColLetter('matchedTo') + matchedEntry.row, [[itemNum]]).catch(e => console.warn('Cross-link update:', e));
+      rrVerifiedRowUpdate(state.personalSheetId, PERSONAL_TAB, matchedEntry.row, PERSONAL_TAB + '!' + personalColLetter('matchedTo') + matchedEntry.row, [[itemNum]], { num: matchedEntry.itemNum || '', invId: matchedEntry.inventoryId || '' }, 'collection').catch(e => console.warn('Cross-link update:', e));
       matchedEntry.matchedTo = itemNum;
     }
   }
@@ -1564,10 +1564,10 @@ async function saveWizardItem() {
           if (pdRow.row && pdRow.row !== 99999) {
             // Route to the right sheet/column by candidate type
             if (c.type === 'is') {
-              sheetsUpdate(state.personalSheetId, `Instruction Sheets!H${pdRow.row}`, [[groupId]])
+              rrVerifiedRowUpdate(state.personalSheetId, 'Instruction Sheets', pdRow.row, `Instruction Sheets!H${pdRow.row}`, [[groupId]], { num: pdRow.itemNum || '' }, 'Instruction Sheets list')
                 .catch(function(e) { console.warn('Auto-group IS backfill for ' + c.itemNum + ':', e); });
             } else {
-              sheetsUpdate(state.personalSheetId, PERSONAL_TAB + '!' + personalColLetter('groupId') + pdRow.row, [[groupId]])
+              rrVerifiedRowUpdate(state.personalSheetId, PERSONAL_TAB, pdRow.row, PERSONAL_TAB + '!' + personalColLetter('groupId') + pdRow.row, [[groupId]], { num: pdRow.itemNum || '', invId: pdRow.inventoryId || '' }, 'collection')
                 .catch(function(e) { console.warn('Auto-group backfill for ' + c.itemNum + ':', e); });
             }
           }
@@ -1611,7 +1611,7 @@ async function saveWizardItem() {
         existingFs = Object.values(state.forSaleData || {}).find(function(e) { return e && e.inventoryId === _fsInvId; });
       }
       if (existingFs?.row) {
-        await sheetsUpdate(state.personalSheetId, `For Sale!A${existingFs.row}:J${existingFs.row}`, [row]);
+        await rrVerifiedRowUpdate(state.personalSheetId, 'For Sale', existingFs.row, `For Sale!A${existingFs.row}:J${existingFs.row}`, [row], { num: existingFs.itemNum || '', invId: existingFs.inventoryId || '' }, 'For Sale list');
       } else {
         await sheetsAppend(state.personalSheetId, 'For Sale!A:J', [row]);
       }
@@ -1637,7 +1637,7 @@ async function saveWizardItem() {
             // the box, and selling the item later stranded it as an orphan -BOX
             // row. Other companions (tender, A/B unit, IS) still ungroup.
             if (/-BOX$|-MBOX$/i.test(String(_up.itemNum || ''))) continue;
-            if (_up.row && _up.row !== 99999) { try { await sheetsUpdate(state.personalSheetId, PERSONAL_TAB + '!' + personalColLetter('groupId') + _up.row, [['']]); } catch(e){} }
+            if (_up.row && _up.row !== 99999) { try { await rrVerifiedRowUpdate(state.personalSheetId, PERSONAL_TAB, _up.row, PERSONAL_TAB + '!' + personalColLetter('groupId') + _up.row, [['']], { num: _up.itemNum || '', invId: _up.inventoryId || '' }, 'collection'); } catch(e){} }
             _up.groupId = '';
           }
         }
@@ -1645,7 +1645,7 @@ async function saveWizardItem() {
           for (var _ik in state.isData) {
             var _ip = state.isData[_ik];
             if (_ip && _ip.groupId === _ugid) {
-              if (_ip.row) { try { await sheetsUpdate(state.personalSheetId, 'Instruction Sheets!H' + _ip.row, [['']]); } catch(e){} }
+              if (_ip.row) { try { await rrVerifiedRowUpdate(state.personalSheetId, 'Instruction Sheets', _ip.row, 'Instruction Sheets!H' + _ip.row, [['']], { num: _ip.itemNum || '' }, 'Instruction Sheets list'); } catch(e){} }
               _ip.groupId = '';
             }
           }
@@ -1710,7 +1710,7 @@ async function saveWizardItem() {
         }
         for (var _j=0; _j<(_gs.sellIs||[]).length; _j++) {
           var _ip = (state.isData||{})[_gs.sellIs[_j]];
-          if (_ip && _ip.row) { try { await sheetsUpdate(state.personalSheetId, 'Instruction Sheets!A'+_ip.row+':K'+_ip.row, [['','','','','','','','','','','']]); } catch(e){} }
+          if (_ip && _ip.row) { try { await rrVerifiedRowUpdate(state.personalSheetId, 'Instruction Sheets', _ip.row, 'Instruction Sheets!A'+_ip.row+':K'+_ip.row, [['','','','','','','','','','','']], { num: _ip.itemNum || '' }, 'Instruction Sheets list'); } catch(e){} }
           if (state.isData) delete state.isData[_gs.sellIs[_j]];
         }
         for (var _k=0; _k<(_gs.ungroupPd||[]).length; _k++) {
@@ -1721,14 +1721,14 @@ async function saveWizardItem() {
             // right column (currently AB).
             try {
               var _gcUngroup = personalColLetter('groupId');
-              await sheetsUpdate(state.personalSheetId, PERSONAL_TAB + '!' + _gcUngroup + _up.row, [['']]);
+              await rrVerifiedRowUpdate(state.personalSheetId, PERSONAL_TAB, _up.row, PERSONAL_TAB + '!' + _gcUngroup + _up.row, [['']], { num: _up.itemNum || '', invId: _up.inventoryId || '' }, 'collection');
             } catch(e){}
             if (_up) _up.groupId='';
           }
         }
         for (var _m=0; _m<(_gs.ungroupIs||[]).length; _m++) {
           var _uip = (state.isData||{})[_gs.ungroupIs[_m]];
-          if (_uip && _uip.row) { try { await sheetsUpdate(state.personalSheetId, 'Instruction Sheets!H'+_uip.row, [['']]); } catch(e){} if (_uip) _uip.groupId=''; }
+          if (_uip && _uip.row) { try { await rrVerifiedRowUpdate(state.personalSheetId, 'Instruction Sheets', _uip.row, 'Instruction Sheets!H'+_uip.row, [['']], { num: _uip.itemNum || '' }, 'Instruction Sheets list'); } catch(e){} if (_uip) _uip.groupId=''; }
         }
         window._pendingGroupSell = null;
       }
@@ -1772,7 +1772,7 @@ async function saveWizardItem() {
         // Audit H10: guard 99999 placeholder rows. Try a fresh lookup before write.
         if (fsEntry && fsEntry.row && fsEntry.row !== 99999 && fsEntry.row < 100000) {
           try {
-            await sheetsUpdate(state.personalSheetId, `For Sale!A${fsEntry.row}:J${fsEntry.row}`, [['','','','','','','','','','']]);
+            await rrVerifiedRowUpdate(state.personalSheetId, 'For Sale', fsEntry.row, `For Sale!A${fsEntry.row}:J${fsEntry.row}`, [['','','','','','','','','','']], { num: fsEntry.itemNum || '', invId: fsEntry.inventoryId || '' }, 'For Sale list');
           } catch (e) {
             console.warn('[H10] For Sale clear failed at row ' + fsEntry.row + ':', e && e.message);
           }
@@ -1798,7 +1798,7 @@ async function saveWizardItem() {
         // Audit H10: guard 99999 placeholder rows.
         if (ugEntry && ugEntry.row && ugEntry.row !== 99999 && ugEntry.row < 100000) {
           try {
-            await sheetsUpdate(state.personalSheetId, `Want-Upgrade List!A${ugEntry.row}:I${ugEntry.row}`, [['','','','','','','','','']]);
+            await rrVerifiedRowUpdate(state.personalSheetId, 'Want-Upgrade List', ugEntry.row, `Want-Upgrade List!A${ugEntry.row}:I${ugEntry.row}`, [['','','','','','','','','']], { num: ugEntry.itemNum || '', invId: ugEntry.inventoryId || '' }, 'Want list');
           } catch (e) {
             console.warn('[H10] Upgrade clear failed at row ' + ugEntry.row + ':', e && e.message);
           }
@@ -1879,7 +1879,7 @@ async function saveWizardItem() {
         var _notesWithGrp = _wGroupId ? ('[grp:' + _wGroupId + '] ' + _wNotes).trim() : _wNotes;
         if (existing && existing.row) {
           const wuRow = [row[0], row[1], 'Want', row[2], row[3], _wTargetCond, '', _notesWithGrp, row[5]];
-          await sheetsUpdate(state.personalSheetId, `Want-Upgrade List!A${existing.row}:I${existing.row}`, [wuRow]);
+          await rrVerifiedRowUpdate(state.personalSheetId, 'Want-Upgrade List', existing.row, `Want-Upgrade List!A${existing.row}:I${existing.row}`, [wuRow], { num: existing.itemNum || '', invId: existing.inventoryId || '' }, 'Want list');
         } else {
           const wuAppendRow = [row[0], row[1], 'Want', row[2], row[3], _wTargetCond, '', _notesWithGrp, row[5]];
           var _wuApRow = await sheetsAppend(state.personalSheetId, 'Want-Upgrade List!A:I', [wuAppendRow]);   // v0.9.1196
@@ -2191,7 +2191,7 @@ async function saveWizardItem() {
     if (d._fromWantList && d._fromWantKey && tab === 'collection') {
       const wantEntry = state.wantData[d._fromWantKey];
       if (wantEntry && wantEntry.row) {
-        sheetsUpdate(state.personalSheetId, `Want-Upgrade List!A${wantEntry.row}:I${wantEntry.row}`, [['','','','','','','','','']]).catch(e => console.warn('Want cleanup error:', e));
+        rrVerifiedRowUpdate(state.personalSheetId, 'Want-Upgrade List', wantEntry.row, `Want-Upgrade List!A${wantEntry.row}:I${wantEntry.row}`, [['','','','','','','','','']], { num: wantEntry.itemNum || '', invId: wantEntry.inventoryId || '' }, 'Want list').catch(e => console.warn('Want cleanup error:', e));
       }
       delete state.wantData[d._fromWantKey];
       buildWantPage();
@@ -2201,7 +2201,7 @@ async function saveWizardItem() {
     if (d._fromUpgradeList && d._fromUpgradeKey && tab === 'collection') {
       const ugEntry = state.upgradeData[d._fromUpgradeKey];
       if (ugEntry && ugEntry.row) {
-        sheetsUpdate(state.personalSheetId, `Want-Upgrade List!A${ugEntry.row}:I${ugEntry.row}`, [['','','','','','','','','']]).catch(e => console.warn('Upgrade cleanup error:', e));
+        rrVerifiedRowUpdate(state.personalSheetId, 'Want-Upgrade List', ugEntry.row, `Want-Upgrade List!A${ugEntry.row}:I${ugEntry.row}`, [['','','','','','','','','']], { num: ugEntry.itemNum || '', invId: ugEntry.inventoryId || '' }, 'Want list').catch(e => console.warn('Upgrade cleanup error:', e));
       }
       delete state.upgradeData[d._fromUpgradeKey];
       if (typeof buildUpgradePage === 'function') buildUpgradePage();

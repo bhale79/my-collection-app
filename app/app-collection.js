@@ -1848,7 +1848,7 @@ async function openPhotoFolder(itemNum, storedLink) {
     if (_pfKey && state.personalData[_pfKey].row) {
       state.personalData[_pfKey].photoItem = freshLink;
       try { if (typeof rrThumbBust === 'function') rrThumbBust(state.personalData[_pfKey]); } catch (eTB) {}   // v0.9.1201
-      sheetsUpdate(state.personalSheetId, PERSONAL_TAB + '!' + personalColLetter('photoItem') + state.personalData[_pfKey].row, [[freshLink]]).catch(function(e) { console.warn('Photo link update:', e); });
+      rrVerifiedRowUpdate(state.personalSheetId, PERSONAL_TAB, state.personalData[_pfKey].row, PERSONAL_TAB + '!' + personalColLetter('photoItem') + state.personalData[_pfKey].row, [[freshLink]], { num: state.personalData[_pfKey].itemNum || '', invId: state.personalData[_pfKey].inventoryId || '' }, 'collection').catch(function(e) { console.warn('Photo link update:', e); });
     }
   } catch(e) { showToast((typeof rrSaveError === 'function') ? rrSaveError(e, 'the folder') : 'Could not open Drive folder: ' + e.message, 5000, true); }
 }
@@ -2155,7 +2155,7 @@ function _checkGroupBeforeForSale(globalIdx, pdKey) {
       const existingFs = state.forSaleData[_grpFsKey];
       let _grpFsApRow = 0;   // v0.9.1196: real row from update target or append return
       if (existingFs && existingFs.row) {
-        await sheetsUpdate(sheetId, 'For Sale!A' + existingFs.row + ':J' + existingFs.row, [fsRow]);
+        await rrVerifiedRowUpdate(sheetId, 'For Sale', existingFs.row, 'For Sale!A' + existingFs.row + ':J' + existingFs.row, [fsRow], { num: existingFs.itemNum || '', invId: existingFs.inventoryId || '' }, 'For Sale list');
         _grpFsApRow = existingFs.row;
       } else {
         _grpFsApRow = (await sheetsAppend(sheetId, 'For Sale!A:J', [fsRow])) || 0;
@@ -2320,13 +2320,13 @@ async function _breakUpGroup(pdKey) {
   });
   for (var i = 0; i < pdKeys.length; i++){
     var p = state.personalData[pdKeys[i]];
-    if (p) { p.groupId = ''; if (p.row && p.row !== 99999) { try { await sheetsUpdate(state.personalSheetId, PERSONAL_TAB + '!' + personalColLetter('groupId') + p.row, [['']]); } catch(e){} } }
+    if (p) { p.groupId = ''; if (p.row && p.row !== 99999) { try { await rrVerifiedRowUpdate(state.personalSheetId, PERSONAL_TAB, p.row, PERSONAL_TAB + '!' + personalColLetter('groupId') + p.row, [['']], { num: p.itemNum || '', invId: p.inventoryId || '' }, 'collection'); } catch(e){} } }
   }
   var isKeys = [];
   Object.entries(state.isData || {}).forEach(function(e){ if (e[1] && e[1].groupId === gid) isKeys.push(e[0]); });
   for (var j = 0; j < isKeys.length; j++){
     var ip = state.isData[isKeys[j]];
-    if (ip) { ip.groupId = ''; if (ip.row && ip.row !== 99999) { try { await sheetsUpdate(state.personalSheetId, 'Instruction Sheets!H' + ip.row, [['']]); } catch(e){} } }
+    if (ip) { ip.groupId = ''; if (ip.row && ip.row !== 99999) { try { await rrVerifiedRowUpdate(state.personalSheetId, 'Instruction Sheets', ip.row, 'Instruction Sheets!H' + ip.row, [['']], { num: ip.itemNum || '' }, 'Instruction Sheets list'); } catch(e){} } }
   }
   if (typeof _cachePersonalData === 'function') _cachePersonalData();
 }
@@ -2440,7 +2440,7 @@ async function removeCollectionItem(itemNum, variation, row, invId) {
         var sibUg = sibUgKey ? state.upgradeData[sibUgKey] : null;
         if (sibUg && sibUg.row) {
           try {
-            await sheetsUpdate(state.personalSheetId, 'Want-Upgrade List!A' + sibUg.row + ':I' + sibUg.row, [['','','','','','','','','']]);
+            await rrVerifiedRowUpdate(state.personalSheetId, 'Want-Upgrade List', sibUg.row, 'Want-Upgrade List!A' + sibUg.row + ':I' + sibUg.row, [['','','','','','','','','']], { num: sibUg.itemNum || '', invId: sibUg.inventoryId || '' }, 'Want list');
           } catch(e) { console.warn('Upgrade cleanup (group):', e); }
           delete state.upgradeData[sibUgKey];
         }
@@ -2513,7 +2513,7 @@ async function removeCollectionItem(itemNum, variation, row, invId) {
   var ugEntry = ugKey ? state.upgradeData[ugKey] : null;
   if (ugEntry && ugEntry.row) {
     try {
-      await sheetsUpdate(state.personalSheetId, 'Want-Upgrade List!A' + ugEntry.row + ':I' + ugEntry.row, [['','','','','','','','','']]);
+      await rrVerifiedRowUpdate(state.personalSheetId, 'Want-Upgrade List', ugEntry.row, 'Want-Upgrade List!A' + ugEntry.row + ':I' + ugEntry.row, [['','','','','','','','','']], { num: ugEntry.itemNum || '', invId: ugEntry.inventoryId || '' }, 'Want list');
     } catch(e) { console.warn('Upgrade cleanup:', e); }
     delete state.upgradeData[ugKey];
   }
@@ -4232,12 +4232,12 @@ async function _saveItemWrites() {
     // Remove from Want List if it was there
     const wantEntry = state.wantData[_wantKeySI];
     if (wantEntry && wantEntry.row) {
-      await sheetsUpdate(state.personalSheetId, `Want-Upgrade List!A${wantEntry.row}:I${wantEntry.row}`, [['','','','','','','','','']]);
+      await rrVerifiedRowUpdate(state.personalSheetId, 'Want-Upgrade List', wantEntry.row, `Want-Upgrade List!A${wantEntry.row}:I${wantEntry.row}`, [['','','','','','','','','']], { num: wantEntry.itemNum || '', invId: wantEntry.inventoryId || '' }, 'Want list');
     }
     // Remove from For Sale if it was there
     const fsEntry = _fsKeySI ? state.forSaleData[_fsKeySI] : null;
     if (fsEntry && fsEntry.row) {
-      await sheetsUpdate(state.personalSheetId, `For Sale!A${fsEntry.row}:J${fsEntry.row}`, [['','','','','','','','','','']]);
+      await rrVerifiedRowUpdate(state.personalSheetId, 'For Sale', fsEntry.row, `For Sale!A${fsEntry.row}:J${fsEntry.row}`, [['','','','','','','','','','']], { num: fsEntry.itemNum || '', invId: fsEntry.inventoryId || '' }, 'For Sale list');
     }
 
   } else if (currentStatus === 'ForSale') {
@@ -4256,7 +4256,7 @@ async function _saveItemWrites() {
     ];
     const fsEntry2 = _fsKeySI ? state.forSaleData[_fsKeySI] : null;
     if (fsEntry2 && fsEntry2.row) {
-      await sheetsUpdate(state.personalSheetId, `For Sale!A${fsEntry2.row}:J${fsEntry2.row}`, [forSaleRow]);
+      await rrVerifiedRowUpdate(state.personalSheetId, 'For Sale', fsEntry2.row, `For Sale!A${fsEntry2.row}:J${fsEntry2.row}`, [forSaleRow], { num: fsEntry2.itemNum || '', invId: fsEntry2.inventoryId || '' }, 'For Sale list');
     } else {
       await sheetsAppend(state.personalSheetId, 'For Sale!A:A', [forSaleRow]);
     }
@@ -4265,7 +4265,7 @@ async function _saveItemWrites() {
     // Remove from Want if it was there
     const wantEntry2 = state.wantData[_wantKeySI];
     if (wantEntry2 && wantEntry2.row) {
-      await sheetsUpdate(state.personalSheetId, `Want-Upgrade List!A${wantEntry2.row}:I${wantEntry2.row}`, [['','','','','','','','','']]);
+      await rrVerifiedRowUpdate(state.personalSheetId, 'Want-Upgrade List', wantEntry2.row, `Want-Upgrade List!A${wantEntry2.row}:I${wantEntry2.row}`, [['','','','','','','','','']], { num: wantEntry2.itemNum || '', invId: wantEntry2.inventoryId || '' }, 'Want list');
     }
 
   } else if (currentStatus === 'Sold') {
@@ -4308,7 +4308,7 @@ async function _saveItemWrites() {
     // Remove from For Sale if it was there
     const fsEntry3 = _fsKeySI ? state.forSaleData[_fsKeySI] : null;
     if (fsEntry3 && fsEntry3.row) {
-      await sheetsUpdate(state.personalSheetId, `For Sale!A${fsEntry3.row}:J${fsEntry3.row}`, [['','','','','','','','','','']]);
+      await rrVerifiedRowUpdate(state.personalSheetId, 'For Sale', fsEntry3.row, `For Sale!A${fsEntry3.row}:J${fsEntry3.row}`, [['','','','','','','','','','']], { num: fsEntry3.itemNum || '', invId: fsEntry3.inventoryId || '' }, 'For Sale list');
     }
 
     // If this sold copy had an Upgrade entry linked to it, convert to Want.
@@ -4336,7 +4336,7 @@ async function _saveItemWrites() {
     if (wantEntry && wantEntry.row) {
       // Want-Upgrade combined: write 9-col row with List Type='Want'.
       const _wuRow = [wantRow[0], wantRow[1], 'Want', wantRow[2], wantRow[3], wantRow[6] || '', '', wantRow[4], wantRow[5]];
-      await sheetsUpdate(state.personalSheetId, `Want-Upgrade List!A${wantEntry.row}:I${wantEntry.row}`, [_wuRow]);
+      await rrVerifiedRowUpdate(state.personalSheetId, 'Want-Upgrade List', wantEntry.row, `Want-Upgrade List!A${wantEntry.row}:I${wantEntry.row}`, [_wuRow], { num: wantEntry.itemNum || '', invId: wantEntry.inventoryId || '' }, 'Want list');
     } else {
       // Want-Upgrade combined: append 9-col row with List Type='Want'.
       const _wuAppendRow = [wantRow[0], wantRow[1], 'Want', wantRow[2], wantRow[3], wantRow[6] || '', '', wantRow[4], wantRow[5]];

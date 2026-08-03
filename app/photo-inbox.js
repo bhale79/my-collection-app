@@ -3683,8 +3683,8 @@
         if (!_livePd.photoItem && link && _rowKnown
             && typeof sheetsUpdate === 'function' && typeof personalColLetter === 'function' && window.state.personalSheetId) {
           try {
-            await sheetsUpdate(state.personalSheetId, PERSONAL_TAB + '!' + personalColLetter('photoItem') + _livePd.row, [[link]]);
-            _livePd.photoItem = link;   // only true once the sheet actually took it
+            if (await rrVerifiedRowUpdate(state.personalSheetId, PERSONAL_TAB, _livePd.row, PERSONAL_TAB + '!' + personalColLetter('photoItem') + _livePd.row, [[link]], { num: _livePd.itemNum || '', invId: _livePd.inventoryId || '' }, 'collection'))
+              _livePd.photoItem = link;   // only true once the sheet actually took it
           } catch (eUp) { console.warn('[Inbox] photo link write failed — leaving it for the repair pass:', eUp); }
         }
         if (_mvFail) showToast('Attached ' + moved + ' of ' + fileList.length + ' photo' + (fileList.length > 1 ? 's' : '') + ' to ' + num + ' \u2014 ' + _mvFail + ' stayed in the inbox. Try them again.', 5000, true);
@@ -4037,8 +4037,9 @@
         if (!pd.photoItem && link) {
           if (_rowKnown && typeof sheetsUpdate === 'function' && typeof personalColLetter === 'function' && state.personalSheetId) {
             try {
-              await sheetsUpdate(state.personalSheetId, PERSONAL_TAB + '!' + personalColLetter('photoItem') + pd.row, [[link]]);
-              pd.photoItem = link;   // only true once the sheet actually took it
+              if (await rrVerifiedRowUpdate(state.personalSheetId, PERSONAL_TAB, pd.row, PERSONAL_TAB + '!' + personalColLetter('photoItem') + pd.row, [[link]], { num: pd.itemNum || '', invId: pd.inventoryId || '' }, 'collection'))
+                pd.photoItem = link;   // only true once the sheet actually took it
+              else _linkDone = false;   // v0.9.1284: a refused row is a moved row — retry after the next sync
             } catch (eUp) { _linkDone = false; console.warn('[Inbox] pending link write failed — keeping the note to retry:', eUp); }
           } else {
             _linkDone = false;      // row unknown yet — retry once the sync lands
@@ -4095,7 +4096,7 @@
         try { link = await driveFindItemFolder(p.itemNum); } catch (eF) { continue; }
         if (!link) continue;                      // genuinely has no folder — leave it alone
         try {
-          await sheetsUpdate(state.personalSheetId, PERSONAL_TAB + '!' + personalColLetter('photoItem') + p.row, [[link]]);
+          if (!(await rrVerifiedRowUpdate(state.personalSheetId, PERSONAL_TAB, p.row, PERSONAL_TAB + '!' + personalColLetter('photoItem') + p.row, [[link]], { num: p.itemNum || '', invId: p.inventoryId || '' }, 'collection'))) continue;
           p.photoItem = link;
           console.log('[Inbox] repaired photo link for', p.itemNum);
         } catch (eW) { delete _repairDone[k]; console.warn('[Inbox] photo-link repair deferred:', p.itemNum, eW); }
@@ -4142,7 +4143,7 @@
       if (!key) { _mkDone[k] = true; continue; }                 // off-catalog — nothing to store, no API spent
       if (wrote >= 12) continue;                                 // write cap only; resolution stays free
       try {
-        await sheetsUpdate(state.personalSheetId, PERSONAL_TAB + '!' + personalColLetter('masterKey') + p.row, [[key]]);
+        if (!(await rrVerifiedRowUpdate(state.personalSheetId, PERSONAL_TAB, p.row, PERSONAL_TAB + '!' + personalColLetter('masterKey') + p.row, [[key]], { num: p.itemNum || '', invId: p.inventoryId || '' }, 'collection'))) continue;
         p.masterKey = key;                                       // memory learns it the moment the sheet does
         _mkDone[k] = true;
         wrote++;

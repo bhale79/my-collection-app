@@ -6386,6 +6386,13 @@ META_WRITES.length = 0; TOASTS.length = 0;
           if (sheetsThrows) throw new Error('Range exceeds grid limits');
           wroteRange = range; return {};
         },
+        // v0.9.1284: the block writes through the guarded row writer now. The
+        // guard itself is exercised by §234; here it verifies-clean so the
+        // block's own logic stays the thing under test.
+        rrVerifiedRowUpdate: function (id, tab, rowNum, range) {
+          if (sheetsThrows) throw new Error('Range exceeds grid limits');
+          wroteRange = range; return true;
+        },
         localStorage: {
           getItem: function (k) { return store[k]; },
           setItem: function (k, v) { store[k] = v; },
@@ -6893,6 +6900,12 @@ META_WRITES.length = 0; TOASTS.length = 0;
           const num = vals[0][0].split('|')[1];
           if (failNums && failNums.indexOf(num) >= 0) throw new Error('quota');
           writes.push(range + '=' + vals[0][0]); return {};
+        },
+        // v0.9.1284: the backfill writes through the guarded row writer now.
+        rrVerifiedRowUpdate: function (id, tab, rowNum, range, vals) {
+          const num = vals[0][0].split('|')[1];
+          if (failNums && failNums.indexOf(num) >= 0) throw new Error('quota');
+          writes.push(range + '=' + vals[0][0]); return true;
         },
         console: { log: function () {}, warn: function () {} },
       };
@@ -10304,11 +10317,11 @@ META_WRITES.length = 0; TOASTS.length = 0;
        /'\.\/write-outbox\.js'/.test(rd('app/sw.js')));
 
     section('199h. The version trio moved together');
-    ok('APP_VERSION is v0.9.1283', /const APP_VERSION = 'v0\.9\.1283';/.test(cfg));
+    ok('APP_VERSION is v0.9.1284', /const APP_VERSION = 'v0\.9\.1284';/.test(cfg));
     ok('every ?v= mark in app/index.html matches it',
-       (idx.match(/\?v=1283/g) || []).length === 69 && !/\?v=1282/.test(idx),
-       String((idx.match(/\?v=1283/g) || []).length));
-    ok('the service worker cache name moved too', /const CACHE_NAME = 'mca-v1293';/.test(rd('app/sw.js')));
+       (idx.match(/\?v=1284/g) || []).length === 69 && !/\?v=1283/.test(idx),
+       String((idx.match(/\?v=1284/g) || []).length));
+    ok('the service worker cache name moved too', /const CACHE_NAME = 'mca-v1294';/.test(rd('app/sw.js')));
     // v0.9.1276 (R9): the ?v= count above cannot see a NEW local <script>
     // added with no stamp at all — 69 stamped plus one bare is still 69, and
     // the bare one dodges the cache-busting the stamp exists for: it would be
@@ -14663,6 +14676,87 @@ META_WRITES.length = 0; TOASTS.length = 0;
            /Saved the order for ' \+ ok \+ ' of ' \+ orderedFids\.length/.test(seg));
         ok('233 the card redraws so the badge follows the new first photo',
            /window\._pinReview\(_rvKey \|\| \(g && g\.key\)\);/.test(seg));
+      }
+    })();
+
+    // ═══════════════════════════════════════════════════════════
+    // §234. v0.9.1284 (overnight) — every remembered row is verified
+    //   before it is written.
+    //
+    //   The ~45 sites R3 deferred: For Sale / Want-Upgrade / Instruction
+    //   Sheets / My Sets full-row blanks and rewrites, and single-cell
+    //   writes on My Collection — all addressed by a REMEMBERED row
+    //   number, on tabs where rows genuinely shift. 44 of them now go
+    //   through ONE guarded writer, rrVerifiedRowUpdate: confirm the row
+    //   still holds the record (rrRowStillIs), refuse with a message when
+    //   it does not, write only after. The four §203 sites keep their own
+    //   inline guards; contacts.js keeps its one raw write deliberately
+    //   (a contact rename REPLACES cell A, so identity-by-cell-A would
+    //   refuse every rename — written up for Brad, not guessed at).
+    // ═══════════════════════════════════════════════════════════
+    section('234. A remembered row is verified before it is written');
+    await (async function () {
+      const p34 = require('path');
+      const sh34 = fs.readFileSync(p34.join(__dirname, '..', 'app', 'sheets.js'), 'utf8');
+
+      // ── run the REAL wrapper both ways ────────────────────────────────
+      const a34 = sh34.indexOf('async function rrVerifiedRowUpdate(');
+      const b34 = sh34.indexOf('\n}', a34) + 2;
+      ok('234 the guarded writer exists in sheets.js', a34 > 0 && b34 > a34);
+      const mk34 = (verdict) => {
+        const calls = { wrote: [], toasts: [] };
+        const fn = new Function('rrRowStillIs', 'sheetsUpdate', 'showToast',
+          sh34.slice(a34, b34) + ' return rrVerifiedRowUpdate;')(
+            async () => verdict,
+            async (id, range, vals) => { calls.wrote.push(range); },
+            (msg) => { calls.toasts.push(msg); });
+        return { fn, calls };
+      };
+      {
+        const { fn, calls } = mk34(true);
+        const r = await fn('S', 'For Sale', 7, 'For Sale!A7:J7', [['x']], { num: '6464' }, 'For Sale list');
+        ok('234 a verified row is written, and the caller is told it landed',
+           r === true && calls.wrote.join() === 'For Sale!A7:J7' && calls.toasts.length === 0);
+      }
+      {
+        const { fn, calls } = mk34(false);
+        const r = await fn('S', 'For Sale', 7, 'For Sale!A7:J7', [['x']], { num: '6464' }, 'For Sale list');
+        ok('234 a moved row is REFUSED — nothing written, the user told, the caller told',
+           r === false && calls.wrote.length === 0 && calls.toasts.length === 1 &&
+           /For Sale list changed somewhere else — nothing was written/.test(calls.toasts[0]),
+           JSON.stringify(calls));
+      }
+
+      // ── the census: no row-addressed write bypasses a guard ──────────
+      {
+        const ROWISH = /sheetsUpdate\([^;\n]*(?:\.row\b|rowNum|existingRow|\+ row\b|\$\{[A-Za-z_$]*[Rr]ow\}|\$\{[A-Za-z_$]+\.row\})/;
+        const strays = [];
+        let contactsRaw = 0, inlineGuarded = 0;
+        fs.readdirSync(p34.join(__dirname, '..', 'app'))
+          .filter(n => n.endsWith('.js') && n !== 'sheets.js')
+          .forEach(f => {
+            const src = fs.readFileSync(p34.join(__dirname, '..', 'app', f), 'utf8');
+            let idx = 0;
+            src.split('\n').forEach((line, li) => {
+              idx += 0;
+              if (!ROWISH.test(line)) return;
+              const at = src.indexOf(line);
+              const back = src.slice(Math.max(0, at - 900), at);
+              if (/rrRowStillIs/.test(back)) { inlineGuarded++; return; }   // §203-style inline guard
+              if (f === 'contacts.js') { contactsRaw++; return; }           // the one named exception
+              strays.push(f + ':' + (li + 1) + ' ' + line.trim().slice(0, 90));
+            });
+          });
+        ok('234 every row-addressed write is guarded — inline or through the writer',
+           strays.length === 0, strays.slice(0, 5).join(' | ') || 'none stray');
+        ok('234 …the inline-guarded set is exactly the six known sites',
+           inlineGuarded === 6, String(inlineGuarded));
+        ok('234 …and contacts.js is the ONE deliberate exception, unchanged',
+           contactsRaw === 1, String(contactsRaw));
+        const wrapped = ['app-collection.js', 'app-pages.js', 'browse.js', 'photo-inbox.js', 'wizard-save.js']
+          .reduce((n, f) => n + (fs.readFileSync(p34.join(__dirname, '..', 'app', f), 'utf8').match(/rrVerifiedRowUpdate\(/g) || []).length, 0);
+        ok('234 the sweep really landed — 53 sites write through the one guarded writer',
+           wrapped === 53, String(wrapped));
       }
     })();
 
