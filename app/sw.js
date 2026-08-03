@@ -4,7 +4,7 @@
 // fetches fresh copies in the background for next load.
 // NEVER caches Google API, OAuth, or Sheets calls.
 
-const CACHE_NAME = 'mca-v1280';
+const CACHE_NAME = 'mca-v1281';
 
 // ── v0.9.1214: the version stamp has to survive as far as the cache ──
 // Brad, on v1213: "im reset twice and it still looks the same." He was
@@ -201,6 +201,32 @@ self.addEventListener('fetch', event => {
   ) {
     return; // let browser handle normally
   }
+
+  // ── v0.9.1271 (audit 2026-08-02 round 2, finding R12) ──────────────────
+  // config.js runs a self-check 8s after load: it fetches config.js and
+  // sw.js from the network and compares APP_VERSION against CACHE_NAME, so
+  // a deploy that bumped one and forgot the other is caught. It asks with
+  // { cache: 'no-store' } — but no-store only switches off the browser's
+  // HTTP cache. THIS worker sits in front of that, and stale-while-
+  // revalidate answered from Cache Storage, so the check was reading the
+  // copies it filed on the previous load. That makes it exactly one deploy
+  // behind: in the ordinary case it announces an "update" that is already
+  // running, and on the first load after a REAL mismatch it compares last
+  // load's two numbers with each other, finds them agreeing, and says
+  // nothing — blind at the one moment it exists for.
+  //
+  // A ?v= stamp would collide with the precache (which is stamped, see
+  // _stamped) and a Date.now() buster would grow Cache Storage without
+  // bound, because cache.put below files every same-origin GET that
+  // succeeds. So the check tags its requests, and they are skipped here.
+  // Skipped means never served from cache and never put INTO it — the
+  // request reaches the network, and no-store finally means what it says.
+  //
+  // §221 pairs this line with the URLs config.js actually asks for: it
+  // feeds the real self-check URLs to this real handler and fails if any
+  // of them is intercepted. Change the tag in one file and the other is
+  // not left to be noticed later.
+  if (url.includes('rr_selfcheck=1')) return;
 
   // Only GET requests can be cached; let anything else pass through.
   if (event.request.method !== 'GET') return;

@@ -10291,11 +10291,11 @@ META_WRITES.length = 0; TOASTS.length = 0;
        /'\.\/write-outbox\.js'/.test(rd('app/sw.js')));
 
     section('199h. The version trio moved together');
-    ok('APP_VERSION is v0.9.1270', /const APP_VERSION = 'v0\.9\.1270';/.test(cfg));
+    ok('APP_VERSION is v0.9.1271', /const APP_VERSION = 'v0\.9\.1271';/.test(cfg));
     ok('every ?v= mark in app/index.html matches it',
-       (idx.match(/\?v=1270/g) || []).length === 69 && !/\?v=1269/.test(idx),
-       String((idx.match(/\?v=1270/g) || []).length));
-    ok('the service worker cache name moved too', /const CACHE_NAME = 'mca-v1280';/.test(rd('app/sw.js')));
+       (idx.match(/\?v=1271/g) || []).length === 69 && !/\?v=1270/.test(idx),
+       String((idx.match(/\?v=1271/g) || []).length));
+    ok('the service worker cache name moved too', /const CACHE_NAME = 'mca-v1281';/.test(rd('app/sw.js')));
     // v0.9.1259: the root page's own ?v= is gone — it registers no worker.
     // The trio is a trio again. §207 is what guards the root page now.
     ok('the landing page carries no version stamp to forget',
@@ -13287,6 +13287,203 @@ META_WRITES.length = 0; TOASTS.length = 0;
         ok('220f an unreadable outbox does not block sign-out',
            f.reloads === 1 && f.cleared === 1);
       })();
+    })();
+
+
+    // ═══════════════════════════════════════════════════════════
+    // §221. v0.9.1271 (R12) — the deploy self-check reaches the network.
+    //
+    //   config.js runs a self-check 8s after load. It fetches config.js and
+    //   sw.js and compares APP_VERSION against CACHE_NAME, so a deploy that
+    //   bumped one and forgot the other gets caught. It asked with
+    //   { cache: 'no-store' } and that looks like the end of the story.
+    //
+    //   It is not. no-store switches off the BROWSER's HTTP cache. The
+    //   service worker sits in front of that, and stale-while-revalidate
+    //   answered these two requests out of Cache Storage — from the copies
+    //   the worker filed on the PREVIOUS load. So the check was never
+    //   reading the server. It was reading itself, one load late:
+    //
+    //     • ordinary case — it announces an update that is already running
+    //     • the case it exists for — on the first load after a real
+    //       mismatch it compares last load's two numbers with each other,
+    //       finds them agreeing, and says nothing
+    //
+    //   The fix tags the four self-check URLs with ?rr_selfcheck=1 and sw.js
+    //   skips anything carrying that tag. Two other shapes were rejected: a
+    //   ?v= stamp collides with the precache (which is stamped), and a
+    //   Date.now() buster grows Cache Storage without bound because the
+    //   worker files every same-origin GET that succeeds.
+    //
+    //   That fix lives in two files that cannot share a constant — sw.js is
+    //   a separate worker script and never loads config.js. So §221b does
+    //   not compare the two literals. It takes the URLs config.js ACTUALLY
+    //   asks for and feeds them to the REAL fetch handler cut out of sw.js,
+    //   and fails if any of them is intercepted. Change the tag in one file
+    //   and this section fails on the spot, which is the only thing that
+    //   keeps two hand-written strings in step.
+    // ═══════════════════════════════════════════════════════════
+    section('221. v0.9.1271 (R12) — the deploy self-check reaches the network');
+    await (async function () {
+      const p21 = require('path');
+      const rd21 = f => fs.readFileSync(p21.join(__dirname, '..', f), 'utf8');
+      const cfg21 = rd21('app/config.js');
+      const sw21 = rd21('app/sw.js');
+
+      // ── rig A: the real self-check, with the world injected ───
+      // Cut from the marker comment to end of file — the self-check is the
+      // last thing in config.js. fetch, setTimeout, localStorage, console
+      // and showToast are all replaced, so what gets asserted is what it
+      // ASKED FOR, not what the source says it asks for.
+      const chkSrc = cfg21.slice(cfg21.indexOf('// ── v0.9.918 (Brad): deploy lockstep self-check'));
+
+      function rigCheck(o) {
+        o = o || {};
+        const st = { fetched: [], timers: [], infos: [], warns: [], toasts: [] };
+        const store = { rr_ver_check: o.last || null };
+        new Function('window', 'setTimeout', 'fetch', 'localStorage',
+                     'APP_VERSION', 'console', 'showToast', chkSrc)(
+          {},
+          function (fn, ms) { st.timers.push({ fn: fn, ms: ms }); },
+          function (url, opts) {
+            st.fetched.push({ url: url, opts: opts });
+            const body = /sw\.js/.test(url)
+              ? ("const CACHE_NAME = '" + (o.netCache || 'mca-v1281') + "';")
+              : ("const APP_VERSION = '" + (o.netApp || 'v0.9.1271') + "';");
+            return Promise.resolve({ text: function () { return Promise.resolve(body); } });
+          },
+          { getItem: function (k) { return store[k] || null; },
+            setItem: function (k, v) { store[k] = v; } },
+          o.running || 'v0.9.1271',
+          { info: function (m) { st.infos.push(String(m)); },
+            warn: function (a, b) { st.warns.push(String(a) + ' ' + String(b)); } },
+          function (m) { st.toasts.push(String(m)); }
+        );
+        return st;
+      }
+
+      async function drain(st) {
+        for (let i = 0; i < 4 && st.timers.length; i++) {
+          const t = st.timers.shift();
+          t.fn();
+          await new Promise(function (r) { setTimeout(r, 0); });
+          await new Promise(function (r) { setTimeout(r, 0); });
+        }
+      }
+
+      // ── 221a. what the check actually puts on the wire ────────
+      const A = rigCheck({ last: null });
+      await drain(A);
+      ok('221a the self-check makes two requests on a first run',
+         A.fetched.length === 2,
+         JSON.stringify(A.fetched.map(f => f.url)));
+      ok('221a …one for config.js and one for sw.js',
+         /config\.js/.test(A.fetched[0].url) && /sw\.js/.test(A.fetched[1].url),
+         JSON.stringify(A.fetched.map(f => f.url)));
+      ok('221a …both tagged rr_selfcheck=1',
+         A.fetched.every(f => f.url.indexOf('rr_selfcheck=1') !== -1),
+         JSON.stringify(A.fetched.map(f => f.url)));
+      ok('221a …and both still no-store',
+         A.fetched.every(f => f.opts && f.opts.cache === 'no-store'),
+         'the tag gets past the worker, no-store gets past the browser cache — it takes both');
+
+      // The 5s confirmation pair only runs when the first pair contradicts
+      // what was stored: APP_VERSION moved, CACHE_NAME did not.
+      const B = rigCheck({ last: '{"app":"v0.9.1270","cache":"mca-v1281"}',
+                           netApp: 'v0.9.1271', netCache: 'mca-v1281' });
+      await drain(B);
+      ok('221a the 5s confirmation re-fetch happens at all',
+         B.fetched.length === 4,
+         JSON.stringify(B.fetched.map(f => f.url)));
+      ok('221a …and its two requests are tagged and no-store as well',
+         B.fetched.slice(2).every(f => f.url.indexOf('rr_selfcheck=1') !== -1 &&
+                                       f.opts && f.opts.cache === 'no-store'),
+         'four fetches, four chances to read a stale copy — ' +
+         JSON.stringify(B.fetched.slice(2).map(f => f.url)));
+      ok('221a …and that confirmed pair is what raises the alarm',
+         B.warns.some(w => /DEPLOY MISMATCH/.test(w)) && B.toasts.length === 1,
+         JSON.stringify({ warns: B.warns.length, toasts: B.toasts }));
+
+      // ── 221b. the worker lets those exact URLs through ────────
+      // The cross-file assertion. sw.js cannot import config.js, so the tag
+      // is written out twice by hand. Rather than compare the two strings,
+      // run the real handler against the real URLs.
+      const fhSrc = sw21.slice(sw21.indexOf("self.addEventListener('fetch', event => {"),
+                               sw21.indexOf('// Listen for SKIP_WAITING message'));
+
+      function swFetch(url, opts) {
+        opts = opts || {};
+        const st = { responded: false, netFetched: [], put: [], matched: [] };
+        const cache = {
+          match: function (k) {
+            st.matched.push(k.url);
+            return Promise.resolve(opts.cached ? { ok: true, _from: 'cache' } : undefined);
+          },
+          put: function (k) { st.put.push(k.url); }
+        };
+        const listeners = {};
+        new Function('self', 'CACHE_NAME', 'caches', 'fetch', 'Response', fhSrc)(
+          { addEventListener: function (n, fn) { listeners[n] = fn; } },
+          'mca-test',
+          { open: function () { return Promise.resolve(cache); } },
+          function (req) {
+            st.netFetched.push(req.url);
+            return Promise.resolve({ ok: true, clone: function () { return {}; }, _from: 'net' });
+          },
+          { error: function () { return {}; } }
+        );
+        listeners.fetch({
+          request: { url: url,
+                     method: opts.method || 'GET',
+                     mode: opts.mode || 'no-cors',
+                     destination: opts.destination || 'script' },
+          respondWith: function (p) { st.responded = true; st.promise = p; }
+        });
+        return st;
+      }
+
+      const ORIGIN = 'https://bhale79.github.io/my-collection-app/app/';
+      const scResults = A.fetched.map(f => ({
+        url: f.url,
+        res: swFetch(ORIGIN + f.url.replace('./', ''))
+      }));
+      await new Promise(function (r) { setTimeout(r, 0); });
+
+      scResults.forEach(function (r) {
+        ok('221b the worker does not intercept ' + r.url.replace('./', ''),
+           r.res.responded === false,
+           'intercepted means served out of Cache Storage — the check reads the copy ' +
+           'it filed last load, and goes silent on the one load that matters');
+      });
+      ok('221b …so nothing about a self-check is ever filed into Cache Storage',
+         scResults.every(r => r.res.put.length === 0 && r.res.matched.length === 0),
+         'a tagged URL that got cached would be stale from the second load onwards');
+
+      // Positive controls: the skip is narrow.
+      const norm = swFetch(ORIGIN + 'app.js?v=1271');
+      const nav = swFetch(ORIGIN, { mode: 'navigate', destination: 'document' });
+      const goog = swFetch('https://sheets.googleapis.com/v4/spreadsheets/x');
+      const post = swFetch(ORIGIN + 'app.js?v=1271', { method: 'POST' });
+      await new Promise(function (r) { setTimeout(r, 0); });
+      ok('221b a normal stamped app file is still intercepted and still cached',
+         norm.responded === true && norm.put.length === 1,
+         JSON.stringify({ responded: norm.responded, put: norm.put }));
+      ok('221b a navigation is still intercepted',
+         nav.responded === true);
+      ok('221b Google calls are still passed straight through',
+         goog.responded === false);
+      ok('221b a POST is still passed straight through',
+         post.responded === false);
+
+      // The tag is a marker, not a bust. A URL that changed every run would
+      // defeat the worker skip's whole point if the skip were ever removed —
+      // and would grow Cache Storage forever, since cache.put files every
+      // same-origin GET that succeeds.
+      const C = rigCheck({ last: null });
+      await drain(C);
+      ok('221b the tag is fixed, not a timestamp or a random',
+         C.fetched.map(f => f.url).join('|') === A.fetched.map(f => f.url).join('|'),
+         JSON.stringify([A.fetched.map(f => f.url), C.fetched.map(f => f.url)]));
     })();
 
   })().then(function () {

@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.1270';
+const APP_VERSION = 'v0.9.1271';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -794,9 +794,18 @@ if (typeof window !== 'undefined') setTimeout(function () {
     // fresh from the network, and the pair is remembered. A real forgotten
     // cache bump = APP_VERSION moved while CACHE_NAME stood still BETWEEN
     // TWO NETWORK READS. A stale local page can no longer trigger it.
+    // v0.9.1271 (audit 2026-08-02 round 2, finding R12): the ?rr_selfcheck=1
+    // is not decoration and not a cache-buster. sw.js skips any URL carrying
+    // it, so these four requests are the only ones in the app that reach the
+    // network unconditionally. Without it the worker answered them from Cache
+    // Storage — no-store switches off the browser's HTTP cache, not the
+    // worker in front of it — and this check read its own copies from the
+    // previous load, which made it silent on the first load after a genuine
+    // mismatch. The tag has to match the one in sw.js; §221 asserts it does
+    // by running these URLs through the real worker code.
     Promise.all([
-      fetch('./config.js', { cache: 'no-store' }).then(function (r) { return r.text(); }),
-      fetch('./sw.js', { cache: 'no-store' }).then(function (r) { return r.text(); })
+      fetch('./config.js?rr_selfcheck=1', { cache: 'no-store' }).then(function (r) { return r.text(); }),
+      fetch('./sw.js?rr_selfcheck=1', { cache: 'no-store' }).then(function (r) { return r.text(); })
     ]).then(function (res) {
       var am = res[0].match(/APP_VERSION\s*=\s*'([^']+)'/);
       var cm = res[1].match(/CACHE_NAME\s*=\s*'([^']+)'/);
@@ -822,8 +831,8 @@ if (typeof window !== 'undefined') setTimeout(function () {
       // race resolves in seconds, a real forgotten bump persists forever.
       setTimeout(function () {
         Promise.all([
-          fetch('./config.js', { cache: 'no-store' }).then(function (r) { return r.text(); }),
-          fetch('./sw.js', { cache: 'no-store' }).then(function (r) { return r.text(); })
+          fetch('./config.js?rr_selfcheck=1', { cache: 'no-store' }).then(function (r) { return r.text(); }),
+          fetch('./sw.js?rr_selfcheck=1', { cache: 'no-store' }).then(function (r) { return r.text(); })
         ]).then(function (r2) {
           var a2 = r2[0].match(/APP_VERSION\s*=\s*'([^']+)'/);
           var c2 = r2[1].match(/CACHE_NAME\s*=\s*'([^']+)'/);
