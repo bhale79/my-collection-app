@@ -985,6 +985,114 @@ _pinOpaqueTint(document.getElementById('jt-active'), '41,128,185', 18);
     }
 
 
+    // ══════════════════════════════════════════════════════════════════
+    // The detail-page photo gallery, MEASURED (v0.9.1293, request #29)
+    //
+    // The hero+rail gallery grew the drag-to-arrange gestures. This renders
+    // the REAL _buildPhotoGallery (and the real shared sort it now calls)
+    // with stub photos and measures: the chip row fits, the Right Side view
+    // leads an unstamped folder, the tiles are draggable, and nothing
+    // overhangs its container at desktop or side-column width. A grep can
+    // see none of those.
+    // ══════════════════════════════════════════════════════════════════
+    {
+      const collSrc = fs.readFileSync(path.join(APP, 'app-collection.js'), 'utf8');
+      const h0 = collSrc.indexOf("var _RR_GAL_BLUE = '#2980b9';");
+      const h1 = collSrc.indexOf('window._rrDetailGallery = async function');
+      const g0 = collSrc.indexOf('var _galSeq = 0;');
+      const g1 = collSrc.indexOf("if (typeof window !== 'undefined') window._buildPhotoGallery = _buildPhotoGallery;");
+      ok('gallery: the real source slices were found', h0 > 0 && h1 > h0 && g0 > 0 && g1 > g0);
+      const galSrc = collSrc.slice(h0, h1) + '\n' + collSrc.slice(g0, g1);
+      const FAKES = JSON.stringify([
+        { id: 'p1', name: '6561 BKV.jpg', thumbnailLink: '', view: '#' },
+        { id: 'p2', name: '6561 RSV.jpg', thumbnailLink: '', view: '#' },
+        { id: 'p3', name: '6561 FV.jpg', thumbnailLink: '', view: '#' },
+        { id: 'p4', name: '6561 BOX TV.jpg', thumbnailLink: '', view: '#' },
+      ]);
+      const galPage = (width, stack) => `<!doctype html><html><head><meta charset="utf-8">
+<link rel="stylesheet" href="file://${APP}/app.css">
+<style>html,body{margin:0}#stage{width:${width}px;padding:12px;box-sizing:border-box;background:var(--surface);border:1px solid var(--border)}</style>
+</head><body><div id="stage"></div>
+<script>
+  window.IS_MOBILE_UA = false;
+  var ITEM_VIEWS = [
+    { key: 'TV',  label: 'Top View',        abbr: 'Top' },
+    { key: 'LSV', label: 'Left Side View',  abbr: 'Left Side' },
+    { key: 'FV',  label: 'Front View',      abbr: 'Front' },
+    { key: 'RSV', label: 'Right Side View', abbr: 'Right Side' },
+    { key: 'BKV', label: 'Back View',       abbr: 'Back' },
+    { key: 'BV',  label: 'Bottom View',     abbr: 'Bottom' },
+  ];
+  var COLORS = { p1: '%23888', p2: '%232980b9', p3: '%23999', p4: '%23c9922a' };
+  function loadDriveThumb(id, img) {
+    img.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="80" height="60"><rect width="80" height="60" fill="' + (COLORS[id] || '%23777') + '"/></svg>';
+  }
+  function driveGetFolderPhotos() { return Promise.resolve(null); }
+  function showToast() {}
+  function driveRequest() { return Promise.resolve({}); }
+  function _detailPhotoEdit() {}
+</script>
+<script>${galSrc}
+  _buildPhotoGallery(document.getElementById('stage'), ${FAKES},
+    { folderLink: 'https://drive.google.com/drive/folders/x', canRename: false, arrange: true${stack ? ', stack: true' : ''} });
+</script></body></html>`;
+      const measure = async function (width, stack, file) {
+        const fp = path.join(dir, file);
+        fs.writeFileSync(fp, galPage(width, stack));
+        const pg = await browser.newPage({ viewport: { width: width + 40, height: 760 } });
+        await pg.goto('file://' + fp);
+        await pg.waitForTimeout(150);
+        const m = await pg.evaluate(function () {
+          const stage = document.getElementById('stage');
+          const sr = stage.getBoundingClientRect();
+          const chips = Array.prototype.slice.call(stage.children[0] ? stage.children[0].children : []);
+          const tiles = Array.prototype.slice.call(stage.querySelectorAll('[draggable="true"]'));
+          const labels = tiles.map(function (t) { var d = t.querySelector('div'); return d ? d.textContent : ''; });
+          let overhang = 0;
+          stage.querySelectorAll('*').forEach(function (n) {
+            const r = n.getBoundingClientRect();
+            if (r.width && r.right - sr.right > 1) overhang = Math.max(overhang, r.right - sr.right);
+          });
+          const imgsDraggable = Array.prototype.slice.call(stage.querySelectorAll('img'))
+            .filter(function (im) { return im.draggable; }).length;
+          return {
+            chipTexts: chips.map(function (c) { return c.textContent; }),
+            tileCount: tiles.length, labels: labels,
+            overhang: overhang, imgsDraggable: imgsDraggable,
+            heroLabel: (stage.querySelector('a div div') || {}).textContent || '',
+          };
+        });
+        const shot = await pg.screenshot({ type: 'png', fullPage: true });
+        fs.writeFileSync(path.join(dir, file.replace('.html', '.png')), shot);
+        await pg.close();
+        return m;
+      };
+      const wide = await measure(760, false, 'gallery-wide.html');
+      ok('gallery: all seven view chips render, in projection order',
+         wide.chipTexts.length === 7 && wide.chipTexts[0] === 'Top View' && wide.chipTexts[6] === 'plain photo',
+         JSON.stringify(wide.chipTexts));
+      ok('gallery: the Right Side view leads an unstamped folder',
+         /RSV/.test(wide.heroLabel), wide.heroLabel);
+      ok('gallery: every rail tile is draggable, and no image ghosts a URL',
+         wide.tileCount === 4 && wide.imgsDraggable === 0,
+         wide.tileCount + ' tiles, ' + wide.imgsDraggable + ' draggable imgs');
+      ok('gallery: a tile with a view token wears the view\'s short name',
+         wide.labels.indexOf('Front') !== -1 && wide.labels.indexOf('Back') !== -1,
+         JSON.stringify(wide.labels));
+      ok('gallery: nothing overhangs the card at desktop width',
+         wide.overhang <= 1, wide.overhang + 'px overhang');
+      const side = await measure(360, true, 'gallery-side.html');
+      ok('gallery: the chip row wraps inside the narrow side column',
+         side.overhang <= 1 && side.chipTexts.length === 7,
+         side.overhang + 'px overhang, ' + side.chipTexts.length + ' chips');
+      // keep the screenshots for review
+      try {
+        fs.mkdirSync(path.join(__dirname, '..', '_shots'), { recursive: true });
+        fs.copyFileSync(path.join(dir, 'gallery-wide.png'), path.join(__dirname, '..', '_shots', 'gallery-wide.png'));
+        fs.copyFileSync(path.join(dir, 'gallery-side.png'), path.join(__dirname, '..', '_shots', 'gallery-side.png'));
+      } catch (e) {}
+    }
+
   } finally {
     await browser.close();
     try { fs.rmSync(dir, { recursive: true, force: true }); } catch (e) {}

@@ -14641,21 +14641,22 @@ META_WRITES.length = 0; TOASTS.length = 0;
          /return priority\(a\.name\) - priority\(b\.name\);/.test(coll30));
       // The mutation drill proved the spelling-check version of this could be
       // fooled: code that stamps only the dragged photo still CONTAINS the
-      // loop and the helper call. So run the real commitOrder against fakes
-      // and count what it actually renamed.
+      // loop and the helper call. So run the real commit writer against fakes
+      // and count what it actually renamed. (v0.9.1293: commitOrder became the
+      // SHARED _rrGalCommitOrder — one writer for both galleries.)
       {
-        const c0 = coll30.indexOf('const commitOrder = async function (orderedIds) {');
-        const c1 = coll30.indexOf('};', coll30.indexOf('redraw();', c0)) + 2;
+        const c0 = coll30.indexOf('async function _rrGalCommitOrder(photos, orderedIds, redraw) {');
+        const c1 = coll30.indexOf('async function _rrGalCommitView');
         const patched = [];
         const photos = [{ id: 'a', name: '6561 ADD 1.jpg' },
                         { id: 'b', name: '6561 RSV.jpg' },
                         { id: 'c', name: '6561 ADD 3.jpg' }];
-        const run30 = new Function('photos', '_rrNameWithOrder', 'driveRequest', 'showToast', 'redraw',
-          coll30.slice(c0, c1) + ' return commitOrder;')(
-            photos, H.withOrder,
+        const run30 = new Function('_rrNameWithOrder', 'driveRequest', 'showToast',
+          coll30.slice(c0, c1) + ' return _rrGalCommitOrder;')(
+            H.withOrder,
             async (m, u, body) => { patched.push({ url: u, name: body.name }); },
-            () => {}, () => {});
-        await run30(['c', 'a', 'b']);
+            () => {});
+        await run30(photos, ['c', 'a', 'b'], () => {});
         const names = {};
         patched.forEach(x => { names[x.url.split('/')[2].split('?')[0]] = x.name; });
         ok('230 a reorder stamps EVERY photo, so a half-ordered folder cannot exist',
@@ -14670,7 +14671,9 @@ META_WRITES.length = 0; TOASTS.length = 0;
          /_rrNameWithView\(q\.name, ''\)/.test(coll30));
       ok('230 nothing in the gallery is destructive — PATCH name is the only write',
          (function () {
-           const g0 = coll30.indexOf('window._rrDetailGallery = async function');
+           // From the first shared writer through the end of the reloadable
+           // gallery: every Drive call in arranging code must be PATCH {name}.
+           const g0 = coll30.indexOf('async function _rrGalCommitOrder');
            const g1 = coll30.indexOf('async function _deleteCollectionPhoto');
            const body = coll30.slice(g0, g1);
            const calls = body.match(/driveRequest\('([A-Z]+)'/g) || [];
@@ -16008,6 +16011,83 @@ META_WRITES.length = 0; TOASTS.length = 0;
            /const KNOWN38 = \[\];/.test(t),
            'something was added back to the excused list — read the entry, not this line');
       }
+    })();
+
+    // ═══════════════════════════════════════════════════════════
+    // §241. v0.9.1293 — the DETAIL PAGE arranges photos (request #29).
+    //
+    //   v0.9.1280 built drag-to-order and drag-onto-a-view for the edit
+    //   panel's photo strip; Brad chose the item detail page as the surface
+    //   it belongs on. The hero+rail gallery now shares the SAME sort, the
+    //   SAME two commit writers and the SAME view chip row — one
+    //   implementation, so the two screens cannot drift apart on how a
+    //   rename is spelled. The sort is run here for real, because the old
+    //   hero gallery is the cautionary tale: its comment claimed RSV-first
+    //   while the code showed whatever Drive's alphabetical order put
+    //   first — often the Back view.
+    // ═══════════════════════════════════════════════════════════
+    section('241. The detail page arranges photos — one shared implementation');
+    (function () {
+      const p41 = require('path');
+      const coll41 = fs.readFileSync(p41.join(__dirname, '..', 'app', 'app-collection.js'), 'utf8');
+
+      // ── run the real shared sort ──────────────────────────────────────
+      const a41 = coll41.indexOf("var _RR_GAL_BLUE = '#2980b9';");
+      const b41 = coll41.indexOf('window._rrDetailGallery = async function');
+      const S = new Function(coll41.slice(a41, b41) + ' return _rrSortGalleryPhotos;')();
+      {
+        const unstamped = [{ name: '6561 BKV.jpg' }, { name: '6561 RSV.jpg' }, { name: '6561 FV.jpg' }];
+        S(unstamped);
+        ok('241 an unstamped folder leads with the Right Side view, not the alphabet',
+           unstamped[0].name === '6561 RSV.jpg' && unstamped[1].name === '6561 FV.jpg',
+           JSON.stringify(unstamped.map(function (p) { return p.name; })));
+        const stamped = [{ name: '6561 RSV.jpg' }, { name: '02· 6561 FV.jpg' }, { name: '01· 6561 BKV.jpg' }];
+        S(stamped);
+        ok('241 a drag stamp outranks the view priority, and unstamped sorts last',
+           stamped[0].name === '01· 6561 BKV.jpg' && stamped[1].name === '02· 6561 FV.jpg' &&
+           stamped[2].name === '6561 RSV.jpg',
+           JSON.stringify(stamped.map(function (p) { return p.name; })));
+      }
+
+      // ── the hero gallery uses the shared pieces, not private copies ───
+      const g0 = coll41.indexOf('function _buildPhotoGallery(el, photos, opts) {');
+      const g1 = coll41.indexOf('async function _detailPhotoEdit');
+      const hero = coll41.slice(g0, g1);
+      ok('241 the hero gallery sorts through the ONE shared sort',
+         /_rrSortGalleryPhotos\(photos\);/.test(hero));
+      ok('241 …drops onto a view go through the ONE shared view writer',
+         /_rrViewChipRow\(function \(fid, key\) \{ _rrGalCommitView\(photos, fid, key, redraw\); \}\)/.test(hero));
+      ok('241 …and a reorder drop goes through the ONE shared order writer',
+         /_rrGalCommitOrder\(photos, ids, redraw\);/.test(hero));
+      ok('241 there is exactly ONE spelling of the reorder rename, app-wide',
+         (function () {
+           const all = fs.readdirSync(p41.join(__dirname, '..', 'app'))
+             .filter(function (f) { return /\.js$/.test(f); })
+             .map(function (f) { return fs.readFileSync(p41.join(__dirname, '..', 'app', f), 'utf8'); })
+             .join('\n');
+           return (all.match(/Reordered ' \+ ok \+ ' of '/g) || []).length === 1 &&
+                  (all.match(/reorder rename failed/g) || []).length === 1;
+         })(), 'a second copy of the reorder writer exists — the two galleries can drift');
+
+      // ── the gestures are wired where Brad asked for them ──────────────
+      ok('241 the detail page gallery is told to arrange',
+         /canRename: false, arrange: true,\s*\n\s*stack: !!document\.querySelector/.test(coll41));
+      ok('241 …and the group-unit galleries are too',
+         /\{ folderLink: p\.photoItem, canRename: true, arrange: true \}/.test(coll41));
+      ok('241 drag stays desktop-only, and needs something to reorder',
+         /var arrange = !!opts\.arrange && !window\.IS_MOBILE_UA && photos\.length > 1;/.test(hero));
+      ok('241 the rail tile drags as a tile, never as a ghosted image URL',
+         /t\.draggable = true;\s*\n\s*ti\.draggable = false;/.test(hero));
+      ok('241 a drop on a thumbnail reorders by moving, not swapping',
+         /ids\.splice\(to, 0, ids\.splice\(from, 1\)\[0\]\);/.test(hero));
+      ok('241 a successful rename redraws from Drive, not from memory',
+         /driveGetFolderPhotos\(opts\.folderLink\)\.then\(function \(ph\) \{\s*\n\s*if \(ph && ph\.length\) _buildPhotoGallery\(el, ph, opts\);/.test(hero));
+      ok('241 the order stamp never shows — hero and rail labels strip it',
+         /heroLblTxt\.innerHTML = \(\(p\.name \|\| ''\)\.replace\(\/\\\.\[\^\.\]\+\$\/, ''\)\.replace\(\/\^\\d\{2\}· \/, ''\)/.test(hero) &&
+         /replace\(\/\^\\d\{2\}· \/, ''\)\.split\(' '\)\.pop\(\)/.test(hero));
+      ok('241 a rail thumbnail with a view token wears the view\'s short name',
+         /var _vKey = _rrViewOfName\(p\.name\);/.test(hero) &&
+         /_vDef && _vDef\.abbr/.test(hero));
     })();
 
   })().then(function () {

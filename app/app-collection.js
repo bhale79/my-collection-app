@@ -1400,7 +1400,7 @@ function showItemDetailPage(idx, copyInvId, opts) {
         if (!photos || !photos.length) { el.innerHTML = '<div style="grid-column:1/-1;color:var(--text-dim);font-size:0.78rem">No photos in this folder</div>'; return; }
         // v0.9.937 (Brad): hero + thumbnail-rail gallery per unit (rename via
         // the hero label, ✂ crops the photo shown large).
-        _buildPhotoGallery(el, photos, { folderLink: p.photoItem, canRename: true });
+        _buildPhotoGallery(el, photos, { folderLink: p.photoItem, canRename: true, arrange: true });
       }).catch(function () {
         var el = document.getElementById('grp-photos-' + gi);
         if (el) el.innerHTML = '<div style="grid-column:1/-1;color:var(--text-dim);font-size:0.78rem">Could not load photos</div>';
@@ -1434,7 +1434,7 @@ function showItemDetailPage(idx, copyInvId, opts) {
       }
       // v0.9.937 (Brad): hero + thumbnail-rail gallery (RSV big, other views
       // as clickable thumbnails beside it; ✂ acts on the photo shown large).
-      _buildPhotoGallery(el, photos, { folderLink: _lnk, canRename: false,
+      _buildPhotoGallery(el, photos, { folderLink: _lnk, canRename: false, arrange: true,
         stack: !!document.querySelector('.rr-detail-side') });   // v0.9.1009
     });
     }).catch(function(e) {
@@ -1498,9 +1498,34 @@ function _buildPhotoGallery(el, photos, opts) {
   // side column without a second code path.
   var narrow = !!opts.stack || (window.innerWidth || 0) < 700;
   var cur = 0;
+
+  // v0.9.1293 (Brad, request #29): the detail page is THE surface for
+  // arranging photos. Same shared logic as the edit panel's strip
+  // (_rrSortGalleryPhotos / _rrGalCommitOrder / _rrGalCommitView) — drag a
+  // thumbnail onto another to reorder, onto a view chip to assign the view.
+  // Desktop only, like v0.9.1280; phones keep the tap gallery. And every
+  // gallery now actually sorts Right-Side-first (or by the "NN· " order
+  // stamps), instead of trusting Drive's alphabetical order to do it.
+  _rrSortGalleryPhotos(photos);
+  var arrange = !!opts.arrange && !window.IS_MOBILE_UA && photos.length > 1;
+  var redraw = function () {
+    if (!opts.folderLink) return;
+    driveGetFolderPhotos(opts.folderLink).then(function (ph) {
+      if (ph && ph.length) _buildPhotoGallery(el, ph, opts);
+    });
+  };
+
   el.innerHTML = '';
-  el.style.cssText = 'display:flex;gap:0.6rem;align-items:flex-start;min-height:40px;'
+  el.style.cssText = 'display:flex;flex-direction:column;gap:0.5rem;min-height:40px';
+  if (arrange) {
+    el.appendChild(_rrViewChipRow(function (fid, key) { _rrGalCommitView(photos, fid, key, redraw); }));
+  }
+  // The hero + rail live in their own row so the chip row can sit above
+  // them at full width.
+  var galBody = document.createElement('div');
+  galBody.style.cssText = 'display:flex;gap:0.6rem;align-items:flex-start;width:100%;'
     + (narrow ? 'flex-direction:column;' : '');
+  el.appendChild(galBody);
 
   // Hero
   var heroWrap = document.createElement('div');
@@ -1511,6 +1536,9 @@ function _buildPhotoGallery(el, photos, opts) {
   var heroImg = document.createElement('img');
   heroImg.id = galId + '-hero';
   heroImg.alt = 'Item photo';
+  // v0.9.1293: never a drag source — a dragged <img> ghosts its URL, and a
+  // URL dropped on a view chip is not a photo id.
+  heroImg.draggable = false;
   heroImg.style.cssText = 'width:100%;height:auto;max-height:70vh;object-fit:contain;display:block';
   var heroLbl = document.createElement('div');
   heroLbl.style.cssText = 'position:absolute;bottom:0;left:0;right:0;background:linear-gradient(transparent,rgba(0,0,0,0.6));padding:0.35rem 0.55rem;'
@@ -1525,7 +1553,7 @@ function _buildPhotoGallery(el, photos, opts) {
   editBtn.className = 'rr-tap';   // v0.9.1021: 44px tap target on phones
   editBtn.style.cssText = 'position:absolute;top:4px;right:4px;z-index:2;width:26px;height:26px;border-radius:6px;border:none;background:rgba(0,0,0,0.55);color:#fff;font-size:0.8rem;cursor:pointer;line-height:1';
   heroWrap.appendChild(heroLink); heroWrap.appendChild(editBtn);
-  el.appendChild(heroWrap);
+  galBody.appendChild(heroWrap);
 
   // Rail (only when there is more than one photo)
   var rail = null, thumbs = [];
@@ -1536,21 +1564,50 @@ function _buildPhotoGallery(el, photos, opts) {
       : 'display:flex;flex-direction:column;gap:0.5rem;width:74px;flex-shrink:0;max-height:70vh;overflow-y:auto';
     photos.forEach(function (p, i) {
       var t = document.createElement('div');
-      t.title = (p.name || '').replace(/\.[^.]+$/, '');
+      t.title = (p.name || '').replace(/\.[^.]+$/, '')
+        + (arrange ? ' — drag onto another photo to reorder, or onto a view above' : '');
       t.style.cssText = 'position:relative;border-radius:7px;overflow:hidden;cursor:pointer;flex-shrink:0;'
         + 'width:74px;height:56px;background:var(--surface2);border:2px solid var(--border)';
       var ti = document.createElement('img');
       ti.style.cssText = 'width:100%;height:100%;object-fit:cover;display:block';
       var tl = document.createElement('div');
       tl.style.cssText = 'position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,0.6);font-size:0.55rem;color:#fff;text-align:center;padding:1px 2px;font-family:var(--font-head);letter-spacing:0.04em;text-transform:uppercase;white-space:nowrap;overflow:hidden';
-      tl.textContent = ((p.name || '').replace(/\.[^.]+$/, '').split(' ').pop()) || ('#' + (i + 1));
+      // A photo with a view token wears the view's short name; anything else
+      // keeps its last word (minus any "NN· " order stamp) as before.
+      var _vKey = _rrViewOfName(p.name);
+      var _vDef = _vKey && (typeof ITEM_VIEWS !== 'undefined' ? ITEM_VIEWS : []).find(function (v) { return v.key === _vKey; });
+      tl.textContent = (_vDef && _vDef.abbr)
+        || ((p.name || '').replace(/\.[^.]+$/, '').replace(/^\d{2}· /, '').split(' ').pop())
+        || ('#' + (i + 1));
       t.appendChild(ti); t.appendChild(tl);
       t.onclick = function () { select(i); };
+      if (arrange) {
+        t.draggable = true;
+        ti.draggable = false;   // the tile drags; a dragged <img> ghosts a URL instead
+        t.ondragstart = function (e) {
+          e.dataTransfer.setData('text/plain', p.id);
+          e.dataTransfer.effectAllowed = 'move';
+          t.style.opacity = '0.45';
+        };
+        t.ondragend = function () { t.style.opacity = ''; };
+        t.ondragover = function (e) { e.preventDefault(); t.style.borderColor = _RR_GAL_BLUE; };
+        t.ondragleave = function () { t.style.borderColor = (thumbs.indexOf(t) === cur) ? 'var(--accent)' : 'var(--border)'; };
+        t.ondrop = function (e) {
+          e.preventDefault(); e.stopPropagation();
+          var fid = e.dataTransfer.getData('text/plain');
+          if (!fid || fid === p.id) { select(i); return; }
+          var ids = photos.map(function (x) { return x.id; });
+          var from = ids.indexOf(fid), to = ids.indexOf(p.id);
+          if (from < 0 || to < 0) return;
+          ids.splice(to, 0, ids.splice(from, 1)[0]);
+          _rrGalCommitOrder(photos, ids, redraw);
+        };
+      }
       rail.appendChild(t);
       thumbs.push(t);
       try { loadDriveThumb(p.id, ti, t, p.thumbnailLink || null, 'lo'); } catch (e) {}
     });
-    el.appendChild(rail);
+    galBody.appendChild(rail);
   }
 
   function heroSrcFor(p) {
@@ -1563,7 +1620,7 @@ function _buildPhotoGallery(el, photos, opts) {
     cur = i;
     var p = photos[cur];
     heroLink.href = p.view || '#';
-    heroLblTxt.innerHTML = ((p.name || '').replace(/\.[^.]+$/, '').replace(/</g, '&lt;')).toUpperCase()
+    heroLblTxt.innerHTML = ((p.name || '').replace(/\.[^.]+$/, '').replace(/^\d{2}· /, '').replace(/</g, '&lt;')).toUpperCase()
       + (opts.canRename ? ' <span style="opacity:0.6">\u270e</span>' : '');
     heroImg.onerror = function () {
       heroImg.onerror = null;
@@ -2799,23 +2856,20 @@ function _rrNameWithView(name, viewKey) {
   return (viewKey ? (base + ' ' + viewKey) : base) + ext;
 }
 
-// The gallery, reloadable — a successful drag redraws from Drive so what is
-// on screen is always what the renames actually produced.
-window._rrDetailGallery = async function (tr2, folderLink) {
-  const photos = await driveGetFolderPhotos(folderLink);
-  if (photos === null) {
-    tr2.innerHTML = '<span style="font-size:0.75rem;color:var(--text-dim)">Could not load photos — check Drive access</span>';
-    return;
-  }
-  if (photos.length === 0) {
-    tr2.innerHTML = '<span style="font-size:0.75rem;color:var(--text-dim);font-style:italic">No photos yet — tap Add Photos</span>';
-    return;
-  }
-
-  // Explicit order wins when anyone has been stamped; the old view-priority
-  // sort is the fallback for folders nobody has dragged yet.
-  const priority = function (name) {
-    const n = (name || '').toUpperCase();
+// ── v0.9.1293 (Brad, request #29): the SHARED gallery arranging logic. ────
+// v0.9.1280 built drag-to-order and drag-onto-a-view for the edit panel's
+// photo strip; Brad chose the item DETAIL PAGE as the surface it belongs on.
+// Rather than a second copy, the sort, the two commit writers and the view
+// chip row now live here, used by BOTH galleries — one implementation, so
+// the two screens can never drift apart on how a rename is spelled.
+//
+// One sort for every gallery: an explicit "NN· " stamp wins; a folder
+// nobody has dragged keeps the old Right-Side-leads priority. (The detail
+// page's hero gallery used to claim RSV-first in a comment while actually
+// showing whatever sorted first alphabetically — often the Back view.)
+function _rrSortGalleryPhotos(photos) {
+  var priority = function (name) {
+    var n = (name || '').toUpperCase();
     if (n.includes('RSV')) return 0;
     if (n.includes('FV'))  return 1;
     if (n.includes('TV'))  return 2;
@@ -2831,60 +2885,64 @@ window._rrDetailGallery = async function (tr2, folderLink) {
     }
     return priority(a.name) - priority(b.name);
   });
+  return photos;
+}
 
-  const redraw = function () { window._rrDetailGallery(tr2, folderLink); };
-  const commitOrder = async function (orderedIds) {
-    var ok = 0, fail = 0;
-    for (var i = 0; i < orderedIds.length; i++) {
-      var p = photos.find(function (x) { return x.id === orderedIds[i]; });
-      if (!p) continue;
-      var want = _rrNameWithOrder(p.name, i + 1);
-      if (want === p.name) { ok++; continue; }
-      try {
-        await driveRequest('PATCH', '/files/' + p.id + '?fields=id', { name: want });
-        ok++;
-      } catch (e) { fail++; console.warn('[gallery] reorder rename failed — continuing:', p.id, e); }
-    }
-    if (fail) showToast('Reordered ' + ok + ' of ' + orderedIds.length + ' photos — ' + fail + ' would not rename. Try again.', 4500, true);
-    else showToast('✓ Photo order saved', 2000);
-    redraw();
-  };
-  const commitView = async function (fileId, viewKey) {
-    var p = photos.find(function (x) { return x.id === fileId; });
-    if (!p) return;
-    if (/BOX/i.test(p.name)) { showToast('Box photos keep their BOX tag — views are for the item itself', 3500, true); return; }
-    var renames = [];
-    if (viewKey) {
-      photos.forEach(function (q) {
-        if (q.id !== fileId && _rrViewOfName(q.name) === viewKey) {
-          renames.push({ id: q.id, name: _rrNameWithView(q.name, '') });   // the view moves over
-        }
-      });
-    }
-    var mine = _rrNameWithView(p.name, viewKey);
-    if (mine !== p.name) renames.push({ id: p.id, name: mine });
-    var ok = 0, fail = 0;
-    for (var i = 0; i < renames.length; i++) {
-      try {
-        await driveRequest('PATCH', '/files/' + renames[i].id + '?fields=id', { name: renames[i].name });
-        ok++;
-      } catch (e) { fail++; console.warn('[gallery] view rename failed — continuing:', renames[i].id, e); }
-    }
-    if (fail) showToast('That view change only partly saved — check the labels and try again.', 4500, true);
-    else if (viewKey) {
-      var vDef = (typeof ITEM_VIEWS !== 'undefined' ? ITEM_VIEWS : []).find(function (v) { return v.key === viewKey; });
-      showToast('✓ ' + ((vDef && vDef.label) || viewKey) + ' → this photo', 2500);
-    } else showToast('✓ View tag removed', 2000);
-    redraw();
-  };
+// The two writers. Nothing here is destructive: the only Drive call either
+// one makes is PATCH {name}. `redraw` re-fetches from Drive afterwards so
+// the screen always shows what the renames actually produced.
+async function _rrGalCommitOrder(photos, orderedIds, redraw) {
+  var ok = 0, fail = 0;
+  for (var i = 0; i < orderedIds.length; i++) {
+    var p = photos.find(function (x) { return x.id === orderedIds[i]; });
+    if (!p) continue;
+    var want = _rrNameWithOrder(p.name, i + 1);
+    if (want === p.name) { ok++; continue; }
+    try {
+      await driveRequest('PATCH', '/files/' + p.id + '?fields=id', { name: want });
+      ok++;
+    } catch (e) { fail++; console.warn('[gallery] reorder rename failed — continuing:', p.id, e); }
+  }
+  if (fail) showToast('Reordered ' + ok + ' of ' + orderedIds.length + ' photos — ' + fail + ' would not rename. Try again.', 4500, true);
+  else showToast('✓ Photo order saved', 2000);
+  redraw();
+}
+async function _rrGalCommitView(photos, fileId, viewKey, redraw) {
+  var p = photos.find(function (x) { return x.id === fileId; });
+  if (!p) return;
+  if (/BOX/i.test(p.name)) { showToast('Box photos keep their BOX tag — views are for the item itself', 3500, true); return; }
+  var renames = [];
+  if (viewKey) {
+    photos.forEach(function (q) {
+      if (q.id !== fileId && _rrViewOfName(q.name) === viewKey) {
+        renames.push({ id: q.id, name: _rrNameWithView(q.name, '') });   // the view moves over
+      }
+    });
+  }
+  var mine = _rrNameWithView(p.name, viewKey);
+  if (mine !== p.name) renames.push({ id: p.id, name: mine });
+  var ok = 0, fail = 0;
+  for (var i = 0; i < renames.length; i++) {
+    try {
+      await driveRequest('PATCH', '/files/' + renames[i].id + '?fields=id', { name: renames[i].name });
+      ok++;
+    } catch (e) { fail++; console.warn('[gallery] view rename failed — continuing:', renames[i].id, e); }
+  }
+  if (fail) showToast('That view change only partly saved — check the labels and try again.', 4500, true);
+  else if (viewKey) {
+    var vDef = (typeof ITEM_VIEWS !== 'undefined' ? ITEM_VIEWS : []).find(function (v) { return v.key === viewKey; });
+    showToast('✓ ' + ((vDef && vDef.label) || viewKey) + ' → this photo', 2500);
+  } else showToast('✓ View tag removed', 2000);
+  redraw();
+}
 
-  tr2.innerHTML = '';
-
-  // The view row — six drop targets plus one for "no view".
-  const chipRow = document.createElement('div');
+// The view row — six drop targets plus one for "no view". onDrop receives
+// (fileId, viewKey) and is expected to call _rrGalCommitView.
+function _rrViewChipRow(onDrop) {
+  var chipRow = document.createElement('div');
   chipRow.style.cssText = 'display:flex;flex-wrap:wrap;gap:0.35rem;width:100%;margin-bottom:0.4rem';
-  const mkChip = function (key, label) {
-    const c = document.createElement('div');
+  var mkChip = function (key, label) {
+    var c = document.createElement('div');
     c.textContent = label;
     c.title = 'Drag a photo here to make it the ' + label;
     c.style.cssText = 'font-size:0.66rem;font-weight:700;letter-spacing:0.04em;padding:0.28rem 0.55rem;'
@@ -2894,7 +2952,7 @@ window._rrDetailGallery = async function (tr2, folderLink) {
     c.ondrop = function (e) {
       e.preventDefault();
       var fid = e.dataTransfer.getData('text/plain');
-      if (fid) commitView(fid, key);
+      if (fid) onDrop(fid, key);
     };
     return c;
   };
@@ -2902,7 +2960,31 @@ window._rrDetailGallery = async function (tr2, folderLink) {
     chipRow.appendChild(mkChip(v.key, v.label));
   });
   chipRow.appendChild(mkChip('', 'plain photo'));
-  if (photos.length > 0 && !window.IS_MOBILE_UA) tr2.appendChild(chipRow);
+  return chipRow;
+}
+
+// The gallery, reloadable — a successful drag redraws from Drive so what is
+// on screen is always what the renames actually produced.
+window._rrDetailGallery = async function (tr2, folderLink) {
+  const photos = await driveGetFolderPhotos(folderLink);
+  if (photos === null) {
+    tr2.innerHTML = '<span style="font-size:0.75rem;color:var(--text-dim)">Could not load photos — check Drive access</span>';
+    return;
+  }
+  if (photos.length === 0) {
+    tr2.innerHTML = '<span style="font-size:0.75rem;color:var(--text-dim);font-style:italic">No photos yet — tap Add Photos</span>';
+    return;
+  }
+
+  _rrSortGalleryPhotos(photos);
+
+  const redraw = function () { window._rrDetailGallery(tr2, folderLink); };
+  const commitOrder = function (orderedIds) { return _rrGalCommitOrder(photos, orderedIds, redraw); };
+
+  tr2.innerHTML = '';
+  if (photos.length > 0 && !window.IS_MOBILE_UA) {
+    tr2.appendChild(_rrViewChipRow(function (fid, key) { _rrGalCommitView(photos, fid, key, redraw); }));
+  }
 
   photos.forEach(function (p) {
     const vKey = _rrViewOfName(p.name);

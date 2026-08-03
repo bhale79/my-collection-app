@@ -34,3 +34,4 @@ desktop.ini
 node_modules/
 .cache/
 *.log
+_shots/
