@@ -1491,6 +1491,93 @@ window.__ready = (async function () {
          back.home && back.gone, JSON.stringify(back));
     }
 
+    // ══════════════════════════════════════════════════════════════════
+    // Clickable-photo links: the builder option and the Shared Photos
+    // page, MEASURED (v0.9.1303)
+    //
+    // The REAL openShareBuilder draws the modal: the link-life row is
+    // hidden until the box is ticked, then offers Brad's three presets.
+    // The REAL runSharedPhotos + rrShareExpText draw the list over a fake
+    // Drive: one row per shared photo, Stop sharing each, Stop sharing all.
+    // ══════════════════════════════════════════════════════════════════
+    {
+      const shSrc = fs.readFileSync(path.join(APP, 'share.js'), 'utf8');
+      const tlSrc = fs.readFileSync(path.join(APP, 'tools.js'), 'utf8');
+      const b0 = shSrc.indexOf('function openShareBuilder()');
+      const b1 = shSrc.indexOf('// v0.9.1150');
+      const f0 = shSrc.indexOf('function _shareFieldCheck(');
+      const f1 = shSrc.indexOf('\n}', f0) + 2;
+      const t0 = tlSrc.indexOf('function rrShareExpText(');
+      const t1 = tlSrc.indexOf('async function rrStopSharingOne');
+      ok('links: the real source slices were found', b0 > 0 && f0 > 0 && t0 > 0 && b1 > b0 && t1 > t0);
+      const linksPage = `<!doctype html><html><head><meta charset="utf-8">
+<link rel="stylesheet" href="file://${APP}/app.css">
+<style>html,body{margin:0;background:var(--bg)}</style>
+</head><body>
+<div class="tools-card" style="max-width:560px;margin:1rem"><div id="shared-photos-results"></div></div>
+<script>
+  var _shareItems = { a: { itemNum: '54' }, b: { itemNum: '6050' } };
+  function showToast() {}
+  function rrEsc(s) { return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;'); }
+  function loadDriveThumb() {}
+  var NOW = 1754200000000;
+  Date.now = function () { return NOW; };
+  async function rrSweepExpiredShares() { return 0; }
+  async function rrSharedPhotosList() {
+    return [
+      { id: 'ph-a', name: '54 ballast tamper 1.jpg', appProperties: { rrShared: '1', rrShareExp: String(NOW + 5 * 86400000) } },
+      { id: 'ph-b', name: '6050 savings bank 1.jpg', appProperties: { rrShared: '1', rrShareExp: '0' } },
+    ];
+  }
+</script>
+<script>${shSrc.slice(f0, f1)}
+${shSrc.slice(b0, b1)}
+${tlSrc.slice(t0, t1)}
+openShareBuilder();
+window.__pageReady = runSharedPhotos();
+</script></body></html>`;
+      const fp3 = path.join(dir, 'share-links.html');
+      fs.writeFileSync(fp3, linksPage);
+      const pg3 = await browser.newPage({ viewport: { width: 900, height: 760 } });
+      await pg3.goto('file://' + fp3);
+      await pg3.evaluate(function () { return window.__pageReady; });
+      const st = await pg3.evaluate(function () {
+        const cb = document.getElementById('sf-linkphotos');
+        const row = document.getElementById('sf-linklife-row');
+        const hiddenBefore = row && getComputedStyle(row).display === 'none';
+        cb.checked = true; cb.dispatchEvent(new Event('change'));
+        const shownAfter = row && getComputedStyle(row).display !== 'none';
+        const sel = document.getElementById('sf-linklife');
+        const opts = sel ? Array.from(sel.options).map(function (o) { return o.text; }) : [];
+        const res = document.getElementById('shared-photos-results');
+        return {
+          hiddenBefore: hiddenBefore, shownAfter: shownAfter, opts: opts,
+          preset: sel && sel.options[sel.selectedIndex].text,
+          note: row && /anyone with the link/.test(row.textContent),
+          rows: res.querySelectorAll('.shp-exp').length,
+          exps: Array.from(res.querySelectorAll('.shp-exp')).map(function (e) { return e.textContent; }),
+          stopEach: res.querySelectorAll('button').length,
+          stopAll: /Stop sharing all/.test(res.textContent),
+        };
+      });
+      const shot3 = await pg3.screenshot({ type: 'png' });
+      await pg3.close();
+      ok('links: the link-life row hides until the box is ticked, then shows',
+         st.hiddenBefore && st.shownAfter, JSON.stringify(st));
+      ok('links: the three presets are 1 day, 1 week (default), until turned off',
+         st.opts.join('|') === '1 day|1 week|until I turn them off' && st.preset === '1 week');
+      ok('links: the builder says plainly what sharing means and where to end it', !!st.note);
+      ok('links: the Shared Photos page draws one row per photo with its own deadline',
+         st.rows === 2 && st.exps[0] === '5 days left' && st.exps[1] === 'shared until you turn it off',
+         JSON.stringify(st.exps));
+      ok('links: every photo has Stop sharing, and Stop sharing all sits below',
+         st.stopEach === 3 && st.stopAll);   // 2 per-row + 1 stop-all
+      try {
+        fs.mkdirSync(path.join(__dirname, '..', '_shots'), { recursive: true });
+        fs.writeFileSync(path.join(__dirname, '..', '_shots', 'share-links.png'), shot3);
+      } catch (e) {}
+    }
+
   } finally {
     await browser.close();
     try { fs.rmSync(dir, { recursive: true, force: true }); } catch (e) {}

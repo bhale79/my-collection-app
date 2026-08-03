@@ -93,10 +93,24 @@ function buildToolsPage() {
   // ── Compose page ──
   var showLionelSection = (typeof _isManufacturerEnabled !== 'function') || _isManufacturerEnabled('lionel');
 
+  // v0.9.1303 (Brad): the un-share button for clickable photo links. Every
+  // photo the share sheet opened up is listed here with its deadline; Stop
+  // sharing puts the lock back on regardless of the timer.
+  var CARD_SHARED_PHOTOS =
+    '<div class="tools-card">' +
+      '<div class="tools-card-title">' +
+        '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#e67e22" stroke-width="2"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>' +
+        'Shared Photos' +
+      '</div>' +
+      '<div class="tools-card-desc">Photos you made clickable on a share sheet are viewable by anyone with the link until their timer runs out — or until you stop sharing them here. Stopping kills the old links immediately.</div>' +
+      '<button onclick="runSharedPhotos()" style="padding:0.55rem 1.1rem;border-radius:8px;border:1.5px solid #e67e22;background:var(--bg-card);background:color-mix(in srgb, rgb(230,126,34) 10%, var(--bg-card));color:#e67e22;font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer">Show Shared Photos</button>' +
+      '<div id="shared-photos-results" style="margin-top:1rem"></div>' +
+    '</div>';
+
   var html = '<div class="page-title" style="margin-bottom:0.5rem">Collection Tools</div>';
   // Universal = works across every manufacturer.
   html += SECTION_HEADER('universal', 'Universal Tools', 'Work across all manufacturers');
-  html += '<div id="universal-body">' + CARD_DUPLICATE_CHECKER + '</div>';
+  html += '<div id="universal-body">' + CARD_DUPLICATE_CHECKER + CARD_SHARED_PHOTOS + '</div>';
 
   // Postwar Lionel = tools that rely on Lionel postwar catalog data (grouping,
   // sets, companions). Smart Group Finder lives here (it's postwar-Lionel only).
@@ -1061,3 +1075,87 @@ async function _photoNamesApply() {
   if (typeof showToast === 'function') showToast('✓ Photo names cleaned up (' + ok + ')');
 }
 if (typeof window !== 'undefined') window._photoNamesApply = _photoNamesApply;
+
+// ═══════════════════════════════════════════════════════════════
+// SHARED PHOTOS (v0.9.1303, Brad) — the un-share button for
+// clickable photo links, plus the plain-English deadline text.
+// The list, the lock, and the sweep all live in share.js (ONE
+// owner: rrSharedPhotosList / rrUnsharePhoto / rrSweepExpiredShares);
+// this page just draws them.
+// ═══════════════════════════════════════════════════════════════
+
+// Pure: how long a shared photo's link has left, in words.
+function rrShareExpText(expMs, nowMs) {
+  if (!expMs) return 'shared until you turn it off';
+  var left = expMs - nowMs;
+  if (left <= 0) return 'past due — un-sharing now';
+  var h = Math.ceil(left / 3600000);
+  if (h < 24) return h + ' hour' + (h > 1 ? 's' : '') + ' left';
+  var d = Math.ceil(h / 24);
+  return d + ' day' + (d > 1 ? 's' : '') + ' left';
+}
+
+async function runSharedPhotos() {
+  var out = document.getElementById('shared-photos-results');
+  if (!out) return;
+  out.innerHTML = '<div style="color:var(--text-dim);font-size:0.85rem">Checking…</div>';
+  try {
+    // Enforce deadlines before drawing, so a past-due photo never shows
+    // as still shared.
+    await rrSweepExpiredShares();
+    var files = await rrSharedPhotosList();
+    if (!files.length) {
+      out.innerHTML = '<div style="color:var(--text-dim);font-size:0.85rem">No photos are shared right now.</div>';
+      return;
+    }
+    var now = Date.now();
+    var rows = files.map(function (f) {
+      return '<div style="display:flex;align-items:center;gap:0.7rem;padding:0.5rem 0;border-bottom:1px solid var(--border)">' +
+        '<img id="shp-' + f.id + '" alt="" style="width:44px;height:44px;object-fit:cover;border-radius:7px;background:var(--surface2);flex-shrink:0">' +
+        '<div style="flex:1;min-width:0">' +
+          '<div style="font-size:0.85rem;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + rrEsc(f.name || 'photo') + '</div>' +
+          '<div class="shp-exp" style="font-size:0.75rem;color:var(--text-dim)">' + rrShareExpText(parseInt((f.appProperties || {}).rrShareExp || '0', 10), now) + '</div>' +
+        '</div>' +
+        '<button onclick="rrStopSharingOne(\'' + f.id + '\')" style="padding:0.4rem 0.8rem;border-radius:8px;border:1.5px solid #e67e22;background:var(--bg-card);background:color-mix(in srgb, rgb(230,126,34) 10%, var(--bg-card));color:#e67e22;font-family:var(--font-body);font-size:0.78rem;font-weight:600;cursor:pointer;flex-shrink:0">Stop sharing</button>' +
+      '</div>';
+    }).join('');
+    out.innerHTML =
+      '<div style="font-size:0.8rem;color:var(--text-mid);margin-bottom:0.4rem">' + files.length + ' photo' + (files.length > 1 ? 's' : '') + ' currently shared</div>' +
+      rows +
+      '<button onclick="rrStopSharingAll()" style="margin-top:0.7rem;padding:0.5rem 1rem;border-radius:8px;border:1.5px solid #e74c3c;background:var(--bg-card);background:color-mix(in srgb, rgb(231,76,60) 10%, var(--bg-card));color:#e74c3c;font-family:var(--font-body);font-size:0.82rem;font-weight:600;cursor:pointer">Stop sharing all</button>';
+    files.forEach(function (f) {
+      var im = document.getElementById('shp-' + f.id);
+      if (im && typeof loadDriveThumb === 'function') loadDriveThumb(f.id, im);
+    });
+  } catch (e) {
+    out.innerHTML = '<div style="color:var(--text-dim);font-size:0.85rem">Could not check right now — make sure you are signed in, then try again.</div>';
+  }
+}
+
+async function rrStopSharingOne(fileId) {
+  try {
+    await rrUnsharePhoto(fileId);
+    showToast('Stopped sharing — old links are dead now');
+  } catch (e) {
+    showToast('Could not stop sharing that photo — try again', 3000, true);
+  }
+  runSharedPhotos();
+}
+
+async function rrStopSharingAll() {
+  var files = [];
+  try { files = await rrSharedPhotosList(); } catch (e) {}
+  var n = 0;
+  for (var i = 0; i < files.length; i++) {
+    try { await rrUnsharePhoto(files[i].id); n++; } catch (e) {}
+  }
+  showToast('Stopped sharing ' + n + ' photo' + (n === 1 ? '' : 's') + ' — old links are dead now');
+  runSharedPhotos();
+}
+
+if (typeof window !== 'undefined') {
+  window.rrShareExpText = rrShareExpText;
+  window.runSharedPhotos = runSharedPhotos;
+  window.rrStopSharingOne = rrStopSharingOne;
+  window.rrStopSharingAll = rrStopSharingAll;
+}

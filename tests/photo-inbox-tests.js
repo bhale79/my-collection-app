@@ -16751,6 +16751,109 @@ META_WRITES.length = 0; TOASTS.length = 0;
          (sl52.match(/_rrBackBtnHtml\(\)/g) || []).length >= 3);
     })();
 
+    // ═══════════════════════════════════════════════════════════
+    // §253. v0.9.1303 — clickable photo links with an autotimer.
+    //
+    //   Brad: "lets put a autotimer on the link so that the app will at
+    //   a certain time unshare. Let the user set it to some presets,
+    //   like 1 day, 1 week, or manual with the use of the unshare
+    //   button." The REAL open/list/unshare/sweep run here against a
+    //   fake Drive; the REAL deadline text runs against fixed clocks.
+    // ═══════════════════════════════════════════════════════════
+    section('253. Photo links: open up, stamp, sweep, un-share');
+    await (async function () {
+      const p53 = require('path');
+      const sh53 = fs.readFileSync(p53.join(__dirname, '..', 'app', 'share.js'), 'utf8');
+      const tl53 = fs.readFileSync(p53.join(__dirname, '..', 'app', 'tools.js'), 'utf8');
+      const ad53 = fs.readFileSync(p53.join(__dirname, '..', 'app', 'app-data.js'), 'utf8');
+      const m0 = sh53.indexOf('async function rrShareOpenPhoto(');
+      const m1 = sh53.indexOf('if (typeof window !== \'undefined\') {\n  window.rrShareOpenPhoto');
+      ok('253 the machinery exists in ONE place (share.js)', m0 > 0 && m1 > m0);
+      // ── a fake Drive that records every call ──
+      const calls = [];
+      let failPermPost = false;
+      const fakeDrive = async function (method, endpoint, body) {
+        calls.push({ m: method, e: endpoint, b: body });
+        if (method === 'POST' && /\/permissions$/.test(endpoint) && failPermPost) throw new Error('403');
+        if (method === 'GET' && /\?q=/.test(endpoint)) return { files: fakeDrive._files || [] };
+        if (method === 'GET' && /\/permissions\?/.test(endpoint)) {
+          return { permissions: [{ id: 'anyoneWithLink', type: 'anyone' }, { id: 'owner-1', type: 'user' }] };
+        }
+        return {};
+      };
+      const NOW = 1754200000000;
+      const fakeDateSweep = { now: function () { return NOW; } };
+      const rig = new Function('driveRequest', 'showToast', 'Date',
+        sh53.slice(m0, m1) +
+        ' return { open: rrShareOpenPhoto, list: rrSharedPhotosList, unshare: rrUnsharePhoto, sweep: rrSweepExpiredShares };')(
+        fakeDrive, function () {}, fakeDateSweep);
+      // ── open: permission + stamp, in that order ──
+      calls.length = 0;
+      const opened = await rig.open('ph-1', NOW + 86400000);
+      ok('253 opening a photo grants anyone-with-link THEN stamps the deadline on the file',
+         opened === true && calls.length === 2 &&
+         calls[0].m === 'POST' && /\/files\/ph-1\/permissions$/.test(calls[0].e) &&
+         calls[0].b.role === 'reader' && calls[0].b.type === 'anyone' &&
+         calls[1].m === 'PATCH' && calls[1].b.appProperties.rrShared === '1' &&
+         calls[1].b.appProperties.rrShareExp === String(NOW + 86400000),
+         JSON.stringify(calls));
+      calls.length = 0;
+      const openedManual = await rig.open('ph-2', 0);
+      ok('253 the manual preset stamps 0 — shared until turned off',
+         openedManual === true && calls[1].b.appProperties.rrShareExp === '0');
+      // ── open FAILS → false, and the stamp is never written ──
+      calls.length = 0; failPermPost = true;
+      const refused = await rig.open('ph-3', 0);
+      ok('253 if Drive refuses the permission, open reports false and writes NO stamp',
+         refused === false && calls.length === 1, JSON.stringify(calls));
+      failPermPost = false;
+      // ── unshare: only the anyone permission dies, stamp cleared ──
+      calls.length = 0;
+      await rig.unshare('ph-1');
+      const dels = calls.filter(function (c) { return c.m === 'DELETE'; });
+      const patch = calls.find(function (c) { return c.m === 'PATCH'; });
+      ok('253 un-sharing deletes ONLY the anyone permission — never the owner\'s',
+         dels.length === 1 && /\/permissions\/anyoneWithLink$/.test(dels[0].e));
+      ok('253 un-sharing clears the stamp so the photo leaves the list',
+         patch && patch.b.appProperties.rrShared === null && patch.b.appProperties.rrShareExp === null);
+      // ── the sweep: past-due dies, future and manual survive ──
+      fakeDrive._files = [
+        { id: 'past',   name: 'p', appProperties: { rrShared: '1', rrShareExp: String(NOW - 1000) } },
+        { id: 'future', name: 'f', appProperties: { rrShared: '1', rrShareExp: String(NOW + 9999999) } },
+        { id: 'manual', name: 'm', appProperties: { rrShared: '1', rrShareExp: '0' } },
+      ];
+      calls.length = 0;
+      const swept = await rig.sweep();
+      const sweptIds = calls.filter(function (c) { return c.m === 'DELETE'; }).map(function (c) { return c.e.split('/')[2]; });
+      ok('253 the autotimer un-shares ONLY the past-due photo — future and manual survive',
+         swept === 1 && sweptIds.length === 1 && sweptIds[0] === 'past', JSON.stringify(sweptIds));
+      // ── the deadline text, run for real ──
+      const t0 = tl53.indexOf('function rrShareExpText(');
+      const t1 = tl53.indexOf('async function runSharedPhotos');
+      const expText = new Function(tl53.slice(t0, t1) + ' return rrShareExpText;')();
+      ok('253 the deadline reads in plain English',
+         expText(0, NOW) === 'shared until you turn it off' &&
+         expText(NOW - 5, NOW) === 'past due — un-sharing now' &&
+         expText(NOW + 3 * 3600000, NOW) === '3 hours left' &&
+         expText(NOW + 5 * 86400000, NOW) === '5 days left');
+      // ── wiring ──
+      ok('253 the builder offers exactly the three presets Brad named',
+         /id="sf-linkphotos"/.test(sh53) && /id="sf-linklife"/.test(sh53) &&
+         /value="86400000">1 day</.test(sh53) && /value="604800000" selected>1 week</.test(sh53) &&
+         /value="0">until I turn them off</.test(sh53));
+      ok('253 a photo becomes a link ONLY if opening it up succeeded — no dead links',
+         /_lit\._photoLinked = await rrShareOpenPhoto\(_lit\._photoFileId, _exp\)/.test(sh53) &&
+         /if \(it\._photoLinked && it\._photoFileId\) \{\s*\n\s*doc\.link\(/.test(sh53) &&
+         /it\._photoExtrasLinked && it\._photoExtrasLinked\[_e\] && it\._photoExtraIds && it\._photoExtraIds\[_e\]/.test(sh53));
+      ok('253 the autotimer runs at BOTH app-start branches',
+         (ad53.match(/setTimeout\(rrSweepExpiredShares, 8000\)/g) || []).length === 2);
+      ok('253 the Shared Photos page sweeps before it draws, and only DRAWS — share.js owns the data',
+         /await rrSweepExpiredShares\(\);/.test(tl53) &&
+         /await rrSharedPhotosList\(\);/.test(tl53) &&
+         /rrStopSharingOne/.test(tl53) && /rrStopSharingAll/.test(tl53) &&
+         !/driveRequest\(/.test(tl53.slice(tl53.indexOf('function rrShareExpText'))));
+    })();
+
   })().then(function () {
     console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
     process.exit(fail ? 1 : 0);

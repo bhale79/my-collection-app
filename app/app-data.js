@@ -149,6 +149,8 @@ async function loadAllData() {
       _scheduleLookupIndex(6000);   // v0.9.971: full-catalog lookup index (background)
       showOnboarding();
       if (typeof vaultInit === 'function') vaultInit();
+      // v0.9.1303: the photo-link autotimer — un-share anything past its deadline.
+      if (typeof rrSweepExpiredShares === 'function') setTimeout(rrSweepExpiredShares, 8000);
       if (state.personalSheetId) {
         // v0.9.1266 (R2): the `|| ''` that used to sit on these three turned
         // "driveCache has not been populated on this device yet" into a blank
@@ -178,6 +180,8 @@ async function loadAllData() {
     _scheduleLookupIndex(6000);   // v0.9.971: full-catalog lookup index (background)
     showOnboarding();
     if (typeof vaultInit === 'function') vaultInit();
+    // v0.9.1303: the photo-link autotimer — un-share anything past its deadline.
+    if (typeof rrSweepExpiredShares === 'function') setTimeout(rrSweepExpiredShares, 8000);
     // Re-write config after every successful load so all devices can always find the Sheet ID
     if (state.personalSheetId) {
       // v0.9.1266 (R2) — same as the 'all'-era branch above: no `|| ''`.

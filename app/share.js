@@ -158,6 +158,20 @@ function openShareBuilder() {
           '<div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-dim);margin-bottom:0.4rem">Photos</div>' +
           '<label style="display:flex;align-items:center;gap:0.5rem;font-size:0.85rem;color:var(--text);margin-bottom:0.35rem;cursor:pointer"><input type="radio" name="rr-photomode" value="main" checked style="accent-color:var(--accent);width:1rem;height:1rem">Main photo only</label>' +
           '<label style="display:flex;align-items:center;gap:0.5rem;font-size:0.85rem;color:var(--text);cursor:pointer"><input type="radio" name="rr-photomode" value="all" style="accent-color:var(--accent);width:1rem;height:1rem">All photos of item</label>' +
+          // v0.9.1303 (Brad): clickable full-size photos with an auto-expiring
+          // link. The photos become viewable by anyone with the link until the
+          // deadline (or until turned off in Collection Tools > Shared photos).
+          '<label style="display:flex;align-items:center;gap:0.5rem;font-size:0.85rem;color:var(--text);margin-top:0.55rem;cursor:pointer"><input type="checkbox" id="sf-linkphotos" onchange="var r=document.getElementById(\'sf-linklife-row\');if(r)r.style.display=this.checked?\'\':\'none\'" style="accent-color:var(--accent);width:1rem;height:1rem">Clickable photos — tap a picture in the PDF to see it full size</label>' +
+          '<div id="sf-linklife-row" style="display:none;margin:0.4rem 0 0 1.5rem">' +
+            '<label style="font-size:0.8rem;color:var(--text-mid)">Links work for ' +
+              '<select id="sf-linklife" style="margin-left:0.3rem;padding:0.3rem 0.5rem;border-radius:7px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.82rem">' +
+                '<option value="86400000">1 day</option>' +
+                '<option value="604800000" selected>1 week</option>' +
+                '<option value="0">until I turn them off</option>' +
+              '</select>' +
+            '</label>' +
+            '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.3rem">These photos become viewable by anyone with the link. End it anytime in Collection Tools &rsaquo; Shared photos.</div>' +
+          '</div>' +
         '</div>' +
       '</div>' +
 
@@ -201,9 +215,13 @@ function _shareFieldCheck(id, label, checked) {
 function _getShareFields() {
   var _pm = document.querySelector('input[name="rr-photomode"]:checked');
   var _mode = _pm ? _pm.value : (document.querySelector('input[name="rr-photomode"]') ? 'main' : '');
+  var _lp = document.getElementById('sf-linkphotos');
+  var _ll = document.getElementById('sf-linklife');
   return {
     photo:     !!_mode,
     allPhotos: _mode === 'all',
+    linkPhotos: !!(_lp && _lp.checked),
+    linkLifeMs: _ll ? (parseInt(_ll.value, 10) || 0) : 0,
     itemnum: document.getElementById('sf-itemnum') ? document.getElementById('sf-itemnum').checked : true,
     vardesc: document.getElementById('sf-vardesc') ? document.getElementById('sf-vardesc').checked : true,
     cond:    document.getElementById('sf-cond')    ? document.getElementById('sf-cond').checked    : true,
@@ -225,6 +243,69 @@ function rrSharePdOf(it) {
   return {};
 }
 if (typeof window !== 'undefined') { window.rrSharePdOf = rrSharePdOf; }
+
+// ══ v0.9.1303 (Brad): clickable full-size photos with an auto-expiring link ══
+// "lets put a autotimer on the link so that the app will at a certain time
+//  unshare. Let the user set it to some presets, like 1 day, 1 week, or
+//  manual with the use of the unshare button"
+// The deadline lives ON the photo file in Drive (appProperties rrShared /
+// rrShareExp — the same hidden-metadata trick the Photo Inbox uses), so it
+// follows the photo across devices. ONE stamp; the share flow writes it, the
+// sweeper and the Shared Photos page read it. Google can't expire an
+// anyone-with-link permission by itself, so the app enforces the deadline:
+// the sweeper runs at every app start and un-shares anything past due.
+
+// Open one photo up: anyone with the link can view, stamped with its
+// deadline (0 = until turned off). Returns true only if BOTH steps landed —
+// callers only draw a link for a photo this returned true for.
+async function rrShareOpenPhoto(fileId, expiresAtMs) {
+  try {
+    await driveRequest('POST', '/files/' + fileId + '/permissions', { role: 'reader', type: 'anyone' });
+    await driveRequest('PATCH', '/files/' + fileId, { appProperties: { rrShared: '1', rrShareExp: String(expiresAtMs || 0) } });
+    return true;
+  } catch (e) { return false; }
+}
+
+// Every photo the app has opened up (the Shared Photos page reads this).
+async function rrSharedPhotosList() {
+  var q = encodeURIComponent("appProperties has { key='rrShared' and value='1' } and trashed=false");
+  var r = await driveRequest('GET', '/files?q=' + q + '&fields=files(id,name,appProperties)&pageSize=1000&spaces=drive');
+  return (r && r.files) || [];
+}
+
+// Put the lock back on: remove every anyone-with-link permission and clear
+// the stamp. Old links die the moment this lands.
+async function rrUnsharePhoto(fileId) {
+  var perms = await driveRequest('GET', '/files/' + fileId + '/permissions?fields=permissions(id,type)');
+  var _all = (perms && perms.permissions) || [];
+  for (var i = 0; i < _all.length; i++) {
+    if (_all[i].type === 'anyone') await driveRequest('DELETE', '/files/' + fileId + '/permissions/' + _all[i].id);
+  }
+  await driveRequest('PATCH', '/files/' + fileId, { appProperties: { rrShared: null, rrShareExp: null } });
+}
+
+// The autotimer: runs at app start (and before the Shared Photos page
+// draws). Anything past its deadline gets un-shared right then.
+async function rrSweepExpiredShares() {
+  try {
+    var files = await rrSharedPhotosList();
+    var now = Date.now(), n = 0;
+    for (var i = 0; i < files.length; i++) {
+      var exp = parseInt((files[i].appProperties || {}).rrShareExp || '0', 10);
+      if (exp > 0 && exp <= now) {
+        try { await rrUnsharePhoto(files[i].id); n++; } catch (e) { /* next start retries */ }
+      }
+    }
+    if (n) showToast('Photo links expired — ' + n + ' photo' + (n > 1 ? 's' : '') + ' un-shared', 3500);
+    return n;
+  } catch (e) { return 0; }
+}
+if (typeof window !== 'undefined') {
+  window.rrShareOpenPhoto = rrShareOpenPhoto;
+  window.rrSharedPhotosList = rrSharedPhotosList;
+  window.rrUnsharePhoto = rrUnsharePhoto;
+  window.rrSweepExpiredShares = rrSweepExpiredShares;
+}
 
 // ── Main share action ─────────────────────────────────────────────
 async function _doShare(mode) {
@@ -253,13 +334,15 @@ async function _doShare(mode) {
           var photos = await driveGetFolderPhotos(_pd.photoItem);
           if (photos && photos.length > 0) {
             it._photoDataUrl = await _fetchPhotoAsDataUrl(photos[0].id);
+            it._photoFileId = photos[0].id;   // v0.9.1303: for clickable links
             // "All photos of item" fetches the rest too, capped at 4 extras so
             // a 30-photo item can't turn one share into a multi-minute wait.
             if (fields.allPhotos && photos.length > 1) {
               it._photoExtras = [];
+              it._photoExtraIds = [];
               for (var p = 1; p < photos.length && p <= 4; p++) {
                 var _ex = await _fetchPhotoAsDataUrl(photos[p].id);
-                if (_ex) it._photoExtras.push(_ex);
+                if (_ex) { it._photoExtras.push(_ex); it._photoExtraIds.push(photos[p].id); }
               }
             }
           }
@@ -270,6 +353,28 @@ async function _doShare(mode) {
       var _queue = items.slice();
       while (_queue.length) {
         await Promise.all(_queue.splice(0, 4).map(_fetchOne));
+      }
+
+      // v0.9.1303 (Brad): clickable full-size photos. Each photo that will be
+      // linked is opened up (anyone with the link can view) and stamped with
+      // its deadline; the sweeper and the Shared Photos page read the SAME
+      // stamp. A photo only becomes a link in the PDF if opening it up
+      // SUCCEEDED — the sheet never carries a dead link.
+      if (fields.linkPhotos) {
+        if (prog) prog.textContent = 'Opening photo links…';
+        var _exp = fields.linkLifeMs > 0 ? Date.now() + fields.linkLifeMs : 0;
+        for (var _li = 0; _li < items.length; _li++) {
+          var _lit = items[_li];
+          if (_lit._photoFileId) {
+            _lit._photoLinked = await rrShareOpenPhoto(_lit._photoFileId, _exp);
+          }
+          if (_lit._photoExtraIds && _lit._photoExtraIds.length) {
+            _lit._photoExtrasLinked = [];
+            for (var _le = 0; _le < _lit._photoExtraIds.length; _le++) {
+              _lit._photoExtrasLinked.push(await rrShareOpenPhoto(_lit._photoExtraIds[_le], _exp));
+            }
+          }
+        }
       }
     }
 
@@ -501,6 +606,11 @@ async function _buildPDF(items, fields, message) {
           _fit = rrShareFitBox(_props.width, _props.height, boxW, boxH);
         } catch (eP) { /* can't measure — draw square as before */ }
         doc.addImage(it._photoDataUrl, 'JPEG', boxX + _fit.dx, boxY + _fit.dy, _fit.w, _fit.h, '', 'FAST');
+        // v0.9.1303: clickable full-size photo — only when opening it up
+        // succeeded, so the sheet never carries a dead link.
+        if (it._photoLinked && it._photoFileId) {
+          doc.link(boxX + _fit.dx, boxY + _fit.dy, _fit.w, _fit.h, { url: 'https://drive.google.com/file/d/' + it._photoFileId + '/view' });
+        }
         textW = contentW - boxW - 28;
       } catch(e) { /* image failed, skip */ }
     }
@@ -550,6 +660,9 @@ async function _buildPDF(items, fields, message) {
             _tFit = rrShareFitBox(_tProps.width, _tProps.height, _tw, _tw);
           } catch (eTP) {}
           doc.addImage(_extras[_e], 'JPEG', _tx + _tFit.dx, _ty + _tFit.dy, _tFit.w, _tFit.h, '', 'FAST');
+          if (it._photoExtrasLinked && it._photoExtrasLinked[_e] && it._photoExtraIds && it._photoExtraIds[_e]) {
+            doc.link(_tx + _tFit.dx, _ty + _tFit.dy, _tFit.w, _tFit.h, { url: 'https://drive.google.com/file/d/' + it._photoExtraIds[_e] + '/view' });
+          }
         } catch (eT) {}
         _tx += _tw + 6;
       }
