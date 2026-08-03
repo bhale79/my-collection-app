@@ -97,37 +97,10 @@ function _buildAuthScreen() {
     '</div>';
 }
 
-function _buildSetupScreen() {
-  var d = document.getElementById('setup-screen');
-  if (!d || d.dataset.built) return;
-  d.dataset.built = '1';
-  d.innerHTML =
-    '<div class="setup-card">' +
-      '<h2>Welcome!</h2>' +
-      '<p>One-time setup \u2014 just two steps to connect your inventory.</p>' +
-      '<div class="setup-step"><div class="setup-num">1</div>' +
-        '<p>Enter the Master Inventory Sheet ID (get this from whoever shared the app with you).</p>' +
-      '</div>' +
-      '<div class="setup-step"><div class="setup-num">2</div>' +
-        '<p>Create a blank Google Sheet for your personal collection, then paste its ID below. Go to <a href="https://sheets.google.com" target="_blank" style="color:var(--accent2)">sheets.google.com</a>, create a blank sheet, name it "The Rail Roster", and copy the ID from the URL.</p>' +
-      '</div>' +
-      // v0.9.1256: the placeholder used to spell the master sheet id out a
-      // second time. One fact, two places — change the sheet and this screen
-      // quietly keeps offering the old id. MASTER_SHEET_ID (config.js) is the
-      // one reader; the fallback is a shape, not an id, so a missing config
-      // shows the user what a sheet id looks like rather than a stale one.
-      '<div class="input-group"><label>Master Sheet ID</label>' +
-        '<input id="master-sheet-input" type="text" placeholder="' +
-          (typeof MASTER_SHEET_ID === 'string' && MASTER_SHEET_ID ? MASTER_SHEET_ID : 'Paste the master sheet ID here') + '">' +
-      '</div>' +
-      '<div class="input-group" style="margin-top:0.75rem"><label>Your Personal Collection Sheet ID</label>' +
-        '<input id="personal-sheet-input" type="text" placeholder="Paste your blank sheet ID here">' +
-      '</div>' +
-      '<div style="margin-top:1.25rem">' +
-        '<button class="btn btn-primary" style="width:100%" onclick="completeSetup()">Set Up My Collection</button>' +
-      '</div>' +
-    '</div>';
-}
+// v0.9.1285: _buildSetupScreen removed — see the note in app-auth.js's
+// initGoogle. Its Set Up button was the only path to completeSetup(),
+// which is therefore unreachable too (left in place, written up for
+// audit round 3 rather than removed the same night it was discovered).
 
 function _buildAppShell() {
   var app = document.getElementById('app');
@@ -338,11 +311,6 @@ function showApp() {
   document.getElementById('dash-greeting').innerHTML = _greet + ', <span style="color:var(--accent);font-size:138%;font-weight:700">' + _name + '</span>';
 }
 
-function showSetup() {
-  document.getElementById('auth-screen').style.display = 'none';
-  document.getElementById('app').classList.remove('active');
-  document.getElementById('setup-screen').classList.add('active');
-}
 
 function updateUserUI() {
   if (!state.user) return;

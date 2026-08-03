@@ -16,7 +16,7 @@
 const TUTORIAL_GIFS = {
   sectionTitle:  '\uD83C\uDFAC  Watch how it works',
   sectionNote:   'Short demos. No audio. Playable on phone or desktop.',
-  comingSoonBadge: 'Coming soon',
+  // comingSoonBadge removed v0.9.1285 — nothing unready ever renders.
 
   demos: [
     { id: 'add-item-gif',       title: 'Add an item',         description: 'From "+ Add" to "Saved" in under 30 seconds.',   gifUrl: '' },
@@ -82,10 +82,9 @@ window.rrReadyDemos = rrReadyDemos;
     rrReadyDemos().forEach(function(d) {
       var btn = document.createElement('button');
       btn.className = 'tut-menu-item';
-      btn.disabled = !d.gifUrl;
-      btn.style.opacity = d.gifUrl ? '1' : '0.55';
-      btn.style.cursor  = d.gifUrl ? 'pointer' : 'not-allowed';
-      var badge = d.gifUrl ? '' : '<span style="margin-left:auto;font-size:0.7rem;color:var(--text-dim);font-style:italic">' + _escape(cfg.comingSoonBadge || 'Coming soon') + '</span>';
+      // v0.9.1285: rrReadyDemos() filters on gifUrl — every demo here is
+      // playable, so the disabled/Coming-soon styling could never apply.
+      var badge = '';
       btn.innerHTML =
         '<div class="tut-menu-icon" style="background:rgba(139,92,246,0.15)">\uD83C\uDFAC</div>' +
         '<div style="display:flex;flex-direction:column;align-items:flex-start;flex:1;text-align:left">' +

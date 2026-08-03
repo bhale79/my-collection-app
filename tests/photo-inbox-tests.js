@@ -10317,11 +10317,26 @@ META_WRITES.length = 0; TOASTS.length = 0;
        /'\.\/write-outbox\.js'/.test(rd('app/sw.js')));
 
     section('199h. The version trio moved together');
-    ok('APP_VERSION is v0.9.1284', /const APP_VERSION = 'v0\.9\.1284';/.test(cfg));
-    ok('every ?v= mark in app/index.html matches it',
-       (idx.match(/\?v=1284/g) || []).length === 69 && !/\?v=1283/.test(idx),
-       String((idx.match(/\?v=1284/g) || []).length));
-    ok('the service worker cache name moved too', /const CACHE_NAME = 'mca-v1294';/.test(rd('app/sw.js')));
+    // v0.9.1285 (overnight housekeeping): this used to hardcode four literals
+    // that had to be hand-edited on EVERY deploy — churn that invites a blind
+    // sed, and it has bitten sessions before. The trio is now DERIVED from
+    // config.js's APP_VERSION, which is the one number a human actually
+    // bumps: index.html's ?v= must equal its build number, sw.js's cache
+    // name must equal build+10 (the fixed offset established in v0.9.1273).
+    // Drift in ANY of the three still fails — the assertions compare the
+    // three real files against each other, not against a test-file literal.
+    {
+      const _vm = cfg.match(/const APP_VERSION = 'v0\.9\.(\d+)';/);
+      ok('APP_VERSION exists and is the source of truth', !!_vm, 'config.js APP_VERSION not found');
+      const build = _vm ? parseInt(_vm[1], 10) : 0;
+      const stamps = idx.match(/\?v=(\d+)/g) || [];
+      ok('every ?v= mark in app/index.html matches it — all 69, none stale',
+         stamps.length === 69 && stamps.every(t => t === '?v=' + build),
+         stamps.length + ' stamps; strays: ' + stamps.filter(t => t !== '?v=' + build).slice(0, 3).join(','));
+      ok('the service worker cache name moved too (build + 10, the fixed offset)',
+         new RegExp("const CACHE_NAME = 'mca-v" + (build + 10) + "';").test(rd('app/sw.js')),
+         'expected mca-v' + (build + 10));
+    }
     // v0.9.1276 (R9): the ?v= count above cannot see a NEW local <script>
     // added with no stamp at all — 69 stamped plus one bare is still 69, and
     // the bare one dodges the cache-busting the stamp exists for: it would be
@@ -10906,9 +10921,13 @@ META_WRITES.length = 0; TOASTS.length = 0;
     const realId = (cfg205.match(/MASTER_SHEET_ID = '([^']+)'/) || [])[1] || '';
     ok('config.js still holds the id', realId.length > 20);
     ok('the setup screen does not spell it a second time', !setup.includes(realId));
-    ok('…it asks config.js instead', /placeholder="' \+\s*\(typeof MASTER_SHEET_ID/.test(setup));
-    ok('…and falls back to a shape, not a stale id',
-       /Paste the master sheet ID here/.test(setup));
+    // v0.9.1285: the dead setup screen (built every load, revealable by
+    // nothing) was removed outright — the strongest form of "does not spell
+    // it a second time". What §205c guards now is that NOTHING outside
+    // config.js spells the id.
+    ok('…and no other file spells it either',
+       ['app.js', 'app-data.js', 'browse.js', 'prefs.js']
+         .every(f => !rd205('app/' + f).includes(realId)));
   })();
 
   // ═══════════════════════════════════════════════════════════
@@ -14757,6 +14776,45 @@ META_WRITES.length = 0; TOASTS.length = 0;
           .reduce((n, f) => n + (fs.readFileSync(p34.join(__dirname, '..', 'app', f), 'utf8').match(/rrVerifiedRowUpdate\(/g) || []).length, 0);
         ok('234 the sweep really landed — 53 sites write through the one guarded writer',
            wrapped === 53, String(wrapped));
+      }
+    })();
+
+    // ═══════════════════════════════════════════════════════════
+    // §235. v0.9.1285 (overnight) — dead code stays dead, and the
+    //   version trio guards itself.
+    //
+    //   Three families removed after zero-caller verification: the ~10KB
+    //   health-check console script in prefs.js (Session 51, no button
+    //   ever offered it), the setup screen built into the DOM on every
+    //   load with no way to ever show it, and the Coming-soon branches
+    //   that rrReadyDemos()'s gifUrl filter made unreachable. And §199h
+    //   no longer hardcodes four literals per deploy — it derives the
+    //   trio from APP_VERSION, so a version bump needs zero test edits.
+    // ═══════════════════════════════════════════════════════════
+    section('235. Dead code stays dead; the trio check derives itself');
+    (function () {
+      const p35 = require('path');
+      const rd35 = f => fs.readFileSync(p35.join(__dirname, '..', 'app', f), 'utf8');
+      const code = t => t.replace(/\/\/[^\n]*/g, '');
+      ok('235 the health-check script and its copier are gone',
+         !/_HEALTH_CHECK_SCRIPT|_copyHealthCheckScript/.test(code(rd35('prefs.js'))));
+      ok('235 the unreachable setup screen is gone — built for nobody no more',
+         !/_buildSetupScreen|function showSetup/.test(code(rd35('app-setup.js'))) &&
+         !/_buildSetupScreen\(\)/.test(code(rd35('app-auth.js'))));
+      ok('235 no Coming-soon branch survives where nothing unready can render',
+         !/Coming soon/.test(code(rd35('onboarding.js'))) &&
+         !/Coming soon/.test(code(rd35('tutorial-gifs-config.js'))));
+      // The self-deriving trio check: §199h must contain NO hardcoded build
+      // number — a literal like ?v=1285 in the test file is the churn this
+      // removal exists to end, and it would go stale on the very next deploy.
+      {
+        const self = fs.readFileSync(p35.join(__dirname, 'photo-inbox-tests.js'), 'utf8');
+        const h = self.indexOf("section('199h. The version trio moved together')");
+        const seg = self.slice(h, h + 1800);
+        ok('235 §199h derives the trio — no hardcoded build number to hand-edit',
+           h > 0 && !/\?v=\d{4}/.test(seg) && !/mca-v\d{4}/.test(seg) &&
+           /parseInt\(_vm\[1\], 10\)/.test(seg) && /build \+ 10/.test(seg),
+           'a literal build number is back in §199h');
       }
     })();
 

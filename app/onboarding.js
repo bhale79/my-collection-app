@@ -59,10 +59,10 @@
       'position:fixed;inset:0;background:rgba(10,14,20,0.90);z-index:' + (s.z + 5) + ';' +
       'display:flex;align-items:flex-start;justify-content:center;padding:1.5rem;overflow-y:auto';
     var list = rrReadyDemos().map(function(d) {
-      var comingSoon = !d.gifUrl;
-      var badge = comingSoon
-        ? '<span style="font-size:' + s.small + ';color:var(--text-dim);font-style:italic">' + _escape(cfg.comingSoonBadge || 'Coming soon') + '</span>'
-        : '<span style="font-size:' + s.small + ';color:#2ecc71;font-weight:600">Ready</span>';
+      // v0.9.1285: rrReadyDemos() filters on gifUrl, so every demo here IS
+      // ready — the Coming-soon branch could never run and read as if empty
+      // demos still rendered. One badge, the true one.
+      var badge = '<span style="font-size:' + s.small + ';color:#2ecc71;font-weight:600">Ready</span>';
       return '<div style="display:flex;align-items:center;gap:0.75rem;padding:0.9rem 0;border-bottom:1px solid var(--border)">' +
         '<div style="font-size:1.5rem">\uD83C\uDFAC</div>' +
         '<div style="flex:1">' +

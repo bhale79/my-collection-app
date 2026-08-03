@@ -292,7 +292,9 @@ function _finishRedirectSignIn() {
 function initGoogle() {
   _buildBetaGate();
   _buildAuthScreen();
-  _buildSetupScreen();
+  // v0.9.1285: _buildSetupScreen() was built into the DOM on every load,
+  // yet showSetup() — the only thing that would reveal it — had no caller.
+  // A whole form built for nobody, every page load. Both removed.
   _buildAppShell();
 
   // Check if returning from OAuth redirect (GIS redirect mode)
