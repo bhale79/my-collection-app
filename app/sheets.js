@@ -494,6 +494,44 @@ async function rrVerifiedRowUpdate(spreadsheetId, tab, rowNum, range, values, ex
 }
 if (typeof window !== 'undefined') window.rrVerifiedRowUpdate = rrVerifiedRowUpdate;
 
+// ══ v0.9.1288 (audit R3-3) — "did the removal actually land?" ════════════
+// rrVerifiedRowUpdate has THREE outcomes and the remove flows were written
+// for one of them:
+//
+//   true    the row was ours and it is now blank — the removal happened
+//   false   the row is not ours anymore. Nothing was written, and it has
+//           ALREADY told the user so. Say nothing further; a second toast
+//           would just talk over the first.
+//   throws  the write itself failed — offline, signed out, no permission,
+//           rate-limited. sheetsUpdate has already handed it to the outbox
+//           where applicable; rrSaveError turns the exception into the
+//           sentence that fits, including "it is kept and will go up".
+//
+// Every remove flow needs the same answer to the same question, so it lives
+// here once rather than as seven copies of the same try/catch. Collapses all
+// three outcomes to a boolean and guarantees the user was told something in
+// both failing cases — so a caller can put "✓ Removed" behind one honest if:
+//
+//     if (!(await rrRemoveRowConfirmed(...))) return;
+//
+// The old shape — fire the write, never look back, announce success on the
+// next line — meant a refused removal looked exactly like a successful one
+// until the page was reloaded. That is the bug this exists to make hard to
+// write again. See test section 238.
+async function rrRemoveRowConfirmed(spreadsheetId, tab, rowNum, range, values, expect, what) {
+  try {
+    return await rrVerifiedRowUpdate(spreadsheetId, tab, rowNum, range, values, expect, what);
+  } catch (e) {
+    if (typeof showToast === 'function') {
+      showToast((typeof rrSaveError === 'function')
+        ? rrSaveError(e, 'the removal')
+        : 'Could not remove that — please try again.', 4500, true);
+    }
+    return false;
+  }
+}
+if (typeof window !== 'undefined') window.rrRemoveRowConfirmed = rrRemoveRowConfirmed;
+
 // v0.9.1267 (audit 2026-08-02 round 2, finding R3): `expected` is REQUIRED,
 // and omitting it throws rather than deleting.
 //

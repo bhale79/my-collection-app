@@ -2342,8 +2342,12 @@ async function _removeOwnedSet(key) {
   if (!ok) return;
   if (entry.row && typeof entry.row === 'number' && entry.row >= 3 && entry.row < 1000000) {
     const blanks = [Array(14).fill('')];
-    rrVerifiedRowUpdate(state.personalSheetId, 'My Sets', entry.row, 'My Sets!A' + entry.row + ':N' + entry.row, blanks, { num: entry.setNum || entry.itemNum || '' }, 'sets list')
-      .catch(function(e) { console.warn('remove set row', e); });
+    // v0.9.1288 (R3-3): wait for the answer. This used to fire the write and
+    // fall straight through to "✓ Removed", so a refused write looked like a
+    // successful one and the set vanished from the screen while sitting right
+    // where it was in the sheet. On failure the set stays put, which is the
+    // truth, and the helper has already said why.
+    if (!(await rrRemoveRowConfirmed(state.personalSheetId, 'My Sets', entry.row, 'My Sets!A' + entry.row + ':N' + entry.row, blanks, { num: entry.setNum || entry.itemNum || '' }, 'sets list'))) return;
   }
   delete state.mySetsData[key];
   if (typeof _cachePersonalData === 'function') _cachePersonalData();
@@ -2428,8 +2432,14 @@ function _ncShowFsSoldModal(type, key, action) {
               ((typeof _brandOfItem === 'function' && _brandOfItem(ids.itemNum)) || (typeof _getEraManufacturer === 'function' ? _getEraManufacturer() : '')),
               '','','','','','','','','','' ];
         await sheetsAppend(state.personalSheetId, 'Sold!A:T', [row]);
-        if (removeIt) await _ncRemoveSourceRow(type, key);
-        showToast('✓ Marked as sold');
+        // v0.9.1288 (R3-3): the sale is recorded either way — that append is
+        // already done. Only the "and take it out of my collection" half can
+        // still be refused, so say which of the two happened rather than
+        // showing one checkmark that covers for both.
+        var _srcGone = removeIt ? await _ncRemoveSourceRow(type, key) : true;
+        showToast(_srcGone
+          ? '✓ Marked as sold'
+          : '✓ Marked as sold — but it is still in your collection. Refresh and remove it again.', 5500);
       } else {
         // For Sale columns: Item#, Variation, Condition, AskingPrice, DateListed, Notes, OrigPrice, EstWorth, InventoryID, Manufacturer
         const row = [
@@ -2452,9 +2462,17 @@ function _ncShowFsSoldModal(type, key, action) {
 }
 
 // Remove the source row across all non-Lionel buckets.
+//
+// v0.9.1288 (R3-3): returns TRUE only when the piece really left the sheet.
+// This one is a shade different from the other seven: it runs after the Sold
+// row has already been appended, so "✓ Marked as sold" stays true even when
+// the removal is refused — the sale IS recorded. What was wrong is that the
+// piece was dropped from the screen either way, so a refused removal looked
+// like the item had left the collection when it had not. The caller now says
+// which of the two happened.
 async function _ncRemoveSourceRow(type, key) {
   const entry = _getNonLionelEntry(type, key);
-  if (!entry) return;
+  if (!entry) return false;
   const sheetMap = {
     science: { name: 'Science Sets', cols: 15 },
     construction: { name: 'Construction Sets', cols: 15 },
@@ -2463,12 +2481,11 @@ async function _ncRemoveSourceRow(type, key) {
     other: { name: 'Other Lionel', cols: 14 },
   };
   const cfg = sheetMap[type];
-  if (!cfg) return;
+  if (!cfg) return false;
   if (entry.row && typeof entry.row === 'number' && entry.row >= 3 && entry.row < 1000000) {
     const lastCol = String.fromCharCode(64 + cfg.cols);
     const blanks = [Array(cfg.cols).fill('')];
-    rrVerifiedRowUpdate(state.personalSheetId, cfg.name, entry.row, cfg.name + '!A' + entry.row + ':' + lastCol + entry.row, blanks, { num: entry.setNum || entry.itemNum || '' }, 'collection')
-      .catch(function(e) { console.warn('remove source row ' + type, e); });
+    if (!(await rrRemoveRowConfirmed(state.personalSheetId, cfg.name, entry.row, cfg.name + '!A' + entry.row + ':' + lastCol + entry.row, blanks, { num: entry.setNum || entry.itemNum || '' }, 'collection'))) return false;
   }
   // Remove from local state
   if (type === 'science')      delete state.scienceData[key];
@@ -2478,6 +2495,7 @@ async function _ncRemoveSourceRow(type, key) {
     if (state.ephemeraData && state.ephemeraData[type]) delete state.ephemeraData[type][key];
   }
   if (typeof _cachePersonalData === 'function') _cachePersonalData();
+  return true;
 }
 
 // ── Generic Upgrade modal for paper / other / science / construction / is ──
@@ -2578,8 +2596,8 @@ async function _removeScienceOrConstruction(type, key) {
   if (entry.row && typeof entry.row === 'number' && entry.row >= 3 && entry.row < 1000000) {
     // Sheet has 15 columns (A–O) — blank them all
     const blanks = [Array(15).fill('')];
-    rrVerifiedRowUpdate(state.personalSheetId, sheetName, entry.row, sheetName + '!A' + entry.row + ':O' + entry.row, blanks, { num: entry.setNum || entry.itemNum || '' }, 'collection')
-      .catch(function(e) { console.warn('remove ' + type + ' row', e); });
+    // v0.9.1288 (R3-3): await and branch — see _removeOwnedSet.
+    if (!(await rrRemoveRowConfirmed(state.personalSheetId, sheetName, entry.row, sheetName + '!A' + entry.row + ':O' + entry.row, blanks, { num: entry.setNum || entry.itemNum || '' }, 'collection'))) return;
   }
   delete bucket[key];
   if (typeof _cachePersonalData === 'function') _cachePersonalData();
@@ -2599,8 +2617,8 @@ async function _removeInstructionSheet(key) {
   if (entry.row && typeof entry.row === 'number' && entry.row >= 3 && entry.row < 1000000) {
     // IS sheet has 11 columns (A–K)
     const blanks = [Array(11).fill('')];
-    rrVerifiedRowUpdate(state.personalSheetId, 'Instruction Sheets', entry.row, 'Instruction Sheets!A' + entry.row + ':K' + entry.row, blanks, { num: entry.setNum || entry.itemNum || '' }, 'Instruction Sheets list')
-      .catch(function(e) { console.warn('remove IS row', e); });
+    // v0.9.1288 (R3-3): await and branch — see _removeOwnedSet.
+    if (!(await rrRemoveRowConfirmed(state.personalSheetId, 'Instruction Sheets', entry.row, 'Instruction Sheets!A' + entry.row + ':K' + entry.row, blanks, { num: entry.setNum || entry.itemNum || '' }, 'Instruction Sheets list'))) return;
   }
   delete state.isData[key];
   if (typeof _cachePersonalData === 'function') _cachePersonalData();

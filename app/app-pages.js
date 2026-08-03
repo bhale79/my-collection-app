@@ -826,7 +826,14 @@ async function ephemeraDelete(tabId, rowKey) {
     const lastCol = _ephTabCols[tabId] || 'J';
     const sheetName = (_ephTabNames[tabId] || tabId) + '!A' + item.row + ':' + lastCol + item.row;
     const blanks = [Array(lastCol.charCodeAt(0) - 64).fill('')];
-    sheetsUpdate(state.personalSheetId, sheetName, blanks).catch(e => console.warn('ephemera delete row', e));
+    // v0.9.1288 (R3-3): was a bare sheetsUpdate with the failure logged to the
+    // console and "✓ Removed from collection" on the very next line. Now it
+    // waits, and goes through the same guarded writer as every other removal.
+    // Catalogs and Mock-Ups carry an Item ID in column A so they gain the
+    // moved-row check for free; Paper and Other have nothing in column A to
+    // compare, and rrRowStillIs allows those through exactly as before.
+    const _tabName = (_ephTabNames[tabId] || tabId);
+    if (!(await rrRemoveRowConfirmed(state.personalSheetId, _tabName, item.row, sheetName, blanks, { num: item.itemNum || '' }, 'collection'))) return;
   }
   delete state.ephemeraData[tabId][rowKey];
   _cachePersonalData();
@@ -1823,22 +1830,17 @@ async function _removeSoldRecord(key) {
     ? await appConfirm('Remove this sale record? This deletes the saved sale (price, date, and photo snapshot) from your Sold history. It cannot be undone.', { danger: true, ok: 'Remove', title: 'Remove sale record' })
     : confirm('Remove this sale record?');
   if (!ok) return;
-  try {
-    if (sd.row && sd.row !== 99999) {
-      // v0.9.1253 (finding 12): a sale is a snapshot the user is warned cannot
-      // be undone. Confirm the row still holds this sale before blanking it.
-      const _ok = (typeof rrRowStillIs === 'function')
-        ? await rrRowStillIs(state.personalSheetId, 'Sold', sd.row, sd.itemNum)
-        : true;
-      if (!_ok) {
-        if (typeof showToast === 'function') {
-          showToast('Your Sold list changed somewhere else — nothing was removed. Pull down to refresh and try again.', 5000, true);
-        }
-        return;
-      }
-      await sheetsUpdate(state.personalSheetId, 'Sold!A' + sd.row + ':T' + sd.row, [Array(20).fill('')]);
-    }
-  } catch(e) { console.warn('[Sold] remove record:', e); }
+  // v0.9.1253 (finding 12): a sale is a snapshot the user is warned cannot be
+  // undone. Confirm the row still holds this sale before blanking it.
+  // v0.9.1288 (R3-3): that check was right, but the write beneath it was a bare
+  // sheetsUpdate whose failure went to console.warn — and then the record was
+  // dropped from the screen and "✓ Sale record removed" shown regardless. The
+  // one thing the user was told could not be undone was the one place a failed
+  // write looked identical to a successful one. Check and write are now the
+  // same guarded call, which says why when either half refuses.
+  if (sd.row && sd.row !== 99999) {
+    if (!(await rrRemoveRowConfirmed(state.personalSheetId, 'Sold', sd.row, 'Sold!A' + sd.row + ':T' + sd.row, [Array(20).fill('')], { num: sd.itemNum || '' }, 'Sold list'))) return;
+  }
   delete state.soldData[key];
   if (typeof _cachePersonalData === 'function') _cachePersonalData();
   if (typeof showToast === 'function') showToast('✓ Sale record removed');
@@ -2319,7 +2321,10 @@ async function _removeForSaleFromCollection(inventoryId) {
   }
   if (!fs) { showToast('Item not found on For Sale list'); return; }
   if (fs.row) {
-    await rrVerifiedRowUpdate(state.personalSheetId, 'For Sale', fs.row, `For Sale!A${fs.row}:J${fs.row}`, [['','','','','','','','','','']], { num: fs.itemNum || '', invId: fs.inventoryId || '' }, 'For Sale list');
+    // v0.9.1288 (R3-3): this already waited — it just threw the answer away.
+    // A refused write returns false and says so; carrying on regardless meant
+    // "✓ Removed from For Sale" landed on top of that message.
+    if (!(await rrRemoveRowConfirmed(state.personalSheetId, 'For Sale', fs.row, `For Sale!A${fs.row}:J${fs.row}`, [['','','','','','','','','','']], { num: fs.itemNum || '', invId: fs.inventoryId || '' }, 'For Sale list'))) return;
   }
   delete state.forSaleData[fsKey];
   _cachePersonalData();
@@ -2362,14 +2367,30 @@ async function removeForSaleItem(fsKey) {
         ? 'Take this whole group off your For Sale list? All ' + _grp.fs.length + ' pieces stay in your collection.'
         : 'Remove this item from your For Sale list?', { danger: true, ok: 'Remove' }))) return;
   const _members = _isGroup ? _grp.fs : [_lead];
+  // v0.9.1288 (R3-3): the empty catch here was the worst of the seven — a
+  // failed write was not merely unreported, it was actively swallowed, and
+  // the piece was deleted from the screen anyway. Now a member that will not
+  // write STOPS the run: the ones already off really are off, the rest stay
+  // where they are, and the reason is on screen. Ploughing on would leave the
+  // list half-true with a green checkmark over it.
+  let _removed = 0, _stopped = false;
   for (const _f of _members) {
     const _mk = _fsEntryKey(_f);
-    if (_f.row) { try { await rrVerifiedRowUpdate(state.personalSheetId, 'For Sale', _f.row, `For Sale!A${_f.row}:J${_f.row}`, [['','','','','','','','','','']], { num: _f.itemNum || '', invId: _f.inventoryId || '' }, 'For Sale list'); } catch(e){} }
+    if (_f.row) {
+      if (!(await rrRemoveRowConfirmed(state.personalSheetId, 'For Sale', _f.row, `For Sale!A${_f.row}:J${_f.row}`, [['','','','','','','','','','']], { num: _f.itemNum || '', invId: _f.inventoryId || '' }, 'For Sale list'))) { _stopped = true; break; }
+    }
     delete state.forSaleData[_mk];
+    _removed++;
   }
   _cachePersonalData();
   buildForSalePage();
   buildDashboard();
+  // The helper has already explained the stop. Only add a line when part of a
+  // group did come off, so the count on screen is not a surprise.
+  if (_stopped) {
+    if (_removed > 0) showToast(_removed + ' of ' + _members.length + ' came off the For Sale list — the rest are still there.', 5000, true);
+    return;
+  }
   showToast(_isGroup ? '✓ Group removed from For Sale' : '✓ Removed from For Sale');
 }
 
@@ -2387,7 +2408,8 @@ async function _removeForSaleFromDetail(idx, inventoryId) {
   if (!fsEntry) { showToast('Item is not on For Sale list'); return; }
   if (!(await appConfirm('Remove No. ' + fsEntry.itemNum + ' from your For Sale list?', { danger: true, ok: 'Remove' }))) return;
   if (fsEntry.row) {
-    await rrVerifiedRowUpdate(state.personalSheetId, 'For Sale', fsEntry.row, `For Sale!A${fsEntry.row}:J${fsEntry.row}`, [['','','','','','','','','','']], { num: fsEntry.itemNum || '', invId: fsEntry.inventoryId || '' }, 'For Sale list');
+    // v0.9.1288 (R3-3): waited, ignored the answer. See _removeForSaleFromCollection.
+    if (!(await rrRemoveRowConfirmed(state.personalSheetId, 'For Sale', fsEntry.row, `For Sale!A${fsEntry.row}:J${fsEntry.row}`, [['','','','','','','','','','']], { num: fsEntry.itemNum || '', invId: fsEntry.inventoryId || '' }, 'For Sale list'))) return;
   }
   delete state.forSaleData[fsKey];
   _cachePersonalData();
@@ -2411,18 +2433,36 @@ async function removeForSaleAndCollection(fsKey) {
         : 'Remove this item from For Sale AND your collection? This cannot be undone.', { danger: true, ok: 'Remove Both' }))) return;
   // For Sale rows (all members)
   const _fsMembers = (_grp && _grp.fs.length) ? _grp.fs : [_lead];
+  // v0.9.1288 (R3-3): the empty catch here swallowed the failure outright and
+  // the entry was dropped from the screen either way. This button removes from
+  // two places at once, so a refusal now stops the run BEFORE the collection
+  // half is touched — removing nothing is recoverable, removing half of a pair
+  // and saying "✓ Item removed" is not.
+  let _fsStopped = false, _pdStuck = 0;
   for (const _f of _fsMembers) {
     const _mk = _fsEntryKey(_f);
-    if (_f.row) { try { await rrVerifiedRowUpdate(state.personalSheetId, 'For Sale', _f.row, `For Sale!A${_f.row}:J${_f.row}`, [['','','','','','','','','','']], { num: _f.itemNum || '', invId: _f.inventoryId || '' }, 'For Sale list'); } catch(e){} }
+    if (_f.row && !(await rrRemoveRowConfirmed(state.personalSheetId, 'For Sale', _f.row, `For Sale!A${_f.row}:J${_f.row}`, [['','','','','','','','','','']], { num: _f.itemNum || '', invId: _f.inventoryId || '' }, 'For Sale list'))) { _fsStopped = true; break; }
     delete state.forSaleData[_mk];
+  }
+  if (_fsStopped) {
+    // The helper has already said why. Redraw so the screen matches what did
+    // and did not happen, and leave the collection alone.
+    _cachePersonalData(); buildForSalePage(); buildDashboard(); renderBrowse();
+    return;
   }
   // My Collection rows (all members) — prefer the lead's inventoryId for single-item case
   if (_grp && _grp.pd.length) {
     for (const _m of _grp.pd) {
       // v0.9.1267 (R3): identity-checked; keep the member in memory if its row moved.
+      // v0.9.1288 (R3-3): the empty catch left _mBlanked2 sitting at its
+      // optimistic default, so a write that THREW was indistinguishable from
+      // one that landed and the member was forgotten locally either way.
       let _mBlanked2 = true;
-      if (_m.rec && _m.rec.row) { try { _mBlanked2 = await personalWriteRow(_m.rec, personalBlankRow()); } catch(e){} }
-      if (_mBlanked2) delete state.personalData[_m.key];
+      if (_m.rec && _m.rec.row) {
+        try { _mBlanked2 = await personalWriteRow(_m.rec, personalBlankRow()); }
+        catch (e) { _mBlanked2 = false; if (typeof showToast === 'function') showToast(rrSaveError(e, 'the removal'), 4500, true); }
+      }
+      if (_mBlanked2) delete state.personalData[_m.key]; else _pdStuck++;
     }
   } else {
     // Phase 3: prefer the lead's inventoryId for the collection lookup so duplicate copies don't collide.
@@ -2431,24 +2471,42 @@ async function removeForSaleAndCollection(fsKey) {
     const collEntry = collKey ? state.personalData[collKey] : null;
     // v0.9.1267 (R3): identity-checked. A row with no stored row number was
     // never on the sheet, so forgetting it is still correct.
+    // v0.9.1288 (R3-3): this one had no catch at all, so a thrown write escaped
+    // the function entirely — no message, no redraw, and the For Sale rows
+    // already blanked above with nothing on screen to say so.
     let _ceBlanked = true;
     if (collEntry && collEntry.row) {
-      _ceBlanked = await personalWriteRow(collEntry, personalBlankRow());
+      try { _ceBlanked = await personalWriteRow(collEntry, personalBlankRow()); }
+      catch (e) { _ceBlanked = false; if (typeof showToast === 'function') showToast(rrSaveError(e, 'the removal'), 4500, true); }
     }
-    if (collKey && _ceBlanked) delete state.personalData[collKey];
+    if (collKey && _ceBlanked) delete state.personalData[collKey]; else if (collEntry && collEntry.row && !_ceBlanked) _pdStuck++;
   }
   // Instruction sheets (all members)
+  // v0.9.1288 (R3-3): same empty catch as the For Sale loop above. This one
+  // runs last, after the collection rows are already blanked, so stopping here
+  // would not put anything back — instead the sheet that would not clear stays
+  // on screen where it still is, and the count is named in the toast.
+  let _isStuck = 0;
   if (_grp && _grp.is.length) {
     for (const _m of _grp.is) {
-      if (_m.rec && _m.rec.row) { try { await rrVerifiedRowUpdate(state.personalSheetId, 'Instruction Sheets', _m.rec.row, `Instruction Sheets!A${_m.rec.row}:K${_m.rec.row}`, [['','','','','','','','','','','']], { num: _m.rec.itemNum || '' }, 'Instruction Sheets list'); } catch(e){} }
-      if (state.isData) delete state.isData[_m.key];
+      let _isGone = true;
+      if (_m.rec && _m.rec.row) _isGone = await rrRemoveRowConfirmed(state.personalSheetId, 'Instruction Sheets', _m.rec.row, `Instruction Sheets!A${_m.rec.row}:K${_m.rec.row}`, [['','','','','','','','','','','']], { num: _m.rec.itemNum || '' }, 'Instruction Sheets list');
+      if (_isGone) { if (state.isData) delete state.isData[_m.key]; }
+      else _isStuck++;
     }
   }
   _cachePersonalData();
   buildForSalePage();
   buildDashboard();
   renderBrowse();
-  showToast(_isGroup ? '✓ Group removed' : '✓ Item removed');
+  // Name anything that would not clear, rather than covering all of it with
+  // one checkmark. Collection rows first — those are what the user cares about.
+  const _left = [];
+  if (_pdStuck > 0) _left.push(_pdStuck + ' still in your collection');
+  if (_isStuck > 0) _left.push(_isStuck + ' instruction sheet' + (_isStuck === 1 ? '' : 's') + ' still listed');
+  showToast((_isGroup ? '✓ Group removed' : '✓ Item removed')
+    + (_left.length ? ' — but ' + _left.join(', ') + '. Refresh and try again.' : ''),
+    _left.length ? 5500 : undefined);
 }
 
 
@@ -3977,22 +4035,17 @@ if (typeof window !== 'undefined') window.savePart = savePart;
 
 async function removePart(rowNum) {
   if (!rowNum) return;
-  try {
-    // v0.9.1253 (finding 4): confirm the row is still this part before blanking.
-    const _expId = (Object.values(state.partsData || {}).find(function (p) { return p.row === rowNum; }) || {}).id;
-    const _ok = (typeof rrRowStillIs === 'function')
-      ? await rrRowStillIs(state.personalSheetId, 'Parts Needed', rowNum, _expId)
-      : true;
-    if (!_ok) {
-      if (typeof showToast === 'function') {
-        showToast('Your Parts list changed somewhere else — nothing was removed. Refresh and try again.', 5000, true);
-      }
-      return;
-    }
-    await sheetsUpdate(state.personalSheetId, 'Parts Needed!A' + rowNum + ':H' + rowNum, [['', '', '', '', '', '', '', '']]);
-    if (typeof showToast === 'function') showToast('Part removed');
-    buildPartsPage();
-  } catch (e) { if (typeof showToast === 'function') showToast('Remove failed', 3000, true); }
+  // v0.9.1253 (finding 4): confirm the row is still this part before blanking.
+  // v0.9.1288 (R3-3): this one was already honest — the success toast sat after
+  // the write inside the try, so a throw skipped it. Converted anyway so every
+  // removal in the app goes through the one guarded writer rather than each
+  // repeating the check its own way, and so the failure message is the specific
+  // one ("kept on this device and will go up on its own", where that is true)
+  // instead of a flat "Remove failed".
+  const _expId = (Object.values(state.partsData || {}).find(function (p) { return p.row === rowNum; }) || {}).id;
+  if (!(await rrRemoveRowConfirmed(state.personalSheetId, 'Parts Needed', rowNum, 'Parts Needed!A' + rowNum + ':H' + rowNum, [['', '', '', '', '', '', '', '']], { num: _expId || '' }, 'Parts list'))) return;
+  if (typeof showToast === 'function') showToast('Part removed');
+  buildPartsPage();
 }
 if (typeof window !== 'undefined') window.removePart = removePart;
 

@@ -2398,6 +2398,7 @@ async function removeCollectionItem(itemNum, variation, row, invId) {
       var sortedSibs = groupSiblings.slice().sort(function(a, b) { return (b.row || 0) - (a.row || 0); });
       var fsRowsToDelete = [];
       var _sibsRemoved = 0;   // v0.9.1267 (R3): count what actually went, not what we tried
+      var _ugStuck = 0;       // v0.9.1288 (R3-3): Want-Upgrade rows that refused to clear
       for (var sib of sortedSibs) {
         var sibKey = sib.inventoryId || findPDKeyByRow(sib.itemNum, sib.variation, sib.row);
         if (sib.row && sib.row !== 99999) {
@@ -2439,10 +2440,15 @@ async function removeCollectionItem(itemNum, variation, row, invId) {
         }
         var sibUg = sibUgKey ? state.upgradeData[sibUgKey] : null;
         if (sibUg && sibUg.row) {
-          try {
-            await rrVerifiedRowUpdate(state.personalSheetId, 'Want-Upgrade List', sibUg.row, 'Want-Upgrade List!A' + sibUg.row + ':I' + sibUg.row, [['','','','','','','','','']], { num: sibUg.itemNum || '', invId: sibUg.inventoryId || '' }, 'Want list');
-          } catch(e) { console.warn('Upgrade cleanup (group):', e); }
-          delete state.upgradeData[sibUgKey];
+          // v0.9.1288 (R3-3): this used to swallow the answer AND the exception,
+          // then drop the entry locally regardless — so a Want-Upgrade row that
+          // refused to clear stayed in the sheet while vanishing off the screen.
+          // The collection removal itself is already done and stands; only this
+          // secondary cleanup can still fail, so keep the entry when it does and
+          // count it for the message below.
+          var _ugGoneS = await rrRemoveRowConfirmed(state.personalSheetId, 'Want-Upgrade List', sibUg.row, 'Want-Upgrade List!A' + sibUg.row + ':I' + sibUg.row, [['','','','','','','','','']], { num: sibUg.itemNum || '', invId: sibUg.inventoryId || '' }, 'Want list');
+          if (_ugGoneS) delete state.upgradeData[sibUgKey];
+          else _ugStuck++;
         }
         if (sibKey) delete state.personalData[sibKey];
         _sibsRemoved++;
@@ -2462,7 +2468,8 @@ async function removeCollectionItem(itemNum, variation, row, invId) {
       // v0.9.1267 (R3): report what was actually removed. If a row had moved,
       // sheetsDeleteRow already told the user to refresh — don't follow that
       // with a checkmark claiming everything went.
-      if (_sibsRemoved > 0) showToast('✓ Removed ' + _sibsRemoved + ' grouped item' + (_sibsRemoved === 1 ? '' : 's'));
+      if (_sibsRemoved > 0) showToast('✓ Removed ' + _sibsRemoved + ' grouped item' + (_sibsRemoved === 1 ? '' : 's')
+        + (_ugStuck > 0 ? ' — but ' + _ugStuck + ' is still on your Want-Upgrade list. Refresh and try again.' : ''));
       return;
     }
     // else fall through to remove just this one item
@@ -2511,18 +2518,22 @@ async function removeCollectionItem(itemNum, variation, row, invId) {
     if (_ugEnt) ugKey = _ugEnt[0];
   }
   var ugEntry = ugKey ? state.upgradeData[ugKey] : null;
+  var _ugStuck1 = false;
   if (ugEntry && ugEntry.row) {
-    try {
-      await rrVerifiedRowUpdate(state.personalSheetId, 'Want-Upgrade List', ugEntry.row, 'Want-Upgrade List!A' + ugEntry.row + ':I' + ugEntry.row, [['','','','','','','','','']], { num: ugEntry.itemNum || '', invId: ugEntry.inventoryId || '' }, 'Want list');
-    } catch(e) { console.warn('Upgrade cleanup:', e); }
-    delete state.upgradeData[ugKey];
+    // v0.9.1288 (R3-3): same as the group path above — wait for the answer and
+    // keep the entry when the write is refused, so the screen keeps matching
+    // the sheet instead of quietly disagreeing with it until the next reload.
+    var _ugGone = await rrRemoveRowConfirmed(state.personalSheetId, 'Want-Upgrade List', ugEntry.row, 'Want-Upgrade List!A' + ugEntry.row + ':I' + ugEntry.row, [['','','','','','','','','']], { num: ugEntry.itemNum || '', invId: ugEntry.inventoryId || '' }, 'Want list');
+    if (_ugGone) delete state.upgradeData[ugKey];
+    else _ugStuck1 = true;
   }
   if (pdKey) delete state.personalData[pdKey];
   if (_delRow && _delRow !== 99999) _adjustRowsAfterDelete(state.personalData, _delRow, PERSONAL_TAB);
   _cachePersonalData();
   renderBrowse();
   buildDashboard();
-  showToast('✓ Removed from collection');
+  showToast('✓ Removed from collection'
+    + (_ugStuck1 ? ' — but it is still on your Want-Upgrade list. Refresh and try again.' : ''));
 }
 
 // v0.9.1251 (row-identity audit, finding 7): a row number is only meaningful

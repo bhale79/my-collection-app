@@ -10776,12 +10776,19 @@ META_WRITES.length = 0; TOASTS.length = 0;
     })();
 
     section('203b. All four write sites ask first');
-    ok('removing a sale record verifies',
-       /rrRowStillIs\(state\.personalSheetId, 'Sold', sd\.row, sd\.itemNum\)/.test(pages));
+    // v0.9.1288 (R3-3): two of the original four moved OFF the hand-rolled
+    // check and onto the guarded writer, which does the same check and the
+    // write in one call and reports a thrown write as well as a refused one.
+    // The pins move with them rather than being dropped — the requirement is
+    // "asks first", not "asks first in this particular shape".
+    ok('removing a sale record verifies — now through the guarded writer',
+       /rrRemoveRowConfirmed\(state\.personalSheetId, 'Sold', sd\.row/.test(pages) &&
+       !/sheetsUpdate\(state\.personalSheetId, 'Sold!A'/.test(pages));
     ok('saving over an existing part verifies',
        /rrRowStillIs\(state\.personalSheetId, 'Parts Needed', existingRow, _expId\)/.test(pages));
-    ok('removing a part verifies',
-       /rrRowStillIs\(state\.personalSheetId, 'Parts Needed', rowNum, _expId\)/.test(pages));
+    ok('removing a part verifies — now through the guarded writer',
+       /rrRemoveRowConfirmed\(state\.personalSheetId, 'Parts Needed', rowNum/.test(pages) &&
+       !/sheetsUpdate\(state\.personalSheetId, 'Parts Needed!A' \+ rowNum/.test(pages));
     ok('the ephemera full-row rewrite verifies',
        /rrRowStillIs\(state\.personalSheetId, sheetName, rowNum, entry\.itemNum\)/.test(pages));
     // v0.9.1276 (R9): the two assertions this replaces were weaker than they
@@ -10795,11 +10802,14 @@ META_WRITES.length = 0; TOASTS.length = 0;
     // and only then the write. A check moved below its write, a deleted
     // return, or a silenced message each breaks exactly one named site.
     {
+      // v0.9.1288 (R3-3): down from four to two. The sold removal and the part
+      // removal now go through rrRemoveRowConfirmed, so there is no longer a
+      // check-then-write pair in this file to put in order — the helper holds
+      // both halves and §238 pins its behaviour directly. The two that remain
+      // are still hand-rolled, and still need the ordering held.
       const SITES = [
         ['ephemera rewrite', /rrRowStillIs\(state\.personalSheetId, sheetName, rowNum, entry\.itemNum\)/, "sheetName + '!A' + rowNum"],
-        ['sold removal', /rrRowStillIs\(state\.personalSheetId, 'Sold', sd\.row, sd\.itemNum\)/, "'Sold!A' + sd.row"],
         ['part save', /rrRowStillIs\(state\.personalSheetId, 'Parts Needed', existingRow, _expId\)/, "'Parts Needed!A' + existingRow"],
-        ['part removal', /rrRowStillIs\(state\.personalSheetId, 'Parts Needed', rowNum, _expId\)/, "'Parts Needed!A' + rowNum"],
       ];
       SITES.forEach(([name, checkRe, write]) => {
         const m = pages.match(checkRe);
@@ -14771,14 +14781,28 @@ META_WRITES.length = 0; TOASTS.length = 0;
           });
         ok('234 every row-addressed write is guarded — inline or through the writer',
            strays.length === 0, strays.slice(0, 5).join(' | ') || 'none stray');
-        ok('234 …the inline-guarded set is exactly the six known sites',
-           inlineGuarded === 6, String(inlineGuarded));
+        // v0.9.1288 (R3-3): 6 -> 4. The sold removal and the part removal gave
+        // up their hand-rolled rrRowStillIs for the one guarded writer, which
+        // is the direction of travel — this number should only ever go down.
+        ok('234 …the inline-guarded set is exactly the four known sites',
+           inlineGuarded === 4, String(inlineGuarded));
         ok('234 …and contacts.js is the ONE deliberate exception, unchanged',
            contactsRaw === 1, String(contactsRaw));
+        // v0.9.1288: fourteen of these now go through rrRemoveRowConfirmed,
+        // which is rrVerifiedRowUpdate plus "and tell the user if it threw" —
+        // still the same guarded writer underneath, so both names count.
+        // 53 -> 56, three of them raw sheetsUpdate calls that joined the
+        // guarded set: ephemeraDelete, _removeSoldRecord and removePart. All
+        // three built their range on the line ABOVE the call, or inside the
+        // call, which is how they walked past the ROWISH census above.
         const wrapped = ['app-collection.js', 'app-pages.js', 'browse.js', 'photo-inbox.js', 'wizard-save.js']
-          .reduce((n, f) => n + (fs.readFileSync(p34.join(__dirname, '..', 'app', f), 'utf8').match(/rrVerifiedRowUpdate\(/g) || []).length, 0);
-        ok('234 the sweep really landed — 53 sites write through the one guarded writer',
-           wrapped === 53, String(wrapped));
+          .reduce((n, f) => {
+            const s = fs.readFileSync(p34.join(__dirname, '..', 'app', f), 'utf8');
+            return n + (s.match(/rrVerifiedRowUpdate\(/g) || []).length
+                     + (s.match(/rrRemoveRowConfirmed\(/g) || []).length;
+          }, 0);
+        ok('234 the sweep really landed — 56 sites write through the one guarded writer',
+           wrapped === 56, String(wrapped));
       }
     })();
 
@@ -15092,6 +15116,311 @@ META_WRITES.length = 0; TOASTS.length = 0;
         ok('237 the master sheet id is set on the early path too — no half-built state',
            r.state.masterSheetId === 'MASTER123', String(r.state.masterSheetId));
       }
+    })();
+
+    // ═══════════════════════════════════════════════════════════
+    // §238. v0.9.1288 (audit R3-3) — "✓ Removed" has to be TRUE.
+    //
+    //   Eight remove flows fired a write at Google and announced success
+    //   on the very next line, without ever looking at the answer. If the
+    //   write was refused — the spreadsheet was edited somewhere else, so
+    //   that row is no longer your item — you got a green checkmark, the
+    //   piece disappeared off the screen, and it was still sitting in the
+    //   sheet until you reloaded. The refusal message was already written
+    //   and already correct; it just never got seen, because the success
+    //   toast ran first and talked over it.
+    //
+    //   Two halves here. The first runs the real helper and pins its
+    //   three outcomes. The second is a census: ANY function whose name
+    //   says remove or delete, that celebrates with "Removed", must have
+    //   put every one of its writes behind a branch first. That half is
+    //   the one that catches the NEXT remove flow somebody adds.
+    // ═══════════════════════════════════════════════════════════
+    section('238. "✓ Removed" only after the sheet says so');
+    await (async function () {
+      const p38 = require('path');
+      const APP38 = p38.join(__dirname, '..', 'app');
+      const rd38 = f => fs.readFileSync(p38.join(APP38, f), 'utf8');
+      const sh38 = rd38('sheets.js');
+
+      // ── half one: run the real helper, all three outcomes ────────────
+      const a38 = sh38.indexOf('async function rrRemoveRowConfirmed(');
+      const b38 = sh38.indexOf('\n}', a38) + 2;
+      ok('238 the removal helper exists in sheets.js', a38 > 0 && b38 > a38);
+
+      const mk38 = (behaviour) => {
+        const calls = { toasts: [] };
+        const fn = new Function('rrVerifiedRowUpdate', 'showToast', 'rrSaveError',
+          sh38.slice(a38, b38) + ' return rrRemoveRowConfirmed;')(
+            behaviour,
+            (msg, ms, isErr) => { calls.toasts.push({ msg: String(msg), isErr: !!isErr }); },
+            (e, what) => 'Could not save ' + what + '. [' + String(e && e.message) + ']');
+        return { fn, calls };
+      };
+
+      {
+        // The row was ours and it is now blank.
+        const { fn, calls } = mk38(async () => true);
+        const r = await fn('S', 'For Sale', 7, 'For Sale!A7:J7', [['']], { num: '6464' }, 'For Sale list');
+        ok('238 a landed write returns true and says nothing extra',
+           r === true && calls.toasts.length === 0, JSON.stringify(calls));
+      }
+      {
+        // Refused. rrVerifiedRowUpdate has ALREADY toasted the reason —
+        // a second message here would talk over the first one.
+        const { fn, calls } = mk38(async () => false);
+        const r = await fn('S', 'For Sale', 7, 'For Sale!A7:J7', [['']], { num: '6464' }, 'For Sale list');
+        ok('238 a refused write returns false and does NOT toast twice',
+           r === false && calls.toasts.length === 0, JSON.stringify(calls));
+      }
+      {
+        // The write itself failed. Nobody has said anything yet, so this is
+        // the one case where the helper must speak — and in Brad's words,
+        // via rrSaveError, flagged as an error so it reads red.
+        const { fn, calls } = mk38(async () => { throw new Error('Failed to fetch'); });
+        const r = await fn('S', 'For Sale', 7, 'For Sale!A7:J7', [['']], { num: '6464' }, 'For Sale list');
+        ok('238 a thrown write returns false AND tells the user, as an error',
+           r === false && calls.toasts.length === 1 && calls.toasts[0].isErr === true &&
+           /the removal/.test(calls.toasts[0].msg), JSON.stringify(calls));
+      }
+      {
+        // It must never propagate. A remove flow that throws mid-way leaves
+        // the screen half-updated with no message at all — strictly worse
+        // than the bug this replaces.
+        const { fn } = mk38(async () => { throw new Error('boom'); });
+        let threw = null;
+        try { await fn('S', 'T', 3, 'T!A3:B3', [['']], {}, 'list'); } catch (e) { threw = String(e); }
+        ok('238 the helper swallows nothing silently but escapes nothing either',
+           threw === null, String(threw));
+      }
+      {
+        // showToast missing (very early boot) must not turn a failed write
+        // into a crash.
+        const fn = new Function('rrVerifiedRowUpdate',
+          sh38.slice(a38, b38) + ' return rrRemoveRowConfirmed;')(
+            async () => { throw new Error('offline'); });
+        let threw = null, r = null;
+        try { r = await fn('S', 'T', 3, 'T!A3:B3', [['']], {}, 'list'); } catch (e) { threw = String(e); }
+        ok('238 …even with no showToast in the room', threw === null && r === false, String(threw));
+      }
+
+      // ── half two: the census ─────────────────────────────────────────
+      // Every write inside a remove/delete function that celebrates must be
+      // branch-checked. These are the shapes that count as checked:
+      const CHECKED = [
+        /if\s*\(!\(await\s+rrRemoveRowConfirmed\(/,
+        /if\s*\(!\(await\s+rrVerifiedRowUpdate\(/,
+        /if\s*\(await\s+personalWriteRow\(/,
+        /=\s*await\s+rrRemoveRowConfirmed\(/,      // captured into a variable and tested after
+        /=\s*await\s+personalWriteRow\(/,
+        /=\s*await\s+sheetsDeleteRow\(/,           // ditto — removeCollectionItem does this four times
+      ];
+      // …and these are writes, whatever else is going on around them:
+      const WRITES = /\b(rrRemoveRowConfirmed|rrVerifiedRowUpdate|personalWriteRow|sheetsUpdate|sheetsUpdateRow|sheetsDeleteRow)\s*\(/;
+      const CELEBRATES = /showToast\(\s*(?:_?\w+\s*\?\s*)?['"`][^'"`]*[Rr]emoved/;
+
+      const offenders = [], audited = [];
+      fs.readdirSync(APP38).filter(n => n.endsWith('.js') && n !== 'sheets.js').forEach(f => {
+        const src = rd38(f);
+        // Walk top-level function declarations; the app is written flat, so
+        // "\n}" at column 0 is a reliable end marker.
+        const re = /^(?:async\s+)?function\s+([A-Za-z_$][\w$]*)\s*\(/gm;
+        let m;
+        while ((m = re.exec(src)) !== null) {
+          const name = m[1];
+          if (!/remove|delete/i.test(name)) continue;
+          const end = src.indexOf('\n}', m.index);
+          const body = src.slice(m.index, end < 0 ? src.length : end + 2);
+          if (!CELEBRATES.test(body)) continue;
+          audited.push(f + ':' + name);
+          body.split('\n').forEach((line, li) => {
+            if (!WRITES.test(line)) return;
+            if (CHECKED.some(rx => rx.test(line))) return;
+            offenders.push(f + ':' + name + ' +' + li + '  ' + line.trim().slice(0, 80));
+          });
+        }
+      });
+
+      ok('238 the census found the remove flows it is meant to police',
+         audited.length >= 8, audited.length + ': ' + audited.join(', '));
+      ok('238 not one celebrating remove flow writes without checking the answer',
+         offenders.length === 0, offenders.slice(0, 6).join('  |  ') || 'none');
+
+      // The eight R3-3 sites by name, so a rename or a deletion is visible
+      // rather than silently shrinking the census above.
+      [['browse.js', '_removeOwnedSet'],
+       ['browse.js', '_removeScienceOrConstruction'],
+       ['browse.js', '_removeInstructionSheet'],
+       ['browse.js', '_ncRemoveSourceRow'],
+       ['app-pages.js', 'ephemeraDelete'],
+       ['app-pages.js', '_removeForSaleFromCollection'],
+       ['app-pages.js', 'removeForSaleItem'],
+       ['app-pages.js', '_removeForSaleFromDetail'],
+       // Found by the census above on its very first run — neither Brad nor I
+       // had this one on the list. Its two Want-Upgrade cleanups threw away
+       // both the boolean and the exception, then dropped the entry locally
+       // anyway. That is the ninth site.
+       ['app-collection.js', 'removeCollectionItem'],
+       // …and these three the census found on its SECOND run, once
+       // removeCollectionItem stopped drowning out the rest of the report.
+       ['app-pages.js', '_removeSoldRecord'],
+       ['app-pages.js', 'removeForSaleAndCollection'],
+       ['app-pages.js', 'removePart']].forEach(([f, n]) => {
+        const src = rd38(f);
+        const at = src.indexOf('function ' + n + '(');
+        const body = at < 0 ? '' : src.slice(at, src.indexOf('\n}', at) + 2);
+        ok('238 ' + n + ' waits for the sheet before it commits',
+           at > 0 && /await\s+rrRemoveRowConfirmed\(/.test(body), f);
+      });
+
+      // ephemeraDelete used to build its range on the line ABOVE the write,
+      // which is exactly how it slipped past §234's line-by-line census.
+      // Pin the conversion so it cannot drift back to a bare sheetsUpdate.
+      {
+        const ap = rd38('app-pages.js');
+        const at = ap.indexOf('function ephemeraDelete(');
+        const body = ap.slice(at, ap.indexOf('\n}', at) + 2);
+        ok('238 ephemeraDelete no longer writes rows through a bare sheetsUpdate',
+           !/\bsheetsUpdate\(/.test(body), body.slice(0, 200));
+      }
+
+      // The group path stops at the first refusal instead of ploughing on
+      // and leaving the list half-true under a green checkmark.
+      {
+        const ap = rd38('app-pages.js');
+        const at = ap.indexOf('async function removeForSaleItem(');
+        const body = ap.slice(at, ap.indexOf('\n}', at) + 2);
+        ok('238 a group removal stops at the first refusal',
+           /_stopped\s*=\s*true;\s*break;/.test(body) && /if\s*\(_stopped\)/.test(body), 'no stop-and-break');
+        ok('238 …and reports the partial count rather than a bare checkmark',
+           /_removed\s*\+\s*' of '/.test(body) || /_removed \+ ' of '/.test(body), 'no partial count');
+        ok('238 …with no empty catch left to swallow the failure',
+           !/catch\s*\(\s*e\s*\)\s*\{\s*\}/.test(body), 'empty catch still present');
+      }
+
+      // The sold-then-remove path keeps the two claims apart: the sale is
+      // recorded before the removal is attempted, so it stays true either way.
+      {
+        const br = rd38('browse.js');
+        ok('238 marked-as-sold says so honestly when the removal is refused',
+           /_srcGone\s*\?/.test(br) && /still in your collection/.test(br),
+           'sold path does not distinguish the two outcomes');
+        const at = br.indexOf('async function _ncRemoveSourceRow(');
+        const body = br.slice(at, br.indexOf('\n}', at) + 2);
+        ok('238 …because _ncRemoveSourceRow reports back instead of assuming',
+           /return true;/.test(body) && /return false;/.test(body), 'no boolean answer');
+      }
+
+      // removeCollectionItem is the one the census caught. Four of its writes
+      // were already checked — captured into a variable and tested on the next
+      // line — but the two Want-Upgrade cleanups were not, in either the group
+      // path or the single path. Pin all of it.
+      {
+        const ac = rd38('app-collection.js');
+        const at = ac.indexOf('async function removeCollectionItem(');
+        const body = ac.slice(at, ac.indexOf('\n}', at) + 2);
+        const ugCalls = (body.match(/rrRemoveRowConfirmed\([^)]*'Want-Upgrade List'/g) || []).length;
+        ok('238 both Want-Upgrade cleanups go through the guarded writer',
+           ugCalls === 2, String(ugCalls));
+        ok('238 …and nothing left wraps a Want-Upgrade write in a swallowing catch',
+           !/catch\s*\(\s*e\s*\)\s*\{\s*console\.warn\('Upgrade cleanup/.test(body),
+           'console.warn swallow still present');
+        // The local entry may only be dropped once the sheet has agreed.
+        const unguarded = body.split('\n')
+          .filter(l => /delete\s+state\.upgradeData\[/.test(l) && !/if\s*\(_ugGone/.test(l));
+        ok('238 …and the Want-Upgrade entry is only dropped when the write landed',
+           unguarded.length === 0, unguarded.join(' | '));
+        ok('238 …with the leftover said out loud rather than left as a surprise',
+           /still on your Want-Upgrade list/.test(body), 'no leftover message');
+        // The four capture-then-test deletes: every captured boolean is used.
+        const caps = (body.match(/var\s+(_\w+)\s*=\s*await\s+sheetsDeleteRow\(/g) || [])
+          .map(s => s.match(/var\s+(_\w+)/)[1]);
+        ok('238 …and all four captured delete answers are actually tested',
+           caps.length === 4 && caps.every(v => new RegExp('if\\s*\\(!?' + v + '\\b').test(body)),
+           caps.join(','));
+      }
+
+      // Found by the mutation drill, which is what a mutation drill is for:
+      // the roster above only asks that the guarded call is PRESENT. Deleting
+      // the `if (!(` around one left the call in place and the roster happy.
+      // The census does not cover every case either — _ncRemoveSourceRow has
+      // no toast of its own (its caller does the talking), so it never enters
+      // the celebrating set. So: wherever the helper is called at all, its
+      // answer must be used. Either branched on directly or captured into a
+      // variable; a bare call is the whole bug in one line.
+      {
+        const bare = [];
+        fs.readdirSync(APP38).filter(n => n.endsWith('.js') && n !== 'sheets.js').forEach(f => {
+          rd38(f).split('\n').forEach((l, i) => {
+            if (!/rrRemoveRowConfirmed\s*\(/.test(l)) return;
+            if (/!\(await\s+rrRemoveRowConfirmed\s*\(/.test(l)) return;   // if (!(await …)) …
+            if (/=\s*await\s+rrRemoveRowConfirmed\s*\(/.test(l)) return;  // captured, tested next line
+            bare.push(f + ':' + (i + 1) + ' ' + l.trim().slice(0, 80));
+          });
+        });
+        ok('238 every call to the guarded writer uses the answer it gives back',
+           bare.length === 0, bare.join(' | '));
+      }
+
+      // The three the census turned up on its second pass.
+      {
+        const ap = rd38('app-pages.js');
+        const cut = (n) => { const at = ap.indexOf('async function ' + n + '('); return ap.slice(at, ap.indexOf('\n}', at) + 2); };
+
+        // A sale is the one thing the user is warned cannot be undone, so a
+        // refused blanking must not read as a completed one.
+        const sold = cut('_removeSoldRecord');
+        ok('238 removing a sale record waits for the sheet to agree',
+           /if\s*\(!\(await\s+rrRemoveRowConfirmed\([^)]*'Sold'/.test(sold), 'unguarded');
+        ok('238 …and no longer logs the failure to the console and carries on',
+           !/console\.warn\('\[Sold\] remove record/.test(sold) && !/\bsheetsUpdate\(/.test(sold),
+           'console.warn swallow or raw write still present');
+
+        // This button removes from TWO places. Half-done is the bad outcome.
+        const both = cut('removeForSaleAndCollection');
+        ok('238 remove-from-both stops before the collection when For Sale refuses',
+           /_fsStopped\s*=\s*true;\s*break;/.test(both) && /if\s*\(_fsStopped\)/.test(both), 'no stop');
+        ok('238 …and both of its empty catches are gone',
+           !/catch\s*\(\s*e\s*\)\s*\{\s*\}/.test(both), 'empty catch still present');
+        ok('238 …and a stuck instruction sheet is named, not glossed over',
+           /_isStuck/.test(both) && /still listed/.test(both), 'no leftover message');
+        // Every For Sale / Instruction Sheets entry is only forgotten locally
+        // once the sheet has confirmed it went.
+        const loose = both.split('\n').filter(l =>
+          /delete\s+state\.(forSaleData|isData)\[/.test(l) && !/_isGone/.test(l));
+        ok('238 …and nothing is dropped from the screen ahead of the sheet',
+           loose.length === 1, loose.join(' | '));   // the For Sale one is guarded by the break above
+        // The two collection paths both defaulted their flag to TRUE, so a
+        // thrown write read as a landed one. Every personalData delete must
+        // still be behind the flag, and every write behind a catch that
+        // clears it.
+        const pdLoose = both.split('\n').filter(l =>
+          /delete\s+state\.personalData\[/.test(l) && !/_mBlanked2|_ceBlanked/.test(l));
+        ok('238 …nor is a collection row, on either the group or the single path',
+           pdLoose.length === 0, pdLoose.join(' | '));
+        ok('238 …and a thrown collection write clears the flag instead of leaving it optimistic',
+           (both.match(/catch\s*\(\s*e\s*\)\s*\{\s*(_mBlanked2|_ceBlanked)\s*=\s*false;/g) || []).length === 2,
+           'a personalWriteRow throw can still read as success');
+        ok('238 …with the stuck count carried into the message',
+           /_pdStuck/.test(both) && /still in your collection/.test(both), 'no collection leftover message');
+
+        const part = cut('removePart');
+        ok('238 removing a part goes through the same guarded writer as the rest',
+           /if\s*\(!\(await\s+rrRemoveRowConfirmed\([^)]*'Parts Needed'/.test(part) && !/\bsheetsUpdate\(/.test(part),
+           'still hand-rolled');
+      }
+
+      // Three flows were ALREADY correct before this change. Guard them too,
+      // so a future tidy-up cannot quietly undo them.
+      [['app-pages.js', 'removeWantItem'],
+       ['app-pages.js', '_removeUpgradeFromCollection'],
+       ['app-pages.js', 'removeUpgradeItem']].forEach(([f, n]) => {
+        const src = rd38(f);
+        const at = src.indexOf('function ' + n + '(');
+        const body = at < 0 ? '' : src.slice(at, src.indexOf('\n}', at) + 2);
+        ok('238 ' + n + ' was already honest and stays that way',
+           at > 0 && /if\s*\(!\(await\s+rrVerifiedRowUpdate\(/.test(body), f);
+      });
     })();
 
   })().then(function () {
