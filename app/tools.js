@@ -121,6 +121,20 @@ function buildToolsPage() {
 
   container.innerHTML = html;
 
+  // v0.9.1310 (Brad): "when you hit details, and hit back, it goes to
+  // collection tools, not the duplicate checker." Coming back from a
+  // duplicate-copy detail page re-runs the scan (fresh data — a copy he
+  // just removed is gone from the list) and brings the checker into view.
+  if (window._toolsRerun === 'dupes') {
+    delete window._toolsRerun;
+    setTimeout(function () {
+      try {
+        runDuplicateChecker();
+        var el = document.getElementById('duplicate-checker-results');
+        if (el && el.scrollIntoView) el.scrollIntoView({ block: 'start', behavior: 'auto' });
+      } catch (e) {}
+    }, 0);
+  }
 }
 
 
@@ -644,15 +658,38 @@ function runDuplicateChecker() {
       // this exact copy (pre-fills condition/price and links the listing).
       var pdKey = copy.storeKey;
 
-      html += '<div style="display:grid;grid-template-columns:2rem 4rem 4.5rem 5rem 1fr auto;gap:0.4rem;align-items:center;padding:0.35rem 0.5rem;background:var(--surface);border-radius:7px;width:100%;box-sizing:border-box;cursor:pointer;margin-top:0.2rem" onclick="window._detailReturn=&apos;tools&apos;;showItemDetailPage(' + masterIdx + ')" title="View details">' +
+      // v0.9.1310 (Brad): "the 205 rows don't go to details but the others
+      // do. Also, when you hit details, and hit back, it goes to collection
+      // tools, not the duplicate checker." The row used a shared number-only
+      // masterIdx (variation-blind; -1 when the spelling differs — the 205s)
+      // for EVERY copy. Each row now opens ITS copy through
+      // _openOwnedByInvId — the same variation-aware, manual-safe resolver
+      // the Dashboard and For Sale pages use — keyed by the copy's own store
+      // key, with a visible Details button. _toolsRerun makes Back land on
+      // the checker with results re-scanned, not a bare tools page.
+      var _dOpen = 'window._detailReturn=&apos;tools&apos;;window._toolsRerun=&apos;dupes&apos;;_openOwnedByInvId(&apos;' + String(pdKey).replace(/'/g, '') + '&apos;)';
+      // The For Sale hand-off resolves THIS copy's master row too — the same
+      // number-only shared index would have crossed variations for it.
+      var _cIdx = masterIdx;
+      try {
+        var _cm = (typeof findMaster === 'function') ? findMaster(pd.itemNum, pd.variation, pd) : null;
+        if (_cm) { var _ci = state.masterData.indexOf(_cm); if (_ci >= 0) _cIdx = _ci; }
+      } catch (eCi) {}
+
+      html += '<div style="display:grid;grid-template-columns:2rem 4rem 4.5rem 5rem 1fr auto;gap:0.4rem;align-items:center;padding:0.35rem 0.5rem;background:var(--surface);border-radius:7px;width:100%;box-sizing:border-box;cursor:pointer;margin-top:0.2rem" onclick="' + _dOpen + '" title="View this copy">' +
         '<span style="font-size:0.75rem;color:var(--text-dim);font-weight:600">' + (i + 1) + '</span>' +
         '<span style="font-family:var(--font-mono);font-size:0.78rem;color:var(--text-mid)">' + invId + '</span>' +
         '<span style="font-size:0.8rem;font-weight:700;color:' + condColor + '">' + condStr + hasBox + isQE + '</span>' +
         '<span style="font-size:0.78rem;color:var(--text-mid)">' + price + '</span>' +
         '<span style="font-size:0.75rem;color:var(--accent2);font-family:var(--font-mono)">' + groupedStr + '</span>' +
-        '<button onclick="event.stopPropagation();listForSaleFromCollection(' + masterIdx + ',&apos;' + pdKey + '&apos;)" ' +
-          'style="padding:0.2rem 0.5rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #e67e22;background:var(--bg-card);background:color-mix(in srgb, rgb(230,126,34) 10%, var(--bg-card));color:#e67e22;font-family:var(--font-body);font-weight:600;white-space:nowrap;flex-shrink:0" ' +
+        '<span style="display:flex;gap:0.35rem;flex-shrink:0">' +
+        '<button onclick="event.stopPropagation();' + _dOpen + '" ' +
+          'style="padding:0.2rem 0.5rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #2980b9;background:var(--bg-card);background:color-mix(in srgb, rgb(41,128,185) 10%, var(--bg-card));color:#2980b9;font-family:var(--font-body);font-weight:600;white-space:nowrap" ' +
+          'title="Open this copy’s detail page">Details</button>' +
+        '<button onclick="event.stopPropagation();listForSaleFromCollection(' + _cIdx + ',&apos;' + pdKey + '&apos;)" ' +
+          'style="padding:0.2rem 0.5rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #e67e22;background:var(--bg-card);background:color-mix(in srgb, rgb(230,126,34) 10%, var(--bg-card));color:#e67e22;font-family:var(--font-body);font-weight:600;white-space:nowrap" ' +
           'title="Add this copy to your For Sale list">🏷️ Add to For Sale List</button>' +
+        '</span>' +
       '</div>';
     });
 

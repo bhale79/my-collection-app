@@ -17141,6 +17141,81 @@ META_WRITES.length = 0; TOASTS.length = 0;
          /return false;   \/\/ AA-scan suffixed items carry their own evidence/.test(tl57));
     })();
 
+    // ═══════════════════════════════════════════════════════════
+    // §258. v0.9.1310 — Duplicate Checker: every copy opens, Back returns.
+    //
+    //   Brad: "need the detail page button for each row so i can see which
+    //   one i need to get rid of ... the 205 rows don't go to details but
+    //   the others do. Also, when you hit details, and hit back, it goes
+    //   to collection tools, not the duplicate checker."
+    //   The REAL runDuplicateChecker + buildToolsPage run here.
+    // ═══════════════════════════════════════════════════════════
+    section('258. Duplicate Checker: rows open their own copy, Back re-scans');
+    await (async function () {
+      const p58 = require('path');
+      const tl58 = fs.readFileSync(p58.join(__dirname, '..', 'app', 'tools.js'), 'utf8');
+      const MASTERS = [
+        { itemNum: '6464-475', variation: '1', roadName: 'Boston & Maine', itemType: 'Boxcar' },
+        { itemNum: '6464-475', variation: '2', roadName: 'Boston & Maine', itemType: 'Boxcar' },
+        // deliberately NO row spelled '205' — the masterIdx -1 case Brad hit
+      ];
+      const els = {
+        'duplicate-checker-results': { innerHTML: '', scrollIntoView() { els._scrolled = true; } },
+        'page-tools': { innerHTML: '' },
+      };
+      const env = {
+        window: {},
+        document: { getElementById: (id) => els[id] || null },
+        localStorage: { getItem: () => null, setItem: () => {}, removeItem: () => {} },
+        showToast: () => {},
+        rrEsc: (s) => String(s == null ? '' : s),
+        _currencySymbol: () => '$',
+        findMaster: (n, v) => MASTERS.find((m) => m.itemNum === String(n) && (!v || m.variation === String(v))) || null,
+        state: {
+          masterData: MASTERS.slice(),
+          personalData: {
+            'pd-205-a': { inventoryId: 'pd-205-a', owned: true, itemNum: '205', variation: '1', condition: 6 },
+            'pd-205-b': { inventoryId: 'pd-205-b', owned: true, itemNum: '205', variation: '1', condition: 7 },
+            'pd-bm-a':  { inventoryId: 'pd-bm-a', owned: true, itemNum: '6464-475', variation: '2', condition: 8 },
+            'pd-bm-b':  { inventoryId: 'pd-bm-b', owned: true, itemNum: '6464-475', variation: '2', condition: 5 },
+          },
+          companionData: [], wantData: {},
+        },
+      };
+      env.window.state = env.state;
+      // run the WHOLE tools.js so runDuplicateChecker AND buildToolsPage exist
+      const boot = new Function(
+        'window', 'document', 'localStorage', 'showToast', 'rrEsc', '_currencySymbol', 'findMaster', 'state',
+        tl58 + '\n;return { run: runDuplicateChecker, build: buildToolsPage };');
+      const api = boot(env.window, env.document, env.localStorage, env.showToast, env.rrEsc, env._currencySymbol, env.findMaster, env.state);
+      api.run();
+      const html = els['duplicate-checker-results'].innerHTML;
+      ok('258 the 205 copies open through the store key — never showItemDetailPage(-1)',
+         /_openOwnedByInvId\(&apos;pd-205-a&apos;\)/.test(html) &&
+         /_openOwnedByInvId\(&apos;pd-205-b&apos;\)/.test(html) &&
+         !/showItemDetailPage\(-1/.test(html));
+      ok('258 every row wears a visible Details button',
+         (html.match(/>Details<\/button>/g) || []).length === 4);
+      ok('258 opening a copy arms the Back-to-checker return',
+         /window\._toolsRerun=&apos;dupes&apos;/.test(html));
+      ok('258 the For Sale hand-off resolves THIS copy\'s variation, not the first number match',
+         /listForSaleFromCollection\(1,&apos;pd-bm-a&apos;\)/.test(html));   // var-2 row is index 1
+      // ── Back: buildToolsPage with the flag re-runs the scan and scrolls ──
+      env.window._toolsRerun = 'dupes';
+      els['duplicate-checker-results'].innerHTML = '';
+      api.build();
+      await new Promise((r) => setTimeout(r, 25));
+      ok('258 returning to tools re-runs the scan into view and clears the flag',
+         /Details/.test(els['duplicate-checker-results'].innerHTML) &&
+         els._scrolled === true && !env.window._toolsRerun);
+      // a plain tools visit (no flag) does NOT auto-scan
+      els['duplicate-checker-results'].innerHTML = ''; els._scrolled = false;
+      api.build();
+      await new Promise((r) => setTimeout(r, 25));
+      ok('258 a plain tools visit leaves the checker idle',
+         els['duplicate-checker-results'].innerHTML === '' && els._scrolled === false);
+    })();
+
   })().then(function () {
     console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
     process.exit(fail ? 1 : 0);
