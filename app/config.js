@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.1299';
+const APP_VERSION = 'v0.9.1300';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -11,6 +11,12 @@ const APP_VERSION = 'v0.9.1299';
 // the editor stays shipped but hidden until it's user-ready.
 const APPEARANCE_ENABLED = true;
 if (typeof window !== 'undefined') window.APPEARANCE_ENABLED = APPEARANCE_ENABLED;
+// v0.9.1300 (Brad): "keep collecting the data, just hide the page and the
+// collectors market button." The market UI is off until a future release —
+// flip this to bring it back. Anonymous contribution keeps running; ONLY the
+// page and its nav entries hide (same shape as APPEARANCE_ENABLED).
+const MARKET_ENABLED = false;
+if (typeof window !== 'undefined') window.MARKET_ENABLED = MARKET_ENABLED;
 
 // v0.9.1248 (audit finding A): Brad's diagnostic tools are shipped but hidden.
 // The Reader audit button lived permanently in the Photo Inbox toolbar with no

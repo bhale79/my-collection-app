@@ -214,7 +214,7 @@ function vaultShowOptInModal(fromPrefs) {
         Contributors who help build the database unlock market values and rarity scores once we reach 300 collections. You can opt out and have your data permanently deleted at any time.
       </p>
 
-      <div style="background:rgba(255,255,255,0.04);border-radius:8px;padding:14px 16px;margin-bottom:24px;border:1px solid var(--border)">
+      <div style="background:var(--bg-card);background:color-mix(in srgb, rgb(255,255,255) 5%, var(--bg-card));border-radius:8px;padding:14px 16px;margin-bottom:24px;border:1px solid var(--border)">
         <div style="font-size:0.8rem;color:var(--text-dim);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.1em;font-family:var(--font-head)">What gets submitted</div>
         <div style="font-size:0.84rem;color:var(--text-mid);line-height:1.8">
           ✓ &nbsp;Item number and variation<br>
@@ -235,14 +235,14 @@ function vaultShowOptInModal(fromPrefs) {
           ">Yes, I'll Contribute</button>
           <button onclick="vaultDismissOptIn()" style="
             flex:1;padding:11px 20px;border-radius:8px;
-            border:1px solid var(--border);background:none;
+            border:1px solid var(--border);background:var(--bg-card);
             color:var(--text-mid);font-family:var(--font-body);
             font-size:0.9rem;cursor:pointer;min-width:140px
           ">Not Right Now</button>
         ` : `
           <button onclick="vaultConfirmOptOut()" style="
             flex:1;padding:11px 20px;border-radius:8px;
-            border:1px solid var(--border);background:none;
+            border:1px solid var(--border);background:var(--bg-card);
             color:var(--text-mid);font-family:var(--font-body);
             font-size:0.9rem;cursor:pointer;min-width:140px
           ">Opt Out &amp; Delete My Data</button>
@@ -671,6 +671,11 @@ function vaultShowToast(message) {
 // ============================================================
 
 function vaultRenderPage() {
+  // v0.9.1300 (Brad): the market UI is off until a future release. Data
+  // contribution (vaultInit/vaultSubmitData) is deliberately NOT gated —
+  // "keep collecting the data, just hide the page and the collectors market
+  // button."
+  if (!window.MARKET_ENABLED) { if (typeof showPage === 'function') showPage('dashboard'); return; }
   const el = document.getElementById('page-vault');
   if (!el) return;
 
@@ -735,7 +740,7 @@ function vaultRenderPage() {
       <div id="vault-progress-wrap" style="margin-bottom:28px"></div>
 
       <!-- What gets submitted -->
-      <div style="background:rgba(255,255,255,0.04);border-radius:10px;padding:16px 18px;margin-bottom:28px;border:1px solid var(--border)">
+      <div style="background:var(--bg-card);background:color-mix(in srgb, rgb(255,255,255) 5%, var(--bg-card));border-radius:10px;padding:16px 18px;margin-bottom:28px;border:1px solid var(--border)">
         <div style="font-size:0.78rem;color:var(--text-dim);margin-bottom:10px;text-transform:uppercase;letter-spacing:0.1em;font-family:var(--font-head)">What gets submitted</div>
         <div style="font-size:0.84rem;color:var(--text-mid);line-height:2">
           ✓ &nbsp;Item number and variation<br>
@@ -761,7 +766,7 @@ function vaultRenderPage() {
           </div>
           <button onclick="vaultConfirmOptOut()" style="
             padding:12px 18px;border-radius:8px;
-            border:1px solid var(--border);background:none;
+            border:1px solid var(--border);background:var(--bg-card);
             color:var(--text-mid);font-family:var(--font-body);
             font-size:0.85rem;cursor:pointer;white-space:nowrap
           ">Opt Out &amp; Delete My Data</button>
@@ -784,6 +789,7 @@ function vaultRenderPage() {
 function vaultRenderFloatingBadge() {
   const existing = document.getElementById('vault-float-badge');
   if (existing) existing.remove();
+  if (!window.MARKET_ENABLED) return;   // v0.9.1300: market UI off
 
   // Don't show badge if already opted in
   if (vaultIsOptedIn()) return;
@@ -809,6 +815,9 @@ function vaultRenderFloatingBadge() {
 // ============================================================
 
 async function vaultInit() {
+  // v0.9.1300: the mobile nav entry ships hidden; the flag is the ONE
+  // decider for every market door (sidebar, mobile, badge, page).
+  try { if (window.MARKET_ENABLED) { var _mn = document.getElementById('mnav-market'); if (_mn) _mn.style.display = ''; } } catch (e) {}
   // Generate token if not exists (harmless for non-opted-in users)
   vaultGetToken();
 

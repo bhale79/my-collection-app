@@ -16623,6 +16623,30 @@ META_WRITES.length = 0; TOASTS.length = 0;
          /cy \+= row\.h;/.test(sh49));
       ok('249 photos fetch four items at a time, not one by one',
          /_queue\.splice\(0, 4\)\.map\(_fetchOne\)/.test(sh49));
+
+      // ═══ §250 (v0.9.1300) — the market UI is OFF, the data is NOT ═══
+      // Brad: "fix the transparency issue, keep collecting the data, just
+      // hide the page and the collectors market button."
+      const cf50 = fs.readFileSync(p49.join(__dirname, '..', 'app', 'config.js'), 'utf8');
+      const vt50 = fs.readFileSync(p49.join(__dirname, '..', 'app', 'vault.js'), 'utf8');
+      const st50 = fs.readFileSync(p49.join(__dirname, '..', 'app', 'app-setup.js'), 'utf8');
+      const ix50 = fs.readFileSync(p49.join(__dirname, '..', 'app', 'index.html'), 'utf8');
+      ok('250 the flag exists and ships OFF',
+         /const MARKET_ENABLED = false;/.test(cf50));
+      ok('250 all four doors read the ONE flag: sidebar, page, badge, mobile nav',
+         /window\.MARKET_ENABLED \? '<button class="nav-item" onclick="showPage\(\\'vault\\'/.test(st50) &&
+         /if \(!window\.MARKET_ENABLED\) \{ if \(typeof showPage === 'function'\) showPage\('dashboard'\); return; \}/.test(vt50) &&
+         /if \(!window\.MARKET_ENABLED\) return;   \/\/ v0\.9\.1300: market UI off/.test(vt50) &&
+         /id="mnav-market" style="display:none" data-market-gated="1"/.test(ix50) &&
+         /if \(window\.MARKET_ENABLED\) \{ var _mn = document\.getElementById\('mnav-market'\)/.test(vt50));
+      ok('250 data contribution is NOT gated — vaultInit still submits',
+         /if \(vaultIsOptedIn\(\)\) \{/.test(vt50) &&
+         /setTimeout\(\(\) => vaultSubmitData\(\), 3000\);/.test(vt50) &&
+         !/MARKET_ENABLED[\s\S]{0,120}vaultSubmitData/.test(vt50));
+      ok('250 the three transparent boxes are opaque now',
+         !/background:rgba\(255,255,255,0\.04\);/.test(vt50) &&
+         (vt50.match(/background:var\(--bg-card\);background:color-mix\(in srgb, rgb\(255,255,255\) 5%, var\(--bg-card\)\);/g) || []).length >= 2 &&
+         !/border:1px solid var\(--border\);background:none;/.test(vt50));
     })();
 
   })().then(function () {
