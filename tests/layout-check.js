@@ -916,6 +916,75 @@ const HARNESS = `<!doctype html><html><head><meta charset="utf-8">
       }
     }
 
+    // ══════════════════════════════════════════════════════════════════
+    // The THIRD painter, MEASURED (v0.9.1282)
+    //
+    // Brad: "you can see the logo through group photos and tag photo."
+    // v0.9.1273 fixed the markup, v0.9.1274 fixed the stylesheet — and these
+    // two buttons still bled, because _selInfo repaints them from JAVASCRIPT
+    // on every selection change. The first JS touch re-serialises the style
+    // attribute ("#2980b9" -> "rgb(41, 128, 185)"), the v0.9.869 lever's
+    // [style*="#2980b9"] quietly stops matching, and the JS wash lands on a
+    // button no stylesheet protects any more.
+    //
+    // So this block runs the REAL _pinOpaqueTint from the shipped source,
+    // after the real markup, over two backdrops — the same tint-blind proof
+    // as the other two layers get.
+    // ══════════════════════════════════════════════════════════════════
+    {
+      const pinSrc = fs.readFileSync(path.join(APP, 'photo-inbox.js'), 'utf8');
+      const ha = pinSrc.indexOf('function _pinOpaqueTint(el, rgbCsv, pct) {');
+      const helper = ha >= 0 ? pinSrc.slice(ha, pinSrc.indexOf('\n  }', ha) + 4) : '';
+      ok('js repaint: _pinOpaqueTint exists in the shipped source', helper.length > 50);
+      const btnStyle = 'padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;'
+        + 'background:var(--bg-card);background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card));'
+        + 'color:#2980b9;font-weight:700;font-size:0.82rem';
+      const render = async function (backdrop, file) {
+        const page = `<!doctype html><html><head><meta charset="utf-8">
+<link rel="stylesheet" href="file://${APP}/app.css">
+<style>html,body{margin:0;height:100%}.app-body{display:flex;height:100%}.main{overflow:auto;padding:20px}</style>
+</head><body><div class="app-body"><div class="main">
+<div id="rr-logo-bg" style="position:fixed;inset:0;pointer-events:none;z-index:-1;background:${backdrop};opacity:1"></div>
+<button id="jt-idle" style="${btnStyle}">aaaaaa</button>
+<button id="jt-active" style="${btnStyle}">aaaaaa</button>
+</div></div>
+<script>${helper.replace(/^  /gm, '')}
+_pinOpaqueTint(document.getElementById('jt-idle'), '139,142,148', 12);
+_pinOpaqueTint(document.getElementById('jt-active'), '41,128,185', 18);
+</script></body></html>`;
+        const fp = path.join(dir, file);
+        fs.writeFileSync(fp, page);
+        const pg = await browser.newPage({ viewport: { width: 420, height: 110 } });
+        await pg.goto('file://' + fp);
+        await pg.waitForTimeout(120);
+        const shot = await pg.screenshot({ type: 'png' });
+        const at = await pg.evaluate(() => ['jt-idle', 'jt-active'].map(function (id) {
+          const r = document.getElementById(id).getBoundingClientRect();
+          // sample INSIDE the face but away from the glyphs: 8px in from the left edge
+          return { id: id, x: Math.round(r.left + 8), y: Math.round(r.top + r.height / 2) };
+        }));
+        await pg.close();
+        return { shot: shot, spots: at };
+      };
+      const jg = await render('#00ff00', 'jsrepaint-g.html');
+      const jm = await render('#ff00ff', 'jsrepaint-m.html');
+      const readPng = (buf) => { try { return require('pngjs').PNG.sync.read(buf); } catch (e) { return null; } };
+      const pg2 = readPng(jg.shot), pm2 = readPng(jm.shot);
+      if (pg2 && pm2) {
+        const sample = (png, s) => { const i = (png.width * s.y + s.x) << 2; return [png.data[i], png.data[i + 1], png.data[i + 2]]; };
+        const bled = [];
+        jg.spots.forEach((s, i) => {
+          const a = sample(pg2, s), b = sample(pm2, jm.spots[i]);
+          if (a[0] !== b[0] || a[1] !== b[1] || a[2] !== b[2]) bled.push({ id: s.id, overGreen: a, overMagenta: b });
+        });
+        ok('js repaint: a JS-repainted mode button is opaque over any backdrop',
+           bled.length === 0, bled.length ? JSON.stringify(bled) : '2 buttons, two backdrops, identical');
+      } else {
+        ok('js repaint: pixel check could NOT run — pngjs missing', false, 'run npm install');
+      }
+    }
+
+
   } finally {
     await browser.close();
     try { fs.rmSync(dir, { recursive: true, force: true }); } catch (e) {}

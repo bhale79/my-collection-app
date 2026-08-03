@@ -1322,7 +1322,8 @@
       apb.style.display = '';
       apb.disabled = !ready;
       apb.textContent = 'Apply' + (n ? ' to ' + n : '');
-      apb.style.background = ready ? 'var(--accent)' : 'rgba(139,142,148,0.25)';
+      if (ready) apb.style.background = 'var(--accent)';
+      else _pinOpaqueTint(apb, '139,142,148', 25);   // v0.9.1282
       apb.style.color = ready ? '#fff' : 'var(--text-dim)';
       apb.style.cursor = ready ? 'pointer' : 'default';
     }
@@ -1376,6 +1377,22 @@
     await window._pinRefresh();
   };
 
+  // ══ v0.9.1282 (Brad: "you can see the logo through group photos and tag
+  // photo") — THE THIRD PAINTER. v0.9.1273 fixed the markup, v0.9.1274 fixed
+  // the stylesheet, and these buttons were still see-through because
+  // JavaScript repaints them on every selection change — and the FIRST time
+  // JS touches an element's style, the browser re-serialises the style
+  // attribute, "#2980b9" becomes "rgb(41, 128, 185)", and the v0.9.869
+  // lever's [style*="#2980b9"] selector silently stops matching. The lever's
+  // opaque background walks away at the exact moment a translucent JS wash
+  // is painted on. Every JS tint goes through this helper now: fallback
+  // first, then the mix — a browser without color-mix keeps the opaque
+  // fallback, exactly like the two-declaration markup pattern.
+  function _pinOpaqueTint(el, rgbCsv, pct) {
+    el.style.background = 'var(--bg-card)';
+    el.style.background = 'color-mix(in srgb, rgb(' + rgbCsv + ') ' + pct + '%, var(--bg-card))';
+  }
+
   function _selGroups() { return _groups.filter(function (g) { return _sel[g.key]; }); }
 
   function _selInfo() {
@@ -1406,7 +1423,7 @@
     [['pin-group-btn', isGroup], ['pin-tag-btn', isTag]].forEach(function (p) {
       var b = document.getElementById(p[0]);
       if (!b) return;
-      b.style.background = p[1] ? 'rgba(41,128,185,0.18)' : 'rgba(139,142,148,0.12)';
+      _pinOpaqueTint(b, p[1] ? '41,128,185' : '139,142,148', p[1] ? 18 : 12);   // v0.9.1282: opaque, see _pinOpaqueTint
       b.style.borderColor = p[1] ? '#2980b9' : '#8b8e94';
       b.style.display = (_selectMode && !p[1]) ? 'none' : '';
     });
@@ -1862,13 +1879,15 @@
       var tok = document.getElementById('pin-rv-idtoken');
       if (add) {
         add.className = demote ? '' : 'btn-primary';
-        add.style.background = demote ? 'rgba(139,142,148,0.12)' : '';
+        if (demote) _pinOpaqueTint(add, '139,142,148', 12);   // v0.9.1282
+        else add.style.background = '';
         add.style.color = demote ? 'var(--text-mid)' : '';
         add.style.border = demote ? '1.5px solid #8b8e94' : 'none';
         add.title = demote ? 'The catalog photo does not match — check the number first' : '';
       }
       if (tok) {
-        tok.style.background = demote ? 'var(--accent)' : 'rgba(212,168,67,0.14)';
+        if (demote) tok.style.background = 'var(--accent)';
+        else _pinOpaqueTint(tok, '212,168,67', 14);   // v0.9.1282
         tok.style.color = demote ? '#fff' : 'var(--accent2,#d4a843)';
         tok.style.borderColor = demote ? 'var(--accent)' : 'var(--accent2)';
       }
@@ -6238,12 +6257,12 @@
         ? ('Resume audit (' + a.rows.length + '/' + a.total + ')')
         : ('Audit results (' + a.rows.length + ')');
       b.style.borderColor = '#2980b9';
-      b.style.background = 'rgba(41,128,185,0.18)';
+      _pinOpaqueTint(b, '41,128,185', 18);   // v0.9.1282
       b.onclick = partial ? window._pinReaderAudit : window._pinAuditShowSaved;
     } else {
       b.textContent = 'Reader audit (free)';
       b.style.borderColor = '#8b8e94';
-      b.style.background = 'rgba(139,142,148,0.12)';
+      _pinOpaqueTint(b, '139,142,148', 12);   // v0.9.1282
       b.onclick = window._pinReaderAudit;
     }
   }

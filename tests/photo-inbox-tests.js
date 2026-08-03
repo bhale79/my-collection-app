@@ -10304,11 +10304,11 @@ META_WRITES.length = 0; TOASTS.length = 0;
        /'\.\/write-outbox\.js'/.test(rd('app/sw.js')));
 
     section('199h. The version trio moved together');
-    ok('APP_VERSION is v0.9.1281', /const APP_VERSION = 'v0\.9\.1281';/.test(cfg));
+    ok('APP_VERSION is v0.9.1282', /const APP_VERSION = 'v0\.9\.1282';/.test(cfg));
     ok('every ?v= mark in app/index.html matches it',
-       (idx.match(/\?v=1281/g) || []).length === 69 && !/\?v=1280/.test(idx),
-       String((idx.match(/\?v=1281/g) || []).length));
-    ok('the service worker cache name moved too', /const CACHE_NAME = 'mca-v1291';/.test(rd('app/sw.js')));
+       (idx.match(/\?v=1282/g) || []).length === 69 && !/\?v=1281/.test(idx),
+       String((idx.match(/\?v=1282/g) || []).length));
+    ok('the service worker cache name moved too', /const CACHE_NAME = 'mca-v1292';/.test(rd('app/sw.js')));
     // v0.9.1276 (R9): the ?v= count above cannot see a NEW local <script>
     // added with no stamp at all — 69 stamped plus one bare is still 69, and
     // the bare one dodges the cache-busting the stamp exists for: it would be
@@ -13882,7 +13882,11 @@ META_WRITES.length = 0; TOASTS.length = 0;
           }
           // Anything the pattern could not parse at all is not a pass — it is
           // a shape nobody has looked at. Count them in rather than out.
-          const total = (src.match(/color-mix\(in srgb, rgb\(/g) || []).length;
+          // v0.9.1282: count literal declarations only — rgb( followed by a
+      // digit. _pinOpaqueTint BUILDS its declaration from parts ("rgb(' +
+      // rgbCsv..."), which is not a shape that ever reaches a stylesheet;
+      // the pixel test in layout-check runs the built result instead.
+      const total = (src.match(/color-mix\(in srgb, rgb\(\d/g) || []).length;
           if (seen !== total) bad.push(f + ' -> ' + (total - seen) + ' color-mix declaration(s) in an unrecognised shape');
         }
         ok('223 every color-mix mixes into an opaque theme colour',
@@ -14549,6 +14553,38 @@ META_WRITES.length = 0; TOASTS.length = 0;
       ok('231 the Item Type selector itself is untouched — switching kinds still works',
          /function _wizSetKind\(kind\)/.test(wiz31) &&
          /wizardChooseCategory\(kind\);/.test(wiz31));
+    })();
+
+    // ═══════════════════════════════════════════════════════════
+    // §232. v0.9.1282 — the third painter paints opaque.
+    //
+    //   Markup (v0.9.1273), stylesheet (v0.9.1274) — and still Brad could
+    //   "see the logo through group photos and tag photo", because
+    //   JavaScript repaints those buttons on every selection change, and a
+    //   JS style-touch re-serialises the style attribute, detaching the
+    //   v0.9.869 lever ("#2980b9" becomes "rgb(41, 128, 185)"). Every JS
+    //   button tint now goes through _pinOpaqueTint: opaque fallback first,
+    //   color-mix second — the same two-declaration pattern as the markup.
+    //   layout-check runs the real helper and reads the pixels.
+    // ═══════════════════════════════════════════════════════════
+    section('232. JS button tints are opaque — the third painter');
+    (function () {
+      const p32 = require('path');
+      const pin32 = fs.readFileSync(p32.join(__dirname, '..', 'app', 'photo-inbox.js'), 'utf8');
+      const code32 = pin32.replace(/\/\/[^\n]*/g, '');
+      ok('232 the helper paints fallback-first, mix-second',
+         /el\.style\.background = 'var\(--bg-card\)';\s*\n\s*el\.style\.background = 'color-mix\(in srgb, rgb\(' \+ rgbCsv \+ '\) ' \+ pct \+ '%, var\(--bg-card\)\)';/.test(pin32));
+      // The drop-zone's 0.06 drag-over cue is a PANEL and stays (same scope
+      // rule as v0.9.1273: buttons only). The button washes are named by
+      // their exact tints, so none can come back under this test's nose.
+      ok('232 no BUTTON tint bypasses it — every translucent JS wash on the toolbar is gone',
+         !/\.style\.background = [^;\n]*rgba\(139,142,148,0\.(12|25)\)/.test(code32) &&
+         !/\.style\.background = [^;\n]*rgba\(41,128,185,0\.18\)/.test(code32) &&
+         !/\.style\.background = [^;\n]*rgba\(212,168,67,0\.14\)/.test(code32),
+         'a raw rgba() wash is back in a JS button repaint');
+      ok('232 the six converted sites all call the helper',
+         (code32.match(/_pinOpaqueTint\(/g) || []).length >= 7,   // 1 def + 6 calls
+         String((code32.match(/_pinOpaqueTint\(/g) || []).length));
     })();
 
   })().then(function () {
