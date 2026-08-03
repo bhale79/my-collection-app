@@ -484,7 +484,7 @@ function _buildWizardModal() {
       '<div id="wizard-adding-banner" style="padding:0 1.5rem"></div>' +
       // v0.9.993 (Brad): ITEM TYPE selector — the first question of the add
       // flow. Cream + blue + bold so it stands out from the filters below.
-      // Synced by _syncWizKindBar(); remembers last-used (lv_add_kind).
+      // Synced by _syncWizKindBar(). (The last-used memory was removed in v0.9.1281.)
       '<div id="wizard-kind-bar" style="padding:0 1.5rem;display:none"></div>' +
       '<div class="modal-body" id="wizard-body" style="flex:1;overflow-y:auto;min-height:0"></div>' +
       '<div class="modal-footer">' +
@@ -837,8 +837,9 @@ window._soldPickSrcSet = function (src) {
 
 // ── v0.9.993 (Brad): ITEM TYPE dropdown — "what are you adding?" ─────────
 // Replaces the "Adding something else?" chip row. Shown at the start of the
-// add flow; picking a kind rebuilds the wizard for that flow. Remembers the
-// last-used kind across sessions (localStorage lv_add_kind).
+// add flow; picking a kind rebuilds the wizard for that flow. (It used to
+// remember the last-used kind across adds — removed in v0.9.1281, after one
+// paper add made every later "Add item" open on Paper.)
 // v0.9.1036 (Brad): plain text, no picture icons — they carried no meaning
 // and the phone's own dropdown blew them up to the size of the words.
 const _WIZ_KINDS = [
@@ -859,7 +860,7 @@ function _wizCurrentKind() {
   return 'cataloged';
 }
 function _wizSetKind(kind) {
-  try { localStorage.setItem('lv_add_kind', kind); } catch (e) {}
+  // v0.9.1281: no longer remembered across adds — see openWizard.
   if (kind === _wizCurrentKind()) return;
   // Fresh restart of the add flow in the chosen kind (only offered on the
   // first screen, so nothing typed is lost).
@@ -1000,22 +1001,17 @@ async function openWizard(tab) {
     // Don't pre-set — let user choose category first
   }
   renderWizardStep();
-  // v0.9.993 (Brad): the ITEM TYPE selector remembers last-used. If the last
-  // add was a Paper Item, the wizard reopens on the Paper flow. Deferred a
-  // tick and guarded so flows that pre-fill an item (add-from-browse, box
-  // only, quick-entry completion) are never hijacked.
+  // v0.9.1281 (Brad: "when i hit add item, it goes straight to add paper").
+  // v0.9.993 made the ITEM TYPE selector remember last-used, so the wizard
+  // reopened on whatever kind the previous add was. That memory was near
+  // harmless while the selector was hard to reach — and became a trap the
+  // day v0.9.1278 made it easy: one paper add and every add after opened on
+  // Paper. Removed. "Add item" always starts as an item; the selector is one
+  // tap away when it is not one. The stored key is cleared so devices that
+  // carry it do not keep a dead value forever (same rule as v0.9.1276's
+  // rr_capture_home_era cleanup).
   if (tab === 'collection') {
-    setTimeout(function() {
-      try {
-        let _lk = '';
-        try { _lk = localStorage.getItem('lv_add_kind') || ''; } catch (e) {}
-        if (!_lk || _lk === 'cataloged') return;
-        if (!_WIZ_KINDS.some(function(k) { return k.id === _lk; })) return;
-        const d = wizard.data || {};
-        if (wizard.tab !== 'collection' || d._manualEntry || d._fillItemMode || d.boxOnly || d.itemNum || d._updatePdKey || wizard.step > 0) return;
-        wizardChooseCategory(_lk);
-      } catch (e) {}
-    }, 0);
+    try { localStorage.removeItem('lv_add_kind'); } catch (e) {}
   }
 }
 

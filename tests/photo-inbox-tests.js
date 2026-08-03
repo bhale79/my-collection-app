@@ -10304,11 +10304,11 @@ META_WRITES.length = 0; TOASTS.length = 0;
        /'\.\/write-outbox\.js'/.test(rd('app/sw.js')));
 
     section('199h. The version trio moved together');
-    ok('APP_VERSION is v0.9.1280', /const APP_VERSION = 'v0\.9\.1280';/.test(cfg));
+    ok('APP_VERSION is v0.9.1281', /const APP_VERSION = 'v0\.9\.1281';/.test(cfg));
     ok('every ?v= mark in app/index.html matches it',
-       (idx.match(/\?v=1280/g) || []).length === 69 && !/\?v=1279/.test(idx),
-       String((idx.match(/\?v=1280/g) || []).length));
-    ok('the service worker cache name moved too', /const CACHE_NAME = 'mca-v1290';/.test(rd('app/sw.js')));
+       (idx.match(/\?v=1281/g) || []).length === 69 && !/\?v=1280/.test(idx),
+       String((idx.match(/\?v=1281/g) || []).length));
+    ok('the service worker cache name moved too', /const CACHE_NAME = 'mca-v1291';/.test(rd('app/sw.js')));
     // v0.9.1276 (R9): the ?v= count above cannot see a NEW local <script>
     // added with no stamp at all — 69 stamped plus one bare is still 69, and
     // the bare one dodges the cache-busting the stamp exists for: it would be
@@ -14522,6 +14522,33 @@ META_WRITES.length = 0; TOASTS.length = 0;
          /await window\._rrDetailGallery\(tr2, folderLink\);/.test(coll30));
       ok('230 phones keep the plain gallery — drag is desktop-only for now',
          /if \(!window\.IS_MOBILE_UA\) \{\s*\n\s*wrap\.draggable = true;/.test(coll30));
+    })();
+
+    // ═══════════════════════════════════════════════════════════
+    // §231. v0.9.1281 — "Add item" means an item, every time.
+    //
+    //   Brad, minutes after v0.9.1280 shipped: "when i hit add item, it
+    //   goes straight to add paper." v0.9.993's remember-last-kind memory
+    //   (lv_add_kind) lay dormant while the Item Type selector was hard to
+    //   reach; v0.9.1278 made the selector easy, he used it once for a
+    //   paper item, and the memory made Paper the new default for every
+    //   add after. The memory is gone: an add always opens as an item, and
+    //   the selector is one tap away when it is not one.
+    // ═══════════════════════════════════════════════════════════
+    section('231. Add item means an item — the sticky kind memory is gone');
+    (function () {
+      const p31 = require('path');
+      const wiz31 = fs.readFileSync(p31.join(__dirname, '..', 'app', 'wizard.js'), 'utf8');
+      const code31 = wiz31.replace(/\/\/[^\n]*/g, '');
+      ok('231 nothing reads the old memory — no add can be hijacked by the last one',
+         !/getItem\('lv_add_kind'\)/.test(code31));
+      ok('231 nothing writes it either, so it cannot come back half-alive',
+         !/setItem\('lv_add_kind'/.test(code31));
+      ok('231 …and devices that carry the stale key have it cleared on the next add',
+         /removeItem\('lv_add_kind'\)/.test(code31));
+      ok('231 the Item Type selector itself is untouched — switching kinds still works',
+         /function _wizSetKind\(kind\)/.test(wiz31) &&
+         /wizardChooseCategory\(kind\);/.test(wiz31));
     })();
 
   })().then(function () {
