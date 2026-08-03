@@ -1093,6 +1093,73 @@ _pinOpaqueTint(document.getElementById('jt-active'), '41,128,185', 18);
       } catch (e) {}
     }
 
+    // ══════════════════════════════════════════════════════════════════
+    // The excluded-numbers card section, MEASURED (v0.9.1294, request #30)
+    //
+    // The REAL _pinExcludedHtml builds the section here (fake store, real
+    // code), and the render answers what a grep cannot: do the checkboxes
+    // fit a review-card column without overflowing, and is the note
+    // visible under them?
+    // ══════════════════════════════════════════════════════════════════
+    {
+      const pinSrc = fs.readFileSync(path.join(APP, 'photo-inbox.js'), 'utf8');
+      const x0 = pinSrc.indexOf('  var _exclView = { fid: null, nums: [] };');
+      const x1 = pinSrc.indexOf("  var _rvAiMfr = '';");
+      ok('excluded: the real section builder was found', x0 > 0 && x1 > x0);
+      const exStore = { f1: { rejected: ['3-3-25', '175-50', '6561'] } };
+      const exW = {};
+      const exRig = new Function('window', '_pinOnScreenFid', '_ids', '_idsSave', 'rrEsc',
+        pinSrc.slice(x0, x1) + '\n return _pinExcludedHtml;')(
+          exW, () => 'f1', () => exStore, () => {}, (s) => String(s).replace(/</g, '&lt;'));
+      exRig();                          // first render fills the view list
+      exW._pinRejectToggle(1, false);   // one un-checked, like mid-correction
+      const exHtml = exRig();
+      const exPage = `<!doctype html><html><head><meta charset="utf-8">
+<link rel="stylesheet" href="file://${APP}/app.css">
+<style>html,body{margin:0}#card{width:420px;padding:14px;box-sizing:border-box;background:var(--surface);border:1px solid var(--border);border-radius:12px}</style>
+</head><body><div id="card">
+<div style="font-size:0.8rem;color:#2ecc71;font-weight:700">✓ You already own one — this will be added as a separate copy.</div>
+${exHtml}
+</div></body></html>`;
+      const exFp = path.join(dir, 'excluded-card.html');
+      fs.writeFileSync(exFp, exPage);
+      const exPg = await browser.newPage({ viewport: { width: 460, height: 340 } });
+      await exPg.goto('file://' + exFp);
+      await exPg.waitForTimeout(120);
+      const exM = await exPg.evaluate(function () {
+        const card = document.getElementById('card');
+        const cr = card.getBoundingClientRect();
+        const boxes = Array.prototype.slice.call(card.querySelectorAll('input[type="checkbox"]'));
+        let overhang = 0;
+        card.querySelectorAll('*').forEach(function (n) {
+          const r = n.getBoundingClientRect();
+          if (r.width && r.right - cr.right > 1) overhang = Math.max(overhang, r.right - cr.right);
+        });
+        const note = card.querySelector('#pin-rv-excl div:last-child');
+        return {
+          count: boxes.length,
+          checked: boxes.filter(function (b) { return b.checked; }).length,
+          overhang: overhang,
+          noteVisible: !!(note && note.offsetHeight > 0 && /re-scan button below/.test(note.textContent)),
+          boxSize: boxes.length ? boxes[0].getBoundingClientRect().height : 0,
+        };
+      });
+      const exShot = await exPg.screenshot({ type: 'png', fullPage: true });
+      await exPg.close();
+      ok('excluded: three numbers render, the un-checked one still visible',
+         exM.count === 3 && exM.checked === 2, JSON.stringify(exM));
+      ok('excluded: the note under the checkboxes is visible and points at re-scan',
+         exM.noteVisible);
+      ok('excluded: checkboxes are finger-sized, not browser-default specks',
+         exM.boxSize >= 14, exM.boxSize + 'px');
+      ok('excluded: nothing overhangs the review-card column',
+         exM.overhang <= 1, exM.overhang + 'px overhang');
+      try {
+        fs.mkdirSync(path.join(__dirname, '..', '_shots'), { recursive: true });
+        fs.writeFileSync(path.join(__dirname, '..', '_shots', 'excluded-card.png'), exShot);
+      } catch (e) {}
+    }
+
   } finally {
     await browser.close();
     try { fs.rmSync(dir, { recursive: true, force: true }); } catch (e) {}

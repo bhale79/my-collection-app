@@ -1725,6 +1725,61 @@
     return out;
   }
 
+  // ══ v0.9.1294 (Brad, request #30): the excluded numbers live ON THE CARD ══
+  // "need to move the numbers excluded from previous scan to here, have each
+  //  number where you can check or uncheck it to exclude it. Then add a note
+  //  that says, if still wrong hit the rescan button below."
+  //
+  // v0.9.1277 made rejections visible; this puts them where he is already
+  // looking — the result card — with one checkbox per number instead of the
+  // old all-or-nothing clear (_pinUnreject, removed). Checked = still
+  // excluded. Un-checking edits the stored mark list ONLY: the re-scan
+  // happens when the re-scan button is pressed (Brad's choice, 2026-08-03),
+  // so several marks can be fixed before one re-scan. The view keeps
+  // just-unchecked numbers on screen (checkbox empty) so a mis-click can be
+  // re-checked right up until the card is rebuilt.
+  var _exclView = { fid: null, nums: [] };
+  function _pinExcludedHtml() {
+    var fid = '', stored = [];
+    try {
+      fid = _pinOnScreenFid();
+      var e = _ids()[fid];
+      stored = (e && Array.isArray(e.rejected)) ? e.rejected.slice() : [];
+    } catch (e2) {}
+    if (_exclView.fid !== fid) _exclView = { fid: fid, nums: stored.slice() };
+    else stored.forEach(function (n) { if (_exclView.nums.indexOf(n) < 0) _exclView.nums.push(n); });
+    if (!_exclView.nums.length) return '';
+    return '<div id="pin-rv-excl" style="margin-top:0.55rem;padding:0.5rem 0.65rem;border:1px solid var(--border);border-radius:9px;background:var(--surface2)">'
+      + '<div style="font-size:0.7rem;font-weight:700;letter-spacing:0.03em;text-transform:uppercase;color:var(--text-dim);margin-bottom:0.3rem">Numbers excluded from earlier scans</div>'
+      + _exclView.nums.map(function (n, i) {
+          var on = stored.indexOf(n) >= 0;
+          return '<label style="display:inline-flex;align-items:center;gap:0.35rem;margin:0 0.75rem 0.3rem 0;font-size:0.82rem;color:var(--text);cursor:pointer">'
+            + '<input type="checkbox"' + (on ? ' checked' : '') + ' onchange="_pinRejectToggle(' + i + ', this.checked)" style="width:16px;height:16px;accent-color:var(--accent);cursor:pointer">'
+            + rrEsc(n) + '</label>';
+        }).join('')
+      + '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.25rem">Checked numbers are left out of the scan. Un-check one to allow it again — if the answer is still wrong, hit the re-scan button below.</div>'
+      + '</div>';
+  }
+  // The checkbox handler edits ONE mark and never re-scans — the re-scan
+  // button below the card is the trigger. The index points into
+  // _exclView.nums, so no number string ever rides through an HTML attribute.
+  window._pinRejectToggle = function (i, checked) {
+    var n = _exclView.nums[i];
+    if (n === undefined) return;
+    try {
+      var fid = _exclView.fid || _pinOnScreenFid();
+      var m = _ids();
+      var e = m[fid] || (m[fid] = {});
+      var list = Array.isArray(e.rejected) ? e.rejected : [];
+      var at = list.indexOf(n);
+      if (checked && at < 0) list.push(n);
+      if (!checked && at >= 0) list.splice(at, 1);
+      if (list.length) e.rejected = list;
+      else delete e.rejected;
+      _idsSave(m);
+    } catch (e2) {}
+  };
+
   var _rvAiMfr = '';
   window._pinReviewLookup = function (val) {
     var box = document.getElementById('pin-rv-info');
@@ -1761,7 +1816,10 @@
       html += '<div style="margin-top:0.45rem;font-size:0.8rem;color:#2ecc71;font-weight:700">\u2713 You already own one — this will be added as a separate copy.'
         + _pinSeeItLink(lk.ownedPd) + '</div>';
     }
-    box.innerHTML = html;
+    // v0.9.1294 (request #30): the excluded numbers ride on EVERY branch of
+    // the card — a failed read with exclusions is exactly the case where the
+    // right answer is sitting on the excluded list.
+    box.innerHTML = html + _pinExcludedHtml();
     // v0.9.942 (Identify v3, Brad): double-check the photo against the
     // catalog listing's reference photo when the matched master row links one.
     try { _pinVerifyRender(lk); } catch (eV) {}
@@ -2603,7 +2661,7 @@
     // v0.9.1277: rejections were doing their work invisibly — the right answer
     // can be sitting on this list, and until now nothing on screen said so.
     if ((dbg.rejectedList || []).length) out.push('Left out because you marked them wrong earlier: ' + dbg.rejectedList.slice(0, 4).join(', '));
-    if (dbg.rejectedStrong) out.push('But the car itself reads ' + dbg.rejectedStrong + ' — if that mark was a mistake, expand the details below and use Un-mark & re-scan');
+    if (dbg.rejectedStrong) out.push('But the car itself reads ' + dbg.rejectedStrong + ' — if that mark was a mistake, un-check it in the excluded numbers list on the card, then hit re-scan');
     return out;
   }
   function _pinPlainWhyHtml(dbg, raw) {
@@ -2684,12 +2742,13 @@
                 + '— that can match the wrong maker\u2019s list, so it is only offered. '
                 + 'Tag the photo and re-read for a filtered answer.' : '')
             + (dbg.stampSaw ? '<br>The light-numbers pass saw: “' + rrEsc(dbg.stampSaw) + '”' : '')
-            + ((dbg.rejectedList && dbg.rejectedList.length)
-                ? '<br>Excluded as marked-wrong: ' + rrEsc(dbg.rejectedList.join(', '))
-                  + ' <button onclick="_pinUnreject()" style="margin-left:0.3rem;padding:0.1rem 0.5rem;border-radius:6px;border:1px solid var(--border);background:var(--bg-card);color:var(--text-mid);font-family:var(--font-body);font-size:0.68rem;cursor:pointer">Un-mark &amp; re-scan</button>' : '')
+            // v0.9.1294 (Brad, request #30): the excluded-numbers line MOVED
+            // from this collapsed panel onto the result card, one checkbox per
+            // number (_pinExcludedHtml). The one fact that explains a wrong
+            // answer no longer hides behind a disclosure triangle.
             + (dbg.rejectedStrong
                 ? '<br>The maker\'s name is stamped beside ' + rrEsc(dbg.rejectedStrong)
-                  + ' — the strongest read in this photo, silenced by that mark' : '')
+                  + ' — the strongest read in this photo, silenced by that mark; un-check it in the excluded numbers list on the card, then re-scan' : '')
             + (dbg.evidence !== undefined
                 ? '<br>Readable characters recovered: ' + dbg.evidence
                   + (dbg.evidence < 18 ? ' \u2014 too few to be sure of anything' : '')
@@ -5947,24 +6006,14 @@
     return null;
   };
   // "This is wrong — re-scan": forget the read and try again at higher detail.
-  // v0.9.1277 — the way back from a mistaken "this is wrong". Rejections
-  // accumulate on the photo forever and, until now, invisibly: mark the RIGHT
-  // number wrong once and every future free read is blind to it (Brad's 6561
-  // came back as its own anagram, 1656, for exactly this reason). The
-  // disclosure names the marks; this clears them and re-scans fresh. The
-  // re-scan itself still records the CURRENT answer as rejected — that rule
-  // (v0.9.1168) is Brad's and it stays — so un-marking never re-offers the
-  // answer the user is looking at right now.
-  window._pinUnreject = async function () {
-    if (!_rvGroups || !_rvGroups.length) return;
-    var fid = _pinOnScreenFid() || _rvGroups[0].files[0].id;
-    try {
-      var m = _ids();
-      if (m[fid] && m[fid].rejected) { delete m[fid].rejected; _idsSave(m); }
-    } catch (e) {}
-    return window._pinRescan();
-  };
-
+  // v0.9.1277 built the way back from a mistaken "this is wrong" as an
+  // all-or-nothing clear (_pinUnreject). v0.9.1294 (request #30) replaced it:
+  // the excluded numbers sit on the result card with one checkbox each
+  // (_pinExcludedHtml / _pinRejectToggle), so a single mistaken mark can be
+  // un-checked without forgiving the genuinely-wrong ones — then THIS button
+  // re-scans. The re-scan itself still records the CURRENT answer as
+  // rejected — that rule (v0.9.1168) is Brad's and it stays — so un-marking
+  // never re-offers the answer the user is looking at right now.
   window._pinRescan = async function () {
     if (!_rvGroups || !_rvGroups.length) return;
     // v0.9.1074: this read files[0] directly. Since v0.9.1061 every OTHER read

@@ -14445,22 +14445,20 @@ META_WRITES.length = 0; TOASTS.length = 0;
         ok('227 the bullets name what was left out and why',
            /Left out because you marked them wrong earlier: 6561, 6176/.test(lines), lines.slice(0, 160));
         ok('227 …and point at the way back',
-           /the car itself reads 6561/.test(lines) && /Un-mark & re-scan/.test(lines));
+           /the car itself reads 6561/.test(lines) &&
+           /un-check it in the excluded numbers list on the card/.test(lines));
       }
 
       // ── the way back exists and is wired ─────────────────────────────
-      ok('227 the disclosure offers an Un-mark & re-scan button',
-         /onclick="_pinUnreject\(\)"/.test(pin27) && /Excluded as marked-wrong:/.test(pin27));
-      ok('227 un-marking clears the list and re-scans, in that order',
-         /window\._pinUnreject = async function/.test(pin27) &&
-         (function () {
-           const u = pin27.indexOf('window._pinUnreject = async function');
-           const seg = pin27.slice(u, u + 700);
-           const del = seg.indexOf('delete m[fid].rejected');
-           const rescan = seg.indexOf('window._pinRescan()');
-           return del > 0 && rescan > del;
-         })(),
-         'the handler must delete the marks BEFORE re-scanning');
+      // v0.9.1294 (request #30): the way back MOVED — from an all-or-nothing
+      // button in the collapsed disclosure to one checkbox per number on the
+      // result card. §242 exercises the new mechanics; here we pin that the
+      // old mechanism is really gone, not merely duplicated.
+      ok('227 the all-or-nothing Un-mark button is gone from the disclosure',
+         pin27.indexOf('onclick="_pinUnreject()"') < 0 &&
+         pin27.indexOf('Excluded as marked-wrong:') < 0 &&
+         pin27.indexOf('window._pinUnreject = async function') < 0,
+         'both the old button and its handler must be removed, not kept beside the checkboxes');
       ok('227 …while the re-scan itself still records the refused answer (v0.9.1168 stays)',
          /if (_rejected.indexOf(_rn) < 0) _rejected.push(_rn);/.test(pin27) ||
          pin27.indexOf('_rejected.push(_rn)') > 0);
@@ -16088,6 +16086,90 @@ META_WRITES.length = 0; TOASTS.length = 0;
       ok('241 a rail thumbnail with a view token wears the view\'s short name',
          /var _vKey = _rrViewOfName\(p\.name\);/.test(hero) &&
          /_vDef && _vDef\.abbr/.test(hero));
+    })();
+
+    // ═══════════════════════════════════════════════════════════
+    // §242. v0.9.1294 — excluded numbers on the card, one checkbox each
+    //        (request #30).
+    //
+    //   Brad: "need to move the numbers excluded from previous scan to
+    //   here, have each number where you can check or uncheck it to
+    //   exclude it. Then add a note that says, if still wrong hit the
+    //   rescan button below."
+    //
+    //   The store edit is the dangerous half — v0.9.1277's clear was
+    //   all-or-nothing, and the whole point of #30 is that it no longer
+    //   is. So the real _pinRejectToggle RUNS here against a fake store,
+    //   and the assertions are about what survives: un-checking one number
+    //   must leave the others excluded.
+    // ═══════════════════════════════════════════════════════════
+    section('242. Excluded numbers on the card — one checkbox, one mark');
+    (function () {
+      const p42 = require('path');
+      const pin42 = fs.readFileSync(p42.join(__dirname, '..', 'app', 'photo-inbox.js'), 'utf8');
+
+      // ── lift the section builder and the toggle, and RUN them ─────────
+      const a42 = pin42.indexOf('  var _exclView = { fid: null, nums: [] };');
+      const b42 = pin42.indexOf("  var _rvAiMfr = '';");
+      ok('242 the card section and its toggle exist where the card is built', a42 > 0 && b42 > a42);
+      const store = { f1: { rejected: ['3-3-25', '175-50'] } };
+      const W = {};
+      const rig = new Function('window', '_pinOnScreenFid', '_ids', '_idsSave', 'rrEsc',
+        pin42.slice(a42, b42) + '\n return { html: _pinExcludedHtml, view: function(){ return _exclView; } };')(
+          W, () => 'f1',
+          () => store, () => {}, (s) => String(s).replace(/</g, '&lt;'));
+
+      let html = rig.html();
+      ok('242 one checkbox per excluded number, every one checked at first',
+         (html.match(/type="checkbox" checked/g) || []).length === 2 &&
+         /3-3-25/.test(html) && /175-50/.test(html), html.slice(0, 200));
+      ok('242 the note says exactly where the way forward is',
+         /hit the re-scan button below/.test(html));
+      ok('242 numbers ride as indexes, never as strings in an HTML attribute',
+         /onchange="_pinRejectToggle\(0, this\.checked\)"/.test(html) &&
+         /onchange="_pinRejectToggle\(1, this\.checked\)"/.test(html) &&
+         !/onchange="_pinRejectToggle\('/.test(html));
+
+      // Un-check ONE — the other must survive. This is the whole request.
+      W._pinRejectToggle(1, false);
+      ok('242 un-checking one number removes ONE mark and leaves the rest',
+         JSON.stringify(store.f1.rejected) === JSON.stringify(['3-3-25']),
+         JSON.stringify(store.f1.rejected));
+      html = rig.html();
+      ok('242 …and the un-checked number stays on screen, checkbox empty, until re-scan',
+         /3-3-25/.test(html) && /175-50/.test(html) &&
+         (html.match(/type="checkbox" checked/g) || []).length === 1,
+         html.slice(0, 300));
+      // A mis-click can be re-checked.
+      W._pinRejectToggle(1, true);
+      ok('242 re-checking puts the mark back',
+         JSON.stringify(store.f1.rejected.slice().sort()) === JSON.stringify(['175-50', '3-3-25']),
+         JSON.stringify(store.f1.rejected));
+      // Clearing the last one removes the key, not an empty husk.
+      W._pinRejectToggle(0, false);
+      W._pinRejectToggle(1, false);
+      ok('242 clearing every mark deletes the list instead of storing an empty one',
+         !('rejected' in store.f1), JSON.stringify(store.f1));
+
+      // ── the toggle NEVER re-scans — Brad chose the button (2026-08-03) ──
+      {
+        const t0 = pin42.indexOf('window._pinRejectToggle = function');
+        const t1 = pin42.indexOf('};', t0) + 2;
+        const toggleSrc = pin42.slice(t0, t1);
+        ok('242 the toggle edits the store and nothing else — re-scan is the button\'s job',
+           t0 > 0 && !/Rescan|_freeRead|_pinStep/.test(toggleSrc),
+           'the checkbox handler must not trigger a scan');
+      }
+
+      // ── the section rides on EVERY branch of the result card ──────────
+      ok('242 the card appends the excluded section on every branch',
+         /box\.innerHTML = html \+ _pinExcludedHtml\(\);/.test(pin42) &&
+         !/box\.innerHTML = html;/.test(pin42),
+         'a branch that sets box.innerHTML without the section hides the marks again');
+      // The moved-from spot must not still render its own copy (§227 pins the
+      // button; this pins the line, so "move" cannot regress into "copy").
+      ok('242 the collapsed disclosure no longer carries its own excluded line',
+         pin42.indexOf('Excluded as marked-wrong:') < 0);
     })();
 
   })().then(function () {
