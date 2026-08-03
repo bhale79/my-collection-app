@@ -217,8 +217,24 @@ async function driveUploadFile(file, name, folderId) {
   return res.json();
 }
 
+// v0.9.1286 (audit round 3, finding R3-1 — PROVEN by running the real
+// function): two concurrent calls for the same name both searched, both saw
+// nothing, and both created — two folders with one name, and photos split
+// between them from then on (Drive allows duplicate names, so nothing ever
+// complains). Two rapid adds, or a detail page resolving a folder while a
+// photo add does the same, is all it takes. In-flight memoisation: the
+// second caller awaits the first's promise, so one search, one create,
+// one folder. A rejected promise clears the slot, so a retry starts fresh.
+const _folderInflight = {};
 async function driveFindOrCreateFolder(name, parentId) {
   if (!parentId) throw new Error('Missing parentId for folder: ' + name);
+  const _fk = parentId + '|' + name;
+  if (_folderInflight[_fk]) return _folderInflight[_fk];
+  const _fp = _driveFindOrCreateFolderNow(name, parentId);
+  _folderInflight[_fk] = _fp;
+  try { return await _fp; } finally { delete _folderInflight[_fk]; }
+}
+async function _driveFindOrCreateFolderNow(name, parentId) {
   const q = encodeURIComponent(`name='${name}' and mimeType='application/vnd.google-apps.folder' and '${parentId}' in parents and trashed=false`);
   const res = await driveRequest('GET', `/files?q=${q}&fields=files(id,name)&spaces=drive`);
   // v0.9.1261: the `if (res.error)` check that used to be here is gone.

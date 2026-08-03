@@ -133,10 +133,16 @@
   }
 
   // ── push ─────────────────────────────────────────────────────────
+  var _pushInflight = null;
   async function rrLookPush(opts) {
     opts = opts || {};
     if (!_ready()) return { ok: false, why: 'drive' };
-    try {
+    // v0.9.1286 (audit round 3, R3-2): same race class as the folder fix —
+    // two rapid pushes with no fileId cached both _find() nothing and both
+    // POST, leaving two look files whose later reads pick one at random.
+    // One push at a time; a second Apply rides the first's promise.
+    if (_pushInflight) return _pushInflight;
+    _pushInflight = (async () => { try {
       var seen = _json(SEEN_KEY, {});
       var file = seen.fileId ? { id: seen.fileId } : await _find();
       var snap = rrLookSnapshot();
@@ -152,7 +158,8 @@
       console.warn('[look-sync push]', e);
       if (opts.loud && typeof showToast === 'function') showToast('Could not save your look to Drive — it is still saved on this device', 4000, true);
       return { ok: false, why: String(e && e.message) };
-    }
+    } finally { _pushInflight = null; } })();
+    return _pushInflight;
   }
 
   // ── pull ─────────────────────────────────────────────────────────

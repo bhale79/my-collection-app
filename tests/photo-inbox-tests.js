@@ -13628,7 +13628,10 @@ META_WRITES.length = 0; TOASTS.length = 0;
     await (async function () {
       const p22 = require('path');
       const SRC22 = fs.readFileSync(p22.join(__dirname, '..', 'app/drive.js'), 'utf8');
-      const fof22 = SRC22.slice(SRC22.indexOf('async function driveFindOrCreateFolder'),
+      // v0.9.1286: slice from the in-flight map, not the function below it —
+      // a slice that stops short of a variable its subject reads tests
+      // nothing but its own ReferenceError (the §197 lesson, third time).
+      const fof22 = SRC22.slice(SRC22.indexOf('const _folderInflight = {};'),
                                 SRC22.indexOf('async function driveUploadPhoto'));
       const era22 = SRC22.slice(SRC22.indexOf('let _driveEraFolderCache = null;'),
                                 SRC22.indexOf('// ── v0.9.1123 (Brad:'));
@@ -14816,6 +14819,70 @@ META_WRITES.length = 0; TOASTS.length = 0;
            /parseInt\(_vm\[1\], 10\)/.test(seg) && /build \+ 10/.test(seg),
            'a literal build number is back in §199h');
       }
+    })();
+
+    // ═══════════════════════════════════════════════════════════
+    // §236. v0.9.1286 (audit round 3) — one name, one folder; one look,
+    //   one file.
+    //
+    //   R3-1, PROVEN by racing the real function: two concurrent
+    //   driveFindOrCreateFolder calls for the same name both searched,
+    //   both saw nothing, and both created — two folders with one name,
+    //   photos split between them forever after (Drive never complains
+    //   about duplicate names). Two rapid adds is all it takes, and the
+    //   split-photo symptom has been seen in the wild (R13 was a cousin).
+    //   Fixed with in-flight memoisation; a rejection clears the slot.
+    //
+    //   R3-2, same race class: two rapid look pushes with no fileId
+    //   cached both find nothing and both POST — two look files, later
+    //   reads picking one at random. One push at a time now.
+    // ═══════════════════════════════════════════════════════════
+    section('236. One name, one folder — the create races are closed');
+    await (async function () {
+      const p36 = require('path');
+      const drv36 = fs.readFileSync(p36.join(__dirname, '..', 'app', 'drive.js'), 'utf8');
+
+      // Race the REAL function: slow network, empty search, two callers.
+      const a = drv36.indexOf('const _folderInflight = {};');
+      const b = drv36.indexOf('\n}', drv36.indexOf('async function _driveFindOrCreateFolderNow')) + 2;
+      let created = 0;
+      const dr = async (m) => {
+        await new Promise(r => setTimeout(r, 15));
+        if (m === 'GET') return { files: [] };
+        created++; return { id: 'F' + created };
+      };
+      const fn = new Function('driveRequest', 'console',
+        drv36.slice(a, b) + ' return driveFindOrCreateFolder;')(dr, { error: () => {} });
+      const [x, y] = await Promise.all([fn('6561', 'P'), fn('6561', 'P')]);
+      ok('236 two concurrent callers get ONE folder, not two',
+         created === 1 && x === y && x === 'F1',
+         JSON.stringify({ created, x, y }));
+      // Different names must NOT share a slot.
+      created = 0;
+      const [m2, n2] = await Promise.all([fn('AAA', 'P'), fn('BBB', 'P')]);
+      ok('236 …while different names still create independently',
+         created === 2 && m2 !== n2, JSON.stringify({ created }));
+      // A failure clears the slot so a retry starts fresh.
+      let phase = 0;
+      const dr2 = async (m) => {
+        await new Promise(r => setTimeout(r, 5));
+        if (phase === 0) { phase = 1; throw new Error('net down'); }
+        if (m === 'GET') return { files: [] };
+        return { id: 'RETRY' };
+      };
+      const fn2 = new Function('driveRequest', 'console',
+        drv36.slice(a, b) + ' return driveFindOrCreateFolder;')(dr2, { error: () => {} });
+      let err = null;
+      await fn2('CCC', 'P').catch(e => { err = e; });
+      const again = await fn2('CCC', 'P');
+      ok('236 a failed create clears the slot — the retry is not poisoned',
+         err !== null && again === 'RETRY', JSON.stringify({ err: String(err), again }));
+
+      // R3-2: the look push is single-flight.
+      const lk36 = fs.readFileSync(p36.join(__dirname, '..', 'app', 'look-sync.js'), 'utf8');
+      ok('236 the look push is single-flight, so two Applies cannot make two files',
+         /if \(_pushInflight\) return _pushInflight;/.test(lk36) &&
+         /finally \{ _pushInflight = null; \}/.test(lk36));
     })();
 
   })().then(function () {
