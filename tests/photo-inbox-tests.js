@@ -10304,11 +10304,11 @@ META_WRITES.length = 0; TOASTS.length = 0;
        /'\.\/write-outbox\.js'/.test(rd('app/sw.js')));
 
     section('199h. The version trio moved together');
-    ok('APP_VERSION is v0.9.1279', /const APP_VERSION = 'v0\.9\.1279';/.test(cfg));
+    ok('APP_VERSION is v0.9.1280', /const APP_VERSION = 'v0\.9\.1280';/.test(cfg));
     ok('every ?v= mark in app/index.html matches it',
-       (idx.match(/\?v=1279/g) || []).length === 69 && !/\?v=1278/.test(idx),
-       String((idx.match(/\?v=1279/g) || []).length));
-    ok('the service worker cache name moved too', /const CACHE_NAME = 'mca-v1289';/.test(rd('app/sw.js')));
+       (idx.match(/\?v=1280/g) || []).length === 69 && !/\?v=1279/.test(idx),
+       String((idx.match(/\?v=1280/g) || []).length));
+    ok('the service worker cache name moved too', /const CACHE_NAME = 'mca-v1290';/.test(rd('app/sw.js')));
     // v0.9.1276 (R9): the ?v= count above cannot see a NEW local <script>
     // added with no stamp at all — 69 stamped plus one bare is still 69, and
     // the bare one dodges the cache-busting the stamp exists for: it would be
@@ -14432,6 +14432,96 @@ META_WRITES.length = 0; TOASTS.length = 0;
 
       ok('229 the dialog explains the new choice in its own words',
          /A paper or other collectible stays one item however many shots\./.test(pin29));
+    })();
+
+    // ═══════════════════════════════════════════════════════════
+    // §230. v0.9.1280 — drag the photos into order, drag them onto a view.
+    //
+    //   Brad: "we should be able to reorder the pictures left to right by
+    //   dragging them. if its an item, need to show the picture right
+    //   left......etc views and be able to drag them into the right spot."
+    //
+    //   Both gestures persist by renaming the Drive files — order as an
+    //   "NN· " prefix (galleries sort by name), views as the same tokens
+    //   the wizard has always written. The name helpers are pure, so they
+    //   are lifted here and RUN; the rest is checked by shape.
+    // ═══════════════════════════════════════════════════════════
+    section('230. Drag to order, drag to a view — renames carry both');
+    await (async function () {
+      const p30 = require('path');
+      const coll30 = fs.readFileSync(p30.join(__dirname, '..', 'app', 'app-collection.js'), 'utf8');
+
+      // ── lift the four pure name helpers and run them ──────────────────
+      const a30 = coll30.indexOf("var _RR_GAL_BLUE = '#2980b9';");
+      const b30 = coll30.indexOf('window._rrDetailGallery = async function');
+      const H = new Function(coll30.slice(a30, b30) +
+        ' return { view: _rrViewOfName, order: _rrOrderOfName, withOrder: _rrNameWithOrder, withView: _rrNameWithView };')();
+
+      ok('230 a view is read from the tokens the wizard writes',
+         H.view('6561 RSV.jpg') === 'RSV' && H.view('205-P LSV.jpg') === 'LSV' &&
+         H.view('6561 ADD 175.jpg') === '' );
+      ok('230 …and a BOX shot is never an item view',
+         H.view('6561 BOX RSV.jpg') === '', 'the box tag wins');
+      ok('230 …and a token inside a longer word does not count',
+         H.view('6561 TVSPECIAL.jpg') === '', 'TV must stand alone');
+      ok('230 the order prefix round-trips',
+         H.order('03· 6561 RSV.jpg') === 3 && H.order('6561 RSV.jpg') === null &&
+         H.withOrder('03· 6561 RSV.jpg', 7) === '07· 6561 RSV.jpg' &&
+         H.withOrder('6561 RSV.jpg', 1) === '01· 6561 RSV.jpg');
+      ok('230 assigning a view strips the old token first — never two on one name',
+         H.withView('01· 6561 RSV ADD 175.jpg', 'LSV') === '01· 6561 ADD 175 LSV.jpg' &&
+         H.withView('6561 LSV.jpg', '') === '6561.jpg',
+         H.withView('01· 6561 RSV ADD 175.jpg', 'LSV'));
+      ok('230 …and keeps the order prefix while doing it',
+         H.order(H.withView('05· 6561 ADD 1.jpg', 'FV')) === 5);
+
+      // ── the gallery: explicit order outranks the old view-priority sort ──
+      ok('230 a stamped folder sorts by the stamp; an unstamped one keeps RSV-first',
+         /if \(ao !== null \|\| bo !== null\)/.test(coll30) &&
+         /return priority\(a\.name\) - priority\(b\.name\);/.test(coll30));
+      // The mutation drill proved the spelling-check version of this could be
+      // fooled: code that stamps only the dragged photo still CONTAINS the
+      // loop and the helper call. So run the real commitOrder against fakes
+      // and count what it actually renamed.
+      {
+        const c0 = coll30.indexOf('const commitOrder = async function (orderedIds) {');
+        const c1 = coll30.indexOf('};', coll30.indexOf('redraw();', c0)) + 2;
+        const patched = [];
+        const photos = [{ id: 'a', name: '6561 ADD 1.jpg' },
+                        { id: 'b', name: '6561 RSV.jpg' },
+                        { id: 'c', name: '6561 ADD 3.jpg' }];
+        const run30 = new Function('photos', '_rrNameWithOrder', 'driveRequest', 'showToast', 'redraw',
+          coll30.slice(c0, c1) + ' return commitOrder;')(
+            photos, H.withOrder,
+            async (m, u, body) => { patched.push({ url: u, name: body.name }); },
+            () => {}, () => {});
+        await run30(['c', 'a', 'b']);
+        const names = {};
+        patched.forEach(x => { names[x.url.split('/')[2].split('?')[0]] = x.name; });
+        ok('230 a reorder stamps EVERY photo, so a half-ordered folder cannot exist',
+           patched.length === 3 &&
+           names['c'] === '01· 6561 ADD 3.jpg' &&
+           names['a'] === '02· 6561 ADD 1.jpg' &&
+           names['b'] === '03· 6561 RSV.jpg',
+           JSON.stringify(names));
+      }
+      ok('230 one view, one photo — the token moves off whoever held it',
+         /_rrViewOfName\(q\.name\) === viewKey/.test(coll30) &&
+         /_rrNameWithView\(q\.name, ''\)/.test(coll30));
+      ok('230 nothing in the gallery is destructive — PATCH name is the only write',
+         (function () {
+           const g0 = coll30.indexOf('window._rrDetailGallery = async function');
+           const g1 = coll30.indexOf('async function _deleteCollectionPhoto');
+           const body = coll30.slice(g0, g1);
+           const calls = body.match(/driveRequest\('([A-Z]+)'/g) || [];
+           return calls.length > 0 && calls.every(c => c === "driveRequest('PATCH'");
+         })(), 'a DELETE or POST crept into the gallery');
+      ok('230 a failed rename is counted and told, not rounded up',
+         /Reordered ' \+ ok \+ ' of ' \+ orderedIds\.length/.test(coll30));
+      ok('230 the detail page hands off to the shared reloadable gallery',
+         /await window\._rrDetailGallery\(tr2, folderLink\);/.test(coll30));
+      ok('230 phones keep the plain gallery — drag is desktop-only for now',
+         /if \(!window\.IS_MOBILE_UA\) \{\s*\n\s*wrap\.draggable = true;/.test(coll30));
     })();
 
   })().then(function () {

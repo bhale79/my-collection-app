@@ -2743,6 +2743,221 @@ function updateCollectionItem(idx, pdKey) {
 
 // Delete a single collection photo. Moves the Drive file to TRASH (recoverable
 // from Google Drive) rather than permanently deleting it, after a confirmation.
+// ══ v0.9.1280 (Brad): "we should be able to reorder the pictures left to
+// right by dragging them. if its an item, need to show the picture right
+// left......etc views and be able to drag them into the right spot." ══════
+//
+// Two facts made this cheap: galleries list Drive files orderBy=name, and
+// the wizard already writes view tags (RSV/LSV/FV/BKV/TV/BV) into names.
+// So both gestures persist by RENAMING — no new storage, every device sees
+// the same result, and the existing RSV-leads star rule keeps working.
+//
+//   ORDER: a drag stamps EVERY photo with an "NN· " prefix in its new
+//   position. All-or-none by design — a folder where only some names carry
+//   prefixes has no defined order, so the first drag defines it for all.
+//   VIEW:  dropping a photo on a view chip strips that view's token from
+//   whichever photo held it (one view, one photo) and writes it onto the
+//   dropped one. BOX shots are exempt in both directions.
+//
+// Nothing here is destructive: the only Drive call is PATCH {name}.
+var _RR_GAL_BLUE = '#2980b9';   // the want-list blue every gallery accent shares
+function _rrViewOfName(name) {
+  var n = ' ' + String(name || '').toUpperCase().replace(/\.[^.]+$/, '') + ' ';
+  if (n.indexOf('BOX') >= 0) return '';          // a box shot is never an item view
+  var keys = ['RSV', 'LSV', 'FV', 'BKV', 'TV', 'BV'];
+  for (var i = 0; i < keys.length; i++) {
+    if (n.indexOf(' ' + keys[i] + ' ') >= 0) return keys[i];
+  }
+  return '';
+}
+function _rrOrderOfName(name) {
+  var m = String(name || '').match(/^(\d{2})· /);
+  return m ? parseInt(m[1], 10) : null;
+}
+function _rrNameWithOrder(name, nn) {
+  var rest = String(name || '').replace(/^\d{2}· /, '');
+  if (nn === null || nn === undefined) return rest;
+  var t = String(nn);
+  return (t.length < 2 ? '0' + t : t) + '· ' + rest;
+}
+function _rrNameWithView(name, viewKey) {
+  var extM = String(name || '').match(/\.[^.]+$/);
+  var ext = extM ? extM[0] : '';
+  var base = String(name || '').replace(/\.[^.]+$/, '');
+  base = base.replace(/(^|\s)(RSV|LSV|FV|BKV|TV|BV)(?=\s|$)/g, ' ').replace(/\s{2,}/g, ' ').trim();
+  return (viewKey ? (base + ' ' + viewKey) : base) + ext;
+}
+
+// The gallery, reloadable — a successful drag redraws from Drive so what is
+// on screen is always what the renames actually produced.
+window._rrDetailGallery = async function (tr2, folderLink) {
+  const photos = await driveGetFolderPhotos(folderLink);
+  if (photos === null) {
+    tr2.innerHTML = '<span style="font-size:0.75rem;color:var(--text-dim)">Could not load photos — check Drive access</span>';
+    return;
+  }
+  if (photos.length === 0) {
+    tr2.innerHTML = '<span style="font-size:0.75rem;color:var(--text-dim);font-style:italic">No photos yet — tap Add Photos</span>';
+    return;
+  }
+
+  // Explicit order wins when anyone has been stamped; the old view-priority
+  // sort is the fallback for folders nobody has dragged yet.
+  const priority = function (name) {
+    const n = (name || '').toUpperCase();
+    if (n.includes('RSV')) return 0;
+    if (n.includes('FV'))  return 1;
+    if (n.includes('TV'))  return 2;
+    if (n.includes('BV'))  return 3;
+    return 9;
+  };
+  photos.sort(function (a, b) {
+    var ao = _rrOrderOfName(a.name), bo = _rrOrderOfName(b.name);
+    if (ao !== null || bo !== null) {
+      if (ao === null) return 1;
+      if (bo === null) return -1;
+      return ao - bo;
+    }
+    return priority(a.name) - priority(b.name);
+  });
+
+  const redraw = function () { window._rrDetailGallery(tr2, folderLink); };
+  const commitOrder = async function (orderedIds) {
+    var ok = 0, fail = 0;
+    for (var i = 0; i < orderedIds.length; i++) {
+      var p = photos.find(function (x) { return x.id === orderedIds[i]; });
+      if (!p) continue;
+      var want = _rrNameWithOrder(p.name, i + 1);
+      if (want === p.name) { ok++; continue; }
+      try {
+        await driveRequest('PATCH', '/files/' + p.id + '?fields=id', { name: want });
+        ok++;
+      } catch (e) { fail++; console.warn('[gallery] reorder rename failed — continuing:', p.id, e); }
+    }
+    if (fail) showToast('Reordered ' + ok + ' of ' + orderedIds.length + ' photos — ' + fail + ' would not rename. Try again.', 4500, true);
+    else showToast('✓ Photo order saved', 2000);
+    redraw();
+  };
+  const commitView = async function (fileId, viewKey) {
+    var p = photos.find(function (x) { return x.id === fileId; });
+    if (!p) return;
+    if (/BOX/i.test(p.name)) { showToast('Box photos keep their BOX tag — views are for the item itself', 3500, true); return; }
+    var renames = [];
+    if (viewKey) {
+      photos.forEach(function (q) {
+        if (q.id !== fileId && _rrViewOfName(q.name) === viewKey) {
+          renames.push({ id: q.id, name: _rrNameWithView(q.name, '') });   // the view moves over
+        }
+      });
+    }
+    var mine = _rrNameWithView(p.name, viewKey);
+    if (mine !== p.name) renames.push({ id: p.id, name: mine });
+    var ok = 0, fail = 0;
+    for (var i = 0; i < renames.length; i++) {
+      try {
+        await driveRequest('PATCH', '/files/' + renames[i].id + '?fields=id', { name: renames[i].name });
+        ok++;
+      } catch (e) { fail++; console.warn('[gallery] view rename failed — continuing:', renames[i].id, e); }
+    }
+    if (fail) showToast('That view change only partly saved — check the labels and try again.', 4500, true);
+    else if (viewKey) {
+      var vDef = (typeof ITEM_VIEWS !== 'undefined' ? ITEM_VIEWS : []).find(function (v) { return v.key === viewKey; });
+      showToast('✓ ' + ((vDef && vDef.label) || viewKey) + ' → this photo', 2500);
+    } else showToast('✓ View tag removed', 2000);
+    redraw();
+  };
+
+  tr2.innerHTML = '';
+
+  // The view row — six drop targets plus one for "no view".
+  const chipRow = document.createElement('div');
+  chipRow.style.cssText = 'display:flex;flex-wrap:wrap;gap:0.35rem;width:100%;margin-bottom:0.4rem';
+  const mkChip = function (key, label) {
+    const c = document.createElement('div');
+    c.textContent = label;
+    c.title = 'Drag a photo here to make it the ' + label;
+    c.style.cssText = 'font-size:0.66rem;font-weight:700;letter-spacing:0.04em;padding:0.28rem 0.55rem;'
+      + 'border:1.5px dashed var(--border);border-radius:999px;color:var(--text-dim);background:var(--surface2);user-select:none';
+    c.ondragover = function (e) { e.preventDefault(); c.style.borderColor = _RR_GAL_BLUE; c.style.color = _RR_GAL_BLUE; };
+    c.ondragleave = function () { c.style.borderColor = ''; c.style.color = ''; };
+    c.ondrop = function (e) {
+      e.preventDefault();
+      var fid = e.dataTransfer.getData('text/plain');
+      if (fid) commitView(fid, key);
+    };
+    return c;
+  };
+  (typeof ITEM_VIEWS !== 'undefined' ? ITEM_VIEWS : []).forEach(function (v) {
+    chipRow.appendChild(mkChip(v.key, v.label));
+  });
+  chipRow.appendChild(mkChip('', 'plain photo'));
+  if (photos.length > 0 && !window.IS_MOBILE_UA) tr2.appendChild(chipRow);
+
+  photos.forEach(function (p) {
+    const vKey = _rrViewOfName(p.name);
+    const isRSV = vKey === 'RSV';
+    const wrap = document.createElement('div');
+    wrap.style.cssText = 'position:relative;display:inline-block;flex-shrink:0';
+    wrap.setAttribute('data-galfid', p.id);
+    // Drag to reorder (desktop; phones keep the plain gallery).
+    if (!window.IS_MOBILE_UA) {
+      wrap.draggable = true;
+      wrap.style.cursor = 'grab';
+      wrap.ondragstart = function (e) {
+        e.dataTransfer.setData('text/plain', p.id);
+        e.dataTransfer.effectAllowed = 'move';
+        wrap.style.opacity = '0.45';
+      };
+      wrap.ondragend = function () { wrap.style.opacity = ''; };
+      wrap.ondragover = function (e) { e.preventDefault(); wrap.style.outline = '2px solid ' + _RR_GAL_BLUE; };
+      wrap.ondragleave = function () { wrap.style.outline = ''; };
+      wrap.ondrop = function (e) {
+        e.preventDefault(); e.stopPropagation(); wrap.style.outline = '';
+        var fid = e.dataTransfer.getData('text/plain');
+        if (!fid || fid === p.id) return;
+        var ids = photos.map(function (x) { return x.id; });
+        var from = ids.indexOf(fid), to = ids.indexOf(p.id);
+        if (from < 0 || to < 0) return;
+        ids.splice(to, 0, ids.splice(from, 1)[0]);
+        commitOrder(ids);
+      };
+    }
+    const a = document.createElement('a');
+    a.href = p.view; a.target = '_blank';
+    a.title = p.name.replace(/\.[^.]+$/, '') + (window.IS_MOBILE_UA ? '' : ' — drag to reorder, or onto a view above');
+    a.style.cssText = 'display:inline-block;border-radius:8px;overflow:hidden;border:2px solid '
+      + (isRSV ? _RR_GAL_BLUE : 'var(--border)') + ';';
+    const img = document.createElement('img');
+    img.style.cssText = 'width:80px;height:80px;object-fit:cover;display:block;background:var(--surface2)';
+    img.alt = p.name.replace(/\.[^.]+$/, '').split(' ').pop();
+    img.draggable = false;   // the WRAP drags; a dragged <img> ghosts a URL instead
+    loadDriveThumb(p.id, img, a);
+    const lbl = document.createElement('div');
+    lbl.style.cssText = 'font-size:0.68rem;text-align:center;padding:2px 0;background:var(--surface2);color:'
+      + (vKey ? _RR_GAL_BLUE : 'var(--text-dim)') + ';letter-spacing:0.03em'
+      + (vKey ? ';font-weight:700' : '');
+    const vDef = vKey && (typeof ITEM_VIEWS !== 'undefined' ? ITEM_VIEWS : []).find(function (v) { return v.key === vKey; });
+    lbl.textContent = vDef ? vDef.abbr : p.name.replace(/\.[^.]+$/, '').replace(/^\d{2}· /, '').split(' ').pop();
+    a.appendChild(img);
+    a.appendChild(lbl);
+    wrap.appendChild(a);
+    const del = document.createElement('button');
+    del.title = 'Delete this photo';
+    del.setAttribute('aria-label', 'Delete this photo');
+    del.innerHTML = '×';
+    del.style.cssText = 'position:absolute;top:3px;right:3px;width:20px;height:20px;border-radius:50%;'
+      + 'border:1.5px solid #fff;background:rgba(231,76,60,0.95);color:#fff;font-size:14px;line-height:1;'
+      + 'cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;z-index:2;'
+      + 'box-shadow:0 1px 3px rgba(0,0,0,0.4)';
+    del.onclick = function (e) {
+      e.preventDefault(); e.stopPropagation();
+      _deleteCollectionPhoto(p.id, p.name, wrap);
+    };
+    wrap.appendChild(del);
+    tr2.appendChild(wrap);
+  });
+};
+
 async function _deleteCollectionPhoto(fileId, fileName, wrapEl) {
   if (!fileId) return;
   var label = String(fileName || 'photo').replace(/\.[^.]+$/, '');
@@ -2929,66 +3144,10 @@ function showItemPanel(idx, pdKey, mode) {
 
       if (!tr2) return;
 
-      const photos = await driveGetFolderPhotos(folderLink);
-
-      if (photos === null) {
-        tr2.innerHTML = '<span style="font-size:0.75rem;color:var(--text-dim)">Could not load photos — check Drive access</span>';
-        return;
-      }
-      if (photos.length === 0) {
-        tr2.innerHTML = '<span style="font-size:0.75rem;color:var(--text-dim);font-style:italic">No photos yet — tap Add Photos</span>';
-        return;
-      }
-
-      // Sort: RSV first, then FV, then others
-      const priority = function(name) {
-        const n = (name || '').toUpperCase();
-        if (n.includes('RSV')) return 0;
-        if (n.includes('FV'))  return 1;
-        if (n.includes('TV'))  return 2;
-        if (n.includes('BV'))  return 3;
-        return 9;
-      };
-      photos.sort(function(a,b) { return priority(a.name) - priority(b.name); });
-
-      tr2.innerHTML = '';
-      photos.forEach(function(p) {
-        const isRSV = p.name.toUpperCase().includes('RSV');
-        // Wrapper so the delete (x) button can be positioned over the thumb.
-        const wrap = document.createElement('div');
-        wrap.style.cssText = 'position:relative;display:inline-block;flex-shrink:0';
-        const a = document.createElement('a');
-        a.href = p.view; a.target = '_blank';
-        a.title = p.name.replace(/\.[^.]+$/, '');
-        a.style.cssText = 'display:inline-block;border-radius:8px;overflow:hidden;border:2px solid '
-          + (isRSV ? '#2980b9' : 'var(--border)') + ';';
-        const img = document.createElement('img');
-        img.style.cssText = 'width:80px;height:80px;object-fit:cover;display:block;background:var(--surface2)';
-        img.alt = p.name.replace(/\.[^.]+$/, '').split(' ').pop();
-        // Authenticated load using file ID
-        loadDriveThumb(p.id, img, a);
-        const lbl = document.createElement('div');
-        lbl.style.cssText = 'font-size:0.68rem;text-align:center;padding:2px 0;background:var(--surface2);color:var(--text-dim);letter-spacing:0.03em';
-        lbl.textContent = p.name.replace(/\.[^.]+$/, '').split(' ').pop();
-        a.appendChild(img);
-        a.appendChild(lbl);
-        wrap.appendChild(a);
-        // Delete (x) button — moves the file to Drive trash (recoverable).
-        const del = document.createElement('button');
-        del.title = 'Delete this photo';
-        del.setAttribute('aria-label', 'Delete this photo');
-        del.innerHTML = '\u00d7';
-        del.style.cssText = 'position:absolute;top:3px;right:3px;width:20px;height:20px;border-radius:50%;'
-          + 'border:1.5px solid #fff;background:rgba(231,76,60,0.95);color:#fff;font-size:14px;line-height:1;'
-          + 'cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;z-index:2;'
-          + 'box-shadow:0 1px 3px rgba(0,0,0,0.4)';
-        del.onclick = function(e) {
-          e.preventDefault(); e.stopPropagation();
-          _deleteCollectionPhoto(p.id, p.name, wrap);
-        };
-        wrap.appendChild(del);
-        tr2.appendChild(wrap);
-      });
+      // v0.9.1280: the gallery is a shared, reloadable function now — a drag
+      // (reorder or view assignment) renames in Drive and redraws from Drive,
+      // so the screen always shows what the renames actually produced.
+      await window._rrDetailGallery(tr2, folderLink);
 
     } catch(e) {
       console.error('Photo load error:', e);
