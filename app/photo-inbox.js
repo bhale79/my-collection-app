@@ -59,6 +59,13 @@
   // the two things people actually do — put photos together, and say what they
   // are — had no front door. Two named buttons now, one selection mechanic.
   var _rvKey = '';           // group key the review card is open on ('' = multi-select)
+  // v0.9.1307 (Brad: "i selected a filter for not scanned, and there is no
+  // next or previous arrows"): the arrows walked the LIVE filtered list, so
+  // the moment a card was read it fell out of a not-read filter, its index
+  // came back -1, and the arrows vanished — on exactly the workflow the
+  // filter exists for. The walking order is now SNAPSHOTTED when the card
+  // opens (group keys — stable identifiers) and released when it closes.
+  var _rvOrderKeys = null;
   var _selPurpose = '';      // '' | 'group' | 'tag'  — what Apply does
   var _tagEra = '';          // era picked in tag mode, written on Apply
   var _tagType = '';         // v0.9.1297: item type picked in tag mode ('' = leave as-is)
@@ -2232,7 +2239,19 @@
   // filter to "Not touched yet" and next/prev walks only those. Stops at both
   // ends rather than wrapping: on a hundred wall photos, silently looping back
   // to the start would have you re-doing work without noticing.
-  function _pinRvOrder() { return _pinVisibleGroups(); }
+  function _pinRvOrder() {
+    // The snapshot keeps a card reachable even after acting on it changed
+    // which filters it passes; keys that left the inbox entirely (filed,
+    // discarded) are skipped, so the arrows keep walking what remains.
+    if (_rvOrderKeys) {
+      var by = {};
+      _groups.forEach(function (g) { by[g.key] = g; });
+      var out = [];
+      _rvOrderKeys.forEach(function (k) { if (by[k]) out.push(by[k]); });
+      if (out.length) return out;
+    }
+    return _pinVisibleGroups();
+  }
 
   function _pinRvIndex() {
     if (!_rvKey) return -1;
@@ -2356,6 +2375,7 @@
   window._pinCloseReview = function () {
     var ov = document.getElementById('pin-review-ov');
     if (ov) ov.remove();
+    _rvOrderKeys = null;         // v0.9.1307: next opening snapshots fresh
   };
 
   // Left/right arrow keys do the same thing on a desktop keyboard. Ignored
@@ -2430,6 +2450,11 @@
     _rvKey = key || '';          // v0.9.1057: which group the card is showing
     _rvGroups = key ? _groups.filter(function (g) { return g.key === key; }) : _selGroups();
     if (!_rvGroups.length) { showToast('Select photos first', 2500, true); return; }
+    // v0.9.1307: snapshot the walking order ONCE per card-opening — stepping
+    // re-enters here with a new key and must keep the same snapshot.
+    if (key && !_rvOrderKeys) {
+      _rvOrderKeys = _pinVisibleGroups().map(function (g) { return g.key; });
+    }
     var n = 0; _rvGroups.forEach(function (g) { n += g.files.length; });
     // v0.9.1068 (Brad's 6817 flatcar). The free reader guessed "58", the catalog
     // double-check said in red that the photo does NOT match a rotary snow plow

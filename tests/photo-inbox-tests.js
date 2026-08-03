@@ -114,6 +114,7 @@ const HOOK = '\n;window.__T = { get groups(){return _groups;}, set groups(v){_gr
      + ' get sessionEra(){return _sessionEra;}, get oneShot(){return _pinOneShot;},'
      + ' set oneShot(v){_pinOneShot=v;}, get tagEra(){return _tagEra;}, set tagEra(v){_tagEra=v;},'
      + ' get rvKey(){return _rvKey;}, set rvKey(v){_rvKey=v;},'
+     + ' get orderKeys(){return _rvOrderKeys;}, set orderKeys(v){_rvOrderKeys=v;},'
      + ' get rvGroups(){return _rvGroups;}, set rvGroups(v){_rvGroups=v;},'
      + ' setHome:function(e){_pinSetHomeEra(e);}, renderBar:function(){_pinRenderBar();},'
      + ' renderTagBar:function(){_pinRenderTagBar();}, selInfo:function(){_selInfo();},'
@@ -16992,6 +16993,53 @@ META_WRITES.length = 0; TOASTS.length = 0;
          /jHit = hit; _jSrc = _runSrc\[d\] \|\| '';/.test(pin55));
       ok('255 the win rule: glued needs fragment-of, solid keeps longer-wins',
          /_jSrc === 'solid' \|\| _fragOfJoin/.test(pin55));
+    })();
+
+    // ═══════════════════════════════════════════════════════════
+    // §256. v0.9.1307 — the review arrows survive the filter.
+    //
+    //   Brad: "i selected a filter for not scanned, and there is no next
+    //   or previous arrows to go to the next item in the filtered list."
+    //   The arrows walked the LIVE filtered list — reading a card knocked
+    //   it out of a not-read filter, its index came back -1, and the
+    //   arrows vanished on exactly the workflow the filter exists for.
+    //   The REAL nav functions run here over a snapshot.
+    // ═══════════════════════════════════════════════════════════
+    section('256. Review arrows walk a snapshot, not the live filter');
+    (function () {
+      const T6 = window.__T;
+      T6.groups = (function () {
+        const gs = [];
+        for (let i = 0; i < 4; i++) gs.push({ key: 'g' + i, files: [{ id: 'f' + i, name: 'INBOX ' + i + '.jpg', createdTime: '2026-08-03' }] });
+        return gs;
+      })();
+      T6.rvGroups = [T6.groups[1]];
+      T6.rvKey = 'g1';
+      // A filter that matches NOTHING — the live visible list is empty, which
+      // is exactly the state after a read knocks the card out of its filter.
+      T6.filter({ status: 'no-such-status', era: '', kind: '' });
+      T6.orderKeys = null;
+      ok('256 without the snapshot the arrows vanish (the bug, reproduced)',
+         T6.navHtml('prev') === '' && T6.navHtml('next') === '' && T6.posHtml() === '');
+      T6.orderKeys = ['g0', 'g1', 'g2', 'g3'];
+      ok('256 with the snapshot the arrows are back and live both ways',
+         !/disabled/.test(T6.navHtml('next')) && !/disabled/.test(T6.navHtml('prev')) &&
+         T6.navHtml('next') !== '' && T6.navHtml('prev') !== '');
+      ok('256 and the position reads from the snapshot: 2 of 4',
+         /2 of 4/.test(T6.posHtml()), T6.posHtml());
+      // A card that LEFT the inbox (filed, discarded) is skipped, not fatal.
+      T6.orderKeys = ['g0', 'gone', 'g1', 'g3'];
+      ok('256 a filed card is skipped — the walk continues over what remains',
+         /2 of 3/.test(T6.posHtml()), T6.posHtml());
+      T6.orderKeys = null;
+      T6.filter({ status: '', era: '', kind: '' });
+      T6.rvKey = '';
+      // ── wiring: snapshot once per opening, released on close ──
+      const pin56 = fs.readFileSync(require('path').join(__dirname, '..', 'app', 'photo-inbox.js'), 'utf8');
+      ok('256 opening a card snapshots ONCE (stepping keeps the same snapshot)',
+         /if \(key && !_rvOrderKeys\) \{\s*\n\s*_rvOrderKeys = _pinVisibleGroups\(\)\.map\(function \(g\) \{ return g\.key; \}\);/.test(pin56));
+      ok('256 closing the card releases the snapshot',
+         /_rvOrderKeys = null;\s+\/\/ v0\.9\.1307/.test(pin56));
     })();
 
   })().then(function () {
