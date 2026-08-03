@@ -119,7 +119,7 @@ const HOOK = '\n;window.__T = { get groups(){return _groups;}, set groups(v){_gr
      + ' renderTagBar:function(){_pinRenderTagBar();}, selInfo:function(){_selInfo();},'
      + ' navHtml:function(d){return _pinRvNavHtml(d);}, posHtml:function(){return _pinRvPosHtml();},'
      + ' filter:function(f){ Object.assign(window._pinFilterState(), f); } };'
-     + '\n;window.__MetaOf=_pinMetaOf;window.__CroppedGroups=_pinCroppedGroups;'
+     + '\n;window.__MetaOf=_pinMetaOf;window.__UnreadTodo=_pinUnreadTodo;window.__GroupApply=_pinGroupApply;'
      + '\n;window.__NumFromText=_numberFromText;window.__PreferOf=_pinPreferOf;'
      + '\n;window.__BestMaster=_pinBestMaster;window.__Lookup=_pinLookup;'
      + '\n;window.__DescMatch=_pinDescMatch;'
@@ -331,19 +331,29 @@ META_WRITES.length = 0; TOASTS.length = 0;
        return m.era === 'pw' && m.kind === 'aba' && m.role === 'p';
      })());
 
-  section('14. Re-read cropped targets the cropped set');
-  ok('_pinReadCropped exists', typeof window._pinReadCropped === 'function');
-  localStorage.setItem('rr_inbox_cropped', JSON.stringify({ c1: 1, c3: 1 }));
+  section('14. One waiting-list: unread photos (cropping clears the read)');
+  // v0.9.1297 (Brad): "we don't need a re-read button because we have cropped
+  // the items" — reads run when he presses Identify my items. The old
+  // _pinReadCropped machinery is GONE; a crop clears the photo's read, so a
+  // cropped photo simply counts as unread and the ONE list picks it up.
+  ok('the re-read-cropped machinery is really gone',
+     typeof window._pinReadCropped !== 'function' &&
+     typeof window._pinIdentifyItems === 'function');
+  localStorage.setItem('rr_inbox_ids', JSON.stringify({ c2: { num: '736', rv: '1107', tried: 1 } }));
+  localStorage.setItem('rr_inbox_freetried', '{}');
   T.groups = [
     { key: 'k1', files: [{ id: 'c1' }] },
     { key: 'k2', files: [{ id: 'c2' }] },
     { key: 'k3', files: [{ id: 'c3' }] },
   ];
-  const cg = window.__CroppedGroups().map(g => g.key);
-  ok('only the cropped photos are picked up',
-     JSON.stringify(cg) === JSON.stringify(['k1', 'k3']), JSON.stringify(cg));
-  localStorage.setItem('rr_inbox_cropped', '{}');
-  ok('nothing cropped -> empty set', window.__CroppedGroups().length === 0);
+  {
+    const todoIds = window.__UnreadTodo().map(t => t.fid);
+    // c2 carries a current-version confident read — everything else waits.
+    ok('the waiting-list is the unread photos, and only those',
+       todoIds.indexOf('c1') >= 0 && todoIds.indexOf('c3') >= 0 && todoIds.indexOf('c2') < 0,
+       JSON.stringify(todoIds));
+  }
+  localStorage.setItem('rr_inbox_ids', '{}');
 
 
   section('15. Nothing automatic ever spends a token');
@@ -366,16 +376,13 @@ META_WRITES.length = 0; TOASTS.length = 0;
   ok('automatic pass never calls the paid reader', !/aiIdentifyImage/.test(auto));
   ok('automatic pass uses the free reader', /_freeReadOne|_freeReadBlob/.test(auto));
 
-  const reread = fnBody('window._pinReadCropped = async function');
-  // The upper bound is only a sanity check that fnBody() grabbed one function
-  // and not the rest of the file. Raised from 4000 in v0.9.1135, when the
-  // try/finally that guarantees _busy is released was added.
-  ok('re-read cropped body extracted', reread.length > 200 && reread.length < 6000,
-     'len ' + reread.length);
-  ok('re-read cropped never calls the paid reader', !/aiIdentifyImage/.test(reread));
-  ok('re-read cropped uses the free reader at high res', /_freeReadBlob\(blob, 2400,/.test(reread));
-  ok('re-read cropped passes the era hint too', /_freeReadBlob\(blob, 2400, _pinPreferOf/.test(reread));
-  ok('re-read button says free, not tokens', /cropped \(free\)/.test(body));
+  // v0.9.1297: the manual trigger is Identify my items — still strictly free.
+  const idfn = fnBody('window._pinIdentifyItems = async function');
+  ok('Identify my items exists and never calls the paid reader',
+     idfn.length > 50 && !/aiIdentifyImage/.test(idfn));
+  ok('…and it runs the same free pass, not a second reader',
+     /_pinAutoRead\(\)/.test(idfn));
+  ok('the button says free, not tokens', /Identify my items[^<]*\(free\)/.test(body));
 
   // Which functions can reach the paid reader at all?
   const PAID_OWNERS = ['_pinProcessShot', '_pinReviewIdentify', '_pinIdentifySelected', '_pinIdentifyAll'];
@@ -389,9 +396,16 @@ META_WRITES.length = 0; TOASTS.length = 0;
   });
   ok('only known, explicitly-triggered functions reach the paid reader',
      owners.length >= 2, 'owners: ' + owners.join(', '));
-  // and every one of them is behind a button the user presses
-  ok('the free auto pass is what runs after an upload',
-     /setTimeout\(function \(\) \{ try \{ _pinAutoRead\(\); \}/.test(body));
+  // v0.9.1297 (Brad: "right now it auto reads everything i put into the photo
+  // inbox") — NOTHING reads automatically any more, free or paid. The refresh
+  // timer that used to start the free pass is gone; the ONE trigger is the
+  // Identify-my-items button under his finger.
+  ok('no automatic read fires after an upload or refresh',
+     !/setTimeout\(function \(\) \{ try \{ _pinAutoRead\(\); \}/.test(body) &&
+     !/_pinRefresh[\s\S]{0,400}?_pinAutoRead\(\)/.test(fnBody('window._pinRefresh = async function')));
+  ok('…and the crop no longer reads on the spot either',
+     !/showToast\('Cropped — re-reading/.test(body) &&
+     /read fresh when you hit Identify my items/.test(body));
 
 
   section('16. Finished warns when nothing was applied');
@@ -548,11 +562,14 @@ META_WRITES.length = 0; TOASTS.length = 0;
 
   const body5 = require('fs').readFileSync(SRC, 'utf8');
   // v0.9.1101: the auto pass escalates, so it reads twice — both with the hint.
+  // v0.9.1297: the crop-time and recrop blob readers are GONE (reads run on
+  // demand), so _freeReadOne is the ONE free entry — both its resolutions
+  // carry the hint, and no hint-less blob caller may reappear.
   ok('every free-read path passes the era hint',
-     (body5.match(/_freeReadBlob\(blob, ?\d+, ?_p/g) || []).length >= 2 &&
      /_freeReadBlob\(bytes, 1600, pref\)/.test(body5) &&
      /_freeReadBlob\(bytes, 2400, pref\)/.test(body5) &&
-     /var pref = _preferForFid\(fileId\)/.test(body5));
+     /var pref = _preferForFid\(fileId\)/.test(body5) &&
+     /_freeReadBlob\(blob, 2400, _pfR\)/.test(body5));
   ok('the audit exists and is free', /_pinReaderAudit/.test(body5) && /No photo IDs are used/.test(body5));
 
 
@@ -1510,7 +1527,12 @@ META_WRITES.length = 0; TOASTS.length = 0;
      /_tNum \? '<div style="position:absolute/.test(mm1));
   ok('the From-the-photo line follows the photo on screen',
      /_pinAiLine\(fid\)/.test(mm1) && /pin-rv-ailine/.test(mm1));
-  ok('the cropped re-read covers members', /jobs\.push\(\{ g: g2, fid: f2\.id \}\)/.test(mm1));
+  // v0.9.1297: the recrop pass is gone — the ONE waiting-list covers members
+  // (it walks _pinFilesToRead per group), and the button count and the loop
+  // both read it, so they cannot disagree.
+  ok('the one waiting-list feeds both the button and the loop',
+     /n = _pinUnreadTodo\(\)\.length/.test(mm1) && /var todo = _pinUnreadTodo\(\);/.test(mm1) &&
+     !/jobs\.push\(/.test(mm1));
 
 
   section('67. Read buttons mean the photo on screen');
@@ -1668,8 +1690,10 @@ META_WRITES.length = 0; TOASTS.length = 0;
 
   const sd = require('fs').readFileSync(SRC, 'utf8');
   ok('free reads persist the disagreement',
-     // v0.9.1131 gave the re-read path the full record too, so there are 4 writers now
-     (sd.match(/disagreed: r\.disagreed \|\| ''/g) || []).length === 4);
+     // v0.9.1131 gave the re-read path the full record too (4 writers then);
+     // v0.9.1297 removed the crop-time and recrop writers with the machinery
+     // itself, so the two that remain are the auto pass and the re-scan.
+     (sd.match(/disagreed: r\.disagreed \|\| ''/g) || []).length === 2);
   ok('the card names the overruled number', /names a different item/.test(sd));
   ok('the set rule lives in ONE place',
      (sd.match(/function _pinIsSetRow/g) || []).length === 1 &&
@@ -2365,12 +2389,12 @@ META_WRITES.length = 0; TOASTS.length = 0;
      /async function _pinCountAll\(q\)/.test(a7) && /_navBadge\(await _pinCountAll\(q\)\)/.test(a7));
   ok('the failed-read record is pruned too, so storage cannot fill forever',
      /var ft = _freeTried\(\), ch2 = false;/.test(a7));
-  ok('a re-read is stamped with the reader version like every other writer',
-     /rv: READER_VER, viaDesc: !!r\.viaDesc,\n                     descOf/.test(a7));
-  ok('a re-read miss stores an object, not a bare 1',
-     !/f2\[fid\] = 1; _freeTriedSave\(f2\);/.test(a7));
-  ok('the lead-photo fallback is per group, not global',
-     /var before = jobs\.length;/.test(a7) && /jobs\.length === before && _pinReadFid\(g2\)/.test(a7));
+  // v0.9.1297: the recrop writer is gone; the auto pass is the free writer
+  // and it stamps the reader version like every other one.
+  ok('a read is stamped with the reader version like every other writer',
+     /rv: READER_VER, viaDesc: !!r\.viaDesc/.test(a7));
+  ok('a read miss stores an object, not a bare 1',
+     !/\[fid\] = 1; _freeTriedSave\(/.test(a7));
 
   section('108. Split apart works on phone-captured stacks (audit #6)');
   const a8 = require('fs').readFileSync(SRC, 'utf8');
@@ -2559,14 +2583,17 @@ META_WRITES.length = 0; TOASTS.length = 0;
     })();
     ok('the reader audit releases _busy in a finally',
        /\} finally \{[\s\S]{0,200}_busy = false; window\._rrLongJob = false;/.test(audit));
-    const rc = (function () {
-      const i = pi.indexOf('window._pinReadCropped = async function');
-      return pi.slice(i, pi.indexOf('// ══ v0.9.1063', i));
+    // v0.9.1297: the recrop batch is gone. The long free job is now the
+    // auto pass behind Identify my items — its busy flag is released on
+    // every exit path (the loop's tail), and the button repaints after.
+    const ar17 = (function () {
+      const i = pi.indexOf('async function _pinAutoRead()');
+      return pi.slice(i, pi.indexOf('window._pinGo', i) > 0 ? pi.indexOf('window._pinGo', i) : i + 6000);
     })();
-    ok('re-read cropped releases _busy in a finally',
-       /\} finally \{[\s\S]{0,200}_busy = false; _status\(''\);/.test(rc));
-    ok('and re-enables its button there too, so it cannot stay disabled',
-       /finally \{[\s\S]{0,240}btn\.disabled = false/.test(rc));
+    ok('the free pass releases its busy flag when it ends',
+       /_autoReadBusy = false;/.test(ar17));
+    ok('and Identify my items repaints its button after the run',
+       /await _pinAutoRead\(\);[\s\S]{0,120}_updateIdentifyBtn\(\)/.test(pi));
   })();
 
   // 1.4 — Identify on ticked photos must confirm BEFORE deleting anything
@@ -5191,13 +5218,13 @@ META_WRITES.length = 0; TOASTS.length = 0;
        /about 5 minutes left/.test(eta(19, 20, Date.now() - 19 * 1000)),
        eta(19, 20, Date.now() - 19 * 1000));
 
-    // Wired to both batches, and measured rather than assumed.
-    ok('the re-read line carries it',
-       /_pinEtaText\(i, gs\.length, _reStart\)/.test(code));
-    ok('the paid identify line carries it too',
+    // Wired to the surviving batches, and measured rather than assumed.
+    // (v0.9.1297: the recrop batch and its _reStart went with the machinery;
+    // the free pass has its own inline ETA, timed from _arT0.)
+    ok('the paid identify line carries it',
        /_pinEtaText\(i, todo\.length, _idStart\)/.test(code));
-    ok('...both timed from when the run actually started',
-       /var _reStart = Date\.now\(\)/.test(code) && /var _idStart = Date\.now\(\)/.test(code));
+    ok('...timed from when the run actually started',
+       /var _idStart = Date\.now\(\)/.test(code) && /var _arT0 = Date\.now\(\)/.test(code));
   })();
 
   section('145. A COTT item stops linking to Google (v0.9.1175)');
@@ -5632,9 +5659,11 @@ META_WRITES.length = 0; TOASTS.length = 0;
        !/_pinVendorSearch = function/.test(wcode) && !/_pinCardNum/.test(wcode));
     ok('the arrow keys do not walk the group behind an open where-from sheet',
        /getElementById\('pin-wf-sheet'\)/.test(wcode));
-    ok('all three bottom sheets share ONE backdrop style — no second copy of it',
+    // v0.9.1297: the Group-as bottom sheet became the floating panel, so two
+    // sheets remain on the one backdrop style.
+    ok('the bottom sheets share ONE backdrop style — no second copy of it',
        /var _PIN_SHEET_OV =/.test(wcode) &&
-       (wcode.match(/ov\.style\.cssText = _PIN_SHEET_OV;/g) || []).length === 3);
+       (wcode.match(/ov\.style\.cssText = _PIN_SHEET_OV;/g) || []).length === 2);
     ok('...and that backdrop points at the palette instead of typing a colour',
        /_PIN_SHEET_OV = 'position:fixed;inset:0;z-index:10050;background:var\(--scrim\);'/.test(wcode));
     ok('--scrim is defined in the palette, or every sheet loses its dim',
@@ -14739,8 +14768,10 @@ META_WRITES.length = 0; TOASTS.length = 0;
          !/\.style\.background = [^;\n]*rgba\(41,128,185,0\.18\)/.test(code32) &&
          !/\.style\.background = [^;\n]*rgba\(212,168,67,0\.14\)/.test(code32),
          'a raw rgba() wash is back in a JS button repaint');
-      ok('232 the six converted sites all call the helper',
-         (code32.match(/_pinOpaqueTint\(/g) || []).length >= 7,   // 1 def + 6 calls
+      // v0.9.1297: one converted site (the recrop button's repaint) left with
+      // the recrop machinery — 1 definition + 5 calls remain.
+      ok('232 the converted sites all call the helper',
+         (code32.match(/_pinOpaqueTint\(/g) || []).length >= 6,
          String((code32.match(/_pinOpaqueTint\(/g) || []).length));
     })();
 
@@ -16409,8 +16440,99 @@ META_WRITES.length = 0; TOASTS.length = 0;
       ok('246 detail photos are never READ as members',
          /return m\.role !== 'together' && m\.role !== 'detail';/.test(pin46));
       ok('246 the first photo cannot be marked a detail',
-         /if \(roles\[0\] === 'detail'\) \{/.test(pin46) &&
+         /if \(roles && roles\[0\] === 'detail'\) return \{ blocked: 'detail'/.test(pin46) &&
          /mark the piece itself first/.test(pin46));
+    })();
+
+    // ═══════════════════════════════════════════════════════════
+    // §247. v0.9.1297 — the inbox works at Brad's pace.
+    //
+    //   Brad: "i hit group photos, i select two or more photos, those
+    //   thumbnails appear on a samll grid on the popup, and the i select
+    //   what type they are, and hit an apply button. then i can select
+    //   another group. I can scroll up and down and the pop up stays on
+    //   the top right of the screen. there will also be a cancel and done
+    //   button. Also, on the tag, lets add type to it as well. Also,
+    //   right now it auto reads everything i put into the photo inbox.
+    //   let me be able to crop, tag and group items, and then let me hit
+    //   the identifiy my items button." And: "the photo reader needs to
+    //   use the type as a helper to decide what it is."
+    // ═══════════════════════════════════════════════════════════
+    section('247. Floating group panel, Type tag, reads on demand');
+    await (async function () {
+      const p47 = require('path');
+      const pin47 = fs.readFileSync(p47.join(__dirname, '..', 'app', 'photo-inbox.js'), 'utf8');
+
+      // ── the Type tag round-trips and reaches BOTH readers ─────────────
+      ok('247 the Type rides in the photo metadata like era and role',
+         /type:'rrType'/.test(pin47) && /type: ap\.rrType \|\| ''/.test(pin47));
+      ok('247 tagging a type never blanks one by accident',
+         /var _patch = \{ era: _tagEra, stat: 'stamped' \};/.test(pin47) &&
+         /if \(_tagType\) _patch\.type = _tagType;/.test(pin47));
+      ok('247 the paid reader gets the type as a hint',
+         /if \(pref\.type\) h\.type = pref\.type;/.test(pin47) &&
+         /pref\.label \|\| pref\.manufacturer \|\| pref\.scale \|\| pref\.type/.test(pin47));
+      // Run the real _pinBestMaster: same number, one Boxcar row, one Paper
+      // row — the Type tag decides which one leads.
+      {
+        const BUCKET = [
+          { itemNum: '2454', itemType: 'Paper', _era: 'pw', description: 'inspection slip' },
+          { itemNum: '2454', itemType: 'Boxcar', _era: 'pw', description: 'Baby Ruth boxcar' },
+        ];
+        global.window._mbAllGet = function () { return BUCKET.slice(); };
+        const asBox = window.__BestMaster('2454', '', { type: 'Boxcar' });
+        const asPaper = window.__BestMaster('2454', '', { type: 'Paper' });
+        const plain = window.__BestMaster('2454', '', null);
+        delete global.window._mbAllGet;
+        ok('247 a photo tagged Boxcar resolves to the boxcar row',
+           asBox && asBox.itemType === 'Boxcar', JSON.stringify(asBox));
+        ok('247 …tagged Paper, to the paper row',
+           asPaper && asPaper.itemType === 'Paper', JSON.stringify(asPaper));
+        ok('247 …and untyped photos keep the old order (soft rank, not a filter)',
+           !!plain, JSON.stringify(plain));
+        // The probe that tells a soft RANK from a hard FILTER: the reader
+        // read the maker off the car itself, and that claim must still reach
+        // a row the Type tag disagrees with. A hard filter drops that row
+        // before the maker rule can find it. (This probe was added after a
+        // mutation drill proved the three above pass under the filter too.)
+        const MIXED = [
+          { itemNum: '2454', itemType: 'Paper', _era: 'pw', manufacturer: 'Lionel' },
+          { itemNum: '2454', itemType: 'Boxcar', _era: 'atlas_o', manufacturer: 'Atlas' },
+        ];
+        global.window._mbAllGet = function () { return MIXED.slice(); };
+        const claimed = window.__BestMaster('2454', 'Atlas', { type: 'Paper' });
+        delete global.window._mbAllGet;
+        ok('247 the reader\'s own maker claim still reaches a type-mismatched row',
+           claimed && claimed.manufacturer === 'Atlas', JSON.stringify(claimed));
+      }
+
+      // ── the floating panel: apply / cancel / done, one writer ─────────
+      ok('247 the panel exists with its three buttons',
+         /id="pin-grp-panel-apply"/.test(pin47) && /id="pin-grp-panel-cancel"/.test(pin47) &&
+         /id="pin-grp-panel-done"/.test(pin47));
+      ok('247 it pins to the top-right on a desktop and docks to the bottom on a phone',
+         /position:fixed;top:70px;right:16px/.test(pin47) &&
+         /position:fixed;left:0;right:0;bottom:0/.test(pin47));
+      ok('247 every tick repaints the panel, and group mode opens it',
+         /if \(isGroup\) \{ try \{ _pinGrpPanelRender\(\); \}/.test(pin47) &&
+         /if \(purpose === 'group'\) _pinGrpPanelRender\(\); else _pinGrpPanelClose\(\);/.test(pin47));
+      ok('247 leaving the mode closes the panel',
+         /try \{ _pinGrpPanelClose\(\); \} catch \(eGP\) \{\}\n    _render\(\);/.test(pin47));
+      ok('247 Apply goes through the ONE group writer and the panel STAYS',
+         /await _pinGroupApply\(files2, _grpPanelKind/.test(pin47) &&
+         /_sel = \{\}; _grpPanelRoles = \[\];/.test(pin47));
+      ok('247 the detail guard blocks before anything is written',
+         /if \(roles && roles\[0\] === 'detail'\) return \{ blocked: 'detail'/.test(pin47));
+      // Runtime: the guard answers without touching Drive.
+      {
+        const g0 = pin47.indexOf('async function _pinGroupApply(files, kindId, roles, onProgress) {');
+        const g1 = pin47.indexOf('\n  }', g0) + 4;
+        const apply = new Function('_pinMetaSet', 'Date',
+          'return (' + pin47.slice(g0, g1).replace('async function _pinGroupApply', 'async function') + ');')(
+          function () { throw new Error('Drive touched'); }, Date);
+        const r = await apply([{ id: 'a' }, { id: 'b' }], 'set', ['detail', 'member']);
+        ok('247 a blocked apply writes NOTHING', r.blocked === 'detail' && r.ok === 0);
+      }
     })();
 
   })().then(function () {

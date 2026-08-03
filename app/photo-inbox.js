@@ -61,6 +61,12 @@
   var _rvKey = '';           // group key the review card is open on ('' = multi-select)
   var _selPurpose = '';      // '' | 'group' | 'tag'  — what Apply does
   var _tagEra = '';          // era picked in tag mode, written on Apply
+  var _tagType = '';         // v0.9.1297: item type picked in tag mode ('' = leave as-is)
+  // The Type choices the tag bar offers. 'Paper' and 'Catalog' matter most —
+  // they stop a blueprint being searched as a locomotive.
+  var _PIN_TYPES = ['Engine', 'Tender', 'Boxcar', 'Flatcar', 'Gondola', 'Tank Car', 'Hopper',
+                    'Caboose', 'Passenger Car', 'Accessory', 'Building', 'Track', 'Set',
+                    'Paper', 'Catalog', 'Other'];
   // A shooting session. The context bar used to sit on the page permanently;
   // Brad only wants it while he is actually shooting. It appears when a session
   // starts, and Done ends it. Deliberately NOT persisted: a stale "Lionel
@@ -100,18 +106,23 @@
         '<span>Photo Inbox</span>' +
         '<span id="pin-count" style="font-size:0.8rem;color:var(--text-dim);font-family:var(--font-body);font-weight:400"></span>' +
       '</div>' +
-      '<div style="font-size:0.8rem;color:var(--text-dim);line-height:1.5;margin-bottom:0.7rem">Drop photos anywhere below, or use Add photos. Click a photo to review it — add the item, research it more, or discard the photo. Use “Group photos” to put several shots of one item together, and “Tag maker/era/scale” to say what photos are. Photos snapped with Quick Capture on your phone land here too.</div>' +
+      '<div style="font-size:0.8rem;color:var(--text-dim);line-height:1.5;margin-bottom:0.7rem">Drop photos anywhere below, or use Add photos. Get them ready at your own pace — crop, use “Group photos” to put several shots of one item together, and “Tag maker/era/scale/type” to say what photos are — then hit <b>Identify my items</b> to read them all. Click a photo to review it — add the item, research it more, or discard the photo. Photos snapped with Quick Capture on your phone land here too.</div>' +
       '<div id="pin-context-bar" style="display:none"></div>' +   // v0.9.1048 capture context
       '<div id="pin-filter-row" style="display:none"></div>' +   // v0.9.1051 filters
       '<div id="pin-tagbar" style="display:none"></div>' +        // v0.9.1057 tag mode
       '<div style="display:flex;flex-wrap:wrap;gap:0.5rem;align-items:center;margin-bottom:0.8rem">' +
         '<button onclick="_pinAddSource()" class="btn-primary" style="padding:0.5rem 0.9rem;border-radius:8px;border:none;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Add photos…</button>' +
         '<button id="pin-group-btn" onclick="_pinStartMode(\'group\')" style="' + 'padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:var(--bg-card);background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card));color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer' + '">Group photos</button>' +
-        '<button id="pin-tag-btn" onclick="_pinStartMode(\'tag\')" style="' + 'padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:var(--bg-card);background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card));color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer' + '">Tag maker/era/scale</button>' +
+        '<button id="pin-tag-btn" onclick="_pinStartMode(\'tag\')" style="' + 'padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:var(--bg-card);background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card));color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer' + '">Tag maker/era/scale/type</button>' +
         '<button id="pin-apply-btn" onclick="_pinApplyTags()" style="display:none;padding:0.5rem 0.9rem;border-radius:8px;border:none;background:var(--accent);color:var(--on-accent);font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Apply</button>' +
         '<button id="pin-finish-btn" onclick="_pinFinishMode()" style="display:none;padding:0.5rem 0.9rem;border-radius:8px;border:none;background:var(--accent2);color:#1a1a1a;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">✓ Finished</button>' +
         '<button id="pin-selall-btn" onclick="_pinSelectAll()" style="display:none;padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:var(--bg-card);background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card));color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Select all</button>' +
-        '<button id="pin-recrop-btn" onclick="_pinReadCropped()" style="display:none;padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid var(--accent2);background:var(--bg-card);background:color-mix(in srgb, rgb(212,168,67) 14%, var(--bg-card));color:var(--accent2);font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Re-read cropped</button>' +
+        // v0.9.1297 (Brad): reads run when HE says so — crop, tag and group
+        // first, then this button. It replaces both the automatic read on
+        // upload and the separate "Re-read cropped" button (cropping clears a
+        // photo's old read, so cropped photos are simply unread again and this
+        // button picks them up).
+        '<button id="pin-identify-btn" onclick="_pinIdentifyItems()" style="display:none;padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid var(--accent2);background:var(--bg-card);background:color-mix(in srgb, rgb(212,168,67) 14%, var(--bg-card));color:var(--accent2);font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Identify my items (free)</button>' +
         '<button id="pin-idall-btn" onclick="_pinIdentifyAll()" style="display:none;padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid var(--accent2);background:var(--bg-card);background:color-mix(in srgb, rgb(212,168,67) 14%, var(--bg-card));color:var(--accent2);font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">🔍 Read with a photo ID</button>' +
         (rrDiagnostics() ? '<button id="pin-audit-btn" onclick="_pinReaderAudit()" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:var(--bg-card);background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card));color:#2980b9;font-family:var(--font-body);font-weight:600;font-size:0.82rem;cursor:pointer">Reader audit (free)</button>' : '') +
         '<button onclick="_pinRefresh()" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:var(--bg-card);background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card));color:#2980b9;font-family:var(--font-body);font-weight:600;font-size:0.82rem;cursor:pointer">Refresh</button>' +
@@ -119,7 +130,6 @@
         '<span id="pin-selinfo" style="font-size:0.78rem;color:var(--text-dim)"></span>' +
         '<button id="pin-idsel-btn" onclick="_pinIdentifySelected()" style="display:none;padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:var(--bg-card);background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card));color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Identify</button>' +
         '<button id="pin-assign-btn" onclick="_pinReview(null)" style="display:none;padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:var(--bg-card);background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card));color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Combine → one item…</button>' +
-        '<button id="pin-groupas-btn" onclick="_pinGroupAs()" style="display:none;padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:var(--bg-card);background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card));color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Group as\u2026</button>' +
         '<button id="pin-discard-btn" onclick="_pinDiscard()" style="display:none;padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:var(--bg-card);background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card));color:#f05008;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Discard</button>' +
       '</div>' +
       '<div id="pin-status" style="display:none;font-size:0.8rem;color:var(--text-dim);margin-bottom:0.6rem"></div>' +
@@ -521,90 +531,149 @@
 
   // "Group as…" — takes the ticked photos, gives them one group id, a kind and
   // a role each, and writes all of it to the Drive files.
-  window._pinGroupAs = function () {
-    var gs = _selGroups();
-    var files = [];
-    gs.forEach(function (g) { g.files.forEach(function (f) { files.push(f); }); });
-    if (files.length < 2) { showToast('Tick two or more photos first', 2800, true); return; }
+  // ══ v0.9.1297 (Brad): grouping is a FLOATING PANEL, not a pop-over. ══════
+  // "so i hit group photos, i select two or more photos, those thumbnails
+  //  appear on a samll grid on the popup, and the i select what type they
+  //  are, and hit an apply button. then i can select another group. I can
+  //  scroll up and down and the pop up stays on the top right of the screen.
+  //  there will also be a cancel and done button."
+  //
+  // The panel pins to the top-right (bottom of the screen on phones), fills
+  // live as photos are ticked, and STAYS through Apply so the next group is
+  // two taps away. Saving is the same v0.9.1050 machinery — one group id, a
+  // kind, a role per photo — extracted into _pinGroupApply below so the old
+  // dialog's behavior survives with a different roof over it.
+  var _grpPanelKind = 'aba';
+  var _grpPanelRoles = [];
 
-    var kindId = 'aba';
-    var roles = _pinDefaultRoles(kindId, files.length);
-
-    var ov = document.createElement('div');
-    ov.style.cssText = _PIN_SHEET_OV;
-    var card = document.createElement('div');
-    card.style.cssText = _pinSheetCardCss(560, 86);
-    ov.appendChild(card);
-    ov.onclick = function (e) { if (e.target === ov) ov.remove(); };
-
-    function draw() {
-      var k = _pinKind(kindId);
-      roles = roles.slice(0, files.length);
-      while (roles.length < files.length) roles.push(k.roles.length ? k.roles[k.roles.length - 1][0] : '');
-      card.innerHTML =
-        '<div style="font-family:var(--font-head);font-size:1.05rem;font-weight:700;margin-bottom:0.15rem">How do these ' + files.length + ' photos go together?</div>'
-        + '<div style="font-size:0.8rem;color:var(--text-dim);line-height:1.5;margin-bottom:0.8rem">An AA, AB or ABA saves as separate items that stay linked. A set shot of everything together becomes the group\'s cover photo. A paper or other collectible stays one item however many shots.</div>'
-        + '<select id="pin-grp-kind" style="width:100%;padding:0.6rem 0.7rem;border-radius:8px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text);font-size:0.95rem;min-height:46px;box-sizing:border-box;margin-bottom:0.8rem">'
-        +   _PIN_KINDS.map(function (kk) { return '<option value="' + kk.id + '"' + (kk.id === kindId ? ' selected' : '') + '>' + rrEsc(kk.label) + '</option>'; }).join('')
-        + '</select>'
-        + (k.roles.length
-            ? files.map(function (f, i) {
-                return '<div style="display:flex;align-items:center;gap:0.6rem;padding:0.4rem 0;border-top:1px solid var(--border)">'
-                  // v0.9.1058 (Brad: "need thumbnails on this popup to help me
-                  // select"). A numbered square told you there were seven photos
-                  // but not WHICH was which, so assigning powered / dummy / B was
-                  // guesswork against the shooting order.
-                  + '<div style="position:relative;width:46px;height:46px;border-radius:6px;overflow:hidden;background:var(--surface2);flex-shrink:0">'
-                  +   '<img data-grpfid="' + f.id + '" style="width:100%;height:100%;object-fit:cover;display:block" alt="">'
-                  +   '<div style="position:absolute;left:0;bottom:0;background:rgba(0,0,0,0.6);color:#fff;font-size:0.55rem;padding:0 3px;border-radius:0 4px 0 0">' + (i + 1) + '</div>'
-                  + '</div>'
-                  + '<select data-ri="' + i + '" class="pin-grp-role" style="flex:1;min-width:0;padding:0.5rem;border-radius:8px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text);font-size:0.88rem;min-height:44px">'
-                  +   k.roles.map(function (r) { return '<option value="' + r[0] + '"' + (r[0] === roles[i] ? ' selected' : '') + '>' + rrEsc(r[1]) + '</option>'; }).join('')
-                  + '</select></div>';
-              }).join('')
-            : '<div style="font-size:0.8rem;color:var(--text-dim);padding:0.5rem 0">All ' + files.length + ' photos will be filed as one item.</div>')
-        + '<div style="display:flex;gap:0.5rem;margin-top:1rem">'
-        +   '<button id="pin-grp-save" style="flex:2;padding:0.75rem;border-radius:9px;border:none;background:var(--accent);color:var(--on-accent);font-weight:700;font-size:0.95rem;min-height:50px;cursor:pointer">Group them</button>'
-        +   '<button id="pin-grp-cancel" style="flex:1;padding:0.75rem;border-radius:9px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text);font-weight:600;font-size:0.92rem;min-height:50px;cursor:pointer">Cancel</button>'
-        + '</div>';
-      // draw() re-renders on every kind change, so re-hydrate the thumbs each time.
-      try {
-        Array.prototype.forEach.call(card.querySelectorAll('img[data-grpfid]'), function (im) {
-          loadDriveThumb(im.getAttribute('data-grpfid'), im, im.parentElement, null, 'hi');
-        });
-      } catch (eTh) {}
-      card.querySelector('#pin-grp-kind').onchange = function () {
-        kindId = this.value; roles = _pinDefaultRoles(kindId, files.length); draw();
-      };
-      Array.prototype.forEach.call(card.querySelectorAll('.pin-grp-role'), function (sel) {
-        sel.onchange = function () { roles[parseInt(this.getAttribute('data-ri'), 10)] = this.value; };
-      });
-      card.querySelector('#pin-grp-cancel').onclick = function () { ov.remove(); };
-      card.querySelector('#pin-grp-save').onclick = async function () {
-        // v0.9.1296 (request #24): a detail shot chains to the photo ABOVE
-        // it — the first photo has nothing above, so the mark is impossible
-        // and would strand the photo. Say so instead of saving it.
-        if (roles[0] === 'detail') {
-          showToast('The first photo can\'t be a detail — mark the piece itself first, then its detail below it', 4500, true);
-          return;
-        }
-        this.disabled = true; this.textContent = 'Saving…';
-        var gid = 'G' + Date.now().toString(36);
-        var okAll = 0;
-        for (var i = 0; i < files.length; i++) {
-          var ok = await _pinMetaSet(files[i].id, { grp: gid, kind: kindId, role: roles[i] || '' });
-          if (ok) okAll++;
-          this.textContent = 'Saving… ' + (i + 1) + '/' + files.length;
-        }
-        ov.remove();
-        if (okAll === files.length) showToast('Grouped as ' + _pinKindLabel(kindId), 3000);
-        else showToast('Grouped ' + okAll + ' of ' + files.length + ' — try the rest again', 5000, true);
-        _sel = {}; _pinRefresh();
-      };
+  // The one writer for "make these photos a group" (was the dialog's save).
+  // Returns {blocked:'detail'} without saving when the first photo is marked
+  // as a detail shot — a detail chains to the photo ABOVE it, and the first
+  // photo has nothing above.
+  async function _pinGroupApply(files, kindId, roles, onProgress) {
+    if (roles && roles[0] === 'detail') return { blocked: 'detail', ok: 0, total: files.length };
+    var gid = 'G' + Date.now().toString(36);
+    var okAll = 0;
+    for (var i = 0; i < files.length; i++) {
+      var ok = await _pinMetaSet(files[i].id, { grp: gid, kind: kindId, role: (roles && roles[i]) || '' });
+      if (ok) okAll++;
+      if (onProgress) { try { onProgress(i + 1, files.length); } catch (e) {} }
     }
-    draw();
-    document.body.appendChild(ov);
-  };
+    return { ok: okAll, total: files.length };
+  }
+
+  function _pinGrpPanelFiles() {
+    var files = [];
+    _selGroups().forEach(function (g) { g.files.forEach(function (f) { files.push(f); }); });
+    return files;
+  }
+
+  function _pinGrpPanelClose() {
+    var p = document.getElementById('pin-grp-panel');
+    if (p) p.remove();
+  }
+
+  function _pinGrpPanelRender() {
+    if (_selPurpose !== 'group') { _pinGrpPanelClose(); return; }
+    var files = _pinGrpPanelFiles();
+    var k = _pinKind(_grpPanelKind);
+    _grpPanelRoles = _grpPanelRoles.slice(0, files.length);
+    while (_grpPanelRoles.length < files.length) {
+      var d = _pinDefaultRoles(_grpPanelKind, files.length);
+      _grpPanelRoles.push(d[_grpPanelRoles.length] || (k.roles.length ? k.roles[k.roles.length - 1][0] : ''));
+    }
+    var p = document.getElementById('pin-grp-panel');
+    if (!p) {
+      p = document.createElement('div');
+      p.id = 'pin-grp-panel';
+      document.body.appendChild(p);
+    }
+    // Top-right on a desktop; docked to the bottom on a phone, where a fixed
+    // right-hand card would sit on top of the grid being picked from.
+    var narrow = (window.innerWidth || 0) < 700;
+    p.style.cssText = narrow
+      ? 'position:fixed;left:0;right:0;bottom:0;z-index:10040;background:var(--surface);border-top:2px solid var(--accent2);box-shadow:0 -4px 18px var(--scrim);padding:0.7rem 0.8rem;max-height:45vh;overflow-y:auto'
+      : 'position:fixed;top:70px;right:16px;width:300px;z-index:10040;background:var(--surface);border:1.5px solid var(--accent2);border-radius:12px;box-shadow:0 6px 22px var(--scrim);padding:0.75rem 0.85rem;max-height:72vh;overflow-y:auto';
+    var html =
+      '<div style="font-family:var(--font-head);font-size:0.95rem;font-weight:700;margin-bottom:0.15rem">Group photos</div>'
+      + '<div style="font-size:0.74rem;color:var(--text-dim);line-height:1.45;margin-bottom:0.55rem">Tap photos in the grid — they collect here. An AA, AB or ABA saves as separate items that stay linked. A set shot of everything together becomes the group\'s cover photo. A paper or other collectible stays one item however many shots.</div>'
+      + (files.length
+          ? '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(52px,1fr));gap:0.35rem;margin-bottom:0.6rem">'
+            + files.map(function (f, i) {
+                return '<div style="position:relative;aspect-ratio:1;border-radius:6px;overflow:hidden;background:var(--surface2)">'
+                  + '<img data-gppfid="' + f.id + '" style="width:100%;height:100%;object-fit:cover;display:block" alt="">'
+                  + '<div style="position:absolute;left:0;bottom:0;background:var(--scrim);color:#fff;font-size:0.55rem;padding:0 3px;border-radius:0 4px 0 0">' + (i + 1) + '</div>'
+                  + '</div>';
+              }).join('')
+            + '</div>'
+          : '<div style="font-size:0.78rem;color:var(--text-dim);font-style:italic;margin-bottom:0.6rem">Nothing selected yet.</div>')
+      + '<select id="pin-grp-panel-kind" style="width:100%;padding:0.5rem 0.6rem;border-radius:8px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text);font-size:0.88rem;min-height:42px;box-sizing:border-box;margin-bottom:0.55rem">'
+      +   _PIN_KINDS.map(function (kk) { return '<option value="' + kk.id + '"' + (kk.id === _grpPanelKind ? ' selected' : '') + '>' + rrEsc(kk.label) + '</option>'; }).join('')
+      + '</select>'
+      + (k.roles.length && files.length
+          ? files.map(function (f, i) {
+              return '<div style="display:flex;align-items:center;gap:0.45rem;padding:0.25rem 0;border-top:1px solid var(--border)">'
+                + '<div style="width:30px;height:30px;border-radius:5px;overflow:hidden;background:var(--surface2);flex-shrink:0;position:relative">'
+                +   '<img data-gppfid="' + f.id + '" style="width:100%;height:100%;object-fit:cover;display:block" alt="">'
+                +   '<div style="position:absolute;left:0;bottom:0;background:var(--scrim);color:#fff;font-size:0.5rem;padding:0 2px">' + (i + 1) + '</div>'
+                + '</div>'
+                + '<select data-gpri="' + i + '" class="pin-grp-panel-role" style="flex:1;min-width:0;padding:0.35rem;border-radius:7px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text);font-size:0.78rem;min-height:36px">'
+                +   k.roles.map(function (r) { return '<option value="' + r[0] + '"' + (r[0] === _grpPanelRoles[i] ? ' selected' : '') + '>' + rrEsc(r[1]) + '</option>'; }).join('')
+                + '</select></div>';
+            }).join('')
+          : (files.length ? '<div style="font-size:0.75rem;color:var(--text-dim);padding:0.25rem 0 0.45rem">All ' + files.length + ' photos will be filed as one item.</div>' : ''))
+      + '<div style="display:flex;gap:0.4rem;margin-top:0.6rem">'
+      +   '<button id="pin-grp-panel-apply" ' + (files.length >= 2 ? '' : 'disabled ') + 'style="flex:2;padding:0.6rem;border-radius:8px;border:none;background:' + (files.length >= 2 ? 'var(--accent)' : 'var(--surface2)') + ';color:' + (files.length >= 2 ? 'var(--on-accent)' : 'var(--text-dim)') + ';font-weight:700;font-size:0.88rem;min-height:44px;cursor:' + (files.length >= 2 ? 'pointer' : 'default') + '">Apply</button>'
+      +   '<button id="pin-grp-panel-cancel" style="flex:1;padding:0.6rem;border-radius:8px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text);font-weight:600;font-size:0.82rem;min-height:44px;cursor:pointer">Cancel</button>'
+      +   '<button id="pin-grp-panel-done" style="flex:1;padding:0.6rem;border-radius:8px;border:none;background:var(--accent2);color:#1a1a1a;font-weight:700;font-size:0.82rem;min-height:44px;cursor:pointer">Done</button>'
+      + '</div>';
+    p.innerHTML = html;
+    try {
+      Array.prototype.forEach.call(p.querySelectorAll('img[data-gppfid]'), function (im) {
+        loadDriveThumb(im.getAttribute('data-gppfid'), im, im.parentElement, null, 'hi');
+      });
+    } catch (eTh) {}
+    var ks = document.getElementById('pin-grp-panel-kind');
+    if (ks) ks.onchange = function () {
+      _grpPanelKind = this.value;
+      _grpPanelRoles = _pinDefaultRoles(_grpPanelKind, _pinGrpPanelFiles().length);
+      _pinGrpPanelRender();
+    };
+    Array.prototype.forEach.call(p.querySelectorAll('.pin-grp-panel-role'), function (sel) {
+      sel.onchange = function () { _grpPanelRoles[parseInt(this.getAttribute('data-gpri'), 10)] = this.value; };
+    });
+    var ap = document.getElementById('pin-grp-panel-apply');
+    if (ap) ap.onclick = async function () {
+      var files2 = _pinGrpPanelFiles();
+      if (files2.length < 2) { showToast('Tick two or more photos first', 2800, true); return; }
+      this.disabled = true; this.textContent = 'Saving…';
+      var self = this;
+      var res = await _pinGroupApply(files2, _grpPanelKind, _grpPanelRoles.slice(0, files2.length), function (done, total) {
+        self.textContent = 'Saving… ' + done + '/' + total;
+      });
+      if (res.blocked === 'detail') {
+        showToast('The first photo can\'t be a detail — mark the piece itself first, then its detail below it', 4500, true);
+        self.disabled = false; self.textContent = 'Apply';
+        return;
+      }
+      if (res.ok === res.total) showToast('Grouped as ' + _pinKindLabel(_grpPanelKind), 3000);
+      else showToast('Grouped ' + res.ok + ' of ' + res.total + ' — try the rest again', 5000, true);
+      // The panel STAYS — clear the ticks and the roles so the next group
+      // starts clean, and refresh the grid behind it.
+      _sel = {}; _grpPanelRoles = [];
+      _pinGrpPanelRender();
+      _pinRefresh();
+    };
+    var cn = document.getElementById('pin-grp-panel-cancel');
+    if (cn) cn.onclick = function () {
+      _sel = {}; _grpPanelRoles = [];
+      _render();
+      _pinGrpPanelRender();
+    };
+    var dn = document.getElementById('pin-grp-panel-done');
+    if (dn) dn.onclick = function () { window._pinFinishMode(); };
+  }
+
 
   window._pinConfirmUngroup = async function (key) {
     var g = null;
@@ -901,6 +970,10 @@
       grp:  (ap.rrGrp === '-') ? '' : (ap.rrGrp || ''),
       kind: ap.rrKind || '',
       role: ap.rrRole || '',
+      // v0.9.1297 (Brad): what the photo IS — Boxcar, Paper, Engine… Set by
+      // the tag bar's Type picker; the readers use it as a hint (see
+      // _pinPreferOf / _pinAiHints / _pinBestMaster).
+      type: ap.rrType || '',
       num:  ap.rrNum  || '',
       stat: ap.rrStat || '',
       conf: ap.rrConf || '',
@@ -926,7 +999,7 @@
   // and deletes any whose value is null, so only what changed goes over.
   async function _pinMetaSet(fileId, patch) {
     if (!fileId || !patch) return false;
-    var map = { era:'rrEra', grp:'rrGrp', kind:'rrKind', role:'rrRole', num:'rrNum', stat:'rrStat', conf:'rrConf', ord:'rrOrd' };   // ord: v0.9.1283, drag order
+    var map = { era:'rrEra', grp:'rrGrp', kind:'rrKind', role:'rrRole', type:'rrType', num:'rrNum', stat:'rrStat', conf:'rrConf', ord:'rrOrd' };   // ord: v0.9.1283, drag order · type: v0.9.1297
     var props = { rrV: _PIN_META_V };
     Object.keys(patch).forEach(function (k) {
       if (!map[k]) return;
@@ -1096,7 +1169,13 @@
       // v0.9.1275 (R15): a partial listing is drawn, but never passed off as
       // the whole inbox.
       _status(_pinListComplete ? '' : 'Some photos could not be loaded — this is a partial view. Hit Refresh to try again.');
-      setTimeout(function () { try { _pinAutoRead(); } catch (e) {} }, 400);
+      // v0.9.1297 (Brad): NO automatic read. "right now it auto reads
+      // everything i put into the photo inbox. let me be able to crop, tag
+      // and group items, and then let me hit the identify my items button."
+      // The reads run better for the wait — by then the photos are cropped
+      // and carry their maker/era/type tags. _pinIdentifyItems is the ONE
+      // trigger; the button below shows how much is waiting.
+      try { _updateIdentifyBtn(); } catch (eIB) {}
     } catch (e) {
       console.error('[Inbox] refresh:', e);
       _status('Could not load the inbox — check your connection and try Refresh.');
@@ -1200,7 +1279,7 @@
     try { _pinRenderBar(); } catch (eB) {}   // v0.9.1048; v0.9.1057 the bar decides its own visibility
     _navBadge(total);
     _updateIdAllBtn();
-    try { _updateRecropBtn(); } catch (eRC) {}
+    try { _updateIdentifyBtn(); } catch (eRC) {}
     try { _updateAuditBtn(); } catch (eAB) {}
     // v0.9.961 (Brad): keep the "cropped" marker set trimmed to files still in
     // the inbox (filed/discarded photos drop out), then republish to drive.js.
@@ -1305,12 +1384,16 @@
     _sel = {};
     if (purpose === 'tag' && !_tagEra) _tagEra = _sessionEra || '';
     _render();
+    // v0.9.1297: group mode opens the floating panel immediately (empty, so
+    // its blurb explains the flow); any other mode closes it.
+    try { if (purpose === 'group') _pinGrpPanelRender(); else _pinGrpPanelClose(); } catch (eGP) {}
   };
 
   function _pinCloseMode() {
     _selPurpose = '';
     _selectMode = false;
     _sel = {};
+    try { _pinGrpPanelClose(); } catch (eGP) {}
     _render();
   }
 
@@ -1385,10 +1468,21 @@
         + 'border:1.5px solid ' + (_tagEra ? '#2980b9' : 'var(--border)') + ';background:' + (_tagEra ? '#f7f0dc' : 'var(--bg)') + ';'
         + 'color:' + (_tagEra ? '#2980b9' : 'var(--text-dim)') + ';font-family:var(--font-head);font-weight:700;font-size:0.9rem;cursor:pointer">'
         + rrEsc(_pinEraLabel(_tagEra)) + ' \u25be</button>'
+      // v0.9.1297 (Brad: "on the tag, lets add type to it as well. so i can
+      // put paper, or boxcar or whatever"). '' = leave each photo's type
+      // as-is, so tagging an era never silently blanks a type set earlier.
+      + '<select id="pin-tag-type" style="min-width:130px;padding:0.45rem 0.55rem;border-radius:8px;'
+        + 'border:1.5px solid ' + (_tagType ? '#2980b9' : 'var(--border)') + ';background:var(--bg);'
+        + 'color:' + (_tagType ? '#2980b9' : 'var(--text-dim)') + ';font-family:var(--font-body);font-weight:600;font-size:0.85rem;cursor:pointer">'
+        + '<option value="">Type: (leave as-is)</option>'
+        + _PIN_TYPES.map(function (t) { return '<option value="' + t + '"' + (t === _tagType ? ' selected' : '') + '>' + t + '</option>'; }).join('')
+      + '</select>'
       + (changing
           ? '<span style="font-size:0.74rem;color:#ffb454;font-weight:600;width:100%">'
             + changing + ' of those already ' + (changing === 1 ? 'has' : 'have') + ' a different era and will be changed</span>'
           : '');
+    var _tt = document.getElementById('pin-tag-type');
+    if (_tt) _tt.onchange = function () { _tagType = this.value; };
   }
 
   window._pinPickTagEra = function () {
@@ -1409,11 +1503,16 @@
     _selGroups().forEach(function (g) { g.files.forEach(function (f) { ids.push(f.id); }); });
     if (!ids.length) { showToast('Tick some photos first', 2400, true); return; }
     _busy = true;
-    var label = _pinEraLabel(_tagEra);
+    var label = _pinEraLabel(_tagEra) + (_tagType ? ' \u00b7 ' + _tagType : '');
     _status('Tagging ' + ids.length + ' photo' + (ids.length > 1 ? 's' : '') + '\u2026');
     var ok = 0;
     try {
-      ok = await _pinMetaSetMany(ids, { era: _tagEra, stat: 'stamped' }, function (done) {
+      // v0.9.1297: the Type rides with the era when one is picked; '' means
+      // "leave as-is" and is deliberately NOT sent, so it can never blank a
+      // type that an earlier tagging pass set.
+      var _patch = { era: _tagEra, stat: 'stamped' };
+      if (_tagType) _patch.type = _tagType;
+      ok = await _pinMetaSetMany(ids, _patch, function (done) {
         _status('Tagging ' + done + ' of ' + ids.length + '\u2026');
       });
     } catch (e) {
@@ -1464,8 +1563,9 @@
     // v0.9.1057: which actions show depends on WHY you are selecting.
     var isGroup = _selPurpose === 'group', isTag = _selPurpose === 'tag';
     if (ab) ab.style.display = (isGroup && gs.length > 1) ? '' : 'none';   // combine needs 2+ items
-    var gb = document.getElementById('pin-groupas-btn');
-    if (gb) gb.style.display = (isGroup && n > 1) ? '' : 'none';           // grouping needs 2+ photos
+    // v0.9.1297: the "Group as…" toolbar button is gone — the floating panel
+    // IS the grouping surface, and every tick repaints it.
+    if (isGroup) { try { _pinGrpPanelRender(); } catch (eGP) {} }
     // Discard and Read stay available in both modes — you are already looking
     // at photos with ticks on them, and binning the junk is the same gesture.
     if (db) db.style.display = n ? '' : 'none';
@@ -1668,6 +1768,23 @@
         for (var b0 = 0; b0 < bucket.length; b0++) (_pinDemotedRow(bucket[b0]) ? _demo : _keep).push(bucket[b0]);
         if (_keep.length && _demo.length) bucket = _keep.concat(_demo);
       } catch (e0) {}
+      // v0.9.1297 (Brad: "the photo reader needs to use the type as a helper
+      // to decide what it is"): rows whose itemType matches the photo's Type
+      // tag float to the FRONT — a soft rank, like the demotion above, so the
+      // maker/era rules below still win outright and a type-mismatched row
+      // still surfaces when it is all there is. A photo tagged Boxcar stops
+      // resolving to the paper row that shares its number.
+      try {
+        var _pt = (prefer && prefer.type) ? String(prefer.type).toLowerCase() : '';
+        if (_pt && bucket.length > 1) {
+          var _tm = [], _tn = [];
+          for (var t0 = 0; t0 < bucket.length; t0++) {
+            var _it = String(bucket[t0].itemType || '').toLowerCase();
+            (_it && (_it.indexOf(_pt) >= 0 || _pt.indexOf(_it) >= 0) ? _tm : _tn).push(bucket[t0]);
+          }
+          if (_tm.length && _tn.length) bucket = _tm.concat(_tn);
+        }
+      } catch (eT) {}
       // What the reader claims to have seen still wins — it looked at the item.
       if (aiMfr) {
         for (var i = 0; i < bucket.length; i++) {
@@ -5961,11 +6078,14 @@
       // it from ERAS[pref.era]. A chip filter spanning several eras has no
       // single era key, and gating on `pref.era` threw away a perfectly good
       // maker + scale constraint whenever it was blank.
-      if (pref && (pref.label || pref.manufacturer || pref.scale)) {
+      if (pref && (pref.label || pref.manufacturer || pref.scale || pref.type)) {
         h.eraLabel = pref.label || '';
         h.eraYears = pref.years || '';
         if (pref.manufacturer) h.mfrs = [pref.manufacturer];
         if (pref.scale) h.scale = pref.scale;
+        // v0.9.1297: the Type tag goes to the paid reader too — the relay
+        // already weaves hints.type into its subject line.
+        if (pref.type) h.type = pref.type;
         // Said plainly as well as structurally — the relay weaves `note` into
         // the prompt, and a sentence survives a prompt rewrite better than a
         // field name does.
@@ -6011,7 +6131,11 @@
       // rrActiveFilter in config.js). That is why the readers still came back
       // Atlas / MTH / HO after v0.9.1152.
       var af = (typeof rrActiveFilter === 'function') ? rrActiveFilter(m.era || '') : null;
-      if (!af) return null;
+      // v0.9.1297 (Brad: "the photo reader needs to use the type as a helper
+      // to decide what it is"): the photo's own Type tag rides on the prefer
+      // object — even when no era filter resolves, a typed photo still gets
+      // its type hint.
+      if (!af) return m.type ? { era: '', eras: [], manufacturer: '', label: '', years: '', scale: '', type: m.type, _fromFilter: true } : null;
       return {
         era:          af.era || '',        // '' when the filter spans several eras
         eras:         (af.eras && af.eras.length) ? af.eras : (af.era ? [af.era] : []),
@@ -6019,6 +6143,7 @@
         label:        af.label || '',
         years:        af.years || '',
         scale:        af.scale || '',
+        type:         m.type || '',
         _fromFilter:  !m.era,
       };
     } catch (e) { return null; }
@@ -6220,8 +6345,10 @@
   };
 
   window._pinAutoReadCancel = function () { _autoReadAbort = true; };
-  async function _pinAutoRead() {
-    if (_autoReadBusy || !_groups.length) return;
+  // v0.9.1297: ONE builder for "what is still waiting to be read" — the
+  // reader loop and the Identify-my-items button count must never disagree.
+  // A cropped photo lands here naturally, because cropping clears its read.
+  function _pinUnreadTodo() {
     var ids = _ids(), ft = _freeTried();
     var _stale = function (rec) {
       // No record at all, or one made by an older reader than the current one.
@@ -6242,6 +6369,34 @@
         if (_stale(ft[fid]) || !got) todo.push({ g: g, fid: fid });
       });
     });
+    return todo;
+  }
+
+  // v0.9.1297 (Brad): the ONE read trigger. Everything below it is unchanged
+  // v0.9.1090 machinery — only the STARTER moved from a refresh timer to his
+  // finger.
+  function _updateIdentifyBtn() {
+    var b = document.getElementById('pin-identify-btn');
+    if (!b) return;
+    var n = 0;
+    try { n = _pinUnreadTodo().length; } catch (e) {}
+    if (n > 0 && !_selectMode) {
+      b.textContent = 'Identify my items — read ' + n + ' (free)';
+      b.style.display = '';
+    } else {
+      b.style.display = 'none';
+    }
+  }
+  window._pinIdentifyItems = async function () {
+    if (_busy || _autoReadBusy) { showToast('Still working on the last batch…', 2500, true); return; }
+    if (!_pinUnreadTodo().length) { showToast('Nothing waiting to be read', 2600); return; }
+    await _pinAutoRead();
+    try { _updateIdentifyBtn(); } catch (e) {}
+  };
+
+  async function _pinAutoRead() {
+    if (_autoReadBusy || !_groups.length) return;
+    var todo = _pinUnreadTodo();
     if (!todo.length) return;
     _autoReadBusy = true; _autoReadAbort = false;
     if (!(await _tessGet())) { _autoReadBusy = false; return; }   // OCR unavailable → leave for paid identify
@@ -6406,156 +6561,26 @@
         try { if (typeof _thumbLinkCache !== 'undefined') delete _thumbLinkCache[fid]; } catch (eTL) {}
         // Update every on-screen copy incl. the review modal's main image (data-rvbig).
         document.querySelectorAll('img[data-rvfid="' + fid + '"], img[data-fid="' + fid + '"], img[data-ppfid="' + fid + '"], img[data-rvbig="' + fid + '"]').forEach(function (im) { im.src = fresh; });
-        // Crop → free re-read: clear the old read and re-run OCR on the EXACT
-        // cropped bytes (no Drive round-trip, no credits, no manual Identify).
+        // v0.9.1297 (Brad): the crop CLEARS the old read (a number lifted off
+        // the uncropped frame is exactly the read to replace) but no longer
+        // re-reads on the spot — reads run when he hits Identify my items,
+        // after all the cropping, tagging and grouping is done. The cleared
+        // read makes this photo count as unread, so the button picks it up.
         try { var mm = _ids(); if (mm[fid]) { delete mm[fid]; _idsSave(mm); } } catch (eA) {}
         try { var ff = _freeTried(); if (ff[fid]) { delete ff[fid]; _freeTriedSave(ff); } } catch (eB) {}
-        showToast('Cropped — re-reading the tighter shot…', 2500);
+        showToast('Cropped — it’ll be read fresh when you hit Identify my items', 3000);
         try { _render(); } catch (eC) {}
-        _freeReadBlob(blob, 1600, _preferForFid(fid)).then(function (r) {
-          var m = _ids();
-          if (r && r.num) { m[fid] = { num: r.num, guess: r.matched ? 0 : 1, alts: r.alts || [], tried: 1, free: 1, raw: r.raw || '', dbg: r.dbg || null, rv: READER_VER, viaDesc: !!r.viaDesc, descOf: r.descOf || '', descWords: r.descWords || [], disagreed: r.disagreed || '' }; _idsSave(m); }
-          // v0.9.1131: object, stamped — same shape as every other writer
-          else { var f2 = _freeTried(); f2[fid] = { t: 1, raw: (r && r.raw) || '', dbg: (r && r.dbg) || null, rv: READER_VER }; _freeTriedSave(f2); }
-          try { _render(); } catch (e2) {}
-        }).catch(function () {});
+        try { _updateIdentifyBtn(); } catch (eD) {}
       } catch (e4) { showToast('Could not save the crop — the original is untouched', 3000, true); }
     }, function () { try { URL.revokeObjectURL(srcUrl); } catch (e5) {} });
   };
 
-  // v0.9.1058 (Brad: "i don't have a rescan function where i can rescan all the
-  // ones i just cropped"). Cropping already triggers a FREE re-read of the
-  // tighter shot. This is the next step up: re-read the cropped photos with the
-  // paid reader, including ones that already carry a read — because a number
-  // lifted from the uncropped photo is exactly the read you want replaced.
-  // (Brad's 6801 boat flatcar came back "2409 Santa Fe Pullman": the number was
-  // read off a neighbouring item on the shelf.)
-  function _pinCroppedGroups() {
-    var c = _cropped();
-    // Only groups whose READABLE photo was cropped — re-reading because someone
-    // cropped the set shot would spend effort on the photo we skip anyway.
-    return _groups.filter(function (g) {
-      return _pinReadFiles(g).some(function (f) { return c[f.id]; });
-    });
-  }
-
-  function _updateAuditBtn() {
-    var b = document.getElementById('pin-audit-btn');
-    if (!b) return;
-    var a = _auditLoad();
-    if (a && a.rows.length) {
-      var partial = a.rows.length < (a.total || a.rows.length);
-      b.textContent = partial
-        ? ('Resume audit (' + a.rows.length + '/' + a.total + ')')
-        : ('Audit results (' + a.rows.length + ')');
-      b.style.borderColor = '#2980b9';
-      _pinOpaqueTint(b, '41,128,185', 18);   // v0.9.1282
-      b.onclick = partial ? window._pinReaderAudit : window._pinAuditShowSaved;
-    } else {
-      b.textContent = 'Reader audit (free)';
-      b.style.borderColor = '#8b8e94';
-      _pinOpaqueTint(b, '139,142,148', 12);   // v0.9.1282
-      b.onclick = window._pinReaderAudit;
-    }
-  }
-
-  function _updateRecropBtn() {
-    var b = document.getElementById('pin-recrop-btn');
-    if (!b) return;
-    var n = _pinCroppedGroups().length;
-    if (n > 0 && !_selectMode) {
-      b.textContent = 'Re-read ' + n + ' cropped (free)';
-      b.style.display = '';
-    } else {
-      b.style.display = 'none';
-    }
-  }
-
-  // Brad: "we need the re-read button to say re-read, no tokens." Right call,
-  // and there is a genuinely free thing to do here. The automatic re-read that
-  // fires when you crop runs at the default resolution; the single-photo "This
-  // is wrong — re-scan" runs the SAME free reader at 2400px and gets numbers the
-  // first pass misses. This is that second attempt, across every cropped photo,
-  // in one go. No credits, no confirm to spend anything — just time.
-  window._pinReadCropped = async function () {
-    if (_busy) { showToast('Still working on the last batch\u2026', 2500, true); return; }
-    var gs = _pinCroppedGroups();
-    if (!gs.length) { showToast('Nothing cropped since the last read', 2800); return; }
-    _busy = true; _idAbort = false;
-    var btn = document.getElementById('pin-recrop-btn');
-    if (btn) { btn.disabled = true; btn.textContent = 'Re-reading\u2026'; }
-    // v0.9.1135: same fix as the reader audit \u2014 _busy was released only on the
-    // happy path, so one throw left every batch button on this page dead for the
-    // session. The `finally` below always releases it and always re-enables the
-    // button, which previously could also be left permanently disabled.
-    var found = 0, done = 0, failed = 0;
-    try {
-    // v0.9.1090: cropped MEMBER photos re-read too, not just the group's lead.
-    var jobs = [];
-    var cr = _cropped();
-    gs.forEach(function (g2) {
-      // v0.9.1131 (audit #7b): the lead-photo fallback used to test the GLOBAL
-      // jobs array, so once the FIRST group contributed anything the fallback
-      // never fired again — the button could count five groups and process two.
-      // The fallback is about THIS group, so it counts this group's jobs.
-      var before = jobs.length;
-      _pinFilesToRead(g2).forEach(function (f2) { if (f2 && cr[f2.id]) jobs.push({ g: g2, fid: f2.id }); });
-      if (jobs.length === before && _pinReadFid(g2) && cr[_pinReadFid(g2)]) jobs.push({ g: g2, fid: _pinReadFid(g2) });
-    });
-    gs = jobs;
-    var _reStart = Date.now();   // v0.9.1174: measured from the work actually done
-    for (var i = 0; i < gs.length; i++) {
-      if (_idAbort) break;
-      var fid = gs[i].fid;
-      var _eta = _pinEtaText(i, gs.length, _reStart);
-      _status('Re-reading ' + (i + 1) + ' of ' + gs.length + '\u2026 ' + found + ' number' + (found === 1 ? '' : 's') + ' so far'
-        + (_eta ? '  \u00b7  ' + _eta : ''));
-      try {
-        // Forget the previous read so a number lifted from the UNCROPPED photo
-        // cannot survive. That is the read this exists to replace.
-        try { var mm = _ids(); if (mm[fid]) { delete mm[fid]; _idsSave(mm); } } catch (e1) {}
-        try { var ff = _freeTried(); if (ff[fid]) { delete ff[fid]; _freeTriedSave(ff); } } catch (e2) {}
-        try { var pfx = fid + '|'; Object.keys(_vfCache || {}).forEach(function (k) { if (k.indexOf(pfx) === 0) delete _vfCache[k]; }); } catch (e3) {}
-        var blob = await _pinBytes(fid);
-        var r = await _freeReadBlob(blob, 2400, _pinPreferOf(gs[i].g));   // the higher-resolution attempt
-        var m = _ids();
-        // v0.9.1131 (audit #7a): this record used to be written WITHOUT
-        // rv: READER_VER — and the auto-reader treats a missing rv as "never
-        // read" (see the rv checks in _pinAutoRead). So the background pass
-        // queued the photo again, re-read it at the LOWER resolution, and
-        // overwrote the better answer this button had just produced, seconds
-        // later. Same shape as every other writer now, stamp included.
-        if (r && r.num) {
-          m[fid] = { num: r.num, guess: r.matched ? 0 : 1, alts: r.alts || [], tried: 1, free: 1,
-                     raw: r.raw || '', dbg: r.dbg || null, rv: READER_VER, viaDesc: !!r.viaDesc,
-                     descOf: r.descOf || '', descWords: r.descWords || [], disagreed: r.disagreed || '' };
-          _idsSave(m); found++;
-        } else {
-          // and the miss record was a bare 1 while every other writer stores an
-          // object — anything reading .rv off it got undefined.
-          var f2 = _freeTried();
-          f2[fid] = { t: 1, raw: (r && r.raw) || '', dbg: (r && r.dbg) || null, rv: READER_VER };
-          _freeTriedSave(f2);
-        }
-      } catch (e) {
-        failed++;
-        console.warn('[inbox] free re-read failed', fid, e && e.message);
-      }
-      done++;
-    }
-    } finally {
-      // Always released, and the button always comes back. See the note above.
-      _busy = false; _status('');
-      if (btn) { btn.disabled = false; _updateRecropBtn(); }
-    }
-    // Say what actually happened, including the ones that errored.
-    var msg = 'Re-read ' + done + ' photo' + (done === 1 ? '' : 's') + ' \u2014 found '
-      + found + ' number' + (found === 1 ? '' : 's');
-    if (failed) msg += ', ' + failed + ' could not be read';
-    if (_idAbort) msg += ' (stopped early)';
-    showToast(msg, 4200, !!failed);
-    await window._pinRefresh();
-  };
+  // v0.9.1297 (Brad): the "Re-read cropped" button and its machinery
+  // (_pinCroppedGroups / _updateRecropBtn / _pinReadCropped, v0.9.1058) are
+  // GONE — with reads running on demand, cropping happens BEFORE the first
+  // read, and a crop that comes after one clears the stale read anyway, so
+  // the cropped photo is simply unread again and Identify my items covers
+  // it. One button, one waiting-list (_pinUnreadTodo), one loop.
 
   // ══ v0.9.1063 — reader audit ═════════════════════════════════════════════
   // Brad: "audit my whole photo inbox because those are a good representation of
@@ -6949,6 +6974,26 @@
   // cost is the photo that was in flight — and the next run resumes from there
   // rather than starting over.
   var AUDIT_KEY = 'rr_reader_audit';
+  function _updateAuditBtn() {
+    var b = document.getElementById('pin-audit-btn');
+    if (!b) return;
+    var a = _auditLoad();
+    if (a && a.rows.length) {
+      var partial = a.rows.length < (a.total || a.rows.length);
+      b.textContent = partial
+        ? ('Resume audit (' + a.rows.length + '/' + a.total + ')')
+        : ('Audit results (' + a.rows.length + ')');
+      b.style.borderColor = '#2980b9';
+      _pinOpaqueTint(b, '41,128,185', 18);   // v0.9.1282
+      b.onclick = partial ? window._pinReaderAudit : window._pinAuditShowSaved;
+    } else {
+      b.textContent = 'Reader audit (free)';
+      b.style.borderColor = '#8b8e94';
+      _pinOpaqueTint(b, '139,142,148', 12);   // v0.9.1282
+      b.onclick = window._pinReaderAudit;
+    }
+  }
+
   function _auditLoad() {
     try {
       var a = JSON.parse(localStorage.getItem(AUDIT_KEY) || 'null');

@@ -1336,6 +1336,78 @@ showCandidatePicker(${CANDS}, { itemNum: '6464-500' });
       } catch (e) {}
     }
 
+    // ══════════════════════════════════════════════════════════════════
+    // The floating group panel, MEASURED (v0.9.1297)
+    //
+    // The REAL _pinGrpPanelRender draws with four ticked photos and the
+    // Train set kind, over a tall fake grid — proving it pins to the
+    // top-right, stays inside the viewport, shows the thumbnails, the kind
+    // select, the per-photo role selects and all three buttons.
+    // ══════════════════════════════════════════════════════════════════
+    {
+      const pinSrc = fs.readFileSync(path.join(APP, 'photo-inbox.js'), 'utf8');
+      const s0 = pinSrc.indexOf('  var _grpPanelKind = ');
+      const s1 = pinSrc.indexOf('  window._pinConfirmUngroup');
+      ok('panel: the real source slice was found', s0 > 0 && s1 > s0);
+      const kindsSlice = pinSrc.slice(pinSrc.indexOf('  var _PIN_KINDS = ['), pinSrc.indexOf('\n  }', pinSrc.indexOf('function _pinDefaultRoles')) + 4);
+      const panelPage = `<!doctype html><html><head><meta charset="utf-8">
+<link rel="stylesheet" href="file://${APP}/app.css">
+<style>html,body{margin:0}#grid{height:1600px;background:var(--bg);padding:14px;color:var(--text-dim)}</style>
+</head><body><div id="grid">the inbox grid (scrolls behind the panel)</div>
+<script>
+  window.IS_MOBILE_UA = false;
+  function rrEsc(s) { return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;'); }
+  function showToast() {}
+  function loadDriveThumb(id, img) { img.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="60" height="60"><rect width="60" height="60" fill="%232980b9"/></svg>'; }
+  function _pinMetaSet() { return Promise.resolve(true); }
+  function _pinKindLabel(k) { return k; }
+  function _pinRefresh() {}
+  function _render() {}
+  var _sel = { g1: 1 }, _selPurpose = 'group';
+  function _selGroups() { return [{ key: 'g1', files: [{ id: 'a' }, { id: 'b' }, { id: 'c' }, { id: 'd' }] }]; }
+  window._pinFinishMode = function () {};
+</script>
+<script>${kindsSlice}
+${pinSrc.slice(s0, s1)}
+_grpPanelKind = 'set';
+_pinGrpPanelRender();
+</script></body></html>`;
+      const fp = path.join(dir, 'grp-panel.html');
+      fs.writeFileSync(fp, panelPage);
+      const pg = await browser.newPage({ viewport: { width: 1100, height: 700 } });
+      await pg.goto('file://' + fp);
+      await pg.waitForTimeout(150);
+      await pg.evaluate(function () { window.scrollTo(0, 500); });
+      await pg.waitForTimeout(80);
+      const m = await pg.evaluate(function () {
+        const p = document.getElementById('pin-grp-panel');
+        if (!p) return { missing: true };
+        const r = p.getBoundingClientRect();
+        return {
+          top: r.top, right: window.innerWidth - r.right, bottom: r.bottom,
+          fixed: getComputedStyle(p).position === 'fixed',
+          thumbs: p.querySelectorAll('img[data-gppfid]').length,
+          roles: p.querySelectorAll('.pin-grp-panel-role').length,
+          buttons: ['pin-grp-panel-apply', 'pin-grp-panel-cancel', 'pin-grp-panel-done']
+            .every(function (id) { return !!document.getElementById(id); }),
+          applyOn: !document.getElementById('pin-grp-panel-apply').disabled,
+        };
+      });
+      const shot = await pg.screenshot({ type: 'png' });
+      await pg.close();
+      ok('panel: it renders fixed at the top-right and survives scrolling',
+         !m.missing && m.fixed && m.top === 70 && m.right === 16, JSON.stringify(m));
+      ok('panel: it stays inside the viewport', m.bottom <= 700, String(m.bottom));
+      ok('panel: four ticked photos show as thumbnails with role dropdowns each',
+         m.thumbs >= 8 && m.roles === 4, JSON.stringify(m));   // grid thumbs + role-row thumbs
+      ok('panel: Apply, Cancel and Done are all present, Apply live at 2+ photos',
+         m.buttons && m.applyOn);
+      try {
+        fs.mkdirSync(path.join(__dirname, '..', '_shots'), { recursive: true });
+        fs.writeFileSync(path.join(__dirname, '..', '_shots', 'grp-panel.png'), shot);
+      } catch (e) {}
+    }
+
   } finally {
     await browser.close();
     try { fs.rmSync(dir, { recursive: true, force: true }); } catch (e) {}
