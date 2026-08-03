@@ -906,9 +906,15 @@ async function _cleanupSoldItemBoxes(leadItemNum, leadGroupId) {
       // v0.9.1267 (R3): identity-checked. If the box row moved, leave the box
       // in memory too — otherwise the app forgets a box that is still on the
       // sheet, and nothing will ever clean it up.
+      // v0.9.1289: …but the catch here left _bpBlanked at its optimistic
+      // default, so a write that THREW read exactly like one that landed and
+      // the box was forgotten anyway — the very thing the note above says not
+      // to do. A throw is now a refusal, which keeps the box on screen where
+      // it still is on the sheet.
       var _bpBlanked = true;
       if (bp && bp.row && bp.row !== 99999) {
-        try { _bpBlanked = await personalWriteRow(bp, personalBlankRow()); } catch(e) {}
+        try { _bpBlanked = await personalWriteRow(bp, personalBlankRow()); }
+        catch(e) { _bpBlanked = false; console.warn('[Sold] box row write failed, keeping it:', e && e.message); }
       }
       if (_bpBlanked) delete state.personalData[keys[i]];
     }

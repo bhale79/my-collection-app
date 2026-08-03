@@ -4,7 +4,7 @@
 // fetches fresh copies in the background for next load.
 // NEVER caches Google API, OAuth, or Sheets calls.
 
-const CACHE_NAME = 'mca-v1298';
+const CACHE_NAME = 'mca-v1299';
 
 // ── v0.9.1214: the version stamp has to survive as far as the cache ──
 // Brad, on v1213: "im reset twice and it still looks the same." He was
@@ -31,9 +31,9 @@ const ASSET_V = (function () {
 })();
 const _vq = ASSET_V ? ('?v=' + ASSET_V) : '';
 // Only our own .js and .css are requested with a ?v — those are the ones
-// index.html stamps. Anything else (the page, the manifest, icons, and the
-// two third-party URLs) is asked for bare and must be cached bare, or it
-// would be filed under a key nothing ever requests.
+// index.html stamps. Anything else (the page, the manifest, the icons) is
+// asked for bare and must be cached bare, or it would be filed under a key
+// nothing ever requests.
 function _stamped(url) {
   return (url.indexOf('./') === 0 && /\.(js|css)$/.test(url)) ? (url + _vq) : url;
 }
@@ -141,9 +141,16 @@ const SHELL_FILES = [
   './img/icon_b_unit.png',
   './img/icon_freight.png',
   './icon-192.png',
-  './icon-512.png',
-  'https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Merriweather+Sans:ital,wght@0,300;0,400;0,600;0,700;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap',
-  'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js'
+  './icon-512.png'
+  // v0.9.1289: two third-party URLs used to sit here — the Google Fonts CSS and
+  // the jspdf script on cdnjs. Both were downloaded and stored on every install,
+  // and neither could ever be read back: the fetch handler below returns early
+  // for googleapis.com and for cdnjs.cloudflare.com, so those requests never
+  // reach the cache at all. They were also the two most likely entries to fail,
+  // because they are the only ones that need the network to be up and a third
+  // party to be answering — and a failure printed "offline may be incomplete"
+  // about files that had nothing to do with being offline. Removed: the install
+  // is smaller and faster, and the warning now only fires about our own files.
 ];
 
 // Install: pre-cache app shell

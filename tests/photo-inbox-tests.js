@@ -8257,6 +8257,32 @@ META_WRITES.length = 0; TOASTS.length = 0;
     const orphan = pre.filter(f => !scripts.includes(f));
     if (orphan.length) console.log('    note: precached but not loaded — ' + orphan.join(', '));
 
+    // ── v0.9.1289: nothing on a bypassed host belongs in the precache ──
+    // Two absolute URLs sat in SHELL_FILES for a long time — the Google Fonts
+    // CSS and the jspdf script on cdnjs. Both were downloaded and stored on
+    // every single install, and neither could EVER be read back out, because
+    // the fetch handler below returns early for those hosts before the cache
+    // is consulted. Pure cost: slower installs, and the two entries most
+    // likely to fail were also the two that did not matter, so a blip printed
+    // "offline may be incomplete" about files that had nothing to do with
+    // being offline. Rather than name those two URLs, derive the rule: read
+    // the hosts the fetch handler skips, and check the shell list against it.
+    {
+      const shell = sw.slice(sw.indexOf('const SHELL_FILES = ['),
+                             sw.indexOf('];', sw.indexOf('const SHELL_FILES = [')));
+      const bypass = [...sw.matchAll(/url\.includes\('([^']+)'\)/g)].map(m => m[1]);
+      ok('the bypass list was actually found', bypass.length >= 5, bypass.join(','));
+      const entries = [...shell.matchAll(/^\s*'([^']+)'/gm)].map(m => m[1]);
+      ok('the shell list was actually found', entries.length > 50, String(entries.length));
+      const pointless = entries.filter(u => bypass.some(h => u.includes(h)));
+      ok('nothing is precached that the fetch handler refuses to serve from cache',
+         pointless.length === 0, pointless.join(' | '));
+      // Belt and braces: the shell is our own files, so every entry is relative.
+      const absolute = entries.filter(u => /^https?:/i.test(u));
+      ok('…and the shell list is entirely our own files',
+         absolute.length === 0, absolute.join(' | '));
+    }
+
     // ── v0.9.1214: the version stamp must survive as far as the cache ───
     // Brad, on v1213: "im reset twice and it still looks the same." The
     // worker stripped ?v= before looking in its cache, so a worker holding
@@ -9442,6 +9468,13 @@ META_WRITES.length = 0; TOASTS.length = 0;
                             app.indexOf('window._cleanupSoldItemBoxes ='));
     ok('a group, when there is one, is the whole answer',
        /if \(leadGroupId\) \{[\s\S]{0,240}p\.groupId === leadGroupId/.test(clean));
+    // v0.9.1289: the comment above the blanking says to keep a box whose row
+    // moved — and the catch under it left the flag at TRUE, so a write that
+    // threw did the exact opposite and forgot the box anyway. A throw is a
+    // refusal here, same as everywhere else in the app.
+    ok('a box whose write THREW is kept too, not just one that was refused',
+       /catch\(e\) \{ _bpBlanked = false;/.test(clean),
+       'an optimistic default is back — a thrown write reads as a landed one');
     ok('…and the name test no longer runs alongside it',
        clean.indexOf('boxNames.indexOf(num) !== -1') < 0);
 
@@ -12329,8 +12362,12 @@ META_WRITES.length = 0; TOASTS.length = 0;
       section('217d. A refused write never becomes a forgotten item');
       ok('the sold-box cleanup keeps a box whose row moved',
          /_bpBlanked[\s\S]{0,200}if \(_bpBlanked\) delete state\.personalData/.test(ap7));
+      // v0.9.1289: the one-liner this used to pin was right about a REFUSED
+      // write and wrong about a thrown one — the throw escaped the whole
+      // function. Same requirement, wider: the item is only forgotten when the
+      // write actually came back true, and a throw is not true.
       ok('the mark-as-sold path keeps the item it could not blank',
-         /if \(await personalWriteRow\(collEntry, personalBlankRow\(\)\)\) delete state\.personalData\[collKey\]/.test(pg7));
+         /let _ceOk = false;[\s\S]{0,300}if \(_ceOk\) delete state\.personalData\[collKey\]; else _pdStuck\+\+;/.test(pg7));
       ok('every group member is judged on its own answer',
          (pg7.match(/if \(_mBlanked2?\) delete state\.personalData/g) || []).length === 2,
          String((pg7.match(/if \(_mBlanked2?\) delete state\.personalData/g) || []).length));
@@ -14801,8 +14838,12 @@ META_WRITES.length = 0; TOASTS.length = 0;
             return n + (s.match(/rrVerifiedRowUpdate\(/g) || []).length
                      + (s.match(/rrRemoveRowConfirmed\(/g) || []).length;
           }, 0);
-        ok('234 the sweep really landed — 56 sites write through the one guarded writer',
-           wrapped === 56, String(wrapped));
+        // v0.9.1289: 56 -> 57. markForSaleAsSold's four cleanups moved from
+        // rrVerifiedRowUpdate to rrRemoveRowConfirmed (same writer, plus a
+        // message when it throws), and ephemeraSold's blanking joined the
+        // guarded set from a bare sheetsUpdate — that last one is the +1.
+        ok('234 the sweep really landed — 57 sites write through the one guarded writer',
+           wrapped === 57, String(wrapped));
       }
     })();
 
@@ -15217,7 +15258,12 @@ META_WRITES.length = 0; TOASTS.length = 0;
       ];
       // …and these are writes, whatever else is going on around them:
       const WRITES = /\b(rrRemoveRowConfirmed|rrVerifiedRowUpdate|personalWriteRow|sheetsUpdate|sheetsUpdateRow|sheetsDeleteRow)\s*\(/;
-      const CELEBRATES = /showToast\(\s*(?:_?\w+\s*\?\s*)?['"`][^'"`]*[Rr]emoved/;
+      // v0.9.1289: this used to require the word "Removed" in the toast, which
+      // is how ephemeraSold and markForSaleAsSold — both of which remove things
+      // — walked straight past a census written to catch exactly what they were
+      // doing. Their toasts say "Marked as sold". The app's actual convention
+      // for "this worked" is the ✓, so that is what the census reads now.
+      const CELEBRATES = /showToast\(\s*(?:[_\w.\[\]']+\s*\?\s*)?['"`][^'"`]*(?:✓|[Rr]emoved)/;
 
       const offenders = [], audited = [];
       fs.readdirSync(APP38).filter(n => n.endsWith('.js') && n !== 'sheets.js').forEach(f => {
@@ -15228,7 +15274,10 @@ META_WRITES.length = 0; TOASTS.length = 0;
         let m;
         while ((m = re.exec(src)) !== null) {
           const name = m[1];
-          if (!/remove|delete/i.test(name)) continue;
+          // v0.9.1289: `|sold` added. A function called ephemeraSold or
+          // markForSaleAsSold does most of its work removing rows, and both
+          // were hiding from this census behind a name that does not say so.
+          if (!/remove|delete|sold/i.test(name)) continue;
           const end = src.indexOf('\n}', m.index);
           const body = src.slice(m.index, end < 0 ? src.length : end + 2);
           if (!CELEBRATES.test(body)) continue;
@@ -15241,8 +15290,11 @@ META_WRITES.length = 0; TOASTS.length = 0;
         }
       });
 
+      // v0.9.1289: 8 -> 15. Widening the name and the toast pattern above
+      // doubled what the census can see. This floor should only ever go up;
+      // if it drops, something stopped being audited and that is the news.
       ok('238 the census found the remove flows it is meant to police',
-         audited.length >= 8, audited.length + ': ' + audited.join(', '));
+         audited.length >= 15, audited.length + ': ' + audited.join(', '));
       ok('238 not one celebrating remove flow writes without checking the answer',
          offenders.length === 0, offenders.slice(0, 6).join('  |  ') || 'none');
 
@@ -15265,7 +15317,12 @@ META_WRITES.length = 0; TOASTS.length = 0;
        // removeCollectionItem stopped drowning out the rest of the report.
        ['app-pages.js', '_removeSoldRecord'],
        ['app-pages.js', 'removeForSaleAndCollection'],
-       ['app-pages.js', 'removePart']].forEach(([f, n]) => {
+       ['app-pages.js', 'removePart'],
+       // …and these two only became visible on the FOURTH run, after the
+       // census stopped requiring the word "Removed" in the toast and the
+       // word "remove" in the name. Both are removals wearing a sale's name.
+       ['app-pages.js', 'ephemeraSold'],
+       ['app-pages.js', 'markForSaleAsSold']].forEach(([f, n]) => {
         const src = rd38(f);
         const at = src.indexOf('function ' + n + '(');
         const body = at < 0 ? '' : src.slice(at, src.indexOf('\n}', at) + 2);
@@ -15421,6 +15478,76 @@ META_WRITES.length = 0; TOASTS.length = 0;
         ok('238 ' + n + ' was already honest and stays that way',
            at > 0 && /if\s*\(!\(await\s+rrVerifiedRowUpdate\(/.test(body), f);
       });
+
+      // ── the two that hid behind a sale's name (v0.9.1289) ───────────────
+      {
+        const ap = rd38('app-pages.js');
+        const cut = (n) => { const at = ap.indexOf('function ' + n + '('); return at < 0 ? '' : ap.slice(at, ap.indexOf('\n}', at) + 2); };
+
+        // ephemeraSold does two separate things — records the sale, and takes
+        // the item out of the collection. Only the second can be refused, and
+        // the toast has to say which of the two actually happened.
+        const es = cut('ephemeraSold');
+        ok('238 marked-as-sold on an ephemera item waits for the removal',
+           /await\s+rrRemoveRowConfirmed\(/.test(es) && !/\bsheetsUpdate\(/.test(es),
+           'still fires the blanking write and walks away');
+        ok('238 …and only forgets it locally once the sheet let go',
+           !/^\s*delete\s+state\.ephemeraData\[tabId\]\[rowKey\];/m.test(es.replace(/if\s*\(_rmOk\)\s*\{[\s\S]*?\n\s{8}\}/, '')) ||
+           /if\s*\(_rmOk\)\s*\{[\s\S]*delete\s+state\.ephemeraData/.test(es),
+           'the row is dropped from the screen either way');
+        ok('238 …and the sale is still reported when the removal is refused',
+           /'✓ Marked as sold'\s*\+\s*_rmWhy/.test(es) && /still in your collection/.test(es),
+           'a refused removal reads as a clean success');
+
+        // markForSaleAsSold is the biggest of them: the sale lands first and
+        // stands, then FIVE separate cleanups run. Every one used to swallow
+        // its failure and forget the entry regardless.
+        const ms = cut('markForSaleAsSold');
+        ok('238 marking a listing sold no longer swallows its cleanup failures',
+           !/catch\s*\(\s*e\s*\)\s*\{\s*\}/.test(ms), 'empty catch still present');
+        ok('238 …and every one of its five cleanups is answered for',
+           (ms.match(/rrRemoveRowConfirmed\(/g) || []).length === 4 &&
+           (ms.match(/personalWriteRow\(/g) || []).length === 2,
+           'cleanup count moved — check each one still reports back');
+        ok('238 …and no list entry is dropped from the screen ahead of the sheet',
+           ms.split('\n').filter(l =>
+             /delete\s+state\.(forSaleData|personalData|isData)\[/.test(l) &&
+             !/_leadFsOk|_fOk|_mBlanked|_ceOk|_isOk/.test(l)).length === 0,
+           'something is still forgotten unconditionally');
+        ok('238 …and a thrown collection write clears its flag rather than reading as success',
+           /catch\s*\(\s*e\s*\)\s*\{\s*_mBlanked\s*=\s*false;/.test(ms) &&
+           /let\s+_ceOk\s*=\s*false;/.test(ms),
+           'an optimistic default is back');
+        ok('238 …and whatever would not clear is named, under a sale that did land',
+           /_fsStuck/.test(ms) && /_pdStuck/.test(ms) && /_isStuck/.test(ms) &&
+           /The sale is recorded, but /.test(ms),
+           'one checkmark still covers a partial cleanup');
+      }
+
+      // ── §238b. one reader for "which sheet tab is this?" (v0.9.1289) ────
+      // A tab Brad made himself is keyed by `ut.id` in the app and NAMED
+      // `ut.label` in the spreadsheet. Those are different strings, and the id
+      // is not a tab name at all. Half the call sites knew; half fell back to
+      // `_ephTabNames[tabId] || tabId` and handed the internal id to the Sheets
+      // API as if it were a tab name — which either errors or, worse, hits a
+      // real tab that happens to share the name.
+      {
+        const ap = rd38('app-pages.js');
+        ok('238b there is exactly one reader for the sheet tab name',
+           /function _ephSheetName\(tabId\)/.test(ap), 'helper missing');
+        ok('238b …and it returns null rather than guessing a name it does not have',
+           /return \(_ut && _ut\.label\) \|\| null;/.test(ap), 'still falls back to something');
+        // Nothing outside the helper may read the map directly any more.
+        const stray = ap.split('\n').filter((l, i) =>
+          /_ephTabNames\[tabId\]/.test(l) && !/^\s*\/\//.test(l) && !/return _ephTabNames\[tabId\]/.test(l));
+        ok('238b …and no call site reaches past it to the raw map',
+           stray.length === 0, stray.join(' | '));
+        // The two writes that used to guess must now stop instead.
+        const del = ap.slice(ap.indexOf('function ephemeraDelete('));
+        ok('238b a delete on a tab we cannot name stops and says so',
+           /if \(!_tabName\) \{ showToast\('That tab is not in your spreadsheet anymore/.test(del),
+           'still writes to a guessed range');
+      }
     })();
 
   })().then(function () {

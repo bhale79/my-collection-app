@@ -580,9 +580,10 @@ function openEphemeraEdit(tabId, rowKey) {
   if (!entry) return;
   const rowNum = parseInt(entry.row || rowKey, 10);
   if (!rowNum || rowNum > 100000) { showToast('Just-added item — reload the app once, then Edit works.', 4000, true); return; }
-  const tabNames = { catalogs: 'Catalogs', paper: 'Paper Items', mockups: 'Mock-Ups', other: 'Other Lionel' };
-  const _ut = (state.userDefinedTabs || []).find(t => t.id === tabId);
-  const sheetName = tabNames[tabId] || (_ut && _ut.label) || null;
+  // v0.9.1289: this was one of the two places that already got the id-vs-label
+  // distinction right, with its own private copy of the tab-name map. Now it
+  // calls the one reader, so there is a single place to fix if it is ever wrong.
+  const sheetName = _ephSheetName(tabId);
   if (!sheetName) return;
   const isCat = tabId === 'catalogs', isMock = tabId === 'mockups';
   if (!isCat && !entry.itemNum) { showToast('This is an older-format row — edit it in the Google Sheet for now.', 4500, true); return; }
@@ -684,9 +685,9 @@ window.ephemeraAddPhotos = function (tabId, rowKey) {
   if (!entry) return;
   const rowNum = parseInt(entry.row || rowKey, 10);
   if (!rowNum || rowNum > 100000) { showToast('Just-added item — reload the app once, then add photos.', 4000, true); return; }
-  const tabNames = { catalogs: 'Catalogs', paper: 'Paper Items', mockups: 'Mock-Ups', other: 'Other Lionel' };
-  const _ut = (state.userDefinedTabs || []).find(t => t.id === tabId);
-  const sheetName = tabNames[tabId] || (_ut && _ut.label) || null;
+  // v0.9.1289: second of the two already-correct sites, likewise collapsed onto
+  // the one reader instead of keeping its own copy of the tab-name map.
+  const sheetName = _ephSheetName(tabId);
   if (!sheetName) return;
   const photoCol = tabId === 'mockups' ? 'O' : 'J';
   let inp = document.getElementById('eph-photo-inp');
@@ -816,15 +817,40 @@ function openEphemeraDetail(tabId, rowKey) {
 const _ephTabNames  = { catalogs:'Catalogs', paper:'Paper Items', mockups:'Mock-Ups', other:'Other Lionel' };
 const _ephTabCols   = { catalogs:'J', paper:'N', mockups:'Q', other:'N' }; // Audit M3: previous widths left trailing cols alive on delete
 
+// ══ v0.9.1289 — one reader for "which sheet tab is this?" ══════════════════
+// A tab the user made themselves is identified two different ways: the app
+// keys it by `ut.id`, and the Google Sheet names it `ut.label`. Those are not
+// the same string, and the id is not a tab name at all.
+//
+// Half the call sites knew that (openEphemeraEdit, the photo-add) and looked
+// the label up. The other half fell back to `_ephTabNames[tabId] || tabId` —
+// which for a built-in tab is right, and for one of Brad's own tabs hands the
+// internal id to the Sheets API as if it were a tab name. That either errors
+// or, worse, hits a real tab that happens to share the name.
+//
+// So it lives in one function now. Returns null when there is no tab it can
+// name, because guessing is what the bug was: a caller with no answer must
+// stop, not invent a range and write to it.
+function _ephSheetName(tabId) {
+  if (_ephTabNames[tabId]) return _ephTabNames[tabId];
+  const _ut = (state.userDefinedTabs || []).find(t => t && t.id === tabId);
+  return (_ut && _ut.label) || null;
+}
+if (typeof window !== 'undefined') window._ephSheetName = _ephSheetName;
+
 async function ephemeraDelete(tabId, rowKey) {
   const item = (state.ephemeraData[tabId] || {})[rowKey];
   if (!item) return;
-  const label = (_ephTabNames[tabId] || tabId);
+  // v0.9.1289: was `_ephTabNames[tabId] || tabId`, which on one of Brad's own
+  // tabs aimed the delete at the tab's internal id instead of its name.
+  const _tabName = _ephSheetName(tabId);
+  const label = _tabName || tabId;
   if (!(await appConfirm('Remove "' + (item.title || item.itemNum || label) + '" from your collection?', { danger: true, ok: 'Remove' }))) return;
   // Blank sheet row if we have an actual row number
   if (item.row && typeof item.row === 'number' && item.row >= 3 && item.row < 1000000) {
+    if (!_tabName) { showToast('That tab is not in your spreadsheet anymore — reload the app once and try again.', 5000, true); return; }
     const lastCol = _ephTabCols[tabId] || 'J';
-    const sheetName = (_ephTabNames[tabId] || tabId) + '!A' + item.row + ':' + lastCol + item.row;
+    const sheetName = _tabName + '!A' + item.row + ':' + lastCol + item.row;
     const blanks = [Array(lastCol.charCodeAt(0) - 64).fill('')];
     // v0.9.1288 (R3-3): was a bare sheetsUpdate with the failure logged to the
     // console and "✓ Removed from collection" on the very next line. Now it
@@ -832,7 +858,6 @@ async function ephemeraDelete(tabId, rowKey) {
     // Catalogs and Mock-Ups carry an Item ID in column A so they gain the
     // moved-row check for free; Paper and Other have nothing in column A to
     // compare, and rrRowStillIs allows those through exactly as before.
-    const _tabName = (_ephTabNames[tabId] || tabId);
     if (!(await rrRemoveRowConfirmed(state.personalSheetId, _tabName, item.row, sheetName, blanks, { num: item.itemNum || '' }, 'collection'))) return;
   }
   delete state.ephemeraData[tabId][rowKey];
@@ -845,7 +870,9 @@ async function ephemeraDelete(tabId, rowKey) {
 function ephemeraForSale(tabId, rowKey) {
   const item = (state.ephemeraData[tabId] || {})[rowKey];
   if (!item) return;
-  const label = _ephTabNames[tabId] || tabId;
+  // v0.9.1289: display only, but on one of Brad's own tabs the old fallback
+  // showed the internal id ("ut_1712…") where the tab's name belongs.
+  const label = _ephSheetName(tabId) || tabId;
   const title = item.title || item.itemNum || label;
 
   const ov = document.createElement('div');
@@ -902,7 +929,10 @@ function ephemeraForSale(tabId, rowKey) {
 function ephemeraSold(tabId, rowKey) {
   const item = (state.ephemeraData[tabId] || {})[rowKey];
   if (!item) return;
-  const label = _ephTabNames[tabId] || tabId;
+  // v0.9.1289: same display fix as ephemeraForSale. This one also feeds
+  // `itemNum` on the Sold row below when the item has no number of its own,
+  // so an internal id could end up written into the sale record.
+  const label = _ephSheetName(tabId) || tabId;
   const title = item.title || item.itemNum || label;
 
   const ov = document.createElement('div');
@@ -962,20 +992,41 @@ function ephemeraSold(tabId, rowKey) {
     });
     try {
       await sheetsAppend(state.personalSheetId, 'Sold!A:T', [row]);
+      // v0.9.1289: the fourteenth unguarded removal, and the one that hid the
+      // longest — the R3-3 census looks for functions named remove/delete that
+      // toast "Removed", and this one is called `ephemeraSold` and says
+      // "Marked as sold". Two separate things happen here: the sale is
+      // recorded (already done, above, and it stands), and the item is taken
+      // out of the collection. The second used to be fired off without waiting,
+      // with any failure going to console.warn while the item vanished off the
+      // screen and the toast claimed both halves worked. Now they are reported
+      // as the two different things they are.
+      let _rmOk = true, _rmWhy = '';
       if (removeIt) {
-        // Remove from ephemera sheet and state
         if (item.row && typeof item.row === 'number' && item.row >= 3 && item.row < 1000000) {
-          const lastCol = _ephTabCols[tabId] || 'J';
-          const sheetName = (_ephTabNames[tabId] || tabId) + '!A' + item.row + ':' + lastCol + item.row;
-          const blanks = [Array(lastCol.charCodeAt(0) - 64).fill('')];
-          sheetsUpdate(state.personalSheetId, sheetName, blanks).catch(e => console.warn('ephemera sold clear', e));
+          const _tabName = _ephSheetName(tabId);
+          if (!_tabName) {
+            // No tab name to write to, and guessing one is exactly the bug
+            // above. Say so rather than aiming a blanking write at an id.
+            _rmOk = false;
+            _rmWhy = ' — but that tab is not in your spreadsheet anymore, so it is still in your collection. Reload the app once and remove it.';
+          } else {
+            const lastCol = _ephTabCols[tabId] || 'J';
+            const blanks = [Array(lastCol.charCodeAt(0) - 64).fill('')];
+            _rmOk = await rrRemoveRowConfirmed(state.personalSheetId, _tabName, item.row,
+              _tabName + '!A' + item.row + ':' + lastCol + item.row, blanks,
+              { num: item.itemNum || '' }, _tabName);
+            if (!_rmOk) _rmWhy = ' — but it is still in your collection. Refresh and try removing it.';
+          }
         }
-        delete state.ephemeraData[tabId][rowKey];
-        _cachePersonalData();
-        renderBrowse();
-        buildDashboard();
+        if (_rmOk) {
+          delete state.ephemeraData[tabId][rowKey];
+          _cachePersonalData();
+          renderBrowse();
+          buildDashboard();
+        }
       }
-      showToast('✓ Marked as sold');
+      showToast('✓ Marked as sold' + _rmWhy, _rmWhy ? 5500 : undefined);
     } catch(e) { showToast((typeof rrSaveError === 'function') ? rrSaveError(e, 'your change') : 'Error saving: ' + e.message, 3000, true); }
   };
 }
@@ -2220,14 +2271,22 @@ async function markForSaleAsSold(fsKey, askingPrice) {
   // If this sold copy had an Upgrade entry linked to it, convert to Want.
   await _convertUpgradeToWantOnSell(fs.inventoryId || (collEntry && collEntry.inventoryId));
 
+  // v0.9.1289 (R3-3, fourth pass): everything below this line is CLEANUP. The
+  // sale itself is already appended above and stands no matter what happens
+  // next — that is the part the user cannot afford to lose, and it is safe.
+  // What follows removes the item from the lists it used to be on, and every
+  // one of those removals used to swallow its failure into console.warn or an
+  // empty catch and then forget the entry locally regardless. The toast at the
+  // bottom said "✓ Marked as sold!" either way. Now each leftover is counted
+  // and named, so a listing that would not clear stays visible instead of
+  // disappearing off the screen while it is still in the spreadsheet.
+  let _fsStuck = 0, _pdStuck = 0, _isStuck = 0, _leadFsOk = true;
+
   // Remove from For Sale tab — Phase 3e: guard against synthetic row=99999
   // from optimistic local writes that never got the real sheet row written back.
   if (fs.row && fs.row > 0 && fs.row < 1000) {
-    try {
-      await rrVerifiedRowUpdate(state.personalSheetId, 'For Sale', fs.row, `For Sale!A${fs.row}:J${fs.row}`, [['','','','','','','','','','']], { num: fs.itemNum || '', invId: fs.inventoryId || '' }, 'For Sale list');
-    } catch (e) {
-      console.warn('[Phase 3e] For Sale row clear failed at row ' + fs.row + ':', e && e.message);
-    }
+    _leadFsOk = await rrRemoveRowConfirmed(state.personalSheetId, 'For Sale', fs.row, `For Sale!A${fs.row}:J${fs.row}`, [['','','','','','','','','','']], { num: fs.itemNum || '', invId: fs.inventoryId || '' }, 'For Sale list');
+    if (!_leadFsOk) _fsStuck++;
   } else if (fs.inventoryId) {
     // Synthetic / unknown row — fetch the For Sale tab and find the real row by inventoryId
     try {
@@ -2240,12 +2299,19 @@ async function markForSaleAsSold(fsKey, askingPrice) {
       if (realRow > 0 && realRow < 1000) {
         // realRow was FOUND by inventoryId a moment ago, but the guard is kept
         // anyway — a delete can land between the lookup and this write.
-        await rrVerifiedRowUpdate(state.personalSheetId, 'For Sale', realRow, `For Sale!A${realRow}:J${realRow}`, [['','','','','','','','','','']], { num: fs.itemNum || '', invId: fs.inventoryId || '' }, 'For Sale list');
+        _leadFsOk = await rrRemoveRowConfirmed(state.personalSheetId, 'For Sale', realRow, `For Sale!A${realRow}:J${realRow}`, [['','','','','','','','','','']], { num: fs.itemNum || '', invId: fs.inventoryId || '' }, 'For Sale list');
+        if (!_leadFsOk) _fsStuck++;
       } else {
+        // v0.9.1289: the row was not found at all. For the user that is the
+        // same outcome as a refused write — it is still on the For Sale list.
+        // The old code logged it and dropped the listing off the screen anyway.
         console.warn('[Phase 3e] For Sale row for inventoryId ' + targetInv + ' not found on sheet');
+        _leadFsOk = false; _fsStuck++;
       }
     } catch (e) {
-      console.warn('[Phase 3e] For Sale row lookup/clear failed:', e && e.message);
+      // Only the LOOKUP can throw now; the write above reports for itself.
+      console.warn('[Phase 3e] For Sale row lookup failed:', e && e.message);
+      _leadFsOk = false; _fsStuck++;
     }
   }
 
@@ -2253,7 +2319,13 @@ async function markForSaleAsSold(fsKey, askingPrice) {
   if (collEntry?.row) {
     // v0.9.1267 (R3): identity-checked. Only forget the item if the sheet
     // actually let go of it.
-    if (await personalWriteRow(collEntry, personalBlankRow())) delete state.personalData[collKey];
+    // v0.9.1289: …but a THROWN write escaped this whole function, which meant
+    // no toast at all and a For Sale row already blanked above with nothing on
+    // screen to say so. Caught and counted now.
+    let _ceOk = false;
+    try { _ceOk = await personalWriteRow(collEntry, personalBlankRow()); }
+    catch (e) { if (typeof showToast === 'function') showToast(rrSaveError(e, 'the removal'), 4500, true); }
+    if (_ceOk) delete state.personalData[collKey]; else _pdStuck++;
   }
 
   // ── Cascade: this Sold row covers the WHOLE group (one price). Remove
@@ -2262,26 +2334,42 @@ async function markForSaleAsSold(fsKey, askingPrice) {
     for (const _m of _grpMembers.pd) {
       if (_m.key === collKey) continue;
       // v0.9.1267 (R3): identity-checked; keep the member in memory if its row moved.
+      // v0.9.1289: the empty catch left _mBlanked at its optimistic default, so
+      // a write that THREW looked exactly like one that landed.
       var _mBlanked = true;
-      if (_m.rec && _m.rec.row) { try { _mBlanked = await personalWriteRow(_m.rec, personalBlankRow()); } catch(e){} }
-      if (_mBlanked) delete state.personalData[_m.key];
+      if (_m.rec && _m.rec.row) {
+        try { _mBlanked = await personalWriteRow(_m.rec, personalBlankRow()); }
+        catch(e){ _mBlanked = false; if (typeof showToast === 'function') showToast(rrSaveError(e, 'the removal'), 4500, true); }
+      }
+      if (_mBlanked) delete state.personalData[_m.key]; else _pdStuck++;
     }
     for (const _m of _grpMembers.is) {
-      if (_m.rec && _m.rec.row) { try { await rrVerifiedRowUpdate(state.personalSheetId, 'Instruction Sheets', _m.rec.row, `Instruction Sheets!A${_m.rec.row}:K${_m.rec.row}`, [['','','','','','','','','','','']], { num: _m.rec.itemNum || '' }, 'Instruction Sheets list'); } catch(e){} }
-      if (state.isData) delete state.isData[_m.key];
+      // v0.9.1289: this one threw the answer away AND deleted the entry
+      // unconditionally — the worst of the three shapes.
+      let _isOk = true;
+      if (_m.rec && _m.rec.row) _isOk = await rrRemoveRowConfirmed(state.personalSheetId, 'Instruction Sheets', _m.rec.row, `Instruction Sheets!A${_m.rec.row}:K${_m.rec.row}`, [['','','','','','','','','','','']], { num: _m.rec.itemNum || '' }, 'Instruction Sheets list');
+      if (_isOk) { if (state.isData) delete state.isData[_m.key]; }
+      else _isStuck++;
     }
     for (const _f of _grpMembers.fs) {
       const _mk = _fsEntryKey(_f);
       if (_mk === fsKey) continue;
-      if (_f.row) { try { await rrVerifiedRowUpdate(state.personalSheetId, 'For Sale', _f.row, `For Sale!A${_f.row}:J${_f.row}`, [['','','','','','','','','','']], { num: _f.itemNum || '', invId: _f.inventoryId || '' }, 'For Sale list'); } catch(e){} }
-      delete state.forSaleData[_mk];
+      // v0.9.1289: same again — answer discarded, entry dropped regardless.
+      let _fOk = true;
+      if (_f.row) _fOk = await rrRemoveRowConfirmed(state.personalSheetId, 'For Sale', _f.row, `For Sale!A${_f.row}:J${_f.row}`, [['','','','','','','','','','']], { num: _f.itemNum || '', invId: _f.inventoryId || '' }, 'For Sale list');
+      if (_fOk) delete state.forSaleData[_mk]; else _fsStuck++;
     }
   }
 
   // Session 176: belt-and-suspenders — make sure any -BOX / -MBOX companion is
   // gone too (shared with the wizard sold path), so no orphan box is left behind.
   if (typeof _cleanupSoldItemBoxes === 'function') {
-    try { await _cleanupSoldItemBoxes(itemNum, (collEntry && collEntry.groupId) || fs.groupId); } catch(e) {}
+    // v0.9.1289: the empty catch that used to be here was dead weight —
+    // _cleanupSoldItemBoxes wraps its whole body in a try/catch and returns 0
+    // rather than throwing. Keeping it only made a real swallow look normal
+    // sitting next to the ones that were fixed. It reports its own leftovers
+    // now by keeping the box in state, which puts it back on the screen.
+    await _cleanupSoldItemBoxes(itemNum, (collEntry && collEntry.groupId) || fs.groupId);
   }
   // Optimistic state update — unique key so each sale is its own row.
   var _osk = (typeof _newSoldKey === 'function') ? _newSoldKey() : ('sold-opt-' + Date.now());
@@ -2298,14 +2386,25 @@ async function markForSaleAsSold(fsKey, askingPrice) {
     inventoryId: fs.inventoryId || (collEntry && collEntry.inventoryId) || '',
     manufacturer: fs.manufacturer || (collEntry && collEntry.manufacturer) || '',
   };
-  delete state.forSaleData[fsKey];
+  // v0.9.1289: only forget the listing if the sheet actually let go of it.
+  // The sale is recorded either way; a listing that would not clear stays on
+  // the For Sale page, where it still truthfully is.
+  if (_leadFsOk) delete state.forSaleData[fsKey];
 
   _cachePersonalData();
 
   buildForSalePage();
   buildSoldPage();
   buildDashboard();
-  showToast('✓ Marked as sold!');
+  // The sale is the headline and it landed. Anything that would not clear is
+  // named rather than covered over with one checkmark.
+  const _left = [];
+  if (_fsStuck > 0) _left.push(_fsStuck + ' still on your For Sale list');
+  if (_pdStuck > 0) _left.push(_pdStuck + ' still in your collection');
+  if (_isStuck > 0) _left.push(_isStuck + ' instruction sheet' + (_isStuck === 1 ? '' : 's') + ' still listed');
+  showToast('✓ Marked as sold!'
+    + (_left.length ? ' The sale is recorded, but ' + _left.join(', ') + '. Refresh and try again.' : ''),
+    _left.length ? 5500 : undefined);
 }
 
 // Phase 3: signature is now (inventoryId). Called from My Collection row button.
