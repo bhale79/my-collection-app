@@ -749,7 +749,7 @@ const HARNESS = `<!doctype html><html><head><meta charset="utf-8">
 
 
     // ══════════════════════════════════════════════════════════════════
-    // Every swept toolbar button, MEASURED (v0.9.1273)
+    // Every swept toolbar button, MEASURED (v0.9.1273, rebuilt v0.9.1274)
     //
     // Brad, on a screenshot of the Photo Inbox: "the buttons do not need to
     // be transparent." Same complaint as v0.9.1244, one floor up: those
@@ -758,30 +758,30 @@ const HARNESS = `<!doctype html><html><head><meta charset="utf-8">
     // #rr-logo-bg to min(110vmin,840px) at Brad's ask, and it finally reached
     // the toolbar. A locomotive behind glass.
     //
-    // The sweep rewrote 139 button backgrounds across 13 files from
-    //   background:rgba(R,G,B,A)
-    // to
+    // v0.9.1273 rewrote 139 inline button backgrounds to
     //   background:var(--bg-card);background:color-mix(in srgb, rgb(R,G,B) N%, var(--bg-card))
-    // — the same tint, composited against the card colour instead of
-    // whatever happens to sit behind. Theme-aware (var(--bg-card) is defined
-    // in all four theme scopes) and budget-neutral (color-count.js counts
-    // rgb( and rgba( alike, so the total did not move).
+    // …and Brad's next screenshot said "still transparent". He was right.
+    // The v0.9.869 master lever in app.css —
+    //   .main button[style*="#2980b9"] … { background:rgba(139,142,148,0.12) !important }
+    // — matches any button whose inline style MENTIONS one of seven legacy
+    // colours (almost all of them: the blue text alone is enough), and its
+    // !important beat every one of the 139 opaque declarations. The sweep was
+    // correct and the stylesheet painted the wash straight back over it.
+    // v0.9.1274 gives that lever (and the v0.9.870 destructive one) the same
+    // opaque color-mix treatment.
     //
-    // The two declarations are not decoration. A browser without color-mix
-    // drops the second as invalid and takes the first — opaque card colour,
-    // slightly wrong tint. Without the first it would drop BOTH and land on
-    // fully transparent, which is worse than the bug being fixed.
+    // WHY THE v0.9.1273 VERSION OF THIS TEST MISSED IT: it rendered each
+    // extracted background declaration on a bare button, stripped of the rest
+    // of its style — so the lever, which matches on the OTHER parts of the
+    // style attribute, never fired in the test while firing on every real
+    // button in the app. A rendering test must render what the app renders.
+    // So now each declaration is rendered BOTH ways — bare (inline wins) and
+    // with the lever-triggering blue text (the lever wins) — plus one button
+    // per lever trigger token, styled the way the legacy call sites were.
     //
-    // No z-index here, unlike v0.9.1244. Painting order does it for free: a
-    // negative-z-index child paints at step 2, ordinary descendants'
-    // backgrounds at step 3+. Opaque is sufficient; the pixel reads below are
-    // what actually says so.
-    //
-    // Every DISTINCT declaration in the shipped source is rendered twice, over
-    // two very different backdrops, and the faces are required to match to the
-    // pixel. Pulling the declarations from source rather than listing them
-    // here means a new button with a new tint is covered the day it is
-    // written, and a hand-edit back to rgba() cannot hide.
+    // The proof itself is unchanged and tint-blind: render everything over
+    // two wildly different backdrops and require every button face to come
+    // out pixel-identical. Any transparency at all makes the two differ.
     // ══════════════════════════════════════════════════════════════════
     {
       // Deliberately NOT anchored to var(--bg-card): an extractor that only
@@ -797,21 +797,46 @@ const HARNESS = `<!doctype html><html><head><meta charset="utf-8">
         MIX_RE.lastIndex = 0;
         while ((m = MIX_RE.exec(src)) !== null) if (mixes.indexOf(m[0]) === -1) mixes.push(m[0]);
       }
+      // app.css itself now carries the lever's color-mix — include it, so a
+      // hand-edit to the lever's tint is rendered and measured like any other.
+      {
+        const css = fs.readFileSync(path.join(APP, 'app.css'), 'utf8');
+        let m;
+        MIX_RE.lastIndex = 0;
+        while ((m = MIX_RE.exec(css)) !== null) if (mixes.indexOf(m[0]) === -1) mixes.push(m[0]);
+      }
 
       ok('swept buttons: the shipped source actually uses color-mix',
          mixes.length >= 30, mixes.length + ' distinct declarations found');
 
-      const cells = mixes.map((mix, i) =>
-        '<button class="btn" id="sb' + i + '" style="display:block;width:200px;height:34px;' +
-        'margin:6px;border-radius:8px;background:var(--bg-card);background:' + mix + '">b' + i + '</button>'
-      ).join('');
-      // Sampling over ONE backdrop cannot work here: several of these tints are
-      // themselves green, so "did green win the middle channel" says yes for
-      // an opaque green button and proves nothing. Render the SAME buttons
-      // over two wildly different backdrops instead and require the faces to
-      // come out pixel-identical. Any transparency at all, of any tint, makes
-      // the two differ — and the check never has to know what colour a button
-      // is supposed to be.
+      // Three families of test button:
+      //   sb<i>  — the declaration alone; the inline style wins.
+      //   sl<i>  — the same declaration + the blue text that makes the
+      //            v0.9.869 lever match; the LEVER's background wins. This is
+      //            the shape nearly every real button in the app has, and the
+      //            one the v0.9.1273 test forgot to build.
+      //   tk<i>  — one button per lever trigger token, styled like the legacy
+      //            call sites the lever exists to reskin (solid legacy
+      //            background). Covers both levers including #e74c3c.
+      const TOKENS = ['#2ecc71', '#e67e22', '#8b5cf6', '#16a085', '#3498db',
+                      '#2980b9', 'var(--accent)', '#e74c3c'];
+      const ids = [];
+      let cells = '';
+      const base = 'display:block;width:200px;height:34px;margin:6px;border-radius:8px;';
+      mixes.forEach((mix, i) => {
+        cells += '<button class="btn" id="sb' + i + '" style="' + base +
+                 'background:var(--bg-card);background:' + mix + '">b' + i + '</button>';
+        ids.push('sb' + i);
+        cells += '<button class="btn" id="sl' + i + '" style="' + base +
+                 'background:var(--bg-card);background:' + mix + ';color:#2980b9">L' + i + '</button>';
+        ids.push('sl' + i);
+      });
+      TOKENS.forEach((tok, i) => {
+        cells += '<button class="btn" id="tk' + i + '" style="' + base +
+                 'background:' + tok + ';color:#fff">t' + i + '</button>';
+        ids.push('tk' + i);
+      });
+
       const render = async function (backdrop, file) {
         const page = `<!doctype html><html><head><meta charset="utf-8">
 <link rel="stylesheet" href="file://${APP}/app.css">
@@ -824,31 +849,28 @@ const HARNESS = `<!doctype html><html><head><meta charset="utf-8">
 </div></div></body></html>`;
         const fp = path.join(dir, file);
         fs.writeFileSync(fp, page);
-        const pg = await browser.newPage({ viewport: { width: 400, height: 46 * mixes.length + 80 } });
+        const pg = await browser.newPage({ viewport: { width: 400, height: 300 } });
         await pg.goto('file://' + fp);
         await pg.waitForTimeout(150);
         const shot = await pg.screenshot({ type: 'png', fullPage: true });
-        const at = await pg.evaluate((n) => {
-          const out = [];
-          for (let i = 0; i < n; i++) {
-            const el = document.getElementById('sb' + i);
+        const at = await pg.evaluate((list) => {
+          return list.map(function (id) {
+            const el = document.getElementById(id);
             const b = el.getBoundingClientRect();
-            out.push({ i: i, x: Math.round(b.left + b.width / 2), y: Math.round(b.top + b.height / 2),
-                       bg: getComputedStyle(el).backgroundColor });
-          }
-          return out;
-        }, mixes.length);
+            return { id: id, x: Math.round(b.left + b.width / 2), y: Math.round(b.top + b.height / 2),
+                     bg: getComputedStyle(el).backgroundColor };
+          });
+        }, ids);
         await pg.close();
         return { shot: shot, spots: at };
       };
       const green = await render('#00ff00', 'sweptbtn-g.html');
       const magenta = await render('#ff00ff', 'sweptbtn-m.html');
       const spots = green.spots;
-      const shot4 = green.shot;
 
       // Which declaration won? On a browser with color-mix the computed value
-      // comes back as color(srgb …); on one without it, rgb(255,253,246) — the
-      // fallback. Both are opaque, and the suite should say WHICH out loud
+      // comes back as color(srgb …); on one without it, an opaque rgb() from
+      // a fallback. Both are opaque, and the suite should say WHICH out loud
       // rather than passing on either and leaving it ambiguous.
       const mixWon = spots.filter(s => /^color\(/.test(s.bg)).length;
       ok('swept buttons: color-mix resolves in this browser (not the fallback)',
@@ -871,15 +893,15 @@ const HARNESS = `<!doctype html><html><head><meta charset="utf-8">
           return [png.data[i], png.data[i + 1], png.data[i + 2]];
         };
         const bled = [];
-        for (const s of spots) {
-          const a = sample(pngG, s), b = sample(pngM, s);
+        spots.forEach((s, idx) => {
+          const a = sample(pngG, s), b = sample(pngM, magenta.spots[idx]);
           if (a[0] !== b[0] || a[1] !== b[1] || a[2] !== b[2]) {
-            bled.push({ i: s.i, mix: mixes[s.i], overGreen: a, overMagenta: b });
+            bled.push({ id: s.id, overGreen: a, overMagenta: b });
           }
-        }
+        });
         ok('swept buttons: the watermark does not show through any of them',
            bled.length === 0,
-           bled.length ? JSON.stringify(bled.slice(0, 3)) : spots.length + ' buttons, two backdrops, identical');
+           bled.length ? JSON.stringify(bled.slice(0, 3)) : spots.length + ' buttons (incl. lever-matched), two backdrops, identical');
 
         // Sanity: the two renders MUST differ somewhere, or the comparison
         // above is comparing a page against itself and would pass on anything.
@@ -893,7 +915,6 @@ const HARNESS = `<!doctype html><html><head><meta charset="utf-8">
         ok('swept buttons: pixel check could NOT run — pngjs missing', false, 'run npm install');
       }
     }
-
 
   } finally {
     await browser.close();

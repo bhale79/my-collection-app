@@ -10296,11 +10296,11 @@ META_WRITES.length = 0; TOASTS.length = 0;
        /'\.\/write-outbox\.js'/.test(rd('app/sw.js')));
 
     section('199h. The version trio moved together');
-    ok('APP_VERSION is v0.9.1273', /const APP_VERSION = 'v0\.9\.1273';/.test(cfg));
+    ok('APP_VERSION is v0.9.1274', /const APP_VERSION = 'v0\.9\.1274';/.test(cfg));
     ok('every ?v= mark in app/index.html matches it',
-       (idx.match(/\?v=1273/g) || []).length === 69 && !/\?v=1272/.test(idx),
-       String((idx.match(/\?v=1273/g) || []).length));
-    ok('the service worker cache name moved too', /const CACHE_NAME = 'mca-v1283';/.test(rd('app/sw.js')));
+       (idx.match(/\?v=1274/g) || []).length === 69 && !/\?v=1273/.test(idx),
+       String((idx.match(/\?v=1274/g) || []).length));
+    ok('the service worker cache name moved too', /const CACHE_NAME = 'mca-v1284';/.test(rd('app/sw.js')));
     // v0.9.1259: the root page's own ?v= is gone — it registers no worker.
     // The trio is a trio again. §207 is what guards the root page now.
     ok('the landing page carries no version stamp to forget',
@@ -13835,6 +13835,51 @@ META_WRITES.length = 0; TOASTS.length = 0;
         ok('223 every color-mix background keeps its opaque fallback in front',
            unguarded === 0,
            unguarded + ' without a preceding background:var(--bg-card)');
+      }
+
+      // ── v0.9.1274: the stylesheet is a button-painter too. ──────────────
+      //
+      // Brad, the day after the sweep shipped: "still transparent." He was
+      // right. The v0.9.869 master lever in app.css matches any button whose
+      // inline style MENTIONS a legacy colour — the blue text alone does it —
+      // and its `background:rgba(139,142,148,0.12) !important` beat all 139
+      // opaque inline backgrounds the sweep wrote. The scan above reads only
+      // the .js files, so it was looking at the layer that had already been
+      // fixed while the stylesheet painted the wash back on top.
+      //
+      // So: the same two rules, applied to app.css. Parse every rule; any
+      // selector that targets buttons and hands them a translucent
+      // non-scrim background is the bug coming back through the other door.
+      {
+        const css = fs.readFileSync(p23.join(appDir23, 'app.css'), 'utf8');
+        const cssWashed = [];
+        const RULE = /([^{}]+)\{([^{}]*)\}/g;
+        let mr;
+        while ((mr = RULE.exec(css)) !== null) {
+          const sel = mr[1], block = mr[2];
+          if (!/button|\.btn/.test(sel)) continue;
+          const BG = /background[^;:]*:\s*rgba\((\d+),\s*(\d+),\s*(\d+),\s*([\d.]+)\)/g;
+          let mb;
+          while ((mb = BG.exec(block)) !== null) {
+            const r = +mb[1], g = +mb[2], b = +mb[3], a = +mb[4];
+            if ((r === 0 && g === 0 && b === 0) || a > 0.25) continue;  // scrims, solid overlays
+            cssWashed.push(sel.trim().split(/\s*,\s*/)[0] + ' -> ' + mb[0]);
+          }
+        }
+        ok('223 no app.css rule paints a see-through background onto buttons',
+           cssWashed.length === 0, cssWashed.slice(0, 4).join(' | ') || 'every button rule opaque');
+
+        // The lever's own fallback is load-bearing for the same reason as the
+        // inline ones: a browser without color-mix must land on the opaque
+        // card colour, not on nothing.
+        let cssUnguarded = 0;
+        const RE26 = /background:\s*color-mix\(in srgb, rgb\(/g;
+        let m6;
+        while ((m6 = RE26.exec(css)) !== null) {
+          if (!/background:\s*var\(--bg-card\)\s*(!important)?\s*;\s*(\/\*[^]*?\*\/\s*)*$/.test(css.slice(Math.max(0, m6.index - 700), m6.index))) cssUnguarded++;
+        }
+        ok('223 …and every app.css color-mix keeps its opaque fallback in front',
+           cssUnguarded === 0, cssUnguarded + ' without a preceding background:var(--bg-card)');
       }
     })();
 

@@ -1884,7 +1884,14 @@ html[data-theme="high-contrast"] .main #dash-panels-host .section-title { --text
 .main button[style*="#3498db"], .main button[style*="#2980b9"],
 .main button[style*="var(--accent)"] {
   border-color:#8b8e94 !important; color:#2980b9 !important;
-  background:rgba(139,142,148,0.12) !important;
+  /* v0.9.1274 (Brad: "still transparent"): this !important beat every one of
+     the 139 opaque backgrounds v0.9.1273 wrote into the buttons — the sweep
+     was right, and this line painted the 12% wash straight back over it. Same
+     tint, now mixed into the card colour so nothing behind shows through.
+     Two declarations on purpose: a browser without color-mix drops the
+     second and keeps the first (opaque, slightly wrong tint). */
+  background:var(--bg-card) !important;
+  background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card)) !important;
 }
 .main .btn-primary { background:#2980b9 !important; color:#fff !important; }
 .main .btn-primary:hover { background:#216f9e !important; }
@@ -1903,7 +1910,9 @@ html[data-theme="high-contrast"] .main .btn-primary { background:#ffb000 !import
 /* ── v0.9.870: destructive buttons — gray frame, bright orange text ── */
 button[style*="#e74c3c"] {
   border-color:#8b8e94 !important; color:#f05008 !important;
-  background:rgba(139,142,148,0.12) !important;
+  /* v0.9.1274: same fix as the v0.9.869 lever above — opaque, not a wash. */
+  background:var(--bg-card) !important;
+  background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card)) !important;
 }
 html[data-theme="high-contrast"] button[style*="#e74c3c"] {
   border-color:#ffffff !important; color:#ffb000 !important; background:#000000 !important;
