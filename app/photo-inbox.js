@@ -321,7 +321,9 @@
     if (!g || !g.files || g.files.length < 2) return false;
     var kind = (g.files[0] && g.files[0]._meta && g.files[0]._meta.kind) || g.kind || 'single';
     if (_PIN_MULTI_KIND[kind]) return true;
-    if (kind === 'box') return false;
+    // v0.9.1279: 'paper' joins 'box' — a catalog's pages read all sorts of
+    // stray numbers, and none of them make it several items.
+    if (kind === 'box' || kind === 'paper') return false;
     return _pinGroupNums(g, true).length > 1;
   }
 
@@ -447,11 +449,15 @@
   // that becomes the group's cover photo rather than an item of its own.
   var _PIN_KINDS = [
     { id:'single', label:'One item',            roles:[] },
+    // v0.9.1279 (Brad): "add another button for paper/other collection." A
+    // framed print shot from three angles is ONE collectible, not a set — and
+    // marking it here is what routes the add straight into the paper flow.
+    { id:'paper',  label:'Paper / other collectible', roles:[] },
     { id:'tender', label:'Engine + tender',     roles:[['engine','Engine'],['tender','Tender'],['together','Both together']] },
     { id:'aa',     label:'AA — two A units',    roles:[['p','A unit, powered'],['d','A unit, dummy'],['together','Both together']] },
     { id:'ab',     label:'AB — A and B',        roles:[['p','A unit, powered'],['b','B unit'],['together','Both together']] },
     { id:'aba',    label:'ABA — A, B, A',       roles:[['p','A unit, powered'],['b','B unit'],['d','A unit, dummy'],['together','All three together']] },
-    { id:'set',    label:'Set',                 roles:[['member','A piece of the set'],['together','The whole set']] },
+    { id:'set',    label:'Train set',           roles:[['member','A piece of the set'],['together','The whole set']] },   // v0.9.1279 (Brad): "change set to train set"
     { id:'box',    label:'Item + its box',      roles:[['item','The item'],['box','The box']] },
   ];
   function _pinKind(id) {
@@ -512,7 +518,7 @@
       while (roles.length < files.length) roles.push(k.roles.length ? k.roles[k.roles.length - 1][0] : '');
       card.innerHTML =
         '<div style="font-family:var(--font-head);font-size:1.05rem;font-weight:700;margin-bottom:0.15rem">How do these ' + files.length + ' photos go together?</div>'
-        + '<div style="font-size:0.8rem;color:var(--text-dim);line-height:1.5;margin-bottom:0.8rem">An AA, AB or ABA saves as separate items that stay linked. A set shot of everything together becomes the group\'s cover photo.</div>'
+        + '<div style="font-size:0.8rem;color:var(--text-dim);line-height:1.5;margin-bottom:0.8rem">An AA, AB or ABA saves as separate items that stay linked. A set shot of everything together becomes the group\'s cover photo. A paper or other collectible stays one item however many shots.</div>'
         + '<select id="pin-grp-kind" style="width:100%;padding:0.6rem 0.7rem;border-radius:8px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text);font-size:0.95rem;min-height:46px;box-sizing:border-box;margin-bottom:0.8rem">'
         +   _PIN_KINDS.map(function (kk) { return '<option value="' + kk.id + '"' + (kk.id === kindId ? ' selected' : '') + '>' + rrEsc(kk.label) + '</option>'; }).join('')
         + '</select>'
@@ -3617,7 +3623,7 @@
         // v0.9.907 (Brad, item [1a]): hand the first inbox photo's Drive id to the
         // wizard so the variation step can preview the item you're adding.
         var _addPhotoId = (fileList[0] && fileList[0].id) || '';
-        _pinAddNow(num, { manufacturer: _aiS.mfr || '', description: _aiS.desc || '', roadName: _aiS.road || '', year: _aiS.year || '', gauge: _aiS.gauge || '', subType: _aiS.subType || '', _prefer: _pinPreferOf(gs[0]) }, _addPhotoId, { alsoListForSale: mode === 'forsale' });
+        _pinAddNow(num, { manufacturer: _aiS.mfr || '', description: _aiS.desc || '', roadName: _aiS.road || '', year: _aiS.year || '', gauge: _aiS.gauge || '', subType: _aiS.subType || '', _prefer: _pinPreferOf(gs[0]) }, _addPhotoId, { alsoListForSale: mode === 'forsale', groupKind: (gs[0] && (gs[0].kind || (gs[0].files[0] && gs[0].files[0]._meta && gs[0].files[0]._meta.kind))) || '' });
         if (mode === 'forsale') showToast('Adding ' + num + ' to your collection and For Sale list — set the price on the sale step', 4500);
       }
     } catch (e) {
@@ -3745,6 +3751,16 @@
           // v0.9.907 (Brad, item [1a]): stash the inbox photo's Drive id so the
           // variation step can preview it (loaded via loadDriveThumb).
           if (photoDriveId) wizard.data._addPhotoDriveId = photoDriveId;
+          // v0.9.1279 (Brad): a group marked "Paper / other collectible" skips
+          // the train prefill entirely — the add opens in the paper flow, where
+          // the Item Type selector still allows Catalog / Mock-Up / Other. The
+          // flags above ride along (wizardChooseCategory keeps wizard.data), so
+          // the staged photos attach on save exactly as v0.9.1278 arranged.
+          if (opts && opts.groupKind === 'paper' && typeof wizardChooseCategory === 'function') {
+            wizardChooseCategory('paper');
+            showToast('Starting a paper/other item — the photos will attach when you save', 3000);
+            return;
+          }
           var m = _pinBestMaster(num, (aiMeta && aiMeta.manufacturer) || '', (aiMeta && aiMeta._prefer) || null);
           if (m && aiMeta && aiMeta.manufacturer) {
             var _mMk = m.manufacturer || ((typeof ERAS !== 'undefined' && ERAS[m._era]) ? ERAS[m._era].manufacturer : '');

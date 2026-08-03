@@ -5320,8 +5320,9 @@ META_WRITES.length = 0; TOASTS.length = 0;
     ok('...and never says "one item" about a set',
        window._pinRvTitle(4).indexOf('one item') < 0);
     seedReads({ s1: { num: '736' }, s2: { num: '' }, s3: { num: '' } });
+    // v0.9.1279 (Brad): the kind's label is 'Train set' now — same id, new name.
     ok('an unrecognised SET stack still refuses to claim one item, and uses its kind',
-       window._pinRvTitle(4) === '4 photos · Set', window._pinRvTitle(4));
+       window._pinRvTitle(4) === '4 photos · Train set', window._pinRvTitle(4));
     T.rvGroups = [{ key: 'one', files: [{ id: 's1', _meta: { kind: 'single' } },
                                         { id: 's2', _meta: { kind: 'single' } }] }];
     ok('a genuine one-item stack is still called one item',
@@ -10303,11 +10304,11 @@ META_WRITES.length = 0; TOASTS.length = 0;
        /'\.\/write-outbox\.js'/.test(rd('app/sw.js')));
 
     section('199h. The version trio moved together');
-    ok('APP_VERSION is v0.9.1278', /const APP_VERSION = 'v0\.9\.1278';/.test(cfg));
+    ok('APP_VERSION is v0.9.1279', /const APP_VERSION = 'v0\.9\.1279';/.test(cfg));
     ok('every ?v= mark in app/index.html matches it',
-       (idx.match(/\?v=1278/g) || []).length === 69 && !/\?v=1277/.test(idx),
-       String((idx.match(/\?v=1278/g) || []).length));
-    ok('the service worker cache name moved too', /const CACHE_NAME = 'mca-v1288';/.test(rd('app/sw.js')));
+       (idx.match(/\?v=1279/g) || []).length === 69 && !/\?v=1278/.test(idx),
+       String((idx.match(/\?v=1279/g) || []).length));
+    ok('the service worker cache name moved too', /const CACHE_NAME = 'mca-v1289';/.test(rd('app/sw.js')));
     // v0.9.1276 (R9): the ?v= count above cannot see a NEW local <script>
     // added with no stamp at all — 69 stamped plus one bare is still 69, and
     // the bare one dodges the cache-busting the stamp exists for: it would be
@@ -14375,6 +14376,62 @@ META_WRITES.length = 0; TOASTS.length = 0;
         ok('228 …and the paper number is still the generated one, untouched',
            /generatePaperItemNum\(d\.eph_paperType/.test(fn));
       }
+    })();
+
+    // ═══════════════════════════════════════════════════════════
+    // §229. v0.9.1279 — "change set to train set, and add another button
+    //   for paper/other collection" (Brad, on the group dialog).
+    //
+    //   Two words and a whole workflow: "Set" in the group dialog reads as
+    //   ambiguous next to paper collections, and a framed print shot from
+    //   three angles had no honest choice at all — every kind on the list
+    //   was a train shape. The new kind is one item however many shots
+    //   (like a box), and choosing it routes the add straight into the
+    //   paper flow, where v0.9.1278's plumbing already carries the photos.
+    // ═══════════════════════════════════════════════════════════
+    section('229. Train set is named, and paper has a seat at the table');
+    (function () {
+      const p29 = require('path');
+      const pin29 = fs.readFileSync(p29.join(__dirname, '..', 'app', 'photo-inbox.js'), 'utf8');
+
+      // Lift the REAL kind catalog and read it as data.
+      const a29 = pin29.indexOf('var _PIN_KINDS = [');
+      const b29 = pin29.indexOf('];', a29);
+      const KINDS = new Function(pin29.slice(a29, b29 + 2) + ' return _PIN_KINDS;')();
+      const byId = {};
+      KINDS.forEach(k => { byId[k.id] = k; });
+      ok('229 the set kind is called Train set now',
+         byId.set && byId.set.label === 'Train set', byId.set && byId.set.label);
+      ok('229 …and its id did not move — every stored rrKind tag still resolves',
+         !!byId.set && !!byId.single && !!byId.box, 'renaming the LABEL must never rename the ID');
+      ok('229 a paper/other collectible is on the list, as ONE item (no roles)',
+         byId.paper && byId.paper.roles.length === 0 && /paper/i.test(byId.paper.label),
+         JSON.stringify(byId.paper));
+
+      ok('229 a paper group is never split into several items by stray numbers',
+         /if \(kind === 'box' \|\| kind === 'paper'\) return false;/.test(pin29));
+      ok('229 …and is not on the multi-piece kind map either',
+         !/_PIN_MULTI_KIND = \{[^}]*paper/.test(pin29));
+
+      // The routing: the call site hands the group's kind along, and a paper
+      // group opens the add in the paper flow AFTER the inbox flags are set —
+      // order matters, because the flags are what carry the photos.
+      ok('229 the add is told what kind of group it came from',
+         /groupKind: \(gs\[0\] && \(gs\[0\]\.kind \|\| \(gs\[0\]\.files\[0\] && gs\[0\]\.files\[0\]\._meta && gs\[0\]\.files\[0\]\._meta\.kind\)\)\) \|\| ''/.test(pin29));
+      {
+        const fa = pin29.indexOf('window._pinAddNow = function');
+        const fseg = pin29.slice(fa, fa + 4000);
+        const iFlags = fseg.indexOf('wizard.data._pinStagedNum = num;');
+        const iPhoto = fseg.indexOf('wizard.data._addPhotoDriveId = photoDriveId;');
+        const iRoute = fseg.indexOf("wizardChooseCategory('paper')");
+        const iMaster = fseg.indexOf('_pinBestMaster');
+        ok('229 a paper group routes to the paper flow — after the flags, before the train prefill',
+           iFlags > 0 && iPhoto > iFlags && iRoute > iPhoto && iMaster > iRoute,
+           JSON.stringify({ iFlags, iPhoto, iRoute, iMaster }));
+      }
+
+      ok('229 the dialog explains the new choice in its own words',
+         /A paper or other collectible stays one item however many shots\./.test(pin29));
     })();
 
   })().then(function () {
