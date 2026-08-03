@@ -10303,11 +10303,11 @@ META_WRITES.length = 0; TOASTS.length = 0;
        /'\.\/write-outbox\.js'/.test(rd('app/sw.js')));
 
     section('199h. The version trio moved together');
-    ok('APP_VERSION is v0.9.1277', /const APP_VERSION = 'v0\.9\.1277';/.test(cfg));
+    ok('APP_VERSION is v0.9.1278', /const APP_VERSION = 'v0\.9\.1278';/.test(cfg));
     ok('every ?v= mark in app/index.html matches it',
-       (idx.match(/\?v=1277/g) || []).length === 69 && !/\?v=1276/.test(idx),
-       String((idx.match(/\?v=1277/g) || []).length));
-    ok('the service worker cache name moved too', /const CACHE_NAME = 'mca-v1287';/.test(rd('app/sw.js')));
+       (idx.match(/\?v=1278/g) || []).length === 69 && !/\?v=1277/.test(idx),
+       String((idx.match(/\?v=1278/g) || []).length));
+    ok('the service worker cache name moved too', /const CACHE_NAME = 'mca-v1288';/.test(rd('app/sw.js')));
     // v0.9.1276 (R9): the ?v= count above cannot see a NEW local <script>
     // added with no stamp at all — 69 stamped plus one bare is still 69, and
     // the bare one dodges the cache-busting the stamp exists for: it would be
@@ -14303,6 +14303,78 @@ META_WRITES.length = 0; TOASTS.length = 0;
       ok('227 …while the re-scan itself still records the refused answer (v0.9.1168 stays)',
          /if (_rejected.indexOf(_rn) < 0) _rejected.push(_rn);/.test(pin27) ||
          pin27.indexOf('_rejected.push(_rn)') > 0);
+    })();
+
+    // ═══════════════════════════════════════════════════════════
+    // §228. v0.9.1278 — a poster is not a train.
+    //
+    //   Brad, on a framed Southern Railway print in the Photo Inbox: "we
+    //   need the add this to my collection button to be like the other add
+    //   button so that we can select paper, item or whatever." The review
+    //   card's add jumped straight past the wizard's first screen when the
+    //   number matched (v0.9.889, his own fast path for trains) — which was
+    //   also the only screen holding the Item Type selector. No way to say
+    //   "paper item", so no way to reach the paper flow's generated number.
+    //
+    //   Four pieces, tested in order of the photo's journey: the inbox add
+    //   flags itself; the selector stays reachable; a kind switch carries
+    //   the photo and the staged-note key through the restart; and the
+    //   ephemera save re-keys the note to the GENERATED number and arms it,
+    //   so the photos file exactly like a train add's.
+    // ═══════════════════════════════════════════════════════════
+    section('228. A poster is not a train — the inbox add can change kind');
+    (function () {
+      const p28 = require('path');
+      const rd28 = f => fs.readFileSync(p28.join(__dirname, '..', 'app', f), 'utf8');
+      const pin28 = rd28('photo-inbox.js'), wiz28 = rd28('wizard.js'), sv28 = rd28('wizard-save.js');
+
+      ok('228 an inbox-born add says so, and remembers its staged-note key',
+         /wizard\.data\._fromInbox = true;\s*\n\s*wizard\.data\._pinStagedNum = num;/.test(pin28));
+      ok('228 the Item Type selector stays reachable on an inbox add',
+         /d\._fromInbox && wizard\.step <= 1 && d\.itemCategory === 'lionel'/.test(wiz28));
+      ok('228 …without disturbing where it already showed',
+         /s\.id === 'itemNumGrouping' && d\.itemCategory === 'lionel' && !d\._fillItemMode && !d\.boxOnly/.test(wiz28));
+      ok('228 switching kind carries the photo and the note key through the restart',
+         /\['_addPhotoDriveId', '_fromInbox', '_pinStagedNum'\]\.forEach/.test(wiz28) &&
+         /Object\.assign\(\{ tab: 'collection', _returnPage: _rp, itemCategory: 'lionel' \}, _keep\)/.test(wiz28));
+
+      // ── the re-key helper, RUN against a fake store ───────────────────
+      {
+        const a = pin28.indexOf('window.rrPinRekeyStaged = function');
+        const b = pin28.indexOf('window.rrPinSetPhotoSaved = function');
+        ok('228 the re-key helper exists, right beside the arm it feeds', a > 0 && b > a);
+        const store = { rr_inbox_setstage: JSON.stringify({ '5741': { link: 'L', files: [{ id: 'f1' }] } }) };
+        const ls = { getItem: k => (k in store ? store[k] : null), setItem: (k, v) => { store[k] = v; } };
+        const rekey = new Function('localStorage', 'normalizeItemNum', 'SETSTAGE_KEY', 'console',
+          'var window = {}; ' + pin28.slice(a, b) + ' return window.rrPinRekeyStaged;')(
+            ls, undefined, 'rr_inbox_setstage', { warn: () => {} });
+        rekey('5741', 'P-AD-1949-001');
+        const after = JSON.parse(store.rr_inbox_setstage);
+        ok('228 …and really moves the note from the typed number to the generated one',
+           !after['5741'] && after['P-AD-1949-001'] && after['P-AD-1949-001'].files[0].id === 'f1',
+           JSON.stringify(after));
+        // A second note under the new number must never be clobbered.
+        store.rr_inbox_setstage = JSON.stringify({ 'A': { link: '1' }, 'B': { link: '2' } });
+        rekey('A', 'B');
+        const guard = JSON.parse(store.rr_inbox_setstage);
+        ok('228 …and never clobbers a note already under the new number',
+           guard['B'] && guard['B'].link === '2' && !guard['A'], JSON.stringify(guard));
+      }
+
+      // ── the ephemera save: append, then re-key, then arm — in that order ──
+      {
+        const fa = sv28.indexOf('async function saveEphemeraItem()');
+        const fb = sv28.indexOf('async function savePhotoOnlyUpdate()');
+        const fn = sv28.slice(fa, fb);
+        const iAppend = fn.indexOf('sheetsAppend');
+        const iRekey = fn.indexOf('rrPinRekeyStaged(d._pinStagedNum, ephItemNum)');
+        const iArm = fn.indexOf('rrPinSetPhotoSaved(ephItemNum)');
+        ok('228 the paper/catalog save arms the photos only AFTER the row is really on the sheet',
+           iAppend > 0 && iRekey > iAppend && iArm > iRekey,
+           JSON.stringify({ append: iAppend, rekey: iRekey, arm: iArm }));
+        ok('228 …and the paper number is still the generated one, untouched',
+           /generatePaperItemNum\(d\.eph_paperType/.test(fn));
+      }
     })();
 
   })().then(function () {

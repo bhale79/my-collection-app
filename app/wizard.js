@@ -864,7 +864,16 @@ function _wizSetKind(kind) {
   // Fresh restart of the add flow in the chosen kind (only offered on the
   // first screen, so nothing typed is lost).
   const _rp = (wizard.data && wizard.data._returnPage) || undefined;
-  wizard = { step: 0, tab: 'collection', data: { tab: 'collection', _returnPage: _rp, itemCategory: 'lionel' }, steps: getSteps('collection'), matchedItem: null };
+  // v0.9.1278: an inbox-born add carries its photo and its staged-note key.
+  // Switching kind restarts the flow — these must survive the restart, or
+  // choosing "Paper Item" would silently orphan the photos back in the inbox.
+  const _keep = {};
+  try {
+    ['_addPhotoDriveId', '_fromInbox', '_pinStagedNum'].forEach(function (k) {
+      if (wizard.data && wizard.data[k] !== undefined) _keep[k] = wizard.data[k];
+    });
+  } catch (e) {}
+  wizard = { step: 0, tab: 'collection', data: Object.assign({ tab: 'collection', _returnPage: _rp, itemCategory: 'lionel' }, _keep), steps: getSteps('collection'), matchedItem: null };
   if (kind === 'cataloged') { renderWizardStep(); return; }
   wizardChooseCategory(kind);
 }
@@ -890,7 +899,14 @@ function _syncWizKindBar(s) {
     if (d._manualEntry) {
       show = !!(s && s.id === 'manualManufacturer');
     } else if (wizard.tab === 'collection') {
-      show = !!(s && s.id === 'itemNumGrouping' && d.itemCategory === 'lionel' && !d._fillItemMode && !d.boxOnly);
+      show = !!(s && s.id === 'itemNumGrouping' && d.itemCategory === 'lionel' && !d._fillItemMode && !d.boxOnly)
+          // v0.9.1278 (Brad's framed Southern poster): an add from the photo
+          // inbox jumps PAST the first screen when the number matches the
+          // catalog (v0.9.889, his ask) — which also jumped past the only
+          // place the Item Type selector lives. A poster is not a train.
+          // For inbox-born adds the selector stays available on the landing
+          // step too, so "paper item" is one dropdown away, not a dead end.
+          || !!(d._fromInbox && wizard.step <= 1 && d.itemCategory === 'lionel' && !d._fillItemMode && !d.boxOnly);
     } else if (['set', 'paper', 'catalogs', 'mockups', 'other'].indexOf(wizard.tab) >= 0) {
       show = wizard.step === 0;
     }

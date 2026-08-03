@@ -3724,6 +3724,12 @@
         clearInterval(t);
         try {
           wizard.data.itemNum = num;
+          // v0.9.1278 (Brad's framed Southern poster): an add that starts in
+          // the inbox is not always a train. These two flags are what let the
+          // Item Type selector appear and the staged photos follow the entry
+          // whatever kind it turns out to be.
+          wizard.data._fromInbox = true;
+          wizard.data._pinStagedNum = num;
           // v0.9.958 (Brad): "Send to For Sale" on a not-yet-owned item — flag
           // the add so it lands in My Collection AND on the For Sale list.
           if (opts && opts.alsoListForSale) { wizard.data._alsoListForSale = true; wizard.data._returnPage = wizard.data._returnPage || 'forsale'; }
@@ -3771,6 +3777,27 @@
   // v0.9.1122 — arm ONE staged set-photo note. Called from the set-save hook
   // the instant a member is really written to the sheet, so the photo move is
   // driven by a save that happened, never by a save that merely might.
+  // v0.9.1278: an inbox add can finish as a PAPER ITEM (or catalog, mock-up,
+  // other). Those save under a GENERATED number, not the one typed on the
+  // review card — so the staged photo note, keyed by the typed number, would
+  // be stranded forever. The save re-keys it to the number the row actually
+  // carries, then arms it, and the photos file exactly like a train add's.
+  window.rrPinRekeyStaged = function (oldNum, newNum) {
+    try {
+      var o = String(oldNum || '').trim(), n = String(newNum || '').trim();
+      if (!o || !n || o === n) return;
+      var stage = JSON.parse(localStorage.getItem(SETSTAGE_KEY) || '{}');
+      var key = Object.keys(stage).find(function (k) {
+        return k === o || (typeof normalizeItemNum === 'function' &&
+                           normalizeItemNum(k) === normalizeItemNum(o));
+      });
+      if (!key) return;
+      if (!stage[n]) stage[n] = stage[key];   // never clobber another note
+      delete stage[key];
+      localStorage.setItem(SETSTAGE_KEY, JSON.stringify(stage));
+    } catch (e) { console.warn('[Inbox] could not re-key the staged photo note', e && e.message); }
+  };
+
   window.rrPinSetPhotoSaved = function (itemNum) {
     try {
       var n = String(itemNum || '').trim();

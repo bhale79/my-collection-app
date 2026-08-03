@@ -777,6 +777,18 @@ async function saveEphemeraItem() {
     _stampSaved(pdObj);
     state.personalData[_uniInvId || (ephItemNum + '||' + actualRow)] = pdObj;
     if (typeof _cachePersonalData === 'function') _cachePersonalData();
+    // v0.9.1278 (Brad's framed Southern poster): this add may have STARTED on
+    // an inbox review card, whose staged photo note is keyed by the number
+    // typed there — while this row just saved under the generated number.
+    // Re-key the note to the row's real number, then arm it: the inbox
+    // photos file into this entry exactly like a train add's, and the row's
+    // photo link is written by the same flush that handles every other add.
+    try {
+      if (d._pinStagedNum) {
+        if (typeof rrPinRekeyStaged === 'function') rrPinRekeyStaged(d._pinStagedNum, ephItemNum);
+        if (typeof rrPinSetPhotoSaved === 'function') rrPinSetPhotoSaved(ephItemNum);
+      }
+    } catch (ePh) {}
     buildDashboard();  // Session 174: refresh Items-I-Own + Collection Value so the new item counts immediately
     showToast('✓ ' + (d.eph_title||'Item') + ' saved!');
     d._saveComplete = true;   // v0.9.689
