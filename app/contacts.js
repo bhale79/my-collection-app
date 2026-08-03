@@ -926,10 +926,29 @@
   // adding column Q caught exactly that, because only one of them got updated.
   // The width comes from HEADERS now, so the next column added cannot be left
   // behind in whichever copy someone forgets.
-  async function _ctBlankRow(row) {
-    return sheetsUpdate(state.personalSheetId,
+  // v0.9.1292 (audit R3-3, the last of the family): this blanked whatever row
+  // number it was handed, with no check that the row was still the contact the
+  // user meant. Delete a contact on the phone, delete another on the laptop
+  // whose list loaded before that, and the second delete blanks a row that has
+  // since shifted — a different contact, gone, with "Contact deleted" on screen.
+  //
+  // The reason this sat parked so long was a wrong note, worth writing down so
+  // nobody re-derives it: the queue said a guard was impossible here because
+  // renaming a contact replaces the identity cell. It does not. A rename
+  // changes column B (Name). Column A is 'Contact ID' — assigned once at
+  // creation ('C-' + Date.now()) and never rewritten, including by the edit
+  // modal, which reads it back out of `c.id` and puts the same value down
+  // again. Column A is exactly the cell rrRowStillIs reads. No new column, no
+  // migration, nothing to backfill.
+  //
+  // Contacts made before IDs existed have a blank column A. rrRowStillIs
+  // treats "nothing to compare" as "do not block", so those delete exactly as
+  // they do today — the guard tightens the new case without breaking the old.
+  async function _ctBlankRow(row, expectId) {
+    return rrVerifiedRowUpdate(state.personalSheetId, TAB, row,
       TAB + '!A' + row + ':' + String.fromCharCode(64 + HEADERS.length) + row,
-      [HEADERS.map(function () { return ''; })]);
+      [HEADERS.map(function () { return ''; })],
+      { num: expectId || '' }, 'contact list');
   }
 
   // v0.9.773 (Brad): Delete straight from the list card (Edit | Delete split).
@@ -940,7 +959,11 @@
       : confirm('Delete ' + ((c && c.name) ? c.name : 'this contact') + '?');
     if (!okDel) return;
     try {
-      await _ctBlankRow(row);
+      // v0.9.1292: false means the row was not this contact any more and the
+      // user has already been told why. Saying "Contact deleted" after that
+      // would be talking over a warning with a lie. The contact stays on the
+      // list, which is correct — it is still in the sheet.
+      if (!(await _ctBlankRow(row, c && c.id))) return;
       showToast('Contact deleted');
       try { await _load(); window._ctRenderList(); } catch (e3) { console.warn('[contact list refresh]', e3); }
     } catch (e) { console.warn('[contact delete]', e); showToast('Delete failed — try again', 3500, true); }
@@ -1265,7 +1288,11 @@
         : confirm('Delete this contact?');
       if (!okDel2) return;
       try {
-        await _ctBlankRow(row);
+        // v0.9.1292: same guard as the list card. The modal stays OPEN on a
+        // refusal — closing it would clear the warning off the screen before
+        // it had been read, and there is nothing to close away from, since
+        // the contact is still there.
+        if (!(await _ctBlankRow(row, c && c.id))) return;
         window._ctClose('ct-modal');
         showToast('Contact deleted');
         await _load();

@@ -5648,9 +5648,13 @@ META_WRITES.length = 0; TOASTS.length = 0;
        /HEADERS\.map\(function \(\) \{ return ''; \}\)/.test(ct));
     // There were TWO delete paths with two hand-typed rows of sixteen quotes, and
     // adding column Q caught it because only one of them got updated.
+    // v0.9.1292: the helper takes the contact's ID now, so the call shape
+    // changed. The rule being kept is unchanged and is the one that matters:
+    // ONE helper, called from both screens, so a column added tomorrow cannot
+    // reach one delete path and miss the other.
     ok('there is ONE delete, not one per screen',
-       (ct.match(/await _ctBlankRow\(row\);/g) || []).length === 2 &&
-       (ct.match(/async function _ctBlankRow\(row\)/g) || []).length === 1);
+       (ct.match(/await _ctBlankRow\(row, c && c\.id\)/g) || []).length === 2 &&
+       (ct.match(/async function _ctBlankRow\(/g) || []).length === 1);
     ok('...and its last column is derived from HEADERS, so the next one cannot be missed',
        /String\.fromCharCode\(64 \+ HEADERS\.length\)/.test(ct));
     ok('HEADERS actually has the new column, or every write is one short',
@@ -14832,7 +14836,9 @@ META_WRITES.length = 0; TOASTS.length = 0;
         // guarded set: ephemeraDelete, _removeSoldRecord and removePart. All
         // three built their range on the line ABOVE the call, or inside the
         // call, which is how they walked past the ROWISH census above.
-        const wrapped = ['app-collection.js', 'app-pages.js', 'browse.js', 'photo-inbox.js', 'wizard-save.js']
+        // v0.9.1292: contacts.js joins the swept set. Its delete was the last
+        // raw row write left in a remove flow — see §238's KNOWN38, now empty.
+        const wrapped = ['app-collection.js', 'app-pages.js', 'browse.js', 'photo-inbox.js', 'wizard-save.js', 'contacts.js']
           .reduce((n, f) => {
             const s = fs.readFileSync(p34.join(__dirname, '..', 'app', f), 'utf8');
             return n + (s.match(/rrVerifiedRowUpdate\(/g) || []).length
@@ -14842,8 +14848,12 @@ META_WRITES.length = 0; TOASTS.length = 0;
         // rrVerifiedRowUpdate to rrRemoveRowConfirmed (same writer, plus a
         // message when it throws), and ephemeraSold's blanking joined the
         // guarded set from a bare sheetsUpdate — that last one is the +1.
-        ok('234 the sweep really landed — 57 sites write through the one guarded writer',
-           wrapped === 57, String(wrapped));
+        // v0.9.1289: 56 -> 57. v0.9.1292: 57 -> 59 — _convertUpgradeToWantOnSell
+        // in app-pages.js and _ctBlankRow in contacts.js, the two the rebuilt
+        // census found. Exact rather than a floor on purpose: a DROP means a
+        // guard was removed, and that is news in its own right.
+        ok('234 the sweep really landed — 59 sites write through the one guarded writer',
+           wrapped === 59, String(wrapped));
       }
     })();
 
@@ -15408,26 +15418,25 @@ META_WRITES.length = 0; TOASTS.length = 0;
       //   • every entry must still match a live offender, so a stale line
       //     cannot sit here quietly excusing something that moved, and
       //   • anything NOT on it fails the run, exactly as before.
-      const KNOWN38 = [
-        // contacts.js hands its delete to _ctBlankRow. Guardable with the
-        // Contact ID already in column A — the "a rename replaces the identity
-        // cell" note that parked this was simply wrong; a rename changes the
-        // Name column, and column A never changes.
-        'contacts.js:_ctDeleteRow → _ctBlankRow()',
-        // The worse of the two. Every other bug in this family FAILS TO DELETE
-        // something; this one OVERWRITES. Marking a for-sale item sold rewrites
-        // its Want-Upgrade row from "upgrading" to "want" without checking the
-        // row is still that entry — so a shifted row means this item's data
-        // lands on top of a different wishlist entry, which is then gone, and
-        // the toast says "Upgrade entry moved to Want list".
-        'app-pages.js:markForSaleAsSold → _convertUpgradeToWantOnSell()',
-      ];
+      // v0.9.1292 emptied this. Both entries were fixed the version after
+      // they were found, which is the point of writing them down rather than
+      // leaving the suite red: the list existed for one version and then went
+      // away. It stays here, empty, because an empty list with a rule attached
+      // is a working brake, and re-adding a line to it is a visible decision
+      // in a diff rather than a quiet edit to a threshold somewhere.
+      //
+      // Three rules keep it from becoming a place to hide things:
+      //   • it may only ever shrink (the count check below),
+      //   • every entry must still match a live offender, so a stale line
+      //     cannot sit here quietly excusing something that moved, and
+      //   • anything NOT on it fails the run, exactly as before.
+      const KNOWN38 = [];
       const uniq38 = [...new Set(offenders)];
       const fresh38 = uniq38.filter(o => !KNOWN38.some(k => o.indexOf(k) === 0));
       ok('238 not one celebrating remove flow writes without checking the answer',
          fresh38.length === 0, fresh38.slice(0, 6).join('  |  ') || 'none');
       ok('238 …and the list of ones we already know about only ever shrinks',
-         KNOWN38.length <= 2, KNOWN38.length + ' known-unguarded writes');
+         KNOWN38.length <= 0, KNOWN38.length + ' known-unguarded writes');
       KNOWN38.forEach(k => {
         ok('238 …' + k.split(' → ')[0] + ' is still the one we wrote down',
            uniq38.some(o => o.indexOf(k) === 0),
@@ -15811,6 +15820,123 @@ META_WRITES.length = 0; TOASTS.length = 0;
            /async function createPersonalSheet\(\)/.test(live(st)) &&
            /await initPersonalSheet\(state\.personalSheetId\)/.test(cps.slice(0, cps.indexOf('\n}') + 2)),
            'a fresh sheet would come out without its headers');
+      }
+    })();
+
+    // ═══════════════════════════════════════════════════════════
+    // §240. The two the rebuilt census found (v0.9.1292).
+    //
+    // §238's census is a general rule and will keep catching this shape
+    // forever, which is the real protection. This section is narrower and
+    // exists for a different reason: these two are the only writes in the app
+    // that were ever caught OVERWRITING or blanking a row belonging to someone
+    // else, and each has a specific thing that must stay true which no general
+    // rule can state — that contacts matches on the ID column and not the
+    // name, and that the wishlist row matches on the copy and not the model.
+    // Get either of those wrong and the census still passes while the guard
+    // compares the wrong cell.
+    // ═══════════════════════════════════════════════════════════
+    section('240. a delete checks the row is still yours');
+    await (async function () {
+      const p40 = require('path');
+      const rd40 = f => fs.readFileSync(p40.join(__dirname, '..', 'app', f), 'utf8');
+
+      // ── contacts ──────────────────────────────────────────────
+      {
+        const ct = rd40('contacts.js');
+        ok('240 the contacts delete goes through the guarded writer',
+           /rrVerifiedRowUpdate\(state\.personalSheetId, TAB, row,/.test(ct) &&
+           !/return sheetsUpdate\(state\.personalSheetId,\s*\n?\s*TAB \+ '!A'/.test(ct),
+           'contacts is blanking rows raw again');
+
+        // The whole fix turns on WHICH cell it compares. Column A is the
+        // Contact ID; column B is the Name, which a rename rewrites. Matching
+        // on the name would be worse than no guard: it would refuse to delete
+        // a contact you had just renamed, and happily delete the wrong one
+        // when two people share a name.
+        ok('240 …matching on the Contact ID, which a rename never touches',
+           /\{ num: expectId \|\| '' \}/.test(ct) &&
+           /_ctBlankRow\(row, c && c\.id\)/.test(ct),
+           'the guard is comparing something other than the id');
+        ok('240 …and column A really is the Contact ID',
+           /var HEADERS = \['Contact ID', 'Name'/.test(ct),
+           'the headers moved — the guard is now reading whatever is in A');
+        ok('240 …and the ID is assigned once, not regenerated on save',
+           /var id = c\.id \|\| \('C-' \+ Date\.now\(\)\)/.test(ct),
+           'if save mints a new id each time, the guard blocks every delete');
+
+        // both screens, and neither claims success on a refusal
+        const calls = ct.match(/if \(!\(await _ctBlankRow\(row, c && c\.id\)\)\) return;/g) || [];
+        ok('240 …on both the list card and the edit modal',
+           calls.length === 2, calls.length + ' guarded call sites, expected 2');
+        // "Contact deleted" must never appear before the guard has answered.
+        ct.split('\n').forEach((line, i) => {
+          if (!/showToast\('Contact deleted'\)/.test(line)) return;
+          const before = ct.split('\n').slice(Math.max(0, i - 6), i).join('\n');
+          ok('240 …and "Contact deleted" only after the sheet agreed (line ' + (i + 1) + ')',
+             /if \(!\(await _ctBlankRow\(/.test(before),
+             'a success message sitting in front of its own check');
+        });
+      }
+
+      // ── the sold-item overwrite ───────────────────────────────
+      {
+        const ap = rd40('app-pages.js');
+        const i0 = ap.indexOf('async function _convertUpgradeToWantOnSell');
+        const fn = ap.slice(i0, ap.indexOf('\nif (typeof window !== \'undefined\') window._convertUpgradeToWantOnSell', i0));
+        ok('240 the upgrade-to-want rewrite is guarded',
+           /rrVerifiedRowUpdate\(state\.personalSheetId, 'Want-Upgrade List'/.test(fn) &&
+           !/await sheetsUpdate\(state\.personalSheetId,\s*\n?\s*'Want-Upgrade List!A'/.test(fn),
+           'the one write in this app that destroys data is unguarded again');
+
+        // This one MUST match on the copy, not the model. Two upgrade entries
+        // for the same catalogue number in different conditions is ordinary;
+        // matching on itemNum alone would let the write land on the wrong one.
+        ok('240 …on the Inventory ID of the copy sold, not just the item number',
+           /\{ num: ugEntry\.itemNum, invId: soldInventoryId \}/.test(fn),
+           'the guard identifies a model rather than a copy');
+        ok('240 …and Want-Upgrade List really carries that column',
+           /'Upgrading Inventory ID'/.test(rd40('sheets.js')) ||
+           /'Upgrading Inventory ID'/.test(rd40('config.js')),
+           'the identity column the guard leans on is not there');
+
+        // Both of these read the span BETWEEN the guard and the thing being
+        // guarded, not the whole function. The first draft asked whether a
+        // `return;` appeared anywhere before the state change — and the drill
+        // that deleted the guard's return still passed, because the function
+        // opens with `if (!soldInventoryId) return;` and that satisfied it.
+        // An assertion that can be satisfied by an unrelated line somewhere
+        // else in the function is not testing what its name says.
+        const guarded = fn.slice(fn.indexOf("'upgrade list')))"),
+                                 fn.indexOf('delete state.upgradeData[ugKey]'));
+        ok('240 …and a refusal leaves the entry alone rather than half-moved',
+           /\breturn;/.test(guarded),
+           'state is mutated before the write is known to have landed');
+        ok('240 …and never claims the move happened',
+           fn.indexOf("showToast('Upgrade entry moved") > fn.indexOf('delete state.upgradeData[ugKey]') &&
+           /\breturn;/.test(guarded),
+           'the success toast is reachable on a refused write');
+
+        // The sale succeeded. A failed cleanup is leftover work, not a failed
+        // sale, and it used to be told to nobody at all.
+        ok('240 …while a thrown write is said out loud, not left in the console',
+           /console\.warn\('\[Upgrade->Want convert\] failed:'/.test(fn) &&
+           /showToast\('Sold\. Your upgrade entry for '/.test(fn),
+           'a silent failure is back — sold, wishlist wrong, nothing on screen');
+        ok('240 …leading with the sale, and naming what is left to do',
+           /showToast\('Sold\. Your upgrade entry for ' \+ \(ugEntry\.itemNum \|\| 'this item'\) \+\s*\n?\s*' is still on the Want-Upgrade list/.test(fn),
+           'the message no longer says what landed and what did not');
+      }
+
+      // ── and the general rule that keeps finding these ─────────
+      // §238's KNOWN38 is empty as of v0.9.1292. That is the assertion worth
+      // making here, because it is the one that says these were the LAST two,
+      // not merely two that got fixed.
+      {
+        const t = fs.readFileSync(__filename, 'utf8');
+        ok('240 …and the census is carrying no known-unguarded writes at all',
+           /const KNOWN38 = \[\];/.test(t),
+           'something was added back to the excused list — read the entry, not this line');
       }
     })();
 

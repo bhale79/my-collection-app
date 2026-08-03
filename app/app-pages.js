@@ -2191,9 +2191,33 @@ async function _convertUpgradeToWantOnSell(soldInventoryId) {
     ugEntry.notes || '',
     ugEntry.manufacturer || 'Lionel',
   ];
+  // v0.9.1292 (audit R3-3): this was the worst of the family and the last one
+  // found, because the rebuilt census had to see into a helper to find it.
+  //
+  // Every other bug in this batch FAILS TO DELETE something — annoying, self-
+  // healing on the next load. This one OVERWRITES. It wrote nine columns at a
+  // remembered row number without checking that row was still this upgrade
+  // entry. Add or remove a wishlist item on another device and every row below
+  // it shifts; sell something here and this lands on top of a DIFFERENT
+  // want/upgrade entry, which is then gone with nothing to recover it from —
+  // and then says "Upgrade entry moved to Want list", so there is not even a
+  // reason to go and look.
+  //
+  // The Want-Upgrade List carries 'Upgrading Inventory ID' in column G, and
+  // that is the value we matched on to find this entry in the first place, so
+  // the guard costs nothing to supply: it identifies the one copy, not the
+  // model. rrVerifiedRowUpdate refuses and warns if the row moved.
   try {
-    await sheetsUpdate(state.personalSheetId,
-      'Want-Upgrade List!A' + ugEntry.row + ':I' + ugEntry.row, [wuRow]);
+    if (!(await rrVerifiedRowUpdate(state.personalSheetId, 'Want-Upgrade List',
+          ugEntry.row, 'Want-Upgrade List!A' + ugEntry.row + ':I' + ugEntry.row,
+          [wuRow], { num: ugEntry.itemNum, invId: soldInventoryId },
+          'upgrade list'))) {
+      // Refused: the row is somebody else's now, nothing was written, and the
+      // user has already been told. Leave state alone — the entry stays an
+      // Upgrade here because it is still an Upgrade in the sheet, and the next
+      // load will bring the truth back either way.
+      return;
+    }
     // Update state: remove from upgradeData, add to wantData
     delete state.upgradeData[ugKey];
     if (!state.wantData) state.wantData = {};
@@ -2214,7 +2238,19 @@ async function _convertUpgradeToWantOnSell(soldInventoryId) {
     }
     if (typeof _cachePersonalData === 'function') _cachePersonalData();
   } catch (e) {
+    // v0.9.1292: this used to go to the console and nowhere else, so a failed
+    // conversion was completely silent — the item was sold, the wishlist entry
+    // still said "Upgrading" the copy you no longer own, and nothing on screen
+    // had suggested anything went wrong.
+    //
+    // The sale landed. That is the headline and it stays the headline; this is
+    // named as leftover work, not dressed up as a failure of the sale.
     console.warn('[Upgrade->Want convert] failed:', e && e.message);
+    if (typeof showToast === 'function') {
+      showToast('Sold. Your upgrade entry for ' + (ugEntry.itemNum || 'this item') +
+                ' is still on the Want-Upgrade list — open it and switch it to Want.',
+                6000, true);
+    }
   }
 }
 if (typeof window !== 'undefined') window._convertUpgradeToWantOnSell = _convertUpgradeToWantOnSell;
