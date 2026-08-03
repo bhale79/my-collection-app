@@ -4851,8 +4851,10 @@ META_WRITES.length = 0; TOASTS.length = 0;
        /Array\.isArray\(_prevRead\.rejected\)/.test(code));
     ok('...and survives a re-scan that found nothing',
        /if \(_rejected\.length\) \{ m\[fid\] = Object\.assign/.test(code));
+    // v0.9.1277: the same chokepoint now also RECORDS what it silenced, so
+    // the disclosure can name it. Same rule, one extra memory.
     ok('the filter happens at the CANDIDATE stage — one rule, every path',
-       /if \(_isRejected\(c\)\) return false;/.test(code));
+       /if \(_isRejected\(c\)\) \{ if \(_rejSeen\.indexOf\(c\) < 0\) _rejSeen\.push\(c\); return false; \}/.test(code));
 
     (function () {
       const M = new Map();
@@ -10301,11 +10303,11 @@ META_WRITES.length = 0; TOASTS.length = 0;
        /'\.\/write-outbox\.js'/.test(rd('app/sw.js')));
 
     section('199h. The version trio moved together');
-    ok('APP_VERSION is v0.9.1276', /const APP_VERSION = 'v0\.9\.1276';/.test(cfg));
+    ok('APP_VERSION is v0.9.1277', /const APP_VERSION = 'v0\.9\.1277';/.test(cfg));
     ok('every ?v= mark in app/index.html matches it',
-       (idx.match(/\?v=1276/g) || []).length === 69 && !/\?v=1275/.test(idx),
-       String((idx.match(/\?v=1276/g) || []).length));
-    ok('the service worker cache name moved too', /const CACHE_NAME = 'mca-v1286';/.test(rd('app/sw.js')));
+       (idx.match(/\?v=1277/g) || []).length === 69 && !/\?v=1276/.test(idx),
+       String((idx.match(/\?v=1277/g) || []).length));
+    ok('the service worker cache name moved too', /const CACHE_NAME = 'mca-v1287';/.test(rd('app/sw.js')));
     // v0.9.1276 (R9): the ?v= count above cannot see a NEW local <script>
     // added with no stamp at all — 69 stamped plus one bare is still 69, and
     // the bare one dodges the cache-busting the stamp exists for: it would be
@@ -14213,6 +14215,94 @@ META_WRITES.length = 0; TOASTS.length = 0;
       ok('226 the pre-1057 era key is cleared, not just unused',
          /localStorage\.removeItem\('rr_capture_home_era'\)/.test(pin26) &&
          !/_PIN_HOME_KEY/.test(pin26.replace(/\/\/[^\n]*/g, '')));
+    })();
+
+    // ═══════════════════════════════════════════════════════════
+    // §227. v0.9.1277 — a rejection must be visible, and never louder
+    //   than the car itself.
+    //
+    //   Brad's 6561 cable reel car — "6561 LIONEL LINES 6561" stamped in
+    //   plain sight, read twice — came back "1656 — 0-4-0 Steam
+    //   Locomotive", an anagram of the same digits, asserted as fact. The
+    //   decision logic was innocent: v0.9.1168's reject list (his own good
+    //   rule — "don't give me the same answer if I told you it was wrong")
+    //   had at some point swallowed 6561 itself, invisibly and forever.
+    //   Blinded to the strongest read in the photo, the window machinery
+    //   assembled a confident wrong answer from the leftovers.
+    //
+    //   These tests run the REAL _numberFromText against the REAL raw text
+    //   from his screenshot — no paraphrase — under both conditions, plus
+    //   the UI that now confesses the marks and offers the way back.
+    // ═══════════════════════════════════════════════════════════
+    section('227. A rejection is visible, and never louder than the car');
+    (function () {
+      const p27 = require('path');
+      const pin27 = fs.readFileSync(p27.join(__dirname, '..', 'app', 'photo-inbox.js'), 'utf8');
+
+      // ── lift the real scorer with a mini catalog ─────────────────────
+      const a27 = pin27.indexOf('  function _numberFromText(text, prefer) {');
+      const b27 = pin27.indexOf('\n  }\n', a27);
+      const CAT27 = {
+        '6561': { itemNum: '6561', description: 'Depressed-Center Flatcar with Cable Reels', _era: 'pw', _tab: 'Lionel PW - Items' },
+        '1656': { itemNum: '1656', description: '0-4-0 Steam Locomotive', _era: 'pw', _tab: 'Lionel PW - Items' },
+        '6176': { itemNum: '6176', description: 'Hopper Car', _era: 'pw', _tab: 'Lionel PW - Items' },
+        '65':   { itemNum: '65', description: 'Handcar', _era: 'pw', _tab: 'Lionel PW - Items' },
+        '77':   { itemNum: '77', description: 'Crossing Gate', _era: 'pw', _tab: 'Lionel PW - Items' },
+        '58':   { itemNum: '58', description: 'Rotary Snow Plow', _era: 'pw', _tab: 'Lionel PW - Items' },
+      };
+      const scorer = new Function('findMaster', '_pinIsSetRow', '_prefEras', '_manufacturerOfEra', '_pinQuoteMatch',
+        pin27.slice(a27, b27 + 4) + '\n return _numberFromText;')(
+          (c) => CAT27[String(c)] || null, () => false,
+          (p) => (p && p.era) ? [p.era] : [], () => 'lionel', () => null);
+      // The exact pooled text from Brad's 2026-08-03 screenshot.
+      const TEXT27 = 'Q 4 D V NN 3 A - ZN N TA J AW N 5 E - LE NY A - SS 4 2 SE EER YY LA - NE TF 6561 LIONEL LINES 6561 A 7 5 2 - L 1 V PP 7 P 7 S 4 ES F SS 1 3 PT BY 2 AL BE N 7 CD V4 S77 N A ETT PRLS'
+        + ' - - - 6561 6561 - - 6561 4 5 TE 2 P YE TT 7 6561 LN LINS T65 T V4 RRR 4 3 T- 7 58 7 4 - 4 4 2 - 2 4 - 9 6561765 1 - 6176561 6561765 2 6176';
+
+      const clean = scorer(TEXT27, { era: 'pw', manufacturer: 'lionel', reject: [] });
+      ok('227 unmarked, the car wins: 6561, stated as fact, via the maker’s name',
+         clean && clean.num === '6561' && clean.matched === true && clean.dbg.viaMaker === '6561',
+         JSON.stringify({ num: clean && clean.num, matched: clean && clean.matched }));
+
+      const blind = scorer(TEXT27, { era: 'pw', manufacturer: 'lionel', reject: ['6561', '6176'] });
+      ok('227 with the true number marked wrong, the anagram is a GUESS, never a fact',
+         blind && blind.num === '1656' && blind.matched === false,
+         JSON.stringify({ num: blind && blind.num, matched: blind && blind.matched }));
+      ok('227 …and the read says what the car itself reads, by name',
+         blind && blind.dbg && blind.dbg.rejectedStrong === '6561',
+         'dbg.rejectedStrong = ' + (blind && blind.dbg && blind.dbg.rejectedStrong));
+      ok('227 …and every read carries the mark list, so exclusion is never silent',
+         blind && blind.dbg && (blind.dbg.rejectedList || []).join(',') === '6561,6176' &&
+         clean.dbg && (clean.dbg.rejectedList || []).length === 0);
+
+      // ── the plain-English bullets say it too ─────────────────────────
+      {
+        const c27 = pin27.indexOf('  function _pinPlainWhy(dbg, raw) {');
+        const d27 = pin27.indexOf('\n  }\n', c27);
+        const plainWhy = new Function('_pinEraLabel',
+          pin27.slice(c27, d27 + 4) + '\n return _pinPlainWhy;')((e) => 'Lionel Postwar');
+        const lines = plainWhy(blind.dbg, 'raw').join(' | ');
+        ok('227 the bullets name what was left out and why',
+           /Left out because you marked them wrong earlier: 6561, 6176/.test(lines), lines.slice(0, 160));
+        ok('227 …and point at the way back',
+           /the car itself reads 6561/.test(lines) && /Un-mark & re-scan/.test(lines));
+      }
+
+      // ── the way back exists and is wired ─────────────────────────────
+      ok('227 the disclosure offers an Un-mark & re-scan button',
+         /onclick="_pinUnreject\(\)"/.test(pin27) && /Excluded as marked-wrong:/.test(pin27));
+      ok('227 un-marking clears the list and re-scans, in that order',
+         /window\._pinUnreject = async function/.test(pin27) &&
+         (function () {
+           const u = pin27.indexOf('window._pinUnreject = async function');
+           const seg = pin27.slice(u, u + 700);
+           const del = seg.indexOf('delete m[fid].rejected');
+           const rescan = seg.indexOf('window._pinRescan()');
+           return del > 0 && rescan > del;
+         })(),
+         'the handler must delete the marks BEFORE re-scanning');
+      ok('227 …while the re-scan itself still records the refused answer (v0.9.1168 stays)',
+         /if (_rejected.indexOf(_rn) < 0) _rejected.push(_rn);/.test(pin27) ||
+         pin27.indexOf('_rejected.push(_rn)') > 0);
     })();
 
   })().then(function () {

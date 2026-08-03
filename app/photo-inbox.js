@@ -2493,6 +2493,10 @@
     if (dbg.noLetters) out.push('No lettering was legible, so ' + dbg.noLetters + ' was not trusted');
     if (dbg.shortSolo) out.push('Only three digits, seen once — offered, not asserted');
     if ((dbg.shortDropped || []).length) out.push('Too short to trust alone: ' + dbg.shortDropped.join(', '));
+    // v0.9.1277: rejections were doing their work invisibly — the right answer
+    // can be sitting on this list, and until now nothing on screen said so.
+    if ((dbg.rejectedList || []).length) out.push('Left out because you marked them wrong earlier: ' + dbg.rejectedList.slice(0, 4).join(', '));
+    if (dbg.rejectedStrong) out.push('But the car itself reads ' + dbg.rejectedStrong + ' — if that mark was a mistake, expand the details below and use Un-mark & re-scan');
     return out;
   }
   function _pinPlainWhyHtml(dbg, raw) {
@@ -2573,6 +2577,12 @@
                 + '— that can match the wrong maker\u2019s list, so it is only offered. '
                 + 'Tag the photo and re-read for a filtered answer.' : '')
             + (dbg.stampSaw ? '<br>The light-numbers pass saw: “' + rrEsc(dbg.stampSaw) + '”' : '')
+            + ((dbg.rejectedList && dbg.rejectedList.length)
+                ? '<br>Excluded as marked-wrong: ' + rrEsc(dbg.rejectedList.join(', '))
+                  + ' <button onclick="_pinUnreject()" style="margin-left:0.3rem;padding:0.1rem 0.5rem;border-radius:6px;border:1px solid var(--border);background:var(--bg-card);color:var(--text-mid);font-family:var(--font-body);font-size:0.68rem;cursor:pointer">Un-mark &amp; re-scan</button>' : '')
+            + (dbg.rejectedStrong
+                ? '<br>The maker\'s name is stamped beside ' + rrEsc(dbg.rejectedStrong)
+                  + ' — the strongest read in this photo, silenced by that mark' : '')
             + (dbg.evidence !== undefined
                 ? '<br>Readable characters recovered: ' + dbg.evidence
                   + (dbg.evidence < 18 ? ' \u2014 too few to be sure of anything' : '')
@@ -4134,6 +4144,11 @@
     var _isRejected = function (c) {
       return _rejectSet.length > 0 && _rejectSet.indexOf(_rejN(c)) >= 0;
     };
+    // v0.9.1277 (Brad's 6561 read as 1656): remember WHICH direct tokens the
+    // reject list silenced. If one of them turns out to be stamped beside the
+    // maker's own name, the human needs to hear that before any
+    // reconstruction gets asserted in its place.
+    var _rejSeen = [];
 
     // v0.9.959 (Brad): a 4-digit number sitting next to a © or a copyright
     // holder is a YEAR, not the catalog number — the Thomas box's "© 2012
@@ -4235,7 +4250,7 @@
         if (banned[c]) return false;                            // copyright year, not a catalog number
         if (isBuildDate(c)) return false;                       // "BLT 5-54" — a date, not an item
         if (capStamp[c.replace(/\D/g, '')]) return false;        // "CAPY 40200" — a weight, not an item
-        if (_isRejected(c)) return false;                        // the user already said this is wrong
+        if (_isRejected(c)) { if (_rejSeen.indexOf(c) < 0) _rejSeen.push(c); return false; }   // the user already said this is wrong
         // v0.9.1071: the weight block on a freight car reads CAPY 103000,
         // LD LMT 129300, LT WT 40200 — and OCR garbles those labels often
         // enough that keyword matching alone misses them. No Lionel catalog
@@ -4422,6 +4437,10 @@
       offEra: [],
       joined: '',
       viaMaker: '',
+      // v0.9.1277: the marks are invisible nowhere now — every read narrates
+      // what the user has excluded, because a silent exclusion of the RIGHT
+      // answer reads exactly like a wrong reader.
+      rejectedList: ((prefer && prefer.reject) || []).slice(0, 6),
     };
     uniq.slice(0, 8).forEach(function (c) {
       var any = fmAny ? fmAny(c) : null;
@@ -4690,6 +4709,21 @@
       return { num: '', matched: false, dbg: dbg };
     }
     if (direct || jHit) {
+      // v0.9.1277 (Brad's 6561 cable reel car asserted as "1656 — 0-4-0 Steam
+      // Locomotive"): the reject list had swallowed 6561 — the number stamped
+      // TWICE beside LIONEL LINES, the strongest read in the photo — and the
+      // window machinery then assembled 1656, an anagram of those same digits,
+      // and stated it as fact. A reconstruction must never be asserted while a
+      // maker-named direct read sits silenced on the reject list. Offer it as
+      // a guess, and say out loud what the car itself reads.
+      var _rejStrong = '';
+      for (var _ri = 0; _ri < _rejSeen.length; _ri++) {
+        if (namedByMaker[_rejSeen[_ri]]) { _rejStrong = _rejSeen[_ri]; break; }
+      }
+      if (_rejStrong && !direct && !dbg.viaMaker && jHit) {
+        dbg.rejectedStrong = _rejStrong;
+        return { num: jHit, matched: false, alts: [String(jHit)], dbg: dbg };
+      }
       // Order of authority: what the maker stamped next to its own name, then
       // the more specific of a joined reconstruction and a direct hit. Length
       // only ever breaks a tie between those last two — it is meaningless
@@ -5768,6 +5802,24 @@
     return null;
   };
   // "This is wrong — re-scan": forget the read and try again at higher detail.
+  // v0.9.1277 — the way back from a mistaken "this is wrong". Rejections
+  // accumulate on the photo forever and, until now, invisibly: mark the RIGHT
+  // number wrong once and every future free read is blind to it (Brad's 6561
+  // came back as its own anagram, 1656, for exactly this reason). The
+  // disclosure names the marks; this clears them and re-scans fresh. The
+  // re-scan itself still records the CURRENT answer as rejected — that rule
+  // (v0.9.1168) is Brad's and it stays — so un-marking never re-offers the
+  // answer the user is looking at right now.
+  window._pinUnreject = async function () {
+    if (!_rvGroups || !_rvGroups.length) return;
+    var fid = _pinOnScreenFid() || _rvGroups[0].files[0].id;
+    try {
+      var m = _ids();
+      if (m[fid] && m[fid].rejected) { delete m[fid].rejected; _idsSave(m); }
+    } catch (e) {}
+    return window._pinRescan();
+  };
+
   window._pinRescan = async function () {
     if (!_rvGroups || !_rvGroups.length) return;
     // v0.9.1074: this read files[0] directly. Since v0.9.1061 every OTHER read
