@@ -17042,6 +17042,99 @@ META_WRITES.length = 0; TOASTS.length = 0;
          /_rvOrderKeys = null;\s+\/\/ v0\.9\.1307/.test(pin56));
     })();
 
+    // ═══════════════════════════════════════════════════════════
+    // §257. v0.9.1308 — Companion Suggester: Brad's three reports.
+    //
+    //   1. "it should say you have a 'xxxx' which normally goes with a
+    //      'xxxxx' that you don't have."
+    //   2. "i have the 218-p paired with a 218-d unit. so i shouldn't
+    //      need a companion for that."
+    //   3. "i don't have the navy alco at all, but i have a 224 steam
+    //      engine" — number-only ownership crossing two different items.
+    //   The REAL runCompanionSuggester runs here, end to end, over
+    //   Brad's exact scenarios.
+    // ═══════════════════════════════════════════════════════════
+    section('257. Companion Suggester: named triggers, AA upsell, 224 collision');
+    await (async function () {
+      const p57 = require('path');
+      const tl57 = fs.readFileSync(p57.join(__dirname, '..', 'app', 'tools.js'), 'utf8');
+      const MASTERS = [
+        { itemNum: '224', variation: '3', itemType: 'Steam Locomotive', description: '2-6-2 Steam Locomotive', roadName: '' },
+        { itemNum: '224', variation: '1', itemType: 'Alco A Unit', description: 'U.S. Navy Alco AA Units', roadName: 'U.S. Navy' },
+        { itemNum: '224C', variation: '1', itemType: 'Alco B Unit', description: 'U.S. Navy Alco B Unit', roadName: 'U.S. Navy', unit: 'B' },
+        { itemNum: '218-P', variation: '1', itemType: 'Alco A Unit', description: 'Santa Fe Alco A Powered', roadName: 'Santa Fe' },
+        { itemNum: '218-D', variation: '1', itemType: 'Alco A Unit', description: 'Santa Fe Alco A Dummy', roadName: 'Santa Fe' },
+        { itemNum: '218C', variation: '1', itemType: 'Alco B Unit', description: 'Santa Fe Alco B Unit', roadName: 'Santa Fe', unit: 'B' },
+        { itemNum: '2026', variation: '1', itemType: 'Steam Locomotive', description: '2-6-2 Steam Locomotive', roadName: '' },
+        { itemNum: '6466WX', variation: '1', itemType: 'Tender', description: 'Whistle Tender', roadName: '' },
+      ];
+      const COMPANIONS = [
+        { engineNum: '224', companionNum: '224C', companionType: 'B Unit' },
+        { engineNum: '218', companionNum: '218C', companionType: 'B Unit' },
+        { engineNum: '2026', companionNum: '6466WX', companionType: 'Tender' },
+      ];
+      function mkRun(personal) {
+        const out = { innerHTML: '' };
+        const env = {
+          window: {},
+          document: { getElementById: (id) => (id === 'companion-suggester-results' ? out : null) },
+          localStorage: { getItem: () => null, setItem: () => {}, removeItem: () => {} },
+          showToast: () => {},
+          rrEsc: (s) => String(s == null ? '' : s),
+          isTender: (n) => /6466/.test(String(n)),
+          findMaster: (n, v) => MASTERS.find((m) => m.itemNum === String(n) && (!v || m.variation === String(v))) || null,
+          sheetsGet: async () => ({ values: [] }),
+          parseCompanionRows: () => {},
+          SHEET_TABS: { companions: 'Lionel PW - Companions' },
+          state: {
+            companionData: COMPANIONS.slice(),
+            masterData: MASTERS.slice(),
+            personalData: personal,
+            wantData: {},
+            masterSheetId: 'x',
+          },
+        };
+        env.window.state = env.state;
+        const f0 = tl57.indexOf('async function runCompanionSuggester()');
+        const f1 = tl57.indexOf('async function companionAddToWantList');
+        const run = new Function(
+          'window', 'document', 'localStorage', 'showToast', 'rrEsc', 'isTender', 'findMaster', 'sheetsGet', 'parseCompanionRows', 'SHEET_TABS', 'state',
+          tl57.slice(f0, f1) + ' return runCompanionSuggester;')(
+          env.window, env.document, env.localStorage, env.showToast, env.rrEsc, env.isTender, env.findMaster, env.sheetsGet, env.parseCompanionRows, env.SHEET_TABS, env.state);
+        return run().then(() => out.innerHTML);
+      }
+      // ── Brad's collection: steam 224, the 218 AA pair, a 2026 with no tender ──
+      const html = await mkRun({
+        a: { inventoryId: 'a', owned: true, itemNum: '224', variation: '3' },
+        b: { inventoryId: 'b', owned: true, itemNum: '218-P', variation: '1' },
+        c: { inventoryId: 'c', owned: true, itemNum: '218-D', variation: '1' },
+        d: { inventoryId: 'd', owned: true, itemNum: '2026', variation: '1' },
+      });
+      ok('257 the steam 224 no longer triggers the Navy Alco\'s B unit',
+         !/224C/.test(html), /224C/.test(html) ? 'still suggests 224C' : '');
+      ok('257 the 218 AA pair sees its B unit as OPTIONAL, never a gap',
+         /218C/.test(html) && /also sold as AB/.test(html) && /optional extra — you have the complete AA pair/.test(html));
+      ok('257 a real gap still reads as one: 2026 normally goes with the 6466WX',
+         /You have a <strong>2026<\/strong>/.test(html) && /normally goes with the/.test(html) &&
+         /6466WX/.test(html) && /don’t have it/.test(html));
+      ok('257 the trigger header names the owned COPY, not the catalog anchor',
+         /You have a <strong>218-P<\/strong>/.test(html) && /Santa Fe · Alco A Unit/.test(html) &&
+         /Steam Locomotive/.test(html));   // the 2026 header carries its own type too
+      // ── the same number owned as the ACTUAL Navy Alco still suggests ──
+      const html2 = await mkRun({
+        a: { inventoryId: 'a', owned: true, itemNum: '224', variation: '1' },
+      });
+      ok('257 a real Navy Alco 224 owner still gets the 224C suggestion',
+         /224C/.test(html2) && /U\.S\. Navy/.test(html2));
+      ok('257 and its header names the Alco, not the steam row',
+         /Alco A Unit/.test(html2) && !/Steam/.test(html2));
+      // ── wiring: only a positive family CONFLICT blocks ──
+      ok('257 an unknown family never blocks — only steam-vs-diesel conflicts do',
+         /if \(r === 'B UNIT' \|\| r === 'A UNIT'\) return ownedFamily === 'steam' \|\| ownedFamily === 'tender';/.test(tl57) &&
+         /if \(r === 'TENDER' \|\| r === 'ENGINE'\) return ownedFamily === 'diesel';/.test(tl57) &&
+         /return false;   \/\/ AA-scan suffixed items carry their own evidence/.test(tl57));
+    })();
+
   })().then(function () {
     console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
     process.exit(fail ? 1 : 0);

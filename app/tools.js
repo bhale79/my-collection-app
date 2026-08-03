@@ -718,6 +718,55 @@ async function runCompanionSuggester() {
   var wantedKeys = new Set(
     Object.keys(state.wantData).map(function(k) { return _ccCanon(k.split('|')[0]).key; })
   );
+
+  // ══ v0.9.1308 (Brad's 224): a catalog number is a MODEL, not an identity ══
+  // "i also don't have the navy alco at all, but i have a 224 steam engine so
+  //  i think there is an issue with that." The Companions row anchors the U.S.
+  // Navy ALCO 224; Brad's STEAM 224 satisfied a number-only ownership check
+  // and got told it needs the Alco's B unit. The owned copy's own master row
+  // knows what it is — resolve it (variation included) and classify.
+  function _ccFamily(m) {
+    if (!m) return '';
+    var t = norm((m.itemType || '') + ' ' + (m.subType || '') + ' ' + (m.description || ''));
+    if (/TENDER/.test(t)) return 'tender';
+    if (/STEAM|TURBINE|\b[024]-[468]-[024]\b/.test(t)) return 'steam';
+    if (/ALCO|DIESEL|EMD|F-?3\b|F-?7\b|GP-?\d|NW-?2|ELECTRIC|GG-?1|B UNIT|A UNIT|TRAINMASTER|RAIL DIESEL|BUDD/.test(t)) return 'diesel';
+    return '';
+  }
+  function _ccMasterOf(pd) {
+    try {
+      if (typeof findMaster === 'function') { var m = findMaster(pd.itemNum, pd.variation, pd); if (m) return m; }
+    } catch (e) {}
+    return (state.masterData || []).find(function (m) { return norm(m.itemNum) === norm(pd.itemNum); }) || null;
+  }
+  // What family must the OWNED anchor be, for this suggestion to make sense?
+  // Only a positive CONFLICT blocks — an unknown family never manufactures
+  // certainty either way.
+  function _ccConflicts(ownedFamily, missingType) {
+    var r = norm(missingType || '');
+    if (r === 'B UNIT' || r === 'A UNIT') return ownedFamily === 'steam' || ownedFamily === 'tender';
+    if (r === 'TENDER' || r === 'ENGINE') return ownedFamily === 'diesel';
+    return false;   // AA-scan suffixed items carry their own evidence
+  }
+  // Owned copies of an anchor number that are COMPATIBLE with the suggestion,
+  // each with its resolved master for the "you have a …" display.
+  function _ccOwnedTriggers(anchorNum, missingType) {
+    var aCanon = _ccCanon(anchorNum);
+    var trigs = [];
+    Object.values(state.personalData).forEach(function (pd) {
+      if (!pd.owned) return;
+      var c = _ccCanon(pd.itemNum);
+      var matches = (aCanon.unit === 'P')
+        ? (c.key === aCanon.key || c.key === aCanon.base)
+        : aCanon.unit ? (c.key === aCanon.key)
+        : (c.key === aCanon.key || (c.base === aCanon.base && (c.unit === 'P' || c.unit === '')));
+      if (!matches) return;
+      var m = _ccMasterOf(pd);
+      if (_ccConflicts(_ccFamily(m), missingType)) return;   // steam 224 ≠ Alco 224
+      trigs.push({ pd: pd, master: m });
+    });
+    return trigs;
+  }
   // Does an owned item GROUPED/MATCHED to the anchor already fill the role?
   // Role is judged STRUCTURALLY from the partner's own number/type — the old
   // roleMap only knew catalog spellings, so "217-P" never matched a role.
@@ -759,6 +808,14 @@ async function runCompanionSuggester() {
 
     if (!_ccOwned(ownedNum)) return;  // don't own the anchor item (bridge: 217 anchors match an owned 217-P)
 
+    // v0.9.1308: the owned copy must BE the kind of thing this pairing is
+    // about — a steam 224 cannot anchor the Navy Alco's B unit. If no owned
+    // copy is compatible, there is no suggestion; the first compatible copy
+    // becomes the named trigger ("You have a …").
+    var _trigs = _ccOwnedTriggers(ownedNum, missingType);
+    if (!_trigs.length) return;
+    var _trig = _trigs[0];
+
     // For same-item-number pairs, check B unit ownership specifically
     if (ownedKey === missingKey) {
       var ownsBUnit = Object.values(state.personalData).some(function(pd) {
@@ -777,11 +834,22 @@ async function runCompanionSuggester() {
     // Already grouped/matched with an owned partner that fills this role -> not missing.
     if (_hasGroupedCompanion(ownedKey, missingType)) return;
 
-    if (!suggestMap[ownedKey]) suggestMap[ownedKey] = { ownedNum: ownedNum, suggestions: [] };
+    // v0.9.1308 (Brad's 218): "i have the 218-p paired with a 218-d unit. so
+    // i shouldn't need a companion for that." Greenberg lists 218 as sold BOTH
+    // ways — AA and AB. To an owner of the complete AA pair, the B unit is not
+    // a gap, it is the OTHER configuration: shown, but labelled an optional
+    // extra, never "missing".
+    var _aaUpsell = norm(missingType) === 'B UNIT'
+      && ownedExact.has(_ccCanon(ownedNum).base + 'D')
+      && ownedPoweredBases.has(_ccCanon(ownedNum).base);
+
+    if (!suggestMap[ownedKey]) suggestMap[ownedKey] = { ownedNum: ownedNum, suggestions: [], trig: _trig };
     suggestMap[ownedKey].suggestions.push({
       companionNum:  missingNum,
       companionType: missingType,
       alreadyWanted: wantedKeys.has(_ccCanon(missingNum).key),
+      upsell: _aaUpsell,
+      trigNum: _trig.pd.itemNum,
     });
   }
 
@@ -835,15 +903,19 @@ async function runCompanionSuggester() {
     return (a.ownedNum || '').localeCompare(b.ownedNum || '');
   });
 
-  var html = '<div style="font-size:0.82rem;color:var(--text-dim);margin-bottom:0.75rem">' + items.length + ' item' + (items.length > 1 ? 's' : '') + ' with missing companions:</div>';
+  var html = '<div style="font-size:0.82rem;color:var(--text-dim);margin-bottom:0.75rem">' + items.length + ' item' + (items.length > 1 ? 's' : '') + ' with companion suggestions:</div>';
 
   items.forEach(function(e, idx) {
-    // Get road name from master data
-    var masterEntry = state.masterData && state.masterData.find(function(m) {
-      return norm(m.itemNum) === norm(e.ownedNum);
-    });
-    var roadName = masterEntry ? (masterEntry.roadName || '') : '';
-    var itemLabel = '<strong>' + e.ownedNum + '</strong>' + (roadName ? ' <span style="color:var(--text-dim);font-size:0.8rem">· ' + roadName + '</span>' : '');
+    // v0.9.1308: the header names the owned TRIGGER from its own resolved
+    // master row — the old number-only first-find would have captioned
+    // Brad's steam 224 with the Navy Alco's road name (the very collision
+    // this build fixes).
+    var _tm = e.trig && e.trig.master;
+    var _tBits = [];
+    if (_tm && _tm.roadName) _tBits.push(_tm.roadName);
+    if (_tm && _tm.itemType) _tBits.push(_tm.itemType);
+    var itemLabel = 'You have a <strong>' + rrEsc(e.trig ? e.trig.pd.itemNum : e.ownedNum) + '</strong>'
+      + (_tBits.length ? ' <span style="color:var(--text-dim);font-size:0.8rem">· ' + rrEsc(_tBits.join(' · ')) + '</span>' : '');
 
     html += '<div class="tools-result-row" style="flex-direction:column;align-items:flex-start;gap:0.5rem" id="comp-engine-' + idx + '">' +
       '<div style="font-size:0.88rem;color:var(--text);display:flex;align-items:center;gap:0.5rem">' +
@@ -875,10 +947,17 @@ async function runCompanionSuggester() {
       else if (s.companionType === 'Engine')      { typeLabel = 'Engine';         typeColor = '#d4a843'; }
       else                                        { typeLabel = 'Tender';         typeColor = '#0891b2'; }
 
-      html += '<div style="display:flex;align-items:center;gap:0.6rem;padding:0.35rem 0.5rem;background:var(--surface);border-radius:7px;width:100%;box-sizing:border-box">' +
+      // v0.9.1308 (Brad): "it should say you have a 'xxxx' which normally
+      // goes with a 'xxxxx' that you don't have." And the AA-pair owner's
+      // B unit reads as the optional OTHER configuration, never a gap.
+      var _lead = s.upsell ? 'also sold as AB with the' : 'normally goes with the';
+      html += '<div style="display:flex;align-items:center;gap:0.6rem;padding:0.35rem 0.5rem;background:var(--surface);border-radius:7px;width:100%;box-sizing:border-box' + (s.upsell ? ';opacity:0.85' : '') + '">' +
+        '<span style="font-size:0.75rem;color:var(--text-dim);flex-shrink:0">' + _lead + '</span>' +
         '<span style="font-family:var(--font-mono);font-size:0.85rem;color:var(--text)">' + s.companionNum + '</span>' +
         '<span style="font-size:0.75rem;color:' + typeColor + ';border:1px solid ' + typeColor + ';border-radius:4px;padding:0.1rem 0.4rem;flex-shrink:0">' + typeLabel + '</span>' +
-        (compDesc ? '<span style="font-size:0.78rem;color:var(--text-dim);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + compDesc + '</span>' : '<span style="flex:1"></span>') +
+        (s.upsell
+          ? '<span style="font-size:0.73rem;color:var(--text-dim);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">optional extra — you have the complete AA pair</span>'
+          : (compDesc ? '<span style="font-size:0.78rem;color:var(--text-dim);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + compDesc + ' — you don’t have it</span>' : '<span style="font-size:0.78rem;color:var(--text-dim);flex:1">you don’t have it</span>')) +
         (s.alreadyWanted
           ? '<span style="font-size:0.75rem;color:var(--gold);white-space:nowrap;flex-shrink:0">★ On want list</span>'
           : '<button onclick="companionAddToWantList(&apos;' + s.companionNum + '&apos;,' + idx + ',' + sIdx + ')" style="margin-left:auto;padding:0.25rem 0.6rem;border-radius:6px;border:1px solid var(--gold);background:var(--bg-card);background:color-mix(in srgb, rgb(212,168,67) 8%, var(--bg-card));color:var(--gold);font-family:var(--font-body);font-size:0.75rem;cursor:pointer;white-space:nowrap;flex-shrink:0">+ Want List</button>'
