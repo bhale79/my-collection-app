@@ -3443,6 +3443,76 @@ META_WRITES.length = 0; TOASTS.length = 0;
     ok('it excludes app.css palette scopes — a palette MUST hold real values',
        now['app.css'] < 260);
 
+    // ── v0.9.1293: the counter must be able to SEE the file ──────────
+    //
+    // For eight months this gate read source with a regex, and a regex
+    // cannot tell code from a string. `accept="image/*"` — in nine files —
+    // was read as the start of a comment; in app-pages.js it paired with a
+    // `*/` 2,335 lines later inside a regex literal and 146,363 characters
+    // went in the bin before counting. wizard.js reported 10 literals and
+    // had 243. "Within budget" meant almost nothing.
+    //
+    // These check the scanner on the exact shapes that broke it. Every one
+    // of them FAILS against the old regex stripper.
+    // NOTE the trailing real comment in each of these. That is the whole
+    // mechanism: the phantom `/*` inside the string needs a later `*/` to
+    // pair with before anything gets eaten. A probe without one passes
+    // against the broken stripper too, and proves nothing — which is
+    // exactly the mistake the first draft of this block made.
+    ok('128 a "/*" inside a STRING does not open a comment',
+       /#abcdef/.test(counter.stripComments(
+         'var a = "image/*"; var c = "#abcdef"; /* a real comment */', false)),
+       'this is the bug that hid 391 colours — the gate was reading 4% of wizard.js');
+    ok('128 …the same in a template literal',
+       /#abcdef/.test(counter.stripComments(
+         'var a = `image/*`; var c = "#abcdef"; /* a real comment */', false)));
+    ok('128 …and in CSS, where a string may also hold "/*"',
+       /#abcdef/.test(counter.stripComments(
+         'a{content:"/*"} b{color:#abcdef} /* a real comment */', true)));
+    ok('128 a colour inside a REGEX literal is not a hardcoded colour',
+       counter.stripComments('var re = /#abcdef/g; var x = 1;', false)
+         .match(/#[0-9a-f]{3,8}/gi) === null,
+       'a pattern that MATCHES a colour does not PAINT one');
+    ok('128 …but a division sign is not a regex, so code after it survives',
+       /#abcdef/.test(counter.stripComments('var r = w / 2; var c = "#abcdef";', false)));
+    ok('128 HTML comments do not count — they paint nothing',
+       counter.stripComments('<!-- #ff0000 -->', 'html').match(/#[0-9a-f]{3,8}/gi) === null);
+    ok('128 …while an inline style attribute right beside one still does',
+       /#abcdef/.test(counter.stripComments('<!-- x --><div style="color:#abcdef">', 'html')));
+    ok('128 …and an apostrophe in HTML prose is prose, not a string opener',
+       /#abcdef/.test(counter.stripComments("<p>don't</p><div style=\"color:#abcdef\">", 'html')));
+
+    // Eyesight, measured rather than assumed. wizard.js is the file the old
+    // stripper destroyed; if a future edit reintroduces swallowing, the
+    // surviving-character share collapses long before any count looks odd.
+    (function () {
+      const wz = fs.readFileSync(pR.join(__dirname, '..', 'app', 'wizard.js'), 'utf8');
+      const left = counter.stripComments(wz, false).length;
+      const share = left / wz.length;
+      ok('128 the counter still reads most of wizard.js (' +
+         Math.round(share * 100) + '% survives stripping)',
+         share > 0.6,
+         'the old regex stripper left 7% — a collapse here means source is ' +
+         'being swallowed again, and every count below is fiction');
+    })();
+
+    // The budget may only be raised through one door, and that door writes
+    // down why. A silent jump and a regression look identical otherwise.
+    ok('128 every raise in the budget file carries a stated reason',
+       Array.isArray(budget._rebaselines) &&
+       budget._rebaselines.every(function (r) {
+         return r && typeof r.reason === 'string' && r.reason.length >= 20 &&
+                Array.isArray(r.raised) && r.raised.length > 0 && r.date;
+       }),
+       'an unexplained budget raise is indistinguishable from a regression');
+    (function () {
+      const upd = fs.readFileSync(pR.join(__dirname, '..', 'tests', 'update-color-budget.js'), 'utf8');
+      ok('128 …and the regenerator still refuses to raise one without that flag',
+         /REBASELINE\s*\?\s*now\[f\]\s*:\s*before/.test(upd) &&
+         /REASON\.length\s*<\s*20/.test(upd),
+         'if raising becomes the default, the ratchet is decoration');
+    })();
+
     // Direction of travel: the total may only fall.
     const total = Object.keys(now).reduce(function (a, f) { return a + now[f]; }, 0);
     ok('the total is at or below the recorded budget total (' + total + ' vs ' + budget.total + ')',

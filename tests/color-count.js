@@ -21,17 +21,155 @@ const path = require('path');
 
 const COLOR_RE = /#[0-9a-f]{3,8}\b|rgba?\(\s*\d+\s*,\s*\d+\s*,\s*\d+/gi;
 
-// Strip comments before counting. A comment explaining a color fix
-// necessarily quotes colors — that has broken five separate assertions in
-// this suite's history, so it is handled once, here.
-function stripComments(src, isCss) {
-  let out = src.replace(/\/\*[\s\S]*?\*\//g, ' ');       // /* … */ (both langs)
-  if (!isCss) {
-    // Line comments, but NOT the "//" in a URL (https://…), which would
-    // eat the rest of a real line of code.
-    out = out.replace(/(^|[^:/])\/\/[^\n]*/g, '$1');
+// ── Removing comments (v0.9.1293: a scanner, not a regex) ───────────
+//
+// A comment explaining a color fix necessarily quotes colors, so comments
+// have to come out before counting. Until v0.9.1293 that was done with
+// `src.replace(/\/\*[\s\S]*?\*\//g, ' ')` — and a regex CANNOT TELL CODE
+// FROM A STRING. Nine files in this app contain `accept="image/*"`. The
+// `/*` inside that string was read as the start of a comment; it paired
+// with the next `*/` in the file, which in app-pages.js was 2,335 lines
+// later inside a regex literal, and 146,363 characters were thrown away
+// before counting. wizard.js reported 10 color literals and truly had 243
+// — the gate was watching 4% of the file, and reporting "within budget".
+//
+// So this walks the source once, always knowing which of code / string /
+// template / regex / line-comment / block-comment it is standing in.
+// STRINGS ARE KEPT — most of this app's colors live in style strings, and
+// those are exactly what the rule is about. Comments and regex literals
+// are blanked.
+//
+// If a future check ever needs to read source, do it this way. Four
+// separate defects in this project have been the same mistake.
+
+function scanJs(src) {
+  let out = '', i = 0;
+  const n = src.length;
+  // The last non-space character already emitted. Decides whether a '/'
+  // opens a regex literal or is a division sign.
+  const prevSig = function () {
+    for (let k = out.length - 1; k >= 0; k--) {
+      if (!/\s/.test(out[k])) return out[k];
+    }
+    return '';
+  };
+  while (i < n) {
+    const c = src[i], d = src[i + 1];
+    if (c === '/' && d === '*') {                       // block comment
+      const e = src.indexOf('*/', i + 2);
+      i = (e < 0 ? n : e + 2);
+      out += ' ';
+      continue;
+    }
+    if (c === '/' && d === '/') {                       // line comment
+      while (i < n && src[i] !== '\n') i++;
+      out += '\n';                                      // keep line structure
+      continue;
+    }
+    if (c === '"' || c === "'" || c === '`') {          // string / template — KEPT
+      const q = c;
+      out += c; i++;
+      while (i < n && src[i] !== q) {
+        if (src[i] === '\\') { out += src[i]; i++; }
+        out += src[i]; i++;
+      }
+      out += (src[i] || ''); i++;
+      continue;
+    }
+    if (c === '/' && /[(,=:[!&|?{};+\-*%~^]|^$/.test(prevSig())) {
+      // A '/' in a position where a value may start is a regex literal.
+      let j = i + 1, inClass = false, closed = false;
+      for (; j < n; j++) {
+        const x = src[j];
+        if (x === '\\') { j++; continue; }
+        if (x === '[') inClass = true;
+        else if (x === ']') inClass = false;
+        else if (x === '/' && !inClass) { closed = true; break; }
+        else if (x === '\n') break;                     // regexes do not span lines
+      }
+      if (closed) {
+        out += ' ';
+        i = j + 1;
+        while (i < n && /[gimsuy]/.test(src[i])) i++;    // flags
+        continue;
+      }
+    }
+    out += c; i++;
   }
   return out;
+}
+
+// CSS has block comments only, and strings that may contain '/*'.
+function scanCss(src) {
+  let out = '', i = 0;
+  const n = src.length;
+  while (i < n) {
+    const c = src[i], d = src[i + 1];
+    if (c === '/' && d === '*') {
+      const e = src.indexOf('*/', i + 2);
+      i = (e < 0 ? n : e + 2);
+      out += ' ';
+      continue;
+    }
+    if (c === '"' || c === "'") {
+      const q = c;
+      out += c; i++;
+      while (i < n && src[i] !== q) {
+        if (src[i] === '\\') { out += src[i]; i++; }
+        out += src[i]; i++;
+      }
+      out += (src[i] || ''); i++;
+      continue;
+    }
+    out += c; i++;
+  }
+  return out;
+}
+
+// HTML's only comment syntax is <!-- -->. Its markup has no string
+// literals — an apostrophe in prose is prose — so attributes are left
+// exactly as written, which is where inline style colors live. Embedded
+// <script> and <style> bodies are handed to the right scanner.
+//
+// Before v0.9.1293 index.html was run through the JS stripper, which
+// meant <!-- --> comments were counted and '//' in markup could eat the
+// rest of a line.
+function scanHtml(src) {
+  let out = '', i = 0;
+  const n = src.length;
+  const lower = src.toLowerCase();
+  while (i < n) {
+    if (lower.startsWith('<!--', i)) {
+      const e = lower.indexOf('-->', i + 4);
+      i = (e < 0 ? n : e + 3);
+      out += ' ';
+      continue;
+    }
+    let tag = null;
+    if (lower.startsWith('<script', i)) tag = 'script';
+    else if (lower.startsWith('<style', i)) tag = 'style';
+    if (tag) {
+      const open = src.indexOf('>', i);
+      if (open < 0) { out += src[i]; i++; continue; }
+      const close = lower.indexOf('</' + tag, open + 1);
+      const bodyEnd = (close < 0 ? n : close);
+      out += src.slice(i, open + 1);
+      out += (tag === 'script' ? scanJs : scanCss)(src.slice(open + 1, bodyEnd));
+      i = bodyEnd;
+      continue;
+    }
+    out += src[i]; i++;
+  }
+  return out;
+}
+
+// Kept under its original name and its original call shape — the ratchet
+// in the suite calls stripComments(src, false) for JavaScript. `kind` may
+// be false/'js', true/'css', or 'html'.
+function stripComments(src, kind) {
+  if (kind === true || kind === 'css') return scanCss(src);
+  if (kind === 'html') return scanHtml(src);
+  return scanJs(src);
 }
 
 // The theme scopes in app.css. These blocks are the palette — their
@@ -55,10 +193,15 @@ const PALETTE_SCOPES = [
   /#rrap[^{]*\{[\s\S]*?\n\s*\}/g,
 ];
 
+function kindOf(absPath) {
+  if (/\.css$/i.test(absPath)) return 'css';
+  if (/\.html?$/i.test(absPath)) return 'html';
+  return 'js';
+}
+
 function countFile(absPath) {
   const src = fs.readFileSync(absPath, 'utf8');
-  const isCss = /\.css$/i.test(absPath);
-  let body = stripComments(src, isCss);
+  let body = stripComments(src, kindOf(absPath));
   if (path.basename(absPath) === 'app.css') {
     PALETTE_SCOPES.forEach(function (re) { body = body.replace(re, ' '); });
   }
@@ -82,7 +225,7 @@ function countAll(appDir) {
   return out;
 }
 
-module.exports = { countAll, countFile, targetFiles, stripComments };
+module.exports = { countAll, countFile, targetFiles, stripComments, scanJs, scanCss, scanHtml, kindOf };
 
 // ═══════════════════════════════════════════════════════════════
 // Run it directly:  node tests/color-count.js
