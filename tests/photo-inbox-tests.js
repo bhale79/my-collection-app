@@ -16172,6 +16172,52 @@ META_WRITES.length = 0; TOASTS.length = 0;
          pin42.indexOf('Excluded as marked-wrong:') < 0);
     })();
 
+    // ═══════════════════════════════════════════════════════════
+    // §243. v0.9.1295 — no Section chip on My Collection.
+    //
+    //   Brad: "the items and all types filters both have paper. if i
+    //   select items as paper, i get zero items. if i select paper under
+    //   all types i get the 9 items in my collection. seems like i need
+    //   to get rid of the items filter all together and just have the
+    //   last one"
+    //
+    //   The zero was structural: the section picker routes the OWNED view
+    //   into per-section collection tables, and the paper one reads
+    //   state.ephemeraData.paper — a bucket retired in v0.9.990. Typed
+    //   Paper rows live in personalData and are found by All Types and
+    //   the SHOW chips. So the Section chip is not rendered on My
+    //   Collection (where it duplicated working filters and opened onto
+    //   an empty store) and stays on the Master Catalog (where it picks
+    //   the catalog tab — its real job). The rendered-chip-row proof
+    //   lives in layout-check, which draws the row in both modes.
+    // ═══════════════════════════════════════════════════════════
+    section('243. No Section chip on My Collection — All Types is the filter');
+    (function () {
+      const p43 = require('path');
+      const br43 = fs.readFileSync(p43.join(__dirname, '..', 'app', 'browse.js'), 'utf8');
+
+      ok('243 the chip row drops the section level exactly when the view is owned',
+         /var _phOwned = !!\(typeof state !== 'undefined' && state && state\.filters && state\.filters\.owned\);/.test(br43) &&
+         /var levels = _phOwned \? \['manufacturer','scale','era'\] : \['manufacturer','scale','era','section'\];/.test(br43));
+      ok('243 …and the Type chip renders on My Collection regardless of stale section state',
+         /if \(st\.section === 'items' \|\| _phOwned\) \{/.test(br43));
+      // The guard that makes this safe: entering My Collection always lands on
+      // the items table, so hiding the section chip never strands a section view.
+      {
+        const f0 = br43.indexOf('function filterOwned(qe) {');
+        const f1 = br43.indexOf('function filterByType(');
+        const body = br43.slice(f0, f1);
+        ok('243 entering My Collection still resets the view to the items table',
+           f0 > 0 && /state\._browseTab = 'items';/.test(body) &&
+           /renderBrowseTab\('items'\)/.test(body),
+           'filterOwned no longer lands on items — hiding the chip would strand section views');
+      }
+      // The Master Catalog keeps its picker: the non-owned level list still
+      // names the section level.
+      ok('243 the Master Catalog keeps all four levels',
+         /\['manufacturer','scale','era','section'\]/.test(br43));
+    })();
+
   })().then(function () {
     console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
     process.exit(fail ? 1 : 0);

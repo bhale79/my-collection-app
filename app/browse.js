@@ -520,7 +520,25 @@ function _renderHierarchyChips() {
   var labelStyle = 'font-size:0.62rem;font-weight:700;letter-spacing:0.09em;'
                  + 'text-transform:uppercase;color:var(--text-dim);margin-right:0.15rem';
   var noteStyle = 'margin-left:auto;font-size:0.68rem;color:var(--text-dim);font-style:italic';
-  var levels = ['manufacturer','scale','era','section'];
+  // ══ v0.9.1295 (Brad): NO Section chip on My Collection. ═══════════════
+  // "the items and all types filters both have paper. if i select items as
+  //  paper, i get zero items. if i select paper under all types i get the 9
+  //  items in my collection. seems like i need to get rid of the items
+  //  filter all together and just have the last one"
+  //
+  // He was right about the zero: the section picker routes the OWNED view
+  // into the per-section collection tables, and the paper one reads
+  // state.ephemeraData.paper — a bucket retired in v0.9.990, when typed rows
+  // in the one inventory became the truth. His paper items are typed rows,
+  // so that table is empty by construction, while All Types (and the SHOW
+  // chips) route by what an item IS and find all 9.
+  //
+  // So on My Collection the Section chip was a leftover door into an empty
+  // room, duplicating the SHOW chips + Type filter. It is not rendered
+  // there. The Master Catalog keeps it — there it picks which catalog book
+  // (tab) is being browsed, which is its real job.
+  var _phOwned = !!(typeof state !== 'undefined' && state && state.filters && state.filters.owned);
+  var levels = _phOwned ? ['manufacturer','scale','era'] : ['manufacturer','scale','era','section'];
   var html = '<span class="ph-label" style="' + labelStyle + '">Filters</span>';
   // v0.9.649 (Brad): small clear-all box at the left of the chips.
   html += '<button type="button" class="ph-clear" title="Clear all filters" '
@@ -537,7 +555,10 @@ function _renderHierarchyChips() {
   // S149 follow-up: Type filter rendered as a 5th chip when Section = Items.
   // Source of truth stays the hidden #filter-type <select>; the chip reads
   // and writes that element so populateFilters/applyFilters keep working.
-  if (st.section === 'items') {
+  // v0.9.1295: on My Collection the list IS the items table (filterOwned
+  // resets the tab to 'items'), so the Type chip always renders there — it
+  // is the one filter Brad kept.
+  if (st.section === 'items' || _phOwned) {
     var _ftSel = document.getElementById('filter-type');
     var _tVal  = _ftSel ? _ftSel.value : '';
     var _tLbl  = _tVal || 'All Types';

@@ -1160,6 +1160,67 @@ ${exHtml}
       } catch (e) {}
     }
 
+    // ══════════════════════════════════════════════════════════════════
+    // The filter chip row, MEASURED in both modes (v0.9.1295)
+    //
+    // Brad's paper-filter finding: the Section chip on My Collection
+    // routed into a retired store and always showed zero. The REAL
+    // _renderHierarchyChips draws here twice — owned (My Collection) and
+    // not (Master Catalog) — and the render answers what a grep cannot:
+    // which chips a user actually sees in each mode.
+    // ══════════════════════════════════════════════════════════════════
+    {
+      const brSrc = fs.readFileSync(path.join(APP, 'browse.js'), 'utf8');
+      const c0 = brSrc.indexOf("var _ERA_PERIODS = ['prewar', 'postwar', 'modern'];");
+      const c1 = brSrc.indexOf('// v0.9.649 (Brad): one-tap reset of the whole filter hierarchy.');
+      ok('chips: the real chip-row source slice was found', c0 > 0 && c1 > c0);
+      const chipSrc = brSrc.slice(c0, c1);
+      const chipPage = (owned) => `<!doctype html><html><head><meta charset="utf-8">
+<link rel="stylesheet" href="file://${APP}/app.css">
+<style>html,body{margin:0}#bar{width:900px;padding:10px;background:var(--surface)}#hierarchy-chips{display:flex;flex-wrap:wrap;gap:0.35rem;align-items:center}</style>
+</head><body><div id="bar"><div id="hierarchy-chips"></div></div>
+<select id="filter-type" style="display:none"><option value="">All Types</option><option value="Paper">Paper</option></select>
+<script>
+  try { localStorage.removeItem('lv_browse_filter_state'); } catch (e) {}
+  window.state = { filters: { owned: ${owned} }, _browseTab: 'items' };
+  var state = window.state;
+</script>
+<script>${chipSrc}
+  _renderHierarchyChips();
+</script></body></html>`;
+      const chipMeasure = async function (owned, file) {
+        const fp = path.join(dir, file);
+        fs.writeFileSync(fp, chipPage(owned));
+        const pg = await browser.newPage({ viewport: { width: 940, height: 90 } });
+        await pg.goto('file://' + fp);
+        await pg.waitForTimeout(100);
+        const m = await pg.evaluate(function () {
+          return Array.prototype.slice.call(document.querySelectorAll('#hierarchy-chips button'))
+            .map(function (b) { return b.textContent.replace(/\s*▾\s*$/, '').trim(); });
+        });
+        const shot = await pg.screenshot({ type: 'png' });
+        fs.writeFileSync(path.join(dir, file.replace('.html', '.png')), shot);
+        await pg.close();
+        return m;
+      };
+      const ownedChips = await chipMeasure(true, 'chips-collection.html');
+      const masterChips = await chipMeasure(false, 'chips-master.html');
+      ok('chips: My Collection has NO Section chip',
+         ownedChips.indexOf('Items') < 0, JSON.stringify(ownedChips));
+      ok('chips: …but keeps Manufacturer, Scale, Era and All Types',
+         ownedChips.indexOf('Any Manufacturer') >= 0 && ownedChips.indexOf('Any Scale') >= 0 &&
+         ownedChips.indexOf('Any Era') >= 0 && ownedChips.indexOf('All Types') >= 0,
+         JSON.stringify(ownedChips));
+      ok('chips: the Master Catalog still has its Section chip',
+         masterChips.indexOf('Items') >= 0 && masterChips.indexOf('All Types') >= 0,
+         JSON.stringify(masterChips));
+      try {
+        fs.mkdirSync(path.join(__dirname, '..', '_shots'), { recursive: true });
+        fs.copyFileSync(path.join(dir, 'chips-collection.png'), path.join(__dirname, '..', '_shots', 'chips-collection.png'));
+        fs.copyFileSync(path.join(dir, 'chips-master.png'), path.join(__dirname, '..', '_shots', 'chips-master.png'));
+      } catch (e) {}
+    }
+
   } finally {
     await browser.close();
     try { fs.rmSync(dir, { recursive: true, force: true }); } catch (e) {}
