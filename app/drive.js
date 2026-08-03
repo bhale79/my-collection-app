@@ -466,16 +466,64 @@ function driveEraFolderNameFor(itemNum, eraHint) {
 
 // Find an item's folder wherever it currently lives — root or any era folder.
 // This is what makes the migration safe: nothing is looked up by its old path.
+// v0.9.1272 (audit 2026-08-02 round 2, finding R13): "anywhere" used to mean
+// "anywhere THIS DEVICE has heard of", and the two are not the same thing.
+//
+// The parent list is built from _driveEraFolders(), which is cached for the
+// session. Item folders live one level down, under an era. So if the desktop
+// files 213 under "Lionel Pre-War" and the phone loaded before that era folder
+// existed, the phone searches the root plus the eras it knew at startup, does
+// not look inside Pre-War, and comes back null. null here means "no folder
+// exists", so driveEnsureItemFolder creates one — under whatever era THAT
+// device works out, which need not be the same answer: the desktop knows the
+// user owns 213 as Pre-War, while a phone that has not reloaded its personal
+// data falls through to the catalog. Result: two folders named 213 in
+// different parents, and the phone's photos never appear on the desktop.
+//
+// Measured against a stand-in Drive, both halves are needed to do damage. A
+// stale era list ALONE is harmless — driveFindOrCreateFolder asks Drive live
+// before it creates anything, so it lands on the existing folder. It only
+// bites when the stale list hides the folder AND this device would file it
+// somewhere else.
+//
+// So the fix is here rather than in the era guess: a miss re-reads the era
+// folders once and looks again before anyone concludes the folder is absent.
+// The re-read costs one request, and only on the path that was about to spend
+// two creating folders, so nothing in ordinary use gets slower. The second
+// SEARCH is skipped entirely when the re-read turned up the same parents.
+//
+// The refresh is deliberately NOT wrapped in a try/catch. R6's whole lesson
+// was that a swallowed Drive failure reads as "nothing there" and creates the
+// duplicate. A refusal raises, the caller reports a retryable failure, and no
+// second home gets made.
 async function _driveItemFolderAnywhere(itemNum) {
   const name = String(itemNum || '').trim();
   if (!name || !driveCache.photosId) return null;
-  const eras = await _driveEraFolders();
-  const parents = [driveCache.photosId].concat(Object.keys(eras).map(function (k) { return eras[k]; }));
-  const parentQ = parents.map(function (p) { return "'" + p + "' in parents"; }).join(' or ');
-  const q = encodeURIComponent("name='" + name.replace(/'/g, "\\'") + "' and mimeType='application/vnd.google-apps.folder' and trashed=false and (" + parentQ + ")");
-  const res = await driveRequest('GET', '/files?q=' + q + '&fields=files(id,name,parents)&spaces=drive');
-  const hit = res && res.files && res.files[0];
-  return hit ? hit.id : null;
+
+  const parentsOf = function (eras) {
+    return [driveCache.photosId].concat(Object.keys(eras).map(function (k) { return eras[k]; }));
+  };
+  const lookIn = async function (parents) {
+    const parentQ = parents.map(function (p) { return "'" + p + "' in parents"; }).join(' or ');
+    const q = encodeURIComponent("name='" + name.replace(/'/g, "\\'") + "' and mimeType='application/vnd.google-apps.folder' and trashed=false and (" + parentQ + ")");
+    const res = await driveRequest('GET', '/files?q=' + q + '&fields=files(id,name,parents)&spaces=drive');
+    const hit = res && res.files && res.files[0];
+    return hit ? hit.id : null;
+  };
+
+  const known = parentsOf(await _driveEraFolders());
+  const first = await lookIn(known);
+  if (first) return first;
+
+  // Nothing found in the folders this device knew about. Before letting that
+  // read as "no folder exists", find out whether another device has made one
+  // since. The forced re-read also replaces the session cache, so step 2 of
+  // driveEnsureItemFolder files into the same era folder rather than a copy.
+  const fresh = parentsOf(await _driveEraFolders(true));
+  const same = fresh.length === known.length &&
+               fresh.slice().sort().join('|') === known.slice().sort().join('|');
+  if (same) return null;                 // genuinely absent — nothing new to search
+  return await lookIn(fresh);
 }
 
 async function driveEnsureItemFolder(itemNum, eraHint) {

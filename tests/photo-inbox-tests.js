@@ -2228,9 +2228,14 @@ META_WRITES.length = 0; TOASTS.length = 0;
   section('103. Item photos file under their era, and the migration is safe');
   const dv = require('fs').readFileSync(require('path').join(__dirname, '..', 'app', 'drive.js'), 'utf8');
   // The finder MUST ship before anything moves, or a migrated folder vanishes.
+  // TRIPWIRE, and a weak one — it reads drive.js as text. v0.9.1272 renamed the
+  // local to parentsOf() and this broke, which is the tripwire working as
+  // designed AND showing its limit: it guards the shape, not the behaviour.
+  // §222 is the real guard now — it runs this function against a stand-in
+  // Drive as two devices and checks they land on ONE folder.
   ok('the finder looks in the root AND every era folder',
      /async function _driveItemFolderAnywhere\(itemNum\)/.test(dv) &&
-     /const parents = \[driveCache\.photosId\]\.concat/.test(dv));
+     /return \[driveCache\.photosId\]\.concat/.test(dv));
   ok('ensure-folder reuses an existing folder before creating a second one',
      /folderId = await _driveItemFolderAnywhere\(key\)/.test(dv) &&
      dv.indexOf('_driveItemFolderAnywhere(key)') < dv.indexOf('folderId = await driveFindOrCreateFolder(key, parentId)'));
@@ -10291,11 +10296,11 @@ META_WRITES.length = 0; TOASTS.length = 0;
        /'\.\/write-outbox\.js'/.test(rd('app/sw.js')));
 
     section('199h. The version trio moved together');
-    ok('APP_VERSION is v0.9.1271', /const APP_VERSION = 'v0\.9\.1271';/.test(cfg));
+    ok('APP_VERSION is v0.9.1272', /const APP_VERSION = 'v0\.9\.1272';/.test(cfg));
     ok('every ?v= mark in app/index.html matches it',
-       (idx.match(/\?v=1271/g) || []).length === 69 && !/\?v=1270/.test(idx),
-       String((idx.match(/\?v=1271/g) || []).length));
-    ok('the service worker cache name moved too', /const CACHE_NAME = 'mca-v1281';/.test(rd('app/sw.js')));
+       (idx.match(/\?v=1272/g) || []).length === 69 && !/\?v=1271/.test(idx),
+       String((idx.match(/\?v=1272/g) || []).length));
+    ok('the service worker cache name moved too', /const CACHE_NAME = 'mca-v1282';/.test(rd('app/sw.js')));
     // v0.9.1259: the root page's own ?v= is gone — it registers no worker.
     // The trio is a trio again. §207 is what guards the root page now.
     ok('the landing page carries no version stamp to forget',
@@ -13484,6 +13489,224 @@ META_WRITES.length = 0; TOASTS.length = 0;
       ok('221b the tag is fixed, not a timestamp or a random',
          C.fetched.map(f => f.url).join('|') === A.fetched.map(f => f.url).join('|'),
          JSON.stringify([A.fetched.map(f => f.url), C.fetched.map(f => f.url)]));
+    })();
+
+
+    // ═══════════════════════════════════════════════════════════
+    // §222. v0.9.1272 (R13) — "anywhere" has to mean anywhere.
+    //
+    //   Item folders live one level down, under an era folder, and
+    //   _driveItemFolderAnywhere built its search list from
+    //   _driveEraFolders() — cached for the whole session. So "anywhere"
+    //   meant "anywhere this device had heard of at startup".
+    //
+    //   Desktop files 213 under "Lionel Pre-War". Phone loaded before that
+    //   era folder existed, so it never looks inside it, comes back null,
+    //   and null means "no folder exists" — a second 213 gets created, under
+    //   whatever era the PHONE works out. Which need not match: the desktop
+    //   knows the user owns 213 as Pre-War, a phone that has not reloaded
+    //   personal data falls through to the catalog. Two folders, same name,
+    //   different parents, and neither device sees the other's photos.
+    //
+    //   The filed finding blamed the session cache. Measured, that is not
+    //   enough on its own: driveFindOrCreateFolder asks Drive live before it
+    //   creates anything, so a stale list alone still lands on the existing
+    //   folder (§222a's first case, which passed BEFORE the fix too and is
+    //   kept as the control). It takes a stale list AND a different era
+    //   guess. Hence the fix sits in the search, not the guess.
+    //
+    //   These run the real driveFindOrCreateFolder, _driveEraFolders,
+    //   driveEraFolderNameFor, _driveItemFolderAnywhere and
+    //   driveEnsureItemFolder — cut out of drive.js — as TWO devices with
+    //   separate module caches sharing ONE fake Drive.
+    // ═══════════════════════════════════════════════════════════
+    section('222. v0.9.1272 (R13) — "anywhere" has to mean anywhere');
+    await (async function () {
+      const p22 = require('path');
+      const SRC22 = fs.readFileSync(p22.join(__dirname, '..', 'app/drive.js'), 'utf8');
+      const fof22 = SRC22.slice(SRC22.indexOf('async function driveFindOrCreateFolder'),
+                                SRC22.indexOf('async function driveUploadPhoto'));
+      const era22 = SRC22.slice(SRC22.indexOf('let _driveEraFolderCache = null;'),
+                                SRC22.indexOf('// ── v0.9.1123 (Brad:'));
+
+      // ── one Drive, shared ─────────────────────────────────────
+      function makeDrive() {
+        let seq = 0;
+        const files = [];
+        function add(name, parent) {
+          const f = { id: 'f' + (++seq) + '_' + name.replace(/\W/g, ''), name: name,
+                      mimeType: 'application/vnd.google-apps.folder',
+                      parents: [parent], trashed: false };
+          files.push(f);
+          return f.id;
+        }
+        function query(q) {
+          const nameM = q.match(/name='([^']*)'/);
+          const parents = [];
+          const re = /'([^']+)' in parents/g;
+          let m;
+          while ((m = re.exec(q)) !== null) parents.push(m[1]);
+          return files.filter(function (f) {
+            if (f.trashed) return false;
+            if (nameM && f.name !== nameM[1]) return false;
+            if (parents.length && !parents.some(p => f.parents.indexOf(p) !== -1)) return false;
+            return true;
+          }).map(f => ({ id: f.id, name: f.name, parents: f.parents }));
+        }
+        return { files: files, add: add, query: query,
+                 countNamed: n => files.filter(f => f.name === n && !f.trashed).length,
+                 parentOfNamed: n => (files.find(f => f.name === n) || {}).parents };
+      }
+
+      // ── one device: its own module-level caches ───────────────
+      function makeDevice(drive, photosId, opts) {
+        opts = opts || {};
+        const log = { eraScans: 0, nameSearches: 0, creates: 0 };
+        const g = {
+          driveCache: { photosId: photosId, itemFolders: {}, _validated: true },
+          driveEnsureSetup: async function () {},
+          driveRequest: async function (method, url, body) {
+            if (method === 'GET' && url.indexOf('/files?q=') === 0) {
+              const q = decodeURIComponent(url.slice(9).split('&')[0]);
+              if (/name='/.test(q)) log.nameSearches++; else log.eraScans++;
+              if (opts.failEraScanAfter !== undefined && !/name='/.test(q)
+                  && log.eraScans > opts.failEraScanAfter) {
+                throw new Error('Drive refused the folder scan');
+              }
+              return { files: drive.query(q) };
+            }
+            if (method === 'POST' && url.indexOf('/files') === 0) {
+              log.creates++;
+              return { id: drive.add(body.name, body.parents[0]) };
+            }
+            throw new Error('unhandled ' + method + ' ' + url);
+          },
+          ERAS: { all: { label: 'All' }, pw: { label: 'Lionel Postwar' },
+                  pre: { label: 'Lionel Pre-War' }, mpc: { label: 'Lionel MPC' } },
+          window: { state: { personalData: opts.personalData || {} } },
+          findMaster: opts.findMaster || function () { return null; },
+          baseItemNum: function (n) { return String(n).replace(/-[PDTC]$/, ''); },
+          console: { warn: function () {}, error: function () {}, log: function () {} }
+        };
+        const names = Object.keys(g);
+        const api = new Function(...names,
+          fof22 + '\n' + era22 + '\n' +
+          'return { ensure: driveEnsureItemFolder, eras: _driveEraFolders,' +
+          ' anywhere: _driveItemFolderAnywhere, nameFor: driveEraFolderNameFor };'
+        )(...names.map(n => g[n]));
+        api.log = log;
+        return api;
+      }
+
+      const OWNED_PRE = { k1: { itemNum: '213', owned: true, era: 'pre' } };
+      const CAT_PW = function (n) { return n === '213' ? { _era: 'pw' } : null; };
+
+      // ── 222a. two devices, one folder ─────────────────────────
+      // Each case: device B warms its era cache, THEN device A creates the
+      // item, THEN B goes looking. That ordering is the whole finding.
+      async function twoDevices(bOpts) {
+        const drive = makeDrive();
+        const B = makeDevice(drive, 'PHOTOS', bOpts);
+        await B.eras();                                  // B's cache warms empty
+        const A = makeDevice(drive, 'PHOTOS', { personalData: OWNED_PRE });
+        const aFid = await A.ensure('213');
+        const bFid = await B.ensure('213');
+        return { drive: drive, aFid: aFid, bFid: bFid, B: B };
+      }
+
+      const same = await twoDevices({ personalData: OWNED_PRE });
+      ok('222a control — a stale era list alone was never the problem',
+         same.aFid === same.bFid && same.drive.countNamed('213') === 1,
+         'this case passed before the fix too: driveFindOrCreateFolder asks Drive live');
+
+      const noEra = await twoDevices({ personalData: {} });
+      ok('222a a device that cannot work out the era finds the existing folder',
+         noEra.aFid === noEra.bFid && noEra.drive.countNamed('213') === 1,
+         'before: 2 folders named 213, one under the era and one at the root — ' +
+         'count now ' + noEra.drive.countNamed('213'));
+
+      const otherEra = await twoDevices({ personalData: {}, findMaster: CAT_PW });
+      ok('222a …and so does one that works out a DIFFERENT era',
+         otherEra.aFid === otherEra.bFid && otherEra.drive.countNamed('213') === 1,
+         'the phone says Postwar, the desktop says Pre-War, and there is still ' +
+         'one folder — count ' + otherEra.drive.countNamed('213'));
+      ok('222a …with no stray era folder created on the way',
+         otherEra.drive.countNamed('Lionel Postwar') === 0 &&
+         otherEra.drive.countNamed('Lionel Pre-War') === 1,
+         JSON.stringify(otherEra.drive.files.map(f => f.name)));
+
+      // Warmed AFTER the era folder exists: the ordinary case, unaffected.
+      {
+        const drive = makeDrive();
+        const A = makeDevice(drive, 'PHOTOS', { personalData: OWNED_PRE });
+        await A.ensure('999');                           // creates the era folder
+        const B = makeDevice(drive, 'PHOTOS', { personalData: OWNED_PRE });
+        await B.eras();
+        const aFid = await A.ensure('213');
+        const bFid = await B.ensure('213');
+        ok('222a a device that warmed after the era folder existed is unaffected',
+           aFid === bFid && drive.countNamed('213') === 1);
+      }
+
+      // ── 222b. what the fix costs ──────────────────────────────
+      {
+        const drive = makeDrive();
+        const A = makeDevice(drive, 'PHOTOS', { personalData: OWNED_PRE });
+        await A.ensure('213');
+        const C = makeDevice(drive, 'PHOTOS', { personalData: OWNED_PRE });
+        await C.eras();                                  // warms with Pre-War present
+        const before = C.log.eraScans;
+        const fid = await C.anywhere('213');
+        ok('222b a hit costs one search and no re-read at all',
+           fid && C.log.nameSearches === 1 && C.log.eraScans === before,
+           JSON.stringify({ nameSearches: C.log.nameSearches, extraEraScans: C.log.eraScans - before }));
+      }
+      {
+        const drive = makeDrive();
+        const A = makeDevice(drive, 'PHOTOS', { personalData: OWNED_PRE });
+        await A.ensure('213');
+        const C = makeDevice(drive, 'PHOTOS', { personalData: OWNED_PRE });
+        await C.eras();
+        const before = C.log.eraScans;
+        const fid = await C.anywhere('777');             // genuinely absent
+        ok('222b a genuine miss re-reads once but does NOT search twice',
+           fid === null && C.log.nameSearches === 1 && C.log.eraScans === before + 1,
+           'the second search is skipped when the re-read found the same parents — ' +
+           JSON.stringify({ nameSearches: C.log.nameSearches, reReads: C.log.eraScans - before }));
+      }
+      {
+        const drive = makeDrive();
+        const A = makeDevice(drive, 'PHOTOS', { personalData: OWNED_PRE });
+        const fid = await A.ensure('213');
+        ok('222b a genuinely new item still gets a folder, under its era',
+           !!fid && drive.countNamed('213') === 1 &&
+           drive.parentOfNamed('213')[0] === drive.files.find(f => f.name === 'Lionel Pre-War').id,
+           JSON.stringify(drive.files.map(f => f.name + '<-' + f.parents[0])));
+      }
+
+      // ── 222c. a refused re-read must not read as "nothing there" ──
+      // R6's lesson, applied to the line this fix adds. If the forced scan
+      // were wrapped in a catch, a Drive refusal would come back as null and
+      // create the very duplicate the fix exists to prevent.
+      {
+        const drive = makeDrive();
+        // D warms FIRST, while Drive is still empty — that stale list is the
+        // whole premise. Warming after A has created the era folder would give
+        // D a good list, it would find 213 on the first look, and the re-read
+        // this case exists to break would never run.
+        const D = makeDevice(drive, 'PHOTOS', { personalData: {}, failEraScanAfter: 1 });
+        await D.eras();                                  // scan 1 succeeds, empty
+        const A = makeDevice(drive, 'PHOTOS', { personalData: OWNED_PRE });
+        await A.ensure('213');                           // A's scans are on A's own log
+        let threw = false;
+        try { await D.ensure('213'); } catch (e) { threw = true; }
+        ok('222c a refused re-read raises instead of returning "no folder"',
+           threw === true,
+           'a swallowed failure here re-creates R6: null means create, and create means a second home');
+        ok('222c …and no second folder was made',
+           drive.countNamed('213') === 1,
+           'count ' + drive.countNamed('213'));
+      }
     })();
 
   })().then(function () {
