@@ -664,50 +664,64 @@ document.addEventListener('visibilitychange', function() {
   }
 });
 
-function handleSignOut() {
-  // Clear local state only — do NOT revoke the Google grant
-  // (revoking forces full consent screens on every sign-in)
-  localStorage.removeItem('lv_user');
-  localStorage.removeItem('lv_token');
-  localStorage.removeItem('lv_token_expiry');
-  // Audit H9: clear localStorage cache + every in-memory state slice so a
-  // shared-browser user B doesn't see user A's collection.
-  localStorage.removeItem('lv_personal_cache');
-  localStorage.removeItem('lv_personal_cache_ts');
-  // v0.9.1151 (pre-beta audit, BLOCKER 1): H9 cleared the DATA but left the
-  // IDs behind. On the next sign-in driveFindPersonalSheet correctly finds
-  // nothing for the new account — and then the fallback (:587, :611) reads
-  // lv_personal_id, which still holds the PREVIOUS user's sheet. It is truthy,
-  // so createPersonalSheet() never runs: user B silently inherits user A's
-  // sheet id, gets 403 on every read, and can never obtain a sheet of their
-  // own. Any shared computer — or Brad demoing with a second account — hits it.
-  localStorage.removeItem('lv_personal_id');
-  localStorage.removeItem('lv_vault_id');
-  localStorage.removeItem('lv_photos_id');
-  localStorage.removeItem('lv_sold_photos_id');
-  state.user = null;
-  state.personalSheetId = null;
-  state.masterSheetId = null;
-  state.personalData = {};
-  state.soldData = {};
-  state.forSaleData = {};
-  state.wantData = {};
-  state.upgradeData = {};
-  state.mySetsData = {};
-  state.isData = {};
-  state.scienceData = {};
-  state.constructionData = {};
-  state.ephemeraData = { catalogs:{}, paper:{}, mockups:{}, other:{} };
-  state.partnerMap = {};
-  state.masterData = [];
-  state.setData = [];
-  state.companionData = [];
-  state.catalogRefData = [];
-  state.isRefData = [];
-  state.userDefinedTabs = [];
-  _tokenIsInitial = true; // ensure next sign-in triggers full data load
-  document.getElementById('auth-screen').style.display = 'flex';
-  document.getElementById('app').classList.remove('active');
+// v0.9.1270 (audit R11). This function used to name the things it cleared —
+// nine keys — and then swap the auth screen back over the app. Both halves
+// were wrong in the same way: they were lists of things to remember.
+//
+//   • The storage half missed ~35 account-scoped keys, because every new
+//     feature had to remember to add itself here and thirty-five of them
+//     did not. Among the survivors: both consent flags, the queue of unsent
+//     edits (still aimed at the PREVIOUS account's sheet), lv_inv_hwm (so
+//     the next account minted colliding inventory IDs), and rr_mk_header_v1
+//     (a "this sheet is already migrated" flag, so the next account's sheet
+//     never got its header). Now inverted: config.js names the handful that
+//     SURVIVE and rrClearAccountStorage() removes everything else, so an
+//     unclassified new key fails safe.
+//
+//   • The screen half was a DOM swap, not a reload, so every module-level
+//     cache in the app stayed alive and signed-in. driveCache (drive.js:91)
+//     kept the previous account's Drive folder ids and its _validated flag,
+//     and driveEnsureSetup() short-circuits on that flag — so the next
+//     account never re-discovered its folders and filed its photos into the
+//     first account's. A reload cannot forget a cache; it does not have to
+//     know they exist. That is why the twenty lines of state.* nulling that
+//     used to live here are gone rather than kept "to be safe" — they
+//     duplicated a guarantee the reload already makes, and a duplicated
+//     guarantee is the one that drifts.
+//
+// Still deliberate: do NOT revoke the Google grant. Revoking forces the full
+// consent screen on every single sign-in.
+var _signOutRunning = false;
+
+async function handleSignOut() {
+  if (_signOutRunning) return;          // double-tap on the menu item
+  _signOutRunning = true;
+  try {
+    // Unsent edits are about to be discarded — they belong to this account
+    // and cannot be replayed against the next one. Ask before losing them.
+    var pending = 0;
+    try { pending = (typeof rrOutboxCount === 'function') ? rrOutboxCount() : 0; } catch (e) {}
+    if (pending > 0 && typeof appConfirm === 'function') {
+      var go = await appConfirm(
+        'You have ' + pending + ' change' + (pending === 1 ? '' : 's') +
+        " that hasn't saved to your sheet yet. Signing out will discard " +
+        (pending === 1 ? 'it' : 'them') + '.',
+        { title: 'Sign out anyway?', ok: 'Sign out', cancel: 'Stay signed in', danger: true }
+      );
+      if (!go) { _signOutRunning = false; return; }
+    }
+    var removed = rrClearAccountStorage();
+    console.log('[Auth] Sign-out cleared ' + removed.length + ' stored key(s)');
+  } catch (e) {
+    // Never trap someone in a signed-in app because cleanup failed — but a
+    // reload only signs out if the credentials actually went. Take those
+    // three by name as a last resort, then reload regardless.
+    console.warn('[Auth] Sign-out cleanup failed:', e);
+    ['lv_token', 'lv_token_expiry', 'lv_user'].forEach(function (k) {
+      try { localStorage.removeItem(k); } catch (e2) {}
+    });
+  }
+  location.reload();
 }
 
 function toggleAccountMenu() {

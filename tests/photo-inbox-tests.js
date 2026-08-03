@@ -3107,11 +3107,28 @@ META_WRITES.length = 0; TOASTS.length = 0;
 
     // ── BLOCKER 1: sign-out must release the sheet, not just the login ──
     (function () {
-      const so = strip(auth.slice(auth.indexOf('function handleSignOut'),
-                                  auth.indexOf('function handleSignOut') + 2500));
+      // v0.9.1270 (R11): this used to assert that handleSignOut contained
+      // four literal removeItem lines. It did — and it was still missing
+      // thirty-five other keys, because naming what you clear is the bug.
+      // Sign-out now clears by allowlist, so the question changed from
+      // "is this line present" to "does this key actually get cleared".
+      // That is the stronger claim, and it is the one asserted here.
+      const cfg125 = rd('app/config.js');
+      const clear125 = new Function('localStorage',
+        cfg125.slice(cfg125.indexOf('const SIGNOUT_KEEP_KEYS'),
+                     cfg125.indexOf('if (typeof window !== \'undefined\') {\n  window.SIGNOUT_KEEP_KEYS')) +
+        ';return rrClearAccountStorage;');
       ['lv_personal_id', 'lv_vault_id', 'lv_photos_id', 'lv_sold_photos_id'].forEach(function (k) {
+        const store = {};
+        store[k] = 'the-previous-account';
+        const ls = {
+          get length() { return Object.keys(store).length; },
+          key: function (i) { return Object.keys(store)[i] ?? null; },
+          removeItem: function (kk) { delete store[kk]; }
+        };
+        clear125(ls)();
         ok('sign-out clears ' + k + ' (else the next account inherits it)',
-           new RegExp("removeItem\\('" + k + "'\\)").test(so));
+           !(k in store));
       });
       // The reason it matters: the sign-in fallback trusts this key blindly.
       ok('…which is exactly the key the sign-in fallback trusts',
@@ -10274,11 +10291,11 @@ META_WRITES.length = 0; TOASTS.length = 0;
        /'\.\/write-outbox\.js'/.test(rd('app/sw.js')));
 
     section('199h. The version trio moved together');
-    ok('APP_VERSION is v0.9.1269', /const APP_VERSION = 'v0\.9\.1269';/.test(cfg));
+    ok('APP_VERSION is v0.9.1270', /const APP_VERSION = 'v0\.9\.1270';/.test(cfg));
     ok('every ?v= mark in app/index.html matches it',
-       (idx.match(/\?v=1269/g) || []).length === 69 && !/\?v=1268/.test(idx),
-       String((idx.match(/\?v=1269/g) || []).length));
-    ok('the service worker cache name moved too', /const CACHE_NAME = 'mca-v1279';/.test(rd('app/sw.js')));
+       (idx.match(/\?v=1270/g) || []).length === 69 && !/\?v=1269/.test(idx),
+       String((idx.match(/\?v=1270/g) || []).length));
+    ok('the service worker cache name moved too', /const CACHE_NAME = 'mca-v1280';/.test(rd('app/sw.js')));
     // v0.9.1259: the root page's own ?v= is gone — it registers no worker.
     // The trio is a trio again. §207 is what guards the root page now.
     ok('the landing page carries no version stamp to forget',
@@ -12935,6 +12952,341 @@ META_WRITES.length = 0; TOASTS.length = 0;
          /Protect key columns/.test(pf19) &&
          /_scheduleProtectionCheck/.test(ad19),
          'that comment described an intention for twelve sessions; both halves must be real');
+    })();
+
+
+    // ═══════════════════════════════════════════════════════════
+    // §220. v0.9.1270 (R11) — sign-out forgets by construction.
+    //
+    //   handleSignOut had two halves and both were lists of things to
+    //   remember, which is to say both were lists of things to forget.
+    //
+    //   1. It named nine keys to clear. The audit counted ~110 stored keys,
+    //      ~35 of them account-scoped and surviving sign-out: lv_vault_optin
+    //      and lv_ai_consent (one person's consent answering for the next),
+    //      rr_write_outbox (unsent edits still addressed to the PREVIOUS
+    //      account's sheet), lv_inv_hwm (so the next account minted colliding
+    //      inventory IDs), rr_mk_header_v1 ("already migrated", so the next
+    //      account's sheet never got its header), the whole rr_inbox_* family,
+    //      lv_thumb_fids — and lv_sheet_lock_blocked, which the R10 fix added
+    //      to this app four hours before this section was written. The list
+    //      had been forgotten thirty-five times, once by the audit itself.
+    //
+    //   2. It swapped the auth screen over the app instead of reloading, so
+    //      every module-level cache survived signed-in. driveCache kept the
+    //      previous account's folder ids AND its _validated flag, and
+    //      driveEnsureSetup() early-returns on that flag — the next account
+    //      never re-discovered its folders and filed photos into the first
+    //      account's Drive.
+    //
+    //   The fix inverts the rule (an allowlist: these survive, everything
+    //   else goes) and reloads. So the thing worth testing is no longer
+    //   "does it clear key X" — that question is what rotted. It is:
+    //   does an unknown key, one no one has classified, get cleared?
+    //   §220b asks that with names invented here that appear nowhere in
+    //   the app, which is the closest a test can get to standing where a
+    //   future feature will stand.
+    // ═══════════════════════════════════════════════════════════
+    section('220. v0.9.1270 (R11) — sign-out forgets by construction');
+    await (async function () {
+      const p20 = require('path');
+      const rd20 = f => fs.readFileSync(p20.join(__dirname, '..', f), 'utf8');
+      const cfg20 = rd20('app/config.js');
+      const auth20 = rd20('app/app-auth.js');
+      const drive20 = rd20('app/drive.js');
+
+      // ── the rig ───────────────────────────────────────────────
+      // The real allowlist and the real clearer, cut from config.js and run
+      // against a localStorage that behaves like the browser's: key(i) walks
+      // a live index, so removing during the walk really does skip entries.
+      const clearSrc20 = cfg20.slice(
+        cfg20.indexOf('const SIGNOUT_KEEP_KEYS'),
+        cfg20.indexOf('if (typeof window !== \'undefined\') {\n  window.SIGNOUT_KEEP_KEYS')
+      );
+
+      function fakeLS20(seed, opts) {
+        opts = opts || {};
+        const map = Object.assign({}, seed);
+        return {
+          get length() { return Object.keys(map).length; },
+          key: function (i) {
+            if (opts.keyThrows) throw new Error('storage unavailable');
+            const ks = Object.keys(map);
+            return i < ks.length ? ks[i] : null;
+          },
+          getItem: function (k) { return (k in map) ? map[k] : null; },
+          setItem: function (k, v) { map[k] = String(v); },
+          removeItem: function (k) {
+            if (opts.protect && opts.protect.indexOf(k) !== -1) throw new Error('cannot remove ' + k);
+            delete map[k];
+          },
+          _keys: function () { return Object.keys(map).sort(); },
+          _map: map
+        };
+      }
+
+      function rig20(seed, opts) {
+        const ls = fakeLS20(seed, opts);
+        const api = new Function('localStorage',
+          clearSrc20 +
+          ';return { keeps: rrSignOutKeeps, clear: rrClearAccountStorage,' +
+          ' KEEP: SIGNOUT_KEEP_KEYS, PREFIXES: SIGNOUT_KEEP_PREFIXES };'
+        )(ls);
+        return { ls: ls, api: api };
+      }
+
+      // ── 220a. the allowlist is a short list of settings ────────
+      (function () {
+        const r = rig20({});
+        ok('220a the allowlist exists and is short',
+           Array.isArray(r.api.KEEP) && r.api.KEEP.length > 0 && r.api.KEEP.length <= 15,
+           'found ' + r.api.KEEP.length + ' — a long allowlist is the old bug wearing the new shape');
+        ok('220a …and carries at most one prefix rule',
+           Array.isArray(r.api.PREFIXES) && r.api.PREFIXES.length <= 1,
+           'found ' + JSON.stringify(r.api.PREFIXES) + ' — prefixes are how an allowlist rots');
+
+        // Every kept key must be a setting. If any of these ever appear on
+        // the allowlist, the inversion has been undone one exception at a time.
+        const NEVER_KEEP = [
+          'lv_user', 'lv_token', 'lv_token_expiry',        // credentials
+          'lv_personal_id', 'lv_vault_id', 'lv_photos_id', // pointers to account data
+          'lv_sold_photos_id', 'lv_master_id', 'lv_is_id',
+          'lv_catalogs_id', 'rr_sell_sheet_id', 'rr_inbox_fid',
+          'lv_vault_optin', 'rr_ai_optout', 'lv_ai_consent', // consent
+          'lv_personal_cache', 'lv_thumb_fids',            // account content
+          'rr_write_outbox', 'lv_inv_hwm', 'rr_mk_header_v1',
+          'lv_saved_reports', 'lv_saved_locations', 'lv_user_tabs',
+          'lv_sheet_lock_blocked'                          // added by R10, missed by the old list
+        ];
+        NEVER_KEEP.forEach(function (k) {
+          ok('220a sign-out clears ' + k,
+             r.api.keeps(k) === false,
+             'this key names or points at one person\'s data');
+        });
+
+        // The kept ones, stated positively — so removing one is a failure and
+        // not a silent downgrade of what the app remembers.
+        ['lv_theme', 'lv_font_scale', 'lv_beta_verified', 'rr_diag'].forEach(function (k) {
+          ok('220a …but keeps ' + k + ' (device setting, no account data)',
+             r.api.keeps(k) === true);
+        });
+        ok('220a the lv_def_ prefix keeps the six entry defaults',
+           r.api.keeps('lv_def_hasBox') && r.api.keeps('lv_def_allOriginal') &&
+           r.api.keeps('lv_def_masterBox'));
+        ok('220a …and does not stretch past its own family',
+           r.api.keeps('lv_default_era') === false &&
+           r.api.keeps('lv_de') === false,
+           'a prefix that matches more than it means is the rot starting');
+        ok('220a a non-string key is not kept',
+           r.api.keeps(null) === false && r.api.keeps(undefined) === false &&
+           r.api.keeps(7) === false);
+      })();
+
+      // ── 220b. the question the old list could not answer ───────
+      // Nothing below appears anywhere in the app. These stand in for the
+      // feature that ships next month whose storage nobody classifies.
+      (function () {
+        const r = rig20({
+          'rr_feature_nobody_classified': 'x',
+          'lv_some_2027_thing': 'y',
+          'totally_unnamespaced': 'z',
+          'lv_theme': 'dark',
+          'lv_def_hasBox': 'Yes'
+        });
+        const removed = r.api.clear();
+        ok('220b an unknown future key is cleared without anyone listing it',
+           r.ls.getItem('rr_feature_nobody_classified') === null &&
+           r.ls.getItem('lv_some_2027_thing') === null &&
+           r.ls.getItem('totally_unnamespaced') === null,
+           'this is the whole point of the inversion — survivors: ' + JSON.stringify(r.ls._keys()));
+        ok('220b …while the allowlist survives it',
+           r.ls.getItem('lv_theme') === 'dark' && r.ls.getItem('lv_def_hasBox') === 'Yes');
+        ok('220b …and the caller is told what went',
+           removed.length === 3 && removed.indexOf('totally_unnamespaced') !== -1,
+           JSON.stringify(removed));
+      })();
+
+      // ── 220c. the two-pass walk ───────────────────────────────
+      // removeItem() re-indexes storage. Removing inside the key(i) walk
+      // skips whatever slides into the freed slot, leaving a survivor that
+      // depends on insertion order — invisible in a two-key test, certain
+      // in a real browser holding a hundred. Seeded so a one-pass walk
+      // would leave roughly half behind.
+      (function () {
+        const seed = {};
+        for (var i = 0; i < 40; i++) seed['rr_junk_' + i] = String(i);
+        seed['lv_theme'] = 'dark';
+        const r = rig20(seed);
+        const removed = r.api.clear();
+        ok('220c every doomed key goes, not every other one',
+           r.ls._keys().join(',') === 'lv_theme' && removed.length === 40,
+           'survivors: ' + JSON.stringify(r.ls._keys()) + ' (a one-pass walk leaves ~20)');
+      })();
+
+      // ── 220d. cleanup that fails does not become cleanup that lies ──
+      (function () {
+        // One key refuses to be removed. The rest must still go, and the
+        // return value must not claim the stubborn one.
+        const r = rig20(
+          { 'lv_token': 't', 'lv_personal_id': 'sheet1', 'rr_write_outbox': '[]', 'lv_theme': 'dark' },
+          { protect: ['lv_personal_id'] }
+        );
+        const removed = r.api.clear();
+        ok('220d one unremovable key does not stop the others',
+           r.ls.getItem('lv_token') === null && r.ls.getItem('rr_write_outbox') === null);
+        ok('220d …and it is not reported as removed',
+           removed.indexOf('lv_personal_id') === -1 && removed.length === 2,
+           JSON.stringify(removed));
+
+        // Storage itself unavailable (Safari private mode throws on access).
+        const r2 = rig20({ 'lv_token': 't' }, { keyThrows: true });
+        let threw = false, out = null;
+        try { out = r2.api.clear(); } catch (e) { threw = true; }
+        ok('220d unreachable storage returns empty rather than throwing',
+           !threw && Array.isArray(out) && out.length === 0,
+           'handleSignOut catches too, but a throw here would skip the keys it can reach');
+      })();
+
+      // ── 220e. the reload, and what it replaces ────────────────
+      // TRIPWIREs: these are claims about source, and are labelled as such.
+      // The reload is the half of the fix that cannot be exercised in a rig —
+      // its whole job is to destroy a JS heap the rig does not have.
+      (function () {
+        // Start at the explanatory block, not the signature — the reasons a
+        // reader needs (why the grant is not revoked) live above the function.
+        const so20 = auth20.slice(auth20.indexOf('// v0.9.1270 (audit R11)'),
+                                  auth20.indexOf('function toggleAccountMenu'));
+        ok('220e TRIPWIRE: sign-out reloads instead of swapping the screen',
+           /location\.reload\(\)/.test(so20) &&
+           !/getElementById\('auth-screen'\)\.style\.display/.test(so20),
+           'a DOM swap leaves every module cache alive — that is R11');
+        ok('220e TRIPWIRE: …and clears through the one shared rule',
+           /rrClearAccountStorage\(\)/.test(so20));
+        ok('220e TRIPWIRE: …naming no keys of its own except the last-resort credentials',
+           (so20.match(/removeItem\(/g) || []).length === 1 &&
+           so20.indexOf("['lv_token', 'lv_token_expiry', 'lv_user']") !== -1,
+           'a second hand-written list here would restart the rot');
+        ok('220e TRIPWIRE: the state.* nulling is gone, not kept "to be safe"',
+           !/state\.personalData = \{\}/.test(so20) &&
+           !/state\.masterData = \[\]/.test(so20),
+           'duplicating a guarantee the reload already makes is how it drifts');
+        ok('220e TRIPWIRE: the Google grant is still deliberately not revoked',
+           /do NOT revoke the Google grant/i.test(so20));
+        ok('220e TRIPWIRE: double-tap on Sign Out cannot run it twice',
+           /_signOutRunning/.test(so20) && /if \(_signOutRunning\) return;/.test(so20));
+
+        // The unsent-edit warning is NOT asserted here. A first draft claimed it
+        // with /rrOutboxCount\(\)/ and /appConfirm\(/ against this slice, and the
+        // mutation drill walked straight through: changing the guard to
+        // `if (false)` leaves both strings sitting in unreachable code. Text
+        // about a value is not the value. It is tested by running it, in §220f.
+
+        // The mechanism R11 was actually filed for. If this early return ever
+        // loses its _validated term the reload is still the backstop, but the
+        // finding deserves a test that names the line.
+        ok('220e TRIPWIRE: driveEnsureSetup still early-returns on cached ids',
+           /_validated/.test(drive20) &&
+           /vaultId && .*photosId && .*soldPhotosId && .*_validated/.test(drive20),
+           'this is the cache the old DOM-swap sign-out could not reach');
+      })();
+
+      // ── 220f. sign-out, actually run ──────────────────────────
+      // §220e can only make claims about source text, and the drill proved
+      // how little that is worth: `if (false) { ...rrOutboxCount()... }`
+      // satisfies every regex while doing nothing. So the real function is
+      // cut out and executed against fakes — the outbox count, the confirm
+      // dialog, the clearer and location.reload are all injected, and what
+      // is asserted is what it DID.
+      await (async function () {
+        const soSrc = auth20.slice(auth20.indexOf('var _signOutRunning = false;'),
+                                   auth20.indexOf('function toggleAccountMenu'));
+
+        function rigSignOut(o) {
+          o = o || {};
+          const st = { reloads: 0, confirms: [], cleared: 0, warned: [], logged: [], removedByName: [] };
+          const api = new Function(
+            'rrOutboxCount', 'appConfirm', 'rrClearAccountStorage',
+            'location', 'console', 'localStorage',
+            soSrc + ';return { signOut: handleSignOut,' +
+            ' running: function () { return _signOutRunning; } };'
+          )(
+            function () {
+              if (o.countThrows) throw new Error('outbox unreadable');
+              return o.pending || 0;
+            },
+            function (msg, opts) {
+              st.confirms.push({ msg: msg, opts: opts });
+              return Promise.resolve(!!o.confirmAnswer);
+            },
+            function () {
+              st.cleared++;
+              if (o.clearThrows) throw new Error('storage gone');
+              return [];
+            },
+            { reload: function () { st.reloads++; } },
+            { log: function (m) { st.logged.push(m); },
+              warn: function (m) { st.warned.push(m); } },
+            { removeItem: function (k) { st.removedByName.push(k); } }
+          );
+          st.api = api;
+          return st;
+        }
+
+        // Nothing pending: no dialog, clear once, reload once.
+        const a = rigSignOut({ pending: 0 });
+        await a.api.signOut();
+        ok('220f with nothing pending, sign-out just goes',
+           a.confirms.length === 0 && a.cleared === 1 && a.reloads === 1,
+           JSON.stringify({ asked: a.confirms.length, cleared: a.cleared, reloaded: a.reloads }));
+
+        // Pending edits, and the collector says no.
+        const b = rigSignOut({ pending: 3, confirmAnswer: false });
+        await b.api.signOut();
+        ok('220f pending edits are not discarded without asking',
+           b.confirms.length === 1,
+           'this is the mutation a source-text tripwire missed');
+        ok('220f …the message says how many, and that they will be lost',
+           /3 changes/.test(b.confirms[0].msg) && /discard/i.test(b.confirms[0].msg),
+           b.confirms[0] && b.confirms[0].msg);
+        ok('220f …cancelling clears nothing and does not reload',
+           b.cleared === 0 && b.reloads === 0,
+           JSON.stringify({ cleared: b.cleared, reloaded: b.reloads }));
+        ok('220f …and Sign Out still works afterwards',
+           b.api.running() === false,
+           'a guard left set makes the button dead for the rest of the session');
+
+        // One edit reads as one, not "1 changes".
+        const c = rigSignOut({ pending: 1, confirmAnswer: true });
+        await c.api.signOut();
+        ok('220f a single pending edit is described in the singular',
+           /1 change/.test(c.confirms[0].msg) && !/1 changes/.test(c.confirms[0].msg),
+           c.confirms[0].msg);
+        ok('220f …and confirming goes through with the sign-out',
+           c.cleared === 1 && c.reloads === 1);
+
+        // Double-tap on the menu item.
+        const d = rigSignOut({ pending: 0 });
+        await Promise.all([d.api.signOut(), d.api.signOut()]);
+        ok('220f double-tapping Sign Out clears once and reloads once',
+           d.cleared === 1 && d.reloads === 1,
+           JSON.stringify({ cleared: d.cleared, reloaded: d.reloads }));
+
+        // Cleanup throws. Signing out must still happen — and the reload
+        // only signs out if the credentials actually went.
+        const e = rigSignOut({ pending: 0, clearThrows: true });
+        await e.api.signOut();
+        ok('220f a failed cleanup still reloads',
+           e.reloads === 1 && e.warned.length === 1);
+        ok('220f …after taking the credentials by name',
+           e.removedByName.join(',') === 'lv_token,lv_token_expiry,lv_user',
+           'else the reload signs straight back in: ' + JSON.stringify(e.removedByName));
+
+        // An unreadable outbox is not a reason to trap someone signed in.
+        const f = rigSignOut({ pending: 0, countThrows: true });
+        await f.api.signOut();
+        ok('220f an unreadable outbox does not block sign-out',
+           f.reloads === 1 && f.cleared === 1);
+      })();
     })();
 
   })().then(function () {

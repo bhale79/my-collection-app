@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.1269';
+const APP_VERSION = 'v0.9.1270';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -119,6 +119,104 @@ function varShortLabel(text, max) {
 // ═══════════════════════════════════════════════════════════════
 const CATALOG_CACHE_VER  = '126';
 const PERSONAL_CACHE_VER = 'pf1';   // v0.9.782: +purchasedFrom column — bust the parsed personal cache
+
+// ═══════════════════════════════════════════════════════════════
+// SIGN-OUT — what survives, and nothing else
+// (v0.9.1270, audit R11)
+//
+// Sign-out used to name the things it cleared: nine removeItem calls,
+// added one at a time as each leak was noticed. By the time it was
+// audited it was missing about thirty-five account-scoped keys —
+// including both consent flags, the queue of unsent edits, the counter
+// that mints inventory IDs, and a key added the same day by the audit
+// that was writing this list. A list of things to remember is a list
+// that gets forgotten; the only question is when.
+//
+// So the rule is inverted. This is the allowlist: everything here
+// survives sign-out, EVERYTHING ELSE IS CLEARED. A new feature whose
+// storage nobody classifies gets cleared — wrong, but harmlessly wrong,
+// and in the one direction that cannot leak one person's data to the
+// next person at the same browser.
+//
+// To be on this list a key must clear BOTH bars:
+//   1. it holds no account data and no pointer to account data, and
+//   2. losing it on every sign-out would be a real annoyance.
+// "It seemed a shame to lose it" is not the second bar. When in doubt,
+// leave it off — the cost of a wrong omission is re-typing a setting.
+//
+// NOT here on purpose:
+//   • lv_location_enabled — the toggle survives but lv_saved_locations
+//     (the actual locations) is account data and goes, which would ask
+//     the next person to pick from an empty list.
+//   • the catalog / master / set caches — shared reference data, no
+//     leak, but keeping them needs prefix rules and prefix rules are
+//     how an allowlist rots. Cost is a re-download on next sign-in.
+//   • every "you have already seen this" flag — a new person at this
+//     browser should get the tour.
+// ═══════════════════════════════════════════════════════════════
+const SIGNOUT_KEEP_KEYS = [
+  // Appearance and accessibility — this browser's look, not anyone's data.
+  'lv_theme',
+  'lv_skin_custom',        // the custom palette lv_theme:'custom' points at
+  'lv_font_scale',
+  // This browser was let into the beta. Re-typing the code on every
+  // sign-out would punish the testers for testing.
+  'lv_beta_verified',
+  // Preferences that are settings, not content.
+  'lv_page_size',
+  'lv_default_cond',
+  // Dismissed nags. Re-nagging someone who already said "got it" is rude.
+  'lv_ios_hint_dismissed',
+  'rr_orient_tip_off',
+  // Brad's diagnostics switch — already documented as per-device (see
+  // rrDiagnostics above). Clearing it would silently take his tools away.
+  'rr_diag'
+];
+
+// Same bars, for families of keys that genuinely share a shape.
+// Keep this list near-empty: a prefix is a standing invitation for a
+// future account-scoped key to inherit an exemption nobody meant to give it.
+const SIGNOUT_KEEP_PREFIXES = [
+  'lv_def_'                // lv_def_allOriginal / hasBox / hasIS / isError / masterBox
+];
+
+function rrSignOutKeeps(key) {
+  if (typeof key !== 'string') return false;
+  if (SIGNOUT_KEEP_KEYS.indexOf(key) !== -1) return true;
+  for (var i = 0; i < SIGNOUT_KEEP_PREFIXES.length; i++) {
+    if (key.indexOf(SIGNOUT_KEEP_PREFIXES[i]) === 0) return true;
+  }
+  return false;
+}
+
+// Clears every stored key except the allowlist. Returns the names it
+// removed (the caller logs them; nothing else depends on the value).
+//
+// Two passes on purpose: removeItem() re-indexes localStorage, so
+// removing while walking localStorage.key(i) skips the key that slides
+// into the freed slot. That bug leaves a survivor at random and is
+// nearly impossible to see by hand — §220 tests for it by name.
+function rrClearAccountStorage() {
+  var doomed = [];
+  try {
+    for (var i = 0; i < localStorage.length; i++) {
+      var k = localStorage.key(i);
+      if (k !== null && !rrSignOutKeeps(k)) doomed.push(k);
+    }
+  } catch (e) { return []; }
+  var removed = [];
+  doomed.forEach(function (k) {
+    try { localStorage.removeItem(k); removed.push(k); } catch (e) {}
+  });
+  return removed;
+}
+
+if (typeof window !== 'undefined') {
+  window.SIGNOUT_KEEP_KEYS = SIGNOUT_KEEP_KEYS;
+  window.SIGNOUT_KEEP_PREFIXES = SIGNOUT_KEEP_PREFIXES;
+  window.rrSignOutKeeps = rrSignOutKeeps;
+  window.rrClearAccountStorage = rrClearAccountStorage;
+}
 
 // ═══════════════════════════════════════════════════════════════════
 // ROAD_TYPEAHEAD_CONFIG — behavior for the type-to-filter overlay used
