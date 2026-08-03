@@ -18,10 +18,15 @@
 // WHAT THIS DOES, AND DELIBERATELY DOES NOT DO:
 //
 // It does NOT wrap 70 call sites. Every one of them goes through
-// sheetsUpdate / sheetsAppend / sheetsDeleteRow, so those three record the
-// failure and then rethrow UNCHANGED. Nothing downstream behaves differently
-// — the swallowing catches still swallow the exception, they just no longer
-// swallow the FACT.
+// sheetsUpdate / sheetsAppend / sheetsDeleteRow / sheetsClear, so those record
+// the failure and then rethrow UNCHANGED. Nothing downstream behaves
+// differently — the swallowing catches still swallow the exception, they just
+// no longer swallow the FACT.
+//
+// v0.9.1274 (finding R14): that used to say "EVERY one of them", and named
+// three functions. Two value writes went round all three on raw fetch. One is
+// sheetsClear now; the other is Dashboard-tab FORMATTING and stays outside on
+// purpose. sheets.js's own header states the boundary exactly.
 //
 // ── The rule that shapes everything below ──────────────────────────────
 //
@@ -110,9 +115,22 @@
 
   // ── may this entry be replayed without asking? ───────────────────
   // Three conditions, all required. Exported so the tests can state them.
+  //
+  // v0.9.1274 (finding R14): the first condition used to read
+  // `if (entry.kind === 'delete') return false;` — a list of what is banned,
+  // which means anything NOT on the list is allowed by default. Adding the
+  // 'clear' kind for the For Sale sheet would have opted itself straight into
+  // automatic replay on that rule, and _replay would then have thrown
+  // 'not replayable' from inside the retry loop. A new destructive kind
+  // should have to ASK to be replayable, not have to remember to opt out.
+  //
+  // So it is an allowlist now: exactly the two kinds _replay knows how to
+  // perform. The two lists cannot drift apart without the gate saying so —
+  // §224 asserts they are the same set.
+  var _AUTO_RETRYABLE = ['update', 'append'];
   function rrOutboxCanAutoRetry(entry) {
     if (!entry) return false;
-    if (entry.kind === 'delete') return false;              // never, at all
+    if (_AUTO_RETRYABLE.indexOf(entry.kind) === -1) return false;  // delete, clear: never
     if (entry.session !== _session()) return false;         // not across a reload
     if (entry.movedAt !== _rowsMovedAt) return false;       // rows shifted since
     return true;
@@ -139,7 +157,9 @@
       var still = [];
       for (var i = 0; i < list.length; i++) {
         var e = list[i];
-        var allowed = opts.force ? (e.kind !== 'delete') : rrOutboxCanAutoRetry(e);
+        // v0.9.1274 (R14): allowlist here too. `force` is the user choosing,
+        // but they can only choose from what _replay can actually perform.
+        var allowed = opts.force ? (_AUTO_RETRYABLE.indexOf(e.kind) !== -1) : rrOutboxCanAutoRetry(e);
         if (!allowed) { still.push(e); skipped++; continue; }
         try {
           await _replay(e);
@@ -190,6 +210,7 @@
     var rows = list.slice(-25).reverse().map(function (e) {
       var what = e.kind === 'delete' ? 'Remove a row'
                : e.kind === 'append' ? 'Add a row'
+               : e.kind === 'clear' ? 'Empty the for-sale list'
                : 'Update';
       var where = (e.args && e.args.range) || (e.args && e.args.sheetName) || '';
       var when = '';
