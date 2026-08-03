@@ -3648,19 +3648,15 @@
   // need ceremony. But the skip is a labelled, deliberate choice ("Use whole
   // photo"), not an accidental one, and the crop box opens on the rectangle you
   // used last so most photos need a nudge rather than a fresh drag.
-  var _PIN_SKIP_CROP_KEY = 'rr_skip_read_crop';
-  // v0.9.1130 (audit #12): this setting had NO WRITER anywhere in the app —
-  // nothing ever set it, so the crop step was permanently mandatory on every
-  // paid read and the comment above ("not literally unskippable") was untrue
-  // in practice. Preferences now owns it. Accepts the Preferences format
-  // ('true') as well as the original '1' so nothing already stored is lost.
-  function _pinSkipReadCrop() {
-    try { var v = localStorage.getItem(_PIN_SKIP_CROP_KEY); return v === '1' || v === 'true'; }
-    catch (e) { return false; }
-  }
-
+  // v0.9.1309 (Brad: "just get rid of the crop toggle"): the Preferences
+  // switch that skipped this step is GONE — the crop offer is unconditional
+  // again. It never forces a crop: "Use whole photo" remains the one-tap
+  // skip on any photo that is already tight, which is all the escape hatch
+  // the step needs. (The stored setting and its reader were removed
+  // together — no writer-less orphan key left behind, the v0.9.1130 audit
+  // smell this very setting was once fixed FOR.)
   function _pinCropForRead(blob, cb) {
-    if (!blob || typeof window._openCropper !== 'function' || _pinSkipReadCrop()) { cb(blob); return; }
+    if (!blob || typeof window._openCropper !== 'function') { cb(blob); return; }
     var url;
     try { url = URL.createObjectURL(blob); } catch (e) { cb(blob); return; }
     var done = false;
@@ -3691,7 +3687,7 @@
     var btn = document.getElementById('pin-rv-idtoken');
     // v0.9.1052: don't say "Reading…" while the crop screen is still open —
     // nothing is being read and nothing has been spent yet.
-    var _idBusy = _pinBtnBusy(btn, _pinSkipReadCrop() ? 'Reading\u2026' : 'Crop first\u2026');   // v0.9.1168
+    var _idBusy = _pinBtnBusy(btn, 'Crop first\u2026');   // v0.9.1168; v0.9.1309: crop step always offered
     try {
       var g = gs[0];
       // v0.9.1092: "Read this photo" reads the photo ON SCREEN. For a set the

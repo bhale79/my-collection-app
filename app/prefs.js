@@ -302,10 +302,6 @@ function buildPrefsPage() {
         <div class="pref-row-label"><strong>Compact Mode</strong><span>Denser table rows, smaller fonts, hide the icon key. Maximizes the rows you see.</span></div>
         ${toggle('compact', 'lv_compact_mode', 'false')}
       </div>
-      <div class="pref-row">
-        <div class="pref-row-label"><strong>Skip the crop step on a paid read</strong><span>Cropping to one item stops the reader answering about the wrong train, so it is on by default. Turn this on only if your photos are already tight.</span></div>
-        ${toggle('skipreadcrop', 'rr_skip_read_crop', 'false')}
-      </div>
 
       </div>
     </div>

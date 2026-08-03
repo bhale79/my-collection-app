@@ -2358,11 +2358,17 @@ META_WRITES.length = 0; TOASTS.length = 0;
   const a6src = require('fs').readFileSync(SRC, 'utf8');
   const a6prefs = require('fs').readFileSync(require('path').join(__dirname, '..', 'app', 'prefs.js'), 'utf8');
   const a6wsave = require('fs').readFileSync(require('path').join(__dirname, '..', 'app', 'wizard-save.js'), 'utf8');
-  // #12 — the setting that nothing could ever set
-  ok('the crop-skip setting finally has a writer',
-     /toggle\('skipreadcrop', 'rr_skip_read_crop'/.test(a6prefs));
-  ok('and it still honours anything stored in the old format',
-     /v === '1' \|\| v === 'true'/.test(a6src));
+  // #12 — the setting that nothing could ever set. Its v0.9.1130 fix gave it
+  // a Preferences writer; v0.9.1309 (Brad: "just get rid of the crop toggle")
+  // removed the setting ENTIRELY — writer, reader and key together, so no
+  // writer-less orphan returns. The crop offer is unconditional; "Use whole
+  // photo" remains the one-tap skip.
+  ok('the crop-skip setting is fully gone — no toggle, no key, no reader',
+     !/rr_skip_read_crop/.test(a6prefs) && !/rr_skip_read_crop/.test(a6src) &&
+     !/_pinSkipReadCrop/.test(a6src));
+  ok('the crop offer is unconditional, with Use-whole-photo as the skip',
+     /if \(!blob \|\| typeof window\._openCropper !== 'function'\) \{ cb\(blob\); return; \}/.test(a6src) &&
+     /cancelLabel: 'Use whole photo',/.test(a6src));
   // #4 — a cancelled single add must not file its photos
   ok('the single add parks its note in staging, not the live list',
      /stage1\[num\] = \{ link: link/.test(a6src) &&
