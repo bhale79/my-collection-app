@@ -16854,11 +16854,14 @@ META_WRITES.length = 0; TOASTS.length = 0;
          /it\._photoExtrasLinked && it\._photoExtrasLinked\[_e\] && it\._photoExtraIds && it\._photoExtraIds\[_e\]/.test(sh53));
       ok('253 the autotimer runs at BOTH app-start branches',
          (ad53.match(/setTimeout\(rrSweepExpiredShares, 8000\)/g) || []).length === 2);
+      // v0.9.1312: the scope narrows to the Shared Photos section — the Vault
+      // Cleanup tool now legitimately talks to Drive further down this file.
+      const _shpEnd53 = tl53.indexOf('VAULT CLEANUP');
       ok('253 the Shared Photos page sweeps before it draws, and only DRAWS — share.js owns the data',
          /await rrSweepExpiredShares\(\);/.test(tl53) &&
          /await rrSharedPhotosList\(\);/.test(tl53) &&
          /rrStopSharingOne/.test(tl53) && /rrStopSharingAll/.test(tl53) &&
-         !/driveRequest\(/.test(tl53.slice(tl53.indexOf('function rrShareExpText'))));
+         !/driveRequest\(/.test(tl53.slice(tl53.indexOf('function rrShareExpText'), _shpEnd53 > 0 ? _shpEnd53 : undefined)));
     })();
 
     // ═══════════════════════════════════════════════════════════
@@ -17277,6 +17280,120 @@ META_WRITES.length = 0; TOASTS.length = 0;
          /Email a link to the sheet \(Gmail\)/.test(sh59) && /_doShare\(\\'gmail\\'\)/.test(sh59));
       ok('259 the upload still makes the sheet anyone-with-link before the draft exists',
          /role: 'reader', type: 'anyone'/.test(sh59.slice(u0, u1)));
+    })();
+
+    // ═══════════════════════════════════════════════════════════
+    // §260. v0.9.1312 — Vault Cleanup: Brad's three decisions, guarded.
+    //
+    //   Merge the doubled 20-93699, remove ONLY verifiably-empty leftovers
+    //   (2205 never referenced), migrate the legacy vault, rename ARCHIVE.
+    //   The REAL preview + run execute against a MUTABLE fake Drive.
+    // ═══════════════════════════════════════════════════════════
+    section('260. Vault Cleanup: preview plans, run moves, trash only what is empty');
+    await (async function () {
+      const p60 = require('path');
+      const tl60 = fs.readFileSync(p60.join(__dirname, '..', 'app', 'tools.js'), 'utf8');
+      const v0 = tl60.indexOf('var _vcPlan = null;');
+      const v1 = tl60.indexOf("if (typeof window !== 'undefined') {\n  window.rrVaultCleanupPreview");
+      ok('260 the cleanup source slice was found', v0 > 0 && v1 > v0);
+      // ── a mutable fake Drive ──
+      const F = {};   // id -> {name, parent, folder, trashed}
+      function add(id, name, parent, folder) { F[id] = { name, parent, folder: !!folder, trashed: false }; }
+      add('ROOT', 'My Collection Photos', null, true);
+      add('SOLD', 'My Sold Collection Photos', null, true);
+      add('TWIN', 'mth No. 20-93699', 'ROOT', true);
+      add('T3', '3', 'TWIN', true); add('T3F', 'RSV.png', 'T3', false);
+      add('T4', '4', 'TWIN', true); add('T4F', 'RSV.png', 'T4', false);
+      add('MTHO', 'MTH O', 'ROOT', true);
+      add('TGT', '20-93699', 'MTHO', true);
+      add('G4', '4', 'TGT', true); add('G4F', 'RSV.png', 'G4', false);
+      add('G5', '5', 'TGT', true);
+      add('E1', '84631', 'MPC', true);
+      add('E2', '84631-BOX', 'MPC', true); add('E2F', 'straggler.jpg', 'E2', false);   // NOT empty → left alone
+      add('E3', '0028CC', 'ROOT', true);
+      add('ATLAS', 'Atlas O', 'ROOT', true); add('K2205', '2205', 'ATLAS', true);      // must never be touched
+      add('LEG', 'Lionel Vault - My Collection', null, true);
+      add('L2056', '2056', 'LEG', true); add('L2056F', 'a.jpg', 'L2056', false);
+      add('L726', '726', 'LEG', true); add('L726F', 'b.jpg', 'L726', false);
+      add('L736', '736', 'LEG', true); add('L736F', 'c.jpg', 'L736', false);
+      add('LPDF', 'Collection Share 03-14-2026.pdf', 'LEG', false);
+      add('PWERA', 'Lionel Postwar', 'ROOT', true);
+      add('A726', '726', 'PWERA', true); add('A726F', 'RSV.png', 'A726', false);
+      const patched = [];
+      const fakeDrive = async function (method, endpoint, body) {
+        if (method === 'GET') {
+          const q = decodeURIComponent(endpoint.split('?q=')[1].split('&')[0]);
+          const mParent = q.match(/'([^']+)' in parents/);
+          const mName = q.match(/name='([^']+)'/);
+          const files = Object.keys(F).filter((id) => {
+            const f = F[id];
+            if (f.trashed) return false;
+            if (mParent && f.parent !== mParent[1]) return false;
+            if (mName && f.name !== mName[1]) return false;
+            if (!mParent && !mName) return false;
+            if (/mimeType='application\/vnd\.google-apps\.folder'/.test(q) && !f.folder) return false;
+            return true;
+          }).map((id) => ({ id, name: F[id].name, parents: [F[id].parent], mimeType: F[id].folder ? 'application/vnd.google-apps.folder' : 'image/png' }));
+          return { files };
+        }
+        if (method === 'PATCH') {
+          patched.push({ endpoint, body });
+          const id = endpoint.split('/files/')[1].split('?')[0];
+          const mv = endpoint.match(/addParents=([^&]+)&removeParents=([^&]+)/);
+          if (mv) F[id].parent = mv[1];
+          if (body && body.trashed) F[id].trashed = true;
+          if (body && body.name) F[id].name = body.name;
+          return {};
+        }
+        return {};
+      };
+      const out60 = { innerHTML: '' };
+      const store = { 'lv_photos_id': 'ROOT', 'lv_sold_photos_id': 'SOLD' };
+      const env = {
+        driveRequest: fakeDrive,
+        document: { getElementById: (id) => (id === 'vault-cleanup-results' ? out60 : null) },
+        localStorage: { getItem: (k) => store[k] || null, setItem: (k, v) => { store[k] = v; }, removeItem: () => {} },
+        rrEsc: (s) => String(s == null ? '' : s),
+        driveCache: { photosId: 'ROOT', soldPhotosId: 'SOLD' },
+        buildToolsPage: () => {},
+        window: {},
+      };
+      const api60 = new Function('driveRequest', 'document', 'localStorage', 'rrEsc', 'driveCache', 'buildToolsPage', 'window',
+        tl60.slice(v0, v1) + '\nreturn { preview: rrVaultCleanupPreview, run: rrVaultCleanupRun, plan: function(){ return _vcPlan; }, setPlan: function(p){ _vcPlan = p; } };')(
+        env.driveRequest, env.document, env.localStorage, env.rrEsc, env.driveCache, env.buildToolsPage, env.window);
+      await api60.preview();
+      const plan = api60.plan();
+      const labels = plan.map((s) => s.label).join('\n');
+      const ids = plan.map((s) => s.id);
+      ok('260 the twin merges: inv 3 moves whole, inv 4 merges file-by-file then goes',
+         ids.includes('T3') && ids.includes('T4F') && ids.includes('T4') &&
+         plan.find((s) => s.id === 'T3').act === 'reparent' &&
+         plan.find((s) => s.id === 'T4').act === 'trash-empty');
+      ok('260 the twin folder itself is trashed only AFTER its contents move',
+         plan.findIndex((s) => s.id === 'TWIN') > plan.findIndex((s) => s.id === 'T3'));
+      ok('260 only the EMPTY leftovers are planned — the straggler folder is left alone',
+         ids.includes('E1') && ids.includes('E3') && !ids.includes('E2') &&
+         /not empty any more/.test(out60.innerHTML));
+      ok('260 2205 is never referenced by any step', !ids.includes('K2205') && !/2205/.test(labels));
+      ok('260 the legacy vault: whole-folder moves, a merge for the active twin, 736 to Sold',
+         plan.find((s) => s.id === 'L2056' && s.to === 'PWERA') &&
+         plan.find((s) => s.id === 'L726F' && s.to === 'A726') &&
+         plan.find((s) => s.id === 'L736' && s.to === 'SOLD') &&
+         plan.find((s) => s.id === 'LEG' && s.act === 'rename' && /ARCHIVE/.test(s.name)));
+      ok('260 the share PDF stays in the archive', !ids.includes('LPDF'));
+      // ── run it, plus one poisoned step to prove the trash guard ──
+      const poisoned = plan.concat([{ act: 'trash-empty', id: 'ATLAS', label: 'poison: trash a non-empty folder' }]);
+      api60.setPlan(poisoned);
+      await api60.run();
+      ok('260 every real step lands: files moved, twin trashed, vault renamed ARCHIVE',
+         F['T3'].parent === 'TGT' && F['T4F'].parent === 'G4' && F['TWIN'].trashed &&
+         F['L2056'].parent === 'PWERA' && F['L726F'].parent === 'A726' && F['L736'].parent === 'SOLD' &&
+         /^ARCHIVE/.test(F['LEG'].name));
+      ok('260 the run-time guard refuses the poisoned trash — the folder survives',
+         !F['ATLAS'].trashed && /poison/.test(out60.innerHTML) && /not empty/.test(out60.innerHTML));
+      ok('260 a clean run would set the done flag; the poisoned one must NOT',
+         store['rr_vault_cleanup_done'] !== '1');
+      ok('260 empty leftovers really got trashed', F['E1'].trashed && F['E3'].trashed && !F['E2'].trashed);
     })();
 
   })().then(function () {

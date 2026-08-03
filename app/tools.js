@@ -107,10 +107,24 @@ function buildToolsPage() {
       '<div id="shared-photos-results" style="margin-top:1rem"></div>' +
     '</div>';
 
+  // v0.9.1312 (Brad's three twin-folder-scan decisions, 2026-08-03): a
+  // ONE-TIME cleanup with a preview-then-confirm flow, same pattern as the
+  // photo-name cleanup that ran 2026-07-25. Hides itself once it has run.
+  var CARD_VAULT_CLEANUP = (localStorage.getItem('rr_vault_cleanup_done') === '1') ? '' :
+    '<div class="tools-card">' +
+      '<div class="tools-card-title">' +
+        '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#e74c3c" stroke-width="2"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>' +
+        'Vault Cleanup · one-time' +
+      '</div>' +
+      '<div class="tools-card-desc">From the Aug 3 Drive scan: merge the doubled 20-93699 into MTH O, remove three empty leftover folders (84631, 84631-BOX, 0028CC — today’s 2205 is left alone), and move the old Lionel Vault’s stranded photos into the active vault so the app can finally see them. Preview shows every step before anything moves.</div>' +
+      '<button onclick="rrVaultCleanupPreview()" style="padding:0.55rem 1.1rem;border-radius:8px;border:1.5px solid #e74c3c;background:var(--bg-card);background:color-mix(in srgb, rgb(231,76,60) 10%, var(--bg-card));color:#e74c3c;font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer">Preview the cleanup</button>' +
+      '<div id="vault-cleanup-results" style="margin-top:1rem"></div>' +
+    '</div>';
+
   var html = '<div class="page-title" style="margin-bottom:0.5rem">Collection Tools</div>';
   // Universal = works across every manufacturer.
   html += SECTION_HEADER('universal', 'Universal Tools', 'Work across all manufacturers');
-  html += '<div id="universal-body">' + CARD_DUPLICATE_CHECKER + CARD_SHARED_PHOTOS + '</div>';
+  html += '<div id="universal-body">' + CARD_DUPLICATE_CHECKER + CARD_VAULT_CLEANUP + CARD_SHARED_PHOTOS + '</div>';
 
   // Postwar Lionel = tools that rely on Lionel postwar catalog data (grouping,
   // sets, companions). Smart Group Finder lives here (it's postwar-Lionel only).
@@ -1274,4 +1288,169 @@ if (typeof window !== 'undefined') {
   window.runSharedPhotos = runSharedPhotos;
   window.rrStopSharingOne = rrStopSharingOne;
   window.rrStopSharingAll = rrStopSharingAll;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// VAULT CLEANUP (v0.9.1312, one-time) — Brad's three decisions from the
+// 2026-08-03 twin-folder scan (TWIN_FOLDER_SCAN_2026-08-03.md):
+//   1. "Yes, merge and clean up"      — 20-93699 into MTH O, trash the twin
+//   2. "Delete the 3 old, keep 2205"  — 84631, 84631-BOX, 0028CC (empty only)
+//   3. "Migrate into the active vault"— legacy Lionel Vault photos move in,
+//                                       the emptied vault renamed ARCHIVE
+// Preview discovers everything READ-ONLY and lists each primitive step;
+// nothing moves until Brad clicks Run. Every trash is guarded: a folder is
+// only trashed when the preview (and the run, again) sees it empty or its
+// contents are moved out first, in plan order. 2205 is never referenced.
+// ═══════════════════════════════════════════════════════════════
+
+var _vcPlan = null;
+
+async function _vcKids(parentId) {
+  var q = encodeURIComponent("'" + parentId + "' in parents and trashed=false");
+  var r = await driveRequest('GET', '/files?q=' + q + '&fields=files(id,name,mimeType)&pageSize=1000');
+  return (r && r.files) || [];
+}
+function _vcIsFolder(f) { return f && f.mimeType === 'application/vnd.google-apps.folder'; }
+async function _vcFindFolders(name, parentId) {
+  var q = "name='" + String(name).replace(/'/g, "\\'") + "' and mimeType='application/vnd.google-apps.folder' and trashed=false"
+        + (parentId ? " and '" + parentId + "' in parents" : '');
+  var r = await driveRequest('GET', '/files?q=' + encodeURIComponent(q) + '&fields=files(id,name,parents)&pageSize=10');
+  return (r && r.files) || [];
+}
+
+async function rrVaultCleanupPreview() {
+  var out = document.getElementById('vault-cleanup-results');
+  if (!out) return;
+  out.innerHTML = '<div style="color:var(--text-dim);font-size:0.85rem">Looking (read-only)…</div>';
+  var plan = [], notes = [];
+  try {
+    var rootId = (typeof driveCache !== 'undefined' && driveCache.photosId) || localStorage.getItem('lv_photos_id');
+    var soldId = (typeof driveCache !== 'undefined' && driveCache.soldPhotosId) || localStorage.getItem('lv_sold_photos_id');
+    if (!rootId) { out.innerHTML = '<div style="color:var(--accent);font-size:0.85rem">Photos folder not known yet — open the app fully signed in, then try again.</div>'; return; }
+
+    // ── 1. the doubled 20-93699 ──
+    var twins = await _vcFindFolders('mth No. 20-93699', rootId);
+    if (!twins.length) notes.push('The loose “mth No. 20-93699” folder was not found — maybe already cleaned.');
+    else {
+      var mthEra = (await _vcFindFolders('MTH O', rootId))[0];
+      var target = mthEra ? (await _vcFindFolders('20-93699', mthEra.id))[0] : null;
+      if (!target) notes.push('“20-93699” under MTH O was not found — the merge is skipped.');
+      else {
+        var src = twins[0];
+        var srcKids = await _vcKids(src.id);
+        var tgtKids = await _vcKids(target.id);
+        for (var i = 0; i < srcKids.length; i++) {
+          var k = srcKids[i];
+          var clash = tgtKids.filter(function (t) { return t.name === k.name && _vcIsFolder(t) === _vcIsFolder(k); })[0];
+          if (clash && _vcIsFolder(k)) {
+            var inner = await _vcKids(k.id);
+            inner.forEach(function (f) {
+              plan.push({ act: 'reparent', id: f.id, from: k.id, to: clash.id, label: 'Move “' + f.name + '” into MTH O › 20-93699 › ' + clash.name });
+            });
+            plan.push({ act: 'trash-empty', id: k.id, label: 'Remove the emptied copy folder “' + k.name + '”' });
+          } else {
+            plan.push({ act: 'reparent', id: k.id, from: src.id, to: target.id, label: 'Move “' + k.name + '” into MTH O › 20-93699' });
+          }
+        }
+        plan.push({ act: 'trash-empty', id: src.id, label: 'Remove the emptied loose “mth No. 20-93699” folder' });
+      }
+    }
+
+    // ── 2. the three empty leftovers (2205 deliberately untouched) ──
+    var empt = ['84631', '84631-BOX', '0028CC'];
+    for (var e = 0; e < empt.length; e++) {
+      var found = await _vcFindFolders(empt[e]);
+      if (!found.length) { notes.push('“' + empt[e] + '” was not found — maybe already gone.'); continue; }
+      for (var f2 = 0; f2 < found.length; f2++) {
+        var kids2 = await _vcKids(found[f2].id);
+        if (kids2.length) notes.push('“' + empt[e] + '” is not empty any more (' + kids2.length + ' item' + (kids2.length > 1 ? 's' : '') + ' inside) — left alone.');
+        else plan.push({ act: 'trash-empty', id: found[f2].id, label: 'Remove the empty folder “' + empt[e] + '”' });
+      }
+    }
+
+    // ── 3. the legacy vault ──
+    var legacy = (await _vcFindFolders('Lionel Vault - My Collection'))[0];
+    if (!legacy) notes.push('The legacy “Lionel Vault - My Collection” was not found.');
+    else {
+      var pwEra = (await _vcFindFolders('Lionel Postwar', rootId))[0];
+      if (!pwEra) notes.push('The “Lionel Postwar” era folder was not found — legacy migration skipped.');
+      else {
+        var lKids = await _vcKids(legacy.id);
+        var pwKids = await _vcKids(pwEra.id);
+        for (var l = 0; l < lKids.length; l++) {
+          var lk = lKids[l];
+          if (!_vcIsFolder(lk)) { notes.push('“' + lk.name + '” (a file, not an item folder) stays in the archive.'); continue; }
+          var dest = pwEra, destName = 'Lionel Postwar';
+          if (lk.name === '736' && soldId) { dest = { id: soldId }; destName = 'Sold photos'; }
+          var twin2 = (dest.id === pwEra.id ? pwKids : await _vcKids(dest.id)).filter(function (t) { return t.name === lk.name && _vcIsFolder(t); })[0];
+          if (twin2) {
+            var inner2 = await _vcKids(lk.id);
+            /* eslint-disable no-loop-func */
+            inner2.forEach(function (f3) {
+              plan.push({ act: 'reparent', id: f3.id, from: lk.id, to: twin2.id, label: 'Move “' + f3.name + '” into ' + destName + ' › ' + lk.name });
+            });
+            plan.push({ act: 'trash-empty', id: lk.id, label: 'Remove the emptied legacy “' + lk.name + '” folder' });
+          } else {
+            plan.push({ act: 'reparent', id: lk.id, from: legacy.id, to: dest.id, label: 'Move the whole “' + lk.name + '” folder into ' + destName });
+          }
+        }
+        plan.push({ act: 'rename', id: legacy.id, name: 'ARCHIVE — Lionel Vault (migrated 2026-08-03)', label: 'Rename the old vault to ARCHIVE — Lionel Vault (migrated 2026-08-03)' });
+      }
+    }
+  } catch (err) {
+    out.innerHTML = '<div style="color:var(--accent);font-size:0.85rem">Could not finish looking: ' + rrEsc(err && err.message || 'error') + ' — nothing was changed.</div>';
+    return;
+  }
+
+  _vcPlan = plan;
+  var h = '';
+  if (notes.length) h += notes.map(function (n) { return '<div style="font-size:0.76rem;color:var(--text-dim);padding:0.15rem 0">ℹ ' + rrEsc(n) + '</div>'; }).join('');
+  if (!plan.length) {
+    h += '<div style="padding:0.6rem;background:rgba(46,204,113,0.08);border:1px solid rgba(46,204,113,0.25);border-radius:8px;color:#4dc880;font-size:0.85rem">Nothing left to do — the vault already looks clean.</div>'
+       + '<button onclick="localStorage.setItem(\'rr_vault_cleanup_done\',\'1\');buildToolsPage()" style="margin-top:0.5rem;padding:0.4rem 0.8rem;border-radius:7px;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-size:0.78rem;cursor:pointer">Dismiss this card</button>';
+  } else {
+    h += '<div style="font-size:0.8rem;color:var(--text-mid);margin:0.4rem 0">' + plan.length + ' step' + (plan.length > 1 ? 's' : '') + ' — nothing has moved yet:</div>'
+       + plan.map(function (s) { return '<div style="font-size:0.78rem;color:var(--text);padding:0.15rem 0;border-bottom:1px solid var(--border)">' + rrEsc(s.label) + '</div>'; }).join('')
+       + '<button onclick="rrVaultCleanupRun()" style="margin-top:0.7rem;padding:0.55rem 1.1rem;border-radius:8px;border:none;background:#e74c3c;color:#fff;font-family:var(--font-body);font-size:0.85rem;font-weight:700;cursor:pointer">Run these ' + plan.length + ' steps</button>';
+  }
+  out.innerHTML = h;
+}
+
+async function rrVaultCleanupRun() {
+  var out = document.getElementById('vault-cleanup-results');
+  if (!out || !_vcPlan || !_vcPlan.length) return;
+  var plan = _vcPlan; _vcPlan = null;
+  var done = 0, failed = [];
+  for (var i = 0; i < plan.length; i++) {
+    var s = plan[i];
+    out.innerHTML = '<div style="color:var(--text-dim);font-size:0.85rem">Step ' + (i + 1) + ' of ' + plan.length + ' — ' + rrEsc(s.label) + '</div>';
+    try {
+      if (s.act === 'reparent') {
+        await driveRequest('PATCH', '/files/' + s.id + '?addParents=' + s.to + '&removeParents=' + s.from, {});
+      } else if (s.act === 'trash-empty') {
+        // re-verify at run time: a folder is only trashed while truly empty
+        var kids = await _vcKids(s.id);
+        if (kids.length) throw new Error('not empty (' + kids.length + ')');
+        await driveRequest('PATCH', '/files/' + s.id, { trashed: true });
+      } else if (s.act === 'rename') {
+        await driveRequest('PATCH', '/files/' + s.id, { name: s.name });
+      }
+      done++;
+    } catch (err) { failed.push(s.label + ' — ' + (err && err.message || 'error')); }
+  }
+  var h = '<div style="padding:0.6rem;background:rgba(46,204,113,0.08);border:1px solid rgba(46,204,113,0.25);border-radius:8px;color:#4dc880;font-size:0.85rem">✓ ' + done + ' of ' + plan.length + ' steps done.</div>';
+  if (failed.length) {
+    h += '<div style="font-size:0.78rem;color:var(--accent);margin-top:0.4rem">' + failed.length + ' step' + (failed.length > 1 ? 's' : '') + ' could not run (nothing was half-done — each step stands alone):</div>'
+       + failed.map(function (f) { return '<div style="font-size:0.74rem;color:var(--text-dim);padding:0.1rem 0">' + rrEsc(f) + '</div>'; }).join('')
+       + '<div style="font-size:0.76rem;color:var(--text-dim);margin-top:0.3rem">Preview again to retry what is left.</div>';
+  } else {
+    localStorage.setItem('rr_vault_cleanup_done', '1');
+    h += '<div style="font-size:0.78rem;color:var(--text-dim);margin-top:0.4rem">Trashed folders sit in your Drive trash for 30 days. This card will not show again.</div>';
+  }
+  out.innerHTML = h;
+}
+
+if (typeof window !== 'undefined') {
+  window.rrVaultCleanupPreview = rrVaultCleanupPreview;
+  window.rrVaultCleanupRun = rrVaultCleanupRun;
 }
