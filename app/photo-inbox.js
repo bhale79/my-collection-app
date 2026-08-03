@@ -843,6 +843,20 @@
   // logic changes; it costs nothing but time, and only on photos that failed.
   var READER_VER = '1107';
 
+  // v0.9.1283: dragged order first, listing order for the rest. Pure, so the
+  // suite lifts and runs it. A photo with no ord (0) keeps its listing slot
+  // AFTER every ordered one — dragging some photos must never scramble the
+  // ones that were not touched.
+  function _pinSortByOrd(files) {
+    var any = (files || []).some(function (f) { return f._meta && f._meta.ord > 0; });
+    if (!any) return files;
+    return files.map(function (f, i) {
+      return { f: f, k: (f._meta && f._meta.ord > 0) ? f._meta.ord : 900 + i, i: i };
+    }).sort(function (a, b) { return a.k - b.k || a.i - b.i; })
+      .map(function (x) { return x.f; });
+  }
+  if (typeof window !== 'undefined') window._pinSortByOrd = _pinSortByOrd;
+
   function _pinMetaOf(file) {
     var ap = (file && file.appProperties) || {};
     var out = {
@@ -858,6 +872,10 @@
       num:  ap.rrNum  || '',
       stat: ap.rrStat || '',
       conf: ap.rrConf || '',
+      // v0.9.1283 (Brad: "i need to be able to drag the pictures back and
+      // forth"): the photo's place in its group, written when he drags. 0
+      // means never ordered — listing order stands, as it always has.
+      ord:  parseInt(ap.rrOrd, 10) || 0,
     };
     // Filename fallback — but NEVER for a photo the user explicitly split apart.
     // Quick Capture names phone photos "INBOX 3 g<id> …", so before v0.9.1132
@@ -876,7 +894,7 @@
   // and deletes any whose value is null, so only what changed goes over.
   async function _pinMetaSet(fileId, patch) {
     if (!fileId || !patch) return false;
-    var map = { era:'rrEra', grp:'rrGrp', kind:'rrKind', role:'rrRole', num:'rrNum', stat:'rrStat', conf:'rrConf' };
+    var map = { era:'rrEra', grp:'rrGrp', kind:'rrKind', role:'rrRole', num:'rrNum', stat:'rrStat', conf:'rrConf', ord:'rrOrd' };   // ord: v0.9.1283, drag order
     var props = { rrV: _PIN_META_V };
     Object.keys(patch).forEach(function (k) {
       if (!map[k]) return;
@@ -1015,6 +1033,8 @@
         map[key].files.push(f);
       });
       _groups = order.map(function (k) { return map[k]; });
+      // v0.9.1283: a dragged order outranks the listing order, per group.
+      _groups.forEach(function (g) { g.files = _pinSortByOrd(g.files); });
       try { _pinReconcileStored(); } catch (eRS) {}
       // Drop selections that no longer exist
       Object.keys(_sel).forEach(function (k) { if (!map[k]) delete _sel[k]; });
@@ -2136,6 +2156,59 @@
     window._pinReviewStep(e.key === 'ArrowLeft' ? -1 : 1);
   });
 
+  // v0.9.1283 — drag a review-card thumb to reorder the group's photos. The
+  // order is written to each photo (rrOrd appProperties) so it survives to
+  // every device and every later screen; _pinSortByOrd applies it wherever
+  // the group is drawn. Desktop gesture; single-group cards only — a
+  // multi-select card mixes several items, and "order" has no one meaning
+  // there.
+  function _pinWireRvDrag(root) {
+    if (window.IS_MOBILE_UA) return;
+    if (!_rvGroups || _rvGroups.length !== 1) return;
+    var wraps = Array.prototype.slice.call(root.querySelectorAll('[data-dragfid]'));
+    if (wraps.length < 2) return;
+    wraps.forEach(function (w) {
+      w.draggable = true;
+      w.style.cursor = 'grab';
+      w.ondragstart = function (e) {
+        e.dataTransfer.setData('text/plain', w.getAttribute('data-dragfid'));
+        e.dataTransfer.effectAllowed = 'move';
+        w.style.opacity = '0.45';
+      };
+      w.ondragend = function () { w.style.opacity = ''; };
+      w.ondragover = function (e) { e.preventDefault(); w.style.outline = '2px solid var(--accent)'; };
+      w.ondragleave = function () { w.style.outline = ''; };
+      w.ondrop = function (e) {
+        e.preventDefault(); e.stopPropagation(); w.style.outline = '';
+        var from = e.dataTransfer.getData('text/plain');
+        var to = w.getAttribute('data-dragfid');
+        if (!from || from === to) return;
+        var ids = _rvGroups[0].files.map(function (f) { return f.id; });
+        var fi = ids.indexOf(from), ti = ids.indexOf(to);
+        if (fi < 0 || ti < 0) return;
+        ids.splice(ti, 0, ids.splice(fi, 1)[0]);
+        window._pinSaveRvOrder(ids);
+      };
+    });
+  }
+
+  window._pinSaveRvOrder = async function (orderedFids) {
+    var g = _rvGroups && _rvGroups.length === 1 && _rvGroups[0];
+    if (!g) return;
+    var ok = 0, fail = 0;
+    for (var i = 0; i < orderedFids.length; i++) {
+      var r = await _pinMetaSet(orderedFids[i], { ord: i + 1 });
+      if (r) ok++; else fail++;
+    }
+    // memory follows what was asked, so the redraw shows the dragged order
+    // even while a failed write is being retried by hand.
+    g.files.sort(function (a, b) { return orderedFids.indexOf(a.id) - orderedFids.indexOf(b.id); });
+    g.files.forEach(function (f, i) { if (f._meta) f._meta.ord = i + 1; });
+    if (fail) showToast('Saved the order for ' + ok + ' of ' + orderedFids.length + ' photos — drag again to retry the rest', 4500, true);
+    else showToast('✓ Order saved — the first photo is the main view', 2500);
+    try { window._pinReview(_rvKey || (g && g.key)); } catch (e) {}
+  };
+
   window._pinReview = function (key) {
     _rvKey = key || '';          // v0.9.1057: which group the card is showing
     _rvGroups = key ? _groups.filter(function (g) { return g.key === key; }) : _selGroups();
@@ -2307,7 +2380,8 @@
     var _stripHtml =
       '<div id="pin-rv-photos" style="display:flex;gap:0.45rem;overflow-x:auto;-webkit-overflow-scrolling:touch;margin-bottom:0.7rem">' +
         thumbs.slice(0, 12).map(function (fidT, i) {
-          return '<div style="position:relative;flex-shrink:0;width:' + (i === 0 ? '160px;height:160px' : '74px;height:74px;align-self:flex-end') + ';border-radius:10px;overflow:hidden;background:var(--surface2,#26262e)">' +
+          return '<div data-dragfid="' + fidT + '" style="position:relative;flex-shrink:0;width:' + (i === 0 ? '160px;height:160px' : '74px;height:74px;align-self:flex-end') + ';border-radius:10px;overflow:hidden;background:var(--surface2,#26262e)">' +
+            (i === 0 ? '<div style="position:absolute;top:0;left:0;background:var(--accent);color:#fff;font-size:0.55rem;font-weight:700;letter-spacing:0.04em;padding:1px 6px;border-radius:0 0 6px 0;z-index:2;pointer-events:none">MAIN VIEW</div>' : '') +
             '<img data-rvfid="' + fidT + '" onclick="_pinZoomPhoto(\'' + fidT + '\')" title="Tap to view full size — zoom in to read the label" style="width:100%;height:100%;object-fit:cover;display:block;cursor:zoom-in" alt="">' +
             '<button onclick="event.stopPropagation();_pinZoomPhoto(\'' + fidT + '\')" title="View full size" style="position:absolute;left:4px;bottom:4px;width:26px;height:26px;border-radius:7px;border:none;background:rgba(0,0,0,0.55);color:#fff;font-size:0.8rem;line-height:1;cursor:pointer;padding:0">🔍</button>' +
             '<button onclick="event.stopPropagation();_pinCropPhoto(\'' + fidT + '\')" title="Crop / Rotate this photo" style="position:absolute;top:4px;right:4px;width:26px;height:26px;border-radius:7px;border:none;background:rgba(0,0,0,0.55);color:#fff;font-size:0.85rem;line-height:1;cursor:pointer;padding:0">✂</button>' +
@@ -2331,10 +2405,11 @@
         '</div>' +
         (thumbs.length > 1
           ? '<div style="display:flex;gap:0.4rem;overflow-x:auto;-webkit-overflow-scrolling:touch">' +
-              thumbs.slice(0, 12).map(function (fidT) {
+              thumbs.slice(0, 12).map(function (fidT, i) {
                 var _tSug = _ids()[fidT];
                 var _tNum = (_tSug && _tSug.num) ? String(_tSug.num) : '';
-                return '<div onclick="_pinRvSetMain(\'' + fidT + '\')" title="Show this photo" style="position:relative;flex-shrink:0;width:64px;height:64px;border-radius:8px;overflow:hidden;background:var(--surface2,#26262e);cursor:pointer;border:1.5px solid transparent">' +
+                return '<div data-dragfid="' + fidT + '" onclick="_pinRvSetMain(\'' + fidT + '\')" title="Show this photo — drag to reorder" style="position:relative;flex-shrink:0;width:64px;height:64px;border-radius:8px;overflow:hidden;background:var(--surface2,#26262e);cursor:pointer;border:1.5px solid transparent">' +
+                  (i === 0 ? '<div style="position:absolute;top:0;left:0;background:var(--accent);color:#fff;font-size:0.55rem;font-weight:700;letter-spacing:0.04em;padding:1px 6px;border-radius:0 0 6px 0;z-index:2;pointer-events:none">MAIN VIEW</div>' : '') +
                   '<img data-rvfid="' + fidT + '" style="width:100%;height:100%;object-fit:cover;display:block" alt="">' +
                   (_tNum ? '<div style="position:absolute;left:0;right:0;bottom:0;background:rgba(0,0,0,0.62);color:' + (_tSug.guess ? '#ffb454' : '#7ec3ef') + ';font-size:0.58rem;font-weight:700;text-align:center;padding:1px 2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + rrEsc(_tNum) + '</div>' : '') +
                   '</div>';
@@ -2355,8 +2430,9 @@
       '</div>' +
       (thumbs.length > 1
         ? '<div style="display:flex;gap:0.4rem;overflow-x:auto;-webkit-overflow-scrolling:touch;margin-bottom:0.6rem">' +
-            thumbs.slice(0, 12).map(function (fidT) {
-              return '<div onclick="_pinRvSetMain(\'' + fidT + '\')" title="Show this photo" style="position:relative;flex-shrink:0;width:64px;height:64px;border-radius:8px;overflow:hidden;background:var(--surface2,#26262e);cursor:pointer;border:1.5px solid transparent">' +
+            thumbs.slice(0, 12).map(function (fidT, i) {
+              return '<div data-dragfid="' + fidT + '" onclick="_pinRvSetMain(\'' + fidT + '\')" title="Show this photo — drag to reorder" style="position:relative;flex-shrink:0;width:64px;height:64px;border-radius:8px;overflow:hidden;background:var(--surface2,#26262e);cursor:pointer;border:1.5px solid transparent">' +
+                (i === 0 ? '<div style="position:absolute;top:0;left:0;background:var(--accent);color:#fff;font-size:0.55rem;font-weight:700;letter-spacing:0.04em;padding:1px 6px;border-radius:0 0 6px 0;z-index:2;pointer-events:none">MAIN VIEW</div>' : '') +
                 '<img data-rvfid="' + fidT + '" style="width:100%;height:100%;object-fit:cover;display:block" alt=""></div>';
             }).join('') +
           '</div>'
@@ -2390,6 +2466,12 @@
         (_wide ? _wideBody : _stripHtml + _controlsHtml) +
       '</div>';
     document.body.appendChild(ov);
+    // v0.9.1283 (Brad: "i need to be able to drag the pictures back and
+    // forth. have a box on the first one that says 'main view'"). Wire every
+    // thumb strip on the card. The first photo IS the main view — it leads
+    // the card, and on an add it files as the cover/Right Side View — so the
+    // badge and the drag are two halves of one fact.
+    try { _pinWireRvDrag(ov); } catch (eDr) {}
     // v0.9.1181: first review card this browser has ever opened — show the help
     // once, unprompted, because a button nobody taps helps nobody.
     try {

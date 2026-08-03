@@ -10304,11 +10304,11 @@ META_WRITES.length = 0; TOASTS.length = 0;
        /'\.\/write-outbox\.js'/.test(rd('app/sw.js')));
 
     section('199h. The version trio moved together');
-    ok('APP_VERSION is v0.9.1282', /const APP_VERSION = 'v0\.9\.1282';/.test(cfg));
+    ok('APP_VERSION is v0.9.1283', /const APP_VERSION = 'v0\.9\.1283';/.test(cfg));
     ok('every ?v= mark in app/index.html matches it',
-       (idx.match(/\?v=1282/g) || []).length === 69 && !/\?v=1281/.test(idx),
-       String((idx.match(/\?v=1282/g) || []).length));
-    ok('the service worker cache name moved too', /const CACHE_NAME = 'mca-v1292';/.test(rd('app/sw.js')));
+       (idx.match(/\?v=1283/g) || []).length === 69 && !/\?v=1282/.test(idx),
+       String((idx.match(/\?v=1283/g) || []).length));
+    ok('the service worker cache name moved too', /const CACHE_NAME = 'mca-v1293';/.test(rd('app/sw.js')));
     // v0.9.1276 (R9): the ?v= count above cannot see a NEW local <script>
     // added with no stamp at all — 69 stamped plus one bare is still 69, and
     // the bare one dodges the cache-busting the stamp exists for: it would be
@@ -14585,6 +14585,85 @@ META_WRITES.length = 0; TOASTS.length = 0;
       ok('232 the six converted sites all call the helper',
          (code32.match(/_pinOpaqueTint\(/g) || []).length >= 7,   // 1 def + 6 calls
          String((code32.match(/_pinOpaqueTint\(/g) || []).length));
+    })();
+
+    // ═══════════════════════════════════════════════════════════
+    // §233. v0.9.1283 — drag the review card's photos back and forth;
+    //   the first one wears the MAIN VIEW box.
+    //
+    //   Brad: "i need to be able to drag the pictures back and forth.
+    //   have a box on the first one that says 'main view'." The order is
+    //   written onto each photo (rrOrd) so it holds on every device, and
+    //   _pinSortByOrd applies it wherever the group is drawn. The first
+    //   photo already IS the main view — it leads the card and files as
+    //   the cover on an add — the badge just says so out loud.
+    // ═══════════════════════════════════════════════════════════
+    section('233. Review-card photos drag into order; the first is MAIN VIEW');
+    await (async function () {
+      const p33 = require('path');
+      const pin33 = fs.readFileSync(p33.join(__dirname, '..', 'app', 'photo-inbox.js'), 'utf8');
+
+      // ── the pure sort, lifted and RUN ─────────────────────────────────
+      {
+        const a = pin33.indexOf('function _pinSortByOrd(files) {');
+        const b = pin33.indexOf('\n  }', a) + 4;
+        const sort = new Function(pin33.slice(a, b) + ' return _pinSortByOrd;')();
+        const F = (id, ord) => ({ id, _meta: { ord: ord || 0 } });
+        ok('233 an unordered group keeps its listing order exactly',
+           sort([F('a'), F('b'), F('c')]).map(f => f.id).join('') === 'abc');
+        ok('233 a dragged order outranks the listing order',
+           sort([F('a', 3), F('b', 1), F('c', 2)]).map(f => f.id).join('') === 'bca');
+        ok('233 photos never dragged keep their slots AFTER the ordered ones',
+           sort([F('a'), F('b', 1), F('c')]).map(f => f.id).join('') === 'bac',
+           sort([F('a'), F('b', 1), F('c')]).map(f => f.id).join(''));
+      }
+
+      // ── the order rides the same metadata lane as every other tag ────
+      ok('233 rrOrd is in both halves of the metadata map — write and read',
+         /ord:'rrOrd'/.test(pin33) && /ord:\s+parseInt\(ap\.rrOrd, 10\) \|\| 0/.test(pin33));
+      ok('233 every group is order-sorted where groups are built',
+         /_groups\.forEach\(function \(g\) \{ g\.files = _pinSortByOrd\(g\.files\); \}\);/.test(pin33));
+
+      // ── the card: three strips, all draggable, first thumb badged ────
+      ok('233 all three thumb strips carry the drag handle',
+         (pin33.match(/data-dragfid="' \+ fidT \+ '"/g) || []).length === 3,
+         String((pin33.match(/data-dragfid="' \+ fidT \+ '"/g) || []).length));
+      ok('233 …and each badges its FIRST photo as the main view',
+         (pin33.match(/\(i === 0 \? '<div style="position:absolute;top:0;left:0;background:var\(--accent\)/g) || []).length === 3,
+         String((pin33.match(/\(i === 0 \? '<div/g) || []).length));
+      ok('233 the wiring refuses multi-item cards — order has no meaning across items',
+         /_rvGroups\.length !== 1\) return;/.test(pin33.slice(pin33.indexOf('function _pinWireRvDrag'), pin33.indexOf('window._pinSaveRvOrder'))));
+
+      // ── the saver: every photo stamped, failures told, card redrawn ──
+      {
+        const sa = pin33.indexOf('window._pinSaveRvOrder = async function');
+        const seg = pin33.slice(sa, sa + 1600);
+        // The drill proved the spelling-check version could be fooled (a
+        // skip of photo 0 keeps both spellings present). Run the real saver.
+        {
+          const sb = pin33.indexOf('};', pin33.indexOf('window._pinReview(_rvKey', sa)) + 2;
+          const stamped = [];
+          const g33 = { key: 'K', files: [{ id: 'a', _meta: { ord: 0 } }, { id: 'b', _meta: { ord: 0 } }, { id: 'c', _meta: { ord: 0 } }] };
+          const win33 = { _pinReview: () => {} };
+          new Function('window', '_rvGroups', '_rvKey', '_pinMetaSet', 'showToast',
+            pin33.slice(sa, sb))(
+              win33, [g33], 'K',
+              async (fid, patch) => { stamped.push(fid + ':' + patch.ord); return true; },
+              () => {});
+          await win33._pinSaveRvOrder(['b', 'a', 'c']);
+          ok('233 a drop stamps EVERY photo with its position',
+             stamped.join(' ') === 'b:1 a:2 c:3',
+             stamped.join(' '));
+          ok('233 …and memory follows, so the redraw shows the dragged order',
+             g33.files.map(f => f.id).join('') === 'bac' &&
+             g33.files.map(f => f._meta.ord).join('') === '123',
+             g33.files.map(f => f.id).join(''));
+        }
+        ok('233 a partial save says how partial, and how to finish',
+           /Saved the order for ' \+ ok \+ ' of ' \+ orderedFids\.length/.test(seg));
+        ok('233 the card redraws so the badge follows the new first photo',
+           /window\._pinReview\(_rvKey \|\| \(g && g\.key\)\);/.test(seg));
+      }
     })();
 
   })().then(function () {
