@@ -799,6 +799,21 @@ async function runCompanionSuggester() {
     if (r === 'TENDER' || r === 'ENGINE') return ownedFamily === 'diesel';
     return false;   // AA-scan suffixed items carry their own evidence
   }
+  // ══ v0.9.1314 (Brad, seeing the 218 upsell): "don't ever suggest a
+  // companion for an item that is grouped with another item, its okay if
+  // they are combined with a box." An item already linked to another ITEM
+  // (groupId partner, or a matchedTo pairing) is settled — it never anchors
+  // a suggestion, not even an optional one. A partner that is a BOX
+  // (-BOX / -MBOX) does not count as "another item".
+  function _ccItemGrouped(pd) {
+    if (pd.matchedTo && String(pd.matchedTo).trim()) return true;
+    if (!pd.groupId) return false;
+    return Object.values(state.personalData).some(function (p) {
+      return p !== pd && p.owned && p.groupId === pd.groupId
+        && !/-M?BOX$/i.test(String(p.itemNum || '').trim());
+    });
+  }
+
   // Owned copies of an anchor number that are COMPATIBLE with the suggestion,
   // each with its resolved master for the "you have a …" display.
   function _ccOwnedTriggers(anchorNum, missingType) {
@@ -812,6 +827,7 @@ async function runCompanionSuggester() {
         : aCanon.unit ? (c.key === aCanon.key)
         : (c.key === aCanon.key || (c.base === aCanon.base && (c.unit === 'P' || c.unit === '')));
       if (!matches) return;
+      if (_ccItemGrouped(pd)) return;                        // v0.9.1314: settled pairs stay silent
       var m = _ccMasterOf(pd);
       if (_ccConflicts(_ccFamily(m), missingType)) return;   // steam 224 ≠ Alco 224
       trigs.push({ pd: pd, master: m });

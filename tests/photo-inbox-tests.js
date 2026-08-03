@@ -17142,6 +17142,24 @@ META_WRITES.length = 0; TOASTS.length = 0;
          /if \(r === 'B UNIT' \|\| r === 'A UNIT'\) return ownedFamily === 'steam' \|\| ownedFamily === 'tender';/.test(tl57) &&
          /if \(r === 'TENDER' \|\| r === 'ENGINE'\) return ownedFamily === 'diesel';/.test(tl57) &&
          /return false;   \/\/ AA-scan suffixed items carry their own evidence/.test(tl57));
+      // ══ v0.9.1314 (Brad): "don't ever suggest a companion for an item
+      // that is grouped with another item, its okay if they are combined
+      // with a box." ══
+      const html3 = await mkRun({
+        b: { inventoryId: 'b', owned: true, itemNum: '218-P', variation: '1', groupId: 'GRP-218' },
+        c: { inventoryId: 'c', owned: true, itemNum: '218-D', variation: '1', groupId: 'GRP-218' },
+        d: { inventoryId: 'd', owned: true, itemNum: '2026', variation: '1', groupId: 'GRP-2026' },
+        e: { inventoryId: 'e', owned: true, itemNum: '2026-BOX', variation: '', groupId: 'GRP-2026' },
+      });
+      ok('257 a GROUPED pair goes fully silent — not even the AB upsell',
+         !/218C/.test(html3));
+      ok('257 grouped with only a BOX still counts as alone — the tender gap shows',
+         /You have a <strong>2026<\/strong>/.test(html3) && /6466WX/.test(html3));
+      const html4 = await mkRun({
+        d: { inventoryId: 'd', owned: true, itemNum: '2026', variation: '1', matchedTo: '6466WX' },
+      });
+      ok('257 a matchedTo pairing counts as grouped too — silence',
+         !/6466WX/.test(html4) && /All items in your collection have their companions/.test(html4));
     })();
 
     // ═══════════════════════════════════════════════════════════
