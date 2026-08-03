@@ -289,12 +289,92 @@ function _finishRedirectSignIn() {
 }
 
 
-function initGoogle() {
+// v0.9.1287 — THE FIRST SCREEN, decided and painted from local evidence only.
+//
+// Why this exists: the app used to build its whole first screen inside
+// window.onload, and window.onload waits for EVERY subresource on the page —
+// including Google's font stylesheet and Google's sign-in script. Measured
+// 2026-08-03 with the font server stalled 3s (a train-show connection): the
+// first screen appeared at 3.2s. Nothing was on screen the whole time.
+//
+// This function is the part of start-up that needs NO network, NO Google
+// script and NO token — only localStorage, sessionStorage and the URL. So it
+// can run the moment the HTML is parsed. It is called TWICE: once early
+// (_rrEarlyFirstScreen in app.js) and once from initGoogle() below. Every
+// thing it does is idempotent — the three builders guard on their own
+// dataset.built / .header checks, and setting the same display twice is free.
+//
+// It is deliberately the ONLY place the "which of the three screens" question
+// is answered. Do not re-write this decision anywhere else: an early paint
+// that disagreed with initGoogle() would flash the wrong screen at the user.
+// Returns 'app' | 'auth' | 'signing-in' | 'gate' so initGoogle() can follow
+// the same branch for the token work, which is the half that DOES need Google.
+function _rrShowFirstScreen() {
   _buildBetaGate();
   _buildAuthScreen();
   // v0.9.1285: _buildSetupScreen() was built into the DOM on every load,
   // yet showSetup() — the only thing that would reveal it — had no caller.
   // A whole form built for nobody, every page load. Both removed.
+  _buildAppShell();
+
+  var gate = document.getElementById('beta-gate');
+  var auth = document.getElementById('auth-screen');
+
+  // Master ID is a build-time constant, so this needs nothing external.
+  state.masterSheetId = MASTER_SHEET_ID;
+  try { localStorage.setItem('lv_master_id', state.masterSheetId); } catch (e) {}
+
+  var savedUser = null, savedPersonalId = null;
+  try {
+    savedUser = localStorage.getItem('lv_user');
+    savedPersonalId = localStorage.getItem('lv_personal_id');
+  } catch (e) {}
+
+  if (savedUser) {
+    // Returning user — skip beta gate, they already have access
+    if (gate) gate.style.display = 'none';
+    try { state.user = JSON.parse(savedUser); } catch (e) {}
+    state.personalSheetId = savedPersonalId;
+    showApp();
+    showLoading();
+    return 'app';
+  }
+  if (_isBetaVerified()) {
+    // Beta code already entered — show auth screen
+    if (gate) gate.style.display = 'none';
+    // Bugfix 2026-04-14: if we're in the middle of an OAuth sign-in flow,
+    // don't flash the auth screen behind the overlay. The overlay is already
+    // shown by the window.onload handler that checks sessionStorage.
+    var _midSignIn = false;
+    try { _midSignIn = sessionStorage.getItem('lv_signing_in') === '1'; } catch (e) {}
+    if (auth) auth.style.display = _midSignIn ? 'none' : 'flex';
+    return _midSignIn ? 'signing-in' : 'auth';
+  }
+  // New user, no beta code — show the gate, hide auth
+  if (auth) auth.style.display = 'none';
+  if (gate) gate.style.display = 'flex';
+  return 'gate';
+}
+
+// Is this page load a return trip from Google's OAuth redirect?
+//
+// This is the side-effect-free HALF of _checkOAuthRedirect()'s condition, and
+// it exists so the early paint can ASK the question without ANSWERING it.
+// _checkOAuthRedirect() rewrites the URL with history.replaceState and writes
+// lv_token / lv_token_expiry — running that early would consume the token
+// before initGoogle() ever sees it. So the early paint checks this instead,
+// and when it is true it paints nothing at all and leaves the whole OAuth
+// path to initGoogle(), exactly as today.
+function _rrOAuthReturnPending() {
+  try {
+    var hash = window.location.hash;
+    return !!hash && hash.indexOf('access_token') !== -1;
+  } catch (e) { return false; }
+}
+
+function initGoogle() {
+  _buildBetaGate();
+  _buildAuthScreen();
   _buildAppShell();
 
   // Check if returning from OAuth redirect (GIS redirect mode)
@@ -313,19 +393,11 @@ function initGoogle() {
     callback: onTokenReceived,
   });
 
-  // Check for existing session — master ID is hardcoded, just need saved user
-  const savedUser = localStorage.getItem('lv_user');
-  const savedPersonalId = localStorage.getItem('lv_personal_id');
-  state.masterSheetId = MASTER_SHEET_ID;
-  localStorage.setItem('lv_master_id', state.masterSheetId);
+  // Paint (or re-affirm) the first screen. On a normal load this already ran
+  // at DOMContentLoaded and every line of it is a no-op the second time.
+  var _firstScreen = _rrShowFirstScreen();
 
-  if (savedUser) {
-    // Returning user — skip beta gate, they already have access
-    document.getElementById('beta-gate').style.display = 'none';
-    state.user = JSON.parse(savedUser);
-    state.personalSheetId = savedPersonalId;
-    showApp();
-    showLoading();
+  if (_firstScreen === 'app') {
     // If we already have a valid token (restored from localStorage), use it directly
     var _restoredExpiry = parseInt(localStorage.getItem('lv_token_expiry') || '0');
     if (accessToken && _restoredExpiry > Date.now() + 60 * 1000) {
@@ -348,20 +420,9 @@ function initGoogle() {
       const savedEmail = state.user?.email || '';
       tokenClient.requestAccessToken({ prompt: '', login_hint: savedEmail });
     }
-  } else if (_isBetaVerified()) {
-    // Beta code already entered — show auth screen
-    document.getElementById('beta-gate').style.display = 'none';
-    // Bugfix 2026-04-14: if we're in the middle of an OAuth sign-in flow,
-    // don't flash the auth screen behind the overlay. The overlay is already
-    // shown by the window.onload handler that checks sessionStorage.
-    var _midSignIn = false;
-    try { _midSignIn = sessionStorage.getItem('lv_signing_in') === '1'; } catch(e) {}
-    document.getElementById('auth-screen').style.display = _midSignIn ? 'none' : 'flex';
-  } else {
-    // New user, no beta code — show the gate, hide auth
-    document.getElementById('auth-screen').style.display = 'none';
-    document.getElementById('beta-gate').style.display = 'flex';
   }
+  // The 'auth', 'signing-in' and 'gate' cases need nothing further here —
+  // _rrShowFirstScreen() already put the right screen on the display.
 }
 
 // v0.9.826 (TODO-003): view-only OFFLINE start. Returning user + saved

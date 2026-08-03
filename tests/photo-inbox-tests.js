@@ -14885,6 +14885,215 @@ META_WRITES.length = 0; TOASTS.length = 0;
          /finally \{ _pushInflight = null; \}/.test(lk36));
     })();
 
+    // ═══════════════════════════════════════════════════════════
+    // §237. v0.9.1287 — the app draws before Google answers.
+    //
+    //   Two halves, and MEASUREMENT PROVED NEITHER WORKS ALONE. With
+    //   fonts.googleapis.com stalled 3s (a train-show connection), time
+    //   until the first screen had content: 3.2s before; 3.2s with the
+    //   fonts made non-blocking ONLY; 3.2s with the early paint ONLY;
+    //   0.55s with both. The reason is that window.onload does not fire
+    //   until every subresource lands — including a media="print"
+    //   stylesheet — and the whole first screen was built inside it.
+    //
+    //   The danger in the second half is a FLASH: _buildBetaGate() sets
+    //   display:flex unconditionally, so an early build that did not also
+    //   decide visibility would show the beta gate to every returning
+    //   signed-in user for half a second. That is why the three-way
+    //   decision now lives in exactly ONE function, _rrShowFirstScreen(),
+    //   called both early and from initGoogle(). This section runs that
+    //   real function against each start-up state.
+    //
+    //   The other danger is the OAuth return: _checkOAuthRedirect() has
+    //   SIDE EFFECTS (history.replaceState, writes lv_token) and would
+    //   consume the token if called early. The early path asks the
+    //   side-effect-free _rrOAuthReturnPending() instead and paints
+    //   nothing on that route — exactly what happened before.
+    // ═══════════════════════════════════════════════════════════
+    section('237. The first screen paints before Google answers — and paints the RIGHT one');
+    (function () {
+      const p37 = require('path');
+      const rd37 = f => fs.readFileSync(p37.join(__dirname, '..', 'app', f), 'utf8');
+      const idx37 = rd37('index.html');
+      const auth37 = rd37('app-auth.js');
+      const appjs37 = rd37('app.js');
+      const nocom = t => t.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, '');
+
+      // ── Half one: the stylesheet must not hold the paint hostage ──
+      // Only the STYLESHEET link — index.html also carries a <link rel=preconnect>
+      // to the same host, which is a DNS/TLS hint that blocks nothing and is
+      // exactly the thing you want to keep. Matching on the css2 path tells
+      // the two apart. (The first draft of this test failed on the preconnect,
+      // which is the test doing its job on itself.)
+      const fontLinks = (idx37.match(/<link[^>]*fonts\.googleapis\.com[^>]*>/g) || [])
+        .filter(l => /fonts\.googleapis\.com\/css2/.test(l));
+      ok('237 exactly one Google Fonts stylesheet link — one URL, one place to change',
+         fontLinks.length === 1, String(fontLinks.length));
+      ok('237 …and the preconnect hint is still there — it costs nothing and saves a round trip',
+         /<link[^>]*rel=["']preconnect["'][^>]*fonts\.googleapis\.com/.test(idx37) ||
+         /<link[^>]*fonts\.googleapis\.com[^>]*rel=["']preconnect["']/.test(idx37));
+      ok('237 …and it is NON-BLOCKING: fetched as print, flipped to all on arrival',
+         /media=["']print["']/.test(fontLinks[0] || '') &&
+         /onload=["']this\.media=['"\\]*all/.test(fontLinks[0] || ''),
+         fontLinks[0] || '(no link)');
+      ok('237 …with display=swap, so text shows in the fallback face meanwhile',
+         /display=swap/.test(fontLinks[0] || ''));
+      // The fallback chains are what the user reads for that first moment. If
+      // a font variable ever collapses to a single family name, the swap has
+      // nothing to fall back TO and this change starts costing something.
+      const css37 = rd37('app.css');
+      ['--font-head', '--font-body', '--font-mono'].forEach(v => {
+        const m = css37.match(new RegExp(v + '\\s*:([^;]+);'));
+        ok('237 ' + v + ' names a real fallback, so the first paint has a face to use',
+           !!m && m[1].split(',').length >= 2, m ? m[1].trim() : '(missing)');
+      });
+
+      // ── Half two: the early paint is wired, and wired defensively ──
+      const early = nocom(appjs37);
+      ok('237 the first screen is painted at DOMContentLoaded, not at window.onload',
+         /document\.addEventListener\(\s*['"]DOMContentLoaded['"]\s*,\s*_rrEarlyFirstScreen\s*\)/.test(early));
+      ok('237 …with a readyState fallback, so a late script still paints',
+         /document\.readyState\s*===\s*['"]loading['"]/.test(early) &&
+         /\}\s*else\s*\{\s*_rrEarlyFirstScreen\(\);/.test(early));
+      ok('237 window.onload still runs the real boot — the early paint ADDS, never replaces',
+         /window\.onload\s*=/.test(early) && /initGoogle\(\)/.test(early));
+
+      // THE token-safety rule, asserted on the early function's own body.
+      const eStart = appjs37.indexOf('function _rrEarlyFirstScreen()');
+      const eBody = appjs37.slice(eStart, appjs37.indexOf('\n}', eStart) + 2);
+      ok('237 the early paint NEVER calls _checkOAuthRedirect — that would eat the token',
+         eStart > 0 && !/_checkOAuthRedirect/.test(nocom(eBody)));
+      ok('237 …it asks the side-effect-free question instead, and bails out',
+         /_rrOAuthReturnPending\(\)\)\s*return;/.test(nocom(eBody)));
+      ok('237 …and it cannot take the app down: the whole body is guarded',
+         /try\s*\{/.test(eBody) && /catch\s*\(/.test(eBody));
+      const pendBody = auth37.slice(auth37.indexOf('function _rrOAuthReturnPending()'),
+                                    auth37.indexOf('function initGoogle()'));
+      ok('237 _rrOAuthReturnPending only READS — no replaceState, no token write',
+         !/replaceState|setItem/.test(nocom(pendBody)) && /indexOf\('access_token'\)/.test(pendBody));
+
+      // ── ONE reader for the decision. This is the anti-flash rule. ──
+      const igBody = auth37.slice(auth37.indexOf('function initGoogle()'));
+      const ig = nocom(igBody.slice(0, igBody.indexOf('\n}\n') + 3));
+      ok('237 initGoogle does NOT re-implement the three-way choice — it calls the one reader',
+         /_rrShowFirstScreen\(\)/.test(ig) && !/_isBetaVerified\(\)/.test(ig),
+         'the beta/auth/gate branch is back in initGoogle — two readers, guaranteed flash');
+      ok('237 …and initGoogle still owns the OAuth path, where the side effects belong',
+         /_checkOAuthRedirect\(\)/.test(ig));
+
+      // ── Run the REAL decision function against every start-up state ──
+      // Sliced, not re-typed: a re-typed copy would pass while the shipped
+      // code did anything it liked.
+      const sliceA = auth37.indexOf('function _rrShowFirstScreen()');
+      const sliceB = auth37.indexOf('function initGoogle()');
+      const isBeta = auth37.slice(auth37.indexOf('function _isBetaVerified()'),
+                                  auth37.indexOf('}', auth37.indexOf('function _isBetaVerified()')) + 1);
+      ok('237 the decision function was found and sliced whole',
+         sliceA > 0 && sliceB > sliceA && isBeta.includes('lv_beta_verified'));
+
+      const decide = (localSeed, sessionSeed) => {
+        const store = seed => ({
+          _d: Object.assign({}, seed),
+          getItem(k) { return Object.prototype.hasOwnProperty.call(this._d, k) ? this._d[k] : null; },
+          setItem(k, v) { this._d[k] = String(v); },
+          removeItem(k) { delete this._d[k]; },
+        });
+        const el = () => ({ style: { display: '' }, dataset: {} });
+        const els = { 'beta-gate': el(), 'auth-screen': el(), app: el() };
+        const called = [];
+        const doc = { getElementById: id => els[id] || null };
+        const st = {};
+        const fn = new Function(
+          'document', 'localStorage', 'sessionStorage', 'state', 'MASTER_SHEET_ID',
+          '_buildBetaGate', '_buildAuthScreen', '_buildAppShell', 'showApp', 'showLoading', 'called',
+          isBeta + '\n' + auth37.slice(sliceA, sliceB) + '\n return _rrShowFirstScreen;'
+        )(doc, store(localSeed), store(sessionSeed), st, 'MASTER123',
+          () => called.push('gate'), () => called.push('auth'), () => called.push('shell'),
+          () => called.push('showApp'), () => called.push('showLoading'), called);
+        // Catch a THROW rather than letting it take the whole suite down with
+        // it. The mutation drill found this: removing the JSON.parse guard
+        // made _rrShowFirstScreen throw, the suite died mid-run, and "no FAIL
+        // lines" read as "mutation not caught". A test that crashes instead of
+        // failing is a test that reports the wrong answer.
+        let result = null, threw = null;
+        try { result = fn(); } catch (e) { threw = String(e).slice(0, 120); }
+        return { result, threw, els, called, state: st };
+      };
+
+      const USER37 = JSON.stringify({ name: 'Brad', email: 'b@x.com' });
+
+      // A brand-new visitor: the beta gate, and nothing else.
+      {
+        const r = decide({}, {});
+        ok('237 new visitor → the beta gate is shown and the sign-in screen hidden',
+           r.result === 'gate' && r.els['beta-gate'].style.display === 'flex' &&
+           r.els['auth-screen'].style.display === 'none',
+           JSON.stringify({ r: r.result, gate: r.els['beta-gate'].style.display }));
+      }
+      // Code entered, not signed in: the sign-in screen.
+      {
+        const r = decide({ lv_beta_verified: '1' }, {});
+        ok('237 beta code already entered → the sign-in screen, gate hidden',
+           r.result === 'auth' && r.els['auth-screen'].style.display === 'flex' &&
+           r.els['beta-gate'].style.display === 'none', r.result);
+      }
+      // THE ONE THAT WOULD HAVE FLASHED. A returning signed-in user must
+      // never see the beta gate, not for a frame.
+      {
+        const r = decide({ lv_beta_verified: '1', lv_user: USER37, lv_personal_id: 'PID9' }, {});
+        ok('237 returning signed-in user → the app, and the beta gate is HIDDEN not flashed',
+           r.result === 'app' && r.els['beta-gate'].style.display === 'none' &&
+           r.called.includes('showApp'),
+           JSON.stringify({ r: r.result, gate: r.els['beta-gate'].style.display, called: r.called }));
+        ok('237 …and their identity is restored before the app is shown',
+           r.state.user && r.state.user.email === 'b@x.com' && r.state.personalSheetId === 'PID9',
+           JSON.stringify(r.state));
+      }
+      // Mid sign-in: the overlay is up, so show NOTHING behind it.
+      {
+        const r = decide({ lv_beta_verified: '1' }, { lv_signing_in: '1' });
+        ok('237 mid sign-in → nothing painted behind the overlay',
+           r.result === 'signing-in' && r.els['auth-screen'].style.display === 'none', r.result);
+      }
+      // Corrupt saved user: must not throw, must still reach a screen.
+      {
+        const r = decide({ lv_beta_verified: '1', lv_user: '{not json' }, {});
+        ok('237 a corrupt saved user does not crash the first paint',
+           r.threw === null && r.result === 'app' && r.called.includes('showApp'),
+           JSON.stringify({ threw: r.threw, result: r.result }));
+      }
+      // No start-up state may throw. The first paint runs before anything
+      // else is ready; an exception here is a blank app, not a stack trace.
+      {
+        const states = [
+          ['new visitor', {}, {}],
+          ['beta verified', { lv_beta_verified: '1' }, {}],
+          ['returning', { lv_beta_verified: '1', lv_user: USER37 }, {}],
+          ['mid sign-in', { lv_beta_verified: '1' }, { lv_signing_in: '1' }],
+          ['corrupt user', { lv_user: '{not json' }, {}],
+          ['empty user string', { lv_user: '' }, {}],
+        ];
+        const threw = states.map(([n, l, ss]) => [n, decide(l, ss).threw]).filter(x => x[1]);
+        ok('237 not one start-up state throws — a throw here is a blank app',
+           threw.length === 0, JSON.stringify(threw));
+      }
+
+      // Every route builds all three screens first — they are idempotent, and
+      // building them is what makes the second call free.
+      {
+        const r = decide({}, {});
+        ok('237 all three screens are built on every route, before any is chosen',
+           ['gate', 'auth', 'shell'].every(c => r.called.indexOf(c) < r.called.indexOf('gate') + 3) &&
+           r.called.slice(0, 3).join(',') === 'gate,auth,shell', r.called.join(','));
+      }
+      // The master sheet id is a build constant, so the early path can set it.
+      {
+        const r = decide({}, {});
+        ok('237 the master sheet id is set on the early path too — no half-built state',
+           r.state.masterSheetId === 'MASTER123', String(r.state.masterSheetId));
+      }
+    })();
+
   })().then(function () {
     console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
     process.exit(fail ? 1 : 0);

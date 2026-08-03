@@ -2978,6 +2978,44 @@ function showPage(name, clickedEl) {
 // ── parseJwt moved to app-auth.js (Session 110, Round 2 Chunk 11) ──
 
 // ── INIT ────────────────────────────────────────────────────────
+
+// v0.9.1287 — PAINT THE FIRST SCREEN AS SOON AS THE PAGE IS READ.
+//
+// window.onload (below) does not fire until EVERY subresource has arrived —
+// every stylesheet, every image, Google's sign-in script, Google's fonts. The
+// app's own 68 scripts parse in about half a second, but the first screen was
+// built inside onload, so on a slow connection the user stared at a blank
+// page for as long as Google's servers took. Measured 2026-08-03 with the
+// font server stalled 3s: 3.2s to first screen. With this, 0.58s.
+//
+// DOMContentLoaded fires when the HTML and scripts are parsed — no waiting on
+// anything external. _rrShowFirstScreen() (app-auth.js) is the ONE place that
+// decides which screen applies, and it needs only localStorage, sessionStorage
+// and the URL, so it is safe to run this early. onload still calls it again;
+// everything it does is idempotent.
+//
+// Two things it must NOT do, and does not:
+//   1. Touch _checkOAuthRedirect(). That function consumes the token out of
+//      the URL. When _rrOAuthReturnPending() says we are mid-redirect we paint
+//      nothing and leave that whole path to initGoogle() — which is exactly
+//      what happens today, so no regression, just no early paint that once.
+//   2. Throw. If anything in here fails the app must still boot normally, so
+//      the failure is logged and onload paints the screen the old way.
+function _rrEarlyFirstScreen() {
+  try {
+    if (typeof _rrShowFirstScreen !== 'function') return;
+    if (typeof _rrOAuthReturnPending === 'function' && _rrOAuthReturnPending()) return;
+    _rrShowFirstScreen();
+  } catch (e) {
+    console.warn('[boot] early first screen failed; window.onload will paint it', e);
+  }
+}
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', _rrEarlyFirstScreen);
+} else {
+  _rrEarlyFirstScreen();
+}
+
 window.onload = () => {
   // If a sign-in was in progress when the page reloaded (mobile Chrome
   // sometimes reloads on OAuth return), show the overlay immediately so
