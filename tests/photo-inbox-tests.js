@@ -17870,6 +17870,128 @@ META_WRITES.length = 0; TOASTS.length = 0;
          !/batchUpdate|values\.append\(|sheetsClear|sheetsBatch/.test(ws));
     })();
 
+    // ═══════════════════════════════════════════════════════════
+    // §269. v0.9.1324 — the four pre-beta blockers.
+    //
+    //   Two of them are the SAME SHAPE, and it is worth naming:
+    //   machinery built correctly on one surface and never wired to
+    //   its twin. _status() grew a Stop button in v0.9.1135 and the
+    //   PAID read passes it; the FREE read — which v0.9.1297 made the
+    //   only entry point, and which self-reports a 24-minute ETA —
+    //   never did, so a 24-minute job had no exit but a reload. The
+    //   v0.9.1303 share sweeper un-shares by appProperties stamp;
+    //   driveStageLensPhoto opens a photo to the WHOLE WEB and never
+    //   stamped it, so the sweeper could not see it and the only
+    //   cleanup was a setTimeout that dies with the page.
+    //
+    //   Whenever a fix lands on one surface, LOOK FOR THE TWIN.
+    // ═══════════════════════════════════════════════════════════
+    section('269. Pre-beta blockers: an exit, a stamp, honest help, a measured cache');
+    (function () {
+      const p69 = require('path');
+      const rd69 = f => fs.readFileSync(p69.join(__dirname, '..', 'app', f), 'utf8');
+      const pi69 = rd69('photo-inbox.js'), dr69 = rd69('drive.js'), tu69 = rd69('tutorial.js');
+
+      // ── (1) the FREE read is cancellable ──
+      ok('269 the free auto-read hands _status its cancel function',
+         /_status\('Reading photos… ' \+ \(i \+ 1\) \+ ' of ' \+ todo\.length \+ _arEta,\s*\n\s*window\._pinAutoReadCancel\)/.test(pi69));
+      ok('269 …and that cancel function still exists and still aborts the loop',
+         /window\._pinAutoReadCancel = function \(\) \{ _autoReadAbort = true; \};/.test(pi69) &&
+         /_autoReadAbort/.test(pi69.slice(pi69.indexOf('async function _pinAutoRead'))));
+      // _status must actually be able to RENDER a stop button (a real DOM
+      // button — the v0.9.1134 bug was an HTML string handed to an escaper).
+      ok('269 _status builds a REAL button element, not escaped HTML',
+         /if \(typeof stopFn === 'function'\) \{[\s\S]{0,120}?document\.createElement\('button'\)/.test(pi69) &&
+         /b\.onclick = stopFn;/.test(pi69));
+
+      // ── (2) the Lens photo is visible to the sweeper ──
+      const lens0 = dr69.indexOf('async function driveStageLensPhoto');
+      const lens1 = dr69.indexOf('async function driveCleanupLensStaging');
+      ok('269 the Lens staging slice was found', lens0 > 0 && lens1 > lens0);
+      const lens = dr69.slice(lens0, lens1);
+      ok('269 a world-readable Lens photo is stamped rrShared so the sweeper can find it',
+         /appProperties: \{ rrShared: '1', rrShareExp: String\(Date\.now\(\) \+ 10 \* 60 \* 1000\) \}/.test(lens));
+      ok('269 …the stamp comes AFTER the permission that opened it up',
+         lens.indexOf("type: 'anyone'") < lens.indexOf("rrShared: '1'"));
+      ok('269 …and a failed stamp does NOT block Lens (best-effort, warn only)',
+         /catch \(eS\) \{ console\.warn\('\[Lens\] share stamp failed/.test(lens));
+      // The timer lives in the CALLER, not in the stager — the stamp is a
+      // second net UNDER it, so assert the timer is still there. If someone
+      // ever deletes the timer trusting the stamp, the sweeper only runs at
+      // app start, and this test is where that trade should be re-argued.
+      ok('269 …the 10-minute timer cleanup is still armed at the call site',
+         /setTimeout\(function \(\) \{ try \{ driveCleanupLensStaging\(staged\.id\); \} catch \(e\) \{\} \}, 10 \* 60 \* 1000\);/.test(pi69));
+      // The sweeper's query is the other half of the contract — if its key ever
+      // changes, this stamp goes blind again, so assert they still agree.
+      ok('269 the sweeper still looks for exactly that key',
+         /appProperties has \{ key='rrShared' and value='1' \}/.test(rd69('share.js')));
+
+      // ── (3) help text names controls that EXIST ──
+      ok('269 the contradictory dead delete-item guide is gone',
+         !/'delete-item': \{/.test(tu69));
+      ok('269 the one surviving guide is the reachable one',
+         /tutStart\('remove-item'\)/.test(tu69) && /'remove-item': \{/.test(tu69));
+      const rm0 = tu69.indexOf("'remove-item': {");
+      const rm = tu69.slice(rm0, tu69.indexOf("'want-to-collection'", rm0));
+      const rmCopy = rm.replace(/\/\/[^\n]*/g, '');   // drop the reasoning comments
+      ok('269 it names the real button', /Remove from Collection<\/strong>/.test(rmCopy));
+      ok('269 …at the real end of the screen',
+         /top<\/strong>/.test(rmCopy) && !/bottom of the panel/.test(rmCopy) && !/scroll down/.test(rmCopy));
+      ok('269 …and no longer sends phone users after the ✕ that was deliberately deleted',
+         !/✕/.test(rmCopy) && !/\\u2715/.test(rmCopy));
+      // The ✕ really is gone from the rows — if it ever comes back, this test
+      // should be reconsidered rather than silently disagreed with.
+      ok('269 …which is still true of the rows themselves',
+         /remove button is GONE from phone rows/.test(rd69('browse.js')));
+      const tuCopy = tu69.replace(/\/\/[^\n]*/g, '');
+      ok('269 no guide still says "My Collection List" (the sidebar says "My Collection")',
+         !/My Collection List/.test(tuCopy));
+      ok('269 the want-list step names the CONCEPT, not one device\'s label',
+         /Want \/ Upgrade" in the sidebar/.test(tuCopy) && /"Want List" in the bottom bar/.test(tuCopy));
+      ok('269 the report is called what the report library calls it',
+         /Want \/ Upgrade \/ Parts<\/strong> report/.test(tuCopy) &&
+         /name: 'Want \/ Upgrade \/ Parts'/.test(rd69('report-library.js')));
+
+      // ── (4) the _ids cache: RUN it, don't just read it ──
+      const i0 = pi69.indexOf('var _idsRaw = null, _idsObj = null;');
+      const i1 = pi69.indexOf('function _idsSave(m)');
+      ok('269 the _ids slice was found', i0 > 0 && i1 > i0);
+      let _store = '{}', _reads = 0, _parses = 0;
+      const fakeLS = { getItem: () => { _reads++; return _store; } };
+      const realParse = JSON.parse;
+      const countingParse = function (s) { _parses++; return realParse(s); };
+      const _idsFn = new Function('localStorage', 'IDS_KEY', 'JSON',
+        pi69.slice(i0, i1) + ' return _ids;')(fakeLS, 'rr_inbox_ids',
+        { parse: countingParse, stringify: JSON.stringify });
+      _store = JSON.stringify({ a: { num: '6464' } });
+      const r1 = _idsFn(), r2 = _idsFn(), r3 = _idsFn();
+      ok('269 repeated reads parse the store ONCE, not once per call',
+         _parses === 1, _parses + ' parses for 3 calls');
+      ok('269 …and still return the right answer', r1.a.num === '6464' && r3.a.num === '6464');
+      ok('269 …as the SAME object (that is where the 45x came from)', r1 === r2 && r2 === r3);
+      // The load-bearing property: ANY writer busts it, because the key is the
+      // raw text. A test that pokes localStorage directly must still be seen —
+      // the invalidate-in-_idsSave version failed 12 assertions for exactly this.
+      _store = JSON.stringify({ a: { num: '6464' }, b: { num: '2343' } });
+      const r4 = _idsFn();
+      ok('269 an outside writer is seen immediately — no stale answer',
+         !!r4.b && r4.b.num === '2343' && _parses === 2, JSON.stringify(Object.keys(r4)));
+      ok('269 …and the string is re-read every call, so nothing can go blind',
+         _reads === 4, _reads + ' reads');
+      // Corrupt store must not throw and must not poison the cache.
+      _store = '{not json';
+      const r5 = _idsFn();
+      ok('269 a corrupt store yields {} rather than throwing',
+         r5 && typeof r5 === 'object' && Object.keys(r5).length === 0);
+      _store = JSON.stringify({ c: { num: '675' } });
+      ok('269 …and recovers on the next good read', _idsFn().c.num === '675');
+      // The reason the cache exists at all: _ids() really is called per tile.
+      const rend0 = pi69.indexOf('function _render()');
+      const rend = pi69.slice(rend0, rend0 + 6000);
+      ok('269 _ids() is still called inside the per-tile map (so the cache still matters)',
+         /_ids\(\)/.test(rend));
+    })();
+
   })().then(function () {
     console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
     process.exit(fail ? 1 : 0);

@@ -1487,6 +1487,26 @@ async function driveStageLensPhoto(file) {
     console.error('[Lens] Could not make staged photo public:', e);
     throw new Error('Could not make photo public for Lens — check Drive permissions');
   }
+  // v0.9.1324: stamp the same two appProperties the share machinery uses, so
+  // this world-readable file is VISIBLE to rrSweepExpiredShares (and to the
+  // Shared Photos page, where the user can revoke it by hand).
+  //
+  // Why this was a real hole: the only cleanup was a 10-minute setTimeout
+  // below. Close the tab, refresh, or let the phone sleep and that timer dies
+  // with the page — leaving the photo readable by anyone with the link,
+  // forever, with nothing anywhere that could find it again. The v0.9.1303
+  // sweeper queries appProperties rrShared='1'; an unstamped file is invisible
+  // to it. Stamping costs one PATCH and hands the file to a sweeper that
+  // already runs at every app start.
+  //
+  // Deliberately best-effort: if the stamp fails we still return the URL, because
+  // the setTimeout cleanup is unchanged and Lens is the user's actual goal. The
+  // stamp is a SECOND net under the timer, not a replacement for it.
+  try {
+    await driveRequest('PATCH', '/files/' + uploaded.id, {
+      appProperties: { rrShared: '1', rrShareExp: String(Date.now() + 10 * 60 * 1000) },
+    });
+  } catch (eS) { console.warn('[Lens] share stamp failed (timer cleanup still armed):', eS); }
   // Build the public image URL Lens will fetch. v0.9.960 (Brad): the old
   // uc?export=download link is unreliable for outside services — Drive often
   // serves a preview/warning page instead of the raw image, so Lens can get a

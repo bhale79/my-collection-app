@@ -63,31 +63,33 @@ const _TUT = (function() {
       ]
     },
 
-    'delete-item': {
-      label: 'How to delete an item',
-      steps: [
-        { title: 'Find the Item',
-          msg: 'Go to <strong>My Collection</strong> in the left sidebar. Find the item you want to remove — search by item number or scroll through the list.' },
-        { title: 'Open the Detail Panel',
-          msg: 'Tap the item to open its detail panel. Scroll to the bottom of the panel to find the delete option.' },
-        { title: 'Delete the Item',
-          msg: 'Tap <strong>Delete Item</strong> at the bottom of the panel. You\'ll be asked to confirm before anything is removed — this prevents accidental deletions.' },
-        { title: 'Grouped Items',
-          msg: 'If the item is part of a group — like an engine paired with a tender — you\'ll be asked whether to delete just this piece or the entire group. Choose carefully!' }
-      ]
-    },
-
+    // v0.9.1324: 'delete-item' DELETED and 'remove-item' rewritten against the
+    // real screen (app-collection.js — the .rr-detail-actions toolbar).
+    //
+    // Both guides existed, both described the same task, and they disagreed
+    // with each other AND with the app. Only 'remove-item' was reachable
+    // (tutorial.js:239 and the Help Center row) so 'delete-item' was dead copy
+    // whose only effect was to contradict. What the old copy got wrong:
+    //   • "Delete Item"  — the button reads "Remove from Collection"
+    //   • "at the bottom" / "scroll down" — the toolbar is the FIRST block on
+    //     the page, at the TOP, on both desktop and phone
+    //   • "tap the small ✕ on the item's card" — that button was DELIBERATELY
+    //     removed in v0.9.1025 ("too easy to hit by accident"), so the guide
+    //     sent phone users hunting for a control that was taken away ON PURPOSE
+    //   • "My Collection List" — the sidebar reads "My Collection"
     'remove-item': {
       label: 'Remove / delete an item',
       steps: [
         { title: 'Find the Item',
-          msg: 'Go to <strong>My Collection List</strong> in the sidebar. Find the item you want to remove by scrolling or using the search bar.' },
-        { title: 'Tap the ✕ Button',
-          msg: 'On mobile, tap the small <strong>✕</strong> button on the right side of the item\'s card. On desktop, open the item\'s detail page and scroll down to find the remove option.' },
+          msg: 'Open <strong>My Collection</strong> and find the item you want to remove — search by item number, road name or description, or scroll the list.' },
+        { title: 'Open the Item',
+          msg: 'Tap the item to open its own page. The row of action buttons sits at the <strong>top</strong> of that page, just under the item\'s name.' },
+        { title: 'Remove from Collection',
+          msg: 'Tap the red <strong>Remove from Collection</strong> button. It\'s the last button in that top row. (Removing lives here rather than on the list rows — a button that small was too easy to hit by accident.)' },
         { title: 'Confirm Removal',
-          msg: 'The app will ask you to confirm. If the item is standalone, it\'s removed immediately. Nothing is deleted permanently from your Google Sheet — the row is simply cleared.' },
+          msg: 'The app asks you to confirm first, so nothing goes by accident. Your Google Sheet row is cleared rather than destroyed, and the photos stay in your Drive.' },
         { title: 'Grouped Items',
-          msg: 'If the item is grouped with others — like an engine and tender — you\'ll be asked: remove <strong>just this piece</strong> or the <strong>entire group</strong>. Choose carefully, as the whole group option removes all linked items at once.' }
+          msg: 'If the item is grouped with others — an engine and its tender, say — you\'ll be asked whether to remove <strong>just this piece</strong> or the <strong>entire group</strong>. The group option removes every linked item at once, so read that one twice.' }
       ]
     },
 
@@ -95,7 +97,11 @@ const _TUT = (function() {
       label: 'Move a want item to your collection',
       steps: [
         { title: 'Open Your Want List',
-          msg: 'Go to <strong>Want List</strong> in the sidebar. You\'ll see all the items you\'re looking for, each showing the catalog market value.' },
+          // v0.9.1324: the desktop sidebar reads "Want / Upgrade"; the phone
+          // bar reads "Want List". Naming the CONCEPT rather than the control
+          // is right on both devices — and is the rule to follow for any help
+          // text that would otherwise have to name two labels for one place.
+          msg: 'Open your <strong>want list</strong> — "Want / Upgrade" in the sidebar on a computer, "Want List" in the bottom bar on a phone. You\'ll see everything you\'re looking for, each showing the catalog market value.' },
         { title: 'Find the Item You Acquired',
           msg: 'Locate the item you just bought. Each want list entry has a green <strong>+ Collection</strong> button.' },
         { title: 'Tap + Collection',
@@ -109,7 +115,7 @@ const _TUT = (function() {
       label: 'Mark an item as sold',
       steps: [
         { title: 'Find the Item',
-          msg: 'Go to <strong>My Collection List</strong> and tap the item you\'ve sold to open its detail page.' },
+          msg: 'Go to <strong>My Collection</strong> and tap the item you\'ve sold to open its detail page.' },
         { title: 'Tap Record Sale',
           msg: 'In the detail page, tap the green <strong>Record Sale</strong> button. A panel slides up asking for the sale details.' },
         { title: 'Enter Sale Details',
@@ -126,8 +132,8 @@ const _TUT = (function() {
           msg: 'Go to <strong>Reports</strong> in the left sidebar. The reports page lets you generate formatted summaries of your collection for different purposes.' },
         { title: 'Insurance Report',
           msg: 'The <strong>Insurance Report</strong> lists every item you own with its estimated worth. This gives you a printable document to share with your insurance provider when scheduling a collection for coverage.' },
-        { title: 'Want List Report',
-          msg: 'The <strong>Want List Report</strong> exports your full want list — item numbers, variations, target prices, and notes. Great to print and take to a train show.' },
+        { title: 'Want / Upgrade / Parts Report',
+          msg: 'The <strong>Want / Upgrade / Parts</strong> report exports your want list, upgrade list and parts needed — item numbers, variations, target prices and notes, with a selector for which section to include. Great to print and take to a train show.' },
         { title: 'Printing & Saving',
           msg: 'Each report has a <strong>Print</strong> button that opens your browser\'s print dialog. You can print to paper or save as a PDF. The layout is formatted specifically for clean printed output.' }
       ]

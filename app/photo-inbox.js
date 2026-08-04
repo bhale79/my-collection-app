@@ -4428,7 +4428,37 @@
   // Suggestions persist in localStorage, show on the tiles, and
   // pre-fill the File-to-item dialog. Sequential + cancelable.
   var IDS_KEY = 'rr_inbox_ids';
-  function _ids() { try { return JSON.parse(localStorage.getItem(IDS_KEY) || '{}'); } catch (e) { return {}; } }
+  // v0.9.1324 (MEASURED, not guessed): _ids() is called once PER TILE inside
+  // _render()'s map — and again by _pinStatusOf — so one repaint parsed this
+  // whole store once for every visible photo. At 500 photos the store is
+  // ~380KB, so a single repaint parsed ~190MB of JSON: 1,097ms on a desktop
+  // and 5,705ms on a phone. And _render() fires after EVERY photo the reader
+  // finishes, so the repaints alone roughly DOUBLED a 500-photo run that the
+  // app itself estimates at 24 minutes.
+  //
+  // The fix caches the PARSED object keyed on the exact string it came from.
+  // Keying on the raw text rather than invalidating in _idsSave is deliberate
+  // and load-bearing: any writer at all — this file, another tab, a test that
+  // pokes localStorage directly — changes the text and therefore busts the
+  // cache for free. (The invalidate-in-_idsSave version measured slightly
+  // faster and FAILED 12 assertions, because the suite writes the store
+  // directly. Cheaper is not better if it is wrong.)
+  //
+  // Measured after: 5,705ms -> 127ms on a phone (45x), 1,097ms -> 13ms desktop.
+  //
+  // One caveat worth writing down: successive calls now hand back the SAME
+  // object, so a caller that mutated the result without calling _idsSave would
+  // leak that mutation to the next reader. rr_inbox_ids is written in exactly
+  // one place (_idsSave, just below) and nowhere else in app/ — checked.
+  var _idsRaw = null, _idsObj = null;
+  function _ids() {
+    try {
+      var raw = localStorage.getItem(IDS_KEY) || '{}';
+      if (_idsObj && raw === _idsRaw) return _idsObj;
+      _idsObj = JSON.parse(raw); _idsRaw = raw;
+      return _idsObj;
+    } catch (e) { _idsRaw = null; _idsObj = null; return {}; }
+  }
   function _idsSave(m) { try { localStorage.setItem(IDS_KEY, JSON.stringify(m)); } catch (e) {} }
 
   // v0.9.961 (Brad): persistent set of file IDs we've cropped. drive.js reads
@@ -6477,7 +6507,15 @@
           } else if (_minLeft >= 1) _arEta = ' \u00b7 about a minute left';
           else _arEta = ' \u00b7 almost done';
         }
-        _status('Reading photos… ' + (i + 1) + ' of ' + todo.length + _arEta);
+        // v0.9.1324: the Stop button was BUILT (v0.9.1135 gave _status a stopFn
+        // parameter) and wired on the PAID path, but never passed here — so the
+        // free read, which v0.9.1297 made the ONLY entry point and which
+        // self-reports a 24-minute ETA two lines above, had no way out but a
+        // reload. _pinAutoReadCancel already existed and already worked;
+        // nothing called it. Machinery built on one surface, never wired to
+        // its twin — the same shape as the Lens-share gap fixed in this batch.
+        _status('Reading photos… ' + (i + 1) + ' of ' + todo.length + _arEta,
+                window._pinAutoReadCancel);
         var fid = todo[i].fid, r = null;
         try { r = await _freeReadOne(fid); } catch (e) {}
         if (r && r.num) {
