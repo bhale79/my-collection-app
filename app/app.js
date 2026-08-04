@@ -115,8 +115,19 @@ function colLetter(idx) {
 function personalColLetter(fieldName) {
   const idx = PERSONAL_FIELD_INDEX[fieldName];
   if (idx === undefined) {
-    console.warn('[personalColLetter] unknown field:', fieldName);
-    return 'A';
+    // v0.9.1325: this used to console.warn and return 'A'. Column A is the
+    // ITEM NUMBER. So a single typo'd field name — 'inventoryID' for
+    // 'inventoryId', say — silently wrote its value over the item number of
+    // whatever row was being touched, and the only trace was a warning in a
+    // console nobody has open. A caller cannot recover from a wrong answer it
+    // cannot detect; it CAN recover from a throw (every writer here is inside
+    // a try/catch that reports a save failure). Failing loudly is strictly
+    // safer than corrupting the one column that identifies the row.
+    //
+    // Safe to throw: all 27 call sites pass a literal field name or the
+    // schema's own last field — none is user- or data-derived. Checked.
+    throw new Error('personalColLetter: unknown field "' + fieldName + '" — '
+      + 'refusing to guess (column A is the item number)');
   }
   return colLetter(idx);
 }
@@ -3136,8 +3147,20 @@ function _initBackButton() {
       } catch (e) {}
       _navSuppressHistory = true;
       window._rrNavBack = true;            // don't re-record this hop
-      try { _rrGoBackTo(_dest); } finally { window._rrNavBack = false; }
-      _navSuppressHistory = false;
+      // v0.9.1325: _rrNavBack got a finally; its sibling _navSuppressHistory
+      // did not — and this flag is the one that matters. _rrGoBackTo calls
+      // showPage(), whose page builders (renderBrowse, buildSoldPage,
+      // buildForSalePage, buildWantPage, buildSetsPage, buildUpgradePage,
+      // buildPrefsPage, vaultRenderPage) are unguarded. One throw and the flag
+      // stuck TRUE for the rest of the session, so showPage's
+      // `if (!_navSuppressHistory) history.pushState(...)` never fired again:
+      // every later Back press exited the app instead of going back a page,
+      // and only a reload cured it. There are exactly three references to this
+      // flag in the file, so nothing else could ever have reset it.
+      try { _rrGoBackTo(_dest); } finally {
+        window._rrNavBack = false;
+        _navSuppressHistory = false;
+      }
       history.pushState({ appPage: _dest }, '', '');
       return;
     }

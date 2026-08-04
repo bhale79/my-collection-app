@@ -527,15 +527,29 @@ async function ensureEphemeraSheets(sheetId) {
     }
   }));
   // Use values API to clear then rewrite cleanly
-  await sheetsUpdate(sheetId, 'Catalogs!A1:Q1',    [['Catalogs','','','','','','','','','','','','','','','','']]);
-  await sheetsUpdate(sheetId, 'Catalogs!A2:J2',    [CATALOG_HEADERS]);
-  await sheetsUpdate(sheetId, 'Paper Items!A1:Q1', [['Paper Items','','','','','','','','','','','','','','','','']]);
-  await sheetsUpdate(sheetId, 'Paper Items!A2:N2', [EPHEMERA_HEADERS]);
-  await sheetsUpdate(sheetId, 'Mock-Ups!A1:Q1',    [['Mock-Ups','','','','','','','','','','','','','','','','']]);
-  await sheetsUpdate(sheetId, 'Mock-Ups!A2:Q2',    [MOCKUP_HEADERS]);
-  await sheetsUpdate(sheetId, 'Other Lionel!A1:Q1',[['Other Lionel','','','','','','','','','','','','','','','','']]);
-  await sheetsUpdate(sheetId, 'Other Lionel!A2:N2',[EPHEMERA_HEADERS]);
-  _ensureEphemDone = true;  // Don't run again this session
+  //
+  // v0.9.1325 (MEASURED): these 16 header stamps were serial `await`s, so a
+  // signed-in start paid 16 round trips of pure latency — about 6.4s at a
+  // 400ms RTT, which is what a phone in a train room actually looks like.
+  // They write to 16 DIFFERENT ranges and none reads another's result, so
+  // there was never a reason to queue them. Running them together turns 16
+  // waits into one. 16 concurrent writes is well inside Google's 60/minute.
+  //
+  // NOT changed, on purpose: these still run on EVERY start rather than only
+  // when a tab is missing. They double as a stale-header repair (see the clear
+  // above), so skipping them when the tab exists would quietly retire that
+  // repair — a real trade, and Brad's to make, not one to slip into a perf
+  // pass. Flagged in the morning report.
+  await Promise.all([
+    sheetsUpdate(sheetId, 'Catalogs!A1:Q1',    [['Catalogs','','','','','','','','','','','','','','','','']]),
+    sheetsUpdate(sheetId, 'Catalogs!A2:J2',    [CATALOG_HEADERS]),
+    sheetsUpdate(sheetId, 'Paper Items!A1:Q1', [['Paper Items','','','','','','','','','','','','','','','','']]),
+    sheetsUpdate(sheetId, 'Paper Items!A2:N2', [EPHEMERA_HEADERS]),
+    sheetsUpdate(sheetId, 'Mock-Ups!A1:Q1',    [['Mock-Ups','','','','','','','','','','','','','','','','']]),
+    sheetsUpdate(sheetId, 'Mock-Ups!A2:Q2',    [MOCKUP_HEADERS]),
+    sheetsUpdate(sheetId, 'Other Lionel!A1:Q1',[['Other Lionel','','','','','','','','','','','','','','','','']]),
+    sheetsUpdate(sheetId, 'Other Lionel!A2:N2',[EPHEMERA_HEADERS]),
+  ]);
   // Instruction Sheets tab
   if (!existingTabs.includes('Instruction Sheets')) {
     await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}:batchUpdate`, {
@@ -572,6 +586,22 @@ async function ensureEphemeraSheets(sheetId) {
   }
   await sheetsUpdate(sheetId, 'My Sets!A1:A1', [['My Sets']]);
   await sheetsUpdate(sheetId, 'My Sets!A2:N2', [MY_SETS_HEADERS]);
+  // v0.9.1325: the run-once flag MOVED HERE, from the middle of the function.
+  //
+  // It used to be set right after the first four tabs, with ~30 lines of
+  // awaited writes still to come. sheetsUpdate throws on failure (including
+  // synchronously when offline or read-only), and the startup caller swallows
+  // it — app-data.js: `ensureEphemeraSheets(...).catch(() => {})`. So one
+  // transient Sheets hiccup at sign-in left the Instruction Sheets / Science
+  // Sets / Construction Sets / My Sets tabs uncreated AND the flag set, so the
+  // two callers that await this before appending (wizard-save.js) returned
+  // instantly from the guard and their append then failed. Result: "Error
+  // saving your item" every time the user added a science set or an
+  // instruction sheet, for the whole session — cured by a reload, which made
+  // it look random.
+  //
+  // Set last, so a failure means "not done" and the next caller retries.
+  _ensureEphemDone = true;
 }
 
 

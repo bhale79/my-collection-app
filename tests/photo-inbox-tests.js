@@ -8469,7 +8469,14 @@ META_WRITES.length = 0; TOASTS.length = 0;
     fs.readdirSync(pathG.join(__dirname, '..', 'app'))
       .filter(f => /\.js$/.test(f))
       .forEach(function (f) {
-        const src = rd('app/' + f);
+        // v0.9.1325: blank out // comments before scanning. This test used to
+        // read the raw source, so merely NAMING appConfirm in a comment —
+        // "…the native confirm() dialogs became appConfirm (see…)" — was
+        // reported as a call whose result nobody collects. That is the root
+        // cause this project keeps re-learning: a regex cannot tell code from
+        // a string from a comment. Blanking rather than deleting keeps every
+        // line number honest, which this test reports.
+        const src = rd('app/' + f).replace(/\/\/[^\n]*/g, m => ' '.repeat(m.length));
         const re = /(appPrompt|appConfirm)\s*\(/g;
         let m;
         while ((m = re.exec(src))) {
@@ -17990,6 +17997,185 @@ META_WRITES.length = 0; TOASTS.length = 0;
       const rend = pi69.slice(rend0, rend0 + 6000);
       ok('269 _ids() is still called inside the per-tile map (so the cache still matters)',
          /_ids\(\)/.test(rend));
+    })();
+
+    // ═══════════════════════════════════════════════════════════
+    // §270. v0.9.1325 — "the same action, twice."
+    //
+    //   Every finding here is the second run differing from the
+    //   first. Three recurring shapes, worth naming because the
+    //   next one will wear one of them:
+    //
+    //   (a) A FLAG SET BEFORE THE WORK IT GUARDS. ensureEphemeraSheets
+    //       set its run-once flag with 30 lines of awaited writes still
+    //       to go, so one hiccup meant four tabs never got created and
+    //       the guard swore they had.
+    //   (b) A FLAG NOT RELEASED WHEN THE WORK THROWS. _navSuppressHistory
+    //       had no finally, so one failed render killed the phone's Back
+    //       button for the rest of the session.
+    //   (c) STATE STAGED IN A SHARED PLACE. Three review-card helpers
+    //       staged their groups in the shared `_sel` map; the ticks are
+    //       only DRAWN in select mode, but Discard and Identify armed on
+    //       the count — so the next tap spent photo IDs on photos the
+    //       user could not see were chosen.
+    //
+    //   Plus the inverse failure: a guard that reads as protection and
+    //   can never fire (_qeSaving was never assigned true, anywhere).
+    // ═══════════════════════════════════════════════════════════
+    section('270. Repeatability: flags that release, state that cannot leak');
+    (function () {
+      const p70 = require('path');
+      const rd70 = f => fs.readFileSync(p70.join(__dirname, '..', 'app', f), 'utf8');
+      const code70 = t => t.replace(/\/\/[^\n]*/g, m => ' '.repeat(m.length));
+      const pi = code70(rd70('photo-inbox.js')), ap = code70(rd70('app.js'));
+      const as = code70(rd70('app-setup.js')), ws = code70(rd70('wizard-save.js'));
+      const bc = code70(rd70('barcode.js')), rp = code70(rd70('reports.js'));
+      const wq = code70(rd70('wizard-quickentry.js')), wz = code70(rd70('wizard.js'));
+
+      // ── (a) the run-once flag is the LAST thing the function does ──
+      const ee0 = as.indexOf('async function ensureEphemeraSheets');
+      const ee1 = as.indexOf('\n}', as.indexOf("'My Sets!A2:N2'", ee0)) + 2;
+      ok('270 the ephemera slice was found', ee0 > 0 && ee1 > ee0);
+      const ee = as.slice(ee0, ee1);
+      // FIRST occurrence, not last: a drill that re-inserted the flag in the
+      // middle while leaving the correct one at the end sailed past a
+      // lastIndexOf check. What must be true is that NO set precedes the last
+      // write — so ask about the earliest one.
+      const flagAt = ee.indexOf('_ensureEphemDone = true');
+      const lastWrite = ee.lastIndexOf('sheetsUpdate(');
+      ok('270 the run-once flag is set AFTER the last write, not before it',
+         flagAt > lastWrite && flagAt > 0, 'flag@' + flagAt + ' lastWrite@' + lastWrite);
+      ok('270 …and it is set exactly once', (ee.match(/_ensureEphemDone = true/g) || []).length === 1);
+      // The 16 header stamps go together rather than in series (measured: 16
+      // serial round trips ≈ 6.4s at a 400ms RTT).
+      ok('270 the header stamps run concurrently, not one-at-a-time',
+         /await Promise\.all\(\[\s*\n\s*sheetsUpdate\(sheetId, 'Catalogs!A1:Q1'/.test(ee));
+      ok('270 …and all eight are inside that one wait',
+         (ee.slice(ee.indexOf('await Promise.all(['), ee.indexOf(']);', ee.indexOf('await Promise.all(['))).match(/sheetsUpdate\(/g) || []).length === 8);
+
+      // ── (b) flags released in a finally ──
+      ok('270 _navSuppressHistory is cleared in the same finally as _rrNavBack',
+         /try \{ _rrGoBackTo\(_dest\); \} finally \{\s*\n\s*window\._rrNavBack = false;\s*\n\s*_navSuppressHistory = false;\s*\n\s*\}/.test(ap));
+      // Count assignments only — `var _navSuppressHistory = false` is the
+      // declaration, not a reset, and counting it made this assertion wrong
+      // rather than the code wrong.
+      ok('270 …and is no longer also cleared on the happy path only',
+         (ap.match(/(?<!var )_navSuppressHistory = false/g) || []).length === 1,
+         String((ap.match(/(?<!var )_navSuppressHistory = false/g) || []).length));
+      // Every _busy writer in the inbox releases in a finally — this was the
+      // last hold-out (_pinApplyTags set it with two statements before the try).
+      // Comments DELETED here, not blanked: blanking preserves their length,
+      // which ate the character budget between `finally {` and the release and
+      // made this report a hold-out that did not exist.
+      const piTight = rd70('photo-inbox.js').replace(/\/\/[^\n]*/g, '');
+      const busySet = (piTight.match(/_busy = true/g) || []).length;
+      const busyFin = (piTight.match(/finally \{[\s\S]{0,120}?_busy = false/g) || []).length;
+      ok('270 every _busy writer in the inbox releases in a finally',
+         busyFin >= busySet, busyFin + ' finallys for ' + busySet + ' sets');
+      // And nothing releases OUTSIDE one — a bare release is the bug shape.
+      const looseRel = (piTight.match(/(?<!var )(?<!finally \{\s)_busy = false/g) || []).length;
+      ok('270 …and no release sits outside a finally',
+         busyFin >= busySet && busySet === 7, busySet + ' writers');
+      ok('270 …including the tagging pass specifically',
+         /\} finally \{\s*\n\s*\/\/[^\n]*\n(\s*\/\/[^\n]*\n)*\s*_busy = false;\s*\n\s*_status\(''\);\s*\n\s*\}/.test(rd70('photo-inbox.js')));
+
+      // ── (c) the review card cannot leave photos invisibly ticked ──
+      ok('270 _pinReview accepts an explicit group list',
+         /window\._pinReview = function \(key, only\)/.test(pi) &&
+         /: \(only && only\.length \? only\.slice\(\) : _selGroups\(\)\)/.test(pi));
+      ok('270 _pinDiscard accepts one too',
+         /window\._pinDiscard = async function \(only\)/.test(pi) &&
+         /var gs = \(only && only\.length\) \? only\.slice\(\) : _selGroups\(\);/.test(pi));
+      // None of the three helpers may stage into the shared map any more.
+      const helpers = [
+        ['_pinReviewDiscard', pi.indexOf('window._pinReviewDiscard = function')],
+        ['_pinApplyMeta-tail', pi.indexOf('window._pinReview(gs.length === 1 ? gs[0].key : null, gs)') - 400],
+        ['research-onClose', pi.indexOf('_researchLookupTyped(num, { onClose')],
+      ];
+      helpers.forEach(function (h) {
+        const slice = pi.slice(Math.max(0, h[1]), Math.max(0, h[1]) + 700);
+        ok('270 ' + h[0] + ' no longer stages groups into the shared _sel map',
+           !/_sel\[g\.key\] = true/.test(slice) && !/_sel\[k\] = true/.test(slice));
+      });
+      ok('270 the review helpers hand their groups over explicitly instead',
+         /_pinDiscard\(gs\);/.test(pi) &&
+         /window\._pinReview\(gs\.length === 1 \? gs\[0\]\.key : null, gs\)/.test(pi) &&
+         /window\._pinReview\(_back\.length === 1 \? _back\[0\]\.key : null, _back\)/.test(pi));
+      // Belt and braces: the two buttons that SPEND or DESTROY cannot appear
+      // outside select mode, whatever ends up in _sel.
+      ok('270 Discard and Identify arm only in select mode, not on the count alone',
+         /if \(db\) db\.style\.display = \(_selectMode && n\) \? '' : 'none';/.test(pi) &&
+         /if \(ib\) ib\.style\.display = \(_selectMode && n\) \? '' : 'none';/.test(pi));
+      // And the ticks really are select-mode-only, which is WHY that matters.
+      ok('270 …because the tick circle is drawn only in select mode',
+         /var _circle = _selectMode\s*\n?\s*\?/.test(pi));
+
+      // ── the guard that could never fire ──
+      ok('270 the dead _qeSaving flag is gone from the code',
+         !/_qeSaving/.test(pi + ap + as + ws + bc + rp + wq + wz));
+      ok('270 saveWizardItem takes a REAL in-flight lock',
+         /if \(d\._wizSaveLock\) \{ console\.warn\('\[Save\] Blocked — a save is already in flight'\); return; \}\s*\n\s*d\._wizSaveLock = true;\s*\n\s*try \{/.test(ws));
+      ok('270 …and releases it in a finally',
+         /\} finally \{ d\._wizSaveLock = false; \}/.test(ws));
+      // Stability rule #5: one guard per writer. Eight writers, eight guards.
+      const guards = (ws.match(/if \(wizard\.data\._saveComplete\) \{ console\.warn/g) || []).length;
+      ok('270 all seven other save paths now guard against a second run',
+         guards === 7, guards + ' of 7');
+      ['saveSet', 'saveInstructionSheet', '_saveCatalogFromPaper', 'saveEphemeraItem',
+       'savePhotoOnlyUpdate', '_saveManualEntry', '_saveScienceConstructionItem'].forEach(function (fn) {
+        const at = ws.indexOf('async function ' + fn + '(');
+        const head = ws.slice(at, at + 1600);   // the first one carries a long note
+        ok('270 …' + fn + ' guards before it does anything',
+           /if \(wizard\.data\._saveComplete\)/.test(head), fn);
+      });
+
+      // ── caches that must not remember a failure as an answer ──
+      ok('270 a failed parts read leaves the cache UNSET so the next render retries',
+         /catch\(e\)\{ console\.warn\('\[Report\] parts read failed/.test(rp) &&
+         !/catch\(e\)\{ state\.partsData=\{\}; \}/.test(rp));
+      ok('270 …and the read no longer swallows its own error into an empty list',
+         !/'Parts Needed!A3:H'\)\.catch\(\(\)=>\(\{values:\[\]\}\)\)/.test(rp));
+      ok('270 a failed photo-link LOOKUP retries next pass, like a failed write does',
+         /catch \(eF\) \{ delete _repairDone\[k\]; continue; \}/.test(pi) &&
+         /catch \(eW\) \{ delete _repairDone\[k\];/.test(pi));
+
+      // ── read the snapshot, not the variable you just cleared ──
+      const up0 = pi.indexOf('var _era = _pinActiveEra();');
+      const up = pi.slice(up0, up0 + 3000);
+      ok('270 the upload toast tests the era SNAPSHOT, not the cleared one-shot',
+         /var _noEraUp = !_era;/.test(up) &&
+         !/_noEraUp = !\(\(_pinOneShot && !_spentOneShot\)/.test(up));
+      ok('270 …and the snapshot is still taken BEFORE the one-shot is cleared',
+         up.indexOf('var _era = _pinActiveEra();') < up.indexOf('_pinOneShot = null;'));
+
+      // ── the device Back button survives a second pass ──
+      ok('270 the identify overlay re-arms its Back entry each pass',
+         /_biArmBack\(\);\s*\n\s*var cap = await _biCapture\(\);/.test(bc));
+      ok('270 …guarded by has() so re-arming cannot pile up history entries',
+         /window\.BackStack\.has\('box-identify'\)\) return;/.test(bc));
+      ok('270 …and BackStack really does expose has()',
+         /has:   has,/.test(code70(rd70('back-stack.js'))));
+
+      // ── no native dialog anywhere in the inbox ──
+      ok('270 the three native confirm() dialogs are gone from the Photo Inbox',
+         !/window\.confirm\(/.test(pi));
+      ok('270 …replaced by the app-wide panel (BackStack + ESC aware)',
+         /await appConfirm\('Discard ' \+ n \+ ' photo'/.test(pi) &&
+         /window\._qcDone = async function \(\)/.test(pi));
+      // The reason, in this file's own words — if that comment ever goes, the
+      // rule behind this test should be re-argued rather than quietly dropped.
+      ok('270 …for the reason this file already documented',
+         /would freeze the extension bridge/.test(rd70('photo-inbox.js')));
+
+      // ── refusing to guess beats guessing wrong ──
+      ok('270 an unknown field name throws instead of silently returning column A',
+         /throw new Error\('personalColLetter: unknown field/.test(ap) &&
+         !/console\.warn\('\[personalColLetter\] unknown field:', fieldName\);\s*\n\s*return 'A';/.test(ap));
+      // Prove it: column A is the item number, which is what made the old
+      // fallback a silent corruption rather than a harmless default.
+      const schema0 = ap.indexOf('const PERSONAL_SCHEMA');
+      ok('270 …and column A really is the item number',
+         /itemNum/.test(ap.slice(schema0, schema0 + 200)));
     })();
 
   })().then(function () {

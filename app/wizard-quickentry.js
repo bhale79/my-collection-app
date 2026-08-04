@@ -105,7 +105,10 @@ async function quickEntryAdd() {
   // Guard: prevent any save if a save already completed this wizard session
   if (d._saveComplete) { console.warn('[QE] Blocked — save already completed this wizard session'); return; }
   // Guard: prevent double-save if Full Entry path already fired
-  if (d._wizSaveLock && !d._qeSaving) { console.warn('[QE] Blocked — save lock held by another path'); return; }
+  // v0.9.1325: _qeSaving was never set anywhere, so `!d._qeSaving` was always
+  // true and this reduced to a plain _wizSaveLock check. saveWizardItem now
+  // sets that lock for real, so this guard finally does something.
+  if (d._wizSaveLock) { console.warn('[QE] Blocked — a save is already in flight'); return; }
   const itemNum = (d.itemNum || '').trim();
   if (!itemNum) { showToast('Please enter an item number first'); return; }
   const variation = (d.variation || '').trim();

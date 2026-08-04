@@ -405,6 +405,21 @@ function launchSetItemWizard() {
 }
 
 async function saveSet() {
+  // v0.9.1325: the double-execution guard the project's own stability rule #5
+  // requires ("any save/write operation should have a flag guard that prevents
+  // it from firing twice, regardless of how it's triggered"). saveWizardItem
+  // had one; these seven did not.
+  //
+  // The reachable case was saveEphemeraItem: it appends the row, THEN calls
+  // buildDashboard() — a large unguarded function — and only then sets
+  // _saveComplete and closes. Any throw in between is caught by the broad
+  // catch and reported as "could not save your item", even though the row
+  // landed. The wizard stays open and wizard.js re-enables the Save button, so
+  // the user does the obvious thing, presses Save again, and gets TWO rows
+  // with two different inventory IDs and no error. The others are protected
+  // today only by statement ORDER, which is not written down anywhere.
+  if (wizard.data._saveComplete) { console.warn('[Save] Blocked \u2014 this item was already saved'); return; }
+
   // Items were already saved one-by-one via saveWizardItem.
   // This function now only records set box notes and closes.
   const d = wizard.data;
@@ -471,6 +486,9 @@ async function saveSet() {
 }
 
 async function saveInstructionSheet() {
+  // v0.9.1325: see saveSet — stability rule #5, one guard per writer.
+  if (wizard.data._saveComplete) { console.warn('[Save] Blocked \u2014 this item was already saved'); return; }
+
   const d = wizard.data;
   const linkedItem = (d.is_linkedItem || '').trim();
   // Sheet number is optional — fall back to picked item ID or auto-generate
@@ -563,6 +581,9 @@ async function saveInstructionSheet() {
 }
 
 async function _saveCatalogFromPaper() {
+  // v0.9.1325: see saveSet — stability rule #5, one guard per writer.
+  if (wizard.data._saveComplete) { console.warn('[Save] Blocked \u2014 this item was already saved'); return; }
+
   const d = wizard.data;
   const picked = d.eph_catalogPick;
   const subType = d.eph_paperSubType || '';
@@ -675,6 +696,9 @@ async function _saveCatalogFromPaper() {
 }
 
 async function saveEphemeraItem() {
+  // v0.9.1325: see saveSet — stability rule #5, one guard per writer.
+  if (wizard.data._saveComplete) { console.warn('[Save] Blocked \u2014 this item was already saved'); return; }
+
   const d = wizard.data;
   const tab = wizard.tab;
   const tabNames = { catalogs:'Catalogs', paper:'Paper Items', mockups:'Mock-Ups', other:'Other Lionel' };
@@ -800,6 +824,9 @@ async function saveEphemeraItem() {
 }
 
 async function savePhotoOnlyUpdate() {
+  // v0.9.1325: see saveSet — stability rule #5, one guard per writer.
+  if (wizard.data._saveComplete) { console.warn('[Save] Blocked \u2014 this item was already saved'); return; }
+
   const d = wizard.data;
   const pdKey = d._updatePdKey;
   if (!pdKey || !state.personalData[pdKey]) {
@@ -884,6 +911,9 @@ function _composeItemName(p) {
 if (typeof window !== 'undefined') window._composeItemName = _composeItemName;
 
 async function _saveManualEntry() {
+  // v0.9.1325: see saveSet — stability rule #5, one guard per writer.
+  if (wizard.data._saveComplete) { console.warn('[Save] Blocked \u2014 this item was already saved'); return; }
+
   const d = wizard.data;
   const itemNum = _normalizeEnteredItemNum(d.manualItemNum || '');
   // Session 166: item number is optional now — no-number items get an
@@ -986,6 +1016,9 @@ async function _saveManualEntry() {
 
 // Save Science Set or Construction Set to dedicated personal sheet tab
 async function _saveScienceConstructionItem(sheetTabName, stateKey) {
+  // v0.9.1325: see saveSet — stability rule #5, one guard per writer.
+  if (wizard.data._saveComplete) { console.warn('[Save] Blocked \u2014 this item was already saved'); return; }
+
   const d = wizard.data;
   const master = wizard.matchedItem || {};
   const itemNum = _normalizeEnteredItemNum(d.itemNum || '');
@@ -1096,8 +1129,22 @@ async function saveWizardItem() {
     await savePhotoOnlyUpdate();
     return;
   }
-  // Guard: prevent double-save if QE path already fired
-  if (d._qeSaving) { console.warn('[Save] Blocked — QE save already in progress'); return; }
+  // v0.9.1325 — A GUARD THAT COULD NEVER FIRE IS WORSE THAN NO GUARD.
+  //
+  // This line used to read `if (d._qeSaving)`. Nothing in the entire repo ever
+  // assigned `true` to _qeSaving (or to its sibling _wizSaveLock) — the only
+  // writes were two `= false` resets in wizardBack(). So both guards were
+  // dead, and this file READ as if concurrent saves were handled when the only
+  // real protection was wizard.js disabling the Next button. Anyone wiring a
+  // new trigger for saveWizardItem would inherit no protection at all and no
+  // warning that they hadn't.
+  //
+  // Replaced with a real in-flight lock, set here and released in a finally at
+  // the end so a throw cannot wedge it. _saveComplete guards AFTER a save;
+  // this guards DURING one. They are different questions.
+  if (d._wizSaveLock) { console.warn('[Save] Blocked — a save is already in flight'); return; }
+  d._wizSaveLock = true;
+  try {
   const tab = wizard.tab;
   // Apply powered/dummy suffix to A units (B units ending in C are never powered)
   const _rawItemNum = _normalizeEnteredItemNum(d.itemNum || d.set_num || '');
@@ -2366,4 +2413,8 @@ async function saveWizardItem() {
       showToast((typeof rrSaveError === 'function') ? rrSaveError(e, 'your item') : '❌ Save failed: ' + e.message, 8000, true);
     }
   }
+  // v0.9.1325: releases the in-flight lock opened at the top of this function.
+  // In a finally so a throw anywhere above — including one the catch above
+  // re-raises — cannot leave the wizard permanently unable to save.
+  } finally { d._wizSaveLock = false; }
 }

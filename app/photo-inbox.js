@@ -1534,9 +1534,15 @@
       });
     } catch (e) {
       console.warn('[inbox] tagging failed', e && e.message);
+    } finally {
+      // v0.9.1325: was a bare `_busy = false` here. Two statements run BEFORE
+      // the try (the label build and the _status call), so a throw in either
+      // left _busy stuck and every batch button in the inbox answered "still
+      // working on the last batch…" until a reload. This was the last of the
+      // seven _busy writers in this file without a finally.
+      _busy = false;
+      _status('');
     }
-    _busy = false;
-    _status('');
     // Say what actually happened. A partial write reported as a win is the bug
     // this app has been burned by before.
     if (ok === ids.length) showToast('Tagged ' + ok + ' photo' + (ok > 1 ? 's' : '') + ' as ' + label, 3200);
@@ -1585,8 +1591,15 @@
     if (isGroup) { try { _pinGrpPanelRender(); } catch (eGP) {} }
     // Discard and Read stay available in both modes — you are already looking
     // at photos with ticks on them, and binning the junk is the same gesture.
-    if (db) db.style.display = n ? '' : 'none';
-    if (ib) ib.style.display = n ? '' : 'none';
+    //
+    // v0.9.1325: gated on _selectMode as well as the count. These two are the
+    // only buttons here that SPEND or DESTROY, and they used to arm on the
+    // count alone — so any stray entry left in `_sel` outside select mode
+    // offered them against photos with no tick drawn anywhere. The root leak
+    // is fixed (see _pinReviewDiscard), and this makes the class impossible:
+    // no ticks visible, no destructive button.
+    if (db) db.style.display = (_selectMode && n) ? '' : 'none';
+    if (ib) ib.style.display = (_selectMode && n) ? '' : 'none';
     var fb = document.getElementById('pin-finish-btn');
     if (fb) fb.style.display = _selectMode ? '' : 'none';
     [['pin-group-btn', isGroup], ['pin-tag-btn', isTag]].forEach(function (p) {
@@ -1712,7 +1725,14 @@
         // v0.9.1097: a photo with no era tag reads against EVERY catalog at
         // once and matches strangers (Brad's 3545 came back as an Atlas item).
         // Say it at upload time, when fixing it is one Tag away.
-        var _noEraUp = !((_pinOneShot && !_spentOneShot) ? _pinOneShot : _pinHomeEra());
+        // v0.9.1325: this used to read _pinOneShot, which is cleared ~9 lines
+        // ABOVE, so the test always collapsed to !_pinHomeEra(). Result: arm a
+        // one-shot era with no home era, upload, and the photos WERE stamped
+        // correctly but the toast said "no maker/era tag yet… use the Tag
+        // button to stamp them" — sending the user to redo work already done.
+        // _era is the snapshot taken before the clear (it was assigned and
+        // never used — the leftover of exactly this).
+        var _noEraUp = !_era;
         if (_noEraUp) showToast('Added ' + files.length + ' photo' + (files.length > 1 ? 's' : '')
           + ' \u2014 no maker/era tag yet, so reads will be unfiltered. Use the Tag button to stamp them.', 5200);
         else showToast('Added ' + files.length + ' photo' + (files.length > 1 ? 's' : '') + ' to the inbox', 2500);
@@ -2446,9 +2466,16 @@
     try { window._pinReview(_rvKey || (g && g.key)); } catch (e) {}
   };
 
-  window._pinReview = function (key) {
+  // v0.9.1325: `only` lets a caller name the groups OUTRIGHT instead of
+  // staging them in the shared `_sel` map. Three review-card helpers used to
+  // do the latter — see the note on _pinReviewDiscard — which left photos
+  // ticked INVISIBLY after the card closed, because the tick circle is only
+  // drawn in select mode while the toolbar arms Discard and Identify on the
+  // COUNT alone. An explicit argument cannot leak.
+  window._pinReview = function (key, only) {
     _rvKey = key || '';          // v0.9.1057: which group the card is showing
-    _rvGroups = key ? _groups.filter(function (g) { return g.key === key; }) : _selGroups();
+    _rvGroups = key ? _groups.filter(function (g) { return g.key === key; })
+                    : (only && only.length ? only.slice() : _selGroups());
     if (!_rvGroups.length) { showToast('Select photos first', 2500, true); return; }
     // v0.9.1307: snapshot the walking order ONCE per card-opening — stepping
     // re-enters here with a new key and must keep the same snapshot.
@@ -3542,9 +3569,10 @@
       showToast(rrSaveError(eS, 'the read \u2014 you were not charged for it again'), 5000, true);
     }
     _render();
-    _sel = {};
-    gs.forEach(function (g) { _sel[g.key] = true; });
-    window._pinReview(gs.length === 1 ? gs[0].key : null);
+    // v0.9.1325: was `_sel = {}; gs.forEach(...)` — staging the groups in the
+    // shared selection map so _pinReview(null) would find them. That left them
+    // ticked invisibly after the card closed. Named outright now.
+    window._pinReview(gs.length === 1 ? gs[0].key : null, gs);
     // v0.9.1092: the re-opened card comes back to the photo that was read,
     // not the first one in the strip.
     try { if (fid0) window._pinRvSetMain(fid0); } catch (eM2) {}
@@ -3838,19 +3866,38 @@
     if (typeof window._researchLookupTyped === 'function') {
       window._researchLookupTyped(num, { onClose: function () {
         if (!_keys.length) return;
-        _sel = {}; _keys.forEach(function (k) { _sel[k] = true; });
-        try { window._pinReview(_keys.length === 1 ? _keys[0] : null); } catch (e) {}
+        // v0.9.1325: re-resolve the keys against the LIVE groups rather than
+        // staging them in _sel (see _pinReview's `only` note). Re-resolving
+        // also means a group that left the inbox while Research was open
+        // simply drops out instead of re-opening a card on a dead key.
+        var _back = _groups.filter(function (g) { return _keys.indexOf(g.key) >= 0; });
+        if (!_back.length) return;
+        try { window._pinReview(_back.length === 1 ? _back[0].key : null, _back); } catch (e) {}
       } });
     } else showToast('Research is still loading — try again in a moment', 3000, true);
   };
 
+  // v0.9.1325 — THE INVISIBLE SELECTION BUG.
+  //
+  // This used to stage _rvGroups into the shared `_sel` map and call
+  // _pinDiscard() with no argument. If the user then pressed Cancel at the
+  // confirm, _pinDiscard returned without clearing _sel and without a
+  // re-render — so the photos stayed SELECTED with no tick drawn anywhere
+  // (the tick circle is built only in select mode, photo-inbox.js:_render),
+  // while _selInfo armed both Discard and Identify on the count alone.
+  //
+  // The user's next tap on Identify then spent one photo ID per hidden photo,
+  // and Discard binned photos they could not see were chosen. Same leak via
+  // _pinApplyMeta (after a paid read) and via Research's onClose.
+  //
+  // Fixed at the root — the groups are passed as an argument — and belt and
+  // braces in _selInfo, which now refuses to arm those two buttons outside
+  // select mode no matter what is in _sel.
   window._pinReviewDiscard = function () {
     var gs = _rvGroups;
     if (!gs.length) return;
     var ov = document.getElementById('pin-review-ov'); if (ov) ov.remove();
-    _sel = {};
-    gs.forEach(function (g) { _sel[g.key] = true; });
-    _pinDiscard();
+    _pinDiscard(gs);
   };
 
   // Shared filing core: move every photo in `gs` into the item's Drive
@@ -4362,7 +4409,14 @@
         var p = targets[i], k = String(p.inventoryId || p.itemNum);
         _repairDone[k] = true;                    // don't re-probe this row this session
         var link = '';
-        try { link = await driveFindItemFolder(p.itemNum); } catch (eF) { continue; }
+        // v0.9.1325: the WRITE failure below deletes the sentinel so the row
+        // retries; the LOOKUP failure did not, so one Drive hiccup skipped
+        // that row for the whole session and its detail page kept saying "no
+        // photos" — cured by a reload, so it looked intermittent. This
+        // function's own doc comment claims it "treats every failure as 'try
+        // again next time'"; one of its two failure paths didn't.
+        try { link = await driveFindItemFolder(p.itemNum); }
+        catch (eF) { delete _repairDone[k]; continue; }
         if (!link) continue;                      // genuinely has no folder — leave it alone
         try {
           if (!(await rrVerifiedRowUpdate(state.personalSheetId, PERSONAL_TAB, p.row, PERSONAL_TAB + '!' + personalColLetter('photoItem') + p.row, [[link]], { num: p.itemNum || '', invId: p.inventoryId || '' }, 'collection'))) continue;
@@ -7624,11 +7678,22 @@
   };
 
   // ── Discard (Drive trash — recoverable ~30 days) ─────────────
-  window._pinDiscard = async function () {
-    var gs = _selGroups();
+  window._pinDiscard = async function (only) {
+    // v0.9.1325: `only` names the groups outright (the review card's Discard
+    // passes its own), so nothing has to be staged in the shared `_sel` map.
+    var gs = (only && only.length) ? only.slice() : _selGroups();
     if (!gs.length || _busy) { if (!gs.length) showToast('Select photos first', 2500, true); return; }
     var n = 0; gs.forEach(function (g) { n += g.files.length; });
-    if (!window.confirm('Discard ' + n + ' photo' + (n > 1 ? 's' : '') + '? They go to your Google Drive trash (recoverable for ~30 days).')) return;
+    // v0.9.1325: was window.confirm — in the one file whose own comment
+    // (see _pinConfirm) says a native dialog "would freeze the extension
+    // bridge". Three native dialogs survived in here while every other
+    // destructive action in the app used the styled panel. appConfirm is the
+    // right target rather than the local _pinConfirm: it wires BackStack and
+    // ESC, so the device Back button cancels instead of navigating the page
+    // out from under the dialog.
+    if (!(await appConfirm('Discard ' + n + ' photo' + (n > 1 ? 's' : '')
+          + '? They go to your Google Drive trash, recoverable for about 30 days.',
+          { title: 'Discard photos', ok: 'Discard', cancel: 'Keep them', danger: true }))) return;
     _busy = true;
     try {
       // v0.9.1275 (R15): one failed trash used to abandon the rest of the
@@ -8048,12 +8113,21 @@
     });
   };
 
-  window._qcDone = function () {
+  // v0.9.1325: async because the two native confirm() dialogs became
+  // appConfirm (see the note on _pinDiscard — a native dialog freezes the
+  // extension bridge, and this file's own _pinConfirm comment says so).
+  // Every caller invokes this from an onclick and ignores the return value,
+  // so returning a promise changes nothing for them.
+  window._qcDone = async function () {
     if (_qc && _qc.pending > 0) {
-      if (!window.confirm(_qc.pending + ' photo(s) still uploading — leave anyway? They may not reach the inbox.')) return;
+      if (!(await appConfirm(_qc.pending + ' photo' + (_qc.pending > 1 ? 's are' : ' is')
+            + ' still uploading. Leave anyway? ' + (_qc.pending > 1 ? 'They' : 'It') + ' may not reach the inbox.',
+            { title: 'Still uploading', ok: 'Leave anyway', cancel: 'Wait', danger: true }))) return;
     }
     if (_qc && _qc.failed.length) {
-      if (!window.confirm(_qc.failed.length + ' photo(s) failed to upload and will be lost. Close anyway?')) return;
+      if (!(await appConfirm(_qc.failed.length + ' photo' + (_qc.failed.length > 1 ? 's' : '')
+            + ' failed to upload and will be lost. Close anyway?',
+            { title: 'Uploads failed', ok: 'Close anyway', cancel: 'Go back', danger: true }))) return;
     }
     var total = _qc ? (_qc.total - _qc.failed.length) : 0;
     if (_qc) _qc.recent.forEach(function (r) { try { URL.revokeObjectURL(r.url); } catch (e) {} });

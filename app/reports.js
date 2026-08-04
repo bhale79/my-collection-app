@@ -294,8 +294,17 @@ function buildReport() {
         html+=sect('Parts Needed', '…');
         html+='<tr><td colspan="6" class="ui-empty">Loading parts…</td></tr>';
         if (!_wupPartsLoading) {
+          // v0.9.1325: TWO layers used to turn a failed read into a confident
+          // "No parts on your list". The `.catch(()=>({values:[]}))` yielded no
+          // rows, and the outer catch then set state.partsData = {} — which is
+          // TRUTHY, so `if (!state.partsData)` never fired again and nothing
+          // else invalidates it. Open this report once while offline and it
+          // said your parts list was empty for the rest of the session, no
+          // matter how many times you re-opened it. (The Parts PAGE self-heals
+          // because it re-fetches per visit; only the report was stuck.)
+          // Now a failure leaves it undefined, so the next render retries.
           _wupPartsLoading=true;
-          (async()=>{ try{ if(typeof _ensurePartsTab==='function') await _ensurePartsTab(); const res=await sheetsGet(state.personalSheetId,'Parts Needed!A3:H').catch(()=>({values:[]})); const parts={}; (res.values||[]).forEach((r,idx)=>{ if(!r[0]||r[0]==='Part ID')return; parts['p'+(idx+3)]={row:idx+3,id:r[0]||'',description:r[1]||'',partNum:r[2]||'',forItem:r[3]||'',forInv:r[4]||'',photo:r[5]||'',notes:r[6]||'',dateAdded:r[7]||''}; }); state.partsData=parts; }catch(e){ state.partsData={}; } _wupPartsLoading=false; var _sel=document.getElementById('report-type'); if(_sel && _sel.value==='wantupgrade') buildReport(); })();
+          (async()=>{ try{ if(typeof _ensurePartsTab==='function') await _ensurePartsTab(); const res=await sheetsGet(state.personalSheetId,'Parts Needed!A3:H'); const parts={}; (res.values||[]).forEach((r,idx)=>{ if(!r[0]||r[0]==='Part ID')return; parts['p'+(idx+3)]={row:idx+3,id:r[0]||'',description:r[1]||'',partNum:r[2]||'',forItem:r[3]||'',forInv:r[4]||'',photo:r[5]||'',notes:r[6]||'',dateAdded:r[7]||''}; }); state.partsData=parts; }catch(e){ console.warn('[Report] parts read failed \u2014 leaving unloaded so the next render retries:', e); } _wupPartsLoading=false; var _sel=document.getElementById('report-type'); if(_sel && _sel.value==='wantupgrade') buildReport(); })();
         }
       } else {
         const pp=Object.values(state.partsData||{});

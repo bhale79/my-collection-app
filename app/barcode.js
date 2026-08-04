@@ -2836,13 +2836,33 @@ window.eraSupportsBarcode = eraSupportsBarcode;
     // v0.9.686 (Brad): device/browser BACK closes the identify overlay like
     // Cancel does, instead of navigating the app away underneath it.
     _biOnCancel = onCancel || null;
-    if (window.BackStack) window.BackStack.push('box-identify', function () {
-      var f = _biOnCancel; _biOnCancel = null;
-      _biKill();
-      if (f) f();
-    });
+    // v0.9.1325: hoisted into a named function and re-armed at the top of the
+    // loop below, because _biKill() POPS this entry and several paths call
+    // _biKill() before showing the confirm/fail card and then `continue` — so
+    // the SECOND pass through the flow had no BackStack entry at all. Symptom:
+    // identify a box, press "Scan again" (or "Retake" on the fail card), and
+    // the phone's Back button navigated the app out from under the still-open
+    // camera overlay instead of closing it. The first pass handled Back
+    // correctly, which is what made this easy to miss.
+    var _biArmBack = function () {
+      if (!window.BackStack) return;
+      // Only arm if we do NOT already hold the entry. push() de-dupes the
+      // stack but still calls history.pushState, so re-pushing while armed
+      // would silently pile up history entries and Back would need several
+      // presses to escape. has() is the honest check.
+      if (typeof window.BackStack.has === 'function' && window.BackStack.has('box-identify')) return;
+      window.BackStack.push('box-identify', function () {
+        var f = _biOnCancel; _biOnCancel = null;
+        _biKill();
+        if (f) f();
+      });
+    };
+    _biArmBack();
     try {
       while (true) {
+        // Re-arm each pass — a no-op unless a _biKill() popped it (which is
+        // exactly the 'rescan'/'retake' case this fixes).
+        _biArmBack();
         var cap = await _biCapture();
         if (!cap) { _biKill(); if (onCancel) onCancel(); return; }
         // v0.9.711 (Brad): Research quick lookup — typed number, no photo.
