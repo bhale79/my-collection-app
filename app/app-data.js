@@ -1365,6 +1365,22 @@ function _cachePersonalData() {
     // browsers fail silently here — Brad has reported "the app keeps re-fetching
     // every time" symptoms that trace back to this swallow.
     console.warn('[cache write failed]', e && e.message);
+    // v0.9.1326 (MEASURED): "surface" meant a console line, which no user has
+    // open. Reproduced by filling the 5MB quota and calling this: it does not
+    // throw, the snapshot silently keeps the OLD data, and nothing appears on
+    // screen. The offline copy is what makes the app work at a train show with
+    // no signal — so the failure mode was "you are looking at stale data in
+    // the one place you cannot tell." Measured headroom: 5,000 items = 2.50MB,
+    // about half the budget, so ~10,000 items reaches the wall.
+    //
+    // Told once per session, not per write — this runs on every save.
+    if (!window._rrQuotaWarned && /quota|exceeded|QuotaExceeded/i.test(String((e && e.message) || e))) {
+      window._rrQuotaWarned = true;
+      if (typeof showToast === 'function') {
+        showToast('Your device is out of storage room, so the offline copy of your '
+          + 'collection has stopped updating. The app still works online.', 8000, true);
+      }
+    }
   }
 }
 

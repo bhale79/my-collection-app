@@ -322,9 +322,15 @@ META_WRITES.length = 0; TOASTS.length = 0;
   section('13. v0.9.1058 — metadata actually round-trips');
   // Drive returns only requested fields. Prove appProperties is now requested.
   const srcTxt = require('fs').readFileSync(SRC, 'utf8');
+  // v0.9.1326: assert the FIELD is requested, not the exact field list. This
+  // pinned the whole string, so adding thumbnailLink (which saved 500 separate
+  // Drive calls on a 500-photo inbox) read as removing appProperties. What
+  // matters is that appProperties is in the list — name the requirement, not
+  // the current spelling of the line.
   ok('Drive listing asks for appProperties',
-     // v0.9.1131 paginated this call, so the fields list now leads with nextPageToken
-     /fields=nextPageToken,files\(id,name,createdTime,appProperties\)/.test(srcTxt));
+     /fields=nextPageToken,files\([^)]*\bappProperties\b[^)]*\)/.test(srcTxt));
+  ok('…and for thumbnailLink, so tiles do not each need their own call',
+     /fields=nextPageToken,files\([^)]*\bthumbnailLink\b[^)]*\)/.test(srcTxt));
   ok('_pinMetaOf reads era back off a file',
      window.__T && (function () {
        const f = { id: 'x', appProperties: { rrEra: 'pw', rrKind: 'aba', rrRole: 'p' } };
@@ -2385,8 +2391,11 @@ META_WRITES.length = 0; TOASTS.length = 0;
 
   section('107. The inbox sees past 200 photos, and re-reads survive');
   const a7 = require('fs').readFileSync(SRC, 'utf8');
+  // v0.9.1326: same reason as §13 — this is a test about PAGINATION, so it
+  // should assert nextPageToken is asked for and consumed, not pin the
+  // unrelated field list beside it.
   ok('the inbox listing pages to the end instead of stopping at 200',
-     /nextPageToken,files\(id,name,createdTime,appProperties\)/.test(a7) &&
+     /fields=nextPageToken,files\(/.test(a7) &&
      /_pageTok = \(res && res\.nextPageToken\) \|\| '';/.test(a7));
   ok('a truncated listing is recorded, not assumed complete',
      /_pinListComplete = false; break;/.test(a7));
@@ -7261,9 +7270,22 @@ META_WRITES.length = 0; TOASTS.length = 0;
       const _hIdx = _pdl.indexOf('function _pdLookupKey');
       const _hEnd = _pdl.indexOf("if (typeof window !== 'undefined') { window.rrSameVar");
       const _cmp = new Function('"use strict";' + _pdl.slice(_hIdx, _hEnd) + '; return { v: rrSameVar, n: rrSameNum };')();
+      // v0.9.1326: the expander no longer re-scans personalData per row — one
+      // pass above it buckets the owned copies by raw item number. The harness
+      // must build the SAME bucket map, by the same rules (owned, not -BOX),
+      // or it is testing a filter that no longer exists. Built from the same
+      // state fixture, so the two cannot drift apart silently.
+      const _copiesByNum = new Map();
+      Object.values(ctx.state.personalData).forEach(function (p) {
+        if (!p || !p.owned) return;
+        if (String(p.itemNum || '').toUpperCase().endsWith('-BOX')) return;
+        const _b = _copiesByNum.get(p.itemNum);
+        if (_b) _b.push(p); else _copiesByNum.set(p.itemNum, [p]);
+      });
       const fctx = {
         it: it, state: ctx.state,
         _dnp: it.itemNum,
+        _copiesByNum: _copiesByNum,
         rrMasterKeyOf: ctx.rrMasterKeyOf,
         rrSameVar: _cmp.v, rrSameNum: _cmp.n,
       };
@@ -18176,6 +18198,159 @@ META_WRITES.length = 0; TOASTS.length = 0;
       const schema0 = ap.indexOf('const PERSONAL_SCHEMA');
       ok('270 …and column A really is the item number',
          /itemNum/.test(ap.slice(schema0, schema0 + 200)));
+    })();
+
+    // ═══════════════════════════════════════════════════════════
+    // §271. v0.9.1326 — four measured speed fixes.
+    //
+    //   MEASUREMENT BEATS READING, so every number below was produced
+    //   before the change was written, and the two risky ones are
+    //   proved EQUIVALENT here rather than asserted to be:
+    //
+    //   1. _getPdIndex re-counted every owned item to decide whether
+    //      its index was stale — about 22,000 times per render.
+    //      Profile: 5,180ms of a 6,679ms sample. 2,000 items: the
+    //      screen locked for 6.1s.
+    //   2. The copy expander re-scanned all owned items once per row
+    //      on screen. Same profile: 923ms.
+    //   3. The inbox listing did not ask for thumbnailLink, so each
+    //      tile fetched its own: 500 photos = 500 Drive calls = 34.5s
+    //      at a 400ms RTT before the last picture began loading.
+    //   4. A full-quota localStorage write failed SILENTLY, so the
+    //      offline copy stopped updating with nothing on screen —
+    //      in the one situation (no signal) where you cannot tell.
+    //
+    //   The first two change HOW rows are found, never WHICH. That is
+    //   the property worth a test, so this section runs both the old
+    //   and the new selection and demands they agree.
+    // ═══════════════════════════════════════════════════════════
+    section('271. Speed: same answers, far less work');
+    await (async function () {
+      const p71 = require('path');
+      const rd71 = f => fs.readFileSync(p71.join(__dirname, '..', 'app', f), 'utf8');
+      const pdl = rd71('wizard-pdlookup.js'), brw = rd71('browse.js');
+      const pin = rd71('photo-inbox.js'), adt = rd71('app-data.js'), ast = rd71('app-setup.js');
+
+      // ── 1. the index is consulted once per turn, and still self-invalidates ──
+      const h0 = pdl.indexOf('function _pdLookupKey');
+      const h1 = pdl.indexOf('// v0.9.923: SINGLE SOURCE OF TRUTH');
+      ok('271 the lookup slice was found', h0 > 0 && h1 > h0);
+      const state71 = { personalData: {} };
+      let keyCalls = 0;
+      const api = new Function('state', 'window', '__count',
+        'let _pdIndex={},_pdIndexVer=-1,_pdIndexRef=null;'
+        + pdl.slice(h0, h1).replace('function _rebuildPdIndex() {', 'function _rebuildPdIndex() { __count();')
+        + '; return { get: _getPdIndex };')(state71, {}, function () { keyCalls++; });
+      for (let i = 0; i < 50; i++) state71.personalData['inv' + i] = { itemNum: String(6000 + i), variation: '1', owned: true };
+      api.get(); api.get(); api.get(); api.get();
+      ok('271 four lookups in one turn rebuild the index at most once',
+         keyCalls === 1, keyCalls + ' rebuilds');
+      // A NEW TURN must re-check — this is the whole safety argument for the
+      // per-turn flag, so prove the flag actually clears.
+      await new Promise(r => setTimeout(r, 0));
+      state71.personalData['newOne'] = { itemNum: '9999', variation: '1', owned: true };
+      const idxAfter = api.get();
+      ok('271 …and the next turn sees an item added in between',
+         !!idxAfter[Object.keys(idxAfter).find(k => /9999/.test(k)) || '_none'],
+         Object.keys(idxAfter).filter(k => /9999/.test(k)).join(','));
+      // Swapping the whole object must also be caught, in ANY turn.
+      state71.personalData = { solo: { itemNum: '1', variation: '1', owned: true } };
+      const idxSwap = api.get();
+      ok('271 …and a wholesale data swap is caught immediately',
+         Object.keys(idxSwap).length === 1, JSON.stringify(Object.keys(idxSwap)));
+
+      // ── 2. the expander picks EXACTLY the same copies as before ──
+      const cmp71 = new Function('"use strict";'
+        + pdl.slice(pdl.indexOf('function _pdLookupKey'),
+                    pdl.indexOf("if (typeof window !== 'undefined') { window.rrSameVar"))
+        + '; return rrSameVar;')();
+      const rrMasterKeyOf71 = it => (it && it.masterKey) ? it.masterKey : '';
+      const pd71 = {};
+      const addC = (id, num, v, extra) => { pd71[id] = Object.assign({ itemNum: num, variation: v, owned: true, inventoryId: id }, extra || {}); };
+      // The nasty cases, on purpose: two copies of one keyed row, a blank
+      // variation, a sibling variation, a -BOX row, an unowned row, a numeric
+      // item number that must NOT collide with its string twin.
+      addC('a', '3545', '1', { masterKey: 'pw|3545|1' });
+      addC('b', '3545', '',  { masterKey: 'pw|3545|1' });
+      addC('c', '3545', '2');
+      addC('d', '6464', ''); addC('e', '6464', ''); addC('f', '6464', '500');
+      addC('g', '2343-BOX', '1');
+      addC('h', '675', '3', { masterKey: 'pw|675|3' }); addC('i', '675', '3');
+      pd71['j'] = { itemNum: '999', variation: '1', owned: false, inventoryId: 'j' };
+      addC('k', '1234', '1'); addC('l', 1234, '1');
+      const st71 = { personalData: pd71 };
+      const rows71 = [
+        { itemNum: '3545', variation: '1', masterKey: 'pw|3545|1' },
+        { itemNum: '3545', variation: '', masterKey: 'pw|3545|paper' },
+        { itemNum: '3545', variation: '2' },
+        { itemNum: '6464', variation: '' }, { itemNum: '6464', variation: '500' },
+        { itemNum: '675', variation: '3', masterKey: 'pw|675|3' },
+        { itemNum: '2343', variation: '1' }, { itemNum: '999', variation: '1' },
+        { itemNum: '1234', variation: '1' }, { itemNum: '0', variation: '' },
+        { itemNum: '', variation: '' },
+      ];
+      // The PRE-1326 filter, kept here verbatim as the reference implementation.
+      const oldPick = it => {
+        const _dnp = it.itemNum, _itKeyFD = rrMasterKeyOf71(it);
+        return Object.values(st71.personalData).filter(function (p) {
+          if (!p || !p.owned || p.itemNum !== _dnp) return false;
+          if (String(p.itemNum || '').toUpperCase().endsWith('-BOX')) return false;
+          if (p.masterKey && _itKeyFD) return p.masterKey === _itKeyFD;
+          return cmp71(p.variation, it.variation);
+        });
+      };
+      const bI = brw.indexOf('var _copiesByNum = new Map();');
+      const bE = brw.indexOf('state.filteredData.forEach(function(it) {', bI);
+      ok('271 the bucket-build slice was found', bI > 0 && bE > bI);
+      const buckets = new Function('state', '"use strict";' + brw.slice(bI, bE) + '; return _copiesByNum;')(st71);
+      const fI = brw.indexOf('var _itKeyFD ='), fE = brw.indexOf('if (_copiesFD.length <= 1)', fI);
+      const newPick = it => new Function('it', 'state', '_dnp', '_copiesByNum', 'rrMasterKeyOf', 'rrSameVar',
+        '"use strict";' + brw.slice(fI, fE) + '; return _copiesFD;')(it, st71, it.itemNum, buckets, rrMasterKeyOf71, cmp71);
+      let diffs = [];
+      rows71.forEach(function (r) {
+        const A = oldPick(r).map(p => p.inventoryId).sort().join(',');
+        const B = newPick(r).map(p => p.inventoryId).sort().join(',');
+        if (A !== B) diffs.push(String(r.itemNum) + '/' + r.variation + ': [' + A + '] vs [' + B + ']');
+      });
+      ok('271 the faster expander picks IDENTICAL copies on every row',
+         diffs.length === 0, diffs.join(' | ') || 'all ' + rows71.length + ' agree');
+      // And the two identity rules are still the ones deciding it.
+      ok('271 …with the masterKey and variation rules untouched',
+         /if \(p\.masterKey && _itKeyFD\) return p\.masterKey === _itKeyFD;/.test(brw) &&
+         /return rrSameVar\(p\.variation, it\.variation\);/.test(brw));
+      ok('271 …and the bucket map keys on the RAW number (Map is SameValueZero)',
+         /var _k = p\.itemNum;/.test(brw));
+      // The scan-per-row is gone. If it comes back, this section is a lie.
+      const expSlice = brw.slice(bI, brw.indexOf('if (_copiesFD.length <= 1)', bI));
+      ok('271 …and nothing re-scans personalData inside the row loop any more',
+         !/Object\.values\(state\.personalData\)\.filter/.test(expSlice));
+
+      // ── 3. one listing call carries the thumbnails ──
+      ok('271 the listing asks for thumbnailLink',
+         /files\([^)]*thumbnailLink[^)]*\)/.test(pin));
+      ok('271 …stores it per file id',
+         /if \(f\.thumbnailLink\) _thumbLink\[f\.id\] = f\.thumbnailLink;/.test(pin));
+      ok('271 …hands it to the tile loader instead of null',
+         /loadDriveThumb\(_fid, img, img\.parentElement, _thumbLink\[_fid\] \|\| null, 'hi'\)/.test(pin));
+      ok('271 …and a photo with no link still degrades to the old per-file fetch',
+         /\?fields=thumbnailLink/.test(rd71('drive.js')));
+      ok('271 …with the map reset per listing so it cannot grow forever',
+         /_thumbLink = \{\};\s*\n\s*files\.forEach/.test(pin));
+
+      // ── 4. a silent failure is not a report ──
+      ok('271 a full-quota cache write tells the user, once',
+         /window\._rrQuotaWarned = true;/.test(adt) &&
+         /offline copy of your/.test(adt) &&
+         /if \(!window\._rrQuotaWarned && \/quota\|exceeded\|QuotaExceeded\/i/.test(adt));
+
+      // ── the startup round trips ──
+      ok('271 the five header reads are one batched call',
+         /await sheetsBatchGet\(sheetId, \[_R_PD, _R_TITLE, _R_WU, _R_SOLD, _R_FS\]\)/.test(ast));
+      ok('271 …and no serial header sheetsGet survives in the setup file',
+         (ast.match(/await sheetsGet\(/g) || []).length <= 1,
+         String((ast.match(/await sheetsGet\(/g) || []).length));
+      ok('271 …indexed by POSITION, not by the returned range text',
+         /_bg\.valueRanges && _bg\.valueRanges\[i\]/.test(ast));
     })();
 
   })().then(function () {

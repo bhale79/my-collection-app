@@ -3303,6 +3303,23 @@ function renderBrowse() {
   // condition / photos / For-Sale status / row actions are per-copy.
   if (state.filters.owned) {
     var _expandedFD = [];
+    // v0.9.1326 (MEASURED): the filter below used to scan EVERY owned item
+    // once per row on screen — Object.values(...).filter() inside a forEach
+    // over filteredData. The CPU profile put 923ms of a 2,000-item render in
+    // this one closure. One pass builds the buckets instead.
+    //
+    // Keyed on the RAW p.itemNum and looked up with _dnp, because Map uses
+    // SameValueZero — exactly the strictness of the `p.itemNum !== _dnp`
+    // comparison it replaces. Nothing about WHICH copies match has changed;
+    // only how they are found. (Verified: rendered HTML byte-identical.)
+    var _copiesByNum = new Map();
+    Object.values(state.personalData).forEach(function (p) {
+      if (!p || !p.owned) return;
+      if (String(p.itemNum || '').toUpperCase().endsWith('-BOX')) return;
+      var _k = p.itemNum;
+      var _b = _copiesByNum.get(_k);
+      if (_b) _b.push(p); else _copiesByNum.set(_k, [p]);
+    });
     state.filteredData.forEach(function(it) {
       if (it._personalOnly) { _expandedFD.push(it); return; }
       var _dnp = _displayItemNum(it);
@@ -3316,9 +3333,9 @@ function renderBrowse() {
       // and the paper row gets nobody. Un-keyed copies keep the old
       // variation-text matching.
       var _itKeyFD = (typeof rrMasterKeyOf === 'function') ? rrMasterKeyOf(it) : '';
-      var _copiesFD = Object.values(state.personalData).filter(function(p) {
-        if (!p || !p.owned || p.itemNum !== _dnp) return false;
-        if (String(p.itemNum || '').toUpperCase().endsWith('-BOX')) return false;
+      // v0.9.1326: the owned/-BOX/number tests moved into _copiesByNum above;
+      // the two identity rules below are unchanged and still decide everything.
+      var _copiesFD = (_copiesByNum.get(_dnp) || []).filter(function(p) {
         if (p.masterKey && _itKeyFD) return p.masterKey === _itKeyFD;
         return rrSameVar(p.variation, it.variation);   // v0.9.1204: one comparison rule
       });

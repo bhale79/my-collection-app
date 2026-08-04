@@ -441,8 +441,44 @@ async function ensurePersonalHeaders(sheetId) {
     // on every login. Header repair had been failing quietly since the schema
     // passed 32 columns.
     const _pdEndHdr = _pdColLetter(PERSONAL_HEADERS.length);
-    const res = await sheetsGet(sheetId, PERSONAL_TAB + '!A2:' + _pdEndHdr + '2');
-    const current = (res.values && res.values[0]) || [];
+
+    // v0.9.1326 (MEASURED): these five header reads used to be five serial
+    // `await sheetsGet` calls, and this whole function is awaited BEFORE the
+    // collection itself is fetched — so a signed-in start spent roughly
+    // 2.4-2.8s at a 400ms RTT doing nothing but verifying column captions
+    // before the user saw a single item. One batchGet asks for all five ranges
+    // in a single request. sheetsBatchGet already exists and is already used
+    // this way for master data (7 ranges in one call).
+    //
+    // The repair logic below is UNCHANGED — same comparisons, same writes, same
+    // per-tab try/catch. Only the reads were merged. Deliberately NOT also
+    // un-blocking this from the collection load: a header repair racing the
+    // data read is a different and riskier change, and this alone removes most
+    // of the wait.
+    const _R_PD = PERSONAL_TAB + '!A2:' + _pdEndHdr + '2';
+    const _R_TITLE = PERSONAL_TAB + '!A1';
+    const _R_WU = 'Want-Upgrade List!A2:I2';
+    const _R_SOLD = 'Sold!A2:T2';
+    const _R_FS = 'For Sale!A2:J2';
+    var _hdrVals = {};
+    try {
+      const _bg = await sheetsBatchGet(sheetId, [_R_PD, _R_TITLE, _R_WU, _R_SOLD, _R_FS]);
+      // batchGet answers in the order asked, so index by position rather than
+      // by the returned range string (Sheets normalises quoting on tab names
+      // with spaces, and matching on that text has bitten this project before).
+      [_R_PD, _R_TITLE, _R_WU, _R_SOLD, _R_FS].forEach(function (rg, i) {
+        var vr = (_bg && _bg.valueRanges && _bg.valueRanges[i]) || {};
+        _hdrVals[rg] = (vr.values && vr.values[0]) || [];
+      });
+    } catch (eBG) {
+      // One failed read used to skip only its own tab's check; keep that shape
+      // by leaving every slot empty-but-defined. An empty slot reads as
+      // "headers wrong" and triggers a repair write, which is idempotent and
+      // is exactly what the old code did with an empty response.
+      console.warn('[Headers] batched header read failed:', eBG && eBG.message);
+      return;   // nothing read = nothing to compare; next sign-in retries
+    }
+    const current = _hdrVals[_R_PD];
 
     // Check each expected header — write the full row if anything is missing or wrong
     const needsUpdate = PERSONAL_HEADERS.some((h, i) => current[i] !== h);
@@ -452,16 +488,14 @@ async function ensurePersonalHeaders(sheetId) {
     }
 
     // Also ensure row 1 title
-    const titleRes = await sheetsGet(sheetId, PERSONAL_TAB + '!A1');
-    const title = (titleRes.values && titleRes.values[0] && titleRes.values[0][0]) || '';
+    const title = _hdrVals[_R_TITLE][0] || '';
     if (title !== 'My Collection') {
       await sheetsUpdate(sheetId, PERSONAL_TAB + '!A1', [['My Collection']]);
     }
 
     // Repair Want-Upgrade List headers if missing or wrong (combined tab, Session 161+).
     try {
-      const wuRes = await sheetsGet(sheetId, 'Want-Upgrade List!A2:I2');
-      const wuCurrent = (wuRes.values && wuRes.values[0]) || [];
+      const wuCurrent = _hdrVals[_R_WU];
       const wuNeedsUpdate = WISHLIST_HEADERS.some((h, i) => wuCurrent[i] !== h);
       if (wuNeedsUpdate) {
         await sheetsUpdate(sheetId, 'Want-Upgrade List!A1:A1', [['Want-Upgrade List']]);
@@ -482,8 +516,7 @@ async function ensurePersonalHeaders(sheetId) {
     for (var _i = 0; _i < _tabsToCheck.length; _i++) {
       var _t = _tabsToCheck[_i];
       try {
-        var _hr = await sheetsGet(sheetId, _t.range);
-        var _cur = (_hr.values && _hr.values[0]) || [];
+        var _cur = _hdrVals[_t.range] || [];
         var _need = _t.headers.some(function(h, i) { return _cur[i] !== h; });
         if (_need) {
           await sheetsUpdate(sheetId, _t.range, [_t.headers]);
