@@ -17674,6 +17674,51 @@ META_WRITES.length = 0; TOASTS.length = 0;
          (ad64.match(/setTimeout\(rrSellSheetStartupSync, 12000\)/g) || []).length === 2);
     })();
 
+    // ═══════════════════════════════════════════════════════════
+    // §265. v0.9.1318 — see the SELECTED variation on COTT while picking.
+    //
+    //   Brad: "we need a way to look at the different variations on cott."
+    //   The REAL _panelVarRefUrl runs here with the REAL cott-anchors.js —
+    //   Brad's own 6050 case: two variations of one number must aim at two
+    //   different spots on the same page.
+    // ═══════════════════════════════════════════════════════════
+    section('265. Variation picker: the COTT link re-aims per variation');
+    (function () {
+      const p65 = require('path');
+      const ac65 = fs.readFileSync(p65.join(__dirname, '..', 'app', 'app-collection.js'), 'utf8');
+      const ca65 = fs.readFileSync(p65.join(__dirname, '..', 'app', 'cott-anchors.js'), 'utf8');
+      // real COTT machinery
+      const win65 = {};
+      new Function('window', ca65)(win65);
+      // real helper, sliced out of the panel
+      const h0 = ac65.indexOf('function _panelVarRefUrl(');
+      const h1 = ac65.indexOf('\n  }', ac65.indexOf('return rl;', h0)) + 4;
+      ok('265 the helper slice was found', h0 > 0 && h1 > h0);
+      const B65 = 'https://www.cornucopiaoftoytrains.com/boxcars-small-with-non-operating-doors/';
+      const stateStub = { masterData: [
+        { itemNum: '6050', variation: '1', _era: 'pw', refLink: B65, roadName: "Libby's", itemType: 'Boxcar', varDesc: 'TYPE 3 LIBBYS TOMATO JUICE' },
+        { itemNum: '6050', variation: '7', _era: 'pw', refLink: B65, roadName: 'Lionel Savings Bank', itemType: 'Boxcar', varDesc: 'TYPE 1 SAVINGS BANK COIN SLOT' },
+        { itemNum: '6050', variation: '9', _era: 'pw', refLink: '', roadName: 'Swift', itemType: 'Boxcar', varDesc: 'TYPE 2A SWIFT' },
+      ] };
+      const helper = new Function('pd', 'item', 'state', 'window',
+        ac65.slice(h0, h1) + ' return _panelVarRefUrl;')(
+        { itemNum: '6050' }, { itemNum: '6050', _era: 'pw' }, stateStub, win65);
+      ok('265 var 7 aims at the Savings Bank spot',
+         /#sdbx6050lio$/.test(helper('7') || ''), String(helper('7')));
+      ok('265 var 1 aims at the Libby\'s spot — same number, different anchor',
+         /#sdbx6050lib$/.test(helper('1') || ''), String(helper('1')));
+      ok('265 a variation with no reference link shows no link at all',
+         helper('9') === null);
+      // ── the panel wires it live ──
+      ok('265 the picker carries the live link and re-aims on every change',
+         /_vc\.id = 'panel-var-cott';/.test(ac65) &&
+         /inp\.onchange = _vcUpd;/.test(ac65) &&
+         /_vcUpd\(\);/.test(ac65) &&
+         /See this variation on COTT/.test(ac65));
+      ok('265 the helper feeds the selected row\'s OWN words to the deep-link picker',
+         /window\.cottAnchorUrl\(rl, _vn, \(typeof window\.cottRowWords === 'function' && mRow\) \? window\.cottRowWords\(mRow\) : ''\)/.test(ac65));
+    })();
+
   })().then(function () {
     console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
     process.exit(fail ? 1 : 0);

@@ -3132,6 +3132,25 @@ function showItemPanel(idx, pdKey, mode) {
   // change it"): the original variation, captured ONCE — Save compares
   // against this to know a change happened and re-derive the identity.
   const _origVariation = String(pd.variation || item.variation || '');
+
+  // v0.9.1318 (Brad: "we need a way to look at the different variations on
+  // cott"): the reference URL for ONE variation of this item — the selected
+  // row's own refLink through the deep-link machinery (v0.9.1304), so the
+  // link lands on THAT variation's spot on the page, not the page top.
+  function _panelVarRefUrl(vSel) {
+    var _vn = String(pd.itemNum || item.itemNum || '').trim().toUpperCase();
+    var mRow = (state.masterData || []).find(function (mm) {
+      return String(mm.itemNum || '').trim().toUpperCase() === _vn
+        && String(mm.variation || '') === String(vSel || '')
+        && (!item._era || !mm._era || mm._era === item._era);
+    });
+    var rl = (mRow && mRow.refLink) || '';
+    if (!rl) return null;
+    if (typeof window.cottAnchorUrl === 'function') {
+      return window.cottAnchorUrl(rl, _vn, (typeof window.cottRowWords === 'function' && mRow) ? window.cottRowWords(mRow) : '');
+    }
+    return rl;
+  }
   if (pd.variation === undefined || pd.variation === '') pd.variation = _origVariation;
 
   const fields = [
@@ -3361,6 +3380,27 @@ function showItemPanel(idx, pdKey, mode) {
           inpRow.appendChild(cancelInp);
         }
         valWrap.appendChild(inpRow);
+        // v0.9.1318: while the variation picker is open, a live link aims at
+        // the SELECTED variation's spot on the reference page and re-aims on
+        // every dropdown change — compare against COTT's photos, come back,
+        // pick.
+        if (f.key === 'variation') {
+          var _vc = document.createElement('a');
+          _vc.id = 'panel-var-cott';
+          _vc.target = '_blank'; _vc.rel = 'noopener';
+          _vc.style.cssText = 'display:none;margin-top:0.35rem;font-size:0.78rem;color:var(--accent2);text-decoration:none;align-items:center;gap:0.3rem';
+          var _vcUpd = function () {
+            var u = _panelVarRefUrl(inp.value);
+            if (u) {
+              _vc.href = u;
+              _vc.textContent = (/cornucopiaoftoytrains/i.test(u) ? 'See this variation on COTT ↗' : 'See this variation ↗');
+              _vc.style.display = 'inline-flex';
+            } else { _vc.style.display = 'none'; }
+          };
+          inp.onchange = _vcUpd;
+          _vcUpd();
+          valWrap.appendChild(_vc);
+        }
 
       } else if (f.type === 'link') {
         // External link — render as clickable anchor, no edit
