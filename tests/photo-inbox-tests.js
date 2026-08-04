@@ -18198,6 +18198,44 @@ META_WRITES.length = 0; TOASTS.length = 0;
       const schema0 = ap.indexOf('const PERSONAL_SCHEMA');
       ok('270 …and column A really is the item number',
          /itemNum/.test(ap.slice(schema0, schema0 + 200)));
+
+      // ── v0.9.1330: the Rebuild-Dashboard guard, and its own safety net ──
+      //
+      // Same family as everything above, plus a twist worth naming: the
+      // "safety auto-reset" timer was never cancelled, so it OUTLIVED the run
+      // that armed it and switched off a LATER run's guard mid-flight. A
+      // backstop that fires late is a second bug in a costume. This is the
+      // shape to look for wherever a setTimeout resets a lock.
+      const pf = code70(rd70('prefs.js'));
+      const rb0 = pf.indexOf('async function _rebuildDashboardTab()');
+      const rb1 = pf.indexOf('\n}', pf.indexOf('_rebuildInProgress = false;',
+                    pf.indexOf('} finally {', rb0))) + 2;
+      ok('270 the rebuild slice was found', rb0 > 0 && rb1 > rb0);
+      const rb = pf.slice(rb0, rb1);
+      ok('270 the rebuild guard clears its flag in a finally',
+         /\} finally \{[\s\S]{0,400}?_rebuildInProgress = false;[\s\S]{0,40}?\}/.test(rb));
+      ok('270 …and CANCELS its safety timer there, so it cannot unlock a later run',
+         /clearTimeout\(_rbTimer\);/.test(rb));
+      ok('270 …with the timer captured rather than fired and forgotten',
+         /const _rbTimer = setTimeout\(/.test(rb) &&
+         !/setTimeout\(function\(\)\{ _rebuildInProgress = false; \}, 30000\);/.test(rb));
+      // Every exit that happens AFTER the flag is set must sit inside the try.
+      // Counting is the point: two of the four used to escape it.
+      const afterFlag = rb.slice(rb.indexOf('_rebuildInProgress = true;'));
+      const tryAt = afterFlag.indexOf('try {');
+      const finAt = afterFlag.lastIndexOf('} finally {');
+      const returns = [];
+      let ri = -1;
+      while ((ri = afterFlag.indexOf('return;', ri + 1)) >= 0) returns.push(ri);
+      ok('270 …and every exit after the flag is set is inside that try',
+         returns.length > 0 && returns.every(r => r > tryAt && r < finAt),
+         returns.length + ' returns, try@' + tryAt + ' finally@' + finAt);
+      // The early guard's own return must NOT be inside it — it returns before
+      // the flag is taken, and clearing there would free another run's lock.
+      const beforeFlag = rb.slice(0, rb.indexOf('_rebuildInProgress = true;'));
+      ok('270 …while the duplicate-click bail still returns without touching it',
+         /if \(_rebuildInProgress\) \{[\s\S]{0,200}?return;/.test(beforeFlag) &&
+         !/_rebuildInProgress = false/.test(beforeFlag));
     })();
 
     // ═══════════════════════════════════════════════════════════

@@ -686,9 +686,28 @@ async function _rebuildDashboardTab() {
     return;
   }
   _rebuildInProgress = true;
-  setTimeout(function(){ _rebuildInProgress = false; }, 30000);   // safety auto-reset after 30s
+  // v0.9.1330 — THE SAFETY NET WAS THE LEAK.
+  //
+  // Three things were wrong here, and the third was worse than the first two.
+  //
+  //  1. Two of the four exit paths below never cleared the flag (the
+  //     "Sheet builder not loaded" bail, and the end of the fallback branch),
+  //     so the Rebuild button sat dead until the timer fired.
+  //  2. The main path had a correct finally; the rest of the function did not.
+  //  3. The 30-second "safety auto-reset" was NEVER CANCELLED, so it outlived
+  //     the run that armed it. Press Rebuild, let it finish in 2s, press it
+  //     again at 5s — and at 30s the FIRST run's orphaned timer clears the
+  //     SECOND run's flag while that run is still going. The guard switched
+  //     itself off in exactly the case it exists for. A safety net that fires
+  //     late is not a safety net; it is a second bug wearing the costume.
+  //
+  // Now: one try/finally around the whole body, and the timer is cancelled by
+  // that finally so it can never reach into a later run. The timer stays as a
+  // genuine backstop for a hang that never returns at all — which is the only
+  // thing a finally cannot cover.
+  const _rbTimer = setTimeout(function () { _rebuildInProgress = false; }, 30000);
+  try {
   if (!state.personalSheetId) {
-    _rebuildInProgress = false;
     showToast('No personal sheet connected', 3000, true);
     return;
   }
@@ -720,7 +739,12 @@ async function _rebuildDashboardTab() {
   } catch(e) {
     console.error('Refresh sheet styling failed:', e);
     showToast(rrSaveError(e, 'the sheet refresh', { kept: false }), 4000, true);
+  }
   } finally {
+    // v0.9.1330: covers every exit — both early bails, the fallback branch, the
+    // main path, and a throw from any of them. Clearing the timer here is the
+    // half that matters: an uncancelled one unlocks the NEXT run.
+    clearTimeout(_rbTimer);
     _rebuildInProgress = false;
   }
 }
