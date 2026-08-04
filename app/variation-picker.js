@@ -75,7 +75,7 @@
     'Caboose': ['general-information-about-sp-type-cabooses', 'SP-type caboose general info']
   };
   function _vpGiLink(slug, label) {
-    return '<a href="' + VP_GI_BASE + slug + '/" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="color:var(--accent2);text-decoration:none">' + label + ' \u2197</a>';
+    return '<a href="' + VP_GI_BASE + slug + '/" target="_blank" rel="noopener" onclick="event.stopPropagation()" onmousedown="event.preventDefault()" style="color:var(--accent2);text-decoration:none">' + label + ' \u2197</a>';
   }
   function _vpGiFooter() {
     var e = (VP && VP.itemType) ? VP_GI_BYTYPE[VP.itemType] : null;

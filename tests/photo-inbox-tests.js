@@ -18380,6 +18380,43 @@ META_WRITES.length = 0; TOASTS.length = 0;
     })();
 
     // ═══════════════════════════════════════════════════════════
+    // §276. v0.9.1335 — the View link cannot be stolen by a scroll.
+    //
+    //   Brad's 3472, the inbox ADD flow — the THIRD distinct way this
+    //   one button has failed. Live event log: mousedown on the anchor
+    //   → anchor takes FOCUS → Chrome scrolls #wizard-body 79px to
+    //   "reveal" it → mouseup lands on the description that slid under
+    //   the cursor → the click retargets to the CARD → picks the
+    //   variation and auto-advances. stopPropagation never ran because
+    //   the click never belonged to the anchor. Guard: onmousedown=
+    //   preventDefault (no focus on press, no nudge; Tab still works).
+    //   The census is exact BOTH ways: every stopPropagation'd _blank
+    //   link in a picker carries the guard, and the guard count is
+    //   named so a new unguarded sibling turns this red.
+    // ═══════════════════════════════════════════════════════════
+    section('276. Picker links refuse focus-on-press');
+    (function () {
+      const p76 = require('path');
+      const files76 = ['wizard.js', 'variation-picker.js', 'app-collection.js', 'app-pages.js'];
+      let stopOnly = 0, both = 0, guards = 0;
+      files76.forEach(function (f) {
+        const src = fs.readFileSync(p76.join(__dirname, '..', 'app', f), 'utf8');
+        both += (src.match(/onclick="event\.stopPropagation\(\)" onmousedown="event\.preventDefault\(\)"/g) || []).length;
+        stopOnly += (src.match(/onclick="event\.stopPropagation\(\)"(?! onmousedown)/g) || []).length;
+        guards += (src.match(/onmousedown="event\.preventDefault\(\)"/g) || []).length;
+      });
+      ok('276 every stopPropagation\'d picker link also refuses focus-on-press (none left bare)',
+         stopOnly === 0, stopOnly + ' unguarded');
+      ok('276 the guarded set is the known five (4 stop+guard pairs, plus the single-item link)',
+         both === 4 && guards === 5, JSON.stringify({ both, guards }));
+      // The wizard card link carries BOTH handlers — they stop DIFFERENT
+      // failure modes (v1189 hit-area theft; v1335 focus-scroll theft).
+      const wz = fs.readFileSync(p76.join(__dirname, '..', 'app', 'wizard.js'), 'utf8');
+      ok('276 the variation-card link keeps both guards side by side',
+         /cottLink = v\.refLink \? `<a href[^`]*onclick="event\.stopPropagation\(\)" onmousedown="event\.preventDefault\(\)"/.test(wz));
+    })();
+
+    // ═══════════════════════════════════════════════════════════
     // §271. v0.9.1326 — four measured speed fixes.
     //
     //   MEASUREMENT BEATS READING, so every number below was produced

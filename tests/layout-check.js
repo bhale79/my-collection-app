@@ -1815,6 +1815,65 @@ window.__pageReady = runSharedPhotos();
       ok('exif: a photo with no flag keeps its exact shape', st34.plainKept, JSON.stringify(st34.plainDims));
     }
 
+    // ══════════════════════════════════════════════════════════════════
+    // A press on the View link does not FOCUS it (v0.9.1335)
+    //
+    // The 3472 inbox-flow bug: mousedown focused the anchor, Chrome
+    // scrolled the wizard body 79px to reveal it, the card slid out from
+    // under the cursor, and the click retargeted to the card — variation
+    // picked, wizard advanced, link never opened. The direct contract of
+    // the fix, geometry-independent: a TRUSTED mouse press on the link
+    // must NOT move focus to it, and releasing must not pick a variation.
+    // ══════════════════════════════════════════════════════════════════
+    {
+      const pgV = await browser.newPage({ viewport: { width: 1440, height: 820 } });
+      await pgV.route('**', r => r.request().url().startsWith('file://') ? r.continue() : r.abort());
+      await pgV.goto('file://' + path.join(APP, 'index.html'), { waitUntil: 'domcontentloaded' });
+      await pgV.waitForTimeout(700);
+      const setup = await pgV.evaluate(function () {
+        window.state = window.state || {};
+        const RL = 'https://cornucopiaoftoytrains.com/postwar-milk-cars-small/#3472';
+        state.masterData = ['1','2','3','4','5'].map(function (v) {
+          return { itemNum: '3472', variation: v, itemType: 'Operating Freight', roadName: '',
+                   varDesc: 'variation ' + v + ' of the small milk car, with details enough to wrap a line or two',
+                   refLink: RL, cottCode: 'B00' + v };
+        });
+        state.personalData = {}; state.contactsData = []; state.savedReports = [];
+        var au = document.getElementById('auth-screen'); if (au) au.style.display = 'none';
+        document.getElementById('app').classList.add('active');
+        openWizard('collection');
+        wizard.data.itemNum = '3472';
+        wizardNext();
+        return new Promise(function (res) { setTimeout(function () {
+          var a = document.querySelectorAll('#var-cards a')[0];
+          var r = a.getBoundingClientRect();
+          res({ stepId: wizard.steps[wizard.step].id, cx: r.left + r.width / 2, cy: r.top + r.height / 2 });
+        }, 400); });
+      });
+      let okSetup = setup.stepId === 'variation' && setup.cx > 0;
+      let pressFocus = null, picked = null;
+      if (okSetup) {
+        await pgV.mouse.move(setup.cx, setup.cy);
+        await pgV.mouse.down();
+        pressFocus = await pgV.evaluate(function () {
+          var a = document.querySelectorAll('#var-cards a')[0];
+          return { focusStolen: document.activeElement === a,
+                   scTop: (document.getElementById('wizard-body') || { scrollTop: -1 }).scrollTop };
+        });
+        await pgV.mouse.up();
+        await pgV.waitForTimeout(400);
+        picked = await pgV.evaluate(function () {
+          return { v: wizard.data.variation || '', stepId: wizard.steps[wizard.step].id };
+        });
+      }
+      await pgV.close();
+      ok('viewlink: the wizard reaches the variation step in the harness', okSetup, JSON.stringify(setup));
+      ok('viewlink: a trusted PRESS on the link does not steal focus to it (the scroll-nudge trigger)',
+         !!pressFocus && pressFocus.focusStolen === false, JSON.stringify(pressFocus));
+      ok('viewlink: releasing on the link picks NOTHING — no variation, no advance',
+         !!picked && picked.v === '' && picked.stepId === 'variation', JSON.stringify(picked));
+    }
+
   } finally {
     await browser.close();
     try { fs.rmSync(dir, { recursive: true, force: true }); } catch (e) {}

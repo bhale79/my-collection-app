@@ -3344,7 +3344,7 @@ function showItemPanel(idx, pdKey, mode) {
             '<div style="font-size:0.78rem;color:var(--text-mid);line-height:1.5;white-space:normal">' + rrEsc(o.full || o.t) + '</div>';
           const u = _panelVarRefUrl(o.v);
           if (u) {
-            card.innerHTML += '<a href="' + u + '" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="display:inline-flex;margin-top:0.35rem;font-size:0.75rem;color:var(--accent2);text-decoration:none">' +
+            card.innerHTML += '<a href="' + u + '" target="_blank" rel="noopener" onclick="event.stopPropagation()" onmousedown="event.preventDefault()" style="display:inline-flex;margin-top:0.35rem;font-size:0.75rem;color:var(--accent2);text-decoration:none">' +
               (/cornucopiaoftoytrains/i.test(u) ? 'See this variation on COTT ↗' : 'See this variation ↗') + '</a>';
           }
           card.onclick = function () {
