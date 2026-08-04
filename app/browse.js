@@ -1512,10 +1512,25 @@ function populateFilters() {
   const catSubTypes = [...new Set(
     Object.values(state.ephemeraData.catalogs||{}).map(it=>it.catType).filter(Boolean)
   )].sort();
-  const hasCatalogs = Object.keys(state.ephemeraData.catalogs||{}).length > 0;
-  const hasPaper    = Object.keys(state.ephemeraData.paper||{}).length > 0;
-  const hasMockups  = Object.keys(state.ephemeraData.mockups||{}).length > 0;
-  const hasOther    = Object.keys(state.ephemeraData.other||{}).length > 0;
+  // v0.9.1321 (retired-bucket census, the one live v0.9.1295 blind spot):
+  // these options offered themselves ONLY when the old ephemera BUCKETS had
+  // entries — but since v0.9.990 typed rows in the items store (itemType
+  // 'Paper', 'Catalog', …) belong to those sections too, and an owner whose
+  // paper is all typed rows never got the option at all. Both stores count
+  // now (type keys mirror renderBrowse's _SEC_TYPES).
+  const _typedHas = { catalogs: false, paper: false, mockups: false, other: false };
+  Object.values(state.personalData || {}).forEach(function (p) {
+    if (!p || !p.owned) return;
+    const t = String(p.itemType || '').toLowerCase();
+    if (t === 'catalog') _typedHas.catalogs = true;
+    else if (t === 'paper' || t === 'paper item') _typedHas.paper = true;
+    else if (t === 'mock-up' || t === 'mockup') _typedHas.mockups = true;
+    else if (t === 'other lionel') _typedHas.other = true;
+  });
+  const hasCatalogs = Object.keys(state.ephemeraData.catalogs||{}).length > 0 || _typedHas.catalogs;
+  const hasPaper    = Object.keys(state.ephemeraData.paper||{}).length > 0 || _typedHas.paper;
+  const hasMockups  = Object.keys(state.ephemeraData.mockups||{}).length > 0 || _typedHas.mockups;
+  const hasOther    = Object.keys(state.ephemeraData.other||{}).length > 0 || _typedHas.other;
   const hasIS       = Object.keys(state.isData||{}).length > 0;
   const userEph = (state.userDefinedTabs||[]).filter(t => Object.keys(state.ephemeraData[t.id]||{}).length > 0);
   const hasAnyEph = hasCatalogs || hasPaper || hasMockups || hasOther || hasIS || userEph.length > 0;

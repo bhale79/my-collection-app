@@ -17734,6 +17734,30 @@ META_WRITES.length = 0; TOASTS.length = 0;
          /: '';/.test(ac65.slice(ac65.indexOf('var _descBlock = _descInner.trim()'), ac65.indexOf('var _descBlock = _descInner.trim()') + 400)));
     })();
 
+    // ═══════════════════════════════════════════════════════════
+    // §266. v0.9.1321 — two closing chores from the standing lists.
+    // ═══════════════════════════════════════════════════════════
+    section('266. Closing chores: role-true companion descriptions, both stores count');
+    (function () {
+      const p66 = require('path');
+      const tl66 = fs.readFileSync(p66.join(__dirname, '..', 'app', 'tools.js'), 'utf8');
+      const bw66 = fs.readFileSync(p66.join(__dirname, '..', 'app', 'browse.js'), 'utf8');
+      // 1. The companion's description resolves by ROLE, scoped to pw —
+      //    the last number-only first-find from COMPANION_SUGGESTER_AUDIT.md.
+      ok('266 the companion description is role-true, never first-find',
+         /norm\(m\.itemNum\) === norm\(s\.companionNum\) && \(!m\._era \|\| m\._era === 'pw'\)/.test(tl66) &&
+         /if \(_cRole === 'B UNIT'\) return norm\(m\.unit \|\| ''\) === 'B' \|\| _ccFamily\(m\) === 'diesel';/.test(tl66) &&
+         /if \(_cRole === 'TENDER'\) return _ccFamily\(m\) === 'tender';/.test(tl66) &&
+         !/var compMaster = state\.masterData && state\.masterData\.find/.test(tl66));
+      // 2. The Type dropdown's ephemera options count BOTH stores — the one
+      //    live v0.9.1295 blind spot the retired-bucket census found.
+      ok('266 the Type dropdown counts typed rows AND the old buckets',
+         /const _typedHas = \{ catalogs: false, paper: false, mockups: false, other: false \};/.test(bw66) &&
+         /if \(t === 'paper' \|\| t === 'paper item'\) _typedHas\.paper = true;/.test(bw66) &&
+         /Object\.keys\(state\.ephemeraData\.paper\|\|\{\}\)\.length > 0 \|\| _typedHas\.paper/.test(bw66) &&
+         /Object\.keys\(state\.ephemeraData\.catalogs\|\|\{\}\)\.length > 0 \|\| _typedHas\.catalogs/.test(bw66));
+    })();
+
   })().then(function () {
     console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
     process.exit(fail ? 1 : 0);

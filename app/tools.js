@@ -1000,9 +1000,25 @@ async function runCompanionSuggester() {
 
     dedupedSuggestions.forEach(function(s, sIdx) {
       // Get companion road name/description from master
-      var compMaster = state.masterData && state.masterData.find(function(m) {
-        return norm(m.itemNum) === norm(s.companionNum);
-      });
+      // v0.9.1321: the COMPANION's description resolved by its ROLE, not by
+      // first-find — the last known number-only lookup (noted in
+      // COMPANION_SUGGESTER_AUDIT.md since 08-03). A 224C suggestion must
+      // describe the B UNIT row, and a tender suggestion the TENDER row,
+      // even when another era or another product shares the number. The
+      // suggester is Lionel-postwar-only, so candidates scope to pw rows.
+      var compMaster = null;
+      if (state.masterData) {
+        var _cCands = state.masterData.filter(function(m) {
+          return norm(m.itemNum) === norm(s.companionNum) && (!m._era || m._era === 'pw');
+        });
+        var _cRole = norm(s.companionType || '');
+        compMaster = _cCands.find(function(m) {
+          if (_cRole === 'B UNIT') return norm(m.unit || '') === 'B' || _ccFamily(m) === 'diesel';
+          if (_cRole === 'TENDER') return _ccFamily(m) === 'tender';
+          if (_cRole === 'ENGINE' || _cRole === 'A UNIT' || _cRole === 'POWERED A UNIT' || _cRole === 'DUMMY A UNIT') return _ccFamily(m) !== 'tender';
+          return false;
+        }) || _cCands[0] || null;
+      }
       var compDesc = compMaster ? (compMaster.roadName || compMaster.subType || '') : '';
 
       // Type label and color
