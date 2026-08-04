@@ -1874,6 +1874,46 @@ window.__pageReady = runSharedPhotos();
          !!picked && picked.v === '' && picked.stepId === 'variation', JSON.stringify(picked));
     }
 
+    // ══════════════════════════════════════════════════════════════════
+    // The update notice behaves (v0.9.1336)
+    // ══════════════════════════════════════════════════════════════════
+    {
+      const pgU = await browser.newPage({ viewport: { width: 1200, height: 700 } });
+      await pgU.route('**', r => r.request().url().startsWith('file://') ? r.continue() : r.abort());
+      await pgU.goto('file://' + path.join(APP, 'index.html'), { waitUntil: 'domcontentloaded' });
+      await pgU.waitForTimeout(600);
+      const st = await pgU.evaluate(function () {
+        localStorage.removeItem('rr_update_bar_seen');
+        var out = {};
+        // Signed-out: the bar must refuse
+        document.getElementById('app').classList.remove('active');
+        _rrShowUpdateBar('v9.9.9');
+        out.refusedOverSignIn = !document.getElementById('rr-update-bar');
+        // Signed-in: it shows, at body level, with a working dismiss
+        document.getElementById('app').classList.add('active');
+        _rrShowUpdateBar('v9.9.9');
+        var bar = document.getElementById('rr-update-bar');
+        out.shown = !!bar;
+        out.atBody = !!bar && bar.parentElement === document.body;
+        out.hasRefresh = !!bar && /Refresh/.test(bar.textContent);
+        _rrDismissUpdateBar('v9.9.9');
+        out.dismissed = !document.getElementById('rr-update-bar');
+        _rrShowUpdateBar('v9.9.9');
+        out.staysAwaySameVersion = !document.getElementById('rr-update-bar');
+        _rrShowUpdateBar('v9.9.10');
+        out.returnsForNewer = !!document.getElementById('rr-update-bar');
+        var b2 = document.getElementById('rr-update-bar'); if (b2) b2.remove();
+        localStorage.removeItem('rr_update_bar_seen');
+        return out;
+      });
+      await pgU.close();
+      ok('updatebar: refuses to show over the sign-in screen', st.refusedOverSignIn);
+      ok('updatebar: shows at BODY level with a Refresh button once signed in',
+         st.shown && st.atBody && st.hasRefresh, JSON.stringify(st));
+      ok('updatebar: dismiss hides it and remembers THIS version', st.dismissed && st.staysAwaySameVersion);
+      ok('updatebar: a NEWER version brings it back', st.returnsForNewer);
+    }
+
   } finally {
     await browser.close();
     try { fs.rmSync(dir, { recursive: true, force: true }); } catch (e) {}

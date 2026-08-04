@@ -165,6 +165,16 @@ async function scenario(name, run) {
     return readMarker(page);
   });
 
+  // v0.9.1336 note, kept for the next reader: a "warm open hits the server
+  // for zero stamped files" scenario was written here and REMOVED the same
+  // hour — its mutation drill passed WITHOUT the fix, because this harness
+  // (correctly) mirrors GitHub Pages' cache-control: max-age=600, and the
+  // browser's own HTTP cache absorbs the background re-downloads for ten
+  // minutes, so a server-side counter cannot see them either way. The
+  // behavioural gate for the immutable-hit short-circuit is §210 in the node
+  // suite: it drives the REAL fetch handler with a cache hit and counts
+  // calls to fetch itself — proven red when the short-circuit is removed.
+
   // The guard on the fix. `cache: 'reload'` bypasses the browser's HTTP cache.
   // If it were ever mistaken for bypassing the PRECACHE as well, the app would
   // stop opening without a signal — much worse than the bug being fixed.

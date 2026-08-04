@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.1335';
+const APP_VERSION = 'v0.9.1336';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -862,10 +862,16 @@ if (typeof window !== 'undefined') setTimeout(function () {
       try { last = JSON.parse(localStorage.getItem('rr_ver_check') || '{}'); } catch (e) {}
       try { localStorage.setItem('rr_ver_check', JSON.stringify({ app: netApp, cache: netCache })); } catch (e) {}
 
-      // Quiet, useful note: the running page is simply behind the network.
-      // That is a pending update, not a mistake — the worker picks it up.
+      // v0.9.1336 (Brad watching): the update gets a VOICE, not a whisper.
+      // The console.info below has been detecting this correctly since the
+      // check was written — into a console no user has open. The 08-04
+      // View-button chase burned an hour on a stale-code theory precisely
+      // because staleness is invisible; a tester stuck on ghost code would
+      // have no signal at all. One small bar, shown once per detected
+      // version, never over the sign-in screen: tap Refresh to reload.
       if (netApp !== APP_VERSION) {
         console.info('[version check] update available: running ' + APP_VERSION + ', server has ' + netApp);
+        try { window._rrShowUpdateBar && window._rrShowUpdateBar(netApp); } catch (eB) {}
       }
 
       if (!last.app || !last.cache) return;                 // first ever read
@@ -894,3 +900,34 @@ if (typeof window !== 'undefined') setTimeout(function () {
     }).catch(function () { /* offline — skip */ });
   } catch (e) { /* never break the app over a self-check */ }
 }, 8000);
+
+// ── v0.9.1336: visible update notice ─────────────────────────────────────
+// Lives at BODY level (a fixed element inside .main paints under the header
+// — the v1332 lesson). Colours are CSS vars only. Shown once per detected
+// server version; dismiss keeps it away until a NEWER version appears.
+window._rrShowUpdateBar = function (netApp) {
+  try {
+    if (!netApp || netApp === APP_VERSION) return;
+    if (document.getElementById('rr-update-bar')) return;
+    if (localStorage.getItem('rr_update_bar_seen') === netApp) return;
+    var appEl = document.getElementById('app');
+    if (!appEl || !appEl.classList.contains('active')) return;   // never over sign-in
+    var bar = document.createElement('div');
+    bar.id = 'rr-update-bar';
+    bar.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);bottom:14px;z-index:100010;' +
+      'display:flex;align-items:center;gap:0.7rem;padding:0.55rem 0.85rem;border-radius:10px;' +
+      'background:var(--surface);border:1px solid var(--accent2);' +
+      'font-family:var(--font-body);font-size:0.83rem;color:var(--text);max-width:calc(100vw - 2rem)';
+    bar.innerHTML =
+      '<span>A new version of The Rail Roster is ready.</span>' +
+      '<button type="button" onclick="location.reload()" style="border:none;border-radius:7px;padding:0.35rem 0.8rem;' +
+        'background:var(--accent);color:var(--on-accent);font-family:var(--font-body);font-size:0.8rem;font-weight:700;cursor:pointer;flex-shrink:0">Refresh</button>' +
+      '<button type="button" onclick="_rrDismissUpdateBar(\'' + String(netApp).replace(/[^0-9v.]/g, '') + '\')" title="Not now" style="border:none;background:none;' +
+        'color:var(--text-dim);font-size:1.05rem;line-height:1;cursor:pointer;padding:0.2rem 0.3rem;flex-shrink:0">\u2715</button>';
+    document.body.appendChild(bar);
+  } catch (e) { /* a notice must never break the app */ }
+};
+window._rrDismissUpdateBar = function (netApp) {
+  try { localStorage.setItem('rr_update_bar_seen', netApp); } catch (e) {}
+  var b = document.getElementById('rr-update-bar'); if (b) b.remove();
+};

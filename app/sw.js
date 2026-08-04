@@ -4,7 +4,7 @@
 // fetches fresh copies in the background for next load.
 // NEVER caches Google API, OAuth, or Sheets calls.
 
-const CACHE_NAME = 'mca-v1345';
+const CACHE_NAME = 'mca-v1346';
 
 // ── v0.9.1214: the version stamp has to survive as far as the cache ──
 // Brad, on v1213: "im reset twice and it still looks the same." He was
@@ -291,9 +291,20 @@ self.addEventListener('fetch', event => {
   // 1. Serve from cache immediately (fast)
   // 2. Fetch fresh copy in background
   // 3. Update cache so next load gets the latest
+  // ── v0.9.1336 (with Brad watching): a versioned address cannot change ──
+  // Every own-version ?v= file that is already in the cache used to be
+  // re-downloaded in the background on every open "to be safe" — 4.34MB of
+  // radio (~35s at 1Mbps) buying nothing, because thing.js?v=1335 is
+  // immutable by construction: a new deploy asks for a NEW address. Serve it
+  // and stay off the network. Navigations (network-first, v1259/1262) and
+  // unstamped files (manifest, icons — genuinely mutable) keep the
+  // stale-while-revalidate refresh exactly as before. §210 pins both halves.
+  const _ownStamped = !!(ASSET_V && _reqV === ASSET_V);
+
   event.respondWith(
     caches.open(CACHE_NAME).then(cache =>
       cache.match(cacheKey).then(cached => {
+        if (cached && _ownStamped && !isNav) return cached;   // immutable hit — no radio
         const networkFetch = fetch(event.request, netOpts).then(response => {
           if (response && response.ok && !_foreignV) {   // R17: see above
             cache.put(cacheKey, response.clone());

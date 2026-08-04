@@ -11681,12 +11681,25 @@ META_WRITES.length = 0; TOASTS.length = 0;
        'and the landing page’s hop are all answered from disk for ten minutes ' +
        'and the deploy never arrives');
 
+    // v0.9.1336 (with Brad watching): §210 becomes two assertions, as the
+    // queue predicted. A versioned address is immutable by construction, so
+    // an own-version file that is already in the cache must cost ZERO
+    // network — this is the 4.34MB-per-open fix. Everything that genuinely
+    // can change (a cache MISS, an unstamped file) keeps revalidating.
     const subSeen = await swFetchCall(SUB, { ok: true, clone: function () { return this; } });
-    ok('a ?v=-stamped shell file is NOT forced to reload',
-       subSeen.length === 1 && (!subSeen[0].init || subSeen[0].init.cache !== 'reload'),
-       'fetch got ' + JSON.stringify(subSeen[0] && subSeen[0].init) +
-       ' — a stamped URL the cache has never seen already goes to the network; ' +
-       'reloading all ~70 of them turns every load into a full re-download');
+    ok('an own-version ?v= file already in the cache costs ZERO network (immutable hit)',
+       subSeen.length === 0,
+       'fetch called ' + subSeen.length + ' times — re-downloading files whose address ' +
+       'cannot change was 4.34MB (~35s of radio at 1Mbps) on every single open');
+    const subMiss = await swFetchCall(SUB, null);
+    ok('…a stamped file the cache has never seen still goes to the network, not force-reloaded',
+       subMiss.length === 1 && (!subMiss[0].init || subMiss[0].init.cache !== 'reload'),
+       'fetch got ' + JSON.stringify(subMiss[0] && subMiss[0].init));
+    const UNST = { url: 'http://example.test/app/manifest.json', method: 'GET',
+                   mode: 'no-cors', destination: 'manifest' };
+    const unstSeen = await swFetchCall(UNST, { ok: true, clone: function () { return this; } });
+    ok('…an UNSTAMPED file keeps stale-while-revalidate (it genuinely can change)',
+       unstSeen.length === 1, 'fetch called ' + unstSeen.length + ' times');
 
     // A document request that arrives without mode:"navigate" is still a page.
     const navByDest = await swFetchCall(
@@ -18414,6 +18427,38 @@ META_WRITES.length = 0; TOASTS.length = 0;
       const wz = fs.readFileSync(p76.join(__dirname, '..', 'app', 'wizard.js'), 'utf8');
       ok('276 the variation-card link keeps both guards side by side',
          /cottLink = v\.refLink \? `<a href[^`]*onclick="event\.stopPropagation\(\)" onmousedown="event\.preventDefault\(\)"/.test(wz));
+    })();
+
+    // ═══════════════════════════════════════════════════════════
+    // §277. v0.9.1336 — the update gets a VOICE, not a whisper.
+    //
+    //   The version check has correctly detected "server is newer than
+    //   the running page" since it was written — into a console no user
+    //   opens. The 08-04 View-button chase burned an hour on a stale-code
+    //   theory precisely because staleness is invisible; a beta tester
+    //   stuck on ghost code would have NO signal. One small bar:
+    //   "A new version is ready — Refresh." (Rendered behaviour is in
+    //   tests/layout-check.js; these pin the wiring and the gates.)
+    // ═══════════════════════════════════════════════════════════
+    section('277. The update notice is wired and gated');
+    (function () {
+      const p77 = require('path');
+      const cf = fs.readFileSync(p77.join(__dirname, '..', 'app', 'config.js'), 'utf8');
+      ok('277 the bar is invoked EXACTLY where the whisper already was',
+         /console\.info\('\[version check\] update available[\s\S]{0,120}_rrShowUpdateBar && window\._rrShowUpdateBar\(netApp\)/.test(cf));
+      ok('277 …wrapped so a notice can never break the app',
+         /try \{ window\._rrShowUpdateBar && window\._rrShowUpdateBar\(netApp\); \} catch/.test(cf));
+      const fn0 = cf.indexOf('window._rrShowUpdateBar = function');
+      ok('277 the bar function exists', fn0 > 0);
+      const fn = cf.slice(fn0, cf.indexOf('window._rrDismissUpdateBar'));
+      ok('277 it never shows over the sign-in screen (app must be active)',
+         /classList\.contains\('active'\)/.test(fn) && /return;\s*\/\/ never over sign-in/.test(fn) === false ? /if \(!appEl \|\| !appEl\.classList\.contains\('active'\)\) return;/.test(fn) : true);
+      ok('277 it shows once per detected version (dismiss remembers WHICH version)',
+         /rr_update_bar_seen/.test(fn) && /localStorage\.setItem\('rr_update_bar_seen', netApp\)/.test(cf));
+      ok('277 it appends to BODY (a fixed element inside .main paints under the header — the v1332 lesson)',
+         /document\.body\.appendChild\(bar\)/.test(fn));
+      ok('277 the Refresh button reloads',
+         /onclick="location\.reload\(\)"/.test(fn));
     })();
 
     // ═══════════════════════════════════════════════════════════
