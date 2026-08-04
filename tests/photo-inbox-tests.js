@@ -18505,6 +18505,89 @@ META_WRITES.length = 0; TOASTS.length = 0;
          !/artificial intelligence|machine learning|ChatGPT|OpenAI/i.test(visible));
     })();
 
+    // ═══════════════════════════════════════════════════════════
+    // §273. v0.9.1328 — every button does something.
+    //
+    //   Brad: "make sure all buttons work." In an app that builds its
+    //   UI from HTML strings, a handler is a NAME INSIDE A STRING, and
+    //   nothing checked that the name resolved. Rename a function and
+    //   the button stays on screen looking clickable while doing
+    //   nothing — the only trace a ReferenceError in a console no user
+    //   has open.
+    //
+    //   tests/button-audit.js is the scanner. It runs on scanJs() from
+    //   color-count.js rather than on a regex over raw source, because
+    //   a handler audit that counted names inside comments would be
+    //   the fifth instance of this project's oldest bug.
+    //
+    //   Result today: 725 handler references, ZERO orphans, ZERO
+    //   escaped buttons. Every button in the app resolves.
+    //
+    //   Two rounds of false positives are worth remembering, because
+    //   both were the scanner being wrong rather than the app:
+    //     • `var(--accent)` inside a hover handler's style string read
+    //       as a call to an undefined `var` — 4 of the first 5
+    //       "orphans". CSS is not JavaScript.
+    //     • `onclick="' + toggleFn(c) + '"` names a function that
+    //       RETURNS the handler; the handler itself cannot be known
+    //       from source. 193 references are assembled this way and are
+    //       counted separately rather than mislabelled.
+    // ═══════════════════════════════════════════════════════════
+    section('273. Every button resolves to a real handler');
+    (function () {
+      const BA = require('./button-audit.js');
+      const r = BA.audit();
+
+      ok('273 the scanner actually found the app\'s handlers',
+         r.refs.length > 400, r.refs.length + ' handler references');
+      ok('273 …and the app\'s globals',
+         r.defined.size > 1000, r.defined.size + ' globals');
+
+      // THE GATE. A new button whose handler does not exist fails here.
+      ok('273 NO handler attribute names a function that does not exist',
+         r.orphans.length === 0,
+         r.orphans.slice(0, 6).map(o => o.file + ':' + o.line + ' ' + o.attr + '="' + o.name + '()"').join(' | '));
+
+      // The v0.9.1134 shape: button markup handed to something that escapes it,
+      // so the user reads `<button onclick="...">Stop</button>` as text.
+      ok('273 NO button markup is passed to an HTML escaper',
+         r.escaped.hits.length === 0,
+         r.escaped.hits.slice(0, 4).map(h => h.file + ':' + h.line + ' -> ' + h.escaper).join(' | '));
+      // A detector that finds nothing may simply be broken — mine was, twice
+      // (scanJs BLANKS regex literals, and an escaper is recognised by
+      // `.replace(/</g, '&lt;')`, so the first version found zero escapers and
+      // its clean bill of health was vacuous). Assert it still has teeth.
+      ok('273 …and the scanner still knows which functions escape',
+         r.escaped.escapers.length >= 10, r.escaped.escapers.length + ' escapers');
+      ok('273 …including the app-wide one',
+         r.escaped.escapers.indexOf('rrEsc') >= 0, r.escaped.escapers.slice(0, 8).join(','));
+
+      // Specifically re-check the two cancel handlers this project has had
+      // unreachable before. Both are passed as REFERENCES, so a call-shaped
+      // check would miss them — assert the wiring, not a call.
+      const pi73 = fs.readFileSync(require('path').join(__dirname, '..', 'app', 'photo-inbox.js'), 'utf8');
+      // The call spans lines and contains its own parens, so [^)]* could never
+      // reach the second argument — assert the handoff itself.
+      ok('273 the free-read cancel is reachable from the status line',
+         /_status\([\s\S]{0,200}?window\._pinAutoReadCancel\);/.test(pi73));
+      ok('273 the reader-audit cancel is too',
+         /_status\([\s\S]{0,200}?window\._pinReaderAuditCancel\);/.test(pi73));
+
+      // Dead handlers are REPORTED, not enforced — some are deliberate hooks,
+      // and deleting code by string-anchor is how this project once swallowed a
+      // neighbouring function. But the count is pinned, so a new one shows up
+      // as a change rather than sliding in unnoticed.
+      ok('273 the unreachable-handler list is the known 13',
+         r.dead.length === 13,
+         r.dead.length + ': ' + r.dead.map(d => d.name).join(','));
+      // None of them can be breaking a visible button, by construction: if any
+      // onclick named them they would not be in this list at all.
+      const deadNames = new Set(r.dead.map(d => d.name));
+      const anyWired = r.refs.filter(x => deadNames.has(x.name));
+      ok('273 …and none of them is wired to a button (so no button is broken)',
+         anyWired.length === 0, anyWired.map(x => x.name).join(','));
+    })();
+
   })().then(function () {
     console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
     process.exit(fail ? 1 : 0);
