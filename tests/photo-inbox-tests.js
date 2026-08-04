@@ -17488,7 +17488,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
          /if \(_vOpts\.length < 2\) return \[\];   \/\/ one variation = nothing to change/.test(ac62) &&
          /if \(item\._era && m\._era && m\._era !== item\._era\) return;   \/\/ same era only/.test(ac62));
       ok('262 the options carry value + description, never a bare typed number',
-         /_vOpts\.push\(\{ v: v, t: 'Var ' \+ v \+ ' — ' \+ String\(m\.varDesc \|\| m\.description \|\| ''\)\.slice\(0, 70\) \}\)/.test(ac62) &&
+         /_vOpts\.push\(\{ v: v, t: 'Var ' \+ v \+ ' — ' \+ String\(m\.varDesc \|\| m\.description \|\| ''\)\.slice\(0, 70\), full: String\(m\.varDesc \|\| m\.description \|\| ''\) \}\)/.test(ac62) &&
          /const _ov = \(o && typeof o === 'object'\) \? o\.v : o;/.test(ac62));
       ok('262 the ORIGINAL variation is captured once, before any edit',
          /const _origVariation = String\(pd\.variation \|\| item\.variation \|\| ''\);/.test(ac62));
@@ -17709,12 +17709,20 @@ META_WRITES.length = 0; TOASTS.length = 0;
          /#sdbx6050lib$/.test(helper('1') || ''), String(helper('1')));
       ok('265 a variation with no reference link shows no link at all',
          helper('9') === null);
-      // ── the panel wires it live ──
-      ok('265 the picker carries the live link and re-aims on every change',
-         /_vc\.id = 'panel-var-cott';/.test(ac65) &&
-         /inp\.onchange = _vcUpd;/.test(ac65) &&
-         /_vcUpd\(\);/.test(ac65) &&
-         /See this variation on COTT/.test(ac65));
+      // ── the panel renders CARDS with the full text and a link per card ──
+      // (v0.9.1319, Brad: "can not see the complete description" — a native
+      // <select> clips its options and cannot wrap.)
+      ok('265 the picker is wrapping CARDS, each with the FULL description and its own COTT link',
+         /const u = _panelVarRefUrl\(o\.v\);/.test(ac65) &&
+         /rrEsc\(o\.full \|\| o\.t\)/.test(ac65) &&
+         /white-space:normal/.test(ac65) &&
+         /See this variation on COTT/.test(ac65) &&
+         /event\.stopPropagation\(\)/.test(ac65));
+      ok('265 tapping a card stages the pick; a close row keeps the current variation',
+         /pd\.variation = String\(o\.v\);/.test(ac65) &&
+         /Keep current variation/.test(ac65));
+      ok('265 the options carry the UNCAPPED text for the cards',
+         /full: String\(m\.varDesc \|\| m\.description \|\| ''\)/.test(ac65));
       ok('265 the helper feeds the selected row\'s OWN words to the deep-link picker',
          /window\.cottAnchorUrl\(rl, _vn, \(typeof window\.cottRowWords === 'function' && mRow\) \? window\.cottRowWords\(mRow\) : ''\)/.test(ac65));
     })();

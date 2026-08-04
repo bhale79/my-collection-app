@@ -3170,7 +3170,10 @@ function showItemPanel(idx, pdKey, mode) {
         var v = String(m.variation || '');
         if (!v || _seenV[v]) return;
         _seenV[v] = 1;
-        _vOpts.push({ v: v, t: 'Var ' + v + ' — ' + String(m.varDesc || m.description || '').slice(0, 70) });
+        // v0.9.1318b (Brad: "can not see the complete description"): carry the
+        // FULL text too — the picker renders wrapping cards, not a <select>,
+        // because native dropdown options clip and cannot wrap.
+        _vOpts.push({ v: v, t: 'Var ' + v + ' — ' + String(m.varDesc || m.description || '').slice(0, 70), full: String(m.varDesc || m.description || '') });
       });
       if (_vOpts.length < 2) return [];   // one variation = nothing to change
       return [{ label: 'Variation', key: 'variation', val: 'Var ' + (pd.variation || '—'), type: 'select', options: _vOpts }];
@@ -3312,6 +3315,50 @@ function showItemPanel(idx, pdKey, mode) {
       // Bugfix 2026-04-14: skip edit branch for null-keyed fields (COTT Reference, Error)
       // and for readonly/link types — otherwise activeKey===null matches f.key===null on
       // initial render and renders an editable input for read-only fields.
+      // v0.9.1319 (Brad: "can not see the complete description"): the
+      // variation picker is CARDS, not a <select> — native dropdown options
+      // clip and cannot wrap, so long variation descriptions were unreadable
+      // right at the moment of choosing. Each card carries the FULL wrapped
+      // text and its own see-on-COTT link (the v0.9.1318 re-aim, one per
+      // card now); tapping a card stages the pick like the ✓ did.
+      if (mode === 'edit' && f.key === 'variation' && activeKey === f.key) {
+        row.style.flexDirection = 'column';
+        row.style.alignItems = 'stretch';
+        lbl.style.width = 'auto';
+        const vList = document.createElement('div');
+        vList.style.cssText = 'display:flex;flex-direction:column;gap:0.45rem;width:100%;max-height:45vh;overflow-y:auto;padding-right:0.2rem';
+        f.options.forEach(function (o) {
+          const cur = String(o.v) === String(pd.variation || '');
+          const card = document.createElement('div');
+          card.style.cssText = 'border:1.5px solid ' + (cur ? 'var(--accent)' : 'var(--border)') + ';border-radius:9px;padding:0.55rem 0.7rem;cursor:pointer;background:var(--surface2)';
+          card.innerHTML =
+            '<div style="font-size:0.8rem;font-weight:700;color:' + (cur ? 'var(--accent)' : 'var(--text)') + ';margin-bottom:0.25rem">Var ' + rrEsc(String(o.v)) + (cur ? ' — current' : '') + '</div>' +
+            '<div style="font-size:0.78rem;color:var(--text-mid);line-height:1.5;white-space:normal">' + rrEsc(o.full || o.t) + '</div>';
+          const u = _panelVarRefUrl(o.v);
+          if (u) {
+            card.innerHTML += '<a href="' + u + '" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="display:inline-flex;margin-top:0.35rem;font-size:0.75rem;color:var(--accent2);text-decoration:none">' +
+              (/cornucopiaoftoytrains/i.test(u) ? 'See this variation on COTT ↗' : 'See this variation ↗') + '</a>';
+          }
+          card.onclick = function () {
+            pd.variation = String(o.v);
+            f.val = 'Var ' + o.v;
+            editingKey = null;
+            renderFields(null);
+          };
+          vList.appendChild(card);
+        });
+        const closeRow = document.createElement('button');
+        closeRow.textContent = '✕ Keep current variation';
+        closeRow.style.cssText = 'margin-top:0.45rem;padding:0.45rem;border-radius:8px;border:1px solid var(--border);background:none;color:var(--text-dim);cursor:pointer;font-size:0.8rem;font-family:var(--font-body)';
+        closeRow.onclick = function () { editingKey = null; renderFields(null); };
+        valWrap.appendChild(vList);
+        valWrap.appendChild(closeRow);
+        row.appendChild(lbl);
+        row.appendChild(valWrap);
+        fieldsContainer.appendChild(row);
+        return;
+      }
+
       if (mode === 'edit' && f.key != null && f.type !== 'readonly' && f.type !== 'link' && activeKey === f.key) {
         // Show input
         let inp;
@@ -3380,27 +3427,8 @@ function showItemPanel(idx, pdKey, mode) {
           inpRow.appendChild(cancelInp);
         }
         valWrap.appendChild(inpRow);
-        // v0.9.1318: while the variation picker is open, a live link aims at
-        // the SELECTED variation's spot on the reference page and re-aims on
-        // every dropdown change — compare against COTT's photos, come back,
-        // pick.
-        if (f.key === 'variation') {
-          var _vc = document.createElement('a');
-          _vc.id = 'panel-var-cott';
-          _vc.target = '_blank'; _vc.rel = 'noopener';
-          _vc.style.cssText = 'display:none;margin-top:0.35rem;font-size:0.78rem;color:var(--accent2);text-decoration:none;align-items:center;gap:0.3rem';
-          var _vcUpd = function () {
-            var u = _panelVarRefUrl(inp.value);
-            if (u) {
-              _vc.href = u;
-              _vc.textContent = (/cornucopiaoftoytrains/i.test(u) ? 'See this variation on COTT ↗' : 'See this variation ↗');
-              _vc.style.display = 'inline-flex';
-            } else { _vc.style.display = 'none'; }
-          };
-          inp.onchange = _vcUpd;
-          _vcUpd();
-          valWrap.appendChild(_vc);
-        }
+        // (v0.9.1318's select-side COTT link moved INTO the variation cards
+        // above in v0.9.1319 — one link per card, full text visible.)
 
       } else if (f.type === 'link') {
         // External link — render as clickable anchor, no edit
