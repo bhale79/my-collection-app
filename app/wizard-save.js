@@ -1209,13 +1209,24 @@ async function saveWizardItem() {
                 // Write each col separately since they're not adjacent in the
                 // post-Session-156 layout (AA and AB happen to be adjacent —
                 // safe to combine — but be defensive in case schema changes).
-                sheetsUpdate(state.personalSheetId,
+                //
+                // v0.9.1323 (the wizard-save write-guard sweep): these two were
+                // the LAST bare row-targeted writes in this file — fire-and-
+                // forget onto a remembered row number. If the row had moved,
+                // they stamped an inventoryId and groupId onto whatever item
+                // now sat there, silently rewriting a stranger's IDENTITY
+                // columns — the worst column to corrupt. Identity-checked now;
+                // invId is deliberately '' because the sheet row predates ids
+                // (that is the very reason for the backfill), so the item
+                // NUMBER is the check. A refused backfill is harmless: state
+                // carries the ids, and the next full-row save writes them.
+                rrVerifiedRowUpdate(state.personalSheetId, PERSONAL_TAB, existingItem.row,
                   PERSONAL_TAB + '!' + _invCol + existingItem.row + ':' + _invCol + existingItem.row,
-                  [[existingInvId]])
+                  [[existingInvId]], { num: existingItem.itemNum || '', invId: '' }, 'collection')
                   .catch(e => console.warn('Inventory ID backfill:', e));
-                sheetsUpdate(state.personalSheetId,
+                rrVerifiedRowUpdate(state.personalSheetId, PERSONAL_TAB, existingItem.row,
                   PERSONAL_TAB + '!' + _grpCol + existingItem.row + ':' + _grpCol + existingItem.row,
-                  [[boxGroupId]])
+                  [[boxGroupId]], { num: existingItem.itemNum || '', invId: '' }, 'collection')
                   .catch(e => console.warn('Group ID backfill:', e));
               }
             }
@@ -2227,9 +2238,16 @@ async function saveWizardItem() {
           console.warn('[wishlist cleanup] entry', m.key, 'is gone — not blanking row', m.row);
           return;
         }
-        sheetsUpdate(state.personalSheetId,
+        // v0.9.1323: the v0.9.1252 fix re-reads the row off the LIVE entry,
+        // which beats the stale snapshot — but state can still lag the sheet
+        // (another device deletes a want row between load and save). The two
+        // sibling cleanups above already write through the guarded writer;
+        // this one joins them, checked against the entry's own identity.
+        rrVerifiedRowUpdate(state.personalSheetId, 'Want-Upgrade List', _row,
           `Want-Upgrade List!A${_row}:I${_row}`,
-          [['','','','','','','','','']]
+          [['','','','','','','','','']],
+          { num: (_live && _live.itemNum) || m.itemNum || '', invId: (_live && _live.inventoryId) || '' },
+          'Want list'
         ).catch(e => console.warn('Wishlist cleanup error:', e));
         if (m.listType === 'Upgrade' && m.key && state.upgradeData) delete state.upgradeData[m.key];
         if (m.listType === 'Want'    && m.key && state.wantData)    delete state.wantData[m.key];

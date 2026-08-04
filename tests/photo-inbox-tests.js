@@ -14964,8 +14964,14 @@ META_WRITES.length = 0; TOASTS.length = 0;
         // checked, state updated only after the sheet confirms). Exact rather
         // than a floor on purpose: a DROP means a guard was removed, and that
         // is news in its own right.
-        ok('234 the sweep really landed — 60 sites write through the one guarded writer',
-           wrapped === 60, String(wrapped));
+        // v0.9.1323: 60 -> 63 — the last three bare row-targeted writes in
+        // wizard-save.js. Two are the inventoryId/groupId backfills (itemNum-
+        // checked; invId deliberately '' because the row predates ids —
+        // that's WHY it's being backfilled). The third is the wishlist-
+        // cleanup blank, which built its range inside the call and walked
+        // past the ROWISH census exactly like the v0.9.1288 trio did.
+        ok('234 the sweep really landed — 63 sites write through the one guarded writer',
+           wrapped === 63, String(wrapped));
       }
     })();
 
@@ -17818,6 +17824,50 @@ META_WRITES.length = 0; TOASTS.length = 0;
         if (s[1].test(src)) wired++;
       });
       ok('267 all eight call sites pass the variation', wired === 8, wired + ' of 8');
+    })();
+
+    // ═══════════════════════════════════════════════════════════
+    // §268. v0.9.1323 — wizard-save.js write census: every sheet
+    //   write is an append, a guarded-writer call, or one of the
+    //   two rrRowStillIs-guarded full-row updates. Nothing else.
+    //
+    //   The backfills (inventoryId/groupId onto a remembered row)
+    //   were the last fire-and-forget row writes: if the row had
+    //   moved they stamped identity columns onto a STRANGER. The
+    //   wishlist-cleanup blank built its range inside the call and
+    //   walked past §234's line census. All three now go through
+    //   rrVerifiedRowUpdate. This section is the allowlist: a new
+    //   bare sheetsUpdate in this file turns it red.
+    // ═══════════════════════════════════════════════════════════
+    section('268. wizard-save: appends, the guarded writer, and two known exceptions');
+    (function () {
+      const p68 = require('path');
+      const ws = fs.readFileSync(p68.join(__dirname, '..', 'app', 'wizard-save.js'), 'utf8');
+      // ── exactly two raw sheetsUpdate calls remain, both full-row rewrites
+      //    sitting directly behind an rrRowStillIs check ──
+      const allUpd = (ws.match(/\bsheetsUpdate\(/g) || []).length;
+      ok('268 exactly two raw sheetsUpdate calls remain in wizard-save.js',
+         allUpd === 2, String(allUpd));
+      // Both known sites: the box-row path (verify, else append fresh) and the
+      // main-row path (verify, else throw ROW_MOVED). Anchor each by the
+      // rrRowStillIs call feeding the same `existing` row.
+      ok('268 …the box-row rewrite is fed by rrRowStillIs',
+         /_bxUpdated = await rrRowStillIs\([\s\S]{0,200}?if \(_bxUpdated\) await sheetsUpdate\(/.test(ws));
+      ok('268 …the main-row rewrite verifies-or-throws ROW_MOVED first',
+         /await rrRowStillIs\([\s\S]{0,200}?\)\)\) \{\s*\n\s*throw new Error\('ROW_MOVED'\);\s*\n\s*\}\s*\n\s*await sheetsUpdate\(/.test(ws));
+      // ── the backfills go through the guarded writer with itemNum identity
+      //    and a deliberately empty invId ──
+      const bkInv = /rrVerifiedRowUpdate\(state\.personalSheetId, PERSONAL_TAB, existingItem\.row,[\s\S]{0,200}?\[\[existingInvId\]\], \{ num: existingItem\.itemNum \|\| '', invId: '' \}, 'collection'\)/.test(ws);
+      const bkGrp = /rrVerifiedRowUpdate\(state\.personalSheetId, PERSONAL_TAB, existingItem\.row,[\s\S]{0,200}?\[\[boxGroupId\]\], \{ num: existingItem\.itemNum \|\| '', invId: '' \}, 'collection'\)/.test(ws);
+      ok('268 the inventoryId backfill is identity-checked (itemNum; invId deliberately empty)', bkInv);
+      ok('268 the groupId backfill is identity-checked the same way', bkGrp);
+      // ── the wishlist-cleanup blank writes through the guarded writer with
+      //    the LIVE entry's identity ──
+      ok('268 the wishlist-cleanup blank carries the live entry\'s identity',
+         /rrVerifiedRowUpdate\(state\.personalSheetId, 'Want-Upgrade List', _row,[\s\S]{0,150}?\{ num: \(_live && _live\.itemNum\) \|\| m\.itemNum \|\| '', invId: \(_live && _live\.inventoryId\) \|\| '' \}/.test(ws));
+      // ── appends are the only other write verb in the file ──
+      ok('268 no other write verbs exist (batchUpdate/clear/etc. absent)',
+         !/batchUpdate|values\.append\(|sheetsClear|sheetsBatch/.test(ws));
     })();
 
   })().then(function () {
