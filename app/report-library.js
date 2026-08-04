@@ -67,10 +67,25 @@ function _repPreview(id) {
   var def = REPORT_DEFS.find(function (d) { return d.id === id; });
   var nm = def ? def.name : (id.indexOf('custom:') === 0 ? ((state.savedReports || []).find(function (r) { return 'custom:' + r.id === id; }) || {}).name : id);
   var t = document.getElementById('rep-prev-title'); if (t) t.textContent = nm || 'Report';
-  var m = document.getElementById('report-preview-modal'); if (m) m.style.display = 'block';
+  _repShowPreviewModal();
   _repStamp(id); renderReportLibrary();
 }
-function _closeReportPreview() { var m = document.getElementById('report-preview-modal'); if (m) m.style.display = 'none'; }
+// v0.9.1332: ONE opener for the preview modal — both entry points (Preview and
+// the row Print button) go through it, so the BackStack wiring cannot land on
+// one path and miss its twin. push() de-dupes by id.
+function _repShowPreviewModal() {
+  var m = document.getElementById('report-preview-modal'); if (!m) return;
+  m.style.display = 'block';
+  if (window.BackStack && BackStack.push) BackStack.push('report-preview', _repHidePreview);
+}
+// Hide only — used as the BackStack closeFn, where the history entry is
+// already being unwound; calling pop() from here would rewind a second step.
+function _repHidePreview() { var m = document.getElementById('report-preview-modal'); if (m) m.style.display = 'none'; }
+function _closeReportPreview() {
+  _repHidePreview();
+  // Balance the history entry push() made; harmless if Back already popped it.
+  if (window.BackStack && BackStack.pop) BackStack.pop('report-preview');
+}
 
 function _repUpdate(id) {
   _repSetType(id);
@@ -100,7 +115,7 @@ function _repExport(id, fmt) {
 function _repPrintRow(id) {
   _repSetType(id);
   try { buildReport(); } catch (e) {}
-  var m = document.getElementById('report-preview-modal'); if (m) m.style.display = 'block';
+  _repShowPreviewModal();
   var t = document.getElementById('rep-prev-title'); var def = REPORT_DEFS.find(function (d) { return d.id === id; });
   if (t) t.textContent = (def ? def.name : 'Report');
   _repStamp(id); renderReportLibrary();

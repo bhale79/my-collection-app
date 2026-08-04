@@ -18291,6 +18291,87 @@ META_WRITES.length = 0; TOASTS.length = 0;
     })();
 
     // ═══════════════════════════════════════════════════════════
+    // §275. v0.9.1332 — the report preview cannot strand you; the
+    //   share card says whose words it carries.
+    //
+    //   Brad's screenshot: the export bar (PDF / Doc / CSV / Print / ✕)
+    //   was "sticky" in the CSS and GONE from the screen — the card's
+    //   overflow:hidden silently disables position:sticky, so on a long
+    //   report every way out scrolled off the top. The fix is
+    //   structural: the card is a viewport-capped flex column, the bar
+    //   is a rail, ONLY the report scrolls. Plus: backdrop click
+    //   closes, device Back closes (BackStack), and both entry points
+    //   go through ONE opener so the wiring cannot miss a twin.
+    //   Share cards: "Rail Roster description:" names the source of
+    //   the catalogue text, and a ticked Notes field prints
+    //   "Notes: none" instead of vanishing — blank-on-purpose must not
+    //   read as cut-off. (Rendered geometry: tests/layout-check.js.)
+    // ═══════════════════════════════════════════════════════════
+    section('275. Report preview exits + share-card source line');
+    (function () {
+      const p75 = require('path');
+      const rd75 = f => fs.readFileSync(p75.join(__dirname, '..', 'app', f), 'utf8');
+      const ix = rd75('index.html'), rl = rd75('report-library.js'), sh = rd75('share.js'), css = rd75('app.css');
+
+      // ── the preview structure ──
+      const m0 = ix.indexOf('id="report-preview-modal"');
+      ok('275 the modal exists', m0 > 0);
+      const mTag = ix.slice(ix.lastIndexOf('<div', m0), ix.indexOf('>', m0) + 1);
+      ok('275 clicking the dark backdrop closes it — and ONLY the backdrop (event.target check)',
+         /onclick="if\(event\.target===this\)_closeReportPreview\(\)"/.test(mTag));
+      const card = ix.slice(ix.indexOf('>', m0) + 1, ix.indexOf('id="rep-prev-title"'));
+      ok('275 the card is a viewport-capped flex column (the bar is a rail, not a passenger)',
+         /display:flex;flex-direction:column;max-height:calc\(100vh - 3rem\)/.test(card));
+      ok('275 …with no position:sticky left in it to silently fail again',
+         !/position:sticky/.test(card));
+      ok('275 the report scrolls INSIDE the card (flex:1 + min-height:0 + overflow:auto)',
+         /class="table-wrap" style="flex:1 1 auto;min-height:0;overflow:auto/.test(ix));
+      // The one that actually hid Brad's buttons: .main is position:relative
+      // with z-index:0 — a STACKING CONTEXT — so a fixed modal inside it
+      // paints under the header (z-index:100) no matter what its own z-index
+      // claims. The modal must therefore live at body level, outside <main>.
+      ok('275 the modal lives at BODY level — inside .main its z-index is a trapped promise',
+         ix.indexOf('id="report-preview-modal"') > ix.indexOf('</main>'));
+
+      // ── the wiring ──
+      const rlSansOpener = rl.replace(/function _repShowPreviewModal\(\) \{[\s\S]*?\n\}/, '');
+      ok('275 BOTH entry points open through the ONE opener — no twin path left behind',
+         (rl.match(/_repShowPreviewModal\(\);/g) || []).length === 2 &&
+         !/getElementById\('report-preview-modal'\)[^\n]*display *= *'block'/.test(rlSansOpener));
+      ok('275 the opener registers with BackStack so the device Back button closes the preview',
+         /BackStack\.push\('report-preview', _repHidePreview\)/.test(rl));
+      const hideBody = rl.slice(rl.indexOf('function _repHidePreview'), rl.indexOf('function _closeReportPreview'));
+      ok('275 the ✕ balances the history entry; the Back path does NOT double-pop',
+         /function _closeReportPreview\(\) \{\s*_repHidePreview\(\);[\s\S]{0,220}BackStack\.pop\('report-preview'\)/.test(rl) &&
+         !/BackStack\.pop/.test(hideBody));
+      ok('275 print uncaps the card so paper gets the whole report, not one clipped page',
+         /#report-preview-modal > div \{ max-height: none !important/.test(css));
+
+      // ── the share card, behaviorally, through the REAL plan ──
+      const s0 = sh.indexOf('var RR_SHARE_SKINS = {');
+      const s1 = sh.indexOf('// ── Build PDF using jsPDF');
+      const plan75 = new Function(sh.slice(s0, s1) + ' return rrShareCardPlan;')();
+      const split = function (t) { return String(t).split('\n'); };
+      const F = { itemnum: 1, vardesc: 1, cond: 1, box: 1, price: 1, notes: 1 };
+      const base = { roadName: 'Ballast Tamper', varDesc: 'UNPAINTED YELLOW SHELL', condition: '7', hasBox: 'No', price: 'Est. $75' };
+      const blank = plan75(Object.assign({ notes: '' }, base), F, split, false, 540);
+      const bn = blank.rows.find(r => r.kind === 'notes');
+      ok('275 a ticked-but-blank Notes field still prints — as "Notes: none"',
+         !!bn && bn.lines.length === 1 && bn.lines[0] === 'Notes: none', JSON.stringify(bn));
+      ok('275 …and its height is COUNTED, so it cannot overlap (§249\'s rule holds)',
+         blank.cardH === 20 + 16 + blank.rows.reduce((a, r) => a + r.h, 0));
+      const noted = plan75(Object.assign({ notes: 'set sale only' }, base), F, split, false, 540);
+      ok('275 real notes still print as themselves',
+         noted.rows.find(r => r.kind === 'notes').lines[0] === 'Notes: set sale only');
+      const unticked = plan75(Object.assign({ notes: '' }, base), Object.assign({}, F, { notes: 0 }), split, false, 540);
+      ok('275 an UNTICKED Notes field prints nothing — "none" is for blank, not for switched-off',
+         !unticked.rows.find(r => r.kind === 'notes'));
+      const vd = blank.rows.find(r => r.kind === 'vardesc');
+      ok('275 the description line names its source: "Rail Roster description:"',
+         !!vd && vd.lines[0].indexOf('Rail Roster description: ') === 0, JSON.stringify(vd && vd.lines));
+    })();
+
+    // ═══════════════════════════════════════════════════════════
     // §271. v0.9.1326 — four measured speed fixes.
     //
     //   MEASUREMENT BEATS READING, so every number below was produced

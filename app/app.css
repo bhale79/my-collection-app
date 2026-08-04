@@ -1324,6 +1324,11 @@
     body { background: white !important; color: black !important; }
     .sidebar, .mobile-nav, .topbar, .page:not(#page-reports), .report-controls,
     .btn-export, #page-reports .page-title { display: none !important; }
+    /* v0.9.1332: the preview card is viewport-capped on screen so its export
+       bar can never scroll away; on paper the cap would clip the report to
+       one page. Uncap and let the .table-wrap rule above flatten the scroll. */
+    #report-preview-modal { position: static !important; padding: 0 !important; background: none !important; }
+    #report-preview-modal > div { max-height: none !important; display: block !important; border: none !important; box-shadow: none !important; }
     #page-reports { display: block !important; padding: 0 !important; }
     .table-wrap { overflow: visible !important; box-shadow: none !important; border: none !important; }
     .ins-report-header { background: #1a3a6b !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; border-radius: 10px 10px 0 0; }

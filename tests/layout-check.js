@@ -1626,6 +1626,99 @@ window.__pageReady = runSharedPhotos();
          /^rgb\(/.test(bg) || /^rgba\([^)]*, ?1\)$/.test(bg), bg);
     }
 
+    // ══════════════════════════════════════════════════════════════════
+    // The report preview cannot strand you (v0.9.1332)
+    //
+    // Brad's screenshot: a 164-item insurance report, and the export bar
+    // (PDF / Doc / CSV / Print / ✕ Close) reduced to four pixels of button
+    // peeking over the top edge. The bar was position:sticky — and the
+    // card's overflow:hidden silently disables sticky, so the bar rode the
+    // scroll off-screen. A grep says "protected"; only a render shows the
+    // bar leave. So this LOADS THE REAL index.html, opens the preview the
+    // way _repPreview does, fills it with a long report, scrolls
+    // everything scrollable, and DEMANDS the Close button stay on screen.
+    // ══════════════════════════════════════════════════════════════════
+    {
+      const sizes32 = [[1920, 1040], [1280, 800], [900, 650]];
+      for (const [w32, h32] of sizes32) {
+        const pg32 = await browser.newPage({ viewport: { width: w32, height: h32 } });
+        await pg32.route('**', r => r.request().url().startsWith('file://') ? r.continue() : r.abort());
+        await pg32.goto('file://' + path.join(APP, 'index.html'), { waitUntil: 'domcontentloaded' });
+        await pg32.waitForTimeout(600);
+        const st32 = await pg32.evaluate(function () {
+          window.state = window.state || {}; state.personalData = state.personalData || {};
+          state.contactsData = []; state.savedReports = [];
+          var au = document.getElementById('auth-screen'); if (au) au.style.display = 'none';
+          document.getElementById('app').classList.add('active');
+          document.querySelectorAll('.page').forEach(function (p) { p.classList.remove('active'); });
+          document.getElementById('page-reports').classList.add('active');
+          // Open through the app's own opener (BackStack may be absent here —
+          // the opener must tolerate that; that tolerance is itself asserted).
+          if (typeof _repShowPreviewModal === 'function') _repShowPreviewModal();
+          else document.getElementById('report-preview-modal').style.display = 'block';
+          // A long report: banner + 164 photo-height rows, like Brad's.
+          document.getElementById('report-thead').innerHTML =
+            '<tr><td colspan="7"><div style="background:#1a3a6b;padding:1.2rem"><div style="color:#fff;font-size:1.4rem">Model Train Collection — Insurance Documentation</div></div></td></tr>';
+          var rows = '';
+          for (var i = 0; i < 164; i++) rows += '<tr><td style="height:100px">p</td><td>6-' + i + '</td><td>desc</td><td>—</td><td>7</td><td>No</td><td>$50</td></tr>';
+          document.getElementById('report-tbody').innerHTML = rows;
+          var m = document.getElementById('report-preview-modal');
+          var card = m.firstElementChild;
+          var closeBtn = Array.from(m.querySelectorAll('button')).find(function (b) { return /Close/.test(b.textContent); });
+          // Scroll EVERYTHING scrollable the way a user hunting the bar would.
+          m.scrollTop = 5000;
+          var tw = m.querySelector('.table-wrap'); if (tw) tw.scrollTop = 5000;
+          document.documentElement.scrollTop = 5000; document.body.scrollTop = 5000;
+          var cb = closeBtn.getBoundingClientRect();
+          var cardR = card.getBoundingClientRect();
+          var atPoint = document.elementFromPoint(cb.left + cb.width / 2, cb.top + cb.height / 2);
+          var openerTolerates = /if \(window\.BackStack && BackStack\.push\)/.test(String(window._repShowPreviewModal || ''));
+          // Backdrop click: on the dark area → closes; inside the card → stays.
+          var inCard = document.elementFromPoint(cardR.left + 10, Math.min(cardR.top + 10, window.innerHeight - 10));
+          m.dispatchEvent(new MouseEvent('click', { bubbles: true }));            // target === modal → close
+          var closedByBackdrop = m.style.display === 'none';
+          if (typeof _repShowPreviewModal === 'function') _repShowPreviewModal(); else m.style.display = 'block';
+          tw.dispatchEvent(new MouseEvent('click', { bubbles: true }));           // bubbles THROUGH the card to the modal — target !== modal, must stay open
+          var afterInnerBubble = m.style.display;
+          closeBtn.click();                                                        // and the ✕ still closes it
+          var afterCloseBtn = m.style.display;
+          return {
+            closeVisible: cb.width > 0 && cb.top >= 0 && cb.bottom <= window.innerHeight && cb.left >= 0,
+            closeHittable: !!atPoint && (atPoint === closeBtn || closeBtn.contains(atPoint)),
+            cardFits: cardR.top >= 0 && cardR.bottom <= window.innerHeight + 1,
+            backdropScrolls: m.scrollHeight > m.clientHeight,
+            closedByBackdrop: closedByBackdrop,
+            afterInnerBubble: afterInnerBubble,
+            afterCloseBtn: afterCloseBtn,
+            openerTolerates: openerTolerates,
+            cb: { top: cb.top, bottom: cb.bottom }
+          };
+        });
+        ok('report-preview ' + w32 + '×' + h32 + ': the Close button is ON SCREEN after scrolling everything',
+           st32.closeVisible, JSON.stringify(st32.cb));
+        ok('report-preview ' + w32 + '×' + h32 + ': …and actually HITTABLE (nothing covers it)',
+           st32.closeHittable);
+        ok('report-preview ' + w32 + '×' + h32 + ': the card is viewport-capped — the backdrop has nothing to scroll',
+           st32.cardFits && !st32.backdropScrolls);
+        ok('report-preview ' + w32 + '×' + h32 + ': clicking the dark backdrop closes the preview',
+           st32.closedByBackdrop);
+        ok('report-preview ' + w32 + '×' + h32 + ': a click INSIDE the card does NOT close it (the guard checks event.target)',
+           st32.afterInnerBubble === 'block');
+        ok('report-preview ' + w32 + '×' + h32 + ': …and the ✕ still closes it',
+           st32.afterCloseBtn === 'none');
+        if (w32 === 1920) {
+          ok('report-preview: the opener tolerates a missing BackStack (harness proves it by running without one)',
+             st32.openerTolerates);
+        }
+        const shot32 = await pg32.screenshot({ type: 'png' });
+        try {
+          fs.mkdirSync(path.join(__dirname, '..', '_shots'), { recursive: true });
+          fs.writeFileSync(path.join(__dirname, '..', '_shots', 'report-preview-' + w32 + '.png'), shot32);
+        } catch (e) {}
+        await pg32.close();
+      }
+    }
+
   } finally {
     await browser.close();
     try { fs.rmSync(dir, { recursive: true, force: true }); } catch (e) {}

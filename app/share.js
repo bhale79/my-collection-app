@@ -518,14 +518,19 @@ function rrShareCardPlan(vals, fields, split, photoPlanned, contentW) {
   if (fields.itemnum) rows.push({ kind: 'num', h: 16 });
   if (vals.roadName)  rows.push({ kind: 'road', h: 14 });
   if (fields.vardesc && vals.varDesc) {
-    var vl = split('Variation: ' + vals.varDesc, textW);
+    // v0.9.1332 (Brad): say where the description comes from — the catalogue
+    // text is The Rail Roster's, not the seller's own wording.
+    var vl = split('Rail Roster description: ' + vals.varDesc, textW);
     rows.push({ kind: 'vardesc', lines: vl, h: vl.length * 11 + 2 });
   }
   if (fields.cond && vals.condition) rows.push({ kind: 'cond', h: 13 });
   if (fields.box && vals.hasBox)     rows.push({ kind: 'box', h: 13 });
   if (fields.price && vals.price)    rows.push({ kind: 'price', h: 13 });
-  if (fields.notes && vals.notes) {
-    var nl = split('Notes: ' + vals.notes, textW);
+  if (fields.notes) {
+    // v0.9.1332 (Brad): the Notes line prints even when empty — "Notes: none"
+    // tells a buyer the seller left it blank on purpose, rather than looking
+    // like the sheet cut off. Only when the Notes field is ticked at all.
+    var nl = split('Notes: ' + (vals.notes || 'none'), textW);
     rows.push({ kind: 'notes', lines: nl, h: nl.length * 11 + 2 });
   }
   var cardH = 20 + 16;
