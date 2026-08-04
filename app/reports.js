@@ -6,8 +6,15 @@
 var _wupView = 'all';
 var _wupPartsLoading = false;
 function _setWupView(v){ _wupView = v; buildReport(); }
+// v0.9.1333: the preview modal moved to <body> (v1332, the stacking-context
+// fix) — and these helpers still found the report's wrapper by PAGE
+// ('#page-reports .table-wrap'), which now matches NOTHING, so the insurance
+// report died on null.parentNode before drawing a single row. ONE resolver,
+// anchored to the table itself — the identity that cannot move away from its
+// own wrapper.
+function _repTableWrap(){ var th = document.getElementById('report-thead'); return th ? th.closest('.table-wrap') : null; }
 function _wupControls(){
-  var tw = document.querySelector('#page-reports .table-wrap'); if(!tw) return;
+  var tw = _repTableWrap(); if(!tw) return;
   var c = document.getElementById('wup-controls');
   if(!c){ c=document.createElement('div'); c.id='wup-controls'; c.style.cssText='display:flex;gap:0.4rem;margin-bottom:0.75rem;flex-wrap:wrap'; tw.parentNode.insertBefore(c, tw); }
   c.style.display='flex';
@@ -113,13 +120,17 @@ function buildReport() {
     });
 
     // Inject header above table
-    const tableWrap = document.querySelector('#page-reports .table-wrap');
+    const tableWrap = _repTableWrap();
     let hdrEl = document.getElementById('ins-report-hdr');
-    if (!hdrEl) {
+    if (!hdrEl && tableWrap) {
       hdrEl = document.createElement('div');
       hdrEl.id = 'ins-report-hdr';
-      tableWrap.parentNode.insertBefore(hdrEl, tableWrap);
+      // INSIDE the scroller, above the table — in the capped card (v1332) a
+      // sibling would pin permanently; inside, it scrolls with the report,
+      // which is how it has always read.
+      tableWrap.insertBefore(hdrEl, tableWrap.firstChild);
     }
+    if (!hdrEl) return;
     hdrEl.style.display = '';
     // Build meta lines from the template in config
     const metaVals = {
@@ -205,11 +216,13 @@ function buildReport() {
 
     // ── Signature / certification footer ─────────────────────
     let footEl = document.getElementById('ins-report-foot');
-    if (!footEl) {
+    if (!footEl && tableWrap) {
       footEl = document.createElement('div');
       footEl.id = 'ins-report-foot';
-      tableWrap.parentNode.insertBefore(footEl, tableWrap.nextSibling);
+      // Bottom of the scroller, after the table — same reasoning as the header.
+      tableWrap.appendChild(footEl);
     }
+    if (!footEl) return;
     footEl.style.display = '';
     footEl.innerHTML = `
       <div class="ins-report-footer" style="margin-top:1.5rem;padding-top:1rem;border-top:1px solid var(--border)">

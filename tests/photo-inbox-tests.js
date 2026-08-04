@@ -18332,6 +18332,14 @@ META_WRITES.length = 0; TOASTS.length = 0;
       // claims. The modal must therefore live at body level, outside <main>.
       ok('275 the modal lives at BODY level — inside .main its z-index is a trapped promise',
          ix.indexOf('id="report-preview-modal"') > ix.indexOf('</main>'));
+      // v0.9.1333: when the modal moved, three helpers still found its wrapper
+      // by PAGE ('#page-reports .table-wrap') — null.parentNode blanked the
+      // whole insurance report. One resolver, anchored to the table itself.
+      const rp75 = rd75('reports.js');
+      ok('275 nothing resolves the report wrapper by PAGE — one resolver, anchored to the table',
+         !/querySelector\('#page-reports \.table-wrap'\)/.test(rp75) &&
+         /function _repTableWrap\(\)/.test(rp75) &&
+         (rp75.match(/_repTableWrap\(\)/g) || []).length >= 3);   // definition + the two lookup sites (the footer shares the insurance const)
 
       // ── the wiring ──
       const rlSansOpener = rl.replace(/function _repShowPreviewModal\(\) \{[\s\S]*?\n\}/, '');

@@ -1646,22 +1646,39 @@ window.__pageReady = runSharedPhotos();
         await pg32.goto('file://' + path.join(APP, 'index.html'), { waitUntil: 'domcontentloaded' });
         await pg32.waitForTimeout(600);
         const st32 = await pg32.evaluate(function () {
-          window.state = window.state || {}; state.personalData = state.personalData || {};
+          window.state = window.state || {};
+          // Enough state for the REAL insurance builder to draw rows — the
+          // v1332→1333 lesson: injecting rows by hand let a buildReport crash
+          // (page-scoped '#page-reports .table-wrap' lookups finding nothing
+          // after the modal moved to <body>) ship as a blank report. The
+          // harness must drive the code the app does.
+          state.personalData = {
+            k1: { owned: true, itemNum: '54', variation: '1', condition: '7', hasBox: 'No', userEstWorth: '75', priceItem: '75' },
+            k2: { owned: true, itemNum: '58', variation: '1', condition: '8', hasBox: 'Yes', userEstWorth: '210', priceItem: '210' }
+          };
           state.contactsData = []; state.savedReports = [];
+          if (typeof window.findMaster !== 'function') window.findMaster = function () { return { itemType: 'Motorized Unit', roadName: 'Ballast Tamper', varDesc: 'UNPAINTED YELLOW SHELL' }; };
           var au = document.getElementById('auth-screen'); if (au) au.style.display = 'none';
           document.getElementById('app').classList.add('active');
           document.querySelectorAll('.page').forEach(function (p) { p.classList.remove('active'); });
           document.getElementById('page-reports').classList.add('active');
+          // The REAL builder, UNGUARDED — _repPreview wraps it in try/catch,
+          // which is exactly how the blank-report crash stayed silent.
+          buildReport();
+          var builtRows = document.getElementById('report-tbody').querySelectorAll('tr').length;
           // Open through the app's own opener (BackStack may be absent here —
           // the opener must tolerate that; that tolerance is itself asserted).
           if (typeof _repShowPreviewModal === 'function') _repShowPreviewModal();
           else document.getElementById('report-preview-modal').style.display = 'block';
-          // A long report: banner + 164 photo-height rows, like Brad's.
-          document.getElementById('report-thead').innerHTML =
-            '<tr><td colspan="7"><div style="background:#1a3a6b;padding:1.2rem"><div style="color:#fff;font-size:1.4rem">Model Train Collection — Insurance Documentation</div></div></td></tr>';
+          // Banner geometry only exists once the modal is DISPLAYED — inside
+          // display:none every rect is 0, which is a fact about the harness,
+          // not the app.
+          var hdr = document.getElementById('ins-report-hdr');
+          var hdrDrawn = !!hdr && hdr.getBoundingClientRect().height > 20 && /Insurance/.test(hdr.textContent);
+          // Pad to Brad's 164 photo-height rows for the scroll geometry.
           var rows = '';
           for (var i = 0; i < 164; i++) rows += '<tr><td style="height:100px">p</td><td>6-' + i + '</td><td>desc</td><td>—</td><td>7</td><td>No</td><td>$50</td></tr>';
-          document.getElementById('report-tbody').innerHTML = rows;
+          document.getElementById('report-tbody').innerHTML += rows;
           var m = document.getElementById('report-preview-modal');
           var card = m.firstElementChild;
           var closeBtn = Array.from(m.querySelectorAll('button')).find(function (b) { return /Close/.test(b.textContent); });
@@ -1683,6 +1700,7 @@ window.__pageReady = runSharedPhotos();
           closeBtn.click();                                                        // and the ✕ still closes it
           var afterCloseBtn = m.style.display;
           return {
+            builtRows: builtRows, hdrDrawn: hdrDrawn,
             closeVisible: cb.width > 0 && cb.top >= 0 && cb.bottom <= window.innerHeight && cb.left >= 0,
             closeHittable: !!atPoint && (atPoint === closeBtn || closeBtn.contains(atPoint)),
             cardFits: cardR.top >= 0 && cardR.bottom <= window.innerHeight + 1,
@@ -1694,6 +1712,8 @@ window.__pageReady = runSharedPhotos();
             cb: { top: cb.top, bottom: cb.bottom }
           };
         });
+        ok('report-preview ' + w32 + '×' + h32 + ': the REAL buildReport draws rows AND the banner (no silent crash)',
+           st32.builtRows >= 2 && st32.hdrDrawn, JSON.stringify({ rows: st32.builtRows, hdr: st32.hdrDrawn }));
         ok('report-preview ' + w32 + '×' + h32 + ': the Close button is ON SCREEN after scrolling everything',
            st32.closeVisible, JSON.stringify(st32.cb));
         ok('report-preview ' + w32 + '×' + h32 + ': …and actually HITTABLE (nothing covers it)',
