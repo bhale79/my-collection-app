@@ -17581,6 +17581,99 @@ META_WRITES.length = 0; TOASTS.length = 0;
          search('co gondola', 'c&o') === true);
     })();
 
+    // ═══════════════════════════════════════════════════════════
+    // §264. v0.9.1317 — the sales list a buyer can actually use.
+    //
+    //   Brad, reviewing his live sheet: "that is garbage." What a buyer
+    //   used to get: "Gondola (var 2)", no notes (a SET sale read as one
+    //   unit), no era, no contact, no photos. The REAL _sellSync runs
+    //   here against a fake Sheets + Drive.
+    // ═══════════════════════════════════════════════════════════
+    section('264. Shareable For Sale sheet: contact, era, real words, notes, links');
+    await (async function () {
+      const p64 = require('path');
+      const sl64 = fs.readFileSync(p64.join(__dirname, '..', 'app', 'sell.js'), 'utf8');
+      const s0 = sl64.indexOf('async function _sellEnsureSheet');
+      const s1 = sl64.indexOf('if (typeof window !== \'undefined\') window.rrSellSheetStartupSync');
+      ok('264 the sync slice was found', s0 > 0 && s1 > s0);
+      const written = { cleared: '', range: '', rows: null };
+      const preferSeen = [];
+      const opened = [];
+      const env = {
+        localStorage: { getItem: (k) => ({ rr_sell_sheet_id: 'SHEET1', rr_sell_contact: 'Brad Hale · 270-555 · bhale@…', rr_sell_photo_links: '1' }[k] || null), setItem: () => {} },
+        driveRequest: async (m, ep) => (/files\/SHEET1/.test(ep) ? { id: 'SHEET1', trashed: false } : { files: [{ id: 'SHEET1' }] }),
+        sheetsClear: async (id, r) => { written.cleared = r; },
+        sheetsUpdate: async (id, r, rows) => { written.range = r; written.rows = rows; },
+        _currencySymbol: () => '$',
+        driveGetFolderPhotos: async (link) => ({ 'folder-good': [{ id: 'PH1' }], 'folder-locked': [{ id: 'PH2' }] }[link] || []),
+        rrShareOpenPhoto: async (id) => { opened.push(id); return id === 'PH1'; },   // PH2 exists but REFUSES to open
+        findMaster: (n, v, prefer) => { preferSeen.push(prefer); return ({
+          '6462-50|2': { roadName: '', description: 'Gondola', varDesc: 'TYPE 2, RED SHELL UNPAINTED, WHITE LETTERING', itemType: 'Gondola' },
+          '205-P|2': { roadName: 'Missouri Pacific', description: 'Alco Diesel', varDesc: 'light blue shell painted blue with white heat stamped lettering', itemType: 'Diesel Locomotive' },
+        })[String(n) + '|' + String(v)] || null; },
+        ERAS: { pw: { label: 'Lionel Postwar' } },
+        state: {
+          forSaleData: {
+            a: { inventoryId: 'a', itemNum: '205-P', variation: '2', condition: '7', askingPrice: '150', notes: 'Set sale: 205-P, 205-D' },
+            b: { inventoryId: 'b', itemNum: '6462-50', variation: '2', condition: '7', askingPrice: '25', notes: '' },
+            c: { inventoryId: 'c', itemNum: '6656', variation: '4', condition: '7', askingPrice: '20', notes: '' },
+          },
+          personalData: {
+            a: { inventoryId: 'a', itemNum: '205-P', variation: '2', era: 'pw', manufacturer: 'Lionel', masterKey: 'pw|205|2', hasBox: 'No', photoItem: 'folder-good' },
+            b: { inventoryId: 'b', itemNum: '6462-50', variation: '2', era: 'pw', manufacturer: 'Lionel', hasBox: 'Yes', photoItem: 'folder-empty' },
+            c: { inventoryId: 'c', itemNum: '6656', variation: '4', era: 'pw', manufacturer: 'Lionel', hasBox: 'No', photoItem: 'folder-locked' },
+          },
+        },
+      };
+      const api64 = new Function('localStorage', 'driveRequest', 'sheetsClear', 'sheetsUpdate', '_currencySymbol', 'driveGetFolderPhotos', 'rrShareOpenPhoto', 'findMaster', 'ERAS', 'state',
+        sl64.slice(s0, s1) + ' return { sync: _sellSync, startup: rrSellSheetStartupSync };')(
+        env.localStorage, env.driveRequest, env.sheetsClear, env.sheetsUpdate, env._currencySymbol, env.driveGetFolderPhotos, env.rrShareOpenPhoto, env.findMaster, env.ERAS, env.state);
+      await api64.sync();
+      const R = written.rows;
+      const flat = JSON.stringify(R);
+      ok('264 the title block carries the contact line Brad typed',
+         R[0][0] === 'THE RAIL ROSTER — ITEMS FOR SALE' && /Brad Hale · 270-555/.test(R[1][0]));
+      const r205 = R.find((r) => r[0] === '205-P');
+      ok('264 the era column says what these ARE', r205 && r205[1] === 'Lionel Postwar');
+      ok('264 the description is road + description + the variation\'s OWN words — no (var N) jargon',
+         r205 && /Missouri Pacific — Alco Diesel — light blue shell painted blue/.test(r205[2]) &&
+         !/\(var /.test(flat));
+      ok('264 the SET-sale note rides the condition — a buyer can\'t mistake it for one unit',
+         r205 && /7\/10 — Set sale: 205-P, 205-D/.test(r205[3]));
+      ok('264 Box is spelled Yes or No, never silence',
+         r205 && r205[4] === 'No' && R.find((r) => r[0] === '6462-50')[4] === 'Yes');
+      // The discriminating case: PH2 EXISTS but Drive refused to open it —
+      // a link to it would hit a request-access wall. It must stay off.
+      ok('264 a photo link rides ONLY where opening the photo up succeeded',
+         r205 && /drive\.google\.com\/file\/d\/PH1\/view/.test(r205[6]) &&
+         R.find((r) => r[0] === '6462-50')[6] === '' &&
+         R.find((r) => r[0] === '6656')[6] === '' &&
+         opened.indexOf('PH1') >= 0 && opened.indexOf('PH2') >= 0);
+      ok('264 the lookup carries the copy\'s OWN identity — era, maker, masterKey',
+         preferSeen.every((p) => p && p.era === 'pw' && p.manufacturer === 'Lionel') &&
+         preferSeen.some((p) => p.masterKey === 'pw|205|2'));
+      ok('264 the clear range covers the widened sheet', written.cleared === 'Sheet1!A1:H1000');
+      // ── the startup re-sync: exists, but never resurrects a trashed sheet ──
+      written.rows = null;
+      await api64.startup();
+      ok('264 app start re-syncs the live list in the background', written.rows !== null);
+      env.driveRequest = async () => ({ id: 'SHEET1', trashed: true });
+      const api64b = new Function('localStorage', 'driveRequest', 'sheetsClear', 'sheetsUpdate', '_currencySymbol', 'driveGetFolderPhotos', 'rrShareOpenPhoto', 'findMaster', 'ERAS', 'state',
+        sl64.slice(s0, s1) + ' return { startup: rrSellSheetStartupSync };')(
+        env.localStorage, env.driveRequest, env.sheetsClear, env.sheetsUpdate, env._currencySymbol, env.driveGetFolderPhotos, env.rrShareOpenPhoto, env.findMaster, env.ERAS, env.state);
+      written.rows = null;
+      await api64b.startup();
+      ok('264 a sheet the user trashed stays trashed — no silent resurrection', written.rows === null);
+      // ── the panel offers the two new controls, never pre-filled ──
+      ok('264 the panel has the contact input and the photo-links choice, no seeded value',
+         /id="sell-contact-line"/.test(sl64) && /id="sell-photo-links"/.test(sl64) &&
+         /rr_sell_contact/.test(sl64) && !/value="Brad/.test(sl64));
+      // ── both start branches carry the hook ──
+      const ad64 = fs.readFileSync(p64.join(__dirname, '..', 'app', 'app-data.js'), 'utf8');
+      ok('264 the re-sync runs at BOTH app-start branches',
+         (ad64.match(/setTimeout\(rrSellSheetStartupSync, 12000\)/g) || []).length === 2);
+    })();
+
   })().then(function () {
     console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
     process.exit(fail ? 1 : 0);

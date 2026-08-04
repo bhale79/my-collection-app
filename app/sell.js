@@ -378,26 +378,70 @@ async function _sellEnsureSheet() {
   localStorage.setItem('rr_sell_sheet_id', f.id);
   return f.id;
 }
+// ══ v0.9.1317 — the sales-list review (Brad: "that is garbage") ══════════
+// What a buyer used to get: "Gondola (var 2)" — no maker, no era, no notes
+// ("Cracked corner" stayed hidden; a SET sale read as one unit), collector
+// jargon instead of the variation's own words, no photos, no contact line.
+// The rebuilt sheet: title + the owner's contact line (typed once in the
+// panel) + era column + descriptions built from road name, description and
+// the variation's ACTUAL words + notes riding the condition + Box spelled
+// Yes/No + optional photo links through the SAME open/track machinery as the
+// share PDF (so Shared Photos can end them). The lookup carries the copy's
+// own identity — era, maker, masterKey — never a bare number.
 async function _sellSync() {
   var id = await _sellEnsureSheet();
   var fs = Object.values(state.forSaleData || {});
-  var rows = [['THE RAIL ROSTER — For Sale', '', '', '', ''],
-              ['Updated ' + new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }), '', '', '', ''],
-              ['', '', '', '', ''],
-              ['Item #', 'Description', 'Condition', 'Box', 'Asking Price']];
-  fs.forEach(function (e) {
+  var contact = '';
+  try { contact = localStorage.getItem('rr_sell_contact') || ''; } catch (e) {}
+  var wantLinks = false;
+  try { wantLinks = localStorage.getItem('rr_sell_photo_links') === '1'; } catch (e) {}
+  var W = 7;
+  var pad = function (a) { while (a.length < W) a.push(''); return a; };
+  var rows = [
+    pad(['THE RAIL ROSTER — ITEMS FOR SALE']),
+    pad([contact]),
+    pad(['Updated ' + new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })]),
+    pad([]),
+    pad(['Item #', 'Era', 'Description', 'Condition & Notes', 'Box', 'Asking Price', wantLinks ? 'Photo' : '']),
+  ];
+  for (var i = 0; i < fs.length; i++) {
+    var e = fs[i];
     var pd = (e.inventoryId && state.personalData[e.inventoryId]) || {};
     var num = pd.itemNum || e.itemNum || '';
     var vr = pd.itemNum ? (pd.variation || '') : (e.variation || '');
-    var m = findMaster(num, vr) || {};
-    rows.push([
+    var m = findMaster(num, vr, { era: pd.era || '', manufacturer: pd.manufacturer || e.manufacturer || '', masterKey: pd.masterKey || '' }) || {};
+    var eraLabel = (typeof ERAS !== 'undefined' && pd.era && ERAS[pd.era]) ? ERAS[pd.era].label
+      : (pd.manufacturer || e.manufacturer || '');
+    var descBits = [];
+    if (m.roadName) descBits.push(m.roadName);
+    if (m.description && m.description !== m.roadName) descBits.push(m.description);
+    var vWords = String(m.varDesc || pd.variationDescription || '').replace(/\s+/g, ' ').trim();
+    if (vWords) descBits.push(vWords.length > 120 ? vWords.slice(0, 117) + '…' : vWords);
+    var desc = descBits.join(' — ') || (pd.description || m.itemType || num);
+    var cond = (e.condition || pd.condition) ? (e.condition || pd.condition) + '/10' : '';
+    var notes = String(e.notes || pd.notes || '').trim();
+    if (notes) cond = cond ? cond + ' — ' + notes : notes;
+    var link = '';
+    if (wantLinks && pd.photoItem) {
+      try {
+        var ph = await driveGetFolderPhotos(pd.photoItem);
+        // a link goes on the sheet ONLY if opening the photo up succeeded —
+        // same no-dead-links contract as the share PDF (v0.9.1303).
+        if (ph && ph.length && typeof rrShareOpenPhoto === 'function' && await rrShareOpenPhoto(ph[0].id, 0)) {
+          link = 'https://drive.google.com/file/d/' + ph[0].id + '/view';
+        }
+      } catch (eL) {}
+    }
+    rows.push(pad([
       num,
-      (m.roadName ? m.roadName + ' ' : '') + (m.itemType || '') + (vr ? ' (var ' + vr + ')' : ''),
-      (e.condition || pd.condition) ? (e.condition || pd.condition) + '/10' : '',
-      pd.hasBox === 'Yes' ? 'Yes' : '',
-      e.askingPrice ? _currencySymbol() + parseFloat(e.askingPrice).toLocaleString() : ''
-    ]);
-  });
+      eraLabel,
+      desc,
+      cond,
+      pd.hasBox === 'Yes' ? 'Yes' : 'No',
+      e.askingPrice ? _currencySymbol() + parseFloat(e.askingPrice).toLocaleString() : '',
+      link,
+    ]));
+  }
   // v0.9.1274 (audit 2026-08-02 round 2, finding R14): this was a raw fetch
   // inside a bare `catch (e) {}`. When it failed — and it never checked res.ok,
   // so a 403 did not even reach the catch — the update below wrote a shorter
@@ -405,10 +449,25 @@ async function _sellSync() {
   // The customers this link is shared WITH would still be seeing items that
   // had been sold. sheetsClear records the failure and throws; both callers
   // already catch and say the list could not be built.
-  await sheetsClear(id, 'Sheet1!A1:E1000');
+  await sheetsClear(id, 'Sheet1!A1:H1000');
   await sheetsUpdate(id, 'Sheet1!A1', rows);
   return id;
 }
+
+// v0.9.1317: the live list can no longer go stale by design — if the sheet
+// exists (the feature has been used), every app start re-syncs it in the
+// background. A cached id that has been trashed is left alone (no silent
+// re-creation of a sheet the user deleted on purpose).
+async function rrSellSheetStartupSync() {
+  try {
+    var cached = localStorage.getItem('rr_sell_sheet_id');
+    if (!cached) return;
+    var ok = await driveRequest('GET', '/files/' + cached + '?fields=id,trashed');
+    if (!ok || !ok.id || ok.trashed) return;
+    await _sellSync();
+  } catch (e) { /* next start retries */ }
+}
+if (typeof window !== 'undefined') window.rrSellSheetStartupSync = rrSellSheetStartupSync;
 function _sellSheetLink(id) { return 'https://docs.google.com/spreadsheets/d/' + id + '/edit?usp=sharing'; }
 
 // ═══ TIER 2 — CUSTOMER BOOK (private Drive JSON) ═════════════════
@@ -524,6 +583,14 @@ async function openSalesShareModal() {
       '<div style="border:1px solid var(--border);border-radius:10px;padding:0.85rem;margin-bottom:0.9rem">' +
         '<div style="font-size:0.82rem;font-weight:600;color:var(--text);margin-bottom:0.35rem">Live link (always current, view-only)</div>' +
         '<div style="font-size:0.76rem;color:var(--text-dim);margin-bottom:0.6rem">Add a customer below (they need a Google account) and they’ll get a link that always shows your latest list. Remove them anytime.</div>' +
+        // v0.9.1317 (Brad's sales-list review): the sheet finally says WHO is
+        // selling — typed once here, saved, printed under the title. Never
+        // pre-filled: his own no-seeded-data rule.
+        '<input id="sell-contact-line" placeholder="Your contact line — name · phone · email (shown on the list)" value="' + _sellEsc((function () { try { return localStorage.getItem('rr_sell_contact') || ''; } catch (e) { return ''; } })()) + '" onchange="try{localStorage.setItem(\'rr_sell_contact\', this.value)}catch(e){}" style="width:100%;box-sizing:border-box;padding:0.5rem;border:1px solid var(--border);border-radius:8px;background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.8rem;margin-bottom:0.5rem">' +
+        '<label style="display:flex;align-items:flex-start;gap:0.45rem;font-size:0.76rem;color:var(--text);margin-bottom:0.6rem;cursor:pointer;line-height:1.4">' +
+          '<input type="checkbox" id="sell-photo-links"' + ((function () { try { return localStorage.getItem('rr_sell_photo_links') === '1'; } catch (e) { return false; } })() ? ' checked' : '') + ' onchange="try{localStorage.setItem(\'rr_sell_photo_links\', this.checked ? \'1\' : \'0\')}catch(e){}" style="accent-color:var(--accent);width:1rem;height:1rem;flex-shrink:0;margin-top:0.1rem">' +
+          'Photo links on the list — each item’s photo becomes viewable by anyone with the link (end it anytime in Collection Tools › Shared Photos)' +
+        '</label>' +
         '<div id="sell-link-row" style="display:flex;gap:0.4rem">' +
           '<button onclick="_sellMakeLink()" id="sell-link-btn" style="flex:1;padding:0.5rem;border-radius:8px;border:1.5px solid #0891b2;background:var(--bg-card);background:color-mix(in srgb, rgb(8,145,178) 10%, var(--bg-card));color:#0891b2;font-family:var(--font-body);font-weight:600;font-size:0.85rem;cursor:pointer">Create / refresh live list</button>' +
         '</div>' +
