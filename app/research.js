@@ -90,7 +90,10 @@
     // Enrich from the master catalog row when we matched one.
     var m = res.masterItem || null;
     if (!m && itemNum && typeof findMaster === 'function') {
-      try { m = findMaster(itemNum, res.variation || ''); } catch (e) {}
+      // v0.9.1337: pass the maker we already know — a bare number-only
+      // lookup sent Brad's Lionel 6469 to the Atlas tab (a hint is a RANK,
+      // not a filter, so a missing maker changes nothing).
+      try { m = findMaster(itemNum, res.variation || '', mfr ? { manufacturer: mfr } : null); } catch (e) {}
     }
     if (m) {
       if (!desc) desc = m.description || m.name || '';
@@ -271,7 +274,7 @@
       } else {
         m = f[0] || null;
       }
-      if (!m && !hits.length && typeof findMaster === 'function') { try { m = findMaster(num, ''); } catch (e) {} }
+      if (!m && !hits.length && typeof findMaster === 'function') { try { m = findMaster(num, '', opts.mfr ? { manufacturer: opts.mfr } : null); } catch (e) {} }   // v0.9.1337: rank by known maker
     }
     if (m && m.itemNum) num = m.itemNum;                 // word matches: card shows the REAL number
     var eraMfr = (m && typeof ERAS !== 'undefined' && m._era && ERAS[m._era]) ? ERAS[m._era].manufacturer : '';
@@ -295,7 +298,7 @@
     var num = itemNum || meta.itemNum || '';
     var m = null;
     if (num && typeof findMaster === 'function') {
-      try { m = findMaster(num, ''); } catch (e) {}
+      try { m = findMaster(num, '', meta.manufacturer ? { manufacturer: meta.manufacturer } : null); } catch (e) {}   // v0.9.1337: rank by known maker
     }
     _showCard({
       itemNum: num,

@@ -1914,6 +1914,47 @@ window.__pageReady = runSharedPhotos();
       ok('updatebar: a NEWER version brings it back', st.returnsForNewer);
     }
 
+    // ══════════════════════════════════════════════════════════════════
+    // Research resolves BRAD'S item, not the first tab with that number
+    // (v0.9.1337) — 6469 lives in Lionel PW and Atlas; the price Research
+    // button ran findMaster(num) bare and searched "Atlas 6469…" for his
+    // Lionel flatcar. This drives the REAL _wizResearchPrice with a REAL
+    // colliding index (Atlas row FIRST, so number-only first-find would
+    // pick Atlas) and reads the URL the real window.open receives.
+    // ══════════════════════════════════════════════════════════════════
+    {
+      const pgR = await browser.newPage({ viewport: { width: 1200, height: 700 } });
+      await pgR.route('**', r => r.request().url().startsWith('file://') ? r.continue() : r.abort());
+      await pgR.goto('file://' + path.join(APP, 'index.html'), { waitUntil: 'domcontentloaded' });
+      await pgR.waitForTimeout(600);
+      const st = await pgR.evaluate(function () {
+        window.state = window.state || {};
+        state.masterData = [
+          { itemNum: '6469', variation: '', manufacturer: 'Atlas',  _era: 'atlas_o',
+            description: 'Trainman 40ft Box Car', roadName: 'Michigan Central' },
+          { itemNum: '6469', variation: '1', manufacturer: 'Lionel', _era: 'postwar',
+            description: '10-inch Flatcar', roadName: '' }
+        ];
+        state.personalData = state.personalData || {};
+        _rebuildMasterIndex();
+        // wizard is `let`-declared: window.wizard would be a DIFFERENT object.
+        wizard.data = { itemNum: '6469', variation: '1', _era: 'postwar' };
+        wizard.matchedItem = null;
+        var opened = [];
+        var _realOpen = window.open;
+        window.open = function (u) { opened.push(String(u)); return null; };
+        _wizResearchPrice();
+        window.open = _realOpen;
+        var q = decodeURIComponent((opened[0] || '').split('q=')[1] || '');
+        return { url: opened.length, q: q.slice(0, 90) };
+      });
+      await pgR.close();
+      ok('research: the price Research button opened a search at all', st.url === 1);
+      ok('research: …for LIONEL (the wizard\'s own era), not the Atlas twin of the number',
+         /Lionel/i.test(st.q) && !/Atlas/i.test(st.q), st.q);
+      ok('research: …and the query names the actual item', /6469/.test(st.q) && /Flatcar/i.test(st.q), st.q);
+    }
+
   } finally {
     await browser.close();
     try { fs.rmSync(dir, { recursive: true, force: true }); } catch (e) {}

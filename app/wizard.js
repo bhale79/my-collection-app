@@ -756,7 +756,18 @@ window._wizResearchPrice = function () {
     var num = (d.itemNum || d.manualItemNum || d.set_num || d.is_linkedItem || '').toString().trim();
     var m = (typeof wizard !== 'undefined' && wizard.matchedItem) || d.matchedItem || {};
     if (m && m.itemNum && num && String(m.itemNum).trim() !== num) m = {};
-    if ((!m || !m.itemNum) && num && typeof findMaster === 'function') m = findMaster(num) || {};
+    if ((!m || !m.itemNum) && num && typeof findMaster === 'function') {
+      // v0.9.1337 (Brad's 6469): findMaster(num) ALONE is a number-only
+      // first-find — 6469 lives in the Lionel PW *and* Atlas tabs, and the
+      // Research query came out "Atlas 6469…" for his Lionel flatcar. Resolve
+      // with the SAME identity the ADDING banner uses (this function's own
+      // comment has promised that since v0.9.839): the owned row when
+      // editing, else the flow's era hint, plus the chosen variation.
+      var _rpOwn = (d._updatePdKey && typeof state !== 'undefined' && state.personalData)
+        ? state.personalData[d._updatePdKey] : null;
+      var _rpPref = _rpOwn || (d._era ? { era: d._era, manufacturer: d.manufacturer || '' } : null);
+      m = findMaster(num, d.variation, _rpPref) || {};
+    }
     var mfr = m.manufacturer || d.manualManufacturer || ((typeof _brandOfItem === 'function') ? (_brandOfItem(num) || '') : '');
     var road = m.roadName || d.manualRoadName || d.suggestedRoadName || '';
     var desc = m.description || d.manualDesc || '';
