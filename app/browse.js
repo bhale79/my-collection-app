@@ -1421,6 +1421,22 @@ function _roadComboClear() {
 
 
 // ── Alias-aware search: expands abbreviations & nicknames ──
+// v0.9.1316 (Brad: "why does the text search not work"): it ran, but matched
+// EVERYTHING. "helicopter" CONTAINS the two-letter alias keys "co", "ic" and
+// "el", and the old substring rule (query.includes(key)) expanded all three
+// groups — whose term "co" matches nearly every description in the catalog
+// ("LOCOmotive", "SunoCO"), so the list never narrowed and the search looked
+// dead. Two word-boundary rules fix it without losing the shorthand:
+//   1. a key found INSIDE the query counts only as a WHOLE WORD
+//      ("c&o boxcar" still expands C&O; "helicopter" no longer trips "co");
+//   2. a SHORT alias term (≤3 chars) matches the haystack only as a whole
+//      word ("co" hits "C O gondola", never "Sunoco").
+// The prefix direction — typing "fairbank" reaching "fairbanks-morse" — is
+// unchanged.
+function _aliasTermHit(haystack, term) {
+  if (term.length > 3) return haystack.includes(term);
+  return (' ' + haystack + ' ').indexOf(' ' + term + ' ') >= 0;
+}
 function _aliasSearch(haystack, query) {
   // Direct match first (fast path)
   if (haystack.includes(query)) return true;
@@ -1428,17 +1444,20 @@ function _aliasSearch(haystack, query) {
   var aliases = SEARCH_ALIASES[query];
   if (aliases) {
     for (var i = 0; i < aliases.length; i++) {
-      if (haystack.includes(aliases[i])) return true;
+      if (_aliasTermHit(haystack, aliases[i])) return true;
     }
   }
   // Also check if query is a partial match of any alias key
   // e.g. typing "fairbank" should still find the "fairbanks-morse" alias group
   var keys = Object.keys(SEARCH_ALIASES);
+  var qPad = ' ' + query + ' ';
   for (var k = 0; k < keys.length; k++) {
-    if (keys[k].includes(query) || query.includes(keys[k])) {
+    var kIn = keys[k].includes(query)                      // query is a fragment of the key (fairbank)
+      || qPad.indexOf(' ' + keys[k] + ' ') >= 0;           // key sits in the query as a WHOLE WORD
+    if (kIn) {
       var terms = SEARCH_ALIASES[keys[k]];
       for (var j = 0; j < terms.length; j++) {
-        if (haystack.includes(terms[j])) return true;
+        if (_aliasTermHit(haystack, terms[j])) return true;
       }
     }
   }

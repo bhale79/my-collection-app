@@ -17520,6 +17520,67 @@ META_WRITES.length = 0; TOASTS.length = 0;
          /condition: _s\(r\[2\]\), askingPrice: _s\(r\[3\]\), dateListed: _s\(r\[4\]\),\s*\n\s*notes: _s\(r\[5\]\), originalPrice: _s\(r\[6\]\), estWorth: _s\(r\[7\]\),/.test(ad62));
     })();
 
+    // ═══════════════════════════════════════════════════════════
+    // §263. v0.9.1316 — the search that "did not work" (it matched all).
+    //
+    //   Brad: "why does the text search not work" — 'helicopter'
+    //   CONTAINS the alias keys co / ic / el, the substring rule expanded
+    //   their groups, and the term 'co' matched nearly every description
+    //   ("LOCOmotive", "SunoCO"), so the list never narrowed. The REAL
+    //   _aliasSearch runs here with the REAL alias table.
+    // ═══════════════════════════════════════════════════════════
+    section('263. Search: alias keys expand on whole words, never fragments');
+    (function () {
+      const p63 = require('path');
+      const bw63 = fs.readFileSync(p63.join(__dirname, '..', 'app', 'browse.js'), 'utf8');
+      const cf63 = fs.readFileSync(p63.join(__dirname, '..', 'app', 'config.js'), 'utf8');
+      // real alias table
+      const gEq = cf63.indexOf('SEARCH_ALIAS_GROUPS = ');
+      let gd = 0, gEnd = -1;
+      for (let i = cf63.indexOf('[', gEq); i < cf63.length; i++) {
+        if (cf63[i] === '[') gd++;
+        else if (cf63[i] === ']') { gd--; if (!gd) { gEnd = i + 1; break; } }
+      }
+      const GROUPS = eval('(' + cf63.slice(cf63.indexOf('[', gEq), gEnd) + ')');
+      const ALIASES = {};
+      GROUPS.forEach((g) => { const t = g.map((x) => x.toLowerCase()); t.forEach((k) => { ALIASES[k] = t; }); });
+      ok('263 the real alias table still carries the short keys that caused this',
+         !!ALIASES['co'] && !!ALIASES['ic'] && !!ALIASES['el']);
+      // real function
+      const a0 = bw63.indexOf('function _aliasTermHit(');
+      const a1 = bw63.indexOf('\nfunction populateFilters(');
+      ok('263 the search slice was found', a0 > 0 && a1 > a0);
+      const search = new Function('SEARCH_ALIASES', bw63.slice(a0, a1) + ' return _aliasSearch;')(ALIASES);
+      // ── the bug, reproduced then dead ──
+      ok('263 "helicopter" no longer matches the Sunoco tank car',
+         search('2555 sunoco sunoco tank car tank', 'helicopter') === false);
+      ok('263 "helicopter" still finds the helicopter flatcar',
+         search('3419 helicopter launching flat car flatcar', 'helicopter') === true);
+      ok('263 "helicopter" no longer matches a locomotive either — the "co" fragment is dead',
+         search('2338 milwaukee road gp7 diesel locomotive', 'helicopter') === false);
+      // The discriminating probe: the fragment-trigger must die on its own,
+      // not hide behind the short-term rule. "helicopter" contains the key
+      // "ic", whose LONG term "illinois central" would match this item —
+      // only the whole-word trigger rule stops it.
+      ok('263 a fragment-triggered group with a LONG matching term stays dead too',
+         search('6250 illinois central gondola', 'helicopter') === false);
+      // ── the shorthand the rule exists FOR still works ──
+      ok('263 typing the alias itself still expands: "c&o" finds Chesapeake and Ohio',
+         search('6462 chesapeake and ohio gondola', 'c&o') === true);
+      ok('263 a whole-word key inside a longer query still expands',
+         search('6462 chesapeake and ohio gondola', 'c&o gondola') === true);
+      ok('263 the prefix direction survives: "fairbank" reaches its group',
+         (function () {
+           const fk = Object.keys(ALIASES).find((k) => k.includes('fairbank'));
+           if (!fk) return true;   // group not in the table — nothing to prove
+           return search('2321 ' + ALIASES[fk].join(' '), 'fairbank') === true;
+         })());
+      // ── short terms match whole words only ──
+      ok('263 a short alias term never matches inside another word',
+         search('sunoco tank', 'c&o') === false &&
+         search('co gondola', 'c&o') === true);
+    })();
+
   })().then(function () {
     console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
     process.exit(fail ? 1 : 0);
