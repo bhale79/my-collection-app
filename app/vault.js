@@ -208,10 +208,10 @@ function vaultShowOptInModal(fromPrefs) {
         We're building something that doesn't exist anywhere else — real market values and rarity scores based on actual collector data, not guesswork.
       </p>
       <p style="color:var(--text-mid);font-size:0.88rem;line-height:1.7;margin-bottom:16px">
-        If you choose to contribute, your collection's condition and estimated worth data is submitted anonymously in the background. <strong style="color:var(--text)">Your name, email, and identity are never attached to this data — ever.</strong> Only a random anonymous code ties your submissions together, and even we cannot trace it back to you.
+        If you choose to contribute, your collection's condition and estimated worth data is submitted anonymously in the background. <strong style="color:var(--text)">Your name, email, and identity are never attached to this data — ever.</strong> Only a random anonymous code ties your submissions together.
       </p>
       <p style="color:var(--text-mid);font-size:0.88rem;line-height:1.7;margin-bottom:24px">
-        Contributors who help build the database unlock market values and rarity scores once we reach 300 collections. You can opt out and have your data permanently deleted at any time.
+        Contributors who help build the database unlock market values and rarity scores once enough collections have been contributed — the Collector's Market page shows the live count and the target. You can opt out and have your data permanently deleted at any time.
       </p>
 
       <div style="background:var(--bg-card);background:color-mix(in srgb, rgb(255,255,255) 5%, var(--bg-card));border-radius:8px;padding:14px 16px;margin-bottom:24px;border:1px solid var(--border)">
@@ -221,7 +221,7 @@ function vaultShowOptInModal(fromPrefs) {
           ✓ &nbsp;Condition grade<br>
           ✓ &nbsp;Your estimated worth<br>
           ✓ &nbsp;Sold price (if recorded)<br>
-          ✓ &nbsp;Item numbers not in our catalog yet — we review them and add them to the catalog for all collectors<br>
+          ✓ &nbsp;Item numbers not in our catalog yet — so the catalog can keep growing for all collectors<br>
           ✗ &nbsp;<span style="color:var(--text)">Your name, email, or any identifying information — never</span>
         </div>
       </div>
@@ -747,7 +747,7 @@ function vaultRenderPage() {
           ✓ &nbsp;Condition grade<br>
           ✓ &nbsp;Your estimated worth<br>
           ✓ &nbsp;Sold price (if recorded)<br>
-          ✓ &nbsp;Item numbers not in our catalog yet — we review them and add them to the catalog for all collectors<br>
+          ✓ &nbsp;Item numbers not in our catalog yet — so the catalog can keep growing for all collectors<br>
           ✗ &nbsp;<span style="color:var(--text)">Your name, email, or any identifying information — never</span>
         </div>
       </div>

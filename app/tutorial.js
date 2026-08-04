@@ -768,7 +768,7 @@ function _demoPlay(title, scenes) {
 // Safety: saveWizardItem() is short-circuited whenever #wiz-coach exists.
 // ═══════════════════════════════════════════════════════════════
 var _COACH_STEPS = {
-  itemNumGrouping: ['Step 1 — Find the item', 'Type the catalog number — we filled in <b>773</b> (a Hudson). You can narrow a search with the <b>Manufacturer / Era / Type</b> filters, or tap <b>Identify by Photo</b> if you don’t know it. Once it’s found, choose how you’re entering it — here we pick <b>Engine + Tender</b>.'],
+  itemNumGrouping: ['Step 1 — Find the item', 'Type the catalog number — we filled in <b>773</b> (a Hudson). You can narrow a search with the <b>Manufacturer / Era / Type</b> filters, or tap <b>Photo ID</b> if you don’t know it. Once it’s found, choose how you’re entering it — here we pick <b>Engine + Tender</b>.'],
   variation: ['Step 2 — Pick the variation', 'Postwar pieces came in many versions. Choose the exact one — the <b>highlighted words</b> show how each differs from the first. Not sure? Pick <b>No specific variation</b>. The small link jumps to the reference photo.'],
   conditionDetails: ['Step 3 — Condition &amp; details', 'Slide <b>Condition</b> 1–10 and flag <b>Box</b>, <b>Instruction Sheet</b>, <b>Master Box</b> or <b>Error</b>. Because this engine has a tender, you choose <b>which tender</b> came with it and rate it too.'],
   purchaseValue: ['Step 4 — Purchase &amp; value', 'Log <b>what you paid</b>, the <b>date</b>, and an <b>estimated worth</b> (required). In a multi-piece set the other units reference this price.'],

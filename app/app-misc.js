@@ -63,7 +63,7 @@ function showWelcomeCard(force) {
     +   '<div style="font-size:0.86rem;line-height:1.5"><strong style="color:var(--text,#eee)">Your data, your control.</strong> Everything saves to your own Google Sheet &amp; Drive. Open them anytime from Preferences → Account.</div>'
     + '</div>'
 
-    + '<div style="font-size:0.78rem;color:var(--text-dim,#888);line-height:1.5;margin-bottom:14px;text-align:center">Need this again? Preferences → Help &amp; Tips → Show Welcome Tour.</div>'
+    + '<div style="font-size:0.78rem;color:var(--text-dim,#888);line-height:1.5;margin-bottom:14px;text-align:center">Need this again? Preferences → Help &amp; Tips → Help Center.</div>'
 
     + '<div style="display:flex;justify-content:center">'
     +   '<button id="rr-welcome-go" style="padding:0.7rem 1.6rem;border-radius:9px;border:none;background:var(--accent,#e04028);color:#fff;font-weight:600;font-family:inherit;font-size:0.95rem;cursor:pointer">Got it — let\'s go</button>'
@@ -109,11 +109,11 @@ function showAiUsageCard(force) {
     + '</div>'
 
     + '<div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:12px;padding:10px 12px;background:var(--surface2,#222);border-radius:9px;border:1px solid var(--border,#333)">'
-    +   '<div style="font-size:0.86rem;line-height:1.5"><strong style="color:var(--text,#eee)">Photo ID \u2014 20 a day.</strong> When there\'s no barcode and no label worth reading \u2014 an older piece, or one with no box \u2014 the app can work out what it is from a photo. That\'s a photo ID, and you get 20 a day. The count resets overnight, the same photo twice is free, and a failed one is given back.</div>'
+    +   '<div style="font-size:0.86rem;line-height:1.5"><strong style="color:var(--text,#eee)">Photo ID \u2014 a daily allowance.</strong> When there\'s no barcode and no label worth reading \u2014 an older piece, or one with no box \u2014 the app can work out what it is from a photo. That\'s a photo ID, and you get a set number every day. The app always shows how many you have left. The count resets overnight, the same photo twice is free, and a failed one is given back.</div>'
     + '</div>'
 
     + '<div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:18px;padding:10px 12px;background:var(--surface2,#222);border-radius:9px;border:1px solid var(--border,#333)">'
-    +   '<div style="font-size:0.86rem;line-height:1.5"><strong style="color:var(--text,#eee)">Need more than 20 a day?</strong> Buying extra photo IDs is on the way. In the meantime email <a href="mailto:' + admin + '" style="color:var(--accent2,#d4a843);text-decoration:none">' + admin + '</a> and we\'ll sort you out.</div>'
+    +   '<div style="font-size:0.86rem;line-height:1.5"><strong style="color:var(--text,#eee)">Need more?</strong> Email <a href="mailto:' + admin + '" style="color:var(--accent2,#d4a843);text-decoration:none">' + admin + '</a> and we\'ll sort you out.</div>'
     + '</div>'
 
     + '<div style="font-size:0.78rem;color:var(--text-dim,#888);line-height:1.5;margin-bottom:14px;text-align:center">Need this again? Preferences → Help &amp; Tips.</div>'

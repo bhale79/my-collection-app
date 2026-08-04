@@ -110,7 +110,24 @@ function buildToolsPage() {
   // v0.9.1312 (Brad's three twin-folder-scan decisions, 2026-08-03): a
   // ONE-TIME cleanup with a preview-then-confirm flow, same pattern as the
   // photo-name cleanup that ran 2026-07-25. Hides itself once it has run.
-  var CARD_VAULT_CLEANUP = (localStorage.getItem('rr_vault_cleanup_done') === '1') ? '' :
+  // v0.9.1327 — GATED BEHIND DIAGNOSTICS BEFORE THE BETA.
+  //
+  // This card was showing to EVERY user with fresh localStorage, and its text
+  // names Brad's own Drive folders: "merge the doubled 20-93699", "remove three
+  // empty leftover folders (84631, 84631-BOX, 0028CC)", "the old Lionel Vault".
+  // A beta tester would open Collection Tools and find a red-bordered one-time
+  // chore citing item numbers from someone else's collection, an old product
+  // name, and — because _vcFindFolders would not match their Drive — the reply
+  // "The legacy 'Lionel Vault - My Collection' was not found."
+  //
+  // Gating rather than rewording is the honest fix: the strings only exist to
+  // service one migration, which Brad already RAN and verified on 2026-08-03,
+  // so there is nothing here for anyone else to do. rrDiagnostics() is false
+  // for beta, so it disappears; flip DIAGNOSTICS_ENABLED and it comes back
+  // intact if the tool is ever needed again. The done-flag check stays, so
+  // Brad's own copy stays hidden even with diagnostics on.
+  var _vcShow = (typeof rrDiagnostics === 'function') ? rrDiagnostics() : false;
+  var CARD_VAULT_CLEANUP = (!_vcShow || localStorage.getItem('rr_vault_cleanup_done') === '1') ? '' :
     '<div class="tools-card">' +
       '<div class="tools-card-title">' +
         '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#e74c3c" stroke-width="2"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>' +

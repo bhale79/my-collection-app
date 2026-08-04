@@ -493,7 +493,7 @@ function _buildWizardModal() {
         // row of the form. Shown only on the item-number step (renderWizardStep).
         '<button class="btn btn-secondary" id="wizard-idphoto-btn" onclick="_wizIdentifyFromFooter()" ' +
           'style="display:none;margin-right:auto;border-color:#2980b9;color:#2980b9;background:var(--bg-card);background:color-mix(in srgb, rgb(41,128,185) 10%, var(--bg-card));' +
-          'align-items:center;gap:0.35rem;min-width:0" aria-label="Identify by photo">' +
+          'align-items:center;gap:0.35rem;min-width:0" aria-label="Photo ID">' +
           '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="flex-shrink:0">' +
           '<path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 0 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>' +
           '<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Photo ID</span>' +
@@ -617,7 +617,7 @@ function _buildWizardModal() {
     _identEl.innerHTML =
       '<div id="identify-panel">'
       +   '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem">'
-      +     '<div style="font-family:var(--font-head);font-size:1.05rem;color:var(--text);letter-spacing:0.04em">Identify by Photo</div>'
+      +     '<div style="font-family:var(--font-head);font-size:1.05rem;color:var(--text);letter-spacing:0.04em">Photo ID</div>'
       +     '<button onclick="closeIdentify()" style="background:none;border:none;color:var(--text-dim);font-size:1.3rem;cursor:pointer;line-height:1">\u2715</button>'
       +   '</div>'
       +   '<div id="id-photo-area" style="margin-bottom:0.85rem">'
@@ -665,7 +665,18 @@ function _buildWizardModal() {
       +     '<label style="font-size:0.7rem;color:var(--text-dim);letter-spacing:0.06em;text-transform:uppercase;font-weight:600;display:block;margin-bottom:0.3rem">Manufacturer (pick any that might apply)</label>'
       +     '<div id="id-mfr-chips" style="display:flex;flex-wrap:wrap;gap:0.3rem">' + _mfrChips + '</div>'
       +   '</div>'
-      +   '<button id="id-search-btn" type="button" disabled style="width:100%;padding:0.75rem;border-radius:9px;background:var(--surface2);border:1.5px solid var(--border);color:var(--text-dim);font-family:var(--font-head);font-size:0.95rem;letter-spacing:0.05em;cursor:not-allowed;margin-bottom:0.5rem">\ud83d\udd0d Identify from the photo</button>'
+      // v0.9.1327: this was the ONE path in the app that spends a photo ID with
+      // the cost stated NOWHERE — no label, no remaining count, no opt-out —
+      // while the Photo Inbox card, the barcode crop screen and both batch
+      // paths all say what they cost. A user reaching this modal via the Lens
+      // fail-safe could press it three times on a stubborn item and spend three
+      // of the day's reads without a single screen having mentioned a price.
+      // Named like every other button ("Photo ID") and carrying the same
+      // remaining-count line barcode.js already renders.
+      +   '<button id="id-search-btn" type="button" disabled style="width:100%;padding:0.75rem;border-radius:9px;background:var(--surface2);border:1.5px solid var(--border);color:var(--text-dim);font-family:var(--font-head);font-size:0.95rem;letter-spacing:0.05em;cursor:not-allowed;margin-bottom:0.35rem">\ud83d\udd0d Photo ID \u2014 uses 1 photo ID read</button>'
+      +   '<div style="font-size:0.72rem;color:var(--text-dim);text-align:center;margin-bottom:0.5rem">'
+      +     '<span id="id-ai-left" style="color:var(--gold)">' + ((typeof rrAiRemainingLabel === 'function' && rrAiRemainingLabel()) || '') + '</span>'
+      +   '</div>'
       +   '<button id="id-lens-btn" type="button" disabled style="width:100%;padding:0.6rem;border-radius:9px;background:var(--surface2);border:1.5px solid var(--border);color:var(--text);font-family:var(--font-head);font-size:0.9rem;letter-spacing:0.04em;cursor:not-allowed;opacity:0.55;margin-bottom:0.5rem">\ud83d\udd0d Search Google Lens \u2197</button>'
       +   '<button id="id-paste-btn" type="button" style="width:100%;padding:0.6rem;border-radius:9px;background:var(--bg-card);background:color-mix(in srgb, rgb(58,110,165) 15%, var(--bg-card));border:1.5px solid #3a6ea5;color:#cfe3ff;font-family:var(--font-head);font-size:0.9rem;letter-spacing:0.04em;cursor:pointer;margin-bottom:0.5rem">\ud83d\udccb Paste Lens Result</button>'
       +   '<button id="id-shot-btn" type="button" style="width:100%;padding:0.6rem;border-radius:9px;background:var(--bg-card);background:color-mix(in srgb, rgb(46,204,113) 12%, var(--bg-card));border:1.5px solid #2ecc71;color:#c9f5dc;font-family:var(--font-head);font-size:0.9rem;letter-spacing:0.04em;cursor:pointer;margin-bottom:0.5rem">\ud83d\udcf8 Read a Screenshot of the Results</button>'
@@ -678,7 +689,7 @@ function _buildWizardModal() {
       +   '<details id="id-help-block" style="background:var(--surface2);border:1px solid var(--border);border-radius:7px;padding:0.4rem 0.65rem;font-size:0.75rem;color:var(--text-mid);margin-bottom:0.5rem">'
       +     '<summary style="cursor:pointer;color:var(--text);font-weight:600;font-size:0.78rem;list-style:none">How does this work? \u25b8</summary>'
       +     '<ol style="margin:0.5rem 0 0.15rem 1.1rem;padding:0;line-height:1.5">'
-      +       '<li><strong>\ud83d\udd0d Identify from the photo</strong> answers right here in the app (fastest). Prefer Google? <strong>\ud83d\udd0d Search Google Lens</strong> opens a new tab</li>'
+      +       '<li><strong>\ud83d\udd0d Photo ID</strong> answers right here in the app (fastest). Prefer Google? <strong>\ud83d\udd0d Search Google Lens</strong> opens a new tab</li>'
       +       '<li>On the Google page, <strong>select the answer text at the very top</strong> (the boxed summary Google shows first)</li>'
       +       '<li>Copy it (<kbd>Ctrl</kbd>+<kbd>C</kbd>)</li>'
       +       '<li>OR just <strong>screenshot the answer</strong> (use scroll capture for long answers)</li>'
@@ -2417,7 +2428,7 @@ function renderWizardStep() {
         <div id="wiz-suggestions" style="display:none;flex-direction:column;gap:1px;margin-top:4px;max-height:340px;overflow-y:auto;overflow-x:hidden;box-sizing:border-box;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:4px;-webkit-overflow-scrolling:touch"></div>
         ${s.optional ? '<div style="font-size:0.75rem;color:var(--text-dim);margin-top:0.5rem">Optional — press Next to skip</div>' : ''}
         <div id="wiz-match" style="margin-top:0.75rem"></div>
-        ${s.id === 'itemNum' && wizard.tab !== 'sold' ? `
+        ${s.id === 'itemNum' && wizard.tab !== 'sold' && !window.IS_MOBILE_UA ? `
         <button onclick="_wizScanBarcode()" style="
           width:100%;margin-top:0.6rem;padding:0.65rem 1rem;
           border-radius:8px;border:1.5px dashed #2980b9;
@@ -2428,7 +2439,7 @@ function renderWizardStep() {
           transition:all 0.15s
         ">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 0 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
-          Don't know the number? Identify by photo
+          Don't know the number? Photo ID
         </button>` : ''}
         ${showBoxOnly ? `
         <label onclick="toggleBoxOnly()" style="
@@ -4938,7 +4949,7 @@ function renderWizardStep() {
       const _ingPhotoBtn = document.createElement('button');
       _ingPhotoBtn.onclick = function() { if (typeof _wizScanBarcode === 'function') _wizScanBarcode(); else openIdentify('wizard'); };
       _ingPhotoBtn.style.cssText = 'width:100%;margin-top:0.6rem;padding:0.65rem 1rem;border-radius:8px;border:1.5px dashed #2980b9;background:rgba(41,128,185,0.08);color:#2980b9;font-family:var(--font-head);font-size:0.78rem;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:0.5rem;transition:all 0.15s';
-      _ingPhotoBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 0 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg> Don\x27t know the number? Identify by photo';
+      _ingPhotoBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 0 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg> Don\x27t know the number? Photo ID';
       _ingWrap.appendChild(_ingPhotoBtn);
 
       // v0.9.674 (Brad): ONE identify button — the yellow wording with the blue

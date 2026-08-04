@@ -139,11 +139,41 @@ async function _insurancePDF() {
 }
 
 // Generic table PDF (Full Collection / Want-Upgrade-Parts) from the rendered table.
+// v0.9.1327 — ONE reader for a report's title, instead of two guesses.
+//
+// Both exporters (PDF and the Google Doc / print HTML) computed the title as
+// `(type === 'collection') ? 'Full Collection' : 'Want / Upgrade / Parts'` —
+// i.e. "anything that is not the collection report must be the want report."
+// It is not: REPORT_DEFS also has 'insurance' and 'contacts', and _repSetType
+// appends unknown option values, so custom saved reports (custom:<id>) land
+// here too. Exporting the Contacts report produced a document headed
+// "THE RAIL ROSTER — Want / Upgrade / Parts", saved as
+// want-upgrade-parts-<date>.pdf. A collector emails that to a dealer.
+//
+// The report registry already knows every report's real name, so ask it.
+function _repTitleOf(type) {
+  try {
+    if (typeof REPORT_DEFS !== 'undefined' && Array.isArray(REPORT_DEFS)) {
+      var d = REPORT_DEFS.find(function (r) { return r && r.id === type; });
+      if (d && d.name) return d.name;
+    }
+  } catch (e) {}
+  // A custom saved report carries its own name in the picker; fall back to a
+  // truthful generic rather than to another report's title.
+  if (typeof type === 'string' && type.indexOf('custom:') === 0) return 'Custom Report';
+  return 'Collection Report';
+}
+// Filename twin of the above — same source, so the two can never disagree.
+function _repSlugOf(type) {
+  return String(_repTitleOf(type) || 'report')
+    .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'report';
+}
+
 function _tablePDF(type) {
   _repBtnBusy('Building PDF…');
   var doc = new window.jspdf.jsPDF({ unit: 'pt', format: 'letter', orientation: 'landscape' });
   var pageW = doc.internal.pageSize.getWidth(), pageH = doc.internal.pageSize.getHeight(), M = 36, y = 40;
-  var title = (type === 'collection') ? 'Full Collection' : 'Want / Upgrade / Parts';
+  var title = _repTitleOf(type);
   doc.setFont('helvetica', 'bold'); doc.setFontSize(15); doc.setTextColor(240, 80, 8);
   doc.text('THE RAIL ROSTER — ' + title, M, y); y += 8;
   doc.setDrawColor(200); doc.line(M, y, pageW - M, y); y += 16;
@@ -162,7 +192,7 @@ function _tablePDF(type) {
   }
   if (heads.length) { doc.setFillColor(238, 238, 238); doc.rect(M, y - 4, pageW - M * 2, 18, 'F'); row(heads, true); }
   rows.forEach(function (r) { row(r, false); });
-  var _fn2 = (type === 'collection' ? 'full-collection' : 'want-upgrade-parts') + '-' + new Date().toISOString().slice(0, 10) + '.pdf';
+  var _fn2 = _repSlugOf(type) + '-' + new Date().toISOString().slice(0, 10) + '.pdf';
   try { _archiveBlob(doc.output('blob'), _fn2, 'application/pdf'); } catch (e) {}
   doc.save(_fn2);
   _repBtnDone('PDF downloaded · copy saved to "Past reports"');
@@ -234,7 +264,7 @@ function _reportToHTML(type) {
   var rws = [].slice.call(tbody.querySelectorAll('tr')).map(function (tr) {
     return '<tr>' + [].slice.call(tr.querySelectorAll('td')).map(function (td) { return '<td>' + esc(td.textContent.trim()) + '</td>'; }).join('') + '</tr>';
   }).join('');
-  var title = (type === 'collection') ? 'Full Collection' : 'Want / Upgrade / Parts';
+  var title = _repTitleOf(type);
   return '<html><body style="font-family:Arial,sans-serif;color:#111"><h1>' + title + '</h1>' +
     '<table border="1" cellspacing="0" cellpadding="5" style="border-collapse:collapse;width:100%;font-size:11px">' +
     '<thead><tr style="background:#eee">' + heads + '</tr></thead><tbody>' + rws + '</tbody></table></body></html>';

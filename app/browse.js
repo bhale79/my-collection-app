@@ -2872,7 +2872,9 @@ function renderBrowse() {
       + '<div style="max-width:520px;margin:0 auto;background:rgba(41,128,185,0.10);border:1px solid #2980b9;border-radius:12px;padding:1.5rem 1.2rem">'
       + '<div style="font-size:2rem;margin-bottom:0.5rem">🔍</div>'
       + '<p style="font-weight:700;font-size:1rem;margin-bottom:0.45rem;color:#2980b9">Please select a filter to start viewing the catalog.</p>'
-      + '<p style="font-size:0.85rem;color:var(--text-mid);line-height:1.5">Pick an era, manufacturer, or scale above — or type an item number, road name, or description to search all 60,000+ items across every era.</p>'
+      + '<p style="font-size:0.85rem;color:var(--text-mid);line-height:1.5">Pick an era, manufacturer, or scale above — or type an item number, road name, or description to search all '
+      + ((typeof BRAND_CATALOG_COUNT === 'string') ? BRAND_CATALOG_COUNT : '130,000+')
+      + ' items across every era.</p>'
       + '</div>'
       + '</div></td></tr>';
     const _gcards = document.getElementById('browse-cards');

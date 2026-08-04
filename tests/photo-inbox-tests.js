@@ -18353,6 +18353,158 @@ META_WRITES.length = 0; TOASTS.length = 0;
          /_bg\.valueRanges && _bg\.valueRanges\[i\]/.test(ast));
     })();
 
+    // ═══════════════════════════════════════════════════════════
+    // §272. v0.9.1327 — say only what is true, and say it once.
+    //
+    //   Brad's brief: "check all branding as well that we don't make
+    //   promises that we can[not] verify, don't mention ai anywhere."
+    //
+    //   The costliest find was NOT a wrong claim — it was the same
+    //   claim in two places with two different numbers: the sign-in
+    //   screen said "130,000+ items already catalogued" while the
+    //   Master Catalog page said "60,000+". Both hand-typed, so both
+    //   guesses. Counted against the live master (34 item tabs,
+    //   column A from row 3): 138,453 rows, 135,137 excluding boxes /
+    //   paper / catalogs. So 130,000+ was true and conservative and
+    //   60,000+ understated the catalogue by more than half.
+    //
+    //   The fix is not "correct the number" — a hand-typed number goes
+    //   stale again the day the master grows. It is stated ONCE, in
+    //   config.js, and both screens read it.
+    // ═══════════════════════════════════════════════════════════
+    section('272. Branding: one claim, one source, nothing unprovable');
+    (function () {
+      const p72 = require('path');
+      const rd72 = f => fs.readFileSync(p72.join(__dirname, '..', 'app', f), 'utf8');
+      const strip = t => t.replace(/\/\/[^\n]*/g, m => ' '.repeat(m.length));
+      const cfg = rd72('config.js'), brw = strip(rd72('browse.js'));
+      const ast = strip(rd72('app-setup.js')), mis = strip(rd72('app-misc.js'));
+      const vlt = strip(rd72('vault.js')), onb = strip(rd72('onboarding-config.js'));
+      const tls = strip(rd72('tools.js')), rex = strip(rd72('report-export.js'));
+      const wiz = strip(rd72('wizard.js')), tut = strip(rd72('tutorial.js'));
+      const apg = strip(rd72('app-pages.js'));
+
+      // ── one source for the catalogue size ──
+      ok('272 the catalogue count is declared once, in config',
+         /const BRAND_CATALOG_COUNT = '130,000\+';/.test(cfg) &&
+         /window\.BRAND_CATALOG_COUNT = BRAND_CATALOG_COUNT;/.test(cfg));
+      ok('272 …and the counted evidence is written down beside it',
+         /138,453 filled rows/.test(cfg) && /135,137/.test(cfg) && /MASTER_SHEET_ID/.test(cfg));
+      ok('272 the Master Catalog page reads it instead of naming a number',
+         /BRAND_CATALOG_COUNT === 'string'\) \? BRAND_CATALOG_COUNT/.test(brw));
+      ok('272 the sign-in screen reads it too',
+         /_cat = \(typeof BRAND_CATALOG_COUNT === 'string'\)/.test(ast) &&
+         /' \+ _cat \+ ' items already catalogued/.test(ast));
+      // A number may still appear as the FALLBACK inside the typeof guard —
+      // that is correct (config failing to load should not print "undefined
+      // items"). What must not exist is a number stated on its own. So strip
+      // the fallback expressions first, then look.
+      const noFallback = t => t.replace(/\(typeof BRAND_CATALOG_COUNT === 'string'\)[^;]*?'[\d,+]+'/g, '')
+                               .replace(/BRAND_CATALOG_COUNT === 'string'\)[^;]*?'[\d,+]+'/g, '');
+      ok('272 no screen states a catalogue size on its own',
+         !/[\d,]{6,}\+ ?items/i.test(noFallback(brw)) &&
+         !/[\d,]{6,}\+ ?items/i.test(noFallback(ast)),
+         'browse/app-setup');
+      ok('272 …and the stale 60,000+ is gone from every screen',
+         !/60,000\+/.test(noFallback(brw)) && !/60,000\+/.test(noFallback(ast)));
+
+      // ── no promise the app cannot keep ──
+      ok('272 the unbuilt "buying extra photo IDs" promise is gone',
+         !/is on the way/.test(mis));
+      ok('272 the daily cap is described, not numbered (premium is not 20)',
+         !/20 a day/.test(mis) && /a daily allowance/.test(mis) &&
+         /always shows how many you have left/.test(mis));
+      // The reason, from the file that already got this right.
+      ok('272 …consistent with the read-counter that deliberately omits a denominator',
+         /Deliberately NO denominator/.test(rd72('ai-id.js')));
+      ok('272 the contribution-review certainty is softened to what the app can do',
+         !/we review them and add them/.test(vlt) &&
+         !/reviewed and added for all collectors/.test(onb) &&
+         /so the catalog can keep growing/.test(vlt));
+      ok('272 the server-owned reveal threshold is no longer typed into prose',
+         !/once we reach 300 collections/.test(vlt) && !/once we reach 300 collections/.test(onb));
+      ok('272 …and the live threshold is still read from the server',
+         /data\.reveal_threshold\s+\|\| VAULT\.REVEAL_THRESHOLD/.test(vlt));
+
+      // ── privacy claims no stronger than the flow supports ──
+      ok('272 the absolute "even we cannot trace it" claim is gone',
+         !/cannot trace it back/i.test(vlt + onb));
+      ok('272 …while the narrower, true claim remains',
+         /name, email, and identity are never attached/.test(vlt));
+      ok('272 the consent screen names whose photo service it is',
+         /a secure automated photo-reading service \(Google/.test(onb));
+      ok('272 …matching the privacy policy rather than contradicting it',
+         /automated photo-reading service \(Google/.test(
+           fs.readFileSync(p72.join(__dirname, '..', 'privacy', 'index.html'), 'utf8')));
+      ok('272 the disclosure list names the catalog fields that really are sent',
+         /road name and number, and any barcode you have paired/.test(onb));
+
+      // ── nobody else's chore on a beta tester's screen ──
+      ok('272 the one-time Vault Cleanup card is gated behind diagnostics',
+         /var _vcShow = \(typeof rrDiagnostics === 'function'\) \? rrDiagnostics\(\) : false;/.test(tls) &&
+         /\(!_vcShow \|\| localStorage\.getItem\('rr_vault_cleanup_done'\) === '1'\)/.test(tls));
+      ok('272 …and diagnostics really is off for the beta',
+         /const DIAGNOSTICS_ENABLED = false;/.test(cfg));
+
+      // ── a report is titled what it IS ──
+      ok('272 report titles come from the report registry, not from an else-branch',
+         /function _repTitleOf\(type\)/.test(rex) &&
+         !/\? 'Full Collection' : 'Want \/ Upgrade \/ Parts'/.test(rex));
+      ok('272 …and the filename comes from the same source',
+         /function _repSlugOf\(type\)/.test(rex) && !/'want-upgrade-parts'\)/.test(rex));
+      // Run it: every registered report must title itself correctly, and the
+      // two that used to be mislabelled are the point.
+      const rl = rd72('report-library.js');
+      const defs = new Function('"use strict";' + rl.slice(rl.indexOf('var REPORT_DEFS'),
+        rl.indexOf('function _repMeta')) + '; return REPORT_DEFS;')();
+      const tI = rex.indexOf('function _repTitleOf(type)');
+      const tE = rex.indexOf('function _tablePDF(type)');
+      const titleOf = new Function('REPORT_DEFS',
+        '"use strict";' + rd72('report-export.js').slice(tI, tE) + '; return _repTitleOf;')(defs);
+      ok('272 the Contacts report is titled "Contacts", not another report\'s name',
+         titleOf('contacts') === 'Contacts', String(titleOf('contacts')));
+      ok('272 the Insurance report is titled "Insurance Report"',
+         titleOf('insurance') === 'Insurance Report', String(titleOf('insurance')));
+      ok('272 …and the two that were already right stay right',
+         titleOf('collection') === 'Full Collection' &&
+         titleOf('wantupgrade') === 'Want / Upgrade / Parts');
+      ok('272 a custom saved report gets a truthful generic, not a borrowed title',
+         titleOf('custom:abc') === 'Custom Report', String(titleOf('custom:abc')));
+      ok('272 an unknown type does not inherit the want-list title either',
+         titleOf('somethingNew') === 'Collection Report', String(titleOf('somethingNew')));
+
+      // ── one name per thing, and the name on the button wins ──
+      ok('272 the coach mark names the button that actually exists',
+         /tap <b>Photo ID<\/b>/.test(tut) && !/Identify by Photo<\/b>/.test(tut));
+      ok('272 the screen-reader label matches the visible text',
+         /aria-label="Photo ID">/.test(wiz) && !/aria-label="Identify by photo">/.test(wiz));
+      ok('272 the identify modal is named like every other spend button',
+         !/Identify from the photo/.test(wiz) && /Photo ID \\u2014 uses 1 photo ID read/.test(wiz));
+      ok('272 …and STATES its cost and the reads left (it stated neither)',
+         /id="id-ai-left"/.test(wiz) && /rrAiRemainingLabel === 'function'/.test(wiz));
+      ok('272 the For Sale flow no longer shows two buttons for one action on a phone',
+         /s\.id === 'itemNum' && wizard\.tab !== 'sold' && !window\.IS_MOBILE_UA \?/.test(wiz));
+      ok('272 the welcome card points at a Help & Tips row that exists',
+         !/Show Welcome Tour/.test(mis) && /Help &amp; Tips → Help Center/.test(mis));
+      ok('272 …and that row really is what Preferences offers',
+         /Help Center/.test(strip(rd72('prefs.js'))));
+
+      // ── Back honours where you came from, on every detail page ──
+      ok('272 the Sold detail page reads _detailReturn instead of hardcoding Sold',
+         /var _sRet = window\._detailReturn \|\| '';/.test(apg) &&
+         /_sLabel = 'Back to Dashboard';/.test(apg));
+      ok('272 …with Sold still the fallback when nothing set an origin',
+         /var _sLabel = 'Back to Sold';/.test(apg));
+
+      // ── the standing rule, still held ──
+      const visible = [mis, vlt, onb, tls, rex, wiz, tut, apg, brw, ast].join('\n');
+      const aiHits = (visible.match(/\bA\.?I\b/g) || []).filter(function (m) { return true; });
+      ok('272 no user-facing copy says "AI"',
+         aiHits.length === 0, aiHits.slice(0, 5).join(','));
+      ok('272 …nor the words a reader would take for it',
+         !/artificial intelligence|machine learning|ChatGPT|OpenAI/i.test(visible));
+    })();
+
   })().then(function () {
     console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
     process.exit(fail ? 1 : 0);

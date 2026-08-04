@@ -1800,9 +1800,27 @@ function showSoldDetailPage(key) {
 
   var html = ''
     + '<div style="margin-bottom:1.5rem">'
-    +   '<button onclick="showPage(\'sold\');buildSoldPage()" style="background:none;border:none;color:#2980b9;font-family:var(--font-body);font-size:1.1rem;font-weight:700;cursor:pointer;padding:0;margin-bottom:0.75rem;display:flex;align-items:center;gap:0.4rem">'
-    +     '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></svg> Back to Sold'
-    +   '</button>'
+    // v0.9.1327: Back honours where you CAME FROM, like the two other detail
+    // pages already do. This one was hardcoded to the Sold page, so opening a
+    // sold item from a dashboard card and pressing Back dumped you on Sold —
+    // the same lost-your-place bug v0.9.1022 fixed for the item detail page.
+    // Same _detailReturn contract; only the two origins that actually set it
+    // before reaching here are branched, and Sold stays the fallback.
+    +   (function () {
+          var _sRet = window._detailReturn || '';
+          var _sLabel = 'Back to Sold';
+          var _sFn = 'showPage(&apos;sold&apos;);buildSoldPage()';
+          if (_sRet === 'dashboard') {
+            _sLabel = 'Back to Dashboard';
+            _sFn = 'delete window._detailReturn;showPage(&apos;dashboard&apos;);if(typeof buildDashboard===&apos;function&apos;)buildDashboard()';
+          } else if (_sRet === 'tools') {
+            _sLabel = 'Back to Collection Tools';
+            _sFn = 'delete window._detailReturn;showPage(&apos;tools&apos;);buildToolsPage()';
+          }
+          return '<button onclick="' + _sFn + '" style="background:none;border:none;color:#2980b9;font-family:var(--font-body);font-size:1.1rem;font-weight:700;cursor:pointer;padding:0;margin-bottom:0.75rem;display:flex;align-items:center;gap:0.4rem">'
+            + '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></svg> ' + _sLabel
+            + '</button>';
+        })()
     +   '<div style="display:flex;align-items:flex-start;gap:1rem;flex-wrap:wrap">'
     +     '<div style="flex:1;min-width:0">'
     +       '<div style="display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap;margin-bottom:0.25rem">'

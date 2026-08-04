@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.1326';
+const APP_VERSION = 'v0.9.1327';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -265,6 +265,28 @@ const ADMIN_EMAIL  = 'support@therailroster.com';
 // The app covers EVERY era (prewar, postwar, modern) and EVERY maker
 // (Lionel, Atlas, MTH, Weaver, Williams...) — keep this copy maker-neutral.
 const BRAND_TAGLINE = 'Model Train Collection Tracker';
+// v0.9.1327 — THE CATALOGUE SIZE, COUNTED, IN ONE PLACE.
+//
+// The app was making this claim in two places with two different numbers: the
+// sign-in screen said "130,000+ items already catalogued" while the Master
+// Catalog page said "search all 60,000+ items". Both were typed by hand, so
+// both were guesses, and they could not both be right.
+//
+// Counted 2026-08-04 against the live master sheet (34 item tabs, column A
+// from row 3): 138,453 filled rows. Excluding the tabs that are not items —
+// boxes, sets, catalogs, instruction sheets, paper, companions, service tools,
+// science and construction — the strict item count is 135,137. Biggest tabs:
+// MTH O 31,924 · Lionel MPC-Modern 23,248 · Atlas N 17,553 · Atlas HO 15,971 ·
+// Atlas O 12,962 · Weaver O 12,566.
+//
+// So "130,000+" is true and deliberately conservative on either reading, and
+// "60,000+" understated the catalogue by more than half. Stated ONCE here, per
+// the single-source-of-truth rule, so the next person to change the master
+// cannot leave a stale number behind on a screen they forgot about.
+//
+// Re-count before changing it: config.js has MASTER_SHEET_ID, and the count is
+// column A of every item tab from row 3 down.
+const BRAND_CATALOG_COUNT = '130,000+';
 const BRAND_BLURB   = 'A web-based inventory tool for model train collectors. '
                     + 'Track every item, variation, and box in your collection '
                     + '— across every era and every maker.';
@@ -275,6 +297,7 @@ const BRAND_WORDMARK_HTML =
 if (typeof window !== 'undefined') {
   window.BRAND_TAGLINE = BRAND_TAGLINE;
   window.BRAND_BLURB = BRAND_BLURB;
+  window.BRAND_CATALOG_COUNT = BRAND_CATALOG_COUNT;
   window.BRAND_WORDMARK_HTML = BRAND_WORDMARK_HTML;
 }
 
