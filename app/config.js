@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.1327';
+const APP_VERSION = 'v0.9.1329';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -272,12 +272,19 @@ const BRAND_TAGLINE = 'Model Train Collection Tracker';
 // Catalog page said "search all 60,000+ items". Both were typed by hand, so
 // both were guesses, and they could not both be right.
 //
-// Counted 2026-08-04 against the live master sheet (34 item tabs, column A
-// from row 3): 138,453 filled rows. Excluding the tabs that are not items —
-// boxes, sets, catalogs, instruction sheets, paper, companions, service tools,
-// science and construction — the strict item count is 135,137. Biggest tabs:
-// MTH O 31,924 · Lionel MPC-Modern 23,248 · Atlas N 17,553 · Atlas HO 15,971 ·
-// Atlas O 12,962 · Weaver O 12,566.
+// Counted 2026-08-04 against the live master sheet: 135,159 items across the
+// 22 item tabs. (Plus ~3,300 rows on the non-item tabs — boxes, sets, catalogs,
+// instruction sheets, paper, companions, service tools, science, construction —
+// for ~138,500 rows in total.) Biggest tabs: MTH O 31,925 ·
+// Lionel MPC-Modern 23,249 · Atlas N 17,554 · Atlas HO 15,972 ·
+// Atlas O 12,963 · Weaver O 12,567.
+//
+// Method matters, because the first pass got it wrong twice: the header is on
+// ROW 1 and data starts on ROW 2 (a scan from row 3 loses one row per tab and
+// reads the first data row as a header), and columns must be resolved by NAME
+// using MASTER_COL_SPEC's aliases — the Atlas tabs head the column 'Item #'
+// where the Lionel tabs say 'Item Number', so a name list missing 'item'
+// silently reports all four Atlas tabs as empty.
 //
 // So "130,000+" is true and deliberately conservative on either reading, and
 // "60,000+" understated the catalogue by more than half. Stated ONCE here, per

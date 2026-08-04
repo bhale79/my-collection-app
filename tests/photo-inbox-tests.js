@@ -18388,8 +18388,13 @@ META_WRITES.length = 0; TOASTS.length = 0;
       ok('272 the catalogue count is declared once, in config',
          /const BRAND_CATALOG_COUNT = '130,000\+';/.test(cfg) &&
          /window\.BRAND_CATALOG_COUNT = BRAND_CATALOG_COUNT;/.test(cfg));
+      // Assert the EVIDENCE is recorded, not one particular figure — the count
+      // will change as the master grows, and pinning the digits would make this
+      // fail on an honest re-count rather than on a missing justification.
       ok('272 …and the counted evidence is written down beside it',
-         /138,453 filled rows/.test(cfg) && /135,137/.test(cfg) && /MASTER_SHEET_ID/.test(cfg));
+         /Counted 2026-\d\d-\d\d against the live master sheet/.test(cfg) &&
+         /[\d,]{6,} items across the/.test(cfg) &&
+         /MASTER_COL_SPEC/.test(cfg) && /ROW 1/.test(cfg));
       ok('272 the Master Catalog page reads it instead of naming a number',
          /BRAND_CATALOG_COUNT === 'string'\) \? BRAND_CATALOG_COUNT/.test(brw));
       ok('272 the sign-in screen reads it too',
