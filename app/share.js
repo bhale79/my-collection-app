@@ -482,6 +482,26 @@ async function _fetchPhotoAsDataUrl(fileId) {
   });
   if (!res.ok) return null;
   var blob = await res.blob();
+  // v0.9.1334 (Brad): "why are some photos rotated in the actual pdf, they
+  // are not in the preview." Phone JPEGs store their pixels sideways plus an
+  // EXIF orientation flag. Browsers honor the flag (so the preview and the
+  // image cards look right); jsPDF draws the RAW pixels (so the PDF came out
+  // sideways). Decode the way the browser does, then re-encode: the pixels
+  // are now genuinely upright and the flag is gone. Re-encoding also strips
+  // the whole EXIF block — including GPS — from photos that end up inside a
+  // PDF handed to a stranger, and makes rrShareFitBox's width/height match
+  // what the eye sees (a sideways photo used to be fitted with its
+  // dimensions swapped). If ANY part of this fails (old browser, odd file),
+  // fall back to the raw bytes below — no worse than today.
+  try {
+    var _bmp = await createImageBitmap(blob, { imageOrientation: 'from-image' });
+    var _c = document.createElement('canvas');
+    _c.width = _bmp.width; _c.height = _bmp.height;
+    _c.getContext('2d').drawImage(_bmp, 0, 0);
+    if (_bmp.close) _bmp.close();
+    var _norm = _c.toDataURL('image/jpeg', 0.92);
+    if (_norm && _norm.indexOf('data:image/jpeg') === 0) return _norm;
+  } catch (eOrient) { /* fall through to the raw reader */ }
   return new Promise(function(resolve) {
     var reader = new FileReader();
     reader.onload = function(e) { resolve(e.target.result); };

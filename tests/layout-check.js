@@ -1739,6 +1739,82 @@ window.__pageReady = runSharedPhotos();
       }
     }
 
+    // ══════════════════════════════════════════════════════════════════
+    // PDF photos come out UPRIGHT (v0.9.1334)
+    //
+    // Brad: "why are some photos rotated in the actual pdf, they are not
+    // in the preview." Phone JPEGs store pixels sideways plus an EXIF
+    // orientation flag; the browser honors the flag, jsPDF draws the raw
+    // pixels. _fetchPhotoAsDataUrl now decodes the way the browser does
+    // and re-encodes. This drives the REAL fetcher over a REAL JPEG whose
+    // EXIF flag says "rotate 90°" (stored 40×20, must come back 20×40,
+    // flag gone), plus a plain JPEG that must keep its shape.
+    // ══════════════════════════════════════════════════════════════════
+    {
+      const ROT6 = '/9j/4AAQSkZJRgABAQAAAQABAAD/4QAiRXhpZgAATU0AKgAAAAgAAQESAAMAAAABAAYAAAAAAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAARCAAUACgDASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwDk6KKK+aP0kKKKKACiiigAooooAKKKKACiiigD/9k=';
+      const PLAIN = '/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAARCAAUACgDASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwDk6KKK+aP0kKKKKACiiigAooooAKKKKACiiigD/9k=';
+      const shareSrc34 = fs.readFileSync(path.join(APP, 'share.js'), 'utf8');
+      const fp34 = path.join(dir, 'exif-fetch.html');
+      fs.writeFileSync(fp34, `<!doctype html><html><body><script>
+        window.accessToken = 'test-token';
+        window.state = {};
+      <\/script><script>${shareSrc34}<\/script></body></html>`);
+      const pg34 = await browser.newPage({ viewport: { width: 400, height: 300 } });
+      await pg34.route('**', r => r.request().url().startsWith('file://') ? r.continue() : r.abort());
+      await pg34.goto('file://' + fp34);
+      const st34 = await pg34.evaluate(async function (fx) {
+        function b64blob(b64) {
+          var bin = atob(b64), u = new Uint8Array(bin.length);
+          for (var i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
+          return new Blob([u], { type: 'image/jpeg' });
+        }
+        var current = null;
+        window.fetch = async function () { return { ok: true, blob: async function () { return b64blob(current); } }; };
+        // MEASURE WHAT jsPDF SEES, not what a browser displays. A first
+        // version of this check loaded the result into an <img> — and the
+        // browser applied the EXIF flag there too, so the check passed even
+        // WITHOUT the fix (the mutation drill caught it). The stored-pixel
+        // truth comes from decoding with imageOrientation:'none'.
+        // Chrome quietly treats imageOrientation:'none' as from-image now,
+        // so even createImageBitmap cannot be trusted to show raw pixels.
+        // Read the JPEG's own SOF header — the exact bytes jsPDF reads.
+        function storedDims(dataUrl) {
+          var bin = atob(dataUrl.split(',')[1]);
+          for (var i = 2; i < bin.length - 9; ) {
+            if (bin.charCodeAt(i) !== 0xFF) { i++; continue; }
+            var m = bin.charCodeAt(i + 1);
+            if (m >= 0xC0 && m <= 0xCF && m !== 0xC4 && m !== 0xC8 && m !== 0xCC) {
+              return { h: (bin.charCodeAt(i + 5) << 8) | bin.charCodeAt(i + 6),
+                       w: (bin.charCodeAt(i + 7) << 8) | bin.charCodeAt(i + 8) };
+            }
+            i += 2 + ((bin.charCodeAt(i + 2) << 8) | bin.charCodeAt(i + 3));
+          }
+          return null;
+        }
+        function hasExifMarker(dataUrl) {
+          var bin = atob(dataUrl.split(',')[1]);
+          return bin.indexOf('Exif\u0000\u0000') !== -1;
+        }
+        current = fx.rot;
+        var rotUrl = await _fetchPhotoAsDataUrl('fake-rot');
+        var rotDims = rotUrl ? storedDims(rotUrl) : null;
+        current = fx.plain;
+        var plainUrl = await _fetchPhotoAsDataUrl('fake-plain');
+        var plainDims = plainUrl ? storedDims(plainUrl) : null;
+        return {
+          rotIsJpeg: !!rotUrl && rotUrl.indexOf('data:image/jpeg') === 0 && !hasExifMarker(rotUrl),
+          rotDims: rotDims, plainDims: plainDims,
+          rotUpright: !!rotDims && rotDims.w === 20 && rotDims.h === 40,
+          plainKept: !!plainDims && plainDims.w === 40 && plainDims.h === 20
+        };
+      }, { rot: ROT6, plain: PLAIN });
+      await pg34.close();
+      ok('exif: the STORED pixels of a sideways phone JPEG come out upright (20×40 raw, was 40×20 raw)',
+         st34.rotUpright, JSON.stringify(st34.rotDims));
+      ok('exif: …re-encoded as JPEG with the EXIF block (orientation, GPS) gone from the bytes', st34.rotIsJpeg);
+      ok('exif: a photo with no flag keeps its exact shape', st34.plainKept, JSON.stringify(st34.plainDims));
+    }
+
   } finally {
     await browser.close();
     try { fs.rmSync(dir, { recursive: true, force: true }); } catch (e) {}
