@@ -1600,6 +1600,32 @@ window.__pageReady = runSharedPhotos();
       } catch (e) {}
     }
 
+    // ══════════════════════════════════════════════════════════════════
+    // The description box is OPAQUE, MEASURED (v0.9.1320)
+    //
+    // Brad: "the logo doesn't make it hard to read" — the fix is only real
+    // if var(--surface) actually resolves to a fully opaque colour with the
+    // app's stylesheet loaded. A theme regression that made it transparent
+    // would silently bring the watermark bleed back.
+    // ══════════════════════════════════════════════════════════════════
+    {
+      const opPage = `<!doctype html><html><head><meta charset="utf-8">
+<link rel="stylesheet" href="file://${APP}/app.css">
+</head><body>
+<div id="desc-box" style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:0.75rem 0.9rem">Variation Description text</div>
+</body></html>`;
+      const fpo = path.join(dir, 'desc-box.html');
+      fs.writeFileSync(fpo, opPage);
+      const pgo = await browser.newPage({ viewport: { width: 600, height: 300 } });
+      await pgo.goto('file://' + fpo);
+      const bg = await pgo.evaluate(function () {
+        return getComputedStyle(document.getElementById('desc-box')).backgroundColor;
+      });
+      await pgo.close();
+      ok('descbox: var(--surface) resolves to a fully OPAQUE colour — the watermark cannot bleed through',
+         /^rgb\(/.test(bg) || /^rgba\([^)]*, ?1\)$/.test(bg), bg);
+    }
+
   } finally {
     await browser.close();
     try { fs.rmSync(dir, { recursive: true, force: true }); } catch (e) {}

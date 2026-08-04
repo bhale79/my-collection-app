@@ -17725,6 +17725,13 @@ META_WRITES.length = 0; TOASTS.length = 0;
          /full: String\(m\.varDesc \|\| m\.description \|\| ''\)/.test(ac65));
       ok('265 the helper feeds the selected row\'s OWN words to the deep-link picker',
          /window\.cottAnchorUrl\(rl, _vn, \(typeof window\.cottRowWords === 'function' && mRow\) \? window\.cottRowWords\(mRow\) : ''\)/.test(ac65));
+      // ══ v0.9.1320 (Brad): "need to put the description text in a box with
+      // a white background so the logo doesn't make it hard to read" ══
+      ok('265 the detail description sits in an OPAQUE surface card',
+         /var _descBlock = _descInner\.trim\(\)/.test(ac65) &&
+         /background:var\(--surface\);border:1px solid var\(--border\);border-radius:10px;padding:0\.75rem 0\.9rem;margin-top:0\.5rem/.test(ac65));
+      ok('265 an item with no description text renders no empty box',
+         /: '';/.test(ac65.slice(ac65.indexOf('var _descBlock = _descInner.trim()'), ac65.indexOf('var _descBlock = _descInner.trim()') + 400)));
     })();
 
   })().then(function () {

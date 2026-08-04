@@ -1076,10 +1076,18 @@ function showItemDetailPage(idx, copyInvId, opts) {
   // variation text after it — on a phone the photo used to be dead last,
   // below every line of text plus the buttons and the details card.
   var _isPhoneDetail = (window.innerWidth || 0) < 1000;
-  var _descBlock = `
-        ${it.description ? `<div style="font-size:0.85rem;color:var(--text-mid);line-height:1.5;margin-top:0.3rem"><strong style="color:var(--text)">Description:</strong> ${it.description}</div>` : ''}
+  // v0.9.1320 (Brad: "need to put the description text in a box with a white
+  // background so the logo doesn't make it hard to read"): the description
+  // block sits in an OPAQUE card — var(--surface), the theme's card colour
+  // (white/cream in the light theme), so the conductor watermark can't bleed
+  // through the text. The box only renders when there is text to protect.
+  var _descInner = `
+        ${it.description ? `<div style="font-size:0.85rem;color:var(--text-mid);line-height:1.5"><strong style="color:var(--text)">Description:</strong> ${it.description}</div>` : ''}
         ${it.varDesc ? `<div style="font-size:0.85rem;color:var(--text-mid);line-height:1.5;margin-top:0.3rem;white-space:pre-line"><strong style="color:var(--text)">Variation Description:</strong> ${it.varDesc}</div>` : ''}
         ${(function(){ var _u = (typeof _itemExternalLinkURL==='function')?_itemExternalLinkURL(it):(it.refLink||''); return _u ? `<a href="${_u}" target="_blank" rel="noopener" style="font-size:0.78rem;color:var(--accent2);text-decoration:none;display:inline-flex;align-items:center;gap:0.3rem;margin-top:0.4rem">View on ${(typeof _externalSiteLabel === "function" ? _externalSiteLabel(_u) : "External")} <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15,3 21,3 21,9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></a>` : ''; })()}`;
+  var _descBlock = _descInner.trim()
+    ? `<div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:0.75rem 0.9rem;margin-top:0.5rem">${_descInner}</div>`
+    : '';
   let _headHtml = `
   <div style="margin-bottom:1.5rem">
     <!-- v0.9.1155 (Brad): "we need a next item, previous item with arrows on
