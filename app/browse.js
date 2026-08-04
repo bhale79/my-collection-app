@@ -1027,7 +1027,7 @@ function _itemExternalLinkURL(item) {
   if (_odd) return _odd;
   // Deep-link COTT references straight to the item anchor (cott-anchors.js).
   if (item.refLink) return (typeof window!=='undefined' && window.cottAnchorUrl)
-      ? window.cottAnchorUrl(item.refLink, item.itemNum, window.cottRowWords ? window.cottRowWords(item) : '') : item.refLink;
+      ? window.cottAnchorUrl(item.refLink, item.itemNum, window.cottRowWords ? window.cottRowWords(item) : '', item.variation || '') : item.refLink;
   // v0.9.1175 (Brad: "6464-100 is on the cott site. why does this link to a google
   // search for a lionel 6464-100"). Because THIS row has no reference of its own —
   // and his want had matched the BOX row (the card even badged it PAPER / BOX /
@@ -1053,7 +1053,7 @@ function _itemExternalLinkURL(item) {
     }
     if (_sib) {
       return (typeof window !== 'undefined' && window.cottAnchorUrl)
-        ? window.cottAnchorUrl(_sib.refLink, item.itemNum, window.cottRowWords ? window.cottRowWords(item) : '') : _sib.refLink;
+        ? window.cottAnchorUrl(_sib.refLink, item.itemNum, window.cottRowWords ? window.cottRowWords(item) : '', item.variation || '') : _sib.refLink;
     }
   } catch (eSib) {}
   // ── v0.9.1188 — direct link or Google, nothing in between ─────────────────

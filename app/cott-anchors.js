@@ -161,13 +161,54 @@
     return out;
   }
 
-  window.cottAnchorUrl = function (refLink, itemNum, rowWords) {
+  // ══ v0.9.1322 — Brad's 22 HAND-PICKED rows ═══════════════════════════════
+  // The harvest's 60 AMBIGUOUS rows, walked with Brad in three batches
+  // (2026-08-04). Only rows where the pick DIFFERS from what the builder or
+  // the word-matcher already produces are listed; ties he chose to leave
+  // (31-7 packets, the 90 controller, the 2430/2440/2442 Pullman year pairs)
+  // are deliberately absent. Keyed page|RAW number|variation — exact, checked
+  // before any matching, because a human decision outranks a heuristic.
+  // Two picks reach anchors the matcher COULDN'T offer (the Frisco 6014s and
+  // the Swift 6050 var 9 — their sections print sibling numbers).
+  var RR_COTT_PICKS = {
+    'motive-power-later-alcos-a-2|218|1': 'LAL218AA',
+    'motive-power-later-alcos-a-2|218C|1': 'LAL218AB',
+    'passenger-madison-cars|2625|5': 'MADMAD2625',
+    'postwar-steam-no-224-no-1666-2-6-2|224|2': '22446',
+    'boxcars-small-with-non-operating-doors|6014|2': 'sdbx6014fri',
+    'boxcars-small-with-non-operating-doors|6014|3': 'sdbx6014fri',
+    'boxcars-small-with-non-operating-doors|6014|4': 'sdbx6014fri',
+    'boxcars-small-with-non-operating-doors|6014|5': 'sdbx6014fri',
+    'boxcars-small-with-non-operating-doors|6014|20': 'sdbx6014fri',
+    'boxcars-small-with-non-operating-doors|6050|9': 'sdbx6050swi',
+    'hoppers-small-two-bay-a|6476-25|5': '647625',
+    'hoppers-small-two-bay-a|6476-25|6': '647625',
+    'bulbs-replacement-page-2|151-51|1': 'BULB21515112',
+    'bulbs-replacement-page-2|151-51|2': 'BULB21515114',
+    'bulbs-replacement-page-2|152-33|1': '1523312',
+    'bulbs-replacement-page-2|154-18|3': 'BULB21541814',
+    'bulbs-replacement|671-75|2': 'BULB36717518',
+    'bulbs-replacement-page-1|39|2': 'BULB3912L',
+    'bulbs-replacement|752-9|3': 'BULB3752918',
+    'packets-miscellaneous|480-32|1': 'PM48032A',
+    'packets-miscellaneous|480-32|2': 'PM48032B',
+    'separate-sale-items|362-78|1': 'SSI362',
+  };
+
+  window.cottAnchorUrl = function (refLink, itemNum, rowWords, variation) {
     try {
       var plain = _base(refLink, itemNum);          // today's answer
       if (!refLink || String(refLink).indexOf('#') >= 0) return plain;
       var m = String(refLink).match(/cornucopiaoftoytrains\.com\/([^\/#?]+)/i);
       if (!m) return plain;
       var slug = m[1].toLowerCase();
+      // v0.9.1322: a hand-picked row answers outright — page + RAW number +
+      // variation must ALL match, so a pick can never leak onto a sibling
+      // variation (6050 var 7 stays Savings Bank while var 9 goes to Swift).
+      if (variation != null && variation !== '') {
+        var _pk = RR_COTT_PICKS[slug + '|' + String(itemNum == null ? '' : itemNum).trim().toUpperCase() + '|' + String(variation).trim()];
+        if (_pk) return String(refLink).replace(/[#?].*$/, '').replace(/\/+$/, '') + '/#' + _pk;
+      }
       var page = DEEP[slug];
       if (!page) return plain;
 

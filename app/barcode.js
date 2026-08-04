@@ -2911,7 +2911,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
             // relay grabs THIS item's photo off the multi-item page.
             refLink: (function () {
               var rl = (r.masterItem && r.masterItem.refLink) || '';
-              try { if (rl && typeof window.cottAnchorUrl === 'function') rl = window.cottAnchorUrl(rl, r.masterItem.itemNum, window.cottRowWords ? window.cottRowWords(r.masterItem) : ''); } catch (e) {}
+              try { if (rl && typeof window.cottAnchorUrl === 'function') rl = window.cottAnchorUrl(rl, r.masterItem.itemNum, window.cottRowWords ? window.cottRowWords(r.masterItem) : '', r.masterItem.variation || ''); } catch (e) {}
               return rl;
             })(),
             _verifySrc: (cr && cr.work) || null,

@@ -17724,7 +17724,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
       ok('265 the options carry the UNCAPPED text for the cards',
          /full: String\(m\.varDesc \|\| m\.description \|\| ''\)/.test(ac65));
       ok('265 the helper feeds the selected row\'s OWN words to the deep-link picker',
-         /window\.cottAnchorUrl\(rl, _vn, \(typeof window\.cottRowWords === 'function' && mRow\) \? window\.cottRowWords\(mRow\) : ''\)/.test(ac65));
+         /window\.cottAnchorUrl\(rl, _vn, \(typeof window\.cottRowWords === 'function' && mRow\) \? window\.cottRowWords\(mRow\) : '', String\(vSel == null \? '' : vSel\)\)/.test(ac65));
       // ══ v0.9.1320 (Brad): "need to put the description text in a box with
       // a white background so the logo doesn't make it hard to read" ══
       ok('265 the detail description sits in an OPAQUE surface card',
@@ -17756,6 +17756,68 @@ META_WRITES.length = 0; TOASTS.length = 0;
          /if \(t === 'paper' \|\| t === 'paper item'\) _typedHas\.paper = true;/.test(bw66) &&
          /Object\.keys\(state\.ephemeraData\.paper\|\|\{\}\)\.length > 0 \|\| _typedHas\.paper/.test(bw66) &&
          /Object\.keys\(state\.ephemeraData\.catalogs\|\|\{\}\)\.length > 0 \|\| _typedHas\.catalogs/.test(bw66));
+    })();
+
+    // ═══════════════════════════════════════════════════════════
+    // §267. v0.9.1322 — Brad's 22 hand-picked COTT rows.
+    //
+    //   The harvest's 60 AMBIGUOUS rows, walked with Brad in three
+    //   batches. A pick is page + RAW number + VARIATION, answers before
+    //   any matching, and can never leak onto a sibling variation. The
+    //   REAL combined cott-anchors.js runs here.
+    // ═══════════════════════════════════════════════════════════
+    section('267. COTT hand-picks: a walked decision outranks a heuristic');
+    (function () {
+      const p67 = require('path');
+      const ca67 = fs.readFileSync(p67.join(__dirname, '..', 'app', 'cott-anchors.js'), 'utf8');
+      const win = {};
+      new Function('window', ca67)(win);
+      const url = win.cottAnchorUrl;
+      const B = 'https://www.cornucopiaoftoytrains.com/boxcars-small-with-non-operating-doors/';
+      const AL = 'https://www.cornucopiaoftoytrains.com/motive-power-later-alcos-a-2/';
+      // ── picks the matcher could never make ──
+      ok('267 the Frisco 6014s reach the Frisco section (printed under 6014-1)',
+         /#sdbx6014fri$/.test(url(B, '6014', 'Frisco Boxcar', '3')));
+      ok('267 the Greenberg-confirmed Swift 6050 var 9 reaches the Swift anchor',
+         /#sdbx6050swi$/.test(url(B, '6050', 'Swift Boxcar', '9')));
+      // ── a pick can NEVER leak onto a sibling variation ──
+      ok('267 6050 var 7 still goes to Savings Bank — the var-9 pick does not leak',
+         /#sdbx6050lio$/.test(url(B, '6050', 'Lionel Savings Bank Boxcar', '7')));
+      // ── raw number keeps 218 and 218C apart on the same variation ──
+      ok('267 218 var 1 → AA; 218C var 1 → AB — raw numbers, same variation',
+         /#LAL218AA$/.test(url(AL, '218', 'Alco Diesel', '1')) &&
+         /#LAL218AB$/.test(url(AL, '218C', 'Alco Diesel', '1')));
+      // ── a pick outranks the words ──
+      ok('267 a hand-pick answers even when the words would argue',
+         /#sdbx6014fri$/.test(url(B, '6014', 'WIX FILTERS', '4')));
+      // ── no variation → the pick never fires; old behavior byte-identical ──
+      ok('267 with no variation the picks stay out of the way',
+         url(B, '6050', 'Lionel Savings Bank Boxcar') === url(B, '6050', 'Lionel Savings Bank Boxcar', ''));
+      // ── unpicked rows are untouched (152-33 var 2 lands on the base builder) ──
+      const B2 = 'https://www.cornucopiaoftoytrains.com/bulbs-replacement-page-2/';
+      ok('267 an unpicked variation keeps today\'s answer',
+         url(B2, '152-33', '14V Red Lamp', '2') === url(B2, '152-33', '14V Red Lamp'));
+      // ── the map carries exactly the 22 walked picks ──
+      const _pkCount = (ca67.match(/^    '[^']+\|[^']+\|[^']+': '[^']+',$/gm) || []).length;
+      ok('267 exactly 22 picks — the leaves (31-7, 90, the Pullmans) stay absent',
+         _pkCount === 22, String(_pkCount));
+      // ── every call site passes the variation ──
+      const sites = [
+        ['browse.js', /cottRowWords\(item\) : '', item\.variation \|\| ''\) : item\.refLink/],
+        ['browse.js', /cottRowWords\(item\) : '', item\.variation \|\| ''\) : _sib\.refLink/],
+        ['app-pages.js', /cottRowWords\(master\) : '', w\.variation \|\| ''\)/],
+        ['barcode.js', /cottRowWords\(r\.masterItem\) : '', r\.masterItem\.variation \|\| ''\)/],
+        ['photo-inbox.js', /cottRowWords\(lk\.master\) : '', lk\.master\.variation \|\| ''\)/],
+        ['wizard.js', /cottRowWords\(singleItem\) : '', singleItem\.variation \|\| ''\)/],
+        ['wizard.js', /cottRowWords\(v\) : '', v\.variation \|\| ''\)/],
+        ['app-collection.js', /cottRowWords\(mRow\) : '', String\(vSel == null \? '' : vSel\)\)/],
+      ];
+      let wired = 0;
+      sites.forEach(function (s) {
+        const src = fs.readFileSync(p67.join(__dirname, '..', 'app', s[0]), 'utf8');
+        if (s[1].test(src)) wired++;
+      });
+      ok('267 all eight call sites pass the variation', wired === 8, wired + ' of 8');
     })();
 
   })().then(function () {

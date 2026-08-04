@@ -3155,7 +3155,7 @@ function showItemPanel(idx, pdKey, mode) {
     var rl = (mRow && mRow.refLink) || '';
     if (!rl) return null;
     if (typeof window.cottAnchorUrl === 'function') {
-      return window.cottAnchorUrl(rl, _vn, (typeof window.cottRowWords === 'function' && mRow) ? window.cottRowWords(mRow) : '');
+      return window.cottAnchorUrl(rl, _vn, (typeof window.cottRowWords === 'function' && mRow) ? window.cottRowWords(mRow) : '', String(vSel == null ? '' : vSel));
     }
     return rl;
   }
