@@ -3,13 +3,22 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.1330';
+const APP_VERSION = 'v0.9.1331';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
-// FLIP TO FALSE (this one line) + trio bump before sending beta invites —
-// the editor stays shipped but hidden until it's user-ready.
-const APPEARANCE_ENABLED = true;
+// v0.9.1331 (Brad, at beta): FLIPPED TO FALSE. He asked to be told when the
+// beta came up rather than have a date put on it — told, and approved.
+//
+// What this does and does not do, because the difference matters: it hides the
+// "Appearance" row in Preferences and makes the editor return early. It does
+// NOT strip a look already applied — applyBranding() runs outside the gate on
+// every boot on purpose, so Brad's own skin survives (see appearance.js). Logo
+// cards are deliberately outside the gate too; they are a user feature, not an
+// editor feature.
+//
+// One line back to true when the editor is user-ready.
+const APPEARANCE_ENABLED = false;
 if (typeof window !== 'undefined') window.APPEARANCE_ENABLED = APPEARANCE_ENABLED;
 // v0.9.1300 (Brad): "keep collecting the data, just hide the page and the
 // collectors market button." The market UI is off until a future release —

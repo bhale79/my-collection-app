@@ -18239,6 +18239,58 @@ META_WRITES.length = 0; TOASTS.length = 0;
     })();
 
     // ═══════════════════════════════════════════════════════════
+    // §274. v0.9.1331 — the beta configuration, pinned.
+    //
+    //   Three one-line flags decide what a beta tester can see, and
+    //   all three are the kind of thing that gets toggled while
+    //   debugging and then forgotten. Pinned as a SET so a stray flip
+    //   is news rather than a surprise a tester finds first.
+    //
+    //   These are Brad's switches, not mine. If he flips one on
+    //   purpose, this section is where the new state gets recorded —
+    //   with the reason, in the same edit.
+    // ═══════════════════════════════════════════════════════════
+    section('274. The beta configuration is what Brad set it to');
+    (function () {
+      const p74 = require('path');
+      const cfg = fs.readFileSync(p74.join(__dirname, '..', 'app', 'config.js'), 'utf8');
+      const idx = fs.readFileSync(p74.join(__dirname, '..', 'app', 'index.html'), 'utf8');
+
+      // v0.9.1331 (Brad said "go" at beta): the Appearance editor is HIDDEN.
+      ok('274 the Appearance editor is hidden for beta',
+         /const APPEARANCE_ENABLED = false;/.test(cfg));
+      // …but a look already applied must still render. The gate hides the
+      // EDITOR; applyBranding() runs outside it on every boot, on purpose.
+      const app74 = fs.readFileSync(p74.join(__dirname, '..', 'app', 'appearance.js'), 'utf8');
+      ok('274 …and a look already applied still renders anyway',
+         /applies\s*\n\s*\/\/ on every boot even when APPEARANCE_ENABLED is false/.test(app74) &&
+         /^  applyBranding\(\);$/m.test(app74));
+      ok('274 …and logo cards stay outside the gate (a user feature, not an editor one)',
+         /does not depend on APPEARANCE_ENABLED/.test(
+           fs.readFileSync(p74.join(__dirname, '..', 'app', 'logo-cards.js'), 'utf8')));
+
+      // v0.9.1300 (Brad): market UI off, contribution still running.
+      ok('274 the Collector\'s Market UI is hidden',
+         /const MARKET_ENABLED = false;/.test(cfg));
+      ok('274 …while anonymous contribution keeps running (only the UI hides)',
+         /Anonymous contribution keeps running/.test(cfg));
+
+      // Diagnostics off — this is what keeps the one-time Vault Cleanup card
+      // (which names Brad's own folders) off every tester's screen.
+      ok('274 diagnostics are off', /const DIAGNOSTICS_ENABLED = false;/.test(cfg));
+
+      // v0.9.1331: one label changed instead of ten help strings.
+      ok('274 the phone bar says Preferences, like the help text and the page title',
+         /id="mnav-prefs"[\s\S]{0,1400}?\n\s*Preferences\n/.test(idx) &&
+         !/id="mnav-prefs"[\s\S]{0,1400}?\n\s*Settings\n/.test(idx));
+      // The reason it matters: every "switch photo reads off" instruction names
+      // Preferences. If those ever change, this pairing should be re-argued.
+      ok('274 …which is what the photo-ID help tells the user to open',
+         /Preferences › Photo ID/.test(
+           fs.readFileSync(p74.join(__dirname, '..', 'app', 'help-photo-id.js'), 'utf8')));
+    })();
+
+    // ═══════════════════════════════════════════════════════════
     // §271. v0.9.1326 — four measured speed fixes.
     //
     //   MEASUREMENT BEATS READING, so every number below was produced
