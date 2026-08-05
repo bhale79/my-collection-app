@@ -254,10 +254,57 @@ function buildToolsPage() {
       '<div id="master-174-results" style="margin-top:1rem;color:var(--text)"></div>' +
     '</div>';
 
+  // ═══════════════════════════════════════════════════════════════════
+  // v0.9.1347 — MASTER FIX-UP 1.75 (one-time). The 455 Oil Derrick.
+  //
+  // Brad's call, 2026-08-05, after seeing the two families side by side:
+  // KEEP COTT's four AND the two the reference book adds.
+  //
+  //   COTT separates its four by HARDWARE — winch base, mounting holes,
+  //   flat vs ridged bulb cover. The book separates by PAINT and never
+  //   mentions any of those. So the two families do not map one-to-one
+  //   and "COTT wins" could not be applied mechanically here.
+  //
+  //   Book var 2 (dark green, matching top)  = COTT A0292. Covered.
+  //   Book var 1 (dark green, red top)       = COTT A0156 AND A0698 —
+  //       the book records no mounting-hole/cover difference, so it is
+  //       a coarser description of two COTT rows, not a fifth derrick.
+  //   Book var 3 (dull APPLE GREEN, red top) — COTT lists no apple
+  //       green anywhere. KEPT as variation 5.
+  //   Book var 4 (pale green, MATCHING top)  — COTT A0585 is also pale
+  //       green but with a RED top. The sources conflict. KEPT as
+  //       variation 6 so the disagreement stays visible rather than
+  //       being silently resolved by whoever ran a script.
+  //
+  // The book is also more precise on dates than COTT's flat 1950-1954:
+  // red top ran 1952-54; matching dark green top was first production
+  // 1950-51 and the most common. That moves onto the COTT rows.
+  //
+  // TWO JUDGMENT CALLS, surfaced in the Preview so Brad can veto:
+  //   1. The two surviving book rows get Description normalised to
+  //      "455 Oil Derrick and Pumper". Six variations of one item that
+  //      render under two different names read as a bug.
+  //   2. Their Variation Details are TRUNCATED in the sheet (row 1574
+  //      ends "This was"; row 1575 ends "under the No. 2305 in"), so
+  //      each is trimmed to its last COMPLETE sentence. Trimming is not
+  //      restoring — the Notes say so, and the book page is the fix.
+  // ═══════════════════════════════════════════════════════════════════
+  var _m75Show = (typeof rrDiagnostics === 'function') ? rrDiagnostics() : false;
+  var CARD_MASTER_175 = (!_m75Show || localStorage.getItem('rr_master_fixup_175_done') === '1') ? '' :
+    '<div class="tools-card">' +
+      '<div class="tools-card-title">' +
+        '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#e74c3c" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>' +
+        'Master Fix-Up · one-time (v1.75) — the 455 Oil Derrick' +
+      '</div>' +
+      '<div class="tools-card-desc">Settles 455. COTT’s four keep variations 1–4; the book’s apple green becomes 5 and its matching-top pale green becomes 6. The two book rows COTT already covers are removed, and the book’s better dates move onto the COTT rows. Run v1.74 first. Preview is read-only and shows every edit before anything is written.</div>' +
+      '<button onclick="rrMaster175Preview()" style="padding:0.55rem 1.1rem;border-radius:8px;border:1.5px solid #e74c3c;background:var(--bg-card);background:color-mix(in srgb, rgb(231,76,60) 10%, var(--bg-card));color:#e74c3c;font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer">Preview the 455 fix-up</button>' +
+      '<div id="master-175-results" style="margin-top:1rem;color:var(--text)"></div>' +
+    '</div>';
+
   var html = '<div class="page-title" style="margin-bottom:0.5rem">Collection Tools</div>';
   // Universal = works across every manufacturer.
   html += SECTION_HEADER('universal', 'Universal Tools', 'Work across all manufacturers');
-  html += '<div id="universal-body">' + CARD_DUPLICATE_CHECKER + CARD_VAULT_CLEANUP + CARD_MASTER_FIXUP + CARD_VERSION_TIDY + CARD_MASTER_173 + CARD_MASTER_174 + CARD_SHARED_PHOTOS + '</div>';
+  html += '<div id="universal-body">' + CARD_DUPLICATE_CHECKER + CARD_VAULT_CLEANUP + CARD_MASTER_FIXUP + CARD_VERSION_TIDY + CARD_MASTER_173 + CARD_MASTER_174 + CARD_MASTER_175 + CARD_SHARED_PHOTOS + '</div>';
 
   // Postwar Lionel = tools that rely on Lionel postwar catalog data (grouping,
   // sets, companions). Smart Group Finder lives here (it's postwar-Lionel only).
@@ -2354,4 +2401,311 @@ async function rrMaster174Apply() {
 if (typeof window !== 'undefined') {
   window.rrMaster174Preview = rrMaster174Preview;
   window.rrMaster174Apply = rrMaster174Apply;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// v0.9.1347 — MASTER FIX-UP 1.75 (one-time). The 455 Oil Derrick.
+// Rationale in the card comment above. Five rows edited, two removed.
+//
+// ORDER MATTERS AND IS NOT COSMETIC: rows 1572 and 1573 sit ABOVE every
+// row this edits, so deleting them first would shift 1574-1579 up by two
+// and every subsequent edit would land on the wrong derrick. Edits run
+// first, deletes last and bottom-up. 1.74 has the same shape for the
+// same reason.
+// ═══════════════════════════════════════════════════════════════════
+
+var _M75_TAB = 'Lionel PW - Items';
+var _M75_DONE_KEY = 'rr_master_fixup_175_done';
+var _M75_DESC_COTT = '455 Oil Derrick and Pumper';
+
+// ── Book rows that SURVIVE, renumbered onto the end of COTT's sequence.
+// Anchored on number + current variation + Source + Description, the same
+// quartet 1.74 proved load-bearing.
+var _M75_KEEPS = [
+  {
+    num: '455', variation: '3', src: 'Tandem', desc: 'Oil Derrick',
+    newVar: '5', newDesc: _M75_DESC_COTT,
+    newDetails: 'dull APPLE GREEN finish with a RED painted "A Frame" at the top.',
+    newNotes: 'Reference book variation 3, kept as variation 5 — COTT lists no apple green finish for the 455 anywhere. Book text was truncated on import and has been trimmed to its last complete sentence; the book page is the fix, not this text.',
+    label: '455 apple green → variation 5 (COTT has no apple green)'
+  },
+  {
+    num: '455', variation: '4', src: 'Tandem', desc: 'Oil Derrick',
+    newVar: '6', newDesc: _M75_DESC_COTT,
+    newDetails: 'semi-gloss PALE GREEN finish and an A Frame top that matches this color. This was another factory error and is hard to find.',
+    newNotes: 'Reference book variation 4, kept as variation 6 — the book describes a MATCHING pale green top where COTT A0585 (variation 1) describes a RED top on the same pale green derrick. The sources conflict; both are kept so the disagreement stays visible. Book text was truncated on import and has been trimmed to its last complete sentence.',
+    label: '455 pale green, matching top → variation 6 (conflicts with COTT A0585’s red top — both kept)'
+  }
+];
+
+// ── COTT rows that gain the book's better dates. COTT dates three of its
+// four as a flat 1950-1954; the book is more specific and that is worth
+// keeping even though COTT wins on identity.
+var _M75_NOTES = [
+  { num: '455', variation: '2', cott: 'A0156', append: ' · reference book: this red top ran 1952–1954', label: '455 var 2 (A0156) — add the book’s 1952–1954 red-top dates' },
+  { num: '455', variation: '4', cott: 'A0698', append: ' · reference book: this red top ran 1952–1954', label: '455 var 4 (A0698) — add the book’s 1952–1954 red-top dates' },
+  { num: '455', variation: '3', cott: 'A0292', append: ' · reference book: the matching dark green top was the first production, 1950–51, and the most common', label: '455 var 3 (A0292) — add the book’s first-production note' }
+];
+
+// ── Book rows COTT already covers, removed.
+var _M75_DELETES = [
+  { num: '455', variation: '1', src: 'Tandem', desc: 'Oil Derrick', label: '455 — book row, dark green with RED top (COTT A0156 and A0698 both describe it, split by mounting holes and bulb cover)' },
+  { num: '455', variation: '2', src: 'Tandem', desc: 'Oil Derrick', label: '455 — book row, dark green with MATCHING top (COTT A0292 describes it)' }
+];
+
+var _M75_VERSION_ROW = ['1.75', '2026-08-05', 'Lionel PW - Items: the 455 Oil Derrick settled. COTT and the reference book split this item differently — COTT by hardware (winch base, mounting holes, flat vs ridged bulb cover), the book by paint — so the two families do not map one-to-one and the COTT-wins rule could not be applied mechanically. Brad\'s call: keep COTT\'s four as variations 1-4 AND the two the book adds. The book\'s dull apple green becomes variation 5 (COTT lists no apple green). The book\'s semi-gloss pale green with a matching top becomes variation 6; COTT A0585 is also pale green but with a RED top, so the two sources conflict and both are kept rather than one being silently dropped. The two book rows COTT already covers are deleted: dark green with a red top (COTT A0156 and A0698 split it by mounting holes) and dark green with a matching top (COTT A0292). The book\'s more precise dates move onto the COTT rows - red top 1952-54, matching dark green top first production 1950-51 and most common. Note: the book text for the surviving rows was truncated on import and has been trimmed to its last complete sentence, not restored. Five rows edited, two deleted. 455 now has variations 1-6, each once, no collisions.'];
+
+// ── PURE locator. Every step exactly-once or that step refuses. ──
+function _m75Locate(hdr, rows) {
+  var ci = {}; for (var i = 0; i < hdr.length; i++) ci[hdr[i]] = i;
+  function cell(r, name) {
+    var idx = ci[name];
+    return (idx == null || idx >= r.length || r[idx] == null) ? '' : String(r[idx]).trim();
+  }
+  var problems = [], keeps = [], notes = [], dels = [];
+
+  function findOne(match) {
+    var hits = [];
+    for (var r = 0; r < rows.length; r++) if (match(rows[r])) hits.push({ row: r + 2, row0: rows[r] });
+    return hits;
+  }
+
+  for (var k = 0; k < _M75_KEEPS.length; k++) {
+    (function (st) {
+      var hits = findOne(function (r) {
+        return cell(r, 'Item Number') === st.num && cell(r, 'Variation #') === st.variation
+          && cell(r, 'Source') === st.src && cell(r, 'Description') === st.desc;
+      });
+      if (hits.length === 1) keeps.push({ step: st, row: hits[0].row, wasDetails: cell(hits[0].row0, 'Variation Details') });
+      else if (hits.length === 0) problems.push(st.label + ' — TARGET NOT FOUND (already applied, or the sheet changed). Nothing written for this step.');
+      else problems.push(st.label + ' — AMBIGUOUS: ' + hits.length + ' rows match. REFUSING this step.');
+    })(_M75_KEEPS[k]);
+  }
+
+  for (var n = 0; n < _M75_NOTES.length; n++) {
+    (function (st) {
+      var hits = findOne(function (r) {
+        return cell(r, 'Item Number') === st.num && cell(r, 'Variation #') === st.variation
+          && cell(r, 'COTT Code') === st.cott;
+      });
+      if (hits.length === 1) {
+        var cur = cell(hits[0].row0, 'Variation Details');
+        if (cur.indexOf('reference book:') !== -1) problems.push(st.label + ' — already carried over. Skipping (not an error).');
+        else notes.push({ step: st, row: hits[0].row, before: cur, after: cur + st.append });
+      } else if (hits.length === 0) problems.push(st.label + ' — TARGET NOT FOUND. Nothing written for this step.');
+      else problems.push(st.label + ' — AMBIGUOUS: ' + hits.length + ' rows match. REFUSING this step.');
+    })(_M75_NOTES[n]);
+  }
+
+  for (var d = 0; d < _M75_DELETES.length; d++) {
+    (function (st) {
+      var hits = findOne(function (r) {
+        return cell(r, 'Item Number') === st.num && cell(r, 'Variation #') === st.variation
+          && cell(r, 'Source') === st.src && cell(r, 'Description') === st.desc;
+      });
+      if (hits.length === 1) dels.push({ step: st, row: hits[0].row, details: cell(hits[0].row0, 'Variation Details') });
+      else if (hits.length === 0) problems.push(st.label + ' — TARGET NOT FOUND (already removed, or the sheet changed). Nothing deleted for this step.');
+      else problems.push(st.label + ' — AMBIGUOUS: ' + hits.length + ' rows match. REFUSING this step.');
+    })(_M75_DELETES[d]);
+  }
+
+  // Deletes bottom-up. Both delete targets sit ABOVE every edited row, so
+  // the caller must run edits FIRST — see the header note.
+  dels.sort(function (a, b) { return b.row - a.row; });
+
+  // A keep must not be renumbered onto a variation something else holds.
+  var delRows = {}; dels.forEach(function (x) { delRows[x.row] = true; });
+  for (var kk = 0; kk < keeps.length; kk++) {
+    var want = keeps[kk].step.newVar, clash = [];
+    for (var r2 = 0; r2 < rows.length; r2++) {
+      var sheetRow = r2 + 2;
+      if (sheetRow === keeps[kk].row || delRows[sheetRow]) continue;
+      if (cell(rows[r2], 'Item Number') === '455' && cell(rows[r2], 'Variation #') === want) clash.push(sheetRow);
+    }
+    if (clash.length) problems.push(keeps[kk].step.label + ' — REFUSING: variation ' + want + ' is already used by row ' + clash.join(', ') + '.');
+  }
+
+  return { keeps: keeps, notes: notes, dels: dels, problems: problems };
+}
+if (typeof window !== 'undefined') window._m75Locate = _m75Locate;
+
+// PURE: what variation numbers does 455 end up holding? Answers "did it
+// actually work" without trusting any step's own report.
+function _m75Shape(hdr, rows, skipRows) {
+  var ci = {}; for (var i = 0; i < hdr.length; i++) ci[hdr[i]] = i;
+  var skip = {}; (skipRows || []).forEach(function (r) { skip[r] = true; });
+  var vars = {};
+  for (var r = 0; r < rows.length; r++) {
+    if (skip[r + 2]) continue;
+    var num = (ci['Item Number'] == null || rows[r][ci['Item Number']] == null) ? '' : String(rows[r][ci['Item Number']]).trim();
+    if (num !== '455') continue;
+    var v = (ci['Variation #'] == null || rows[r][ci['Variation #']] == null) ? '' : String(rows[r][ci['Variation #']]).trim();
+    (vars[v] = vars[v] || []).push(r + 2);
+  }
+  var keys = Object.keys(vars).sort();
+  var dupes = keys.filter(function (k) { return vars[k].length > 1; });
+  return { variations: keys, dupes: dupes, count: keys.length };
+}
+if (typeof window !== 'undefined') window._m75Shape = _m75Shape;
+
+async function rrMaster175Preview() {
+  var box = document.getElementById('master-175-results');
+  if (!box) return;
+  box.innerHTML = '<div style="color:var(--text-dim);font-size:0.85rem">Reading the master sheet…</div>';
+  try {
+    var res = await sheetsGet(state.masterSheetId, _M75_TAB + '!A1:R');
+    var values = (res && res.values) || [];
+    var hdr = values[0] || [], body = values.slice(1);
+    var loc = _m75Locate(hdr, body);
+    window._m75Plan = loc;
+
+    var html = '';
+    for (var k = 0; k < loc.keeps.length; k++) {
+      var kp = loc.keeps[k];
+      html += '<div style="padding:0.45rem 0.7rem;border:1px solid var(--border);border-radius:8px;margin-bottom:0.35rem;font-size:0.82rem;color:var(--text)">'
+        + '<strong>KEEP row ' + kp.row + ' — ' + rrEsc(kp.step.label) + '</strong><br>'
+        + '<span style="color:var(--text-dim)">Variation ' + rrEsc(kp.step.variation) + ' → ' + rrEsc(kp.step.newVar)
+        + ' · name → “' + rrEsc(kp.step.newDesc) + '”<br>text trimmed to: “' + rrEsc(kp.step.newDetails) + '”</span></div>';
+    }
+    for (var n = 0; n < loc.notes.length; n++) {
+      var nt = loc.notes[n];
+      html += '<div style="padding:0.45rem 0.7rem;border:1px solid var(--border);border-radius:8px;margin-bottom:0.35rem;font-size:0.82rem;color:var(--text)">'
+        + '<strong>' + rrEsc(nt.step.label) + '</strong><br>'
+        + '<span style="color:var(--text-dim)">Row ' + nt.row + ' gains: “' + rrEsc(nt.step.append.trim()) + '”</span></div>';
+    }
+    for (var d = 0; d < loc.dels.length; d++) {
+      var dl = loc.dels[d];
+      html += '<div style="padding:0.45rem 0.7rem;border:1px solid var(--border);border-radius:8px;margin-bottom:0.35rem;font-size:0.82rem;color:var(--text)">'
+        + '<strong>DELETE row ' + dl.row + ' — ' + rrEsc(dl.step.label) + '</strong><br>'
+        + '<span style="color:var(--text-dim)">' + rrEsc(dl.details.slice(0, 110)) + (dl.details.length > 110 ? '…' : '') + '</span></div>';
+    }
+
+    var before = _m75Shape(hdr, body, []);
+    html += '<div style="padding:0.45rem 0.7rem;border:1px solid var(--border);border-radius:8px;margin-bottom:0.35rem;font-size:0.82rem;color:var(--text)">'
+      + '<strong>455 now holds variations: ' + rrEsc(before.variations.join(', ') || '(blank)') + '</strong>'
+      + (before.dupes.length ? '<br><span style="color:#e74c3c">duplicated: ' + rrEsc(before.dupes.join(', ')) + '</span>' : '')
+      + '<br><span style="color:var(--text-dim)">After this runs it should hold 1, 2, 3, 4, 5, 6 — each once. Checked by reading the sheet back before this card is allowed to disappear.</span></div>';
+    html += '<div style="padding:0.45rem 0.7rem;border:1px solid var(--border);border-radius:8px;margin-bottom:0.35rem;font-size:0.82rem;color:var(--text)"><strong>Master Version → 1.75 added on top</strong></div>';
+    for (var p = 0; p < loc.problems.length; p++) {
+      html += '<div style="padding:0.45rem 0.7rem;border:1.5px solid #e74c3c;border-radius:8px;margin-bottom:0.35rem;font-size:0.82rem;color:#e74c3c">' + rrEsc(loc.problems[p]) + '</div>';
+    }
+    var work = loc.keeps.length + loc.notes.length + loc.dels.length;
+    html += work
+      ? '<button onclick="rrMaster175Apply()" style="margin-top:0.4rem;padding:0.55rem 1.1rem;border-radius:8px;border:none;background:#e74c3c;color:var(--on-accent);font-family:var(--font-body);font-size:0.85rem;font-weight:700;cursor:pointer">Apply ' + (loc.keeps.length + loc.notes.length) + ' edit' + ((loc.keeps.length + loc.notes.length) === 1 ? '' : 's') + ' + ' + loc.dels.length + ' deletion' + (loc.dels.length === 1 ? '' : 's') + ' + version 1.75</button>'
+      : '<div style="color:var(--text-dim);font-size:0.82rem;margin-top:0.4rem">Nothing to apply.</div>';
+    box.innerHTML = html;
+  } catch (e) {
+    box.innerHTML = '<div style="color:#e74c3c;font-size:0.85rem">Could not read the master sheet: ' + rrEsc(String(e && e.message || e)) + '</div>';
+  }
+}
+
+var _m75Busy = false;
+async function rrMaster175Apply() {
+  if (_m75Busy) return;
+  _m75Busy = true;
+  var box = document.getElementById('master-175-results');
+  var log = [];
+  function say(m) { log.push(m); if (box) box.innerHTML = log.map(function (x) { return '<div style="font-size:0.82rem;margin-bottom:0.25rem;color:var(--text)">' + x + '</div>'; }).join(''); }
+  var okAll = true;
+  try {
+    var plan = window._m75Plan;
+    if (!plan || !(plan.keeps.length || plan.notes.length || plan.dels.length)) { say('No previewed plan — run Preview first.'); _m75Busy = false; return; }
+
+    // 1. RENUMBERED BOOK ROWS — while every row number is still valid.
+    for (var k = 0; k < plan.keeps.length; k++) {
+      var kp = plan.keeps[k];
+      var kr = await sheetsGet(state.masterSheetId, _M75_TAB + '!A' + kp.row + ':R' + kp.row);
+      var krow = ((kr && kr.values) || [[]])[0] || [];
+      if (String(krow[0] == null ? '' : krow[0]).trim() !== kp.step.num
+       || String(krow[10] == null ? '' : krow[10]).trim() !== kp.step.variation
+       || String(krow[15] == null ? '' : krow[15]).trim() !== kp.step.src
+       || String(krow[7] == null ? '' : krow[7]).trim() !== kp.step.desc) {
+        okAll = false; say('⚠ SKIPPED (row ' + kp.row + ' changed since preview): ' + rrEsc(kp.step.label)); continue;
+      }
+      var landed = true;
+      var writes = [
+        ['H', kp.step.newDesc], ['K', kp.step.newVar],
+        ['L', kp.step.newDetails], ['N', kp.step.newNotes]
+      ];
+      for (var w = 0; w < writes.length; w++) {
+        var ok = await rrVerifiedRowUpdate(state.masterSheetId, _M75_TAB, kp.row,
+          "'" + _M75_TAB + "'!" + writes[w][0] + kp.row, [[writes[w][1]]], { num: kp.step.num }, 'master sheet');
+        if (ok !== true) { landed = false; break; }
+      }
+      if (!landed) { okAll = false; say('⚠ SKIPPED (row ' + kp.row + ' moved at write time): ' + rrEsc(kp.step.label)); continue; }
+      say('✓ ' + rrEsc(kp.step.label));
+    }
+
+    // 2. THE BOOK'S DATES onto the COTT rows.
+    for (var n = 0; n < plan.notes.length; n++) {
+      var nt = plan.notes[n];
+      var nr = await sheetsGet(state.masterSheetId, _M75_TAB + '!A' + nt.row + ':R' + nt.row);
+      var nrow = ((nr && nr.values) || [[]])[0] || [];
+      if (String(nrow[0] == null ? '' : nrow[0]).trim() !== nt.step.num
+       || String(nrow[16] == null ? '' : nrow[16]).trim() !== nt.step.cott) {
+        okAll = false; say('⚠ SKIPPED note (row ' + nt.row + ' changed since preview): ' + rrEsc(nt.step.label)); continue;
+      }
+      var okn = await rrVerifiedRowUpdate(state.masterSheetId, _M75_TAB, nt.row,
+        "'" + _M75_TAB + "'!L" + nt.row, [[nt.after]], { num: nt.step.num }, 'master sheet');
+      if (okn !== true) { okAll = false; say('⚠ SKIPPED note (row moved at write time): ' + rrEsc(nt.step.label)); continue; }
+      say('✓ ' + rrEsc(nt.step.label));
+    }
+
+    // 3. DELETES LAST, bottom-up. These rows sit above everything edited.
+    for (var d = 0; d < plan.dels.length; d++) {
+      var td = plan.dels[d];
+      var re = await sheetsGet(state.masterSheetId, _M75_TAB + '!A' + td.row + ':R' + td.row);
+      var row = ((re && re.values) || [[]])[0] || [];
+      if (String(row[0] == null ? '' : row[0]).trim() !== td.step.num
+       || String(row[10] == null ? '' : row[10]).trim() !== td.step.variation
+       || String(row[15] == null ? '' : row[15]).trim() !== td.step.src
+       || String(row[7] == null ? '' : row[7]).trim() !== td.step.desc) {
+        okAll = false; say('⚠ SKIPPED delete (row ' + td.row + ' changed since preview): ' + rrEsc(td.step.label)); continue;
+      }
+      var deleted = await sheetsDeleteRow(state.masterSheetId, _M75_TAB, td.row, { itemNum: td.step.num, inventoryId: '' });
+      if (deleted) say('✓ Deleted row ' + td.row + ' — ' + rrEsc(td.step.label));
+      else { okAll = false; say('⚠ Delete refused for row ' + td.row); }
+    }
+
+    // 4. READ IT BACK. 455 must hold 1-6, each exactly once.
+    var check = await sheetsGet(state.masterSheetId, _M75_TAB + '!A1:R');
+    var cv = (check && check.values) || [];
+    var shape = _m75Shape(cv[0] || [], cv.slice(1), []);
+    var want = '1,2,3,4,5,6';
+    if (shape.variations.join(',') !== want || shape.dupes.length) {
+      okAll = false;
+      say('⚠ Verified after writing: 455 holds ' + rrEsc(shape.variations.join(', ') || '(nothing)')
+        + (shape.dupes.length ? ' with ' + rrEsc(shape.dupes.join(', ')) + ' duplicated' : '') + ' — expected 1, 2, 3, 4, 5, 6');
+    } else {
+      say('✓ Verified by reading the sheet back: 455 holds variations 1–6, each once');
+    }
+
+    // 5. Version history — 1.75 on top, newest-first, text-forced.
+    var mv = await sheetsGet(state.masterSheetId, "'Master Version'!A2:C60");
+    var hist = ((mv && mv.values) || []).filter(function (r) { return r && String(r[0] || '').trim(); });
+    if (hist.length && String(hist[0][0]).trim() === '1.75') {
+      say('✓ Master Version already at 1.75');
+    } else {
+      var rows75 = [["'" + _M75_VERSION_ROW[0], "'" + _M75_VERSION_ROW[1], _M75_VERSION_ROW[2]]].concat(hist.map(function (r) {
+        return ["'" + String(r[0] == null ? '' : r[0]), "'" + String(r[1] == null ? '' : r[1]), r[2] == null ? '' : r[2]];
+      }));
+      await sheetsUpdate(state.masterSheetId, "'Master Version'!A2:C" + (1 + rows75.length), rows75);
+      say('✓ Master Version: 1.75 added on top, history preserved');
+    }
+
+    if (okAll) {
+      localStorage.setItem(_M75_DONE_KEY, '1');
+      say('<strong>Done, and checked. 455 has six variations: COTT’s four, plus the book’s apple green and its matching-top pale green.</strong> The pale green still disagrees with COTT A0585 about the top colour — that is recorded on the row, not hidden. This card will disappear.');
+    } else {
+      say('<strong>Finished with skipped steps — the card stays. Run Preview again to see what remains.</strong>');
+    }
+  } catch (e) {
+    say('⚠ Stopped: ' + rrEsc(String(e && e.message || e)));
+  } finally {
+    _m75Busy = false;
+  }
+}
+if (typeof window !== 'undefined') {
+  window.rrMaster175Preview = rrMaster175Preview;
+  window.rrMaster175Apply = rrMaster175Apply;
 }
