@@ -3061,9 +3061,18 @@ function _wlStripGrp(notes) {
 if (typeof window !== 'undefined') window._wlStripGrp = _wlStripGrp;
 
 // ── Want/Upgrade list: sortable headers (Session 162+) ──
+// ── THE HEADER LIVES HERE, not in index.html ──────────────────────────────
+// _renderWuHeader() overwrites #upgrade-table thead from this array on every
+// render, so the <th> markup in index.html is only the pre-render fallback.
+// v0.9.1348 learned this the hard way: the two new columns were added to the
+// HTML, every file-reading test passed, and the LIVE page still drew an
+// 8-column header over 10-column rows. If you add a column, add it HERE, add
+// its <td> to BOTH branches of buildUpgradePage, and widen the colspans.
 var _WU_COLS = [
   { col: 'num',      label: 'Item #' },
   { col: 'road',     label: 'Road Name' },
+  { col: 'variation', label: 'Var.' },
+  { col: 'vardesc',  label: 'Var. Description', noSort: true },
   { col: 'mfr',      label: 'Manufacturer' },
   { col: 'cond',     label: 'Condition Target' },
   { col: 'priority', label: 'Priority' },
@@ -3073,6 +3082,9 @@ var _WU_COLS = [
 function _wuSortVal(u, col) {
   if (col === 'num') return parseInt(String(u.itemNum || '').replace(/[^0-9]/g, '')) || 0;
   if (col === 'road') { var m = (typeof findMaster === 'function' ? findMaster(u.itemNum, '', u) : null) || {}; return (m.roadName || '').toLowerCase(); }
+  // v0.9.1348: Var. is sortable and sorts NUMERICALLY where it can — variation
+  // numbers are 1, 2, 10, and a string sort would put 10 between 1 and 2.
+  if (col === 'variation') return parseFloat(String(u.variation || '').replace(/[^0-9.]/g, '')) || 0;
   if (col === 'mfr') return (u.manufacturer || '').toLowerCase();
   if (col === 'cond') return parseFloat(u.targetCondition) || 0;
   if (col === 'priority') { var o = { High: 0, Medium: 1, Low: 2 }; return (o[u.priority] != null ? o[u.priority] : 1); }
@@ -3242,7 +3254,11 @@ function buildUpgradePage() {
   const priorityOrder = { High: 0, Medium: 1, Low: 2 };
   if (state._wuSort && state._wuSort.col) {
     var _wc = state._wuSort.col, _wd = (state._wuSort.dir === 'desc') ? -1 : 1;
-    var _wnum = (_wc === 'num' || _wc === 'cond' || _wc === 'priority' || _wc === 'price');
+    // v0.9.1348: 'variation' returns a NUMBER from _wuSortVal, so it must be
+    // listed here too — otherwise it is compared with localeCompare and 10
+    // sorts between 1 and 2. A column added to _wuSortVal's numeric side and
+    // not to this line is silently sorted as text.
+    var _wnum = (_wc === 'num' || _wc === 'cond' || _wc === 'priority' || _wc === 'price' || _wc === 'variation');
     entries.sort(function(a, b) {
       var va = _wuSortVal(a, _wc), vb = _wuSortVal(b, _wc), r;
       if (_wnum) r = va - vb; else r = String(va).localeCompare(String(vb), undefined, { numeric: true });
