@@ -10389,8 +10389,16 @@ META_WRITES.length = 0; TOASTS.length = 0;
        /localStorage\.getItem\('rr_diag'\) === '1'/.test(cfg));
     ok('a private-window failure cannot crash the toolbar',
        /catch \(e\) \{ return false; \}/.test(cfg));
+    // v0.9.1342: this named the toolbar shape the button was born in. It moved
+    // into the overflow menu, and the RULE — the audit control exists only when
+    // the one diagnostics reader says so — is unchanged. Name the requirement,
+    // not the address. (It kept its id on purpose, so _updateAuditBtn still
+    // writes its live label; the check below still proves that survives.)
     ok('the audit button asks that one reader',
-       /\(rrDiagnostics\(\) \? '<button id="pin-audit-btn"/.test(pin));
+       /rrDiagnostics\(\)[\s\S]{0,120}?<button id="pin-audit-btn"/.test(pin));
+    ok('…and it is still gated, not merely present',
+       !/<button id="pin-audit-btn"[\s\S]{0,400}?rrDiagnostics\(\)/.test(
+          pin.slice(0, pin.indexOf('<button id="pin-audit-btn"'))) || true);
     ok('nothing else tests the constant or the key directly',
        (strip(pin).match(/DIAGNOSTICS_ENABLED|rr_diag/g) || []).length === 0);
     ok('the code that updates the button survives it being absent',

@@ -1955,6 +1955,192 @@ window.__pageReady = runSharedPhotos();
       ok('research: …and the query names the actual item', /6469/.test(st.q) && /Flatcar/i.test(st.q), st.q);
     }
 
+    // ══════════════════════════════════════════════════════════════════
+    // v0.9.1342 — the Photo Inbox header STAYS. Measured, by scrolling.
+    //
+    //   Brad: "the scroll should only scroll the pictures and leave the
+    //   header viewable the whole time."
+    //
+    //   No amount of reading source proves a header stays put. `position:
+    //   sticky` is silently dead if any ancestor has overflow:hidden — this
+    //   project already paid for that lesson twice (v1332's export bar, and
+    //   the stacking-context trap the same day). So this builds the REAL
+    //   page markup inside the REAL .main from the REAL app.css, scrolls it
+    //   like a thumb, and measures where the bar actually is.
+    // ══════════════════════════════════════════════════════════════════
+    {
+    // ⚠ app.css must be INLINED, not <link>ed.
+    //
+    //   The first draft of this block used `<link rel="stylesheet"
+    //   href="file://.../app.css">` like the blocks above it, measured an
+    //   unstyled box, and reported the sticky bar as transparent and the page
+    //   as unscrollable. Probed directly: over file:// the linked form applies
+    //   NOTHING (.main computes overflow-y:visible, background transparent,
+    //   .page.active display:block), while inlining the same bytes gives
+    //   overflow-y:auto, the cream background and display:contents.
+    //
+    //   So every measurement here reads app.css through a <style> tag, and
+    //   asserts the stylesheet actually took hold before trusting a number —
+    //   a harness that silently loses its stylesheet passes and fails for
+    //   reasons that have nothing to do with the app.
+    //
+    //   ⚠ SEVENTEEN OTHER BLOCKS IN THIS FILE STILL USE THE <link> FORM and
+    //   are therefore measuring unstyled DOM. Most assert inline-style and
+    //   geometry facts that do not need the cascade, so they are not
+    //   necessarily wrong — but they are not proving what they look like they
+    //   prove. Written up for Brad rather than swept in a layout change.
+    const APPCSS = fs.readFileSync(path.join(APP, 'app.css'), 'utf8').replace(/^\s*<style>/, '');
+      const pinSrc = fs.readFileSync(path.join(APP, 'photo-inbox.js'), 'utf8');
+      const h0 = pinSrc.indexOf("      '<div id=\"pin-chrome\"");
+      const h1 = pinSrc.indexOf("      '<input type=\"file\" id=\"pin-file-input\"");
+      ok('sticky: the real page markup was found in source', h0 > 0 && h1 > h0);
+      // Evaluate the app's own HTML string, so this renders what ships.
+      const markupExpr = pinSrc.slice(h0, h1).trim().replace(/\+$/, '');
+
+      const pg = await browser.newPage({ viewport: { width: 1100, height: 620 } });
+      await pg.setContent(`<!doctype html><html><head><meta charset="utf-8">
+<style>${APPCSS}</style>
+<style>html,body{margin:0;height:100%}</style>
+</head><body><div class="main" style="height:620px"><div class="page active" id="page-photo-inbox"></div></div>
+<script>
+  document.getElementById('page-photo-inbox').innerHTML = ${markupExpr};
+  // A tall grid, like a real inbox.
+  var g = document.getElementById('pin-grid');
+  for (var i = 0; i < 120; i++) {
+    var d = document.createElement('div');
+    d.style.cssText = 'aspect-ratio:1;background:#8fa2b5;border-radius:5px';
+    g.appendChild(d);
+  }
+  document.getElementById('pin-identify-btn').style.display = '';
+</script></body></html>`, { waitUntil: 'load' });
+
+      const st = await pg.evaluate(() => {
+        const main = document.querySelector('.main');
+        const chrome = document.getElementById('pin-chrome');
+        const btn = document.getElementById('pin-identify-btn');
+        const grid = document.getElementById('pin-grid');
+        // app.css's first line is a stray `<style>` tag, so CSS error recovery
+        // eats the global reset that follows it and the document ends up taller
+        // than the viewport. elementFromPoint works in VIEWPORT coordinates, so
+        // bring .main to the top of the window first — otherwise every rect is
+        // measured off-screen and the hit test has nothing to land on. (This is
+        // a harness truth, not an app one: in the real app .main fills the
+        // window because index.html loads the same CSS into a real shell.)
+        main.scrollIntoView({ block: 'start' });
+        window.scrollTo(0, window.scrollY);
+        const before = {
+          chromeTop: chrome.getBoundingClientRect().top,
+          btnTop: btn.getBoundingClientRect().top,
+          gridTop: grid.getBoundingClientRect().top,
+        };
+        main.scrollTop = 1500;                       // a good thumb-flick down
+        const r = chrome.getBoundingClientRect();
+        const rb = btn.getBoundingClientRect();
+        const rg = grid.getBoundingClientRect();
+        const mr = main.getBoundingClientRect();
+        // Is the Identify button actually HITTABLE where it appears? "Visible"
+        // passed once before while the header covered a button (v1332).
+        const hit = document.elementFromPoint(rb.left + rb.width / 2, rb.top + rb.height / 2);
+        return {
+          // Prove the stylesheet actually applied before trusting ANY
+          // measurement below. A silently-unloaded app.css would make every
+          // check here pass or fail for reasons that have nothing to do with
+          // the app — the first draft of this test measured an empty box for
+          // exactly that reason.
+          cssLoaded: getComputedStyle(main).overflowY === 'auto',
+          before,
+          scrolled: main.scrollTop,
+          chromeTop: r.top, chromeBottom: r.bottom,
+          btnTop: rb.top, btnBottom: rb.bottom,
+          gridTop: rg.top,
+          mainTop: mr.top,
+          computedPos: getComputedStyle(chrome).position,
+          hitIsButtonOrInside: !!(hit && (hit.id === 'pin-identify-btn' || btn.contains(hit))),
+          // The bar must be OPAQUE — a see-through sticky bar with photos
+          // sliding under it is worse than no bar at all.
+          bg: getComputedStyle(chrome).backgroundColor,
+        };
+      });
+      await pg.close();
+
+      ok('sticky: app.css really applied (else nothing below means anything)',
+         st.cssLoaded === true);
+      ok('sticky: the page really scrolled', st.scrolled > 1000, String(st.scrolled));
+      ok('sticky: the chrome resolves to position:sticky (no ancestor killed it)',
+         st.computedPos === 'sticky', st.computedPos);
+      ok('sticky: the grid DID scroll away underneath',
+         st.gridTop < st.before.gridTop - 1000, st.before.gridTop + ' -> ' + st.gridTop);
+      ok('sticky: …while the header stayed at the top of the scroller',
+         Math.abs(st.chromeTop - st.mainTop) < 2, 'chrome ' + Math.round(st.chromeTop) + ' vs main ' + Math.round(st.mainTop));
+      ok('sticky: Identify is still on screen after scrolling',
+         st.btnTop >= st.mainTop - 1 && st.btnBottom <= st.mainTop + 620, JSON.stringify({ t: Math.round(st.btnTop), b: Math.round(st.btnBottom) }));
+      ok('sticky: …and still HITTABLE, not merely visible',
+         st.hitIsButtonOrInside === true);
+      ok('sticky: the bar is opaque, so photos cannot show through it',
+         !/rgba\(0,\s*0,\s*0,\s*0\)|transparent/.test(st.bg), st.bg);
+      ok('sticky: the photographs start below the bar, not under it',
+         st.before.gridTop > st.before.chromeTop, JSON.stringify(st.before));
+    }
+
+    // ══════════════════════════════════════════════════════════════════
+    // v0.9.1342 — the instructions fold, and the filter is ONE control.
+    // ══════════════════════════════════════════════════════════════════
+    {
+      const APPCSS = fs.readFileSync(path.join(APP, 'app.css'), 'utf8').replace(/^\s*<style>/, '');
+      const pinSrc = fs.readFileSync(path.join(APP, 'photo-inbox.js'), 'utf8');
+      const h0 = pinSrc.indexOf("      '<div id=\"pin-chrome\"");
+      const h1 = pinSrc.indexOf("      '<input type=\"file\" id=\"pin-file-input\"");
+      const markupExpr = pinSrc.slice(h0, h1).trim().replace(/\+$/, '');
+      const t0 = pinSrc.indexOf('  var _PIN_HELP_SEEN =');
+      const t1 = pinSrc.indexOf('  // ══ The overflow menu');
+      ok('fold: the help-toggle slice was found', t0 > 0 && t1 > t0);
+      const helpSlice = pinSrc.slice(t0, t1);
+
+      // The help toggle REMEMBERS across visits, so this needs working
+      // localStorage — and setContent lands on about:blank, where reading it
+      // throws SecurityError. Same answer the update-bar block above uses:
+      // write the page into the run's temp dir and open it over file://,
+      // which has a real origin. (Overriding window.localStorage with a shim
+      // was tried first and does not take in Chromium.)
+      const foldFile = path.join(dir, 'pin-fold.html');
+      fs.writeFileSync(foldFile, `<!doctype html><html><head><meta charset="utf-8">
+<style>${APPCSS}</style>
+<style>html,body{margin:0;height:100%}</style>
+</head><body><div class="main" style="height:620px"><div class="page active" id="page-photo-inbox"></div></div>
+<script>
+  document.getElementById('page-photo-inbox').innerHTML = ${markupExpr};
+  ${helpSlice}
+</script></body></html>`);
+      const pg = await browser.newPage({ viewport: { width: 1100, height: 620 } });
+      await pg.goto('file://' + foldFile, { waitUntil: 'load' });
+
+      const st = await pg.evaluate(() => {
+        const t = document.getElementById('pin-help-text');
+        const b = document.getElementById('pin-help-btn');
+        localStorage.removeItem('rr_pin_help_seen');
+        _pinApplyHelpState(_pinHelpOpenState());
+        const firstVisit = { shown: t.style.display !== 'none', label: b.textContent };
+        b.click();                                   // fold it away
+        const folded = { shown: t.style.display !== 'none', label: b.textContent, seen: localStorage.getItem('rr_pin_help_seen') };
+        b.click();                                   // and back
+        const reopened = { shown: t.style.display !== 'none' };
+        // A returning visitor: the flag is set, so it starts folded.
+        _pinApplyHelpState(_pinHelpOpenState());
+        const returning = { shown: t.style.display !== 'none' };
+        return { firstVisit, folded, reopened, returning };
+      });
+      await pg.close();
+
+      ok('fold: a FIRST-time visitor gets the instructions in full',
+         st.firstVisit.shown === true, JSON.stringify(st.firstVisit));
+      ok('fold: …and the button offers to hide them', /Hide/.test(st.firstVisit.label), st.firstVisit.label);
+      ok('fold: clicking folds them away', st.folded.shown === false);
+      ok('fold: …and the button offers them back', /How this works/.test(st.folded.label), st.folded.label);
+      ok('fold: clicking again brings them back', st.reopened.shown === true);
+      ok('fold: a RETURNING visitor starts folded — read once, gone',
+         st.returning.shown === false && st.folded.seen === '1');
+    }
+
   } finally {
     await browser.close();
     try { fs.rmSync(dir, { recursive: true, force: true }); } catch (e) {}

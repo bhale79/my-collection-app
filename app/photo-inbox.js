@@ -110,44 +110,83 @@
     pg.className = 'page';
     pg.id = 'page-photo-inbox';
     pg.innerHTML =
-      '<div class="page-title" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.5rem;margin-bottom:0.35rem">' +
-        '<span>Photo Inbox</span>' +
-        '<span id="pin-count" style="font-size:0.8rem;color:var(--text-dim);font-family:var(--font-body);font-weight:400"></span>' +
+      // ══ v0.9.1342 — the header stays; only the photographs move ══════════
+      // Brad: "the scroll should only scroll the pictures and leave the header
+      // viewable the whole time. I don't like the layout of the header,
+      // filters and help text we got going."
+      //
+      // Both complaints had one cause: ~250px of title, instructions, eight
+      // filter chips and seven buttons, all in the normal flow, so the moment
+      // he started working every control he needed was somewhere above the
+      // screen. Now one sticky bar carries the controls, the instructions fold
+      // away once read, and the filters are a single menu that NAMES what is
+      // active instead of eight chips competing for the eye.
+      //
+      // Sticky rather than a fixed-height flex column on purpose: .main is
+      // already the scroll container (overflow-y:auto), so sticky needs no
+      // height arithmetic, survives every screen size, and cannot strand the
+      // grid at 0px the way a mis-measured flex child can. The negative margin
+      // and matching padding swallow .main's own 1.5rem so photographs do not
+      // show through the gap above the bar when it is stuck.
+      //
+      // top is -1.5rem, NOT 0, and the rendering test is what caught it: a
+      // sticky offset is measured from the scrollport's PADDING box, so
+      // top:0 pinned the bar 1.5rem below the top of .main and photographs
+      // scrolled visibly through the strip above it. The negative offset
+      // pins the border-box edges together; the bar's own padding-top keeps
+      // its contents exactly where they were.
+      '<div id="pin-chrome" style="position:sticky;top:-1.5rem;z-index:5;background:var(--bg);' +
+           'margin:-1.5rem -1.5rem 0;padding:1.5rem 1.5rem 0.55rem;box-shadow:0 6px 10px -8px rgba(0,0,0,0.25)">' +
+        '<div class="page-title" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.5rem;margin-bottom:0.45rem">' +
+          '<span>Photo Inbox <span id="pin-count" style="font-size:0.8rem;color:var(--text-dim);font-family:var(--font-body);font-weight:400"></span></span>' +
+          '<button id="pin-help-btn" onclick="_pinToggleHelp()" style="padding:0.3rem 0.6rem;border-radius:8px;border:none;background:none;color:var(--text-mid);font-family:var(--font-body);font-size:0.78rem;font-weight:600;cursor:pointer">? How this works</button>' +
+        '</div>' +
+        // The instructions. Shown in full the FIRST time someone opens this
+        // page — a tester who has never seen it needs them, and Brad does not
+        // — then folded away and remembered per device.
+        '<div id="pin-help-text" style="display:none;font-size:0.8rem;color:var(--text-dim);line-height:1.5;margin-bottom:0.6rem">Drop photos anywhere below, or use Add photos. Get them ready at your own pace \u2014 crop, use \u201cGroup photos\u201d to put several shots of one item together, and \u201cTag maker/era/scale/type\u201d to say what photos are \u2014 then hit <b>Identify my items</b> to read them all. Photos you have tagged <b>Paper</b>, <b>Catalog</b> or <b>Other</b> are left out of that batch \u2014 there is rarely an item number to find on a drawing or a catalogue page, and on the paid read it would spend a photo ID for nothing. You can always tick any single photo and press Identify to read it anyway. Click a photo to review it \u2014 add the item, research it more, or discard the photo. Photos snapped with Quick Capture on your phone land here too.</div>' +
+        '<div id="pin-context-bar" style="display:none"></div>' +   // v0.9.1048 capture context
+        '<div id="pin-tagbar" style="display:none"></div>' +        // v0.9.1057 tag mode
+        '<div style="display:flex;flex-wrap:wrap;gap:0.4rem;align-items:center">' +
+          // Identify is what this page is FOR, so it is the one solid button
+          // (v0.9.1340, Brad: "don't like the yellow color on the photo reader
+          // buttons"). Add photos steps back to an outline beside it.
+          '<button id="pin-identify-btn" class="btn-primary" onclick="_pinIdentifyItems()" style="display:none;padding:0.5rem 0.9rem;border-radius:8px;border:none;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Identify my items (free)</button>' +
+          '<button onclick="_pinAddSource()" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:var(--bg-card);background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card));color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Add photos\u2026</button>' +
+          '<button id="pin-group-btn" onclick="_pinStartMode(\'group\')" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:var(--bg-card);background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card));color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Group photos</button>' +
+          '<button id="pin-tag-btn" onclick="_pinStartMode(\'tag\')" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:var(--bg-card);background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card));color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Tag maker/era/scale/type</button>' +
+          // The filter menu renders in here — one control that NAMES what is
+          // active, in place of eight chips (v0.9.1051) that did not fit.
+          '<span id="pin-filter-row" style="display:none"></span>' +
+          '<button id="pin-apply-btn" onclick="_pinApplyTags()" style="display:none;padding:0.5rem 0.9rem;border-radius:8px;border:none;background:var(--accent);color:var(--on-accent);font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Apply</button>' +
+          '<button id="pin-finish-btn" onclick="_pinFinishMode()" style="display:none;padding:0.5rem 0.9rem;border-radius:8px;border:none;background:var(--accent2);color:#1a1a1a;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">\u2713 Finished</button>' +
+          '<button id="pin-selall-btn" onclick="_pinSelectAll()" style="display:none;padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:var(--bg-card);background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card));color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Select all</button>' +
+          // v0.9.1297 (Brad): reads run when HE says so \u2014 crop, tag and group
+          // first, then this button. v0.9.1340 moved the paid read onto the
+          // standard outline so free and paid never look alike at a glance.
+          '<button id="pin-idall-btn" onclick="_pinIdentifyAll()" style="display:none;padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:var(--bg-card);background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card));color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">\ud83d\udd0d Read with a photo ID</button>' +
+          '<span style="flex:1"></span>' +
+          '<span id="pin-selinfo" style="font-size:0.78rem;color:var(--text-dim)"></span>' +
+          '<button id="pin-idsel-btn" onclick="_pinIdentifySelected()" style="display:none;padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:var(--bg-card);background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card));color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Identify</button>' +
+          '<button id="pin-assign-btn" onclick="_pinReview(null)" style="display:none;padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:var(--bg-card);background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card));color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Combine \u2192 one item\u2026</button>' +
+          '<button id="pin-discard-btn" onclick="_pinDiscard()" style="display:none;padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:var(--bg-card);background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card));color:#f05008;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Discard</button>' +
+          // Refresh and the reader audit are real but rare \u2014 one click away
+          // rather than competing with the work.
+          '<span style="position:relative;display:inline-block">' +
+            '<button id="pin-more-btn" onclick="_pinToggleMore()" title="More" style="padding:0.5rem 0.7rem;border-radius:8px;border:1.5px solid #8b8e94;background:var(--bg-card);background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card));color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">\u22ef</button>' +
+            '<span id="pin-more-menu" style="display:none;position:absolute;right:0;top:100%;margin-top:4px;min-width:190px;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:4px;z-index:20;box-shadow:0 6px 18px rgba(0,0,0,0.18)"></span>' +
+          '</span>' +
+        '</div>' +
+        '<div id="pin-skipnote" style="display:none;font-size:0.78rem;color:var(--text-dim);margin:0.5rem 0 0"></div>' +
+        '<div id="pin-status" style="display:none;font-size:0.8rem;color:var(--text-dim);margin:0.5rem 0 0"></div>' +
       '</div>' +
-      '<div style="font-size:0.8rem;color:var(--text-dim);line-height:1.5;margin-bottom:0.7rem">Drop photos anywhere below, or use Add photos. Get them ready at your own pace — crop, use “Group photos” to put several shots of one item together, and “Tag maker/era/scale/type” to say what photos are — then hit <b>Identify my items</b> to read them all. Photos you have tagged <b>Paper</b>, <b>Catalog</b> or <b>Other</b> are left out of that batch \u2014 there is rarely an item number to find on a drawing or a catalogue page, and on the paid read it would spend a photo ID for nothing. You can always tick any single photo and press Identify to read it anyway. Click a photo to review it — add the item, research it more, or discard the photo. Photos snapped with Quick Capture on your phone land here too.</div>' +
-      '<div id="pin-context-bar" style="display:none"></div>' +   // v0.9.1048 capture context
-      '<div id="pin-filter-row" style="display:none"></div>' +   // v0.9.1051 filters
-      '<div id="pin-tagbar" style="display:none"></div>' +        // v0.9.1057 tag mode
-      '<div style="display:flex;flex-wrap:wrap;gap:0.5rem;align-items:center;margin-bottom:0.8rem">' +
-        '<button onclick="_pinAddSource()" class="btn-primary" style="padding:0.5rem 0.9rem;border-radius:8px;border:none;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Add photos…</button>' +
-        '<button id="pin-group-btn" onclick="_pinStartMode(\'group\')" style="' + 'padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:var(--bg-card);background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card));color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer' + '">Group photos</button>' +
-        '<button id="pin-tag-btn" onclick="_pinStartMode(\'tag\')" style="' + 'padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:var(--bg-card);background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card));color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer' + '">Tag maker/era/scale/type</button>' +
-        '<button id="pin-apply-btn" onclick="_pinApplyTags()" style="display:none;padding:0.5rem 0.9rem;border-radius:8px;border:none;background:var(--accent);color:var(--on-accent);font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Apply</button>' +
-        '<button id="pin-finish-btn" onclick="_pinFinishMode()" style="display:none;padding:0.5rem 0.9rem;border-radius:8px;border:none;background:var(--accent2);color:#1a1a1a;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">✓ Finished</button>' +
-        '<button id="pin-selall-btn" onclick="_pinSelectAll()" style="display:none;padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:var(--bg-card);background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card));color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Select all</button>' +
-        // v0.9.1297 (Brad): reads run when HE says so — crop, tag and group
-        // first, then this button. It replaces both the automatic read on
-        // upload and the separate "Re-read cropped" button (cropping clears a
-        // photo's old read, so cropped photos are simply unread again and this
-        // button picks them up).
-        '<button id="pin-identify-btn" class="btn-primary" onclick="_pinIdentifyItems()" style="display:none;padding:0.5rem 0.9rem;border-radius:8px;border:none;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Identify my items (free)</button>' +
-        '<button id="pin-idall-btn" onclick="_pinIdentifyAll()" style="display:none;padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:var(--bg-card);background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card));color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">🔍 Read with a photo ID</button>' +
-        (rrDiagnostics() ? '<button id="pin-audit-btn" onclick="_pinReaderAudit()" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:var(--bg-card);background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card));color:#2980b9;font-family:var(--font-body);font-weight:600;font-size:0.82rem;cursor:pointer">Reader audit (free)</button>' : '') +
-        '<button onclick="_pinRefresh()" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:var(--bg-card);background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card));color:#2980b9;font-family:var(--font-body);font-weight:600;font-size:0.82rem;cursor:pointer">Refresh</button>' +
-        '<span style="flex:1"></span>' +
-        '<span id="pin-selinfo" style="font-size:0.78rem;color:var(--text-dim)"></span>' +
-        '<button id="pin-idsel-btn" onclick="_pinIdentifySelected()" style="display:none;padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:var(--bg-card);background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card));color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Identify</button>' +
-        '<button id="pin-assign-btn" onclick="_pinReview(null)" style="display:none;padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:var(--bg-card);background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card));color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Combine → one item…</button>' +
-        '<button id="pin-discard-btn" onclick="_pinDiscard()" style="display:none;padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:var(--bg-card);background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card));color:#f05008;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Discard</button>' +
-      '</div>' +
-      '<div id="pin-skipnote" style="display:none;font-size:0.78rem;color:var(--text-dim);margin:-0.3rem 0 0.6rem"></div>' +
-      '<div id="pin-status" style="display:none;font-size:0.8rem;color:var(--text-dim);margin-bottom:0.6rem"></div>' +
-      '<div id="pin-drop" style="min-height:50vh;border:2px dashed var(--border);border-radius:12px;padding:0.8rem">' +
+      '<div id="pin-drop" style="min-height:50vh;border:2px dashed var(--border);border-radius:12px;padding:0.8rem;margin-top:0.8rem">' +
         '<div id="pin-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:0.6rem"></div>' +
         '<div id="pin-empty" style="display:none;text-align:center;padding:3rem 1rem;color:var(--text-dim)"><div style="font-size:0.95rem;margin-bottom:0.3rem;font-weight:600">Inbox is empty</div><div style="font-size:0.8rem">Drag photos here from any folder, or click Add photos.</div></div>' +
       '</div>' +
       '<input type="file" id="pin-file-input" accept="image/*" multiple style="display:none">';
     anyPage.parentNode.appendChild(pg);
+    _pinApplyHelpState(_pinHelpOpenState());
     var drop = pg.querySelector('#pin-drop');
     ['dragenter', 'dragover'].forEach(function (ev) {
       drop.addEventListener(ev, function (e) { e.preventDefault(); e.stopPropagation(); drop.style.borderColor = '#2980b9'; drop.style.background = 'rgba(41,128,185,0.06)'; });
@@ -503,26 +542,111 @@
     var el = document.getElementById('pin-filter-row');
     if (!el) return;
     var c = _pinCounts();
-    var chips = [];
-    function chip(which, val, label, n) {
+    // ══ v0.9.1342 — ONE control instead of eight chips ═════════════════════
+    // Brad: "i don't like the layout of the header, filters and help text."
+    // Eight chips wrapped onto two rows and shouted equally; a menu costs one
+    // click and NAMES what is active, which a row of chips never quite does.
+    // _pinSetFilter and _pinClearFilters are untouched — this is a different
+    // front door onto the same two functions, not a second filter mechanism.
+    var opts = [];
+    function opt(which, val, label, n) {
       if (!n) return;
       var on = _pinFilter[which] === val;
-      chips.push('<button onclick="_pinSetFilter(\'' + which + '\',\'' + val + '\')" style="padding:0.35rem 0.7rem;border-radius:999px;'
-        + 'border:1.5px solid ' + (on ? 'var(--accent)' : 'var(--border)') + ';background:' + (on ? 'rgba(232,64,28,0.14)' : 'var(--surface2)') + ';'
-        + 'color:' + (on ? 'var(--accent)' : 'var(--text-mid)') + ';font-size:0.78rem;font-weight:600;cursor:pointer;min-height:36px">'
-        + rrEsc(label) + ' <span style="opacity:0.7">' + n + '</span></button>');
+      opts.push('<option value="' + which + '|' + val + '"' + (on ? ' selected' : '') + '>'
+        + rrEsc(label) + ' (' + n + ')</option>');
     }
-    ['new','stamped','guess','read','noread','filed'].forEach(function (k) { chip('status', k, _PIN_STATUS_LABELS[k], c.status[k]); });
-    Object.keys(c.era).forEach(function (k) { chip('era', k, _pinEraLabel(k), c.era[k]); });
-    Object.keys(c.kind).forEach(function (k) { if (k !== 'single') chip('kind', k, _pinKindLabel(k), c.kind[k]); });
-    if (!chips.length) { el.style.display = 'none'; return; }
-    el.style.display = 'flex';
-    el.style.cssText = 'display:flex;flex-wrap:wrap;gap:0.35rem;margin-bottom:0.7rem;align-items:center';
-    el.innerHTML = chips.join('')
-      + (_pinFilterActive()
-          ? '<button onclick="_pinClearFilters()" style="padding:0.35rem 0.7rem;border-radius:999px;border:none;background:none;color:var(--text-dim);font-size:0.78rem;text-decoration:underline;cursor:pointer;min-height:36px">Show all</button>'
+    var groups = [];
+    var before = 0;
+    ['new','stamped','guess','read','noread','filed'].forEach(function (k) { opt('status', k, _PIN_STATUS_LABELS[k], c.status[k]); });
+    if (opts.length > before) { groups.push('<optgroup label="How it read">' + opts.slice(before).join('') + '</optgroup>'); before = opts.length; }
+    Object.keys(c.era).forEach(function (k) { opt('era', k, _pinEraLabel(k), c.era[k]); });
+    if (opts.length > before) { groups.push('<optgroup label="Maker &amp; era">' + opts.slice(before).join('') + '</optgroup>'); before = opts.length; }
+    Object.keys(c.kind).forEach(function (k) { if (k !== 'single') opt('kind', k, _pinKindLabel(k), c.kind[k]); });
+    if (opts.length > before) { groups.push('<optgroup label="Groups">' + opts.slice(before).join('') + '</optgroup>'); before = opts.length; }
+    if (!groups.length) { el.style.display = 'none'; return; }
+    var active = _pinFilterActive();
+    el.style.cssText = 'display:inline-flex;align-items:center;gap:0.3rem';
+    el.innerHTML =
+      '<select id="pin-filter-select" onchange="_pinFilterPick(this.value)" '
+      + 'style="padding:0.45rem 0.6rem;border-radius:8px;border:1.5px solid ' + (active ? 'var(--accent)' : '#8b8e94') + ';'
+      + 'background:var(--bg-card);color:' + (active ? 'var(--accent)' : '#2980b9') + ';font-family:var(--font-body);'
+      + 'font-size:0.82rem;font-weight:700;cursor:pointer;max-width:230px">'
+      + '<option value="">' + (active ? 'Filter: change\u2026' : 'Filter: all photos') + '</option>'
+      + groups.join('')
+      + '</select>'
+      + (active
+          ? '<button onclick="_pinClearFilters()" title="Show all photos" style="padding:0.45rem 0.55rem;border-radius:8px;border:none;background:none;color:var(--text-dim);font-size:0.78rem;text-decoration:underline;cursor:pointer">Show all</button>'
           : '');
+    el.style.display = 'inline-flex';
   }
+  // The select hands back "which|value"; the existing resolver does the rest.
+  window._pinFilterPick = function (v) {
+    var i = String(v || '').indexOf('|');
+    if (i < 0) return;
+    _pinSetFilter(v.slice(0, i), v.slice(i + 1));
+  };
+
+  // ══ v0.9.1342 — the instructions fold away once read ═════════════════════
+  // Shown in FULL the first time this page is ever opened on a device — a
+  // tester who has never seen it needs them and Brad does not — then folded
+  // and remembered. Deliberately per-device localStorage, not a sheet column:
+  // it is a preference about a screen, and it must never fail an add.
+  var _PIN_HELP_SEEN = 'rr_pin_help_seen';
+  function _pinHelpOpenState() {
+    try { return localStorage.getItem(_PIN_HELP_SEEN) !== '1'; } catch (e) { return true; }
+  }
+  function _pinApplyHelpState(open) {
+    var t = document.getElementById('pin-help-text');
+    var b = document.getElementById('pin-help-btn');
+    if (t) t.style.display = open ? '' : 'none';
+    if (b) b.textContent = open ? '\u00d7 Hide this' : '? How this works';
+  }
+  window._pinToggleHelp = function () {
+    var t = document.getElementById('pin-help-text');
+    if (!t) return;
+    var open = (t.style.display === 'none');
+    _pinApplyHelpState(open);
+    try { localStorage.setItem(_PIN_HELP_SEEN, '1'); } catch (e) {}
+  };
+
+  // ══ The overflow menu — rare-but-real actions, one click away ════════════
+  // Refresh and the reader audit are not part of the working rhythm. They keep
+  // their own handlers (nothing is re-implemented here); this only moves where
+  // they are reached from, so tests/button-audit.js still resolves both.
+  window._pinToggleMore = function () {
+    var m = document.getElementById('pin-more-menu');
+    if (!m) return;
+    if (m.style.display !== 'none') { m.style.display = 'none'; return; }
+    var _row = function (label, fn) {
+      return '<button onclick="document.getElementById(\'pin-more-menu\').style.display=\'none\';' + fn + '" '
+        + 'style="display:block;width:100%;text-align:left;padding:0.45rem 0.6rem;border-radius:7px;border:none;background:none;'
+        + 'color:var(--text);font-family:var(--font-body);font-size:0.82rem;font-weight:600;cursor:pointer">' + label + '</button>';
+    };
+    m.innerHTML = _row('Refresh', '_pinRefresh()')
+      + (rrDiagnostics()
+          ? '<button id="pin-audit-btn" onclick="document.getElementById(\'pin-more-menu\').style.display=\'none\';_pinReaderAudit()" '
+            + 'style="display:block;width:100%;text-align:left;padding:0.45rem 0.6rem;border-radius:7px;border:none;background:none;'
+            + 'color:var(--text);font-family:var(--font-body);font-size:0.82rem;font-weight:600;cursor:pointer">Reader audit (free)</button>'
+          : '');
+    m.style.display = '';
+    // The audit row carries the SAME id it had in the toolbar, so the existing
+    // updater still writes its live label ("Resume audit (12/71)") and rebinds
+    // its click. Moving a control must not fork the code that maintains it.
+    try { _updateAuditBtn(); } catch (e) {}
+    // One outside click closes it. Registered once per open and removed on the
+    // same tick it fires, so menus cannot stack listeners.
+    setTimeout(function () {
+      var off = function (e) {
+        var mm = document.getElementById('pin-more-menu');
+        var bb = document.getElementById('pin-more-btn');
+        if (mm && !mm.contains(e.target) && bb && !bb.contains(e.target)) {
+          mm.style.display = 'none';
+          document.removeEventListener('click', off, true);
+        }
+      };
+      document.addEventListener('click', off, true);
+    }, 0);
+  };
 
   // ══ v0.9.1050 — group kinds and roles ════════════════════════════════════
   // Photos already stack into groups (the g<id> tag). What a stack could not
