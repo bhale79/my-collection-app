@@ -3071,8 +3071,12 @@ if (typeof window !== 'undefined') window._wlStripGrp = _wlStripGrp;
 var _WU_COLS = [
   { col: 'num',      label: 'Item #' },
   { col: 'road',     label: 'Road Name' },
-  { col: 'variation', label: 'Var.' },
-  { col: 'vardesc',  label: 'Var. Description', noSort: true },
+  { col: 'variation', label: 'Var.', th: 'width:56px' },
+  // v0.9.1350: without a width this column was allotted 80px by the table's
+  // auto layout — NARROWER than "Var." beside it — so the description wrapped
+  // to six lines and rows stood 115px tall. Fixed width on the header plus
+  // one-line ellipsis on the cell; the full text is one tap away in the popup.
+  { col: 'vardesc',  label: 'Var. Description', noSort: true, th: 'width:230px' },
   { col: 'mfr',      label: 'Manufacturer' },
   { col: 'cond',     label: 'Condition Target' },
   { col: 'priority', label: 'Priority' },
@@ -3104,9 +3108,10 @@ function _renderWuHeader() {
   if (!thead) return;
   var cs = state._wuSort || {};
   var html = _WU_COLS.map(function(c) {
-    if (c.noSort) return '<th style="white-space:nowrap">' + c.label + '</th>';
+    var extra = c.th ? (';' + c.th) : '';
+    if (c.noSort) return '<th style="white-space:nowrap' + extra + '">' + c.label + '</th>';
     var arrow = (cs.col === c.col) ? (cs.dir === 'desc' ? ' \u25BC' : ' \u25B2') : '';
-    return '<th onclick="_wuSortBy(\'' + c.col + '\')" style="cursor:pointer;white-space:nowrap" title="Sort by ' + c.label + '">' + c.label + arrow + '</th>';
+    return '<th onclick="_wuSortBy(\'' + c.col + '\')" style="cursor:pointer;white-space:nowrap' + extra + '" title="Sort by ' + c.label + '">' + c.label + arrow + '</th>';
   }).join('');
   html += '<th style="white-space:nowrap">Actions</th>';
   thead.innerHTML = html;
@@ -3509,8 +3514,8 @@ function buildUpgradePage() {
           ${!_isWant ? `<span style="display:inline-block;margin-left:0.4rem;font-size:0.6rem;font-weight:700;color:${_ltColor};background:${_ltBg};border-radius:4px;padding:0.1rem 0.4rem;text-transform:uppercase;letter-spacing:0.05em;vertical-align:middle">${u.listType||'Want'}</span>` : ''}
         </td>
         <td style="color:var(--text-mid)">${name || '<span class="text-dim">—</span>'}</td>
-        <td>${u.variation || '<span class="text-dim">—</span>'}</td>
-        <td>${_wuVarCell}</td>
+        <td style="white-space:nowrap">${u.variation || '<span class="text-dim">—</span>'}</td>
+        <td style="max-width:230px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${(_varDesc||'').replace(/"/g,'&quot;')}">${_wuVarCell}</td>
         <td style="font-size:0.82rem;color:var(--text-mid)">${u.manufacturer || '<span class="text-dim">—</span>'}</td>
         <td style="color:#8b5cf6;font-weight:600">${u.targetCondition || '<span class="text-dim">—</span>'}</td>
         <td><span style="color:${pColor};font-weight:500">${u.priority||'Medium'}</span></td>
