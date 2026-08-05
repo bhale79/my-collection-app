@@ -76,6 +76,38 @@ const HARNESS = `<!doctype html><html><head><meta charset="utf-8">
   };
 
   const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });
+  // ══════════════════════════════════════════════════════════════════
+  // The harness checks ITSELF first (v0.9.1345).
+  //
+  //   A block that loses its stylesheet does not fail — it measures unstyled
+  //   DOM and reports whatever that happens to be. On 2026-08-05 one new block
+  //   did exactly that: page.setContent() with a <link> to app.css. A
+  //   setContent page has an about:blank origin, so Chromium refuses its
+  //   file:// subresources; goto('file://…') has a real file origin and the
+  //   same <link> works. The block reported a sticky bar as transparent and an
+  //   unscrollable page, and on the strength of that I nearly rewrote fifteen
+  //   blocks that were never broken.
+  //
+  //   So the combination is banned outright rather than remembered. Write the
+  //   page into `dir` and goto() it, like every block already does.
+  {
+    const self = fs.readFileSync(__filename, 'utf8');
+    // Ignore this guard's own explanation of the pattern it forbids.
+    const body = self.slice(self.indexOf('const browser = await chromium.launch'));
+    const bad = [];
+    body.split(/await\s+\w+\.setContent\(/).slice(1).forEach((chunk, i) => {
+      const page = chunk.slice(0, chunk.indexOf('`);') + 1 || 4000);
+      if (/rel="stylesheet"|rel='stylesheet'/.test(page)) bad.push('setContent #' + (i + 1));
+    });
+    ok('harness: no block loads a stylesheet through setContent (it silently will not apply)',
+       bad.length === 0, bad.join(', '));
+    // And every block that DOES link app.css must be reached by goto, which is
+    // the only loader that can fetch it.
+    const links = (body.match(/rel="stylesheet" href="file:\/\/\$\{APP\}\/app\.css"/g) || []).length;
+    ok('harness: the app stylesheet is linked the one way that works', links >= 15, String(links));
+  }
+
+
   try {
     for (const [w, h] of SIZES) {
       const page = await browser.newPage({ viewport: { width: w, height: h } });
@@ -1969,27 +2001,19 @@ window.__pageReady = runSharedPhotos();
     //   like a thumb, and measures where the bar actually is.
     // ══════════════════════════════════════════════════════════════════
     {
-    // ⚠ app.css must be INLINED, not <link>ed.
+    // ⚠ A setContent() PAGE CANNOT LOAD file:// STYLESHEETS.
     //
-    //   The first draft of this block used `<link rel="stylesheet"
-    //   href="file://.../app.css">` like the blocks above it, measured an
-    //   unstyled box, and reported the sticky bar as transparent and the page
-    //   as unscrollable. Probed directly: over file:// the linked form applies
-    //   NOTHING (.main computes overflow-y:visible, background transparent,
-    //   .page.active display:block), while inlining the same bytes gives
-    //   overflow-y:auto, the cream background and display:contents.
+    //   The first draft of this block used page.setContent() with a <link> to
+    //   app.css, measured an unstyled box, and reported the sticky bar as
+    //   transparent and the page as unscrollable. I nearly "fixed" fifteen
+    //   other blocks over it. They were never broken: a setContent page has an
+    //   about:blank origin, so Chromium refuses its file:// subresources —
+    //   while goto('file://…') has a real file origin and the same <link>
+    //   applies perfectly. Every other block in this file already writes its
+    //   page into the run's temp dir and goto()s it, which is why they work.
     //
-    //   So every measurement here reads app.css through a <style> tag, and
-    //   asserts the stylesheet actually took hold before trusting a number —
-    //   a harness that silently loses its stylesheet passes and fails for
-    //   reasons that have nothing to do with the app.
-    //
-    //   ⚠ SEVENTEEN OTHER BLOCKS IN THIS FILE STILL USE THE <link> FORM and
-    //   are therefore measuring unstyled DOM. Most assert inline-style and
-    //   geometry facts that do not need the cascade, so they are not
-    //   necessarily wrong — but they are not proving what they look like they
-    //   prove. Written up for Brad rather than swept in a layout change.
-    const APPCSS = fs.readFileSync(path.join(APP, 'app.css'), 'utf8').replace(/^\s*<style>/, '');
+    //   So: same convention as the rest of the file, and the stylesheet is
+    //   asserted to have taken hold before any number is trusted.
       const pinSrc = fs.readFileSync(path.join(APP, 'photo-inbox.js'), 'utf8');
       const h0 = pinSrc.indexOf("      '<div id=\"pin-chrome\"");
       const h1 = pinSrc.indexOf("      '<input type=\"file\" id=\"pin-file-input\"");
@@ -1997,9 +2021,9 @@ window.__pageReady = runSharedPhotos();
       // Evaluate the app's own HTML string, so this renders what ships.
       const markupExpr = pinSrc.slice(h0, h1).trim().replace(/\+$/, '');
 
-      const pg = await browser.newPage({ viewport: { width: 1100, height: 620 } });
-      await pg.setContent(`<!doctype html><html><head><meta charset="utf-8">
-<style>${APPCSS}</style>
+      const stickyFile = path.join(dir, 'pin-sticky.html');
+      fs.writeFileSync(stickyFile, `<!doctype html><html><head><meta charset="utf-8">
+<link rel="stylesheet" href="file://${APP}/app.css">
 <style>html,body{margin:0;height:100%}</style>
 </head><body><div class="main" style="height:620px"><div class="page active" id="page-photo-inbox"></div></div>
 <script>
@@ -2012,7 +2036,9 @@ window.__pageReady = runSharedPhotos();
     g.appendChild(d);
   }
   document.getElementById('pin-identify-btn').style.display = '';
-</script></body></html>`, { waitUntil: 'load' });
+</script></body></html>`);
+      const pg = await browser.newPage({ viewport: { width: 1100, height: 620 } });
+      await pg.goto('file://' + stickyFile, { waitUntil: 'load' });
 
       const st = await pg.evaluate(() => {
         const main = document.querySelector('.main');
@@ -2086,7 +2112,6 @@ window.__pageReady = runSharedPhotos();
     // v0.9.1342 — the instructions fold, and the filter is ONE control.
     // ══════════════════════════════════════════════════════════════════
     {
-      const APPCSS = fs.readFileSync(path.join(APP, 'app.css'), 'utf8').replace(/^\s*<style>/, '');
       const pinSrc = fs.readFileSync(path.join(APP, 'photo-inbox.js'), 'utf8');
       const h0 = pinSrc.indexOf("      '<div id=\"pin-chrome\"");
       const h1 = pinSrc.indexOf("      '<input type=\"file\" id=\"pin-file-input\"");
@@ -2104,7 +2129,7 @@ window.__pageReady = runSharedPhotos();
       // was tried first and does not take in Chromium.)
       const foldFile = path.join(dir, 'pin-fold.html');
       fs.writeFileSync(foldFile, `<!doctype html><html><head><meta charset="utf-8">
-<style>${APPCSS}</style>
+<link rel="stylesheet" href="file://${APP}/app.css">
 <style>html,body{margin:0;height:100%}</style>
 </head><body><div class="main" style="height:620px"><div class="page active" id="page-photo-inbox"></div></div>
 <script>
