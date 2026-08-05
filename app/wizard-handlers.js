@@ -82,7 +82,20 @@ function _updateGroupingButtons() {
   container.innerHTML = html;
 }
 
-function _selectGrouping(groupId) {
+// ══ v0.9.1341 — ONE place that answers "the user chose this grouping" ══════
+// Everything _selectGrouping did EXCEPT advancing the step. Split out because
+// the Photo Inbox now answers this question too: a group tagged AA or
+// Engine + tender in the inbox already knows its grouping, and re-asking is
+// the annoyance Brad pointed at ("we need a engine and tender, and probably
+// the aa, ab, aba, group type as options").
+//
+// The temptation was to set wizard.data fields from the inbox directly. That
+// would have reproduced applyGrouping's fields and MISSED the engine-row lock
+// below — the exact "one fact answered in two places" shape that has bitten
+// this project six times, most recently v0.9.1337's Atlas 6469. So the inbox
+// calls THIS, and there is still only one answer to what a grouping means.
+function rrApplyGroupingChoice(groupId) {
+  if (typeof wizard === 'undefined' || !wizard || !wizard.data) return false;
   wizard.data.boxOnly = false;
   wizard.data._itemGrouping = groupId;
   const itemNum = (wizard.data.itemNum || '').trim();
@@ -97,7 +110,7 @@ function _selectGrouping(groupId) {
   if (_engineGroupings.indexOf(groupId) !== -1) {
     const _curType = String((wizard.matchedItem && wizard.matchedItem.itemType) || '');
     if (!/engine|loco/i.test(_curType)) {
-      const _engineRow = state.masterData.find(function(m) {
+      const _engineRow = (state.masterData || []).find(function(m) {
         return m.itemNum === itemNum && /engine|loco/i.test(String(m.itemType || ''));
       });
       if (_engineRow) {
@@ -107,10 +120,15 @@ function _selectGrouping(groupId) {
       }
     }
   }
-  
+
   // Grouping -> data fields — SINGLE SOURCE OF TRUTH (Decision Map #2, applyGrouping in app.js).
   if (typeof applyGrouping === 'function') applyGrouping(wizard.data, groupId, itemNum);
-  
+  return true;
+}
+if (typeof window !== 'undefined') window.rrApplyGroupingChoice = rrApplyGroupingChoice;
+
+function _selectGrouping(groupId) {
+  rrApplyGroupingChoice(groupId);
   _updateGroupingButtons();
   // Auto-advance to next step after grouping selection
   setTimeout(function() { wizardNext(); }, 150);

@@ -19290,6 +19290,131 @@ META_WRITES.length = 0; TOASTS.length = 0;
          !/id="pin-identify-btn"[^>]*accent2/.test(pi) && !/id="pin-idall-btn"[^>]*accent2/.test(pi));
     })();
 
+
+    // ═══════════════════════════════════════════════════════════
+    // §281. v0.9.1341 — the inbox stops throwing away its own answer.
+    //
+    //   Brad tagged a stack "Engine + tender" or "ABA" in the inbox and
+    //   the wizard asked him the same question again. The inbox knew and
+    //   dropped it on the floor.
+    //
+    //   The dangerous fix would have been to set wizard.data fields from
+    //   the inbox: that reproduces applyGrouping's fields and MISSES the
+    //   engine-row lock, which is the number-only first-find shape that
+    //   has now been killed six times. So the click handler was SPLIT —
+    //   rrApplyGroupingChoice holds everything except the step advance —
+    //   and both callers go through it. These tests exist to keep it that
+    //   way: they fail if a second answer to "what does this grouping
+    //   mean" ever appears.
+    // ═══════════════════════════════════════════════════════════
+    section('281. Inbox grouping tags reach the wizard through ONE resolver');
+    (function () {
+      const p81 = require('path');
+      const vm81 = require('vm');
+      const pi = fs.readFileSync(p81.join(__dirname, '..', 'app', 'photo-inbox.js'), 'utf8');
+      const wh = fs.readFileSync(p81.join(__dirname, '..', 'app', 'wizard-handlers.js'), 'utf8');
+      const aj = fs.readFileSync(p81.join(__dirname, '..', 'app', 'app.js'), 'utf8');
+
+      // ── Behavioural: the real map, over the real kind list.
+      const i0 = pi.indexOf('var _PIN_KIND_TO_GROUPING =');
+      const i1 = pi.indexOf("if (typeof window !== 'undefined') window._pinGroupingFor");
+      ok('281 the map slice is extractable', i0 > 0 && i1 > i0);
+      const sb = {};
+      vm81.createContext(sb);
+      vm81.runInContext(pi.slice(i0, i1), sb);
+      const gf = sb._pinGroupingFor;
+      ok('281 _pinGroupingFor evaluated', typeof gf === 'function');
+
+      ok('281 Engine + tender pre-answers as engine_tender', gf('tender') === 'engine_tender');
+      ok('281 AA / AB / ABA pass straight through',
+         gf('aa') === 'aa' && gf('ab') === 'ab' && gf('aba') === 'aba');
+      // The kinds that must NOT be mapped, each for its own reason.
+      ok('281 paper is not mapped — it has its own route (wizardChooseCategory)', gf('paper') === '');
+      ok('281 set is not mapped — it has its own flow (_pinAddSetFromGroup)', gf('set') === '');
+      ok('281 single and box have nothing to pre-answer', gf('single') === '' && gf('box') === '');
+      ok('281 an unknown or missing kind pre-answers nothing',
+         gf('') === '' && gf(null) === '' && gf(undefined) === '' && gf('nonsense') === '');
+
+      // Every grouping id the map produces must be one applyGrouping ACTUALLY
+      // handles — a typo here would silently fall through to 'single'.
+      const applySrc = (aj.match(/function applyGrouping\([\s\S]*?\n\}/) || [''])[0];
+      ['engine_tender', 'aa', 'ab', 'aba'].forEach(id => {
+        ok("281 applyGrouping really handles '" + id + "'",
+           new RegExp("groupId === '" + id + "'").test(applySrc));
+      });
+      // And every kind in _PIN_KINDS is decided one way or the other, so a new
+      // kind cannot slip in unconsidered.
+      const kindsSrc = (pi.match(/var _PIN_KINDS = \[[\s\S]*?\n  \];/) || [''])[0];
+      const kindIds = (kindsSrc.match(/\{ id:'([a-z]+)'/g) || []).map(x => x.replace(/.*'([a-z]+)'.*/, '$1'));
+      ok('281 the eight known kinds are all present', kindIds.length === 8, kindIds.join(','));
+      const mapped = kindIds.filter(k => gf(k));
+      ok('281 …and exactly four of them pre-answer the wizard',
+         mapped.join(',') === 'tender,aa,ab,aba', mapped.join(','));
+
+      // ── THE POINT OF THIS SECTION: one resolver, not two.
+      ok('281 the grouping choice lives in ONE function',
+         (wh.match(/function rrApplyGroupingChoice/g) || []).length === 1);
+      ok('281 …and the button handler is now a thin caller of it',
+         /function _selectGrouping\(groupId\) \{\s*rrApplyGroupingChoice\(groupId\);\s*_updateGroupingButtons\(\);/.test(wh));
+      ok('281 the engine-row lock lives INSIDE the shared resolver, not the handler',
+         /function rrApplyGroupingChoice[\s\S]*?_engineGroupings[\s\S]*?wizard\.matchedItem = _engineRow;[\s\S]*?applyGrouping\(wizard\.data/.test(wh));
+      ok('281 the inbox calls that resolver rather than setting fields itself',
+         /rrApplyGroupingChoice\(_pg\)/.test(pi));
+      // The failure this is really guarding: the inbox reaching past the
+      // resolver and writing the grouping fields directly.
+      ['_itemGrouping', 'setType', 'unit2ItemNum', 'unit3ItemNum', 'unitPower'].forEach(f => {
+        ok('281 the inbox never writes wizard.data.' + f + ' itself',
+           !new RegExp('wizard\\.data\\.' + f + '\\s*=').test(pi));
+      });
+
+      // ── Ordering: the grouping resolves the B unit and the dummy from the
+      //    item number, so it must run AFTER the catalog match.
+      ok('281 the pre-answer runs after the match, not before',
+         pi.indexOf('wizard.matchedItem = m;') < pi.indexOf('var _pg = _pinGroupingFor(') &&
+         pi.indexOf('var _pg = _pinGroupingFor(') < pi.indexOf("wizard.step++;              // same advance a barcode scan does"));
+      ok('281 the user is TOLD the grouping was pre-filled',
+         /it is already set up as ' \+ _pinKindLabel\(opts\.groupKind\)/.test(pi));
+      // A wrong tag must be correctable — never skip the grouping step.
+      ok('281 the grouping step is NOT skipped — a wrong tag stays correctable',
+         !/_skipGroupingStep|skip.*grouping.*step/i.test(pi));
+
+      // ── The cover photo: a promise the panel has made since v0.9.1050.
+      const j0 = pi.indexOf('function _pinCoverFile(g)');
+      const j1 = pi.indexOf("if (typeof window !== 'undefined') window._pinCoverFile");
+      ok('281 the cover resolver slice is extractable', j0 > 0 && j1 > j0);
+      const sb2 = {};
+      vm81.createContext(sb2);
+      vm81.runInContext(pi.slice(j0, j1), sb2);
+      const cover = sb2._pinCoverFile;
+      const F = (id, role) => ({ id: id, _meta: { role: role } });
+
+      ok('281 a together shot becomes the cover wherever it sits',
+         cover({ files: [F('a', 'engine'), F('b', 'tender'), F('c', 'together')] }).id === 'c');
+      ok('281 …including when it is already first',
+         cover({ files: [F('c', 'together'), F('a', 'engine')] }).id === 'c');
+      ok('281 with no together shot the first photo is still the cover',
+         cover({ files: [F('a', 'engine'), F('b', 'tender')] }).id === 'a');
+      ok('281 the FIRST together shot wins when there are two',
+         cover({ files: [F('a', ''), F('b', 'together'), F('c', 'together')] }).id === 'b');
+      ok('281 an empty group yields nothing rather than throwing',
+         cover({ files: [] }) === null && cover(null) === null);
+      ok('281 the tile actually uses it', /data-fid="' \+ _pinCoverFid\(g\) \+ '"/.test(pi));
+
+      // Cover, read and RSV are three different questions. The together shot
+      // is the cover and is explicitly NOT read — borrowing one resolver for
+      // the other is how a group shot's three numbers get filed as one item.
+      ok('281 the cover resolver is separate from the read resolver',
+         /function _pinReadFile\(g\)/.test(pi) && /function _pinCoverFile\(g\)/.test(pi));
+      ok('281 …and the read path still excludes the together shot',
+         /return m\.role !== 'together' && m\.role !== 'detail';/.test(pi));
+
+      // The panel copy is now TRUE, so it stays — and says why it is not read.
+      ok('281 the panel still promises the cover picture',
+         /becomes the group\\'s cover picture/.test(pi));
+      ok('281 …and now explains why that shot is never read',
+         /is never read for a number/.test(pi));
+    })();
+
   })().then(function () {
     console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
     process.exit(fail ? 1 : 0);

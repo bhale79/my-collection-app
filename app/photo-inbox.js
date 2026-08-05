@@ -272,6 +272,15 @@
   // (engine alone, its box) and wrong when they are MEMBERS of a set, where
   // every photo has its own number.
   var _PIN_MULTI_KIND = { set: 1, aa: 1, ab: 1, aba: 1, tender: 1 };
+  // ══ v0.9.1341 — the inbox already ANSWERED the grouping question ══════════
+  // Brad tagged the stack "Engine + tender" or "ABA" before it ever reached the
+  // wizard, and the wizard asked him again — the inbox knew and threw it away.
+  // This is the whole map, stated once. 'paper' has its own route
+  // (wizardChooseCategory), 'set' has its own flow (_pinAddSetFromGroup), and
+  // 'box'/'single' have nothing to pre-answer.
+  var _PIN_KIND_TO_GROUPING = { tender: 'engine_tender', aa: 'aa', ab: 'ab', aba: 'aba' };
+  function _pinGroupingFor(kind) { return _PIN_KIND_TO_GROUPING[String(kind || '')] || ''; }
+  if (typeof window !== 'undefined') window._pinGroupingFor = _pinGroupingFor;
   function _pinFilesToRead(g) {
     var files = _pinReadFiles(g);
     if (!files.length) return [];
@@ -307,6 +316,31 @@
   }
   // A group is skipped when the photo that WOULD be read is skippable.
   function _pinSkipBatchGroup(g) { return _pinSkipBatchRead(_pinReadFile(g)); }
+
+  // ══ v0.9.1341 — the cover photo the panel has been PROMISING ═════════════
+  // The Group photos panel has said "a set shot of everything together becomes
+  // the group's cover photo" since v0.9.1050, and nothing implemented it: the
+  // tile always showed files[0], so the together shot was the cover only if it
+  // happened to be dragged to position one. A promise in copy is exactly the
+  // kind of unverified claim this app strips out elsewhere — so rather than
+  // delete the sentence, make it true. It is also the RIGHT picture: a shot of
+  // the whole set is what identifies the stack at a glance, which is why the
+  // sentence was written in the first place.
+  //
+  // Cover is for DISPLAY only. Which photo gets READ is _pinReadFile (which
+  // deliberately excludes 'together'), and which becomes the Right Side View
+  // on save is untouched — three different questions, three resolvers, no
+  // borrowing between them.
+  function _pinCoverFile(g) {
+    if (!g || !g.files || !g.files.length) return null;
+    for (var i = 0; i < g.files.length; i++) {
+      var m = (g.files[i] && g.files[i]._meta) || {};
+      if (m.role === 'together') return g.files[i];
+    }
+    return g.files[0];
+  }
+  function _pinCoverFid(g) { var f = _pinCoverFile(g); return f ? f.id : ''; }
+  if (typeof window !== 'undefined') window._pinCoverFile = _pinCoverFile;
 
   // The one photo that represents this group for reading purposes.
   function _pinReadFile(g) { return _pinReadFiles(g)[0] || (g && g.files && g.files[0]) || null; }
@@ -674,7 +708,7 @@
       : 'position:fixed;top:70px;right:16px;width:300px;z-index:10040;background:var(--surface);border:1.5px solid var(--accent2);border-radius:12px;box-shadow:0 6px 22px var(--scrim);padding:0.75rem 0.85rem;max-height:72vh;overflow-y:auto';
     var html =
       '<div style="font-family:var(--font-head);font-size:0.95rem;font-weight:700;margin-bottom:0.15rem">Group photos</div>'
-      + '<div style="font-size:0.74rem;color:var(--text-dim);line-height:1.45;margin-bottom:0.55rem">Tap photos in the grid — they collect here. An AA, AB or ABA saves as separate items that stay linked. A set shot of everything together becomes the group\'s cover photo. A paper or other collectible stays one item however many shots.</div>'
+      + '<div style="font-size:0.74rem;color:var(--text-dim);line-height:1.45;margin-bottom:0.55rem">Tap photos in the grid — they collect here. An AA, AB or ABA saves as separate items that stay linked. A set shot of everything together becomes the group\'s cover picture, and is never read for a number \u2014 it has several.' + ' A paper or other collectible stays one item however many shots.</div>'
       + (files.length
           ? '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(52px,1fr));gap:0.35rem;margin-bottom:0.6rem">'
             + files.map(function (f, i) {
@@ -1352,7 +1386,7 @@
       var _ungroup = (_selectMode || g.files.length < 2) ? ''
         : '<div onclick="event.stopPropagation();_pinConfirmUngroup(\'' + g.key + '\')" title="Split this group apart" style="position:absolute;left:6px;bottom:26px;width:24px;height:24px;border-radius:7px;background:rgba(0,0,0,0.55);color:#fff;display:flex;align-items:center;justify-content:center;font-size:0.9rem;cursor:pointer">⊟</div>';
       return '<div class="pin-tile" data-key="' + g.key + '" onclick="' + _tileClick + '(\'' + g.key + '\')" style="position:relative;border-radius:10px;overflow:hidden;cursor:pointer;background:var(--surface2,#26262e);aspect-ratio:1;border:3px solid ' + (isSel ? '#2980b9' : 'transparent') + '">' +
-        '<img loading="lazy" data-fid="' + g.files[0].id + '" style="width:100%;height:100%;object-fit:cover;object-position:center;display:block" alt="">' +
+        '<img loading="lazy" data-fid="' + _pinCoverFid(g) + '" style="width:100%;height:100%;object-fit:cover;object-position:center;display:block" alt="">' +
         chip +
         _circle +
         _crop +
@@ -4285,9 +4319,30 @@
           if (m) {
             wizard.matchedItem = m;
             if (m._era) wizard.data._era = m._era;
+            // v0.9.1341: carry the inbox's own answer into the wizard. AFTER
+            // the match, because a grouping resolves the B unit and the dummy
+            // from the item number and the catalog. Through the SAME resolver
+            // the grouping buttons use (rrApplyGroupingChoice) — reproducing
+            // its fields here would have missed the engine-row lock, which is
+            // the number-only first-find shape all over again.
+            //
+            // Deliberately does NOT advance past the grouping step. The tag
+            // could be wrong, and a pre-filled answer he can see and change
+            // beats a silent one he cannot.
+            var _pg = _pinGroupingFor(opts && opts.groupKind);
+            if (_pg && typeof rrApplyGroupingChoice === 'function') {
+              try {
+                if (rrApplyGroupingChoice(_pg)) {
+                  wizard.data._pinGroupingFromInbox = _pg;
+                  if (typeof getSteps === 'function' && wizard.tab) wizard.steps = getSteps(wizard.tab);
+                }
+              } catch (ePg) { console.warn('[Inbox] grouping prefill:', ePg); }
+            }
             wizard.step++;              // same advance a barcode scan does
             renderWizardStep();
-            showToast('✓ ' + num + ' — catalog details filled in', 2500);
+            showToast(_pg
+              ? '\u2713 ' + num + ' \u2014 catalog details filled in, and it is already set up as ' + _pinKindLabel(opts.groupKind)
+              : '\u2713 ' + num + ' \u2014 catalog details filled in', _pg ? 4000 : 2500);
           } else if (typeof _identifyRouteToManualEntry === 'function' && _identifyRouteToManualEntry(num, aiMeta || {}, [])) {
             showToast(num + " isn't in the catalog — details from the photo are filled in", 3000);
           } else {
