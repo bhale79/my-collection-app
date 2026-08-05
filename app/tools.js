@@ -216,10 +216,48 @@ function buildToolsPage() {
       '<div id="master-173-results" style="margin-top:1rem;color:var(--text)"></div>' +
     '</div>';
 
+  // ═══════════════════════════════════════════════════════════════════
+  // v0.9.1346 — MASTER FIX-UP 1.74 (one-time). THE CORRECTION TO 1.73.
+  //
+  // What 1.73 got wrong, in one sentence: it assumed a blank Variation #
+  // meant the item had never been numbered, and started at 1 — but 193,
+  // 195 and 455 each appear TWICE on this tab, once from the reference
+  // book (Source "Tandem") and once from COTT, and the Tandem family was
+  // ALREADY numbered 1..N. So 1.73 wrote 1..N straight on top of it and
+  // turned four collisions into nine. Verified by reading the tab back.
+  //
+  // Brad's rule, 2026-08-05: COTT is the ultimate source. Comparing the
+  // two families row by row, COTT describes the parts that actually tell
+  // the variations apart (cap holes and ears, molded base text, winch
+  // base, mounting holes) while Tandem mostly describes colour, and the
+  // Tandem prose in this sheet was TRUNCATED on import besides — three
+  // of those cells end mid-word. One sentence is worth keeping: Tandem
+  // says the black 193 is "believed to be the first production in 1953",
+  // which COTT does not say anywhere. It moves before its row goes.
+  //
+  // 455 is deliberately NOT in this tool. COTT sorts those four by
+  // hardware and Tandem by colour, they do not map one-to-one, and
+  // Tandem documents an apple-green that COTT does not list at all —
+  // applying the rule mechanically there would delete a real variation.
+  // It comes to Brad on its own. So this tool takes 193 and 195 to zero
+  // collisions and leaves 455's four standing, on purpose.
+  // ═══════════════════════════════════════════════════════════════════
+  var _m74Show = (typeof rrDiagnostics === 'function') ? rrDiagnostics() : false;
+  var CARD_MASTER_174 = (!_m74Show || localStorage.getItem('rr_master_fixup_174_done') === '1') ? '' :
+    '<div class="tools-card">' +
+      '<div class="tools-card-title">' +
+        '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#e74c3c" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>' +
+        'Master Fix-Up · one-time (v1.74)' +
+      '</div>' +
+      '<div class="tools-card-desc">Fixes what v1.73 broke on 193 and 195. Each is in the sheet twice — once from the reference book, once from COTT — and v1.73 numbered the COTT rows 1..N on top of book rows that were already numbered 1..N. This keeps COTT’s rows, moves the one sentence only the book has, and removes the five duplicate book rows. 455 is left alone and comes to you separately. Preview is read-only.</div>' +
+      '<button onclick="rrMaster174Preview()" style="padding:0.55rem 1.1rem;border-radius:8px;border:1.5px solid #e74c3c;background:var(--bg-card);background:color-mix(in srgb, rgb(231,76,60) 10%, var(--bg-card));color:#e74c3c;font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer">Preview the fix-up</button>' +
+      '<div id="master-174-results" style="margin-top:1rem;color:var(--text)"></div>' +
+    '</div>';
+
   var html = '<div class="page-title" style="margin-bottom:0.5rem">Collection Tools</div>';
   // Universal = works across every manufacturer.
   html += SECTION_HEADER('universal', 'Universal Tools', 'Work across all manufacturers');
-  html += '<div id="universal-body">' + CARD_DUPLICATE_CHECKER + CARD_VAULT_CLEANUP + CARD_MASTER_FIXUP + CARD_VERSION_TIDY + CARD_MASTER_173 + CARD_SHARED_PHOTOS + '</div>';
+  html += '<div id="universal-body">' + CARD_DUPLICATE_CHECKER + CARD_VAULT_CLEANUP + CARD_MASTER_FIXUP + CARD_VERSION_TIDY + CARD_MASTER_173 + CARD_MASTER_174 + CARD_SHARED_PHOTOS + '</div>';
 
   // Postwar Lionel = tools that rely on Lionel postwar catalog data (grouping,
   // sets, companions). Smart Group Finder lives here (it's postwar-Lionel only).
@@ -2063,4 +2101,257 @@ async function rrMaster173Apply() {
 if (typeof window !== 'undefined') {
   window.rrMaster173Preview = rrMaster173Preview;
   window.rrMaster173Apply = rrMaster173Apply;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// v0.9.1346 — MASTER FIX-UP 1.74 (one-time). The correction to 1.73.
+// Rationale in the card comment above. One cell edited, five rows
+// removed, on Lionel PW - Items.
+//
+// THE GUARD 1.73 DID NOT HAVE, and the reason this file exists:
+// _m74Collide() counts number+variation collisions across the WHOLE tab
+// from the same rows the locator read. Preview shows the count before
+// and after, computed — not asserted in a sentence I wrote. Apply
+// re-reads the tab at the end and refuses the done-flag unless 193 and
+// 195 actually reached zero. A tool that says "Done" has not been
+// verified; this one checks its own work before it claims anything.
+// ═══════════════════════════════════════════════════════════════════
+
+var _M74_TAB = 'Lionel PW - Items';
+var _M74_DONE_KEY = 'rr_master_fixup_174_done';
+
+// The one sentence the reference book has and COTT does not. Appended to
+// the SURVIVING COTT row for the black 193 (A0116, variation 1) before
+// the book's own row is removed, so nothing it knew is lost.
+var _M74_MERGE = {
+  num: '193', variation: '1', cott: 'A0116',
+  append: ' · believed to be the first production run, 1953 (reference book)',
+  label: '193 black-superstructure tower — carry over the book’s "first production in 1953" note'
+};
+
+// The five duplicate reference-book rows. Anchored on Item Number +
+// Variation # + Source + Description together: within each item number
+// the Tandem and COTT families carry different Source and Description
+// values, so this quartet lands on exactly one row or refuses.
+var _M74_DELETES = [
+  { num: '193', variation: '1', src: 'Tandem', desc: 'Water Tower',      label: '193 — book row "painted RED tower" (COTT A0117 variation 2 describes it)' },
+  { num: '193', variation: '2', src: 'Tandem', desc: 'Water Tower',      label: '193 — book row "painted BLACK tower" (COTT A0116 variation 1 describes it)' },
+  { num: '195', variation: '1', src: 'Tandem', desc: 'Floodlight Tower', label: '195 — book row, light tan base (COTT A0680 variation 1 describes it)' },
+  { num: '195', variation: '2', src: 'Tandem', desc: 'Floodlight Tower', label: '195 — book row, "199 MICROWAVE TOWER" base (COTT A0678 variation 2 describes it)' },
+  { num: '195', variation: '3', src: 'Tandem', desc: 'Floodlight Tower', label: '195 — book row, unpainted base (COTT A0357 variation 4 describes it)' }
+];
+
+var _M74_VERSION_ROW = ['1.74', '2026-08-05', 'Lionel PW - Items: corrects v1.73 on 193 and 195. Each of those item numbers appears twice on this tab — once from the reference book (Source "Tandem") and once from COTT — and the book family was already numbered 1..N while the COTT family was blank. v1.73 numbered the COTT rows starting at 1 and collided head-on with the book rows, turning 4 collisions into 9. Per the rule that COTT is the ultimate source, the COTT rows and their numbering are kept: 193 has 2 variations, 195 has 4. The five duplicate book rows are removed, after carrying the one detail only the book had (the black 193 is believed to be the first 1953 production) onto the surviving COTT row. 455 is NOT touched — COTT sorts its four by hardware and the book by colour, they do not map one-to-one, and the book documents an apple-green finish COTT does not list; that one is decided separately. One cell edited, five rows deleted. Collisions on 193 and 195: zero. 455 still has four, on purpose.'];
+
+// ── PURE: count number+variation collisions, optionally ignoring rows ──
+// `skipRows` holds 1-based sheet row numbers to treat as already gone, so
+// the same function answers "before" and "after" without a second read.
+function _m74Collide(hdr, rows, skipRows, onlyNums) {
+  var ci = {}; for (var i = 0; i < hdr.length; i++) ci[hdr[i]] = i;
+  var iNum = ci['Item Number'], iVar = ci['Variation #'];
+  var skip = {}; (skipRows || []).forEach(function (r) { skip[r] = true; });
+  var seen = {};
+  for (var r = 0; r < rows.length; r++) {
+    var sheetRow = r + 2;
+    if (skip[sheetRow]) continue;
+    var row = rows[r];
+    var num = (iNum == null || row[iNum] == null) ? '' : String(row[iNum]).trim();
+    if (!num) continue;
+    if (onlyNums && onlyNums.indexOf(num) === -1) continue;
+    var vari = (iVar == null || row[iVar] == null) ? '' : String(row[iVar]).trim();
+    var key = num + '|' + vari;
+    (seen[key] = seen[key] || []).push(sheetRow);
+  }
+  var out = [];
+  Object.keys(seen).forEach(function (k) { if (seen[k].length > 1) out.push({ key: k, rows: seen[k] }); });
+  return out;
+}
+if (typeof window !== 'undefined') window._m74Collide = _m74Collide;
+
+// ── PURE locator: exactly-once per step, or refuse that step ──
+function _m74Locate(hdr, rows) {
+  var ci = {}; for (var i = 0; i < hdr.length; i++) ci[hdr[i]] = i;
+  function cell(r, name) {
+    var idx = ci[name];
+    return (idx == null || idx >= r.length || r[idx] == null) ? '' : String(r[idx]).trim();
+  }
+  var problems = [];
+
+  // The merge target — a COTT row, found by its unique COTT code.
+  var mergeHits = [];
+  for (var m = 0; m < rows.length; m++) {
+    if (cell(rows[m], 'Item Number') !== _M74_MERGE.num) continue;
+    if (cell(rows[m], 'Variation #') !== _M74_MERGE.variation) continue;
+    if (cell(rows[m], 'COTT Code') !== _M74_MERGE.cott) continue;
+    mergeHits.push({ row: m + 2, details: cell(rows[m], 'Variation Details') });
+  }
+  var merge = null;
+  if (mergeHits.length === 1) {
+    if (mergeHits[0].details.indexOf('first production run, 1953') !== -1) {
+      problems.push(_M74_MERGE.label + ' — already carried over. Skipping (not an error).');
+    } else {
+      merge = { row: mergeHits[0].row, before: mergeHits[0].details, after: mergeHits[0].details + _M74_MERGE.append };
+    }
+  } else if (mergeHits.length === 0) {
+    problems.push(_M74_MERGE.label + ' — TARGET NOT FOUND. Nothing written for this step.');
+  } else {
+    problems.push(_M74_MERGE.label + ' — AMBIGUOUS: ' + mergeHits.length + ' rows match. REFUSING this step.');
+  }
+
+  // The five deletes.
+  var dels = [];
+  for (var s = 0; s < _M74_DELETES.length; s++) {
+    var st = _M74_DELETES[s], hits = [];
+    for (var r = 0; r < rows.length; r++) {
+      if (cell(rows[r], 'Item Number') !== st.num) continue;
+      if (cell(rows[r], 'Variation #') !== st.variation) continue;
+      if (cell(rows[r], 'Source') !== st.src) continue;
+      if (cell(rows[r], 'Description') !== st.desc) continue;
+      hits.push({ row: r + 2, details: cell(rows[r], 'Variation Details') });
+    }
+    if (hits.length === 1) dels.push({ step: st, row: hits[0].row, details: hits[0].details });
+    else if (hits.length === 0) problems.push(st.label + ' — TARGET NOT FOUND (already removed, or the sheet changed). Nothing deleted for this step.');
+    else problems.push(st.label + ' — AMBIGUOUS: ' + hits.length + ' rows match. REFUSING this step.');
+  }
+
+  // Deletes run bottom-up so an earlier removal cannot shift a later target.
+  dels.sort(function (a, b) { return b.row - a.row; });
+  return { merge: merge, dels: dels, problems: problems };
+}
+if (typeof window !== 'undefined') window._m74Locate = _m74Locate;
+
+async function rrMaster174Preview() {
+  var box = document.getElementById('master-174-results');
+  if (!box) return;
+  box.innerHTML = '<div style="color:var(--text-dim);font-size:0.85rem">Reading the master sheet…</div>';
+  try {
+    var res = await sheetsGet(state.masterSheetId, _M74_TAB + '!A1:R');
+    var values = (res && res.values) || [];
+    var hdr = values[0] || [], body = values.slice(1);
+    var loc = _m74Locate(hdr, body);
+    window._m74Plan = loc;
+
+    var delRows = loc.dels.map(function (d) { return d.row; });
+    var before = _m74Collide(hdr, body, [], ['193', '195']);
+    var after = _m74Collide(hdr, body, delRows, ['193', '195']);
+    var all455 = _m74Collide(hdr, body, delRows, ['455']);
+
+    var html = '';
+    if (loc.merge) {
+      html += '<div style="padding:0.45rem 0.7rem;border:1px solid var(--border);border-radius:8px;margin-bottom:0.35rem;font-size:0.82rem;color:var(--text)">'
+        + '<strong>' + rrEsc(_M74_MERGE.label) + '</strong><br>'
+        + '<span style="color:var(--text-dim)">Row ' + loc.merge.row + ' · Variation Details gains: “' + rrEsc(_M74_MERGE.append.trim()) + '”</span></div>';
+    }
+    for (var i = 0; i < loc.dels.length; i++) {
+      var d = loc.dels[i];
+      html += '<div style="padding:0.45rem 0.7rem;border:1px solid var(--border);border-radius:8px;margin-bottom:0.35rem;font-size:0.82rem;color:var(--text)">'
+        + '<strong>DELETE row ' + d.row + ' — ' + rrEsc(d.step.label) + '</strong><br>'
+        + '<span style="color:var(--text-dim)">' + rrEsc(d.details.slice(0, 110)) + (d.details.length > 110 ? '…' : '') + '</span></div>';
+    }
+    html += '<div style="padding:0.45rem 0.7rem;border:1px solid var(--border);border-radius:8px;margin-bottom:0.35rem;font-size:0.82rem;color:var(--text)">'
+      + '<strong>193 + 195 collisions: ' + before.length + ' now → ' + after.length + ' after</strong><br>'
+      + '<span style="color:var(--text-dim)">Counted from the rows just read, not assumed. 455 keeps ' + all455.length + ' — left alone on purpose, decided separately.</span></div>';
+    html += '<div style="padding:0.45rem 0.7rem;border:1px solid var(--border);border-radius:8px;margin-bottom:0.35rem;font-size:0.82rem;color:var(--text)"><strong>Master Version → 1.74 added on top</strong></div>';
+    for (var p = 0; p < loc.problems.length; p++) {
+      html += '<div style="padding:0.45rem 0.7rem;border:1.5px solid #e74c3c;border-radius:8px;margin-bottom:0.35rem;font-size:0.82rem;color:#e74c3c">' + rrEsc(loc.problems[p]) + '</div>';
+    }
+    if (after.length > 0) {
+      html += '<div style="padding:0.45rem 0.7rem;border:1.5px solid #e74c3c;border-radius:8px;margin-bottom:0.35rem;font-size:0.82rem;color:#e74c3c">'
+        + 'These steps would NOT clear 193/195 — ' + after.length + ' collision(s) would remain. Not applying. Tell Claude what the preview says.</div>';
+    }
+    var canApply = (loc.merge || loc.dels.length) && after.length === 0;
+    html += canApply
+      ? '<button onclick="rrMaster174Apply()" style="margin-top:0.4rem;padding:0.55rem 1.1rem;border-radius:8px;border:none;background:#e74c3c;color:var(--on-accent);font-family:var(--font-body);font-size:0.85rem;font-weight:700;cursor:pointer">Apply ' + (loc.merge ? '1 edit + ' : '') + loc.dels.length + ' deletion' + (loc.dels.length === 1 ? '' : 's') + ' + version 1.74</button>'
+      : '<div style="color:var(--text-dim);font-size:0.82rem;margin-top:0.4rem">Nothing to apply.</div>';
+    box.innerHTML = html;
+  } catch (e) {
+    box.innerHTML = '<div style="color:#e74c3c;font-size:0.85rem">Could not read the master sheet: ' + rrEsc(String(e && e.message || e)) + '</div>';
+  }
+}
+
+var _m74Busy = false;
+async function rrMaster174Apply() {
+  if (_m74Busy) return;
+  _m74Busy = true;
+  var box = document.getElementById('master-174-results');
+  var log = [];
+  function say(m) { log.push(m); if (box) box.innerHTML = log.map(function (x) { return '<div style="font-size:0.82rem;margin-bottom:0.25rem;color:var(--text)">' + x + '</div>'; }).join(''); }
+  var okAll = true;
+  try {
+    var plan = window._m74Plan;
+    if (!plan || (!plan.merge && !(plan.dels && plan.dels.length))) { say('No previewed plan — run Preview first.'); _m74Busy = false; return; }
+
+    // 1. The merge FIRST, while every row number in the plan is still valid.
+    if (plan.merge) {
+      var mr = await sheetsGet(state.masterSheetId, _M74_TAB + '!A' + plan.merge.row + ':R' + plan.merge.row);
+      var mrow = ((mr && mr.values) || [[]])[0] || [];
+      var mNum = String(mrow[0] == null ? '' : mrow[0]).trim();
+      var mVar = String(mrow[10] == null ? '' : mrow[10]).trim();
+      var mCott = String(mrow[16] == null ? '' : mrow[16]).trim();
+      if (mNum !== _M74_MERGE.num || mVar !== _M74_MERGE.variation || mCott !== _M74_MERGE.cott) {
+        okAll = false; say('⚠ SKIPPED the note (row ' + plan.merge.row + ' changed since preview)');
+      } else {
+        var w = await rrVerifiedRowUpdate(state.masterSheetId, _M74_TAB, plan.merge.row,
+          "'" + _M74_TAB + "'!L" + plan.merge.row, [[plan.merge.after]], { num: _M74_MERGE.num }, 'master sheet');
+        if (w !== true) { okAll = false; say('⚠ SKIPPED the note (row moved at write time)'); }
+        else say('✓ ' + rrEsc(_M74_MERGE.label));
+      }
+    }
+
+    // 2. Deletes, bottom-up (the locator already sorted them descending).
+    for (var d = 0; d < plan.dels.length; d++) {
+      var td = plan.dels[d];
+      var re = await sheetsGet(state.masterSheetId, _M74_TAB + '!A' + td.row + ':R' + td.row);
+      var row = ((re && re.values) || [[]])[0] || [];
+      var numNow = String(row[0] == null ? '' : row[0]).trim();
+      var varNow = String(row[10] == null ? '' : row[10]).trim();
+      var srcNow = String(row[15] == null ? '' : row[15]).trim();
+      var descNow = String(row[7] == null ? '' : row[7]).trim();
+      if (numNow !== td.step.num || varNow !== td.step.variation || srcNow !== td.step.src || descNow !== td.step.desc) {
+        okAll = false; say('⚠ SKIPPED delete (row ' + td.row + ' changed since preview): ' + rrEsc(td.step.label)); continue;
+      }
+      var deleted = await sheetsDeleteRow(state.masterSheetId, _M74_TAB, td.row, { itemNum: td.step.num, inventoryId: '' });
+      if (deleted) say('✓ Deleted row ' + td.row + ' — ' + rrEsc(td.step.label));
+      else { okAll = false; say('⚠ Delete refused for row ' + td.row); }
+    }
+
+    // 3. Read the tab back and CHECK. The done-flag is earned, not assumed.
+    var check = await sheetsGet(state.masterSheetId, _M74_TAB + '!A1:R');
+    var cv = (check && check.values) || [];
+    var left = _m74Collide(cv[0] || [], cv.slice(1), [], ['193', '195']);
+    if (left.length) {
+      okAll = false;
+      say('⚠ Verified after writing: 193/195 still have ' + left.length + ' collision(s) — ' + rrEsc(left.map(function (c) { return c.key; }).join(', ')));
+    } else {
+      say('✓ Verified by reading the sheet back: 193 and 195 have zero collisions');
+    }
+
+    // 4. Version history — 1.74 on top, newest-first, text-forced.
+    var mv = await sheetsGet(state.masterSheetId, "'Master Version'!A2:C60");
+    var hist = ((mv && mv.values) || []).filter(function (r) { return r && String(r[0] || '').trim(); });
+    if (hist.length && String(hist[0][0]).trim() === '1.74') {
+      say('✓ Master Version already at 1.74');
+    } else {
+      var rows74 = [["'" + _M74_VERSION_ROW[0], "'" + _M74_VERSION_ROW[1], _M74_VERSION_ROW[2]]].concat(hist.map(function (r) {
+        return ["'" + String(r[0] == null ? '' : r[0]), "'" + String(r[1] == null ? '' : r[1]), r[2] == null ? '' : r[2]];
+      }));
+      await sheetsUpdate(state.masterSheetId, "'Master Version'!A2:C" + (1 + rows74.length), rows74);
+      say('✓ Master Version: 1.74 added on top, history preserved');
+    }
+
+    if (okAll) {
+      localStorage.setItem(_M74_DONE_KEY, '1');
+      say('<strong>Done, and checked. 193 has 2 variations, 195 has 4, no collisions on either.</strong> 455 is untouched and still has four — that one is coming to you on its own. This card will disappear.');
+    } else {
+      say('<strong>Finished with skipped steps — the card stays. Run Preview again to see what remains.</strong>');
+    }
+  } catch (e) {
+    say('⚠ Stopped: ' + rrEsc(String(e && e.message || e)));
+  } finally {
+    _m74Busy = false;
+  }
+}
+if (typeof window !== 'undefined') {
+  window.rrMaster174Preview = rrMaster174Preview;
+  window.rrMaster174Apply = rrMaster174Apply;
 }
