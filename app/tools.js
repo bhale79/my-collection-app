@@ -138,10 +138,31 @@ function buildToolsPage() {
       '<div id="vault-cleanup-results" style="margin-top:1rem"></div>' +
     '</div>';
 
+  // ═══ v0.9.1338 — MASTER FIX-UP (2026-08-05), ONE-TIME, diagnostics-gated ═══
+  // Applies Brad's five duplicate-row decisions from the 08-04 master audit
+  // to the LIVE master sheet, and rewrites the Master Version tab as clean
+  // one-row-per-version history ending at 1.72 — matching the rebuilt
+  // "TheRailRoster Master List - LIVE.xlsx" workbook exactly. Same contract
+  // as Vault Cleanup (v1312): preview is READ-ONLY, every step re-verifies
+  // its row's content at write time and REFUSES on any mismatch, the row
+  // delete goes last (a delete moves every row beneath it), and the card
+  // hides itself once the run succeeds.
+  var _mfxShow = (typeof rrDiagnostics === 'function') ? rrDiagnostics() : false;
+  var CARD_MASTER_FIXUP = (!_mfxShow || localStorage.getItem('rr_master_fixup_172_done') === '1') ? '' :
+    '<div class="tools-card">' +
+      '<div class="tools-card-title">' +
+        '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#e74c3c" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>' +
+        'Master Fix-Up · one-time (v1.72)' +
+      '</div>' +
+      '<div class="tools-card-desc">Applies the five duplicate-row decisions from the Aug 4 master audit to the live master sheet (1130T, 2243, 2245, 50, 55) and tidies the Master Version tab into one row per version, ending at 1.72 — matching the rebuilt LIVE workbook. Preview shows every step and verifies each row before anything is written.</div>' +
+      '<button onclick="rrMasterFixupPreview()" style="padding:0.55rem 1.1rem;border-radius:8px;border:1.5px solid #e74c3c;background:var(--bg-card);background:color-mix(in srgb, rgb(231,76,60) 10%, var(--bg-card));color:#e74c3c;font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer">Preview the fix-up</button>' +
+      '<div id="master-fixup-results" style="margin-top:1rem"></div>' +
+    '</div>';
+
   var html = '<div class="page-title" style="margin-bottom:0.5rem">Collection Tools</div>';
   // Universal = works across every manufacturer.
   html += SECTION_HEADER('universal', 'Universal Tools', 'Work across all manufacturers');
-  html += '<div id="universal-body">' + CARD_DUPLICATE_CHECKER + CARD_VAULT_CLEANUP + CARD_SHARED_PHOTOS + '</div>';
+  html += '<div id="universal-body">' + CARD_DUPLICATE_CHECKER + CARD_VAULT_CLEANUP + CARD_MASTER_FIXUP + CARD_SHARED_PHOTOS + '</div>';
 
   // Postwar Lionel = tools that rely on Lionel postwar catalog data (grouping,
   // sets, companions). Smart Group Finder lives here (it's postwar-Lionel only).
@@ -1502,4 +1523,198 @@ async function rrVaultCleanupRun() {
 if (typeof window !== 'undefined') {
   window.rrVaultCleanupPreview = rrVaultCleanupPreview;
   window.rrVaultCleanupRun = rrVaultCleanupRun;
+}
+
+
+// ═══════════════════════════════════════════════════════════════════
+// MASTER FIX-UP (v0.9.1338, 2026-08-05) — one-time, diagnostics-gated.
+//
+// Brad's five decisions from the 08-04 duplicate audit, applied to the
+// LIVE master sheet. Design rules inherited from Vault Cleanup (1312):
+//   • the preview is READ-ONLY;
+//   • every target is located by CONTENT (number + variation + an anchor
+//     cell), never by a remembered row number — and must match EXACTLY
+//     once, or the step refuses (refusing beats guessing);
+//   • at APPLY time each row is re-fetched and re-verified immediately
+//     before its write — a row that moved or changed is refused, not
+//     guessed at;
+//   • the row DELETE goes last, because a delete moves every row
+//     beneath it;
+//   • the Master Version tab is rewritten as clean one-row-per-version
+//     history ending at 1.72, matching the rebuilt LIVE workbook.
+// ═══════════════════════════════════════════════════════════════════
+
+var _MFX_TAB = 'Lionel PW - Items';
+var _MFX_DONE_KEY = 'rr_master_fixup_172_done';
+// Column letters in the master items tab: A=Item Number, B=Item Type,
+// K=Variation #, Q=COTT Code (header row 1; data from row 2).
+var _MFX_STEPS = [
+  { id: 'a', label: '1130T restored tender → base row (variation blanked)',
+    num: '1130T', variation: '1', anchorCol: 'COTT Code', anchorVal: 'SE0100',
+    set: { 'K': '' } },
+  { id: 'b', label: '2243 orange-shell A unit → variation 5',
+    num: '2243', variation: '4', anchorCol: 'COTT Code', anchorVal: 'SDE0012',
+    set: { 'K': '5' } },
+  { id: 'c', label: '2245 factory-error Texas Special → variation 5',
+    num: '2245', variation: '1', anchorCol: 'COTT Code', anchorVal: 'DE0321',
+    set: { 'K': '5' } },
+  { id: 'd', label: '50 no-lettering Gang Car → variation 7, type Motorized Unit',
+    num: '50', variation: '6', anchorCol: 'COTT Code', anchorVal: 'M0006',
+    set: { 'K': '7', 'B': 'Motorized Unit' } },
+  { id: 'e', label: '55 box row removed from Items (its box stays in the Boxes tab)',
+    num: '55', variation: '3', anchorCol: 'Item Type', anchorVal: 'Accessory',
+    del: true }
+];
+// The clean history — byte-identical to the rebuilt workbook's tab.
+var _MFX_HISTORY = [
+  ['Version', 'Date', 'Notes'],
+  ['60', '2026-07-27', '[workbook lineage] Body Color column added to Lionel PW - Items (2,704 rows). Reserved schema headers (Category / Track Power / MSRP) written in.'],
+  ['1.66', '2026-07-28', 'Stamped Markings column added to all 28 items tabs; populated for all 224 Lionel postwar caboose rows from COTT photographs plus Variation Details. 6119-100 var 9 road name corrected to D. L. & W.; five en-dash Year Produced cells normalised.'],
+  ['1.68', '2026-08-01', 'Stamped Markings populated for Boxcar (317) and Flatcar (257) rows from Cornucopia of Toy Trains photographs. Cabooses unchanged.'],
+  ['1.69', '2026-08-01', 'Stamped Markings: 6464-125 and 3530 read (the model photos were never the FIRST image at their anchor); 6431 and 6264 resolved; 2461 and 6830 corrected after re-examining the source. 3424 remains unread - no side view exists.'],
+  ['1.70', '2026-08-01', 'Weaver O: removed a duplicated header row sitting in the data at row 4010, which the app would have loaded as an item called "Item Number".'],
+  ['1.71', '2026-08-01', 'Weaver O: new column "Run Commissioned By" - who ordered each special run, from the Weaver Ultra Line production list. Blank means regular Weaver catalogue production. Contact details in the source were deliberately not imported.'],
+  ['1.72', '2026-08-05', 'Five duplicate number+variation rows resolved in Lionel PW - Items: 1130T restored row -> base (variation blanked); 2243 orange-shell A unit -> var 5; 2245 factory-error Texas Special -> var 5; 50 no-lettering Gang Car -> var 7 + type corrected to Motorized Unit; 55 box row removed from Items (its box remains in Lionel PW - Boxes). Master Version tab tidied to one row per version. Matches workbook "TheRailRoster Master List - LIVE.xlsx". RULE: bump this version with every master upload, one row per version, and keep it matching the workbook.']
+];
+
+// PURE locator: takes the header row + data rows (as fetched), returns
+// { targets: [{step, row, current}], problems: ['...'] }. Row numbers are
+// 1-based SHEET rows (data row i → sheet row i+2). Exactly-once or refuse.
+function _mfxLocate(hdr, rows) {
+  var ci = {}; for (var i = 0; i < hdr.length; i++) ci[hdr[i]] = i;
+  function cell(r, name) {
+    var idx = ci[name];
+    return (idx == null || idx >= r.length || r[idx] == null) ? '' : String(r[idx]).trim();
+  }
+  var targets = [], problems = [];
+  for (var s = 0; s < _MFX_STEPS.length; s++) {
+    var st = _MFX_STEPS[s], hits = [];
+    for (var r = 0; r < rows.length; r++) {
+      var row = rows[r];
+      if (cell(row, 'Item Number') !== st.num) continue;
+      if (cell(row, 'Variation #') !== st.variation) continue;
+      if (cell(row, st.anchorCol) !== st.anchorVal) continue;
+      hits.push({ row: r + 2, current: { num: cell(row, 'Item Number'), variation: cell(row, 'Variation #'), type: cell(row, 'Item Type'), anchor: cell(row, st.anchorCol), desc: cell(row, 'Description') } });
+    }
+    if (hits.length === 1) targets.push({ step: st, row: hits[0].row, current: hits[0].current });
+    else if (hits.length === 0) problems.push(st.label + ' — TARGET NOT FOUND (already fixed, or the sheet changed). Nothing will be written for this step.');
+    else problems.push(st.label + ' — AMBIGUOUS: ' + hits.length + ' rows match. REFUSING this step; a human eye is needed.');
+  }
+  return { targets: targets, problems: problems };
+}
+if (typeof window !== 'undefined') window._mfxLocate = _mfxLocate;
+
+async function _mfxFetch() {
+  var res = await sheetsGet(state.masterSheetId, _MFX_TAB + '!A1:R');
+  var values = (res && res.values) || [];
+  return { hdr: values[0] || [], rows: values.slice(1) };
+}
+
+async function rrMasterFixupPreview() {
+  var box = document.getElementById('master-fixup-results');
+  if (!box) return;
+  box.innerHTML = '<div style="color:var(--text-dim);font-size:0.85rem">Reading the master sheet…</div>';
+  try {
+    var g = await _mfxFetch();
+    var loc = _mfxLocate(g.hdr, g.rows);
+    window._mfxPlan = loc;
+    var html = '';
+    for (var i = 0; i < loc.targets.length; i++) {
+      var t = loc.targets[i];
+      html += '<div style="padding:0.5rem 0.7rem;border:1px solid var(--border);border-radius:8px;margin-bottom:0.4rem;font-size:0.82rem">'
+        + '<strong>' + t.step.label + '</strong><br>'
+        + '<span style="color:var(--text-dim)">Row ' + t.row + ' — now: No. ' + t.current.num + ' var ' + (t.current.variation || '(blank)') + ' · ' + t.current.type + ' · ' + t.current.desc.slice(0, 60) + '</span>'
+        + '</div>';
+    }
+    html += '<div style="padding:0.5rem 0.7rem;border:1px solid var(--border);border-radius:8px;margin-bottom:0.4rem;font-size:0.82rem"><strong>Master Version tab → clean history, 1.72 on top</strong><br><span style="color:var(--text-dim)">Rewrites rows 1–8 as one row per version and clears the four split entries at rows 1000–1011.</span></div>';
+    for (var p = 0; p < loc.problems.length; p++) {
+      html += '<div style="padding:0.5rem 0.7rem;border:1.5px solid #e74c3c;border-radius:8px;margin-bottom:0.4rem;font-size:0.82rem;color:#e74c3c">' + loc.problems[p] + '</div>';
+    }
+    if (loc.targets.length) {
+      html += '<button onclick="rrMasterFixupApply()" style="margin-top:0.4rem;padding:0.55rem 1.1rem;border-radius:8px;border:none;background:#e74c3c;color:var(--on-accent);font-family:var(--font-body);font-size:0.85rem;font-weight:700;cursor:pointer">Apply ' + loc.targets.length + ' step' + (loc.targets.length === 1 ? '' : 's') + ' + version 1.72</button>';
+    } else {
+      html += '<div style="color:var(--text-dim);font-size:0.82rem;margin-top:0.4rem">Nothing to apply.</div>';
+    }
+    box.innerHTML = html;
+  } catch (e) {
+    box.innerHTML = '<div style="color:#e74c3c;font-size:0.85rem">Could not read the master sheet: ' + String(e && e.message || e).replace(/</g, '&lt;') + '</div>';
+  }
+}
+
+var _mfxBusy = false;
+async function rrMasterFixupApply() {
+  if (_mfxBusy) return;
+  _mfxBusy = true;
+  var box = document.getElementById('master-fixup-results');
+  var log = [];
+  function say(m) { log.push(m); if (box) box.innerHTML = log.map(function (x) { return '<div style="font-size:0.82rem;margin-bottom:0.25rem">' + x + '</div>'; }).join(''); }
+  var okAll = true;
+  try {
+    var plan = window._mfxPlan;
+    if (!plan || !plan.targets || !plan.targets.length) { say('No previewed plan — run Preview first.'); _mfxBusy = false; return; }
+    // Cell writes first, delete LAST (a delete moves every row beneath it).
+    var writes = plan.targets.filter(function (t) { return !t.step.del; });
+    var dels   = plan.targets.filter(function (t) { return t.step.del; });
+    for (var i = 0; i < writes.length; i++) {
+      var t = writes[i];
+      // Re-verify the row RIGHT NOW — content, not memory: variation AND
+      // content anchor, because two rows can share a number (55 does).
+      // The write itself then goes through rrVerifiedRowUpdate — the app's
+      // ONE guarded writer (§234) — which re-checks column A at write time
+      // and refuses if the row moved.
+      var re = await sheetsGet(state.masterSheetId, _MFX_TAB + '!A' + t.row + ':R' + t.row);
+      var row = ((re && re.values) || [[]])[0] || [];
+      var numNow = String(row[0] == null ? '' : row[0]).trim();
+      var varNow = String(row[10] == null ? '' : row[10]).trim();
+      var aIdx = (t.step.anchorCol === 'COTT Code') ? 16 : 1;
+      var anchorNow = String(row[aIdx] == null ? '' : row[aIdx]).trim();
+      if (numNow !== t.step.num || varNow !== t.step.variation || anchorNow !== t.step.anchorVal) {
+        okAll = false; say('⚠ SKIPPED (row ' + t.row + ' changed): ' + t.step.label); continue;
+      }
+      var cols = Object.keys(t.step.set), landed = true;
+      for (var c = 0; c < cols.length; c++) {
+        var w1 = await rrVerifiedRowUpdate(state.masterSheetId, _MFX_TAB, t.row,
+          "'" + _MFX_TAB + "'!" + cols[c] + t.row, [[t.step.set[cols[c]]]],
+          { num: t.step.num }, 'master sheet');
+        if (w1 !== true) { landed = false; break; }
+      }
+      if (!landed) { okAll = false; say('⚠ SKIPPED (row ' + t.row + ' moved at write time): ' + t.step.label); continue; }
+      say('✓ ' + t.step.label + ' (row ' + t.row + ')');
+    }
+    for (var d = 0; d < dels.length; d++) {
+      var td = dels[d];
+      var re2 = await sheetsGet(state.masterSheetId, _MFX_TAB + '!A' + td.row + ':R' + td.row);
+      var row2 = ((re2 && re2.values) || [[]])[0] || [];
+      var numNow2 = String(row2[0] == null ? '' : row2[0]).trim();
+      var typeNow2 = String(row2[1] == null ? '' : row2[1]).trim();
+      if (numNow2 !== td.step.num || typeNow2 !== td.step.anchorVal) {
+        okAll = false; say('⚠ SKIPPED delete (row ' + td.row + ' changed since preview): ' + td.step.label); continue;
+      }
+      // sheetsDeleteRow REQUIRES the expected identity and re-checks column A
+      // itself (rrRowStillIs) before deleting — our stronger A+B check above,
+      // then its own, belt and braces.
+      var deleted = await sheetsDeleteRow(state.masterSheetId, _MFX_TAB, td.row, { itemNum: td.step.num, inventoryId: '' });
+      if (deleted) say('✓ ' + td.step.label + ' (row ' + td.row + ' deleted)');
+      else { okAll = false; say('⚠ Delete refused for row ' + td.row); }
+    }
+    // Version tab: clean history + clear the split entries.
+    await sheetsUpdate(state.masterSheetId, "'Master Version'!A1:C8", _MFX_HISTORY);
+    var blanks = []; for (var b = 0; b < 12; b++) blanks.push(['', '', '']);
+    await sheetsUpdate(state.masterSheetId, "'Master Version'!A1000:C1011", blanks);
+    say('✓ Master Version tab: one row per version, 1.72 on top');
+    if (okAll) {
+      localStorage.setItem(_MFX_DONE_KEY, '1');
+      say('<strong>Done. The live sheet now matches the LIVE workbook at version 1.72.</strong> This card will disappear.');
+    } else {
+      say('<strong>Finished with skipped steps — the card stays until everything applies cleanly. Run Preview again to see what remains.</strong>');
+    }
+  } catch (e) {
+    say('⚠ Stopped: ' + String(e && e.message || e).replace(/</g, '&lt;'));
+  } finally {
+    _mfxBusy = false;
+  }
+}
+if (typeof window !== 'undefined') {
+  window.rrMasterFixupPreview = rrMasterFixupPreview;
+  window.rrMasterFixupApply = rrMasterFixupApply;
 }

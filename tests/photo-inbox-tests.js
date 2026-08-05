@@ -18854,6 +18854,140 @@ META_WRITES.length = 0; TOASTS.length = 0;
          anyWired.length === 0, anyWired.map(x => x.name).join(','));
     })();
 
+
+    // ═══════════════════════════════════════════════════════════
+    // §278. v0.9.1338 — the Master Fix-Up tool (one-time, v1.72).
+    //
+    //   Same contract as Vault Cleanup (§274): the card is diagnostics-
+    //   gated and hides behind a done-flag; the locator matches by
+    //   CONTENT (number + variation + a unique anchor value) and refuses
+    //   on zero or many; apply RE-VERIFIES each row at write time; the
+    //   row DELETE goes last because a delete moves every row beneath
+    //   it; and the busy flag stops a double-click from applying twice.
+    //   The locator is PURE, so it is tested behaviourally on a fixture
+    //   grid — not by reading its own source and nodding.
+    // ═══════════════════════════════════════════════════════════
+    section('278. Master Fix-Up: gated, content-anchored, re-verified, delete-last');
+    (function () {
+      const p78 = require('path');
+      const vm78 = require('vm');
+      const tj = fs.readFileSync(p78.join(__dirname, '..', 'app', 'tools.js'), 'utf8');
+
+      // ── Source pins: the card only exists behind diagnostics + done-flag.
+      ok('278 the card is diagnostics-gated exactly like Vault Cleanup',
+         /var _mfxShow = \(typeof rrDiagnostics === 'function'\) \? rrDiagnostics\(\) : false;/.test(tj));
+      ok('278 …and hides forever once the run succeeded',
+         /CARD_MASTER_FIXUP = \(!_mfxShow \|\| localStorage\.getItem\('rr_master_fixup_172_done'\) === '1'\) \? ''/.test(tj));
+      ok('278 the done key is set ONLY when every step applied cleanly',
+         /if \(okAll\) \{\s*localStorage\.setItem\(_MFX_DONE_KEY, '1'\);/.test(tj));
+
+      // ── The five steps are anchored by unique CONTENT, not row numbers.
+      const stepsSrc = (tj.match(/var _MFX_STEPS = \[[\s\S]*?\n\];/) || [''])[0];
+      ok('278 all four COTT anchors are present (SE0100, SDE0012, DE0321, M0006)',
+         ['SE0100', 'SDE0012', 'DE0321', 'M0006'].every(a => stepsSrc.indexOf("'" + a + "'") >= 0));
+      ok('278 no step carries a hardcoded sheet row number',
+         !/row\s*:\s*\d/.test(stepsSrc));
+
+      // ── Apply re-verifies content at write time and refuses on mismatch.
+      ok('278 each cell write re-fetches its row FIRST and skips on any change',
+         /var re = await sheetsGet\(state\.masterSheetId, _MFX_TAB \+ '!A' \+ t\.row \+ ':R' \+ t\.row\);[\s\S]{0,700}?if \(numNow !== t\.step\.num \|\| varNow !== t\.step\.variation \|\| anchorNow !== t\.step\.anchorVal\) \{\s*okAll = false;[\s\S]{0,120}?continue;\s*\}[\s\S]{0,600}?rrVerifiedRowUpdate/.test(tj));
+      ok('278 …and every cell write goes through the ONE guarded writer (§234)',
+         /await rrVerifiedRowUpdate\(state\.masterSheetId, _MFX_TAB, t\.row,/.test(tj) &&
+         !/await sheetsUpdate\(state\.masterSheetId, "'" \+ _MFX_TAB/.test(tj));
+      ok('278 …whose refusal marks the run NOT-done (card stays)',
+         /if \(!landed\) \{ okAll = false;[\s\S]{0,120}?continue; \}/.test(tj));
+      ok('278 the delete re-verifies too (number AND type) before touching the row',
+         /var re2 = await sheetsGet\(state\.masterSheetId, _MFX_TAB \+ '!A' \+ td\.row \+ ':R' \+ td\.row\);[\s\S]{0,500}?if \(numNow2 !== td\.step\.num \|\| typeNow2 !== td\.step\.anchorVal\) \{\s*okAll = false;[\s\S]{0,120}?continue;\s*\}[\s\S]{0,400}?sheetsDeleteRow/.test(tj));
+      ok('278 …and the delete names its expected record (sheetsDeleteRow throws without one)',
+         /sheetsDeleteRow\(state\.masterSheetId, _MFX_TAB, td\.row, \{ itemNum: td\.step\.num/.test(tj));
+
+      // ── Delete goes LAST: the writes loop precedes the deletes loop, and
+      //    sheetsDeleteRow appears nowhere before it.
+      const iWrites = tj.indexOf('for (var i = 0; i < writes.length; i++)');
+      const iDels = tj.indexOf('for (var d = 0; d < dels.length; d++)');
+      ok('278 cell writes run before the row delete (a delete shifts rows)',
+         iWrites > 0 && iDels > iWrites);
+      ok('278 sheetsDeleteRow is called only inside the deletes loop',
+         tj.indexOf('sheetsDeleteRow', iWrites) > iDels);
+
+      // ── Double-click guard.
+      ok('278 apply is guarded against double-execution',
+         /if \(_mfxBusy\) return;\s*\n\s*_mfxBusy = true;/.test(tj));
+
+      // ── Version history: one row per version, 1.72 on top, split rows cleared.
+      ok('278 the history rewrite targets Master Version A1:C8',
+         tj.indexOf('"\'Master Version\'!A1:C8", _MFX_HISTORY') >= 0);
+      ok('278 …and the four split entries at rows 1000-1011 are cleared',
+         tj.indexOf('"\'Master Version\'!A1000:C1011", blanks') >= 0);
+
+      // ── Behavioural: run the REAL locator over a fixture grid. The slice
+      //    from _MFX_TAB down to the window export is dependency-free.
+      const iSlice0 = tj.indexOf('var _MFX_TAB =');
+      const iSlice1 = tj.indexOf("window._mfxLocate = _mfxLocate;");
+      ok('278 the locator slice is extractable', iSlice0 > 0 && iSlice1 > iSlice0);
+      const sandbox = { window: {} };
+      vm78.createContext(sandbox);
+      vm78.runInContext(tj.slice(iSlice0, tj.lastIndexOf('\n', iSlice1)), sandbox);
+      const locate = sandbox._mfxLocate;
+      const HIST = sandbox._MFX_HISTORY;
+      ok('278 _mfxLocate evaluated', typeof locate === 'function');
+
+      ok('278 the baked history is 8 rows, header + 60→1.72',
+         Array.isArray(HIST) && HIST.length === 8 && HIST[0][0] === 'Version' && HIST[7][0] === '1.72');
+
+      // Fixture: header names at arbitrary positions (the locator matches by
+      // NAME, never index), five true targets, plus decoys that share the
+      // number or the variation but never all three keys at once.
+      const H = ['Item Number', 'Item Type', 'Description', 'Variation #', 'COTT Code'];
+      function R(num, type, desc, vr, cott) { return [num, type, desc, vr, cott]; }
+      const grid = [
+        R('1130T', 'Steam Locomotive', 'Restored tender', '1', 'SE0100'),   // step a → sheet row 2
+        R('1130T', 'Steam Locomotive', 'Different 1130T', '2', 'SE0101'),   // decoy: same num, other var+anchor
+        R('2243', 'Diesel Locomotive', 'Orange shell', '4', 'SDE0012'),     // step b → row 4
+        R('2243', 'Diesel Locomotive', 'Regular shell', '5', 'SDE0011'),    // decoy
+        R('2245', 'Diesel Locomotive', 'Factory error', '1', 'DE0321'),     // step c → row 6
+        R('50', 'Work Car/Other', 'No lettering', '6', 'M0006'),            // step d → row 7
+        R('55', 'Accessory', 'Box only', '3', ''),                          // step e (anchor = Item Type) → row 8
+        R('55', 'Motorized Unit', 'Real 55', '3', 'M0011')                  // decoy: same num+var, wrong type
+      ];
+
+      const clean = locate(H, grid);
+      ok('278 fixture: all five steps found exactly once, zero problems',
+         clean.targets.length === 5 && clean.problems.length === 0,
+         clean.problems.join(' | '));
+      ok('278 fixture: sheet rows are data-index+2 (2,4,6,7,8)',
+         clean.targets.map(t => t.row).join(',') === '2,4,6,7,8',
+         clean.targets.map(t => t.row).join(','));
+      ok('278 fixture: step a carries its write payload (K → blank)',
+         clean.targets[0].step.set && clean.targets[0].step.set.K === '');
+      ok('278 fixture: step e is the delete, and ONLY step e',
+         clean.targets.filter(t => t.step.del).length === 1 && clean.targets[4].step.del === true);
+
+      // Ambiguity: a second row matching ALL THREE keys of step b must make
+      // the locator REFUSE that step — first-find has bitten this project
+      // six times, so this is the drill that matters most.
+      const dupGrid = grid.concat([R('2243', 'Diesel Locomotive', 'Impostor', '4', 'SDE0012')]);
+      const amb = locate(H, dupGrid);
+      ok('278 fixture: a duplicate full-key match → AMBIGUOUS, step refused',
+         amb.targets.length === 4 && amb.problems.length === 1 && /AMBIGUOUS: 2 rows/.test(amb.problems[0]),
+         amb.problems.join(' | '));
+      ok('278 fixture: the other four steps still apply when one is ambiguous',
+         amb.targets.every(t => t.step.id !== 'b'));
+
+      // Missing: an already-fixed target reports NOT FOUND and writes nothing.
+      const goneGrid = grid.filter(r => r[4] !== 'SE0100');
+      const gone = locate(H, goneGrid);
+      ok('278 fixture: a vanished target → NOT FOUND, step refused',
+         gone.targets.length === 4 && gone.problems.length === 1 && /NOT FOUND/.test(gone.problems[0]),
+         gone.problems.join(' | '));
+
+      // Whitespace: sheets hand back padded strings; the locator must trim.
+      const padGrid = [R(' 1130T ', 'Steam Locomotive', 'x', ' 1 ', ' SE0100 ')];
+      const pad = locate(H, padGrid);
+      ok('278 fixture: padded cell values still match (locator trims)',
+         pad.targets.length === 1 && pad.targets[0].step.id === 'a');
+    })();
+
   })().then(function () {
     console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
     process.exit(fail ? 1 : 0);
