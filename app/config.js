@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.1343';
+const APP_VERSION = 'v0.9.1344';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -19,7 +19,18 @@ const APP_VERSION = 'v0.9.1343';
 //
 // One line back to true when the editor is user-ready.
 const APPEARANCE_ENABLED = false;
-if (typeof window !== 'undefined') window.APPEARANCE_ENABLED = APPEARANCE_ENABLED;
+// v0.9.1344: ONE reader, same shape as rrDiagnostics() below. Two places now
+// ask this question — the Appearance page itself, and the dashboard's card
+// library, which must not offer logo cards a user cannot fill in while the
+// editor is hidden. A constant read inline in two files is a fact with two
+// answers waiting to happen.
+function rrAppearanceOn() {
+  return (typeof APPEARANCE_ENABLED !== 'undefined') && !!APPEARANCE_ENABLED;
+}
+if (typeof window !== 'undefined') {
+  window.APPEARANCE_ENABLED = APPEARANCE_ENABLED;
+  window.rrAppearanceOn = rrAppearanceOn;
+}
 // v0.9.1300 (Brad): "keep collecting the data, just hide the page and the
 // collectors market button." The market UI is off until a future release —
 // flip this to bring it back. Anonymous contribution keeps running; ONLY the

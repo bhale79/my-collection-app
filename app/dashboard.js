@@ -656,6 +656,65 @@ function buildDashboard() {
   });
 
   var totalOwned = owned + ephemeraCount + isCount + sciCount + conCount;
+
+  // ══ v0.9.1344 — the first thirty seconds ═══════════════════════════════
+  // Brad asked what a beta tester sees on their first startup. The honest
+  // answer was: $0, 0 items, an era bar at zero, an empty activity feed, an
+  // empty Recent Additions and an empty Want List. Six containers and no
+  // indication of what to do — on an app whose two best features (the
+  // catalogue and the photo inbox) are both one click away and invisible
+  // from that screen.
+  //
+  // So an empty collection gets a welcome instead of six zeroes, and the
+  // normal dashboard returns the moment anything is owned.
+  //
+  // ⚠ THE GUARD MATTERS MORE THAN THE FEATURE. A returning collector must
+  // never see "add your first item" — not even for a frame. Two conditions:
+  // the master catalogue has loaded (so this is not a failed boot), and
+  // buildDashboard only ever runs after buildApp, which runs after the
+  // personal sheet is read. An empty count here is a real empty collection,
+  // not a loading state.
+  var _dashEmpty = (totalOwned === 0) && !!(state.masterData && state.masterData.length > 0);
+  if (_dashEmpty) {
+    var _wg = document.getElementById('stats-grid');
+    if (_wg) {
+      _wg.style.display = 'block';
+      _wg.innerHTML =
+        '<div style="padding:1.4rem 1.5rem;max-width:760px;background:var(--surface);border:1px solid var(--border);border-radius:14px">'
+        + '<div style="font-family:var(--font-head);font-size:1.15rem;font-weight:700;margin-bottom:0.35rem">Welcome to The Rail Roster</div>'
+        + '<div style="font-size:0.88rem;color:var(--text-mid);line-height:1.55;margin-bottom:1.1rem">'
+        +   'Nothing in your collection yet \u2014 that is exactly where everyone starts. '
+        +   'Two ways in, and you can mix them however you like.'
+        + '</div>'
+        + '<div style="display:flex;flex-wrap:wrap;gap:0.9rem">'
+        +   '<div style="flex:1 1 300px;min-width:260px;border:1px solid var(--border);border-radius:10px;padding:0.9rem 1rem">'
+        +     '<div style="font-weight:700;font-size:0.92rem;margin-bottom:0.3rem">Know the number?</div>'
+        +     '<div style="font-size:0.82rem;color:var(--text-dim);line-height:1.5;margin-bottom:0.75rem">Type it in and the road name, year, variation and description fill themselves in from the catalogue. You add what only you know \u2014 condition, what you paid, whether you have the box.</div>'
+        +     '<button class="btn-primary" onclick="startWizardFor(\'collection\')" style="padding:0.5rem 0.9rem;border-radius:8px;border:none;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Add your first item</button>'
+        +   '</div>'
+        +   '<div style="flex:1 1 300px;min-width:260px;border:1px solid var(--border);border-radius:10px;padding:0.9rem 1rem">'
+        +     '<div style="font-weight:700;font-size:0.92rem;margin-bottom:0.3rem">Got a shelf to get through?</div>'
+        +     '<div style="font-size:0.82rem;color:var(--text-dim);line-height:1.5;margin-bottom:0.75rem">Photograph everything \u2014 boxes, side lettering, whatever is readable. The photos land in one place and the numbers get read off them in the background, for free. You confirm what it got right later.</div>'
+        +     '<button onclick="window._pinGo && window._pinGo(document.getElementById(\'nav-photo-inbox\'))" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:var(--bg-card);background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card));color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Open the Photo Inbox</button>'
+        +   '</div>'
+        + '</div>'
+        + '<div style="font-size:0.78rem;color:var(--text-dim);line-height:1.5;margin-top:1.1rem;padding-top:0.9rem;border-top:1px solid var(--border)">'
+        +   'Everything you enter is saved to a Google Sheet in your own Drive, under your own account. '
+        +   'Your usual dashboard \u2014 totals, values, recent additions \u2014 appears here as soon as you own something.'
+        + '</div>'
+        + '</div>';
+    }
+    // A panel that says "no recent additions" under a card that says "add your
+    // first item" is the same emptiness twice. Clear them while empty.
+    var _ph = document.getElementById('dash-panels-host');
+    if (_ph) _ph.innerHTML = '';
+    var _th = document.getElementById('dash-ticker-host');
+    if (_th) _th.innerHTML = '';
+    return;
+  }
+  var _sg0 = document.getElementById('stats-grid');
+  if (_sg0) _sg0.style.display = '';
+
   // ── Render dashboard stat cards (slot-based) ─────────────────
   var _statsGrid = document.getElementById('stats-grid');
   // v0.9.650 (Brad): every stat card gets a small ⓘ that explains WHAT it
@@ -1541,8 +1600,15 @@ function _dashEdRender() {
       + arr.map(function(e, i) { return _dashEdSpot(type, e, i, arr.length); }).join('') + '</div>';
   }
   function lib(type, cat) {
+    // v0.9.1344 (Brad): "i have logo cards that shouldn't show up till we turn
+    // that feature on in the future." The Appearance editor is hidden for the
+    // beta, so a tester who ticks "My logo" gets an empty card and no way to
+    // put a logo in it. An earlier note called leaving these visible
+    // deliberate — a dashboard feature you keep once Appearance is hidden —
+    // but that reasoning does not survive a user with no logo and no uploader.
+    // They come back with the editor, through the same one flag.
     return '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:0.15rem 0.8rem">'
-      + cat.map(function(c) {
+      + cat.filter(function(c) { return !c.logoCard || (typeof rrAppearanceOn === 'function' && rrAppearanceOn()); }).map(function(c) {
           var on = _dashEdHas(type, c.id);
           return '<label style="display:flex;align-items:center;gap:0.45rem;font-size:0.8rem;color:var(--text-mid,#bbb);cursor:pointer;padding:0.18rem 0">'
             + '<input type="checkbox" onchange="_dashEdToggle(\'' + type + '\',\'' + c.id + '\')"' + (on ? ' checked' : '') + ' style="accent-color:#2980b9">'

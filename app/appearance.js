@@ -473,7 +473,7 @@
 
   // ═══ the editor ═══════════════════════════════════════════════
   window.openAppearance = function () {
-    if (typeof APPEARANCE_ENABLED !== 'undefined' && !APPEARANCE_ENABLED) return;
+    if (typeof rrAppearanceOn === 'function' && !rrAppearanceOn()) return;
     _ensureCss();
     if (!_canEdit()) { _openMini(); return; }
 

@@ -2954,8 +2954,15 @@ META_WRITES.length = 0; TOASTS.length = 0;
 
     // The editor itself refuses to open when hidden — belt AND suspenders,
     // so a stale cached prefs.js can't resurrect the row's behaviour.
+    // v0.9.1344: this named the inline expression. The flag now has ONE reader
+    // (rrAppearanceOn, config.js) because the dashboard's card library asks the
+    // same question — a constant read inline in two files is a fact with two
+    // answers waiting to happen. The RULE is unchanged: the editor refuses to
+    // open when the feature is off.
     ok('openAppearance() itself bails when the flag is off',
-       /typeof APPEARANCE_ENABLED !== 'undefined' && !APPEARANCE_ENABLED\) return/.test(ap8));
+       /if \(typeof rrAppearanceOn === 'function' && !rrAppearanceOn\(\)\) return;/.test(ap8));
+    ok('…through the ONE reader, not its own copy of the constant',
+       (ap8.match(/APPEARANCE_ENABLED/g) || []).filter(function (x) { return true; }).length <= 4);
 
     // New semantic variables land in :root (census §2 — the missing vars).
     const root8 = css8.slice(css8.indexOf(':root {'), css8.indexOf('\n  }', css8.indexOf(':root {')));
@@ -19562,6 +19569,94 @@ META_WRITES.length = 0; TOASTS.length = 0;
          /files with the set\\'s engine instead of becoming its own item/.test(pi));
       ok('282 …and that thumbnails open full size',
          /Tap a thumbnail to see it full size/.test(pi));
+    })();
+
+
+    // ═══════════════════════════════════════════════════════════
+    // §283. v0.9.1344 — the first thirty seconds, and cards a tester
+    //   cannot fill in.
+    //
+    //   Brad asked what a beta tester sees on their first startup. The
+    //   honest answer was six empty containers — $0, 0 items, an era bar
+    //   at zero, an empty activity feed, empty Recent Additions, empty
+    //   Want List — on an app whose two best features are one click away
+    //   and invisible from that screen.
+    //
+    //   THE GUARD MATTERS MORE THAN THE FEATURE. A returning collector
+    //   must never see "add your first item", not even for a frame. Most
+    //   of this section is about that.
+    // ═══════════════════════════════════════════════════════════
+    section('283. First-run welcome, and logo cards gated with Appearance');
+    (function () {
+      const p83 = require('path');
+      const dj = fs.readFileSync(p83.join(__dirname, '..', 'app', 'dashboard.js'), 'utf8');
+      const cf = fs.readFileSync(p83.join(__dirname, '..', 'app', 'config.js'), 'utf8');
+      const ap = fs.readFileSync(p83.join(__dirname, '..', 'app', 'appearance.js'), 'utf8');
+
+      // ── The empty test is TWO conditions, and the second is the guard.
+      ok('283 the welcome shows only when nothing is owned',
+         /var _dashEmpty = \(totalOwned === 0\)/.test(dj));
+      ok('283 …AND only once the catalogue has loaded (never mid-boot)',
+         /var _dashEmpty = \(totalOwned === 0\) && !!\(state\.masterData && state\.masterData\.length > 0\);/.test(dj));
+      // The count it tests must be the FULL one — owned plus ephemera plus the
+      // standalone kinds. Testing `owned` alone would show the welcome to
+      // someone whose collection is entirely paper.
+      ok('283 the count tested is the complete one, not just the train rows',
+         /var totalOwned = owned \+ ephemeraCount \+ isCount \+ sciCount \+ conCount;[\s\S]{0,1400}?var _dashEmpty = \(totalOwned === 0\)/.test(dj));
+
+      // ── It replaces the emptiness rather than adding to it.
+      ok('283 the panels are cleared while empty, not left saying "none"',
+         /if \(_ph\) _ph\.innerHTML = '';/.test(dj));
+      ok('283 the photo ticker is cleared too', /if \(_th\) _th\.innerHTML = '';/.test(dj));
+      ok('283 …and the normal render is skipped, not drawn underneath',
+         /if \(_th\) _th\.innerHTML = '';\s*\n\s*return;\s*\n\s*\}/.test(dj));
+      // And it must UNDO itself: the grid is forced to display:block for the
+      // welcome, so the normal path has to put that back or the stat cards
+      // render in one column forever after the first item is added.
+      ok('283 the grid display is restored on the normal path',
+         /var _sg0 = document\.getElementById\('stats-grid'\);\s*\n\s*if \(_sg0\) _sg0\.style\.display = '';/.test(dj));
+
+      // ── What it says. Both routes Brad names in the invite letter.
+      ok('283 it offers the catalogue route', /Add your first item/.test(dj));
+      ok('283 …wired to the real add wizard', /startWizardFor\(\\'collection\\'\)/.test(dj));
+      ok('283 it offers the photo route', /Open the Photo Inbox/.test(dj));
+      // The inbox page is built on demand — showPage alone lands on a blank
+      // page, which is the bug the wizard note at wizard.js:1109 records.
+      ok('283 …through _pinGo, the door the nav itself uses',
+         /window\._pinGo && window\._pinGo\(document\.getElementById\(\\'nav-photo-inbox\\'\)\)/.test(dj));
+      ok('283 it says where the data lives (the promise the invite makes)',
+         /Google Sheet in your own Drive/.test(dj));
+      ok('283 it promises the real dashboard returns',
+         /appears here as soon as you own something/.test(dj));
+      // House rules apply to anything a user reads.
+      const { scanJs } = require('./color-count');
+      const djStrings = scanJs(dj);
+      ok('283 the welcome never says "AI" (house rule)',
+         !/\bAI\b/.test(djStrings.slice(djStrings.indexOf('Welcome to The Rail Roster'),
+                                        djStrings.indexOf('Welcome to The Rail Roster') + 2600)));
+      // rr-card is the POP-UP standard; dashboard content is deliberately
+      // outside it. The §rr-card census caught this on the first draft.
+      ok('283 the welcome is styled as dashboard content, not as a dialog',
+         !/class="rr-card"/.test(dj));
+
+      // ── Logo cards: gated, through ONE reader.
+      ok('283 there is ONE reader for "is Appearance on"',
+         /function rrAppearanceOn\(\)/.test(cf) && /window\.rrAppearanceOn = rrAppearanceOn/.test(cf));
+      ok('283 …and the flag itself is still pinned off for the beta',
+         /const APPEARANCE_ENABLED = false;/.test(cf));
+      ok('283 the card library hides logo cards while it is off',
+         /cat\.filter\(function\(c\) \{ return !c\.logoCard \|\| \(typeof rrAppearanceOn === 'function' && rrAppearanceOn\(\)\); \}\)/.test(dj));
+      ok('283 both logo cards are marked so the filter can find them',
+         (dj.match(/logoCard: true/g) || []).length === 2);
+      ok('283 the Appearance page asks the same reader, not its own copy',
+         /if \(typeof rrAppearanceOn === 'function' && !rrAppearanceOn\(\)\) return;/.test(ap));
+
+      // ── The watermark answer Brad asked for: a new account has none.
+      // applyLogoBackdrop removes the element when there is no saved logo, so
+      // a tester never inherits a background. This pins that, because it is
+      // the fact the answer rested on.
+      ok('283 no saved logo means no backdrop at all (a tester inherits none)',
+         /if \(!slot \|\| !slot\.data\) \{[\s\S]{0,200}?if \(el\) el\.remove\(\);/.test(ap));
     })();
 
   })().then(function () {
