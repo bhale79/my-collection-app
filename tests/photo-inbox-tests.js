@@ -19659,6 +19659,69 @@ META_WRITES.length = 0; TOASTS.length = 0;
          /if \(!slot \|\| !slot\.data\) \{[\s\S]{0,200}?if \(el\) el\.remove\(\);/.test(ap));
     })();
 
+
+    // ═══════════════════════════════════════════════════════════
+    // §284. v0.9.1345 — the preview page inherits the promise rules.
+    //
+    //   The queue has carried "delete /preview-1051ec16/?" as an open
+    //   decision since 08-03 precisely because it is a SECOND source of
+    //   marketing claims that drifts from the app. Brad chose to keep it
+    //   and correct it. Keeping it means it gets the same gate the app's
+    //   copy got in v0.9.1327: no figure that was not measured, no claim
+    //   about a cadence nobody counts, no "AI", and barcode scanning
+    //   never dressed up as a headline route.
+    //
+    //   The count was 60,000+. MEASURED 2026-08-05, tab by tab off the
+    //   live master sheet: 135,388 items across 25 item tabs. The page
+    //   was understating the catalogue by more than half.
+    // ═══════════════════════════════════════════════════════════
+    section('284. The preview page makes only claims the app can keep');
+    (function () {
+      const p84 = require('path');
+      const pv = fs.readFileSync(p84.join(__dirname, '..', 'preview-1051ec16', 'index.html'), 'utf8');
+
+      ok('284 the stale 60,000 figure is gone everywhere', !/60,000/.test(pv));
+      const c135 = (pv.match(/135,000\+/g) || []).length;
+      ok('284 …replaced by the measured figure in all four places', c135 === 4, String(c135));
+      // Round DOWN, always. 135,388 real items makes "135,000+" true and keeps
+      // it true as the master grows; a rounded-UP figure goes stale the wrong
+      // way and cannot be defended.
+      ok('284 the claim is a round-DOWN of the real count, never a round-up',
+         !/13[6-9],000|140,000|1[4-9]\d,000/.test(pv));
+      ok('284 the meta description carries the same number as the page',
+         /<meta name="description"[^>]*135,000\+/.test(pv));
+
+      // A cadence claim is a measurement nobody takes. The beta has not
+      // started and there is no community adding finds weekly.
+      ok('284 no "every week" growth promise', !/every week/i.test(pv));
+      ok('284 no other unmeasured cadence either',
+         !/every (day|month)|daily|weekly updates?/i.test(pv));
+      ok('284 …but it still says the catalogue grows, without promising a rate',
+         /Still growing/.test(pv) && /as they are confirmed/.test(pv));
+
+      // Barcode: real, but only ~1.5% of the catalogue has a UPC on file.
+      ok('284 barcode is not offered as an equal identification route',
+         !/scan the box <b>barcode<\/b>, or read/.test(pv));
+      ok('284 …it is qualified where it appears',
+         !/barcode/i.test(pv) || /where the box has one on file/.test(pv));
+
+      // The house rules that apply to anything a user reads.
+      ok('284 the page never says "AI"', !/\bAI\b/.test(pv.replace(/<!--[\s\S]*?-->/g, '')));
+      ok('284 no accuracy or success-rate figure is claimed',
+         !/\b\d{1,3}\s*%\s*(accurate|accuracy|success|of the time)/i.test(pv));
+      ok('284 nothing is guaranteed', !/\bguarantee/i.test(pv));
+
+      // It must not advertise what the beta has switched off.
+      ok('284 no Collector\'s Market pitch (hidden for beta)', !/collector'?s market/i.test(pv));
+      ok('284 no Appearance/skins pitch (hidden for beta)', !/\bskins?\b|appearance editor/i.test(pv));
+
+      // The one number that has to agree with the invite letter, since a
+      // tester may read both.
+      const letterFigure = '135,000';
+      ok('284 the figure matches what the invite letter tells the same reader',
+         pv.indexOf(letterFigure) >= 0);
+    })();
+
   })().then(function () {
     console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
     process.exit(fail ? 1 : 0);
