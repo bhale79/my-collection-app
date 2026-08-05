@@ -156,13 +156,42 @@ function buildToolsPage() {
       '</div>' +
       '<div class="tools-card-desc">Applies the five duplicate-row decisions from the Aug 4 master audit to the live master sheet (1130T, 2243, 2245, 50, 55) and tidies the Master Version tab into one row per version, ending at 1.72 — matching the rebuilt LIVE workbook. Preview shows every step and verifies each row before anything is written.</div>' +
       '<button onclick="rrMasterFixupPreview()" style="padding:0.55rem 1.1rem;border-radius:8px;border:1.5px solid #e74c3c;background:var(--bg-card);background:color-mix(in srgb, rgb(231,76,60) 10%, var(--bg-card));color:#e74c3c;font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer">Preview the fix-up</button>' +
-      '<div id="master-fixup-results" style="margin-top:1rem"></div>' +
+      '<div id="master-fixup-results" style="margin-top:1rem;color:var(--text)"></div>' +
+    '</div>';
+
+  // ═══════════════════════════════════════════════════════════════════
+  // v0.9.1339 — MASTER VERSION TIDY · one-time.
+  //
+  //   v1338's fix-up wrote the version HISTORY oldest-first, and left one
+  //   stray note below it. Two consequences on the live sheet:
+  //     • Preferences read row 2 as "the current version" and announced
+  //       "sheet v60" on a 1.72 sheet (the reader is now order-proof —
+  //       see _mvPickLatest in app-data.js — but the tab should still
+  //       READ correctly to a human, newest on top);
+  //     • Google parsed "1.70" as a number and showed it as 1.7, and
+  //       turned the dates into serials, so Preferences showed "(46230)".
+  //   This card rewrites the tab newest-first with versions and dates
+  //   forced to TEXT, and sweeps every stray row below the history.
+  //   Same contract as every one-time tool here: read-only preview,
+  //   re-verify the tab still holds the history we expect before writing,
+  //   refuse on any surprise, hide once it lands.
+  // ═══════════════════════════════════════════════════════════════════
+  var _mvtShow = (typeof rrDiagnostics === 'function') ? rrDiagnostics() : false;
+  var CARD_VERSION_TIDY = (!_mvtShow || localStorage.getItem('rr_master_vtidy_172_done') === '1') ? '' :
+    '<div class="tools-card">' +
+      '<div class="tools-card-title">' +
+        '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#e74c3c" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>' +
+        'Master Version tab · tidy (one-time)' +
+      '</div>' +
+      '<div class="tools-card-desc">Puts the newest version on top where Preferences and a human both look for it, keeps 1.70 from displaying as 1.7, shows the dates as dates instead of numbers, and clears one stray note left below the history. Touches nothing but the Master Version tab \u2014 no item rows. Preview shows the before and after first.</div>' +
+      '<button onclick="rrVersionTidyPreview()" style="padding:0.55rem 1.1rem;border-radius:8px;border:1.5px solid #e74c3c;background:var(--bg-card);background:color-mix(in srgb, rgb(231,76,60) 10%, var(--bg-card));color:#e74c3c;font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer">Preview the tidy-up</button>' +
+      '<div id="version-tidy-results" style="margin-top:1rem;color:var(--text)"></div>' +
     '</div>';
 
   var html = '<div class="page-title" style="margin-bottom:0.5rem">Collection Tools</div>';
   // Universal = works across every manufacturer.
   html += SECTION_HEADER('universal', 'Universal Tools', 'Work across all manufacturers');
-  html += '<div id="universal-body">' + CARD_DUPLICATE_CHECKER + CARD_VAULT_CLEANUP + CARD_MASTER_FIXUP + CARD_SHARED_PHOTOS + '</div>';
+  html += '<div id="universal-body">' + CARD_DUPLICATE_CHECKER + CARD_VAULT_CLEANUP + CARD_MASTER_FIXUP + CARD_VERSION_TIDY + CARD_SHARED_PHOTOS + '</div>';
 
   // Postwar Lionel = tools that rely on Lionel postwar catalog data (grouping,
   // sets, companions). Smart Group Finder lives here (it's postwar-Lionel only).
@@ -1647,7 +1676,10 @@ async function rrMasterFixupApply() {
   _mfxBusy = true;
   var box = document.getElementById('master-fixup-results');
   var log = [];
-  function say(m) { log.push(m); if (box) box.innerHTML = log.map(function (x) { return '<div style="font-size:0.82rem;margin-bottom:0.25rem">' + x + '</div>'; }).join(''); }
+  // v0.9.1339 (Brad: "the text color here is terrible"): these lines used to
+  // set no colour and inherited the card's muted tone — near-invisible on the
+  // cream background. State the colour; do not inherit it.
+  function say(m) { log.push(m); if (box) box.innerHTML = log.map(function (x) { return '<div style="font-size:0.82rem;margin-bottom:0.25rem;color:var(--text)">' + x + '</div>'; }).join(''); }
   var okAll = true;
   try {
     var plan = window._mfxPlan;
@@ -1717,4 +1749,141 @@ async function rrMasterFixupApply() {
 if (typeof window !== 'undefined') {
   window.rrMasterFixupPreview = rrMasterFixupPreview;
   window.rrMasterFixupApply = rrMasterFixupApply;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// v0.9.1339 — MASTER VERSION TIDY (one-time).
+//
+// v1338 left the version tab correct in CONTENT and wrong in two ways
+// that only show up when something reads it:
+//   • oldest-first, so the app's "row 2 is the current version" read
+//     announced v60 on a 1.72 sheet (the reader is order-proof now, but
+//     a human reading the tab still wants the newest on top);
+//   • written with valueInputOption=USER_ENTERED, so Sheets helpfully
+//     turned "1.70" into the number 1.7 and the dates into serials —
+//     Preferences showed "sheet v60 (46230)".
+//   • one stray note survived the sweep at row 1012 (the clear stopped
+//     at 1011 — the old mess ran one row further than I measured).
+//
+// Leading apostrophes force TEXT under USER_ENTERED; Sheets strips them
+// on read, so the app still sees "1.70", not "'1.70".
+// ═══════════════════════════════════════════════════════════════════
+
+var _MVT_DONE_KEY = 'rr_master_vtidy_172_done';
+// NEWEST FIRST. Versions and dates carry a leading apostrophe so Sheets
+// stores them as text — without it "1.70" becomes 1.7 and "2026-08-05"
+// becomes 46239.
+var _MVT_HISTORY = [
+  ['Version', 'Date', 'Notes'],
+  ["'1.72", "'2026-08-05", 'Five duplicate number+variation rows resolved in Lionel PW - Items: 1130T restored row -> base (variation blanked); 2243 orange-shell A unit -> var 5; 2245 factory-error Texas Special -> var 5; 50 no-lettering Gang Car -> var 7 + type corrected to Motorized Unit; 55 box row removed from Items (its box remains in Lionel PW - Boxes). Master Version tab tidied to one row per version, NEWEST FIRST. Matches workbook "TheRailRoster Master List - LIVE.xlsx". RULE: bump this version with every master upload, one row per version, newest on top, and keep it matching the workbook.'],
+  ["'1.71", "'2026-08-01", 'Weaver O: new column "Run Commissioned By" - who ordered each special run, from the Weaver Ultra Line production list. Blank means regular Weaver catalogue production. Contact details in the source were deliberately not imported.'],
+  ["'1.70", "'2026-08-01", 'Weaver O: removed a duplicated header row sitting in the data at row 4010, which the app would have loaded as an item called "Item Number".'],
+  ["'1.69", "'2026-08-01", 'Stamped Markings: 6464-125 and 3530 read (the model photos were never the FIRST image at their anchor); 6431 and 6264 resolved; 2461 and 6830 corrected after re-examining the source. 3424 remains unread - no side view exists.'],
+  ["'1.68", "'2026-08-01", 'Stamped Markings populated for Boxcar (317) and Flatcar (257) rows from Cornucopia of Toy Trains photographs. Cabooses unchanged.'],
+  ["'1.66", "'2026-07-28", 'Stamped Markings column added to all 28 items tabs; populated for all 224 Lionel postwar caboose rows from COTT photographs plus Variation Details. 6119-100 var 9 road name corrected to D. L. & W.; five en-dash Year Produced cells normalised.'],
+  ["'60",   "'2026-07-27", '[workbook lineage] Body Color column added to Lionel PW - Items (2,704 rows). Reserved schema headers (Category / Track Power / MSRP) written in.']
+];
+// The versions the tab MUST already contain for the rewrite to be safe. If the
+// sheet holds a version this list does not know about, someone uploaded a newer
+// master and this tool would silently destroy its entry — so it refuses.
+var _MVT_EXPECT = ['60', '1.66', '1.68', '1.69', '1.7', '1.70', '1.71', '1.72'];
+
+// PURE: given the tab's rows (data only, sheet row = index + 2), work out what
+// the tidy would do. { versionsFound, strayRows, unknown, lastContentRow }.
+function _mvtInspect(rows) {
+  var versionsFound = [], strayRows = [], unknown = [], lastContentRow = 1;
+  for (var i = 0; i < (rows || []).length; i++) {
+    var r = rows[i] || [];
+    var a = String(r[0] == null ? '' : r[0]).trim();
+    var b = String(r[1] == null ? '' : r[1]).trim();
+    var c = String(r[2] == null ? '' : r[2]).trim();
+    if (!a && !b && !c) continue;
+    var sheetRow = i + 2;
+    lastContentRow = sheetRow;
+    if (a && /^[0-9]+(\.[0-9]+)*$/.test(a)) {
+      versionsFound.push(a);
+      if (_MVT_EXPECT.indexOf(a) === -1) unknown.push(a + ' (row ' + sheetRow + ')');
+    } else {
+      // Content with no version in column A — a stray, wherever it sits.
+      strayRows.push(sheetRow);
+    }
+  }
+  return { versionsFound: versionsFound, strayRows: strayRows, unknown: unknown, lastContentRow: lastContentRow };
+}
+if (typeof window !== 'undefined') window._mvtInspect = _mvtInspect;
+
+async function rrVersionTidyPreview() {
+  var box = document.getElementById('version-tidy-results');
+  if (!box) return;
+  box.innerHTML = '<div style="color:var(--text-dim);font-size:0.85rem">Reading the Master Version tab…</div>';
+  try {
+    var res = await sheetsGet(state.masterSheetId, "'Master Version'!A2:C1200");
+    var rows = (res && res.values) || [];
+    var ins = _mvtInspect(rows);
+    window._mvtPlan = ins;
+    var cur = rows[0] || [];
+    var html = '';
+    html += '<div style="padding:0.5rem 0.7rem;border:1px solid var(--border);border-radius:8px;margin-bottom:0.4rem;font-size:0.82rem;color:var(--text)">'
+      + '<strong>Now</strong><br><span style="color:var(--text-dim)">Row 2 (what the old code called "the current version") holds <strong>'
+      + rrEsc(String(cur[0] == null ? '(blank)' : cur[0])) + '</strong> — ' + ins.versionsFound.length + ' version rows'
+      + (ins.strayRows.length ? ', plus ' + ins.strayRows.length + ' stray row' + (ins.strayRows.length === 1 ? '' : 's') + ' (row ' + ins.strayRows.slice(0, 6).join(', ') + ')' : ', no strays')
+      + '.</span></div>';
+    html += '<div style="padding:0.5rem 0.7rem;border:1px solid var(--border);border-radius:8px;margin-bottom:0.4rem;font-size:0.82rem;color:var(--text)">'
+      + '<strong>After</strong><br><span style="color:var(--text-dim)">Rows 1–8: header, then <strong>1.72</strong> on top, down to 60. Versions and dates written as text, so 1.70 stays 1.70 and the date reads 2026-08-05 instead of 46239. Everything below row 8 cleared.</span></div>';
+    if (ins.unknown.length) {
+      html += '<div style="padding:0.5rem 0.7rem;border:1.5px solid #e74c3c;border-radius:8px;margin-bottom:0.4rem;font-size:0.82rem;color:#e74c3c">'
+        + 'REFUSING: this tab holds a version this tool does not know about — ' + rrEsc(ins.unknown.join(', '))
+        + '. A newer master may have been uploaded. Nothing will be written.</div>';
+    } else {
+      html += '<button onclick="rrVersionTidyApply()" style="margin-top:0.4rem;padding:0.55rem 1.1rem;border-radius:8px;border:none;background:#e74c3c;color:var(--on-accent);font-family:var(--font-body);font-size:0.85rem;font-weight:700;cursor:pointer">Apply the tidy-up</button>';
+    }
+    box.innerHTML = html;
+  } catch (e) {
+    box.innerHTML = '<div style="color:#e74c3c;font-size:0.85rem">Could not read the Master Version tab: ' + rrEsc(String(e && e.message || e)) + '</div>';
+  }
+}
+
+var _mvtBusy = false;
+async function rrVersionTidyApply() {
+  if (_mvtBusy) return;
+  _mvtBusy = true;
+  var box = document.getElementById('version-tidy-results');
+  var log = [];
+  function say(m) { log.push(m); if (box) box.innerHTML = log.map(function (x) { return '<div style="font-size:0.82rem;margin-bottom:0.25rem;color:var(--text)">' + x + '</div>'; }).join(''); }
+  try {
+    if (!window._mvtPlan) { say('No previewed plan — run Preview first.'); _mvtBusy = false; return; }
+    // Re-verify RIGHT NOW, against the sheet, not against the preview: an
+    // unknown version appearing between preview and apply is exactly the case
+    // where a blind rewrite would destroy someone's upload.
+    var res = await sheetsGet(state.masterSheetId, "'Master Version'!A2:C1200");
+    var rows = (res && res.values) || [];
+    var ins = _mvtInspect(rows);
+    if (ins.unknown.length) {
+      say('⚠ Stopped — the tab holds an unknown version (' + rrEsc(ins.unknown.join(', ')) + '). Nothing was written.');
+      _mvtBusy = false; return;
+    }
+    await sheetsUpdate(state.masterSheetId, "'Master Version'!A1:C8", _MVT_HISTORY);
+    say('✓ History rewritten newest-first — 1.72 on top, versions and dates as text');
+    // Clear everything below the history, out to the last row that actually
+    // holds anything. A blank block sized to real content, not to a guess.
+    var lastRow = Math.max(ins.lastContentRow, 8);
+    if (lastRow > 8) {
+      var blanks = [];
+      for (var r = 9; r <= lastRow; r++) blanks.push(['', '', '']);
+      await sheetsUpdate(state.masterSheetId, "'Master Version'!A9:C" + lastRow, blanks);
+      say('✓ Cleared ' + blanks.length + ' row' + (blanks.length === 1 ? '' : 's') + ' below the history (through row ' + lastRow + ')');
+    } else {
+      say('✓ Nothing below the history to clear');
+    }
+    localStorage.setItem(_MVT_DONE_KEY, '1');
+    say('<strong>Done. Preferences will say sheet v1.72 (2026-08-05) on the next load.</strong> This card will disappear.');
+  } catch (e) {
+    say('⚠ Stopped: ' + rrEsc(String(e && e.message || e)));
+  } finally {
+    _mvtBusy = false;
+  }
+}
+if (typeof window !== 'undefined') {
+  window.rrVersionTidyPreview = rrVersionTidyPreview;
+  window.rrVersionTidyApply = rrVersionTidyApply;
 }

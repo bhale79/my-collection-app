@@ -397,17 +397,84 @@ function _fmtYearProd(s) {
 
 // ══ v0.9.1103 — the master sheet says which VERSION it is ═══════════════════
 // Brad: "is there a place on the master sheet we can put what version it is?"
-// A tiny 'Master Version' tab (Version | Date | Notes, one data row) that every
-// delivered workbook bumps. The app reads it once after the master loads and
-// shows it in Preferences — so a stale upload (the _59/_60 mix-up) is visible
-// at a glance instead of a mystery. Fail-silent: no tab, no error, no change.
+// A tiny 'Master Version' tab (Version | Date | Notes) that every delivered
+// workbook bumps. The app reads it once after the master loads and shows it in
+// Preferences — so a stale upload (the _59/_60 mix-up) is visible at a glance
+// instead of a mystery. Fail-silent: no tab, no error, no change.
+//
+// ⚠ v0.9.1339 — WHY THIS NO LONGER READS ROW 2.
+//   The tab held ONE data row when this was written, so "row 2" and "the
+//   current version" were the same fact by accident. v1338 turned it into a
+//   HISTORY — and wrote it oldest-first, so row 2 became the OLDEST entry and
+//   Preferences announced "sheet v60" on a 1.72 sheet. The order was never
+//   written down anywhere; it was an assumption two pieces of code had to
+//   share silently, which is this project's oldest failure shape.
+//   The fix is to stop depending on the order at all: read the whole history
+//   and pick the HIGHEST version. Newest-first is still the convention (the
+//   workbook and the tidy tool both write it that way, and a human reading
+//   the tab wants the latest on top) — but nothing BREAKS if someone appends
+//   a row at the bottom, which is exactly what a convention should cost.
+function _mvCompare(a, b) {
+  // Compare dotted version strings numerically, segment by segment, so
+  // 1.9 < 1.10 and the bare "60" of the workbook lineage still sorts.
+  var pa = String(a).split('.'), pb = String(b).split('.');
+  for (var i = 0; i < Math.max(pa.length, pb.length); i++) {
+    var na = parseFloat(pa[i]), nb = parseFloat(pb[i]);
+    if (isNaN(na)) na = -1;
+    if (isNaN(nb)) nb = -1;
+    if (na !== nb) return na - nb;
+  }
+  return 0;
+}
+// ⚠ The version NUMBER cannot rank these rows, and the test caught it before
+// Brad did: the oldest entry is "60" — workbook lineage numbering from before
+// the 1.x series — and 60 is numerically larger than 1.72. Ranking by version
+// would have re-reported v60 and re-shipped the very bug this replaces.
+// THE DATE is what "current" actually means, it is already in the tab, and it
+// has no discontinuity. Version order only breaks ties (two uploads one day),
+// where both entries are necessarily in the same numbering series.
+//
+// Dates arrive in two shapes and both are handled: text "2026-08-05" (what the
+// tidy writes) and a Sheets serial like 46239 (what USER_ENTERED made of it).
+// Both normalise to epoch-days, so a mixed tab still ranks correctly.
+function _mvDateKey(raw) {
+  var s = String(raw == null ? '' : raw).trim();
+  if (!s) return null;
+  var m = /^([0-9]{4})-([0-9]{2})-([0-9]{2})$/.exec(s);
+  if (m) return Math.round(Date.UTC(+m[1], +m[2] - 1, +m[3]) / 86400000);
+  if (/^[0-9]+(\.[0-9]+)?$/.test(s)) return Number(s) - 25569;   // Sheets serial → epoch-days
+  return null;
+}
+function _mvPickLatest(rows) {
+  var best = null, bestKey = null;
+  for (var i = 0; i < (rows || []).length; i++) {
+    var r = rows[i] || [];
+    var v = String(r[0] == null ? '' : r[0]).trim();
+    if (!v) continue;
+    // A version is digits and dots. Anything else on this tab is a stray note
+    // or a re-typed header, and must never be reported as the version.
+    if (!/^[0-9]+(\.[0-9]+)*$/.test(v)) continue;
+    var cand = { v: v, date: String(r[1] == null ? '' : r[1]).trim(), notes: String(r[2] == null ? '' : r[2]).trim() };
+    var k = _mvDateKey(cand.date);
+    if (!best) { best = cand; bestKey = k; continue; }
+    var win;
+    if (k != null && bestKey != null && k !== bestKey) win = k > bestKey;         // date decides
+    else if (k != null && bestKey == null) win = true;                            // a dated row beats an undated one
+    else if (k == null && bestKey != null) win = false;
+    else win = _mvCompare(v, best.v) > 0;                                         // same day, or no dates: version breaks the tie
+    if (win) { best = cand; bestKey = k; }
+  }
+  return best;
+}
+if (typeof window !== 'undefined') { window._mvCompare = _mvCompare; window._mvDateKey = _mvDateKey; window._mvPickLatest = _mvPickLatest; }
+
 async function _loadMasterVersion() {
   try {
     if (!state.masterSheetId || typeof sheetsGet !== 'function') return;
-    var resp = await sheetsGet(state.masterSheetId, "'Master Version'!A2:C2");
-    var row = resp && resp.values && resp.values[0];
-    if (row && row[0]) {
-      state.masterVersion = { v: String(row[0]), date: String(row[1] || ''), notes: String(row[2] || '') };
+    var resp = await sheetsGet(state.masterSheetId, "'Master Version'!A2:C60");
+    var latest = _mvPickLatest(resp && resp.values);
+    if (latest) {
+      state.masterVersion = latest;
       var el = document.getElementById('pref-catalog-count');
       if (el) el.textContent = el.textContent.replace(/ · sheet v.*$/, '') + ' \u00b7 sheet v' + state.masterVersion.v;
     }

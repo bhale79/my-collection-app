@@ -18988,6 +18988,141 @@ META_WRITES.length = 0; TOASTS.length = 0;
          pad.targets.length === 1 && pad.targets[0].step.id === 'a');
     })();
 
+
+    // ═══════════════════════════════════════════════════════════
+    // §279. v0.9.1339 — the version tab, and the reader that stopped
+    //   trusting its ORDER.
+    //
+    //   v1338 turned a one-row tab into a HISTORY and wrote it
+    //   oldest-first. Nothing in either file said which end was the
+    //   current version — the app read row 2 and announced "sheet v60"
+    //   on a 1.72 sheet. That is this project's oldest failure shape:
+    //   ONE FACT ANSWERED IN TWO PLACES, with the agreement written
+    //   down nowhere. The fix is not "write it the other way round" —
+    //   that is the same bet with better odds. The reader now picks the
+    //   HIGHEST version out of the whole tab, so the order is a courtesy
+    //   to human eyes and nothing depends on it.
+    // ═══════════════════════════════════════════════════════════
+    section('279. Master Version: the reader ignores row order');
+    (function () {
+      const p79 = require('path');
+      const vm79 = require('vm');
+      const ad = fs.readFileSync(p79.join(__dirname, '..', 'app', 'app-data.js'), 'utf8');
+      const tj9 = fs.readFileSync(p79.join(__dirname, '..', 'app', 'tools.js'), 'utf8');
+
+      // ── Behavioural: run the REAL picker, both orders and the mess.
+      const i0 = ad.indexOf('function _mvCompare(');
+      const i1 = ad.indexOf('if (typeof window !== \'undefined\') { window._mvCompare');
+      ok('279 the picker slice is extractable', i0 > 0 && i1 > i0);
+      const sb = { window: {} };
+      vm79.createContext(sb);
+      vm79.runInContext(ad.slice(i0, i1), sb);
+      const pick = sb._mvPickLatest, cmp = sb._mvCompare;
+      ok('279 _mvPickLatest evaluated', typeof pick === 'function');
+
+      const NEWEST_FIRST = [['1.72', '2026-08-05', 'n'], ['1.71', '2026-08-01', 'o'], ['60', '2026-07-27', 'p']];
+      const OLDEST_FIRST = [['60', '2026-07-27', 'p'], ['1.71', '2026-08-01', 'o'], ['1.72', '2026-08-05', 'n']];
+      ok('279 newest-first tab reports 1.72', pick(NEWEST_FIRST).v === '1.72');
+      // THE v1338 BUG, as a test: oldest-first used to report 60.
+      ok('279 oldest-first tab ALSO reports 1.72 (the v1338 bug, now impossible)',
+         pick(OLDEST_FIRST).v === '1.72', JSON.stringify(pick(OLDEST_FIRST)));
+      ok('279 …and it carries that row\'s own date, not row 2\'s',
+         pick(OLDEST_FIRST).date === '2026-08-05', pick(OLDEST_FIRST).date);
+
+      // A stray note (v1338 left one at row 1012) must never be read as
+      // the version, and must not stop the real one being found.
+      const WITH_STRAY = OLDEST_FIRST.concat([['', '', 'a stray note'], ['Version', 'Date', 'Notes']]);
+      ok('279 a stray note and a re-typed header are both ignored',
+         pick(WITH_STRAY).v === '1.72');
+      ok('279 an empty tab yields nothing rather than a wrong answer',
+         pick([]) === null && pick([['', '', '']]) === null);
+
+      // Ordering maths: the reason a plain string sort will not do.
+      ok('279 1.10 is newer than 1.9 (segment-wise, not lexical)', cmp('1.10', '1.9') > 0);
+      ok('279 1.72 is newer than 1.7', cmp('1.72', '1.7') > 0);
+      // ⚠ THE TRAP THIS TEST EXISTS FOR. "60" is workbook-lineage numbering
+      // from before the 1.x series, and 60 > 1.72 as a number — so ranking by
+      // VERSION re-reports v60 and re-ships the v1338 bug wearing a new hat.
+      ok('279 …but by version alone, the lineage number 60 outranks 1.72',
+         cmp('60', '1.72') > 0);
+      ok('279 …so the picker ranks by DATE, and 1.72 wins on a real tab',
+         pick([['60', '2026-07-27', 'p'], ['1.72', '2026-08-05', 'n']]).v === '1.72',
+         JSON.stringify(pick([['60', '2026-07-27', 'p'], ['1.72', '2026-08-05', 'n']])));
+      ok('279 …including when the dates are Sheets serials, not text',
+         pick([['60', 46230, 'p'], ['1.72', 46239, 'n']]).v === '1.72');
+      ok('279 two entries the same day fall back to version order',
+         pick([['1.71', '2026-08-05', 'a'], ['1.72', '2026-08-05', 'b']]).v === '1.72');
+      ok('279 an undated row never beats a dated one',
+         pick([['1.72', '2026-08-05', 'n'], ['60', '', 'p']]).v === '1.72');
+
+      // ── Source pins: the reader must not go back to a fixed row.
+      ok('279 the read spans the tab, not one row',
+         /sheetsGet\(state\.masterSheetId, "'Master Version'!A2:C60"\)/.test(ad));
+      ok('279 …and nothing still reads A2:C2', ad.indexOf("'Master Version'!A2:C2") === -1);
+      ok('279 the displayed version comes from the picker',
+         /var latest = _mvPickLatest\(resp && resp\.values\);[\s\S]{0,200}?state\.masterVersion = latest;/.test(ad));
+
+      // ── The tidy tool: gated, refuses on an unknown version, text-forced.
+      ok('279 the tidy card is diagnostics-gated and done-flagged',
+         /CARD_VERSION_TIDY = \(!_mvtShow \|\| localStorage\.getItem\('rr_master_vtidy_172_done'\) === '1'\) \? ''/.test(tj9));
+      ok('279 the tidy card is actually rendered into the page',
+         /CARD_MASTER_FIXUP \+ CARD_VERSION_TIDY \+ CARD_SHARED_PHOTOS/.test(tj9));
+      ok('279 apply re-reads the tab and REFUSES on an unknown version',
+         /var res = await sheetsGet\(state\.masterSheetId, "'Master Version'!A2:C1200"\);[\s\S]{0,300}?if \(ins\.unknown\.length\) \{[\s\S]{0,200}?_mvtBusy = false; return;/.test(tj9));
+      ok('279 apply is guarded against double-execution',
+         /if \(_mvtBusy\) return;\s*\n\s*_mvtBusy = true;/.test(tj9));
+
+      // Versions and dates must be TEXT, or Sheets turns 1.70 into 1.7 and
+      // 2026-08-05 into 46239 — which is exactly what v1338 shipped.
+      const histSrc = (tj9.match(/var _MVT_HISTORY = \[[\s\S]*?\n\];/) || [''])[0];
+      ok('279 the history is NEWEST FIRST (1.72 immediately under the header)',
+         /\['Version', 'Date', 'Notes'\],\s*\n\s*\["'1\.72"/.test(histSrc));
+      const verCells = histSrc.match(/\["'[0-9.]+",\s+"'[0-9-]+"/g) || [];
+      ok('279 every version AND date is apostrophe-forced to text',
+         verCells.length === 7, verCells.length + ' of 7');
+      ok('279 …including 1.70, the one Sheets rewrote to 1.7',
+         histSrc.indexOf('["\'1.70", "\'2026-08-01"') >= 0);
+
+      // ── Behavioural: the inspector that finds strays and unknowns.
+      const j0 = tj9.indexOf('function _mvtInspect(');
+      const j1 = tj9.indexOf('if (typeof window !== \'undefined\') window._mvtInspect');
+      const sb2 = { window: {} };
+      vm79.createContext(sb2);
+      vm79.runInContext(tj9.slice(tj9.indexOf('var _MVT_EXPECT ='), j1), sb2);
+      const inspect = sb2._mvtInspect;
+      ok('279 _mvtInspect evaluated', typeof inspect === 'function');
+
+      // The live sheet as v1338 left it: 7 versions at rows 2-8, one stray
+      // note far below at row 1012.
+      const live = [];
+      [['60'], ['1.66'], ['1.68'], ['1.69'], ['1.7'], ['1.71'], ['1.72']].forEach(v => live.push([v[0], 'd', 'n']));
+      while (live.length < 1010) live.push(['', '', '']);
+      live.push(['', '', 'Weaver O: new column "Run Commissioned By" ...']);   // sheet row 1012
+      const li = inspect(live);
+      ok('279 inspect finds all seven versions on the real tab',
+         li.versionsFound.length === 7, li.versionsFound.join(','));
+      ok('279 …and the one stray, at its real sheet row 1012',
+         li.strayRows.length === 1 && li.strayRows[0] === 1012, JSON.stringify(li.strayRows));
+      ok('279 …and reports the last content row so the clear is sized, not guessed',
+         li.lastContentRow === 1012, String(li.lastContentRow));
+      ok('279 …with nothing unknown, so the tidy may proceed', li.unknown.length === 0);
+
+      // A newer master arriving between sessions must STOP the tool.
+      const withNewer = [['1.72', 'd', 'n'], ['1.80', 'd', 'someone uploaded 1.80']];
+      ok('279 an unknown (newer) version makes the tidy REFUSE',
+         inspect(withNewer).unknown.length === 1 && /1\.80/.test(inspect(withNewer).unknown[0]),
+         JSON.stringify(inspect(withNewer).unknown));
+
+      // ── The faint text Brad reported: results text states its colour.
+      ok('279 the fix-up results box states a text colour',
+         /id="master-fixup-results" style="margin-top:1rem;color:var\(--text\)"/.test(tj9));
+      ok('279 the tidy results box does too',
+         /id="version-tidy-results" style="margin-top:1rem;color:var\(--text\)"/.test(tj9));
+      const sayLines = tj9.match(/margin-bottom:0\.25rem;color:var\(--text\)/g) || [];
+      ok('279 …and both tools\' log lines set their own colour rather than inheriting',
+         sayLines.length === 2, sayLines.length + ' of 2');
+    })();
+
   })().then(function () {
     console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
     process.exit(fail ? 1 : 0);
