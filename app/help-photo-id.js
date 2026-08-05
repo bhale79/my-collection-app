@@ -92,6 +92,21 @@
     + _img('box', 'The box end carries the barcode <i>and</i> the catalog number, <b>6-36814</b>. '
         + 'Either one is enough.')
 
+    + '<div style="' + _H2 + '">What we leave out of a batch</div>'
+    + '<p style="' + _P + '">When you hit <b>Identify my items</b>, or read a batch with photo IDs, '
+      + 'we skip anything you have tagged <b>Paper</b>, <b>Catalog</b> or <b>Other</b>. There is '
+      + 'rarely an item number to find on a blueprint or a catalogue page — and what a reader '
+      + '<i>does</i> find there is usually a drawing number or one of twenty numbers on the page, '
+      + 'which then lands in your inbox as a wrong guess you have to clear. On the paid read it '
+      + 'would also spend a photo ID for nothing.</p>'
+    + '<p style="' + _P + '"><b>You can still read any of them yourself.</b> Tick the corner circle '
+      + 'on a single photo and press Identify, or open the photo and read it from there. The skip '
+      + 'only applies to reading the whole inbox at once — it never stops you asking about one '
+      + 'photo you think is worth a look.</p>'
+    + '<p style="' + _P + '">Buildings, track and accessories are <i>not</i> skipped. Those are real '
+      + 'catalogue pieces with their own numbers, so they get read like anything else. A set box is '
+      + 'read too — the set number is usually printed right on it.</p>'
+
     + '<div style="' + _H2 + '">When there’s nothing for us to read</div>'
     + '<ul style="' + _UL + '">'
       + '<li style="margin-bottom:0.35rem">The item has no number on it anywhere. Accessories are '

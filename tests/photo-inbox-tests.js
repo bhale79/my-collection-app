@@ -855,8 +855,13 @@ META_WRITES.length = 0; TOASTS.length = 0;
   const f1 = require('fs').readFileSync(SRC, 'utf8');
   ok('a blank read is stored on the tried-map, not as a suggestion',
      /f\[fid\] = \{ t: 1, raw:/.test(f1));
+  // v0.9.1340: this named the exact line the v0.9.956 filter was written on,
+  // so adding the Paper/Catalog/Other gate broke it while the RULE it exists
+  // for was untouched. The rule: the paid batch's candidate list is decided by
+  // the IDS map alone, so a blank read — which lives on the tried-map, not ids
+  // — still qualifies. Name the requirement, not the spelling.
   ok('so it still counts as unread for the paid batch',
-     /var todo = _groups\.filter\(function \(g\) \{ return !ids\[_pinReadFid\(g\)\]; \}\);/.test(f1));
+     /_groups\.filter\(function \(g\) \{ return !ids\[_pinReadFid\(g\)\]; \}\)/.test(f1));
   ok('the empty state shows the same disclosure', /_pinFailInfo\(\)/.test(f1) && /_pinWhyHtml\(_fi\.raw/.test(f1));
   ok('the why-block is shared, not duplicated', (f1.match(/function _pinWhyHtml/g) || []).length === 1);
   ok('an empty answer never outranks a real one',
@@ -1537,9 +1542,17 @@ META_WRITES.length = 0; TOASTS.length = 0;
   // v0.9.1297: the recrop pass is gone — the ONE waiting-list covers members
   // (it walks _pinFilesToRead per group), and the button count and the loop
   // both read it, so they cannot disagree.
+  // v0.9.1340: still ONE walk, and now provably so — _pinUnreadScan is the
+  // only function that walks the groups, the button reads its .todo/.skipped
+  // and the loop reads .todo through the thin _pinUnreadTodo accessor. The
+  // count on the button and the work the loop does cannot disagree because
+  // there is only one place they could disagree in.
   ok('the one waiting-list feeds both the button and the loop',
-     /n = _pinUnreadTodo\(\)\.length/.test(mm1) && /var todo = _pinUnreadTodo\(\);/.test(mm1) &&
+     /_pinUnreadScan\(\)/.test(mm1) && /var todo = _pinUnreadTodo\(\);/.test(mm1) &&
      !/jobs\.push\(/.test(mm1));
+  ok('…and only ONE function walks the groups to build it',
+     (mm1.match(/function _pinUnreadScan/g) || []).length === 1 &&
+     /function _pinUnreadTodo\(\) \{ return _pinUnreadScan\(\)\.todo; \}/.test(mm1));
 
 
   section('67. Read buttons mean the photo on screen');
@@ -19121,6 +19134,160 @@ META_WRITES.length = 0; TOASTS.length = 0;
       const sayLines = tj9.match(/margin-bottom:0\.25rem;color:var\(--text\)/g) || [];
       ok('279 …and both tools\' log lines set their own colour rather than inheriting',
          sayLines.length === 2, sayLines.length + ' of 2');
+    })();
+
+
+    // ═══════════════════════════════════════════════════════════
+    // §280. v0.9.1340 — a batch read does not spend itself on paperwork,
+    //   and grouping does not destroy a group by surprise.
+    //
+    //   Brad: "our reader shouldn't read anything that says paper,
+    //   catalog, other… now if the user selects it individually, they
+    //   can try to scan it." Two halves, and the second is the one a
+    //   source-only test would miss: the gate must be on the BATCH
+    //   entry points and nowhere near the deliberate ones.
+    //
+    //   Set is deliberately NOT skipped (Brad, 08-05): a set BOX carries
+    //   the set number, and a Train set GROUP is several real pieces.
+    //   Building and Track are not skipped either — those are catalogue
+    //   items with their own numbers, so skipping them would skip items.
+    // ═══════════════════════════════════════════════════════════
+    section('280. Batch reads skip paperwork; individual reads never do');
+    (function () {
+      const p80 = require('path');
+      const vm80 = require('vm');
+      const pi = fs.readFileSync(p80.join(__dirname, '..', 'app', 'photo-inbox.js'), 'utf8');
+
+      // ── Behavioural: run the REAL predicate over the REAL type list.
+      const i0 = pi.indexOf('var _PIN_NO_BATCH_READ =');
+      const i1 = pi.indexOf('function _pinSkipBatchGroup');
+      ok('280 the predicate slice is extractable', i0 > 0 && i1 > i0);
+      const sb = {};
+      vm80.createContext(sb);
+      vm80.runInContext(pi.slice(i0, i1), sb);
+      const skip = sb._pinSkipBatchRead;
+      ok('280 _pinSkipBatchRead evaluated', typeof skip === 'function');
+
+      const F = (type) => ({ _meta: { type: type } });
+      ['Paper', 'Catalog', 'Other'].forEach(t => {
+        ok('280 ' + t + ' is held out of a batch', skip(F(t)) === true);
+      });
+      // THE ONES THAT MUST STILL BE READ. Each of these is a real catalogue
+      // piece with a real number; skipping them would skip items.
+      ['Engine', 'Tender', 'Boxcar', 'Flatcar', 'Gondola', 'Tank Car', 'Hopper',
+       'Caboose', 'Passenger Car', 'Accessory', 'Building', 'Track', 'Set'].forEach(t => {
+        ok('280 ' + t + ' is still read', skip(F(t)) === false);
+      });
+      ok('280 Set is read — a set box carries the set number (Brad, 08-05)',
+         skip(F('Set')) === false);
+      ok('280 an UNTAGGED photo is still read (most photos have no type)',
+         skip(F('')) === false && skip({ _meta: {} }) === false && skip({}) === false && skip(null) === false);
+      ok('280 the match is case- and space-insensitive, as tags arrive from Drive',
+         skip(F('  paper ')) === true && skip(F('CATALOG')) === true && skip(F('Other ')) === true);
+      ok('280 a type that merely CONTAINS a skipped word is still read',
+         skip(F('Paper Mill')) === false && skip(F('Other O Brands')) === false);
+
+      // ── Every type in the tag bar's own list is decided one way or the
+      //    other — a new type added to _PIN_TYPES cannot slip through
+      //    unconsidered, because this asserts the whole list is covered.
+      const typesSrc = (pi.match(/var _PIN_TYPES = \[[\s\S]*?\];/) || [''])[0];
+      const types = (typesSrc.match(/'([^']+)'/g) || []).map(x => x.replace(/'/g, ''));
+      ok('280 the tag bar offers the 16 known types', types.length === 16, types.length + ': ' + types.join(','));
+      const held = types.filter(t => skip(F(t)));
+      ok('280 …and exactly three of them are held back',
+         held.join(',') === 'Paper,Catalog,Other', held.join(','));
+
+      // ── The gate is on the BATCH paths only. This is the half that matters
+      //    most to Brad and the half a careless edit would break.
+      ok('280 the FREE batch applies the gate',
+         /if \(_pinSkipBatchRead\(f\)\) \{ skipped\.push\(\{ g: g, fid: fid \}\); return; \}/.test(pi));
+      ok('280 the PAID batch applies it too — this is where it costs money',
+         /var todo = _allTodo\.filter\(function \(g\) \{ return !_pinSkipBatchGroup\(g\); \}\);/.test(pi));
+
+      // The override. _pinIdentifySelected (ticked photos) and the review-card
+      // read must NEVER consult the gate.
+      const selStart = pi.indexOf('window._pinIdentifySelected = async function ()');
+      const selEnd = pi.indexOf('return _pinIdentifyRun(gs, ids);', selStart);
+      ok('280 the ticked-photos read is locatable', selStart > 0 && selEnd > selStart);
+      ok('280 …and it never consults the gate — that IS the override',
+         pi.slice(selStart, selEnd).indexOf('_pinSkipBatch') === -1);
+
+      // ── No silent caps: the number held back is SHOWN, with the way round it.
+      ok('280 the count of held-back photos is surfaced, not swallowed',
+         /nSkip = _sc\.skipped\.length/.test(pi) && /pin-skipnote/.test(pi));
+      ok('280 …and the note names the escape hatch',
+         /Tick one and press Identify to read it anyway/.test(pi));
+      ok('280 the paid confirmation says what it is NOT reading',
+         /_held \? ' <b>' \+ _held \+ '<\/b> more '/.test(pi));
+
+      // ── The help text and the page note both explain it (Brad asked).
+      const hp = fs.readFileSync(p80.join(__dirname, '..', 'app', 'help-photo-id.js'), 'utf8');
+      ok('280 the help has a section on what a batch leaves out',
+         /What we leave out of a batch/.test(hp));
+      ok('280 …it names all three tags',
+         /<b>Paper<\/b>, <b>Catalog<\/b> or <b>Other<\/b>/.test(hp));
+      ok('280 …it tells the user they can still read any of them',
+         /You can still read any of them yourself/.test(hp));
+      ok('280 …and it says buildings, track and set boxes are NOT skipped',
+         /Buildings, track and accessories are <i>not<\/i> skipped/.test(hp) &&
+         /set box is\s*'\s*\+\s*'read too/.test(hp.replace(/\n\s*/g, ' ')) || /A set box is/.test(hp));
+      ok('280 the page note explains the skip and the override',
+         /are left out of that batch/.test(pi) && /tick any single photo and press Identify/.test(pi));
+      // ⚠ MY OWN BUG, caught by the drill: the first version of this check
+      // read RAW source and failed on the COMMENT that states the rule
+      // ("Never the phrase 'AI' in anything a user reads"). That is this
+      // project's root cause #1 — reading source as plain text — committed
+      // inside the very test meant to police a copy rule. The rule is about
+      // what a USER reads, so scan the STRINGS: scanJs blanks comments and
+      // keeps strings, which is exactly the shape needed. Build on the
+      // existing scanner; do not write a third.
+      const { scanJs } = require('./color-count');
+      ok('280 the help never says "AI" in anything a user reads (house rule)',
+         !/\bAI\b/.test(scanJs(hp)));
+      ok('280 …and the scanner really is blanking the comment, not the file',
+         /\bAI\b/.test(hp) && scanJs(hp).length > 100);
+
+      // ── Grouping no longer dissolves an existing group silently.
+      const j0 = pi.indexOf('function _pinExistingGroupsIn');
+      const j1 = pi.indexOf("if (typeof window !== 'undefined') {\n    window._pinExistingGroupsIn");
+      ok('280 the dissolve-warning slice is extractable', j0 > 0 && j1 > j0);
+      const sb2 = {};
+      vm80.createContext(sb2);
+      vm80.runInContext(pi.slice(j0, j1), sb2);
+      const warn = sb2._pinDissolveWarning;
+      const lbl = (k) => ({ tender: 'Engine + tender', set: 'Train set', aba: 'ABA — A, B, A' }[k] || k);
+      const G = (grp, kind) => ({ _meta: { grp: grp, kind: kind } });
+
+      // Brad's exact case: a 3-photo Engine + tender tile tapped into a set.
+      const bradsCase = [G('G1', 'tender'), G('G1', 'tender'), G('G1', 'tender'), G('', ''), G('', '')];
+      const w = warn(bradsCase, lbl);
+      ok('280 Brad\'s case warns before breaking up the engine+tender pair',
+         !!w && /Engine \+ tender/.test(w) && /3 photos/.test(w), w || '(no warning)');
+
+      // Re-tagging ONE whole group as itself is a legitimate fix, not a dissolve.
+      ok('280 re-tagging one existing group as itself does NOT warn',
+         warn([G('G1', 'tender'), G('G1', 'tender'), G('G1', 'tender')], lbl) === '');
+      ok('280 loose ungrouped photos do NOT warn',
+         warn([G('', ''), G('', ''), G('', '')], lbl) === '');
+      ok('280 a lone photo pulled out of a group still warns (its group loses it)',
+         !!warn([G('G1', 'tender'), G('G1', 'tender'), G('G1', 'tender'), G('', '')], lbl));
+      ok('280 two existing groups merged names BOTH',
+         /2 existing groups/.test(warn([G('G1','tender'),G('G1','tender'),G('G2','aba'),G('G2','aba')], lbl) || ''));
+      ok('280 a single-photo "group" is not a group worth warning about',
+         warn([G('G9', 'single'), G('', ''), G('', '')], lbl) === '');
+
+      // And the warning is actually WIRED — a pure function nobody calls is
+      // the shape this project has shipped before.
+      ok('280 the warning is asked BEFORE the write, and refusing cancels',
+         /var _warn = _pinDissolveWarning\(files2, _pinKindLabel\);[\s\S]{0,260}?if \(!_goW\) \{[\s\S]{0,80}?return; \}[\s\S]{0,120}?_pinGroupApply\(files2/.test(pi));
+
+      // ── The yellow is gone from both reader buttons.
+      ok('280 the free Identify button is the solid blue primary',
+         /id="pin-identify-btn" class="btn-primary"/.test(pi));
+      ok('280 the paid read wears the standard outline, so free and paid differ',
+         /id="pin-idall-btn"[^>]*border:1\.5px solid #8b8e94[\s\S]{0,200}?color:#2980b9/.test(pi));
+      ok('280 neither reader button still uses the gold accent',
+         !/id="pin-identify-btn"[^>]*accent2/.test(pi) && !/id="pin-idall-btn"[^>]*accent2/.test(pi));
     })();
 
   })().then(function () {

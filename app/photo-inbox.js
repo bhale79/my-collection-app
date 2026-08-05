@@ -114,7 +114,7 @@
         '<span>Photo Inbox</span>' +
         '<span id="pin-count" style="font-size:0.8rem;color:var(--text-dim);font-family:var(--font-body);font-weight:400"></span>' +
       '</div>' +
-      '<div style="font-size:0.8rem;color:var(--text-dim);line-height:1.5;margin-bottom:0.7rem">Drop photos anywhere below, or use Add photos. Get them ready at your own pace — crop, use “Group photos” to put several shots of one item together, and “Tag maker/era/scale/type” to say what photos are — then hit <b>Identify my items</b> to read them all. Click a photo to review it — add the item, research it more, or discard the photo. Photos snapped with Quick Capture on your phone land here too.</div>' +
+      '<div style="font-size:0.8rem;color:var(--text-dim);line-height:1.5;margin-bottom:0.7rem">Drop photos anywhere below, or use Add photos. Get them ready at your own pace — crop, use “Group photos” to put several shots of one item together, and “Tag maker/era/scale/type” to say what photos are — then hit <b>Identify my items</b> to read them all. Photos you have tagged <b>Paper</b>, <b>Catalog</b> or <b>Other</b> are left out of that batch \u2014 there is rarely an item number to find on a drawing or a catalogue page, and on the paid read it would spend a photo ID for nothing. You can always tick any single photo and press Identify to read it anyway. Click a photo to review it — add the item, research it more, or discard the photo. Photos snapped with Quick Capture on your phone land here too.</div>' +
       '<div id="pin-context-bar" style="display:none"></div>' +   // v0.9.1048 capture context
       '<div id="pin-filter-row" style="display:none"></div>' +   // v0.9.1051 filters
       '<div id="pin-tagbar" style="display:none"></div>' +        // v0.9.1057 tag mode
@@ -130,8 +130,8 @@
         // upload and the separate "Re-read cropped" button (cropping clears a
         // photo's old read, so cropped photos are simply unread again and this
         // button picks them up).
-        '<button id="pin-identify-btn" onclick="_pinIdentifyItems()" style="display:none;padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid var(--accent2);background:var(--bg-card);background:color-mix(in srgb, rgb(212,168,67) 14%, var(--bg-card));color:var(--accent2);font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Identify my items (free)</button>' +
-        '<button id="pin-idall-btn" onclick="_pinIdentifyAll()" style="display:none;padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid var(--accent2);background:var(--bg-card);background:color-mix(in srgb, rgb(212,168,67) 14%, var(--bg-card));color:var(--accent2);font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">🔍 Read with a photo ID</button>' +
+        '<button id="pin-identify-btn" class="btn-primary" onclick="_pinIdentifyItems()" style="display:none;padding:0.5rem 0.9rem;border-radius:8px;border:none;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Identify my items (free)</button>' +
+        '<button id="pin-idall-btn" onclick="_pinIdentifyAll()" style="display:none;padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:var(--bg-card);background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card));color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">🔍 Read with a photo ID</button>' +
         (rrDiagnostics() ? '<button id="pin-audit-btn" onclick="_pinReaderAudit()" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:var(--bg-card);background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card));color:#2980b9;font-family:var(--font-body);font-weight:600;font-size:0.82rem;cursor:pointer">Reader audit (free)</button>' : '') +
         '<button onclick="_pinRefresh()" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:var(--bg-card);background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card));color:#2980b9;font-family:var(--font-body);font-weight:600;font-size:0.82rem;cursor:pointer">Refresh</button>' +
         '<span style="flex:1"></span>' +
@@ -140,6 +140,7 @@
         '<button id="pin-assign-btn" onclick="_pinReview(null)" style="display:none;padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:var(--bg-card);background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card));color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Combine → one item…</button>' +
         '<button id="pin-discard-btn" onclick="_pinDiscard()" style="display:none;padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:var(--bg-card);background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card));color:#f05008;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Discard</button>' +
       '</div>' +
+      '<div id="pin-skipnote" style="display:none;font-size:0.78rem;color:var(--text-dim);margin:-0.3rem 0 0.6rem"></div>' +
       '<div id="pin-status" style="display:none;font-size:0.8rem;color:var(--text-dim);margin-bottom:0.6rem"></div>' +
       '<div id="pin-drop" style="min-height:50vh;border:2px dashed var(--border);border-radius:12px;padding:0.8rem">' +
         '<div id="pin-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:0.6rem"></div>' +
@@ -277,6 +278,35 @@
     var kind = (files[0] && files[0]._meta && files[0]._meta.kind) || g.kind || 'single';
     return _PIN_MULTI_KIND[kind] ? files : [files[0]];
   }
+
+  // ══ v0.9.1340 — a BATCH read does not spend itself on paperwork ══════════
+  // Brad: "our reader shouldn't read anything that says paper, catalog,
+  // other… now if the user selects it individually, they can try to scan it."
+  //
+  // He is right, and the cost is not only his time. The free run quoted him 24
+  // minutes; the PAID run spends a real photo ID per item, and a photo ID spent
+  // on a catalogue page is money gone. Worse than wasted either way: a reader
+  // pointed at a blueprint dutifully finds the number in its title block and
+  // files it as an item guess, so every one of those becomes a wrong "best
+  // guess" he has to open and dismiss. His own inbox screenshot is full of
+  // them — drawings captioned 2205?, 24147?, 5200?.
+  //
+  // Deliberately NOT skipped: Building, Track, Accessory and the car types.
+  // Those ARE catalogue pieces with real numbers (a 132 Passenger Station, an
+  // O22 switch) — skipping them would skip items, not paperwork. And Set stays
+  // readable both ways (Brad, 08-05): a set BOX usually carries the set number,
+  // and a Train set GROUP is several real pieces that each get read.
+  //
+  // This gates the two BATCH entry points only. Ticking a photo and pressing
+  // Identify, or reading one from the review card, is a deliberate act and
+  // always works — that is the override, and the help text says so.
+  var _PIN_NO_BATCH_READ = { paper: 1, catalog: 1, other: 1 };
+  function _pinSkipBatchRead(f) {
+    var t = String((((f && f._meta) || {}).type) || '').trim().toLowerCase();
+    return !!(t && _PIN_NO_BATCH_READ[t]);
+  }
+  // A group is skipped when the photo that WOULD be read is skippable.
+  function _pinSkipBatchGroup(g) { return _pinSkipBatchRead(_pinReadFile(g)); }
 
   // The one photo that represents this group for reading purposes.
   function _pinReadFile(g) { return _pinReadFiles(g)[0] || (g && g.files && g.files[0]) || null; }
@@ -570,6 +600,46 @@
     return { ok: okAll, total: files.length };
   }
 
+  // ══ v0.9.1340 — grouping must not DESTROY a group by surprise ════════════
+  // Brad tried to pull his already-made "Engine + tender · 3" tile into a train
+  // set. Selection works on whole GROUPS, not photos, so that tap would have
+  // dragged all three photos into the new set, minted a fresh id over them and
+  // overwritten their kind and roles — the pairing gone, silently, with Split
+  // apart as the only way back. The grouping itself is unchanged; it just says
+  // so first.
+  function _pinExistingGroupsIn(files) {
+    var byGrp = {}, out = [];
+    (files || []).forEach(function (f) {
+      var g = (((f && f._meta) || {}).grp) || '';
+      if (!g) return;
+      (byGrp[g] = byGrp[g] || []).push(f);
+    });
+    Object.keys(byGrp).forEach(function (k) {
+      if (byGrp[k].length > 1) {
+        out.push({ grp: k, n: byGrp[k].length, kind: ((byGrp[k][0]._meta) || {}).kind || '' });
+      }
+    });
+    return out;
+  }
+  // Re-tagging ONE existing group as itself is not a dissolve — no warning for
+  // the commonest legitimate case (fixing the kind you picked last time).
+  function _pinDissolveWarning(files, kindLabelOf) {
+    var ex = _pinExistingGroupsIn(files);
+    if (!ex.length) return '';
+    if (ex.length === 1 && ex[0].n === (files || []).length) return '';
+    var bits = ex.map(function (e) {
+      var lbl = kindLabelOf ? kindLabelOf(e.kind) : e.kind;
+      return '<b>' + (lbl || 'a group') + '</b> (' + e.n + ' photos)';
+    });
+    return 'This will break up ' + (ex.length === 1 ? 'an existing group' : ex.length + ' existing groups')
+      + ' — ' + bits.join(' and ') + ' — and fold '
+      + (ex.length === 1 ? 'its photos' : 'their photos') + ' into the new one. Continue?';
+  }
+  if (typeof window !== 'undefined') {
+    window._pinExistingGroupsIn = _pinExistingGroupsIn;
+    window._pinDissolveWarning = _pinDissolveWarning;
+  }
+
   function _pinGrpPanelFiles() {
     var files = [];
     _selGroups().forEach(function (g) { g.files.forEach(function (f) { files.push(f); }); });
@@ -656,6 +726,11 @@
       if (files2.length < 2) { showToast('Tick two or more photos first', 2800, true); return; }
       this.disabled = true; this.textContent = 'Saving…';
       var self = this;
+      var _warn = _pinDissolveWarning(files2, _pinKindLabel);
+      if (_warn) {
+        var _goW = await _pinConfirm(_warn, 'Break up and regroup');
+        if (!_goW) { self.disabled = false; self.textContent = 'Apply'; return; }
+      }
       var res = await _pinGroupApply(files2, _grpPanelKind, _grpPanelRoles.slice(0, files2.length), function (done, total) {
         self.textContent = 'Saving… ' + done + '/' + total;
       });
@@ -6509,7 +6584,7 @@
   // v0.9.1297: ONE builder for "what is still waiting to be read" — the
   // reader loop and the Identify-my-items button count must never disagree.
   // A cropped photo lands here naturally, because cropping clears its read.
-  function _pinUnreadTodo() {
+  function _pinUnreadScan() {
     var ids = _ids(), ft = _freeTried();
     var _stale = function (rec) {
       // No record at all, or one made by an older reader than the current one.
@@ -6519,7 +6594,11 @@
     };
     // v0.9.1090: the unit of work is a FILE, not a group — a set contributes
     // every member photo, a single item contributes one.
-    var todo = [];
+    //
+    // v0.9.1340: ONE walk answers both questions. The button's count and the
+    // "left out" note are the same fact seen from two sides, and this project
+    // has been bitten six times by one fact computed in two places.
+    var todo = [], skipped = [];
     _groups.forEach(function (g) {
       _pinFilesToRead(g).forEach(function (f) {
         var fid = f && f.id;
@@ -6527,11 +6606,15 @@
         var got = ids[fid];
         if (got && got.rv === READER_VER && !got.guess) return;
         if (got && got.rv === READER_VER) return;
-        if (_stale(ft[fid]) || !got) todo.push({ g: g, fid: fid });
+        if (!(_stale(ft[fid]) || !got)) return;
+        if (_pinSkipBatchRead(f)) { skipped.push({ g: g, fid: fid }); return; }
+        todo.push({ g: g, fid: fid });
       });
     });
-    return todo;
+    return { todo: todo, skipped: skipped };
   }
+  // Back-compatible shape for every existing caller.
+  function _pinUnreadTodo() { return _pinUnreadScan().todo; }
 
   // v0.9.1297 (Brad): the ONE read trigger. Everything below it is unchanged
   // v0.9.1090 machinery — only the STARTER moved from a refresh timer to his
@@ -6539,8 +6622,20 @@
   function _updateIdentifyBtn() {
     var b = document.getElementById('pin-identify-btn');
     if (!b) return;
-    var n = 0;
-    try { n = _pinUnreadTodo().length; } catch (e) {}
+    var n = 0, nSkip = 0;
+    try { var _sc = _pinUnreadScan(); n = _sc.todo.length; nSkip = _sc.skipped.length; } catch (e) {}
+    // v0.9.1340: a photo held out of the batch is INVISIBLE otherwise, and an
+    // invisible omission reads as a bug. Say the number, say why, say the way
+    // round it — in one line, only when there is something to say.
+    var sn = document.getElementById('pin-skipnote');
+    if (sn) {
+      if (nSkip && !_selectMode) {
+        sn.textContent = nSkip + ' photo' + (nSkip === 1 ? '' : 's') + ' tagged Paper, Catalog or Other '
+          + (nSkip === 1 ? 'is' : 'are') + " not in the batch — there's rarely an item number on a drawing or a page. "
+          + 'Tick one and press Identify to read it anyway.';
+        sn.style.display = '';
+      } else sn.style.display = 'none';
+    }
     if (n > 0 && !_selectMode) {
       b.textContent = 'Identify my items — read ' + n + ' (free)';
       b.style.display = '';
@@ -7396,15 +7491,27 @@
     if (!_qcToken()) { showToast('Please sign in first', 3000, true); return; }
     if (typeof aiIdentifyImage !== 'function') { showToast('Identify service not loaded — refresh and try again', 3000, true); return; }
     var ids = _ids();
-    var todo = _groups.filter(function (g) { return !ids[_pinReadFid(g)]; });
-    if (!todo.length) { showToast(_groups.length ? 'Every item already has a suggestion — tick photos and use Identify to re-run any of them' : 'Inbox is empty', 3500); return; }
+    // v0.9.1340: the type gate matters MOST here — this button spends a real
+    // photo ID per item. Paper / Catalog / Other are held back; ticking one and
+    // pressing Identify still reads it.
+    var _allTodo = _groups.filter(function (g) { return !ids[_pinReadFid(g)]; });
+    var todo = _allTodo.filter(function (g) { return !_pinSkipBatchGroup(g); });
+    var _held = _allTodo.length - todo.length;
+    if (!todo.length) {
+      showToast(_held
+          ? _held + ' photo' + (_held === 1 ? ' is' : 's are') + ' tagged Paper, Catalog or Other, so ' + (_held === 1 ? 'it is' : 'they are') + " not read in a batch — tick one and press Identify to read it anyway"
+          : (_groups.length ? 'Every item already has a suggestion — tick photos and use Identify to re-run any of them' : 'Inbox is empty'),
+        _held ? 6000 : 3500);
+      return;
+    }
     // v0.9.956 (Brad): free auto-read already tried these — this button only
     // targets the leftovers it couldn't place. Show the exact count and make
     // clear it uses paid reads, so a batch never spends credits by surprise.
     var n = todo.length;
     var msg = 'The free reader already tried every photo. <b>' + n + '</b> item' + (n === 1 ? '' : 's') +
       ' couldn\'t be matched for free. Read ' + (n === 1 ? 'it' : 'them') +
-      ' now? This uses ' + n + ' of your photo ID' + (n === 1 ? '' : 's') + ' (1 per item).';
+      ' now? This uses ' + n + ' of your photo ID' + (n === 1 ? '' : 's') + ' (1 per item).'
+      + (_held ? ' <b>' + _held + '</b> more ' + (_held === 1 ? 'is' : 'are') + ' tagged Paper, Catalog or Other and ' + (_held === 1 ? 'is' : 'are') + " not in this batch — you can still read " + (_held === 1 ? 'it' : 'them') + ' one at a time.' : '');
     // The message above already states the cost; repeating "(44 tokens)" on the
     // button is the same ambiguity as the toolbar had — it reads like a balance.
     var go = await _pinConfirm(msg, '🔍 Read ' + n + ' item' + (n === 1 ? '' : 's'));
