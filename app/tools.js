@@ -188,10 +188,38 @@ function buildToolsPage() {
       '<div id="version-tidy-results" style="margin-top:1rem;color:var(--text)"></div>' +
     '</div>';
 
+  // ═══════════════════════════════════════════════════════════════════
+  // v0.9.1345 — MASTER FIX-UP 1.73 · the last four collisions.
+  //
+  //   The 08-04 audit found 6 rows sharing a number AND a variation.
+  //   Brad walked five of them (v1.72). Four groups were left, and on
+  //   08-05 they turned out to be a DIFFERENT problem: 193, 195 and 455
+  //   are real, distinct accessory variations — different colours,
+  //   years and COTT codes — that were simply never given variation
+  //   numbers. Nothing to discard; they need numbering. Only 6511-2 was
+  //   a true collision, and Brad picked which row keeps variation 1.
+  //
+  //   Numbering is SEQUENTIAL, not the reference book's TYPE number:
+  //   measured across this tab, 186 rows differ from the book's stated
+  //   TYPE and only 31 match, so sequential is the house convention and
+  //   copying the book here would have invented a rule.
+  // ═══════════════════════════════════════════════════════════════════
+  var _m73Show = (typeof rrDiagnostics === 'function') ? rrDiagnostics() : false;
+  var CARD_MASTER_173 = (!_m73Show || localStorage.getItem('rr_master_fixup_173_done') === '1') ? '' :
+    '<div class="tools-card">' +
+      '<div class="tools-card-title">' +
+        '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#e74c3c" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>' +
+        'Master Fix-Up \u00b7 one-time (v1.73)' +
+      '</div>' +
+      '<div class="tools-card-desc">Numbers the ten unnumbered accessory variations (193, 195, 455) and settles the 6511-2 collision \u2014 eleven cells, no rows added or removed. Each row is found by its COTT code, which is unique, and checked again at write time. Preview first.</div>' +
+      '<button onclick="rrMaster173Preview()" style="padding:0.55rem 1.1rem;border-radius:8px;border:1.5px solid #e74c3c;background:var(--bg-card);background:color-mix(in srgb, rgb(231,76,60) 10%, var(--bg-card));color:#e74c3c;font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer">Preview the fix-up</button>' +
+      '<div id="master-173-results" style="margin-top:1rem;color:var(--text)"></div>' +
+    '</div>';
+
   var html = '<div class="page-title" style="margin-bottom:0.5rem">Collection Tools</div>';
   // Universal = works across every manufacturer.
   html += SECTION_HEADER('universal', 'Universal Tools', 'Work across all manufacturers');
-  html += '<div id="universal-body">' + CARD_DUPLICATE_CHECKER + CARD_VAULT_CLEANUP + CARD_MASTER_FIXUP + CARD_VERSION_TIDY + CARD_SHARED_PHOTOS + '</div>';
+  html += '<div id="universal-body">' + CARD_DUPLICATE_CHECKER + CARD_VAULT_CLEANUP + CARD_MASTER_FIXUP + CARD_VERSION_TIDY + CARD_MASTER_173 + CARD_SHARED_PHOTOS + '</div>';
 
   // Postwar Lionel = tools that rely on Lionel postwar catalog data (grouping,
   // sets, companions). Smart Group Finder lives here (it's postwar-Lionel only).
@@ -1886,4 +1914,153 @@ async function rrVersionTidyApply() {
 if (typeof window !== 'undefined') {
   window.rrVersionTidyPreview = rrVersionTidyPreview;
   window.rrVersionTidyApply = rrVersionTidyApply;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// v0.9.1345 — MASTER FIX-UP 1.73 (one-time).
+//
+// Eleven cell writes in Lionel PW - Items. No rows added, none removed —
+// which is why this one has no delete step and no row-shift to reason
+// about. Same contract as 1.72 otherwise: read-only preview, every row
+// found by CONTENT exactly once, re-verified at write time, writes going
+// through rrVerifiedRowUpdate, and the card hides once it lands.
+//
+// The anchor is the COTT Code. Verified 2026-08-05 against the live tab:
+// each of the eleven codes appears exactly ONCE in the whole tab, so the
+// locator cannot pick a neighbour even if rows move.
+// ═══════════════════════════════════════════════════════════════════
+
+var _M73_TAB = 'Lionel PW - Items';
+var _M73_DONE_KEY = 'rr_master_fixup_173_done';
+// { num, variation (as it stands NOW), cott, set } — variation '' means the
+// cell is currently blank, which is the whole point for 193 / 195 / 455.
+var _M73_STEPS = [
+  { num: '193',    variation: '', cott: 'A0116', set: '1', label: '193 Water Tower — black superstructure → var 1' },
+  { num: '193',    variation: '', cott: 'A0117', set: '2', label: '193 Water Tower — red superstructure → var 2' },
+  { num: '195',    variation: '', cott: 'A0680', set: '1', label: '195 Floodlight Tower — 1957, plain top → var 1' },
+  { num: '195',    variation: '', cott: 'A0678', set: '2', label: '195 Floodlight Tower — 1958, tan cap → var 2' },
+  { num: '195',    variation: '', cott: 'A0679', set: '3', label: '195 Floodlight Tower — 1961, tan cap → var 3' },
+  { num: '195',    variation: '', cott: 'A0357', set: '4', label: '195 Floodlight Tower — 1968-69, unpainted → var 4' },
+  { num: '455',    variation: '', cott: 'A0585', set: '1', label: '455 Oil Derrick — light pale green → var 1' },
+  { num: '455',    variation: '', cott: 'A0156', set: '2', label: '455 Oil Derrick — dark green, red top → var 2' },
+  { num: '455',    variation: '', cott: 'A0292', set: '3', label: '455 Oil Derrick — dark green, matching top → var 3' },
+  { num: '455',    variation: '', cott: 'A0698', set: '4', label: '455 Oil Derrick — dark green, red top, later → var 4' },
+  // The only true collision of the four. Brad's call: the 1953 row (F0179)
+  // keeps variation 1 and is NOT touched; the 1959-60 row moves to 2.
+  { num: '6511-2', variation: '1', cott: 'F0098', set: '2', label: '6511-2 — 1959-60 red shell → var 2 (the 1953 row keeps var 1)' }
+];
+// Master Version, newest first — matching the workbook and the tidy tool.
+var _M73_VERSION_ROW = ['1.73', '2026-08-05', 'Lionel PW - Items: the last four number+variation collisions from the 08-04 audit resolved. 193 (2), 195 (4) and 455 (4) were real accessory variations that had never been given variation numbers - numbered sequentially in sheet order, which is this tab\'s convention (measured: 186 rows differ from the reference book\'s stated TYPE, 31 match, so book-type numbering is not what this sheet does). 6511-2 had two different flatcars both numbered variation 1: the 1953 plain flatcar (COTT F0179) keeps variation 1, the 1959-60 unpainted red shell (COTT F0098) becomes variation 2. Eleven cells changed; no rows added or removed. Zero number+variation collisions remain on this tab.'];
+
+// PURE locator. Exactly-once on (number, current variation, COTT code) or refuse.
+function _m73Locate(hdr, rows) {
+  var ci = {}; for (var i = 0; i < hdr.length; i++) ci[hdr[i]] = i;
+  function cell(r, name) {
+    var idx = ci[name];
+    return (idx == null || idx >= r.length || r[idx] == null) ? '' : String(r[idx]).trim();
+  }
+  var targets = [], problems = [];
+  for (var s = 0; s < _M73_STEPS.length; s++) {
+    var st = _M73_STEPS[s], hits = [];
+    for (var r = 0; r < rows.length; r++) {
+      if (cell(rows[r], 'Item Number') !== st.num) continue;
+      if (cell(rows[r], 'Variation #') !== st.variation) continue;
+      if (cell(rows[r], 'COTT Code') !== st.cott) continue;
+      hits.push({ row: r + 2, desc: cell(rows[r], 'Description') });
+    }
+    if (hits.length === 1) targets.push({ step: st, row: hits[0].row, desc: hits[0].desc });
+    else if (hits.length === 0) problems.push(st.label + ' — TARGET NOT FOUND (already fixed, or the sheet changed). Nothing written for this step.');
+    else problems.push(st.label + ' — AMBIGUOUS: ' + hits.length + ' rows match. REFUSING this step.');
+  }
+  return { targets: targets, problems: problems };
+}
+if (typeof window !== 'undefined') window._m73Locate = _m73Locate;
+
+async function rrMaster173Preview() {
+  var box = document.getElementById('master-173-results');
+  if (!box) return;
+  box.innerHTML = '<div style="color:var(--text-dim);font-size:0.85rem">Reading the master sheet…</div>';
+  try {
+    var res = await sheetsGet(state.masterSheetId, _M73_TAB + '!A1:R');
+    var values = (res && res.values) || [];
+    var loc = _m73Locate(values[0] || [], values.slice(1));
+    window._m73Plan = loc;
+    var html = '';
+    for (var i = 0; i < loc.targets.length; i++) {
+      var t = loc.targets[i];
+      html += '<div style="padding:0.45rem 0.7rem;border:1px solid var(--border);border-radius:8px;margin-bottom:0.35rem;font-size:0.82rem;color:var(--text)">'
+        + '<strong>' + rrEsc(t.step.label) + '</strong><br>'
+        + '<span style="color:var(--text-dim)">Row ' + t.row + ' · ' + rrEsc(t.desc.slice(0, 60)) + ' · COTT ' + rrEsc(t.step.cott) + '</span></div>';
+    }
+    html += '<div style="padding:0.45rem 0.7rem;border:1px solid var(--border);border-radius:8px;margin-bottom:0.35rem;font-size:0.82rem;color:var(--text)"><strong>Master Version → 1.73 added on top</strong></div>';
+    for (var p = 0; p < loc.problems.length; p++) {
+      html += '<div style="padding:0.45rem 0.7rem;border:1.5px solid #e74c3c;border-radius:8px;margin-bottom:0.35rem;font-size:0.82rem;color:#e74c3c">' + rrEsc(loc.problems[p]) + '</div>';
+    }
+    html += loc.targets.length
+      ? '<button onclick="rrMaster173Apply()" style="margin-top:0.4rem;padding:0.55rem 1.1rem;border-radius:8px;border:none;background:#e74c3c;color:var(--on-accent);font-family:var(--font-body);font-size:0.85rem;font-weight:700;cursor:pointer">Apply ' + loc.targets.length + ' change' + (loc.targets.length === 1 ? '' : 's') + ' + version 1.73</button>'
+      : '<div style="color:var(--text-dim);font-size:0.82rem;margin-top:0.4rem">Nothing to apply.</div>';
+    box.innerHTML = html;
+  } catch (e) {
+    box.innerHTML = '<div style="color:#e74c3c;font-size:0.85rem">Could not read the master sheet: ' + rrEsc(String(e && e.message || e)) + '</div>';
+  }
+}
+
+var _m73Busy = false;
+async function rrMaster173Apply() {
+  if (_m73Busy) return;
+  _m73Busy = true;
+  var box = document.getElementById('master-173-results');
+  var log = [];
+  function say(m) { log.push(m); if (box) box.innerHTML = log.map(function (x) { return '<div style="font-size:0.82rem;margin-bottom:0.25rem;color:var(--text)">' + x + '</div>'; }).join(''); }
+  var okAll = true;
+  try {
+    var plan = window._m73Plan;
+    if (!plan || !plan.targets || !plan.targets.length) { say('No previewed plan — run Preview first.'); _m73Busy = false; return; }
+    for (var i = 0; i < plan.targets.length; i++) {
+      var t = plan.targets[i];
+      // Re-verify by CONTENT right now: number, the variation as it should
+      // still stand, and the COTT code that makes the row unique.
+      var re = await sheetsGet(state.masterSheetId, _M73_TAB + '!A' + t.row + ':R' + t.row);
+      var row = ((re && re.values) || [[]])[0] || [];
+      var numNow = String(row[0] == null ? '' : row[0]).trim();
+      var varNow = String(row[10] == null ? '' : row[10]).trim();
+      var cottNow = String(row[16] == null ? '' : row[16]).trim();
+      if (numNow !== t.step.num || varNow !== t.step.variation || cottNow !== t.step.cott) {
+        okAll = false; say('⚠ SKIPPED (row ' + t.row + ' changed): ' + rrEsc(t.step.label)); continue;
+      }
+      var w = await rrVerifiedRowUpdate(state.masterSheetId, _M73_TAB, t.row,
+        "'" + _M73_TAB + "'!K" + t.row, [[t.step.set]], { num: t.step.num }, 'master sheet');
+      if (w !== true) { okAll = false; say('⚠ SKIPPED (row ' + t.row + ' moved at write time): ' + rrEsc(t.step.label)); continue; }
+      say('✓ ' + rrEsc(t.step.label));
+    }
+    // Version history: INSERT 1.73 above 1.72 rather than rewriting the tab.
+    // The tidy tool already put it newest-first, so this reads rows 2..N,
+    // writes 1.73 into row 2 and pushes the rest down by one.
+    var mv = await sheetsGet(state.masterSheetId, "'Master Version'!A2:C60");
+    var hist = ((mv && mv.values) || []).filter(function (r) { return r && String(r[0] || '').trim(); });
+    if (hist.length && String(hist[0][0]).trim() === '1.73') {
+      say('✓ Master Version already at 1.73');
+    } else {
+      var rows73 = [_M73_VERSION_ROW.slice()].concat(hist.map(function (r) {
+        return ["'" + String(r[0] == null ? '' : r[0]), "'" + String(r[1] == null ? '' : r[1]), r[2] == null ? '' : r[2]];
+      }));
+      rows73[0] = ["'" + _M73_VERSION_ROW[0], "'" + _M73_VERSION_ROW[1], _M73_VERSION_ROW[2]];
+      await sheetsUpdate(state.masterSheetId, "'Master Version'!A2:C" + (1 + rows73.length), rows73);
+      say('✓ Master Version: 1.73 added on top, history preserved');
+    }
+    if (okAll) {
+      localStorage.setItem(_M73_DONE_KEY, '1');
+      say('<strong>Done. Zero number+variation collisions remain on Lionel PW - Items.</strong> This card will disappear.');
+    } else {
+      say('<strong>Finished with skipped steps — the card stays. Run Preview again to see what remains.</strong>');
+    }
+  } catch (e) {
+    say('⚠ Stopped: ' + rrEsc(String(e && e.message || e)));
+  } finally {
+    _m73Busy = false;
+  }
+}
+if (typeof window !== 'undefined') {
+  window.rrMaster173Preview = rrMaster173Preview;
+  window.rrMaster173Apply = rrMaster173Apply;
 }

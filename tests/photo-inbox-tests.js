@@ -19094,7 +19094,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
       ok('279 the tidy card is diagnostics-gated and done-flagged',
          /CARD_VERSION_TIDY = \(!_mvtShow \|\| localStorage\.getItem\('rr_master_vtidy_172_done'\) === '1'\) \? ''/.test(tj9));
       ok('279 the tidy card is actually rendered into the page',
-         /CARD_MASTER_FIXUP \+ CARD_VERSION_TIDY \+ CARD_SHARED_PHOTOS/.test(tj9));
+         /universal-body[\s\S]{0,200}?CARD_VERSION_TIDY/.test(tj9));
       ok('279 apply re-reads the tab and REFUSES on an unknown version',
          /var res = await sheetsGet\(state\.masterSheetId, "'Master Version'!A2:C1200"\);[\s\S]{0,300}?if \(ins\.unknown\.length\) \{[\s\S]{0,200}?_mvtBusy = false; return;/.test(tj9));
       ok('279 apply is guarded against double-execution',
@@ -19146,9 +19146,14 @@ META_WRITES.length = 0; TOASTS.length = 0;
          /id="master-fixup-results" style="margin-top:1rem;color:var\(--text\)"/.test(tj9));
       ok('279 the tidy results box does too',
          /id="version-tidy-results" style="margin-top:1rem;color:var\(--text\)"/.test(tj9));
-      const sayLines = tj9.match(/margin-bottom:0\.25rem;color:var\(--text\)/g) || [];
-      ok('279 …and both tools\' log lines set their own colour rather than inheriting',
-         sayLines.length === 2, sayLines.length + ' of 2');
+      // v0.9.1345: this pinned the number of one-time tools rather than the
+      // rule. The rule is "every tool that logs, states its colour" — so
+      // count the log renderers and require each to carry it. A new tool that
+      // forgets goes red; a new tool that remembers does not.
+      const sayLines = (tj9.match(/margin-bottom:0\.25rem;color:var\(--text\)/g) || []).length;
+      const sayFns = (tj9.match(/log\.push\(m\); if \(box\)/g) || []).length;
+      ok('279 …and EVERY one-time tool\'s log lines set their own colour',
+         sayFns >= 2 && sayLines === sayFns, sayLines + ' coloured of ' + sayFns + ' loggers');
     })();
 
 
@@ -19720,6 +19725,132 @@ META_WRITES.length = 0; TOASTS.length = 0;
       const letterFigure = '135,000';
       ok('284 the figure matches what the invite letter tells the same reader',
          pv.indexOf(letterFigure) >= 0);
+    })();
+
+
+    // ═══════════════════════════════════════════════════════════
+    // §285. v0.9.1345 — the last four collisions (master 1.73).
+    //
+    //   The 08-04 audit's six rows are finished. Five went in v1.72.
+    //   The remaining four groups turned out NOT to be duplicates at
+    //   all: 193, 195 and 455 are real accessory variations — distinct
+    //   colours, years and COTT codes — that were never given variation
+    //   numbers. Only 6511-2 was a true collision.
+    //
+    //   Numbering is SEQUENTIAL. That is a measured fact about this tab,
+    //   not a preference: 186 rows differ from the reference book's
+    //   stated TYPE and 31 match, so copying the book would have
+    //   invented a rule the sheet does not follow.
+    // ═══════════════════════════════════════════════════════════
+    section('285. Master 1.73: number the unnumbered, settle 6511-2');
+    (function () {
+      const p85 = require('path');
+      const vm85 = require('vm');
+      const tj = fs.readFileSync(p85.join(__dirname, '..', 'app', 'tools.js'), 'utf8');
+
+      ok('285 the card is diagnostics-gated like every one-time tool',
+         /var _m73Show = \(typeof rrDiagnostics === 'function'\) \? rrDiagnostics\(\) : false;/.test(tj));
+      ok('285 …and hides once the run succeeded',
+         /CARD_MASTER_173 = \(!_m73Show \|\| localStorage\.getItem\('rr_master_fixup_173_done'\) === '1'\) \? ''/.test(tj));
+      ok('285 …and is actually rendered', /universal-body[\s\S]{0,220}?CARD_MASTER_173/.test(tj));
+      ok('285 the done key is set ONLY when every step applied',
+         /if \(okAll\) \{\s*localStorage\.setItem\(_M73_DONE_KEY, '1'\);/.test(tj));
+
+      // ── Behavioural: the REAL locator over a fixture built from the real
+      //    rows, including the decoy that must NOT be touched.
+      const i0 = tj.indexOf('var _M73_TAB =');
+      const i1 = tj.indexOf("if (typeof window !== 'undefined') window._m73Locate");
+      ok('285 the locator slice is extractable', i0 > 0 && i1 > i0);
+      const sb = {};
+      vm85.createContext(sb);
+      vm85.runInContext(tj.slice(i0, tj.lastIndexOf('\n', i1)), sb);
+      const locate = sb._m73Locate, STEPS = sb._M73_STEPS;
+      ok('285 _m73Locate evaluated', typeof locate === 'function');
+      ok('285 there are exactly eleven changes — no rows added or removed',
+         STEPS.length === 11, String(STEPS.length));
+
+      const H = ['Item Number', 'Item Type', 'Description', 'Variation #', 'COTT Code'];
+      // Column order deliberately unlike the real sheet: the locator resolves
+      // by NAME, and a fixture that mirrored the real indices would not prove
+      // that.
+      const R = (num, desc, vr, cott) => [num, 'Accessory', desc, vr, cott];
+      const grid = [
+        R('193', 'black superstructure', '', 'A0116'),
+        R('193', 'red superstructure', '', 'A0117'),
+        R('195', '1957 plain top', '', 'A0680'),
+        R('195', '1958 tan cap', '', 'A0678'),
+        R('195', '1961 tan cap', '', 'A0679'),
+        R('195', '1968-69 unpainted', '', 'A0357'),
+        R('455', 'light pale green', '', 'A0585'),
+        R('455', 'dark green red top', '', 'A0156'),
+        R('455', 'dark green matching top', '', 'A0292'),
+        R('455', 'dark green red top later', '', 'A0698'),
+        R('6511-2', '10-inch Flatcar 1953', '1', 'F0179'),   // ← KEEPS var 1
+        R('6511-2', 'Lionel Freight Car 1959-60', '1', 'F0098')
+      ];
+      const r = locate(H, grid);
+      ok('285 all eleven targets found exactly once, no problems',
+         r.targets.length === 11 && r.problems.length === 0, r.problems.join(' | '));
+      // THE ROW THAT MUST NOT BE TOUCHED. Brad chose the 1953 flatcar to keep
+      // variation 1; a locator that matched it would silently renumber the
+      // wrong car and leave the collision in place.
+      ok('285 the 1953 flatcar (F0179) is NOT a target — it keeps var 1',
+         r.targets.every(t => t.step.cott !== 'F0179'));
+      ok('285 …and the 1959-60 one (F0098) is, moving to var 2',
+         r.targets.some(t => t.step.cott === 'F0098' && t.step.set === '2'));
+
+      // Sequential numbering, per group, in sheet order.
+      const got = {};
+      r.targets.forEach(t => { (got[t.step.num] = got[t.step.num] || []).push(t.step.set); });
+      ok('285 193 numbers 1,2', (got['193'] || []).join(',') === '1,2');
+      ok('285 195 numbers 1,2,3,4', (got['195'] || []).join(',') === '1,2,3,4');
+      ok('285 455 numbers 1,2,3,4', (got['455'] || []).join(',') === '1,2,3,4');
+      ok('285 no step invents a book TYPE number instead of a sequential one',
+         STEPS.every(s => /^[1-4]$/.test(s.set)));
+
+      // Every step is anchored on a COTT code, and no two steps share one —
+      // verified unique across the live tab on 2026-08-05.
+      const codes = STEPS.map(s => s.cott);
+      ok('285 every step carries a COTT anchor', codes.every(c => /^[A-Z]\d{4}$/.test(c)));
+      ok('285 …and no two steps share the same anchor',
+         new Set(codes).size === codes.length);
+      ok('285 no step names a hardcoded sheet row',
+         !/row\s*:\s*\d/.test(tj.slice(tj.indexOf('var _M73_STEPS'), tj.indexOf('var _M73_VERSION_ROW'))));
+
+      // Refusal behaviour.
+      const dupGrid = grid.concat([R('195', 'impostor', '', 'A0679')]);
+      const amb = locate(H, dupGrid);
+      ok('285 a duplicate anchor makes that step REFUSE',
+         amb.targets.length === 10 && /AMBIGUOUS: 2 rows/.test(amb.problems.join('')));
+      const goneGrid = grid.filter(x => x[4] !== 'A0116');
+      ok('285 an already-fixed row reports NOT FOUND rather than guessing',
+         locate(H, goneGrid).targets.length === 10 &&
+         /NOT FOUND/.test(locate(H, goneGrid).problems.join('')));
+      ok('285 padded cells still match (values arrive trimmed or not)',
+         locate(H, [R(' 193 ', 'x', '  ', ' A0116 ')]).targets.length === 1);
+
+      // ── Writes: re-verified by content, then through the guarded writer.
+      ok('285 each write re-reads its row and checks number, variation AND anchor',
+         /if \(numNow !== t\.step\.num \|\| varNow !== t\.step\.variation \|\| cottNow !== t\.step\.cott\) \{\s*okAll = false;/.test(tj));
+      ok('285 …and the write itself goes through the ONE guarded writer',
+         /await rrVerifiedRowUpdate\(state\.masterSheetId, _M73_TAB, t\.row,/.test(tj));
+      ok('285 apply is guarded against double-execution',
+         /if \(_m73Busy\) return;\s*\n\s*_m73Busy = true;/.test(tj));
+      ok('285 nothing in this tool deletes a row (there is no row to delete)',
+         tj.slice(tj.indexOf('async function rrMaster173Apply')).indexOf('sheetsDeleteRow') === -1);
+
+      // ── Version history: INSERTED above, not rewritten over.
+      ok('285 1.73 is added on top and the older history is carried down',
+         /var rows73 = \[_M73_VERSION_ROW\.slice\(\)\]\.concat\(hist\.map/.test(tj));
+      ok('285 …and re-running does not stack a second 1.73',
+         /if \(hist\.length && String\(hist\[0\]\[0\]\)\.trim\(\) === '1\.73'\)/.test(tj));
+      ok('285 …with version and date forced to text, as v0.9.1341 established',
+         /\["'" \+ _M73_VERSION_ROW\[0\], "'" \+ _M73_VERSION_ROW\[1\]/.test(tj));
+      const note = sb._M73_VERSION_ROW[2];
+      ok('285 the version note records WHY sequential, with the measurement',
+         /186 rows differ/.test(note) && /31 match/.test(note));
+      ok('285 …and states the outcome plainly',
+         /Zero number\+variation collisions remain/.test(note));
     })();
 
   })().then(function () {
