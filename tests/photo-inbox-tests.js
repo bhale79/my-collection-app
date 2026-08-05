@@ -16517,7 +16517,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
       ok('246 the set add walks the FULL ordered file list through the pure map',
          /var _mm = _pinSetMemberMap\(g\.files, ids0\);/.test(pin46));
       ok('246 detail photos are never READ as members',
-         /return m\.role !== 'together' && m\.role !== 'detail';/.test(pin46));
+         /m\.role !== 'detail'/.test(pin46) && /function _pinReadFiles/.test(pin46));
       ok('246 the first photo cannot be marked a detail',
          /if \(roles && roles\[0\] === 'detail'\) return \{ blocked: 'detail'/.test(pin46) &&
          /mark the piece itself first/.test(pin46));
@@ -19414,13 +19414,154 @@ META_WRITES.length = 0; TOASTS.length = 0;
       ok('281 the cover resolver is separate from the read resolver',
          /function _pinReadFile\(g\)/.test(pi) && /function _pinCoverFile\(g\)/.test(pi));
       ok('281 …and the read path still excludes the together shot',
-         /return m\.role !== 'together' && m\.role !== 'detail';/.test(pi));
+         /m\.role !== 'together'/.test(pi) && /function _pinReadFiles/.test(pi));
 
       // The panel copy is now TRUE, so it stays — and says why it is not read.
       ok('281 the panel still promises the cover picture',
          /becomes the group\\'s cover picture/.test(pi));
       ok('281 …and now explains why that shot is never read',
          /is never read for a number/.test(pi));
+    })();
+
+
+    // ═══════════════════════════════════════════════════════════
+    // §282. v0.9.1343 — a PAIR shot inside a train set.
+    //
+    //   Brad, twice: "still can't list the picture of the engine +
+    //   tender as engine+tender." Then his own simplification, which is
+    //   better than what I had proposed: "can we just say that those 4
+    //   types are just labels and that that picture goes under the
+    //   engine and tender group as a detail photo when we add it?"
+    //
+    //   Right — in his set the engine and the tender are ALREADY their
+    //   own members with their own photos. The combined shot is a
+    //   picture OF them, not a piece. So: a label, plus one behaviour —
+    //   never read (it has two numbers in it), never its own item, filed
+    //   with the set's ENGINE wherever it sits in the order (his call
+    //   over "the piece below", so photo order never has to be thought
+    //   about). No new save machinery, and no rows appear that he did
+    //   not photograph.
+    // ═══════════════════════════════════════════════════════════
+    section('282. Pair shots in a train set: labelled, not read, filed with the engine');
+    (function () {
+      const p82 = require('path');
+      const vm82 = require('vm');
+      const pi = fs.readFileSync(p82.join(__dirname, '..', 'app', 'photo-inbox.js'), 'utf8');
+
+      // ── The four labels exist, on the Train set kind only.
+      const kindsSrc = (pi.match(/var _PIN_KINDS = \[[\s\S]*?\n  \];/) || [''])[0];
+      const setRoles = (kindsSrc.match(/\{ id:'set',[\s\S]*?\] \}/) || [''])[0];
+      ['pair_tender', 'pair_aa', 'pair_ab', 'pair_aba'].forEach(r => {
+        ok('282 Train set offers ' + r, setRoles.indexOf("'" + r + "'") >= 0);
+      });
+      ok('282 the engine+tender label says both are in one shot',
+         /\['pair_tender','Engine \+ tender — both in one shot'\]/.test(setRoles));
+      // They belong to the SET kind only — an Engine + tender GROUP already has
+      // its own engine/tender/together roles and must not grow these.
+      const tenderKind = (kindsSrc.match(/\{ id:'tender',[\s\S]*?\] \}/) || [''])[0];
+      ok('282 the Engine + tender KIND does not also offer them',
+         tenderKind.indexOf('pair_') === -1);
+
+      // ── A pair shot is never READ. It has two numbers in it, exactly like
+      //    the whole-set shot, and reading it files one number against the
+      //    wrong piece.
+      ok('282 the reader excludes pair shots',
+         /m\.role !== 'together' && m\.role !== 'detail' && !_pinIsPairRole\(m\.role\)/.test(pi));
+      const q0 = pi.indexOf('function _pinIsPairRole');
+      const sb0 = {};
+      vm82.createContext(sb0);
+      vm82.runInContext(pi.slice(q0, pi.indexOf('function _pinReadFiles')), sb0);
+      const isPair = sb0._pinIsPairRole;
+      ok('282 the pair predicate recognises all four and nothing else',
+         ['pair_tender','pair_aa','pair_ab','pair_aba'].every(isPair) &&
+         !isPair('engine') && !isPair('tender') && !isPair('together') &&
+         !isPair('detail') && !isPair('member') && !isPair('') && !isPair(null));
+
+      // ── Behavioural: run the REAL set walk.
+      const w0 = pi.indexOf('function _pinSetMemberMap(files, ids0)');
+      const w1 = pi.indexOf("if (typeof window !== 'undefined') window._pinSetMemberMap");
+      ok('282 the set-walk slice is extractable', w0 > 0 && w1 > w0);
+      const sb = {};
+      vm82.createContext(sb);
+      vm82.runInContext(pi.slice(q0, pi.indexOf('function _pinReadFiles')) + '\n' + pi.slice(w0, w1), sb);
+      const walk = sb._pinSetMemberMap;
+      ok('282 _pinSetMemberMap evaluated', typeof walk === 'function');
+
+      const F = (id, role) => ({ id: id, name: id + '.jpg', _meta: { role: role } });
+      // Brad's screen, in his order: the pair shot FIRST, then the engine,
+      // the tender, a flatcar and two passenger cars.
+      const brads = [F('p1', 'pair_tender'), F('p2', 'engine'), F('p3', 'tender'),
+                     F('p4', 'flatcar'), F('p5', 'passenger'), F('p6', 'passenger')];
+      const ids = { p2: { num: '2037' }, p3: { num: '6026W' }, p4: { num: '6511' },
+                    p5: { num: '2432' }, p6: { num: '2434' } };
+      const r = walk(brads, ids);
+      ok('282 Brad\'s layout: the pair shot does NOT become a member',
+         r.nums.join(',') === '2037,6026W,6511,2432,2434', r.nums.join(','));
+      ok('282 …it files with the ENGINE',
+         r.pairHome === '2037' && (r.memberPhotos['2037'] || []).indexOf('p1') >= 0,
+         JSON.stringify(r.memberPhotos['2037']));
+      ok('282 …and the engine keeps its own photo too',
+         (r.memberPhotos['2037'] || []).indexOf('p2') >= 0);
+      ok('282 …and it is counted, so nothing vanishes silently', r.pairCount === 1);
+
+      // Order must not matter — that is the whole reason Brad chose "the
+      // engine" over "the piece below it".
+      const shuffled = [F('p2', 'engine'), F('p4', 'flatcar'), F('p1', 'pair_tender'), F('p3', 'tender')];
+      const r2 = walk(shuffled, ids);
+      ok('282 a pair shot in the MIDDLE still files with the engine',
+         r2.pairHome === '2037' && (r2.memberPhotos['2037'] || []).indexOf('p1') >= 0);
+      const last = [F('p4', 'flatcar'), F('p2', 'engine'), F('p1', 'pair_aba')];
+      ok('282 a pair shot LAST still files with the engine',
+         walk(last, ids).pairHome === '2037');
+
+      // No photo tagged Engine — fall back to the set's lead item, which the
+      // set flow already treats as the locomotive.
+      const noEngine = [F('p1', 'pair_aa'), F('p4', 'flatcar'), F('p5', 'passenger')];
+      const r3 = walk(noEngine, ids);
+      ok('282 with nothing tagged Engine it rides with the lead item',
+         r3.pairHome === '6511' && (r3.memberPhotos['6511'] || []).indexOf('p1') >= 0, r3.pairHome);
+
+      // A pair shot with NO members at all must not be dropped on the floor.
+      const orphan = walk([F('p1', 'pair_tender')], ids);
+      ok('282 a pair shot with no members attaches to nothing and is not lost',
+         orphan.nums.length === 0 && orphan.pairHome === '' && orphan.pairCount === 1);
+
+      // The existing roles still behave — a pair shot must not disturb them.
+      const withDetail = [F('p2', 'engine'), F('p7', 'detail'), F('p1', 'pair_tender'), F('p4', 'flatcar')];
+      const r4 = walk(withDetail, ids);
+      ok('282 detail still chains to the piece above it',
+         (r4.memberPhotos['2037'] || []).indexOf('p7') >= 0);
+      ok('282 …and together is still skipped entirely',
+         walk([F('p2','engine'), F('p8','together')], ids).nums.join(',') === '2037');
+
+      // ── Brad: "those thumbnails should be able to be clicked on and open up
+      //    a larger picture." One viewer, the one that already exists.
+      ok('282 both panel thumbnail strips open the full-size viewer',
+         (pi.match(/onclick="event\.stopPropagation\(\);_pinZoomPhoto\('" \+ f\.id \+ "'\)"/g) || []).length === 0 &&
+         (pi.match(/_pinZoomPhoto\(\\'' \+ f\.id \+ '\\'\)/g) || []).length === 2);
+      ok('282 …and they say so on hover', (pi.match(/Open this photo full size/g) || []).length === 2);
+      // Scoped to the PANEL — the review card has had zoom cursors since
+      // v0.9.1088, and a whole-file count would pass or fail for its reasons
+      // rather than this one's.
+      const panelSlice = pi.slice(pi.indexOf('function _pinGrpPanelRender'),
+                                  pi.indexOf('window._pinConfirmUngroup'));
+      ok('282 the panel slice is extractable', panelSlice.length > 500);
+      ok('282 …with a zoom cursor so they look clickable',
+         (panelSlice.match(/cursor:zoom-in/g) || []).length === 2,
+         String((panelSlice.match(/cursor:zoom-in/g) || []).length));
+      // v0.9.1335: the panel is its own scroller, so a press that takes focus
+      // can scroll the target out from under the cursor and the click lands
+      // somewhere else. Same guard as every other in-scroller control.
+      ok('282 …and a press cannot be stolen by a focus-scroll (v1335 class)',
+         (pi.match(/onmousedown="event\.preventDefault\(\)" onclick="event\.stopPropagation\(\);_pinZoomPhoto/g) || []).length === 2);
+      ok('282 there is still only ONE full-size viewer',
+         (pi.match(/window\._pinZoomPhoto = /g) || []).length === 1);
+
+      // The panel explains the new labels.
+      ok('282 the panel says a pair shot files with the engine',
+         /files with the set\\'s engine instead of becoming its own item/.test(pi));
+      ok('282 …and that thumbnails open full size',
+         /Tap a thumbnail to see it full size/.test(pi));
     })();
 
   })().then(function () {

@@ -289,6 +289,13 @@
   //
   // 'together' is a real role in the kind table (Both together / All three
   // together / The whole set), so this is simply "skip that role".
+  // v0.9.1343: a pair shot has SEVERAL numbers in it, exactly like the whole-set
+  // shot — reading it picks one and files it against the wrong thing. One
+  // predicate, used by the reader and by the set walk, so the two can never
+  // disagree about what a pair shot is.
+  function _pinIsPairRole(role) { return String(role || '').indexOf('pair_') === 0; }
+  if (typeof window !== 'undefined') window._pinIsPairRole = _pinIsPairRole;
+
   function _pinReadFiles(g) {
     if (!g || !g.files || !g.files.length) return [];
     var body = g.files.filter(function (f) {
@@ -297,7 +304,7 @@
       // ABOVE it — it is never read as a member of its own, for the same
       // reason 'together' is skipped: reading it would attach a number to a
       // photo that must not become an item.
-      return m.role !== 'together' && m.role !== 'detail';
+      return m.role !== 'together' && m.role !== 'detail' && !_pinIsPairRole(m.role);
     });
     // A group of nothing BUT together shots still deserves an attempt rather
     // than becoming unreadable — fall back to everything.
@@ -679,6 +686,20 @@
       roles:[['engine','Engine'],['tender','Tender'],['boxcar','Boxcar'],['flatcar','Flatcar'],
              ['gondola','Gondola'],['tank','Tank Car'],['hopper','Hopper'],['caboose','Caboose'],
              ['passenger','Passenger Car'],['member','Other piece'],
+             // v0.9.1343 (Brad): "still can't list the picture of the engine +
+             // tender as engine+tender." A shot of a PAIR inside a set is not
+             // a piece — the engine and the tender are their own members, each
+             // with their own photo, and this picture shows both of them at
+             // once. So it is a LABEL plus one behaviour (Brad's own call:
+             // "can we just say that those 4 types are just labels and that
+             // that picture goes under the engine and tender group as a detail
+             // photo"): never read, never its own item, filed with the set's
+             // ENGINE wherever it sits in the order. No new save machinery,
+             // and no rows appear that the user did not photograph.
+             ['pair_tender','Engine + tender — both in one shot'],
+             ['pair_aa','AA — both units in one shot'],
+             ['pair_ab','AB — both units in one shot'],
+             ['pair_aba','ABA — all three in one shot'],
              ['detail','Detail — same piece as the photo above'],
              ['together','The whole set']] },   // v0.9.1279 (Brad): "change set to train set"
     { id:'box',    label:'Item + its box',      roles:[['item','The item'],['box','The box']] },
@@ -832,11 +853,11 @@
       : 'position:fixed;top:70px;right:16px;width:300px;z-index:10040;background:var(--surface);border:1.5px solid var(--accent2);border-radius:12px;box-shadow:0 6px 22px var(--scrim);padding:0.75rem 0.85rem;max-height:72vh;overflow-y:auto';
     var html =
       '<div style="font-family:var(--font-head);font-size:0.95rem;font-weight:700;margin-bottom:0.15rem">Group photos</div>'
-      + '<div style="font-size:0.74rem;color:var(--text-dim);line-height:1.45;margin-bottom:0.55rem">Tap photos in the grid — they collect here. An AA, AB or ABA saves as separate items that stay linked. A set shot of everything together becomes the group\'s cover picture, and is never read for a number \u2014 it has several.' + ' A paper or other collectible stays one item however many shots.</div>'
+      + '<div style="font-size:0.74rem;color:var(--text-dim);line-height:1.45;margin-bottom:0.55rem">Tap photos in the grid — they collect here. An AA, AB or ABA saves as separate items that stay linked. A set shot of everything together becomes the group\'s cover picture, and is never read for a number \u2014 it has several.' + ' In a train set, a photo showing a PAIR (engine + tender, AA, AB, ABA) files with the set\'s engine instead of becoming its own item. A paper or other collectible stays one item however many shots. Tap a thumbnail to see it full size.</div>'
       + (files.length
           ? '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(52px,1fr));gap:0.35rem;margin-bottom:0.6rem">'
             + files.map(function (f, i) {
-                return '<div style="position:relative;aspect-ratio:1;border-radius:6px;overflow:hidden;background:var(--surface2)">'
+                return '<div onmousedown="event.preventDefault()" onclick="event.stopPropagation();_pinZoomPhoto(\'' + f.id + '\')" title="Open this photo full size" style="position:relative;aspect-ratio:1;border-radius:6px;overflow:hidden;background:var(--surface2);cursor:zoom-in">'
                   + '<img data-gppfid="' + f.id + '" style="width:100%;height:100%;object-fit:cover;display:block" alt="">'
                   + '<div style="position:absolute;left:0;bottom:0;background:var(--scrim);color:#fff;font-size:0.55rem;padding:0 3px;border-radius:0 4px 0 0">' + (i + 1) + '</div>'
                   + '</div>';
@@ -849,7 +870,7 @@
       + (k.roles.length && files.length
           ? files.map(function (f, i) {
               return '<div style="display:flex;align-items:center;gap:0.45rem;padding:0.25rem 0;border-top:1px solid var(--border)">'
-                + '<div style="width:30px;height:30px;border-radius:5px;overflow:hidden;background:var(--surface2);flex-shrink:0;position:relative">'
+                + '<div onmousedown="event.preventDefault()" onclick="event.stopPropagation();_pinZoomPhoto(\'' + f.id + '\')" title="Open this photo full size" style="width:30px;height:30px;border-radius:5px;overflow:hidden;background:var(--surface2);flex-shrink:0;position:relative;cursor:zoom-in">'
                 +   '<img data-gppfid="' + f.id + '" style="width:100%;height:100%;object-fit:cover;display:block" alt="">'
                 +   '<div style="position:absolute;left:0;bottom:0;background:var(--scrim);color:#fff;font-size:0.5rem;padding:0 2px">' + (i + 1) + '</div>'
                 + '</div>'
@@ -4293,9 +4314,17 @@
   function _pinSetMemberMap(files, ids0) {
     var nums = [], memberPhotos = {}, numFiles = {};
     var lastNum = '', lastFailed = false;
+    // v0.9.1343 — pair shots ride with the set's ENGINE, wherever they sit.
+    // Brad's call over "the piece below it": a shot of an engine+tender, an AA
+    // or an ABA is always of the locomotive consist, so tying it to the engine
+    // means he never has to think about photo order for these. That needs the
+    // members resolved first, so pair shots are set aside here and attached in
+    // a second pass below.
+    var pairPhotos = [], engineNum = '';
     (files || []).forEach(function (f) {
       var meta = (f && f._meta) || {};
       if (meta.role === 'together') return;
+      if (_pinIsPairRole(meta.role)) { pairPhotos.push(f); return; }
       if (meta.role === 'detail') {
         if (lastNum && !lastFailed) {
           (memberPhotos[lastNum] = memberPhotos[lastNum] || []).push(f.id);
@@ -4307,6 +4336,10 @@
       var n0 = (s0 && s0.num) ? String(s0.num).trim() : '';
       if (!n0) { lastFailed = true; return; }
       lastFailed = false; lastNum = n0;
+      // The first photo tagged Engine names the engine. Nothing tagged Engine
+      // (he may not have bothered) → the set's lead item, which is the one the
+      // set flow already treats as the locomotive.
+      if (!engineNum && meta.role === 'engine') engineNum = n0;
       if (nums.indexOf(n0) < 0) nums.push(n0);
       // v0.9.1117 (Brad: "its not putting the pictures in their rhs slot") —
       // each member's own inbox photo rides into that item's photo slot.
@@ -4317,7 +4350,17 @@
       // v0.9.1118: every photo that read this member's number files with it.
       (numFiles[n0] = numFiles[n0] || []).push({ id: f.id, name: f.name });
     });
-    return { nums: nums, memberPhotos: memberPhotos, numFiles: numFiles };
+    // Second pass: file every pair shot with the engine. If the set produced no
+    // members at all there is nothing to attach to, and the photo simply stays
+    // in the inbox rather than being silently dropped.
+    var homeNum = engineNum || nums[0] || '';
+    if (homeNum) {
+      pairPhotos.forEach(function (f) {
+        (memberPhotos[homeNum] = memberPhotos[homeNum] || []).push(f.id);
+        (numFiles[homeNum] = numFiles[homeNum] || []).push({ id: f.id, name: f.name });
+      });
+    }
+    return { nums: nums, memberPhotos: memberPhotos, numFiles: numFiles, pairHome: homeNum, pairCount: pairPhotos.length };
   }
   if (typeof window !== 'undefined') window._pinSetMemberMap = _pinSetMemberMap;
 
