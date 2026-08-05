@@ -2747,11 +2747,15 @@ function goToMyCollection() {
   if (mNav && window.innerWidth <= 640) { showPage('browse', mNav); filterOwned(); }
 }
 function goToWantList() {
-  const navBtn = document.querySelector('.nav-item[onclick*="buildWantPage"]');
-  showPage('want', navBtn);
-  buildWantPage();
+  // v0.9.1348: points at Want/Upgrade now. The old selector looked for a
+  // nav item wired to buildWantPage — there has never been one on the
+  // sidebar, so navBtn was always null and landing here from the dashboard
+  // tile left NOTHING highlighted in the menu. Fixed with the merge.
+  const navBtn = document.querySelector('.nav-item[onclick*="buildUpgradePage"]');
+  showPage('upgrade', navBtn);
+  buildUpgradePage();
   const mNav = document.getElementById('mnav-want');
-  if (mNav && window.innerWidth <= 640) { showPage('want', mNav); buildWantPage(); }
+  if (mNav && window.innerWidth <= 640) { showPage('upgrade', mNav); buildUpgradePage(); }
 }
 
 
@@ -2942,6 +2946,20 @@ function applyTheme() {
 // ── Ephemera/Want/eBay/Sold/ForSale page builders moved to app-pages.js (Session 111, Round 2 Chunk 14) ──
 
 function showPage(name, clickedEl) {
+  // ── v0.9.1348 — the Want List page is retired ──────────────────────────
+  // There used to be TWO live pages both called "Want List" somewhere: the
+  // dashboard's "Top Want List Items" tile and the phone quick-action opened
+  // page-want, while the sidebar, the bottom bar and the Upgrade Targets tile
+  // opened page-upgrade. Different columns on each, so which one a user
+  // landed on decided what they could see.
+  //
+  // page-want is gone and Want/Upgrade carries its Variation, Variation
+  // Description, era and type filters. This ONE line retires it for every
+  // caller — present and future — instead of editing ten call sites across
+  // seven files and hoping none was missed. getElementById('page-want') would
+  // now return null and throw two lines down, so the redirect must come
+  // FIRST, before anything reads `name`.
+  if (name === 'want') name = 'upgrade';
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   document.querySelectorAll('.mobile-nav-item').forEach(n => n.classList.remove('active'));

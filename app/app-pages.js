@@ -1031,12 +1031,23 @@ function ephemeraSold(tabId, rowKey) {
   };
 }
 
+// ── v0.9.1348 — buildWantPage is now an alias for the merged page ─────────
+// The separate Want List page is retired (see the redirect at the top of
+// showPage). This name is NOT dead: it is listed as a required global in
+// health-check.js and prefs.js, and called from share.js, wizard-save.js,
+// app-collection.js and four places in app.js. Keeping it as a one-line
+// forward retires the page without chasing every call site — and without
+// the runtime-only failures that chasing them would risk.
 function buildWantPage() {
-  // Contextual hint for empty Want List (Option D, 2026-04-14)
-  if (typeof maybeShowContextualHint === 'function' && Object.keys(state.wantData || {}).length === 0) {
-    var _wpcAnchor = document.getElementById('want-page') || document.getElementById('want-list-container') || document.querySelector('.page-want');
-    if (_wpcAnchor) maybeShowContextualHint('want_empty', '<strong>Want List</strong> tracks items you\'re still looking for. Tap <em>Add to Want List</em> to add your first.', _wpcAnchor);
-  }
+  if (typeof buildUpgradePage === 'function') buildUpgradePage();
+}
+if (typeof window !== 'undefined') window.buildWantPage = buildWantPage;
+
+// The original renderer, kept for reference and unreachable. Its empty-state
+// hint never ran in any case: it looked up 'want-page' / 'want-list-container'
+// / '.page-want' and the real id was 'page-want', so the anchor was always
+// null (pre-beta audit, finding 7).
+function _buildWantPageLegacy() {
   const isMobile = window.innerWidth <= 640;
   const _wq = (state._wantSearch || '').toLowerCase();
   const _wp = state._wantPriority || '';
@@ -3096,6 +3107,47 @@ function _wuSortBy(col) {
 }
 if (typeof window !== 'undefined') { window._wuSortBy = _wuSortBy; window._renderWuHeader = _renderWuHeader; }
 
+// ── v0.9.1348 — ONE resolver per fact, for the Want/Upgrade variation cell ──
+// The Want List page and the Want/Upgrade page each used to derive "which
+// catalog row is this variation" their own way; that divergence is how the
+// duplicate-2321 bugs happened. The phone branch and the desktop branch of
+// buildUpgradePage now share these four, so they cannot drift apart.
+function _wuVarMaster(u) {
+  // Variation-AWARE, unlike the Road Name lookup. A bare number lookup here
+  // would return the first row that happens to share the number — the exact
+  // class behind "research opened Atlas instead of Lionel". Pass the
+  // variation AND the entry so findMaster can disambiguate era/maker.
+  return (typeof findMaster === 'function') ? findMaster(u.itemNum, u.variation || '', u) : null;
+}
+function _wuVarDesc(u, m) {
+  var vm = (m === undefined) ? _wuVarMaster(u) : m;
+  return vm ? (vm.varDesc || vm.variationDesc || '') : '';
+}
+function _wuDescKeyFor(u) {
+  // Identity, never position. inventoryId when the entry has one (upgrade
+  // entries do), composite otherwise (want wishes do not).
+  return 'wu|' + (u.inventoryId || ((u.itemNum || '') + '|' + (u.variation || ''))) + '|' + (u.listType || '');
+}
+function _wuRegisterDesc(u, m, varDesc, title) {
+  var vm = (m === undefined) ? _wuVarMaster(u) : m;
+  if (!vm && !varDesc) return;
+  window._wantDescs = window._wantDescs || {};
+  window._wantDescs[_wuDescKeyFor(u)] = {
+    title: title || u.itemNum,
+    varDesc: varDesc || '',
+    fullDesc: vm ? (vm.description || '') : '',
+    refLink: vm ? ((typeof window.cottAnchorUrl === 'function')
+      ? window.cottAnchorUrl(vm.refLink || '', u.itemNum, window.cottRowWords ? window.cottRowWords(vm) : '', u.variation || '')
+      : (vm.refLink || '')) : ''
+  };
+}
+if (typeof window !== 'undefined') {
+  window._wuVarMaster = _wuVarMaster;
+  window._wuVarDesc = _wuVarDesc;
+  window._wuDescKeyFor = _wuDescKeyFor;
+  window._wuRegisterDesc = _wuRegisterDesc;
+}
+
 function buildUpgradePage() {
   // Combined Want/Upgrade page (Session 161+). state._wishlistFilter controls
   // which slice is shown: 'all' (default) | 'want' | 'upgrade'. Pull entries
@@ -3105,9 +3157,19 @@ function buildUpgradePage() {
   const _sort = state._upgradeSort || 'priority';
   const _up = state._upgradePriority || '';
   const _wf = state._wishlistFilter || 'all';
+  // v0.9.1348 (Brad): era + type filters, carried over from the retired Want
+  // List page along with the rule that made them safe. See the era block in
+  // the filter below — this is NOT a plain equality test, and it must not
+  // become one.
+  const _ue = state._upgradeEra || '';
+  const _ut = state._upgradeType || '';
   // Sync dropdowns with state
   const _upEl = document.getElementById('upgrade-priority-filter');
   if (_upEl && _upEl.value !== _up) _upEl.value = _up;
+  const _ueEl = document.getElementById('upgrade-era-filter');
+  if (_ueEl && _ueEl.value !== _ue) _ueEl.value = _ue;
+  const _utEl = document.getElementById('upgrade-type-filter');
+  if (_utEl && _utEl.value !== _ut) _utEl.value = _ut;
   // Sync filter dropdown with state
   var _wfDrop = document.getElementById('wishlist-filter-dropdown');
   if (_wfDrop && _wfDrop.value !== _wf) _wfDrop.value = _wf;
@@ -3145,6 +3207,29 @@ function buildUpgradePage() {
     if (typeof _isInCurrentEra === 'function' && state.masterData && state.masterData.length > 0 && !_isInCurrentEra(u.itemNum)) return false;
     // Priority filter
     if (_up && (u.priority || 'Medium') !== _up) return false;
+    // v0.9.1348 — period filter, moved here from the Want List page WITH the
+    // rule that makes it safe: hide only on a KNOWN mismatch. Two kinds of
+    // row have no period at all — a maker that spans periods with no printed
+    // year (Marx, Other O), and anything hand-typed that never matched the
+    // catalog. Testing `_wPeriod !== _ue` directly would drop both from every
+    // period, and for a want the user typed in themselves that is the worst
+    // case: they put it on the list and then cannot find it. Unknown stays
+    // visible, on purpose. Do not "tidy" this into an equality check.
+    if (_ue && typeof _itemEraPeriod === 'function') {
+      const _uMaster = (typeof findMaster === 'function') ? findMaster(u.itemNum, '', u) : null;
+      const _uPeriod = _uMaster ? _itemEraPeriod(_uMaster) : null;
+      if (_uPeriod && _uPeriod !== _ue) return false;
+    }
+    // Type filter — Sets are their own thing and are matched against the sets
+    // table, not an itemType, exactly as the Want List page did it.
+    if (_ut) {
+      const _setMatch = _ut === 'Set' && state.setData && state.setData.find(s => s.setNum === u.itemNum);
+      if (_ut === 'Set' && !_setMatch) return false;
+      if (_ut !== 'Set') {
+        const _uTypeMaster = findMaster(u.itemNum, '', u);
+        if (!_uTypeMaster || (_uTypeMaster.itemType || '') !== _ut) return false;
+      }
+    }
     if (_uq) {
       const master = findMaster(u.itemNum, '', u) || {};
       if (!(u.itemNum||'').toLowerCase().includes(_uq)
@@ -3231,7 +3316,12 @@ function buildUpgradePage() {
   const priorityColor = { High: 'var(--accent)', Medium: 'var(--accent2)', Low: 'var(--text-dim)' };
 
   if (entries.length === 0) {
-    const hasFilters = _uq || _up || _wf !== 'all';
+    // v0.9.1348 — _ue and _ut belong in this test. Without them, filtering by
+    // era or type down to nothing told the user "Your want/upgrade list is
+    // empty · Add items you're hunting for" — i.e. that their data was GONE,
+    // when a dropdown two inches above was simply set. Any new filter added
+    // here must be added to this line in the same edit.
+    const hasFilters = _uq || _up || _ue || _ut || _wf !== 'all';
     const emptyIcon = hasFilters ? '🔍' : '★';
     const emptyMsg = hasFilters
       ? 'No items match your filters'
@@ -3241,7 +3331,7 @@ function buildUpgradePage() {
       : 'Add items you\'re hunting for from My Collection or the catalog';
     const empty = `<div style="text-align:center;padding:3rem 1rem;color:var(--text-dim)"><div style="font-size:2.5rem;margin-bottom:0.5rem">${emptyIcon}</div><p>${emptyMsg}</p><p style="font-size:0.8rem;margin-top:0.5rem">${emptyTip}</p></div>`;
     if (cardsEl) cardsEl.innerHTML = empty;
-    if (tbody) tbody.innerHTML = '<tr><td colspan="8" class="ui-empty">' + emptyMsg + '</td></tr>';
+    if (tbody) tbody.innerHTML = '<tr><td colspan="10" class="ui-empty">' + emptyMsg + '</td></tr>';
     return;
   }
 
@@ -3252,6 +3342,14 @@ function buildUpgradePage() {
       const pd = Object.values(state.personalData).find(p => p.owned && rrSameNum(p.itemNum, u.itemNum) && rrSameVar(p.variation, u.variation));
       const master = findMaster(u.itemNum, '', u);
       const name = master ? (master.roadName || '') : '';  // Road Name column shows ONLY roadName — itemType fallback removed (was lying about road name)
+      // v0.9.1348 — the variation description on phones too. Same four
+      // resolvers as the table branch, so the two cannot drift apart; the
+      // phone branch missing what the table branch had is exactly how the
+      // share-mode hole (v0.9.1151, audit finding 5) happened.
+      const _vMasterM = _wuVarMaster(u);
+      const _varDescM = _wuVarDesc(u, _vMasterM);
+      const _wuDescKeyM = _wuDescKeyFor(u);
+      _wuRegisterDesc(u, _vMasterM, _varDescM, name);
       const cond = pd && pd.condition ? parseInt(pd.condition) : null;
       const condClass = cond >= 9 ? 'cond-9' : cond >= 7 ? 'cond-7' : cond >= 5 ? 'cond-5' : cond ? 'cond-low' : '';
       const pColor = priorityColor[u.priority] || 'var(--text-dim)';
@@ -3296,6 +3394,7 @@ function buildUpgradePage() {
               <span style="font-size:0.65rem;font-weight:600;color:${pColor};border:1px solid ${pColor};border-radius:4px;padding:0.1rem 0.4rem">${u.priority||'Medium'}</span>
             </div>
             ${name ? `<div style="font-size:0.82rem;color:var(--text);margin-top:0.1rem">${name}</div>` : ''}
+            ${_varDescM ? `<div onclick="event.stopPropagation();showWantDesc('${_wuDescKeyM.replace(/'/g, "\\'")}')" style="font-size:0.74rem;color:var(--text-mid);margin-top:0.15rem;border-bottom:1px dashed var(--border);display:inline-block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${_varDescM.length > 46 ? _varDescM.substring(0, 46) + '…' : _varDescM}</div>` : ''}
             <div style="display:flex;align-items:center;gap:0.5rem;margin-top:0.25rem;flex-wrap:wrap">
               ${!_isWant && cond !== null ? `<span style="font-size:0.75rem"><span class="condition-pip ${condClass}"></span>Mine: ${cond}</span>` : ''}
               ${u.targetCondition ? `<span style="font-size:0.75rem;color:#8b5cf6">→ Target: ${u.targetCondition}</span>` : ''}
@@ -3327,6 +3426,24 @@ function buildUpgradePage() {
       const pd = _isWant ? null : Object.values(state.personalData).find(p => p.owned && rrSameNum(p.itemNum, u.itemNum) && rrSameVar(p.variation, u.variation));
       const master = findMaster(u.itemNum, '', u);
       const name = master ? (master.roadName || '') : '';  // Road Name column shows ONLY roadName — itemType fallback removed (was lying about road name)
+      // v0.9.1348 — Variation + Variation Description, carried over from the
+      // retired Want List page. NOTE the second lookup: `master` above is
+      // deliberately variation-blind (it feeds the Road Name column), but a
+      // variation DESCRIPTION must come from the row for THIS variation or it
+      // describes the wrong item — the number-only first-find class, killed
+      // six times already. Pass the variation and the owned row.
+      const _vMaster = _wuVarMaster(u);
+      const _varDesc = _wuVarDesc(u, _vMaster);
+      // Key the description popup by IDENTITY, never by array position. This
+      // list is want + upgrade MERGED, so an index here means something
+      // different than it did on the Want List page — the same array-index
+      // identity bug already logged against sell.js.
+      const _wuDescKey = _wuDescKeyFor(u);
+      _wuRegisterDesc(u, _vMaster, _varDesc, name);
+      const _shortVar = _varDesc.length > 30 ? _varDesc.substring(0, 30) + '…' : _varDesc;
+      const _wuVarCell = _varDesc
+        ? `<span style="cursor:pointer;border-bottom:1px dashed var(--border);color:var(--text-mid)" onclick="event.stopPropagation();showWantDesc('${_wuDescKey.replace(/'/g, "\\'")}')">${_shortVar}</span>`
+        : '<span class="text-dim">—</span>';
       const cond = pd && pd.condition ? parseInt(pd.condition) : null;
       const condClass = cond >= 9 ? 'cond-9' : cond >= 7 ? 'cond-7' : cond >= 5 ? 'cond-5' : cond ? 'cond-low' : '';
       const pColor = priorityColor[u.priority] || 'var(--text-dim)';
@@ -3376,6 +3493,8 @@ function buildUpgradePage() {
           ${!_isWant ? `<span style="display:inline-block;margin-left:0.4rem;font-size:0.6rem;font-weight:700;color:${_ltColor};background:${_ltBg};border-radius:4px;padding:0.1rem 0.4rem;text-transform:uppercase;letter-spacing:0.05em;vertical-align:middle">${u.listType||'Want'}</span>` : ''}
         </td>
         <td style="color:var(--text-mid)">${name || '<span class="text-dim">—</span>'}</td>
+        <td>${u.variation || '<span class="text-dim">—</span>'}</td>
+        <td>${_wuVarCell}</td>
         <td style="font-size:0.82rem;color:var(--text-mid)">${u.manufacturer || '<span class="text-dim">—</span>'}</td>
         <td style="color:#8b5cf6;font-weight:600">${u.targetCondition || '<span class="text-dim">—</span>'}</td>
         <td><span style="color:${pColor};font-weight:500">${u.priority||'Medium'}</span></td>
@@ -3394,8 +3513,8 @@ function buildUpgradePage() {
             : `<button onclick="event.stopPropagation();removeUpgradeItem('${_ugEntryKey(u)}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid var(--border);background:var(--surface2);color:#f05008;font-family:var(--font-body)">Remove</button>`}
         </td>
       </tr>
-      ${!_isWant ? `<tr id="${photoId}-row" style="display:none"><td colspan="8" style="padding:0.5rem 1rem;background:var(--surface2)"><img src="${pd && pd.photoItem ? pd.photoItem : ''}" style="max-height:160px;border-radius:6px;object-fit:contain" onerror="this.parentElement.parentElement.style.display='none'"></td></tr>` : ''}`;
-    }).join('') || '<tr><td colspan="8" class="ui-empty">No items on want/upgrade list</td></tr>';
+      ${!_isWant ? `<tr id="${photoId}-row" style="display:none"><td colspan="10" style="padding:0.5rem 1rem;background:var(--surface2)"><img src="${pd && pd.photoItem ? pd.photoItem : ''}" style="max-height:160px;border-radius:6px;object-fit:contain" onerror="this.parentElement.parentElement.style.display='none'"></td></tr>` : ''}`;
+    }).join('') || '<tr><td colspan="10" class="ui-empty">No items on want/upgrade list</td></tr>';
   }
 }
 
