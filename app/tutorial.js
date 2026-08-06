@@ -506,6 +506,19 @@ function _guidedTour(steps) {
   var i = 0, curEl = null, _gtPoll = null;
   var blocker = document.createElement('div');
   blocker.id = 'gt-blocker';
+  // v0.9.1363 — MEASURED, not guessed: with no guide running a click on the
+  // item-number box lands on #wiz-input; with a guide running the identical
+  // click lands on THIS element. It is a full-screen transparent click
+  // swallower and it covers the whole app.
+  //
+  // That was harmless while guides only narrated. It is fatal now that a step
+  // can WAIT for the user to type or press something: the gate asks for input
+  // the engine forbids, so it can never open. Brad hit exactly this — "you
+  // stop it if i don't enter a number, but then it won't let me enter it."
+  //
+  // It now stands aside on any step that waits for the user (see _gtDraw).
+  // The DIMMING is not this element — that is the 9999px box-shadow on
+  // #gt-hole, which is already pointer-events:none and is untouched.
   blocker.style.cssText = 'position:fixed;inset:0;z-index:99990;background:transparent';
   blocker.addEventListener('click', function(e){ e.stopPropagation(); });
   var hole = document.createElement('div');
@@ -660,6 +673,10 @@ function _guidedTour(steps) {
     // poll is cleared on every redraw and on exit so it can never outlive the
     // step that started it.
     if (_gtPoll) { clearInterval(_gtPoll); _gtPoll = null; }
+    // A step that waits for the user MUST let the user reach the app. Anything
+    // else is a gate that cannot be opened.
+    var _needsUser = (typeof step.awaitUser === 'function');
+    blocker.style.pointerEvents = _needsUser ? 'none' : 'auto';
     var nx = document.getElementById('gt-next');
     var msg = document.getElementById('gt-gate-msg');
     var open = function () {
