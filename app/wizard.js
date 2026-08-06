@@ -2428,6 +2428,7 @@ function renderWizardStep() {
             }).join('')}
           </div>
           <div style="font-size:0.75rem;color:var(--text-dim);margin-top:0.5rem">Selecting a variation will auto-advance</div>
+          ${_wizKinNoteHtml(wizard.data.itemNum)}
         </div>`;
     }
 
@@ -6592,6 +6593,84 @@ async function _wizardNextCore() {
 // over by _pinAddNow) — at the top of the variation step, or to the
 // right of the list on a wide desktop. Tap to zoom full-screen.
 // ══════════════════════════════════════════════════════════════
+// ══ v0.9.1372 — "there is no green variation listed" ══════════════════════
+// Brad typed 3376 holding a GREEN giraffe car. The catalogue has a 3376, so
+// the lookup succeeded and showed him its two variations — both blue. The
+// green one is real, complete and correct in the master, catalogued as
+// 3376-160, and nothing on the screen said so. Had he picked either card to
+// get past it, he would have recorded a blue car and nothing would ever have
+// flagged it. A quiet wrong answer, which is the worst kind.
+//
+// One line, under the variation cards, naming the relatives and what tells
+// them apart — built from the master's own words (rrKinBlurb), never from
+// anything hand-written that could drift.
+//
+// It OFFERS. It does not choose: tapping is the user's decision, and the
+// finder deliberately cannot pick for them.
+//
+// 364 numbers in Postwar alone have relatives hiding behind them, so this has
+// to be quiet — small, dim, capped at two named plus a count.
+function _wizKinNoteHtml(num) {
+  try {
+    if (!num || typeof rrDashedKin !== 'function') return '';
+    var kin = rrDashedKin(num);
+    if (!kin.length) return '';
+    // v0.9.1372 — with only two slots, WHICH two matters. Sorted plainly,
+    // 3376-118 (a parts packet) came first and pushed 3376-160 — the green car
+    // Brad was actually holding — into second place; with three relatives it
+    // would have been hidden entirely. A row that is another ITEM ranks above
+    // a packet, box or paperwork, because those are not what someone staring
+    // at a variation list is trying to identify.
+    // Rank on the row's own itemType, not on its description text: once the
+    // blurb fell back to "For the Giraffe Cars" the word "Packet" was no
+    // longer in it, and a rank read off prose would have silently stopped
+    // working. The type is the fact; the prose is a rendering of it.
+    var _side = { packet: 1, box: 1, 'instruction sheet': 1, paper: 1, 'paper item': 1, catalog: 1 };
+    var _rank = function (k) {
+      var row = (typeof rrKinRow === 'function') ? rrKinRow(k) : null;
+      return (row && _side[String(row.itemType || '').trim().toLowerCase()]) ? 1 : 0;
+    };
+    kin = kin.slice().sort(function (a, b) { return _rank(a) - _rank(b); });
+    var shown = kin.slice(0, 2).map(function (k) {
+      var blurb = (typeof rrKinBlurb === 'function') ? rrKinBlurb(k, 80) : '';
+      return '<button type="button" class="wiz-kin-btn" onclick="wizSwitchToKin(\'' + String(k).replace(/'/g, "\\'") + '\')">'
+           + '<span class="wiz-kin-num">' + k + '</span>'
+           + (blurb ? '<span class="wiz-kin-desc">' + blurb + '</span>' : '')
+           + '</button>';
+    }).join('');
+    var more = kin.length > 2 ? '<div class="wiz-kin-more">and ' + (kin.length - 2) + ' more under this number</div>' : '';
+    return '<div class="wiz-kin-note" id="wiz-kin-note">'
+         + '<div class="wiz-kin-head">Also catalogued separately — tap if one of these is yours</div>'
+         + shown + more + '</div>';
+  } catch (e) { return ''; }
+}
+if (typeof window !== 'undefined') window._wizKinNoteHtml = _wizKinNoteHtml;
+
+// Switching to a relative keeps everything already entered — the photo above
+// all — and re-derives the catalogue side for the new number. It clears the
+// variation on purpose: a variation number means nothing across two different
+// catalogue numbers, and carrying "Var 2" over would silently mislabel the
+// item. That is the whole bug this feature exists to prevent.
+function wizSwitchToKin(num) {
+  try {
+    if (!num || typeof wizard === 'undefined' || !wizard || !wizard.data) return;
+    wizard.data.itemNum = String(num);
+    wizard.data.variation = '';
+    wizard.matchedItem = null;
+    // These carried the OLD number's identity; leaving them would let the
+    // resolver prefer a row that no longer applies.
+    delete wizard.data._suggestedItemType;
+    delete wizard.data._suggestedRoadName;
+    delete wizard.data._partialMatches;
+    var inp = document.getElementById('wiz-input');
+    if (inp) inp.value = String(num);
+    if (typeof lookupItem === 'function') lookupItem(String(num));
+    if (typeof renderWizardStep === 'function') renderWizardStep();
+    if (typeof showToast === 'function') showToast('Now adding ' + num + ' — pick the variation you have', 3500);
+  } catch (e) { console.warn('[kin switch]', e); }
+}
+if (typeof window !== 'undefined') window.wizSwitchToKin = wizSwitchToKin;
+
 // ── v0.9.1369 — the viewer Brad actually asked for ────────────────────────
 // Brad: "a large view of that picture that i can zoom in and move around to
 // help me id things."

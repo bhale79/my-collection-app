@@ -3208,7 +3208,10 @@ function showItemPanel(idx, pdKey, mode) {
     { label: 'Price Paid ($)',key: 'priceItem',     val: pd.priceItem || '—',     type: 'number' },
     { label: 'Est. Worth (insurance)',key: 'userEstWorth',  val: pd.userEstWorth || '—',  type: 'number' },
     { label: 'Year Made',     key: 'yearMade',      val: pd.yearMade || '—',      type: 'number', min:1945, max:1969 },
-    { label: 'Date Purchased',key: 'datePurchased', val: pd.datePurchased || '—', type: 'date' },
+    // v0.9.1372 — THE TWIN of the dashboard's "46240". This field printed the
+    // raw sheet value too, so opening one of those items showed the serial
+    // here as well. When a fix lands on one surface, look for the twin.
+    { label: 'Date Purchased',key: 'datePurchased', val: (typeof _formatDate === 'function' ? _formatDate(pd.datePurchased || '') : (pd.datePurchased || '')) || '—', type: 'date' },
     // v0.9.696 (Brad): manual entries carry their own description — editable
     // here (catalog items keep the master description, not shown as a field).
     ...((idx < 0 || pd.era === 'Manual') ? [{ label: 'Description', key: 'description', val: pd.description || '—', type: 'textarea' }] : []),

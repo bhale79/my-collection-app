@@ -1041,9 +1041,16 @@ var PANEL_CATALOG = [
           //   3) Row number as last-resort tiebreaker within a tab
           var sA = a._savedAt || 0, sB = b._savedAt || 0;
           if (sA !== sB) return sB - sA;
+          // v0.9.1372 — this compared dates as TEXT, which happens to work
+          // while every value is a five-digit serial and stops working the
+          // moment one is an ISO string ("2026-08-06" sorts below "46240").
+          // _dateForSort normalises serial, ISO and US forms to one number.
           var da = a.datePurchased || a.dateAcquired || '';
           var db = b.datePurchased || b.dateAcquired || '';
-          if (da && db && da !== db) return db.localeCompare(da);
+          if (da && db && da !== db) {
+            if (typeof _dateForSort === 'function') return _dateForSort(db) - _dateForSort(da);
+            return db.localeCompare(da);
+          }
           if (da && !db) return -1;
           if (!da && db) return 1;
           var rA = a.row || 0, rB = b.row || 0;
@@ -1065,7 +1072,13 @@ var PANEL_CATALOG = [
             ? ([master.roadName, master.description].filter(Boolean).join(' — ') || master.itemType || pd.itemNum)
             : ((String(pd.era||'') === 'Manual') ? (pd.description || pd.itemNum) : (pd.masterDescription || pd.description || pd.itemNum));   // v0.9.724: manual rows = their own words only
           var price = pd.priceItem ? _currencySymbol() + parseFloat(pd.priceItem).toLocaleString() : '';
-          var date = pd.datePurchased || '';
+          // v0.9.1372 (Brad's screenshot: every Recent Additions row reading
+          // "46240") — that is a Google Sheets DATE SERIAL, not an id. 46240
+          // is 2026-08-06. UNFORMATTED_VALUE returns real dates as serials and
+          // _formatDate has converted them since the H8 audit; this row simply
+          // never called it, while the Parts card below always has. Same miss
+          // that produced "sheet v60 (46230)" in v0.9.1339.
+          var date = (typeof _formatDate === 'function') ? _formatDate(pd.datePurchased || '') : (pd.datePurchased || '');
           var meta = [date, price].filter(Boolean).join(' · ');
           var idx = master ? _masterIdxOf(master) : -1;
           var _co = (typeof _ownedCompanions === 'function') ? _ownedCompanions(pd) : [];

@@ -433,7 +433,12 @@ function buildCollectionPage() {
   filtered.sort(function(a, b) {
     const sA = a._savedAt || 0, sB = b._savedAt || 0;
     if (sA !== sB) return sB - sA;
-    if (a.date && b.date && a.date !== b.date) return b.date.localeCompare(a.date);
+    // v0.9.1372 — same text-comparison weakness as the dashboard's card; the
+    // display here already went through _formatDate, only the sort did not.
+    if (a.date && b.date && a.date !== b.date) {
+      if (typeof _dateForSort === 'function') return _dateForSort(b.date) - _dateForSort(a.date);
+      return b.date.localeCompare(a.date);
+    }
     return (a.title || '').localeCompare(b.title || '');
   });
 

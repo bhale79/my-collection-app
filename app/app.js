@@ -1032,6 +1032,99 @@ if (typeof window !== 'undefined') window.rrEsc = rrEsc;
 function baseItemNum(n) {
   return normalizeItemNum(n).replace(/[-]?[PDTC]$/i, '');
 }
+
+// ══ v0.9.1372 — dashed catalogue families, answered in ONE place ══════════
+// Brad's green giraffe car: he typed 3376, the catalogue HAS a 3376, so the
+// lookup stopped there and never mentioned 3376-160 — which is the green one
+// he was actually holding. He nearly recorded a blue car.
+//
+// And his 6436-110: there is no plain 6436 at all, so the Photo Inbox
+// announced "6436 isn't in the catalog" while fourteen real rows sat there.
+//
+// Same fact, two surfaces. v0.9.1371 fixed the inbox with a private copy of
+// this finder; that copy is GONE and both callers come here now. This project
+// has produced eight bugs from one fact answered in two places, and a second
+// family-finder would have been the ninth.
+//
+// rrDashedKin answers ONLY "does the catalogue know this number as a family?"
+// It never picks one. Choosing among five would be the number-only
+// first-find shape wearing a new hat, and a wrong catalogue identity is far
+// worse than an extra question. Callers offer; the human decides.
+//
+// Matches on the RAW number, requiring the character after the prefix to BE
+// the dash. Normalising first would make 6436 a prefix of a bare 64360 — a
+// different car, not a relative.
+function rrDashedKin(num) {
+  var n = String(num == null ? '' : num).trim();
+  var out = [], seen = {};
+  if (!n) return out;
+  var bare = n.indexOf('-') < 0 && n.indexOf('–') < 0;
+  try {
+    var rows = (typeof state !== 'undefined' && state && state.masterData) || [];
+    for (var i = 0; i < rows.length; i++) {
+      var raw = rows[i] && rows[i].itemNum;
+      if (!raw) continue;
+      var s = String(raw).replace(/\s+/g, '');
+      if (s === n || seen[String(raw)]) continue;
+      if (bare) {
+        // 3376 -> 3376-160 : the relatives that hide behind a plain number
+        if (s.length > n.length && s.slice(0, n.length) === n) {
+          var c = s.charAt(n.length);
+          if (c === '-' || c === '–') { seen[String(raw)] = 1; out.push(String(raw)); }
+        }
+      } else {
+        // 3376-160 -> 3376 : the reverse, so a dashed number names its parent.
+        // Deliberately the PARENT only, not every cousin — someone who typed
+        // the specific number has already been specific.
+        var cut = n.search(/[-–]/);
+        if (cut > 0 && s === n.slice(0, cut)) { seen[String(raw)] = 1; out.push(String(raw)); }
+      }
+    }
+  } catch (e) {}
+  return out;
+}
+if (typeof window !== 'undefined') window.rrDashedKin = rrDashedKin;
+
+// The words that tell one relative from another. "3376-160" on its own means
+// nothing to a person holding a green car; "unpainted green molded shell with
+// yellow heat stamped lettering" is the whole answer. Built from the master's
+// own text so it can never drift out of step with the catalogue — nothing
+// here is hand-written per item.
+// The first catalogue row for a number. ONE lookup, so the blurb and anything
+// ranking these rows agree about which row they are describing.
+function rrKinRow(num) {
+  try {
+    var rows = (typeof state !== 'undefined' && state && state.masterData) || [];
+    for (var i = 0; i < rows.length; i++) {
+      if (rows[i] && String(rows[i].itemNum) === String(num)) return rows[i];
+    }
+  } catch (e) {}
+  return null;
+}
+if (typeof window !== 'undefined') window.rrKinRow = rrKinRow;
+
+function rrKinBlurb(num, maxLen) {
+  var lim = maxLen || 90;
+  try {
+    var hit = rrKinRow(num);
+    if (!hit) return '';
+    // First line of the variation text is the distinguishing sentence; fall
+    // back to the catalogue description for a row with no variations.
+    //
+    // v0.9.1372 — "no variation" is the master's way of saying a row HAS no
+    // variations. Printed as a description it is worse than nothing: 3376-118
+    // showed "no variation" where its real answer is "Packet — For the
+    // Giraffe Cars", and it sat ABOVE the green car Brad was looking for.
+    // Treat it as empty and fall through.
+    var t = String(hit.varDesc || '').split('\n')[0].trim();
+    if (/^no variations?$/i.test(t)) t = '';
+    if (!t) t = [hit.roadName, hit.description].filter(Boolean).join(' — ');
+    if (!t) t = String(hit.itemType || '');
+    t = t.trim();
+    return t.length > lim ? t.slice(0, lim - 1).trim() + '…' : t;
+  } catch (e) { return ''; }
+}
+if (typeof window !== 'undefined') window.rrKinBlurb = rrKinBlurb;
 // Bug 14 (Session 154): track IDs handed out this session but not yet
 // committed to state — e.g. an item's ID assigned moments before its box's —
 // so back-to-back saves don't collide on the same Inventory ID.

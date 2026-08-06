@@ -2029,50 +2029,18 @@
   // row an owned item lights up — one definition, shared everywhere.
   window.rrDemotedRow = _pinDemotedRow;
 
-  // ── v0.9.1371 (Brad's 6436-110) ───────────────────────────────────────────
-  // "the one i have is a 6436-110... we need to be able to find this."
+  // ── v0.9.1371, rehomed in v0.9.1372 ──────────────────────────────────────
+  // Brad's 6436-110. The reader gets 6436; the catalogue has no plain 6436,
+  // only 6436-1/-25/-110/-500/-1969. _pinBestMaster asks for the exact number,
+  // got nothing, and the inbox announced "6436 isn't in the catalog" while
+  // fourteen real rows sat there.
   //
-  // The reader gets 6436 off the car. The catalogue has NO plain 6436 — it has
-  // 6436-1, 6436-25, 6436-110, 6436-500 and 6436-1969, fourteen rows across
-  // five dashed numbers. _pinBestMaster asks for the exact number and nothing
-  // else, so the bucket came back empty and the inbox announced "6436 isn't in
-  // the catalog" and routed him to a MANUAL entry, discarding the catalogue
-  // entirely. Number-only exact lookup — the eighth bug in this project with
-  // that root, and this one told the user a true thing was false.
-  //
-  // Measured on the live master: 470 dashed numbers in Lionel PW alone, 106 of
-  // them with no plain parent. Every one of those is a 6436 waiting to happen.
-  //
-  // This ANSWERS ONLY "does the catalogue know this number as a family?" It
-  // deliberately does NOT pick one. Choosing among five for the user would be
-  // the number-only FIRST-FIND shape wearing a new hat, and a wrong catalogue
-  // identity is far worse than a question. The caller hands the list to the
-  // wizard's existing picker and the human decides.
-  //
-  // Matches on the RAW number so a family is a real dash relationship, never a
-  // numeric coincidence: normalising first would make "6436" a prefix of a
-  // hypothetical bare "64361", and that is a different car, not a relative.
+  // The finder itself now lives ONCE, in app.js as rrDashedKin, because the
+  // wizard needs the same answer for Brad's green 3376-160. This is a call,
+  // not a copy — the duplicate that used to live here is deleted.
   function _pinDashedKin(num) {
-    var n = String(num == null ? '' : num).trim();
-    var out = [], seen = {};
-    if (!n || n.indexOf('-') > -1 || n.indexOf('–') > -1) return out;  // already dashed
-    try {
-      var rows = (window.state && state.masterData) || [];
-      for (var i = 0; i < rows.length; i++) {
-        var raw = rows[i] && rows[i].itemNum;
-        if (!raw) continue;
-        var s = String(raw).replace(/\s+/g, '');
-        if (s === n || seen[String(raw)]) continue;
-        // the character right after the prefix must BE the dash
-        if (s.length > n.length && s.slice(0, n.length) === n) {
-          var c = s.charAt(n.length);
-          if (c === '-' || c === '–') { seen[String(raw)] = 1; out.push(String(raw)); }
-        }
-      }
-    } catch (e) {}
-    return out;
+    return (typeof rrDashedKin === 'function') ? rrDashedKin(num) : [];
   }
-  if (typeof window !== 'undefined') window._pinDashedKin = _pinDashedKin;
 
   function _pinBestMaster(num, aiMfr, prefer) {
     var bucket = null;

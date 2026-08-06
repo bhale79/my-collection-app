@@ -20027,13 +20027,21 @@ META_WRITES.length = 0; TOASTS.length = 0;
       ok('287 the family finder exists, ahead of the resolver that needs it',
          a87 > 0 && b87 > a87);
 
+      // v0.9.1372 — the finder MOVED to app.js so the wizard could share it;
+      // photo-inbox.js now holds a one-line delegation. These behavioural
+      // cases follow the implementation rather than the call site, or they
+      // would be testing a wrapper against an undefined function and quietly
+      // returning [] — which is exactly what happened the moment it moved.
       const vm87 = require('vm');
+      const appSrc87 = fs.readFileSync(p87.join(__dirname, '..', 'app', 'app.js'), 'utf8');
+      const ka87 = appSrc87.indexOf('function rrDashedKin(num) {');
+      const kb87 = appSrc87.indexOf('var _issuedInvIds');
       function kinWith(nums) {
         const sb = { window: {}, console: { warn: function () {} },
                      state: { masterData: nums.map(n => ({ itemNum: n })) } };
         sb.window.state = sb.state;
         vm87.createContext(sb);
-        vm87.runInContext(src87.slice(a87, b87) + '; this.kin = _pinDashedKin;', sb);
+        vm87.runInContext(appSrc87.slice(ka87, kb87) + '\n;this.kin = rrDashedKin;', sb);
         return sb.kin;
       }
 
@@ -20084,6 +20092,125 @@ META_WRITES.length = 0; TOASTS.length = 0;
       ok('287 a brand disagreement still goes to manual entry, not to the family list',
          /\{ m = null; _mfrSuppressed = true; \}/.test(src87) &&
          /!_mfrSuppressed && _pinDashedKin\(num\)\.length/.test(src87));
+    })();
+
+    // ═══════════════════════════════════════════════════════════
+    // 288. THE GREEN GIRAFFE CAR, AND DATES THAT READ AS 46240
+    //
+    // Brad, holding a GREEN 3376: "there is no green variation listed."
+    // The catalogue HAS a 3376, so the lookup succeeded, showed its two
+    // variations — both blue — and never mentioned 3376-160, which is the
+    // green one and is correct and complete in the master. Picking either
+    // card to get past the screen would have recorded a blue car, and nothing
+    // would ever have flagged it. A quiet wrong answer.
+    //
+    // Same fact as his 6436-110, which is why the finder now lives ONCE in
+    // app.js (rrDashedKin) and photo-inbox.js calls it. A second copy would
+    // have been the NINTH one-fact-in-two-places bug in this project.
+    //
+    // Also here: Brad's screenshot of every Recent Additions row reading
+    // "46240" — a Google Sheets DATE SERIAL (2026-08-06), printed raw.
+    // ═══════════════════════════════════════════════════════════
+    section('288. Dashed relatives, and dates that read as 46240');
+    (function () {
+      const p88 = require('path');
+      const rd88 = f => fs.readFileSync(p88.join(__dirname, '..', 'app', f), 'utf8');
+      const app88 = rd88('app.js'), wiz88 = rd88('wizard.js');
+      const dash88 = rd88('dashboard.js'), col88 = rd88('app-collection.js'), pin88 = rd88('photo-inbox.js');
+
+      // ── ONE finder, not two ──
+      ok('288 the family finder is defined exactly once, in app.js',
+         (app88.match(/function rrDashedKin\(/g) || []).length === 1 &&
+         (wiz88.match(/function rrDashedKin\(/g) || []).length === 0);
+      ok('288 the Photo Inbox CALLS it rather than keeping its own copy',
+         /return \(typeof rrDashedKin === 'function'\) \? rrDashedKin\(num\) : \[\];/.test(pin88) &&
+         !/for \(var i = 0; i < rows\.length; i\+\+\)[\s\S]{0,400}c === '-'/.test(pin88),
+         'a second implementation is still in photo-inbox.js');
+
+      // ── the finder + blurb + note, RUN ──
+      const vm88 = require('vm');
+      function envWith(rows) {
+        const kin = app88.slice(app88.indexOf('function rrDashedKin(num) {'), app88.indexOf('var _issuedInvIds'));
+        const note = wiz88.slice(wiz88.indexOf('function _wizKinNoteHtml(num) {'), wiz88.indexOf('// ── v0.9.1369 — the viewer'));
+        const sb = { window: {}, console: { warn: function () {} }, state: { masterData: rows } };
+        vm88.createContext(sb);
+        vm88.runInContext(kin + '\n' + note + '\n;this.kin = rrDashedKin; this.blurb = rrKinBlurb; this.note = _wizKinNoteHtml;', sb);
+        return sb;
+      }
+      // Brad's real shape: a plain 3376 with two variations, a green relative,
+      // and a parts packet that must NOT outrank the green car.
+      const giraffe = envWith([
+        { itemNum: '3376', varDesc: 'unpainted blue molded shell with white heat stamped lettering', itemType: 'Cattle Car' },
+        // The PACKET is listed FIRST on purpose. Written the other way round
+        // this fixture passed with the ranking REMOVED — the green car was
+        // already first by luck of ordering and the drill proved nothing.
+        { itemNum: '3376-118', varDesc: 'no variation', description: 'For the Giraffe Cars', itemType: 'Packet' },
+        { itemNum: '3376-160', varDesc: 'unpainted green molded shell with yellow heat stamped lettering', itemType: 'Cattle Car' },
+        { itemNum: '33761', varDesc: 'a different car entirely', itemType: 'Cattle Car' }
+      ]);
+
+      ok('288 BRAD\'S BUG: a plain 3376 now names its dashed relatives',
+         giraffe.kin('3376').length === 2 && giraffe.kin('3376').indexOf('3376-160') > -1,
+         JSON.stringify(giraffe.kin('3376')));
+      ok('288 …and does not drag in a number that merely starts the same',
+         giraffe.kin('3376').indexOf('33761') < 0, JSON.stringify(giraffe.kin('3376')));
+      ok('288 the reverse works: a dashed number names its parent',
+         JSON.stringify(giraffe.kin('3376-160')) === '["3376"]', JSON.stringify(giraffe.kin('3376-160')));
+      ok('288 "no variation" is not shown as a description — it means the row has none',
+         giraffe.blurb('3376-118', 80) === 'For the Giraffe Cars', JSON.stringify(giraffe.blurb('3376-118', 80)));
+
+      const html = giraffe.note('3376');
+      ok('288 the note names the GREEN car in the master\'s own words',
+         /unpainted green molded shell with yellow heat stamped lettering/.test(html));
+      ok('288 …and it is TAPPABLE, so he does not have to cancel and retype',
+         /onclick="wizSwitchToKin\('3376-160'\)"/.test(html));
+      ok('288 THE CAR OUTRANKS THE PARTS PACKET — with two slots, WHICH two matters',
+         html.indexOf('3376-160') < html.indexOf('3376-118'),
+         'the packet was listed above the car Brad was holding');
+      ok('288 a number with no relatives shows no note at all',
+         giraffe.note('33761') === '');
+
+      // Cap: five relatives must not become five rows on screen.
+      const many = envWith(['-1', '-25', '-110', '-500', '-1969']
+        .map(s => ({ itemNum: '6436' + s, varDesc: 'hopper ' + s, itemType: 'Freight' })));
+      const manyHtml = many.note('6436');
+      ok('288 five relatives show two and a count, not a wall of text',
+         (manyHtml.match(/wiz-kin-btn/g) || []).length === 2 && /and 3 more/.test(manyHtml),
+         manyHtml);
+
+      // ── switching must not carry a variation across numbers ──
+      ok('288 switching to a relative CLEARS the variation',
+         /function wizSwitchToKin\(num\)[\s\S]{0,600}wizard\.data\.variation = '';/.test(wiz88),
+         'a variation number means nothing across two different catalogue numbers');
+      ok('288 …and drops the old number\'s resolver hints',
+         /delete wizard\.data\._suggestedItemType;/.test(wiz88) &&
+         /delete wizard\.data\._suggestedRoadName;/.test(wiz88));
+      ok('288 the note is rendered on the variation step',
+         /\$\{_wizKinNoteHtml\(wizard\.data\.itemNum\)\}/.test(wiz88));
+
+      // ── the 46240 dates ──
+      const fmt = (function () {
+        // Slice to the NEXT top-level `\nfunction ` after this one — searching
+        // from a+10 found _formatDate's own header again and produced an empty
+        // slice, so `fmt` was undefined and the suite threw rather than failing
+        // an assertion. A harness that crashes is not a harness that passed.
+        const a = app88.indexOf('function _formatDate(input) {');
+        const b = app88.indexOf('\nfunction ', a + 'function _formatDate(input) {'.length);
+        const sb = { window: {}, console, _prefGet: function (k, d) { return d; } };
+        vm88.createContext(sb);
+        vm88.runInContext(app88.slice(a, b) + '\n;this.f = _formatDate;', sb);
+        return sb.f;
+      })();
+      ok('288 BRAD\'S SCREENSHOT: 46240 formats as a real date, not a serial',
+         /2026-08-06/.test(String(fmt(46240))), String(fmt(46240)));
+      ok('288 …and yesterday\'s 46239 too',
+         /2026-08-05/.test(String(fmt(46239))), String(fmt(46239)));
+      ok('288 the Recent Additions card runs its date through the formatter',
+         /var date = \(typeof _formatDate === 'function'\) \? _formatDate\(pd\.datePurchased/.test(dash88));
+      ok('288 THE TWIN: the item detail page formats its Date Purchased too',
+         /_formatDate\(pd\.datePurchased \|\| ''\)[\s\S]{0,40}type: 'date'/.test(col88));
+      ok('288 the card sorts dates as dates, not as text',
+         /_dateForSort\(db\) - _dateForSort\(da\)/.test(dash88));
     })();
 
   })().then(function () {
