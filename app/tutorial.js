@@ -157,7 +157,7 @@ const GUIDES = {
       // sidebar says "Want / Upgrade".
       { selector: _gNav('buildUpgradePage'), title: 'Where your want list lives',
         body: 'It is <strong>Want / Upgrade</strong> in the sidebar — one page for things you are hunting and things you want a better copy of.' },
-      { selector: '#page-upgrade [onclick*="_wuAdd"], #page-upgrade .wu-add-btn, #page-upgrade [onclick*="startWizardFor"]', optional: true, title: 'Adding one',
+      { selector: '#page-upgrade [onclick*="_qaToggleAddMenu"]', title: 'Adding one',
         body: 'Press <strong>+ ADD</strong>, then type the item number. The catalog finds it as you type and you pick the variation you are after.' },
       { title: 'Set a target price',
         body: 'Optional, but useful — what you are willing to pay. It shows on the row so you can judge a deal quickly at a show.' },
@@ -230,14 +230,19 @@ const GUIDES = {
     steps: [
       // v0.9.1353: the old version described TWO reports and a single Print
       // button. It predated the reports rewrite by a long way.
+      // v0.9.1359: the repmenu-* rows measure 0x0 — they live inside a
+      // collapsed menu and are never on screen when the guide arrives. Every
+      // step now points at something a user can actually SEE on this page.
       { selector: _gNav('showPage(\'reports\'') , title: 'Where reports live',
         body: 'Everything printable is on this one page.' },
-      { selector: '#repmenu-insurance', title: 'The built-in reports',
-        body: 'There are four ready to run — <strong>Insurance</strong> (every item with its estimated worth, for scheduling cover), <strong>Collection</strong>, <strong>Want / Upgrade / Parts</strong> (great to print for a show), and <strong>Contacts</strong>.' },
-      { title: 'Or build your own',
-        body: 'The <strong>Report Builder</strong> lets you choose exactly which columns you want and which items to include, rather than taking a fixed layout.' },
-      { title: 'Getting it out',
-        body: 'Every report exports as <strong>PDF</strong>, <strong>Google Doc</strong> or <strong>CSV</strong>, as well as printing. CSV is the one to use if you want the numbers in a spreadsheet.' }
+      { title: 'The four built-in reports',
+        body: '<strong>Insurance</strong> lists every item with its estimated worth, for scheduling cover. <strong>Collection</strong> is the whole inventory. <strong>Want / Upgrade / Parts</strong> is the one to print for a show. <strong>Contacts</strong> is your buyers and sellers. Each has its own row below.' },
+      { selector: '#page-reports [onclick*="_repPreview(\'insurance\')"]', title: 'Look before you print',
+        body: '<strong>Preview</strong> shows you the report on screen first. <strong>Update</strong> refreshes it from your current data — worth doing if you have added items since you last ran it.' },
+      { selector: '#page-reports [onclick*="_repToggleMenu"]', title: 'Getting it out',
+        body: '<strong>Export</strong> gives you <strong>PDF</strong>, <strong>Google Doc</strong> or <strong>CSV</strong>. CSV is the one to pick if you want the numbers in a spreadsheet. <strong>Print</strong> beside it goes straight to paper.' },
+      { selector: '#page-reports [onclick*="openReportBuilder"]', title: 'Or build your own',
+        body: '<strong>Build a Report</strong> lets you choose exactly which columns you want and which items to include, instead of taking a fixed layout. <strong>Past Reports</strong> keeps the ones you have already run.' }
     ]
   }
 
