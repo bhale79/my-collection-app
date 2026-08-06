@@ -20000,6 +20000,92 @@ META_WRITES.length = 0; TOASTS.length = 0;
          !/var _ts = \(pend\[num\] && typeof pend\[num\] === 'object' && pend\[num\]\.ts\)/.test(src86));
     })();
 
+    // ═══════════════════════════════════════════════════════════
+    // 287. A NUMBER THE CATALOGUE ONLY KNOWS WITH A DASH
+    //
+    // Brad: "the same is with a 6436 we need to be able to find this. the one
+    // i have is a 6436-110."
+    //
+    // The reader gets 6436 off the car. The catalogue has NO plain 6436 — it
+    // has 6436-1, 6436-25, 6436-110, 6436-500 and 6436-1969, fourteen rows.
+    // _pinBestMaster asks for the exact number only, got nothing, and the
+    // inbox announced "6436 isn't in the catalog" and made a MANUAL entry.
+    // It told the user a true thing was false and threw away fourteen rows.
+    // EIGHTH bug in this project rooted in a number-only lookup.
+    //
+    // _pinDashedKin answers ONLY "does the catalogue know this number as a
+    // family?" It must never pick one: choosing among five would be the
+    // number-only FIRST-FIND shape again, and a wrong catalogue identity is
+    // worse than a question. The wizard's existing picker asks the human.
+    // ═══════════════════════════════════════════════════════════
+    section('287. A number the catalogue only knows with a dash');
+    (function () {
+      const p87 = require('path');
+      const src87 = fs.readFileSync(p87.join(__dirname, '..', 'app', 'photo-inbox.js'), 'utf8');
+      const a87 = src87.indexOf('  function _pinDashedKin(num) {');
+      const b87 = src87.indexOf('  function _pinBestMaster(num, aiMfr, prefer) {');
+      ok('287 the family finder exists, ahead of the resolver that needs it',
+         a87 > 0 && b87 > a87);
+
+      const vm87 = require('vm');
+      function kinWith(nums) {
+        const sb = { window: {}, console: { warn: function () {} },
+                     state: { masterData: nums.map(n => ({ itemNum: n })) } };
+        sb.window.state = sb.state;
+        vm87.createContext(sb);
+        vm87.runInContext(src87.slice(a87, b87) + '; this.kin = _pinDashedKin;', sb);
+        return sb.kin;
+      }
+
+      // Brad's actual family, as it sits in the live master.
+      const fam = kinWith(['6436-1', '6436-25', '6436-110', '6436-500', '6436-1969',
+                           '6464-275', '643', '64360', '3376', '3376-160']);
+      const k6436 = fam('6436');
+      ok('287 BRAD\'S BUG: 6436 finds all five dashed relatives',
+         k6436.length === 5 && k6436.indexOf('6436-110') > -1, JSON.stringify(k6436));
+      ok('287 …and does NOT drag in a number that merely starts the same',
+         k6436.indexOf('64360') < 0 && k6436.indexOf('6464-275') < 0, JSON.stringify(k6436));
+      // v0.9.1371 — this assertion was VACUOUS on its first writing. It asked
+      // fam('6436-110') for relatives against data that contained none, so it
+      // passed with the already-dashed guard REMOVED — the drill went green
+      // and proved nothing. A check that passes for a reason you did not
+      // intend is not a check. The data now contains a deeper relative, so
+      // the guard is the only thing holding the answer at zero.
+      const deep = kinWith(['6436-110', '6436-110-2', '6436-25']);
+      ok('287 an already-dashed number finds nothing, so it cannot loop on itself',
+         deep('6436-110').length === 0, JSON.stringify(deep('6436-110')));
+      // CONTROL: the fixture really does hold relatives to find, so the zero
+      // above is the guard refusing, not an empty cupboard.
+      ok('287 …against a fixture that plainly DOES have relatives (control)',
+         deep('6436').length === 3, JSON.stringify(deep('6436')));
+      ok('287 a number with a plain row still reports its relatives (the 3376 case)',
+         fam('3376').length === 1 && fam('3376')[0] === '3376-160', JSON.stringify(fam('3376')));
+      ok('287 a number the catalogue has never heard of finds nothing',
+         fam('9999999').length === 0);
+      ok('287 it never returns the number it was asked about',
+         kinWith(['6436', '6436-110'])('6436').indexOf('6436') < 0);
+      ok('287 an en-dash in the master counts as a dash, like everywhere else',
+         kinWith(['6436–110'])('6436').length === 1);
+      ok('287 spacing in the master does not hide a relative',
+         kinWith(['6436 - 110'])('6436').length === 1);
+      ok('287 no master loaded is answered with nothing, never a throw',
+         (function () { try { return kinWith([])('6436').length === 0; } catch (e) { return false; } })());
+
+      // ── the routing decision, read off the real source ──
+      // The widened branch must sit BEFORE the manual-entry branch, or the
+      // manual entry wins and the fix does nothing.
+      const kinB = src87.indexOf("} else if (!_mfrSuppressed && _pinDashedKin(num).length) {");
+      const manB = src87.indexOf("} else if (typeof _identifyRouteToManualEntry === 'function'");
+      ok('287 the family branch is tried BEFORE routing to a manual entry',
+         kinB > 0 && manB > kinB, 'kin@' + kinB + ' manual@' + manB);
+
+      // v0.9.941's brand disagreement must still reach manual entry: a Marx
+      // photo whose number matches an Atlas row is NOT a dashed-family case.
+      ok('287 a brand disagreement still goes to manual entry, not to the family list',
+         /\{ m = null; _mfrSuppressed = true; \}/.test(src87) &&
+         /!_mfrSuppressed && _pinDashedKin\(num\)\.length/.test(src87));
+    })();
+
   })().then(function () {
     console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
     process.exit(fail ? 1 : 0);

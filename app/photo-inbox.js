@@ -2029,6 +2029,51 @@
   // row an owned item lights up — one definition, shared everywhere.
   window.rrDemotedRow = _pinDemotedRow;
 
+  // ── v0.9.1371 (Brad's 6436-110) ───────────────────────────────────────────
+  // "the one i have is a 6436-110... we need to be able to find this."
+  //
+  // The reader gets 6436 off the car. The catalogue has NO plain 6436 — it has
+  // 6436-1, 6436-25, 6436-110, 6436-500 and 6436-1969, fourteen rows across
+  // five dashed numbers. _pinBestMaster asks for the exact number and nothing
+  // else, so the bucket came back empty and the inbox announced "6436 isn't in
+  // the catalog" and routed him to a MANUAL entry, discarding the catalogue
+  // entirely. Number-only exact lookup — the eighth bug in this project with
+  // that root, and this one told the user a true thing was false.
+  //
+  // Measured on the live master: 470 dashed numbers in Lionel PW alone, 106 of
+  // them with no plain parent. Every one of those is a 6436 waiting to happen.
+  //
+  // This ANSWERS ONLY "does the catalogue know this number as a family?" It
+  // deliberately does NOT pick one. Choosing among five for the user would be
+  // the number-only FIRST-FIND shape wearing a new hat, and a wrong catalogue
+  // identity is far worse than a question. The caller hands the list to the
+  // wizard's existing picker and the human decides.
+  //
+  // Matches on the RAW number so a family is a real dash relationship, never a
+  // numeric coincidence: normalising first would make "6436" a prefix of a
+  // hypothetical bare "64361", and that is a different car, not a relative.
+  function _pinDashedKin(num) {
+    var n = String(num == null ? '' : num).trim();
+    var out = [], seen = {};
+    if (!n || n.indexOf('-') > -1 || n.indexOf('–') > -1) return out;  // already dashed
+    try {
+      var rows = (window.state && state.masterData) || [];
+      for (var i = 0; i < rows.length; i++) {
+        var raw = rows[i] && rows[i].itemNum;
+        if (!raw) continue;
+        var s = String(raw).replace(/\s+/g, '');
+        if (s === n || seen[String(raw)]) continue;
+        // the character right after the prefix must BE the dash
+        if (s.length > n.length && s.slice(0, n.length) === n) {
+          var c = s.charAt(n.length);
+          if (c === '-' || c === '–') { seen[String(raw)] = 1; out.push(String(raw)); }
+        }
+      }
+    } catch (e) {}
+    return out;
+  }
+  if (typeof window !== 'undefined') window._pinDashedKin = _pinDashedKin;
+
   function _pinBestMaster(num, aiMfr, prefer) {
     var bucket = null;
     // v0.9.971 (Brad): _mbAllGet = the ONE shared bucket lookup (loaded eras +
@@ -4458,13 +4503,18 @@
             return;
           }
           var m = _pinBestMaster(num, (aiMeta && aiMeta.manufacturer) || '', (aiMeta && aiMeta._prefer) || null);
+          // v0.9.1371 — remember WHY there is no match. A brand disagreement
+          // (v0.9.941, Marx 1303 vs Atlas 1303) is a deliberate "make a manual
+          // entry for the real brand" and must keep working; only a genuinely
+          // EMPTY catalogue lookup earns the dashed-relative widening below.
+          var _mfrSuppressed = false;
           if (m && aiMeta && aiMeta.manufacturer) {
             var _mMk = m.manufacturer || ((typeof ERAS !== 'undefined' && ERAS[m._era]) ? ERAS[m._era].manufacturer : '');
             // v0.9.941: photo says one brand, number matches another -> treat as
             // no catalog match so the wizard makes a manual entry for the REAL
             // brand instead of silently adopting the wrong item (Marx 1303 vs
             // Atlas 1303).
-            if (!_pinMfrAgree(aiMeta.manufacturer, _mMk)) m = null;
+            if (!_pinMfrAgree(aiMeta.manufacturer, _mMk)) { m = null; _mfrSuppressed = true; }
           }
           if (m) {
             wizard.matchedItem = m;
@@ -4493,6 +4543,21 @@
             showToast(_pg
               ? '\u2713 ' + num + ' \u2014 catalog details filled in, and it is already set up as ' + _pinKindLabel(opts.groupKind)
               : '\u2713 ' + num + ' \u2014 catalog details filled in', _pg ? 4000 : 2500);
+          } else if (!_mfrSuppressed && _pinDashedKin(num).length) {
+            // v0.9.1371 — the catalogue DOES know this number, as a family of
+            // dashed relatives. Saying "isn't in the catalog" here was simply
+            // false, and it threw away fourteen real rows. Hand it to the
+            // wizard the way typing the number by hand does: the item-number
+            // step's partial matching already offers every relative, and Brad
+            // picks the one he is holding. No guessing on his behalf.
+            var _kin = _pinDashedKin(num);
+            var _inpK = document.getElementById('wiz-input');
+            if (_inpK) _inpK.value = num;
+            try { if (typeof debouncedItemSuggestions === 'function') debouncedItemSuggestions(num); } catch (eK) {}
+            var _shown = _kin.slice(0, 3).join(', ');
+            showToast('There is no plain ' + num + ' — it is catalogued as ' + _shown
+              + (_kin.length > 3 ? ' and ' + (_kin.length - 3) + ' more' : '')
+              + '. Pick the one you have.', 6000);
           } else if (typeof _identifyRouteToManualEntry === 'function' && _identifyRouteToManualEntry(num, aiMeta || {}, [])) {
             showToast(num + " isn't in the catalog — details from the photo are filled in", 3000);
           } else {
