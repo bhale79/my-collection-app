@@ -99,8 +99,28 @@ const GUIDES = {
           return !!(h && !/Step 1 of/i.test(h.innerText || ''));
         },
         body: 'These are the matches for what you typed. <strong>Tap the one you have</strong> — then press the orange <strong>NEXT</strong> at the bottom of the wizard.<br><br>Not sure which is yours? <strong>View ↗</strong> on any row opens that item\'s reference page in a new tab so you can look at it first.' },
-      { title: 'Variation, then condition',
-        body: 'Here is the <strong>variation</strong> step. Each one carries its description from the reference catalog, and this is what decides <em>which</em> 773 you own. After it comes condition on a <strong>1 to 10</strong> scale, what you paid, and photos — every field after the number is optional.' },
+      // v0.9.1366 (Brad, verified by driving the live wizard) — after a match is
+      // picked the wizard shows a grouping row it never used to mention:
+      // "Engine Only / Engine + Tender" for steam, "A Powered / A Dummy / AA /
+      // AB / ABA" for F-3 and Alco diesels. Built by getGroupingOptions (app.js)
+      // into #wiz-grouping-btns. The row is hidden for items with no partner and
+      // for box-only, so this step is optional.
+      { selector: '#wiz-grouping-btns', optional: true,
+        title: 'Just the engine, or the pair?',
+        body: 'For an engine, the wizard asks how you are entering it. <strong>Engine Only</strong> logs the locomotive on its own; <strong>Engine + Tender</strong> logs the pair together as one set. Diesels ask the same question as <strong>A Powered</strong>, <strong>A Dummy</strong>, or a full <strong>AA / AB / ABA</strong> set. Pick whichever matches what is on your shelf.' },
+      // The variation screen is step 2 of 6, titled "Which variation is it?".
+      // Cards live in #var-cards; the two shortcut buttons above them got ids in
+      // v0.9.1366 (#wiz-var-help, #wiz-var-nospec) because they had none at all,
+      // so no guide could point at them. Every card also carries its own
+      // View ↗ anchor to the reference page. All confirmed in the live wizard.
+      { selector: '#var-cards', optional: true,
+        title: 'Pick the variation you have',
+        body: 'These are the known variations of your item, each with its description from the reference catalog. <strong>Pick the one you have</strong> — this is what decides <em>which</em> 773 you own. Highlighted words show how each one differs from the first.' },
+      { selector: '#wiz-var-help, #wiz-var-nospec', optional: true,
+        title: 'Two ways out if you are unsure',
+        body: 'Not sure which is yours? <strong>View ↗</strong> on any card opens that variation\'s reference page in a new tab so you can compare it against the real thing. <strong>Help me pick my variation</strong> asks you a few yes-or-no questions and narrows it down for you. And if you still cannot tell, <strong>No specific variation / not sure</strong> logs the item without one — you can set it later.' },
+      { title: 'Then condition and the rest',
+        body: 'After the variation comes condition on a <strong>1 to 10</strong> scale, what you paid, and photos. Every field after the item number is optional — you can save with just the number and fill the rest in whenever you like.' },
       { before: function () { try { if (typeof _doCloseWizard === 'function') _doCloseWizard(); } catch (e) {} return 500; },
         selector: _gNav('filterOwned'), title: 'Where it lands',
         body: 'The last screen lists everything you entered — <strong>tap any line to edit it</strong> — and <strong>Save</strong> writes it straight to your Google Sheet. It appears here, in My Collection. I have closed the wizard; nothing was saved.' }
@@ -316,6 +336,7 @@ if (typeof window !== 'undefined') window.GUIDES = GUIDES;
 function startGuide(id) {
   var g = GUIDES[id];
   if (!g) return;
+  window._gtGuideId = id;   // v0.9.1366 — labels any miss recorded in _gtMisses
   try { if (typeof g.open === 'function') g.open(); } catch (e) { console.warn('[guide] open failed', id, e); }
   // The wait is for the page to BUILD — several pages render asynchronously,
   // and a spotlight placed before the element exists lands on nothing.
@@ -670,11 +691,29 @@ function _guidedTour(steps) {
     callout.style.left = left + 'px';
     callout.style.top = top + 'px';
   }
+  // v0.9.1366 — SAFETY NET. A guide step whose selector matches nothing fails
+  // silently: the spotlight just vanishes and the card floats, so the text
+  // names a button the user cannot see highlighted. That is how three guides
+  // shipped pointing at pages they never opened, and it is why 384 of the
+  // app's buttons carrying no id is a real risk rather than a tidiness one.
+  //
+  // Every miss is now RECORDED on window._gtMisses — guide, step number,
+  // title, selector — so an audit can read off which steps are pointing at
+  // nothing instead of a human having to spot a missing orange box. Steps
+  // marked `optional: true` are expected to miss sometimes (a grouping row
+  // only exists for engines) and are flagged as such rather than as faults.
   function resolve(step) {
     if (!step.selector) return null;
     var cands = document.querySelectorAll(step.selector), el = null;
     for (var c = 0; c < cands.length; c++) { if (cands[c].offsetParent !== null) { el = cands[c]; break; } }
     if (el && step.wrap) el = el.closest(step.wrap) || el;
+    if (!el) {
+      try {
+        window._gtMisses = window._gtMisses || [];
+        window._gtMisses.push({ guide: window._gtGuideId || '?', step: i + 1, title: step.title || '', selector: step.selector, optional: !!step.optional });
+        if (!step.optional) console.warn('[guide] step ' + (i + 1) + ' "' + (step.title || '') + '" points at nothing: ' + step.selector);
+      } catch (e) {}
+    }
     return el;
   }
   // v0.9.1355 — a step may need the app to DO something before it can point at
