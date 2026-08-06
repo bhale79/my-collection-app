@@ -151,7 +151,7 @@
           // Identify is what this page is FOR, so it is the one solid button
           // (v0.9.1340, Brad: "don't like the yellow color on the photo reader
           // buttons"). Add photos steps back to an outline beside it.
-          '<button id="pin-identify-btn" class="btn-primary" onclick="_pinIdentifyItems()" style="display:none;padding:0.5rem 0.9rem;border-radius:8px;border:none;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Identify my items (free)</button>' +
+          '<button id="pin-identify-btn" class="btn-primary" onclick="_pinIdentifyItems()" style="display:none;padding:0.5rem 0.9rem;border-radius:8px;border:none;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Identify my items</button>' +
           '<button onclick="_pinAddSource()" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:var(--bg-card);background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card));color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Add photos\u2026</button>' +
           '<button id="pin-group-btn" onclick="_pinStartMode(\'group\')" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:var(--bg-card);background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card));color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Group photos</button>' +
           '<button id="pin-tag-btn" onclick="_pinStartMode(\'tag\')" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:var(--bg-card);background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card));color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Tag maker/era/scale/type</button>' +
@@ -164,10 +164,10 @@
           // v0.9.1297 (Brad): reads run when HE says so \u2014 crop, tag and group
           // first, then this button. v0.9.1340 moved the paid read onto the
           // standard outline so free and paid never look alike at a glance.
-          '<button id="pin-idall-btn" onclick="_pinIdentifyAll()" style="display:none;padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:var(--bg-card);background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card));color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">\ud83d\udd0d Read with a photo ID</button>' +
+          '<button id="pin-idall-btn" onclick="_pinIdentifyAll()" style="display:none;padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:var(--bg-card);background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card));color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">\ud83d\udd0d Read the unread</button>' +
           '<span style="flex:1"></span>' +
           '<span id="pin-selinfo" style="font-size:0.78rem;color:var(--text-dim)"></span>' +
-          '<button id="pin-idsel-btn" onclick="_pinIdentifySelected()" style="display:none;padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:var(--bg-card);background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card));color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Identify</button>' +
+          '<button id="pin-idsel-btn" onclick="_pinIdentifySelected()" style="display:none;padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:var(--bg-card);background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card));color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Read these</button>' +
           '<button id="pin-assign-btn" onclick="_pinReview(null)" style="display:none;padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:var(--bg-card);background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card));color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Combine \u2192 one item\u2026</button>' +
           '<button id="pin-discard-btn" onclick="_pinDiscard()" style="display:none;padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:var(--bg-card);background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card));color:#f05008;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Discard</button>' +
           // Refresh and the reader audit are real but rare \u2014 one click away
@@ -1503,7 +1503,7 @@
       else if (sug && sug.num && sug.guess) when = '<span style="color:#ffb454;font-weight:700">' + String(sug.num).replace(/</g, '&lt;') + ' · best guess</span> · ' + when;   // v0.9.898: hedged read, kept but marked
       else if (sug && sug.num) when = '<span style="color:#7ec3ef;font-weight:700">' + String(sug.num).replace(/</g, '&lt;') + '?</span> · ' + when;
       else if (_altN) when = '<span style="color:#ffb454;font-weight:700">' + _altN.replace(/</g, '&lt;') + ' · best guess</span> · ' + when;   // v0.9.902
-      else if (sug && sug.tried) when = '<span style="color:#999">no read</span> · ' + when;
+      else if (sug && sug.tried) when = '<span style="color:#999">could not read</span> · ' + when;
       // v0.9.888 (Brad): click the photo = open the review (add / research /
       // discard); the corner circle is the multi-select toggle.
       // Default: clicking a tile opens Review. In Select-multiple mode, the tile
@@ -1873,7 +1873,15 @@
     // is fixed (see _pinReviewDiscard), and this makes the class impossible:
     // no ticks visible, no destructive button.
     if (db) db.style.display = (_selectMode && n) ? '' : 'none';
-    if (ib) ib.style.display = (_selectMode && n) ? '' : 'none';
+    if (ib) {
+      ib.style.display = (_selectMode && n) ? '' : 'none';
+      // v0.9.1351: say the COST on the button, not only in the confirm dialog.
+      // This is the same purchase as "Read this photo (1 photo ID)" on the card
+      // and the toolbar's "Read the N still unread" — one word, "Read", for all
+      // three, and the price visible before the click rather than after it.
+      ib.textContent = (n === 1) ? 'Read this · 1 photo ID'
+                                 : 'Read these ' + n + ' · ' + n + ' photo IDs';
+    }
     var fb = document.getElementById('pin-finish-btn');
     if (fb) fb.style.display = _selectMode ? '' : 'none';
     [['pin-group-btn', isGroup], ['pin-tag-btn', isTag]].forEach(function (p) {
@@ -1932,7 +1940,7 @@
     var sources = mobile
       ? '<button style="' + bcss + '" onclick="' + X + '_qcOpen()"><span style="font-size:1.3rem">📷</span> Take with Phone</button>'
         + '<button style="' + bcss + '" onclick="' + X + '_pinGPhotos()"><span style="font-size:1.3rem">🖼️</span> From Google Photos</button>'
-      : '<button style="' + bcss + '" onclick="' + X + '_pinPickFiles()"><span style="font-size:1.3rem">💻</span> From Your Drive <span style="color:var(--text-dim);font-size:0.78rem;font-weight:400">— your computer</span></button>'
+      : '<button style="' + bcss + '" onclick="' + X + '_pinPickFiles()"><span style="font-size:1.3rem">💻</span> From This Computer <span style="color:var(--text-dim);font-size:0.78rem;font-weight:400">— your own files</span></button>'
         + '<button style="' + bcss + '" onclick="' + X + '_pinGPhotos()"><span style="font-size:1.3rem">🖼️</span> From Google Photos</button>';
     ov.innerHTML = '<div class="rr-card">' +
       '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.85rem">' +
@@ -2515,7 +2523,7 @@
       // colour ratchet correctly refuses one more literal in this file.
       return '<div id="pin-rv-tokline" style="text-align:center;font-size:0.8rem;'
         + 'color:var(--warn);margin-top:0.6rem">'
-        + 'Photo reads are switched off — Preferences › Photo ID</div>';
+        + 'Photo ID reads are off — Preferences › Photo ID</div>';
     }
     return '<div id="pin-rv-tokline" style="text-align:center;font-size:0.8rem;color:var(--text-dim);margin-top:0.6rem">' +
       (n !== null
@@ -2895,11 +2903,11 @@
             // failure, which is how Brad ended up thinking it was broken.
             '<button id="pin-rv-idtoken" onclick="_pinReviewIdentify()" title="'
               + ((typeof rrAiOptedOut === 'function' && rrAiOptedOut())
-                  ? 'Photo reads are switched off — turn them on in Preferences › Photo ID'
+                  ? 'Photo ID reads are off — turn them on in Preferences › Photo ID'
                   : 'Identify this item straight from its photo — uses one photo ID')
               + '" style="' + _gBtn + 'border:1.5px solid var(--accent2,#d4a843);background:var(--bg-card);background:color-mix(in srgb, rgb(212,168,67) 14%, var(--bg-card));color:var(--accent2,#d4a843)">'
               + ((typeof rrAiOptedOut === 'function' && rrAiOptedOut())
-                  ? 'Read this photo (reads are off)'
+                  ? 'Read this photo (photo ID reads are off)'
                   : 'Read this photo (1 photo ID)') + '</button>' +
           '</div>' +
           _tokLine() +

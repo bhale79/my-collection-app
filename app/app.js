@@ -2233,7 +2233,7 @@ function _injectQuickActionsBar() {
     + '</button>'
     + '<div class="qa-add-dropdown-menu" style="display:none">'
     +   '<button onclick="_qaCloseAdd();startWizardFor(\'collection\')"><span style="color:var(--accent);display:inline-flex">' + svgPlus + '</span>Add to My Collection</button>'
-    +   '<button onclick="_qaCloseAdd();_pinBatchStart()"><span style="display:inline-flex">📷</span>Batch Add Photos</button>'
+    +   '<button onclick="_qaCloseAdd();_pinBatchStart()"><span style="display:inline-flex">📷</span>Add Photos to Inbox</button>'
     +   '<button onclick="_qaCloseAdd();startWizardFor(\'want\')"><span style="color:#2980b9;display:inline-flex">' + svgHeart + '</span>Add to Want List</button>'
     +   '<button onclick="_qaCloseAdd();pickItemForUpgrade()"><span style="color:#8b5cf6;display:inline-flex">' + svgUpgrade + '</span>Add Upgrade</button>'
     +   '<button onclick="_qaCloseAdd();startWizardFor(\'forsale\')"><span style="color:#e67e22;display:inline-flex">' + svgTag + '</span>Add to For Sale List</button>'

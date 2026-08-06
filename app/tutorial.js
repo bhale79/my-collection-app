@@ -137,6 +137,89 @@ const _TUT = (function() {
         { title: 'Printing & Saving',
           msg: 'Each report has a <strong>Print</strong> button that opens your browser\'s print dialog. You can print to paper or save as a PDF. The layout is formatted specifically for clean printed output.' }
       ]
+    },
+
+    // ═══════════════════════════════════════════════════════════════
+    // PHOTO INBOX (v0.9.1351) — the biggest feature in the app had zero
+    // help coverage: nothing in the Help Center, nothing in the feature
+    // map, not a tooltip. Three guides rather than one, because one
+    // would run far too long to be read.
+    //
+    // Every button name below is the SHIPPED label, checked against
+    // photo-inbox.js. If a label changes, change it here in the same
+    // edit — help that names a button that isn't there is worse than
+    // no help, and that is exactly the bug that made the old add-item
+    // tutorial tell people to tap "Lionel Item #".
+    // ═══════════════════════════════════════════════════════════════
+
+    'photo-inbox': {
+      label: 'Photo Inbox: get photos in and file them',
+      steps: [
+        { title: 'What the Photo Inbox is for',
+          msg: 'Photograph a shelf now, sort it out later. Photos wait in the <strong>Photo Inbox</strong> until you file them, so you can shoot a whole cabinet in one go and do the typing another day. Open it from <strong>Photo Inbox</strong> in the sidebar, or <strong>Inbox</strong> on the bottom bar of your phone.' },
+        { title: 'Getting photos in',
+          msg: 'Press <strong>Add photos…</strong>. On a computer you can also just <strong>drag photos onto the page</strong> from any folder. You will be offered <strong>From This Computer</strong> or <strong>From Google Photos</strong>; on a phone, <strong>Take with Phone</strong> opens the camera.' },
+        { title: 'Say what you are shooting — once',
+          msg: 'Before the first photo the app asks <em>"What are you about to photograph?"</em> Set the maker, scale and era once and every photo in that session is stamped with it. That stamp is what lets the reader search the right catalog instead of all of them. Press <strong>Skip — just add photos</strong> if you would rather not.' },
+        { title: 'Reading the tiles',
+          msg: 'Each tile is one <em>item</em>, not one photo — a stack of several shots shows a count in the corner. The strip along the bottom tells you where that item has got to: the era in blue, then what the reader found, then the date.' },
+        { title: 'Crop before you read',
+          msg: 'The <strong>✂</strong> on a tile crops and rotates. It is worth doing: the reader answers about whatever is in the frame, so cropping to one item — or to the number stamped on the side — is the single biggest thing you can do to get a right answer. Cropping clears that photo\'s old reading so it gets looked at fresh.' },
+        { title: 'Filing an item',
+          msg: 'Click a tile to open the review card. Check the number, then choose <strong>Add to my Collection</strong>, or <strong>Add to Sales List</strong> if it is going straight up for sale. The wizard opens with the catalog details already filled in.' },
+        { title: 'Photos stay put until you save',
+          msg: 'Nothing leaves the inbox until the wizard actually saves — if you cancel half way, the photos are still there and you are returned to the inbox. Only <strong>Add to my Collection</strong> always creates a <em>new</em> item; it never folds photos into one you already own.' },
+        { title: 'Finding things in a big inbox',
+          msg: 'Use <strong>Filter</strong> to narrow by how it read, by maker and era, or by group kind — for example everything still <strong>Not touched yet</strong>. The filters combine, and <strong>Show all</strong> clears them. This is what makes two hundred shelf photos manageable.' },
+        { title: 'Getting rid of a photo',
+          msg: '<strong>Discard</strong> sends photos to your Google Drive trash, where they are recoverable for about 30 days. Nothing is permanently deleted, so a mis-tap is not a disaster.' }
+      ]
+    },
+
+    'photo-inbox-reading': {
+      label: 'Photo Inbox: reading item numbers from photos',
+      steps: [
+        { title: 'Free first, always',
+          msg: 'Every photo is checked <strong>free</strong> before anything is ever spent. Press <strong>Identify my items</strong> and the app reads printed numbers and barcodes across the whole inbox at no cost. Run it as often as you like.' },
+        { title: 'What a reading looks like',
+          msg: 'On the tile: a number with a question mark, like <strong>2328?</strong>, means it is fairly confident. <strong>best guess</strong> in orange means treat it with suspicion. <strong>could not read</strong> means it tried and found nothing. Whatever it says, check it against the item in your hand — this is a helper, not an oracle.' },
+        { title: 'When free is not enough',
+          msg: 'For the ones free could not place, a closer read is available and it <strong>costs one photo ID per item</strong>. You have a daily allowance that refreshes overnight. It is the same purchase wherever you start it, and the price is always on the button before you press it.' },
+        { title: 'Three ways to buy the same read',
+          msg: 'In the toolbar, <strong>Read the unread</strong> does the whole backlog and tells you the cost first. Ticking photos and pressing <strong>Read these</strong> does just those. On a single review card, <strong>Read this photo (1 photo ID)</strong> does one. Same read, same price.' },
+        { title: 'Crop first — it is worth a photo ID',
+          msg: 'The paid read always shows the crop screen first. Frame the item, or better, the number itself, then press <strong>Read this</strong> — or <strong>Use whole photo</strong> to skip. A tight crop is the difference between a right answer and a wasted read.' },
+        { title: 'Google Search — free, and often enough',
+          msg: 'On the review card, <strong>Google Search</strong> sends the picture to Google Lens and costs nothing. Copy Google\'s answer, come back, and paste it into the gold box — the app reads the answer for you. A screenshot pasted onto the card works too.' },
+        { title: 'Watching what you spend',
+          msg: 'The review card shows <strong>photo IDs left today</strong> under the buttons. When the allowance runs out a batch stops rather than grinding on, and you are told. Nothing free ever spends one — the first free read, re-scanning, Research Number and Google Search are all free all day.' },
+        { title: 'Turning paid reads off',
+          msg: 'In <strong>Preferences → Photo ID</strong>, untick <strong>Use my daily photo ID reads</strong> and nothing will ever be spent. The free readers keep working; when they cannot tell, you are asked to type the number instead.' },
+        { title: 'When the number is wrong',
+          msg: 'Press <strong>This is wrong — re-scan</strong> and the app tries again, remembering not to offer that number a second time. Or just type the right one into the item-number box. A best guess is never filled in for you — you tap the chip to accept it.' }
+      ]
+    },
+
+    'photo-inbox-groups': {
+      label: 'Photo Inbox: several photos, one item',
+      steps: [
+        { title: 'Why group photos',
+          msg: 'Four shots of the same boxcar should become one item, not four. Press <strong>Group photos</strong>, tap the photos in the grid, and they collect in a panel. Tell the app what they are, then press <strong>Apply</strong>.' },
+        { title: 'Apply is what saves it',
+          msg: 'This one catches people out. <strong>Apply</strong> saves the grouping — <strong>✓ Finished</strong> only closes the mode. If you leave with photos still ticked you will be warned, but it is worth remembering the order: tick, then Apply, then Finished.' },
+        { title: 'Engines, A units and sets',
+          msg: 'Choose the kind: <strong>Engine + tender</strong>, <strong>AA — two A units</strong>, <strong>AB — A and B</strong>, <strong>ABA — A, B, A</strong>, <strong>Train set</strong>, or <strong>Item + its box</strong>. An AA, AB or ABA saves as separate items that stay linked to each other, exactly as if you had added them by hand.' },
+        { title: 'The "together" shot',
+          msg: 'If you have a picture of everything at once, give it the role <strong>Both together</strong> — or <strong>All three together</strong>, or <strong>The whole set</strong>. That shot becomes the tile\'s cover picture and is never read for a number, because it has several. It never becomes an item of its own.' },
+        { title: 'Inside a train set',
+          msg: 'A set lets you name each piece — Engine, Tender, Boxcar, Caboose and so on. <strong>Detail — same piece as the photo above</strong> attaches a close-up to the piece before it. If one photo shows a pair, like an engine with its tender, its role files it with the set\'s engine rather than making a separate item.' },
+        { title: 'Adding a whole set at once',
+          msg: 'When two or more pieces of a set have been read, the review card offers <strong>Add the whole set</strong>. The app recognises the set from the numbers and opens the wizard with all of them entered, so you are not typing the same set out piece by piece.' },
+        { title: 'Splitting a group up again',
+          msg: 'The <strong>⊟</strong> on a stacked tile splits it back into separate photos. Nothing is deleted — they simply stop being one item. Grouping over an existing group warns you first and asks to <strong>Break up and regroup</strong>.' },
+        { title: 'Tagging without grouping',
+          msg: '<strong>Tag maker/era/scale/type</strong> stamps a batch of photos without joining them together. Tagging photos as <strong>Paper</strong>, <strong>Catalog</strong> or <strong>Other</strong> also keeps them out of the paid batch — there is rarely a number to find on a drawing, so it would spend a photo ID for nothing. You can still read any one of them on its own.' }
+      ]
     }
 
   };
@@ -243,7 +326,10 @@ function _buildTutorialUI() {
     '<button class="tut-menu-item" onclick="tutStart(\'list-for-sale\')"><div class="tut-menu-icon" style="background:rgba(230,126,34,0.15)">&#x1F3F7;&#xFE0F;</div>List an item for sale</button>' +
     '<button class="tut-menu-item" onclick="tutStart(\'mark-sold\')"><div class="tut-menu-icon" style="background:rgba(46,204,113,0.15)">&#x1F4B0;</div>Mark an item as sold</button>' +
     '<button class="tut-menu-item" onclick="tutStart(\'remove-item\')"><div class="tut-menu-icon" style="background:rgba(150,150,150,0.15)">&#x1F5D1;&#xFE0F;</div>Remove / delete an item</button>' +
-    '<button class="tut-menu-item" onclick="tutStart(\'reports\')"><div class="tut-menu-icon" style="background:rgba(180,140,60,0.15)">&#x1F4CA;</div>How to generate a report</button>';
+    '<button class="tut-menu-item" onclick="tutStart(\'reports\')"><div class="tut-menu-icon" style="background:rgba(180,140,60,0.15)">&#x1F4CA;</div>How to generate a report</button>' +
+    '<button class="tut-menu-item" onclick="tutStart(\'photo-inbox\')"><div class="tut-menu-icon" style="background:rgba(41,128,185,0.15)">&#x1F4E5;</div>Photo Inbox: get photos in and file them</button>' +
+    '<button class="tut-menu-item" onclick="tutStart(\'photo-inbox-reading\')"><div class="tut-menu-icon" style="background:rgba(41,128,185,0.15)">&#x1F50D;</div>Photo Inbox: reading item numbers</button>' +
+    '<button class="tut-menu-item" onclick="tutStart(\'photo-inbox-groups\')"><div class="tut-menu-icon" style="background:rgba(46,204,113,0.15)">&#x1F686;</div>Photo Inbox: several photos, one item</button>';
   document.body.appendChild(menu);
 
   // Tutorial spotlight overlay
@@ -411,6 +497,10 @@ function openHelpHub() {
     +   row(X + "if(typeof startGuidedAddDemo==='function')startGuidedAddDemo();", '🎬', 'Watch: adding an item (live)', 'Auto-plays through the real Add screen, step by step')
     +   row(X + "if(typeof startLifecycleDemo==='function')startLifecycleDemo();", '🎬', 'Watch: an item lifecycle', 'See an item go from Want list to Sold')
     +   row(X + "if(typeof startToolsDemo==='function')startToolsDemo();", '🛠️', 'Watch: Collection Tools', 'Find groups, sets, duplicates and gaps')
+    +   hdr('Photo Inbox')
+    +   row(X + "tutStart('photo-inbox');", '📥', 'Get photos in and file them', 'Shoot a shelf now, sort it out later')
+    +   row(X + "tutStart('photo-inbox-reading');", '🔍', 'Reading item numbers from photos', 'What is free, what costs a photo ID, and how to spend fewer')
+    +   row(X + "tutStart('photo-inbox-groups');", '🚂', 'Several photos, one item', 'Engine + tender, A units, sets and boxes')
     +   hdr('How-To Guides')
     +   row(X + "tutStart('add-item');", '📦', 'Add an item')
     +   row(X + "tutStart('add-want');", '⭐', 'Add a want-list item')

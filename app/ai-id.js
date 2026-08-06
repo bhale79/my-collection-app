@@ -298,7 +298,7 @@ function rrAiRemainingLabel() {
     var p = String(localStorage.getItem('rr_ai_remaining') || '').split('|');
     if (p.length === 2 && p[1] === new Date().toDateString()) {
       var n = parseInt(p[0], 10);
-      if (!isNaN(n) && n >= 0) return n + ' photo ID read' + (n === 1 ? '' : 's') + ' left today';
+      if (!isNaN(n) && n >= 0) return n + ' photo ID' + (n === 1 ? '' : 's') + ' left today';
     }
   } catch (e) {}
   return '';
@@ -318,8 +318,8 @@ function rrAiRemainingLabel() {
 // Every reason now has ONE message in ONE place. '' means the reason has
 // already shown its own UI and a toast on top would be noise.
 var _RR_READ_FAIL = {
-  optout:    'Photo reads are switched off — turn them on in Preferences › Photo ID',
-  quota:     'No photo reads left today — type the number, or try tomorrow',
+  optout:    'Photo ID reads are off — turn them on in Preferences › Photo ID',
+  quota:     'No photo IDs left today — type the number, or try tomorrow',
   busy:      'The reader is busy right now — give it a moment and try again',
   offline:   'Cannot reach the reader — check your connection and try again',
   norelay:   'The reader did not recognise that request — refresh and try again',
