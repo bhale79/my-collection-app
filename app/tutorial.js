@@ -61,28 +61,38 @@ const GUIDES = {
     open: function () { showPage('dashboard'); },
     steps: [
       { selector: '.dash-desktop-actions, .dash-mobile-actions', title: 'Start here',
-        body: 'Press <strong>Add to My Collection</strong>. Let\'s open it and walk through what you\'ll see.' },
-      // v0.9.1355 (Brad: "it did not advance to the next step" — it did, but
-      // the steps after the first had nothing to point at, because they talked
-      // ABOUT the wizard instead of opening it).
-      //
-      // The step this replaced also described a "choose what you're adding"
-      // screen. That screen only renders when NO category is pre-set, and every
-      // entry point sets one — so nobody using this guide would ever have seen
-      // it. Inherited from the old tutorial and not caught, because the label
-      // check only asks whether the words exist somewhere, not whether the
-      // SCREEN does.
+        body: 'Press <strong>Add to My Collection</strong>. Let\'s open it and walk the real screens together.' },
+      // v0.9.1361 — this used to describe the variation and condition steps
+      // while the wizard sat on step 1 with an empty box, because a guide
+      // cannot advance the wizard for you: its state object is let-bound and a
+      // synthetic pick does not satisfy wizardNext(). So the guide WAITS. You
+      // type, you pick, and Next unlocks when the wizard has actually moved on.
       { before: function () { if (typeof openWizard === 'function') openWizard('collection'); return 900; },
         selector: '#wiz-input', title: 'Type the item number',
-        body: 'The wizard opens straight here. Type a number — <strong>773</strong>, say — and the catalog searches as you type. Pick your item from the list that appears.' },
+        awaitLabel: 'Type a number first…',
+        awaitUser: function () {
+          var el = document.getElementById('wiz-input');
+          return !!(el && String(el.value).trim().length >= 2);
+        },
+        body: 'Type a number — try <strong>773</strong> — and the catalog searches as you type. A list of matches appears underneath: <strong>tap the one you mean</strong>. I\'ll wait here until you have typed something.' },
       { selector: '#wiz-photoid-block, #wizard-idphoto-btn', optional: true,
         title: 'Or let a photo do it',
         body: 'Don\'t know the number? <strong>Photo ID</strong> on this screen reads it off a picture instead. The free readers try first and cost nothing.' },
+      { title: 'Now press Next in the wizard',
+        awaitLabel: 'Press Next in the wizard…',
+        awaitUser: function () {
+          // The wizard's own header carries the step number. When it leaves
+          // step 1 the user has successfully picked an item, and only then is
+          // there a variation screen to talk about.
+          var h = document.querySelector('#wizard-modal .modal-header, #wizard-modal h2');
+          return !!(h && !/Step 1 of/i.test(h.innerText || ''));
+        },
+        body: 'Press the orange <strong>NEXT</strong> at the bottom of the wizard. If it will not move, no item is picked yet — tap one from the list of matches first. This guide waits for you.' },
       { title: 'Variation, then condition',
-        body: 'Once you pick the item, the wizard asks which <strong>variation</strong> you have — each one carries its description from the reference catalog, and this is the step that decides <em>which</em> 2343 you own. Then condition on a <strong>1 to 10</strong> scale, what you paid, and photos. Every field after the number is optional.' },
+        body: 'Here is the <strong>variation</strong> step. Each one carries its description from the reference catalog, and this is what decides <em>which</em> 773 you own. After it comes condition on a <strong>1 to 10</strong> scale, what you paid, and photos — every field after the number is optional.' },
       { before: function () { try { if (typeof _doCloseWizard === 'function') _doCloseWizard(); } catch (e) {} return 500; },
         selector: _gNav('filterOwned'), title: 'Where it lands',
-        body: 'The last screen lists everything you entered — <strong>tap any line to edit it</strong> — and <strong>Save</strong> writes it straight to your Google Sheet. It appears here, in My Collection.' }
+        body: 'The last screen lists everything you entered — <strong>tap any line to edit it</strong> — and <strong>Save</strong> writes it straight to your Google Sheet. It appears here, in My Collection. I have closed the wizard; nothing was saved.' }
     ]
   },
 
@@ -491,7 +501,7 @@ function _gtEnd() {
 function _guidedTour(steps) {
   if (!steps || !steps.length) return;
   _gtEnd();
-  var i = 0, curEl = null;
+  var i = 0, curEl = null, _gtPoll = null;
   var blocker = document.createElement('div');
   blocker.id = 'gt-blocker';
   blocker.style.cssText = 'position:fixed;inset:0;z-index:99990;background:transparent';
@@ -627,13 +637,42 @@ function _guidedTour(steps) {
     // user meets it, but a delayed frame on a slow device is the same failure.
     place(curEl);
     requestAnimationFrame(function(){ place(curEl); });
-    var nx = document.getElementById('gt-next'); if (nx) nx.onclick = function(){ if (i >= total - 1) _gtEnd(); else { i++; render(); } };
+    // v0.9.1361 (Brad: "doesn't advance to the variation step because there is
+    // not a number to use ... if we cant, we need to force the user to do
+    // that"). A step may require the user to DO something before the guide can
+    // carry on — type an item number, pick a match. Auto-filling was tried
+    // first: the wizard's state object is let-bound and unreachable from here,
+    // so a synthetic pick does not satisfy wizardNext() and the tour would sit
+    // on step 1 describing a screen it never reaches. Waiting is also the
+    // better lesson — the user does it once themselves.
+    //
+    // `awaitUser` is a predicate. While it is false, Next is disabled and says
+    // so; a poll re-enables it the moment the user has done the thing. The
+    // poll is cleared on every redraw and on exit so it can never outlive the
+    // step that started it.
+    if (_gtPoll) { clearInterval(_gtPoll); _gtPoll = null; }
+    var nx = document.getElementById('gt-next');
+    if (nx) nx.onclick = function(){ if (i >= total - 1) _gtEnd(); else { i++; render(); } };
+    if (nx && typeof step.awaitUser === 'function') {
+      var _gate = function () {
+        var ok = false;
+        try { ok = !!step.awaitUser(); } catch (e) { ok = true; }   // a broken gate must not trap the user
+        nx.disabled = !ok;
+        nx.style.opacity = ok ? '1' : '0.5';
+        nx.style.cursor = ok ? 'pointer' : 'default';
+        nx.textContent = ok ? (i === total - 1 ? 'Done' : 'Next \u2192')
+                            : (step.awaitLabel || 'Waiting for you\u2026');
+        if (ok && _gtPoll) { clearInterval(_gtPoll); _gtPoll = null; }
+      };
+      _gate();
+      if (nx.disabled) _gtPoll = setInterval(_gate, 400);
+    }
     var bk = document.getElementById('gt-back'); if (bk) bk.onclick = function(){ if (i > 0) { i--; render(); } };
     var ex = document.getElementById('gt-exit'); if (ex) ex.onclick = _gtEnd;
   }
   function onResize(){ place(curEl); }
   window.addEventListener('resize', onResize);
-  window._gtCleanup = function(){ window.removeEventListener('resize', onResize); };
+  window._gtCleanup = function(){ window.removeEventListener('resize', onResize); if (_gtPoll) { clearInterval(_gtPoll); _gtPoll = null; } };
   render();
 }
 window._guidedTour = _guidedTour;
