@@ -61,17 +61,28 @@ const GUIDES = {
     open: function () { showPage('dashboard'); },
     steps: [
       { selector: '.dash-desktop-actions, .dash-mobile-actions', title: 'Start here',
-        body: 'Press <strong>Add to My Collection</strong>. Everything after this happens in the Add Item wizard, which opens over the page.' },
-      { title: 'Choose what you are adding',
-        body: 'The wizard asks first. Tap <strong>My Collection</strong> for a train you own. The other choices cover <strong>Sold</strong>, your <strong>Want List</strong>, and <strong>Catalogs</strong>, <strong>Paper Items</strong>, <strong>Mock-Ups</strong> and <strong>Other Items</strong>.' },
-      { title: 'Type the item number',
-        body: 'Type a number — <strong>773</strong>, say — and the catalog searches as you type. Pick your item from the list. If it has a matching tender you will be offered <strong>Engine + Tender</strong>, which adds both and links them as a pair.' },
-      { title: 'Pick the variation',
-        body: 'Each variation carries its description from the reference catalog, and a link out to the COTT page if you want to compare in more detail. This is the step that decides <em>which</em> 2343 you own.' },
-      { title: 'Condition, price, photos',
-        body: 'Rate condition <strong>1 to 10</strong> — 10 is mint in the box. Enter what you paid if you want to; every field here is optional. Photos can be added now or any time later.' },
-      { selector: _gNav('filterOwned'), title: 'Where it lands',
-        body: 'The confirm screen lists everything you entered — <strong>tap any line to edit it</strong> — and <strong>Save</strong> writes it to your Google Sheet immediately. It appears here, in My Collection.' }
+        body: 'Press <strong>Add to My Collection</strong>. Let\'s open it and walk through what you\'ll see.' },
+      // v0.9.1355 (Brad: "it did not advance to the next step" — it did, but
+      // the steps after the first had nothing to point at, because they talked
+      // ABOUT the wizard instead of opening it).
+      //
+      // The step this replaced also described a "choose what you're adding"
+      // screen. That screen only renders when NO category is pre-set, and every
+      // entry point sets one — so nobody using this guide would ever have seen
+      // it. Inherited from the old tutorial and not caught, because the label
+      // check only asks whether the words exist somewhere, not whether the
+      // SCREEN does.
+      { before: function () { if (typeof openWizard === 'function') openWizard('collection'); return 900; },
+        selector: '#wiz-input', title: 'Type the item number',
+        body: 'The wizard opens straight here. Type a number — <strong>773</strong>, say — and the catalog searches as you type. Pick your item from the list that appears.' },
+      { selector: '[onclick*="PHOTO ID"], #wizard-body [onclick*="_wizPhotoId"], #wizard-modal [onclick*="PhotoId"]', optional: true,
+        title: 'Or let a photo do it',
+        body: 'Don\'t know the number? <strong>Photo ID</strong> on this screen reads it off a picture instead. The free readers try first and cost nothing.' },
+      { selector: '#wizard-body', title: 'Variation, then condition',
+        body: 'Once you pick the item, the wizard asks which <strong>variation</strong> you have — each one carries its description from the reference catalog, and this is the step that decides <em>which</em> 2343 you own. Then condition on a <strong>1 to 10</strong> scale, what you paid, and photos. Every field after the number is optional.' },
+      { before: function () { try { if (typeof _doCloseWizard === 'function') _doCloseWizard(); } catch (e) {} return 500; },
+        selector: _gNav('filterOwned'), title: 'Where it lands',
+        body: 'The last screen lists everything you entered — <strong>tap any line to edit it</strong> — and <strong>Save</strong> writes it straight to your Google Sheet. It appears here, in My Collection.' }
     ]
   },
 
@@ -552,8 +563,25 @@ function _guidedTour(steps) {
     if (el && step.wrap) el = el.closest(step.wrap) || el;
     return el;
   }
+  // v0.9.1355 — a step may need the app to DO something before it can point at
+  // anything: open the Add wizard, switch a mode, close what the last step
+  // opened. Without this a guide can only ever narrate the parts of the app
+  // that are already on screen, which is the slideshow problem again.
+  //
+  // `before` runs once per entry to the step and may return a number of ms to
+  // wait before measuring — a screen that renders asynchronously has no box to
+  // spotlight the instant it is asked for. Errors are swallowed: a hook that
+  // fails must cost a spotlight, never the whole guide.
   function render() {
     var step = steps[i], total = steps.length;
+    var wait = 0;
+    if (typeof step.before === 'function') {
+      try { wait = step.before() || 0; } catch (e) { console.warn('[guide] step hook failed', e); }
+    }
+    if (wait) { setTimeout(function () { _gtDraw(step, total); }, wait); return; }
+    _gtDraw(step, total);
+  }
+  function _gtDraw(step, total) {
     curEl = resolve(step);
     var mascotSrc = (i === total - 1) ? './img/conductor-lantern-lg.gif' : './img/conductor-pointing.png';
     var mascotFixed = (i === total - 1) ? ' data-fixed="1"' : '';
