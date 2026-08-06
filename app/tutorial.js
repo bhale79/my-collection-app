@@ -96,7 +96,7 @@ const GUIDES = {
         body: '<strong>Add photos…</strong> offers <strong>From This Computer</strong> or <strong>From Google Photos</strong>. On a computer you can also drag photos straight onto the page. On a phone, <strong>Take with Phone</strong> opens the camera.' },
       { title: 'Say what you are shooting — once',
         body: 'Before the first photo you are asked what you are about to photograph. Set the maker, scale and era once and every photo in that session carries it. That stamp is what lets the reader search the right catalog instead of all of them.' },
-      { selector: '#pin-grid, .pin-grid', title: 'One tile is one item',
+      { selector: '.pin-tile', title: 'One tile is one item',
         body: 'A tile is an <em>item</em>, not a photo — a stack of several shots shows a count. The strip along the bottom gives the era, what the reader found, and the date. The <strong>✂</strong> crops and rotates, and cropping to one item is the biggest thing you can do to get a right answer.' },
       { selector: '#pin-filter-select', title: 'Finding things in a big inbox',
         body: 'Filter by how it read, by maker and era, or by group kind — everything <strong>Not touched yet</strong>, say. The filters combine, and <strong>Show all</strong> clears them.' },
@@ -157,11 +157,11 @@ const GUIDES = {
       // sidebar says "Want / Upgrade".
       { selector: _gNav('buildUpgradePage'), title: 'Where your want list lives',
         body: 'It is <strong>Want / Upgrade</strong> in the sidebar — one page for things you are hunting and things you want a better copy of.' },
-      { selector: '#page-upgrade [onclick*="Add"], #page-upgrade .btn-primary', optional: true, title: 'Adding one',
+      { selector: '#page-upgrade [onclick*="_wuAdd"], #page-upgrade .wu-add-btn, #page-upgrade [onclick*="startWizardFor"]', optional: true, title: 'Adding one',
         body: 'Press <strong>+ ADD</strong>, then type the item number. The catalog finds it as you type and you pick the variation you are after.' },
       { title: 'Set a target price',
         body: 'Optional, but useful — what you are willing to pay. It shows on the row so you can judge a deal quickly at a show.' },
-      { selector: '#upgrade-tbody, #upgrade-cards', title: 'When you find one',
+      { selector: '[onclick*="moveWantToCollection"]', optional: true, title: 'When you find one',
         body: 'Press <strong>+ Collection</strong> on the row. The Add wizard opens with the number and variation already filled in, and the item leaves your want list automatically when you save.' }
     ]
   },
@@ -187,7 +187,7 @@ const GUIDES = {
     steps: [
       { selector: _gNav('buildUpgradePage'), title: 'Open Want / Upgrade',
         body: 'Everything you are looking for is here, with the catalog value beside each one.' },
-      { selector: '#upgrade-tbody, #upgrade-cards', title: 'Find the one you bought',
+      { selector: '[onclick*="moveWantToCollection"]', optional: true, title: 'Find the one you bought',
         body: 'Every row has a green <strong>+ Collection</strong> button on the right.' },
       { title: 'The wizard opens pre-filled',
         body: 'Item number and variation are already in. You only add condition, what you paid, and anything else you want to record.' },
@@ -232,7 +232,7 @@ const GUIDES = {
       // button. It predated the reports rewrite by a long way.
       { selector: _gNav('showPage(\'reports\'') , title: 'Where reports live',
         body: 'Everything printable is on this one page.' },
-      { selector: '#report-library', title: 'The built-in reports',
+      { selector: '#repmenu-insurance', title: 'The built-in reports',
         body: 'There are four ready to run — <strong>Insurance</strong> (every item with its estimated worth, for scheduling cover), <strong>Collection</strong>, <strong>Want / Upgrade / Parts</strong> (great to print for a show), and <strong>Contacts</strong>.' },
       { title: 'Or build your own',
         body: 'The <strong>Report Builder</strong> lets you choose exactly which columns you want and which items to include, rather than taking a fixed layout.' },
