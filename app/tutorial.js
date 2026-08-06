@@ -175,7 +175,8 @@ const GUIDES = {
     steps: [
       { selector: '#pin-group-btn', title: 'Why group photos',
         body: 'Four shots of the same boxcar should become one item, not four. Press <strong>Group photos</strong>, tap the photos in the grid, and they collect in a panel.' },
-      { title: 'Apply is what saves it',
+      { selector: '#pin-grp-panel-apply, #pin-apply-btn', optional: true,
+        title: 'Apply is what saves it',
         body: 'This one catches people out. <strong>Apply</strong> saves the grouping — <strong>✓ Finished</strong> only closes the mode. Tick, then Apply, then Finished.' },
       { title: 'Engines, A units and sets',
         body: 'Choose the kind: <strong>Engine + tender</strong>, <strong>AA — two A units</strong>, <strong>AB — A and B</strong>, <strong>ABA — A, B, A</strong>, <strong>Train set</strong>, or <strong>Item + its box</strong>. An AA, AB or ABA saves as separate items that stay linked.' },
@@ -203,7 +204,7 @@ const GUIDES = {
       { title: 'Set a target price',
         body: 'Optional, but useful — what you are willing to pay. It shows on the row so you can judge a deal quickly at a show.' },
       { selector: '.row-add-collection, #detail-add-collection', optional: true, title: 'When you find one',
-        body: 'Press <strong>+ Collection</strong> on the row. The Add wizard opens with the number and variation already filled in, and the item leaves your want list automatically when you save.' }
+        body: 'Press <strong>+ Collection</strong> on the row. The Add wizard opens with the number and variation already filled in, and the item leaves your want list automatically when you save.<br><br>Still hunting? Each row also has <strong>eBay</strong> and <strong>Search</strong> buttons that look for that exact item online — a quick way to check what one is going for.' }
     ]
   },
 
@@ -228,10 +229,11 @@ const GUIDES = {
         body: 'Tap any item in the list to open its own page. Everything after this happens there. I\'ll wait.' },
       { selector: '#detail-list-sale', optional: true,
         title: 'List it',
-        body: 'Press <strong>List for Sale</strong> in the toolbar at the top of the item. You are asked for your asking price and any notes for a buyer.' },
+        body: 'Press <strong>List for Sale</strong> in the toolbar at the top of the item. You are asked for your asking price and any notes for a buyer.<br><br>Not sure what to ask? The <strong>View on …</strong> link near the top opens this item\'s reference page online, so you can check the going value first.' },
       { selector: _gNav('buildForSalePage'), title: 'Your For Sale list',
         body: 'It appears here, with your asking price beside the catalog value. From a row you can share it, edit it, or take it back off sale.' },
-      { title: 'When it sells',
+      { selector: '.row-mark-sold', optional: true,
+        title: 'When it sells',
         body: 'Press <strong>Mark as Sold</strong> and enter the final price. It moves into <strong>Sold Items</strong> and your dashboard totals update on their own.' }
     ]
   },
@@ -243,7 +245,7 @@ const GUIDES = {
       { selector: _gNav('buildUpgradePage'), title: 'Open Want / Upgrade',
         body: 'Everything you are looking for is here, with the catalog value beside each one.' },
       { selector: '.row-add-collection, #detail-add-collection', optional: true, title: 'Find the one you bought',
-        body: 'Every row has a green <strong>+ Collection</strong> button on the right.' },
+        body: 'Every row has a green <strong>+ Collection</strong> button on the right. The <strong>eBay</strong> and <strong>Search</strong> buttons beside it look for that exact item online, if you are still shopping for it.' },
       { title: 'The wizard opens pre-filled',
         body: 'Item number and variation are already in. You only add condition, what you paid, and anything else you want to record.' },
       { title: 'Save, and it moves itself',
