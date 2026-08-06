@@ -79,17 +79,26 @@ const GUIDES = {
       { selector: '#wiz-photoid-block, #wizard-idphoto-btn', optional: true,
         title: 'Or let a photo do it',
         body: 'Don\'t know the number? <strong>Photo ID</strong> on this screen reads it off a picture instead. The free readers try first and cost nothing.' },
-      { title: 'Now press Next in the wizard',
+      // v0.9.1365 (Brad): this step had NO selector, so the card centred itself
+      // — straight on top of the match list the user needs to read. Pointing it
+      // at #wiz-suggestions (450x290, 8% of the viewport) both highlights the
+      // right thing and lets the anti-overlap pass keep the card clear of it.
+      //
+      // "View ↗" is a real anchor with target="_blank" to the reference page —
+      // for 773 it opens cornucopiaoftoytrains.com/steamers-no-746-no-773.
+      // Verified in the live wizard, not assumed.
+      { selector: '#wiz-suggestions', optional: true,
+        title: 'Pick the one you have',
         awaitLabel: 'Next \u2192',
-        awaitMsg: 'Press the orange <strong>NEXT</strong> at the bottom of the wizard first. If it will not move, tap one of the matches under the number box to pick your item.',
+        awaitMsg: 'Please tap one of the matches in the list to pick your item, then press the orange <strong>NEXT</strong> at the bottom of the wizard.',
         awaitUser: function () {
-          // The wizard's own header carries the step number. When it leaves
-          // step 1 the user has successfully picked an item, and only then is
-          // there a variation screen to talk about.
+          // The wizard's own header carries the step number. While it still
+          // reads "Step 1 of", no item has been accepted and there is no
+          // variation screen to talk about yet.
           var h = document.querySelector('#wizard-modal .modal-header, #wizard-modal h2');
           return !!(h && !/Step 1 of/i.test(h.innerText || ''));
         },
-        body: 'Press the orange <strong>NEXT</strong> at the bottom of the wizard. If it will not move, no item is picked yet — tap one from the list of matches first. This guide waits for you.' },
+        body: 'These are the matches for what you typed. <strong>Tap the one you have</strong> — then press the orange <strong>NEXT</strong> at the bottom of the wizard.<br><br>Not sure which is yours? <strong>View ↗</strong> on any row opens that item\'s reference page in a new tab so you can look at it first.' },
       { title: 'Variation, then condition',
         body: 'Here is the <strong>variation</strong> step. Each one carries its description from the reference catalog, and this is what decides <em>which</em> 773 you own. After it comes condition on a <strong>1 to 10</strong> scale, what you paid, and photos — every field after the number is optional.' },
       { before: function () { try { if (typeof _doCloseWizard === 'function') _doCloseWizard(); } catch (e) {} return 500; },
@@ -583,9 +592,29 @@ function _guidedTour(steps) {
     callout.style.maxWidth = Math.min(340, window.innerWidth - 100) + 'px';
     if (!el) {
       hole.style.opacity = '0';
-      callout.style.left = Math.max(72, (window.innerWidth - (callout.offsetWidth || 300)) / 2) + 'px';
-      callout.style.top  = Math.max(8, (window.innerHeight - (callout.offsetHeight || 160)) / 2) + 'px';
-      setMascot(false);
+      var cw0 = callout.offsetWidth || 300, ch0 = callout.offsetHeight || 160;
+      var L = Math.max(72, (window.innerWidth - cw0) / 2);
+      var T = Math.max(8, (window.innerHeight - ch0) / 2);
+      // v0.9.1365 (Brad: "you can[not] see the variations because the help box
+      // is on top of it again"). A step with no target used to sit dead centre
+      // — which is exactly where an open modal is, so the card landed on the
+      // content the user was being asked to read. If something modal is open,
+      // sit BESIDE it, on whichever side has more room.
+      var m = document.querySelector('#wizard-modal.open, .modal.open');
+      if (m) {
+        var mr = m.getBoundingClientRect();
+        if (mr.width > 0 && mr.height > 0) {
+          var roomR = window.innerWidth - mr.right, roomL = mr.left, gap0 = 14, edge = 8;
+          if (roomR >= cw0 + gap0 + edge)      L = mr.right + gap0;
+          else if (roomL >= cw0 + gap0 + edge) L = mr.left - cw0 - gap0;
+          else T = Math.max(edge, window.innerHeight - ch0 - edge);   // nothing beside it: sit low
+          T = Math.min(Math.max(edge, T), window.innerHeight - ch0 - edge);
+          L = Math.min(Math.max(edge, L), window.innerWidth - cw0 - edge);
+        }
+      }
+      callout.style.left = L + 'px';
+      callout.style.top  = T + 'px';
+      setMascot(L > window.innerWidth / 2);
       return;
     }
     hole.style.opacity = '1';
