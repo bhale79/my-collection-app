@@ -183,9 +183,23 @@ const GUIDES = {
     open: function () { showPage('browse'); if (typeof filterOwned === 'function') filterOwned(); },
     steps: [
       { selector: _gNav('filterOwned'), title: 'Start in your collection',
-        body: 'Find the item you want to sell — search by number, road name or description — and tap it to open its own page.' },
-      { title: 'List it',
-        body: 'On the item\'s page, press <strong>List for Sale</strong> in the toolbar at the top. You are asked for your asking price and any notes for a buyer.' },
+        body: 'Find the item you want to sell — search by number, road name or description.' },
+      // v0.9.1364 — MEASURED: this guide opens page-browse (the collection
+      // LIST) and then names a button that only exists on the item-detail
+      // page. Same failure Brad caught in add-item; the audit missed it
+      // because the label exists somewhere in the app and the step had no
+      // selector to fail on. The guide now WAITS for you to open an item.
+      { title: 'Open the item first',
+        awaitLabel: 'Next \u2192',
+        awaitMsg: 'Please tap one of your items in the list first — that opens its own page, which is where these buttons live.',
+        awaitUser: function () {
+          var p = document.querySelector('.page.active');
+          return !!(p && p.id === 'page-itemdetail');
+        },
+        body: 'Tap any item in the list to open its own page. Everything after this happens there. I\'ll wait.' },
+      { selector: '#page-itemdetail [onclick*="istForSale"], #page-itemdetail [onclick*="ListForSale"]', optional: true,
+        title: 'List it',
+        body: 'Press <strong>List for Sale</strong> in the toolbar at the top of the item. You are asked for your asking price and any notes for a buyer.' },
       { selector: _gNav('buildForSalePage'), title: 'Your For Sale list',
         body: 'It appears here, with your asking price beside the catalog value. From a row you can share it, edit it, or take it back off sale.' },
       { title: 'When it sells',
@@ -213,8 +227,22 @@ const GUIDES = {
     open: function () { showPage('browse'); if (typeof filterOwned === 'function') filterOwned(); },
     steps: [
       { selector: _gNav('filterOwned'), title: 'Find the item',
-        body: 'Open <strong>My Collection</strong> and tap the item you have sold to open its page.' },
-      { title: 'Record the sale',
+        body: 'Open <strong>My Collection</strong> and find the item you have sold.' },
+      // v0.9.1364 — MEASURED: this guide opens page-browse (the collection
+      // LIST) and then names a button that only exists on the item-detail
+      // page. Same failure Brad caught in add-item; the audit missed it
+      // because the label exists somewhere in the app and the step had no
+      // selector to fail on. The guide now WAITS for you to open an item.
+      { title: 'Open the item first',
+        awaitLabel: 'Next \u2192',
+        awaitMsg: 'Please tap one of your items in the list first — that opens its own page, which is where these buttons live.',
+        awaitUser: function () {
+          var p = document.querySelector('.page.active');
+          return !!(p && p.id === 'page-itemdetail');
+        },
+        body: 'Tap any item in the list to open its own page. Everything after this happens there. I\'ll wait.' },
+      { selector: '#page-itemdetail [onclick*="ecordSale"]', optional: true,
+        title: 'Record the sale',
         body: 'Press the green <strong>Record Sale</strong> button in the toolbar. Enter the price, the date, and the buyer or notes if you want them — only the price is required.' },
       { selector: _gNav("showPage('sold'"), title: 'Where it goes',
         body: 'The item moves out of your active collection into <strong>Sold Items</strong>, and your totals update automatically. Nothing is deleted — the record and its photos stay.' }
@@ -226,8 +254,22 @@ const GUIDES = {
     open: function () { showPage('browse'); if (typeof filterOwned === 'function') filterOwned(); },
     steps: [
       { selector: _gNav('filterOwned'), title: 'Find it first',
-        body: 'Open <strong>My Collection</strong> and search by item number, road name or description, then tap the item to open its own page.' },
-      { title: 'The toolbar is at the top',
+        body: 'Open <strong>My Collection</strong> and search by item number, road name or description.' },
+      // v0.9.1364 — MEASURED: this guide opens page-browse (the collection
+      // LIST) and then names a button that only exists on the item-detail
+      // page. Same failure Brad caught in add-item; the audit missed it
+      // because the label exists somewhere in the app and the step had no
+      // selector to fail on. The guide now WAITS for you to open an item.
+      { title: 'Open the item first',
+        awaitLabel: 'Next \u2192',
+        awaitMsg: 'Please tap one of your items in the list first — that opens its own page, which is where these buttons live.',
+        awaitUser: function () {
+          var p = document.querySelector('.page.active');
+          return !!(p && p.id === 'page-itemdetail');
+        },
+        body: 'Tap any item in the list to open its own page. Everything after this happens there. I\'ll wait.' },
+      { selector: '#page-itemdetail [onclick*="emoveFrom"], #page-itemdetail [onclick*="emoveItem"]', optional: true,
+        title: 'The toolbar is at the top',
         body: 'The row of action buttons sits just under the item\'s name. Press the red <strong>Remove from Collection</strong> — the last button in that row. Removing lives here rather than on the list rows, because a button that small was too easy to hit by accident.' },
       { title: 'You are asked first',
         body: 'Nothing goes without a confirmation. Your Google Sheet row is cleared rather than destroyed, and the photos stay in your Drive.' },
