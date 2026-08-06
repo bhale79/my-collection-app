@@ -4256,7 +4256,12 @@
         // v0.9.907 (Brad, item [1a]): hand the first inbox photo's Drive id to the
         // wizard so the variation step can preview the item you're adding.
         var _addPhotoId = (fileList[0] && fileList[0].id) || '';
-        _pinAddNow(num, { manufacturer: _aiS.mfr || '', description: _aiS.desc || '', roadName: _aiS.road || '', year: _aiS.year || '', gauge: _aiS.gauge || '', subType: _aiS.subType || '', _prefer: _pinPreferOf(gs[0]) }, _addPhotoId, { alsoListForSale: mode === 'forsale', groupKind: (gs[0] && (gs[0].kind || (gs[0].files[0] && gs[0].files[0]._meta && gs[0].files[0]._meta.kind))) || '' });
+        // v0.9.1369 (Brad): the WHOLE group rides along, not just the first
+        // shot. A two-photo group is usually one picture of the piece and one
+        // of the number stamped on it — handing over only the first is handing
+        // over the half that cannot identify anything.
+        var _addPhotoIds = fileList.map(function (fl) { return (fl && fl.id) || ''; }).filter(Boolean);
+        _pinAddNow(num, { manufacturer: _aiS.mfr || '', description: _aiS.desc || '', roadName: _aiS.road || '', year: _aiS.year || '', gauge: _aiS.gauge || '', subType: _aiS.subType || '', _prefer: _pinPreferOf(gs[0]) }, _addPhotoId, { alsoListForSale: mode === 'forsale', photoIds: _addPhotoIds, groupKind: (gs[0] && (gs[0].kind || (gs[0].files[0] && gs[0].files[0]._meta && gs[0].files[0]._meta.kind))) || '' });
         if (mode === 'forsale') showToast('Adding ' + num + ' to your collection and For Sale list — set the price on the sale step', 4500);
       }
     } catch (e) {
@@ -4434,6 +4439,14 @@
           // v0.9.907 (Brad, item [1a]): stash the inbox photo's Drive id so the
           // variation step can preview it (loaded via loadDriveThumb).
           if (photoDriveId) wizard.data._addPhotoDriveId = photoDriveId;
+          // v0.9.1369 — and the rest of the group's photos, in the order they
+          // were shot, so the viewer can flip between them. The hero above
+          // stays whatever it was; this list only ever ADDS what to look at.
+          try {
+            var _pl = (opts && opts.photoIds) || [];
+            if (!_pl.length && photoDriveId) _pl = [photoDriveId];
+            if (_pl.length) wizard.data._addPhotoDriveIds = _pl;
+          } catch (ePl) {}
           // v0.9.1279 (Brad): a group marked "Paper / other collectible" skips
           // the train prefill entirely — the add opens in the paper flow, where
           // the Item Type selector still allows Catalog / Mock-Up / Other. The

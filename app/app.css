@@ -2310,3 +2310,62 @@ html[data-theme="high-contrast"] button[style*="#e74c3c"] {
     max-height: calc(100dvh - 108px);
   }
 }
+
+/* ══ v0.9.1369 — the add wizard's photo, always in reach ═══════════════════
+   Brad: "when adding an item, manual or item number, i want a thumbnail at
+   the top right that i can click and bring up a large view of that picture
+   that i can zoom in and move around to help me id things."
+
+   Two pieces: a small thumbnail parked in the wizard header (.wiz-hero-photo)
+   and a full-screen zoom/pan viewer (.rrpv-*).
+
+   EVERY colour here is a theme variable on purpose. app.css and wizard.js
+   were BOTH sitting exactly on their hardcoded-colour budget when this was
+   written (208/208 and 243/243), so a single literal would have failed the
+   ratchet — and a viewer that ignores the Appearance themes would have been
+   wrong anyway. --scrim is the shared modal dim; --navy is the dark stage
+   that makes a photo read. */
+
+.wiz-hero-photo {
+  flex: 0 0 auto; width: 46px; height: 46px; margin-right: 0.5rem;
+  border-radius: 8px; overflow: hidden; cursor: zoom-in;
+  border: 1.5px solid var(--border); background: var(--navy);
+  position: relative; padding: 0;
+}
+.wiz-hero-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+/* the little count badge when an item carries more than one photo */
+.wiz-hero-count {
+  position: absolute; right: 0; bottom: 0; font-size: 0.58rem; line-height: 1;
+  padding: 2px 4px; background: var(--scrim); color: var(--on-accent);
+  border-top-left-radius: 6px; pointer-events: none;
+}
+
+.rrpv-back {
+  position: fixed; inset: 0; z-index: 100020;
+  background: var(--scrim); display: flex; flex-direction: column;
+}
+.rrpv-bar {
+  flex: 0 0 auto; display: flex; align-items: center; gap: 0.5rem;
+  padding: 0.5rem 0.7rem; background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+.rrpv-btn {
+  padding: 0.35rem 0.7rem; border-radius: 8px; cursor: pointer;
+  border: 1.5px solid var(--border); background: var(--bg-card);
+  color: var(--text); font-family: var(--font-body); font-size: 0.85rem;
+  line-height: 1.1;
+}
+.rrpv-btn[disabled] { opacity: 0.35; cursor: default; }
+.rrpv-label { font-size: 0.8rem; color: var(--text-dim); font-family: var(--font-body); }
+.rrpv-spacer { flex: 1; min-width: 0; }
+/* touch-action:none so a pinch reaches our handler instead of scrolling the page */
+.rrpv-stage {
+  flex: 1; min-height: 0; overflow: hidden; background: var(--navy);
+  display: flex; align-items: center; justify-content: center;
+  touch-action: none; cursor: grab;
+}
+.rrpv-stage.rrpv-grabbing { cursor: grabbing; }
+.rrpv-img {
+  max-width: 100%; max-height: 100%; display: block;
+  transform-origin: center center; user-select: none; -webkit-user-drag: none;
+}

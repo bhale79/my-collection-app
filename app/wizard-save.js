@@ -378,6 +378,9 @@ function launchSetItemWizard() {
           if (normalizeItemNum(items[_oi]) === normalizeItemNum(itemNum)) _occ++;
         }
         wizard.data._addPhotoDriveId = _mpList[_occ] || _mpList[0];
+        // v0.9.1369 — a set member can flip through every photo of ITS OWN
+        // slot; the viewer opens on the hero picked just above.
+        wizard.data._addPhotoDriveIds = _mpList.filter(Boolean);
         break;
       }
     }

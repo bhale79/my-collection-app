@@ -469,6 +469,11 @@ function _buildWizardModal() {
           '<div class="modal-title" id="wizard-title"></div>' +
           '<div id="wizard-kind-head" style="display:none;margin-top:0.15rem"></div>' +
         '</div>' +
+        // v0.9.1369 (Brad): "i want a thumbnail at the top right that i can
+        // click and bring up a large view". It lives between the title and the
+        // ✕ so it is in the same place on every step, and it hides itself when
+        // the entry has no photo (a plain manual add).
+        '<button type="button" class="wiz-hero-photo" id="wiz-hero-photo" title="Tap to see the full photo" style="display:none"></button>' +
         '<button class="btn-close" onclick="closeWizard()">&#x2715;</button>' +
       '</div>' +
       // v0.9.1033: id so the keyboard-open compact mode can hide the whole
@@ -901,7 +906,7 @@ function _wizSetKind(kind) {
   // choosing "Paper Item" would silently orphan the photos back in the inbox.
   const _keep = {};
   try {
-    ['_addPhotoDriveId', '_fromInbox', '_pinStagedNum'].forEach(function (k) {
+    ['_addPhotoDriveId', '_addPhotoDriveIds', '_fromInbox', '_pinStagedNum'].forEach(function (k) {
       if (wizard.data && wizard.data[k] !== undefined) _keep[k] = wizard.data[k];
     });
   } catch (e) {}
@@ -2086,6 +2091,7 @@ function renderWizardStep() {
   // words — and unlike the step name it stays put through all six steps.
   document.getElementById('wizard-step-label').textContent =
     _wizFlowTitle() + ' · Step ' + current + ' of ' + total;
+  _wizHeroPhotoSync();   // v0.9.1369 — the header thumbnail, on every step
   _renderAddingBanner();
   const _titleText = typeof s.title === 'function' ? s.title(wizard.data) : s.title;
   const _titleEl = document.getElementById('wizard-title');
@@ -5779,7 +5785,7 @@ function renderWizardStep() {
       salePrice:'Sale Price', dateSold:'Date Sold',
       set_num:'Set Number',
     };
-    const _skipKeys = new Set(['tab','itemCategory','_photoOnly','_tenderDone','_setDone','tenderMatch','setMatch','setType','unitPower','wantErrorPhotos','photosMasterBox','boxOnly','entryMode','_setId','_rawItemNum','matchedItem','_partialMatches','_partialQuery','_itemGrouping','_fromWantList','_fromWantKey','_returnPage','_manualEntry','_drivePhotos','_setMode','_setGroupId','_setFinalItems','_setItemIndex','_setItemsSaved','_setEntryMode','_resolvedSet','_setLocoNum','_setPrice','_setDate','_setWorth','_setCondition','_setHasBoxChecked','_setWantPhotos','_setPhotoThenSave','_prefilledCondition','_setQEPhotos','_setMemberPhotos','set_hasBox','set_boxCond','set_boxPhotos','set_notes','_suggestions_cache','_biBoxPhotoFile','_idItemPhotoFile','_boxAutoKnown','_completingQuickEntry','_existingGroupId','_fillItemMode','_wizSaveLock','_photoInventoryId','_addPhotoDriveId','_saveComplete','_era','suggestedRoadName','_manualEra','_alsoListForSale','_fromUpgradeList','_fromUpgradeKey','_cleanupWishlistMatches','_suggestedPricePaid','forSale_salePrice','forSale_dateListed','selectedForSaleKey','selectedSoldKey',
+    const _skipKeys = new Set(['tab','itemCategory','_photoOnly','_tenderDone','_setDone','tenderMatch','setMatch','setType','unitPower','wantErrorPhotos','photosMasterBox','boxOnly','entryMode','_setId','_rawItemNum','matchedItem','_partialMatches','_partialQuery','_itemGrouping','_fromWantList','_fromWantKey','_returnPage','_manualEntry','_drivePhotos','_setMode','_setGroupId','_setFinalItems','_setItemIndex','_setItemsSaved','_setEntryMode','_resolvedSet','_setLocoNum','_setPrice','_setDate','_setWorth','_setCondition','_setHasBoxChecked','_setWantPhotos','_setPhotoThenSave','_prefilledCondition','_setQEPhotos','_setMemberPhotos','set_hasBox','set_boxCond','set_boxPhotos','set_notes','_suggestions_cache','_biBoxPhotoFile','_idItemPhotoFile','_boxAutoKnown','_completingQuickEntry','_existingGroupId','_fillItemMode','_wizSaveLock','_photoInventoryId','_addPhotoDriveId','_addPhotoDriveIds','_saveComplete','_era','suggestedRoadName','_manualEra','_alsoListForSale','_fromUpgradeList','_fromUpgradeKey','_cleanupWishlistMatches','_suggestedPricePaid','forSale_salePrice','forSale_dateListed','selectedForSaleKey','selectedSoldKey',
       '_photoUploadsInFlight','_identifyMeta','_identifyMfrHints','_identifyScaleHint','_identifyTypeHint','_alreadyOwnedFyi',
       '_skipAllPhotos']);  // v0.9.906 (Brad, item [6]): internal photo-skip flag — never a review row
     // Skip set_num from summary if it's already shown in the header
@@ -6586,16 +6592,244 @@ async function _wizardNextCore() {
 // over by _pinAddNow) — at the top of the variation step, or to the
 // right of the list on a wide desktop. Tap to zoom full-screen.
 // ══════════════════════════════════════════════════════════════
-window._wizVarZoom = function (src) {
-  if (!src) return;
+// ── v0.9.1369 — the viewer Brad actually asked for ────────────────────────
+// Brad: "a large view of that picture that i can zoom in and move around to
+// help me id things."
+//
+// What was here before called itself a zoom and was not one: a plain <img>
+// stretched to the screen, click anywhere to close. Worse, it re-used the
+// thumbnail already on screen as its source — and loadDriveThumb serves a
+// 400-PIXEL image (`=s400`). Blowing that up to full screen is mush, which is
+// exactly the opposite of what you need when you are trying to read a number
+// stamped on a frame. The new viewer fetches the FULL-RESOLUTION original.
+//
+// ONE viewer, not two. Every caller — the header thumbnail and the variation
+// step's side preview — comes through here. This project has been bitten six
+// times by one fact answered in two places; a second photo viewer would have
+// been the seventh.
+//
+// Accepts either form:
+//   _wizVarZoom('blob:…')                      — a single source (legacy calls)
+//   _wizVarZoom({ ids:[driveId,…], index:0, src:'' })  — flip through a group
+window._wizVarZoom = function (arg) {
+  var ids = [], start = 0, directSrc = '';
+  if (typeof arg === 'string') { directSrc = arg; }
+  else if (arg && typeof arg === 'object') {
+    ids = (arg.ids || []).filter(Boolean);
+    start = Math.max(0, Math.min(ids.length - 1, arg.index || 0));
+    directSrc = arg.src || '';
+  }
+  if (!ids.length && !directSrc) return;
+
   var ov = document.createElement('div');
-  ov.style.cssText = 'position:fixed;inset:0;z-index:100020;background:rgba(0,0,0,0.9);display:flex;align-items:center;justify-content:center;padding:1rem;cursor:zoom-out';
-  ov.innerHTML = '<img src="' + src + '" style="max-width:100%;max-height:100%;border-radius:8px" alt="">' +
-    '<button type="button" style="position:absolute;top:12px;right:14px;background:rgba(0,0,0,0.5);border:none;color:#fff;font-size:1.6rem;line-height:1;cursor:pointer;border-radius:8px;padding:0.1rem 0.55rem">✕</button>';
-  var close = function () { try { ov.remove(); } catch (e) {} if (window.BackStack) window.BackStack.pop('_wiz-var-zoom'); };
-  ov.onclick = close;
+  ov.className = 'rrpv-back';
+  var many = ids.length > 1;
+  ov.innerHTML =
+    '<div class="rrpv-bar">' +
+      (many ? '<button type="button" class="rrpv-btn" id="rrpv-prev" aria-label="Previous photo">&larr;</button>' : '') +
+      (many ? '<button type="button" class="rrpv-btn" id="rrpv-next" aria-label="Next photo">&rarr;</button>' : '') +
+      '<span class="rrpv-label" id="rrpv-count"></span>' +
+      '<span class="rrpv-spacer"></span>' +
+      '<button type="button" class="rrpv-btn" id="rrpv-out" aria-label="Zoom out">&minus;</button>' +
+      '<button type="button" class="rrpv-btn" id="rrpv-in" aria-label="Zoom in">+</button>' +
+      '<button type="button" class="rrpv-btn" id="rrpv-fit">Fit</button>' +
+      '<button type="button" class="rrpv-btn" id="rrpv-close" aria-label="Close">&times;</button>' +
+    '</div>' +
+    '<div class="rrpv-stage" id="rrpv-stage"><img class="rrpv-img" id="rrpv-img" alt="Item photo"></div>';
+
+  var stage = ov.querySelector('#rrpv-stage');
+  var img   = ov.querySelector('#rrpv-img');
+  var idx   = start;
+  // scale/tx/ty are the whole of the zoom state. scale 1 == fitted to the
+  // stage (the CSS max-width/max-height do the fitting), so "Fit" is just
+  // scale 1 with no offset — no measuring required.
+  var scale = 1, tx = 0, ty = 0;
+  var MIN = 1, MAX = 8;
+
+  function apply() {
+    // Keep the picture from being dragged off into nothing: the further you
+    // zoom, the more slack there is, and at scale 1 there is none.
+    var w = img.clientWidth || 1, h = img.clientHeight || 1;
+    var slackX = Math.max(0, (w * scale - w) / 2), slackY = Math.max(0, (h * scale - h) / 2);
+    tx = Math.max(-slackX, Math.min(slackX, tx));
+    ty = Math.max(-slackY, Math.min(slackY, ty));
+    img.style.transform = 'translate(' + tx + 'px,' + ty + 'px) scale(' + scale + ')';
+    var o = ov.querySelector('#rrpv-out'), i2 = ov.querySelector('#rrpv-in');
+    if (o) o.disabled = scale <= MIN + 0.001;
+    if (i2) i2.disabled = scale >= MAX - 0.001;
+  }
+  function setScale(next, ax, ay) {
+    next = Math.max(MIN, Math.min(MAX, next));
+    if (next === scale) return;
+    // Zoom about a point: hold whatever is under the cursor still.
+    if (typeof ax === 'number') {
+      var r = img.getBoundingClientRect();
+      var cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+      var k = next / scale;
+      tx = ax - cx - (ax - cx - tx) * k;
+      ty = ay - cy - (ay - cy - ty) * k;
+    }
+    scale = next;
+    if (scale === MIN) { tx = 0; ty = 0; }
+    apply();
+  }
+  function fit() { scale = 1; tx = 0; ty = 0; apply(); }
+
+  // ── loading ──
+  // A drive id gets the fast 400px thumbnail first so something appears at
+  // once, then the full original swapped in underneath the moment it lands.
+  // _loadDriveThumbFull writes an error message into the container it is
+  // given, so it gets a DETACHED div — an upload hiccup must not blank the
+  // viewer's own markup.
+  function show(i) {
+    idx = i;
+    fit();
+    var c = ov.querySelector('#rrpv-count');
+    if (c) c.textContent = ids.length ? (idx + 1) + ' of ' + ids.length : '';
+    var p = ov.querySelector('#rrpv-prev'), n = ov.querySelector('#rrpv-next');
+    if (p) p.disabled = idx <= 0;
+    if (n) n.disabled = idx >= ids.length - 1;
+    if (!ids.length) { img.src = directSrc; return; }
+    var fid = ids[idx];
+    img.removeAttribute('src');
+    try {
+      if (typeof loadDriveThumb === 'function') loadDriveThumb(fid, img, document.createElement('div'), null, 'hi');
+    } catch (e) {}
+    try {
+      if (typeof _loadDriveThumbFull === 'function') {
+        var probe = document.createElement('img');
+        probe.onload = function () { if (idx === i) img.src = probe.src; };
+        _loadDriveThumbFull(fid, probe, document.createElement('div'));
+      }
+    } catch (e) {}
+  }
+
+  // ── input ──
+  stage.addEventListener('wheel', function (e) {
+    e.preventDefault();
+    setScale(scale * (e.deltaY < 0 ? 1.18 : 1 / 1.18), e.clientX, e.clientY);
+  }, { passive: false });
+
+  var dragging = false, lastX = 0, lastY = 0, pointers = {}, pinchStart = 0, pinchScale = 1;
+  stage.addEventListener('pointerdown', function (e) {
+    pointers[e.pointerId] = { x: e.clientX, y: e.clientY };
+    var ks = Object.keys(pointers);
+    if (ks.length === 1) {
+      dragging = true; lastX = e.clientX; lastY = e.clientY;
+      stage.classList.add('rrpv-grabbing');
+      try { stage.setPointerCapture(e.pointerId); } catch (err) {}
+    } else if (ks.length === 2) {
+      dragging = false;
+      stage.classList.remove('rrpv-grabbing');
+      var a = pointers[ks[0]], b = pointers[ks[1]];
+      pinchStart = Math.hypot(a.x - b.x, a.y - b.y) || 1;
+      pinchScale = scale;
+    }
+  });
+  stage.addEventListener('pointermove', function (e) {
+    if (!pointers[e.pointerId]) return;
+    pointers[e.pointerId] = { x: e.clientX, y: e.clientY };
+    var ks = Object.keys(pointers);
+    if (ks.length >= 2) {
+      var a = pointers[ks[0]], b = pointers[ks[1]];
+      var d = Math.hypot(a.x - b.x, a.y - b.y) || 1;
+      setScale(pinchScale * (d / pinchStart), (a.x + b.x) / 2, (a.y + b.y) / 2);
+      return;
+    }
+    if (!dragging) return;
+    tx += e.clientX - lastX; ty += e.clientY - lastY;
+    lastX = e.clientX; lastY = e.clientY;
+    apply();
+  });
+  function endPointer(e) {
+    delete pointers[e.pointerId];
+    if (!Object.keys(pointers).length) { dragging = false; stage.classList.remove('rrpv-grabbing'); }
+  }
+  stage.addEventListener('pointerup', endPointer);
+  stage.addEventListener('pointercancel', endPointer);
+  stage.addEventListener('dblclick', function (e) { setScale(scale > 1.05 ? 1 : 3, e.clientX, e.clientY); });
+
+  ov.querySelector('#rrpv-in').onclick   = function () { setScale(scale * 1.4); };
+  ov.querySelector('#rrpv-out').onclick  = function () { setScale(scale / 1.4); };
+  ov.querySelector('#rrpv-fit').onclick  = fit;
+  if (many) {
+    ov.querySelector('#rrpv-prev').onclick = function () { if (idx > 0) show(idx - 1); };
+    ov.querySelector('#rrpv-next').onclick = function () { if (idx < ids.length - 1) show(idx + 1); };
+  }
+
+  var onKey = function (e) {
+    if (e.key === 'Escape') close();
+    else if (e.key === 'ArrowLeft' && idx > 0) show(idx - 1);
+    else if (e.key === 'ArrowRight' && idx < ids.length - 1) show(idx + 1);
+    else if (e.key === '+' || e.key === '=') setScale(scale * 1.4);
+    else if (e.key === '-') setScale(scale / 1.4);
+    else if (e.key === '0') fit();
+  };
+  function close() {
+    document.removeEventListener('keydown', onKey);
+    try { ov.remove(); } catch (e) {}
+    if (window.BackStack) window.BackStack.pop('_wiz-var-zoom');
+  }
+  ov.querySelector('#rrpv-close').onclick = close;
+  // Clicking the empty stage background closes; clicking the PICTURE does not,
+  // because the picture is the thing you are dragging around.
+  stage.addEventListener('click', function (e) { if (e.target === stage) close(); });
+  document.addEventListener('keydown', onKey);
+
   document.body.appendChild(ov);
-  if (window.BackStack) window.BackStack.push('_wiz-var-zoom', function () { try { ov.remove(); } catch (e) {} });
+  show(idx);
+  if (window.BackStack) window.BackStack.push('_wiz-var-zoom', function () {
+    document.removeEventListener('keydown', onKey);
+    try { ov.remove(); } catch (e) {}
+  });
+};
+
+// ── v0.9.1369 — ONE answer to "which photos is this entry carrying?" ──────
+// Every caller asks here. The wizard can hold a photo three ways: a File just
+// captured by Identify/barcode, one Drive id from the inbox, or the whole
+// ordered list of a group's Drive ids. Answering that in two places is how
+// this project has produced six near-identical bugs; it is answered here.
+window._wizPhotoSet = function () {
+  var out = { file: null, ids: [], index: 0 };
+  if (typeof wizard === 'undefined' || !wizard || !wizard.data) return out;
+  var d = wizard.data;
+  out.file = d._idItemPhotoFile || window._idLastPhotoFile || d._biBoxPhotoFile || null;
+  var list = Array.isArray(d._addPhotoDriveIds) ? d._addPhotoDriveIds.filter(Boolean) : [];
+  var hero = d._addPhotoDriveId || '';
+  if (!list.length && hero) list = [hero];
+  out.ids = list;
+  // The hero is the photo this entry is ABOUT — for a set member it is that
+  // member's own shot, which need not be first in the group. Open on it.
+  if (hero) { var at = list.indexOf(hero); if (at > -1) out.index = at; }
+  return out;
+};
+
+// Draws (or hides) the header thumbnail. Called on every step render, so it
+// picks up a photo that only arrives partway through the flow.
+window._wizHeroPhotoSync = function () {
+  var btn = document.getElementById('wiz-hero-photo');
+  if (!btn) return;
+  var set = window._wizPhotoSet();
+  if (!set.file && !set.ids.length) { btn.style.display = 'none'; btn.innerHTML = ''; return; }
+  // Re-rendering the same photo every step would restart the Drive fetch on
+  // each one; the signature check makes the redraw a no-op when nothing moved.
+  var sig = (set.file ? 'f' + (set.file.name || '') + set.file.size : '') + '|' + set.ids.join(',') + '|' + set.index;
+  if (btn.getAttribute('data-sig') === sig) { btn.style.display = ''; return; }
+  btn.setAttribute('data-sig', sig);
+  btn.style.display = '';
+  btn.innerHTML = '<img alt="">' +
+    (set.ids.length > 1 ? '<span class="wiz-hero-count">' + set.ids.length + '</span>' : '');
+  var im = btn.querySelector('img');
+  var objUrl = '';
+  if (set.file) {
+    try { objUrl = URL.createObjectURL(set.file); im.src = objUrl; } catch (e) {}
+  } else if (set.ids.length && typeof loadDriveThumb === 'function') {
+    try { loadDriveThumb(set.ids[set.index], im, document.createElement('div'), null, 'hi'); } catch (e) {}
+  }
+  btn.onclick = function () {
+    if (set.ids.length) window._wizVarZoom({ ids: set.ids, index: set.index });
+    else window._wizVarZoom((im && im.src) || objUrl);
+  };
 };
 
 window._wizVarInsertPhoto = function (container) {
@@ -6630,6 +6864,12 @@ window._wizVarInsertPhoto = function (container) {
   } else if (driveId && typeof loadDriveThumb === 'function' && img) {
     try { loadDriveThumb(driveId, img, img.parentElement); } catch (e) {}
   }
+  // v0.9.1369 — the side preview opens the SAME viewer as the header
+  // thumbnail, so it gains the zoom, the panning and the flip-through for free.
   var wrap = document.getElementById('_wizVarPhotoWrap');
-  if (wrap) wrap.onclick = function () { window._wizVarZoom((img && img.src) || objUrl); };
+  if (wrap) wrap.onclick = function () {
+    var set = window._wizPhotoSet();
+    if (set.ids.length) window._wizVarZoom({ ids: set.ids, index: set.index });
+    else window._wizVarZoom((img && img.src) || objUrl);
+  };
 };

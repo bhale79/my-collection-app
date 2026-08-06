@@ -14599,9 +14599,23 @@ META_WRITES.length = 0; TOASTS.length = 0;
          /d\._fromInbox && wizard\.step <= 1 && d\.itemCategory === 'lionel'/.test(wiz28));
       ok('228 …without disturbing where it already showed',
          /s\.id === 'itemNumGrouping' && d\.itemCategory === 'lionel' && !d\._fillItemMode && !d\.boxOnly/.test(wiz28));
-      ok('228 switching kind carries the photo and the note key through the restart',
-         /\['_addPhotoDriveId', '_fromInbox', '_pinStagedNum'\]\.forEach/.test(wiz28) &&
-         /Object\.assign\(\{ tab: 'collection', _returnPage: _rp, itemCategory: 'lionel' \}, _keep\)/.test(wiz28));
+      // v0.9.1369 — this used to match the keep-list's EXACT literal spelling,
+      // so adding a fourth key to it failed a test whose subject had not
+      // changed. Name the requirement, not the current spelling: every key
+      // that must survive a kind switch has to be IN the list, and the restart
+      // has to merge that list back in. Adding a key now passes; dropping one
+      // still fails, which is the direction that matters.
+      {
+        const _kA = wiz28.indexOf('const _keep = {};');
+        const _kB = wiz28.indexOf('.forEach', _kA);
+        const _keepSrc = _kA > 0 && _kB > _kA ? wiz28.slice(_kA, _kB) : '';
+        const _need = ['_addPhotoDriveId', '_addPhotoDriveIds', '_fromInbox', '_pinStagedNum'];
+        const _missing = _need.filter(k => _keepSrc.indexOf("'" + k + "'") < 0);
+        ok('228 switching kind carries the photo and the note key through the restart',
+           _keepSrc.length > 0 && _missing.length === 0 &&
+           /Object\.assign\(\{ tab: 'collection', _returnPage: _rp, itemCategory: 'lionel' \}, _keep\)/.test(wiz28),
+           _missing.length ? 'missing from the keep list: ' + _missing.join(', ') : '');
+      }
 
       // ── the re-key helper, RUN against a fake store ───────────────────
       {
