@@ -604,7 +604,7 @@ function _gtEnd() {
 function _guidedTour(steps) {
   if (!steps || !steps.length) return;
   _gtEnd();
-  var i = 0, curEl = null, _gtPoll = null;
+  var i = 0, curEl = null, _gtPoll = null, _gtAdv = null;
   var blocker = document.createElement('div');
   blocker.id = 'gt-blocker';
   // v0.9.1363 — MEASURED, not guessed: with no guide running a click on the
@@ -812,6 +812,9 @@ function _guidedTour(steps) {
     // poll is cleared on every redraw and on exit so it can never outlive the
     // step that started it.
     if (_gtPoll) { clearInterval(_gtPoll); _gtPoll = null; }
+    // v0.9.1374 — a pending auto-advance must never outlive the step that
+    // scheduled it, or it fires into a screen it was not written for.
+    if (_gtAdv) { clearTimeout(_gtAdv); _gtAdv = null; }
     // A step that waits for the user MUST let the user reach the app. Anything
     // else is a gate that cannot be opened.
     var _needsUser = (typeof step.awaitUser === 'function');
@@ -833,23 +836,53 @@ function _guidedTour(steps) {
       if (i >= total - 1) _gtEnd(); else { i++; render(); }
     };
     var cx = document.getElementById('gt-cancel'); if (cx) cx.onclick = _gtEnd;
+    // \u2500\u2500 v0.9.1374 (Brad: "still not keeping up with the clicks") \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+    // The gate opening and the guide MOVING were two different things, and
+    // only the first was ever wired up. When the user did what a step asked,
+    // this quietly enabled the Next button and went on showing the same card
+    // \u2014 so from the user's side the guide had simply stopped. v0.9.1373 made
+    // the gate open at the right moment, which was necessary and not
+    // sufficient: a guide that notices and then waits still reads as stuck.
+    //
+    // A step that WAITED for the user now FOLLOWS the user: the moment the
+    // condition turns true, the Next button acknowledges it and the guide
+    // advances on its own after a short beat, so the change is visible rather
+    // than a jump.
+    //
+    // The advance fires ONLY from the poll, which only exists when the gate
+    // started CLOSED. A step whose condition is already satisfied on arrival
+    // therefore renders and stays put \u2014 otherwise the tour would race through
+    // every step whose box was already ticked.
     if (nx && typeof step.awaitUser === 'function') {
-      var _gate = function () {
+      var _gate = function (fromPoll) {
         var ok = open();
         nx.textContent = ok ? (i === total - 1 ? 'Done' : 'Next \u2192') : (step.awaitLabel || 'Next \u2192');
         nx.style.opacity = ok ? '1' : '0.75';
         if (ok && msg) msg.style.display = 'none';
         if (ok && _gtPoll) { clearInterval(_gtPoll); _gtPoll = null; }
+        if (ok && fromPoll) {
+          nx.textContent = '\u2713';           // say it registered, then move
+          var _at = i;
+          if (_gtAdv) clearTimeout(_gtAdv);
+          _gtAdv = setTimeout(function () {
+            _gtAdv = null;
+            // Guards: the user may have pressed Next, gone Back, or closed the
+            // tour during the beat. Any of those means this advance is stale.
+            if (_at !== i) return;
+            if (!document.getElementById('gt-next')) return;
+            if (i >= total - 1) _gtEnd(); else { i++; render(); }
+          }, 550);
+        }
       };
-      _gate();
-      if (!open()) _gtPoll = setInterval(_gate, 400);
+      _gate(false);
+      if (!open()) _gtPoll = setInterval(function () { _gate(true); }, 250);
     }
     var bk = document.getElementById('gt-back'); if (bk) bk.onclick = function(){ if (i > 0) { i--; render(); } };
     var ex = document.getElementById('gt-exit'); if (ex) ex.onclick = _gtEnd;
   }
   function onResize(){ place(curEl); }
   window.addEventListener('resize', onResize);
-  window._gtCleanup = function(){ window.removeEventListener('resize', onResize); if (_gtPoll) { clearInterval(_gtPoll); _gtPoll = null; } };
+  window._gtCleanup = function(){ window.removeEventListener('resize', onResize); if (_gtPoll) { clearInterval(_gtPoll); _gtPoll = null; } if (_gtAdv) { clearTimeout(_gtAdv); _gtAdv = null; } };
   render();
 }
 window._guidedTour = _guidedTour;
