@@ -75,10 +75,10 @@ const GUIDES = {
       { before: function () { if (typeof openWizard === 'function') openWizard('collection'); return 900; },
         selector: '#wiz-input', title: 'Type the item number',
         body: 'The wizard opens straight here. Type a number — <strong>773</strong>, say — and the catalog searches as you type. Pick your item from the list that appears.' },
-      { selector: '[onclick*="PHOTO ID"], #wizard-body [onclick*="_wizPhotoId"], #wizard-modal [onclick*="PhotoId"]', optional: true,
+      { selector: '#wizard-idphoto-btn', optional: true,
         title: 'Or let a photo do it',
         body: 'Don\'t know the number? <strong>Photo ID</strong> on this screen reads it off a picture instead. The free readers try first and cost nothing.' },
-      { selector: '#wizard-body', title: 'Variation, then condition',
+      { title: 'Variation, then condition',
         body: 'Once you pick the item, the wizard asks which <strong>variation</strong> you have — each one carries its description from the reference catalog, and this is the step that decides <em>which</em> 2343 you own. Then condition on a <strong>1 to 10</strong> scale, what you paid, and photos. Every field after the number is optional.' },
       { before: function () { try { if (typeof _doCloseWizard === 'function') _doCloseWizard(); } catch (e) {} return 500; },
         selector: _gNav('filterOwned'), title: 'Where it lands',
@@ -266,11 +266,8 @@ if (typeof window !== 'undefined') { window.tutStart = tutStart; window.tutEnd =
 
 // Help menu toggle
 function tutToggleMenu() {
-  // Phase 1: all Help triggers now open the unified Help Center.
-  if (typeof openHelpHub === 'function') { openHelpHub(); return; }
-  // Fallback to the legacy popup if the hub isn't available.
-  const menu = document.getElementById('tut-help-menu');
-  if (menu) menu.style.display = (menu.style.display === 'block') ? 'none' : 'block';
+  // Every Help trigger opens the one Help Center. There is no second list.
+  if (typeof openHelpHub === 'function') openHelpHub();
 }
 
 function _buildTutorialUI() {
@@ -294,22 +291,11 @@ function _buildTutorialUI() {
     (_foot || document.body).appendChild(widget);
   })();
 
-  // Help menu
-  var menu = document.createElement('div');
-  menu.id = 'tut-help-menu';
-  menu.innerHTML =
-    '<div class="tut-menu-header">&#x1F4D6; Help &amp; Tutorials</div>' +
-    '<button class="tut-menu-item" onclick="tutStart(\'add-item\')"><div class="tut-menu-icon" style="background:rgba(232,64,28,0.15)">&#x1F4E6;</div>How to add an item</button>' +
-    '<button class="tut-menu-item" onclick="tutStart(\'add-want\')"><div class="tut-menu-icon" style="background:rgba(41,128,185,0.15)">&#x2B50;</div>How to add a want list item</button>' +
-    '<button class="tut-menu-item" onclick="tutStart(\'want-to-collection\')"><div class="tut-menu-icon" style="background:rgba(46,204,113,0.15)">&#x2705;</div>Move a want item to your collection</button>' +
-    '<button class="tut-menu-item" onclick="tutStart(\'list-for-sale\')"><div class="tut-menu-icon" style="background:rgba(230,126,34,0.15)">&#x1F3F7;&#xFE0F;</div>List an item for sale</button>' +
-    '<button class="tut-menu-item" onclick="tutStart(\'mark-sold\')"><div class="tut-menu-icon" style="background:rgba(46,204,113,0.15)">&#x1F4B0;</div>Mark an item as sold</button>' +
-    '<button class="tut-menu-item" onclick="tutStart(\'remove-item\')"><div class="tut-menu-icon" style="background:rgba(150,150,150,0.15)">&#x1F5D1;&#xFE0F;</div>Remove / delete an item</button>' +
-    '<button class="tut-menu-item" onclick="tutStart(\'reports\')"><div class="tut-menu-icon" style="background:rgba(180,140,60,0.15)">&#x1F4CA;</div>How to generate a report</button>' +
-    '<button class="tut-menu-item" onclick="tutStart(\'photo-inbox\')"><div class="tut-menu-icon" style="background:rgba(41,128,185,0.15)">&#x1F4E5;</div>Photo Inbox: get photos in and file them</button>' +
-    '<button class="tut-menu-item" onclick="tutStart(\'photo-inbox-reading\')"><div class="tut-menu-icon" style="background:rgba(41,128,185,0.15)">&#x1F50D;</div>Photo Inbox: reading item numbers</button>' +
-    '<button class="tut-menu-item" onclick="tutStart(\'photo-inbox-groups\')"><div class="tut-menu-icon" style="background:rgba(46,204,113,0.15)">&#x1F686;</div>Photo Inbox: several photos, one item</button>';
-  document.body.appendChild(menu);
+  // v0.9.1357: the legacy popup menu is GONE. It carried its own hardcoded
+  // list of guides, which had already drifted out of step with GUIDES — a
+  // second list that can disagree with the first is the bug, not the fix.
+  // tutToggleMenu has always preferred openHelpHub, so nothing reached it.
+
 
   // Tutorial spotlight overlay
   var overlay = document.createElement('div');
@@ -553,6 +539,33 @@ function _guidedTour(steps) {
     else { top = r.bottom + gap; left = Math.min(Math.max(over, r.left), W - cw - m); setMascot(false); }
     left = Math.min(Math.max(m, left), W - cw - m);
     top = Math.min(Math.max(m, top), H - ch - m);
+
+    // v0.9.1357 (Brad: "the help screen covers the actual button you meant to
+    // highlight"). Everything above CHOOSES a side, then clamps to the
+    // viewport — and the clamp can shove the card straight back over the
+    // target. Inside a modal there is often no side with room at all, and the
+    // fallback is 'below', which then clamps upward onto the thing it is
+    // pointing at. A tour that hides its own subject is worse than no tour.
+    //
+    // Last word: if the card still overlaps the spotlight, move it to whichever
+    // side has the most clear space and push it fully clear. If NOTHING can
+    // clear it — a target taller and wider than the space around it — sit the
+    // card at the bottom of the screen, which at least never hides the top of
+    // the highlight.
+    var ov = !(left + cw < r.left - 2 || left > r.right + 2 || top + ch < r.top - 2 || top > r.bottom + 2);
+    if (ov) {
+      var room = { below: H - r.bottom, above: r.top, right: W - r.right, left: r.left };
+      var best = Object.keys(room).sort(function (a, b) { return room[b] - room[a]; })[0];
+      if (best === 'below' && room.below >= ch + gap) top = r.bottom + gap;
+      else if (best === 'above' && room.above >= ch + gap) top = r.top - ch - gap;
+      else if (best === 'right' && room.right >= cw + gap) left = r.right + gap;
+      else if (best === 'left' && room.left >= cw + gap) left = r.left - cw - gap;
+      else { top = H - ch - m; left = Math.min(Math.max(m, left), W - cw - m); }
+      left = Math.min(Math.max(m, left), W - cw - m);
+      top = Math.min(Math.max(m, top), H - ch - m);
+      setMascot(left > r.left);
+    }
+
     callout.style.left = left + 'px';
     callout.style.top = top + 'px';
   }
