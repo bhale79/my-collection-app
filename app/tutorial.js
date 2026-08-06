@@ -37,6 +37,39 @@
 
 function _gNav(fn) { return '.nav-item[onclick*="' + fn + '"]'; }
 
+// ── v0.9.1373 (Brad: "i picked what i had, the screen advanced but the help
+// menu didn't know i did it") ──────────────────────────────────────────────
+// The add-item guide waited for the wizard's HEADER to stop reading "Step 1
+// of". But picking a match does not advance the wizard's step — it fills the
+// number, shows the green "Found" banner and reveals the grouping row, all
+// still on Step 1 of 6. So the guide sat there telling him to tap a match he
+// had already tapped.
+//
+// It waited on a RENDERING of the state (a line of text in a header) instead
+// of the state itself. Today's other bug was the same shape: a rank read off
+// prose stopped working the moment the prose changed. Ask the wizard what it
+// knows, not what it is currently displaying.
+//
+// Named, exported and tested, rather than an anonymous closure inside a guide
+// step where nothing could reach it.
+function _gtMatchAccepted() {
+  try {
+    // 1. The fact: the wizard has resolved a catalogue row.
+    var w = (typeof wizard !== 'undefined' && wizard) ? wizard : null;
+    if (w && w.matchedItem) return true;
+    if (w && w.data && w.data._partialMatches && w.data._partialMatches.length === 0 &&
+        w.data.itemNum && String(w.data.itemNum).trim()) return true;
+    // 2. Or the wizard has moved on by itself (items with no grouping step).
+    var h = document.querySelector('#wizard-modal .modal-header, #wizard-modal h2');
+    if (h && !/Step 1 of/i.test(h.innerText || '')) return true;
+    // 3. Or the grouping row it only reveals AFTER a match is accepted is up.
+    var g = document.getElementById('wiz-grouping-btns');
+    if (g && g.offsetParent !== null && g.querySelector('button')) return true;
+  } catch (e) {}
+  return false;
+}
+if (typeof window !== 'undefined') window._gtMatchAccepted = _gtMatchAccepted;
+
 const GUIDES = {
 
   'tour': {
@@ -90,15 +123,9 @@ const GUIDES = {
       { selector: '#wiz-suggestions', optional: true,
         title: 'Pick the one you have',
         awaitLabel: 'Next \u2192',
-        awaitMsg: 'Please tap one of the matches in the list to pick your item, then press the orange <strong>NEXT</strong> at the bottom of the wizard.',
-        awaitUser: function () {
-          // The wizard's own header carries the step number. While it still
-          // reads "Step 1 of", no item has been accepted and there is no
-          // variation screen to talk about yet.
-          var h = document.querySelector('#wizard-modal .modal-header, #wizard-modal h2');
-          return !!(h && !/Step 1 of/i.test(h.innerText || ''));
-        },
-        body: 'These are the matches for what you typed. <strong>Tap the one you have</strong> — then press the orange <strong>NEXT</strong> at the bottom of the wizard.<br><br>Not sure which is yours? <strong>View ↗</strong> on any row opens that item\'s reference page in a new tab so you can look at it first.' },
+        awaitMsg: 'Tap one of the matches in the list to pick your item — I\'ll carry on as soon as you do.',
+        awaitUser: _gtMatchAccepted,
+        body: 'These are the matches for what you typed. <strong>Tap the one you have</strong> and I\'ll move on with you.<br><br>Not sure which is yours? <strong>View ↗</strong> on any row opens that item\'s reference page in a new tab so you can look at it first.' },
       // v0.9.1366 (Brad, verified by driving the live wizard) — after a match is
       // picked the wizard shows a grouping row it never used to mention:
       // "Engine Only / Engine + Tender" for steam, "A Powered / A Dummy / AA /

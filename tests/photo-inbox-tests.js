@@ -20213,6 +20213,59 @@ META_WRITES.length = 0; TOASTS.length = 0;
          /_dateForSort\(db\) - _dateForSort\(da\)/.test(dash88));
     })();
 
+    // ═══════════════════════════════════════════════════════════
+    // 289. THE GUIDE NOTICES THAT YOU PICKED SOMETHING
+    //
+    // Brad, mid add-item guide: "i picked what i had, the screen advanced but
+    // the help menu didn't know i did it."
+    //
+    // The step waited for the wizard's HEADER to stop reading "Step 1 of".
+    // Picking a match does not advance the step — it fills the number, shows
+    // the Found banner and reveals the grouping row, all still on Step 1 of 6.
+    // So the guide kept nagging him to tap a match he had already tapped.
+    //
+    // It waited on a RENDERING of the state instead of the state. Same shape
+    // as v0.9.1372's ranking read off prose. Ask the wizard what it KNOWS.
+    // ═══════════════════════════════════════════════════════════
+    section('289. The guide notices that you picked something');
+    (function () {
+      const p89 = require('path'), vm89 = require('vm');
+      const tut89 = fs.readFileSync(p89.join(__dirname, '..', 'app', 'tutorial.js'), 'utf8');
+      const a89 = tut89.indexOf('function _gtMatchAccepted() {');
+      const b89 = tut89.indexOf('const GUIDES = {');
+      ok('289 the condition is a named, reachable function, not a buried closure',
+         a89 > 0 && b89 > a89);
+      ok('289 the add-item step uses it',
+         /awaitUser: _gtMatchAccepted,/.test(tut89));
+      ok('289 …and no longer decides by reading the header text',
+         !/return !!\(h && !\/Step 1 of\/i\.test\(h\.innerText \|\| ''\)\);/.test(tut89));
+
+      function run(st) {
+        const sb = { console: { warn: function () {} }, window: {}, document: {
+          querySelector: () => st.header ? ({ innerText: st.header }) : null,
+          getElementById: (id) => (st.grouping && id === 'wiz-grouping-btns')
+            ? ({ offsetParent: {}, querySelector: () => ({}) }) : null } };
+        if (st.wizard !== undefined) sb.wizard = st.wizard;
+        vm89.createContext(sb);
+        vm89.runInContext(tut89.slice(a89, b89) + '\n;this.f = _gtMatchAccepted;', sb);
+        return sb.f();
+      }
+
+      ok('289 BRAD\'S BUG: a picked match counts, even though the header still says Step 1',
+         run({ header: 'Collection · Step 1 of 6 Item Number', grouping: true,
+               wizard: { matchedItem: { itemNum: '773' }, data: { itemNum: '773' } } }) === true);
+      ok('289 nothing picked yet still waits (the guide must not run ahead)',
+         run({ header: 'Collection · Step 1 of 6 Item Number', grouping: false,
+               wizard: { matchedItem: null, data: {} } }) === false);
+      ok('289 an item with no grouping step, where the wizard advances itself, still counts',
+         run({ header: 'Collection · Step 2 of 6 Which variation is it?', grouping: false,
+               wizard: { matchedItem: null, data: {} } }) === true);
+      ok('289 the visible grouping row alone is enough when the wizard object is out of reach',
+         run({ header: 'Collection · Step 1 of 6', grouping: true }) === true);
+      ok('289 it answers false rather than throwing when there is no wizard at all',
+         run({ header: '', grouping: false }) === false);
+    })();
+
   })().then(function () {
     console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
     process.exit(fail ? 1 : 0);
