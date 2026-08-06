@@ -81,13 +81,13 @@ const GUIDES = {
     steps: [
       { title: 'Shoot now, type later',
         body: 'The Photo Inbox holds photos until you file them, so you can photograph a whole cabinet in one go and do the work another day.' },
-      { selector: '#pin-addbtn, [onclick*="_pinAddPhotos"]', title: 'Getting photos in',
+      { selector: '[onclick*="_pinAddSource"]', title: 'Getting photos in',
         body: '<strong>Add photos…</strong> offers <strong>From This Computer</strong> or <strong>From Google Photos</strong>. On a computer you can also drag photos straight onto the page. On a phone, <strong>Take with Phone</strong> opens the camera.' },
       { title: 'Say what you are shooting — once',
         body: 'Before the first photo you are asked what you are about to photograph. Set the maker, scale and era once and every photo in that session carries it. That stamp is what lets the reader search the right catalog instead of all of them.' },
       { selector: '#pin-grid, .pin-grid', title: 'One tile is one item',
         body: 'A tile is an <em>item</em>, not a photo — a stack of several shots shows a count. The strip along the bottom gives the era, what the reader found, and the date. The <strong>✂</strong> crops and rotates, and cropping to one item is the biggest thing you can do to get a right answer.' },
-      { selector: '[onclick*="_pinFilterMenu"], #pin-filter-wrap, #pin-filter', title: 'Finding things in a big inbox',
+      { selector: '#pin-filter-select', title: 'Finding things in a big inbox',
         body: 'Filter by how it read, by maker and era, or by group kind — everything <strong>Not touched yet</strong>, say. The filters combine, and <strong>Show all</strong> clears them.' },
       { selector: '#pin-refresh-btn', title: 'Refresh',
         body: 'Re-reads the folder from Google Drive. Use it if a load only half-worked, or to pull in photos you just shot on your phone while this page was open.' },
@@ -100,11 +100,11 @@ const GUIDES = {
     icon: '🔍', label: 'Photo Inbox: reading item numbers', desc: 'What is free, what costs a photo ID',
     open: function () { if (typeof _pinGo === 'function') _pinGo(null); },
     steps: [
-      { selector: '#pin-identify-btn', title: 'Free first, always',
+      { selector: '#pin-identify-btn', optional: true, title: 'Free first, always',
         body: 'Every photo is checked <strong>free</strong> before anything is spent. This reads printed numbers and barcodes across the whole inbox at no cost. Run it as often as you like.' },
       { title: 'What a reading looks like',
         body: 'On a tile, <strong>2328?</strong> means fairly confident. <strong>best guess</strong> in orange means treat it with suspicion. <strong>could not read</strong> means it tried and found nothing. Check any of them against the item in your hand — this is a helper, not an oracle.' },
-      { selector: '#pin-idall-btn', title: 'When free is not enough',
+      { selector: '#pin-idall-btn', optional: true, title: 'When free is not enough',
         body: 'A closer read costs <strong>one photo ID per item</strong> from a daily allowance that refreshes overnight. This button does the whole backlog and tells you the cost before it starts.' },
       { title: 'Same read, three doors',
         body: 'Ticking photos and pressing <strong>Read these</strong> does just those. On a single review card, <strong>Read this photo (1 photo ID)</strong> does one. Same read, same price — and the price is on the button before you press it.' },
@@ -121,7 +121,7 @@ const GUIDES = {
     icon: '🚂', label: 'Photo Inbox: several photos, one item', desc: 'Engine + tender, A units, sets and boxes',
     open: function () { if (typeof _pinGo === 'function') _pinGo(null); },
     steps: [
-      { selector: '[onclick*="_pinGroupMode"], #pin-group-btn', title: 'Why group photos',
+      { selector: '#pin-group-btn', title: 'Why group photos',
         body: 'Four shots of the same boxcar should become one item, not four. Press <strong>Group photos</strong>, tap the photos in the grid, and they collect in a panel.' },
       { title: 'Apply is what saves it',
         body: 'This one catches people out. <strong>Apply</strong> saves the grouping — <strong>✓ Finished</strong> only closes the mode. Tick, then Apply, then Finished.' },
@@ -146,7 +146,7 @@ const GUIDES = {
       // sidebar says "Want / Upgrade".
       { selector: _gNav('buildUpgradePage'), title: 'Where your want list lives',
         body: 'It is <strong>Want / Upgrade</strong> in the sidebar — one page for things you are hunting and things you want a better copy of.' },
-      { selector: '#page-upgrade [onclick*="Add"], #page-upgrade .btn-primary', title: 'Adding one',
+      { selector: '#page-upgrade [onclick*="Add"], #page-upgrade .btn-primary', optional: true, title: 'Adding one',
         body: 'Press <strong>+ ADD</strong>, then type the item number. The catalog finds it as you type and you pick the variation you are after.' },
       { title: 'Set a target price',
         body: 'Optional, but useful — what you are willing to pay. It shows on the row so you can judge a deal quickly at a show.' },
@@ -193,7 +193,7 @@ const GUIDES = {
         body: 'Open <strong>My Collection</strong> and tap the item you have sold to open its page.' },
       { title: 'Record the sale',
         body: 'Press the green <strong>Record Sale</strong> button in the toolbar. Enter the price, the date, and the buyer or notes if you want them — only the price is required.' },
-      { selector: _gNav('buildSoldPage'), title: 'Where it goes',
+      { selector: _gNav("showPage('sold'"), title: 'Where it goes',
         body: 'The item moves out of your active collection into <strong>Sold Items</strong>, and your totals update automatically. Nothing is deleted — the record and its photos stay.' }
     ]
   },
@@ -221,7 +221,7 @@ const GUIDES = {
       // button. It predated the reports rewrite by a long way.
       { selector: _gNav('showPage(\'reports\'') , title: 'Where reports live',
         body: 'Everything printable is on this one page.' },
-      { selector: '#page-reports', title: 'The built-in reports',
+      { selector: '#report-library', title: 'The built-in reports',
         body: 'There are four ready to run — <strong>Insurance</strong> (every item with its estimated worth, for scheduling cover), <strong>Collection</strong>, <strong>Want / Upgrade / Parts</strong> (great to print for a show), and <strong>Contacts</strong>.' },
       { title: 'Or build your own',
         body: 'The <strong>Report Builder</strong> lets you choose exactly which columns you want and which items to include, rather than taking a fixed layout.' },
