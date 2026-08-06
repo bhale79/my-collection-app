@@ -602,6 +602,12 @@ function _guidedTour(steps) {
       +   '</div>'
       + '</div>';
     if (curEl) { try { curEl.scrollIntoView({ block: 'center', inline: 'nearest' }); } catch(e){} }
+    // v0.9.1356: place it NOW, then correct after layout settles. It used to
+    // be rAF-only, and rAF does not fire in a hidden tab or a throttled one —
+    // the spotlight then sat at 0×0 in the corner with the callout floating
+    // free. Found while probing from a backgrounded tab, which is not how a
+    // user meets it, but a delayed frame on a slow device is the same failure.
+    place(curEl);
     requestAnimationFrame(function(){ place(curEl); });
     var nx = document.getElementById('gt-next'); if (nx) nx.onclick = function(){ if (i >= total - 1) _gtEnd(); else { i++; render(); } };
     var bk = document.getElementById('gt-back'); if (bk) bk.onclick = function(){ if (i > 0) { i--; render(); } };
