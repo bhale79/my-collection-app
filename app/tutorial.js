@@ -69,7 +69,8 @@ const GUIDES = {
       // type, you pick, and Next unlocks when the wizard has actually moved on.
       { before: function () { if (typeof openWizard === 'function') openWizard('collection'); return 900; },
         selector: '#wiz-input', title: 'Type the item number',
-        awaitLabel: 'Type a number first…',
+        awaitLabel: 'Next \u2192',
+        awaitMsg: 'Please enter an item number first — try <strong>773</strong> — then tap the match you want from the list.',
         awaitUser: function () {
           var el = document.getElementById('wiz-input');
           return !!(el && String(el.value).trim().length >= 2);
@@ -79,7 +80,8 @@ const GUIDES = {
         title: 'Or let a photo do it',
         body: 'Don\'t know the number? <strong>Photo ID</strong> on this screen reads it off a picture instead. The free readers try first and cost nothing.' },
       { title: 'Now press Next in the wizard',
-        awaitLabel: 'Press Next in the wizard…',
+        awaitLabel: 'Next \u2192',
+        awaitMsg: 'Press the orange <strong>NEXT</strong> at the bottom of the wizard first. If it will not move, tap one of the matches under the number box to pick your item.',
         awaitUser: function () {
           // The wizard's own header carries the step number. When it leaves
           // step 1 the user has successfully picked an item, and only then is
@@ -622,9 +624,16 @@ function _guidedTour(steps) {
       + '</div>'
       + '<div style="font-size:0.84rem;color:var(--text-mid,#bbb);line-height:1.5;margin-top:0.35rem">' + (step.body || '') + '</div>'
       + '</div>'
+      // v0.9.1362 (Brad): a step that needs something typed says so HERE when
+      // Next is pressed, rather than Next simply not working. A dead button
+      // teaches nothing; "Please enter an item number — try 773" does.
+      + '<div id="gt-gate-msg" style="display:none;margin:0 0.95rem 0.5rem;padding:0.45rem 0.6rem;border-radius:8px;background:color-mix(in srgb, rgb(240,80,8) 14%, transparent);border:1px solid var(--accent,#f05008);color:var(--text,#eee);font-size:0.79rem;line-height:1.4"></div>'
       + '<div style="display:flex;align-items:center;justify-content:space-between;padding:0.55rem 0.9rem;border-top:1px solid var(--border,#333)">'
       +   '<span style="font-size:0.72rem;color:var(--text-dim,#888)">Step ' + (i + 1) + ' of ' + total + '</span>'
       +   '<div style="display:flex;gap:0.4rem">'
+      // Brad: "add a cancel button so the user can get out of the help menu."
+      // The × in the corner was the only way out and does not read as one.
+      +     '<button type="button" id="gt-cancel" style="padding:0.4rem 0.7rem;border-radius:7px;border:1px solid var(--border,#333);background:none;color:var(--text-dim,#888);font-family:inherit;font-size:0.8rem;cursor:pointer">Cancel</button>'
       +     (i > 0 ? '<button type="button" id="gt-back" style="padding:0.4rem 0.7rem;border-radius:7px;border:1px solid var(--border,#333);background:var(--surface2,#222);color:var(--text,#eee);font-family:inherit;font-size:0.8rem;cursor:pointer">Back</button>' : '')
       +     '<button type="button" id="gt-next" style="padding:0.4rem 0.85rem;border-radius:7px;border:none;background:var(--accent,#f05008);color:#fff;font-family:inherit;font-size:0.8rem;font-weight:700;cursor:pointer">' + (i === total - 1 ? 'Done' : 'Next →') + '</button>'
       +   '</div>'
@@ -652,20 +661,32 @@ function _guidedTour(steps) {
     // step that started it.
     if (_gtPoll) { clearInterval(_gtPoll); _gtPoll = null; }
     var nx = document.getElementById('gt-next');
-    if (nx) nx.onclick = function(){ if (i >= total - 1) _gtEnd(); else { i++; render(); } };
+    var msg = document.getElementById('gt-gate-msg');
+    var open = function () {
+      if (typeof step.awaitUser !== 'function') return true;
+      try { return !!step.awaitUser(); } catch (e) { return true; }  // a broken gate must never trap the user
+    };
+    if (nx) nx.onclick = function () {
+      if (!open()) {
+        // Say what is needed. Next stays live so pressing it TEACHES rather
+        // than doing nothing at all.
+        if (msg) { msg.innerHTML = step.awaitMsg || 'Please finish this step first.'; msg.style.display = ''; place(curEl); }
+        return;
+      }
+      if (msg) msg.style.display = 'none';
+      if (i >= total - 1) _gtEnd(); else { i++; render(); }
+    };
+    var cx = document.getElementById('gt-cancel'); if (cx) cx.onclick = _gtEnd;
     if (nx && typeof step.awaitUser === 'function') {
       var _gate = function () {
-        var ok = false;
-        try { ok = !!step.awaitUser(); } catch (e) { ok = true; }   // a broken gate must not trap the user
-        nx.disabled = !ok;
-        nx.style.opacity = ok ? '1' : '0.5';
-        nx.style.cursor = ok ? 'pointer' : 'default';
-        nx.textContent = ok ? (i === total - 1 ? 'Done' : 'Next \u2192')
-                            : (step.awaitLabel || 'Waiting for you\u2026');
+        var ok = open();
+        nx.textContent = ok ? (i === total - 1 ? 'Done' : 'Next \u2192') : (step.awaitLabel || 'Next \u2192');
+        nx.style.opacity = ok ? '1' : '0.75';
+        if (ok && msg) msg.style.display = 'none';
         if (ok && _gtPoll) { clearInterval(_gtPoll); _gtPoll = null; }
       };
       _gate();
-      if (nx.disabled) _gtPoll = setInterval(_gate, 400);
+      if (!open()) _gtPoll = setInterval(_gate, 400);
     }
     var bk = document.getElementById('gt-back'); if (bk) bk.onclick = function(){ if (i > 0) { i--; render(); } };
     var ex = document.getElementById('gt-exit'); if (ex) ex.onclick = _gtEnd;
