@@ -4531,6 +4531,16 @@
     } catch (e) { console.warn('[Inbox] could not re-key the staged photo note', e && e.message); }
   };
 
+  // v0.9.1370 — ONE reader for "what is queued under this number?". Three
+  // shapes have existed: a plain link string (pre-1118), a single note object,
+  // and now a list of note objects. Every caller comes through here so the
+  // shape is decided in one place rather than sniffed at each use.
+  function _pendList(v) {
+    if (v == null) return [];
+    return Array.isArray(v) ? v.filter(function (x) { return x != null; }) : [v];
+  }
+  if (typeof window !== 'undefined') window._pendList = _pendList;
+
   window.rrPinSetPhotoSaved = function (itemNum) {
     try {
       var n = String(itemNum || '').trim();
@@ -4542,7 +4552,21 @@
       });
       if (!key) return;                                  // nothing staged for this member
       var pend = JSON.parse(localStorage.getItem(PENDING_KEY) || '{}');
-      if (!pend[n]) pend[n] = stage[key];                // never clobber a single-add note
+      // ── v0.9.1370 (Brad's two 3362s) ──────────────────────────────────
+      // This used to read `if (!pend[n]) pend[n] = stage[key];` — one note
+      // per item NUMBER, and it REFUSED to file a second one. Then it deleted
+      // the staged copy regardless, so the second copy's photos were dropped
+      // on the floor: nothing anywhere would ever move them, and they sat in
+      // the inbox looking like they had been ignored. Brad added two 3362s
+      // and the second one's photos never left.
+      //
+      // You can own several of the same number — the app has said so since
+      // v0.9.966 — so a queue keyed by number was always going to lose one.
+      // It is a LIST now, one note per copy, filed in the order they were
+      // saved. Old entries (a bare object, or a plain link string from before
+      // v0.9.1118) are read as a one-item list, so nothing already queued on
+      // anyone's machine is lost.
+      pend[n] = _pendList(pend[n]).concat([stage[key]]);
       delete stage[key];                                 // armed once — a repeat car reuses the same folder
       localStorage.setItem(PENDING_KEY, JSON.stringify(pend));
       localStorage.setItem(SETSTAGE_KEY, JSON.stringify(stage));
@@ -4590,7 +4614,11 @@
         // generous week to find its row, then retires. Its photos stay safely
         // in the inbox either way — this expires the NOTE, never the photos.
         try {
-          var _ts = (pend[num] && typeof pend[num] === 'object' && pend[num].ts) || 0;
+          // v0.9.1370 — read the timestamp off the OLDEST queued note, not off
+          // the key. With a list, `pend[num].ts` is undefined, and an
+          // undefined timestamp meant the note could never retire.
+          var _first = _pendList(pend[num])[0];
+          var _ts = (_first && typeof _first === 'object' && _first.ts) || 0;
           if (_ts && (_rrNowMs() - _ts) > 604800000) {
             var _pe = JSON.parse(localStorage.getItem(PENDING_KEY) || '{}');
             delete _pe[num];
@@ -4602,7 +4630,13 @@
       }
       _flushingNums[num] = true;
       try {
-        var rec = pend[num];
+        // v0.9.1370 — the queue holds one note per COPY. Take the oldest and
+        // pair it with the row picked above (which prefers a copy that has no
+        // photo link yet). The rest wait for the next dashboard build, by
+        // which time this row HAS a photo link, so the next note lands on the
+        // next copy instead of piling onto the same one.
+        var rec = _pendList(pend[num])[0];
+        if (!rec) { try { var _p0 = JSON.parse(localStorage.getItem(PENDING_KEY) || '{}'); delete _p0[num]; localStorage.setItem(PENDING_KEY, JSON.stringify(_p0)); } catch (e0) {} continue; }
         // v0.9.1118: set-add notes are written without Drive folders (keeps
         // the button instant) — resolve them here, at move time. A failure
         // just leaves the note for the next dashboard build to retry.
@@ -4633,8 +4667,14 @@
           // Remember the move survived, so a held-back note never repeats it.
           rec.moved = true;
           try {
+            // v0.9.1370 — mark the note we are actually working on (the first
+            // in this number's queue), not "the entry for this number".
             var _pm = JSON.parse(localStorage.getItem(PENDING_KEY) || '{}');
-            if (_pm[num] && typeof _pm[num] === 'object') { _pm[num].moved = true; localStorage.setItem(PENDING_KEY, JSON.stringify(_pm)); }
+            var _pmL = _pendList(_pm[num]);
+            if (_pmL.length && typeof _pmL[0] === 'object') {
+              _pmL[0].moved = true; _pm[num] = _pmL;
+              localStorage.setItem(PENDING_KEY, JSON.stringify(_pm));
+            }
           } catch (ePM) {}
         }
         // ── v0.9.1192 (Brad: every item added today has no photo link) ──
@@ -4668,7 +4708,16 @@
         // Retire the note ONLY when its work finished. Deleting unconditionally
         // is what turned a retryable miss into permanent, silent data loss.
         if (_linkDone) {
-          try { var p2 = JSON.parse(localStorage.getItem(PENDING_KEY) || '{}'); delete p2[num]; localStorage.setItem(PENDING_KEY, JSON.stringify(p2)); } catch (eD) {}
+          // v0.9.1370 — retire ONLY the note just filed. Any further copies of
+          // this number keep their place in the queue; deleting the whole key
+          // is what threw Brad's second 3362 away.
+          try {
+            var p2 = JSON.parse(localStorage.getItem(PENDING_KEY) || '{}');
+            var l2 = _pendList(p2[num]);
+            l2.shift();
+            if (l2.length) p2[num] = l2; else delete p2[num];
+            localStorage.setItem(PENDING_KEY, JSON.stringify(p2));
+          } catch (eD) {}
         }
         try { _pinRefresh(); } catch (eR) {}
       } finally { delete _flushingNums[num]; }

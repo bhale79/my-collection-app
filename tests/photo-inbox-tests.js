@@ -6575,8 +6575,20 @@ META_WRITES.length = 0; TOASTS.length = 0;
     // The Drive move must not repeat when the note is held back for a retry.
     ok('the move is skipped once rec.moved is set',
        /!rec\.moved && rec\.files && rec\.files\.length/.test(pinSrc));
-    ok('...and rec.moved is persisted, not just held in memory',
-       /_pm\[num\]\.moved = true;[\s\S]{0,80}setItem\(PENDING_KEY/.test(pinSrc));
+    // v0.9.1370 — this used to pin the exact line `_pm[num].moved = true;`.
+    // When the queue became a LIST the flag moved onto the note rather than
+    // the key, and a test whose subject had not changed went red. Name the
+    // requirement: right after the in-memory flag is set, the store is read,
+    // a moved flag is written, and the store is written back. That fails if
+    // the persistence is dropped, which is the direction that matters.
+    {
+      const _mvA = pinSrc.indexOf('rec.moved = true;');
+      const _mv = _mvA > 0 ? pinSrc.slice(_mvA, _mvA + 600) : '';
+      ok('...and rec.moved is persisted, not just held in memory',
+         /getItem\(PENDING_KEY/.test(_mv) && /\.moved = true;/.test(_mv.slice(_mv.indexOf('getItem(PENDING_KEY'))) &&
+         /setItem\(PENDING_KEY/.test(_mv),
+         _mv ? 'found the block, but it does not read-set-write the store' : 'rec.moved block not found');
+    }
 
     // The repair pass: it must never aim at a placeholder either.
     const rIdx = pinSrc.indexOf('async function _repairMissingPhotoLinks');
@@ -19865,6 +19877,127 @@ META_WRITES.length = 0; TOASTS.length = 0;
          /186 rows differ/.test(note) && /31 match/.test(note));
       ok('285 …and states the outcome plainly',
          /Zero number\+variation collisions remain/.test(note));
+    })();
+
+    // ═══════════════════════════════════════════════════════════
+    // 286. TWO COPIES OF ONE NUMBER KEEP THEIR OWN PHOTOS
+    //
+    // Brad, 2026-08-06, with a screenshot of two 3362 Large Log Cars:
+    //   "i was adding the 3362. I have two in the photo inbox. I added one,
+    //    and i came back and added what i thought was the second one. but it
+    //    was the same photo. it didn't come off the photo inbox."
+    //
+    // The inbox does not move photos on Save. It queues a note — "when 3362
+    // appears in the collection, move these photos" — and a later pass acts on
+    // it. That queue was keyed by item NUMBER and held ONE note, and
+    // rrPinSetPhotoSaved's `if (!pend[n])` guard REFUSED to add a second one,
+    // then deleted the staged copy regardless. The second copy's photos were
+    // dropped: nothing remained that would ever file them, so they sat in the
+    // inbox looking ignored.
+    //
+    // You can own several of the same number — v0.9.966 says so outright — so
+    // a one-note-per-number queue was always going to lose one. This is the
+    // SEVENTH time this project has shipped a bug whose root is a fact keyed
+    // by item number alone.
+    //
+    // The functions are RUN against a fake store, not read. The slice starts
+    // at _pendList on purpose: the first run of this reproduction stopped at
+    // rrPinSetPhotoSaved, so the code threw ReferenceError inside its own
+    // try/catch and the harness cheerfully reported "no bug". A slice that
+    // stops short of a function its subject uses tests nothing.
+    // ═══════════════════════════════════════════════════════════
+    section('286. Two copies of one number keep their own photos');
+    (function () {
+      const p86 = require('path');
+      const src86 = fs.readFileSync(p86.join(__dirname, '..', 'app', 'photo-inbox.js'), 'utf8');
+      const a0 = src86.indexOf('  function _pendList(v) {');
+      const a1 = src86.indexOf('window.rrPinSetPhotoSaved = function (itemNum) {');
+      const b1 = src86.indexOf('// When an item is actually saved, file any pending inbox photos', a1);
+      ok('286 the queue reader and the arm both exist, in that order',
+         a0 > 0 && a1 > a0 && b1 > a1);
+
+      const vm86 = require('vm');
+      function arm(store) {
+        const sb = {
+          localStorage: {
+            getItem: k => (k in store ? store[k] : null),
+            setItem: (k, v) => { store[k] = v; }
+          },
+          console: { warn: function () {} },
+          SETSTAGE_KEY: 'rr_inbox_setstage',
+          PENDING_KEY: 'rr_inbox_pending',
+          normalizeItemNum: n => String(n || '').trim().toUpperCase().replace(/-/g, ''),
+          window: {}
+        };
+        vm86.createContext(sb);
+        vm86.runInContext(src86.slice(a0, b1), sb);
+        return { fn: sb.window.rrPinSetPhotoSaved, list: sb.window._pendList };
+      }
+
+      // Brad's exact sequence: add copy 1, save; add copy 2, save — with the
+      // flush not yet having cleared the first note (it runs on the next
+      // dashboard build, and a placeholder row can hold it back for longer).
+      const store = {};
+      const { fn: armed, list: pendList } = arm(store);
+      store.rr_inbox_setstage = JSON.stringify({ '3362': { link: 'A', ts: 1, files: [{ id: 'A1' }, { id: 'A2' }] } });
+      armed('3362');
+      store.rr_inbox_setstage = JSON.stringify({ '3362': { link: 'B', ts: 2, files: [{ id: 'B1' }, { id: 'B2' }] } });
+      armed('3362');
+
+      const pend = JSON.parse(store.rr_inbox_pending || '{}');
+      const notes = pendList(pend['3362']);
+      const queued = notes.reduce((acc, n) => acc.concat((n.files || []).map(f => f.id)), []);
+
+      ok('286 BRAD\'S BUG: the second copy\'s photos are still queued to leave the inbox',
+         queued.indexOf('B1') > -1 && queued.indexOf('B2') > -1, queued.join(',') || '(nothing queued)');
+      ok('286 …without losing the first copy\'s',
+         queued.indexOf('A1') > -1 && queued.indexOf('A2') > -1, queued.join(','));
+      ok('286 …as two separate notes, in the order they were saved',
+         notes.length === 2 && notes[0].link === 'A' && notes[1].link === 'B',
+         JSON.stringify(notes.map(n => n.link)));
+      ok('286 the staged copy is consumed both times, so nothing files twice',
+         Object.keys(JSON.parse(store.rr_inbox_setstage || '{}')).length === 0);
+
+      // A third copy queues too — the list is not a special case for two.
+      store.rr_inbox_setstage = JSON.stringify({ '3362': { link: 'C', ts: 3, files: [{ id: 'C1' }] } });
+      armed('3362');
+      ok('286 a third copy queues behind the other two',
+         pendList(JSON.parse(store.rr_inbox_pending)['3362']).length === 3);
+
+      // ── back-compat: entries already on someone's machine ──
+      const old1 = { rr_inbox_pending: JSON.stringify({ '3362': { link: 'OLD', ts: 1, files: [{ id: 'O1' }] } }),
+                     rr_inbox_setstage: JSON.stringify({ '3362': { link: 'NEW', ts: 2, files: [{ id: 'N1' }] } }) };
+      const a2 = arm(old1);
+      a2.fn('3362');
+      const l1 = a2.list(JSON.parse(old1.rr_inbox_pending)['3362']);
+      ok('286 a note already queued as a bare object is kept, not overwritten',
+         l1.length === 2 && l1[0].link === 'OLD' && l1[1].link === 'NEW',
+         JSON.stringify(l1.map(n => n.link)));
+
+      const old2 = { rr_inbox_pending: JSON.stringify({ '3362': 'https://drive.google.com/OLDLINK' }),
+                     rr_inbox_setstage: JSON.stringify({ '3362': { link: 'NEW', ts: 2, files: [{ id: 'N1' }] } }) };
+      const a3 = arm(old2);
+      a3.fn('3362');
+      const l2 = a3.list(JSON.parse(old2.rr_inbox_pending)['3362']);
+      ok('286 a pre-v1118 plain link string survives too (it was never a list)',
+         l2.length === 2 && l2[0] === 'https://drive.google.com/OLDLINK',
+         JSON.stringify(l2));
+
+      // ── the flush retires ONE note, not the whole number ──
+      // Read off the real source: the deletion must shift the list and only
+      // delete the key when the list is empty. Deleting the key outright is
+      // the line that threw Brad's photos away.
+      const delA = src86.indexOf('var p2 = JSON.parse(localStorage.getItem(PENDING_KEY)');
+      const delChunk = delA > 0 ? src86.slice(delA, delA + 400) : '';
+      ok('286 the flush retires only the note it filed, keeping later copies',
+         /l2\.shift\(\)/.test(delChunk) && /if \(l2\.length\) p2\[num\] = l2; else delete p2\[num\]/.test(delChunk),
+         delChunk ? 'found the block but not the shift' : 'deletion block not found');
+
+      // The expiry read must come off a NOTE, not off the key — on a list,
+      // `pend[num].ts` is undefined and the note could never retire.
+      ok('286 the week-expiry timestamp is read off the oldest note, not the key',
+         /var _first = _pendList\(pend\[num\]\)\[0\];/.test(src86) &&
+         !/var _ts = \(pend\[num\] && typeof pend\[num\] === 'object' && pend\[num\]\.ts\)/.test(src86));
     })();
 
   })().then(function () {
