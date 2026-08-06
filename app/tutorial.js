@@ -133,7 +133,7 @@ const GUIDES = {
     steps: [
       { title: 'Shoot now, type later',
         body: 'The Photo Inbox holds photos until you file them, so you can photograph a whole cabinet in one go and do the work another day.' },
-      { selector: '[onclick*="_pinAddSource"]', title: 'Getting photos in',
+      { selector: '#pin-add-photos', title: 'Getting photos in',
         body: '<strong>Add photos…</strong> offers <strong>From This Computer</strong> or <strong>From Google Photos</strong>. On a computer you can also drag photos straight onto the page. On a phone, <strong>Take with Phone</strong> opens the camera.' },
       { title: 'Say what you are shooting — once',
         body: 'Before the first photo you are asked what you are about to photograph. Set the maker, scale and era once and every photo in that session carries it. That stamp is what lets the reader search the right catalog instead of all of them.' },
@@ -198,11 +198,11 @@ const GUIDES = {
       // sidebar says "Want / Upgrade".
       { selector: _gNav('buildUpgradePage'), title: 'Where your want list lives',
         body: 'It is <strong>Want / Upgrade</strong> in the sidebar — one page for things you are hunting and things you want a better copy of.' },
-      { selector: '#page-upgrade [onclick*="_qaToggleAddMenu"]', title: 'Adding one',
+      { selector: '#page-upgrade .qa-add-btn', title: 'Adding one',
         body: 'Press <strong>+ ADD</strong>, then type the item number. The catalog finds it as you type and you pick the variation you are after.' },
       { title: 'Set a target price',
         body: 'Optional, but useful — what you are willing to pay. It shows on the row so you can judge a deal quickly at a show.' },
-      { selector: '[onclick*="moveWantToCollection"]', optional: true, title: 'When you find one',
+      { selector: '.row-add-collection, #detail-add-collection', optional: true, title: 'When you find one',
         body: 'Press <strong>+ Collection</strong> on the row. The Add wizard opens with the number and variation already filled in, and the item leaves your want list automatically when you save.' }
     ]
   },
@@ -226,7 +226,7 @@ const GUIDES = {
           return !!(p && p.id === 'page-itemdetail');
         },
         body: 'Tap any item in the list to open its own page. Everything after this happens there. I\'ll wait.' },
-      { selector: '#page-itemdetail [onclick*="istForSale"], #page-itemdetail [onclick*="ListForSale"]', optional: true,
+      { selector: '#detail-list-sale', optional: true,
         title: 'List it',
         body: 'Press <strong>List for Sale</strong> in the toolbar at the top of the item. You are asked for your asking price and any notes for a buyer.' },
       { selector: _gNav('buildForSalePage'), title: 'Your For Sale list',
@@ -242,7 +242,7 @@ const GUIDES = {
     steps: [
       { selector: _gNav('buildUpgradePage'), title: 'Open Want / Upgrade',
         body: 'Everything you are looking for is here, with the catalog value beside each one.' },
-      { selector: '[onclick*="moveWantToCollection"]', optional: true, title: 'Find the one you bought',
+      { selector: '.row-add-collection, #detail-add-collection', optional: true, title: 'Find the one you bought',
         body: 'Every row has a green <strong>+ Collection</strong> button on the right.' },
       { title: 'The wizard opens pre-filled',
         body: 'Item number and variation are already in. You only add condition, what you paid, and anything else you want to record.' },
@@ -270,7 +270,7 @@ const GUIDES = {
           return !!(p && p.id === 'page-itemdetail');
         },
         body: 'Tap any item in the list to open its own page. Everything after this happens there. I\'ll wait.' },
-      { selector: '#page-itemdetail [onclick*="ecordSale"]', optional: true,
+      { selector: '#detail-record-sale', optional: true,
         title: 'Record the sale',
         body: 'Press the green <strong>Record Sale</strong> button in the toolbar. Enter the price, the date, and the buyer or notes if you want them — only the price is required.' },
       { selector: _gNav("showPage('sold'"), title: 'Where it goes',
@@ -297,7 +297,7 @@ const GUIDES = {
           return !!(p && p.id === 'page-itemdetail');
         },
         body: 'Tap any item in the list to open its own page. Everything after this happens there. I\'ll wait.' },
-      { selector: '#page-itemdetail [onclick*="emoveFrom"], #page-itemdetail [onclick*="emoveItem"]', optional: true,
+      { selector: '#detail-remove-item', optional: true,
         title: 'The toolbar is at the top',
         body: 'The row of action buttons sits just under the item\'s name. Press the red <strong>Remove from Collection</strong> — the last button in that row. Removing lives here rather than on the list rows, because a button that small was too easy to hit by accident.' },
       { title: 'You are asked first',
@@ -320,11 +320,11 @@ const GUIDES = {
         body: 'Everything printable is on this one page.' },
       { title: 'The four built-in reports',
         body: '<strong>Insurance</strong> lists every item with its estimated worth, for scheduling cover. <strong>Collection</strong> is the whole inventory. <strong>Want / Upgrade / Parts</strong> is the one to print for a show. <strong>Contacts</strong> is your buyers and sellers. Each has its own row below.' },
-      { selector: '#page-reports [onclick*="_repPreview(\'insurance\')"]', title: 'Look before you print',
+      { selector: '#rep-preview-insurance', title: 'Look before you print',
         body: '<strong>Preview</strong> shows you the report on screen first. <strong>Update</strong> refreshes it from your current data — worth doing if you have added items since you last ran it.' },
-      { selector: '#page-reports [onclick*="_repToggleMenu(event,\'insurance\')"]', title: 'Getting it out',
+      { selector: '#rep-export-insurance', title: 'Getting it out',
         body: '<strong>Export</strong> gives you <strong>PDF</strong>, <strong>Google Doc</strong> or <strong>CSV</strong>. CSV is the one to pick if you want the numbers in a spreadsheet. <strong>Print</strong> beside it goes straight to paper.' },
-      { selector: '#page-reports [onclick*="openReportBuilder"]', title: 'Or build your own',
+      { selector: '#rep-build-btn', title: 'Or build your own',
         body: '<strong>Build a Report</strong> lets you choose exactly which columns you want and which items to include, instead of taking a fixed layout. <strong>Past Reports</strong> keeps the ones you have already run.' }
     ]
   }
