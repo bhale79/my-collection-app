@@ -1,289 +1,257 @@
 // ═══════════════════════════════════════════════════════════════
 // TUTORIAL ENGINE — Slideshow narration only, no DOM targeting
 // ═══════════════════════════════════════════════════════════════
-const _TUT = (function() {
+// ═══════════════════════════════════════════════════════════════
+// GUIDES — one mechanism for all in-app help.
+//
+// v0.9.1353 (Brad: "rework them so they all work the same, no live
+// videos. can we have the app open to whatever the help menu is about
+// and help guide the user to all the functions").
+//
+// Before this there were THREE ways help behaved and that is why none
+// of it felt consistent:
+//   1. slideshow tutorials — narration only. They told you to tap
+//      something while the app sat still and pointed at nothing.
+//   2. "Watch:" demos — auto-playing fake screens. Removed entirely.
+//   3. the guided tour — dims the page, spotlights ONE REAL control at
+//      a time, Back / Next / Exit.
+//
+// Everything is now (3). Each guide OPENS ITS OWN PAGE first, then
+// walks the real controls on it. The dashboard tour is no longer a
+// special case; it is simply the first guide in the list.
+//
+// A guide is { label, desc, icon, open, steps }:
+//   open   optional function — navigate to the page this guide is about
+//   steps  [{ selector, wrap, title, body }] handed to _guidedTour
+//
+// A step with NO selector shows a centred card with no spotlight; use
+// that for openings and closings. If a selector matches nothing the
+// engine ALSO centres the card rather than breaking, so a renamed
+// button degrades to a plain explanation instead of a dead tour.
+//
+// SELECTORS ARE ADDRESSES AND ADDRESSES ROT. Prefer a nav item matched
+// by its onclick (stable across relabelling) or a page container id
+// over a class that describes styling. §285 asserts every selector
+// here resolves in the live app.
+// ═══════════════════════════════════════════════════════════════
 
-  const TUTORIALS = {
+function _gNav(fn) { return '.nav-item[onclick*="' + fn + '"]'; }
 
-    'add-item': {
-      label: 'How to add an item',
-      steps: [
-        { title: 'Adding an Item',
-          msg: 'To add an item, tap the <strong>+ Add to Collection</strong> button at the top of the Dashboard. This opens the Add Item wizard.' },
-        // v0.9.1135: this told the user to tap "Lionel Item #" — an option that
-        // does not exist on the wizard's first screen and, going by the copy,
-        // has not existed for some time. The real choices are listed at
-        // wizard.js:1809-1815. It was also stale in spirit: the app now covers
-        // MTH, Atlas, Weaver, RMT, Menards, 3rd Rail, USA Trains, LGB, K-Line,
-        // Williams and Marx, not Lionel alone.
-        { title: 'Choose a Category',
-          msg: 'The wizard asks what you\'d like to add. Tap <strong>✓ My Collection</strong> — the first option — for a train you own. The others cover items you\'ve <strong>Sold</strong>, your <strong>Want List</strong>, and <strong>Catalogs</strong>, <strong>Paper Items</strong>, <strong>Mock-Ups</strong> and <strong>Other Items</strong>.' },
-        { title: 'Enter the Item Number',
-          msg: 'Type the item number — for example, <strong>773</strong>. The app searches the master catalog as you type and shows matching results. Select the item from the list.' },
-        { title: 'Engine + Tender',
-          msg: 'If the item has a matching tender, you\'ll see an <strong>Engine + Tender</strong> option. Tap it to add both pieces together — the app links them as a matched pair automatically.' },
-        { title: 'Select a Variation',
-          msg: 'Pick the variation that matches your item. Each variation includes a description from the Lionel reference catalog. You\'ll also see a <strong>COTT link</strong> that opens the item on the Collector\'s Old Time Trains site for more detail.' },
-        { title: 'Condition',
-          msg: 'Rate the condition from <strong>1 to 10</strong> — 10 is mint in the box, 1 is heavily worn. If you added an engine and tender, you\'ll rate each piece separately.' },
-        { title: 'Purchase & Value',
-          msg: 'Enter what you paid and when you bought the item. You can also set your own estimated value. All fields are optional — tap <strong>Next</strong> when ready.' },
-        { title: 'Add Photos',
-          msg: 'Attach photos here. On a <strong>computer</strong>, click to upload from your files. On the <strong>mobile app</strong>, take a photo directly with your camera. Tap <strong>Next</strong> to skip and add photos later.' },
-        { title: 'Review & Save',
-          msg: 'The confirm screen shows every field you\'ve entered. <strong>Tap any line to edit it</strong> before saving. When you\'re happy, tap <strong>Save</strong> — the item is written to your Google Sheet instantly.' }
-      ]
-    },
+const GUIDES = {
 
-    'add-want': {
-      label: 'How to add a want list item',
-      steps: [
-        { title: 'Your Want List',
-          msg: 'The Want List is for items you\'re looking for but don\'t own yet. Open it from the left sidebar, then tap <strong>Add Want Item</strong>.' },
-        { title: 'Enter the Item Number',
-          msg: 'Type the item number and the app finds it in the master catalog. Select the item and variation you\'re looking for.' },
-        { title: 'Set a Target Price',
-          msg: 'Optionally set a target price — what you\'re willing to pay. This helps you track deals when hunting for an item.' },
-        { title: 'Saved to Want List',
-          msg: 'The item saves with its catalog market value shown. When you acquire it, tap the green <strong>+ Collection</strong> button on the want item — the wizard opens pre-filled and moves it to your collection automatically.' }
-      ]
-    },
+  'tour': {
+    icon: '🚂', label: 'Take the tour', desc: 'The Dashboard, one piece at a time',
+    open: function () { showPage('dashboard'); },
+    steps: [
+      { selector: '#stats-grid', title: 'Your data cards',
+        body: 'These show key numbers about your collection. <strong>Tap any card to swap it</strong> for a different stat — collection value, counts by type, and more. You can show up to 5.' },
+      { selector: '#dash-panel-header-0', wrap: '.panel', title: 'Recent Additions',
+        body: 'The items you added most recently. <strong>Tap the panel\'s header</strong> to switch it to a different list.' },
+      { selector: '.sidebar', title: 'Your main areas',
+        body: 'Your Collection, Want / Upgrade, For Sale, Sold, the catalog, Collection Tools, Reports, the Photo Inbox and Preferences all live here.' },
+      { selector: '.dash-desktop-actions, .dash-mobile-actions', title: 'Add things fast',
+        body: 'Start here to add an item, put something on your want list, list it for sale, or record a sale.' },
+      { title: 'That\'s the Dashboard',
+        body: 'Every other guide in <strong>Help</strong> works like this one — it opens the right page and points at the real buttons.' }
+    ]
+  },
 
-    'list-for-sale': {
-      label: 'How to list an item for sale',
-      steps: [
-        { title: 'Listing for Sale',
-          msg: 'Go to <strong>My Collection</strong> in the left sidebar and find the item you want to sell. Tap the item to open its detail panel.' },
-        { title: 'Mark as For Sale',
-          msg: 'In the detail panel, tap <strong>List for Sale</strong>. You\'ll be asked to enter your asking price and any notes for the buyer.' },
-        { title: 'Your For Sale List',
-          msg: 'The item appears in your <strong>For Sale</strong> list in the left sidebar. Your asking price shows alongside the catalog market value.' },
-        { title: 'When It Sells',
-          msg: 'Once sold, tap the item and choose <strong>Mark as Sold</strong>. Enter the final sale price — the item moves to your <strong>Sold Items</strong> history automatically.' }
-      ]
-    },
+  'add-item': {
+    icon: '📦', label: 'Add an item', desc: 'From the Add button to a saved item',
+    open: function () { showPage('dashboard'); },
+    steps: [
+      { selector: '.dash-desktop-actions, .dash-mobile-actions', title: 'Start here',
+        body: 'Press <strong>Add to My Collection</strong>. Everything after this happens in the Add Item wizard, which opens over the page.' },
+      { title: 'Choose what you are adding',
+        body: 'The wizard asks first. Tap <strong>My Collection</strong> for a train you own. The other choices cover <strong>Sold</strong>, your <strong>Want List</strong>, and <strong>Catalogs</strong>, <strong>Paper Items</strong>, <strong>Mock-Ups</strong> and <strong>Other Items</strong>.' },
+      { title: 'Type the item number',
+        body: 'Type a number — <strong>773</strong>, say — and the catalog searches as you type. Pick your item from the list. If it has a matching tender you will be offered <strong>Engine + Tender</strong>, which adds both and links them as a pair.' },
+      { title: 'Pick the variation',
+        body: 'Each variation carries its description from the reference catalog, and a link out to the COTT page if you want to compare in more detail. This is the step that decides <em>which</em> 2343 you own.' },
+      { title: 'Condition, price, photos',
+        body: 'Rate condition <strong>1 to 10</strong> — 10 is mint in the box. Enter what you paid if you want to; every field here is optional. Photos can be added now or any time later.' },
+      { selector: _gNav('filterOwned'), title: 'Where it lands',
+        body: 'The confirm screen lists everything you entered — <strong>tap any line to edit it</strong> — and <strong>Save</strong> writes it to your Google Sheet immediately. It appears here, in My Collection.' }
+    ]
+  },
 
-    // v0.9.1324: 'delete-item' DELETED and 'remove-item' rewritten against the
-    // real screen (app-collection.js — the .rr-detail-actions toolbar).
-    //
-    // Both guides existed, both described the same task, and they disagreed
-    // with each other AND with the app. Only 'remove-item' was reachable
-    // (tutorial.js:239 and the Help Center row) so 'delete-item' was dead copy
-    // whose only effect was to contradict. What the old copy got wrong:
-    //   • "Delete Item"  — the button reads "Remove from Collection"
-    //   • "at the bottom" / "scroll down" — the toolbar is the FIRST block on
-    //     the page, at the TOP, on both desktop and phone
-    //   • "tap the small ✕ on the item's card" — that button was DELIBERATELY
-    //     removed in v0.9.1025 ("too easy to hit by accident"), so the guide
-    //     sent phone users hunting for a control that was taken away ON PURPOSE
-    //   • "My Collection List" — the sidebar reads "My Collection"
-    'remove-item': {
-      label: 'Remove / delete an item',
-      steps: [
-        { title: 'Find the Item',
-          msg: 'Open <strong>My Collection</strong> and find the item you want to remove — search by item number, road name or description, or scroll the list.' },
-        { title: 'Open the Item',
-          msg: 'Tap the item to open its own page. The row of action buttons sits at the <strong>top</strong> of that page, just under the item\'s name.' },
-        { title: 'Remove from Collection',
-          msg: 'Tap the red <strong>Remove from Collection</strong> button. It\'s the last button in that top row. (Removing lives here rather than on the list rows — a button that small was too easy to hit by accident.)' },
-        { title: 'Confirm Removal',
-          msg: 'The app asks you to confirm first, so nothing goes by accident. Your Google Sheet row is cleared rather than destroyed, and the photos stay in your Drive.' },
-        { title: 'Grouped Items',
-          msg: 'If the item is grouped with others — an engine and its tender, say — you\'ll be asked whether to remove <strong>just this piece</strong> or the <strong>entire group</strong>. The group option removes every linked item at once, so read that one twice.' }
-      ]
-    },
+  'photo-inbox': {
+    icon: '📥', label: 'Photo Inbox: get photos in and file them', desc: 'Shoot a shelf now, sort it out later',
+    open: function () { if (typeof _pinGo === 'function') _pinGo(null); },
+    steps: [
+      { title: 'Shoot now, type later',
+        body: 'The Photo Inbox holds photos until you file them, so you can photograph a whole cabinet in one go and do the work another day.' },
+      { selector: '#pin-addbtn, [onclick*="_pinAddPhotos"]', title: 'Getting photos in',
+        body: '<strong>Add photos…</strong> offers <strong>From This Computer</strong> or <strong>From Google Photos</strong>. On a computer you can also drag photos straight onto the page. On a phone, <strong>Take with Phone</strong> opens the camera.' },
+      { title: 'Say what you are shooting — once',
+        body: 'Before the first photo you are asked what you are about to photograph. Set the maker, scale and era once and every photo in that session carries it. That stamp is what lets the reader search the right catalog instead of all of them.' },
+      { selector: '#pin-grid, .pin-grid', title: 'One tile is one item',
+        body: 'A tile is an <em>item</em>, not a photo — a stack of several shots shows a count. The strip along the bottom gives the era, what the reader found, and the date. The <strong>✂</strong> crops and rotates, and cropping to one item is the biggest thing you can do to get a right answer.' },
+      { selector: '[onclick*="_pinFilterMenu"], #pin-filter-wrap, #pin-filter', title: 'Finding things in a big inbox',
+        body: 'Filter by how it read, by maker and era, or by group kind — everything <strong>Not touched yet</strong>, say. The filters combine, and <strong>Show all</strong> clears them.' },
+      { selector: '#pin-refresh-btn', title: 'Refresh',
+        body: 'Re-reads the folder from Google Drive. Use it if a load only half-worked, or to pull in photos you just shot on your phone while this page was open.' },
+      { title: 'Filing an item',
+        body: 'Click a tile, check the number, then <strong>Add to my Collection</strong> — or <strong>Add to Sales List</strong> if it is going straight up for sale. Photos stay in the inbox until the wizard actually saves, so cancelling loses nothing. <strong>Discard</strong> sends photos to your Drive trash, recoverable for about 30 days.' }
+    ]
+  },
 
-    'want-to-collection': {
-      label: 'Move a want item to your collection',
-      steps: [
-        { title: 'Open Your Want List',
-          // v0.9.1324: the desktop sidebar reads "Want / Upgrade"; the phone
-          // bar reads "Want List". Naming the CONCEPT rather than the control
-          // is right on both devices — and is the rule to follow for any help
-          // text that would otherwise have to name two labels for one place.
-          msg: 'Open your <strong>want list</strong> — "Want / Upgrade" in the sidebar on a computer, "Want List" in the bottom bar on a phone. You\'ll see everything you\'re looking for, each showing the catalog market value.' },
-        { title: 'Find the Item You Acquired',
-          msg: 'Locate the item you just bought. Each want list entry has a green <strong>+ Collection</strong> button.' },
-        { title: 'Tap + Collection',
-          msg: 'Tap the green button — the Add Item wizard opens pre-filled with the item number and variation already selected. You just need to fill in condition, price paid, and any other details.' },
-        { title: 'Save to Your Collection',
-          msg: 'Walk through the wizard normally and tap <strong>Save</strong>. The item is added to your collection and <strong>automatically removed from your Want List</strong> — no manual cleanup needed.' }
-      ]
-    },
+  'photo-inbox-reading': {
+    icon: '🔍', label: 'Photo Inbox: reading item numbers', desc: 'What is free, what costs a photo ID',
+    open: function () { if (typeof _pinGo === 'function') _pinGo(null); },
+    steps: [
+      { selector: '#pin-identify-btn', title: 'Free first, always',
+        body: 'Every photo is checked <strong>free</strong> before anything is spent. This reads printed numbers and barcodes across the whole inbox at no cost. Run it as often as you like.' },
+      { title: 'What a reading looks like',
+        body: 'On a tile, <strong>2328?</strong> means fairly confident. <strong>best guess</strong> in orange means treat it with suspicion. <strong>could not read</strong> means it tried and found nothing. Check any of them against the item in your hand — this is a helper, not an oracle.' },
+      { selector: '#pin-idall-btn', title: 'When free is not enough',
+        body: 'A closer read costs <strong>one photo ID per item</strong> from a daily allowance that refreshes overnight. This button does the whole backlog and tells you the cost before it starts.' },
+      { title: 'Same read, three doors',
+        body: 'Ticking photos and pressing <strong>Read these</strong> does just those. On a single review card, <strong>Read this photo (1 photo ID)</strong> does one. Same read, same price — and the price is on the button before you press it.' },
+      { title: 'Crop first — it is worth a photo ID',
+        body: 'The paid read always shows the crop screen first. Frame the item, or better the number itself, then <strong>Read this</strong>. A tight crop is the difference between a right answer and a wasted read.' },
+      { title: 'Google Search is free',
+        body: 'On a review card, <strong>Google Search</strong> sends the picture to Google Lens and costs nothing. Copy Google\'s answer, come back, paste it in the gold box, and the app reads it for you.' },
+      { selector: _gNav('buildPrefsPage'), title: 'Turning paid reads off',
+        body: 'In <strong>Preferences → Photo ID</strong>, untick <strong>Use my daily photo ID reads</strong> and nothing is ever spent. The free readers keep working; when they cannot tell, you are asked to type the number.' }
+    ]
+  },
 
-    'mark-sold': {
-      label: 'Mark an item as sold',
-      steps: [
-        { title: 'Find the Item',
-          msg: 'Go to <strong>My Collection</strong> and tap the item you\'ve sold to open its detail page.' },
-        { title: 'Tap Record Sale',
-          msg: 'In the detail page, tap the green <strong>Record Sale</strong> button. A panel slides up asking for the sale details.' },
-        { title: 'Enter Sale Details',
-          msg: 'Enter the <strong>sale price</strong>, the <strong>date sold</strong>, and optionally the buyer\'s name or any notes. All fields except the price are optional.' },
-        { title: 'Confirm the Sale',
-          msg: 'Tap <strong>✓ Save</strong>. The item moves out of your active collection and into your <strong>Sold Items</strong> history. Your total sold value on the dashboard updates automatically.' }
-      ]
-    },
+  'photo-inbox-groups': {
+    icon: '🚂', label: 'Photo Inbox: several photos, one item', desc: 'Engine + tender, A units, sets and boxes',
+    open: function () { if (typeof _pinGo === 'function') _pinGo(null); },
+    steps: [
+      { selector: '[onclick*="_pinGroupMode"], #pin-group-btn', title: 'Why group photos',
+        body: 'Four shots of the same boxcar should become one item, not four. Press <strong>Group photos</strong>, tap the photos in the grid, and they collect in a panel.' },
+      { title: 'Apply is what saves it',
+        body: 'This one catches people out. <strong>Apply</strong> saves the grouping — <strong>✓ Finished</strong> only closes the mode. Tick, then Apply, then Finished.' },
+      { title: 'Engines, A units and sets',
+        body: 'Choose the kind: <strong>Engine + tender</strong>, <strong>AA — two A units</strong>, <strong>AB — A and B</strong>, <strong>ABA — A, B, A</strong>, <strong>Train set</strong>, or <strong>Item + its box</strong>. An AA, AB or ABA saves as separate items that stay linked.' },
+      { title: 'The "together" shot',
+        body: 'A picture of everything at once gets the role <strong>Both together</strong>, <strong>All three together</strong> or <strong>The whole set</strong>. It becomes the tile\'s cover and is never read for a number, because it has several.' },
+      { title: 'Adding a whole set at once',
+        body: 'Once two or more pieces have been read, the review card offers <strong>Add the whole set</strong> — the wizard opens with every number already entered.' },
+      { title: 'Splitting and tagging',
+        body: 'The <strong>⊟</strong> on a stack splits it back into separate photos; nothing is deleted. <strong>Tag maker/era/scale/type</strong> stamps photos without joining them — and tagging <strong>Paper</strong>, <strong>Catalog</strong> or <strong>Other</strong> keeps them out of the paid batch, since there is rarely a number on a drawing.' }
+    ]
+  },
 
-    'reports': {
-      label: 'How to generate a report',
-      steps: [
-        { title: 'Opening Reports',
-          msg: 'Go to <strong>Reports</strong> in the left sidebar. The reports page lets you generate formatted summaries of your collection for different purposes.' },
-        { title: 'Insurance Report',
-          msg: 'The <strong>Insurance Report</strong> lists every item you own with its estimated worth. This gives you a printable document to share with your insurance provider when scheduling a collection for coverage.' },
-        { title: 'Want / Upgrade / Parts Report',
-          msg: 'The <strong>Want / Upgrade / Parts</strong> report exports your want list, upgrade list and parts needed — item numbers, variations, target prices and notes, with a selector for which section to include. Great to print and take to a train show.' },
-        { title: 'Printing & Saving',
-          msg: 'Each report has a <strong>Print</strong> button that opens your browser\'s print dialog. You can print to paper or save as a PDF. The layout is formatted specifically for clean printed output.' }
-      ]
-    },
+  'add-want': {
+    icon: '⭐', label: 'Add a want-list item', desc: 'Track what you are hunting for',
+    open: function () { showPage('upgrade'); if (typeof buildUpgradePage === 'function') buildUpgradePage(); },
+    steps: [
+      // v0.9.1353: the old version of this guide told people to tap
+      // "Add Want Item" — a button that exists nowhere in the app, and never
+      // did. It also called this page "Want List" in the sidebar when the
+      // sidebar says "Want / Upgrade".
+      { selector: _gNav('buildUpgradePage'), title: 'Where your want list lives',
+        body: 'It is <strong>Want / Upgrade</strong> in the sidebar — one page for things you are hunting and things you want a better copy of.' },
+      { selector: '#page-upgrade [onclick*="Add"], #page-upgrade .btn-primary', title: 'Adding one',
+        body: 'Press <strong>+ ADD</strong>, then type the item number. The catalog finds it as you type and you pick the variation you are after.' },
+      { title: 'Set a target price',
+        body: 'Optional, but useful — what you are willing to pay. It shows on the row so you can judge a deal quickly at a show.' },
+      { selector: '#upgrade-tbody, #upgrade-cards', title: 'When you find one',
+        body: 'Press <strong>+ Collection</strong> on the row. The Add wizard opens with the number and variation already filled in, and the item leaves your want list automatically when you save.' }
+    ]
+  },
 
-    // ═══════════════════════════════════════════════════════════════
-    // PHOTO INBOX (v0.9.1351) — the biggest feature in the app had zero
-    // help coverage: nothing in the Help Center, nothing in the feature
-    // map, not a tooltip. Three guides rather than one, because one
-    // would run far too long to be read.
-    //
-    // Every button name below is the SHIPPED label, checked against
-    // photo-inbox.js. If a label changes, change it here in the same
-    // edit — help that names a button that isn't there is worse than
-    // no help, and that is exactly the bug that made the old add-item
-    // tutorial tell people to tap "Lionel Item #".
-    // ═══════════════════════════════════════════════════════════════
+  'list-for-sale': {
+    icon: '🏷️', label: 'List an item for sale', desc: 'Put something up and track the asking price',
+    open: function () { showPage('browse'); if (typeof filterOwned === 'function') filterOwned(); },
+    steps: [
+      { selector: _gNav('filterOwned'), title: 'Start in your collection',
+        body: 'Find the item you want to sell — search by number, road name or description — and tap it to open its own page.' },
+      { title: 'List it',
+        body: 'On the item\'s page, press <strong>List for Sale</strong> in the toolbar at the top. You are asked for your asking price and any notes for a buyer.' },
+      { selector: _gNav('buildForSalePage'), title: 'Your For Sale list',
+        body: 'It appears here, with your asking price beside the catalog value. From a row you can share it, edit it, or take it back off sale.' },
+      { title: 'When it sells',
+        body: 'Press <strong>Mark as Sold</strong> and enter the final price. It moves into <strong>Sold Items</strong> and your dashboard totals update on their own.' }
+    ]
+  },
 
-    'photo-inbox': {
-      label: 'Photo Inbox: get photos in and file them',
-      steps: [
-        { title: 'What the Photo Inbox is for',
-          msg: 'Photograph a shelf now, sort it out later. Photos wait in the <strong>Photo Inbox</strong> until you file them, so you can shoot a whole cabinet in one go and do the typing another day. Open it from <strong>Photo Inbox</strong> in the sidebar, or <strong>Inbox</strong> on the bottom bar of your phone.' },
-        { title: 'Getting photos in',
-          msg: 'Press <strong>Add photos…</strong>. On a computer you can also just <strong>drag photos onto the page</strong> from any folder. You will be offered <strong>From This Computer</strong> or <strong>From Google Photos</strong>; on a phone, <strong>Take with Phone</strong> opens the camera.' },
-        { title: 'Say what you are shooting — once',
-          msg: 'Before the first photo the app asks <em>"What are you about to photograph?"</em> Set the maker, scale and era once and every photo in that session is stamped with it. That stamp is what lets the reader search the right catalog instead of all of them. Press <strong>Skip — just add photos</strong> if you would rather not.' },
-        { title: 'Reading the tiles',
-          msg: 'Each tile is one <em>item</em>, not one photo — a stack of several shots shows a count in the corner. The strip along the bottom tells you where that item has got to: the era in blue, then what the reader found, then the date.' },
-        { title: 'Crop before you read',
-          msg: 'The <strong>✂</strong> on a tile crops and rotates. It is worth doing: the reader answers about whatever is in the frame, so cropping to one item — or to the number stamped on the side — is the single biggest thing you can do to get a right answer. Cropping clears that photo\'s old reading so it gets looked at fresh.' },
-        { title: 'Filing an item',
-          msg: 'Click a tile to open the review card. Check the number, then choose <strong>Add to my Collection</strong>, or <strong>Add to Sales List</strong> if it is going straight up for sale. The wizard opens with the catalog details already filled in.' },
-        { title: 'Photos stay put until you save',
-          msg: 'Nothing leaves the inbox until the wizard actually saves — if you cancel half way, the photos are still there and you are returned to the inbox. Only <strong>Add to my Collection</strong> always creates a <em>new</em> item; it never folds photos into one you already own.' },
-        { title: 'Finding things in a big inbox',
-          msg: 'Use <strong>Filter</strong> to narrow by how it read, by maker and era, or by group kind — for example everything still <strong>Not touched yet</strong>. The filters combine, and <strong>Show all</strong> clears them. This is what makes two hundred shelf photos manageable.' },
-        { title: 'Getting rid of a photo',
-          msg: '<strong>Discard</strong> sends photos to your Google Drive trash, where they are recoverable for about 30 days. Nothing is permanently deleted, so a mis-tap is not a disaster.' }
-      ]
-    },
+  'want-to-collection': {
+    icon: '✅', label: 'Move a want item to your collection', desc: 'You found one — now log it',
+    open: function () { showPage('upgrade'); if (typeof buildUpgradePage === 'function') buildUpgradePage(); },
+    steps: [
+      { selector: _gNav('buildUpgradePage'), title: 'Open Want / Upgrade',
+        body: 'Everything you are looking for is here, with the catalog value beside each one.' },
+      { selector: '#upgrade-tbody, #upgrade-cards', title: 'Find the one you bought',
+        body: 'Every row has a green <strong>+ Collection</strong> button on the right.' },
+      { title: 'The wizard opens pre-filled',
+        body: 'Item number and variation are already in. You only add condition, what you paid, and anything else you want to record.' },
+      { title: 'Save, and it moves itself',
+        body: 'On <strong>Save</strong> the item joins your collection and drops off the want list. No tidying up afterwards.' }
+    ]
+  },
 
-    'photo-inbox-reading': {
-      label: 'Photo Inbox: reading item numbers from photos',
-      steps: [
-        { title: 'Free first, always',
-          msg: 'Every photo is checked <strong>free</strong> before anything is ever spent. Press <strong>Identify my items</strong> and the app reads printed numbers and barcodes across the whole inbox at no cost. Run it as often as you like.' },
-        { title: 'What a reading looks like',
-          msg: 'On the tile: a number with a question mark, like <strong>2328?</strong>, means it is fairly confident. <strong>best guess</strong> in orange means treat it with suspicion. <strong>could not read</strong> means it tried and found nothing. Whatever it says, check it against the item in your hand — this is a helper, not an oracle.' },
-        { title: 'When free is not enough',
-          msg: 'For the ones free could not place, a closer read is available and it <strong>costs one photo ID per item</strong>. You have a daily allowance that refreshes overnight. It is the same purchase wherever you start it, and the price is always on the button before you press it.' },
-        { title: 'Three ways to buy the same read',
-          msg: 'In the toolbar, <strong>Read the unread</strong> does the whole backlog and tells you the cost first. Ticking photos and pressing <strong>Read these</strong> does just those. On a single review card, <strong>Read this photo (1 photo ID)</strong> does one. Same read, same price.' },
-        { title: 'Crop first — it is worth a photo ID',
-          msg: 'The paid read always shows the crop screen first. Frame the item, or better, the number itself, then press <strong>Read this</strong> — or <strong>Use whole photo</strong> to skip. A tight crop is the difference between a right answer and a wasted read.' },
-        { title: 'Google Search — free, and often enough',
-          msg: 'On the review card, <strong>Google Search</strong> sends the picture to Google Lens and costs nothing. Copy Google\'s answer, come back, and paste it into the gold box — the app reads the answer for you. A screenshot pasted onto the card works too.' },
-        { title: 'Watching what you spend',
-          msg: 'The review card shows <strong>photo IDs left today</strong> under the buttons. When the allowance runs out a batch stops rather than grinding on, and you are told. Nothing free ever spends one — the first free read, re-scanning, Research Number and Google Search are all free all day.' },
-        { title: 'Turning paid reads off',
-          msg: 'In <strong>Preferences → Photo ID</strong>, untick <strong>Use my daily photo ID reads</strong> and nothing will ever be spent. The free readers keep working; when they cannot tell, you are asked to type the number instead.' },
-        { title: 'When the number is wrong',
-          msg: 'Press <strong>This is wrong — re-scan</strong> and the app tries again, remembering not to offer that number a second time. Or just type the right one into the item-number box. A best guess is never filled in for you — you tap the chip to accept it.' }
-      ]
-    },
+  'mark-sold': {
+    icon: '💰', label: 'Record a sale', desc: 'Log what you sold and for how much',
+    open: function () { showPage('browse'); if (typeof filterOwned === 'function') filterOwned(); },
+    steps: [
+      { selector: _gNav('filterOwned'), title: 'Find the item',
+        body: 'Open <strong>My Collection</strong> and tap the item you have sold to open its page.' },
+      { title: 'Record the sale',
+        body: 'Press the green <strong>Record Sale</strong> button in the toolbar. Enter the price, the date, and the buyer or notes if you want them — only the price is required.' },
+      { selector: _gNav('buildSoldPage'), title: 'Where it goes',
+        body: 'The item moves out of your active collection into <strong>Sold Items</strong>, and your totals update automatically. Nothing is deleted — the record and its photos stay.' }
+    ]
+  },
 
-    'photo-inbox-groups': {
-      label: 'Photo Inbox: several photos, one item',
-      steps: [
-        { title: 'Why group photos',
-          msg: 'Four shots of the same boxcar should become one item, not four. Press <strong>Group photos</strong>, tap the photos in the grid, and they collect in a panel. Tell the app what they are, then press <strong>Apply</strong>.' },
-        { title: 'Apply is what saves it',
-          msg: 'This one catches people out. <strong>Apply</strong> saves the grouping — <strong>✓ Finished</strong> only closes the mode. If you leave with photos still ticked you will be warned, but it is worth remembering the order: tick, then Apply, then Finished.' },
-        { title: 'Engines, A units and sets',
-          msg: 'Choose the kind: <strong>Engine + tender</strong>, <strong>AA — two A units</strong>, <strong>AB — A and B</strong>, <strong>ABA — A, B, A</strong>, <strong>Train set</strong>, or <strong>Item + its box</strong>. An AA, AB or ABA saves as separate items that stay linked to each other, exactly as if you had added them by hand.' },
-        { title: 'The "together" shot',
-          msg: 'If you have a picture of everything at once, give it the role <strong>Both together</strong> — or <strong>All three together</strong>, or <strong>The whole set</strong>. That shot becomes the tile\'s cover picture and is never read for a number, because it has several. It never becomes an item of its own.' },
-        { title: 'Inside a train set',
-          msg: 'A set lets you name each piece — Engine, Tender, Boxcar, Caboose and so on. <strong>Detail — same piece as the photo above</strong> attaches a close-up to the piece before it. If one photo shows a pair, like an engine with its tender, its role files it with the set\'s engine rather than making a separate item.' },
-        { title: 'Adding a whole set at once',
-          msg: 'When two or more pieces of a set have been read, the review card offers <strong>Add the whole set</strong>. The app recognises the set from the numbers and opens the wizard with all of them entered, so you are not typing the same set out piece by piece.' },
-        { title: 'Splitting a group up again',
-          msg: 'The <strong>⊟</strong> on a stacked tile splits it back into separate photos. Nothing is deleted — they simply stop being one item. Grouping over an existing group warns you first and asks to <strong>Break up and regroup</strong>.' },
-        { title: 'Tagging without grouping',
-          msg: '<strong>Tag maker/era/scale/type</strong> stamps a batch of photos without joining them together. Tagging photos as <strong>Paper</strong>, <strong>Catalog</strong> or <strong>Other</strong> also keeps them out of the paid batch — there is rarely a number to find on a drawing, so it would spend a photo ID for nothing. You can still read any one of them on its own.' }
-      ]
-    }
+  'remove-item': {
+    icon: '🗑️', label: 'Remove or delete an item', desc: 'Take something out of your collection',
+    open: function () { showPage('browse'); if (typeof filterOwned === 'function') filterOwned(); },
+    steps: [
+      { selector: _gNav('filterOwned'), title: 'Find it first',
+        body: 'Open <strong>My Collection</strong> and search by item number, road name or description, then tap the item to open its own page.' },
+      { title: 'The toolbar is at the top',
+        body: 'The row of action buttons sits just under the item\'s name. Press the red <strong>Remove from Collection</strong> — the last button in that row. Removing lives here rather than on the list rows, because a button that small was too easy to hit by accident.' },
+      { title: 'You are asked first',
+        body: 'Nothing goes without a confirmation. Your Google Sheet row is cleared rather than destroyed, and the photos stay in your Drive.' },
+      { title: 'Grouped items',
+        body: 'If it is linked to others — an engine and its tender — you are asked whether to remove just this piece or the whole group. <strong>The group option removes every linked item at once</strong>, so read that one twice.' }
+    ]
+  },
 
-  };
-
-  // State
-  let _active = false;
-  let _steps  = [];
-  let _idx    = 0;
-
-  // Core functions
-  function start(id) {
-    const tut = TUTORIALS[id];
-    if (!tut) return;
-    _steps  = tut.steps;
-    _idx    = 0;
-    _active = true;
-    const menu = document.getElementById('tut-help-menu');
-    if (menu) menu.style.display = 'none';
-    document.getElementById('tut-overlay').classList.add('active');
-    document.getElementById('tut-panel').classList.remove('tut-hidden');
-    _renderStep();
+  'reports': {
+    icon: '📊', label: 'Generate a report', desc: 'Insurance, want lists, contacts, or build your own',
+    open: function () { showPage('reports'); if (typeof renderReportLibrary === 'function') renderReportLibrary(); },
+    steps: [
+      // v0.9.1353: the old version described TWO reports and a single Print
+      // button. It predated the reports rewrite by a long way.
+      { selector: _gNav('showPage(\'reports\'') , title: 'Where reports live',
+        body: 'Everything printable is on this one page.' },
+      { selector: '#page-reports', title: 'The built-in reports',
+        body: 'There are four ready to run — <strong>Insurance</strong> (every item with its estimated worth, for scheduling cover), <strong>Collection</strong>, <strong>Want / Upgrade / Parts</strong> (great to print for a show), and <strong>Contacts</strong>.' },
+      { title: 'Or build your own',
+        body: 'The <strong>Report Builder</strong> lets you choose exactly which columns you want and which items to include, rather than taking a fixed layout.' },
+      { title: 'Getting it out',
+        body: 'Every report exports as <strong>PDF</strong>, <strong>Google Doc</strong> or <strong>CSV</strong>, as well as printing. CSV is the one to use if you want the numbers in a spreadsheet.' }
+    ]
   }
 
-  function next() {
-    if (!_active) return;
-    if (_idx < _steps.length - 1) { _idx++; _renderStep(); }
-    else { end(); }
-  }
+};
+if (typeof window !== 'undefined') window.GUIDES = GUIDES;
 
-  function end() {
-    _active = false;
-    _steps  = [];
-    _idx    = 0;
-    document.getElementById('tut-panel').classList.add('tut-hidden');
-    document.getElementById('tut-overlay').classList.remove('active');
-    localStorage.setItem('lv_tut_seen', '1');
-  }
+// Open the page the guide is about, let it render, then walk the controls.
+function startGuide(id) {
+  var g = GUIDES[id];
+  if (!g) return;
+  try { if (typeof g.open === 'function') g.open(); } catch (e) { console.warn('[guide] open failed', id, e); }
+  // The wait is for the page to BUILD — several pages render asynchronously,
+  // and a spotlight placed before the element exists lands on nothing.
+  setTimeout(function () { _guidedTour(g.steps); }, g.wait || 320);
+}
+if (typeof window !== 'undefined') window.startGuide = startGuide;
 
-  function _renderStep() {
-    if (_idx >= _steps.length) { end(); return; }
-    const step   = _steps[_idx];
-    const isLast = _idx === _steps.length - 1;
-
-    document.getElementById('tut-title').textContent   = step.title || '';
-    document.getElementById('tut-msg').innerHTML       = step.msg   || '';
-    document.getElementById('tut-counter').textContent = 'Step ' + (_idx + 1) + ' of ' + _steps.length;
-    document.getElementById('tut-click-hint').style.display = 'none';
-
-    const nextBtn = document.getElementById('tut-next');
-    const skipBtn = document.getElementById('tut-skip');
-    nextBtn.style.display = '';
-    nextBtn.textContent   = isLast ? 'Done' : 'Next';
-    nextBtn.className     = 'tut-btn-next' + (isLast ? ' done' : '');
-    skipBtn.style.display = isLast ? 'none' : '';
-    skipBtn.textContent   = 'Skip tour';
-  }
-
-  return { start, next, end };
-})();
 
 // Global wrappers (called from inline HTML)
-function tutStart(id) { _TUT.start(id); }
-function tutNext()    { _TUT.next();    }
-function tutEnd()     { _TUT.end();     }
+// Kept as the public names because inline HTML across the app calls them.
+// One engine behind all three now.
+function tutStart(id) { startGuide(id); }
+function tutNext()    { /* the guided tour owns its own Next button */ }
+function tutEnd()     { if (typeof _gtEnd === 'function') _gtEnd(); }
+if (typeof window !== 'undefined') { window.tutStart = tutStart; window.tutEnd = tutEnd; }
 
 // Help menu toggle
 function tutToggleMenu() {
@@ -486,29 +454,14 @@ function openHelpHub() {
     +   '<button type="button" onclick="' + X + '" style="background:none;border:none;color:var(--text);font-size:1.5rem;cursor:pointer;line-height:1;padding:0 0.25rem">×</button>'
     + '</div>'
     + '<div style="padding:0.4rem 1.25rem 1.25rem;max-height:74vh;overflow-y:auto">'
+    +   hdr('Guided walkthroughs')
+    +   '<div style="font-size:0.75rem;color:var(--text-dim);margin:-0.2rem 0 0.6rem">Each one opens the right page and points at the real buttons.</div>'
+    +   Object.keys(GUIDES).map(function (gid) {
+          var g = GUIDES[gid];
+          return row(X + "startGuide('" + gid + "');", g.icon, g.label, g.desc);
+        }).join('')
     +   hdr('Getting Started')
-    +   row(X + "if(typeof startDashboardTour==='function')startDashboardTour();", '🚂', 'Take the tour', 'A guided, highlighted walkthrough of the Dashboard')
-    // v0.9.1150 (beta punch list 6.3): showWelcomeCard(true) — the force flag —
-    // existed with no caller anywhere in the app, so the first-run welcome card
-    // was gone for good the moment it was dismissed. A tester who tapped it away
-    // in their first minute could never get it back.
     +   row(X + "if(typeof showWelcomeCard==='function')showWelcomeCard(true);", '👋', 'Show the welcome card again', 'The first-run overview of what the app does')
-    +   hdr('Watch & Learn')
-    +   row(X + "if(typeof startGuidedAddDemo==='function')startGuidedAddDemo();", '🎬', 'Watch: adding an item (live)', 'Auto-plays through the real Add screen, step by step')
-    +   row(X + "if(typeof startLifecycleDemo==='function')startLifecycleDemo();", '🎬', 'Watch: an item lifecycle', 'See an item go from Want list to Sold')
-    +   row(X + "if(typeof startToolsDemo==='function')startToolsDemo();", '🛠️', 'Watch: Collection Tools', 'Find groups, sets, duplicates and gaps')
-    +   hdr('Photo Inbox')
-    +   row(X + "tutStart('photo-inbox');", '📥', 'Get photos in and file them', 'Shoot a shelf now, sort it out later')
-    +   row(X + "tutStart('photo-inbox-reading');", '🔍', 'Reading item numbers from photos', 'What is free, what costs a photo ID, and how to spend fewer')
-    +   row(X + "tutStart('photo-inbox-groups');", '🚂', 'Several photos, one item', 'Engine + tender, A units, sets and boxes')
-    +   hdr('How-To Guides')
-    +   row(X + "tutStart('add-item');", '📦', 'Add an item')
-    +   row(X + "tutStart('add-want');", '⭐', 'Add a want-list item')
-    +   row(X + "tutStart('want-to-collection');", '✅', 'Move a want item to your collection')
-    +   row(X + "tutStart('list-for-sale');", '🏷️', 'List an item for sale')
-    +   row(X + "tutStart('mark-sold');", '💰', 'Mark an item as sold')
-    +   row(X + "tutStart('remove-item');", '🗑️', 'Remove or delete an item')
-    +   row(X + "tutStart('reports');", '📊', 'Generate a report')
     +   hdr('Tips & Recovery')
     +   row(X + "if(typeof _uiShowVersionHistoryHelp==='function')_uiShowVersionHistoryHelp();", '↩️', 'How to undo a mistake', 'Restore an earlier version of your data')
     +   row(X + "if(typeof resetContextualHints==='function'){resetContextualHints();if(typeof showToast==='function')showToast('Tips re-enabled. Visit a list page to see them.');}", '💡', 'Reset tips', 'Show the one-time hint bubbles again')
@@ -634,318 +587,7 @@ function _guidedTour(steps) {
 window._guidedTour = _guidedTour;
 window._gtEnd = _gtEnd;
 
-function startDashboardTour() {
-  try { if (typeof showPage === 'function') showPage('dashboard'); } catch(e){}
-  var steps = [
-    { selector:'#stats-grid', title:'Your data cards',
-      body:'These show key numbers about your collection. <strong>Tap any card to swap it</strong> for a different stat — collection value, catalog coverage, counts by type, and more. You can show up to 5.' },
-    { selector:'#dash-panel-header-0', wrap:'.panel', title:'Recent Additions',
-      body:'The items you added most recently. <strong>Tap the panel\'s header</strong> to switch it to a different list — Top Want List, For Sale, Highest Value, and more.' },
-    { selector:'#dash-panel-header-1', wrap:'.panel', title:'Top Want List',
-      body:'What you\'re hunting for, ranked by priority. Same as the other panel — tap its header to change what it shows.' },
-    { selector:'.sidebar', title:'Your main areas',
-      body:'Jump to your Collection, Want/Upgrade list, For Sale, Sold, the catalog, Tools, Reports, and Preferences from here.' },
-    { selector:'.dash-desktop-actions, .dash-mobile-actions', title:'Add things fast',
-      body:'Start here to add an item to your Collection or Want List, list something For Sale, or record a sale.' },
-    { title:'You\'re all set!',
-      body:'That\'s the Dashboard. You can replay this tour anytime from <strong>Help → Take the tour</strong>.' }
-  ];
-  setTimeout(function(){ _guidedTour(steps); }, 220);
-}
+// The Dashboard tour is now GUIDES['tour'] like everything else. This wrapper
+// stays because the welcome card and onboarding call it by name.
+function startDashboardTour() { startGuide('tour'); }
 window.startDashboardTour = startDashboardTour;
-
-
-// ═══════════════════════════════════════════════════════════════
-// LIFECYCLE DEMO "MOVIE" — scripted, self-contained, writes NO real
-// data. A sample item travels Want -> Collection -> Part -> For Sale
-// -> Sold (+ Upgrade), with an animated cursor and mascot narration.
-// ═══════════════════════════════════════════════════════════════
-function _dRgba(c, a) {
-  if (/^#([0-9a-fA-F]{6})$/.test(c)) { var n = parseInt(c.slice(1), 16); return 'rgba(' + ((n>>16)&255) + ',' + ((n>>8)&255) + ',' + (n&255) + ',' + a + ')'; }
-  return 'rgba(232,64,28,' + a + ')';
-}
-// ── Option-2 demo helpers: emit the app's REAL components/CSS (not sketches),
-//    so each scene looks like the live screen and tracks the user's theme. ──
-function _dBtn(id, label, color) {
-  return '<button id="' + id + '" class="btn" style="display:inline-flex;align-items:center;gap:0.35rem;font-size:0.8rem;padding:0.5rem 0.8rem;border:1.5px solid ' + color + ';color:' + color + ';background:' + _dRgba(color, 0.12) + ';font-weight:600;cursor:default">' + label + '</button>';
-}
-function _dRow(id, num, name, right) {
-  // Reuse the live list-row renderer so rows match the dashboard / list pages exactly.
-  if (typeof _panelRow === 'function') {
-    return '<div id="' + id + '" style="max-width:100%;overflow:hidden">' + _panelRow('\uD83D\uDE82', num, name, '', 'void(0)', null, right || '') + '</div>';
-  }
-  return '<div id="' + id + '" style="display:flex;align-items:center;gap:0.55rem;padding:0.45rem 0;border-bottom:1px solid var(--border)">'
-    + '<span class="item-num" style="font-size:0.82rem">' + num + '</span>'
-    + '<span style="flex:1;min-width:0;font-size:0.78rem;color:var(--text-mid)">' + name + '</span>' + (right || '') + '</div>';
-}
-function _dHead(t) {
-  // Real .section-title (accent bar + uppercase) used throughout the app.
-  return '<div class="section-title" style="margin-bottom:0.85rem">' + t + '</div>';
-}
-function _dPill(text, color) {
-  return ' <span style="display:inline-block;padding:0.12rem 0.5rem;border-radius:10px;border:1px solid ' + color + ';color:' + color + ';font-size:0.66rem;font-weight:700;margin-left:0.4rem;vertical-align:middle">' + text + '</span>';
-}
-function _dField(label, val) {
-  // Real wizard field — uppercase label + the app's input-box styling.
-  return '<div style="margin-bottom:0.7rem">'
-    + '<div style="font-size:0.7rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-dim);margin-bottom:0.3rem">' + label + '</div>'
-    + '<div style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.6rem 0.9rem;color:var(--text);font-size:0.95rem">' + val + '</div></div>';
-}
-var _DEMO_LIFE = [
-  { title: 'Meet item No. 726', ms: 4200,
-    text: 'Let\'s follow a Lionel 726 Berkshire through its whole life in your roster — from wishlist to sold.',
-    html: _dHead('The star of our show') + '<div style="text-align:center;padding:0.8rem 0">'
-      + '<div style="font-size:2.4rem">🚂</div>'
-      + '<div style="font-family:var(--font-mono,monospace);font-size:1.4rem;color:var(--accent,#f05008);font-weight:700;margin-top:0.3rem">726</div>'
-      + '<div style="color:var(--text-mid,#bbb);font-size:0.85rem">2-8-4 Berkshire Steam Locomotive</div></div>' },
-  { title: 'Add it to your Want List', ms: 5000,
-    text: 'You don\'t own one yet, so you start hunting. From the Dashboard, tap Add to Want List.',
-    html: _dHead('Dashboard') + '<div style="display:flex;gap:0.5rem;flex-wrap:wrap">'
-      + _dBtn('d1','+ Add to Collection','var(--accent,#f05008)')
-      + _dBtn('d1w','♥ Add to Want List','#2980b9')
-      + _dBtn('d1u','↑ Add Upgrade','#8b5cf6') + '</div>',
-    target: '#d1w' },
-  { title: 'Find it in the catalog', ms: 5000,
-    text: 'Type the number — 726 — and the catalog finds it instantly. Tap the match.',
-    html: _dHead('Add to Want List') + _dField('Item number','726') + _dRow('d2','726','2-8-4 Berkshire Steam Locomotive',''),
-    target: '#d2' },
-  { title: 'Set your target price', ms: 5000,
-    text: 'Note what you\'re willing to pay so you can spot a deal. Then Save.',
-    html: _dHead('Want details') + _dField('Target price','$250') + _dField('Priority','High')
-      + '<div style="text-align:right;margin-top:0.4rem">' + _dBtn('d3','Save to Want List','#2980b9') + '</div>',
-    target: '#d3' },
-  { title: 'It\'s on your Want List', ms: 4600,
-    text: 'Now it\'s tracked. Every time you shop, you know exactly what you\'re after.',
-    html: _dHead('Want / Upgrade List') + _dRow('d4','726','2-8-4 Berkshire' + _dPill('High','#e0a800'), '<span style="color:var(--text-dim,#888);font-size:0.78rem">$250</span>') },
-  { title: 'You found one!', ms: 5200,
-    text: 'At a show you snag a 726. Tap + Collection on the want item to move it in.',
-    html: _dHead('Want / Upgrade List') + _dRow('d5','726','2-8-4 Berkshire', _dBtn('d5b','+ Collection','#2ecc71')),
-    target: '#d5b' },
-  { title: 'Rate it & log what you paid', ms: 5200,
-    text: 'The wizard opens pre-filled. Set the condition and what you paid, then Save.',
-    html: _dHead('Add to Collection') + _dField('Condition (1-10)','8 — Excellent') + _dField('Paid','$210')
-      + '<div style="text-align:right;margin-top:0.4rem">' + _dBtn('d6','Save to Collection','var(--accent,#f05008)') + '</div>',
-    target: '#d6' },
-  { title: 'It\'s yours', ms: 4600,
-    text: 'The 726 moves into My Collection — and drops off the Want List automatically.',
-    html: _dHead('My Collection') + _dRow('d7','726','2-8-4 Berkshire' + _dPill('Owned','#2ecc71'), '<span style="color:var(--text-dim,#888);font-size:0.78rem">8/10</span>') },
-  { title: 'Need a part? Track it', ms: 5200,
-    text: 'Missing the smoke unit. Add it under Parts Needed so you can hunt it down at the next show.',
-    html: _dHead('Parts Needed') + _dField('Part','Smoke unit — for 726')
-      + '<div style="text-align:right;margin-top:0.4rem">' + _dBtn('d8','Add Part','#b08820') + '</div>',
-    target: '#d8' },
-  { title: 'Decide to sell it', ms: 5200,
-    text: 'Later you decide to part with it. Open the item and tap List for Sale, with an asking price.',
-    html: _dHead('Item 726 — details') + _dField('Asking price','$300')
-      + '<div style="text-align:right;margin-top:0.4rem">' + _dBtn('d9','List for Sale','#e67e22') + '</div>',
-    target: '#d9' },
-  { title: 'It\'s on the For Sale list', ms: 4600,
-    text: 'Your asking price sits next to the catalog market value, so buyers see the deal.',
-    html: _dHead('For Sale') + _dRow('d10','726','2-8-4 Berkshire', '<span style="color:#e67e22;font-size:0.78rem;font-weight:700">$300</span>') },
-  { title: 'Sold!', ms: 5200,
-    text: 'A buyer takes it for $285. Tap Mark as Sold and enter the final price.',
-    html: _dHead('Item 726 — for sale') + _dField('Final sale price','$285')
-      + '<div style="text-align:right;margin-top:0.4rem">' + _dBtn('d11','Mark as Sold','#2ecc71') + '</div>',
-    target: '#d11' },
-  { title: 'Into your sales history', ms: 4800,
-    text: 'The 726 moves to Sold Items — a permanent record of what you sold and for how much.',
-    html: _dHead('Sold Items') + _dRow('d12','726','2-8-4 Berkshire' + _dPill('Sold','#888'), '<span style="color:#2ecc71;font-size:0.78rem;font-weight:700">$285</span>') },
-  { title: 'One more: the Upgrade List', ms: 6800,
-    text: 'Say you\'d kept it but wanted a nicer copy. The Upgrade List tracks items you OWN but want to improve — set a target condition and max price, and "Got It" swaps in the better one when you find it.',
-    html: _dHead('Upgrade List') + _dRow('d13','726','2-8-4 Berkshire', '<span style="color:#8b5cf6;font-size:0.74rem">target 9/10 · max $320</span>') + '<div style="text-align:right;margin-top:0.3rem">' + _dBtn('d13b','Got It →','#8b5cf6') + '</div>' },
-  { title: 'That\'s the whole life cycle', ms: 5200,
-    text: 'Want → Collection → Parts → For Sale → Sold, plus upgrades along the way. Replay anytime from Help.',
-    html: '<div style="text-align:center;padding:0.9rem 0"><div style="font-size:2rem">🎉</div><div style="color:var(--text,#eee);font-weight:700;margin-top:0.4rem">You\'ve seen it end to end</div></div>' }
-];
-var _DEMO_TOOLS = [
-  { title: 'Collection Tools', ms: 4600,
-    text: 'These scan your collection to find hidden connections and gaps you\'d miss by hand.',
-    html: _dHead('Collection Tools') + '<div style="color:var(--text-mid,#bbb);font-size:0.85rem;line-height:1.55">Four scanners: <strong>Smart Group Finder</strong>, <strong>Duplicate Checker</strong>, <strong>Set Builder</strong>, and <strong>Companion Suggester</strong>.</div>' },
-  { title: 'Smart Group Finder', ms: 5400,
-    text: 'Finds engines, tenders, boxes and instruction sheets that belong together but aren\'t linked — and links them in one tap.',
-    html: _dHead('Smart Group Finder') + _dRow('t1a','675','Steam engine','') + _dRow('t1b','2466W','Tender','')
-      + '<div style="text-align:right">' + _dBtn('t1','Link as a pair','var(--accent,#f05008)') + '</div>',
-    target: '#t1' },
-  { title: 'Duplicate Checker', ms: 4800,
-    text: 'Spots anything you own more than once — so you never buy the same car twice.',
-    html: _dHead('Duplicate Checker') + _dRow('t2','6464-25','Great Northern boxcar' + _dPill('owned x2','#e0a800'),'') },
-  { title: 'Set Builder', ms: 5400,
-    text: 'Shows which complete sets you can assemble from pieces you already own — and what\'s missing.',
-    html: _dHead('Set Builder') + _dRow('t3','1425WS','Outfit set — you own 4 of 5','<span style="color:#e0a800;font-size:0.74rem">1 missing</span>')
-      + '<div style="text-align:right">' + _dBtn('t3b','Add missing to Want','#2980b9') + '</div>',
-    target: '#t3b' },
-  { title: 'Companion Suggester', ms: 5000,
-    text: 'Flags tenders without their engine, B-units without an A-unit, and other lonely halves.',
-    html: _dHead('Companion Suggester') + _dRow('t4','2426W','Tender — no engine yet','<span style="color:#888;font-size:0.74rem">needs 726</span>') },
-  { title: 'That\'s Collection Tools', ms: 4800,
-    text: 'Run them anytime from the Collection Tools page. Replay this demo from Help.',
-    html: '<div style="text-align:center;padding:0.9rem 0"><div style="font-size:1.9rem">🛠️</div><div style="color:var(--text,#eee);font-weight:700;margin-top:0.4rem">Smarter than sorting by hand</div></div>' }
-];
-function _demoEnd() { var m = document.getElementById('demo-modal'); if (m) { if (m._t) clearTimeout(m._t); m.remove(); } }
-function _demoPlay(title, scenes) {
-  _demoEnd();
-  var idx = 0, playing = true;
-  var modal = document.createElement('div');
-  modal.id = 'demo-modal';
-  modal.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(8,10,18,0.92);display:flex;align-items:center;justify-content:center;padding:1rem;font-family:var(--font-body,sans-serif)';
-  var bc = 'padding:0.4rem 0.8rem;border-radius:7px;font-size:0.82rem;cursor:pointer;font-family:inherit';
-  modal.innerHTML =
-    '<div style="width:100%;max-width:680px;background:var(--surface,#1a1a2e);border:1px solid var(--border,#333);border-radius:16px;overflow:hidden;box-shadow:0 16px 50px rgba(0,0,0,0.6)">'
-    + '<div style="display:flex;align-items:center;justify-content:space-between;padding:0.7rem 1rem;border-bottom:1px solid var(--border,#333);background:var(--surface2,#222)">'
-    +   '<strong style="color:var(--text,#eee);font-size:0.95rem">🎬 ' + title + '</strong>'
-    +   '<button id="demo-exit" style="background:none;border:none;color:var(--text-dim,#888);font-size:1.4rem;cursor:pointer;line-height:1">×</button>'
-    + '</div>'
-    + '<div id="demo-stage" style="position:relative;height:330px;background:var(--bg,#0f1220);border-bottom:1px solid var(--border,#333)">'
-    +   '<div id="demo-screen" style="position:absolute;inset:0;padding:1.1rem 1.2rem;overflow-y:auto;overflow-x:hidden"></div>'
-    +   '<img id="demo-cursor" alt="" style="position:absolute;left:50%;top:60%;width:24px;height:24px;opacity:0;transition:left 0.85s cubic-bezier(.45,0,.25,1),top 0.85s cubic-bezier(.45,0,.25,1),opacity 0.3s;pointer-events:none;z-index:6;filter:drop-shadow(0 1px 2px rgba(0,0,0,0.6))">'
-    + '</div>'
-    + '<div style="display:flex;gap:0.7rem;align-items:flex-end;padding:0.85rem 1rem 0.5rem">'
-    +   '<img src="./img/conductor-pointing.png" alt="" style="width:52px;height:auto;flex-shrink:0" onerror="this.style.display=\'none\'">'
-    +   '<div style="flex:1;min-width:0">'
-    +     '<div id="demo-title" style="font-weight:700;color:var(--text,#eee);font-size:0.92rem"></div>'
-    +     '<div id="demo-text" style="color:var(--text-mid,#bbb);font-size:0.83rem;line-height:1.5;margin-top:0.15rem"></div>'
-    +   '</div>'
-    + '</div>'
-    + '<div style="display:flex;align-items:center;justify-content:space-between;padding:0.4rem 1rem 0.85rem">'
-    +   '<span id="demo-counter" style="font-size:0.72rem;color:var(--text-dim,#888)"></span>'
-    +   '<div style="display:flex;gap:0.4rem">'
-    +     '<button id="demo-back" style="' + bc + ';border:1px solid var(--border,#333);background:var(--surface2,#222);color:var(--text,#eee)">Back</button>'
-    +     '<button id="demo-play" style="' + bc + ';border:1px solid var(--border,#333);background:var(--surface2,#222);color:var(--text,#eee)">Pause</button>'
-    +     '<button id="demo-next" style="' + bc + ';border:none;background:var(--accent,#f05008);color:#fff;font-weight:700">Next →</button>'
-    +   '</div>'
-    + '</div>'
-    + '</div>';
-  document.body.appendChild(modal);
-  document.getElementById('demo-cursor').src = 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path d="M5 3 L5 19 L9.2 14.8 L12 21 L14 20.1 L11.2 14 L17 14 Z" fill="#ffffff" stroke="#111" stroke-width="1.2" stroke-linejoin="round"/></svg>');
-  function clearT(){ if (modal._t) { clearTimeout(modal._t); modal._t = null; } }
-  function schedule(ms){ clearT(); if (playing) modal._t = setTimeout(go, ms || 5000); }
-  function go(){ if (idx >= scenes.length - 1) { _demoEnd(); } else { idx++; render(); } }
-  function back(){ if (idx > 0) { idx--; render(); } }
-  function render(){
-    clearT();
-    var sc = scenes[idx];
-    var screen = document.getElementById('demo-screen');
-    screen.innerHTML = sc.html || '';
-    document.getElementById('demo-title').innerHTML = sc.title || '';
-    document.getElementById('demo-text').innerHTML = sc.text || '';
-    document.getElementById('demo-counter').textContent = 'Scene ' + (idx + 1) + ' of ' + scenes.length;
-    document.getElementById('demo-play').textContent = playing ? 'Pause' : 'Play';
-    var cur = document.getElementById('demo-cursor');
-    cur.style.opacity = '0';
-    if (sc.target) {
-      setTimeout(function(){
-        var t = screen.querySelector(sc.target); if (!t) return;
-        var sr = screen.getBoundingClientRect(), tr = t.getBoundingClientRect();
-        cur.style.opacity = '1';
-        cur.style.left = (tr.left - sr.left + tr.width * 0.5) + 'px';
-        cur.style.top = (tr.top - sr.top + tr.height * 0.5) + 'px';
-        setTimeout(function(){ t.style.transition = 'transform 0.15s'; t.style.transform = 'scale(0.93)'; setTimeout(function(){ t.style.transform = ''; }, 200); }, 880);
-      }, 400);
-    }
-    schedule(sc.ms);
-  }
-  document.getElementById('demo-exit').onclick = _demoEnd;
-  document.getElementById('demo-next').onclick = function(){ playing = false; clearT(); go(); var pb = document.getElementById('demo-play'); if (pb) pb.textContent = 'Play'; };
-  document.getElementById('demo-back').onclick = function(){ playing = false; clearT(); back(); var pb = document.getElementById('demo-play'); if (pb) pb.textContent = 'Play'; };
-  document.getElementById('demo-play').onclick = function(){ playing = !playing; this.textContent = playing ? 'Pause' : 'Play'; if (playing) schedule(900); else clearT(); };
-  render();
-}
-// ═══════════════════════════════════════════════════════════════
-// Guided "Add an item" walkthrough — AUTO-PLAYS the REAL wizard.
-// Opens the actual Add-to-Collection wizard, fills a sample (No. 773),
-// and auto-advances through every step while a coach box explains each
-// field, stopping at the final Save step WITHOUT saving anything.
-// Safety: saveWizardItem() is short-circuited whenever #wiz-coach exists.
-// ═══════════════════════════════════════════════════════════════
-var _COACH_STEPS = {
-  itemNumGrouping: ['Step 1 — Find the item', 'Type the catalog number — we filled in <b>773</b> (a Hudson). You can narrow a search with the <b>Manufacturer / Era / Type</b> filters, or tap <b>Photo ID</b> if you don’t know it. Once it’s found, choose how you’re entering it — here we pick <b>Engine + Tender</b>.'],
-  variation: ['Step 2 — Pick the variation', 'Postwar pieces came in many versions. Choose the exact one — the <b>highlighted words</b> show how each differs from the first. Not sure? Pick <b>No specific variation</b>. The small link jumps to the reference photo.'],
-  conditionDetails: ['Step 3 — Condition &amp; details', 'Slide <b>Condition</b> 1–10 and flag <b>Box</b>, <b>Instruction Sheet</b>, <b>Master Box</b> or <b>Error</b>. Because this engine has a tender, you choose <b>which tender</b> came with it and rate it too.'],
-  purchaseValue: ['Step 4 — Purchase &amp; value', 'Log <b>what you paid</b>, the <b>date</b>, and an <b>estimated worth</b> (required). In a multi-piece set the other units reference this price.'],
-  drivePhotos: ['Photos', 'Snap each angle — photos are stored in <b>your own Google Drive</b>. Add them now, or press <b>Done with Photos</b> to skip and add them later.'],
-  confirm: ['Last step — Save', 'This is the final review. In real use, pressing <b>Save</b> files it into <b>My Collection</b> (and drops it off your Want list if it was there). That’s the whole flow — <b>nothing was saved</b> in this walkthrough. Press <b>Replay</b> or <b>End</b>.']
-};
-var _coachPlaying = true, _coachTimer = null, _coachLastKey = null;
-function _coachDelayFor(s){ return s.id === 'itemNumGrouping' ? 5200 : 6500; }
-function _coachSetText(s){
-  var d = _COACH_STEPS[s.id] || _COACH_STEPS[s.type] || ['Follow the on-screen fields', 'Fill this in, then it advances on its own.'];
-  var t = document.getElementById('wiz-coach-title'), x = document.getElementById('wiz-coach-text');
-  if (t) t.innerHTML = d[0]; if (x) x.innerHTML = d[1];
-  var lab = document.getElementById('wiz-coach-step');
-  if (lab) lab.textContent = (document.getElementById('wizard-step-label') || {}).textContent || '';
-}
-function _coachDoItem(){
-  var inp = document.getElementById('wiz-input');
-  if (inp && inp.value !== '773') { inp.value = '773'; inp.dispatchEvent(new Event('input', { bubbles: true })); }
-  setTimeout(function(){ if (document.getElementById('wiz-coach') && typeof _selectGrouping === 'function') _selectGrouping('engine_tender'); }, 1200);
-}
-function _coachAct(s){
-  if (!document.querySelector('#wizard-modal.open') || !document.getElementById('wiz-coach')) return;
-  if (s.id === 'itemNumGrouping') { _coachDoItem(); return; }
-  if (s.id === 'conditionDetails') { try { if (typeof _pickTender === 'function') _pickTender('2426W'); } catch(e){} setTimeout(function(){ wizardNext(); }, 600); return; }
-  if (s.type === 'purchaseValue') {
-    wizard.data.priceItem = wizard.data.priceItem || '210';
-    wizard.data.userEstWorth = wizard.data.userEstWorth || '300';
-    var p = document.getElementById('pv-price'); if (p) p.value = '210';
-    var w = document.getElementById('pv-worth'); if (w) w.value = '300';
-    setTimeout(function(){ wizardNext(); }, 250); return;
-  }
-  if (s.type === 'drivePhotos') { wizard.data._skipAllPhotos = true; wizardNext(); return; }
-  wizardNext();
-}
-function _coachOnRender(){
-  if (!document.getElementById('wiz-coach')) return;
-  if (typeof wizard === 'undefined' || !wizard || !wizard.steps) return;
-  var s = wizard.steps[wizard.step]; if (!s) return;
-  _coachSetText(s);
-  var key = wizard.step + ':' + s.id;
-  if (key !== _coachLastKey) {
-    _coachLastKey = key;
-    if (s.id === 'confirm') {
-      _coachPlaying = false; clearTimeout(_coachTimer);
-      var pb = document.getElementById('wiz-coach-play'); if (pb) pb.style.display = 'none';
-      var rb = document.getElementById('wiz-coach-replay'); if (rb) rb.style.display = '';
-      return;
-    }
-    if (_coachPlaying) { clearTimeout(_coachTimer); _coachTimer = setTimeout(function(){ _coachAct(s); }, _coachDelayFor(s)); }
-  }
-}
-function _coachRemove(){ var c = document.getElementById('wiz-coach'); if (c) { if (c._wd) clearInterval(c._wd); clearTimeout(_coachTimer); c.remove(); } }
-function _coachEnd(){ _coachRemove(); try { if (typeof _doCloseWizard === 'function') _doCloseWizard(); var m = document.getElementById('wizard-modal'); if (m) m.classList.remove('open'); document.body.style.overflow = ''; } catch(e){} }
-function _coachTogglePlay(){
-  _coachPlaying = !_coachPlaying;
-  var pb = document.getElementById('wiz-coach-play'); if (pb) pb.textContent = _coachPlaying ? '⏸ Pause' : '▶ Play';
-  if (_coachPlaying) { _coachLastKey = null; _coachOnRender(); } else { clearTimeout(_coachTimer); }
-}
-function _coachReplay(){ _coachRemove(); try { if (typeof _doCloseWizard === 'function') _doCloseWizard(); var m = document.getElementById('wizard-modal'); if (m) m.classList.remove('open'); } catch(e){} setTimeout(startGuidedAddDemo, 250); }
-function _coachShow(){
-  if (document.getElementById('wiz-coach')) return;
-  var c = document.createElement('div'); c.id = 'wiz-coach';
-  c.style.cssText = 'position:fixed;left:18px;bottom:18px;width:360px;max-width:calc(100vw - 36px);z-index:100002;background:var(--surface,#1a1a2e);border:1px solid var(--accent,#e8401c);border-radius:14px;box-shadow:0 12px 40px rgba(0,0,0,0.55);font-family:var(--font-body,sans-serif);overflow:hidden';
-  c.innerHTML = '<div style="display:flex;gap:0.6rem;align-items:flex-start;padding:0.85rem 0.95rem">'
-    + '<img src="./img/conductor-pointing.png" alt="" style="width:46px;height:auto;flex-shrink:0" onerror="this.style.display=\'none\'">'
-    + '<div style="flex:1;min-width:0"><div id="wiz-coach-title" style="font-weight:700;color:var(--text,#eee);font-size:0.92rem"></div>'
-    + '<div id="wiz-coach-text" style="color:var(--text-mid,#bbb);font-size:0.82rem;line-height:1.5;margin-top:0.2rem"></div></div></div>'
-    + '<div style="display:flex;justify-content:space-between;align-items:center;padding:0.35rem 0.95rem 0.7rem">'
-    + '<span id="wiz-coach-step" style="font-size:0.7rem;color:var(--text-dim,#888)"></span>'
-    + '<div style="display:flex;gap:0.4rem">'
-    + '<button id="wiz-coach-replay" onclick="_coachReplay()" style="display:none;background:var(--surface2,#222);border:1px solid var(--border,#333);color:var(--text,#eee);border-radius:7px;padding:0.3rem 0.6rem;font-size:0.75rem;cursor:pointer;font-family:inherit">↻ Replay</button>'
-    + '<button id="wiz-coach-play" onclick="_coachTogglePlay()" style="background:var(--surface2,#222);border:1px solid var(--border,#333);color:var(--text,#eee);border-radius:7px;padding:0.3rem 0.6rem;font-size:0.75rem;cursor:pointer;font-family:inherit">⏸ Pause</button>'
-    + '<button onclick="_coachEnd()" style="background:var(--accent,#e8401c);border:none;color:#fff;border-radius:7px;padding:0.3rem 0.7rem;font-size:0.75rem;font-weight:700;cursor:pointer;font-family:inherit">End</button></div></div>';
-  document.body.appendChild(c);
-  c._wd = setInterval(function(){ if (!document.querySelector('#wizard-modal.open')) { _coachRemove(); } }, 700);
-}
-function startGuidedAddDemo(){
-  _coachLastKey = null; _coachPlaying = true;
-  if (typeof startWizardFor === 'function') startWizardFor('collection');
-  else if (typeof openWizard === 'function') openWizard('collection');
-  var tries = 0;
-  (function w(){ var inp = document.getElementById('wiz-input'); if (!inp && tries++ < 60) return setTimeout(w, 80);
-    _coachShow(); setTimeout(_coachOnRender, 120);
-  })();
-}
-
-function startLifecycleDemo(){ _demoPlay('An Item\'s Life Cycle', _DEMO_LIFE); }
-function startToolsDemo(){ _demoPlay('Collection Tools', _DEMO_TOOLS); }
-window.startLifecycleDemo = startLifecycleDemo;
-window.startToolsDemo = startToolsDemo;
