@@ -18024,8 +18024,22 @@ META_WRITES.length = 0; TOASTS.length = 0;
       const tuCopy = tu69.replace(/\/\/[^\n]*/g, '');
       ok('269 no guide still says "My Collection List" (the sidebar says "My Collection")',
          !/My Collection List/.test(tuCopy));
-      ok('269 the want-list step names the CONCEPT, not one device\'s label',
-         /Want \/ Upgrade" in the sidebar/.test(tuCopy) && /"Want List" in the bottom bar/.test(tuCopy));
+      // v0.9.1375 — this was red for TWO reasons at once, which is why it
+      // needed reading rather than deleting. (1) A real regression: the step's
+      // copy had been reduced to the sidebar label only, while the phone's
+      // bottom bar still says "Want List" — fixed in the app. (2) It also
+      // pinned the QUOTE STYLE around the names, and the copy now emphasises
+      // them with <strong> instead. Scope to the guide, require both names
+      // against both places, and let the markup be markup.
+      {
+        const _aw0 = tuCopy.indexOf("'add-want': {");
+        const _aw = _aw0 > -1 ? tuCopy.slice(_aw0, tuCopy.indexOf("'list-for-sale': {", _aw0)) : '';
+        ok('269 the want-list step names the CONCEPT, not one device\'s label',
+           _aw.length > 0 &&
+           /Want \/ Upgrade/.test(_aw) && /in the sidebar/.test(_aw) &&
+           /Want List/.test(_aw) && /bottom bar/.test(_aw),
+           _aw ? 'the step names only one of the two labels' : 'add-want guide not found');
+      }
       // v0.9.1375 — required the literal word "report" after the name. The
       // requirement is that BOTH sides call it the same thing; the guide's
       // sentence structure is not the subject.
@@ -19847,8 +19861,19 @@ META_WRITES.length = 0; TOASTS.length = 0;
          /await rrVerifiedRowUpdate\(state\.masterSheetId, _M73_TAB, t\.row,/.test(tj));
       ok('285 apply is guarded against double-execution',
          /if \(_m73Busy\) return;\s*\n\s*_m73Busy = true;/.test(tj));
-      ok('285 nothing in this tool deletes a row (there is no row to delete)',
-         tj.slice(tj.indexOf('async function rrMaster173Apply')).indexOf('sheetsDeleteRow') === -1);
+      // v0.9.1376 — the slice ran from rrMaster173Apply to the END OF FILE, and
+      // the file has since grown the 1.74 and 1.75 tools, which delete rows
+      // legitimately (the 455 Oil Derrick, the 193/195 regression). The subject
+      // is the 1.73 tool alone, so scope to it. Testing "the rest of the file"
+      // is not testing a function.
+      {
+        const _m73 = tj.indexOf('async function rrMaster173Apply');
+        const _m74 = tj.indexOf('async function rrMaster174Apply', _m73);
+        const _t73 = tj.slice(_m73, _m74 > _m73 ? _m74 : undefined);
+        ok('285 nothing in this tool deletes a row (there is no row to delete)',
+           _m73 > -1 && _t73.indexOf('sheetsDeleteRow') === -1,
+           _m73 < 0 ? 'rrMaster173Apply not found' : 'the 1.73 tool now deletes a row');
+      }
 
       // ── Version history: INSERTED above, not rewritten over.
       ok('285 1.73 is added on top and the older history is carried down',

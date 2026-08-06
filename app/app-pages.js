@@ -3357,7 +3357,12 @@ function buildUpgradePage() {
       : 'Add items you\'re hunting for from My Collection or the catalog';
     const empty = `<div style="text-align:center;padding:3rem 1rem;color:var(--text-dim)"><div style="font-size:2.5rem;margin-bottom:0.5rem">${emptyIcon}</div><p>${emptyMsg}</p><p style="font-size:0.8rem;margin-top:0.5rem">${emptyTip}</p></div>`;
     if (cardsEl) cardsEl.innerHTML = empty;
-    if (tbody) tbody.innerHTML = '<tr><td colspan="10" class="ui-empty">' + emptyMsg + '</td></tr>';
+    // v0.9.1376 — was a typed colspan number standing in for a count.
+    // _WU_COLS has nine entries today so it happened to be right; the header
+    // is BUILT from _WU_COLS, so adding a column would have drawn a wider
+    // header over narrower rows and nothing would have said so. This table has
+    // already produced that exact bug once.
+    if (tbody) tbody.innerHTML = '<tr><td colspan="' + (_WU_COLS.length + 1) + '" class="ui-empty">' + emptyMsg + '</td></tr>';
     return;
   }
 
@@ -3539,8 +3544,8 @@ function buildUpgradePage() {
             : `<button onclick="event.stopPropagation();removeUpgradeItem('${_ugEntryKey(u)}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid var(--border);background:var(--surface2);color:#f05008;font-family:var(--font-body)">Remove</button>`}
         </td>
       </tr>
-      ${!_isWant ? `<tr id="${photoId}-row" style="display:none"><td colspan="10" style="padding:0.5rem 1rem;background:var(--surface2)"><img src="${pd && pd.photoItem ? pd.photoItem : ''}" style="max-height:160px;border-radius:6px;object-fit:contain" onerror="this.parentElement.parentElement.style.display='none'"></td></tr>` : ''}`;
-    }).join('') || '<tr><td colspan="10" class="ui-empty">No items on want/upgrade list</td></tr>';
+      ${!_isWant ? `<tr id="${photoId}-row" style="display:none"><td colspan="${_WU_COLS.length + 1}" style="padding:0.5rem 1rem;background:var(--surface2)"><img src="${pd && pd.photoItem ? pd.photoItem : ''}" style="max-height:160px;border-radius:6px;object-fit:contain" onerror="this.parentElement.parentElement.style.display='none'"></td></tr>` : ''}`;
+    }).join('') || '<tr><td colspan="' + (_WU_COLS.length + 1) + '" class="ui-empty">No items on want/upgrade list</td></tr>';
   }
 }
 
