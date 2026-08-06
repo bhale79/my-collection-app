@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.1351';
+const APP_VERSION = 'v0.9.1352';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -39,9 +39,10 @@ const MARKET_ENABLED = false;
 if (typeof window !== 'undefined') window.MARKET_ENABLED = MARKET_ENABLED;
 
 // v0.9.1248 (audit finding A): Brad's diagnostic tools are shipped but hidden.
-// The Reader audit button lived permanently in the Photo Inbox toolbar with no
-// gate, so a beta tester clicking it learned the app has internal settings it
-// was not telling them about.
+// The Reader audit button used to live permanently in the Photo Inbox toolbar
+// with no gate, so a beta tester clicking it learned the app has internal
+// settings it was not telling them about. (That tool was removed outright in
+// v0.9.1352; this gate still gates the one-time master fix-up cards.)
 //
 // ONE READER for "should diagnostics show": rrDiagnostics(). Never test the
 // constant or the localStorage key directly anywhere else — that is how a fact

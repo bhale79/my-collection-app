@@ -170,12 +170,12 @@
           '<button id="pin-idsel-btn" onclick="_pinIdentifySelected()" style="display:none;padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:var(--bg-card);background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card));color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Read these</button>' +
           '<button id="pin-assign-btn" onclick="_pinReview(null)" style="display:none;padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:var(--bg-card);background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card));color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Combine \u2192 one item\u2026</button>' +
           '<button id="pin-discard-btn" onclick="_pinDiscard()" style="display:none;padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:var(--bg-card);background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card));color:#f05008;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Discard</button>' +
-          // Refresh and the reader audit are real but rare \u2014 one click away
-          // rather than competing with the work.
-          '<span style="position:relative;display:inline-block">' +
-            '<button id="pin-more-btn" onclick="_pinToggleMore()" title="More" style="padding:0.5rem 0.7rem;border-radius:8px;border:1.5px solid #8b8e94;background:var(--bg-card);background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card));color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">\u22ef</button>' +
-            '<span id="pin-more-menu" style="display:none;position:absolute;right:0;top:100%;margin-top:4px;min-width:190px;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:4px;z-index:20;box-shadow:0 6px 18px rgba(0,0,0,0.18)"></span>' +
-          '</span>' +
+          // v0.9.1352 (Brad): the Reader audit is gone, which left a \u22ef menu
+          // holding one row. Refresh is now a plain button. FOUR status
+          // messages tell the user to "hit Refresh" \u2014 a partial listing, a
+          // failed discard, a failed filing, a failed load \u2014 so the control
+          // they are being sent to should be visible, not one tap inside a menu.
+          '<button id="pin-refresh-btn" onclick="_pinRefresh()" title="Re-read the inbox folder from Google Drive" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:var(--bg-card);background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card));color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Refresh</button>' +
         '</div>' +
         '<div id="pin-skipnote" style="display:none;font-size:0.78rem;color:var(--text-dim);margin:0.5rem 0 0"></div>' +
         '<div id="pin-status" style="display:none;font-size:0.8rem;color:var(--text-dim);margin:0.5rem 0 0"></div>' +
@@ -617,43 +617,6 @@
   };
 
   // ══ The overflow menu — rare-but-real actions, one click away ════════════
-  // Refresh and the reader audit are not part of the working rhythm. They keep
-  // their own handlers (nothing is re-implemented here); this only moves where
-  // they are reached from, so tests/button-audit.js still resolves both.
-  window._pinToggleMore = function () {
-    var m = document.getElementById('pin-more-menu');
-    if (!m) return;
-    if (m.style.display !== 'none') { m.style.display = 'none'; return; }
-    var _row = function (label, fn) {
-      return '<button onclick="document.getElementById(\'pin-more-menu\').style.display=\'none\';' + fn + '" '
-        + 'style="display:block;width:100%;text-align:left;padding:0.45rem 0.6rem;border-radius:7px;border:none;background:none;'
-        + 'color:var(--text);font-family:var(--font-body);font-size:0.82rem;font-weight:600;cursor:pointer">' + label + '</button>';
-    };
-    m.innerHTML = _row('Refresh', '_pinRefresh()')
-      + (rrDiagnostics()
-          ? '<button id="pin-audit-btn" onclick="document.getElementById(\'pin-more-menu\').style.display=\'none\';_pinReaderAudit()" '
-            + 'style="display:block;width:100%;text-align:left;padding:0.45rem 0.6rem;border-radius:7px;border:none;background:none;'
-            + 'color:var(--text);font-family:var(--font-body);font-size:0.82rem;font-weight:600;cursor:pointer">Reader audit (free)</button>'
-          : '');
-    m.style.display = '';
-    // The audit row carries the SAME id it had in the toolbar, so the existing
-    // updater still writes its live label ("Resume audit (12/71)") and rebinds
-    // its click. Moving a control must not fork the code that maintains it.
-    try { _updateAuditBtn(); } catch (e) {}
-    // One outside click closes it. Registered once per open and removed on the
-    // same tick it fires, so menus cannot stack listeners.
-    setTimeout(function () {
-      var off = function (e) {
-        var mm = document.getElementById('pin-more-menu');
-        var bb = document.getElementById('pin-more-btn');
-        if (mm && !mm.contains(e.target) && bb && !bb.contains(e.target)) {
-          mm.style.display = 'none';
-          document.removeEventListener('click', off, true);
-        }
-      };
-      document.addEventListener('click', off, true);
-    }, 0);
-  };
 
   // ══ v0.9.1050 — group kinds and roles ════════════════════════════════════
   // Photos already stack into groups (the g<id> tag). What a stack could not
@@ -1571,7 +1534,6 @@
     _navBadge(total);
     _updateIdAllBtn();
     try { _updateIdentifyBtn(); } catch (eRC) {}
-    try { _updateAuditBtn(); } catch (eAB) {}
     // v0.9.961 (Brad): keep the "cropped" marker set trimmed to files still in
     // the inbox (filed/discarded photos drop out), then republish to drive.js.
     try {
@@ -7076,18 +7038,15 @@
   // the cropped photo is simply unread again and Identify my items covers
   // it. One button, one waiting-list (_pinUnreadTodo), one loop.
 
-  // ══ v0.9.1063 — reader audit ═════════════════════════════════════════════
-  // Brad: "audit my whole photo inbox because those are a good representation of
-  // what a user will submit. we should be able to nail 90% of these."
+  // ══ Image preparation for the free reader ════════════════════════════════
+  // These passes came out of the v0.9.1063 reader audit, which ran the free
+  // reader over Brad's whole inbox under several preprocessing variants and
+  // scored them by how many numbers the CATALOG confirmed — not by how many
+  // digits were read, since a variant that reads more and confirms fewer is
+  // reading noise. "sharp" won and is what ships. The audit tool itself was
+  // removed in v0.9.1352; what it taught is below, and _auditCanvas /
+  // _auditTile keep their names because the live read path calls them.
   //
-  // Guessing at OCR settings from four screenshot crops is not an audit. This
-  // runs the FREE reader over every photo in the inbox, several preprocessing
-  // variants each, and reports how many numbers each variant finds and how many
-  // the catalog confirms. It costs no credits — it is the same browser-side OCR
-  // that already runs automatically — only time.
-  //
-  // The score to trust is CONFIRMED (the master list recognises the number), not
-  // FOUND: a variant that reads more digits but confirms fewer is reading noise.
   // Local (adaptive) threshold, shared by the 'local' and 'chan' passes.
   // Compares each pixel with the mean of its own neighbourhood via an
   // integral image, so uneven lighting and specular highlights stop deciding
@@ -7461,54 +7420,7 @@
     return _applyMode(c, mode);
   }
 
-  // v0.9.1064 (Brad: "it got through the audit and then it flashed like google
-  // had to reauthenticate ... and started back at the dashboard"). Twenty
-  // minutes of reading held only in memory, thrown away by one reload. Results
-  // are written to storage after EVERY photo now, so the worst a reload can
-  // cost is the photo that was in flight — and the next run resumes from there
-  // rather than starting over.
-  var AUDIT_KEY = 'rr_reader_audit';
-  function _updateAuditBtn() {
-    var b = document.getElementById('pin-audit-btn');
-    if (!b) return;
-    var a = _auditLoad();
-    if (a && a.rows.length) {
-      var partial = a.rows.length < (a.total || a.rows.length);
-      b.textContent = partial
-        ? ('Resume audit (' + a.rows.length + '/' + a.total + ')')
-        : ('Audit results (' + a.rows.length + ')');
-      b.style.borderColor = '#2980b9';
-      _pinOpaqueTint(b, '41,128,185', 18);   // v0.9.1282
-      b.onclick = partial ? window._pinReaderAudit : window._pinAuditShowSaved;
-    } else {
-      b.textContent = 'Reader audit (free)';
-      b.style.borderColor = '#8b8e94';
-      _pinOpaqueTint(b, '139,142,148', 12);   // v0.9.1282
-      b.onclick = window._pinReaderAudit;
-    }
-  }
 
-  function _auditLoad() {
-    try {
-      var a = JSON.parse(localStorage.getItem(AUDIT_KEY) || 'null');
-      return (a && Array.isArray(a.rows)) ? a : null;
-    } catch (e) { return null; }
-  }
-  function _auditSave(a) {
-    try { localStorage.setItem(AUDIT_KEY, JSON.stringify(a)); }
-    catch (e) { console.warn('[audit] could not save progress', e && e.message); }
-  }
-  window._pinAuditClear = function () {
-    try { localStorage.removeItem(AUDIT_KEY); } catch (e) {}
-    var b = document.getElementById('pin-audit-ov'); if (b) b.remove();
-    showToast('Audit results cleared', 2200);
-    _render();
-  };
-  window._pinAuditShowSaved = function () {
-    var a = _auditLoad();
-    if (!a || !a.rows.length) { showToast('No saved audit yet', 2400); return; }
-    _pinAuditReport(a.rows, a.tally, a.secs || 0, a.total || a.rows.length);
-  };
 
   // Round 2. sharp6 won round 1 and is now the shipping default, so it is the
   // baseline every new idea has to beat. Each of the others attacks a specific
@@ -7534,187 +7446,7 @@
     return c;
   }
 
-  var _AUDIT_VARIANTS = [
-    { id: 'sharp6',  label: 'Now shipping — stretch + sharpen, block mode', dim: 2400, mode: 'sharp',  psm: '6', wl: 'full' },
-    { id: 'digits6', label: 'Same, but digits only (no letter confusion)',  dim: 2400, mode: 'sharp',  psm: '6', wl: 'digits' },
-    { id: 'inv6',    label: 'Inverted — for light numbers on a dark body',  dim: 2400, mode: 'invert', psm: '6', wl: 'full' },
-    { id: 'tile6',   label: 'Split into thirds and read each closer',       dim: 2400, mode: 'sharp',  psm: '6', wl: 'full', tiles: 3 },
-    { id: 'local6',  label: 'Local threshold + thirds (reflective bodies)',  dim: 2400, mode: 'local',  psm: '6', wl: 'full', tiles: 3 },
-    { id: 'chan6',   label: 'Best colour channel + thirds (red/orange cars)', dim: 2400, mode: 'chan',   psm: '6', wl: 'full', tiles: 3 },
-  ];
 
-  window._pinReaderAuditCancel = function () { _idAbort = true; };
-
-  window._pinReaderAudit = async function () {
-    if (_busy) { showToast('Still working on the last batch\u2026', 2500, true); return; }
-    if (!_groups.length) { showToast('Inbox is empty', 2500); return; }
-    var w = await _tessGet();
-    if (!w) { showToast('The free reader is not available on this device', 3500, true); return; }
-    var go = await _pinConfirm('Read all ' + _groups.length + ' items with the free reader, '
-      + _AUDIT_VARIANTS.length + ' different settings each. <b>No photo IDs are used</b> \u2014 this is the same '
-      + 'browser-side reader that already runs by itself. It takes a while; keep this tab open.',
-      'Run the audit');
-    if (!go) return;
-
-    _busy = true; _idAbort = false;
-    window._rrLongJob = true;       // a deploy must not reload the page under this
-    // v0.9.1135: these two flags used to be cleared only on the happy path. One
-    // throw anywhere in the loop below and _busy stayed true for the rest of the
-    // session, which blocks EVERY batch button on this page — token reads,
-    // Identify, Re-read cropped, the audit itself, Google Photos, Add photos,
-    // Apply tags, Add to collection — all answering "Still working on the last
-    // batch…" until a reload. _rrLongJob staying true also suppresses deploy
-    // reloads indefinitely. The `finally` at the end of this function is the fix.
-    try {
-    var prev = _auditLoad();
-    var rows = (prev && prev.rows) ? prev.rows : [];
-    var seen = {};
-    rows.forEach(function (r) { seen[r.fid] = 1; });
-    var tally = {};
-    _AUDIT_VARIANTS.forEach(function (v) { tally[v.id] = { found: 0, confirmed: 0 }; });
-    // Recount from the rows themselves rather than trusting a stored tally —
-    // one source of truth, and a half-written tally can never drift from them.
-    function _retally() {
-      _AUDIT_VARIANTS.forEach(function (v) { tally[v.id] = { found: 0, confirmed: 0 }; });
-      rows.forEach(function (r) {
-        _AUDIT_VARIANTS.forEach(function (v) {
-          var o = r.out && r.out[v.id];
-          if (o && o.num) { tally[v.id].found++; if (o.matched) tally[v.id].confirmed++; }
-        });
-      });
-    }
-    var elapsed = (prev && prev.secs) || 0;
-    var t0 = 0;
-    try { t0 = performance.now(); } catch (eT) {}
-    if (rows.length) showToast('Picking up where it stopped \u2014 ' + rows.length + ' already done', 3000);
-
-    for (var i = 0; i < _groups.length && !_idAbort; i++) {
-      var g = _groups[i];
-      var fid = _pinReadFid(g);
-      if (!fid || seen[fid]) continue;
-      var prefer = _pinPreferOf(g);
-      _status('Auditing item ' + (i + 1) + ' of ' + _groups.length + '\u2026',
-              window._pinReaderAuditCancel);
-      var row = { fid: fid, era: (prefer && prefer.era) || '', out: {} };
-      try {
-        var blob = await _pinBytes(fid);
-        var bmp = await createImageBitmap(blob);
-        for (var vi = 0; vi < _AUDIT_VARIANTS.length; vi++) {
-          var V = _AUDIT_VARIANTS[vi];
-          var r = null;
-          try {
-            try { await w.setParameters({ tessedit_pageseg_mode: V.psm || '6' }); } catch (eP) {}
-          try {
-              await w.setParameters({ tessedit_char_whitelist: (V.wl === 'digits')
-                ? '0123456789-' : '0123456789-ABCDEFGHIJKLMNOPQRSTUVWXYZ ' });
-            } catch (eW) {}
-            var text = '';
-            if (V.tiles) {
-              // Read the whole frame AND each horizontal band. A number that is
-              // 2% of a wide shelf photo is a handful of pixels once the image is
-              // scaled to fit; a band of it is three times the size.
-              var whole = _auditCanvas(bmp, V.dim, V.mode);
-              text += ((await w.recognize(whole)).data || {}).text || '';
-              for (var ti = 0; ti < V.tiles; ti++) {
-                var band = _auditTile(bmp, V.dim, V.mode, ti, V.tiles);
-                try { text += '\n' + (((await w.recognize(band)).data || {}).text || ''); } catch (eTi) {}
-              }
-            } else {
-              var canvas = _auditCanvas(bmp, V.dim, V.mode);
-              var res = await w.recognize(canvas);
-              text = (res && res.data && res.data.text) || '';
-            }
-            r = _numberFromText(text, prefer);
-          } catch (eV) {}
-          row.out[V.id] = r ? { num: r.num, matched: !!r.matched, short: !!r.short } : null;
-        }
-        if (bmp.close) bmp.close();
-      } catch (eF) {
-        console.warn('[audit] photo failed', fid, eF && eF.message);
-        row.error = String((eF && eF.message) || 'failed');
-      }
-      rows.push(row);
-      seen[fid] = 1;
-      // Save after EVERY photo. This is the whole point of the change.
-      var _sofar = elapsed;
-      try { _sofar = elapsed + Math.round((performance.now() - t0) / 1000); } catch (eE) {}
-      _retally();
-      _auditSave({ ts: Date.now(), rows: rows, tally: tally, secs: _sofar, total: _groups.length });
-    }
-    try {
-      await w.setParameters({
-        tessedit_pageseg_mode: '6',
-        tessedit_char_whitelist: '0123456789-ABCDEFGHIJKLMNOPQRSTUVWXYZ ',
-      });
-    } catch (eR) {}
-    } finally {
-      // Always released, however this function ends. See the note above.
-      _busy = false; window._rrLongJob = false; _status('');
-    }
-
-    var secs = elapsed;
-    try { secs = elapsed + Math.round((performance.now() - t0) / 1000); } catch (eS) {}
-    _retally();
-    _auditSave({ ts: Date.now(), rows: rows, tally: tally, secs: secs, total: _groups.length });
-    _pinAuditReport(rows, tally, secs, _groups.length);
-  };
-
-  function _pinAuditReport(rows, tally, secs, total) {
-    var n = rows.length || 1;
-    total = total || rows.length;
-    var pct = function (x) { return Math.round((x / n) * 100); };
-    var best = null;
-    _AUDIT_VARIANTS.forEach(function (v) {
-      if (!best || tally[v.id].confirmed > tally[best].confirmed) best = v.id;
-    });
-    var ov = document.createElement('div');
-    ov.id = 'pin-audit-ov';
-    ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:10060;display:flex;align-items:center;justify-content:center;padding:1rem';
-    var lines = _AUDIT_VARIANTS.map(function (v) {
-      var t = tally[v.id];
-      return '<tr' + (v.id === best ? ' style="background:rgba(41,128,185,0.14)"' : '') + '>'
-        + '<td style="padding:0.4rem 0.5rem;border-top:1px solid var(--border)">' + rrEsc(v.label)
-          + (v.id === best ? ' <b style="color:#7ec3ef">\u2190 best</b>' : '') + '</td>'
-        + '<td style="padding:0.4rem 0.5rem;border-top:1px solid var(--border);text-align:right">' + t.found + ' (' + pct(t.found) + '%)</td>'
-        + '<td style="padding:0.4rem 0.5rem;border-top:1px solid var(--border);text-align:right;font-weight:700">' + t.confirmed + ' (' + pct(t.confirmed) + '%)</td>'
-        + '</tr>';
-    }).join('');
-    // A plain-text block Brad can copy out and send on.
-    var txt = 'READER AUDIT \u2014 ' + n + ' items, ' + secs + 's\n';
-    _AUDIT_VARIANTS.forEach(function (v) {
-      txt += v.id + ': found ' + tally[v.id].found + '/' + n + ' (' + pct(tally[v.id].found) + '%), confirmed '
-        + tally[v.id].confirmed + '/' + n + ' (' + pct(tally[v.id].confirmed) + '%)\n';
-    });
-    rows.forEach(function (r, i) {
-      txt += (i + 1) + '\t' + (r.era || '-');
-      _AUDIT_VARIANTS.forEach(function (v) {
-        var o = r.out[v.id];
-        txt += '\t' + (o ? (o.num + (o.matched ? '*' : '?')) : '-');
-      });
-      txt += '\n';
-    });
-    ov.innerHTML =
-      '<div class="rr-card" style="max-width:640px">'
-      + '<div style="font-family:var(--font-head);font-weight:700;font-size:1.05rem;margin-bottom:0.2rem">Reader audit</div>'
-      + '<div style="font-size:0.8rem;color:var(--text-dim);margin-bottom:0.9rem">'
-        + rows.length + ' of ' + total + ' items read four ways, ' + secs + ' seconds, no photo IDs spent.'
-        + (rows.length < total ? ' <b>Partial \u2014 run it again to carry on from here.</b>' : '') + '  <b>Confirmed</b> means the catalog recognised the number \u2014 that is the column that matters; a setting that finds more digits but confirms fewer is reading noise.</div>'
-      + '<table style="width:100%;border-collapse:collapse;font-size:0.82rem">'
-      +   '<tr><th style="text-align:left;padding:0.3rem 0.5rem;font-size:0.72rem;text-transform:uppercase;color:var(--text-dim)">Setting</th>'
-      +   '<th style="text-align:right;padding:0.3rem 0.5rem;font-size:0.72rem;text-transform:uppercase;color:var(--text-dim)">Found</th>'
-      +   '<th style="text-align:right;padding:0.3rem 0.5rem;font-size:0.72rem;text-transform:uppercase;color:var(--text-dim)">Confirmed</th></tr>'
-      +   lines
-      + '</table>'
-      + '<textarea id="pin-audit-txt" readonly style="width:100%;box-sizing:border-box;height:150px;margin-top:0.9rem;padding:0.6rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-mono);font-size:0.72rem">' + rrEsc(txt) + '</textarea>'
-      + '<div style="display:flex;gap:0.5rem;margin-top:0.7rem">'
-      +   '<button onclick="(function(){var t=document.getElementById(\'pin-audit-txt\');t.select();try{document.execCommand(\'copy\');showToast(\'Copied \u2014 you can paste it into an email to us\',2500);}catch(e){}})()" style="flex:1;padding:0.7rem;border-radius:9px;border:none;background:var(--accent);color:var(--on-accent);font-weight:700;font-size:0.9rem;min-height:48px;cursor:pointer">Copy the results</button>'
-      +   '<button onclick="document.getElementById(\'pin-audit-ov\').remove()" style="flex:1;padding:0.7rem;border-radius:9px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text);font-weight:700;font-size:0.9rem;min-height:48px;cursor:pointer">Close</button>'
-      + '</div>'
-      + '<button onclick="_pinAuditClear()" style="width:100%;margin-top:0.5rem;padding:0.6rem;border-radius:9px;border:none;background:none;color:var(--text-dim);font-size:0.85rem;cursor:pointer">Throw these away and start fresh next time</button>'
-      + '<div style="display:none">'
-      + '</div></div>';
-    document.body.appendChild(ov);
-  }
 
   window._pinIdentifyAll = async function () {
     if (_busy) { showToast('Still working on the last batch…', 2500, true); return; }
