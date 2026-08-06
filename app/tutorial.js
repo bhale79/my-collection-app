@@ -225,7 +225,13 @@ const GUIDES = {
       // did. It also called this page "Want List" in the sidebar when the
       // sidebar says "Want / Upgrade".
       { selector: _gNav('buildUpgradePage'), title: 'Where your want list lives',
-        body: 'It is <strong>Want / Upgrade</strong> in the sidebar — one page for things you are hunting and things you want a better copy of.' },
+        // v0.9.1375 — the two names were reduced to one at some point between
+        // v1340 and v1365, and §269 has been red ever since. It is not a stale
+        // test: the phone's bottom bar still reads "Want List" (index.html) while
+        // the sidebar reads "Want / Upgrade", so naming only the sidebar sends
+        // every phone user hunting for a label their screen does not have. That
+        // is the exact complaint the step was rewritten for in the first place.
+        body: 'One page for things you are hunting and things you want a better copy of. It is <strong>Want / Upgrade</strong> in the sidebar and <strong>Want List</strong> in the bottom bar on a phone — same page, two names.' },
       { selector: '#page-upgrade .qa-add-btn', title: 'Adding one',
         body: 'Press <strong>+ ADD</strong>, then type the item number. The catalog finds it as you type and you pick the variation you are after.' },
       { title: 'Set a target price',

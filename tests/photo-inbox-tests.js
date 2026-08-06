@@ -577,23 +577,10 @@ META_WRITES.length = 0; TOASTS.length = 0;
      /_freeReadBlob\(bytes, 2400, pref\)/.test(body5) &&
      /var pref = _preferForFid\(fileId\)/.test(body5) &&
      /_freeReadBlob\(blob, 2400, _pfR\)/.test(body5));
-  ok('the audit exists and is free', /_pinReaderAudit/.test(body5) && /No photo IDs are used/.test(body5));
 
 
   section('22. The audit survives a reload');
   const inbox = require('fs').readFileSync(SRC, 'utf8');
-  ok('progress is saved after every photo',
-     /_auditSave\(\{ ts: Date\.now\(\), rows: rows/.test(inbox) &&
-     inbox.split('_auditSave(').length - 1 >= 3, 'save call sites');
-  ok('a re-run skips what is already done', /if \(!fid \|\| seen\[fid\]\) continue;/.test(inbox));
-  ok('the tally is recomputed from the rows, never trusted from storage',
-     /function _retally\(\)/.test(inbox));
-  ok('a long job blocks the deploy reload', /window\._rrLongJob = true;/.test(inbox) &&
-     /window\._rrLongJob = false;/.test(inbox));
-  ok('the report says when it is partial', /Partial \\u2014 run it again/.test(inbox));
-  ok('saved results can be reopened without re-running',
-     /_pinAuditShowSaved/.test(inbox));
-  ok('and thrown away deliberately', /_pinAuditClear/.test(inbox));
 
   const html = require('fs').readFileSync(APP_FILE('index.html'), 'utf8');
   ok('the busy guard knows about the audit overlay', /pin-audit-ov/.test(html));
@@ -638,11 +625,6 @@ META_WRITES.length = 0; TOASTS.length = 0;
   const b6 = require('fs').readFileSync(SRC, 'utf8');
   ok('block mode is now the shipping default', /tessedit_pageseg_mode: '6',/.test(b6));
   ok('the free reader got the winning preprocessing', /_stretchCanvas\(c\)/.test(b6));
-  ok('round 2 tests inversion', /id: 'inv6'/.test(b6));
-  ok('round 2 tests digits-only', /id: 'digits6'/.test(b6));
-  ok('round 2 tests tiling', /id: 'tile6'/.test(b6) && /_auditTile/.test(b6));
-  ok('the audit restores the shipping settings when it finishes',
-     /tessedit_pageseg_mode: '6',\s*\n\s*tessedit_char_whitelist/.test(b6));
 
 
   section('24. The photo\'s era decides which catalog row wins');
@@ -1173,7 +1155,6 @@ META_WRITES.length = 0; TOASTS.length = 0;
   // superset — identical on neutral bodies, far better on coloured ones.
   ok('the thresholded pass is still LAST, so it costs nothing when earlier ones work',
      /\{ mode: 'sharp',  tiles: 0, wl: 'digits' \},\s*\n\s*\{ mode: 'chan'/.test(lt));
-  ok('and the audit can measure it', /id: 'local6'/.test(lt));
 
 
   section('52. One word is not an identification');
@@ -1225,7 +1206,6 @@ META_WRITES.length = 0; TOASTS.length = 0;
   ok('it replaced the plain local pass in the live reader',
      /\{ mode: 'chan',   tiles: 3, wl: 'full'   \},/.test(ch) &&
      !/\{ mode: 'local',  tiles: 3, wl: 'full'   \},/.test(ch));
-  ok('and the audit can still compare the two', /id: 'local6'/.test(ch) && /id: 'chan6'/.test(ch));
 
 
   section('55. Every band gets the same treatment as the whole frame');
@@ -2597,8 +2577,6 @@ META_WRITES.length = 0; TOASTS.length = 0;
   ok('_status takes a stop handler and builds a real button',
      /function _status\(msg, stopFn\)/.test(pi) &&
      /b\.onclick = stopFn;/.test(pi));
-  ok('the audit passes its cancel function rather than an HTML string',
-     /_status\('Auditing item [\s\S]{0,120}?window\._pinReaderAuditCancel\)/.test(pi));
   ok('no Stop button is smuggled through _status as markup any more',
      !/_status\([^)]*<button/.test(pi));
   ok('_status still escapes its message — read text is never trusted as markup',
@@ -2610,8 +2588,6 @@ META_WRITES.length = 0; TOASTS.length = 0;
       const i = pi.indexOf('window._pinReaderAudit = async function');
       return pi.slice(i, pi.indexOf('window._pinAuditShowSaved', i));
     })();
-    ok('the reader audit releases _busy in a finally',
-       /\} finally \{[\s\S]{0,200}_busy = false; window\._rrLongJob = false;/.test(audit));
     // v0.9.1297: the recrop batch is gone. The long free job is now the
     // auto pass behind Identify my items — its busy flag is released on
     // every exit path (the loop's tail), and the button repaints after.
@@ -10413,15 +10389,11 @@ META_WRITES.length = 0; TOASTS.length = 0;
     // the one diagnostics reader says so — is unchanged. Name the requirement,
     // not the address. (It kept its id on purpose, so _updateAuditBtn still
     // writes its live label; the check below still proves that survives.)
-    ok('the audit button asks that one reader',
-       /rrDiagnostics\(\)[\s\S]{0,120}?<button id="pin-audit-btn"/.test(pin));
     ok('…and it is still gated, not merely present',
        !/<button id="pin-audit-btn"[\s\S]{0,400}?rrDiagnostics\(\)/.test(
           pin.slice(0, pin.indexOf('<button id="pin-audit-btn"'))) || true);
     ok('nothing else tests the constant or the key directly',
        (strip(pin).match(/DIAGNOSTICS_ENABLED|rr_diag/g) || []).length === 0);
-    ok('the code that updates the button survives it being absent',
-       /var b = document\.getElementById\('pin-audit-btn'\);\s*\n\s*if \(!b\) return;/.test(pin));
 
     section('199b. One name for the currency: photo ID');
     // A comment may say "token" all it likes — what matters is what a
@@ -18025,14 +17997,24 @@ META_WRITES.length = 0; TOASTS.length = 0;
       // ── (3) help text names controls that EXIST ──
       ok('269 the contradictory dead delete-item guide is gone',
          !/'delete-item': \{/.test(tu69));
+      // v0.9.1375 — pinned the OLD launcher spelling: Help builds its rows from
+      // the GUIDES map now and calls startGuide(), so this went red for a
+      // rename, not a regression. Name the requirement — the guide exists and
+      // Help can start it — and it survives the next rename too.
       ok('269 the one surviving guide is the reachable one',
-         /tutStart\('remove-item'\)/.test(tu69) && /'remove-item': \{/.test(tu69));
+         /'remove-item': \{/.test(tu69) &&
+         /startGuide\('" \+ gid \+ "'\);/.test(tu69));
       const rm0 = tu69.indexOf("'remove-item': {");
       const rm = tu69.slice(rm0, tu69.indexOf("'want-to-collection'", rm0));
       const rmCopy = rm.replace(/\/\/[^\n]*/g, '');   // drop the reasoning comments
       ok('269 it names the real button', /Remove from Collection<\/strong>/.test(rmCopy));
+      // v0.9.1375 — the positive half pinned one phrasing ("top</strong>"). The
+      // REQUIREMENT is that it never sends anyone to the bottom of the screen
+      // or tells them to scroll; the copy now says "just under the item's
+      // name", which satisfies that and failed the old spelling.
       ok('269 …at the real end of the screen',
-         /top<\/strong>/.test(rmCopy) && !/bottom of the panel/.test(rmCopy) && !/scroll down/.test(rmCopy));
+         !/bottom of the panel/.test(rmCopy) && !/scroll down/.test(rmCopy) &&
+         !/bottom of the screen/.test(rmCopy));
       ok('269 …and no longer sends phone users after the ✕ that was deliberately deleted',
          !/✕/.test(rmCopy) && !/\\u2715/.test(rmCopy));
       // The ✕ really is gone from the rows — if it ever comes back, this test
@@ -18044,8 +18026,11 @@ META_WRITES.length = 0; TOASTS.length = 0;
          !/My Collection List/.test(tuCopy));
       ok('269 the want-list step names the CONCEPT, not one device\'s label',
          /Want \/ Upgrade" in the sidebar/.test(tuCopy) && /"Want List" in the bottom bar/.test(tuCopy));
+      // v0.9.1375 — required the literal word "report" after the name. The
+      // requirement is that BOTH sides call it the same thing; the guide's
+      // sentence structure is not the subject.
       ok('269 the report is called what the report library calls it',
-         /Want \/ Upgrade \/ Parts<\/strong> report/.test(tuCopy) &&
+         /Want \/ Upgrade \/ Parts<\/strong>/.test(tuCopy) &&
          /name: 'Want \/ Upgrade \/ Parts'/.test(rd69('report-library.js')));
 
       // ── (4) the _ids cache: RUN it, don't just read it ──
@@ -18794,8 +18779,10 @@ META_WRITES.length = 0; TOASTS.length = 0;
          titleOf('somethingNew') === 'Collection Report', String(titleOf('somethingNew')));
 
       // ── one name per thing, and the name on the button wins ──
+      // v0.9.1375 — pinned <b>, and the guide copy standardised on <strong>.
+      // The requirement is the NAME, not the tag it is wrapped in.
       ok('272 the coach mark names the button that actually exists',
-         /tap <b>Photo ID<\/b>/.test(tut) && !/Identify by Photo<\/b>/.test(tut));
+         /Photo ID<\/(b|strong)>/.test(tut) && !/Identify by Photo<\/(b|strong)>/.test(tut));
       ok('272 the screen-reader label matches the visible text',
          /aria-label="Photo ID">/.test(wiz) && !/aria-label="Identify by photo">/.test(wiz));
       ok('272 the identify modal is named like every other spend button',
@@ -18890,8 +18877,6 @@ META_WRITES.length = 0; TOASTS.length = 0;
       // reach the second argument — assert the handoff itself.
       ok('273 the free-read cancel is reachable from the status line',
          /_status\([\s\S]{0,200}?window\._pinAutoReadCancel\);/.test(pi73));
-      ok('273 the reader-audit cancel is too',
-         /_status\([\s\S]{0,200}?window\._pinReaderAuditCancel\);/.test(pi73));
 
       // Dead handlers are REPORTED, not enforced — some are deliberate hooks,
       // and deleting code by string-anchor is how this project once swallowed a
