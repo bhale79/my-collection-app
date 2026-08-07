@@ -2983,6 +2983,35 @@ function rrDateTs(input) {
 }
 if (typeof window !== 'undefined') window.rrDateTs = rrDateTs;
 
+// ══ v0.9.1391 — ONE ANSWER TO "WHEN DID THIS JOIN THE COLLECTION" ═════════
+//
+// Brad: "shows in the my collection, but not the recent additions."
+//
+// Three places each had their own idea, and they disagreed:
+//   · the owned-list sort key     dateAdded -> datePurchased -> _savedAt
+//   · the train row's date cell   dateAdded -> datePurchased -> _savedAt
+//   · the EPHEMERA row's cell     dateAcquired, and nothing else
+//   · Recent Additions            datePurchased -> dateAcquired, no dateAdded
+//
+// So his 1872 Boiler Blueprint — saved today, dateAdded 46241 sitting right
+// there in the sheet — showed "—" in the list and could not reach the
+// dashboard at all: Recent Additions sorts anything WITH a purchase date above
+// anything without, and paper items have no purchase date. Measured in his
+// browser: ranked by dateAdded that blueprint is #1 of 188 items.
+//
+// One precedence, used everywhere. rrBestDate for DISPLAY, rrAddedTs for
+// SORTING (which additionally falls back to the session save stamp, since a
+// row saved seconds ago may not have reached the sheet yet).
+function rrBestDate(o) {
+  if (!o) return '';
+  return o.dateAdded || o.datePurchased || o.dateAcquired || '';
+}
+function rrAddedTs(o) {
+  if (!o) return 0;
+  return rrDateTs(o.dateAdded) || rrDateTs(o.datePurchased) || rrDateTs(o.dateAcquired) || o._savedAt || 0;
+}
+if (typeof window !== 'undefined') { window.rrBestDate = rrBestDate; window.rrAddedTs = rrAddedTs; }
+
 // ── Theme ────────────────────────────────────────────────────────
 // Skins foundation (v0.9.944): applyTheme() is now generic — it applies ANY
 // theme key registered in a11y-config.js (window.A11Y.theme.options), so future

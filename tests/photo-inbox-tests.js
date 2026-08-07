@@ -6741,23 +6741,34 @@ META_WRITES.length = 0; TOASTS.length = 0;
        new Date(rrDateTs('2089-01-01')).getUTCFullYear() === 2089);
 
     // Run the REAL sort-key expression from browse.js against Brad's shapes.
-    const kIdx = brw.indexOf('var _addTs = rrDateTs(');
-    ok('the sort key uses rrDateTs', kIdx > 0);
+    // v0.9.1391: the key now delegates to rrAddedTs, with the old expression
+    // kept inline as the fallback — so this still finds it, and the helper is
+    // injected below alongside rrDateTs.
+    const kIdx = brw.indexOf('var _addTs = ');
+    ok('the sort key was found', kIdx > 0);
+    ok('the sort key still resolves dates through rrDateTs',
+       brw.slice(kIdx, brw.indexOf('\n', kIdx)).indexOf('rrDateTs') > 0);
     ok('the row-number fallback is GONE from the sort key',
        brw.slice(kIdx, brw.indexOf('\n', kIdx)).indexOf('pd.row') < 0);
     const keyLine = brw.slice(kIdx, brw.indexOf(';', kIdx) + 1);
-    const keyFor = new Function('pd', 'rrDateTs', '"use strict";' + keyLine + ' return _addTs;');
+    const _rrAddedTs = function (o) {
+      if (!o) return 0;
+      return rrDateTs(o.dateAdded) || rrDateTs(o.datePurchased) || rrDateTs(o.dateAcquired) || o._savedAt || 0;
+    };
+    const keyFor = function (pd) {
+      return new Function('pd', 'rrDateTs', 'rrAddedTs', '"use strict";' + keyLine + ' return _addTs;')(pd, rrDateTs, _rrAddedTs);
+    };
 
     // Four rows the way they actually reach the sorter:
     const rSheet   = { dateAdded: '46226', row: 148 };                    // loaded from the sheet (serial)
     const rSession = { dateAdded: '2026-07-30', row: 163 };               // added this session (ISO)
     const rSaved   = { dateAdded: '', _savedAt: Date.parse('2026-07-28'), row: 10 };
     const rBlank   = { dateAdded: '', row: 3 };                           // old undated row
-    const keys = [rSheet, rSession, rSaved, rBlank].map(function (pd) { return keyFor(pd, rrDateTs); });
+    const keys = [rSheet, rSession, rSaved, rBlank].map(function (pd) { return keyFor(pd); });
     const sorted = keys.slice().sort(function (a, b) { return b - a; });  // desc, newest first
     ok('desc order is 07-30, 07-28, 07-23, undated — the bands interleave',
-       sorted[0] === keyFor(rSession, rrDateTs) && sorted[1] === keyFor(rSaved, rrDateTs)
-       && sorted[2] === keyFor(rSheet, rrDateTs) && sorted[3] === 0,
+       sorted[0] === keyFor(rSession) && sorted[1] === keyFor(rSaved)
+       && sorted[2] === keyFor(rSheet) && sorted[3] === 0,
        JSON.stringify(keys));
     ok('no key is in year-46000 territory and none is a row number',
        keys.every(function (k) { return k === 0 || (k > 1e12 && k < 4.2e12); }), JSON.stringify(keys));
@@ -20266,12 +20277,24 @@ META_WRITES.length = 0; TOASTS.length = 0;
          /2026-08-06/.test(String(fmt(46240))), String(fmt(46240)));
       ok('288 …and yesterday\'s 46239 too',
          /2026-08-05/.test(String(fmt(46239))), String(fmt(46239)));
+      // v0.9.1391 rewrote this line: the card now displays rrBestDate(pd)
+      // (dateAdded -> datePurchased -> dateAcquired) instead of datePurchased
+      // alone. The INTENT here is unchanged and still load-bearing — whatever
+      // date the card shows must go through _formatDate, or Brad sees "46240"
+      // again. Asserted on the intent, not on the old field name.
       ok('288 the Recent Additions card runs its date through the formatter',
-         /var date = \(typeof _formatDate === 'function'\) \? _formatDate\(pd\.datePurchased/.test(dash88));
+         /var date = \(typeof _formatDate === 'function'\) \? _formatDate\(_dsp\)/.test(dash88),
+         'the card could print a raw serial again');
       ok('288 THE TWIN: the item detail page formats its Date Purchased too',
          /_formatDate\(pd\.datePurchased \|\| ''\)[\s\S]{0,40}type: 'date'/.test(col88));
+      // Also rewritten by v0.9.1391. _dateForSort compared two date STRINGS;
+      // rrAddedTs returns a number by construction and handles serial, ISO and
+      // blank alike, so the "sorted as text" failure mode cannot come back
+      // through this path. The intent — a NUMERIC comparison — is what is
+      // asserted, plus the absence of any string compare on the date.
       ok('288 the card sorts dates as dates, not as text',
-         /_dateForSort\(db\) - _dateForSort\(da\)/.test(dash88));
+         /return tb - ta;/.test(dash88) && !/localeCompare\(da\)/.test(dash88),
+         'the card could compare dates as strings again');
     })();
 
     // ═══════════════════════════════════════════════════════════
@@ -20722,6 +20745,91 @@ META_WRITES.length = 0; TOASTS.length = 0;
       ok('294 the sweep is scoped to the scratch prefix, never a real number',
          /if \(k0\.indexOf\(NONUM_PREFIX\) === 0\)/.test(fn94),
          'the sweep would delete real staged notes');
+    })();
+
+
+    // ═══════════════════════════════════════════════════════════
+    // 295. ONE ANSWER TO "WHEN DID THIS JOIN THE COLLECTION"
+    //
+    // Brad: "shows in the my collection, but not the recent additions."
+    //
+    // His 1872 Boiler Blueprint saved fine — dateAdded 46241 sitting in the
+    // sheet — and then showed "—" in the list's DATE ADDED column and never
+    // appeared on the dashboard. Four places each had their own idea:
+    //   · owned-list sort key   dateAdded -> datePurchased -> _savedAt
+    //   · train row date cell   dateAdded -> datePurchased -> _savedAt
+    //   · EPHEMERA row cell     dateAcquired, and nothing else
+    //   · Recent Additions      datePurchased -> dateAcquired, no dateAdded
+    //
+    // Recent Additions sorts anything WITH a purchase date above anything
+    // without, and paper items have no purchase date — so the blueprint could
+    // not reach the card however new it was. Measured live: ranked by
+    // dateAdded it is #1 of 188 items.
+    // ═══════════════════════════════════════════════════════════
+    section('295. One answer to "when did this join the collection"');
+    (function () {
+      const p95 = require('path');
+      const APP95 = p95.join(__dirname, '..', 'app');
+      const app95 = fs.readFileSync(p95.join(APP95, 'app.js'), 'utf8');
+      const br95 = fs.readFileSync(p95.join(APP95, 'browse.js'), 'utf8');
+      const db95 = fs.readFileSync(p95.join(APP95, 'dashboard.js'), 'utf8');
+
+      // The helpers, exercised — not read. rrDateTs comes along because
+      // rrAddedTs is meaningless without it.
+      const tsSrc = (app95.match(/function rrDateTs\(input\)[\s\S]*?\n}/) || [''])[0];
+      const bestSrc = (app95.match(/function rrBestDate\(o\)[\s\S]*?\n}/) || [''])[0];
+      const addedSrc = (app95.match(/function rrAddedTs\(o\)[\s\S]*?\n}/) || [''])[0];
+      ok('295 the shared date helpers exist',
+         tsSrc.length > 50 && bestSrc.length > 20 && addedSrc.length > 20,
+         [tsSrc.length, bestSrc.length, addedSrc.length].join('/'));
+
+      const H = new Function(tsSrc + '\n' + bestSrc + '\n' + addedSrc +
+        '\nreturn { rrDateTs: rrDateTs, rrBestDate: rrBestDate, rrAddedTs: rrAddedTs };')();
+
+      // BRAD'S ROW. A paper item has dateAdded and no purchase date.
+      const blueprint = { itemNum: 'DWG-1959-543', dateAdded: '46241', datePurchased: '' };
+      const train = { itemNum: '3362', dateAdded: '46240', datePurchased: '2026-08-06' };
+      ok('295 BRAD\'S BUG: a paper item with only dateAdded still has a date',
+         H.rrBestDate(blueprint) === '46241', H.rrBestDate(blueprint));
+      ok('295 …and it sorts NEWER than yesterday\'s trains',
+         H.rrAddedTs(blueprint) > H.rrAddedTs(train),
+         H.rrAddedTs(blueprint) + ' vs ' + H.rrAddedTs(train));
+      ok('295 …because 46241 is read as a date, not a number',
+         H.rrDateTs('46241') > 0 && new Date(H.rrDateTs('46241')).getUTCFullYear() === 2026,
+         String(H.rrDateTs('46241')));
+
+      // Precedence, in order, and the session fallback last.
+      ok('295 dateAdded wins over datePurchased',
+         H.rrBestDate({ dateAdded: 'A', datePurchased: 'B', dateAcquired: 'C' }) === 'A');
+      ok('295 …then datePurchased',
+         H.rrBestDate({ datePurchased: 'B', dateAcquired: 'C' }) === 'B');
+      ok('295 …then dateAcquired',
+         H.rrBestDate({ dateAcquired: 'C' }) === 'C');
+      ok('295 …and a row saved seconds ago still sorts by its save stamp',
+         H.rrAddedTs({ _savedAt: 1700 }) === 1700, String(H.rrAddedTs({ _savedAt: 1700 })));
+      ok('295 …while a row with nothing is zero, not NaN',
+         H.rrAddedTs({}) === 0 && H.rrBestDate(null) === '', 'undated rows must form one honest bucket');
+
+      // Every site now asks the same question.
+      const ephCell = br95.slice(Math.max(0, br95.indexOf('const _ephDate')) - 400,
+                                 br95.indexOf('const _ephDate') + 200);
+      ok('295 the paper/ephemera row asks the shared helper, not dateAcquired alone',
+         /rrBestDate\(it\)/.test(ephCell), 'the paper rows would still print an em dash');
+      ok('295 the owned-list sort key uses the shared helper',
+         /rrAddedTs\(pd\)/.test(br95), 'the list sort could drift from the cells again');
+      ok('295 the train row date cell uses the shared helper',
+         /rrBestDate\(pd\)/.test(br95), 'the train cell could drift');
+
+      const recent = db95.slice(db95.indexOf("id: 'recent'"), db95.indexOf("id: 'recent'") + 6000);
+      ok('295 the Recent Additions card was found', recent.length > 1000, String(recent.length));
+      ok('295 BRAD\'S BUG: Recent Additions ranks by when things were ADDED',
+         /rrAddedTs\(a\)/.test(recent) && /rrAddedTs\(b\)/.test(recent),
+         'the dashboard still ignores dateAdded');
+      ok('295 …and no longer sorts undated rows below dated ones on purpose',
+         !/if \(da && !db\) return -1;/.test(recent),
+         'anything without a purchase date is still pushed to the bottom');
+      ok('295 …and shows the date it sorted by, so the order reads right',
+         /rrBestDate\(pd\)/.test(recent), 'the row would display a different date than it sorted on');
     })();
 
   })().then(function () {

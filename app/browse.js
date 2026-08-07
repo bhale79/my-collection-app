@@ -3252,7 +3252,7 @@ function renderBrowse() {
       // _savedAt second, so a row with no dateAdded, a datePurchased, and an
       // earlier save stamp DISPLAYED one date and SORTED by another — Brad's
       // lone 07-29 sitting under the 07-28 block. One precedence, both places.
-      var _addTs = rrDateTs(pd.dateAdded) || rrDateTs(pd.datePurchased) || pd._savedAt || 0;
+      var _addTs = (typeof rrAddedTs === 'function') ? rrAddedTs(pd) : (rrDateTs(pd.dateAdded) || rrDateTs(pd.datePurchased) || pd._savedAt || 0);   // v0.9.1391: one precedence, shared with every date cell
       return {
         it: it,
         mfr: (typeof _manufacturerOfItem === 'function' ? (_manufacturerOfItem(it) || '') : ''),
@@ -3597,7 +3597,13 @@ function renderBrowse() {
         const _cSymE = (typeof _currencySymbol === 'function') ? _currencySymbol() : '$';
         const _ephWorthN = it.estValue ? parseFloat(it.estValue) : NaN;
         const _ephWorth = isFinite(_ephWorthN) ? _cSymE + _ephWorthN.toLocaleString() : '<span style="color:var(--text-dim)">—</span>';
-        const _ephDate = it.dateAcquired ? ((typeof _formatDate === 'function') ? _formatDate(it.dateAcquired) : it.dateAcquired) : '—';
+        // v0.9.1391 (Brad: "shows in the my collection, but not the recent
+        // additions") — this read dateAcquired and NOTHING else, so every
+        // paper item saved by the wizard, which stamps dateAdded, printed
+        // "—". Measured in his browser: _formatDate was called ZERO times
+        // across 19 paper rows. Same precedence as every other date cell.
+        const _ephD = (typeof rrBestDate === 'function') ? rrBestDate(it) : (it.dateAcquired || '');
+        const _ephDate = _ephD ? ((typeof _formatDate === 'function') ? _formatDate(_ephD) : _ephD) : '—';
         const _ephBtn = 'padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;font-family:var(--font-body);font-weight:600;margin-right:0.2rem';
         // v0.9.814 (Brad): only show a maker badge when the user actually
         // entered one — no Lionel default, blank otherwise.
@@ -3877,7 +3883,7 @@ function renderBrowse() {
         <td style="width:52px;text-align:center;padding:2px 4px"><div id="thumb-${_rrRowDomKey(item)}" style="width:44px;height:44px;border-radius:5px;background:var(--surface2);display:inline-flex;align-items:center;justify-content:center;overflow:hidden;vertical-align:middle"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.3"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg></div></td>
         <td style="color:var(--text-mid);font-size:0.85rem" title="${(_descFull||'').replace(/"/g,'&quot;')}">${_descFull}</td>
         <td style="font-size:0.82rem;color:var(--gold);white-space:nowrap;text-align:center">${_estWorth}</td>
-        <td style="font-size:0.76rem;color:var(--text-dim);white-space:nowrap;width:80px;text-align:center">${(function(){ var d = (pd && (pd.dateAdded || pd.datePurchased)) || ''; if (d) return (typeof _formatDate === 'function') ? _formatDate(d) : d; if (pd && pd._savedAt) { try { return new Date(pd._savedAt).toLocaleDateString(); } catch(e){} } return '—'; })()}</td>
+        <td style="font-size:0.76rem;color:var(--text-dim);white-space:nowrap;width:80px;text-align:center">${(function(){ var d = (typeof rrBestDate === 'function') ? rrBestDate(pd) : ((pd && (pd.dateAdded || pd.datePurchased)) || ''); if (d) return (typeof _formatDate === 'function') ? _formatDate(d) : d; if (pd && pd._savedAt) { try { return new Date(pd._savedAt).toLocaleDateString(); } catch(e){} } return '—'; })()}</td>
         <td class="coll-actions-cell" style="text-align:right">
           ${!_inShareModeD ? `${_fsBtn}
           <button onclick="event.stopPropagation();collectionActionSold(${globalIdx},'${_dispNum}','${_escVar}',${pd && pd.row ? pd.row : 0},'${_myInvId}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #2ecc71;background:var(--bg-card);background:color-mix(in srgb, rgb(46,204,113) 10%, var(--bg-card));color:#2ecc71;font-family:var(--font-body);font-weight:600;margin-right:0.2rem" title="Mark as sold / add to Sold list">Sold</button>

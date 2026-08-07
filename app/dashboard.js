@@ -1045,14 +1045,22 @@ var PANEL_CATALOG = [
           // while every value is a five-digit serial and stops working the
           // moment one is an ISO string ("2026-08-06" sorts below "46240").
           // _dateForSort normalises serial, ISO and US forms to one number.
-          var da = a.datePurchased || a.dateAcquired || '';
-          var db = b.datePurchased || b.dateAcquired || '';
-          if (da && db && da !== db) {
-            if (typeof _dateForSort === 'function') return _dateForSort(db) - _dateForSort(da);
-            return db.localeCompare(da);
-          }
-          if (da && !db) return -1;
-          if (!da && db) return 1;
+          // ── v0.9.1391 (Brad: "shows in the my collection, but not the
+          // recent additions") ──────────────────────────────────────────────
+          // This compared PURCHASE date only. dateAdded — the field the save
+          // handlers actually stamp, and the one the list column is named
+          // after — was never consulted. Anything with a purchase date sorted
+          // above anything without, and paper items have no purchase date, so
+          // his 1872 Boiler Blueprint (saved today, dateAdded sitting in the
+          // sheet) could not reach this card at all. Measured in his browser:
+          // ranked by dateAdded it is #1 of 188 items.
+          //
+          // rrAddedTs is the one precedence — dateAdded, then datePurchased,
+          // then dateAcquired — shared with the owned list's sort key and
+          // every date cell, so they cannot drift apart again.
+          var ta = (typeof rrAddedTs === 'function') ? rrAddedTs(a) : 0;
+          var tb = (typeof rrAddedTs === 'function') ? rrAddedTs(b) : 0;
+          if (ta !== tb) return tb - ta;
           var rA = a.row || 0, rB = b.row || 0;
           return rB - rA;
         })
@@ -1078,7 +1086,10 @@ var PANEL_CATALOG = [
           // _formatDate has converted them since the H8 audit; this row simply
           // never called it, while the Parts card below always has. Same miss
           // that produced "sheet v60 (46230)" in v0.9.1339.
-          var date = (typeof _formatDate === 'function') ? _formatDate(pd.datePurchased || '') : (pd.datePurchased || '');
+          // v0.9.1391 — show the date this card SORTED by, or the row reads
+          // as out of order. Same helper, same precedence.
+          var _dsp = (typeof rrBestDate === 'function') ? rrBestDate(pd) : (pd.datePurchased || '');
+          var date = (typeof _formatDate === 'function') ? _formatDate(_dsp) : _dsp;
           var meta = [date, price].filter(Boolean).join(' · ');
           var idx = master ? _masterIdxOf(master) : -1;
           var _co = (typeof _ownedCompanions === 'function') ? _ownedCompanions(pd) : [];
