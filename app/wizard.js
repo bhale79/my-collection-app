@@ -1091,6 +1091,16 @@ function closeWizard() {
 
 function _doCloseWizard() {
   try { if (typeof _wizFieldFocusClose === 'function') _wizFieldFocusClose(); } catch (eF) {}
+  // v0.9.1387 — a numberless inbox add that was CANCELLED leaves a staging
+  // note keyed "__nonum__<time>", which can never match a real item and so
+  // would sit in localStorage forever holding photos that stay in the inbox
+  // looking untouched. A save re-keys it to the generated number first
+  // (wizard-save.js) and sets _saveComplete, so this only fires on cancel.
+  try {
+    var _wd = (wizard && wizard.data) || {};
+    if (!_wd._saveComplete && _wd._pinStagedNum && typeof window.rrPinDropStaged === 'function')
+      window.rrPinDropStaged(_wd._pinStagedNum);
+  } catch (eNn) {}
   // v0.9.697: single-chokepoint cache snapshot (Brad's "says it saves but it
   // doesn't"): many save paths updated the sheet + in-memory state but never
   // refreshed the 2-hour personal-data cache, so the next app load REVERTED

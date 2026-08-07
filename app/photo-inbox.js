@@ -2865,6 +2865,14 @@
           _setBtn +
           '<button id="pin-rv-add" onclick="_pinFileToCollection()" class="btn-primary" style="width:100%;padding:0.72rem;border-radius:10px;border:none;font-family:var(--font-body);font-weight:700;font-size:0.93rem;cursor:pointer;margin-bottom:0.5rem">Add to my Collection</button>' +
           '<button id="pin-rv-sell" onclick="_pinSendForSale()" style="width:100%;padding:0.68rem;border-radius:10px;border:1.5px solid #d4a843;background:var(--bg-card);background:color-mix(in srgb, rgb(212,168,67) 12%, var(--bg-card));color:#d4a843;font-family:var(--font-body);font-weight:700;font-size:0.9rem;cursor:pointer;margin-bottom:0.5rem">Add to Sales List</button>' +
+          // v0.9.1387 (Brad, on a photo of a Lionel engineering blueprint):
+          // "it forces you to enter an item number for something that doesn't
+          // have one. this paper item should be manually entered." Always
+          // shown, never conditional on the read: his blueprint DID produce
+          // numbers and a confident-looking catalog guess, so a button that
+          // only appeared when nothing was read would have missed the very
+          // case that prompted it.
+          '<button id="pin-rv-nonum" onclick="_pinAddNoNumber()" style="width:100%;padding:0.68rem;border-radius:10px;border:1.5px solid var(--info);background:var(--bg-card);background:color-mix(in srgb, var(--info) 12%, var(--bg-card));color:var(--info);font-family:var(--font-body);font-weight:700;font-size:0.9rem;cursor:pointer;margin-bottom:0.5rem">No item number — enter it myself</button>' +
           '<button onclick="_pinReviewDiscard()" style="width:100%;padding:0.68rem;border-radius:10px;border:1.5px solid #8b8e94;background:var(--bg-card);background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card));color:#f05008;font-family:var(--font-body);font-weight:700;font-size:0.9rem;cursor:pointer">Discard Photo' + (n > 1 ? 's' : '') + '</button>' +
         '</div>' +
         '<div style="flex:1 1 240px;min-width:0">' +
@@ -4415,6 +4423,100 @@
   window._pinFileToCollection = function () { return window._pinReviewAdd('new'); };
   window._pinAttachOwned      = function () { return window._pinReviewAdd('attach'); };
   window._pinSendForSale      = function () { return window._pinReviewAdd('forsale'); };
+
+  // ══ v0.9.1387 — SOME THINGS DO NOT HAVE AN ITEM NUMBER ════════════════════
+  //
+  // Brad, on a photo of a Lionel engineering blueprint: "it forces you to
+  // enter an item number for something that doesn't have one. this paper item
+  // should be manually entered."
+  //
+  // Every exit from the review card ran through _pinReviewAdd, which opens
+  // with `if (!num) ... return`. The card assumed the thing in the photo is a
+  // catalogued train. A blueprint, a poster, a catalogue, a mock-up has no
+  // catalogue number — and worse, the reader had FOUND numbers on his drawing
+  // (2205, 1872-21, 272723) and offered 2205 as a catalogue match, so the card
+  // looked confident about an item number the object does not have.
+  //
+  // The wizard has handled these since v0.9.1278: the Item Type selector at
+  // the top of the first screen offers Paper Item, Catalog, Mock-Up, Other and
+  // Manual, and an ephemera save generates its own number. The only thing
+  // missing was a door into it that did not demand a number first.
+  //
+  // NOTHING is guessed here. Brad picks the type from that selector — his
+  // call, screenshotted: "should be the picker i just uploaded".
+  var NONUM_PREFIX = '__nonum__';
+  window._pinAddNoNumber = function () {
+    var gs = _rvGroups;
+    if (!gs.length || _busy) return;
+    if (typeof openWizard !== 'function') { showToast('Add wizard not available', 2500, true); return; }
+    var fileList = [];
+    for (var g = 0; g < gs.length; g++)
+      for (var f = 0; f < gs[g].files.length; f++) fileList.push(gs[g].files[f]);
+    if (!fileList.length) return;
+
+    // Stage with NO Drive work, exactly as the set lane does (v0.9.1122):
+    // empty fromFid/toFid/link are resolved by _flushPending at save time.
+    // That matters more here than anywhere else — the folder must be named
+    // after the number the ephemera save GENERATES, which does not exist yet,
+    // and a cancelled add must leave no empty folder behind in Drive.
+    var key = NONUM_PREFIX + new Date().getTime();
+    try {
+      var stage = JSON.parse(localStorage.getItem(SETSTAGE_KEY) || '{}');
+      stage[key] = { link: '', fromFid: '', toFid: '', ts: new Date().getTime(),
+                     rsvFid: (fileList[0] && fileList[0].id) || '',
+                     files: fileList.map(function (fl) { return { id: fl.id, name: fl.name }; }) };
+      localStorage.setItem(SETSTAGE_KEY, JSON.stringify(stage));
+    } catch (eS) { console.warn('[Inbox] could not stage the numberless add', eS && eS.message); }
+
+    var ov = document.getElementById('pin-review-ov'); if (ov) ov.remove();
+    _sel = {};
+    openWizard('collection');
+    var tries = 0;
+    var t = setInterval(function () {
+      tries++;
+      var ready = (typeof wizard !== 'undefined') && wizard && wizard.steps && wizard.data
+                  && document.getElementById('wizard-modal');
+      if (ready) {
+        clearInterval(t);
+        try {
+          // _fromInbox is what puts the Item Type selector on screen.
+          // _pinStagedNum is re-keyed to the generated number by the ephemera
+          // save (wizard-save.js) and survives a type change (_wizSetKind).
+          // itemNum is deliberately NOT set: there is no number, and writing
+          // the staging key into it would put "__nonum__…" on the sheet.
+          wizard.data._fromInbox = true;
+          wizard.data._pinStagedNum = key;
+          wizard.data._noNumberEntry = true;
+          wizard.data._returnPage = 'photo-inbox';
+          var _hero = (fileList[0] && fileList[0].id) || '';
+          if (_hero) wizard.data._addPhotoDriveId = _hero;
+          var _all = fileList.map(function (fl) { return (fl && fl.id) || ''; }).filter(Boolean);
+          if (_all.length) wizard.data._addPhotoDriveIds = _all;
+          if (typeof renderWizardStep === 'function') renderWizardStep();
+          showToast('Pick what it is from Item Type at the top — paper, catalog, mock-up or other. '
+            + fileList.length + ' photo' + (fileList.length > 1 ? 's' : '')
+            + ' will attach when you save.', 5500);
+        } catch (eW) { console.error('[Inbox] numberless add:', eW); }
+      }
+      if (tries > 60) clearInterval(t);
+    }, 100);
+  };
+
+  // A numberless add that is CANCELLED must not leave its staging note behind.
+  // A note keyed by a real item number is harmless — it arms itself if that
+  // number is ever added. A "__nonum__…" key can never match anything, so
+  // without this it would sit in localStorage forever holding photos that stay
+  // in the inbox looking untouched. Called from _doCloseWizard on cancel.
+  window.rrPinDropStaged = function (key) {
+    try {
+      var k = String(key || '');
+      if (k.indexOf(NONUM_PREFIX) !== 0) return;    // only ever our own scratch keys
+      var stage = JSON.parse(localStorage.getItem(SETSTAGE_KEY) || '{}');
+      if (!(k in stage)) return;
+      delete stage[k];
+      localStorage.setItem(SETSTAGE_KEY, JSON.stringify(stage));
+    } catch (e) { console.warn('[Inbox] could not drop the staged note', e && e.message); }
+  };
 
   window._pinAddNow = function (num, aiMeta, photoDriveId, opts) {
     if (typeof openWizard !== 'function') { showToast('Add wizard not available', 2500, true); return; }
