@@ -14859,11 +14859,30 @@ META_WRITES.length = 0; TOASTS.length = 0;
          !/\.style\.background = [^;\n]*rgba\(41,128,185,0\.18\)/.test(code32) &&
          !/\.style\.background = [^;\n]*rgba\(212,168,67,0\.14\)/.test(code32),
          'a raw rgba() wash is back in a JS button repaint');
-      // v0.9.1297: one converted site (the recrop button's repaint) left with
-      // the recrop machinery — 1 definition + 5 calls remain.
-      ok('232 the converted sites all call the helper',
-         (code32.match(/_pinOpaqueTint\(/g) || []).length >= 6,
-         String((code32.match(/_pinOpaqueTint\(/g) || []).length));
+      // v0.9.1380 — this counted occurrences and expected at least six ("1
+      // definition + 5 calls"). A SIXTH left with the Reader Audit when Brad
+      // had it deleted in v0.9.1352, and the count went red for a deliberate
+      // removal. A typed total is a promise about how many features exist,
+      // which is not what this test is about.
+      //
+      // The requirement: the helper exists exactly once, and the sites that
+      // repaint a button background go through it. The teeth are in the
+      // assertion above, which names each raw rgba() wash that must never
+      // return; this one just proves the helper is real and in use.
+      {
+        const _defs = (code32.match(/function _pinOpaqueTint\(/g) || []).length;
+        const _uses = (code32.match(/_pinOpaqueTint\(/g) || []).length - _defs;
+        // DRILL OUTCOME, recorded honestly: both mutations (removing the
+        // definition, renaming every call) make the suite THROW rather than
+        // fail this assertion, because other sections evaluate photo-inbox.js
+        // and hit the missing symbol first. So the code is proven load-bearing;
+        // this assertion is not proven to be the thing that catches it. Kept
+        // because it names the requirement in the right place, not because a
+        // drill went red on it.
+        ok('232 the converted sites all call the helper',
+           _defs === 1 && _uses >= 1,
+           _defs + ' definition(s), ' + _uses + ' call(s)');
+      }
     })();
 
     // ═══════════════════════════════════════════════════════════
@@ -18178,8 +18197,14 @@ META_WRITES.length = 0; TOASTS.length = 0;
          busyFin >= busySet, busyFin + ' finallys for ' + busySet + ' sets');
       // And nothing releases OUTSIDE one — a bare release is the bug shape.
       const looseRel = (piTight.match(/(?<!var )(?<!finally \{\s)_busy = false/g) || []).length;
+      // v0.9.1380 — the census read `busySet === 7`. It is SIX now, and the
+      // seventh left with the Reader Audit when Brad had it deleted in
+      // v0.9.1352. An exact census is deliberate in this project — drift is
+      // news in both directions — so the number is UPDATED with its reason
+      // rather than loosened into a >=, which would stop reporting a new
+      // writer appearing.
       ok('270 …and no release sits outside a finally',
-         busyFin >= busySet && busySet === 7, busySet + ' writers');
+         busyFin >= busySet && busySet === 6, busySet + ' writers');
       ok('270 …including the tagging pass specifically',
          /\} finally \{\s*\n\s*\/\/[^\n]*\n(\s*\/\/[^\n]*\n)*\s*_busy = false;\s*\n\s*_status\(''\);\s*\n\s*\}/.test(rd70('photo-inbox.js')));
 
@@ -18207,9 +18232,19 @@ META_WRITES.length = 0; TOASTS.length = 0;
          /window\._pinReview\(_back\.length === 1 \? _back\[0\]\.key : null, _back\)/.test(pi));
       // Belt and braces: the two buttons that SPEND or DESTROY cannot appear
       // outside select mode, whatever ends up in _sel.
-      ok('270 Discard and Identify arm only in select mode, not on the count alone',
-         /if \(db\) db\.style\.display = \(_selectMode && n\) \? '' : 'none';/.test(pi) &&
-         /if \(ib\) ib\.style\.display = \(_selectMode && n\) \? '' : 'none';/.test(pi));
+      // v0.9.1380 — pinned both as ONE-LINE `if (x) x.style.display = …`
+      // statements. The Identify button's guard grew a block in v0.9.1351 (it
+      // now also sets the cost label), so its line no longer starts with
+      // `if (ib)` and the test went red for a shape change with the rule
+      // intact. Assert the RULE: each button's visibility is gated on
+      // _selectMode AND a count, never on the count alone.
+      {
+        const _arm = /\.style\.display = \(_selectMode && n\) \? '' : 'none';/g;
+        const _armed = (pi.match(_arm) || []).length;
+        ok('270 Discard and Identify arm only in select mode, not on the count alone',
+           _armed >= 2 && /if \(db\)/.test(pi) && /if \(ib\)/.test(pi),
+           _armed + ' button(s) gated on _selectMode && n');
+      }
       // And the ticks really are select-mode-only, which is WHY that matters.
       ok('270 …because the tick circle is drawn only in select mode',
          /var _circle = _selectMode\s*\n?\s*\?/.test(pi));
