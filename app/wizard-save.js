@@ -99,6 +99,7 @@ function generatePaperItemNum(paperType, year) {
     'Reference Book':     'REF',
     'Promotional Item':   'PRO',
     'Instruction Sheet':  'IS',
+    'Blueprint / Drawing': 'DWG',   // v0.9.1388 (Brad): "add drawing to the list"
     'Other':              'OTH',
   };
   const typeCode = typeMap[paperType] || 'PAP';

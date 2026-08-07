@@ -179,7 +179,11 @@ function getSteps(tab) {
         { id: 'eph_paperType',
           title: 'What type of paper item is this?',
           type: 'choice3',
-          choices: ['Catalog','Instruction Sheet','Operating Manual','Magazine','Dealer Paper','Dealer Promo Kit','Dealer Display Poster','Reference Book','Promotional Item','Other'] },
+          // v0.9.1388 (Brad): "add drawing to the list". His Photo Inbox is
+          // full of Lionel engineering blueprints — the 2205 boiler drawing
+          // among them — and every one of them filed as "Other", which throws
+          // away the one word that would make them findable later.
+          choices: ['Catalog','Instruction Sheet','Operating Manual','Magazine','Dealer Paper','Dealer Promo Kit','Dealer Display Poster','Reference Book','Promotional Item','Blueprint / Drawing','Other'] },
         { id: 'eph_paperSubType',
           title: (d) => {
             if (d.eph_paperType === 'Catalog')      return 'What kind of catalog?';
@@ -203,7 +207,10 @@ function getSteps(tab) {
           },
           type: 'catalogPicker',
           optional: true,
-          skipIf: (d) => !d.eph_paperType || d.eph_paperType === 'Instruction Sheet' || d.eph_paperType === 'Other' },
+          // v0.9.1388 — a factory drawing is not in any catalogue, so the
+          // catalog picker has nothing to offer it. Same as an instruction
+          // sheet: skip straight to the title.
+          skipIf: (d) => !d.eph_paperType || d.eph_paperType === 'Instruction Sheet' || d.eph_paperType === 'Other' || d.eph_paperType === 'Blueprint / Drawing' },
         // Step 4 — title (skipped if catalog picked from list)
         { id: 'eph_title',
           title: (d) => {
@@ -223,6 +230,7 @@ function getSteps(tab) {
               'Dealer Display Poster': '1956 Dealer Poster',
               'Reference Book': 'Greenberg Guide to Lionel Trains',
               'Promotional Item': '1959 Lionel Showroom Sign',
+              'Blueprint / Drawing': 'Lionel Drawing 1872-21 \u2014 Boiler Assembly',
             };
             var t = d.eph_paperType || '';
             return 'e.g. ' + (eg[t] || (d.eph_paperSubType || t || 'item'));

@@ -20478,6 +20478,69 @@ META_WRITES.length = 0; TOASTS.length = 0;
          'the cleanup does not check _saveComplete — a save could lose its photos');
     })();
 
+
+    // ═══════════════════════════════════════════════════════════
+    // 292. A DRAWING IS ITS OWN KIND OF PAPER
+    //
+    // Brad: "add drawing to the list". His Photo Inbox is full of Lionel
+    // engineering blueprints — the 2205 boiler drawing among them — and every
+    // one of them filed as "Other", which throws away the one word that would
+    // make them findable later.
+    //
+    // A new paper type is not one edit. It has to appear in the picker, it has
+    // to earn its own item-number code (or it silently becomes "PAP"), and it
+    // has to SKIP the catalog picker, because there is no catalogue of factory
+    // drawings to look one up in.
+    // ═══════════════════════════════════════════════════════════
+    section('292. A drawing is its own kind of paper');
+    (function () {
+      const p92 = require('path');
+      const APP92 = p92.join(__dirname, '..', 'app');
+      const steps92 = fs.readFileSync(p92.join(APP92, 'wizard-steps.js'), 'utf8');
+      const save92 = fs.readFileSync(p92.join(APP92, 'wizard-save.js'), 'utf8');
+      const LABEL = 'Blueprint / Drawing';
+
+      const choices = (steps92.match(/id:\s*'eph_paperType'[\s\S]*?choices:\s*\[([^\]]*)\]/) || [])[1] || '';
+      ok('292 the paper-type list was found', choices.length > 40, String(choices.length));
+      ok('292 BRAD\'S ASK: a drawing is offered as its own type',
+         choices.indexOf(LABEL) >= 0, choices);
+
+      // It must not have displaced anything Brad already files under.
+      ['Catalog', 'Instruction Sheet', 'Operating Manual', 'Magazine', 'Dealer Paper',
+       'Dealer Promo Kit', 'Dealer Display Poster', 'Reference Book', 'Promotional Item',
+       'Other'].forEach(function (t) {
+        ok('292 …and ' + t + ' is still on the list', choices.indexOf("'" + t + "'") >= 0, choices);
+      });
+
+      // Its own number code, exercised through the REAL generator rather than
+      // read off the map — an entry in the map that the function never reaches
+      // would look right and do nothing.
+      const genSrc = (save92.match(/function generatePaperItemNum[\s\S]*?\n}/) || [''])[0];
+      ok('292 the item-number generator was found', genSrc.length > 200, String(genSrc.length));
+      const gen = new Function('Date', genSrc + '; return generatePaperItemNum;')(Date);
+      ok('292 a drawing gets its own item-number code, not the generic PAP',
+         /^DWG-1950-\d{3}$/.test(gen(LABEL, '1950')), gen(LABEL, '1950'));
+      ok('292 …and still works with no year',
+         /^DWG-\d{3}$/.test(gen(LABEL, '')), gen(LABEL, ''));
+      // The fallback must still exist for anything genuinely unknown, or this
+      // test would pass just as well with every type hardcoded to DWG.
+      ok('292 …while an unknown type still falls back to PAP',
+         /^PAP-/.test(gen('Nonsense', '1950')), gen('Nonsense', '1950'));
+      ok('292 …and Other is untouched',
+         /^OTH-/.test(gen('Other', '1950')), gen('Other', '1950'));
+
+      // No catalogue lists factory drawings, so the picker step must skip.
+      const skip = (steps92.match(/id:\s*'eph_catalogPick'[\s\S]*?skipIf:\s*\(d\)\s*=>([^\n]*)/) || [])[1] || '';
+      ok('292 the catalog-picker skip rule was found', skip.length > 20, skip);
+      ok('292 a drawing skips the catalog picker — nothing lists factory drawings',
+         skip.indexOf(LABEL) >= 0, skip);
+
+      // v0.9.1241's rule: the example follows the kind of paper being added.
+      ok('292 …and the title screen shows a drawing an example of a drawing',
+         new RegExp("'" + LABEL.replace(/[/]/g, '.') + "':\\s*'[^']+'").test(steps92),
+         'no placeholder example for a drawing');
+    })();
+
   })().then(function () {
     console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
     process.exit(fail ? 1 : 0);
