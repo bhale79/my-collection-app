@@ -75,6 +75,13 @@ window._cardTitle = function () {
 (async () => {
   const file = path.join(DIR, 'g.html');
   fs.writeFileSync(file, html);
+  // The conductor is an <img> that hides itself on error, so without his real
+  // artwork beside the fixture he collapses to 0x0 and every measurement of
+  // "is he on screen" measures nothing — it passed with the side-choice
+  // deliberately broken. Copy the real art so the geometry is real.
+  fs.mkdirSync(path.join(DIR, 'img'), { recursive: true });
+  for (const f of ['conductor-pointing.png', 'conductor-pointing-left.png'])
+    fs.copyFileSync(path.join(APP, 'img', f), path.join(DIR, 'img', f));
   const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });
   try {
     const page = await browser.newPage({ viewport: { width: 1000, height: 700 } });
@@ -309,6 +316,44 @@ window._cardTitle = function () {
     ok('a step that WAITS parks the card in a screen corner',
        !!r.corner && (r.atLeft || r.atRight) && (r.atTop || r.atBottom), JSON.stringify(r));
 
+    // The conductor hangs 66px off one side of the card. Against a screen edge
+    // the wrong side puts him half off-screen — measured live in Brad's browser
+    // at bottom-left: card at x8, mascot at x-57.
+    const pinnedCorner = r.corner;
+    const mascot = await page.evaluate(() => {
+      const m = document.getElementById('gt-mascot');
+      if (!m) return { none: true };
+      const b = m.getBoundingClientRect();
+      return { rect: [Math.round(b.left), Math.round(b.right)],
+               onScreen: b.left >= 0 && b.right <= window.innerWidth };
+    });
+    ok('…with the conductor still fully on screen beside it',
+       mascot.none || mascot.onScreen, JSON.stringify(mascot));
+
+    // The case that actually bit: card pinned to a LEFT corner while the thing
+    // it points at is far to the RIGHT. Choosing the conductor's side from
+    // where the highlight is (rather than from which edge the card hugs) puts
+    // him off the screen — Brad's browser, card at x8, conductor at x-57.
+    // #target-c lives in the top-right, so this reproduces it.
+    r = await page.evaluate(async () => {
+      try { _gtEnd(); } catch (e) {}
+      window._rrGateOpen = false;
+      _guidedTour([
+        { selector: '#target-c', title: 'Waits, far right', body: 'do the thing',
+          awaitUser: function () { return !!window._rrGateOpen; } },
+        { title: 'end', body: 'end' }
+      ]);
+      await new Promise(r2 => setTimeout(r2, 500));
+      const c = document.getElementById('gt-callout'), cb = c.getBoundingClientRect();
+      const m = document.getElementById('gt-mascot'), mb = m ? m.getBoundingClientRect() : null;
+      return { corner: c.dataset.gtCorner || null,
+               cardLeft: Math.round(cb.left),
+               mascot: mb ? [Math.round(mb.left), Math.round(mb.right)] : null,
+               onScreen: !mb || (mb.left >= 0 && mb.right <= window.innerWidth) };
+    });
+    ok('…even when the card is pinned left and the highlight is far right',
+       r.onScreen, JSON.stringify(r));
+
     // Predictability was the entire argument for corners over pointing, so the
     // card must not migrate under the user. The hard case is not a resize —
     // it is a corner it was PUSHED OUT OF becoming free again. #corner-hog
@@ -316,8 +361,8 @@ window._cardTitle = function () {
     // away and the preferred corner is suddenly the cleanest, and a naive
     // score would snap the card back mid-read.
     ok('a busy corner pushes the card to a different one',
-       r.corner && r.corner !== 'bottom-right', JSON.stringify(r));
-    const firstCorner = r.corner;
+       pinnedCorner && pinnedCorner !== 'bottom-right', JSON.stringify({ corner: pinnedCorner }));
+    const firstCorner = pinnedCorner;
     r = await page.evaluate(async () => {
       const hog = document.getElementById('corner-hog');
       hog.style.right = 'auto'; hog.style.bottom = 'auto';

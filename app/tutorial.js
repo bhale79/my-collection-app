@@ -878,8 +878,12 @@ function _guidedTour(steps) {
       callout.style.left = cn.left + 'px';
       callout.style.top = cn.top + 'px';
       callout.dataset.gtCorner = cn.corner;
-      // Point the conductor back toward the highlight, not off the screen edge.
-      setMascot(cn.left + cw / 2 > r.left + r.width / 2);
+      // The conductor hangs 66px off ONE side of the card and always points
+      // inward at it. Against a screen edge the wrong choice puts him half
+      // off-screen — measured live in Brad's browser at bottom-left: card at
+      // x8, mascot at x-57. So the side is chosen by which edge the card is
+      // hugging, not by where the highlight is.
+      setMascot(cn.left < W / 2);
       return;
     }
     delete callout.dataset.gtCorner;
