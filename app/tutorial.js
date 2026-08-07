@@ -829,7 +829,7 @@ function _guidedTour(steps) {
       // v0.9.1362 (Brad): a step that needs something typed says so HERE when
       // Next is pressed, rather than Next simply not working. A dead button
       // teaches nothing; "Please enter an item number — try 773" does.
-      + '<div id="gt-gate-msg" style="display:none;margin:0 0.95rem 0.5rem;padding:0.45rem 0.6rem;border-radius:8px;background:color-mix(in srgb, rgb(240,80,8) 14%, transparent);border:1px solid var(--accent,#f05008);color:var(--text,#eee);font-size:0.79rem;line-height:1.4"></div>'
+      + '<div id="gt-gate-msg" style="display:none;margin:0 0.95rem 0.5rem;padding:0.45rem 0.6rem;border-radius:8px;background:var(--bg-card);background:color-mix(in srgb, rgb(240,80,8) 14%, var(--bg-card));border:1px solid var(--accent,#f05008);color:var(--text,#eee);font-size:0.79rem;line-height:1.4"></div>'
       + '<div style="display:flex;align-items:center;justify-content:space-between;padding:0.55rem 0.9rem;border-top:1px solid var(--border,#333)">'
       +   '<span style="font-size:0.72rem;color:var(--text-dim,#888)">Step ' + (i + 1) + ' of ' + total + '</span>'
       +   '<div style="display:flex;gap:0.4rem">'

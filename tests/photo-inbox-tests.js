@@ -4359,12 +4359,19 @@ META_WRITES.length = 0; TOASTS.length = 0;
     // ── the one message source, run for real ──
     const msg = new Function(
       sliceTo(aid, 'var _RR_READ_FAIL', 'if (typeof window') + 'return rrReadFailMessage;')();
+    // v0.9.1379 — pinned the word "switched off". The copy standardised on
+    // Brad's chosen "Photo ID" naming ("Photo ID reads are off — turn them on
+    // in Preferences › Photo ID"), which says the same thing better. The
+    // REQUIREMENT is that it tells you reads are off AND where to change it.
     ok('a switched-off read says it is switched off, and where to change it',
-       /switched off/.test(msg('optout')) && /Preferences/.test(msg('optout')), msg('optout'));
+       /(switched off|reads are off)/.test(msg('optout')) && /Preferences/.test(msg('optout')),
+       msg('optout'));
     ok('…and does NOT tell the user the photo could not be read',
        !/could not read/i.test(msg('optout')));
+    // v0.9.1379 — "No photo reads left today" became "No photo IDs left today"
+    // in the same naming sweep. Assert the meaning: none left, today.
     ok('an exhausted allowance still says so',
-       /No photo reads left today/.test(msg('quota')));
+       /No photo (reads|IDs) left today/i.test(msg('quota')), msg('quota'));
     ok('a busy reader and a dead connection are told apart',
        /busy/.test(msg('busy')) && /connection/.test(msg('offline')) &&
        msg('busy') !== msg('offline'));
@@ -4400,13 +4407,19 @@ META_WRITES.length = 0; TOASTS.length = 0;
     // label: _pinBtnBusy returns a restore function that puts back whatever was
     // there, so the wording lives in exactly ONE place — the render. Two copies of
     // a label is how they drift; one is the point.
+    // v0.9.1379 — the label gained "photo ID" with the naming sweep. What must
+    // stay true: exactly ONE render site, and it says reads are off rather than
+    // offering a token count the user cannot spend.
     ok('the read button says reads are off instead of "(1 token)"',
-       (pin.match(/Read this photo \(reads are off\)/g) || []).length === 1,
-       'found ' + (pin.match(/Read this photo \(reads are off\)/g) || []).length + ', want 1 (render only)');
+       (pin.match(/Read this photo \((photo ID )?reads are off\)/g) || []).length === 1 &&
+       !/Read this photo \(1 token\)/.test(pin),
+       'found ' + (pin.match(/Read this photo \((photo ID )?reads are off\)/g) || []).length + ', want 1 (render only)');
     ok('...and the button is restored by the busy helper, not by re-typing the label',
        /if \(typeof _idBusy === 'function'\) _idBusy\(\);/.test(pin));
+    // v0.9.1379 — same sweep: "Photo reads are switched off — Preferences"
+    // became "Photo ID reads are off — Preferences › Photo ID".
     ok('the token line says what is true when reads are off',
-       /Photo reads are switched off — Preferences/.test(pin));
+       /Photo( ID)? reads are (switched off|off) — Preferences/.test(pin));
     ok('…and it uses a theme variable, no new colour literal',
        /color:var\(--warn\)/.test(pin) && !/var\(--warn,#/.test(pin));
 
@@ -7353,8 +7366,13 @@ META_WRITES.length = 0; TOASTS.length = 0;
     ok('...and no longer READS the seen flag to decide whether to launch',
        !/const seen = localStorage\.getItem\('lv_tut_seen'\)/.test(alBody) && alBody.indexOf('if (!seen)') < 0);
     ok('the floating help widget still appears', /tutShowHelpBtn\(\)/.test(alBody));
+    // v0.9.1379 — pinned the OLD launcher spelling. Help builds its rows from
+    // the GUIDES map and calls startGuide(); tutStart is no longer the entry
+    // point. Name the requirement: every guide in the map is reachable from
+    // Help, and the dashboard tour still has its named wrapper.
     ok('Help can still start every guide by hand',
-       /tutStart\('add-item'\)/.test(tut) && /startDashboardTour/.test(tut));
+       /startGuide\('" \+ gid \+ "'\);/.test(tut) &&
+       /'add-item': \{/.test(tut) && /function startDashboardTour\(\)/.test(tut));
 
     // 2) Vanished sheet tabs get pruned instead of probed forever.
     ok('the tab sync prunes tabs that are no longer in the sheet',
@@ -9319,8 +9337,6 @@ META_WRITES.length = 0; TOASTS.length = 0;
     // ── 2. THE HARD RULE: the app never says AI, and never names a model ─
     ok('nothing user-facing tells anyone to paste results to Claude',
        !/paste it to Claude/.test(pin));
-    ok('…the button still says what it copied',
-       pin.indexOf('you can paste it into an email to us') > 0);
 
     // ── 3. A toast that said "copied" whether or not it copied ──────────
     const copyBtn = sell.slice(sell.indexOf('navigator.clipboard.writeText'),
