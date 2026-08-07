@@ -20245,8 +20245,20 @@ META_WRITES.length = 0; TOASTS.length = 0;
       const b89 = tut89.indexOf('const GUIDES = {');
       ok('289 the condition is a named, reachable function, not a buried closure',
          a89 > 0 && b89 > a89);
-      ok('289 the add-item step uses it',
-         /awaitUser: _gtMatchAccepted,/.test(tut89));
+      // v0.9.1377 — was /awaitUser: _gtMatchAccepted,/. Walking the live guide
+      // showed that condition is too EAGER for "Pick the one you have": the app
+      // resolves a catalogue row while you are still typing, so the gate was
+      // already open on arrival and the step could never follow the pick. It
+      // now uses _gtMatchPicked. The requirement is that the step's gate is a
+      // NAMED, reachable function rather than a buried closure — not which one
+      // it is this month.
+      ok('289 the add-item step uses a named condition, not a buried closure',
+         /awaitUser: _gtMatch(Accepted|Picked),/.test(tut89));
+      ok('289 …and the pick step uses the PICK-aware one, not the eager one',
+         /function _gtMatchPicked\(\)/.test(tut89) &&
+         /awaitUser: _gtMatchPicked,/.test(tut89) &&
+         /getElementById\('wiz-suggestions'\)[\s\S]{0,160}return false;/.test(tut89),
+         'the pick step must stay closed while the match list is still up');
       ok('289 …and no longer decides by reading the header text',
          !/return !!\(h && !\/Step 1 of\/i\.test\(h\.innerText \|\| ''\)\);/.test(tut89));
 

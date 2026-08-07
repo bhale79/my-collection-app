@@ -146,6 +146,52 @@ window._cardTitle = function () {
     });
     ok('closing the tour during the beat leaves it closed', r.gone, JSON.stringify(r));
 
+    // ── 8. v0.9.1377: an OPTIONAL step with no target skips itself ──
+    // Brad's walk: adding a cattle car, the guide explained Engine Only /
+    // Engine + Tender. The step's target was correctly absent; the card showed
+    // anyway.
+    await page.evaluate(() => { try { _gtEnd(); } catch (e) {} });
+    await page.waitForTimeout(150);
+    r = await page.evaluate(async () => {
+      _guidedTour([
+        { selector: '#target-a', title: 'First card', body: 'one' },
+        { selector: '#does-not-exist', optional: true, title: 'Engines and tenders', body: 'skip me' },
+        { selector: '#target-b', title: 'Third card', body: 'three' }
+      ]);
+      await new Promise(r2 => setTimeout(r2, 400));
+      const first = window._cardTitle();
+      document.getElementById('gt-next').click();
+      await new Promise(r2 => setTimeout(r2, 500));
+      return { first, landed: window._cardTitle() };
+    });
+    ok('an optional step with nothing to point at is SKIPPED, not narrated',
+       /Third card/i.test(r.landed), JSON.stringify(r));
+
+    // …and skipping respects the direction of travel, or Back would bounce.
+    r = await page.evaluate(async () => {
+      document.getElementById('gt-back').click();
+      await new Promise(r2 => setTimeout(r2, 600));
+      return { landed: window._cardTitle() };
+    });
+    ok('…and Back skips it the other way instead of bouncing off it',
+       /First card/i.test(r.landed), JSON.stringify(r));
+
+    // A REQUIRED step that misses must still show — that is the v1366 net.
+    await page.evaluate(() => { try { _gtEnd(); } catch (e) {} });
+    await page.waitForTimeout(150);
+    r = await page.evaluate(async () => {
+      window._gtMisses = [];
+      _guidedTour([
+        { selector: '#does-not-exist', title: 'Broken required step', body: 'must still show' },
+        { selector: '#target-b', title: 'Second', body: 'two' }
+      ]);
+      await new Promise(r2 => setTimeout(r2, 500));
+      return { landed: window._cardTitle(), misses: (window._gtMisses || []).length };
+    });
+    ok('a REQUIRED step that misses still shows, so real breakage stays visible',
+       /Broken required step/i.test(r.landed), JSON.stringify(r));
+    ok('…and the miss is still recorded for the audit', r.misses >= 1, JSON.stringify(r));
+
     ok('no page errors anywhere in the run', errs.length === 0, errs.join(' | '));
   } finally {
     await browser.close();

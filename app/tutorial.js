@@ -70,6 +70,28 @@ function _gtMatchAccepted() {
 }
 if (typeof window !== 'undefined') window._gtMatchAccepted = _gtMatchAccepted;
 
+// ── v0.9.1377 (found by WALKING the live guide, not by reading it) ────────
+// _gtMatchAccepted answers "has a catalogue row been resolved?" — and the app
+// resolves one WHILE YOU ARE STILL TYPING. That is right for the type-the-
+// number step and wrong for "Pick the one you have": by the time that step
+// renders, its gate is already open, so no poll is armed, so the guide can
+// never follow the pick. Brad reported this twice. v0.9.1373 fixed the half
+// that nags and left the half that sits still.
+//
+// This asks the narrower question that step actually cares about. While the
+// match list is still on screen you have not picked yet — full stop. That
+// keeps the gate CLOSED on arrival, which is the thing that arms the
+// auto-advance.
+function _gtMatchPicked() {
+  try {
+    var s = document.getElementById('wiz-suggestions');
+    if (s && s.offsetParent !== null && (s.innerText || '').trim().length) return false;
+    return _gtMatchAccepted();
+  } catch (e) {}
+  return false;
+}
+if (typeof window !== 'undefined') window._gtMatchPicked = _gtMatchPicked;
+
 const GUIDES = {
 
   'tour': {
@@ -93,7 +115,7 @@ const GUIDES = {
     icon: '📦', label: 'Add an item', desc: 'From the Add button to a saved item',
     open: function () { showPage('dashboard'); },
     steps: [
-      { selector: '.dash-desktop-actions, .dash-mobile-actions', title: 'Start here',
+      { selector: '#dash-add-collection, .dash-mobile-actions', title: 'Start here',
         body: 'Press <strong>Add to My Collection</strong>. Let\'s open it and walk the real screens together.' },
       // v0.9.1361 — this used to describe the variation and condition steps
       // while the wizard sat on step 1 with an empty box, because a guide
@@ -124,7 +146,7 @@ const GUIDES = {
         title: 'Pick the one you have',
         awaitLabel: 'Next \u2192',
         awaitMsg: 'Tap one of the matches in the list to pick your item — I\'ll carry on as soon as you do.',
-        awaitUser: _gtMatchAccepted,
+        awaitUser: _gtMatchPicked,
         body: 'These are the matches for what you typed. <strong>Tap the one you have</strong> and I\'ll move on with you.<br><br>Not sure which is yours? <strong>View ↗</strong> on any row opens that item\'s reference page in a new tab so you can look at it first.' },
       // v0.9.1366 (Brad, verified by driving the live wizard) — after a match is
       // picked the wizard shows a grouping row it never used to mention:
@@ -142,8 +164,8 @@ const GUIDES = {
       // View ↗ anchor to the reference page. All confirmed in the live wizard.
       { selector: '#var-cards', optional: true,
         title: 'Pick the variation you have',
-        body: 'These are the known variations of your item, each with its description from the reference catalog. <strong>Pick the one you have</strong> — this is what decides <em>which</em> 773 you own. Highlighted words show how each one differs from the first.' },
-      { selector: '#wiz-var-help, #wiz-var-nospec', optional: true,
+        body: 'These are the known variations of your item, each with its description from the reference catalog. <strong>Pick the one you have</strong> — this is what decides <em>which</em> one you own. Highlighted words show how each one differs from the first.' },
+      { selector: '#wiz-var-shortcuts', optional: true,
         title: 'Two ways out if you are unsure',
         body: 'Not sure which is yours? <strong>View ↗</strong> on any card opens that variation\'s reference page in a new tab so you can compare it against the real thing. <strong>Help me pick my variation</strong> asks you a few yes-or-no questions and narrows it down for you. And if you still cannot tell, <strong>No specific variation / not sure</strong> logs the item without one — you can set it later.' },
       { title: 'Then condition and the rest',
@@ -610,7 +632,7 @@ function _gtEnd() {
 function _guidedTour(steps) {
   if (!steps || !steps.length) return;
   _gtEnd();
-  var i = 0, curEl = null, _gtPoll = null, _gtAdv = null;
+  var i = 0, curEl = null, _gtPoll = null, _gtAdv = null, _gtDir = 1;
   var blocker = document.createElement('div');
   blocker.id = 'gt-blocker';
   // v0.9.1363 — MEASURED, not guessed: with no guide running a click on the
@@ -771,6 +793,21 @@ function _guidedTour(steps) {
   }
   function _gtDraw(step, total) {
     curEl = resolve(step);
+    // ── v0.9.1377 (found by walking it: adding a CATTLE CAR, the guide
+    // explained "Engine Only / Engine + Tender / A Powered / AA / AB / ABA") ──
+    // An OPTIONAL step is one that only applies to some items — the grouping
+    // row exists for engines and for nothing else. When its target is absent
+    // the step has nothing to say, and saying it anyway is worse than silence:
+    // it describes controls that are not on the screen the user is looking at.
+    // Skip it, in whichever direction the user is travelling.
+    //
+    // Only OPTIONAL steps skip. A required step that misses still shows, still
+    // records the miss, and still warns — that is the v0.9.1366 safety net and
+    // it must keep catching real breakage rather than hiding it.
+    if (!curEl && step.selector && step.optional) {
+      var _n = i + _gtDir;
+      if (_n >= 0 && _n < total) { i = _n; render(); return; }
+    }
     var mascotSrc = (i === total - 1) ? './img/conductor-lantern-lg.gif' : './img/conductor-pointing.png';
     var mascotFixed = (i === total - 1) ? ' data-fixed="1"' : '';
     callout.innerHTML =
@@ -839,7 +876,7 @@ function _guidedTour(steps) {
         return;
       }
       if (msg) msg.style.display = 'none';
-      if (i >= total - 1) _gtEnd(); else { i++; render(); }
+      if (i >= total - 1) _gtEnd(); else { _gtDir = 1; i++; render(); }
     };
     var cx = document.getElementById('gt-cancel'); if (cx) cx.onclick = _gtEnd;
     // \u2500\u2500 v0.9.1374 (Brad: "still not keeping up with the clicks") \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
@@ -876,14 +913,14 @@ function _guidedTour(steps) {
             // tour during the beat. Any of those means this advance is stale.
             if (_at !== i) return;
             if (!document.getElementById('gt-next')) return;
-            if (i >= total - 1) _gtEnd(); else { i++; render(); }
+            if (i >= total - 1) _gtEnd(); else { _gtDir = 1; i++; render(); }
           }, 550);
         }
       };
       _gate(false);
       if (!open()) _gtPoll = setInterval(function () { _gate(true); }, 250);
     }
-    var bk = document.getElementById('gt-back'); if (bk) bk.onclick = function(){ if (i > 0) { i--; render(); } };
+    var bk = document.getElementById('gt-back'); if (bk) bk.onclick = function(){ if (i > 0) { _gtDir = -1; i--; render(); } };
     var ex = document.getElementById('gt-exit'); if (ex) ex.onclick = _gtEnd;
   }
   function onResize(){ place(curEl); }

@@ -2354,7 +2354,7 @@ function renderWizardStep() {
       body.innerHTML = `
         <div style="padding-top:0.5rem">
           ${variations.length > 1 ? '<div style="font-size:0.74rem;color:var(--text-dim);margin-bottom:0.5rem;padding:0 0.1rem">Highlighted words show how each variation differs from the <strong>first</strong> one.</div>' : ''}
-          <div style="display:flex;gap:0.5rem;margin-bottom:0.5rem">
+          <div id="wiz-var-shortcuts" style="display:flex;gap:0.5rem;margin-bottom:0.5rem">
             ${_vpCanHelp ? `<button type="button" id="wiz-var-help" onclick="openVariationPicker()" style="flex:1;min-width:0;padding:0.45rem 0.6rem;border-radius:9px;border:2px solid var(--accent);background:var(--bg-card);background:color-mix(in srgb, rgb(232,64,28) 10%, var(--bg-card));color:var(--text);font-family:var(--font-body);font-size:0.8rem;font-weight:600;line-height:1.15;cursor:pointer">Help me pick my variation</button>` : ''}
             <button type="button" id="wiz-var-nospec" onclick="wizardChooseVariation('')" style="flex:1;min-width:0;padding:0.45rem 0.6rem;border-radius:9px;border:2px solid ${val==='' ? 'var(--accent)' : 'var(--border)'};background:${val==='' ? 'rgba(232,64,28,0.12)' : 'var(--surface2)'};color:var(--text);font-family:var(--font-body);font-size:0.8rem;line-height:1.15;cursor:pointer">No specific variation / not sure</button>
           </div>
