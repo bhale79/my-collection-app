@@ -636,6 +636,86 @@ function _gtEnd() {
   });
   if (typeof window._gtCleanup === 'function') { try { window._gtCleanup(); } catch(e){} window._gtCleanup = null; }
 }
+// ══ v0.9.1384 — THE HELP CARD MUST NOT SIT ON A CONTROL ═══════════════════
+//
+// Brad, twice: "you still can't hit engine + tender."
+//
+// v0.9.1383 punched a hole in the click blocker, which was a real bug and not
+// this one. Driving his own browser found the actual cause in minutes:
+// on add-item step 4 the card's rectangle was x686-1028 and "Engine Only" sat
+// entirely inside it — 100% covered — while "Engine + Tender" was 51% covered.
+// elementFromPoint at the centre of each returned the CARD. Only the right-hand
+// sliver of Engine + Tender poked past the card's edge, which is why it read as
+// intermittent rather than dead: clip the far right and it works, aim at the
+// middle and nothing happens.
+//
+// Everything place() did before this only ever avoided the SPOTLIGHT. It never
+// asked the one question that matters — "am I covering something the user has
+// to press?" These two helpers answer it, and _gtDodge picks the position that
+// covers the fewest controls. It is deliberately not clever about WHICH control
+// matters: any button, link or input the card lands on is a button the user
+// cannot press, so all of them count.
+function _gtControls() {
+  var out = [];
+  var nodes;
+  try {
+    nodes = document.querySelectorAll(
+      'button, a[href], input, select, textarea, [role="button"], [onclick]');
+  } catch (e) { return out; }
+  for (var k = 0; k < nodes.length && out.length < 500; k++) {
+    var n = nodes[k];
+    // The card is allowed to sit on its own furniture.
+    try { if (n.closest && n.closest('#gt-callout, #gt-blocker, #gt-hole, #gt-mascot')) continue; } catch (e) {}
+    if (n.disabled) continue;
+    var b = n.getBoundingClientRect();
+    if (b.width < 4 || b.height < 4) continue;                       // hidden or hairline
+    if (b.right <= 0 || b.bottom <= 0) continue;                     // scrolled off
+    if (b.left >= window.innerWidth || b.top >= window.innerHeight) continue;
+    out.push(b);
+  }
+  return out;
+}
+// A control is "covered" when its CENTRE is under the card — the same test a
+// finger makes, and the same one elementFromPoint makes. Partial overlap at an
+// edge is survivable; a covered centre is not.
+function _gtCovered(ctrls, L, T, w, h) {
+  var n = 0;
+  for (var k = 0; k < ctrls.length; k++) {
+    var b = ctrls[k], x = b.left + b.width / 2, y = b.top + b.height / 2;
+    if (x >= L && x <= L + w && y >= T && y <= T + h) n++;
+  }
+  return n;
+}
+// r may be null (a step with no target). m is the viewport margin.
+function _gtDodge(L, T, cw, ch, r, m) {
+  var W = window.innerWidth, H = window.innerHeight, gap = 14;
+  var ctrls = _gtControls();
+  var cl = function (x) { return Math.min(Math.max(m, x), Math.max(m, W - cw - m)); };
+  var ct = function (y) { return Math.min(Math.max(m, y), Math.max(m, H - ch - m)); };
+  var cands = [[L, T]];
+  if (r) {
+    cands.push([r.left, r.bottom + gap]);      // below
+    cands.push([r.left, r.top - ch - gap]);    // above
+    cands.push([r.right + gap, r.top]);        // right
+    cands.push([r.left - cw - gap, r.top]);    // left
+  }
+  // Last resorts: the four corners. A card in a corner is inelegant; a card on
+  // the button is broken. Inelegant wins.
+  cands.push([m, m], [W - cw - m, m], [m, H - ch - m], [W - cw - m, H - ch - m]);
+  var best = [cl(L), ct(T)], bestScore = null;
+  for (var k = 0; k < cands.length; k++) {
+    var Lx = cl(cands[k][0]), Ty = ct(cands[k][1]);
+    var covered = _gtCovered(ctrls, Lx, Ty, cw, ch);
+    var hides = (r && !(Lx + cw < r.left - 2 || Lx > r.right + 2 ||
+                        Ty + ch < r.top - 2 || Ty > r.bottom + 2)) ? 1 : 0;
+    // Drift keeps the card near where the side-picking logic wanted it, so it
+    // does not teleport across the screen to save one stray control.
+    var drift = Math.abs(Lx - L) + Math.abs(Ty - T);
+    var score = covered * 10000 + hides * 5000 + drift / 1000;
+    if (bestScore === null || score < bestScore) { bestScore = score; best = [Lx, Ty]; }
+  }
+  return best;
+}
 function _guidedTour(steps) {
   if (!steps || !steps.length) return;
   _gtEnd();
@@ -698,6 +778,9 @@ function _guidedTour(steps) {
           L = Math.min(Math.max(edge, L), window.innerWidth - cw0 - edge);
         }
       }
+      // v0.9.1384 — last word: whatever the above chose, do not sit on a control.
+      var d0 = _gtDodge(L, T, cw0, ch0, null, 8);
+      L = d0[0]; T = d0[1];
       callout.style.left = L + 'px';
       callout.style.top  = T + 'px';
       setMascot(L > window.innerWidth / 2);
@@ -772,6 +855,16 @@ function _guidedTour(steps) {
       top = Math.min(Math.max(m, top), H - ch - m);
       setMascot(left > r.left);
     }
+
+    // ── v0.9.1384 — LAST WORD OF ALL: do not sit on a control ─────────────
+    // Everything above this line reasons about the SPOTLIGHT only. That was
+    // the whole bug: on add-item step 4 the card cleared the spotlight
+    // perfectly and landed on Engine Only / Engine + Tender instead. This pass
+    // re-scores the chosen spot against every button, link and input on the
+    // page and moves the card if something better exists.
+    var d = _gtDodge(left, top, cw, ch, r, m);
+    left = d[0]; top = d[1];
+    setMascot(left > r.left);
 
     callout.style.left = left + 'px';
     callout.style.top = top + 'px';
