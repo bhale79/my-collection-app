@@ -20382,6 +20382,102 @@ META_WRITES.length = 0; TOASTS.length = 0;
          'the add-item guide should still offer 773 as something to type');
     })();
 
+
+    // ═══════════════════════════════════════════════════════════
+    // 291. SOME THINGS DO NOT HAVE AN ITEM NUMBER
+    //
+    // Brad, on a photo of a Lionel engineering blueprint: "it forces you to
+    // enter an item number for something that doesn't have one. this paper
+    // item should be manually entered."
+    //
+    // Every exit from the review card ran through _pinReviewAdd, which opens
+    // with `if (!num) ... return`. The card assumed the thing in the photo is
+    // a catalogued train. Worse, the reader HAD found numbers on his drawing
+    // (2205, 1872-21, 272723) and offered 2205 as a catalog match — so the
+    // card looked confident about a number the object does not have, and a
+    // button that only appeared when nothing was read would have missed the
+    // exact case that prompted this.
+    // ═══════════════════════════════════════════════════════════
+    section('291. Some things do not have an item number');
+    (function () {
+      const p91 = require('path');
+      const APP91 = p91.join(__dirname, '..', 'app');
+      const pin91 = fs.readFileSync(p91.join(APP91, 'photo-inbox.js'), 'utf8');
+      const wiz91 = fs.readFileSync(p91.join(APP91, 'wizard.js'), 'utf8');
+
+      ok('291 BRAD\'S BUG: the review card offers a way out with no item number',
+         /onclick="_pinAddNoNumber\(\)"/.test(pin91),
+         'no button on the review card calls _pinAddNoNumber');
+
+      // The button must be unconditional. Brad's blueprint produced a
+      // confident-looking catalog guess, so anything gated on "no number was
+      // read" would not have been on screen for him.
+      const cardBlock = (pin91.match(/var _btnArea =[\s\S]*?\n\n/) || [''])[0];
+      ok('291 …and it is always on the card, not gated on what the reader found',
+         /_pinAddNoNumber/.test(cardBlock) &&
+         !/\?[^\n]*_pinAddNoNumber|_pinAddNoNumber[^\n]*:\s*''/.test(cardBlock),
+         'the numberless button looks conditional');
+
+      // The whole point: this path must never consult the item-number box.
+      const fn91 = (pin91.match(/window\._pinAddNoNumber = function[\s\S]*?\n  \};/) || [''])[0];
+      ok('291 the numberless path was found', fn91.length > 200, String(fn91.length));
+      ok('291 …and it never reads the item-number box',
+         !/pin-rv-num/.test(fn91), 'it still consults the number field');
+      ok('291 …and never writes an item number into the wizard',
+         !/wizard\.data\.itemNum\s*=/.test(fn91), 'it sets wizard.data.itemNum');
+
+      // _fromInbox is what puts the Item Type selector on screen — Brad's
+      // stated choice, screenshotted: "should be the picker i just uploaded".
+      ok('291 BRAD\'S CHOICE: it opens with the Item Type picker available',
+         /_fromInbox\s*=\s*true/.test(fn91), 'the Item Type selector will not appear');
+      ok('291 …and hands the photos to the save through the staging note',
+         /_pinStagedNum\s*=\s*key/.test(fn91), 'the photos would not follow the entry');
+
+      // Staged with no Drive work at all, so a cancelled add cannot leave an
+      // empty folder behind named after a number that never existed.
+      ok('291 …staging no Drive folder up front, since the number does not exist yet',
+         /toFid:\s*''/.test(fn91) && !/driveEnsureItemFolder/.test(fn91),
+         'it creates a Drive folder before the item has a number');
+
+      // The cancel cleanup, exercised for real against a stub store.
+      const dropSrc = (pin91.match(/window\.rrPinDropStaged = function[\s\S]*?\n  \};/) || [''])[0];
+      ok('291 the cancel cleanup was found', dropSrc.length > 100, String(dropSrc.length));
+      (function () {
+        const store = { rr_inbox_setstage: JSON.stringify({
+          '__nonum__1700000000000': { files: [{ id: 'a' }] },
+          '2343': { files: [{ id: 'b' }] }
+        }) };
+        const sandbox = {
+          SETSTAGE_KEY: 'rr_inbox_setstage',
+          NONUM_PREFIX: '__nonum__',
+          localStorage: { getItem: k => store[k] || null, setItem: (k, v) => { store[k] = v; } },
+          console: { warn: function () {} },
+          window: {}
+        };
+        const runner = new Function('SETSTAGE_KEY', 'NONUM_PREFIX', 'localStorage', 'console', 'window',
+          dropSrc + '\nreturn window.rrPinDropStaged;');
+        const drop = runner(sandbox.SETSTAGE_KEY, sandbox.NONUM_PREFIX, sandbox.localStorage,
+                            sandbox.console, sandbox.window);
+        drop('__nonum__1700000000000');
+        let after = JSON.parse(store.rr_inbox_setstage);
+        ok('291 cancelling a numberless add clears its scratch note',
+           !('__nonum__1700000000000' in after), Object.keys(after).join(','));
+        ok('291 …and leaves a real item\'s staged photos alone',
+           '2343' in after, Object.keys(after).join(','));
+        drop('2343');
+        after = JSON.parse(store.rr_inbox_setstage);
+        ok('291 …and REFUSES to delete a note keyed by a real item number',
+           '2343' in after, 'it deleted a real staged note');
+      })();
+
+      // Only on cancel. A save re-keys the note to the generated number first,
+      // so dropping it after a save would throw the photos away.
+      const closeSrc = (wiz91.match(/function _doCloseWizard\(\)[\s\S]*?rrPinDropStaged[^\n]*\n/) || [''])[0];
+      ok('291 the wizard only drops the scratch note when the add was CANCELLED',
+         /_saveComplete/.test(closeSrc) && /!\s*_wd\._saveComplete/.test(closeSrc),
+         'the cleanup does not check _saveComplete — a save could lose its photos');
+    })();
+
   })().then(function () {
     console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
     process.exit(fail ? 1 : 0);
