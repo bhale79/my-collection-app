@@ -141,12 +141,62 @@ window._walkResolve = function (step) {
         const g = GUIDES[gid];
         try { if (typeof g.open === 'function') g.open(); } catch (e) {}
         await new Promise(r => setTimeout(r, 450));
+
+        // ── v0.9.1382: put the app where the guide expects to find the user ──
+        // Three guides describe buttons that only exist on an item's own page,
+        // and the guide's own `open()` deliberately stops at the LIST — the
+        // step in between waits for the user to tap an item. Without standing
+        // in for that tap, those steps read as "optional, absent" and the
+        // audit verifies nothing about them.
+        //
+        // These are exactly the selectors that were SILENTLY DEAD for weeks
+        // before v0.9.1367 (#detail-list-sale and #detail-record-sale matched
+        // no button at all), so leaving them unchecked is leaving the hole
+        // that produced the bug.
+        const NEEDS_ITEM_PAGE = { 'list-for-sale': 1, 'mark-sold': 1, 'remove-item': 1 };
+        if (NEEDS_ITEM_PAGE[gid]) {
+          try {
+            const pd = Object.values(state.personalData || {})[0];
+            if (pd && typeof _openOwnedByInvId === 'function') _openOwnedByInvId(pd.inventoryId);
+            await new Promise(r => setTimeout(r, 700));
+          } catch (e) {}
+        }
         const out = [];
         for (let i = 0; i < g.steps.length; i++) {
           const step = g.steps[i];
           let waited = 0;
           try { if (typeof step.before === 'function') waited = step.before() || 0; } catch (e) {}
           await new Promise(r => setTimeout(r, Math.min(waited || 0, 1200) + 120));
+
+          // ── v0.9.1382: stand in for the user, step by step ──────────────
+          // The add-item guide's later steps only exist once a number has been
+          // typed and a match picked. Priming BEFORE the guide does not work:
+          // step 2's own before() calls openWizard, which resets the wizard and
+          // wipes anything typed ahead of it. So the priming happens HERE,
+          // after each step's before() has had its turn.
+          if (gid === 'add-item') {
+            try {
+              const inp = document.getElementById('wiz-input');
+              if (i + 1 >= 3 && inp && !String(inp.value).trim()) {
+                inp.focus();
+                '3376'.split('').forEach(function (c) {
+                  inp.value += c;
+                  inp.dispatchEvent(new InputEvent('input', { bubbles: true, data: c, inputType: 'insertText' }));
+                });
+                await new Promise(r => setTimeout(r, 900));
+              }
+              // From step 6 on, the guide is talking about the VARIATION
+              // screen, which only exists after a match is chosen.
+              if (i + 1 >= 6) {
+                const box = document.getElementById('wiz-suggestions');
+                if (box && box.offsetParent !== null) {
+                  const row = Array.from(box.querySelectorAll('div,button'))
+                    .find(function (e) { return /^3376\b/.test((e.innerText || '').trim()); });
+                  if (row) { row.click(); await new Promise(r => setTimeout(r, 900)); }
+                }
+              }
+            } catch (e) {}
+          }
           const r = window._walkResolve(step);
           out.push({ n: i + 1, title: step.title || '(no title)', selector: step.selector || null,
                      optional: !!step.optional, awaits: typeof step.awaitUser === 'function', r });
@@ -208,6 +258,57 @@ window._walkResolve = function (step) {
 
     ok('walking every guide raises no page errors',
        errs.length === 0, errs.slice(0, 4).join(' | '));
+
+    // The three selectors that were dead for weeks. They are optional steps —
+    // the item page is not always open — so the miss list alone would never
+    // report them coming loose again. With the page primed above they MUST
+    // resolve, and this says so by name.
+    const DEAD_ONCE = { 'list-for-sale': '#detail-list-sale',
+                        'mark-sold': '#detail-record-sale',
+                        'remove-item': '#detail-remove-item' };
+    const broken = [];
+    for (const gid of Object.keys(DEAD_ONCE)) {
+      const g = report.find(r => r.guide === gid);
+      const step = g && g.steps.find(s => s.selector === DEAD_ONCE[gid]);
+      if (!step) broken.push(gid + ': no step uses ' + DEAD_ONCE[gid]);
+      else if (step.r.kind !== 'hit') broken.push(gid + ' ' + DEAD_ONCE[gid] + ' -> ' + step.r.kind);
+    }
+    ok('the three item-page buttons that were once dead all resolve again',
+       broken.length === 0, broken.join(' | '));
+
+    // ── v0.9.1382: Brad's green giraffe car, checked forever ──────────────
+    // The seeded catalogue holds a 3376 with two variations and a 3376-160
+    // relative, which is his exact case. With the wizard primed to the
+    // variation screen the "Also catalogued separately" block must be on
+    // screen, must name the relative, and must describe it in the master's own
+    // words — that last part is what made it useful rather than a bare number.
+    const kin = await page.evaluate(async () => {
+      try {
+        if (typeof openWizard === 'function') openWizard('collection');
+        await new Promise(r => setTimeout(r, 700));
+        const inp = document.getElementById('wiz-input');
+        if (!inp) return { err: 'no wizard input' };
+        inp.focus();
+        '3376'.split('').forEach(function (c) {
+          inp.value += c;
+          inp.dispatchEvent(new InputEvent('input', { bubbles: true, data: c, inputType: 'insertText' }));
+        });
+        await new Promise(r => setTimeout(r, 900));
+        const box = document.getElementById('wiz-suggestions');
+        const row = box && Array.from(box.querySelectorAll('div,button'))
+          .find(function (e) { return /^3376\b/.test((e.innerText || '').trim()); });
+        if (!row) return { err: 'no 3376 row offered' };
+        row.click();
+        await new Promise(r => setTimeout(r, 900));
+        const note = document.getElementById('wiz-kin-note');
+        return { present: !!note, text: note ? (note.innerText || '').replace(/\s+/g, ' ') : '' };
+      } catch (e) { return { err: e.message.slice(0, 90) }; }
+    });
+    ok('the dashed-relative pointer appears on the variation screen',
+       !!kin.present, kin.err || 'no #wiz-kin-note rendered');
+    ok('…and it names the relative in the catalogue\'s own words',
+       /3376-160/.test(kin.text || '') && /green/.test(kin.text || ''),
+       (kin.text || '').slice(0, 120));
 
     fs.writeFileSync(path.join(dir, 'walk.json'), JSON.stringify(report, null, 1));
   } finally {
