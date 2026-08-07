@@ -610,13 +610,14 @@ async function _saveCatalogFromPaper() {
   if (hasPhotos) {
     try {
       await driveEnsureSetup();
-      if (!driveCache.catalogsId) {
-        driveCache.catalogsId = await driveFindOrCreateFolder('Catalog Photos', driveCache.vaultId);
-        localStorage.setItem('lv_catalogs_id', driveCache.catalogsId);
-      }
+      // v0.9.1389 — same split as saveEphemeraItem, one flow over. "Catalog"
+      // is one of the paper types reachable from the Photo Inbox's numberless
+      // door, so leaving this on its own "Catalog Photos" tree would reproduce
+      // Brad's exact bug for anyone who picks Catalog instead of Drawing.
+      // One pile, named by item number, and the row points at it.
+      const catFolderId = await driveEnsureItemFolder(itemNum);
       const folderName = title.substring(0, 60);
-      const catFolderId = await driveFindOrCreateFolder(folderName, driveCache.catalogsId);
-      photoFolderLink = 'https://drive.google.com/drive/folders/' + catFolderId;
+      photoFolderLink = driveFolderLink(catFolderId);
       for (const [viewKey, fileObj] of Object.entries(photoObj)) {
         if (!fileObj || !fileObj.file) continue;
         try {
@@ -721,12 +722,22 @@ async function saveEphemeraItem() {
   if (hasPhotos) {
     try {
       await driveEnsureSetup();
-      if (!driveCache.ephPhotosId) {
-        driveCache.ephPhotosId = await driveFindOrCreateFolder('Ephemera Photos', driveCache.vaultId);
-      }
+      // ══ v0.9.1389 — ONE PILE, AND THE ROW POINTS AT IT ═══════════════════
+      //
+      // This used to upload into "Ephemera Photos / <title>" while photos
+      // arriving from the Photo Inbox filed into the normal item-folder tree
+      // under the generated number. Two different homes for one item's
+      // pictures — and because _flushPending only writes its link when the row
+      // has none, the row kept THIS link and the inbox photos ended up in a
+      // folder nothing pointed at. Silent, and unrecoverable for photos with no
+      // other copy, which is exactly what Brad's drawings are.
+      //
+      // Brad's call, asked and answered: paper items file where every other
+      // item files, named by item number. Old items keep their existing links —
+      // this changes where NEW photos land, it does not move anything.
+      const itemFolderId = await driveEnsureItemFolder(ephItemNum);
       const folderTitle = (d.eph_title || ephItemNum).substring(0, 60);
-      const itemFolderId = await driveFindOrCreateFolder(folderTitle, driveCache.ephPhotosId);
-      photoFolderLink = 'https://drive.google.com/drive/folders/' + itemFolderId;
+      photoFolderLink = driveFolderLink(itemFolderId);
       for (const [viewKey, fileObj] of Object.entries(photoObj)) {
         if (!fileObj || !fileObj.file) continue;
         try {

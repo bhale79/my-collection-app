@@ -4237,6 +4237,42 @@ function renderWizardStep() {
       body.appendChild(_bannerDiv);
     }
 
+    // ══ v0.9.1389 (Brad) — EVERY inbox photo, on EVERY photo step ═══════════
+    //
+    // "didn't upload the picture automatically, need to make sure if there are
+    // multiple pictures in a group, that it uploads them all, since i took the
+    // photo using photo inbox, these pictures are not in my phone, nor in my
+    // google photo folder."
+    //
+    // Two separate failures behind one empty screen:
+    //
+    //   1. The slot preview below only ever fired for viewKey 'RSV' (the train
+    //      flow) or 'PHOTO-1' on the manual flow. The PAPER flow's slots are
+    //      called PAPER-FRONT / PAPER-BACK, so nothing matched and Brad got two
+    //      empty "drag & drop to upload" boxes for a photo that exists NOWHERE
+    //      but the inbox. There was nothing he could have dragged.
+    //
+    //   2. Even where it did fire it showed ONE photo — the hero — never the
+    //      group. A two-shot group has always previewed as one.
+    //
+    // The photos did still attach on save (the staging note carries the whole
+    // group and _flushPending moves every file). That is not good enough: an
+    // app does not get to say "trust me, they'll turn up" about photos with no
+    // other copy. Now you see them before you commit.
+    //
+    // The queue is rebuilt on every render and consumed in slot order, so a
+    // re-render puts the same photo back in the same slot.
+    var _inboxQueue = (function () {
+      try {
+        var _d = (wizard && wizard.data) || {};
+        var l = Array.isArray(_d._addPhotoDriveIds) ? _d._addPhotoDriveIds.filter(Boolean) : [];
+        if (!l.length && _d._addPhotoDriveId) l = [_d._addPhotoDriveId];
+        return l.slice();
+      } catch (e) { return []; }
+    })();
+    var _inboxTotal = _inboxQueue.length;
+    var _inboxSeen = {};
+
     // Build a photo slot element (used for both fixed and extra slots)
     function makePhotoSlot(viewKey, label, abbr, stepId) {
       const url = stored[viewKey] || '';
@@ -4246,7 +4282,15 @@ function renderWizardStep() {
       // manual flow's Item slot (PHOTO-1). It files into the item folder on save
       // via _flushPending regardless; this is the in-wizard preview. Click still
       // replaces it with a fresh upload if wanted.
-      const inboxFid = (!hasPic && (viewKey === 'RSV' || (stepId === 'manualPhotos' && viewKey === 'PHOTO-1')) && wizard && wizard.data && wizard.data._addPhotoDriveId) ? wizard.data._addPhotoDriveId : '';
+      // v0.9.1389 — ANY empty slot, on any step, takes the next inbox photo.
+      // _inboxSeen keeps a slot's photo stable if this runs twice for the same
+      // slot; without it a re-render would deal the group out differently.
+      var inboxFid = '';
+      if (!hasPic) {
+        var _ik = stepId + '|' + viewKey;
+        if (_inboxSeen[_ik]) inboxFid = _inboxSeen[_ik];
+        else if (_inboxQueue.length) { inboxFid = _inboxQueue.shift(); _inboxSeen[_ik] = inboxFid; }
+      }
 
       const div = document.createElement('div');
       div.className = 'photo-drop-zone';
@@ -4358,7 +4402,16 @@ function renderWizardStep() {
 
     const introDiv = document.createElement('div');
     introDiv.style.cssText = 'font-size:0.78rem;color:var(--text-dim);margin-bottom:0.5rem';
-    introDiv.textContent = 'Drag & drop or click each slot to upload. Photos save to Google Drive automatically.';
+    // v0.9.1389 — say what is already here. Brad's photos exist ONLY in the
+    // inbox, so "click each slot to upload" read as "your photo is gone".
+    if (_inboxTotal) {
+      introDiv.innerHTML = '<span style="color:var(--accent2,#d4a843);font-weight:700">'
+        + _inboxTotal + ' photo' + (_inboxTotal > 1 ? 's' : '') + ' from the Photo Inbox</span>'
+        + ' \u2014 already here, and ' + (_inboxTotal > 1 ? 'they attach' : 'it attaches')
+        + ' when you save. Click any slot to swap in a different picture.';
+    } else {
+      introDiv.textContent = 'Drag & drop or click each slot to upload. Photos save to Google Drive automatically.';
+    }
     wrap.appendChild(introDiv);
 
     // Condition slider (when embedded in photo step, e.g. IS flow)
@@ -4470,6 +4523,16 @@ function renderWizardStep() {
       const n = k.replace('EXTRA-','');
       grid.appendChild(makePhotoSlot(k, 'Extra Photo ' + n, 'EXTRA-' + n, s.id));
     });
+
+    // v0.9.1389 — the paper step has two slots. A three-shot group would have
+    // shown two and silently swallowed the third, which is the same failure
+    // Brad reported one size smaller. Make room for the rest.
+    var _guard = 0;
+    while (_inboxQueue.length && _guard++ < 24) {
+      _extraCount.val++;
+      grid.appendChild(makePhotoSlot('EXTRA-' + _extraCount.val,
+        'Extra Photo ' + _extraCount.val, 'EXTRA-' + _extraCount.val, s.id));
+    }
 
     wrap.appendChild(grid);
 

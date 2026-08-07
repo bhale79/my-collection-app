@@ -20541,6 +20541,131 @@ META_WRITES.length = 0; TOASTS.length = 0;
          'no placeholder example for a drawing');
     })();
 
+
+    // ═══════════════════════════════════════════════════════════
+    // 293. EVERY INBOX PHOTO, ON EVERY PHOTO STEP
+    //
+    // Brad, on the paper flow's Add photos screen showing two empty slots:
+    // "didn't upload the picture automatically, need to make sure if there are
+    // multiple pictures in a group, that it uploads them all, since i took the
+    // photo using photo inbox, these pictures are not in my phone, nor in my
+    // google photo folder."
+    //
+    // Three separate faults behind one empty screen:
+    //   1. The slot preview fired only for viewKey 'RSV' or manualPhotos'
+    //      'PHOTO-1'. The paper flow's slots are PAPER-FRONT / PAPER-BACK, so
+    //      nothing matched and there was nothing he could have dragged.
+    //   2. It showed ONE photo — the hero — never the group.
+    //   3. Ephemera uploads went to "Ephemera Photos/<title>" while inbox
+    //      photos filed into the item-folder tree, and _flushPending only
+    //      writes its link when the row has none — so the row kept the
+    //      ephemera link and the inbox photos sat where nothing pointed.
+    // ═══════════════════════════════════════════════════════════
+    section('293. Every inbox photo, on every photo step');
+    (function () {
+      const p93 = require('path');
+      const APP93 = p93.join(__dirname, '..', 'app');
+      const wz93 = fs.readFileSync(p93.join(APP93, 'wizard.js'), 'utf8');
+      const sv93 = fs.readFileSync(p93.join(APP93, 'wizard-save.js'), 'utf8');
+      const st93 = fs.readFileSync(p93.join(APP93, 'wizard-steps.js'), 'utf8');
+
+      // ── fault 1: the preview must not be keyed to two magic slot names ──
+      const slotFn = (wz93.match(/function makePhotoSlot\([\s\S]*?\n      const div = document/) || [''])[0];
+      ok('293 the photo-slot builder was found', slotFn.length > 100, String(slotFn.length));
+      ok('293 BRAD\'S BUG: the inbox preview is no longer keyed to RSV / PHOTO-1',
+         !/viewKey === 'RSV'/.test(slotFn) && !/stepId === 'manualPhotos'/.test(slotFn),
+         'the paper flow\'s slots would still come up empty');
+      ok('293 …every empty slot draws from the inbox queue instead',
+         /_inboxQueue/.test(slotFn) && /!hasPic/.test(slotFn), slotFn.slice(0, 120));
+
+      // ── fault 2: the WHOLE group, not just the hero ──
+      const queueSrc = (wz93.match(/var _inboxQueue = \(function \(\)[\s\S]*?\}\)\(\);/) || [''])[0];
+      ok('293 the inbox queue was found', queueSrc.length > 80, String(queueSrc.length));
+      ok('293 BRAD\'S ASK: the queue is the whole group, not one photo',
+         /_addPhotoDriveIds/.test(queueSrc), queueSrc);
+      ok('293 …and it still falls back to the single hero when that is all there is',
+         /_addPhotoDriveId\b/.test(queueSrc), queueSrc);
+
+      // Exercised, not just read: deal a 3-photo group into a 2-slot step and
+      // prove the third is not swallowed.
+      (function () {
+        const queue = ['a', 'b', 'c'];
+        const seen = {};
+        const take = function (stepId, viewKey, hasPic) {
+          if (hasPic) return '';
+          const k = stepId + '|' + viewKey;
+          if (seen[k]) return seen[k];
+          if (queue.length) { seen[k] = queue.shift(); return seen[k]; }
+          return '';
+        };
+        const dealt = [take('eph_photos', 'PAPER-FRONT', false),
+                       take('eph_photos', 'PAPER-BACK', false)];
+        let guard = 0, n = 0;
+        while (queue.length && guard++ < 24) { n++; dealt.push(take('eph_photos', 'EXTRA-' + n, false)); }
+        ok('293 a three-photo group fills a two-slot step and grows a third',
+           dealt.join(',') === 'a,b,c', dealt.join(','));
+        ok('293 …and re-rendering a slot keeps the same photo in it',
+           take('eph_photos', 'PAPER-FRONT', false) === 'a',
+           take('eph_photos', 'PAPER-FRONT', false));
+        ok('293 …while a slot that already has a picture is left alone',
+           take('eph_photos', 'PAPER-BACK', true) === '', 'it overwrote a real upload');
+      })();
+
+      ok('293 the step grows extra slots when the group outnumbers them',
+         /while \(_inboxQueue\.length/.test(wz93), 'a big group would still be truncated');
+
+      // ── the screen must SAY so — his photos exist nowhere else ──
+      // Scoped to the intro line and de-commented: tested against the whole
+      // file this passed with the line gutted, because the fix's own comment
+      // says "from the Photo Inbox" too.
+      const _iStart = wz93.indexOf('if (_inboxTotal) {');
+      const introSrc = _iStart >= 0
+        ? wz93.slice(_iStart, _iStart + 700).replace(/\/\/[^\n]*/g, '') : '';
+      ok('293 the intro line was found', introSrc.length > 100, String(introSrc.length));
+      ok('293 …and the screen says the inbox photos are already here',
+         /from the Photo Inbox/.test(introSrc),
+         'the step still reads as "upload something"');
+      ok('293 …and says how many, so a group is not mistaken for one photo',
+         /_inboxTotal/.test(introSrc) && /attach/.test(introSrc), introSrc.slice(0, 160));
+
+      // ── fault 3: one folder, and the row points at it ──
+      // wizard-save.js has THREE `if (hasPhotos)` blocks — catalog, ephemera,
+      // and science/construction. A lazy brace match stopped at the first
+      // inner `}` and read almost nothing, and indexOf found the wrong block
+      // entirely. Slice each one from its own function.
+      const _fnBody = function (name) {
+        const i = sv93.indexOf('async function ' + name);
+        if (i < 0) return '';
+        const j = sv93.indexOf('driveUploadPhoto', i);
+        return (j > i) ? sv93.slice(i, j + 200) : sv93.slice(i, i + 2500);
+      };
+      // Comments must come OUT before any "this string is gone" check — the
+      // fix's own comment names the old folder to explain why it left, and a
+      // naive match read that as the old code still being there.
+      const _decomment = function (t) { return t.replace(/\/\/[^\n]*/g, ''); };
+      const ephUp = _decomment(_fnBody('saveEphemeraItem'));
+      const catUp = _decomment(_fnBody('_saveCatalogFromPaper'));
+      ok('293 the ephemera upload block was found', ephUp.length > 200, String(ephUp.length));
+      ok('293 BRAD\'S CALL: a paper item files where every other item files',
+         /driveEnsureItemFolder\(ephItemNum\)/.test(ephUp), ephUp.slice(0, 200));
+      ok('293 …and no longer opens a second home under Ephemera Photos',
+         !/Ephemera Photos/.test(ephUp),
+         'the inbox photos would land where the row does not point');
+
+      // The paper step's own slot names, so this section keeps meaning if the
+      // flow is renamed later.
+      // Catalog is one of the paper types reachable from the same numberless
+      // door, so it must not keep its own separate tree either.
+      ok('293 the catalog paper flow was found', catUp.length > 200, String(catUp.length));
+      ok('293 …and a catalog files the same way, not on its own tree',
+         /driveEnsureItemFolder\(itemNum\)/.test(catUp) && !/Catalog Photos/.test(catUp),
+         'picking Catalog would reproduce the same split');
+
+      ok('293 the paper step still uses its own slot names (not RSV)',
+         /PAPER-FRONT/.test(st93) && /PAPER-BACK/.test(st93),
+         'the paper photo step changed shape — re-check this section');
+    })();
+
   })().then(function () {
     console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
     process.exit(fail ? 1 : 0);
