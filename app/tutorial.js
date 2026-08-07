@@ -804,7 +804,14 @@ function _guidedTour(steps) {
     // Only OPTIONAL steps skip. A required step that misses still shows, still
     // records the miss, and still warns — that is the v0.9.1366 safety net and
     // it must keep catching real breakage rather than hiding it.
-    if (!curEl && step.selector && step.optional) {
+    // v0.9.1378 — but NEVER skip a step that WAITS for the user. Found by
+    // re-walking the live guide after v0.9.1377: picking a match out of the
+    // expected order left the wizard on a screen the next four steps describe,
+    // none of their targets existed yet, and ONE Next press skipped from step 3
+    // to step 8. A waiting step's whole job is to sit there until the screen it
+    // is about appears — skipping it because that screen has not appeared yet
+    // is precisely backwards.
+    if (!curEl && step.selector && step.optional && typeof step.awaitUser !== 'function') {
       var _n = i + _gtDir;
       if (_n >= 0 && _n < total) { i = _n; render(); return; }
     }

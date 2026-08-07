@@ -192,6 +192,28 @@ window._cardTitle = function () {
        /Broken required step/i.test(r.landed), JSON.stringify(r));
     ok('…and the miss is still recorded for the audit', r.misses >= 1, JSON.stringify(r));
 
+    // ── 9. v0.9.1378: a WAITING step is never skipped, even if optional ──
+    // Re-walking v0.9.1377 live, one Next press jumped from step 3 to step 8:
+    // four optional steps in a row had no target yet, and the skip cascaded
+    // straight past the one whose job was to WAIT for that very screen.
+    await page.evaluate(() => { try { _gtEnd(); } catch (e) {} });
+    await page.waitForTimeout(150);
+    r = await page.evaluate(async () => {
+      window._rrGateOpen = false;
+      _guidedTour([
+        { selector: '#target-a', title: 'First card', body: 'one' },
+        { selector: '#does-not-exist', optional: true, title: 'Waits for a screen',
+          body: 'I wait here', awaitUser: function () { return !!window._rrGateOpen; } },
+        { selector: '#target-b', title: 'Third card', body: 'three' }
+      ]);
+      await new Promise(r2 => setTimeout(r2, 400));
+      document.getElementById('gt-next').click();
+      await new Promise(r2 => setTimeout(r2, 600));
+      return { landed: window._cardTitle() };
+    });
+    ok('an optional step that WAITS is not skipped when its screen is absent',
+       /Waits for a screen/i.test(r.landed), JSON.stringify(r));
+
     ok('no page errors anywhere in the run', errs.length === 0, errs.join(' | '));
   } finally {
     await browser.close();
