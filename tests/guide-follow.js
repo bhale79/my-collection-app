@@ -30,6 +30,9 @@ const html = `<!doctype html><html><head>
 </head><body>
 <div id="target-a" style="position:absolute;left:60px;top:300px;width:200px;height:40px">A</div>
 <div id="target-b" style="position:absolute;left:60px;top:400px;width:200px;height:40px">B</div>
+<!-- target-c sits in the far corner, away from the callout, so the shield
+     probe measures the BLOCKER and not the help box sitting on top of B. -->
+<div id="target-c" style="position:absolute;right:12px;top:12px;width:120px;height:30px">C</div>
 <script>
 // The app globals the tour touches at the boundary.
 window.BackStack = { push: function(){}, pop: function(){} };
@@ -213,6 +216,68 @@ window._cardTitle = function () {
     });
     ok('an optional step that WAITS is not skipped when its screen is absent',
        /Waits for a screen/i.test(r.landed), JSON.stringify(r));
+
+    // ── 10. v0.9.1383: THE HIGHLIGHTED CONTROL MUST BE PRESSABLE ─────────
+    // Brad: "you still can't hit engine + tender." The blocker is a
+    // full-screen click swallower; v0.9.1363 taught it to stand aside on steps
+    // that WAIT for the user and left it covering everything on every other
+    // step. So a step could ring a button, name it, invite the press, and eat
+    // it. My own walk had recorded the shape and called it minor polish, which
+    // is why this assertion did not exist until he hit it a second time.
+    //
+    // elementFromPoint is the assertion that matches a finger: "visible" was
+    // never the question.
+    await page.evaluate(() => { try { _gtEnd(); } catch (e) {} });
+    await page.waitForTimeout(150);
+    r = await page.evaluate(async () => {
+      window._hits = 0;
+      const t = document.getElementById('target-a');
+      t.onclick = function () { window._hits++; };
+      // A step with NO awaitUser — the case that was broken.
+      _guidedTour([{ selector: '#target-a', title: 'Press this', body: 'go on' },
+                   { title: 'done', body: 'end' }]);
+      await new Promise(r2 => setTimeout(r2, 500));
+      const b = t.getBoundingClientRect();
+      const cx = b.left + b.width / 2, cy = b.top + b.height / 2;
+      const top = document.elementFromPoint(cx, cy);
+      // Aim the press at the POINT, not at the element. t.click() dispatches
+      // straight to the node and sails through any cover — a drill proved that
+      // version of this line passed with the hole removed.
+      if (top) top.dispatchEvent(new MouseEvent('click',
+        { bubbles: true, clientX: cx, clientY: cy }));
+      await new Promise(r2 => setTimeout(r2, 150));
+      return { onTop: top ? (top.id || top.tagName) : null,
+               reachesTarget: !!(top && (top === t || t.contains(top))),
+               hits: window._hits };
+    });
+    ok('the control a step points at is REACHABLE, not just visible',
+       r.reachesTarget, 'elementFromPoint hit ' + r.onTop + ' instead of the target');
+    ok('…and a real click on it lands', r.hits === 1, JSON.stringify(r));
+
+    // The rest of the app must still be protected, or the hole is just a
+    // removed blocker wearing a hat.
+    // The probe records the whole stack at that point, because "who is on top"
+    // has more than one right answer: the blocker itself, or the callout that
+    // sits over the blocker. What must NEVER be true is that the press lands
+    // on the un-spotlighted control.
+    r = await page.evaluate(async () => {
+      window._hitsB = 0;
+      const other = document.getElementById('target-c');
+      other.onclick = function () { window._hitsB++; };
+      const b = other.getBoundingClientRect();
+      const stack = document.elementsFromPoint(b.left + b.width / 2, b.top + b.height / 2)
+        .map(function (e) { return e.id || (e.className && String(e.className).trim()) || e.tagName; });
+      const top = document.elementFromPoint(b.left + b.width / 2, b.top + b.height / 2);
+      // A press aimed at that point, not at the element — the finger's view.
+      const ev = new MouseEvent('click', { bubbles: true, clientX: b.left + b.width / 2, clientY: b.top + b.height / 2 });
+      if (top) top.dispatchEvent(ev);
+      await new Promise(r2 => setTimeout(r2, 100));
+      return { stack: stack,
+               reachesB: !!(top && (top === other || other.contains(top))),
+               hitsB: window._hitsB };
+    });
+    ok('…while everything else on the page is still shielded from stray clicks',
+       !r.reachesB && r.hitsB === 0, 'stack at the un-spotlighted control: ' + JSON.stringify(r));
 
     ok('no page errors anywhere in the run', errs.length === 0, errs.join(' | '));
   } finally {

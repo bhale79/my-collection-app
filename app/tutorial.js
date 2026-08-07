@@ -677,6 +677,7 @@ function _guidedTour(steps) {
     callout.style.maxWidth = Math.min(340, window.innerWidth - 100) + 'px';
     if (!el) {
       hole.style.opacity = '0';
+      blocker.style.clipPath = 'none';   // v0.9.1383 — nothing to punch through
       var cw0 = callout.offsetWidth || 300, ch0 = callout.offsetHeight || 160;
       var L = Math.max(72, (window.innerWidth - cw0) / 2);
       var T = Math.max(8, (window.innerHeight - ch0) / 2);
@@ -708,6 +709,26 @@ function _guidedTour(steps) {
     hole.style.left = (r.left - pad) + 'px';
     hole.style.width = (r.width + pad * 2) + 'px';
     hole.style.height = (r.height + pad * 2) + 'px';
+    // ── v0.9.1383 (Brad: "you still can't hit engine + tender") ────────────
+    // The blocker is a full-screen click swallower. v0.9.1363 taught it to
+    // stand aside on steps that WAIT for the user — and left it covering
+    // everything on every other step. So a step could ring a button, name it,
+    // invite you to press it, and then eat the press. Brad hit that on
+    // "Engine Only / Engine + Tender", and my own walk had already recorded
+    // the shape as a minor polish item, which was the wrong call: it is the
+    // difference between a guide you can follow and one you can only read.
+    //
+    // The spotlight is now a real hole. The blocker is clipped to everything
+    // EXCEPT the highlighted rectangle, so the one control the step is about
+    // is always pressable while the rest of the app stays protected from a
+    // stray click. Nothing needs to know which steps "should" be interactive:
+    // if a step points at a control, that control works.
+    var hx1 = Math.max(0, r.left - pad), hy1 = Math.max(0, r.top - pad);
+    var hx2 = Math.min(window.innerWidth, r.right + pad), hy2 = Math.min(window.innerHeight, r.bottom + pad);
+    blocker.style.clipPath =
+      'polygon(0 0, 100% 0, 100% 100%, 0 100%, 0 ' + hy1 + 'px, ' +
+      hx1 + 'px ' + hy1 + 'px, ' + hx1 + 'px ' + hy2 + 'px, ' +
+      hx2 + 'px ' + hy2 + 'px, ' + hx2 + 'px ' + hy1 + 'px, 0 ' + hy1 + 'px)';
     var cw = callout.offsetWidth || 300, ch = callout.offsetHeight || 160;
     var W = window.innerWidth, H = window.innerHeight, gap = 14, over = 72, m = 8;
     var fitsBelow = (H - r.bottom) >= ch + gap + m;
