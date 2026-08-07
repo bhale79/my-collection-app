@@ -4462,6 +4462,21 @@
     var key = NONUM_PREFIX + new Date().getTime();
     try {
       var stage = JSON.parse(localStorage.getItem(SETSTAGE_KEY) || '{}');
+      // v0.9.1390 — SWEEP ANY ABANDONED SCRATCH NOTE FIRST.
+      //
+      // Caught walking a real two-photo group: cancelling cleared the note the
+      // wizard was tracking and left an EARLIER one behind, holding both photo
+      // ids forever. _doCloseWizard can only drop the key it was handed, so a
+      // second press of this button (a double-tap, a re-render, a mis-click)
+      // orphans the first note with nothing left pointing at it.
+      //
+      // Only one numberless add can be in flight at a time, so any scratch key
+      // sitting here now is by definition abandoned. Harmless to the photos —
+      // they never left the inbox — but the crumbs pile up invisibly and each
+      // one keeps a stale list of Drive ids.
+      Object.keys(stage).forEach(function (k0) {
+        if (k0.indexOf(NONUM_PREFIX) === 0) delete stage[k0];
+      });
       stage[key] = { link: '', fromFid: '', toFid: '', ts: new Date().getTime(),
                      rsvFid: (fileList[0] && fileList[0].id) || '',
                      files: fileList.map(function (fl) { return { id: fl.id, name: fl.name }; }) };

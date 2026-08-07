@@ -20666,6 +20666,64 @@ META_WRITES.length = 0; TOASTS.length = 0;
          'the paper photo step changed shape — re-check this section');
     })();
 
+
+    // ═══════════════════════════════════════════════════════════
+    // 294. NO ABANDONED SCRATCH NOTES
+    //
+    // Caught walking a real two-photo group through the paper flow: cancelling
+    // cleared the note the wizard was tracking and left an EARLIER one behind,
+    // holding both photo ids forever. _doCloseWizard can only drop the key it
+    // was handed, so a second press of the numberless button — a double-tap, a
+    // re-render, a mis-click — orphans the first note with nothing pointing at
+    // it. The photos are never at risk (they stay in the inbox either way),
+    // but the crumbs pile up invisibly, each with a stale list of Drive ids.
+    //
+    // Only ONE numberless add can be in flight at a time, so any scratch key
+    // present when a new one starts is by definition abandoned.
+    // ═══════════════════════════════════════════════════════════
+    section('294. No abandoned scratch notes');
+    (function () {
+      const p94 = require('path');
+      const pin94 = fs.readFileSync(p94.join(__dirname, '..', 'app', 'photo-inbox.js'), 'utf8');
+      const fn94 = (pin94.match(/window\._pinAddNoNumber = function[\s\S]*?\n  \};/) || [''])[0];
+      ok('294 the numberless path was found', fn94.length > 200, String(fn94.length));
+      ok('294 THE LEAK: starting a numberless add sweeps abandoned scratch notes',
+         /indexOf\(NONUM_PREFIX\) === 0\) delete stage\[/.test(fn94),
+         'an orphaned note would sit in storage forever');
+
+      // Exercised: two presses, then a cancel that only knows the second key.
+      // Without the sweep the first note survives; with it, storage is clean
+      // and — critically — real item notes are untouched.
+      (function () {
+        let store = { '2343': { files: [{ id: 'real' }] } };
+        const NON = '__nonum__';
+        const start = function (ts) {
+          Object.keys(store).forEach(function (k) { if (k.indexOf(NON) === 0) delete store[k]; });
+          const key = NON + ts;
+          store[key] = { files: [{ id: 'a' }, { id: 'b' }] };
+          return key;
+        };
+        const cancel = function (key) {
+          if (String(key).indexOf(NON) !== 0) return;
+          delete store[key];
+        };
+        start(1000);                    // first press — orphaned by the second
+        const second = start(2000);     // second press — the one the wizard tracks
+        cancel(second);
+        const left = Object.keys(store);
+        ok('294 two presses then one cancel leaves NO scratch note behind',
+           left.filter(k => k.indexOf(NON) === 0).length === 0, left.join(','));
+        ok('294 …and the real item\'s staged photos are untouched',
+           left.indexOf('2343') >= 0, left.join(','));
+      })();
+
+      // The sweep must never reach a note keyed by a real item number — those
+      // arm themselves when that number is added and are not ours to bin.
+      ok('294 the sweep is scoped to the scratch prefix, never a real number',
+         /if \(k0\.indexOf\(NONUM_PREFIX\) === 0\)/.test(fn94),
+         'the sweep would delete real staged notes');
+    })();
+
   })().then(function () {
     console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
     process.exit(fail ? 1 : 0);
