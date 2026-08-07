@@ -33,6 +33,10 @@ const html = `<!doctype html><html><head>
 <!-- target-c sits in the far corner, away from the callout, so the shield
      probe measures the BLOCKER and not the help box sitting on top of B. -->
 <div id="target-c" style="position:absolute;right:12px;top:12px;width:120px;height:30px">C</div>
+<!-- A real control that starts in the bottom-right corner, so the corner test
+     can force the card away from its preferred corner and then check it does
+     not snap back when the corner clears. -->
+<button id="corner-hog" style="position:absolute;right:20px;bottom:40px;width:100px;height:30px">hog</button>
 <script>
 // The app globals the tour touches at the boundary.
 window.BackStack = { push: function(){}, pop: function(){} };
@@ -278,6 +282,69 @@ window._cardTitle = function () {
     });
     ok('…while everything else on the page is still shielded from stray clicks',
        !r.reachesB && r.hitsB === 0, 'stack at the un-spotlighted control: ' + JSON.stringify(r));
+
+    // ── 11. v0.9.1385: A STEP THAT WAITS PARKS THE CARD IN A CORNER ───────
+    // Brad's choice between three fixes: "when a step is waiting on you, the
+    // card parks in a fixed screen corner well away from the wizard." While a
+    // step waits, the APP is what he is looking at, so the card leaves rather
+    // than hovering beside the highlight and shifting as content grows.
+    await page.evaluate(() => { try { _gtEnd(); } catch (e) {} });
+    await page.waitForTimeout(150);
+    r = await page.evaluate(async () => {
+      window._rrGateOpen = false;
+      _guidedTour([
+        { selector: '#target-a', title: 'Waits', body: 'do the thing',
+          awaitUser: function () { return !!window._rrGateOpen; } },
+        { title: 'end', body: 'end' }
+      ]);
+      await new Promise(r2 => setTimeout(r2, 500));
+      const c = document.getElementById('gt-callout');
+      const b = c.getBoundingClientRect();
+      const W = window.innerWidth, H = window.innerHeight, tol = 14;
+      return { corner: c.dataset.gtCorner || null,
+               atLeft: b.left <= tol, atRight: b.right >= W - tol,
+               atTop: b.top <= tol, atBottom: b.bottom >= H - tol,
+               rect: [Math.round(b.left), Math.round(b.top), Math.round(b.width), Math.round(b.height)] };
+    });
+    ok('a step that WAITS parks the card in a screen corner',
+       !!r.corner && (r.atLeft || r.atRight) && (r.atTop || r.atBottom), JSON.stringify(r));
+
+    // Predictability was the entire argument for corners over pointing, so the
+    // card must not migrate under the user. The hard case is not a resize —
+    // it is a corner it was PUSHED OUT OF becoming free again. #corner-hog
+    // starts in the bottom-right, so the card is sent elsewhere; move the hog
+    // away and the preferred corner is suddenly the cleanest, and a naive
+    // score would snap the card back mid-read.
+    ok('a busy corner pushes the card to a different one',
+       r.corner && r.corner !== 'bottom-right', JSON.stringify(r));
+    const firstCorner = r.corner;
+    r = await page.evaluate(async () => {
+      const hog = document.getElementById('corner-hog');
+      hog.style.right = 'auto'; hog.style.bottom = 'auto';
+      hog.style.left = '430px'; hog.style.top = '200px';   // clear of every corner
+      window.dispatchEvent(new Event('resize'));
+      await new Promise(r2 => setTimeout(r2, 400));
+      const c = document.getElementById('gt-callout');
+      const b = c.getBoundingClientRect();
+      return { corner: c.dataset.gtCorner || null, rect: [Math.round(b.left), Math.round(b.top)] };
+    });
+    ok('…and it STAYS there when that corner frees up, instead of snapping back',
+       r.corner === firstCorner, 'was ' + firstCorner + ', now ' + JSON.stringify(r));
+
+    // A step that does NOT wait still points, or the guide stops being a guide.
+    r = await page.evaluate(async () => {
+      try { _gtEnd(); } catch (e) {}
+      _guidedTour([{ selector: '#target-a', title: 'Points', body: 'look here' },
+                   { title: 'end', body: 'end' }]);
+      await new Promise(r2 => setTimeout(r2, 500));
+      const c = document.getElementById('gt-callout');
+      const b = c.getBoundingClientRect(), t = document.getElementById('target-a').getBoundingClientRect();
+      return { corner: c.dataset.gtCorner || null,
+               gap: Math.round(Math.min(Math.abs(b.top - t.bottom), Math.abs(t.top - b.bottom),
+                                        Math.abs(b.left - t.right), Math.abs(t.left - b.right))) };
+    });
+    ok('…while a step that does NOT wait still sits beside what it points at',
+       !r.corner && r.gap <= 40, JSON.stringify(r));
 
     ok('no page errors anywhere in the run', errs.length === 0, errs.join(' | '));
   } finally {

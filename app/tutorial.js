@@ -686,6 +686,56 @@ function _gtCovered(ctrls, L, T, w, h) {
   }
   return n;
 }
+// ══ v0.9.1385 — A WAITING STEP PARKS THE CARD IN A CORNER ═════════════════
+//
+// Brad chose this over letting the card keep pointing: "when a step is waiting
+// on you, the card parks in a fixed screen corner well away from the wizard."
+//
+// The reasoning is that a step which WAITS is a step where the app, not the
+// card, is the thing you are looking at. v0.9.1384's dodge already guarantees
+// the card is not ON a control, but "not on a control" still leaves it wedged
+// beside the wizard, moving as the wizard's content grows. A corner is
+// predictable: once you have learned where the card lives while it is waiting
+// for you, it is in the same place every time.
+//
+// STABILITY IS THE WHOLE POINT, so the corner is chosen with a preference
+// ORDER and a deliberate stickiness penalty: a corner has to be meaningfully
+// better than the incumbent to win, otherwise the card would hop about as the
+// page reflows and this would be worse than what it replaced.
+//
+// The mascot still points toward the spotlight, so the card says which way to
+// look even from the far side of the screen.
+var _GT_CORNERS = ['bottom-right', 'bottom-left', 'top-right', 'top-left'];
+var _gtLastCorner = null;
+function _gtResetCorner() { _gtLastCorner = null; }
+function _gtCorner(cw, ch, r, m) {
+  var W = window.innerWidth, H = window.innerHeight;
+  var ctrls = _gtControls();
+  var xy = function (name) {
+    return [ (name === 'bottom-right' || name === 'top-right') ? Math.max(m, W - cw - m) : m,
+             (name === 'bottom-right' || name === 'bottom-left') ? Math.max(m, H - ch - m) : m ];
+  };
+  var best = null, bestScore = null;
+  for (var k = 0; k < _GT_CORNERS.length; k++) {
+    var name = _GT_CORNERS[k], p = xy(name);
+    var covered = _gtCovered(ctrls, p[0], p[1], cw, ch);
+    var hides = (r && !(p[0] + cw < r.left - 2 || p[0] > r.right + 2 ||
+                        p[1] + ch < r.top - 2 || p[1] > r.bottom + 2)) ? 1 : 0;
+    // Ordinal keeps the preference order meaningful between equally clean
+    // corners. The incumbent bonus has to be LARGER than the biggest ordinal
+    // gap or it does nothing: a card sent to bottom-left because bottom-right
+    // was busy would snap back the instant bottom-right cleared, which is the
+    // hopping this whole change exists to prevent. It stays much smaller than
+    // the coverage and hiding weights, so an incumbent corner is never kept
+    // once it starts burying a control.
+    var score = covered * 1000 + hides * 400 + k;
+    if (name === _gtLastCorner) score -= 100;
+    if (bestScore === null || score < bestScore) { bestScore = score; best = name; }
+  }
+  _gtLastCorner = best;
+  var q = xy(best);
+  return { left: q[0], top: q[1], corner: best };
+}
 // r may be null (a step with no target). m is the viewport margin.
 function _gtDodge(L, T, cw, ch, r, m) {
   var W = window.innerWidth, H = window.innerHeight, gap = 14;
@@ -719,6 +769,7 @@ function _gtDodge(L, T, cw, ch, r, m) {
 function _guidedTour(steps) {
   if (!steps || !steps.length) return;
   _gtEnd();
+  _gtResetCorner();   // v0.9.1385 — each tour picks its own corner from scratch
   var i = 0, curEl = null, _gtPoll = null, _gtAdv = null, _gtDir = 1;
   var blocker = document.createElement('div');
   blocker.id = 'gt-blocker';
@@ -814,6 +865,24 @@ function _guidedTour(steps) {
       hx2 + 'px ' + hy2 + 'px, ' + hx2 + 'px ' + hy1 + 'px, 0 ' + hy1 + 'px)';
     var cw = callout.offsetWidth || 300, ch = callout.offsetHeight || 160;
     var W = window.innerWidth, H = window.innerHeight, gap = 14, over = 72, m = 8;
+
+    // ── v0.9.1385 — a step that WAITS parks in a corner ────────────────────
+    // Brad's choice. While a step is waiting for him to do something, the app
+    // is what he is looking at, so the card gets out of the way entirely and
+    // goes somewhere predictable rather than hovering beside the wizard and
+    // shifting as the wizard's content grows. The spotlight still rings the
+    // thing to press, and the mascot still points at it.
+    var _waitStep = steps[i] && typeof steps[i].awaitUser === 'function';
+    if (_waitStep) {
+      var cn = _gtCorner(cw, ch, r, m);
+      callout.style.left = cn.left + 'px';
+      callout.style.top = cn.top + 'px';
+      callout.dataset.gtCorner = cn.corner;
+      // Point the conductor back toward the highlight, not off the screen edge.
+      setMascot(cn.left + cw / 2 > r.left + r.width / 2);
+      return;
+    }
+    delete callout.dataset.gtCorner;
     var fitsBelow = (H - r.bottom) >= ch + gap + m;
     var fitsAbove = r.top >= ch + gap + m;
     var fitsRight = (W - r.right) >= cw + over + gap;
