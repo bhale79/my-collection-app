@@ -221,10 +221,18 @@ function buildPersonalRow(fields) {
   // v0.9.720: stamp Date Added on NEW rows. Full-row UPDATE callers pass the
   // existing value (even '') so re-saves never rewrite the original date.
   if (fields.dateAdded === undefined && fields.itemNum) fields = Object.assign({}, fields, { dateAdded: new Date().toISOString().slice(0, 10) });
+  // v0.9.1393 — every column the schema calls a Date is written AS a date.
+  // Derived from the schema headers rather than a hand-kept list, so a new
+  // date column cannot quietly miss out.
+  const _dateFields = (typeof PERSONAL_SCHEMA !== 'undefined' && PERSONAL_SCHEMA)
+    ? PERSONAL_SCHEMA.filter(c => /^date\b/i.test(String(c.header || ''))).map(c => c.field)
+    : [];
   Object.keys(fields).forEach(k => {
     const i = PERSONAL_FIELD_INDEX[k];
     if (i !== undefined && fields[k] !== undefined && fields[k] !== null) {
-      row[i] = fields[k];
+      row[i] = (_dateFields.indexOf(k) >= 0 && typeof rrDateForSheet === 'function')
+        ? rrDateForSheet(fields[k])
+        : fields[k];
     }
   });
   // Auto-populate the 2 master-derived columns if not explicitly provided.
@@ -3011,6 +3019,46 @@ function rrAddedTs(o) {
   return rrDateTs(o.dateAdded) || rrDateTs(o.datePurchased) || rrDateTs(o.dateAcquired) || o._savedAt || 0;
 }
 if (typeof window !== 'undefined') { window.rrBestDate = rrBestDate; window.rrAddedTs = rrAddedTs; }
+
+// ── v0.9.1393 — A DATE GOES BACK TO THE SHEET AS A DATE ────────────────────
+//
+// Brad: "find it." Two rows in his sheet hold a raw NUMBER in Date Added
+// (row 130 "148" = 46226, row 136 "#75 lamp post dwg" = 46227) where the other
+// 76 hold real dates, plus one Date Purchased the same way.
+//
+// It is a ROUND TRIP, not a broken writer. The sheet is read with
+// UNFORMATTED_VALUE, so a date comes back as the serial 46227. Three callers
+// then legitimately preserve that value on a re-save — the panel save, the
+// owned-row update, the paired-engine write — and 46227 written with
+// USER_ENTERED lands as a plain number in a cell with no date format. The
+// value is not wrong; its TYPE is. rrDateTs copes, which is exactly why this
+// went unnoticed: nothing broke, the cell just stopped being a date.
+//
+// One conversion, at the single chokepoint every personal row passes through.
+// Anything rrDateTs cannot read — "Summer 1998", a note someone typed — is
+// passed through untouched rather than blanked.
+function rrDateForSheet(v) {
+  if (v === null || v === undefined || v === '') return '';
+  // ONLY convert shapes that are unambiguously a date. Date.parse is far too
+  // eager — it reads "Summer 1998" as 1998-01-01, and this function must never
+  // rewrite something a person typed into a date they did not mean. A value
+  // that is not clearly a date is passed straight through.
+  var str = (typeof v === 'string') ? v.trim() : v;
+  var looksLikeDate =
+        (v instanceof Date) ||
+        (typeof str === 'number') ||
+        (typeof str === 'string' && (
+          /^\d{4,5}(\.\d+)?$/.test(str) ||           // sheet serial
+          /^\d{4}-\d{1,2}-\d{1,2}$/.test(str) ||     // ISO
+          /^\d{1,2}\/\d{1,2}\/\d{4}$/.test(str)));  // US
+  if (!looksLikeDate) return (typeof v === 'string') ? v : String(v);
+  if (typeof str === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(str)) return str;   // already exact
+  var t = (typeof rrDateTs === 'function') ? rrDateTs(v) : 0;
+  if (!t) return (typeof v === 'string') ? v : String(v);   // e.g. 99999 — a number, not a date
+  var d = new Date(t), p = function (n) { return (n < 10 ? '0' : '') + n; };
+  return d.getUTCFullYear() + '-' + p(d.getUTCMonth() + 1) + '-' + p(d.getUTCDate());
+}
+if (typeof window !== 'undefined') window.rrDateForSheet = rrDateForSheet;
 
 // ── Theme ────────────────────────────────────────────────────────
 // Skins foundation (v0.9.944): applyTheme() is now generic — it applies ANY

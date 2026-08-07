@@ -20849,6 +20849,75 @@ META_WRITES.length = 0; TOASTS.length = 0;
          /rrBestDate\(pd\)/.test(recent), 'the row would display a different date than it sorted on');
     })();
 
+
+    // ═══════════════════════════════════════════════════════════
+    // 296. A DATE GOES BACK TO THE SHEET AS A DATE
+    //
+    // Brad: "find it." Two rows in his workbook hold a raw NUMBER in Date
+    // Added — row 130 ("148") and row 136 ("#75 lamp post dwg"), both 4622x —
+    // where the other 76 hold real dates, plus one Date Purchased the same way.
+    //
+    // A ROUND TRIP, not a broken writer. The sheet is read with
+    // UNFORMATTED_VALUE so a date returns as the serial 46227; three callers
+    // legitimately PRESERVE that value on a re-save (panel save, owned-row
+    // update, paired-engine write); 46227 written with USER_ENTERED lands as a
+    // plain number in a cell with no date format. Nothing broke — rrDateTs
+    // copes — the cell just stopped being a date, which is why it went
+    // unnoticed for weeks.
+    //
+    // All three callers build their row through buildPersonalRow, so the
+    // conversion belongs there: one chokepoint, not three patches.
+    // ═══════════════════════════════════════════════════════════
+    section('296. A date goes back to the sheet as a date');
+    (function () {
+      const p96 = require('path');
+      const app96 = fs.readFileSync(p96.join(__dirname, '..', 'app', 'app.js'), 'utf8');
+      const tsSrc = (app96.match(/function rrDateTs\(input\)[\s\S]*?\n}/) || [''])[0];
+      const dfSrc = (app96.match(/function rrDateForSheet\(v\)[\s\S]*?\n}/) || [''])[0];
+      ok('296 the sheet-date converter exists', dfSrc.length > 200, String(dfSrc.length));
+      const f = new Function(tsSrc + '\n' + dfSrc + '\nreturn rrDateForSheet;')();
+
+      // BRAD'S TWO ROWS.
+      ok('296 BRAD\'S BUG: a round-tripped serial goes back as a real date',
+         f('46227') === '2026-07-24', String(f('46227')));
+      ok('296 …the same when it comes back as a number, not a string',
+         f(46226) === '2026-07-23', String(f(46226)));
+      ok('296 …and a serial carrying a decimal, the way the sheet returns it',
+         f('46227.0') === '2026-07-24', String(f('46227.0')));
+
+      // Already right must stay byte-identical — this runs on every save.
+      ok('296 a date already written as a date is untouched',
+         f('2026-07-24') === '2026-07-24', String(f('2026-07-24')));
+      ok('296 blank stays blank, never today\'s date',
+         f('') === '' && f(null) === '' && f(undefined) === '', 'a blank must not become a date');
+
+      // THE ONE THAT MATTERS MOST. Date.parse reads "Summer 1998" as
+      // 1998-01-01; a first cut of this function did exactly that. It must
+      // never rewrite something a person typed into a date they did not mean.
+      ok('296 free text a person typed is passed through, NOT parsed into a date',
+         f('Summer 1998') === 'Summer 1998' && f('gift from Dad') === 'gift from Dad',
+         f('Summer 1998') + ' / ' + f('gift from Dad'));
+      ok('296 …and a five-digit number outside the date window stays a number',
+         f('99999') === '99999', String(f('99999')));
+
+      // The conversion has to be wired into the chokepoint, or none of the
+      // above ever runs on a real save.
+      const bpr = (app96.match(/function buildPersonalRow\(fields\)[\s\S]*?\n  \}\);/) || [''])[0];
+      ok('296 buildPersonalRow was found', bpr.length > 200, String(bpr.length));
+      ok('296 …and every personal row runs its date columns through it',
+         /rrDateForSheet\(fields\[k\]\)/.test(bpr), 'the converter is dead code');
+      ok('296 …with the date columns derived from the schema, not a hand-kept list',
+         /PERSONAL_SCHEMA[\s\S]{0,120}header/.test(bpr) && /_dateFields/.test(bpr),
+         'a new date column could quietly miss out');
+
+      // Both known date columns must actually be caught by that derivation.
+      const heads = [...app96.matchAll(/field:\s*'(\w+)',\s*header:\s*'([^']+)'/g)]
+        .filter(m => /^date\b/i.test(m[2])).map(m => m[1]);
+      ok('296 the schema derivation catches Date Added and Date Purchased',
+         heads.indexOf('dateAdded') >= 0 && heads.indexOf('datePurchased') >= 0,
+         heads.join(','));
+    })();
+
   })().then(function () {
     console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
     process.exit(fail ? 1 : 0);
