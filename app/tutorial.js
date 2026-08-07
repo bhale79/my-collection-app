@@ -186,9 +186,16 @@ const GUIDES = {
         body: '<strong>Add photos…</strong> offers <strong>From This Computer</strong> or <strong>From Google Photos</strong>. On a computer you can also drag photos straight onto the page. On a phone, <strong>Take with Phone</strong> opens the camera.' },
       { title: 'Say what you are shooting — once',
         body: 'Before the first photo you are asked what you are about to photograph. Set the maker, scale and era once and every photo in that session carries it. That stamp is what lets the reader search the right catalog instead of all of them.' },
-      { selector: '#pin-grid > .pin-tile:first-child', title: 'One tile is one item',
+      // v0.9.1380 (found by the headless walk, which is the point of building
+      // it) — both of these describe controls that DO NOT EXIST on an empty
+      // Photo Inbox: there are no tiles, and _pinRenderFilter hides the whole
+      // filter when it has no groups to offer. Every new beta tester opens
+      // this guide with an empty inbox, so the two steps most likely to be
+      // read by a newcomer were the two describing things they cannot see.
+      // Optional now, so v0.9.1378's skip carries them past it in silence.
+      { selector: '#pin-grid > .pin-tile:first-child', optional: true, title: 'One tile is one item',
         body: 'A tile is an <em>item</em>, not a photo — a stack of several shots shows a count. The strip along the bottom gives the era, what the reader found, and the date. The <strong>✂</strong> crops and rotates, and cropping to one item is the biggest thing you can do to get a right answer.' },
-      { selector: '#pin-filter-select', title: 'Finding things in a big inbox',
+      { selector: '#pin-filter-select', optional: true, title: 'Finding things in a big inbox',
         body: 'Filter by how it read, by maker and era, or by group kind — everything <strong>Not touched yet</strong>, say. The filters combine, and <strong>Show all</strong> clears them.' },
       { selector: '#pin-refresh-btn', title: 'Refresh',
         body: 'Re-reads the folder from Google Drive. Use it if a load only half-worked, or to pull in photos you just shot on your phone while this page was open.' },

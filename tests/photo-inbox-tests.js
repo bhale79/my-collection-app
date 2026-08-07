@@ -20304,6 +20304,49 @@ META_WRITES.length = 0; TOASTS.length = 0;
          run({ header: '', grouping: false }) === false);
     })();
 
+    // ═══════════════════════════════════════════════════════════
+    // 290. NO GUIDE CLAIMS TO KNOW WHICH ITEM YOU ARE HOLDING
+    //
+    // Walking the live add-item guide with 3376 in the wizard, the variation
+    // step said: "this is what decides which 773 you own." 773 is the EXAMPLE
+    // number from step 2, four steps earlier. The guide was telling Brad he
+    // owned an item he had not typed.
+    //
+    // Example numbers are fine and useful — "try 773", "on a tile, 2328?
+    // means fairly confident". What is never fine is a hardcoded number
+    // attached to a possessive: the guide cannot know what you are adding.
+    // ═══════════════════════════════════════════════════════════
+    section('290. No guide claims to know which item you are holding');
+    (function () {
+      const p90 = require('path');
+      const tut90 = fs.readFileSync(p90.join(__dirname, '..', 'app', 'tutorial.js'), 'utf8');
+      const copy = []
+        .concat([...tut90.matchAll(/body:\s*'((?:[^'\\]|\\.)*)'/g)].map(m => m[1]))
+        .concat([...tut90.matchAll(/awaitMsg:\s*'((?:[^'\\]|\\.)*)'/g)].map(m => m[1]));
+      ok('290 the guide copy was found and read', copy.length > 20, String(copy.length));
+
+      // A catalogue-shaped number within reach of a possessive phrase.
+      const POSSESSIVE = /(you own|you have|yours|your item|your \w+ is)/i;
+      const bad = [];
+      copy.forEach(function (b) {
+        const plain = b.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
+        const re = /\b\d{3,5}(-\d{1,4})?\b/g;
+        let m;
+        while ((m = re.exec(plain))) {
+          const around = plain.slice(Math.max(0, m.index - 45), m.index + m[0].length + 45);
+          if (POSSESSIVE.test(around)) bad.push(m[0] + ' :: …' + around.trim() + '…');
+        }
+      });
+      ok('290 BRAD\'S BUG: no step names an item number as the one you own',
+         bad.length === 0, bad.slice(0, 3).join(' | '));
+
+      // The example numbers that ARE allowed must stay introduced as examples,
+      // or this check would pass by the copy simply losing its examples.
+      ok('290 …while the deliberate example is still there, still an example',
+         /try <strong>773<\/strong>/.test(tut90),
+         'the add-item guide should still offer 773 as something to type');
+    })();
+
   })().then(function () {
     console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
     process.exit(fail ? 1 : 0);
