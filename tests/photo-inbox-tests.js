@@ -20820,6 +20820,23 @@ META_WRITES.length = 0; TOASTS.length = 0;
       ok('295 the train row date cell uses the shared helper',
          /rrBestDate\(pd\)/.test(br95), 'the train cell could drift');
 
+      // ── v0.9.1392: the readers agreeing is useless if nothing is handed
+      // to them. A personal-only row IS its own pd (_rrPdForRow returns the
+      // item itself), so the synthesized record must carry the dates or every
+      // date cell reads blank however correct the precedence is. Measured
+      // live in Brad's browser: the object reaching the cell had 21 keys, row
+      // 194, and no dateAdded, while personalData held that row with 46241.
+      const synth = br95.slice(Math.max(0, br95.indexOf('_personalOnly: true') - 1400),
+                               br95.indexOf('_personalOnly: true') + 30);
+      ok('295 the personal-only row synthesis was found', synth.length > 400, String(synth.length));
+      ok('295 BRAD\'S BUG: a personal-only row carries its dateAdded',
+         /dateAdded:\s*pd\.dateAdded/.test(synth),
+         'the date cell would read blank no matter how correct the precedence is');
+      ok('295 …and its datePurchased and dateAcquired',
+         /datePurchased:\s*pd\.datePurchased/.test(synth) && /dateAcquired:\s*pd\.dateAcquired/.test(synth), synth.slice(-200));
+      ok('295 …and the session save stamp, for a row saved seconds ago',
+         /_savedAt:\s*pd\._savedAt/.test(synth), 'a just-saved row would sort undated');
+
       const recent = db95.slice(db95.indexOf("id: 'recent'"), db95.indexOf("id: 'recent'") + 6000);
       ok('295 the Recent Additions card was found', recent.length > 1000, String(recent.length));
       ok('295 BRAD\'S BUG: Recent Additions ranks by when things were ADDED',

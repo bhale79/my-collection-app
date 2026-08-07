@@ -3085,6 +3085,20 @@ function renderBrowse() {
         matchedTo: pd.matchedTo || '', setId: pd.setId || '',
         photoItem: pd.photoItem || '', userEstWorth: pd.userEstWorth || '',
         condition: pd.condition || '', inventoryId: pd.inventoryId || '',
+        // ── v0.9.1392 (Brad: "shows in the my collection, but not the recent
+        // additions") ────────────────────────────────────────────────────────
+        // ROOT CAUSE, not the cell. A personal-only row IS its own pd —
+        // _rrPdForRow returns the item itself for these — so every pd-derived
+        // cell reads whatever is copied here, and the dates were never on the
+        // list. His paper items therefore printed "—" no matter what the sheet
+        // held: measured live, the object reaching the date cell had 21 keys,
+        // row 194, and no dateAdded at all, while state.personalData held the
+        // same row with dateAdded 46241.
+        //
+        // v0.9.1391 fixed the four date READERS to agree on one precedence.
+        // This makes sure they are handed something to read.
+        dateAdded: pd.dateAdded || '', datePurchased: pd.datePurchased || '',
+        dateAcquired: pd.dateAcquired || '', _savedAt: pd._savedAt || 0,
         _personalOnly: true
       };
     });
