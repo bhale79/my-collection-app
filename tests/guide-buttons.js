@@ -101,10 +101,12 @@ window._btnWalkTo = async function (gid, want) {
   // therefore means back to where it started, not back to the number 1.
   var _c0 = window._drvCard();
   window._btnStartedAt = _c0 ? _c0.step : null;
+  window._btnLastSeen = _c0 ? _c0.step : null;
   var guard = 0;
   while (guard++ < 16) {
     var c = window._drvCard();
     if (!c || c.step == null || c.step >= want) break;
+    window._btnLastSeen = c.step;
     var at = c.step;
     await window._drvAct(gid);
     var how = await window._drvSettle(at, 4500);
@@ -117,6 +119,7 @@ window._btnWalkTo = async function (gid, want) {
     }
   }
   var now = window._drvCard();
+  if (now) window._btnLastSeen = now.step;
   return now ? now.step : null;
 };
 `;
@@ -195,7 +198,20 @@ window._btnWalkTo = async function (gid, want) {
     // ══ PASS B — BACK, ALL THE WAY HOME ═════════════════════════════════════
     for (const g of (ONLY && ONLY !== 'b' ? [] : guides)) {
       const r = await page.evaluate(async (a) => {
-        const reached = await window._btnWalkTo(a.gid, a.n);
+        let reached = await window._btnWalkTo(a.gid, a.n);
+        // A GUIDE MAY LEGITIMATELY FINISH EARLY, and on an empty collection two
+        // of them do: the want-list guide's last card needs a row to point at
+        // and the For Sale guide's needs a listed item, so each retires itself
+        // and the tour ends rather than describing furniture the user has not
+        // got. That is v0.9.1400 working. Walking to "the last step" then lands
+        // on no card at all, and the first version of this pass called that a
+        // failure of Back — blaming the guide for stopping when it had nothing
+        // left to say. Walk instead to the last card that actually appeared.
+        let endedEarly = false;
+        if (reached == null && window._btnLastSeen > 1) {
+          endedEarly = true;
+          reached = await window._btnWalkTo(a.gid, window._btnLastSeen);
+        }
         const trail = [];
         let guard = 0;
         while (guard++ < 20) {
@@ -225,7 +241,7 @@ window._btnWalkTo = async function (gid, want) {
         if (bk1) { bk1.click(); await new Promise(r2 => setTimeout(r2, 600)); }
         const afterOne = window._drvCard();
         await window._drvReset();
-        return { reached, trail, startedAt: window._btnStartedAt,
+        return { reached, trail, startedAt: window._btnStartedAt, endedEarly,
                  firstStepSurvivesBack: !!(atOne && afterOne && afterOne.step === atOne.step) };
       }, { gid: g.id, n: g.n });
 
@@ -242,7 +258,8 @@ window._btnWalkTo = async function (gid, want) {
       }
       const landed = r.trail.length ? r.trail[r.trail.length - 1].to : r.reached;
       const home = r.startedAt == null ? 1 : r.startedAt;
-      ok('Back walks ' + g.id + ' all the way home to where it opened (step ' + home + ')',
+      ok('Back walks ' + g.id + ' all the way home to where it opened (step ' + home + ')' +
+         (r.endedEarly ? '  [guide finished early — its last card does not apply here]' : ''),
          landed === home || r.reached === home,
          'ended on step ' + landed + ' after ' + r.trail.length + ' presses');
       ok('Back at the first card of ' + g.id + ' refuses instead of breaking',
