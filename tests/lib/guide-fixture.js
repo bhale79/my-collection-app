@@ -70,4 +70,140 @@ window._walkResolve = function (step) {
 `;
 
 
-module.exports = { SEED, RESOLVE };
+// ── THE DRIVER ────────────────────────────────────────────────────────────
+// Brad, after an audit that only pressed Next: "do each freaking step like a
+// user would and fill the things out". These are the hands that do that —
+// read the card, find the control the step really points at, and use it. They
+// live here because two gates now need them: guide-drive (does the guide keep
+// up?) and guide-buttons (Cancel, Back, and 773-then-Enter).
+const DRIVER = `
+window._clearOverlays = function () {
+  for (var i = 0; i < 6; i++) {
+    var c = document.querySelectorAll('[id^="rr-"][id$="-card"]');
+    if (!c.length) return;
+    for (var k = 0; k < c.length; k++) {
+      var g = c[k].querySelector('[id$="-go"]');
+      if (g) { try { g.click(); } catch (e) {} }
+      if (c[k].parentNode) c[k].parentNode.removeChild(c[k]);
+    }
+  }
+};
+window._drvResolve = function (step) {
+  if (!step.selector) return null;
+  var cands = document.querySelectorAll(step.selector), el = null;
+  for (var c = 0; c < cands.length; c++) { if (cands[c].offsetParent !== null) { el = cands[c]; break; } }
+  if (el && step.wrap) el = el.closest(step.wrap) || el;
+  return el;
+};
+window._drvCard = function () {
+  var c = document.getElementById('gt-callout');
+  if (!c) return null;
+  var t = (c.innerText || '');
+  var m = t.match(/Step (\\d+) of (\\d+)/);
+  return { title: t.split('\\n')[0].trim(), step: m ? +m[1] : null, of: m ? +m[2] : null };
+};
+window._drvWizard = function () {
+  var w = document.querySelector('#wizard-modal.open');
+  if (!w) return null;
+  var t = (w.innerText || '').split('\\n').filter(Boolean);
+  return { head: (t[0] || '').trim(), title: (t[1] || '').trim() };
+};
+// THE APP'S OWN POSITION, as a string. The rule the drive gate enforces is not
+// "the guide must advance whenever you click" — clicking an inert stat card
+// correctly changes nothing, and a guide that advanced anyway would be worse.
+// It is: IF THE APP MOVED AND THE GUIDE DID NOT, THE GUIDE IS NOW WRONG.
+window._drvWhere = function () {
+  var pg = (document.querySelector('.page.active') || {}).id || '';
+  var w = window._drvWizard();
+  return pg + ' :: ' + (w ? (w.head + ' / ' + w.title) : 'no-wizard');
+};
+window._drvStranded = function (gid) {
+  var card = window._drvCard();
+  if (!card || card.step == null) return null;
+  var st = GUIDES[gid].steps[card.step - 1];
+  if (!st) return null;
+  // A closed wizard leaves its modal measurable — offsetParent stays non-null —
+  // so a selector check alone reports "still on screen" for a screen that has
+  // been thrown away. Proven by drill: with the tour's watchdog disabled, this
+  // function returned null on a card visibly describing a wizard that was
+  // gone. The step's own needs predicate is the only thing that can see it, so
+  // it is asked first.
+  if (typeof st.needs === 'function') {
+    var okNeeds = true;
+    try { okNeeds = !!st.needs(); } catch (e) { okNeeds = true; }
+    if (!okNeeds) return { step: card.step, title: card.title, selector: st.selector || '(narration)', why: 'needs' };
+  }
+  if (!st.selector) return null;                  // narration is never stranded
+  return window._drvResolve(st) ? null : { step: card.step, title: card.title, selector: st.selector, why: 'selector' };
+};
+// Do what the card says, on the real control.
+window._drvAct = async function (gid) {
+  var card = window._drvCard();
+  if (!card || card.step == null) return 'no-card';
+  var st = GUIDES[gid].steps[card.step - 1];
+  var el = st ? window._drvResolve(st) : null;
+  if (!el) return 'nothing-to-act-on';
+  var tag = el.tagName;
+  if (tag === 'INPUT' || tag === 'TEXTAREA') {
+    el.focus();
+    var val = (el.id === 'wiz-input') ? '773' : '1';
+    el.value = '';
+    val.split('').forEach(function (ch) {
+      el.value += ch;
+      el.dispatchEvent(new InputEvent('input', { bubbles: true, data: ch, inputType: 'insertText' }));
+    });
+    await new Promise(r => setTimeout(r, 900));
+    // BRAD'S COMBINATION, BY NAME: "what happens if i hit an entered number
+    // like 773 and then hit enter after it".
+    el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', keyCode: 13, bubbles: true }));
+    el.dispatchEvent(new KeyboardEvent('keyup', { key: 'Enter', keyCode: 13, bubbles: true }));
+    return 'typed+enter';
+  }
+  if (tag === 'SELECT') return 'select-left-alone';
+  try { el.click(); return 'clicked'; } catch (e) { return 'click-failed'; }
+};
+// THE ENGINE'S OWN "DOES THIS STEP STILL APPLY" RULE, needs predicate and all.
+//
+// MEASURED, and it matters: when the wizard closes, its modal is hidden in a
+// way that leaves offsetParent non-null, so #wiz-photoid-block still reads as
+// ON SCREEN to any selector check. "Does the selector resolve" is therefore
+// blind to a closed wizard — which is exactly why the tour engine grew a
+// needs predicate for those steps rather than relying on selectors. Any
+// assertion about backing out of the wizard has to ask the same question.
+window._drvApplies = function (gid) {
+  var c = window._drvCard();
+  if (!c || c.step == null) return null;
+  var st = GUIDES[gid].steps[c.step - 1];
+  if (!st) return null;
+  var needsOk = true;
+  if (typeof st.needs === 'function') { try { needsOk = !!st.needs(); } catch (e) { needsOk = true; } }
+  return { step: c.step, title: c.title, hasNeeds: typeof st.needs === 'function',
+           needsOk: needsOk, resolves: st.selector ? !!window._drvResolve(st) : true };
+};
+// Put the app back to a known place between runs, without saving anything.
+window._drvReset = async function () {
+  window._clearOverlays();
+  try { _gtEnd(); } catch (e) {}
+  try { if (typeof _doCloseWizard === 'function') _doCloseWizard(); } catch (e) {}
+  try { if (typeof showPage === 'function') showPage('dashboard'); } catch (e) {}
+  await new Promise(r => setTimeout(r, 350));
+};
+// Wait until the guide reacts, rather than sleeping a flat guess. The first
+// version of the drive gate slept 1400ms and reported add-item #1 as broken;
+// a focused probe proved the guide DID advance — step 2 carries a before()
+// hook that holds the redraw another 900ms. A harness that cries wolf on a
+// fix just shipped is worse than no harness.
+window._drvSettle = async function (fromStep, budgetMs) {
+  var t = 0, span = 150, cap = budgetMs || 4500;
+  while (t < cap) {
+    await new Promise(r => setTimeout(r, span)); t += span;
+    var c = window._drvCard();
+    if (!c) return 'ended';
+    if (fromStep != null && c.step !== fromStep) { await new Promise(r => setTimeout(r, 650)); return 'moved'; }
+  }
+  return 'stayed';
+};
+`;
+
+
+module.exports = { SEED, RESOLVE, DRIVER };

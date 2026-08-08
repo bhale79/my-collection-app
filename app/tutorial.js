@@ -91,9 +91,28 @@ function _gtVariationAnswered() {
   } catch (e) {}
   return false;
 }
+// v0.9.1398 — "did pressing that button do what the card said it would?"
+// Brad drove the add-item guide himself: he pressed Add to My Collection, the
+// wizard opened, and the guide sat on "Step 1 of 9 — Start here" with its ring
+// still on the button behind the modal. The FIRST instruction in the guide had
+// no awaitUser, so it could not notice being obeyed.
+//
+// An audit of all 61 steps found 19 that tell you to do something and have no
+// way to see you did it. Not all 19 should gate — a step that merely SUGGESTS
+// something optional would trap you if it waited. These are the ones where the
+// named action moves the app to another screen, which is exactly when a guide
+// that does not follow becomes wrong rather than merely quiet.
+function _gtWizardOpen() {
+  try {
+    var m = document.querySelector('#wizard-modal.open');
+    return !!(m && m.getBoundingClientRect().width > 40);
+  } catch (e) {}
+  return false;
+}
 if (typeof window !== 'undefined') {
   window._gtGroupingAnswered = _gtGroupingAnswered;
   window._gtVariationAnswered = _gtVariationAnswered;
+  window._gtWizardOpen = _gtWizardOpen;
 }
 
 // ── v0.9.1377 (found by WALKING the live guide, not by reading it) ────────
@@ -150,6 +169,9 @@ const GUIDES = {
     open: function () { showPage('dashboard'); },
     steps: [
       { selector: '#dash-add-collection, .dash-mobile-actions', title: 'Start here',
+        awaitLabel: 'Next \u2192',
+        awaitMsg: 'Press <strong>Add to My Collection</strong> and I\'ll come with you.',
+        awaitUser: function () { return _gtWizardOpen(); },
         body: 'Press <strong>Add to My Collection</strong>. Let\'s open it and walk the real screens together.' },
       // v0.9.1361 — this used to describe the variation and condition steps
       // while the wizard sat on step 1 with an empty box, because a guide
@@ -158,6 +180,7 @@ const GUIDES = {
       // type, you pick, and Next unlocks when the wizard has actually moved on.
       { before: function () { if (typeof openWizard === 'function') openWizard('collection'); return 900; },
         selector: '#wiz-input', title: 'Type the item number',
+        watch: true, needs: function () { return _gtWizardOpen(); },
         awaitLabel: 'Next \u2192',
         awaitMsg: 'Please enter an item number first — try <strong>773</strong> — then tap the match you want from the list.',
         awaitUser: function () {
@@ -166,6 +189,7 @@ const GUIDES = {
         },
         body: 'Type a number — try <strong>773</strong> — and the catalog searches as you type. A list of matches appears underneath: <strong>tap the one you mean</strong>. I\'ll wait here until you have typed something.' },
       { selector: '#wiz-photoid-block, #wizard-idphoto-btn', optional: true,
+        watch: true, needs: function () { return _gtWizardOpen(); },
         title: 'Or let a photo do it',
         body: 'Don\'t know the number? <strong>Photo ID</strong> on this screen reads it off a picture instead. The free readers try first and cost nothing.' },
       // v0.9.1365 (Brad): this step had NO selector, so the card centred itself
@@ -177,6 +201,7 @@ const GUIDES = {
       // for 773 it opens cornucopiaoftoytrains.com/steamers-no-746-no-773.
       // Verified in the live wizard, not assumed.
       { selector: '#wiz-suggestions', optional: true,
+        watch: true, needs: function () { return _gtWizardOpen(); },
         title: 'Pick the one you have',
         awaitLabel: 'Next \u2192',
         awaitMsg: 'Tap one of the matches in the list to pick your item — I\'ll carry on as soon as you do.',
@@ -197,6 +222,7 @@ const GUIDES = {
       // "i picked what i had, the screen advanced but the help menu didn't
       // know i did it", one step further along.
       { selector: '#wiz-grouping-btns', optional: true,
+        watch: true, needs: function () { return _gtWizardOpen(); },
         awaitLabel: 'Next \u2192',
         awaitMsg: 'Pick <strong>Engine Only</strong> or <strong>Engine + Tender</strong> and I\'ll carry on with you.',
         awaitUser: function () { return _gtGroupingAnswered(); },
@@ -211,19 +237,22 @@ const GUIDES = {
       // to condition and photos, and without a gate the card would sit on a
       // screen that is no longer there.
       { selector: '#var-cards', optional: true,
+        watch: true, needs: function () { return _gtWizardOpen(); },
         awaitLabel: 'Next \u2192',
         awaitMsg: 'Tap the variation that matches yours — or <strong>No specific variation / not sure</strong> — and I\'ll follow.',
         awaitUser: function () { return _gtVariationAnswered(); },
         title: 'Pick the variation you have',
         body: 'These are the known variations of your item, each with its description from the reference catalog. <strong>Pick the one you have</strong> — this is what decides <em>which</em> one you own. Highlighted words show how each one differs from the first.' },
       { selector: '#wiz-var-shortcuts', optional: true,
+        watch: true, needs: function () { return _gtWizardOpen(); },
         title: 'Two ways out if you are unsure',
         body: 'Not sure which is yours? <strong>View ↗</strong> on any card opens that variation\'s reference page in a new tab so you can compare it against the real thing. <strong>Help me pick my variation</strong> asks you a few yes-or-no questions and narrows it down for you. And if you still cannot tell, <strong>No specific variation / not sure</strong> logs the item without one — you can set it later.' },
       { title: 'Then condition and the rest',
+        watch: true, needs: function () { return _gtWizardOpen(); },
         body: 'After the variation comes condition on a <strong>1 to 10</strong> scale, what you paid, and photos. Every field after the item number is optional — you can save with just the number and fill the rest in whenever you like.' },
       { before: function () { try { if (typeof _doCloseWizard === 'function') _doCloseWizard(); } catch (e) {} return 500; },
         selector: _gNav('filterOwned'), title: 'Where it lands',
-        body: 'The last screen lists everything you entered — <strong>tap any line to edit it</strong> — and <strong>Save</strong> writes it straight to your Google Sheet. It appears here, in My Collection. I have closed the wizard; nothing was saved.' }
+        body: 'The last screen lists everything you entered — <strong>tap any line to edit it</strong> — and <strong>Save</strong> writes it straight to your Google Sheet. It appears here, in My Collection. If the wizard was still open I have closed it — this guide saved nothing.' }
     ]
   },
 
@@ -364,9 +393,29 @@ const GUIDES = {
     steps: [
       { selector: _gNav('buildUpgradePage'), title: 'Open Want / Upgrade',
         body: 'Everything you are looking for is here, with the catalog value beside each one.' },
+      // v0.9.1398 — found by DRIVING this guide rather than reading it. Press
+      // the green + Collection and the wizard opens on "Condition & Details"
+      // with the number already in; the guide stayed on this card, ringing a
+      // row now behind the modal. The next two cards are the ones that explain
+      // that very screen ("The wizard opens pre-filled", "Save, and it moves
+      // itself"), so the guide had the right words and no way to know it was
+      // time to say them. Same shape as add-item #1.
+      //
+      // The gate opens on its own when there is nothing to press. This step is
+      // `optional`, and an optional step with an awaitUser is no longer skipped
+      // when its element is missing — so on an EMPTY want list, without this,
+      // the card would sit there waiting for a button that does not exist.
       { selector: '.row-add-collection, #detail-add-collection', optional: true, title: 'Find the one you bought',
+        awaitLabel: 'Next →',
+        awaitMsg: 'Press the green <strong>+ Collection</strong> on the row you bought and I\'ll come with you.',
+        awaitUser: function () {
+          var el = document.querySelector('.row-add-collection, #detail-add-collection');
+          if (!el || el.offsetParent === null) return true;
+          return _gtWizardOpen();
+        },
         body: 'Every row has a green <strong>+ Collection</strong> button on the right. The <strong>eBay</strong> and <strong>Search</strong> buttons beside it look for that exact item online, if you are still shopping for it.' },
       { title: 'The wizard opens pre-filled',
+        watch: true, needs: function () { return _gtWizardOpen(); },
         body: 'Item number and variation are already in. You only add condition, what you paid, and anything else you want to record.' },
       { title: 'Save, and it moves itself',
         body: 'On <strong>Save</strong> the item joins your collection and drops off the want list. No tidying up afterwards.' }
@@ -828,7 +877,7 @@ function _guidedTour(steps) {
   if (!steps || !steps.length) return;
   _gtEnd();
   _gtResetCorner();   // v0.9.1385 — each tour picks its own corner from scratch
-  var i = 0, curEl = null, _gtPoll = null, _gtAdv = null, _gtDir = 1;
+  var i = 0, curEl = null, _gtPoll = null, _gtAdv = null, _gtWatch = null, _gtDir = 1;
   var blocker = document.createElement('div');
   blocker.id = 'gt-blocker';
   // v0.9.1363 — MEASURED, not guessed: with no guide running a click on the
@@ -1113,6 +1162,25 @@ function _guidedTour(steps) {
     }
     return el;
   }
+  // ── DOES THIS STEP STILL APPLY TO WHAT IS ON SCREEN? ──────────────────────
+  // Deliberately NOT resolve(): that one records every miss into _gtMisses for
+  // the guide-walk audit, and a watchdog ticking four times a second would
+  // bury the real misses under thousands of its own. This asks the same
+  // question and says nothing.
+  //
+  // `needs` is for steps that describe a screen without pointing at anything —
+  // "The wizard opens pre-filled" is true or false depending on the wizard,
+  // and a selector cannot say so.
+  function _gtApplies(step) {
+    if (!step) return false;
+    if (typeof step.needs === 'function') {
+      try { if (!step.needs()) return false; } catch (e) {}
+    }
+    if (!step.selector) return true;
+    var cands = document.querySelectorAll(step.selector);
+    for (var c = 0; c < cands.length; c++) if (cands[c].offsetParent !== null) return true;
+    return false;
+  }
   // v0.9.1355 — a step may need the app to DO something before it can point at
   // anything: open the Add wizard, switch a mode, close what the last step
   // opened. Without this a guide can only ever narrate the parts of the app
@@ -1155,6 +1223,22 @@ function _guidedTour(steps) {
       var _n = i + _gtDir;
       if (_n >= 0 && _n < total) { i = _n; render(); return; }
     }
+    // ── v0.9.1398 — GOING BACK, SKIP WHAT NO LONGER APPLIES ──────────────
+    // The rule above deliberately refuses to skip a step that WAITS: going
+    // FORWARD, a waiting step's whole job is to sit there until its screen
+    // turns up (v0.9.1378). Going BACKWARD that reasoning inverts. You have
+    // already done the thing; there is nothing left to wait for; and the
+    // add-item guide's last card closes the wizard on its way in, so every
+    // card behind it describes a wizard that is no longer open. Pressing Back
+    // walked through four cards ringing controls that had gone — measured, in
+    // the Back pass of guide-buttons.
+    //
+    // So on the way back, a step that does not apply to what is on screen is
+    // stepped over. Landing on "Type the item number" reopens the wizard (that
+    // step's own before hook), which is what makes the cards behind it true
+    // again — the guide walks back INTO the wizard rather than back into a
+    // description of one.
+    if (_gtDir === -1 && !_gtApplies(step) && i > 0) { i = i - 1; render(); return; }
     var mascotSrc = (i === total - 1) ? './img/conductor-lantern-lg.gif' : './img/conductor-pointing.png';
     var mascotFixed = (i === total - 1) ? ' data-fixed="1"' : '';
     callout.innerHTML =
@@ -1294,12 +1378,97 @@ function _guidedTour(steps) {
       _gate(false);
       if (!open()) _gtPoll = setInterval(function () { _gate(true); }, 250);
     }
-    var bk = document.getElementById('gt-back'); if (bk) bk.onclick = function(){ if (i > 0) { _gtDir = -1; i--; render(); } };
+
+    // ══ v0.9.1398 — THE SCREEN CAN LEAVE WITHOUT THE GUIDE ═══════════════
+    //
+    // Two of Brad's reports are the same bug wearing different clothes:
+    //
+    //   "what happens if i hit an entered number like 773 and then hit enter
+    //    after it" — the wizard accepts the only match and jumps several
+    //    screens to Condition & Details. The guide was still on "Pick the one
+    //    you have", ringing a match list that no longer existed.
+    //
+    //   "i hit back and got this" — the wizard's own Back on its first screen
+    //    CLOSES it (wizard.js, _wizardBackHandler → _doCloseWizard). The guide
+    //    carried on describing screens that had just been thrown away.
+    //
+    // The gate above answers "has the user done the thing yet". It cannot
+    // answer "is the thing still there", so a user who moves FASTER than the
+    // guide, or backwards out of it, leaves it talking to an empty room.
+    //
+    // This is that second question, asked while the card is up. A step opts in
+    // with `watch: true`; nothing else changes behaviour, deliberately — a
+    // REQUIRED step that misses must still show and still be recorded, because
+    // that is the v0.9.1366 net that catches real breakage, and a watchdog
+    // that quietly walked away from those misses would hide them.
+    //
+    // Where it goes: the first LATER step that applies to the screen actually
+    // on show — so the 773-then-Enter jump lands on "Then condition and the
+    // rest", which is the wizard's real screen. If nothing later applies, it
+    // walks BACK to the nearest earlier step that does, which is what backing
+    // out of the wizard should do. If neither exists it leaves well alone.
+    if (_gtWatch) { clearInterval(_gtWatch); _gtWatch = null; }
+    // ONLY WHILE THE USER IS GOING FORWARD. The first cut of this watched in
+    // both directions and made Back dead on the add-item guide: the last card
+    // closes the wizard, so pressing Back onto "Then condition and the rest" —
+    // a card that needs the wizard — had the watchdog immediately shove it
+    // forward again. Step 9, Back, step 8, forward, step 9. Caught by the Back
+    // pass in guide-buttons within a minute of it existing, which is the whole
+    // argument for that pass.
+    //
+    // Back is a deliberate request to re-read something. A card describing a
+    // screen you have already been through is mildly stale; a Back button that
+    // does nothing is broken. Stale loses to broken.
+    if (step.watch === true && _gtDir === 1) {
+      var _watchAt = i, _deadFor = 0;
+      _gtWatch = setInterval(function () {
+        if (_watchAt !== i) { clearInterval(_gtWatch); _gtWatch = null; return; }
+        if (_gtApplies(steps[i])) { _deadFor = 0; return; }
+        // THE GATE GETS FIRST REFUSAL. When the user does the thing a step was
+        // waiting for, the gate is already mid-flight: it has said "✓" and has
+        // a 550ms beat pending before it advances. Both mechanisms would then
+        // be steering, and on some screens they disagree about where to. If an
+        // advance is pending, this stands down and lets it land.
+        if (_gtAdv) { _deadFor = 0; return; }
+        // Ride out one tick. Wizard screens swap by replacing their contents,
+        // so there is a moment when the old target has gone and the new one
+        // has not arrived — jumping on that would be a race, not a rescue.
+        if (++_deadFor < 2) return;
+        clearInterval(_gtWatch); _gtWatch = null;
+        var j = -1, k;
+        for (k = i + 1; k < total; k++) if (_gtApplies(steps[k])) { j = k; break; }
+        if (j < 0) for (k = i - 1; k >= 0; k--) if (_gtApplies(steps[k])) { j = k; break; }
+        if (j < 0 || j === i) return;
+        _gtDir = (j > i) ? 1 : -1;
+        i = j;
+        render();
+      }, 500);
+    }
+    // ── v0.9.1398 — BACK REFUSES RATHER THAN RINGING NOTHING ─────────────
+    // The boundary the Back pass found: on an EMPTY Photo Inbox the reading
+    // guide's first step is optional and its button does not exist, so the
+    // guide opens on step 2 — and pressing Back put the user on a step 1 that
+    // rings a control that is not on the page. There is nothing behind step 2
+    // to go back TO. A Back that declines is a Back that tells the truth.
+    //
+    // A step with a `before` hook counts as reachable even when it does not
+    // apply right now: its hook is what puts its screen back (the add-item
+    // guide's "Type the item number" reopens the wizard on the way in).
+    var bk = document.getElementById('gt-back');
+    if (bk) bk.onclick = function () {
+      if (i <= 0) return;
+      var reachable = false;
+      for (var k = i - 1; k >= 0; k--) {
+        if (_gtApplies(steps[k]) || typeof steps[k].before === 'function') { reachable = true; break; }
+      }
+      if (!reachable) return;
+      _gtDir = -1; i--; render();
+    };
     var ex = document.getElementById('gt-exit'); if (ex) ex.onclick = _gtEnd;
   }
   function onResize(){ place(curEl); }
   window.addEventListener('resize', onResize);
-  window._gtCleanup = function(){ window.removeEventListener('resize', onResize); if (_gtPoll) { clearInterval(_gtPoll); _gtPoll = null; } if (_gtAdv) { clearTimeout(_gtAdv); _gtAdv = null; } };
+  window._gtCleanup = function(){ window.removeEventListener('resize', onResize); if (_gtPoll) { clearInterval(_gtPoll); _gtPoll = null; } if (_gtAdv) { clearTimeout(_gtAdv); _gtAdv = null; } if (_gtWatch) { clearInterval(_gtWatch); _gtWatch = null; } };
   render();
 }
 window._guidedTour = _guidedTour;
