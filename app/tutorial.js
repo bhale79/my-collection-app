@@ -992,6 +992,23 @@ function _gtDodge(L, T, cw, ch, r, m) {
   }
   return best;
 }
+// ══ v0.9.1405 — SOME PEOPLE HAVE ASKED FOR LESS MOVEMENT ═════════════════
+//
+// The spotlight SLIDES from one control to the next and the card slides with
+// it: 0.25s eased transitions on top, left, width and height. It is the most
+// motion-heavy thing in this app, and nothing here had ever looked at whether
+// the user wanted it. Someone who has set "reduce motion" on their machine has
+// asked for a reason — for some people a large sliding movement across the
+// screen causes real nausea and dizziness, and a help system that makes you
+// feel ill is not help.
+//
+// The ring and the card still MOVE; they simply arrive rather than travel.
+function _gtStill() {
+  try { return window.matchMedia('(prefers-reduced-motion: reduce)').matches; }
+  catch (e) { return false; }
+}
+if (typeof window !== 'undefined') window._gtStill = _gtStill;
+
 function _guidedTour(steps) {
   if (!steps || !steps.length) return;
   _gtEnd();
@@ -1016,7 +1033,9 @@ function _guidedTour(steps) {
   blocker.addEventListener('click', function(e){ e.stopPropagation(); });
   var hole = document.createElement('div');
   hole.id = 'gt-hole';
-  hole.style.cssText = 'position:fixed;top:0;left:0;width:0;height:0;z-index:99991;border-radius:12px;box-shadow:inset 0 0 0 1px rgba(0,0,0,0.55),0 0 0 1px rgba(255,255,255,0.8),0 0 0 9999px rgba(0,0,0,0.62);border:2px solid var(--accent,#f05008);pointer-events:none;transition:top 0.25s ease,left 0.25s ease,width 0.25s ease,height 0.25s ease,opacity 0.2s ease';
+  var _still = _gtStill();
+  hole.style.cssText = 'position:fixed;top:0;left:0;width:0;height:0;z-index:99991;border-radius:12px;box-shadow:inset 0 0 0 1px rgba(0,0,0,0.55),0 0 0 1px rgba(255,255,255,0.8),0 0 0 9999px rgba(0,0,0,0.62);border:2px solid var(--accent,#f05008);pointer-events:none;transition:' +
+    (_still ? 'none' : 'top 0.25s ease,left 0.25s ease,width 0.25s ease,height 0.25s ease,opacity 0.2s ease');
   var callout = document.createElement('div');
   callout.id = 'gt-callout';
   // ── v0.9.1404 — THE CARD HAS TO EXIST FOR SOMEONE NOT USING A MOUSE ────
@@ -1033,7 +1052,7 @@ function _guidedTour(steps) {
   callout.setAttribute('aria-live', 'polite');
   callout.setAttribute('tabindex', '-1');
   callout.setAttribute('aria-label', 'Help');
-  callout.style.cssText = 'position:fixed;top:50%;left:50%;z-index:99992;max-width:330px;width:calc(100vw - 2rem);background:var(--surface,#1a1a2e);color:var(--text,#eee);border:1px solid var(--border,#333);border-radius:12px;box-shadow:0 10px 36px rgba(0,0,0,0.5);font-family:var(--font-body,sans-serif);transition:top 0.25s ease,left 0.25s ease';
+  callout.style.cssText = 'position:fixed;top:50%;left:50%;z-index:99992;max-width:330px;width:calc(100vw - 2rem);background:var(--surface,#1a1a2e);color:var(--text,#eee);border:1px solid var(--border,#333);border-radius:12px;box-shadow:0 10px 36px rgba(0,0,0,0.5);font-family:var(--font-body,sans-serif);transition:' + (_still ? 'none' : 'top 0.25s ease,left 0.25s ease');
   document.body.appendChild(blocker);
   document.body.appendChild(hole);
   document.body.appendChild(callout);

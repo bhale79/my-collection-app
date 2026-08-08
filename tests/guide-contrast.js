@@ -255,6 +255,63 @@ const AA_NORMAL = 4.5, AA_LARGE = 3.0, RING_MIN = 3.0, CARD_VS_PAGE_MIN = 1.15;
          r.cardVsPage !== null && r.cardVsPage >= CARD_VS_PAGE_MIN, String(r.cardVsPage));
     }
 
+    // ── REDUCED MOTION ─────────────────────────────────────────────────────
+    // The spotlight SLIDES across the screen from one control to the next, and
+    // the card slides with it — 0.25s eased transitions on top, left, width and
+    // height. That is the most motion-heavy thing in the app, and a person who
+    // has asked their system for less motion has asked for a reason: for some
+    // people large sliding movement causes actual nausea and dizziness.
+    // Nothing in this app looked at the setting.
+    const rmPage = await browser.newPage({
+      viewport: { width: 1440, height: 900 }, reducedMotion: 'reduce' });
+    for (const u of ['**://accounts.google.com/**', '**://apis.google.com/**',
+                     '**://*.googleapis.com/**', '**://cdnjs.cloudflare.com/**',
+                     '**://*.google.com/**'])
+      await rmPage.route(u, r => r.abort());
+    await rmPage.goto('file://' + APP + '/index.html');
+    await rmPage.waitForTimeout(2200);
+    await rmPage.evaluate(SEED);
+    await rmPage.waitForTimeout(400);
+    const rm = await rmPage.evaluate(async () => {
+      const asked = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      try { _gtEnd(); } catch (e) {}
+      startGuide('reports');
+      await new Promise(r => setTimeout(r, 1600));
+      const hole = document.getElementById('gt-hole');
+      const card = document.getElementById('gt-callout');
+      const t = el => el ? getComputedStyle(el).transition : '(absent)';
+      const out = { asked, hole: t(hole), card: t(card) };
+      try { _gtEnd(); } catch (e) {}
+      return out;
+    });
+    // A transition is "off" when it has no duration to speak of.
+    const still = css => /(^|\s)none(\s|$)/.test(css) ||
+                         !/[\d.]+s/.test(css) ||
+                         (css.match(/([\d.]+)s/g) || []).every(d => parseFloat(d) <= 0.01);
+    ok('the browser really is asking for reduced motion', rm.asked, JSON.stringify(rm));
+    ok('BRAD\'S USERS: the spotlight does not slide across the screen when the user has asked it not to',
+       still(rm.hole), JSON.stringify(rm.hole));
+    ok('…and neither does the card', still(rm.card), JSON.stringify(rm.card));
+    await rmPage.close();
+
+    // THE OTHER HALF, or the two above could be satisfied by simply deleting
+    // the animation for everybody. Someone who has NOT asked for less motion
+    // should still get the movement that makes the spotlight easy to follow
+    // from one control to the next.
+    const normal = await page.evaluate(async () => {
+      try { _gtEnd(); } catch (e) {}
+      startGuide('reports');
+      await new Promise(r => setTimeout(r, 1500));
+      const t = id => { const el = document.getElementById(id); return el ? getComputedStyle(el).transition : '(absent)'; };
+      const out = { asked: window.matchMedia('(prefers-reduced-motion: reduce)').matches,
+                    hole: t('gt-hole'), card: t('gt-callout') };
+      try { _gtEnd(); } catch (e) {}
+      return out;
+    });
+    ok('this browser has NOT asked for reduced motion', !normal.asked, JSON.stringify(normal));
+    ok('…so the spotlight still glides between controls for everyone else',
+       !still(normal.hole) && !still(normal.card), JSON.stringify(normal));
+
     ok('measuring every theme raises no page errors', errs.length === 0, errs.slice(0, 3).join(' | '));
   } finally {
     await browser.close();
