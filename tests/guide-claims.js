@@ -31,7 +31,7 @@
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const { SEED } = require('./lib/guide-fixture');
+const { SEED, SHAPE } = require('./lib/guide-fixture');
 
 let chromium;
 try { chromium = require('playwright').chromium; }
@@ -107,6 +107,7 @@ const norm = s => String(s || '').replace(/[…–—]/g, ' ')
 
     const guideIds = await page.evaluate(() => Object.keys(GUIDES));
     const claims = [];
+    let skippedTotal = 0;
 
     for (const gid of guideIds) {
       const found = await page.evaluate(async (args) => {
@@ -123,16 +124,35 @@ const norm = s => String(s || '').replace(/[…–—]/g, ' ')
             if (t) vis.push(t);
             if (n.title) vis.push(n.title);
           });
-        const out = [];
+        const out = [], skipped = [];
         const re = new RegExp(VERB + '\\s+(?:the\\s+|a\\s+|any\\s+)?<strong>([^<]{2,40})</strong>', 'gi');
         g.steps.forEach(function (st, i) {
+          // A step that does not APPLY to this screen is not making a claim
+          // about it. The tour has two openings — one for a dashboard with
+          // stat cards and one for a brand-new user's empty dashboard — and
+          // exactly one of them is live at a time. Checking the dormant one's
+          // buttons against the live screen would report a defect that is
+          // really just the other branch.
+          if (typeof st.needs === 'function') {
+            try { if (!st.needs()) { skipped.push({ step: i + 1, why: 'needs' }); return; } } catch (e) {}
+          }
+          // Same reasoning for an OPTIONAL step whose target is not here: the
+          // engine skips it, so it never renders, so it never tells anyone to
+          // press anything. On an empty For Sale list there is no row and so no
+          // "Mark as Sold" — that step retires itself rather than lying.
+          if (st.optional && st.selector && typeof st.awaitUser !== 'function') {
+            var cands = document.querySelectorAll(st.selector), seen = false;
+            for (var c2 = 0; c2 < cands.length; c2++) if (cands[c2].offsetParent !== null) { seen = true; break; }
+            if (!seen) { skipped.push({ step: i + 1, why: 'optional-absent' }); return; }
+          }
           const body = String(st.body || '');
           let m;
           while ((m = re.exec(body))) out.push({ step: i + 1, title: st.title || '', phrase: m[1] });
         });
-        return { visible: vis, claims: out };
+        return { visible: vis, claims: out, skipped: skipped };
       }, { gid, VERB });
 
+      skippedTotal += found.skipped.length;
       const haystack = found.visible.map(norm);
       for (const c of found.claims) {
         const want = norm(c.phrase);
@@ -142,7 +162,16 @@ const norm = s => String(s || '').replace(/[…–—]/g, ' ')
       await page.waitForTimeout(120);
     }
 
-    ok('the copy actually makes checkable claims', claims.length >= 8, String(claims.length));
+    // ANTI-VACUITY, STATED HONESTLY. The threshold used to be "at least 8
+    // claims checked", calibrated when this gate checked claims from steps the
+    // engine SKIPS — a step that never renders cannot tell anyone to press
+    // anything, so counting it was counting a check that meant nothing. Those
+    // are now skipped, which correctly drops the live count. What must not
+    // change is that the COPY still makes plenty of claims and that we look at
+    // every one that a user could actually reach.
+    ok('the copy actually makes checkable claims, and we checked the live ones',
+       claims.length >= 5 && (claims.length + skippedTotal) >= 8,
+       claims.length + ' live, ' + skippedTotal + ' in steps the engine skips on this screen');
 
     const missing = claims.filter(c => !c.hit && !EXPECT_ABSENT[c.phrase]);
     const excused = claims.filter(c => !c.hit && EXPECT_ABSENT[c.phrase]);
@@ -175,7 +204,12 @@ const norm = s => String(s || '').replace(/[…–—]/g, ' ')
     // names no control. So it is asserted directly — if the copy tells you to
     // tap a card, a card has to be tappable.
     const statClaim = await page.evaluate(() => {
-      const body = String(GUIDES.tour.steps[0].body || '');
+      // The stat-card step is no longer the tour's first: an empty dashboard
+      // gets its own opening card. Find it by what it points at rather than by
+      // position, so this assertion cannot quietly start measuring the wrong
+      // step the next time the tour gains one.
+      const st = GUIDES.tour.steps.find(s => s.selector === '#stats-grid') || GUIDES.tour.steps[0];
+      const body = String(st.body || '');
       const saysTap = /\b(tap|click|press)\b[^.]{0,30}\bcard\b/i.test(body.replace(/<[^>]+>/g, ''));
       const card = document.getElementById('dash-card-0');
       const tappable = !!(card && (card.getAttribute('onclick') || typeof card.onclick === 'function' ||
@@ -185,7 +219,9 @@ const norm = s => String(s || '').replace(/[…–—]/g, ' ')
       const saysUpTo = (body.match(/up to (\d+)/i) || [])[1];
       return { saysTap, tappable, cardFound: !!card, cap, saysUpTo: saysUpTo ? +saysUpTo : null };
     });
-    ok('the stat card the tour describes was found', statClaim.cardFound, JSON.stringify(statClaim));
+    ok('the stat card the tour describes was found' +
+       (SHAPE === 'default' ? '' : '  (skipped: fixture is ' + SHAPE + ')'),
+       SHAPE !== 'default' || statClaim.cardFound, JSON.stringify(statClaim));
     ok('BRAD\'S BUG: the tour does not tell you to tap a stat card unless one is tappable',
        !statClaim.saysTap || statClaim.tappable, JSON.stringify(statClaim));
     ok('…and the number of stat cards it promises matches MAX_CARDS',

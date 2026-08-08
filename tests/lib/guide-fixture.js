@@ -35,18 +35,40 @@ const SEED = `
   M.forEach(m => { const k = String(m.itemNum);
     if (!state.masterByItem.has(k)) state.masterByItem.set(k, []);
     state.masterByItem.get(k).push(m); });
+  // ── WHOSE COLLECTION IS THIS? ───────────────────────────────────────────
+  // Every gate ran against one shape — four owned items built around a 773
+  // steam engine — and the guides branch on exactly the things that shape
+  // cannot exercise. RR_FIXTURE picks another:
+  //
+  //   default  four items, an engine with a tender, one of everything
+  //   empty    a brand-new user. NOTHING owned, wanted, listed or sold.
+  //            This is the state every beta tester opens the app in, and it
+  //            was the one state no gate had ever run against.
+  //   cattle   one stock car. No engine, so no tender and no grouping row —
+  //            the case that made a guide explain "Engine Only / Engine +
+  //            Tender" while adding a cattle car, back in v0.9.1377.
+  //   diesel   one F-3. The grouping row exists but says A Powered / A Dummy
+  //            / AA / AB / ABA instead, which is a different code path.
+  const SHAPE = '__SHAPE__';
   const P = {}; let id = 46001, row = 2;
-  [['3376','1'],['773','1'],['6464-275','1'],['2333','1']].forEach(([n,v]) => {
+  const owned = SHAPE === 'empty'  ? []
+              : SHAPE === 'cattle' ? [['3376','1']]
+              : SHAPE === 'diesel' ? [['2333','1']]
+              : [['3376','1'],['773','1'],['6464-275','1'],['2333','1']];
+  owned.forEach(([n,v]) => {
     P[n+'|'+v+'|'+row] = { itemNum:n, variation:v, owned:true, inventoryId:String(id++), row:row++,
       condition:'8', priceItem:'45', userEstWorth:'120', datePurchased:'2026-08-06',
       photoItem:'', notes:'', era:'Lionel Postwar', location:'' };
   });
   state.personalData = P;
+  // The catalogue's tender pairing is a property of the REFERENCE BOOK, not of
+  // what you own, so it stays whatever your collection looks like.
   state.companionData = [{ engineNum:'773', companionNum:'773W', companionType:'Tender' }];
-  state.forSaleData = { fs1: { itemNum:'6464-275', variation:'1', inventoryId:'46003', askingPrice:'50', dateListed:'2026-08-01', row:2 } };
-  state.wantData    = { w1:  { itemNum:'2333', variation:'1', row:2, targetPrice:'300' } };
-  state.upgradeData = { u1:  { itemNum:'773',  variation:'1', row:2, targetPrice:'900' } };
-  state.soldData    = { s1:  { itemNum:'3376', variation:'2', row:2, salePrice:'60', dateSold:'2026-07-01' } };
+  const bare = (SHAPE === 'empty' || SHAPE === 'cattle' || SHAPE === 'diesel');
+  state.forSaleData = bare ? {} : { fs1: { itemNum:'6464-275', variation:'1', inventoryId:'46003', askingPrice:'50', dateListed:'2026-08-01', row:2 } };
+  state.wantData    = bare ? {} : { w1:  { itemNum:'2333', variation:'1', row:2, targetPrice:'300' } };
+  state.upgradeData = bare ? {} : { u1:  { itemNum:'773',  variation:'1', row:2, targetPrice:'900' } };
+  state.soldData    = bare ? {} : { s1:  { itemNum:'3376', variation:'2', row:2, salePrice:'60', dateSold:'2026-07-01' } };
   try { if (typeof buildPartnerMap === 'function') buildPartnerMap(); } catch (e) {}
   try { if (typeof buildApp === 'function') buildApp(); } catch (e) {}
 
@@ -231,4 +253,9 @@ window._drvSettle = async function (fromStep, budgetMs) {
 `;
 
 
-module.exports = { SEED, RESOLVE, DRIVER };
+// RR_FIXTURE picks the collection every gate runs against. Unset means the
+// original four-item shape, so nothing changes unless it is asked for.
+const SHAPE = (process.env.RR_FIXTURE || 'default').toLowerCase();
+const SEEDED = SEED.replace('__SHAPE__', SHAPE);
+
+module.exports = { SEED: SEEDED, SHAPE, RESOLVE, DRIVER };

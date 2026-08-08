@@ -120,6 +120,8 @@ const GUIDE_ORDER = null;   // all of them
           const stranded = window._drvStranded(gid);
           out.push({ step: before.step, title: before.title, act,
                      last: before.of != null && before.step === before.of,
+                     wizardChanged: (whereBefore.indexOf('no-wizard') >= 0) !==
+                                    (whereAfter.indexOf('no-wizard') >= 0),
                      moved: moved,
                      appMoved: whereBefore !== whereAfter,
                      whereBefore: whereBefore, whereAfter: whereAfter,
@@ -149,7 +151,23 @@ const GUIDE_ORDER = null;   // all of them
         // an advance there would be demanding the guide invent a step. What
         // matters on a final step is that the card is not left describing a
         // screen that is gone, and `stranded` above already asks that.
-        else if (s.appMoved && !s.moved && !s.last) findings.push({ kind: 'did-not-follow', guide: gid, ...s });
+        // ── WHAT "THE GUIDE DID NOT FOLLOW" ACTUALLY MEANS ────────────────
+        // First cut: "the app moved and the guide did not". Too broad, and an
+        // empty collection showed why — the For Sale guide's card says "it
+        // appears here, with your asking price beside the catalog value", you
+        // press the link it is ringing, you land on the For Sale page, and the
+        // card is still exactly right. Demanding an advance there would be
+        // demanding the guide leave a card that is describing the screen you
+        // are looking at.
+        //
+        // The bug Brad actually hit is narrower and sharper: A MODAL OPENED OR
+        // CLOSED AND THE GUIDE CARRIED ON AS IF IT HAD NOT. Press Add to My
+        // Collection, the wizard opens over the top, and the ring is still on a
+        // button behind it. Press + Collection on a want row, same thing. Both
+        // are still caught; the false positive is not. A card left describing a
+        // screen that is genuinely gone is a different finding, and `stranded`
+        // above is the one that asks it.
+        else if (s.wizardChanged && !s.moved && !s.last) findings.push({ kind: 'did-not-follow', guide: gid, ...s });
       }
       await page.waitForTimeout(150);
     }

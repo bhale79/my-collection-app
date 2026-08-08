@@ -680,7 +680,13 @@ function buildDashboard() {
     if (_wg) {
       _wg.style.display = 'block';
       _wg.innerHTML =
-        '<div style="padding:1.4rem 1.5rem;max-width:760px;background:var(--surface);border:1px solid var(--border);border-radius:14px">'
+        // v0.9.1400 — this panel had no id, so no guide could point at it, so
+        // the tour's first two cards described stat cards and a Recent
+        // Additions panel that a brand-new user does not have. Found by
+        // running the guides against an EMPTY collection — the state every
+        // beta tester opens the app in, and the one state no gate had ever
+        // been run against.
+        '<div id="dash-welcome-empty" style="padding:1.4rem 1.5rem;max-width:760px;background:var(--surface);border:1px solid var(--border);border-radius:14px">'
         + '<div style="font-family:var(--font-head);font-size:1.15rem;font-weight:700;margin-bottom:0.35rem">Welcome to The Rail Roster</div>'
         + '<div style="font-size:0.88rem;color:var(--text-mid);line-height:1.55;margin-bottom:1.1rem">'
         +   'Nothing in your collection yet \u2014 that is exactly where everyone starts. '

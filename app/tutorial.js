@@ -143,7 +143,20 @@ const GUIDES = {
     icon: '🚂', label: 'Take the tour', desc: 'The Dashboard, one piece at a time',
     open: function () { showPage('dashboard'); },
     steps: [
-      { selector: '#stats-grid', title: 'Your data cards',
+      // v0.9.1400 — THE FIRST CARD A NEW USER EVER READS.
+      // Running the guides against an empty collection showed the tour opening
+      // with "Your data cards — these show key numbers about your collection",
+      // pointing at a dashboard that has no cards on it, followed by a Recent
+      // Additions card pointing at nothing at all. Every beta tester starts
+      // there. The tour now has something true to say in both states, and each
+      // of the two retires itself when it does not apply.
+      { selector: '#dash-welcome-empty', optional: true,
+        needs: function () { return !document.getElementById('dash-card-0'); },
+        title: 'Nothing here yet — which is where everyone starts',
+        body: 'Your dashboard fills itself in as you add things. Until then it offers the two ways in: <strong>Add your first item</strong> if you know the number, or <strong>Open the Photo Inbox</strong> to photograph a shelf now and do the typing another day.' },
+      { selector: '#stats-grid', optional: true,
+        needs: function () { return !!document.getElementById('dash-card-0'); },
+        title: 'Your data cards',
         body: 'These show key numbers about your collection. Use <strong>Edit Dashboard</strong> to change which stats appear, or <strong>Add a stat card</strong> for another one — collection value, counts by type, and more. You can show up to 6.' },
       // v0.9.1394 (walked in Brad's browser): this said "Tap any card to swap it".
       // Measured on #dash-card-0 — no onclick attribute, no onclick property,
@@ -153,7 +166,7 @@ const GUIDES = {
       // nothing. The two controls named here are both real and both on screen.
       // "up to 5" was wrong too — v0.9.754 raised MAX_CARDS to 6 at Brad's own
       // request and the copy never followed.
-      { selector: '#dash-panel-header-0', wrap: '.panel', title: 'Recent Additions',
+      { selector: '#dash-panel-header-0', wrap: '.panel', optional: true, title: 'Recent Additions',
         body: 'The items you added most recently. <strong>Tap the panel\'s header</strong> to switch it to a different list.' },
       { selector: '.sidebar', title: 'Your main areas',
         body: 'Your Collection, Want / Upgrade, For Sale, Sold, the catalog, Collection Tools, Reports, the Photo Inbox and Preferences all live here.' },
@@ -353,6 +366,10 @@ const GUIDES = {
       { title: 'Set a target price',
         body: 'Optional, but useful — what you are willing to pay. It shows on the row so you can judge a deal quickly at a show.' },
       { selector: '.row-add-collection, #detail-add-collection', optional: true, title: 'When you find one',
+        needs: function () {
+          var el = document.querySelector('.row-add-collection, #detail-add-collection');
+          return !!(el && el.offsetParent !== null);
+        },
         body: 'Press <strong>+ Collection</strong> on the row. The Add wizard opens with the number and variation already filled in, and the item leaves your want list automatically when you save.<br><br>Still hunting? Each row also has <strong>eBay</strong> and <strong>Search</strong> buttons that look for that exact item online — a quick way to check what one is going for.' }
     ]
   },
@@ -371,9 +388,19 @@ const GUIDES = {
       { title: 'Open the item first',
         awaitLabel: 'Next \u2192',
         awaitMsg: 'Please tap one of your items in the list first — that opens its own page, which is where these buttons live.',
+        // v0.9.1400 — AND DO NOT TRAP SOMEONE WHO HAS NOTHING TO OPEN.
+        // Found by running the guides against an empty collection. This gate
+        // waits for you to open an item, and a brand-new user has no items to
+        // open, so three guides dead-ended on this card: Back worked, Cancel
+        // worked, forward was impossible. Brad's rule is that any combination
+        // must let you cancel out, back up, OR move forward, and one of those
+        // three was missing for every new user. With an empty list the gate
+        // opens on its own and the optional steps behind it retire themselves,
+        // so the guide still explains where the buttons will be.
         awaitUser: function () {
           var p = document.querySelector('.page.active');
-          return !!(p && p.id === 'page-itemdetail');
+          if (p && p.id === 'page-itemdetail') return true;
+          return !document.querySelector('[onclick*="showItemDetailPage"]');
         },
         body: 'Tap any item in the list to open its own page. Everything after this happens there. I\'ll wait.' },
       { selector: '#detail-list-sale', optional: true,
@@ -382,6 +409,10 @@ const GUIDES = {
       { selector: _gNav('buildForSalePage'), title: 'Your For Sale list',
         body: 'It appears here, with your asking price beside the catalog value. From a row you can share it, edit it, or take it back off sale.' },
       { selector: '.row-mark-sold', optional: true,
+        needs: function () {
+          var el = document.querySelector('.row-mark-sold');
+          return !!(el && el.offsetParent !== null);
+        },
         title: 'When it sells',
         body: 'Press <strong>Mark as Sold</strong> and enter the final price. It moves into <strong>Sold Items</strong> and your dashboard totals update on their own.' }
     ]
@@ -406,6 +437,13 @@ const GUIDES = {
       // when its element is missing — so on an EMPTY want list, without this,
       // the card would sit there waiting for a button that does not exist.
       { selector: '.row-add-collection, #detail-add-collection', optional: true, title: 'Find the one you bought',
+        // An empty want list has no row to press. The gate below opens on its
+        // own in that case so nobody is trapped; this retires the card
+        // altogether, so nobody is told about a button that is not there.
+        needs: function () {
+          var el = document.querySelector('.row-add-collection, #detail-add-collection');
+          return !!(el && el.offsetParent !== null);
+        },
         awaitLabel: 'Next →',
         awaitMsg: 'Press the green <strong>+ Collection</strong> on the row you bought and I\'ll come with you.',
         awaitUser: function () {
@@ -436,9 +474,19 @@ const GUIDES = {
       { title: 'Open the item first',
         awaitLabel: 'Next \u2192',
         awaitMsg: 'Please tap one of your items in the list first — that opens its own page, which is where these buttons live.',
+        // v0.9.1400 — AND DO NOT TRAP SOMEONE WHO HAS NOTHING TO OPEN.
+        // Found by running the guides against an empty collection. This gate
+        // waits for you to open an item, and a brand-new user has no items to
+        // open, so three guides dead-ended on this card: Back worked, Cancel
+        // worked, forward was impossible. Brad's rule is that any combination
+        // must let you cancel out, back up, OR move forward, and one of those
+        // three was missing for every new user. With an empty list the gate
+        // opens on its own and the optional steps behind it retire themselves,
+        // so the guide still explains where the buttons will be.
         awaitUser: function () {
           var p = document.querySelector('.page.active');
-          return !!(p && p.id === 'page-itemdetail');
+          if (p && p.id === 'page-itemdetail') return true;
+          return !document.querySelector('[onclick*="showItemDetailPage"]');
         },
         body: 'Tap any item in the list to open its own page. Everything after this happens there. I\'ll wait.' },
       { selector: '#detail-record-sale', optional: true,
@@ -463,9 +511,19 @@ const GUIDES = {
       { title: 'Open the item first',
         awaitLabel: 'Next \u2192',
         awaitMsg: 'Please tap one of your items in the list first — that opens its own page, which is where these buttons live.',
+        // v0.9.1400 — AND DO NOT TRAP SOMEONE WHO HAS NOTHING TO OPEN.
+        // Found by running the guides against an empty collection. This gate
+        // waits for you to open an item, and a brand-new user has no items to
+        // open, so three guides dead-ended on this card: Back worked, Cancel
+        // worked, forward was impossible. Brad's rule is that any combination
+        // must let you cancel out, back up, OR move forward, and one of those
+        // three was missing for every new user. With an empty list the gate
+        // opens on its own and the optional steps behind it retire themselves,
+        // so the guide still explains where the buttons will be.
         awaitUser: function () {
           var p = document.querySelector('.page.active');
-          return !!(p && p.id === 'page-itemdetail');
+          if (p && p.id === 'page-itemdetail') return true;
+          return !document.querySelector('[onclick*="showItemDetailPage"]');
         },
         body: 'Tap any item in the list to open its own page. Everything after this happens there. I\'ll wait.' },
       { selector: '#detail-remove-item', optional: true,
@@ -1219,9 +1277,34 @@ function _guidedTour(steps) {
     // to step 8. A waiting step's whole job is to sit there until the screen it
     // is about appears — skipping it because that screen has not appeared yet
     // is precisely backwards.
-    if (!curEl && step.selector && step.optional && typeof step.awaitUser !== 'function') {
+    // v0.9.1400 — this used to ask only "did the selector miss?". It now asks
+    // the same question the rest of the engine asks, `needs` predicate and all,
+    // because some steps do not apply for a reason no selector can express:
+    // the tour's "Your data cards" points at #stats-grid, which EXISTS on an
+    // empty dashboard — it is just holding a welcome panel instead of cards.
+    // The selector resolved, the step showed, and a brand-new user's very first
+    // help card described stat cards they do not have. For every step written
+    // before today this is exactly the old behaviour.
+    // Two ways a step can be retired before it is ever drawn:
+    //   · OPTIONAL and its target is not here — the long-standing rule.
+    //   · its `needs` predicate says it does not apply, which is allowed to
+    //     retire even a step that WAITS. v0.9.1378 refused to skip a waiting
+    //     step, and was right about the case it was written for: going forward,
+    //     a waiting step's whole job is to sit there until its screen turns up.
+    //     But "not yet" and "not here at all" are different claims, and only a
+    //     predicate can make the second one. On an empty want list there is no
+    //     row to press, ever, and the card telling you about "the green +
+    //     Collection button on the right" was describing furniture the user
+    //     does not have.
+    if (!_gtApplies(step) &&
+        ((step.optional && typeof step.awaitUser !== 'function') || typeof step.needs === 'function')) {
       var _n = i + _gtDir;
       if (_n >= 0 && _n < total) { i = _n; render(); return; }
+      // Nowhere left to go and nothing to say. Showing the card anyway is how
+      // the LAST step of a guide ended up describing rows that were not there —
+      // the skip could only ever move within the guide, so at either end it
+      // gave up and drew the card regardless.
+      if (_gtDir === 1) { _gtEnd(); return; }
     }
     // ── v0.9.1398 — GOING BACK, SKIP WHAT NO LONGER APPLIES ──────────────
     // The rule above deliberately refuses to skip a step that WAITS: going
@@ -1497,7 +1580,7 @@ function _guidedTour(steps) {
     // The page this guide belongs to. startGuide() runs the guide's own open()
     // and waits for it before calling in here, so by now the right page is up.
     var _homePage = (document.querySelector('.page.active') || {}).id || '';
-    if (true) return;   // DRILL: page watchdog disabled
+    if (!_homePage) return;
     var deadTicks = 0;
     _gtPageWatch = setInterval(function () {
       if (!document.getElementById('gt-callout')) { clearInterval(_gtPageWatch); _gtPageWatch = null; return; }

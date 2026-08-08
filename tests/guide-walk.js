@@ -41,7 +41,7 @@ function ok(name, cond, detail) {
   else { fail++; console.log('  FAIL  ' + name + (detail ? '  -> ' + detail : '')); }
 }
 
-const { SEED, RESOLVE } = require('./lib/guide-fixture');
+const { SEED, RESOLVE, SHAPE } = require('./lib/guide-fixture');
 
 (async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'rr-guidewalk-'));
@@ -78,8 +78,14 @@ const { SEED, RESOLVE } = require('./lib/guide-fixture');
       master: (state.masterData || []).length,
       dash: !!document.querySelector('.dash-desktop-actions')
     }));
+    // Under RR_FIXTURE=empty, owning nothing IS the fixture — that is the whole
+    // point of that shape. What must still be true in every shape is that the
+    // reference catalogue loaded and the dashboard built; without those, the
+    // walk below would be measuring a failed boot and calling it a clean run.
     ok('the synthetic collection renders through the real page builders',
-       seeded.owned > 0 && seeded.master > 0 && seeded.dash, JSON.stringify(seeded));
+       seeded.master > 0 && seeded.dash &&
+       (SHAPE === 'empty' ? seeded.owned === 0 : seeded.owned > 0),
+       JSON.stringify({ ...seeded, shape: SHAPE }));
 
     const guideIds = await page.evaluate(() => Object.keys(GUIDES));
 
@@ -210,9 +216,16 @@ const { SEED, RESOLVE } = require('./lib/guide-fixture');
     // the item page is not always open — so the miss list alone would never
     // report them coming loose again. With the page primed above they MUST
     // resolve, and this says so by name.
-    const DEAD_ONCE = { 'list-for-sale': '#detail-list-sale',
-                        'mark-sold': '#detail-record-sale',
-                        'remove-item': '#detail-remove-item' };
+    // Scoped to a collection that HAS items. Under RR_FIXTURE=empty these three
+    // buttons are correctly absent — there is no item page to put them on — and
+    // demanding them there would be demanding the impossible. The step that
+    // used to check they exist still checks it, on the shape where it means
+    // something.
+    const DEAD_ONCE = SHAPE === 'default'
+      ? { 'list-for-sale': '#detail-list-sale',
+          'mark-sold': '#detail-record-sale',
+          'remove-item': '#detail-remove-item' }
+      : {};
     const broken = [];
     for (const gid of Object.keys(DEAD_ONCE)) {
       const g = report.find(r => r.guide === gid);
@@ -220,7 +233,8 @@ const { SEED, RESOLVE } = require('./lib/guide-fixture');
       if (!step) broken.push(gid + ': no step uses ' + DEAD_ONCE[gid]);
       else if (step.r.kind !== 'hit') broken.push(gid + ' ' + DEAD_ONCE[gid] + ' -> ' + step.r.kind);
     }
-    ok('the three item-page buttons that were once dead all resolve again',
+    ok('the three item-page buttons that were once dead all resolve again' +
+       (SHAPE === 'default' ? '' : '  (skipped: fixture is ' + SHAPE + ')'),
        broken.length === 0, broken.join(' | '));
 
     // ── v0.9.1382: Brad's green giraffe car, checked forever ──────────────
