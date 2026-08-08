@@ -228,6 +228,87 @@ const norm = s => String(s || '').replace(/[…–—]/g, ' ')
        statClaim.saysUpTo === null || statClaim.saysUpTo === statClaim.cap,
        JSON.stringify(statClaim));
 
+    // ── COLOUR CLAIMS ──────────────────────────────────────────────────────
+    // Found by LOOKING at a screenshot rather than measuring one. The want-list
+    // card said "Every row has a green + Collection button on the right"; the
+    // button renders rgb(41,128,185), which is blue. Two more said the same
+    // kind of thing: "the green Record Sale" (also blue) and "the red Remove
+    // from Collection" (rgb(240,80,8), the app's orange accent). Telling
+    // someone to hunt for a colour that is not there is worse than saying
+    // nothing, and it is invisible to every other check in this file, all of
+    // which only ask whether the control EXISTS.
+    //
+    // Hue is the only part worth testing. Exact shades are a theme's business
+    // and will change; "is it in the green family" will not.
+    const COLOURS = { red: [[345, 360], [0, 12]], orange: [[13, 45]], yellow: [[46, 65]],
+                      green: [[80, 165]], blue: [[185, 255]], purple: [[256, 320]] };
+    const colourClaims = await page.evaluate(async (names) => {
+      function hueOf(css) {
+        const m = String(css).match(/-?[\d.]+/g);
+        if (!m || m.length < 3) return null;
+        let [r, g, b] = m.slice(0, 3).map(Number);
+        if (r <= 1 && g <= 1 && b <= 1) { r *= 255; g *= 255; b *= 255; }
+        r /= 255; g /= 255; b /= 255;
+        const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn;
+        if (d < 0.04) return null;                       // grey: no hue to speak of
+        let h;
+        if (mx === r) h = ((g - b) / d) % 6;
+        else if (mx === g) h = (b - r) / d + 2;
+        else h = (r - g) / d + 4;
+        h = Math.round(h * 60); if (h < 0) h += 360;
+        return h;
+      }
+      const out = [];
+      const re = new RegExp('\\b(' + names.join('|') + ')\\s+<strong>([^<]{2,40})</strong>', 'gi');
+      for (const gid of Object.keys(GUIDES)) {
+        const g = GUIDES[gid];
+        try { if (typeof g.open === 'function') g.open(); } catch (e) {}
+        await new Promise(r => setTimeout(r, 500));
+        // Stand on the item page for the guides whose buttons live there.
+        if (/list-for-sale|mark-sold|remove-item/.test(gid)) {
+          try {
+            const pd = Object.values(state.personalData || {})[0];
+            if (pd && typeof _openOwnedByInvId === 'function') { _openOwnedByInvId(pd.inventoryId); await new Promise(r => setTimeout(r, 700)); }
+          } catch (e) {}
+        }
+        g.steps.forEach(function (st, i) {
+          const body = String(st.body || '') + ' ' + String(st.awaitMsg || '');
+          let m;
+          re.lastIndex = 0;
+          while ((m = re.exec(body))) {
+            const want = m[1].toLowerCase(), label = m[2];
+            let node = null;
+            document.querySelectorAll('button, a[href], [role="button"], [onclick]').forEach(function (n) {
+              if (node || n.offsetParent === null) return;
+              if ((n.innerText || '').replace(/\s+/g, ' ').trim().toLowerCase()
+                    .indexOf(label.replace(/\s+/g, ' ').trim().toLowerCase()) >= 0) node = n;
+            });
+            if (!node) { out.push({ gid, step: i + 1, want, label, found: false }); continue; }
+            const cs = getComputedStyle(node);
+            out.push({ gid, step: i + 1, want, label, found: true,
+                       hueText: hueOf(cs.color), hueBg: hueOf(cs.backgroundColor),
+                       hueBorder: hueOf(cs.borderColor),
+                       color: cs.color, background: cs.backgroundColor });
+          }
+        });
+      }
+      return out;
+    }, Object.keys(COLOURS));
+
+    const inRange = (h, want) => h != null && COLOURS[want].some(([a2, b2]) => h >= a2 && h <= b2);
+    const colourWrong = colourClaims.filter(c => c.found &&
+      !inRange(c.hueText, c.want) && !inRange(c.hueBg, c.want) && !inRange(c.hueBorder, c.want));
+    console.log('');
+    console.log('  ── ' + colourClaims.length + ' colour claims in the copy, ' +
+                colourWrong.length + ' pointing at a colour that is not there ──');
+    for (const c of colourWrong)
+      console.log('     ' + c.gid + ' #' + c.step + ' calls "' + c.label + '" ' + c.want +
+                  ' — it renders text ' + c.color + ', background ' + c.background);
+
+    ok('BRAD\'S BUG: the copy never sends you hunting for a colour the button is not',
+       colourWrong.length === 0,
+       colourWrong.slice(0, 4).map(c => c.gid + ' #' + c.step + ' ' + c.label + '=' + c.want).join(' | '));
+
     ok('checking every guide raises no page errors', errs.length === 0, errs.slice(0, 3).join(' | '));
   } finally {
     await browser.close();

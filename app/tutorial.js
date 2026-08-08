@@ -445,13 +445,13 @@ const GUIDES = {
           return !!(el && el.offsetParent !== null);
         },
         awaitLabel: 'Next →',
-        awaitMsg: 'Press the green <strong>+ Collection</strong> on the row you bought and I\'ll come with you.',
+        awaitMsg: 'Press <strong>+ Collection</strong> on the row you bought and I\'ll come with you.',
         awaitUser: function () {
           var el = document.querySelector('.row-add-collection, #detail-add-collection');
           if (!el || el.offsetParent === null) return true;
           return _gtWizardOpen();
         },
-        body: 'Every row has a green <strong>+ Collection</strong> button on the right. The <strong>eBay</strong> and <strong>Search</strong> buttons beside it look for that exact item online, if you are still shopping for it.' },
+        body: 'Every row has a <strong>+ Collection</strong> button at the right-hand end. The <strong>eBay</strong> and <strong>Search</strong> buttons beside it look for that exact item online, if you are still shopping for it.' },
       { title: 'The wizard opens pre-filled',
         watch: true, needs: function () { return _gtWizardOpen(); },
         body: 'Item number and variation are already in. You only add condition, what you paid, and anything else you want to record.' },
@@ -491,7 +491,7 @@ const GUIDES = {
         body: 'Tap any item in the list to open its own page. Everything after this happens there. I\'ll wait.' },
       { selector: '#detail-record-sale', optional: true,
         title: 'Record the sale',
-        body: 'Press the green <strong>Record Sale</strong> button in the toolbar. Enter the price, the date, and the buyer or notes if you want them — only the price is required.' },
+        body: 'Press <strong>Record Sale</strong> in the row of buttons under the item\'s name. Enter the price, the date, and the buyer or notes if you want them — only the price is required.' },
       { selector: _gNav("showPage('sold'"), title: 'Where it goes',
         body: 'The item moves out of your active collection into <strong>Sold Items</strong>, and your totals update automatically. Nothing is deleted — the record and its photos stay.' }
     ]
@@ -528,7 +528,7 @@ const GUIDES = {
         body: 'Tap any item in the list to open its own page. Everything after this happens there. I\'ll wait.' },
       { selector: '#detail-remove-item', optional: true,
         title: 'The toolbar is at the top',
-        body: 'The row of action buttons sits just under the item\'s name. Press the red <strong>Remove from Collection</strong> — the last button in that row. Removing lives here rather than on the list rows, because a button that small was too easy to hit by accident.' },
+        body: 'The row of action buttons sits just under the item\'s name. Press <strong>Remove from Collection</strong> — the last button in that row. Removing lives here rather than on the list rows, because a button that small was too easy to hit by accident.' },
       { title: 'You are asked first',
         body: 'Nothing goes without a confirmation. Your Google Sheet row is cleared rather than destroyed, and the photos stay in your Drive.' },
       { title: 'Grouped items',
