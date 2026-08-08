@@ -99,7 +99,15 @@ const GUIDES = {
     open: function () { showPage('dashboard'); },
     steps: [
       { selector: '#stats-grid', title: 'Your data cards',
-        body: 'These show key numbers about your collection. <strong>Tap any card to swap it</strong> for a different stat — collection value, counts by type, and more. You can show up to 5.' },
+        body: 'These show key numbers about your collection. Use <strong>Edit Dashboard</strong> to change which stats appear, or <strong>Add a stat card</strong> for another one — collection value, counts by type, and more. You can show up to 6.' },
+      // v0.9.1394 (walked in Brad's browser): this said "Tap any card to swap it".
+      // Measured on #dash-card-0 — no onclick attribute, no onclick property,
+      // cursor:auto. dashboard.js says so outright on the line that wires the
+      // click: "Catalog keeps its picker; others stay inert." It was the FIRST
+      // sentence a new user reads, and it asked them to do something that does
+      // nothing. The two controls named here are both real and both on screen.
+      // "up to 5" was wrong too — v0.9.754 raised MAX_CARDS to 6 at Brad's own
+      // request and the copy never followed.
       { selector: '#dash-panel-header-0', wrap: '.panel', title: 'Recent Additions',
         body: 'The items you added most recently. <strong>Tap the panel\'s header</strong> to switch it to a different list.' },
       { selector: '.sidebar', title: 'Your main areas',
@@ -231,8 +239,15 @@ const GUIDES = {
     steps: [
       { selector: '#pin-group-btn', title: 'Why group photos',
         body: 'Four shots of the same boxcar should become one item, not four. Press <strong>Group photos</strong>, tap the photos in the grid, and they collect in a panel.' },
-      { selector: '#pin-grp-panel-apply, #pin-apply-btn', optional: true,
-        title: 'Apply is what saves it',
+      // v0.9.1394 (walked in Brad's browser) — this was `optional` with a
+      // selector, and the panel it points at only exists once you are ALREADY
+      // grouping. So on every ordinary walk of this guide the engine skipped
+      // it, and the one step whose own first words are "This one catches
+      // people out" was the one nobody ever saw. Narration now, like the four
+      // steps that follow it, so it always shows. It cannot be made REQUIRED
+      // with the selector: a required miss is a real fault and would rightly
+      // fail guide-walk every time the panel is closed.
+      { title: 'Apply is what saves it',
         body: 'This one catches people out. <strong>Apply</strong> saves the grouping — <strong>✓ Finished</strong> only closes the mode. Tick, then Apply, then Finished.' },
       { title: 'Engines, A units and sets',
         body: 'Choose the kind: <strong>Engine + tender</strong>, <strong>AA — two A units</strong>, <strong>AB — A and B</strong>, <strong>ABA — A, B, A</strong>, <strong>Train set</strong>, or <strong>Item + its box</strong>. An AA, AB or ABA saves as separate items that stay linked.' },
@@ -798,8 +813,44 @@ function _guidedTour(steps) {
   document.body.appendChild(hole);
   document.body.appendChild(callout);
 
-  function setMascot(rightSide) {
+  function setMascot(rightSide, cardLeft, cardWidth) {
     var m = document.getElementById('gt-mascot'); if (!m) return;
+    // ── v0.9.1394 — THE CONDUCTOR MUST STAY ON THE SCREEN ─────────────────
+    //
+    // Found by walking the guides in Brad's own browser. He hangs 66px off one
+    // side of the card and is ~84 wide, so a card near either edge pushes him
+    // clean off: measured at x2277 on a 2304-wide window (tour #3) and at x-57
+    // on four separate Photo Inbox steps.
+    //
+    // Four callers, three of them wrong. The no-target branch asked
+    // `L > innerWidth/2` — which is BACKWARDS, and so fails on BOTH edges: a
+    // card on the left gets him on its left, a card on the right gets him on
+    // its right. The two spotlight branches asked `left > r.left`, which is
+    // about the target and says nothing about the screen edge. Only the
+    // corner branch (v0.9.1385, tonight) got it right.
+    //
+    // So the guard goes HERE, once, and every caller inherits it. The caller's
+    // preference is still honoured whenever it fits.
+    // The geometry is PASSED IN, never measured. #gt-callout carries a 0.25s
+    // transition on top/left, so getBoundingClientRect right after the style is
+    // set returns the position the card is moving AWAY from — the first cut of
+    // this guard did exactly that and changed nothing, which the real-app gate
+    // caught. Callers know where they just put it; they say so.
+    var OFF = 66;
+    try {
+      var _cb;
+      if (typeof cardLeft === 'number' && typeof cardWidth === 'number') {
+        _cb = { left: cardLeft, right: cardLeft + cardWidth };
+      } else {
+        _cb = callout.getBoundingClientRect();
+      }
+      var _fitsRight = (_cb.right + OFF) <= window.innerWidth;
+      var _fitsLeft  = (_cb.left - OFF) >= 0;
+      if (!_fitsLeft && !_fitsRight) { m.style.display = 'none'; return; }  // nowhere to stand
+      m.style.display = '';
+      if (rightSide && !_fitsRight) rightSide = false;
+      else if (!rightSide && !_fitsLeft) rightSide = true;
+    } catch (e) {}
     if (rightSide) { m.style.left = 'auto'; m.style.right = '-66px'; if (!m.dataset.fixed) m.src = './img/conductor-pointing-left.png'; }
     else { m.style.right = 'auto'; m.style.left = '-66px'; if (!m.dataset.fixed) m.src = './img/conductor-pointing.png'; }
     m.style.transform = 'none';
@@ -834,7 +885,7 @@ function _guidedTour(steps) {
       L = d0[0]; T = d0[1];
       callout.style.left = L + 'px';
       callout.style.top  = T + 'px';
-      setMascot(L > window.innerWidth / 2);
+      setMascot(L > window.innerWidth / 2, L, cw0);
       return;
     }
     hole.style.opacity = '1';
@@ -883,7 +934,7 @@ function _guidedTour(steps) {
       // off-screen — measured live in Brad's browser at bottom-left: card at
       // x8, mascot at x-57. So the side is chosen by which edge the card is
       // hugging, not by where the highlight is.
-      setMascot(cn.left < W / 2);
+      setMascot(cn.left < W / 2, cn.left, cw);
       return;
     }
     delete callout.dataset.gtCorner;
@@ -896,10 +947,17 @@ function _guidedTour(steps) {
     if (tall) side = fitsRight ? 'right' : (fitsLeft ? 'left' : (fitsBelow ? 'below' : 'above'));
     else side = fitsBelow ? 'below' : (fitsRight ? 'right' : (fitsAbove ? 'above' : (fitsLeft ? 'left' : 'below')));
     var left, top;
-    if (side === 'right') { left = r.right + gap; top = Math.min(Math.max(m, r.top), H - ch - m); setMascot(true); }
-    else if (side === 'left') { left = r.left - cw - gap; top = Math.min(Math.max(m, r.top), H - ch - m); setMascot(false); }
-    else if (side === 'above') { top = r.top - ch - gap; left = Math.min(Math.max(over, r.left), W - cw - m); setMascot(false); }
-    else { top = r.bottom + gap; left = Math.min(Math.max(over, r.left), W - cw - m); setMascot(false); }
+    // v0.9.1394 — these used to call setMascot() here, BEFORE the card had
+    // actually moved. setMascot now measures the card to decide which side keeps
+    // the conductor on screen, and a measurement taken before the move reads the
+    // PREVIOUS position — which is how the first cut of that guard still let him
+    // off the edge. The side is only recorded here; he is placed once, at the
+    // bottom, after the styles are applied.
+    var _mascotRight = false;
+    if (side === 'right') { left = r.right + gap; top = Math.min(Math.max(m, r.top), H - ch - m); _mascotRight = true; }
+    else if (side === 'left') { left = r.left - cw - gap; top = Math.min(Math.max(m, r.top), H - ch - m); _mascotRight = false; }
+    else if (side === 'above') { top = r.top - ch - gap; left = Math.min(Math.max(over, r.left), W - cw - m); _mascotRight = false; }
+    else { top = r.bottom + gap; left = Math.min(Math.max(over, r.left), W - cw - m); _mascotRight = false; }
     left = Math.min(Math.max(m, left), W - cw - m);
     top = Math.min(Math.max(m, top), H - ch - m);
 
@@ -926,7 +984,7 @@ function _guidedTour(steps) {
       else { top = H - ch - m; left = Math.min(Math.max(m, left), W - cw - m); }
       left = Math.min(Math.max(m, left), W - cw - m);
       top = Math.min(Math.max(m, top), H - ch - m);
-      setMascot(left > r.left);
+      _mascotRight = left > r.left;
     }
 
     // ── v0.9.1384 — LAST WORD OF ALL: do not sit on a control ─────────────
@@ -937,10 +995,12 @@ function _guidedTour(steps) {
     // page and moves the card if something better exists.
     var d = _gtDodge(left, top, cw, ch, r, m);
     left = d[0]; top = d[1];
-    setMascot(left > r.left);
+    if (left !== d[0] || true) _mascotRight = left > r.left;   // the dodge may have moved it
 
     callout.style.left = left + 'px';
     callout.style.top = top + 'px';
+    // AFTER the move, never before — see the note above the side picker.
+    setMascot(_mascotRight, left, cw);
   }
   // v0.9.1366 — SAFETY NET. A guide step whose selector matches nothing fails
   // silently: the spotlight just vanishes and the card floats, so the text

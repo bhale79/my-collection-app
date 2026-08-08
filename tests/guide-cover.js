@@ -124,9 +124,21 @@ window._coverProbe = async function (step) {
     });
     if (swallowed.length >= 8) break;
   }
+  // v0.9.1394 — THE CONDUCTOR MUST STAY ON THE SCREEN. Found by walking the
+  // guides in Brad's browser: off-screen on tour #3 (x2277 of 2304) and on four
+  // Photo Inbox steps (x-57). It is checked HERE and not in guide-follow because
+  // only a real app layout pushes the card hard enough against an edge to fail
+  // — a synthetic fixture passed with the guard removed.
+  var _m = document.getElementById('gt-mascot');
+  var mascot = null;
+  if (_m && getComputedStyle(_m).display !== 'none' && _m.getBoundingClientRect().width > 2) {
+    var mb = _m.getBoundingClientRect();
+    mascot = { x: Math.round(mb.left), r: Math.round(mb.right),
+               onScreen: mb.left >= 0 && mb.right <= window.innerWidth };
+  }
   try { _gtEnd(); } catch (e) {}
   return { card: [Math.round(c.left), Math.round(c.top), Math.round(c.width), Math.round(c.height)],
-           swallowed: swallowed };
+           mascot: mascot, swallowed: swallowed };
 };
 `;
 
@@ -277,6 +289,22 @@ window._coverProbe = async function (step) {
     ok('…with Engine Only and Engine + Tender specifically reachable',
        tenderCovered.length === 0,
        tenderCovered.map(s => s.guide + ' #' + s.n).join(' | '));
+
+    // v0.9.1394 — the conductor, on every step of every guide.
+    const offScreen = all.filter(s => s.r && s.r.mascot && !s.r.mascot.onScreen);
+    if (offScreen.length) {
+      console.log('');
+      console.log('  ── steps where the conductor is off the screen ──');
+      for (const s of offScreen)
+        console.log('     ' + s.guide + ' #' + s.n + ' "' + s.title + '"  card=' +
+                    JSON.stringify(s.r.card) + '  conductor=' + JSON.stringify(s.r.mascot));
+      console.log('');
+    }
+    ok('the conductor never hangs off the edge of the screen',
+       offScreen.length === 0,
+       offScreen.slice(0, 4).map(s => s.guide + ' #' + s.n + ' @' + s.r.mascot.x).join(' | '));
+    ok('…and he was actually measured, not skipped as missing art',
+       all.some(s => s.r && s.r.mascot), 'no step rendered a measurable conductor');
 
     ok('measuring every guide raises no page errors',
        errs.length === 0, errs.slice(0, 4).join(' | '));

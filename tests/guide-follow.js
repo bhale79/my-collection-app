@@ -391,6 +391,12 @@ window._cardTitle = function () {
     ok('…while a step that does NOT wait still sits beside what it points at',
        !r.corner && r.gap <= 40, JSON.stringify(r));
 
+    // v0.9.1394 — the conductor-on-screen check lives in guide-cover.js, not
+    // here. Two assertions were written here first and BOTH passed with the
+    // guard deliberately removed: this fixture's viewport and targets never
+    // push the card hard against an edge, which is the only condition that
+    // fails. The real app's layouts do, so the check belongs where the real
+    // app is booted.
     ok('no page errors anywhere in the run', errs.length === 0, errs.join(' | '));
   } finally {
     await browser.close();
