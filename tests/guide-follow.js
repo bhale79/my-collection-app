@@ -397,6 +397,44 @@ window._cardTitle = function () {
     // push the card hard against an edge, which is the only condition that
     // fails. The real app's layouts do, so the check belongs where the real
     // app is booted.
+    // ── v0.9.1395: A WAITING BUTTON MUST LOOK LIKE ONE ────────────────────
+    // Measured in Brad's browser: a closed gate and an open one were identical
+    // — same label (the guides set awaitLabel themselves), same solid orange,
+    // 0.25 of opacity apart. Pressing Next and having nothing happen looked
+    // exactly like the app ignoring him, which is the shape of his original
+    // report. The label cannot carry this; the treatment has to.
+    r = await page.evaluate(async () => {
+      const read = function () {
+        const n = document.getElementById('gt-next');
+        const c = getComputedStyle(n);
+        return { label: n.textContent, bg: c.backgroundColor, colour: c.color,
+                 border: c.borderTopWidth };
+      };
+      try { _gtEnd(); } catch (e) {}
+      window._rrGateOpen = false;
+      _guidedTour([{ selector: '#target-a', title: 'Waits', body: 'do it',
+                     awaitLabel: 'Next \u2192',
+                     awaitUser: function () { return !!window._rrGateOpen; } },
+                   { title: 'end', body: 'end' }]);
+      await new Promise(r2 => setTimeout(r2, 450));
+      const closed = read();
+      window._rrGateOpen = true;
+      await new Promise(r2 => setTimeout(r2, 500));   // the poll re-dresses it
+      const open = read();
+      try { _gtEnd(); } catch (e) {}
+      return { closed: closed, open: open };
+    });
+    ok('a step that is WAITING dresses its Next differently from a live one',
+       r.closed.bg !== r.open.bg || r.closed.colour !== r.open.colour,
+       JSON.stringify(r));
+    ok('…and the difference is not just the label, which the guides own',
+       r.closed.label === r.open.label ? (r.closed.bg !== r.open.bg) : true,
+       JSON.stringify(r));
+    ok('…and once the gate opens it is solid again, never left half-dressed',
+       /rgba?\(0, 0, 0, 0\)|transparent/.test(r.closed.bg) &&
+       !/rgba?\(0, 0, 0, 0\)|transparent/.test(r.open.bg),
+       JSON.stringify(r));
+
     ok('no page errors anywhere in the run', errs.length === 0, errs.join(' | '));
   } finally {
     await browser.close();

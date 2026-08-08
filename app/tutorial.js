@@ -1161,7 +1161,23 @@ function _guidedTour(steps) {
       var _gate = function (fromPoll) {
         var ok = open();
         nx.textContent = ok ? (i === total - 1 ? 'Done' : 'Next \u2192') : (step.awaitLabel || 'Next \u2192');
-        nx.style.opacity = ok ? '1' : '0.75';
+        // ── v0.9.1395 — A WAITING BUTTON MUST LOOK LIKE ONE ───────────────
+        // Measured: a closed gate and an open one were IDENTICAL — same label
+        // (guides set awaitLabel to 'Next →' themselves), same solid orange,
+        // 0.25 of opacity apart. On a bright button that reads as no
+        // difference at all, so pressing Next and having nothing happen looks
+        // exactly like the app ignoring you. That is the shape of Brad's
+        // original report — "you stop it if i don't enter a number" and "not
+        // keeping up with the clicks" — and the label alone could not fix it
+        // because the guides own the label.
+        //
+        // Hollow while it waits, solid once it is live. Both states are set
+        // explicitly so the button can never be left half-dressed.
+        nx.style.opacity = ok ? '1' : '0.9';
+        if (ok) { nx.style.background = 'var(--accent,#f05008)'; nx.style.color = '#fff';
+                  nx.style.border = 'none'; }
+        else    { nx.style.background = 'transparent'; nx.style.color = 'var(--accent,#f05008)';
+                  nx.style.border = '1.5px solid var(--accent,#f05008)'; }
         if (ok && msg) msg.style.display = 'none';
         if (ok && _gtPoll) { clearInterval(_gtPoll); _gtPoll = null; }
         if (ok && fromPoll) {
