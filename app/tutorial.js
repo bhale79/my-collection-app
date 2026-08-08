@@ -832,6 +832,33 @@ function _gtControls() {
     // The card is allowed to sit on its own furniture.
     try { if (n.closest && n.closest('#gt-callout, #gt-blocker, #gt-hole, #gt-mascot')) continue; } catch (e) {}
     if (n.disabled) continue;
+    // ── v0.9.1401 — DO NOT DODGE BUTTONS THAT ARE NOT THERE ───────────────
+    //
+    // MEASURED: a CLOSED wizard is not removed from the layout. .modal-overlay
+    // is `display:flex` with `opacity:0; pointer-events:none`, and `.open`
+    // only flips those two — so every control inside it keeps a full-size
+    // bounding box, and this function counted 45 controls with the wizard shut
+    // exactly as it did with the wizard open. Around twenty of them were
+    // invisible and unclickable.
+    //
+    // The card was therefore dodging furniture the user cannot see, on every
+    // guide and every page, and paying for it in the places it CAN fit. At
+    // 1280x720 with large text the bill came due: the want-list card landed on
+    // "+ Collection" — the very button its own step tells you to press — plus
+    // eBay, Search and Remove. Brad's original "you still can't hit engine +
+    // tender", reappearing at a window size nobody had measured.
+    //
+    // checkVisibility answers this properly, ancestor opacity included.
+    // pointer-events is the fallback: it inherits, so a control inside a
+    // closed overlay reports 'none' even though its own styles say nothing.
+    try {
+      if (typeof n.checkVisibility === 'function') {
+        if (!n.checkVisibility({ opacityProperty: true, visibilityProperty: true, contentVisibilityAuto: true })) continue;
+      } else {
+        var _cs = getComputedStyle(n);
+        if (_cs.pointerEvents === 'none' || _cs.visibility === 'hidden') continue;
+      }
+    } catch (e) {}
     var b = n.getBoundingClientRect();
     if (b.width < 4 || b.height < 4) continue;                       // hidden or hairline
     if (b.right <= 0 || b.bottom <= 0) continue;                     // scrolled off
@@ -899,7 +926,8 @@ function _gtCorner(cw, ch, r, m) {
   }
   _gtLastCorner = best;
   var q = xy(best);
-  return { left: q[0], top: q[1], corner: best };
+  return { left: q[0], top: q[1], corner: best,
+           covered: _gtCovered(ctrls, q[0], q[1], cw, ch) };
 }
 // r may be null (a step with no target). m is the viewport margin.
 function _gtDodge(L, T, cw, ch, r, m) {
@@ -926,8 +954,41 @@ function _gtDodge(L, T, cw, ch, r, m) {
     // Drift keeps the card near where the side-picking logic wanted it, so it
     // does not teleport across the screen to save one stray control.
     var drift = Math.abs(Lx - L) + Math.abs(Ty - T);
-    var score = covered * 10000 + hides * 5000 + drift / 1000;
+    // HIDING THE RING IS THE WORST OUTCOME, worse than covering any single
+    // other control. The ringed element is the one thing the user is being
+    // told to look at and usually the one thing they are being told to press;
+    // at 5000 it was cheaper than covering one unrelated button, which is
+    // backwards. Everything else is unchanged.
+    var score = covered * 10000 + hides * 20000 + drift / 1000;
     if (bestScore === null || score < bestScore) { bestScore = score; best = [Lx, Ty]; }
+  }
+  // ── v0.9.1401 — IF NONE OF THE NINE IS CLEAN, GO LOOKING ────────────────
+  // The nine candidates above are the anchor, the four sides of the ring and
+  // the four screen corners. On a roomy window one of them is always clear.
+  // Measured at 1280x720 with Large text, sometimes none is, and the loop then
+  // settles for the least-bad — a card sitting on Record Sale and List for
+  // Sale, or on a want row's Remove.
+  //
+  // So when the winner still buries something, sweep the viewport on a coarse
+  // grid and take the first genuinely clean spot, nearest to where the card
+  // wanted to be. ~400 positions against a few dozen controls, on a redraw or
+  // a resize and nowhere near the 250ms polls — cheap enough not to think
+  // about, and the difference between a reachable button and an unreachable
+  // one.
+  if (_gtCovered(ctrls, best[0], best[1], cw, ch) > 0) {
+    var stepX = Math.max(40, Math.round((W - cw - 2 * m) / 12)) || 40;
+    var stepY = Math.max(40, Math.round((H - ch - 2 * m) / 12)) || 40;
+    var gBest = null, gScore = null;
+    for (var gx = m; gx <= Math.max(m, W - cw - m); gx += stepX) {
+      for (var gy = m; gy <= Math.max(m, H - ch - m); gy += stepY) {
+        if (_gtCovered(ctrls, gx, gy, cw, ch) > 0) continue;
+        var gHides = (r && !(gx + cw < r.left - 2 || gx > r.right + 2 ||
+                             gy + ch < r.top - 2 || gy > r.bottom + 2)) ? 1 : 0;
+        var gs = gHides * 1000000 + Math.abs(gx - L) + Math.abs(gy - T);
+        if (gScore === null || gs < gScore) { gScore = gs; gBest = [gx, gy]; }
+      }
+    }
+    if (gBest) return gBest;
   }
   return best;
 }
@@ -1102,6 +1163,27 @@ function _guidedTour(steps) {
       var _bt = Math.min(_br.bottom - ch - m, H - ch - m);
       _bl = Math.min(Math.max(m, _bl), W - cw - m);
       _bt = Math.min(Math.max(m, _bt), H - ch - m);
+      // ── v0.9.1401 — one fixed place, until that place is on a button ─────
+      // The same escape the corner branch got, for the same reason. Pinning to
+      // the box's bottom-left is Brad's request and it assumes that corner is
+      // empty, which it is on a roomy window. Measured at 1024x700 with Extra
+      // Large text, the card landed squarely on the wizard's own NEXT button —
+      // the guide covering the control it is walking you towards.
+      if (_gtCovered(_gtControls(), _bl, _bt, cw, ch) > 0) {
+        var _bd = _gtDodge(_bl, _bt, cw, ch, r, m);
+        // ZERO, not merely fewer. Trading one covered control for a different
+        // one buys nothing and can cost a lot: the first cut of this used
+        // "fewer" and moved two add-item cards off a pair of harmless controls
+        // and squarely onto the wizard's own NEXT button. Leaving a pinned card
+        // where Brad asked for it beats shuffling it onto something worse.
+        if (_gtCovered(_gtControls(), _bd[0], _bd[1], cw, ch) === 0) {
+          callout.style.left = _bd[0] + 'px';
+          callout.style.top = _bd[1] + 'px';
+          callout.dataset.gtCorner = 'box-dodged';
+          setMascot(_bd[0] < W / 2, _bd[0], cw);
+          return;
+        }
+      }
       callout.style.left = _bl + 'px';
       callout.style.top = _bt + 'px';
       callout.dataset.gtCorner = 'box-bottom-left';
@@ -1119,6 +1201,29 @@ function _guidedTour(steps) {
     var _waitStep = steps[i] && typeof steps[i].awaitUser === 'function';
     if (_waitStep) {
       var cn = _gtCorner(cw, ch, r, m);
+      // ── v0.9.1401 — PREDICTABLE UNTIL PREDICTABLE MEANS BROKEN ──────────
+      // Corner pinning is Brad's own request: "just stick all of them at the
+      // bottom left corner of the box, because your all over the place and its
+      // hard to follow". It assumes a corner is empty, which it is on his
+      // 1844x914 window. Measured at 1280x720 with Large text, every corner
+      // had something in it, and the least-bad one buried "+ Collection" —
+      // the exact button that step tells you to press — along with eBay,
+      // Search and Remove.
+      //
+      // So: keep the corner while a corner is clean, and fall back to the
+      // free-form search when none is. His other rule decides the tie, and it
+      // is the one already written into _gtDodge: a card in a corner is
+      // inelegant, a card on the button is broken, and inelegant wins.
+      if (cn.covered > 0) {
+        var _dg = _gtDodge(cn.left, cn.top, cw, ch, r, m);
+        if (_gtCovered(_gtControls(), _dg[0], _dg[1], cw, ch) === 0) {
+          callout.style.left = _dg[0] + 'px';
+          callout.style.top = _dg[1] + 'px';
+          callout.dataset.gtCorner = 'dodged';
+          setMascot(_dg[0] < W / 2, _dg[0], cw);
+          return;
+        }
+      }
       callout.style.left = cn.left + 'px';
       callout.style.top = cn.top + 'px';
       callout.dataset.gtCorner = cn.corner;
