@@ -1019,6 +1019,20 @@ function _guidedTour(steps) {
   hole.style.cssText = 'position:fixed;top:0;left:0;width:0;height:0;z-index:99991;border-radius:12px;box-shadow:inset 0 0 0 1px rgba(0,0,0,0.55),0 0 0 1px rgba(255,255,255,0.8),0 0 0 9999px rgba(0,0,0,0.62);border:2px solid var(--accent,#f05008);pointer-events:none;transition:top 0.25s ease,left 0.25s ease,width 0.25s ease,height 0.25s ease,opacity 0.2s ease';
   var callout = document.createElement('div');
   callout.id = 'gt-callout';
+  // ── v0.9.1404 — THE CARD HAS TO EXIST FOR SOMEONE NOT USING A MOUSE ────
+  // Measured: the tour engine had nothing for the keyboard at all. No Escape,
+  // no focus, no role, no name. A screen reader was told nothing had appeared;
+  // a keyboard user tabbing forward walked through every control on the dimmed
+  // page — all of them unclickable — before reaching Next.
+  //
+  // aria-live sits on the card itself, which SURVIVES a step change (only its
+  // innerHTML is replaced), so moving between steps is announced rather than
+  // silently swapped. tabindex -1 lets it take focus without joining the tab
+  // order twice.
+  callout.setAttribute('role', 'dialog');
+  callout.setAttribute('aria-live', 'polite');
+  callout.setAttribute('tabindex', '-1');
+  callout.setAttribute('aria-label', 'Help');
   callout.style.cssText = 'position:fixed;top:50%;left:50%;z-index:99992;max-width:330px;width:calc(100vw - 2rem);background:var(--surface,#1a1a2e);color:var(--text,#eee);border:1px solid var(--border,#333);border-radius:12px;box-shadow:0 10px 36px rgba(0,0,0,0.5);font-family:var(--font-body,sans-serif);transition:top 0.25s ease,left 0.25s ease';
   document.body.appendChild(blocker);
   document.body.appendChild(hole);
@@ -1427,6 +1441,15 @@ function _guidedTour(steps) {
     // again — the guide walks back INTO the wizard rather than back into a
     // description of one.
     if (_gtDir === -1 && !_gtApplies(step) && i > 0) { i = i - 1; render(); return; }
+    // The name read out should say WHICH card this is, and change with it.
+    try {
+      callout.setAttribute('aria-label',
+        'Help, step ' + (i + 1) + ' of ' + total + ': ' + (step.title || ''));
+      // aria-modal mirrors the rule the mouse already follows: an ordinary
+      // step owns the screen, a step that WAITS must leave the app reachable.
+      if (typeof step.awaitUser === 'function') callout.removeAttribute('aria-modal');
+      else callout.setAttribute('aria-modal', 'true');
+    } catch (e) {}
     var mascotSrc = (i === total - 1) ? './img/conductor-lantern-lg.gif' : './img/conductor-pointing.png';
     var mascotFixed = (i === total - 1) ? ' data-fixed="1"' : '';
     callout.innerHTML =
@@ -1642,6 +1665,10 @@ function _guidedTour(steps) {
     // A step with a `before` hook counts as reachable even when it does not
     // apply right now: its hook is what puts its screen back (the add-item
     // guide's "Type the item number" reopens the wizard on the way in).
+    // Put focus where the next keystroke should land. preventScroll matters:
+    // focusing normally would scroll the page under a fixed card and move the
+    // very thing the spotlight is ringing.
+    try { callout.focus({ preventScroll: true }); } catch (e) { try { callout.focus(); } catch (e2) {} }
     var bk = document.getElementById('gt-back');
     if (bk) bk.onclick = function () {
       if (i <= 0) return;
@@ -1656,6 +1683,34 @@ function _guidedTour(steps) {
   }
   function onResize(){ place(curEl); }
   window.addEventListener('resize', onResize);
+
+  // ── v0.9.1404 — ESCAPE, AND A TAB THAT STAYS WHERE IT IS USEFUL ────────
+  function onKey(e) {
+    if (!document.getElementById('gt-callout')) return;
+    if (e.key === 'Escape') {
+      // If a box is open, Escape belongs to the box. Closing the guide out
+      // from under an open wizard would answer a question nobody asked.
+      if (document.querySelector('#wizard-modal.open, .modal.open, #help-hub-modal')) return;
+      e.preventDefault();
+      _gtEnd();
+      return;
+    }
+    if (e.key !== 'Tab') return;
+    // A step that WAITS needs the user to reach the app — with the keyboard as
+    // much as with the mouse. The engine already stands the click blocker aside
+    // for exactly these steps; trapping Tab here would put the wall back up for
+    // the people least able to get around it.
+    if (steps[i] && typeof steps[i].awaitUser === 'function') return;
+    var f = callout.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+    var list = [];
+    for (var k = 0; k < f.length; k++) if (f[k].offsetParent !== null && !f[k].disabled) list.push(f[k]);
+    if (!list.length) return;
+    var first = list[0], last = list[list.length - 1], a = document.activeElement;
+    if (!callout.contains(a)) { e.preventDefault(); (e.shiftKey ? last : first).focus(); return; }
+    if (!e.shiftKey && a === last) { e.preventDefault(); first.focus(); }
+    else if (e.shiftKey && a === first) { e.preventDefault(); last.focus(); }
+  }
+  document.addEventListener('keydown', onKey, true);
 
   // ══ v0.9.1399 — A GUIDE MUST NOT TALK ABOUT A PAGE YOU HAVE LEFT ═══════
   //
@@ -1710,7 +1765,7 @@ function _guidedTour(steps) {
     }, 500);
   })();
 
-  window._gtCleanup = function(){ window.removeEventListener('resize', onResize); if (_gtPoll) { clearInterval(_gtPoll); _gtPoll = null; } if (_gtAdv) { clearTimeout(_gtAdv); _gtAdv = null; } if (_gtWatch) { clearInterval(_gtWatch); _gtWatch = null; } if (_gtPageWatch) { clearInterval(_gtPageWatch); _gtPageWatch = null; } };
+  window._gtCleanup = function(){ window.removeEventListener('resize', onResize); document.removeEventListener('keydown', onKey, true); if (_gtPoll) { clearInterval(_gtPoll); _gtPoll = null; } if (_gtAdv) { clearTimeout(_gtAdv); _gtAdv = null; } if (_gtWatch) { clearInterval(_gtWatch); _gtWatch = null; } if (_gtPageWatch) { clearInterval(_gtPageWatch); _gtPageWatch = null; } };
   render();
 }
 window._guidedTour = _guidedTour;
