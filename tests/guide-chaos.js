@@ -156,6 +156,37 @@ window._btnTornDownChaos = function () {
                      '**://*.google.com/**'])
       await page.route(u, r => r.abort());
 
+    // ── RR_CPU=4 RUNS THIS ON A SLOW MACHINE ───────────────────────────
+    // Every timing decision in the tour engine was measured on a fast box: a
+    // 550ms beat before an opened gate advances, watchdogs on 400-500ms ticks,
+    // before-hooks holding a redraw for 900ms. Those numbers are in a fixed
+    // ORDER for a reason — the gate is meant to win a race against the
+    // watchdog — and an order that only holds when everything is quick is not
+    // an order at all. This throttles the CPU by the given factor so the races
+    // run on the kind of laptop a beta tester actually owns.
+    const CPU = parseInt(process.env.RR_CPU || '1', 10);
+    if (CPU > 1) {
+      const cdp = await page.context().newCDPSession(page);
+      await cdp.send('Emulation.setCPUThrottlingRate', { rate: CPU });
+      // PROVE IT TOOK. A throttle that silently does nothing turns this whole
+      // round into a second copy of the unthrottled run, reported as if it
+      // meant something. Measure a fixed lump of work and require it to have
+      // actually got slower.
+      const spin = () => page.evaluate(() => {
+        const t0 = performance.now();
+        let x = 0;
+        for (let i = 0; i < 3e6; i++) x += Math.sqrt(i);
+        return { ms: performance.now() - t0, x };
+      });
+      const slow = (await spin()).ms;
+      await cdp.send('Emulation.setCPUThrottlingRate', { rate: 1 });
+      const fast = (await spin()).ms;
+      await cdp.send('Emulation.setCPUThrottlingRate', { rate: CPU });
+      ok('the CPU throttle is really slowing the page down',
+         slow > fast * 1.8,
+         Math.round(slow) + 'ms throttled vs ' + Math.round(fast) + 'ms normal');
+      console.log('  ── CPU throttled ' + CPU + 'x ──');
+    }
     await page.goto('file://' + APP + '/index.html');
     await page.waitForTimeout(2200);
     await page.evaluate(SEED);
