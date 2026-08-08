@@ -357,6 +357,27 @@ window._coverProbe = async function (step) {
     }
 
     console.log('');
+    // ── DOES THE CARD EVEN FIT? ────────────────────────────────────────────
+    // Nothing had ever asked. The card has no maximum height and no internal
+    // scroll, so at a large text size in a short window a long step can render
+    // taller than the screen — and the part that falls off the bottom is the
+    // part with the buttons on it. A card you cannot finish reading, and cannot
+    // press Next on, is worse than no card. Measured at every size this gate is
+    // swept across.
+    const tooTall = all.filter(s => s.r && s.r.card &&
+                                    (s.r.card[1] < -1 || s.r.card[1] + s.r.card[3] > VH + 1));
+    if (tooTall.length) {
+      console.log('');
+      console.log('  ── cards that do not fit the ' + VW + 'x' + VH + ' window ──');
+      for (const t of tooTall)
+        console.log('     ' + t.guide + ' #' + t.n + ' "' + t.title + '"  top=' + t.r.card[1] +
+                    ' height=' + t.r.card[3] + '  bottom=' + (t.r.card[1] + t.r.card[3]) +
+                    ' vs window ' + VH);
+    }
+    ok('every card fits inside the window, buttons and all',
+       tooTall.length === 0,
+       tooTall.slice(0, 4).map(t => t.guide + ' #' + t.n + ' ' + t.r.card[3] + 'px').join(' | '));
+
     const skippedAll = report.flatMap(g => g.skipped || []);
     console.log('  ── measured ' + report.length + ' guides, ' + all.length + ' steps' +
                 (skippedAll.length ? ', ' + skippedAll.length + ' not shown on this screen: ' + skippedAll.join(', ') : '') + ' ──');
