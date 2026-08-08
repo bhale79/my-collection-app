@@ -70,6 +70,32 @@ function _gtMatchAccepted() {
 }
 if (typeof window !== 'undefined') window._gtMatchAccepted = _gtMatchAccepted;
 
+// v0.9.1397 — "did the user answer the grouping question?" The wizard replaces
+// the item-number screen with the variation screen, so the row we were pointing
+// at going away IS the answer. Checked that way round rather than by reading a
+// choice out of the wizard, because the row is the thing the step is about.
+function _gtGroupingAnswered() {
+  try {
+    var v = document.getElementById('var-cards');
+    if (v && v.offsetParent !== null) return true;          // the variation screen is up
+    var g = document.getElementById('wiz-grouping-btns');
+    if (g && g.offsetParent === null) return true;          // the row has gone
+  } catch (e) {}
+  return false;
+}
+// And one later: the variation screen going away means a variation was chosen.
+function _gtVariationAnswered() {
+  try {
+    var v = document.getElementById('var-cards');
+    if (v && v.offsetParent === null) return true;
+  } catch (e) {}
+  return false;
+}
+if (typeof window !== 'undefined') {
+  window._gtGroupingAnswered = _gtGroupingAnswered;
+  window._gtVariationAnswered = _gtVariationAnswered;
+}
+
 // ── v0.9.1377 (found by WALKING the live guide, not by reading it) ────────
 // _gtMatchAccepted answers "has a catalogue row been resolved?" — and the app
 // resolves one WHILE YOU ARE STILL TYPING. That is right for the type-the-
@@ -162,7 +188,18 @@ const GUIDES = {
       // AB / ABA" for F-3 and Alco diesels. Built by getGroupingOptions (app.js)
       // into #wiz-grouping-btns. The row is hidden for items with no partner and
       // for box-only, so this step is optional.
+      // v0.9.1397 (Brad, with a screenshot): "didn't advance here". The wizard
+      // had moved on to "Step 2 of 8 — Which variation is it?" while the card
+      // still read "Step 5 of 9 — Just the engine, or the pair?", ringing a
+      // block of variation text that happened to be where the grouping row
+      // used to sit. This step had NO awaitUser at all, so it had no way to
+      // notice the question had been answered — the same shape as his earlier
+      // "i picked what i had, the screen advanced but the help menu didn't
+      // know i did it", one step further along.
       { selector: '#wiz-grouping-btns', optional: true,
+        awaitLabel: 'Next \u2192',
+        awaitMsg: 'Pick <strong>Engine Only</strong> or <strong>Engine + Tender</strong> and I\'ll carry on with you.',
+        awaitUser: function () { return _gtGroupingAnswered(); },
         title: 'Just the engine, or the pair?',
         body: 'For an engine, the wizard asks how you are entering it. <strong>Engine Only</strong> logs the locomotive on its own; <strong>Engine + Tender</strong> logs the pair together as one set. Diesels ask the same question as <strong>A Powered</strong>, <strong>A Dummy</strong>, or a full <strong>AA / AB / ABA</strong> set. Pick whichever matches what is on your shelf.' },
       // The variation screen is step 2 of 6, titled "Which variation is it?".
@@ -170,7 +207,13 @@ const GUIDES = {
       // v0.9.1366 (#wiz-var-help, #wiz-var-nospec) because they had none at all,
       // so no guide could point at them. Every card also carries its own
       // View ↗ anchor to the reference page. All confirmed in the live wizard.
+      // Same again one step later: once a variation is chosen the wizard moves
+      // to condition and photos, and without a gate the card would sit on a
+      // screen that is no longer there.
       { selector: '#var-cards', optional: true,
+        awaitLabel: 'Next \u2192',
+        awaitMsg: 'Tap the variation that matches yours — or <strong>No specific variation / not sure</strong> — and I\'ll follow.',
+        awaitUser: function () { return _gtVariationAnswered(); },
         title: 'Pick the variation you have',
         body: 'These are the known variations of your item, each with its description from the reference catalog. <strong>Pick the one you have</strong> — this is what decides <em>which</em> one you own. Highlighted words show how each one differs from the first.' },
       { selector: '#wiz-var-shortcuts', optional: true,
@@ -890,10 +933,23 @@ function _guidedTour(steps) {
     }
     hole.style.opacity = '1';
     var r = el.getBoundingClientRect(), pad = 6;
-    hole.style.top = (r.top - pad) + 'px';
-    hole.style.left = (r.left - pad) + 'px';
-    hole.style.width = (r.width + pad * 2) + 'px';
-    hole.style.height = (r.height + pad * 2) + 'px';
+    // ── v0.9.1397 (Brad: "whats up with the orange box?") ─────────────────
+    // The variation list is far taller than the window, so the ring was drawn
+    // at its full height — running off the top AND the bottom of the screen
+    // and leaving two long orange vertical lines down the page with no box.
+    // It read as a rendering fault, which is fair, because that is what it
+    // looked like. guide-walk's "not the size of the whole page" check needs
+    // BOTH dimensions to be huge, so a tall narrow element sailed past it.
+    //
+    // The ring is now clamped to the viewport: always a closed box you can
+    // see, even when the thing it is ringing continues past the fold.
+    var _vw = window.innerWidth, _vh = window.innerHeight, _edge = 4;
+    var _rx1 = Math.max(_edge, r.left - pad), _ry1 = Math.max(_edge, r.top - pad);
+    var _rx2 = Math.min(_vw - _edge, r.right + pad), _ry2 = Math.min(_vh - _edge, r.bottom + pad);
+    hole.style.top = _ry1 + 'px';
+    hole.style.left = _rx1 + 'px';
+    hole.style.width = Math.max(0, _rx2 - _rx1) + 'px';
+    hole.style.height = Math.max(0, _ry2 - _ry1) + 'px';
     // ── v0.9.1383 (Brad: "you still can't hit engine + tender") ────────────
     // The blocker is a full-screen click swallower. v0.9.1363 taught it to
     // stand aside on steps that WAIT for the user — and left it covering
@@ -908,14 +964,44 @@ function _guidedTour(steps) {
     // is always pressable while the rest of the app stays protected from a
     // stray click. Nothing needs to know which steps "should" be interactive:
     // if a step points at a control, that control works.
-    var hx1 = Math.max(0, r.left - pad), hy1 = Math.max(0, r.top - pad);
-    var hx2 = Math.min(window.innerWidth, r.right + pad), hy2 = Math.min(window.innerHeight, r.bottom + pad);
+    var hx1 = _rx1, hy1 = _ry1, hx2 = _rx2, hy2 = _ry2;   // v0.9.1397: same clamped box
     blocker.style.clipPath =
       'polygon(0 0, 100% 0, 100% 100%, 0 100%, 0 ' + hy1 + 'px, ' +
       hx1 + 'px ' + hy1 + 'px, ' + hx1 + 'px ' + hy2 + 'px, ' +
       hx2 + 'px ' + hy2 + 'px, ' + hx2 + 'px ' + hy1 + 'px, 0 ' + hy1 + 'px)';
     var cw = callout.offsetWidth || 300, ch = callout.offsetHeight || 160;
     var W = window.innerWidth, H = window.innerHeight, gap = 14, over = 72, m = 8;
+
+    // ══ v0.9.1397 — ONE PLACE, WHILE A BOX IS OPEN ═══════════════════════
+    //
+    // Brad, with two screenshots: "just stick all of them at the bottom left
+    // corner of the box, because your all over the place and its hard to
+    // follow." He is right. Everything above this reasons per step — side
+    // picking, overlap escape, control dodging, corner pinning — and the sum
+    // of all that cleverness is a card that lands somewhere different every
+    // time. Predictable beats optimal: once you have learned where it lives,
+    // you stop hunting for it.
+    //
+    // Anchored to the wizard's bottom-left. "Just outside" is preferred, but
+    // MEASURED on his own window there is rarely room — the wizard is ~940 of
+    // 1310px wide, so a 342px card does not fit beside it. It then sits in the
+    // box's own bottom-left corner, which is empty on every wizard screen.
+    // Either way it is the same corner of the same box, every step.
+    var _box = document.querySelector('#wizard-modal.open, .modal.open');
+    var _br = _box ? _box.getBoundingClientRect() : null;
+    if (_br && _br.width > 40 && _br.height > 40) {
+      var _bl = (_br.left - cw - gap >= m) ? (_br.left - cw - gap)   // just outside
+                                           : (_br.left + m);         // inside its corner
+      var _bt = Math.min(_br.bottom - ch - m, H - ch - m);
+      _bl = Math.min(Math.max(m, _bl), W - cw - m);
+      _bt = Math.min(Math.max(m, _bt), H - ch - m);
+      callout.style.left = _bl + 'px';
+      callout.style.top = _bt + 'px';
+      callout.dataset.gtCorner = 'box-bottom-left';
+      setMascot(_bl < W / 2, _bl, cw);
+      return;
+    }
+    delete callout.dataset.gtCorner;
 
     // ── v0.9.1385 — a step that WAITS parks in a corner ────────────────────
     // Brad's choice. While a step is waiting for him to do something, the app
@@ -1160,6 +1246,17 @@ function _guidedTour(steps) {
     if (nx && typeof step.awaitUser === 'function') {
       var _gate = function (fromPoll) {
         var ok = open();
+        // v0.9.1397 (Brad's screenshots) — WHILE WAITING, KEEP THE RING HONEST.
+        // The wizard replaces its own screen underneath us, so the element a
+        // step was ringing can simply cease to exist. The ring then sat at its
+        // last coordinates over whatever had scrolled into that space — which
+        // is how he ended up looking at an orange box around a block of
+        // variation text, and then at one around nothing at all. Re-resolving
+        // each tick means the ring either points at the real thing or is not
+        // drawn.
+        if (fromPoll && step.selector) {
+          try { var _now = resolve(step); if (_now !== curEl) { curEl = _now; place(curEl); } } catch (e) {}
+        }
         nx.textContent = ok ? (i === total - 1 ? 'Done' : 'Next \u2192') : (step.awaitLabel || 'Next \u2192');
         // ── v0.9.1395 — A WAITING BUTTON MUST LOOK LIKE ONE ───────────────
         // Measured: a closed gate and an open one were IDENTICAL — same label

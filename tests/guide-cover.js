@@ -103,6 +103,14 @@ window._coverProbe = async function (step) {
     var n = nodes[k];
     // The card is allowed to sit on its own furniture, and on the dimmer.
     if (n.closest && n.closest('#gt-callout, #gt-blocker, #gt-hole, #gt-mascot')) continue;
+    // v0.9.1397 — and on anything BEHIND an open modal. Brad asked for the card
+    // to sit in one fixed place while a box is open ("your all over the place
+    // and its hard to follow"), which parks it over the sidebar. Those controls
+    // are already unreachable — the modal is over them — so counting them would
+    // fail this gate for something that costs the user nothing. Controls INSIDE
+    // the open box still count, which is where his Engine + Tender lived.
+    var _modal = document.querySelector('#wizard-modal.open, .modal.open');
+    if (_modal && !_modal.contains(n)) continue;
     if (n.disabled) continue;
     var b = n.getBoundingClientRect();
     if (b.width < 4 || b.height < 4) continue;
