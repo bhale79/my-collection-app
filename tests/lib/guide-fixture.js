@@ -49,6 +49,31 @@ const SEED = `
   state.soldData    = { s1:  { itemNum:'3376', variation:'2', row:2, salePrice:'60', dateSold:'2026-07-01' } };
   try { if (typeof buildPartnerMap === 'function') buildPartnerMap(); } catch (e) {}
   try { if (typeof buildApp === 'function') buildApp(); } catch (e) {}
+
+  // ── BOOT INTO THE STATE A SIGNED-IN USER ACTUALLY SEES ──────────────────
+  //
+  // Found while building help-hub.js, and it had been quietly wrong in every
+  // guide gate before it. Headless, with no Google auth, the beta-gate screen
+  // stays displayed ABOVE #app — so the whole application rendered 872px down
+  // a scrolling document, entirely below the fold. Measured: the Need Help?
+  // widget sat at y=1391 in an 800px window and elementFromPoint at its centre
+  // returned null, which read as "the only door into the Help Centre cannot be
+  // pressed". It is not a bug. It is a page state no user is ever in.
+  //
+  // That matters beyond the false alarm. The tour's blocker, spotlight and
+  // card are position:fixed — viewport coordinates — while page content sat a
+  // screenful below. Any assertion of the form "is this control covered" was
+  // comparing two different coordinate spaces and could pass for the wrong
+  // reason. Hiding the pre-app screens here fixes it for every gate at once,
+  // which is the point of one shared fixture.
+  try {
+    ['beta-gate', 'auth-screen', 'setup-screen'].forEach(function (id) {
+      var n = document.getElementById(id); if (n) n.style.display = 'none';
+    });
+    var _app = document.getElementById('app');
+    if (_app && !_app.classList.contains('active')) _app.classList.add('active');
+    window.scrollTo(0, 0);
+  } catch (e) {}
 })();
 `;
 

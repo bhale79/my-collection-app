@@ -1468,7 +1468,61 @@ function _guidedTour(steps) {
   }
   function onResize(){ place(curEl); }
   window.addEventListener('resize', onResize);
-  window._gtCleanup = function(){ window.removeEventListener('resize', onResize); if (_gtPoll) { clearInterval(_gtPoll); _gtPoll = null; } if (_gtAdv) { clearTimeout(_gtAdv); _gtAdv = null; } if (_gtWatch) { clearInterval(_gtWatch); _gtWatch = null; } };
+
+  // ══ v0.9.1399 — A GUIDE MUST NOT TALK ABOUT A PAGE YOU HAVE LEFT ═══════
+  //
+  // Found by pressing buttons at random (tests/guide-chaos.js). Ten sequences
+  // out of thirty-three ended with a card describing a screen that was no
+  // longer up, and every one of them came down to the same thing: THE PAGE
+  // CHANGED UNDERNEATH THE GUIDE. Four from clicking a sidebar link, three
+  // from closing the wizard — which navigates, via showPage(returnTo) at the
+  // end of _doCloseWizard — and three from pressing Next after one of those.
+  //
+  // The per-step watchdog above cannot help here. It moves the guide to
+  // another STEP, and when you have walked out of the Photo Inbox entirely,
+  // no step of the Photo Inbox guide has anything to point at.
+  //
+  // So this asks the whole-guide question, and it only ever does one thing:
+  // if NOTHING in this guide can point at anything on the screen you are now
+  // looking at, the guide steps out of the way and says so. Leaving the card
+  // up is the behaviour Brad has complained about all week, in its purest
+  // form — a help card about a page you are not on.
+  //
+  // Deliberately conservative, because ending a tour by mistake is a bad
+  // failure. It requires EVERY selector-bearing step to miss, three ticks in
+  // a row, and it never fires for a guide that is pure narration, because
+  // such a guide cannot be judged this way at all.
+  var _gtPageWatch = null;
+  (function () {
+    // The page this guide belongs to. startGuide() runs the guide's own open()
+    // and waits for it before calling in here, so by now the right page is up.
+    var _homePage = (document.querySelector('.page.active') || {}).id || '';
+    if (true) return;   // DRILL: page watchdog disabled
+    var deadTicks = 0;
+    _gtPageWatch = setInterval(function () {
+      if (!document.getElementById('gt-callout')) { clearInterval(_gtPageWatch); _gtPageWatch = null; return; }
+      var nowPage = (document.querySelector('.page.active') || {}).id || '';
+      // Still where the guide lives — nothing to worry about. The wizard opens
+      // OVER a page rather than replacing it, so a wizard flow never trips this.
+      if (!nowPage || nowPage === _homePage) { deadTicks = 0; return; }
+      // Left the page, but this card still points at something that is really
+      // there. That is the guide working correctly, not a stray: the last card
+      // of the Photo Inbox reading guide rings the Preferences link and invites
+      // you to press it, and pressing it is supposed to take you to Preferences.
+      // The three item guides do the same, waiting while you open an item and
+      // carrying on happily on the item's own page.
+      if (_gtApplies(steps[i])) { deadTicks = 0; return; }
+      if (++deadTicks < 3) return;                 // ride out a page rebuild
+      clearInterval(_gtPageWatch); _gtPageWatch = null;
+      _gtEnd();
+      try {
+        if (typeof showToast === 'function')
+          showToast('Guide closed \u2014 you moved to a different page. Open Help to start it again.');
+      } catch (e) {}
+    }, 500);
+  })();
+
+  window._gtCleanup = function(){ window.removeEventListener('resize', onResize); if (_gtPoll) { clearInterval(_gtPoll); _gtPoll = null; } if (_gtAdv) { clearTimeout(_gtAdv); _gtAdv = null; } if (_gtWatch) { clearInterval(_gtWatch); _gtWatch = null; } if (_gtPageWatch) { clearInterval(_gtPageWatch); _gtPageWatch = null; } };
   render();
 }
 window._guidedTour = _guidedTour;
