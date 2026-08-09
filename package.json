@@ -2,16 +2,19 @@
   "name": "the-rail-roster",
   "private": true,
   "scripts": {
-    "test": "npm run test:syntax && npm run test:suite && npm run test:layout && npm run test:colors",
+    "test": "npm run test:syntax && npm run test:suite && npm run test:pwa && npm run test:sources && npm run test:layout && npm run test:colors",
     "test:syntax": "node tests/syntax-check.js",
     "test:suite": "node tests/photo-inbox-tests.js",
     "test:layout": "node tests/layout-check.js",
-    "test:colors": "node tests/color-count.js"
+    "test:colors": "node tests/color-count.js",
+    "test:pwa": "node tests/pwa-install-tests.js",
+    "test:sources": "node tests/photo-sources-tests.js"
   },
   "dependencies": {
     "pngjs": "^7.0.0"
   },
   "devDependencies": {
+    "jsdom": "^30.0.1",
     "jspdf": "^2.5.1",
     "playwright": "^1.56.0"
   }
