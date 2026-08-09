@@ -827,11 +827,52 @@ function _gtControls() {
     nodes = document.querySelectorAll(
       'button, a[href], input, select, textarea, [role="button"], [onclick]');
   } catch (e) { return out; }
+  // ── v0.9.1406 — A CONTROL BEHIND AN OPEN BOX IS NOT A CONTROL EITHER ─────
+  //
+  // Same family as the closed-wizard phantoms below, one step further out. An
+  // open modal is a full-screen overlay: everything behind it is already
+  // unreachable, and it stays perfectly "visible" to checkVisibility, so this
+  // scan was counting the whole sidebar and every row of the page underneath
+  // as furniture the card had to dodge.
+  //
+  // On a roomy window that is merely wasteful. MEASURED at 390x844 — an
+  // iPhone 14, which is what a beta tester holds at a train show — it is
+  // fatal: the wizard fills the screen, every candidate position covers
+  // something behind it, the free-space sweep finds nothing clean anywhere,
+  // and the card settles for "least bad" — which landed on Engine Only and
+  // Engine + Tender. Brad's original bug, reborn at a width nobody had
+  // measured.
+  //
+  // guide-cover.js has made exactly this argument since v0.9.1397 for what it
+  // counts as swallowed. The engine and the gate must agree or one of them is
+  // lying about what a user can press.
+  var _openBox = null;
+  try { _openBox = document.querySelector('#wizard-modal.open, .modal.open'); } catch (e) {}
+  if (_openBox) {
+    try {
+      var _ob = _openBox.getBoundingClientRect();
+      if (!(_ob.width > 40 && _ob.height > 40)) _openBox = null;
+    } catch (e) { _openBox = null; }
+  }
   for (var k = 0; k < nodes.length && out.length < 500; k++) {
     var n = nodes[k];
     // The card is allowed to sit on its own furniture.
     try { if (n.closest && n.closest('#gt-callout, #gt-blocker, #gt-hole, #gt-mascot')) continue; } catch (e) {}
+    if (_openBox && !_openBox.contains(n)) continue;
     if (n.disabled) continue;
+    // ── v0.9.1406 — A ROW IS NOT A BUTTON ───────────────────────────────────
+    // The want list draws each row as a clickable DIV 350x223 with its own
+    // eBay / Search / + Collection / Remove buttons inside it. Counting the row
+    // AND its buttons made the row the biggest single obstacle on the screen —
+    // on a 360px phone there is no position that misses a 223px-tall row, so
+    // the search gave up and settled for a position over a real button.
+    //
+    // Those buttons are counted individually and are what the user actually
+    // presses. A control that CONTAINS other controls is a container: skipping
+    // it costs nothing and gives the card back most of the screen.
+    try {
+      if (n.querySelector('button, a[href], input, select, textarea, [role="button"], [onclick]')) continue;
+    } catch (e) {}
     // ── v0.9.1401 — DO NOT DODGE BUTTONS THAT ARE NOT THERE ───────────────
     //
     // MEASURED: a CLOSED wizard is not removed from the layout. .modal-overlay
@@ -976,11 +1017,45 @@ function _gtDodge(L, T, cw, ch, r, m) {
   // about, and the difference between a reachable button and an unreachable
   // one.
   if (_gtCovered(ctrls, best[0], best[1], cw, ch) > 0) {
-    var stepX = Math.max(40, Math.round((W - cw - 2 * m) / 12)) || 40;
-    var stepY = Math.max(40, Math.round((H - ch - 2 * m) / 12)) || 40;
+    // v0.9.1406 — FINER ON A SMALL SCREEN. The 40px floor was set on a 1844px
+    // window where 40px of slack is nothing. On a 390px phone it is a tenth of
+    // the screen, and a clean slot narrower than one stride is simply never
+    // seen: measured on the want list, a card that fits at y=8 was missed
+    // because the sweep's first row was the only one it tried up there. The
+    // cost is a few thousand rectangle comparisons on a redraw — unmeasurable
+    // next to a button the user cannot press.
+    var stepX = Math.max(12, Math.round((W - cw - 2 * m) / 24)) || 12;
+    var stepY = Math.max(12, Math.round((H - ch - 2 * m) / 24)) || 12;
+    var maxX = Math.max(m, W - cw - m), maxY = Math.max(m, H - ch - m);
+    // ── v0.9.1406 — LOOK WHERE THE GAPS ACTUALLY ARE ────────────────────────
+    // A blind grid can straddle a clean gap without ever landing in it: at
+    // 360x740 the wizard's card had a clean home and the sweep stepped over
+    // it, so it settled for a position on "Engine Only" — the same button,
+    // one screen size further down. The positions that matter are the ones
+    // FLUSH against something: just under a control, just above one, just
+    // beside one. Those are computed from the controls themselves, so a gap
+    // one pixel bigger than the card is still found.
+    // The candidates are derived from the control CENTRES, not their edges,
+    // because a centre is what _gtCovered tests — the same thing a finger
+    // tests. Deriving them from edges was the first cut of this and it missed
+    // the very gap it was written for: the only clean home on the 360x740
+    // wizard screen starts one pixel below a control's centre, which is well
+    // above that control's bottom edge.
+    var xs = [m, maxX], ys = [m, maxY];
+    for (var ei = 0; ei < ctrls.length; ei++) {
+      var eb = ctrls[ei];
+      var ecx = eb.left + eb.width / 2, ecy = eb.top + eb.height / 2;
+      xs.push(Math.min(Math.max(m, ecx + 1), maxX));
+      xs.push(Math.min(Math.max(m, ecx - cw - 1), maxX));
+      ys.push(Math.min(Math.max(m, ecy + 1), maxY));
+      ys.push(Math.min(Math.max(m, ecy - ch - 1), maxY));
+    }
+    for (var gx0 = m; gx0 <= maxX; gx0 += stepX) xs.push(gx0);
+    for (var gy0 = m; gy0 <= maxY; gy0 += stepY) ys.push(gy0);
     var gBest = null, gScore = null;
-    for (var gx = m; gx <= Math.max(m, W - cw - m); gx += stepX) {
-      for (var gy = m; gy <= Math.max(m, H - ch - m); gy += stepY) {
+    for (var xi = 0; xi < xs.length; xi++) {
+      for (var yi = 0; yi < ys.length; yi++) {
+        var gx = xs[xi], gy = ys[yi];
         if (_gtCovered(ctrls, gx, gy, cw, ch) > 0) continue;
         var gHides = (r && !(gx + cw < r.left - 2 || gx > r.right + 2 ||
                              gy + ch < r.top - 2 || gy > r.bottom + 2)) ? 1 : 0;
@@ -1014,6 +1089,7 @@ function _guidedTour(steps) {
   _gtEnd();
   _gtResetCorner();   // v0.9.1385 — each tour picks its own corner from scratch
   var i = 0, curEl = null, _gtPoll = null, _gtAdv = null, _gtWatch = null, _gtDir = 1;
+  var _gtSettle = [], _gtRO = null;
   var blocker = document.createElement('div');
   blocker.id = 'gt-blocker';
   // v0.9.1363 — MEASURED, not guessed: with no guide running a click on the
@@ -1081,6 +1157,14 @@ function _guidedTour(steps) {
     // this guard did exactly that and changed nothing, which the real-app gate
     // caught. Callers know where they just put it; they say so.
     var OFF = 66;
+    // v0.9.1406 — ON A PHONE THERE IS NOWHERE FOR HIM TO STAND. He hangs 66px
+    // off the side of a card that is already most of the screen wide, so on
+    // anything narrower than about 480px either he is off the edge or he is
+    // standing on the app. The guard below catches most of that from the
+    // geometry; this catches the rest, including the case where the card is
+    // re-measured mid-move. He is decoration — the ring and the words carry
+    // the meaning — so he simply stands down at that size.
+    if (window.innerWidth < 480) { m.style.display = 'none'; return; }
     try {
       var _cb;
       if (typeof cardLeft === 'number' && typeof cardWidth === 'number') {
@@ -1099,8 +1183,211 @@ function _guidedTour(steps) {
     else { m.style.right = 'auto'; m.style.left = '-66px'; if (!m.dataset.fixed) m.src = './img/conductor-pointing.png'; }
     m.style.transform = 'none';
   }
+  // ══ v0.9.1406 — WHEN NOTHING FITS, MAKE THE CARD SHORTER ═════════════════
+  //
+  // Every placement rule in this file moves a card of a FIXED size around a
+  // screen. On a desktop window there is always somewhere for a 300x320 card
+  // to stand. MEASURED at 390x844 there is not: on the want list, the add
+  // wizard and the reports page, a card that tall covers a control from every
+  // one of the ~40 positions the sweep can reach — so the "least bad" fallback
+  // fires and something the user must press ends up underneath it.
+  //
+  // But a SHORTER card fits in all of them. The same measurement says a
+  // 160px-tall card has a clean home on every one of those screens.
+  //
+  // So the card is now allowed to give ground. It is tried at its natural
+  // height first and only shrinks if the placement it got is sitting on a
+  // control, one step at a time, stopping the moment it is clear. The FOOTER
+  // never shrinks — Cancel, Back and Next stay put, always visible, because a
+  // help card you cannot get out of is worse than one you have to scroll. Only
+  // the explanatory text scrolls, and only on the screens where the alternative
+  // is burying a button.
+  //
+  // On Brad's own 1844x914 window nothing here ever triggers.
+  function _gtUncap() {
+    ['gt-body', 'gt-gate-msg'].forEach(function (id) {
+      var e = document.getElementById(id);
+      if (e) { e.style.maxHeight = ''; e.style.overflowY = ''; e.style.paddingRight = ''; }
+    });
+    callout.dataset.gtCapped = '';
+  }
+  // Folding hides the explanation and shows a one-line handle in its place.
+  // Everything that gets you OUT or ONWARD — Cancel, Back, Next, the × — is
+  // untouched, because a help card you cannot leave is the worse failure.
+  function _gtFold(on) {
+    var b = document.getElementById('gt-body'), h = document.getElementById('gt-more');
+    if (!b || !h) return false;
+    if (on && b.style.display === 'none') return false;   // already folded
+    b.style.display = on ? 'none' : '';
+    h.style.display = on ? '' : 'none';
+    callout.dataset.gtFolded = on ? '1' : '';
+    return true;
+  }
+  // WHAT CAN GIVE GROUND: the explanation, and the "please do this first"
+  // message. Both are text, both can scroll. MEASURED at 390x844 with Extra
+  // Large text: once that message is showing it is the TALLER of the two, so a
+  // version of this that only ever shrank the explanation ran out of room and
+  // handed back a card still sitting on Engine + Tender. Whatever is tall is
+  // what has to give.
+  function _gtCapTo(total) {
+    var parts = [];
+    ['gt-body', 'gt-gate-msg'].forEach(function (id) {
+      var e = document.getElementById(id);
+      if (e && e.style.display !== 'none' && e.offsetHeight > 4) parts.push(e);
+    });
+    if (!parts.length) return false;
+    var natural = 0, want = 0;
+    parts.forEach(function (e) { natural += e.offsetHeight; want += e.scrollHeight; });
+    // Everything that is NOT scrollable text: title row, footer, padding.
+    // Measured rather than assumed — it changes with the user's text size and
+    // with whether a Back button exists.
+    var chrome = callout.offsetHeight - natural;
+    var avail = Math.max(28 * parts.length, total - chrome);
+    if (avail >= want) return false;                 // nothing to gain
+    var changed = false;
+    parts.forEach(function (e) {
+      var share = Math.max(28, Math.round(avail * (e.scrollHeight / want)));
+      if (share >= e.scrollHeight) return;
+      e.style.maxHeight = share + 'px';
+      e.style.overflowY = 'auto';
+      e.style.paddingRight = '0.35rem';              // room for the scrollbar
+      changed = true;
+    });
+    if (changed) callout.dataset.gtCapped = '1';
+    return changed;
+  }
+  // Folding hides the explanation and shows a one-line handle in its place.
+  // Everything that gets you OUT or ONWARD — Cancel, Back, Next, the × — is
+  // untouched, because a help card you cannot leave is the worse failure.
+  function _gtFold(on) {
+    var b = document.getElementById('gt-body'), h = document.getElementById('gt-more');
+    if (!b || !h) return false;
+    if (on && b.style.display === 'none') return false;   // already folded
+    b.style.display = on ? 'none' : '';
+    h.style.display = on ? '' : 'none';
+    callout.dataset.gtFolded = on ? '1' : '';
+    return true;
+  }
+  function _gtCapTo(total) {
+    var b = document.getElementById('gt-body');
+    if (!b) return false;
+    // Everything that is NOT the scrollable text: title row, gate message,
+    // footer, padding. Measured rather than assumed, because it changes with
+    // the user's text size and with whether a Back button exists.
+    var chrome = callout.offsetHeight - b.offsetHeight;
+    var want = Math.max(28, total - chrome);
+    if (want >= b.scrollHeight) return false;      // nothing to gain
+    b.style.maxHeight = want + 'px';
+    b.style.overflowY = 'auto';
+    b.style.paddingRight = '0.35rem';              // room for the scrollbar
+    callout.dataset.gtCapped = '1';
+    return true;
+  }
+  // THE CARD'S RECTANGLE IS A LIE FOR A QUARTER OF A SECOND. top and left are
+  // CSS-transitioned, so getBoundingClientRect immediately after a move still
+  // reports where the card WAS — which is how the first cut of this check
+  // decided a card sitting on Engine + Tender was clear and never shrank it.
+  // The style values are the position it is going to; offsetWidth/Height are
+  // layout and are true at once.
+  function _gtCoverCount() {
+    var L = parseFloat(callout.style.left), T = parseFloat(callout.style.top);
+    var w = callout.offsetWidth, h = callout.offsetHeight;
+    if (!isFinite(L) || !isFinite(T) || w < 4 || h < 4) return 0;
+    // A card that runs off the bottom of the screen takes its own Next button
+    // with it, so that counts as badly as covering something.
+    var off = (T < -1 || T + h > window.innerHeight + 1) ? 1 : 0;
+    return _gtCovered(_gtControls(), L, T, w, h) + off;
+  }
+  function _gtStillCovering() { return _gtCoverCount() > 0; }
+  // ── AND WHEN A SHORTER CARD STILL DOES NOT FIT, A NARROWER ONE ──────────
+  // MEASURED on the add-item wizard at 390x844: with the card 292px wide there
+  // is no clean band anywhere tall enough to hold it, because at that width it
+  // reaches across BOTH columns of every two-button row. Take 60px off and the
+  // right-hand column — Engine + Tender, the wizard's own ✕ and NEXT — falls
+  // outside the card entirely, and a clean home appears. Narrowing costs a
+  // little more wrapping; covering a button costs the user the step.
+  var _gtWidthCap = 0;
   function place(el) {
-    callout.style.maxWidth = Math.min(340, window.innerWidth - 100) + 'px';
+    // The escalation, in order of how much it costs the user:
+    //   whole card → shorter (text scrolls) → narrower → folded to a strip.
+    // It stops at the FIRST arrangement that is clear of every control, so on
+    // any roomy window nothing past the first line ever happens.
+    //
+    // If NOTHING is clear — a phone at Extra Large text, where the card's own
+    // title and its way out already fill more room than the screen has spare —
+    // it goes back to the arrangement that covered the FEWEST controls rather
+    // than keeping whatever the last attempt happened to be. Trying hardest and
+    // then handing back your worst attempt is a bug in its own right.
+    var folds = [false, true], widths = [0, 260, 225];
+    // A HARD CEILING on how much searching one placement may do. Six
+    // arrangements times twenty-six heights is 150-odd trial placements, and
+    // this runs on every redraw and every resize. It has never come close to
+    // the ceiling in measurement — the first arrangement is clean on any
+    // ordinary window — but an unbounded search inside a resize handler is the
+    // kind of thing that makes a phone feel broken, so it is bounded.
+    var budget = 60;
+    var caps = null, best = null;
+    var apply = function (fold, width, cap) {
+      budget--;
+      _gtWidthCap = width;
+      _gtUncap();
+      if (callout.dataset.gtUserFold === 'open') _gtFold(false); else _gtFold(fold);
+      if (cap) _gtCapTo(cap);
+      _placeOnce(el);
+      return _gtCoverCount();
+    };
+    for (var fo = 0; fo < folds.length && budget > 0; fo++) {
+      for (var wi = 0; wi < widths.length && budget > 0; wi++) {
+        var cov = apply(folds[fo], widths[wi], 0);
+        if (cov === 0) return;
+        if (!best || cov < best.cov) best = { f: folds[fo], w: widths[wi], c: 0, cov: cov,
+                                              L: parseFloat(callout.style.left), T: parseFloat(callout.style.top) };
+        // BINARY SEARCH for the tallest card that is clear, not a march down
+        // through every height. Each trial costs a full placement — a sweep of
+        // a few thousand candidate positions against every control on screen —
+        // so twenty-six trials per arrangement was seconds of work inside a
+        // resize handler. Five trials find the same answer to within 10px.
+        var lo = 100, hi = callout.offsetHeight - 10, hit = -1;
+        while (lo <= hi && budget > 0) {
+          var mid = Math.round((lo + hi) / 2 / 10) * 10;
+          if (mid < lo) mid = lo; if (mid > hi) mid = hi;
+          var mcov = apply(folds[fo], widths[wi], mid);
+          if (mcov === 0) { hit = mid; lo = mid + 10; }
+          else {
+            if (mcov < best.cov) best = { f: folds[fo], w: widths[wi], c: mid, cov: mcov,
+                                          L: parseFloat(callout.style.left), T: parseFloat(callout.style.top) };
+            hi = mid - 10;
+          }
+        }
+        if (hit >= 0) { if (apply(folds[fo], widths[wi], hit) === 0) return; }
+      }
+      if (callout.dataset.gtUserFold === 'open') break;   // their tap outranks this
+    }
+    // Re-applying the SETTINGS is not enough to reproduce the position: the
+    // corner picker deliberately favours the corner it used last, so a replay
+    // after a dozen other attempts can land somewhere else — measured, as a
+    // want-list card that had been clear coming back sitting on a row. The
+    // winning position is therefore replayed literally.
+    if (best) {
+      apply(best.f, best.w, best.c);
+      if (isFinite(best.L) && isFinite(best.T)) {
+        // Clamp to the window for the height the card actually has NOW. The
+        // remembered position was measured against a slightly different card,
+        // and replaying it literally is how a 145px card came to hang 11px off
+        // the bottom of a 390px-tall window — taking its Next button with it.
+        // Measured on a phone held sideways, a size nothing had ever tried.
+        var _m2 = 8, _cw2 = callout.offsetWidth, _ch2 = callout.offsetHeight;
+        var _L2 = Math.min(Math.max(_m2, best.L), Math.max(_m2, window.innerWidth - _cw2 - _m2));
+        var _T2 = Math.min(Math.max(_m2, best.T), Math.max(_m2, window.innerHeight - _ch2 - _m2));
+        callout.style.left = _L2 + 'px';
+        callout.style.top = _T2 + 'px';
+        setMascot(_L2 < window.innerWidth / 2, _L2, _cw2);
+      }
+    }
+    try { window._gtNoCleanSpot = (window._gtNoCleanSpot || 0) + 1; } catch (e) {}
+  }
+  function _placeOnce(el) {
+    callout.style.maxWidth = Math.min(_gtWidthCap || 340, window.innerWidth - 100) + 'px';
     if (!el) {
       hole.style.opacity = '0';
       blocker.style.clipPath = 'none';   // v0.9.1383 — nothing to punch through
@@ -1202,14 +1489,21 @@ function _guidedTour(steps) {
       // empty, which it is on a roomy window. Measured at 1024x700 with Extra
       // Large text, the card landed squarely on the wizard's own NEXT button —
       // the guide covering the control it is walking you towards.
-      if (_gtCovered(_gtControls(), _bl, _bt, cw, ch) > 0) {
+      var _pinCov = _gtCovered(_gtControls(), _bl, _bt, cw, ch);
+      if (_pinCov > 0) {
         var _bd = _gtDodge(_bl, _bt, cw, ch, r, m);
-        // ZERO, not merely fewer. Trading one covered control for a different
-        // one buys nothing and can cost a lot: the first cut of this used
-        // "fewer" and moved two add-item cards off a pair of harmless controls
-        // and squarely onto the wizard's own NEXT button. Leaving a pinned card
-        // where Brad asked for it beats shuffling it onto something worse.
-        if (_gtCovered(_gtControls(), _bd[0], _bd[1], cw, ch) === 0) {
+        // ZERO is what this is for: a clean spot always wins, and Brad's pin is
+        // kept whenever the alternative merely swaps one covered control for
+        // another (the first cut used "fewer" and shuffled two cards onto the
+        // wizard's own NEXT button — worse, for no gain).
+        //
+        // v0.9.1406 adds the one exception that is not a swap: STRICTLY FEWER.
+        // On a phone at Extra Large text nothing is clean anywhere, and the pin
+        // was burying Engine Only AND Engine + Tender — Brad's original two
+        // buttons — while a position one row down buried only the photo-ID
+        // panel. Two unreachable buttons versus one is not a matter of taste.
+        var _bdCov = _gtCovered(_gtControls(), _bd[0], _bd[1], cw, ch);
+        if (_bdCov === 0 || _bdCov < _pinCov) {
           callout.style.left = _bd[0] + 'px';
           callout.style.top = _bd[1] + 'px';
           callout.dataset.gtCorner = 'box-dodged';
@@ -1249,7 +1543,8 @@ function _guidedTour(steps) {
       // inelegant, a card on the button is broken, and inelegant wins.
       if (cn.covered > 0) {
         var _dg = _gtDodge(cn.left, cn.top, cw, ch, r, m);
-        if (_gtCovered(_gtControls(), _dg[0], _dg[1], cw, ch) === 0) {
+        var _dgCov = _gtCovered(_gtControls(), _dg[0], _dg[1], cw, ch);
+        if (_dgCov === 0 || _dgCov < cn.covered) {
           callout.style.left = _dg[0] + 'px';
           callout.style.top = _dg[1] + 'px';
           callout.dataset.gtCorner = 'dodged';
@@ -1469,22 +1764,27 @@ function _guidedTour(steps) {
       if (typeof step.awaitUser === 'function') callout.removeAttribute('aria-modal');
       else callout.setAttribute('aria-modal', 'true');
     } catch (e) {}
+    // A new step starts fresh: whatever the user folded or unfolded applied to
+    // the step they were on, not this one.
+    callout.dataset.gtUserFold = '';
+    callout.dataset.gtFolded = '';
     var mascotSrc = (i === total - 1) ? './img/conductor-lantern-lg.gif' : './img/conductor-pointing.png';
     var mascotFixed = (i === total - 1) ? ' data-fixed="1"' : '';
     callout.innerHTML =
       '<img id="gt-mascot" src="' + mascotSrc + '"' + mascotFixed + ' alt="" style="position:absolute;left:-66px;bottom:-6px;width:84px;height:auto;pointer-events:none;filter:drop-shadow(0 3px 6px rgba(0,0,0,0.45))" onerror="this.style.display=\'none\'">'
-      + '<div style="padding:0.85rem 0.95rem 0.7rem">'
+      + '<div id="gt-head" style="padding:0.85rem 0.95rem 0.7rem">'
       + '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:0.5rem">'
-      +   '<strong style="font-size:0.98rem;color:var(--text,#eee);line-height:1.3">' + (step.title || '') + '</strong>'
+      +   '<strong id="gt-title" style="font-size:0.98rem;color:var(--text,#eee);line-height:1.3">' + (step.title || '') + '</strong>'
       +   '<button type="button" id="gt-exit" title="Exit" style="background:none;border:none;color:var(--text-dim,#888);font-size:1.25rem;line-height:1;cursor:pointer;padding:0 0.1rem">×</button>'
       + '</div>'
-      + '<div style="font-size:0.84rem;color:var(--text-mid,#bbb);line-height:1.5;margin-top:0.35rem">' + (step.body || '') + '</div>'
+      + '<div id="gt-body" style="font-size:0.84rem;color:var(--text-mid,#bbb);line-height:1.5;margin-top:0.35rem">' + (step.body || '') + '</div>'
+      + '<button type="button" id="gt-more" style="display:none;margin-top:0.3rem;padding:0.25rem 0.5rem;border-radius:7px;border:1px solid var(--border,#333);background:var(--surface2,#222);color:var(--text,#eee);font-family:inherit;font-size:0.82rem;cursor:pointer">Read the step \u25be</button>'
       + '</div>'
       // v0.9.1362 (Brad): a step that needs something typed says so HERE when
       // Next is pressed, rather than Next simply not working. A dead button
       // teaches nothing; "Please enter an item number — try 773" does.
       + '<div id="gt-gate-msg" style="display:none;margin:0 0.95rem 0.5rem;padding:0.45rem 0.6rem;border-radius:8px;background:var(--bg-card);background:color-mix(in srgb, rgb(240,80,8) 14%, var(--bg-card));border:1px solid var(--accent,#f05008);color:var(--text,#eee);font-size:0.79rem;line-height:1.4"></div>'
-      + '<div style="display:flex;align-items:center;justify-content:space-between;padding:0.55rem 0.9rem;border-top:1px solid var(--border,#333)">'
+      + '<div id="gt-foot" style="display:flex;align-items:center;justify-content:space-between;padding:0.55rem 0.9rem;border-top:1px solid var(--border,#333)">'
       +   '<span style="font-size:0.72rem;color:var(--text-dim,#888)">Step ' + (i + 1) + ' of ' + total + '</span>'
       +   '<div style="display:flex;gap:0.4rem">'
       // Brad: "add a cancel button so the user can get out of the help menu."
@@ -1502,6 +1802,43 @@ function _guidedTour(steps) {
     // user meets it, but a delayed frame on a slow device is the same failure.
     place(curEl);
     requestAnimationFrame(function(){ place(curEl); });
+    // ── v0.9.1406 — PLACE AGAIN ONCE THE PAGE HAS FINISHED ARRIVING ────────
+    // MEASURED: the want-list guide places its card while the list is still
+    // rendering — the user chip still says "Loading…" — so the placement is
+    // computed against a page with barely any controls on it, decides it is
+    // clear, and then the rows arrive underneath. Every rule in this file is
+    // only as good as the layout it was handed.
+    //
+    // Two more passes, at 150ms and 450ms. They are cancelled by the next
+    // redraw and by exit, so they can never fire into a step that has gone.
+    _gtSettle.forEach(clearTimeout);
+    _gtSettle = [setTimeout(function () { place(curEl); }, 150),
+                 setTimeout(function () { place(curEl); }, 450),
+                 setTimeout(function () { place(curEl); }, 900)];
+    // ── v0.9.1406 — AND WHENEVER THE CARD ITSELF CHANGES SIZE ──────────────
+    // Timers cover the page arriving late. They do not cover the CARD growing
+    // after it has been placed — which happens when a web font lands, or when
+    // the "please do this first" message appears. MEASURED on a phone held
+    // sideways (844x390, a shape nothing had ever tried): a card placed at
+    // y=256 while it was 100px tall grew to 145px and hung 11px off the bottom
+    // of the window, taking its own Next button with it.
+    //
+    // The observer answers it directly: if the card is a different size than
+    // the placement assumed, place it again. Capped per step, because placing
+    // can itself change the size (that is what the shrink tiers do) and two
+    // things that resize each other need a stop.
+    if (_gtRO) { try { _gtRO.disconnect(); } catch (e) {} _gtRO = null; }
+    if (typeof ResizeObserver === 'function') {
+      var _roRuns = 0, _roH = 0, _roW = 0;
+      _gtRO = new ResizeObserver(function () {
+        var h = callout.offsetHeight, w = callout.offsetWidth;
+        if (h === _roH && w === _roW) return;
+        _roH = h; _roW = w;
+        if (++_roRuns > 6) return;
+        place(curEl);
+      });
+      try { _gtRO.observe(callout); } catch (e) {}
+    }
     // v0.9.1361 (Brad: "doesn't advance to the variation step because there is
     // not a number to use ... if we cant, we need to force the user to do
     // that"). A step may require the user to DO something before the guide can
@@ -1540,6 +1877,12 @@ function _guidedTour(steps) {
       if (i >= total - 1) _gtEnd(); else { _gtDir = 1; i++; render(); }
     };
     var cx = document.getElementById('gt-cancel'); if (cx) cx.onclick = _gtEnd;
+    var mo = document.getElementById('gt-more');
+    if (mo) mo.onclick = function () {
+      callout.dataset.gtUserFold = 'open';
+      _gtFold(false);
+      place(curEl);
+    };
     // \u2500\u2500 v0.9.1374 (Brad: "still not keeping up with the clicks") \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
     // The gate opening and the guide MOVING were two different things, and
     // only the first was ever wired up. When the user did what a step asked,
@@ -1784,7 +2127,7 @@ function _guidedTour(steps) {
     }, 500);
   })();
 
-  window._gtCleanup = function(){ window.removeEventListener('resize', onResize); document.removeEventListener('keydown', onKey, true); if (_gtPoll) { clearInterval(_gtPoll); _gtPoll = null; } if (_gtAdv) { clearTimeout(_gtAdv); _gtAdv = null; } if (_gtWatch) { clearInterval(_gtWatch); _gtWatch = null; } if (_gtPageWatch) { clearInterval(_gtPageWatch); _gtPageWatch = null; } };
+  window._gtCleanup = function(){ window.removeEventListener('resize', onResize); document.removeEventListener('keydown', onKey, true); if (_gtPoll) { clearInterval(_gtPoll); _gtPoll = null; } if (_gtAdv) { clearTimeout(_gtAdv); _gtAdv = null; } if (_gtWatch) { clearInterval(_gtWatch); _gtWatch = null; } if (_gtPageWatch) { clearInterval(_gtPageWatch); _gtPageWatch = null; } _gtSettle.forEach(clearTimeout); _gtSettle = []; if (_gtRO) { try { _gtRO.disconnect(); } catch (e) {} _gtRO = null; } };
   render();
 }
 window._guidedTour = _guidedTour;
