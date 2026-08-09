@@ -2343,7 +2343,23 @@ html[data-theme="high-contrast"] button[style*="#e74c3c"] {
     text-align: center !important;
     line-height: 1.05 !important;
   }
-  #pin-toolbar #pin-filter-row { flex: 1 1 17%; display: flex !important; }
+  /* v0.9.1412 — the Filter wrapper MUST be allowed to shrink. A <select> is
+     sized by its LONGEST option ("Photos grouped as one item (11)"), not the
+     one on show, and a flex item defaults to min-width:auto — so this wrapper
+     refused to go below ~40% of the row and shoved Refresh and More onto a
+     THIRD line on every phone width (Brad, on a Galaxy S25 Ultra: "we have 3
+     lines not 2"). The five row-2 controls already carry min-width:0; the
+     wrapper around the select was the one that never got it. Measured before
+     and after at 360/390/412/480/540/640: 3 rows -> 2 rows at every width,
+     desktop untouched at 1 row. NOTE for future edits: reproduce this with a
+     REAL option list — short placeholder options hide the bug entirely, which
+     is exactly how it shipped in v0.9.1410. */
+  #pin-toolbar #pin-filter-row { flex: 1 1 17% !important; min-width: 0 !important; display: flex !important; }
+
+  /* The desktop right-align spacer (<span style="flex:1">) has no id and no
+     job on a phone, where every row is fully packed — it was eating ~11px off
+     row 1. Hidden here so Add and Identify get that width back. */
+  #pin-toolbar > span:not([id]) { display: none !important; }
 
   /* …and put a short icon+word label back with ::before. font-size:0 above
      collapses the original text; these bring back a two-line micro-label. */
