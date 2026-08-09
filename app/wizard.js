@@ -84,7 +84,15 @@ function _wizBoxHeight() {
   // Desktop: use the screen instead of ignoring it. The cap keeps a very tall
   // monitor from stretching a six-field step down an entire wall.
   if (_wizWide()) return Math.min(Math.round(vv * 0.9), 900);
-  return 580;   // phones and small tablets — exactly as before
+  // v0.9.1407 (Brad: the grouping question sat below the fold) — a PHONE gets
+  // the same courtesy the desktop got above: use the screen. At 390x844 the
+  // box was 580px in an 844px window — 260 dead pixels while Engine Only /
+  // Engine + Tender scrolled 142px out of sight. 92% of the VISUAL viewport
+  // (not dvh, which ignores the keyboard) keeps this inside the keyboard
+  // guard above: keyboard up -> vv < 596 -> the short branch already won.
+  // Scoped to <=640px wide so small tablets keep their exact old box.
+  if ((window.innerWidth || 0) <= 640) return Math.max(300, Math.round(vv * 0.92));
+  return 580;   // small tablets — exactly as before
 }
 window._wizBoxHeight = _wizBoxHeight;
 

@@ -40,6 +40,10 @@ function _updateGroupingButtons() {
   }
   const container = document.getElementById('wiz-grouping-btns');
   if (!container) return;
+  // v0.9.1407 — was the row on screen BEFORE this update? Read it here, used
+  // at the bottom: the scroll must fire only on the hidden->shown transition,
+  // because this function runs on every keystroke of the item number.
+  const _grpWasHidden = container.style.display === 'none' || !container.querySelector('button');
   
   const itemNum = (wizard.data.itemNum || '').trim();
   if (!itemNum) { container.style.display = 'none'; return; }
@@ -80,6 +84,29 @@ function _updateGroupingButtons() {
   html += '</div>';
 
   container.innerHTML = html;
+  // ── v0.9.1407 — BRING THE QUESTION TO THE USER (Brad's original bug) ─────
+  // On a phone the box now uses all the height the bottom nav allows
+  // (see _wizBoxHeight), but at 390x844 with 773 typed the grouping row can
+  // still sit ~40px below the fold of the scrolling body — and a question the
+  // user cannot see is a question they do not answer. The moment the row goes
+  // from hidden to shown, scroll it into view. 'nearest' moves the body the
+  // minimum amount, so nothing jumps when the row is already visible, and the
+  // guard above keeps later keystrokes from re-scrolling under the user.
+  if (_grpWasHidden && (window.innerWidth || 0) <= 640) {
+    // Twice: once now, once after the debounced suggestion card has rendered —
+    // that card grows the content ABOVE this row ~300ms later and pushed the
+    // row back under the fold when this only fired once (measured at 390x844).
+    // 'nearest' is a no-op when the row is already visible, so the second pass
+    // costs nothing on the screens where the first was enough.
+    var _grpNudge = function () {
+      try {
+        var c = document.getElementById('wiz-grouping-btns');
+        if (c && c.style.display !== 'none') c.scrollIntoView({ block: 'nearest' });
+      } catch (e) {}
+    };
+    try { requestAnimationFrame(_grpNudge); } catch (e) { _grpNudge(); }
+    setTimeout(_grpNudge, 450);
+  }
 }
 
 // ══ v0.9.1341 — ONE place that answers "the user chose this grouping" ══════
