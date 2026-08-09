@@ -11,7 +11,18 @@
 // ═══════════════════════════════════════════════════════════════
 
 (function() {
-  var TOTAL_SCREENS = 3;
+  // v0.9.1416 (Brad: "on start up, we should ask that as a start up question")
+  // Screen 4 offers to put the app on the device. It is skipped entirely when
+  // the app is ALREADY running installed — there is nothing to offer then, and
+  // a dead step at the end of the tour is worse than no step. _totalScreens()
+  // is therefore asked fresh each time rather than being a fixed constant, so
+  // the "Step n of N" counter never promises a screen we won't show.
+  var TOTAL_SCREENS = 3;                    // screens before the install offer
+  function _installOffered() {
+    try { if (typeof window._pwaIsInstalled === 'function' && window._pwaIsInstalled()) return false; } catch (e) {}
+    return true;
+  }
+  function _totalScreens() { return TOTAL_SCREENS + (_installOffered() ? 1 : 0); }
   var _screen = 1;
   var _inTourPreview = false;
   var _lastCardId    = null;
@@ -93,8 +104,8 @@
 
   function onboardNext() {
     if (_screen === 2) _savePrefsFromForm();   // save whatever was ticked
-    _screen = Math.min(TOTAL_SCREENS + 1, _screen + 1);
-    if (_screen > TOTAL_SCREENS) { _renderDone(); return; }
+    _screen = Math.min(_totalScreens() + 1, _screen + 1);
+    if (_screen > _totalScreens()) { _renderDone(); return; }
     _renderScreen();
   }
   window.onboardNext = onboardNext;
@@ -193,6 +204,7 @@
     if (_screen === 1) p.appendChild(_buildFeatureMap());
     if (_screen === 2) p.appendChild(_buildPrefs());
     if (_screen === 3) p.appendChild(_buildCommunity());
+    if (_screen === 4) p.appendChild(_buildInstall());
     p.appendChild(_buildFooter());
     // Scroll to top so long content begins fresh
     var ov = document.getElementById('onboarding-map-overlay');
@@ -239,11 +251,13 @@
       title = (window.WHAT_I_COLLECT || {}).title || 'What do you collect?';
     } else if (_screen === 3) {
       title = (window.COMMUNITY_OPTIN || {}).title || 'Community';
+    } else if (_screen === 4) {
+      title = 'Put it on this device';
     } else {
       title = '';
     }
     var progress = (u.progressTemplate || 'Step {n} of {total}')
-      .replace('{n}', String(_screen)).replace('{total}', String(TOTAL_SCREENS));
+      .replace('{n}', String(_screen)).replace('{total}', String(_totalScreens()));
     var el = document.createElement('div');
     el.innerHTML =
       '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:0.5rem;margin-bottom:0.4rem">' +
@@ -268,10 +282,11 @@
     var u = window.ONBOARD_UI || {};
     var s = _styles();
     var isFirst = _screen === 1;
-    var isLast  = _screen === TOTAL_SCREENS;
+    var isLast  = _screen === _totalScreens();
 
     // Screen 2 has its own footer (Save vs Skip). Screen 3 uses Yes/No buttons
-    // rendered in the content. Only Screen 1 uses this shared Next/Back footer.
+    // and Screen 4 its own Install/Not-now pair, both rendered in the content.
+    // Only Screen 1 uses this shared Next/Back footer.
     if (_screen !== 1) return document.createElement('div');
 
     var el = document.createElement('div');
@@ -613,6 +628,128 @@
       actions;
     return wrap;
   }
+
+  // ── Screen 4 — put the app on this device (v0.9.1416) ──────────────────
+  // Brad, after a beta tester never found the install button: "on start up, we
+  // should ask that as a start up question."
+  //
+  // Three different devices, three different truths, so this screen asks the
+  // browser what it can actually do rather than showing one set of steps and
+  // hoping:
+  //   • Chrome / Edge (Android + desktop) hand us a real install prompt — one
+  //     button, the browser's own dialog.
+  //   • iOS Safari allows no programmatic install at all, so the steps are
+  //     printed here inline. (Deliberately NOT routed through _pwaInstall's
+  //     iOS hint — that hint paints its own overlay, which would land behind
+  //     this one.)
+  //   • Anything else gets the honest menu instruction and no dead button.
+  function _buildInstall() {
+    var s = _styles();
+    var isIOS     = /iphone|ipad|ipod/i.test(navigator.userAgent);
+    var canPrompt = !!window._pwaPrompt;
+
+    var lead =
+      '<p style="font-size:' + s.body + ';color:var(--text-mid);line-height:1.65;margin:0 0 1rem">' +
+        'The Rail Roster can live on your home screen or desktop like any other app — its own ' +
+        'conductor icon, its own window, no address bar, and it opens straight to your collection.' +
+      '</p>';
+
+    var laterLabel = 'Not right now';
+    var body, primary;
+
+    if (canPrompt) {
+      body = lead +
+        '<p style="font-size:' + s.small + ';color:var(--text-dim);line-height:1.6;margin:0 0 1.2rem">' +
+          'Your browser can do this in one tap. You can always add it later from the menu under ' +
+          'your name → <strong>Install on this device</strong>.' +
+        '</p>';
+      primary =
+        '<button onclick="onboardInstallNow()" style="' +
+          'padding:0.95rem 1.5rem;background:var(--accent);border:none;' +
+          'border-radius:' + s.btnR + ';color:var(--on-accent);font-family:var(--font-body);' +
+          'font-size:' + s.body + ';font-weight:700;cursor:pointer;min-height:' + s.btnH + '">' +
+          'Install now' +
+        '</button>';
+    } else if (isIOS) {
+      body = lead + _stepBox([
+        'Tap the <strong>Share</strong> button at the bottom of Safari (the square with an arrow going up).',
+        'Scroll down and tap <strong>Add to Home Screen</strong>.',
+        'Tap <strong>Add</strong> in the top corner. The conductor icon appears with your other apps.'
+      ], s);
+      laterLabel = 'Got it — continue';
+      primary = '';
+    } else {
+      body = lead + _stepBox([
+        'Open your browser’s menu (the <strong>⋮</strong> or <strong>⋯</strong> button).',
+        'Choose <strong>Install</strong>, <strong>Add to Home screen</strong>, or <strong>Create shortcut</strong> — the wording varies by browser.'
+      ], s) +
+        '<p style="font-size:' + s.small + ';color:var(--text-dim);line-height:1.6;margin:0 0 1.2rem">' +
+          'If you don’t see one of those, this browser doesn’t support installing. Everything still ' +
+          'works normally in the tab.' +
+        '</p>';
+      laterLabel = 'Continue';
+      primary = '';
+    }
+
+    var actions =
+      '<div style="display:flex;justify-content:space-between;align-items:center;gap:0.5rem;flex-wrap:wrap;margin-top:0.5rem">' +
+        '<button onclick="onboardBack()" style="' +
+          'padding:0.9rem 1.2rem;background:none;border:1px solid var(--border);' +
+          'border-radius:' + s.btnR + ';color:var(--text);font-family:var(--font-body);' +
+          'font-size:' + s.body + ';font-weight:600;cursor:pointer;min-height:' + s.btnH + '">' +
+          _escape((window.ONBOARD_UI || {}).backLabel || '← Back') +
+        '</button>' +
+        '<div id="onboard-install-actions" style="display:flex;gap:0.5rem;flex-wrap:wrap">' +
+          '<button onclick="onboardNext()" style="' +
+            'padding:0.9rem 1.4rem;background:' + (primary ? 'none' : 'var(--accent)') + ';' +
+            'border:' + (primary ? '1px solid var(--border)' : 'none') + ';' +
+            'border-radius:' + s.btnR + ';color:' + (primary ? 'var(--text-mid)' : 'var(--on-accent)') + ';' +
+            'font-family:var(--font-body);font-size:' + s.body + ';font-weight:' + (primary ? '600' : '700') + ';' +
+            'cursor:pointer;min-height:' + s.btnH + '">' +
+            _escape(laterLabel) +
+          '</button>' +
+          primary +
+        '</div>' +
+      '</div>';
+
+    var wrap = document.createElement('div');
+    wrap.innerHTML = body + actions;
+    return wrap;
+  }
+
+  // Numbered steps box — the copy above is authored here, so it is trusted
+  // markup on purpose (bold tags). Nothing user-supplied reaches it.
+  function _stepBox(steps, s) {
+    var rows = steps.map(function (t, i) {
+      return '<div style="display:flex;gap:0.7rem;align-items:flex-start;padding:0.4rem 0">' +
+        '<span style="flex-shrink:0;width:1.5rem;height:1.5rem;border-radius:50%;background:var(--accent);' +
+          'color:var(--on-accent);font-size:' + s.small + ';font-weight:700;display:flex;align-items:center;' +
+          'justify-content:center;line-height:1">' + (i + 1) + '</span>' +
+        '<span style="font-size:' + s.body + ';color:var(--text-mid);line-height:1.5">' + t + '</span>' +
+      '</div>';
+    }).join('');
+    return '<div style="background:var(--surface2);border:1px solid var(--border);' +
+      'border-radius:' + s.cardR + ';padding:1rem 1.1rem;margin:0 0 1.2rem">' + rows + '</div>';
+  }
+
+  // The browser's install dialog is modal and gives us no reliable "finished"
+  // signal we can hang navigation on, so we don't guess: fire the prompt, then
+  // swap the button row to a single Continue the collector taps when they're
+  // done with whatever the browser put on screen.
+  function onboardInstallNow() {
+    try { if (typeof window._pwaInstall === 'function') window._pwaInstall(); } catch (e) {}
+    var row = document.getElementById('onboard-install-actions');
+    if (!row) return;
+    var s = _styles();
+    row.innerHTML =
+      '<button onclick="onboardNext()" style="' +
+        'padding:0.95rem 1.8rem;background:var(--accent);border:none;' +
+        'border-radius:' + s.btnR + ';color:var(--on-accent);font-family:var(--font-body);' +
+        'font-size:' + s.body + ';font-weight:700;cursor:pointer;min-height:' + s.btnH + '">' +
+        'Continue →' +
+      '</button>';
+  }
+  window.onboardInstallNow = onboardInstallNow;
 
   // ─── Preview-nav "back to the tour" bar (Screen 1 only) ───
 

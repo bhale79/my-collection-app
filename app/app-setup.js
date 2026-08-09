@@ -268,6 +268,12 @@ function _buildAppShell() {
   // shell exists, and never on the critical path.
   if (typeof window.rrOutboxStart === 'function') window.rrOutboxStart();
   if (typeof window.rrLookCheckLater === 'function') window.rrLookCheckLater();
+  // v0.9.1416: "Install on this device" lives in the account menu THIS
+  // function just built. app-misc.js used to ask a fixed 3 seconds after page
+  // load — always before sign-in finished, so it always found nothing and gave
+  // up. Asking here means asking at the one moment the menu is guaranteed to
+  // exist, on every device, however slow the sign-in was.
+  if (typeof window._pwaMenuInit === 'function') window._pwaMenuInit();
 }
 
 // ── OAuth + sign-in helpers moved to app-auth.js (Session 110, Round 2 Chunk 11) ──

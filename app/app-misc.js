@@ -176,7 +176,14 @@ function _pwaIsInstalled() {
     || window.navigator.standalone === true;
 }
 function _pwaInstall() {
-  try { if (typeof toggleAccountMenu === 'function') toggleAccountMenu(); } catch (e) {}
+  // v0.9.1416: close the account menu only if it is actually OPEN. This used
+  // to toggle blind, which meant calling install from anywhere else would pop
+  // the account menu open instead of closing it. The onboarding install step
+  // now calls this exact function, so blind toggling is no longer safe.
+  try {
+    var _am = document.getElementById('account-menu');
+    if (_am && _am.style.display !== 'none' && typeof toggleAccountMenu === 'function') toggleAccountMenu();
+  } catch (e) {}
   if (window._pwaPrompt) {
     var p = window._pwaPrompt;
     window._pwaPrompt = null;
@@ -199,13 +206,34 @@ function _pwaInstall() {
   }
   if (typeof showToast === 'function') showToast("Your browser didn't offer an install here — in Chrome use the \u22ee menu \u2192 Add to Home screen", 5000);
 }
+// ── v0.9.1416 (Brad: "its missing on the desktop, its on the mobile") ──────
+// ROOT CAUSE of the missing desktop install button. _pwaMenuInit ran exactly
+// once, 3 seconds after load. The account menu it reaches for is built by
+// _buildAppShell() in app-setup.js, which only runs AFTER sign-in — far later
+// than 3s on a desktop. So mi came back null, the function returned, and it
+// was never called again: the item stayed display:none forever. Android got
+// away with it because beforeinstallprompt fires late enough there that the
+// listener above found a menu to un-hide; desktop Chrome fires it during page
+// load, before any menu exists, so BOTH paths missed.
+// The header note at the top of this file called this exact failure.
+// Two changes: a missing menu now schedules another look instead of giving up,
+// and app-setup.js calls this the moment the menu actually exists.
+var _pwaMenuTries = 0;
 function _pwaMenuInit() {
   var mi = document.getElementById('menu-install-app');
-  if (!mi) return;
+  if (!mi) {
+    if (_pwaMenuTries < 30) { _pwaMenuTries++; setTimeout(_pwaMenuInit, 1000); }
+    return;
+  }
+  _pwaMenuTries = 99;                       // menu found — stop the retry chain
   if (_pwaIsInstalled()) { mi.style.display = 'none'; return; }
   if (window._pwaPrompt || /iphone|ipad|ipod/i.test(navigator.userAgent)) mi.style.display = '';
 }
-if (typeof window !== 'undefined') { window._pwaInstall = _pwaInstall; window._pwaMenuInit = _pwaMenuInit; }
+if (typeof window !== 'undefined') {
+  window._pwaInstall     = _pwaInstall;
+  window._pwaMenuInit    = _pwaMenuInit;
+  window._pwaIsInstalled = _pwaIsInstalled;   // onboarding asks before offering
+}
 setTimeout(_pwaMenuInit, 3000);
 
 function _showIOSInstallHint() {

@@ -1553,13 +1553,34 @@ async function rrGPhotosPickSession(opts) {
   if (!sRes.ok) { try { if (tab) tab.close(); } catch (e) {} return { error: 'session', status: sRes.status }; }
   var s = await sRes.json();
   if (tab) { try { tab.location = s.pickerUri; } catch (e) { tab = null; } }
-  if (!tab) window.open(s.pickerUri, '_blank');
+  // v0.9.1417 (beta tester 1, iPhone): this used to be a bare
+  // `window.open(s.pickerUri, '_blank')`. That line runs AFTER the session
+  // fetch above, so the user's tap is long spent and Safari blocks it —
+  // silently. The app then polled for ten minutes for a picker the collector
+  // was never shown, and every button in the Photo Inbox answered "still
+  // working on the last batch…" the whole time. A popup cannot be reopened
+  // without a fresh gesture, so hand the URL back and let the caller paint
+  // something tappable; the poll below keeps running, so the moment they do
+  // tap it and press Done, the pick still lands.
+  if (!tab) {
+    var _opened = null;
+    try { _opened = window.open(s.pickerUri, '_blank'); } catch (e) {}
+    if (!_opened && typeof opts.onNeedTab === 'function') opts.onNeedTab(s.pickerUri);
+  }
   var _ivOf = function (cfg) { try { var dsec = parseFloat(String((cfg || {}).pollInterval || '').replace('s', '')); return dsec > 0 ? Math.max(2000, dsec * 1000) : 0; } catch (e) { return 0; } };
   var iv = _ivOf(s.pollingConfig) || 4000;
   var picked = false, waited = 0;
+  // v0.9.1417: onStatus used to be called ONCE, here, and the Photo Inbox's
+  // handler paints the waiting line and its Cancel button. Any re-render after
+  // that — a refresh, a tab switch back, a rebuild of the toolbar — wiped both,
+  // and nothing ever wrote them again. The collector was then locked out of the
+  // inbox for the rest of the ten minutes with no reason on screen and no
+  // Cancel to press. Repainting on every tick costs nothing (it is the same
+  // string) and means the way out can never go missing for more than one poll.
   onStatus('waiting');
   while (!picked && !shouldAbort() && waited < 600000) {
     await new Promise(function (r) { setTimeout(r, iv); });
+    onStatus('waiting');
     waited += iv;
     var g;
     try { g = await fetch('https://photospicker.googleapis.com/v1/sessions/' + s.id, { headers: auth }); }

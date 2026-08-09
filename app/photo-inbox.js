@@ -1982,11 +1982,33 @@
     ov.onclick = function (e) { if (e.target === ov) ov.remove(); };
     var bcss = 'display:flex;align-items:center;gap:0.7rem;width:100%;padding:0.95rem 1rem;border-radius:10px;border:2px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.95rem;font-weight:600;cursor:pointer;text-align:left';
     var X = "document.getElementById('pin-src-ov').remove();";
+    // ── v0.9.1417 (beta tester 1, iPhone: "not able to add things from his
+    // camera roll") ──────────────────────────────────────────────────────
+    // He was right, and it was not a bug — the door was never built. This
+    // sheet gave a phone two choices, "Take with Phone" and "From Google
+    // Photos", and put the file picker on desktop only. So the one thing a
+    // collector most wants to do on a phone — add the photos already sitting
+    // in it — had no button at all.
+    //
+    // The assumption behind that was backwards. `<input type="file"
+    // accept="image/*">` is BETTER on a phone than on a desktop: iOS offers
+    // Photo Library / Take Photo / Choose File, and Choose File is where
+    // Google Photos, iCloud and Files all appear as providers. It is the same
+    // _pinPickFiles() that has been working on desktop all along, and its
+    // click() runs synchronously inside this button's onclick, so iOS keeps
+    // the user gesture and the picker opens.
+    var srcBtn = function (icon, label, call, note) {
+      return '<button style="' + bcss + '" onclick="' + X + call + '">' +
+        '<span style="font-size:1.3rem">' + icon + '</span> ' + label +
+        (note ? '<span style="color:var(--text-dim);font-size:0.78rem;font-weight:400"> — ' + note + '</span>' : '') +
+        '</button>';
+    };
     var sources = mobile
-      ? '<button style="' + bcss + '" onclick="' + X + '_qcOpen()"><span style="font-size:1.3rem">📷</span> Take with Phone</button>'
-        + '<button style="' + bcss + '" onclick="' + X + '_pinGPhotos()"><span style="font-size:1.3rem">🖼️</span> From Google Photos</button>'
-      : '<button style="' + bcss + '" onclick="' + X + '_pinPickFiles()"><span style="font-size:1.3rem">💻</span> From This Computer <span style="color:var(--text-dim);font-size:0.78rem;font-weight:400">— your own files</span></button>'
-        + '<button style="' + bcss + '" onclick="' + X + '_pinGPhotos()"><span style="font-size:1.3rem">🖼️</span> From Google Photos</button>';
+      ? srcBtn('📷', 'Take with Phone', '_qcOpen()')
+        + srcBtn('🖼️', 'From My Photos', '_pinPickFiles()', 'camera roll')
+        + srcBtn('☁️', 'From Google Photos', '_pinGPhotos()')
+      : srcBtn('💻', 'From This Computer', '_pinPickFiles()', 'your own files')
+        + srcBtn('☁️', 'From Google Photos', '_pinGPhotos()');
     ov.innerHTML = '<div class="rr-card">' +
       '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.85rem">' +
         '<div style="font-family:var(--font-head);font-weight:700;font-size:1rem;color:var(--text)">Add photos from…</div>' +
@@ -2005,7 +2027,7 @@
   };
 
   async function _upload(files) {
-    if (_busy) { showToast('Still working on the last batch…', 2500, true); return; }
+    if (_busy) { _pinBusyBounce(); return; }
     _busy = true;
     try {
       var fid = await _folder();
@@ -7153,7 +7175,7 @@
     }
   };
   window._pinIdentifyItems = async function () {
-    if (_busy || _autoReadBusy) { showToast('Still working on the last batch…', 2500, true); return; }
+    if (_busy || _autoReadBusy) { _pinBusyBounce(); return; }
     if (!_pinUnreadTodo().length) { showToast('Nothing waiting to be read', 2600); return; }
     await _pinAutoRead();
     try { _updateIdentifyBtn(); } catch (e) {}
@@ -7766,7 +7788,7 @@
 
 
   window._pinIdentifyAll = async function () {
-    if (_busy) { showToast('Still working on the last batch…', 2500, true); return; }
+    if (_busy) { _pinBusyBounce(); return; }
     if (!_qcToken()) { showToast('Please sign in first', 3000, true); return; }
     if (typeof aiIdentifyImage !== 'function') { showToast('Identify service not loaded — refresh and try again', 3000, true); return; }
     var ids = _ids();
@@ -7802,7 +7824,7 @@
   // all, it ALWAYS re-identifies, even when a suggestion already exists.
   // That's the point: re-run a blank or wrong read with one click.
   window._pinIdentifySelected = async function () {
-    if (_busy) { showToast('Still working on the last batch…', 2500, true); return; }
+    if (_busy) { _pinBusyBounce(); return; }
     if (!_qcToken()) { showToast('Please sign in first', 3000, true); return; }
     if (typeof aiIdentifyImage !== 'function') { showToast('Identify service not loaded — refresh and try again', 3000, true); return; }
     var gs = _selGroups();
@@ -7979,7 +8001,58 @@
   // Done there → download each pick (auth'd baseUrl) → upload to the
   // inbox. Read-only scope; the app only ever sees what was picked.
   var _gpAbort = false;
-  window._pinGPhotosCancel = function () { _gpAbort = true; _status(''); };
+  // ── v0.9.1417 (beta tester 1, iPhone) ────────────────────────────────
+  // The waiting line and its Cancel button were written once, by the
+  // onStatus callback, and nothing ever wrote them again. Any re-render
+  // wiped both — and the inbox stays busy-locked for up to TEN MINUTES
+  // while the picker poll runs. He tapped Add photos, got a red toast about
+  // a batch he had never started, and had no cancel, no reason and no way
+  // out short of reloading the app.
+  //
+  // So the wait now owns two facts — is it running, and did the tab open —
+  // and ONE painter reads them. The painter is called from the poll (every
+  // few seconds), from the blocked-button guard, and when the popup is
+  // refused, which means the escape hatch cannot be more than one poll tick
+  // away from being back on screen no matter what repainted over it.
+  var _gpWaiting = false;
+  var _gpPickerUri = '';
+  window._pinGPhotosCancel = function () {
+    _gpAbort = true; _gpWaiting = false; _gpPickerUri = '';
+    _status('');
+  };
+  // Re-opening a blocked popup needs a gesture of its own, so this is wired
+  // to a button the collector taps rather than called on their behalf.
+  window._pinGPhotosOpenTab = function () {
+    if (!_gpPickerUri) return;
+    try { window.open(_gpPickerUri, '_blank'); } catch (e) {}
+  };
+  var _gpBtn = 'border:1px solid var(--border);background:var(--surface2);color:var(--text-mid);border-radius:6px;font-size:0.72rem;padding:0.15rem 0.5rem;cursor:pointer;font-family:var(--font-body)';
+  // Returns true when a Google Photos wait is what is holding the inbox, so
+  // callers can tell "busy on the picker" from "busy on a real batch".
+  function _pinGPStatus() {
+    if (!_gpWaiting) return false;
+    var st = document.getElementById('pin-status');
+    if (!st) return true;
+    st.style.display = 'block';
+    st.innerHTML = (_gpPickerUri
+        ? 'Your browser blocked the Google Photos tab. ' +
+          '<button onclick="_pinGPhotosOpenTab()" style="' + _gpBtn + '">Open Google Photos</button> ' +
+          '— pick your photos there, press <strong>Done</strong>, then come back. '
+        : 'Pick photos in the Google Photos tab that just opened, then press <strong>Done</strong> there. Waiting… ') +
+      '<button onclick="_pinGPhotosCancel()" style="' + _gpBtn + '">Cancel</button>';
+    return true;
+  }
+  // Every "still working on the last batch" guard in this file used to end
+  // the story at a red toast naming a batch the collector could not see and
+  // had not started. When the picker wait is the thing holding the lock, say
+  // that instead, and put the way out back on screen.
+  function _pinBusyBounce() {
+    if (_pinGPStatus()) {
+      showToast('Still waiting on Google Photos — press Cancel on the line above to stop waiting', 4500, true);
+    } else {
+      showToast('Still working on the last batch…', 2500, true);
+    }
+  }
 
   // v0.9.1254 (audit finding I): this used to hand a train collector a
   // Google Cloud Console link and tell them to enable an API. They cannot —
@@ -8032,29 +8105,33 @@
   }
 
   window._pinGPhotos = async function () {
-    if (_busy) { showToast('Still working on the last batch…', 2500, true); return; }
+    if (_busy) { _pinBusyBounce(); return; }
     if (!_qcToken()) { showToast('Please sign in first', 3000, true); return; }
     _busy = true; _gpAbort = false;
+    _gpWaiting = true; _gpPickerUri = '';   // v0.9.1417: the wait is now a fact the painter can read
     try {
       // v0.9.1014 (Brad): the whole picker dance (tab, scope, session, poll,
       // list) now lives in ONE shared helper in drive.js — the same one the
       // Identify-from-Photo screen uses — so the two can never drift apart.
       var pick = await rrGPhotosPickSession({
         shouldAbort: function () { return _gpAbort; },
-        onStatus: function () {
-          var st = document.getElementById('pin-status');
-          if (st) {
-            st.style.display = 'block';
-            st.innerHTML = 'Pick photos in the Google Photos tab that just opened, then press <strong>Done</strong> there. Waiting… ' +
-              '<button onclick="_pinGPhotosCancel()" style="border:1px solid var(--border);background:var(--surface2);color:var(--text-mid);border-radius:6px;font-size:0.72rem;padding:0.15rem 0.5rem;cursor:pointer;font-family:var(--font-body)">Cancel</button>';
-          }
-        },
+        // v0.9.1417: this used to build the waiting line inline, and drive.js
+        // called it exactly once. Both halves moved: drive.js repaints on
+        // every poll tick, and the markup lives in the one painter that the
+        // busy guard also uses, so the Cancel button on screen and the Cancel
+        // button a blocked tap restores are the same button.
+        onStatus: function () { _pinGPStatus(); },
+        onNeedTab: function (uri) { _gpPickerUri = uri; _pinGPStatus(); },
       });
+      // v0.9.1417: the waiting is over the instant this returns — whatever
+      // happens next writes its own status ("Importing 3 of 12…"), and the
+      // painter must not be allowed to overwrite that with a stale Cancel.
+      _gpWaiting = false; _gpPickerUri = '';
       if (pick.error) {
         _status('');
         if (pick.error === 'scope') showToast('Google Photos permission was not granted', 3500, true);
         else if (pick.error === 'session' && (pick.status === 403 || pick.status === 401)) _gpHelp(pick.status);
-        else if (pick.error === 'timeout') showToast('Gave up waiting for the picker — try again', 3000, true);
+        else if (pick.error === 'timeout') showToast('Gave up waiting for the Google Photos picker after 10 minutes — try again', 4000, true);
         else if (pick.error !== 'cancelled') showToast('Google Photos picker error' + (pick.status ? ' (' + pick.status + ')' : '') + ' — try again', 3500, true);
         return;
       }
@@ -8080,7 +8157,7 @@
     } catch (e) {
       console.error('[Inbox] Google Photos import:', e);
       _status('Google Photos import hit a snag — try again.');
-    } finally { _busy = false; }
+    } finally { _busy = false; _gpWaiting = false; _gpPickerUri = ''; }
   };
 
   // ── Discard (Drive trash — recoverable ~30 days) ─────────────

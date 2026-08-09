@@ -4,7 +4,7 @@
 // fetches fresh copies in the background for next load.
 // NEVER caches Google API, OAuth, or Sheets calls.
 
-const CACHE_NAME = 'mca-v1425';
+const CACHE_NAME = 'mca-v1427';
 
 // ── v0.9.1214: the version stamp has to survive as far as the cache ──
 // Brad, on v1213: "im reset twice and it still looks the same." He was
@@ -64,6 +64,11 @@ const SHELL_FILES = [
   './wizard-quickentry.js',
   './wizard-save.js',
   './app-misc.js',
+  // v0.9.1416: error-report.js shipped in v0.9.1413 but never reached this
+  // list, so the one file whose whole job is "tell us when something broke"
+  // was the one file the service worker did not hold. Offline, or on a stale
+  // cache, Report a problem was the button that wasn't there.
+  './error-report.js',
   './app-auth.js',
   './app-setup.js',
   './app-data.js',
