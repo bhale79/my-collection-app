@@ -83,6 +83,74 @@
   var _sessionEra = '';      // the session's home era (memory only)
   var _busy = false;
 
+  // ── v0.9.1418 (Cooper, on a desktop: "I clicked apply button, nothing
+  // happened") ──────────────────────────────────────────────────────────
+  // He clicked Apply eight times in 36 seconds and the app never said a
+  // word. It was working exactly as written: _pinApplyTags has three early
+  // exits, two of which explain themselves and one — the busy guard — which
+  // was a bare `return`. His breadcrumbs prove it was that one, because the
+  // button read "Apply to 20" and that label is only built when photos are
+  // ticked AND an era is chosen, which is precisely the pair of conditions
+  // the two talking exits check.
+  //
+  // Underneath sits the real problem: ONE flag guards seven different
+  // operations, and it was raised and lowered in fourteen scattered places
+  // with no record of when, by what, or whether anything was still moving.
+  // Every writer has a `finally`, so a THROW cannot strand it — but an
+  // `await` that never settles never reaches the finally at all, and then
+  // every batch button in the Photo Inbox is dead until a reload nobody
+  // knows to do. (Cooper's trail has a 19-minute gap with no clicks, which
+  // is what a sleeping machine with a request in flight looks like.)
+  //
+  // So the flag gets one owner and a memory. _setBusy is the only thing that
+  // moves it; _busyProgressAt is stamped by _status(), which every long
+  // operation already calls as it advances, so "is anything still moving?"
+  // is answerable without teaching seven operations a new trick.
+  var _busySince = 0;        // when the current job raised the flag
+  var _busyWhat = '';        // plain-English name of that job, for the user
+  var _busyProgressAt = 0;   // last time it reported progress (see _status)
+  var _STUCK_MS = 120000;    // no progress for two minutes = wedged, not slow
+
+  function _setBusy(on, what) {
+    _busy = !!on;
+    if (on) {
+      _busySince = _busyProgressAt = Date.now();
+      _busyWhat = what || '';
+    } else {
+      _busySince = _busyProgressAt = 0;
+      _busyWhat = '';
+    }
+  }
+  function _busyStuck() {
+    return _busy && !!_busyProgressAt && (Date.now() - _busyProgressAt) > _STUCK_MS;
+  }
+  // The only safe way out. Clearing the flag under a live operation could let
+  // a second run start beside the first — for filing to the collection that
+  // means duplicate rows, which is a worse bug than the one being escaped.
+  // A reload cannot double-write anything, and the inbox lives in Drive, so
+  // nothing is lost. One tap instead of knowing to press F5.
+  window._pinRestartApp = function () { location.reload(); };
+  // Paints the wedged line. Returns true when it painted, so the caller can
+  // stop rather than also scolding the collector about a batch.
+  function _pinStuckStatus() {
+    if (!_busyStuck()) return false;
+    var el = document.getElementById('pin-status');
+    if (!el) return true;
+    var mins = Math.max(2, Math.round((Date.now() - _busyProgressAt) / 60000));
+    el.style.display = 'flex';
+    el.style.alignItems = 'center';
+    el.style.gap = '0.45rem';
+    el.style.color = 'var(--danger)';
+    el.style.fontWeight = '700';
+    el.innerHTML =
+      '<span>' + (_busyWhat ? rrEsc(_busyWhat) : 'Something') + ' has been stuck for ' + mins +
+      ' minutes and nothing is saving. Restarting is safe — your photos are in Drive. </span>' +
+      '<button type="button" onclick="_pinRestartApp()" style="border:none;background:var(--danger);color:var(--on-accent);' +
+      'border-radius:6px;font-size:0.78rem;font-weight:700;padding:0.25rem 0.7rem;cursor:pointer;' +
+      'font-family:var(--font-body);flex:none">Restart the app</button>';
+    return true;
+  }
+
   // ── Drive folder ─────────────────────────────────────────────
   async function _folder() {
     if (_fid && _fidChecked) return _fid;
@@ -224,6 +292,13 @@
   // element alongside it, so nothing from a photo can smuggle in markup.
   function _status(msg, stopFn) {
     var el = document.getElementById('pin-status');
+    // v0.9.1418: THE progress heartbeat. Every long operation in this file
+    // already calls _status as it advances ("Tagging 7 of 20…", "Importing 3
+    // of 12…"), so stamping here means the stuck detector learns nothing new
+    // and asks nothing new of seven call sites. Stamped before the early
+    // return, because a missing #pin-status element does not mean the job
+    // stopped moving — it means the page was rebuilt underneath it.
+    if (msg && _busy) _busyProgressAt = Date.now();
     if (!el) return;
     if (msg) {
       el.style.display = 'flex';
@@ -1833,12 +1908,14 @@
   // Applies to every FILE in every ticked group — an engine and its tender are
   // one item and must not end up with different makers.
   window._pinApplyTags = async function () {
-    if (_busy) return;
+    // v0.9.1418 (Cooper): THE reported bug. This was a bare `return` — the
+    // Apply button's only silent exit, and the one he hit eight times.
+    if (_busy) { _pinBusyBounce(); return; }
     if (!_tagEra) { showToast('Pick a manufacturer and line first', 2600, true); return; }
     var ids = [];
     _selGroups().forEach(function (g) { g.files.forEach(function (f) { ids.push(f.id); }); });
     if (!ids.length) { showToast('Tick some photos first', 2400, true); return; }
-    _busy = true;
+    _setBusy(true, 'Tagging photos');
     var label = _pinEraLabel(_tagEra) + (_tagType ? ' \u00b7 ' + _tagType : '');
     _status('Tagging ' + ids.length + ' photo' + (ids.length > 1 ? 's' : '') + '\u2026');
     var ok = 0;
@@ -1859,7 +1936,7 @@
       // left _busy stuck and every batch button in the inbox answered "still
       // working on the last batch…" until a reload. This was the last of the
       // seven _busy writers in this file without a finally.
-      _busy = false;
+      _setBusy(false);
       _status('');
     }
     // Say what actually happened. A partial write reported as a win is the bug
@@ -2028,7 +2105,7 @@
 
   async function _upload(files) {
     if (_busy) { _pinBusyBounce(); return; }
-    _busy = true;
+    _setBusy(true, 'Adding photos');
     try {
       var fid = await _folder();
       var ts = new Date().getTime();
@@ -2090,7 +2167,7 @@
     } catch (e) {
       console.error('[Inbox] upload:', e);
       _status('Upload failed — check your connection and try again.');
-    } finally { _busy = false; }
+    } finally { _setBusy(false); }
   }
 
   // ── Review a photo group: research laid out → Add / Research /
@@ -2565,7 +2642,10 @@
     }
   }
   window._pinVerifyReident = async function () {
-    if (_busy) { showToast('Identify is already running — one moment', 2500, true); return; }
+    // v0.9.1418: this one already spoke, but only ever said "already
+    // running" — which is a lie once the job is wedged. Through the shared
+    // bounce it can offer the way out instead.
+    if (_busy) { _pinBusyBounce(); return; }
     var g = _rvGroups && _rvGroups[0];
     if (!g) return;
     var num = String((document.getElementById('pin-rv-num') || {}).value || '').trim();
@@ -4278,7 +4358,11 @@
     var num = String((document.getElementById('pin-rv-num') || {}).value || '').trim();
     if (!num) { showToast('Type or confirm the item number first', 2500, true); return; }
     var gs = _rvGroups;
-    if (!gs.length || _busy) return;
+    // v0.9.1418: same silent guard as Apply had. Filing to the collection is
+    // the single most consequential button on this page to press twice and
+    // hear nothing from.
+    if (_busy) { _pinBusyBounce(); return; }
+    if (!gs.length) return;
     // Ownership decides File-vs-Attach, so check it before we commit anything.
     var lkPre = _pinLookup(num);
     if (mode === 'attach' && !lkPre.ownedPd) {
@@ -4286,7 +4370,7 @@
       return;
     }
     var ov = document.getElementById('pin-review-ov'); if (ov) ov.remove();
-    _busy = true;
+    _setBusy(true, 'Filing to your collection');
     try {
       var fromFid = await _folder();
       var toFid = await driveEnsureItemFolder(num);
@@ -4393,7 +4477,7 @@
     } catch (e) {
       console.error('[Inbox] add/attach:', e);
       _status('Filing failed partway — hit Refresh to see what’s left, then try again.');
-    } finally { _busy = false; }
+    } finally { _setBusy(false); }
   };
 
   // v0.9.958 (Brad): the four review-card exits are thin wrappers over the one
@@ -4552,7 +4636,9 @@
   var NONUM_PREFIX = '__nonum__';
   window._pinAddNoNumber = function () {
     var gs = _rvGroups;
-    if (!gs.length || _busy) return;
+    // v0.9.1418: the third silent guard.
+    if (_busy) { _pinBusyBounce(); return; }
+    if (!gs.length) return;
     if (typeof openWizard !== 'function') { showToast('Add wizard not available', 2500, true); return; }
     var fileList = [];
     for (var g = 0; g < gs.length; g++)
@@ -7853,7 +7939,7 @@
   };
 
   async function _pinIdentifyRun(todo, ids) {
-    _busy = true; _idAbort = false;
+    _setBusy(true, 'Identifying items'); _idAbort = false;
     var okN = 0, blankN = 0, failN = 0, guessN = 0;
     var remaining = null;   // v0.9.887 (Brad): reads-left-today tracker
     var _idStart = Date.now();   // v0.9.1174
@@ -7990,7 +8076,7 @@
       if (remaining !== null) msg += ' · ' + remaining + ' photo ID' + (remaining === 1 ? '' : 's') + ' left today';
       showToast(msg, 5000, (okN + guessN) === 0);
     } finally {
-      _busy = false;
+      _setBusy(false);
       var st2 = document.getElementById('pin-status');
       if (st2 && /Identifying/.test(st2.textContent || '')) _status('');
     }
@@ -8046,11 +8132,18 @@
   // the story at a red toast naming a batch the collector could not see and
   // had not started. When the picker wait is the thing holding the lock, say
   // that instead, and put the way out back on screen.
+  // v0.9.1418: order matters. Wedged is checked FIRST — a job that has not
+  // moved in two minutes is not "still working", and telling someone to wait
+  // for it is the thing that cost Cooper half an hour.
   function _pinBusyBounce() {
-    if (_pinGPStatus()) {
+    if (_pinStuckStatus()) {
+      showToast((_busyWhat || 'The last job') + ' is stuck — use Restart the app on the line above', 5000, true);
+    } else if (_pinGPStatus()) {
       showToast('Still waiting on Google Photos — press Cancel on the line above to stop waiting', 4500, true);
     } else {
-      showToast('Still working on the last batch…', 2500, true);
+      // Name the job. "Still working on the last batch" meant nothing to a
+      // collector who had not knowingly started a batch.
+      showToast(_busyWhat ? ('Still working: ' + _busyWhat.toLowerCase() + '…') : 'Still working on the last batch…', 2500, true);
     }
   }
 
@@ -8107,7 +8200,7 @@
   window._pinGPhotos = async function () {
     if (_busy) { _pinBusyBounce(); return; }
     if (!_qcToken()) { showToast('Please sign in first', 3000, true); return; }
-    _busy = true; _gpAbort = false;
+    _setBusy(true, 'Google Photos import'); _gpAbort = false;
     _gpWaiting = true; _gpPickerUri = '';   // v0.9.1417: the wait is now a fact the painter can read
     try {
       // v0.9.1014 (Brad): the whole picker dance (tab, scope, session, poll,
@@ -8157,7 +8250,7 @@
     } catch (e) {
       console.error('[Inbox] Google Photos import:', e);
       _status('Google Photos import hit a snag — try again.');
-    } finally { _busy = false; _gpWaiting = false; _gpPickerUri = ''; }
+    } finally { _setBusy(false); _gpWaiting = false; _gpPickerUri = ''; }
   };
 
   // ── Discard (Drive trash — recoverable ~30 days) ─────────────
@@ -8165,7 +8258,11 @@
     // v0.9.1325: `only` names the groups outright (the review card's Discard
     // passes its own), so nothing has to be staged in the shared `_sel` map.
     var gs = (only && only.length) ? only.slice() : _selGroups();
-    if (!gs.length || _busy) { if (!gs.length) showToast('Select photos first', 2500, true); return; }
+    // v0.9.1418: a FOURTH silent guard, found while fixing the other three.
+    // It spoke when nothing was ticked and said nothing at all when busy —
+    // so Discard failed exactly the way Apply did.
+    if (_busy) { _pinBusyBounce(); return; }
+    if (!gs.length) { showToast('Select photos first', 2500, true); return; }
     var n = 0; gs.forEach(function (g) { n += g.files.length; });
     // v0.9.1325: was window.confirm — in the one file whose own comment
     // (see _pinConfirm) says a native dialog "would freeze the extension
@@ -8177,7 +8274,7 @@
     if (!(await appConfirm('Discard ' + n + ' photo' + (n > 1 ? 's' : '')
           + '? They go to your Google Drive trash, recoverable for about 30 days.',
           { title: 'Discard photos', ok: 'Discard', cancel: 'Keep them', danger: true }))) return;
-    _busy = true;
+    _setBusy(true, 'Discarding photos');
     try {
       // v0.9.1275 (R15): one failed trash used to abandon the rest of the
       // selection — photo 3 of 12 fails and 4..12 quietly stay put while the
@@ -8212,7 +8309,7 @@
     } catch (e) {
       console.error('[Inbox] discard:', e);
       _status('Discard failed partway — hit Refresh and try again.');
-    } finally { _busy = false; }
+    } finally { _setBusy(false); }
   };
 
   // ── Badges + dashboard cards (v0.9.890) ──────────────────────
