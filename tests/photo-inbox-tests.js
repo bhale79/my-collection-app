@@ -10547,8 +10547,12 @@ META_WRITES.length = 0; TOASTS.length = 0;
       ok('APP_VERSION exists and is the source of truth', !!_vm, 'config.js APP_VERSION not found');
       const build = _vm ? parseInt(_vm[1], 10) : 0;
       const stamps = idx.match(/\?v=(\d+)/g) || [];
-      ok('every ?v= mark in app/index.html matches it — all 69, none stale',
-         stamps.length === 69 && stamps.every(t => t === '?v=' + build),
+      // v0.9.1416: 69 → 70. error-report.js (v0.9.1413) is the 70th stamped
+      // script. The number is pinned on purpose — a script added with no
+      // stamp at all never busts its cache, so the count moving is meant to
+      // be a deliberate edit, not a silent one.
+      ok('every ?v= mark in app/index.html matches it — all 70, none stale',
+         stamps.length === 70 && stamps.every(t => t === '?v=' + build),
          stamps.length + ' stamps; strays: ' + stamps.filter(t => t !== '?v=' + build).slice(0, 3).join(','));
       ok('the service worker cache name moved too (build + 10, the fixed offset)',
          new RegExp("const CACHE_NAME = 'mca-v" + (build + 10) + "';").test(rd('app/sw.js')),
@@ -18964,8 +18968,13 @@ META_WRITES.length = 0; TOASTS.length = 0;
       // and deleting code by string-anchor is how this project once swallowed a
       // neighbouring function. But the count is pinned, so a new one shows up
       // as a change rather than sliding in unnoticed.
-      ok('273 the unreachable-handler list is the known 13',
-         r.dead.length === 13,
+      // v0.9.1416: 13 → 16. error-report.js (v0.9.1413) exposes three
+      // deliberate console hooks — errReportPreview, errReportCrumbs and
+      // errReportCode — so a report can be inspected without sending one.
+      // No onclick names them, which is the point; they are for the keyboard,
+      // not for a button. Pinned so a FOURTH one still shows up as a change.
+      ok('273 the unreachable-handler list is the known 16',
+         r.dead.length === 16,
          r.dead.length + ': ' + r.dead.map(d => d.name).join(','));
       // None of them can be breaking a visible button, by construction: if any
       // onclick named them they would not be in this list at all.
@@ -19706,8 +19715,33 @@ META_WRITES.length = 0; TOASTS.length = 0;
       ok('283 the panels are cleared while empty, not left saying "none"',
          /if \(_ph\) _ph\.innerHTML = '';/.test(dj));
       ok('283 the photo ticker is cleared too', /if \(_th\) _th\.innerHTML = '';/.test(dj));
+      // v0.9.1416: this used to demand `return;` on the very NEXT line after
+      // the ticker clear. v0.9.1415 correctly inserted the nav-badge zeroing
+      // between the two, and this went red for a change that was right — an
+      // adjacency check wearing a behaviour check's name. It now asks the
+      // real question: between clearing the ticker and leaving, does anything
+      // RENDER? Comments and badge writes may sit there; a render may not.
+      // (Drilled: delete the `return;` and the tail swallows the normal
+      // render path below it, and this fails — so it still has teeth.)
+      const _emptyTail = (function () {
+        const i = dj.indexOf("if (_th) _th.innerHTML = '';");
+        if (i < 0) return null;
+        const j = dj.indexOf('return;', i);
+        return j < 0 ? null : dj.slice(i, j);
+      })();
+      // Every innerHTML touched between the clear and the return must be
+      // CLEARING it. Reading the right-hand side rather than lookahead-ing
+      // past it: `/innerHTML\s*=\s*(?!'';)/` looks like it says this and does
+      // not — \s* backtracks to zero and the lookahead then passes on the very
+      // line it was written to allow. Same class of mistake as the regex
+      // comment-stripper in color-count.js. Read the value, don't peek at it.
+      const _writes = _emptyTail === null ? []
+        : (_emptyTail.match(/innerHTML\s*(?:\+=|=)\s*[^;]*/g) || [])
+            .map(m => m.replace(/^innerHTML\s*(?:\+=|=)\s*/, '').trim());
       ok('283 …and the normal render is skipped, not drawn underneath',
-         /if \(_th\) _th\.innerHTML = '';\s*\n\s*return;\s*\n\s*\}/.test(dj));
+         _emptyTail !== null && _writes.every(v => v === "''" || v === '""'),
+         _emptyTail === null ? 'anchor not found'
+           : (_writes.filter(v => v !== "''" && v !== '""').join(' | ') || 'ok'));
       // And it must UNDO itself: the grid is forced to display:block for the
       // welcome, so the normal path has to put that back or the stat cards
       // render in one column forever after the first item is added.
