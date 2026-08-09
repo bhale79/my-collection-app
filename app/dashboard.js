@@ -716,6 +716,27 @@ function buildDashboard() {
     if (_ph) _ph.innerHTML = '';
     var _th = document.getElementById('dash-ticker-host');
     if (_th) _th.innerHTML = '';
+    // ── v0.9.1415 (Brad, found while testing as a new user) ──────────────
+    // The sidebar badges are written near the END of this function. This
+    // branch returns before ever reaching them, so emptying your collection
+    // left the counts frozen at whatever they said a moment earlier — delete
+    // two items and the badge sat on 1. The data was always correct; only the
+    // number was stale, and a reload cleared it.
+    //
+    // Zeroing them here rather than moving the whole block: everything below
+    // this point assumes there IS a collection to measure, and an empty
+    // collection means every one of these counts is zero by definition. No
+    // computation needed, and nothing below has to become empty-safe.
+    //
+    // NOTE for anyone adding a nav badge later: add it here as well, or it
+    // will inherit exactly this bug.
+    try {
+      [['nav-total', 0], ['nav-owned', 0], ['nav-wishlist-count', 0],
+       ['nav-forsale', 0], ['nav-parts', 0], ['nav-sold', 0]].forEach(function (pair) {
+        var el = document.getElementById(pair[0]);
+        if (el) el.textContent = String(pair[1]);
+      });
+    } catch (e) {}
     return;
   }
   var _sg0 = document.getElementById('stats-grid');

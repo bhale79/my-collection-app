@@ -43,7 +43,7 @@ const ONBOARD_UI = {
 const WHAT_I_COLLECT = {
   title:       'What do you collect?',
   subtitle:    'Pick the eras you\'re interested in. You can change this anytime in Preferences.',
-  helperNote:  'Leaving them all turned on is the simplest choice — you can refine later.',
+  helperNote:  'Pick just what you collect and the app stays uncluttered \u2014 you can change it anytime in Preferences. Collect nearly everything? Use Select all, then untick the few you don\'t.',
   saveLabel:   'Save and continue \u2192',
   skipLabel:   'Skip (keep all eras)',
 

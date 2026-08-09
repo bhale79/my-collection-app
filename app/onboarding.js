@@ -369,10 +369,25 @@
     var s = _styles();
     var eras = (typeof ERAS !== 'undefined') ? ERAS : {};
 
-    // Current selection: use saved list if present, else all.
-    var currentEnabled;
-    try { currentEnabled = (typeof _getEnabledEras === 'function') ? _getEnabledEras() : Object.keys(eras); }
-    catch(e) { currentEnabled = Object.keys(eras); }
+    // v0.9.1415 (Brad, after a real tester hit it): this screen used to open
+    // with EVERY era ticked, so someone who collects postwar Lionel had to
+    // untick seventeen boxes before they could get on. It now opens BLANK on a
+    // first run and they tick what they want.
+    //
+    // The distinction that makes this safe is "never chosen" vs "chose
+    // everything" — not "is the list full". _getEnabledEras() defaults to ALL
+    // when nothing is stored, so it cannot tell those apart; the raw key can.
+    // No stored key => first run => start blank. A stored key => they have
+    // been here before => show exactly what they picked, because silently
+    // wiping someone's saved choices for opening a settings screen would be a
+    // worse bug than the one this fixes.
+    var _everChosen = false;
+    try { _everChosen = !!localStorage.getItem('lv_collect_eras'); } catch (e) {}
+    var currentEnabled = [];
+    if (_everChosen) {
+      try { currentEnabled = (typeof _getEnabledEras === 'function') ? _getEnabledEras() : Object.keys(eras); }
+      catch(e) { currentEnabled = Object.keys(eras); }
+    }
     var enabledSet = {};
     currentEnabled.forEach(function(k) { enabledSet[k] = true; });
 
@@ -400,6 +415,24 @@
     var _grid = (window.innerWidth >= 700)
       ? 'display:grid;grid-template-columns:1fr 1fr;gap:0.6rem'
       : 'display:flex;flex-direction:column;gap:0.7rem';
+    // Bulk controls. With a blank start, "I collect nearly everything" would
+    // otherwise be eighteen taps — this makes it two (Select all, then untick
+    // the few you don't).
+    var bulkHtml =
+      '<div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin:0.9rem 0 0.2rem">' +
+        '<button type="button" onclick="onboardEraSelectAll(true)" style="' +
+          'padding:0.5rem 0.9rem;background:none;border:1px solid var(--border);border-radius:' + s.btnR + ';' +
+          'color:var(--text);font-family:var(--font-body);font-size:' + s.linkBtn + ';font-weight:600;cursor:pointer">' +
+          'Select all' +
+        '</button>' +
+        '<button type="button" onclick="onboardEraSelectAll(false)" style="' +
+          'padding:0.5rem 0.9rem;background:none;border:1px solid var(--border);border-radius:' + s.btnR + ';' +
+          'color:var(--text-mid);font-family:var(--font-body);font-size:' + s.linkBtn + ';font-weight:600;cursor:pointer">' +
+          'Clear all' +
+        '</button>' +
+        '<span id="onboarding-era-count" style="align-self:center;font-size:' + s.small + ';color:var(--text-dim)"></span>' +
+      '</div>';
+
     var rowsHtml = '<div id="onboarding-era-rows" style="' + _grid + ';margin:0.8rem 0 1.2rem">';
     _allEraKeys.forEach(function(eraKey) {
       var era = eras[eraKey];
@@ -441,7 +474,7 @@
             'font-size:' + s.body + ';font-weight:600;cursor:pointer;min-height:' + s.btnH + '">' +
             _escape(cfg.skipLabel || 'Skip') +
           '</button>' +
-          '<button onclick="onboardNext()" style="' +
+          '<button id="onboarding-era-save" onclick="onboardNext()" style="' +
             'padding:0.95rem 1.8rem;background:var(--accent);border:none;' +
             'border-radius:' + s.btnR + ';color:#fff;font-family:var(--font-body);' +
             'font-size:' + s.body + ';font-weight:700;cursor:pointer;min-height:' + s.btnH + '">' +
@@ -455,11 +488,52 @@
       '<div style="font-size:' + s.body + ';color:var(--text-mid);line-height:1.55;margin-bottom:0.4rem">' +
         _escape(cfg.subtitle || '') +
       '</div>' +
+      bulkHtml +
       rowsHtml +
       (cfg.helperNote ? '<div style="font-size:' + s.small + ';color:var(--text-dim);line-height:1.5;margin-bottom:0.5rem;font-style:italic">' + _escape(cfg.helperNote) + '</div>' : '') +
       actions;
+    // Set the gate once this screen is actually on the page (wrap is still
+    // detached here, so the elements cannot be found yet).
+    setTimeout(function () { try { onboardEraSync(); } catch (e) {} }, 0);
     return wrap;
   }
+
+  // ── v0.9.1415 — the era picker's live state ────────────────────────────
+  // With a blank start, "Save and continue" must not be pressable until they
+  // have actually chosen something — otherwise a user taps straight past it,
+  // the zero-selection fallback in _savePrefsFromForm quietly turns ALL eras
+  // back on, and they get the very screen we were trying to spare them with no
+  // idea why. "Skip (keep all eras)" stays as the honest, labelled way to take
+  // everything, so there is no silent third path.
+  function _eraBoxes() {
+    return Array.prototype.slice.call(
+      document.querySelectorAll('#onboarding-era-rows input[type="checkbox"][data-era]'));
+  }
+  function onboardEraSync() {
+    try {
+      var boxes = _eraBoxes();
+      var n = boxes.filter(function (b) { return b.checked; }).length;
+      var save = document.getElementById('onboarding-era-save');
+      if (save) {
+        var off = (n === 0);
+        save.disabled = off;
+        save.style.opacity = off ? '0.45' : '';
+        save.style.cursor = off ? 'not-allowed' : 'pointer';
+        save.title = off ? 'Pick at least one, or use Skip to keep them all' : '';
+      }
+      var lbl = document.getElementById('onboarding-era-count');
+      if (lbl) lbl.textContent = n ? (n + ' of ' + boxes.length + ' chosen') : 'none chosen yet';
+    } catch (e) {}
+  }
+  window.onboardEraSync = onboardEraSync;
+
+  function onboardEraSelectAll(on) {
+    try {
+      _eraBoxes().forEach(function (b) { b.checked = !!on; });
+      onboardEraSync();
+    } catch (e) {}
+  }
+  window.onboardEraSelectAll = onboardEraSelectAll;
 
   function _savePrefsFromForm() {
     // Reads checkboxes in the currently-rendered prefs screen and persists.

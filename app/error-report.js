@@ -65,6 +65,7 @@ var ERR_REPORT_CFG = {
   keyCode:      'rr_report_code',      // anonymous, report-only device code
   keyOptIn:     'rr_report_email_ok',  // remembered checkbox choice
   keyPending:   'rr_report_pending',   // one un-sent report, retried next load
+  keyDraft:     'rr_report_draft',     // what they typed, kept while they fetch a screenshot
 
   // Brad's words, shown after a report is sent.
   thanksNote:   'I will do my best to reply as soon as I can. You may have caught me in the trainroom. Thanks for understanding.',
@@ -411,6 +412,93 @@ var ERR_REPORT_CFG = {
     return h;
   }
 
+  // ── KEEPING WHAT THEY TYPED ────────────────────────────────────────────
+  //
+  // Brad, testing the first real report: "If i'm reporting it, I don't have
+  // the screenshot ability. How can I do that without losing what I just
+  // typed." Exactly right — the form covers the app, so photographing the
+  // thing you are reporting means closing the form, and closing it threw the
+  // words away. Two answers, below: the draft survives a close, and the form
+  // can be tucked out of the way without closing at all.
+  //
+  // NOTE for anyone reading this next to the privacy rules: this is NOT a
+  // contradiction of "what you type is never recorded". That rule is about the
+  // BREADCRUMB TRAIL — what someone types into the app's own fields, which is
+  // none of our business. This is the user's own message to us, held in their
+  // own browser, exactly like an unsent email draft. It never leaves the device
+  // until they press Send, and it is cleared the moment the report goes.
+  function _draftSave() {
+    try {
+      var e1 = document.getElementById('err-doing');
+      var e2 = document.getElementById('err-saw');
+      var e3 = document.getElementById('err-think');
+      if (!e1 && !e2 && !e3) return;
+      var d = {
+        doing: e1 ? e1.value : '',
+        saw:   e2 ? e2.value : '',
+        think: e3 ? e3.value : ''
+      };
+      if (!d.doing && !d.saw && !d.think) { localStorage.removeItem(ERR_REPORT_CFG.keyDraft); return; }
+      localStorage.setItem(ERR_REPORT_CFG.keyDraft, JSON.stringify(d));
+    } catch (e) {}
+  }
+  function _draftLoad() {
+    try {
+      var raw = localStorage.getItem(ERR_REPORT_CFG.keyDraft);
+      return raw ? JSON.parse(raw) : null;
+    } catch (e) { return null; }
+  }
+  function _draftClear() {
+    try { localStorage.removeItem(ERR_REPORT_CFG.keyDraft); } catch (e) {}
+  }
+
+  // Put a saved draft back and keep saving as they type.
+  function _draftAttach() {
+    try {
+      var d = _draftLoad();
+      ['doing', 'saw', 'think'].forEach(function (k) {
+        var el = document.getElementById('err-' + k);
+        if (!el) return;
+        if (d && d[k]) el.value = d[k];
+        el.addEventListener('input', _draftSave);
+      });
+      // Tell them it was kept, so a restored draft never looks like a glitch.
+      var note = document.getElementById('err-draft-note');
+      if (note && d && (d.doing || d.saw || d.think)) note.style.display = 'block';
+    } catch (e) {}
+  }
+
+  // ── "Hide while I grab a screenshot" ───────────────────────────────────
+  // Tucks the whole form down to a bar at the bottom so the app is visible
+  // behind it. Nothing is destroyed — the fields keep their values because the
+  // DOM is untouched — so restoring is instant and exact.
+  window.errReportHide = function () {
+    try {
+      var ov = document.getElementById('err-report-modal');
+      if (!ov) return;
+      var panel = ov.querySelector('[data-err-panel]');
+      var bar = document.getElementById('err-restore-bar');
+      if (panel) panel.style.display = 'none';
+      ov.style.background = 'transparent';
+      ov.style.pointerEvents = 'none';
+      ov.style.alignItems = 'flex-end';
+      if (bar) { bar.style.display = 'block'; bar.style.pointerEvents = 'auto'; }
+    } catch (e) {}
+  };
+  window.errReportShow = function () {
+    try {
+      var ov = document.getElementById('err-report-modal');
+      if (!ov) return;
+      var panel = ov.querySelector('[data-err-panel]');
+      var bar = document.getElementById('err-restore-bar');
+      if (panel) panel.style.display = '';
+      ov.style.background = 'rgba(10,14,20,0.92)';
+      ov.style.pointerEvents = '';
+      ov.style.alignItems = 'flex-start';
+      if (bar) bar.style.display = 'none';
+    } catch (e) {}
+  };
+
   // The reply tick box. Ticked by default. It names the ACTUAL signed-in
   // address rather than saying "my email", so the choice is concrete and a
   // wrong-account sign-in is visible before sending, not after the silence.
@@ -443,7 +531,7 @@ var ERR_REPORT_CFG = {
       ov.id = 'err-report-modal';
       ov.style.cssText = 'position:fixed;inset:0;background:rgba(10,14,20,0.92);z-index:9995;display:flex;align-items:flex-start;justify-content:center;overflow-y:auto;padding:1.2rem';
       ov.innerHTML =
-        '<div style="background:var(--bg-card,var(--surface));border:1px solid var(--border);border-radius:14px;max-width:680px;width:100%;padding:1.1rem 1.2rem;margin:auto">' +
+        '<div data-err-panel style="background:var(--bg-card,var(--surface));border:1px solid var(--border);border-radius:14px;max-width:680px;width:100%;padding:1.1rem 1.2rem;margin:auto">' +
           '<div style="display:flex;align-items:center;gap:0.6rem;margin-bottom:0.2rem">' +
             '<h2 style="margin:0;font-size:1.15rem">Report a problem</h2>' +
             '<span style="flex:1"></span>' +
@@ -453,6 +541,10 @@ var ERR_REPORT_CFG = {
             'Tell us what happened in your own words. We already know which buttons you pressed and what the app was doing — you can see all of it below before anything is sent. ' +
             '<b>What you typed is never recorded</b>, only how many characters. Pressing Send delivers it straight to the developer \u2014 no email app needed.' +
           '</p>' +
+
+          '<div id="err-draft-note" style="display:none;font-size:0.78rem;color:var(--text-dim);border:1px dashed var(--border);border-radius:9px;padding:0.45rem 0.6rem;margin-bottom:0.7rem">' +
+            'We kept what you wrote last time \u2014 carry on where you left off.' +
+          '</div>' +
 
           '<label style="display:block;font-weight:700;font-size:0.85rem;margin-bottom:0.2rem">What were you doing?</label>' +
           '<textarea id="err-doing" rows="2" placeholder="e.g. adding a boxcar with a photo" style="width:100%;box-sizing:border-box;padding:0.5rem;border-radius:9px;border:1px solid var(--border);background:var(--surface2,var(--surface));color:inherit;font-family:var(--font-body);font-size:0.88rem;margin-bottom:0.6rem"></textarea>' +
@@ -482,6 +574,7 @@ var ERR_REPORT_CFG = {
           '<div id="err-progress" style="display:none;font-size:0.82rem;color:var(--text-dim);margin-bottom:0.5rem"></div>' +
           '<div style="display:flex;gap:0.5rem;flex-wrap:wrap">' +
             '<button id="err-send-btn" onclick="errReportSend()" style="flex:1 1 auto;padding:0.6rem 1rem;border-radius:9px;border:none;background:var(--accent,#e04028);color:#fff;font-family:var(--font-body);font-weight:700;font-size:0.9rem;cursor:pointer">Send report</button>' +
+            '<button onclick="errReportHide()" data-ctip="Tuck this out of the way so you can photograph the screen behind it. Nothing you have typed is lost." style="padding:0.6rem 0.9rem;border-radius:9px;border:1px solid var(--border);background:var(--surface2,var(--surface));color:var(--text-dim);font-family:var(--font-body);font-weight:600;font-size:0.85rem;cursor:pointer">\ud83d\udcf7 Hide while I take a screenshot</button>' +
             '<button onclick="errReportClose()" style="padding:0.6rem 0.9rem;border-radius:9px;border:1px solid var(--border);background:transparent;color:var(--text-dim);font-family:var(--font-body);font-weight:600;font-size:0.85rem;cursor:pointer">Cancel</button>' +
           '</div>' +
           // Only appears if the automatic send fails. Hiding these until then
@@ -490,8 +583,13 @@ var ERR_REPORT_CFG = {
             '<button onclick="errReportCopy()" style="padding:0.5rem 0.85rem;border-radius:9px;border:1px solid var(--border);background:var(--surface2,var(--surface));color:var(--text-dim);font-family:var(--font-body);font-weight:600;font-size:0.82rem;cursor:pointer">Copy instead</button>' +
             '<button onclick="errReportEmail()" style="padding:0.5rem 0.85rem;border-radius:9px;border:1px solid var(--border);background:var(--surface2,var(--surface));color:var(--text-dim);font-family:var(--font-body);font-weight:600;font-size:0.82rem;cursor:pointer">Send it by email instead</button>' +
           '</div>' +
+        '</div>' +
+        // Shown only while hidden. Sits at the bottom so the app is readable.
+        '<div id="err-restore-bar" onclick="errReportShow()" style="display:none;position:fixed;left:0;right:0;bottom:0;padding:0.85rem 1rem;background:var(--accent,#e04028);color:#fff;font-family:var(--font-body);font-weight:700;font-size:0.9rem;text-align:center;cursor:pointer;box-sizing:border-box">' +
+          'Report hidden \u2014 take your screenshot, then tap here to carry on' +
         '</div>';
       document.body.appendChild(ov);
+      _draftAttach();
       if (window.BackStack) window.BackStack.push('err-report', _errRemove);
     } catch (e) {
       try { if (typeof showToast === 'function') showToast('Could not open the report form.', 3000, true); } catch (e2) {}
@@ -572,13 +670,23 @@ var ERR_REPORT_CFG = {
     } catch (e) { /* still offline — next load tries again */ }
   }
 
-  function _successHtml(id) {
+  function _successHtml(id, emailOk) {
+    // If they asked for a reply, tell them how to send pictures later — the
+    // report email carries their address as reply-to, so Brad's answer lands
+    // in their inbox and they can just attach to it. Costs nothing, and covers
+    // the case where the screenshot only occurs to them afterwards.
+    var shotLine = emailOk
+      ? '<p style="margin:0 0 1rem;font-size:0.82rem;line-height:1.5;color:var(--text-dim)">' +
+          'Thought of a screenshot afterwards? When I reply, just attach it to your answer.' +
+        '</p>'
+      : '';
     return '<div style="background:var(--bg-card,var(--surface));border:1px solid var(--border);border-radius:14px;max-width:560px;width:100%;padding:1.3rem;margin:auto;text-align:center">' +
              '<div style="font-size:2rem;line-height:1;margin-bottom:0.5rem">\u2713</div>' +
              '<h2 style="margin:0 0 0.5rem;font-size:1.1rem">Report sent' + (id ? ' \u2014 #' + _esc(id) : '') + '</h2>' +
              '<p style="margin:0 0 1rem;font-size:0.87rem;line-height:1.55;color:var(--text-dim)">' +
                _esc(ERR_REPORT_CFG.thanksNote) +
              '</p>' +
+             shotLine +
              '<button onclick="errReportClose()" style="padding:0.55rem 1.4rem;border-radius:9px;border:none;background:var(--accent,#e04028);color:#fff;font-family:var(--font-body);font-weight:700;font-size:0.9rem;cursor:pointer">Close</button>' +
            '</div>';
   }
@@ -615,8 +723,9 @@ var ERR_REPORT_CFG = {
       var out = await _postToRelay(payload);
       if (out && out.ok) {
         _clearPending();
+        _draftClear();          // sent — the draft has done its job
         var ov = document.getElementById('err-report-modal');
-        if (ov) ov.innerHTML = _successHtml(out.id);
+        if (ov) ov.innerHTML = _successHtml(out.id, ans.emailOk);
         return;
       }
       throw new Error(out && out.error ? out.error : 'relay did not accept the report');
