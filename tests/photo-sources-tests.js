@@ -187,8 +187,15 @@ if (drivePreFix === DRIVE) {
   const bounce  = INBOX.slice(INBOX.indexOf('function _pinBusyBounce()'),
                               INBOX.indexOf('function _pinBusyBounce()') + 500);
 
+  // v0.9.1417 routed the FIVE guards that already showed a message. Cooper's
+  // report (v0.9.1418) proved that was backwards: the ones that most needed a
+  // voice were the four that had none, and they were left out precisely
+  // because this replace matched on the toast. All ten route through the
+  // bounce now. tests/inbox-busy-tests.js asserts the count-free property —
+  // that NO guard in the file is silent — which is the one that would have
+  // caught the miss; this stays pinned so a new guard shows up as a change.
   drilled('every "still working" guard goes through the shared bounce',
-          (INBOX.match(/_pinBusyBounce\(\); return;/g) || []).length === 5,
+          (INBOX.match(/_pinBusyBounce\(\); return;/g) || []).length === 10,
           /\{ showToast\('Still working on the last batch…', 2500, true\); return; \}/.test(INBOX));
   ok('the bounce repaints the waiting line before it scolds',
      /_pinGPStatus\(\)/.test(bounce) && /Cancel/.test(bounce));
@@ -205,7 +212,7 @@ if (drivePreFix === DRIVE) {
   ok('the wait ends the moment the picker returns',
      /_gpWaiting = false; _gpPickerUri = '';\n\s*if \(pick\.error\)/.test(gp));
   ok('...and again in the finally, whatever happened',
-     /finally \{ _busy = false; _gpWaiting = false; _gpPickerUri = ''; \}/.test(gp));
+     /finally \{ _setBusy\(false\); _gpWaiting = false; _gpPickerUri = ''; \}/.test(gp));
   ok('Cancel lowers the flag too, so it cannot re-arm itself',
      /_pinGPhotosCancel = function \(\) \{\s*_gpAbort = true; _gpWaiting = false;/.test(INBOX));
   ok('re-opening a blocked tab is wired to a tap, not called for the user',

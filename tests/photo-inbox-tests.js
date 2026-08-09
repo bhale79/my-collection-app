@@ -18211,13 +18211,18 @@ META_WRITES.length = 0; TOASTS.length = 0;
       // Comments DELETED here, not blanked: blanking preserves their length,
       // which ate the character budget between `finally {` and the release and
       // made this report a hold-out that did not exist.
+      // v0.9.1418: the flag has ONE owner now — _setBusy(true, 'name') and
+      // _setBusy(false) — so this census reads the owner's calls rather than
+      // bare assignments. Cooper's report is why: seven scattered writers with
+      // no record of who raised the flag is what made a wedged inbox
+      // undiagnosable from the outside.
       const piTight = rd70('photo-inbox.js').replace(/\/\/[^\n]*/g, '');
-      const busySet = (piTight.match(/_busy = true/g) || []).length;
-      const busyFin = (piTight.match(/finally \{[\s\S]{0,120}?_busy = false/g) || []).length;
+      const busySet = (piTight.match(/_setBusy\(true/g) || []).length;
+      const busyFin = (piTight.match(/finally \{[\s\S]{0,160}?_setBusy\(false\)/g) || []).length;
       ok('270 every _busy writer in the inbox releases in a finally',
          busyFin >= busySet, busyFin + ' finallys for ' + busySet + ' sets');
       // And nothing releases OUTSIDE one — a bare release is the bug shape.
-      const looseRel = (piTight.match(/(?<!var )(?<!finally \{\s)_busy = false/g) || []).length;
+      const looseRel = (piTight.match(/(?<!finally \{\s)_setBusy\(false\)/g) || []).length;
       // v0.9.1380 — the census read `busySet === 7`. It is SIX now, and the
       // seventh left with the Reader Audit when Brad had it deleted in
       // v0.9.1352. An exact census is deliberate in this project — drift is
@@ -18227,7 +18232,13 @@ META_WRITES.length = 0; TOASTS.length = 0;
       ok('270 …and no release sits outside a finally',
          busyFin >= busySet && busySet === 6, busySet + ' writers');
       ok('270 …including the tagging pass specifically',
-         /\} finally \{\s*\n\s*\/\/[^\n]*\n(\s*\/\/[^\n]*\n)*\s*_busy = false;\s*\n\s*_status\(''\);\s*\n\s*\}/.test(rd70('photo-inbox.js')));
+         /\} finally \{\s*\n\s*\/\/[^\n]*\n(\s*\/\/[^\n]*\n)*\s*_setBusy\(false\);\s*\n\s*_status\(''\);\s*\n\s*\}/.test(rd70('photo-inbox.js')));
+      // v0.9.1418: and every raise NAMES its job, because the blocked-button
+      // message shows that name to the collector. An unnamed raise degrades
+      // the message back to "the last batch", which is what meant nothing.
+      ok('270 …and every raise names the job it is doing',
+         (piTight.match(/_setBusy\(true, '[^']+'\)/g) || []).length === busySet,
+         (piTight.match(/_setBusy\(true[^)]*\)/g) || []).join(' | '));
 
       // ── (c) the review card cannot leave photos invisibly ticked ──
       ok('270 _pinReview accepts an explicit group list',
