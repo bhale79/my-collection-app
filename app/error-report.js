@@ -686,7 +686,13 @@ var ERR_REPORT_CFG = {
           errReportOpen();
         };
         mbtn.innerHTML = '<span style="width:15px;display:inline-block;text-align:center">⚠</span>Report a problem';
-        menu.appendChild(mbtn);
+        // v0.9.1414 — sit directly ABOVE Sign Out. Appending put this BELOW it,
+        // which is wrong twice over: Sign Out ends the list by convention, and
+        // anything under it reads as an afterthought and gets missed (Brad did
+        // not find it). Falls back to appending only if Sign Out is absent.
+        var signOut = menu.querySelector('.account-menu-signout');
+        if (signOut) menu.insertBefore(mbtn, signOut);
+        else menu.appendChild(mbtn);
       }
       return true;
     } catch (e) { return false; }

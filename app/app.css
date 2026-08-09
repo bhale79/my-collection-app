@@ -2356,6 +2356,33 @@ html[data-theme="high-contrast"] button[style*="#e74c3c"] {
      is exactly how it shipped in v0.9.1410. */
   #pin-toolbar #pin-filter-row { flex: 1 1 17% !important; min-width: 0 !important; display: flex !important; }
 
+  /* ══ v0.9.1414 — condition numbers you can actually hit on a phone ══════
+     The item-condition row was 36px tall; the BOX-condition row was a fixed
+     26x26px per button, ten of them, with a "Box condition:" label sharing the
+     line. Apple and Google both put the comfortable minimum around 44px, and
+     these sit on the path of every item added — on a phone, often with older
+     hands. Ten 44px-wide buttons need ~440px and a phone has ~390px, so they
+     WRAP to two rows of five instead: 1-5 above, 6-10 below, each a genuine
+     44px tall and roughly 65px wide. The label moves to its own line so the
+     buttons get the full width. Desktop is untouched — every rule is inside
+     this phone-only block, and the inline styles still carry desktop. */
+  .rr-cond-row {
+    flex-wrap: wrap !important;
+    gap: 0.35rem !important;
+  }
+  .rr-cond-row .rr-cond-btn {
+    flex: 1 1 17% !important;
+    min-width: 0 !important;
+    width: auto !important;
+    height: 44px !important;
+    font-size: 0.9rem !important;
+  }
+  /* the "Box condition:" label onto its own line, so the ten buttons below it
+     get the whole width rather than sharing it with the words. */
+  .rr-cond-box-wrap { flex-wrap: wrap !important; }
+  .rr-cond-box-wrap > span { flex: 1 1 100% !important; }
+  .rr-cond-box-wrap > .rr-cond-row { flex: 1 1 100% !important; }
+
   /* The desktop right-align spacer (<span style="flex:1">) has no id and no
      job on a phone, where every row is fully packed — it was eating ~11px off
      row 1. Hidden here so Add and Identify get that width back. */
