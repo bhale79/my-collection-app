@@ -8904,8 +8904,14 @@ META_WRITES.length = 0; TOASTS.length = 0;
       const win = { innerWidth, innerHeight, visualViewport: vvHeight ? { height: vvHeight } : null };
       return new Function('window', '"use strict";' + hsrc + '; return _wizBoxHeight();')(win);
     };
-    ok('a phone is left exactly as it was',
-       H(390, 844, 844) === 580, String(H(390, 844, 844)));
+    // v0.9.1407 — the phone stops wasting its screen too (Brad: the grouping
+    // question sat below the fold). 92% of the VISUAL viewport, same courtesy
+    // the desktop got in v0.9.1389. This line was 'a phone is left exactly as
+    // it was — 580' and was seen red against the new rule before it changed.
+    ok('a phone finally uses its screen (92% of the viewport)',
+       H(390, 844, 844) === 776, String(H(390, 844, 844)));
+    ok('…and a smaller phone scales the same way, not to a fixed number',
+       H(360, 740, 740) === 681, String(H(360, 740, 740)));
     ok('a phone with the keyboard up still gives the footer room',
        H(390, 844, 380) === 364, String(H(390, 844, 380)));
     ok('a 1080p desktop stops wasting half its screen',
