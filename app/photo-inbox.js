@@ -2317,6 +2317,66 @@
     catch (e) { return null; }
   }
 
+  // ── v0.9.1419 (Cooper's Big Boy) — does the row match the PHOTO? ────────
+  // The reader described a Union Pacific 4-8-8-4 Big Boy, attached "No.
+  // 6-11122" from its own memory (its notes say no printed number came back),
+  // and 6-11122 in the catalog is a Southern 0-8-0 with TrainSounds. The app
+  // showed both side by side and never compared them: "the number exists in
+  // the catalog" was being treated as "the number is right".
+  //
+  // This asks the narrow question with the strongest signals a model train
+  // offers, and stays silent otherwise:
+  //   · wheel arrangement — 4-8-8-4 cannot be 0-8-0. The pattern needs at
+  //     least two hyphens and small numbers, which keeps catalog numbers like
+  //     6464-275 from ever reading as wheels.
+  //   · railroad — flagged only when BOTH sides name one and NEITHER name
+  //     appears anywhere in the other's full text, so "New York Central" vs
+  //     "NYC Hudson" never false-alarms on abbreviation.
+  // Returns a plain-English reason, or '' for "no quarrel".
+  function _pinAiRowConflict(ai, aiText, row) {
+    if (!row) return '';
+    var norm = function (s) { return String(s || '').toUpperCase().replace(/[^A-Z0-9\s-]/g, ' '); };
+    var aiFull  = norm([ai && ai.roadName, ai && ai.description, ai && ai.subType, aiText].filter(Boolean).join(' '));
+    var rowFull = norm([row.roadName, row.description, row.itemType].filter(Boolean).join(' '));
+    if (!aiFull.trim() || !rowFull.trim()) return '';
+    var wheels = function (s) {
+      return (s.match(/\b\d{1,2}(?:-\d{1,2}){2,3}\b/g) || []).filter(function (w) {
+        return w.split('-').every(function (d) { return +d <= 16; });
+      });
+    };
+    var wA = wheels(aiFull), wR = wheels(rowFull);
+    if (wA.length && wR.length && !wA.some(function (w) { return wR.indexOf(w) >= 0; })) {
+      return 'the photo shows a ' + wA[0] + ' but this number’s catalog entry is a ' + wR[0];
+    }
+    var toks = function (s) {
+      return norm(s).split(/\s+/).filter(function (t) {
+        return t.length >= 3 && !/^(THE|AND|LINE|LINES|RAIL|ROAD|RAILROAD|RAILWAY|SYSTEM|CO)$/.test(t);
+      });
+    };
+    var tA = toks((ai && ai.roadName) || ''), tR = toks(row.roadName || '');
+    if (tA.length && tR.length) {
+      var cross = tA.some(function (t) { return rowFull.indexOf(t) >= 0; })
+               || tR.some(function (t) { return aiFull.indexOf(t) >= 0; });
+      // "New York Central" and "NYC" are the same railroad wearing different
+      // lengths. If either side's initials spell the other side's name, they
+      // agree — checked on the FULL word list (norm keeps 2-letter tokens the
+      // >= 3 filter above drops, so B&O → "B O" still initials to BO).
+      if (!cross) {
+        var initials = function (s) {
+          return norm(s).split(/\s+/).filter(Boolean).map(function (t) { return t[0]; }).join('');
+        };
+        var iA = initials((ai && ai.roadName) || ''), iR = initials(row.roadName || '');
+        var flat = function (s) { return norm(s).replace(/[\s-]+/g, ''); };
+        if ((iA.length >= 2 && flat(row.roadName).indexOf(iA) >= 0)
+         || (iR.length >= 2 && flat((ai && ai.roadName) || '').indexOf(iR) >= 0)) cross = true;
+      }
+      if (!cross) {
+        return 'the photo says ' + String(ai.roadName) + ' but this number’s catalog entry is ' + String(row.roadName);
+      }
+    }
+    return '';
+  }
+
   function _pinLookup(num, aiMfr, prefer) {
     num = String(num || '').trim();
     var out = { num: num, master: null, ownedPd: null, maker: '', era: '', desc: '', mfrMismatch: '' };
@@ -2406,6 +2466,7 @@
   };
 
   var _rvAiMfr = '';
+  var _rvAiRec = null;   // v0.9.1419: the WHOLE read for the photo on screen, not just the maker
   window._pinReviewLookup = function (val) {
     var box = document.getElementById('pin-rv-info');
     var addBtn = document.getElementById('pin-rv-add');
@@ -2428,6 +2489,41 @@
       html = row('Maker', (lk.maker || '—') + (lk.era ? ' <span style="font-weight:400;color:var(--text-dim)">(' + lk.era + ')</span>' : ''))
         + row('Item #', String(lk.num).replace(/</g, '&lt;'))
         + row('Description', String(lk.desc).replace(/</g, '&lt;'));
+      // ── v0.9.1419 (Cooper's Big Boy) — the number resolved, but does the
+      // row it resolved TO match the photo? The maker check above only catches
+      // cross-brand mistakes; 6-11122 was Lionel-vs-Lionel and sailed through
+      // with a Southern 0-8-0 sitting beside a Big Boy read. When the row and
+      // the read disagree, say so — and since the catalog is already loaded,
+      // search it BY THE READER'S WORDS (Brad's idea) and offer what actually
+      // matches the photo as a tap, through the same _pinDescMatch the rescue
+      // chain already trusts.
+      try {
+        if (_rvAiRec) {
+          var _cfAi = { roadName: _rvAiRec.road, description: _rvAiRec.desc, subType: _rvAiRec.subType };
+          var _cf = _pinAiRowConflict(_cfAi, _rvAiRec.aiRaw || '', lk.master);
+          if (_cf) {
+            html = '<div style="font-size:0.82rem;color:#d4a843;font-weight:700;line-height:1.5;margin-bottom:0.35rem">'
+              + '⚠ This number may be wrong — ' + rrEsc(_cf) + '. Probably NOT the same thing.</div>' + html;
+            var _dm = null;
+            try { _dm = _pinDescMatch(_rvAiRec.aiRaw || _rvAiRec.desc || '', _rvPrefer()); } catch (eDm) {}
+            if (_dm && _dm.row && _dm.row.itemNum && String(_dm.row.itemNum) !== String(lk.num)
+                && !_pinAiRowConflict(_cfAi, _rvAiRec.aiRaw || '', _dm.row)) {
+              var _dmDesc = [_dm.row.roadName, _dm.row.description].filter(Boolean).join(' — ').slice(0, 80);
+              html += '<div style="margin-top:0.5rem;display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap">'
+                + '<span style="font-size:0.76rem;color:var(--text-dim)">This catalog entry DOES match the photo:</span>'
+                + '<button onclick="_pinPickNum(\'' + rrEsc(String(_dm.row.itemNum)).replace(/'/g, '') + '\')" '
+                + 'style="padding:0.4rem 0.8rem;border-radius:999px;border:1.5px solid #2ecc71;'
+                + 'background:var(--bg-card);background:color-mix(in srgb, rgb(46,204,113) 12%, var(--bg-card));color:#2ecc71;'
+                + 'font-family:var(--font-body);font-weight:700;font-size:0.82rem;min-height:38px;cursor:pointer">'
+                + rrEsc(String(_dm.row.itemNum)) + ' — ' + rrEsc(_dmDesc) + '</button>'
+                + '</div>';
+            } else {
+              html += '<div style="font-size:0.78rem;color:var(--text-dim);margin-top:0.4rem">'
+                + 'Nothing in the catalog matches the photo’s description either — check the number printed on the item or its box.</div>';
+            }
+          }
+        }
+      } catch (eCf) {}
     } else {
       html = row('Item #', String(lk.num).replace(/</g, '&lt;'))
         + '<div style="font-size:0.8rem;color:var(--text-dim);margin-top:0.2rem">Not found in the catalog — you can still add it, or Research to double-check the number.</div>';
@@ -2937,6 +3033,7 @@
     // nothing is entered, looked up or ready to save until the user says so.
     var sug = '', sugGuess = '';
     _rvAiMfr = '';
+    _rvAiRec = null;
     try {
       // v0.9.1096 fixed the chip reading a different slot than the card
       // (6424 vs "080 — use this") by preferring the readable slot. Brad's
@@ -2951,6 +3048,7 @@
             || _ids()[_pinReadFid(_rvGroups[0]) || _rvGroups[0].files[0].id];
       if (s0 && s0.num) { if (s0.guess) sugGuess = String(s0.num); else sug = String(s0.num); }
       if (s0 && s0.mfr) _rvAiMfr = String(s0.mfr);
+      _rvAiRec = s0 || null;   // v0.9.1419: the conflict check reads the whole record
     } catch (eS) {}
     // v0.9.966 (Brad): the read found a description but no structured number
     // (e.g. "No. 260 … illuminated bumper" with an empty number field). Recover
@@ -3972,6 +4070,14 @@
           } else {
             meta._hedge = 0;            // in-era catalog hit — no longer a guess
           }
+        }
+        // v0.9.1419 (Cooper's Big Boy): the number survived reconciliation but
+        // its catalog row contradicts the reader's own description. That is a
+        // GUESS wearing a confirmed number's face — hedge it, so the card
+        // offers it as a chip to tap instead of quietly pre-filling it, and
+        // the collector meets the conflict warning before anything is filed.
+        if (_rc0 && _rc0.conflict && _rc0.num === meta.itemNum) {
+          meta._hedge = 1;
         }
       }
     } catch (eR0) { console.warn('[inbox] reconcile failed', eR0 && eR0.message); }
@@ -6818,7 +6924,47 @@
       } catch (e) { return false; }
     };
     // Already right — leave it alone.
-    if (out.num && inEra(out.num)) return out;
+    // v0.9.1419 (Cooper's Big Boy): "already right" used to mean "this number
+    // exists in the stamped catalog", and that is a weaker claim than it
+    // sounds. The reader attached 6-11122 from memory (no printed number came
+    // back) to a photo it had itself described as a Union Pacific 4-8-8-4 Big
+    // Boy — and 6-11122 IS in the catalog, as a Southern 0-8-0. Existence
+    // settled it, and nothing ever compared the row to the reader's own words.
+    // Now a number is only settled when its row does not CONTRADICT the read
+    // (wheel arrangement, railroad — _pinAiRowConflict). On contradiction the
+    // words get their turn: the same _pinDescMatch the rescue chain trusts
+    // hunts the catalog for what the reader actually described, and a clear,
+    // non-conflicting winner comes back FLAGGED (viaDesc) exactly like every
+    // other words-over-numbers swap — offered on the card, never silently
+    // filed. No winner → the number stays, but carries the conflict so the
+    // card can warn instead of vouching.
+    if (out.num && inEra(out.num)) {
+      var _setRow = null;
+      try { _setRow = findMaster(out.num, null, prefer); } catch (eSR) {}
+      var _setCf = '';
+      try { _setCf = _pinAiRowConflict(meta, aiText || '', _setRow); } catch (eSC) {}
+      if (!_setCf) return out;
+      out.conflict = _setCf;
+      if (typeof _pinDescMatch === 'function') {
+        try {
+          var dmCf = _pinDescMatch(aiText || (meta && meta.description) || '', prefer);
+          if (dmCf && dmCf.row && dmCf.row.itemNum && String(dmCf.row.itemNum) !== out.num
+              && !_pinAiRowConflict(meta, aiText || '', dmCf.row)) {
+            out.swappedFrom = out.num;
+            out.num = String(dmCf.row.itemNum);
+            out.viaDesc = (dmCf.words || []).join(', ');
+            out.descOf = [dmCf.row.description, dmCf.row.roadName]
+              .filter(Boolean)
+              .filter(function (v, i, a) {
+                return a.findIndex(function (x) { return String(x).toLowerCase() === String(v).toLowerCase(); }) === i;
+              })
+              .join(' — ');
+            return out;
+          }
+        } catch (eDC) {}
+      }
+      return out;
+    }
 
     // Candidates, best sources first: the fields the reader labelled, then
     // anything number-shaped in the whole answer.
@@ -7402,6 +7548,7 @@
       var _num = _e.num ? String(_e.num) : '';
       var _box = document.getElementById('pin-rv-num');
       _rvAiMfr = _e.mfr || '';          // the maker hint belongs to this photo too
+      _rvAiRec = _e || null;            // v0.9.1419: so does the conflict check's record
       if (_box) _box.value = _num;
       if (typeof window._pinReviewLookup === 'function') window._pinReviewLookup(_num);
     } catch (eSync) {}
