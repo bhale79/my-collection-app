@@ -147,7 +147,7 @@
         '<div id="pin-help-text" style="display:none;font-size:0.8rem;color:var(--text-dim);line-height:1.5;margin-bottom:0.6rem">Drop photos anywhere below, or use Add photos. Get them ready at your own pace \u2014 crop, use \u201cGroup photos\u201d to put several shots of one item together, and \u201cTag maker/era/scale/type\u201d to say what photos are \u2014 then hit <b>Identify my items</b> to read them all. Photos you have tagged <b>Paper</b>, <b>Catalog</b> or <b>Other</b> are left out of that batch \u2014 there is rarely an item number to find on a drawing or a catalogue page, and on the paid read it would spend a photo ID for nothing. You can always tick any single photo and press Identify to read it anyway. Click a photo to review it \u2014 add the item, research it more, or discard the photo. Photos snapped with Quick Capture on your phone land here too.</div>' +
         '<div id="pin-context-bar" style="display:none"></div>' +   // v0.9.1048 capture context
         '<div id="pin-tagbar" style="display:none"></div>' +        // v0.9.1057 tag mode
-        '<div style="display:flex;flex-wrap:wrap;gap:0.4rem;align-items:center">' +
+        '<div id="pin-toolbar" style="display:flex;flex-wrap:wrap;gap:0.4rem;align-items:center">' +
           // Identify is what this page is FOR, so it is the one solid button
           // (v0.9.1340, Brad: "don't like the yellow color on the photo reader
           // buttons"). Add photos steps back to an outline beside it.
@@ -164,7 +164,15 @@
           // v0.9.1297 (Brad): reads run when HE says so \u2014 crop, tag and group
           // first, then this button. v0.9.1340 moved the paid read onto the
           // standard outline so free and paid never look alike at a glance.
+          // v0.9.1411 (Brad, mobile): on a phone this paid read moves into the
+          // "\u22ef More" menu so the toolbar fits two rows and the photos show.
+          // On desktop #pin-overflow is display:contents, so the button flows
+          // into the row exactly as before and #pin-more-btn stays hidden \u2014
+          // nothing about the desktop layout changes.
+          '<button id="pin-more-btn" onclick="_pinToggleMore(event)" aria-haspopup="true" aria-expanded="false" style="display:none;padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:var(--bg-card);background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card));color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">\u22ef More</button>' +
+          '<span id="pin-overflow">' +
           '<button id="pin-idall-btn" onclick="_pinIdentifyAll()" style="display:none;padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:var(--bg-card);background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card));color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">\ud83d\udd0d Read the unread</button>' +
+          '</span>' +
           '<span style="flex:1"></span>' +
           '<span id="pin-selinfo" style="font-size:0.78rem;color:var(--text-dim)"></span>' +
           '<button id="pin-idsel-btn" onclick="_pinIdentifySelected()" style="display:none;padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:var(--bg-card);background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card));color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Read these</button>' +
@@ -1322,6 +1330,70 @@
     } catch (e) { console.warn('[inbox] stored-read repair failed', e && e.message); }
   }
 
+  // ══ v0.9.1412 — READ-STATE THAT FOLLOWS THE ACCOUNT, NOT THE DEVICE ═══════
+  //
+  // Brad: phone said "129 to read", desktop said "1" (desktop right). The cause:
+  // a photo's read record lived ONLY in that device's localStorage (rr_inbox_ids),
+  // so a photo read on the desktop looked unread on the phone — and the phone
+  // would have offered to PAY to re-read it. Refresh re-listed the folder but
+  // never carried the reads across.
+  //
+  // The fix rides the found number on the Drive file itself, in the SAME
+  // appProperties the tag system already uses (rrNum / rrConf — NOT rrStat, so
+  // a photo's 'filed'/'stamped' status is never clobbered; _pinMetaOf already
+  // derives 'read' from a present number). Two directions, both at load:
+  //
+  //   PULL (synchronous, free): Drive says this photo was read (rrNum) but this
+  //     device has no current record → seed one, so the count and the paid
+  //     button are correct the instant the inbox draws.
+  //   PUSH (async, throttled, best-effort): this device has a read Drive is not
+  //     stamped for → stamp it. On the first load after this ships, the desktop
+  //     backfills every read it already had; afterwards it just keeps Drive
+  //     current. A failed stamp never breaks a load — the next load retries.
+  //
+  // The read LOOP is untouched: syncing at load alone converges both devices,
+  // and keeps the money-sensitive paid button honest without threading Drive
+  // writes through the reader.
+  function _pinSyncReadState(files) {
+    var ids = _ids(), seeded = false, toPush = [];
+    (files || []).forEach(function (f) {
+      if (!f || !f.id) return;
+      var meta = f._meta || _pinMetaOf(f);
+      var local = ids[f.id];
+      var localRead = !!(local && local.rv === READER_VER && (local.num || local.guess));
+      var driveNum = meta && meta.num;
+      if (driveNum && !localRead) {
+        // PULL — Drive knows this read, we don't. Seed a minimal record; keep
+        // any local fields we happen to have, but set the number and mark it
+        // read at the current reader so the scan skips it and paid excludes it.
+        ids[f.id] = Object.assign({}, local || {}, {
+          num: driveNum,
+          guess: (meta.conf === 'lo') ? 1 : 0,
+          rv: READER_VER, tried: 1, free: 1, fromDrive: 1
+        });
+        seeded = true;
+      } else if (localRead && local.num && meta.num !== local.num) {
+        // PUSH — we read it, Drive is missing or stale. Stamp the number only
+        // (+ how sure), never the status.
+        toPush.push({ id: f.id, num: local.num, guess: local.guess });
+      }
+    });
+    if (seeded) _idsSave(ids);
+    if (toPush.length) {
+      (async function () {
+        for (var i = 0; i < toPush.length; i += 4) {
+          var slice = toPush.slice(i, i + 4);
+          try {
+            await Promise.all(slice.map(function (p) {
+              return _pinMetaSet(p.id, { num: p.num, conf: p.guess ? 'lo' : 'hi' });
+            }));
+          } catch (e) { /* best-effort — the next load retries whatever failed */ }
+        }
+      })();
+    }
+    return seeded;
+  }
+
   window._pinRefresh = async function () {
     if (!_ensurePage()) return;
     _status('Loading inbox…');
@@ -1391,6 +1463,11 @@
       // v0.9.1283: a dragged order outranks the listing order, per group.
       _groups.forEach(function (g) { g.files = _pinSortByOrd(g.files); });
       try { _pinReconcileStored(); } catch (eRS) {}
+      // v0.9.1412 — reconcile read-state with Drive so the phone and the
+      // desktop agree (and the phone never pays to re-read what the desktop
+      // already read). PULL is synchronous so the counts below are right;
+      // PUSH runs in the background.
+      try { _pinSyncReadState(files); } catch (eSY) { console.warn('[inbox] read-state sync failed', eSY && eSY.message); }
       // Drop selections that no longer exist
       Object.keys(_sel).forEach(function (k) { if (!map[k]) delete _sel[k]; });
       // Prune stored reads for photos that left the inbox.
@@ -1572,6 +1649,12 @@
     } else {
       b.style.display = 'none';
     }
+    // v0.9.1411 — on a phone the paid read lives inside "⋯ More"; show that
+    // button only when there is actually something paid to reach, so the menu
+    // is never opened onto nothing. CSS decides whether More is visible at all
+    // (phone only); this just keeps its would-be state honest.
+    var mb = document.getElementById('pin-more-btn');
+    if (mb) mb.dataset.pinHas = (n > 0 && !_selectMode) ? '1' : '';
   }
 
   // v0.9.956 (Brad): a plain in-app confirm so a paid batch always asks first.
@@ -5048,7 +5131,7 @@
     if (_loadTesseract._p) return _loadTesseract._p;
     _loadTesseract._p = new Promise(function (resolve) {
       var s = document.createElement('script');
-      s.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
+      s.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';  // v0.9.1408: pinned exact (was @5 — a floating major that could swap the OCR engine under us on any load)
       s.onload = function () { resolve(!!window.Tesseract); };
       s.onerror = function () { resolve(false); };
       document.head.appendChild(s);
@@ -7047,6 +7130,28 @@
       b.style.display = 'none';
     }
   }
+  // ── v0.9.1411 — the phone-only "⋯ More" menu ────────────────────────────
+  // Opens/closes the overflow popover that holds the paid "Read the unread"
+  // button on phones. A no-op shape on desktop, where the button is inline and
+  // this control is never shown. One outside-tap closes it.
+  window._pinToggleMore = function (ev) {
+    if (ev) { try { ev.stopPropagation(); } catch (e) {} }
+    var ov = document.getElementById('pin-overflow');
+    var btn = document.getElementById('pin-more-btn');
+    if (!ov) return;
+    var open = ov.classList.toggle('pin-more-open');
+    if (btn) btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    if (open) {
+      var close = function (e) {
+        if (ov.contains(e.target) || (btn && btn.contains(e.target))) return;
+        ov.classList.remove('pin-more-open');
+        if (btn) btn.setAttribute('aria-expanded', 'false');
+        document.removeEventListener('click', close, true);
+      };
+      // next tick so this very click doesn't immediately close it
+      setTimeout(function () { document.addEventListener('click', close, true); }, 0);
+    }
+  };
   window._pinIdentifyItems = async function () {
     if (_busy || _autoReadBusy) { showToast('Still working on the last batch…', 2500, true); return; }
     if (!_pinUnreadTodo().length) { showToast('Nothing waiting to be read', 2600); return; }

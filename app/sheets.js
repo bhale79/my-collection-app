@@ -360,6 +360,11 @@ async function sheetsUpdate(spreadsheetId, range, values) {
       console.error('sheetsUpdate error:', JSON.stringify(json.error));
       throw new Error('Sheets update failed: ' + (json.error.message || JSON.stringify(json.error)));
     }
+    // v0.9.1409 — this write LANDED, so any queued write to the same cells is
+    // now a stale older value. Clear it before it can replay on top of what
+    // just went up (the other half of the coalesce in write-outbox.js). Guarded
+    // and best-effort: never let outbox bookkeeping fail a successful save.
+    try { if (typeof rrOutboxSupersede === 'function') rrOutboxSupersede(spreadsheetId, range); } catch (e) {}
     return json;
   } catch (e) {
     throw _rrWriteFailed('update', { sheetId: spreadsheetId, range: range, values: values }, e);

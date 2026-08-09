@@ -96,6 +96,24 @@
         movedAt: _rowsMovedAt,
         tries: 0
       };
+      // ── v0.9.1409 — THE NEWEST WRITE TO A CELL IS THE ONLY TRUE ONE ──────
+      // A range is a position (see the header). Two 'update' entries with the
+      // SAME sheetId and the SAME range are two writes to the SAME cells, and
+      // the later one is what the user means — the earlier one is a value they
+      // have already changed their mind about. MEASURED as Brad's Tier-1 bug:
+      // wifi drops at a show, the price save is queued; a minute later he fixes
+      // the price and that save lands; then the queued OLD price replays on top
+      // and silently puts the wrong number back, under a "saved" message. Row
+      // identity would not catch this — the row is the same item — so the fix
+      // is here, at the value: an 'update' supersedes any queued 'update' to the
+      // same target. 'append' and 'delete' are never coalesced (an append has
+      // no fixed target; a delete is never replayed at all).
+      if (kind === 'update' && args && args.sheetId && args.range) {
+        list = list.filter(function (e) {
+          return !(e.kind === 'update' && e.args &&
+                   e.args.sheetId === args.sheetId && e.args.range === args.range);
+        });
+      }
       list.push(entry);
       _save(list);
       _paint();
@@ -329,7 +347,26 @@
   }
   window.rrSaveError = rrSaveError;
 
+  // ── v0.9.1409 — a write that SUCCEEDED makes a queued write to the same
+  // cells stale. sheetsUpdate calls this the moment a PUT lands, so a later
+  // correction that goes straight through still clears an earlier queued
+  // attempt at the same range before it can replay over the new value. Same
+  // reasoning as the coalesce on record, from the other side: whichever write
+  // is newest wins, whether the newer one was queued or sent live.
+  function rrOutboxSupersede(sheetId, range) {
+    try {
+      if (!sheetId || !range) return;
+      var list = _load();
+      var kept = list.filter(function (e) {
+        return !(e.kind === 'update' && e.args &&
+                 e.args.sheetId === sheetId && e.args.range === range);
+      });
+      if (kept.length !== list.length) { _save(kept); _paint(); }
+    } catch (e) {}
+  }
+
   window.rrOutboxRecord = rrOutboxRecord;
+  window.rrOutboxSupersede = rrOutboxSupersede;
   window.rrOutboxRowsMoved = rrOutboxRowsMoved;
   window.rrOutboxList = rrOutboxList;
   window.rrOutboxCount = rrOutboxCount;

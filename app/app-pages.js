@@ -2746,8 +2746,14 @@ function buildSetsPage() {
 
   // ── Helper: action buttons ───────────────────────────────────────
   function _actions(s, small) {
-    const esc = s.setNum.replace(/'/g,"\'");
-    const escName = (s.setName||'').replace(/'/g,"\'");
+    // v0.9.1408 — this was replace(/'/g,"\'") which is a NO-OP: in a double-
+    // quoted JS string "\'" is just "'", so an apostrophe was replaced with an
+    // apostrophe. These strings get dropped into inline onclick="…('…')"
+    // handlers below, where a raw ' closes the argument early and breaks the
+    // button (a set called "Grandpa's" would have). The fix escapes it to a
+    // backslash-apostrophe for the JS string context: replace(/'/g, "\\'").
+    const esc = s.setNum.replace(/'/g, "\\'");
+    const escName = (s.setName||'').replace(/'/g, "\\'");
     const p = small ? '0.28rem 0.45rem' : '0.3rem 0.55rem';
     const fs = small ? '0.7rem' : '0.72rem';
     const alreadyWanted = !!state.wantData[s.setNum + '|'];

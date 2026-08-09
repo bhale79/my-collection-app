@@ -281,6 +281,21 @@ async function backupRestore(backupId, opts) {
   }
 
   // Step E: Reload personal data
+  //
+  // v0.9.1408 — CLEAR THE LOCAL SNAPSHOT FIRST. loadPersonalData paints the
+  // lv_personal_cache snapshot instantly before it fetches (app-data.js — the
+  // v0.9.826 "always show the last snapshot" fast path), and that snapshot is
+  // still the OLD sheet's data at this point. So a restore that had just
+  // repointed the app at the NEW sheet would flash — or on a flaky connection,
+  // STAY on — the very data the user restored away from, under a "Restore
+  // successful" message. This is the one moment the cache must not win: drop it
+  // so the reload comes only from the new sheet, which then rewrites the cache
+  // fresh. Same keys app-collection.js and app-data.js already remove elsewhere.
+  try {
+    localStorage.removeItem('lv_personal_cache');
+    localStorage.removeItem('lv_personal_cache_ts');
+  } catch (e) { /* private-mode storage; the reload below still fetches fresh */ }
+
   onProgress(BACKUP_UI_TEXT.restoreReloading);
   if (typeof loadPersonalData === 'function') {
     try { await loadPersonalData(); } catch (e) { console.warn('[Restore] Reload failed:', e); }

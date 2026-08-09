@@ -572,6 +572,18 @@ function _vaultCardOffline() {
   return `<div style="font-size:0.84rem;color:var(--text-dim);padding:4px 0">Market data unavailable — check your connection.</div>`;
 }
 
+// v0.9.1408 — the ONE untrusted string on this card. Everything else here is
+// a number run through toLocaleString; `cond` is a condition label that comes
+// from AGGREGATED CONTRIBUTOR DATA off the relay, so it is the one field a
+// stranger can put text in. It was written straight into innerHTML. Harmless
+// today because the Market is still gated, but it unlocks by itself at 300
+// contributors — so it is escaped now, before anyone but Brad can reach it.
+function _vaultEsc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
 function _vaultCardData(market, totalContributors) {
   const conditions = Object.keys(market).sort();
   if (!conditions.length) return _vaultCardNoData(null);
@@ -581,7 +593,7 @@ function _vaultCardData(market, totalContributors) {
     const d = market[cond];
     rows += `
       <div class="vault-market-row">
-        <span class="vault-market-cond">${cond}</span>
+        <span class="vault-market-cond">${_vaultEsc(cond)}</span>
         <span class="vault-market-range">$${d.low.toLocaleString()} – $${d.high.toLocaleString()}</span>
         <span class="vault-market-avg">avg $${d.avg.toLocaleString()}</span>
         <span class="vault-market-pts">${d.count} reports</span>

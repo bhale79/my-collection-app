@@ -2309,6 +2309,121 @@ html[data-theme="high-contrast"] button[style*="#e74c3c"] {
     max-height: calc(100vh - 108px);
     max-height: calc(100dvh - 108px);
   }
+
+  /* ══ v0.9.1411 — Photo Inbox toolbar, two compact rows on a phone ═════════
+     Brad: "get these buttons into 1 or 2 rows so you can see the photos." Every
+     rule here is inside this phone-only media block, so the desktop toolbar is
+     untouched. Row 1 splits in half: Add on the left, Identify on the right.
+     Row 2 is a five-across strip: Group · Tag · Filter · Refresh · More, each an
+     icon over a one-word label. The paid "Read the N unread" moves into the
+     "⋯ More" popover with its full cost wording, so it can never be mistapped. */
+  #pin-toolbar { gap: 0.4rem 0.4rem; align-items: stretch !important; position: relative; }
+
+  /* Row 1 — Add (left) + Identify (right), each half. order pins them first. */
+  #pin-toolbar #pin-add-photos { order: 1; flex: 1 1 44%; }
+  #pin-toolbar #pin-identify-btn { order: 2; flex: 1 1 44%; }
+
+  /* Row 2 — the compact strip. flex-basis ~18% gives five across; order keeps
+     them in Brad's sequence after the row-1 pair. */
+  #pin-toolbar #pin-group-btn   { order: 3; }
+  #pin-toolbar #pin-tag-btn     { order: 4; }
+  #pin-toolbar #pin-filter-row  { order: 5; }
+  #pin-toolbar #pin-refresh-btn { order: 6; }
+  #pin-toolbar #pin-more-btn    { order: 7; }
+  #pin-toolbar #pin-group-btn,
+  #pin-toolbar #pin-tag-btn,
+  #pin-toolbar #pin-refresh-btn,
+  #pin-toolbar #pin-more-btn,
+  #pin-toolbar #pin-filter-row > button,
+  #pin-toolbar #pin-filter-row > select {
+    flex: 1 1 17% !important;
+    min-width: 0 !important;
+    padding: 0.4rem 0.15rem !important;
+    font-size: 0 !important;                 /* hide the long label… */
+    text-align: center !important;
+    line-height: 1.05 !important;
+  }
+  #pin-toolbar #pin-filter-row { flex: 1 1 17%; display: flex !important; }
+
+  /* …and put a short icon+word label back with ::before. font-size:0 above
+     collapses the original text; these bring back a two-line micro-label. */
+  #pin-toolbar #pin-group-btn::before   { content: "⧉\A Group";  }
+  #pin-toolbar #pin-tag-btn::before     { content: "🏷\A Tag";    }
+  #pin-toolbar #pin-refresh-btn::before { content: "↻\A Refresh"; }
+  #pin-toolbar #pin-more-btn::before    { content: "⋯\A More";    }
+  #pin-toolbar #pin-filter-row > button::before,
+  #pin-toolbar #pin-filter-row > select::before { content: "▾\A Filter"; }
+  #pin-toolbar #pin-group-btn::before,
+  #pin-toolbar #pin-tag-btn::before,
+  #pin-toolbar #pin-refresh-btn::before,
+  #pin-toolbar #pin-more-btn::before,
+  #pin-toolbar #pin-filter-row > button::before,
+  #pin-toolbar #pin-filter-row > select::before {
+    font-size: 0.62rem !important;
+    font-weight: 700;
+    white-space: pre;                        /* \A makes the icon/word two lines */
+    display: block;
+    line-height: 1.15;
+  }
+  /* the filter <select> can't render ::before reliably; give it the label via
+     its own tiny font instead as a fallback so it never shows blank. */
+  #pin-toolbar #pin-filter-row > select { font-size: 0.6rem !important; }
+
+  /* Add + Identify keep their real (long) labels — only the row-2 strip is
+     iconified. Make sure the half-width row-1 buttons wrap their text. */
+  #pin-toolbar #pin-add-photos,
+  #pin-toolbar #pin-identify-btn {
+    font-size: 0.8rem !important;
+    padding: 0.55rem 0.5rem !important;
+    line-height: 1.15 !important;
+    white-space: normal !important;
+  }
+
+  /* The "⋯ More" popover. On desktop #pin-overflow is display:contents (below),
+     so the paid button flows inline; here it becomes a small anchored panel. */
+  #pin-more-btn { display: inline-block !important; }
+  #pin-more-btn[data-pin-has=""] { display: none !important; }   /* nothing paid to reach */
+  #pin-overflow {
+    position: absolute;
+    top: 100%;                 /* drop just below the two-row toolbar */
+    right: 0;
+    margin-top: 0.35rem;
+    max-width: 88vw;
+    z-index: 20;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    /* the border carries the popover on its own — no literal shadow colour, so
+       this stays inside app.css's hardcoded-colour budget (v0.9.1411). */
+    padding: 0.6rem;
+    display: none;
+  }
+  #pin-overflow.pin-more-open { display: block; }
+  #pin-overflow #pin-idall-btn {
+    display: block !important;
+    width: 100%;
+    font-size: 0.8rem !important;
+    text-align: center;
+    white-space: normal !important;
+    line-height: 1.3 !important;
+  }
+
+  /* the "5 Paper/Catalog/Other…" note: one line on a phone so it doesn't push
+     the photos down. Full text stays for screen readers via title/aria. */
+  #pin-skipnote {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 0.72rem !important;
+  }
+}
+
+/* Desktop / tablet: the overflow wrapper is invisible plumbing — its child
+   (the paid read button) flows into the toolbar exactly as before v0.9.1411,
+   and the phone-only "⋯ More" button never shows. */
+@media (min-width: 641px) {
+  #pin-overflow { display: contents; }
+  #pin-more-btn { display: none !important; }
 }
 
 /* ══ v0.9.1369 — the add wizard's photo, always in reach ═══════════════════

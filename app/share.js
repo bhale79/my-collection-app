@@ -783,6 +783,27 @@ async function _uploadShareToDrive(pdfBlob) {
     body: JSON.stringify({ role: 'reader', type: 'anyone' }),
   });
 
+  // ── v0.9.1408 — STAMP THE PDF SO IT CAN BE FOUND AND EXPIRED ────────────
+  // Photos carry rrShared/rrShareExp (see rrShareOpenPhoto) so the app can
+  // list them on the Shared Photos page and the start-up sweeper can un-share
+  // anything past due. Shared PDFs were made public and then FORGOTTEN — the
+  // app had no way to find one again, so a shared list was public forever.
+  // The same two appProperties fix it: rrShared='1' makes it show up in
+  // rrSharedPhotosList (which the sweeper walks), and rrShareExp is the
+  // deadline the sweeper enforces. There is no expiry PICKER on the PDF flow,
+  // so it defaults to 30 days — a shared list is a snapshot, not a permanent
+  // publication, and the user can still un-share it by hand from the Shared
+  // page before then. A best-effort PATCH: if it fails the link still works,
+  // exactly as before this change, so sharing never breaks on this account.
+  try {
+    var _pdfExp = Date.now() + 30 * 24 * 60 * 60 * 1000;
+    await fetch('https://www.googleapis.com/drive/v3/files/' + fileId, {
+      method: 'PATCH',
+      headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ appProperties: { rrShared: '1', rrShareExp: String(_pdfExp) } }),
+    });
+  } catch (e) { /* link still works; it just won't auto-expire */ }
+
   return 'https://drive.google.com/file/d/' + fileId + '/view';
 }
 

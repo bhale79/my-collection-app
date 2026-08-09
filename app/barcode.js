@@ -1380,7 +1380,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
     if (_tesseractLoadingPromise) return _tesseractLoadingPromise;
     _tesseractLoadingPromise = new Promise(function(resolve, reject) {
       var s = document.createElement('script');
-      s.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
+      s.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';  // v0.9.1408: pinned exact (was @5 — a floating major that could swap the OCR engine under us on any load)
       s.async = true;
       s.onload = function() { resolve(window.Tesseract); };
       s.onerror = function() { reject(new Error('Failed to load Tesseract.js')); };
