@@ -585,7 +585,7 @@ var ERR_REPORT_CFG = {
           '</div>' +
         '</div>' +
         // Shown only while hidden. Sits at the bottom so the app is readable.
-        '<div id="err-restore-bar" onclick="errReportShow()" style="display:none;position:fixed;left:0;right:0;bottom:0;padding:0.85rem 1rem;background:var(--accent,#e04028);color:#fff;font-family:var(--font-body);font-weight:700;font-size:0.9rem;text-align:center;cursor:pointer;box-sizing:border-box">' +
+        '<div id="err-restore-bar" onclick="errReportShow()" style="display:none;position:fixed;left:0;right:0;bottom:0;padding:0.85rem 1rem max(0.85rem, env(safe-area-inset-bottom, 0px));background:var(--accent,#e04028);color:#fff;font-family:var(--font-body);font-weight:700;font-size:0.9rem;text-align:center;cursor:pointer;box-sizing:border-box">' +
           'Report hidden \u2014 take your screenshot, then tap here to carry on' +
         '</div>';
       document.body.appendChild(ov);

@@ -48,6 +48,38 @@ function cancelShareMode() {
   else if (pid === 'page-forsale') buildForSalePage();
 }
 
+// ── Share ONE item straight from its detail page (v0.9.1420, Brad) ──────
+// "need to add the share button on the detail item page."
+//
+// Same builder, same PDF, same clickable-photo machinery as the list route —
+// this only skips the tick-the-checkboxes step, because the item to share is
+// the one already on screen. Deliberately NOT a second share system: the one
+// thing this function owns is putting a single item where openShareBuilder
+// already looks (_shareItems), in the exact shape the list renderers build.
+function shareSingleItem(idx, invId) {
+  var master = (typeof state !== 'undefined' && state.masterData && state.masterData[idx]) || null;
+  if (!master) { if (typeof showToast === 'function') showToast('Could not read this item — try again from your Collection list', 3000, true); return; }
+  var pd = null;
+  // The copy on screen, by its stable inventoryId — scanned by VALUE, not by
+  // key, so this works on both sides of the inventoryId key migration.
+  if (invId) {
+    pd = Object.values((state.personalData || {})).find(function (p) { return p && p.inventoryId === invId; }) || null;
+  }
+  if (!pd && typeof findPDKey === 'function') {
+    var k = findPDKey(master.itemNum, master.variation);
+    if (k) pd = state.personalData[k] || null;
+  }
+  var key = 'detail-' + (invId || (String(master.itemNum) + '|' + String(master.variation || '')));
+  _shareMode = false;                       // no checkboxes, no share bar — just the builder
+  _shareSource = 'collection';              // the collector skin, same as the list route
+  _shareItems = {};
+  window._shareDataMap = window._shareDataMap || {};
+  window._shareDataMap[key] = { itemNum: master.itemNum, variation: master.variation || '', pd: pd || {}, master: master };
+  _shareItems[key] = window._shareDataMap[key];
+  openShareBuilder();
+}
+if (typeof window !== 'undefined') { window.shareSingleItem = shareSingleItem; }
+
 // ── Toggle item selection ─────────────────────────────────────────
 function toggleShareItem(key) {
   var itemData = window._shareDataMap && window._shareDataMap[key];

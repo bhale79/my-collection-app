@@ -511,9 +511,19 @@
        "cards · sidebar · top bar" since the day it was written; the top bar
        simply was not wired to it. The conductor and the wordmark to its
        left are untouched. */
-    height: var(--header-h); background: var(--surface, var(--navy,#1a1d3a));
+    /* v0.9.1420 (Cooper, installed iPhone: "can't hit his name because it's
+       underneath his battery thingy"). viewport-fit=cover + the translucent
+       status bar let an INSTALLED app draw under the iPhone's clock and
+       battery — that has been true since day one, and the bottom nav learned
+       to dodge the home indicator back in v0.9.1053, but the header never got
+       the matching lesson, so the account chip sat beneath the status bar.
+       env(safe-area-inset-top) is 0 everywhere except installed notched
+       phones, so this line changes nothing anywhere else. */
+    height: calc(var(--header-h) + env(safe-area-inset-top, 0px));
+    padding-top: env(safe-area-inset-top, 0px);
+    background: var(--surface, var(--navy,#1a1d3a));
     border-bottom: 4px solid #2980b9;   /* v0.9.914 (Brad): doubled 2px -> 4px */
-    display: flex; align-items: center; padding: 0 1.25rem;
+    display: flex; align-items: center; padding-left: 1.25rem; padding-right: 1.25rem;
     gap: 1rem; flex-shrink: 0; z-index: 100;
   }
   .header-logo { font-family: var(--font-head); flex-shrink: 0; line-height: 1.2; }

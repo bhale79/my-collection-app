@@ -293,6 +293,8 @@ function _showOfflineBanner() {
   banner.style.cssText = [
     'position:fixed',
     'top:0',
+    // v0.9.1420: on an installed iPhone the banner drew under the status bar
+    'padding-top:env(safe-area-inset-top, 0px)',
     'left:0',
     'right:0',
     'z-index:9998',
