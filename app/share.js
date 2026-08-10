@@ -57,18 +57,35 @@ function cancelShareMode() {
 // thing this function owns is putting a single item where openShareBuilder
 // already looks (_shareItems), in the exact shape the list renderers build.
 function shareSingleItem(idx, invId) {
-  var master = (typeof state !== 'undefined' && state.masterData && state.masterData[idx]) || null;
-  if (!master) { if (typeof showToast === 'function') showToast('Could not read this item — try again from your Collection list', 3000, true); return; }
+  var master = (typeof state !== 'undefined' && state.masterData && idx >= 0 && state.masterData[idx]) || null;
   var pd = null;
   // The copy on screen, by its stable inventoryId — scanned by VALUE, not by
   // key, so this works on both sides of the inventoryId key migration.
   if (invId) {
     pd = Object.values((state.personalData || {})).find(function (p) { return p && p.inventoryId === invId; }) || null;
   }
-  if (!pd && typeof findPDKey === 'function') {
+  if (!pd && master && typeof findPDKey === 'function') {
     var k = findPDKey(master.itemNum, master.variation);
     if (k) pd = state.personalData[k] || null;
   }
+  // v0.9.1421 (Brad's blueprint: "seems I can't share paper items"). Paper,
+  // ephemera and manual items live ONLY in the collector's personal data —
+  // there is no catalog row behind them, and the detail page encodes them as
+  // idx <= -1000 via _poKeys. The first version refused when the catalog row
+  // was missing, which read as a broken button on exactly the items that are
+  // most personal. Resolve the personal-only key the same way the detail page
+  // itself does, then build the master-shaped half from the collector's own
+  // record — description, road, type all live there for these items.
+  if (!pd && idx <= -1000 && window._poKeys) {
+    var poKey = window._poKeys[-(idx + 1000)];
+    if (poKey && state.personalData) pd = state.personalData[poKey] || null;
+  }
+  if (!master && pd) {
+    master = { itemNum: pd.itemNum || '', variation: pd.variation || '',
+               roadName: pd.roadName || '', description: pd.description || '',
+               itemType: pd.itemType || '', manufacturer: pd.manufacturer || '' };
+  }
+  if (!master) { if (typeof showToast === 'function') showToast('Could not read this item — try again from your Collection list', 3000, true); return; }
   var key = 'detail-' + (invId || (String(master.itemNum) + '|' + String(master.variation || '')));
   _shareMode = false;                       // no checkboxes, no share bar — just the builder
   _shareSource = 'collection';              // the collector skin, same as the list route

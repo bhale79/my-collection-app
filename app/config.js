@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.1420';
+const APP_VERSION = 'v0.9.1421';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -144,7 +144,7 @@ function varShortLabel(text, max) {
 //   • PERSONAL_CACHE_VER -> personal "My Collection" cache
 // (Referenced in app-data.js as _CACHE_VER / _PERSONAL_CACHE_VER.)
 // ═══════════════════════════════════════════════════════════════
-const CATALOG_CACHE_VER  = '126';
+const CATALOG_CACHE_VER  = '127';   // v0.9.1421: 111xx master window repaired
 const PERSONAL_CACHE_VER = 'pf1';   // v0.9.782: +purchasedFrom column — bust the parsed personal cache
 
 // ═══════════════════════════════════════════════════════════════
