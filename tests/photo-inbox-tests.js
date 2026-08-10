@@ -2495,8 +2495,13 @@ META_WRITES.length = 0; TOASTS.length = 0;
   ok('the header row is consumed as a header, not parsed as an item',
      /const cm = buildMasterColMap\(vals\[0\]\);/.test(a9) &&
      /for \(let n = 1; n < vals\.length; n\+\+\)/.test(a9));
+  // v0.9.1421: '126' -> '127' — the 111xx master-window repair (Cooper's Big
+  // Boy) needs every device to refetch the corrected catalog. The pin checks
+  // the version is AT LEAST the one each fetch-shape change shipped with,
+  // rather than exactly one value: this assertion exists to prove the wider
+  // fetch busts caches, and any LATER bump preserves that property.
   ok('the catalog cache version moved, so the wider fetch happens at once',
-     /CATALOG_CACHE_VER\s*=\s*'126'/.test(cfg9));
+     (function () { var m = cfg9.match(/CATALOG_CACHE_VER\s*=\s*'(\d+)'/); return m && parseInt(m[1], 10) >= 126; })());
 
   section('111. Every real master tab layout still maps to its legacy columns');
   // The alias table is the risk in v0.9.1133: the master spells the same column

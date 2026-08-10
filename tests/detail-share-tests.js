@@ -34,10 +34,10 @@ const fnSrc = (() => {
 
 function run(opts) {
   const calls = { opened: 0, toasts: [] };
-  const sandbox = new Function('state', 'findPDKey', `
+  const sandbox = new Function('state', 'findPDKey', 'POKEYS', `
     var _shareMode = true, _shareSource = 'forsale';
     var _shareItems = { stale: { itemNum: 'OLD' } };
-    var window = { _shareDataMap: {} };
+    var window = { _shareDataMap: {}, _poKeys: (typeof POKEYS !== 'undefined' ? POKEYS : null) };
     var opened = 0, toasts = [];
     function showToast(m) { toasts.push(m); }
     function openShareBuilder() { opened++; }
@@ -46,7 +46,7 @@ function run(opts) {
     return { mode: _shareMode, source: _shareSource, items: _shareItems,
              map: window._shareDataMap, opened: opened, toasts: toasts };
   `);
-  return sandbox(opts.state, opts.findPDKey || (() => null));
+  return sandbox(opts.state, opts.findPDKey || (() => null), opts.poKeys || null);
 }
 
 const master = { itemNum: '773', variation: '1', roadName: 'New York Central', description: '4-6-4 Hudson' };
@@ -75,6 +75,28 @@ const r2 = run({ idx: 0, invId: '', state,
   findPDKey: (n, v) => (n === '773' && v === '1') ? '773|1|42' : null });
 ok('without an inventoryId, findPDKey still locates the owned copy',
    Object.values(r2.items)[0].pd.inventoryId === 'inv-99');
+
+// v0.9.1421 — Brad's blueprint: paper items have NO catalog row. The detail
+// page encodes them as idx <= -1000 through _poKeys; Share must build the
+// master-shaped half from the collector's own record instead of refusing.
+const paperState = {
+  masterData: [],
+  personalData: { '__nonum__paper7': { itemNum: 'DWG-1957-468', variation: '',
+    inventoryId: 'inv-paper', description: '6464 PFE DWG - never built',
+    itemType: 'Paper / Box / Misc', photoItem: 'folderP' } },
+};
+const rp = run({ idx: -1001, invId: 'inv-paper', state: paperState });
+ok("BRAD'S BUG: a paper item shares from the collector's own record",
+   rp.opened === 1 && rp.toasts.length === 0, JSON.stringify(rp.toasts));
+const staged_p = Object.values(rp.items)[0];
+ok('...with the description and type carried from personal data',
+   staged_p && staged_p.master.description === '6464 PFE DWG - never built'
+   && staged_p.master.itemType === 'Paper / Box / Misc');
+ok('...and the photos folder still reachable through pd', staged_p.pd.photoItem === 'folderP');
+// The _poKeys route (no invId passed) resolves the same way the detail page does.
+const rp2 = run({ idx: -1001, invId: '', state: paperState, poKeys: { 1: '__nonum__paper7' } });
+ok('...and the _poKeys route works when no inventoryId was passed',
+   rp2.opened === 1 && Object.values(rp2.items)[0].pd.inventoryId === 'inv-paper');
 
 // A bad index must not open an empty builder.
 const r3 = run({ idx: 7, invId: '', state });
