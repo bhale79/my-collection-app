@@ -2,7 +2,7 @@
   "name": "the-rail-roster",
   "private": true,
   "scripts": {
-    "test": "npm run test:syntax && npm run test:suite && npm run test:pwa && npm run test:sources && npm run test:busy && npm run test:conflict && npm run test:layout && npm run test:colors",
+    "test": "npm run test:syntax && npm run test:suite && npm run test:pwa && npm run test:sources && npm run test:busy && npm run test:conflict && npm run test:safearea && npm run test:share && npm run test:layout && npm run test:colors",
     "test:syntax": "node tests/syntax-check.js",
     "test:suite": "node tests/photo-inbox-tests.js",
     "test:layout": "node tests/layout-check.js",
@@ -10,7 +10,9 @@
     "test:pwa": "node tests/pwa-install-tests.js",
     "test:sources": "node tests/photo-sources-tests.js",
     "test:busy": "node tests/inbox-busy-tests.js",
-    "test:conflict": "node tests/photo-conflict-tests.js"
+    "test:conflict": "node tests/photo-conflict-tests.js",
+    "test:safearea": "node tests/safe-area-tests.js",
+    "test:share": "node tests/detail-share-tests.js"
   },
   "dependencies": {
     "pngjs": "^7.0.0"
