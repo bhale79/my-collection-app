@@ -642,7 +642,10 @@
      A large card spans two columns of the stats grid; below the grid's
      two-column breakpoint it takes the full width instead, so it can
      never be squeezed narrower than a small one. */
-  .stat-card.rr-lc-wide { grid-column: span 2; }
+  /* v0.9.1424: grid-column still serves the phone layout (which stays a
+     2-column grid); the flex pair below is what "span 2" means on desktop —
+     double basis and double cap, plus one gap's worth. */
+  .stat-card.rr-lc-wide { grid-column: span 2; flex-basis: calc(240px + 0.6rem); max-width: calc(720px + 0.6rem); }
   .rr-lc { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; min-height: 66px; }
   .rr-lc-t { text-align: center; line-height: 1.25; max-width: 100%; overflow-wrap: anywhere; }
   .rr-lc-empty { text-align: center; color: var(--text-dim); font-size: 0.82rem; padding: 1.2rem 0; }
@@ -733,10 +736,20 @@
   .page-title span span { font-family: var(--font-body); font-size: 0.8rem;
     color: var(--text-dim); font-weight: 400; letter-spacing: 0; text-transform: none; }
 
-  /* Stat cards */
-  .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 0.6rem; }
+  /* Stat cards.
+     v0.9.1424 (Brad): "add a max width to the cards, but still space them out
+     evenly. if its just 1 card then its centered." Flex, not grid: a grid
+     minmax cap makes auto-fit count tracks by the MAX size, so on a narrow
+     window four cards wrap into two rows instead of shrinking (measured live
+     before switching). Flex with capped growth shrinks gracefully: full rows
+     look exactly like the old grid, few cards stop growing at the cap and
+     space-evenly spreads them — which also centers a lone card for free. */
+  .stats-grid { display: flex; flex-wrap: wrap; justify-content: space-evenly; gap: 0.6rem; }
   .stat-card {
     background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    /* border-box so the 360px cap is the VISIBLE width (content-box measured
+       389px live — padding and border ride outside the cap otherwise). */
+    box-sizing: border-box; flex: 1 1 120px; max-width: 360px;
     padding: 0.75rem 0.85rem; position: relative;
     /* v0.9.876 (Brad): cap card height so one long card (Era Progress)
        can't stretch the whole row — anything taller scrolls inside. */
@@ -1435,7 +1448,11 @@
        padding belongs on .main, which is the element that actually scrolls.
        92px clears the nav (measured ~85px) with a little to spare. */
     .main { padding: 0.75rem 0.75rem 92px; }
-    .stats-grid { grid-template-columns: 1fr 1fr; }
+    /* v0.9.1424: the desktop row is flex now, so the phone layout must say
+       display:grid again, and the desktop width cap comes off — two columns
+       of a phone screen are always narrower than 360px anyway. */
+    .stats-grid { display: grid; grid-template-columns: 1fr 1fr; }
+    .stat-card { max-width: none; }
 
     /* Browse — switch from table to cards on mobile */
     .browse-table-wrap { overflow-x: visible !important; }
