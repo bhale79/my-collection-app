@@ -1691,6 +1691,7 @@
   /* ── Landscape phone: hide dashboard stats/recent, show only buttons ── */
   @media (max-height: 500px) and (max-width: 900px) and (orientation: landscape) {
     #page-dashboard .stats-grid,
+    #page-dashboard #stats-add-row,
     #page-dashboard .two-col,
     #page-dashboard .page-title { display: none !important; }
     #page-dashboard .dash-btn-grid { margin-top: 0.5rem; }
