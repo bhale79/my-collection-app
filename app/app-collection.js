@@ -3211,7 +3211,7 @@ function showItemPanel(idx, pdKey, mode) {
     { label: 'Box Condition', key: 'boxCond',       val: pd.boxCond || '—',       type: 'number', min:1, max:10 },
     { label: 'Price Paid ($)',key: 'priceItem',     val: pd.priceItem || '—',     type: 'number' },
     { label: 'Est. Worth (insurance)',key: 'userEstWorth',  val: pd.userEstWorth || '—',  type: 'number' },
-    { label: 'Year Made',     key: 'yearMade',      val: pd.yearMade || '—',      type: 'number', min:1945, max:1969 },
+    { label: 'Year Made',     key: 'yearMade',      val: pd.yearMade || '—',      type: 'number', min:1900, max:2100 },
     // v0.9.1372 — THE TWIN of the dashboard's "46240". This field printed the
     // raw sheet value too, so opening one of those items showed the serial
     // here as well. When a fix lands on one surface, look for the twin.
@@ -3221,6 +3221,17 @@ function showItemPanel(idx, pdKey, mode) {
     ...((idx < 0 || pd.era === 'Manual') ? [{ label: 'Description', key: 'description', val: pd.description || '—', type: 'textarea' }] : []),
     { label: 'Notes',         key: 'notes',         val: pd.notes || '—',         type: 'textarea' },
     { label: 'Location',      key: 'location',      val: pd.location || '—',      type: 'text' },
+    // v0.9.1425 (Brad): "it doesn't give me a way to say what era its in".
+    // Normally the year decides and this stays blank — set it only when the
+    // year can't settle it (undated ephemera) or is a guess. Shown for every
+    // item so the answer is always reachable, but deliberately last: filling
+    // in Year Made is the better fix and this is the escape hatch.
+    { label: 'Era (overrides year)', key: 'eraPeriod',
+      val: ({ prewar: 'Pre-war (before 1944)', postwar: 'Postwar (1945–1969)', modern: 'Modern (1970–today)' })[String(pd.eraPeriod || '').toLowerCase()] || '—',
+      type: 'select',
+      // {v,t} pairs — the shape this panel's select renderer expects (v0.9.1315).
+      options: [{ v: '', t: 'From year (default)' }, { v: 'prewar', t: 'Pre-war (before 1944)' },
+                { v: 'postwar', t: 'Postwar (1945–1969)' }, { v: 'modern', t: 'Modern (1970–today)' }] },
     ...(((typeof _itemExternalLinkURL === 'function') ? _itemExternalLinkURL(item) : item.refLink)
       ? [{ label: 'Reference', key: null, val: ((typeof _itemExternalLinkURL === 'function') ? _itemExternalLinkURL(item) : item.refLink), type: 'readonly' }] : []),
     ...(pd.isError === 'Yes' || item.errorDesc ? [{ label: 'Error', key: null, val: pd.errorDesc || '—', type: 'readonly' }] : []),
