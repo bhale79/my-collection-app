@@ -88,6 +88,13 @@ const PERSONAL_SCHEMA = [
   { field: 'purchasedFrom',        header: 'Purchased From' },           // v0.9.782 — Contact ID of the seller (Contacts tab); appended at END (column rule)
   { field: 'subType',              header: 'Sub Type' },                 // v0.9.989 — unified inventory Phase 1: detail under itemType (catType 'Advance', paperType 'Drawing', ...); appended at END (column rule)
   { field: 'masterKey',            header: 'Master Key' },               // v0.9.1198 — WHICH catalog row this item is (era|itemNum|variation), written once at save time when the match is certain. The 07-30 audit's root cause was re-deriving this on every render: two catalog rows can answer to the same number+variation (Williams 2321, the "53" catalog) and the app guessed fresh each time. Stored once = looked up forever. Appended at END (column rule); blank on old rows = fall back to matching.
+  // v0.9.1425 (Brad): an EXPLICIT Pre-war / Postwar / Modern override, for the
+  // items a year cannot settle — undated ephemera, dealer promos, anything
+  // where "~1967" is a guess or there is no year at all. Blank is the normal
+  // case and means "derive it from the year", which is what every dated item
+  // already does. Genuinely appended at END: inserting it one line earlier
+  // would have shifted masterKey's column and orphaned it on every saved row.
+  { field: 'eraPeriod',            header: 'Era Period' },
 ];
 const PERSONAL_HEADERS = PERSONAL_SCHEMA.map(s => s.header);
 const PERSONAL_FIELD_INDEX = {};
