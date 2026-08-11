@@ -3146,16 +3146,18 @@
         '<div style="flex:1 1 240px;min-width:0">' +
           '<div style="' + _lbl + '">What do you want to do with it?</div>' +
           _setBtn +
-          '<button id="pin-rv-add" onclick="_pinFileToCollection()" class="btn-primary" style="width:100%;padding:0.72rem;border-radius:10px;border:none;font-family:var(--font-body);font-weight:700;font-size:0.93rem;cursor:pointer;margin-bottom:0.5rem">Add to my Collection</button>' +
+          // v0.9.1423 (Brad): ONE add button. The old pair — "Add to my
+          // Collection" (dead without a number) next to "No item number —
+          // enter it myself" — made the user diagnose their own situation and
+          // pick the right door, and the orange default was the wrong door
+          // half the time. Now the ROUTER decides: number typed/read → the
+          // existing fast path that jumps past the item-number step; blank →
+          // the existing wizard Step 1 with the Item Type picker. Same two
+          // tested lanes as before (v0.9.1387 kept the no-number lane
+          // unconditional for exactly this reason); only the choosing moved
+          // from the user to the code.
+          '<button id="pin-rv-add" onclick="_pinAddItem()" class="btn-primary" style="width:100%;padding:0.72rem;border-radius:10px;border:none;font-family:var(--font-body);font-weight:700;font-size:0.93rem;cursor:pointer;margin-bottom:0.5rem">Add to my Collection</button>' +
           '<button id="pin-rv-sell" onclick="_pinSendForSale()" style="width:100%;padding:0.68rem;border-radius:10px;border:1.5px solid #d4a843;background:var(--bg-card);background:color-mix(in srgb, rgb(212,168,67) 12%, var(--bg-card));color:#d4a843;font-family:var(--font-body);font-weight:700;font-size:0.9rem;cursor:pointer;margin-bottom:0.5rem">Add to Sales List</button>' +
-          // v0.9.1387 (Brad, on a photo of a Lionel engineering blueprint):
-          // "it forces you to enter an item number for something that doesn't
-          // have one. this paper item should be manually entered." Always
-          // shown, never conditional on the read: his blueprint DID produce
-          // numbers and a confident-looking catalog guess, so a button that
-          // only appeared when nothing was read would have missed the very
-          // case that prompted it.
-          '<button id="pin-rv-nonum" onclick="_pinAddNoNumber()" style="width:100%;padding:0.68rem;border-radius:10px;border:1.5px solid var(--info);background:var(--bg-card);background:color-mix(in srgb, var(--info) 12%, var(--bg-card));color:var(--info);font-family:var(--font-body);font-weight:700;font-size:0.9rem;cursor:pointer;margin-bottom:0.5rem">No item number — enter it myself</button>' +
           '<button onclick="_pinReviewDiscard()" style="width:100%;padding:0.68rem;border-radius:10px;border:1.5px solid #8b8e94;background:var(--bg-card);background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card));color:#f05008;font-family:var(--font-body);font-weight:700;font-size:0.9rem;cursor:pointer">Discard Photo' + (n > 1 ? 's' : '') + '</button>' +
         '</div>' +
         '<div style="flex:1 1 240px;min-width:0">' +
@@ -4716,6 +4718,14 @@
   };
 
   window._pinFileToCollection = function () { return window._pinReviewAdd('new'); };
+  // v0.9.1423 (Brad): the single Add button's router. Number in the box →
+  // the fast lane exactly as before (wizard opens prefilled, past the
+  // item-number step). Box empty → the no-number lane (wizard Step 1, Item
+  // Type picker). The user never has to know two lanes exist.
+  window._pinAddItem = function () {
+    var num = String((document.getElementById('pin-rv-num') || {}).value || '').trim();
+    return num ? window._pinReviewAdd('new') : window._pinAddNoNumber();
+  };
   window._pinAttachOwned      = function () { return window._pinReviewAdd('attach'); };
   window._pinSendForSale      = function () { return window._pinReviewAdd('forsale'); };
 
