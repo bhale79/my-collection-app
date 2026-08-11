@@ -760,6 +760,11 @@ function buildDashboard() {
         '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>' +
         'Add a stat card</button>';
       _statsGrid.style.cssText = 'display:flex;padding:0.25rem 0;margin-bottom:0.5rem';
+      // v0.9.1423: no cards means the big "Add a stat card" button above IS the
+      // prompt — make sure the below-grid row isn't also showing one from a
+      // previous render, or you get two of them.
+      var _addRow0 = document.getElementById('stats-add-row');
+      if (_addRow0) _addRow0.innerHTML = '';
     } else {
       _statsGrid.style.cssText = '';
       var html = activeSlots.map(function(s) {
@@ -786,15 +791,22 @@ function buildDashboard() {
           + inner
           + '</div>';
       }).join('');
-      if (activeSlots.length < MAX_CARDS) {
-        var nextNull = slots.indexOf(null);
-        html += '<div style="grid-column:1/-1;text-align:right;padding:0.15rem 0.1rem 0">'
-          + '<button onclick="openDashEditor()" style="background:none;border:none;color:var(--text-dim);font-size:0.75rem;font-family:var(--font-body);cursor:pointer;padding:0;opacity:0.6;display:inline-flex;align-items:center;gap:0.3rem" onmouseover="this.style.opacity=\'1\'" onmouseout="this.style.opacity=\'0.6\'">'
-          + '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>'
-          + ' Add a stat card</button>'
-          + '</div>';
-      }
       _statsGrid.innerHTML = html;
+      // v0.9.1423 (Brad): "Add a stat card" renders into its own row BELOW the
+      // grid, never inside it. When it lived inside with grid-column:1/-1 it
+      // put content in every auto-fit track, so none could collapse and the
+      // cards were pinned to their 120px minimum on the left. Outside, the
+      // unused tracks collapse and the cards spread evenly across the width.
+      var _addRow = document.getElementById('stats-add-row');
+      if (_addRow) {
+        _addRow.innerHTML = (activeSlots.length < MAX_CARDS)
+          ? '<div style="text-align:right;padding:0.15rem 0.1rem 0">'
+            + '<button onclick="openDashEditor()" style="background:none;border:none;color:var(--text-dim);font-size:0.75rem;font-family:var(--font-body);cursor:pointer;padding:0;opacity:0.6;display:inline-flex;align-items:center;gap:0.3rem" onmouseover="this.style.opacity=\'1\'" onmouseout="this.style.opacity=\'0.6\'">'
+            + '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>'
+            + ' Add a stat card</button>'
+            + '</div>'
+          : '';
+      }
     }
   }
 
