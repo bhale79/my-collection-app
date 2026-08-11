@@ -327,6 +327,12 @@ function _itemEraPeriod(item) {
   if (!item) return null;
   // Step 1a: parse first 4-digit year from yearProd. Handles '1955',
   // '1957-1966', 'October 2005', etc.
+  // Step 0 (v0.9.1425, Brad): an explicit era the user set on the item beats
+  // every guess below. Only ever set by hand, only for items a year cannot
+  // settle; blank on everything else, so dated items keep deriving as before
+  // and there is no second source of truth to drift out of sync.
+  var _ov = String(item.eraPeriod || '').toLowerCase();
+  if (_ov === 'prewar' || _ov === 'postwar' || _ov === 'modern') return _ov;
   var y = item.yearProd;
   if (y) {
     var m = String(y).match(/(\d{4})/);
@@ -3099,6 +3105,15 @@ function renderBrowse() {
         // This makes sure they are handed something to read.
         dateAdded: pd.dateAdded || '', datePurchased: pd.datePurchased || '',
         dateAcquired: pd.dateAcquired || '', _savedAt: pd._savedAt || 0,
+        // ── v0.9.1425 (Brad: two 1960s paper items sat under the Modern chip) ──
+        // The TWIN of the v0.9.1392 date bug directly above, and the same root
+        // cause: this object is a hand-copied subset of pd, so any field left
+        // off the list is invisible to everything downstream. yearMade was off
+        // it, so _itemEraPeriod saw no year, returned null, and a null period
+        // shows under EVERY era chip — his ~1967 billboard appeared as Modern.
+        // Measured live: the pd records classify as 'postwar' correctly; only
+        // the copy handed to the filter was blind. eraPeriod rides along too.
+        yearMade: pd.yearMade || '', eraPeriod: pd.eraPeriod || '',
         _personalOnly: true
       };
     });
