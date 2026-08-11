@@ -20484,18 +20484,23 @@ META_WRITES.length = 0; TOASTS.length = 0;
       const pin91 = fs.readFileSync(p91.join(APP91, 'photo-inbox.js'), 'utf8');
       const wiz91 = fs.readFileSync(p91.join(APP91, 'wizard.js'), 'utf8');
 
+      // v0.9.1423 (Brad): the dedicated "No item number" button was folded
+      // into the single Add button. The way out with no number is now the
+      // ROUTER: _pinAddItem sends an empty number box to _pinAddNoNumber.
       ok('291 BRAD\'S BUG: the review card offers a way out with no item number',
-         /onclick="_pinAddNoNumber\(\)"/.test(pin91),
-         'no button on the review card calls _pinAddNoNumber');
+         /onclick="_pinAddItem\(\)"/.test(pin91) &&
+         /_pinAddItem = function[\s\S]{0,400}_pinAddNoNumber\(\)/.test(pin91),
+         'the Add button\'s router no longer reaches _pinAddNoNumber');
 
-      // The button must be unconditional. Brad's blueprint produced a
-      // confident-looking catalog guess, so anything gated on "no number was
-      // read" would not have been on screen for him.
-      const cardBlock = (pin91.match(/var _btnArea =[\s\S]*?\n\n/) || [''])[0];
-      ok('291 …and it is always on the card, not gated on what the reader found',
-         /_pinAddNoNumber/.test(cardBlock) &&
-         !/\?[^\n]*_pinAddNoNumber|_pinAddNoNumber[^\n]*:\s*''/.test(cardBlock),
-         'the numberless button looks conditional');
+      // The route must be unconditional on what the READER found — only the
+      // number box decides. Brad's blueprint produced a confident-looking
+      // catalog guess, so anything gated on "no number was read" would not
+      // have been available for him.
+      const routerFn = (pin91.match(/window\._pinAddItem = function[\s\S]*?\n  \};/) || [''])[0];
+      ok('291 …and the router consults only the number box, nothing else',
+         routerFn.length > 0 && /pin-rv-num/.test(routerFn) &&
+         !/_aiS|ids0|\.num\b/.test(routerFn),
+         'the router looks at reader results, not just the box');
 
       // The whole point: this path must never consult the item-number box.
       const fn91 = (pin91.match(/window\._pinAddNoNumber = function[\s\S]*?\n  \};/) || [''])[0];
