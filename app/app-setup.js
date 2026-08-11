@@ -773,6 +773,20 @@ async function syncUserDefinedTabsFromSheet(sheetId) {
       // Standalone feature tabs that are NOT collection/ephemera tabs:
       'Parts Needed',
       'Contacts',   // v0.9.794: the rolodex leaked into My Collection as "Contactss"
+      // v0.9.1426 (Brad: "the barcode map should not be seen by any user
+      // period") — THE THIRD TIME this list has been the bug. The Barcode Map
+      // tab is machine plumbing written by the scanner (v0.9.1112): UPC → item
+      // number, so a box scanned once is recognised forever, and shared to the
+      // community pool. It is not something anyone owns. Missing from this set,
+      // it was filed as one of the user's OWN collection tabs, which gave it a
+      // Show chip beside Trains/Catalogs and — worse — ran it through
+      // parseEphemeraRows, a paper-item parser. Every column landed in the
+      // wrong field: the UPC as title, the item number as description, the
+      // maker as year, and the learned-on DATE SERIAL (46242) as
+      // manufacturer. Any tab a FEATURE creates belongs here the day it
+      // is created; see tests/barcode-map-tests.js, which now fails if a known
+      // feature tab is missing from this set.
+      'Barcode Map',
     ]);
     // Prune any reserved tab that was wrongly captured as user-defined before
     // it was added to the canonical set above (e.g. 'Parts Needed').
@@ -781,7 +795,10 @@ async function syncUserDefinedTabsFromSheet(sheetId) {
       state.userDefinedTabs = state.userDefinedTabs.filter(t => !canonical.has(t.label));
       if (state.userDefinedTabs.length !== _before) {
         saveUserDefinedTabs();
-        if (state.ephemeraData) { delete state.ephemeraData.parts_needed; delete state.ephemeraData.contacts; }
+        // v0.9.1426: the bucket must go too, or the chip survives the fix —
+        // the tab is pruned from userDefinedTabs but its already-loaded
+        // ephemeraData entry keeps rendering the section.
+        if (state.ephemeraData) { delete state.ephemeraData.parts_needed; delete state.ephemeraData.contacts; delete state.ephemeraData.barcode_map; }
       }
     }
     // v0.9.1204 (structural audit #10): this function ADDED unknown tabs but
