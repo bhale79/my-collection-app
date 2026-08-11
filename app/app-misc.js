@@ -171,6 +171,17 @@ window.addEventListener('beforeinstallprompt', function (e) {
   var mi = document.getElementById('menu-install-app');
   if (mi && !_pwaIsInstalled()) mi.style.display = '';
 });
+// v0.9.1422 (Brad: "went to my ipad and its not there"): ONE Apple-touch
+// test for every install path. Since iPadOS 13 Safari identifies itself as
+// "Macintosh" — the word iPad never appears in the UA — so the old
+// /iphone|ipad|ipod/ regex saw a Mac desktop: beforeinstallprompt never
+// fires on Apple WebKit AND the iOS hint was skipped, so the iPad got
+// NEITHER path. A "Mac" that reports a touchscreen is really an iPad
+// (real Macs report 0 touch points).
+function _isAppleTouch() {
+  return /iphone|ipad|ipod/i.test(navigator.userAgent)
+    || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+}
 function _pwaIsInstalled() {
   return (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches)
     || window.navigator.standalone === true;
@@ -197,7 +208,7 @@ function _pwaInstall() {
     }).catch(function () {});
     return;
   }
-  if (/iphone|ipad|ipod/i.test(navigator.userAgent)) {
+  if (_isAppleTouch()) {
     try { localStorage.removeItem('lv_ios_hint_dismissed'); } catch (e) {}
     var old = document.getElementById('ios-install-hint');
     if (old) old.remove();
@@ -227,7 +238,7 @@ function _pwaMenuInit() {
   }
   _pwaMenuTries = 99;                       // menu found — stop the retry chain
   if (_pwaIsInstalled()) { mi.style.display = 'none'; return; }
-  if (window._pwaPrompt || /iphone|ipad|ipod/i.test(navigator.userAgent)) mi.style.display = '';
+  if (window._pwaPrompt || _isAppleTouch()) mi.style.display = '';
 }
 if (typeof window !== 'undefined') {
   window._pwaInstall     = _pwaInstall;
@@ -237,7 +248,7 @@ if (typeof window !== 'undefined') {
 setTimeout(_pwaMenuInit, 3000);
 
 function _showIOSInstallHint() {
-  const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  const isIOS = _isAppleTouch();
   const isStandalone = window.navigator.standalone === true;
   const dismissed = localStorage.getItem('lv_ios_hint_dismissed');
   if (!isIOS || isStandalone || dismissed) return;

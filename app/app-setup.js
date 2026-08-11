@@ -168,7 +168,12 @@ function _buildAppShell() {
         // so there is one help system with two doors, not a second list that
         // can drift out of step with the first.
         '<button class="account-menu-item" id="menu-help-btn" onclick="toggleAccountMenu(); if (typeof tutToggleMenu === \'function\') tutToggleMenu();">' +
-          '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>' +
+          // v0.9.1422 (Brad: "the help icon is half of a question mark"): this
+          // glyph draws its dot as a 0.01px line and its curve open-ended, so
+          // it NEEDS round line caps — without stroke-linecap the dot renders
+          // as nothing and the hook looks cut off. The neighbors are closed
+          // shapes and survive; this was the only icon in the app drawn that way.
+          '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>' +
           'Help' +
         '</button>' +
         '<button class="account-menu-item account-menu-signout" onclick="handleSignOut()">' +
