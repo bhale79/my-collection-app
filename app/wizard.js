@@ -6867,14 +6867,34 @@ window._wizVarZoom = function (arg) {
   // ── input ──
   stage.addEventListener('wheel', function (e) {
     e.preventDefault();
-    setScale(scale * (e.deltaY < 0 ? 1.18 : 1 / 1.18), e.clientX, e.clientY);
+    // Zoom by HOW FAR you scrolled, not once per event. A mouse wheel sends one
+    // event per notch, but a trackpad flick sends dozens — so a flat 1.18 every
+    // time stacked up and rocketed straight to the 8x ceiling. Normalise the
+    // delta to pixels (deltaMode 1 is lines, 2 is pages), cap what a single
+    // event may contribute, then turn it into a smooth multiplier. One mouse
+    // notch is about 100px, which still lands at the familiar ~1.18.
+    var d = e.deltaY;
+    if (e.deltaMode === 1) d *= 16;
+    else if (e.deltaMode === 2) d *= 400;
+    d = Math.max(-120, Math.min(120, d));
+    setScale(scale * Math.exp(-d * 0.0017), e.clientX, e.clientY);
   }, { passive: false });
 
   var dragging = false, lastX = 0, lastY = 0, pointers = {}, pinchStart = 0, pinchScale = 1;
+  // A click fires on the nearest COMMON ANCESTOR of where you pressed and where
+  // you released. Pan the picture and let go over the letterboxing — which is
+  // most of the window once you are zoomed in — and the click reports the STAGE
+  // even though the gesture began on the picture. The backdrop-closes rule read
+  // that as "he clicked the background" and shut the viewer mid-drag. Fix: the
+  // background only closes when the press STARTED there and barely moved.
+  var downOnBackdrop = false, downX = 0, downY = 0, movedPx = 0;
+  var CLICK_SLOP = 6; // px of travel still counted as a click rather than a drag
   stage.addEventListener('pointerdown', function (e) {
     pointers[e.pointerId] = { x: e.clientX, y: e.clientY };
     var ks = Object.keys(pointers);
     if (ks.length === 1) {
+      downOnBackdrop = (e.target === stage);
+      downX = e.clientX; downY = e.clientY; movedPx = 0;
       dragging = true; lastX = e.clientX; lastY = e.clientY;
       stage.classList.add('rrpv-grabbing');
       try { stage.setPointerCapture(e.pointerId); } catch (err) {}
@@ -6889,6 +6909,7 @@ window._wizVarZoom = function (arg) {
   stage.addEventListener('pointermove', function (e) {
     if (!pointers[e.pointerId]) return;
     pointers[e.pointerId] = { x: e.clientX, y: e.clientY };
+    movedPx = Math.max(movedPx, Math.hypot(e.clientX - downX, e.clientY - downY));
     var ks = Object.keys(pointers);
     if (ks.length >= 2) {
       var a = pointers[ks[0]], b = pointers[ks[1]];
@@ -6931,9 +6952,13 @@ window._wizVarZoom = function (arg) {
     if (window.BackStack) window.BackStack.pop('_wiz-var-zoom');
   }
   ov.querySelector('#rrpv-close').onclick = close;
-  // Clicking the empty stage background closes; clicking the PICTURE does not,
-  // because the picture is the thing you are dragging around.
-  stage.addEventListener('click', function (e) { if (e.target === stage) close(); });
+  // Clicking the empty stage background closes; clicking or DRAGGING the picture
+  // does not. See the note by pointerdown: e.target alone cannot tell those
+  // apart once a drag has crossed off the picture, so all three must hold —
+  // released on the background, pressed on the background, and hardly moved.
+  stage.addEventListener('click', function (e) {
+    if (e.target === stage && downOnBackdrop && movedPx <= CLICK_SLOP) close();
+  });
   document.addEventListener('keydown', onKey);
 
   document.body.appendChild(ov);
