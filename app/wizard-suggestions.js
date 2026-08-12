@@ -749,6 +749,9 @@ function selectSuggestion(num, roadName, itemType) {
   const el = document.getElementById('wiz-suggestions');
   if (el) { el.style.display = 'none'; el.innerHTML = ''; }
   lookupItem(num);
+  // v0.9.1431: a picked suggestion is the "as soon as we select an item #"
+  // moment — refresh the You-have-this-item panel without waiting for Next.
+  if (typeof _wizOwnedRefresh === 'function') _wizOwnedRefresh();
 
   // On itemNumGrouping screen: check if grouping buttons will appear
   const _curStep = wizard.steps[wizard.step];
