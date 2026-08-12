@@ -1429,7 +1429,15 @@ window._reelStart = async function (slot) {
   // and more of each train shows than at 86px.
   host.classList.add('reel-photo');
   host.innerHTML = '<div id="reel-img-' + slot + '" style="width:100%;flex:1;min-height:86px;margin:0 auto;border-radius:8px;overflow:hidden;position:relative;cursor:pointer;background:var(--surface2,#26262e)">'
-    + '<img style="width:100%;height:100%;object-fit:cover;object-position:center;transition:opacity 0.45s;opacity:0" alt="">'
+    // v0.9.1430 (Brad): "every time the picture changes the card size changes".
+    // height:100% inside a parent whose own height is auto cannot resolve, so
+    // the browser falls back to the PICTURE's pixel height and the image pushes
+    // the card open — a wide photo gave a 144px card, a tall one 951px, and the
+    // dashboard jumped on every rotation. (v1428's flex:1 exposed this; before
+    // that the box was a fixed 86px, which is definite, so it never showed.)
+    // Absolute positioning takes the image out of the flow entirely: it still
+    // fills the box, but it can no longer contribute anything to the height.
+    + '<img style="position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;object-position:center;transition:opacity 0.45s;opacity:0" alt="">'
     + '<div style="position:absolute;left:0;right:0;bottom:0;background:rgba(0,0,0,0.55);color:#fff;font-size:0.68rem;padding:0.15rem 0.4rem;font-family:var(--font-mono,monospace)"></div></div>';
   var wrap = document.getElementById('reel-img-' + slot);
   var img = wrap.querySelector('img'), cap = wrap.querySelector('div');
