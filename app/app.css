@@ -763,6 +763,12 @@
      fills the leftover height, centering the photo block both ways. */
   .stat-card:has(.reel-host) { display: flex; flex-direction: column; }
   .reel-host { flex: 1; display: flex; align-items: center; justify-content: center; }
+  /* v0.9.1428 (Brad): "the picture needs to fill the majority of the card".
+     The host already took the leftover height, but it CENTERED an 86px-tall
+     photo block inside it — on a card stretched to the 18rem cap that left
+     ~200px of empty card. Stretch instead, but only while a photo is actually
+     showing: the "Loading photos…" and offline messages keep their centering. */
+  .reel-host.reel-photo { align-items: stretch; }
   .stat-card::before { content:''; position:absolute; top:0; left:0; right:0; height:2px; background:var(--card-accent,var(--accent)); }
   .stat-card:hover { border-color: var(--border-light,#354870); transform: translateY(-1px); }
   .stat-label { font-family: var(--font-head); font-size: 0.58rem; font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase; color: var(--text-dim); margin-bottom: 0.25rem; }
