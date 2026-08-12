@@ -2473,7 +2473,7 @@ function renderWizardStep() {
           style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;
           padding:0.75rem 1rem;color:var(--text);font-family:var(--font-body);font-size:1rem;outline:none"
           autocomplete="off"
-          oninput="wizard.data['${s.id}']=this.value; if(this.id==='wiz-input' && wizard.steps[wizard.step].id==='itemNum') debouncedItemSuggestions(this.value); if(this.id==='wiz-input' && wizard.steps[wizard.step].id==='set_num') updateSetSuggestions(this.value); if(this.id==='wiz-input' && wizard.steps[wizard.step].id==='eph_itemNumRef') updateMockupRefSuggestions(this.value); ${_showCollPicker ? '_filterCollPicker(this.value)' : ''}"
+          oninput="wizard.data['${s.id}']=this.value; if(this.id==='wiz-input' && wizard.steps[wizard.step].id==='itemNum') { debouncedItemSuggestions(this.value); _wizOwnedRefresh(); } if(this.id==='wiz-input' && wizard.steps[wizard.step].id==='set_num') updateSetSuggestions(this.value); if(this.id==='wiz-input' && wizard.steps[wizard.step].id==='eph_itemNumRef') updateMockupRefSuggestions(this.value); ${_showCollPicker ? '_filterCollPicker(this.value)' : ''}"
           onkeydown="handleSuggestionKey(event)">
         <div id="wiz-suggestions" style="display:none;flex-direction:column;gap:1px;margin-top:4px;max-height:340px;overflow-y:auto;overflow-x:hidden;box-sizing:border-box;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:4px;-webkit-overflow-scrolling:touch"></div>
         ${s.optional ? '<div style="font-size:0.75rem;color:var(--text-dim);margin-top:0.5rem">Optional — press Next to skip</div>' : ''}
@@ -5004,7 +5004,7 @@ function renderWizardStep() {
             autocomplete="off"
             style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;
             padding:0.75rem 1rem;color:var(--text);font-family:var(--font-body);font-size:1rem;outline:none;box-sizing:border-box"
-            oninput="wizard.data.itemNum=this.value; debouncedItemSuggestions(this.value); _updateGroupingButtons();"
+            oninput="wizard.data.itemNum=this.value; debouncedItemSuggestions(this.value); _updateGroupingButtons(); _wizOwnedRefresh();"
             onkeydown="handleSuggestionKey(event)">
         </div>
         <label onclick="toggleBoxOnly()" data-box-only-checkbox="1" style="
@@ -6113,6 +6113,177 @@ function renderWizardStep() {
 
 }
 
+// ══ v0.9.1431 (Brad): "You have this item" — ONE panel on every add flow ════
+// "as soon as we select an item #, if the number shows in our collection,
+//  have a popup to the right of the add screen ... list below the item or
+//  items, and also show its variation # ... click it to see its detail page.
+//  go through all the ways to add something."
+//
+// Every add path in the app funnels into this wizard — browse adds, want
+// "Got it", upgrade "Got It", sets, quick-add, barcode, photo inbox — so the
+// panel mounts from ONE place: a wrapper around renderWizardStep (below).
+// Patching the render sites individually is how features miss a path.
+// The Photo Inbox review card shares the same list via _rrOwnedPanelHtml.
+
+// Every owned copy of a number — the whole list, not just the first match.
+// baseItemNum makes 2343P / 2343-P / 2343 one family (catalog vs app
+// conventions); exact matches sort first, then by variation number.
+window.rrOwnedCopies = function (num) {
+  var n = String(num || '').trim();
+  if (!n || n.toLowerCase().indexOf('-box') >= 0) return [];
+  var bi = (typeof baseItemNum === 'function') ? baseItemNum : function (x) { return String(x).toLowerCase(); };
+  var base = String(bi(n)).toLowerCase();
+  if (!base) return [];
+  var out = [];
+  var pdMap = (typeof state !== 'undefined' && state.personalData) || {};
+  Object.keys(pdMap).forEach(function (k) {
+    var pd = pdMap[k];
+    if (!pd || !pd.owned) return;
+    var pn = String(pd.itemNum || '').trim();
+    if (!pn) return;
+    if (String(bi(pn)).toLowerCase() !== base) return;
+    out.push({ pd: pd, key: k, exact: pn.toLowerCase() === n.toLowerCase() });
+  });
+  out.sort(function (a, b) {
+    return (b.exact - a.exact)
+      || String(a.pd.variation || '').localeCompare(String(b.pd.variation || ''), undefined, { numeric: true });
+  });
+  return out;
+};
+
+// The list itself — shared by the wizard panel and the Photo Inbox card.
+// src rides into each row's click so the opener knows which modal to hide.
+window._rrOwnedPanelHtml = function (copies, src) {
+  var esc = (typeof rrEsc === 'function') ? rrEsc
+    : function (s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;'); };
+  var rows = copies.map(function (c) {
+    var pd = c.pd;
+    var inv = String(pd.inventoryId || '').replace(/['"\\]/g, '');
+    var bits = [];
+    if (String(pd.variation || '').trim()) bits.push('Var ' + esc(String(pd.variation).trim()));
+    if (String(pd.condition || '').trim()) bits.push('Cond ' + esc(String(pd.condition).trim()));
+    if (String(pd.location || '').trim()) bits.push(esc(String(pd.location).trim()));
+    return '<button type="button" onclick="_rrOwnedOpen(\'' + inv + '\',\'' + src + '\')"'
+      + ' style="display:flex;align-items:center;gap:0.5rem;width:100%;box-sizing:border-box;text-align:left;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:0.45rem 0.6rem;margin-top:0.35rem;cursor:pointer;color:var(--text);font-family:var(--font-body)">'
+      + '<span style="font-family:var(--font-mono);font-weight:700;font-size:0.85rem;color:var(--accent2,#c9922a);flex-shrink:0">' + esc(String(pd.itemNum || '')) + '</span>'
+      + '<span style="font-size:0.76rem;color:var(--text-dim);flex:1;min-width:0">' + (bits.join(' \u00b7 ') || 'no variation recorded') + '</span>'
+      + '<span style="font-size:0.7rem;color:var(--text-dim);flex-shrink:0">view \u203a</span>'
+      + '</button>';
+  }).join('');
+  return '<div style="padding:0.55rem 0.65rem;border:1px solid rgba(46,204,113,0.45);border-radius:10px;background:rgba(46,204,113,0.07)">'
+    + '<div style="font-size:0.78rem;font-weight:700;color:#2ecc71">\u2713 You have this item'
+    + (copies.length > 1 ? ' \u2014 ' + copies.length + ' copies' : '') + '</div>'
+    + rows
+    + '<div style="font-size:0.68rem;color:var(--text-dim);margin-top:0.4rem">Adding another copy is fine \u2014 tap a copy to see its details.</div>'
+    + '</div>';
+};
+
+// Open a copy WITHOUT losing the add in progress — the _wizPeekDetail /
+// _pinSeeOwned pattern: hide (never close) the modal, float a return pill,
+// open the real detail page by inventoryId.
+window._rrOwnedOpen = function (invId, src) {
+  try {
+    if (src === 'pin' && typeof _pinSeeOwned === 'function') { _pinSeeOwned(invId); return; }
+    var modal = document.getElementById('wizard-modal');
+    if (modal) modal.classList.remove('open');
+    document.body.style.overflow = '';
+    var old = document.getElementById('wiz-return-pill');
+    if (old) old.remove();
+    var pill = document.createElement('button');
+    pill.id = 'wiz-return-pill';
+    pill.innerHTML = '\u2190 Back to adding your item';
+    pill.style.cssText = 'position:fixed;bottom:1.1rem;left:50%;transform:translateX(-50%);z-index:8000;padding:0.7rem 1.3rem;border-radius:999px;border:none;background:var(--accent,#e8401c);color:#fff;font-weight:700;font-size:0.9rem;cursor:pointer;box-shadow:0 4px 18px rgba(0,0,0,0.45);font-family:var(--font-body)';
+    pill.onclick = function () {
+      pill.remove();
+      var m = document.getElementById('wizard-modal');
+      if (m) { m.classList.add('open'); document.body.style.overflow = 'hidden'; }
+    };
+    document.body.appendChild(pill);
+    if (invId && typeof _openOwnedByInvId === 'function') _openOwnedByInvId(invId);
+    else if (typeof goToMyCollection === 'function') goToMyCollection();
+  } catch (e) { console.warn('[owned-open]', e); }
+};
+
+// Mount/refresh. Desktop with room to the right of the modal box: a card
+// beside it ("popup to the right of the add screen"), positioned within the
+// overlay so it hides and dies with the wizard automatically. The modal box
+// re-centers itself whenever its content grows (suggestions opening, steps
+// changing), so a one-time measurement goes stale \u2014 and ResizeObserver
+// proved unreliable on this page \u2014 so a 200ms glue check re-pins the card
+// while it exists, and kills itself the moment the panel leaves the DOM.
+// No room to the right (or mobile): a band under the item-number input.
+window._wizOwnedMount = function () {
+  try {
+    var o1 = document.getElementById('wiz-owned-side'); if (o1) o1.remove();
+    var o2 = document.getElementById('wiz-owned-band'); if (o2) o2.remove();
+    if (window._wizOwnedGlue) { clearInterval(window._wizOwnedGlue); window._wizOwnedGlue = null; }
+    if (typeof wizard === 'undefined' || !wizard || !wizard.data) return;
+    if (['collection', 'want', 'set'].indexOf(wizard.tab) < 0) return;
+    var modal = document.getElementById('wizard-modal');
+    if (!modal || !modal.classList.contains('open')) return;
+    var copies = rrOwnedCopies(wizard.data.itemNum);
+    if (!copies.length) return;
+    var html = _rrOwnedPanelHtml(copies, 'wiz');
+    var box = modal.querySelector('.modal') || modal.firstElementChild;
+    var r = box ? box.getBoundingClientRect() : null;
+    var roomRight = r ? ((window.innerWidth || 0) - r.right) : 0;
+    if (!window.IS_MOBILE_UA && box && roomRight >= 296) {
+      var panel = document.createElement('div');
+      panel.id = 'wiz-owned-side';
+      panel.style.cssText = 'position:absolute;width:264px;overflow-y:auto;box-sizing:border-box;'
+        + 'background:var(--surface);border:1px solid var(--border);border-radius:12px;'
+        + 'padding:0.6rem 0.65rem;box-shadow:0 8px 30px rgba(0,0,0,0.35)';
+      panel.innerHTML = html;
+      modal.appendChild(panel);
+      var lastKey = '';
+      var place = function () {
+        if (!panel.isConnected) { clearInterval(window._wizOwnedGlue); window._wizOwnedGlue = null; return; }
+        var rr = box.getBoundingClientRect(), mr = modal.getBoundingClientRect();
+        var key = Math.round(rr.right) + '|' + Math.round(rr.top) + '|' + Math.round(rr.height);
+        if (key === lastKey) return;   // nothing moved \u2014 no style writes
+        lastKey = key;
+        panel.style.left = Math.round(rr.right - mr.left + 14) + 'px';
+        panel.style.top = Math.round(rr.top - mr.top) + 'px';
+        panel.style.maxHeight = Math.max(180, Math.round(rr.height)) + 'px';
+      };
+      place();
+      window._wizOwnedGlue = setInterval(place, 200);
+    } else {
+      var inp = document.getElementById('wiz-input');
+      if (!inp) return;   // small screens: the band lives on the number step only
+      var band = document.createElement('div');
+      band.id = 'wiz-owned-band';
+      band.style.cssText = 'margin-top:0.6rem';
+      band.innerHTML = html;
+      var anchor = document.getElementById('wiz-match') || inp.parentElement;
+      if (anchor && anchor.parentElement) anchor.parentElement.insertBefore(band, anchor.nextSibling);
+    }
+  } catch (e) {}
+};
+
+var _wizOwnedT = null;
+window._wizOwnedRefresh = function () {
+  if (_wizOwnedT) clearTimeout(_wizOwnedT);
+  _wizOwnedT = setTimeout(function () { window._wizOwnedMount(); }, 180);
+};
+window.addEventListener('resize', function () {
+  if (document.getElementById('wiz-owned-side') || document.getElementById('wiz-owned-band')) window._wizOwnedRefresh();
+});
+
+// The wrapper: EVERY path through the wizard re-renders via this one
+// function — including branches that return early, which is why appending a
+// call inside the body was not safe. Pre-filled flows (browse add, want "Got
+// it", upgrade, sets, photo-inbox hand-off) get the panel with no per-site
+// wiring, and typing is covered by the oninput hooks.
+(function () {
+  var _rws0 = renderWizardStep;
+  renderWizardStep = function () {
+    var r = _rws0.apply(this, arguments);
+    try { window._wizOwnedMount(); } catch (e) {}
+    return r;
+  };
+})();
+
 // ── Category/Tab/Choice handlers (moved to wizard-handlers.js — Session 110, Round 1 Chunk 6) ──
 
 // ── Picker UIs (moved to wizard-pickers.js — Session 110, Round 1 Chunk 5) ──
@@ -6243,19 +6414,11 @@ async function wizardAdvance() {
 // collection. Non-blocking — owning multiple copies is legit; just a heads-up.
 // Once per wizard session (flag on wizard.data). Boxes (-BOX rows) excluded.
 function _fyiAlreadyOwned(itemNum) {
-  try {
-    if (typeof wizard === 'undefined' || !wizard || !wizard.data || wizard.data._alreadyOwnedFyi) return;
-    var _n = String(itemNum || '').trim().toLowerCase();
-    if (!_n || _n.indexOf('-box') >= 0) return;
-    var _copies = Object.values((typeof state !== 'undefined' && state.personalData) || {}).filter(function(pd) {
-      return pd && pd.owned && String(pd.itemNum || '').trim().toLowerCase() === _n;
-    });
-    if (!_copies.length) return;
-    wizard.data._alreadyOwnedFyi = true;
-    if (typeof showToast === 'function') {
-      showToast('FYI — ' + itemNum + ' is already in your collection' + (_copies.length > 1 ? ' (' + _copies.length + ' copies)' : '') + '. Adding another copy is fine.', 5000);
-    }
-  } catch (e) {}
+  // v0.9.1431: the one-shot toast grew into the persistent "You have this
+  // item" panel (_wizOwnedMount), which lists every copy with its variation
+  // and opens each one's detail page. Kept as a named hook — callers exist —
+  // but all it does now is make sure the panel is up to date.
+  try { if (typeof _wizOwnedMount === 'function') _wizOwnedMount(); } catch (e) {}
 }
 if (typeof window !== 'undefined') window._fyiAlreadyOwned = _fyiAlreadyOwned;
 
