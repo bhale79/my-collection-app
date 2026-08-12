@@ -131,12 +131,41 @@ function _eraOf(pd) {
   return 'pw';
 }
 
+// v0.9.1429 (Brad): "don't include boxes, just items and their variations".
+// Postwar master data spans seven tabs — Items, Boxes, Science, Paper, Service
+// Tools, Other, Construction — and the total counted every one, so Boxes alone
+// padded the denominator by 1,366. Era Progress asks what share of the CATALOG
+// you own, so Postwar counts the Items tab only. Variation rows still count
+// individually: that is what "items and their variations" means.
+var ERA_MASTER_TABS = { pw: ['Lionel PW - Items'] };
+
+// The ONE way to count an era's master rows. Everything reads this, so the
+// number on the card and the number in the cache can never drift apart.
+function _eraMasterRows(ek) {
+  var md = state.masterData || [], only = ERA_MASTER_TABS[ek];
+  var n = md.filter(function (m) {
+    return m._era === ek && (!only || only.indexOf(m._tab) >= 0);
+  }).length;
+  // Single-era mode may not stamp _era on every row; with no tab rule to
+  // apply, whatever is loaded IS this era.
+  if (!n && !only && typeof _currentEra !== 'undefined' && ek === _currentEra) n = md.length;
+  return n;
+}
+
 function _cacheEraMasterTotal() {
-  // Store current era's master data total on the ERAS object AND localStorage
-  if (typeof _currentEra !== 'undefined' && state.masterData && state.masterData.length > 0) {
-    ERAS[_currentEra]._total = state.masterData.length;
-    try { localStorage.setItem('lv_era_total_' + _currentEra, state.masterData.length); } catch(e) {}
-  }
+  // v0.9.1429: THE BUG THIS FIXES — the old version stored
+  // state.masterData.length under whatever era was current, without checking
+  // that the loaded data was only that era. In "All Eras" mode masterData holds
+  // every maker at once, so one write while the era read 'pw' stamped the whole
+  // catalog (98,736 rows) into the Postwar slot, and the card preferred that
+  // stored value forever after. Never cache from a mixed load, and cache the
+  // same filtered count the card displays.
+  if (typeof _currentEra === 'undefined' || _currentEra === 'all') return;
+  if (!state.masterData || !state.masterData.length) return;
+  var n = _eraMasterRows(_currentEra);
+  if (!n) return;
+  ERAS[_currentEra]._total = n;
+  try { localStorage.setItem('lv_era_total_' + _currentEra, n); } catch(e) {}
 }
 
 function _getEraMasterTotal(eraKey) {
@@ -286,17 +315,12 @@ var CARD_CATALOG = [
         // Simple: current era = live count, other eras = localStorage.
         // In 'all' mode the live state.masterData has every era mixed,
         // so we still defer to the per-era localStorage cache.
-        var total = 0;
-        if (_currentEra === 'all') {
-          // Count items from this era in the unified masterData
-          var stored = _getEraMasterTotal(ek);
-          if (stored) total = stored;
-          else total = (state.masterData || []).filter(function(m){return m._era === ek;}).length;
-        } else if (ek === _currentEra) {
-          total = (state.masterData || []).length;
-        } else {
-          total = _getEraMasterTotal(ek) || 0;
-        }
+        // v0.9.1429: count LIVE first, fall back to the stored value only for
+        // eras that aren't loaded. The old order preferred storage, which is
+        // why a single bad cache write could never correct itself. This way any
+        // stale value is simply ignored the moment real data is present.
+        var total = _eraMasterRows(ek);
+        if (!total) total = _getEraMasterTotal(ek) || 0;
         var pct = total > 0 ? (owned/total*100) : 0;
         var pctStr = total > 0 ? pct.toFixed(1) + '%' : '—';
         var barWidth = total > 0 ? Math.max(pct, 0.5) : 0;
