@@ -2528,12 +2528,22 @@
       html = row('Item #', String(lk.num).replace(/</g, '&lt;'))
         + '<div style="font-size:0.8rem;color:var(--text-dim);margin-top:0.2rem">Not found in the catalog — you can still add it, or Research to double-check the number.</div>';
     }
+    // v0.9.1431 (Brad): the one-line notice is now the full owned-copies
+    // list — every copy, its variation # and condition, each clickable to its
+    // detail page. Same list as the wizard's "You have this item" panel
+    // (_rrOwnedPanelHtml in wizard.js); rows route through _pinSeeOwned so
+    // the review card hides rather than closes. The amber same-number-
+    // different-item warning stays — it has caught real prewar/postwar
+    // collisions before (v0.9.1045, Brad's 213).
     if (lk.ownedPd && lk.ownedAgrees === false) {
-      // Same number, different item — say so plainly instead of claiming a duplicate.
       html += '<div style="margin-top:0.45rem;font-size:0.8rem;color:#d4a843;font-weight:700;line-height:1.5">You own a '
         + rrEsc(lk.ownedLabel) + ' \u2014 same number, different item. This one is new to your collection.'
         + _pinSeeItLink(lk.ownedPd) + '</div>';
-    } else if (lk.ownedPd) {
+    }
+    var _ownAll = (typeof rrOwnedCopies === 'function') ? rrOwnedCopies(lk.num) : [];
+    if (_ownAll.length && typeof _rrOwnedPanelHtml === 'function') {
+      html += '<div style="margin-top:0.45rem">' + _rrOwnedPanelHtml(_ownAll, 'pin') + '</div>';
+    } else if (lk.ownedPd && lk.ownedAgrees !== false) {
       html += '<div style="margin-top:0.45rem;font-size:0.8rem;color:#2ecc71;font-weight:700">\u2713 You already own one — this will be added as a separate copy.'
         + _pinSeeItLink(lk.ownedPd) + '</div>';
     }
