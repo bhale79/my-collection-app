@@ -3166,12 +3166,19 @@
         + (_setGuess.pieces ? ', which has ' + _setGuess.pieces + ' pieces' : '') + '.</div>'
         + '</div>'
       : '';
-    var _setBtn = (_setNums.length >= 2)
-      ? _setLine
-        + '<button onclick="_pinAddSetFromGroup()" style="width:100%;padding:0.72rem;border-radius:10px;border:2px solid #e67e22;background:var(--bg-card);background:color-mix(in srgb, rgb(230,126,34) 12%, var(--bg-card));color:#e67e22;font-family:var(--font-body);font-weight:700;font-size:0.93rem;cursor:pointer;margin-bottom:0.5rem">\ud83d\ude82 '
-        + (_setGuess ? 'Add set ' + rrEsc(_setGuess.setNum) : 'Add the whole set')
-        + ' \u2014 ' + _setNums.length + ' items read</button>'
-      : '';
+    // v0.9.1434 (Brad): the KIND he declared when grouping decides the route
+    // — the card stops offering "add the whole set" to an ABA he already
+    // named. An ABA/AB/AA/engine+tender is ONE linked item, not a train set;
+    // asking again was the inbox throwing away what it knew. Three buttons
+    // for a group: collection, sales list, discard. The set evidence line
+    // stays (information, not a button), and an UNTAGGED stack whose 2+ read
+    // numbers match a real set still routes to the set flow — the one case
+    // the old separate button was right.
+    var _rvKind = 'single';
+    try { _rvKind = (_rvGroups[0] && ((_rvGroups[0].files[0] && _rvGroups[0].files[0]._meta && _rvGroups[0].files[0]._meta.kind) || _rvGroups[0].kind)) || 'single'; } catch (eRK) {}
+    var _isGrp = (_rvKind !== 'single') || n > 1;
+    var _routeSet = (_rvKind === 'set') || (_rvKind === 'single' && _setNums.length >= 2 && !!_setGuess);
+    var _setBtn = _setLine;
     var _btnArea =
       _guessChip +
       '<input id="pin-rv-num" list="pin-rv-list" type="text" value="' + sug.replace(/"/g, '&quot;') + '" placeholder="Item number — e.g. 2343 or 6464-1" autocomplete="off" spellcheck="false" oninput="_pinReviewLookup(this.value)" style="width:100%;box-sizing:border-box;padding:0.6rem 0.75rem;border:1px solid var(--border);border-radius:8px;background:var(--surface2);color:var(--text);font-family:var(--font-mono);font-size:1rem;margin-bottom:0.55rem">' +
@@ -3191,9 +3198,11 @@
           // tested lanes as before (v0.9.1387 kept the no-number lane
           // unconditional for exactly this reason); only the choosing moved
           // from the user to the code.
-          '<button id="pin-rv-add" onclick="_pinAddItem()" class="btn-primary" style="width:100%;padding:0.72rem;border-radius:10px;border:none;font-family:var(--font-body);font-weight:700;font-size:0.93rem;cursor:pointer;margin-bottom:0.5rem">Add to my Collection</button>' +
-          '<button id="pin-rv-sell" onclick="_pinSendForSale()" style="width:100%;padding:0.68rem;border-radius:10px;border:1.5px solid #d4a843;background:var(--bg-card);background:color-mix(in srgb, rgb(212,168,67) 12%, var(--bg-card));color:#d4a843;font-family:var(--font-body);font-weight:700;font-size:0.9rem;cursor:pointer;margin-bottom:0.5rem">Add to Sales List</button>' +
-          '<button onclick="_pinReviewDiscard()" style="width:100%;padding:0.68rem;border-radius:10px;border:1.5px solid #8b8e94;background:var(--bg-card);background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card));color:#f05008;font-family:var(--font-body);font-weight:700;font-size:0.9rem;cursor:pointer">Discard Photo' + (n > 1 ? 's' : '') + '</button>' +
+          '<button id="pin-rv-add" onclick="' + (_routeSet ? '_pinAddSetFromGroup()' : '_pinAddItem()') + '" class="btn-primary" style="width:100%;padding:0.72rem;border-radius:10px;border:none;font-family:var(--font-body);font-weight:700;font-size:0.93rem;cursor:pointer;margin-bottom:0.5rem">'
+            + ((_routeSet && _setGuess) ? 'Add set ' + rrEsc(_setGuess.setNum) + ' to my collection'
+               : (_isGrp ? 'Add group to my collection' : 'Add to my Collection')) + '</button>' +
+          '<button id="pin-rv-sell" onclick="_pinSendForSale()" style="width:100%;padding:0.68rem;border-radius:10px;border:1.5px solid #d4a843;background:var(--bg-card);background:color-mix(in srgb, rgb(212,168,67) 12%, var(--bg-card));color:#d4a843;font-family:var(--font-body);font-weight:700;font-size:0.9rem;cursor:pointer;margin-bottom:0.5rem">' + (_isGrp ? 'Add group to my sales list' : 'Add to Sales List') + '</button>' +
+          '<button onclick="_pinReviewDiscard()" style="width:100%;padding:0.68rem;border-radius:10px;border:1.5px solid #8b8e94;background:var(--bg-card);background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card));color:#f05008;font-family:var(--font-body);font-weight:700;font-size:0.9rem;cursor:pointer">' + (_isGrp ? 'Discard group' : 'Discard Photo' + (n > 1 ? 's' : '')) + '</button>' +
         '</div>' +
         '<div style="flex:1 1 240px;min-width:0">' +
           '<div style="' + _lbl + '">Not sure what it is?</div>' +
