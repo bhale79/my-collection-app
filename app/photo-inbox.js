@@ -4996,6 +4996,18 @@
               if (_pl.indexOf(f.id) >= 0) { var _v = _pinMetaOf(f).view; if (_v) _vm[f.id] = _v; }
             }); });
             if (Object.keys(_vm).length) wizard.data._addPhotoViews = _vm;
+            // v0.9.1440 (Brad's 2344 AA): the ROLE he chose when grouping —
+            // powered / dummy / both together — decides WHICH STEP a photo
+            // belongs to. The wizard builds one photo step per unit and they
+            // line up exactly with these roles; without the map all three
+            // photos fell into the first step by queue order and the dummy
+            // unit's picture became the powered unit's "Back" view.
+            var _rm = {};
+            _groups.forEach(function (g) { g.files.forEach(function (f) {
+              if (_pl.indexOf(f.id) >= 0) { var _r = _pinMetaOf(f).role; if (_r) _rm[f.id] = _r; }
+            }); });
+            if (Object.keys(_rm).length) wizard.data._addPhotoRoles = _rm;
+            if (opts && opts.groupKind) wizard.data._addPhotoKind = String(opts.groupKind);
           } catch (ePl) {}
           // v0.9.1279 (Brad): a group marked "Paper / other collectible" skips
           // the train prefill entirely — the add opens in the paper flow, where
