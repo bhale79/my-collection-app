@@ -8760,8 +8760,10 @@
   // v0.9.1433: the view sequence. Right Side first — the app's own
   // orientation-tip convention and the catalog's money shot. 'EXTRA2' is the
   // repeatable "Another Detail"; both detail buttons stamp 'EXTRA'.
+  // v0.9.1437 (Brad's guide): the order you actually WALK around an item on a
+  // table — right side, front, left side, back — then top, bottom, details.
   var _QC_VIEWS = [
-    ['RSV', 'Right Side'], ['LSV', 'Left Side'], ['FV', 'Front'], ['BKV', 'Back'],
+    ['RSV', 'Right Side'], ['FV', 'Front'], ['LSV', 'Left Side'], ['BKV', 'Back'],
     ['TV', 'Top'], ['BV', 'Bottom'], ['EXTRA', 'Detail 1'], ['EXTRA2', 'Another Detail']
   ];
   function _qcViewLabel(k) {
