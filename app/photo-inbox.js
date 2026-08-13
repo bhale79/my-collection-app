@@ -1292,6 +1292,11 @@
       // the tag bar's Type picker; the readers use it as a hint (see
       // _pinPreferOf / _pinAiHints / _pinBestMaster).
       type: ap.rrType || '',
+      // v0.9.1433 (Brad): which SIDE of the item the photo shows, stamped by
+      // Quick Capture's view buttons at the moment the shot is taken. Values
+      // are the wizard's own slot keys (RSV/LSV/FV/BKV/TV/BV) plus 'EXTRA'
+      // for detail shots, so the wizard can file each photo without a lookup.
+      view: ap.rrView || '',
       num:  ap.rrNum  || '',
       stat: ap.rrStat || '',
       conf: ap.rrConf || '',
@@ -1317,7 +1322,7 @@
   // and deletes any whose value is null, so only what changed goes over.
   async function _pinMetaSet(fileId, patch) {
     if (!fileId || !patch) return false;
-    var map = { era:'rrEra', grp:'rrGrp', kind:'rrKind', role:'rrRole', type:'rrType', num:'rrNum', stat:'rrStat', conf:'rrConf', ord:'rrOrd' };   // ord: v0.9.1283, drag order · type: v0.9.1297
+    var map = { era:'rrEra', grp:'rrGrp', kind:'rrKind', role:'rrRole', type:'rrType', num:'rrNum', stat:'rrStat', conf:'rrConf', ord:'rrOrd', view:'rrView' };   // ord: v0.9.1283, drag order · type: v0.9.1297 · view: v0.9.1433
     var props = { rrV: _PIN_META_V };
     Object.keys(patch).forEach(function (k) {
       if (!map[k]) return;
@@ -4844,6 +4849,11 @@
           if (_hero) wizard.data._addPhotoDriveId = _hero;
           var _all = fileList.map(function (fl) { return (fl && fl.id) || ''; }).filter(Boolean);
           if (_all.length) wizard.data._addPhotoDriveIds = _all;
+          try {   // v0.9.1433: view stamps ride along here too
+            var _vm2 = {};
+            fileList.forEach(function (fl) { if (fl && fl.id) { var _v2 = _pinMetaOf(fl).view; if (_v2) _vm2[fl.id] = _v2; } });
+            if (Object.keys(_vm2).length) wizard.data._addPhotoViews = _vm2;
+          } catch (eVm2) {}
           if (typeof renderWizardStep === 'function') renderWizardStep();
           showToast('Pick what it is from Item Type at the top — paper, catalog, mock-up or other. '
             + fileList.length + ' photo' + (fileList.length > 1 ? 's' : '')
@@ -4913,6 +4923,13 @@
             var _pl = (opts && opts.photoIds) || [];
             if (!_pl.length && photoDriveId) _pl = [photoDriveId];
             if (_pl.length) wizard.data._addPhotoDriveIds = _pl;
+            // v0.9.1433: each photo's view stamp rides along, so the wizard
+            // files Right Side into Right Side instead of dealing by order.
+            var _vm = {};
+            _groups.forEach(function (g) { g.files.forEach(function (f) {
+              if (_pl.indexOf(f.id) >= 0) { var _v = _pinMetaOf(f).view; if (_v) _vm[f.id] = _v; }
+            }); });
+            if (Object.keys(_vm).length) wizard.data._addPhotoViews = _vm;
           } catch (ePl) {}
           // v0.9.1279 (Brad): a group marked "Paper / other collectible" skips
           // the train prefill entirely — the add opens in the paper flow, where
@@ -8716,7 +8733,7 @@
   }
 
   window._qcOpen = function () {
-    if (!_qc) _qc = { base: new Date().getTime(), group: 1, shots: 0, total: 0, pending: 0, failed: [], recent: [], nextIsNew: false };
+    if (!_qc) _qc = { base: new Date().getTime(), group: 1, shots: 0, total: 0, pending: 0, failed: [], recent: [], nextIsNew: false, view: 'RSV', used: {} };
     var ov = document.getElementById('qc-ov');
     if (!ov) {
       ov = document.createElement('div');
@@ -8742,6 +8759,27 @@
     _qcRender();
   };
 
+  // v0.9.1433: the view sequence. Right Side first — the app's own
+  // orientation-tip convention and the catalog's money shot. 'EXTRA2' is the
+  // repeatable "Another Detail"; both detail buttons stamp 'EXTRA'.
+  var _QC_VIEWS = [
+    ['RSV', 'Right Side'], ['LSV', 'Left Side'], ['FV', 'Front'], ['BKV', 'Back'],
+    ['TV', 'Top'], ['BV', 'Bottom'], ['EXTRA', 'Detail 1'], ['EXTRA2', 'Another Detail']
+  ];
+  function _qcViewLabel(k) {
+    for (var i = 0; i < _QC_VIEWS.length; i++) if (_QC_VIEWS[i][0] === k) return _QC_VIEWS[i][1];
+    return k;
+  }
+  function _qcNextView() {
+    for (var i = 0; i < _QC_VIEWS.length; i++) {
+      var k = _QC_VIEWS[i][0];
+      if (k === 'EXTRA2') continue;
+      if (!_qc.used[k]) return k;
+    }
+    return 'EXTRA2';
+  }
+  window._qcPickView = function (k) { _qc.view = k; _qcRender(); };
+
   function _qcCropOn() { return localStorage.getItem(QC_CROP_KEY) === '1'; }
   window._qcCropToggle = function () {
     localStorage.setItem(QC_CROP_KEY, _qcCropOn() ? '0' : '1');
@@ -8751,6 +8789,8 @@
   function _qcRender() {
     var body = document.getElementById('qc-body');
     if (!body) return;
+    if (!_qc.view) _qc.view = 'RSV';
+    if (!_qc.used) _qc.used = {};
     var counter = 'Item ' + _qc.group + (_qc.shots ? ' · ' + _qc.shots + ' photo' + (_qc.shots > 1 ? 's' : '') : '');
     var pend = '';
     if (_qc.pending > 0) pend += 'Uploading ' + _qc.pending + '… ';
@@ -8777,11 +8817,27 @@
         '<div style="font-size:0.78rem;color:var(--text-dim);min-height:1.2em;text-align:center">' + (pend || (_qc.total ? _qc.total + ' photo' + (_qc.total > 1 ? 's' : '') + ' in your inbox' : 'Photos upload as you go')) + '</div>' +
       '</div>' +
       strip +
-      '<button onclick="_qcTake(true)" style="width:100%;min-height:21vh;border-radius:16px;border:none;background:#2980b9;color:#fff;font-family:var(--font-body);font-weight:700;font-size:1.1rem;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0.45rem;margin-bottom:0.6rem">' +
+      '<button onclick="_qcTake(true)" style="width:100%;min-height:18vh;border-radius:16px;border:none;background:#2980b9;color:#fff;font-family:var(--font-body);font-weight:700;font-size:1.1rem;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0.45rem;margin-bottom:0.6rem">' +
         '<svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>' +
         'Photo of New Item' +
       '</button>' +
-      '<button onclick="_qcTake(false)" ' + (_qc.shots ? '' : 'disabled ') + 'style="width:100%;min-height:12vh;border-radius:16px;border:1.5px solid ' + (_qc.shots ? '#2980b9' : '#8b8e94') + ';background:rgba(41,128,185,' + (_qc.shots ? '0.14' : '0.05') + ');color:' + (_qc.shots ? '#2980b9' : 'var(--text-dim)') + ';font-family:var(--font-body);font-weight:700;font-size:1rem;cursor:pointer;margin-bottom:0.6rem;opacity:' + (_qc.shots ? '1' : '0.55') + '">Another Photo of Same Item</button>' +
+      // v0.9.1433 (Brad): each shot is stamped with WHICH SIDE it shows, so
+      // the wizard can file it straight into the matching slot. The next-photo
+      // button names the view it will take; the row below shows the whole
+      // sequence — the coming view highlighted, finished views grayed (still
+      // tappable to re-shoot one), and Another Detail never runs out.
+      '<button onclick="_qcTake(false)" ' + (_qc.shots ? '' : 'disabled ') + 'style="width:100%;min-height:11vh;border-radius:16px;border:1.5px solid ' + (_qc.shots ? '#2980b9' : '#8b8e94') + ';background:rgba(41,128,185,' + (_qc.shots ? '0.14' : '0.05') + ');color:' + (_qc.shots ? '#2980b9' : 'var(--text-dim)') + ';font-family:var(--font-body);font-weight:700;font-size:1rem;cursor:pointer;margin-bottom:0.5rem;opacity:' + (_qc.shots ? '1' : '0.55') + '">Next Photo of Same Item \u2014 ' + _qcViewLabel(_qc.view) + '</button>' +
+      '<div style="display:flex;flex-wrap:wrap;gap:0.35rem;margin-bottom:0.6rem">' +
+        _QC_VIEWS.map(function (v) {
+          var k = v[0], done = !!_qc.used[k], cur = (k === _qc.view);
+          return '<button onclick="_qcPickView(\'' + k + '\')" style="flex:1 1 22%;min-width:72px;padding:0.5rem 0.2rem;border-radius:9px;font-family:var(--font-body);font-weight:700;font-size:0.78rem;cursor:pointer;'
+            + 'border:2px solid ' + (cur ? '#2980b9' : (done ? 'var(--border)' : 'var(--border)')) + ';'
+            + 'background:' + (cur ? 'rgba(41,128,185,0.22)' : (done ? 'var(--surface2)' : 'var(--bg)')) + ';'
+            + 'color:' + (cur ? '#2980b9' : (done ? '#8b8e94' : 'var(--text-mid)')) + ';'
+            + (done && !cur ? 'opacity:0.55;' : '') + '">'
+            + v[1] + (done ? ' \u2713' : '') + '</button>';
+        }).join('') +
+      '</div>' +
       '<button onclick="_qcDone()" style="width:100%;padding:0.8rem;border-radius:12px;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body);font-weight:600;font-size:0.9rem;cursor:pointer">Done</button>';
   }
 
@@ -8794,14 +8850,19 @@
   };
 
   function _qcShot(file) {
-    if (_qc.nextIsNew && _qc.shots > 0) { _qc.group++; _qc.shots = 0; }
+    if (_qc.nextIsNew && _qc.shots > 0) { _qc.group++; _qc.shots = 0; _qc.used = {}; _qc.view = 'RSV'; }   // v0.9.1433: new item restarts the view sequence
     _qc.nextIsNew = false;
     var go = function (finalFile) {
       _qc.shots++;
       _qc.total++;
       var ext = ((finalFile.name || '').split('.').pop() || 'jpg').toLowerCase().slice(0, 5) || 'jpg';
       var name = 'INBOX ' + _qc.base + ' g' + _qc.base + '-' + _qc.group + ' p' + _qc.shots + '.' + ext;
-      var rec = { url: URL.createObjectURL(finalFile), name: name, driveId: null, group: _qc.group };
+      // v0.9.1433: stamp the shot with the view that was lit when it was taken,
+      // then gray that view out and walk the highlight to the next unused one.
+      var _vStamp = (_qc.view === 'EXTRA2') ? 'EXTRA' : _qc.view;
+      var rec = { url: URL.createObjectURL(finalFile), name: name, driveId: null, group: _qc.group, view: _vStamp };
+      if (_qc.view !== 'EXTRA2') _qc.used[_qc.view] = 1;
+      _qc.view = _qcNextView();
       _qc.recent.push(rec);
       if (_qc.recent.length > 12) { var old = _qc.recent.shift(); try { URL.revokeObjectURL(old.url); } catch (e) {} }
       _qcUpload(finalFile, name, rec);
@@ -8821,6 +8882,11 @@
       var fid = await _folder();
       var res = await driveUploadFile(file, name, fid);
       if (rec && res && res.id) rec.driveId = res.id;
+      // v0.9.1433: the view stamp survives as Drive appProperties, same rails
+      // as every other photo tag — the wizard reads it at add time.
+      if (rec && res && res.id && rec.view) {
+        try { await _pinMetaSet(res.id, { view: rec.view }); } catch (eV) {}
+      }
     } catch (e) {
       console.warn('[QuickCapture] upload failed:', e);
       _qc.failed.push({ file: file, name: name, rec: rec });
