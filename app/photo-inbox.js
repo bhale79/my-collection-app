@@ -1853,25 +1853,36 @@
       g.files.forEach(function (f) {
         n++;
         var m = _pinMetaOf(f);
-        if (m && m.era && m.era !== _tagEra) changing++;
+        // v0.9.1432: only meaningful once an era is chosen. With _tagEra empty
+        // this compared every photo's era against '' and announced "N of those
+        // will be changed" on a bar that could not apply anything yet.
+        if (_tagEra && m && m.era && m.era !== _tagEra) changing++;
       });
     });
     el.style.cssText = 'display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;margin-bottom:0.7rem;'
       + 'padding:0.55rem 0.75rem;border-radius:10px;border:2px solid rgba(41,128,185,0.55);'
       + 'background:rgba(41,128,185,0.08)';
-    var ready = !!_tagEra && n > 0;
+    // v0.9.1432 (Brad: "the apply button doesn't work" — it was DISABLED).
+    // ready used to require an era, and !ready set apb.disabled, so clicking
+    // with "Tag as: Not set" did nothing at all — the explaining toast lives
+    // inside the handler a disabled button can never reach. v0.9.1418 removed
+    // this trap's twin INSIDE the handler; this was the same trap one layer
+    // up. Type-only tagging now counts as ready too ("Engine" with no era),
+    // and the button is NEVER disabled — an unready click walks the user to
+    // what's missing instead of ignoring them.
+    var ready = n > 0 && (!!_tagEra || !!_tagType);
     // v0.9.1060 (Brad: "the apply button needs to be to the left of the finished
     // button. its lost where its at."). Apply lives in the toolbar beside
     // Finished now — the two decisions that end this mode sit together.
     var apb = document.getElementById('pin-apply-btn');
     if (apb) {
       apb.style.display = '';
-      apb.disabled = !ready;
+      apb.disabled = false;   // v0.9.1432: never — see note above
       apb.textContent = 'Apply' + (n ? ' to ' + n : '');
       if (ready) apb.style.background = 'var(--accent)';
       else _pinOpaqueTint(apb, '139,142,148', 25);   // v0.9.1282
       apb.style.color = ready ? '#fff' : 'var(--text-dim)';
-      apb.style.cursor = ready ? 'pointer' : 'default';
+      apb.style.cursor = 'pointer';
     }
     el.innerHTML =
       '<span style="font-size:0.68rem;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-dim);font-weight:700">Tag as</span>'
@@ -1911,19 +1922,28 @@
     // v0.9.1418 (Cooper): THE reported bug. This was a bare `return` — the
     // Apply button's only silent exit, and the one he hit eight times.
     if (_busy) { _pinBusyBounce(); return; }
-    if (!_tagEra) { showToast('Pick a manufacturer and line first', 2600, true); return; }
     var ids = [];
     _selGroups().forEach(function (g) { g.files.forEach(function (f) { ids.push(f.id); }); });
     if (!ids.length) { showToast('Tick some photos first', 2400, true); return; }
+    // v0.9.1432: with nothing chosen, the click OPENS the era picker instead
+    // of toasting about it — the click becomes the fix, not a dead end.
+    if (!_tagEra && !_tagType) { _pinPickTagEra(); return; }
     _setBusy(true, 'Tagging photos');
-    var label = _pinEraLabel(_tagEra) + (_tagType ? ' \u00b7 ' + _tagType : '');
+    var label = (_tagEra ? _pinEraLabel(_tagEra) : '') + (_tagEra && _tagType ? ' \u00b7 ' : '') + (_tagType || '');
     _status('Tagging ' + ids.length + ' photo' + (ids.length > 1 ? 's' : '') + '\u2026');
     var ok = 0;
     try {
       // v0.9.1297: the Type rides with the era when one is picked; '' means
       // "leave as-is" and is deliberately NOT sent, so it can never blank a
       // type that an earlier tagging pass set.
-      var _patch = { era: _tagEra, stat: 'stamped' };
+      // v0.9.1432: send only what is SET, in both directions. Type-only
+      // tagging ("Engine", era untouched) mirrors the v0.9.1297 rule that an
+      // empty Type is never sent — an empty era now isn't either. And the
+      // 'stamped' status rides ONLY with an era: _pinStatusOf derives status
+      // from era presence, so a type-only patch claiming 'stamped' would show
+      // in the Tagged filter with no era behind it.
+      var _patch = {};
+      if (_tagEra) { _patch.era = _tagEra; _patch.stat = 'stamped'; }
       if (_tagType) _patch.type = _tagType;
       ok = await _pinMetaSetMany(ids, _patch, function (done) {
         _status('Tagging ' + done + ' of ' + ids.length + '\u2026');
