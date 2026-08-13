@@ -6021,7 +6021,12 @@ function renderWizardStep() {
       }
     }
     const _summaryEntries = Object.entries(wizard.data).filter(function(e) {
-      return !_skipKeys.has(e[0]) && !e[0].startsWith('_searchFilter') && e[1] && e[1] !== '' && !e[0].startsWith('photos') && !Array.isArray(e[1]) && typeof e[1] !== 'object';
+      // v0.9.1436 (Brad's screenshot): "from inbox — true" and "pin staged
+      // num" were showing as editable rows. Underscore keys are internal
+      // bookkeeping by convention everywhere in this codebase — none of them
+      // belong on a user-facing summary, and editing _pinStagedNum by hand
+      // could detach the staged photos.
+      return !_skipKeys.has(e[0]) && !e[0].startsWith('_') && e[1] && e[1] !== '' && !e[0].startsWith('photos') && !Array.isArray(e[1]) && typeof e[1] !== 'object';
     });
 
     const _yesNoKeys = ['hasIS','hasMasterBox','hasBox','tenderHasBox','unit2HasBox','unit3HasBox','isError','tenderIsError','unit2IsError','unit3IsError','cat_hasMailer','manualHasBox'];
