@@ -2177,7 +2177,8 @@ function renderWizardStep() {
     const _common = _cfg.common || [];
     const _all = _cfg.all || [];
     const cur = wizard.data.manualItemType || '';
-    const _emoji = {'Steam Engine':'🚂','Diesel Engine':'🚄','Electric Engine':'⚡','Freight Car':'🚃','Passenger Car':'🚋','Caboose':'🔴','Accessory':'🏗️','Track':'🛤️','Transformer':'🔌','Rolling Stock':'📦','Paper':'📄','Other':'❓'};
+    // v0.9.1434 (Brad): "purge all the little icons" — the type buttons are
+    // plain text now. The emoji row went with the rest of the train icons.
     const _esc = function(v){ return String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); };
     body.innerHTML =
       '<div style="font-size:0.78rem;color:var(--text-dim);margin-bottom:0.45rem">Tap a common type, or search/type any other below.</div>' +
@@ -2188,7 +2189,7 @@ function renderWizardStep() {
             'display:flex;align-items:center;gap:0.5rem;padding:0.55rem 0.7rem;border-radius:8px;border:2px solid ' + (sel ? 'var(--accent)' : 'var(--border)') + ';' +
             'background:' + (sel ? 'var(--accent)22' : 'var(--surface2)') + ';color:var(--text);cursor:pointer;' +
             'font-family:var(--font-body);font-size:0.84rem;font-weight:600;text-align:left">' +
-            (_emoji[t] ? '<span style="font-size:1.05rem">' + _emoji[t] + '</span>' : '') + _esc(t) + '</button>';
+            _esc(t) + '</button>';
         }).join('') +
       '</div>' +
       '<div style="margin-top:0.7rem">' +
@@ -3647,9 +3648,9 @@ function renderWizardStep() {
     smContainer.appendChild(intro);
 
     const opts = [
-      { val: 'set-now',   icon: '🚂🚂', label: 'Adding as a set now',        desc: 'Walk through all units together' },
+      { val: 'set-now',   icon: '', label: 'Adding as a set now',        desc: 'Walk through all units together' },   // v0.9.1434: train icons purged
       { val: 'link',      icon: '🔗',   label: 'Link to unit already owned', desc: ownedPartner ? 'Found: ' + ownedPartner.itemNum + ' in your collection' : 'Assign same Set ID as existing unit', disabled: !ownedPartner },
-      { val: 'standalone',icon: '🚂',   label: 'Standalone / no set',        desc: 'Save this unit by itself' },
+      { val: 'standalone',icon: '',   label: 'Standalone / no set',        desc: 'Save this unit by itself' },
     ];
 
     opts.forEach(function(opt) {
@@ -3740,7 +3741,6 @@ function renderWizardStep() {
   } else if (s.type === 'divider') {
     const sub = s.subtitle ? s.subtitle(wizard.data) : '';
     body.innerHTML = '<div style="padding-top:1rem;text-align:center">'
-      + '<div style="font-size:3rem;margin-bottom:0.75rem">🚃</div>'
       + '<div style="font-size:0.95rem;color:var(--text-dim);line-height:1.6;max-width:340px;margin:0 auto">' + sub + '</div>'
       + '</div>';
 
@@ -3782,7 +3782,7 @@ function renderWizardStep() {
 
       const numSpan = document.createElement('span');
       numSpan.style.cssText = 'font-family:var(--font-head);font-size:1.2rem;color:' + (sel ? 'var(--accent)' : 'var(--text)');
-      numSpan.textContent = (tmIsTend ? '🚂 ' : '🚃 ') + num;
+      numSpan.textContent = num;   // v0.9.1434: train icons purged
       topRow.appendChild(numSpan);
 
       if (owned) {
