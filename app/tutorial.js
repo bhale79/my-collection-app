@@ -140,7 +140,7 @@ if (typeof window !== 'undefined') window._gtMatchPicked = _gtMatchPicked;
 const GUIDES = {
 
   'tour': {
-    icon: '🚂', label: 'Take the tour', desc: 'The Dashboard, one piece at a time',
+    icon: '🗺️', label: 'Take the tour', desc: 'The Dashboard, one piece at a time',
     open: function () { showPage('dashboard'); },
     steps: [
       // v0.9.1400 — THE FIRST CARD A NEW USER EVER READS.
@@ -319,7 +319,7 @@ const GUIDES = {
   },
 
   'photo-inbox-groups': {
-    icon: '🚂', label: 'Photo Inbox: several photos, one item', desc: 'Engine + tender, A units, sets and boxes',
+    icon: '🗂️', label: 'Photo Inbox: several photos, one item', desc: 'Engine + tender, A units, sets and boxes',
     open: function () { if (typeof _pinGo === 'function') _pinGo(null); },
     steps: [
       { selector: '#pin-group-btn', title: 'Why group photos',
@@ -780,6 +780,8 @@ function openHelpHub() {
     +   hdr('Tips & Recovery')
     +   row(X + "if(typeof _uiShowVersionHistoryHelp==='function')_uiShowVersionHistoryHelp();", '↩️', 'How to undo a mistake', 'Restore an earlier version of your data')
     +   row(X + "if(typeof resetContextualHints==='function'){resetContextualHints();if(typeof showToast==='function')showToast('Tips re-enabled. Visit a list page to see them.');}", '💡', 'Reset tips', 'Show the one-time hint bubbles again')
+    +   hdr('Suggestions')
+    +   row(X + "_rrGuidePhotos();", '📷', 'Photographing a large collection', 'A working method for getting a whole wall or cabinet into your roster')
     +   hdr('More')
     +   row("window.location.href='mailto:" + fb + "?subject=The Rail Roster Feedback';", '✉️', 'Send feedback', 'Report a bug or suggest a feature')
     + '</div>'
@@ -788,6 +790,153 @@ function openHelpHub() {
   document.body.appendChild(modal);
 }
 window.openHelpHub = openHelpHub;
+
+// ══ v0.9.1438 (Brad) — SUGGESTIONS: how to photograph a big collection ══════
+// Brad wrote this from doing it himself; it lives in the Help Center so it is
+// findable at the moment someone stands in front of a wall of trains and
+// wonders where to start. The control "chips" below are styled from the app's
+// own CSS variables, so they look like the real buttons and follow any theme.
+function _rrGuidePhotos() {
+  var ex = document.getElementById('rr-guide-modal'); if (ex) ex.remove();
+  var chip = function (t, kind) {
+    var st = { primary: 'background:var(--accent);color:var(--on-accent);border:none',
+               ghost:   'background:var(--surface2);color:#2980b9;border:1.5px solid #2980b9',
+               gold:    'background:var(--bg-card);color:var(--accent2);border:1.5px solid var(--accent2)',
+               green:   'background:var(--bg-card);color:#2ecc71;border:1.5px solid #2ecc71',
+               plain:   'background:var(--surface2);color:var(--text-mid);border:1px solid var(--border)' }[kind || 'plain'];
+    return '<span style="display:inline-block;font-weight:700;font-size:0.8rem;padding:0.2rem 0.5rem;border-radius:6px;white-space:nowrap;' + st + '">' + t + '</span>';
+  };
+  var h2 = function (n, t) {
+    return '<div style="font-family:var(--font-head);font-size:1.15rem;font-weight:600;letter-spacing:0.02em;margin:1.6rem 0 0.4rem;padding-top:0.9rem;border-top:1px solid var(--border)">'
+      + '<span style="color:var(--accent);margin-right:0.5rem">' + n + '</span>' + t + '</div>';
+  };
+  var h3 = function (t) {
+    return '<div style="font-family:var(--font-head);font-size:0.95rem;font-weight:600;letter-spacing:0.03em;color:var(--text-mid);margin:1.1rem 0 0.3rem">' + t + '</div>';
+  };
+  var p = function (t) { return '<p style="margin:0.5rem 0;line-height:1.6">' + t + '</p>'; };
+  var callout = function (lbl, body, col) {
+    return '<div style="border-left:3px solid ' + col + ';background:' + col.replace('#', 'rgba(').length + ';padding:0.7rem 0.9rem;margin:0.9rem 0;border-radius:0 9px 9px 0;background:var(--surface2)">'
+      + '<div style="font-family:var(--font-head);font-size:0.66rem;letter-spacing:0.13em;text-transform:uppercase;color:' + col + ';margin-bottom:0.2rem">' + lbl + '</div>'
+      + '<div style="font-size:0.86rem;line-height:1.55">' + body + '</div></div>';
+  };
+  var viewRow = function (done, now) {
+    var V = ['Right Side','Front','Left Side','Back','Top','Bottom','Detail 1','Another Detail'];
+    return '<div style="display:flex;flex-wrap:wrap;gap:0.3rem;margin:0.5rem 0">' + V.map(function (v) {
+      var isDone = done.indexOf(v) >= 0, isNow = (v === now);
+      return '<span style="flex:1 1 21%;min-width:76px;text-align:center;padding:0.42rem 0.15rem;border-radius:8px;font-weight:700;font-size:0.72rem;'
+        + 'border:2px solid ' + (isNow ? '#2980b9' : 'var(--border)') + ';'
+        + 'background:' + (isNow ? 'rgba(41,128,185,0.22)' : (isDone ? 'var(--surface2)' : 'var(--bg)')) + ';'
+        + 'color:' + (isNow ? '#2980b9' : (isDone ? '#8b8e94' : 'var(--text-mid)')) + ';'
+        + (isDone ? 'opacity:0.55;' : '') + '">' + v + (isDone ? ' ✓' : '') + '</span>';
+    }).join('') + '</div>';
+  };
+
+  var html =
+    '<div style="font-family:var(--font-head);font-size:0.66rem;letter-spacing:0.3em;text-transform:uppercase;color:var(--accent2);text-align:center;margin-bottom:0.5rem">The Rail Roster</div>'
+    + '<div style="font-family:var(--font-head);font-size:1.65rem;font-weight:700;text-align:center;line-height:1.15;margin-bottom:0.4rem">Photographing a Large Collection</div>'
+    + '<div style="text-align:center;color:var(--text-mid);font-size:0.88rem;margin-bottom:1.3rem">A working method for getting a wall, a cabinet, or a whole layout into your roster — without losing a weekend to it.</div>'
+    + p('This is how I do it myself. There is no single right way to photograph trains, but there is a way that keeps you moving, and that is what this is. Read the quick start, go shoot one shelf, and come back for the rest when you need it.')
+
+    + '<div style="border:1px solid rgba(240,80,8,0.4);background:rgba(240,80,8,0.07);border-radius:12px;padding:0.9rem 1rem;margin:1.2rem 0">'
+    +   '<div style="font-family:var(--font-head);font-size:1.02rem;font-weight:700;color:var(--accent);margin-bottom:0.4rem">Your first 50 trains</div>'
+    +   '<ol style="margin:0;padding-left:1.15rem;font-size:0.88rem;line-height:1.6">'
+    +     '<li>Pick <b>one shelf or one cabinet</b> — something you can shoot without moving your feet much.</li>'
+    +     '<li>On your phone, open ' + chip('Photo Inbox') + ', then ' + chip('Add photos…', 'ghost') + '</li>'
+    +     '<li>Set the tags to what most of these items are — <i>Lionel, O, Postwar</i>. This fills in fields later so you don’t have to.</li>'
+    +     '<li>Hit ' + chip('Start Shooting', 'primary') + ' and take <b>one clear photo of the side of each item</b>. Same distance, centered, in focus.</li>'
+    +     '<li>Sit down with a laptop, crop them, and add them.</li>'
+    +   '</ol>'
+    +   '<div style="font-size:0.86rem;margin-top:0.5rem"><b>One photo per item, you can do 50–75 items in half an hour.</b> You can always add more photos to any item later.</div>'
+    + '</div>'
+
+    + h2('1', 'Decide what kind of photos you’re taking')
+    + p('Make this decision <i>before</i> you start, because it changes how long the job takes by a factor of five.')
+    + h3('Just documenting what you own')
+    + p('One clear photo of the side of each item. Center it, stand back the same distance every time, keep it in focus. Consistent framing makes cropping later much faster — and cropping is where the time goes.')
+    + h3('Photos you’ll sell from, or use to tell variations apart')
+    + p('Take the item down and put it on a table where you can walk around it or spin it. Now you want right side, front, left side, back, top, bottom, and any detail shots. This is slow. It is also an investment: the photos you take today are the listing you write two years from now.')
+    + h3('On the shelf, on the layout, in the cabinet')
+    + p('It’s your photo — take it the way you want to show your friends or your buyers. Only one caveat: if you’re going to let the reader identify the item for you, a cleaner photo gives it a better chance.')
+
+    + h2('2', 'Shooting a section')
+    + '<ol style="padding-left:1.2rem;line-height:1.6">'
+    +   '<li>On your phone, open ' + chip('Photo Inbox') + ' from the bottom bar.</li>'
+    +   '<li>Tap ' + chip('Add photos…', 'ghost') + '</li>'
+    +   '<li>Set the tags to what your items mostly are — maker, scale, era. Say <i>Lionel · O · Postwar</i>. This presets those fields so you aren’t filling them in one item at a time later.</li>'
+    +   '<li>Hit ' + chip('Start Shooting', 'primary') + '. <b>Take with Phone</b> opens your camera — what most people do. <b>From my photos</b> if you already shot them. <b>From Google Photos</b> if they live there (easier on the desktop, honestly). Photos on your computer? Use the desktop app.</li>'
+    +   '<li>The capture screen opens on <b>Item 1</b>. Tap <b>Photo of New Item</b>. Center the item — don’t worry about what’s around it, you should crop later anyway. Keep it in focus. Try to keep it level, though there’s a rotate tool in the cropper if you don’t.</li>'
+    + '</ol>'
+    + p('<b>The view buttons do the ordering for you.</b> The app starts on <i>Right Side</i> — the main view. Take that shot and Right Side grays out with a check, and the highlight moves to <i>Front</i>:')
+    + viewRow([], 'Right Side')
+    + p('After three shots it has walked you around the item the way you would physically walk around it:')
+    + viewRow(['Right Side','Front','Left Side'], 'Back')
+    + p('You are not locked into that order — tap any view button to jump to it, and the sequence picks up from there. <i>Another Detail</i> never runs out.')
+    + callout('Why this matters later', 'Each photo remembers which side it shows. When you add the item, the app drops each one into its matching slot instead of dealing them out in whatever order you shot them. That is the difference between a tidy item page and ten minutes of rearranging.', '#2980b9')
+    + p('Only shooting one photo per item? Just hit <b>Photo of New Item</b> every time and ignore the view row entirely.')
+    + p('When you’re finished with the section, hit <b>Done</b>. Your items should start appearing in the Photo Inbox — you may need ' + chip('Refresh') + ', but they usually turn up quickly.')
+
+    + h2('3', 'Cropping, tagging, grouping')
+    + p('Do this on whatever you prefer. My eyes push me to the desktop, so I grab the laptop and spend a minute or less per photo.')
+    + h3('Cropping')
+    + '<ol style="padding-left:1.2rem;line-height:1.6">'
+    +   '<li>Click the first photo — it opens the photo detail page.</li>'
+    +   '<li>Click the <b>scissors</b> at the top right of the picture.</li>'
+    +   '<li>Drag the corners in as close as you can without cutting off any of the item.</li>'
+    +   '<li>Use <b>+</b> or <b>−</b> on the rotate bar if it needs straightening.</li>'
+    +   '<li>Hit <b>Apply crop</b>.</li>'
+    +   '<li>Use the <b>arrow at the top</b> to go straight to the next photo — that’s the fast way.</li>'
+    + '</ol>'
+    + h3('Tagging')
+    + p('If you tagged when you shot, you’re already done. Otherwise: hit ' + chip('Tag maker/era/scale/type', 'ghost') + ', choose a type — say <i>Boxcar</i> — select all your boxcar photos, and hit ' + chip('Apply', 'primary') + '. Change the type and do the next batch. Tagging helps the reader make better decisions, and prefills fields on your item detail page.')
+    + h3('Grouping')
+    + p('Grouping puts photos together as one thing: an engine and its tender, an ABA diesel set, a train set, an item with its box. A shot of everything together becomes the group’s cover picture. Grouping is what makes adding items that belong together painless — the app already knows it’s an ABA and won’t ask you again.')
+
+    + h2('4', 'Getting them into your collection')
+    + h3('Let the reader try')
+    + p(chip('Identify my items', 'primary') + ' goes through your photos and tries to identify each item. Clear side photos of postwar and prewar trains mostly work. Box ends, barcodes and UPCs read well too. A modern item with no box will probably need one of the options below.')
+    + p('<b>Attempt is the key word.</b> This is the free reader. You can hit <i>This is wrong — re-scan</i> and let it try again; a lot of the time that works.')
+    + '<ul style="padding-left:1.2rem;line-height:1.6">'
+    +   '<li>' + chip('Read this photo', 'gold') + ' — the limited reader. It works well and it’s automatic. <i>I actually have to pay for this one, so I have to be careful with it</i> — which is why it’s per-photo, on the photo you’re looking at, and never a whole batch by surprise.</li>'
+    +   '<li>' + chip('Google Search', 'ghost') + ' — takes you to Google Lens. Honestly, I have not seen it miss an item yet. You copy the answer back into the app.</li>'
+    + '</ul>'
+    + h3('You already know what it is')
+    + p('Click the photo, then ' + chip('Add to my Collection', 'primary') + ', and walk the steps.')
+    + callout('Already own one?', 'The moment you enter a number you already have, a panel appears listing every copy you own with its variation number and condition. Tap any copy to look at it, then come straight back to what you were adding. Owning three of something is normal — this just makes sure you know before you add a fourth.', '#2980b9')
+    + h3('Variations')
+    + '<ul style="padding-left:1.2rem;line-height:1.6">'
+    +   '<li>Prewar and postwar Lionel variations are based on the <b>Cornucopia of Toy Trains</b> website — an excellent resource worth poking around in.</li>'
+    +   '<li>They’re listed in the same order COTT lists them. Neither they nor I tried to rank what’s rare or valuable. <b>Differences from Variation 1 are shown in red.</b></li>'
+    +   '<li>Can’t tell from the description? Hit <b>View</b> — it takes you straight to the COTT entry.</li>'
+    +   '<li><b>Help me pick my variation</b> will narrow it down, but which one you have is ultimately your call.</li>'
+    +   '<li>Overwhelmed? Hit <b>No specific variation</b> and move on. You can set it later from the item’s detail page.</li>'
+    + '</ul>'
+    + h3('Condition, then value')
+    + '<ul style="padding-left:1.2rem;line-height:1.6">'
+    +   '<li>Don’t know what it’s worth? Hit ' + chip('Research', 'green') + ' for a range, or ' + chip('eBay Sold Listings', 'ghost') + ' to see what they actually sold for.</li>'
+    +   '<li><b>Try to be honest here.</b> This is the number that can help build a community price guide — an up-to-date, community-driven price guide, along with rarity, is a goal of this community, and this is part of how it works. It’s also the number that adds to your collection’s worth.</li>'
+    +   '<li><b>Bought from</b> lets you build a list of the people and stores you buy from, and track what you got where.</li>'
+    +   '<li><b>Notes</b> is the catch-all. Maybe it’s the story of how you found it.</li>'
+    + '</ul>'
+    + h3('The photos step')
+    + p('Your photos should already be sitting in the right views. If one landed somewhere odd, <b>drag it onto the slot it belongs in and the two trade places</b> — that’s on the desktop, where you have a mouse. Forgot a view? Click that slot, or use <i>Add another photo</i>. Doing one photo per item? Hit <b>Done with photos</b> to skip to the end.')
+    + h3('The last screen')
+    + p('Check the details, change anything that needs changing, and hit <b>Save</b>. The first few take a bit. Once you get going, you’ll be surprised how fast this gets.')
+    + callout('The honest summary', 'Photograph one section at a time. Take the photo you’ll wish you had. Crop in batches while you watch something. And don’t let perfect stop you from getting the shelf done — an item in your roster with one decent photo beats an item that never got entered.', 'var(--accent2)');
+
+  var m = document.createElement('div');
+  m.id = 'rr-guide-modal';
+  m.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:100000;display:flex;align-items:flex-start;justify-content:center;padding:1.1rem;overflow-y:auto';
+  m.innerHTML = '<div style="background:var(--surface);border-radius:16px;max-width:640px;width:100%;margin:auto;box-shadow:0 12px 40px rgba(0,0,0,0.55);font-family:var(--font-body);color:var(--text)">'
+    + '<div style="position:sticky;top:0;background:var(--surface);border-bottom:1px solid var(--border);border-radius:16px 16px 0 0;padding:0.75rem 1.1rem;display:flex;justify-content:flex-end;z-index:2">'
+    +   '<button type="button" onclick="document.getElementById(\'rr-guide-modal\').remove()" style="background:none;border:none;color:var(--text);font-size:1.5rem;cursor:pointer;line-height:1;padding:0 0.2rem">×</button>'
+    + '</div>'
+    + '<div style="padding:0.4rem 1.35rem 1.6rem;font-size:0.9rem">' + html + '</div>'
+    + '</div>';
+  m.addEventListener('click', function (e) { if (e.target === m) m.remove(); });
+  document.body.appendChild(m);
+}
+window._rrGuidePhotos = _rrGuidePhotos;
+
 
 
 // ═══════════════════════════════════════════════════════════════
