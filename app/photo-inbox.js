@@ -271,10 +271,28 @@
       drop.addEventListener(ev, function (e) { e.preventDefault(); e.stopPropagation(); drop.style.borderColor = 'var(--border)'; drop.style.background = 'none'; });
     });
     drop.addEventListener('drop', function (e) {
+      // v0.9.1439 (Brad): "if you drag a picture, it makes a copy and puts it at
+      // the front of the list." Nothing in the grid was draggable, so the
+      // browser fell back to its default — dragging an <img> drags the picture
+      // itself — and this zone did exactly what it is for: imported it as a NEW
+      // photo, which landed first because it was newest. The user was
+      // accidentally using the import feature on a photo already in the inbox.
+      // A drag that began inside the app is never an import: see the dragstart
+      // guard below, which stamps them.
+      if (window._pinInternalDrag) { showToast('Use the copy button on a photo to duplicate it', 3000); return; }
       var files = Array.prototype.filter.call((e.dataTransfer || {}).files || [], function (f) { return /^image\//.test(f.type); });
       if (files.length) _upload(files);
       else showToast('No image files in that drop', 2500, true);
     });
+    // Tiles cannot be dragged at all — the grid has no order to rearrange, so a
+    // drag there has no meaning worth supporting. The flag is belt-and-braces
+    // for any other internal drag (the review card's thumbs, which DO reorder).
+    drop.addEventListener('dragstart', function (e) {
+      var t = e.target;
+      if (t && t.closest && t.closest('.pin-tile')) { e.preventDefault(); return; }
+      window._pinInternalDrag = true;
+    }, true);
+    drop.addEventListener('dragend', function () { window._pinInternalDrag = false; }, true);
     pg.querySelector('#pin-file-input').addEventListener('change', function () {
       var files = Array.prototype.slice.call(this.files || []);
       this.value = '';
@@ -1645,6 +1663,11 @@
       }
       var _crop = _selectMode ? ''
         : '<div onclick="event.stopPropagation();_pinTileCrop(\'' + g.key + '\')" title="Crop / Rotate" style="position:absolute;right:6px;bottom:26px;width:24px;height:24px;border-radius:7px;background:rgba(0,0,0,0.55);color:#fff;display:flex;align-items:center;justify-content:center;font-size:0.8rem;cursor:pointer">✂</div>';
+      // v0.9.1439 (Brad): "it would be nice to make a copy of a picture." The
+      // real use is one photo showing two items — copy it, then crop each copy
+      // to its own item. Deliberate, labelled, and undoable by discarding.
+      var _copy = (_selectMode || g.files.length > 1) ? ''
+        : '<div onclick="event.stopPropagation();_pinTileCopy(\'' + g.key + '\')" title="Make a copy of this photo" style="position:absolute;right:34px;bottom:26px;width:24px;height:24px;border-radius:7px;background:rgba(0,0,0,0.55);color:#fff;display:flex;align-items:center;justify-content:center;font-size:0.78rem;cursor:pointer">⧉</div>';
       // v0.9.1057: grouping had no undo. Photos could be put together and never
       // taken apart, so one wrong tick was permanent. Only on stacks, only out
       // of select mode.
@@ -1655,6 +1678,7 @@
         chip +
         _circle +
         _crop +
+        _copy +
         _ungroup +
         '<div style="position:absolute;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);color:#ddd;font-size:0.6rem;padding:0.1rem 0.35rem">' + when + '</div>' +
         '</div>';
@@ -1752,6 +1776,50 @@
   // v0.9.900 (Brad): crop straight from the grid tile — one-photo items open
   // the cropper directly; multi-photo stacks open the review card, where every
   // photo has its own ✂.
+  // ══ v0.9.1439 — duplicate a photo ═══════════════════════════════════
+  // Drive copies the file server-side (no download/re-upload), so a 4 MB photo
+  // costs one request and the pixels never touch this device. The copy keeps
+  // the original's tags — era, type, view — because a duplicate of a tagged
+  // photo is still that maker, that era, that side of the item. It deliberately
+  // does NOT keep the group tag: the copy is a new, separate thing, and
+  // inheriting a group would silently add a photo to an item you already filed.
+  window._pinTileCopy = async function (key) {
+    if (_busy) { _pinBusyBounce(); return; }
+    var g = _groups.filter(function (x) { return x.key === key; })[0];
+    var src = g && g.files && g.files[0];
+    if (!src) { showToast('Could not find that photo', 2600, true); return; }
+    _setBusy(true, 'Copying a photo');
+    _status('Making a copy\u2026');
+    try {
+      var fid = await _folder();
+      var base = String(src.name || 'photo');
+      var dot = base.lastIndexOf('.');
+      var stem = dot > 0 ? base.slice(0, dot) : base;
+      var ext = dot > 0 ? base.slice(dot) : '.jpg';
+      // The name carries INBOX + a fresh timestamp so the copy is its own item
+      // and never re-joins the original's filename-derived group (v0.9.1132).
+      var name = 'INBOX ' + new Date().getTime() + ' ' + stem + ' copy' + ext;
+      var res = await driveRequest('POST', '/files/' + src.id + '/copy?fields=id',
+        { name: name, parents: [fid] });
+      if (!res || !res.id) throw new Error('no id back');
+      var m = _pinMetaOf(src) || {};
+      var patch = {};
+      if (m.era) patch.era = m.era;
+      if (m.type) patch.type = m.type;
+      if (m.view) patch.view = m.view;
+      if (m.era) patch.stat = 'stamped';
+      if (Object.keys(patch).length) { try { await _pinMetaSet(res.id, patch); } catch (eM) {} }
+      showToast('Copied \u2014 crop each one to its own item', 3600);
+    } catch (e) {
+      console.warn('[inbox] copy failed', e && e.message);
+      showToast('Could not copy that photo \u2014 try again', 3600, true);
+    } finally {
+      _setBusy(false);
+      _status('');
+    }
+    await window._pinRefresh();
+  };
+
   window._pinTileCrop = function (key) {
     var g = _groups.filter(function (x) { return x.key === key; })[0];
     if (!g || !g.files.length) return;
