@@ -4279,7 +4279,17 @@ function renderWizardStep() {
       } catch (e) { return []; }
     })();
     var _inboxTotal = _inboxQueue.length;
-    var _inboxSeen = {};
+    // v0.9.1433 (Brad): photos stamped with a view at capture time (Quick
+    // Capture's view buttons) file into THEIR slot instead of being dealt out
+    // in shooting order — the root cause of five truck photos labelled
+    // Top/Back/Right/Front/Left at random. The slot map lives on wizard.data
+    // now (was per-render), so a drag-swap survives re-renders.
+    var _inboxViews = (wizard.data && wizard.data._addPhotoViews) || {};
+    var _inboxSeen = wizard.data._inboxSlotMap = wizard.data._inboxSlotMap || {};
+    _inboxQueue = _inboxQueue.filter(function (fid) {
+      for (var _k in _inboxSeen) { if (_inboxSeen[_k] === fid) return false; }
+      return true;
+    });
 
     // Build a photo slot element (used for both fixed and extra slots)
     function makePhotoSlot(viewKey, label, abbr, stepId) {
@@ -4294,10 +4304,29 @@ function renderWizardStep() {
       // _inboxSeen keeps a slot's photo stable if this runs twice for the same
       // slot; without it a re-render would deal the group out differently.
       var inboxFid = '';
+      var _ik = stepId + '|' + viewKey;
+      // v0.9.1433: an uploaded picture displaces the inbox photo that was
+      // sitting here — release it back to the queue for the next empty slot.
+      if (hasPic && _inboxSeen[_ik]) delete _inboxSeen[_ik];
       if (!hasPic) {
-        var _ik = stepId + '|' + viewKey;
         if (_inboxSeen[_ik]) inboxFid = _inboxSeen[_ik];
-        else if (_inboxQueue.length) { inboxFid = _inboxQueue.shift(); _inboxSeen[_ik] = inboxFid; }
+        else {
+          // A photo STAMPED with this very view claims the slot outright.
+          var _vi = -1;
+          for (var _q = 0; _q < _inboxQueue.length; _q++) {
+            if (_inboxViews[_inboxQueue[_q]] === viewKey) { _vi = _q; break; }
+          }
+          if (_vi < 0) {
+            // No stamp for this slot: deal the first photo that carries no
+            // view (or a Detail stamp meeting an EXTRA slot) in shooting
+            // order. A stamped side photo never falls into the wrong slot.
+            for (var _q2 = 0; _q2 < _inboxQueue.length; _q2++) {
+              var _st = _inboxViews[_inboxQueue[_q2]];
+              if (!_st || (_st === 'EXTRA' && String(viewKey).indexOf('EXTRA') === 0)) { _vi = _q2; break; }
+            }
+          }
+          if (_vi >= 0) { inboxFid = _inboxQueue.splice(_vi, 1)[0]; _inboxSeen[_ik] = inboxFid; }
+        }
       }
 
       const div = document.createElement('div');
@@ -4311,7 +4340,15 @@ function renderWizardStep() {
         + 'background:' + ((hasPic || inboxFid) ? 'rgba(201,146,42,0.08)' : 'var(--surface2)');
       div.ondragover = function(e) { e.preventDefault(); div.style.borderColor = 'var(--accent)'; };
       div.ondragleave = function() { div.style.borderColor = hasPic ? 'var(--accent2)' : 'var(--border)'; };
-      div.ondrop = function(e) { handlePhotoDrop(e, stepId, viewKey); };
+      // v0.9.1433 (Brad: "i should be able to drag them around"): a drop can
+      // now be another SLOT, not just a file — drag one picture onto another
+      // and they trade places. File drops behave exactly as before.
+      div.ondrop = function(e) {
+        var _sk = '';
+        try { _sk = (e.dataTransfer && e.dataTransfer.getData('text/rr-slot')) || ''; } catch (eDT) {}
+        if (_sk) { e.preventDefault(); e.stopPropagation(); _wizSlotSwap(_sk, stepId + '|' + viewKey, s.id); return; }
+        handlePhotoDrop(e, stepId, viewKey);
+      };
       div.onclick = function() { showPhotoSourcePicker(stepId, viewKey); };
 
       if (hasPic) {
@@ -4357,6 +4394,18 @@ function renderWizardStep() {
             + '<div style="font-weight:600;color:var(--text-mid);font-size:0.72rem;line-height:1.2">' + abbr + '</div>';
         }
         div.appendChild(inner);
+      }
+
+      // v0.9.1433: a slot with a picture can be picked up and dropped on a
+      // sibling slot to trade places (see ondrop above).
+      if (hasPic || inboxFid) {
+        div.draggable = true;
+        div.ondragstart = function (e) {
+          try {
+            e.dataTransfer.setData('text/rr-slot', stepId + '|' + viewKey);
+            e.dataTransfer.effectAllowed = 'move';
+          } catch (eDS) {}
+        };
       }
 
       const prog = document.createElement('div');
@@ -4416,7 +4465,7 @@ function renderWizardStep() {
       introDiv.innerHTML = '<span style="color:var(--accent2,#d4a843);font-weight:700">'
         + _inboxTotal + ' photo' + (_inboxTotal > 1 ? 's' : '') + ' from the Photo Inbox</span>'
         + ' \u2014 already here, and ' + (_inboxTotal > 1 ? 'they attach' : 'it attaches')
-        + ' when you save. Click any slot to swap in a different picture.';
+        + ' when you save. Click a slot to swap in a different picture, or drag one picture onto another to trade places.';
     } else {
       introDiv.textContent = 'Drag & drop or click each slot to upload. Photos save to Google Drive automatically.';
     }
@@ -6283,6 +6332,28 @@ window.addEventListener('resize', function () {
     return r;
   };
 })();
+
+// ── v0.9.1433: trade two photo slots' contents ─────────────────────────────
+// A slot can hold its picture two ways — an uploaded URL in
+// wizard.data[stepId][viewKey], or an inbox Drive id pinned in
+// wizard.data._inboxSlotMap. Swapping handles both, independently, so an
+// uploaded photo and an inbox photo can trade places too. Re-render redraws.
+window._wizSlotSwap = function (fromIk, toIk, stepDataId) {
+  try {
+    if (!fromIk || !toIk || fromIk === toIk) return;
+    var fv = String(fromIk).split('|')[1], tv = String(toIk).split('|')[1];
+    if (!fv || !tv) return;
+    var stored = wizard.data[stepDataId] || (wizard.data[stepDataId] = {});
+    var map = wizard.data._inboxSlotMap || (wizard.data._inboxSlotMap = {});
+    var aUrl = stored[fv] || '', bUrl = stored[tv] || '';
+    var aFid = map[fromIk] || '', bFid = map[toIk] || '';
+    if (aUrl) stored[tv] = aUrl; else delete stored[tv];
+    if (bUrl) stored[fv] = bUrl; else delete stored[fv];
+    if (aFid) map[toIk] = aFid; else delete map[toIk];
+    if (bFid) map[fromIk] = bFid; else delete map[fromIk];
+    renderWizardStep();
+  } catch (e) { console.warn('[slot-swap]', e); }
+};
 
 // ── Category/Tab/Choice handlers (moved to wizard-handlers.js — Session 110, Round 1 Chunk 6) ──
 
