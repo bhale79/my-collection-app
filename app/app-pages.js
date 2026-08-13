@@ -50,7 +50,7 @@
 // _collectAllOwnedItems() so per-tab filtering is a one-liner.
 const _COLLECTION_TABS = [
   { id: 'all',          label: 'All',           emoji: '📋' },
-  { id: 'items',        label: 'Items',         emoji: '🚂' },
+  { id: 'items',        label: 'Items',         emoji: '' },   // v0.9.1434 (Brad): train icons purged
   { id: 'sets',         label: 'Sets',          emoji: '🎁' },
   { id: 'catalogs',     label: 'Catalogs',      emoji: '📒' },
   { id: 'paper',        label: 'Paper',         emoji: '📄' },
