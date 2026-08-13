@@ -781,7 +781,7 @@ function openHelpHub() {
     +   row(X + "if(typeof _uiShowVersionHistoryHelp==='function')_uiShowVersionHistoryHelp();", '↩️', 'How to undo a mistake', 'Restore an earlier version of your data')
     +   row(X + "if(typeof resetContextualHints==='function'){resetContextualHints();if(typeof showToast==='function')showToast('Tips re-enabled. Visit a list page to see them.');}", '💡', 'Reset tips', 'Show the one-time hint bubbles again')
     +   hdr('Suggestions')
-    +   row(X + "_rrGuidePhotos();", '📷', 'Photographing a large collection', 'A working method for getting a whole wall or cabinet into your roster')
+    +   row(X + "if(typeof _rrGuidePhotos==='function')_rrGuidePhotos();", '📷', 'Photographing a large collection', 'A working method for getting a whole wall or cabinet into your roster')
     +   hdr('More')
     +   row("window.location.href='mailto:" + fb + "?subject=The Rail Roster Feedback';", '✉️', 'Send feedback', 'Report a bug or suggest a feature')
     + '</div>'
@@ -815,7 +815,11 @@ function _rrGuidePhotos() {
   };
   var p = function (t) { return '<p style="margin:0.5rem 0;line-height:1.6">' + t + '</p>'; };
   var callout = function (lbl, body, col) {
-    return '<div style="border-left:3px solid ' + col + ';background:' + col.replace('#', 'rgba(').length + ';padding:0.7rem 0.9rem;margin:0.9rem 0;border-radius:0 9px 9px 0;background:var(--surface2)">'
+    // v0.9.1439: was '+ col.replace(...).length +' here, which emitted
+    // "background:11" — a string LENGTH where a colour belongs. Invalid CSS is
+    // dropped, so the var(--surface2) below it won and it looked fine; it was
+    // still nonsense. One background, stated once.
+    return '<div style="border-left:3px solid ' + col + ';background:var(--surface2);padding:0.7rem 0.9rem;margin:0.9rem 0;border-radius:0 9px 9px 0">'
       + '<div style="font-family:var(--font-head);font-size:0.66rem;letter-spacing:0.13em;text-transform:uppercase;color:' + col + ';margin-bottom:0.2rem">' + lbl + '</div>'
       + '<div style="font-size:0.86rem;line-height:1.55">' + body + '</div></div>';
   };
@@ -923,17 +927,105 @@ function _rrGuidePhotos() {
     + p('Check the details, change anything that needs changing, and hit <b>Save</b>. The first few take a bit. Once you get going, you’ll be surprised how fast this gets.')
     + callout('The honest summary', 'Photograph one section at a time. Take the photo you’ll wish you had. Crop in batches while you watch something. And don’t let perfect stop you from getting the shelf done — an item in your roster with one decent photo beats an item that never got entered.', 'var(--accent2)');
 
+  // ── v0.9.1439 (Brad): "drag it to the side and keep it up while I work" ──
+  // Not a modal. A floating, draggable panel with NO backdrop, so every button
+  // in the app underneath stays live. Position and size are remembered, the
+  // panel is clamped back into view if the window shrinks, and on a phone —
+  // where there is no room to park anything — it falls back to a full-screen
+  // sheet, which is the honest answer for that screen size.
+  var K = 'rr_guide_box';
+  var small = (window.innerWidth || 0) < 780;
+  var box = { x: 0, y: 0, w: 430, h: Math.min(700, (window.innerHeight || 800) - 90) };
+  try { var sv = JSON.parse(localStorage.getItem(K) || 'null'); if (sv) box = sv; } catch (e) {}
+  if (!sv) { box.x = Math.max(12, (window.innerWidth || 1200) - box.w - 24); box.y = 70; }
+  // never leave it stranded off-screen after a resize or a monitor change
+  box.w = Math.max(300, Math.min(box.w, (window.innerWidth || 1200) - 24));
+  box.h = Math.max(220, Math.min(box.h, (window.innerHeight || 800) - 40));
+  box.x = Math.max(6, Math.min(box.x, (window.innerWidth || 1200) - box.w - 6));
+  box.y = Math.max(6, Math.min(box.y, (window.innerHeight || 800) - 60));
+
   var m = document.createElement('div');
   m.id = 'rr-guide-modal';
-  m.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:100000;display:flex;align-items:flex-start;justify-content:center;padding:1.1rem;overflow-y:auto';
-  m.innerHTML = '<div style="background:var(--surface);border-radius:16px;max-width:640px;width:100%;margin:auto;box-shadow:0 12px 40px rgba(0,0,0,0.55);font-family:var(--font-body);color:var(--text)">'
-    + '<div style="position:sticky;top:0;background:var(--surface);border-bottom:1px solid var(--border);border-radius:16px 16px 0 0;padding:0.75rem 1.1rem;display:flex;justify-content:flex-end;z-index:2">'
-    +   '<button type="button" onclick="document.getElementById(\'rr-guide-modal\').remove()" style="background:none;border:none;color:var(--text);font-size:1.5rem;cursor:pointer;line-height:1;padding:0 0.2rem">×</button>'
+  m.style.cssText = small
+    ? 'position:fixed;inset:0;z-index:10070;background:var(--surface);display:flex;flex-direction:column'
+    : 'position:fixed;left:' + box.x + 'px;top:' + box.y + 'px;width:' + box.w + 'px;height:' + box.h + 'px;'
+      + 'z-index:10070;background:var(--surface);border:1px solid var(--border);border-radius:14px;'
+      + 'box-shadow:0 14px 46px rgba(0,0,0,0.55);display:flex;flex-direction:column;overflow:hidden';
+  m.innerHTML =
+    '<div id="rr-guide-grip" style="flex-shrink:0;display:flex;align-items:center;gap:0.5rem;'
+      + 'padding:0.55rem 0.5rem 0.55rem 0.85rem;border-bottom:1px solid var(--border);'
+      + 'background:var(--surface2);' + (small ? '' : 'cursor:grab;') + 'user-select:none;-webkit-user-select:none">'
+    +   (small ? '' : '<span style="color:var(--text-dim);font-size:0.95rem;letter-spacing:0.1em;line-height:1">⠿</span>')
+    +   '<span style="flex:1;min-width:0;font-family:var(--font-head);font-size:0.82rem;letter-spacing:0.06em;'
+        + 'text-transform:uppercase;color:var(--text-mid);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'
+        + 'Photographing a large collection</span>'
+    +   (small ? '' : '<button type="button" id="rr-guide-dock" title="Park it on the left or right"'
+        + ' style="background:none;border:1px solid var(--border);border-radius:6px;color:var(--text-dim);'
+        + 'font-size:0.68rem;font-family:var(--font-body);font-weight:700;cursor:pointer;padding:0.2rem 0.45rem">Dock</button>')
+    +   '<button type="button" id="rr-guide-x" style="background:none;border:none;color:var(--text);'
+        + 'font-size:1.35rem;cursor:pointer;line-height:1;padding:0 0.3rem">×</button>'
     + '</div>'
-    + '<div style="padding:0.4rem 1.35rem 1.6rem;font-size:0.9rem">' + html + '</div>'
-    + '</div>';
-  m.addEventListener('click', function (e) { if (e.target === m) m.remove(); });
+    + '<div id="rr-guide-scroll" style="flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;'
+      + 'padding:0.9rem 1.15rem 1.6rem;font-size:0.88rem;color:var(--text)">' + html + '</div>'
+    + (small ? '' : '<div id="rr-guide-size" title="Drag to resize" style="position:absolute;right:0;bottom:0;'
+      + 'width:18px;height:18px;cursor:nwse-resize;background:linear-gradient(135deg,transparent 45%,var(--border) 45%,var(--border) 60%,transparent 60%)"></div>');
   document.body.appendChild(m);
+
+  var save = function () {
+    if (small) return;
+    try {
+      localStorage.setItem(K, JSON.stringify({ x: parseInt(m.style.left, 10) || 0, y: parseInt(m.style.top, 10) || 0,
+        w: m.offsetWidth, h: m.offsetHeight }));
+    } catch (e) {}
+  };
+  document.getElementById('rr-guide-x').onclick = function () { save(); m.remove(); };
+
+  if (!small) {
+    // drag by the grip — pointer events so a trackpad, mouse or pen all work
+    var grip = document.getElementById('rr-guide-grip');
+    var dx = 0, dy = 0, moving = false;
+    grip.addEventListener('pointerdown', function (e) {
+      if (e.target.tagName === 'BUTTON') return;
+      moving = true; dx = e.clientX - m.offsetLeft; dy = e.clientY - m.offsetTop;
+      grip.style.cursor = 'grabbing';
+      try { grip.setPointerCapture(e.pointerId); } catch (er) {}
+    });
+    grip.addEventListener('pointermove', function (e) {
+      if (!moving) return;
+      var nx = Math.max(6, Math.min(e.clientX - dx, window.innerWidth - m.offsetWidth - 6));
+      var ny = Math.max(6, Math.min(e.clientY - dy, window.innerHeight - 40));
+      m.style.left = nx + 'px'; m.style.top = ny + 'px';
+    });
+    var stop = function () { if (!moving) return; moving = false; grip.style.cursor = 'grab'; save(); };
+    grip.addEventListener('pointerup', stop);
+    grip.addEventListener('pointercancel', stop);
+
+    // resize from the corner
+    var sz = document.getElementById('rr-guide-size');
+    var rw = 0, rh = 0, rx = 0, ry = 0, sizing = false;
+    sz.addEventListener('pointerdown', function (e) {
+      sizing = true; rw = m.offsetWidth; rh = m.offsetHeight; rx = e.clientX; ry = e.clientY;
+      e.preventDefault();
+      try { sz.setPointerCapture(e.pointerId); } catch (er) {}
+    });
+    sz.addEventListener('pointermove', function (e) {
+      if (!sizing) return;
+      m.style.width = Math.max(300, Math.min(rw + (e.clientX - rx), window.innerWidth - m.offsetLeft - 6)) + 'px';
+      m.style.height = Math.max(220, Math.min(rh + (e.clientY - ry), window.innerHeight - m.offsetTop - 6)) + 'px';
+    });
+    var stopSz = function () { if (!sizing) return; sizing = false; save(); };
+    sz.addEventListener('pointerup', stopSz);
+    sz.addEventListener('pointercancel', stopSz);
+
+    // one tap parks it against whichever edge it is nearest, full height
+    document.getElementById('rr-guide-dock').onclick = function () {
+      var right = (m.offsetLeft + m.offsetWidth / 2) > window.innerWidth / 2;
+      m.style.top = '64px';
+      m.style.height = (window.innerHeight - 88) + 'px';
+      m.style.left = (right ? (window.innerWidth - m.offsetWidth - 16) : 16) + 'px';
+      save();
+    };
+  }
 }
 window._rrGuidePhotos = _rrGuidePhotos;
 
