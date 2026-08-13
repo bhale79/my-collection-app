@@ -760,30 +760,55 @@ function _wizardMfr() {
 
 // v0.9.743: price-step Research — opens the same Google AI-Overview price
 // search as the Research card, for the item currently in the wizard.
+// v0.9.1435 (Brad): ONE resolver for "which item is this flow about" —
+// Research and eBay Sold Listings ask the same identity question, and the
+// v0.9.1337 era-aware answer (his 6469: Lionel PW and Atlas share numbers)
+// must not exist in two copies drifting apart.
+window._wizResearchIdentity = function () {
+  var d = (typeof wizard !== 'undefined' && wizard.data) || {};
+  var num = (d.itemNum || d.manualItemNum || d.set_num || d.is_linkedItem || '').toString().trim();
+  var m = (typeof wizard !== 'undefined' && wizard.matchedItem) || d.matchedItem || {};
+  if (m && m.itemNum && num && String(m.itemNum).trim() !== num) m = {};
+  if ((!m || !m.itemNum) && num && typeof findMaster === 'function') {
+    var _rpOwn = (d._updatePdKey && typeof state !== 'undefined' && state.personalData)
+      ? state.personalData[d._updatePdKey] : null;
+    var _rpPref = _rpOwn || (d._era ? { era: d._era, manufacturer: d.manufacturer || '' } : null);
+    m = findMaster(num, d.variation, _rpPref) || {};
+  }
+  return {
+    num: num,
+    mfr: m.manufacturer || d.manualManufacturer || ((typeof _brandOfItem === 'function') ? (_brandOfItem(num) || '') : ''),
+    road: m.roadName || d.manualRoadName || d.suggestedRoadName || '',
+    desc: m.description || d.manualDesc || ''
+  };
+};
+
+// v0.9.1435 (Brad): "add another one that does our Ebay sold prices" — same
+// sold-listings URL the Want list's eBay search builds (LH_Sold + LH_Complete,
+// affiliate tag included when configured), but with the RESOLVED manufacturer
+// instead of that page's hardcoded 'lionel', so an MTH item searches as MTH.
+window._wizEbaySold = function () {
+  try {
+    var i = window._wizResearchIdentity();
+    if (!i.num && !i.desc) { if (typeof showToast === 'function') showToast('Enter an item number first', 2600, true); return; }
+    var q = [i.mfr || 'lionel', i.num, i.road].filter(Boolean).join(' ').trim();
+    var url = 'https://www.ebay.com/sch/i.html?_nkw=' + encodeURIComponent(q)
+      + '&_sacat=180250&LH_Sold=1&LH_Complete=1'
+      + ((typeof _EPN_PARAMS !== 'undefined') ? _EPN_PARAMS : '');
+    window.open(url, '_blank');
+  } catch (e) { console.warn('[ebay sold]', e); }
+};
+
 window._wizResearchPrice = function () {
   try {
     var d = (typeof wizard !== 'undefined' && wizard.data) || {};
     // v0.9.839 (BUG-004, Brad's 10-2210): resolve the item the same way the
     // ADDING banner does — manual entries store manualItemNum/manualDesc,
     // and the match can live in wizard.matchedItem OR d.matchedItem.
-    var num = (d.itemNum || d.manualItemNum || d.set_num || d.is_linkedItem || '').toString().trim();
-    var m = (typeof wizard !== 'undefined' && wizard.matchedItem) || d.matchedItem || {};
-    if (m && m.itemNum && num && String(m.itemNum).trim() !== num) m = {};
-    if ((!m || !m.itemNum) && num && typeof findMaster === 'function') {
-      // v0.9.1337 (Brad's 6469): findMaster(num) ALONE is a number-only
-      // first-find — 6469 lives in the Lionel PW *and* Atlas tabs, and the
-      // Research query came out "Atlas 6469…" for his Lionel flatcar. Resolve
-      // with the SAME identity the ADDING banner uses (this function's own
-      // comment has promised that since v0.9.839): the owned row when
-      // editing, else the flow's era hint, plus the chosen variation.
-      var _rpOwn = (d._updatePdKey && typeof state !== 'undefined' && state.personalData)
-        ? state.personalData[d._updatePdKey] : null;
-      var _rpPref = _rpOwn || (d._era ? { era: d._era, manufacturer: d.manufacturer || '' } : null);
-      m = findMaster(num, d.variation, _rpPref) || {};
-    }
-    var mfr = m.manufacturer || d.manualManufacturer || ((typeof _brandOfItem === 'function') ? (_brandOfItem(num) || '') : '');
-    var road = m.roadName || d.manualRoadName || d.suggestedRoadName || '';
-    var desc = m.description || d.manualDesc || '';
+    // v0.9.1435: resolution moved to _wizResearchIdentity (shared with the
+    // eBay Sold Listings button) — the v0.9.1337 era-aware logic lives there.
+    var _id = window._wizResearchIdentity();
+    var num = _id.num, mfr = _id.mfr, road = _id.road, desc = _id.desc;
     var url = (typeof window._googlePriceUrl === 'function')
       ? window._googlePriceUrl(num, mfr, road, desc)
       : 'https://www.google.com/search?q=' + encodeURIComponent([mfr, num, road, desc].filter(Boolean).join(' ') + ' sold prices value');
@@ -2227,7 +2252,7 @@ function renderWizardStep() {
         // v0.9.968 (Brad): Est. Worth is the first/top question, matching the
         // other Add steps, then Date Purchased and Price Paid below it.
         '<div>' +
-          '<label style="font-size:0.82rem;color:var(--text-mid);display:block;margin-bottom:0.25rem">Est. Worth <a href="javascript:_wizResearchPrice()" style="float:right;color:#2ecc71;font-weight:700;text-decoration:none;font-size:0.78rem">\uD83D\uDD0D Research</a></label>' +
+          '<label style="font-size:0.82rem;color:var(--text-mid);display:block;margin-bottom:0.25rem">Est. Worth <a href="javascript:_wizEbaySold()" style="float:right;color:#2980b9;font-weight:700;text-decoration:none;font-size:0.78rem;margin-left:0.65rem">eBay Sold Listings</a><a href="javascript:_wizResearchPrice()" style="float:right;color:#2ecc71;font-weight:700;text-decoration:none;font-size:0.78rem">\uD83D\uDD0D Research</a></label>' +
           '<input type="number" step="0.01" value="' + (d.userEstWorth || '') + '"' +
             ' oninput="wizard.data.userEstWorth=this.value" placeholder="$0.00"' +
             ' style="width:100%;padding:0.55rem 0.7rem;border-radius:8px;background:var(--bg);border:1px solid var(--border);color:var(--text);font-family:var(--font-mono);font-size:0.88rem;box-sizing:border-box">' +
@@ -3116,7 +3141,7 @@ function renderWizardStep() {
     // recorded; what he paid is history. Five screens asked these two
     // questions and three of them asked them the other way round.
     _bpvHtml += '<div style="margin-bottom:0.75rem">'
-      + '<div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.3rem">Estimated Worth (for insurance) <a href="javascript:_wizResearchPrice()" style="float:right;color:#2ecc71;font-weight:700;text-decoration:none;text-transform:none;letter-spacing:0">\uD83D\uDD0D Research</a></div>'
+      + '<div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.3rem">Estimated Worth (for insurance) <a href="javascript:_wizEbaySold()" style="float:right;color:#2980b9;font-weight:700;text-decoration:none;text-transform:none;letter-spacing:0;margin-left:0.65rem">eBay Sold Listings</a><a href="javascript:_wizResearchPrice()" style="float:right;color:#2ecc71;font-weight:700;text-decoration:none;text-transform:none;letter-spacing:0">\uD83D\uDD0D Research</a></div>'
       + '<div style="display:flex;align-items:center;gap:0.5rem;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.6rem 0.75rem">'
       + '<span style="color:var(--text-dim);font-size:1.1rem">$</span>'
       + '<input type="number" id="bpv-worth" value="' + (_bpv.userEstWorth || '') + '" placeholder="0.00" min="0" step="0.01" style="flex:1;background:none;border:none;outline:none;color:var(--text);font-family:var(--font-body);font-size:1rem" oninput="wizard.data.userEstWorth=this.value">'
@@ -3515,7 +3540,7 @@ function renderWizardStep() {
     const _rpShow = (s.id === 'expectedPrice' || s.id === 'askingPrice')
       && (wizard.data.itemNum || (wizard.matchedItem || {}).itemNum);
     const _rpBtn = _rpShow
-      ? `<button type="button" onclick="_wizResearchPrice()" style="flex-shrink:0;padding:0.5rem 0.8rem;border-radius:8px;border:1.5px solid #2ecc71;background:var(--bg-card);background:color-mix(in srgb, rgb(46,204,113) 12%, var(--bg-card));color:#2ecc71;font-weight:700;font-size:0.82rem;cursor:pointer;font-family:var(--font-body)">🔍 Research</button>`
+      ? `<button type="button" onclick="_wizResearchPrice()" style="flex-shrink:0;padding:0.5rem 0.8rem;border-radius:8px;border:1.5px solid #2ecc71;background:var(--bg-card);background:color-mix(in srgb, rgb(46,204,113) 12%, var(--bg-card));color:#2ecc71;font-weight:700;font-size:0.82rem;cursor:pointer;font-family:var(--font-body)">🔍 Research</button><button type="button" onclick="_wizEbaySold()" style="flex-shrink:0;padding:0.5rem 0.8rem;border-radius:8px;border:1.5px solid #2980b9;background:var(--bg-card);background:color-mix(in srgb, rgb(41,128,185) 12%, var(--bg-card));color:#2980b9;font-weight:700;font-size:0.82rem;cursor:pointer;font-family:var(--font-body)">eBay Sold Listings</button>`
       : '';
     body.innerHTML = `
       <div style="padding-top:0.75rem">
@@ -5519,7 +5544,7 @@ function renderWizardStep() {
       // screen that asks both. What a thing is worth is the answer he wants
       // recorded; what he paid is history. Five screens asked these two
       // questions and three of them asked them the other way round.
-      _cdHtml += '<div><div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-dim);margin-bottom:0.25rem">Est. Worth ($) <a href="javascript:_wizResearchPrice()" style="float:right;color:#2ecc71;font-weight:700;text-decoration:none;text-transform:none;letter-spacing:0">\uD83D\uDD0D Research</a></div>'
+      _cdHtml += '<div><div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-dim);margin-bottom:0.25rem">Est. Worth ($) <a href="javascript:_wizEbaySold()" style="float:right;color:#2980b9;font-weight:700;text-decoration:none;text-transform:none;letter-spacing:0;margin-left:0.65rem">eBay Sold Listings</a><a href="javascript:_wizResearchPrice()" style="float:right;color:#2ecc71;font-weight:700;text-decoration:none;text-transform:none;letter-spacing:0">\uD83D\uDD0D Research</a></div>'
         + '<div style="display:flex;align-items:center;gap:0.5rem;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.5rem 0.75rem">'
         + '<span style="color:var(--text-dim)">$</span>'
         + '<input type="number" value="' + _scVal + '" placeholder="0.00" min="0" step="0.01"'
@@ -5678,7 +5703,7 @@ function renderWizardStep() {
 
     // Est. Worth — loco and normal items only
     if (!_pvIsSetOther) {
-      _pvHtml += '<div style="margin-bottom:0.75rem"><div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.3rem">' + (_pvIsSetLoco ? 'Est. Worth of Whole Set ($)' : 'Est. Worth ($)') + ' <a href="javascript:_wizResearchPrice()" style="float:right;color:#2ecc71;font-weight:700;text-decoration:none;text-transform:none;letter-spacing:0">\uD83D\uDD0D Research</a></div>';
+      _pvHtml += '<div style="margin-bottom:0.75rem"><div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.3rem">' + (_pvIsSetLoco ? 'Est. Worth of Whole Set ($)' : 'Est. Worth ($)') + ' <a href="javascript:_wizEbaySold()" style="float:right;color:#2980b9;font-weight:700;text-decoration:none;text-transform:none;letter-spacing:0;margin-left:0.65rem">eBay Sold Listings</a><a href="javascript:_wizResearchPrice()" style="float:right;color:#2ecc71;font-weight:700;text-decoration:none;text-transform:none;letter-spacing:0">\uD83D\uDD0D Research</a></div>';
       _pvHtml += '<div style="display:flex;align-items:center;gap:0.5rem;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.6rem 0.75rem">';
       _pvHtml += '<span style="color:var(--text-dim);font-size:1.1rem">$</span>';
       _pvHtml += '<input type="number" id="pv-worth" value="' + (_pvD.userEstWorth || '') + '" placeholder="0.00" min="0" step="0.01" style="flex:1;background:none;border:none;outline:none;color:var(--text);font-family:var(--font-body);font-size:1rem" oninput="wizard.data.userEstWorth=this.value"></div></div>';
