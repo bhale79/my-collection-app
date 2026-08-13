@@ -1715,26 +1715,15 @@
     if (!b) return;
     var ids = _ids();
     var n = _groups.filter(function (g) { return !ids[_pinReadFid(g)]; }).length;
-    if (n > 0 && !_selectMode) {
-      // v0.9.1075 (Brad: "i am running the free re reader and my tokens are
-      // going down every time on the other button"). They are not — nothing on
-      // the free path touches a token, and there is a test that fails if that
-      // ever changes. This number is how many photos are STILL UNREAD, and it
-      // falls because the free reader is succeeding on them. "Read 44 (44
-      // tokens)" reads like a balance, so watching it drop after a free run
-      // looks exactly like being charged for it. Say which number it is.
-      b.textContent = '🔍 Read the ' + n + ' still unread \u00b7 costs ' + n + ' photo ID' + (n === 1 ? '' : 's');
-      b.title = n + ' photo' + (n === 1 ? '' : 's') + ' the free reader could not place. This is what it would COST, not what you have left.';
-      b.style.display = '';
-    } else {
-      b.style.display = 'none';
-    }
-    // v0.9.1411 — on a phone the paid read lives inside "⋯ More"; show that
-    // button only when there is actually something paid to reach, so the menu
-    // is never opened onto nothing. CSS decides whether More is visible at all
-    // (phone only); this just keeps its would-be state honest.
+    // v0.9.1436 (Brad): "get rid of the paid ai reader button here. we will
+    // keep it on the individual photo add page." The batch paid-read button is
+    // retired from the toolbar (and from the phone's More menu, which only
+    // existed to reach it) — the paid read now lives solely on the review
+    // card's "Read this photo (1 photo ID)", where the cost is one photo,
+    // stated on the button, for the photo you are looking at.
+    b.style.display = 'none';
     var mb = document.getElementById('pin-more-btn');
-    if (mb) mb.dataset.pinHas = (n > 0 && !_selectMode) ? '1' : '';
+    if (mb) mb.dataset.pinHas = '';
   }
 
   // v0.9.956 (Brad): a plain in-app confirm so a paid batch always asks first.
