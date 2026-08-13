@@ -1251,7 +1251,7 @@ function showItemDetailPage(idx, copyInvId, opts) {
   if (matchedTo || setId || groupMembers.length) {
     html += `<div style="margin-top:0.75rem;padding-top:0.75rem;border-top:1px solid var(--border)">`;
     if (matchedTo) {
-      const _mIcon = isTender(it.itemNum) ? '\ud83d\ude82' : '\ud83d\ude83';
+      const _mIcon = '';   // v0.9.1434 (Brad): train icons purged
       // Matched items are always in the collection
       const _mtPdKey = findPDKey(matchedTo, '');
       let _mtIdx = state.masterData.findIndex(md => md.itemNum === matchedTo);
@@ -4274,7 +4274,7 @@ function openItem(idx) {
   if (matchedBadgeEl) {
     if (modalMatchedTo) {
       matchedBadgeEl.style.display = 'inline-flex';
-      matchedBadgeEl.innerHTML = `${modalIsTender ? '🚂' : '🚃'} Matched ${modalIsTender ? 'Engine' : 'Tender'}: <strong style="margin-left:0.3rem">${modalMatchedTo}</strong>`;
+      matchedBadgeEl.innerHTML = `Matched ${modalIsTender ? 'Engine' : 'Tender'}: <strong style="margin-left:0.3rem">${modalMatchedTo}</strong>`;   // v0.9.1434: train icons purged
     } else {
       matchedBadgeEl.style.display = 'none';
     }
