@@ -179,7 +179,7 @@
 
   console.log('─'.repeat(60));
   if (fails === 0 && warns === 0)
-    console.log('%c All systems go! 🚂', 'color:#2ecc71;font-size:13px;font-weight:bold');
+    console.log('%c All systems go!', 'color:#2ecc71;font-size:13px;font-weight:bold');
   else if (fails === 0)
     console.log('%c Minor warnings only — app should work normally', 'color:#d4a843');
   else
