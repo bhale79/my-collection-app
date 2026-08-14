@@ -4310,6 +4310,32 @@ function renderWizardStep() {
     // Top/Back/Right/Front/Left at random. The slot map lives on wizard.data
     // now (was per-render), so a drag-swap survives re-renders.
     var _inboxViews = (wizard.data && wizard.data._addPhotoViews) || {};
+    // ══ v0.9.1440 (Brad's 2344 AA) — a photo's ROLE picks its STEP ══════════
+    // "i tagged them powered, dummy, and both together" — and all three landed
+    // on the powered unit. The roles and the wizard's per-unit photo steps line
+    // up one-for-one; nothing carried the roles across the hand-off, so the
+    // queue dealt them in shooting order into the first step it drew.
+    // 'd' is the second A unit, which is unit 2 on an AA and unit 3 on an ABA.
+    var _inboxRoles = (wizard.data && wizard.data._addPhotoRoles) || {};
+    var _inboxKind = String((wizard.data && wizard.data._addPhotoKind) || '');
+    function _stepForRole(role) {
+      switch (String(role || '')) {
+        case 'p': case 'engine': case 'item': return 'photosItem';
+        case 'tender': return 'photosTenderItem';
+        case 'b': return 'photosUnit2Item';
+        case 'd': return (_inboxKind === 'aba') ? 'photosUnit3Item' : 'photosUnit2Item';
+        case 'together': return 'photosTogether';
+        case 'box': return 'photosBox';
+        default: return '';
+      }
+    }
+    // A photo whose role belongs to ANOTHER step must never be dealt here as
+    // filler — that is precisely how the dummy's photo became the powered
+    // unit's Back view. Unroled photos stay eligible everywhere, as before.
+    function _roleFitsStep(fid, stepId) {
+      var want = _stepForRole(_inboxRoles[fid]);
+      return !want || want === stepId;
+    }
     var _inboxSeen = wizard.data._inboxSlotMap = wizard.data._inboxSlotMap || {};
     _inboxQueue = _inboxQueue.filter(function (fid) {
       for (var _k in _inboxSeen) { if (_inboxSeen[_k] === fid) return false; }
@@ -4336,9 +4362,12 @@ function renderWizardStep() {
       if (!hasPic) {
         if (_inboxSeen[_ik]) inboxFid = _inboxSeen[_ik];
         else {
+          // v0.9.1440: only photos whose ROLE belongs to this step are even
+          // considered — then, among those, the view stamp picks the slot.
           // A photo STAMPED with this very view claims the slot outright.
           var _vi = -1;
           for (var _q = 0; _q < _inboxQueue.length; _q++) {
+            if (!_roleFitsStep(_inboxQueue[_q], stepId)) continue;
             if (_inboxViews[_inboxQueue[_q]] === viewKey) { _vi = _q; break; }
           }
           if (_vi < 0) {
@@ -4346,6 +4375,7 @@ function renderWizardStep() {
             // view (or a Detail stamp meeting an EXTRA slot) in shooting
             // order. A stamped side photo never falls into the wrong slot.
             for (var _q2 = 0; _q2 < _inboxQueue.length; _q2++) {
+              if (!_roleFitsStep(_inboxQueue[_q2], stepId)) continue;
               var _st = _inboxViews[_inboxQueue[_q2]];
               if (!_st || (_st === 'EXTRA' && String(viewKey).indexOf('EXTRA') === 0)) { _vi = _q2; break; }
             }
@@ -4609,11 +4639,21 @@ function renderWizardStep() {
     // v0.9.1389 — the paper step has two slots. A three-shot group would have
     // shown two and silently swallowed the third, which is the same failure
     // Brad reported one size smaller. Make room for the rest.
+    // v0.9.1440: keep a slot ONLY if it actually took a photo. This used to
+    // loop on _inboxQueue.length alone, which was fine when every leftover
+    // photo could land anywhere — but a photo reserved for another unit's step
+    // (role) or stamped for a side slot that is already filled (view) can never
+    // be consumed here, so the queue never emptied and it drew its full 24
+    // empty "Extra Photo" boxes. Asking "did that slot take one?" is true in
+    // every case rather than only the ones we thought of.
     var _guard = 0;
     while (_inboxQueue.length && _guard++ < 24) {
+      var _qBefore = _inboxQueue.length;
       _extraCount.val++;
-      grid.appendChild(makePhotoSlot('EXTRA-' + _extraCount.val,
-        'Extra Photo ' + _extraCount.val, 'EXTRA-' + _extraCount.val, s.id));
+      var _xSlot = makePhotoSlot('EXTRA-' + _extraCount.val,
+        'Extra Photo ' + _extraCount.val, 'EXTRA-' + _extraCount.val, s.id);
+      if (_inboxQueue.length === _qBefore) { _extraCount.val--; break; }
+      grid.appendChild(_xSlot);
     }
 
     wrap.appendChild(grid);
