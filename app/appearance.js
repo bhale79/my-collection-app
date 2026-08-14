@@ -68,8 +68,13 @@
     ['--text',    'Text',            'all the writing'],
   ];
 
+  // v0.9.1442 (Brad): "keep the Official Rail Roster color scheme and make it
+  // uneditable." This palette IS the app's own — the same values app.css ships
+  // — so it is named for what it is and locked. The other three are examples
+  // to start from and stay fully editable.
+  var OFFICIAL_PRESET = 'Rail Roster (official)';
   var BUILTIN_PRESETS = {
-    'Lionel Box':   { '--bg':'#0f1220','--surface':'#161c34','--surface2':'#1c2544','--text':'#f8e8c0','--border':'#2a3560','--accent':'#f05008','--accent2':'#d4a843','--green':'#2ecc71','--want':'#2980b9','--forsale':'#e67e22','--accent3':'#8b5cf6' },
+    'Rail Roster (official)':   { '--bg':'#0f1220','--surface':'#161c34','--surface2':'#1c2544','--text':'#f8e8c0','--border':'#2a3560','--accent':'#f05008','--accent2':'#d4a843','--green':'#2ecc71','--want':'#2980b9','--forsale':'#e67e22','--accent3':'#8b5cf6' },
     'Pennsy Tuscan':{ '--bg':'#2b100d','--surface':'#3d1512','--surface2':'#4a1c16','--text':'#f2e2c4','--border':'#5a2a22','--accent':'#c9922a','--accent2':'#e8c060','--green':'#3aad70','--want':'#4a7ba6','--forsale':'#d97c22','--accent3':'#9b6fd0' },
     'Santa Fe':     { '--bg':'#1c0908','--surface':'#8c1c13','--surface2':'#7a1810','--text':'#f5efe0','--border':'#a83a2a','--accent':'#e8b830','--accent2':'#d8d4c8','--green':'#3aad70','--want':'#3a7ba6','--forsale':'#e07020','--accent3':'#a07ad0' },
     'Alaska':       { '--bg':'#0d1830','--surface':'#132447','--surface2':'#1a2f5a','--text':'#f6efdd','--border':'#28406e','--accent':'#f2b428','--accent2':'#e8cf8a','--green':'#3ec47a','--want':'#5a94d4','--forsale':'#e0862a','--accent3':'#a48ae8' },
@@ -204,7 +209,24 @@
 
   // RULE 2 lives here. The variable goes on the STAGE, so the preview replica
   // repaints and the real app does not. One line, no mode flag.
+  // v0.9.1442: the official look is read-only. Every colour change in this
+  // editor — swatch, hex box, harmony helper, imported skin — comes through
+  // _set(), so one guard here locks all of them without disabling controls
+  // one at a time and missing one. Loading a preset and the derived text
+  // shades are not user edits and pass through untouched.
+  function _officialLocked() { return _activePreset === OFFICIAL_PRESET; }
+  var _lockNagAt = 0;
+  function _lockNag() {
+    var now = Date.now();
+    if (now - _lockNagAt < 2500) return;      // one message per attempt, not per variable
+    _lockNagAt = now;
+    if (typeof showToast === 'function') {
+      showToast('The Rail Roster look is the official scheme — it can\'t be edited. Press “＋ Save current…” to make your own copy, then change that.', 5000, true);
+    }
+  }
+
   function _set(v, val, derived) {
+    if (_officialLocked() && !derived && !_loadingPreset) { _lockNag(); return; }
     if (!derived && !_loadingPreset && _activePreset) { _activePreset = ''; _refreshPresets(); }
     _live[v] = val;
     var st = _stage();
@@ -287,8 +309,10 @@
       return '<span class="rrap-d" style="background:' + (map[v] || NO_COLOUR) + '"></span>';
     }).join('');
     var esc = name.replace(/"/g, '&quot;');
+    var _lockMark = (name === OFFICIAL_PRESET)
+      ? ' <span title="The official scheme — locked" style="opacity:0.75;font-size:0.78em">\u{1F512}</span>' : '';
     return '<div class="rrap-preset' + (name === _activePreset ? ' rrap-preset-on' : '')
-      + '" data-preset="' + esc + '">' + dots + name
+      + '" data-preset="' + esc + '">' + dots + name + _lockMark
       + (isUser ? ' <button class="rrap-del" type="button" title="Delete “' + esc + '”" aria-label="Delete ' + esc + '">✕</button>' : '')
       + '</div>';
   }
@@ -1932,6 +1956,16 @@
   function _storePreset(name) {
     name = String(name || '').slice(0, 24).trim();
     if (!name) return '';
+    // v0.9.1442: a saved look may not take a built-in's name. Builtins win the
+    // lookup when a preset is clicked, so a same-named save used to appear as
+    // a second pill that quietly did nothing — and one named after the
+    // official scheme would have looked like an editable copy of it.
+    if (Object.prototype.hasOwnProperty.call(BUILTIN_PRESETS, name)) {
+      if (typeof showToast === 'function') {
+        showToast('“' + name + '” is a built-in look — pick another name.', 4000, true);
+      }
+      return '';
+    }
     var up = _userPresets(), map = {};
     EDIT_VARS.forEach(function (e) { map[e[0]] = _cur(e[0]); });
     DERIVED_VARS.forEach(function (v) { var c = _cur(v); if (c) map[v] = c; });
@@ -2147,8 +2181,15 @@
       }
     };
     if (_activePreset) {
-      _storePreset(_activePreset);
-      finish(', and “' + _activePreset + '” is up to date');
+      // v0.9.1442: a built-in cannot be "kept up to date" — it is read-only and
+      // _storePreset now refuses its name. Apply the look and say nothing about
+      // the row, rather than firing a "pick another name" error and then
+      // claiming in the next breath that the look was saved. Checking what
+      // _storePreset gave back is the same thing the branch below already does;
+      // this one was the only caller that ignored it. Saved looks are unchanged.
+      var _kept = Object.prototype.hasOwnProperty.call(BUILTIN_PRESETS, _activePreset)
+        ? '' : _storePreset(_activePreset);
+      finish(_kept ? (', and \u201c' + _kept + '\u201d is up to date') : '');
       return;
     }
     // v0.9.1243: pick an existing look to replace, or name a new one.
