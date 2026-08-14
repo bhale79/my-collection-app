@@ -2629,6 +2629,12 @@
       html += '<div style="margin-top:0.45rem;font-size:0.8rem;color:#2ecc71;font-weight:700">\u2713 You already own one — this will be added as a separate copy.'
         + _pinSeeItLink(lk.ownedPd) + '</div>';
     }
+    // v0.9.1444: the dashed family, whenever one exists — not only when the
+    // number is missing from the catalogue (see _pinKinPanelHtml).
+    try {
+      var _kinHtml = _pinKinPanelHtml(lk.num, lk.master);
+      if (_kinHtml) html += _kinHtml;
+    } catch (eKin) {}
     // v0.9.1294 (request #30): the excluded numbers ride on EVERY branch of
     // the card — a failed read with exclusions is exactly the case where the
     // right answer is sitting on the excluded list.
@@ -3751,6 +3757,85 @@
       '<div style="font-size:0.72rem;color:var(--text-dim);margin-bottom:0.3rem">Could be one of these — tap each to compare (★ = best guess):</div>' +
       '<div style="display:flex;flex-wrap:wrap;gap:0.4rem">' + chips + '</div></div>';
   }
+
+  // ══ v0.9.1444 (Brad's 6436) — SHOW THE DASHED FAMILY ══════════════════════
+  // "there is no way for our reader to know this is a -110. thats why we need
+  //  to show the options."  He is right: 6436 is what is printed on the car;
+  //  the -110 is Lionel's sub-number for the red one and it appears on the BOX.
+  //
+  // v0.9.1372 built the family finder (rrDashedKin) and the inbox already used
+  // it — but only on the branch where the number is NOT in the catalogue. For
+  // 6436 the lookup SUCCEEDED, on a row from the Boxes tab, so that branch was
+  // never reached and five real item rows went unmentioned. A demoted row still
+  // wins when it is the only row there is, which is correct, and is exactly the
+  // case nobody had allowed for.
+  //
+  // Lead with the base, list the relatives underneath with their references, so
+  // the choice is made by looking rather than by guessing.
+  function _pinKinRowsFor(n) {
+    try {
+      if (typeof window._mbAllGet === 'function') return window._mbAllGet(String(n).trim()) || [];
+      if (window.state && state.masterByItem && state.masterByItem.get) return state.masterByItem.get(String(n).trim()) || [];
+    } catch (e) {}
+    return [];
+  }
+  function _pinKinPanelHtml(num, matched) {
+    try {
+      var n = String(num || '').trim();
+      if (!n || typeof rrDashedKin !== 'function') return '';
+      // Someone who typed 6436-110 has already been specific; rrDashedKin
+      // returns the PARENT for a dashed number and we do not second-guess it.
+      if (/[-\u2013]/.test(n)) return '';
+      var kin = rrDashedKin(n) || [];
+      if (!kin.length) return '';
+      var esc = (typeof rrEsc === 'function') ? rrEsc : function (s) { return String(s); };
+      // v0.9.1444: "is this a real item row?" is already answered once, in
+      // _pinDemotedRow / window.rrDemotedRow — which demotes box, set, paper,
+      // catalog, display and instruction rows alike. Re-stating it here as a
+      // private /boxes/ test would be a second answer to the same question,
+      // and the one that goes stale. Falls back to the box test only if the
+      // shared helper is somehow absent.
+      var _isItemRow = function (r) {
+        if (!r) return false;
+        if (typeof window.rrDemotedRow === 'function') return !window.rrDemotedRow(r);
+        return !/boxes/i.test(String(r._tab || ''));
+      };
+      var matchedIsSecondary = !!(matched && !_isItemRow(matched));
+      var line = function (label, desc, link, isBase) {
+        var safe = String(label).replace(/'/g, '');
+        return '<button type="button" onclick="_pinPickNum(\'' + safe + '\')" style="display:flex;align-items:center;gap:0.5rem;width:100%;box-sizing:border-box;text-align:left;'
+          + 'background:' + (isBase ? 'rgba(41,128,185,0.14)' : 'var(--surface2)') + ';border:1px solid ' + (isBase ? '#2980b9' : 'var(--border)') + ';'
+          + 'border-radius:8px;padding:0.4rem 0.55rem;margin-top:0.3rem;cursor:pointer;color:var(--text);font-family:var(--font-body)">'
+          + '<span style="font-family:var(--font-mono);font-weight:700;font-size:0.82rem;color:' + (isBase ? '#2980b9' : 'var(--accent2,#c9922a)') + ';flex-shrink:0">' + esc(label) + '</span>'
+          + '<span style="font-size:0.74rem;color:var(--text-dim);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(desc || '') + '</span>'
+          + (link ? '<a href="' + esc(link) + '" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="flex-shrink:0;font-size:0.7rem;font-weight:700;color:#2980b9;text-decoration:none">view \u2197</a>' : '')
+          + '</button>';
+      };
+      // The base first — but only when a real item row carries it.
+      var baseRows = _pinKinRowsFor(n).filter(_isItemRow);
+      var html = '';
+      if (baseRows.length) html += line(n, baseRows[0].description || '', baseRows[0].refLink || '', true);
+      // then the relatives, in catalogue order
+      kin.slice().sort(function (a, b) { return String(a).localeCompare(String(b), undefined, { numeric: true }); })
+         .forEach(function (k) {
+           var rows = _pinKinRowsFor(k).filter(_isItemRow);
+           var r0 = rows[0] || _pinKinRowsFor(k)[0];
+           if (!r0) return;
+           html += line(k, r0.description || '', r0.refLink || '', false);
+         });
+      if (!html) return '';
+      var head = baseRows.length
+        ? 'This number also comes as these \u2014 pick the one you have'
+        : (matchedIsSecondary
+            ? 'No plain ' + esc(n) + ' item exists \u2014 that match was a box or paper entry. The catalogue has these'
+            : 'The catalogue lists ' + esc(n) + ' as these');
+      return '<div style="margin-top:0.5rem;padding:0.5rem 0.6rem;border:1px solid rgba(41,128,185,0.45);border-radius:10px;background:rgba(41,128,185,0.06)">'
+        + '<div style="font-size:0.76rem;font-weight:700;color:#2980b9;margin-bottom:0.1rem">' + head + '</div>'
+        + '<div style="font-size:0.68rem;color:var(--text-dim);margin-bottom:0.15rem">The sub-number is on the box, not the car \u2014 open a reference to compare.</div>'
+        + html + '</div>';
+    } catch (e) { return ''; }
+  }
+  if (typeof window !== 'undefined') window._pinKinPanelHtml = _pinKinPanelHtml;
 
   window._pinPickNum = function (n) {
     var i = document.getElementById('pin-rv-num');
