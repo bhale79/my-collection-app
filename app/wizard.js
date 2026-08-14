@@ -4329,11 +4329,32 @@ function renderWizardStep() {
         default: return '';
       }
     }
+    // v0.9.1441: a role only reserves a photo if the step it names is ACTUALLY
+    // GOING TO BE DRAWN. Tag a photo "tender" on an item that doesn't resolve
+    // as engine+tender and that step is skipped — under v0.9.1440 the photo
+    // then matched no step at all and showed in no slot for the whole wizard.
+    // It still attached on save, but v0.9.1389 put these previews here
+    // precisely so the app never says "trust me, they'll turn up" about photos
+    // that exist nowhere else. A role pointing at a step that will not appear
+    // is treated as no role, which restores the pre-1440 behaviour for exactly
+    // those photos and nothing else.
+    function _stepWillRender(stepId) {
+      try {
+        var list = (wizard && wizard.steps) || [];
+        for (var i = 0; i < list.length; i++) {
+          if (list[i] && list[i].id === stepId) {
+            return !(list[i].skipIf && list[i].skipIf(wizard.data));
+          }
+        }
+      } catch (e) {}
+      return false;
+    }
     // A photo whose role belongs to ANOTHER step must never be dealt here as
     // filler — that is precisely how the dummy's photo became the powered
     // unit's Back view. Unroled photos stay eligible everywhere, as before.
     function _roleFitsStep(fid, stepId) {
       var want = _stepForRole(_inboxRoles[fid]);
+      if (want && !_stepWillRender(want)) want = '';   // stranded -> treat as unroled
       return !want || want === stepId;
     }
     var _inboxSeen = wizard.data._inboxSlotMap = wizard.data._inboxSlotMap || {};
