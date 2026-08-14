@@ -271,7 +271,7 @@ function buildPrefsPage() {
           })()}
         </select>
       </div>
-      ${(typeof APPEARANCE_ENABLED !== 'undefined' && APPEARANCE_ENABLED) ? `
+      ${(typeof rrAppearanceOn === 'function' && rrAppearanceOn()) ? `
       <div class="pref-row">
         <div class="pref-row-label"><strong>🎨 Appearance</strong><span>${(typeof window.rrAppearanceCanEdit === 'function' && !window.rrAppearanceCanEdit())
           ? 'Pick a ready-made look. Designing your own needs the room of a desktop screen.'
