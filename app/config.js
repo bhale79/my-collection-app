@@ -19,13 +19,35 @@ const APP_VERSION = 'v0.9.1440';
 //
 // One line back to true when the editor is user-ready.
 const APPEARANCE_ENABLED = false;
+// ── v0.9.1441 (Brad): "turn on the logo and skin button for beta only" ──────
+// THE PLAN, so a later session doesn't have to guess at this flag:
+//   now      — beta testers get the editor (this flag true)
+//   at public launch — turn this OFF; nobody gets it
+//   later    — it comes back as a paid upgrade, gated on entitlement
+// So the door closes with one line here, and re-opens later as one more branch
+// in rrAppearanceOn() (an entitlement check beside the beta check), not a
+// rewrite. Two signals count as beta today, either one is enough: this browser
+// passed the beta gate (_isBetaVerified, app-auth.js), or the backend says
+// this account is on the beta plan (_subState.sub === 'beta', vault.js).
+const APPEARANCE_BETA_ONLY = true;
 // v0.9.1344: ONE reader, same shape as rrDiagnostics() below. Two places now
 // ask this question — the Appearance page itself, and the dashboard's card
 // library, which must not offer logo cards a user cannot fill in while the
 // editor is hidden. A constant read inline in two files is a fact with two
 // answers waiting to happen.
 function rrAppearanceOn() {
-  return (typeof APPEARANCE_ENABLED !== 'undefined') && !!APPEARANCE_ENABLED;
+  // Master switch first — true means on for everyone, beta or not.
+  if (typeof APPEARANCE_ENABLED !== 'undefined' && APPEARANCE_ENABLED) return true;
+  if (typeof APPEARANCE_BETA_ONLY === 'undefined' || !APPEARANCE_BETA_ONLY) return false;
+  // v0.9.1441: beta only. Both signals are read at CALL time, never at load —
+  // config.js is the first script in index.html, so neither function exists yet
+  // when this file is parsed. Fails closed: no beta signal, no editor.
+  try {
+    if (typeof _isBetaVerified === 'function' && _isBetaVerified()) return true;
+    var _s = (typeof window !== 'undefined') && window._subState;
+    if (_s && _s.sub === 'beta') return true;
+  } catch (e) {}
+  return false;
 }
 if (typeof window !== 'undefined') {
   window.APPEARANCE_ENABLED = APPEARANCE_ENABLED;
