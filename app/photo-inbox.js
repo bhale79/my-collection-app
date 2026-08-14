@@ -5461,6 +5461,13 @@
 
   async function _pinBytes(fileId) {
     var r = await fetch('https://www.googleapis.com/drive/v3/files/' + fileId + '?alt=media', { headers: { Authorization: 'Bearer ' + window.accessToken } });
+    // v0.9.1443 (Brad: crop said "could not save", a refresh fixed it). A 401 or
+    // 403 here is a STALE SIGN-IN, not a broken photo. Unnamed, it reached
+    // rrSaveError as the string "photo download 401", matched none of its cases
+    // and came out as "please try again" — advice that cannot work, because the
+    // retry sends the same expired token. Named, every one of this function's
+    // ten callers gets "you have been signed out" instead.
+    if (r.status === 401 || r.status === 403) throw new Error('SESSION_EXPIRED');
     if (!r.ok) throw new Error('photo download ' + r.status);
     return await r.blob();
   }
@@ -7702,7 +7709,18 @@
     try {
       var blob0 = await _pinBytes(fid);
       srcUrl = URL.createObjectURL(blob0);
-    } catch (e) { showToast(rrSaveError(e, 'the photo for cropping', { kept: false }), 3000, true); return; }
+    } catch (e) {
+      // v0.9.1443: this step READS the photo — nothing is written until the
+      // crop is applied, so "could not save" described a save that never
+      // happened and left Brad wondering if the picture was damaged. Say what
+      // actually failed, say the photo is untouched, and give advice that works.
+      var _m = String((e && e.message) || e || '');
+      showToast(/SESSION_EXPIRED/.test(_m)
+        ? 'Your sign-in expired — refresh the page, then crop again. Your photo is untouched.'
+        : 'Could not open that photo for cropping. Your photo is untouched — try again.',
+        4200, true);
+      return;
+    }
     window._openCropper(srcUrl, async function (blob) {
       try { URL.revokeObjectURL(srcUrl); } catch (e1) {}
       try {
