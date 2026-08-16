@@ -423,6 +423,30 @@ window.eraSupportsBarcode = eraSupportsBarcode;
     return (res || []).filter(function (r) { return r.text; }).map(function (r) { return { rawValue: r.text, format: _zxFmtToStd(r.format) }; });
   }
 
+  // ── v0.9.1468 (Brad: "whats the point of me focusing on the end of my box
+  // when my camera catches more than what it shows me") — WYSIWYG scanning.
+  // The phone sensor is wider than the 4:3 viewfinder, and the old loop
+  // scanned the WHOLE sensor — a box sitting invisibly off-screen could get
+  // its barcode locked. This detector scans only the center 4:3 region the
+  // viewfinder actually displays: the same cover-crop snapFrame() takes.
+  var _bcViewCanvas = null, _bcViewCtx = null;
+  async function _bcDetectView(video, nativeDetector) {
+    var vw = video.videoWidth | 0, vh = video.videoHeight | 0;
+    if (!vw || !vh) return [];
+    var ar = 4 / 3, cw, ch;
+    if (vw / vh > ar) { ch = vh; cw = Math.round(vh * ar); } else { cw = vw; ch = Math.round(vw / ar); }
+    if (!_bcViewCanvas) { _bcViewCanvas = document.createElement('canvas'); _bcViewCtx = _bcViewCanvas.getContext('2d', { willReadFrequently: true }); }
+    if (_bcViewCanvas.width !== cw) _bcViewCanvas.width = cw;
+    if (_bcViewCanvas.height !== ch) _bcViewCanvas.height = ch;
+    _bcViewCtx.drawImage(video, Math.round((vw - cw) / 2), Math.round((vh - ch) / 2), cw, ch, 0, 0, cw, ch);
+    if (nativeDetector) { try { return await nativeDetector.detect(_bcViewCanvas); } catch (eN) { return []; } }
+    var mod = _zxingMod;
+    if (!mod) return [];
+    var img2 = _bcViewCtx.getImageData(0, 0, cw, ch);
+    var res2 = await mod.readBarcodesFromImageData(img2, { tryHarder: true, formats: ['EAN13', 'UPCA', 'EAN8', 'UPCE', 'Code128', 'Code39'], maxNumberOfSymbols: 1 });
+    return (res2 || []).filter(function (r) { return r.text; }).map(function (r) { return { rawValue: r.text, format: _zxFmtToStd(r.format) }; });
+  }
+
   // ── Double-verify: read the label on the SAME camera frame and cross-check ──
   // A Lionel UPC only carries 5 digits, so shared-barcode reissues (1931290 /
   // 2031290 …) are ambiguous. Reading the full number printed on the label lets
@@ -2480,7 +2504,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
             while (!stopLoop) {
               try {
                 if (video.videoWidth) {
-                  var bcs = await _bcDetect(video, nativeDet);
+                  var bcs = await _bcDetectView(video, nativeDet);   // v0.9.1468: scan only what the viewfinder shows
                   if (bcs && bcs.length) {
                     var bc = bcs[0];
                     if (bc.rawValue === lastRaw) confirmN++; else { lastRaw = bc.rawValue; confirmN = 1; }
@@ -2570,7 +2594,22 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         + (lockedBc ? ' <span style="font-size:0.72rem;background:rgba(46,204,113,0.15);border:1px solid #2ecc71;color:#2ecc71;border-radius:6px;padding:2px 7px;vertical-align:middle">Barcode ✓ locked</span>' : '')
         + '</div>'
         + '<div style="color:#ffd27d;font-size:0.8rem;margin-bottom:0.45rem">Adjust the crop frame if you like (<b>less background = better results</b>) — leave it alone to use the whole photo. The barcode is always read from the full shot.</div>'
-        + '<div style="max-height:52vh;overflow:hidden;border-radius:12px;background:#000"><img id="bi-cropimg" style="display:block;max-width:100%"></div>'
+        // v0.9.1468 (Brad: "the crop buttons are hard to hit"): the eight
+        // grab points grow to fingertip size, high-contrast. touch-action on
+        // the wrapper keeps a drag from ever being read as a page gesture.
+        + '<style>'
+        + '#bi-overlay .cropper-point{width:22px!important;height:22px!important;opacity:.85!important;background-color:var(--accent,#e8401c)!important;border-radius:50%}'
+        + '#bi-overlay .cropper-point.point-n{top:-11px;margin-left:-11px}'
+        + '#bi-overlay .cropper-point.point-s{bottom:-11px;margin-left:-11px}'
+        + '#bi-overlay .cropper-point.point-e{right:-11px;margin-top:-11px}'
+        + '#bi-overlay .cropper-point.point-w{left:-11px;margin-top:-11px}'
+        + '#bi-overlay .cropper-point.point-ne{top:-11px;right:-11px}'
+        + '#bi-overlay .cropper-point.point-nw{top:-11px;left:-11px}'
+        + '#bi-overlay .cropper-point.point-se{bottom:-11px;right:-11px}'
+        + '#bi-overlay .cropper-point.point-sw{bottom:-11px;left:-11px}'
+        + '#bi-overlay .cropper-point.point-se::before{display:none}'
+        + '</style>'
+        + '<div id="bi-cropwrap" style="max-height:52vh;overflow:hidden;border-radius:12px;background:#000;touch-action:none;overscroll-behavior:contain"><img id="bi-cropimg" style="display:block;max-width:100%"></div>'
         + '<div style="display:flex;align-items:center;gap:0.5rem;margin-top:0.5rem">'
         + '<span style="color:var(--text-mid,#ccc);font-size:0.78rem;white-space:nowrap">Rotate</span>'
         + '<input id="bi-rot" type="range" min="-180" max="180" step="1" value="0" style="flex:1;accent-color:var(--accent,#e8401c)">'
@@ -2607,6 +2646,15 @@ window.eraSupportsBarcode = eraSupportsBarcode;
       if (_aiOptCb) _aiOptCb.addEventListener('change', function () {
         if (typeof rrAiSetOptOut === 'function') rrAiSetOptOut(!_aiOptCb.checked);
       });
+      // v0.9.1468 (Brad: "i am trying to pull down the crop and it pulls the
+      // whole screen down" → app reload): while THIS screen is open, the
+      // browser's pull-to-refresh is contained. Restored on the way out —
+      // the rest of the app keeps its normal behavior, as Brad chose.
+      var _prevObBody = document.body.style.overscrollBehaviorY;
+      var _prevObHtml = document.documentElement.style.overscrollBehaviorY;
+      document.body.style.overscrollBehaviorY = 'contain';
+      document.documentElement.style.overscrollBehaviorY = 'contain';
+      d.style.overscrollBehavior = 'contain';
       var img = d.querySelector('#bi-cropimg');
       img.src = canvas.toDataURL('image/jpeg', 0.92);
       var cropper = null;
@@ -2628,7 +2676,15 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         var b = e.target.closest && e.target.closest('[data-bi]');
         if (!b) return;
         var act = b.getAttribute('data-bi');
-        function fin(out) { try { if (cropper) cropper.destroy(); } catch (e2) {} resolve(out); }
+        function fin(out) {
+          try { if (cropper) cropper.destroy(); } catch (e2) {}
+          // v0.9.1468: give the browser back its pull-to-refresh.
+          try {
+            document.body.style.overscrollBehaviorY = _prevObBody;
+            document.documentElement.style.overscrollBehaviorY = _prevObHtml;
+          } catch (e4) {}
+          resolve(out);
+        }
         // v0.9.678 (Brad): two routes, one crop box — whatever the crop frame
         // shows (untouched = the full photo) feeds the chosen search.
         if (act === 'go' || act === 'lens') {
@@ -2682,7 +2738,15 @@ window.eraSupportsBarcode = eraSupportsBarcode;
     st('bc', '<span class="bi-spin">⟳</span>', 'Barcode: looking…');
     var bc = lockedBc, bcResult = null;
     if (!bc) {
-      var found = await _biDetectCanvas(fullCanvas);
+      // v0.9.1468 WYSIWYG: hunt the user's CROP first; the viewfinder frame
+      // only as fallback, and flagged — a barcode found outside the crop may
+      // belong to a neighboring box (how a Lionel barcode hijacked the MTH
+      // flat car scan).
+      var found = await _biDetectCanvas(workCanvas);
+      if (!(found && found.length) && fullCanvas && fullCanvas !== workCanvas) {
+        found = await _biDetectCanvas(fullCanvas);
+        if (found && found.length) out.bcOutsideCrop = true;
+      }
       bc = found && found.length ? found[0] : null;
     }
     if (bc) {
@@ -2768,6 +2832,11 @@ window.eraSupportsBarcode = eraSupportsBarcode;
     for (var i = 0; i < out.ocrNums.length && !pick; i++) {
       var n = out.ocrNums[i];
       var lk = [n]; if (/^\d/.test(n)) lk.push('6-' + n);
+      // v0.9.1468 (Brad's 30-7099D): labels often print a suffixed form of
+      // the catalog number — try the suffix-stripped base too, same
+      // convention baseItemNum() uses app-wide.
+      var nb = n.replace(/[A-Za-z]{1,2}$/, '');
+      if (nb && nb !== n && nb.length >= 2) { lk.push(nb); if (/^\d/.test(nb)) lk.push('6-' + nb); }
       var hits = await _findMasterItemsAllEras(lk);
       if (hits.length === 1) { pick = hits[0]; verified = 'label'; }
       else if (hits.length > 1) {
@@ -2779,9 +2848,23 @@ window.eraSupportsBarcode = eraSupportsBarcode;
       }
     }
     if (pick && bcResult && (bcResult.masterItem || bcResult.multipleMatches)) {
-      var agree = (bcResult.masterItem && bcResult.masterItem.itemNum === pick.itemNum)
-        || (bcResult.candidates || []).some(function (c) { return c.itemNum === pick.itemNum; });
+      // v0.9.1468: agreement is judged on the suffix-stripped BASE number
+      // (30-7099D and 30-7099 are the same product to a human).
+      var _bcBase = function (v) { return String(v || '').toLowerCase().replace(/^6-/, '').replace(/[a-z]{1,2}$/, ''); };
+      var agree = (bcResult.masterItem && _bcBase(bcResult.masterItem.itemNum) === _bcBase(pick.itemNum))
+        || (bcResult.candidates || []).some(function (c) { return _bcBase(c.itemNum) === _bcBase(pick.itemNum); });
       if (agree) verified = 'barcode+label';
+      else if (bcResult.masterItem) {
+        // v0.9.1468: label and barcode point at DIFFERENT items — never
+        // assume; the user picks. (Label stays the default on cancel: it was
+        // read off the item itself.)
+        var _lN = pick.itemNum, _bN = bcResult.masterItem.itemNum;
+        st('master', '❓', 'Catalog: label reads ' + _lN + ', barcode decodes to ' + _bN + ' — which is YOUR item?', '#ffd27d');
+        var _sel = await _biNumPicker([_lN + ' — from the label', _bN + ' — from the barcode'],
+          'The printed label reads <b>' + _lN + '</b> but the barcode decodes to <b>' + _bN + '</b>. Which is YOUR item?');
+        if (_sel && String(_sel).indexOf(_bN) === 0) { pick = bcResult.masterItem; verified = 'barcode'; }
+        else st('master', '📖', 'Catalog: ✓ using the label — ' + _lN, '#2ecc71');
+      }
     }
     if (!pick && bcResult) {
       // v0.9.1464: a learned-map hit is NOT the same confidence as a real
@@ -2800,6 +2883,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
       return { handled: true, _boxPhoto: out.isBoxShot, itemNum: pick.itemNum, variation: pick.variation || '', masterItem: pick,
                manufacturer: out.bcMaker || '', roadName: pick.roadName || '', description: pick.description || '',
                verifiedBy: verified, learnedMap: (verified === 'learned'), rawBarcode: (bc && bc.rawValue) || '',
+               cautionNote: (out.bcOutsideCrop && verified === 'barcode') ? 'The barcode was read OUTSIDE your crop — make sure this is YOUR item.' : '',
                verifiedNote: (verified === 'barcode+label' ? '✓ Barcode + lettering agree' : (verified === 'label' ? '✓ Read from the printed number' : (verified === 'learned' ? '↺ Saved from an earlier scan of this barcode — double-check it' : '✓ Barcode match'))),
                eraTag: (typeof _eraLabel === 'function') ? _eraLabel(pick._era) : '',
                isSet: String(pick.itemType || '').toLowerCase() === 'set' };
@@ -2965,14 +3049,14 @@ window.eraSupportsBarcode = eraSupportsBarcode;
           else if (onCancel) onCancel();
           return;
         }
-        var res = await _biPipeline(cap.raw, cr.work, cap.lockedBc, eraHint);
+        var res = await _biPipeline(cap.view || cap.raw, cr.work, cap.lockedBc, eraHint);
         // v0.9.897: Stop pressed = plain cancel — back to the wizard, nothing filled.
         if (res && res.__biCancel) { _biKill(); if (onCancel) onCancel(); return; }
         if (res && res.__biFail) {
           var choice = await _biFailCard(res.out);
           if (choice === 'ai') {
             // same photo, one more shot at the AI (Gemini overload passes quickly)
-            var res2 = await _biPipeline(cap.raw, cr.work, cap.lockedBc, eraHint);
+            var res2 = await _biPipeline(cap.view || cap.raw, cr.work, cap.lockedBc, eraHint);
             if (res2 && res2.__biCancel) { _biKill(); if (onCancel) onCancel(); return; }   // v0.9.897
             if (res2 && !res2.__biFail) { res = res2; }
             else { var c2 = await _biFailCard(res2 && res2.out || {}); if (c2 === 'retake') continue; if (c2 === 'lens') choice = 'lens'; else { _biKill(); if (onCancel) onCancel(); return; } }
@@ -3007,6 +3091,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
             description: r.description || r.labelDescription || '',
             notInMaster: r.notInMaster, noItemNum: r.noItemNum,
             learnedMap: !!r.learnedMap, rawBarcode: r.rawBarcode || '',   // v0.9.1464: for the unlearn button
+            cautionNote: r.cautionNote || '',   // v0.9.1468: outside-crop barcode warning
             verifiedNote: r.aiGuess ? '⚠ Best guess from the photo alone — double-check, or try Google Lens' : r.verifiedNote,
             eraTag: r.eraTag, lensOffer: !!r.aiGuess, aiOffer: !!aiOffer,
             // v0.9.1016 (Brad): the on-demand double-check needs the photo
@@ -3027,7 +3112,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         var _aiOffer = !cap.lockedBc && !!res.itemNum && !res.aiGuess;
         var cc = await _bcConfirmCard(_biInfoFor(res, _aiOffer));
         if (cc === 'aionly') {
-          var resA = await _biPipeline(cap.raw, cr.work, null, eraHint, { ignoreNums: true });
+          var resA = await _biPipeline(cap.view || cap.raw, cr.work, null, eraHint, { ignoreNums: true });
           if (resA && resA.__biCancel) { _biKill(); if (onCancel) onCancel(); return; }   // v0.9.897
           if (resA && !resA.__biFail) {
             if (resA._boxPhoto) { try { resA._boxPhotoFile = await _biCanvasToFile(cr.work, 'box-label.jpg'); } catch (eF3) {} }
