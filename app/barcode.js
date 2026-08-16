@@ -958,7 +958,11 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         var r = await sheetsGet(state.personalSheetId, "'Barcode Map'!A2:C500");
         ((r && r.values) || []).forEach(function (row) {
           var u = _bcMapNorm(row[0]), n = String(row[1] || '').trim();
-          if (u && n) _bcMapMem[u] = { n: n, m: String(row[2] || '').trim() };
+          if (!u) return;
+          // v0.9.1464: an empty item number is a TOMBSTONE — that UPC's
+          // pairing was forgotten on some device; rows apply in order.
+          if (n) _bcMapMem[u] = { n: n, m: String(row[2] || '').trim() };
+          else delete _bcMapMem[u];
         });
         try { localStorage.setItem('rr_bcmap', JSON.stringify(_bcMapMem)); } catch (e2) {}
       }
@@ -1000,6 +1004,49 @@ window.eraSupportsBarcode = eraSupportsBarcode;
     } catch (e) { console.warn('[bcmap] could not save the pairing', e && e.message); }
   }
   window.rrBcMapLearn = rrBcMapLearn;
+
+  // ── v0.9.1464 (Brad's Lionel/MTH cross-learn): a pairing is only worth
+  // keeping when the item number could actually BELONG to that barcode.
+  // His MTH 30-7099 got saved against a LIONEL UPC (023922…84631 = 6-84631)
+  // because the camera's held lock outlived the box it came from; from then
+  // on the Lionel box "matched" the MTH flat car, checkmark and all.
+  // Rule: a known-prefix UPC that decodes to real candidates may only learn
+  // a number matching one of them. Unknown prefixes (MTH & co., whose UPCs
+  // encode nothing) still learn freely — that is the map's whole point.
+  function _bcLearnAllowed(rawBc, itemNum) {
+    try {
+      var upc = _bcMapNorm(rawBc);
+      if (!/^\d{12}$/.test(upc)) return true;      // not a plain UPC — nothing to cross-check
+      var info = UPC_PREFIXES[upc.substring(0, 6)];
+      if (!info || !info.parse) return true;
+      var cands = (info.parse(upc) || {}).itemNumCandidates || [];
+      if (!cands.length) return true;               // parser decodes nothing (MTH & co.)
+      var want = String(itemNum || '').toLowerCase().replace(/^6-/, '');
+      return cands.some(function (c) {
+        return String(c || '').toLowerCase().replace(/^6-/, '') === want;
+      });
+    } catch (e) { return true; }
+  }
+
+  // v0.9.1464: forget a bad pairing — local cache now, sheet by tombstone
+  // (a row with an EMPTY item number; the loader treats it as a delete), so
+  // the fix survives reinstalls and reaches other signed-in devices.
+  async function rrBcMapForget(rawBc) {
+    try {
+      var upc = _bcMapNorm(rawBc);
+      if (!upc) return;
+      var m = await _bcMapEnsureLoaded();
+      delete m[upc];
+      try { localStorage.setItem('rr_bcmap', JSON.stringify(m)); } catch (e0) {}
+      if (window.state && state.personalSheetId && typeof sheetsAppend === 'function') {
+        await _bcMapEnsureTab();
+        await sheetsAppend(state.personalSheetId, "'Barcode Map'!A1",
+          [[upc, '', '', new Date().toISOString().slice(0, 10), 'forgotten']]);
+      }
+      console.log('[bcmap] forgot', upc);
+    } catch (e) { console.warn('[bcmap] could not forget the pairing', e && e.message); }
+  }
+  window.rrBcMapForget = rrBcMapForget;
 
   // ── v0.9.1113 — community sharing of pairings (Brad: "make sure when users
   // take a pic with a barcode and enter an item that we don't have in the
@@ -1958,6 +2005,9 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         // tab, the picture he's comparing against stays on screen.
         + (info._verifySrc ? '<div style="margin-top:10px"><div style="font-size:0.66rem;letter-spacing:0.06em;text-transform:uppercase;color:var(--text-dim,#999);margin-bottom:3px">Your photo</div><div style="border-radius:10px;overflow:hidden;background:#000"><img id="bc-my-photo" style="width:100%;max-height:170px;object-fit:contain;display:block"></div></div>' : '')
         + (info.verifiedNote ? '<div id="bc-verify-note" style="font-size:0.8rem;margin-top:8px;color:#a6e87e">' + _bcEsc(info.verifiedNote) + '</div>' : (info.verifyPromise ? '<div id="bc-verify-note" style="font-size:0.8rem;margin-top:8px;color:#9aa">🔎 Confirming with the label…</div>' : ''))
+        // v0.9.1464: a learned pairing can be WRONG (the Lionel/MTH
+        // cross-learn) — the card offers to forget it on the spot.
+        + (info.learnedMap && info.rawBarcode ? '<button data-a="unlearn" style="display:block;width:100%;margin-top:8px;padding:9px;border-radius:10px;border:1px solid #ffb27d;background:none;color:#ffb27d;font-size:0.82rem;cursor:pointer">↺ Wrong item? Forget this saved pairing &amp; rescan</button>' : '')
         // v0.9.1016 (Brad): FREE side-by-side compare — "just bring up a photo
         // from the reference page next to the user's photo and let the USER
         // decide". The relay only fetches the catalog page's product photo
@@ -2246,6 +2296,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
       // loop still finds and HOLDS the barcode, but the shutter is yours —
       // press Capture when the label is framed the way you want.
       var heldBc = null;
+      var heldSeenAt = 0;   // v0.9.1464: when the held barcode was last actually SEEN
       var _autoCk = d.querySelector('#bi-autosnap');
       if (_autoCk) _autoCk.addEventListener('change', function () {
         try { localStorage.setItem('rr_bi_autosnap', _autoCk.checked ? '1' : '0'); } catch (eS) {}
@@ -2441,13 +2492,19 @@ window.eraSupportsBarcode = eraSupportsBarcode;
                     if (confirmN >= 2 && !_autoSnapOn()) {
                       // Manual mode: hold the lock, hand the shutter to Brad.
                       heldBc = bc;
+                      heldSeenAt = Date.now();   // v0.9.1464: lock is fresh while its barcode is in frame
                       stat.style.color = '#2ecc71';
                       stat.textContent = '\u2713 Barcode locked \u2014 press \ud83d\udcf8 Capture when the label is framed';
                       // v0.9.1153: show the banner, and buzz once so the news
                       // reaches a user whose eyes are on the box, not the screen.
-                      if (lockBanner && lockBanner.style.display === 'none') {
-                        lockBanner.style.display = 'block';
-                        try { if (navigator.vibrate) navigator.vibrate(60); } catch (eV) {}
+                      // v0.9.1464: the banner names the barcode's last digits,
+                      // so a lock held from the WRONG box is visible on sight.
+                      if (lockBanner) {
+                        lockBanner.textContent = '\u2713 Barcode read (\u2026' + String(bc.rawValue || '').slice(-5) + ') \u2014 you can take the picture now';
+                        if (lockBanner.style.display === 'none') {
+                          lockBanner.style.display = 'block';
+                          try { if (navigator.vibrate) navigator.vibrate(60); } catch (eV) {}
+                        }
                       }
                     }
                     else if (confirmN >= 2) {
@@ -2480,6 +2537,17 @@ window.eraSupportsBarcode = eraSupportsBarcode;
                     // barcode…", so there was no way to know it had worked.
                     if (!heldBc) stat.textContent = 'Reading barcode…';
                   }
+                  // v0.9.1464 (Brad's 30-7099 poisoning): the lock used to
+                  // live FOREVER — point at box A, lock, swing to box B whose
+                  // barcode never reads, and the capture went out wearing box
+                  // A's barcode. Now: ~4s with no barcode in frame drops the
+                  // lock and the banner, and the scan starts clean.
+                  else if (heldBc && heldSeenAt && Date.now() - heldSeenAt > 4000) {
+                    heldBc = null; heldSeenAt = 0; lastRaw = null; confirmN = 0;
+                    if (lockBanner) lockBanner.style.display = 'none';
+                    stat.style.color = '';
+                    stat.textContent = 'Aim at the box end \u2014 barcode + item number.';
+                  }
                 }
               } catch (e) {}
               await new Promise(function (r) { setTimeout(r, 380); });
@@ -2495,7 +2563,12 @@ window.eraSupportsBarcode = eraSupportsBarcode;
   // ── Phase 2: optional crop ──
   function _biCrop(canvas, lockedBc) {
     return new Promise(function (resolve) {
-      if (typeof window.Cropper !== 'function') { resolve({ work: canvas, action: 'go' }); return; }
+      if (typeof window.Cropper !== 'function') {
+        // v0.9.1464 (Brad: "cropping doesn't work"): the crop library failing
+        // to load was SILENT — the flow just used the full photo. Say so.
+        try { if (typeof showToast === 'function') showToast('Crop tool didn\u2019t load \u2014 using the whole photo.', 3000); } catch (eT) {}
+        resolve({ work: canvas, action: 'go' }); return;
+      }
       var d = _biOverlay(
         '<div style="width:100%;max-width:560px">'
         + '<div style="color:var(--text,#fff);font-family:var(--font-head,sans-serif);font-size:1.02rem;margin:0.2rem 0 0.35rem">✂ Crop (optional)'
@@ -2566,6 +2639,9 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         if (act === 'go' || act === 'lens') {
           var wc = null;
           try { wc = cropper && cropper.getCroppedCanvas({ maxWidth: 2200, maxHeight: 2200 }); } catch (e3) {}
+          // v0.9.1464: if the crop couldn't be applied, SAY so instead of
+          // quietly feeding the full photo forward.
+          if (!wc) { try { if (typeof showToast === 'function') showToast('Couldn\u2019t apply the crop \u2014 using the whole photo.', 3000); } catch (eT2) {} }
           fin({ work: wc || canvas, action: act === 'lens' ? 'lens' : 'go' });
         }
         if (act === 'rot') { var _cv = parseFloat((rotEl && rotEl.value) || 0) || 0; var _nv = _cv + 90; if (_nv > 180) _nv -= 360; _setRot(_nv); return; }
@@ -2619,7 +2695,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
       if (bcResult) {
         out.bcMaker = (bcResult.manufacturer && bcResult.manufacturer !== 'Unknown') ? bcResult.manufacturer : '';
         var bcTxt = out.bcMaker ? ('✓ ' + bc.rawValue + ' → ' + out.bcMaker) : ('✓ ' + bc.rawValue);
-        if (bcResult.masterItem) bcTxt += ' — matched ' + bcResult.itemNum;
+        if (bcResult.masterItem) bcTxt += ' — matched ' + bcResult.itemNum + (bcResult.learnedMap ? ' (saved from an earlier scan)' : '');
         else if (bcResult.multipleMatches) bcTxt += ' — ' + bcResult.candidates.length + ' possible items';
         st('bc', '📊', 'Barcode: ' + bcTxt, '#2ecc71');
       } else st('bc', '📊', 'Barcode: ✓ ' + bc.rawValue, '#2ecc71');
@@ -2629,6 +2705,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
     // Stage 2 — label / lettering OCR (from the WORK canvas = crop)
     st('ocr', '<span class="bi-spin">⟳</span>', 'Lettering: reading…');
     var ocrText = '';
+    var _numsFromFullFrame = false;   // v0.9.1464: numbers read outside the user's crop
     try {
       var T = await _ensureTesseract();
       var o = await T.recognize(_bcPreprocessForOCR(workCanvas), 'eng', {});
@@ -2645,7 +2722,10 @@ window.eraSupportsBarcode = eraSupportsBarcode;
           && (fullCanvas.width > workCanvas.width * 1.15 || fullCanvas.height > workCanvas.height * 1.15)) {
         var o2 = await T.recognize(_bcPreprocessForOCR(fullCanvas), 'eng', {});
         var t2 = (o2 && o2.data && o2.data.text) || '';
-        if ((_extractItemNumberCandidates(t2) || []).length) ocrText = t2;
+        // v0.9.1464: these numbers came from OUTSIDE the user's crop — they
+        // may belong to a neighboring box he deliberately cropped away.
+        // Flag them so the catalog stage ASKS instead of silently matching.
+        if ((_extractItemNumberCandidates(t2) || []).length) { ocrText = t2; _numsFromFullFrame = true; }
       }
     } catch (e) {}
     if (_biStop) return { __biCancel: true };
@@ -2672,9 +2752,14 @@ window.eraSupportsBarcode = eraSupportsBarcode;
     // signal set + 3656 …) — never bet on the first one. Ask which, or none.
     var _dnums = Array.from(new Set(out.ocrNums));
     var _dbases = Array.from(new Set(_dnums.map(function (n) { return String(n).replace(/-\d{1,3}$/, '').replace(/[A-Z]{1,2}$/i, ''); })));
-    if (_dbases.length >= 2) {
-      st('master', '❓', 'Catalog: ' + _dnums.length + ' different numbers in the shot — which one is YOUR item?', '#ffd27d');
-      var _pickN = await _biNumPicker(_dnums);
+    var _outsideCrop = _numsFromFullFrame && _dnums.length > 0 && _dbases.length < 2;   // v0.9.1464
+    if (_dbases.length >= 2 || _outsideCrop) {
+      st('master', '❓', _outsideCrop
+        ? 'Catalog: a number was read OUTSIDE your crop — is it your item?'
+        : 'Catalog: ' + _dnums.length + ' different numbers in the shot — which one is YOUR item?', '#ffd27d');
+      var _pickN = await _biNumPicker(_dnums, _outsideCrop
+        ? 'Your crop had no readable number, but ' + _dnums.slice(0, 3).join(', ') + ' was read from the FULL photo (outside your crop). Is that your item?'
+        : null);
       if (_pickN === 'none' || _pickN === 'cancel') {
         out.ocrNums = []; rawCands = []; out.ocrDesc = '';
         st('master', '➖', 'Catalog: numbers skipped — identifying the item itself');
@@ -2704,7 +2789,9 @@ window.eraSupportsBarcode = eraSupportsBarcode;
       if (agree) verified = 'barcode+label';
     }
     if (!pick && bcResult) {
-      if (bcResult.masterItem) { pick = bcResult.masterItem; verified = 'barcode'; }
+      // v0.9.1464: a learned-map hit is NOT the same confidence as a real
+      // barcode decode — it is a memory, and memories can be wrong.
+      if (bcResult.masterItem) { pick = bcResult.masterItem; verified = bcResult.learnedMap ? 'learned' : 'barcode'; }
       else if (bcResult.multipleMatches) {
         var ch2 = await showCandidatePicker(bcResult.candidates, bcResult);
         if (ch2 && !ch2.__notInList) { pick = ch2; verified = 'barcode'; }
@@ -2717,7 +2804,8 @@ window.eraSupportsBarcode = eraSupportsBarcode;
       st('ai', '➖', 'Close look: not needed');
       return { handled: true, _boxPhoto: out.isBoxShot, itemNum: pick.itemNum, variation: pick.variation || '', masterItem: pick,
                manufacturer: out.bcMaker || '', roadName: pick.roadName || '', description: pick.description || '',
-               verifiedBy: verified, verifiedNote: (verified === 'barcode+label' ? '✓ Barcode + lettering agree' : (verified === 'label' ? '✓ Read from the printed number' : '✓ Barcode match')),
+               verifiedBy: verified, learnedMap: (verified === 'learned'), rawBarcode: (bc && bc.rawValue) || '',
+               verifiedNote: (verified === 'barcode+label' ? '✓ Barcode + lettering agree' : (verified === 'label' ? '✓ Read from the printed number' : (verified === 'learned' ? '↺ Saved from an earlier scan of this barcode — double-check it' : '✓ Barcode match'))),
                eraTag: (typeof _eraLabel === 'function') ? _eraLabel(pick._era) : '',
                isSet: String(pick.itemType || '').toLowerCase() === 'set' };
     }
@@ -2788,13 +2876,13 @@ window.eraSupportsBarcode = eraSupportsBarcode;
 
   // ── Phase 4 fail card ──
   // v0.9.690: chooser when a shot contains several different item numbers.
-  function _biNumPicker(nums) {
+  function _biNumPicker(nums, msg) {
     return new Promise(function (resolve) {
       var d = document.getElementById('bi-overlay');
       var act = d && d.querySelector('#bi-actions');
       if (!act) { resolve(nums[0]); return; }
       act.innerHTML =
-        '<div style="width:100%;color:#ffd27d;font-size:0.85rem;margin-bottom:0.3rem">I see more than one item number in this shot. Which one is the item you\'re adding?</div>'
+        '<div style="width:100%;color:#ffd27d;font-size:0.85rem;margin-bottom:0.3rem">' + (msg || 'I see more than one item number in this shot. Which one is the item you\'re adding?') + '</div>'
         + nums.slice(0, 6).map(function (n) { return _biBtn({ act: 'num:' + n, txt: n }); }).join('')
         + _biBtn({ act: 'none', txt: 'None of these — identify the item itself' }, 'border:1.5px solid var(--accent,#e8401c);color:var(--accent,#e8401c)');
       act.onclick = function (e) {
@@ -2923,6 +3011,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
             roadName: r.roadName || (r.masterItem && r.masterItem.roadName) || '',
             description: r.description || r.labelDescription || '',
             notInMaster: r.notInMaster, noItemNum: r.noItemNum,
+            learnedMap: !!r.learnedMap, rawBarcode: r.rawBarcode || '',   // v0.9.1464: for the unlearn button
             verifiedNote: r.aiGuess ? '⚠ Best guess from the photo alone — double-check, or try Google Lens' : r.verifiedNote,
             eraTag: r.eraTag, lensOffer: !!r.aiGuess, aiOffer: !!aiOffer,
             // v0.9.1016 (Brad): the on-demand double-check needs the photo
@@ -2972,8 +3061,16 @@ window.eraSupportsBarcode = eraSupportsBarcode;
             // community share — they go through flagged, so Brad's catalog
             // review sees the new item WITH its barcode attached.
             if (cap.lockedBc && res && res.itemNum && !res.learnedMap) {
-              rrBcMapLearn(cap.lockedBc.rawValue, res.itemNum, res.manufacturer || '',
-                res.notInMaster ? 'scan-new-item' : 'scan', !res.notInMaster);
+              // v0.9.1464: refuse impossible pairings — a decodable UPC may
+              // only learn an item number it actually decodes to. Stops a
+              // stale camera lock from poisoning the map (the 30-7099 case).
+              if (_bcLearnAllowed(cap.lockedBc.rawValue, res.itemNum)) {
+                rrBcMapLearn(cap.lockedBc.rawValue, res.itemNum, res.manufacturer || '',
+                  res.notInMaster ? 'scan-new-item' : 'scan', !res.notInMaster);
+              } else {
+                console.warn('[bcmap] NOT learning ' + cap.lockedBc.rawValue + ' \u2192 ' + res.itemNum
+                  + ' \u2014 that barcode decodes to a different item (stale lock?)');
+              }
             }
           } catch (eL) {}
           if (onScanned) onScanned(res); return;
@@ -2984,6 +3081,13 @@ window.eraSupportsBarcode = eraSupportsBarcode;
           if (typeof window._identifyOpenWithPhoto === 'function') window._identifyOpenWithPhoto(fC, true);
           else if (onCancel) onCancel();
           return;
+        }
+        if (cc === 'unlearn') {
+          // v0.9.1464: wipe the bad pairing (local + sheet tombstone), then
+          // straight back to the camera for a clean scan.
+          try { await rrBcMapForget(res.rawBarcode); } catch (eU) {}
+          try { if (typeof showToast === 'function') showToast('Pairing forgotten \u2014 scan it again.', 2500); } catch (eU2) {}
+          continue;
         }
         if (cc === 'rescan') continue;
         if (onCancel) onCancel(); return;
