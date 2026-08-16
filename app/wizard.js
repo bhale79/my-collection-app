@@ -915,7 +915,14 @@ const _WIZ_KINDS = [
   { id: 'cataloged', label: 'Cataloged Item' },
   { id: 'set',       label: 'Lionel Postwar Set' },   // v0.9.994 (Brad): only era with set-composition data
   { id: 'paper',     label: 'Paper Item' },
-  { id: 'catalogs',  label: 'Catalog' },
+  // v0.9.1453 (Brad, while reviewing the help guides): "there are two ways of
+  // entering a catalog. we just need to have the path listed under paper, not
+  // the version listed under catalog." Both already SAVED to the same Catalogs
+  // tab (_saveCatalogFromPaper), but only the Paper route asks for the
+  // sub-type — Consumer Postwar, Advance/Dealer, Display, HO — so the short
+  // path was quietly producing catalogs with less information. One door now:
+  // Paper Item → Catalog. Existing catalog records are untouched; editing one
+  // still opens its own flow (see _wizCurrentKind below).
   { id: 'mockups',   label: 'Mock-Up' },
   { id: 'other',     label: 'Other' },
   { id: 'manual',    label: 'Manual — item not in our catalogs' },
@@ -924,6 +931,12 @@ function _wizCurrentKind() {
   try {
     if (wizard.data && wizard.data._manualEntry) return 'manual';
     if (wizard.tab === 'set') return 'set';
+    // v0.9.1453: 'catalogs' is no longer offered in the picker, so an EXISTING
+    // catalog opened for editing would find no matching option and the box
+    // would read "Cataloged Item" — wrong, and alarming. It reports as Paper
+    // Item instead, which is the door that now leads there. The flow itself is
+    // driven by wizard.tab and is unchanged.
+    if (wizard.tab === 'catalogs') return 'paper';
     if (['paper', 'catalogs', 'mockups', 'other'].indexOf(wizard.tab) >= 0) return wizard.tab;
   } catch (e) {}
   return 'cataloged';
