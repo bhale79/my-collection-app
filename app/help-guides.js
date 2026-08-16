@@ -406,7 +406,10 @@
     if (old) old.remove();
     var ov = document.createElement('div');
     ov.id = 'rrg-modal';
-    ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.72);z-index:10080;'
+    // v0.9.1456: the Help Center overlay sits at z-index 99999 — measured, not
+    // assumed. Anything below that opens BEHIND it, which is exactly what
+    // Brad saw. Sit above it.
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.72);z-index:100010;'
       + 'display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto';
     ov.innerHTML =
       '<div style="background:var(--surface,#1a1a2e);border:1px solid var(--border,#333);border-radius:15px;'
@@ -516,8 +519,20 @@
     btn.id = 'rrg-hub-row';
     btn.setAttribute('style', anchor.getAttribute('style') || '');
     btn.onclick = function () {
-      var ov = anchor.closest ? anchor.closest('div[style*="position:fixed"]') : null;
-      if (ov && ov.remove) ov.remove();
+      // v0.9.1456: the hub is #help-hub-modal. The previous close hunted for an
+      // inline position:fixed style, which that element does not carry — so the
+      // hub stayed open ON TOP of the guides. Close it by id, with a walk-up
+      // fallback in case the id ever changes.
+      var hub = document.getElementById('help-hub-modal');
+      if (!hub) {
+        var p = btn.parentElement;
+        while (p && p !== document.body) {
+          if (getComputedStyle(p).position === 'fixed') { hub = p; break; }
+          p = p.parentElement;
+        }
+      }
+      if (hub && hub.remove) hub.remove();
+      if (window.BackStack && BackStack.pop) { try { BackStack.pop('help-hub-modal'); } catch (e) {} }
       rrgIndex();
     };
     btn.innerHTML = '<span style="display:block;font-weight:700">Step-by-step guides</span>'
