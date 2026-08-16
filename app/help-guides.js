@@ -497,33 +497,43 @@
   window.rrgIndex = rrgIndex;
 
   // ── Hook into the Help Center without editing tutorial.js ────
+  // v0.9.1455: the hub's markup carries NO ids or classes — every div is
+  // anonymous — so the first attempt (querySelector('#help-hub, .help-hub'))
+  // found nothing and the row never appeared. Verified live before this
+  // rewrite. The reliable landmark is the EXISTING Suggestions row, the
+  // photographing guide: find that button by its text and insert directly
+  // after it, copying its own style so the new row cannot drift out of
+  // fashion when the hub is restyled.
+  function addRow() {
+    var anchor = null;
+    var btns = document.querySelectorAll('button');
+    for (var i = 0; i < btns.length; i++) {
+      if (/Photographing/i.test(btns[i].textContent || '')) { anchor = btns[i]; break; }
+    }
+    if (!anchor || !anchor.parentElement) return false;
+    if (document.getElementById('rrg-hub-row')) return true;
+    var btn = document.createElement('button');
+    btn.id = 'rrg-hub-row';
+    btn.setAttribute('style', anchor.getAttribute('style') || '');
+    btn.onclick = function () {
+      var ov = anchor.closest ? anchor.closest('div[style*="position:fixed"]') : null;
+      if (ov && ov.remove) ov.remove();
+      rrgIndex();
+    };
+    btn.innerHTML = '<span style="display:block;font-weight:700">Step-by-step guides</span>'
+      + '<span style="display:block;font-size:0.92rem;color:var(--text-dim,#999)">'
+      + 'Adding items, want list, parts, sales, contacts, research, catalogue search</span>';
+    anchor.parentElement.insertBefore(btn, anchor.nextSibling);
+    return true;
+  }
   function inject() {
     if (typeof window.openHelpHub !== 'function' || window.openHelpHub._rrgWrapped) return false;
     var orig = window.openHelpHub;
     var wrapped = function () {
       var r = orig.apply(this, arguments);
-      try {
-        setTimeout(function () {
-          var hub = document.querySelector('#help-hub, #tut-help-hub, .help-hub');
-          if (!hub || hub.querySelector('#rrg-hub-row')) return;
-          var btn = document.createElement('button');
-          btn.id = 'rrg-hub-row';
-          btn.onclick = function () {
-            var m = document.querySelector('#help-hub, #tut-help-hub, .help-hub');
-            var ovp = m && m.closest ? m.closest('div[style*="position:fixed"]') : null;
-            if (ovp && ovp.remove) ovp.remove(); else if (m && m.remove) m.remove();
-            rrgIndex();
-          };
-          btn.style.cssText = 'display:block;width:100%;box-sizing:border-box;text-align:left;'
-            + 'background:var(--surface2,#242440);border:1px solid var(--border,#333);border-radius:9px;'
-            + 'padding:0.65rem 0.8rem;margin-top:0.4rem;cursor:pointer;color:var(--text,#eee);'
-            + 'font-family:inherit;font-size:1rem';
-          btn.innerHTML = '<span style="display:block;font-weight:700">Step-by-step guides</span>'
-            + '<span style="display:block;font-size:0.92rem;color:var(--text-dim,#999)">'
-            + 'Adding items, want list, parts, sales, contacts, research, catalogue search</span>';
-          hub.appendChild(btn);
-        }, 60);
-      } catch (e) {}
+      // The hub draws in one pass; a few retries covers any async paint.
+      var n = 0;
+      var t2 = setInterval(function () { n++; if (addRow() || n > 12) clearInterval(t2); }, 120);
       return r;
     };
     wrapped._rrgWrapped = true;
