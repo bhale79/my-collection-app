@@ -1095,25 +1095,16 @@ window.eraSupportsBarcode = eraSupportsBarcode;
     const raw = (bc.rawValue || '').trim();
     const fmt = bc.format;
 
-    // v0.9.1112 — a pairing this user already verified outranks every rule
-    // below. This is how MTH boxes (whose UPCs encode nothing) scan
-    // instantly the second time, on any signed-in device.
-    try {
-      var _bmap = await _bcMapEnsureLoaded();
-      var _bhit = _bmap[_bcMapNorm(raw)];
-      if (_bhit && _bhit.n) {
-        var _bm2 = await findMasterItem([_bhit.n]);
-        if (_bm2) {
-          return {
-            handled: true, rawBarcode: raw, format: fmt, upc: _bcMapNorm(raw),
-            manufacturer: _bhit.m || _bm2.mfr || '', itemNum: _bm2.itemNum,
-            variation: _bm2.variation || '', masterItem: _bm2, learnedMap: true,
-            statusMessage: 'Found ' + _bm2.itemNum + ' \u2014 learned from your earlier scan',
-            isSet: String(_bm2.itemType || '').toLowerCase() === 'set',
-          };
-        }
-      }
-    } catch (eBM) {}
+    // ── v0.9.1465 (Brad: "we should scan the item, it find it, we take a
+    // picture, we crop the picture and move on") — the learned map is NO
+    // LONGER CONSULTED during a scan. v1112 let remembered pairings outrank
+    // real decoding, and one bad save (the 30-7099 poisoning) made every
+    // later scan of that barcode wrong, checkmark and all. Every scan is now
+    // judged fresh on what is in front of the camera: barcode decode →
+    // printed number → AI/manual. Confirmed pairings are still RECORDED
+    // (rrBcMapLearn below, with the v1464 impossible-pairing guard) into the
+    // Barcode Map tab + community queue — review data for the master
+    // catalog. Recording, not recalling.
 
     // UPC-A: 12 digits
     if ((fmt === 'upc_a' || fmt === 'ean_13') && /^\d{12,13}$/.test(raw)) {
