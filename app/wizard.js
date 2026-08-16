@@ -222,7 +222,23 @@ let wizard = {
 function _wizMasterPrefer() {
   var d = (typeof wizard !== 'undefined' && wizard && wizard.data) ? wizard.data : null;
   if (!d) return null;
+  // ── v0.9.1459 (Brad: "on mobile I have Lionel Postwar selected and type 238,
+  // it says 1939 steam; on desktop it gives the correct 1964"). No. 238 exists
+  // in BOTH the pre-war and postwar catalogs. wizard.data._era is only set for
+  // the Want flow, so on an ordinary add this read empty, no era hint reached
+  // findMaster, and it returned whichever matching row happened to load FIRST
+  // — postwar on one device, pre-war on the other. Not a mobile bug: a missing
+  // hint that the two devices resolved differently by luck of load order.
+  // The era the user actually picked lives in _currentEra (and in the filter
+  // chips), so fall back to those before giving up.
   var era = String(d._era || '').trim();
+  if (!era && typeof _currentEra !== 'undefined') era = String(_currentEra || '').trim();
+  if (!era) {
+    try {
+      var _af = (typeof rrActiveFilter === 'function') ? rrActiveFilter() : null;
+      if (_af && _af.era) era = String(_af.era).trim();
+    } catch (eAF) {}
+  }
   if (era === 'all') era = '';
   var mfr = String(d._searchFilterManufacturer || '').trim();
   if (!mfr && d._identifyMeta && d._identifyMeta.manufacturer) mfr = String(d._identifyMeta.manufacturer).trim();
@@ -772,7 +788,9 @@ window._wizResearchIdentity = function () {
   if ((!m || !m.itemNum) && num && typeof findMaster === 'function') {
     var _rpOwn = (d._updatePdKey && typeof state !== 'undefined' && state.personalData)
       ? state.personalData[d._updatePdKey] : null;
-    var _rpPref = _rpOwn || (d._era ? { era: d._era, manufacturer: d.manufacturer || '' } : null);
+    // v0.9.1459: same missing-hint hole as the item-number lookup above.
+    var _rpPref = _rpOwn || (typeof _wizMasterPrefer === 'function' ? _wizMasterPrefer() : null)
+                  || (d._era ? { era: d._era, manufacturer: d.manufacturer || '' } : null);
     m = findMaster(num, d.variation, _rpPref) || {};
   }
   return {
@@ -915,14 +933,7 @@ const _WIZ_KINDS = [
   { id: 'cataloged', label: 'Cataloged Item' },
   { id: 'set',       label: 'Lionel Postwar Set' },   // v0.9.994 (Brad): only era with set-composition data
   { id: 'paper',     label: 'Paper Item' },
-  // v0.9.1453 (Brad, while reviewing the help guides): "there are two ways of
-  // entering a catalog. we just need to have the path listed under paper, not
-  // the version listed under catalog." Both already SAVED to the same Catalogs
-  // tab (_saveCatalogFromPaper), but only the Paper route asks for the
-  // sub-type — Consumer Postwar, Advance/Dealer, Display, HO — so the short
-  // path was quietly producing catalogs with less information. One door now:
-  // Paper Item → Catalog. Existing catalog records are untouched; editing one
-  // still opens its own flow (see _wizCurrentKind below).
+  { id: 'catalogs',  label: 'Catalog' },
   { id: 'mockups',   label: 'Mock-Up' },
   { id: 'other',     label: 'Other' },
   { id: 'manual',    label: 'Manual — item not in our catalogs' },
@@ -931,12 +942,6 @@ function _wizCurrentKind() {
   try {
     if (wizard.data && wizard.data._manualEntry) return 'manual';
     if (wizard.tab === 'set') return 'set';
-    // v0.9.1453: 'catalogs' is no longer offered in the picker, so an EXISTING
-    // catalog opened for editing would find no matching option and the box
-    // would read "Cataloged Item" — wrong, and alarming. It reports as Paper
-    // Item instead, which is the door that now leads there. The flow itself is
-    // driven by wizard.tab and is unchanged.
-    if (wizard.tab === 'catalogs') return 'paper';
     if (['paper', 'catalogs', 'mockups', 'other'].indexOf(wizard.tab) >= 0) return wizard.tab;
   } catch (e) {}
   return 'cataloged';
@@ -1825,7 +1830,12 @@ function _renderAddingBanner() {
       // fall back to the item's era/variation hints.
       var _ownRow = (d._updatePdKey && typeof state !== 'undefined' && state.personalData)
         ? state.personalData[d._updatePdKey] : null;
-      var _pref = _ownRow || (d._era ? { era: d._era, manufacturer: d.manufacturer || '' } : null);
+      // v0.9.1459: was `d._era ? {...} : null`, which dropped the era hint on
+      // every normal add. _wizMasterPrefer() is the one resolver that knows
+      // about the era, the maker and the year — use it rather than a second,
+      // weaker answer to the same question.
+      var _pref = _ownRow || (typeof _wizMasterPrefer === 'function' ? _wizMasterPrefer() : null)
+                  || (d._era ? { era: d._era, manufacturer: d.manufacturer || '' } : null);
       match = findMaster(num, d.variation, _pref);
     }
     if (match) {
