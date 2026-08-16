@@ -30,6 +30,7 @@ var DISPATCH_CFG = {
   tabName: 'Announcements',
   range: 'Announcements!A2:G500',
   seenKey: 'lv_dispatch_seen',          // JSON array of seen IDs
+  dismissKey: 'lv_dispatch_dismissed',  // JSON array of dismissed (read) IDs
   cacheKey: 'lv_dispatch_cache',        // JSON {ts, rows} offline copy
   iconLg: 'img/dispatch-board-192.png', // popup
   iconBg: 'img/dispatch-board-512.png', // board page full-page backdrop
@@ -78,6 +79,37 @@ function _dbMarkSeen(ids) {
     localStorage.setItem(DISPATCH_CFG.seenKey, JSON.stringify(seen));
   } catch (e) {}
 }
+
+// ── v0.9.1452 (Brad): "should a user be able to click x on any announcement
+// to get rid of it after they have read it" — yes. Dismissing moves the card
+// into a Read archive at the bottom of the board (stored per device, like
+// seen); Restore undoes an accidental ✕. The unread BADGE is deliberately
+// untouched: it still tracks announcements not yet SEEN at all, so dismissal
+// is housekeeping — it can never hide news the user hasn't been shown.
+function _dbDismissed() {
+  try { return JSON.parse(localStorage.getItem(DISPATCH_CFG.dismissKey) || '[]'); }
+  catch (e) { return []; }
+}
+window._dbDismiss = function (id) {
+  try {
+    var d = _dbDismissed();
+    if (d.indexOf(id) < 0) d.push(id);
+    localStorage.setItem(DISPATCH_CFG.dismissKey, JSON.stringify(d));
+  } catch (e) {}
+  dbBuildPage();
+};
+window._dbRestore = function (id) {
+  try {
+    localStorage.setItem(DISPATCH_CFG.dismissKey,
+      JSON.stringify(_dbDismissed().filter(function (x) { return x !== id; })));
+  } catch (e) {}
+  window._dbArchiveOpen = true;   // stay in the open archive after a restore
+  dbBuildPage();
+};
+window._dbToggleArchive = function () {
+  window._dbArchiveOpen = !window._dbArchiveOpen;
+  dbBuildPage();
+};
 
 function _dbIsExpired(item) {
   return !!(item.expires && item.expires.getTime() < Date.now() - 86400000);
@@ -183,13 +215,13 @@ function _dbMaybePopup() {
     '<div style="background:var(--surface,#1a1a2e);border:1px solid var(--border,#333);border-radius:16px;max-width:460px;width:100%;padding:20px 22px 18px;color:var(--text,#eee);font-family:var(--font-body,sans-serif);max-height:calc(100vh - 36px);overflow-y:auto;-webkit-overflow-scrolling:touch;margin:auto 0;box-shadow:0 12px 40px rgba(0,0,0,0.5)">'
     + '<div style="text-align:center;margin-bottom:10px"><img src="' + DISPATCH_CFG.iconLg + '" alt="" style="width:110px;height:110px;display:inline-block"></div>'
     + '<div style="text-align:center;font-size:0.72rem;letter-spacing:0.14em;text-transform:uppercase;color:var(--gold,#d4a843);margin-bottom:4px">Incoming from the Dispatch Board</div>'
-    + '<div style="font-family:var(--font-head,sans-serif);font-size:1.25rem;text-align:center;font-weight:700;margin-bottom:4px">' + _dbEsc(it.title) + '</div>'
-    + '<div style="text-align:center;font-size:0.76rem;color:var(--text-dim,#888);margin-bottom:12px">'
+    + '<div style="font-family:var(--font-head,sans-serif);font-size:1.85rem;text-align:center;font-weight:700;margin-bottom:4px">' + _dbEsc(it.title) + '</div>'
+    + '<div style="text-align:center;font-size:1.15rem;color:var(--text-dim,#888);margin-bottom:12px">'
     +   _dbEsc(_dbFmtDate(it.date))
     +   (it.type === 'Release' && it.version ? ' &nbsp;·&nbsp; <span style="background:rgba(212,168,67,0.18);border:1px solid rgba(212,168,67,0.5);color:var(--gold,#d4a843);border-radius:999px;padding:0.1rem 0.55rem;font-weight:700">What’s new in ' + _dbEsc(it.version) + '</span>' : '')
     + '</div>'
-    + '<div style="font-size:0.88rem;color:var(--text-mid,#ccc);line-height:1.55;margin-bottom:14px">' + _dbBodyHtml(it.message) + '</div>'
-    + (more > 0 ? '<div style="font-size:0.78rem;color:var(--text-dim,#888);text-align:center;margin-bottom:12px">' + more + ' more announcement' + (more > 1 ? 's' : '') + ' waiting on the board.</div>' : '')
+    + '<div style="font-size:1.3rem;color:var(--text-mid,#ccc);line-height:1.55;margin-bottom:14px">' + _dbBodyHtml(it.message) + '</div>'
+    + (more > 0 ? '<div style="font-size:1.15rem;color:var(--text-dim,#888);text-align:center;margin-bottom:12px">' + more + ' more announcement' + (more > 1 ? 's' : '') + ' waiting on the board.</div>' : '')
     + '<div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">'
     +   '<button id="db-popup-open" style="padding:0.65rem 1.2rem;border-radius:9px;border:1px solid var(--border,#444);background:var(--surface2,#242440);color:var(--text,#eee);font-weight:600;font-family:inherit;font-size:0.9rem;cursor:pointer">Open Dispatch Board</button>'
     +   '<button id="db-popup-ok" style="padding:0.65rem 1.6rem;border-radius:9px;border:none;background:var(--accent,#e04028);color:#fff;font-weight:600;font-family:inherit;font-size:0.9rem;cursor:pointer">Got it</button>'
@@ -220,27 +252,47 @@ function dbBuildPage() {
   var html =
     '<div style="margin-bottom:0.35rem">'
     +   '<div class="page-title" style="margin:0">The Dispatch Board</div>'
-    +   '<div style="font-size:0.85rem;color:var(--text-dim,#888)">Station announcements &amp; what’s new in The Rail Roster.</div>'
+    +   '<div style="font-size:1.28rem;color:var(--text-dim,#888)">Station announcements &amp; what’s new in The Rail Roster.</div>'
     + '</div>';
 
   if (!items.length) {
-    html += '<div style="background:var(--surface2,#222);border:1px solid var(--border,#333);border-radius:12px;padding:1.6rem;text-align:center;color:var(--text-dim,#888);font-size:0.9rem;margin-top:1rem">All quiet at the station — no announcements posted yet. Check back soon!</div>';
+    html += '<div style="background:var(--surface2,#222);border:1px solid var(--border,#333);border-radius:12px;padding:1.6rem;text-align:center;color:var(--text-dim,#888);font-size:1.35rem;margin-top:1rem">All quiet at the station — no announcements posted yet. Check back soon!</div>';
   } else {
-    items.forEach(function (it) {
+    var _dis = _dbDismissed();
+    var _card = function (it, dismissed) {
       var expired = _dbIsExpired(it);
-      html +=
-        '<div style="background:var(--surface2,#1e2438);border:1px solid var(--border,#333);border-left:4px solid ' + (it.type === 'Release' ? 'var(--gold,#d4a843)' : 'var(--accent,#e04028)') + ';border-radius:11px;padding:0.95rem 1.15rem;margin-top:0.85rem;' + (expired ? 'opacity:0.55' : '') + '">'
+      var idSafe = _dbEsc(it.id).replace(/'/g, '');
+      return '<div style="position:relative;background:var(--surface2,#1e2438);border:1px solid var(--border,#333);border-left:4px solid ' + (it.type === 'Release' ? 'var(--gold,#d4a843)' : 'var(--accent,#e04028)') + ';border-radius:11px;padding:0.95rem 2.4rem 0.95rem 1.15rem;margin-top:0.85rem;' + ((expired || dismissed) ? 'opacity:0.55' : '') + '">'
+        + (dismissed
+            ? '<button onclick="_dbRestore(\'' + idSafe + '\')" title="Put this announcement back on the board" style="position:absolute;top:0.55rem;right:0.6rem;background:none;border:1px solid var(--border,#444);border-radius:7px;color:var(--text-dim,#888);font-size:1rem;font-weight:700;padding:0.15rem 0.5rem;cursor:pointer">Restore</button>'
+            : '<button onclick="_dbDismiss(\'' + idSafe + '\')" title="Mark as read — moves to the archive at the bottom" style="position:absolute;top:0.4rem;right:0.5rem;background:none;border:none;color:var(--text-dim,#888);font-size:1.5rem;cursor:pointer;line-height:1;padding:0.2rem 0.35rem">\u2715</button>')
         + '<div style="display:flex;align-items:baseline;gap:0.6rem;flex-wrap:wrap;margin-bottom:0.25rem">'
-        +   '<span style="font-family:var(--font-head,sans-serif);font-size:1.05rem;font-weight:700;color:var(--text,#eee)">' + _dbEsc(it.title) + '</span>'
+        +   '<span style="font-family:var(--font-head,sans-serif);font-size:1.6rem;font-weight:700;color:var(--text,#eee)">' + _dbEsc(it.title) + '</span>'
         +   (it.type === 'Release'
-              ? '<span style="background:rgba(212,168,67,0.18);border:1px solid rgba(212,168,67,0.5);color:var(--gold,#d4a843);border-radius:999px;padding:0.08rem 0.55rem;font-size:0.68rem;font-weight:700;letter-spacing:0.05em;text-transform:uppercase">Release' + (it.version ? ' ' + _dbEsc(it.version) : '') + '</span>'
-              : '<span style="background:rgba(224,64,40,0.15);border:1px solid rgba(224,64,40,0.45);color:#e88;border-radius:999px;padding:0.08rem 0.55rem;font-size:0.68rem;font-weight:700;letter-spacing:0.05em;text-transform:uppercase">News</span>')
-        +   (expired ? '<span style="font-size:0.68rem;color:var(--text-dim,#888);letter-spacing:0.05em;text-transform:uppercase">Departed</span>' : '')
-        +   '<span style="margin-left:auto;font-size:0.74rem;color:var(--text-dim,#888)">' + _dbEsc(_dbFmtDate(it.date)) + '</span>'
+              ? '<span style="background:rgba(212,168,67,0.18);border:1px solid rgba(212,168,67,0.5);color:var(--gold,#d4a843);border-radius:999px;padding:0.12rem 0.7rem;font-size:1rem;font-weight:700;letter-spacing:0.05em;text-transform:uppercase">Release' + (it.version ? ' ' + _dbEsc(it.version) : '') + '</span>'
+              : '<span style="background:rgba(224,64,40,0.15);border:1px solid rgba(224,64,40,0.45);color:#e88;border-radius:999px;padding:0.12rem 0.7rem;font-size:1rem;font-weight:700;letter-spacing:0.05em;text-transform:uppercase">News</span>')
+        +   (expired ? '<span style="font-size:1rem;color:var(--text-dim,#888);letter-spacing:0.05em;text-transform:uppercase">Departed</span>' : '')
+        +   '<span style="margin-left:auto;font-size:1.1rem;color:var(--text-dim,#888)">' + _dbEsc(_dbFmtDate(it.date)) + '</span>'
         + '</div>'
-        + '<div style="font-size:0.86rem;color:var(--text-mid,#ccc);line-height:1.55">' + _dbBodyHtml(it.message) + '</div>'
+        + '<div style="font-size:1.3rem;color:var(--text-mid,#ccc);line-height:1.55">' + _dbBodyHtml(it.message) + '</div>'
         + '</div>';
-    });
+    };
+    var _active = items.filter(function (x) { return _dis.indexOf(x.id) < 0; });
+    var _read   = items.filter(function (x) { return _dis.indexOf(x.id) >= 0; });
+    if (_active.length) {
+      _active.forEach(function (it) { html += _card(it, false); });
+    } else {
+      html += '<div style="background:var(--surface2,#222);border:1px solid var(--border,#333);border-radius:12px;padding:1.3rem;text-align:center;color:var(--text-dim,#888);font-size:1.35rem;margin-top:1rem">All caught up \u2014 you\u2019ve read everything on the board.</div>';
+    }
+    if (_read.length) {
+      html += '<div style="margin-top:1.2rem">'
+        + '<button onclick="_dbToggleArchive()" style="background:none;border:none;color:var(--text-dim,#888);font-family:var(--font-body,sans-serif);font-size:1.2rem;font-weight:600;cursor:pointer;padding:0.3rem 0.2rem">'
+        + (window._dbArchiveOpen ? '\u25be Hide read announcements' : '\u25b8 Read announcements (' + _read.length + ') \u2014 show')
+        + '</button></div>';
+      if (window._dbArchiveOpen) {
+        _read.forEach(function (it) { html += _card(it, true); });
+      }
+    }
   }
   // Full-page backdrop: the board artwork as a big centered watermark
   // behind the cards (absolute layer, pointer-events off, content above).
