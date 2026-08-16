@@ -6792,7 +6792,15 @@ async function _wizardNextCore() {
       _exactMatch = wizard.matchedItem;
     }
     if (!_exactMatch) {
-      _exactMatch = state.masterData.find(i => i.itemNum.toLowerCase() === _rawLC);
+      // ── v0.9.1462 (audit after the No. 238 fix): this took the FIRST row with
+      // that number — the same load-order lottery the "✓ Found" banner had.
+      // It matters more here than there: whatever this picks becomes
+      // wizard.matchedItem, which then scopes the variation list and the
+      // Condition & Details step. Reachable by tapping Next inside the 400ms
+      // lookup debounce, or when the number arrives pre-filled. Ask the same
+      // scorer the banner uses, so screen and save can never disagree.
+      if (typeof _wizPickMasterRow === 'function') _exactMatch = _wizPickMasterRow(_rawLC);
+      if (!_exactMatch) _exactMatch = state.masterData.find(i => i.itemNum.toLowerCase() === _rawLC);
     }
     // Hyphen-variant fallback (2026-05-18). Some manufacturers store item
     // numbers with a hyphen before the letter suffix (Weaver "1076-L") while
@@ -6819,7 +6827,7 @@ async function _wizardNextCore() {
     if (!_exactMatch) {
       // No exact match — look for partial matches (items whose number contains the input)
       const _seen = new Set();
-      const _partials = state.masterData.filter(m => {
+      var _partials = state.masterData.filter(m => {
         if (!m.itemNum.toLowerCase().includes(_numPart)) return false;
         if (_keyParts.length > 0) {
           const hay = (m.roadName + ' ' + m.description + ' ' + m.varDesc).toLowerCase();
@@ -6830,6 +6838,29 @@ async function _wizardNextCore() {
         _seen.add(m.itemNum);
         return true;
       });
+      // ── v0.9.1462: "Select an item" offered rows from eras and makers the
+      // user had filtered OUT — the filter row sits directly above this list
+      // and did nothing to it. Narrow by the visible Era (period) and
+      // Manufacturer choices. If narrowing would leave nothing, the unfiltered
+      // list stands: showing the wrong era beats showing an empty picker and
+      // a dead end.
+      try {
+        var _pfP = String((wizard.data && wizard.data._searchFilterPeriod) || '').trim();
+        var _pfM = String((wizard.data && wizard.data._searchFilterManufacturer) || '').trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+        if (_pfP || _pfM) {
+          var _narrow = _partials.filter(function (m) {
+            if (_pfP && typeof _wizPeriodOfRow === 'function' && _wizPeriodOfRow(m) !== _pfP) return false;
+            if (_pfM) {
+              var _rm = '';
+              try { _rm = String((typeof _manufacturerOfEra === 'function' && _manufacturerOfEra(m._era)) || '').toLowerCase().replace(/[^a-z0-9]/g, ''); } catch (e) {}
+              var _tab = String(m._tab || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+              if (_rm !== _pfM && _tab.indexOf(_pfM) !== 0) return false;
+            }
+            return true;
+          });
+          if (_narrow.length) _partials = _narrow;
+        }
+      } catch (ePF2) {}
 
       if (_partials.length === 1) {
         // Single match — auto-select it
