@@ -1208,7 +1208,16 @@ async function loadPersonalData() {
   if (!state.personalSheetId) {
     state.personalSheetId = localStorage.getItem('lv_personal_id');
   }
-  if (!state.personalSheetId) return;
+  if (!state.personalSheetId) {
+    // ── v0.9.1450 (Cooper's report #1f1ooqx4y3): after weeks away, the
+    // browser can evict this site's storage — including lv_personal_id, the
+    // note of WHICH sheet is his. This return used to be silent, so a
+    // returning user saw an empty collection with no explanation. A device
+    // that has a remembered user but no sheet link now says so. A true
+    // first-timer (no lv_user yet) still passes through quietly.
+    try { if (localStorage.getItem('lv_user')) _pdLoadBanner('link'); } catch (eB) {}
+    return;
+  }
 
   // Cache schema version. Bump this whenever the on-disk shape of any field
   // in lv_personal_cache changes so old caches are skipped (Session 161+: the
@@ -1398,14 +1407,79 @@ async function loadPersonalData() {
           }
         }).catch(function(e) { console.warn('[Phase 3b] post-cache refresh failed:', e && e.message); });
       }
+      _pdEmptyGuard();   // v0.9.1450: a cached-but-empty snapshot is suspect too
       return;
     } catch(e) {}
   }
 
   ensureEphemeraSheets(state.personalSheetId).catch(() => {});
   await ensurePersonalHeaders(state.personalSheetId).catch(() => {});
-  await _loadPersonalFromSheets(state.personalSheetId);
-  _cachePersonalData();
+  // v0.9.1450 (Cooper): a failed fresh fetch used to escape as an exception
+  // (or worse, quietly leave every map empty) and the boot showed the failure
+  // as an empty collection. Mark it, never cache it, and let the guard below
+  // retry and — failing that — say so out loud.
+  try {
+    await _loadPersonalFromSheets(state.personalSheetId);
+    _cachePersonalData();
+  } catch (eLoad) {
+    window._pdLoadFailed = true;
+    console.warn('[boot] personal data load failed:', eLoad && eLoad.message);
+  }
+  _pdEmptyGuard();
+}
+
+// ── v0.9.1450 (Cooper's report #1f1ooqx4y3): he logged in after weeks away
+// and saw an EMPTY collection — local snapshot evicted, fresh fetch failed
+// quietly, and the app presented the failure as the truth. He recovered only
+// by finding "Sync from Sheet" himself. The rule now: NEVER show a failed
+// load as an empty collection. If the user is signed in, has a sheet, and
+// zero rows came back, retry once automatically a few seconds later (tokens
+// are often not ready at cold boot); if rows arrive, rebuild and say so. If
+// the load genuinely failed, show a banner whose Retry button does exactly
+// what Cooper had to discover by himself. A real first-timer — clean fetch,
+// truly empty sheet — sees no banner and no retry side effects.
+function _pdEmptyGuard() {
+  try {
+    if (!state.personalSheetId) return;
+    if (Object.keys(state.personalData || {}).length) return;   // rows loaded — all good
+    if (window._pdEmptyRetried) {
+      if (window._pdLoadFailed) _pdLoadBanner('load');
+      return;
+    }
+    window._pdEmptyRetried = true;
+    setTimeout(async function () {
+      try {
+        await _loadPersonalFromSheets(state.personalSheetId, true);
+        if (Object.keys(state.personalData || {}).length) {
+          window._pdLoadFailed = false;
+          _cachePersonalData();
+          if (typeof buildDashboard === 'function') buildDashboard();
+          if (typeof renderBrowse === 'function') renderBrowse();
+          if (typeof showToast === 'function') showToast('✓ Your collection loaded');
+          var b0 = document.getElementById('pd-load-banner'); if (b0) b0.remove();
+          return;
+        }
+      } catch (e2) { window._pdLoadFailed = true; }
+      if (window._pdLoadFailed) _pdLoadBanner('load');
+    }, 4000);
+  } catch (eG) {}
+}
+function _pdLoadBanner(kind) {
+  try {
+    if (document.getElementById('pd-load-banner')) return;
+    var d = document.createElement('div');
+    d.id = 'pd-load-banner';
+    d.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:11000;background:#7a2f10;color:#fff;padding:0.6rem 1rem;display:flex;gap:0.8rem;align-items:center;justify-content:center;flex-wrap:wrap;font-family:var(--font-body,sans-serif);font-size:0.9rem;box-shadow:0 2px 10px rgba(0,0,0,0.4)';
+    var msg = (kind === 'link')
+      ? 'This device lost its link to your collection sheet. Sign out and back in to reconnect — nothing is lost, your data lives safely in your Google Sheet.'
+      : 'We couldn\'t load your saved collection from Google. Nothing is lost — it lives safely in your Google Sheet.';
+    var btn = (kind === 'link')
+      ? ''
+      : '<button onclick="this.parentElement.remove();if(typeof forceRefreshData===\'function\')forceRefreshData()" style="padding:0.35rem 0.9rem;border-radius:7px;border:none;background:#fff;color:#7a2f10;font-weight:700;cursor:pointer">Retry</button>';
+    d.innerHTML = '<span>⚠ ' + msg + '</span>' + btn
+      + '<button onclick="this.parentElement.remove()" title="Dismiss" style="background:none;border:none;color:#fff;font-size:1rem;cursor:pointer">✕</button>';
+    document.body.appendChild(d);
+  } catch (eB2) {}
 }
 
 function _cachePersonalData() {
