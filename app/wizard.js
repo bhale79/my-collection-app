@@ -1837,6 +1837,43 @@ function _renderAddingBanner() {
       var _pref = _ownRow || (typeof _wizMasterPrefer === 'function' ? _wizMasterPrefer() : null)
                   || (d._era ? { era: d._era, manufacturer: d.manufacturer || '' } : null);
       match = findMaster(num, d.variation, _pref);
+      // ── v0.9.1460 (Brad: "this should be a postwar 238"). The Era dropdown on
+      // THIS screen does not set an era key — it sets a PERIOD
+      // (_searchFilterPeriod = prewar | postwar | modern), which findMaster
+      // knows nothing about. So No. 238 with Postwar showing still answered
+      // "1939-1940 · Steam": the filter the user could see was never consulted.
+      // v0.9.1459 fixed a real missing hint but read the wrong variable, which
+      // is why both devices then agreed on the wrong answer.
+      //
+      // The row's own period is already computable (_wizPeriodOfRow), so when
+      // the visible filter disagrees with the match, look through the whole
+      // bucket for a row that satisfies it. Nothing is invented: if no row of
+      // that period exists, the original match stands.
+      try {
+        var _fp = String(d._searchFilterPeriod || '').trim();
+        if (_fp && match && typeof _wizPeriodOfRow === 'function' && _wizPeriodOfRow(match) !== _fp) {
+          var _bucket = [];
+          try {
+            if (typeof _mbAllGet === 'function') _bucket = _mbAllGet(num) || [];
+            else if (state.masterByItem && state.masterByItem.get) _bucket = state.masterByItem.get(String(num).trim()) || [];
+          } catch (eB) {}
+          var _fm = String(d._searchFilterManufacturer || '').trim().toLowerCase();
+          var _better = null;
+          for (var _bi = 0; _bi < _bucket.length; _bi++) {
+            var _row = _bucket[_bi];
+            if (!_row || _wizPeriodOfRow(_row) !== _fp) continue;
+            if (d.variation != null && d.variation !== ''
+                && String(_row.variation || '') !== String(d.variation)) continue;
+            if (_fm) {
+              var _rm = '';
+              try { _rm = String((typeof _manufacturerOfEra === 'function' && _manufacturerOfEra(_row._era)) || _row._tab || '').toLowerCase(); } catch (eM) {}
+              if (_rm && _rm.indexOf(_fm) < 0) continue;
+            }
+            _better = _row; break;
+          }
+          if (_better) match = _better;
+        }
+      } catch (ePF) {}
     }
     if (match) {
       desc = _composeRoadDesc(match);
