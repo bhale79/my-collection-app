@@ -401,40 +401,100 @@
     return h;
   }
 
+  // ── v0.9.1457 (Brad): "this page needs to be on the left side of the
+  // screen, and be able to drag it." A guide you cannot keep open while you
+  // work is only half useful — so this is a FLOATING PANEL, not a modal:
+  // no dark backdrop, the app stays clickable behind it, it starts on the
+  // left, drags by its header, and remembers where it was put (rr_guides_box).
+  // Same shape as the photographing guide, which earned this pattern.
+  var BOX_KEY = 'rr_guides_box';
+  function savedBox() {
+    try { return JSON.parse(localStorage.getItem(BOX_KEY) || 'null'); } catch (e) { return null; }
+  }
+  function saveBox(l, t) {
+    try { localStorage.setItem(BOX_KEY, JSON.stringify({ l: Math.round(l), t: Math.round(t) })); } catch (e) {}
+  }
+
   function shell(titleHtml, bodyHtml, backLabel, backFn) {
     var old = document.getElementById('rrg-modal');
     if (old) old.remove();
-    var ov = document.createElement('div');
-    ov.id = 'rrg-modal';
-    // v0.9.1456: the Help Center overlay sits at z-index 99999 — measured, not
-    // assumed. Anything below that opens BEHIND it, which is exactly what
-    // Brad saw. Sit above it.
-    ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.72);z-index:100010;'
-      + 'display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto';
-    ov.innerHTML =
-      '<div style="background:var(--surface,#1a1a2e);border:1px solid var(--border,#333);border-radius:15px;'
-      + 'max-width:660px;width:100%;padding:1.5rem 1.7rem 1.7rem;color:var(--text,#eee);'
-      + 'font-family:var(--font-body,sans-serif);margin:auto 0;box-shadow:0 14px 44px rgba(0,0,0,0.55);position:relative">'
-      + '<button id="rrg-x" title="Close" style="position:absolute;top:0.7rem;right:0.85rem;background:none;'
-      + 'border:none;color:var(--text-dim,#888);font-size:1.5rem;cursor:pointer;line-height:1">✕</button>'
-      + titleHtml + bodyHtml
-      + '<div style="margin-top:1.3rem;padding-top:0.9rem;border-top:1px solid var(--border,#333);display:flex;'
-      + 'gap:0.6rem;flex-wrap:wrap;justify-content:flex-end">'
-      + (backLabel ? '<button id="rrg-back" style="padding:0.6rem 1.1rem;border-radius:9px;border:1px solid var(--border,#444);'
-          + 'background:var(--surface2,#242440);color:var(--text,#eee);font-family:inherit;font-size:1rem;'
-          + 'font-weight:600;cursor:pointer">' + esc(backLabel) + '</button>' : '')
-      + '<button id="rrg-done" style="padding:0.6rem 1.4rem;border-radius:9px;border:none;'
+    var narrow = (window.innerWidth || 0) < 780;
+    var box = savedBox();
+    // Default: left side, clear of the sidebar. A saved position wins, but is
+    // clamped back on screen in case the window shrank since last time.
+    var L = 236, T = 88;
+    if (box) {
+      L = Math.min(Math.max(0, box.l), Math.max(0, (window.innerWidth || 900) - 260));
+      T = Math.min(Math.max(0, box.t), Math.max(0, (window.innerHeight || 700) - 120));
+    }
+    var p = document.createElement('div');
+    p.id = 'rrg-modal';
+    p.style.cssText = narrow
+      ? 'position:fixed;left:0;right:0;bottom:0;max-height:72vh;overflow-y:auto;z-index:100010;'
+        + 'background:var(--surface,#1a1a2e);border-top:2px solid var(--gold,#d4a843);'
+        + 'box-shadow:0 -6px 26px rgba(0,0,0,0.5);color:var(--text,#eee);font-family:var(--font-body,sans-serif)'
+      : 'position:fixed;left:' + L + 'px;top:' + T + 'px;width:470px;max-height:82vh;overflow-y:auto;'
+        + 'z-index:100010;background:var(--surface,#1a1a2e);border:1px solid var(--border,#333);'
+        + 'border-radius:14px;box-shadow:0 14px 44px rgba(0,0,0,0.55);color:var(--text,#eee);'
+        + 'font-family:var(--font-body,sans-serif)';
+    p.innerHTML =
+      // Drag handle — the whole header bar, so there is a big target.
+      '<div id="rrg-grip" style="' + (narrow ? '' : 'cursor:move;') + 'position:sticky;top:0;z-index:2;'
+      + 'background:var(--surface,#1a1a2e);border-bottom:1px solid var(--border,#333);'
+      + 'border-radius:14px 14px 0 0;padding:0.85rem 1.1rem 0.7rem;display:flex;align-items:flex-start;gap:0.6rem">'
+      +   '<div style="flex:1;min-width:0">' + titleHtml + '</div>'
+      +   (narrow ? '' : '<span title="Drag to move" style="flex-shrink:0;color:var(--text-dim,#888);'
+            + 'font-size:1.1rem;line-height:1;padding-top:0.15rem">⠿</span>')
+      +   '<button id="rrg-x" title="Close" style="flex-shrink:0;background:none;border:none;'
+      + 'color:var(--text-dim,#888);font-size:1.4rem;cursor:pointer;line-height:1;padding:0">✕</button>'
+      + '</div>'
+      + '<div style="padding:1.1rem 1.2rem 1.3rem">' + bodyHtml
+      +   '<div style="margin-top:1.3rem;padding-top:0.9rem;border-top:1px solid var(--border,#333);'
+      + 'display:flex;gap:0.6rem;flex-wrap:wrap;justify-content:flex-end">'
+      +   (backLabel ? '<button id="rrg-back" style="padding:0.6rem 1.1rem;border-radius:9px;'
+          + 'border:1px solid var(--border,#444);background:var(--surface2,#242440);color:var(--text,#eee);'
+          + 'font-family:inherit;font-size:1rem;font-weight:600;cursor:pointer">' + esc(backLabel) + '</button>' : '')
+      +   '<button id="rrg-done" style="padding:0.6rem 1.4rem;border-radius:9px;border:none;'
       + 'background:var(--accent,#e8401c);color:#fff;font-family:inherit;font-size:1rem;font-weight:700;'
       + 'cursor:pointer">Got it</button>'
-      + '</div></div>';
-    document.body.appendChild(ov);
-    var close = function () { ov.remove(); };
-    ov.addEventListener('click', function (e) { if (e.target === ov) close(); });
+      +   '</div></div>';
+    document.body.appendChild(p);
+
+    var close = function () { p.remove(); };
     document.getElementById('rrg-x').onclick = close;
     document.getElementById('rrg-done').onclick = close;
     var b = document.getElementById('rrg-back');
     if (b) b.onclick = function () { close(); if (backFn) backFn(); };
-    if (window.BackStack && BackStack.wire) BackStack.wire(ov);
+
+    // Drag — pointer events so it works with a mouse, a finger or a pen.
+    if (!narrow) {
+      var grip = document.getElementById('rrg-grip');
+      var dx = 0, dy = 0, dragging = false;
+      grip.addEventListener('pointerdown', function (e) {
+        // Let the close button behave like a button.
+        if (e.target && e.target.id === 'rrg-x') return;
+        dragging = true;
+        var r = p.getBoundingClientRect();
+        dx = e.clientX - r.left; dy = e.clientY - r.top;
+        try { grip.setPointerCapture(e.pointerId); } catch (eC) {}
+        e.preventDefault();
+      });
+      grip.addEventListener('pointermove', function (e) {
+        if (!dragging) return;
+        var nl = Math.min(Math.max(0, e.clientX - dx), (window.innerWidth || 900) - 80);
+        var nt = Math.min(Math.max(0, e.clientY - dy), (window.innerHeight || 700) - 60);
+        p.style.left = nl + 'px'; p.style.top = nt + 'px';
+      });
+      var end = function (e) {
+        if (!dragging) return;
+        dragging = false;
+        try { grip.releasePointerCapture(e.pointerId); } catch (eR) {}
+        saveBox(parseFloat(p.style.left) || 0, parseFloat(p.style.top) || 0);
+      };
+      grip.addEventListener('pointerup', end);
+      grip.addEventListener('pointercancel', end);
+    }
+    if (window.BackStack && BackStack.wire) BackStack.wire(p);
   }
 
   function head(title, blurb) {
