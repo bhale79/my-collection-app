@@ -1991,6 +1991,10 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         + (desc ? '<div style="font-size:0.9rem;color:var(--text-mid,#ccc);margin-top:6px;line-height:1.4">' + desc + '</div>' : '<div style="font-size:0.8rem;color:var(--text-dim,#999);margin-top:6px">No description read from the label.</div>')
         + (info.notInMaster && info.description ? '<div style="font-size:0.7rem;color:var(--text-dim,#999);margin-top:5px">read from the label \u2014 you can edit it in the next steps.</div>' : '')
         + (info.cautionNote ? '<div style="font-size:0.78rem;margin-top:8px;color:#ffb27d">&#9888; ' + _bcEsc(info.cautionNote) + '</div>' : '')
+        // v0.9.1467 (Brad, on the 30-11012 "Set w/Sound" card): the reference
+        // link was one screen too late — put it ON the confirm card, so what
+        // the catalog THINKS this number is can be checked before "Use this".
+        + (info.refLink ? '<a href="' + _bcEsc(info.refLink) + '" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:0.4rem;margin-top:8px;font-size:0.82rem;color:var(--accent2,#c9922a);text-decoration:none;padding:0.4rem 0.75rem;border:1px solid rgba(201,146,42,0.35);border-radius:8px">' + ((typeof window.resolveRefLabel === 'function') ? window.resolveRefLabel(info.refLink, { verbose: true }) : 'View reference \u2197') + '</a>' : '')
         // v0.9.1018 (Brad): HIS photo lives on the card — so even when the
         // reference page's photo can't be fetched and he opens the page in a
         // tab, the picture he's comparing against stays on screen.
