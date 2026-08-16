@@ -254,8 +254,16 @@ function _wizMasterPrefer() {
     if (m) { year = m[0]; return true; }
     return false;
   });
-  if (!mfr && !era && !year) return null;
-  return { manufacturer: mfr, era: era, year: year };
+  // ── v0.9.1461 (Brad, third pass at No. 238): the Era dropdown on the add
+  // screen sets a PERIOD — prewar | postwar | modern — in _searchFilterPeriod.
+  // It was never carried here, so _wizPickMasterRow (which scores the
+  // candidate rows and feeds the "✓ Found" banner) never saw the one filter
+  // the user had actually set, and 238 kept answering 1939 with Postwar on
+  // screen. My earlier two attempts fixed real but DIFFERENT lookup paths;
+  // this is the one that draws that banner.
+  var period = String(d._searchFilterPeriod || '').trim();
+  if (!mfr && !era && !year && !period) return null;
+  return { manufacturer: mfr, era: era, year: year, period: period };
 }
 
 // Which of the three collecting periods a 4-digit year falls in. Same
@@ -303,8 +311,17 @@ function _wizPickMasterRow(numLC, rows) {
     var year = String(pref.year || '');
     var yearPeriod = _wizPeriodOfYear(year);
     var best = null, bestScore = -1;
+    var wantPeriod = String(pref.period || '');
     list.forEach(function (m) {
       var sc = 0;
+      // v0.9.1461: the period the user PICKED on screen is the strongest
+      // signal available — stronger than an era inferred from app state or a
+      // year guessed from a photo — so it outscores them. A row from the
+      // wrong period is pushed below one from the right period, and only
+      // wins if nothing in the right period exists at all.
+      if (wantPeriod && typeof _wizPeriodOfRow === 'function') {
+        sc += (_wizPeriodOfRow(m) === wantPeriod) ? 12 : -6;
+      }
       if (eraKey && String(m._era || '') === eraKey) sc += 8;
       // Year: an exact hit on the catalog's printed year is near-proof; the
       // period it lands in is a good sanity check on its own.
