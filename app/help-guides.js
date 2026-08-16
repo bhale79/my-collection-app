@@ -75,7 +75,13 @@
               why: 'The dash number is on the BOX, not the car, so the app will not guess it. Open a link, compare the picture, pick yours.' },
             { do: 'Choose the variation on <b>Which variation is it?</b> (skipped when there is only one).',
               why: 'On postwar items this is where the value lives — a colour or lettering style separates common from rare.' },
-            { do: 'Fill in <b>Condition &amp; Details</b>, then <b>Purchase &amp; Value</b>.',
+            { do: 'If the number is an engine, buttons appear for what you actually have: ' + chip('Engine Only') + ' ' + chip('Engine + Tender') + ' — or for a diesel A unit, ' + chip('A Powered') + ' ' + chip('A Dummy') + ' ' + chip('AA set') + ' ' + chip('AB set') + ' ' + chip('ABA set') + '.',
+              why: 'This is the biggest fork in the flow. It decides how many items get saved and which photo steps you are asked for — an AA saves as two linked items, an ABA as three.' },
+            { do: '<b>Engine + Tender</b> adds tender photo steps and a <i>Photo of engine and tender together</i>. <b>AA</b> or <b>AB</b> add a second unit; <b>ABA</b> adds a third.',
+              why: 'Each unit gets its own photos and its own box question, because each is its own record. The together shot becomes the group\'s cover picture.' },
+            { do: 'On <b>Condition &amp; Details</b>, answer the five toggles — each one changes what you are asked next.',
+              why: 'They are not decoration: ' + chip('Has Box') + ' Yes brings up box condition and box photos, ' + chip('Instr. Sheet') + ' Yes adds instruction-sheet photos, ' + chip('Master Box') + ' Yes adds master-box photos, ' + chip('Error Item') + ' Yes adds close-ups of the error, and ' + chip('All Original') + ' No opens a box to say what was changed.' },
+            { do: 'Fill in <b>Purchase &amp; Value</b>.',
               why: 'Rough answers are fine. Condition is 1–10 and editable later; price paid can stay blank.' },
             { do: 'Add photos, or press Next to skip.',
               why: 'They can be added later from the item\'s own page. Do not let a missing camera stop you finishing the entry.' },
@@ -89,25 +95,38 @@
           steps: [
             { do: 'Set <b>Item Type</b> to <i>Lionel Postwar Set</i>.',
               why: 'Only postwar has set-composition data, which is why this path exists on its own.' },
-            { do: 'Enter the set number — 1461S, 2201WS.',
-              why: 'The app knows which engine and cars belong to that set.' },
-            { do: 'Confirm the locomotive, then walk the cars.',
-              why: 'You can record the set as a whole or item by item — useful when a car has been swapped out over the years.' },
-            { do: 'Answer the box questions, add photos, and save.',
+            { do: 'Answer <b>Do you know the set number?</b> — ' + chip('Yes') + ' or ' + chip('No') + '.',
+              why: 'The set number is on the box, not on the trains. Most people opening a box know it; most people who inherited a shelf of trains do not. Both answers work.' },
+            { do: '<b>Yes</b> → <b>Enter the set number</b> (1467W, 2190W).',
+              why: 'The fastest route. The app already knows which engine and cars belong to that set.' },
+            { do: '<b>No</b> → <b>What is the locomotive item number?</b> — the number on the engine itself (736, 2383P, 2023).',
+              why: 'The engine is the fingerprint. Only a handful of sets were built around any one locomotive, so naming it narrows the field to a short list.' },
+            { do: 'On <b>Identify your set</b>, pick yours from the candidates and confirm the cars.',
+              why: 'Both routes meet here. Tick off what you actually have — a set that lost a car over sixty years is still that set, and the app records what is present.' },
+            { do: 'On the <b>Set details</b> screen, enter an Est. Worth and tick the <b>Set Box</b> checkbox if you have the box, then press ' + chip('📋 Add each item →', 'primary') + '.',
+              why: 'That checkbox IS the box question — tick it and you get set-box condition and photo steps later; leave it and both are skipped. Est. Worth is required here, so the wizard will not move on without it.' },
+            { do: 'Walk each item in turn — every car gets its own condition, value and photos.',
+              why: 'Sets are always entered item by item, so a car that was swapped over the years is recorded as what it actually is rather than what the catalogue says.' },
+            { do: 'Finish the set box steps if you ticked the box, then save.',
               why: 'The set box is its own record. A complete set with its original box is a different animal from the pieces alone.' }
-          ], notes: [] },
+          ],
+          notes: [['No engine either?', 'If you cannot read the locomotive number, go back and add the pieces as individual cataloged items instead. Nothing is lost — a set can be reconstructed later, but a wrong set number is harder to unpick.']] },
 
         { id: 'paper', label: 'Paper Item',
           desc: 'Catalogs, instruction sheets, advertisements, books and more.',
           steps: [
             { do: 'Set <b>Item Type</b> to <i>Paper Item</i>.',
               why: 'One door for all paper — catalogs included. There used to be a second, shorter route for catalogs; it asked fewer questions, so it is gone.' },
-            { do: 'Pick what it is: ' + chip('Catalog') + ' ' + chip('Instruction Sheet') + ' ' + chip('Magazine') + ' ' + chip('Dealer Paper') + ' ' + chip('Reference Book') + ' ' + chip('Promotional Item') + ' ' + chip('Other') + '.',
-              why: 'Catalog and Instruction Sheet then route to their own flows, because they get filed differently.' },
-            { do: 'For a catalog, choose the sub-type — <i>Consumer Postwar</i>, <i>Advance/Dealer</i>, <i>Display</i>, <i>HO</i> and so on.',
-              why: 'Worth doing properly: an Advance/Dealer catalog is a different item from the consumer one of the same year.' },
-            { do: 'Add title, year, condition, value and photos, then save.',
-              why: 'Instruction sheets ask which item they belong with, so they land beside the right train.' }
+            { do: 'Pick what it is on <b>What type of paper item is this?</b> — Catalog, Instruction Sheet, Operating Manual, Magazine, Dealer Paper, Dealer Promo Kit, Dealer Display Poster, Reference Book, Promotional Item, Blueprint / Drawing, or Other.',
+              why: 'This choice decides everything that follows, and two of them change flow entirely.' },
+            { do: '<b>Instruction Sheet</b> switches to its own flow — it asks which item the sheet goes with, and offers to group it with that item if you own it.',
+              why: 'A sheet belongs beside its train, not on a pile of paper. Answer ' + chip('Yes') + ' to attach it, ' + chip('No') + ' to keep it standalone.' },
+            { do: '<b>Catalog</b>, <b>Magazine</b> and <b>Dealer Paper</b> ask a sub-type next — for a catalog: <i>Consumer Postwar</i>, <i>Consumer Pre-war</i>, <i>Advance/Dealer</i>, <i>Display</i>, <i>Accessory</i>, <i>HO</i>, <i>Science/Other</i>.',
+              why: 'Worth doing properly: an Advance/Dealer catalog is a different item from the consumer one of the same year. <b>Other</b> and <b>Blueprint / Drawing</b> skip straight to the title.' },
+            { do: 'If a picker appears, find your item in it — or skip it and type the title yourself.',
+              why: 'Picking from the list fills in the title and year for you and skips both questions. Skipping means you fill them in by hand.' },
+            { do: 'Add condition, value and photos, then save.',
+              why: 'Catalogs entered this way land on the Catalogs tab — same destination as the old short route, with the sub-type recorded.' }
           ], notes: [] },
 
         { id: 'mock', label: 'Mock-Up',
@@ -143,7 +162,9 @@
               why: 'There is also an Other / Unknown option for when the maker genuinely is not known.' },
             { do: 'Give the item number if you have it, then the type and description.',
               why: 'You are supplying what the catalogue would have — so describe it the way a catalogue would.' },
-            { do: 'Condition, box, purchase and value, photos, notes, then save.',
+            { do: 'Answer <b>Does it have the original box?</b> — ' + chip('Yes') + ' adds a box-condition question, ' + chip('No') + ' skips it.',
+              why: 'If you already photographed a box label the app knows the answer and does not ask twice.' },
+            { do: 'Condition, purchase and value, photos, notes, then save.',
               why: 'It saves exactly like a cataloged item and behaves the same everywhere else in the app.' }
           ],
           notes: [['Tell me what is missing', 'If you entered something manually because the Master List did not have it, send it in with <b>Report a problem</b>. That is how the catalogue grows.']] }
@@ -161,8 +182,8 @@
           steps: [
             { do: 'Dashboard → ' + chip('Add to Want List', 'primary') + ', or ' + chip('+ Add') + ' → Add to Want List.',
               why: 'Same opening steps as adding to your collection, so it will feel familiar.' },
-            { do: 'Type the item number and pick the variation.',
-              why: 'Being specific pays off — "6464-475" tells you which Boston &amp; Maine to buy, "6464" does not.' },
+            { do: 'Type the item number and pick the variation. If it is an engine, the same ' + chip('Engine + Tender') + ' / ' + chip('AA set') + ' buttons appear as on the add flow.',
+              why: 'Being specific pays off — "6464-475" tells you which Boston &amp; Maine to buy, "6464" does not. Choosing Engine + Tender also asks which tender came with it.' },
             { do: 'Set <b>How high is your priority?</b> — ' + chip('High') + ' ' + chip('Medium') + ' ' + chip('Low') + '.',
               why: 'Sorts the list so what you actually want floats to the top when you are at a table with limited cash.' },
             { do: 'Set <b>Target condition</b> and <b>What do you expect to pay?</b>',
@@ -196,7 +217,7 @@
         { do: 'Add the <b>Part Number</b> if you know it.',
           why: 'Optional, but a real Lionel part number turns a vague search into an exact one.' },
         { do: 'Use <b>For which item?</b> to link the part to something you own — type an item number or a road name to find it.',
-          why: 'This is the important one, and it unlocks the ' + chip('✓ Installed', 'green') + ' button later. A part with no item attached cannot be recorded as fitted to anything.' },
+          why: 'This is the important one, and it unlocks the ' + chip('✓ Installed', 'green') + ' button later. Leave it on ' + chip('— none —') + ' and the part still saves, but with nowhere to write the history it gets no Installed button at all.' },
         { do: 'Add a <b>Reference Photo</b> and <b>Notes</b> if they help, then press ' + chip('+ Add Part', 'primary') + '.',
           why: 'A photo of the broken piece saves explaining it twice at a swap meet.' }
       ],
@@ -212,14 +233,14 @@
       intro: 'When you fit a replacement part the item is no longer all-original — and in five years you will not remember which of your engines got a new motor brush. Recording it takes fifteen seconds and permanently answers the question, on the item itself.',
       steps: [
         { do: 'Find the part on the ' + chip('Parts') + ' page and press ' + chip('Google', 'blue') + ' to go shopping.',
-          why: 'The site picker can send the search to eBay or to a dealer you saved as a preferred vendor in Contacts.' },
+          why: 'On <b>Where do you want to look?</b> you get ' + chip('Any site') + ', ' + chip('eBay') + ', and your own vendors — ones you type in, plus contacts you ticked as preferred vendors. It remembers your last choice.' },
         { do: 'Once the part is fitted, press the green ' + chip('✓ Installed', 'green') + ' button on that row.',
           why: 'This button only appears when the part is linked to an item you own — that link is what tells the app where to write the history.' },
         { do: 'Check the item named at the top of the <b>Mark Part Installed</b> box.',
           why: 'It says plainly which item is about to be changed. Read it before going on.' },
         { do: 'Fill in <b>Price Paid</b>, <b>Vendor</b> and <b>Date Installed</b>.',
           why: 'Vendor is worth doing properly — "eBay seller trainguy52" is what you will want when the next one breaks.' },
-        { do: 'Answer <b>Still all original?</b> honestly — usually ' + chip('No — a part was replaced') + '.',
+        { do: 'Answer <b>Still all original?</b> — ' + chip('No — a part was replaced') + ' is already selected; the alternatives are ' + chip('Yes — this is a correct original part') + ' and ' + chip('Unknown') + '.',
           why: 'This sets the item\'s All Original flag. An honest record protects you when you sell: a buyer who finds an undisclosed replacement stops trusting everything else you said.' },
         { do: 'Press ' + chip('✓ Save to item', 'primary') + '.',
           why: 'A dated line is added to that item\'s notes, the original flag is updated, and the part drops off Parts Needed automatically.' }
@@ -251,10 +272,12 @@
           steps: [
             { do: 'Dashboard → ' + chip('Add to For Sale List', 'primary') + ' and enter the item number.',
               why: 'Use this for consignment pieces or anything you never added to your own collection.' },
-            { do: 'On <b>Which item are you listing?</b> pick the match, or use <b>Not in my collection — enter details manually</b>.',
-              why: 'The manual route runs the full add flow first, so the listing still has proper details behind it.' },
-            { do: 'Confirm <b>condition</b>, <b>original box</b> and <b>all original</b>.',
-              why: 'These three are what serious buyers ask first. Written down, your answer is the same every time.' },
+            { do: 'On <b>Which item are you listing?</b> pick your copy if it is there — the app then jumps straight to the asking price.',
+              why: 'Picking a copy you own means condition, box and originality are already on record, so it does not ask again.' },
+            { do: 'No copy in the list? Press <b>Not in my collection — enter details manually</b>.',
+              why: 'This runs the FULL add-to-collection flow first, then adds the price questions. On save the item lands in both your collection AND your For Sale list — one pass, two records.' },
+            { do: 'On that manual route you are asked <b>Does it have the original box?</b> and <b>Is it all original?</b> — ' + chip('Yes') + ' ' + chip('No') + ' ' + chip('Unknown') + '.',
+              why: 'These are what serious buyers ask first. Written down, your answer is the same every time you are asked.' },
             { do: 'Set the asking price and date listed, then finish.',
               why: 'It lands on the For Sale page ready to share.' }
           ], notes: [] }
@@ -280,8 +303,8 @@
           steps: [
             { do: 'Open the item and press the green ' + chip('Record Sale', 'green') + ' button.',
               why: 'For the sale that happens in a car park at a show before you ever listed it.' },
-            { do: 'Confirm the condition and what you originally paid.',
-              why: 'Filled in from your records if it is there. Correct it if the real number was different.' },
+            { do: 'On <b>Which item are you selling?</b> pick your copy.',
+              why: 'Picking a copy carries its condition and what you paid straight across, so those two questions are skipped and you land on the sale price.' },
             { do: 'Enter what you sold it for and when, then save.',
               why: 'It moves to the Sold page and leaves your collection count.' }
           ],
@@ -291,8 +314,8 @@
           steps: [
             { do: 'Dashboard → ' + chip('Record a Sale', 'primary') + ' and enter the item number.',
               why: 'Useful when catching up records, or for something you bought and flipped quickly.' },
-            { do: 'Answer condition, what you paid, what you sold it for, and when.',
-              why: 'The pair of numbers is what makes profit real. A year of these is genuinely interesting reading.' },
+            { do: 'Choose <b>Not in my collection — enter details manually</b>, then give what you sold it for and when.',
+              why: 'On this route the condition and original-price questions are skipped — if you want those recorded, add the item to your collection first, then sell it from there.' },
             { do: 'Save on the confirm step.',
               why: 'It appears on the Sold page with everything else.' }
           ], notes: [] }
