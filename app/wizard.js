@@ -262,6 +262,12 @@ function _wizMasterPrefer() {
   // screen. My earlier two attempts fixed real but DIFFERENT lookup paths;
   // this is the one that draws that banner.
   var period = String(d._searchFilterPeriod || '').trim();
+  // v0.9.1463: a period word TYPED in the box ("postwar 238") filters the
+  // suggestion list (_effPeriod, wizard-suggestions.js) but never reached
+  // this scorer — so the list and the banner could disagree on the same
+  // query. The suggestion scan stashes the word in _typedSearchPeriod;
+  // an explicit dropdown pick still wins.
+  if (!period) period = String(d._typedSearchPeriod || '').trim();
   if (!mfr && !era && !year && !period) return null;
   return { manufacturer: mfr, era: era, year: year, period: period };
 }
@@ -339,6 +345,42 @@ function _wizPickMasterRow(numLC, rows) {
   } catch (e) { return (rows && rows[0]) || null; }
 }
 if (typeof window !== 'undefined') window._wizPickMasterRow = _wizPickMasterRow;
+
+// v0.9.1463: the ONE answer to "which variation rows belong to this item".
+// Shared by the variation screen (wizard.js) and the three variation
+// skipIf checks (wizard-steps.js) — previously FOUR copies of the same
+// filter. Scope: itemType + roadName (Session 115) AND period. Without
+// the period, a number living in two catalogs (No. 238: prewar 1939 AND
+// postwar 1963) pooled both sets — the list mixed eras and the skipIf
+// counted them together, so the step could appear when the in-period row
+// had fewer than 2 variations.
+// Period source, most-trusted first: the matched row's own period, then
+// the user's on-screen Era/period pick via _wizMasterPrefer().
+function _wizVariationRows(itemNum) {
+  var d = (typeof wizard !== 'undefined' && wizard && wizard.data) ? wizard.data : {};
+  var num = itemNum || d.itemNum || '';
+  var mi = (typeof wizard !== 'undefined' && wizard && wizard.matchedItem
+            && String(wizard.matchedItem.itemNum || '') === String(num))
+    ? wizard.matchedItem : null;
+  var mt = (mi && mi.itemType) || d._suggestedItemType || '';
+  var mr = (mi && mi.roadName) || d._suggestedRoadName || '';
+  var wantPeriod = mi ? _wizPeriodOfRow(mi) : '';
+  if (!wantPeriod) {
+    try {
+      var pref = _wizMasterPrefer();
+      if (pref && pref.period) wantPeriod = String(pref.period);
+    } catch (e) {}
+  }
+  return (state.masterData || []).filter(function (m) {
+    if (m.itemNum !== num) return false;
+    if (!m.variation) return false;
+    if (mt && String(m.itemType || '').trim() !== String(mt).trim()) return false;
+    if (mr && String(m.roadName || '').trim() !== String(mr).trim()) return false;
+    if (wantPeriod && _wizPeriodOfRow(m) !== wantPeriod) return false;
+    return true;
+  });
+}
+if (typeof window !== 'undefined') window._wizVariationRows = _wizVariationRows;
 
 // v0.9.1033: put a focused field just under the top of the wizard's scroll
 // area, leaving room for its little label. Silent no-op off the wizard.
@@ -2438,13 +2480,13 @@ function renderWizardStep() {
     const _varRoad = (wizard.matchedItem && wizard.matchedItem.roadName)
       || wizard.data._suggestedRoadName
       || '';
-    const _allVars = state.masterData.filter(i => {
-      if (i.itemNum !== itemNum) return false;
-      if (!i.variation) return false;
-      if (_varType && String(i.itemType || '').trim() !== String(_varType).trim()) return false;
-      if (_varRoad && String(i.roadName || '').trim() !== String(_varRoad).trim()) return false;
-      return true;
-    });
+    // v0.9.1463: row scan moved into _wizVariationRows — ONE filter shared
+    // with the three skipIf checks in wizard-steps.js, now also scoped by
+    // PERIOD (prewar 238 and postwar 238 no longer pool their variations).
+    // _varType stays: the variation-picker helper below still reads it.
+    const _allVars = (typeof _wizVariationRows === 'function')
+      ? _wizVariationRows(itemNum)
+      : [];
     // Deduplicate by variation number (safety net against doubled data)
     const _seenVars = new Set();
     const variations = _allVars.filter(v => {

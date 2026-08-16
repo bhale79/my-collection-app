@@ -290,6 +290,12 @@ function updateItemSuggestions(query) {
     qParts.forEach(function(p){ if (_MFR_WORDS[p]) _typedMfr = _MFR_WORDS[p]; if (_PERIOD_WORDS[p]) _typedPeriod = _PERIOD_WORDS[p]; });
     var _effMfr = _filterMfr || _typedMfr;   // dropdown filter wins, else typed word
     var _effPeriod = _filterPeriod || _typedPeriod;   // Session 176: Era dropdown wins, else typed period word
+    // v0.9.1463: stash the recognized typed period word so the "✓ Found"
+    // banner scorer (_wizMasterPrefer, wizard.js) sees it too — this LIST
+    // honoured "postwar 238" but the banner did not. Refreshed on every
+    // scan (250ms debounce, before the 400ms banner lookup), so deleting
+    // the word clears it; the Era dropdown still outranks it in the scorer.
+    if (_w && _w.data) _w.data._typedSearchPeriod = _typedPeriod;
     var _searchParts = qParts.filter(function(p){ return p && !_stopWords.has(p) && !_MFR_WORDS[p] && !_PERIOD_WORDS[p]; });
     function _periodOfRow(m){
       var e = (m && m._era) || '';

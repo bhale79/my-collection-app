@@ -304,16 +304,10 @@ function getSteps(tab) {
     // picked a Steam Engine with the same item number).
     { id: 'variation',  title: 'Which variation is it?',                type: 'variation', optional: true,
         skipIf: (d) => {
-          var num = d.itemNum || '';
-          var mt = (wizard.matchedItem && wizard.matchedItem.itemType) || d._suggestedItemType || '';
-          var mr = (wizard.matchedItem && wizard.matchedItem.roadName) || d._suggestedRoadName || '';
-          var vars = state.masterData.filter(function(m) {
-            if (m.itemNum !== num) return false;
-            if (!m.variation) return false;
-            if (mt && String(m.itemType || '').trim() !== String(mt).trim()) return false;
-            if (mr && String(m.roadName || '').trim() !== String(mr).trim()) return false;
-            return true;
-          });
+          // v0.9.1463: shared scope lives in _wizVariationRows (wizard.js)
+          // — itemType + roadName + PERIOD, the same rows the variation
+          // screen shows, so this count can no longer mix two catalogs.
+          var vars = (typeof _wizVariationRows === 'function') ? _wizVariationRows(d.itemNum || '') : [];
           return vars.length < 2;
         } },
   ];
@@ -395,16 +389,10 @@ function getSteps(tab) {
       { id: 'variation',  title: 'Which variation is it?', type: 'variation', optional: true,
         skipIf: (d) => {
           if (d._completingQuickEntry) return true;
-          var num = d.itemNum || '';
-          var mt = (wizard.matchedItem && wizard.matchedItem.itemType) || d._suggestedItemType || '';
-          var mr = (wizard.matchedItem && wizard.matchedItem.roadName) || d._suggestedRoadName || '';
-          var vars = state.masterData.filter(function(m) {
-            if (m.itemNum !== num) return false;
-            if (!m.variation) return false;
-            if (mt && String(m.itemType || '').trim() !== String(mt).trim()) return false;
-            if (mr && String(m.roadName || '').trim() !== String(mr).trim()) return false;
-            return true;
-          });
+          // v0.9.1463: shared scope lives in _wizVariationRows (wizard.js)
+          // — itemType + roadName + PERIOD, the same rows the variation
+          // screen shows, so this count can no longer mix two catalogs.
+          var vars = (typeof _wizVariationRows === 'function') ? _wizVariationRows(d.itemNum || '') : [];
           return vars.length < 2;
         } },
 
@@ -635,16 +623,10 @@ function getSteps(tab) {
         skipIf: (d) => !d._partialMatches || d._partialMatches.length === 0 },
       { id: 'variation', title: 'Which variation is it?', type: 'variation', optional: true,
         skipIf: (d) => {
-          var num = d.itemNum || '';
-          var mt = (wizard.matchedItem && wizard.matchedItem.itemType) || d._suggestedItemType || '';
-          var mr = (wizard.matchedItem && wizard.matchedItem.roadName) || d._suggestedRoadName || '';
-          var vars = state.masterData.filter(function(m) {
-            if (m.itemNum !== num) return false;
-            if (!m.variation) return false;
-            if (mt && String(m.itemType || '').trim() !== String(mt).trim()) return false;
-            if (mr && String(m.roadName || '').trim() !== String(mr).trim()) return false;
-            return true;
-          });
+          // v0.9.1463: shared scope lives in _wizVariationRows (wizard.js)
+          // — itemType + roadName + PERIOD, the same rows the variation
+          // screen shows, so this count can no longer mix two catalogs.
+          var vars = (typeof _wizVariationRows === 'function') ? _wizVariationRows(d.itemNum || '') : [];
           return vars.length < 2;
         } },
       // Pick which tender pairs with the engine (only for engine_tender grouping).
