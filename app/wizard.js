@@ -2180,20 +2180,60 @@ function renderWizardStep() {
     const _all = _cfg.all || [];
     const cur = wizard.data.manualManufacturer || '';
     const _esc = function(v){ return String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); };
+    // ── v0.9.1448 (Brad, from his phone test): "we need a other and a add
+    // manufacturer button." Two additions, one habit:
+    //   • an Other / Unknown chip, for the item whose maker you cannot name —
+    //     typing was possible before, but nothing SAID unknown was allowed;
+    //   • Add & remember — a maker you type once becomes a chip from then on,
+    //     saved on this device (rr_custom_makers). A collector of, say,
+    //     Dorfan should tap it the second time, not retype it.
+    var _customMakers = [];
+    try { _customMakers = JSON.parse(localStorage.getItem('rr_custom_makers') || '[]') || []; } catch (eCM) {}
+    window._wizAddMaker = function () {
+      var inp = document.getElementById('manual-mfr-input');
+      var name = String((inp && inp.value) || '').trim().slice(0, 40);
+      if (!name) { if (typeof showToast === 'function') showToast('Type the maker\u2019s name first', 2500, true); return; }
+      try {
+        var list = JSON.parse(localStorage.getItem('rr_custom_makers') || '[]') || [];
+        var lc = name.toLowerCase();
+        // If this maker is already known under any capitalization, snap to the
+        // stored spelling so the matching chip lights up as selected instead of
+        // a case-variant sitting in the box with nothing highlighted.
+        var canon = null;
+        _common.concat(_all).concat(list).some(function (m) {
+          if (String(m).toLowerCase() === lc) { canon = String(m); return true; }
+          return false;
+        });
+        if (canon) {
+          name = canon;
+        } else {
+          list.push(name);
+          localStorage.setItem('rr_custom_makers', JSON.stringify(list.slice(0, 40)));
+          if (typeof showToast === 'function') showToast('\u2713 ' + name + ' remembered \u2014 it\u2019s a button from now on', 3200);
+        }
+      } catch (eSv) {}
+      wizard.data.manualManufacturer = name;
+      renderWizardStep();
+    };
+    var _chip = function (m, sel, dashed) {
+      return '<button onclick="wizard.data.manualManufacturer=' + JSON.stringify(m).replace(/"/g,'&quot;') + ';renderWizardStep()" style="' +
+        'padding:0.6rem 0.8rem;border-radius:9px;border:2px ' + (dashed ? 'dashed' : 'solid') + ' ' + (sel ? 'var(--accent)' : 'var(--border)') + ';' +
+        'background:' + (sel ? 'var(--accent)22' : 'var(--surface2)') + ';color:' + (dashed && !sel ? 'var(--text-mid)' : 'var(--text)') + ';cursor:pointer;' +
+        'font-family:var(--font-body);font-size:0.9rem;font-weight:600;text-align:left">' + _esc(m) + '</button>';
+    };
     body.innerHTML =
       '<div style="font-size:0.78rem;color:var(--text-dim);margin-bottom:0.45rem">Tap a common maker, or search/type any other below.</div>' +
       '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.4rem">' +
-        _common.map(function(m){
-          var sel = (cur === m);
-          return '<button onclick="wizard.data.manualManufacturer=' + JSON.stringify(m).replace(/"/g,'&quot;') + ';renderWizardStep()" style="' +
-            'padding:0.6rem 0.8rem;border-radius:9px;border:2px solid ' + (sel ? 'var(--accent)' : 'var(--border)') + ';' +
-            'background:' + (sel ? 'var(--accent)22' : 'var(--surface2)') + ';color:var(--text);cursor:pointer;' +
-            'font-family:var(--font-body);font-size:0.9rem;font-weight:600;text-align:left">' + _esc(m) + '</button>';
-        }).join('') +
+        _common.map(function(m){ return _chip(m, cur === m, false); }).join('') +
+        _customMakers.map(function(m){ return _chip(m, cur === m, false); }).join('') +
+        _chip('Other / Unknown', cur === 'Other / Unknown', true) +
       '</div>' +
       '<div style="margin-top:0.7rem">' +
         '<label style="font-size:0.82rem;color:var(--text-mid);display:block;margin-bottom:0.3rem">Search all makers or type your own</label>' +
-        '<input type="text" id="manual-mfr-input" list="manual-mfr-list" autocomplete="off" value="' + _esc(cur) + '" placeholder="Start typing — e.g. Dorfan, Sunset, Menards" oninput="wizard.data.manualManufacturer=this.value.trim()" style="width:100%;padding:0.6rem 0.75rem;border-radius:8px;background:var(--bg);border:1px solid var(--border);color:var(--text);font-family:var(--font-body);font-size:0.9rem;outline:none;box-sizing:border-box">' +
+        '<div style="display:flex;gap:0.45rem">' +
+          '<input type="text" id="manual-mfr-input" list="manual-mfr-list" autocomplete="off" value="' + _esc(cur) + '" placeholder="Start typing — e.g. Dorfan, Sunset, Menards" oninput="wizard.data.manualManufacturer=this.value.trim()" style="flex:1;min-width:0;padding:0.6rem 0.75rem;border-radius:8px;background:var(--bg);border:1px solid var(--border);color:var(--text);font-family:var(--font-body);font-size:0.9rem;outline:none;box-sizing:border-box">' +
+          '<button type="button" onclick="_wizAddMaker()" title="Use this maker and remember it as a button" style="flex-shrink:0;padding:0.6rem 0.8rem;border-radius:8px;border:1.5px solid #2980b9;background:var(--bg-card);background:color-mix(in srgb, rgb(41,128,185) 12%, var(--bg-card));color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.85rem;cursor:pointer;white-space:nowrap">\uFF0B Add &amp; remember</button>' +
+        '</div>' +
         '<datalist id="manual-mfr-list">' + _all.map(function(m){ return '<option value="' + _esc(m) + '">'; }).join('') + '</datalist>' +
       '</div>';
 

@@ -747,9 +747,19 @@
     // still resolves. dflt keeps the default sensible: every photo starts as
     // a piece, nothing is guessed as an engine.
     { id:'set',    label:'Train set',           dflt:'member',
-      roles:[['engine','Engine'],['tender','Tender'],['boxcar','Boxcar'],['flatcar','Flatcar'],
+      // v0.9.1448 (Brad): "engine should be steam engine, we also need to add
+      // transformer, track, box, set box, accessory" — plus the three diesel
+      // unit roles, so an AA/AB/ABA folded into a set keeps its identities.
+      // 'engine' keeps its id (label-only rename) so old tags still resolve
+      // and the pair-shots-file-with-the-engine rule keeps working.
+      roles:[['engine','Steam Engine'],['tender','Tender'],
+             ['aunit_p','A unit \u2014 powered'],['aunit_d','A unit \u2014 dummy'],['bunit','B unit'],
+             ['boxcar','Boxcar'],['flatcar','Flatcar'],
              ['gondola','Gondola'],['tank','Tank Car'],['hopper','Hopper'],['caboose','Caboose'],
-             ['passenger','Passenger Car'],['member','Other piece'],
+             ['passenger','Passenger Car'],
+             ['transformer','Transformer'],['track','Track'],['accessory','Accessory'],
+             ['box','Box'],['setbox','Set Box'],
+             ['member','Other piece'],
              // v0.9.1343 (Brad): "still can't list the picture of the engine +
              // tender as engine+tender." A shot of a PAIR inside a set is not
              // a piece — the engine and the tender are their own members, each
@@ -804,10 +814,28 @@
     }
     return out;
   }
+  // \u2500\u2500 v0.9.1448 (Brad): "i grouped the engines as aa pair and then i
+  // grouped it in the set. So it should have brought them in as A powered,
+  // A dummy." When an existing pair group folds into a Train set, each
+  // photo's old role TRANSLATES into the set's vocabulary instead of
+  // resetting to "Other piece". The dissolve warning still fires \u2014 this
+  // only changes what the role dropdowns are pre-set to afterwards.
+  var _PIN_CARRY = {
+    aa:     { p:'aunit_p', d:'aunit_d', together:'pair_aa' },
+    ab:     { p:'aunit_p', b:'bunit',   together:'pair_ab' },
+    aba:    { p:'aunit_p', b:'bunit', d:'aunit_d', together:'pair_aba' },
+    tender: { engine:'engine', tender:'tender', together:'pair_tender' }
+  };
+  function _pinCarryRole(f) {
+    var m = (f && f._meta) || {};
+    var map = _PIN_CARRY[String(m.kind || '')];
+    return (map && map[String(m.role || '')]) || '';
+  }
   if (typeof window !== 'undefined') {
     window._pinKinds = function () { return _PIN_KINDS; };
     window._pinDefaultRoles = _pinDefaultRoles;
     window._pinKindLabel = _pinKindLabel;
+    window._pinCarryRole = _pinCarryRole;
   }
 
   // "Group as…" — takes the ticked photos, gives them one group id, a kind and
@@ -900,8 +928,12 @@
     var k = _pinKind(_grpPanelKind);
     _grpPanelRoles = _grpPanelRoles.slice(0, files.length);
     while (_grpPanelRoles.length < files.length) {
+      var _gi = _grpPanelRoles.length;
       var d = _pinDefaultRoles(_grpPanelKind, files.length);
-      _grpPanelRoles.push(d[_grpPanelRoles.length] || (k.roles.length ? k.roles[k.roles.length - 1][0] : ''));
+      // v0.9.1448: a photo arriving from an existing pair group brings its
+      // role with it (translated), instead of defaulting to "Other piece".
+      var _cr = (_grpPanelKind === 'set') ? _pinCarryRole(files[_gi]) : '';
+      _grpPanelRoles.push(_cr || d[_gi] || (k.roles.length ? k.roles[k.roles.length - 1][0] : ''));
     }
     var p = document.getElementById('pin-grp-panel');
     if (!p) {
@@ -957,7 +989,13 @@
     var ks = document.getElementById('pin-grp-panel-kind');
     if (ks) ks.onchange = function () {
       _grpPanelKind = this.value;
-      _grpPanelRoles = _pinDefaultRoles(_grpPanelKind, _pinGrpPanelFiles().length);
+      var _fs2 = _pinGrpPanelFiles();
+      _grpPanelRoles = _pinDefaultRoles(_grpPanelKind, _fs2.length);
+      // v0.9.1448: switching TO "Train set" re-runs the carry-over, so roles
+      // from folded-in pair groups survive a kind change too.
+      if (_grpPanelKind === 'set') {
+        _fs2.forEach(function (f, i) { var c = _pinCarryRole(f); if (c) _grpPanelRoles[i] = c; });
+      }
       _pinGrpPanelRender();
     };
     Array.prototype.forEach.call(p.querySelectorAll('.pin-grp-panel-role'), function (sel) {
@@ -3363,7 +3401,7 @@
             }).join('') +
           '</div>'
         : '');
-    var _aiL = _pinAiLine(_mainFid), _chips = _pinAltChips();
+    var _aiL = (_pinAiLine(_mainFid) || '') + _pinTagLineHtml(_mainFid), _chips = _pinAltChips();
     var _wideBtn = 'flex:1 1 160px;padding:0.72rem 0.6rem;border-radius:10px;font-family:var(--font-body);font-weight:700;font-size:0.9rem;cursor:pointer;';
     var _wideBody =
       (_pinLensGroups ? _pinLensBannerHtml() : '') +
@@ -3524,6 +3562,7 @@
     if ((dbg.offEra || []).length) out.push('In another maker\u2019s catalog: ' + dbg.offEra.slice(0, 3).join(', '));
     if (dbg.quoted) out.push('The catalog itself quotes that number: ' + dbg.quoted);
     if (dbg.repaired) out.push('One digit looked misread — corrected to ' + dbg.repaired);
+    if (dbg.family) out.push('Family: ' + dbg.family);
     if (dbg.noLetters) out.push('No lettering was legible, so ' + dbg.noLetters + ' was not trusted');
     if (dbg.shortSolo) out.push('Only three digits, seen once — offered, not asserted');
     if ((dbg.shortDropped || []).length) out.push('Too short to trust alone: ' + dbg.shortDropped.join(', '));
@@ -3599,6 +3638,7 @@
             + (dbg.shortBacked ? '<br>A short number the catalog recognises (' + rrEsc(dbg.shortBacked)
                 + ') outranked longer text found in no catalog' : '')
             + (dbg.pooled ? '<br>Decided from everything all the passes read together' : '')
+            + (dbg.family ? '<br>Family: ' + rrEsc(dbg.family) : '')
             + (dbg.freqPick ? '<br>Two real numbers were in view \u2014 kept the one read most often: '
                 + rrEsc(dbg.freqPick) : '')
             + (dbg.offEraLead ? '<br>The number read on the car (' + rrEsc(dbg.offEraLead)
@@ -3779,6 +3819,59 @@
     } catch (e) {}
     return [];
   }
+  // ── v0.9.1448 (Brad's 6464-25 Great Northern, read as prewar "500"):
+  // the car says 6464 — the HEAD of a dashed family. No row carries bare
+  // 6464, so it matched nothing in the stamped era, and an off-era literal
+  // 500 won. A number that heads a dashed family in the stamped era is what
+  // the car actually says. The words read beside it — road name off the
+  // car, road name and COLORS from the paid reader's description — are
+  // compared against each family member's description and road name (the
+  // reference-book facts already in the master list, COTT links beside
+  // them). One clear winner → that variant is offered, with the words
+  // that decided it. A tie or nothing distinctive → the base leads and
+  // the family panel lets the human pick. Never stated as FACT: the -XX is
+  // printed on the box, not on the car.
+  var _FAM_STOPWORDS = { LIONEL:1, LINES:1, TRAIN:1, TRAINS:1, RAILROAD:1, RAILWAY:1,
+    BOXCAR:1, GONDOLA:1, CABOOSE:1, HOPPER:1, REEFER:1, FLATCAR:1,
+    CAPY:1, BUILT:1, WITH:1, THIS:1, THAT:1, FROM:1, HAVE:1, ITEM:1, SCALE:1, GAUGE:1 };
+  function _pinFamilyPick(c, prefer, srcText) {
+    try {
+      c = String(c || '').trim();
+      if (!c || /[-–]/.test(c)) return null;
+      if (c.replace(/\D/g, '').length < 4) return null;   // 3-digit bases are coincidence bait
+      if (typeof rrDashedKin !== 'function') return null;
+      var kin = rrDashedKin(c) || [];
+      if (!kin.length) return null;
+      var eras = _prefEras(prefer);
+      var fams = [];
+      kin.forEach(function (k) {
+        var rows = _pinKinRowsFor(k).filter(function (r) {
+          if (!r) return false;
+          if (eras.length && eras.indexOf(r._era) < 0) return false;
+          if (typeof window.rrDemotedRow === 'function' && window.rrDemotedRow(r)) return false;
+          return true;
+        });
+        if (rows.length) fams.push({ num: String(k),
+          txt: rows.map(function (r) { return (r.description || '') + ' ' + (r.roadName || ''); }).join(' ').toUpperCase() });
+      });
+      if (!fams.length) return null;
+      var words = [];
+      String(srcText || '').toUpperCase().replace(/[^A-Z\s]/g, ' ').split(/\s+/).forEach(function (w) {
+        if (w.length >= 4 && !_FAM_STOPWORDS[w] && words.indexOf(w) < 0) words.push(w);
+      });
+      var best = null, bestN = 0, secondN = 0, bestWhy = [];
+      fams.forEach(function (e) {
+        var n = 0, why = [];
+        words.forEach(function (w) { if (e.txt.indexOf(w) >= 0) { n++; why.push(w); } });
+        if (n > bestN) { secondN = bestN; bestN = n; best = e; bestWhy = why; }
+        else if (n > secondN) secondN = n;
+      });
+      if (best && bestN >= 1 && bestN > secondN) {
+        return { num: best.num, fam: c, count: fams.length, why: bestWhy.slice(0, 4).join(', ') };
+      }
+      return { num: c, fam: c, count: fams.length, why: '' };
+    } catch (e) { return null; }
+  }
   function _pinKinPanelHtml(num, matched) {
     try {
       var n = String(num || '').trim();
@@ -3788,6 +3881,13 @@
       if (/[-\u2013]/.test(n)) return '';
       var kin = rrDashedKin(n) || [];
       if (!kin.length) return '';
+      // ── v0.9.1448 (Brad's 2383 offered Lehigh Valley HO cousins): the
+      // relatives list searched every tab, so a postwar-stamped photo was
+      // offered another scale's family. When the card's filter names eras,
+      // only relatives from those eras belong in the list.
+      var _kinEras = [];
+      try { _kinEras = _prefEras(_rvPrefer()) || []; } catch (eKE) {}
+      var _eraOk = function (r) { return !_kinEras.length || (r && _kinEras.indexOf(r._era) >= 0); };
       var esc = (typeof rrEsc === 'function') ? rrEsc : function (s) { return String(s); };
       // v0.9.1444: "is this a real item row?" is already answered once, in
       // _pinDemotedRow / window.rrDemotedRow — which demotes box, set, paper,
@@ -3812,14 +3912,14 @@
           + '</button>';
       };
       // The base first — but only when a real item row carries it.
-      var baseRows = _pinKinRowsFor(n).filter(_isItemRow);
+      var baseRows = _pinKinRowsFor(n).filter(_isItemRow).filter(_eraOk);
       var html = '';
       if (baseRows.length) html += line(n, baseRows[0].description || '', baseRows[0].refLink || '', true);
       // then the relatives, in catalogue order
       kin.slice().sort(function (a, b) { return String(a).localeCompare(String(b), undefined, { numeric: true }); })
          .forEach(function (k) {
-           var rows = _pinKinRowsFor(k).filter(_isItemRow);
-           var r0 = rows[0] || _pinKinRowsFor(k)[0];
+           var rows = _pinKinRowsFor(k).filter(_isItemRow).filter(_eraOk);
+           var r0 = rows[0] || _pinKinRowsFor(k).filter(_eraOk)[0];
            if (!r0) return;
            html += line(k, r0.description || '', r0.refLink || '', false);
          });
@@ -4818,7 +4918,10 @@
       // The first photo tagged Engine names the engine. Nothing tagged Engine
       // (he may not have bothered) → the set's lead item, which is the one the
       // set flow already treats as the locomotive.
-      if (!engineNum && meta.role === 'engine') engineNum = n0;
+      // v0.9.1448: a diesel set's locomotive is tagged "A unit \u2014 powered",
+      // not "Steam Engine" \u2014 either one names the engine that pair shots
+      // and the set's cover photo file with.
+      if (!engineNum && (meta.role === 'engine' || meta.role === 'aunit_p')) engineNum = n0;
       if (nums.indexOf(n0) < 0) nums.push(n0);
       // v0.9.1117 (Brad: "its not putting the pictures in their rhs slot") —
       // each member's own inbox photo rides into that item's photo slot.
@@ -6327,6 +6430,33 @@
       return { num: win, matched: solid, thin: !solid, dbg: dbg };
     }
 
+    // ── v0.9.1448: before conceding to another era's catalog, ask whether a
+    // seen number HEADS A DASHED FAMILY in the stamped era. Brad's 6464-25:
+    // 6464 heads ~29 postwar rows, and it lost to a literal prewar 500. When
+    // several candidates head families, word evidence wins, then the one
+    // read most often.
+    var _famHits = [];
+    uniq.slice(0, 8).forEach(function (cF) {
+      var fpF = _pinFamilyPick(cF, prefer, UP);
+      if (fpF) _famHits.push(fpF);
+    });
+    if (_famHits.length) {
+      var _famBest = _famHits[0];
+      _famHits.slice(1).forEach(function (h) {
+        if (h.why && !_famBest.why) { _famBest = h; return; }
+        if (!!h.why === !!_famBest.why) {
+          var _fA = (UP.match(new RegExp('\\b' + _famBest.fam + '\\b', 'g')) || []).length;
+          var _fB = (UP.match(new RegExp('\\b' + h.fam + '\\b', 'g')) || []).length;
+          if (_fB > _fA) _famBest = h;
+        }
+      });
+      dbg.family = _famBest.fam + ' heads ' + _famBest.count + ' dashed relative'
+        + (_famBest.count === 1 ? '' : 's') + ' in the stamped catalog'
+        + (_famBest.why ? ' — ' + _famBest.num + ' matched: ' + _famBest.why : '');
+      return { num: _famBest.num, matched: false, family: true,
+               alts: [String(_famBest.num)], dbg: dbg };
+    }
+
     // Nothing in the stamped catalog. Before giving up, look in every catalog —
     // but a hit there is a LEAD, not a confirmation, because the whole reason we
     // are here is that the photo says it belongs somewhere else. This also
@@ -7217,6 +7347,27 @@
         out.swappedFrom = out.num; out.num = c; return out;
       }
     }
+    // ── v0.9.1448: the paid reader names the road and the COLORS —
+    // "orange Great Northern boxcar". If a read number heads a dashed family
+    // in the stamped era, those words pick the variant — offered, never
+    // asserted, and the card says which words decided it.
+    var _famSrc = [aiText || '', (meta && meta.description) || '', (meta && meta.title) || ''].join(' ');
+    var _famAll = [out.num].concat(pool);
+    for (var fj = 0; fj < Math.min(_famAll.length, 9); fj++) {
+      var fpj = _pinFamilyPick(_famAll[fj], prefer, _famSrc);
+      if (fpj) {
+        if (String(fpj.num) !== String(out.num)) out.swappedFrom = out.num;
+        out.num = String(fpj.num);
+        out.family = fpj.fam + ' → ' + fpj.num
+          + (fpj.why ? ' (matched: ' + fpj.why + ')' : ' (' + fpj.count + ' in the family)');
+        // A family answer is ALWAYS a hedge — both consumers read a falsy
+        // viaDesc as "in-era catalog hit, no longer a guess", and a bare
+        // family head is a number that by definition has no row of its own.
+        // Word evidence names its words; a bare head names the family.
+        out.viaDesc = fpj.why || ('the ' + fpj.fam + ' dashed family (' + fpj.count + ' variant' + (fpj.count === 1 ? '' : 's') + ') — the -XX is on the box');
+        return out;
+      }
+    }
     // v0.9.1089: nothing in the stamped catalog directly — but one of the
     // numbers may be quoted by a stamped-era row (the reissue naming its
     // original). The tag settles it.
@@ -7750,17 +7901,73 @@
       if (img.getAttribute('data-rvbig') === fid) img.src = u;   // still the current main
     } catch (e) { /* keep the thumbnail */ }
   };
+  // ── v0.9.1448 (Brad): "We need to add the tagged info on the picture."
+  // The photo's OWN stamps — era, scale, group kind, role, type — in one
+  // line on the card. These are what Brad tagged, not what any reader
+  // guessed — so a guess of HO on a photo stamped O is visibly absurd
+  // instead of silently believed.
+  function _pinTagLineHtml(fid) {
+    try {
+      var f = null;
+      (_groups || []).some(function (g) {
+        return (g.files || []).some(function (x) { if (x.id === fid) { f = x; return true; } return false; });
+      });
+      if (!f) return '';
+      var m = _pinMetaOf(f);
+      var bits = [];
+      if (m.era) bits.push(_pinEraLabel(m.era));
+      if (m.type) bits.push('type ' + m.type);
+      if (m.kind && m.kind !== 'single') bits.push(_pinKindLabel(m.kind));
+      if (m.role && m.kind) {
+        var rl = _pinRoleLabel(m.kind, m.role);
+        if (rl) bits.push(rl);
+      }
+      if (!bits.length) return '';
+      return '<div style="margin-top:0.4rem;font-size:0.76rem;color:var(--text-dim)">Picture tagged: '
+        + bits.map(function (b) { return '<span style="color:var(--text-mid);font-weight:600">' + rrEsc(String(b)) + '</span>'; }).join(' · ')
+        + '</div>';
+    } catch (e) { return ''; }
+  }
   window._pinRvSetMain = function (fid) {
     var img = document.getElementById('pin-rv-main');
     if (!img) return;
+    // ── v0.9.1448 (Brad): "i put the item number in here... when i click
+    // forward and then back, its gone." The box follows each photo (v0.9.1171),
+    // but what he TYPED was never saved to the photo he was leaving, so the
+    // sync threw it away. Save it to that photo's record first, then switch —
+    // coming back restores it, and Add files it. An emptied box does NOT wipe
+    // a stored read — clearing by accident must not destroy an answer.
+    try {
+      var _prevFid = img.getAttribute('data-rvbig') || '';
+      var _boxEl0 = document.getElementById('pin-rv-num');
+      if (_prevFid && _prevFid !== fid && _boxEl0) {
+        var _typed = String(_boxEl0.value || '').trim();
+        var _all = _ids();
+        var _prevRec = _all[_prevFid] || {};
+        if (_typed && _typed !== String(_prevRec.num || '')) {
+          _prevRec.num = _typed;
+          _prevRec.userTyped = 1;
+          _all[_prevFid] = _prevRec;
+          _idsSave(_all);
+        }
+      }
+    } catch (eKeep) {}
     img.setAttribute('data-rvbig', fid);
     window._pinRvLoadFull(img, fid);
     // v0.9.1090: the identification follows the photo. Tap the Summit car and
     // the line describes the Summit car, not the engine at the front of the
     // group.
+    // v0.9.1448: ...and when THIS photo has no read of its own, the card says
+    // so instead of keeping the previous photo's line — that "never blank"
+    // fallback is exactly how a 6468 boxcar's record ended up describing
+    // Brad's Santa Fe F3 two photos away. The tagged line always rides along.
     try {
       var line = document.getElementById('pin-rv-ailine');
-      if (line) line.innerHTML = _pinAiLine(fid) || line.innerHTML;
+      if (line) {
+        var _aiH = _pinAiLine(fid)
+          || '<div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:0.85rem 0.95rem;font-size:0.85rem;color:var(--text-dim)">Nothing read from this photo yet — type the number below if you can see it, or re-scan.</div>';
+        line.innerHTML = _aiH + _pinTagLineHtml(fid);
+      }
     } catch (e) {}
     // v0.9.1171 (Brad's six-photo group): stepping to photo 2 moved the read line
     // to "No. 6560" while the panel beside it still read "Item # 6464-525 —

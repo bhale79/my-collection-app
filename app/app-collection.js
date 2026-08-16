@@ -3877,7 +3877,24 @@ function browseRowClick(event, idx) {
   cancelBtn.style.cssText = 'padding:0.6rem 0.9rem';
   cancelBtn.textContent = '✕';
   cancelBtn.onclick = function() { overlay.remove(); };
+  // ── v0.9.1449 (Brad): the same green + Want List button the Sets pop-up
+  // already has. Already-wanted shows a label instead, so the same item
+  // can't be wished for twice by accident.
+  const _wantedKey = String(item.itemNum) + '|' + String(item.variation || '');
   btnRow.appendChild(yesBtn);
+  if (state.wantData && state.wantData[_wantedKey]) {
+    const wantedLbl = document.createElement('span');
+    wantedLbl.style.cssText = 'font-size:0.8rem;color:#2ecc71;align-self:center;white-space:nowrap;font-weight:600';
+    wantedLbl.textContent = '✓ On Want List';
+    btnRow.appendChild(wantedLbl);
+  } else {
+    const wantBtn = document.createElement('button');
+    wantBtn.className = 'btn btn-secondary';
+    wantBtn.style.cssText = 'flex:1;border:1.5px solid #2ecc71;background:rgba(46,204,113,0.12);color:#2ecc71;font-weight:600';
+    wantBtn.textContent = '+ Want List';
+    wantBtn.onclick = function() { overlay.remove(); addItemToWantList(idx); };
+    btnRow.appendChild(wantBtn);
+  }
   btnRow.appendChild(viewBtn);
   btnRow.appendChild(cancelBtn);
   box.appendChild(btnRow);
@@ -4684,6 +4701,42 @@ async function saveItem() {
 
 // ── WANT LIST PARTNER PROMPT ─────────────────────────────────────
 // Shown after saving a groupable item to Want List
+// ── v0.9.1449 (Brad): "we need a button to add it to our want list." The
+// catalog's Do-you-own-it prompt could file an item into the collection but
+// not onto the Want List — the want wizard existed, this prompt just had no
+// door into it. Opens it pre-filled with this exact row (number, variation,
+// matched item) and lands straight on the priority question — the same
+// shape addSetToWantList has used for sets all along.
+function addItemToWantList(idx) {
+  const item = state.masterData[idx];
+  if (!item) return;
+  const _activePg = document.querySelector('.page.active');
+  const _returnPage = window._rrLastPage || (_activePg ? _activePg.id.replace('page-', '') : 'browse');
+  wizard = {
+    step: 0, tab: 'want',
+    data: {
+      tab: 'want',
+      itemNum: item.itemNum,
+      variation: item.variation || '',
+      _itemGrouping: 'single',
+      _returnPage: _returnPage
+    },
+    steps: [],
+    matchedItem: item
+  };
+  wizard.steps = getSteps('want');
+  // The row IS the identification — skip the steps that would re-ask it.
+  const autoSkip = new Set(['itemNumGrouping', 'itemPicker', 'variation', 'tenderMatch']);
+  while (wizard.step < wizard.steps.length) {
+    const curStep = wizard.steps[wizard.step];
+    if (!autoSkip.has(curStep.id)) break;
+    wizard.step++;
+  }
+  document.getElementById('wizard-modal').classList.add('open');
+  document.body.style.overflow = 'hidden';
+  renderWizardStep();
+}
+
 function _checkWantPartners(itemNum, variation, priority, maxPrice, notes) {
   const num = normalizeItemNum(itemNum);
   const isLoco   = isLocomotive(num);
