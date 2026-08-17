@@ -817,14 +817,33 @@ async function _identifyOpenLens() {
   // entry point was retired; researched 2026-08-16, see SerpApi/Lens notes
   // in the session summary). Closest lane left: the hint goes on the
   // clipboard, one Ctrl+V into Google's "Add to your search" applies it.
+  // v0.9.1470 (Brad: "the filters were set to lionel o scale postwar" but
+  // the tip said "MTH MTH O O gauge"): the hint read the identify chips and
+  // the GLOBAL era filter — never the add-screen dropdowns Brad had set,
+  // and the global label repeated maker+scale. Priority per piece now: the
+  // wizard's OWN search dropdowns (explicit, visible, set for THIS add) →
+  // the identify panel's ticked chips (hidden in the Lens return flow) →
+  // the global filter. Then words are deduped so it reads human.
+  var _hW = (typeof wizard !== 'undefined' && wizard && wizard.data) ? wizard.data : {};
   var _hMfrCbs = document.querySelectorAll('#id-mfr-chips input[type="checkbox"]:checked');
   var _hMfrs = Array.from(_hMfrCbs).map(function (cb) { return cb.dataset.mfrCb; }).filter(function (m) { return m && m !== 'Not sure'; });
   var _hAf = (typeof rrActiveFilter === 'function') ? rrActiveFilter() : null;
-  if (!_hMfrs.length && _hAf && _hAf.manufacturer) _hMfrs = [_hAf.manufacturer];
-  var _hScale = (document.getElementById('id-scale') || {}).value || (_hAf && _hAf.scale) || '';
-  var _hType = (document.getElementById('id-type') || {}).value || '';
-  var _hint = [_hMfrs.join(' '), (_hAf && _hAf.label) || '', _hScale ? (_hScale + ' gauge') : '', _hType || 'model train']
+  var _hMfr = String(_hW._searchFilterManufacturer || '') || _hMfrs.join(' ') || ((_hAf && _hAf.manufacturer) || '');
+  var _hPeriodMap = { prewar: 'prewar (before 1943)', postwar: 'postwar (1945-1969)', modern: 'modern era (1970 or later)' };
+  var _hPeriod = _hPeriodMap[String(_hW._searchFilterPeriod || '').toLowerCase()] || '';
+  if (!_hPeriod && _hAf && _hAf.years) _hPeriod = String(_hAf.years);
+  var _hScale = String(_hW._searchFilterScale || '') || (document.getElementById('id-scale') || {}).value || ((_hAf && _hAf.scale) || '');
+  var _hType = (document.getElementById('id-type') || {}).value || String(_hW._searchFilterType || '');
+  var _hint = [_hMfr, _hPeriod, _hScale ? (_hScale + ' gauge') : '', _hType || 'model train']
     .filter(Boolean).join(' ').replace(/\s+/g, ' ').trim();
+  var _hSeen = {};
+  _hint = _hint.split(' ').filter(function (w) {
+    var k = w.toLowerCase().replace(/[^a-z0-9-]/g, '');
+    if (!k) return true;
+    if (_hSeen[k]) return false;
+    _hSeen[k] = 1;
+    return true;
+  }).join(' ');
   var _hintCopied = false;
   if (_hint && navigator.clipboard && navigator.clipboard.writeText) {
     try { navigator.clipboard.writeText(_hint); _hintCopied = true; } catch (eCl) {}
