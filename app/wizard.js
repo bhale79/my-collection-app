@@ -1417,9 +1417,9 @@ function closeWizardOnOverlay(e) {
 // distinct values, or getMasterDistinct unavailable).
 // Sticky Add-screen filters: remember Manufacturer + Era across adds (Brad).
 function _clearAddFilters() {
-  if (typeof wizard !== 'undefined' && wizard.data) { wizard.data._searchFilterManufacturer = ''; wizard.data._searchFilterPeriod = ''; wizard.data._searchFilterType = ''; }
-  try { localStorage.removeItem('lv_add_mfr'); localStorage.removeItem('lv_add_era'); } catch (e) {}
-  ['wiz-search-mfr', 'wiz-search-era', 'wiz-search-type'].forEach(function (id) { var el = document.getElementById(id); if (el) el.value = ''; });
+  if (typeof wizard !== 'undefined' && wizard.data) { wizard.data._searchFilterManufacturer = ''; wizard.data._searchFilterPeriod = ''; wizard.data._searchFilterType = ''; wizard.data._searchFilterScale = ''; }
+  try { localStorage.removeItem('lv_add_mfr'); localStorage.removeItem('lv_add_era'); localStorage.removeItem('lv_add_scale'); } catch (e) {}
+  ['wiz-search-mfr', 'wiz-search-era', 'wiz-search-type', 'wiz-search-scale'].forEach(function (id) { var el = document.getElementById(id); if (el) el.value = ''; });
   var i = document.getElementById('wiz-input');
   if (typeof updateItemSuggestions === 'function') updateItemSuggestions(i ? i.value : '');
 }
@@ -1437,6 +1437,7 @@ function _buildItemSearchFiltersDOM() {
   if (wizard.tab === 'collection' || wizard.tab === 'want') {   // v0.9.715: want too (Brad)
     if (wizard.data._searchFilterManufacturer === undefined) { try { wizard.data._searchFilterManufacturer = localStorage.getItem('lv_add_mfr') || ''; } catch (e) { wizard.data._searchFilterManufacturer = ''; } }
     if (wizard.data._searchFilterPeriod === undefined) { try { wizard.data._searchFilterPeriod = localStorage.getItem('lv_add_era') || ''; } catch (e) { wizard.data._searchFilterPeriod = ''; } }
+    if (wizard.data._searchFilterScale === undefined) { try { wizard.data._searchFilterScale = localStorage.getItem('lv_add_scale') || ''; } catch (e) { wizard.data._searchFilterScale = ''; } }   // v0.9.1471: sticky like the others
   }
 
   // Session 119: 22 clean tier-1 buckets (Steam, Diesel, Boxcar...) instead of 40 raw itemType synonyms.
@@ -1519,7 +1520,12 @@ function _buildItemSearchFiltersDOM() {
     if (mfrs.length) bar.appendChild(mkDrop('wiz-search-mfr', 'Manufacturer', mfrs, wizard.data._searchFilterManufacturer || ''));
     bar.appendChild(mkDropPairs('wiz-search-era', 'Era', _eraPairs, wizard.data._searchFilterPeriod || ''));
     if (showType) bar.appendChild(mkDrop('wiz-search-type', ui.typeLabel || 'Type', types, wizard.data._searchFilterType || ''));
-    if (wizard.tab === 'want' && scales.length) bar.appendChild(mkDrop('wiz-search-scale', 'Scale', scales, wizard.data._searchFilterScale || ''));
+    // v0.9.1471 (Brad: "we need to add scale to the filter list. how did we
+    // miss that?"): Session 176 omitted Scale "to keep it simple", v715 gave
+    // it to the Want flow only — the collection flow's plumbing was already
+    // wired (_searchFilterScale, the change listener, the suggestion filter)
+    // with no dropdown writing it. Both flows get it now.
+    if (scales.length) bar.appendChild(mkDrop('wiz-search-scale', 'Scale', scales, wizard.data._searchFilterScale || ''));
     // Clear-filters button (Manufacturer + Era are remembered between adds).
     var _clrWrap = document.createElement('div');
     _clrWrap.style.cssText = 'display:flex;align-items:flex-end';
@@ -1637,6 +1643,7 @@ function _wireItemSearchFilters() {
   if (scaleSel) {
     scaleSel.addEventListener('change', function() {
       wizard.data._searchFilterScale = this.value || '';
+      try { localStorage.setItem('lv_add_scale', this.value || ''); } catch (e) {}   // v0.9.1471: sticky
       var i = document.getElementById('wiz-input');
       if (typeof updateItemSuggestions === 'function') updateItemSuggestions(i ? i.value : '');
     });
