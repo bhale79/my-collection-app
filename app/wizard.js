@@ -5702,6 +5702,24 @@ function renderWizardStep() {
           + '<span>Other tender - search by number</span></button>';
         // "Don't know" - saves as Unknown
         html += _rad('Unknown', "Don't know", 'Save with tender unknown');
+        // v0.9.1480 (Brad): "need help to id the tender you have? Check out
+        // this line - (show the cott link) or use google lens/reader to
+        // identify it." The engine's own listing documents its tender
+        // pairings; Photo ID reads the tender itself and lands the answer
+        // RIGHT HERE via _pickTender (see _wizTenderPhotoId).
+        html += (function () {
+          var _thRow = (wizard.matchedItem && String(wizard.matchedItem.itemNum || '').trim() === (wizard.data.itemNum || '').trim())
+            ? wizard.matchedItem
+            : ((typeof findMaster === 'function') ? findMaster((wizard.data.itemNum || '').trim(), '', (typeof _wizMasterPrefer === 'function') ? _wizMasterPrefer() : null) : null);
+          var _thUrl = (_thRow && _thRow.refLink) ? _thRow.refLink : '';
+          try { if (_thUrl && typeof window.cottAnchorUrl === 'function') _thUrl = window.cottAnchorUrl(_thRow.refLink, _thRow.itemNum, window.cottRowWords ? window.cottRowWords(_thRow) : '', _thRow.variation || ''); } catch (eTH) {}
+          var _thLbl = (typeof window.resolveRefLabel === 'function') ? window.resolveRefLabel(_thUrl, { verbose: true }) : 'View reference \u2197';
+          return '<div style="margin-top:0.55rem;padding:0.55rem 0.7rem;border-radius:8px;border:1px dashed var(--border);background:var(--surface2);font-size:0.75rem;color:var(--text-mid);line-height:1.5">'
+            + '<b>Need help identifying the tender you have?</b> '
+            + (_thUrl ? ('Check this engine\u2019s listing \u2014 <a href="' + _thUrl + '" target="_blank" rel="noopener" style="color:var(--accent2)">' + _thLbl + '</a> \u2014 or identify it from a photo:') : 'Identify it from a photo:')
+            + '<button type="button" onclick="_wizTenderPhotoId()" style="display:block;width:100%;margin-top:0.45rem;padding:0.5rem;border-radius:8px;border:1.5px dashed #2980b9;background:rgba(41,128,185,0.08);color:#2980b9;font-family:var(--font-head);font-size:0.72rem;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;cursor:pointer">Photo ID the tender</button>'
+            + '</div>';
+        })();
         html += '<div style="font-size:0.7rem;color:var(--text-dim);font-style:italic;margin-top:0.5rem;text-align:center">Need to remove the tender? Go Back and pick Engine only.</div>';
         html += '</div></div>';   // v0.9.1232: .cd-fields, then .cd-col
         return html;

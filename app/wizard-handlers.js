@@ -178,6 +178,34 @@ function _selectGrouping(groupId) {
   setTimeout(function() { wizardNext(); }, 150);
 }
 
+// ── v0.9.1480 (Brad): "then they upload a picture, we help to id it, and
+// then come back to this screen with the tender id'd." Runs the SAME
+// identify flow as Photo ID, but the answer lands on the TENDER via
+// _pickTender (the one write-path: tenderMatch + non-original flag +
+// _tenderConfirmed + re-render) — never on the item number.
+function _wizTenderPhotoId() {
+  var _open = window.openBoxIdentify || window.openBarcodeScanner;
+  if (typeof _open !== 'function') {
+    if (typeof showToast === 'function') showToast('Photo ID is still loading — try again in a second', 3000, true);
+    return;
+  }
+  var eraHint = (wizard && wizard.data && wizard.data._era) || '';
+  _open(function (res) {
+    var tNum = String((res && res.itemNum) || '').trim();
+    if (!tNum) {
+      if (typeof showToast === 'function') showToast('Could not read a number from that photo — try "Other tender – search by number".', 4200, true);
+      if (typeof renderWizardStep === 'function') renderWizardStep();
+      return;
+    }
+    if (typeof showToast === 'function') showToast('Tender identified: ' + tNum, 3200);
+    if (typeof window._pickTender === 'function') window._pickTender(tNum);
+    else { wizard.data.tenderMatch = tNum; wizard.data._tenderConfirmed = true; if (typeof renderWizardStep === 'function') renderWizardStep(); }
+  }, function () {
+    if (typeof renderWizardStep === 'function') renderWizardStep();
+  }, eraHint);
+}
+if (typeof window !== 'undefined') window._wizTenderPhotoId = _wizTenderPhotoId;
+
 function _selectBoxOnly() {
   wizard.data.boxOnly = true;
   wizard.data._itemGrouping = 'single';
