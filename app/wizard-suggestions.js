@@ -924,14 +924,32 @@ function lookupItem(num) {
   const _d = (typeof wizard !== 'undefined' && wizard && wizard.data) ? wizard.data : null;
   const _prefType = _d && _d._suggestedItemType ? String(_d._suggestedItemType).trim() : '';
   const _prefRoad = _d && _d._suggestedRoadName ? String(_d._suggestedRoadName).trim() : '';
+  // ── v0.9.1482 (Brad's 238 again: type it → banner says 1963, TAP the row
+  // → banner says 1939-1940): the suggestion-click path lands here with
+  // only number+type, and `find(first matching row)` resurrected the
+  // load-order bug — bypassing every era guard. The visible period filter
+  // outranks load order on THIS path too now.
+  var _lkPeriod = '';
+  try { _lkPeriod = (_d && (_d._searchFilterPeriod || _d._typedSearchPeriod)) || ''; } catch (eLP) {}
+  var _perOk = function (i) { return !_lkPeriod || typeof _wizPeriodOfRow !== 'function' || _wizPeriodOfRow(i) === _lkPeriod; };
   let match = null;
   if (_prefType) {
     match = state.masterData.find(i =>
       i.itemNum.toLowerCase() === _numLC &&
       String(i.itemType || '').trim() === _prefType &&
-      (!_prefRoad || String(i.roadName || '').trim() === _prefRoad)
+      (!_prefRoad || String(i.roadName || '').trim() === _prefRoad) &&
+      _perOk(i)
     );
     // Fallback: type match alone if road-filtered version doesn't hit
+    if (!match) {
+      match = state.masterData.find(i =>
+        i.itemNum.toLowerCase() === _numLC &&
+        String(i.itemType || '').trim() === _prefType &&
+        _perOk(i)
+      );
+    }
+    // Last resort inside the type branch: ignore period rather than fail
+    // (a period with no rows should not blank a real match).
     if (!match) {
       match = state.masterData.find(i =>
         i.itemNum.toLowerCase() === _numLC &&
@@ -962,7 +980,8 @@ function lookupItem(num) {
   // 2. Otherwise pick by the era the wizard is in and the maker on the search
   //    bar, rather than by load order.
   if (!match && typeof _wizPickMasterRow === 'function') match = _wizPickMasterRow(_numLC);
-  if (!match) match = state.masterData.find(i => i.itemNum.toLowerCase() === _numLC);
+  if (!match) match = state.masterData.find(i => i.itemNum.toLowerCase() === _numLC && _perOk(i))
+             || state.masterData.find(i => i.itemNum.toLowerCase() === _numLC);   // v0.9.1482: period first, load order last
   wizard.matchedItem = match || null;
   const el = document.getElementById('wiz-match');
   if (!el) return;
