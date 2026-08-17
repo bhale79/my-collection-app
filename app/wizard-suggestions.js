@@ -531,6 +531,13 @@ function updateItemSuggestions(query) {
   var _rowSep    = (window.ITEM_SEARCH_FILTERS && window.ITEM_SEARCH_FILTERS.rowDetailsSep) || ' \u00B7 ';
   var _rowMaxLen = (window.ITEM_SEARCH_FILTERS && window.ITEM_SEARCH_FILTERS.rowDetailsMaxLen) || 110;
 
+  // v0.9.1481 (Brad, second ask: "if we suggest that its a 238, we should
+  // highlight the 238 row"): the v1476 highlight referenced _searchNum,
+  // which is a const scoped INSIDE the master-search branch — out of reach
+  // here, so the try{} silently ate a ReferenceError and nothing ever
+  // highlighted. Recomputed at render scope from q instead.
+  var _hlNum = '';
+  try { _hlNum = (typeof _extractSearchItemNum === 'function') ? String(_extractSearchItemNum(q) || '').trim().toLowerCase() : String(q || '').trim().toLowerCase(); } catch (eHN) {}
   candidates.forEach(function(c, i) {
     // Outer row is a column flex so we get a visual line-1 (item# + road
     // + reference link) over a line-2 (details). Role="button" lets us
@@ -558,7 +565,7 @@ function updateItemSuggestions(query) {
     // or auto-filled number, it gets the green edge + tint so the eye
     // lands on it instantly. No icons — Brad's rule.
     try {
-      if (_searchNum && String(c.num || '').toLowerCase() === String(_searchNum).trim().toLowerCase()) {
+      if (_hlNum && String(c.num || '').toLowerCase() === _hlNum) {
         row.style.background = 'rgba(46,204,113,0.10)';
         row.style.border = '1.5px solid #2ecc71';
       }
