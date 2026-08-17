@@ -553,6 +553,16 @@ function updateItemSuggestions(query) {
       + 'border-radius:6px;cursor:pointer;color:var(--text);font-family:var(--font-body);'
       + 'display:flex;flex-direction:column;gap:0.18rem;min-height:44px;'
       + 'box-sizing:border-box;max-width:100%;flex-shrink:0';
+    // v0.9.1476 (Brad: "should we pre highlight the correct number row
+    // which in this case was the 238"): when a row's number IS the typed
+    // or auto-filled number, it gets the green edge + tint so the eye
+    // lands on it instantly. No icons — Brad's rule.
+    try {
+      if (_searchNum && String(c.num || '').toLowerCase() === String(_searchNum).trim().toLowerCase()) {
+        row.style.background = 'rgba(46,204,113,0.10)';
+        row.style.border = '1.5px solid #2ecc71';
+      }
+    } catch (eHX) {}
     row.onmouseenter = function() { highlightSuggestion(i); };
     row.dataset.roadName = c.roadName || '';
     row.onclick = function() { selectSuggestion(c.num, c.roadName || '', c.itemType || ''); };

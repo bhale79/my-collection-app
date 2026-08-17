@@ -5370,7 +5370,13 @@ function renderWizardStep() {
     const _ingGroupDiv = document.createElement('div');
     _ingGroupDiv.id = 'wiz-grouping-btns';
     _ingGroupDiv.style.cssText = 'margin-top:0.75rem;display:none';
-    _ingWrap.appendChild(_ingGroupDiv);
+    // v0.9.1476 (Brad: "need to see the engine or engine+tender buttons
+    // without scrolling"): like the Photo ID block (v1474), these sit ABOVE
+    // the suggestion list — the grouping choice is the user's NEXT action
+    // when an engine number lands; the list must not bury it.
+    var _ingSugRef2 = _ingWrap.querySelector('#wiz-suggestions');
+    if (_ingSugRef2) _ingWrap.insertBefore(_ingGroupDiv, _ingSugRef2);
+    else _ingWrap.appendChild(_ingGroupDiv);
     
     // Identify by photo button (only when entering manually).
     // v0.9.1038 (Brad): on phones it lives in the footer instead — see
