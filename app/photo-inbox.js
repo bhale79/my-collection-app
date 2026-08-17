@@ -3716,11 +3716,12 @@
     // Lionel Modern is how a wrong maker gets saved without anyone noticing.
     var _mismatch = '';
     try {
-      // v0.9.1486 (Brad: "how did i filter to mth?" — he hadn't; the global
-      // era selector was parked on MTH from earlier browsing): a TAGGED
-      // photo is judged against its own tag; the global filter only speaks
-      // for untagged photos.
-      var _af = (typeof rrActiveFilter === 'function') ? rrActiveFilter((s && s.dbg && s.dbg.era) || '') : null;
+      // v0.9.1488 (Brad, closing what v1486 left open): the photo's own tag
+      // is the ONLY yardstick for these warnings. An untagged photo gets NO
+      // maker/scale mismatch warning — the collection page's browsing filter
+      // has nothing whatsoever to do with the Photo Inbox.
+      var _afEra = (s && s.dbg && s.dbg.era) || '';
+      var _af = (_afEra && typeof rrActiveFilter === 'function') ? rrActiveFilter(_afEra) : null;
       if (_af && _af.manufacturer && s.mfr) {
         var _n = function (v) { return String(v || '').toLowerCase().replace(/[^a-z0-9]/g, ''); };
         var _said = _n(s.mfr), _want = _n(_af.manufacturer);
@@ -7526,7 +7527,13 @@
       // 'all' mode and the chips run in 'all' mode by design (see the note on
       // rrActiveFilter in config.js). That is why the readers still came back
       // Atlas / MTH / HO after v0.9.1152.
-      var af = (typeof rrActiveFilter === 'function') ? rrActiveFilter(m.era || '') : null;
+      // v0.9.1488 (Brad: "the my collection page filters should have nothing
+      // whatsoever to do with the photo inbox and when i google lens or read
+      // it button"): the photo's OWN tag is the only filter a read may use.
+      // Untagged photo = neutral question. The v1157 fallback-to-global is
+      // RETIRED — it kept turning stale browsing filters into wrong hints
+      // ("how did i filter to mth?" — he hadn't).
+      var af = (m.era && typeof rrActiveFilter === 'function') ? rrActiveFilter(m.era) : null;
       // v0.9.1297 (Brad: "the photo reader needs to use the type as a helper
       // to decide what it is"): the photo's own Type tag rides on the prefer
       // object — even when no era filter resolves, a typed photo still gets
