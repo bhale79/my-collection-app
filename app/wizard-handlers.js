@@ -75,13 +75,26 @@ function _updateGroupingButtons() {
   const _btnFlex = _isMobile ? '1 1 calc(50% - 0.35rem)' : '1';
   buttons.forEach(function(btn) {
     const sel = current === btn.id;
-    html += '<button onclick="_selectGrouping(\'' + btn.id + '\')" style="flex:' + _btnFlex + ';min-width:0;padding:0.5rem 0.6rem;border-radius:8px;font-size:0.78rem;font-weight:600;cursor:pointer;transition:all 0.15s;font-family:var(--font-body);white-space:normal;word-break:break-word;text-align:center;line-height:1.2;'
+    // v0.9.1479 (Brad: "when i first put 238 and click engine+tender, it
+    // scrolls up and i have to hit it again"): the row is rebuilt by the
+    // debounced refreshes, so a click could START on a button that was
+    // destroyed before mouse-UP — the click evaporated. Selection now fires
+    // on POINTERDOWN (first contact, before any re-render can land);
+    // onclick stays for keyboard users, double-fire guarded in
+    // _selectGrouping.
+    html += '<button onpointerdown="_selectGrouping(\'' + btn.id + '\')" onclick="_selectGrouping(\'' + btn.id + '\')" style="flex:' + _btnFlex + ';min-width:0;padding:0.5rem 0.6rem;border-radius:8px;font-size:0.78rem;font-weight:600;cursor:pointer;transition:all 0.15s;font-family:var(--font-body);white-space:normal;word-break:break-word;text-align:center;line-height:1.2;'
       + 'border:2px solid ' + (sel ? 'var(--accent)' : 'var(--border)') + ';'
       + 'background:' + (sel ? 'rgba(232,64,28,0.12)' : 'var(--surface2)') + ';'
       + 'color:' + (sel ? 'var(--accent)' : 'var(--text-mid)') + '">'
       + btn.label + '</button>';
   });
   html += '</div>';
+
+  // v0.9.1479: this function runs on EVERY keystroke and refresh — rewriting
+  // identical innerHTML each time is what yanked live buttons out from under
+  // a press. Identical content = no touch.
+  if (container.__rrLastGrpHtml === html && container.style.display === 'block' && container.querySelector('button')) return;
+  container.__rrLastGrpHtml = html;
 
   container.innerHTML = html;
   // ── v0.9.1407 — BRING THE QUESTION TO THE USER (Brad's original bug) ─────
@@ -154,7 +167,11 @@ function rrApplyGroupingChoice(groupId) {
 }
 if (typeof window !== 'undefined') window.rrApplyGroupingChoice = rrApplyGroupingChoice;
 
+var _selGrpBusy = false;   // v0.9.1479: pointerdown AND click fire on one press
 function _selectGrouping(groupId) {
+  if (_selGrpBusy) return;
+  _selGrpBusy = true;
+  setTimeout(function () { _selGrpBusy = false; }, 500);
   rrApplyGroupingChoice(groupId);
   _updateGroupingButtons();
   // Auto-advance to next step after grouping selection
