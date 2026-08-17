@@ -935,7 +935,12 @@ window._wizResearchPrice = function () {
       var _p = String(d._searchFilterPeriod || '').trim();
       if (!_p && _mi && typeof _wizPeriodOfRow === 'function') _p = _wizPeriodOfRow(_mi) || '';
       var _yr = (_mi && _mi.yearProd) ? String(_mi.yearProd).trim() : '';
-      _eraTerms = [_pMap[_p] || '', _yr].filter(Boolean).join(' ');
+      // v0.9.1484 (Brad: "manufacturer, item number, type, era or year, AND
+      // scale in the search"): scale joins — the visible Scale filter first,
+      // else the matched row's own scale.
+      var _sc = String(d._searchFilterScale || '').trim();
+      if (!_sc && _mi && typeof _wizScaleOfRow === 'function') _sc = _wizScaleOfRow(_mi) || '';
+      _eraTerms = [_pMap[_p] || '', _yr, _sc ? (_sc + ' gauge') : ''].filter(Boolean).join(' ');
     } catch (eET) {}
     var url = (typeof window._googlePriceUrl === 'function')
       ? window._googlePriceUrl(num, mfr, road, desc, _eraTerms)
