@@ -270,6 +270,7 @@ function rrNoteAiRemaining(remaining) {
   // the first read of the day's session. Stamped with the local date — a
   // stale (yesterday's) count is treated as unknown rather than shown wrong.
   try { localStorage.setItem('rr_ai_remaining', n + '|' + new Date().toDateString()); } catch (e) {}
+  try { if (typeof rrAiSpanRefresh === 'function') rrAiSpanRefresh(); } catch (eS) {}   // v0.9.1472: live-update any visible counter
   if (typeof showToast !== 'function') return remaining;
   if (n === 0) {
     showToast('That was today\'s last photo ID — the count resets overnight.', 5200, true);
@@ -298,10 +299,74 @@ function rrAiRemainingLabel() {
     var p = String(localStorage.getItem('rr_ai_remaining') || '').split('|');
     if (p.length === 2 && p[1] === new Date().toDateString()) {
       var n = parseInt(p[0], 10);
-      if (!isNaN(n) && n >= 0) return n + ' photo ID' + (n === 1 ? '' : 's') + ' left today';
+      if (!isNaN(n) && n >= 0) {
+        // v0.9.1472: when the relay has told us THIS device's cap (ai_quota),
+        // show the honest denominator — "3 of 20 reads left today". Without
+        // it, the old no-denominator wording stands (never a guessed cap).
+        var cap = (typeof rrAiCapKnown === 'function') ? rrAiCapKnown() : 0;
+        if (cap > 0 && cap >= n) return n + ' of ' + cap + ' reads left today';
+        return n + ' photo ID' + (n === 1 ? '' : 's') + ' left today';
+      }
     }
   } catch (e) {}
   return '';
+}
+
+// ── v0.9.1472 (Brad: "where is our 20 of 20 reads left button?") ─────────
+// The count only appeared after the day's FIRST read, because `remaining`
+// only ever arrived on a read response. The relay (v3.3) now answers a free
+// `ai_quota` ask with { remaining, cap } for THIS device — premium-aware —
+// so the crop screen, identify panel and Preferences can all show
+// "X of Y reads left today" the moment they open, any time of day.
+function rrAiCapKnown() {
+  try {
+    var p = String(localStorage.getItem('rr_ai_cap') || '').split('|');
+    if (p.length === 2 && p[1] === new Date().toDateString()) {
+      var n = parseInt(p[0], 10);
+      if (!isNaN(n) && n > 0) return n;
+    }
+  } catch (e) {}
+  return 0;
+}
+// Repaint every reads-left span currently on screen.
+function rrAiSpanRefresh() {
+  var lbl = rrAiOptedOut() ? '' : rrAiRemainingLabel();
+  ['bi-ai-left', 'id-ai-left', 'pref-ai-left'].forEach(function (id) {
+    var el = document.getElementById(id);
+    if (el && lbl) el.textContent = lbl;
+  });
+}
+var _rrQuotaBusy = false;
+async function rrAiQuotaRefresh() {
+  if (_rrQuotaBusy) return;
+  try {
+    if (rrAiOptedOut()) return;
+    if (typeof vaultGetToken !== 'function' || typeof vaultPost !== 'function') return;
+    _rrQuotaBusy = true;
+    var res = await vaultPost({ action: 'ai_quota', token: vaultGetToken() });
+    _rrQuotaBusy = false;
+    var n = res ? parseInt(res.remaining, 10) : NaN;
+    if (isNaN(n) || n < 0) { _rrQuotaFallback(); return; }   // relay older than v3.3 → honest fallback
+    window._rrAiRemaining = n;
+    try { localStorage.setItem('rr_ai_remaining', n + '|' + new Date().toDateString()); } catch (e0) {}
+    var c = res ? parseInt(res.cap, 10) : NaN;
+    if (!isNaN(c) && c > 0) { try { localStorage.setItem('rr_ai_cap', c + '|' + new Date().toDateString()); } catch (e1) {} }
+    rrAiSpanRefresh();
+  } catch (e) { _rrQuotaBusy = false; _rrQuotaFallback(); }
+}
+// Relay too old / offline: swap the "checking…" placeholder for the truth.
+function _rrQuotaFallback() {
+  ['bi-ai-left', 'id-ai-left', 'pref-ai-left'].forEach(function (id) {
+    var el = document.getElementById(id);
+    if (el && /checking/i.test(el.textContent || '')) {
+      el.textContent = 'count appears after the first read today';
+    }
+  });
+}
+// Prefetch once shortly after boot, so screens usually render the real
+// count straight from the day's cache instead of a placeholder.
+if (typeof window !== 'undefined') {
+  try { setTimeout(function () { try { rrAiQuotaRefresh(); } catch (e) {} }, 6000); } catch (e) {}
 }
 
 // ── ONE place that turns a failed read into something TRUE ──────────────
@@ -338,6 +403,9 @@ if (typeof window !== 'undefined') {
   window.rrAiOptedOut = rrAiOptedOut;
   window.rrAiSetOptOut = rrAiSetOptOut;
   window.rrAiRemainingLabel = rrAiRemainingLabel;
+  window.rrAiCapKnown = rrAiCapKnown;           // v0.9.1472
+  window.rrAiSpanRefresh = rrAiSpanRefresh;     // v0.9.1472
+  window.rrAiQuotaRefresh = rrAiQuotaRefresh;   // v0.9.1472
   window.rrReadFailMessage = rrReadFailMessage;
 }
 

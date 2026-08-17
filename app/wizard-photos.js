@@ -251,6 +251,7 @@ function openIdentify(context) {
   const modal = document.getElementById('identify-modal');
   if (!modal) { if (typeof showToast === 'function') showToast('Identify is still loading — try again in a second', 3000, true); return; }
   modal.classList.add('open');
+  try { if (typeof rrAiQuotaRefresh === 'function') rrAiQuotaRefresh(); } catch (eQ2) {}   // v0.9.1472: fill the reads-left counter
   // Auto-focus the input so a bare Ctrl+V lands in it as a normal paste —
   // DESKTOP ONLY (v0.9.675, Brad: on phones this opened the keyboard and
   // scrolled the modal to the bottom, hiding the photo buttons).

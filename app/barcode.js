@@ -2638,7 +2638,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         +     '<input id="bi-ai-opt" class="rr-tap-box" type="checkbox" style="width:15px;height:15px;cursor:pointer;accent-color:var(--accent,#e8401c)"' + ((typeof rrAiOptedOut === 'function' && rrAiOptedOut()) ? '' : ' checked') + '>'
         +     ' Use my daily photo ID reads when the free readers can\'t tell'
         +   '</label>'
-        +   '<span id="bi-ai-left" style="color:var(--gold,#d4a843);white-space:nowrap">' + ((typeof rrAiRemainingLabel === 'function' && rrAiRemainingLabel()) || '') + '</span>'
+        +   '<span id="bi-ai-left" style="color:var(--gold,#d4a843);white-space:nowrap">' + ((typeof rrAiRemainingLabel === 'function' && rrAiRemainingLabel()) || ((typeof rrAiOptedOut === 'function' && rrAiOptedOut()) ? '' : 'checking reads left\u2026')) + '</span>'
         + '</div>'
         + '</div></div>');
       // v0.9.1015: remember the spending-switch choice the moment it changes.
@@ -2650,6 +2650,9 @@ window.eraSupportsBarcode = eraSupportsBarcode;
       // whole screen down" → app reload): while THIS screen is open, the
       // browser's pull-to-refresh is contained. Restored on the way out —
       // the rest of the app keeps its normal behavior, as Brad chose.
+      // v0.9.1472: ask the relay for today's true reads-left the moment the
+      // crop screen opens — fills the "checking…" placeholder above.
+      try { if (typeof rrAiQuotaRefresh === 'function') rrAiQuotaRefresh(); } catch (eQ) {}
       var _prevObBody = document.body.style.overscrollBehaviorY;
       var _prevObHtml = document.documentElement.style.overscrollBehaviorY;
       document.body.style.overscrollBehaviorY = 'contain';

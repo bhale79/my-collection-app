@@ -195,7 +195,7 @@ function buildPrefsPage() {
           <span style="font-size:0.85rem;font-weight:600">Use my daily photo ID reads</span>
         </label>
         <div style="font-size:0.78rem;color:var(--text-dim);line-height:1.5">Every photo is checked free first — printed numbers and barcodes cost nothing. This only controls what happens when the free readers can't tell: on, the photo gets a closer read from your daily allowance; off, you're asked to type the number or search instead.</div>
-        <div id="pref-ai-left" style="font-size:0.78rem;color:var(--accent2);font-weight:600">${(typeof rrAiRemainingLabel === 'function' && rrAiRemainingLabel()) || ''}</div>
+        <div id="pref-ai-left" style="font-size:0.78rem;color:var(--accent2);font-weight:600">${(typeof rrAiRemainingLabel === 'function' && rrAiRemainingLabel()) || ((typeof rrAiOptedOut === 'function' && rrAiOptedOut()) ? 'Off — free readers only' : 'checking reads left…')}</div>
       </div>
 
       <div style="font-size:0.78rem;font-weight:600;color:var(--text-mid);padding:0.75rem 0.2rem 0.35rem;letter-spacing:0.03em;text-transform:uppercase">Scales I Collect</div>
