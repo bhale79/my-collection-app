@@ -51,8 +51,12 @@
   // first two (no API exists for it — we hand off exactly like Lens); an
   // active-listings eBay search answers the third (auctions + Buy It Now +
   // best offers all included by default).
-  function _googlePriceUrl(itemNum, mfr, roadName, desc) {
-    return 'https://www.google.com/search?q=' + encodeURIComponent(_searchQuery(itemNum, mfr, roadName, desc) + ' sold prices value');
+  // v0.9.1477 (Brad: "our research button needs to carry the filters as
+  // well" — Google priced the PREWAR 238 Torpedo for his postwar 238):
+  // optional eraTerms ("postwar 1963-64") ride the query, same idea as the
+  // Lens link's q parameter. The eBay buttons stay untouched (Brad's call).
+  function _googlePriceUrl(itemNum, mfr, roadName, desc, eraTerms) {
+    return 'https://www.google.com/search?q=' + encodeURIComponent(_searchQuery(itemNum, mfr, roadName, desc) + (eraTerms ? ' ' + eraTerms : '') + ' sold prices value');
   }
   function _ebayActiveUrl(itemNum, mfr, roadName, desc) {
     return _ebayCore(itemNum, mfr, roadName, desc, '');

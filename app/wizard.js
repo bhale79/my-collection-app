@@ -886,9 +886,22 @@ window._wizResearchPrice = function () {
     // eBay Sold Listings button) — the v0.9.1337 era-aware logic lives there.
     var _id = window._wizResearchIdentity();
     var num = _id.num, mfr = _id.mfr, road = _id.road, desc = _id.desc;
+    // v0.9.1477: the price search carries the era — the visible period
+    // filter first, else the matched row's own period — plus the row's
+    // printed production years. Without these, Google priced the prewar
+    // 238 Torpedo for Brad's postwar 238 Columbia.
+    var _eraTerms = '';
+    try {
+      var _mi = (typeof wizard !== 'undefined' && wizard.matchedItem) || null;
+      var _pMap = { prewar: 'prewar', postwar: 'postwar', modern: 'modern era' };
+      var _p = String(d._searchFilterPeriod || '').trim();
+      if (!_p && _mi && typeof _wizPeriodOfRow === 'function') _p = _wizPeriodOfRow(_mi) || '';
+      var _yr = (_mi && _mi.yearProd) ? String(_mi.yearProd).trim() : '';
+      _eraTerms = [_pMap[_p] || '', _yr].filter(Boolean).join(' ');
+    } catch (eET) {}
     var url = (typeof window._googlePriceUrl === 'function')
-      ? window._googlePriceUrl(num, mfr, road, desc)
-      : 'https://www.google.com/search?q=' + encodeURIComponent([mfr, num, road, desc].filter(Boolean).join(' ') + ' sold prices value');
+      ? window._googlePriceUrl(num, mfr, road, desc, _eraTerms)
+      : 'https://www.google.com/search?q=' + encodeURIComponent([mfr, num, road, desc, _eraTerms].filter(Boolean).join(' ') + ' sold prices value');
     window.open(url, '_blank');
   } catch (e) { console.warn('[research price]', e); }
 };
