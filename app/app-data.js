@@ -801,8 +801,10 @@ function _findMasterCore(idx, itemNum, variation, prefer) {
   // Cross-catalog numbers collide (Lionel MPC 8359 Chessie GP-7 vs Atlas 8359
   // WM hopper) — when the caller knows whose copy this is, prefer the catalog
   // row from that manufacturer/era instead of whichever loaded first.
-  let _prefTab = null, _prefMfr = '';
+  let _prefTab = null, _prefMfr = '', _prefPeriod = '', _prefScale = '';
   if (prefer) {
+    _prefPeriod = String(prefer.period || '').trim();   // v0.9.1483
+    _prefScale = String(prefer.scale || '').trim();     // v0.9.1483
     _prefMfr = String(prefer.manufacturer || '').trim().toLowerCase();
     try {
       if (prefer.era && typeof ERA_TABS !== 'undefined' && ERA_TABS[prefer.era] && ERA_TABS[prefer.era].items) _prefTab = ERA_TABS[prefer.era].items;
@@ -814,6 +816,18 @@ function _findMasterCore(idx, itemNum, variation, prefer) {
     const t = String(m._tab || '').toLowerCase();
     if (_prefTab && m._tab === _prefTab) b += 8;
     if (_prefMfr && t.indexOf(_prefMfr) === 0) b += 4;   // tabs start with the maker name
+    // v0.9.1483 (Brad: "we keep running into the first-in-load-order
+    // issue"): findMaster is the ONE function nearly every lookup calls —
+    // teaching IT the period and scale hints makes every hint-passing
+    // caller safe at once. Weights: an on-screen period pick is the
+    // strongest signal (matches _wizPickMasterRow's philosophy); scale
+    // next; unknown row values never penalize.
+    if (_prefPeriod && typeof window !== 'undefined' && typeof window._wizPeriodOfRow === 'function') {
+      try { var _bp = window._wizPeriodOfRow(m); if (_bp === _prefPeriod) b += 10; else if (_bp) b -= 5; } catch (eBP) {}
+    }
+    if (_prefScale) {
+      try { var _bs = (typeof ERA_SCALE !== 'undefined' && ERA_SCALE[m._era]) || ''; if (_bs === _prefScale) b += 6; else if (_bs) b -= 3; } catch (eBS) {}
+    }
     return b;
   }
   // Non-suffixed item whose exact key exists = the common case → keep legacy

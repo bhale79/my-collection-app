@@ -262,14 +262,17 @@ function _wizMasterPrefer() {
   // screen. My earlier two attempts fixed real but DIFFERENT lookup paths;
   // this is the one that draws that banner.
   var period = String(d._searchFilterPeriod || '').trim();
+  // v0.9.1483: the Scale dropdown joins the hint set (it never had a voice
+  // in any lookup before — an O/HO collision resolved by load order).
+  var scale = String(d._searchFilterScale || '').trim();
   // v0.9.1463: a period word TYPED in the box ("postwar 238") filters the
   // suggestion list (_effPeriod, wizard-suggestions.js) but never reached
   // this scorer — so the list and the banner could disagree on the same
   // query. The suggestion scan stashes the word in _typedSearchPeriod;
   // an explicit dropdown pick still wins.
   if (!period) period = String(d._typedSearchPeriod || '').trim();
-  if (!mfr && !era && !year && !period) return null;
-  return { manufacturer: mfr, era: era, year: year, period: period };
+  if (!mfr && !era && !year && !period && !scale) return null;
+  return { manufacturer: mfr, era: era, year: year, period: period, scale: scale };
 }
 
 // Which of the three collecting periods a 4-digit year falls in. Same
@@ -299,6 +302,36 @@ function _wizPeriodOfRow(m) {
   return _wizPeriodOfYear(String(m.yearProd || ''));
 }
 if (typeof window !== 'undefined') window._wizMasterPrefer = _wizMasterPrefer;
+if (typeof window !== 'undefined') window._wizPeriodOfRow = _wizPeriodOfRow;   // v0.9.1483: findMaster's period boost reads it
+
+// v0.9.1483: a row's SCALE, by era config — the same source the suggestion
+// list's Scale filter has always used (ERA_SCALE[m._era]).
+function _wizScaleOfRow(m) {
+  try { return (m && typeof ERA_SCALE !== 'undefined' && ERA_SCALE[m._era]) || ''; } catch (e) { return ''; }
+}
+if (typeof window !== 'undefined') window._wizScaleOfRow = _wizScaleOfRow;
+
+// ── v0.9.1483 (Brad: "do this work for scale too or the other filters? we
+// keep running into the first-steam-238-in-load-order issue"): THE shared
+// answer to "does this row fit the filters on screen?" — period AND scale.
+// (Manufacturer stays with the scorers: per-row maker detection is fuzzy.)
+// Every held-match guard and lookup fallback consults this ONE predicate;
+// a row with an UNKNOWN scale is never excluded (absence isn't a mismatch).
+function _wizRowFitsFilters(m) {
+  if (!m) return false;
+  try {
+    var d = (typeof wizard !== 'undefined' && wizard && wizard.data) ? wizard.data : {};
+    var p = String(d._searchFilterPeriod || d._typedSearchPeriod || '').trim();
+    if (p && typeof _wizPeriodOfRow === 'function' && _wizPeriodOfRow(m) !== p) return false;
+    var sc = String(d._searchFilterScale || '').trim();
+    if (sc) {
+      var rs = _wizScaleOfRow(m);
+      if (rs && rs !== sc) return false;
+    }
+  } catch (e) {}
+  return true;
+}
+if (typeof window !== 'undefined') window._wizRowFitsFilters = _wizRowFitsFilters;
 
 // The wizard's own pick between rows that share an item number. Returns the
 // best row, or null when the number isn't in the catalog at all.
@@ -327,6 +360,11 @@ function _wizPickMasterRow(numLC, rows) {
       // wins if nothing in the right period exists at all.
       if (wantPeriod && typeof _wizPeriodOfRow === 'function') {
         sc += (_wizPeriodOfRow(m) === wantPeriod) ? 12 : -6;
+      }
+      // v0.9.1483: the Scale filter joins the scorer.
+      if (pref.scale && typeof _wizScaleOfRow === 'function') {
+        var _rsc = _wizScaleOfRow(m);
+        if (_rsc === pref.scale) sc += 5; else if (_rsc) sc -= 3;
       }
       if (eraKey && String(m._era || '') === eraKey) sc += 8;
       // Year: an exact hit on the catalog's printed year is near-proof; the
@@ -1905,10 +1943,8 @@ function _renderAddingBanner() {
       // said the postwar 45° Crossing): this branch BYPASSED the v1460
       // period correction below — a held row that violates the visible Era
       // filter is dropped so the findMaster path re-resolves it properly.
-      try {
-        var _fpH = String(d._searchFilterPeriod || '').trim();
-        if (_fpH && match && typeof _wizPeriodOfRow === 'function' && _wizPeriodOfRow(match) !== _fpH) match = null;
-      } catch (eH0) {}
+      // v0.9.1483: period AND scale, via the one shared predicate.
+      try { if (match && typeof _wizRowFitsFilters === 'function' && !_wizRowFitsFilters(match)) match = null; } catch (eH0) {}
     }
     if (!match && typeof findMaster === 'function') {
       // v0.9.982: disambiguate colliding item numbers. When editing an existing
@@ -1939,7 +1975,8 @@ function _renderAddingBanner() {
       // that period exists, the original match stands.
       try {
         var _fp = String(d._searchFilterPeriod || '').trim();
-        if (_fp && match && typeof _wizPeriodOfRow === 'function' && _wizPeriodOfRow(match) !== _fp) {
+        // v0.9.1483: trigger on ANY filter violation (period or scale).
+        if (match && typeof _wizRowFitsFilters === 'function' && !_wizRowFitsFilters(match)) {
           var _bucket = [];
           try {
             if (typeof _mbAllGet === 'function') _bucket = _mbAllGet(num) || [];
@@ -1949,7 +1986,7 @@ function _renderAddingBanner() {
           var _better = null;
           for (var _bi = 0; _bi < _bucket.length; _bi++) {
             var _row = _bucket[_bi];
-            if (!_row || _wizPeriodOfRow(_row) !== _fp) continue;
+            if (!_row || (typeof _wizRowFitsFilters === 'function' && !_wizRowFitsFilters(_row))) continue;
             if (d.variation != null && d.variation !== ''
                 && String(_row.variation || '') !== String(d.variation)) continue;
             if (_fm) {
@@ -2297,7 +2334,7 @@ function renderWizardStep() {
     const _idx   = wizard.data._setItemIndex || 0;
     const _total = wizard.data._setFinalItems.length;
     const _cur   = wizard.data.itemNum || wizard.data._setFinalItems[_idx] || '';
-    const _master = findMaster(_cur);
+    const _master = findMaster(_cur, '', (typeof _wizMasterPrefer === 'function') ? _wizMasterPrefer() : null);   // v0.9.1483: hints
     const _type  = _typeLabel(_master);
     _titleEl.innerHTML =
       `<div style="display:flex;align-items:baseline;flex-wrap:wrap;gap:0.5rem 0.75rem;margin-bottom:0.35rem">` +
@@ -2543,7 +2580,7 @@ function renderWizardStep() {
           ${s.note && s.note(wizard.data) ? `<div style="font-size:0.8rem;color:var(--accent2);margin-top:0.6rem;padding:0.5rem 0.75rem;background:rgba(201,146,42,0.1);border-radius:6px">${s.note(wizard.data)}</div>` : ''}
         <div style="font-size:0.75rem;color:var(--text-dim);margin-top:0.5rem">Optional — press Next to skip</div>
         ${(() => {
-          const singleItem = findMaster(itemNum);
+          const singleItem = findMaster(itemNum, '', (typeof _wizMasterPrefer === 'function') ? _wizMasterPrefer() : null);   // v0.9.1483: hints
           if (!singleItem || !singleItem.refLink) return '';
           // Verbose label (e.g. "View on Atlas ↗") resolves per URL from
           // item-search-filters-config.js — previously hardcoded to COTT.
@@ -3985,7 +4022,7 @@ function renderWizardStep() {
     tmContainer.appendChild(tmIntroEl);
 
     tmCandidates.forEach(function(num) {
-      const masterItem = findMaster(num);
+      const masterItem = findMaster(num, '', (typeof _wizMasterPrefer === 'function') ? _wizMasterPrefer() : null);   // v0.9.1483: hints
       const desc = masterItem ? (masterItem.roadName || masterItem.description || _typeLabel(masterItem) || '') : '';
       const owned = Object.values(state.personalData).find(function(pd) { return pd.itemNum === num; });
       const sel = tmCurrent === num;
@@ -4425,7 +4462,7 @@ function renderWizardStep() {
     // Check item type for custom views (Science/Construction/Catalog/Paper/IS)
     let views = s.views;
     if (!views) {
-      const _phMaster = wizard.matchedItem || findMaster((wizard.data.itemNum||''));
+      const _phMaster = wizard.matchedItem || findMaster((wizard.data.itemNum||''), '', (typeof _wizMasterPrefer === 'function') ? _wizMasterPrefer() : null);   // v0.9.1483: hints
       const _phType = (_phMaster && _phMaster.itemType) ? _phMaster.itemType : '';
       if (['Science Set','Construction Set'].includes(_phType) && s.label === 'Item') {
         views = [
@@ -7034,7 +7071,7 @@ async function _wizardNextCore() {
       if (!wizard.data.unit3Condition) wizard.data.unit3Condition = 7;
     }
     // For simplified types (Catalog/Paper/IS/Science/Construction) est worth is embedded and required
-    const _valMaster = wizard.matchedItem || findMaster((wizard.data.itemNum||''));
+    const _valMaster = wizard.matchedItem || findMaster((wizard.data.itemNum||''), '', (typeof _wizMasterPrefer === 'function') ? _wizMasterPrefer() : null);   // v0.9.1483: hints
     const _valType = (_valMaster && _valMaster.itemType) ? _valMaster.itemType : '';
     const _valIsEmbedded = ['Science Set','Construction Set','Catalog','Instruction Sheet'].includes(_valType)
       || _valType.toLowerCase().includes('paper') || _valType.toLowerCase().includes('catalog');

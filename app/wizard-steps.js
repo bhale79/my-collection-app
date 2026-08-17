@@ -428,7 +428,7 @@ function getSteps(tab) {
       { id: 'purchaseValue', title: 'Purchase & Value', type: 'purchaseValue',
         skipIf: d => {
           if (d._setMode) return true;
-          const _m = wizard.matchedItem || findMaster((d.itemNum||''));
+          const _m = wizard.matchedItem || findMaster((d.itemNum||''), '', (typeof _wizMasterPrefer === 'function') ? _wizMasterPrefer() : null);   // v0.9.1483: hints
           const _t = (_m && _m.itemType) ? _m.itemType : '';
           if (['Science Set','Construction Set','Catalog','Instruction Sheet'].includes(_t)) return true;
           if (_t.toLowerCase().includes('paper') || _t.toLowerCase().includes('catalog')) return true;
@@ -530,7 +530,7 @@ function getSteps(tab) {
       { id: 'yearMade', title: 'When was this made?', type: 'yearMade',
         skipIf: (d) => {
           if (d.yearMade) return true;
-          var m = wizard.matchedItem || (typeof findMaster === 'function' ? findMaster(d.itemNum) : null);
+          var m = wizard.matchedItem || (typeof findMaster === 'function' ? findMaster(d.itemNum, '', (typeof _wizMasterPrefer === 'function') ? _wizMasterPrefer() : null) : null);   // v0.9.1483: hints
           if (m && m.yearProd) return true;
           return false;
         } },

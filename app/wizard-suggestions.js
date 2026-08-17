@@ -929,9 +929,8 @@ function lookupItem(num) {
   // only number+type, and `find(first matching row)` resurrected the
   // load-order bug — bypassing every era guard. The visible period filter
   // outranks load order on THIS path too now.
-  var _lkPeriod = '';
-  try { _lkPeriod = (_d && (_d._searchFilterPeriod || _d._typedSearchPeriod)) || ''; } catch (eLP) {}
-  var _perOk = function (i) { return !_lkPeriod || typeof _wizPeriodOfRow !== 'function' || _wizPeriodOfRow(i) === _lkPeriod; };
+  // v0.9.1483: period AND scale via the one shared predicate (was period-only).
+  var _perOk = function (i) { return (typeof _wizRowFitsFilters !== 'function') || _wizRowFitsFilters(i); };
   let match = null;
   if (_prefType) {
     match = state.masterData.find(i =>
@@ -972,9 +971,7 @@ function lookupItem(num) {
       // FOREVER — a pick made before the Era filter was consulted could
       // never be displaced, so the banner disagreed with the filtered list.
       // It survives only while it satisfies the on-screen period.
-      var _kp = '';
-      try { _kp = (wizard.data && (wizard.data._searchFilterPeriod || wizard.data._typedSearchPeriod)) || ''; } catch (eKp) {}
-      if (!_kp || typeof _wizPeriodOfRow !== 'function' || _wizPeriodOfRow(_cur) === _kp) match = _cur;
+      if (typeof _wizRowFitsFilters !== 'function' || _wizRowFitsFilters(_cur)) match = _cur;   // v0.9.1483: period+scale
     }
   }
   // 2. Otherwise pick by the era the wizard is in and the maker on the search

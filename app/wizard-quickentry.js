@@ -39,7 +39,9 @@ function completeQuickEntry(itemNum, variation, globalIdx, pdInvId) {
 
   // Strip powered/dummy suffix to get base item number for master lookup and wizard
   var baseItemNum = itemNum.replace(/-(P|D|T)$/i, '');
-  var master = state.masterData.find(function(m) { return m.itemNum === baseItemNum && (!variation || m.variation === variation); })
+  // v0.9.1483: hinted resolver FIRST — the raw find() was load-order.
+  var master = ((typeof findMaster === 'function') ? findMaster(baseItemNum, variation || '', (typeof _wizMasterPrefer === 'function') ? _wizMasterPrefer() : null) : null)
+            || state.masterData.find(function(m) { return m.itemNum === baseItemNum && (!variation || m.variation === variation); })
             || findMaster(baseItemNum);
 
   // Detect power suffix so the save re-applies it correctly

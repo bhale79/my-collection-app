@@ -1947,7 +1947,7 @@ function _identifyHasMfrMismatch(itemNum, userMfrs, prefer) {
 // doesn't match the user's hint. Show what we found, let user accept the
 // master match anyway or cancel and edit.
 function _identifyConfirmMfrMismatch(itemNum, fullText, meta) {
-  var match = (typeof findMaster === 'function') ? findMaster(itemNum) : null;
+  var match = (typeof findMaster === 'function') ? findMaster(itemNum, '', (typeof _wizMasterPrefer === 'function') ? _wizMasterPrefer() : null) : null;   // v0.9.1483: hints
   var tabLabel = match && match._tab ? match._tab : '(unknown tab)';
   var userMfrs = _getSelectedIdentifyMfrs();
   var overlay = document.createElement('div');
