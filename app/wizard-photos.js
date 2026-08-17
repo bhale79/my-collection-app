@@ -2072,6 +2072,35 @@ function _identifyRouteToManualEntry(itemNum, meta, userMfrs) {
   return true;
 }
 
+// ── v0.9.1475 (Brad: "it worked, but i was like, what just happened") ────
+// The auto-paste lands, the identify modal vanishes and the wizard is
+// suddenly filled — all in under a second. This card is the RECEIPT: it
+// names what was just read from Google's answer, floats over whatever step
+// the wizard advanced to, and leaves on click or after 12 seconds.
+function _idShowConfirmCard(num, meta) {
+  try {
+    meta = meta || {};
+    var esc = function (v) { return String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); };
+    var old = document.getElementById('id-confirm-card'); if (old) old.remove();
+    var bits = [];
+    if (meta.manufacturer) bits.push(meta.manufacturer);
+    bits.push('No. ' + num);
+    var what = [meta.wheels, meta.subType].filter(Boolean).join(' ');
+    if (what) bits.push(what);
+    if (meta.roadName && meta.roadName !== meta.manufacturer) bits.push(meta.roadName);
+    if (meta.year) bits.push('(' + meta.year + ')');
+    var d = document.createElement('div');
+    d.id = 'id-confirm-card';
+    d.style.cssText = 'position:fixed;top:72px;right:16px;z-index:100005;max-width:360px;background:var(--surface,#1b1e3a);border:2px solid #2ecc71;border-radius:12px;padding:0.8rem 1rem;box-shadow:0 6px 24px rgba(0,0,0,0.5);color:var(--text,#fff);font-family:var(--font-body,sans-serif);cursor:pointer';
+    d.innerHTML = '<div style="color:#2ecc71;font-weight:700;font-size:0.95rem;margin-bottom:4px">\u2713 Read Google\u2019s answer</div>'
+      + '<div style="font-size:0.92rem;line-height:1.45;font-weight:600">' + esc(bits.join(' \u2014 ')) + '</div>'
+      + '<div style="font-size:0.78rem;color:var(--text-dim,#999);margin-top:6px">Filled in below \u2014 check the match, then press Next. (Click to dismiss)</div>';
+    d.onclick = function () { try { d.remove(); } catch (e) {} };
+    document.body.appendChild(d);
+    setTimeout(function () { try { d.remove(); } catch (e) {} }, 12000);
+  } catch (e) {}
+}
+
 function _applyIdentifiedItem(num) {
   _identifySelectedNum = num;
   // Snapshot the caller context BEFORE closeIdentify nulls it out — otherwise
@@ -2127,6 +2156,7 @@ function _applyIdentifiedItem(num) {
     }
     const inp = document.getElementById('wiz-input');
     if (inp) {
+      _idShowConfirmCard(num, _meta);   // v0.9.1475: the what-just-happened receipt
       inp.value = num;
       wizard.data.itemNum = num;
       wizard.data['itemNum'] = num;
