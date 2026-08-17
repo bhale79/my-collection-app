@@ -1888,7 +1888,16 @@ function _renderAddingBanner() {
     var match = null;
     if (wizard.matchedItem && String(wizard.matchedItem.itemNum || '').trim() === num) {
       match = wizard.matchedItem;
-    } else if (typeof findMaster === 'function') {
+      // v0.9.1473 (Brad's 1023: banner said the prewar Tunnel while the list
+      // said the postwar 45° Crossing): this branch BYPASSED the v1460
+      // period correction below — a held row that violates the visible Era
+      // filter is dropped so the findMaster path re-resolves it properly.
+      try {
+        var _fpH = String(d._searchFilterPeriod || '').trim();
+        if (_fpH && match && typeof _wizPeriodOfRow === 'function' && _wizPeriodOfRow(match) !== _fpH) match = null;
+      } catch (eH0) {}
+    }
+    if (!match && typeof findMaster === 'function') {
       // v0.9.982: disambiguate colliding item numbers. When editing an existing
       // copy we know its stable identity (via _updatePdKey → the inventoryId-keyed
       // owned row); pass that owned row so findMaster resolves to the right
@@ -2191,6 +2200,13 @@ function renderWizardStep() {
   }
 
   const s = steps[step];
+  // v0.9.1473: remember the path actually WALKED — by step id, which is
+  // stable across step-list rebuilds (identify/manual flows regenerate the
+  // list mid-add). wizardBack retraces this instead of index-guessing.
+  try {
+    var _vsArr = wizard.data._visitedSteps = wizard.data._visitedSteps || [];
+    if (s && s.id && _vsArr[_vsArr.length - 1] !== s.id) _vsArr.push(s.id);
+  } catch (eVS) {}
   // v0.9.993 (Brad): keep the ITEM TYPE selector in sync on every render.
   try { _syncWizKindBar(s); } catch (eKind) {}
   try { _wizSyncIdPhotoBtn(s); } catch (eIdp) {}   // v0.9.1038
@@ -6659,6 +6675,26 @@ function wizardBack() {
   // vanishingly unlikely (the Next button is disabled), and if it happened,
   // clearing here is the same behaviour as before.
   if (wizard.data) wizard.data._wizSaveLock = false;
+  // v0.9.1473 (Brad: "back doesn't always take you back — after Lens or an
+  // Auto Read it lands on step 1"): identify flows can REBUILD the step
+  // list mid-add (manual vs cataloged shapes differ), so index-walking back
+  // through skipIf gates could cascade past every step the user actually
+  // saw. Back now retraces the RECORDED path (stable step ids) first; the
+  // skipIf walk below remains as the fallback.
+  try {
+    var _hist = (wizard.data && wizard.data._visitedSteps) || null;
+    if (_hist && _hist.length) {
+      var _curId = _curS && _curS.id;
+      while (_hist.length && _hist[_hist.length - 1] === _curId) _hist.pop();
+      while (_hist.length) {
+        var _pid = _hist[_hist.length - 1];
+        var _pidx = -1;
+        for (var _hi = 0; _hi < wizard.steps.length; _hi++) { if (wizard.steps[_hi].id === _pid) { _pidx = _hi; break; } }
+        if (_pidx >= 0 && _pidx < wizard.step) { wizard.step = _pidx; renderWizardStep(); return true; }
+        _hist.pop();   // that step no longer exists in this flow — keep looking back
+      }
+    }
+  } catch (eHB) {}
   const _setFwdSkip = wizard.data._setMode
     ? new Set(['itemCategory', 'itemNumGrouping', 'itemPicker', 'entryMode'])
     : null;

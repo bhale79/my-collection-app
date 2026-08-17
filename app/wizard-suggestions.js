@@ -932,7 +932,15 @@ function lookupItem(num) {
   //    way it knows more than a bare number scan does.
   if (!match) {
     var _cur = (typeof wizard !== 'undefined' && wizard) ? wizard.matchedItem : null;
-    if (_cur && String(_cur.itemNum || '').toLowerCase() === _numLC) match = _cur;
+    if (_cur && String(_cur.itemNum || '').toLowerCase() === _numLC) {
+      // v0.9.1473 (the 1023 Tunnel ratchet): the held row used to survive
+      // FOREVER — a pick made before the Era filter was consulted could
+      // never be displaced, so the banner disagreed with the filtered list.
+      // It survives only while it satisfies the on-screen period.
+      var _kp = '';
+      try { _kp = (wizard.data && (wizard.data._searchFilterPeriod || wizard.data._typedSearchPeriod)) || ''; } catch (eKp) {}
+      if (!_kp || typeof _wizPeriodOfRow !== 'function' || _wizPeriodOfRow(_cur) === _kp) match = _cur;
+    }
   }
   // 2. Otherwise pick by the era the wizard is in and the maker on the search
   //    bar, rather than by load order.

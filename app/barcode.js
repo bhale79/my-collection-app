@@ -2301,11 +2301,16 @@ window.eraSupportsBarcode = eraSupportsBarcode;
             + '</div>'
             + _biQuickFilters())
           : '')
-        + '<label style="display:flex;align-items:center;gap:0.45rem;margin-top:0.5rem;cursor:pointer;user-select:none;color:var(--text-mid,#bbb);font-size:0.78rem">'
-        +   '<input id="bi-autosnap" class="rr-tap-box" type="checkbox" style="width:15px;height:15px;cursor:pointer;accent-color:var(--accent,#e8401c)"'
-        +   ((localStorage.getItem('rr_bi_autosnap') || '0') === '1' ? ' checked' : '') + '>'
-        +   ' Auto-capture when a barcode locks (otherwise you press \ud83d\udcf8 Capture when ready)'
-        + '</label>'
+        // v0.9.1473 (Brad: "the auto capture line should not be in the desktop
+        // app, mobile only. its confusing"): desktop is upload-only — there is
+        // no camera, no barcode lock, nothing for this switch to control.
+        + (window.IS_MOBILE_UA
+          ? ('<label style="display:flex;align-items:center;gap:0.45rem;margin-top:0.5rem;cursor:pointer;user-select:none;color:var(--text-mid,#bbb);font-size:0.78rem">'
+            + '<input id="bi-autosnap" class="rr-tap-box" type="checkbox" style="width:15px;height:15px;cursor:pointer;accent-color:var(--accent,#e8401c)"'
+            + ((localStorage.getItem('rr_bi_autosnap') || '0') === '1' ? ' checked' : '') + '>'
+            + ' Auto-capture when a barcode locks (otherwise you press \ud83d\udcf8 Capture when ready)'
+            + '</label>')
+          : '')
         + '<input type="file" id="bi-file" accept="image/*" style="display:none">'
         + '</div>');
       var video = d.querySelector('#bi-video');
@@ -2616,7 +2621,8 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         + '<span id="bi-rotv" style="color:var(--text-mid,#ccc);font-size:0.78rem;min-width:3.2em;text-align:right">0&deg;</span>'
         + '</div>'
         + '<div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-top:0.55rem">'
-        + _biBtn({ act: 'go', txt: '🔍 Photo ID' }, 'background:var(--accent,#e8401c);border:1.5px solid var(--accent,#e8401c);color:#fff;flex:1')
+        + _biBtn({ act: 'go', txt: '🔍 Photo ID (free)' }, 'background:var(--accent,#e8401c);border:1.5px solid var(--accent,#e8401c);color:#fff;flex:1')
+        + _biBtn({ act: 'auto', txt: '🤖 Auto Read' }, 'border:1.5px solid var(--gold,#d4a843);color:var(--gold,#d4a843)')
         + _biBtn({ act: 'lens', txt: '🔍 Google Lens Search' })
         + _biBtn({ act: 'rot', txt: '↻ Rotate' })
         + _biBtn({ act: 'retake', txt: '↺ Retake' })
@@ -2627,25 +2633,21 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         // now says what actually happens — the old text read like a barcode
         // scanner, hiding that this button IS the metered photo ID service.
         + '<div style="margin-top:0.55rem;padding:0.5rem 0.65rem;border-radius:9px;background:rgba(255,255,255,0.04);border:1px solid var(--border,#333);font-size:0.74rem;line-height:1.5;color:var(--text-mid,#bbb)">'
-        + '<b style="color:var(--accent,#e8401c)">🔍 Photo ID</b> — reads a <b>printed number or barcode free</b> first; if the photo has no number to read, it identifies the item using <b>one of your daily photo ID reads</b>. Best for boxes, labels, lettered trains — anything in our catalogs.<br>'
+        + '<b style="color:var(--accent,#e8401c)">🔍 Photo ID</b> — <b>always free</b>: reads the barcode and the printed number. If they can\'t tell, nothing is spent — you choose what happens next.<br>'
+        + '<b style="color:var(--gold,#d4a843)">🤖 Auto Read</b> — the closer look. Free readers run first; <b>one of your daily photo ID reads</b> is spent only if they can\'t tell. Best for unlettered or tricky items.<br>'
         + '<b style="color:#9ecbff">🔍 Google Lens</b> — free Google search by photo, better for <b>unmarked items</b>: buildings, promos, store brands, posters &amp; paper. Also the backup when Photo ID can\'t tell.'
-        // v0.9.1015 (Brad): the spending controls — remaining count for today
-        // (when known), and a remembered switch to keep Photo ID free-only.
-        // FUTURE: the "Add more photo IDs" button lands in this row when the
-        // buy-more-tokens feature ships (claude/BUY_MORE_TOKENS_TODO.md).
+        // v0.9.1473 (Brad: "I don't want a check on or off the free reader
+        // because i may hit that before i realize it"): the spending SWITCH is
+        // gone from this screen (Preferences still has it). Spending is a
+        // BUTTON now — 🤖 Auto Read — and the count lives on its own line.
         + '<div style="display:flex;align-items:center;justify-content:space-between;gap:0.6rem;flex-wrap:wrap;margin-top:0.5rem;padding-top:0.45rem;border-top:1px solid var(--border,#333)">'
-        +   '<label style="display:flex;align-items:center;gap:0.45rem;cursor:pointer;user-select:none;color:var(--text-mid,#bbb)">'
-        +     '<input id="bi-ai-opt" class="rr-tap-box" type="checkbox" style="width:15px;height:15px;cursor:pointer;accent-color:var(--accent,#e8401c)"' + ((typeof rrAiOptedOut === 'function' && rrAiOptedOut()) ? '' : ' checked') + '>'
-        +     ' Use my daily photo ID reads when the free readers can\'t tell'
-        +   '</label>'
-        +   '<span id="bi-ai-left" style="color:var(--gold,#d4a843);white-space:nowrap">' + ((typeof rrAiRemainingLabel === 'function' && rrAiRemainingLabel()) || ((typeof rrAiOptedOut === 'function' && rrAiOptedOut()) ? '' : 'checking reads left\u2026')) + '</span>'
+        +   '<span style="color:var(--text-mid,#bbb)">🤖 Auto Read allowance:</span>'
+        +   '<span id="bi-ai-left" style="color:var(--gold,#d4a843);white-space:nowrap">' + ((typeof rrAiRemainingLabel === 'function' && rrAiRemainingLabel()) || 'checking reads left\u2026') + '</span>'
         + '</div>'
         + '</div></div>');
       // v0.9.1015: remember the spending-switch choice the moment it changes.
-      var _aiOptCb = d.querySelector('#bi-ai-opt');
-      if (_aiOptCb) _aiOptCb.addEventListener('change', function () {
-        if (typeof rrAiSetOptOut === 'function') rrAiSetOptOut(!_aiOptCb.checked);
-      });
+      // v0.9.1473: bi-ai-opt checkbox removed — see the comment on the count
+      // line above. rrAiSetOptOut still lives in Preferences.
       // v0.9.1468 (Brad: "i am trying to pull down the crop and it pulls the
       // whole screen down" → app reload): while THIS screen is open, the
       // browser's pull-to-refresh is contained. Restored on the way out —
@@ -2690,13 +2692,13 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         }
         // v0.9.678 (Brad): two routes, one crop box — whatever the crop frame
         // shows (untouched = the full photo) feeds the chosen search.
-        if (act === 'go' || act === 'lens') {
+        if (act === 'go' || act === 'lens' || act === 'auto') {
           var wc = null;
           try { wc = cropper && cropper.getCroppedCanvas({ maxWidth: 2200, maxHeight: 2200 }); } catch (e3) {}
           // v0.9.1464: if the crop couldn't be applied, SAY so instead of
           // quietly feeding the full photo forward.
           if (!wc) { try { if (typeof showToast === 'function') showToast('Couldn\u2019t apply the crop \u2014 using the whole photo.', 3000); } catch (eT2) {} }
-          fin({ work: wc || canvas, action: act === 'lens' ? 'lens' : 'go' });
+          fin({ work: wc || canvas, action: act === 'lens' ? 'lens' : act });   // v0.9.1473: 'auto' passes through
         }
         if (act === 'rot') { var _cv = parseFloat((rotEl && rotEl.value) || 0) || 0; var _nv = _cv + 90; if (_nv > 180) _nv -= 360; _setRot(_nv); return; }
         if (act === 'retake') fin({ action: 'retake' });
@@ -2932,7 +2934,15 @@ window.eraSupportsBarcode = eraSupportsBarcode;
     if (_biStop) return { __biCancel: true };
     // v0.9.1015 (Brad): the metered read is skipped when the user switched
     // photo ID reads off — the free stages above already ran.
-    if (typeof rrAiOptedOut === 'function' && rrAiOptedOut()) {
+    // v0.9.1473 (Brad): the paid read never runs as a silent tail of the
+    // free Photo ID — only the 🤖 Auto Read button (or an explicit fail-card
+    // choice) reaches it.
+    if (opts && opts.noAi && !opts.forceAi) {
+      out.why.reason = 'freeonly';
+      st('ai', '⏭', 'Close look: not run — Photo ID is the free pass. 🤖 Auto Read takes the closer look.', 'var(--text-dim)');
+      return { __biFail: true, out: out };
+    }
+    if (typeof rrAiOptedOut === 'function' && rrAiOptedOut() && !(opts && opts.forceAi)) {
       out.why.reason = 'optout';
       st('ai', '⏭', 'Close look: skipped — photo ID reads are turned off', 'var(--text-dim)');
       return { __biFail: true, out: out };
@@ -2985,12 +2995,15 @@ window.eraSupportsBarcode = eraSupportsBarcode;
       // v0.9.1015: when the user has photo ID reads switched OFF, say so —
       // and don't offer "Take another look" (it would just skip again).
       var _optedOut = !!(out && out.why && out.why.reason === 'optout');
+      var _freeOnly = !!(out && out.why && out.why.reason === 'freeonly');   // v0.9.1473
       act.innerHTML =
         '<div style="width:100%;color:var(--text-mid,#ccc);font-size:0.82rem;margin-bottom:0.3rem">'
-        + (_optedOut ? 'The free readers couldn’t tell, and photo ID reads are turned off (checkbox on the crop screen). You can:' : 'No confident ID. You can:')
+        + (_optedOut ? 'The free readers couldn’t tell, and photo ID reads are turned off (see Preferences). You can:'
+           : _freeOnly ? 'The free readers couldn’t tell — nothing was spent. You can:'
+           : 'No confident ID. You can:')
         + '</div>'
         + _biBtn({ act: 'retake', txt: '↺ Retake photo' }, 'background:var(--accent,#e8401c);border:1.5px solid var(--accent,#e8401c);color:#fff')
-        + (_optedOut ? '' : _biBtn({ act: 'ai', txt: '🔍 Take another look' }))
+        + (_optedOut ? '' : _biBtn({ act: 'ai', txt: _freeOnly ? '🤖 Auto Read — may use 1 of your daily reads' : '🔍 Take another look' }, _freeOnly ? 'border:1.5px solid var(--gold,#d4a843);color:var(--gold,#d4a843)' : undefined))
         + _biBtn({ act: 'lens', txt: '🔍 Google Lens' })
         + _biBtn({ act: 'type', txt: '⌨ Type it in' })
         + _biBtn({ act: 'cancel', txt: 'Cancel' });
@@ -3052,14 +3065,16 @@ window.eraSupportsBarcode = eraSupportsBarcode;
           else if (onCancel) onCancel();
           return;
         }
-        var res = await _biPipeline(cap.view || cap.raw, cr.work, cap.lockedBc, eraHint);
+        // v0.9.1473: Photo ID = free readers ONLY; 🤖 Auto Read = may spend.
+        var res = await _biPipeline(cap.view || cap.raw, cr.work, cap.lockedBc, eraHint,
+          { noAi: cr.action !== 'auto', forceAi: cr.action === 'auto' });
         // v0.9.897: Stop pressed = plain cancel — back to the wizard, nothing filled.
         if (res && res.__biCancel) { _biKill(); if (onCancel) onCancel(); return; }
         if (res && res.__biFail) {
           var choice = await _biFailCard(res.out);
           if (choice === 'ai') {
             // same photo, one more shot at the AI (Gemini overload passes quickly)
-            var res2 = await _biPipeline(cap.view || cap.raw, cr.work, cap.lockedBc, eraHint);
+            var res2 = await _biPipeline(cap.view || cap.raw, cr.work, cap.lockedBc, eraHint, { forceAi: true });   // v0.9.1473: explicit choice = consent to spend
             if (res2 && res2.__biCancel) { _biKill(); if (onCancel) onCancel(); return; }   // v0.9.897
             if (res2 && !res2.__biFail) { res = res2; }
             else { var c2 = await _biFailCard(res2 && res2.out || {}); if (c2 === 'retake') continue; if (c2 === 'lens') choice = 'lens'; else { _biKill(); if (onCancel) onCancel(); return; } }
@@ -3115,7 +3130,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         var _aiOffer = !cap.lockedBc && !!res.itemNum && !res.aiGuess;
         var cc = await _bcConfirmCard(_biInfoFor(res, _aiOffer));
         if (cc === 'aionly') {
-          var resA = await _biPipeline(cap.view || cap.raw, cr.work, null, eraHint, { ignoreNums: true });
+          var resA = await _biPipeline(cap.view || cap.raw, cr.work, null, eraHint, { ignoreNums: true, forceAi: true });   // v0.9.1473: explicit choice = consent to spend
           if (resA && resA.__biCancel) { _biKill(); if (onCancel) onCancel(); return; }   // v0.9.897
           if (resA && !resA.__biFail) {
             if (resA._boxPhoto) { try { resA._boxPhotoFile = await _biCanvasToFile(cr.work, 'box-label.jpg'); } catch (eF3) {} }

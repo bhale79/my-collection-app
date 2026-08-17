@@ -528,7 +528,7 @@ function _identifyLensReturnMode() {
       var _rt = document.createElement('div');
       _rt.id = 'id-return-tip';
       _rt.style.cssText = 'margin-bottom:0.6rem;padding:0.55rem 0.75rem;border-radius:9px;background:rgba(46,204,113,0.10);border:1px solid #2ecc71;color:#c9f5dc;font-size:0.82rem;line-height:1.45';
-      _rt.innerHTML = '<b>Option 1 — copy &amp; paste:</b> 1) When you hit Google Lens, another screen pops up shortly. 2) Press <b>Ctrl+A</b>, then <b>Ctrl+C</b>. 3) Come back here and press <b>Ctrl+V</b> in the box — or just switch back; it pastes itself.<br style="margin-bottom:4px"><b>Option 2 — screenshot:</b> 1) Hit Google Lens. 2) Use your screenshot tool (like Snipping Tool) on Google\u2019s response. 3) Come back and hit <b>Read a Screenshot of the Results</b>, then pick that screenshot.';
+      _rt.innerHTML = 'Google opened with your photo and filters already attached. <b>Tap AI Mode there for the best answer.</b><br style="margin-bottom:4px"><b>Option 1 — copy &amp; paste:</b> press <b>Ctrl+A</b>, then <b>Ctrl+C</b> on Google\u2019s page, come back and press <b>Ctrl+V</b> — or just switch back; it pastes itself.<br style="margin-bottom:4px"><b>Option 2 — screenshot:</b> snip Google\u2019s answer (Snipping Tool), come back, hit <b>Read a Screenshot of the Results</b>, pick the file.';
       _panelTip.insertBefore(_rt, _panelTip.children[1] || null);
     }
   }
@@ -578,8 +578,8 @@ window._identifyOpenWithPhoto = function (file, autoLens) {
       cov.id = 'id-lens-cover';
       cov.style.cssText = 'position:fixed;inset:0;z-index:100002;background:var(--bg,#0b0d1d);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0.9rem;color:var(--text,#fff);font-family:var(--font-head,sans-serif);font-size:1rem;padding:1rem';
       var _covTip = window.IS_MOBILE_UA
-        ? '1) Google pops up shortly — give it a few seconds.<br>2) 📸 <b>Screenshot the answer</b> it shows at the top.<br>3) Come back — the app reads your screenshot.'
-        : '<b>Option 1:</b> 1) Google pops up shortly. 2) Press <b>Ctrl+A</b>, then <b>Ctrl+C</b>. 3) Come back — press <b>Ctrl+V</b> (or it pastes itself).<br><b>Option 2:</b> screenshot Google\u2019s answer (Snipping Tool), come back, hit <b>Read a Screenshot of the Results</b>.';
+        ? '1) Google opens with your photo <b>and your filters</b> already in the search box (takes a few seconds).<br>2) Tap <b>AI Mode</b> at the top for the best answer.<br>3) 📸 <b>Screenshot it.</b> 4) Come back — the app reads your screenshot.'
+        : '1) Google opens with your photo <b>and your filters</b> already in the search box (takes a few seconds).<br>2) Tap <b>AI Mode</b> at the top for the best answer.<br>3) Press <b>Ctrl+A</b>, then <b>Ctrl+C</b> to copy it.<br>4) Come back — press <b>Ctrl+V</b> (or it pastes itself). Prefer pictures? Screenshot instead and hit <b>Read a Screenshot of the Results</b>.';
       cov.innerHTML =
         '<div style="font-size:3.4rem">🔍</div>'
         + '<div style="font-size:1.7rem;font-weight:700;text-align:center;line-height:1.25">Next: Google Lens</div>'
@@ -845,10 +845,8 @@ async function _identifyOpenLens() {
     _hSeen[k] = 1;
     return true;
   }).join(' ');
-  var _hintCopied = false;
-  if (_hint && navigator.clipboard && navigator.clipboard.writeText) {
-    try { navigator.clipboard.writeText(_hint); _hintCopied = true; } catch (eCl) {}
-  }
+  // v0.9.1473: clipboard hint retired — the hint now rides the Lens URL
+  // itself (see the url line below). Nothing to paste.
   var _lwOld = document.getElementById('id-lens-wait'); if (_lwOld) _lwOld.remove();
   var _lw = document.createElement('div');
   _lw.id = 'id-lens-wait';
@@ -856,7 +854,7 @@ async function _identifyOpenLens() {
   _lw.innerHTML = '<div style="font-size:3rem">\ud83d\udce4</div>'
     + '<div style="font-size:1.25rem;font-weight:700">Sending your photo to Google Lens\u2026</div>'
     + '<div style="font-size:0.95rem;color:#ffd27d;max-width:460px;line-height:1.5">This takes several seconds \u2014 the Google window opens on its own. Nothing is frozen.</div>'
-    + (_hintCopied ? '<div style="font-size:0.85rem;color:#9ecbff;max-width:460px;line-height:1.5">Tip: your filters (\u201c' + _hint + '\u201d) are on the clipboard \u2014 in Google, tap <b>Add to your search</b> and paste them to narrow the results.</div>' : '');
+    + (_hint ? '<div style="font-size:0.85rem;color:#9ecbff;max-width:460px;line-height:1.5">Your filters (\u201c' + _hint + '\u201d) are attached to the search automatically. Tip: on Google, tap <b>AI Mode</b> for the richest answer.</div>' : '');
   document.body.appendChild(_lw);
   var _lwVis = function () { if (document.hidden) _lwKill(); };
   var _lwKill = function () { var e2 = document.getElementById('id-lens-wait'); if (e2) e2.remove(); document.removeEventListener('visibilitychange', _lwVis); };
@@ -912,7 +910,13 @@ async function _identifyOpenLens() {
       : ('Identify this ' + subject + mfrPhrase + '. Provide Manufacturer; Manufacturer SKU or catalog number; Year; Scale; Description on labeled lines.');
     // v0.9.959 (Brad): Google retired /searchbyimage (404) — reverse-image
     // search now lives at Google Lens uploadbyurl. Lens takes no text hint.
-    const url = 'https://lens.google.com/uploadbyurl?url=' + encodeURIComponent(staged.url);
+    // v0.9.1473 (researched + measured with Brad, cat tests 2026-08-16):
+    // uploadbyurl PASSES q + lns_mode straight through to the result page —
+    // the maker/era hint rides the URL itself. Google lands the search in
+    // its multimodal view (it rewrites udm to 24) with the text already in
+    // the box next to the photo. No clipboard, no "Add to your search".
+    const url = 'https://lens.google.com/uploadbyurl?url=' + encodeURIComponent(staged.url)
+      + (_hint ? '&q=' + encodeURIComponent(_hint) + '&lns_mode=mu' : '');
     window.open(url, '_blank');
     if (searchBtn) { searchBtn.disabled = false; searchBtn.innerHTML = origText; }
     // Save mfr hints on wizard.data so paste-back can bias master lookup later.
