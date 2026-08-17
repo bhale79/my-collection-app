@@ -527,7 +527,7 @@ function _identifyLensReturnMode() {
       var _rt = document.createElement('div');
       _rt.id = 'id-return-tip';
       _rt.style.cssText = 'margin-bottom:0.6rem;padding:0.55rem 0.75rem;border-radius:9px;background:rgba(46,204,113,0.10);border:1px solid #2ecc71;color:#c9f5dc;font-size:0.82rem;line-height:1.45';
-      _rt.innerHTML = '<b>Copied the answer?</b> It pastes itself the moment you switch back to this tab. Nothing happened? Go to the Google tab, select the answer text, press <b>Ctrl+C</b>, and come back — or use the buttons below.';
+      _rt.innerHTML = '<b>Option 1 — copy &amp; paste:</b> 1) When you hit Google Lens, another screen pops up shortly. 2) Press <b>Ctrl+A</b>, then <b>Ctrl+C</b>. 3) Come back here and press <b>Ctrl+V</b> in the box — or just switch back; it pastes itself.<br style="margin-bottom:4px"><b>Option 2 — screenshot:</b> 1) Hit Google Lens. 2) Use your screenshot tool (like Snipping Tool) on Google\u2019s response. 3) Come back and hit <b>Read a Screenshot of the Results</b>, then pick that screenshot.';
       _panelTip.insertBefore(_rt, _panelTip.children[1] || null);
     }
   }
@@ -577,8 +577,8 @@ window._identifyOpenWithPhoto = function (file, autoLens) {
       cov.id = 'id-lens-cover';
       cov.style.cssText = 'position:fixed;inset:0;z-index:100002;background:var(--bg,#0b0d1d);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0.9rem;color:var(--text,#fff);font-family:var(--font-head,sans-serif);font-size:1rem;padding:1rem';
       var _covTip = window.IS_MOBILE_UA
-        ? '📸 <b>Screenshot the answer</b> Google shows at the top,<br>then come back to this app.'
-        : '✂ <b>Select the answer text</b> Google shows at the top,<br>press <b>Ctrl+C</b> to copy it, then come back to this tab —<br><b>it pastes itself</b>.';
+        ? '1) Google pops up shortly — give it a few seconds.<br>2) 📸 <b>Screenshot the answer</b> it shows at the top.<br>3) Come back — the app reads your screenshot.'
+        : '<b>Option 1:</b> 1) Google pops up shortly. 2) Press <b>Ctrl+A</b>, then <b>Ctrl+C</b>. 3) Come back — press <b>Ctrl+V</b> (or it pastes itself).<br><b>Option 2:</b> screenshot Google\u2019s answer (Snipping Tool), come back, hit <b>Read a Screenshot of the Results</b>.';
       cov.innerHTML =
         '<div style="font-size:3.4rem">🔍</div>'
         + '<div style="font-size:1.7rem;font-weight:700;text-align:center;line-height:1.25">Next: Google Lens</div>'
@@ -808,6 +808,40 @@ async function _identifyOpenLens() {
   const searchBtn = document.getElementById('id-lens-btn') || document.getElementById('id-search-btn');
   const origText = searchBtn ? searchBtn.innerHTML : '';
   if (searchBtn) { searchBtn.disabled = true; searchBtn.innerHTML = '\u23F3 Staging photo\u2026'; }
+  // ── v0.9.1469 (Brad: "it takes several seconds for google to pop up,
+  // meanwhile you are looking at your app thinking it froze up"): say what
+  // is happening the INSTANT the button is hit, full-screen, and keep
+  // saying it until Google's window takes over (this tab loses focus).
+  // ── v0.9.1469 (Brad: "do we not feed google lens the maker and era?"):
+  // we can't — Google's Lens upload accepts ONLY the image (the image+text
+  // entry point was retired; researched 2026-08-16, see SerpApi/Lens notes
+  // in the session summary). Closest lane left: the hint goes on the
+  // clipboard, one Ctrl+V into Google's "Add to your search" applies it.
+  var _hMfrCbs = document.querySelectorAll('#id-mfr-chips input[type="checkbox"]:checked');
+  var _hMfrs = Array.from(_hMfrCbs).map(function (cb) { return cb.dataset.mfrCb; }).filter(function (m) { return m && m !== 'Not sure'; });
+  var _hAf = (typeof rrActiveFilter === 'function') ? rrActiveFilter() : null;
+  if (!_hMfrs.length && _hAf && _hAf.manufacturer) _hMfrs = [_hAf.manufacturer];
+  var _hScale = (document.getElementById('id-scale') || {}).value || (_hAf && _hAf.scale) || '';
+  var _hType = (document.getElementById('id-type') || {}).value || '';
+  var _hint = [_hMfrs.join(' '), (_hAf && _hAf.label) || '', _hScale ? (_hScale + ' gauge') : '', _hType || 'model train']
+    .filter(Boolean).join(' ').replace(/\s+/g, ' ').trim();
+  var _hintCopied = false;
+  if (_hint && navigator.clipboard && navigator.clipboard.writeText) {
+    try { navigator.clipboard.writeText(_hint); _hintCopied = true; } catch (eCl) {}
+  }
+  var _lwOld = document.getElementById('id-lens-wait'); if (_lwOld) _lwOld.remove();
+  var _lw = document.createElement('div');
+  _lw.id = 'id-lens-wait';
+  _lw.style.cssText = 'position:fixed;inset:0;z-index:100003;background:rgba(5,8,20,0.93);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0.8rem;color:var(--text,#fff);font-family:var(--font-head,sans-serif);padding:1rem;text-align:center';
+  _lw.innerHTML = '<div style="font-size:3rem">\ud83d\udce4</div>'
+    + '<div style="font-size:1.25rem;font-weight:700">Sending your photo to Google Lens\u2026</div>'
+    + '<div style="font-size:0.95rem;color:#ffd27d;max-width:460px;line-height:1.5">This takes several seconds \u2014 the Google window opens on its own. Nothing is frozen.</div>'
+    + (_hintCopied ? '<div style="font-size:0.85rem;color:#9ecbff;max-width:460px;line-height:1.5">Tip: your filters (\u201c' + _hint + '\u201d) are on the clipboard \u2014 in Google, tap <b>Add to your search</b> and paste them to narrow the results.</div>' : '');
+  document.body.appendChild(_lw);
+  var _lwVis = function () { if (document.hidden) _lwKill(); };
+  var _lwKill = function () { var e2 = document.getElementById('id-lens-wait'); if (e2) e2.remove(); document.removeEventListener('visibilitychange', _lwVis); };
+  document.addEventListener('visibilitychange', _lwVis);
+  setTimeout(_lwKill, 15000);
   try {
     if (typeof driveStageLensPhoto !== 'function') {
       throw new Error('Drive integration not loaded — please refresh and try again');
@@ -869,6 +903,7 @@ async function _identifyOpenLens() {
     }
     _identifyLensOpened = true;   // v0.9.642: arms the return-from-Lens clipboard check
   } catch(e) {
+    try { _lwKill(); } catch (e5) {}   // v0.9.1469: never leave the wait screen up on failure
     console.error('[Lens] Search failed:', e);
     if (typeof showToast === 'function') showToast((typeof rrSaveError === 'function') ? rrSaveError(e, 'your change') : 'Lens search failed: ' + e.message, 4000, true);
     if (searchBtn) { searchBtn.disabled = false; searchBtn.innerHTML = origText; }
@@ -989,8 +1024,8 @@ function extractLionelNumber(text) {
 
   // Step 1 — input is ALREADY a clean item number on its own line. Return as-is.
   const directPatterns = [
-    /^\d{2}-\d{4}-\d{1,3}$/,           // MTH 3-part
-    /^\d{2}-\d{4}$/,                     // MTH 2-part
+    /^\d{2}-\d{4,5}-\d{1,3}$/,         // MTH 3-part — v0.9.1469: RailKing 30-11012 has FIVE digits
+    /^\d{2}-\d{4,5}$/,                   // MTH 2-part — v0.9.1469: ditto
     /^[67]-\d{4,5}$/,                     // Lionel Modern / K-Line
     /^27[59]-\d{3,4}$/,                   // Menards Gold Line (275/279-####) — v0.9.682
     /^\d{7}(?:-\d{2,3})?$/,             // Lionel Modern 7-digit set/SKU (e.g. 2431470, 2431470-200)
@@ -1023,17 +1058,72 @@ function extractLionelNumber(text) {
     /\b(\d{4,5})\b/,                                      // Bare 4-5 digit (Atlas/etc)
     /\b(\d{2}[A-Z]{1,2})\b/,                              // Short like 44W
   ];
-  for (const pat of embedded) {
-    const m = raw.match(pat);
-    if (!m) continue;
-    const cand = m[1].toUpperCase();
-    // Reject obvious ordinals (20TH, 21ST, 22ND, 23RD, 4TH, 100TH, etc).
-    // These show up in marketing text like "20th Anniversary" and would
-    // otherwise get treated as an item number.
-    if (/^\d+(?:TH|ST|ND|RD)$/.test(cand)) continue;
-    return cand;
-  }
-  return null;
+  // ── v0.9.1469 (Brad's 238→234W): first-match-wins picked the TENDER.
+  // Google's answer said "…issued with the No. 234W square whistling
+  // tender" — and the first pattern to hit anywhere in the text won, so a
+  // companion's number beat the locomotive's own 238 that appeared four
+  // times. Now: collect EVERY candidate from every pattern (the `embedded`
+  // list above stays as documentation of the formats), score by context,
+  // best one wins.
+  //   companion context ("tender", "issued with", "includes"…)  −25
+  //   inside a URL/link                                          −15
+  //   bare unlabeled year (1963)                                 rejected
+  //   subject words nearby ("locomotive", "engine", "set")       +8
+  //   its own No./Item/SKU label                                 +10
+  //   repetition — the real subject gets named again and again   +5 each
+  var _tiers = [
+    [/\b(\d{2}-\d{4,5}-\d{1,3})\b/g, 100],
+    [/\b(27[59]-\d{3,4})\b/g, 95],
+    [/\b([67]-\d{4,5})\b/g, 90],
+    [/\b(\d{2}-\d{4,5})\b/g, 85],
+    [/\b(\d{7}-\d{2,3})\b/g, 80],
+    [/\b(\d{7})\b/g, 75],
+    [/\b(\d{3,5}-\d{1,3})\b/g, 70],
+    [/(?:no\.?|item|#|number|sku|lionel|atlas|mth|weaver|williams|rmt)\s*[:\-]?\s*(\d{2,5}[A-Z]{0,2})\b/gi, 65],
+    [/\b(\d{3,5}[A-Z]{1,2})\b/g, 60],
+    [/\b(\d{4,5})\b/g, 40],
+    [/\b(\d{2}[A-Z]{1,2})\b/g, 30],
+  ];
+  var _compRe = /\btender\b|issued with|came with|comes? with|includes?\b|paired with|matching parts|missing any|coupled|pulls? the/i;
+  var _subjRe = /\blocomotive\b|\bengine\b|\bloco\b|\bdiesel\b|\bset\b/i;
+  var _lblRe = /(?:no\.?|item|#|number|sku)\s*[:\-]?\s*$/i;
+  var _seen = {};
+  _tiers.forEach(function (tier) {
+    var re = tier[0], base = tier[1], m2;
+    while ((m2 = re.exec(raw)) !== null) {
+      var cand = String(m2[1]).toUpperCase();
+      if (/^\d+(?:TH|ST|ND|RD)$/.test(cand)) continue;   // ordinals (20th Anniversary)
+      var at = m2.index + m2[0].lastIndexOf(m2[1]);
+      var before = raw.slice(Math.max(0, at - 60), at);
+      var after = raw.slice(at + cand.length, at + cand.length + 40);
+      var labeled = _lblRe.test(before.slice(-14));
+      // v0.9.1469: fragment guard — "30" out of "30-11012" or "11012" out of
+      // the same is HALF a number; skip when a dash+digit sits either side.
+      var _cb = at > 0 ? raw[at - 1] : '', _cb2 = at > 1 ? raw[at - 2] : '';
+      var _ca = raw[at + cand.length] || '', _ca2 = raw[at + cand.length + 1] || '';
+      if (_cb === '-' && /\d/.test(_cb2)) continue;
+      if (_ca === '-' && /\d/.test(_ca2)) continue;
+      if (/^(19|20)\d{2}$/.test(cand) && !labeled) continue;   // bare year
+      var sc = base;
+      if (_compRe.test(before) || _compRe.test(after.slice(0, 26)) || /^\s*(square|whistling|tender)/i.test(after)) sc -= 25;
+      if (/https?:|www\.|\.com|\//.test(before.slice(-24))) sc -= 15;
+      if (_subjRe.test(before) || _subjRe.test(after)) sc += 8;
+      if (labeled) sc += 10;
+      if (_seen[cand] == null || sc > _seen[cand]) _seen[cand] = sc;
+    }
+  });
+  var _cands = Object.keys(_seen);
+  if (!_cands.length) return null;
+  var _rawUC = raw.toUpperCase();
+  _cands.forEach(function (c) {
+    var baseNum = c.replace(/[A-Z]+$/, '');
+    var n2 = 0;
+    try { n2 = (_rawUC.match(new RegExp('\\b' + baseNum.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '[A-Z]{0,2}\\b', 'g')) || []).length; } catch (e) {}
+    if (n2 > 1) _seen[c] += Math.min(15, (n2 - 1) * 5);
+  });
+  var _best = null, _bestScore = -Infinity;
+  _cands.forEach(function (c) { if (_seen[c] > _bestScore) { _bestScore = _seen[c]; _best = c; } });
+  return _best;
 }
 
 // ══════════════════════════════════════════════════════════════════
@@ -1992,6 +2082,13 @@ function _applyIdentifiedItem(num) {
       // swap in the other maker's identical number.
       var _amPrefer = _meta.manufacturer ? { manufacturer: _meta.manufacturer } : null;
       var _existingMaster = findMaster(num, null, _amPrefer);
+      // v0.9.1469 (234W→NYC-Flyer): "exact" means the catalog row carries the
+      // SAME number that was extracted (base-insensitively) — a fuzzy or
+      // partial relative does not count.
+      if (_existingMaster) {
+        var _bs = function (v) { return String(v || '').toUpperCase().replace(/^6-/, '').replace(/[A-Z]{1,2}$/, ''); };
+        window._idExactHit = (_bs(_existingMaster.itemNum) === _bs(num));
+      } else { window._idExactHit = false; }
       if (_existingMaster) {
         if (typeof wizard !== 'undefined' && wizard) {
           wizard.matchedItem = _existingMaster;
@@ -2012,12 +2109,18 @@ function _applyIdentifiedItem(num) {
       // Trigger input event so the field registers the value
       inp.dispatchEvent(new Event('input', { bubbles: true }));
       updateItemSuggestions(num);
-      // Advance after delay — ensure next button is enabled and modal is fully closed
-      setTimeout(function() {
-        var btn = document.getElementById('wizard-next-btn');
-        if (btn) btn.disabled = false;
-        if (typeof wizardNext === 'function') wizardNext();
-      }, 500);
+      // v0.9.1469: auto-advance ONLY on an exact catalog hit. Anything less
+      // stays on this step with the number filled and suggestions open, so a
+      // lookalike (the 234W→6-11735 landing) is never adopted unseen.
+      if (window._idExactHit) {
+        setTimeout(function() {
+          var btn = document.getElementById('wizard-next-btn');
+          if (btn) btn.disabled = false;
+          if (typeof wizardNext === 'function') wizardNext();
+        }, 500);
+      } else if (typeof showToast === 'function') {
+        showToast('No exact catalog match for ' + num + ' — check the suggestions, then press Next.', 4500);
+      }
     }
   } else {
     const search = document.getElementById('browse-search');
