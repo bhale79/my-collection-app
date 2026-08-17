@@ -924,6 +924,24 @@ window._wizResearchPrice = function () {
     // eBay Sold Listings button) — the v0.9.1337 era-aware logic lives there.
     var _id = window._wizResearchIdentity();
     var num = _id.num, mfr = _id.mfr, road = _id.road, desc = _id.desc;
+    // v0.9.1485 (Brad: "if the road name is in the description of the item
+    // (from our master list) then we should include that too"): when the
+    // row's roadName column is empty but its description NAMES a known
+    // road, mine it — longest match wins, names under 4 chars skipped (the
+    // v1195 'UP' lesson). GOOGLE-ONLY: eBay stays untouched (v740 — extra
+    // words EXCLUDE matches there).
+    try {
+      if (!road && desc && typeof getMasterDistinct === 'function') {
+        var _dlx = String(desc).toLowerCase();
+        var _roadsAll = getMasterDistinct('roadName') || [];
+        var _bestRoad = '';
+        for (var _ri = 0; _ri < _roadsAll.length; _ri++) {
+          var _rn = String(_roadsAll[_ri] || '').trim();
+          if (_rn.length >= 4 && _dlx.indexOf(_rn.toLowerCase()) >= 0 && _rn.length > _bestRoad.length) _bestRoad = _rn;
+        }
+        if (_bestRoad) road = _bestRoad;
+      }
+    } catch (eRX) {}
     // v0.9.1477: the price search carries the era — the visible period
     // filter first, else the matched row's own period — plus the row's
     // printed production years. Without these, Google priced the prewar
