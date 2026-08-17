@@ -3561,6 +3561,7 @@
     if ((dbg.inEra || []).length) out.push('In that catalog: ' + dbg.inEra.slice(0, 3).join(', '));
     if ((dbg.offEra || []).length) out.push('In another maker\u2019s catalog: ' + dbg.offEra.slice(0, 3).join(', '));
     if (dbg.quoted) out.push('The catalog itself quotes that number: ' + dbg.quoted);
+    if (dbg.quoteGated) out.push('Long shot set aside: ' + dbg.quoteGated);   // v0.9.1486: guesses demoted, never hidden
     if (dbg.repaired) out.push('One digit looked misread — corrected to ' + dbg.repaired);
     if (dbg.family) out.push('Family: ' + dbg.family);
     if (dbg.noLetters) out.push('No lettering was legible, so ' + dbg.noLetters + ' was not trusted');
@@ -3715,7 +3716,11 @@
     // Lionel Modern is how a wrong maker gets saved without anyone noticing.
     var _mismatch = '';
     try {
-      var _af = (typeof rrActiveFilter === 'function') ? rrActiveFilter() : null;
+      // v0.9.1486 (Brad: "how did i filter to mth?" — he hadn't; the global
+      // era selector was parked on MTH from earlier browsing): a TAGGED
+      // photo is judged against its own tag; the global filter only speaks
+      // for untagged photos.
+      var _af = (typeof rrActiveFilter === 'function') ? rrActiveFilter((s && s.dbg && s.dbg.era) || '') : null;
       if (_af && _af.manufacturer && s.mfr) {
         var _n = function (v) { return String(v || '').toLowerCase().replace(/[^a-z0-9]/g, ''); };
         var _said = _n(s.mfr), _want = _n(_af.manufacturer);
@@ -3751,6 +3756,20 @@
         + (s.disagreed
             ? ' \u00b7 the number read (' + rrEsc(s.disagreed) + ') names a different item \u2014 check which one matches yours'
             : ' \u00b7 no number was legible, so check this one against your item') + '</div>'
+        + _pinWhyHtml(s.raw, s.dbg, s)
+        + '</div>';
+    }
+    // ── v0.9.1486 (Brad: 'can we get to where this says, "no lettering
+    // picked up. Try Read this photo or Google Search."'): a guess whose
+    // number is a short unconfirmed token no longer wears the Best-guess
+    // crown. The headline says what is TRUE; the token stays visible in the
+    // why-lines below, so no possible guess is lost.
+    var _weakTok = s.guess && s.num && String(s.num).replace(/\D/g, '').length <= 3;
+    if (_weakTok) {
+      return '<div style="margin-bottom:0.6rem;padding:0.6rem 0.75rem;border-left:3px solid var(--text-dim);background:var(--surface2);border-radius:0 8px 8px 0">'
+        + '<div style="font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.03em;color:var(--text-dim);margin-bottom:0.25rem">No lettering picked up</div>'
+        + '<div style="font-size:0.92rem;color:var(--text);line-height:1.4">Nothing readable enough to name this item — try <b>Read this photo (1 photo ID)</b> or <b>Google Search</b>.</div>'
+        + _mismatch
         + _pinWhyHtml(s.raw, s.dbg, s)
         + '</div>';
     }
@@ -4443,6 +4462,7 @@
           var ocr = await T.recognize(f, 'eng', {});
           var _otxt = (ocr && ocr.data && ocr.data.text) || '';
           if (_otxt.trim()) {
+            if (typeof window.rrSliceAiOverview === 'function') _otxt = window.rrSliceAiOverview(_otxt);   // v0.9.1486
             var m0 = extractIdentifyMetadata(_otxt);
             if (m0 && m0.itemNum) { meta = m0; _freeRead = true; }   // free read good enough only with a number
           }
@@ -4485,6 +4505,7 @@
     if (!gs || !gs.length) return false;
     txt = String(txt || '').trim();
     if (!txt) return false;
+    if (typeof window.rrSliceAiOverview === 'function') txt = window.rrSliceAiOverview(txt);   // v0.9.1486: answer only, never result titles
     var meta = (typeof extractIdentifyMetadata === 'function') ? extractIdentifyMetadata(txt) : {};
     if (!_pinApplyMeta(meta, gs, txt)) return false;
     showToast(meta._hedge
@@ -4678,6 +4699,7 @@
       txt = (txt || '').trim();
       if (!txt || txt === _pinLensClip) return;   // nothing new copied yet — keep watching
       _pinLensClip = txt;
+      if (typeof window.rrSliceAiOverview === 'function') txt = window.rrSliceAiOverview(txt);   // v0.9.1486
       var meta = (typeof extractIdentifyMetadata === 'function') ? extractIdentifyMetadata(txt) : {};
       var got = meta.itemNum || meta.description || meta.manufacturer || meta.roadName;
       if (!got) return;                            // unrelated clipboard — keep watching
@@ -6312,7 +6334,7 @@
       }
       if (_offLead) {
         if (typeof _pinQuoteMatch === 'function') {
-          var _qm3 = _pinQuoteMatch(_offLead, prefer);
+          var _qm3 = _pinQuoteMatch(_offLead, prefer, dbg);
           if (_qm3 && _qm3.row && _qm3.row.itemNum) {
             dbg.quoted = _offLead + ' \u2192 ' + _qm3.row.itemNum;
             return { num: String(_qm3.row.itemNum), matched: true, viaQuote: _offLead, dbg: dbg };
@@ -6494,7 +6516,7 @@
     if (loose.length && typeof _pinQuoteMatch === 'function') {
       loose.sort(dashRank);
       for (var qi = 0; qi < loose.length; qi++) {
-        var qm = _pinQuoteMatch(loose[qi], prefer);
+        var qm = _pinQuoteMatch(loose[qi], prefer, dbg);
         if (qm && qm.row && qm.row.itemNum) {
           dbg.quoted = qm.quoted + ' \u2192 ' + qm.row.itemNum;
           return { num: String(qm.row.itemNum), matched: true, viaQuote: qm.quoted, dbg: dbg };
@@ -6740,16 +6762,35 @@
     return prefer.era ? [prefer.era] : [];
   }
 
-  function _pinQuoteMatch(num, prefer) {
+  function _pinQuoteMatch(num, prefer, dbg) {
     var eras = _prefEras(prefer);
     if (!num || !eras.length) return null;
+    // ── v0.9.1486 (Brad's EP-do-these-trains-exis-010: a noise-grade "113"
+    // rode the quote chain into a PAPER row and wore the Best-guess crown).
+    // Gate 1: a token under four digits may not ride the chain at all — the
+    // legit v1089 case (6817 read off the car) is four digits.
+    if (String(num).replace(/\D/g, '').length < 4) {
+      if (dbg) dbg.quoteGated = String(num) + ' (too short to trust a catalog-quote match)';
+      return null;
+    }
     // Try each era the filter covers; the FIRST unambiguous hit wins, and an
     // ambiguous one still means the user picks.
     for (var i = 0; i < eras.length; i++) {
       var idx = _quoteIndexFor(eras[i]);
       if (!idx) continue;
       var rows = idx[String(num).trim()];
-      if (rows && rows.length === 1) return { row: rows[0], quoted: String(num).trim() };
+      if (rows && rows.length === 1) {
+        // Gate 2: a paper/catalog/drawing row can never be the answer for an
+        // ITEM photo (Paper-tagged photos never reach these reads at all).
+        var _qr = rows[0];
+        var _qt = String(_qr.itemType || '').toLowerCase();
+        var _qn = String(_qr.itemNum || '');
+        if (/paper|catalog|instruction|drawing|ephemera/.test(_qt) || /^(EP|DWG|IS|CAT)-/i.test(_qn)) {
+          if (dbg) dbg.quoteGated = String(num) + ' \u2192 ' + _qn + ' (a paper item cannot be a car photo\u2019s answer)';
+          return null;
+        }
+        return { row: _qr, quoted: String(num).trim() };
+      }
     }
     return null;
   }

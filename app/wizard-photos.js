@@ -345,28 +345,35 @@ function _identifyShowPasteEcho(txt) {
   body.textContent = txt.length > 1200 ? (txt.slice(0, 1200) + ' \u2026') : txt;
   box.style.display = '';
 }
+// ── v0.9.1486: ONE shared "read only the AI Overview" slicer ────────────
+// v1478 taught the WIZARD's paste path to ignore the result-link titles
+// below Google's answer; the Photo Inbox's paste/clipboard paths never got
+// it — which is how a perfect "6120" answer became "6-1862 — Santa Fe —
+// sold by ToyTrainMall", assembled from eBay/Etsy titles in the same dump.
+// Every Google-page text now passes through THIS before extraction.
+function rrSliceAiOverview(txt) {
+  try {
+    var s = String(txt || '');
+    var m = s.match(/\bAI Overview\b/i);
+    if (!m) return s;
+    var seg = s.slice(m.index + 11);
+    var ends = [/Visual Exploration/i, /\bShow all\b/i, /Results are not personalized/i,
+                /AI responses may include mistakes/i, /Check website for latest/i,
+                /\bUpdate location\b/i, /\bSend feedback\b/i, /\bVisual matches\b/i, /\bRelated search\b/i];
+    var cut = seg.length;
+    ends.forEach(function (re) { var m2 = seg.match(re); if (m2 && m2.index < cut) cut = m2.index; });
+    var core = seg.slice(0, cut).trim();
+    return core.length > 40 ? core : s;   // adopt only a real answer body
+  } catch (e) { return txt; }
+}
+if (typeof window !== 'undefined') window.rrSliceAiOverview = rrSliceAiOverview;
+
 function _identifyProcessText(txt) {
   txt = _identifySanitize(txt).trim();
   if (!txt) return 'none';
   _identifyShowPasteEcho(txt);
-  // ── v0.9.1478 (Brad's 6-18650: a Ctrl+A page dump carries EVERY result
-  // title on the page, and an eBay listing's modern 6-XXXXX outranked the
-  // answer's own 238): when the paste contains Google's AI Overview, the
-  // extractor reads ONLY that block — the prose ANSWER — never the
-  // result-link titles beneath it.
-  try {
-    var _aim = txt.match(/\bAI Overview\b/i);
-    if (_aim) {
-      var _seg = txt.slice(_aim.index + 11);
-      var _ends = [/Visual Exploration/i, /\bShow all\b/i, /Results are not personalized/i,
-                   /AI responses may include mistakes/i, /Check website for latest/i,
-                   /\bUpdate location\b/i, /\bSend feedback\b/i];
-      var _cut = _seg.length;
-      _ends.forEach(function (re) { var _m2 = _seg.match(re); if (_m2 && _m2.index < _cut) _cut = _m2.index; });
-      var _core = _seg.slice(0, _cut).trim();
-      if (_core.length > 40) txt = _core;   // adopt only a real answer body
-    }
-  } catch (eAIO) {}
+  // v0.9.1486: the v1478 AI-Overview slice is the SHARED helper now.
+  txt = rrSliceAiOverview(txt);
   // Run the smart metadata extractor as the single source of truth.
   // It handles hedge detection so we don't grab a cab# disguised as item#.
   var meta = extractIdentifyMetadata(txt);
@@ -1947,7 +1954,7 @@ function _identifyHasMfrMismatch(itemNum, userMfrs, prefer) {
 // doesn't match the user's hint. Show what we found, let user accept the
 // master match anyway or cancel and edit.
 function _identifyConfirmMfrMismatch(itemNum, fullText, meta) {
-  var match = (typeof findMaster === 'function') ? findMaster(itemNum, '', (typeof _wizMasterPrefer === 'function') ? _wizMasterPrefer() : null) : null;   // v0.9.1483: hints
+  var match = (typeof findMaster === 'function') ? findMaster(itemNum) : null;
   var tabLabel = match && match._tab ? match._tab : '(unknown tab)';
   var userMfrs = _getSelectedIdentifyMfrs();
   var overlay = document.createElement('div');
