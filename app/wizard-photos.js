@@ -349,6 +349,24 @@ function _identifyProcessText(txt) {
   txt = _identifySanitize(txt).trim();
   if (!txt) return 'none';
   _identifyShowPasteEcho(txt);
+  // ── v0.9.1478 (Brad's 6-18650: a Ctrl+A page dump carries EVERY result
+  // title on the page, and an eBay listing's modern 6-XXXXX outranked the
+  // answer's own 238): when the paste contains Google's AI Overview, the
+  // extractor reads ONLY that block — the prose ANSWER — never the
+  // result-link titles beneath it.
+  try {
+    var _aim = txt.match(/\bAI Overview\b/i);
+    if (_aim) {
+      var _seg = txt.slice(_aim.index + 11);
+      var _ends = [/Visual Exploration/i, /\bShow all\b/i, /Results are not personalized/i,
+                   /AI responses may include mistakes/i, /Check website for latest/i,
+                   /\bUpdate location\b/i, /\bSend feedback\b/i];
+      var _cut = _seg.length;
+      _ends.forEach(function (re) { var _m2 = _seg.match(re); if (_m2 && _m2.index < _cut) _cut = _m2.index; });
+      var _core = _seg.slice(0, _cut).trim();
+      if (_core.length > 40) txt = _core;   // adopt only a real answer body
+    }
+  } catch (eAIO) {}
   // Run the smart metadata extractor as the single source of truth.
   // It handles hedge detection so we don't grab a cab# disguised as item#.
   var meta = extractIdentifyMetadata(txt);
@@ -528,7 +546,7 @@ function _identifyLensReturnMode() {
       var _rt = document.createElement('div');
       _rt.id = 'id-return-tip';
       _rt.style.cssText = 'margin-bottom:0.6rem;padding:0.55rem 0.75rem;border-radius:9px;background:rgba(46,204,113,0.10);border:1px solid #2ecc71;color:#c9f5dc;font-size:0.82rem;line-height:1.45';
-      _rt.innerHTML = 'Google opened with your photo and filters already attached. <b>Tap AI Mode there for the best answer.</b><br style="margin-bottom:4px"><b>Option 1 — copy &amp; paste:</b> press <b>Ctrl+A</b>, then <b>Ctrl+C</b> on Google\u2019s page, come back and press <b>Ctrl+V</b> — or just switch back; it pastes itself.<br style="margin-bottom:4px"><b>Option 2 — screenshot:</b> snip Google\u2019s answer (Snipping Tool), come back, hit <b>Read a Screenshot of the Results</b>, pick the file.';
+      _rt.innerHTML = 'Google opened with your photo and filters already attached. <b>Tap AI Mode there for the best answer.</b><br style="margin-bottom:4px"><b>Option 1 — copy &amp; paste:</b> press <b>Ctrl+A</b>, then <b>Ctrl+C</b> on Google\u2019s page, then <b>Alt+Tab</b> back — it pastes itself the moment this app is on screen (Windows won\u2019t let it jump forward on its own).<br style="margin-bottom:4px"><b>Option 2 — screenshot:</b> snip Google\u2019s answer (Snipping Tool), come back, hit <b>Read a Screenshot of the Results</b>, pick the file.';
       _panelTip.insertBefore(_rt, _panelTip.children[1] || null);
     }
   }
@@ -579,7 +597,7 @@ window._identifyOpenWithPhoto = function (file, autoLens) {
       cov.style.cssText = 'position:fixed;inset:0;z-index:100002;background:var(--bg,#0b0d1d);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0.9rem;color:var(--text,#fff);font-family:var(--font-head,sans-serif);font-size:1rem;padding:1rem';
       var _covTip = window.IS_MOBILE_UA
         ? '1) Google opens with your photo <b>and your filters</b> already in the search box (takes a few seconds).<br>2) Tap <b>AI Mode</b> at the top for the best answer.<br>3) 📸 <b>Screenshot it.</b> 4) Come back — the app reads your screenshot.'
-        : '1) Google opens with your photo <b>and your filters</b> already in the search box (takes a few seconds).<br>2) Tap <b>AI Mode</b> at the top for the best answer.<br>3) Press <b>Ctrl+A</b>, then <b>Ctrl+C</b> to copy it.<br>4) Come back — press <b>Ctrl+V</b> (or it pastes itself). Prefer pictures? Screenshot instead and hit <b>Read a Screenshot of the Results</b>.';
+        : '1) Google opens with your photo <b>and your filters</b> already in the search box (takes a few seconds).<br>2) Tap <b>AI Mode</b> at the top for the best answer.<br>3) Press <b>Ctrl+A</b>, then <b>Ctrl+C</b> to copy it.<br>4) Flip back with <b>Alt+Tab</b> (Windows won\u2019t let the app jump forward on its own) — it pastes itself the moment the app is on screen. Prefer pictures? Screenshot instead and hit <b>Read a Screenshot of the Results</b>.';
       cov.innerHTML =
         '<div style="font-size:3.4rem">🔍</div>'
         + '<div style="font-size:1.7rem;font-weight:700;text-align:center;line-height:1.25">Next: Google Lens</div>'
