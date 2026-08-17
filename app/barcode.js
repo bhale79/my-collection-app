@@ -2621,11 +2621,17 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         + '<span id="bi-rotv" style="color:var(--text-mid,#ccc);font-size:0.78rem;min-width:3.2em;text-align:right">0&deg;</span>'
         + '</div>'
         + '<div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-top:0.55rem">'
-        + _biBtn({ act: 'go', txt: '🔍 Photo ID (free)' }, 'background:var(--accent,#e8401c);border:1.5px solid var(--accent,#e8401c);color:#fff;flex:1')
-        + _biBtn({ act: 'auto', txt: '🤖 Auto Read' }, 'border:1.5px solid var(--gold,#d4a843);color:var(--gold,#d4a843)')
-        + _biBtn({ act: 'lens', txt: '🔍 Google Lens Search' })
-        + _biBtn({ act: 'rot', txt: '↻ Rotate' })
-        + _biBtn({ act: 'retake', txt: '↺ Retake' })
+        // v0.9.1474 (Brad: "no more little icons… the 19 of 20 reads left
+        // should be on the button itself, don't need the rotate button, and
+        // the three buttons should be the same size"). Row 1: the three
+        // readers, equal width, plain words, count living ON Auto Read.
+        // Rotation is the slider's job alone now.
+        + _biBtn({ act: 'go', txt: 'Photo ID<br><span style="font-size:0.68rem;font-weight:400;opacity:0.9">always free</span>' }, 'background:var(--accent,#e8401c);border:1.5px solid var(--accent,#e8401c);color:#fff;flex:1;min-width:0')
+        + _biBtn({ act: 'auto', txt: 'Auto Read<br><span id="bi-ai-left" style="font-size:0.68rem;font-weight:400;opacity:0.95">' + ((typeof rrAiRemainingLabel === 'function' && rrAiRemainingLabel()) || 'checking reads left\u2026') + '</span>' }, 'background:var(--surface2,#252848);border:1.5px solid var(--gold,#d4a843);color:var(--gold,#d4a843);flex:1;min-width:0')
+        + _biBtn({ act: 'lens', txt: 'Google Lens<br><span style="font-size:0.68rem;font-weight:400;opacity:0.9">free Google search</span>' }, 'background:var(--surface2,#252848);border:1.5px solid var(--border,#444);color:var(--text,#fff);flex:1;min-width:0')
+        + '</div>'
+        + '<div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-top:0.5rem">'
+        + _biBtn({ act: 'retake', txt: 'Retake' })
         + _biBtn({ act: 'cancel', txt: 'Cancel' })
         + '</div>'
         // v0.9.713 (Brad): say which engine is best for what, right here.
@@ -2633,17 +2639,11 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         // now says what actually happens — the old text read like a barcode
         // scanner, hiding that this button IS the metered photo ID service.
         + '<div style="margin-top:0.55rem;padding:0.5rem 0.65rem;border-radius:9px;background:rgba(255,255,255,0.04);border:1px solid var(--border,#333);font-size:0.74rem;line-height:1.5;color:var(--text-mid,#bbb)">'
-        + '<b style="color:var(--accent,#e8401c)">🔍 Photo ID</b> — <b>always free</b>: reads the barcode and the printed number. If they can\'t tell, nothing is spent — you choose what happens next.<br>'
-        + '<b style="color:var(--gold,#d4a843)">🤖 Auto Read</b> — the closer look. Free readers run first; <b>one of your daily photo ID reads</b> is spent only if they can\'t tell. Best for unlettered or tricky items.<br>'
-        + '<b style="color:#9ecbff">🔍 Google Lens</b> — free Google search by photo, better for <b>unmarked items</b>: buildings, promos, store brands, posters &amp; paper. Also the backup when Photo ID can\'t tell.'
-        // v0.9.1473 (Brad: "I don't want a check on or off the free reader
-        // because i may hit that before i realize it"): the spending SWITCH is
-        // gone from this screen (Preferences still has it). Spending is a
-        // BUTTON now — 🤖 Auto Read — and the count lives on its own line.
-        + '<div style="display:flex;align-items:center;justify-content:space-between;gap:0.6rem;flex-wrap:wrap;margin-top:0.5rem;padding-top:0.45rem;border-top:1px solid var(--border,#333)">'
-        +   '<span style="color:var(--text-mid,#bbb)">🤖 Auto Read allowance:</span>'
-        +   '<span id="bi-ai-left" style="color:var(--gold,#d4a843);white-space:nowrap">' + ((typeof rrAiRemainingLabel === 'function' && rrAiRemainingLabel()) || 'checking reads left\u2026') + '</span>'
-        + '</div>'
+        + '<b style="color:var(--accent,#e8401c)">&bull; Photo ID</b> — <b>always free</b>: reads the barcode and the printed number. If they can\'t tell, nothing is spent — you choose what happens next.<br>'
+        + '<b style="color:var(--gold,#d4a843)">&bull; Auto Read</b> — the closer look. Free readers run first; <b>one of your daily photo ID reads</b> is spent only if they can\'t tell. Best for unlettered or tricky items.<br>'
+        + '<b style="color:#9ecbff">&bull; Google Lens</b> — free Google search by photo, better for <b>unmarked items</b>: buildings, promos, store brands, posters &amp; paper. Also the backup when Photo ID can\'t tell.'
+        // v0.9.1474: the allowance count moved ONTO the Auto Read button
+        // (span#bi-ai-left up there) — no separate row.
         + '</div></div>');
       // v0.9.1015: remember the spending-switch choice the moment it changes.
       // v0.9.1473: bi-ai-opt checkbox removed — see the comment on the count
@@ -2939,7 +2939,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
     // choice) reaches it.
     if (opts && opts.noAi && !opts.forceAi) {
       out.why.reason = 'freeonly';
-      st('ai', '⏭', 'Close look: not run — Photo ID is the free pass. 🤖 Auto Read takes the closer look.', 'var(--text-dim)');
+      st('ai', '⏭', 'Close look: not run — Photo ID is the free pass. Auto Read takes the closer look.', 'var(--text-dim)');
       return { __biFail: true, out: out };
     }
     if (typeof rrAiOptedOut === 'function' && rrAiOptedOut() && !(opts && opts.forceAi)) {
@@ -3003,7 +3003,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
            : 'No confident ID. You can:')
         + '</div>'
         + _biBtn({ act: 'retake', txt: '↺ Retake photo' }, 'background:var(--accent,#e8401c);border:1.5px solid var(--accent,#e8401c);color:#fff')
-        + (_optedOut ? '' : _biBtn({ act: 'ai', txt: _freeOnly ? '🤖 Auto Read — may use 1 of your daily reads' : '🔍 Take another look' }, _freeOnly ? 'border:1.5px solid var(--gold,#d4a843);color:var(--gold,#d4a843)' : undefined))
+        + (_optedOut ? '' : _biBtn({ act: 'ai', txt: _freeOnly ? 'Auto Read — may use 1 of your daily reads' : 'Take another look' }, _freeOnly ? 'border:1.5px solid var(--gold,#d4a843);color:var(--gold,#d4a843)' : undefined))
         + _biBtn({ act: 'lens', txt: '🔍 Google Lens' })
         + _biBtn({ act: 'type', txt: '⌨ Type it in' })
         + _biBtn({ act: 'cancel', txt: 'Cancel' });

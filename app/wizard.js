@@ -5385,7 +5385,12 @@ function renderWizardStep() {
       _ingPhotoBtn.onclick = function() { if (typeof _wizScanBarcode === 'function') _wizScanBarcode(); else openIdentify('wizard'); };
       _ingPhotoBtn.style.cssText = 'width:100%;margin-top:0.6rem;padding:0.65rem 1rem;border-radius:8px;border:1.5px dashed #2980b9;background:rgba(41,128,185,0.08);color:#2980b9;font-family:var(--font-head);font-size:0.78rem;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:0.5rem;transition:all 0.15s';
       _ingPhotoBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 0 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg> Don\x27t know the number? Photo ID';
-      _ingWrap.appendChild(_ingPhotoBtn);
+      // v0.9.1474 (Brad: "dont want to have to scroll down to see photo id
+      // button"): a long suggestion list pushed this below the fold. It sits
+      // directly under the input row now, ABOVE the list — always visible.
+      var _ingSugRef = _ingWrap.querySelector('#wiz-suggestions');
+      if (_ingSugRef) _ingWrap.insertBefore(_ingPhotoBtn, _ingSugRef);
+      else _ingWrap.appendChild(_ingPhotoBtn);
 
       // v0.9.674 (Brad): ONE identify button — the yellow wording with the blue
       // styling, pointing at the unified Identify-from-Photo flow (which offers
