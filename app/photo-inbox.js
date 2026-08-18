@@ -2977,6 +2977,34 @@
     for (var i = 0; i < fl.length; i++) if (fl[i].id === cur) return i;
     return 0;
   }
+  // v0.9.1494 (Brad: "the warning needs to be right above the arrow and
+  // should have the add-group background and text color"): an orange pill
+  // anchored above the arrow that was pressed, not a bottom toast.
+  function _rvEdgeNotice(delta) {
+    try {
+      var old = document.getElementById('rv-edge-note'); if (old) old.remove();
+      var nav = document.getElementById('pin-rv-nav');
+      var btns = nav ? nav.querySelectorAll('button') : null;
+      var btn = (btns && btns.length) ? (delta > 0 ? btns[btns.length - 1] : btns[0]) : null;
+      var d = document.createElement('div');
+      d.id = 'rv-edge-note';
+      d.textContent = delta > 0
+        ? 'Leaving this group\u2019s photos \u2014 hit \u203a again to continue'
+        : 'Leaving this group\u2019s photos \u2014 hit \u2039 again to go back';
+      d.style.cssText = 'position:fixed;z-index:100012;background:var(--accent,#e8401c);color:#fff;font-family:var(--font-body,sans-serif);font-size:0.8rem;font-weight:600;padding:0.5rem 0.75rem;border-radius:8px;box-shadow:0 4px 14px rgba(0,0,0,0.45);white-space:nowrap';
+      document.body.appendChild(d);
+      if (btn) {
+        var r = btn.getBoundingClientRect();
+        var left = Math.min(Math.max(8, r.right - d.offsetWidth), window.innerWidth - d.offsetWidth - 8);
+        var top = r.top - d.offsetHeight - 8;
+        if (top < 8) top = r.bottom + 8;
+        d.style.left = left + 'px';
+        d.style.top = top + 'px';
+      } else { d.style.left = '50%'; d.style.top = '20%'; d.style.transform = 'translateX(-50%)'; }
+      setTimeout(function () { try { d.remove(); } catch (e) {} }, 3500);
+    } catch (e) { try { showToast('Leaving this group\u2019s photos \u2014 hit the arrow again to continue', 3000); } catch (e2) {} }
+  }
+  function _rvEdgeNoteKill() { try { var n = document.getElementById('rv-edge-note'); if (n) n.remove(); } catch (e) {} }
   var _rvEdgeArmed = 0;   // v0.9.1493: the leaving-group two-press latch (+1 fwd / -1 back)
   window._pinReviewStepMember = function (delta) {
     var fl = _pinRvMembers();
@@ -2994,14 +3022,11 @@
         return;
       }
       _rvEdgeArmed = delta;
-      try {
-        showToast(delta > 0
-          ? 'Leaving this group\u2019s photos \u2014 hit \u203a again to continue'
-          : 'Leaving this group\u2019s photos \u2014 hit \u2039 again to go back', 3500);
-      } catch (eT) {}
+      _rvEdgeNotice(delta);   // v0.9.1494: orange pill above the pressed arrow
       return;
     }
     _rvEdgeArmed = 0;
+    _rvEdgeNoteKill();
     window._pinRvSetMain(fl[j].id);
     // The arrows and the counter now describe a different member, so they have to
     // be redrawn — otherwise "2 of 6" freezes and the greying lies at the ends.
@@ -3081,6 +3106,7 @@
 
   window._pinReviewStep = function (delta) {
     _rvEdgeArmed = 0;   // v0.9.1493: a card change always disarms the latch
+    _rvEdgeNoteKill();
     var i = _pinRvIndex();
     if (i < 0) return;
     var ord = _pinRvOrder();
