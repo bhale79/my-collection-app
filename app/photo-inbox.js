@@ -4249,14 +4249,26 @@
       // v0.9.1152: this passed ONLY eraLabel/eraYears and dropped the mfrs and
       // scale that _pinAiHints had just worked out — so the question never said
       // "Lionel" or "O". Pass the whole hint set.
-      var q = (typeof window.rrIdentifyQuery === 'function')
-        ? window.rrIdentifyQuery({ eraLabel: _lh.eraLabel, eraYears: _lh.eraYears,
-                                   mfrs: _lh.mfrs, scale: _lh.scale })
-        : 'Identify this model railroad item. Provide Manufacturer; Manufacturer SKU or catalog number; Year; Scale; Description on labeled lines.';
-      // v0.9.959 (Brad): Google retired /searchbyimage (it 404s now) and moved
-      // reverse-image search to Google Lens. uploadbyurl runs the real search on
-      // the staged photo. Lens takes no text hint, so `q` is unused here.
-      var url = 'https://lens.google.com/uploadbyurl?url=' + encodeURIComponent(staged.url);
+      // ── v0.9.1489 (Brad: "google got it right, but we didn't help it like
+      // we should with its tags and filters"): the wizard's Lens learned in
+      // v1473 that uploadbyurl PASSES q + lns_mode through — the inbox never
+      // did, so a tagged AA-unit photo went to Google naked. The photo's TAG
+      // (and only the tag — v1488 rule) now rides the URL as plain search
+      // words, e.g. "Lionel Postwar O gauge (1945-1969) diesel".
+      var _hint = [(_lh.mfrs || []).join(' '), _lh.eraLabel || '',
+                   _lh.eraYears ? ('(' + _lh.eraYears + ')') : '',
+                   _lh.scale ? (_lh.scale + ' gauge') : '', _lh.type || 'model train']
+        .filter(Boolean).join(' ').replace(/\s+/g, ' ').trim();
+      var _hSeen = {};
+      _hint = _hint.split(' ').filter(function (w) {
+        var k = w.toLowerCase().replace(/[^a-z0-9-]/g, '');
+        if (!k) return true;
+        if (_hSeen[k]) return false;
+        _hSeen[k] = 1;
+        return true;
+      }).join(' ');
+      var url = 'https://lens.google.com/uploadbyurl?url=' + encodeURIComponent(staged.url)
+        + (_hint ? '&q=' + encodeURIComponent(_hint) + '&lns_mode=mu' : '');
       if (tab) { try { tab.location = url; } catch (e) { tab = null; } }
       if (!tab) window.open(url, '_blank');
       if (btn) { btn.disabled = false; btn.textContent = 'Google Search'; }
@@ -6935,7 +6947,15 @@
       // Atlantic mail car and pulled up a completely different boxcar.
       var seenRow = {};
       rows.forEach(function (row) {
-        var k = String(row.itemNum || '') + '|' + String(row._tab || '');
+        // v0.9.1489 (Brad's NYC F3 pair → "EP-do-these-trains-exis-005"): a
+        // PAPER / catalog / drawing row can never be what a photographed
+        // TRAIN "is" — same ban the quote chain got in v1486; this word
+        // rescue never had it, so article match-words swallowed lettered
+        // locomotives.
+        var _rt0 = String(row.itemType || '').toLowerCase();
+        var _rn0 = String(row.itemNum || '');
+        if (/paper|catalog|instruction|drawing|ephemera/.test(_rt0) || /^(EP|DWG|IS|CAT)-/i.test(_rn0)) return;
+        var k = _rn0 + '|' + String(row._tab || '');
         if (seenRow[k]) return;
         seenRow[k] = 1;
         score[k] = (score[k] || 0) + weight;
