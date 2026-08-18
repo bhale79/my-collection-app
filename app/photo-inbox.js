@@ -5202,17 +5202,25 @@
 
   window._pinAddNow = function (num, aiMeta, photoDriveId, opts) {
     if (typeof openWizard !== 'function') { showToast('Add wizard not available', 2500, true); return; }
+    // v0.9.1491: the stopwatch — one line per stage in the console, so a
+    // still-slow add tells us exactly WHERE without another guessing round.
+    var _T0 = (typeof performance !== 'undefined' && performance.now) ? performance.now() : 0;
+    var _tm = function (l) { try { if (_T0) console.log('[inbox-add] ' + l + ' +' + Math.round(performance.now() - _T0) + 'ms'); } catch (e) {} };
     openWizard('collection');
+    _tm('openWizard returned');
     // v0.9.889 (Brad): pre-fill the ENTIRE catalog side of the add, the same
     // way a successful barcode scan does — lock the matched catalog item,
     // adopt its era, and jump past the item-number step. Only the personal
     // questions (condition, price, photos) remain for the user.
     var tries = 0;
+    // v0.9.1491: the ready-poll ticked every 250ms — up to a quarter second
+    // of pure waiting per stage. 50ms now, same 5s total budget.
     var t = setInterval(function () {
       tries++;
       var ready = (typeof wizard !== 'undefined') && wizard && wizard.steps && wizard.data && document.getElementById('wizard-modal');
       if (ready) {
         clearInterval(t);
+        _tm('wizard ready');
         try {
           wizard.data.itemNum = num;
           // v0.9.1278 (Brad's framed Southern poster): an add that starts in
@@ -5311,6 +5319,8 @@
             }
             wizard.step++;              // same advance a barcode scan does
             renderWizardStep();
+            _tm('prefilled + rendered');
+            try { requestAnimationFrame(function () { setTimeout(function () { _tm('settled — paint done'); }, 0); }); } catch (eTm) {}
             showToast(_pg
               ? '\u2713 ' + num + ' \u2014 catalog details filled in, and it is already set up as ' + _pinKindLabel(opts.groupKind)
               : '\u2713 ' + num + ' \u2014 catalog details filled in', _pg ? 4000 : 2500);
@@ -5339,8 +5349,8 @@
           }
         } catch (e) { console.warn('[Inbox] wizard prefill:', e); }
       }
-      if (tries > 20) clearInterval(t);
-    }, 250);
+      if (tries > 100) clearInterval(t);
+    }, 50);
   };
 
   // v0.9.1122 — arm ONE staged set-photo note. Called from the set-save hook

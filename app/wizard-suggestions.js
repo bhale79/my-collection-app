@@ -239,6 +239,14 @@ function updateItemSuggestions(query) {
     (_w.data._searchFilterType || _w.data._searchFilterRoad
      || _w.data._searchFilterManufacturer || _w.data._searchFilterPeriod));
   if (q.length < 1 && !_hasFilter) { el.style.display = 'none'; el.innerHTML = ''; return; }
+  // v0.9.1491: an inbox-prefilled add already carries its LOCKED match —
+  // running the full-catalog suggestion scan for that same number is 132k
+  // rows of pure waste on the click's critical path.
+  if (_w && _w.data && _w.data._pinStagedNum && typeof wizard !== 'undefined' && wizard.matchedItem
+      && q === String(_w.data._pinStagedNum).trim().toLowerCase()) {
+    el.style.display = 'none'; el.innerHTML = '';
+    return;
+  }
 
   const tab = wizard.tab;
   let candidates = [];
@@ -708,7 +716,29 @@ function _preferredCasing(a, b) {
   return a.length >= b.length ? a : b;
 }
 
+// ── v0.9.1491 (Brad: "add to my collection... takes 3-5 seconds"): these
+// distinct lists (roadName is ~132k rows through regex filters) were
+// rebuilt on EVERY wizard render — several times per open. Cached per
+// masterData reference + wizard era; a changed reference (sync/reload)
+// invalidates automatically. extraPredicate callers bypass the cache.
+// In-place admin edits to masterData can serve a stale list until the
+// next sync — acceptable for dropdown contents.
+var _gmdCache = { ref: null, era: '', map: {} };
 function getMasterDistinct(fieldName, extraPredicate) {
+  try {
+    if (typeof extraPredicate === 'function') return _getMasterDistinctUncached(fieldName, extraPredicate);
+    var _gEra = (typeof wizard !== 'undefined' && wizard && wizard.data && wizard.data._era) || '';
+    var _gRef = (window.state && state.masterData) || null;
+    if (_gmdCache.ref !== _gRef || _gmdCache.era !== _gEra) { _gmdCache.ref = _gRef; _gmdCache.era = _gEra; _gmdCache.map = {}; }
+    if (_gmdCache.map[fieldName]) return _gmdCache.map[fieldName];
+    var _gT0 = (typeof performance !== 'undefined' && performance.now) ? performance.now() : 0;
+    var _gOut = _getMasterDistinctUncached(fieldName);
+    if (_gT0) { var _gMs = Math.round(performance.now() - _gT0); if (_gMs > 80) console.log('[perf] getMasterDistinct(' + fieldName + ') ' + _gMs + 'ms — now cached'); }
+    _gmdCache.map[fieldName] = _gOut;
+    return _gOut;
+  } catch (eGmd) { return _getMasterDistinctUncached(fieldName, extraPredicate); }
+}
+function _getMasterDistinctUncached(fieldName, extraPredicate) {
   if (!window.state || !Array.isArray(state.masterData)) return [];
   // Session 115 fix: same era scope guard as updateItemSuggestions — so
   // dropdowns only surface Types / Roads that exist in the active era.
