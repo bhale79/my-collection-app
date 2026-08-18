@@ -4607,9 +4607,17 @@
     try {
       var _enumC = (typeof window._identifyEnumCandidates === 'function') ? window._identifyEnumCandidates(txt) : [];
       if (_enumC.length >= 2 && (!meta.itemNum || _enumC.some(function (c) { return c.num === String(meta.itemNum).toUpperCase(); }))) {
-        meta._altCands = _enumC;
-        meta._hedge = 1;
-        meta.itemNum = '';
+        // v0.9.1502 (Brad's rule): a definitive LEAD wins outright -- only a
+        // genuinely hedged answer earns the pick-one-yourself treatment.
+        var _leadN = (typeof window.rrAnswerLeadNumber === 'function') ? window.rrAnswerLeadNumber(txt) : '';
+        if (_leadN) {
+          meta.itemNum = _leadN;
+          meta._altCands = _enumC.filter(function (c) { return c.num !== _leadN; });
+        } else {
+          meta._altCands = _enumC;
+          meta._hedge = 1;
+          meta.itemNum = '';
+        }
       }
     } catch (eEn) {}
     if (!_pinApplyMeta(meta, gs, txt)) return false;
@@ -4730,6 +4738,11 @@
       }
       if (typeof ai.remaining === 'number') _tokSave(ai.remaining);   // v0.9.969: keep the token count fresh
       var meta = (typeof extractIdentifyMetadata === 'function') ? extractIdentifyMetadata(ai.text) : {};
+      // v0.9.1502: the reader's lead sentence names the item -- Brad's rule.
+      if (!meta.itemNum && typeof window.rrAnswerLeadNumber === 'function') {
+        var _ldR = window.rrAnswerLeadNumber(ai.text);
+        if (_ldR) meta.itemNum = _ldR;
+      }
       if (!_pinApplyMeta(meta, gs, ai && ai.text)) { showToast('Could not pull an item number from the photo — try Google Search', 4200, true); return; }
       _pinStepsReset();
       showToast(meta._hedge
@@ -4811,9 +4824,16 @@
       try {   // v0.9.1490: same enumeration handling as the paste path
         var _enumC2 = (typeof window._identifyEnumCandidates === 'function') ? window._identifyEnumCandidates(txt) : [];
         if (_enumC2.length >= 2 && (!meta.itemNum || _enumC2.some(function (c) { return c.num === String(meta.itemNum).toUpperCase(); }))) {
-          meta._altCands = _enumC2;
-          meta._hedge = 1;
-          meta.itemNum = '';
+          // v0.9.1502: same lead-wins rule as the paste path
+          var _leadN2 = (typeof window.rrAnswerLeadNumber === 'function') ? window.rrAnswerLeadNumber(txt) : '';
+          if (_leadN2) {
+            meta.itemNum = _leadN2;
+            meta._altCands = _enumC2.filter(function (c) { return c.num !== _leadN2; });
+          } else {
+            meta._altCands = _enumC2;
+            meta._hedge = 1;
+            meta.itemNum = '';
+          }
         }
       } catch (eEn2) {}
       var got = meta.itemNum || meta.description || meta.manufacturer || meta.roadName;

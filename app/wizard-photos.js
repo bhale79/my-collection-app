@@ -359,14 +359,63 @@ function rrSliceAiOverview(txt) {
     var seg = s.slice(m.index + 11);
     var ends = [/Visual Exploration/i, /\bShow all\b/i, /Results are not personalized/i,
                 /AI responses may include mistakes/i, /Check website for latest/i,
-                /\bUpdate location\b/i, /\bSend feedback\b/i, /\bVisual matches\b/i, /\bRelated search\b/i];
+                /\bUpdate location\b/i, /\bSend feedback\b/i, /\bVisual matches\b/i, /\bRelated search\b/i,
+                /AI can make mistakes/i];   // v0.9.1502: Google's newer wording (the Lens page uses it)
     var cut = seg.length;
     ends.forEach(function (re) { var m2 = seg.match(re); if (m2 && m2.index < cut) cut = m2.index; });
+    // v0.9.1502 (Brad's Lens Ctrl+A): the citation list under the answer
+    // starts with a bare domain on its own line ("ebay.com"). The Lens page
+    // carries none of the markers above before it, which is how eBay/Etsy
+    // titles (9407, 63561, "SANTA FE") reached the scorer and blanked a
+    // perfectly clear 6473. Cut at the first such line as well.
+    var mDom = seg.match(/\n\s*\[?(?:[a-z0-9-]+\.)+(?:com|net|org|co|us|io)\]?(?:\([^)\n]*\))?\s*\n/i);
+    if (mDom && mDom.index < cut) cut = mDom.index;
     var core = seg.slice(0, cut).trim();
     return core.length > 40 ? core : s;   // adopt only a real answer body
   } catch (e) { return txt; }
 }
 if (typeof window !== 'undefined') window.rrSliceAiOverview = rrSliceAiOverview;
+
+// -- v0.9.1502 (Brad: "google always names the item in the first or second
+// sentence"): the LEAD of an answer names the subject; everything after is
+// history, variants, comparisons and similar-item padding. When the lead
+// names ONE number with no hedging, that number IS the answer -- the
+// v0.9.1490 pick-one-yourself treatment stays for genuinely hedged leads
+// ("could be a 2333, 2344, or 2354").
+function rrAnswerLeadNumber(txt) {
+  try {
+    var s = String(txt || '').replace(/\s+/g, ' ').trim();
+    if (!s) return '';
+    // First two sentences, capped at 320 chars. "No." never ends a sentence,
+    // nor does a digit boundary ("9.25 inch").
+    var count = 0, i = 0;
+    for (i = 0; i < s.length && i < 320; i++) {
+      var ch = s.charAt(i);
+      if (ch === '.' || ch === '!' || ch === '?') {
+        if (/\b(?:No|Nos|vs|Mt|St)$/i.test(s.slice(Math.max(0, i - 3), i))) continue;
+        if (/[0-9]/.test(s.charAt(i + 1) || '')) continue;
+        count++;
+        if (count >= 2) { i++; break; }
+      }
+    }
+    var lead = s.slice(0, i > 0 ? i : Math.min(s.length, 320));
+    if (/\b(?:possibly|likely|probably|appears?|seems?|may be|might be|could be|either|uncertain|not (?:sure|certain)|hard to tell)\b/i.test(lead)) return '';
+    // an enumerated lead is a hedge, whatever the words around it
+    if (/\d{3,5}[A-Z]{0,2}\s*,\s*(?:or\s+)?\d{3,5}/i.test(lead)) return '';
+    if (/\d{3,5}[A-Z]{0,2}\s+or\s+\d{3,5}/i.test(lead)) return '';
+    var num = '';
+    var m = lead.match(/(?:\bNo\.?|#)\s*(\d{1,2}-\d{3,5}[A-Z]{0,2}|\d{3,5}[A-Z]{0,2})\b/i);
+    if (m) num = m[1];
+    if (!num) {
+      m = lead.match(/\b(?:Lionel|MTH|Atlas|Marx|Williams|Weaver|K-?Line|American Flyer|Menards|RMT)\s+(\d{1,2}-\d{3,5}[A-Z]{0,2}|\d{3,5}[A-Z]{0,2})\b/i);
+      if (m) num = m[1];
+    }
+    num = String(num || '').toUpperCase();
+    if (/^(19|20)\d{2}$/.test(num)) return '';   // a bare year is not an answer
+    return num;
+  } catch (e) { return ''; }
+}
+if (typeof window !== 'undefined') window.rrAnswerLeadNumber = rrAnswerLeadNumber;
 
 // ── v0.9.1490 (Brad: "can we have the ability to offer multiple item
 // numbers when we don't know for sure?"): does the answer ITSELF name
@@ -410,6 +459,11 @@ function _identifyProcessText(txt) {
   // It handles hedge detection so we don't grab a cab# disguised as item#.
   var meta = extractIdentifyMetadata(txt);
   var extracted = meta.itemNum;
+  // v0.9.1502: extractor found nothing but the LEAD names one -- Brad's rule.
+  if (!extracted && typeof rrAnswerLeadNumber === 'function') {
+    var _ldW = rrAnswerLeadNumber(txt);
+    if (_ldW) { extracted = _ldW; meta.itemNum = _ldW; }
+  }
   if (!extracted) {
     // v0.9.692 (Brad's 1966 dealer abacus): promotional and other
     // no-catalog-number items are REAL — when the answer is otherwise rich
