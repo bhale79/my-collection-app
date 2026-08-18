@@ -3369,6 +3369,10 @@
             + ((_routeSet && _setGuess) ? 'Add set ' + rrEsc(_setGuess.setNum) + ' to my collection'
                : (_isGrp ? 'Add group to my collection' : 'Add to my Collection')) + '</button>' +
           '<button id="pin-rv-sell" onclick="_pinSendForSale()" style="width:100%;padding:0.68rem;border-radius:10px;border:1.5px solid #d4a843;background:var(--bg-card);background:color-mix(in srgb, rgb(212,168,67) 12%, var(--bg-card));color:#d4a843;font-family:var(--font-body);font-weight:700;font-size:0.9rem;cursor:pointer;margin-bottom:0.5rem">' + (_isGrp ? 'Add group to my sales list' : 'Add to Sales List') + '</button>' +
+          // v0.9.1498 (task #28, Brad): photos of an item he ALREADY owns get
+          // a door to that copy -- the dormant v0.9.958 attach lane, revived
+          // with a copy picker. Direct move, no wizard, no deferred note.
+          '<button id="pin-rv-attach" onclick="_pinAttachOwnedPick()" style="width:100%;padding:0.68rem;border-radius:10px;border:1.5px solid #2980b9;background:var(--bg-card);background:color-mix(in srgb, rgb(41,128,185) 12%, var(--bg-card));color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.9rem;cursor:pointer;margin-bottom:0.5rem">' + (_isGrp ? 'Add group to an item I already own' : 'Add to an existing item in my collection') + '</button>' +
           '<button onclick="_pinReviewDiscard()" style="width:100%;padding:0.68rem;border-radius:10px;border:1.5px solid #8b8e94;background:var(--bg-card);background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card));color:#f05008;font-family:var(--font-body);font-weight:700;font-size:0.9rem;cursor:pointer">' + (_isGrp ? 'Discard group' : 'Discard Photo' + (n > 1 ? 's' : '')) + '</button>' +
         '</div>' +
         '<div style="flex:1 1 240px;min-width:0">' +
@@ -4879,10 +4883,12 @@
   // Shared filing core: move every photo in `gs` into the item's Drive
   // folder, connect the sheet's photo link when the item is owned, or
   // remember the link + open the Add wizard when it isn't.
-  window._pinReviewAdd = async function (mode) {
+  window._pinReviewAdd = async function (mode, targetKey) {
     mode = mode || 'auto';
     var num = String((document.getElementById('pin-rv-num') || {}).value || '').trim();
-    if (!num) { showToast('Type or confirm the item number first', 2500, true); return; }
+    // v0.9.1498 (task #28): an explicit attach target needs no typed number --
+    // the picked copy already knows what it is.
+    if (!num && !(mode === 'attach' && targetKey)) { showToast('Type or confirm the item number first', 2500, true); return; }
     var gs = _rvGroups;
     // v0.9.1418: same silent guard as Apply had. Filing to the collection is
     // the single most consequential button on this page to press twice and
@@ -4891,7 +4897,13 @@
     if (!gs.length) return;
     // Ownership decides File-vs-Attach, so check it before we commit anything.
     var lkPre = _pinLookup(num);
-    if (mode === 'attach' && !lkPre.ownedPd) {
+    // v0.9.1498 (task #28): the copy picker hands the EXACT copy in targetKey
+    // (a personalData key). Only a legacy no-target call still leans on the
+    // first-owned-by-number lookup -- the very ambiguity the picker removes.
+    var _tgt = (mode === 'attach')
+      ? ((targetKey && window.state && state.personalData && state.personalData[targetKey]) || lkPre.ownedPd)
+      : null;
+    if (mode === 'attach' && !_tgt) {
       showToast('You don’t own ' + num + ' yet — use “File to my Collection” to add it, or type a number you already own', 5000, true);
       return;
     }
@@ -4899,8 +4911,16 @@
     _setBusy(true, 'Filing to your collection');
     try {
       var fromFid = await _folder();
-      var toFid = await driveEnsureItemFolder(num);
-      var link = driveFolderLink(toFid);
+      // v0.9.1498 (task #28): attaching to a copy that already HAS a photo
+      // folder files into THAT folder -- making a second folder for the same
+      // copy is how photos scatter. Only a copy with no folder yet gets one
+      // made, named after ITS item number, and the link written to ITS row.
+      var _tgtNum = (_tgt && String(_tgt.itemNum || '').trim()) || num;
+      var _tgtFid = '';
+      try { _tgtFid = (_tgt && _tgt.photoItem && (String(_tgt.photoItem).match(/folders\/([a-zA-Z0-9_-]+)/) || [])[1]) || ''; } catch (eTF) { _tgtFid = ''; }
+      if (_tgtFid === 'undefined') _tgtFid = '';
+      var toFid = _tgtFid || await driveEnsureItemFolder(_tgtNum);
+      var link = _tgtFid ? String(_tgt.photoItem) : driveFolderLink(toFid);
       var lk = lkPre;
       // Attach path when the user asked to attach, or when it's an owned item
       // being auto-filed / listed for sale. 'new' always makes a fresh item.
@@ -4934,11 +4954,11 @@
             console.warn('[Inbox] attach move failed — continuing:', file.id, eMv1);
             continue;
           }
-          try { await driveRequest('PATCH', '/files/' + file.id, { name: num + ' ADD ' + (ts + moved) + '.' + ext }); } catch (eRn) {}
+          try { await driveRequest('PATCH', '/files/' + file.id, { name: _tgtNum + ' ADD ' + (ts + moved) + '.' + ext }); } catch (eRn) {}
         }
         _sel = {};
         _status('');
-        var pd = lk.ownedPd;
+        var pd = _tgt || lk.ownedPd;   // v0.9.1498: the picked copy, exactly
         // v0.9.1252 (row-identity audit, finding 16): pd was captured before a
         // folder lookup and a per-file Drive move/rename loop — a long way back.
         // Its .row can be stale by now, and the sibling write in _flushPending
@@ -4955,8 +4975,8 @@
               _livePd.photoItem = link;   // only true once the sheet actually took it
           } catch (eUp) { console.warn('[Inbox] photo link write failed — leaving it for the repair pass:', eUp); }
         }
-        if (_mvFail) showToast('Attached ' + moved + ' of ' + fileList.length + ' photo' + (fileList.length > 1 ? 's' : '') + ' to ' + num + ' \u2014 ' + _mvFail + ' stayed in the inbox. Try them again.', 5000, true);
-        else showToast('Attached ' + moved + ' photo' + (moved > 1 ? 's' : '') + ' to ' + num, 3000);
+        if (_mvFail) showToast('Attached ' + moved + ' of ' + fileList.length + ' photo' + (fileList.length > 1 ? 's' : '') + ' to ' + _tgtNum + ' \u2014 ' + _mvFail + ' stayed in the inbox. Try them again.', 5000, true);
+        else showToast('Attached ' + moved + ' photo' + (moved > 1 ? 's' : '') + ' to ' + _tgtNum, 3000);
         _pinRefresh();
         // v0.9.958 (Brad): "Send to For Sale" on an item you already own —
         // photos are filed above, now open the sale-price step for it.
@@ -5149,6 +5169,102 @@
   };
   window._pinAttachOwned      = function () { return window._pinReviewAdd('attach'); };
   window._pinSendForSale      = function () { return window._pinReviewAdd('forsale'); };
+
+  // == v0.9.1498 (task #28, Brad): "Add to an existing item in my collection" ==
+  //
+  // Photos of an item he ALREADY owns landed in the inbox with no door to the
+  // owned copy -- leaving the inbox for the detail page was the only route.
+  // This is that door. It revives the v0.9.958 attach lane (dormant since
+  // v0.9.966 made "Add" always create a new item) and fixes the one thing
+  // wrong with it: it took the FIRST owned copy by number. The picker names
+  // the copy -- the card number's own copies first (the same rows the "You
+  // have this item" panel shows), plus a search over everything owned -- and
+  // _pinReviewAdd('attach', key) files the photos into exactly that copy.
+  // Direct move, no wizard, no deferred note: the photos leave the inbox the
+  // moment the copy is picked, and the toast reports the real count.
+  var _attachPickKeys = [];
+  function _pinAttachEsc(s) {
+    return (typeof rrEsc === 'function') ? rrEsc(s)
+      : String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+  }
+  function _pinAttachRows(el, label, items) {
+    _attachPickKeys = [];
+    var h = label ? '<div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-dim);margin-top:0.3rem">' + _pinAttachEsc(label) + '</div>' : '';
+    items.forEach(function (it) {
+      var pd = it.pd, i = _attachPickKeys.length;
+      _attachPickKeys.push(it.key);
+      var bits = [];
+      if (String(pd.variation || '').trim()) bits.push('Var ' + _pinAttachEsc(String(pd.variation).trim()));
+      if (String(pd.condition || '').trim()) bits.push('Cond ' + _pinAttachEsc(String(pd.condition).trim()));
+      if (String(pd.location || '').trim()) bits.push(_pinAttachEsc(String(pd.location).trim()));
+      bits.push(pd.photoItem ? 'has photos' : 'no photos yet');
+      h += '<button type="button" onclick="_pinAttachOwnedGo(' + i + ')"'
+        + ' style="display:flex;align-items:center;gap:0.5rem;width:100%;box-sizing:border-box;text-align:left;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:0.5rem 0.6rem;margin-top:0.35rem;cursor:pointer;color:var(--text);font-family:var(--font-body)">'
+        + '<span style="font-family:var(--font-mono);font-weight:700;font-size:0.85rem;color:var(--accent2,#c9922a);flex-shrink:0">' + _pinAttachEsc(String(pd.itemNum || '')) + '</span>'
+        + '<span style="font-size:0.76rem;color:var(--text-dim);flex:1;min-width:0">' + bits.join(' \u00b7 ') + '</span>'
+        + '</button>';
+    });
+    if (!items.length) h += '<div style="font-size:0.82rem;color:var(--text-dim);padding:0.6rem 0">No owned items match \u2014 try another search.</div>';
+    el.innerHTML = h;
+  }
+  function _pinAttachDefault(el) {
+    var num = String((document.getElementById('pin-rv-num') || {}).value || '').trim();
+    var copies = (num && typeof rrOwnedCopies === 'function') ? rrOwnedCopies(num) : [];
+    if (copies.length) {
+      _pinAttachRows(el, 'Your ' + (copies.length > 1 ? copies.length + ' copies' : 'copy') + ' of ' + num, copies);
+    } else {
+      _attachPickKeys = [];
+      el.innerHTML = '<div style="font-size:0.82rem;color:var(--text-dim);padding:0.6rem 0">'
+        + (num ? 'You don\u2019t own ' + _pinAttachEsc(num) + ' \u2014 search above for the item these photos belong to.'
+               : 'Search above for the item these photos belong to.')
+        + '</div>';
+    }
+  }
+  window._pinAttachSearch = function (q) {
+    q = String(q || '').trim().toLowerCase();
+    var el = document.getElementById('pin-attach-list');
+    if (!el) return;
+    if (q.length < 2) { _pinAttachDefault(el); return; }
+    var pdMap = (window.state || {}).personalData || {};
+    var hits = [];
+    Object.keys(pdMap).forEach(function (k) {
+      var pd = pdMap[k];
+      if (!pd || !pd.owned) return;
+      var hay = (String(pd.itemNum || '') + ' ' + String(pd.description || '') + ' '
+        + String(pd.customName || '') + ' ' + String(pd.roadName || '')).toLowerCase();
+      if (hay.indexOf(q) >= 0) hits.push({ key: k, pd: pd });
+    });
+    hits.sort(function (a, b) { return String(a.pd.itemNum || '').localeCompare(String(b.pd.itemNum || ''), undefined, { numeric: true }); });
+    var total = hits.length;
+    if (hits.length > 30) hits = hits.slice(0, 30);
+    _pinAttachRows(el, total > 30 ? 'First 30 of ' + total + ' matches' : (total + ' match' + (total === 1 ? '' : 'es')), hits);
+  };
+  window._pinAttachOwnedGo = function (i) {
+    var key = _attachPickKeys[i];
+    var ov = document.getElementById('pin-attach-ov'); if (ov) ov.remove();
+    if (key == null) return;
+    return window._pinReviewAdd('attach', key);
+  };
+  window._pinAttachOwnedPick = function () {
+    if (_busy) { _pinBusyBounce(); return; }
+    if (!_rvGroups.length) return;
+    var old = document.getElementById('pin-attach-ov'); if (old) old.remove();
+    var ov = document.createElement('div');
+    ov.id = 'pin-attach-ov';
+    ov.style.cssText = 'position:fixed;inset:0;z-index:10001;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;padding:1rem';
+    ov.innerHTML = '<div style="background:var(--bg-card);border:1px solid var(--border);border-radius:14px;max-width:480px;width:100%;max-height:80vh;display:flex;flex-direction:column;overflow:hidden">'
+      + '<div style="padding:0.9rem 1rem 0.6rem">'
+      + '<div style="font-weight:700;color:var(--text);font-size:1rem">Add these photos to an item you own</div>'
+      + '<div style="font-size:0.78rem;color:var(--text-dim);margin-top:0.2rem">Pick the copy \u2014 the photos file into its photo folder right away.</div>'
+      + '</div>'
+      + '<div style="padding:0 1rem 0.5rem"><input id="pin-attach-q" type="text" placeholder="Search your collection \u2014 number or description" autocomplete="off" spellcheck="false" oninput="_pinAttachSearch(this.value)" style="width:100%;box-sizing:border-box;padding:0.55rem 0.7rem;border:1px solid var(--border);border-radius:8px;background:var(--surface2);color:var(--text);font-size:0.9rem"></div>'
+      + '<div id="pin-attach-list" style="padding:0 1rem 0.75rem;overflow-y:auto;flex:1"></div>'
+      + '<div style="padding:0.6rem 1rem;border-top:1px solid var(--border)"><button onclick="document.getElementById(\'pin-attach-ov\').remove()" style="width:100%;padding:0.6rem;border-radius:10px;border:1.5px solid #8b8e94;background:var(--bg-card);color:var(--text-dim);font-family:var(--font-body);font-weight:700;font-size:0.9rem;cursor:pointer">Cancel</button></div>'
+      + '</div>';
+    document.body.appendChild(ov);
+    _pinAttachDefault(document.getElementById('pin-attach-list'));
+    try { var q = document.getElementById('pin-attach-q'); if (q) q.focus(); } catch (eF) {}
+  };
 
   // ══ v0.9.1387 — SOME THINGS DO NOT HAVE AN ITEM NUMBER ════════════════════
   //
