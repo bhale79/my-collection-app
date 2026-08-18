@@ -2903,6 +2903,17 @@
   // returns "remaining" after each paid read; we cache the last one (per day)
   // and display it so the count stays visible without an extra request.
   function _tokGet() {
+    // v0.9.1496 (Brad: "the 13 photo ids left is the same i had yesterday"):
+    // the v1472 quota store — refreshed by the relay's ai_quota on every app
+    // boot — outranks this line's own response-fed cache, which could only
+    // ever repeat the last READ's number.
+    try {
+      var p = String(localStorage.getItem('rr_ai_remaining') || '').split('|');
+      if (p.length === 2 && p[1] === new Date().toDateString()) {
+        var q = parseInt(p[0], 10);
+        if (!isNaN(q) && q >= 0) return q;
+      }
+    } catch (e0) {}
     try { var o = JSON.parse(localStorage.getItem('rr_tokens_left') || 'null');
       return (o && o.d === new Date().toISOString().slice(0, 10) && typeof o.n === 'number') ? o.n : null; }
     catch (e) { return null; }
@@ -5406,6 +5417,37 @@
       }
       if (tries > 100) clearInterval(t);
     }, 50);
+  };
+
+  // ── v0.9.1496: CONSOLE-ONLY maintenance (deliberately in no UI). Brad's
+  // Session-78 one-time wipe cleared localStorage, but reads are ALSO
+  // stamped on each photo's Drive file, and the PULL sync above re-seeded
+  // every stamped number on the next load ("how does this have 6120?").
+  // Run from DevTools:  _pinMaintWipeReads()
+  // Clears local reads AND blanks the Drive num stamps; keeps tags, groups,
+  // and wrong-marks. Refresh the inbox afterwards.
+  window._pinMaintWipeReads = async function () {
+    try {
+      var ids = _ids(); var kept = 0, total = 0;
+      Object.keys(ids).forEach(function (id) {
+        total++;
+        var rej = ids[id] && Array.isArray(ids[id].rejected) ? ids[id].rejected : null;
+        if (rej && rej.length) { ids[id] = { rejected: rej }; kept++; }
+        else delete ids[id];
+      });
+      _idsSave(ids);
+      var files = [];
+      (_groups || []).forEach(function (g) { (g.files || []).forEach(function (f) {
+        try { var m = f && (f._meta || _pinMetaOf(f)); if (m && m.num) files.push(f.id); } catch (e) {}
+      }); });
+      console.log('[wipe] local reads cleared on ' + total + ' (wrong-marks kept on ' + kept + '); blanking ' + files.length + ' Drive stamps\u2026');
+      for (var i = 0; i < files.length; i += 4) {
+        var slice = files.slice(i, i + 4);
+        try { await Promise.all(slice.map(function (id) { return _pinMetaSet(id, { num: '', conf: '' }); })); } catch (e) {}
+        console.log('[wipe] ' + Math.min(i + 4, files.length) + ' / ' + files.length);
+      }
+      console.log('[wipe] done \u2014 hit Refresh in the Photo Inbox.');
+    } catch (e) { console.error('[wipe] failed:', e); }
   };
 
   // v0.9.1122 — arm ONE staged set-photo note. Called from the set-save hook
