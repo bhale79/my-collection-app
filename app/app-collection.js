@@ -1567,7 +1567,21 @@ function _buildPhotoGallery(el, photos, opts) {
   editBtn.textContent = '\u2702';
   editBtn.className = 'rr-tap';   // v0.9.1021: 44px tap target on phones
   editBtn.style.cssText = 'position:absolute;top:4px;right:4px;z-index:2;width:26px;height:26px;border-radius:6px;border:none;background:rgba(0,0,0,0.55);color:#fff;font-size:0.8rem;cursor:pointer;line-height:1';
+  // v0.9.1499 (Brad): Delete and Send-back-to-Inbox on the big gallery --
+  // the page he actually looks at had no delete, and a misfiled photo had
+  // no road back to the inbox at all. Both act on the photo shown large.
+  var delBtn = document.createElement('button');
+  delBtn.title = 'Delete this photo (moves to Drive trash \u2014 recoverable)';
+  delBtn.textContent = '\uD83D\uDDD1';
+  delBtn.className = 'rr-tap';
+  delBtn.style.cssText = 'position:absolute;top:4px;right:34px;z-index:2;width:26px;height:26px;border-radius:6px;border:none;background:rgba(0,0,0,0.55);color:#fff;font-size:0.8rem;cursor:pointer;line-height:1';
+  var inboxBtn = document.createElement('button');
+  inboxBtn.title = 'Send this photo back to the Photo Inbox to re-file it';
+  inboxBtn.textContent = '\u21A9';
+  inboxBtn.className = 'rr-tap';
+  inboxBtn.style.cssText = 'position:absolute;top:4px;right:64px;z-index:2;width:26px;height:26px;border-radius:6px;border:none;background:rgba(0,0,0,0.55);color:#fff;font-size:0.85rem;cursor:pointer;line-height:1';
   heroWrap.appendChild(heroLink); heroWrap.appendChild(editBtn);
+  heroWrap.appendChild(delBtn); heroWrap.appendChild(inboxBtn);
   galBody.appendChild(heroWrap);
 
   // Rail (only when there is more than one photo)
@@ -1648,6 +1662,14 @@ function _buildPhotoGallery(el, photos, opts) {
       ev.preventDefault(); ev.stopPropagation();
       _detailPhotoEdit(p.id, p.name || '', opts.folderLink || '', heroImg.id);
     };
+    delBtn.onclick = function (ev) {   // v0.9.1499
+      ev.preventDefault(); ev.stopPropagation();
+      if (typeof _deleteCollectionPhoto === 'function') _deleteCollectionPhoto(p.id, p.name || '', null);
+    };
+    inboxBtn.onclick = function (ev) {   // v0.9.1499
+      ev.preventDefault(); ev.stopPropagation();
+      _rrPhotoBackToInbox(p.id, p.name || '', opts.folderLink || '');
+    };
     if (opts.canRename) {
       heroLbl.onclick = function (ev) {
         ev.preventDefault(); ev.stopPropagation();
@@ -1712,6 +1734,33 @@ async function _detailPhotoEdit(fileId, fileName, folderLink, imgId) {
   }, function () { try { URL.revokeObjectURL(url); } catch (e) {} });
 }
 if (typeof window !== 'undefined') window._detailPhotoEdit = _detailPhotoEdit;
+
+// v0.9.1499 (Brad): a misfiled photo goes BACK to the Photo Inbox, where the
+// fixed attach flow can re-file it onto the right copy. Just a Drive move --
+// nothing deleted, nothing renamed, and the inbox picks it up as a fresh
+// untagged photo on its next open.
+async function _rrPhotoBackToInbox(fileId, fileName, folderLink) {
+  if (!fileId) return;
+  var label = String(fileName || 'photo').replace(/\.[^.]+$/, '');
+  var ok = (typeof appConfirm === 'function')
+    ? await appConfirm('Send "' + label + '" back to the Photo Inbox?\n\nIt leaves this item and shows up in the inbox, where you can re-file it onto the right copy.', { ok: 'Send back' })
+    : confirm('Send "' + label + '" back to the Photo Inbox?');
+  if (!ok) return;
+  try {
+    if (typeof window._pinInboxFolderId !== 'function') throw new Error('Inbox folder not available');
+    var inboxFid = await window._pinInboxFolderId();
+    var fromFid = (String(folderLink || '').match(/folders\/([a-zA-Z0-9_-]+)/) || [])[1] || '';
+    if (!inboxFid || !fromFid) throw new Error('Missing folder');
+    await driveMoveFileToFolder(fileId, fromFid, inboxFid);
+    if (typeof showToast === 'function') showToast('\u2713 Photo sent back to the Photo Inbox');
+    if (typeof window._lastDetailIdx === 'number' && typeof showItemDetailPage === 'function')
+      setTimeout(function () { showItemDetailPage(window._lastDetailIdx, window._lastDetailCopyInv); }, 200);
+  } catch (e) {
+    console.warn('[back-to-inbox]', e);
+    if (typeof showToast === 'function') showToast('Could not send the photo back \u2014 try again', 4000, true);
+  }
+}
+if (typeof window !== 'undefined') window._rrPhotoBackToInbox = _rrPhotoBackToInbox;
 
 // v0.9.695: repair a personalData row number that is missing or the fake
 // 99999 placeholder (older manual/IS saves stamped it) by locating the row's

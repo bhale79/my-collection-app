@@ -600,6 +600,7 @@
   }
 
   if (typeof window !== 'undefined') {
+    window._pinInboxFolderId = _folder;   // v0.9.1499: gallery "send back to inbox" needs the folder
     window._pinGroupNums    = _pinGroupNums;
     window._pinIsMultiPiece = _pinIsMultiPiece;
     window._pinSetGuess     = _pinSetGuess;
@@ -4919,8 +4920,15 @@
       var _tgtFid = '';
       try { _tgtFid = (_tgt && _tgt.photoItem && (String(_tgt.photoItem).match(/folders\/([a-zA-Z0-9_-]+)/) || [])[1]) || ''; } catch (eTF) { _tgtFid = ''; }
       if (_tgtFid === 'undefined') _tgtFid = '';
-      var toFid = _tgtFid || await driveEnsureItemFolder(_tgtNum);
-      var link = _tgtFid ? String(_tgt.photoItem) : driveFolderLink(toFid);
+      var toFid, link;
+      if (_tgtFid) { toFid = _tgtFid; link = String(_tgt.photoItem); }
+      else if (_tgt && _tgt.inventoryId && typeof driveFindOrCreateFolder === 'function') {
+        // v0.9.1499: a copy with no folder yet gets its OWN inventory-id
+        // subfolder, never the number's shared folder (the two-6473s bug).
+        var _tgBase = await driveEnsureItemFolder(_tgtNum);
+        toFid = await driveFindOrCreateFolder(String(_tgt.inventoryId), _tgBase);
+        link = driveFolderLink(toFid);
+      } else { toFid = await driveEnsureItemFolder(_tgtNum); link = driveFolderLink(toFid); }
       var lk = lkPre;
       // Attach path when the user asked to attach, or when it's an owned item
       // being auto-filed / listed for sale. 'new' always makes a fresh item.
@@ -4941,7 +4949,7 @@
         // and one failure abandoned the rest and skipped the toast entirely.
         // Now each move gets its own try, the count is of moves that landed,
         // and the toast below reports the real number either way.
-        var moved = 0, _mvFail = 0;
+        var moved = 0, _mvFail = 0, _mvRecs = [];   // v0.9.1499: what landed, for view placement
         for (var i2 = 0; i2 < fileList.length; i2++) {
           _status('Filing photo ' + (i2 + 1) + ' of ' + fileList.length + '…');
           var file = fileList[i2];
@@ -4955,6 +4963,7 @@
             continue;
           }
           try { await driveRequest('PATCH', '/files/' + file.id, { name: _tgtNum + ' ADD ' + (ts + moved) + '.' + ext }); } catch (eRn) {}
+          _mvRecs.push({ id: file.id, name: _tgtNum + ' ADD ' + (ts + moved) + '.' + ext });
         }
         _sel = {};
         _status('');
@@ -4978,6 +4987,14 @@
         if (_mvFail) showToast('Attached ' + moved + ' of ' + fileList.length + ' photo' + (fileList.length > 1 ? 's' : '') + ' to ' + _tgtNum + ' \u2014 ' + _mvFail + ' stayed in the inbox. Try them again.', 5000, true);
         else showToast('Attached ' + moved + ' photo' + (moved > 1 ? 's' : '') + ' to ' + _tgtNum, 3000);
         _pinRefresh();
+        // v0.9.1499 (Brad): "it should just bring up that items detail page
+        // and then let me select which view to put it in" -- open the copy
+        // the photos just filed into and offer a view for each new photo.
+        if (mode === 'attach' && moved > 0) {
+          var _plPd = _livePd, _plLink = link, _plRecs = _mvRecs.slice();
+          try { if (_plPd && _plPd.inventoryId && typeof _openOwnedByInvId === 'function') _openOwnedByInvId(_plPd.inventoryId); } catch (eNv1) {}
+          setTimeout(function () { try { window._pinPlaceViews(_plRecs, _plLink); } catch (ePl) { console.warn('[Inbox] view placement:', ePl); } }, 700);
+        }
         // v0.9.958 (Brad): "Send to For Sale" on an item you already own —
         // photos are filed above, now open the sale-price step for it.
         if (mode === 'forsale') {
@@ -5542,6 +5559,163 @@
   // Run from DevTools:  _pinMaintWipeReads()
   // Clears local reads AND blanks the Drive num stamps; keeps tags, groups,
   // and wrong-marks. Refresh the inbox afterwards.
+  // -- v0.9.1499 (Brad): after an attach, name each new photo's view -------
+  // A card over the detail page: every just-filed photo with tappable view
+  // buttons (the same RSV/LSV/... tokens the drag chips write, through the
+  // same one-view-one-photo committer). Tap works on the phone, where the
+  // drag chips never did. "Skip" leaves a photo plain -- nothing is guessed,
+  // nothing renamed until a button is pressed.
+  window._pinPlaceViews = async function (recs, folderLink) {
+    recs = (recs || []).filter(function (r) { return r && r.id; });
+    if (!recs.length || !folderLink) return;
+    var old = document.getElementById('pin-place-ov'); if (old) old.remove();
+    var views = (typeof ITEM_VIEWS !== 'undefined' ? ITEM_VIEWS : []);
+    var ov = document.createElement('div');
+    ov.id = 'pin-place-ov';
+    ov.style.cssText = 'position:fixed;inset:0;z-index:10002;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;padding:1rem';
+    var card = document.createElement('div');
+    card.style.cssText = 'background:var(--bg-card);border:1px solid var(--border);border-radius:14px;max-width:520px;width:100%;max-height:85vh;overflow-y:auto;padding:1rem';
+    card.innerHTML = '<div style="font-weight:700;color:var(--text);font-size:1rem;margin-bottom:0.2rem">Where does each photo go?</div>'
+      + '<div style="font-size:0.78rem;color:var(--text-dim);margin-bottom:0.7rem">Tap a view for each new photo, or Skip to leave it a plain photo.</div>';
+    recs.forEach(function (rec) {
+      var row = document.createElement('div');
+      row.style.cssText = 'display:flex;gap:0.7rem;align-items:flex-start;border:1px solid var(--border);border-radius:10px;padding:0.55rem;margin-bottom:0.55rem';
+      var im = document.createElement('img');
+      im.style.cssText = 'width:96px;height:72px;object-fit:cover;border-radius:8px;background:var(--surface2);flex-shrink:0';
+      try { loadDriveThumb(rec.id, im, row); } catch (eT) {}
+      var right = document.createElement('div');
+      right.style.cssText = 'flex:1;min-width:0';
+      var btns = document.createElement('div');
+      btns.style.cssText = 'display:flex;flex-wrap:wrap;gap:0.35rem';
+      var done = document.createElement('div');
+      done.style.cssText = 'display:none;font-size:0.85rem;font-weight:700;color:#2ecc71;padding:0.3rem 0';
+      function mk(label, key) {
+        var b = document.createElement('button');
+        b.textContent = label;
+        b.style.cssText = 'padding:0.45rem 0.6rem;border-radius:999px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text);font-size:0.78rem;font-weight:700;cursor:pointer';
+        b.onclick = async function () {
+          btns.querySelectorAll('button').forEach(function (x) { x.disabled = true; x.style.opacity = '0.5'; });
+          if (key !== null) {
+            try {
+              var photos = (await driveGetFolderPhotos(folderLink)) || [];
+              if (typeof _rrGalCommitView === 'function' && photos.length) {
+                await _rrGalCommitView(photos, rec.id, key, function () {});
+              }
+            } catch (eV) {
+              console.warn('[Inbox] view rename failed:', eV);
+              btns.querySelectorAll('button').forEach(function (x) { x.disabled = false; x.style.opacity = ''; });
+              return;
+            }
+          }
+          btns.style.display = 'none';
+          done.textContent = (key === null) ? 'Left as a plain photo' : '\u2713 ' + label;
+          done.style.display = 'block';
+        };
+        return b;
+      }
+      views.forEach(function (v) { btns.appendChild(mk(v.label, v.key)); });
+      btns.appendChild(mk('Plain photo', ''));
+      btns.appendChild(mk('Skip', null));
+      right.appendChild(btns); right.appendChild(done);
+      row.appendChild(im); row.appendChild(right);
+      card.appendChild(row);
+    });
+    var doneBtn = document.createElement('button');
+    doneBtn.textContent = 'Done';
+    doneBtn.className = 'btn-primary';
+    doneBtn.style.cssText = 'width:100%;padding:0.7rem;border-radius:10px;border:none;font-weight:700;font-size:0.92rem;cursor:pointer';
+    doneBtn.onclick = function () {
+      ov.remove();
+      if (typeof window._lastDetailIdx === 'number' && typeof showItemDetailPage === 'function')
+        setTimeout(function () { showItemDetailPage(window._lastDetailIdx, window._lastDetailCopyInv); }, 150);
+    };
+    card.appendChild(doneBtn);
+    ov.appendChild(card);
+    document.body.appendChild(ov);
+  };
+
+  // -- v0.9.1499: the repair for the shared-folder years --------------------
+  // Owned copies of the same number whose photo links point at the SAME Drive
+  // folder have been showing each other's photos (the 6473/6414 discovery).
+  // This sorts what can be PROVEN: a photo whose filename carries the
+  // "ID<inventoryId>" stamp the wizard has always written belongs to that
+  // copy and moves into that copy's own subfolder; each copy that received
+  // photos gets its link repointed. Anything without a stamp stays put and is
+  // listed -- re-file those by hand with the gallery's send-back button.
+  //   rrMaintSplitCopyFolders()      -- dry run, writes nothing
+  //   rrMaintSplitCopyFolders(true)  -- do it
+  window.rrMaintSplitCopyFolders = async function (apply) {
+    if (!window.state || !state.personalData) { console.log('Not loaded yet \u2014 open the app first.'); return; }
+    var byNum = {};
+    Object.values(state.personalData).forEach(function (p) {
+      if (p && p.owned && p.itemNum) (byNum[String(p.itemNum)] = byNum[String(p.itemNum)] || []).push(p);
+    });
+    var out = { sharedFolders: 0, photosMoved: 0, linksFixed: 0, leftAlone: [], errors: [] };
+    var nums = Object.keys(byNum);
+    for (var i = 0; i < nums.length; i++) {
+      var num = nums[i], rows = byNum[num];
+      if (rows.length < 2) continue;
+      var byFid = {};
+      rows.forEach(function (p) {
+        var f = (String(p.photoItem || '').match(/folders\/([a-zA-Z0-9_-]+)/) || [])[1] || '';
+        if (f && f !== 'undefined') (byFid[f] = byFid[f] || []).push(p);
+      });
+      var fids = Object.keys(byFid);
+      for (var j = 0; j < fids.length; j++) {
+        var fid = fids[j], sharers = byFid[fid];
+        if (sharers.length < 2) continue;
+        out.sharedFolders++;
+        var photos = [];
+        try { photos = (await driveGetFolderPhotos(driveFolderLink(fid))) || []; }
+        catch (eL) { out.errors.push(num + ': could not list the shared folder'); continue; }
+        var gained = {};   // inventoryId -> subfolder id (or placeholder in dry run)
+        for (var k = 0; k < photos.length; k++) {
+          var ph = photos[k];
+          var m = String(ph.name || '').match(/\bID(\d+)\b/);
+          if (!m) { out.leftAlone.push(num + ' \u2014 ' + ph.name); continue; }
+          var owner = null;
+          for (var r0 = 0; r0 < rows.length; r0++) if (String(rows[r0].inventoryId) === m[1]) { owner = rows[r0]; break; }
+          if (!owner) { out.leftAlone.push(num + ' \u2014 ' + ph.name + ' (no copy has ID ' + m[1] + ')'); continue; }
+          try {
+            if (apply) {
+              if (!gained[m[1]] || gained[m[1]] === 'would-create')
+                gained[m[1]] = await driveFindOrCreateFolder(String(owner.inventoryId), fid);
+              await driveMoveFileToFolder(ph.id, fid, gained[m[1]]);
+            } else gained[m[1]] = gained[m[1]] || 'would-create';
+            out.photosMoved++;
+          } catch (eM) { out.errors.push(num + ' \u2014 ' + ph.name + ': move failed'); }
+        }
+        var invs = Object.keys(gained);
+        for (var g = 0; g < invs.length; g++) {
+          var pd2 = null;
+          for (var r1 = 0; r1 < rows.length; r1++) if (String(rows[r1].inventoryId) === invs[g]) { pd2 = rows[r1]; break; }
+          if (!pd2) continue;
+          if (!apply) { out.linksFixed++; continue; }
+          if (gained[invs[g]] === 'would-create') continue;
+          try {
+            var newLink = driveFolderLink(gained[invs[g]]);
+            var rowOk = pd2.row && Number(pd2.row) !== 99999;
+            if (rowOk && await rrVerifiedRowUpdate(state.personalSheetId, PERSONAL_TAB, pd2.row, PERSONAL_TAB + '!' + personalColLetter('photoItem') + pd2.row, [[newLink]], { num: pd2.itemNum || '', invId: pd2.inventoryId || '' }, 'collection')) {
+              pd2.photoItem = newLink;
+              out.linksFixed++;
+              try { if (typeof rrThumbBust === 'function') rrThumbBust(pd2); } catch (eTB) {}
+            } else out.errors.push(num + ' inv ' + pd2.inventoryId + ': link write refused \u2014 sync and re-run');
+          } catch (eW) { out.errors.push(num + ' inv ' + pd2.inventoryId + ': link write failed'); }
+        }
+      }
+    }
+    try { if (apply && typeof _cachePersonalData === 'function') _cachePersonalData(); } catch (eC) {}
+    console.log(apply ? 'DONE.' : 'DRY RUN \u2014 nothing written. Run rrMaintSplitCopyFolders(true) to apply.');
+    console.log('Shared folders found: ' + out.sharedFolders
+      + '\nPhotos ' + (apply ? 'moved' : 'that would move') + ': ' + out.photosMoved
+      + '\nLinks ' + (apply ? 'repointed' : 'that would repoint') + ': ' + out.linksFixed
+      + '\nLeft for you to re-file (no ID stamp): ' + out.leftAlone.length
+      + (out.errors.length ? '\nErrors: ' + out.errors.length : ''));
+    if (out.leftAlone.length) console.log('Unstamped photos, staying put:\n' + out.leftAlone.join('\n'));
+    if (out.errors.length) console.log('Errors:\n' + out.errors.join('\n'));
+    return out;
+  };
+
   window._pinMaintWipeReads = async function () {
     try {
       // v0.9.1497 (Brad ran it at boot, before the inbox had loaded — it
@@ -5713,6 +5887,27 @@
             if (!rec.toFid) rec.toFid = await driveEnsureItemFolder(num);
             if (!rec.link) rec.link = driveFolderLink(rec.toFid);
           } catch (eF) { console.warn('[Inbox] pending folder resolve failed — will retry:', eF); continue; }
+        }
+        // -- v0.9.1499 (Brad's two 6473s, then the 6414 pair) ------------
+        // The note's toFid was resolved by NUMBER (driveEnsureItemFolder), so
+        // a second copy's photos filed into the folder every copy of that
+        // number shares -- and both detail pages showed both copies' photos.
+        // The row is picked ABOVE this line, so the destination can be the
+        // ROW's: its own linked folder if it has one, else its own
+        // inventory-id subfolder -- the "<itemNum>/<inventoryId>/" shape
+        // every wizard upload has used since v0.9.1128. Skipped once the move
+        // already happened (rec.moved): re-aiming a done move re-moves files.
+        if (rec && typeof rec === 'object' && !rec.moved && rec.files && rec.files.length) {
+          try {
+            var _cpFid = (String(pd.photoItem || '').match(/folders\/([a-zA-Z0-9_-]+)/) || [])[1] || '';
+            if (_cpFid === 'undefined') _cpFid = '';
+            if (_cpFid) { rec.toFid = _cpFid; rec.link = String(pd.photoItem); }
+            else if (pd.inventoryId && typeof driveFindOrCreateFolder === 'function') {
+              var _cpBase = await driveEnsureItemFolder(num);
+              var _cpSub = await driveFindOrCreateFolder(String(pd.inventoryId), _cpBase);
+              if (_cpSub) { rec.toFid = _cpSub; rec.link = driveFolderLink(_cpSub); }
+            }
+          } catch (eCp) { console.warn('[Inbox] per-copy folder resolve failed \u2014 will retry:', eCp); continue; }
         }
         var link = (rec && typeof rec === 'object') ? rec.link : rec;  // back-compat: old entries were a plain link string
         // v0.9.1192: `rec.moved` records that the Drive move already happened,
