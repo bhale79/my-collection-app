@@ -4407,8 +4407,16 @@
       var _aiSku = (meta && meta._aiSku) || '';
       var trim = function (v, old) { return String(v || old || '').slice(0, 120); };
       ids[fid0] = { aiRaw: _aiRaw, aiSku: _aiSku,
-        num: meta.itemNum ? String(meta.itemNum) : (prev.num || ''),
-        guess: meta.itemNum ? (meta._hedge ? 1 : 0) : (prev.guess || 0),
+        // v0.9.1490: an enumerated answer stores ALL candidates and keeps the
+        // number BLANK until the user picks (Brad's call) — prev junk must
+        // not linger under a fresh multi-candidate read.
+        num: (meta._altCands && meta._altCands.length >= 2) ? ''
+           : (meta.itemNum ? String(meta.itemNum) : (prev.num || '')),
+        guess: (meta._altCands && meta._altCands.length >= 2) ? 1
+           : (meta.itemNum ? (meta._hedge ? 1 : 0) : (prev.guess || 0)),
+        alts: (meta._altCands && meta._altCands.length >= 2)
+           ? meta._altCands.slice(0, 5).map(function (c) { return c.note ? (c.num + ' \u2014 ' + c.note) : c.num; })
+           : (prev.alts || undefined),
         tried: 1,
         // v0.9.1151 (pre-beta audit, BLOCKER 3): PAID reads were stored with no
         // rv stamp. _pinAutoRead skips a photo only when rec.rv === READER_VER,
@@ -4520,10 +4528,25 @@
     if (!txt) return false;
     if (typeof window.rrSliceAiOverview === 'function') txt = window.rrSliceAiOverview(txt);   // v0.9.1486: answer only, never result titles
     var meta = (typeof extractIdentifyMetadata === 'function') ? extractIdentifyMetadata(txt) : {};
+    // v0.9.1490 (Brad: "offer multiple item numbers... leave blank until
+    // user picks"): when the answer ITSELF enumerates candidates (the NYC
+    // F3 "2333, 2344, or 2354"), keep them ALL — number stays blank, the
+    // alt-chips row offers each with its tell-note, tap runs the lookup
+    // with references.
+    try {
+      var _enumC = (typeof window._identifyEnumCandidates === 'function') ? window._identifyEnumCandidates(txt) : [];
+      if (_enumC.length >= 2 && (!meta.itemNum || _enumC.some(function (c) { return c.num === String(meta.itemNum).toUpperCase(); }))) {
+        meta._altCands = _enumC;
+        meta._hedge = 1;
+        meta.itemNum = '';
+      }
+    } catch (eEn) {}
     if (!_pinApplyMeta(meta, gs, txt)) return false;
-    showToast(meta._hedge
-      ? 'Read the copied answer — the number is a best guess, double-check it'
-      : 'Read the copied answer — check it over and hit Add', 4000);
+    showToast((meta._altCands && meta._altCands.length)
+      ? 'Google named ' + meta._altCands.length + ' possibles — pick the one you have on the card'
+      : (meta._hedge
+        ? 'Read the copied answer — the number is a best guess, double-check it'
+        : 'Read the copied answer — check it over and hit Add'), 4000);
     return true;
   }
 
@@ -4714,6 +4737,14 @@
       _pinLensClip = txt;
       if (typeof window.rrSliceAiOverview === 'function') txt = window.rrSliceAiOverview(txt);   // v0.9.1486
       var meta = (typeof extractIdentifyMetadata === 'function') ? extractIdentifyMetadata(txt) : {};
+      try {   // v0.9.1490: same enumeration handling as the paste path
+        var _enumC2 = (typeof window._identifyEnumCandidates === 'function') ? window._identifyEnumCandidates(txt) : [];
+        if (_enumC2.length >= 2 && (!meta.itemNum || _enumC2.some(function (c) { return c.num === String(meta.itemNum).toUpperCase(); }))) {
+          meta._altCands = _enumC2;
+          meta._hedge = 1;
+          meta.itemNum = '';
+        }
+      } catch (eEn2) {}
       var got = meta.itemNum || meta.description || meta.manufacturer || meta.roadName;
       if (!got) return;                            // unrelated clipboard — keep watching
       var gs = _pinLensGroups;

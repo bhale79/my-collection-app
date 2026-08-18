@@ -368,12 +368,44 @@ function rrSliceAiOverview(txt) {
 }
 if (typeof window !== 'undefined') window.rrSliceAiOverview = rrSliceAiOverview;
 
+// ── v0.9.1490 (Brad: "can we have the ability to offer multiple item
+// numbers when we don't know for sure?"): does the answer ITSELF name
+// several candidates? Two shapes Google actually produces for lookalikes:
+//   "Lionel No. 2333, 2344, or 2354 series"
+//   "1948 → #2333 (Horizontal Dual Motors, No Magnetraction)" timelines —
+// the parenthetical is the TELL and rides along as the note.
+function _identifyEnumCandidates(txt) {
+  var out = [], seen = {};
+  try {
+    var s = String(txt || '');
+    var push = function (n, note) {
+      n = String(n || '').toUpperCase().replace(/^#/, '');
+      if (!/^\d{3,5}[A-Z]{0,2}$/.test(n)) return;
+      if (/^(19|20)\d{2}$/.test(n) && !note) return;   // a bare year is not a candidate
+      if (seen[n]) { if (note && !seen[n].note) seen[n].note = String(note).trim().slice(0, 60); return; }
+      var c = { num: n, note: String(note || '').trim().slice(0, 60) };
+      seen[n] = c; out.push(c);
+    };
+    var m;
+    var re1 = /#\s?(\d{3,5}[A-Z]{0,2})\b(?:\s*\(([^)]{3,60})\))?/g;
+    while ((m = re1.exec(s))) push(m[1], m[2]);
+    var re2 = /\b(\d{3,5}[A-Z]{0,2})\s*,\s*(\d{3,5}[A-Z]{0,2})\s*,?\s*(?:or|and)\s*(\d{3,5}[A-Z]{0,2})\b/gi;
+    while ((m = re2.exec(s))) { push(m[1]); push(m[2]); push(m[3]); }
+    var re3 = /\bno?s?\.\s*(\d{3,5}[A-Z]{0,2})\s*,?\s*(?:or|and)\s*(\d{3,5}[A-Z]{0,2})\b/gi;
+    while ((m = re3.exec(s))) { push(m[1]); push(m[2]); }
+  } catch (e) {}
+  return out.slice(0, 5);
+}
+if (typeof window !== 'undefined') window._identifyEnumCandidates = _identifyEnumCandidates;
+
 function _identifyProcessText(txt) {
   txt = _identifySanitize(txt).trim();
   if (!txt) return 'none';
   _identifyShowPasteEcho(txt);
   // v0.9.1486: the v1478 AI-Overview slice is the SHARED helper now.
   txt = rrSliceAiOverview(txt);
+  // v0.9.1490: harvest answer-named alternates for the receipt card.
+  var _enumC = _identifyEnumCandidates(txt);
   // Run the smart metadata extractor as the single source of truth.
   // It handles hedge detection so we don't grab a cab# disguised as item#.
   var meta = extractIdentifyMetadata(txt);
@@ -441,6 +473,11 @@ function _identifyProcessText(txt) {
   }
   // Build the toast: lead with item#, append a couple of extracted fields
   // so the user sees what we recognized before the modal closes.
+  // v0.9.1490: when the answer enumerated candidates and the pick is one of
+  // them, the receipt card offers the others as tap-to-switch chips.
+  try {
+    wizard.data._identifyAltCands = (_enumC.length >= 2 && _enumC.some(function (c) { return c.num === String(extracted).toUpperCase(); })) ? _enumC : null;
+  } catch (eAC) {}
   var bits = ['Found item #' + extracted];
   if (meta.roadName) bits.push(meta.roadName);
   if (meta.year)     bits.push('(' + meta.year + ')');
@@ -2119,7 +2156,22 @@ function _idShowConfirmCard(num, meta) {
     d.style.cssText = 'position:fixed;top:72px;right:16px;z-index:100005;max-width:360px;background:var(--surface,#1b1e3a);border:2px solid #2ecc71;border-radius:12px;padding:0.8rem 1rem;box-shadow:0 6px 24px rgba(0,0,0,0.5);color:var(--text,#fff);font-family:var(--font-body,sans-serif);cursor:pointer';
     d.innerHTML = '<div style="color:#2ecc71;font-weight:700;font-size:0.95rem;margin-bottom:4px">\u2713 Read Google\u2019s answer</div>'
       + '<div style="font-size:0.92rem;line-height:1.45;font-weight:600">' + esc(bits.join(' \u2014 ')) + '</div>'
-      + '<div style="font-size:0.78rem;color:var(--text-dim,#999);margin-top:6px">Filled in below \u2014 check the match, then press Next. (Click to dismiss)</div>';
+      + '<div style="font-size:0.78rem;color:var(--text-dim,#999);margin-top:6px">Filled in below \u2014 check the match, then press Next. (Click to dismiss)</div>'
+      // v0.9.1490: the answer's OTHER candidates, one tap to switch — the
+      // note (motors / Magnetraction / roof vents) is the tell.
+      + (function () {
+          try {
+            var alts = (typeof wizard !== 'undefined' && wizard.data && wizard.data._identifyAltCands) || [];
+            var others = alts.filter(function (c) { return c.num !== String(num).toUpperCase(); }).slice(0, 4);
+            if (!others.length) return '';
+            return '<div style="font-size:0.78rem;color:var(--text-dim,#999);margin-top:8px">Google also mentioned \u2014 tap to switch:</div>'
+              + '<div style="display:flex;flex-wrap:wrap;gap:0.3rem;margin-top:4px">'
+              + others.map(function (c) {
+                  return '<button type="button" onclick="event.stopPropagation();try{document.getElementById(\'id-confirm-card\').remove();}catch(e){};window._applyIdentifiedItem&&window._applyIdentifiedItem(\'' + esc(c.num) + '\')" style="padding:0.3rem 0.55rem;border-radius:8px;border:1.5px solid var(--border,#444);background:var(--surface2,#252848);color:var(--text-mid,#ccc);font-size:0.75rem;font-weight:700;cursor:pointer">' + esc(c.num) + (c.note ? ' \u2014 ' + esc(c.note) : '') + '</button>';
+                }).join('')
+              + '</div>';
+          } catch (e) { return ''; }
+        })();
     d.onclick = function () { try { d.remove(); } catch (e) {} };
     document.body.appendChild(d);
     setTimeout(function () { try { d.remove(); } catch (e) {} }, 12000);
@@ -2128,6 +2180,7 @@ function _idShowConfirmCard(num, meta) {
 
 function _applyIdentifiedItem(num) {
   _identifySelectedNum = num;
+  if (typeof window !== 'undefined') window._applyIdentifiedItem = _applyIdentifiedItem;   // v0.9.1490: receipt chips call it
   // Snapshot the caller context BEFORE closeIdentify nulls it out — otherwise
   // the wizard branch below would never fire (pre-existing bug exposed by the
   // new auto-paste path).
