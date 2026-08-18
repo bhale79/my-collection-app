@@ -2977,11 +2977,31 @@
     for (var i = 0; i < fl.length; i++) if (fl[i].id === cur) return i;
     return 0;
   }
+  var _rvEdgeArmed = 0;   // v0.9.1493: the leaving-group two-press latch (+1 fwd / -1 back)
   window._pinReviewStepMember = function (delta) {
     var fl = _pinRvMembers();
     if (!fl) return;
     var i = _pinRvMemberIndex(), j = i + delta;
-    if (j < 0 || j >= fl.length) return;        // stop at the ends, never wrap
+    if (j < 0 || j >= fl.length) {
+      // ── v0.9.1493 (Brad: "we should be able to keep going in either
+      // direction... put a pop up that says 'leaving group/set photos. hit
+      // arrow again to continue'"): first press at the edge ARMS and says
+      // so; the second press in the same direction steps OUT to the next /
+      // previous card in the inbox. A press the other way disarms.
+      if (_rvEdgeArmed === delta) {
+        _rvEdgeArmed = 0;
+        if (typeof window._pinReviewStep === 'function') window._pinReviewStep(delta);
+        return;
+      }
+      _rvEdgeArmed = delta;
+      try {
+        showToast(delta > 0
+          ? 'Leaving this group\u2019s photos \u2014 hit \u203a again to continue'
+          : 'Leaving this group\u2019s photos \u2014 hit \u2039 again to go back', 3500);
+      } catch (eT) {}
+      return;
+    }
+    _rvEdgeArmed = 0;
     window._pinRvSetMain(fl[j].id);
     // The arrows and the counter now describe a different member, so they have to
     // be redrawn — otherwise "2 of 6" freezes and the greying lies at the ends.
@@ -3014,7 +3034,9 @@
     var fl = _pinRvMembers();
     if (fl) {
       var mi = _pinRvMemberIndex();
-      return _pinRvArrow(dir, dir === 'prev' ? mi > 0 : mi < fl.length - 1,
+      // v0.9.1493: live at the edges too — the edge press arms the
+      // leaving-group latch instead of dead-ending.
+      return _pinRvArrow(dir, true,
         '_pinReviewStepMember',
         dir === 'prev' ? 'Previous item in this group' : 'Next item in this group');
     }
@@ -3058,6 +3080,7 @@
   if (typeof window !== 'undefined') window._pinRvTitle = _pinRvTitle;
 
   window._pinReviewStep = function (delta) {
+    _rvEdgeArmed = 0;   // v0.9.1493: a card change always disarms the latch
     var i = _pinRvIndex();
     if (i < 0) return;
     var ord = _pinRvOrder();
