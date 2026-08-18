@@ -2722,6 +2722,12 @@
         + 'cursor:pointer;box-shadow:0 4px 18px var(--scrim);font-family:var(--font-body)';
       pill.onclick = function () {
         pill.remove();
+        // v0.9.1495 (Brad: "if you hit back to your photo, the photo inbox
+        // doesn't reappear, it stays on the detail page"): return the PAGE
+        // first, then the card — the card floats over whatever page is
+        // current, and it was floating over the detail page (and rendering
+        // askew there).
+        try { if (typeof showPage === 'function') showPage('photo-inbox'); } catch (eP) {}
         var o = document.getElementById('pin-review-ov');
         if (o) o.style.display = '';
       };
