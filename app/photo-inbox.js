@@ -5428,6 +5428,14 @@
   // and wrong-marks. Refresh the inbox afterwards.
   window._pinMaintWipeReads = async function () {
     try {
+      // v0.9.1497 (Brad ran it at boot, before the inbox had loaded — it
+      // scanned an EMPTY photo list, reported "blanking 0 Drive stamps",
+      // and the stamps re-seeded everything again): refuse to run until
+      // the photo list is actually loaded.
+      if (!_groups || !_groups.length) {
+        console.log('[wipe] the photo list is not loaded yet — open the Photo Inbox page, wait for the grid to appear, THEN run _pinMaintWipeReads() again. Nothing was changed.');
+        return;
+      }
       var ids = _ids(); var kept = 0, total = 0;
       Object.keys(ids).forEach(function (id) {
         total++;
