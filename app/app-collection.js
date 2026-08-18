@@ -1001,6 +1001,7 @@ function showItemDetailPage(idx, copyInvId, opts) {
   const _fsEntry = _detailInvId ? state.forSaleData[_detailInvId] : null;
   const isForSale = !!_fsEntry;
   const _fsPrice = _fsEntry ? _currencySymbol() + parseFloat(_fsEntry.askingPrice || 0).toLocaleString() : '';
+  window._fsEditCur = _fsEntry || null;   // v0.9.1492: the price-edit overlay reads this
   const groupMembers = pd && pd.groupId ? Object.values(state.personalData).filter(p => p.groupId === pd.groupId && p.itemNum !== it.itemNum) : [];
   // v0.9.728 (Brad, Phase 1 group sheet): FULL roster incl. this copy, with
   // state keys so member cards can open the edit panel / photos per piece.
@@ -1106,7 +1107,7 @@ function showItemDetailPage(idx, copyInvId, opts) {
       <div style="flex:1;min-width:0">
         <div style="display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap;margin-bottom:0.25rem">
           <span style="font-family:var(--font-head);font-size:1.6rem;color:var(--accent);letter-spacing:0.03em">${_wantMode ? ('Wanted: ' + (_wantHeading || (it.itemNum + (_wantPartner ? ' with a ' + _wantPartner : '')))) : (String(it.itemNum||'').indexOf(' ')===-1 ? 'No. ' + it.itemNum + (it.poweredDummy === 'P' ? '-P' : it.poweredDummy === 'D' ? '-D' : '') : it.itemNum)}</span>${typeof window._noNumTag==='function' ? window._noNumTag(it.itemNum) : ''}
-          ${isForSale ? `<span style="font-size:1rem;color:var(--gold);font-family:var(--font-head);letter-spacing:0.02em">— on the sale list for ${_fsPrice}</span>` : ''}
+          ${isForSale ? `<span style="font-size:1rem;color:var(--gold);font-family:var(--font-head);letter-spacing:0.02em">— on the sale list for <span id="fs-price-span">${_fsPrice}</span></span> <a href="javascript:_fsEditPrice()" style="font-size:0.78rem;color:var(--accent2);text-decoration:none;font-weight:700">edit</a>` : ''}
           ${it.variation ? `<span style="font-size:0.9rem;color:var(--text-dim);background:var(--surface2);border-radius:6px;padding:0.15rem 0.6rem">Var. ${it.variation}</span>` : ''}
           ${it.itemType ? `<span class="tag">${it.itemType}</span>` : ''}
           ${it.yearProd ? `<span style="font-size:0.82rem;color:var(--text-dim)">${it.yearProd}</span>` : ''}
@@ -1228,6 +1229,7 @@ function showItemDetailPage(idx, copyInvId, opts) {
   ].filter(d => d.val);
   if (_wantMode) {
     var _wmPrice = _wantEntry ? (_wantEntry.expectedPrice || _wantEntry.maxPrice) : '';
+    window._wantEditCur = _wantEntry || null;   // v0.9.1492: the edit overlay reads this
     details = [
       { label: 'Condition Target', val: _wantEntry && _wantEntry.targetCondition ? _wantEntry.targetCondition : null },
       { label: 'Priority', val: _wantEntry && _wantEntry.priority ? _wantEntry.priority : null },
@@ -1245,7 +1247,8 @@ function showItemDetailPage(idx, copyInvId, opts) {
         <span style="font-size:0.78rem;color:var(--text-dim);font-weight:600">${d.label}</span>
         <span style="font-size:0.85rem;color:var(--text);text-align:right">${d.val}</span>
       </div>`).join('')}
-    </div>`;
+    </div>
+    ${_wantMode && _wantEntry ? `<div style="margin-top:0.6rem;text-align:right"><button onclick="_wantEditOpen()" style="padding:0.45rem 0.9rem;border-radius:8px;border:1.5px solid var(--accent2);background:none;color:var(--accent2);font-family:var(--font-body);font-size:0.8rem;font-weight:600;cursor:pointer">Edit want details</button></div>` : ''}`;
 
   // Matched / Set info
   if (matchedTo || setId || groupMembers.length) {
@@ -4856,3 +4859,97 @@ function _checkWantPartners(itemNum, variation, priority, maxPrice, notes) {
 
 
 
+
+
+// ══ v0.9.1492 (Brad: "need a way to edit the want list items, and the for
+// sale price") ═══════════════════════════════════════════════════════════
+// One tiny overlay, two savers. Both write through rrVerifiedRowUpdate —
+// the same moved-row guard every other sheet write uses (v1292 lesson:
+// nine columns at a remembered row number, unguarded, is how entries get
+// silently overwritten).
+function _rrMiniEdit(title, fields, onSave) {
+  var old = document.getElementById('rr-mini-edit'); if (old) old.remove();
+  var d = document.createElement('div');
+  d.id = 'rr-mini-edit';
+  d.style.cssText = 'position:fixed;inset:0;z-index:100010;background:rgba(0,0,0,0.65);display:flex;align-items:center;justify-content:center;padding:1rem';
+  var inner = '<div class="rr-card" style="min-width:280px;max-width:360px;color:var(--text);font-family:var(--font-body)">'
+    + '<div style="font-family:var(--font-head);font-size:1rem;font-weight:700;margin-bottom:0.7rem">' + String(title).replace(/</g, '&lt;') + '</div>';
+  fields.forEach(function (f) {
+    inner += '<label style="display:block;font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.2rem">' + f.label + '</label>';
+    if (f.type === 'select') {
+      inner += '<select id="rrme-' + f.key + '" style="width:100%;padding:0.55rem;border-radius:8px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text);margin-bottom:0.6rem">'
+        + f.options.map(function (o) { return '<option value="' + o + '"' + (String(f.value) === o ? ' selected' : '') + '>' + o + '</option>'; }).join('')
+        + '</select>';
+    } else {
+      inner += '<input id="rrme-' + f.key + '" type="number" ' + (f.min != null ? 'min="' + f.min + '" max="' + f.max + '"' : 'min="0" step="0.01"') + ' value="' + String(f.value == null ? '' : f.value).replace(/"/g, '') + '" style="width:100%;box-sizing:border-box;padding:0.55rem;border-radius:8px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text);margin-bottom:0.6rem">';
+    }
+  });
+  inner += '<div style="display:flex;gap:0.5rem;margin-top:0.3rem">'
+    + '<button id="rrme-cancel" style="flex:1;padding:0.6rem;border-radius:8px;border:1.5px solid var(--border);background:none;color:var(--text-mid);cursor:pointer;font-family:var(--font-body)">Cancel</button>'
+    + '<button id="rrme-save" style="flex:2;padding:0.6rem;border-radius:8px;border:none;background:var(--accent);color:#fff;font-weight:700;cursor:pointer;font-family:var(--font-body)">Save</button>'
+    + '</div></div>';
+  d.innerHTML = inner;
+  document.body.appendChild(d);
+  d.addEventListener('click', function (e) { if (e.target === d) d.remove(); });
+  document.getElementById('rrme-cancel').onclick = function () { d.remove(); };
+  document.getElementById('rrme-save').onclick = function () {
+    var vals = {};
+    fields.forEach(function (f) { var el = document.getElementById('rrme-' + f.key); vals[f.key] = el ? el.value : ''; });
+    var btn = document.getElementById('rrme-save');
+    btn.disabled = true; btn.textContent = 'Saving\u2026';
+    Promise.resolve(onSave(vals)).then(function (ok) {
+      if (ok !== false) d.remove();
+      else { btn.disabled = false; btn.textContent = 'Save'; }
+    }).catch(function () { btn.disabled = false; btn.textContent = 'Save'; });
+  };
+}
+
+window._wantEditOpen = function () {
+  var u = window._wantEditCur;
+  if (!u || !u.row) { showToast('Could not find this want entry \u2014 refresh and try again', 3000, true); return; }
+  _rrMiniEdit('Edit want details \u2014 ' + (u.itemNum || ''), [
+    { key: 'cond', label: 'Condition target (1-10)', value: u.targetCondition || '', min: 1, max: 10 },
+    { key: 'pri', label: 'Priority', type: 'select', options: ['High', 'Medium', 'Low'], value: u.priority || 'Medium' },
+    { key: 'price', label: 'Max price ($)', value: (u.expectedPrice || u.maxPrice || '') },
+  ], async function (v) {
+    // Cols (comment at the transfer writer): A Item, B Var, C List Type,
+    // D Priority, E Target Price, F Target Condition, G Upgrading Inv ID
+    // (PRESERVED), H Notes, I Manufacturer.
+    var row = [u.itemNum || '', u.variation || '', u.listType || 'Want',
+      v.pri || 'Medium', v.price || '', v.cond || '',
+      u.inventoryId || u.upgradingInventoryId || '', u.notes || '', u.manufacturer || 'Lionel'];
+    var okW = await rrVerifiedRowUpdate(state.personalSheetId, 'Want-Upgrade List', u.row,
+      'Want-Upgrade List!A' + u.row + ':I' + u.row, [row],
+      { num: u.itemNum || '', invId: u.inventoryId || '' }, 'Want list');
+    if (!okW) return false;
+    u.priority = v.pri; u.targetCondition = v.cond;
+    u.expectedPrice = v.price; u.maxPrice = v.price;
+    showToast('\u2713 Want details saved', 2200);
+    try { if (typeof _wantViewDetail === 'function') _wantViewDetail(u.itemNum, u.variation || ''); } catch (e) {}
+    return true;
+  });
+};
+
+window._fsEditPrice = function () {
+  var fs = window._fsEditCur;
+  if (!fs || !fs.row) { showToast('Could not find this sale listing \u2014 refresh and try again', 3000, true); return; }
+  _rrMiniEdit('Edit asking price \u2014 ' + (fs.itemNum || ''), [
+    { key: 'price', label: 'Asking price ($)', value: fs.askingPrice || '' },
+  ], async function (v) {
+    var p = parseFloat(v.price);
+    if (!p || p <= 0) { showToast('Enter a price above 0', 2500, true); return false; }
+    // Cols A:J — same shape the variation-sync writer uses.
+    var row = [fs.itemNum || '', fs.variation || '', fs.condition || '', String(p),
+      fs.dateListed || '', fs.notes || '', fs.originalPrice || '', fs.estWorth || '',
+      fs.inventoryId || '', fs.manufacturer || ''];
+    var okF = await rrVerifiedRowUpdate(state.personalSheetId, 'For Sale', fs.row,
+      'For Sale!A' + fs.row + ':J' + fs.row, [row],
+      { num: fs.itemNum || '', invId: fs.inventoryId || '' }, 'For Sale list');
+    if (!okF) return false;
+    fs.askingPrice = String(p);
+    var sp = document.getElementById('fs-price-span');
+    if (sp) sp.textContent = _currencySymbol() + p.toLocaleString();
+    showToast('\u2713 Asking price updated', 2200);
+    return true;
+  });
+};
