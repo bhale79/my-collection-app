@@ -4884,6 +4884,22 @@
   // Shared filing core: move every photo in `gs` into the item's Drive
   // folder, connect the sheet's photo link when the item is owned, or
   // remember the link + open the Add wizard when it isn't.
+  // v0.9.1500: is this Drive folder the photo home of MORE copies than the
+  // one in hand? The shared-folder era left both copies of a number linking
+  // ONE folder; filing into a folder other copies also read re-mixes exactly
+  // what the send-back/re-file cleanup is trying to split.
+  function _pinFolderShared(fid, exceptPd) {
+    if (!fid || !window.state || !state.personalData) return false;
+    var all = Object.values(state.personalData);
+    for (var i = 0; i < all.length; i++) {
+      var p = all[i];
+      if (!p || !p.owned || p === exceptPd) continue;
+      var f = (String(p.photoItem || '').match(/folders\/([a-zA-Z0-9_-]+)/) || [])[1] || '';
+      if (f === fid) return true;
+    }
+    return false;
+  }
+
   window._pinReviewAdd = async function (mode, targetKey) {
     mode = mode || 'auto';
     var num = String((document.getElementById('pin-rv-num') || {}).value || '').trim();
@@ -4921,7 +4937,15 @@
       try { _tgtFid = (_tgt && _tgt.photoItem && (String(_tgt.photoItem).match(/folders\/([a-zA-Z0-9_-]+)/) || [])[1]) || ''; } catch (eTF) { _tgtFid = ''; }
       if (_tgtFid === 'undefined') _tgtFid = '';
       var toFid, link;
-      if (_tgtFid) { toFid = _tgtFid; link = String(_tgt.photoItem); }
+      if (_tgtFid && _tgt && _tgt.inventoryId && typeof driveFindOrCreateFolder === 'function'
+          && _pinFolderShared(_tgtFid, _tgt)) {
+        // v0.9.1500: the picked copy's folder is ALSO another copy's folder.
+        // Filing into it would re-mix the copies -- this copy gets its own
+        // inventory-id subfolder inside it, and its link is repointed below.
+        toFid = await driveFindOrCreateFolder(String(_tgt.inventoryId), _tgtFid);
+        link = driveFolderLink(toFid);
+      }
+      else if (_tgtFid) { toFid = _tgtFid; link = String(_tgt.photoItem); }
       else if (_tgt && _tgt.inventoryId && typeof driveFindOrCreateFolder === 'function') {
         // v0.9.1499: a copy with no folder yet gets its OWN inventory-id
         // subfolder, never the number's shared folder (the two-6473s bug).
@@ -4977,7 +5001,7 @@
         var _pdKey = Object.keys(state.personalData || {}).find(function (k) { return state.personalData[k] === pd; });
         var _livePd = (_pdKey && state.personalData[_pdKey]) || pd;
         var _rowKnown = _livePd.row && Number(_livePd.row) !== 99999;
-        if (!_livePd.photoItem && link && _rowKnown
+        if (link && String(_livePd.photoItem || '') !== link && _rowKnown
             && typeof sheetsUpdate === 'function' && typeof personalColLetter === 'function' && window.state.personalSheetId) {
           try {
             if (await rrVerifiedRowUpdate(state.personalSheetId, PERSONAL_TAB, _livePd.row, PERSONAL_TAB + '!' + personalColLetter('photoItem') + _livePd.row, [[link]], { num: _livePd.itemNum || '', invId: _livePd.inventoryId || '' }, 'collection'))
@@ -5901,7 +5925,14 @@
           try {
             var _cpFid = (String(pd.photoItem || '').match(/folders\/([a-zA-Z0-9_-]+)/) || [])[1] || '';
             if (_cpFid === 'undefined') _cpFid = '';
-            if (_cpFid) { rec.toFid = _cpFid; rec.link = String(pd.photoItem); }
+            if (_cpFid && pd.inventoryId && typeof driveFindOrCreateFolder === 'function'
+                && _pinFolderShared(_cpFid, pd)) {
+              // v0.9.1500: this copy's linked folder is shared with another
+              // copy -- give it its own subfolder and repoint (write below).
+              var _cpSub0 = await driveFindOrCreateFolder(String(pd.inventoryId), _cpFid);
+              if (_cpSub0) { rec.toFid = _cpSub0; rec.link = driveFolderLink(_cpSub0); rec._retarget = true; }
+            }
+            else if (_cpFid) { rec.toFid = _cpFid; rec.link = String(pd.photoItem); }
             else if (pd.inventoryId && typeof driveFindOrCreateFolder === 'function') {
               var _cpBase = await driveEnsureItemFolder(num);
               var _cpSub = await driveFindOrCreateFolder(String(pd.inventoryId), _cpBase);
@@ -5952,7 +5983,9 @@
         // A placeholder row is not a row. Hold the note and finish next build.
         var _rowKnown = pd.row && Number(pd.row) !== 99999;
         var _linkDone = true;
-        if (!pd.photoItem && link) {
+        var _wantLinkWrite = (!pd.photoItem && link)
+          || (link && rec && typeof rec === 'object' && rec._retarget && String(pd.photoItem || '') !== String(link));
+        if (_wantLinkWrite) {
           if (_rowKnown && typeof sheetsUpdate === 'function' && typeof personalColLetter === 'function' && state.personalSheetId) {
             try {
               if (await rrVerifiedRowUpdate(state.personalSheetId, PERSONAL_TAB, pd.row, PERSONAL_TAB + '!' + personalColLetter('photoItem') + pd.row, [[link]], { num: pd.itemNum || '', invId: pd.inventoryId || '' }, 'collection'))
