@@ -88,5 +88,25 @@ wizard.data = {};
 T('no filters: predicate passes everything', _wizRowFitsFilters(pre238) && _wizRowFitsFilters(ho9099), true);
 T('no filters: 238 pick unchanged (first row)', _wizPickMasterRow('238').yearProd, '1936-1940');
 
+// ── CANARY 3 (v0.9.1501, task #27): invisible filters stay out ──────────
+const cfg = fs.readFileSync(path.join(__dirname, '..', 'app', 'config.js'), 'utf8');
+const bar = fs.readFileSync(path.join(__dirname, '..', 'app', 'barcode.js'), 'utf8');
+const ERAS = { prewar: { manufacturer: 'Lionel' }, pw: { manufacturer: 'Lionel' }, lionel_ho: { manufacturer: 'Lionel' } };
+function rrEraOfRow(r) { return (r && r._era) || ''; }
+function rrSameScale(a, b) { return String(a).toUpperCase() === String(b).toUpperCase(); }
+function _itemEraPeriod(r) { return _wizPeriodOfRow(r); }
+let rrActiveFilter = function () { return { era: '', label: 'Any O', manufacturer: '', scale: 'O', years: '' }; };
+eval(grab(cfg, 'rrSplitByFilter'));
+const sp = rrSplitByFilter([pre238, post238, ho9099, o9099]);
+T('split under O filter: nothing vanishes', sp.inEra.length + sp.offEra.length, 4);
+T('split under O filter: HO row demoted, present', sp.offEra.some(r => r._era === 'lionel_ho'), true);
+eval(grab(bar, '_rrFilterHits'));
+T('scan hits: order untouched by global filter', _rrFilterHits([ho9099, o9099])[0]._era, 'lionel_ho');
+_currentEra = 'pw';
+wizard.data = { _fromInbox: true };
+T('inbox add: global era ignored (load order)', _wizPickMasterRow('238').yearProd, '1936-1940');
+wizard.data = {};
+T('plain add: global era still honored', _wizPickMasterRow('238').yearProd, '1963-64');
+
 console.log(fails ? ('\n' + fails + ' CANARY FAILURE(S) — a lookup path regressed.') : '\nALL CANARIES GREEN');
 process.exit(fails ? 1 : 0);

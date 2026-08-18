@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.1500';
+const APP_VERSION = 'v0.9.1501';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -691,7 +691,11 @@ function rrSplitByFilter(rows) {
   rows.forEach(function (r) {
     var e = rrEraOfRow(r);
     var sc = (e && typeof ERA_SCALE !== 'undefined') ? (ERA_SCALE[e] || '') : '';
-    if (sc && f.scale && !rrSameScale(sc, f.scale)) return;   // wrong scale: drop
+    // v0.9.1501 (task #27): wrong scale DEMOTES -- it never hides. Dropping
+    // made rows unfindable through every consumer of this split (measured:
+    // the prewar No. 25 vanished from lookups under an O filter, because
+    // prewar's "O & Standard" fails a strict scale compare).
+    if (sc && f.scale && !rrSameScale(sc, f.scale)) { out.offEra.push(r); return; }
     var isIn;
     if (f.era) {
       isIn = (!e || e === f.era);

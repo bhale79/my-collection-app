@@ -232,8 +232,14 @@ function _wizMasterPrefer() {
   // The era the user actually picked lives in _currentEra (and in the filter
   // chips), so fall back to those before giving up.
   var era = String(d._era || '').trim();
-  if (!era && typeof _currentEra !== 'undefined') era = String(_currentEra || '').trim();
-  if (!era) {
+  // v0.9.1501 (task #27): an add that STARTED in the Photo Inbox answers to
+  // its photo's tag and nothing else (the v0.9.1488 rule). The two global
+  // fallbacks below were the backlog's known offender for inbox adds -- a
+  // stale era selector nudging lookups for a photo that never saw it. A
+  // tagged photo's era already arrives in d._era via the prefill match; an
+  // untagged photo gets NO era nudge at all.
+  if (!era && !d._fromInbox && typeof _currentEra !== 'undefined') era = String(_currentEra || '').trim();
+  if (!era && !d._fromInbox) {
     try {
       var _af = (typeof rrActiveFilter === 'function') ? rrActiveFilter() : null;
       if (_af && _af.era) era = String(_af.era).trim();

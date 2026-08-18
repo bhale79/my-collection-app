@@ -890,7 +890,12 @@ async function _identifyOpenLens() {
   var _hW = (typeof wizard !== 'undefined' && wizard && wizard.data) ? wizard.data : {};
   var _hMfrCbs = document.querySelectorAll('#id-mfr-chips input[type="checkbox"]:checked');
   var _hMfrs = Array.from(_hMfrCbs).map(function (cb) { return cb.dataset.mfrCb; }).filter(function (m) { return m && m !== 'Not sure'; });
-  var _hAf = (typeof rrActiveFilter === 'function') ? rrActiveFilter() : null;
+  // v0.9.1501 (task #27, Brad's Atlas 6473): Research mode answers to the
+  // photo and nothing else -- the global filter (set on some other page,
+  // invisible here) gets no voice in the Lens hint.
+  var _hResearch = false;
+  try { _hResearch = (_identifyCallerContext === 'research' || _identifyWasResearch || !!window._researchActive); } catch (eRC) {}
+  var _hAf = (!_hResearch && typeof rrActiveFilter === 'function') ? rrActiveFilter() : null;
   var _hMfr = String(_hW._searchFilterManufacturer || '') || _hMfrs.join(' ') || ((_hAf && _hAf.manufacturer) || '');
   var _hPeriodMap = { prewar: 'prewar (before 1943)', postwar: 'postwar (1945-1969)', modern: 'modern era (1970 or later)' };
   var _hPeriod = _hPeriodMap[String(_hW._searchFilterPeriod || '').toLowerCase()] || '';
@@ -962,7 +967,13 @@ async function _identifyOpenLens() {
     // at all, so a Lionel-Modern-filtered user still got Atlas / MTH / HO
     // answers. What the user ticked in the wizard wins; the active era filter
     // fills in whatever they left blank.
-    var _af = (typeof rrActiveFilter === 'function') ? rrActiveFilter() : null;
+    // v0.9.1501 (task #27, Brad's Atlas 6473): in Research mode the global
+    // filter has no voice. The v0.9.1152 constraint is for the ADD flow,
+    // where the filter describes what you're adding; Research asks "what is
+    // this thing" -- only the ticks in THIS panel constrain the reader.
+    var _rsMode = false;
+    try { _rsMode = (_identifyCallerContext === 'research' || _identifyWasResearch || !!window._researchActive); } catch (eRM) {}
+    var _af = (!_rsMode && typeof rrActiveFilter === 'function') ? rrActiveFilter() : null;
     var _qMfrs  = mfrs.length ? mfrs : ((_af && _af.manufacturer) ? [_af.manufacturer] : []);
     var _qScale = scale || (_af ? _af.scale : '');
     var q = (typeof window.rrIdentifyQuery === 'function')

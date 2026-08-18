@@ -109,10 +109,13 @@ window.eraSupportsBarcode = eraSupportsBarcode;
   // caller keeps working, and any caller taking hits[0] now gets an in-era row
   // whenever one exists.
   function _rrFilterHits(rows) {
-    if (!Array.isArray(rows) || !rows.length) return rows || [];
-    if (typeof rrSplitByFilter !== 'function') return rows;
-    var s = rrSplitByFilter(rows);
-    return s.inEra.concat(s.offEra);
+    // v0.9.1501 (task #27): scans judge fresh -- the GLOBAL filter no longer
+    // re-ranks hits here (v0.9.1466's principle). Measured putting the Atlas
+    // 6473 ahead of the three Lionel Horse Transport Car rows while the
+    // master list sat filtered to Atlas: a filter no scan screen shows,
+    // steering the Found-it card. Flows that honor VISIBLE filters do it in
+    // their own predicates (_wizRowFitsFilters), not in this shared finder.
+    return Array.isArray(rows) ? rows : (rows || []);
   }
 
   async function findMasterItems(candidates) {

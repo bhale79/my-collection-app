@@ -19,6 +19,10 @@
     // max 5 words, no parentheticals.
     var d = String(desc || '').replace(/\([^)]*\)/g, '').split(/[—|,.;]/)[0].trim().split(/\s+/).slice(0, 5).join(' ');
     if (d && String(itemNum || '').trim().toLowerCase() === d.toLowerCase()) d = '';   // v0.9.740: manual items carry the same text in number+description
+    // v0.9.1501 (Brad's "Horse Transport Car Horse Transport Car"): the row's
+    // description often IS the road name -- a repeated PHRASE survives the
+    // adjacent-word dedupe below. Road already says it once.
+    if (d && roadName && String(roadName).trim().toLowerCase().indexOf(d.toLowerCase()) >= 0) d = '';
     var q = [mfr, itemNum, roadName, d].filter(Boolean).join(' ').trim();
     q = q.split(/\s+/).filter(function (w, i, a) { return !i || w.toLowerCase() !== a[i - 1].toLowerCase(); }).join(' ');   // v0.9.740: drop adjacent dupes ("Lionel Lionel …")
     if (!d && !roadName && q.split(' ').length <= 2) q += ' train';   // v0.9.740: bare numbers only — a named item is descriptive enough
@@ -110,8 +114,34 @@
     var gauge = aim.gauge || '';
     // v0.9.711: catalog hits often arrive without a maker (OCR path) — derive
     // it so the card + eBay query say "Lionel 148", not just "148".
+    // v0.9.1501 (Brad's Atlas 6473): the matched catalog ROW's maker wins
+    // the card and every query it builds. The maker that rode in with the
+    // request (AI meta, hints, filters) can be wrong-context; when it
+    // disagrees with the row, the card says so instead of quietly searching
+    // the contradiction ("Atlas 6473 Horse Transport Car").
+    var _mRow = '';
+    if (m) { try { _mRow = m.manufacturer || ((typeof ERAS !== 'undefined' && ERAS[m._era]) ? ERAS[m._era].manufacturer : '') || ''; } catch (eMR) {} }
+    var _mfrNote = '';
+    if (_mRow && mfr && String(mfr).toLowerCase() !== String(_mRow).toLowerCase()) {
+      _mfrNote = 'Your search context said ' + mfr + ' \u2014 this catalog match is ' + _mRow + '.';
+    }
+    if (_mRow) mfr = _mRow;
     if (!mfr && typeof _brandOfItem === 'function') { try { mfr = _brandOfItem(itemNum) || ''; } catch (e) {} }
-    if (!mfr && m && m.manufacturer) mfr = m.manufacturer;
+    // v0.9.1501: the card's Google button carries the matched ROW's period /
+    // year / scale (the v0.9.1477+1484 idea, which this card never got).
+    // From the row ONLY -- never the global filter. eBay untouched (v0.9.740).
+    var _eraTerms = '';
+    try {
+      if (m) {
+        var _pMap1 = { prewar: 'prewar', postwar: 'postwar', modern: 'modern era' };
+        var _per1 = '';
+        try { _per1 = (typeof _wizPeriodOfRow === 'function') ? (_wizPeriodOfRow(m) || '') : ''; } catch (eP1) {}
+        if (!_per1) { try { _per1 = (typeof _itemEraPeriod === 'function') ? (_itemEraPeriod(m) || '') : ''; } catch (eP2) {} }
+        var _sc1 = '';
+        try { _sc1 = String(m.gauge || ((typeof ERA_SCALE !== 'undefined' && m._era) ? (ERA_SCALE[m._era] || '') : '')).trim(); } catch (eS1) {}
+        _eraTerms = [_pMap1[_per1] || '', String(year || '').trim(), _sc1 ? (_sc1 + ' gauge') : ''].filter(Boolean).join(' ');
+      }
+    } catch (eET) {}
     var own = _ownedCount(itemNum);
 
     var ov = document.createElement('div');
@@ -128,6 +158,7 @@
       +   (year ? 'Year: <strong style="color:var(--text,#eee)">' + _esc(year) + '</strong>&nbsp;&nbsp;' : '')
       +   (gauge ? 'Scale: <strong style="color:var(--text,#eee)">' + _esc(gauge) + '</strong>' : '')
       + '</div>'
+      + (_mfrNote ? '<div style="font-size:0.78rem;color:#e6a23c;margin-top:0.3rem">' + _esc(_mfrNote) + '</div>' : '')   // v0.9.1501: maker disagreement, said out loud
       + (res.notInMaster ? '<div style="font-size:0.78rem;color:#e6a23c;margin-top:0.3rem">Not in our catalog yet — details were read from the photo.</div>' : '')
       // v0.9.1195 (Brad: "filters didn't stop it" — his call: show it, but say
       // so). A not-in-catalog result has no catalog row for the filter chips
@@ -157,7 +188,7 @@
     var _b1 = document.getElementById('rs-ebay');
     if (_b1) _b1.onclick = function () { window.open(_ebaySoldUrl(itemNum, mfr, road, desc), '_blank'); };
     var _bg = document.getElementById('rs-google');
-    if (_bg) _bg.onclick = function () { window.open(_googlePriceUrl(itemNum, mfr, road, desc), '_blank'); };
+    if (_bg) _bg.onclick = function () { window.open(_googlePriceUrl(itemNum, mfr, road, desc, _eraTerms), '_blank'); };   // v0.9.1501: row era terms ride along
     var _bn = document.getElementById('rs-ebay-now');
     if (_bn) _bn.onclick = function () { window.open(_ebayActiveUrl(itemNum, mfr, road, desc), '_blank'); };
     var _bw = document.getElementById('rs-want');
