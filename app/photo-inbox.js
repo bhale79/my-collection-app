@@ -1109,6 +1109,14 @@
 
   function _pinEraLabel(era) {
     if (!era) return 'Not set';
+    // v0.9.1504 (task #29): a maker-less tag says what IS known.
+    try {
+      var _tp0 = (typeof rrTagParse === 'function') ? rrTagParse(era) : null;
+      if (_tp0 && _tp0.partial) {
+        var _pl0 = (_tp0.period && typeof _RR_PERIOD_LABEL !== 'undefined' && _RR_PERIOD_LABEL[_tp0.period]) || '';
+        return [(_pl0 || 'Any era'), (_tp0.scale || '')].filter(Boolean).join(' \u00b7 ') + ' \u2014 any maker';
+      }
+    } catch (e0) {}
     try {
       var d = (typeof ERAS !== 'undefined') ? ERAS[era] : null;
       var scale = (typeof ERA_SCALE !== 'undefined' && ERA_SCALE[era]) ? ERA_SCALE[era] : '';
@@ -1189,11 +1197,14 @@
   // than growing a second copy of the maker/scale/line logic.
   window._pinPickContext = function (opts) {
     opts = opts || {};
-    var choices = _pinEraChoices();
+    var choices = _pinEraChoices().filter(function (c) { return c.maker !== 'Other'; });   // v0.9.1504 (Brad): no "Other" bucket
     if (!choices.length) { showToast('No manufacturers configured yet', 2500, true); return; }
     var cur = opts.current || _pinActiveEra();
     var curDef = choices.filter(function (c) { return c.key === cur; })[0] || null;
-    var pick = { maker: curDef ? curDef.maker : '', scale: curDef ? curDef.scale : '', era: cur || '' };
+    var pick = { maker: curDef ? curDef.maker : '', scale: curDef ? curDef.scale : '', era: cur || '', period: '' };
+    // v0.9.1504 (task #29): restore a maker-less tag into the picker.
+    var _curTp = (typeof rrTagParse === 'function') ? rrTagParse(cur || '') : null;
+    if (_curTp && _curTp.partial) pick = { maker: '*', scale: _curTp.scale, era: '', period: _curTp.period };
 
     var ov = document.createElement('div');
     ov.id = 'pin-ctx-sheet';
@@ -1208,19 +1219,22 @@
     function draw() {
       var makers = uniq(choices.map(function (c) { return c.maker; }));
       if (!pick.maker && makers.indexOf('Lionel') >= 0) pick.maker = 'Lionel';
-      var scaleSet = choices.filter(function (c) { return c.maker === pick.maker; });
+      // v0.9.1504 (task #29, Brad): "Not sure" is a first-class maker —
+      // pick scale and period by themselves; the tag stores what IS known.
+      var _anyMaker = pick.maker === '*';
+      var scaleSet = _anyMaker ? choices.slice() : choices.filter(function (c) { return c.maker === pick.maker; });
       // v0.9.1503: an era can span scales (Pre-War = O AND Standard). The
       // scale list is the union, and the line list keeps every era whose
       // scales INCLUDE the pick -- Scale O no longer hides Pre-War.
       var _scOf = function (c) { return (c.scales && c.scales.length) ? c.scales : [c.scale]; };
       var scales = uniq([].concat.apply([], scaleSet.map(_scOf)));
       if (scales.indexOf(pick.scale) < 0) pick.scale = scales.length === 1 ? scales[0] : '';
-      var lines = scaleSet.filter(function (c) { return !pick.scale || _scOf(c).indexOf(pick.scale) >= 0; });
+      var lines = _anyMaker ? [] : scaleSet.filter(function (c) { return !pick.scale || _scOf(c).indexOf(pick.scale) >= 0; });
       // v0.9.1503 (Brad: "on atlas, scale and line are the same thing"):
       // when every one of a maker's lines is exactly one scale and no two
       // share it (Atlas O/HO/N/Z), the Line dropdown just repeats the Scale
       // dropdown -- show Scale only and derive the line from the pick.
-      var _lineIsScale = scaleSet.length === scales.length
+      var _lineIsScale = !_anyMaker && scaleSet.length === scales.length
         && scaleSet.every(function (c) { return _scOf(c).length === 1; });
       if (!lines.some(function (c) { return c.key === pick.era; })) pick.era = lines.length === 1 ? lines[0].key : '';
 
@@ -1243,10 +1257,14 @@
           + rrEsc(opts.title || 'What are you photographing?') + '</div>'
         + '<div style="font-size:0.8rem;color:var(--text-dim);line-height:1.5;margin-bottom:0.8rem">'
           + rrEsc(opts.blurb || 'This gets saved with each photo, so the app knows which catalog to look in.') + '</div>'
-        + sel('pin-ctx-maker', 'Manufacturer', makers.map(function (m) { return { v: m, t: m }; }), pick.maker, '')
+        + sel('pin-ctx-maker', 'Manufacturer', [{ v: '*', t: 'Not sure \u2014 any maker' }].concat(makers.map(function (m) { return { v: m, t: m }; })), pick.maker, '')
         + (scales.length > 1 ? sel('pin-ctx-scale', 'Scale', scales.map(function (m) { return { v: m, t: m }; }), pick.scale, '') : '')
         + (lines.length > 1 && !_lineIsScale ? sel('pin-ctx-era', 'Line / period',
               lines.map(function (c) { return { v: c.key, t: c.label + (c.years ? '  (' + c.years + ')' : '') }; }), pick.era, '') : '')
+        + (_anyMaker ? sel('pin-ctx-period', 'Era / period', [
+              { v: 'prewar',  t: 'Pre-War  (1901-1944)' },
+              { v: 'postwar', t: 'Postwar  (1945-1969)' },
+              { v: 'modern',  t: 'Modern  (1970-Today)' }], pick.period, '') : '')
         + '<div style="display:flex;gap:0.5rem;margin-top:0.9rem;flex-wrap:wrap">'
         + (opts.onPick
             ? '<button id="pin-ctx-ok" style="flex:1;min-width:140px;padding:0.7rem;border-radius:9px;border:none;background:var(--accent);color:var(--on-accent);font-weight:700;font-size:0.92rem;min-height:48px;cursor:pointer">'
@@ -1258,13 +1276,17 @@
           + rrEsc(opts.cancelLabel || 'Cancel') + '</button>';
 
       var mk = card.querySelector('#pin-ctx-maker');
-      if (mk) mk.onchange = function () { pick.maker = this.value; pick.scale = ''; pick.era = ''; draw(); };
+      if (mk) mk.onchange = function () { pick.maker = this.value; pick.scale = ''; pick.era = ''; pick.period = ''; draw(); };
+      var pr = card.querySelector('#pin-ctx-period');   // v0.9.1504
+      if (pr) pr.onchange = function () { pick.period = this.value; };
       var sc = card.querySelector('#pin-ctx-scale');
       if (sc) sc.onchange = function () { pick.scale = this.value; pick.era = ''; draw(); };
       var er = card.querySelector('#pin-ctx-era');
       if (er) er.onchange = function () { pick.era = this.value; };
 
       function chosen() {
+        // v0.9.1504: a maker-less pick stores what IS known ('?|O|postwar').
+        if (_anyMaker) return (pick.scale || pick.period) ? ('?|' + (pick.scale || '') + '|' + (pick.period || '')) : '';
         if (pick.era) return pick.era;
         var only = lines.length === 1 ? lines[0].key : '';
         return only;
@@ -1319,6 +1341,9 @@
   //
   // ONE era key carries maker, scale and period together — 'mth_ho' is MTH, HO,
   // modern — so there is no way to store a combination that never existed.
+  // v0.9.1504 (task #29): one exception — the maker-less tag
+  // '?|<scale>|<period>' stores PARTIAL knowledge without inventing a maker.
+  // rrTagParse (config.js) is the one reader of that shape.
   //
   // No migration: reads fall back to the filename, so photos taken before today
   // keep working untouched and simply know less until something writes.
@@ -2396,6 +2421,33 @@
           if (_tm.length && _tn.length) bucket = _tm.concat(_tn);
         }
       } catch (eT) {}
+      // v0.9.1504 (task #29): a maker-less tag still steers — rows matching
+      // the photo's period and scale float to the FRONT. A soft rank, same
+      // shape as the type rank above: the maker/era rules below still win
+      // outright, and a mismatched row still surfaces when it is all there is.
+      try {
+        var _pp = (prefer && prefer.period) ? String(prefer.period) : '';
+        var _ps = (prefer && !prefer.era && !(prefer.eras && prefer.eras.length) && prefer.scale) ? String(prefer.scale) : '';
+        if ((_pp || _ps) && bucket.length > 1) {
+          var _pm = [], _pn = [];
+          for (var p0 = 0; p0 < bucket.length; p0++) {
+            var _r9 = bucket[p0], _ok9 = true;
+            if (_pp) {
+              var _rp9 = '';
+              try { _rp9 = (typeof _wizPeriodOfRow === 'function') ? (_wizPeriodOfRow(_r9) || '') : ((typeof _itemEraPeriod === 'function') ? (_itemEraPeriod(_r9) || '') : ''); } catch (e91) {}
+              if (_rp9 && _rp9 !== _pp) _ok9 = false;
+            }
+            if (_ok9 && _ps) {
+              var _rs9 = String(_r9.gauge || ((typeof ERA_SCALE !== 'undefined' && _r9._era) ? (ERA_SCALE[_r9._era] || '') : '') || '');
+              var _ms9 = false;
+              try { _ms9 = ((typeof ERA_SCALES_MULTI !== 'undefined' && _r9._era && ERA_SCALES_MULTI[_r9._era]) || []).some(function (s9) { return (typeof rrSameScale === 'function') ? rrSameScale(s9, _ps) : String(s9).toUpperCase() === _ps.toUpperCase(); }); } catch (e92) {}
+              if (_rs9 && !_ms9 && !((typeof rrSameScale === 'function') ? rrSameScale(_rs9, _ps) : _rs9.toUpperCase() === _ps.toUpperCase())) _ok9 = false;
+            }
+            (_ok9 ? _pm : _pn).push(_r9);
+          }
+          if (_pm.length && _pn.length) bucket = _pm.concat(_pn);
+        }
+      } catch (eP9) {}
       // What the reader claims to have seen still wins — it looked at the item.
       if (aiMfr) {
         for (var i = 0; i < bucket.length; i++) {
@@ -8077,6 +8129,19 @@
       // Untagged photo = neutral question. The v1157 fallback-to-global is
       // RETIRED — it kept turning stale browsing filters into wrong hints
       // ("how did i filter to mth?" — he hadn't).
+      // v0.9.1504 (task #29): a maker-less tag ('?|O|postwar') answers with
+      // exactly what it knows — scale and/or period. No maker invented,
+      // and rrActiveFilter never sees the synthetic key.
+      var _tp = (m.era && typeof rrTagParse === 'function') ? rrTagParse(m.era) : null;
+      if (_tp && _tp.partial) {
+        return {
+          era: '', eras: [], manufacturer: '',
+          label: _pinEraLabel(m.era),
+          years: (_tp.period && typeof _RR_PERIOD_YEARS !== 'undefined' && _RR_PERIOD_YEARS[_tp.period]) || '',
+          scale: _tp.scale || '', period: _tp.period || '',
+          type: m.type || '', _fromFilter: false,
+        };
+      }
       var af = (m.era && typeof rrActiveFilter === 'function') ? rrActiveFilter(m.era) : null;
       // v0.9.1297 (Brad: "the photo reader needs to use the type as a helper
       // to decide what it is"): the photo's own Type tag rides on the prefer

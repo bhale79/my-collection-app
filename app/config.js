@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.1503';
+const APP_VERSION = 'v0.9.1504';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -429,6 +429,21 @@ if (typeof window !== 'undefined') window.ERA_SCALE = ERA_SCALE;
 // Menards sells O and HO lines (Brad, same session) -- one catalog for now.
 const ERA_SCALES_MULTI = { prewar: ['O', 'Standard'], mth_tinplate: ['O', 'Standard'], menards: ['O', 'HO'] };
 if (typeof window !== 'undefined') window.ERA_SCALES_MULTI = ERA_SCALES_MULTI;
+
+// v0.9.1504 (task #29, Brad: "we should be able to pick scale and era by
+// themselves without a manufacturer"): a photo tag is normally an ERA KEY.
+// A maker-less tag is the synthetic string '?|<scale>|<period>' -- partial
+// knowledge, no maker invented. Parse every tag through here; a real era
+// key comes back with partial:false and the key untouched.
+function rrTagParse(t) {
+  t = String(t || '');
+  if (t.slice(0, 2) === '?|') {
+    var p = t.split('|');
+    return { partial: true, era: '', scale: p[1] || '', period: p[2] || '' };
+  }
+  return { partial: false, era: t, scale: '', period: '' };
+}
+if (typeof window !== 'undefined') window.rrTagParse = rrTagParse;
 
 const ERA_TABS = {
   prewar: {
