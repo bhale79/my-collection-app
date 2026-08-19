@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.1504';
+const APP_VERSION = 'v0.9.1505';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -435,15 +435,25 @@ if (typeof window !== 'undefined') window.ERA_SCALES_MULTI = ERA_SCALES_MULTI;
 // A maker-less tag is the synthetic string '?|<scale>|<period>' -- partial
 // knowledge, no maker invented. Parse every tag through here; a real era
 // key comes back with partial:false and the key untouched.
+// v0.9.1505 (task #30, Brad: "marx has postwar and modern"): the synthetic
+// grew a 4th field -- '?|<scale>|<period>|<eraKey>' carries a KNOWN era plus
+// the period its one catalog cannot say ("Marx O, the postwar one"). When
+// the master list one day splits such a catalog into period tabs, these
+// tags stay readable (backlog #30).
 function rrTagParse(t) {
   t = String(t || '');
   if (t.slice(0, 2) === '?|') {
     var p = t.split('|');
-    return { partial: true, era: '', scale: p[1] || '', period: p[2] || '' };
+    return { partial: true, era: p[3] || '', scale: p[1] || '', period: p[2] || '' };
   }
   return { partial: false, era: t, scale: '', period: '' };
 }
 if (typeof window !== 'undefined') window.rrTagParse = rrTagParse;
+
+// v0.9.1505 (task #30): eras whose ONE catalog spans collecting periods.
+// The Quick Capture picker offers the period alongside these lines.
+const ERA_SPANS_PERIODS = { marx: ['prewar', 'postwar', 'modern'] };
+if (typeof window !== 'undefined') window.ERA_SPANS_PERIODS = ERA_SPANS_PERIODS;
 
 const ERA_TABS = {
   prewar: {

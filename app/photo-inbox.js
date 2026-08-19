@@ -1114,6 +1114,14 @@
       var _tp0 = (typeof rrTagParse === 'function') ? rrTagParse(era) : null;
       if (_tp0 && _tp0.partial) {
         var _pl0 = (_tp0.period && typeof _RR_PERIOD_LABEL !== 'undefined' && _RR_PERIOD_LABEL[_tp0.period]) || '';
+        if (_tp0.era) {   // v0.9.1505: known era + period ("Marx O · Postwar")
+          var _d0 = (typeof ERAS !== 'undefined') ? ERAS[_tp0.era] : null;
+          var _s0 = _tp0.scale || ((typeof ERA_SCALE !== 'undefined' && ERA_SCALE[_tp0.era]) || '');
+          var _lbl0 = _d0 ? _d0.label : _tp0.era;
+          // the era label often already says the scale ("Marx O") -- once is enough
+          if (_s0 && _lbl0.toUpperCase().split(/\s+/).indexOf(String(_s0).toUpperCase()) >= 0) _s0 = '';
+          return [_lbl0, _s0, _pl0].filter(Boolean).join(' \u00b7 ');
+        }
         return [(_pl0 || 'Any era'), (_tp0.scale || '')].filter(Boolean).join(' \u00b7 ') + ' \u2014 any maker';
       }
     } catch (e0) {}
@@ -1204,7 +1212,14 @@
     var pick = { maker: curDef ? curDef.maker : '', scale: curDef ? curDef.scale : '', era: cur || '', period: '' };
     // v0.9.1504 (task #29): restore a maker-less tag into the picker.
     var _curTp = (typeof rrTagParse === 'function') ? rrTagParse(cur || '') : null;
-    if (_curTp && _curTp.partial) pick = { maker: '*', scale: _curTp.scale, era: '', period: _curTp.period };
+    if (_curTp && _curTp.partial) {
+      if (_curTp.era) {   // v0.9.1505: "Marx O · Postwar" restores as Marx + period
+        var _cd5 = choices.filter(function (c) { return c.key === _curTp.era; })[0] || null;
+        pick = { maker: _cd5 ? _cd5.maker : '', scale: _curTp.scale || (_cd5 ? _cd5.scale : ''), era: _curTp.era, period: _curTp.period };
+      } else {
+        pick = { maker: '*', scale: _curTp.scale, era: '', period: _curTp.period };
+      }
+    }
 
     var ov = document.createElement('div');
     ov.id = 'pin-ctx-sheet';
@@ -1236,6 +1251,10 @@
       // dropdown -- show Scale only and derive the line from the pick.
       var _lineIsScale = !_anyMaker && scaleSet.length === scales.length
         && scaleSet.every(function (c) { return _scOf(c).length === 1; });
+      // v0.9.1505 (task #30): a line whose one catalog spans periods (Marx,
+      // 1930-1975) offers the period too — optional, stored only if picked.
+      var _eraPick0 = _anyMaker ? '' : (pick.era || (lines.length === 1 ? lines[0].key : ''));
+      var _spansPer = !!(_eraPick0 && typeof ERA_SPANS_PERIODS !== 'undefined' && ERA_SPANS_PERIODS[_eraPick0]);
       if (!lines.some(function (c) { return c.key === pick.era; })) pick.era = lines.length === 1 ? lines[0].key : '';
 
       function sel(id, label, opts, val, hint) {
@@ -1261,10 +1280,11 @@
         + (scales.length > 1 ? sel('pin-ctx-scale', 'Scale', scales.map(function (m) { return { v: m, t: m }; }), pick.scale, '') : '')
         + (lines.length > 1 && !_lineIsScale ? sel('pin-ctx-era', 'Line / period',
               lines.map(function (c) { return { v: c.key, t: c.label + (c.years ? '  (' + c.years + ')' : '') }; }), pick.era, '') : '')
-        + (_anyMaker ? sel('pin-ctx-period', 'Era / period', [
+        + ((_anyMaker || _spansPer) ? sel('pin-ctx-period', 'Era / period', [
               { v: 'prewar',  t: 'Pre-War  (1901-1944)' },
               { v: 'postwar', t: 'Postwar  (1945-1969)' },
-              { v: 'modern',  t: 'Modern  (1970-Today)' }], pick.period, '') : '')
+              { v: 'modern',  t: 'Modern  (1970-Today)' }], pick.period,
+              _spansPer ? 'Optional \u2014 this maker\u2019s one catalog spans periods' : '') : '')
         + '<div style="display:flex;gap:0.5rem;margin-top:0.9rem;flex-wrap:wrap">'
         + (opts.onPick
             ? '<button id="pin-ctx-ok" style="flex:1;min-width:140px;padding:0.7rem;border-radius:9px;border:none;background:var(--accent);color:var(--on-accent);font-weight:700;font-size:0.92rem;min-height:48px;cursor:pointer">'
@@ -1287,6 +1307,10 @@
       function chosen() {
         // v0.9.1504: a maker-less pick stores what IS known ('?|O|postwar').
         if (_anyMaker) return (pick.scale || pick.period) ? ('?|' + (pick.scale || '') + '|' + (pick.period || '')) : '';
+        // v0.9.1505: a span-era with a period picked keeps BOTH facts.
+        var _ek5 = pick.era || (lines.length === 1 ? lines[0].key : '');
+        if (_ek5 && pick.period && typeof ERA_SPANS_PERIODS !== 'undefined' && ERA_SPANS_PERIODS[_ek5])
+          return '?|' + (pick.scale || '') + '|' + pick.period + '|' + _ek5;
         if (pick.era) return pick.era;
         var only = lines.length === 1 ? lines[0].key : '';
         return only;
@@ -2426,7 +2450,7 @@
       // shape as the type rank above: the maker/era rules below still win
       // outright, and a mismatched row still surfaces when it is all there is.
       try {
-        var _pp = (prefer && prefer.period) ? String(prefer.period) : '';
+        var _pp = (prefer && prefer.period) ? String(prefer.period) : '';   // v0.9.1505: ranks within a span-era too
         var _ps = (prefer && !prefer.era && !(prefer.eras && prefer.eras.length) && prefer.scale) ? String(prefer.scale) : '';
         if ((_pp || _ps) && bucket.length > 1) {
           var _pm = [], _pn = [];
@@ -8134,8 +8158,15 @@
       // and rrActiveFilter never sees the synthetic key.
       var _tp = (m.era && typeof rrTagParse === 'function') ? rrTagParse(m.era) : null;
       if (_tp && _tp.partial) {
+        // v0.9.1505: an era-carrying partial ("Marx O · Postwar") keeps its
+        // catalog scoping and maker; the period rides for the soft rank.
+        var _mfr5 = '', _eras5 = [];
+        if (_tp.era) {
+          _eras5 = [_tp.era];
+          try { _mfr5 = (typeof ERAS !== 'undefined' && ERAS[_tp.era]) ? (ERAS[_tp.era].manufacturer || '') : ''; } catch (e5) {}
+        }
         return {
-          era: '', eras: [], manufacturer: '',
+          era: _tp.era || '', eras: _eras5, manufacturer: _mfr5,
           label: _pinEraLabel(m.era),
           years: (_tp.period && typeof _RR_PERIOD_YEARS !== 'undefined' && _RR_PERIOD_YEARS[_tp.period]) || '',
           scale: _tp.scale || '', period: _tp.period || '',
