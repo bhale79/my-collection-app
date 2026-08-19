@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.1502';
+const APP_VERSION = 'v0.9.1503';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -420,6 +420,16 @@ const ERA_SCALE = {
 };
 if (typeof window !== 'undefined') window.ERA_SCALE = ERA_SCALE;
 
+// v0.9.1503 (Brad's missing Pre-War on the phone): eras that SPAN scales.
+// Lionel made O gauge alongside Standard from 1915; MTH Tinplate reproduces
+// both. ERA_SCALE above keeps each era's flagship scale for display -- but
+// anything that FILTERS by scale must consult this too, or prewar O items
+// vanish behind a Scale O pick (measured: the Quick Capture picker hid
+// Pre-War entirely, and lookups demoted the prewar No. 25, under Scale O).
+// Menards sells O and HO lines (Brad, same session) -- one catalog for now.
+const ERA_SCALES_MULTI = { prewar: ['O', 'Standard'], mth_tinplate: ['O', 'Standard'], menards: ['O', 'HO'] };
+if (typeof window !== 'undefined') window.ERA_SCALES_MULTI = ERA_SCALES_MULTI;
+
 const ERA_TABS = {
   prewar: {
     items:    'Lionel Pre-War',
@@ -695,7 +705,12 @@ function rrSplitByFilter(rows) {
     // made rows unfindable through every consumer of this split (measured:
     // the prewar No. 25 vanished from lookups under an O filter, because
     // prewar's "O & Standard" fails a strict scale compare).
-    if (sc && f.scale && !rrSameScale(sc, f.scale)) { out.offEra.push(r); return; }
+    // v0.9.1503: a multi-scale era (Pre-War spans O and Standard) is not a
+    // mismatch at all when the filter names one of its scales.
+    if (sc && f.scale && !rrSameScale(sc, f.scale)) {
+      var _ms = (typeof ERA_SCALES_MULTI !== 'undefined' && e && ERA_SCALES_MULTI[e]) || null;
+      if (!(_ms && _ms.some(function (s2) { return rrSameScale(s2, f.scale); }))) { out.offEra.push(r); return; }
+    }
     var isIn;
     if (f.era) {
       isIn = (!e || e === f.era);

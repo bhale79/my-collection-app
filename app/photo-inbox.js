@@ -1129,6 +1129,10 @@
           key: k,
           maker: d.manufacturer || 'Other',
           scale: (typeof ERA_SCALE !== 'undefined' && ERA_SCALE[k]) ? ERA_SCALE[k] : '',
+          // v0.9.1503: every scale the era spans (Pre-War = O AND Standard)
+          scales: (typeof ERA_SCALES_MULTI !== 'undefined' && ERA_SCALES_MULTI[k])
+                    ? ERA_SCALES_MULTI[k].slice()
+                    : ((typeof ERA_SCALE !== 'undefined' && ERA_SCALE[k]) ? [ERA_SCALE[k]] : []),
           label: d.label || k,
           years: d.years || '',
         });
@@ -1205,9 +1209,19 @@
       var makers = uniq(choices.map(function (c) { return c.maker; }));
       if (!pick.maker && makers.indexOf('Lionel') >= 0) pick.maker = 'Lionel';
       var scaleSet = choices.filter(function (c) { return c.maker === pick.maker; });
-      var scales = uniq(scaleSet.map(function (c) { return c.scale; }));
+      // v0.9.1503: an era can span scales (Pre-War = O AND Standard). The
+      // scale list is the union, and the line list keeps every era whose
+      // scales INCLUDE the pick -- Scale O no longer hides Pre-War.
+      var _scOf = function (c) { return (c.scales && c.scales.length) ? c.scales : [c.scale]; };
+      var scales = uniq([].concat.apply([], scaleSet.map(_scOf)));
       if (scales.indexOf(pick.scale) < 0) pick.scale = scales.length === 1 ? scales[0] : '';
-      var lines = scaleSet.filter(function (c) { return !pick.scale || c.scale === pick.scale; });
+      var lines = scaleSet.filter(function (c) { return !pick.scale || _scOf(c).indexOf(pick.scale) >= 0; });
+      // v0.9.1503 (Brad: "on atlas, scale and line are the same thing"):
+      // when every one of a maker's lines is exactly one scale and no two
+      // share it (Atlas O/HO/N/Z), the Line dropdown just repeats the Scale
+      // dropdown -- show Scale only and derive the line from the pick.
+      var _lineIsScale = scaleSet.length === scales.length
+        && scaleSet.every(function (c) { return _scOf(c).length === 1; });
       if (!lines.some(function (c) { return c.key === pick.era; })) pick.era = lines.length === 1 ? lines[0].key : '';
 
       function sel(id, label, opts, val, hint) {
@@ -1231,7 +1245,7 @@
           + rrEsc(opts.blurb || 'This gets saved with each photo, so the app knows which catalog to look in.') + '</div>'
         + sel('pin-ctx-maker', 'Manufacturer', makers.map(function (m) { return { v: m, t: m }; }), pick.maker, '')
         + (scales.length > 1 ? sel('pin-ctx-scale', 'Scale', scales.map(function (m) { return { v: m, t: m }; }), pick.scale, '') : '')
-        + (lines.length > 1 ? sel('pin-ctx-era', 'Line / period',
+        + (lines.length > 1 && !_lineIsScale ? sel('pin-ctx-era', 'Line / period',
               lines.map(function (c) { return { v: c.key, t: c.label + (c.years ? '  (' + c.years + ')' : '') }; }), pick.era, '') : '')
         + '<div style="display:flex;gap:0.5rem;margin-top:0.9rem;flex-wrap:wrap">'
         + (opts.onPick
