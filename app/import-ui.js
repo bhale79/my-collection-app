@@ -430,7 +430,25 @@ function _impStepMapping() {
         if (_impFreeCustomSlot()) {
           html += '<option value="__newcol">\u2795 Keep as its own column</option>';
         }
-        html += '</select></div>';
+        html += '</select>';
+        // v0.9.1519 (Brad: "can't change the name of the custom column"):
+        // when a row is mapped to a custom slot, its NAME is editable right
+        // here — prefilled with the sheet's own header.
+        if (/^custom[1-5]$/.test(String(cur))) {
+          if (!_impCustomNameOf(cur)) {
+            try {
+              var _auto = String(h).trim();
+              localStorage.setItem('lv_label_' + cur, _auto.charAt(0).toUpperCase() + _auto.slice(1));
+              var _d = (window.RR_USER_FIELDS || []).filter(function (x) { return x.key === cur; })[0];
+              if (_d) localStorage.setItem(_d.pref, 'true');
+            } catch (eA) {}
+          }
+          var _curName = _impCustomNameOf(cur) || (h.charAt(0).toUpperCase() + h.slice(1));
+          html += '<input class="imp-sel" style="max-width:9rem;margin-left:0.35rem" value="' +
+            _impEsc(_curName).replace(/"/g, '&quot;') + '" title="Name this column" ' +
+            'onchange="_impRenameCustom(\'' + cur + '\',this.value)">';
+        }
+        html += '</div>';
       });
     });
     html += '<label class="imp-muted" style="display:block;margin-top:0.4rem"><input type="checkbox" ' +
@@ -443,6 +461,21 @@ function _impStepMapping() {
 }
 
 // v0.9.1515 helpers: which custom slots exist / are already named.
+function _impCustomNameOf(key) {
+  try { return localStorage.getItem('lv_label_' + key) || ''; } catch (e) { return ''; }
+}
+// v0.9.1519: rename a custom column from the mapping screen.
+function _impRenameCustom(key, val) {
+  var v = String(val || '').trim();
+  if (!v) return;
+  try {
+    localStorage.setItem('lv_label_' + key, v);
+    var def = (window.RR_USER_FIELDS || []).filter(function (x) { return x.key === key; })[0];
+    if (def) localStorage.setItem(def.pref, 'true');
+  } catch (e) {}
+  showToast('Column renamed to “' + v + '”', 2200);
+  _impRender();
+}
 function _impCustomNamed(key) {
   try {
     var def = (window.RR_USER_FIELDS || []).filter(function (x) { return x.key === key; })[0];

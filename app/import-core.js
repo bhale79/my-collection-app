@@ -576,9 +576,11 @@ function rrImpBuildAiPayload(tabs, fillGroups, appFields) {
       return { rgb: g.rgb, count: g.count, tabs: g.tabNames };
     }),
     appFields: appFields || [
+      // v0.9.1519 (Brad, live: the AI put Shipper into "Custom column 1" and
+      // left it unnamed). Custom slots are NEVER offered to the model — a
+      // custom column is created by the USER, named from their own header.
       'itemNum', 'manufacturer', 'gauge', 'yourDesc', 'rawGrade', 'location',
       'locationDetail', 'shipper', 'subCollection',
-      'custom1', 'custom2', 'custom3', 'custom4', 'custom5',
       'priceItem', 'userEstWorth', 'yearMade', 'notes', 'roadName',
       'roadNumber', 'hasBox', 'datePurchased', 'purchasedFrom', 'quantity', 'ignore',
     ],
@@ -604,6 +606,7 @@ function rrImpValidateAiAnswer(ans, tabs) {
         var clean = {};
         Object.keys(m).forEach(function (hdr) {
           var f = String(m[hdr] || '');
+          if (/^custom[1-5]$/.test(f)) return;   // v0.9.1519: user-only
           if (validFields[f]) clean[rrImpNormHeader(hdr)] = f;
         });
         if (Object.keys(clean).length) out.mappings[tabName] = clean;
