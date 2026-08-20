@@ -1617,7 +1617,8 @@ function clearBrowseFilters() {
 
 function applyFilters() {
   state.filters.type = document.getElementById('filter-type').value;
-  state.filters.quickEntry = ''; // QE filter only applies in My Collection view
+  state.filters.quickEntry = '';
+  state.filters.imported = ''; // QE filter only applies in My Collection view
   state.filters.road = window._roadComboValue || '';
   state.filters.wantList = false;
   state.currentPage = 1;
@@ -1666,6 +1667,7 @@ function resetFilters() {
   state.filters.type = '';
   state.filters.road = '';
   state.filters.quickEntry = '';
+  state.filters.imported = '';
   state.currentPage = 1;
   document.getElementById('filter-type').value = '';
   _roadComboClear();
@@ -1716,6 +1718,40 @@ function filterOwned(qe) {
   setTimeout(function() {
     var stale = document.getElementById('qe-only-toggle');
     if (stale) stale.remove();
+    // v0.9.1506 (Session 81, Brad): "Imported" pill — shows ONLY in My
+    // Collection view and ONLY when the collection contains imported rows
+    // (pd.importBatch non-blank), so users who never import see zero change.
+    try {
+      var _impStale = document.getElementById('imp-only-toggle');
+      if (_impStale) _impStale.remove();
+      var _hasImported = Object.values(state.personalData || {}).some(function (p) { return p && p.importBatch; });
+      var _impWrap = document.getElementById('browse-search-wrap');
+      if (_hasImported && _impWrap && _impWrap.parentNode) {
+        var _impLbl = document.createElement('label');
+        _impLbl.id = 'imp-only-toggle';
+        _impLbl.title = 'Show only items brought in by a spreadsheet import';
+        _impLbl.style.cssText = 'display:flex;align-items:center;gap:0.35rem;flex-shrink:0;'
+          + 'font-size:0.8rem;color:var(--text-dim);cursor:pointer;'
+          + 'padding:0.35rem 0.7rem;background:var(--bg-card);'
+          + 'border:1.5px solid var(--border);border-radius:14px;'
+          + 'white-space:nowrap;user-select:none';
+        var _impCb = document.createElement('input');
+        _impCb.type = 'checkbox';
+        _impCb.id = 'imp-only-cb';
+        _impCb.checked = state.filters.imported === 'imported';
+        _impCb.style.cssText = 'margin:0;cursor:pointer;accent-color:var(--accent)';
+        _impCb.onchange = function () {
+          state.filters.imported = this.checked ? 'imported' : '';
+          state.currentPage = 1;
+          renderBrowse();
+        };
+        _impLbl.appendChild(_impCb);
+        var _impTxt = document.createElement('span');
+        _impTxt.textContent = '📥 Imported';
+        _impLbl.appendChild(_impTxt);
+        _impWrap.parentNode.insertBefore(_impLbl, _impWrap.nextSibling);
+      }
+    } catch (eImpPill) { console.warn('[browse] imported pill skipped:', eImpPill && eImpPill.message); }
     return;
     // (legacy body retained below but unreachable; will be deleted in a follow-up.)
     // eslint-disable-next-line no-unreachable
@@ -1755,6 +1791,7 @@ function removeQEFilter() {
   var legacy = document.getElementById('filter-quick-inline');
   if (legacy) legacy.remove();
   state.filters.quickEntry = '';
+  state.filters.imported = '';
 }
 
 // ── filterByType (from between non-browse blocks) ───────────
@@ -3177,6 +3214,11 @@ function renderBrowse() {
       if (_qf === 'quick' && !pd.quickEntry) return false;
       if (_qf === 'complete' && pd.quickEntry) return false;
     }
+    // v0.9.1506 (Session 81, Brad): Imported filter — "find my old stuff".
+    // Every row a spreadsheet import wrote carries pd.importBatch (schema
+    // column, permanent). The pill that sets this only renders in My
+    // Collection view and only when imported rows exist.
+    if (state.filters.imported === 'imported' && !(pd && pd.importBatch)) return false;
     // If type filter is an ephemera category, hide train rows
     if (type) {
       const _ephTypeKeys = ['Catalog','Paper Item','Mock-Up','Other Lionel',
@@ -3229,7 +3271,9 @@ function renderBrowse() {
     }
     if (road && item.roadName !== road) return false;
     if (search) {
-      const haystack = `${item.itemNum} ${item.roadName||''} ${item.description||''} ${item.itemType||''}`.toLowerCase();
+      // v0.9.1506 (Session 81): imported items are searchable by the words THEY
+      // wrote — their own description and grade ride the haystack when present.
+      const haystack = `${item.itemNum} ${item.roadName||''} ${item.description||''} ${item.itemType||''} ${(pd&&pd.yourDescription)||''} ${(pd&&pd.yourGrade)||''}`.toLowerCase();
       if (!_aliasSearch(haystack, search)) return false;
     }
     return true;

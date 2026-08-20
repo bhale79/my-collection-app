@@ -1221,6 +1221,12 @@ function showItemDetailPage(idx, copyInvId, opts) {
         if (!_ct && typeof window._ctLoadContacts === 'function' && !(state.contactsData || []).length) { try { window._ctLoadContacts(); } catch (e) {} }
         return _ct ? (_ct.name + (_ct.business ? ' — ' + _ct.business : '')) : 'a saved contact';
       })() },
+    // v0.9.1506 (Session 81, Task #25): the import's testimony fields. Blank
+    // for anything not imported, so non-importers see zero change (the
+    // .filter(d => d.val) below drops empty rows).
+    { label: 'Your Grade', val: pd && pd.yourGrade ? pd.yourGrade : null },
+    { label: 'Your Description', val: pd && pd.yourDescription ? String(pd.yourDescription).replace(/</g,'&lt;') : null },
+    { label: 'Imported', val: pd && pd.importBatch ? '\u2705 Yes' : null },
     { label: 'Year Made', val: pd && pd.yearMade ? pd.yearMade : null },
     { label: 'Location', val: pd && pd.location ? pd.location : null },
     { label: 'Inventory ID', val: pd && pd.inventoryId ? pd.inventoryId : null },

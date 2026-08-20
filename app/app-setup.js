@@ -370,6 +370,32 @@ async function initPersonalSheet(sheetId) {
   // Write My Collection title + headers if empty
   // Read the full header range (schema-length driven) so we can detect drift.
   const _pdEnd = _pdColLetter(PERSONAL_HEADERS.length);
+  // v0.9.1506 (Session 81): WIDEN THE GRID BEFORE ANY HEADER WRITE. The schema
+  // crossed 40 columns this release (Import Batch / Your Grade / Your
+  // Description, Task #25) and values.update does NOT expand a sheet's grid —
+  // a user sheet created narrower than the schema would 400 on the header
+  // repair below and break boot. One metadata read; appendDimension only when
+  // actually short; harmless no-op for everyone else. Guarded: a failure here
+  // must never block boot — the repair below then behaves exactly as before.
+  try {
+    const _gRes = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}?fields=sheets.properties`,
+      { headers: { Authorization: `Bearer ${accessToken}` } }
+    );
+    const _gMeta = await _gRes.json();
+    const _pc = (_gMeta.sheets || []).find(s => s.properties.title === PERSONAL_TAB);
+    const _cols = _pc && _pc.properties.gridProperties ? (_pc.properties.gridProperties.columnCount || 0) : 0;
+    if (_pc && _cols > 0 && _cols < PERSONAL_HEADERS.length) {
+      await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}:batchUpdate`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ requests: [{ appendDimension: {
+          sheetId: _pc.properties.sheetId, dimension: 'COLUMNS',
+          length: PERSONAL_HEADERS.length - _cols,
+        } }] }),
+      });
+    }
+  } catch (eGrid) { console.warn('[setup] grid-width check skipped:', eGrid && eGrid.message); }
   const res = await fetch(
     `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/My%20Collection!A1:${_pdEnd}2`,
     { headers: { Authorization: `Bearer ${accessToken}` } }

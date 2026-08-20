@@ -314,6 +314,12 @@ function buildPrefsPage() {
         <div class="pref-row-label"><strong>Export Full Collection</strong><span>Download as CSV spreadsheet</span></div>
         <button class="pref-btn" onclick="exportFullCollection()">Download CSV</button>
       </div>
+      <!-- v0.9.1506 (Session 81, Task #25 Phase 1): spreadsheet import — Brad picked Settings/Tools as the home. -->
+      <div class="pref-row">
+        <div class="pref-row-label"><strong>Import a Spreadsheet</strong> <span style="font-size:0.6rem;background:var(--accent);color:#fff;border-radius:4px;padding:0.1rem 0.35rem">BETA</span><span>Bring in a collection you already track in Excel — colors, tabs and all</span></div>
+        <button class="pref-btn" onclick="if(typeof rrImportOpen==='function')rrImportOpen()">Import</button>
+      </div>
+      ${typeof rrImportRecentBatchesHtml === 'function' ? rrImportRecentBatchesHtml() : ''}
       <div class="pref-row">
         <div class="pref-row-label"><strong>Last updated</strong><span id="pref-cache-ts">${cacheDateStr} · ${cacheSize}</span></div>
         <button class="pref-btn" onclick="forceRefreshData().then(()=>buildPrefsPage())">Update now</button>

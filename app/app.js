@@ -95,6 +95,13 @@ const PERSONAL_SCHEMA = [
   // already does. Genuinely appended at END: inserting it one line earlier
   // would have shifted masterKey's column and orphaned it on every saved row.
   { field: 'eraPeriod',            header: 'Era Period' },
+  // v0.9.1506 (Session 81, Task #25 Phase 1 import) — three columns, appended at END (column rule):
+  // importBatch: which import wrote this row (blank = not imported) — one-click batch undo keys on it.
+  // yourGrade: the user's grade VERBATIM from their sheet (C10/P10 stays C10/P10); Condition holds the converted 1-10.
+  // yourDescription: their own description text (testimony column) — importer is the only writer.
+  { field: 'importBatch',          header: 'Import Batch' },
+  { field: 'yourGrade',            header: 'Your Grade' },
+  { field: 'yourDescription',      header: 'Your Description' },
 ];
 const PERSONAL_HEADERS = PERSONAL_SCHEMA.map(s => s.header);
 const PERSONAL_FIELD_INDEX = {};
