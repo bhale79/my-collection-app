@@ -191,6 +191,41 @@ ok('real date still survives',
 ok('date junk counter sees them',
    core.rrImpCountDateJunk([{ rows: [{ cells: [new Date('1899-12-30'), 'ok', new Date('2024-01-09')] }] }]) === 1);
 
+// ── v0.9.1518: Brad's Lionel number-length rule ─────────────────
+ok('era rule: 4 digits -> vintage', core.rrImpLionelEraClass('2340') === 'vintage');
+ok('era rule: 3 digits -> vintage', core.rrImpLionelEraClass('675') === 'vintage');
+ok('era rule: 5 digits -> modern', core.rrImpLionelEraClass('26077') === 'modern');
+ok('era rule: suffix ignored (6464-25 is vintage)', core.rrImpLionelEraClass('6464-25') === 'vintage');
+ok('era rule: 6-prefixed modern number -> modern', core.rrImpLionelEraClass('6-11169') === 'vintage',
+   'note: 6- prefix strips to "6" — prefix matches write the CATALOG number, so this path is not used for them');
+ok('era rule: no digits -> no opinion', core.rrImpLionelEraClass('CA-SO') === '');
+ok('row class: MPC tab -> modern', core.rrImpEraClassOfRow({ _era: 'mpc', _tab: 'Lionel MPC-Modern' }) === 'modern');
+ok('row class: PW tab -> vintage', core.rrImpEraClassOfRow({ _era: 'pw', _tab: 'Lionel PW - Items' }) === 'vintage');
+ok('vintage period: prewar tab', core.rrImpVintagePeriod({ _era: 'prewar', _tab: 'Lionel Pre-War' }) === 'prewar');
+ok('vintage period: pw tab', core.rrImpVintagePeriod({ _era: 'pw', _tab: 'Lionel PW - Items' }) === 'postwar');
+
+// The whole point: Lionel reuses numbers across eras.
+const reused = {
+  '2340': [{ itemNum: '2340', _era: 'pw',  _tab: 'Lionel PW - Items', description: 'GG-1 postwar' },
+           { itemNum: '2340', _era: 'mpc', _tab: 'Lionel MPC-Modern', description: 'GG-1 reissue' }],
+  '26077': [{ itemNum: '26077', _era: 'mpc', _tab: 'Lionel MPC-Modern', description: 'Flatcar w/ autos' },
+            { itemNum: '26077', _era: 'pw', _tab: 'Lionel PW - Items', description: 'nonsense twin' }],
+  '675':  [{ itemNum: '675', _era: 'pw', _tab: 'Lionel PW - Items', description: 'postwar steam' },
+           { itemNum: '675', _era: 'prewar', _tab: 'Lionel Pre-War', description: 'prewar steam' }],
+};
+const lk3 = { candidatesFor: n => reused[n] || [], baseOf: n => n };
+const t3 = core.rrImpTriage([
+  { itemNum: '2340', manufacturer: 'Lionel', srcTab: 'Lionel' },
+  { itemNum: '26077', manufacturer: 'Lionel', srcTab: 'Lionel' },
+  { itemNum: '675', manufacturer: 'Lionel', srcTab: 'Lionel' },
+], lk3);
+ok('reused 2340 (4 digits) resolves to POSTWAR, not the reissue',
+   t3.matched.some(m => m.item.itemNum === '2340' && m.master._era === 'pw' && m.matchedVia === 'lionel-digits'));
+ok('reused 26077 (5 digits) resolves to MODERN',
+   t3.matched.some(m => m.item.itemNum === '26077' && m.master._era === 'mpc'));
+ok('675 stays for the prewar/postwar verify (two vintage candidates)',
+   t3.ambiguous.some(a => a.item.itemNum === '675' && a.eraChoice === 'vintage' && a.prewar && a.postwar));
+
 // ── UI wiring guard (added v0.9.1508 after a LIVE failure) ──────
 // Brad opened Import on a real account and got an EMPTY window: _impRender's
 // step map named _impStepWriting, which nothing defined, so building that

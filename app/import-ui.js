@@ -120,7 +120,7 @@ function _impRender() {
     entry: _impStepEntry, consent: _impStepConsent, mapping: _impStepMapping,
     tabfacts: _impStepTabFacts,
     interview: _impStepInterview, grades: _impStepGrades, triage: _impStepTriage,
-    prices: _impStepPrices, preview: _impStepPreview, writing: _impStepWriting,
+    prices: _impStepPrices, eracheck: _impStepEraCheck, preview: _impStepPreview, writing: _impStepWriting,
     done: _impStepDone,
   }[_imp.step];
   if (fn) fn();
@@ -876,10 +876,18 @@ function _impStepTriage() {
     ? _imp.staged.filter(_impIsHighlighted).length : 0;
   var html = '<div class="imp-h">Here’s what we found.</div>';
   var viaPrefix = t.matched.filter(function (m) { return m.matchedVia === '6-prefix'; }).length;
+  var viaDigits = t.matched.filter(function (m) { return m.matchedVia === 'lionel-digits'; }).length;
+  var vintageLeft = _impVintageGroup().length;
   html += '<div class="imp-card"><span class="imp-badge match">MATCHED</span> <strong>' + t.matched.length.toLocaleString() +
     '</strong> items found in our catalog — these import with full catalog details.' +
     (viaPrefix ? ' <span class="imp-muted">(' + viaPrefix.toLocaleString() +
-      ' matched by adding Lionel\u2019s \u201C6-\u201D prefix — e.g. your 11169 is catalog 6-11169.)</span>' : '') + '</div>';
+      ' matched by adding Lionel\u2019s \u201C6-\u201D prefix — e.g. your 11169 is catalog 6-11169.)</span>' : '') +
+    (viaDigits ? ' <span class="imp-muted">(' + viaDigits.toLocaleString() +
+      ' settled by number length — 5+ digits is a modern Lionel number, even for reproductions.)</span>' : '') + '</div>';
+  if (vintageLeft) {
+    html += '<div class="imp-card">' + vintageLeft.toLocaleString() +
+      ' Lionel items are prewar or postwar (four digits or fewer). We\u2019ll ask you to confirm those next.</div>';
+  }
   var _dateJunk = 0;
   try { _dateJunk = rrImpCountDateJunk(_imp.tabs.filter(function (t) { return !_imp.skipTabs[t.name]; })); } catch (eDJ) {}
   if (_dateJunk >= 5) {
@@ -918,8 +926,70 @@ function _impStepTriage() {
       ' highlighted rows are marked SOLD — <span class="imp-muted">those are skipped for now (Sold-list import comes in a later update).</span></div>';
   }
   html += '<div class="imp-foot"><button class="imp-btn" onclick="_imp.step=\'grades\';_impRender()">← Back</button>' +
-    '<button class="imp-btn primary" onclick="_imp.step=\'' + ((_imp.fillMeaning === 'sale' && _imp.priceWhen === 'now') ? 'prices' : 'preview') + '\';_impRender()">Next →</button></div>';
+    '<button class="imp-btn primary" onclick="_imp.step=\'' + _impNextAfterTriage() + '\';_impRender()">Next →</button></div>';
   _impBody().innerHTML = html;
+}
+
+// v0.9.1518: the vintage group needs verifying before we write it.
+function _impNextAfterTriage() {
+  if (_imp.fillMeaning === 'sale' && _imp.priceWhen === 'now') return 'prices';
+  return _impVintageGroup().length ? 'eracheck' : 'preview';
+}
+function _impVintageGroup() {
+  return (_imp.triage && _imp.triage.ambiguous || []).filter(function (a) { return a.eraChoice === 'vintage'; });
+}
+
+// ── Step: prewar / postwar bulk verify ──────────────────────────────────
+// Brad's rule already ruled OUT modern (5+ digit numbers are modern, even
+// for reproductions of postwar items — his 26077 = repro of 6424). What is
+// left is prewar vs postwar, which the number alone cannot settle. So we
+// group them, default to POSTWAR (far more common in collections), and ask
+// the user to tick the exceptions — his words: "let him tick off the ones
+// that aren't".
+function _impStepEraCheck() {
+  var group = _impVintageGroup();
+  if (!group.length) { _imp.step = 'preview'; _impRender(); return; }
+  if (!_imp.prewarPicks) _imp.prewarPicks = {};
+  var html = '<div class="imp-h">' + group.length.toLocaleString() +
+    ' Lionel items are prewar or postwar — which is it?</div>' +
+    '<div class="imp-muted" style="margin-bottom:0.6rem">Their numbers are four digits or fewer, so they are not modern. ' +
+    'We have set them all to <strong>Postwar</strong>. Tick any that are actually <strong>Prewar</strong>.</div>' +
+    '<div class="imp-card" style="max-height:22rem;overflow:auto">';
+  group.forEach(function (a, i) {
+    var it = a.item;
+    var key = it.srcTab + '|' + it.srcRow;
+    var pw = a.postwar, pre = a.prewar;
+    html += '<label class="imp-row" style="cursor:pointer">' +
+      '<input type="checkbox" ' + (_imp.prewarPicks[key] ? 'checked' : '') +
+      ' onchange="_imp.prewarPicks[\'' + _impEsc(key).replace(/'/g, '&#39;') + '\']=this.checked" ' +
+      'style="margin-right:0.5rem;accent-color:var(--accent)">' +
+      '<div style="flex:1"><span class="imp-num">' + _impEsc(it.itemNum) + '</span> ' +
+      '<span class="imp-muted">' + _impEsc(String(it.yourDesc || '').slice(0, 52)) + '</span>' +
+      '<div class="imp-muted" style="font-size:0.7rem">Postwar: ' +
+      _impEsc(String((pw && pw.description) || '—').slice(0, 40)) +
+      (pre ? ' · Prewar: ' + _impEsc(String(pre.description || '—').slice(0, 40)) : '') + '</div></div></label>';
+  });
+  html += '</div>' +
+    '<div class="imp-foot"><button class="imp-btn" onclick="_imp.step=\'triage\';_impRender()">← Back</button>' +
+    '<button class="imp-btn primary" onclick="_impApplyEraCheck()">Next →</button></div>';
+  _impBody().innerHTML = html;
+}
+function _impApplyEraCheck() {
+  var group = _impVintageGroup();
+  var stillAmbiguous = [];
+  group.forEach(function (a) {
+    var key = a.item.srcTab + '|' + a.item.srcRow;
+    var wantPrewar = !!(_imp.prewarPicks && _imp.prewarPicks[key]);
+    var pick = wantPrewar ? (a.prewar || a.postwar) : (a.postwar || a.prewar);
+    if (pick) _imp.triage.matched.push({ item: a.item, master: pick, matchedVia: 'era-verified' });
+    else stillAmbiguous.push(a);
+  });
+  // Anything we could not resolve stays held back, as before.
+  _imp.triage.ambiguous = (_imp.triage.ambiguous || []).filter(function (a) {
+    return a.eraChoice !== 'vintage' || stillAmbiguous.indexOf(a) >= 0;
+  });
+  _imp.step = 'preview';
+  _impRender();
 }
 
 function _impIsHighlighted(it) {
@@ -942,7 +1012,7 @@ function _impStepPrices() {
       'onchange="_imp.itemPrices[\'' + _impEsc(key).replace(/'/g, '&#39;') + '\']=this.value"></div>';
   });
   html += '<div class="imp-foot"><button class="imp-btn" onclick="_imp.step=\'triage\';_impRender()">← Back</button>' +
-    '<button class="imp-btn primary" onclick="_imp.step=\'preview\';_impRender()">Next →</button></div>';
+    '<button class="imp-btn primary" onclick="_imp.step=\'' + (_impVintageGroup().length ? 'eracheck' : 'preview') + '\';_impRender()">Next →</button></div>';
   _impBody().innerHTML = html;
 }
 

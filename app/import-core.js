@@ -410,6 +410,41 @@ function rrImpMakerFromTab(tabName, knownMakers) {
   return '';
 }
 
+// ── Lionel number-length era rule (v0.9.1518 — BRAD'S DOMAIN RULE) ─────
+// Brad: "you can infer that if it is 4 numbers or less its prewar or
+// postwar. Modern numbers are 5 plus. I'm not counting the -xxx in the
+// postwar stuff. Even the remakes of postwar items have the 5+ digit
+// numbers." His 26077 example proves the second half: a MODERN 5-digit
+// number for a reproduction of postwar 6424 — and note the description
+// says "#6424", which is exactly why we read the NUMBER, never the words.
+//
+// Returns 'modern' | 'vintage' (prewar OR postwar — still two eras, Brad's
+// correction) | '' when the rule does not apply.
+function rrImpLionelEraClass(num) {
+  var first = String(num || '').trim().split('-')[0];   // 6464-25 → 6464
+  var digits = first.replace(/[^0-9]/g, '');
+  if (!digits) return '';
+  if (digits.length >= 5) return 'modern';
+  if (digits.length <= 4) return 'vintage';
+  return '';
+}
+// Which class a catalog row belongs to, by its era/tab.
+function rrImpEraClassOfRow(m) {
+  var e = String((m && m._era) || '').toLowerCase();
+  var t = String((m && m._tab) || '').toLowerCase();
+  if (e === 'mpc' || t.indexOf('mpc') >= 0 || t.indexOf('modern') >= 0) return 'modern';
+  if (e === 'pw' || e === 'prewar' || t.indexOf('pw') >= 0 || t.indexOf('pre-war') >= 0) return 'vintage';
+  return '';
+}
+// prewar vs postwar for a row, once we know it is vintage.
+function rrImpVintagePeriod(m) {
+  var e = String((m && m._era) || '').toLowerCase();
+  var t = String((m && m._tab) || '').toLowerCase();
+  if (e === 'prewar' || t.indexOf('pre-war') >= 0) return 'prewar';
+  if (e === 'pw' || t.indexOf('pw') >= 0) return 'postwar';
+  return '';
+}
+
 // ── Triage ──────────────────────────────────────────────────────
 // items: staged items (post-mapping). lookups: injected hooks so this
 // stays pure and node-testable —
@@ -448,6 +483,25 @@ function rrImpTriage(items, lookups) {
     if (exact.length === 1) {
       res.matched.push({ item: it, master: exact[0] });
     } else if (exact.length > 1) {
+      // v0.9.1518: Brad's number-length rule splits Lionel's reused numbers.
+      var isLionel = /lionel/i.test(String((it.manufacturer || '') + ' ' + (it.srcTab || '')));
+      var cls = isLionel ? rrImpLionelEraClass(num) : '';
+      if (cls) {
+        var inClass = exact.filter(function (m) { return rrImpEraClassOfRow(m) === cls; });
+        if (inClass.length === 1) {
+          res.matched.push({ item: it, master: inClass[0], matchedVia: 'lionel-digits' });
+          return;
+        }
+        if (inClass.length > 1 && cls === 'vintage') {
+          // Still prewar OR postwar (Brad: "those are still two different
+          // eras"). Held for the bulk verify screen, defaulted to postwar.
+          res.ambiguous.push({ item: it, candidates: inClass, eraChoice: 'vintage',
+            prewar: inClass.filter(function (m) { return rrImpVintagePeriod(m) === 'prewar'; })[0] || null,
+            postwar: inClass.filter(function (m) { return rrImpVintagePeriod(m) === 'postwar'; })[0] || null });
+          return;
+        }
+        if (inClass.length > 1) { res.ambiguous.push({ item: it, candidates: inClass }); return; }
+      }
       res.ambiguous.push({ item: it, candidates: exact });
     } else {
       var dym = [];
@@ -599,6 +653,9 @@ var RR_IMPORT_CORE = {
   rrImpCleanMoney: rrImpCleanMoney,
   rrImpCollectGrades: rrImpCollectGrades,
   rrImpGuessCondition: rrImpGuessCondition,
+  rrImpLionelEraClass: rrImpLionelEraClass,
+  rrImpEraClassOfRow: rrImpEraClassOfRow,
+  rrImpVintagePeriod: rrImpVintagePeriod,
   rrImpCountDateJunk: rrImpCountDateJunk,
   rrImpIsSummaryItem: rrImpIsSummaryItem,
   rrImpYearFromText: rrImpYearFromText,
