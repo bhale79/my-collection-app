@@ -127,8 +127,9 @@ function _impStepEntry() {
     '<div class="imp-h">Bring in a collection you already track in a spreadsheet.</div>' +
     '<div class="imp-drop" id="imp-drop" onclick="document.getElementById(\'imp-file\').click()">' +
     '<div style="font-size:1.6rem">📄</div><div><strong>Drop your Excel file here</strong> or tap to choose</div>' +
-    '<div class="imp-muted">.xlsx works best — row colors and every tab come along</div></div>' +
-    '<input type="file" id="imp-file" accept=".xlsx" style="display:none">' +
+    '<div class="imp-muted">Excel (.xlsx) works best — row colors and every tab come along.<br>' +
+    'Google Sheets: File → Download → Microsoft Excel first. CSV works too.</div></div>' +
+    '<input type="file" id="imp-file" accept=".xlsx,.csv" style="display:none">' +
     '<div style="text-align:center;margin:0.7rem 0" class="imp-muted">— or —</div>' +
     '<textarea id="imp-paste" placeholder="Paste rows copied from a simple spreadsheet (headers first)" ' +
     'style="width:100%;min-height:5.5rem;background:var(--surface2,#26262e);color:var(--text,#eee);border:1px solid var(--border,#444);border-radius:8px;padding:0.5rem;font-size:0.82rem"></textarea>' +
@@ -139,16 +140,32 @@ function _impStepEntry() {
   drop.addEventListener('drop', function (e) {
     e.preventDefault(); drop.classList.remove('drag');
     var f = e.dataTransfer.files && e.dataTransfer.files[0];
-    if (f) _impLoadFile(f);
+    if (f) _impLoadAnyFile(f);
   });
   document.getElementById('imp-file').addEventListener('change', function (e) {
-    if (e.target.files && e.target.files[0]) _impLoadFile(e.target.files[0]);
+    if (e.target.files && e.target.files[0]) _impLoadAnyFile(e.target.files[0]);
   });
   document.getElementById('imp-paste-go').onclick = function () {
     var txt = document.getElementById('imp-paste').value || '';
     if (txt.trim().length < 10) { showToast('Paste a few rows first', 2500, true); return; }
     _impLoadPaste(txt);
   };
+}
+
+// v0.9.1508: one entry point for BOTH drop and pick. A .csv (or .txt) is read
+// as text and routed to the same parser the paste box uses; anything else goes
+// down the ExcelJS path. Keeps colors/tabs for xlsx, adds a path for the many
+// people whose list is a plain CSV.
+function _impLoadAnyFile(file) {
+  var name = String((file && file.name) || '').toLowerCase();
+  if (/\.(csv|tsv|txt)$/.test(name)) {
+    var reader = new FileReader();
+    reader.onload = function () { _impLoadPaste(String(reader.result || '')); };
+    reader.onerror = function () { showToast('Could not read that file', 3000, true); };
+    reader.readAsText(file);
+    return;
+  }
+  _impLoadFile(file);
 }
 
 // ExcelJS on demand — never part of app startup.
@@ -690,6 +707,16 @@ function _impPreviewCard(w) {
   html += '<div class="imp-muted" style="margin-top:0.25rem;font-size:0.7rem">from tab “' + _impEsc(it.srcTab) + '”, row ' + it.srcRow + '</div></div>';
   return html;
 }
+
+// v0.9.1508 (Session 81, found by Brad testing live): _impRender's step map
+// NAMED this function but nothing ever defined it. Every property in an object
+// literal is evaluated when the object is built, so opening Import threw
+// "ReferenceError: _impStepWriting is not defined" BEFORE the entry screen was
+// drawn — the window opened empty, 100% of the time, for everyone. The node
+// suites never caught it because they cover the pure core, not the screens.
+// The writing screen is painted by _impWrite (progress bar + counter) and
+// re-rendering must not wipe it mid-write, so this is deliberately a no-op.
+function _impStepWriting() { /* _impWrite owns this screen */ }
 
 // ── Step: WRITE (chunked, guarded, undoable) ────────────────────
 async function _impWrite() {

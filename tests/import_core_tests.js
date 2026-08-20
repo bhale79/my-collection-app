@@ -124,6 +124,43 @@ ok('AI validate: good mapping kept, bad field dropped',
 ok('AI validate: bad condition (99) dropped, good kept', good.gradeTable.length === 1 && good.gradeTable[0].condition === '10');
 ok('AI validate: question kept', good.questions.length === 1 && good.questions[0].options.length === 3);
 
+// ── UI wiring guard (added v0.9.1508 after a LIVE failure) ──────
+// Brad opened Import on a real account and got an EMPTY window: _impRender's
+// step map named _impStepWriting, which nothing defined, so building that
+// object literal threw before the entry screen drew — broken for everyone,
+// every time, and invisible to these node suites because import-ui.js is
+// browser code. This static check reads import-ui.js as TEXT and proves every
+// function the UI references by name actually exists. Cheap, no DOM needed.
+(function uiWiringGuard() {
+  const uiPath = path.join(__dirname, '..', 'app', 'import-ui.js');
+  if (!fs.existsSync(uiPath)) { ok('import-ui.js present', false, uiPath); return; }
+  const src = fs.readFileSync(uiPath, 'utf8');
+  const defined = new Set();
+  const defRe = /function\s+([A-Za-z_$][\w$]*)\s*\(/g;
+  let m; while ((m = defRe.exec(src)) !== null) defined.add(m[1]);
+
+  // Every value in the _impRender step map must be a defined function.
+  const mapMatch = /var fn = \{([\s\S]*?)\};/.exec(src);
+  ok('step map found in _impRender', !!mapMatch);
+  if (mapMatch) {
+    const named = [...mapMatch[1].matchAll(/:\s*(_imp[A-Za-z0-9_$]*)/g)].map(x => x[1]);
+    ok('step map lists all screens', named.length >= 9, named.length + ' entries');
+    const missing = named.filter(n => !defined.has(n));
+    ok('EVERY step-map function is defined', missing.length === 0, missing.join(', ') || 'none missing');
+  }
+
+  // Functions called from inline onclick handlers must exist too (same bug
+  // shape: a typo there fails only when a user taps the button).
+  const onclicks = [...src.matchAll(/onclick=\\?["'][^"']*?(_imp[A-Za-z0-9_$]*)\s*\(/g)].map(x => x[1]);
+  const missingClicks = [...new Set(onclicks)].filter(n => !defined.has(n));
+  ok('every _imp* function used in an onclick is defined', missingClicks.length === 0,
+     missingClicks.join(', ') || 'none missing');
+
+  // The four globals the app depends on must be exported to window.
+  ['rrImportOpen', 'rrImportClose', 'rrImportUndo', 'rrImportRecentBatchesHtml']
+    .forEach(g => ok('window export: ' + g, src.indexOf('window.' + g + ' = ') >= 0));
+})();
+
 // ── Fixture tests (Scott's real workbook) ───────────────────────
 const fixturePath = process.argv[2] || path.join(__dirname, '..', 'Scott_Inventory_TEST_FIXTURE.xlsx');
 

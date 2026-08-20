@@ -711,21 +711,33 @@ function buildDashboard() {
         // beta tester opens the app in, and the one state no gate had ever
         // been run against.
         '<div id="dash-welcome-empty" style="padding:1.4rem 1.5rem;max-width:760px;background:var(--surface);border:1px solid var(--border);border-radius:14px">'
-        + '<div style="font-family:var(--font-head);font-size:1.15rem;font-weight:700;margin-bottom:0.35rem">Welcome to The Rail Roster</div>'
+        // v0.9.1508 (Brad, testing live as a new user): these headings set NO
+        // color, so they inherited the CREAM chrome text (#f8e8c0) while the
+        // card sits on the LIGHT parchment surface (#fffdf6) — cream on cream.
+        // var(--text) resolves per scope, so this reads correctly in both modes.
+        + '<div style="font-family:var(--font-head);font-size:1.15rem;font-weight:700;margin-bottom:0.35rem;color:var(--text)">Welcome to The Rail Roster</div>'
         + '<div style="font-size:0.88rem;color:var(--text-mid);line-height:1.55;margin-bottom:1.1rem">'
         +   'Nothing in your collection yet \u2014 that is exactly where everyone starts. '
-        +   'Two ways in, and you can mix them however you like.'
+        +   'Three ways in, and you can mix them however you like.'
         + '</div>'
         + '<div style="display:flex;flex-wrap:wrap;gap:0.9rem">'
         +   '<div style="flex:1 1 300px;min-width:260px;border:1px solid var(--border);border-radius:10px;padding:0.9rem 1rem">'
-        +     '<div style="font-weight:700;font-size:0.92rem;margin-bottom:0.3rem">Know the number?</div>'
+        +     '<div style="font-weight:700;font-size:0.92rem;margin-bottom:0.3rem;color:var(--text)">Know the number?</div>'
         +     '<div style="font-size:0.82rem;color:var(--text-dim);line-height:1.5;margin-bottom:0.75rem">Type it in and the road name, year, variation and description fill themselves in from the catalogue. You add what only you know \u2014 condition, what you paid, whether you have the box.</div>'
         +     '<button class="btn-primary" onclick="startWizardFor(\'collection\')" style="padding:0.5rem 0.9rem;border-radius:8px;border:none;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Add your first item</button>'
         +   '</div>'
         +   '<div style="flex:1 1 300px;min-width:260px;border:1px solid var(--border);border-radius:10px;padding:0.9rem 1rem">'
-        +     '<div style="font-weight:700;font-size:0.92rem;margin-bottom:0.3rem">Got a shelf to get through?</div>'
+        +     '<div style="font-weight:700;font-size:0.92rem;margin-bottom:0.3rem;color:var(--text)">Got a shelf to get through?</div>'
         +     '<div style="font-size:0.82rem;color:var(--text-dim);line-height:1.5;margin-bottom:0.75rem">Photograph everything \u2014 boxes, side lettering, whatever is readable. The photos land in one place and the numbers get read off them in the background, for free. You confirm what it got right later.</div>'
         +     '<button onclick="window._pinGo && window._pinGo(document.getElementById(\'nav-photo-inbox\'))" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:var(--bg-card);background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card));color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Open the Photo Inbox</button>'
+        +   '</div>'
+        // v0.9.1508 (Brad): the third way in — people arriving with a list they
+        // already keep. Names the Google Sheets export path explicitly, since
+        // that is how most non-Excel users will get here.
+        +   '<div style="flex:1 1 300px;min-width:260px;border:1px solid var(--border);border-radius:10px;padding:0.9rem 1rem">'
+        +     '<div style="font-weight:700;font-size:0.92rem;margin-bottom:0.3rem;color:var(--text)">Already have a list? <span style="font-size:0.62rem;background:var(--accent);color:#fff;border-radius:4px;padding:0.1rem 0.35rem;vertical-align:middle">BETA</span></div>'
+        +     '<div style="font-size:0.82rem;color:var(--text-dim);line-height:1.5;margin-bottom:0.75rem">Bring in a collection you already track in a spreadsheet \u2014 an Excel file (.xlsx) keeps your row colors and every tab. Keep a Google Sheet? File \u2192 Download \u2192 Microsoft Excel first. CSV works too. We check every column with you before anything is saved.</div>'
+        +     '<button onclick="if(typeof rrImportOpen===\'function\')rrImportOpen()" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:var(--bg-card);background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card));color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Import a spreadsheet</button>'
         +   '</div>'
         + '</div>'
         + '<div style="font-size:0.78rem;color:var(--text-dim);line-height:1.5;margin-top:1.1rem;padding-top:0.9rem;border-top:1px solid var(--border)">'
