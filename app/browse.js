@@ -182,6 +182,169 @@ var _COLL_COLS = [
   { col: 'worth', label: 'Est. Worth' },
   { col: 'added', label: 'Date Added' },   // v0.9.719/726 (Brad): sortable, AFTER Est. Worth
 ];
+
+// ══ v0.9.1517 — CHOOSE YOUR COLUMNS (Task #34, Brad: "the column headers
+// for the collection list need to be editable so that we can see our new
+// custom columns... user should be able to drag them left and right to the
+// order they want other than the mfr and item # columns") ══════════════
+//
+// Mfr and Item # are LOCKED first — they are how you recognise a row.
+// Everything else can be shown, hidden and reordered; the choice is per
+// user (localStorage) and applies to the My Collection table only.
+var _COLL_LOCKED = ['mfr', 'num'];
+var _COLL_EXTRA_COLS = [
+  { col: 'location',      label: 'Location',      pdKey: 'location' },
+  { col: 'locationDetail',label: 'Location Detail', pdKey: 'locationDetail' },
+  { col: 'cond',          label: 'Condition',     pdKey: 'condition' },
+  { col: 'yourGrade',     label: 'Your Grade',    pdKey: 'yourGrade' },
+  { col: 'yourDesc',      label: 'Your Description', pdKey: 'yourDescription' },
+  { col: 'paid',          label: 'Price Paid',    pdKey: 'priceItem', money: true },
+  { col: 'roadName',      label: 'Road Name',     pdKey: 'roadName' },
+  { col: 'roadNumber',    label: 'Road Number',   pdKey: 'roadNumber' },
+  { col: 'yearMade',      label: 'Year Made',     pdKey: 'yearMade' },
+  { col: 'hasBox',        label: 'Has Box',       pdKey: 'hasBox' },
+  { col: 'notes',         label: 'Notes',         pdKey: 'notes' },
+  { col: 'subType',       label: 'Sub Type',      pdKey: 'subType' },
+  { col: 'shipper',       label: 'Shipper',       pdKey: 'shipper' },
+  { col: 'subCollection', label: 'Sub-collection', pdKey: 'subCollection' },
+  { col: 'custom1',       label: 'Custom 1',      pdKey: 'custom1', userField: true },
+  { col: 'custom2',       label: 'Custom 2',      pdKey: 'custom2', userField: true },
+  { col: 'custom3',       label: 'Custom 3',      pdKey: 'custom3', userField: true },
+  { col: 'custom4',       label: 'Custom 4',      pdKey: 'custom4', userField: true },
+  { col: 'custom5',       label: 'Custom 5',      pdKey: 'custom5', userField: true },
+];
+var _COLL_COLS_PREF = 'lv_coll_columns_v1';
+function _collAllCols() {
+  return _COLL_COLS.concat(_COLL_EXTRA_COLS);
+}
+function _collColLabel(id) {
+  var c = _collAllCols().filter(function (x) { return x.col === id; })[0];
+  if (!c) return id;
+  // A named custom column shows the user's own name everywhere.
+  if (c.userField && typeof rrFieldLabel === 'function') {
+    try {
+      var def = (window.RR_USER_FIELDS || []).filter(function (f) { return f.key === c.pdKey; })[0];
+      if (def) return rrFieldLabel(def);
+    } catch (e) {}
+  }
+  if (c.col === 'locationDetail' || c.col === 'shipper' || c.col === 'subCollection') {
+    try {
+      var d2 = (window.RR_USER_FIELDS || []).filter(function (f) { return f.key === c.pdKey; })[0];
+      if (d2 && typeof rrFieldLabel === 'function') return rrFieldLabel(d2);
+    } catch (e) {}
+  }
+  return c.label;
+}
+// The columns actually rendered, in order. Default = today's layout, so a
+// user who never opens the picker sees exactly what they saw before.
+function _collVisibleCols() {
+  var def = _COLL_COLS.map(function (c) { return c.col; });
+  var chosen = null;
+  try {
+    var raw = localStorage.getItem(_COLL_COLS_PREF);
+    if (raw) chosen = JSON.parse(raw);
+  } catch (e) {}
+  if (!Array.isArray(chosen) || !chosen.length) return def;
+  var known = {};
+  _collAllCols().forEach(function (c) { known[c.col] = 1; });
+  var out = _COLL_LOCKED.slice();
+  chosen.forEach(function (id) {
+    if (known[id] && _COLL_LOCKED.indexOf(id) < 0 && out.indexOf(id) < 0) out.push(id);
+  });
+  return out;
+}
+function _collSaveCols(list) {
+  try { localStorage.setItem(_COLL_COLS_PREF, JSON.stringify(list)); } catch (e) {}
+}
+// ── Column picker modal (v0.9.1517, Task #34) ───────────────────────────
+// Drag to reorder, tick to show. Mfr and Item # are pinned and cannot be
+// moved or hidden — they are how a row is recognised.
+function _openCollColumnsModal() {
+  var existing = document.getElementById('cc-overlay');
+  if (existing) existing.remove();
+  var chosen = _collVisibleCols().filter(function (id) { return _COLL_LOCKED.indexOf(id) < 0; });
+  var all = _collAllCols().map(function (c) { return c.col; })
+    .filter(function (id) { return _COLL_LOCKED.indexOf(id) < 0; });
+  var rest = all.filter(function (id) { return chosen.indexOf(id) < 0; });
+  var order = chosen.concat(rest);
+
+  var ov = document.createElement('div');
+  ov.id = 'cc-overlay';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9600;display:flex;align-items:center;justify-content:center;padding:1rem';
+  var box = document.createElement('div');
+  box.style.cssText = 'background:var(--surface);border:1px solid var(--border);border-radius:14px;max-width:460px;width:100%;max-height:88vh;overflow:auto;padding:1.1rem';
+  box.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.4rem">' +
+    '<strong style="font-size:1.05rem;color:var(--text)">Choose your columns</strong>' +
+    '<button onclick="document.getElementById(\'cc-overlay\').remove()" style="background:none;border:none;color:var(--text-dim);font-size:1.4rem;cursor:pointer;line-height:1">&times;</button></div>' +
+    '<div style="font-size:0.8rem;color:var(--text-dim);line-height:1.5;margin-bottom:0.7rem">' +
+    'Tick what you want to see. Drag the \u2630 handle to reorder. Maker and Item # always come first.</div>' +
+    '<div style="display:flex;align-items:center;gap:0.5rem;padding:0.4rem 0.2rem;opacity:0.65;font-size:0.82rem;color:var(--text-dim)">' +
+    '<span style="width:1.1rem"></span><span>\uD83D\uDD12 Maker \u00b7 Item # (always shown)</span></div>' +
+    '<div id="cc-list"></div>' +
+    '<div style="display:flex;gap:0.5rem;margin-top:0.9rem">' +
+    '<button onclick="_collResetCols()" style="flex:1;padding:0.55rem;border-radius:9px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body);font-size:0.85rem;cursor:pointer">Reset to default</button>' +
+    '<button onclick="_collApplyCols()" style="flex:2;padding:0.55rem;border-radius:9px;border:none;background:var(--accent);color:var(--on-accent);font-family:var(--font-body);font-weight:700;font-size:0.9rem;cursor:pointer">Done</button></div>';
+  ov.appendChild(box);
+  ov.addEventListener('click', function (e) { if (e.target === ov) ov.remove(); });
+  document.body.appendChild(ov);
+
+  var list = box.querySelector('#cc-list');
+  order.forEach(function (id) {
+    var row = document.createElement('div');
+    row.className = 'cc-row';
+    row.draggable = true;
+    row.dataset.col = id;
+    row.style.cssText = 'display:flex;align-items:center;gap:0.55rem;padding:0.5rem 0.2rem;border-bottom:1px solid var(--border);cursor:grab;background:var(--surface)';
+    row.innerHTML = '<span style="color:var(--text-dim);font-size:0.95rem;cursor:grab">\u2630</span>' +
+      '<input type="checkbox" ' + (chosen.indexOf(id) >= 0 ? 'checked' : '') +
+      ' style="width:1.05rem;height:1.05rem;accent-color:var(--accent);cursor:pointer">' +
+      '<span style="flex:1;font-size:0.88rem;color:var(--text)">' + _collColLabel(id) + '</span>';
+    row.addEventListener('dragstart', function (e) {
+      row.style.opacity = '0.45';
+      try { e.dataTransfer.setData('text/plain', id); } catch (err) {}
+      window._ccDrag = row;
+    });
+    row.addEventListener('dragend', function () { row.style.opacity = ''; window._ccDrag = null; });
+    row.addEventListener('dragover', function (e) {
+      e.preventDefault();
+      var src = window._ccDrag;
+      if (!src || src === row) return;
+      var r = row.getBoundingClientRect();
+      var before = (e.clientY - r.top) < r.height / 2;
+      list.insertBefore(src, before ? row : row.nextSibling);
+    });
+    list.appendChild(row);
+  });
+}
+function _collApplyCols() {
+  var list = document.getElementById('cc-list');
+  if (!list) return;
+  var out = [];
+  Array.prototype.forEach.call(list.querySelectorAll('.cc-row'), function (r) {
+    var cb = r.querySelector('input[type=checkbox]');
+    if (cb && cb.checked) out.push(r.dataset.col);
+  });
+  _collSaveCols(out);
+  var ov = document.getElementById('cc-overlay');
+  if (ov) ov.remove();
+  if (typeof _renderCollectionHeader === 'function') _renderCollectionHeader();
+  if (typeof renderBrowse === 'function') renderBrowse();
+  if (typeof showToast === 'function') showToast('Columns updated', 2000);
+}
+function _collResetCols() {
+  try { localStorage.removeItem(_COLL_COLS_PREF); } catch (e) {}
+  var ov = document.getElementById('cc-overlay');
+  if (ov) ov.remove();
+  if (typeof _renderCollectionHeader === 'function') _renderCollectionHeader();
+  if (typeof renderBrowse === 'function') renderBrowse();
+  if (typeof showToast === 'function') showToast('Columns reset', 2000);
+}
+if (typeof window !== 'undefined') {
+  window._openCollColumnsModal = _openCollColumnsModal;
+  window._collApplyCols = _collApplyCols;
+  window._collResetCols = _collResetCols;
+}
+
 // ── Selection gutter (v0.9.1007, Brad) ──────────────────────────────────
 // In share mode the checkbox used to live inside the ITEM # cell, sharing it
 // with the number, the era badge, the group link and the status icons — the
@@ -201,7 +364,7 @@ function _collGutterOn() {
   return _owned && typeof isShareMode === 'function' && isShareMode('collection');
 }
 function _collColSpan() {
-  return _COLL_COLS.length + 1 /* Actions */ + (_collGutterOn() ? 1 : 0);
+  return _collVisibleCols().length + 1 /* Actions */ + (_collGutterOn() ? 1 : 0);
 }
 function _collGutterTh() {
   return _collGutterOn()
@@ -225,7 +388,13 @@ function _renderCollectionHeader() {
   var thead = document.querySelector('#page-browse .item-table thead tr');
   if (!thead) return;
   var cs = state._collSort || {};
-  var html = _COLL_COLS.map(function(c) {
+  var _visIds = _collVisibleCols();
+  var _byId = {};
+  _collAllCols().forEach(function (c) { _byId[c.col] = c; });
+  var html = _visIds.map(function (id) {
+    var c = _byId[id] || { col: id, label: id, noSort: true };
+    c = { col: c.col, label: _collColLabel(c.col), noSort: c.noSort || !!c.pdKey };
+    return (function (c) {
     var align = (c.col === 'worth' || c.col === 'var' || c.col === 'added' || c.col === 'photo') ? 'text-align:center;' : '';   // v0.9.727 (Brad): centered
     if (c.col === 'photo') { return '<th style="white-space:nowrap;' + align + 'width:52px">' + c.label + '</th>'; }   // v0.9.909 (Brad, item [4])
     if (c.noSort) { return '<th style="white-space:nowrap;' + align + '">' + c.label + '</th>'; }
@@ -237,6 +406,7 @@ function _renderCollectionHeader() {
     if (c.col === 'desc') _wsp = 'white-space:normal;width:99%;';
     if (c.col === 'num')  _wsp += 'width:110px;min-width:110px;';
     return '<th onclick="_collSortBy(\'' + c.col + '\')" style="cursor:pointer;' + _wsp + align + '" title="Sort by ' + c.label + '">' + c.label + arrow + '</th>';
+    })(c);
   }).join('');
   html += '<th style="text-align:right;white-space:nowrap">Actions</th>';
   thead.innerHTML = _collGutterTh() + html;   // v0.9.1007: selection gutter
@@ -1810,6 +1980,16 @@ function filterOwned(qe) {
   // button (inside the quick-actions container) so both sit at the top-right.
   var _qaActions = document.querySelector('#page-browse > .page-title > .qa-tr-actions');
   var _btnArea = _qaActions || document.querySelector('#page-browse > .page-title > div');
+  // v0.9.1517 (Task #34): "Columns" button beside Share on My Collection.
+  if (_btnArea && !document.getElementById('cols-btn-collection')) {
+    var _colsBtn = document.createElement('button');
+    _colsBtn.id = 'cols-btn-collection';
+    _colsBtn.className = 'btn';
+    _colsBtn.onclick = function () { if (typeof _openCollColumnsModal === 'function') _openCollColumnsModal(); };
+    _colsBtn.style.cssText = 'display:flex;align-items:center;gap:0.4rem;border:1.5px solid var(--border);color:var(--text-mid);background:var(--bg-card);font-weight:600;font-size:0.85rem;padding:0.5rem 0.9rem;margin-right:0.4rem';
+    _colsBtn.innerHTML = '\u2637 Columns';
+    _btnArea.appendChild(_colsBtn);
+  }
   if (_btnArea && !document.getElementById('share-btn-collection')) {
     var _shareBtn = document.createElement('button');
     _shareBtn.id = 'share-btn-collection';
@@ -4128,6 +4308,10 @@ function renderBrowse() {
       return `<tr id="share-card-${_shareKeyD}" onclick="${_inShareModeD ? 'toggleShareItem(\'' + _shareKeyD + '\')' : 'showItemDetailPage(' + globalIdx + ", '" + _copyInv + "')"}" style="cursor:pointer${_isQuick ? ';opacity:0.82' : ''}${_isShareSelectedD ? ';outline:2px solid #2ecc71;background:rgba(46,204,113,0.06)' : ''}" data-group="${_groupId}" data-item="${item.itemNum}">
         ${_collGutterTd(_shareKeyD, _isShareSelectedD)}
         ${(function(){
+        // v0.9.1517 (Task #34): every cell is built into a MAP and emitted in
+        // the user's chosen order. Mfr and Item # stay locked at the front.
+        var _cells = {};
+        _cells.mfr = (function(){
           var _b = (typeof _mfrBadge === 'function') ? _mfrBadge({ manufacturer: (pd && pd.manufacturer) || '' }) : '<td>\u2014</td>';
           // v0.9.726 (Brad): stack SCALE under the maker badge.
           var _sc = (pd && pd.gauge) || (item && item.gauge) || '';
@@ -4135,8 +4319,8 @@ function renderBrowse() {
           if (!_sc && pd && pd.era && typeof ERA_SCALE !== 'undefined') _sc = ERA_SCALE[String(pd.era).toLowerCase()] || '';
           _sc = rrGaugeLabel(_sc);   // v0.9.1203: every source spells O the same way
           return _sc ? _b.replace('</td>', '<div style="font-size:0.66rem;color:var(--text-dim);margin-top:2px;letter-spacing:0.04em">' + _sc + '</div></td>') : _b;
-        })()}
-        <td style="max-width:170px;overflow:hidden">
+        })();
+        _cells.num = `<td style="max-width:170px;overflow:hidden">
           <span class="item-num" style="display:inline-block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:bottom" title="${String(_displayItemNum(item)).replace(/"/g,'&quot;')}">${_displayItemNum(item)}</span>${_noNumTag(item.itemNum)}
           <div style="margin-top:1px;line-height:1.1;white-space:nowrap">
             ${(typeof eraBadgeHTML === 'function' && window.ERA_BADGES && window.ERA_BADGES.showInBrowse) ? eraBadgeHTML(item._tab) : ''}
@@ -4149,13 +4333,22 @@ function renderBrowse() {
             ${pd && pd.photoItem ? '<span style="font-size:0.78rem;opacity:0.75" title="Has photo">📷</span>' : ''}
             ${_statusBadges}
           </div>
-        </td>
-        <td style="white-space:nowrap;text-align:center">${item.variation ? '<span style="font-size:0.78rem;color:var(--text-mid)">' + item.variation + '</span>' : '<span style="color:var(--text-dim)">—</span>'}</td>
-        <td style="font-size:0.78rem;color:var(--text-dim)">${_typeText}${(pd && pd.subType) ? '<div style="font-size:0.66rem;opacity:0.8;margin-top:1px">' + pd.subType + '</div>' : ''}</td>
-        <td style="width:52px;text-align:center;padding:2px 4px"><div id="thumb-${_rrRowDomKey(item)}" style="width:44px;height:44px;border-radius:5px;background:var(--surface2);display:inline-flex;align-items:center;justify-content:center;overflow:hidden;vertical-align:middle"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.3"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg></div></td>
-        <td style="color:var(--text-mid);font-size:0.85rem" title="${(_descFull||'').replace(/"/g,'&quot;')}">${_descFull}</td>
-        <td style="font-size:0.82rem;color:var(--gold);white-space:nowrap;text-align:center">${_estWorth}</td>
-        <td style="font-size:0.76rem;color:var(--text-dim);white-space:nowrap;width:80px;text-align:center">${(function(){ var d = (typeof rrBestDate === 'function') ? rrBestDate(pd) : ((pd && (pd.dateAdded || pd.datePurchased)) || ''); if (d) return (typeof _formatDate === 'function') ? _formatDate(d) : d; if (pd && pd._savedAt) { try { return new Date(pd._savedAt).toLocaleDateString(); } catch(e){} } return '—'; })()}</td>
+        </td>`;
+        _cells['var'] = `<td style="white-space:nowrap;text-align:center">${item.variation ? '<span style="font-size:0.78rem;color:var(--text-mid)">' + item.variation + '</span>' : '<span style="color:var(--text-dim)">—</span>'}</td>`;
+        _cells.type = `<td style="font-size:0.78rem;color:var(--text-dim)">${_typeText}${(pd && pd.subType) ? '<div style="font-size:0.66rem;opacity:0.8;margin-top:1px">' + pd.subType + '</div>' : ''}</td>`;
+        _cells.photo = `<td style="width:52px;text-align:center;padding:2px 4px"><div id="thumb-${_rrRowDomKey(item)}" style="width:44px;height:44px;border-radius:5px;background:var(--surface2);display:inline-flex;align-items:center;justify-content:center;overflow:hidden;vertical-align:middle"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.3"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg></div></td>`;
+        _cells.desc = `<td style="color:var(--text-mid);font-size:0.85rem" title="${(_descFull||'').replace(/"/g,'&quot;')}">${_descFull}</td>`;
+        _cells.worth = `<td style="font-size:0.82rem;color:var(--gold);white-space:nowrap;text-align:center">${_estWorth}</td>`;
+        _cells.added = `<td style="font-size:0.76rem;color:var(--text-dim);white-space:nowrap;width:80px;text-align:center">${(function(){ var d = (typeof rrBestDate === 'function') ? rrBestDate(pd) : ((pd && (pd.dateAdded || pd.datePurchased)) || ''); if (d) return (typeof _formatDate === 'function') ? _formatDate(d) : d; if (pd && pd._savedAt) { try { return new Date(pd._savedAt).toLocaleDateString(); } catch(e){} } return '—'; })()}</td>`;
+        // Extra columns: plain values straight off the personal row.
+        _COLL_EXTRA_COLS.forEach(function (xc) {
+          var v = (pd && pd[xc.pdKey] != null) ? String(pd[xc.pdKey]).trim() : '';
+          if (xc.money && v) { var n = parseFloat(String(v).replace(/[^0-9.\-]/g, '')); if (!isNaN(n)) v = (typeof _currencySymbol === 'function' ? _currencySymbol() : '$') + n.toLocaleString(); }
+          var esc = v.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+          _cells[xc.col] = '<td style="font-size:0.78rem;color:var(--text-mid);max-width:190px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + esc + '">' + (esc || '<span style="color:var(--text-dim)">—</span>') + '</td>';
+        });
+        return _collVisibleCols().map(function (id) { return _cells[id] || '<td><span style="color:var(--text-dim)">—</span></td>'; }).join('');
+        })()}
         <td class="coll-actions-cell" style="text-align:right">
           ${!_inShareModeD ? `${_fsBtn}
           <button onclick="event.stopPropagation();collectionActionSold(${globalIdx},'${_dispNum}','${_escVar}',${pd && pd.row ? pd.row : 0},'${_myInvId}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #2ecc71;background:var(--bg-card);background:color-mix(in srgb, rgb(46,204,113) 10%, var(--bg-card));color:#2ecc71;font-family:var(--font-body);font-weight:600;margin-right:0.2rem" title="Mark as sold / add to Sold list">Sold</button>
