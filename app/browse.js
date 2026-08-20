@@ -142,13 +142,32 @@ function _mfrBadge(item) {
     var mc = (WIC.MANUFACTURERS && WIC.MANUFACTURERS[mfr.toLowerCase()]) || null;
     var lbl = (mc && mc.label) || mfr;
     var col = (mc && mc.color) || 'var(--text-dim)';
-    return '<td><span style="display:inline-block;padding:0.13rem 0.5rem;'
+    // v0.9.1513: class + title so the badge clips inside its own cell and the
+    // full maker is still readable on hover (Brad: "CARARAMA" overran Item #).
+    return '<td style="max-width:9rem;overflow:hidden"><span class="mfr-badge" title="'
+         + String(lbl).replace(/"/g, '&quot;') + '" style="display:inline-block;padding:0.13rem 0.5rem;'
          + 'border-radius:10px;background:' + col + ';color:#fff;'
          + 'font-size:0.62rem;font-weight:700;letter-spacing:0.06em;'
          + 'text-transform:uppercase;white-space:nowrap;line-height:1.2">'
          + lbl + '</span></td>';
   } catch(e) { return '<td><span style="color:var(--text-dim);font-size:0.7rem">—</span></td>'; }
 }
+
+// v0.9.1513 (Brad, live: "CARARAMA" ran over the Item # column). The badge
+// was sized for LIONEL/MTH; user makers can be much longer. One rule, applied
+// wherever a badge renders, keeps it inside its own cell and shows the full
+// name on hover instead of truncating information away.
+(function _mfrBadgeWidthGuard() {
+  try {
+    if (document.getElementById('rr-mfr-badge-css')) return;
+    var st = document.createElement('style');
+    st.id = 'rr-mfr-badge-css';
+    st.textContent = '.mfr-badge{display:inline-block;max-width:8.5rem;overflow:hidden;' +
+      'text-overflow:ellipsis;white-space:nowrap;vertical-align:bottom}' +
+      '@media (max-width:820px){.mfr-badge{max-width:5.5rem}}';
+    (document.head || document.documentElement).appendChild(st);
+  } catch (e) {}
+})();
 
 // ── My Collection: sortable table header (Session 162+) ──
 // Columns: Mfr | Item # | Var. | Type | Description | Est. Worth | Actions.
@@ -553,6 +572,11 @@ function _renderHierarchyChips() {
        +  'cursor:pointer;line-height:1" onclick="_clearHierarchyFilters()">\u2715</button>';
   levels.forEach(function(level, i) {
     var lbl = _phLabelFor(level, st[level]);
+    // v0.9.1513 (Brad, live): a maker that exists only in the USER's rows is
+    // held in state.filters.ownMaker, not in chip state — so the chip still
+    // read "Any Manufacturer" while the list was filtered to Cararama. The
+    // chip is the only way to see (and clear) a filter; it must say so.
+    if (level === 'manufacturer' && state.filters.ownMaker) lbl = state.filters.ownMaker;
     if (i > 0) html += '<span class="ph-sep" style="' + sepStyle + '">›</span>';
     html += '<button type="button" style="' + (_chipIsActive(lbl) ? chipStyleActive : chipStyle) + '" '
          +  'onclick="_openLevelPicker(\'' + level + '\')">'
@@ -580,6 +604,7 @@ function _renderHierarchyChips() {
 function _clearHierarchyFilters() {
   var st = _phState();
   st.manufacturer = 'any'; st.scale = 'any'; st.era = 'any'; st.section = 'items';
+  try { state.filters.ownMaker = ''; } catch (eOM) {}   // v0.9.1513
   _phSave(st);
   var _ftSel = document.getElementById('filter-type');
   if (_ftSel) _ftSel.value = '';
