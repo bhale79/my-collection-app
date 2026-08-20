@@ -392,7 +392,7 @@ var _IMP_FIELD_HELP = {
   location: 'The big place it lives: Basement, Storage Unit 206, Room 107.',
   locationDetail: 'The spot inside that place: Tote 12, Rack 1 Shelf 3. Splitting them lets you ask “what’s in Tote 12?”',
   shipper: 'The outer carton you’d ship it in — NOT the item’s own box. You can have both.',
-  subCollection: 'Your own grouping within the collection: 6464 series, Disney, Christmas, Madison Hardware.',
+  subCollection: 'Your own groups for quick look-ups — “all my Disney cars”, “all my mint cars”, 6464 series. One item, one group.',
   priceItem: 'What YOU paid for it.',
   userEstWorth: 'What you think it’s worth now.',
   yearMade: 'The year the item was made. (Not the year of the real thing it models.)',

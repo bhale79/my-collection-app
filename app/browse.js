@@ -767,6 +767,19 @@ function _renderHierarchyChips() {
          +  'onclick="_openLevelPicker(\'type\')">'
          +  _tLbl + ' ▾</button>';
   }
+  // v0.9.1521: a chip for the user's own groupings and one for sub types —
+  // each shown ONLY when their items actually use it, so nobody who leaves
+  // them blank sees extra clutter.
+  if (_phOwned) {
+    [['subCollection', 'All Groups'], ['subType', 'All Sub Types']].forEach(function (pair) {
+      var vals = _phOwnValues(pair[0]);
+      if (!Object.keys(vals).length) return;
+      var lbl = state.filters[pair[0]] || pair[1];
+      html += '<span class="ph-sep" style="' + sepStyle + '">›</span>';
+      html += '<button type="button" style="' + (_chipIsActive(lbl) ? chipStyleActive : chipStyle) + '" '
+           +  'onclick="_openLevelPicker(\'' + pair[0] + '\')">' + lbl + ' ▾</button>';
+    });
+  }
   host.innerHTML = html;
 }
 
@@ -774,7 +787,7 @@ function _renderHierarchyChips() {
 function _clearHierarchyFilters() {
   var st = _phState();
   st.manufacturer = 'any'; st.scale = 'any'; st.era = 'any'; st.section = 'items';
-  try { state.filters.ownMaker = ''; } catch (eOM) {}   // v0.9.1513
+  try { state.filters.ownMaker = ''; state.filters.subCollection = ''; state.filters.subType = ''; } catch (eOM) {}   // v0.9.1513/1521
   _phSave(st);
   var _ftSel = document.getElementById('filter-type');
   if (_ftSel) _ftSel.value = '';
@@ -858,6 +871,11 @@ function _openLevelPicker(level) {
     _phSectionsFor(st.era).forEach(function(s) {
       options.push({ id: s, label: _phLabelFor('section', s) });
     });
+  } else if (level === 'subCollection' || level === 'subType') {
+    options.push({ id: '', label: (level === 'subCollection') ? 'All Groups' : 'All Sub Types' });
+    var _vals = _phOwnValues(level);
+    Object.keys(_vals).sort(function (a, b) { return _vals[b] - _vals[a] || a.localeCompare(b); })
+      .forEach(function (v) { options.push({ id: v, label: v + ' (' + _vals[v].toLocaleString() + ')' }); });
   } else if (level === 'type') {
     // Pull options from the live #filter-type <select>. populateFilters()
     // refreshes that select per-era, so we always get the current bucket set.
@@ -940,6 +958,13 @@ function _openLevelPicker(level) {
 }
 
 function _setHierarchyChoice(level, value) {
+  if (level === 'subCollection' || level === 'subType') {   // v0.9.1521
+    state.filters[level] = value || '';
+    state.currentPage = 1;
+    if (typeof renderBrowse === 'function') renderBrowse();
+    if (typeof _renderHierarchyChips === 'function') _renderHierarchyChips();
+    return;
+  }
   // v0.9.1512: an "own:" maker is one the CATALOG has no era for — it filters
   // purely on what the user's own rows say.
   if (level === 'manufacturer' && String(value || '').indexOf('own:') === 0) {
@@ -1904,7 +1929,7 @@ function applyFilters() {
   state.filters.quickEntry = '';
   state.filters.imported = '';
   state.filters.needsDetails = '';
-  state.filters.ownMaker = ''; // QE filter only applies in My Collection view
+  state.filters.ownMaker = ''; state.filters.subCollection = ''; state.filters.subType = ''; // QE filter only applies in My Collection view
   state.filters.road = window._roadComboValue || '';
   state.filters.wantList = false;
   state.currentPage = 1;
@@ -1956,6 +1981,8 @@ function resetFilters() {
   state.filters.imported = '';
   state.filters.needsDetails = '';
   state.filters.ownMaker = '';
+  state.filters.subCollection = '';
+  state.filters.subType = '';
   state.currentPage = 1;
   document.getElementById('filter-type').value = '';
   _roadComboClear();
@@ -2124,6 +2151,8 @@ function removeQEFilter() {
   state.filters.imported = '';
   state.filters.needsDetails = '';
   state.filters.ownMaker = '';
+  state.filters.subCollection = '';
+  state.filters.subType = '';
 }
 
 // ── filterByType (from between non-browse blocks) ───────────
@@ -3584,6 +3613,16 @@ function renderBrowse() {
     if (state.filters.ownMaker) {
       var _omp = (pd && pd.manufacturer) ? String(pd.manufacturer).trim().toLowerCase() : '';
       if (_omp !== String(state.filters.ownMaker).trim().toLowerCase()) return false;
+    }
+    // v0.9.1521 (Brad): "he collects 6464 cars, mint cars... a way he puts
+    // things he wants to look up quickly — I want to see all my Disney cars."
+    if (state.filters.subCollection) {
+      var _sc2 = (pd && pd.subCollection) ? String(pd.subCollection).trim().toLowerCase() : '';
+      if (_sc2 !== String(state.filters.subCollection).trim().toLowerCase()) return false;
+    }
+    if (state.filters.subType) {
+      var _st2 = (pd && pd.subType) ? String(pd.subType).trim().toLowerCase() : '';
+      if (_st2 !== String(state.filters.subType).trim().toLowerCase()) return false;
     }
     if (state.filters.needsDetails === 'needs') {
       var _nd = pd && (!pd.manufacturer || !pd.itemType ||
