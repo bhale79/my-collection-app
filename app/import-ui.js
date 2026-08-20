@@ -48,6 +48,7 @@ function rrImportOpen() {
     aiUsed: false, aiAnswers: {}, questions: [], answers: {},
     tabMaker: {},          // tabName → confirmed maker ('' = per-row / unknown)
     tabYearMeans: {},      // tabName → true when a year in the description IS the item's year
+    tabSubType: {},        // tabName → optional narrower name (v0.9.1522)
     tabType: {},           // tabName → confirmed item type for non-train tabs
     skippedSummary: 0,     // "Total:" rows dropped (v1509)
     fillMeaning: '',       // for sale | sold | repair | formatting | other
@@ -724,10 +725,19 @@ function _impStepTabFacts() {
     if (cls !== 'trains') {
       var def = _imp.tabType[name] || name;
       _imp.tabType[name] = def;
+      var defSub = _imp.tabSubType[name] || '';
       html += '<div class="imp-row"><div style="flex:1">What kind of things are these?</div>' +
         '<input class="imp-sel" style="max-width:12rem" value="' + _impEsc(def).replace(/"/g, '&quot;') + '" ' +
         'onchange="_imp.tabType[' + JSON.stringify(name).replace(/"/g, '&quot;') + ']=this.value"></div>' +
-        '<div class="imp-muted" style="margin-top:0.2rem">Becomes the item type for everything on this tab — e.g. \u201CWings of Texaco\u201D, \u201CBooks\u201D.</div>';
+        // v0.9.1522 (Brad): "his planes are not train items, so they should go
+        // to a custom type... but that's up to him to decide. He may want to
+        // say Planes if he has other planes that are not Texaco." So the type
+        // is HIS word, and a sub type is offered for the narrower name.
+        '<div class="imp-muted" style="margin-top:0.2rem;margin-bottom:0.35rem">Your name for them — whatever you\u2019d look for later. Broad works well here (\u201CPlanes\u201D, \u201CDie-cast Vehicles\u201D, \u201CBooks\u201D).</div>' +
+        '<div class="imp-row"><div style="flex:1">Anything more specific? <span class="imp-muted">(optional)</span></div>' +
+        '<input class="imp-sel" style="max-width:12rem" placeholder="e.g. Wings of Texaco" value="' + _impEsc(defSub).replace(/"/g, '&quot;') + '" ' +
+        'onchange="_imp.tabSubType[' + JSON.stringify(name).replace(/"/g, '&quot;') + ']=this.value"></div>' +
+        '<div class="imp-muted" style="margin-top:0.2rem">Saved as the Sub Type, so \u201CPlanes\u201D can hold \u201CWings of Texaco\u201D and any others you add later.</div>';
     }
     html += '</div>';
   });
@@ -1249,6 +1259,9 @@ async function _impWrite() {
         fields.description = it.yourDesc || '';
         if (it.tabClass !== 'trains' && _imp.tabType[it.srcTab]) {
           fields.itemType = _imp.tabType[it.srcTab];
+          // v0.9.1522: the narrower name rides along as Sub Type.
+          var _ts = _imp.tabSubType[it.srcTab];
+          if (_ts && String(_ts).trim() && !fields.subType) fields.subType = String(_ts).trim();
         }
       }
       if (it.yearMade) fields.yearMade = it.yearMade;
