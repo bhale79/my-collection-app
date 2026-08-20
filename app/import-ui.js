@@ -395,7 +395,8 @@ function _impStepMapping() {
   var html = '<div class="imp-h">Check the column matches.</div>' +
     '<div class="imp-muted" style="margin-bottom:0.6rem">' +
     'The import program guessed these — fix anything that looks wrong.' +
-    ' Tabs with the same layout are set together.</div>';
+    ' Tabs with the same layout are set together.' +
+    ' Got a column we don’t have? Choose <strong>“➕ Keep as its own column”</strong> and we’ll make one, named after your heading.</div>';
   _imp.groups.forEach(function (g, gi) {
     var rep = g.tabs[0];
     var names = g.tabs.map(function (t) { return t.name; });
@@ -413,11 +414,21 @@ function _impStepMapping() {
         seen[n] = 1;
         var cur = repMap[n] || (_imp.mappings[t.name] || {})[n] || '';
         html += '<div class="imp-row"><div style="flex:1">' + _impEsc(h) + '</div>' +
-          '<select class="imp-sel" onchange="_impSetMap(' + gi + ',\'' + _impEsc(n).replace(/'/g, '&#39;') + '\',this.value)">';
+          '<select class="imp-sel" onchange="_impSetMap(' + gi + ',\'' + _impEsc(n).replace(/'/g, '&#39;') + '\',this.value,this)">';
         Object.keys(_IMP_FIELD_LABELS).forEach(function (f) {
           if (f === 'ignore') return;
+          // v0.9.1515 (Brad): the five generic custom slots are noise on this
+          // screen. A slot the user has already NAMED shows its name; the
+          // unnamed ones collapse into one action below.
+          if (/^custom[1-5]$/.test(f) && !_impCustomNamed(f)) return;
           html += '<option value="' + f + '"' + (cur === f ? ' selected' : '') + '>' + _impFieldLabel(f) + '</option>';
         });
+        // v0.9.1515 (Brad: "a new user doesn't need to stop, go to preferences,
+        // think about what column he might want, then come back"): make the
+        // column right here, named after THIS header.
+        if (_impFreeCustomSlot()) {
+          html += '<option value="__newcol">\u2795 Keep as its own column</option>';
+        }
         html += '</select></div>';
       });
     });
@@ -430,7 +441,55 @@ function _impStepMapping() {
   _impBody().innerHTML = html;
 }
 
-function _impSetMap(gi, headerNorm, field) {
+// v0.9.1515 helpers: which custom slots exist / are already named.
+function _impCustomNamed(key) {
+  try {
+    var def = (window.RR_USER_FIELDS || []).filter(function (x) { return x.key === key; })[0];
+    return !!(def && def.custom && localStorage.getItem('lv_label_' + key));
+  } catch (e) { return false; }
+}
+function _impFreeCustomSlot() {
+  var used = {};
+  Object.keys(_imp.mappings || {}).forEach(function (t) {
+    var m = _imp.mappings[t] || {};
+    Object.keys(m).forEach(function (h) { used[m[h]] = 1; });
+  });
+  var slots = ['custom1', 'custom2', 'custom3', 'custom4', 'custom5'];
+  for (var i = 0; i < slots.length; i++) {
+    if (!used[slots[i]] && !_impCustomNamed(slots[i])) return slots[i];
+  }
+  return '';
+}
+
+function _impSetMap(gi, headerNorm, field, sel) {
+  // v0.9.1515: "Keep as its own column" — take the next free slot, name it
+  // after the sheet's own header, switch it on, and re-render so the row now
+  // shows the real name. No trip to Preferences, no decision up front.
+  if (field === '__newcol') {
+    var slot = _impFreeCustomSlot();
+    if (!slot) {
+      showToast('All five custom columns are in use — free one in Preferences', 4000, true);
+      if (sel) sel.value = '';
+      return;
+    }
+    var raw = String(headerNorm || 'Column').trim();
+    var nice = raw.charAt(0).toUpperCase() + raw.slice(1);
+    try {
+      localStorage.setItem('lv_label_' + slot, nice);
+      var def = (window.RR_USER_FIELDS || []).filter(function (x) { return x.key === slot; })[0];
+      if (def) localStorage.setItem(def.pref, 'true');
+    } catch (e) {}
+    field = slot;
+    showToast('New column “' + nice + '” created — you can rename it in Preferences', 3500);
+    var g0 = _imp.groups[gi];
+    g0.tabs.forEach(function (t) {
+      var m = _imp.mappings[t.name] = _imp.mappings[t.name] || {};
+      Object.keys(m).forEach(function (k) { if (m[k] === field && k !== headerNorm) delete m[k]; });
+      m[headerNorm] = field;
+    });
+    _impRender();
+    return;
+  }
   var g = _imp.groups[gi];
   g.tabs.forEach(function (t) {
     var m = _imp.mappings[t.name] = _imp.mappings[t.name] || {};
