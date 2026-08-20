@@ -858,7 +858,16 @@ async function subCheck() {
   try {
     if (window._offlineMode) return;                       // offline = view-only anyway
     if (!state.user || !state.user.email) return;
-    const r = await vaultPost({ action: 'sub_check', email: state.user.email });
+    // v0.9.1507 (Session 81, beta tracking): the check-in now carries proof
+    // the beta gate was passed (the code — only ever sent by gate-passers)
+    // and the running APP_VERSION. Relay v3.5 uses these to AUTO-ENROLL the
+    // tester into beta_testers on first sign-in and stamp last_seen +
+    // app_version on every check-in (6h-throttled server-side). Fail-soft:
+    // missing globals just send blanks and the relay behaves exactly as v3.4.
+    const r = await vaultPost({ action: 'sub_check', email: state.user.email,
+      betaCode: (typeof _isBetaVerified === 'function' && _isBetaVerified()
+                 && typeof _BETA_CODE !== 'undefined') ? _BETA_CODE : '',
+      appVersion: (typeof APP_VERSION !== 'undefined') ? APP_VERSION : '' });
     if (!r || r.status !== 200 || !r.sub) return;          // fail-open
     window._subState = r;
     _subApply(r);
