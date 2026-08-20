@@ -1952,7 +1952,15 @@ var _FS_COLS = [
   { col: 'cond', label: 'Cond' }, { col: 'price', label: 'Asking Price' },
   { col: 'worth', label: 'Est. Worth' }, { col: 'listed', label: 'Listed' }
 ];
-function _fsMaster(fs) { return findMaster(fs.itemNum, fs.variation, fs) || {}; }
+function _fsMaster(fs) {
+  // v0.9.1509: the For Sale row itself has no masterKey/era, so passing it
+  // as `prefer` let the first catalog row sharing the number answer (Atlas
+  // 8552 for Lionel's 8552 — Brad found it live). The linked personal row
+  // carries the identity stored at save time; it must decide.
+  var pd = (fs && fs.inventoryId && typeof state !== 'undefined' && state.personalData)
+    ? state.personalData[fs.inventoryId] : null;
+  return findMaster(fs.itemNum, fs.variation, pd || fs) || {};
+}
 function _fsSortVal(fs, col) {
   var m = _fsMaster(fs);
   if (col==='mfr') return (typeof _manufacturerOfItem==='function' ? (_manufacturerOfItem(m.itemNum?m:fs)||'') : '');
@@ -2153,16 +2161,20 @@ function buildForSalePage() {
         ? `onclick="toggleShareItem('${_fsDShareKey}')"`
         : (_fsDOpen ? `onclick="${_fsDOpen}"` : '');
       return `<tr id="share-card-${_fsDShareKey}" ${_fsDClickAttr} style="cursor:${_fsDInShare || _fsDOpen ? 'pointer' : 'default'}${_fsDSelected ? ';outline:2px solid #2ecc71;background:rgba(46,204,113,0.06)' : ''}">
-        ${typeof _mfrBadge==='function' ? _mfrBadge({ manufacturer: fs.manufacturer || '' }) : '<td>—</td>'}
+        ${typeof _mfrBadge==='function' ? _mfrBadge({ manufacturer: fs.manufacturer || collPd.manufacturer || '' }) : '<td>—</td>'}
         <td><span class="item-num">${_fsDInShare ? '<input type="checkbox" id="share-cb-' + _fsDShareKey + '" ' + (_fsDSelected ? 'checked' : '') + ' onclick="event.stopPropagation();toggleShareItem(\'' + _fsDShareKey + '\')" style="width:1rem;height:1rem;accent-color:#2ecc71;margin-right:5px;vertical-align:middle">' : ''}${_fsItemNumHTML(fs)}</span></td>
-        <td><span class="tag">${master.itemType || '—'}</span></td>
-        <td>${master.roadName || '—'}</td>
+        <td><span class="tag">${master.itemType || collPd.itemType || '—'}</span></td>
+        <td>${master.roadName || collPd.roadName || '—'}</td>
         ${(function(){
           const _hostId = 'fs-thumb-' + _fsI;
           _fsThumbJobs.push({ host: _hostId, link: collPd.photoItem || '', num: _fsx.itemNum || '' });
           return typeof rrThumbCellHTML === 'function' ? rrThumbCellHTML(_hostId) : '<td></td>';
         })()}
-        <td>${(function(){ var d = master.description || '—'; return d.length > 110 ? d.substring(0, 108) + '…' : d; })()}</td>
+        <td>${(function(){
+          // v0.9.1509: manual/imported items have no catalog description —
+          // fall back to the owner's own words instead of a dash.
+          var d = master.description || collPd.yourDescription || collPd.description || fs.notes || '—';
+          return d.length > 110 ? d.substring(0, 108) + '…' : d; })()}</td>
         <td>${fs.condition || '—'}</td>
         <td class="market-val" style="color:#e67e22">${fs.askingPrice ? _currencySymbol() + parseFloat(fs.askingPrice).toLocaleString() : '—'}</td>
         <td class="text-dim">${estWorth ? _currencySymbol() + parseFloat(estWorth).toLocaleString() : '—'}</td>

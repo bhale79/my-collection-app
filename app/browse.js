@@ -1129,6 +1129,17 @@ function _itemExternalLinkURL(item) {
       }
     }
   }
+  // ── v0.9.1509 (Brad, S81: manual CA-SO8912 had no link at all) ─────────
+  // Manual/imported items have no _tab and often a number scheme we can't
+  // reason about — but the owner's own words are exactly what a person
+  // would Google. Maker + number + first words of their description.
+  var _mDesc = String(item.yourDescription || item.description || '').trim();
+  if (item.itemNum || _mDesc) {
+    var _mQ = [String(item.manufacturer || '').trim(),
+               String(item.itemNum || '').trim(),
+               _mDesc.split(/\s+/).slice(0, 6).join(' ')].filter(Boolean).join(' ');
+    if (_mQ.length > 3) return 'https://www.google.com/search?q=' + encodeURIComponent(_mQ);
+  }
   return '';
 }
 
@@ -1618,7 +1629,8 @@ function clearBrowseFilters() {
 function applyFilters() {
   state.filters.type = document.getElementById('filter-type').value;
   state.filters.quickEntry = '';
-  state.filters.imported = ''; // QE filter only applies in My Collection view
+  state.filters.imported = '';
+  state.filters.needsDetails = ''; // QE filter only applies in My Collection view
   state.filters.road = window._roadComboValue || '';
   state.filters.wantList = false;
   state.currentPage = 1;
@@ -1668,6 +1680,7 @@ function resetFilters() {
   state.filters.road = '';
   state.filters.quickEntry = '';
   state.filters.imported = '';
+  state.filters.needsDetails = '';
   state.currentPage = 1;
   document.getElementById('filter-type').value = '';
   _roadComboClear();
@@ -1751,6 +1764,38 @@ function filterOwned(qe) {
         _impLbl.appendChild(_impTxt);
         _impWrap.parentNode.insertBefore(_impLbl, _impWrap.nextSibling);
       }
+      // v0.9.1509 (Brad): "Needs details" pill — worklist of items missing
+      // maker/type/year, now that strict chips hide unknowns from filters.
+      var _ndStale = document.getElementById('nd-only-toggle');
+      if (_ndStale) _ndStale.remove();
+      var _ndCount = Object.values(state.personalData || {}).filter(function (p) {
+        return p && (!p.manufacturer || !p.itemType || (String(p.era || '') === 'Manual' && !p.yearMade));
+      }).length;
+      if (_ndCount > 0 && _impWrap && _impWrap.parentNode) {
+        var _ndLbl = document.createElement('label');
+        _ndLbl.id = 'nd-only-toggle';
+        _ndLbl.title = 'Show only items missing a maker, type, or year';
+        _ndLbl.style.cssText = 'display:flex;align-items:center;gap:0.35rem;flex-shrink:0;' +
+          'font-size:0.8rem;color:var(--text-dim);cursor:pointer;' +
+          'padding:0.35rem 0.7rem;background:var(--bg-card);' +
+          'border:1.5px solid var(--border);border-radius:14px;' +
+          'white-space:nowrap;user-select:none';
+        var _ndCb = document.createElement('input');
+        _ndCb.type = 'checkbox';
+        _ndCb.id = 'nd-only-cb';
+        _ndCb.checked = state.filters.needsDetails === 'needs';
+        _ndCb.style.cssText = 'margin:0;cursor:pointer;accent-color:var(--accent)';
+        _ndCb.onchange = function () {
+          state.filters.needsDetails = this.checked ? 'needs' : '';
+          state.currentPage = 1;
+          renderBrowse();
+        };
+        _ndLbl.appendChild(_ndCb);
+        var _ndTxt = document.createElement('span');
+        _ndTxt.textContent = '🛠 Needs details (' + _ndCount.toLocaleString() + ')';
+        _ndLbl.appendChild(_ndTxt);
+        _impWrap.parentNode.insertBefore(_ndLbl, _impWrap.nextSibling);
+      }
     } catch (eImpPill) { console.warn('[browse] imported pill skipped:', eImpPill && eImpPill.message); }
     return;
     // (legacy body retained below but unreachable; will be deleted in a follow-up.)
@@ -1792,6 +1837,7 @@ function removeQEFilter() {
   if (legacy) legacy.remove();
   state.filters.quickEntry = '';
   state.filters.imported = '';
+  state.filters.needsDetails = '';
 }
 
 // ── filterByType (from between non-browse blocks) ───────────
@@ -3219,6 +3265,30 @@ function renderBrowse() {
     // column, permanent). The pill that sets this only renders in My
     // Collection view and only when imported rows exist.
     if (state.filters.imported === 'imported' && !(pd && pd.importBatch)) return false;
+    // v0.9.1509 (Brad, S81 live test): in MY COLLECTION view the chips are
+    // STRICT — an item with UNKNOWN maker or period no longer shows under a
+    // specific maker/era chip. Reverses v1161/v1425's "unknown shows
+    // everywhere" FOR THE OWNED VIEW ONLY (catalog browse keeps the old
+    // behavior): imports can create hundreds of unknowns at once, and Texaco
+    // planes under "Lionel · Postwar" is noise, not safety. The way back:
+    // the "Any" chips, search, and the Needs-details pill.
+    if (state.filters.owned && _stp3b) {
+      if (_stp3b.manufacturer && _stp3b.manufacturer !== 'any') {
+        var _sMfr = ((typeof _manufacturerOfItem === 'function' && _manufacturerOfItem(item)) || (pd && pd.manufacturer) || '').toLowerCase();
+        if (!_sMfr) return false;
+      }
+      if (_stp3b.era && _stp3b.era !== 'any') {
+        var _sPer = (typeof _itemEraPeriod === 'function') ? _itemEraPeriod(item) : null;
+        if (!_sPer && !(pd && pd.yearMade)) return false;
+      }
+    }
+    // v0.9.1509: "Needs details" filter — items missing maker, type, or (for
+    // manual rows) a year. Set by the pill injected in collection view.
+    if (state.filters.needsDetails === 'needs') {
+      var _nd = pd && (!pd.manufacturer || !pd.itemType ||
+        (String(pd.era || '') === 'Manual' && !pd.yearMade));
+      if (!_nd) return false;
+    }
     // If type filter is an ephemera category, hide train rows
     if (type) {
       const _ephTypeKeys = ['Catalog','Paper Item','Mock-Up','Other Lionel',

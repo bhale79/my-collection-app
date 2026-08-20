@@ -1593,7 +1593,15 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
   // My Collection (Session 155 v11: schema-driven parser)
   (collRes.values || []).forEach((r, idx) => {
     const itemNumCol = PERSONAL_FIELD_INDEX.itemNum;
-    if (!r[itemNumCol] || r[itemNumCol] === 'Item Number') return;
+    if (r[itemNumCol] === 'Item Number') return;
+    // v0.9.1509 (found live: Brad's Scott-sheet import): 378 imported rows —
+    // books, Texaco planes, anything with no catalog number — were WRITTEN to
+    // the sheet but this guard made them INVISIBLE in the app (and on the For
+    // Sale list). A blank number used to mean a junk row; since the importer,
+    // a numberless row with an inventoryId is a legitimate item. Rows with
+    // NEITHER number NOR inventoryId are still skipped as junk.
+    const _invIdColEarly = PERSONAL_FIELD_INDEX.inventoryId;
+    if (!r[itemNumCol] && !(_invIdColEarly !== undefined && r[_invIdColEarly])) return;
     const rowNum = idx + 3;
     const invIdCol = PERSONAL_FIELD_INDEX.inventoryId;
     const varCol = PERSONAL_FIELD_INDEX.variation;

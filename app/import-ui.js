@@ -46,6 +46,9 @@ function rrImportOpen() {
     tabClass: {},          // tabName → trains|books|vehicles|other
     skipTabs: {},          // tabName → true
     aiUsed: false, aiAnswers: {}, questions: [], answers: {},
+    tabMaker: {},          // tabName → confirmed maker ('' = per-row / unknown)
+    tabType: {},           // tabName → confirmed item type for non-train tabs
+    skippedSummary: 0,     // "Total:" rows dropped (v1509)
     fillMeaning: '',       // for sale | sold | repair | formatting | other
     priceWhen: '',         // now | later
     gradeTable: [],        // [{ raw, condition, count }]
@@ -114,6 +117,7 @@ function _impRender() {
   if (!_imp) return;
   var fn = {
     entry: _impStepEntry, consent: _impStepConsent, mapping: _impStepMapping,
+    tabfacts: _impStepTabFacts,
     interview: _impStepInterview, grades: _impStepGrades, triage: _impStepTriage,
     prices: _impStepPrices, preview: _impStepPreview, writing: _impStepWriting,
     done: _impStepDone,
@@ -295,10 +299,10 @@ function _impStepConsent() {
   var nRows = _imp.tabs.reduce(function (n, t) { return n + t.rows.length; }, 0);
   _impBody().innerHTML =
     '<div class="imp-h">Found ' + _imp.tabs.length + ' tab' + (_imp.tabs.length > 1 ? 's' : '') + ' with ' + nRows.toLocaleString() + ' rows.</div>' +
-    '<div class="imp-card">To set up the import automatically, we send just the <strong>column headers and about 10 example rows per tab</strong> to our AI helper — never your whole inventory.' +
-    '<div class="imp-muted" style="margin-top:0.4rem">Your data is not used to train AI. One-time setup; costs you nothing.</div></div>' +
+    '<div class="imp-card">To set things up automatically, the import program looks at just the <strong>column headers and about 10 example rows per tab</strong> — never your whole inventory.' +
+    '<div class="imp-muted" style="margin-top:0.4rem">Your data is never used to train anything. One-time setup; costs you nothing.</div></div>' +
     '<div class="imp-foot">' +
-    '<button class="imp-btn" onclick="_impRunHeuristic()">Set up manually instead</button>' +
+    '<button class="imp-btn" onclick="_impRunHeuristic()">Set up by hand instead</button>' +
     '<button class="imp-btn primary" onclick="_impRunAi()">Continue</button></div>';
 }
 
@@ -319,17 +323,37 @@ async function _impRunAi() {
   if (answered) {
     _imp.aiUsed = true;
     _imp.tabs.forEach(function (t) {
-      _imp.mappings[t.name] = answered.mappings[t.name] || rrImpHeuristicMap(t.headers).map;
+      _imp.mappings[t.name] = _impSanitizeMapping(answered.mappings[t.name] || rrImpHeuristicMap(t.headers).map);
       _imp.tabClass[t.name] = answered.tabClass[t.name] || 'trains';
     });
     _imp.aiGradeTable = answered.gradeTable || [];
     _imp.aiQuestions = answered.questions || [];
   } else {
-    showToast('AI helper unavailable — using built-in guesses', 3000);
+    showToast('Automatic setup unavailable — using built-in guesses', 3000);
     _impFillHeuristic();
   }
   _imp.step = 'mapping';
   _impRender();
+}
+
+// v0.9.1509 (both found in Brad's live test):
+// 1. The AI mapped TWO headers to the same field (Owner AND Collection ->
+//    notes) — only one can win a write; the other silently vanished. First
+//    claim keeps the field; later duplicates go unmapped (visible, fixable).
+// 2. The AI mapped Shipper -> Has Box. Brad's spec (Session 80) is explicit:
+//    Shipper is the outer shipping carton, NOT Has Box — both can be true.
+//    A shipper-ish header may never claim hasBox.
+function _impSanitizeMapping(map) {
+  var out = {}, used = {};
+  Object.keys(map || {}).forEach(function (h) {
+    var f = map[h];
+    if (!f) return;
+    if (f === 'hasBox' && /shipper/i.test(h)) return;
+    if (f !== 'ignore' && used[f]) return;
+    out[h] = f;
+    if (f !== 'ignore') used[f] = 1;
+  });
+  return out;
 }
 
 function _impRunHeuristic() { _impFillHeuristic(); _imp.step = 'mapping'; _impRender(); }
@@ -354,7 +378,7 @@ var _IMP_FIELD_LABELS = {
 function _impStepMapping() {
   var html = '<div class="imp-h">Check the column matches.</div>' +
     '<div class="imp-muted" style="margin-bottom:0.6rem">' +
-    (_imp.aiUsed ? 'Our AI helper made these guesses — fix anything that looks wrong.' : 'Built-in guesses — fix anything that looks wrong.') +
+    'The import program guessed these — fix anything that looks wrong.' +
     ' Tabs with the same layout are set together.</div>';
   _imp.groups.forEach(function (g, gi) {
     var rep = g.tabs[0];
@@ -362,7 +386,9 @@ function _impStepMapping() {
     var repMap = _imp.mappings[rep.name] || {};
     html += '<div class="imp-card"><div style="font-weight:600;font-size:0.86rem;margin-bottom:0.3rem">' +
       _impEsc(names.length > 3 ? names.slice(0, 3).join(', ') + ' +' + (names.length - 3) + ' more' : names.join(', ')) +
-      ' <span class="imp-muted">(' + g.tabs.reduce(function (n, t) { return n + t.rows.length; }, 0).toLocaleString() + ' rows)</span></div>';
+      ' <span class="imp-muted">(' + g.tabs.reduce(function (n, t) { return n + t.rows.length; }, 0).toLocaleString() + ' rows)</span></div>' +
+      '<div class="imp-row" style="font-size:0.7rem;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-dim,#999)">' +
+      '<div style="flex:1">Your spreadsheet\u2019s columns</div><div>Where it goes in The Rail Roster</div></div>';
     var seen = {};
     g.tabs.forEach(function (t) {
       t.headers.forEach(function (h) {
@@ -412,6 +438,73 @@ function _impMappingNext() {
   });
   if (!live.length) { showToast('Every tab is skipped — nothing to import', 3000, true); return; }
   if (!anyItemNum) { showToast('Pick which column holds the Item Number first', 3500, true); return; }
+  _imp.step = 'tabfacts';
+  _impRender();
+}
+
+// ── Step: about your tabs (v0.9.1509 — Brad: "are all items under the tab
+// 'Lionel' made by Lionel, kind of thing... these are questions we have to
+// ask the user"). One compact row per tab; only tabs where the answer
+// would actually DO something get a question. Prefills only where there is
+// real evidence (tab name matches a known maker); the user confirms.
+// A row's own Brand cell ALWAYS beats the tab answer — never overwritten.
+function _impKnownMakers() {
+  try {
+    if (window.MANUAL_MANUFACTURERS && MANUAL_MANUFACTURERS.all) return MANUAL_MANUFACTURERS.all.slice();
+  } catch (e) {}
+  return ['Lionel', 'MTH', 'Atlas', 'K-Line', 'Weaver', 'Williams', 'Marx', 'Menards', 'RMT'];
+}
+function _impTabNeedsMaker(t) {
+  // Needs a maker answer when SOME rows would land with no manufacturer.
+  var m = _imp.mappings[t.name] || {};
+  var brandHeader = Object.keys(m).filter(function (h) { return m[h] === 'manufacturer'; })[0];
+  if (!brandHeader) return true;
+  var col = -1;
+  (t.headers || []).forEach(function (h, i) { if (rrImpNormHeader(h) === brandHeader) col = i; });
+  if (col < 0) return true;
+  var blank = 0;
+  (t.rows || []).forEach(function (r) { if (!rrImpNormCell((r.cells || [])[col])) blank++; });
+  return blank > 0;
+}
+function _impStepTabFacts() {
+  var live = _imp.tabs.filter(function (t) { return !_imp.skipTabs[t.name]; });
+  var makers = _impKnownMakers();
+  var rows = live.map(function (t) {
+    return { tab: t, needsMaker: _impTabNeedsMaker(t), guess: rrImpMakerFromTab(t.name, makers) };
+  }).filter(function (r) { return r.needsMaker || (_imp.tabClass[r.tab.name] || 'trains') !== 'trains'; });
+  if (!rows.length) { _impAfterTabFacts(); return; }
+  var html = '<div class="imp-h">A couple of questions about your tabs.</div>' +
+    '<div class="imp-muted" style="margin-bottom:0.6rem">Your answers fill in blanks only — anything already written on a row is never changed.</div>';
+  rows.forEach(function (r) {
+    var name = r.tab.name, n = r.tab.rows.length;
+    var cls = _imp.tabClass[name] || 'trains';
+    html += '<div class="imp-card"><div style="font-weight:600;font-size:0.88rem;margin-bottom:0.4rem">' +
+      _impEsc(name) + ' <span class="imp-muted">(' + n.toLocaleString() + ' rows)</span></div>';
+    if (r.needsMaker) {
+      html += '<div class="imp-row"><div style="flex:1">Are the items on this tab all made by one company?</div>' +
+        '<select class="imp-sel" onchange="_imp.tabMaker[' + JSON.stringify(name).replace(/"/g, '&quot;') + ']=this.value">' +
+        '<option value=""' + (r.guess ? '' : ' selected') + '>Mixed / not sure</option>';
+      makers.forEach(function (mk) {
+        html += '<option value="' + _impEsc(mk) + '"' + (r.guess === mk ? ' selected' : '') + '>Yes — ' + _impEsc(mk) + '</option>';
+      });
+      html += '</select></div>';
+      if (r.guess) _imp.tabMaker[name] = r.guess;
+    }
+    if (cls !== 'trains') {
+      var def = _imp.tabType[name] || name;
+      _imp.tabType[name] = def;
+      html += '<div class="imp-row"><div style="flex:1">What kind of things are these?</div>' +
+        '<input class="imp-sel" style="max-width:12rem" value="' + _impEsc(def).replace(/"/g, '&quot;') + '" ' +
+        'onchange="_imp.tabType[' + JSON.stringify(name).replace(/"/g, '&quot;') + ']=this.value"></div>' +
+        '<div class="imp-muted" style="margin-top:0.2rem">Becomes the item type for everything on this tab — e.g. \u201CWings of Texaco\u201D, \u201CBooks\u201D.</div>';
+    }
+    html += '</div>';
+  });
+  html += '<div class="imp-foot"><button class="imp-btn" onclick="_imp.step=\'mapping\';_impRender()">\u2190 Back</button>' +
+    '<button class="imp-btn primary" onclick="_impAfterTabFacts()">Next \u2192</button></div>';
+  _impBody().innerHTML = html;
+}
+function _impAfterTabFacts() {
   _impBuildQuestions();
   _imp.step = _imp.questions.length ? 'interview' : 'grades';
   _impStage();
@@ -426,10 +519,29 @@ function _impBuildQuestions() {
   var qs = [];
   if (_imp.fillGroups.length) {
     var g = _imp.fillGroups[0];
+    // v0.9.1509 (Brad): show 2-3 of the ACTUAL highlighted rows so the user
+    // can picture which rows we mean, painted in the sheet's own color.
+    var exHtml = '';
+    try {
+      var shown = 0;
+      for (var si = 0; si < (g.samples || []).length && shown < 3; si++) {
+        var samp = g.samples[si];
+        var tb = _imp.tabs.filter(function (t) { return t.name === samp.tab; })[0];
+        var row = tb && tb.rows.filter(function (r) { return r.rowIdx === samp.rowIdx; })[0];
+        if (!row) continue;
+        var cellsTxt = (row.cells || []).map(rrImpNormCell).filter(Boolean).slice(0, 3).join(' · ');
+        if (!cellsTxt) continue;
+        exHtml += '<div style="background:#' + (g.rgb || 'FFB5AF') + ';color:#4a1b0c;border-radius:6px;' +
+          'padding:0.3rem 0.55rem;margin:0.2rem 0;font-size:0.8rem">' + _impEsc(cellsTxt.slice(0, 80)) +
+          ' <span style="opacity:0.7">(' + _impEsc(samp.tab) + ', row ' + samp.rowIdx + ')</span></div>';
+        shown++;
+      }
+      if (exHtml) exHtml = '<div class="imp-muted" style="margin:0.4rem 0 0.1rem;font-size:0.75rem">A few of them, from your sheet:</div>' + exHtml;
+    } catch (eEx) {}
     qs.push({
       id: '_fill', text: g.count.toLocaleString() + ' rows are highlighted' +
         (g.rgb ? ' <span class="imp-swatch" style="background:#' + g.rgb + '"></span>' : '') +
-        ' — what does that highlight mean?',
+        ' — what does that highlight mean?' + exHtml,
       options: ['They’re for sale', 'Already sold', 'Need repair', 'Just formatting', 'Something else'],
     });
   }
@@ -450,6 +562,28 @@ function _impBuildQuestions() {
   (_imp.aiQuestions || []).forEach(function (q) {
     if (qs.length >= 5) return;
     if (q.id === '_fill' || /highlight|red row/i.test(q.text) && _imp.fillGroups.length) return;
+    // v0.9.1509: if the question names a 'Column', append real example values.
+    try {
+      var hm = /'([^']{2,30})'/.exec(q.text);
+      if (hm) {
+        var hNorm = rrImpNormHeader(hm[1]);
+        var vals = {}, got = 0;
+        _imp.tabs.forEach(function (t) {
+          var ci = -1;
+          (t.headers || []).forEach(function (h, i) { if (rrImpNormHeader(h) === hNorm) ci = i; });
+          if (ci < 0) return;
+          (t.rows || []).forEach(function (r) {
+            if (got >= 4) return;
+            var v = rrImpNormCell((r.cells || [])[ci]);
+            if (v && !vals[v]) { vals[v] = 1; got++; }
+          });
+        });
+        var list = Object.keys(vals);
+        if (list.length) q = { id: q.id, options: q.options, text: q.text +
+          '<div class="imp-muted" style="margin-top:0.35rem;font-size:0.75rem">From your sheet: ' +
+          _impEsc(list.join(' · ').slice(0, 90)) + '</div>' };
+      }
+    } catch (eQx) {}
     qs.push(q);
   });
   _imp.questions = qs;
@@ -494,13 +628,26 @@ function _impAnswer(qi, oi) {
 function _impStage() {
   var live = _imp.tabs.filter(function (t) { return !_imp.skipTabs[t.name]; });
   var staged = [];
+  var skippedSummary = 0;
   live.forEach(function (t) {
     var cls = _imp.tabClass[t.name] || 'trains';
     rrImpApplyMapping(t, _imp.mappings[t.name] || {}).forEach(function (it) {
+      // v0.9.1509: Scott's per-tab "Total:" rows imported as items and added
+      // $372k of fake value. Summary rows are dropped and COUNTED (shown on
+      // the triage screen — never silent).
+      if (rrImpIsSummaryItem(it)) { skippedSummary++; return; }
       it.tabClass = cls;
+      // v0.9.1509 (Brad: "the date is in the title"): a single plausible year
+      // in their description becomes Year Made when no Year column exists —
+      // 395 of Scott's items get an era from this one rule.
+      if (!it.yearMade) {
+        var _y = rrImpYearFromText(it.yourDesc);
+        if (_y) it.yearMade = _y;
+      }
       staged.push(it);
     });
   });
+  _imp.skippedSummary = skippedSummary;
   _imp.staged = staged;
   _imp.gradeTable = _impBuildGradeTable(staged);
   var lookups = {
@@ -585,8 +732,15 @@ function _impStepTriage() {
   var soldSkip = _imp.fillMeaning === 'sold'
     ? _imp.staged.filter(_impIsHighlighted).length : 0;
   var html = '<div class="imp-h">Here’s what we found.</div>';
+  var viaPrefix = t.matched.filter(function (m) { return m.matchedVia === '6-prefix'; }).length;
   html += '<div class="imp-card"><span class="imp-badge match">MATCHED</span> <strong>' + t.matched.length.toLocaleString() +
-    '</strong> items found in our catalog — these import with full catalog details.</div>';
+    '</strong> items found in our catalog — these import with full catalog details.' +
+    (viaPrefix ? ' <span class="imp-muted">(' + viaPrefix.toLocaleString() +
+      ' matched by adding Lionel\u2019s \u201C6-\u201D prefix — e.g. your 11169 is catalog 6-11169.)</span>' : '') + '</div>';
+  if (_imp.skippedSummary) {
+    html += '<div class="imp-card imp-muted">' + _imp.skippedSummary +
+      ' summary rows (like \u201CTotal:\u201D) were skipped — they\u2019re math, not items.</div>';
+  }
   if (t.unmatched.length) {
     html += '<div class="imp-card"><span class="imp-badge manual">MANUAL</span> <strong>' + t.unmatched.length.toLocaleString() +
       '</strong> not found in our list — they’ll be added as manual entries, keeping everything you wrote. ' +
@@ -645,7 +799,7 @@ function _impStepPrices() {
 // Everything that will actually be written, with its master when matched.
 function _impWritables() {
   var out = [];
-  _imp.triage.matched.forEach(function (m) { out.push({ item: m.item, master: m.master }); });
+  _imp.triage.matched.forEach(function (m) { out.push({ item: m.item, master: m.master, catalogNum: m.catalogNum || '' }); });
   _imp.triage.unmatched.forEach(function (u) { out.push({ item: u.item, master: null }); });
   if (_imp.fillMeaning === 'sold') out = out.filter(function (w) { return !_impIsHighlighted(w.item); });
   return out;
@@ -700,6 +854,7 @@ function _impPreviewCard(w) {
   var bits = [];
   if (cond) bits.push('Condition ' + cond);
   if (it.rawGrade) bits.push('Your grade: ' + _impEsc(it.rawGrade));
+  if (it.yearMade) bits.push('Year ' + _impEsc(it.yearMade));
   if (it.location) bits.push('📍 ' + _impEsc(it.location));
   if (it.priceItem) bits.push('Paid $' + _impEsc(rrImpCleanMoney(it.priceItem) || it.priceItem));
   if (it.userEstWorth) bits.push('Worth $' + _impEsc(rrImpCleanMoney(it.userEstWorth) || it.userEstWorth));
@@ -738,7 +893,10 @@ async function _impWrite() {
       var isRed = _imp.fillMeaning === 'sale' && _impIsHighlighted(it);
       var repairNote = (_imp.fillMeaning === 'repair' && _impIsHighlighted(it)) ? 'Needs repair' : '';
       var fields = {
-        itemNum: it.itemNum || '', variation: '',
+        // v0.9.1509: a 6-prefix match writes the CATALOG number (6-11169) —
+        // Lionel's own convention for the same number, so every app feature
+        // (links, grouping, market) works. Not a suffix strip; suffix rule intact.
+        itemNum: (w.catalogNum || it.itemNum || ''), variation: '',
         condition: cond,
         userEstWorth: rrImpCleanMoney(it.userEstWorth),
         priceItem: rrImpCleanMoney(it.priceItem),
@@ -758,9 +916,14 @@ async function _impWrite() {
         if (typeof rrMasterKeyOf === 'function') fields.masterKey = rrMasterKeyOf(m);
       } else {
         fields.era = 'Manual';
-        fields.manufacturer = it.manufacturer || '';
+        // v0.9.1509: tab answer fills maker BLANKS only (their Brand cell wins).
+        fields.manufacturer = it.manufacturer || _imp.tabMaker[it.srcTab] || '';
         fields.description = it.yourDesc || '';
+        if (it.tabClass !== 'trains' && _imp.tabType[it.srcTab]) {
+          fields.itemType = _imp.tabType[it.srcTab];
+        }
       }
+      if (it.yearMade) fields.yearMade = it.yearMade;
       if (String(it.hasBox || '').trim()) {
         fields.hasBox = /^(y|yes|true|x|1|✓)/i.test(String(it.hasBox).trim()) ? 'Yes' : String(it.hasBox);
       }

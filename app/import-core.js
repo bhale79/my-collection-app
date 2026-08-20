@@ -341,6 +341,51 @@ function rrImpGuessCondition(rawGrade) {
   return m ? m[1] : '';
 }
 
+// ── Summary-row detection (v0.9.1509, found live: Scott's per-tab
+// "Total:" rows imported as ITEMS and added $372k of fake value) ────────
+// A summary row is one whose number-or-first cell is a totals word and
+// which carries no grade (real items in the wild always had one or the
+// other). Conservative on purpose: "Total Package Deal 123" is an item.
+function rrImpIsSummaryItem(it) {
+  var probe = rrImpNormCell(it && it.itemNum) || rrImpNormCell(it && it.yourDesc);
+  if (!/^(grand\s+)?(sub\s*)?totals?\s*[:.]?$/i.test(probe)) return false;
+  return !rrImpNormCell(it && it.rawGrade);
+}
+
+// ── Year from description (v0.9.1509, Brad: "the date is in the title so
+// it should be in the modern era") — 395 of Scott's items carried their
+// year ONLY in the description text. Conservative: exactly ONE plausible
+// year in the text, else nothing (never guess between two years).
+function rrImpYearFromText(s) {
+  var m = String(s || '').match(/\b(19[0-9]{2}|20[0-2][0-9])\b/g);
+  if (!m) return '';
+  var uniq = {};
+  m.forEach(function (y) { uniq[y] = 1; });
+  var years = Object.keys(uniq);
+  return years.length === 1 ? years[0] : '';
+}
+
+// ── Maker from tab name (v0.9.1509) — Scott's tabs ARE maker names.
+// Returns the canonical maker string when the tab name plainly says one,
+// else ''. Diacritics normalized (Märklín). This produces a PREFILL for
+// the tab-questions screen — the USER confirms (Brad: "not everybody's
+// sheet will be like Scott's, these are questions we have to ask").
+function rrImpMakerFromTab(tabName, knownMakers) {
+  var t = String(tabName || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+  if (!t) return '';
+  var makers = knownMakers || [];
+  for (var i = 0; i < makers.length; i++) {
+    var k = String(makers[i]).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    if (t === k || t.indexOf(k + ' ') === 0 || t === k + ' trains') return makers[i];
+  }
+  // "K-Line by Lionel" → K-Line wins (it IS the maker; Lionel bought them).
+  for (var j = 0; j < makers.length; j++) {
+    var k2 = String(makers[j]).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    if (k2.length >= 4 && t.indexOf(k2) === 0) return makers[j];
+  }
+  return '';
+}
+
 // ── Triage ──────────────────────────────────────────────────────
 // items: staged items (post-mapping). lookups: injected hooks so this
 // stays pure and node-testable —
@@ -362,6 +407,20 @@ function rrImpTriage(items, lookups) {
     if (!num) { res.unmatched.push({ item: it, didYouMean: [] }); return; }
     var hints = { manufacturer: it.manufacturer || '', gauge: it.gauge || '' };
     var exact = (lookups && lookups.candidatesFor) ? (lookups.candidatesFor(num, hints) || []) : [];
+    // ── v0.9.1509 PREFIX PASS (measured live on Scott's sheet: 274 of 387
+    // "unmatched" Lionel items existed in the catalog as 6-<their number>;
+    // K-Line by Lionel: 26 of 33). Modern-Lionel collectors write 11169,
+    // catalogs write 6-11169 — same number, Lionel's own convention. Runs
+    // ONLY on a total exact miss (the suffix rule is untouched: an exact
+    // match still always wins) and only accepts an UNAMBIGUOUS single hit.
+    if (exact.length === 0 && /^[0-9]{4,6}$/.test(num)
+        && /lionel/i.test(String((it.manufacturer || '') + ' ' + (it.srcTab || '')))) {
+      var viaPrefix = (lookups && lookups.candidatesFor) ? (lookups.candidatesFor('6-' + num, hints) || []) : [];
+      if (viaPrefix.length === 1) {
+        res.matched.push({ item: it, master: viaPrefix[0], matchedVia: '6-prefix', catalogNum: '6-' + num });
+        return;
+      }
+    }
     if (exact.length === 1) {
       res.matched.push({ item: it, master: exact[0] });
     } else if (exact.length > 1) {
@@ -514,6 +573,9 @@ var RR_IMPORT_CORE = {
   rrImpCleanMoney: rrImpCleanMoney,
   rrImpCollectGrades: rrImpCollectGrades,
   rrImpGuessCondition: rrImpGuessCondition,
+  rrImpIsSummaryItem: rrImpIsSummaryItem,
+  rrImpYearFromText: rrImpYearFromText,
+  rrImpMakerFromTab: rrImpMakerFromTab,
   rrImpTriage: rrImpTriage,
   rrImpCopyCounterEvidence: rrImpCopyCounterEvidence,
   rrImpBuildAiPayload: rrImpBuildAiPayload,

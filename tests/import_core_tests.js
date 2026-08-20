@@ -124,6 +124,50 @@ ok('AI validate: good mapping kept, bad field dropped',
 ok('AI validate: bad condition (99) dropped, good kept', good.gradeTable.length === 1 && good.gradeTable[0].condition === '10');
 ok('AI validate: question kept', good.questions.length === 1 && good.questions[0].options.length === 3);
 
+// ── v0.9.1509 additions (every one found in Brad's LIVE test) ───
+// Summary rows: Scott's per-tab "Total:" rows imported as items ($372k of
+// fake value). Real items never look like this.
+ok('summary: "TOTAL:" with no grade is a summary row',
+   core.rrImpIsSummaryItem({ itemNum: 'TOTAL:', userEstWorth: '20147' }) === true);
+ok('summary: "Total" lowercase, desc slot', core.rrImpIsSummaryItem({ itemNum: '', yourDesc: 'Total' }) === true);
+ok('summary: "Grand total:" caught', core.rrImpIsSummaryItem({ itemNum: 'Grand total:' }) === true);
+ok('summary: real item 2343 is NOT a summary row', core.rrImpIsSummaryItem({ itemNum: '2343', rawGrade: 'C8' }) === false);
+ok('summary: "Total Package Deal" item is NOT (has grade)',
+   core.rrImpIsSummaryItem({ itemNum: 'Total:', rawGrade: 'C7' }) === false);
+
+// Year from description ("the date is in the title so it should be modern")
+ok('year: "1989 LCAC Canada Southern" -> 1989', core.rrImpYearFromText('1989 LCAC Canada Southern Operating Hopper') === '1989');
+ok('year: two years -> ambiguous, blank', core.rrImpYearFromText('1957 reissue of the 1954 car') === '');
+ok('year: catalog-number lookalike 6464 ignored', core.rrImpYearFromText('6464 boxcar red') === '');
+ok('year: none -> blank', core.rrImpYearFromText('Santa Fe F3') === '');
+
+// Maker from tab name (prefill only — the USER confirms on the tabs screen)
+const mk = ['Lionel', 'K-Line', 'MTH', 'Atlas', 'Weaver', 'Menards'];
+ok('tab maker: "Lionel" -> Lionel', core.rrImpMakerFromTab('Lionel', mk) === 'Lionel');
+ok('tab maker: "K-Line by Lionel" -> K-Line', core.rrImpMakerFromTab('K-Line by Lionel', mk) === 'K-Line');
+ok('tab maker: "Wings of Texaco" -> no guess', core.rrImpMakerFromTab('Wings of Texaco', mk) === '');
+ok('tab maker: "Misc Trains" -> no guess', core.rrImpMakerFromTab('Misc Trains', mk) === '');
+
+// 6- prefix pass (274 of Scott's 387 "unmatched" Lionel items were catalog
+// items as 6-<number>). Exact match must still ALWAYS win (suffix rule).
+const master2 = {
+  '6-11169': [{ itemNum: '6-11169', description: 'Modern boxcar' }],
+  '11169':   [],
+  '2343':    [{ itemNum: '2343', description: 'Santa Fe F3' }],
+};
+const lk2 = { candidatesFor: n => master2[n] || [], baseOf: n => n };
+const tri2 = core.rrImpTriage([
+  { itemNum: '11169', srcTab: 'Lionel', manufacturer: 'Lionel' },   // prefix hit
+  { itemNum: '2343', srcTab: 'Lionel', manufacturer: 'Lionel' },    // exact wins
+  { itemNum: '11169', srcTab: 'Atlas', manufacturer: 'Atlas' },     // NOT Lionel: no prefix pass
+], lk2);
+ok('prefix: Lionel 11169 matches catalog 6-11169',
+   tri2.matched.some(m => m.matchedVia === '6-prefix' && m.catalogNum === '6-11169'));
+ok('prefix: exact 2343 still matches exactly (no prefix attempted)',
+   tri2.matched.some(m => m.item.itemNum === '2343' && !m.matchedVia));
+ok('prefix: Atlas 11169 does NOT get the Lionel prefix pass',
+   tri2.unmatched.some(u => u.item.itemNum === '11169' && u.item.srcTab === 'Atlas'));
+
 // ── UI wiring guard (added v0.9.1508 after a LIVE failure) ──────
 // Brad opened Import on a real account and got an EMPTY window: _impRender's
 // step map named _impStepWriting, which nothing defined, so building that
@@ -266,6 +310,15 @@ async function fixtureTests() {
   ok('fixture: staged items carry itemNum + rawGrade', staged.filter(s => s.itemNum && s.rawGrade).length > 1500);
   const redStaged = staged.filter(s => s.fillSig === 'idx:13' || s.fillSig === 'idx:14');
   ok('fixture: staged red rows preserved on items', redStaged.length > 0, redStaged.length);
+
+  // v0.9.1509: the fixture's own "Total:" rows are detected
+  const summaryCount = tabs.reduce((n, t) => {
+    const m = {};
+    const heur = core.rrImpHeuristicMap(t.headers || []);
+    Object.keys(heur.map).forEach(k => { m[k] = heur.map[k]; });
+    return n + core.rrImpApplyMapping(t, m).filter(core.rrImpIsSummaryItem).length;
+  }, 0);
+  ok('fixture: summary "Total:" rows detected (Scott has them)', summaryCount >= 10, summaryCount);
 
   // Grade strings from the real sheet feed the conversion table
   const gradeList = core.rrImpCollectGrades(staged);
