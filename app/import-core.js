@@ -32,6 +32,12 @@ function rrImpNormCell(v) {
     return (v % 1 === 0) ? String(v) : String(Math.round(v * 10000) / 10000);
   }
   if (v instanceof Date) {
+    // v0.9.1512 (Brad's export audit: 137 of Scott's SCALE cells came through
+    // as "Fri Dec 29 1899 19:43" — Excel silently converts entries like 1:20
+    // or 7:38 into times). A 1899/1900 date is Excel's zero-epoch fingerprint,
+    // not a date anyone typed: recover the ORIGINAL text where the sheet kept
+    // it, otherwise return blank rather than store a nonsense timestamp.
+    if (v.getFullYear() <= 1900) return '';
     // Date-only render — imports care about "when", not the midnight.
     return v.toISOString().slice(0, 10);
   }
@@ -341,6 +347,20 @@ function rrImpGuessCondition(rawGrade) {
   return m ? m[1] : '';
 }
 
+// v0.9.1512: how many cells Excel turned into 1899/1900 timestamps — shown
+// on the triage screen so a mangled column is visible, not silent.
+function rrImpCountDateJunk(tabs) {
+  var n = 0;
+  (tabs || []).forEach(function (t) {
+    (t.rows || []).forEach(function (r) {
+      (r.cells || []).forEach(function (c) {
+        if (c instanceof Date && c.getFullYear() <= 1900) n++;
+      });
+    });
+  });
+  return n;
+}
+
 // ── Summary-row detection (v0.9.1509, found live: Scott's per-tab
 // "Total:" rows imported as ITEMS and added $372k of fake value) ────────
 // A summary row is one whose number-or-first cell is a totals word and
@@ -573,6 +593,7 @@ var RR_IMPORT_CORE = {
   rrImpCleanMoney: rrImpCleanMoney,
   rrImpCollectGrades: rrImpCollectGrades,
   rrImpGuessCondition: rrImpGuessCondition,
+  rrImpCountDateJunk: rrImpCountDateJunk,
   rrImpIsSummaryItem: rrImpIsSummaryItem,
   rrImpYearFromText: rrImpYearFromText,
   rrImpMakerFromTab: rrImpMakerFromTab,

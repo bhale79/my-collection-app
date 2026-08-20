@@ -168,6 +168,18 @@ ok('prefix: exact 2343 still matches exactly (no prefix attempted)',
 ok('prefix: Atlas 11169 does NOT get the Lionel prefix pass',
    tri2.unmatched.some(u => u.item.itemNum === '11169' && u.item.srcTab === 'Atlas'));
 
+// ── v0.9.1512: Excel's 1899 date corruption (found in Brad's export audit —
+// 137 SCALE cells came through as "Fri Dec 29 1899 19:43" because Excel
+// converts entries like 1:20 / 7:38 into times).
+ok('date junk: 1899 timestamp -> blank, not a fake date',
+   core.rrImpNormCell(new Date('1899-12-30T01:43:00Z')) === '');
+ok('date junk: 1900 epoch edge -> blank',
+   core.rrImpNormCell(new Date('1900-01-01T00:00:00Z')) === '');
+ok('real date still survives',
+   core.rrImpNormCell(new Date('2024-01-09T18:00:00Z')) === '2024-01-09');
+ok('date junk counter sees them',
+   core.rrImpCountDateJunk([{ rows: [{ cells: [new Date('1899-12-30'), 'ok', new Date('2024-01-09')] }] }]) === 1);
+
 // ── UI wiring guard (added v0.9.1508 after a LIVE failure) ──────
 // Brad opened Import on a real account and got an EMPTY window: _impRender's
 // step map named _impStepWriting, which nothing defined, so building that

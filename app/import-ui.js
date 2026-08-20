@@ -770,6 +770,13 @@ function _impStepTriage() {
     '</strong> items found in our catalog — these import with full catalog details.' +
     (viaPrefix ? ' <span class="imp-muted">(' + viaPrefix.toLocaleString() +
       ' matched by adding Lionel\u2019s \u201C6-\u201D prefix — e.g. your 11169 is catalog 6-11169.)</span>' : '') + '</div>';
+  var _dateJunk = 0;
+  try { _dateJunk = rrImpCountDateJunk(_imp.tabs.filter(function (t) { return !_imp.skipTabs[t.name]; })); } catch (eDJ) {}
+  if (_dateJunk >= 5) {
+    html += '<div class="imp-card imp-muted">\u26a0 ' + _dateJunk.toLocaleString() +
+      ' cells look like Excel turned them into dates (entries like 1:20 or 7:38 become times). ' +
+      'Those are left blank rather than saved as a wrong value \u2014 you can fill them in later.</div>';
+  }
   if (_imp.skippedSummary) {
     html += '<div class="imp-card imp-muted">' + _imp.skippedSummary +
       ' summary rows (like \u201CTotal:\u201D) were skipped — they\u2019re math, not items.</div>';

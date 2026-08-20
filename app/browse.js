@@ -598,6 +598,29 @@ function _clearHierarchyFilters() {
 }
 if (typeof window !== 'undefined') window._clearHierarchyFilters = _clearHierarchyFilters;
 
+// v0.9.1512: what the USER actually owns, for the collection filters.
+// field is a personalData field name ('manufacturer' | 'itemType').
+function _phOwnValues(field) {
+  var out = {};
+  try {
+    Object.values(state.personalData || {}).forEach(function (p) {
+      var v = p && p[field] ? String(p[field]).trim() : '';
+      if (v) out[v] = (out[v] || 0) + 1;
+    });
+  } catch (e) {}
+  return out;
+}
+function _phOwnCount(field, label) {
+  if (!state.filters.owned) return '';
+  try {
+    var own = _phOwnValues(field);
+    var want = String(label).toLowerCase();
+    var n = 0;
+    Object.keys(own).forEach(function (k) { if (k.toLowerCase() === want) n += own[k]; });
+    return n ? ' (' + n.toLocaleString() + ')' : '';
+  } catch (e) { return ''; }
+}
+
 function _openLevelPicker(level) {
   var st = _phState();
   var options = [];
@@ -606,7 +629,26 @@ function _openLevelPicker(level) {
     // Step 3b: 'Any Manufacturer' first.
     options.push({ id: 'any', label: 'Any Manufacturer' });
     var MFs = WIC.MANUFACTURERS || {};
-    Object.keys(MFs).forEach(function(k) { options.push({ id: k, label: MFs[k].label }); });
+    var _catalogLabels = {};
+    Object.keys(MFs).forEach(function(k) {
+      var _lbl = MFs[k].label;
+      _catalogLabels[String(_lbl).toLowerCase()] = 1;
+      options.push({ id: k, label: _lbl + _phOwnCount('manufacturer', _lbl) });
+    });
+    // v0.9.1512 (Brad, live: Scott owns Micro-Trains, Ertl, First Gear,
+    // Die-cast Masters... none of which could EVER be filtered to, because
+    // this list came only from the catalog). In MY COLLECTION the list is
+    // the catalog's makers PLUS the ones the user actually owns, grouped
+    // under a divider so it stays obvious which the catalog knows.
+    if (state.filters.owned) {
+      var _own = _phOwnValues('manufacturer');
+      var _extra = Object.keys(_own).filter(function (m) { return !_catalogLabels[m.toLowerCase()]; });
+      if (_extra.length) {
+        options.push({ id: '__divider', label: 'Also in your collection', divider: true });
+        _extra.sort(function (a, b) { return _own[b] - _own[a] || a.localeCompare(b); })
+          .forEach(function (m) { options.push({ id: 'own:' + m, label: m + ' (' + _own[m].toLocaleString() + ')' }); });
+      }
+    }
   } else if (level === 'scale') {
     options.push({ id: 'any', label: 'Any Scale' });
     _phScalesFor(st.manufacturer).forEach(function(sid) {
@@ -625,11 +667,24 @@ function _openLevelPicker(level) {
     // Pull options from the live #filter-type <select>. populateFilters()
     // refreshes that select per-era, so we always get the current bucket set.
     var _ftSel = document.getElementById('filter-type');
+    var _seenTypes = {};
     if (_ftSel) {
       for (var oi = 0; oi < _ftSel.options.length; oi++) {
         var o = _ftSel.options[oi];
         var lblText = o.textContent || o.value || '';
-        options.push({ id: o.value, label: lblText });
+        _seenTypes[String(o.value).toLowerCase()] = 1;
+        options.push({ id: o.value, label: lblText + (o.value ? _phOwnCount('itemType', o.value) : '') });
+      }
+    }
+    // v0.9.1512: same treatment for TYPES — Scott's imported custom types
+    // (Books, Vehicles, Wings of Texaco) exist on items but were unfilterable.
+    if (state.filters.owned) {
+      var _ownT = _phOwnValues('itemType');
+      var _extraT = Object.keys(_ownT).filter(function (t) { return !_seenTypes[t.toLowerCase()]; });
+      if (_extraT.length) {
+        options.push({ id: '__divider', label: 'Also in your collection', divider: true });
+        _extraT.sort(function (a, b) { return _ownT[b] - _ownT[a] || a.localeCompare(b); })
+          .forEach(function (t) { options.push({ id: t, label: t + ' (' + _ownT[t].toLocaleString() + ')' }); });
       }
     }
   }
@@ -655,6 +710,14 @@ function _openLevelPicker(level) {
   heading.textContent = 'Pick ' + head;
   modal.appendChild(heading);
   options.forEach(function(opt) {
+    if (opt.divider) {
+      var dv = document.createElement('div');
+      dv.textContent = opt.label;
+      dv.style.cssText = 'margin:0.6rem 0 0.35rem;padding-top:0.5rem;border-top:1px solid var(--border);' +
+        'font-size:0.7rem;letter-spacing:0.05em;text-transform:uppercase;color:var(--text-dim)';
+      modal.appendChild(dv);
+      return;
+    }
     var isCur = (st[level] === opt.id);
     var btn = document.createElement('button');
     btn.type = 'button';
@@ -682,6 +745,16 @@ function _openLevelPicker(level) {
 }
 
 function _setHierarchyChoice(level, value) {
+  // v0.9.1512: an "own:" maker is one the CATALOG has no era for — it filters
+  // purely on what the user's own rows say.
+  if (level === 'manufacturer' && String(value || '').indexOf('own:') === 0) {
+    state.filters.ownMaker = value.slice(4);
+    var _st0 = _phState(); if (_st0) _st0.manufacturer = 'any';
+    if (typeof renderBrowse === 'function') { state.currentPage = 1; renderBrowse(); }
+    if (typeof _renderHierarchyChips === 'function') _renderHierarchyChips();
+    return;
+  }
+  if (level === 'manufacturer') state.filters.ownMaker = '';
   // S149 follow-up: type chip writes to the hidden #filter-type select
   // and reuses the existing applyFilters() flow. Doesn't persist to chip state.
   if (level === 'type') {
@@ -1135,9 +1208,14 @@ function _itemExternalLinkURL(item) {
   // would Google. Maker + number + first words of their description.
   var _mDesc = String(item.yourDescription || item.description || '').trim();
   if (item.itemNum || _mDesc) {
-    var _mQ = [String(item.manufacturer || '').trim(),
+    var _mMaker = String(item.manufacturer || '').trim();
+    // v0.9.1512 (Brad: a numberless "George H Bush 1992 Whistlestop Michigan"
+    // searched the REAL campaign train). Without a maker the query has to say
+    // it is a model, or the world answers instead of the hobby.
+    var _mQ = [_mMaker,
                String(item.itemNum || '').trim(),
-               _mDesc.split(/\s+/).slice(0, 6).join(' ')].filter(Boolean).join(' ');
+               _mDesc.split(/\s+/).slice(0, 8).join(' '),
+               _mMaker ? '' : 'model train'].filter(Boolean).join(' ');
     if (_mQ.length > 3) return 'https://www.google.com/search?q=' + encodeURIComponent(_mQ);
   }
   return '';
@@ -1630,7 +1708,8 @@ function applyFilters() {
   state.filters.type = document.getElementById('filter-type').value;
   state.filters.quickEntry = '';
   state.filters.imported = '';
-  state.filters.needsDetails = ''; // QE filter only applies in My Collection view
+  state.filters.needsDetails = '';
+  state.filters.ownMaker = ''; // QE filter only applies in My Collection view
   state.filters.road = window._roadComboValue || '';
   state.filters.wantList = false;
   state.currentPage = 1;
@@ -1681,6 +1760,7 @@ function resetFilters() {
   state.filters.quickEntry = '';
   state.filters.imported = '';
   state.filters.needsDetails = '';
+  state.filters.ownMaker = '';
   state.currentPage = 1;
   document.getElementById('filter-type').value = '';
   _roadComboClear();
@@ -1838,6 +1918,7 @@ function removeQEFilter() {
   state.filters.quickEntry = '';
   state.filters.imported = '';
   state.filters.needsDetails = '';
+  state.filters.ownMaker = '';
 }
 
 // ── filterByType (from between non-browse blocks) ───────────
@@ -3294,6 +3375,11 @@ function renderBrowse() {
     }
     // v0.9.1509: "Needs details" filter — items missing maker, type, or (for
     // manual rows) a year. Set by the pill injected in collection view.
+    // v0.9.1512: filtering by a maker only the USER has.
+    if (state.filters.ownMaker) {
+      var _omp = (pd && pd.manufacturer) ? String(pd.manufacturer).trim().toLowerCase() : '';
+      if (_omp !== String(state.filters.ownMaker).trim().toLowerCase()) return false;
+    }
     if (state.filters.needsDetails === 'needs') {
       var _nd = pd && (!pd.manufacturer || !pd.itemType ||
         (String(pd.era || '') === 'Manual' && !pd.yearMade));
