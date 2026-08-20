@@ -3281,6 +3281,16 @@ function renderBrowse() {
         var _sPer = (typeof _itemEraPeriod === 'function') ? _itemEraPeriod(item) : null;
         if (!_sPer && !(pd && pd.yearMade)) return false;
       }
+      // v0.9.1511 (Brad's N-scale 3474 under the O Gauge chip): the row's
+      // OWN gauge cell outranks any derived scale. Normalize the common
+      // spellings; an O-27 item still counts as O.
+      if (_stp3b.scale && _stp3b.scale !== 'any' && pd && pd.gauge) {
+        var _gRaw = String(pd.gauge).trim().toLowerCase().replace(/\s*gauge$|\s*scale$/, '');
+        var _gNorm = ({ 'o': 'o', 'o-27': 'o', 'o27': 'o', '027': 'o', 'ho': 'ho', 'n': 'n',
+                        's': 's', 'g': 'g', 'z': 'z', 'standard': 'std', 'std': 'std' })[_gRaw] || _gRaw;
+        var _cNorm = String(_stp3b.scale).trim().toLowerCase();
+        if (_gNorm && _cNorm && _gNorm !== _cNorm) return false;
+      }
     }
     // v0.9.1509: "Needs details" filter — items missing maker, type, or (for
     // manual rows) a year. Set by the pill injected in collection view.
@@ -3880,7 +3890,15 @@ function renderBrowse() {
     let globalIdx = _masterIdxOf(item._origItem || item);
     // For _personalOnly items not in masterData, use negative index via global array
     if (globalIdx < 0 && item._personalOnly) {
-      const poKey = findPDKey(_displayItemNum(item), item.variation);
+      // v0.9.1511 (Brad, live: every numberless row opened the SAME detail —
+      // a catalog row showed a Trainmaster): findPDKey looks up by number +
+      // variation, and fifty blank numbers all resolve to the first row. The
+      // personalData key IS the inventoryId, so a row that carries one is
+      // addressed by it directly; the number lookup is only the legacy
+      // fallback for pre-inventoryId rows.
+      const poKey = (item.inventoryId && state.personalData[item.inventoryId])
+        ? String(item.inventoryId)
+        : findPDKey(_displayItemNum(item), item.variation);
       if (poKey) {
         if (!window._poKeys) window._poKeys = [];
         let poIdx = window._poKeys.indexOf(poKey);

@@ -102,7 +102,7 @@ function _impInjectCss() {
     '.imp-num{font-family:monospace;font-weight:600}' +
     '.imp-h{font-weight:700;margin:0.2rem 0 0.6rem;font-size:0.98rem}' +
     '.imp-prog{height:8px;background:var(--surface2,#2a2a30);border-radius:4px;overflow:hidden;margin:0.8rem 0}' +
-    '.imp-prog>div{height:100%;background:var(--accent,#c33);width:0%;transition:width 0.2s}' +
+    '.imp-prog>div{height:100%;background:var(--accent,#c33);width:0%;transition:width 0.2s}@keyframes imp-slide{0%{margin-left:-40%}100%{margin-left:100%}}.imp-prog.busy>div{width:40%!important;animation:imp-slide 1.2s linear infinite}' +
     '.imp-money{width:6.5rem;background:var(--surface2,#26262e);color:var(--text,#eee);border:1px solid var(--border,#444);border-radius:6px;padding:0.25rem 0.4rem;font-size:0.85rem}';
   document.head.appendChild(s);
 }
@@ -223,7 +223,7 @@ async function _impZipEntryText(buf, entryName) {
 }
 
 async function _impLoadFile(file) {
-  _impBody().innerHTML = '<div class="imp-h">Reading ' + _impEsc(file.name) + '…</div><div class="imp-prog"><div style="width:30%"></div></div>';
+  _impBody().innerHTML = '<div class="imp-h">Reading ' + _impEsc(file.name) + '…</div><div class="imp-prog busy"><div></div></div>';
   try {
     await _impEnsureExcelJs();
     var buf = await file.arrayBuffer();
@@ -307,7 +307,7 @@ function _impStepConsent() {
 }
 
 async function _impRunAi() {
-  _impBody().innerHTML = '<div class="imp-h">Looking at your spreadsheet…</div><div class="imp-prog"><div style="width:55%"></div></div>' +
+  _impBody().innerHTML = '<div class="imp-h">Looking at your spreadsheet…</div><div class="imp-prog busy"><div></div></div>' +
     '<div class="imp-muted">Working out which column is which.</div>';
   var answered = null;
   try {
@@ -449,10 +449,18 @@ function _impMappingNext() {
 // real evidence (tab name matches a known maker); the user confirms.
 // A row's own Brand cell ALWAYS beats the tab answer — never overwritten.
 function _impKnownMakers() {
+  var base;
   try {
-    if (window.MANUAL_MANUFACTURERS && MANUAL_MANUFACTURERS.all) return MANUAL_MANUFACTURERS.all.slice();
-  } catch (e) {}
-  return ['Lionel', 'MTH', 'Atlas', 'K-Line', 'Weaver', 'Williams', 'Marx', 'Menards', 'RMT'];
+    base = (window.MANUAL_MANUFACTURERS && MANUAL_MANUFACTURERS.all) ? MANUAL_MANUFACTURERS.all.slice() : null;
+  } catch (e) { base = null; }
+  if (!base) base = ['Lionel', 'MTH', 'Atlas', 'K-Line', 'Weaver', 'Williams', 'Marx', 'Menards', 'RMT'];
+  // v0.9.1511 (Brad, live): "Atlas O" reads oddly as an ANSWER — say Atlas.
+  base = base.map(function (m) { return m === 'Atlas O' ? 'Atlas' : m; });
+  // v0.9.1511 (Brad): real makers his own test sheet needed.
+  ['Märklin', 'Plasticville', 'Micro-Trains'].forEach(function (m) {
+    if (base.indexOf(m) < 0) base.push(m);
+  });
+  return base;
 }
 function _impTabNeedsMaker(t) {
   // Needs a maker answer when SOME rows would land with no manufacturer.
@@ -675,15 +683,21 @@ function _impStage() {
       var list = (state.masterByItem && state.masterByItem.get(k)) || [];
       if ((!list || !list.length) && state.masterByItemAll) list = state.masterByItemAll.get(k) || [];
       list = (list || []).slice();
-      // A maker hint that narrows to EXACTLY one candidate settles it.
-      if (list.length > 1 && hints && hints.manufacturer) {
+      // v0.9.1511 (Brad's 3474: a MICRO-TRAINS N-scale car matched LIONEL
+      // POSTWAR 3474 — wrong maker, wrong item, confidently): a maker hint
+      // is now a VETO, not just a tiebreaker. When the user has told us the
+      // maker (their Brand cell or the tab answer) and NO candidate is from
+      // that maker, the honest answer is "not in our list" — a manual entry
+      // that keeps their words — never a cross-maker match.
+      if (list.length && hints && hints.manufacturer) {
         var mfr = String(hints.manufacturer).trim().toLowerCase();
+        var mfrWord = mfr.split(/\s+/)[0];   // 'williams by bachmann' → 'williams'
         var narrowed = list.filter(function (m) {
-          return String(m._tab || '').toLowerCase().indexOf(mfr) === 0 ||
-                 String(m.manufacturer || '').toLowerCase() === mfr;
+          var tab = String(m._tab || '').toLowerCase();
+          var mm = String(m.manufacturer || '').toLowerCase();
+          return tab.indexOf(mfrWord) === 0 || mm === mfr || mm.indexOf(mfrWord) === 0;
         });
-        if (narrowed.length === 1) return narrowed;
-        if (narrowed.length > 1) return narrowed;
+        return narrowed;   // may be [] — that IS the answer
       }
       return list;
     },
