@@ -481,13 +481,19 @@ function _impStepTabFacts() {
     html += '<div class="imp-card"><div style="font-weight:600;font-size:0.88rem;margin-bottom:0.4rem">' +
       _impEsc(name) + ' <span class="imp-muted">(' + n.toLocaleString() + ' rows)</span></div>';
     if (r.needsMaker) {
-      html += '<div class="imp-row"><div style="flex:1">Are the items on this tab all made by one company?</div>' +
-        '<select class="imp-sel" onchange="_imp.tabMaker[' + JSON.stringify(name).replace(/"/g, '&quot;') + ']=this.value">' +
-        '<option value=""' + (r.guess ? '' : ' selected') + '>Mixed / not sure</option>';
-      makers.forEach(function (mk) {
-        html += '<option value="' + _impEsc(mk) + '"' + (r.guess === mk ? ' selected' : '') + '>Yes — ' + _impEsc(mk) + '</option>';
+      var extraMakers = [];
+      Object.keys(_imp.tabMaker).forEach(function (k) {
+        var v = _imp.tabMaker[k];
+        if (v && makers.indexOf(v) < 0 && extraMakers.indexOf(v) < 0) extraMakers.push(v);
       });
-      html += '</select></div>';
+      html += '<div class="imp-row"><div style="flex:1">Are the items on this tab all made by one company?</div>' +
+        '<select class="imp-sel" onchange="_impTabMakerSel(this,' + JSON.stringify(name).replace(/"/g, '&quot;') + ')">' +
+        '<option value=""' + (r.guess ? '' : ' selected') + '>Mixed / not sure</option>';
+      makers.concat(extraMakers).forEach(function (mk) {
+        html += '<option value="' + _impEsc(mk) + '"' + (r.guess === mk || _imp.tabMaker[name] === mk ? ' selected' : '') + '>Yes — ' + _impEsc(mk) + '</option>';
+      });
+      html += '<option value="__add">+ Add a maker…</option>' +
+        '</select></div>';
       if (r.guess) _imp.tabMaker[name] = r.guess;
     }
     if (cls !== 'trains') {
@@ -504,6 +510,19 @@ function _impStepTabFacts() {
     '<button class="imp-btn primary" onclick="_impAfterTabFacts()">Next \u2192</button></div>';
   _impBody().innerHTML = html;
 }
+// v0.9.1510: "+ Add a maker…" swaps the dropdown for a text box in place.
+function _impTabMakerSel(sel, tabName) {
+  if (sel.value !== '__add') { _imp.tabMaker[tabName] = sel.value; return; }
+  var inp = document.createElement('input');
+  inp.className = 'imp-sel';
+  inp.placeholder = 'Maker name';
+  inp.style.maxWidth = '12rem';
+  inp.onchange = function () { _imp.tabMaker[tabName] = String(inp.value || '').trim(); };
+  inp.onblur = inp.onchange;
+  sel.parentNode.replaceChild(inp, sel);
+  inp.focus();
+}
+
 function _impAfterTabFacts() {
   _impBuildQuestions();
   _imp.step = _imp.questions.length ? 'interview' : 'grades';
