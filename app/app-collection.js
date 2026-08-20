@@ -1229,6 +1229,13 @@ function showItemDetailPage(idx, copyInvId, opts) {
     { label: 'Imported', val: pd && pd.importBatch ? '\u2705 Yes' : null },
     { label: 'Year Made', val: pd && pd.yearMade ? pd.yearMade : null },
     { label: 'Location', val: pd && pd.location ? pd.location : null },
+    // v0.9.1514 (Phase 2): every enabled user field, in one loop, from the
+    // single RR_USER_FIELDS definition. Blank values are dropped by the
+    // .filter(d => d.val) below, so a user who enables nothing sees nothing.
+    ...((typeof rrEnabledUserFields === 'function' ? rrEnabledUserFields() : []).map(function (f) {
+      return { label: (typeof rrFieldLabel === 'function' ? rrFieldLabel(f) : f.label),
+               val: (pd && pd[f.key]) ? String(pd[f.key]).replace(/</g, '&lt;') : null };
+    })),
     { label: 'Inventory ID', val: pd && pd.inventoryId ? pd.inventoryId : null },
     { label: 'Instruction Sheet', val: pd ? (((groupMembers && groupMembers.some(function(m){return m._isIS;})) || (state.isData && Object.values(state.isData).some(function(_is){ return _is && _is.linkedItem === it.itemNum; }))) ? '\u2705 Yes' : 'No') : null },
     { label: 'Error Item', val: pd ? ((pd.isError === 'Yes') ? '\u26a0\ufe0f Yes' + (pd.errorDesc ? ' \u2014 ' + String(pd.errorDesc).replace(/</g,'&lt;') : '') : 'No') : null },
@@ -3279,6 +3286,13 @@ function showItemPanel(idx, pdKey, mode) {
     ...((idx < 0 || pd.era === 'Manual') ? [{ label: 'Description', key: 'description', val: pd.description || '—', type: 'textarea' }] : []),
     { label: 'Notes',         key: 'notes',         val: pd.notes || '—',         type: 'textarea' },
     { label: 'Location',      key: 'location',      val: pd.location || '—',      type: 'text' },
+    // v0.9.1514 (Phase 2, Brad's parity rule): the SAME fields the detail
+    // page shows are editable here — driven by the same config, so the two
+    // can never drift apart.
+    ...((typeof rrEnabledUserFields === 'function' ? rrEnabledUserFields() : []).map(function (f) {
+      return { label: (typeof rrFieldLabel === 'function' ? rrFieldLabel(f) : f.label),
+               key: f.key, val: pd[f.key] || '—', type: 'text' };
+    })),
     // v0.9.1425 (Brad): "it doesn't give me a way to say what era its in".
     // Normally the year decides and this stays blank — set it only when the
     // year can't settle it (undated ephemera) or is a guess. Shown for every

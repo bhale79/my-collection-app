@@ -38,6 +38,21 @@
 // previous inline `_currentEra || 'pw'` could stamp the literal 'all'
 // onto rows when wizard.data._era hadn't been set, breaking era
 // filters and dashboard counts. This helper is the single guard.
+// v0.9.1514 (Phase 2, Session 81): whatever user fields are ENABLED ride
+// along on every collection save. ONE reader (RR_USER_FIELDS in config.js),
+// so the wizard cannot save a field the detail page will not show — that is
+// Brad's parity rule expressed as code rather than as discipline.
+function _rrUserFieldValues(d) {
+  var out = {};
+  try {
+    (typeof rrEnabledUserFields === 'function' ? rrEnabledUserFields() : []).forEach(function (f) {
+      var v = d && d[f.key];
+      if (v !== undefined && v !== null && String(v).trim() !== '') out[f.key] = String(v).trim();
+    });
+  } catch (e) {}
+  return out;
+}
+
 function _resolveSaveEra() {
   function _isReal(e) { return !!e && e !== 'all'; }
   try {
@@ -987,6 +1002,7 @@ async function _saveManualEntry() {
     isError: 'No',
     inventoryId: invId,
     location: location,
+    ..._rrUserFieldValues(d),
     era: 'Manual',
     gauge: (d.manualGauge || '').trim(),
     manufacturer: manufacturer,
@@ -1016,6 +1032,7 @@ async function _saveManualEntry() {
     quickEntry: false,
     inventoryId: invId, groupId: '',
     location,
+    ..._rrUserFieldValues(d),
     itemType: itemType, roadName: roadName, roadNumber: roadNumber, description: description, customName: customName,
     era: 'Manual', manufacturer,
   };
@@ -1315,6 +1332,7 @@ async function saveWizardItem() {
           inventoryId: boxInvId,
           groupId: boxGroupId,
           location: d.location || '',
+          ..._rrUserFieldValues(d),
           era: _resolveSaveEra(),
           manufacturer: _getEraManufacturer(),
         });
@@ -1353,6 +1371,7 @@ async function saveWizardItem() {
           matchedTo: itemNum,
           inventoryId: boxInvId, groupId: boxGroupId,
           location: d.location || '',
+          ..._rrUserFieldValues(d),
           era: _resolveSaveEra(), manufacturer: ((typeof _brandOfItem === 'function' && _brandOfItem(itemNum)) || _getEraManufacturer()),
         };
         _stampSaved(state.personalData[boxInvId]);
@@ -1411,6 +1430,7 @@ async function saveWizardItem() {
           errorDesc: d.isError === 'Yes' ? (d.errorDesc || '') : '',
           inventoryId: _engineInvId,
           location: d.location || '',
+          ..._rrUserFieldValues(d),
           era: _resolveSaveEra(),
           manufacturer: _getEraManufacturer(),
         });
@@ -1456,6 +1476,7 @@ async function saveWizardItem() {
       inventoryId: nextInventoryId(),
       groupId: groupId,
       location: d.location || '',
+      ..._rrUserFieldValues(d),
       era: _resolveSaveEra(),
       manufacturer: _getEraManufacturer(),
     });
@@ -1485,6 +1506,7 @@ async function saveWizardItem() {
         inventoryId: nextInventoryId(),
         groupId: groupId,
         location: d.location || '',
+        ..._rrUserFieldValues(d),
         era: _resolveSaveEra(),
         manufacturer: _getEraManufacturer(),
       });
@@ -1564,6 +1586,7 @@ async function saveWizardItem() {
         ? nextInventoryId() : String(parseInt(_engineInvId) + 1),
       groupId: groupId,
       location: d.location || '',
+      ..._rrUserFieldValues(d),
       era: _resolveSaveEra(),
       manufacturer: _getEraManufacturer(),
     });
@@ -2125,6 +2148,7 @@ async function saveWizardItem() {
           inventoryId: mbInvId,
           groupId: groupId,
           location: d.location || '',
+          ..._rrUserFieldValues(d),
           era: _resolveSaveEra(),
           manufacturer: _getEraManufacturer(),
         });
@@ -2344,6 +2368,7 @@ async function saveWizardItem() {
         datePurchased: d.datePurchased || '', purchasedFrom: d.purchasedFrom || '',
         inventoryId: _optInvId, groupId: groupId || '',
         location: d.location || '',
+        ..._rrUserFieldValues(d),
         era: _resolveSaveEra(), manufacturer: ((typeof _brandOfItem === 'function' && _brandOfItem(itemNum)) || _getEraManufacturer()),
       };
       _stampSaved(state.personalData[_optInvId]);

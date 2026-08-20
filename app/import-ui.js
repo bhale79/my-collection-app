@@ -373,7 +373,23 @@ var _IMP_FIELD_LABELS = {
   yearMade: 'Year Made', notes: 'Notes', roadName: 'Road Name', roadNumber: 'Road Number',
   hasBox: 'Has Box', datePurchased: 'Date Purchased', purchasedFrom: 'Purchased From',
   quantity: 'Quantity (copies)', ignore: '— not imported —',
+  // v0.9.1514 (Phase 2): Scott's Shipper / Collection / Owner columns finally
+  // have real homes. Custom slots show the user's own name once they name one.
+  locationDetail: 'Location Detail (Tote 12…)', shipper: 'Shipper (outer carton)',
+  subCollection: 'Sub-collection', custom1: 'Custom column 1', custom2: 'Custom column 2',
+  custom3: 'Custom column 3', custom4: 'Custom column 4', custom5: 'Custom column 5',
 };
+// Custom slots carry the user's own label when they have named one.
+function _impFieldLabel(f) {
+  try {
+    var def = (window.RR_USER_FIELDS || []).filter(function (x) { return x.key === f; })[0];
+    if (def && def.custom && typeof rrFieldLabel === 'function') {
+      var l = rrFieldLabel(def);
+      if (l && l !== def.label) return l + ' (your column)';
+    }
+  } catch (e) {}
+  return _IMP_FIELD_LABELS[f];
+}
 
 function _impStepMapping() {
   var html = '<div class="imp-h">Check the column matches.</div>' +
@@ -400,7 +416,7 @@ function _impStepMapping() {
           '<select class="imp-sel" onchange="_impSetMap(' + gi + ',\'' + _impEsc(n).replace(/'/g, '&#39;') + '\',this.value)">';
         Object.keys(_IMP_FIELD_LABELS).forEach(function (f) {
           if (f === 'ignore') return;
-          html += '<option value="' + f + '"' + (cur === f ? ' selected' : '') + '>' + _IMP_FIELD_LABELS[f] + '</option>';
+          html += '<option value="' + f + '"' + (cur === f ? ' selected' : '') + '>' + _impFieldLabel(f) + '</option>';
         });
         html += '</select></div>';
       });
@@ -964,6 +980,9 @@ async function _impWrite() {
         }
       }
       if (it.yearMade) fields.yearMade = it.yearMade;
+      // v0.9.1514 (Phase 2): user columns the mapping filled.
+      ['locationDetail', 'shipper', 'subCollection', 'custom1', 'custom2', 'custom3', 'custom4', 'custom5']
+        .forEach(function (k) { if (it[k]) fields[k] = String(it[k]).trim(); });
       if (String(it.hasBox || '').trim()) {
         fields.hasBox = /^(y|yes|true|x|1|✓)/i.test(String(it.hasBox).trim()) ? 'Yes' : String(it.hasBox);
       }
@@ -994,6 +1013,26 @@ async function _impWrite() {
     for (var f = 0; f < forSale.length; f += CHUNK) {
       await sheetsAppend(state.personalSheetId, 'For Sale!A:J', forSale.slice(f, f + CHUNK));
     }
+
+    // v0.9.1514: a column the import actually WROTE turns itself on, so the
+    // data is visible everywhere immediately (Brad's spec: "import auto-enables
+    // toggles it maps into"). Custom slots also take the sheet's own header as
+    // their name, so "Owner" is called Owner rather than "Custom column 1".
+    try {
+      var _usedKeys = {};
+      Object.keys(_imp.mappings).forEach(function (tab) {
+        var m = _imp.mappings[tab] || {};
+        Object.keys(m).forEach(function (hdr) { if (m[hdr]) _usedKeys[m[hdr]] = hdr; });
+      });
+      (window.RR_USER_FIELDS || []).forEach(function (f) {
+        if (!_usedKeys[f.key]) return;
+        localStorage.setItem(f.pref, 'true');
+        if (f.custom && !localStorage.getItem('lv_label_' + f.key)) {
+          var h = String(_usedKeys[f.key] || '').trim();
+          if (h) localStorage.setItem('lv_label_' + f.key, h.charAt(0).toUpperCase() + h.slice(1));
+        }
+      });
+    } catch (eEnable) {}
 
     // Batch record — undo + Phase 2 (stored answers) live here.
     try {

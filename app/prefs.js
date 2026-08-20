@@ -137,6 +137,12 @@ function buildPrefsPage() {
         <div class="pref-row-label"><strong>Storage Locations</strong><span>Set up your totes, shelves, rooms, etc. so you can tap one when adding items</span></div>
         <button class="pref-btn" onclick="_openLocationsModal()">Manage</button>
       </div>
+      <!-- v0.9.1514 (Phase 2, Session 81): extra columns. Off by default;
+           an import that maps into one switches it on automatically. -->
+      <div class="pref-row">
+        <div class="pref-row-label"><strong>Extra Columns</strong><span>Location Detail, Shipper, Sub-collection, and up to 5 columns you name yourself</span></div>
+        <button class="pref-btn" onclick="_openUserFieldsModal()">Manage</button>
+      </div>
       <div class="pref-row">
         <div class="pref-row-label"><strong>Items Per Page</strong><span>How many rows show per page when browsing. More per page means less clicking through pages, but very large lists may load a little slower.</span></div>
         <select class="pref-select" id="pref-page-size" onchange="_prefSet('lv_page_size', this.value); state.pageSize=parseInt(this.value); state.currentPage=1; if(document.getElementById('page-browse').classList.contains('active')) renderBrowse()">
@@ -859,6 +865,71 @@ function _togglePrefMfr(mfrId, on) {
   // Session 138: re-render so the Eras list filter updates
   buildPrefsPage();
   _restoreScroll();
+}
+
+// ── Extra Columns (v0.9.1514, Phase 2) ────────────────────────
+// One screen for every optional + custom column. Everything it writes is
+// read back by RR_USER_FIELDS helpers, so the detail page, the wizard's
+// details step and the edit panel all follow along with no extra wiring.
+function _openUserFieldsModal() {
+  var existing = document.getElementById('uf-modal-overlay');
+  if (existing) existing.remove();
+  var ov = document.createElement('div');
+  ov.id = 'uf-modal-overlay';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9600;display:flex;align-items:center;justify-content:center;padding:1rem';
+  var box = document.createElement('div');
+  box.style.cssText = 'background:var(--surface);border:1px solid var(--border);border-radius:14px;max-width:560px;width:100%;max-height:88vh;overflow:auto;padding:1.1rem';
+  var html = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem">' +
+    '<strong style="font-size:1.05rem;color:var(--text)">Extra Columns</strong>' +
+    '<button onclick="document.getElementById(\'uf-modal-overlay\').remove()" style="background:none;border:none;color:var(--text-dim);font-size:1.4rem;cursor:pointer;line-height:1">&times;</button></div>' +
+    '<div style="font-size:0.82rem;color:var(--text-dim);line-height:1.5;margin-bottom:0.9rem">' +
+    'Switch on only what you use. Anything you turn on appears when adding an item, on the item page, and in the edit screen \u2014 and can be filled in by a spreadsheet import. Turning one off hides it; nothing you have already written is deleted.</div>';
+  (window.RR_USER_FIELDS || []).forEach(function (f) {
+    var on = (typeof rrFieldEnabled === 'function') ? rrFieldEnabled(f) : false;
+    var lbl = (typeof rrFieldLabel === 'function') ? rrFieldLabel(f) : f.label;
+    var used = 0;
+    try { used = Object.values(state.personalData || {}).filter(function (p) { return p && p[f.key]; }).length; } catch (e) {}
+    html += '<div style="display:flex;align-items:center;gap:0.6rem;padding:0.55rem 0;border-bottom:1px solid var(--border)">' +
+      '<input type="checkbox" id="uf-on-' + f.key + '" ' + (on ? 'checked' : '') +
+        ' onchange="_ufToggle(\'' + f.key + '\',this.checked)" style="width:1.05rem;height:1.05rem;accent-color:var(--accent);cursor:pointer">' +
+      '<div style="flex:1">' +
+        (f.custom
+          ? '<input type="text" id="uf-lbl-' + f.key + '" value="' + String(lbl).replace(/"/g, '&quot;') + '" placeholder="Name this column (e.g. Owner)" ' +
+            'onchange="_ufRename(\'' + f.key + '\',this.value)" style="width:100%;max-width:15rem;background:var(--bg);border:1px solid var(--border);border-radius:7px;padding:0.35rem 0.5rem;color:var(--text);font-family:var(--font-body);font-size:0.86rem">'
+          : '<strong style="font-size:0.88rem;color:var(--text)">' + lbl + '</strong>') +
+        (f.hint ? '<div style="font-size:0.75rem;color:var(--text-dim);margin-top:0.15rem">' + f.hint + '</div>' : '') +
+      '</div>' +
+      (used ? '<span style="font-size:0.72rem;color:var(--text-dim);white-space:nowrap">' + used.toLocaleString() + ' items</span>' : '') +
+    '</div>';
+  });
+  html += '<button onclick="document.getElementById(\'uf-modal-overlay\').remove()" style="width:100%;margin-top:0.9rem;padding:0.6rem;border-radius:9px;border:none;background:var(--accent);color:var(--on-accent);font-family:var(--font-body);font-weight:700;font-size:0.92rem;cursor:pointer">Done</button>';
+  box.innerHTML = html;
+  ov.appendChild(box);
+  ov.addEventListener('click', function (e) { if (e.target === ov) ov.remove(); });
+  document.body.appendChild(ov);
+  if (window.BackStack && BackStack.wire) BackStack.wire(ov);
+}
+function _ufToggle(key, on) {
+  var f = (window.RR_USER_FIELDS || []).filter(function (x) { return x.key === key; })[0];
+  if (!f) return;
+  try { localStorage.setItem(f.pref, on ? 'true' : 'false'); } catch (e) {}
+  if (typeof showToast === 'function') showToast(on ? 'Column turned on' : 'Column hidden — nothing was deleted', 2500);
+}
+function _ufRename(key, val) {
+  var f = (window.RR_USER_FIELDS || []).filter(function (x) { return x.key === key; })[0];
+  if (!f || !f.custom) return;
+  var v = String(val || '').trim();
+  try {
+    if (v) { localStorage.setItem('lv_label_' + key, v); localStorage.setItem(f.pref, 'true'); }
+    else localStorage.removeItem('lv_label_' + key);
+  } catch (e) {}
+  var cb = document.getElementById('uf-on-' + key);
+  if (cb && v) cb.checked = true;
+}
+if (typeof window !== 'undefined') {
+  window._openUserFieldsModal = _openUserFieldsModal;
+  window._ufToggle = _ufToggle;
+  window._ufRename = _ufRename;
 }
 
 // ── Storage Locations (managed flat list) ─────────────────────

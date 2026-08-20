@@ -266,6 +266,10 @@ var RR_IMP_HEADER_SYNONYMS = [
   { field: 'datePurchased', re: /^(date\s*(purchased|bought|acquired)|purchased|acquired)$/ },
   { field: 'purchasedFrom', re: /^(purchased\s*from|bought\s*from|seller|source|dealer)$/ },
   { field: 'quantity',     re: /^(qty|quantity|count|copies|how\s*many)$/ },
+  // v0.9.1514 (Phase 2): the user columns are real mapping targets now.
+  { field: 'locationDetail', re: /^(location\s*detail|sub\s*location|tote|shelf|bin|spot)$/ },
+  { field: 'shipper',        re: /^(shipper|shipping\s*box|outer\s*box|carton)$/ },
+  { field: 'subCollection',  re: /^(sub[-\s]*collection|collection|series|grouping|set\s*name)$/ },
 ];
 
 // headers: raw header strings → { map: { headerNorm: field }, unmapped: [names] }
@@ -519,6 +523,8 @@ function rrImpBuildAiPayload(tabs, fillGroups, appFields) {
     }),
     appFields: appFields || [
       'itemNum', 'manufacturer', 'gauge', 'yourDesc', 'rawGrade', 'location',
+      'locationDetail', 'shipper', 'subCollection',
+      'custom1', 'custom2', 'custom3', 'custom4', 'custom5',
       'priceItem', 'userEstWorth', 'yearMade', 'notes', 'roadName',
       'roadNumber', 'hasBox', 'datePurchased', 'purchasedFrom', 'quantity', 'ignore',
     ],

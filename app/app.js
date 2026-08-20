@@ -102,6 +102,20 @@ const PERSONAL_SCHEMA = [
   { field: 'importBatch',          header: 'Import Batch' },
   { field: 'yourGrade',            header: 'Your Grade' },
   { field: 'yourDescription',      header: 'Your Description' },
+  // v0.9.1514 (Phase 2, Session 81) — user fields, appended at END. Defined
+  // once in RR_USER_FIELDS (config.js); this is only their storage.
+  // Location Detail: the spot INSIDE a location ("Storage Unit 206" → "Tote 12").
+  // Shipper: the outer shipping carton — NOT Has Box; both can be true.
+  // Sub-collection: the user's own groupings (6464, Disney, Monopoly).
+  // Custom 1-5: user-named columns (Brad: five, names are the user's).
+  { field: 'locationDetail',       header: 'Location Detail' },
+  { field: 'shipper',              header: 'Shipper' },
+  { field: 'subCollection',        header: 'Sub-collection' },
+  { field: 'custom1',              header: 'Custom 1' },
+  { field: 'custom2',              header: 'Custom 2' },
+  { field: 'custom3',              header: 'Custom 3' },
+  { field: 'custom4',              header: 'Custom 4' },
+  { field: 'custom5',              header: 'Custom 5' },
 ];
 const PERSONAL_HEADERS = PERSONAL_SCHEMA.map(s => s.header);
 const PERSONAL_FIELD_INDEX = {};

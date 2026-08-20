@@ -51,9 +51,13 @@ ok('heuristic: Condition -> rawGrade', hm.map['condition'] === 'rawGrade');
 ok('heuristic: Storage Location -> location', hm.map['storage location'] === 'location');
 ok('heuristic: Paid -> priceItem', hm.map['paid'] === 'priceItem');
 ok('heuristic: Value -> userEstWorth', hm.map['value'] === 'userEstWorth');
-ok('heuristic: Shipper/Owner/Collection stay unmapped (phase 2 columns)',
-   hm.unmapped.indexOf('shipper') >= 0 && hm.unmapped.indexOf('owner') >= 0 && hm.unmapped.indexOf('collection') >= 0,
-   JSON.stringify(hm.unmapped));
+// v0.9.1514 (Phase 2): Shipper and Collection now have real homes. Owner
+// stays unmapped until the user names a custom column for it — the import
+// offers the custom slots, it never claims one on its own.
+ok('heuristic: Shipper -> shipper (NOT hasBox)', hm.map['shipper'] === 'shipper');
+ok('heuristic: Collection -> subCollection', hm.map['collection'] === 'subCollection');
+ok('heuristic: Owner stays unmapped (user names a custom column for it)',
+   hm.unmapped.indexOf('owner') >= 0, JSON.stringify(hm.unmapped));
 
 // A 5-column simple sheet maps too (Scott is the ceiling, not the norm)
 const simple = core.rrImpHeuristicMap(['Number', 'Description', 'Condition', 'Paid', 'Notes']);
@@ -72,6 +76,13 @@ ok('grade collect: distinct + counted', grades.length === 2 && grades[0].grade =
 // Money cleanup
 ok('money: $1,234.50 -> 1234.5', core.rrImpCleanMoney('$1,234.50') === '1234.5');
 ok('money: junk -> blank', core.rrImpCleanMoney('n/a') === '');
+
+// v0.9.1514 (Phase 2) — the new user-column targets.
+const hmLoc = core.rrImpHeuristicMap(['Item #', 'Storage Location', 'Tote', 'Shipping Box', 'Series']);
+ok('locationDetail: "Tote" maps', hmLoc.map['tote'] === 'locationDetail');
+ok('shipper: "Shipping Box" maps', hmLoc.map['shipping box'] === 'shipper');
+ok('subCollection: "Series" maps', hmLoc.map['series'] === 'subCollection');
+ok('location still wins for "Storage Location"', hmLoc.map['storage location'] === 'location');
 
 // ── SUFFIX RULE (the one that must never regress) ───────────────
 const master = {

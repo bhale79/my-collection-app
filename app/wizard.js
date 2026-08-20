@@ -2540,6 +2540,17 @@ function renderWizardStep() {
             ' oninput="wizard.data.location=this.value" placeholder="e.g. Shelf 3, Tote 12"' +
             ' style="width:100%;padding:0.55rem 0.7rem;border-radius:8px;background:var(--bg);border:1px solid var(--border);color:var(--text);font-family:var(--font-body);font-size:0.88rem;box-sizing:border-box">' +
         '</div>' : '') +
+        // v0.9.1514 (Phase 2, Brad's parity rule): enabled user fields appear
+        // HERE too — same config, same labels, skippable, never blocking a save.
+        ((typeof rrEnabledUserFields === 'function' ? rrEnabledUserFields() : []).map(function (f) {
+          var _lbl = (typeof rrFieldLabel === 'function' ? rrFieldLabel(f) : f.label);
+          return '<div>' +
+            '<label style="font-size:0.82rem;color:var(--text-mid);display:block;margin-bottom:0.25rem">' + _lbl + '</label>' +
+            '<input type="text" value="' + String(d[f.key] || '').replace(/"/g, '&quot;') + '"' +
+              ' oninput="wizard.data[\'' + f.key + '\']=this.value" placeholder="' + (f.hint || '') + '"' +
+              ' style="width:100%;padding:0.55rem 0.7rem;border-radius:8px;background:var(--bg);border:1px solid var(--border);color:var(--text);font-family:var(--font-body);font-size:0.88rem;box-sizing:border-box">' +
+          '</div>';
+        }).join('')) +
       '</div>';
 
   } else if (s.type === 'choice') {
@@ -6268,6 +6279,8 @@ function renderWizardStep() {
       eph_material:'Material', eph_dimensions:'Dimensions',
       eph_lionelVerified:'Lionel Verified',
       location:'Storage Location',
+      locationDetail:'Location Detail', shipper:'Shipper', subCollection:'Sub-collection',
+      custom1:'Custom 1', custom2:'Custom 2', custom3:'Custom 3', custom4:'Custom 4', custom5:'Custom 5',
       manualManufacturer:'Manufacturer', manualItemNum:'Item Number', manualItemType:'Item Type',
       manualRoadName:'Road Name', manualRoadNumber:'Road Number', manualCustomName:'Name',
       manualDesc:'Description', manualYear:'Year Made', manualCondition:'Condition',

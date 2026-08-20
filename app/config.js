@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.1513';
+const APP_VERSION = 'v0.9.1514';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -837,6 +837,58 @@ var SEARCH_ALIASES = {};
 // Right-side-view placeholder image (base64 PNG) — used in wizard photo steps, dashboard, reports
 // ── Manual-entry pickers ── single source of truth for the manual-add
 // Manufacturer + Item Type steps (quick-pick chips + searchable dropdown).
+// ═══════════════════════════════════════════════════════════════
+// USER FIELDS (Phase 2, Session 81) — the ONE definition of every
+// optional and custom column. Brad's parity rule: "any custom column or
+// enabled optional column MUST appear in the add-item wizard details step
+// AND the detail-page edit flow — one flag wires all three surfaces."
+// Add a field HERE and it appears on the detail page, in the wizard's
+// details step, in the edit panel, in the import's column dropdown, and in
+// the Preferences manager. Nothing else to touch.
+//
+//   key      — PERSONAL_SCHEMA field name (column already exists at END)
+//   label    — default label; CUSTOM fields let the user rename it
+//   hint     — placeholder / help text
+//   pref     — localStorage flag that turns it on (optional fields only)
+//   custom   — true for the five user-named columns
+//   scopedTo — 'location' means its suggestions are filtered by that field
+// ═══════════════════════════════════════════════════════════════
+window.RR_USER_FIELDS = [
+  { key: 'locationDetail', label: 'Location Detail', hint: 'e.g. Tote 12, Shelf 3',
+    pref: 'lv_locdetail_enabled', scopedTo: 'location' },
+  { key: 'shipper', label: 'Shipper', hint: 'Outer shipping carton — not the item box',
+    pref: 'lv_shipper_enabled' },
+  { key: 'subCollection', label: 'Sub-collection', hint: 'e.g. 6464, Disney, Monopoly',
+    pref: 'lv_subcoll_enabled' },
+  { key: 'custom1', label: 'Custom 1', hint: '', pref: 'lv_custom1_enabled', custom: true },
+  { key: 'custom2', label: 'Custom 2', hint: '', pref: 'lv_custom2_enabled', custom: true },
+  { key: 'custom3', label: 'Custom 3', hint: '', pref: 'lv_custom3_enabled', custom: true },
+  { key: 'custom4', label: 'Custom 4', hint: '', pref: 'lv_custom4_enabled', custom: true },
+  { key: 'custom5', label: 'Custom 5', hint: '', pref: 'lv_custom5_enabled', custom: true },
+];
+// A user-named custom column's label lives in prefs; optional fields keep
+// their fixed label. ONE reader so every surface shows the same words.
+window.rrFieldLabel = function (f) {
+  try {
+    if (f.custom) {
+      var v = localStorage.getItem('lv_label_' + f.key);
+      if (v && v.trim()) return v.trim();
+    }
+  } catch (e) {}
+  return f.label;
+};
+// Enabled = the user switched it on, OR an import already put data in it.
+window.rrFieldEnabled = function (f) {
+  try {
+    if (localStorage.getItem(f.pref) === 'true') return true;
+    if (f.custom && localStorage.getItem('lv_label_' + f.key)) return true;
+  } catch (e) {}
+  return false;
+};
+window.rrEnabledUserFields = function () {
+  return (window.RR_USER_FIELDS || []).filter(window.rrFieldEnabled);
+};
+
 window.MANUAL_MANUFACTURERS = {
   common: ['Lionel', 'MTH', 'Atlas O', 'Williams', 'Weaver', 'K-Line', 'Marx', 'American Flyer', 'Menards', 'RMT', '3rd Rail', 'USA Trains', 'LGB'],  // v0.9.673: Menards chip (Brad) + RMT (has its own era/tab too)
   all: [
