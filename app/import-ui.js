@@ -105,7 +105,13 @@ function _impInjectCss() {
     '.imp-h{font-weight:700;margin:0.2rem 0 0.6rem;font-size:0.98rem}' +
     '.imp-prog{height:8px;background:var(--surface2,#2a2a30);border-radius:4px;overflow:hidden;margin:0.8rem 0}' +
     '.imp-prog>div{height:100%;background:var(--accent,#c33);width:0%;transition:width 0.2s}@keyframes imp-slide{0%{margin-left:-40%}100%{margin-left:100%}}.imp-prog.busy>div{width:40%!important;animation:imp-slide 1.2s linear infinite}' +
-    '.imp-money{width:6.5rem;background:var(--surface2,#26262e);color:var(--text,#eee);border:1px solid var(--border,#444);border-radius:6px;padding:0.25rem 0.4rem;font-size:0.85rem}';
+    '.imp-money{width:6.5rem;background:var(--surface2,#26262e);color:var(--text,#eee);border:1px solid var(--border,#444);border-radius:6px;padding:0.25rem 0.4rem;font-size:0.85rem}' +
+    // v0.9.1523: two-column mapping screen — rows left, definitions right.
+    '.imp-2col{display:flex;gap:1rem;align-items:flex-start}' +
+    '.imp-2col-main{flex:1;min-width:0}' +
+    '.imp-2col-aside{width:270px;flex-shrink:0;position:sticky;top:0;max-height:60vh;overflow:auto}' +
+    '#imp-panel.wide{width:min(1080px,96vw);max-width:1080px}' +
+    '@media (max-width:900px){.imp-2col{display:block}.imp-2col-aside{width:auto;position:static;max-height:none;margin-top:0.6rem}#imp-panel.wide{max-width:min(680px,96vw)}}';
   document.head.appendChild(s);
 }
 
@@ -117,6 +123,12 @@ function _impEsc(s) {
 
 function _impRender() {
   if (!_imp) return;
+  // The mapping step needs room for its definitions panel; every other step
+  // keeps the narrow dialog.
+  try {
+    var _pnl = document.getElementById('imp-panel');
+    if (_pnl) _pnl.classList[_imp.step === 'mapping' ? 'add' : 'remove']('wide');
+  } catch (e) {}
   var fn = {
     entry: _impStepEntry, consent: _impStepConsent, mapping: _impStepMapping,
     tabfacts: _impStepTabFacts,
@@ -425,18 +437,16 @@ function _impFieldLabel(f) {
 }
 
 function _impStepMapping() {
+  // v0.9.1523 (Brad): the definitions live in their own panel to the RIGHT
+  // of the mapping rows — inline help made every row a different height and
+  // pushed the dropdowns out of line.
   var html = '<div class="imp-h">Check the column matches.</div>' +
     '<div class="imp-muted" style="margin-bottom:0.6rem">' +
     'The import program guessed these — fix anything that looks wrong.' +
     ' Tabs with the same layout are set together.' +
-    ' Got a column we don’t have? Choose <strong>“➕ Keep as its own column”</strong> and we’ll make one, named after your heading.' +
-    ' <a href="#" onclick="event.preventDefault();_impToggleGlossary()" style="color:var(--accent2,#d4a843)">What do these mean?</a></div>' +
-    '<div id="imp-glossary" style="display:' + (_imp.showGlossary ? 'block' : 'none') + '">' +
-      '<div class="imp-card"><div style="font-weight:600;margin-bottom:0.3rem;font-size:0.86rem">Where things can go</div>' +
-      Object.keys(_IMP_FIELD_HELP).filter(function (k) { return k !== 'ignore' && !/^custom[2-5]$/.test(k); }).map(function (k) {
-        return '<div style="margin:0.22rem 0;font-size:0.78rem"><strong>' + _impEsc(_impFieldLabel(k) || k) +
-          '</strong> <span class="imp-muted">— ' + _impEsc(_IMP_FIELD_HELP[k]) + '</span></div>';
-      }).join('') + '</div></div>';
+    ' Got a column we don’t have? Choose <strong>“➕ Keep as its own column”</strong> and we’ll make one, named after your heading.</div>' +
+    '<div class="imp-2col">' +
+    '<div class="imp-2col-main">';
   _imp.groups.forEach(function (g, gi) {
     var rep = g.tabs[0];
     var names = g.tabs.map(function (t) { return t.name; });
@@ -494,11 +504,6 @@ function _impStepMapping() {
             _impEsc(_curName).replace(/"/g, '&quot;') + '" title="Name this column" ' +
             'onchange="_impRenameCustom(\'' + cur + '\',this.value)">';
         }
-        var _help = _IMP_FIELD_HELP[cur];
-        if (_help) {
-          html += '<div class="imp-muted" style="flex-basis:100%;font-size:0.72rem;margin:0.1rem 0 0.25rem;padding-left:0.1rem">' +
-            _impEsc(_help) + '</div>';
-        }
         html += '</div>';
       });
     });
@@ -506,9 +511,26 @@ function _impStepMapping() {
       (names.every(function (n) { return _imp.skipTabs[n]; }) ? 'checked' : '') +
       ' onchange="_impSetSkip(' + gi + ',this.checked)"> Skip these tabs entirely</label></div>';
   });
+  html += '</div>' +   // /imp-2col-main
+    '<aside class="imp-2col-aside"><div class="imp-card" style="margin:0">' +
+      '<div style="font-weight:600;margin-bottom:0.4rem;font-size:0.86rem">What these mean</div>' +
+      Object.keys(_IMP_FIELD_HELP).filter(function (k) { return k !== 'ignore' && !/^custom[2-5]$/.test(k); }).map(function (k) {
+        return '<div id="imp-help-' + k + '" style="margin:0.3rem 0;padding:0.25rem 0.35rem;border-radius:6px;font-size:0.76rem;line-height:1.45">' +
+          '<strong>' + _impEsc(_impFieldLabel(k) || k) + '</strong><br>' +
+          '<span class="imp-muted">' + _impEsc(_IMP_FIELD_HELP[k]) + '</span></div>';
+      }).join('') +
+    '</div></aside>' +
+    '</div>';   // /imp-2col
   html += '<div class="imp-foot"><button class="imp-btn" onclick="_imp.step=\'consent\';_impRender()">← Back</button>' +
     '<button class="imp-btn primary" id="imp-map-next" onclick="_impMappingNext()">Looks right →</button></div>';
   _impBody().innerHTML = html;
+  // Touching a dropdown highlights the matching definition in the panel.
+  Array.prototype.forEach.call(_impBody().querySelectorAll('.imp-2col-main select'), function (sel) {
+    var mark = function () { _impHighlightHelp(sel.value); };
+    sel.addEventListener('focus', mark);
+    sel.addEventListener('change', mark);
+    sel.addEventListener('mouseenter', mark);
+  });
 }
 
 // v0.9.1515 helpers: which custom slots exist / are already named.
@@ -547,6 +569,20 @@ function _impFreeCustomSlot() {
 }
 
 // v0.9.1520: show/hide the plain-English glossary on the mapping screen.
+// v0.9.1523: highlight one definition in the side panel.
+function _impHighlightHelp(key) {
+  try {
+    Array.prototype.forEach.call(document.querySelectorAll('[id^="imp-help-"]'), function (el) {
+      el.style.background = ''; el.style.outline = '';
+    });
+    var el = document.getElementById('imp-help-' + key);
+    if (el) {
+      el.style.background = 'color-mix(in srgb, var(--accent,#c33) 14%, transparent)';
+      el.scrollIntoView({ block: 'nearest' });
+    }
+  } catch (e) {}
+}
+
 function _impToggleGlossary() {
   _imp.showGlossary = !_imp.showGlossary;
   _impRender();
