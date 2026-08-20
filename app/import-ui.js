@@ -380,6 +380,37 @@ var _IMP_FIELD_LABELS = {
   subCollection: 'Sub-collection', custom1: 'Custom column 1', custom2: 'Custom column 2',
   custom3: 'Custom column 3', custom4: 'Custom column 4', custom5: 'Custom column 5',
 };
+// What each destination column actually means, in plain English. Shown
+// under the dropdown for whatever is selected, and in the "What do these
+// mean?" panel. Brad, testing live: "I had no idea."
+var _IMP_FIELD_HELP = {
+  itemNum: 'The manufacturer’s catalogue number — 6464-25, 30-4021. Not the number painted on the model.',
+  manufacturer: 'Who made it: Lionel, MTH, K-Line, Micro-Trains…',
+  gauge: 'The size: O, O-27, HO, N, S, Standard.',
+  yourDesc: 'Your own words for the item. Kept exactly as you wrote them, and searchable.',
+  rawGrade: 'Your condition/grade written your way (C9/P8, Ex, Mint). Kept as-is; we add our 1–10 beside it.',
+  location: 'The big place it lives: Basement, Storage Unit 206, Room 107.',
+  locationDetail: 'The spot inside that place: Tote 12, Rack 1 Shelf 3. Splitting them lets you ask “what’s in Tote 12?”',
+  shipper: 'The outer carton you’d ship it in — NOT the item’s own box. You can have both.',
+  subCollection: 'Your own grouping within the collection: 6464 series, Disney, Christmas, Madison Hardware.',
+  priceItem: 'What YOU paid for it.',
+  userEstWorth: 'What you think it’s worth now.',
+  yearMade: 'The year the item was made. (Not the year of the real thing it models.)',
+  notes: 'Anything else you want to remember about this piece.',
+  roadName: 'The railroad it’s lettered for: Santa Fe, Pennsylvania, Great Northern.',
+  roadNumber: 'The number painted on the model — the cab or car number.',
+  hasBox: 'Whether you have its original box (Yes/No).',
+  datePurchased: 'When you bought it.',
+  purchasedFrom: 'Who you bought it from — a shop, a show, a person.',
+  quantity: 'How many copies this row stands for.',
+  custom1: 'A column of your own — named after your heading.',
+  custom2: 'A column of your own — named after your heading.',
+  custom3: 'A column of your own — named after your heading.',
+  custom4: 'A column of your own — named after your heading.',
+  custom5: 'A column of your own — named after your heading.',
+  ignore: 'Skip this column — nothing from it is saved.',
+};
+
 // Custom slots carry the user's own label when they have named one.
 function _impFieldLabel(f) {
   try {
@@ -397,10 +428,24 @@ function _impStepMapping() {
     '<div class="imp-muted" style="margin-bottom:0.6rem">' +
     'The import program guessed these — fix anything that looks wrong.' +
     ' Tabs with the same layout are set together.' +
-    ' Got a column we don’t have? Choose <strong>“➕ Keep as its own column”</strong> and we’ll make one, named after your heading.</div>';
+    ' Got a column we don’t have? Choose <strong>“➕ Keep as its own column”</strong> and we’ll make one, named after your heading.' +
+    ' <a href="#" onclick="event.preventDefault();_impToggleGlossary()" style="color:var(--accent2,#d4a843)">What do these mean?</a></div>' +
+    '<div id="imp-glossary" style="display:' + (_imp.showGlossary ? 'block' : 'none') + '">' +
+      '<div class="imp-card"><div style="font-weight:600;margin-bottom:0.3rem;font-size:0.86rem">Where things can go</div>' +
+      Object.keys(_IMP_FIELD_HELP).filter(function (k) { return k !== 'ignore' && !/^custom[2-5]$/.test(k); }).map(function (k) {
+        return '<div style="margin:0.22rem 0;font-size:0.78rem"><strong>' + _impEsc(_impFieldLabel(k) || k) +
+          '</strong> <span class="imp-muted">— ' + _impEsc(_IMP_FIELD_HELP[k]) + '</span></div>';
+      }).join('') + '</div></div>';
   _imp.groups.forEach(function (g, gi) {
     var rep = g.tabs[0];
     var names = g.tabs.map(function (t) { return t.name; });
+    // v0.9.1520 (Brad: "can put the same custom column on two different
+    // headers"): de-collide on EVERY render, not just on the AI's first
+    // answer. First header to claim a field keeps it; later ones fall back
+    // to unmapped, visibly, so the user can place them somewhere real.
+    g.tabs.forEach(function (t) {
+      _imp.mappings[t.name] = _impSanitizeMapping(_imp.mappings[t.name] || {});
+    });
     var repMap = _imp.mappings[rep.name] || {};
     html += '<div class="imp-card"><div style="font-weight:600;font-size:0.86rem;margin-bottom:0.3rem">' +
       _impEsc(names.length > 3 ? names.slice(0, 3).join(', ') + ' +' + (names.length - 3) + ' more' : names.join(', ')) +
@@ -447,6 +492,11 @@ function _impStepMapping() {
           html += '<input class="imp-sel" style="max-width:9rem;margin-left:0.35rem" value="' +
             _impEsc(_curName).replace(/"/g, '&quot;') + '" title="Name this column" ' +
             'onchange="_impRenameCustom(\'' + cur + '\',this.value)">';
+        }
+        var _help = _IMP_FIELD_HELP[cur];
+        if (_help) {
+          html += '<div class="imp-muted" style="flex-basis:100%;font-size:0.72rem;margin:0.1rem 0 0.25rem;padding-left:0.1rem">' +
+            _impEsc(_help) + '</div>';
         }
         html += '</div>';
       });
@@ -495,6 +545,12 @@ function _impFreeCustomSlot() {
   return '';
 }
 
+// v0.9.1520: show/hide the plain-English glossary on the mapping screen.
+function _impToggleGlossary() {
+  _imp.showGlossary = !_imp.showGlossary;
+  _impRender();
+}
+
 function _impSetMap(gi, headerNorm, field, sel) {
   // v0.9.1515: "Keep as its own column" — take the next free slot, name it
   // after the sheet's own header, switch it on, and re-render so the row now
@@ -529,7 +585,9 @@ function _impSetMap(gi, headerNorm, field, sel) {
     var m = _imp.mappings[t.name] = _imp.mappings[t.name] || {};
     if (field === '') delete m[headerNorm];
     else {
-      // One column per field within a tab: clear an older claim.
+      // One column per field within a tab: clear an older claim. (v0.9.1520:
+      // this already worked for the header being changed — the render-time
+      // sanitize above is what stops two rows arriving doubled up.)
       Object.keys(m).forEach(function (k) { if (m[k] === field && k !== headerNorm) delete m[k]; });
       m[headerNorm] = field;
     }
@@ -541,6 +599,23 @@ function _impSetSkip(gi, on) {
 
 function _impMappingNext() {
   var live = _imp.tabs.filter(function (t) { return !_imp.skipTabs[t.name]; });
+  // v0.9.1520: last line of defence — never leave this screen with two
+  // headers pointing at one column (the second would silently vanish).
+  var dupe = '';
+  live.forEach(function (t) {
+    var m = _imp.mappings[t.name] || {}, seen = {};
+    Object.keys(m).forEach(function (h) {
+      var f = m[h];
+      if (!f || f === 'ignore') return;
+      if (seen[f]) dupe = dupe || (_impFieldLabel(f) || f);
+      seen[f] = 1;
+    });
+  });
+  if (dupe) {
+    showToast('Two columns are both set to “' + dupe + '” — pick a different one for the second', 4500, true);
+    _impRender();
+    return;
+  }
   var anyItemNum = live.some(function (t) {
     var m = _imp.mappings[t.name] || {};
     return Object.keys(m).some(function (k) { return m[k] === 'itemNum'; });
