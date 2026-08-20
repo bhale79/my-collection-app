@@ -47,6 +47,7 @@ function rrImportOpen() {
     skipTabs: {},          // tabName → true
     aiUsed: false, aiAnswers: {}, questions: [], answers: {},
     tabMaker: {},          // tabName → confirmed maker ('' = per-row / unknown)
+    tabYearMeans: {},      // tabName → true when a year in the description IS the item's year
     tabType: {},           // tabName → confirmed item type for non-train tabs
     skippedSummary: 0,     // "Total:" rows dropped (v1509)
     fillMeaning: '',       // for sale | sold | repair | formatting | other
@@ -549,12 +550,28 @@ function _impTabNeedsMaker(t) {
   (t.rows || []).forEach(function (r) { if (!rrImpNormCell((r.cells || [])[col])) blank++; });
   return blank > 0;
 }
+// v0.9.1516: how many rows on this tab have a year inside their description.
+function _impTabYearRows(t) {
+  var m = _imp.mappings[t.name] || {};
+  var descHeader = Object.keys(m).filter(function (h) { return m[h] === 'yourDesc'; })[0];
+  if (!descHeader) return 0;
+  var col = -1;
+  (t.headers || []).forEach(function (h, i) { if (rrImpNormHeader(h) === descHeader) col = i; });
+  if (col < 0) return 0;
+  var n = 0;
+  (t.rows || []).forEach(function (r) {
+    if (rrImpYearFromText(rrImpNormCell((r.cells || [])[col]))) n++;
+  });
+  return n;
+}
+
 function _impStepTabFacts() {
   var live = _imp.tabs.filter(function (t) { return !_imp.skipTabs[t.name]; });
   var makers = _impKnownMakers();
   var rows = live.map(function (t) {
-    return { tab: t, needsMaker: _impTabNeedsMaker(t), guess: rrImpMakerFromTab(t.name, makers) };
-  }).filter(function (r) { return r.needsMaker || (_imp.tabClass[r.tab.name] || 'trains') !== 'trains'; });
+    return { tab: t, needsMaker: _impTabNeedsMaker(t), guess: rrImpMakerFromTab(t.name, makers),
+             yearRows: _impTabYearRows(t) };
+  }).filter(function (r) { return r.needsMaker || r.yearRows >= 5 || (_imp.tabClass[r.tab.name] || 'trains') !== 'trains'; });
   if (!rows.length) { _impAfterTabFacts(); return; }
   var html = '<div class="imp-h">A couple of questions about your tabs.</div>' +
     '<div class="imp-muted" style="margin-bottom:0.6rem">Your answers fill in blanks only — anything already written on a row is never changed.</div>';
@@ -578,6 +595,23 @@ function _impStepTabFacts() {
       html += '<option value="__add">+ Add a maker…</option>' +
         '</select></div>';
       if (r.guess) _imp.tabMaker[name] = r.guess;
+    }
+    // v0.9.1516 (Brad: "you put year 1955 on this and its a modern item of a
+    // 1955 model car"). A year in a DIE-CAST description is the year of the
+    // real vehicle, not when the model was made — so we ask instead of
+    // assuming. Trains default YES (a year in a train description is nearly
+    // always the product's year); everything else defaults NO.
+    if (r.yearRows >= 5) {
+      var defYear = (cls === 'trains');
+      if (_imp.tabYearMeans[name] === undefined) _imp.tabYearMeans[name] = defYear;
+      html += '<div class="imp-row"><div style="flex:1">' + r.yearRows.toLocaleString() +
+        ' descriptions here contain a year — does it say when the item was <em>made</em>?' +
+        '<div class="imp-muted" style="margin-top:0.15rem;font-size:0.75rem">' +
+        'Say no if it describes the subject (a 1955 car modelled in 2016).</div></div>' +
+        '<select class="imp-sel" onchange="_imp.tabYearMeans[' + JSON.stringify(name).replace(/"/g, '&quot;') + ']=(this.value===\'yes\')">' +
+        '<option value="yes"' + (defYear ? ' selected' : '') + '>Yes — that\u2019s the item\u2019s year</option>' +
+        '<option value="no"' + (defYear ? '' : ' selected') + '>No — leave Year blank</option>' +
+        '</select></div>';
     }
     if (cls !== 'trains') {
       var def = _imp.tabType[name] || name;
@@ -742,7 +776,8 @@ function _impStage() {
       // v0.9.1509 (Brad: "the date is in the title"): a single plausible year
       // in their description becomes Year Made when no Year column exists —
       // 395 of Scott's items get an era from this one rule.
-      if (!it.yearMade) {
+      // v0.9.1516: only when the user said this tab's years mean "made in".
+      if (!it.yearMade && _imp.tabYearMeans[t.name]) {
         var _y = rrImpYearFromText(it.yourDesc);
         if (_y) it.yearMade = _y;
       }
