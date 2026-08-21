@@ -51,6 +51,8 @@ function rrImportOpen() {
     tabSubType: {},
     autoResolved: null,  // v0.9.1533: {byDescription, byVariation}
     eraSettled: null,    // v0.9.1533: {postwar, prewar, asked} from the era check
+    nearMissPicks: {},   // v0.9.1538: number → 'mine' | 'c<index>'
+    nearMissResolved: null,
     ambigPicks: {},      // v0.9.1531: groupKey → 'mine' | 'c<index>'
     ambigResolved: null,
     yearsByTab: {},      // v0.9.1530: tab → years filled from descriptions
@@ -148,7 +150,7 @@ function _impRender() {
     entry: _impStepEntry, consent: _impStepConsent, mapping: _impStepMapping,
     tabfacts: _impStepTabFacts, catalog: _impStepCatalog,
     interview: _impStepInterview, grades: _impStepGrades, triage: _impStepTriage,
-    prices: _impStepPrices, eracheck: _impStepEraCheck, ambig: _impStepAmbig, preview: _impStepPreview, writing: _impStepWriting,
+    prices: _impStepPrices, eracheck: _impStepEraCheck, ambig: _impStepAmbig, nearmiss: _impStepNearMiss, preview: _impStepPreview, writing: _impStepWriting,
     done: _impStepDone,
   }[_imp.step];
   if (fn) fn();
@@ -1441,9 +1443,10 @@ function _impStepTriage() {
       '<span class="imp-muted">(Custom runs, non-train items, or typos — you can fix any of them later.)</span>';
     var dym = t.unmatched.filter(function (u) { return u.didYouMean && u.didYouMean.length; });
     if (dym.length) {
+      // v0.9.1538: the picker this used to promise now exists.
       html += '<div class="imp-muted" style="margin-top:0.3rem">' + dym.length +
         ' of them are close to a catalog number (like ' + _impEsc(dym[0].item.itemNum) +
-        ') — we’ll keep YOUR number; a fix-up picker comes in the next update.</div>';
+        ') — you can link those on a screen coming up, or keep your own number.</div>';
     }
     html += '</div>';
   }
@@ -1586,8 +1589,8 @@ function _impApplyEraCheck() {
   _impAfterEraCheck();
 }
 function _impAfterEraCheck() {
-  _imp.step = (_imp.triage.ambiguous || []).length ? 'ambig' : 'preview';
-  _impRender();
+  if ((_imp.triage.ambiguous || []).length) { _imp.step = 'ambig'; _impRender(); return; }
+  _impAfterAmbig();
 }
 
 // ── Step: which one is it? (the ambiguous picker) ───────────────
@@ -1736,6 +1739,99 @@ function _impApplyAmbig() {
   });
   _imp.ambigResolved = { picked: picked, kept: kept };
   _imp.triage.ambiguous = [];
+  _impAfterAmbig();
+}
+function _impAfterAmbig() {
+  _imp.step = _impNearMissGroups().length ? 'nearmiss' : 'preview';
+  _impRender();
+}
+
+// ── Step: nearly a catalog number ───────────────────────────────
+// v0.9.1538. These are rows whose number is not in the catalog, but a
+// SPELLING of it is — "1666 T" for 1666T, "0936-1" for 0936. The triage
+// screen has promised this picker for several versions.
+//
+// The standing suffix rule decides the default: THEIR number wins. 0936-1 and
+// 0936-2 are real, different items and must never be silently collapsed into
+// 0936. So nothing here is auto-applied; each row is an offer, and doing
+// nothing keeps their number exactly as typed.
+function _impNearMissGroups() {
+  var byNum = {}, out = [];
+  (_imp.triage.unmatched || []).forEach(function (u) {
+    if (!u.didYouMean || !u.didYouMean.length) return;
+    var num = rrImpNormCell(u.item.itemNum);
+    if (!num) return;
+    if (!byNum[num]) { byNum[num] = { num: num, items: [], candidates: [] }; out.push(byNum[num]); }
+    byNum[num].items.push(u);
+    u.didYouMean.forEach(function (c) {
+      if (byNum[num].candidates.indexOf(c) < 0) byNum[num].candidates.push(c);
+    });
+  });
+  return out;
+}
+function _impNearMissPick(num, val) { _imp.nearMissPicks[num] = val; }
+function _impNearMissKeepAll() {
+  _impNearMissGroups().forEach(function (g) { _imp.nearMissPicks[g.num] = 'mine'; });
+  _impRender();
+}
+function _impStepNearMiss() {
+  var groups = _impNearMissGroups();
+  if (!groups.length) { _imp.step = 'preview'; _impRender(); return; }
+  var html = '<div class="imp-h">' + groups.length.toLocaleString() +
+    (groups.length === 1 ? ' number is' : ' numbers are') + ' nearly a catalog number.</div>' +
+    '<div class="imp-muted" style="margin-bottom:0.5rem">Usually a space or a dash \u2014 \u201C1666 T\u201D is ' +
+    'Lionel\u2019s 1666T. <strong>Your number is kept unless you say otherwise</strong>, because endings often mean ' +
+    'something real: 0936-1 and 0936-2 are two different cars, not one car spelled twice.</div>' +
+    '<div class="imp-row" style="margin-bottom:0.5rem"><button class="imp-btn" style="padding:0.25rem 0.6rem;font-size:0.78rem" ' +
+    'onclick="_impNearMissKeepAll()">Keep all my numbers</button></div>' +
+    '<div class="imp-card" style="max-height:24rem;overflow:auto">';
+  groups.forEach(function (g) {
+    var mine = g.items[0].item;
+    var pick = _imp.nearMissPicks[g.num] || 'mine';
+    var nm = 'nm-' + g.num.replace(/[^A-Za-z0-9]/g, '');
+    html += '<div style="padding:0.45rem 0;border-bottom:1px solid var(--border,#444)">' +
+      '<div style="font-weight:600;font-size:0.85rem">' + _impEsc(g.num) +
+      (g.items.length > 1 ? ' <span class="imp-muted">\u00d7' + g.items.length + ' rows</span>' : '') + '</div>' +
+      '<div class="imp-muted" style="font-size:0.76rem;margin-bottom:0.25rem">Your row: ' +
+      _impEsc(String(mine.yourDesc || mine.description || '').slice(0, 90)) + '</div>';
+    g.candidates.forEach(function (c, i) {
+      var id = nm + '-' + i;
+      html += '<label for="' + id + '" style="display:flex;gap:0.45rem;align-items:flex-start;cursor:pointer;padding:0.15rem 0">' +
+        '<input type="radio" id="' + id + '" name="' + nm + '"' + (pick === ('c' + i) ? ' checked' : '') +
+        ' onchange="_impNearMissPick(' + JSON.stringify(g.num).replace(/"/g, '&quot;') + ',\'c' + i + '\')" style="margin-top:0.2rem">' +
+        '<span style="flex:1;font-size:0.78rem">Use <strong>' + _impEsc(c.itemNum || '') + '</strong> ' +
+        '<span class="imp-muted">' + _impEsc(_impEraLabel(c._era)) + ' \u00b7 ' + _impEsc(_impCandLine(c)) + '</span></span></label>';
+    });
+    var mid = nm + '-mine';
+    html += '<label for="' + mid + '" style="display:flex;gap:0.45rem;align-items:flex-start;cursor:pointer;padding:0.15rem 0">' +
+      '<input type="radio" id="' + mid + '" name="' + nm + '"' + (pick === 'mine' ? ' checked' : '') +
+      ' onchange="_impNearMissPick(' + JSON.stringify(g.num).replace(/"/g, '&quot;') + ',\'mine\')" style="margin-top:0.2rem">' +
+      '<span style="flex:1;font-size:0.78rem">Keep <strong>' + _impEsc(g.num) + '</strong> ' +
+      '<span class="imp-muted">as my own entry</span></span></label></div>';
+  });
+  html += '</div>' +
+    '<div class="imp-foot"><button class="imp-btn" onclick="_imp.step=\'triage\';_impRender()">\u2190 Back</button>' +
+    '<button class="imp-btn primary" onclick="_impApplyNearMiss()">Next \u2192</button></div>';
+  _impBody().innerHTML = html;
+}
+function _impApplyNearMiss() {
+  var groups = _impNearMissGroups();
+  var fixed = 0, kept = 0;
+  groups.forEach(function (g) {
+    var pick = _imp.nearMissPicks[g.num] || 'mine';
+    if (pick === 'mine') { kept += g.items.length; return; }
+    var cand = g.candidates[parseInt(String(pick).slice(1), 10)];
+    if (!cand) { kept += g.items.length; return; }
+    g.items.forEach(function (u) {
+      // Out of unmatched, into matched — carrying the CATALOG number, which
+      // is what makes photos, grouping and links work.
+      var idx = _imp.triage.unmatched.indexOf(u);
+      if (idx >= 0) _imp.triage.unmatched.splice(idx, 1);
+      _imp.triage.matched.push({ item: u.item, master: cand, matchedVia: 'near-miss', catalogNum: cand.itemNum || '' });
+      fixed++;
+    });
+  });
+  _imp.nearMissResolved = { fixed: fixed, kept: kept };
   _imp.step = 'preview';
   _impRender();
 }
@@ -1992,6 +2088,9 @@ function _impStepDone() {
     '<div class="imp-h">✓ Imported ' + _imp.written.toLocaleString() + ' items.</div>' +
     (_imp.writtenForSale ? '<div class="imp-card"><span class="imp-badge sale">FOR SALE</span> ' + _imp.writtenForSale.toLocaleString() +
       ' of them are on your For Sale list' + (_imp.priceWhen === 'later' ? ' waiting for asking prices' : '') + '.</div>' : '') +
+    (_imp.nearMissResolved && _imp.nearMissResolved.fixed
+      ? '<div class="imp-muted">' + _imp.nearMissResolved.fixed.toLocaleString() +
+        ' items were linked to a catalog number you confirmed.</div>' : '') +
     (_imp.ambigResolved && (_imp.ambigResolved.picked || _imp.ambigResolved.kept)
       ? '<div class="imp-muted">Of the items whose number exists in more than one era, ' +
         _imp.ambigResolved.picked.toLocaleString() + ' took the catalog entry you picked and ' +

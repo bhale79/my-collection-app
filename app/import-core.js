@@ -527,6 +527,39 @@ function rrImpBaseVariationIndex(candidates) {
   return -1;
 }
 
+// ── Other ways people write the same number ─────────────────────
+// v0.9.1538. The triage screen has been promising a "fix-up picker" for rows
+// that are close to a catalogue number — Brad's example was "1666 T", which
+// is Lionel's 1666T with a space in it. Until now the only near-miss we
+// looked for was the SUFFIX BASE (0936-1 → 0936), so a spacing or punctuation
+// difference found nothing at all.
+//
+// These are SPELLINGS of the same number, not different numbers: spaces,
+// dashes and letter case. Nothing here changes what the number MEANS, and
+// per the standing suffix rule none of it is ever applied automatically —
+// every hit is an offer the user accepts or declines.
+function rrImpNumberVariants(num) {
+  var n = rrImpNormCell(num);
+  if (!n) return [];
+  var out = {}, add = function (v) {
+    v = String(v || '').trim();
+    if (v && v !== n) out[v] = 1;
+  };
+  var squashed = n.replace(/\s+/g, '');
+  add(squashed);                          // "1666 T" → "1666T"
+  add(n.replace(/\s+/g, '-'));            // "1666 T" → "1666-T"
+  add(squashed.replace(/-/g, ''));        // "6-8912" → "68912"
+  add(squashed.toUpperCase());
+  // a trailing letter joined to / split from the digits
+  var m = /^([0-9]+)[\s-]*([A-Za-z]{1,2})$/.exec(n);
+  if (m) { add(m[1] + m[2].toUpperCase()); add(m[1] + '-' + m[2].toUpperCase()); add(m[1]); }
+  // a number written with leading zeros, or without them
+  var digits = /^0+([0-9].*)$/.exec(squashed);
+  if (digits) add(digits[1]);
+  if (/^[0-9]/.test(squashed)) add('0' + squashed);
+  return Object.keys(out);
+}
+
 // ── Money / number cleanup ──────────────────────────────────────
 function rrImpCleanMoney(v) {
   var s = rrImpNormCell(v).replace(/[$,\s]/g, '');
@@ -715,6 +748,22 @@ function rrImpTriage(items, lookups) {
         var base = lookups.baseOf(num);
         if (base && base !== num) dym = lookups.candidatesFor(base, hints) || [];
       }
+      // v0.9.1538: also try the other ways the SAME number gets written —
+      // "1666 T" for 1666T. Offers only; the user's number still wins unless
+      // they say otherwise, and the catalogue number they accept is recorded
+      // so the item links up properly.
+      if (lookups && lookups.candidatesFor) {
+        var seen = {};
+        dym.forEach(function (m) { seen[rrImpNormCell(m.itemNum) + '|' + (m._era || '')] = 1; });
+        rrImpNumberVariants(num).forEach(function (v) {
+          if (dym.length >= 4) return;
+          (lookups.candidatesFor(v, hints) || []).forEach(function (m) {
+            var k = rrImpNormCell(m.itemNum) + '|' + (m._era || '');
+            if (seen[k] || dym.length >= 4) return;
+            seen[k] = 1; dym.push(m);
+          });
+        });
+      }
       res.unmatched.push({ item: it, didYouMean: dym });
     }
   });
@@ -873,6 +922,7 @@ var RR_IMPORT_CORE = {
   rrImpCopyCounterEvidence: rrImpCopyCounterEvidence,
   rrImpBuildAiPayload: rrImpBuildAiPayload,
   rrImpValidateAiAnswer: rrImpValidateAiAnswer,
+  rrImpNumberVariants: rrImpNumberVariants,
   rrImpScoreCandidate: rrImpScoreCandidate,
   rrImpPickByDescription: rrImpPickByDescription,
   rrImpOnlyVariationDiffers: rrImpOnlyVariationDiffers,

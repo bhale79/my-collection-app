@@ -271,6 +271,47 @@ ok('675 stays for the prewar/postwar verify (two vintage candidates)',
 // v0.9.1537: Preferences listed only the most recent import, so an earlier
 // batch could not be removed from the UI at all. Brad hit this with two
 // 3,370-row imports of the same sheet.
+// v0.9.1538: the near-miss picker — the last thing in the flow still saying
+// "comes in the next update". Rows whose number is not in the catalog but a
+// SPELLING of it is: Brad's example was "1666 T" for Lionel's 1666T.
+(function nearMissTest() {
+  const v = core.rrImpNumberVariants('1666 T');
+  ok('a space before the letter is a spelling, not a number', v.indexOf('1666T') >= 0, v.join(' '));
+  ok('...as is a dash', v.indexOf('1666-T') >= 0);
+  ok('...and the bare digits are offered too', v.indexOf('1666') >= 0);
+  ok('dashes can be dropped', core.rrImpNumberVariants('6-8912').indexOf('68912') >= 0);
+  ok('leading zeros can be dropped', core.rrImpNumberVariants('02001').indexOf('2001') >= 0);
+  ok('the number itself is never listed as a variant of itself',
+     core.rrImpNumberVariants('8552').indexOf('8552') < 0);
+  ok('nothing in, nothing out', core.rrImpNumberVariants('').length === 0);
+
+  // Triage offers them, and NEVER applies them (the suffix rule).
+  const catalog = { '1666T': [{ itemNum: '1666T', _era: 'pw', description: '2-6-2 Steam Locomotive' }] };
+  const lookups = {
+    candidatesFor: (n) => catalog[n] || [],
+    baseOf: (n) => n,
+  };
+  const res = core.rrImpTriage([{ itemNum: '1666 T', yourDesc: 'Restored Loco', srcTab: 'L' }], lookups);
+  ok('a near miss stays UNMATCHED', res.unmatched.length === 1 && res.matched.length === 0);
+  ok('...with the catalog row offered', res.unmatched[0].didYouMean.length === 1,
+     res.unmatched[0].didYouMean.length + ' offers');
+  ok('...and the user keeps their own number until they say otherwise',
+     res.unmatched[0].item.itemNum === '1666 T');
+
+  // Two different suffixed items must NOT be offered the same base blindly —
+  // they are offered, but nothing is applied, which is the whole point.
+  const res2 = core.rrImpTriage([{ itemNum: '0936-1', yourDesc: 'Flatcar A' }], { candidatesFor: () => [], baseOf: (n) => n });
+  ok('no catalog hit means no offers at all', res2.unmatched[0].didYouMean.length === 0);
+
+  const ui = fs.readFileSync(path.join(__dirname, '..', 'app', 'import-ui.js'), 'utf8');
+  ok('the picker is a real step', /nearmiss: _impStepNearMiss/.test(ui) && /function _impStepNearMiss/.test(ui));
+  ok('the ambiguous picker leads into it', /function _impAfterAmbig[\s\S]{0,160}_impNearMissGroups\(\)\.length \? 'nearmiss'/.test(ui));
+  ok('...and so does the era check when nothing is ambiguous', /_impAfterAmbig\(\);\s*\}/.test(ui));
+  ok('keeping your own number is the default', /_imp\.nearMissPicks\[g\.num\] \|\| 'mine'/.test(ui));
+  ok('an accepted row carries the CATALOG number', /matchedVia: 'near-miss', catalogNum: cand\.itemNum/.test(ui));
+  ok('the old promise is gone from triage', !/fix-up picker comes in the next update/.test(ui));
+})();
+
 (function batchListTest() {
   const ui = fs.readFileSync(path.join(__dirname, '..', 'app', 'import-ui.js'), 'utf8');
   function grab(name) {
@@ -443,7 +484,10 @@ ok('675 stays for the prewar/postwar verify (two vintage candidates)',
   const ui = fs.readFileSync(uiPath, 'utf8');
 
   ok('the picker is a real step', /ambig: _impStepAmbig/.test(ui) && /function _impStepAmbig/.test(ui));
-  ok('the era check routes into it', /function _impAfterEraCheck[\s\S]{0,200}'ambig' : 'preview'/.test(ui));
+  // v0.9.1538: the era check now hands off to _impAfterAmbig, which decides
+  // between the ambiguous picker, the near-miss picker, and the preview.
+  ok('the era check routes into it',
+     /function _impAfterEraCheck[\s\S]{0,240}_imp\.step = 'ambig'[\s\S]{0,120}_impAfterAmbig\(\)/.test(ui));
   ok('keeping your own row is the default', /_imp\.ambigPicks\[g\.key\] \|\| 'mine'/.test(ui));
   ok('bulk pick by era exists', /function _impAmbigPickAll/.test(ui));
   ok('triage no longer claims they are held back', !/held back this round/.test(ui));
@@ -458,6 +502,9 @@ ok('675 stays for the prewar/postwar verify (two vintage candidates)',
   }
   global.rrImpNormCell = core.rrImpNormCell;
   global._impRender = () => {};
+  // v0.9.1538: apply hands off to the near-miss step; this test only cares
+  // about how the ambiguous rows land.
+  global._impAfterAmbig = () => {};
   const _imp = { triage: { matched: [], ambiguous: [], unmatched: [] }, ambigPicks: {}, ambigResolved: null, step: '' };
   global._imp = _imp;
   eval(grab('_impAmbigGroups'));
