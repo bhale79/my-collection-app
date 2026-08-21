@@ -5,7 +5,12 @@
 // ══════════════════════════════════════════════════════════════════
 
 // Bump this number to push a visual refresh to all users on next sync
-const SHEET_FORMAT_VER = 21; // v21 (v0.9.782): +Purchased From trailing personal column (seller Contact ID). Was 20: // v20 (v0.9.736): deterministic column widths (header-fit + curated My Collection table, autoResize REMOVED), Dashboard button merge sized to its text per tab, conductor images served from therailroster.com so no GitHub URL shows in the formula bar. Was 19: // v19 (v0.9.720): +Date Added trailing personal column. Was 18: // v18 (v0.9.666): +Scale/Gauge trailing personal column — header row rewritten. // Session 165 v12: Dashboard header rebuilt to match the app (mascot left, multicolor Oswald title, app navy + orange underline bar) + no-white styling (hide gridlines, flood page with app bg).
+const SHEET_FORMAT_VER = 22; // v22 (v0.9.1535): data rows get their OWN text
+// colour. Until now the body inherited the WHITE header band, so every row an
+// append added was white text on a pale background — Brad found it in his own
+// sheet after 6,740 rows. Bumping this version is what makes existing sheets
+// repair themselves: applySheetFormatting compares this number against the one
+// stamped in Dashboard!A50 and re-applies when it is behind. Was 21 (v0.9.782): +Purchased From trailing personal column (seller Contact ID). Was 20: // v20 (v0.9.736): deterministic column widths (header-fit + curated My Collection table, autoResize REMOVED), Dashboard button merge sized to its text per tab, conductor images served from therailroster.com so no GitHub URL shows in the formula bar. Was 19: // v19 (v0.9.720): +Date Added trailing personal column. Was 18: // v18 (v0.9.666): +Scale/Gauge trailing personal column — header row rewritten. // Session 165 v12: Dashboard header rebuilt to match the app (mascot left, multicolor Oswald title, app navy + orange underline bar) + no-white styling (hide gridlines, flood page with app bg).
 
 // ── Color palette ──────────────────────────────────────────────────
 const SB = {
@@ -22,6 +27,15 @@ const SB = {
   appNavy:  { red: 0.102, green: 0.114, blue: 0.227 },   // #1a1d3a app header band
   accent:   { red: 0.941, green: 0.314, blue: 0.031 },   // #f05008 app orange
   cream:    { red: 0.973, green: 0.910, blue: 0.753 },   // #f8e8c0 app cream text
+  // v0.9.1535 (Brad: "why is the text in the actual google sheet white?").
+  // The data rows had no text colour of their own, so an appended row
+  // inherited the format of the row above it — and the row above the first
+  // data row is the WHITE-on-navy column header band. Every row written
+  // since has been white text on a pale banded background: invisible on
+  // the white band, barely legible on the grey one. The data was always
+  // fine; only the colour was wrong. Named here so the body has an
+  // explicit colour that nothing has to inherit.
+  ink:      { red: 0.063, green: 0.094, blue: 0.169 },   // #10182B body text
 };
 
 const CONDUCTOR_URL = 'https://therailroster.com/conductor-list.png';   // v13: own domain, no GitHub address visible to users
@@ -233,6 +247,17 @@ async function applySheetFormatting(sheetId, opts) {
           fields: isMyCollection
             ? 'gridProperties.frozenRowCount,gridProperties.frozenColumnCount'
             : 'gridProperties.frozenRowCount'
+        }},
+        // v0.9.1535: the data body gets its OWN text colour, so nothing
+        // inherits the header band's white. No end row — this covers rows the
+        // user has not written yet, which is exactly where the next append
+        // will look for its formatting.
+        { repeatCell: {
+          range: { sheetId: sid, startRowIndex: 2 },
+          cell: { userEnteredFormat: {
+            textFormat: { bold: false, foregroundColor: SB.ink, fontSize: 10 },
+          }},
+          fields: 'userEnteredFormat.textFormat'
         }},
         // Row banding — v6: NO headerColor (was causing navy row 3)
         { addBanding: { bandedRange: {

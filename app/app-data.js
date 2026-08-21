@@ -147,6 +147,19 @@ async function loadAllData() {
       _inferMissingYears();
       buildApp(); if (typeof _auditCatalogResolution === 'function') setTimeout(_auditCatalogResolution, 1500);
       _scheduleLookupIndex(6000);   // v0.9.971: full-catalog lookup index (background)
+    // v0.9.1535 (Brad: "what about the beta tester sheets, when will they get
+      // updated if they are already created?"). Fair question — the answer was
+      // "only if they press Sync from Sheet or a button in Preferences", which
+      // for a formatting FIX means most people never. applySheetFormatting
+      // checks the version stamp itself and returns almost immediately when the
+      // sheet is current, so calling it at startup costs one small read for
+      // everyone and repairs the sheet exactly once for anyone behind.
+      if (typeof applySheetFormatting === 'function' && state.personalSheetId) {
+        setTimeout(function () {
+          applySheetFormatting(state.personalSheetId)
+            .catch(function (e) { console.warn('[startup format check]', e && e.message); });
+        }, 15000);
+      }
       showOnboarding();
       if (typeof vaultInit === 'function') vaultInit();
       // v0.9.1303: the photo-link autotimer — un-share anything past its deadline.
@@ -180,6 +193,19 @@ async function loadAllData() {
     _loadMasterVersion();   // v0.9.1103 — which master sheet is live (fail-silent)
     buildApp(); if (typeof _auditCatalogResolution === 'function') setTimeout(_auditCatalogResolution, 1500);
     _scheduleLookupIndex(6000);   // v0.9.971: full-catalog lookup index (background)
+    // v0.9.1535 (Brad: "what about the beta tester sheets, when will they get
+    // updated if they are already created?"). Fair question — the answer was
+    // "only if they press Sync from Sheet or a button in Preferences", which
+    // for a formatting FIX means most people never. applySheetFormatting
+    // checks the version stamp itself and returns almost immediately when the
+    // sheet is current, so calling it at startup costs one small read for
+    // everyone and repairs the sheet exactly once for anyone behind.
+    if (typeof applySheetFormatting === 'function' && state.personalSheetId) {
+      setTimeout(function () {
+        applySheetFormatting(state.personalSheetId)
+          .catch(function (e) { console.warn('[startup format check]', e && e.message); });
+      }, 15000);
+    }
     showOnboarding();
     if (typeof vaultInit === 'function') vaultInit();
     // v0.9.1303: the photo-link autotimer — un-share anything past its deadline.
