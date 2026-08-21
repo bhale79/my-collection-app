@@ -438,6 +438,95 @@ function rrImpTabIsNonCatalog(items) {
   return rrImpNumberlessShare(list) >= 0.6;
 }
 
+// ── Reading the user's own words to settle a tie ────────────────
+// v0.9.1533 (Brad, on the picker: "the description says pennsylvania so why
+// do we not match it. there could be a reason, so tell me if there is").
+// The reason was real: the matcher works on the NUMBER, narrowed by maker and
+// his digit-length era rule. It never read a word of anyone's description. So
+// his row "Pennsylvania '6464' Blue Boxcar METCA" sat next to a Long Island
+// center-beam flatcar and a PRR 6464 dark blue boxcar, and the app had no
+// opinion — three agreements against zero, invisible to it.
+//
+// Evidence is counted by CATEGORY, not by word, so a long description cannot
+// bully a short one: road name, a distinctive number quoted in the text, a
+// colour, and a body type each count once. A candidate wins only by winning
+// on more categories than every other, and only with at least two — one
+// shared word is a coincidence, two independent ones is a match.
+var _RR_COLORS = ['black','blue','brown','cream','green','grey','gray','maroon','orange','red','silver','tuscan','white','yellow','gold','copper','bronze'];
+var _RR_BODIES = ['boxcar','flatcar','gondola','hopper','caboose','reefer','tank car','stock car','tender','locomotive','loco','engine','coach','observation','baggage','crane','dump car'];
+
+function _rrImpWords(s) { return rrImpNormCell(s).toLowerCase(); }
+// Numbers a human would quote to identify a model — 3+ digits, so a road
+// number or a series like 6464 counts and "2 pack" does not.
+function _rrImpQuotedNums(s) {
+  var out = {}, m, re = /\b(\d{3,6})\b/g, t = _rrImpWords(s);
+  while ((m = re.exec(t)) !== null) out[m[1]] = 1;
+  return Object.keys(out);
+}
+function rrImpScoreCandidate(userText, master, selfNum) {
+  var u = _rrImpWords(userText);
+  if (!u) return { score: 0, why: [] };
+  var c = _rrImpWords((master.roadName || '') + ' ' + (master.description || '') + ' ' +
+                      (master.varDesc || '') + ' ' + (master.itemType || ''));
+  var why = [];
+  // 1. road name — the most telling single fact on a train
+  var road = _rrImpWords(master.roadName);
+  if (road) {
+    var head = road.split(/\s+/)[0];
+    if (head.length >= 4 && u.indexOf(head) >= 0) why.push(master.roadName);
+  }
+  // 2. a number quoted in BOTH texts, other than the catalogue number itself
+  var mine = _rrImpQuotedNums(userText), theirs = {}, hit = '';
+  _rrImpQuotedNums((master.description || '') + ' ' + (master.varDesc || '')).forEach(function (n) { theirs[n] = 1; });
+  for (var i = 0; i < mine.length; i++) {
+    if (theirs[mine[i]] && mine[i] !== rrImpNormCell(selfNum)) { hit = mine[i]; break; }
+  }
+  if (hit) why.push('#' + hit);
+  // 3. colour
+  for (var k = 0; k < _RR_COLORS.length; k++) {
+    if (u.indexOf(_RR_COLORS[k]) >= 0 && c.indexOf(_RR_COLORS[k]) >= 0) { why.push(_RR_COLORS[k]); break; }
+  }
+  // 4. body type
+  for (var b = 0; b < _RR_BODIES.length; b++) {
+    if (u.indexOf(_RR_BODIES[b]) >= 0 && c.indexOf(_RR_BODIES[b]) >= 0) { why.push(_RR_BODIES[b]); break; }
+  }
+  return { score: why.length, why: why };
+}
+// Returns {index, why} when one candidate is the clear answer, else null.
+function rrImpPickByDescription(userText, candidates, selfNum) {
+  var list = candidates || [];
+  if (list.length < 2) return null;
+  var best = -1, bestScore = 0, second = 0, bestWhy = [];
+  for (var i = 0; i < list.length; i++) {
+    var r = rrImpScoreCandidate(userText, list[i], selfNum);
+    if (r.score > bestScore) { second = bestScore; bestScore = r.score; best = i; bestWhy = r.why; }
+    else if (r.score > second) { second = r.score; }
+  }
+  if (best < 0 || bestScore < 2 || bestScore === second) return null;
+  return { index: best, why: bestWhy };
+}
+// Candidates that are the SAME catalogue item differing only by variation
+// (Brad's 28069: the base Century Club Niagara and "variation 3 — yellow",
+// rendered identically on screen). When his own row says nothing about which,
+// the base entry is the honest default — it is the item, not a colour of it.
+function rrImpOnlyVariationDiffers(candidates) {
+  var list = candidates || [];
+  if (list.length < 2) return false;
+  var sig = function (m) {
+    return rrImpNormCell(m._era) + '|' + _rrImpWords(m.description) + '|' + _rrImpWords(m.roadName);
+  };
+  var first = sig(list[0]);
+  for (var i = 1; i < list.length; i++) if (sig(list[i]) !== first) return false;
+  return true;
+}
+function rrImpBaseVariationIndex(candidates) {
+  var list = candidates || [];
+  for (var i = 0; i < list.length; i++) {
+    if (!rrImpNormCell(list[i].variation)) return i;
+  }
+  return -1;
+}
+
 // ── Money / number cleanup ──────────────────────────────────────
 function rrImpCleanMoney(v) {
   var s = rrImpNormCell(v).replace(/[$,\s]/g, '');
@@ -784,6 +873,10 @@ var RR_IMPORT_CORE = {
   rrImpCopyCounterEvidence: rrImpCopyCounterEvidence,
   rrImpBuildAiPayload: rrImpBuildAiPayload,
   rrImpValidateAiAnswer: rrImpValidateAiAnswer,
+  rrImpScoreCandidate: rrImpScoreCandidate,
+  rrImpPickByDescription: rrImpPickByDescription,
+  rrImpOnlyVariationDiffers: rrImpOnlyVariationDiffers,
+  rrImpBaseVariationIndex: rrImpBaseVariationIndex,
   rrImpNumberlessShare: rrImpNumberlessShare,
   rrImpTabIsNonCatalog: rrImpTabIsNonCatalog,
   rrImpTypeFromText: rrImpTypeFromText,

@@ -255,6 +255,117 @@ ok('675 stays for the prewar/postwar verify (two vintage candidates)',
 // eras (Lionel reuses them — 1776 is a Postwar boxcar AND a Modern U36B) was
 // held back and never imported: 106 of Brad's rows simply weren't there.
 // The rule this locks down is that EVERY row leaves this screen imported.
+// v0.9.1533: the prewar/postwar screen asked 207 questions to learn 4
+// answers. Brad, mid-import: "the only numbers we need to ask about are the
+// ones that exist on both lists that Lionel reused the item number on."
+// Measured on his run: 4 on both lists, 193 postwar-only, 10 PREWAR-only —
+// and the screen claimed it had set all 207 to Postwar.
+// v0.9.1533: the picker asked questions the user's own row already answered.
+// Brad: "the description says pennsylvania so why do we not match it." And
+// then, on 28069: "whats the difference here that i am picking?" — there was
+// one (variation 3, yellow), the screen just wasn't showing it.
+(function autoResolveTest() {
+  const LI = { _era: 'mpc', roadName: 'Long Island', description: 'Center-Beam Flatcar "8323"', itemType: 'Flatcar' };
+  const PRR = { _era: 'mpc', roadName: 'Pennsylvania Railroad', description: 'PRR Boxcar "6464," dark blue', itemType: 'Boxcar' };
+
+  const pick = core.rrImpPickByDescription('Pennsylvania "6464" Blue Boxcar METCA', [LI, PRR], '2301270');
+  ok('his own words settle it', !!pick && pick.index === 1, pick ? pick.why.join(' + ') : 'null');
+  ok('and it can say why', !!pick && pick.why.length >= 3, pick ? pick.why.length + ' agreements' : '');
+
+  // One shared word is a coincidence, not a match.
+  const A = { _era: 'mpc', roadName: 'Santa Fe', description: 'Boxcar red' };
+  const B = { _era: 'pw', roadName: 'New York Central', description: 'Boxcar green' };
+  ok('a single agreement is NOT enough', core.rrImpPickByDescription('Boxcar', [A, B], '1234') === null);
+  ok('a tie is never resolved',
+     core.rrImpPickByDescription('Santa Fe Boxcar red', [A, Object.assign({}, A)], '1234') === null);
+  ok('the catalogue number itself is not evidence',
+     core.rrImpPickByDescription('6464 something', [{ description: '6464' }, { description: 'other' }], '6464') === null);
+
+  // Brad's 28069 and the three he sent after it.
+  const base = { _era: 'mpc', roadName: 'New York Central', description: "Century Club Niagara numbered '6024'", variation: '' };
+  const varn = Object.assign({}, base, { variation: '3', varDesc: 'yellow' });
+  ok('same item, different variation, is recognised', core.rrImpOnlyVariationDiffers([base, varn]));
+  ok('the main entry is the one taken', core.rrImpBaseVariationIndex([base, varn]) === 0);
+  ok('two genuinely different items are NOT folded', !core.rrImpOnlyVariationDiffers([LI, PRR]));
+  ok('no main entry means no automatic answer',
+     core.rrImpBaseVariationIndex([varn, Object.assign({}, varn, { variation: '4' })]) === -1);
+
+  // The UI half.
+  const ui = fs.readFileSync(path.join(__dirname, '..', 'app', 'import-ui.js'), 'utf8');
+  ok('the import auto-resolves before showing a picker', /rrImpPickByDescription\(text, a\.candidates/.test(ui));
+  ok('...and falls back to the main entry on variations', /rrImpOnlyVariationDiffers\(a\.candidates\)/.test(ui));
+  ok('the era screen keeps its own cases', /if \(a\.eraChoice === 'vintage'\) \{ _stillAmbig\.push\(a\); return; \}/.test(ui));
+  ok('triage reports what was settled', /settled by your own wording/.test(ui));
+  ok('the picker now shows the variation', /variation ' \+ v : 'variation'/.test(ui));
+})();
+
+(function eraCheckTest() {
+  const uiPath = path.join(__dirname, '..', 'app', 'import-ui.js');
+  const ui = fs.readFileSync(uiPath, 'utf8');
+
+  ok('the group is split into ask vs settled', /function _impVintageSplit[\s\S]{0,300}a\.prewar && a\.postwar/.test(ui));
+  ok('rows sharing a number are one question', /function _impVintageAskGroups/.test(ui));
+  ok('a one-list number takes the list it is on', /pick = a\.postwar \|\| a\.prewar;/.test(ui));
+  ok('those are marked as settled, not verified', /'era-single-list'/.test(ui));
+  ok('the screen is skipped when nothing was reused', /if \(!groups\.length\) \{ _impApplyEraCheck\(\); return; \}/.test(ui));
+  ok('triage says how many settle themselves', /appear on one list only and are settled for you/.test(ui));
+
+  // Run the split and apply for real.
+  function grab(name) {
+    const i = ui.indexOf('function ' + name);
+    let d = 0, j = ui.indexOf('{', i);
+    for (let k = j; k < ui.length; k++) {
+      if (ui[k] === '{') d++; else if (ui[k] === '}') { d--; if (!d) return ui.slice(i, k + 1); }
+    }
+  }
+  global.rrImpNormCell = core.rrImpNormCell;
+  global._impRender = () => {};
+  global._impAfterEraCheck = () => {};
+  const PW = { _era: 'pw', description: 'postwar row' };
+  const PRE = { _era: 'prewar', description: 'prewar row' };
+  const _imp = {
+    prewarPicks: {}, eraSettled: null,
+    triage: {
+      matched: [], unmatched: [],
+      ambiguous: [
+        { item: { itemNum: '1045', srcTab: 'L', srcRow: 1 }, eraChoice: 'vintage', prewar: PRE, postwar: PW },
+        { item: { itemNum: '1045', srcTab: 'L', srcRow: 2 }, eraChoice: 'vintage', prewar: PRE, postwar: PW },
+        { item: { itemNum: '221',  srcTab: 'L', srcRow: 3 }, eraChoice: 'vintage', prewar: null, postwar: PW },
+        { item: { itemNum: '1766', srcTab: 'L', srcRow: 4 }, eraChoice: 'vintage', prewar: PRE, postwar: null },
+      ],
+    },
+  };
+  global._imp = _imp;
+  eval(grab('_impVintageGroup'));
+  eval(grab('_impVintageSplit'));
+  eval(grab('_impVintageAskGroups'));
+  eval(grab('_impApplyEraCheck'));
+
+  ok('only the reused number is asked about', _impVintageAskGroups().length === 1, _impVintageAskGroups().length);
+  ok('...and its two rows are one decision', _impVintageAskGroups()[0].items.length === 2);
+  ok('the one-list rows are not asked about', _impVintageSplit().settled.length === 2);
+
+  _impApplyEraCheck();
+  const byNum = {};
+  _imp.triage.matched.forEach(m => { byNum[m.item.itemNum] = m.master._era; });
+  ok('a postwar-only number lands postwar', byNum['221'] === 'pw', byNum['221']);
+  ok('a PREWAR-only number lands prewar, not postwar', byNum['1766'] === 'prewar', byNum['1766']);
+  ok('an unticked both-lists number defaults postwar', byNum['1045'] === 'pw', byNum['1045']);
+  ok('every row is accounted for', _imp.triage.matched.length === 4, _imp.triage.matched.length);
+  ok('the settle counts are recorded', _imp.eraSettled.postwar === 1 && _imp.eraSettled.prewar === 1 && _imp.eraSettled.asked === 2,
+     JSON.stringify(_imp.eraSettled));
+
+  // Ticking the number moves BOTH of its rows.
+  _imp.triage = { matched: [], unmatched: [], ambiguous: [
+    { item: { itemNum: '1045', srcTab: 'L', srcRow: 1 }, eraChoice: 'vintage', prewar: PRE, postwar: PW },
+    { item: { itemNum: '1045', srcTab: 'L', srcRow: 2 }, eraChoice: 'vintage', prewar: PRE, postwar: PW },
+  ] };
+  _imp.prewarPicks = { 'num|1045': true };
+  _impApplyEraCheck();
+  ok('ticking prewar moves every row with that number',
+     _imp.triage.matched.length === 2 && _imp.triage.matched.every(m => m.master._era === 'prewar'));
+})();
+
 (function ambiguousPickerTest() {
   const uiPath = path.join(__dirname, '..', 'app', 'import-ui.js');
   const ui = fs.readFileSync(uiPath, 'utf8');
@@ -315,8 +426,11 @@ ok('675 stays for the prewar/postwar verify (two vintage candidates)',
   const ui = fs.readFileSync(uiPath, 'utf8');
 
   ok('one function owns the answer', /function _impTabYearMeansMade/.test(ui));
-  ok('trains default to yes without anyone being asked',
-     /_impTabYearMeansMade[\s\S]{0,400}return c === 'trains'/.test(ui));
+  // v0.9.1533 (Brad): the default is NO for every tab now.
+  ok('every tab defaults to leaving Year blank',
+     /_impTabYearMeansMade[\s\S]{0,700}return false;/.test(ui));
+  ok('the screen leads with the blank option',
+     /option value="no"[\s\S]{0,140}option value="yes"/.test(ui));
   ok('an explicit answer still wins',
      /_impTabYearMeansMade[\s\S]{0,200}tabYearMeans\[tabName\] !== undefined/.test(ui));
   ok('the staging rule asks that function, not the raw flag',

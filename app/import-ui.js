@@ -49,6 +49,8 @@ function rrImportOpen() {
     tabMaker: {},          // tabName → confirmed maker ('' = per-row / unknown)
     tabYearMeans: {},      // tabName → true when a year in the description IS the item's year
     tabSubType: {},
+    autoResolved: null,  // v0.9.1533: {byDescription, byVariation}
+    eraSettled: null,    // v0.9.1533: {postwar, prewar, asked} from the era check
     ambigPicks: {},      // v0.9.1531: groupKey → 'mine' | 'c<index>'
     ambigResolved: null,
     yearsByTab: {},      // v0.9.1530: tab → years filled from descriptions
@@ -771,8 +773,13 @@ function _impTabNeedsMaker(t) {
 // answer from the user always wins.
 function _impTabYearMeansMade(tabName, cls) {
   if (_imp.tabYearMeans[tabName] !== undefined) return !!_imp.tabYearMeans[tabName];
-  var c = cls || _imp.tabClass[tabName] || 'trains';
-  return c === 'trains';
+  // v0.9.1533 (Brad, watching a fresh import): "I think we need to say
+  // no-leave blank as the auto fill." The default is now NO for every tab,
+  // trains included. A year read out of a description is a guess — often a
+  // right one, but his 1955-model-car case showed what a confident wrong year
+  // looks like, and a blank Year is honest while a wrong one quietly files
+  // the item in the wrong era. The rule now runs ONLY where the user says so.
+  return false;
 }
 
 function _impTabYearRows(t) {
@@ -856,10 +863,11 @@ function _impStepTabFacts() {
       html += '<div class="imp-row"><div style="flex:1">' + r.yearRows.toLocaleString() +
         ' descriptions here contain a year — does it say when the item was <em>made</em>?' +
         '<div class="imp-muted" style="margin-top:0.15rem;font-size:0.75rem">' +
-        'Say no if it describes the subject (a 1955 car modelled in 2016).</div></div>' +
+        'Left blank unless you say otherwise \u2014 a year in a description is often the subject ' +
+        '(a 1955 car modelled in 2016), and a wrong year files the item in the wrong era.</div></div>' +
         '<select class="imp-sel" onchange="_imp.tabYearMeans[' + JSON.stringify(name).replace(/"/g, '&quot;') + ']=(this.value===\'yes\')">' +
-        '<option value="yes"' + (defYear ? ' selected' : '') + '>Yes — that\u2019s the item\u2019s year</option>' +
         '<option value="no"' + (defYear ? '' : ' selected') + '>No — leave Year blank</option>' +
+        '<option value="yes"' + (defYear ? ' selected' : '') + '>Yes — that\u2019s the item\u2019s year</option>' +
         '</select></div>';
     }
     if (cls !== 'trains') {
@@ -1167,6 +1175,36 @@ function _impStage() {
   var nonTrains = staged.filter(function (it) { return it.tabClass !== 'trains'; });
   _imp.triage = rrImpTriage(trains, lookups);
   nonTrains.forEach(function (it) { _imp.triage.unmatched.push({ item: it, didYouMean: [], nonTrain: true }); });
+  // ── v0.9.1533: settle what the user's own words already answer ──
+  // Brad: "the description says pennsylvania so why do we not match it."
+  // Two settlements, both on evidence, both counted and reported:
+  //   1. one candidate wins on two or more independent facts from HIS row
+  //      (road name, a quoted number, a colour, a body type);
+  //   2. the candidates are the same item and differ only by VARIATION (his
+  //      28069 — base entry vs "variation 3, yellow" — which rendered
+  //      identically on screen), and his row says nothing about which. The
+  //      base entry is the item; a variation is a colour of it.
+  var _autoDesc = 0, _autoVar = 0;
+  var _stillAmbig = [];
+  (_imp.triage.ambiguous || []).forEach(function (a) {
+    if (a.eraChoice === 'vintage') { _stillAmbig.push(a); return; }   // the era screen owns those
+    var text = a.item.yourDesc || a.item.description || '';
+    var pick = null, via = '';
+    try {
+      var byDesc = rrImpPickByDescription(text, a.candidates, a.item.itemNum);
+      if (byDesc) { pick = a.candidates[byDesc.index]; via = 'description'; a.why = byDesc.why; }
+      else if (rrImpOnlyVariationDiffers(a.candidates)) {
+        var bi = rrImpBaseVariationIndex(a.candidates);
+        if (bi >= 0) { pick = a.candidates[bi]; via = 'base-variation'; }
+      }
+    } catch (e) {}
+    if (!pick) { _stillAmbig.push(a); return; }
+    _imp.triage.matched.push({ item: a.item, master: pick, matchedVia: via });
+    if (via === 'description') _autoDesc++; else _autoVar++;
+  });
+  _imp.triage.ambiguous = _stillAmbig;
+  _imp.autoResolved = { byDescription: _autoDesc, byVariation: _autoVar };
+
   // v0.9.1529: the evidence-based half. A tab of 20+ rows where NOTHING
   // matched is not a tab of catalogue items, whatever it was classed as —
   // Scott's Vehicles and Wings of Texaco both carry item numbers, so the
@@ -1271,8 +1309,17 @@ function _impStepTriage() {
     (viaDigits ? ' <span class="imp-muted">(' + viaDigits.toLocaleString() +
       ' settled by number length — 5+ digits is a modern Lionel number, even for reproductions.)</span>' : '') + '</div>';
   if (vintageLeft) {
+    // v0.9.1533: say how many actually need a decision. Nearly all of them
+    // are on one list only and settle themselves.
+    var _vs = _impVintageSplit();
+    var _vAsk = _impVintageAskGroups().length;
     html += '<div class="imp-card">' + vintageLeft.toLocaleString() +
-      ' Lionel items are prewar or postwar (four digits or fewer). We\u2019ll ask you to confirm those next.</div>';
+      ' Lionel items are prewar or postwar (four digits or fewer). ' +
+      '<span class="imp-muted">' + (vintageLeft - _vs.ask.length).toLocaleString() +
+      ' of them appear on one list only and are settled for you; ' +
+      (_vAsk ? _vAsk.toLocaleString() + ' number' + (_vAsk === 1 ? '' : 's') +
+        ' Lionel reused on both lists \u2014 we\u2019ll ask about ' + (_vAsk === 1 ? 'that one' : 'those') + ' next.'
+              : 'none were reused, so there is nothing to ask.') + '</span></div>';
   }
   var _dateJunk = 0;
   try { _dateJunk = rrImpCountDateJunk(_imp.tabs.filter(function (t) { return !_imp.skipTabs[t.name]; })); } catch (eDJ) {}
@@ -1317,6 +1364,17 @@ function _impStepTriage() {
       }).join(', ') + (_yTabs.length > 4 ? ', \u2026' : '') +
       '. <span class="imp-muted">Tabs where a year describes the subject rather than the item ' +
       '(a 1955 car modelled in 2016) are left blank on purpose.</span></div>';
+  }
+  // v0.9.1533: what the user's own words settled, before any picker.
+  var _ar = _imp.autoResolved || { byDescription: 0, byVariation: 0 };
+  if (_ar.byDescription || _ar.byVariation) {
+    var _bits = [];
+    if (_ar.byDescription) _bits.push('<strong>' + _ar.byDescription.toLocaleString() +
+      '</strong> settled by your own wording <span class="imp-muted">(road name, a number you quoted, a colour \u2014 two or more agreeing)</span>');
+    if (_ar.byVariation) _bits.push('<strong>' + _ar.byVariation.toLocaleString() +
+      '</strong> where the only difference was a colour variation <span class="imp-muted">(we took the main catalog entry)</span>');
+    html += '<div class="imp-card imp-muted">Numbers that appear more than once in the catalog: ' +
+      _bits.join(', and ') + '.</div>';
   }
   var _tSurvey = _impTypeSurvey();
   if (_tSurvey.read) {
@@ -1393,6 +1451,35 @@ function _impNextAfterTriage() {
 function _impVintageGroup() {
   return (_imp.triage && _imp.triage.ambiguous || []).filter(function (a) { return a.eraChoice === 'vintage'; });
 }
+// v0.9.1533 (Brad, mid-run, looking at 207 rows on the verify screen: "did we
+// look at all of these to see if any are both on the prewar list AND the
+// postwar list... the only numbers we need to ask about are the ones Lionel
+// reused"). He was right, and the measurement on his own import was stark:
+// of 207 rows, 4 existed on BOTH lists. 193 were postwar-only and 10 were
+// PREWAR-only — and the screen told him it had "set them all to Postwar",
+// which for those 10 was simply false. (The apply step's fallback saved the
+// data, but a screen that asks 207 questions to learn 4 answers, while
+// mis-stating what it did to 10 of them, is not honest.)
+//
+// Split the group: only a row with a candidate on each list is a question.
+function _impVintageSplit() {
+  var ask = [], settled = [];
+  _impVintageGroup().forEach(function (a) {
+    if (a.prewar && a.postwar) ask.push(a);
+    else settled.push(a);
+  });
+  return { ask: ask, settled: settled };
+}
+// Rows sharing a number are ONE decision, exactly like the ambiguous picker.
+function _impVintageAskGroups() {
+  var byNum = {}, out = [];
+  _impVintageSplit().ask.forEach(function (a) {
+    var num = rrImpNormCell(a.item.itemNum);
+    if (!byNum[num]) { byNum[num] = { num: num, items: [], prewar: a.prewar, postwar: a.postwar }; out.push(byNum[num]); }
+    byNum[num].items.push(a);
+  });
+  return out;
+}
 
 // ── Step: prewar / postwar bulk verify ──────────────────────────────────
 // Brad's rule already ruled OUT modern (5+ digit numbers are modern, even
@@ -1402,27 +1489,36 @@ function _impVintageGroup() {
 // the user to tick the exceptions — his words: "let him tick off the ones
 // that aren't".
 function _impStepEraCheck() {
-  var group = _impVintageGroup();
-  if (!group.length) { _impAfterEraCheck(); return; }
+  var split = _impVintageSplit();
+  var groups = _impVintageAskGroups();
+  if (!groups.length) { _impApplyEraCheck(); return; }   // nothing to ask — settle and move on
   if (!_imp.prewarPicks) _imp.prewarPicks = {};
-  var html = '<div class="imp-h">' + group.length.toLocaleString() +
-    ' Lionel items are prewar or postwar — which is it?</div>' +
-    '<div class="imp-muted" style="margin-bottom:0.6rem">Their numbers are four digits or fewer, so they are not modern. ' +
-    'We have set them all to <strong>Postwar</strong>. Tick any that are actually <strong>Prewar</strong>.</div>' +
+  var askRows = split.ask.length;
+  var html = '<div class="imp-h">' + groups.length.toLocaleString() +
+    (groups.length === 1 ? ' number is' : ' numbers are') + ' on both the prewar and postwar lists.</div>' +
+    '<div class="imp-muted" style="margin-bottom:0.6rem">Lionel reused these, so the number alone cannot settle it. ' +
+    'Everything else was settled without asking: <strong>' +
+    split.settled.filter(function (a) { return a.postwar; }).length.toLocaleString() + ' postwar</strong> and <strong>' +
+    split.settled.filter(function (a) { return !a.postwar && a.prewar; }).length.toLocaleString() +
+    ' prewar</strong> \u2014 those numbers appear on one list only. ' +
+    'These ' + (askRows === groups.length ? '' : askRows.toLocaleString() + ' rows / ') +
+    'are set to <strong>Postwar</strong>; tick any that are actually <strong>Prewar</strong>.</div>' +
     '<div class="imp-card" style="max-height:22rem;overflow:auto">';
-  group.forEach(function (a, i) {
-    var it = a.item;
-    var key = it.srcTab + '|' + it.srcRow;
-    var pw = a.postwar, pre = a.prewar;
+  groups.forEach(function (g) {
+    var it = g.items[0].item;
+    // One tick per NUMBER — every row carrying it follows the same answer.
+    var key = 'num|' + g.num;
     html += '<label class="imp-row" style="cursor:pointer">' +
       '<input type="checkbox" ' + (_imp.prewarPicks[key] ? 'checked' : '') +
       ' onchange="_imp.prewarPicks[\'' + _impEsc(key).replace(/'/g, '&#39;') + '\']=this.checked" ' +
       'style="margin-right:0.5rem;accent-color:var(--accent)">' +
-      '<div style="flex:1"><span class="imp-num">' + _impEsc(it.itemNum) + '</span> ' +
+      '<div style="flex:1"><span class="imp-num">' + _impEsc(g.num) + '</span> ' +
+      (g.items.length > 1 ? '<span class="imp-muted">\u00d7' + g.items.length + ' rows</span> ' : '') +
       '<span class="imp-muted">' + _impEsc(String(it.yourDesc || '').slice(0, 52)) + '</span>' +
       '<div class="imp-muted" style="font-size:0.7rem">Postwar: ' +
-      _impEsc(String((pw && pw.description) || '—').slice(0, 40)) +
-      (pre ? ' · Prewar: ' + _impEsc(String(pre.description || '—').slice(0, 40)) : '') + '</div></div></label>';
+      _impEsc(String((g.postwar && g.postwar.description) || '\u2014').slice(0, 40)) +
+      ' \u00b7 Prewar: ' + _impEsc(String((g.prewar && g.prewar.description) || '\u2014').slice(0, 40)) +
+      '</div></div></label>';
   });
   html += '</div>' +
     '<div class="imp-foot"><button class="imp-btn" onclick="_imp.step=\'triage\';_impRender()">← Back</button>' +
@@ -1432,13 +1528,25 @@ function _impStepEraCheck() {
 function _impApplyEraCheck() {
   var group = _impVintageGroup();
   var stillAmbiguous = [];
+  var settledPw = 0, settledPre = 0, asked = 0;
   group.forEach(function (a) {
-    var key = a.item.srcTab + '|' + a.item.srcRow;
-    var wantPrewar = !!(_imp.prewarPicks && _imp.prewarPicks[key]);
-    var pick = wantPrewar ? (a.prewar || a.postwar) : (a.postwar || a.prewar);
-    if (pick) _imp.triage.matched.push({ item: a.item, master: pick, matchedVia: 'era-verified' });
+    var onBoth = !!(a.prewar && a.postwar);
+    var pick;
+    if (onBoth) {
+      // v0.9.1533: the tick is per NUMBER, so both of his 1045 rows move together.
+      var key = 'num|' + rrImpNormCell(a.item.itemNum);
+      pick = (_imp.prewarPicks && _imp.prewarPicks[key]) ? a.prewar : a.postwar;
+      asked++;
+    } else {
+      // Only one list has this number. No question was asked and none was
+      // needed — take the list it is actually on.
+      pick = a.postwar || a.prewar;
+      if (a.postwar) settledPw++; else if (a.prewar) settledPre++;
+    }
+    if (pick) _imp.triage.matched.push({ item: a.item, master: pick, matchedVia: onBoth ? 'era-verified' : 'era-single-list' });
     else stillAmbiguous.push(a);
   });
+  _imp.eraSettled = { postwar: settledPw, prewar: settledPre, asked: asked };
   // Anything we could not resolve goes to the picker, which now always
   // ends with an import — never a silent drop (v0.9.1531).
   _imp.triage.ambiguous = (_imp.triage.ambiguous || []).filter(function (a) {
@@ -1486,7 +1594,19 @@ function _impCandLine(m) {
   if (m.description) bits.push(m.description);
   if (!bits.length && m.itemType) bits.push(m.itemType);
   var line = bits.join(' — ');
-  return line.length > 90 ? line.slice(0, 88) + '…' : line;
+  if (line.length > 90) line = line.slice(0, 88) + '…';
+  // v0.9.1533 (Brad's 28069: "whats the difference here that i am picking?").
+  // There WAS a difference — one was variation 3, "yellow" — and this line
+  // did not show it, so two rows rendered identically. Never ask someone to
+  // choose between things that look the same.
+  var v = String(m.variation || '').trim();
+  var vd = String(m.varDesc || '').trim();
+  if (v || vd) {
+    line += ' · ' + (v ? 'variation ' + v : 'variation') + (vd ? ' — ' + vd : '');
+  } else {
+    line += ' · main entry';
+  }
+  return line;
 }
 function _impAmbigPick(key, val) {
   _imp.ambigPicks[key] = val;
