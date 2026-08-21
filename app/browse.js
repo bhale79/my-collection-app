@@ -341,6 +341,10 @@ function _collResetCols() {
 }
 if (typeof window !== 'undefined') {
   window._openCollColumnsModal = _openCollColumnsModal;
+  window._collColEdit = _collColEdit;
+  window._collDropCol = _collDropCol;
+  window._collAddColMenu = _collAddColMenu;
+  window._collAddCol = _collAddCol;
   window._collApplyCols = _collApplyCols;
   window._collResetCols = _collResetCols;
 }
@@ -391,25 +395,138 @@ function _renderCollectionHeader() {
   var _visIds = _collVisibleCols();
   var _byId = {};
   _collAllCols().forEach(function (c) { _byId[c.col] = c; });
+  var _edit = !!state._collColEdit;
   var html = _visIds.map(function (id) {
     var c = _byId[id] || { col: id, label: id, noSort: true };
     c = { col: c.col, label: _collColLabel(c.col), noSort: c.noSort || !!c.pdKey };
-    return (function (c) {
+    // v0.9.1543 (Brad): "i hit an edit button... the existing headers get an x
+    // on them that will remove them, and then i can drag them left and right
+    // to rearrange them." The header IS the control. No modal, no list of
+    // names to map back onto a table you cannot see while you are choosing.
+    if (_edit) {
+      var locked = _COLL_LOCKED.indexOf(c.col) >= 0;
+      return '<th data-col="' + c.col + '" draggable="' + (locked ? 'false' : 'true') + '" ' +
+        'class="coll-th-edit' + (locked ? ' locked' : '') + '" ' +
+        'style="white-space:nowrap;' + (locked ? '' : 'cursor:grab;') + '">' +
+        '<span style="display:inline-flex;align-items:center;gap:0.3rem">' +
+        (locked ? '<span style="opacity:0.5">\uD83D\uDD12</span>' : '<span style="opacity:0.55;cursor:grab">\u2630</span>') +
+        '<span>' + c.label + '</span>' +
+        (locked ? '' : '<button type="button" title="Remove this column" onclick="event.stopPropagation();_collDropCol(\'' + c.col + '\')" ' +
+          'style="border:none;background:none;color:var(--accent);font-size:0.95rem;line-height:1;cursor:pointer;padding:0 0.1rem">\u00d7</button>') +
+        '</span></th>';
+    }
     var align = (c.col === 'worth' || c.col === 'var' || c.col === 'added' || c.col === 'photo') ? 'text-align:center;' : '';   // v0.9.727 (Brad): centered
-    if (c.col === 'photo') { return '<th style="white-space:nowrap;' + align + 'width:52px">' + c.label + '</th>'; }   // v0.9.909 (Brad, item [4])
-    if (c.noSort) { return '<th style="white-space:nowrap;' + align + '">' + c.label + '</th>'; }
+    if (c.col === 'photo') { return '<th data-col="photo" style="white-space:nowrap;' + align + 'width:52px">' + c.label + '</th>'; }   // v0.9.909 (Brad, item [4])
+    if (c.noSort) { return '<th data-col="' + c.col + '" style="white-space:nowrap;' + align + '">' + c.label + '</th>'; }
     var arrow = (cs.col === c.col) ? (cs.dir === 'desc' ? ' \u25BC' : ' \u25B2') : '';
     var _wsp = (c.col === 'worth') ? 'white-space:normal;' : 'white-space:nowrap;';
     if (c.col === 'added') _wsp += 'width:80px;';   // v0.9.725/726: fitted column
     // v0.9.938 (Brad): Description soaks up all spare width; Item # is locked
     // at a fixed width so it never shifts; every other column fits its value.
-    if (c.col === 'desc') _wsp = 'white-space:normal;width:99%;';
+    if (c.col === 'desc') _wsp = 'white-space:normal;';
     if (c.col === 'num')  _wsp += 'width:110px;min-width:110px;';
-    return '<th onclick="_collSortBy(\'' + c.col + '\')" style="cursor:pointer;' + _wsp + align + '" title="Sort by ' + c.label + '">' + c.label + arrow + '</th>';
-    })(c);
+    return '<th data-col="' + c.col + '" onclick="_collSortBy(\'' + c.col + '\')" style="cursor:pointer;' + _wsp + align + '" title="Sort by ' + c.label + '">' + c.label + arrow + '</th>';
   }).join('');
-  html += '<th style="text-align:right;white-space:nowrap">Actions</th>';
+  // The edit control lives on the header bar itself, in the Actions cell.
+  html += '<th data-col="actions" style="text-align:right;white-space:nowrap">' +
+    (_edit
+      ? '<button type="button" onclick="_collAddColMenu(event)" style="border:1px solid var(--border);background:var(--surface2);color:var(--text);border-radius:7px;padding:0.15rem 0.5rem;font-size:0.7rem;font-family:var(--font-body);cursor:pointer;margin-right:0.3rem">+ Add</button>' +
+        '<button type="button" onclick="_collColEdit(false)" style="border:none;background:var(--accent);color:var(--on-accent);border-radius:7px;padding:0.15rem 0.6rem;font-size:0.7rem;font-family:var(--font-body);font-weight:700;cursor:pointer">Done</button>'
+      : 'Actions <button type="button" title="Edit columns" onclick="event.stopPropagation();_collColEdit(true)" ' +
+        'style="border:none;background:none;color:var(--text-dim);font-size:0.85rem;cursor:pointer;padding:0 0.15rem">\u270E</button>') +
+    '</th>';
   thead.innerHTML = _collGutterTh() + html;   // v0.9.1007: selection gutter
+  if (_edit) _collWireHeaderDrag(thead);
+}
+
+// ── v0.9.1543: header edit mode ─────────────────────────────────────────
+function _collColEdit(on) {
+  state._collColEdit = !!on;
+  _renderCollectionHeader();
+  if (!on && typeof renderBrowse === 'function') renderBrowse();
+  if (on && typeof showToast === 'function') {
+    showToast('Drag a heading to move it · \u00d7 removes it · + Add brings one back', 4500);
+  }
+}
+function _collDropCol(id) {
+  var vis = _collVisibleCols().filter(function (c) { return c !== id && _COLL_LOCKED.indexOf(c) < 0; });
+  _collSaveCols(vis);
+  _renderCollectionHeader();
+  if (typeof renderBrowse === 'function') renderBrowse();
+}
+function _collSetOrder(ids) {
+  _collSaveCols(ids.filter(function (c) { return _COLL_LOCKED.indexOf(c) < 0; }));
+  _renderCollectionHeader();
+  if (typeof renderBrowse === 'function') renderBrowse();
+}
+// Drag a heading left or right. The locked pair (Maker, Item #) stay put —
+// they are how a row is recognised.
+function _collWireHeaderDrag(thead) {
+  var ths = Array.prototype.slice.call(thead.querySelectorAll('th.coll-th-edit:not(.locked)'));
+  ths.forEach(function (th) {
+    th.addEventListener('dragstart', function (e) {
+      window._collDragCol = th.getAttribute('data-col');
+      th.style.opacity = '0.45';
+      try { e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', window._collDragCol); } catch (er) {}
+    });
+    th.addEventListener('dragend', function () { th.style.opacity = ''; window._collDragCol = null; });
+    th.addEventListener('dragover', function (e) { e.preventDefault(); th.style.borderLeft = '3px solid var(--accent)'; });
+    th.addEventListener('dragleave', function () { th.style.borderLeft = ''; });
+    th.addEventListener('drop', function (e) {
+      e.preventDefault();
+      th.style.borderLeft = '';
+      var from = window._collDragCol, to = th.getAttribute('data-col');
+      if (!from || from === to) return;
+      var order = _collVisibleCols().filter(function (c) { return _COLL_LOCKED.indexOf(c) < 0; });
+      var fi = order.indexOf(from); if (fi >= 0) order.splice(fi, 1);
+      var ti = order.indexOf(to);
+      order.splice(ti < 0 ? order.length : ti, 0, from);
+      _collSetOrder(order);
+    });
+  });
+}
+// The + Add menu: only what is not already on the table.
+function _collAddColMenu(ev) {
+  if (ev) ev.stopPropagation();
+  var old = document.getElementById('coll-addcol'); if (old) old.remove();
+  var vis = _collVisibleCols();
+  var avail = _collAllCols().filter(function (c) {
+    return vis.indexOf(c.col) < 0 && _COLL_LOCKED.indexOf(c.col) < 0;
+  });
+  var box = document.createElement('div');
+  box.id = 'coll-addcol';
+  box.style.cssText = 'position:fixed;z-index:9700;background:var(--surface);border:1px solid var(--border);' +
+    'border-radius:10px;box-shadow:0 8px 28px rgba(0,0,0,0.45);padding:0.4rem;max-height:60vh;overflow:auto;min-width:190px';
+  if (!avail.length) {
+    box.innerHTML = '<div style="padding:0.5rem 0.6rem;font-size:0.82rem;color:var(--text-dim)">Every column is already on the table.</div>';
+  } else {
+    box.innerHTML = '<div style="padding:0.3rem 0.6rem;font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.08em">Add a column</div>' +
+      avail.map(function (c) {
+        return '<button type="button" onclick="_collAddCol(\'' + c.col + '\')" style="display:block;width:100%;text-align:left;' +
+          'background:none;border:none;color:var(--text);font-family:var(--font-body);font-size:0.85rem;' +
+          'padding:0.4rem 0.6rem;border-radius:7px;cursor:pointer">' + _collColLabel(c.col) + '</button>';
+      }).join('');
+  }
+  document.body.appendChild(box);
+  try {
+    var r = ev && ev.target ? ev.target.getBoundingClientRect() : { bottom: 90, right: window.innerWidth - 20 };
+    box.style.top = Math.min(window.innerHeight - box.offsetHeight - 12, r.bottom + 6) + 'px';
+    box.style.left = Math.max(8, r.right - box.offsetWidth) + 'px';
+  } catch (e) {}
+  setTimeout(function () {
+    document.addEventListener('click', function _close(e2) {
+      if (box.contains(e2.target)) return;
+      box.remove(); document.removeEventListener('click', _close, true);
+    }, true);
+  }, 0);
+}
+function _collAddCol(id) {
+  var box = document.getElementById('coll-addcol'); if (box) box.remove();
+  var vis = _collVisibleCols().filter(function (c) { return _COLL_LOCKED.indexOf(c) < 0; });
+  if (vis.indexOf(id) < 0) vis.push(id);
+  _collSaveCols(vis);
+  _renderCollectionHeader();
+  if (typeof renderBrowse === 'function') renderBrowse();
 }
 function _collSortBy(col) {
   var cs = state._collSort;
@@ -2056,7 +2173,11 @@ function filterOwned(qe) {
     var _colsBtn = document.createElement('button');
     _colsBtn.id = 'cols-btn-collection';
     _colsBtn.className = 'btn';
-    _colsBtn.onclick = function () { if (typeof _openCollColumnsModal === 'function') _openCollColumnsModal(); };
+    // v0.9.1543 (Brad): "instead of the columns button at the top, on the
+    // header bar itself, i hit an edit button." The button stays as a way in
+    // for anyone who has learned it, but it now turns on the same header edit
+    // mode rather than opening a separate list of column names.
+    _colsBtn.onclick = function () { if (typeof _collColEdit === 'function') _collColEdit(!state._collColEdit); };
     _colsBtn.style.cssText = 'display:flex;align-items:center;gap:0.4rem;border:1.5px solid var(--border);color:var(--text-mid);background:var(--bg-card);font-weight:600;font-size:0.85rem;padding:0.5rem 0.9rem;margin-right:0.4rem';
     _colsBtn.innerHTML = '\u2637 Columns';
     _btnArea.appendChild(_colsBtn);
@@ -4088,7 +4209,7 @@ function renderBrowse() {
             <td><span style="color:var(--text-mid);font-size:0.85rem">For #${it.linkedItem || '—'}</span></td>
             <td style="font-size:0.82rem;color:var(--gold);white-space:nowrap;text-align:center">${isFinite(_isWorthN) ? _cSymIS + _isWorthN.toLocaleString() : '<span style="color:var(--text-dim)">—</span>'}</td>
             <td style="font-size:0.76rem;color:var(--text-dim);white-space:nowrap;text-align:center">${it.dateAcquired ? ((typeof _formatDate === 'function') ? _formatDate(it.dateAcquired) : it.dateAcquired) : '—'}</td>
-            <td class="coll-actions-cell" onclick="event.stopPropagation()" style="text-align:right;white-space:nowrap">${_isActions}</td>
+            <td class="coll-actions-cell" data-col="actions" onclick="event.stopPropagation()" style="text-align:right;white-space:nowrap">${_isActions}</td>
           </tr>`;
         }
         // v0.9.1251 (finding 14): the master-catalog branch passed the raw
@@ -4162,7 +4283,7 @@ function renderBrowse() {
           </td>
           <td style="font-size:0.82rem;color:var(--gold);white-space:nowrap;text-align:center">${_ephWorth}</td>
           <td style="font-size:0.76rem;color:var(--text-dim);white-space:nowrap;width:80px;text-align:center">${_ephDate}</td>
-          <td class="coll-actions-cell" onclick="event.stopPropagation()" style="text-align:right;white-space:nowrap">
+          <td class="coll-actions-cell" data-col="actions" onclick="event.stopPropagation()" style="text-align:right;white-space:nowrap">
             <button onclick="ephemeraForSale('${r.tabId}',${it.row})" style="${_ephBtn};border:1px solid #e67e22;background:var(--bg-card);background:color-mix(in srgb, rgb(230,126,34) 10%, var(--bg-card));color:#e67e22">For Sale</button>
             <button onclick="ephemeraSold('${r.tabId}',${it.row})" style="${_ephBtn};border:1px solid #2ecc71;background:var(--bg-card);background:color-mix(in srgb, rgb(46,204,113) 10%, var(--bg-card));color:#2ecc71">Sold</button>
             <button onclick="ephemeraDelete('${r.tabId}',${it.row})" style="${_ephBtn};margin-right:0;border:1px solid var(--border);background:var(--surface2);color:#f05008">Remove</button>
@@ -4408,9 +4529,15 @@ function renderBrowse() {
           if (!_sc && item && item._era && typeof ERA_SCALE !== 'undefined') _sc = ERA_SCALE[item._era] || '';
           if (!_sc && pd && pd.era && typeof ERA_SCALE !== 'undefined') _sc = ERA_SCALE[String(pd.era).toLowerCase()] || '';
           _sc = rrGaugeLabel(_sc);   // v0.9.1203: every source spells O the same way
-          return _sc ? _b.replace('</td>', '<div style="font-size:0.66rem;color:var(--text-dim);margin-top:2px;letter-spacing:0.04em">' + _sc + '</div></td>') : _b;
+          // v0.9.1543: the maker cell is built by _mfrBadge, which returns its
+          // own <td>. Stamp the column id on it so the width rules — which now
+          // follow the COLUMN rather than its position — apply here too.
+          var _out = _sc
+            ? _b.replace('</td>', '<div style="font-size:0.66rem;color:var(--text-dim);margin-top:2px;letter-spacing:0.04em">' + _sc + '</div></td>')
+            : _b;
+          return _out.replace('<td', '<td data-col="mfr"');
         })();
-        _cells.num = `<td style="max-width:170px;overflow:hidden">
+        _cells.num = `<td data-col="num" style="max-width:170px;overflow:hidden">
           <span class="item-num" style="display:inline-block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:bottom" title="${String(_displayItemNum(item)).replace(/"/g,'&quot;')}">${_displayItemNum(item)}</span>${_noNumTag(item.itemNum)}
           <div style="margin-top:1px;line-height:1.1;white-space:nowrap">
             ${(typeof eraBadgeHTML === 'function' && window.ERA_BADGES && window.ERA_BADGES.showInBrowse) ? eraBadgeHTML(item._tab) : ''}
@@ -4424,22 +4551,22 @@ function renderBrowse() {
             ${_statusBadges}
           </div>
         </td>`;
-        _cells['var'] = `<td style="white-space:nowrap;text-align:center">${item.variation ? '<span style="font-size:0.78rem;color:var(--text-mid)">' + item.variation + '</span>' : '<span style="color:var(--text-dim)">—</span>'}</td>`;
-        _cells.type = `<td style="font-size:0.78rem;color:var(--text-dim)">${_typeText}${(pd && pd.subType) ? '<div style="font-size:0.66rem;opacity:0.8;margin-top:1px">' + pd.subType + '</div>' : ''}</td>`;
-        _cells.photo = `<td style="width:52px;text-align:center;padding:2px 4px"><div id="thumb-${_rrRowDomKey(item)}" style="width:44px;height:44px;border-radius:5px;background:var(--surface2);display:inline-flex;align-items:center;justify-content:center;overflow:hidden;vertical-align:middle"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.3"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg></div></td>`;
-        _cells.desc = `<td style="color:var(--text-mid);font-size:0.85rem" title="${(_descFull||'').replace(/"/g,'&quot;')}">${_descFull}</td>`;
-        _cells.worth = `<td style="font-size:0.82rem;color:var(--gold);white-space:nowrap;text-align:center">${_estWorth}</td>`;
-        _cells.added = `<td style="font-size:0.76rem;color:var(--text-dim);white-space:nowrap;width:80px;text-align:center">${(function(){ var d = (typeof rrBestDate === 'function') ? rrBestDate(pd) : ((pd && (pd.dateAdded || pd.datePurchased)) || ''); if (d) return (typeof _formatDate === 'function') ? _formatDate(d) : d; if (pd && pd._savedAt) { try { return new Date(pd._savedAt).toLocaleDateString(); } catch(e){} } return '—'; })()}</td>`;
+        _cells['var'] = `<td data-col="var" style="white-space:nowrap;text-align:center">${item.variation ? '<span style="font-size:0.78rem;color:var(--text-mid)">' + item.variation + '</span>' : '<span style="color:var(--text-dim)">—</span>'}</td>`;
+        _cells.type = `<td data-col="type" style="font-size:0.78rem;color:var(--text-dim)">${_typeText}${(pd && pd.subType) ? '<div style="font-size:0.66rem;opacity:0.8;margin-top:1px">' + pd.subType + '</div>' : ''}</td>`;
+        _cells.photo = `<td data-col="photo" style="width:52px;text-align:center;padding:2px 4px"><div id="thumb-${_rrRowDomKey(item)}" style="width:44px;height:44px;border-radius:5px;background:var(--surface2);display:inline-flex;align-items:center;justify-content:center;overflow:hidden;vertical-align:middle"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.3"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg></div></td>`;
+        _cells.desc = `<td data-col="desc" style="color:var(--text-mid);font-size:0.85rem" title="${(_descFull||'').replace(/"/g,'&quot;')}">${_descFull}</td>`;
+        _cells.worth = `<td data-col="worth" style="font-size:0.82rem;color:var(--gold);white-space:nowrap;text-align:center">${_estWorth}</td>`;
+        _cells.added = `<td data-col="added" style="font-size:0.76rem;color:var(--text-dim);white-space:nowrap;width:80px;text-align:center">${(function(){ var d = (typeof rrBestDate === 'function') ? rrBestDate(pd) : ((pd && (pd.dateAdded || pd.datePurchased)) || ''); if (d) return (typeof _formatDate === 'function') ? _formatDate(d) : d; if (pd && pd._savedAt) { try { return new Date(pd._savedAt).toLocaleDateString(); } catch(e){} } return '—'; })()}</td>`;
         // Extra columns: plain values straight off the personal row.
         _COLL_EXTRA_COLS.forEach(function (xc) {
           var v = (pd && pd[xc.pdKey] != null) ? String(pd[xc.pdKey]).trim() : '';
           if (xc.money && v) { var n = parseFloat(String(v).replace(/[^0-9.\-]/g, '')); if (!isNaN(n)) v = (typeof _currencySymbol === 'function' ? _currencySymbol() : '$') + n.toLocaleString(); }
           var esc = v.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
-          _cells[xc.col] = '<td style="font-size:0.78rem;color:var(--text-mid);max-width:190px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + esc + '">' + (esc || '<span style="color:var(--text-dim)">—</span>') + '</td>';
+          _cells[xc.col] = '<td data-col="' + xc.col + '" style="font-size:0.78rem;color:var(--text-mid);max-width:190px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + esc + '">' + (esc || '<span style="color:var(--text-dim)">—</span>') + '</td>';
         });
         return _collVisibleCols().map(function (id) { return _cells[id] || '<td><span style="color:var(--text-dim)">—</span></td>'; }).join('');
         })()}
-        <td class="coll-actions-cell" style="text-align:right">
+        <td class="coll-actions-cell" data-col="actions" style="text-align:right">
           ${!_inShareModeD ? `${_fsBtn}
           <button onclick="event.stopPropagation();collectionActionSold(${globalIdx},'${_dispNum}','${_escVar}',${pd && pd.row ? pd.row : 0},'${_myInvId}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #2ecc71;background:var(--bg-card);background:color-mix(in srgb, rgb(46,204,113) 10%, var(--bg-card));color:#2ecc71;font-family:var(--font-body);font-weight:600;margin-right:0.2rem" title="Mark as sold / add to Sold list">Sold</button>
           ${_upgBtn}

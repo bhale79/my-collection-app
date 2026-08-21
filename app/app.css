@@ -858,28 +858,57 @@
 
   /* Browse table wrapper: vertical + horizontal scroll with sticky headers */
   .browse-table-wrap { overflow-x: auto; overflow-y: auto; }
-  /* Collection view: fills container width, no horizontal scroll */
-  #page-browse .item-table.collection-view { table-layout: fixed; width: 100%; min-width: 0; }
-  #page-browse .item-table.collection-view th:nth-child(1),
-  #page-browse .item-table.collection-view td:nth-child(1) { width: 54px; }
-  .item-table.collection-view th:nth-child(2),
-  #page-browse .item-table.collection-view td:nth-child(2) { width: 92px; }
-  .item-table.collection-view th:nth-child(3),
-  #page-browse .item-table.collection-view td:nth-child(3) { width: 44px; }
-  .item-table.collection-view th:nth-child(4),
-  #page-browse .item-table.collection-view td:nth-child(4) { width: 66px; }
-  .item-table.collection-view th:nth-child(5),
-  #page-browse .item-table.collection-view td:nth-child(5) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .item-table.collection-view th:nth-child(6),
-  #page-browse .item-table.collection-view td:nth-child(6) { width: 58px; }
-  .item-table.collection-view th:nth-child(7),
-  #page-browse .item-table.collection-view td:nth-child(7) { width: 250px; text-align: right; }
+  /* ── v0.9.1543 (Brad: "i check location and location detail, and neither
+     column showed up") ──────────────────────────────────────────────────
+     They DID show up — underneath the Actions column, which was painting
+     over them. Every width below used to be nth-child(1..7), written when
+     this table always had exactly seven columns. The column picker made the
+     count variable, so the moment a column was ticked, "column 7" was no
+     longer Actions: the real Actions cell lost its width, table-layout:fixed
+     squeezed the newcomers to nothing, and the text overlapped.
+     Widths now follow the COLUMN, by data-col, so they cannot be knocked out
+     of step by adding one. The table is free to be wider than the panel and
+     the wrapper scrolls, instead of cramming twelve columns into seven
+     columns' worth of space. */
+  #page-browse .item-table.collection-view { table-layout: auto; width: 100%; min-width: 100%; }
+  #page-browse .item-table.collection-view th[data-col="mfr"],
+  #page-browse .item-table.collection-view td[data-col="mfr"] { width: 54px; }
+  #page-browse .item-table.collection-view th[data-col="num"],
+  #page-browse .item-table.collection-view td[data-col="num"] { width: 92px; }
+  #page-browse .item-table.collection-view th[data-col="var"],
+  #page-browse .item-table.collection-view td[data-col="var"] { width: 44px; }
+  #page-browse .item-table.collection-view th[data-col="type"],
+  #page-browse .item-table.collection-view td[data-col="type"] { width: 66px; }
+  #page-browse .item-table.collection-view th[data-col="photo"],
+  #page-browse .item-table.collection-view td[data-col="photo"] { width: 52px; }
+  #page-browse .item-table.collection-view th[data-col="desc"],
+  #page-browse .item-table.collection-view td[data-col="desc"] { min-width: 220px; }
+  #page-browse .item-table.collection-view th[data-col="worth"],
+  #page-browse .item-table.collection-view td[data-col="worth"] { width: 88px; text-align: center; }
+  #page-browse .item-table.collection-view th[data-col="added"],
+  #page-browse .item-table.collection-view td[data-col="added"] { width: 88px; text-align: center; }
+  /* Anything the user adds: readable, capped, and never squeezed to zero. */
+  #page-browse .item-table.collection-view th[data-col],
+  #page-browse .item-table.collection-view td[data-col] { min-width: 90px; }
+  #page-browse .item-table.collection-view th[data-col="actions"],
+  #page-browse .item-table.collection-view td[data-col="actions"] { width: 250px; min-width: 250px; text-align: right; }
+  /* v0.9.1543 (Brad: "scroll bar needs to be at the bottom of the page but
+     clearly visible"). The default bar on a dark surface is nearly invisible,
+     and a scrollbar nobody can see is the same as no scrollbar at all. */
+  .browse-table-wrap { scrollbar-color: var(--accent) var(--surface2); scrollbar-width: auto; }
+  .browse-table-wrap::-webkit-scrollbar { height: 14px; width: 12px; }
+  .browse-table-wrap::-webkit-scrollbar-track { background: var(--surface2); border-radius: 8px; }
+  .browse-table-wrap::-webkit-scrollbar-thumb {
+    background: var(--accent); border-radius: 8px; border: 3px solid var(--surface2);
+  }
+  .browse-table-wrap::-webkit-scrollbar-thumb:hover { background: var(--accent2, var(--accent)); }
   /* Actions buttons wrap within their column instead of forcing sideways scroll */
   #page-browse .item-table.collection-view .coll-actions-cell { white-space: normal; }
   /* Phones: drop the Actions column; tap a row to open its detail (all actions there) */
   @media (max-width: 760px) {
-    #page-browse .item-table.collection-view th:nth-child(7),
-    #page-browse .item-table.collection-view td:nth-child(7) { display: none; }
+    /* v0.9.1543: by name, not by position — see above. */
+    #page-browse .item-table.collection-view th[data-col="actions"],
+    #page-browse .item-table.collection-view td[data-col="actions"] { display: none; }
   }
   /* Tighter rows + headers to fit more on a page */
   #page-browse .item-table.collection-view td { padding: 0.4rem 0.55rem; vertical-align: top; }
