@@ -2626,3 +2626,20 @@ html[data-theme="high-contrast"] button[style*="#e74c3c"] {
 }
 .wiz-kin-desc { font-size: 0.75rem; color: var(--text-mid); }
 .wiz-kin-more { font-size: 0.7rem; color: var(--text-dim); font-family: var(--font-body); }
+
+/* ── v0.9.1546: the filter bar at three widths (Brad) ────────────────────
+   Wide: search grows, every chip inline. Medium: the idle chips fold into
+   one Filters button — the ACTIVE pills always stay visible, because a
+   filter you cannot see is a filter you cannot trust. Phone: same, tighter,
+   and the row wraps on purpose instead of by accident. */
+@media (max-width: 1100px) {
+  #hierarchy-chip-row .ph-idle { display: none !important; }
+  #hierarchy-chip-row #ph-filters-btn { display: inline-flex !important; }
+}
+@media (max-width: 620px) {
+  #hierarchy-chip-row { padding: 0.3rem 0.4rem; }
+  #browse-search-wrap { flex: 1 1 100% !important; }
+  #hierarchy-chips { width: 100%; }
+}
+#ph-more-menu button:hover { background: var(--surface2); }
+#browse-search-wrap:focus-within { border-color: var(--accent); }

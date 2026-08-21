@@ -876,85 +876,222 @@ function _renderHierarchyChips() {
     }
     _phSave(st);
   } catch(e) {}
-  var chipStyle = 'padding:0.22rem 0.55rem;border-radius:14px;border:1.5px solid var(--border);'
-                + 'background:var(--bg-card);color:var(--text);font-family:var(--font-body);'
-                + 'font-size:0.78rem;font-weight:600;cursor:pointer;display:inline-flex;'
-                + 'align-items:center;gap:0.25rem;line-height:1';
-  var chipStyleActive = 'padding:0.22rem 0.55rem;border-radius:14px;border:1.5px solid var(--accent);'
-                + 'background:var(--accent);color:var(--on-accent);font-family:var(--font-body);'
-                + 'font-size:0.78rem;font-weight:600;cursor:pointer;display:inline-flex;'
-                + 'align-items:center;gap:0.25rem;line-height:1';
-  var _chipIsActive = function(label){ return !(label === 'Items' || label === 'All Types' || String(label).indexOf('Any ') === 0); };
-  var sepStyle  = 'color:var(--text-dim);font-weight:700;opacity:0.45;font-size:0.95rem';
-  var labelStyle = 'font-size:0.62rem;font-weight:700;letter-spacing:0.09em;'
-                 + 'text-transform:uppercase;color:var(--text-dim);margin-right:0.15rem';
-  var noteStyle = 'margin-left:auto;font-size:0.68rem;color:var(--text-dim);font-style:italic';
-  // ══ v0.9.1295 (Brad): NO Section chip on My Collection. ═══════════════
-  // "the items and all types filters both have paper. if i select items as
-  //  paper, i get zero items. if i select paper under all types i get the 9
-  //  items in my collection. seems like i need to get rid of the items
-  //  filter all together and just have the last one"
+  // ── v0.9.1546: the filter bar, reworked (Brad) ────────────────────────
+  // What was wrong: six dropdowns, two checkboxes and a search box all at one
+  // weight, and an OFF filter ("Any Manufacturer") looking exactly like an ON
+  // one ("Lionel"). You could not tell at a glance what was actually
+  // filtering, and the row wrapped by accident rather than by design.
   //
-  // He was right about the zero: the section picker routes the OWNED view
-  // into the per-section collection tables, and the paper one reads
-  // state.ephemeraData.paper — a bucket retired in v0.9.990, when typed rows
-  // in the one inventory became the truth. His paper items are typed rows,
-  // so that table is empty by construction, while All Types (and the SHOW
-  // chips) route by what an item IS and find all 9.
-  //
-  // So on My Collection the Section chip was a leftover door into an empty
-  // room, duplicating the SHOW chips + Type filter. It is not rendered
-  // there. The Master Catalog keeps it — there it picks which catalog book
-  // (tab) is being browsed, which is its real job.
+  // Now: an ON filter is a solid BLUE pill carrying its own \u00d7 (blue, not
+  // the app accent — orange already means "for sale" elsewhere). An OFF one
+  // is a quiet outlined chip named for the thing itself: "Maker", not "Any
+  // Manufacturer". The rarely-used ones live behind More, which carries a
+  // count so nothing hides silently. Clear-all only exists when there is
+  // something to clear.
+  var _FON = '#2980b9';   // the one blue: an active filter
+  var chipIdle = 'height:30px;padding:0 0.7rem;border-radius:999px;border:1.5px solid var(--border);'
+               + 'background:var(--bg-card);color:var(--text-mid);font-family:var(--font-body);'
+               + 'font-size:0.78rem;font-weight:600;cursor:pointer;display:inline-flex;'
+               + 'align-items:center;gap:0.25rem;line-height:1;white-space:nowrap';
+  var chipOn   = 'height:30px;padding:0 0.5rem 0 0.7rem;border-radius:999px;border:1.5px solid ' + _FON + ';'
+               + 'background:' + _FON + ';color:#fff;font-family:var(--font-body);'
+               + 'font-size:0.78rem;font-weight:600;cursor:pointer;display:inline-flex;'
+               + 'align-items:center;gap:0.3rem;line-height:1;white-space:nowrap';
   var _phOwned = !!(typeof state !== 'undefined' && state && state.filters && state.filters.owned);
-  var levels = _phOwned ? ['manufacturer','scale','era'] : ['manufacturer','scale','era','section'];
-  var html = '<span class="ph-label" style="' + labelStyle + '">Filters</span>';
-  // v0.9.649 (Brad): small clear-all box at the left of the chips.
-  html += '<button type="button" class="ph-clear" title="Clear all filters" '
-       +  'style="padding:0.28rem 0.5rem;border-radius:8px;border:1.5px solid var(--border);'
-       +  'background:var(--bg-card);color:var(--text-dim);font-size:0.72rem;font-weight:700;'
-       +  'cursor:pointer;line-height:1" onclick="_clearHierarchyFilters()">\u2715</button>';
-  levels.forEach(function(level, i) {
-    var lbl = _phLabelFor(level, st[level]);
-    // v0.9.1513 (Brad, live): a maker that exists only in the USER's rows is
-    // held in state.filters.ownMaker, not in chip state — so the chip still
-    // read "Any Manufacturer" while the list was filtered to Cararama. The
-    // chip is the only way to see (and clear) a filter; it must say so.
-    if (level === 'manufacturer' && state.filters.ownMaker) lbl = state.filters.ownMaker;
-    if (i > 0) html += '<span class="ph-sep" style="' + sepStyle + '">›</span>';
-    html += '<button type="button" style="' + (_chipIsActive(lbl) ? chipStyleActive : chipStyle) + '" '
-         +  'onclick="_openLevelPicker(\'' + level + '\')">'
-         +  lbl + ' ▾</button>';
+  var _isSet = function (v) {
+    return !!v && v !== 'any' && v !== 'items' && String(v).indexOf('Any ') !== 0 && String(v).indexOf('All ') !== 0;
+  };
+  // An active pill: its own \u00d7 clears just that one, without touching the rest.
+  var _pillOn = function (label, clearFn, openFn) {
+    return '<span style="' + chipOn + '">' +
+      '<button type="button" onclick="' + openFn + '" style="border:none;background:none;color:#fff;font:inherit;cursor:pointer;padding:0">' +
+      _rrEscAttr(label) + '</button>' +
+      '<button type="button" title="Clear this filter" onclick="' + clearFn + '" ' +
+      'style="border:none;background:none;color:#fff;font-size:0.95rem;line-height:1;cursor:pointer;padding:0 0.1rem;opacity:0.85">\u00d7</button></span>';
+  };
+  var _pillIdle = function (label, openFn) {
+    return '<button type="button" class="ph-idle" style="' + chipIdle + '" onclick="' + openFn + '">' +
+      _rrEscAttr(label) + ' \u25be</button>';
+  };
+
+  var st2 = _phState();
+  var onCount = 0, html = '';
+
+  // 1. The three that matter most, in the order a collector thinks.
+  var _mainLevels = [
+    { key: 'manufacturer', idle: 'Maker' },
+    { key: 'scale',        idle: 'Scale' },
+    { key: 'era',          idle: 'Era'   },
+  ];
+  if (!_phOwned) _mainLevels.push({ key: 'section', idle: 'Section' });
+  _mainLevels.forEach(function (lv) {
+    var lbl = _phLabelFor(lv.key, st2[lv.key]);
+    if (lv.key === 'manufacturer' && state.filters.ownMaker) lbl = state.filters.ownMaker;
+    var on = _isSet(lbl) || (lv.key === 'manufacturer' && !!state.filters.ownMaker);
+    if (on) { onCount++; html += _pillOn(lbl, "_phClearOne('" + lv.key + "')", "_openLevelPicker('" + lv.key + "')"); }
+    else html += _pillIdle(lv.idle, "_openLevelPicker('" + lv.key + "')");
   });
-  // S149 follow-up: Type filter rendered as a 5th chip when Section = Items.
-  // Source of truth stays the hidden #filter-type <select>; the chip reads
-  // and writes that element so populateFilters/applyFilters keep working.
-  // v0.9.1295: on My Collection the list IS the items table (filterOwned
-  // resets the tab to 'items'), so the Type chip always renders there — it
-  // is the one filter Brad kept.
-  if (st.section === 'items' || _phOwned) {
-    var _ftSel = document.getElementById('filter-type');
-    var _tVal  = _ftSel ? _ftSel.value : '';
-    var _tLbl  = _tVal || 'All Types';
-    html += '<span class="ph-sep" style="' + sepStyle + '">›</span>';
-    html += '<button type="button" style="' + (_chipIsActive(_tLbl) ? chipStyleActive : chipStyle) + '" '
-         +  'onclick="_openLevelPicker(\'type\')">'
-         +  _tLbl + ' ▾</button>';
+
+  // 2. Type — the one filter Brad kept on My Collection (v0.9.1295).
+  if (st2.section === 'items' || _phOwned) {
+    var _ftSel2 = document.getElementById('filter-type');
+    var _tVal2 = _ftSel2 ? _ftSel2.value : '';
+    if (_tVal2) { onCount++; html += _pillOn(_tVal2, "_phClearOne('type')", "_openLevelPicker('type')"); }
+    else html += _pillIdle('Type', "_openLevelPicker('type')");
   }
-  // v0.9.1521: a chip for the user's own groupings and one for sub types —
-  // each shown ONLY when their items actually use it, so nobody who leaves
-  // them blank sees extra clutter.
+
+  // 3. Everything quieter, behind one door. Brad: "fold it into more."
   if (_phOwned) {
-    [['subCollection', 'All Groups'], ['subType', 'All Sub Types']].forEach(function (pair) {
-      var vals = _phOwnValues(pair[0]);
-      if (!Object.keys(vals).length) return;
-      var lbl = state.filters[pair[0]] || pair[1];
-      html += '<span class="ph-sep" style="' + sepStyle + '">›</span>';
-      html += '<button type="button" style="' + (_chipIsActive(lbl) ? chipStyleActive : chipStyle) + '" '
-           +  'onclick="_openLevelPicker(\'' + pair[0] + '\')">' + lbl + ' ▾</button>';
-    });
+    var moreOn = 0;
+    if (state.filters.subCollection) moreOn++;
+    if (state.filters.subType) moreOn++;
+    if (state.filters.imported === 'imported') moreOn++;
+    if (state.filters.needsDetails === 'needs') moreOn++;
+    onCount += moreOn;
+    // The active ones still show as pills — folded away is not the same as hidden.
+    if (state.filters.subCollection) html += _pillOn(state.filters.subCollection, "_phClearOne('subCollection')", "_openLevelPicker('subCollection')");
+    if (state.filters.subType) html += _pillOn(state.filters.subType, "_phClearOne('subType')", "_openLevelPicker('subType')");
+    if (state.filters.imported === 'imported') html += _pillOn('Imported', "_phClearOne('imported')", "_phMoreMenu(event)");
+    if (state.filters.needsDetails === 'needs') html += _pillOn('Needs details', "_phClearOne('needsDetails')", "_phMoreMenu(event)");
+    html += '<button type="button" class="ph-idle" style="' + chipIdle + '" onclick="_phMoreMenu(event)">More' +
+      (moreOn ? ' <span style="background:' + _FON + ';color:#fff;border-radius:999px;padding:0 0.35rem;font-size:0.68rem">' + moreOn + '</span>' : '') +
+      ' \u25be</button>';
   }
+
+  // 4. Clear-all, only when there is something to clear.
+  if (onCount) {
+    html += '<button type="button" class="ph-clear" title="Clear all filters" onclick="_clearHierarchyFilters()" ' +
+      'style="height:30px;padding:0 0.7rem;border-radius:999px;border:1.5px solid var(--border);' +
+      'background:var(--bg-card);color:var(--text-dim);font-size:0.75rem;font-weight:600;cursor:pointer;' +
+      'font-family:var(--font-body);white-space:nowrap">Clear</button>';
+  }
+
+  // 5. Narrow screens: one Filters button instead of the idle chips. The CSS
+  //    hides .ph-idle and shows this; the active pills stay visible either way.
+  html += '<button type="button" id="ph-filters-btn" style="' + chipIdle + ';display:none" onclick="_phMoreMenu(event, true)">' +
+    '\u2637 Filters' + (onCount ? ' <span style="background:' + _FON + ';color:#fff;border-radius:999px;padding:0 0.35rem;font-size:0.68rem">' + onCount + '</span>' : '') + '</button>';
+
   host.innerHTML = html;
+}
+function _rrEscAttr(v) {
+  return String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+}
+// Clear ONE filter. Each pill's \u00d7 leaves every other filter alone.
+//
+// v0.9.1546: this hands the chip levels back to _setHierarchyChoice rather
+// than writing the state itself. That function owns the cascade — clearing a
+// maker may invalidate the scale and era beneath it — and owns the era switch
+// and re-render. A second copy of those rules here would drift within weeks;
+// this project has already paid for that mistake more than once.
+function _phClearOne(which) {
+  if (which === 'manufacturer') {
+    try { state.filters.ownMaker = ''; } catch (e) {}
+    if (typeof _setHierarchyChoice === 'function') return _setHierarchyChoice('manufacturer', 'any');
+  }
+  if (which === 'scale' || which === 'era') {
+    if (typeof _setHierarchyChoice === 'function') return _setHierarchyChoice(which, 'any');
+  }
+  if (which === 'section') {
+    if (typeof _setHierarchyChoice === 'function') return _setHierarchyChoice('section', 'items');
+  }
+  if (which === 'type') {
+    if (typeof _setHierarchyChoice === 'function') return _setHierarchyChoice('type', '');
+  }
+  // The rest are plain flags on state.filters with no cascade of their own.
+  try {
+    if (which === 'subCollection') state.filters.subCollection = '';
+    else if (which === 'subType') state.filters.subType = '';
+    else if (which === 'imported') state.filters.imported = '';
+    else if (which === 'needsDetails') state.filters.needsDetails = '';
+    state.currentPage = 1;
+  } catch (e) {}
+  if (typeof renderBrowse === 'function') renderBrowse();
+  _renderHierarchyChips();
+}
+// The More menu — and, on a narrow screen, the whole filter set.
+function _phMoreMenu(ev, includeMain) {
+  if (ev) ev.stopPropagation();
+  var old = document.getElementById('ph-more-menu'); if (old) old.remove();
+  var box = document.createElement('div');
+  box.id = 'ph-more-menu';
+  box.style.cssText = 'position:fixed;z-index:9800;background:var(--surface);border:1px solid var(--border);' +
+    'border-radius:10px;box-shadow:0 8px 28px rgba(0,0,0,0.4);padding:0.35rem;min-width:210px;max-height:70vh;overflow:auto';
+  var rowCss = 'display:flex;align-items:center;justify-content:space-between;gap:0.6rem;width:100%;' +
+    'background:none;border:none;color:var(--text);font-family:var(--font-body);font-size:0.85rem;' +
+    'padding:0.45rem 0.6rem;border-radius:7px;cursor:pointer;text-align:left';
+  var html = '';
+  if (includeMain) {
+    [['manufacturer', 'Maker'], ['scale', 'Scale'], ['era', 'Era'], ['type', 'Type']].forEach(function (p) {
+      html += '<button type="button" style="' + rowCss + '" onclick="document.getElementById(\'ph-more-menu\').remove();_openLevelPicker(\'' + p[0] + '\')">' +
+        p[1] + ' <span style="color:var(--text-dim)">\u203a</span></button>';
+    });
+    html += '<div style="height:1px;background:var(--border);margin:0.25rem 0"></div>';
+  }
+  var _vals = (typeof _phOwnValues === 'function') ? _phOwnValues : function () { return {}; };
+  if (Object.keys(_vals('subCollection')).length) {
+    html += '<button type="button" style="' + rowCss + '" onclick="document.getElementById(\'ph-more-menu\').remove();_openLevelPicker(\'subCollection\')">' +
+      'Groups <span style="color:var(--text-dim)">\u203a</span></button>';
+  }
+  if (Object.keys(_vals('subType')).length) {
+    html += '<button type="button" style="' + rowCss + '" onclick="document.getElementById(\'ph-more-menu\').remove();_openLevelPicker(\'subType\')">' +
+      'Sub types <span style="color:var(--text-dim)">\u203a</span></button>';
+  }
+  var hasImported = false, ndCount = 0;
+  try {
+    Object.values(state.personalData || {}).forEach(function (p) {
+      if (!p) return;
+      if (p.importBatch) hasImported = true;
+      if (!p.manufacturer || !p.itemType || (String(p.era || '') === 'Manual' && !p.yearMade)) ndCount++;
+    });
+  } catch (e) {}
+  if (hasImported) {
+    html += '<button type="button" style="' + rowCss + '" onclick="_phToggleFlag(\'imported\')">' +
+      'Imported only <span>' + (state.filters.imported === 'imported' ? '\u2713' : '') + '</span></button>';
+  }
+  if (ndCount) {
+    html += '<button type="button" style="' + rowCss + '" onclick="_phToggleFlag(\'needsDetails\')">' +
+      'Needs details <span style="color:var(--text-dim)">' + ndCount.toLocaleString() +
+      (state.filters.needsDetails === 'needs' ? ' \u2713' : '') + '</span></button>';
+  }
+  if (!html) html = '<div style="padding:0.5rem 0.6rem;font-size:0.82rem;color:var(--text-dim)">Nothing else to filter by yet.</div>';
+  box.innerHTML = html;
+  document.body.appendChild(box);
+  try {
+    var r = ev && ev.currentTarget ? ev.currentTarget.getBoundingClientRect() : { bottom: 120, left: 20 };
+    box.style.top = Math.min(window.innerHeight - box.offsetHeight - 12, r.bottom + 6) + 'px';
+    box.style.left = Math.max(8, Math.min(window.innerWidth - box.offsetWidth - 8, r.left)) + 'px';
+  } catch (e) {}
+  setTimeout(function () {
+    document.addEventListener('click', function _c(e2) {
+      if (box.contains(e2.target)) return;
+      box.remove(); document.removeEventListener('click', _c, true);
+    }, true);
+  }, 0);
+}
+function _phToggleFlag(which) {
+  var on = which === 'imported' ? (state.filters.imported === 'imported') : (state.filters.needsDetails === 'needs');
+  if (which === 'imported') state.filters.imported = on ? '' : 'imported';
+  else state.filters.needsDetails = on ? '' : 'needs';
+  state.currentPage = 1;
+  var box = document.getElementById('ph-more-menu'); if (box) box.remove();
+  if (typeof renderBrowse === 'function') renderBrowse();
+  _renderHierarchyChips();
+}
+// The search box's own clear.
+function _rrClearBrowseSearch() {
+  var inp = document.getElementById('browse-search');
+  if (!inp) return;
+  inp.value = '';
+  if (typeof onPageSearch === 'function') onPageSearch('', 'browse');
+  var x = document.getElementById('browse-search-clear');
+  if (x) x.style.display = 'none';
+  inp.focus();
+}
+if (typeof window !== 'undefined') {
+  window._phClearOne = _phClearOne;
+  window._phMoreMenu = _phMoreMenu;
+  window._phToggleFlag = _phToggleFlag;
+  window._rrClearBrowseSearch = _rrClearBrowseSearch;
 }
 
 // v0.9.649 (Brad): one-tap reset of the whole filter hierarchy.
@@ -2270,72 +2407,17 @@ function filterOwned(qe) {
   setTimeout(function() {
     var stale = document.getElementById('qe-only-toggle');
     if (stale) stale.remove();
-    // v0.9.1506 (Session 81, Brad): "Imported" pill — shows ONLY in My
-    // Collection view and ONLY when the collection contains imported rows
-    // (pd.importBatch non-blank), so users who never import see zero change.
+    // v0.9.1546: the Imported and Needs-details pills used to be built here,
+    // as two loose checkbox labels wedged in beside the search box. Brad, on
+    // the rework: "fold it into more." They are rows in the More menu now and
+    // still appear as blue pills when ON — see _renderHierarchyChips. Any
+    // copy left over from an older render is cleared away.
     try {
       var _impStale = document.getElementById('imp-only-toggle');
       if (_impStale) _impStale.remove();
-      var _hasImported = Object.values(state.personalData || {}).some(function (p) { return p && p.importBatch; });
-      var _impWrap = document.getElementById('browse-search-wrap');
-      if (_hasImported && _impWrap && _impWrap.parentNode) {
-        var _impLbl = document.createElement('label');
-        _impLbl.id = 'imp-only-toggle';
-        _impLbl.title = 'Show only items brought in by a spreadsheet import';
-        _impLbl.style.cssText = 'display:flex;align-items:center;gap:0.35rem;flex-shrink:0;'
-          + 'font-size:0.8rem;color:var(--text-dim);cursor:pointer;'
-          + 'padding:0.35rem 0.7rem;background:var(--bg-card);'
-          + 'border:1.5px solid var(--border);border-radius:14px;'
-          + 'white-space:nowrap;user-select:none';
-        var _impCb = document.createElement('input');
-        _impCb.type = 'checkbox';
-        _impCb.id = 'imp-only-cb';
-        _impCb.checked = state.filters.imported === 'imported';
-        _impCb.style.cssText = 'margin:0;cursor:pointer;accent-color:var(--accent)';
-        _impCb.onchange = function () {
-          state.filters.imported = this.checked ? 'imported' : '';
-          state.currentPage = 1;
-          renderBrowse();
-        };
-        _impLbl.appendChild(_impCb);
-        var _impTxt = document.createElement('span');
-        _impTxt.textContent = '📥 Imported';
-        _impLbl.appendChild(_impTxt);
-        _impWrap.parentNode.insertBefore(_impLbl, _impWrap.nextSibling);
-      }
-      // v0.9.1509 (Brad): "Needs details" pill — worklist of items missing
-      // maker/type/year, now that strict chips hide unknowns from filters.
       var _ndStale = document.getElementById('nd-only-toggle');
       if (_ndStale) _ndStale.remove();
-      var _ndCount = Object.values(state.personalData || {}).filter(function (p) {
-        return p && (!p.manufacturer || !p.itemType || (String(p.era || '') === 'Manual' && !p.yearMade));
-      }).length;
-      if (_ndCount > 0 && _impWrap && _impWrap.parentNode) {
-        var _ndLbl = document.createElement('label');
-        _ndLbl.id = 'nd-only-toggle';
-        _ndLbl.title = 'Show only items missing a maker, type, or year';
-        _ndLbl.style.cssText = 'display:flex;align-items:center;gap:0.35rem;flex-shrink:0;' +
-          'font-size:0.8rem;color:var(--text-dim);cursor:pointer;' +
-          'padding:0.35rem 0.7rem;background:var(--bg-card);' +
-          'border:1.5px solid var(--border);border-radius:14px;' +
-          'white-space:nowrap;user-select:none';
-        var _ndCb = document.createElement('input');
-        _ndCb.type = 'checkbox';
-        _ndCb.id = 'nd-only-cb';
-        _ndCb.checked = state.filters.needsDetails === 'needs';
-        _ndCb.style.cssText = 'margin:0;cursor:pointer;accent-color:var(--accent)';
-        _ndCb.onchange = function () {
-          state.filters.needsDetails = this.checked ? 'needs' : '';
-          state.currentPage = 1;
-          renderBrowse();
-        };
-        _ndLbl.appendChild(_ndCb);
-        var _ndTxt = document.createElement('span');
-        _ndTxt.textContent = '🛠 Needs details (' + _ndCount.toLocaleString() + ')';
-        _ndLbl.appendChild(_ndTxt);
-        _impWrap.parentNode.insertBefore(_ndLbl, _impWrap.nextSibling);
-      }
-    } catch (eImpPill) { console.warn('[browse] imported pill skipped:', eImpPill && eImpPill.message); }
+    } catch (eOldPills) {}
     return;
     // (legacy body retained below but unreachable; will be deleted in a follow-up.)
     // eslint-disable-next-line no-unreachable
@@ -4991,4 +5073,13 @@ if (typeof window !== 'undefined') {
   window._rrFilterSheetClose = _rrFilterSheetClose;
   window._rrFilterBtnSync = _rrFilterBtnSync;
   window.addEventListener('resize', function () { try { _rrFilterBtnSync(); } catch (e) {} });
+}
+
+// v0.9.1546: show the search box's \u00d7 only when there is something to clear.
+if (typeof window !== 'undefined') {
+  document.addEventListener('input', function (e) {
+    if (!e.target || e.target.id !== 'browse-search') return;
+    var x = document.getElementById('browse-search-clear');
+    if (x) x.style.display = e.target.value ? 'block' : 'none';
+  });
 }
