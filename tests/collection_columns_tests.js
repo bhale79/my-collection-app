@@ -80,6 +80,18 @@ ok('it hides when the table is off screen', /r\.bottom < 40 \|\| r\.top > window
 ok('it re-measures when the columns change', /setTimeout\(rrStickyHScroll, 30\)/.test(js));
 ok('...and after the list re-renders', /setTimeout\(rrStickyHScroll, 40\)/.test(js));
 
+// ── v0.9.1545: the control moved to where it acts ───────────────────────
+ok('Edit Headers sits on the row above the table', /_collColEdit\(!state\._collColEdit\)" style="margin-left:auto;/.test(js));
+ok('...shaped like the Show chips beside it',
+   /margin-left:auto;'\s*\+ 'padding:0\.25rem 0\.7rem;border-radius:999px;font-size:0\.72rem/.test(js));
+ok('...and says Edit Headers', /\\u270E Edit Headers/.test(js));
+ok('...flipping to Done while editing', /state\._collColEdit \? '\\u2713 Done'/.test(js));
+ok('the old top-right Columns button is gone', /var _oldColsBtn = document\.getElementById\('cols-btn-collection'\);\s*if \(_oldColsBtn\) _oldColsBtn\.remove\(\);/.test(js));
+ok('the row no longer vanishes when a collection has no catalogs or paper',
+   /if \(!state\.filters\.owned \|\| isMobile\) \{ if \(bar\) bar\.style\.display = 'none'; return; \}/.test(js),
+   'it carries Edit Headers now, which every collection needs');
+ok('...and the Show chips simply sit it out', /var _showChips = sections\.length/.test(js));
+
 console.log('');
 console.log(fail === 0 ? 'ALL COLUMN TESTS GREEN (' + pass + ')' : fail + ' FAILING of ' + (pass + fail));
 process.exit(fail === 0 ? 0 : 1);

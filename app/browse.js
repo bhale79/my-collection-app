@@ -499,7 +499,8 @@ function _renderCollectionHeader() {
 function _collColEdit(on) {
   state._collColEdit = !!on;
   _renderCollectionHeader();
-  if (!on && typeof renderBrowse === 'function') renderBrowse();
+  // v0.9.1545: repaint the Show: row so the button reads Done while editing.
+  if (typeof renderBrowse === 'function') renderBrowse();
   if (on && typeof showToast === 'function') {
     showToast('Drag a heading to move it · \u00d7 removes it · + Add brings one back', 4500);
   }
@@ -2224,8 +2225,13 @@ function filterOwned(qe) {
   // button (inside the quick-actions container) so both sit at the top-right.
   var _qaActions = document.querySelector('#page-browse > .page-title > .qa-tr-actions');
   var _btnArea = _qaActions || document.querySelector('#page-browse > .page-title > div');
-  // v0.9.1517 (Task #34): "Columns" button beside Share on My Collection.
-  if (_btnArea && !document.getElementById('cols-btn-collection')) {
+  // v0.9.1545 (Brad): "move the button to here, make it the same size and
+  // shape as the trains filter, and change the text to Edit Headers." It now
+  // lives on the Show: row directly above the headings it edits — see the
+  // jump-bar builder below. Any copy of the old top-right button is removed.
+  var _oldColsBtn = document.getElementById('cols-btn-collection');
+  if (_oldColsBtn) _oldColsBtn.remove();
+  if (false && _btnArea && !document.getElementById('cols-btn-collection')) {
     var _colsBtn = document.createElement('button');
     _colsBtn.id = 'cols-btn-collection';
     _colsBtn.className = 'btn';
@@ -4788,13 +4794,20 @@ function renderBrowse() {
     var wrapEl = document.querySelector('.browse-table-wrap');
     var bar = document.getElementById('coll-jump-bar');
     var sections = _collAllSections || [];
-    if (!state.filters.owned || isMobile || !sections.length) { if (bar) bar.style.display = 'none'; return; }
+    // v0.9.1545: this row used to disappear entirely when a collection had no
+    // catalogs or paper items — and it now carries Edit Headers, which every
+    // collection needs. Show it whenever we are looking at MY COLLECTION on a
+    // desktop; the Show chips simply sit it out when there is nothing to show.
+    if (!state.filters.owned || isMobile) { if (bar) bar.style.display = 'none'; return; }
     if (!bar && wrapEl && wrapEl.parentNode) {
       bar = document.createElement('div');
       bar.id = 'coll-jump-bar';
       wrapEl.parentNode.insertBefore(bar, wrapEl);
     }
     if (!bar) return;
+    // v0.9.1545 (Brad): the columns control moved down here, onto the row
+    // above the table it edits, shaped like the chips beside it. It used to
+    // sit top-right beside Share, three feet from the headings it changes.
     bar.style.cssText = 'display:flex;flex-wrap:wrap;gap:0.4rem;align-items:center;margin:0 0 0.5rem';
     var _active = state._collSection || 'trains';
     function _chip(key, label, color) {
@@ -4806,12 +4819,22 @@ function renderBrowse() {
         + 'background:' + (on ? color : 'var(--surface2)') + '">'
         + label + '</button>';
     }
-    bar.innerHTML = '<span style="font-size:0.68rem;letter-spacing:0.08em;color:var(--text-dim);text-transform:uppercase;margin-right:0.2rem">Show:</span>'
-      + _chip('trains', 'Trains', '#2980b9')
-      + sections.map(function(sec) {
-          return _chip(sec.key, sec.label.replace(/^[^A-Za-z0-9]+\s*/, ''), sec.color);
-        }).join('')
-      + _chip('all', 'All', '#7f8c8d');
+    var _showChips = sections.length
+      ? ('<span style="font-size:0.68rem;letter-spacing:0.08em;color:var(--text-dim);text-transform:uppercase;margin-right:0.2rem">Show:</span>'
+        + _chip('trains', 'Trains', '#2980b9')
+        + sections.map(function(sec) {
+            return _chip(sec.key, sec.label.replace(/^[^A-Za-z0-9]+\s*/, ''), sec.color);
+          }).join('')
+        + _chip('all', 'All', '#7f8c8d'))
+      : '';
+    bar.innerHTML = _showChips
+      // Same size and shape as the Show chips, pushed to the right-hand end.
+      + '<button onclick="_collColEdit(!state._collColEdit)" style="margin-left:auto;'
+      + 'padding:0.25rem 0.7rem;border-radius:999px;font-size:0.72rem;font-weight:600;cursor:pointer;'
+      + 'font-family:var(--font-body);border:1.5px solid ' + (state._collColEdit ? 'var(--accent)' : 'var(--border)') + ';'
+      + 'color:' + (state._collColEdit ? 'var(--on-accent)' : 'var(--text-mid)') + ';'
+      + 'background:' + (state._collColEdit ? 'var(--accent)' : 'var(--surface2)') + '">'
+      + (state._collColEdit ? '\u2713 Done' : '\u270E Edit Headers') + '</button>';
   })();
 
   // v0.9.812: load ephemera thumbnails — the eph-thumb span was rendered but
