@@ -182,16 +182,85 @@ function _tablePDF(type) {
   var rows = [].slice.call(tbody.querySelectorAll('tr')).map(function (tr) {
     return [].slice.call(tr.querySelectorAll('td')).map(function (td) { return td.textContent.trim(); });
   });
-  var n = heads.length || (rows[0] ? rows[0].length : 1);
-  var colW = (pageW - M * 2) / n;
-  function row(cells, bold) {
-    if (y > pageH - 40) { doc.addPage(); y = 40; }
-    doc.setFont('helvetica', bold ? 'bold' : 'normal'); doc.setFontSize(8.5); doc.setTextColor(bold ? 60 : 20, bold ? 60 : 20, bold ? 60 : 20);
-    cells.forEach(function (c, i) { var lines = doc.splitTextToSize(String(c || ''), colW - 6); doc.text(lines, M + i * colW + 2, y + 10); });
+
+  // ── v0.9.1553 (Brad: "we don't get a jumbled mess in some columns like
+  // description") ──────────────────────────────────────────────────────
+  // Three faults, one appearance:
+  //   1. Every column was given the SAME width — Description got exactly as
+  //      much room as "Box", so it wrapped to four or five lines.
+  //   2. The row height was a FIXED 18pt however many lines it wrapped to,
+  //      so those lines were drawn straight over the next row. Not cramped —
+  //      overlapping.
+  //   3. Columns that are empty on every single row (Variation, Box, All
+  //      Original on a freshly imported collection) still took their share
+  //      of the page.
+  // Fixed below in that order: drop empty columns, weight the widths, and
+  // let a row be as tall as its tallest cell.
+
+  // 1. A column nobody filled in is not worth a ninth of the page.
+  var _blank = function (v) { var t = String(v || '').trim(); return !t || t === '—' || t === '-'; };
+  var keep = heads.map(function (_, i) {
+    return rows.some(function (r) { return !_blank(r[i]); });
+  });
+  if (keep.indexOf(true) < 0) keep = heads.map(function () { return true; });
+  var dropped = keep.filter(function (k) { return !k; }).length;
+  heads = heads.filter(function (_, i) { return keep[i]; });
+  rows = rows.map(function (r) { return r.filter(function (_, i) { return keep[i]; }); });
+
+  // 2. Weight the widths by what the column holds. Text columns get room;
+  //    a condition of "10" does not need eighty points.
+  var WEIGHT = { description: 4, notes: 2.4, name: 3, item: 1.2, 'item #': 1.2, number: 1.2,
+                 location: 1.6, variation: 0.9, condition: 0.8, box: 0.7, 'all original': 0.9,
+                 'est. worth': 1, worth: 1, value: 1, price: 1, type: 1.1, maker: 1.1,
+                 manufacturer: 1.1, road: 1.3, 'road name': 1.3, year: 0.8, era: 0.9 };
+  var weights = heads.map(function (h) {
+    var k = String(h || '').toLowerCase().trim();
+    if (WEIGHT[k]) return WEIGHT[k];
+    // An unknown column is sized by what is actually in it, not by guesswork.
+    var i = heads.indexOf(h);
+    var longest = 0;
+    rows.forEach(function (r) { var L = String(r[i] || '').length; if (L > longest) longest = L; });
+    return Math.max(0.8, Math.min(3, longest / 14));
+  });
+  var wSum = weights.reduce(function (a, b) { return a + b; }, 0) || 1;
+  var avail = pageW - M * 2;
+  var colW = weights.map(function (w) { return (w / wSum) * avail; });
+  var colX = []; var acc = M;
+  colW.forEach(function (w) { colX.push(acc); acc += w; });
+
+  var FS = 8.5, LH = 10.5, PAD = 5;
+  function drawHeader() {
+    doc.setFillColor(238, 238, 238);
+    doc.rect(M, y - 4, avail, 18, 'F');
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(FS); doc.setTextColor(60, 60, 60);
+    heads.forEach(function (h, i) { doc.text(String(h || ''), colX[i] + 2, y + 8); });
     y += 18;
   }
-  if (heads.length) { doc.setFillColor(238, 238, 238); doc.rect(M, y - 4, pageW - M * 2, 18, 'F'); row(heads, true); }
-  rows.forEach(function (r) { row(r, false); });
+  // 3. A row is as tall as its tallest cell — the whole point.
+  function row(cells) {
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(FS); doc.setTextColor(20, 20, 20);
+    var wrapped = cells.map(function (c, i) {
+      return doc.splitTextToSize(String(c == null ? '' : c), Math.max(20, colW[i] - 6));
+    });
+    var lines = wrapped.reduce(function (m, w) { return Math.max(m, w.length); }, 1);
+    var h = lines * LH + PAD;
+    if (y + h > pageH - 30) { doc.addPage(); y = 40; drawHeader(); }
+    wrapped.forEach(function (w, i) { doc.text(w, colX[i] + 2, y + 8); });
+    y += h;
+    // A hairline between rows, so a two-line description cannot be read as
+    // two items.
+    doc.setDrawColor(228); doc.line(M, y - 3, pageW - M, y - 3);
+  }
+  if (heads.length) drawHeader();
+  rows.forEach(function (r) { row(r); });
+
+  // Say what was left out rather than leaving a reader to wonder.
+  if (dropped) {
+    if (y > pageH - 40) { doc.addPage(); y = 40; }
+    doc.setFont('helvetica', 'italic'); doc.setFontSize(7.5); doc.setTextColor(120, 120, 120);
+    doc.text(dropped + ' column' + (dropped === 1 ? '' : 's') + ' left out of this report — nothing was recorded in ' +
+             (dropped === 1 ? 'it' : 'them') + ' for any item.', M, y + 10);
+  }
   var _fn2 = _repSlugOf(type) + '-' + new Date().toISOString().slice(0, 10) + '.pdf';
   try { _archiveBlob(doc.output('blob'), _fn2, 'application/pdf'); } catch (e) {}
   doc.save(_fn2);

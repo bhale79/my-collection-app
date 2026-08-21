@@ -235,8 +235,24 @@ var CARD_CATALOG = [
     id: 'value', label: 'Collection Value', color: '#c9922a',
     compute: function(state) {
       var total = 0;
-      // Session 121: respect Preferences "What I Collect" in 'all' mode.
-      Object.values(state.personalData).filter(function(pd){return pd.owned;}).filter(_pdEraEnabled).forEach(function(pd) {
+      // ── v0.9.1553 (Brad, comparing the dashboard against Scott's sheet and
+      // his own PDF) ────────────────────────────────────────────────────
+      // MEASURED: sheet $377,658 · imported data $379,438 · his PDF report
+      // $379,436 · this card $345,008. Three agreed and this one did not,
+      // by $34,430.
+      //
+      // Cause: the line below used to end `.filter(_pdEraEnabled)`, which
+      // applies Preferences → What I Collect. Any item whose MAKER was not
+      // ticked there was dropped from the total — and his manufacturer
+      // preferences were mostly unticked, so Micro-Trains, Plasticville, the
+      // die-cast vehicles and more simply vanished from what he was told his
+      // collection is worth. Items I Own applies no such filter, so the two
+      // cards sat side by side answering different questions.
+      //
+      // Brad: "i agree" — the preference narrows the CATALOG you browse. It
+      // does not disown items you actually have. A man with 3,370 items must
+      // not be shown the value of 2,900 of them under the word Total.
+      Object.values(state.personalData).filter(function(pd){return pd.owned;}).forEach(function(pd) {
         if (pd.userEstWorth) total += parseFloat(pd.userEstWorth)||0;
       });
       Object.values(state.ephemeraData||{}).forEach(function(b) { Object.values(b).forEach(function(it) { if (it.estValue) total += parseFloat(it.estValue)||0; }); });

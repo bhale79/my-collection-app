@@ -164,7 +164,7 @@ function buildReport() {
       switch (col.key) {
         case 'photo':       return { html: `<div id="${photoId}" class="ins-photo-placeholder" style="font-size:0.6rem;line-height:1.3">No<br>Photo</div>` };
         case 'itemNum':     return { html: `<span class="item-num">${pd.itemNum || ''}</span>` };
-        case 'description': return { text: master.roadName || master.description || master.itemType || '—' };
+        case 'description': return { text: _repCleanDesc(master.roadName || master.description || master.itemType || '—', pd.itemNum) };
         case 'year':        return { text: pd.yearMade || master.yearProd || '—' };
         case 'variation':   return { text: pd.variation || '—' };
         case 'condition':   return { text: pd.condition || '—' };
@@ -371,7 +371,7 @@ function exportReport() {
     const rows = ownedItems.map(pd => {
       const master = findMaster(pd.itemNum, pd.variation, pd) || {};
       return [
-        esc(pd.itemNum), esc(master.roadName || master.description || ''),
+        esc(pd.itemNum), esc(_repCleanDesc(master.roadName || master.description || '', pd.itemNum)),
         esc(pd.variation || ''), esc(pd.condition || ''),
         esc(pd.hasBox || ''), esc(pd.userEstWorth || ''),
         esc(pd.photoItem || ''),
@@ -707,10 +707,32 @@ async function _rbDeleteSelected() {
 }
 
 // ── Run a custom report ──────────────────────────────────────────
+// ── v0.9.1553 (Brad, looking at his PDF: "6-22477 6-22477 Lionel Tin Sign
+// Replica") ────────────────────────────────────────────────────────────
+// Plenty of catalog descriptions begin with the item's own number, because
+// that is how the source lists them. Printed next to an Item # column it
+// reads as a stutter and eats the width the description actually needs.
+// Strip a leading copy of THIS item's number — and only that; a number that
+// belongs to the description ("6464-1970 uncataloged boxcar" under item
+// 6-19212) is left alone.
+function _repCleanDesc(desc, itemNum) {
+  var d = String(desc == null ? '' : desc).trim();
+  var n = String(itemNum == null ? '' : itemNum).trim();
+  if (!d || !n) return d;
+  var bare = function (v) { return v.replace(/^6-/, '').replace(/[^A-Za-z0-9]/g, '').toUpperCase(); };
+  var first = d.split(/\s+/)[0];
+  if (first && bare(first) === bare(n)) {
+    var rest = d.slice(first.length).trim().replace(/^[-–—:]\s*/, '');
+    if (rest) return rest;
+  }
+  return d;
+}
+if (typeof window !== 'undefined') window._repCleanDesc = _repCleanDesc;
+
 function _rbCellVal(key, pd, master) {
   switch(key) {
     case 'itemNum':       return pd.itemNum || '';
-    case 'description':   return master.roadName || master.description || '';
+    case 'description':   return _repCleanDesc(master.roadName || master.description || '', pd.itemNum);
     case 'itemType':      return master.itemType || '';
     case 'yearMade':      return pd.yearMade || master.yearProd || '';
     case 'variation':     return pd.variation || '';
