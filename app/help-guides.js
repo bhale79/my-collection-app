@@ -683,6 +683,34 @@
       + '<span style="display:block;font-size:0.92rem;color:var(--text-dim,#999)">'
       + 'Adding items, want list, parts, sales, contacts, research, catalogue search</span>';
     anchor.parentElement.insertBefore(btn, anchor.nextSibling);
+
+    // v0.9.1551 (Brad: "i do not see the tca scale in the help menu"). It was
+    // there — one click inside "Step-by-step guides", whose subtitle gives no
+    // reason to look for grading. A thing nobody can find has not been added.
+    // Condition grading gets its own row in the Help Center, because it is the
+    // one piece of hobby knowledge every single item in the app depends on.
+    if (!document.getElementById('rrg-hub-grading')) {
+      var gbtn = document.createElement('button');
+      gbtn.id = 'rrg-hub-grading';
+      gbtn.setAttribute('style', anchor.getAttribute('style') || '');
+      gbtn.onclick = function () {
+        var hub = document.getElementById('help-hub-modal');
+        if (!hub) {
+          var p2 = gbtn.parentElement;
+          while (p2 && p2 !== document.body) {
+            if (getComputedStyle(p2).position === 'fixed') { hub = p2; break; }
+            p2 = p2.parentElement;
+          }
+        }
+        if (hub && hub.remove) hub.remove();
+        if (window.BackStack && BackStack.pop) { try { BackStack.pop('help-hub-modal'); } catch (e) {} }
+        rrgOpen('grading');
+      };
+      gbtn.innerHTML = '<span style="display:block;font-weight:700">Condition grading (the C-scale)</span>'
+        + '<span style="display:block;font-size:0.92rem;color:var(--text-dim,#999)">'
+        + 'C-1 to C-10 explained, and how it lines up with our 1\u201310</span>';
+      btn.parentElement.insertBefore(gbtn, btn.nextSibling);
+    }
     return true;
   }
   function inject() {

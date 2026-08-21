@@ -58,6 +58,14 @@ ok('clicking it does not also drag the slider',
 const helpZ = /z-index:(\d+)/.exec(src.slice(src.indexOf('position:fixed;left:0;right:0;bottom:0')));
 ok('the guide renders above the open wizard', helpZ && parseInt(helpZ[1], 10) >= 100000, helpZ ? helpZ[1] : '?');
 
+// ── v0.9.1551: findable, not merely present ────────────────────────────
+ok('grading has its own row in the Help Center', /id = 'rrg-hub-grading'/.test(src));
+ok('...titled so it can be recognised', /Condition grading \(the C-scale\)/.test(src));
+ok('...with a subtitle that says what is inside', /C-1 to C-10 explained/.test(src));
+ok('...and it closes the hub before opening, like the guides row does',
+   /rrg-hub-grading[\s\S]{0,700}hub\.remove\(\)[\s\S]{0,200}rrgOpen\('grading'\)/.test(src));
+ok('...added only once', /if \(!document\.getElementById\('rrg-hub-grading'\)\)/.test(src));
+
 console.log('');
 console.log(fail === 0 ? 'ALL GRADING-HELP TESTS GREEN (' + pass + ')' : fail + ' FAILING of ' + (pass + fail));
 process.exit(fail === 0 ? 0 : 1);
