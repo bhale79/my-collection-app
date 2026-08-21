@@ -500,8 +500,10 @@ function _renderCollectionHeader() {
     (_edit
       ? '<button type="button" onclick="_collAddColMenu(event)" style="border:1px solid var(--border);background:var(--surface2);color:var(--text);border-radius:7px;padding:0.15rem 0.5rem;font-size:0.7rem;font-family:var(--font-body);cursor:pointer;margin-right:0.3rem">+ Add</button>' +
         '<button type="button" onclick="_collColEdit(false)" style="border:none;background:var(--accent);color:var(--on-accent);border-radius:7px;padding:0.15rem 0.6rem;font-size:0.7rem;font-family:var(--font-body);font-weight:700;cursor:pointer">Done</button>'
-      : 'Actions <button type="button" title="Edit columns" onclick="event.stopPropagation();_collColEdit(true)" ' +
-        'style="border:none;background:none;color:var(--text-dim);font-size:0.85rem;cursor:pointer;padding:0 0.15rem">\u270E</button>') +
+      : 'Actions <button type="button" title="Edit columns — add, remove, drag to reorder" ' +
+        'onclick="event.stopPropagation();_collColEdit(true)" ' +
+        'style="border:1px solid var(--border);background:var(--surface2);color:var(--text-mid);' +
+        'border-radius:6px;font-size:0.8rem;line-height:1;cursor:pointer;padding:0.15rem 0.35rem;margin-left:0.25rem">\u270E</button>') +
     '</th>';
   thead.innerHTML = _collGutterTh() + html;   // v0.9.1007: selection gutter
   if (_edit) _collWireHeaderDrag(thead);
@@ -4928,9 +4930,10 @@ function renderBrowse() {
     var bar = document.getElementById('coll-jump-bar');
     var sections = _collAllSections || [];
     // v0.9.1545: this row used to disappear entirely when a collection had no
-    // catalogs or paper items — and it now carries Edit Headers, which every
-    // collection needs. Show it whenever we are looking at MY COLLECTION on a
-    // desktop; the Show chips simply sit it out when there is nothing to show.
+    // catalogs or paper items — and it carries the fill-a-column button, which
+    // every collection needs. Show it whenever we are looking at MY COLLECTION
+    // on a desktop; the Show chips simply sit it out when there is nothing to
+    // show. (v0.9.1558: Edit Headers left this row for the \u270E on the headings.)
     if (!state.filters.owned || isMobile) { if (bar) bar.style.display = 'none'; return; }
     if (!bar && wrapEl && wrapEl.parentNode) {
       bar = document.createElement('div');
@@ -4961,18 +4964,16 @@ function renderBrowse() {
         + _chip('all', 'All', '#7f8c8d'))
       : '';
     bar.innerHTML = _showChips
-      // Same size and shape as the Show chips, pushed to the right-hand end.
-      + '<button onclick="_collColEdit(!state._collColEdit)" style="margin-left:auto;'
-      + 'padding:0.25rem 0.7rem;border-radius:999px;font-size:0.72rem;font-weight:600;cursor:pointer;'
-      + 'font-family:var(--font-body);border:1.5px solid ' + (state._collColEdit ? 'var(--accent)' : 'var(--border)') + ';'
-      + 'color:' + (state._collColEdit ? 'var(--on-accent)' : 'var(--text-mid)') + ';'
-      + 'background:' + (state._collColEdit ? 'var(--accent)' : 'var(--surface2)') + '">'
-      + (state._collColEdit ? '\u2713 Done' : '\u270E Edit Headers') + '</button>'
+      // v0.9.1558 (Brad): "get rid of the edit headers button, leave the
+      // pencil icon next to actions." Two doors to the same room, and the
+      // one ON the headers is the one that explains itself — it sits where
+      // the thing being edited is. The chip is gone; the \u270E in the Actions
+      // heading still turns edit mode on, and still reads Done while it runs.
       // v0.9.1555 (Brad's design): "i would want to have an add column
       // button… i set the column up to say sub collection… what is the sub
       // collection, i would say Mint Cars… then it brings up my collection
       // page where i can check items like the share button."
-      + '<button onclick="rrTagOpen()" title="Put one value on many items at once" style="'
+      + '<button onclick="rrTagOpen()" title="Put one value on many items at once" style="margin-left:auto;'
       + 'padding:0.25rem 0.7rem;border-radius:999px;font-size:0.72rem;font-weight:600;cursor:pointer;'
       + 'font-family:var(--font-body);border:1.5px solid var(--border);color:var(--text-mid);'
       + 'background:var(--surface2)">\uff0b Fill a column</button>';

@@ -81,11 +81,15 @@ ok('it re-measures when the columns change', /setTimeout\(rrStickyHScroll, 30\)/
 ok('...and after the list re-renders', /setTimeout\(rrStickyHScroll, 40\)/.test(js));
 
 // ── v0.9.1545: the control moved to where it acts ───────────────────────
-ok('Edit Headers sits on the row above the table', /_collColEdit\(!state\._collColEdit\)" style="margin-left:auto;/.test(js));
-ok('...shaped like the Show chips beside it',
-   /margin-left:auto;'\s*\+ 'padding:0\.25rem 0\.7rem;border-radius:999px;font-size:0\.72rem/.test(js));
-ok('...and says Edit Headers', /\\u270E Edit Headers/.test(js));
-ok('...flipping to Done while editing', /state\._collColEdit \? '\\u2713 Done'/.test(js));
+// v0.9.1558 (Brad): "get rid of the edit headers button, leave the pencil
+// icon next to actions." One door, on the thing it edits.
+ok('the Edit Headers chip is gone from the Show row',
+   !/\\u270E Edit Headers/.test(js));
+ok('the pencil on the Actions heading still opens edit mode',
+   /title="Edit columns[\s\S]{0,120}_collColEdit\(true\)/.test(js));
+ok('...and is a real button, not a faint glyph',
+   /_collColEdit\(true\)[\s\S]{0,200}border:1px solid var\(--border\)/.test(js));
+ok('edit mode still offers Done', /_collColEdit\(false\)[\s\S]{0,220}Done<\/button>/.test(js));
 ok('the old top-right Columns button is gone', /var _oldColsBtn = document\.getElementById\('cols-btn-collection'\);\s*if \(_oldColsBtn\) _oldColsBtn\.remove\(\);/.test(js));
 ok('the row no longer vanishes when a collection has no catalogs or paper',
    /if \(!state\.filters\.owned \|\| isMobile\) \{ if \(bar\) bar\.style\.display = 'none'; return; \}/.test(js),
