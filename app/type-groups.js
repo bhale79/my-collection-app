@@ -88,6 +88,14 @@
   function classifyLocoByName(name) {
     if (!name) return null;
     var n = name.toLowerCase();
+    // v0.9.1528: the word itself outranks the model-name guesses below.
+    // "GP-9 diesel switcher" was coming back STEAM, because 'switcher' is in
+    // the steam list (0-6-0 switchers) and it is tested first. When a
+    // description says plainly which kind it is, believe it — only when both
+    // words appear, or neither, do the name patterns get a say.
+    var _saysSteam = /\bsteam\b/.test(n), _saysDiesel = /\bdiesel\b/.test(n);
+    if (_saysDiesel && !_saysSteam) return 'Diesel';
+    if (_saysSteam && !_saysDiesel) return 'Steam';
     if (/no\.\s*\d+e\b|^\d+e\s|hudson|pacific|berkshire|mikado|atlantic|columbia|prairie|consolidation|mogul|0-\d-\d|2-\d-\d|4-\d-\d|switcher|northern|niagara|big boy|challenger|dock side|royal hudson|allegheny|texas|jenny|usra.*steam|standard gauge.*steam/.test(n)) return 'Steam';
     if (/electric|gg-?1|ep[- ]?\d|asea/.test(n)) return 'Electric';
     if (/gp[- ]?\d|sd[- ]?\d|sd-?\d|\brs[- ]?\d|sw[- ]?\d|f[- ]?\d|f-?\d|mp15|u\d{2}|fa[- ]?\d|fb[- ]?\d|emd|alco|bl-?\d|h-?\d|baldwin|fairbanks|bombardier|mlw|dash[- ]?\d|c[- ]?\d{3}|fp[- ]?\d|pa[- ]?\d|nw[- ]?\d|husky|fairmont|trainmaster|krauss|f40ph|fm erie|rsd|gp15|sd70ace|sd70|sd60|sd50|sd45|sd75/.test(n)) return 'Diesel';
@@ -99,7 +107,16 @@
   // 123; line 3 of this file had it right the whole time.)
   function getTypeBucket(item) {
     if (!item) return '';
-    if (MANUAL_TYPE_OVERRIDES[item.itemNum]) return MANUAL_TYPE_OVERRIDES[item.itemNum];
+    // v0.9.1528 (Brad, Session 82): the by-number overrides are corrections to
+    // OUR CATALOG's vague descriptions — "900" is a Lionel boxcar. They must
+    // not be applied to a row the user typed themselves: an off-catalog item
+    // that happens to be numbered 900 was being forced to Boxcar over the
+    // owner's own word. A personal-only row is flagged _personalOnly by
+    // browse.js; when the user has stated a type, the user wins.
+    var _own = !!(item._personalOnly || item._manualRow);
+    if (MANUAL_TYPE_OVERRIDES[item.itemNum] && !(_own && (item.itemType || '').trim())) {
+      return MANUAL_TYPE_OVERRIDES[item.itemNum];
+    }
     var it = (item.itemType || '').trim();
     var sub = (item.subType || '').trim();
     var subL = sub.toLowerCase();
@@ -111,9 +128,17 @@
     if (it === 'Steam Locomotive' || it === 'Steam Engine') return 'Steam Locomotive';
     if (it === 'Diesel Locomotive' || it === 'Diesel Engine') return 'Diesel Locomotive';
     if (it === 'Electric Locomotive' || it === 'Electric Engine') return 'Electric Locomotive';
+    if (it === 'Diesel') return 'Diesel Locomotive';
+    if (it === 'Steam') return 'Steam Locomotive';
+    if (it === 'Electric') return 'Electric Locomotive';
     if (it === 'Motorized Unit') return 'Motorized Unit';
     if (it === 'Tender') return 'Tender';
-    if (it === 'Locomotive') {
+    // v0.9.1528: the spreadsheet import's description reader says plain
+    // "Engine" (and users type "Loco", "Diesel", "Steam"). Treated exactly
+    // like the catalog's own vague 'Locomotive': read the words for which
+    // kind, fall back to Diesel. Without this, "Engine" became its own bucket
+    // sitting beside Diesel and Steam in the filter.
+    if (it === 'Engine' || it === 'Loco' || it === 'Locomotive' || it === 'Engine/Locomotive') {
       var c = classifyLocoByName(sub) || classifyLocoByName(desc);
       if (c) return c + ' Locomotive';
       if (/^11-1\d{3}/.test(itemNum)) return 'Steam Locomotive';   // MPC American Flyer Standard Gauge reissues
@@ -184,8 +209,65 @@
       return 'Boxcar';
     }
 
-    // Anything else: pass through itemType so synthetic sub-tab items still render correctly
-    return it || 'Other';
+    // v0.9.1528 (Brad: "your Type filter now has two vocabularies in it").
+    // This used to pass the raw string straight through, which is why one
+    // collection showed 80 different type strings: the catalog itself carries
+    // compounds ("Flatcar - PS-4 Flatcar", "Caboose - Work Caboose"), pack
+    // names ("Boxcar 2-Pack") and one-off body names ("Boom Car", "Reefer").
+    // Each became its own line in the filter. Now they are folded into the 23
+    // buckets; anything genuinely outside them — a user's own "Wings of
+    // Texaco" — still passes through untouched, which is the point.
+    return _normalizeToBucket(it) || 'Other';
+  }
+
+  // Fold a loose type string into one of the 23 buckets. Returns the string
+  // unchanged when it belongs to nobody (custom user types).
+  var _BUCKET_IDS = {};
+  TYPE_BUCKETS.forEach(function (b) { _BUCKET_IDS[b.id.toLowerCase()] = b.id; });
+  var _TYPE_SYNONYMS = {
+    // freight bodies the catalog names in its own words
+    'reefer': 'Boxcar', 'refrigerator car': 'Boxcar', 'mint car': 'Boxcar',
+    'ice car': 'Boxcar', 'bunk car': 'Boxcar', 'milk car': 'Operating Freight',
+    'poultry car': 'Stock Car', 'auto carrier': 'Intermodal', 'tank train': 'Tank Car',
+    // work / operating cars
+    'crane': 'Operating Freight', 'crane car': 'Operating Freight', 'boom car': 'Operating Freight',
+    'derrick car': 'Operating Freight', 'dump car': 'Operating Freight', 'culvert car': 'Operating Freight',
+    'log car': 'Operating Freight', 'searchlight car': 'Operating Freight', 'snowplow': 'Operating Freight',
+    'brakeman car': 'Operating Freight', 'minuteman car': 'Operating Freight', 'operating car': 'Operating Freight',
+    'fire car': 'Operating Freight', 'submarine car': 'Operating Freight',
+    // passenger bodies
+    'diner car': 'Passenger Car', 'observation car': 'Passenger Car', 'coach car': 'Passenger Car',
+    'passenger coach': 'Passenger Car', 'baggage car': 'Passenger Car', 'combine': 'Passenger Car',
+    // sets and packs
+    'freight set': 'Set', 'passenger set': 'Set', 'multi car pack': 'Set', 'diesel aa set': 'Set',
+    // accessories
+    'station': 'Accessory', 'gateman': 'Accessory', 'loader': 'Accessory', 'figures': 'Accessory',
+    'vehicle': 'Accessory', 'promotional': 'Accessory', 'building': 'Accessory', 'billboard': 'Accessory',
+    // paper
+    'catalog': 'Paper / Box / Misc', 'paper': 'Paper / Box / Misc',
+    'transformer': 'Transformer/Power',
+  };
+  function _normalizeToBucket(raw) {
+    var t = String(raw || '').trim();
+    if (!t) return '';
+    var low = t.toLowerCase();
+    if (_BUCKET_IDS[low]) return _BUCKET_IDS[low];
+    if (_TYPE_SYNONYMS[low]) return _TYPE_SYNONYMS[low];
+    // "Boxcar 2-Pack", "Passenger Car 4-Pack", "Log Car 3-Pack" → the body,
+    // not a bucket of its own. Packs of one body style are still that style.
+    var pack = low.replace(/\s*\d+[- ]?pack$/, '').trim();
+    if (pack !== low) {
+      if (_BUCKET_IDS[pack]) return _BUCKET_IDS[pack];
+      if (_TYPE_SYNONYMS[pack]) return _TYPE_SYNONYMS[pack];
+    }
+    // "Flatcar - PS-4 Flatcar", "Caboose - Work Caboose": the catalog's own
+    // "bucket - specific model" form. The part before the dash is the bucket.
+    var dash = low.split(' - ')[0].trim();
+    if (dash !== low) {
+      if (_BUCKET_IDS[dash]) return _BUCKET_IDS[dash];
+      if (_TYPE_SYNONYMS[dash]) return _TYPE_SYNONYMS[dash];
+    }
+    return t;      // a real custom type — leave it exactly as the user wrote it
   }
 
   // ── Display label getter (short label for UI pills) ──
@@ -228,6 +310,7 @@
   // Expose globally
   window.TYPE_BUCKETS = TYPE_BUCKETS;
   window.MANUAL_TYPE_OVERRIDES = MANUAL_TYPE_OVERRIDES;
+  window.rrNormalizeTypeToBucket = _normalizeToBucket;
   window.getTypeBucket = getTypeBucket;
   window.getTypeBucketLabel = getTypeBucketLabel;
   window.BUCKET_TO_ICON = BUCKET_TO_ICON;

@@ -818,10 +818,38 @@ function _phOwnValues(field) {
   } catch (e) {}
   return out;
 }
+// v0.9.1528 (Brad: "your Type filter now has two vocabularies in it").
+// The user's own types are now folded through the SAME bucketer the catalog
+// rows use, one row at a time — per row, not per string, because a row typed
+// simply "Engine" needs its description to land in Diesel or Steam. What
+// comes back is the label the filter actually compares against, so counts are
+// right and a type stops appearing twice.
+function _phOwnTypeValues() {
+  var out = {};
+  try {
+    Object.values(state.personalData || {}).forEach(function (p) {
+      if (!p) return;
+      var t = String(p.itemType || '').trim();
+      if (!t) return;
+      var lbl = t;
+      if (typeof getTypeBucketLabel === 'function') {
+        lbl = getTypeBucketLabel({
+          itemType: t,
+          subType: p.subType || '',
+          description: p.description || p.yourDescription || '',
+          itemNum: p.itemNum || '',
+          _personalOnly: true,        // don't let the by-number overrides win
+        }) || t;
+      }
+      out[lbl] = (out[lbl] || 0) + 1;
+    });
+  } catch (e) {}
+  return out;
+}
 function _phOwnCount(field, label) {
   if (!state.filters.owned) return '';
   try {
-    var own = _phOwnValues(field);
+    var own = (field === 'itemType') ? _phOwnTypeValues() : _phOwnValues(field);
     var want = String(label).toLowerCase();
     var n = 0;
     Object.keys(own).forEach(function (k) { if (k.toLowerCase() === want) n += own[k]; });
@@ -892,7 +920,7 @@ function _openLevelPicker(level) {
     // v0.9.1512: same treatment for TYPES — Scott's imported custom types
     // (Books, Vehicles, Wings of Texaco) exist on items but were unfilterable.
     if (state.filters.owned) {
-      var _ownT = _phOwnValues('itemType');
+      var _ownT = _phOwnTypeValues();
       var _extraT = Object.keys(_ownT).filter(function (t) { return !_seenTypes[t.toLowerCase()]; });
       if (_extraT.length) {
         options.push({ id: '__divider', label: 'Also in your collection', divider: true });
@@ -980,6 +1008,22 @@ function _setHierarchyChoice(level, value) {
   if (level === 'type') {
     var _ftSel = document.getElementById('filter-type');
     if (_ftSel) {
+      // v0.9.1528: picking one of the user's OWN types ("Books", "Wings of
+      // Texaco") used to do nothing at all. This select is the source of
+      // truth, its options are rebuilt from the catalog's buckets, and
+      // assigning a value that isn't one of them is silently ignored by the
+      // browser — leaving value '' and CLEARING the filter. The chip looked
+      // like it worked. Give the select the option first, then select it.
+      var _hasOpt = false;
+      for (var _oi = 0; _oi < _ftSel.options.length; _oi++) {
+        if (_ftSel.options[_oi].value === value) { _hasOpt = true; break; }
+      }
+      if (!_hasOpt && value) {
+        var _newOpt = document.createElement('option');
+        _newOpt.value = value; _newOpt.textContent = value;
+        _newOpt.setAttribute('data-own-type', '1');
+        _ftSel.appendChild(_newOpt);
+      }
       _ftSel.value = value || '';
       if (typeof applyFilters === 'function') applyFilters();
     }
@@ -3478,6 +3522,13 @@ function renderBrowse() {
           return _poType || (_refItem ? _refItem.itemType : '');
         })(),
         roadName: pd.roadName || (_refItem ? _refItem.roadName : ''),
+        // v0.9.1528: two fields the type bucketer reads that were never here.
+        // _personalOnly stops the by-number overrides (which exist to correct
+        // OUR catalog) from overruling a type the owner set on their own row;
+        // subType is what the user calls it more narrowly, and the bucketer
+        // reads it when the type itself is vague.
+        _personalOnly: true,
+        subType: pd.subType || '',
         description: _refItem ? _refItem.description : (pd.description || pd.notes || ''),   // v0.9.718: manual rows carry their own description
         yearProd: pd.datePurchased || (_refItem ? _refItem.yearProd : ''),
         marketVal: _refItem ? _refItem.marketVal : '',
