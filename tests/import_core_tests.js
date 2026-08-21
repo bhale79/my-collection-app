@@ -15,6 +15,7 @@ const fs = require('fs');
 const core = require('../app/import-core.js');
 
 let pass = 0, fail = 0;
+function is_close(name, got, want) { ok(name, Math.abs(got - want) < 0.001, got); }
 function ok(name, cond, detail) {
   if (cond) { pass++; console.log('PASS  ' + name + (detail !== undefined ? '  -> ' + detail : '')); }
   else { fail++; console.log('FAIL  ' + name + (detail !== undefined ? '  -> ' + detail : '')); }
@@ -243,6 +244,31 @@ ok('675 stays for the prewar/postwar verify (two vintage candidates)',
 // pieces have to exist together, so all three are asserted: the catalog can
 // report its readiness, the import asks before matching, and the triage
 // screen shouts if a big train import matched nothing anyway.
+// v0.9.1529: the Books tab. It imported with no type because the type
+// question is only asked for a tab classed "not trains", and the AI called
+// Books a train tab. Two catches now — one deterministic, one evidence-based.
+(function nonCatalogTabTest() {
+  const numbered = n => Array.from({ length: n }, (_, i) => ({ itemNum: '646' + i }));
+  const bare = n => Array.from({ length: n }, () => ({ itemNum: '', yourDesc: 'All Aboard for Christmas' }));
+
+  ok('a tab of numberless rows is not catalogue items', core.rrImpTabIsNonCatalog(bare(115)));
+  ok('a tab of numbered rows is', !core.rrImpTabIsNonCatalog(numbered(115)));
+  ok('mostly numberless still counts', core.rrImpTabIsNonCatalog(bare(70).concat(numbered(30))));
+  ok('an even split does NOT (too weak to act on)', !core.rrImpTabIsNonCatalog(bare(50).concat(numbered(50))));
+  ok('a handful of rows is never enough to judge', !core.rrImpTabIsNonCatalog(bare(9)));
+  is_close('numberless share is a plain fraction', core.rrImpNumberlessShare(bare(3).concat(numbered(1))), 0.75);
+
+  // The UI half: both catches wired, and the user's word beating the reader.
+  const uiPath = path.join(__dirname, '..', 'app', 'import-ui.js');
+  const ui = fs.readFileSync(uiPath, 'utf8');
+  ok('tab classes are re-judged before the questions', /function _impInferTabClasses[\s\S]{0,400}rrImpTabIsNonCatalog/.test(ui));
+  ok('...and that runs when the questions are drawn', /_impStepTabFacts\(\)\s*\{\s*[\s\S]{0,120}_impInferTabClasses\(\)/.test(ui));
+  ok('tabs that matched nothing are collected', /_imp\.unmatchedTabs = Object\.keys/.test(ui));
+  ok('...and asked about on triage', /unmatchedTabs \|\| \[\]\)\.length/.test(ui));
+  ok('a tab answer beats the description reader', /_imp\.tabType\[it\.srcTab\]\) return ''/.test(ui));
+  ok('a tab answer applies whatever the tab was classed', !/tabClass !== 'trains' && _imp\.tabType/.test(ui));
+})();
+
 (function catalogGateTest() {
   const uiPath = path.join(__dirname, '..', 'app', 'import-ui.js');
   const dataPath = path.join(__dirname, '..', 'app', 'app-data.js');

@@ -409,6 +409,35 @@ function rrImpTypeSurvey(items, opts) {
   return { groups: list, read: read, blank: blank };
 }
 
+// ── Tabs that cannot possibly match the catalog ─────────────────
+// v0.9.1529 (Brad: his Books tab imported with no type and no maker). The
+// "what kind of things are these?" question is only asked for a tab the AI
+// judged NOT to be trains — and this time it read Books as trains, so nobody
+// was asked and 115 books arrived untyped.
+//
+// This is the deterministic half of the fix. A row with no item number has
+// nothing to match against, so a tab that is mostly numberless is not a list
+// of catalogue items whatever anyone thinks. Measured on Scott's sheet:
+// Books 100% numberless, Trotta's Trains 98%, RGS 79%, Lionel 1/120 100% —
+// against Lionel 2%, Atlas 1%, MTH 3%. The gap is wide and the signal clean.
+// (It does NOT catch a non-train tab that HAS numbers, like his Vehicles or
+// Wings of Texaco — those are caught after matching, by their match rate.)
+function rrImpNumberlessShare(items) {
+  var list = items || [];
+  if (!list.length) return 0;
+  var none = 0;
+  for (var i = 0; i < list.length; i++) {
+    if (!rrImpNormCell(list[i].itemNum)) none++;
+  }
+  return none / list.length;
+}
+// Enough rows to be sure, and lopsided enough to be certain.
+function rrImpTabIsNonCatalog(items) {
+  var list = items || [];
+  if (list.length < 10) return false;
+  return rrImpNumberlessShare(list) >= 0.6;
+}
+
 // ── Money / number cleanup ──────────────────────────────────────
 function rrImpCleanMoney(v) {
   var s = rrImpNormCell(v).replace(/[$,\s]/g, '');
@@ -755,6 +784,8 @@ var RR_IMPORT_CORE = {
   rrImpCopyCounterEvidence: rrImpCopyCounterEvidence,
   rrImpBuildAiPayload: rrImpBuildAiPayload,
   rrImpValidateAiAnswer: rrImpValidateAiAnswer,
+  rrImpNumberlessShare: rrImpNumberlessShare,
+  rrImpTabIsNonCatalog: rrImpTabIsNonCatalog,
   rrImpTypeFromText: rrImpTypeFromText,
   rrImpTypeSurvey: rrImpTypeSurvey,
   RR_IMP_TYPE_RULES: RR_IMP_TYPE_RULES,

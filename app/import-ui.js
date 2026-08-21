@@ -49,6 +49,8 @@ function rrImportOpen() {
     tabMaker: {},          // tabName → confirmed maker ('' = per-row / unknown)
     tabYearMeans: {},      // tabName → true when a year in the description IS the item's year
     tabSubType: {},
+    unmatchedTabs: [],   // v0.9.1529: tabs where nothing matched the catalog
+    tabClassLocked: {},  // v0.9.1529: tabs the user has answered for
     afterCatalog: '',    // v0.9.1527: step to resume once the catalog is ready
     catalogSkipped: false,
     catalogTimer: null,
@@ -597,7 +599,7 @@ function _impHighlightHelp(key) {
 // of a description.
 function _impTypeCandidates() {
   return (_imp.staged || []).filter(function (it) {
-    if (it.tabClass !== 'trains' && _imp.tabType[it.srcTab]) return false;
+    if (_imp.tabType[it.srcTab]) return false;
     return true;
   });
 }
@@ -610,6 +612,18 @@ function _impTypeSurvey() {
 function _impTypeTick(type, on) {
   if (on) delete _imp.typeSkip[type]; else _imp.typeSkip[type] = true;
 }
+// v0.9.1529: an answer from the triage screen. Locked so a later pass at the
+// tab questions doesn't overwrite what the user just said.
+function _impSetTabType(tab, value) {
+  var v = String(value || '').trim();
+  if (v) {
+    _imp.tabType[tab] = v;
+    _imp.tabClassLocked = _imp.tabClassLocked || {};
+    _imp.tabClassLocked[tab] = true;
+  } else {
+    delete _imp.tabType[tab];
+  }
+}
 function _impToggleTypes() {
   _imp.showTypes = !_imp.showTypes;
   _impRender();
@@ -620,7 +634,7 @@ function _impToggleTypes() {
 function _impTypeGuessFor(it, master) {
   try {
     if (master && String(master.itemType || '').trim()) return '';
-    if (it.tabClass !== 'trains' && _imp.tabType[it.srcTab]) return '';
+    if (_imp.tabType[it.srcTab]) return '';        // v0.9.1529: their word, whatever the tab was classed as
     var g = rrImpTypeFromText(it.yourDesc || it.description || '');
     if (!g || _imp.typeSkip[g]) return '';
     return g;
@@ -754,7 +768,21 @@ function _impTabYearRows(t) {
   return n;
 }
 
+// v0.9.1529: before the questions are drawn, override the AI's judgement for
+// any tab that plainly cannot be catalogue items. See rrImpTabIsNonCatalog.
+function _impInferTabClasses() {
+  (_imp.tabs || []).forEach(function (t) {
+    if (_imp.skipTabs[t.name]) return;
+    if (_imp.tabClassLocked && _imp.tabClassLocked[t.name]) return;   // user's own answer stands
+    try {
+      var items = rrImpApplyMapping(t, _imp.mappings[t.name] || {});
+      if (rrImpTabIsNonCatalog(items)) _imp.tabClass[t.name] = 'other';
+    } catch (e) {}
+  });
+}
+
 function _impStepTabFacts() {
+  _impInferTabClasses();
   var live = _imp.tabs.filter(function (t) { return !_imp.skipTabs[t.name]; });
   var makers = _impKnownMakers();
   var rows = live.map(function (t) {
@@ -1099,6 +1127,30 @@ function _impStage() {
   var nonTrains = staged.filter(function (it) { return it.tabClass !== 'trains'; });
   _imp.triage = rrImpTriage(trains, lookups);
   nonTrains.forEach(function (it) { _imp.triage.unmatched.push({ item: it, didYouMean: [], nonTrain: true }); });
+  // v0.9.1529: the evidence-based half. A tab of 20+ rows where NOTHING
+  // matched is not a tab of catalogue items, whatever it was classed as —
+  // Scott's Vehicles and Wings of Texaco both carry item numbers, so the
+  // numberless test above cannot see them, but their match rate is zero.
+  // We ask rather than assume: the tab name is only a suggestion in the box.
+  var _byTab = {};
+  (_imp.staged || []).forEach(function (it) {
+    var k = it.srcTab || '';
+    if (!_byTab[k]) _byTab[k] = { rows: 0, matched: 0 };
+    _byTab[k].rows++;
+  });
+  (_imp.triage.matched || []).forEach(function (m) {
+    var k = (m.item && m.item.srcTab) || '';
+    if (_byTab[k]) _byTab[k].matched++;
+  });
+  (_imp.triage.ambiguous || []).forEach(function (a) {
+    var k = (a.item && a.item.srcTab) || '';
+    if (_byTab[k]) _byTab[k].matched++;     // ambiguous still means we KNOW the number
+  });
+  _imp.unmatchedTabs = Object.keys(_byTab).filter(function (k) {
+    if (!k || _byTab[k].rows < 20 || _byTab[k].matched > 0) return false;
+    if (_imp.tabType[k]) return false;      // already answered on the tab questions
+    return true;
+  });
 }
 
 function _impBuildGradeTable(staged) {
@@ -1195,6 +1247,23 @@ function _impStepTriage() {
   // fact about the import, and Brad has enough screens. Open the list to see
   // every type it found with real examples, and untick any group you disagree
   // with; unticked groups are simply not written.
+  // v0.9.1529: ask about the tabs that matched nothing, before anything is
+  // written. One box each, pre-filled with the tab's own name.
+  if ((_imp.unmatchedTabs || []).length) {
+    html += '<div class="imp-card">' +
+      '<strong>Nothing on these tabs is in our catalog.</strong> ' +
+      '<span class="imp-muted">That usually means they aren\u2019t trains \u2014 books, die-cast, ' +
+      'planes. Give them a name and they become a type you can filter by. Leave blank to skip.</span>';
+    _imp.unmatchedTabs.forEach(function (tab) {
+      var n = (_imp.staged || []).filter(function (it) { return it.srcTab === tab; }).length;
+      html += '<div class="imp-row" style="margin-top:0.4rem"><div style="flex:1">' +
+        _impEsc(tab) + ' <span class="imp-muted">(' + n.toLocaleString() + ' rows)</span></div>' +
+        '<input class="imp-sel" style="max-width:12rem" placeholder="' + _impEsc(tab) + '" ' +
+        'value="' + _impEsc(_imp.tabType[tab] || '').replace(/"/g, '&quot;') + '" ' +
+        'onchange="_impSetTabType(' + JSON.stringify(tab).replace(/"/g, '&quot;') + ',this.value)"></div>';
+    });
+    html += '</div>';
+  }
   var _tSurvey = _impTypeSurvey();
   if (_tSurvey.read) {
     html += '<div class="imp-card"><span class="imp-badge match">TYPE</span> <strong>' +
@@ -1468,7 +1537,12 @@ async function _impWrite() {
         // v0.9.1509: tab answer fills maker BLANKS only (their Brand cell wins).
         fields.manufacturer = it.manufacturer || _imp.tabMaker[it.srcTab] || '';
         fields.description = it.yourDesc || '';
-        if (it.tabClass !== 'trains' && _imp.tabType[it.srcTab]) {
+        // v0.9.1529: was `tabClass !== 'trains' && tabType` — which ignored an
+        // answer given on the triage screen for a tab still classed as trains
+        // (his Vehicles tab). If the user has named this tab's contents, that
+        // name is used. This only ever runs for MANUAL rows; a catalog match
+        // keeps the catalog's type.
+        if (_imp.tabType[it.srcTab]) {
           fields.itemType = _imp.tabType[it.srcTab];
           // v0.9.1522: the narrower name rides along as Sub Type.
           var _ts = _imp.tabSubType[it.srcTab];
