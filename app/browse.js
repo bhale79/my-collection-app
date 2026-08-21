@@ -365,7 +365,11 @@ function _collGutterOn() {
   // same row templates but has its OWN header with no gutter — without this
   // clause a spacer could land there and shift every column one to the right.
   var _owned = !!(typeof state !== 'undefined' && state.filters && state.filters.owned);
-  return _owned && typeof isShareMode === 'function' && isShareMode('collection');
+  if (!_owned) return false;
+  // v0.9.1555: the same gutter serves bulk tagging. Brad asked for ticking
+  // "like the share button", so it IS the share button's gutter.
+  if (typeof rrTagActive === 'function' && rrTagActive()) return true;
+  return typeof isShareMode === 'function' && isShareMode('collection');
 }
 function _collColSpan() {
   return _collVisibleCols().length + 1 /* Actions */ + (_collGutterOn() ? 1 : 0);
@@ -376,10 +380,15 @@ function _collGutterTh() {
 }
 function _collGutterTd(key, checked) {
   if (!_collGutterOn()) return '';
+  // v0.9.1555: in tagging mode the same box drives the tag selection, which
+  // has no ten-item cap — you may be marking two hundred mint cars.
+  var tagging = (typeof rrTagActive === 'function' && rrTagActive());
+  var on = tagging ? (typeof rrTagIsSelected === 'function' && rrTagIsSelected(key)) : checked;
+  var fn = tagging ? 'rrTagToggle' : 'toggleShareItem';
   return '<td style="width:40px;text-align:center;vertical-align:middle;padding-left:0.5rem">'
-    + '<input type="checkbox" id="share-cb-' + key + '"' + (checked ? ' checked' : '')
-    + ' onclick="event.stopPropagation();toggleShareItem(\'' + key + '\')"'
-    + ' style="width:1.15rem;height:1.15rem;accent-color:#2ecc71;cursor:pointer">'
+    + '<input type="checkbox" id="share-cb-' + key + '"' + (on ? ' checked' : '')
+    + ' onclick="event.stopPropagation();' + fn + '(\'' + key + '\')"'
+    + ' style="width:1.15rem;height:1.15rem;accent-color:' + (tagging ? 'var(--accent)' : '#2ecc71') + ';cursor:pointer">'
     + '</td>';
 }
 // A row that spans the whole table (dividers, empty states) but carries no
@@ -4690,7 +4699,14 @@ function renderBrowse() {
       const _upgBtn = _isThisCopyUG
         ? `<button onclick="event.stopPropagation();_removeUpgradeFromCollection('${_myInvId}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #8b5cf6;background:#8b5cf6;color:#fff;font-family:var(--font-body);font-weight:600;margin-right:0.2rem" title="Remove from Upgrade list">Un-Upg.</button>`
         : `<button onclick="event.stopPropagation();showAddToUpgradeModal('${_dispNum}','${_escVar}',${pd && pd.row ? pd.row : 0},'${_myInvId}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #8b5cf6;background:var(--bg-card);background:color-mix(in srgb, rgb(139,92,246) 10%, var(--bg-card));color:#8b5cf6;font-family:var(--font-body);font-weight:600;margin-right:0.2rem" title="Add to Upgrade list">Upgrade</button>`;
-      return `<tr id="share-card-${_shareKeyD}" onclick="${_inShareModeD ? 'toggleShareItem(\'' + _shareKeyD + '\')' : 'showItemDetailPage(' + globalIdx + ", '" + _copyInv + "')"}" style="cursor:pointer${_isQuick ? ';opacity:0.82' : ''}${_isShareSelectedD ? ';outline:2px solid #2ecc71;background:rgba(46,204,113,0.06)' : ''}" data-group="${_groupId}" data-item="${item.itemNum}">
+      const _inTagModeD = typeof rrTagActive === 'function' && rrTagActive();
+      // v0.9.1555: while tagging, a row click ticks it — the same gesture as
+      // the checkbox, so nobody opens an item by accident mid-sweep.
+      const _rowClickD = _inTagModeD
+        ? "rrTagToggle('" + _shareKeyD + "')"
+        : (_inShareModeD ? "toggleShareItem('" + _shareKeyD + "')"
+                         : 'showItemDetailPage(' + globalIdx + ", '" + _copyInv + "')");
+      return `<tr id="share-card-${_shareKeyD}" onclick="${_rowClickD}" style="cursor:pointer${_isQuick ? ';opacity:0.82' : ''}${_inTagModeD ? (rrTagIsSelected(_shareKeyD) ? ';outline:2px solid var(--accent);background:color-mix(in srgb, var(--accent) 8%, transparent)' : '') : (_isShareSelectedD ? ';outline:2px solid #2ecc71;background:rgba(46,204,113,0.06)' : '')}" data-group="${_groupId}" data-item="${item.itemNum}">
         ${_collGutterTd(_shareKeyD, _isShareSelectedD)}
         ${(function(){
         // v0.9.1517 (Task #34): every cell is built into a MAP and emitted in
@@ -4736,7 +4752,12 @@ function renderBrowse() {
           var v = (pd && pd[xc.pdKey] != null) ? String(pd[xc.pdKey]).trim() : '';
           if (xc.money && v) { var n = parseFloat(String(v).replace(/[^0-9.\-]/g, '')); if (!isNaN(n)) v = (typeof _currencySymbol === 'function' ? _currencySymbol() : '$') + n.toLocaleString(); }
           var esc = v.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
-          _cells[xc.col] = '<td data-col="' + xc.col + '" style="font-size:0.78rem;color:var(--text-mid);max-width:190px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + esc + '">' + (esc || '<span style="color:var(--text-dim)">—</span>') + '</td>';
+          // v0.9.1555 (Brad: "let the user see if an item has a pre existing
+          // sub collection text"). While tagging, the column being filled is
+          // tinted and any value already there is shown in full strength —
+          // seen BEFORE ticking, not counted afterwards.
+          var _tagCol = (typeof rrTagActive === 'function' && rrTagActive() && rrTagField() === xc.col);
+          _cells[xc.col] = '<td data-col="' + xc.col + '"' + (_tagCol ? ' data-tagcol="1"' : '') + ' style="font-size:0.78rem;color:var(--text-mid);max-width:190px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + esc + '">' + (esc || '<span style="color:var(--text-dim)">—</span>') + '</td>';
         });
         return _collVisibleCols().map(function (id) { return _cells[id] || '<td><span style="color:var(--text-dim)">—</span></td>'; }).join('');
         })()}
@@ -4946,7 +4967,15 @@ function renderBrowse() {
       + 'font-family:var(--font-body);border:1.5px solid ' + (state._collColEdit ? 'var(--accent)' : 'var(--border)') + ';'
       + 'color:' + (state._collColEdit ? 'var(--on-accent)' : 'var(--text-mid)') + ';'
       + 'background:' + (state._collColEdit ? 'var(--accent)' : 'var(--surface2)') + '">'
-      + (state._collColEdit ? '\u2713 Done' : '\u270E Edit Headers') + '</button>';
+      + (state._collColEdit ? '\u2713 Done' : '\u270E Edit Headers') + '</button>'
+      // v0.9.1555 (Brad's design): "i would want to have an add column
+      // button… i set the column up to say sub collection… what is the sub
+      // collection, i would say Mint Cars… then it brings up my collection
+      // page where i can check items like the share button."
+      + '<button onclick="rrTagOpen()" title="Put one value on many items at once" style="'
+      + 'padding:0.25rem 0.7rem;border-radius:999px;font-size:0.72rem;font-weight:600;cursor:pointer;'
+      + 'font-family:var(--font-body);border:1.5px solid var(--border);color:var(--text-mid);'
+      + 'background:var(--surface2)">\uff0b Fill a column</button>';
   })();
 
   // v0.9.812: load ephemera thumbnails — the eph-thumb span was rendered but

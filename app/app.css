@@ -2643,3 +2643,12 @@ html[data-theme="high-contrast"] button[style*="#e74c3c"] {
 }
 #ph-more-menu button:hover { background: var(--surface2); }
 #browse-search-wrap:focus-within { border-color: var(--accent); }
+
+/* v0.9.1555: the column being filled, while tagging. Tinted so the value
+   already on a row is impossible to miss before you tick it. */
+#page-browse .item-table td[data-tagcol="1"] {
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  color: var(--text) !important;
+  font-weight: 600;
+}
+#page-browse .item-table th[data-col].rr-tag-col { color: var(--accent); }

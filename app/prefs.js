@@ -326,6 +326,9 @@ function buildPrefsPage() {
         <button class="pref-btn" onclick="if(typeof rrImportOpen==='function')rrImportOpen()">Import</button>
       </div>
       ${typeof rrImportRecentBatchesHtml === 'function' ? rrImportRecentBatchesHtml() : ''}
+      <!-- v0.9.1555: undo for a bulk fill, beside the import's undo, because
+           they are the same kind of thing: one action that touched many rows. -->
+      ${typeof rrTagUndoListHtml === 'function' ? rrTagUndoListHtml() : ''}
       <div class="pref-row">
         <div class="pref-row-label"><strong>Last updated</strong><span id="pref-cache-ts">${cacheDateStr} · ${cacheSize}</span></div>
         <button class="pref-btn" onclick="forceRefreshData().then(()=>buildPrefsPage())">Update now</button>
@@ -1027,6 +1030,12 @@ function _renderLocList(){
       +   (loc.type ? ' <span style="font-size:0.72rem;color:var(--text-dim)">&middot; ' + _locEsc(loc.type) + '</span>' : '')
       +   (dets.length ? ' <span style="font-size:0.72rem;color:var(--text-dim)">&middot; ' + dets.length + ' inside</span>' : '')
       + '</div>'
+      // v0.9.1555 (Brad: "we have a place in preferences to manage location so
+      // we need to modify that as well"). A place you have set up should be
+      // able to claim items — this starts the fill-a-column flow with the
+      // location already answered, so you go straight to ticking.
+      + '<button data-loc-fill="' + i + '" title="Put items in this location" style="background:none;border:1px solid var(--border);'
+      +   'color:var(--text-mid);border-radius:7px;font-size:0.7rem;cursor:pointer;padding:0.15rem 0.5rem;margin-right:0.35rem">Put items here</button>'
       + '<button data-loc-del="' + i + '" title="Remove" style="background:none;border:none;color:var(--text-dim);font-size:1.2rem;cursor:pointer;line-height:1;padding:0 0.25rem">&times;</button>'
       + '</div>';
     var body = '';
@@ -1036,8 +1045,10 @@ function _renderLocList(){
         + dets.map(function(d, j){
             return '<div style="display:flex;align-items:center;justify-content:space-between;gap:0.5rem;padding:0.28rem 0.5rem;border:1px solid var(--border);border-radius:7px;margin-bottom:0.28rem;background:var(--bg)">'
               + '<span style="font-size:0.82rem;color:var(--text)">' + _locEsc(d) + '</span>'
+              + '<span><button data-locdet-fill="' + i + ':' + j + '" title="Put items in this spot" style="background:none;border:1px solid var(--border);'
+              +   'color:var(--text-mid);border-radius:7px;font-size:0.68rem;cursor:pointer;padding:0.1rem 0.45rem;margin-right:0.3rem">Put items here</button>'
               + '<button data-locdet-del="' + i + ':' + j + '" title="Remove" style="background:none;border:none;color:var(--text-dim);font-size:1.05rem;cursor:pointer;line-height:1;padding:0 0.2rem">&times;</button>'
-              + '</div>';
+              + '</span></div>';
           }).join('')
         + '<div style="display:flex;gap:0.4rem;margin-top:0.35rem">'
         +   '<input id="loc-det-new-' + i + '" type="text" placeholder="e.g. Tote 12" style="flex:1;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.42rem 0.6rem;color:var(--text);font-family:var(--font-body);font-size:0.84rem;box-sizing:border-box">'
@@ -1048,6 +1059,25 @@ function _renderLocList(){
   }).join('');
   el.querySelectorAll('[data-loc-del]').forEach(function(btn){
     btn.addEventListener('click', function(){ _deleteSavedLocation(parseInt(btn.getAttribute('data-loc-del'),10)); });
+  });
+  // v0.9.1555: hand the place straight to the fill-a-column flow.
+  el.querySelectorAll('[data-loc-fill]').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var l = _getSavedLocations()[parseInt(btn.getAttribute('data-loc-fill'),10)];
+      if (!l || typeof rrTagOpen !== 'function') return;
+      var modal = document.getElementById('loc-setup-modal'); if (modal) modal.remove();
+      rrTagOpen('location', l.name, '');
+    });
+  });
+  el.querySelectorAll('[data-locdet-fill]').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var p = btn.getAttribute('data-locdet-fill').split(':');
+      var l = _getSavedLocations()[parseInt(p[0],10)];
+      if (!l || typeof rrTagOpen !== 'function') return;
+      var det = (l.details || [])[parseInt(p[1],10)] || '';
+      var modal = document.getElementById('loc-setup-modal'); if (modal) modal.remove();
+      rrTagOpen('location', l.name, det);
+    });
   });
   el.querySelectorAll('[data-loc-open]').forEach(function(node){
     node.addEventListener('click', function(){ _toggleLocOpen(parseInt(node.getAttribute('data-loc-open'),10)); });
