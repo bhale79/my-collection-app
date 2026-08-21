@@ -49,6 +49,7 @@ function rrImportOpen() {
     tabMaker: {},          // tabName → confirmed maker ('' = per-row / unknown)
     tabYearMeans: {},      // tabName → true when a year in the description IS the item's year
     tabSubType: {},
+    yearsByTab: {},      // v0.9.1530: tab → years filled from descriptions
     unmatchedTabs: [],   // v0.9.1529: tabs where nothing matched the catalog
     tabClassLocked: {},  // v0.9.1529: tabs the user has answered for
     afterCatalog: '',    // v0.9.1527: step to resume once the catalog is ready
@@ -754,17 +755,47 @@ function _impTabNeedsMaker(t) {
   return blank > 0;
 }
 // v0.9.1516: how many rows on this tab have a year inside their description.
+// v0.9.1530 (Brad: "Year Made dropped to 27, from 406"). ROOT CAUSE: the
+// default for this setting used to be assigned INSIDE the tab-questions
+// screen, at the moment that question was drawn. A tab whose question was
+// never drawn — because the mapping lookup couldn't find its description
+// column, or the screen skipped it — kept an undefined value, which reads as
+// "no". So the rule silently ran on ONE tab out of eleven and 400+ items lost
+// their year with nothing on screen to show for it.
+//
+// A default that only exists if some UI happened to render is not a default.
+// This is the single place the question is answered, used by both the screen
+// and the staging rule: trains yes, everything else no, and an explicit
+// answer from the user always wins.
+function _impTabYearMeansMade(tabName, cls) {
+  if (_imp.tabYearMeans[tabName] !== undefined) return !!_imp.tabYearMeans[tabName];
+  var c = cls || _imp.tabClass[tabName] || 'trains';
+  return c === 'trains';
+}
+
 function _impTabYearRows(t) {
   var m = _imp.mappings[t.name] || {};
   var descHeader = Object.keys(m).filter(function (h) { return m[h] === 'yourDesc'; })[0];
-  if (!descHeader) return 0;
   var col = -1;
-  (t.headers || []).forEach(function (h, i) { if (rrImpNormHeader(h) === descHeader) col = i; });
-  if (col < 0) return 0;
+  if (descHeader) {
+    (t.headers || []).forEach(function (h, i) { if (rrImpNormHeader(h) === descHeader) col = i; });
+  }
   var n = 0;
-  (t.rows || []).forEach(function (r) {
-    if (rrImpYearFromText(rrImpNormCell((r.cells || [])[col]))) n++;
-  });
+  if (col >= 0) {
+    (t.rows || []).forEach(function (r) {
+      if (rrImpYearFromText(rrImpNormCell((r.cells || [])[col]))) n++;
+    });
+    return n;
+  }
+  // v0.9.1530: the column walk above returned 0 for a tab whose description
+  // header couldn't be resolved back from the mapping — and 0 means "don't
+  // ask", which is how a whole tab's years went missing without a question.
+  // Fall back to the mapped ITEMS, which is what staging actually reads.
+  try {
+    rrImpApplyMapping(t, m).forEach(function (it) {
+      if (!it.yearMade && rrImpYearFromText(it.yourDesc || it.description || '')) n++;
+    });
+  } catch (e) {}
   return n;
 }
 
@@ -819,8 +850,7 @@ function _impStepTabFacts() {
     // assuming. Trains default YES (a year in a train description is nearly
     // always the product's year); everything else defaults NO.
     if (r.yearRows >= 5) {
-      var defYear = (cls === 'trains');
-      if (_imp.tabYearMeans[name] === undefined) _imp.tabYearMeans[name] = defYear;
+      var defYear = _impTabYearMeansMade(name, cls);
       html += '<div class="imp-row"><div style="flex:1">' + r.yearRows.toLocaleString() +
         ' descriptions here contain a year — does it say when the item was <em>made</em>?' +
         '<div class="imp-muted" style="margin-top:0.15rem;font-size:0.75rem">' +
@@ -1074,6 +1104,7 @@ function _impStage() {
   var live = _imp.tabs.filter(function (t) { return !_imp.skipTabs[t.name]; });
   var staged = [];
   var skippedSummary = 0;
+  var _yearsByTab = {};      // v0.9.1530: tab → years filled from descriptions
   live.forEach(function (t) {
     var cls = _imp.tabClass[t.name] || 'trains';
     rrImpApplyMapping(t, _imp.mappings[t.name] || {}).forEach(function (it) {
@@ -1086,14 +1117,21 @@ function _impStage() {
       // in their description becomes Year Made when no Year column exists —
       // 395 of Scott's items get an era from this one rule.
       // v0.9.1516: only when the user said this tab's years mean "made in".
-      if (!it.yearMade && _imp.tabYearMeans[t.name]) {
+      if (!it.yearMade && _impTabYearMeansMade(t.name, cls)) {
         var _y = rrImpYearFromText(it.yourDesc);
-        if (_y) it.yearMade = _y;
+        if (_y) {
+          it.yearMade = _y;
+          // v0.9.1530: counted per tab so the triage screen can say what this
+          // rule did. It ran on one tab out of eleven for a whole import and
+          // nothing on screen mentioned years at all.
+          _yearsByTab[t.name] = (_yearsByTab[t.name] || 0) + 1;
+        }
       }
       staged.push(it);
     });
   });
   _imp.skippedSummary = skippedSummary;
+  _imp.yearsByTab = _yearsByTab;
   _imp.staged = staged;
   _imp.gradeTable = _impBuildGradeTable(staged);
   var lookups = {
@@ -1263,6 +1301,20 @@ function _impStepTriage() {
         'onchange="_impSetTabType(' + JSON.stringify(tab).replace(/"/g, '&quot;') + ',this.value)"></div>';
     });
     html += '</div>';
+  }
+  // v0.9.1530: say what the year rule did, per tab. Silence is how 400 years
+  // went missing unnoticed for a whole import.
+  var _yTabs = Object.keys(_imp.yearsByTab || {});
+  if (_yTabs.length) {
+    var _yTotal = _yTabs.reduce(function (n, k) { return n + _imp.yearsByTab[k]; }, 0);
+    _yTabs.sort(function (a, b) { return _imp.yearsByTab[b] - _imp.yearsByTab[a]; });
+    html += '<div class="imp-card imp-muted"><strong>' + _yTotal.toLocaleString() +
+      '</strong> items got a Year from their description \u2014 ' +
+      _yTabs.slice(0, 4).map(function (k) {
+        return _impEsc(k) + ' ' + _imp.yearsByTab[k].toLocaleString();
+      }).join(', ') + (_yTabs.length > 4 ? ', \u2026' : '') +
+      '. <span class="imp-muted">Tabs where a year describes the subject rather than the item ' +
+      '(a 1955 car modelled in 2016) are left blank on purpose.</span></div>';
   }
   var _tSurvey = _impTypeSurvey();
   if (_tSurvey.read) {

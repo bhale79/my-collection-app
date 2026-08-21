@@ -247,6 +247,39 @@ ok('675 stays for the prewar/postwar verify (two vintage candidates)',
 // v0.9.1529: the Books tab. It imported with no type because the type
 // question is only asked for a tab classed "not trains", and the AI called
 // Books a train tab. Two catches now — one deterministic, one evidence-based.
+// v0.9.1530: the year rule. It ran on ONE of Brad's eleven tabs because its
+// default was assigned inside the tab-questions screen — a tab whose question
+// never rendered kept `undefined`, which reads as "no". 437 years available,
+// 27 written. The default now lives with the rule.
+(function yearDefaultTest() {
+  const uiPath = path.join(__dirname, '..', 'app', 'import-ui.js');
+  const ui = fs.readFileSync(uiPath, 'utf8');
+
+  ok('one function owns the answer', /function _impTabYearMeansMade/.test(ui));
+  ok('trains default to yes without anyone being asked',
+     /_impTabYearMeansMade[\s\S]{0,400}return c === 'trains'/.test(ui));
+  ok('an explicit answer still wins',
+     /_impTabYearMeansMade[\s\S]{0,200}tabYearMeans\[tabName\] !== undefined/.test(ui));
+  ok('the staging rule asks that function, not the raw flag',
+     /!it\.yearMade && _impTabYearMeansMade\(/.test(ui));
+  ok('the screen asks the same function',
+     /var defYear = _impTabYearMeansMade\(name, cls\)/.test(ui));
+  ok('the default is no longer written from the screen',
+     !/tabYearMeans\[name\] === undefined/.test(ui));
+  ok('counting a tab\u2019s years falls back to the mapped items',
+     /column walk above returned 0[\s\S]{0,600}rrImpApplyMapping\(t, m\)/.test(ui));
+  ok('triage reports what the year rule did', /items got a Year from their description/.test(ui));
+
+  // The year reader itself, on Brad's real phrasings.
+  is_year('1946 Lionel Reproduction Catalog', '1946');
+  is_year('A Century of Lionel Timeless Toy Trains', '');
+  is_year('1929 WACO ASO Waco Straightwing', '1929');
+  function is_year(text, want) {
+    const got = core.rrImpYearFromText(text) || '';
+    ok('year from "' + text.slice(0, 34) + '"', got === want, got || '(none)');
+  }
+})();
+
 (function nonCatalogTabTest() {
   const numbered = n => Array.from({ length: n }, (_, i) => ({ itemNum: '646' + i }));
   const bare = n => Array.from({ length: n }, () => ({ itemNum: '', yourDesc: 'All Aboard for Christmas' }));
