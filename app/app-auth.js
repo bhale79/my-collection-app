@@ -410,10 +410,7 @@ function initGoogle() {
       var _msLeft = _restoredExpiry - Date.now() - 5 * 60 * 1000;
       if (_msLeft < 60000) _msLeft = 60000;
       window._tokenRefreshTimer = setTimeout(function() {
-        if (accessToken) {
-          var hint = state.user?.email || '';
-          tokenClient.requestAccessToken({ prompt: '', login_hint: hint });
-        }
+        rrEnsureFreshToken('scheduled');       // v0.9.1540
       }, _msLeft);
     } else {
       // Token expired or missing — must request a new one via GIS
@@ -565,8 +562,21 @@ function onTokenReceived(resp) {
     console.error('Token error:', resp);
     // If silent token refresh failed, prompt user to sign in again
     if (resp.error === 'interaction_required' || resp.error === 'login_required') {
+      // v0.9.1540 (Brad: "i don't want the user to have to sign out and sign
+      // back in for a stupid token — they won't understand that"). This used
+      // to throw the whole app back to the sign-in screen, which reads as
+      // "you have been logged out" for what is really a one-hour token doing
+      // exactly what Google designed it to do. If the app is already open and
+      // showing data, keep it open: retry on their next click, and only ask
+      // if that fails too.
+      var _appOpen = document.getElementById('app');
+      _rrTokenRenewing = false;
+      if (_appOpen && _appOpen.classList.contains('active')) {
+        _rrArmGestureRenew();
+        return;
+      }
       _tokenIsInitial = true;
-      // Show the sign-in screen so user can click the button (avoids popup blocker)
+      // Nothing on screen yet — the sign-in screen IS the right answer here.
       document.getElementById('auth-screen').style.display = 'flex';
       document.getElementById('app').classList.remove('active');
     }
@@ -582,17 +592,35 @@ function onTokenReceived(resp) {
   localStorage.setItem('lv_token', accessToken);
   localStorage.setItem('lv_token_expiry', String(Date.now() + 55 * 60 * 1000));
 
-  // Schedule next silent refresh 55 min from now (tokens last 1 hour)
+  // v0.9.1540: a live token means every fallback stands down.
+  _rrTokenRenewing = false;
+  _rrTokenGestureArmed = false;
+  try {
+    var _rb = document.getElementById('rr-reconnect-bar');
+    if (_rb) _rb.remove();
+  } catch (eRB) {}
+
+  // Renew well before the hour is up, not at the last minute — the old timer
+  // fired at 55 minutes, leaving five minutes to get it right if the quiet
+  // path was blocked. 45 gives the click-retry room to work unnoticed.
   if (window._tokenRefreshTimer) clearTimeout(window._tokenRefreshTimer);
   window._tokenRefreshTimer = setTimeout(() => {
-    if (accessToken) {
-      const hint = state.user?.email || '';
-      tokenClient.requestAccessToken({ prompt: '', login_hint: hint });
-    }
-  }, 55 * 60 * 1000);
+    rrEnsureFreshToken('scheduled');
+  }, 45 * 60 * 1000);
 
   // Background refresh — just update the token, don't reload data
   if (!isInitial) {
+    // v0.9.1540: unless the app has been sitting there with NOTHING, which is
+    // what a dead token looks like on screen — Brad's empty Master Catalog.
+    // Getting the token back has to bring the trains back with it, or he is
+    // still looking at "No items match your filters" and none the wiser.
+    try {
+      var _empty = !state.masterData || !state.masterData.length;
+      if (_empty && typeof loadAllData === 'function') {
+        console.log('[Auth] token restored while the app had no data — reloading');
+        loadAllData();
+      }
+    } catch (eRL) {}
     return;
   }
 
@@ -707,6 +735,140 @@ function onTokenReceived(resp) {
 //  description of the code. Both now exist; that is the only reason this
 //  sentence is allowed to stand.)
 
+// ── v0.9.1540: the token keeper ─────────────────────────────────────────
+// Brad, when his second account showed an empty Master Catalog: "we don't
+// ever need a token to fail... i don't want the user to have to sign out and
+// sign back in for a stupid token. they won't understand that."
+//
+// He is right, and the failure was ugly: Google access tokens last an hour,
+// the quiet renewal needs an active Google session for THAT account in the
+// browser, and when it cannot get one it falls back to a popup — which Chrome
+// blocks, because no one clicked anything. Result: no token, every fetch
+// returns nothing, and the app cheerfully renders "No items match your
+// filters" over a collection of 3,370 items. A tester reads that as: the app
+// lost my trains.
+//
+// Three layers, in order of how invisible they are:
+//   1. RENEW EARLY — top up while the app is in use, long before expiry, and
+//      whenever the tab is brought back to the front.
+//   2. RENEW ON THE NEXT CLICK — if the quiet renewal is blocked, wait for the
+//      user's next click or keypress and retry then. A click is exactly the
+//      gesture the browser wanted, so the popup is allowed and usually never
+//      appears at all. The user does nothing and notices nothing.
+//   3. ONLY THEN, ASK — a small banner with one Reconnect button. Never a
+//      sign-out, never an empty collection pretending to be an empty
+//      collection.
+var _rrTokenRenewing = false;      // a request is in flight
+var _rrTokenGestureArmed = false;  // waiting for the user's next click
+var _RR_TOKEN_MARGIN_MS = 15 * 60 * 1000;   // renew when under 15 minutes left
+
+function _rrTokenExpiry() {
+  try { return parseInt(localStorage.getItem('lv_token_expiry') || '0'); } catch (e) { return 0; }
+}
+function _rrTokenHealthy() {
+  return !!accessToken && _rrTokenExpiry() > Date.now() + _RR_TOKEN_MARGIN_MS;
+}
+// The only place that asks Google for a token outside of first sign-in.
+function rrEnsureFreshToken(reason) {
+  try {
+    if (!state || !state.user) return;
+    if (_rrTokenHealthy() || _rrTokenRenewing) return;
+    _rrTokenRenewing = true;
+    var hint = (state.user && state.user.email) || '';
+    console.log('[Auth] renewing token (' + (reason || 'check') + ')');
+    tokenClient.requestAccessToken({ prompt: '', login_hint: hint });
+    // If nothing comes back, the quiet path was blocked. Do not nag — wait
+    // for a click and try again then, when the browser will allow it.
+    setTimeout(function () {
+      if (_rrTokenRenewing && !_rrTokenHealthy()) {
+        _rrTokenRenewing = false;
+        _rrArmGestureRenew();
+      }
+    }, 6000);
+  } catch (e) {
+    _rrTokenRenewing = false;
+    console.warn('[Auth] renew failed:', e && e.message);
+    _rrArmGestureRenew();
+  }
+}
+// Layer 2. One-shot listeners; they remove themselves the moment they fire.
+function _rrArmGestureRenew() {
+  if (_rrTokenGestureArmed || _rrTokenHealthy()) return;
+  _rrTokenGestureArmed = true;
+  console.log('[Auth] quiet renewal blocked — will retry on your next click');
+  var go = function () {
+    document.removeEventListener('pointerdown', go, true);
+    document.removeEventListener('keydown', go, true);
+    _rrTokenGestureArmed = false;
+    try {
+      _rrTokenRenewing = true;
+      tokenClient.requestAccessToken({ prompt: '', login_hint: (state.user && state.user.email) || '' });
+      setTimeout(function () {
+        if (!_rrTokenHealthy()) { _rrTokenRenewing = false; _rrShowReconnect(); }
+      }, 6000);
+    } catch (e) { _rrTokenRenewing = false; _rrShowReconnect(); }
+  };
+  document.addEventListener('pointerdown', go, true);
+  document.addEventListener('keydown', go, true);
+  // A click may never come — someone reading a list. Give it a while, then ask.
+  setTimeout(function () { if (!_rrTokenHealthy()) _rrShowReconnect(); }, 90000);
+}
+// Layer 3. Plain words, one button, and the app stays where it is.
+function _rrShowReconnect() {
+  try {
+    if (_rrTokenHealthy()) return;
+    if (document.getElementById('rr-reconnect-bar')) return;
+    var appEl = document.getElementById('app');
+    if (!appEl || !appEl.classList.contains('active')) return;   // never over sign-in
+    var bar = document.createElement('div');
+    bar.id = 'rr-reconnect-bar';
+    bar.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);bottom:14px;z-index:100011;' +
+      'display:flex;align-items:center;gap:0.7rem;padding:0.55rem 0.85rem;border-radius:10px;' +
+      'background:var(--surface);border:1px solid var(--accent);font-family:var(--font-body);' +
+      'font-size:0.83rem;color:var(--text);max-width:calc(100vw - 2rem)';
+    bar.innerHTML =
+      '<span>Google needs you to reconnect. <span style="color:var(--text-dim)">Nothing is lost \u2014 ' +
+      'your collection is safe in your Google Sheet.</span></span>' +
+      '<button type="button" onclick="rrReconnectNow()" style="border:none;border-radius:7px;padding:0.35rem 0.8rem;' +
+        'background:var(--accent);color:var(--on-accent);font-family:var(--font-body);font-size:0.8rem;' +
+        'font-weight:700;cursor:pointer;flex-shrink:0">Reconnect</button>';
+    document.body.appendChild(bar);
+  } catch (e) {}
+}
+// The button. A click IS the gesture, so this is the request that works.
+function rrReconnectNow() {
+  var bar = document.getElementById('rr-reconnect-bar');
+  if (bar) {
+    var b = bar.querySelector('button');
+    if (b) { b.disabled = true; b.textContent = 'Reconnecting\u2026'; }
+  }
+  try {
+    _rrTokenRenewing = true;
+    tokenClient.requestAccessToken({ prompt: '', login_hint: (state.user && state.user.email) || '' });
+    setTimeout(function () {
+      if (_rrTokenHealthy()) return;
+      // Still nothing: ask Google to show the account chooser. Still not a
+      // sign-out — the app and its data stay exactly where they are.
+      _rrTokenRenewing = false;
+      try { tokenClient.requestAccessToken({ prompt: 'consent', login_hint: (state.user && state.user.email) || '' }); }
+      catch (e2) {}
+      var b2 = bar && bar.querySelector('button');
+      if (b2) { b2.disabled = false; b2.textContent = 'Reconnect'; }
+    }, 6000);
+  } catch (e) {
+    _rrTokenRenewing = false;
+    var b3 = bar && bar.querySelector('button');
+    if (b3) { b3.disabled = false; b3.textContent = 'Reconnect'; }
+  }
+}
+// Layer 1. A heartbeat while the app is open, cheap because it does nothing
+// at all until the token is actually near its end.
+if (typeof window !== 'undefined') {
+  window.rrEnsureFreshToken = rrEnsureFreshToken;
+  window.rrReconnectNow = rrReconnectNow;
+  setInterval(function () { rrEnsureFreshToken('heartbeat'); }, 5 * 60 * 1000);
+}
+
 document.addEventListener('visibilitychange', function() {
   if (document.visibilityState === 'visible' && state.user) {
     var expiry = parseInt(localStorage.getItem('lv_token_expiry') || '0');
@@ -716,14 +878,10 @@ document.addEventListener('visibilitychange', function() {
       accessToken = savedToken;
       console.log('[Auth] Restored token on resume');
     }
-    // If token is expired or about to expire (< 5 min), request fresh one
-    if (!accessToken || expiry < Date.now() + 5 * 60 * 1000) {
-      console.log('[Auth] Token expired or expiring, requesting refresh');
-      try {
-        var hint = state.user?.email || '';
-        tokenClient.requestAccessToken({ prompt: '', login_hint: hint });
-      } catch(e) { console.warn('[Auth] Silent refresh failed:', e); }
-    }
+    // v0.9.1540: one owner for renewals — see the token keeper above. The old
+    // code here fired a bare request and assumed it worked; when the browser
+    // blocked it, nothing noticed and the app ran on with no token.
+    rrEnsureFreshToken('resume');
   }
 });
 
