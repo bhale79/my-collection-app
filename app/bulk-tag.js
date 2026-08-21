@@ -53,6 +53,39 @@ function rrTagFields() {
   return out;
 }
 
+// ── v0.9.1556 (Brad: "need to be able to name a column not just give them
+// to me. however your suggested ones are okay to keep") ─────────────────
+// The five custom columns already exist on every sheet; what was missing is
+// a way to NAME one at the moment you need it, instead of going to
+// Preferences first and coming back. This finds the next unclaimed slot —
+// unnamed AND unused by any row, so a column someone filled last year is
+// never quietly repurposed.
+function rrTagFreeCustomSlot() {
+  for (var i = 1; i <= 5; i++) {
+    var key = 'custom' + i;
+    var named = '';
+    try { named = localStorage.getItem('lv_label_' + key) || ''; } catch (e) {}
+    if (named.trim()) continue;
+    var used = false;
+    try {
+      used = Object.values(state.personalData || {}).some(function (pd) {
+        return pd && String(pd[key] || '').trim();
+      });
+    } catch (e) {}
+    if (!used) return key;
+  }
+  return '';
+}
+// Name it, switch it on, and it behaves like every other column from then
+// on — detail page, edit panel, import targets, the column picker.
+function rrTagClaimCustom(key, label) {
+  try {
+    localStorage.setItem('lv_label_' + key, label);
+    localStorage.setItem('lv_' + key + '_enabled', 'true');
+  } catch (e) {}
+  return label;
+}
+
 function rrTagActive() { return !!_rrTag; }
 function rrTagField() { return _rrTag ? _rrTag.field : ''; }
 
@@ -77,7 +110,15 @@ function rrTagOpen(preField, preValue, prePair) {
     +   fields.map(function (f) {
           return '<option value="' + f.key + '"' + (preField === f.key ? ' selected' : '') + '>' + f.label + '</option>';
         }).join('')
+    +   '<option value="__new">\uff0b New column\u2026</option>'
     + '</select>'
+    + '<div id="rr-tag-newwrap" style="display:none;margin-bottom:0.6rem">'
+    +   '<label style="display:block;font-size:0.75rem;color:var(--text-dim);margin-bottom:0.2rem">Name the column</label>'
+    +   '<input id="rr-tag-newname" type="text" placeholder="e.g. Shelf, Auction lot, Bought from" '
+    +     'style="width:100%;box-sizing:border-box;background:var(--bg);border:1px solid var(--border);border-radius:8px;'
+    +     'padding:0.55rem 0.7rem;color:var(--text);font-family:var(--font-body);font-size:0.9rem">'
+    +   '<div id="rr-tag-newnote" style="font-size:0.72rem;color:var(--text-dim);margin-top:0.25rem"></div>'
+    + '</div>'
     + '<label id="rr-tag-vlabel" style="display:block;font-size:0.75rem;color:var(--text-dim);margin-bottom:0.2rem">What is it?</label>'
     + '<input id="rr-tag-value" type="text" list="rr-tag-dl" placeholder="e.g. Mint Cars" '
     +   'value="' + _rrTagEsc(preValue || '') + '" '
@@ -129,6 +170,21 @@ function rrTagShowSeen() {
   var key = sel.value, seen = {};
   // v0.9.1555b: paired field → show the second box, and offer the places the
   // user has already set up (Preferences → Storage Locations, v0.9.1532).
+  // v0.9.1556: naming a new column.
+  try {
+    var nw = document.getElementById('rr-tag-newwrap');
+    var note = document.getElementById('rr-tag-newnote');
+    if (nw) nw.style.display = (key === '__new') ? 'block' : 'none';
+    if (key === '__new' && note) {
+      var free = rrTagFreeCustomSlot();
+      note.textContent = free
+        ? 'Your columns are yours — this one appears on the item page, in the list, and can be imported into.'
+        : 'All five spare columns are in use. Preferences → Extra Columns can rename or clear one.';
+      note.style.color = free ? 'var(--text-dim)' : 'var(--accent)';
+      var nn = document.getElementById('rr-tag-newname');
+      if (nn) setTimeout(function () { nn.focus(); }, 30);
+    }
+  } catch (eNew) {}
   try {
     var def = rrTagFields().filter(function (f) { return f.key === key; })[0] || {};
     var wrap = document.getElementById('rr-tag-pair-wrap');
@@ -175,6 +231,26 @@ function rrTagNext() {
   var key = sel ? sel.value : '';
   var val = inp ? String(inp.value || '').trim() : '';
   if (!key) return;
+  // v0.9.1556: a brand-new column, named here rather than in Preferences.
+  var newLabel = '';
+  if (key === '__new') {
+    var nn = document.getElementById('rr-tag-newname');
+    newLabel = nn ? String(nn.value || '').trim() : '';
+    if (!newLabel) {
+      if (nn) { nn.style.borderColor = 'var(--accent)'; nn.focus(); }
+      if (typeof showToast === 'function') showToast('Give the column a name first', 2500);
+      return;
+    }
+    var slot = rrTagFreeCustomSlot();
+    if (!slot) {
+      if (typeof showToast === 'function') {
+        showToast('All five spare columns are in use — rename one in Preferences → Extra Columns', 6000, true);
+      }
+      return;
+    }
+    rrTagClaimCustom(slot, newLabel);
+    key = slot;
+  }
   if (!val) {
     if (inp) { inp.style.borderColor = 'var(--accent)'; inp.focus(); }
     if (typeof showToast === 'function') showToast('Type what goes in the column first', 2500);
@@ -182,6 +258,7 @@ function rrTagNext() {
   }
   var fields = rrTagFields();
   var def = fields.filter(function (f) { return f.key === key; })[0] || {};
+  if (newLabel) def = { key: key, label: newLabel };
   var pinp = document.getElementById('rr-tag-pair');
   var pval = (def.pair && pinp) ? String(pinp.value || '').trim() : '';
   _rrTag = { field: key, label: def.label || key, value: val, sel: {}, replace: false,
@@ -487,4 +564,6 @@ if (typeof window !== 'undefined') {
   window.rrTagUndo = rrTagUndo;
   window.rrTagUndoListHtml = rrTagUndoListHtml;
   window.rrTagFields = rrTagFields;
+  window.rrTagFreeCustomSlot = rrTagFreeCustomSlot;
+  window.rrTagClaimCustom = rrTagClaimCustom;
 }

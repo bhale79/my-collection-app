@@ -36,7 +36,7 @@ ok('step 1 picks the column', /id="rr-tag-field"/.test(tag));
 ok('step 2 asks what goes in it', /What is it\?/.test(tag));
 ok('...and shows values already in use, with counts', /Already in use/.test(tag));
 ok('step 3 goes to the collection with ticking on',
-   /function rrTagNext[\s\S]{0,2000}showPage\('browse'\)[\s\S]{0,400}rrTagBar\(\)/.test(tag));
+   /function rrTagNext[\s\S]{0,3000}showPage\('browse'\)[\s\S]{0,600}rrTagBar\(\)/.test(tag));
 ok('ticking reuses the share gutter', /rrTagActive === 'function' && rrTagActive\(\)\) return true;/.test(browse));
 ok('...without share mode’s ten-item cap', !/Maximum 10/.test(tag));
 ok('a row click ticks it while tagging', /_inTagModeD\s*\?\s*"rrTagToggle/.test(browse));
@@ -81,6 +81,20 @@ ok('only your own words can be bulk-set',
    !/key: 'itemNum'/.test(tag) && !/key: 'condition'/.test(tag) && !/key: 'variation'/.test(tag),
    'those are facts about one item, not labels to paint across forty');
 ok('writes go in batches, not one request per row', /i \+= 500/.test(tag));
+
+// ── v0.9.1556: name your own column (Brad) ─────────────────────────────
+// "need to be able to name a column not just give them to me. however your
+// suggested ones are okay to keep."
+ok('a new column can be named here', /New column/.test(tag) && /id="rr-tag-newname"/.test(tag));
+ok('...and the suggested ones stayed', /key: 'subCollection'/.test(tag) && /key: 'subType'/.test(tag));
+ok('it claims a spare column slot', /function rrTagFreeCustomSlot/.test(tag));
+ok('...only one that is unnamed AND unused',
+   /if \(named\.trim\(\)\) continue;[\s\S]{0,320}String\(pd\[key\] \|\| ''\)\.trim\(\)/.test(tag),
+   'a column someone filled last year must never be quietly repurposed');
+ok('naming it switches it on everywhere', /localStorage\.setItem\('lv_' \+ key \+ '_enabled', 'true'\)/.test(tag));
+ok('a blank name is refused', /Give the column a name first/.test(tag));
+ok('running out of slots is said plainly, with the way out',
+   /All five spare columns are in use[\s\S]{0,80}Preferences/.test(tag));
 
 console.log('');
 console.log(fail === 0 ? 'ALL BULK-TAG TESTS GREEN (' + pass + ')' : fail + ' FAILING of ' + (pass + fail));
