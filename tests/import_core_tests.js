@@ -238,6 +238,30 @@ ok('675 stays for the prewar/postwar verify (two vintage candidates)',
 // honours that mark. Either half alone is silently useless, so test both.
 // v0.9.1526: the description type-reader. Brad's own examples are the spec —
 // each of these is a line he pointed at or a miss the fixture run exposed.
+// v0.9.1527: the catalog gate. Brad's (39) import matched ZERO of 3,370 rows
+// because the lookup index was still building and nothing checked. Three
+// pieces have to exist together, so all three are asserted: the catalog can
+// report its readiness, the import asks before matching, and the triage
+// screen shouts if a big train import matched nothing anyway.
+(function catalogGateTest() {
+  const uiPath = path.join(__dirname, '..', 'app', 'import-ui.js');
+  const dataPath = path.join(__dirname, '..', 'app', 'app-data.js');
+  if (!fs.existsSync(uiPath) || !fs.existsSync(dataPath)) { ok('catalog gate: files present', false); return; }
+  const ui = fs.readFileSync(uiPath, 'utf8');
+  const dat = fs.readFileSync(dataPath, 'utf8');
+
+  ok('catalog can report readiness', /function rrCatalogIndexStatus/.test(dat) &&
+     /window\.rrCatalogIndexStatus/.test(dat));
+  ok('readiness is only true once every era is in', /_allIdxComplete\s*=\s*map\.size\s*>\s*0/.test(dat));
+  ok('import asks before it matches',
+     /_impAfterTabFacts[\s\S]{0,700}_impCatalogReady\(\)/.test(ui));
+  ok('import waits on its own instead of failing', /function _impCatalogWait/.test(ui) &&
+     /_impStage\(\)/.test(ui.slice(ui.indexOf('function _impCatalogWait'))));
+  ok('the gate has a named escape hatch', /function _impCatalogSkip/.test(ui));
+  ok('triage shouts when a big train import matched nothing',
+     /_trainRows >= 200 && t\.matched\.length === 0/.test(ui));
+})();
+
 (function typeReaderTest() {
   const cases = [
     ['GN 52\u2019 6\u201d Flatcar with Pipe Load #65049', 'Flatcar'],

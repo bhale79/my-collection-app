@@ -49,6 +49,9 @@ function rrImportOpen() {
     tabMaker: {},          // tabName → confirmed maker ('' = per-row / unknown)
     tabYearMeans: {},      // tabName → true when a year in the description IS the item's year
     tabSubType: {},
+    afterCatalog: '',    // v0.9.1527: step to resume once the catalog is ready
+    catalogSkipped: false,
+    catalogTimer: null,
     typeSkip: {},        // v0.9.1526: types the user unticked on triage
     showTypes: false,        // tabName → optional narrower name (v0.9.1522)
     tabType: {},           // tabName → confirmed item type for non-train tabs
@@ -136,7 +139,7 @@ function _impRender() {
   } catch (e) {}
   var fn = {
     entry: _impStepEntry, consent: _impStepConsent, mapping: _impStepMapping,
-    tabfacts: _impStepTabFacts,
+    tabfacts: _impStepTabFacts, catalog: _impStepCatalog,
     interview: _impStepInterview, grades: _impStepGrades, triage: _impStepTriage,
     prices: _impStepPrices, eracheck: _impStepEraCheck, preview: _impStepPreview, writing: _impStepWriting,
     done: _impStepDone,
@@ -837,7 +840,90 @@ function _impTabMakerSel(sel, tabName) {
 
 function _impAfterTabFacts() {
   _impBuildQuestions();
-  _imp.step = _imp.questions.length ? 'interview' : 'grades';
+  // v0.9.1527: matching happens in _impStage(), RIGHT HERE. Everything after
+  // this point is downstream of it, so this is the last honest moment to ask
+  // whether the catalog is actually loaded. Brad's (39) import ran with an
+  // empty index and turned 3,370 catalogued items into manual entries without
+  // one word of warning.
+  _imp.afterCatalog = _imp.questions.length ? 'interview' : 'grades';
+  if (!_impCatalogReady()) {
+    _imp.step = 'catalog';
+    _impRender();
+    _impCatalogWait();
+    return;
+  }
+  _imp.step = _imp.afterCatalog;
+  _impStage();
+  _impRender();
+}
+
+// ── The catalog gate ────────────────────────────────────────────
+// v0.9.1527. The full-catalog index builds in the background from IndexedDB
+// caches, fetching any era this device has never seen. On a fresh device or
+// straight after a hard refresh that takes a little while — and an import
+// started inside that window matches nothing.
+var _IMP_CAT_FLOOR = 20000;    // numbers below which we will NOT bulk-match
+function _impCatalogStat() {
+  try {
+    if (typeof rrCatalogIndexStatus === 'function') return rrCatalogIndexStatus();
+  } catch (e) {}
+  // Older code without the status helper: fall back to counting directly.
+  var all = 0, era = 0;
+  try { all = (state.masterByItemAll && state.masterByItemAll.size) || 0; } catch (e) {}
+  try { era = (state.masterByItem && state.masterByItem.size) || 0; } catch (e) {}
+  return { all: all, era: era, numbers: Math.max(all, era), complete: false, building: false };
+}
+function _impCatalogReady() {
+  if (_imp.catalogSkipped) return true;          // user chose to go ahead
+  var st = _impCatalogStat();
+  return !!st.complete || st.numbers >= _IMP_CAT_FLOOR;
+}
+function _impStepCatalog() {
+  var st = _impCatalogStat();
+  var pct = Math.min(99, Math.round(st.numbers / 1142));   // ~114,000 numbers = 100%
+  _impBody().innerHTML =
+    '<div class="imp-h">Getting the catalog ready\u2026</div>' +
+    '<div class="imp-muted" style="margin-bottom:0.7rem">Your items are matched against the full catalog \u2014 ' +
+    'about 114,000 numbers across every maker and era. It loads in the background and is nearly always ' +
+    'ready; starting an import in the first moments after opening the app can beat it to the punch. ' +
+    '<strong>We wait rather than import everything as a manual entry.</strong></div>' +
+    '<div class="imp-card"><div style="display:flex;justify-content:space-between;font-size:0.85rem;margin-bottom:0.3rem">' +
+      '<span>' + st.numbers.toLocaleString() + ' numbers loaded</span><span>' + pct + '%</span></div>' +
+      '<div style="height:8px;border-radius:5px;background:var(--surface2,#26262e);overflow:hidden">' +
+        '<div style="height:100%;width:' + pct + '%;background:var(--accent,#e8401c);transition:width 0.4s"></div></div>' +
+      '<div class="imp-muted" style="font-size:0.75rem;margin-top:0.4rem">' +
+        (st.building ? 'Loading now \u2014 this screen moves on by itself.'
+                     : 'Starting the load\u2026') + '</div>' +
+    '</div>' +
+    '<div class="imp-foot"><button class="imp-btn" onclick="_imp.step=\'tabfacts\';_impRender()">\u2190 Back</button>' +
+    '<button class="imp-btn" onclick="_impCatalogSkip()" title="Only sensible if you are offline">' +
+      'Import anyway as manual entries</button></div>';
+  // Nudge the build along rather than waiting on its own schedule.
+  try {
+    if (!st.building && typeof _buildAllErasLookupIndex === 'function') _buildAllErasLookupIndex(true);
+  } catch (e) {}
+}
+function _impCatalogWait() {
+  if (_imp.catalogTimer) clearTimeout(_imp.catalogTimer);
+  _imp.catalogTimer = setTimeout(function () {
+    if (!_imp || _imp.step !== 'catalog') return;
+    if (_impCatalogReady()) {
+      _imp.step = _imp.afterCatalog || 'grades';
+      _impStage();
+      _impRender();
+      return;
+    }
+    _impRender();          // repaint the progress bar
+    _impCatalogWait();
+  }, 1200);
+}
+// The escape hatch, for someone genuinely offline. Named plainly, because
+// what it does is import everything as a manual entry.
+function _impCatalogSkip() {
+  if (!confirm('Without the catalog, every item comes in as a manual entry \u2014 no catalog photos, ' +
+               'descriptions or era. You can remove the import and run it again once the catalog loads. Continue?')) return;
+  _imp.catalogSkipped = true;
+  _imp.step = _imp.afterCatalog || 'grades';
   _impStage();
   _impRender();
 }
@@ -1070,6 +1156,19 @@ function _impStepTriage() {
   var soldSkip = _imp.fillMeaning === 'sold'
     ? _imp.staged.filter(_impIsHighlighted).length : 0;
   var html = '<div class="imp-h">Here’s what we found.</div>';
+  // v0.9.1527: a second line of defence. If hundreds of TRAIN rows matched
+  // nothing at all, that is not a plausible collection — it is the catalog
+  // missing. Say so here, where it can still be stopped, instead of leaving
+  // it to be discovered in an exported spreadsheet.
+  var _trainRows = (_imp.staged || []).filter(function (it) { return it.tabClass === 'trains'; }).length;
+  if (_trainRows >= 200 && t.matched.length === 0) {
+    var _cs = _impCatalogStat();
+    html += '<div class="imp-card" style="border-color:var(--accent,#e8401c)">' +
+      '<strong>\u26a0 None of your ' + _trainRows.toLocaleString() + ' train items matched the catalog.</strong> ' +
+      '<span class="imp-muted">That almost always means the catalog had not finished loading (' +
+      _cs.numbers.toLocaleString() + ' numbers available). Importing now would file every item as a manual ' +
+      'entry with no catalog details. Go back, give it a moment, and start again.</span></div>';
+  }
   var viaPrefix = t.matched.filter(function (m) { return m.matchedVia === '6-prefix'; }).length;
   var viaDigits = t.matched.filter(function (m) { return m.matchedVia === 'lionel-digits'; }).length;
   var vintageLeft = _impVintageGroup().length;

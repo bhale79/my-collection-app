@@ -922,10 +922,19 @@ window.findAllMaster = findAllMaster;
 // yet (a brand the user doesn't collect) is fetched once from the sheet and
 // cached like any other era, so later builds are instant.
 var _allIdxBuiltAt = 0, _allIdxBuilding = false;
+// v0.9.1527 (Brad's export (39): 3,370 rows imported, ZERO matched to the
+// catalog — Master Key blank on every one). ROOT CAUSE: this index builds in
+// the background after the app loads, and the spreadsheet import matched
+// against it without ever asking whether it was ready. An empty index does
+// not throw; it answers "not in our list" 3,370 times, which reads exactly
+// like a genuine result. _allIdxComplete is the missing signal: TRUE only
+// after every era has been added, so callers can wait instead of guessing.
+var _allIdxComplete = false;
 async function _buildAllErasLookupIndex(force) {
   if (_allIdxBuilding) return;
   if (!force && _allIdxBuiltAt && (Date.now() - _allIdxBuiltAt) < 10 * 60 * 1000) return;
   _allIdxBuilding = true;
+  _allIdxComplete = false;
   try {
     var eras = (typeof REAL_ERA_IDS !== 'undefined' && Array.isArray(REAL_ERA_IDS))
       ? REAL_ERA_IDS.slice()
@@ -973,6 +982,7 @@ async function _buildAllErasLookupIndex(force) {
     state.masterByItemAll = map;
     state.masterAllRows = rowsAll;
     _allIdxBuiltAt = Date.now();
+    _allIdxComplete = map.size > 0;
     console.log('[lookup-index] full catalog ready: ' + map.size + ' numbers / ' + rowsAll.length + ' rows');
   } finally { _allIdxBuilding = false; }
 }
@@ -983,6 +993,23 @@ function _scheduleLookupIndex(delayMs, force) {
     }, delayMs || 4000);
   } catch (e) {}
 }
+// v0.9.1527: one honest answer to "can I look numbers up right now?".
+// Anything that matches in BULK (the spreadsheet import today, batch tools
+// later) must ask this first — a half-built catalog silently turns real
+// items into manual entries.
+function rrCatalogIndexStatus() {
+  var all = 0, era = 0;
+  try { all = (state.masterByItemAll && state.masterByItemAll.size) || 0; } catch (e) {}
+  try { era = (state.masterByItem && state.masterByItem.size) || 0; } catch (e) {}
+  return {
+    all: all,
+    era: era,
+    numbers: Math.max(all, era),
+    complete: !!_allIdxComplete && all > 0,
+    building: !!_allIdxBuilding,
+  };
+}
+window.rrCatalogIndexStatus = rrCatalogIndexStatus;
 window._buildAllErasLookupIndex = _buildAllErasLookupIndex;
 window._scheduleLookupIndex = _scheduleLookupIndex;
 
