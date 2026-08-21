@@ -794,9 +794,30 @@ function rrImpCountDateJunk(tabs) {
 // which carries no grade (real items in the wild always had one or the
 // other). Conservative on purpose: "Total Package Deal 123" is an item.
 function rrImpIsSummaryItem(it) {
-  var probe = rrImpNormCell(it && it.itemNum) || rrImpNormCell(it && it.yourDesc);
-  if (!/^(grand\s+)?(sub\s*)?totals?\s*[:.]?$/i.test(probe)) return false;
-  return !rrImpNormCell(it && it.rawGrade);
+  // v0.9.1554 (Brad: "why are these numbers off. they should be exact").
+  // One of Scott's twenty summary rows got through and was imported as an
+  // item worth $780 — which is exactly why his import totalled $379,438
+  // against a real $378,658, and counted 3,370 items instead of 3,369.
+  //
+  // CAUSE: this looked at itemNum, then yourDesc. His "Lionel 1/120
+  // Big-Rugged Loco" tab has no Item # column at all — its columns are
+  // Series · Name · Condition · Value — so the mapping put the word "Total:"
+  // into SUB-COLLECTION, where nothing was looking for it.
+  //
+  // A totals row does not know which of our fields it will land in. Check
+  // every text field the mapping can fill, and keep the two rules that stop
+  // a real item being thrown away: the word must START the cell, and the row
+  // must carry no grade (a real item in the wild always had one).
+  var fields = ['itemNum', 'yourDesc', 'description', 'subCollection', 'itemType',
+                'manufacturer', 'roadName', 'location', 'notes'];
+  for (var i = 0; i < fields.length; i++) {
+    var probe = rrImpNormCell(it && it[fields[i]]);
+    if (!probe) continue;
+    if (/^(grand\s+)?(sub\s*)?totals?\s*[:.]?$/i.test(probe)) {
+      return !rrImpNormCell(it && it.rawGrade);
+    }
+  }
+  return false;
 }
 
 // ── Year from description (v0.9.1509, Brad: "the date is in the title so

@@ -319,6 +319,29 @@ ok('675 stays for the prewar/postwar verify (two vintage candidates)',
   ok('nothing in, nothing out', core.rrImpGuessCondition('') === '');
 })();
 
+// v0.9.1554 (Brad: "why are these numbers off. they should be exact").
+// One of Scott's twenty summary rows was imported as an item worth $780,
+// because his "Lionel 1/120" tab has NO Item # column — its columns are
+// Series · Name · Condition · Value — so "Total:" landed in Sub-collection,
+// where nothing was looking. That single row is the whole difference between
+// $379,438 and the true $378,658, and between 3,370 items and 3,369.
+(function summaryRowTest() {
+  const S = core.rrImpIsSummaryItem;
+  ok('a Total: row is caught wherever it lands', S({ subCollection: 'Total:', userEstWorth: '780' }),
+     'the row that got through');
+  ok('...in Item #', S({ itemNum: 'Total:', userEstWorth: '20147' }));
+  ok('...in the description', S({ yourDesc: 'Total' }));
+  ok('...in a type or maker column', S({ itemType: 'Totals' }) && S({ manufacturer: 'Subtotal' }));
+  ok('a real item that MENTIONS total is kept',
+     !S({ yourDesc: 'George H Bush 1992 Whistlestop ... total', rawGrade: 'C8' }),
+     'this is a $1,000 observation car, not a summary row');
+  ok('...even with no grade, if the word does not start the cell',
+     !S({ yourDesc: 'Grand total of parts included' }) === false || !S({ yourDesc: 'Set with total of 4 cars' }));
+  ok('a row with a GRADE is never a summary row', !S({ subCollection: 'Total:', rawGrade: 'C10/P9' }),
+     'real items in the wild always carried one');
+  ok('an ordinary row is untouched', !S({ location: 'Rm 107', yourDesc: 'NYC Boxcar' }));
+})();
+
 (function cleanupTest() {
   // ── the shape of a non-value ────────────────────────────────
   ok('NO SET is a placeholder', core.rrImpIsPlaceholderValue('NO SET') === 'confident');
