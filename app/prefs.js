@@ -947,7 +947,7 @@ function _addSavedLocation(){
   var type = typeEl ? typeEl.value : '';
   var locs = _getSavedLocations();
   if (locs.some(function(l){ return (l.name||'').toLowerCase() === name.toLowerCase(); })){ showToast('That location already exists'); nameEl.value=''; nameEl.focus(); return; }
-  locs.push({ name: name, type: type });
+  locs.push({ name: name, type: type, details: [] });
   _setSavedLocations(locs);
   nameEl.value=''; nameEl.focus();
   _renderLocList();
@@ -956,32 +956,115 @@ function _deleteSavedLocation(i){
   var locs = _getSavedLocations(); if (i<0 || i>=locs.length) return;
   locs.splice(i,1); _setSavedLocations(locs); _renderLocList();
 }
+// ── v0.9.1531b: the level below a location ──────────────────────
+// A location's details live on the location itself, so removing a location
+// takes its totes with it and nothing is orphaned.
+function _addLocDetail(i){
+  var locs = _getSavedLocations(); if (i<0 || i>=locs.length) return;
+  var el = document.getElementById('loc-det-new-' + i); if (!el) return;
+  var v = (el.value || '').trim(); if (!v){ el.focus(); return; }
+  if (!Array.isArray(locs[i].details)) locs[i].details = [];
+  if (locs[i].details.some(function(d){ return String(d).toLowerCase() === v.toLowerCase(); })){
+    showToast('That one is already in ' + locs[i].name); el.value=''; el.focus(); return;
+  }
+  locs[i].details.push(v);
+  _setSavedLocations(locs);
+  _locOpen[i] = true;
+  _renderLocList();
+  var again = document.getElementById('loc-det-new-' + i); if (again) again.focus();
+}
+function _deleteLocDetail(i, j){
+  var locs = _getSavedLocations(); if (i<0 || i>=locs.length) return;
+  if (!Array.isArray(locs[i].details)) return;
+  locs[i].details.splice(j,1);
+  _setSavedLocations(locs); _locOpen[i] = true; _renderLocList();
+}
+var _locOpen = {};        // which locations are expanded in the modal
+function _toggleLocOpen(i){ _locOpen[i] = !_locOpen[i]; _renderLocList(); }
+
 function _seedLocationsFromItems(){
   var locs = _getSavedLocations(); var have = {};
   locs.forEach(function(l){ have[(l.name||'').toLowerCase()] = true; });
-  var added = 0;
+  var added = 0, addedDetails = 0;
+  var byName = {};
+  locs.forEach(function(l){ byName[(l.name||'').toLowerCase()] = l; });
   Object.values((typeof state!=='undefined' && state.personalData) ? state.personalData : {}).forEach(function(pd){
-    if (pd && pd.location && pd.location.trim()){
-      var n = pd.location.trim();
-      if (!have[n.toLowerCase()]){ locs.push({ name: n, type: 'Other' }); have[n.toLowerCase()] = true; added++; }
+    if (!pd || !pd.location || !pd.location.trim()) return;
+    var n = pd.location.trim();
+    var key = n.toLowerCase();
+    if (!have[key]){
+      var fresh = { name: n, type: 'Other', details: [] };
+      locs.push(fresh); byName[key] = fresh; have[key] = true; added++;
+    }
+    // v0.9.1531b: pull the SECOND level too. Brad's import filled Location
+    // Detail on thousands of rows; making him retype his own totes to get
+    // suggestions for them would be silly.
+    var d = (pd.locationDetail || '').trim();
+    if (!d) return;
+    var loc = byName[key];
+    if (!Array.isArray(loc.details)) loc.details = [];
+    if (!loc.details.some(function(x){ return String(x).toLowerCase() === d.toLowerCase(); })){
+      loc.details.push(d); addedDetails++;
     }
   });
   _setSavedLocations(locs); _renderLocList();
-  showToast(added ? ('Added ' + added + ' location' + (added>1?'s':'')) : 'No new locations found');
+  var msg = [];
+  if (added) msg.push(added + ' location' + (added>1?'s':''));
+  if (addedDetails) msg.push(addedDetails + ' detail' + (addedDetails>1?'s':''));
+  showToast(msg.length ? ('Added ' + msg.join(' and ')) : 'No new locations found');
 }
 function _renderLocList(){
   var el = document.getElementById('loc-list'); if (!el) return;
   var locs = _getSavedLocations();
   if (!locs.length){ el.innerHTML = '<div style="color:var(--text-dim);font-size:0.82rem;font-style:italic;padding:0.5rem 0">No locations yet — add your first above.</div>'; return; }
   el.innerHTML = locs.map(function(loc, i){
-    return '<div style="display:flex;align-items:center;justify-content:space-between;gap:0.5rem;padding:0.5rem 0.65rem;border:1px solid var(--border);border-radius:8px;margin-bottom:0.35rem;background:var(--surface2)">'
-      + '<div><strong style="font-size:0.88rem;color:var(--text)">' + _locEsc(loc.name) + '</strong>'
-      + (loc.type ? ' <span style="font-size:0.72rem;color:var(--text-dim)">&middot; ' + _locEsc(loc.type) + '</span>' : '') + '</div>'
+    var dets = Array.isArray(loc.details) ? loc.details : [];
+    var open = !!_locOpen[i];
+    var head = '<div style="display:flex;align-items:center;justify-content:space-between;gap:0.5rem;padding:0.5rem 0.65rem">'
+      + '<div data-loc-open="' + i + '" style="cursor:pointer;flex:1">'
+      +   '<span style="color:var(--text-dim);font-size:0.75rem;display:inline-block;width:0.9rem">' + (open ? '\u25be' : '\u25b8') + '</span>'
+      +   '<strong style="font-size:0.88rem;color:var(--text)">' + _locEsc(loc.name) + '</strong>'
+      +   (loc.type ? ' <span style="font-size:0.72rem;color:var(--text-dim)">&middot; ' + _locEsc(loc.type) + '</span>' : '')
+      +   (dets.length ? ' <span style="font-size:0.72rem;color:var(--text-dim)">&middot; ' + dets.length + ' inside</span>' : '')
+      + '</div>'
       + '<button data-loc-del="' + i + '" title="Remove" style="background:none;border:none;color:var(--text-dim);font-size:1.2rem;cursor:pointer;line-height:1;padding:0 0.25rem">&times;</button>'
       + '</div>';
+    var body = '';
+    if (open){
+      body = '<div style="padding:0 0.65rem 0.6rem 1.55rem;border-top:1px solid var(--border)">'
+        + '<div style="font-size:0.75rem;color:var(--text-dim);margin:0.45rem 0 0.35rem">What\u2019s inside \u2014 totes, shelves, racks. These are offered as Location Detail on any item stored here.</div>'
+        + dets.map(function(d, j){
+            return '<div style="display:flex;align-items:center;justify-content:space-between;gap:0.5rem;padding:0.28rem 0.5rem;border:1px solid var(--border);border-radius:7px;margin-bottom:0.28rem;background:var(--bg)">'
+              + '<span style="font-size:0.82rem;color:var(--text)">' + _locEsc(d) + '</span>'
+              + '<button data-locdet-del="' + i + ':' + j + '" title="Remove" style="background:none;border:none;color:var(--text-dim);font-size:1.05rem;cursor:pointer;line-height:1;padding:0 0.2rem">&times;</button>'
+              + '</div>';
+          }).join('')
+        + '<div style="display:flex;gap:0.4rem;margin-top:0.35rem">'
+        +   '<input id="loc-det-new-' + i + '" type="text" placeholder="e.g. Tote 12" style="flex:1;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.42rem 0.6rem;color:var(--text);font-family:var(--font-body);font-size:0.84rem;box-sizing:border-box">'
+        +   '<button data-locdet-add="' + i + '" class="pref-btn" style="font-size:0.8rem">Add</button>'
+        + '</div></div>';
+    }
+    return '<div style="border:1px solid var(--border);border-radius:8px;margin-bottom:0.35rem;background:var(--surface2)">' + head + body + '</div>';
   }).join('');
   el.querySelectorAll('[data-loc-del]').forEach(function(btn){
     btn.addEventListener('click', function(){ _deleteSavedLocation(parseInt(btn.getAttribute('data-loc-del'),10)); });
+  });
+  el.querySelectorAll('[data-loc-open]').forEach(function(node){
+    node.addEventListener('click', function(){ _toggleLocOpen(parseInt(node.getAttribute('data-loc-open'),10)); });
+  });
+  el.querySelectorAll('[data-locdet-add]').forEach(function(btn){
+    btn.addEventListener('click', function(){ _addLocDetail(parseInt(btn.getAttribute('data-locdet-add'),10)); });
+  });
+  el.querySelectorAll('[data-locdet-del]').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var p = btn.getAttribute('data-locdet-del').split(':');
+      _deleteLocDetail(parseInt(p[0],10), parseInt(p[1],10));
+    });
+  });
+  el.querySelectorAll('input[id^="loc-det-new-"]').forEach(function(inp){
+    inp.addEventListener('keydown', function(e){
+      if (e.key === 'Enter') _addLocDetail(parseInt(inp.id.replace('loc-det-new-',''),10));
+    });
   });
 }
 function _openLocationsModal(){
@@ -997,7 +1080,7 @@ function _openLocationsModal(){
     +   '<button id="loc-close" style="background:none;border:none;color:var(--text);font-size:1.5rem;cursor:pointer;line-height:1">&times;</button>'
     + '</div>'
     + '<div style="padding:1rem 1.25rem;overflow:auto;flex:1">'
-    +   '<div style="font-size:0.82rem;color:var(--text-dim);line-height:1.5;margin-bottom:0.85rem">Add the places you keep your trains — totes, shelves, rooms, buildings, storage units. When you add an item, tap one instead of typing.</div>'
+    +   '<div style="font-size:0.82rem;color:var(--text-dim);line-height:1.5;margin-bottom:0.85rem">Add the places you keep your trains — rooms, buildings, storage units. Tap one to list what\u2019s inside it (totes, shelves, racks). Both levels are offered when you add an item, so you stop typing them.</div>'
     +   '<div style="display:flex;gap:0.4rem;flex-wrap:wrap;align-items:center">'
     +     '<input id="loc-new-name" type="text" placeholder="e.g. Tote A" style="flex:1;min-width:140px;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.55rem 0.7rem;color:var(--text);font-family:var(--font-body);font-size:0.9rem;box-sizing:border-box">'
     +     '<select id="loc-new-type" class="pref-select" style="min-width:130px">' + typeOpts + '</select>'

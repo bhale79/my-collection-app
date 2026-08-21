@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.1531';
+const APP_VERSION = 'v0.9.1532';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -885,6 +885,56 @@ window.rrFieldEnabled = function (f) {
   } catch (e) {}
   return false;
 };
+// ── Saved storage locations, two levels (v0.9.1531b) ────────────
+// Brad: "manage the totes INSIDE each location, and the wizard should then
+// suggest only the details belonging to the location you chose."
+//
+// The store is still lv_saved_locations, still an array — a location simply
+// grew a `details` array. Older entries have no `details` key at all and must
+// keep working exactly as they are, so every read defaults it.
+window.rrSavedLocations = function () {
+  try {
+    var a = JSON.parse(localStorage.getItem('lv_saved_locations') || '[]');
+    if (!Array.isArray(a)) return [];
+    return a.map(function (l) {
+      if (!l || typeof l !== 'object') return { name: String(l || ''), type: '', details: [] };
+      return { name: l.name || '', type: l.type || '', details: Array.isArray(l.details) ? l.details : [] };
+    }).filter(function (l) { return l.name; });
+  } catch (e) { return []; }
+};
+// The details belonging to ONE location. An unknown or blank location returns
+// every detail the user has — a suggestion list that vanishes the moment you
+// mistype the location above it would be worse than useless.
+window.rrLocationDetails = function (locationName) {
+  var locs = window.rrSavedLocations();
+  var want = String(locationName || '').trim().toLowerCase();
+  if (want) {
+    for (var i = 0; i < locs.length; i++) {
+      if (String(locs[i].name).trim().toLowerCase() === want) return locs[i].details.slice();
+    }
+  }
+  var all = [], seen = {};
+  locs.forEach(function (l) {
+    l.details.forEach(function (d) {
+      var k = String(d).toLowerCase();
+      if (!seen[k]) { seen[k] = 1; all.push(d); }
+    });
+  });
+  return all;
+};
+// One <datalist> + the attribute that points at it. Suggestions only: the
+// input stays free text, which is the rule everywhere else in this app.
+window.rrDatalistFor = function (id, values) {
+  var vals = (values || []).filter(function (v) { return String(v || '').trim(); });
+  if (!vals.length) return { attr: '', html: '' };
+  var esc = function (v) { return String(v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;'); };
+  return {
+    attr: ' list="' + id + '"',
+    html: '<datalist id="' + id + '">' +
+      vals.map(function (v) { return '<option value="' + esc(v) + '"></option>'; }).join('') + '</datalist>',
+  };
+};
+
 window.rrEnabledUserFields = function () {
   return (window.RR_USER_FIELDS || []).filter(window.rrFieldEnabled);
 };

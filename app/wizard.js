@@ -2536,19 +2536,37 @@ function renderWizardStep() {
         ((typeof _prefLocEnabled !== 'undefined' && _prefLocEnabled) ?
         '<div>' +
           '<label style="font-size:0.82rem;color:var(--text-mid);display:block;margin-bottom:0.25rem">Storage Location</label>' +
-          '<input type="text" value="' + (d.location || '').replace(/"/g, '&quot;') + '"' +
-            ' oninput="wizard.data.location=this.value" placeholder="e.g. Shelf 3, Tote 12"' +
-            ' style="width:100%;padding:0.55rem 0.7rem;border-radius:8px;background:var(--bg);border:1px solid var(--border);color:var(--text);font-family:var(--font-body);font-size:0.88rem;box-sizing:border-box">' +
+          // v0.9.1531b (Brad): the places he set up in Preferences were never
+          // offered here — this box was plain free text, so the saved list did
+          // nothing at the one moment it was meant to help. A datalist keeps
+          // typing free and adds his own places as suggestions.
+          (function () {
+            var _dl = (typeof rrDatalistFor === 'function' && typeof rrSavedLocations === 'function')
+              ? rrDatalistFor('wiz-loc-list', rrSavedLocations().map(function (l) { return l.name; }))
+              : { attr: '', html: '' };
+            return '<input type="text" value="' + (d.location || '').replace(/"/g, '&quot;') + '"' +
+              ' oninput="wizard.data.location=this.value;_wizRefreshLocDetails&&_wizRefreshLocDetails(this.value)"' +
+              ' placeholder="e.g. Room 107, Storage Unit 206"' + _dl.attr +
+              ' style="width:100%;padding:0.55rem 0.7rem;border-radius:8px;background:var(--bg);border:1px solid var(--border);color:var(--text);font-family:var(--font-body);font-size:0.88rem;box-sizing:border-box">' + _dl.html;
+          })() +
         '</div>' : '') +
         // v0.9.1514 (Phase 2, Brad's parity rule): enabled user fields appear
         // HERE too — same config, same labels, skippable, never blocking a save.
         ((typeof rrEnabledUserFields === 'function' ? rrEnabledUserFields() : []).map(function (f) {
           var _lbl = (typeof rrFieldLabel === 'function' ? rrFieldLabel(f) : f.label);
+          // v0.9.1531b: a field marked scopedTo:'location' is suggested from
+          // the details of THIS item's location — Room 107 offers its own
+          // racks, not every tote the user owns. Free text either way.
+          var _dl2 = { attr: '', html: '' };
+          if (f.scopedTo === 'location' && typeof rrDatalistFor === 'function' && typeof rrLocationDetails === 'function') {
+            _dl2 = rrDatalistFor('wiz-' + f.key + '-list', rrLocationDetails(d.location || ''));
+          }
           return '<div>' +
             '<label style="font-size:0.82rem;color:var(--text-mid);display:block;margin-bottom:0.25rem">' + _lbl + '</label>' +
-            '<input type="text" value="' + String(d[f.key] || '').replace(/"/g, '&quot;') + '"' +
-              ' oninput="wizard.data[\'' + f.key + '\']=this.value" placeholder="' + (f.hint || '') + '"' +
+            '<input type="text" id="wiz-uf-' + f.key + '" value="' + String(d[f.key] || '').replace(/"/g, '&quot;') + '"' +
+              ' oninput="wizard.data[\'' + f.key + '\']=this.value" placeholder="' + (f.hint || '') + '"' + _dl2.attr +
               ' style="width:100%;padding:0.55rem 0.7rem;border-radius:8px;background:var(--bg);border:1px solid var(--border);color:var(--text);font-family:var(--font-body);font-size:0.88rem;box-sizing:border-box">' +
+            _dl2.html +
           '</div>';
         }).join('')) +
       '</div>';
@@ -7737,3 +7755,20 @@ window._wizVarInsertPhoto = function (container) {
     else window._wizVarZoom((img && img.src) || objUrl);
   };
 };
+
+// ── v0.9.1531b: keep the Location Detail suggestions in step with the
+// location typed above them. Without this the list is whatever it was when
+// the step was drawn — pick "Room 106" after the panel opened on "Room 107"
+// and you would be offered the wrong room's totes.
+function _wizRefreshLocDetails(loc) {
+  try {
+    if (typeof rrLocationDetails !== 'function') return;
+    var dl = document.getElementById('wiz-locationDetail-list');
+    if (!dl) return;
+    var vals = rrLocationDetails(loc || '');
+    dl.innerHTML = vals.map(function (v) {
+      return '<option value="' + String(v).replace(/&/g, '&amp;').replace(/"/g, '&quot;') + '"></option>';
+    }).join('');
+  } catch (e) {}
+}
+if (typeof window !== 'undefined') window._wizRefreshLocDetails = _wizRefreshLocDetails;

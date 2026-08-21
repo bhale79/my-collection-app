@@ -3285,13 +3285,17 @@ function showItemPanel(idx, pdKey, mode) {
     // here (catalog items keep the master description, not shown as a field).
     ...((idx < 0 || pd.era === 'Manual') ? [{ label: 'Description', key: 'description', val: pd.description || '—', type: 'textarea' }] : []),
     { label: 'Notes',         key: 'notes',         val: pd.notes || '—',         type: 'textarea' },
-    { label: 'Location',      key: 'location',      val: pd.location || '—',      type: 'text' },
+    // v0.9.1531b: suggests the places saved in Preferences (still free text).
+    { label: 'Location',      key: 'location',      val: pd.location || '—',      type: 'text', suggest: 'locations' },
     // v0.9.1514 (Phase 2, Brad's parity rule): the SAME fields the detail
     // page shows are editable here — driven by the same config, so the two
     // can never drift apart.
     ...((typeof rrEnabledUserFields === 'function' ? rrEnabledUserFields() : []).map(function (f) {
       return { label: (typeof rrFieldLabel === 'function' ? rrFieldLabel(f) : f.label),
-               key: f.key, val: pd[f.key] || '—', type: 'text' };
+               key: f.key, val: pd[f.key] || '—', type: 'text',
+               // v0.9.1531b: Location Detail offers what is inside THIS item's
+               // location — the same list the wizard shows, from one config.
+               suggest: (f.scopedTo === 'location') ? 'locationDetails' : '' };
     })),
     // v0.9.1425 (Brad): "it doesn't give me a way to say what era its in".
     // Normally the year decides and this stays blank — set it only when the
@@ -3486,6 +3490,28 @@ function showItemPanel(idx, pdKey, mode) {
           if (f.min !== undefined) inp.min = f.min;
           if (f.max !== undefined) inp.max = f.max;
           inp.style.cssText = 'width:100%;background:var(--bg);border:1px solid #2980b9;border-radius:6px;padding:0.4rem 0.6rem;color:var(--text);font-family:var(--font-body);font-size:0.9rem;box-sizing:border-box';
+          // v0.9.1531b (Brad): the edit panel gets the same suggestions the
+          // wizard does — his rule that a field behaves the same everywhere.
+          try {
+            var _sVals = null;
+            if (f.suggest === 'locations' && typeof rrSavedLocations === 'function') {
+              _sVals = rrSavedLocations().map(function (l) { return l.name; });
+            } else if (f.suggest === 'locationDetails' && typeof rrLocationDetails === 'function') {
+              _sVals = rrLocationDetails(pd.location || '');
+            }
+            if (_sVals && _sVals.length) {
+              var _dlId = 'panel-dl-' + f.key;
+              var _old = document.getElementById(_dlId);
+              if (_old) _old.remove();
+              var _dl = document.createElement('datalist');
+              _dl.id = _dlId;
+              _sVals.forEach(function (v) {
+                var o = document.createElement('option'); o.value = v; _dl.appendChild(o);
+              });
+              document.body.appendChild(_dl);
+              inp.setAttribute('list', _dlId);
+            }
+          } catch (eDL) {}
         }
         inp.id = 'panel-inp-' + f.key;
         setTimeout(function() { if (inp) inp.focus(); }, 30);
