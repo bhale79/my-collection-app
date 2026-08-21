@@ -264,6 +264,39 @@ ok('675 stays for the prewar/postwar verify (two vintage candidates)',
 // Brad: "the description says pennsylvania so why do we not match it." And
 // then, on 28069: "whats the difference here that i am picking?" — there was
 // one (variation 3, yellow), the screen just wasn't showing it.
+// v0.9.1534: the interview asked about a column the user had already placed
+// on the mapping screen. Brad: "why is it asking me this. i already gave it
+// a column?" The AI writes its questions while reading the sheet, before the
+// mapping exists; nothing was cancelling them afterwards.
+(function staleQuestionTest() {
+  const ui = fs.readFileSync(path.join(__dirname, '..', 'app', 'import-ui.js'), 'utf8');
+  ok('placed columns are checked before asking', /function _impColumnAlreadyPlaced/.test(ui));
+  ok('...and the interview honours it', /if \(_impColumnAlreadyPlaced\(q\.text\)\) return;/.test(ui));
+  ok('a column mapped to ignore is still worth asking about',
+     /if \(f && f !== 'ignore'\) placed = true;/.test(ui));
+
+  function grab(name) {
+    const i = ui.indexOf('function ' + name);
+    let d = 0, j = ui.indexOf('{', i);
+    for (let k = j; k < ui.length; k++) {
+      if (ui[k] === '{') d++; else if (ui[k] === '}') { d--; if (!d) return ui.slice(i, k + 1); }
+    }
+  }
+  global.rrImpNormHeader = core.rrImpNormHeader;
+  const _imp = { mappings: { Atlas: { 'owner': 'custom1', 'item #': 'itemNum', 'notes': 'ignore' } } };
+  global._imp = _imp;
+  eval(grab('_impColumnAlreadyPlaced'));
+
+  ok('a column given its own custom column is answered',
+     _impColumnAlreadyPlaced("How would you like to handle the 'Owner' column found in several tabs?") === true);
+  ok('a column set to not-imported is still open',
+     _impColumnAlreadyPlaced("What about the 'Notes' column?") === false);
+  ok('a column that is not in the sheet at all is left alone',
+     _impColumnAlreadyPlaced("What about the 'Gauge' column?") === false);
+  ok('a question naming no column is never suppressed',
+     _impColumnAlreadyPlaced('Are the red rows for sale?') === false);
+})();
+
 (function autoResolveTest() {
   const LI = { _era: 'mpc', roadName: 'Long Island', description: 'Center-Beam Flatcar "8323"', itemType: 'Flatcar' };
   const PRR = { _era: 'mpc', roadName: 'Pennsylvania Railroad', description: 'PRR Boxcar "6464," dark blue', itemType: 'Boxcar' };

@@ -1000,6 +1000,29 @@ function _impCatalogSkip() {
 // Behavior-driving questions are built HERE (deterministic — we know
 // what each answer does). Extra AI questions ride along; their answers
 // are recorded on the batch for Phase 2 (custom columns etc.).
+// v0.9.1534: has the user already said where this column goes? The AI names
+// the column in quotes ("the 'Owner' column found in several tabs"), so we
+// look that heading up in the mappings the user just confirmed. Mapped to
+// anything real — including a custom column of its own — means answered.
+function _impColumnAlreadyPlaced(text) {
+  try {
+    var m = /'([^']{2,40})'/.exec(String(text || ''));
+    if (!m) return false;
+    var want = rrImpNormHeader(m[1]);
+    if (!want) return false;
+    var placed = false;
+    Object.keys(_imp.mappings || {}).forEach(function (tab) {
+      var map = _imp.mappings[tab] || {};
+      Object.keys(map).forEach(function (h) {
+        if (rrImpNormHeader(h) !== want) return;
+        var f = map[h];
+        if (f && f !== 'ignore') placed = true;
+      });
+    });
+    return placed;
+  } catch (e) { return false; }
+}
+
 function _impBuildQuestions() {
   var qs = [];
   if (_imp.fillGroups.length) {
@@ -1047,6 +1070,14 @@ function _impBuildQuestions() {
   (_imp.aiQuestions || []).forEach(function (q) {
     if (qs.length >= 5) return;
     if (q.id === '_fill' || /highlight|red row/i.test(q.text) && _imp.fillGroups.length) return;
+    // v0.9.1534 (Brad: "why is it asking me this. i already gave it a
+    // column?"). These questions were written by the AI while it read the
+    // sheet — BEFORE the mapping screen, where the user answers the same
+    // thing by choosing where a column goes. His 'Owner' column already had
+    // its own custom column, and the interview still asked what to do with
+    // it. A question the user has already answered is worse than no question:
+    // it suggests the answer did not take.
+    if (_impColumnAlreadyPlaced(q.text)) return;
     // v0.9.1509: if the question names a 'Column', append real example values.
     try {
       var hm = /'([^']{2,30})'/.exec(q.text);
