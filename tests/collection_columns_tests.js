@@ -42,10 +42,13 @@ ok('the phone rule also stopped counting columns',
 ok('user-chosen columns are tagged too', /_cells\[xc\.col\] = '<td data-col="' \+ xc\.col/.test(js));
 
 // ── the scrollbar Brad asked to be able to see ─────────────────
+// v0.9.1544 moved these onto the PINNED bar — the wrap's own bar is hidden,
+// because it sits at the bottom of a 3,370-row table where nobody can reach it.
 ok('the horizontal scrollbar is visible, not hairline',
-   /browse-table-wrap::-webkit-scrollbar \{ height: 14px/.test(css));
-ok('...and coloured so it can be found', /browse-table-wrap::-webkit-scrollbar-thumb \{\s*background: var\(--accent\)/.test(css));
-ok('...including on Firefox', /browse-table-wrap \{ scrollbar-color:/.test(css));
+   /#rr-hscroll::-webkit-scrollbar \{ height: 14px/.test(css));
+ok('...and coloured so it can be found',
+   /#rr-hscroll::-webkit-scrollbar-thumb \{ background: var\(--accent\)/.test(css));
+ok('...including on Firefox', /#rr-hscroll \{[\s\S]{0,260}scrollbar-color: var\(--accent\)/.test(css));
 
 // ── edit mode on the header itself ─────────────────────────────
 ok('the header has an edit mode', /function _collColEdit/.test(js));
@@ -57,6 +60,25 @@ ok('...listing only what is missing', /vis\.indexOf\(c\.col\) < 0 && _COLL_LOCKE
 ok('Maker and Item # cannot be dragged or removed',
    /th\.coll-th-edit:not\(\.locked\)/.test(js) && /locked \? 'false' : 'true'/.test(js));
 ok('the old Columns button now opens the same edit mode', /_collColEdit\(!state\._collColEdit\)/.test(js));
+
+// ── v0.9.1544: one vertical scrollbar, and a reachable sideways one ─────
+const html = fs.readFileSync(path.join(__dirname, '..', 'app', 'index.html'), 'utf8');
+ok('the inner panel no longer scrolls vertically',
+   !/browse-table-wrap"[^>]*max-height:calc\(100vh - 175px\);overflow-y:auto/.test(html),
+   'two vertical scrollbars is what hid the sideways one');
+ok('...in the stylesheet either', /browse-table-wrap \{ overflow-x: auto; overflow-y: visible; \}/.test(css));
+ok('the wrap\u2019s own sideways bar is hidden', /browse-table-wrap \{ scrollbar-width: none; \}/.test(css));
+ok('a pinned sideways bar exists instead', /#rr-hscroll \{[\s\S]{0,200}position: fixed; bottom: 0/.test(css));
+ok('...and it is visible, not hairline', /#rr-hscroll::-webkit-scrollbar \{ height: 14px; \}/.test(css));
+ok('the bar is a REAL scrollbar over a spacer, not a drawing',
+   /bar\.firstChild\.style\.width = wrap\.scrollWidth/.test(js));
+ok('it scrolls the table when dragged', /w\.scrollLeft = bar\.scrollLeft/.test(js));
+ok('...and follows the table when scrolled the other way', /bar\.scrollLeft = wrap\.scrollLeft/.test(js));
+ok('the two-way sync cannot loop', /if \(lock\) return; lock = true;/.test(js));
+ok('it hides when nothing needs scrolling', /var need = wrap\.scrollWidth > wrap\.clientWidth \+ 4;/.test(js));
+ok('it hides when the table is off screen', /r\.bottom < 40 \|\| r\.top > window\.innerHeight - 20/.test(js));
+ok('it re-measures when the columns change', /setTimeout\(rrStickyHScroll, 30\)/.test(js));
+ok('...and after the list re-renders', /setTimeout\(rrStickyHScroll, 40\)/.test(js));
 
 console.log('');
 console.log(fail === 0 ? 'ALL COLUMN TESTS GREEN (' + pass + ')' : fail + ' FAILING of ' + (pass + fail));

@@ -388,6 +388,61 @@ function _collGutterSpacerTd() {
   return _collGutterOn() ? '<td style="width:40px"></td>' : '';
 }
 
+
+// ── v0.9.1544: the sideways scrollbar you can actually reach ────────────
+// Brad, looking at a table wider than the window: "we have the extra scroll
+// button on the side to scroll down so you can't see the bottom horizontal
+// scroll. we don't need this scroll at all, correct" — correct. The panel
+// scrolled vertically AND the page did, and the sideways bar was at the
+// bottom of the panel, below the fold. The inner vertical scroll is gone.
+//
+// That leaves the sideways bar at the bottom of a 3,370-row table, which is
+// no better. So this pins a real scrollbar to the bottom of the WINDOW while
+// the list is on screen, and keeps it in step with the table both ways. It is
+// a genuine scrollbar over a spacer of matching width, not a drawn imitation:
+// the browser's own dragging, clicking and keyboard behaviour come free.
+function rrStickyHScroll() {
+  try {
+    var wrap = document.querySelector('#page-browse .browse-table-wrap');
+    var bar = document.getElementById('rr-hscroll');
+    if (!wrap) { if (bar) bar.style.display = 'none'; return; }
+    if (!bar) {
+      bar = document.createElement('div');
+      bar.id = 'rr-hscroll';
+      bar.innerHTML = '<div></div>';
+      document.body.appendChild(bar);
+      // Two-way sync, guarded so each does not re-trigger the other.
+      var lock = false;
+      bar.addEventListener('scroll', function () {
+        if (lock) return; lock = true;
+        var w = document.querySelector('#page-browse .browse-table-wrap');
+        if (w) w.scrollLeft = bar.scrollLeft;
+        lock = false;
+      });
+      wrap.addEventListener('scroll', function () {
+        if (lock) return; lock = true;
+        bar.scrollLeft = wrap.scrollLeft;
+        lock = false;
+      });
+      window.addEventListener('resize', rrStickyHScroll);
+      window.addEventListener('scroll', rrStickyHScroll, { passive: true });
+    }
+    var need = wrap.scrollWidth > wrap.clientWidth + 4;
+    var page = document.getElementById('page-browse');
+    var onScreen = page && page.classList.contains('active') !== false && wrap.offsetParent !== null;
+    if (!need || !onScreen) { bar.style.display = 'none'; return; }
+    var r = wrap.getBoundingClientRect();
+    // Only while some of the table is actually in view.
+    if (r.bottom < 40 || r.top > window.innerHeight - 20) { bar.style.display = 'none'; return; }
+    bar.style.display = 'block';
+    bar.style.left = r.left + 'px';
+    bar.style.width = r.width + 'px';
+    bar.firstChild.style.width = wrap.scrollWidth + 'px';
+    bar.scrollLeft = wrap.scrollLeft;
+  } catch (e) {}
+}
+if (typeof window !== 'undefined') window.rrStickyHScroll = rrStickyHScroll;
+
 function _renderCollectionHeader() {
   var thead = document.querySelector('#page-browse .item-table thead tr');
   if (!thead) return;
@@ -437,6 +492,7 @@ function _renderCollectionHeader() {
     '</th>';
   thead.innerHTML = _collGutterTh() + html;   // v0.9.1007: selection gutter
   if (_edit) _collWireHeaderDrag(thead);
+  setTimeout(rrStickyHScroll, 30);           // v0.9.1544: column set changed → bar width changed
 }
 
 // ── v0.9.1543: header edit mode ─────────────────────────────────────────
@@ -4836,6 +4892,9 @@ function renderBrowse() {
   // v0.9.985 (perf): render finished — remember what it was built from, so an
   // unchanged revisit can skip all of the above (see the check at the top).
   try { window._rrBrowseSig = window._rrBrowseSigPending || null; } catch (eSig2) {}
+
+  // v0.9.1544: the table may now be a different width — re-measure the pinned bar.
+  try { setTimeout(rrStickyHScroll, 40); } catch (e) {}
 }
 
 function goPage(p) { state.currentPage = p; renderBrowse(); document.getElementById('main-content').scrollTop = 0; }

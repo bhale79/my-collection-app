@@ -857,7 +857,8 @@
   @media print { .table-wrap { max-height: none !important; overflow: visible !important; } }
 
   /* Browse table wrapper: vertical + horizontal scroll with sticky headers */
-  .browse-table-wrap { overflow-x: auto; overflow-y: auto; }
+  /* v0.9.1544: horizontal only — vertical scrolling belongs to the page. */
+  .browse-table-wrap { overflow-x: auto; overflow-y: visible; }
   /* ── v0.9.1543 (Brad: "i check location and location detail, and neither
      column showed up") ──────────────────────────────────────────────────
      They DID show up — underneath the Actions column, which was painting
@@ -895,13 +896,22 @@
   /* v0.9.1543 (Brad: "scroll bar needs to be at the bottom of the page but
      clearly visible"). The default bar on a dark surface is nearly invisible,
      and a scrollbar nobody can see is the same as no scrollbar at all. */
-  .browse-table-wrap { scrollbar-color: var(--accent) var(--surface2); scrollbar-width: auto; }
-  .browse-table-wrap::-webkit-scrollbar { height: 14px; width: 12px; }
-  .browse-table-wrap::-webkit-scrollbar-track { background: var(--surface2); border-radius: 8px; }
-  .browse-table-wrap::-webkit-scrollbar-thumb {
-    background: var(--accent); border-radius: 8px; border: 3px solid var(--surface2);
+  /* The wrap's own bar sits at the bottom of a very tall table — thousands of
+     rows down — so it is hidden and replaced by the pinned one below. */
+  .browse-table-wrap { scrollbar-width: none; }
+  .browse-table-wrap::-webkit-scrollbar { height: 0; width: 0; }
+  /* v0.9.1544: the sideways scrollbar, pinned to the bottom of the window for
+     as long as the list is on screen. Same bar, somewhere you can reach it. */
+  #rr-hscroll {
+    position: fixed; bottom: 0; z-index: 60; overflow-x: auto; overflow-y: hidden;
+    height: 18px; background: var(--surface); border-top: 1px solid var(--border);
+    display: none; scrollbar-color: var(--accent) var(--surface2); scrollbar-width: auto;
   }
-  .browse-table-wrap::-webkit-scrollbar-thumb:hover { background: var(--accent2, var(--accent)); }
+  #rr-hscroll::-webkit-scrollbar { height: 14px; }
+  #rr-hscroll::-webkit-scrollbar-track { background: var(--surface2); }
+  #rr-hscroll::-webkit-scrollbar-thumb { background: var(--accent); border-radius: 8px; border: 3px solid var(--surface2); }
+  #rr-hscroll::-webkit-scrollbar-thumb:hover { background: var(--accent2, var(--accent)); }
+  #rr-hscroll > div { height: 1px; }
   /* Actions buttons wrap within their column instead of forcing sideways scroll */
   #page-browse .item-table.collection-view .coll-actions-cell { white-space: normal; }
   /* Phones: drop the Actions column; tap a row to open its detail (all actions there) */
