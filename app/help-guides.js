@@ -405,6 +405,31 @@
         ['Finding a whole series', 'Search a road name with no other filters to see everything in the catalogue for that railroad across every era.'],
         ['If a search finds nothing', 'Check the chips first — an era or scale filter left on from earlier is the usual culprit.']
       ]
+    },
+
+    // v0.9.1539 (Brad): "we need to tell people we included it under Lionel."
+    // A collector who owns K-Line by Lionel goes looking under K-Line, finds
+    // nothing, and concludes the catalogue is missing 300 items. It isn't —
+    // they are filed where Lionel itself filed them. Say so plainly, in the
+    // place someone goes when a search comes up empty.
+    whereFiled: {
+      title: 'Why isn’t my item under the maker I expected?',
+      blurb: 'K-Line by Lionel, Williams by Bachmann, and other bought-out brands.',
+      intro: 'Toy train companies buy each other. When that happens the new owner usually re-catalogues the old line under its own name and numbering — so the item you know as one brand is listed here under another. We follow the numbering the manufacturer actually used, because that is what is printed in the catalogues, on the boxes, and in the price guides you are checking against.',
+      steps: [
+        { do: 'Search by <b>item number</b> before you search by maker.',
+          why: 'The number is the one thing that does not change hands. Searching "6-21199" finds it whoever owns the name this decade.' },
+        { do: 'For <b>K-Line by Lionel</b>, look under <b>Lionel</b> — MPC/Modern era, with a <b>6-</b> in front of the number.',
+          why: 'Lionel bought K-Line’s assets in 2006 and re-issued the line under its own catalogue numbers, 2006 through 2009. Your 21199 is our 6-21199. Original K-Line items, made before the buyout, are still under K-Line.' },
+        { do: 'For <b>Williams by Bachmann</b>, look under that full name.',
+          why: 'Same story: Bachmann bought Williams in 2007 and kept the name on the product line.' },
+        { do: 'If you keep your own list, type the maker the way YOU think of it.',
+          why: 'Whatever you write on your own items is kept exactly as written, and it becomes one of the choices in your collection’s maker filter — so you can still pull up "my K-Line by Lionel" in one press even though the catalogue files them under Lionel.' }
+      ],
+      notes: [
+        ['Importing a spreadsheet with a K-Line by Lionel tab', 'Those rows match automatically. The import tries your number with Lionel’s 6- prefix, which is how 26 of one tester’s 33 rows found their catalogue entry.'],
+        ['Genuinely missing items', 'Some are real gaps — not every K-Line by Lionel item made it into the catalogue yet. If yours has no match it comes in as your own entry, keeping everything you wrote, and nothing is lost when we add it later.']
+      ]
     }
   };
 

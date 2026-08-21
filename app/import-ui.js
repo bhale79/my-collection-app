@@ -1398,6 +1398,25 @@ function _impStepTriage() {
       '. <span class="imp-muted">Tabs where a year describes the subject rather than the item ' +
       '(a 1955 car modelled in 2016) are left blank on purpose.</span></div>';
   }
+  // v0.9.1539 (Brad: "we need to tell people we included it under Lionel").
+  // Someone whose sheet has a K-Line by Lionel tab is about to see those items
+  // filed under Lionel, and without a word of explanation that reads like the
+  // app got the maker wrong. It didn't — Lionel re-catalogued the line under
+  // its own 6- numbers when it bought K-Line in 2006.
+  try {
+    var _kl = (_imp.staged || []).filter(function (it) {
+      return /k[\s-]?line/i.test(String(it.manufacturer || '') + ' ' + String(it.srcTab || ''));
+    }).length;
+    if (_kl >= 3) {
+      html += '<div class="imp-card imp-muted"><strong>About your K-Line items.</strong> ' +
+        'Anything K-Line made before 2006 stays under <strong>K-Line</strong>. The later ' +
+        '<strong>K-Line by Lionel</strong> run is filed under <strong>Lionel</strong> with a ' +
+        '<strong>6-</strong> in front of the number — your 21199 is catalog 6-21199 — because that is how ' +
+        'Lionel catalogued it after buying the line. Your own maker wording is kept on every row, so you ' +
+        'can still filter your collection by what you call them.</div>';
+    }
+  } catch (eKL) {}
+
   // v0.9.1533: what the user's own words settled, before any picker.
   var _ar = _imp.autoResolved || { byDescription: 0, byVariation: 0 };
   if (_ar.byDescription || _ar.byVariation) {
