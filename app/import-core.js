@@ -321,6 +321,94 @@ function rrImpApplyMapping(tab, mapping) {
   return out;
 }
 
+// ── Reading the item TYPE out of the description ────────────────
+// v0.9.1526 (Brad: "many of the descriptions have the types listed as in
+// flat car engine etc — can we not run something to decipher this").
+//
+// Measured on Scott's real sheet before it was built: 2,466 of 3,370
+// descriptions (73%) carry their own type in plain words, and tuning the
+// misses he could see ("Fort Knox MINT CAR", "Automatic GATEMAN", "#164 LOG
+// LOADER", "FT 10\" STRAIGHT", "Strasburg Freight 2 PACK") lifts it further.
+// This is deliberately NOT an AI call: "Flatcar" in the text is not a
+// judgment call, and a table costs nothing, runs in a millisecond, and can
+// be tested. What it CANNOT read stays blank and lands in "Needs details" —
+// a blank type is honest, a wrong one is not.
+//
+// ORDER IS THE ALGORITHM. First match wins, so the list runs from the most
+// specific evidence to the loosest:
+//   1. Paper goods first  — a "Boxcar catalog" is a CATALOG, not a boxcar,
+//      and the word boxcar appears in half of them.
+//   2. Sets before car types — "Strasburg Freight 2 Pack" is a set even
+//      though "freight" is in it.
+//   3. Named car bodies before the generic engine words, because "Mint Car
+//      with Diesel" should be the car.
+//   4. Accessories LAST among the specifics: "log loader" contains "log",
+//      "coal ramp" contains "coal", and those must not be read as loads.
+// The vocabulary is the one the app already uses (photo inbox _PIN_TYPES),
+// so imported items filter alongside everything else.
+var RR_IMP_TYPE_RULES = [
+  // 1. paper / printed
+  [/\bcatalog(ue)?\b|\bwish ?book\b/i, 'Catalog'],
+  [/\bbook\b|\bmanual\b|\bblueprint\b|\bpaper\b|\bposter\b|\bbrochure\b|\bmagazine\b|advertis|\bcalendar\b|\bpostcard\b|\bdecal\b|instruction sheet|\bpaperwork\b/i, 'Paper'],
+  // 2. sets and multi-packs
+  [/\btrain set\b|\bstarter set\b|\bready[- ]to[- ]run set\b|\bset\b(?=\s*$)|\d\s*[- ]?pack\b|\bpack\b(?=\s*$)|\badd[- ]?on\b/i, 'Set'],
+  // 3. power / control
+  [/\btransformer\b|\bZW\b|\bKW\b|\bLW\b|\bRW\b|\bTW\b|power ?(supply|master|house)|\bcontroller\b|\brheostat\b|\bCW-?80\b/i, 'Transformer'],
+  // 4. track and wiring
+  [/\btrack\b|\bswitch(es)?\b|\bturnout\b|\bfas ?track\b|\bo-?27\b|\bstraight\b|\bcurve\b|\bbumpers?\b|re-?railer|rail joiner|\bterminal (section|joiner)\b|\bwire spool\b|\btie end\b|\buncoupling section\b|\bcrossover\b|\btrestle set\b/i, 'Track'],
+  // 5. named car bodies
+  [/\bcaboose\b|\bcabin car\b|\bbobber\b|\bN5C\b|\bwork caboose\b/i, 'Caboose'],
+  [/\btender\b/i, 'Tender'],
+  [/\bflat ?car\b|\bflatcar\b|depressed cent|\bTOFC\b|piggy ?back|\bbulkhead\b|\bmaxi-?I?V?\b|\bwell car\b|\bcontainer\b|\bskeleton log\b/i, 'Flatcar'],
+  [/\bbox ?car\b|\bboxcar\b|\breefer\b|refrigerat|\bstock car\b|\bcattle car\b|\bmint car\b|\bDD box\b|\bplug door\b|\bhi-?cube\b|\bbunk car\b/i, 'Boxcar'],
+  // v0.9.1526: Lionel's novelty car names carry no body word at all —
+  // "TV Car", "Animal Car", "Auto Carrier". Named here or they read as
+  // nothing. Combo/combine is a PASSENGER car, so it sits with those.
+  [/\bauto ?(carrier|rack)\b|\bcar carrier\b|\bTV car\b|\banimal car\b|\bcircus car\b|\bhorse car\b|\bcoal dump\b/i, 'Freight Car'],
+  [/\bgondola\b|\bgon\b/i, 'Gondola'],
+  [/\btank ?car\b|\btanker\b/i, 'Tank Car'],
+  [/\bhopper\b|covered hop|\bore car\b|\bquad hop\b|\bcoal car\b|\bballast car\b/i, 'Hopper'],
+  [/\bpassenger\b|\bcoach\b|\bpullman\b|\bobservation\b|\bcombine\b|vista ?dome|\bbaggage\b|\bdiner\b|\bRPO\b|streamliner|\bmadison\b|\bheavyweight\b|\baluminum car\b|\bcombo car\b|\bfull vista\b/i, 'Passenger Car'],
+  // 6. engines — after the cars, so "Mint Car w/ diesel sound" stays a car
+  [/\blocomotive\b|\bloco\b|\bengine\b|\bdiesel\b|\bsteam\b|\bGP-?\d|\bF-?[37]\b|\bSD-?\d|\bALCO\b|\bswitcher\b|\bNW-?2\b|\bGG-?1\b|\bberkshire\b|\bhudson\b|\bpacific\b|\bmikado\b|\bnorthern\b|\bRS-?\d|\bU\d\dB?\b|\bC-?4\d\d\b|\bdocksider\b|\btrainmaster\b|\bFA-?\d|\bPA-?\d|\bbig boy\b|\bchallenger\b|\bshay\b|\btrolley\b|\bmotorized unit\b|\b\d-[468]-\d\b|\bpowered\b|\bunpowered\b|\bdummy\b|\bA-?B-?A\b|\bAA set\b|\b[AB] ?unit\b|\bcab unit\b|\brail ?sounds?\b/i, 'Engine'],
+  // 7. work / operating freight with no body word of its own
+  [/\bcrane\b|\bwork car\b|\bsearchlight\b|\bderrick\b|\bdump car\b|\blog car\b|\bmilk car\b|\bvat car\b|\bhelper\b|\bsnow plow\b|\bpoultry\b|\bsubmarine car\b|\bmissile\b|\bexploding\b|\baquarium\b|\bgiraffe\b/i, 'Freight Car'],
+  // 8. accessories LAST — "log loader", "coal ramp", "water tower"
+  [/\bstation\b|\btower\b|\bbridge\b|\btrestle\b|water tank|water tower|coal (loader|ramp|bin|tipple)|\bbuilding\b|\bhouse\b|\bbarn\b|\bplatform\b|\bcrossing\b|\bbillboard\b|street ?light|\blamp\b|\bfigure|\bpeople\b|\btree|\bscenery\b|accessor|\bsign(al)?\b|\bshed\b|\bdepot\b|\bmill\b|\bfactory\b|\bgateman\b|\bwatchman\b|\bloader\b|\bunloader\b|\bicing\b|\bsawmill\b|\bdiner\b|\bfreight shed\b|\byard light\b|\bfloodlight\b|\bsemaphore\b|\bcorral\b|\btractor\b|\btrailer\b|\bvehicle\b|\bfire car\b|\bshop\b|\bstore\b|\bstand\b|\bhotel\b|\bmotel\b|\brink\b|\bgolf\b|\bswings\b|\bbeacon\b|\bdock\b|\bflag ?pole\b|\bfence\b|\bsilo\b|\belevator\b|\bwindmill\b|\bchurch\b|\bschool\b|\bbank\b|\bcafe\b|\bcafé\b|\brestaurant\b|\bbakery\b|\bmarket\b|\bgarage\b|\bfirehouse\b|\bhospital\b|\boil tank\b|\bgas station\b|\bpump\b|\bcrossing gate\b|\blights?\b|\bpylon\b|\bbillboard\b/i, 'Accessory'],
+];
+
+// One description in, one type out (or '' when it says nothing useful).
+function rrImpTypeFromText(text) {
+  var s = rrImpNormCell(text);
+  if (!s) return '';
+  for (var i = 0; i < RR_IMP_TYPE_RULES.length; i++) {
+    if (RR_IMP_TYPE_RULES[i][0].test(s)) return RR_IMP_TYPE_RULES[i][1];
+  }
+  return '';
+}
+
+// Reads a whole staged list and reports what it found, grouped, with real
+// examples — so the screen can show the user what it is about to do instead
+// of announcing a number they have to take on faith.
+function rrImpTypeSurvey(items, opts) {
+  var o = opts || {};
+  var groups = {};
+  var read = 0, blank = 0;
+  (items || []).forEach(function (it) {
+    if (o.onlyEmpty && rrImpNormCell(it.itemType)) return;
+    var text = rrImpNormCell(it.yourDesc) || rrImpNormCell(it.description) || '';
+    var t = rrImpTypeFromText(text);
+    if (!t) { blank++; return; }
+    read++;
+    if (!groups[t]) groups[t] = { type: t, count: 0, examples: [] };
+    groups[t].count++;
+    if (groups[t].examples.length < 3) groups[t].examples.push(text.slice(0, 70));
+  });
+  var list = Object.keys(groups).map(function (k) { return groups[k]; })
+    .sort(function (a, b) { return b.count - a.count; });
+  return { groups: list, read: read, blank: blank };
+}
+
 // ── Money / number cleanup ──────────────────────────────────────
 function rrImpCleanMoney(v) {
   var s = rrImpNormCell(v).replace(/[$,\s]/g, '');
@@ -667,6 +755,9 @@ var RR_IMPORT_CORE = {
   rrImpCopyCounterEvidence: rrImpCopyCounterEvidence,
   rrImpBuildAiPayload: rrImpBuildAiPayload,
   rrImpValidateAiAnswer: rrImpValidateAiAnswer,
+  rrImpTypeFromText: rrImpTypeFromText,
+  rrImpTypeSurvey: rrImpTypeSurvey,
+  RR_IMP_TYPE_RULES: RR_IMP_TYPE_RULES,
 };
 
 if (typeof module !== 'undefined' && module.exports) module.exports = RR_IMPORT_CORE;

@@ -236,6 +236,55 @@ ok('675 stays for the prewar/postwar verify (two vintage candidates)',
 // v0.9.1524: a deploy must never reload a running import. Two halves have to
 // agree: the overlay marks itself busy, and the reload guard in index.html
 // honours that mark. Either half alone is silently useless, so test both.
+// v0.9.1526: the description type-reader. Brad's own examples are the spec —
+// each of these is a line he pointed at or a miss the fixture run exposed.
+(function typeReaderTest() {
+  const cases = [
+    ['GN 52\u2019 6\u201d Flatcar with Pipe Load #65049', 'Flatcar'],
+    ['40\u2019 Plug Door Boxcar NP #98513', 'Boxcar'],
+    ['Fort Knox Mint Car', 'Boxcar'],
+    ['SP&S C424 Phase 2 Loco Powered #306', 'Engine'],
+    ['UP Big Boy #4023', 'Engine'],
+    ['Santa Fe B Unit', 'Engine'],
+    ['Automatic Gateman', 'Accessory'],
+    ['#164 Log Loader', 'Accessory'],          // "log" must NOT read as a load
+    ['Neil\u2019s Guitar Shop', 'Accessory'],
+    ['#65 Yard Lights', 'Accessory'],
+    ['ZW Transformer', 'Transformer'],
+    ['FT 10\u201d Straight (16 pcs)', 'Track'],
+    ['Strasburg Freight 2 Pack', 'Set'],       // a set, not freight
+    ['1946 Lionel Reproduction Catalog', 'Catalog'],
+    ['N5C Caboose', 'Caboose'],
+    ['UP \u201cNew Haven\u201d Combo Car', 'Passenger Car'],
+    ['Conrail Two Tier Auto Carrier', 'Freight Car'],
+    ['', ''],
+    ['3001302A', ''],                          // a bare number says nothing
+  ];
+  let good = 0;
+  cases.forEach(([text, want]) => {
+    const got = core.rrImpTypeFromText(text);
+    if (got === want) good++; else ok('type reader: ' + text, false, 'got "' + got + '" want "' + want + '"');
+  });
+  ok('type reader: Brad\u2019s examples all read correctly', good === cases.length, good + '/' + cases.length);
+
+  // A catalog of boxcars is a CATALOG. Order-of-rules regression.
+  ok('type reader: paper beats the car word inside it',
+     core.rrImpTypeFromText('Lionel Boxcar Catalog 1957') === 'Catalog');
+
+  // The survey groups, counts and shows real examples.
+  const survey = core.rrImpTypeSurvey([
+    { yourDesc: 'PRR Flatcar with trailers' },
+    { yourDesc: 'NYC Boxcar' },
+    { yourDesc: 'ATSF Boxcar #1234' },
+    { yourDesc: '2001313-0' },
+    { yourDesc: 'GP-9 Diesel', itemType: 'Engine' },   // already typed
+  ], { onlyEmpty: true });
+  ok('type survey: counts only what it could read', survey.read === 3, survey.read);
+  ok('type survey: skips rows that already have a type', survey.blank === 1, survey.blank);
+  ok('type survey: biggest group first with examples',
+     survey.groups[0].type === 'Boxcar' && survey.groups[0].count === 2 && survey.groups[0].examples.length === 2);
+})();
+
 (function reloadGuardTest() {
   const uiPath = path.join(__dirname, '..', 'app', 'import-ui.js');
   const idxPath = path.join(__dirname, '..', 'app', 'index.html');
@@ -404,6 +453,19 @@ async function fixtureTests() {
   const payloadStr = JSON.stringify(payload);
   ok('fixture: AI payload under 200KB', payloadStr.length < 200 * 1024, Math.round(payloadStr.length / 1024) + 'KB');
   ok('fixture: payload includes a highlighted sample', payload.tabs.some(t => t.samples.some(s => s.highlighted)));
+
+  // v0.9.1526: the type reader against the whole real sheet. Measured 86%
+  // when built; the floor is set below that so ordinary tuning doesn't trip
+  // it, but a rule change that guts coverage will.
+  let typed = 0, seen = 0;
+  staged.forEach(it => {
+    const d = (it.yourDesc || '').trim();
+    if (!d) return;
+    seen++;
+    if (core.rrImpTypeFromText(d)) typed++;
+  });
+  const pct = seen ? Math.round(typed / seen * 100) : 0;
+  ok('fixture: type read from 80%+ of descriptions', pct >= 80, typed + '/' + seen + ' = ' + pct + '%');
 }
 
 fixtureTests().then(() => {

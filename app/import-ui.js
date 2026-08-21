@@ -48,7 +48,9 @@ function rrImportOpen() {
     aiUsed: false, aiAnswers: {}, questions: [], answers: {},
     tabMaker: {},          // tabName → confirmed maker ('' = per-row / unknown)
     tabYearMeans: {},      // tabName → true when a year in the description IS the item's year
-    tabSubType: {},        // tabName → optional narrower name (v0.9.1522)
+    tabSubType: {},
+    typeSkip: {},        // v0.9.1526: types the user unticked on triage
+    showTypes: false,        // tabName → optional narrower name (v0.9.1522)
     tabType: {},           // tabName → confirmed item type for non-train tabs
     skippedSummary: 0,     // "Total:" rows dropped (v1509)
     fillMeaning: '',       // for sale | sold | repair | formatting | other
@@ -586,6 +588,42 @@ function _impHighlightHelp(key) {
   } catch (e) {}
 }
 
+// v0.9.1526: which staged items the type-reader is allowed to touch.
+// A non-train tab that already answered "these are all Books" is NOT one of
+// them — that answer is the user's own word and outranks anything read out
+// of a description.
+function _impTypeCandidates() {
+  return (_imp.staged || []).filter(function (it) {
+    if (it.tabClass !== 'trains' && _imp.tabType[it.srcTab]) return false;
+    return true;
+  });
+}
+function _impTypeSurvey() {
+  try { return rrImpTypeSurvey(_impTypeCandidates(), { onlyEmpty: true }); }
+  catch (e) { return { groups: [], read: 0, blank: 0 }; }
+}
+// One type the user has waved off. Kept as a SKIP list rather than an accept
+// list so a type the reader learns about later is on by default.
+function _impTypeTick(type, on) {
+  if (on) delete _imp.typeSkip[type]; else _imp.typeSkip[type] = true;
+}
+function _impToggleTypes() {
+  _imp.showTypes = !_imp.showTypes;
+  _impRender();
+}
+// The single place the guess is turned into a value. Returns '' when the
+// reader has nothing, when the user unticked that type, or when we already
+// know better from the catalog.
+function _impTypeGuessFor(it, master) {
+  try {
+    if (master && String(master.itemType || '').trim()) return '';
+    if (it.tabClass !== 'trains' && _imp.tabType[it.srcTab]) return '';
+    var g = rrImpTypeFromText(it.yourDesc || it.description || '');
+    if (!g || _imp.typeSkip[g]) return '';
+    return g;
+  } catch (e) { return ''; }
+}
+
 function _impToggleGlossary() {
   _imp.showGlossary = !_imp.showGlossary;
   _impRender();
@@ -1052,6 +1090,36 @@ function _impStepTriage() {
       ' cells look like Excel turned them into dates (entries like 1:20 or 7:38 become times). ' +
       'Those are left blank rather than saved as a wrong value \u2014 you can fill them in later.</div>';
   }
+  // v0.9.1526 (Brad: "we seem to be missing the type ... can we not run
+  // something to decipher this"). The description usually says what the thing
+  // IS — this reads it. Shown here rather than as its own step: it is one more
+  // fact about the import, and Brad has enough screens. Open the list to see
+  // every type it found with real examples, and untick any group you disagree
+  // with; unticked groups are simply not written.
+  var _tSurvey = _impTypeSurvey();
+  if (_tSurvey.read) {
+    html += '<div class="imp-card"><span class="imp-badge match">TYPE</span> <strong>' +
+      _tSurvey.read.toLocaleString() + '</strong> item types read from your own descriptions ' +
+      '<span class="imp-muted">(\u201C40\u2019 Plug Door <strong>Boxcar</strong>\u201D \u2192 Boxcar). ' +
+      'Only fills the ones we had nothing for.</span> ' +
+      '<a href="#" onclick="event.preventDefault();_impToggleTypes()" style="color:var(--accent2,#d4a843)">' +
+      (_imp.showTypes ? 'Hide' : 'Review these') + '</a>' +
+      '<div id="imp-type-list" style="display:' + (_imp.showTypes ? 'block' : 'none') + ';margin-top:0.4rem">' +
+      _tSurvey.groups.map(function (g) {
+        var id = 'imp-ty-' + g.type.replace(/[^A-Za-z]/g, '');
+        return '<div style="display:flex;gap:0.5rem;align-items:flex-start;margin:0.3rem 0">' +
+          '<input type="checkbox" id="' + id + '"' + (_imp.typeSkip[g.type] ? '' : ' checked') +
+          ' onchange="_impTypeTick(\'' + g.type.replace(/'/g, "") + '\',this.checked)" style="margin-top:0.2rem">' +
+          '<label for="' + id + '" style="flex:1;cursor:pointer"><strong>' + _impEsc(g.type) + '</strong> ' +
+          '<span class="imp-muted">\u00d7' + g.count.toLocaleString() + '</span><br>' +
+          '<span class="imp-muted" style="font-size:0.74rem">' +
+          g.examples.map(function (e) { return _impEsc(e); }).join(' \u00b7 ') + '</span></label></div>';
+      }).join('') +
+      (_tSurvey.blank ? '<div class="imp-muted" style="font-size:0.74rem;margin-top:0.35rem">' +
+        _tSurvey.blank.toLocaleString() + ' descriptions didn\u2019t say what the item is \u2014 those stay blank ' +
+        'and show up under \u201CNeeds details\u201D so you can set them yourself.</div>' : '') +
+      '</div></div>';
+  }
   if (_imp.skippedSummary) {
     html += '<div class="imp-card imp-muted">' + _imp.skippedSummary +
       ' summary rows (like \u201CTotal:\u201D) were skipped — they\u2019re math, not items.</div>';
@@ -1307,6 +1375,11 @@ async function _impWrite() {
           var _ts = _imp.tabSubType[it.srcTab];
           if (_ts && String(_ts).trim() && !fields.subType) fields.subType = String(_ts).trim();
         }
+      }
+      // v0.9.1526: type read from their own words — only into a BLANK.
+      if (!fields.itemType) {
+        var _tg = _impTypeGuessFor(it, m);
+        if (_tg) fields.itemType = _tg;
       }
       if (it.yearMade) fields.yearMade = it.yearMade;
       // v0.9.1514 (Phase 2): user columns the mapping filled.
