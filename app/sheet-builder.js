@@ -5,7 +5,7 @@
 // ══════════════════════════════════════════════════════════════════
 
 // Bump this number to push a visual refresh to all users on next sync
-const SHEET_FORMAT_VER = 22; // v22 (v0.9.1535): data rows get their OWN text
+const SHEET_FORMAT_VER = 23; // v22 (v0.9.1535): data rows get their OWN text
 // colour. Until now the body inherited the WHITE header band, so every row an
 // append added was white text on a pale background — Brad found it in his own
 // sheet after 6,740 rows. Bumping this version is what makes existing sheets
@@ -63,7 +63,15 @@ async function applySheetFormatting(sheetId, opts) {
     const meta = await metaRes.json();
     if (meta.error) return;
     const tabMap = {};
-    (meta.sheets || []).forEach(s => { tabMap[s.properties.title] = s.properties.sheetId; });
+    // v0.9.1535b: the row COUNT matters now. The banding below used to stop at
+    // row 1000 — a number picked when nobody had a thousand items. Brad's
+    // import put 6,740 rows in, and everything past 1000 fell outside the
+    // banded range and showed a different background entirely.
+    const tabRows = {};
+    (meta.sheets || []).forEach(s => {
+      tabMap[s.properties.title] = s.properties.sheetId;
+      tabRows[s.properties.title] = (s.properties.gridProperties || {}).rowCount || 1000;
+    });
 
     // ── 2. Check version stamp ─────────────────────────────────────
     const needsDash = !tabMap.hasOwnProperty('Dashboard');
@@ -255,13 +263,14 @@ async function applySheetFormatting(sheetId, opts) {
         { repeatCell: {
           range: { sheetId: sid, startRowIndex: 2 },
           cell: { userEnteredFormat: {
+            backgroundColor: SB.white,
             textFormat: { bold: false, foregroundColor: SB.ink, fontSize: 10 },
           }},
-          fields: 'userEnteredFormat.textFormat'
+          fields: 'userEnteredFormat(backgroundColor,textFormat)'
         }},
         // Row banding — v6: NO headerColor (was causing navy row 3)
         { addBanding: { bandedRange: {
-          range: { sheetId: sid, startRowIndex: 2, endRowIndex: 1000 },
+          range: { sheetId: sid, startRowIndex: 2, endRowIndex: Math.max(1000, tabRows[tab] || 1000) },
           rowProperties: {
             firstBandColor:  { red: 0.957, green: 0.961, blue: 0.976 },
             secondBandColor: SB.white,
