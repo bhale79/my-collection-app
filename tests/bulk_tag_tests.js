@@ -96,6 +96,17 @@ ok('a blank name is refused', /Give the column a name first/.test(tag));
 ok('running out of slots is said plainly, with the way out',
    /All five spare columns are in use[\s\S]{0,80}Preferences/.test(tag));
 
+// ── v0.9.1556b: every existing value reachable (Brad) ──────────────────
+// "i need to be able to see the +25 sub collections cause i may want to add
+// to these. have these in a drop down menu."
+ok('every value in use is listed, not just the top few', /id="rr-tag-pick"/.test(tag));
+ok('...with its count beside it', /seen\[n\] \+ '\)<\/option>'/.test(tag));
+ok('...and the dropdown says how many there are', /'All ' \+ names\.length \+ ' already in use/.test(tag));
+ok('the quick pills stayed', /names\.slice\(0, 5\)/.test(tag));
+ok('pills and dropdown share one path', /function rrTagUseValue/.test(tag));
+ok('the "+N more" dead end is gone', !/more<\/span>/.test(tag),
+   'a value you cannot reach is a value you retype and misspell');
+
 console.log('');
 console.log(fail === 0 ? 'ALL BULK-TAG TESTS GREEN (' + pass + ')' : fail + ' FAILING of ' + (pass + fail));
 process.exit(fail === 0 ? 0 : 1);

@@ -163,6 +163,19 @@ function rrTagOpen(preField, preValue, prePair) {
 
 // What is already in this column, so nobody invents "Mint cars" when they
 // already have "Mint Cars" on forty items.
+// v0.9.1556b: one way in for both the pills and the dropdown.
+function rrTagUseValue(v) {
+  if (!v) return;
+  var inp = document.getElementById('rr-tag-value');
+  if (!inp) return;
+  inp.value = v;
+  inp.focus();
+  // Re-scope the paired detail list to the place just chosen.
+  try { rrTagShowSeen(); } catch (e) {}
+  var pick = document.getElementById('rr-tag-pick');
+  if (pick) pick.value = '';
+}
+
 function rrTagShowSeen() {
   var el = document.getElementById('rr-tag-seen');
   var sel = document.getElementById('rr-tag-field');
@@ -216,12 +229,25 @@ function rrTagShowSeen() {
   } catch (e) {}
   var names = Object.keys(seen).sort(function (a, b) { return seen[b] - seen[a]; });
   if (!names.length) { el.textContent = 'Nothing uses this column yet.'; return; }
-  el.innerHTML = 'Already in use: ' + names.slice(0, 6).map(function (n) {
-    return '<button type="button" onclick="document.getElementById(\'rr-tag-value\').value=' +
-      JSON.stringify(n).replace(/"/g, '&quot;') + '" style="border:1px solid var(--border);background:var(--surface2);' +
+  // v0.9.1556b (Brad: "i need to be able to see the +25 sub collections cause
+  // i may want to add to these. have these in a drop down menu"). The top few
+  // stay as one-tap pills; EVERY value is reachable in the dropdown beside
+  // them, with its count, so adding to a group you already have never means
+  // retyping its name and risking "Mint cars" beside "Mint Cars".
+  var pills = names.slice(0, 5).map(function (n) {
+    return '<button type="button" onclick="rrTagUseValue(' + JSON.stringify(n).replace(/"/g, '&quot;') + ')" ' +
+      'style="border:1px solid var(--border);background:var(--surface2);' +
       'color:var(--text-mid);border-radius:999px;padding:0.05rem 0.5rem;font-size:0.72rem;cursor:pointer;margin:0.1rem 0.15rem 0 0">' +
-      (n.replace(/</g, '&lt;')) + ' <span style="color:var(--text-dim)">' + seen[n] + '</span></button>';
-  }).join('') + (names.length > 6 ? ' <span style="color:var(--text-dim)">+' + (names.length - 6) + ' more</span>' : '');
+      _rrTagEsc(n) + ' <span style="color:var(--text-dim)">' + seen[n] + '</span></button>';
+  }).join('');
+  var opts = '<option value="">' + (names.length === 1 ? 'The one already in use\u2026' :
+              'All ' + names.length + ' already in use\u2026') + '</option>'
+    + names.map(function (n) {
+        return '<option value="' + _rrTagEsc(n) + '">' + _rrTagEsc(n) + '  (' + seen[n] + ')</option>';
+      }).join('');
+  el.innerHTML = '<div style="margin-bottom:0.3rem">Already in use: ' + pills + '</div>'
+    + '<select id="rr-tag-pick" onchange="rrTagUseValue(this.value)" class="pref-select" '
+    + 'style="width:100%;font-size:0.8rem">' + opts + '</select>';
 }
 
 // ── Step 3: into the collection, ticking ────────────────────────
@@ -553,6 +579,7 @@ if (typeof window !== 'undefined') {
   window.rrTagOpen = rrTagOpen;
   window.rrTagNext = rrTagNext;
   window.rrTagShowSeen = rrTagShowSeen;
+  window.rrTagUseValue = rrTagUseValue;
   window.rrTagToggle = rrTagToggle;
   window.rrTagIsSelected = rrTagIsSelected;
   window.rrTagSelectAllShown = rrTagSelectAllShown;
