@@ -92,6 +92,50 @@ ok('the row no longer vanishes when a collection has no catalogs or paper',
    'it carries Edit Headers now, which every collection needs');
 ok('...and the Show chips simply sit it out', /var _showChips = sections\.length/.test(js));
 
+// ── v0.9.1547: every header sorts (Brad) ───────────────────────────────
+// (The old line survives inside a comment explaining why it went — match
+// only real code: an assignment at the start of a line.)
+ok('a column is no longer unsortable just for being addable',
+   !/\n\s*c = \{[^}]*noSort: c\.noSort \|\| !!c\.pdKey/.test(js),
+   'having a pdKey is what makes a column addable — it cannot also mean unsortable');
+ok('only Photo has nothing to sort by', /noSort: c\.col === 'photo'/.test(js));
+ok('every extra column gets a sort key', /_COLL_EXTRA_COLS\.forEach\(function \(xc\) \{[\s\S]{0,300}_row\[xc\.col\] = raw;/.test(js));
+ok('money columns sort by value, not by their text',
+   /if \(xc\.col === _col && xc\.money\) _numeric = true;/.test(js));
+ok('blank cells sort to the bottom in BOTH directions',
+   /if \(ea !== eb\) return ea \? 1 : -1;/.test(js),
+   'sorting by Location and getting 1,300 empty rows first answers nothing');
+
+// The comparator itself, run.
+(function () {
+  function cmp(col, dir, money) {
+    var numeric = money, blankLast = !numeric, d = dir === 'desc' ? -1 : 1;
+    return function (a, b) {
+      var r;
+      if (blankLast) {
+        var ea = !String(a[col] || '').trim(), eb = !String(b[col] || '').trim();
+        if (ea !== eb) return ea ? 1 : -1;
+      }
+      if (numeric) r = a[col] - b[col];
+      else r = String(a[col]).localeCompare(String(b[col]), undefined, { numeric: true, sensitivity: 'base' });
+      if (r === 0) r = (a.it.itemNum || '').localeCompare(b.it.itemNum || '', undefined, { numeric: true });
+      return r * d;
+    };
+  }
+  var rows = [
+    { it: { itemNum: '1' }, location: 'Rm 107 Rack 2' },
+    { it: { itemNum: '2' }, location: '' },
+    { it: { itemNum: '3' }, location: 'Rm 106 Tote 23' },
+    { it: { itemNum: '4' }, location: 'Rm 107 Rack 10' },
+  ];
+  var asc = rows.slice().sort(cmp('location', 'asc', false)).map(function (r) { return r.location || '(blank)'; });
+  var desc = rows.slice().sort(cmp('location', 'desc', false)).map(function (r) { return r.location || '(blank)'; });
+  ok('sorted ascending, blanks are last', asc[asc.length - 1] === '(blank)', asc.join(' | '));
+  ok('sorted descending, blanks are STILL last', desc[desc.length - 1] === '(blank)', desc.join(' | '));
+  ok('Rack 2 comes before Rack 10, not after',
+     asc.indexOf('Rm 107 Rack 2') < asc.indexOf('Rm 107 Rack 10'));
+})();
+
 console.log('');
 console.log(fail === 0 ? 'ALL COLUMN TESTS GREEN (' + pass + ')' : fail + ' FAILING of ' + (pass + fail));
 process.exit(fail === 0 ? 0 : 1);

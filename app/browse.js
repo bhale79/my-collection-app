@@ -453,7 +453,11 @@ function _renderCollectionHeader() {
   var _edit = !!state._collColEdit;
   var html = _visIds.map(function (id) {
     var c = _byId[id] || { col: id, label: id, noSort: true };
-    c = { col: c.col, label: _collColLabel(c.col), noSort: c.noSort || !!c.pdKey };
+    // v0.9.1547 (Brad): this used to read `noSort: c.noSort || !!c.pdKey` —
+    // which made EVERY column a user can add unsortable, by definition,
+    // because having a pdKey is what makes it addable. Photo is the only one
+    // with nothing to sort by.
+    c = { col: c.col, label: _collColLabel(c.col), noSort: c.col === 'photo' };
     // v0.9.1543 (Brad): "i hit an edit button... the existing headers get an x
     // on them that will remove them, and then i can drag them left and right
     // to rearrange them." The header IS the control. No modal, no list of
@@ -4034,6 +4038,9 @@ function renderBrowse() {
     var _dir = (_cs.dir === 'desc') ? -1 : 1;
     var _col = _cs.col;
     var _numeric = (_col === 'num' || _col === 'worth' || _col === 'added');   // v0.9.719
+    // v0.9.1547: a money column sorts by value, not by the text of the value.
+    _COLL_EXTRA_COLS.forEach(function (xc) { if (xc.col === _col && xc.money) _numeric = true; });
+    var _blankLast = !_numeric;
     var _keyed = state.filteredData.map(function(it) {
       var pd = findPD(_displayItemNum(it), it.variation) || {};
       var _rt = [it.roadName, it.itemType].filter(Boolean).join(' \u00b7 ') || it.description || '';
@@ -4052,7 +4059,7 @@ function renderBrowse() {
       // earlier save stamp DISPLAYED one date and SORTED by another — Brad's
       // lone 07-29 sitting under the 07-28 block. One precedence, both places.
       var _addTs = (typeof rrAddedTs === 'function') ? rrAddedTs(pd) : (rrDateTs(pd.dateAdded) || rrDateTs(pd.datePurchased) || pd._savedAt || 0);   // v0.9.1391: one precedence, shared with every date cell
-      return {
+      var _row = {
         it: it,
         mfr: (typeof _manufacturerOfItem === 'function' ? (_manufacturerOfItem(it) || '') : ''),
         num: parseInt(String(_displayItemNum(it)).replace(/[^0-9]/g, '')) || 0,
@@ -4062,9 +4069,32 @@ function renderBrowse() {
         added: isFinite(_addTs) ? _addTs : 0,
         worth: isFinite(_w) ? _w : -1
       };
+      // v0.9.1547 (Brad): "all headers need to be sortable, including the
+      // ones that got imported." Every column the user can add is a plain
+      // value on their own row, so each one gets a key here. Money columns
+      // sort as numbers; blanks sort LAST in both directions, because an
+      // empty cell is not "before A" — it is an absence, and burying the
+      // absences under the answers is what anyone sorting a column wants.
+      _COLL_EXTRA_COLS.forEach(function (xc) {
+        var raw = pd && pd[xc.pdKey] != null ? String(pd[xc.pdKey]).trim() : '';
+        if (xc.money) {
+          var n = parseFloat(raw.replace(/[^0-9.\-]/g, ''));
+          _row[xc.col] = isFinite(n) ? n : -1;
+        } else {
+          _row[xc.col] = raw;
+        }
+      });
+      return _row;
     });
     _keyed.sort(function(a, b) {
       var r;
+      // v0.9.1547: blanks go to the bottom either way. Sorting by Location
+      // to see where things are, and getting 1,300 empty rows first, is not
+      // an answer to the question that was asked.
+      if (_blankLast) {
+        var ea = !String(a[_col] || '').trim(), eb = !String(b[_col] || '').trim();
+        if (ea !== eb) return ea ? 1 : -1;
+      }
       if (_numeric) { r = a[_col] - b[_col]; }
       else { r = String(a[_col]).localeCompare(String(b[_col]), undefined, { numeric: true, sensitivity: 'base' }); }
       if (r === 0) r = (a.it.itemNum || '').localeCompare(b.it.itemNum || '', undefined, { numeric: true });
