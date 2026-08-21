@@ -2007,6 +2007,146 @@ function _fsItemNumHTML(fs) {
 }
 if (typeof window!=='undefined'){ window._fsSortBy=_fsSortBy; window._renderFsHeader=_renderFsHeader; }
 
+// ── v0.9.1541: prices, all in one pass ──────────────────────────────────
+// The import flags for-sale items without prices on purpose — Brad's call:
+// "if there is a sale item, then we flag them, ask the user if they want to
+// add asking price now or later." This is LATER: the whole list on one
+// screen, tab down it, save once. Opening 160 items one at a time is not a
+// workflow, it is a punishment.
+function _rrEsc(v) {
+  return String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+function rrFsToggleNeedsPrice() {
+  state._fsNeedsPrice = !state._fsNeedsPrice;
+  buildForSalePage();
+}
+function _rrFsPriceless() {
+  var out = [];
+  try {
+    Object.keys(state.forSaleData || {}).forEach(function (k) {
+      var fs = state.forSaleData[k];
+      if (!fs) return;
+      if (typeof window._fsIsGroupedCompanion === 'function' && window._fsIsGroupedCompanion(fs)) return;
+      if (parseFloat(fs.askingPrice) > 0) return;
+      out.push({ key: k, fs: fs });
+    });
+  } catch (e) {}
+  out.sort(function (a, b) {
+    return String(a.fs.itemNum || '').localeCompare(String(b.fs.itemNum || ''), undefined, { numeric: true });
+  });
+  return out;
+}
+function rrFsPriceFill() {
+  var list = _rrFsPriceless();
+  if (!list.length) { if (typeof showToast === 'function') showToast('Every listing already has a price'); return; }
+  var old = document.getElementById('rr-fsfill'); if (old) old.remove();
+  var ov = document.createElement('div');
+  ov.id = 'rr-fsfill';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.72);z-index:10050;display:flex;' +
+    'align-items:center;justify-content:center;padding:1rem';
+  var rows = list.map(function (e, i) {
+    var fs = e.fs;
+    var m = (typeof findMaster === 'function') ? (findMaster(fs.itemNum, fs.variation) || {}) : {};
+    var pd = null;
+    try { pd = fs.inventoryId ? _rrPdByInv(fs.inventoryId) : null; } catch (eP) {}
+    var desc = (pd && (pd.yourDescription || pd.description)) || m.description || m.roadName || '';
+    // What they paid and what they think it is worth, because that is what a
+    // person actually prices from.
+    var paid = (pd && pd.priceItem) || fs.priceItem || '';
+    var worth = (pd && pd.userEstWorth) || fs.userEstWorth || '';
+    var hint = [];
+    if (paid) hint.push('paid ' + _currencySymbol() + paid);
+    if (worth) hint.push('worth ' + _currencySymbol() + worth);
+    return '<div style="display:flex;align-items:center;gap:0.6rem;padding:0.4rem 0.2rem;border-bottom:1px solid var(--border)">' +
+      '<div style="flex:1;min-width:0">' +
+        '<div style="font-size:0.85rem;color:var(--text)"><strong>' + _rrEsc(fs.itemNum || '(no number)') + '</strong> ' +
+        '<span style="color:var(--text-dim)">' + _rrEsc(String(desc).slice(0, 60)) + '</span></div>' +
+        (hint.length ? '<div style="font-size:0.72rem;color:var(--text-dim)">' + _rrEsc(hint.join(' · ')) + '</div>' : '') +
+      '</div>' +
+      '<div style="display:flex;align-items:center;gap:0.2rem;flex-shrink:0">' +
+        '<span style="color:var(--text-dim);font-size:0.85rem">' + _currencySymbol() + '</span>' +
+        '<input type="number" step="0.01" min="0" inputmode="decimal" data-fsfill="' + _rrEsc(e.key) + '" ' +
+        'style="width:6.5rem;background:var(--bg);border:1px solid var(--border);border-radius:7px;' +
+        'padding:0.35rem 0.5rem;color:var(--text);font-family:var(--font-mono);font-size:0.88rem">' +
+      '</div></div>';
+  }).join('');
+  ov.innerHTML =
+    '<div style="background:var(--surface);border-radius:14px;max-width:640px;width:100%;max-height:86vh;' +
+    'display:flex;flex-direction:column;box-shadow:0 10px 40px rgba(0,0,0,0.45);font-family:var(--font-body)">' +
+      '<div style="padding:0.9rem 1.1rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">' +
+        '<strong style="font-size:1.02rem;color:var(--text)">Asking prices \u2014 ' + list.length.toLocaleString() + ' to fill in</strong>' +
+        '<button onclick="document.getElementById(\'rr-fsfill\').remove()" style="background:none;border:none;color:var(--text);font-size:1.5rem;cursor:pointer;line-height:1">\u00d7</button>' +
+      '</div>' +
+      '<div style="padding:0.6rem 1.1rem;font-size:0.8rem;color:var(--text-dim);border-bottom:1px solid var(--border)">' +
+        'Type a price and press Tab to move down. Leave anything blank and it simply stays on the list \u2014 ' +
+        'nothing is removed and nothing is guessed for you.</div>' +
+      '<div style="padding:0.4rem 1.1rem;overflow:auto;flex:1">' + rows + '</div>' +
+      '<div style="padding:0.8rem 1.1rem;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:0.6rem">' +
+        '<span id="rr-fsfill-status" style="font-size:0.8rem;color:var(--text-dim)"></span>' +
+        '<div style="display:flex;gap:0.5rem">' +
+          '<button onclick="document.getElementById(\'rr-fsfill\').remove()" style="border:1px solid var(--border);background:none;color:var(--text);border-radius:8px;padding:0.45rem 0.9rem;font-family:var(--font-body);font-size:0.85rem;cursor:pointer">Cancel</button>' +
+          '<button id="rr-fsfill-save" onclick="rrFsPriceFillSave()" style="border:none;background:var(--accent);color:var(--on-accent);border-radius:8px;padding:0.45rem 1.1rem;font-family:var(--font-body);font-size:0.85rem;font-weight:700;cursor:pointer">Save prices</button>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+  document.body.appendChild(ov);
+  ov.addEventListener('click', function (ev) { if (ev.target === ov) ov.remove(); });
+  var first = ov.querySelector('input[data-fsfill]');
+  if (first) setTimeout(function () { first.focus(); }, 40);
+}
+// Look up a personal row by inventory id without assuming how personalData is keyed.
+function _rrPdByInv(invId) {
+  var want = String(invId || '');
+  if (!want) return null;
+  var all = Object.values(state.personalData || {});
+  for (var i = 0; i < all.length; i++) {
+    if (all[i] && String(all[i].inventoryId || '') === want) return all[i];
+  }
+  return null;
+}
+async function rrFsPriceFillSave() {
+  var ov = document.getElementById('rr-fsfill'); if (!ov) return;
+  var btn = document.getElementById('rr-fsfill-save');
+  var status = document.getElementById('rr-fsfill-status');
+  var inputs = Array.prototype.slice.call(ov.querySelectorAll('input[data-fsfill]'));
+  var todo = inputs.map(function (inp) {
+    return { key: inp.getAttribute('data-fsfill'), val: parseFloat(inp.value) };
+  }).filter(function (t) { return t.val > 0; });
+  if (!todo.length) { if (typeof showToast === 'function') showToast('Nothing typed in yet'); return; }
+  if (btn) { btn.disabled = true; btn.textContent = 'Saving\u2026'; }
+  var done = 0, failed = 0;
+  for (var i = 0; i < todo.length; i++) {
+    var t = todo[i];
+    var fs = state.forSaleData[t.key];
+    if (!fs || !fs.row) { failed++; continue; }
+    try {
+      // Column D is Asking Price on the For Sale tab (A itemNum, B variation,
+      // C condition, D asking). One cell each — nothing else on the row is
+      // touched, so an edit made elsewhere cannot be clobbered by this.
+      await sheetsUpdate(state.personalSheetId, 'For Sale!D' + fs.row, [[t.val]]);
+      fs.askingPrice = String(t.val);
+      done++;
+    } catch (e) {
+      failed++;
+      console.warn('[For Sale] price save failed for row ' + fs.row + ':', e && e.message);
+    }
+    if (status) status.textContent = done + ' of ' + todo.length + ' saved';
+  }
+  ov.remove();
+  if (typeof buildForSalePage === 'function') buildForSalePage();
+  if (typeof showToast === 'function') {
+    showToast(failed ? ('Saved ' + done + ', ' + failed + ' could not be saved — try those again')
+                     : ('\u2713 Saved ' + done.toLocaleString() + ' asking price' + (done === 1 ? '' : 's')),
+              failed ? 6000 : 3500, !!failed);
+  }
+}
+if (typeof window !== 'undefined') {
+  window.rrFsToggleNeedsPrice = rrFsToggleNeedsPrice;
+  window.rrFsPriceFill = rrFsPriceFill;
+  window.rrFsPriceFillSave = rrFsPriceFillSave;
+}
+
 function buildForSalePage() {
   // Contextual hint for empty For Sale List
   if (typeof maybeShowContextualHint === 'function' && Object.keys(state.forSaleData || {}).length === 0) {
@@ -2014,7 +2154,12 @@ function buildForSalePage() {
     if (_fpcAnchor) maybeShowContextualHint('forsale_empty', '<strong>For Sale List</strong> tracks items you\'re selling. From My Collection, click <em>Add to For Sale</em> on any item to list it.', _fpcAnchor);
   }
   const _fq = (state._forsaleSearch || '').toLowerCase();
+  // v0.9.1541 (Brad): the import has been telling people "you can filter to
+  // 'no asking price' and fill them in anytime" — and no such filter existed.
+  // His own import flagged 160 items for sale with no price and left him no
+  // way to work through them. A promise on screen has to be true.
   let fsEntries = Object.values(state.forSaleData).filter(fs => {
+    if (state._fsNeedsPrice && parseFloat(fs.askingPrice) > 0) return false;
     // Grouped companions (box / instruction sheet) fold into their lead —
     // show and count the group as ONE item, like the collection list.
     if (typeof window !== 'undefined' && typeof window._fsIsGroupedCompanion === 'function' && window._fsIsGroupedCompanion(fs)) return false;
@@ -2038,7 +2183,29 @@ function buildForSalePage() {
   var _fsStEl = document.getElementById('forsale-title-stats');
   if (_fsStEl) {
     var _fsAsk = totalAsking > 0 ? _currencySymbol() + Math.round(totalAsking).toLocaleString() : (_currencySymbol() + '0');
-    _fsStEl.textContent = '· ' + fsEntries.length.toLocaleString() + ' listed · ' + _fsAsk + ' asking';
+    // v0.9.1541: how many are still waiting for a price — counted across the
+    // WHOLE list, not the filtered view, or the chip would zero itself out
+    // the moment you used it.
+    var _noPrice = 0;
+    try {
+      Object.values(state.forSaleData || {}).forEach(function (fs) {
+        if (!fs) return;
+        if (typeof window._fsIsGroupedCompanion === 'function' && window._fsIsGroupedCompanion(fs)) return;
+        if (!(parseFloat(fs.askingPrice) > 0)) _noPrice++;
+      });
+    } catch (eNP) {}
+    var _txt = '· ' + fsEntries.length.toLocaleString() + ' listed · ' + _fsAsk + ' asking';
+    _fsStEl.innerHTML = _rrEsc(_txt) + (_noPrice ? (
+      ' <button type="button" onclick="rrFsToggleNeedsPrice()" title="Show only the ones with no asking price" ' +
+      'style="margin-left:0.5rem;border:1px solid ' + (state._fsNeedsPrice ? 'var(--accent)' : 'var(--border)') + ';' +
+      'background:' + (state._fsNeedsPrice ? 'color-mix(in srgb, var(--accent) 16%, transparent)' : 'transparent') + ';' +
+      'color:' + (state._fsNeedsPrice ? 'var(--accent)' : 'var(--text-mid)') + ';border-radius:999px;' +
+      'padding:0.15rem 0.6rem;font-size:0.75rem;font-family:var(--font-body);font-weight:600;cursor:pointer">' +
+      _noPrice.toLocaleString() + ' need a price</button>' +
+      ' <button type="button" onclick="rrFsPriceFill()" ' +
+      'style="margin-left:0.3rem;border:none;background:var(--accent);color:var(--on-accent);border-radius:999px;' +
+      'padding:0.15rem 0.6rem;font-size:0.75rem;font-family:var(--font-body);font-weight:700;cursor:pointer">Fill them in</button>'
+    ) : '');
   }
 
   // Sort by header selection
