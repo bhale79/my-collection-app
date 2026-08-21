@@ -60,6 +60,9 @@ function rrImportOpen() {
   _impWriteDone = false;
   var ov = document.createElement('div');
   ov.id = 'imp-overlay';
+  // v0.9.1524: tells the deploy-reload guard in index.html that a flow is in
+  // progress. A new version waits until this overlay closes.
+  ov.setAttribute('data-rr-busy', 'import');
   ov.innerHTML = '<div id="imp-panel"><div id="imp-head">' +
     '<div id="imp-title">Import a Spreadsheet <span class="imp-beta">BETA</span></div>' +
     '<button id="imp-close" onclick="rrImportClose()">✕</button></div>' +

@@ -233,6 +233,22 @@ ok('675 stays for the prewar/postwar verify (two vintage candidates)',
 // every time, and invisible to these node suites because import-ui.js is
 // browser code. This static check reads import-ui.js as TEXT and proves every
 // function the UI references by name actually exists. Cheap, no DOM needed.
+// v0.9.1524: a deploy must never reload a running import. Two halves have to
+// agree: the overlay marks itself busy, and the reload guard in index.html
+// honours that mark. Either half alone is silently useless, so test both.
+(function reloadGuardTest() {
+  const uiPath = path.join(__dirname, '..', 'app', 'import-ui.js');
+  const idxPath = path.join(__dirname, '..', 'app', 'index.html');
+  if (!fs.existsSync(uiPath) || !fs.existsSync(idxPath)) {
+    ok('reload guard: files present', false); return;
+  }
+  const ui = fs.readFileSync(uiPath, 'utf8');
+  const idx = fs.readFileSync(idxPath, 'utf8');
+  ok('import overlay marks itself busy', /setAttribute\(\s*['"]data-rr-busy['"]/.test(ui));
+  ok('reload guard honours data-rr-busy', /_rrBusy[\s\S]{0,1200}data-rr-busy/.test(idx));
+  ok('reload guard also names #imp-overlay', /_rrBusy[\s\S]{0,1400}imp-overlay/.test(idx));
+})();
+
 (function uiWiringGuard() {
   const uiPath = path.join(__dirname, '..', 'app', 'import-ui.js');
   if (!fs.existsSync(uiPath)) { ok('import-ui.js present', false, uiPath); return; }
