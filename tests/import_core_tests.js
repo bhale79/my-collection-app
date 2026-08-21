@@ -268,6 +268,45 @@ ok('675 stays for the prewar/postwar verify (two vintage candidates)',
 // on the mapping screen. Brad: "why is it asking me this. i already gave it
 // a column?" The AI writes its questions while reading the sheet, before the
 // mapping exists; nothing was cancelling them afterwards.
+// v0.9.1537: Preferences listed only the most recent import, so an earlier
+// batch could not be removed from the UI at all. Brad hit this with two
+// 3,370-row imports of the same sheet.
+(function batchListTest() {
+  const ui = fs.readFileSync(path.join(__dirname, '..', 'app', 'import-ui.js'), 'utf8');
+  function grab(name) {
+    const i = ui.indexOf('function ' + name);
+    let d = 0, j = ui.indexOf('{', i);
+    for (let k = j; k < ui.length; k++) {
+      if (ui[k] === '{') d++; else if (ui[k] === '}') { d--; if (!d) return ui.slice(i, k + 1); }
+    }
+  }
+  const store = { rr_import_batches_v1: JSON.stringify([
+    { id: 'IMPMT2CMCEW', when: '2026-08-21T02:55:00.000Z', count: 3370, forSale: 160 },
+    { id: 'IMPMT367G3I', when: '2026-08-21T17:20:00.000Z', count: 3370, forSale: 160 },
+  ]) };
+  global._prefGet = (k, d) => (k in store ? store[k] : d);
+  global._IMP_BATCH_PREF = 'rr_import_batches_v1';
+  eval(grab('rrImportRecentBatchesHtml'));
+
+  const html = rrImportRecentBatchesHtml();
+  ok('every import is listed', (html.match(/Remove it/g) || []).length === 2,
+     (html.match(/Remove it/g) || []).length + ' remove buttons');
+  ok('each one can be removed by its own id',
+     html.indexOf('IMPMT2CMCEW') > 0 && html.indexOf('IMPMT367G3I') > 0);
+  ok('newest is listed first', html.indexOf('IMPMT367G3I') < html.indexOf('IMPMT2CMCEW'));
+  ok('the older one is labelled as such', /Earlier import/.test(html));
+  ok('counts are shown so they can be told apart', /3,370 items/.test(html));
+  ok('what removal does is spelled out when there is more than one',
+     /takes out only the rows it added/.test(html));
+
+  store.rr_import_batches_v1 = JSON.stringify([{ id: 'A', when: 'x', count: 5 }]);
+  ok('a single import gets no explanatory clutter', !/Earlier import|takes out only/.test(rrImportRecentBatchesHtml()));
+  store.rr_import_batches_v1 = '[]';
+  ok('no imports means no rows at all', rrImportRecentBatchesHtml() === '');
+  store.rr_import_batches_v1 = 'not json';
+  ok('corrupt storage does not break Preferences', rrImportRecentBatchesHtml() === '');
+})();
+
 (function staleQuestionTest() {
   const ui = fs.readFileSync(path.join(__dirname, '..', 'app', 'import-ui.js'), 'utf8');
   ok('placed columns are checked before asking', /function _impColumnAlreadyPlaced/.test(ui));

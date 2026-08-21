@@ -2113,14 +2113,41 @@ async function _impBatchDeleteRows(tabName, rowNums) {
 }
 
 // Preferences hook: list recent batches so undo is reachable later.
+// v0.9.1537 (Brad, after importing the same sheet twice and finding 6,740
+// items): this listed ONLY the most recent import, so an earlier batch was
+// unreachable — you could remove it solely by removing the newer one first,
+// and if you removed them out of order you were stuck with rows you could not
+// get rid of from the UI. Every batch is listed now, newest first, each with
+// what it brought and when.
 function rrImportRecentBatchesHtml() {
   var batches = [];
   try { batches = JSON.parse(_prefGet(_IMP_BATCH_PREF, '[]')); } catch (e) {}
   if (!batches.length) return '';
-  var b = batches[batches.length - 1];
-  return '<div class="pref-row"><div class="pref-row-label"><strong>Last import</strong>' +
-    '<span>' + b.count.toLocaleString() + ' items on ' + String(b.when).slice(0, 10) + '</span></div>' +
-    '<button class="pref-btn danger" onclick="rrImportUndo(\'' + b.id + '\',this)">Remove it</button></div>';
+  var list = batches.slice().reverse();      // newest first
+  var fmt = function (iso) {
+    try {
+      var d = new Date(iso);
+      if (isNaN(d.getTime())) return String(iso).slice(0, 10);
+      return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) + ' ' +
+             d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+    } catch (e) { return String(iso).slice(0, 10); }
+  };
+  var out = '';
+  list.forEach(function (b, i) {
+    var when = fmt(b.when);
+    var bits = [b.count.toLocaleString() + ' items'];
+    if (b.forSale) bits.push(b.forSale.toLocaleString() + ' for sale');
+    out += '<div class="pref-row"><div class="pref-row-label"><strong>' +
+      (i === 0 ? 'Last import' : 'Earlier import') + '</strong>' +
+      '<span>' + bits.join(' \u00b7 ') + ' \u2014 ' + when + '</span></div>' +
+      '<button class="pref-btn danger" onclick="rrImportUndo(\'' + b.id + '\',this)">Remove it</button></div>';
+  });
+  if (list.length > 1) {
+    out += '<div class="pref-row"><div class="pref-row-label">' +
+      '<span>Removing an import takes out only the rows it added \u2014 anything you have edited ' +
+      'since stays exactly as it is, and the other imports are untouched.</span></div></div>';
+  }
+  return out;
 }
 
 if (typeof window !== 'undefined') {
