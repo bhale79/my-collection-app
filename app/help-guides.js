@@ -412,6 +412,42 @@
     // nothing, and concludes the catalogue is missing 300 items. It isn't —
     // they are filed where Lionel itself filed them. Say so plainly, in the
     // place someone goes when a search comes up empty.
+    grading: {
+      title: 'Condition grading — the C-scale collectors use',
+      blurb: 'What C-7 means, and how it lines up with our 1–10.',
+      intro: 'Nearly every ad, price guide and show table in this hobby grades condition on the Train Collectors Association scale, written C-1 to C-10. It is worth knowing even if you never use the letters yourself, because the price you see quoted always assumes a grade. Descriptions below are our summary of the TCA standard, not their wording.',
+      steps: [
+        { do: '<b>C-10 Mint</b> — brand new, all original, never used, not a mark on it.',
+          why: 'For most postwar items this also means the original box. A genuinely mint 1950s item is rare, and priced accordingly.' },
+        { do: '<b>C-9 Factory New</b> — unused and all original, but may carry factory rubs or the faintest signs of having been handled or test-run.',
+          why: 'The difference between C-9 and C-10 is often the box and the paperwork rather than the item.' },
+        { do: '<b>C-8 Like New</b> — complete and original, no rust, nothing missing; may show its age or time on display, and may have been run.',
+          why: 'This is the top grade most collectors ever apply to a train that has actually been used.' },
+        { do: '<b>C-7 Excellent</b> — all original, with only minute scratches and paint nicks; no rust, nothing missing, nothing bent.',
+          why: 'C-7 is the workhorse grade in listings. If an ad just says "excellent", this is what is meant.' },
+        { do: '<b>C-6 Very Good</b> — minor scratches and nicks, small spots of surface rust, no dents; may have a minor part replaced.',
+          why: 'The point where replaced parts start being acceptable without calling it restored.' },
+        { do: '<b>C-5 Good</b> — clear play wear: scratches, some paint loss, small dents, minor surface rust.',
+          why: 'Good means used, not bad. A great many well-loved postwar trains live here.' },
+        { do: '<b>C-4 Fair</b> — scratched, moderate paint loss, dents, missing parts, surface rust.',
+          why: 'Still displayable and often still runs, but the value is a fraction of the same item at C-7.' },
+        { do: '<b>C-3 Poor</b> — heavily scratched, significant rust, parts missing. A restoration candidate.',
+          why: 'Worth buying when the item is scarce enough to justify the work.' },
+        { do: '<b>C-2 Restoration required</b> and <b>C-1 Junk</b> — the second is parts value only.',
+          why: 'A C-1 is not worthless: somebody else\u2019s C-3 needs exactly the part you are holding.' }
+      ],
+      notes: [
+        ['How this lines up with our 1\u201310',
+         'Our slider agrees with TCA at the top and bottom \u2014 10 is Mint, 6 is Very Good \u2014 but through the middle our wording runs about one notch kinder: what we label 8 \u201CExcellent\u201D is closer to TCA\u2019s C-8 Like New, and TCA\u2019s C-7 Excellent sits nearer our 7. If you grade to TCA, set the number to match the TCA grade and ignore our label.'],
+        ['Importing a spreadsheet graded in words',
+         'Words like Excellent, Like New, Very Good and Fair are read automatically and turned into a number, and you are shown every one of those decisions on a conversion table before anything is written. Change any of them there \u2014 once \u2014 and every item using that word follows.'],
+        ['The box is graded separately',
+         'You will see grades written like <b>C-8/P-6</b>: the item is C-8, the box (packaging) is P-6. The app keeps item condition and box condition as two separate fields for the same reason.'],
+        ['Where this comes from',
+         'The Train Collectors Association has published this standard for decades; it is the common language at York and in every price guide. The wording above is ours, summarising theirs.']
+      ]
+    },
+
     whereFiled: {
       title: 'Why isn’t my item under the maker I expected?',
       blurb: 'K-Line by Lionel, Williams by Bachmann, and other bought-out brands.',

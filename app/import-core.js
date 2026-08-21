@@ -727,9 +727,51 @@ function rrImpCollectGrades(items) {
 // A crude deterministic pre-fill for the conversion table when the AI is
 // unreachable: pull the first 1-10 number out of the string. "C10/P10"→10,
 // "C7"→7, "Excellent"→''. The user adjusts in the table either way.
+// v0.9.1549 (Brad, from the collector-database export): "his excellent,
+// good, fair etc are conditions that we need to map to 1-10."
+//
+// Until now this read C-numbers only (C10, C9/P8, a bare 8) — which is how
+// Scott writes them, so it worked and nobody noticed. A collector who writes
+// WORDS got thirteen empty rows to fill in by hand.
+//
+// The numbers below are OUR scale, taken from the wizard's own slider, not
+// the TCA scale — deliberately. The app tells every user that 8 is
+// "Excellent — near perfect", 6 is "Very Good — minor wear only", 4 is
+// "Good — visible play wear". TCA numbers Excellent as C7. Two scales cannot
+// both own the number, and the one the user reads on every item afterwards
+// has to win. The grade table SHOWS each mapping before a single row is
+// written, so anyone grading to TCA can move them all in one screen.
+var _RR_GRADE_WORDS = [
+  [/^(mint|mib|new in box|nib|factory ?sealed|sealed)$/i, '10'],
+  [/^(near ?mint|nm|excellent ?\+{1,2}|excellent plus|exc ?\+)$/i, '9'],
+  [/^(excellent|exc|ex|like ?new|ln|c ?8)$/i, '8'],
+  [/^(very ?good ?\+{1,2}|very good plus|vg ?\+)$/i, '7'],
+  [/^(very ?good|vg|v\.?g\.?)$/i, '6'],
+  [/^(good ?\+{1,2}|good plus|g ?\+)$/i, '5'],
+  [/^(good|gd|g)$/i, '4'],
+  [/^(fair|fr|played ?with|worn)$/i, '3'],
+  [/^(poor|pr|rough|damaged|restoration|needs ?restoration)$/i, '2'],
+  [/^(junk|parts|for ?parts|scrap|broken|incomplete)$/i, '1'],
+];
 function rrImpGuessCondition(rawGrade) {
-  var m = /(?:^|[^0-9])(10|[1-9])(?:[^0-9]|$)/.exec(rrImpNormCell(rawGrade));
-  return m ? m[1] : '';
+  var s = rrImpNormCell(rawGrade);
+  if (!s) return '';
+  // A number in the text still wins — "C9/P8" and a bare "8" are explicit.
+  var m = /(?:^|[^0-9])(10|[1-9])(?:[^0-9]|$)/.exec(s);
+  if (m) return m[1];
+  // Otherwise read the words. Punctuation and case are noise.
+  var w = s.replace(/[.\u2013\u2014_]/g, ' ').replace(/\s+/g, ' ').trim();
+  for (var i = 0; i < _RR_GRADE_WORDS.length; i++) {
+    if (_RR_GRADE_WORDS[i][0].test(w)) return _RR_GRADE_WORDS[i][1];
+  }
+  // A compound like "Excellent, small chip" — take the leading word.
+  var lead = w.split(/[,;/(]/)[0].trim();
+  if (lead && lead !== w) {
+    for (var j = 0; j < _RR_GRADE_WORDS.length; j++) {
+      if (_RR_GRADE_WORDS[j][0].test(lead)) return _RR_GRADE_WORDS[j][1];
+    }
+  }
+  return '';
 }
 
 // v0.9.1512: how many cells Excel turned into 1899/1900 timestamps — shown

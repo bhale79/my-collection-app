@@ -68,7 +68,10 @@ ok('heuristic simple: nothing weird unmapped', simple.unmapped.length === 0, JSO
 // Grade helpers
 ok('grade guess: C10/P10 -> 10', core.rrImpGuessCondition('C10/P10') === '10');
 ok('grade guess: C7 -> 7', core.rrImpGuessCondition('C7') === '7');
-ok('grade guess: Excellent -> blank', core.rrImpGuessCondition('Excellent') === '');
+// v0.9.1549: this used to assert Excellent gave NO guess. It now reads
+// words — see gradeWordsTest below. The old assertion described the gap, not
+// a rule worth keeping.
+ok('grade guess: a word is read, not ignored', core.rrImpGuessCondition('Excellent') === '8');
 const grades = core.rrImpCollectGrades([
   { rawGrade: 'C10/P10' }, { rawGrade: 'C10/P10' }, { rawGrade: 'C7' }, { rawGrade: '' },
 ]);
@@ -293,6 +296,29 @@ ok('675 stays for the prewar/postwar verify (two vintage candidates)',
 // v0.9.1548 (Task #40): values that mean blank, and rows that mean many.
 // From a collector-database export a non-tester sent Brad "just to send me
 // an idea": 1,738 rows saying NO SET, 78 rows with a quantity of 2 to 18.
+// v0.9.1549 (Brad): "his excellent, good, fair etc are conditions that we
+// need to map to 1-10." The guesser read C-numbers only, because that is how
+// Scott writes them — a collector using WORDS got a table of blanks.
+(function gradeWordsTest() {
+  const is = (raw, want) => ok('"' + raw + '" reads as ' + want, core.rrImpGuessCondition(raw) === want,
+                              core.rrImpGuessCondition(raw) || '(no guess)');
+  // OUR scale, from the wizard's own slider — not TCA, which numbers
+  // Excellent as C7. The grade table shows every mapping before anything is
+  // written, so a TCA grader can move them in one screen.
+  is('Mint', '10'); is('Excellent', '8'); is('Like New', '8');
+  is('Very Good', '6'); is('Good', '4'); is('Fair', '3'); is('Poor', '2');
+  is('Parts', '1');
+  is('LN', '8'); is('VG', '6'); is('NM', '9');
+  is('Excellent+', '9'); is('Very Good +', '7'); is('Good plus', '5');
+  is('Excellent, small chip', '8');
+  ok('a written number still wins over any word', core.rrImpGuessCondition('C9/P8') === '9');
+  ok('...including a bare one', core.rrImpGuessCondition('8') === '8');
+  ok('a location is not a grade', core.rrImpGuessCondition('Rm 107') === '');
+  ok('"None" is left for the user to answer', core.rrImpGuessCondition('None') === '',
+     'it may mean no box rather than a condition');
+  ok('nothing in, nothing out', core.rrImpGuessCondition('') === '');
+})();
+
 (function cleanupTest() {
   // ── the shape of a non-value ────────────────────────────────
   ok('NO SET is a placeholder', core.rrImpIsPlaceholderValue('NO SET') === 'confident');
