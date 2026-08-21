@@ -274,6 +274,22 @@ ok('675 stays for the prewar/postwar verify (two vintage candidates)',
 // v0.9.1538: the near-miss picker — the last thing in the flow still saying
 // "comes in the next update". Rows whose number is not in the catalog but a
 // SPELLING of it is: Brad's example was "1666 T" for Lionel's 1666T.
+// v0.9.1542: Google Sheets users. A browser cannot fetch a Google Sheet —
+// Google sends no CORS headers — so downloading as .xlsx really is the route.
+// Brad chose to say so properly rather than build a picker or ask people to
+// make their collection link-shared.
+(function sheetsInstructionsTest() {
+  const ui = fs.readFileSync(path.join(__dirname, '..', 'app', 'import-ui.js'), 'utf8');
+  ok('the entry screen speaks to Google Sheets users', /Keep your list in Google Sheets\?/.test(ui));
+  ok('...with the actual click path', /File<\/strong> \\u2192 <strong>Download<\/strong> \\u2192/.test(ui) &&
+     /Microsoft Excel \(\.xlsx\)/.test(ui));
+  ok('...numbered, not a wall of prose', /<strong>1\.<\/strong>[\s\S]{0,400}<strong>3\.<\/strong>/.test(ui));
+  ok('...promising nothing is shared or made public',
+     /Nothing is shared and nothing is made public/.test(ui));
+  ok('the old one-liner buried in the drop zone is gone',
+     !/Google Sheets: File → Download → Microsoft Excel first/.test(ui));
+})();
+
 (function nearMissTest() {
   const v = core.rrImpNumberVariants('1666 T');
   ok('a space before the letter is a spelling, not a number', v.indexOf('1666T') >= 0, v.join(' '));

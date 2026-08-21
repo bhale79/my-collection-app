@@ -162,9 +162,26 @@ function _impStepEntry() {
     '<div class="imp-h">Bring in a collection you already track in a spreadsheet.</div>' +
     '<div class="imp-drop" id="imp-drop" onclick="document.getElementById(\'imp-file\').click()">' +
     '<div style="font-size:1.6rem">📄</div><div><strong>Drop your Excel file here</strong> or tap to choose</div>' +
-    '<div class="imp-muted">Excel (.xlsx) works best — row colors and every tab come along.<br>' +
-    'Google Sheets: File → Download → Microsoft Excel first. CSV works too.</div></div>' +
+    '<div class="imp-muted">Excel (.xlsx) works best — row colors and every tab come along. CSV works too.</div></div>' +
     '<input type="file" id="imp-file" accept=".xlsx,.csv" style="display:none">' +
+    // v0.9.1542 (Brad). The old one-liner — "Google Sheets: File → Download →
+    // Microsoft Excel first" — sat inside the drop zone in small grey type,
+    // where someone who keeps their list in Google Sheets is least likely to
+    // read it. A browser cannot fetch a Google Sheet directly (Google sends
+    // no CORS headers), so downloading really is the route; the least we can
+    // do is spell it out where the question actually occurs, once, in full.
+    '<div class="imp-card" style="margin-top:0.6rem">' +
+      '<div style="font-weight:600;font-size:0.86rem;margin-bottom:0.3rem">Keep your list in Google Sheets?</div>' +
+      '<div class="imp-muted" style="font-size:0.78rem;line-height:1.6">' +
+        'Save it as an Excel file first — it takes about ten seconds and nothing changes in your original.<br>' +
+        '<strong>1.</strong> Open your sheet in Google Sheets.<br>' +
+        '<strong>2.</strong> <strong>File</strong> \u2192 <strong>Download</strong> \u2192 ' +
+        '<strong>Microsoft Excel (.xlsx)</strong>.<br>' +
+        '<strong>3.</strong> Drag that downloaded file into the box above.<br>' +
+        '<span style="color:var(--text-dim)">Your tabs, row colours and every column come across. ' +
+        'Nothing is shared and nothing is made public \u2014 the file never leaves your computer ' +
+        'until you drop it here.</span>' +
+      '</div></div>' +
     '<div style="text-align:center;margin:0.7rem 0" class="imp-muted">— or —</div>' +
     '<textarea id="imp-paste" placeholder="Paste rows copied from a simple spreadsheet (headers first)" ' +
     'style="width:100%;min-height:5.5rem;background:var(--surface2,#26262e);color:var(--text,#eee);border:1px solid var(--border,#444);border-radius:8px;padding:0.5rem;font-size:0.82rem"></textarea>' +
