@@ -42,6 +42,22 @@ ok('the import really does read those words',
    core.rrImpGuessCondition('Excellent') !== '' && core.rrImpGuessCondition('Like New') !== '' &&
    core.rrImpGuessCondition('Fair') !== '');
 
+// ── v0.9.1550: reachable from where the question is asked ──────────────
+// Brad: "on our add item menu, have a link to our condition help menu."
+const wiz = fs.readFileSync(path.join(__dirname, '..', 'app', 'wizard.js'), 'utf8');
+ok('the compact condition slider offers help', /title="What do the numbers mean\?"[\s\S]{0,200}rrgOpen\(\\?'grading\\?'\)/.test(wiz));
+ok('the full condition step offers it too', /What do these numbers mean\?/.test(wiz));
+ok('so does the 1-10 button row on set pieces',
+   (wiz.match(/rrgOpen&&rrgOpen\('grading'\)/g) || []).length >= 2);
+ok('the link cannot break the app if the guides module is removed',
+   /rrgOpen&&rrgOpen/.test(wiz),
+   'help-guides.js is designed to be deletable in one line');
+ok('clicking it does not also drag the slider',
+   /event\.preventDefault\(\);event\.stopPropagation\(\);rrgOpen/.test(wiz));
+// The guide floats ABOVE the wizard, or the link would appear to do nothing.
+const helpZ = /z-index:(\d+)/.exec(src.slice(src.indexOf('position:fixed;left:0;right:0;bottom:0')));
+ok('the guide renders above the open wizard', helpZ && parseInt(helpZ[1], 10) >= 100000, helpZ ? helpZ[1] : '?');
+
 console.log('');
 console.log(fail === 0 ? 'ALL GRADING-HELP TESTS GREEN (' + pass + ')' : fail + ' FAILING of ' + (pass + fail));
 process.exit(fail === 0 ? 0 : 1);

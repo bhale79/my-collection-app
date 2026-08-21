@@ -3109,7 +3109,15 @@ function renderWizardStep() {
           + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">'
           + '<div style="display:flex;align-items:center;gap:5px;font-size:0.68rem;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-dim)">'
           + '<img src="' + _qe1Icons[iconKey] + '" style="height:17px;width:auto;flex-shrink:0' + imgExtra + '" onerror="this.style.opacity=\'0.3\'">'
-          + label + '</div>'
+          + label
+          // v0.9.1550 (Brad): "on our add item menu, have a link to our
+          // condition help menu." A number from 1 to 10 means nothing on its
+          // own — the C-scale it answers to is in the help guide, one tap
+          // away, right where the question is asked.
+          + ' <button type="button" title="What do the numbers mean?" onclick="event.preventDefault();event.stopPropagation();rrgOpen&&rrgOpen(\'grading\')" '
+          + 'style="border:1px solid var(--border);background:none;color:var(--text-dim);border-radius:50%;'
+          + 'width:15px;height:15px;line-height:1;font-size:0.66rem;cursor:pointer;padding:0;flex-shrink:0">?</button>'
+          + '</div>'
           + '<span id="qe1v-' + slId + '" style="font-size:0.82rem;font-weight:700;color:' + accent + '">' + cur + '</span>'
           + '</div>'
           + '<input type="range" id="' + slId + '" min="1" max="10" value="' + cur + '" style="width:100%;accent-color:' + accent + '"'
@@ -3471,6 +3479,9 @@ function renderWizardStep() {
           <div style="font-family:var(--font-head);font-size:3rem;color:var(--accent2);width:3rem" id="wiz-slider-val">${val}</div>
           <input type="range" min="${s.min}" max="${s.max}" value="${val}" id="wiz-slider" style="flex:1;accent-color:var(--accent)"
             oninput="wizard.data['${s.id}']=parseInt(this.value);document.getElementById('wiz-slider-val').textContent=this.value">
+        </div>
+        <div style="text-align:right;margin-top:-0.4rem">
+          <button type="button" onclick="rrgOpen&&rrgOpen('grading')" style="border:none;background:none;color:var(--accent2,#d4a843);font-family:var(--font-body);font-size:0.75rem;cursor:pointer;padding:0;text-decoration:underline">What do these numbers mean?</button>
         </div>
         <div style="display:flex;justify-content:space-between;font-size:0.75rem;color:var(--text-dim);margin-top:0.25rem">
           <span>1–3<br>Fair/Poor</span><span style="text-align:center">4–5<br>Good</span><span style="text-align:center">6–7<br>Very Good</span><span style="text-align:right">8–10<br>Exc/Mint</span>
@@ -4447,7 +4458,8 @@ function renderWizardStep() {
           // Condition
           const condDiv = document.createElement('div');
           condDiv.style.cssText = 'margin-bottom:0.65rem';
-          condDiv.innerHTML = `<div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.08em;font-weight:700;margin-bottom:0.4rem">Condition</div>
+          condDiv.innerHTML = `<div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.08em;font-weight:700;margin-bottom:0.4rem">Condition
+            <button type="button" title="What do the numbers mean?" onclick="rrgOpen&&rrgOpen('grading')" style="border:1px solid var(--border);background:none;color:var(--text-dim);border-radius:50%;width:15px;height:15px;line-height:1;font-size:0.66rem;cursor:pointer;padding:0;margin-left:0.2rem">?</button></div>
             <div class="rr-cond-row" style="display:flex;gap:0.3rem;flex-wrap:wrap">
               ${[...Array(10)].map((_,i)=>`<button class="rr-cond-btn" onclick="window._detailCond('${item}',${i+1})" style="flex:1;min-width:28px;height:36px;border-radius:7px;border:1.5px solid ${(comp.condition||0)===i+1?'var(--accent)':'var(--border)'};background:${(comp.condition||0)===i+1?'rgba(232,64,28,0.2)':'var(--surface2)'};font-size:0.82rem;cursor:pointer;color:${(comp.condition||0)===i+1?'var(--accent)':'var(--text-mid)'};font-weight:${(comp.condition||0)===i+1?'700':'400'}">${i+1}</button>`).join('')}
             </div>`;
