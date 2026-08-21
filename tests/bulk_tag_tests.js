@@ -31,7 +31,14 @@ function ok(name, cond, detail) {
 }
 
 // ── the flow, in his order ─────────────────────────────────────
-ok('there is a way in from the list', /rrTagOpen\(\)" title="Put one value on many items/.test(browse));
+// v0.9.1558 (Brad): "move the fill column button to between add and done
+// when edit is selected, change its text to +custom column."
+ok('the way in sits between + Add and Done, in edit mode',
+   /\+ Add<\/button>'[\s\S]{0,700}\+ Custom column<\/button>'[\s\S]{0,400}Done<\/button>'/.test(browse));
+ok('...and it opens straight on naming a new column', /rrTagOpen\(\\'__new\\'\)/.test(browse));
+ok('the loose chip on the Show row is gone', !/Fill a column<\/button>/.test(browse));
+ok('arriving that way preselects the new-column option',
+   /preField === '__new' \? ' selected' : ''/.test(tag) && /if \(preField === '__new' && sel\)/.test(tag));
 ok('step 1 picks the column', /id="rr-tag-field"/.test(tag));
 ok('step 2 asks what goes in it', /What is it\?/.test(tag));
 ok('...and shows values already in use, with counts', /Already in use/.test(tag));

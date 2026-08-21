@@ -110,7 +110,7 @@ function rrTagOpen(preField, preValue, prePair) {
     +   fields.map(function (f) {
           return '<option value="' + f.key + '"' + (preField === f.key ? ' selected' : '') + '>' + f.label + '</option>';
         }).join('')
-    +   '<option value="__new">\uff0b New column\u2026</option>'
+    +   '<option value="__new"' + (preField === '__new' ? ' selected' : '') + '>\uff0b New column\u2026</option>'
     + '</select>'
     + '<div id="rr-tag-newwrap" style="display:none;margin-bottom:0.6rem">'
     +   '<label style="display:block;font-size:0.75rem;color:var(--text-dim);margin-bottom:0.2rem">Name the column</label>'
@@ -144,6 +144,9 @@ function rrTagOpen(preField, preValue, prePair) {
   ov.addEventListener('click', function (e) { if (e.target === ov) ov.remove(); });
   var sel = document.getElementById('rr-tag-field');
   if (sel) sel.addEventListener('change', rrTagShowSeen);
+  // v0.9.1558: arriving from "+ Custom column" — the name box is the point,
+  // so open on it rather than making the user find the option first.
+  if (preField === '__new' && sel) sel.value = '__new';
   var inp = document.getElementById('rr-tag-value');
   if (inp) {
     inp.addEventListener('keydown', function (e) { if (e.key === 'Enter') rrTagNext(); });

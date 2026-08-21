@@ -499,6 +499,12 @@ function _renderCollectionHeader() {
   html += '<th data-col="actions" style="text-align:right;white-space:nowrap">' +
     (_edit
       ? '<button type="button" onclick="_collAddColMenu(event)" style="border:1px solid var(--border);background:var(--surface2);color:var(--text);border-radius:7px;padding:0.15rem 0.5rem;font-size:0.7rem;font-family:var(--font-body);cursor:pointer;margin-right:0.3rem">+ Add</button>' +
+        // v0.9.1558 (Brad): "+ custom column", sitting between Add and Done.
+        // + Add brings back a column you already have; this one MAKES one,
+        // names it, and walks you into filling it in.
+        '<button type="button" onclick="event.stopPropagation();rrTagOpen(\'__new\')" title="Make a column of your own and fill it in" ' +
+        'style="border:1px solid var(--border);background:var(--surface2);color:var(--text);border-radius:7px;' +
+        'padding:0.15rem 0.5rem;font-size:0.7rem;font-family:var(--font-body);cursor:pointer;margin-right:0.3rem">+ Custom column</button>' +
         '<button type="button" onclick="_collColEdit(false)" style="border:none;background:var(--accent);color:var(--on-accent);border-radius:7px;padding:0.15rem 0.6rem;font-size:0.7rem;font-family:var(--font-body);font-weight:700;cursor:pointer">Done</button>'
       : 'Actions <button type="button" title="Edit columns — add, remove, drag to reorder" ' +
         'onclick="event.stopPropagation();_collColEdit(true)" ' +
@@ -4965,18 +4971,11 @@ function renderBrowse() {
       : '';
     bar.innerHTML = _showChips
       // v0.9.1558 (Brad): "get rid of the edit headers button, leave the
-      // pencil icon next to actions." Two doors to the same room, and the
-      // one ON the headers is the one that explains itself — it sits where
-      // the thing being edited is. The chip is gone; the \u270E in the Actions
-      // heading still turns edit mode on, and still reads Done while it runs.
-      // v0.9.1555 (Brad's design): "i would want to have an add column
-      // button… i set the column up to say sub collection… what is the sub
-      // collection, i would say Mint Cars… then it brings up my collection
-      // page where i can check items like the share button."
-      + '<button onclick="rrTagOpen()" title="Put one value on many items at once" style="margin-left:auto;'
-      + 'padding:0.25rem 0.7rem;border-radius:999px;font-size:0.72rem;font-weight:600;cursor:pointer;'
-      + 'font-family:var(--font-body);border:1.5px solid var(--border);color:var(--text-mid);'
-      + 'background:var(--surface2)">\uff0b Fill a column</button>';
+      // pencil icon next to actions", then "move the fill column button to
+      // between add and done when edit is selected." Both controls now live
+      // ON the headings they act upon — see _renderCollectionHeader. This row
+      // is back to being the Show chips and nothing else.
+      ;
   })();
 
   // v0.9.812: load ephemera thumbnails — the eph-thumb span was rendered but
