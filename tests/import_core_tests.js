@@ -290,6 +290,75 @@ ok('675 stays for the prewar/postwar verify (two vintage candidates)',
      !/Google Sheets: File → Download → Microsoft Excel first/.test(ui));
 })();
 
+// v0.9.1548 (Task #40): values that mean blank, and rows that mean many.
+// From a collector-database export a non-tester sent Brad "just to send me
+// an idea": 1,738 rows saying NO SET, 78 rows with a quantity of 2 to 18.
+(function cleanupTest() {
+  // ── the shape of a non-value ────────────────────────────────
+  ok('NO SET is a placeholder', core.rrImpIsPlaceholderValue('NO SET') === 'confident');
+  ok('empty parens are a placeholder', core.rrImpIsPlaceholderValue('( )') === 'confident');
+  ok('N/A and dashes too',
+     core.rrImpIsPlaceholderValue('N/A') === 'confident' && core.rrImpIsPlaceholderValue('--') === 'confident');
+  ok('"None" is AMBIGUOUS, not confident', core.rrImpIsPlaceholderValue('None') === 'ambiguous',
+     'a box condition of None may genuinely mean the box is missing');
+  ok('"0" is ambiguous', core.rrImpIsPlaceholderValue('0') === 'ambiguous');
+  ok('real data is left alone',
+     !core.rrImpIsPlaceholderValue('Excellent') && !core.rrImpIsPlaceholderValue('Rm 107') &&
+     !core.rrImpIsPlaceholderValue('Very Good'),
+     '"Excellent" appears 1,160 times in his sheet and is entirely real');
+
+  // ── found per field, with counts ────────────────────────────
+  const rows = [];
+  for (let i = 0; i < 40; i++) rows.push({ subCollection: 'NO SET', rawGrade: 'Excellent', yourDesc: 'Boxcar ' + i });
+  rows.push({ subCollection: '6464 Box Cars', rawGrade: 'None', yourDesc: 'Tank car' });
+  const cands = core.rrImpPlaceholderCandidates(rows);
+  const noset = cands.filter(c => c.value === 'NO SET')[0];
+  ok('the placeholder is found with its real count', !!noset && noset.count === 40, noset ? noset.count : 'not found');
+  ok('...and named to its own field', !!noset && noset.field === 'subCollection');
+  ok('...with an example the user will recognise', !!noset && /Boxcar/.test(noset.example));
+  ok('a genuine value is never offered', !cands.some(c => c.value === 'Excellent'));
+  ok('a one-off is below the threshold', !cands.some(c => c.value === 'None'), 'minCount 3');
+  ok('the item number column is never touched',
+     !core.rrImpPlaceholderCandidates([{ itemNum: 'NONE' }, { itemNum: 'NONE' }, { itemNum: 'NONE' }]).length,
+     'a number reading NONE is a bad row, not a blank field');
+
+  // ── quantity ────────────────────────────────────────────────
+  ok('a count column is recognised by its header', core.rrImpQuantityHeader(['Item #', 'Quantity', 'Value']) === 'Quantity');
+  ok('...and Qty / Count too',
+     core.rrImpQuantityHeader(['qty']) === 'qty' && core.rrImpQuantityHeader(['Count']) === 'Count');
+  ok('a value column is NOT a count', core.rrImpQuantityHeader(['Value', 'Paid']) === '');
+
+  const qrows = [{ _qty: '1' }, { _qty: '2' }, { _qty: '18' }, { _qty: '172' }, { _qty: 'TOTAL' }];
+  const st = core.rrImpQuantityStats(qrows, '_qty');
+  ok('a stray non-number does not disqualify the column', st.looksLikeCount === true,
+     'his real column contains a TOTAL summary row');
+  ok('...and the counts are right', st.over1 === 3 && st.max === 172, JSON.stringify({ over1: st.over1, max: st.max }));
+
+  const expanded = core.rrImpExpandQuantities(qrows, '_qty', 25);
+  ok('a row of 2 becomes two items', expanded.filter(r => r._copyOf !== undefined && r._copyTotal === 2).length === 2);
+  ok('a row of 18 becomes eighteen', expanded.filter(r => r._copyTotal === 18).length === 18);
+  ok('172 does NOT become 172 rows', expanded.filter(r => r._qtyKept === 172).length === 1,
+     '172 pieces of track is one line in anybody\u2019s collection');
+  ok('...and the count is kept on it', expanded.some(r => r._qtyKept === 172));
+  ok('rows of 1 are untouched', expanded.filter(r => r._qty === '1').length === 1);
+  ok('the total adds up', expanded.length === 1 + 2 + 18 + 1 + 1, expanded.length);
+  const outs = core.rrImpQuantityOutliers(qrows, '_qty', 25);
+  ok('the over-cap rows are named, not silently clamped', outs.length === 1 && outs[0].qty === 172);
+
+  // ── the UI half ─────────────────────────────────────────────
+  const ui = fs.readFileSync(path.join(__dirname, '..', 'app', 'import-ui.js'), 'utf8');
+  ok('there is a cleanup step', /cleanup: _impStepCleanup/.test(ui) && /function _impStepCleanup/.test(ui));
+  ok('...shown only when there is something to ask', /_imp\.step = hasWork \? 'cleanup' : 'triage'/.test(ui));
+  ok('confident placeholders are ticked by default, ambiguous are not',
+     /c\.kind === 'confident'\) _imp\.killPlaceholder\[key\] = true/.test(ui));
+  ok('the decisions are applied at staging, not patched afterwards',
+     /_imp\.killPlaceholder\[k \+ '\|' \+ v\.toLowerCase\(\)\]\) it\[k\] = ''/.test(ui));
+  ok('the count column is carried by ROW LABEL, not array position',
+     /t\._qtyByRow\[String\(r\.rowIdx\)\]/.test(ui),
+     'indexing by rowIdx would pair a count with the wrong item');
+  ok('choosing Next re-stages so triage tells the truth', /function _impCleanupNext[\s\S]{0,400}_impStage\(\)/.test(ui));
+})();
+
 (function nearMissTest() {
   const v = core.rrImpNumberVariants('1666 T');
   ok('a space before the letter is a spelling, not a number', v.indexOf('1666T') >= 0, v.join(' '));

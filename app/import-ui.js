@@ -51,6 +51,10 @@ function rrImportOpen() {
     tabSubType: {},
     autoResolved: null,  // v0.9.1533: {byDescription, byVariation}
     eraSettled: null,    // v0.9.1533: {postwar, prewar, asked} from the era check
+    killPlaceholder: {}, // v0.9.1548: "field|value" the user says means blank
+    qtyKey: '',          // the mapped field holding a count, if any
+    qtyMode: '',         // '' (undecided) | 'expand' | 'keep' | 'ignore'
+    placeholders: [],
     nearMissPicks: {},   // v0.9.1538: number → 'mine' | 'c<index>'
     nearMissResolved: null,
     ambigPicks: {},      // v0.9.1531: groupKey → 'mine' | 'c<index>'
@@ -149,7 +153,7 @@ function _impRender() {
   var fn = {
     entry: _impStepEntry, consent: _impStepConsent, mapping: _impStepMapping,
     tabfacts: _impStepTabFacts, catalog: _impStepCatalog,
-    interview: _impStepInterview, grades: _impStepGrades, triage: _impStepTriage,
+    interview: _impStepInterview, grades: _impStepGrades, cleanup: _impStepCleanup, triage: _impStepTriage,
     prices: _impStepPrices, eracheck: _impStepEraCheck, ambig: _impStepAmbig, nearmiss: _impStepNearMiss, preview: _impStepPreview, writing: _impStepWriting,
     done: _impStepDone,
   }[_imp.step];
@@ -1165,14 +1169,53 @@ function _impStage() {
   var staged = [];
   var skippedSummary = 0;
   var _yearsByTab = {};      // v0.9.1530: tab → years filled from descriptions
+  // v0.9.1548: a quantity column is not one of our fields, so the mapper
+  // drops it — and with it the fact that a row means five items. Find it by
+  // header and carry the raw value onto the item as _qty, keyed by source
+  // row so it cannot be mismatched.
+  _imp.qtyKey = '';
+  live.forEach(function (t) {
+    try {
+      var qh = rrImpQuantityHeader(t.headers || []);
+      if (!qh) return;
+      var qi = -1;
+      (t.headers || []).forEach(function (h, i) { if (h === qh) qi = i; });
+      if (qi < 0) return;
+      t._qtyCol = qi;
+      // rowIdx is the row's own label (its place in the sheet), NOT its
+      // position in this array — indexing by it would pair a count with the
+      // wrong item. Look it up properly.
+      t._qtyByRow = {};
+      (t.rows || []).forEach(function (r) {
+        if (!r || !r.cells) return;
+        t._qtyByRow[String(r.rowIdx)] = rrImpNormCell(r.cells[qi]);
+      });
+      _imp.qtyKey = '_qty';
+    } catch (eQH) {}
+  });
   live.forEach(function (t) {
     var cls = _imp.tabClass[t.name] || 'trains';
     rrImpApplyMapping(t, _imp.mappings[t.name] || {}).forEach(function (it) {
+      if (t._qtyByRow) {
+        var _q = t._qtyByRow[String(it.srcRow)];
+        if (_q) it._qty = _q;
+      }
       // v0.9.1509: Scott's per-tab "Total:" rows imported as items and added
       // $372k of fake value. Summary rows are dropped and COUNTED (shown on
       // the triage screen — never silent).
       if (rrImpIsSummaryItem(it)) { skippedSummary++; return; }
       it.tabClass = cls;
+      // v0.9.1548 (Task #40): values that mean blank. A sheet can carry
+      // "NO SET" on 1,738 rows, "( )" for an unrecorded code, "None" for a
+      // condition — all meaning empty. Only the ones the user confirmed on
+      // the cleanup screen are cleared, and only in the field they appeared.
+      if (_imp.killPlaceholder) {
+        Object.keys(it).forEach(function (k) {
+          var v = rrImpNormCell(it[k]);
+          if (!v) return;
+          if (_imp.killPlaceholder[k + '|' + v.toLowerCase()]) it[k] = '';
+        });
+      }
       // v0.9.1509 (Brad: "the date is in the title"): a single plausible year
       // in their description becomes Year Made when no Year column exists —
       // 395 of Scott's items get an era from this one rule.
@@ -1192,6 +1235,12 @@ function _impStage() {
   });
   _imp.skippedSummary = skippedSummary;
   _imp.yearsByTab = _yearsByTab;
+  // v0.9.1548: one row of quantity 5 becomes five items, when the user says
+  // so. Rows above the cap stay as ONE item carrying the count — 172 pieces
+  // of track is a real answer, and 172 rows is not what anyone wants.
+  if (_imp.qtyMode === 'expand' && _imp.qtyKey) {
+    try { staged = rrImpExpandQuantities(staged, _imp.qtyKey, 25); } catch (eQty) {}
+  }
   _imp.staged = staged;
   _imp.gradeTable = _impBuildGradeTable(staged);
   var lookups = {
@@ -1299,7 +1348,7 @@ function _impBuildGradeTable(staged) {
 
 // ── Step: grade conversion table ────────────────────────────────
 function _impStepGrades() {
-  if (!_imp.gradeTable.length) { _imp.step = 'triage'; _impRender(); return; }
+  if (!_imp.gradeTable.length) { _impAfterGrades(); return; }
   var html = '<div class="imp-h">Your grades → app condition (1–10)</div>' +
     '<div class="imp-muted" style="margin-bottom:0.5rem">Your original grade is kept on every item exactly as you wrote it. ' +
     'This table just adds our 1–10 condition beside it — set it once, we remember it for future adds.</div>';
@@ -1324,6 +1373,110 @@ function _impGradesNext() {
   try { saved = JSON.parse(_prefGet(_IMP_GRADE_PREF, '{}')); } catch (e) {}
   _imp.gradeTable.forEach(function (g) { saved[g.raw] = g.condition; });
   try { _prefSet(_IMP_GRADE_PREF, JSON.stringify(saved)); } catch (e) {}
+  _impAfterGrades();
+}
+// v0.9.1548: the cleanup screen only exists when there is something to ask.
+function _impAfterGrades() {
+  var hasWork = false;
+  try {
+    _imp.placeholders = rrImpPlaceholderCandidates(_imp.staged || []);
+    hasWork = (_imp.placeholders || []).length > 0 || (_impQtyInfo() && _impQtyInfo().looksLikeCount);
+  } catch (e) { hasWork = false; }
+  _imp.step = hasWork ? 'cleanup' : 'triage';
+  _impRender();
+}
+
+// ── Step: values that mean blank, and rows that mean many ───────
+// v0.9.1548 (Task #40). Both questions come from a collector-database export
+// a non-tester sent Brad as "another way a user thinks": 1,738 rows saying
+// NO SET, and 78 rows whose quantity column says 2 to 18.
+//
+// Neither is guessed at. Both are shown with their real counts and a real
+// example, and both default to the SAFE answer — the one that cannot lose
+// data or invent it.
+function _impQtyInfo() {
+  try {
+    if (!_imp.qtyKey) return null;
+    return rrImpQuantityStats(_imp.staged || [], _imp.qtyKey);
+  } catch (e) { return null; }
+}
+function _impKillToggle(key, on) {
+  if (on) _imp.killPlaceholder[key] = true;
+  else delete _imp.killPlaceholder[key];
+}
+function _impQtySet(mode) {
+  _imp.qtyMode = mode;
+  _impRender();
+}
+function _impStepCleanup() {
+  var cands = _imp.placeholders || [];
+  var qi = _impQtyInfo();
+  var html = '<div class="imp-h">A couple of things to check.</div>';
+
+  if (cands.length) {
+    html += '<div class="imp-card"><strong>Some values look like they mean \u201Cnothing\u201D.</strong>' +
+      '<div class="imp-muted" style="margin-top:0.2rem;font-size:0.78rem">Sheets often use a word instead of an empty cell. ' +
+      'Ticked ones are stored as blank; unticked ones are kept exactly as written. ' +
+      'We only ask about columns you chose to import.</div>';
+    cands.slice(0, 12).forEach(function (c) {
+      var key = c.field + '|' + String(c.value).toLowerCase();
+      if (_imp.killPlaceholder[key] === undefined && c.kind === 'confident') _imp.killPlaceholder[key] = true;
+      var on = !!_imp.killPlaceholder[key];
+      var id = 'ph-' + key.replace(/[^A-Za-z0-9]/g, '');
+      html += '<div style="display:flex;gap:0.5rem;align-items:flex-start;margin-top:0.45rem">' +
+        '<input type="checkbox" id="' + id + '"' + (on ? ' checked' : '') +
+        ' onchange="_impKillToggle(' + JSON.stringify(key).replace(/"/g, '&quot;') + ',this.checked)" style="margin-top:0.2rem">' +
+        '<label for="' + id + '" style="flex:1;cursor:pointer;font-size:0.8rem">' +
+        '<strong>' + _impEsc(c.value) + '</strong> in <strong>' + _impEsc(_impFieldLabel(c.field) || c.field) + '</strong> ' +
+        '<span class="imp-muted">\u00d7' + c.count.toLocaleString() + '</span>' +
+        (c.kind === 'ambiguous' ? '<div class="imp-muted" style="font-size:0.72rem">This one can be real \u2014 ' +
+          '\u201CNone\u201D might genuinely mean there is no box. Left unticked unless you say otherwise.</div>' : '') +
+        (c.example ? '<div class="imp-muted" style="font-size:0.72rem">e.g. ' + _impEsc(c.example) + '</div>' : '') +
+        '</label></div>';
+    });
+    if (cands.length > 12) {
+      html += '<div class="imp-muted" style="font-size:0.75rem;margin-top:0.4rem">' +
+        (cands.length - 12) + ' more like this are left exactly as written.</div>';
+    }
+    html += '</div>';
+  }
+
+  if (qi && qi.looksLikeCount) {
+    var outs = [];
+    try { outs = rrImpQuantityOutliers(_imp.staged || [], _imp.qtyKey, 25); } catch (eO) {}
+    if (!_imp.qtyMode) _imp.qtyMode = 'expand';
+    html += '<div class="imp-card"><strong>' + qi.over1.toLocaleString() +
+      ' rows say you own more than one.</strong> <span class="imp-muted">(up to ' + qi.max.toLocaleString() +
+      ' on a single row)</span>' +
+      '<div class="imp-muted" style="margin-top:0.2rem;font-size:0.78rem">Each copy is its own item here \u2014 ' +
+      'its own condition, location and photo \u2014 so we can create them for you.</div>' +
+      '<label style="display:flex;gap:0.5rem;align-items:flex-start;margin-top:0.45rem;cursor:pointer;font-size:0.8rem">' +
+      '<input type="radio" name="imp-qty" ' + (_imp.qtyMode === 'expand' ? 'checked' : '') +
+      ' onchange="_impQtySet(\'expand\')" style="margin-top:0.2rem">' +
+      '<span>Create that many items <span class="imp-muted">\u2014 adds about ' +
+      Math.min(qi.extra, 99999).toLocaleString() + ' more rows</span></span></label>' +
+      '<label style="display:flex;gap:0.5rem;align-items:flex-start;margin-top:0.3rem;cursor:pointer;font-size:0.8rem">' +
+      '<input type="radio" name="imp-qty" ' + (_imp.qtyMode === 'keep' ? 'checked' : '') +
+      ' onchange="_impQtySet(\'keep\')" style="margin-top:0.2rem">' +
+      '<span>One row each, keeping the number <span class="imp-muted">\u2014 nothing is created, the count stays on the item</span></span></label>';
+    if (outs.length) {
+      html += '<div class="imp-muted" style="font-size:0.74rem;margin-top:0.4rem">' +
+        outs.length + ' row' + (outs.length === 1 ? '' : 's') + ' ask' + (outs.length === 1 ? 's' : '') +
+        ' for more than 25 copies (' + outs.slice(0, 3).map(function (o) { return o.qty.toLocaleString(); }).join(', ') +
+        (outs.length > 3 ? '\u2026' : '') + '). Those come in as one item with the count kept, either way \u2014 ' +
+        '172 pieces of track should not become 172 rows.</div>';
+    }
+    html += '</div>';
+  }
+
+  html += '<div class="imp-foot"><button class="imp-btn" onclick="_imp.step=\'grades\';_impRender()">\u2190 Back</button>' +
+    '<button class="imp-btn primary" onclick="_impCleanupNext()">Next \u2192</button></div>';
+  _impBody().innerHTML = html;
+}
+function _impCleanupNext() {
+  // Re-stage so the decisions above are applied at the source, then triage
+  // reflects them. Staging is the one place that builds items from the sheet.
+  _impStage();
   _imp.step = 'triage';
   _impRender();
 }

@@ -560,6 +560,148 @@ function rrImpNumberVariants(num) {
   return Object.keys(out);
 }
 
+// ── Values that mean "empty" ────────────────────────────────────
+// v0.9.1548 (Task #40, from the collector-database export in Task #39).
+// His sheet says NO SET on 1,738 rows, "None" for a condition, "( )" for an
+// unrecorded variation code. Every one of those means BLANK. Imported
+// literally, he gets a group called "NO SET" holding most of his collection.
+//
+// Frequency alone cannot decide this: "Excellent" appears 1,160 times in his
+// condition column and is entirely real. So we do NOT guess from counts — we
+// recognise the SHAPE of a non-value, then show the user what we found with
+// its count and let them confirm. Two confidence levels, because they are
+// genuinely different:
+//   CONFIDENT — punctuation and standard nothing-words: "( )", "--", "N/A",
+//     "NO SET". Nobody names a group "N/A". Ticked by default.
+//   AMBIGUOUS — "None", "0", "N". These can be real: a box condition of
+//     "None" may mean the box is missing, which is a fact worth keeping.
+//     Shown and counted, but NOT ticked. The user decides.
+var _RR_EMPTY_CONFIDENT = /^(n\/a|n\.a\.|na|nil|null|nan|unknown|unspecified|tbd|none given|not recorded|no\s+\w+|-{1,3}|—|–|\.|\?+|\(\s*\)|\(\s*[-.]?\s*\)|\[\s*\]|#n\/a|#value!|blank|empty)$/i;
+var _RR_EMPTY_AMBIGUOUS = /^(none|no|n|0|0\.0+|\(\s*0*\s*\)|unk|misc|other|various)$/i;
+
+function rrImpIsPlaceholderValue(v) {
+  var s = rrImpNormCell(v);
+  if (!s) return '';
+  if (_RR_EMPTY_CONFIDENT.test(s)) return 'confident';
+  if (_RR_EMPTY_AMBIGUOUS.test(s)) return 'ambiguous';
+  return '';
+}
+
+// Look across the staged rows and report every placeholder-shaped value, per
+// field, with how often it occurs and a real example. Only fields the user
+// actually mapped are considered — we ask only about data that is going
+// somewhere.
+function rrImpPlaceholderCandidates(items, opts) {
+  var o = opts || {};
+  var minCount = o.minCount || 3;
+  var skip = { itemNum: 1, srcTab: 1, srcRow: 1, fillSig: 1, fillRgb: 1, tabClass: 1 };
+  var byField = {};
+  (items || []).forEach(function (it) {
+    Object.keys(it || {}).forEach(function (k) {
+      if (skip[k]) return;
+      var v = rrImpNormCell(it[k]);
+      if (!v) return;
+      var kind = rrImpIsPlaceholderValue(v);
+      if (!kind) return;
+      var key = k + ' ' + v.toLowerCase();
+      if (!byField[key]) byField[key] = { field: k, value: v, kind: kind, count: 0, example: '' };
+      byField[key].count++;
+      if (!byField[key].example) {
+        byField[key].example = rrImpNormCell(it.yourDesc || it.description || it.itemNum || '').slice(0, 60);
+      }
+    });
+  });
+  return Object.keys(byField).map(function (k) { return byField[k]; })
+    .filter(function (c) { return c.count >= minCount; })
+    .sort(function (a, b) { return b.count - a.count; });
+}
+
+// ── Quantity: one row that means many items ─────────────────────
+// v0.9.1548. 78 of his rows carry 2-18 in a quantity column. Importing that
+// as one item loses seventeen of them silently — the exact failure this
+// session has spent the day removing everywhere else.
+function rrImpQuantityHeader(headers) {
+  var list = headers || [];
+  for (var i = 0; i < list.length; i++) {
+    var h = rrImpNormCell(list[i]).toLowerCase();
+    if (!h) continue;
+    if (/^(qty|quantity|count|how many|# ?owned|number owned|copies)$/.test(h)) return list[i];
+  }
+  return '';
+}
+// Only offer to expand when the column really is a count: whole numbers,
+// none enormous, and at least one greater than 1.
+function rrImpQuantityStats(items, key) {
+  var n = 0, over1 = 0, max = 0, zero = 0, bad = 0, total = 0;
+  (items || []).forEach(function (it) {
+    var raw = rrImpNormCell(it[key]);
+    if (!raw) return;
+    n++;
+    if (!/^\d{1,4}$/.test(raw)) { bad++; return; }
+    var v = parseInt(raw, 10);
+    if (v === 0) zero++;
+    if (v > 1) { over1++; total += (v - 1); }
+    if (v > max) max = v;
+  });
+  return { rows: n, over1: over1, extra: total, max: max, zero: zero, bad: bad,
+           // v0.9.1548: measured against the real column, which contains
+           // 1,966 ones, a "TOTAL" summary row, a 999 meaning "lots", and a
+           // genuine 172 and 192 (track sections — a collector really does
+           // own 172 pieces of track). So: tolerate a stray non-number
+           // rather than demand perfection, and never judge on the maximum —
+           // the outliers are handled by the cap, not by refusing the column.
+           // One stray is forgivable at any size (his 2,060-row column has a
+           // single "TOTAL"); beyond that, judge by proportion.
+           looksLikeCount: n > 0 && over1 > 0 && (bad <= 1 || (bad / n) <= 0.02) };
+}
+// Rows asking for more copies than the cap. Shown to the user by name, not
+// quietly clamped: 172 pieces of track is a real answer, and turning it into
+// 25 without saying so is the silent-loss failure in a new coat.
+function rrImpQuantityOutliers(items, key, cap) {
+  var lim = cap || 25;
+  var out = [];
+  (items || []).forEach(function (it) {
+    var raw = rrImpNormCell(it[key]);
+    if (!/^\d{1,4}$/.test(raw)) return;
+    var v = parseInt(raw, 10);
+    if (v > lim) {
+      out.push({ itemNum: rrImpNormCell(it.itemNum), qty: v,
+                 desc: rrImpNormCell(it.yourDesc || it.description || '').slice(0, 50) });
+    }
+  });
+  return out.sort(function (a, b) { return b.qty - a.qty; });
+}
+// Turn one row of quantity N into N rows. Copies are physically separate
+// items — the same collector's sheet proves it: 394 of his numbers already
+// repeat as separate rows for exactly that reason.
+function rrImpExpandQuantities(items, key, cap) {
+  var lim = cap || 25;
+  var out = [];
+  (items || []).forEach(function (it) {
+    var raw = rrImpNormCell(it[key]);
+    var v = /^\d{1,4}$/.test(raw) ? parseInt(raw, 10) : 1;
+    if (!(v > 1)) { out.push(it); return; }
+    // Over the cap: ONE row, with the count kept on it. Never 172 silent
+    // copies, and never a silent 25 either.
+    if (v > lim) {
+      var single = {};
+      Object.keys(it).forEach(function (k) { single[k] = it[k]; });
+      single._qtyKept = v;
+      out.push(single);
+      return;
+    }
+    for (var i = 0; i < v; i++) {
+      var copy = {};
+      Object.keys(it).forEach(function (k) { copy[k] = it[k]; });
+      copy._copyOf = rrImpNormCell(it.itemNum);
+      copy._copyIndex = i + 1;
+      copy._copyTotal = v;
+      out.push(copy);
+    }
+  });
+  return out;
+}
+
 // ── Money / number cleanup ──────────────────────────────────────
 function rrImpCleanMoney(v) {
   var s = rrImpNormCell(v).replace(/[$,\s]/g, '');
@@ -922,6 +1064,12 @@ var RR_IMPORT_CORE = {
   rrImpCopyCounterEvidence: rrImpCopyCounterEvidence,
   rrImpBuildAiPayload: rrImpBuildAiPayload,
   rrImpValidateAiAnswer: rrImpValidateAiAnswer,
+  rrImpIsPlaceholderValue: rrImpIsPlaceholderValue,
+  rrImpPlaceholderCandidates: rrImpPlaceholderCandidates,
+  rrImpQuantityHeader: rrImpQuantityHeader,
+  rrImpQuantityStats: rrImpQuantityStats,
+  rrImpQuantityOutliers: rrImpQuantityOutliers,
+  rrImpExpandQuantities: rrImpExpandQuantities,
   rrImpNumberVariants: rrImpNumberVariants,
   rrImpScoreCandidate: rrImpScoreCandidate,
   rrImpPickByDescription: rrImpPickByDescription,
