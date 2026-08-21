@@ -1071,7 +1071,12 @@ function _impStepTriage() {
   if (t.ambiguous.length) {
     html += '<div class="imp-card">⚠ <strong>' + t.ambiguous.length.toLocaleString() +
       '</strong> match more than one catalog item (same number, different eras). ' +
-      '<span class="imp-muted">These are NOT imported this round — the chooser for them arrives in the next update, and re-running the import later will pick them up without duplicating anything already imported.</span></div>';
+      // v0.9.1525 (Brad): the old wording here promised that re-running the
+      // import later would pick these up "without duplicating anything already
+      // imported". There is no dedupe and none is planned — the supported loop
+      // is Remove this import, then import the sheet again. A tester who
+      // believed the old line would have ended up with the whole sheet twice.
+      '<span class="imp-muted">These are held back this round — the chooser for them arrives in a coming update. To bring them in then, remove this import from Preferences and run the sheet again. (Importing the same sheet twice without removing it first WILL create duplicates.)</span></div>';
   }
   if (redCount) {
     html += '<div class="imp-card"><span class="imp-badge sale">FOR SALE</span> <strong>' + redCount.toLocaleString() +
