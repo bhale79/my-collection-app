@@ -49,6 +49,8 @@ function rrImportOpen() {
     tabMaker: {},          // tabName → confirmed maker ('' = per-row / unknown)
     tabYearMeans: {},      // tabName → true when a year in the description IS the item's year
     tabSubType: {},
+    ambigPicks: {},      // v0.9.1531: groupKey → 'mine' | 'c<index>'
+    ambigResolved: null,
     yearsByTab: {},      // v0.9.1530: tab → years filled from descriptions
     unmatchedTabs: [],   // v0.9.1529: tabs where nothing matched the catalog
     tabClassLocked: {},  // v0.9.1529: tabs the user has answered for
@@ -144,7 +146,7 @@ function _impRender() {
     entry: _impStepEntry, consent: _impStepConsent, mapping: _impStepMapping,
     tabfacts: _impStepTabFacts, catalog: _impStepCatalog,
     interview: _impStepInterview, grades: _impStepGrades, triage: _impStepTriage,
-    prices: _impStepPrices, eracheck: _impStepEraCheck, preview: _impStepPreview, writing: _impStepWriting,
+    prices: _impStepPrices, eracheck: _impStepEraCheck, ambig: _impStepAmbig, preview: _impStepPreview, writing: _impStepWriting,
     done: _impStepDone,
   }[_imp.step];
   if (fn) fn();
@@ -1364,7 +1366,10 @@ function _impStepTriage() {
       // imported". There is no dedupe and none is planned — the supported loop
       // is Remove this import, then import the sheet again. A tester who
       // believed the old line would have ended up with the whole sheet twice.
-      '<span class="imp-muted">These are held back this round — the chooser for them arrives in a coming update. To bring them in then, remove this import from Preferences and run the sheet again. (Importing the same sheet twice without removing it first WILL create duplicates.)</span></div>';
+      // v0.9.1531: they are no longer held back. The picker two screens on
+      // shows the candidates side by side, and anything not picked is
+      // imported as the user's own entry — nothing is dropped.
+      '<span class="imp-muted">You\u2019ll choose which one on a screen coming up \u2014 and anything you don\u2019t pick still comes in, kept exactly as you wrote it.</span></div>';
   }
   if (redCount) {
     html += '<div class="imp-card"><span class="imp-badge sale">FOR SALE</span> <strong>' + redCount.toLocaleString() +
@@ -1398,7 +1403,7 @@ function _impVintageGroup() {
 // that aren't".
 function _impStepEraCheck() {
   var group = _impVintageGroup();
-  if (!group.length) { _imp.step = 'preview'; _impRender(); return; }
+  if (!group.length) { _impAfterEraCheck(); return; }
   if (!_imp.prewarPicks) _imp.prewarPicks = {};
   var html = '<div class="imp-h">' + group.length.toLocaleString() +
     ' Lionel items are prewar or postwar — which is it?</div>' +
@@ -1434,10 +1439,152 @@ function _impApplyEraCheck() {
     if (pick) _imp.triage.matched.push({ item: a.item, master: pick, matchedVia: 'era-verified' });
     else stillAmbiguous.push(a);
   });
-  // Anything we could not resolve stays held back, as before.
+  // Anything we could not resolve goes to the picker, which now always
+  // ends with an import — never a silent drop (v0.9.1531).
   _imp.triage.ambiguous = (_imp.triage.ambiguous || []).filter(function (a) {
     return a.eraChoice !== 'vintage' || stillAmbiguous.indexOf(a) >= 0;
   });
+  _impAfterEraCheck();
+}
+function _impAfterEraCheck() {
+  _imp.step = (_imp.triage.ambiguous || []).length ? 'ambig' : 'preview';
+  _impRender();
+}
+
+// ── Step: which one is it? (the ambiguous picker) ───────────────
+// v0.9.1531 (Brad chose this next). Some numbers exist in more than one era —
+// Lionel reuses them, and 1776 is a Postwar boxcar AND a Modern U36B. Until
+// now those rows were held back and NOT IMPORTED: on his (40) run that was
+// 106 rows across 92 numbers, absent from his collection with only a line on
+// a summary screen to say so. Silently losing a man's items is the worst
+// outcome available, so the default here is HIS row, kept exactly as written,
+// and every path off this screen imports everything.
+function _impAmbigGroups() {
+  var byNum = {};
+  (_imp.triage.ambiguous || []).forEach(function (a) {
+    var num = rrImpNormCell(a.item.itemNum);
+    var key = num + '|' + String(a.item.manufacturer || '').toLowerCase();
+    if (!byNum[key]) byNum[key] = { key: key, num: num, items: [], candidates: a.candidates || [] };
+    byNum[key].items.push(a);
+    // Union the candidates: two rows with the same number can arrive with
+    // slightly different candidate lists when their maker hints differ.
+    (a.candidates || []).forEach(function (c) {
+      if (byNum[key].candidates.indexOf(c) < 0) byNum[key].candidates.push(c);
+    });
+  });
+  return Object.keys(byNum).map(function (k) { return byNum[k]; });
+}
+function _impEraLabel(id) {
+  try {
+    if (typeof ERAS !== 'undefined' && ERAS[id] && ERAS[id].label) return ERAS[id].label;
+  } catch (e) {}
+  return id || 'Catalog';
+}
+function _impCandLine(m) {
+  var bits = [];
+  if (m.roadName) bits.push(m.roadName);
+  if (m.description) bits.push(m.description);
+  if (!bits.length && m.itemType) bits.push(m.itemType);
+  var line = bits.join(' — ');
+  return line.length > 90 ? line.slice(0, 88) + '…' : line;
+}
+function _impAmbigPick(key, val) {
+  _imp.ambigPicks[key] = val;
+}
+// Bulk: every group that HAS a candidate from this era takes it. Groups
+// without one are left alone rather than forced to something wrong.
+function _impAmbigPickAll(era) {
+  _impAmbigGroups().forEach(function (g) {
+    for (var i = 0; i < g.candidates.length; i++) {
+      if (String(g.candidates[i]._era || '') === era) { _imp.ambigPicks[g.key] = 'c' + i; return; }
+    }
+  });
+  _impRender();
+}
+function _impAmbigKeepAll() {
+  _impAmbigGroups().forEach(function (g) { _imp.ambigPicks[g.key] = 'mine'; });
+  _impRender();
+}
+function _impStepAmbig() {
+  var groups = _impAmbigGroups();
+  if (!groups.length) { _imp.step = 'preview'; _impRender(); return; }
+  var rowCount = groups.reduce(function (n, g) { return n + g.items.length; }, 0);
+  // Which eras are on offer across the whole screen — the bulk chips.
+  var eraCount = {};
+  groups.forEach(function (g) {
+    var seen = {};
+    g.candidates.forEach(function (c) {
+      var e = String(c._era || '');
+      if (!e || seen[e]) return;
+      seen[e] = 1; eraCount[e] = (eraCount[e] || 0) + 1;
+    });
+  });
+  var eras = Object.keys(eraCount).sort(function (a, b) { return eraCount[b] - eraCount[a]; });
+
+  var html = '<div class="imp-h">' + groups.length.toLocaleString() +
+    ' numbers exist in more than one era — which is yours?</div>' +
+    '<div class="imp-muted" style="margin-bottom:0.5rem">Lionel reuses numbers, so the same digits can be a ' +
+    'Postwar car and a Modern one. <strong>Nothing here is skipped:</strong> anything you don’t pick comes ' +
+    'in as your own entry, exactly as you wrote it, and you can fix it later.</div>';
+
+  if (eras.length) {
+    html += '<div class="imp-row" style="flex-wrap:wrap;gap:0.35rem;margin-bottom:0.5rem">' +
+      '<span class="imp-muted" style="align-self:center">All of them:</span>';
+    eras.forEach(function (e) {
+      html += '<button class="imp-btn" style="padding:0.25rem 0.6rem;font-size:0.78rem" ' +
+        'onclick="_impAmbigPickAll(' + JSON.stringify(e).replace(/"/g, '&quot;') + ')">' +
+        _impEsc(_impEraLabel(e)) + ' <span class="imp-muted">(' + eraCount[e] + ')</span></button>';
+    });
+    html += '<button class="imp-btn" style="padding:0.25rem 0.6rem;font-size:0.78rem" ' +
+      'onclick="_impAmbigKeepAll()">Keep my own entries</button></div>';
+  }
+
+  html += '<div class="imp-card" style="max-height:24rem;overflow:auto">';
+  groups.forEach(function (g) {
+    var pick = _imp.ambigPicks[g.key] || 'mine';
+    var mine = g.items[0].item;
+    html += '<div style="padding:0.45rem 0;border-bottom:1px solid var(--border,#444)">' +
+      '<div style="font-weight:600;font-size:0.85rem">' + _impEsc(g.num) +
+      (g.items.length > 1 ? ' <span class="imp-muted">×' + g.items.length + ' rows</span>' : '') + '</div>' +
+      '<div class="imp-muted" style="font-size:0.76rem;margin-bottom:0.25rem">Your row: ' +
+      _impEsc((mine.yourDesc || mine.description || '').slice(0, 90)) + '</div>';
+    g.candidates.forEach(function (c, i) {
+      var id = 'amb-' + g.key.replace(/[^A-Za-z0-9]/g, '') + '-' + i;
+      html += '<label for="' + id + '" style="display:flex;gap:0.45rem;align-items:flex-start;cursor:pointer;padding:0.15rem 0">' +
+        '<input type="radio" id="' + id + '" name="amb-' + g.key.replace(/[^A-Za-z0-9]/g, '') + '"' +
+        (pick === ('c' + i) ? ' checked' : '') +
+        ' onchange="_impAmbigPick(' + JSON.stringify(g.key).replace(/"/g, '&quot;') + ',\'c' + i + '\')" style="margin-top:0.2rem">' +
+        '<span style="flex:1;font-size:0.78rem"><strong>' + _impEsc(_impEraLabel(c._era)) + '</strong> ' +
+        '<span class="imp-muted">' + _impEsc(_impCandLine(c)) + '</span></span></label>';
+    });
+    var mid = 'amb-' + g.key.replace(/[^A-Za-z0-9]/g, '') + '-mine';
+    html += '<label for="' + mid + '" style="display:flex;gap:0.45rem;align-items:flex-start;cursor:pointer;padding:0.15rem 0">' +
+      '<input type="radio" id="' + mid + '" name="amb-' + g.key.replace(/[^A-Za-z0-9]/g, '') + '"' +
+      (pick === 'mine' ? ' checked' : '') +
+      ' onchange="_impAmbigPick(' + JSON.stringify(g.key).replace(/"/g, '&quot;') + ',\'mine\')" style="margin-top:0.2rem">' +
+      '<span style="flex:1;font-size:0.78rem">None of these — <span class="imp-muted">keep my entry as I wrote it</span></span></label>' +
+      '</div>';
+  });
+  html += '</div>';
+  html += '<div class="imp-muted" style="font-size:0.75rem;margin-top:0.4rem">' + rowCount.toLocaleString() +
+    ' rows in total. Every one of them is imported either way.</div>';
+  html += '<div class="imp-foot"><button class="imp-btn" onclick="_imp.step=\'triage\';_impRender()">← Back</button>' +
+    '<button class="imp-btn primary" onclick="_impApplyAmbig()">Next →</button></div>';
+  _impBody().innerHTML = html;
+}
+function _impApplyAmbig() {
+  var groups = _impAmbigGroups();
+  var picked = 0, kept = 0;
+  groups.forEach(function (g) {
+    var pick = _imp.ambigPicks[g.key] || 'mine';
+    var cand = (pick !== 'mine') ? g.candidates[parseInt(String(pick).slice(1), 10)] : null;
+    g.items.forEach(function (a) {
+      if (cand) { _imp.triage.matched.push({ item: a.item, master: cand, matchedVia: 'user-picked' }); picked++; }
+      else { _imp.triage.unmatched.push({ item: a.item, didYouMean: [] }); kept++; }
+    });
+  });
+  _imp.ambigResolved = { picked: picked, kept: kept };
+  _imp.triage.ambiguous = [];
   _imp.step = 'preview';
   _impRender();
 }
@@ -1694,8 +1841,10 @@ function _impStepDone() {
     '<div class="imp-h">✓ Imported ' + _imp.written.toLocaleString() + ' items.</div>' +
     (_imp.writtenForSale ? '<div class="imp-card"><span class="imp-badge sale">FOR SALE</span> ' + _imp.writtenForSale.toLocaleString() +
       ' of them are on your For Sale list' + (_imp.priceWhen === 'later' ? ' waiting for asking prices' : '') + '.</div>' : '') +
-    (_imp.triage.ambiguous.length ? '<div class="imp-muted">' + _imp.triage.ambiguous.length +
-      ' items with multiple catalog matches were held back for the next update.</div>' : '') +
+    (_imp.ambigResolved && (_imp.ambigResolved.picked || _imp.ambigResolved.kept)
+      ? '<div class="imp-muted">Of the items whose number exists in more than one era, ' +
+        _imp.ambigResolved.picked.toLocaleString() + ' took the catalog entry you picked and ' +
+        _imp.ambigResolved.kept.toLocaleString() + ' kept your own wording.</div>' : '') +
     '<div class="imp-card"><strong>Changed your mind?</strong><div class="imp-muted">One tap removes everything this import added — nothing else is touched.</div>' +
     '<button class="imp-btn" style="margin-top:0.4rem" onclick="rrImportUndo(\'' + _imp.batchId + '\',this)">Remove this import</button></div>' +
     '<div class="imp-foot"><span></span><button class="imp-btn primary" onclick="rrImportClose();if(typeof showPage===\'function\')showPage(\'browse\')">Done — see my collection</button></div>';

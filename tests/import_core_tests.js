@@ -251,6 +251,65 @@ ok('675 stays for the prewar/postwar verify (two vintage candidates)',
 // default was assigned inside the tab-questions screen — a tab whose question
 // never rendered kept `undefined`, which reads as "no". 437 years available,
 // 27 written. The default now lives with the rule.
+// v0.9.1531: the ambiguous picker. Before it, a number that exists in two
+// eras (Lionel reuses them — 1776 is a Postwar boxcar AND a Modern U36B) was
+// held back and never imported: 106 of Brad's rows simply weren't there.
+// The rule this locks down is that EVERY row leaves this screen imported.
+(function ambiguousPickerTest() {
+  const uiPath = path.join(__dirname, '..', 'app', 'import-ui.js');
+  const ui = fs.readFileSync(uiPath, 'utf8');
+
+  ok('the picker is a real step', /ambig: _impStepAmbig/.test(ui) && /function _impStepAmbig/.test(ui));
+  ok('the era check routes into it', /function _impAfterEraCheck[\s\S]{0,200}'ambig' : 'preview'/.test(ui));
+  ok('keeping your own row is the default', /_imp\.ambigPicks\[g\.key\] \|\| 'mine'/.test(ui));
+  ok('bulk pick by era exists', /function _impAmbigPickAll/.test(ui));
+  ok('triage no longer claims they are held back', !/held back this round/.test(ui));
+
+  // The logic itself, lifted out of the file and run.
+  function grab(name) {
+    const i = ui.indexOf('function ' + name);
+    let d = 0, j = ui.indexOf('{', i);
+    for (let k = j; k < ui.length; k++) {
+      if (ui[k] === '{') d++; else if (ui[k] === '}') { d--; if (!d) return ui.slice(i, k + 1); }
+    }
+  }
+  global.rrImpNormCell = core.rrImpNormCell;
+  global._impRender = () => {};
+  const _imp = { triage: { matched: [], ambiguous: [], unmatched: [] }, ambigPicks: {}, ambigResolved: null, step: '' };
+  global._imp = _imp;
+  eval(grab('_impAmbigGroups'));
+  eval(grab('_impApplyAmbig'));
+
+  const pw = { _era: 'pw', description: 'Spirit of 76 boxcar' };
+  const mpc = { _era: 'mpc', description: 'U36B diesel' };
+  const other = { _era: 'mth_o', description: 'Giraffe car' };
+  const fresh = () => ({
+    matched: [], unmatched: [], ambiguous: [
+      { item: { itemNum: '1776', manufacturer: 'Lionel' }, candidates: [pw, mpc] },
+      { item: { itemNum: '1776', manufacturer: 'Lionel' }, candidates: [pw, mpc] },
+      { item: { itemNum: '16603', manufacturer: 'Lionel' }, candidates: [mpc, other] },
+    ],
+  });
+
+  _imp.triage = fresh(); _imp.ambigPicks = {};
+  const groups = _impAmbigGroups();
+  ok('rows sharing a number become ONE decision', groups.length === 2, groups.length + ' groups for 3 rows');
+
+  _impApplyAmbig();
+  ok('nothing is dropped when nothing is picked',
+     _imp.triage.matched.length + _imp.triage.unmatched.length === 3 && _imp.triage.ambiguous.length === 0,
+     _imp.triage.unmatched.length + ' kept as their own entries');
+  ok('and they are kept as the user wrote them', _imp.triage.unmatched.length === 3);
+
+  _imp.triage = fresh(); _imp.ambigPicks = { '1776|lionel': 'c1' };
+  _impApplyAmbig();
+  ok('a pick applies to every row with that number', _imp.triage.matched.length === 2, _imp.triage.matched.length);
+  ok('the picked candidate is the one used', _imp.triage.matched.every(m => m.master._era === 'mpc'));
+  ok('picks are marked as the user\u2019s own choice', _imp.triage.matched[0].matchedVia === 'user-picked');
+  ok('the unpicked group still comes in', _imp.triage.unmatched.length === 1);
+  ok('the total is always every row', _imp.triage.matched.length + _imp.triage.unmatched.length === 3);
+})();
+
 (function yearDefaultTest() {
   const uiPath = path.join(__dirname, '..', 'app', 'import-ui.js');
   const ui = fs.readFileSync(uiPath, 'utf8');
