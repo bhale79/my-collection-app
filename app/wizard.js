@@ -4608,13 +4608,23 @@ function renderWizardStep() {
     // 'd' is the second A unit, which is unit 2 on an AA and unit 3 on an ABA.
     var _inboxRoles = (wizard.data && wizard.data._addPhotoRoles) || {};
     var _inboxKind = String((wizard.data && wizard.data._addPhotoKind) || '');
+    // v0.9.1572 (S83: "per-unit steps preview the same photo"): the router
+    // now speaks BOTH role vocabularies. The inbox's set kinds stamp
+    // aunit_p / bunit / aunit_d and pair_* — the v1562 SAVE has translated
+    // those all along (P ← aunit_p/p/engine, C ← bunit/b, T/D ← aunit_d/d),
+    // but the preview treated them as unroled and dealt every photo into the
+    // first unit's step in shooting order. Same synonyms, same destinations.
     function _stepForRole(role) {
       switch (String(role || '')) {
-        case 'p': case 'engine': case 'item': return 'photosItem';
+        case 'p': case 'engine': case 'item': case 'aunit_p': return 'photosItem';
         case 'tender': return 'photosTenderItem';
-        case 'b': return 'photosUnit2Item';
-        case 'd': return (_inboxKind === 'aba') ? 'photosUnit3Item' : 'photosUnit2Item';
-        case 'together': return 'photosTogether';
+        case 'b': case 'bunit': return 'photosUnit2Item';
+        case 'd': case 'aunit_d':
+          return (_inboxKind === 'aba' || ((wizard.data && wizard.data._itemGrouping) === 'aba'))
+            ? 'photosUnit3Item' : 'photosUnit2Item';
+        case 'together':
+        case 'pair_tender': case 'pair_aa': case 'pair_ab': case 'pair_aba':
+          return 'photosTogether';
         case 'box': return 'photosBox';
         default: return '';
       }
@@ -4898,6 +4908,27 @@ function renderWizardStep() {
 
     const grid = document.createElement('div');
     grid.id = 'photo-grid';
+
+    // v0.9.1572 (Brad's 2378 screenshots: "photo lands in TOP, not Right
+    // Side"): slots render top-first, so an UNSTAMPED inbox photo was dealt
+    // to whichever empty slot happened to draw first. The save side has made
+    // each unit's own shot its Right Side View since v1562 — the preview now
+    // matches that intent: the first role-eligible UNSTAMPED photo is
+    // reserved for the empty RSV slot before any other slot may take it.
+    // A view-stamped photo is untouched — its stamp still claims its slot —
+    // and the reservation only happens when this step actually draws an RSV
+    // slot, so nothing can be stranded against a slot that never renders.
+    if (!stored['RSV'] && !_inboxSeen[s.id + '|RSV']
+        && views.some(function (v) { return v.key === 'RSV'; })) {
+      for (var _rp = 0; _rp < _inboxQueue.length; _rp++) {
+        var _rpFid = _inboxQueue[_rp];
+        if (!_roleFitsStep(_rpFid, s.id)) continue;
+        if (_inboxViews[_rpFid]) continue;   // stamped: the stamp decides, not us
+        _inboxSeen[s.id + '|RSV'] = _rpFid;  // reserved for Right Side
+        _inboxQueue.splice(_rp, 1);
+        break;
+      }
+    }
 
     // Check if views use orthographic layout (have ortho property)
     const isOrtho = views.length > 0 && views[0].ortho;

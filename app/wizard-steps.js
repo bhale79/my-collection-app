@@ -371,6 +371,11 @@ function getSteps(tab) {
     const isEngTender = (d) => _hasPrefix(d, 'tender');
     const isDieselSet = (d) => _hasPrefix(d, 'unit2');
     const isABAgroup  = (d) => _hasPrefix(d, 'unit3');
+    // v0.9.1572 (Brad, S83: "Add photos of the 2378" — WHICH 2378?): the
+    // photo-step titles name the UNIT. On an AA the second unit is the dummy
+    // A unit; on AB/ABA it is the B unit — the same mapping the preview's
+    // role router uses (b → unit2; d → unit2 on AA, unit3 on ABA).
+    const _unit2Role = (d) => (d._itemGrouping === 'aa' ? 'dummy A unit' : 'B unit');
 
     return [
 
@@ -436,7 +441,7 @@ function getSteps(tab) {
         } },
 
       // ── SCREEN 5+: Photos (one per subject, color-coded banners) ──
-      { id: 'photosItem', title: (d) => 'Add photos of the ' + getItemLabel(d),
+      { id: 'photosItem', title: (d) => 'Add photos of the ' + getItemLabel(d) + (isDieselSet(d) ? ' — powered A unit' : ''),
         type: 'drivePhotos', label: 'Item',
         photoBanner: { color: '#2980b9', label: (d) => '\u{1F7E6} PHOTOS: No. ' + (d.itemNum || '') + ' ' + (getItemLabel(d) || '').charAt(0).toUpperCase() + (getItemLabel(d) || '').slice(1) },
         note: (d) => isEngTender(d) ? 'Engine photos only — tender photos next.' : '' },
@@ -473,7 +478,7 @@ function getSteps(tab) {
         skipIf: (d) => !isEngTender(d) || d.tenderHasBox !== 'Yes' },
 
       // ── Unit 2 photos (diesel set) ──
-      { id: 'photosUnit2Item', title: (d) => 'Add photos of the ' + (d.unit2ItemNum || 'B unit'),
+      { id: 'photosUnit2Item', title: (d) => 'Add photos of the ' + (d.unit2ItemNum ? d.unit2ItemNum + ' — ' + _unit2Role(d) : _unit2Role(d)),
         type: 'drivePhotos', label: 'Item', unit2Mode: true,
         photoBanner: { color: '#2980b9', label: (d) => '\u{1F7E6} PHOTOS: ' + (d.unit2ItemNum || 'Unit 2') },
         skipIf: (d) => !isDieselSet(d) },
@@ -483,7 +488,7 @@ function getSteps(tab) {
         skipIf: (d) => !isDieselSet(d) || d.unit2HasBox !== 'Yes' },
 
       // ── Unit 3 photos (ABA only) ──
-      { id: 'photosUnit3Item', title: (d) => 'Add photos of the ' + (d.unit3ItemNum || 'A unit'),
+      { id: 'photosUnit3Item', title: (d) => 'Add photos of the ' + (d.unit3ItemNum ? d.unit3ItemNum + ' — dummy A unit' : 'dummy A unit'),
         type: 'drivePhotos', label: 'Item', unit3Mode: true,
         photoBanner: { color: '#2980b9', label: (d) => '\u{1F7E6} PHOTOS: ' + (d.unit3ItemNum || 'Unit 3') },
         skipIf: (d) => !isABAgroup(d) },
