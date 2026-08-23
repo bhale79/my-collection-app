@@ -1525,6 +1525,63 @@ function _ownedCompanions(pd) {
 }
 if (typeof window !== 'undefined') window._ownedCompanions = _ownedCompanions;
 
+// ── v0.9.1569 (SETS AUDIT steps 4+5) ───────────────────────────────────────
+// Everything the list row, the delete dialog and bulk-tag need to know about
+// ONE group, computed in ONE place: its pieces (owned members minus
+// -BOX/-MBOX/-IS accessories), its lead (the non-companion member — the
+// engine / powered A-unit — else lowest inventoryId, so a suffix-less member
+// can never make the choice random), the badge label ("ABA SET · 3 pieces"),
+// and the Worth SUM across pieces (Brad's decision, 2026-08-23: "Folded
+// group row's Worth: SUM of the members' Est. Worth").
+// Display/dialog only — the counters (_ownedNonBox) never call this, which
+// is what keeps Brad's counting law (v1567) structural: 3 pieces count as 3.
+function _grpFoldInfo(pd) {
+  if (!pd || !pd.groupId) return null;
+  var pdata = (typeof state !== 'undefined' && state.personalData) ? state.personalData : {};
+  var keys = Object.keys(pdata).filter(function (k) {
+    var p = pdata[k];
+    return p && p.owned && p.groupId === pd.groupId;
+  });
+  if (keys.length < 2) return null;
+  var pieceKeys = keys.filter(function (k) {
+    return !/-(BOX|MBOX|IS)$/i.test(String(pdata[k].itemNum || ''));
+  });
+  if (!pieceKeys.length) return null;
+  var leadKey = pieceKeys.filter(function (k) { return !_isGroupCompanionSfx(pdata[k].itemNum); })
+    .sort(function (a, b) { return (parseInt(pdata[a].inventoryId) || 0) - (parseInt(pdata[b].inventoryId) || 0); })[0];
+  if (!leadKey) leadKey = pieceKeys.slice()
+    .sort(function (a, b) { return (parseInt(pdata[a].inventoryId) || 0) - (parseInt(pdata[b].inventoryId) || 0); })[0];
+  var lead = pdata[leadKey];
+  var worthSum = 0, worthN = 0;
+  pieceKeys.forEach(function (k) {
+    var w = parseFloat(pdata[k].userEstWorth);
+    if (isFinite(w)) { worthSum += w; worthN++; }
+  });
+  var mates = pieceKeys.filter(function (k) { return k !== leadKey; })
+    .map(function (k) { return pdata[k].itemNum; });
+  var cfg = (typeof groupConfigLabel === 'function' || (typeof window !== 'undefined' && typeof window.groupConfigLabel === 'function'))
+    ? (typeof groupConfigLabel === 'function' ? groupConfigLabel : window.groupConfigLabel)(lead.itemNum, mates) : 'Set';
+  var n = pieceKeys.length;
+  var label = (cfg === 'Engine + Tender' ? 'ENGINE + TENDER' : (cfg && cfg !== 'Set' ? cfg + ' SET' : 'SET'))
+            + ' · ' + n + ' piece' + (n === 1 ? '' : 's');
+  return { groupId: pd.groupId, leadKey: leadKey, lead: lead, keys: keys,
+           pieceKeys: pieceKeys, pieceNums: pieceKeys.map(function (k) { return pdata[k].itemNum; }),
+           count: n, cfg: cfg, label: label,
+           worthSum: worthN ? worthSum : NaN, worthN: worthN };
+}
+if (typeof window !== 'undefined') window._grpFoldInfo = _grpFoldInfo;
+
+// The fold is only in effect in the PLAIN owned view. Search and column sort
+// un-fold so every member stays findable and sortable — Brad's decision
+// (2026-08-23), and the same rule the v1121 SET fold has always used.
+function _grpFoldActive() {
+  try {
+    return !!(state.filters.owned && !(state.filters.search || '').trim()
+              && !(state._collSort && state._collSort.col));
+  } catch (e) { return false; }
+}
+if (typeof window !== 'undefined') window._grpFoldActive = _grpFoldActive;
+
 // ── v0.9.1122: abandoned set entries ───────────────────────────────────────
 // Leaving a set walkthrough partway keeps whatever already saved — by design,
 // so a crash or a phone call doesn't lose the cars you'd entered. But if you
@@ -3763,7 +3820,16 @@ function renderBrowse() {
       return !(_adV && _adV.pd === pd);
     })
     .filter(pd => !_eraFilterPersonalOnly)
-    .filter(pd => !(typeof _isCollectionCompanion === 'function' ? _isCollectionCompanion(pd) : _isGroupedBoxRow(pd)))
+    .filter(pd => {
+      // v0.9.1569 (Brad's decision: "search un-folds — a member's number
+      // finds the member's own row"): companions hide only while the fold
+      // is ACTIVE. Grouped boxes (_boxish) stay hidden always — a box is
+      // an accessory, not a member anyone searches for as an item.
+      if (!(typeof _isCollectionCompanion === 'function' ? _isCollectionCompanion(pd) : _isGroupedBoxRow(pd))) return true;
+      var _boxish = /-(BOX|MBOX|IS)$/i.test(String(pd.itemNum || ''));
+      if (_boxish) return false;
+      return !(typeof _grpFoldActive === 'function' ? _grpFoldActive() : true);
+    })
     .map(pd => {
       // Infer type from item number suffix for personal-only items
       let _poType = pd.itemType || '';
@@ -3902,7 +3968,14 @@ function renderBrowse() {
     if (owned && !isOwned) return false;
     // Push 2 (Session 154): hide companion rows (grouped box, tender, extra set
     // car) so each group shows as one item via its lead.
-    if (owned && pd && typeof _isCollectionCompanion === 'function' && _isCollectionCompanion(pd)) return false;
+    // v0.9.1569 (Brad: "search un-folds"): the hide only applies while the
+    // fold is ACTIVE — searching or column-sorting shows each piece as its
+    // own row, exactly as the v1121 SET fold has always done. Grouped boxes
+    // stay hidden regardless: accessories, not members.
+    if (owned && pd && typeof _isCollectionCompanion === 'function' && _isCollectionCompanion(pd)) {
+      var _boxish = /-(BOX|MBOX|IS)$/i.test(String(pd.itemNum || ''));
+      if (_boxish || (typeof _grpFoldActive === 'function' ? _grpFoldActive() : true)) return false;
+    }
     // v0.9.986 (Brad): Show-chip routing by type. Trains hides paper/catalog-
     // typed rows; Paper/Catalogs show ONLY their typed rows; other sections
     // (Instruction Sheets, Other…) have no train-store rows at all.
@@ -4216,6 +4289,15 @@ function renderBrowse() {
     var _foldedFD = [], _foldByGid = {};
     state.filteredData.forEach(function (it) {
       var _fp = it._setFold ? null : _rrPdForRow(it);
+      // v0.9.1569 (audit step 4 safety net): the companion fold catches
+      // suffix-shaped members (D/T/C, tenders); this catches any OTHER
+      // member of a GRP- group, so a group can never draw two rows. The
+      // lead's row stays exactly as it is — only the stray member folds.
+      // Display-only: every dropped row is still in every count.
+      if (_fp && _fp.groupId && /^GRP-/i.test(String(_fp.groupId)) && typeof _grpFoldInfo === 'function') {
+        var _gnet = _grpFoldInfo(_fp);
+        if (_gnet && _gnet.lead !== _fp) return;   // a non-lead member: folds under its lead
+      }
       var _gid = (_fp && _fp.groupId && /^SET-/i.test(String(_fp.groupId))) ? String(_fp.groupId) : '';
       if (!_gid) { _foldedFD.push(it); return; }
       var _f = _foldByGid[_gid];
@@ -4746,7 +4828,18 @@ function renderBrowse() {
           <span class="item-num" style="display:inline-block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:bottom" title="${String(_displayItemNum(item)).replace(/"/g,'&quot;')}">${_displayItemNum(item)}</span>${_noNumTag(item.itemNum)}
           <div style="margin-top:1px;line-height:1.1;white-space:nowrap">
             ${(typeof eraBadgeHTML === 'function' && window.ERA_BADGES && window.ERA_BADGES.showInBrowse) ? eraBadgeHTML(item._tab) : ''}
-            ${(function(){ var _co = (typeof _ownedCompanions === 'function') ? _ownedCompanions(pd) : []; if (_co.length) {
+            ${(function(){
+              // v0.9.1569 (audit step 4): the folded lead row wears the
+              // group's badge WITH the piece count — "ABA SET · 3 pieces".
+              // One source of truth (_grpFoldInfo) builds it. When the fold
+              // is off (search/sort) each member is its own row and shows
+              // only the small 🔗 mark.
+              var _gi = (typeof _grpFoldInfo === 'function') ? _grpFoldInfo(pd) : null;
+              if (_gi && _gi.lead === pd && (typeof _grpFoldActive !== 'function' || _grpFoldActive())) {
+                return '<span style="font-size:0.7rem;color:var(--accent3);font-weight:600" title="Grouped: ' + _gi.pieceNums.join(' + ') + '">🔗 ' + _gi.label + '</span>';
+              }
+              if (_gi) return '<span style="font-size:0.6rem;color:var(--accent3)" title="Part of ' + _gi.pieceNums.join(' + ') + '">🔗</span>';
+              var _co = (typeof _ownedCompanions === 'function') ? _ownedCompanions(pd) : []; if (_co.length) {
               var _gcfg = (typeof groupConfigLabel === 'function') ? groupConfigLabel(_dispNum, _co) : '';
               var _lbl = _gcfg === 'Engine + Tender' ? 'Engine + Tender' : (_gcfg && _gcfg !== 'Set' ? _gcfg + ' Set' : '🔗 ' + _co.join(' '));
               return '<span style="font-size:0.7rem;color:var(--accent3);font-weight:600" title="Grouped: ' + _dispNum + ' + ' + _co.join(', ') + '">🔗 ' + _lbl + '</span>';
@@ -4760,7 +4853,20 @@ function renderBrowse() {
         _cells.type = `<td data-col="type" style="font-size:0.78rem;color:var(--text-dim)">${_typeText}${(pd && pd.subType) ? '<div style="font-size:0.66rem;opacity:0.8;margin-top:1px">' + pd.subType + '</div>' : ''}</td>`;
         _cells.photo = `<td data-col="photo" style="width:52px;text-align:center;padding:2px 4px"><div id="thumb-${_rrRowDomKey(item)}" style="width:44px;height:44px;border-radius:5px;background:var(--surface2);display:inline-flex;align-items:center;justify-content:center;overflow:hidden;vertical-align:middle"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.3"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg></div></td>`;
         _cells.desc = `<td data-col="desc" style="color:var(--text-mid);font-size:0.85rem" title="${(_descFull||'').replace(/"/g,'&quot;')}">${_descFull}</td>`;
-        _cells.worth = `<td data-col="worth" style="font-size:0.82rem;color:var(--gold);white-space:nowrap;text-align:center">${_estWorth}</td>`;
+        _cells.worth = (function(){
+          // v0.9.1569 (Brad's decision, 2026-08-23): the folded group row's
+          // Worth is the SUM of the pieces' Est. Worth — and the cell says
+          // so, so the number is never mistaken for the lead's own worth.
+          var _giW = (typeof _grpFoldInfo === 'function') ? _grpFoldInfo(pd) : null;
+          if (_giW && _giW.lead === pd && _giW.worthN
+              && (typeof _grpFoldActive !== 'function' || _grpFoldActive())) {
+            return '<td data-col="worth" style="font-size:0.82rem;color:var(--gold);white-space:nowrap;text-align:center" title="Sum of ' + _giW.worthN + ' of ' + _giW.count + ' pieces">'
+              + _currencySymbol() + _giW.worthSum.toLocaleString()
+              + (_giW.worthN < _giW.count ? '<span style="color:var(--text-dim);font-size:0.68rem">*</span>' : '')
+              + '</td>';
+          }
+          return `<td data-col="worth" style="font-size:0.82rem;color:var(--gold);white-space:nowrap;text-align:center">${_estWorth}</td>`;
+        })();
         _cells.added = `<td data-col="added" style="font-size:0.76rem;color:var(--text-dim);white-space:nowrap;width:80px;text-align:center">${(function(){ var d = (typeof rrBestDate === 'function') ? rrBestDate(pd) : ((pd && (pd.dateAdded || pd.datePurchased)) || ''); if (d) return (typeof _formatDate === 'function') ? _formatDate(d) : d; if (pd && pd._savedAt) { try { return new Date(pd._savedAt).toLocaleDateString(); } catch(e){} } return '—'; })()}</td>`;
         // Extra columns: plain values straight off the personal row.
         _COLL_EXTRA_COLS.forEach(function (xc) {

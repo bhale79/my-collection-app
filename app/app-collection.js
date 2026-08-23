@@ -1195,7 +1195,12 @@ function showItemDetailPage(idx, copyInvId, opts) {
             + '<div style="font-size:0.64rem;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--accent3,#2ecc71)">' + role + (me ? ' · this page' : '') + '</div>'
             + '<div style="font-family:var(--font-mono);font-weight:700;color:var(--accent);font-size:0.95rem;margin:0.15rem 0">' + String(p.itemNum || '').replace(/</g, '&lt;') + (p.photoItem ? ' <span title="Has photos" style="font-size:0.78rem">📷</span>' : '') + '</div>'
             + '<div style="font-size:0.74rem;color:var(--text-mid);line-height:1.5">Cond ' + cond + (box ? ' · ' + box : '') + (worth ? '<br>Worth ' + worth : '') + '</div>'
-            + '<button onclick="event.stopPropagation();_grpEditMember(' + i + ')" style="margin-top:0.45rem;width:100%;padding:0.3rem;border-radius:7px;border:1px solid #2980b9;background:var(--bg-card);background:color-mix(in srgb, rgb(41,128,185) 8%, var(--bg-card));color:#2980b9;font-size:0.7rem;cursor:pointer;font-family:var(--font-body);font-weight:600">Edit / Photos</button>'
+            // v0.9.1569 (audit step 5): Remove sits beside Edit/Photos — the
+            // ONLY place a single piece leaves the group. Confirms per piece.
+            + '<div style="display:flex;gap:0.35rem;margin-top:0.45rem">'
+            + '<button onclick="event.stopPropagation();_grpEditMember(' + i + ')" style="flex:1;padding:0.3rem;border-radius:7px;border:1px solid #2980b9;background:var(--bg-card);background:color-mix(in srgb, rgb(41,128,185) 8%, var(--bg-card));color:#2980b9;font-size:0.7rem;cursor:pointer;font-family:var(--font-body);font-weight:600">Edit / Photos</button>'
+            + '<button onclick="event.stopPropagation();_grpRemoveMember(' + idx + ',' + i + ')" title="Remove this piece only — the rest of the group stays" style="padding:0.3rem 0.5rem;border-radius:7px;border:1px solid var(--border);background:var(--surface2);color:#f05008;font-size:0.7rem;cursor:pointer;font-family:var(--font-body)">Remove</button>'
+            + '</div>'
             + '</div>';
         }).join('')
       + '</div></div>';
@@ -1842,6 +1847,22 @@ window._grpEditMember = function (i) {
   }
   window._lastDetailPdKey = k;
   showItemPanel(idx, k, 'edit');
+};
+
+// v0.9.1569 (audit step 5): per-piece removal lives HERE, on the member
+// cards — the list-level dialog removes or breaks up the WHOLE set. Calls
+// the shared remover with scope 'piece', which confirms just that piece.
+// Afterwards: if the removed piece was the page being shown, go back to the
+// list; otherwise redraw this detail page without the removed card.
+window._grpRemoveMember = async function (idx, i) {
+  var k = (window._grpMemberKeys || [])[i];
+  var p = k ? state.personalData[k] : null;
+  if (!p) return;
+  var wasSelf = String(p.inventoryId || '') !== '' && String(p.inventoryId) === String(window._lastDetailCopyInv || '');
+  await removeCollectionItem(p.itemNum, p.variation || '', p.row || 0, p.inventoryId || '', { scope: 'piece' });
+  if (state.personalData[k]) return;   // cancelled or refused — nothing changed
+  if (wasSelf && typeof _detailBackToBrowse === 'function') { _detailBackToBrowse(); return; }
+  if (typeof showItemDetailPage === 'function') showItemDetailPage(idx, window._lastDetailCopyInv);
 };
 
 // Resolve the personalData key for the copy the detail page is currently
@@ -2501,9 +2522,14 @@ async function _breakUpGroupFromDetail(idx, itemNum, variation) {
 }
 
 // Restored Session 154: shared collection-item removal used by the list
-// Remove buttons and the detail-page Remove. For grouped items it offers
-// remove-just-this vs remove-whole-group.
-async function removeCollectionItem(itemNum, variation, row, invId) {
+// Remove buttons and the detail-page Remove.
+// v0.9.1569 (SETS AUDIT step 5, Brad's spec): a grouped item gets ONE honest
+// confirm naming EVERY row that will go — no more "remove only this piece"
+// at list level (that choice pair is how one click took his 2356 set).
+// Per-piece removal lives on the detail page's member cards, which call this
+// with opts.scope === 'piece'. The secondary choice is Break Up Group
+// (Brad, S84: confirmed) — every piece stays, only the link goes.
+async function removeCollectionItem(itemNum, variation, row, invId, opts) {
   // Check if this item is part of a group with other members
   // Use inventory id (preferred) or row to disambiguate if multiple copies exist
   var pdKey = (invId && state.personalData[invId]) ? invId : findPDKeyByRow(itemNum, variation, row);
@@ -2514,41 +2540,59 @@ async function removeCollectionItem(itemNum, variation, row, invId) {
     : [];
   var isGrouped = groupSiblings.length > 1;
 
-  if (isGrouped) {
-    // Show choice modal — remove just this item or the whole group
+  if (isGrouped && opts && opts.scope === 'piece') {
+    // Member-card removal: exactly one piece, said plainly.
+    if (!(await appConfirm('Remove No. ' + itemNum + (variation ? ' (Var. ' + variation + ')' : '')
+        + ' — one piece of this group?\n\nThe other ' + (groupSiblings.length - 1) + ' piece'
+        + (groupSiblings.length - 1 === 1 ? ' stays' : 's stay') + ' in your collection, still grouped.',
+        { danger: true, ok: 'Remove this piece' }))) return;
+    // falls through to the single-item removal below
+  } else if (isGrouped) {
     var groupLabels = groupSiblings.map(p => p.itemNum).join(' + ');
+    var _gi = (typeof _grpFoldInfo === 'function') ? _grpFoldInfo(thisPd) : null;
+    var _setName = _gi ? _gi.label : (groupSiblings.length + ' grouped items');
     var choice = await new Promise(function(resolve) {
-      var siblings = groupSiblings.filter(p => p.itemNum !== itemNum).map(p => p.itemNum).join(', ');
       var overlay = document.createElement('div');
       overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:9500;display:flex;align-items:center;justify-content:center;padding:1rem';
       overlay.innerHTML = `
-        <div style="background:var(--surface);border:1.5px solid var(--border);border-radius:14px;padding:1.5rem;max-width:360px;width:100%;box-shadow:0 8px 32px rgba(0,0,0,0.5)">
-          <div style="font-size:0.72rem;font-weight:700;letter-spacing:0.1em;color:var(--accent);text-transform:uppercase;margin-bottom:0.5rem">Remove Item</div>
+        <div style="background:var(--surface);border:1.5px solid var(--border);border-radius:14px;padding:1.5rem;max-width:380px;width:100%;box-shadow:0 8px 32px rgba(0,0,0,0.5)">
+          <div style="font-size:0.72rem;font-weight:700;letter-spacing:0.1em;color:var(--accent);text-transform:uppercase;margin-bottom:0.5rem">Remove Set</div>
           <div style="font-size:0.9rem;color:var(--text);margin-bottom:0.2rem;line-height:1.5">
-            Item <strong>${itemNum}</strong> is grouped with <strong>${siblings}</strong>.
+            This is one set — <strong>${_setName}</strong>:
           </div>
-          <div style="font-size:0.85rem;color:var(--text-mid);margin-bottom:1.25rem;line-height:1.5">Do you want to remove just this item, or all items in the group?</div>
+          <div style="font-family:var(--font-mono);font-size:0.85rem;color:var(--text);background:var(--surface2);border-radius:8px;padding:0.5rem 0.7rem;margin:0.4rem 0 0.6rem;line-height:1.6">${groupSiblings.map(p => '· ' + p.itemNum).join('<br>')}</div>
+          <div style="font-size:0.85rem;color:var(--text-mid);margin-bottom:1.1rem;line-height:1.5">Removing it removes <strong>all ${groupSiblings.length} rows</strong> from your sheet. To remove a single piece, open the item and use its member card.</div>
           <div style="display:flex;flex-direction:column;gap:0.5rem">
-            <!-- v0.9.1564 (Brad lost his 2356 set to this layout): the SAFE
-                 choice leads and looks primary; removing the whole group is
-                 styled as the destructive act it is, and says how many rows
-                 it will take. -->
-            <button id="rm-just-one" style="padding:0.55rem 1rem;border-radius:8px;border:2px solid var(--accent);background:var(--accent);color:var(--on-accent);font-family:var(--font-body);font-size:0.85rem;cursor:pointer;text-align:left;font-weight:700;line-height:1.4">
-              Remove <strong>${itemNum}</strong> only
+            <!-- v0.9.1564's lesson, kept: the SAFE choice leads and looks
+                 primary. v0.9.1569: the list level offers the whole set or
+                 nothing — one honest confirm, no per-piece trap. -->
+            <button id="rm-cancel" style="padding:0.55rem 1rem;border-radius:8px;border:2px solid var(--accent);background:var(--accent);color:var(--on-accent);font-family:var(--font-body);font-size:0.85rem;cursor:pointer;text-align:left;font-weight:700;line-height:1.4">
+              Cancel — keep the set
+            </button>
+            <button id="rm-breakup" style="padding:0.55rem 1rem;border-radius:8px;border:1.5px solid var(--accent2);background:var(--bg-card);background:color-mix(in srgb, rgb(201,146,42) 10%, var(--bg-card));color:var(--accent2);font-family:var(--font-body);font-size:0.85rem;cursor:pointer;text-align:left;font-weight:600;line-height:1.4">
+              Break Up Group — keep every piece, just unlink them
             </button>
             <button id="rm-all-group" style="padding:0.55rem 1rem;border-radius:8px;border:1.5px solid #e74c3c;background:color-mix(in srgb, rgb(231,76,60) 10%, var(--surface2));color:#e74c3c;font-family:var(--font-body);font-size:0.85rem;cursor:pointer;text-align:left;font-weight:600;line-height:1.4">
-              ⚠ Remove ALL ${groupSiblings.length} grouped items (${groupLabels})
+              ⚠ Remove ALL ${groupSiblings.length} pieces (${groupLabels})
             </button>
-            <button id="rm-cancel" style="padding:0.45rem 1rem;border-radius:8px;border:1px solid var(--border);background:none;color:var(--text-dim);font-family:var(--font-body);font-size:0.82rem;cursor:pointer;margin-top:0.25rem">Cancel</button>
           </div>
         </div>`;
       document.body.appendChild(overlay);
       if (window.BackStack && BackStack.wire) BackStack.wire(overlay); // v0.9.806 TODO-012: device Back closes this pop-up
-      overlay.querySelector('#rm-just-one').onclick  = function() { document.body.removeChild(overlay); resolve('one'); };
-      overlay.querySelector('#rm-all-group').onclick = function() { document.body.removeChild(overlay); resolve('all'); };
       overlay.querySelector('#rm-cancel').onclick    = function() { document.body.removeChild(overlay); resolve('cancel'); };
+      overlay.querySelector('#rm-breakup').onclick   = function() { document.body.removeChild(overlay); resolve('breakup'); };
+      overlay.querySelector('#rm-all-group').onclick = function() { document.body.removeChild(overlay); resolve('all'); };
     });
     if (choice === 'cancel') return;
+
+    if (choice === 'breakup') {
+      // Brad, S84: the safe alternative — the pieces all stay, the link goes.
+      await _breakUpGroup(pdKey);
+      if (typeof renderBrowse === 'function') renderBrowse();
+      if (typeof buildDashboard === 'function') buildDashboard();
+      showToast('✓ Group broken up — all ' + groupSiblings.length + ' pieces kept in your collection');
+      return;
+    }
 
     if (choice === 'all') {
       // Remove every item in the group — delete from bottom to top to avoid row shift issues
@@ -2618,6 +2662,27 @@ async function removeCollectionItem(itemNum, variation, row, invId) {
                                               { itemNum: fsRow.itemNum, inventoryId: fsRow.inventoryId });
           if (_fsGone) _adjustRowsAfterDelete(state.forSaleData, fsRow.row, 'For Sale');
         } catch(e) { console.warn('FS cleanup:', e); }
+      }
+      // v0.9.1569 (audit step 5): a boxed SET's remove-all used to orphan its
+      // My Sets wrapper record — the set was gone but still listed under My
+      // Sets. Clean it up here, SET- groups only (GRP- engine groups have no
+      // wrapper), through the confirmed-write helper — same shape
+      // _removeOwnedSet uses, never a blind delete.
+      if (/^SET-/i.test(String(groupId))) {
+        try {
+          var _msEnt = Object.entries(state.mySetsData || {}).find(function (e) { return e[1] && e[1].groupId === groupId; });
+          if (_msEnt) {
+            var _msKey = _msEnt[0], _msRec = _msEnt[1];
+            var _msOk = true;
+            if (_msRec.row && typeof _msRec.row === 'number' && _msRec.row >= 3 && _msRec.row < 1000000) {
+              var _msBlanks = [Array(14).fill('')];
+              _msOk = await rrRemoveRowConfirmed(state.personalSheetId, 'My Sets', _msRec.row,
+                'My Sets!A' + _msRec.row + ':N' + _msRec.row, _msBlanks,
+                { num: _msRec.setNum || _msRec.itemNum || '' }, 'sets list');
+            }
+            if (_msOk) delete state.mySetsData[_msKey];
+          }
+        } catch (eMs) { console.warn('My Sets wrapper cleanup:', eMs); }
       }
       _cachePersonalData();
       renderBrowse();

@@ -415,6 +415,29 @@ function _rrTagEsc(v) {
 // ── Apply — writes immediately, and remembers how to undo it ────
 async function rrTagApply() {
   if (!_rrTag) return;
+  // v0.9.1569 (Brad's decision, 2026-08-23: "ticking a folded group row
+  // tags ALL pieces"): before anything else, a ticked LEAD expands to every
+  // piece of its group — but ONLY while the fold is active. With a search
+  // open the members are their own rows, so a tick means exactly that row.
+  // Expansion lands in _rrTag.sel itself, so the conflict check, the write
+  // and the undo all see the same set.
+  try {
+    if (typeof _grpFoldActive === 'function' && _grpFoldActive()
+        && typeof _grpFoldInfo === 'function') {
+      Object.keys(_rrTag.sel).forEach(function (k) {
+        var pd = _rrTagPdFor(k);
+        var gi = pd ? _grpFoldInfo(pd) : null;
+        if (!gi || gi.lead !== pd) return;
+        gi.pieceKeys.forEach(function (pk) {
+          var p = state.personalData[pk];
+          if (!p || p === pd) return;
+          var key = (p.inventoryId && String(p.inventoryId))
+                 || (p.itemNum + '|' + (p.variation || '') + '|' + (p.row || 0));
+          _rrTag.sel[key] = true;
+        });
+      });
+    }
+  } catch (e) { console.warn('[bulk tag] group expand:', e); }
   var keys = Object.keys(_rrTag.sel);
   if (!keys.length) return;
   var conflicts = rrTagConflicts();
