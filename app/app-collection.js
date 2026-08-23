@@ -1337,7 +1337,7 @@ function showItemDetailPage(idx, copyInvId, opts) {
       ${_photoLink ? `<a href="${_photoLink}" target="_blank" rel="noopener" style="font-size:0.75rem;color:var(--accent2);text-decoration:none">Open Drive Folder \u2197</a>` : ''}
     </div>
     ${_grpPhotoMembers.length
-      ? '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:0 1.25rem;align-items:start">'
+      ? '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:0 1.25rem;align-items:start">'
         + _grpPhotoMembers.map(function (p, gi) {
           // v0.9.936 (Brad): each unit is its own column so paired units sit
           // BESIDE each other on wide screens instead of stacking.
@@ -1452,7 +1452,11 @@ function showItemDetailPage(idx, copyInvId, opts) {
         if (!photos || !photos.length) { el.innerHTML = '<div style="grid-column:1/-1;color:var(--text-dim);font-size:0.78rem">No photos in this folder</div>'; return; }
         // v0.9.937 (Brad): hero + thumbnail-rail gallery per unit (rename via
         // the hero label, ✂ crops the photo shown large).
-        _buildPhotoGallery(el, photos, { folderLink: p.photoItem, canRename: true, arrange: true });
+        // v0.9.1570 (Brad, S83: the wide set shot rendered as a "weird and
+        // compacted" strip): stack the rail BELOW the hero — the 74px side
+        // rail was stealing a third of an already-narrow member column, and
+        // the member grid now shares the row's full width (auto-fit above).
+        _buildPhotoGallery(el, photos, { folderLink: p.photoItem, canRename: true, arrange: true, stack: true });
       }).catch(function () {
         var el = document.getElementById('grp-photos-' + gi);
         if (el) el.innerHTML = '<div style="grid-column:1/-1;color:var(--text-dim);font-size:0.78rem">Could not load photos</div>';
@@ -1631,7 +1635,7 @@ function _buildPhotoGallery(el, photos, opts) {
     photos.forEach(function (p, i) {
       var t = document.createElement('div');
       t.title = (p.name || '').replace(/\.[^.]+$/, '')
-        + (arrange ? ' — drag onto another photo to reorder, or onto a view above' : '');
+        + (arrange ? ' — drag onto another photo to reorder, or drag it up to the labels to set its view' : '');
       t.style.cssText = 'position:relative;border-radius:7px;overflow:hidden;cursor:pointer;flex-shrink:0;'
         + 'width:74px;height:56px;background:var(--surface2);border:2px solid var(--border)';
       var ti = document.createElement('img');
@@ -3106,6 +3110,25 @@ async function _rrGalCommitView(photos, fileId, viewKey, redraw) {
 function _rrViewChipRow(onDrop) {
   var chipRow = document.createElement('div');
   chipRow.style.cssText = 'display:flex;flex-wrap:wrap;gap:0.35rem;width:100%;margin-bottom:0.4rem';
+  // v0.9.1570 (Brad, S83, on the chips: "what is going on here"): the row
+  // only appears WHILE a photo is being dragged — the one moment it can do
+  // anything — and leads with plain English saying what dropping does.
+  // Hidden the rest of the time, so a page of stacked galleries (a group's
+  // three units) no longer opens on three rows of unexplained pills.
+  chipRow.style.display = 'none';
+  var _chipLbl = document.createElement('span');
+  _chipLbl.textContent = 'Drop the photo on a label to set its view:';
+  _chipLbl.style.cssText = 'font-size:0.68rem;color:var(--text-mid);font-weight:600;align-self:center;margin-right:0.15rem';
+  chipRow.appendChild(_chipLbl);
+  // Drag events BUBBLE, so listening on the gallery container catches every
+  // tile's dragstart/dragend — both consumers (the detail gallery and the
+  // edit panel's strip) get the show/hide for free from this one function.
+  setTimeout(function () {
+    var host = chipRow.parentElement;
+    if (!host) return;
+    host.addEventListener('dragstart', function () { chipRow.style.display = 'flex'; });
+    host.addEventListener('dragend', function () { chipRow.style.display = 'none'; });
+  }, 0);
   var mkChip = function (key, label) {
     var c = document.createElement('div');
     c.textContent = label;
