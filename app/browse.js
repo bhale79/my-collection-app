@@ -1484,6 +1484,13 @@ if (typeof window !== 'undefined' && !window._isGroupedBoxRow) window._isGrouped
 function _isGroupCompanionSfx(n) {
   var sfx = String(n || '');
   if (/-(D|T|C|BOX|MBOX|IS)$/i.test(sfx)) return true;
+  // v0.9.1565 (Brad: "why is it 2 rows") — Lionel B-units carry NO hyphen
+  // (2356C), so the rule above looked straight past them and a B-unit drew
+  // its own list row beside its lead. A digit must sit immediately before
+  // the letter, so letter-only numbers (LTC, ZW) can never match; 'P' stays
+  // out because the powered unit IS the lead. Only ever consulted for rows
+  // that carry a groupId, so a standalone 2356C is untouched.
+  if (/\d[DTC]$/i.test(sfx)) return true;
   if (typeof isTender === 'function' && isTender(sfx)) return true;
   return false;
 }

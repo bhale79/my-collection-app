@@ -6136,7 +6136,13 @@
               await driveMoveFileToFolder(file.id, rec.fromFid, rec.toFid);
               // v0.9.935 (Brad): the photo shown in the wizard's RSV slot files as
               // the Right Side View, so detail pages/thumbnails treat it as primary.
-              var _vTag = (rec.rsvFid && file.id === rec.rsvFid) ? ' RSV ' : ' ADD ';
+              // v0.9.1565: the group's together-shot files with the lead as its
+              // SET photo — the detail hero looks for the literal token ' SET '
+              // (app-collection isSet()), and ' ADD ' made inbox-filed set
+              // photos invisible to it. Role rides on the note since v1562.
+              var _fRole = String((file && file.role) || '');
+              var _vTag = (rec.rsvFid && file.id === rec.rsvFid) ? ' RSV '
+                        : (_fRole === 'together' ? ' SET ' : ' ADD ');
               try { await driveRequest('PATCH', '/files/' + file.id, { name: num + _vTag + ((rec.ts || new Date().getTime()) + mv) + '.' + ext }); } catch (eRn) {}
             } catch (eMv) { console.warn('[Inbox] deferred photo move skipped (removed?):', file.id, eMv); }
           }
