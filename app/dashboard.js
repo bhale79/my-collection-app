@@ -63,8 +63,11 @@ function _ownedNonBox(state) {
     // the list — looking like "item counted but missing".
     var _n176 = String(pd.itemNum || '').toUpperCase();
     if (_n176.endsWith('-BOX') || _n176.endsWith('-MBOX')) return false;
-    if (typeof window !== 'undefined' && typeof window._isCollectionCompanion === 'function'
-        && window._isCollectionCompanion(pd)) return false;
+    // v0.9.1567 (Brad, verbatim: "every item counts as one, if there are 3
+    // items in a group, that counts as 3. not 1 or 4") — group companions
+    // (tenders, dummies, B-units) are REAL ITEMS and count. The fold is a
+    // DISPLAY behavior: one row on screen, every piece in the math. Boxes
+    // stay excluded above — a box is an accessory, not an item.
     var c = (pd.condition||'').toString().trim();
     var p = (pd.priceItem||'').toString().trim();
     var noCond  = !c || c === 'N/A';
