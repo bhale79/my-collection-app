@@ -870,7 +870,10 @@ function buildDashboard() {
   // science/construction sets, mockups, and user-defined ephemera. Matches
   // the new unified My Collection page ("All" tab total).
   var _allOwnedCount = owned;
-  if (state.mySetsData)       _allOwnedCount += Object.keys(state.mySetsData).length;
+  // v0.9.1564 (Brad, verbatim: "having 3 items that makes a set doesn't
+  // count as 4, its 3 items") — a My Sets record is a WRAPPER around pieces
+  // that are already counted; adding it made the sidebar disagree with the
+  // Items I Own card by one per boxed set. Wrappers never count.
   if (state.isData)           _allOwnedCount += _standaloneISCount(state);
   if (state.scienceData)      _allOwnedCount += Object.keys(state.scienceData).length;
   if (state.constructionData) _allOwnedCount += Object.keys(state.constructionData).length;
