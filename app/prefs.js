@@ -330,8 +330,11 @@ function buildPrefsPage() {
            they are the same kind of thing: one action that touched many rows. -->
       ${typeof rrTagUndoListHtml === 'function' ? rrTagUndoListHtml() : ''}
       <!-- v0.9.1561: one-time rescue for photos stranded by the pre-1560
-           grouped-save handoff bug, + its undo, beside the other undos. -->
-      ${typeof rrPhotoRescueRowHtml === 'function' ? rrPhotoRescueRowHtml() : ''}
+           grouped-save handoff bug. v0.9.1573 (Brad, S84: "get rid of the
+           scan button"): the rescue did its job — 213-D got its photo,
+           measured live — and Brad then emptied the inbox himself, so the
+           SCAN row is retired. The UNDO rows stay: they self-hide when the
+           journal is empty, and today's rescue can still be reversed. -->
       ${typeof rrPhotoRescueUndoHtml === 'function' ? rrPhotoRescueUndoHtml() : ''}
       <div class="pref-row">
         <div class="pref-row-label"><strong>Last updated</strong><span id="pref-cache-ts">${cacheDateStr} · ${cacheSize}</span></div>

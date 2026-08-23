@@ -78,5 +78,14 @@ plan = window._rrRescuePlan(
   Object.fromEntries([P('k1', '2343-P'), P('k2', '6464')]));
 check('no-number shot stays OUT of a two-number group', plan.units.reduce((s, u) => s + u.files.length, 0) === 2);
 
+// ── v0.9.1573 (Brad, S84: "get rid of the scan button") ──────────────
+// The rescue did its one-time job (the 213-D rescue, 2026-08-23) and Brad
+// then emptied the inbox himself. The SCAN row leaves Preferences; the
+// UNDO rows STAY so today's journaled rescue can still be reversed. The
+// planner above keeps its tests — the machinery remains for the undo.
+const prefsSrc = fs.readFileSync(path.join(__dirname, '..', 'app', 'prefs.js'), 'utf8');
+check('the Scan row is GONE from Preferences', prefsSrc.indexOf('rrPhotoRescueRowHtml') < 0);
+check('...but the Undo rows STAY', prefsSrc.indexOf('rrPhotoRescueUndoHtml') >= 0);
+
 console.log('\n' + pass + ' passed, ' + fail + ' failed');
 process.exit(fail ? 1 : 0);
