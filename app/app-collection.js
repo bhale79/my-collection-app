@@ -1207,20 +1207,24 @@ function showItemDetailPage(idx, copyInvId, opts) {
   }
 
   // ── DETAILS GRID ──
+  // v0.9.1571 (Brad: "need to be able to edit the detail sheet and be able
+  // to add the different columns or take them away"): every field now
+  // carries a STABLE id (rule 4 \u2014 never a label, labels get reworded and
+  // custom columns get renamed), so the picker's saved choice survives.
   let details = [
-    { label: 'Condition', val: cond ? `<span class="condition-pip ${condClass}"></span> ${cond}/10` : null },
-    { label: 'All Original', val: pd && pd.allOriginal && pd.allOriginal !== 'Unknown' ? pd.allOriginal : null },
-    { label: 'Not Original', val: pd && pd.notOriginalDesc ? pd.notOriginalDesc : null },
-    { label: 'Has Box', val: pd ? (pd.hasBox === 'Yes' ? '\u2705 Yes' + (pd.boxCond ? ` (${pd.boxCond}/10)` : '') : pd.hasBox === 'No' ? 'No' : null) : null },
-    { label: 'Price Paid (Item)', val: pd && pd.priceItem ? _currencySymbol() + parseFloat(pd.priceItem).toLocaleString() : null },
-    { label: 'Price Paid (Box)', val: pd && pd.priceBox ? _currencySymbol() + parseFloat(pd.priceBox).toLocaleString() : null },
-    { label: 'Price Paid (Complete)', val: (pd && pd.priceComplete && (parseFloat(pd.priceComplete) || 0) !== (parseFloat(pd.priceItem) || 0)) ? _currencySymbol() + parseFloat(pd.priceComplete).toLocaleString() : null },
-    { label: 'Est. Worth', val: (function(){ var _v = pd && pd.userEstWorth ? parseFloat(pd.userEstWorth) : NaN; return isFinite(_v) ? _currencySymbol() + _v.toLocaleString() : null; })() },
-    { label: 'Market Value', val: it.marketVal && !isNaN(parseFloat(it.marketVal)) ? _currencySymbol() + parseFloat(it.marketVal).toLocaleString() : null },
-    { label: 'Date Purchased', val: pd && pd.datePurchased ? _formatDate(pd.datePurchased) : null },
+    { id: 'condition', label: 'Condition', val: cond ? `<span class="condition-pip ${condClass}"></span> ${cond}/10` : null },
+    { id: 'allOriginal', label: 'All Original', val: pd && pd.allOriginal && pd.allOriginal !== 'Unknown' ? pd.allOriginal : null },
+    { id: 'notOriginal', label: 'Not Original', val: pd && pd.notOriginalDesc ? pd.notOriginalDesc : null },
+    { id: 'hasBox', label: 'Has Box', val: pd ? (pd.hasBox === 'Yes' ? '\u2705 Yes' + (pd.boxCond ? ` (${pd.boxCond}/10)` : '') : pd.hasBox === 'No' ? 'No' : null) : null },
+    { id: 'pricePaidItem', label: 'Price Paid (Item)', val: pd && pd.priceItem ? _currencySymbol() + parseFloat(pd.priceItem).toLocaleString() : null },
+    { id: 'pricePaidBox', label: 'Price Paid (Box)', val: pd && pd.priceBox ? _currencySymbol() + parseFloat(pd.priceBox).toLocaleString() : null },
+    { id: 'pricePaidComplete', label: 'Price Paid (Complete)', val: (pd && pd.priceComplete && (parseFloat(pd.priceComplete) || 0) !== (parseFloat(pd.priceItem) || 0)) ? _currencySymbol() + parseFloat(pd.priceComplete).toLocaleString() : null },
+    { id: 'estWorth', label: 'Est. Worth', val: (function(){ var _v = pd && pd.userEstWorth ? parseFloat(pd.userEstWorth) : NaN; return isFinite(_v) ? _currencySymbol() + _v.toLocaleString() : null; })() },
+    { id: 'marketVal', label: 'Market Value', val: it.marketVal && !isNaN(parseFloat(it.marketVal)) ? _currencySymbol() + parseFloat(it.marketVal).toLocaleString() : null },
+    { id: 'datePurchased', label: 'Date Purchased', val: pd && pd.datePurchased ? _formatDate(pd.datePurchased) : null },
     // v0.9.782: seller link — resolves the Contact ID to a name (kicks a lazy
     // contacts load the first time so the NEXT open shows the name).
-    { label: 'Bought From', val: (function () {
+    { id: 'boughtFrom', label: 'Bought From', val: (function () {
         if (!pd || !pd.purchasedFrom) return null;
         var _ct = (state.contactsData || []).find(function (x) { return x.id === pd.purchasedFrom; });
         if (!_ct && typeof window._ctLoadContacts === 'function' && !(state.contactsData || []).length) { try { window._ctLoadContacts(); } catch (e) {} }
@@ -1229,22 +1233,42 @@ function showItemDetailPage(idx, copyInvId, opts) {
     // v0.9.1506 (Session 81, Task #25): the import's testimony fields. Blank
     // for anything not imported, so non-importers see zero change (the
     // .filter(d => d.val) below drops empty rows).
-    { label: 'Your Grade', val: pd && pd.yourGrade ? pd.yourGrade : null },
-    { label: 'Your Description', val: pd && pd.yourDescription ? String(pd.yourDescription).replace(/</g,'&lt;') : null },
-    { label: 'Imported', val: pd && pd.importBatch ? '\u2705 Yes' : null },
-    { label: 'Year Made', val: pd && pd.yearMade ? pd.yearMade : null },
-    { label: 'Location', val: pd && pd.location ? pd.location : null },
+    { id: 'yourGrade', label: 'Your Grade', val: pd && pd.yourGrade ? pd.yourGrade : null },
+    { id: 'yourDescription', label: 'Your Description', val: pd && pd.yourDescription ? String(pd.yourDescription).replace(/</g,'&lt;') : null },
+    { id: 'imported', label: 'Imported', val: pd && pd.importBatch ? '\u2705 Yes' : null },
+    { id: 'yearMade', label: 'Year Made', val: pd && pd.yearMade ? pd.yearMade : null },
+    { id: 'location', label: 'Location', val: pd && pd.location ? pd.location : null },
     // v0.9.1514 (Phase 2): every enabled user field, in one loop, from the
     // single RR_USER_FIELDS definition. Blank values are dropped by the
     // .filter(d => d.val) below, so a user who enables nothing sees nothing.
     ...((typeof rrEnabledUserFields === 'function' ? rrEnabledUserFields() : []).map(function (f) {
-      return { label: (typeof rrFieldLabel === 'function' ? rrFieldLabel(f) : f.label),
+      return { id: 'uf_' + f.key,   // v0.9.1571: the KEY is stable; the label is Brad's to rename
+               label: (typeof rrFieldLabel === 'function' ? rrFieldLabel(f) : f.label),
                val: (pd && pd[f.key]) ? String(pd[f.key]).replace(/</g, '&lt;') : null };
     })),
-    { label: 'Inventory ID', val: pd && pd.inventoryId ? pd.inventoryId : null },
-    { label: 'Instruction Sheet', val: pd ? (((groupMembers && groupMembers.some(function(m){return m._isIS;})) || (state.isData && Object.values(state.isData).some(function(_is){ return _is && _is.linkedItem === it.itemNum; }))) ? '\u2705 Yes' : 'No') : null },
-    { label: 'Error Item', val: pd ? ((pd.isError === 'Yes') ? '\u26a0\ufe0f Yes' + (pd.errorDesc ? ' \u2014 ' + String(pd.errorDesc).replace(/</g,'&lt;') : '') : 'No') : null },
-  ].filter(d => d.val);
+    { id: 'inventoryId', label: 'Inventory ID', val: pd && pd.inventoryId ? pd.inventoryId : null },
+    { id: 'instructionSheet', label: 'Instruction Sheet', val: pd ? (((groupMembers && groupMembers.some(function(m){return m._isIS;})) || (state.isData && Object.values(state.isData).some(function(_is){ return _is && _is.linkedItem === it.itemNum; }))) ? '\u2705 Yes' : 'No') : null },
+    { id: 'errorItem', label: 'Error Item', val: pd ? ((pd.isError === 'Yes') ? '\u26a0\ufe0f Yes' + (pd.errorDesc ? ' \u2014 ' + String(pd.errorDesc).replace(/</g,'&lt;') : '') : 'No') : null },
+  ];
+  // v0.9.1571: the picker reads the field list THIS page just built \u2014 one
+  // source, so custom columns appear under the names Brad gave them. The
+  // reopen hook lets the picker redraw this exact page after a save.
+  window._rrDetailFieldDefs = details.map(function (d) { return { id: d.id, label: d.label }; });
+  window._rrDetailReopen = function () { showItemDetailPage(idx, copyInvId); };
+  var _dfCfg = (typeof _rrDetailFieldCfg === 'function') ? _rrDetailFieldCfg() : null;
+  if (_dfCfg && !_wantMode) {
+    // His saved choice wins: chosen fields, his order \u2014 and a chosen field
+    // with nothing in it shows a dash (Brad's call, S84: gaps stay VISIBLE).
+    var _dfById = {};
+    details.forEach(function (d) { _dfById[d.id] = d; });
+    details = _dfCfg.filter(function (fid) { return _dfById[fid]; }).map(function (fid) {
+      var d = _dfById[fid];
+      return { id: d.id, label: d.label, val: d.val || '<span style="color:var(--text-dim)">\u2014</span>' };
+    });
+  } else {
+    // No saved choice = exactly the old card: blanks hidden.
+    details = details.filter(d => d.val);
+  }
   if (_wantMode) {
     var _wmPrice = _wantEntry ? (_wantEntry.expectedPrice || _wantEntry.maxPrice) : '';
     window._wantEditCur = _wantEntry || null;   // v0.9.1492: the edit overlay reads this
@@ -1259,7 +1283,10 @@ function showItemDetailPage(idx, copyInvId, opts) {
   const setId = pd && pd.setId ? pd.setId : '';
 
   html += `<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:1.25rem;margin-bottom:1.5rem">
-    <div style="font-family:var(--font-head);font-size:0.72rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--accent2);margin-bottom:0.75rem">Details</div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem">
+      <div style="font-family:var(--font-head);font-size:0.72rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--accent2)">Details</div>
+      ${_wantMode ? '' : '<a href="javascript:_rrDetailFieldsPicker()" style="font-size:0.75rem;color:var(--accent2);text-decoration:none">Edit fields</a>'}
+    </div>
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:0.6rem 1.5rem">
       ${details.map(d => `<div style="display:flex;justify-content:space-between;padding:0.35rem 0;border-bottom:1px solid var(--border)">
         <span style="font-size:0.78rem;color:var(--text-dim);font-weight:600">${d.label}</span>
@@ -1868,6 +1895,113 @@ window._grpRemoveMember = async function (idx, i) {
   if (wasSelf && typeof _detailBackToBrowse === 'function') { _detailBackToBrowse(); return; }
   if (typeof showItemDetailPage === 'function') showItemDetailPage(idx, window._lastDetailCopyInv);
 };
+
+// ══ v0.9.1571 — EDIT THE DETAILS CARD (Brad: "need to be able to edit the
+// detail sheet and be able to add the different columns or take them away,
+// since now we have custom columns") ════════════════════════════════════
+// Same pattern as the v1517 list column picker: tick to show, drag ☰ to
+// reorder, Reset brings back the old card, choice saved per user. The field
+// list comes from window._rrDetailFieldDefs — the list the page itself just
+// built — so custom columns appear under the names Brad gave them, from ONE
+// source. His decision (S84): a ticked field with nothing in it shows a
+// dash, so gaps stay visible instead of vanishing.
+var _RR_DETAIL_FIELDS_PREF = 'lv_detail_fields_v1';
+function _rrDetailFieldCfg() {
+  try {
+    var raw = localStorage.getItem(_RR_DETAIL_FIELDS_PREF);
+    if (!raw) return null;
+    var arr = JSON.parse(raw);
+    return (Array.isArray(arr) && arr.length) ? arr : null;
+  } catch (e) { return null; }
+}
+function _rrDetailFieldsPicker() {
+  var defs = window._rrDetailFieldDefs || [];
+  if (!defs.length) return;
+  var existing = document.getElementById('df-overlay');
+  if (existing) existing.remove();
+  var cfg = _rrDetailFieldCfg();
+  var chosen = cfg || defs.map(function (d) { return d.id; });
+  var known = {};
+  defs.forEach(function (d) { known[d.id] = d; });
+  var order = chosen.filter(function (id) { return known[id]; });
+  defs.forEach(function (d) { if (order.indexOf(d.id) < 0) order.push(d.id); });
+
+  var ov = document.createElement('div');
+  ov.id = 'df-overlay';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9600;display:flex;align-items:center;justify-content:center;padding:1rem';
+  var box = document.createElement('div');
+  box.style.cssText = 'background:var(--surface);border:1px solid var(--border);border-radius:14px;max-width:460px;width:100%;max-height:88vh;overflow:auto;padding:1.1rem';
+  box.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.4rem">' +
+    '<strong style="font-size:1.05rem;color:var(--text)">Choose your detail fields</strong>' +
+    '<button onclick="document.getElementById(\'df-overlay\').remove()" style="background:none;border:none;color:var(--text-dim);font-size:1.4rem;cursor:pointer;line-height:1">&times;</button></div>' +
+    '<div style="font-size:0.8rem;color:var(--text-dim);line-height:1.5;margin-bottom:0.7rem">' +
+    'Tick what you want on the Details card. Drag the ☰ handle to reorder. A ticked field with nothing entered shows a dash, so you can see what’s missing.</div>' +
+    '<div id="df-list"></div>' +
+    '<div style="display:flex;gap:0.5rem;margin-top:0.9rem">' +
+    '<button onclick="_rrDetailFieldsReset()" style="flex:1;padding:0.55rem;border-radius:9px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body);font-size:0.85rem;cursor:pointer">Reset to default</button>' +
+    '<button onclick="_rrDetailFieldsApply()" style="flex:2;padding:0.55rem;border-radius:9px;border:none;background:var(--accent);color:var(--on-accent);font-family:var(--font-body);font-weight:700;font-size:0.9rem;cursor:pointer">Done</button></div>';
+  ov.appendChild(box);
+  ov.addEventListener('click', function (e) { if (e.target === ov) ov.remove(); });
+  document.body.appendChild(ov);
+
+  var list = box.querySelector('#df-list');
+  order.forEach(function (id) {
+    var row = document.createElement('div');
+    row.className = 'df-row';
+    row.draggable = true;
+    row.dataset.field = id;
+    row.style.cssText = 'display:flex;align-items:center;gap:0.55rem;padding:0.5rem 0.2rem;border-bottom:1px solid var(--border);cursor:grab;background:var(--surface)';
+    row.innerHTML = '<span style="color:var(--text-dim);font-size:0.95rem;cursor:grab">☰</span>' +
+      '<input type="checkbox" ' + (chosen.indexOf(id) >= 0 ? 'checked' : '') +
+      ' style="width:1.05rem;height:1.05rem;accent-color:var(--accent);cursor:pointer">' +
+      '<span style="flex:1;font-size:0.88rem;color:var(--text)">' + String(known[id].label).replace(/</g, '&lt;') + '</span>';
+    row.addEventListener('dragstart', function (e) {
+      row.style.opacity = '0.45';
+      try { e.dataTransfer.setData('text/plain', id); } catch (err) {}
+      window._dfDrag = row;
+    });
+    row.addEventListener('dragend', function () { row.style.opacity = ''; window._dfDrag = null; });
+    row.addEventListener('dragover', function (e) {
+      e.preventDefault();
+      var src = window._dfDrag;
+      if (!src || src === row) return;
+      var r = row.getBoundingClientRect();
+      var before = (e.clientY - r.top) < r.height / 2;
+      list.insertBefore(src, before ? row : row.nextSibling);
+    });
+    list.appendChild(row);
+  });
+}
+function _rrDetailFieldsApply() {
+  var list = document.getElementById('df-list');
+  if (!list) return;
+  var out = [];
+  Array.prototype.forEach.call(list.querySelectorAll('.df-row'), function (r) {
+    var cb = r.querySelector('input[type=checkbox]');
+    if (cb && cb.checked) out.push(r.dataset.field);
+  });
+  try {
+    if (out.length) localStorage.setItem(_RR_DETAIL_FIELDS_PREF, JSON.stringify(out));
+    else localStorage.removeItem(_RR_DETAIL_FIELDS_PREF);   // nothing ticked = back to default
+  } catch (e) {}
+  var ov = document.getElementById('df-overlay');
+  if (ov) ov.remove();
+  if (typeof window._rrDetailReopen === 'function') window._rrDetailReopen();
+  if (typeof showToast === 'function') showToast('Details card updated', 2000);
+}
+function _rrDetailFieldsReset() {
+  try { localStorage.removeItem('lv_detail_fields_v1'); } catch (e) {}
+  var ov = document.getElementById('df-overlay');
+  if (ov) ov.remove();
+  if (typeof window._rrDetailReopen === 'function') window._rrDetailReopen();
+  if (typeof showToast === 'function') showToast('Details card reset', 2000);
+}
+if (typeof window !== 'undefined') {
+  window._rrDetailFieldCfg = _rrDetailFieldCfg;
+  window._rrDetailFieldsPicker = _rrDetailFieldsPicker;
+  window._rrDetailFieldsApply = _rrDetailFieldsApply;
+  window._rrDetailFieldsReset = _rrDetailFieldsReset;
+}
 
 // Resolve the personalData key for the copy the detail page is currently
 // showing. Falls back to first match if the remembered key is stale.
