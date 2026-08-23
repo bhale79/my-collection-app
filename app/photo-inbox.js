@@ -5921,10 +5921,24 @@
       var n = String(itemNum || '').trim();
       if (!n) return;
       var stage = JSON.parse(localStorage.getItem(SETSTAGE_KEY) || '{}');
-      var key = Object.keys(stage).find(function (k) {
-        return k === n || (typeof normalizeItemNum === 'function' &&
-                           normalizeItemNum(k) === normalizeItemNum(n));
-      });
+      // v0.9.1560 — TIERED match. normalizeItemNum only strips a trailing
+      // ".0"; it never bridged 2343P vs 2343-P, and it never bridged 2344
+      // (the number read off the photo) against 2344-P (the number the row
+      // actually saved under, suffixed at the last moment by _pdSuffix).
+      // That silent miss is why grouped items had no photos: the arm found
+      // no key, returned quietly, and the note was never flushed. Tiers run
+      // most-precise first so a suffixed sibling can never steal a photo
+      // that another key claims exactly:
+      //   1. exact / normalized   (the original behavior, unchanged)
+      //   2. dash-insensitive     (2343P == 2343-P)
+      //   3. base number          (2344 == 2344-P) — last resort only.
+      var _keys = Object.keys(stage);
+      var _nrm  = function (x) { return (typeof normalizeItemNum === 'function') ? normalizeItemNum(x) : String(x); };
+      var _dash = function (x) { return String(_nrm(x)).toUpperCase().replace(/-/g, ''); };
+      var _base = function (x) { return (typeof baseItemNum === 'function') ? String(baseItemNum(x)).toUpperCase() : _dash(x); };
+      var key = _keys.find(function (k) { return k === n || _nrm(k) === _nrm(n); })
+             || _keys.find(function (k) { return _dash(k) === _dash(n); })
+             || _keys.find(function (k) { return _base(k) === _base(n); });
       if (!key) return;                                  // nothing staged for this member
       var pend = JSON.parse(localStorage.getItem(PENDING_KEY) || '{}');
       // ── v0.9.1370 (Brad's two 3362s) ──────────────────────────────────
@@ -5961,9 +5975,11 @@
     for (var ni = 0; ni < nums.length; ni++) {
       var num = nums[ni];
       if (_flushingNums[num]) continue;
-      // v0.9.1118: set members save under the MASTER row's item number, which
-      // can differ from the read's formatting (2343P vs 2343-P) — match through
-      // the same normalizer the walkthrough uses, so a note can't be stranded.
+      // v0.9.1118 SAID the normalizer bridges 2343P vs 2343-P. IT NEVER DID —
+      // normalizeItemNum only strips a trailing ".0". The real bridge is the
+      // tiered match at ARM time (rrPinSetPhotoSaved, v0.9.1560), which stores
+      // the pending note under the row's saved number, so the exact match
+      // below is sufficient here.
       // v0.9.1130 (audit #4, second half): this took the FIRST owned row with a
       // matching number, which contradicts the design note above — you can own
       // several of the same number, so a new copy's photos could be filed onto

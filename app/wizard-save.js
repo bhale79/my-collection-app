@@ -382,8 +382,20 @@ function launchSetItemWizard() {
   try {
     if (_setMemberPhotos) {
       var _mpKeys = Object.keys(_setMemberPhotos);
+      // v0.9.1560 — the same tiered match the arm uses: exact/normalized
+      // first (original behavior), then dash-insensitive (2343P == 2343-P),
+      // then base number (2344 == 2344-P) as a last resort. Without this, a
+      // member saved with a -P suffix never claimed the photo staged under
+      // the number read off it, and the hero slot stayed empty.
+      var _mpNrm  = function (x) { return normalizeItemNum(x); };
+      var _mpDash = function (x) { return String(_mpNrm(x)).toUpperCase().replace(/-/g, ''); };
+      var _mpBase = function (x) { return (typeof baseItemNum === 'function') ? String(baseItemNum(x)).toUpperCase() : _mpDash(x); };
+      var _mpEq = function (a, b) { return _mpNrm(a) === _mpNrm(b); };
+      var _mpHit = _mpKeys.find(function (k) { return _mpEq(k, itemNum); });
+      if (!_mpHit) { _mpHit = _mpKeys.find(function (k) { return _mpDash(k) === _mpDash(itemNum); }); if (_mpHit) _mpEq = function (a, b) { return _mpDash(a) === _mpDash(b); }; }
+      if (!_mpHit) { _mpHit = _mpKeys.find(function (k) { return _mpBase(k) === _mpBase(itemNum); }); if (_mpHit) _mpEq = function (a, b) { return _mpBase(a) === _mpBase(b); }; }
       for (var _mpI = 0; _mpI < _mpKeys.length; _mpI++) {
-        if (normalizeItemNum(_mpKeys[_mpI]) !== normalizeItemNum(itemNum)) continue;
+        if (_mpKeys[_mpI] !== _mpHit) continue;
         var _mpVal = _setMemberPhotos[_mpKeys[_mpI]];
         var _mpList = Array.isArray(_mpVal) ? _mpVal : [_mpVal];   // pre-1122 notes held one id
         // v0.9.1122: when a set lists this number more than once (1562W's two
@@ -391,7 +403,7 @@ function launchSetItemWizard() {
         // earlier slots share this number and read that far down the list.
         var _occ = 0;
         for (var _oi = 0; _oi < idx && _oi < (items || []).length; _oi++) {
-          if (normalizeItemNum(items[_oi]) === normalizeItemNum(itemNum)) _occ++;
+          if (_mpEq(items[_oi], itemNum)) _occ++;   // v0.9.1560: count through the tier that matched
         }
         wizard.data._addPhotoDriveId = _mpList[_occ] || _mpList[0];
         // v0.9.1369 — a set member can flip through every photo of ITS OWN
@@ -2235,7 +2247,27 @@ async function saveWizardItem() {
     // THIS is the moment it becomes real — the row is on the sheet, so the
     // note can be armed. Cancel before here and the photos stay in the inbox.
     if (tab === 'collection') {
-      try { if (typeof rrPinSetPhotoSaved === 'function') rrPinSetPhotoSaved(itemNum); } catch (ePs) {}
+      try {
+        // v0.9.1560 — the ephemera lane has re-keyed its staged note to the
+        // row's REAL number before arming since v0.9.1109; this lane never
+        // did. A powered unit stages under the number the inbox read (2344)
+        // but saves as 2344-P. Re-key first so the arm finds the note under
+        // its exact name; the tiered matcher in rrPinSetPhotoSaved is the
+        // safety net, not the plan.
+        if (d._pinStagedNum && d._pinStagedNum !== itemNum &&
+            typeof rrPinRekeyStaged === 'function') rrPinRekeyStaged(d._pinStagedNum, itemNum);
+        if (typeof rrPinSetPhotoSaved === 'function') {
+          rrPinSetPhotoSaved(itemNum);
+          // v0.9.1560 — partner units were NEVER armed: only the lead got
+          // its staged photos, so -T / -C rows sat photoless forever. Arm
+          // each partner row that just reached the sheet, using the same
+          // suffixing their rows were built with above.
+          if (isSetSave && d.unit2ItemNum)
+            rrPinSetPhotoSaved(_pdSuffix((d.unit2ItemNum || '').trim(), d.setType === 'AA' ? 'Dummy' : ''));
+          if (isSetSave && d.unit3ItemNum)
+            rrPinSetPhotoSaved(_pdSuffix((d.unit3ItemNum || '').trim(), d.unit3Power));
+        }
+      } catch (ePs) {}
     }
     d._saveComplete = true;
     closeWizard();
