@@ -7696,7 +7696,16 @@ window._wizHeroPhotoSync = function () {
   // Re-rendering the same photo every step would restart the Drive fetch on
   // each one; the signature check makes the redraw a no-op when nothing moved.
   var sig = (set.file ? 'f' + (set.file.name || '') + set.file.size : '') + '|' + set.ids.join(',') + '|' + set.index;
-  if (btn.getAttribute('data-sig') === sig) { btn.style.display = ''; return; }
+  if (btn.getAttribute('data-sig') === sig) {
+    btn.style.display = '';
+    // v0.9.1568 (Brad's blank blue box): the signature made a redraw a no-op —
+    // including when the LAST draw's image never actually arrived (one slow
+    // token or network blip at the first step), so a single failed load stayed
+    // blank for the whole wizard. Same photos + an img that really loaded =
+    // still a no-op; same photos + an empty img = fall through and try again.
+    var _im0 = btn.querySelector('img');
+    if (_im0 && (_im0.naturalWidth > 0 || (_im0.complete && _im0.src && _im0.src.indexOf('blob:') === 0))) return;
+  }
   btn.setAttribute('data-sig', sig);
   btn.style.display = '';
   btn.innerHTML = '<img alt="">' +
