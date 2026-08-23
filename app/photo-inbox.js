@@ -5935,7 +5935,16 @@
       var _keys = Object.keys(stage);
       var _nrm  = function (x) { return (typeof normalizeItemNum === 'function') ? normalizeItemNum(x) : String(x); };
       var _dash = function (x) { return String(_nrm(x)).toUpperCase().replace(/-/g, ''); };
-      var _base = function (x) { return (typeof baseItemNum === 'function') ? String(baseItemNum(x)).toUpperCase() : _dash(x); };
+      // v0.9.1563 (Brad's 2356T-D): a set's third unit can save with a
+      // STACKED suffix — 2356T-D — and baseItemNum strips only ONE layer,
+      // so its base ('2356T') never met the staged key's base ('2356') and
+      // the dummy's photo sat staged forever. The last-resort tier now
+      // strips EVERY trailing P/D/T/C, but only when the number contains a
+      // digit — letter-only numbers (LTC, ZW) must never be shaved.
+      var _base = function (x) {
+        var s = _dash(x);
+        return /\d/.test(s) ? s.replace(/[PDTC]+$/, '') : s;
+      };
       var key = _keys.find(function (k) { return k === n || _nrm(k) === _nrm(n); })
              || _keys.find(function (k) { return _dash(k) === _dash(n); })
              || _keys.find(function (k) { return _base(k) === _base(n); });
@@ -6314,7 +6323,10 @@
     var A = nrm(a), B = nrm(b);
     if (A && A === B) return 3;
     if (A.toUpperCase().replace(/-/g, '') === B.toUpperCase().replace(/-/g, '')) return 2;
-    var bas = function (x) { return (typeof baseItemNum === 'function') ? String(baseItemNum(x)).toUpperCase() : nrm(x).toUpperCase().replace(/-/g, ''); };
+    var bas = function (x) {   // v0.9.1563: strip stacked suffixes (2356T-D), digit-guarded
+      var s = nrm(x).toUpperCase().replace(/-/g, '');
+      return /\d/.test(s) ? s.replace(/[PDTC]+$/, '') : s;
+    };
     if (bas(a) && bas(a) === bas(b)) return 1;
     return 0;
   }

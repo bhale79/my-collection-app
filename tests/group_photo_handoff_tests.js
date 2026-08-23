@@ -125,5 +125,18 @@ rrPinSetPhotoSaved('2344-P');
 let n10 = _pendList(pend()['2344-P'])[0] || {};
 check('no roles: whole note moves in one piece (old behavior)', (n10.files || []).length === 2);
 
+// 11 — v0.9.1563: STACKED suffix (Brad's real 2356T-D, measured in his
+// browser): the third unit of an ABA saves as 2356T-D; one-layer stripping
+// left its photo staged forever.
+stageIs({ '2356-P': { files: [{ id: 'fD', name: 'd.jpg', role: 'd' }], rsvFid: 'fD', ts: 1 } });
+rrPinSetPhotoSaved('2356T-D');
+let n11 = _pendList(pend()['2356T-D'])[0] || {};
+check('stacked suffix: 2356T-D claims the d-role file from a 2356-P key', (n11.files || []).length === 1 && n11.files[0].id === 'fD');
+
+// 12 — letter-only numbers are never shaved by the stacked-strip
+stageIs({ 'LTC': { files: [{ id: 'fL', name: 'l.jpg', role: '' }], rsvFid: 'fL', ts: 1 } });
+rrPinSetPhotoSaved('LT');
+check('letter-only: LT does not steal the LTC note', Object.keys(pend()).length === 0);
+
 console2.log('\n' + pass + ' passed, ' + fail + ' failed');
 process.exit(fail ? 1 : 0);

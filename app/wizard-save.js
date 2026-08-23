@@ -389,7 +389,10 @@ function launchSetItemWizard() {
       // the number read off it, and the hero slot stayed empty.
       var _mpNrm  = function (x) { return normalizeItemNum(x); };
       var _mpDash = function (x) { return String(_mpNrm(x)).toUpperCase().replace(/-/g, ''); };
-      var _mpBase = function (x) { return (typeof baseItemNum === 'function') ? String(baseItemNum(x)).toUpperCase() : _mpDash(x); };
+      var _mpBase = function (x) {   // v0.9.1563: strip stacked suffixes (2356T-D), digit-guarded
+        var s = _mpDash(x);
+        return /\d/.test(s) ? s.replace(/[PDTC]+$/, '') : s;
+      };
       var _mpEq = function (a, b) { return _mpNrm(a) === _mpNrm(b); };
       var _mpHit = _mpKeys.find(function (k) { return _mpEq(k, itemNum); });
       if (!_mpHit) { _mpHit = _mpKeys.find(function (k) { return _mpDash(k) === _mpDash(itemNum); }); if (_mpHit) _mpEq = function (a, b) { return _mpDash(a) === _mpDash(b); }; }
