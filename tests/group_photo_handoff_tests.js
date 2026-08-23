@@ -84,5 +84,46 @@ rrPinSetPhotoSaved('2344-P');
 const p5 = pend();
 check('precision: an exact 2344-P key wins over the bare 2344 key', _pendList(p5['2344-P']).some(n => n.files && n.files[0] === 'exact'));
 
+// ── v0.9.1562: UNIT-ROLE SPLIT (Brad: "it should automatically put them
+// in the right order… and they should be in the right hand side view box") ──
+const abaNote = () => ({ files: [
+  { id: 'fA', name: 'a.jpg', role: 'aunit_p' },
+  { id: 'fB', name: 'b.jpg', role: 'bunit' },
+  { id: 'fD', name: 'd.jpg', role: 'aunit_d' },
+  { id: 'fT', name: 't.jpg', role: 'together' },
+], rsvFid: 'fT', ts: 1 });
+
+// 6 — the powered A takes its own shot + the set shot; rest stay staged
+stageIs({ '2356': abaNote() });
+rrPinSetPhotoSaved('2356-P');
+let p6 = pend(), s6 = JSON.parse(store[SETSTAGE_KEY]);
+let n6 = _pendList(p6['2356-P'])[0] || {};
+check('split: -P takes aunit_p + together only', (n6.files || []).map(f => f.id).sort().join() === 'fA,fT');
+check('split: the unit shot is the Right Side View', n6.rsvFid === 'fA');
+check('split: B and dummy photos stay staged for their members', s6['2356'] && s6['2356'].files.map(f => f.id).sort().join() === 'fB,fD');
+
+// 7 — then the B unit takes its shot
+rrPinSetPhotoSaved('2356C');
+let n7 = _pendList(pend()['2356C'])[0] || {};
+check('split: C takes the bunit shot, RSV = its own photo', (n7.files || []).length === 1 && n7.files[0].id === 'fB' && n7.rsvFid === 'fB');
+
+// 8 — then the dummy A takes the last, and the note is gone
+rrPinSetPhotoSaved('2356-T');
+let n8 = _pendList(pend()['2356-T'])[0] || {};
+check('split: -T takes the aunit_d shot', (n8.files || []).length === 1 && n8.files[0].id === 'fD');
+check('split: fully claimed note leaves staging', !JSON.parse(store[SETSTAGE_KEY])['2356']);
+
+// 9 — arm order does not matter: C first still gets only its own
+stageIs({ '2356': abaNote() });
+rrPinSetPhotoSaved('2356C');
+let n9 = _pendList(pend()['2356C'])[0] || {};
+check('split: arming C first takes only the bunit shot', (n9.files || []).length === 1 && n9.files[0].id === 'fB');
+
+// 10 — a note WITHOUT unit roles behaves exactly as before (whole note)
+stageIs({ '2344': { files: [{ id: 'x1', name: 'x.jpg', role: '' }, { id: 'x2', name: 'y.jpg', role: '' }], rsvFid: 'x1', ts: 1 } });
+rrPinSetPhotoSaved('2344-P');
+let n10 = _pendList(pend()['2344-P'])[0] || {};
+check('no roles: whole note moves in one piece (old behavior)', (n10.files || []).length === 2);
+
 console2.log('\n' + pass + ' passed, ' + fail + ' failed');
 process.exit(fail ? 1 : 0);

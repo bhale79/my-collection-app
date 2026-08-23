@@ -5154,7 +5154,7 @@
           var stage1 = JSON.parse(localStorage.getItem(SETSTAGE_KEY) || '{}');
           stage1[num] = { link: link, fromFid: fromFid, toFid: toFid, ts: ts,
             rsvFid: (fileList[0] && fileList[0].id) || '',   // v0.9.935: files as the Right Side View
-            files: fileList.map(function (fl) { return { id: fl.id, name: fl.name }; }) };
+            files: fileList.map(function (fl) { return { id: fl.id, name: fl.name, role: (fl._meta && fl._meta.role) || '' }; }) };   // v0.9.1562: role rides along
           localStorage.setItem(SETSTAGE_KEY, JSON.stringify(stage1));
         } catch (eP) {}
         _pinRefresh();
@@ -5210,7 +5210,7 @@
       if (meta.role === 'detail') {
         if (lastNum && !lastFailed) {
           (memberPhotos[lastNum] = memberPhotos[lastNum] || []).push(f.id);
-          (numFiles[lastNum] = numFiles[lastNum] || []).push({ id: f.id, name: f.name });
+          (numFiles[lastNum] = numFiles[lastNum] || []).push({ id: f.id, name: f.name, role: meta.role || '' });
         }
         return;
       }
@@ -5233,7 +5233,7 @@
       // slot 2 the second, instead of both showing the same picture.
       (memberPhotos[n0] = memberPhotos[n0] || []).push(f.id);
       // v0.9.1118: every photo that read this member's number files with it.
-      (numFiles[n0] = numFiles[n0] || []).push({ id: f.id, name: f.name });
+      (numFiles[n0] = numFiles[n0] || []).push({ id: f.id, name: f.name, role: meta.role || '' });
     });
     // Second pass: file every pair shot with the engine. If the set produced no
     // members at all there is nothing to attach to, and the photo simply stays
@@ -5242,7 +5242,7 @@
     if (homeNum) {
       pairPhotos.forEach(function (f) {
         (memberPhotos[homeNum] = memberPhotos[homeNum] || []).push(f.id);
-        (numFiles[homeNum] = numFiles[homeNum] || []).push({ id: f.id, name: f.name });
+        (numFiles[homeNum] = numFiles[homeNum] || []).push({ id: f.id, name: f.name, role: (f._meta && f._meta.role) || '' });
       });
     }
     return { nums: nums, memberPhotos: memberPhotos, numFiles: numFiles, pairHome: homeNum, pairCount: pairPhotos.length };
@@ -5474,7 +5474,7 @@
       });
       stage[key] = { link: '', fromFid: '', toFid: '', ts: new Date().getTime(),
                      rsvFid: (fileList[0] && fileList[0].id) || '',
-                     files: fileList.map(function (fl) { return { id: fl.id, name: fl.name }; }) };
+                     files: fileList.map(function (fl) { return { id: fl.id, name: fl.name, role: (fl._meta && fl._meta.role) || '' }; }) };   // v0.9.1562: role rides along
       localStorage.setItem(SETSTAGE_KEY, JSON.stringify(stage));
     } catch (eS) { console.warn('[Inbox] could not stage the numberless add', eS && eS.message); }
 
@@ -5955,6 +5955,54 @@
       // saved. Old entries (a bare object, or a plain link string from before
       // v0.9.1118) are read as a one-item list, so nothing already queued on
       // anyone's machine is lost.
+      // ── v0.9.1562 (Brad: "it should automatically put them in the right
+      // order") — UNIT-ROLE SPLIT. An AA/AB/ABA group's photos all read the
+      // SAME base number, so one staged note holds the powered A, the B unit,
+      // the dummy A and the set shot together. Arming used to hand the WHOLE
+      // note to whichever member saved first. When the saved number carries a
+      // unit suffix (-P / C / -T / -D) and the note's files carry unit roles,
+      // each member now takes ONLY its own photos:
+      //   P   ← aunit_p / p / engine, plus the set shot, pair shots, details
+      //         and anything unroled (the lead carries the group's context)
+      //   C   ← bunit / b
+      //   T/D ← aunit_d / d
+      // Each member's own unit photo becomes its Right Side View (rsvFid).
+      // Files left over stay STAGED for the members still to save. A note
+      // with no unit roles, or a save with no suffix, behaves exactly as
+      // before — one note, one member.
+      var _note = stage[key];
+      var _sufL = (function (x) {
+        var s = String(x || '').toUpperCase().replace(/-/g, '');
+        var L = s.slice(-1);
+        return 'PDTC'.indexOf(L) >= 0 ? L : '';
+      })(n);
+      var _hasUnitRoles = !!(_note && _note.files && _note.files.some && _note.files.some(function (f) {
+        return /^(aunit_p|aunit_d|bunit|p|d|b)$/.test(String((f && f.role) || ''));
+      }));
+      if (_sufL && _hasUnitRoles) {
+        var _mine = function (r) {
+          r = String(r || '');
+          if (_sufL === 'P') return /^(aunit_p|p|engine)$/.test(r) || r === 'together' || r === 'detail' || r === '' || r.indexOf('pair_') === 0;
+          if (_sufL === 'C') return /^(bunit|b)$/.test(r);
+          return /^(aunit_d|d)$/.test(r);              // T and D both mean the dummy A
+        };
+        var _take = _note.files.filter(function (f) { return _mine(f.role); });
+        var _keep = _note.files.filter(function (f) { return !_mine(f.role); });
+        if (!_take.length) return;                     // nothing of mine staged — leave the note for its member
+        var _unitShot = _take.filter(function (f) { return /^(aunit_p|aunit_d|bunit|p|d|b|engine)$/.test(String(f.role || '')); })[0];
+        var _sub = { link: '', fromFid: _note.fromFid || '', toFid: '', ts: _note.ts || new Date().getTime(),
+                     rsvFid: (_unitShot && _unitShot.id) || (_take[0] && _take[0].id) || '',
+                     files: _take };
+        pend[n] = _pendList(pend[n]).concat([_sub]);
+        if (_keep.length) {
+          _note.files = _keep;
+          if (_note.rsvFid && !_keep.some(function (f) { return f.id === _note.rsvFid; })) _note.rsvFid = _keep[0].id;
+          stage[key] = _note;
+        } else delete stage[key];
+        localStorage.setItem(PENDING_KEY, JSON.stringify(pend));
+        localStorage.setItem(SETSTAGE_KEY, JSON.stringify(stage));
+        return;
+      }
       pend[n] = _pendList(pend[n]).concat([stage[key]]);
       delete stage[key];                                 // armed once — a repeat car reuses the same folder
       localStorage.setItem(PENDING_KEY, JSON.stringify(pend));
