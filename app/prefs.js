@@ -329,6 +329,10 @@ function buildPrefsPage() {
       <!-- v0.9.1555: undo for a bulk fill, beside the import's undo, because
            they are the same kind of thing: one action that touched many rows. -->
       ${typeof rrTagUndoListHtml === 'function' ? rrTagUndoListHtml() : ''}
+      <!-- v0.9.1561: one-time rescue for photos stranded by the pre-1560
+           grouped-save handoff bug, + its undo, beside the other undos. -->
+      ${typeof rrPhotoRescueRowHtml === 'function' ? rrPhotoRescueRowHtml() : ''}
+      ${typeof rrPhotoRescueUndoHtml === 'function' ? rrPhotoRescueUndoHtml() : ''}
       <div class="pref-row">
         <div class="pref-row-label"><strong>Last updated</strong><span id="pref-cache-ts">${cacheDateStr} · ${cacheSize}</span></div>
         <button class="pref-btn" onclick="forceRefreshData().then(()=>buildPrefsPage())">Update now</button>

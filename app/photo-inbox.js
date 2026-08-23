@@ -6246,6 +6246,314 @@
   }
   if (typeof window !== 'undefined') window._rrBackfillMasterKeys = _backfillMasterKeys;
 
+  // ══ v0.9.1561 — RESCUE STRANDED SET PHOTOS (one-time repair) ═════════════
+  // Before v0.9.1560, a grouped save never armed its staged inbox photos:
+  // the handoff matched "2344" (the number read off the photo) against
+  // "2344-P" (the number the row saved under) with a normalizer that only
+  // strips ".0", found nothing, and returned silently. The FILES are still
+  // here in the inbox, stamped with rrNum / rrRole / rrGrp. This walks them,
+  // proposes a target row for each, and moves NOTHING until Brad confirms on
+  // a review screen. Every Apply is journaled and undoable from Preferences.
+  // Scope is deliberately GROUPED photos only (kind aa/ab/aba/set/tender, a
+  // real rrGrp, or a pair_* role): a single-add photo sitting in the inbox
+  // may simply be waiting to become a new item, and guessing would misfile.
+
+  var _RESCUE_UNDO = 'rr_photo_rescue_undo_v1';
+  var _rescuePlanNow = null;
+
+  function _rescueTier(a, b) {
+    var nrm = function (x) { return (typeof normalizeItemNum === 'function') ? String(normalizeItemNum(x)) : String(x || ''); };
+    var A = nrm(a), B = nrm(b);
+    if (A && A === B) return 3;
+    if (A.toUpperCase().replace(/-/g, '') === B.toUpperCase().replace(/-/g, '')) return 2;
+    var bas = function (x) { return (typeof baseItemNum === 'function') ? String(baseItemNum(x)).toUpperCase() : nrm(x).toUpperCase().replace(/-/g, ''); };
+    if (bas(a) && bas(a) === bas(b)) return 1;
+    return 0;
+  }
+
+  // role → the suffix letters that row's number should end with (Lionel
+  // convention: P powered · T/D dummy-trailer · C B-unit).
+  var _RESCUE_ROLE_SUFFIX = { p: 'P', aunit_p: 'P', d: 'DT', aunit_d: 'DT', b: 'C', bunit: 'C' };
+
+  // Pure planner — window-exported so tests can run it headless.
+  // files: [{id, name, meta:{num,grp,kind,role,stat,view,ord}}]
+  // personal: the state.personalData object (keyed rows).
+  window._rrRescuePlan = function (files, personal) {
+    var GROUPY = { aa: 1, ab: 1, aba: 1, set: 1, tender: 1 };
+    var inScope = (files || []).filter(function (f) {
+      var m = (f && f.meta) || {};
+      if (m.stat === 'filed') return false;
+      var grouped = GROUPY[m.kind] || (m.grp && m.grp !== '-') ||
+        (typeof _pinIsPairRole === 'function' && _pinIsPairRole(m.role));
+      return !!grouped;
+    });
+    // bucket: grp (or per-number) → num → files. No-number files join their
+    // group only when the group holds exactly ONE distinct number.
+    var buckets = {}, noNum = {};
+    inScope.forEach(function (f) {
+      var m = f.meta || {};
+      var g = (m.grp && m.grp !== '-') ? 'g:' + m.grp : (m.num ? 'n:' + m.num : '');
+      if (!g) return;                                    // no group, no number: unmatchable
+      if (!m.num) { (noNum[g] = noNum[g] || []).push(f); return; }
+      buckets[g] = buckets[g] || {};
+      (buckets[g][m.num] = buckets[g][m.num] || []).push(f);
+    });
+    Object.keys(noNum).forEach(function (g) {
+      var nums = Object.keys(buckets[g] || {});
+      if (nums.length === 1) buckets[g][nums[0]] = buckets[g][nums[0]].concat(noNum[g]);
+    });
+    var units = [], skipped = 0;
+    Object.keys(buckets).forEach(function (g) {
+      Object.keys(buckets[g]).forEach(function (num) {
+        var fl = buckets[g][num];
+        // best tier wins; only rows at that tier stay
+        var best = 0, cands = [];
+        Object.keys(personal || {}).forEach(function (k) {
+          var p = personal[k];
+          if (!p || !p.owned || !p.itemNum) return;
+          if (!p.row || Number(p.row) === 99999) return;
+          var t = _rescueTier(p.itemNum, num);
+          if (!t) return;
+          if (t > best) { best = t; cands = []; }
+          if (t === best) cands.push(k);
+        });
+        if (!cands.length) { skipped += fl.length; return; }
+        // role narrows when it maps to a suffix and someone matches it
+        var role = (fl.map(function (f) { return (f.meta || {}).role; }).filter(function (r) { return _RESCUE_ROLE_SUFFIX[r]; })[0]) || '';
+        if (role && cands.length > 1) {
+          var want = _RESCUE_ROLE_SUFFIX[role];
+          var narrowed = cands.filter(function (k) {
+            var last = String(personal[k].itemNum || '').replace(/-/g, '').slice(-1).toUpperCase();
+            return want.indexOf(last) >= 0;
+          });
+          if (narrowed.length) cands = narrowed;
+        }
+        cands.sort(function (a, b) {
+          var pa = personal[a], pb = personal[b];
+          var ph = (!pa.photoItem ? 0 : 1) - (!pb.photoItem ? 0 : 1);
+          if (ph) return ph;
+          return (parseInt(pb.inventoryId) || 0) - (parseInt(pa.inventoryId) || 0);
+        });
+        fl.sort(function (a, b) {
+          var ra = ((a.meta || {}).view === 'RSV') ? 0 : 1, rb = ((b.meta || {}).view === 'RSV') ? 0 : 1;
+          if (ra !== rb) return ra - rb;
+          return (parseInt((a.meta || {}).ord) || 999) - (parseInt((b.meta || {}).ord) || 999);
+        });
+        units.push({
+          num: num, grp: g, role: role, files: fl,
+          candidates: cands, target: cands[0],
+          auto: cands.length === 1 && !personal[cands[0]].photoItem,
+        });
+      });
+    });
+    units.sort(function (a, b) { return a.num < b.num ? -1 : a.num > b.num ? 1 : 0; });
+    return { units: units, skipped: skipped };
+  };
+
+  window.rrPhotoRescueScan = async function () {
+    if (_busy) { _pinBusyBounce(); return; }
+    if (!window.state || !state.personalData || !Object.keys(state.personalData).length) {
+      showToast('Collection still loading — try again in a moment'); return;
+    }
+    _setBusy(true, 'Scanning the inbox');
+    try {
+      var fid = await _folder();
+      var q = encodeURIComponent("'" + fid + "' in parents and mimeType contains 'image/' and trashed=false");
+      var all = [], tok = '', guard = 0;
+      do {
+        var res = await driveRequest('GET', '/files?q=' + q +
+          '&fields=nextPageToken,files(id,name,appProperties)&pageSize=200' + (tok ? '&pageToken=' + tok : ''));
+        all = all.concat(res.files || []);
+        tok = res.nextPageToken || '';
+      } while (tok && ++guard < 40);
+      var files = all.map(function (f) { return { id: f.id, name: f.name || '', meta: _pinMetaOf(f) }; });
+      _rescuePlanNow = window._rrRescuePlan(files, state.personalData);
+      _rescueRender(_rescuePlanNow);
+    } catch (e) {
+      console.warn('[Rescue] scan failed:', e && e.message);
+      showToast('Could not scan the inbox — ' + ((e && e.message) || 'unknown error'));
+    } finally { _setBusy(false); }
+  };
+
+  function _rescueEsc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;'); }
+
+  function _rescueRender(plan) {
+    var old = document.getElementById('rr-rescue-ov'); if (old) old.remove();
+    var ov = document.createElement('div');
+    ov.id = 'rr-rescue-ov';
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem';
+    var rows = '';
+    if (!plan.units.length) {
+      rows = '<div style="padding:1rem;color:var(--text-mid)">No stranded grouped photos found.' +
+        (plan.skipped ? ' (' + plan.skipped + ' photo' + (plan.skipped > 1 ? 's' : '') + ' had no owned match and stay in the inbox.)' : '') + '</div>';
+    } else {
+      rows = plan.units.map(function (u, i) {
+        var opts = u.candidates.map(function (k) {
+          var p = state.personalData[k];
+          var lbl = p.itemNum + (p.variation ? ' · Var ' + p.variation : '') +
+            (p.condition ? ' · Cond ' + p.condition : '') + (p.location ? ' · ' + p.location : '') +
+            (p.photoItem ? ' · has photos' : ' · no photos yet');
+          return '<option value="' + _rescueEsc(k) + '"' + (k === u.target ? ' selected' : '') + '>' + _rescueEsc(lbl) + '</option>';
+        }).join('');
+        return '<div style="display:flex;gap:0.5rem;align-items:center;padding:0.45rem 0.2rem;border-bottom:1px solid var(--border)">' +
+          '<input type="checkbox" data-ri="' + i + '"' + (u.auto ? ' checked' : '') + '>' +
+          '<div style="flex:1;min-width:0"><strong>' + _rescueEsc(u.num) + '</strong>' +
+          (u.role ? ' <span style="color:var(--text-dim);font-size:0.75rem">(' + _rescueEsc(u.role) + ')</span>' : '') +
+          ' — ' + u.files.length + ' photo' + (u.files.length > 1 ? 's' : '') +
+          (u.candidates.length > 1 ? '<br><select data-rs="' + i + '" onchange="_rrRescuePick(' + i + ',this.value)" style="max-width:100%">' + opts + '</select>'
+            : '<br><span style="font-size:0.75rem;color:var(--text-mid)">' + _rescueEsc((state.personalData[u.target] || {}).itemNum || '') + (state.personalData[u.target] && state.personalData[u.target].photoItem ? ' · has photos (will add to its folder)' : ' · no photos yet') + '</span>') +
+          '</div></div>';
+      }).join('');
+      rows += plan.skipped ? '<div style="padding:0.5rem 0.2rem;color:var(--text-dim);font-size:0.8rem">' + plan.skipped + ' photo' + (plan.skipped > 1 ? 's' : '') + ' had no owned match and stay in the inbox.</div>' : '';
+    }
+    ov.innerHTML = '<div class="rr-card" style="background:var(--surface,#fff);border-radius:12px;max-width:520px;width:100%;max-height:85vh;display:flex;flex-direction:column;padding:1rem">' +
+      '<div style="font-weight:700;font-size:1.05rem">Rescue stranded set photos</div>' +
+      '<div style="color:var(--text-mid);font-size:0.8rem;margin:0.2rem 0 0.6rem">Nothing moves until you press Apply. Ticked rows are certain matches; the rest need you to pick which copy.</div>' +
+      '<div style="overflow-y:auto;flex:1">' + rows + '</div>' +
+      '<div style="display:flex;gap:0.5rem;justify-content:flex-end;margin-top:0.75rem">' +
+      '<button class="pref-btn" onclick="document.getElementById(\'rr-rescue-ov\').remove()">Cancel</button>' +
+      (plan.units.length ? '<button class="pref-btn" style="background:var(--accent);color:#fff" onclick="rrPhotoRescueApply(this)">Apply</button>' : '') +
+      '</div></div>';
+    document.body.appendChild(ov);
+  }
+
+  window._rrRescuePick = function (i, key) {
+    if (_rescuePlanNow && _rescuePlanNow.units[i]) _rescuePlanNow.units[i].target = key;
+  };
+
+  window.rrPhotoRescueApply = async function (btn) {
+    if (_busy) { _pinBusyBounce(); return; }
+    var plan = _rescuePlanNow; if (!plan) return;
+    var ov = document.getElementById('rr-rescue-ov');
+    var ticked = [];
+    (ov ? ov.querySelectorAll('input[type=checkbox][data-ri]') : []).forEach(function (cb) {
+      if (cb.checked) ticked.push(plan.units[parseInt(cb.getAttribute('data-ri'), 10)]);
+    });
+    if (!ticked.length) { showToast('Nothing ticked'); return; }
+    if (btn) { btn.disabled = true; btn.textContent = 'Working…'; }
+    _setBusy(true, 'Rescuing photos');
+    var journal = { when: new Date().toISOString(), units: [] };
+    var okUnits = 0, failUnits = 0;
+    try {
+      var fromFid = await _folder();
+      for (var ui = 0; ui < ticked.length; ui++) {
+        var u = ticked[ui];
+        var pd = state.personalData[u.target];
+        if (!pd || !pd.row || Number(pd.row) === 99999) { failUnits++; continue; }
+        try {
+          // destination: the row's own folder → shared? use an inventoryId
+          // subfolder → else <itemNum>/<inventoryId> — v1499/v1500 precedence.
+          var toFid = '', link = '';
+          var m = String(pd.photoItem || '').match(/folders\/([a-zA-Z0-9_-]+)/);
+          if (m) {
+            toFid = m[1]; link = pd.photoItem;
+            if (pd.inventoryId && typeof _pinFolderShared === 'function' && await _pinFolderShared(toFid, pd)) {
+              var sub = await driveFindOrCreateFolder(String(pd.inventoryId), toFid);
+              if (sub) { toFid = sub; link = driveFolderLink(sub); }
+            }
+          } else {
+            var basF = await driveEnsureItemFolder(pd.itemNum);
+            var sub2 = pd.inventoryId ? await driveFindOrCreateFolder(String(pd.inventoryId), basF) : '';
+            toFid = sub2 || basF; link = driveFolderLink(toFid);
+          }
+          var ju = { num: u.num, target: u.target, row: pd.row, invId: pd.inventoryId || '', toFid: toFid, fromFid: fromFid, wroteLink: false, prevPhotoItem: pd.photoItem || '', files: [] };
+          var hadPhotos = !!pd.photoItem;
+          for (var fi = 0; fi < u.files.length; fi++) {
+            var f = u.files[fi];
+            await driveMoveFileToFolder(f.id, fromFid, toFid);
+            var ext = (String(f.name).match(/\.(\w+)$/) || [0, 'jpg'])[1];
+            var tag = (fi === 0 && !hadPhotos) ? ' RSV ' : ' ADD ';
+            var newName = pd.itemNum + tag + (Date.now() + fi) + '.' + ext;
+            try { await driveRequest('PATCH', '/files/' + f.id + '?fields=id', { name: newName }); } catch (eR) {}
+            try { await _pinMetaSet(f.id, { stat: 'filed' }); } catch (eS) {}
+            ju.files.push({ id: f.id, oldName: f.name });
+          }
+          if (!pd.photoItem) {
+            var okW = await rrVerifiedRowUpdate(state.personalSheetId, PERSONAL_TAB, pd.row,
+              PERSONAL_TAB + '!' + personalColLetter('photoItem') + pd.row, [[link]],
+              { num: pd.itemNum || '', invId: pd.inventoryId || '' }, 'collection');
+            if (okW) { pd.photoItem = link; ju.wroteLink = true; }
+          }
+          journal.units.push(ju);
+          okUnits++;
+        } catch (eU) {
+          console.warn('[Rescue] unit failed:', u.num, eU && eU.message);
+          failUnits++;
+        }
+      }
+      if (journal.units.length) {
+        try {
+          var allJ = JSON.parse(localStorage.getItem(_RESCUE_UNDO) || '[]');
+          allJ.push(journal);
+          localStorage.setItem(_RESCUE_UNDO, JSON.stringify(allJ.slice(-10)));
+        } catch (eJ) {}
+      }
+      showToast('✓ ' + okUnits + ' item' + (okUnits === 1 ? '' : 's') + ' got photos' + (failUnits ? ' · ' + failUnits + ' failed (see console)' : ''));
+      if (ov) ov.remove();
+      _rescuePlanNow = null;
+      try { if (typeof buildDashboard === 'function') buildDashboard(); } catch (eD) {}
+      try { if (typeof renderBrowse === 'function') renderBrowse(); } catch (eB) {}
+    } finally { _setBusy(false); }
+  };
+
+  window.rrPhotoRescueRowHtml = function () {
+    return '<div class="pref-row">' +
+      '<div class="pref-row-label"><strong>Rescue stranded set photos</strong>' +
+      '<span>Photos read in the inbox that never attached to a grouped item (a bug fixed in v0.9.1560). Shows a review first — nothing moves until you confirm.</span></div>' +
+      '<button class="pref-btn" onclick="rrPhotoRescueScan()">Scan</button></div>';
+  };
+
+  window.rrPhotoRescueUndoHtml = function () {
+    var allJ;
+    try { allJ = JSON.parse(localStorage.getItem(_RESCUE_UNDO) || '[]'); } catch (e) { allJ = []; }
+    if (!allJ.length) return '';
+    return allJ.slice(-3).reverse().map(function (b, i) {
+      var idx = allJ.length - 1 - i;
+      var n = (b.units || []).length;
+      var d = (b.when || '').slice(0, 10);
+      return '<div class="pref-row"><div class="pref-row-label"><strong>Undo photo rescue</strong>' +
+        '<span>' + d + ' · ' + n + ' item' + (n === 1 ? '' : 's') + ' — moves the photos back to the inbox</span></div>' +
+        '<button class="pref-btn" onclick="rrPhotoRescueUndo(' + idx + ',this)">Undo</button></div>';
+    }).join('');
+  };
+
+  window.rrPhotoRescueUndo = async function (idx, btn) {
+    if (_busy) { _pinBusyBounce(); return; }
+    var allJ;
+    try { allJ = JSON.parse(localStorage.getItem(_RESCUE_UNDO) || '[]'); } catch (e) { allJ = []; }
+    var batch = allJ[idx]; if (!batch) return;
+    if (btn) { btn.disabled = true; btn.textContent = 'Undoing…'; }
+    _setBusy(true, 'Undoing photo rescue');
+    var problems = 0;
+    try {
+      for (var ui = 0; ui < batch.units.length; ui++) {
+        var ju = batch.units[ui];
+        try {
+          for (var fi = 0; fi < ju.files.length; fi++) {
+            var f = ju.files[fi];
+            await driveMoveFileToFolder(f.id, ju.toFid, ju.fromFid);
+            try { await driveRequest('PATCH', '/files/' + f.id + '?fields=id', { name: f.oldName }); } catch (eR) {}
+            try { await _pinMetaSet(f.id, { stat: 'read' }); } catch (eS) {}
+          }
+          if (ju.wroteLink) {
+            var pd = state.personalData[ju.target];
+            if (pd && pd.row && Number(pd.row) !== 99999) {
+              var okW = await rrVerifiedRowUpdate(state.personalSheetId, PERSONAL_TAB, pd.row,
+                PERSONAL_TAB + '!' + personalColLetter('photoItem') + pd.row, [[ju.prevPhotoItem || '']],
+                { num: pd.itemNum || '', invId: pd.inventoryId || '' }, 'collection');
+              if (okW) pd.photoItem = ju.prevPhotoItem || '';
+            } else problems++;
+          }
+        } catch (eU) { problems++; console.warn('[Rescue] undo unit failed:', ju.num, eU && eU.message); }
+      }
+      allJ.splice(idx, 1);
+      localStorage.setItem(_RESCUE_UNDO, JSON.stringify(allJ));
+      showToast(problems ? 'Undo finished with ' + problems + ' problem(s) — see console' : '✓ Photos are back in the inbox');
+      try { if (typeof buildPrefsPage === 'function') buildPrefsPage(); } catch (eP) {}
+      try { if (typeof buildDashboard === 'function') buildDashboard(); } catch (eD) {}
+    } finally { _setBusy(false); }
+  };
+
   // ── Batch AI identify (Phase 3, v0.9.886) ────────────────────
   // One button: every un-identified item group gets its FIRST photo
   // run through the existing identify relay (ai-id.js → Gemini).
