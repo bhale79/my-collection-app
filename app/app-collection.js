@@ -1191,11 +1191,11 @@ function showItemDetailPage(idx, copyInvId, opts) {
           var cond = p.condition ? p.condition + '/10' : '—';
           var box = /-(BOX|MBOX)$/i.test(String(p.itemNum||'')) ? '' : (p.hasBox === 'Yes' ? ('Box ✓' + (p.boxCond ? ' (' + p.boxCond + ')' : '')) : 'No box');
           var worth = p.userEstWorth ? _currencySymbol() + parseFloat(p.userEstWorth).toLocaleString() : '';
-          return '<div style="flex:1;min-width:150px;max-width:230px;background:var(--surface2);border:1px solid ' + (me ? 'var(--accent3,#2ecc71)' : 'var(--border)') + ';border-radius:10px;padding:0.6rem 0.75rem">'
+          return '<div onclick="if(typeof _grpHeroSwap===\'function\')_grpHeroSwap(' + i + ')" title="Show this unit\'s photo above" style="cursor:pointer;flex:1;min-width:150px;max-width:230px;background:var(--surface2);border:1px solid ' + (me ? 'var(--accent3,#2ecc71)' : 'var(--border)') + ';border-radius:10px;padding:0.6rem 0.75rem">'
             + '<div style="font-size:0.64rem;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--accent3,#2ecc71)">' + role + (me ? ' · this page' : '') + '</div>'
             + '<div style="font-family:var(--font-mono);font-weight:700;color:var(--accent);font-size:0.95rem;margin:0.15rem 0">' + String(p.itemNum || '').replace(/</g, '&lt;') + (p.photoItem ? ' <span title="Has photos" style="font-size:0.78rem">📷</span>' : '') + '</div>'
             + '<div style="font-size:0.74rem;color:var(--text-mid);line-height:1.5">Cond ' + cond + (box ? ' · ' + box : '') + (worth ? '<br>Worth ' + worth : '') + '</div>'
-            + '<button onclick="_grpEditMember(' + i + ')" style="margin-top:0.45rem;width:100%;padding:0.3rem;border-radius:7px;border:1px solid #2980b9;background:var(--bg-card);background:color-mix(in srgb, rgb(41,128,185) 8%, var(--bg-card));color:#2980b9;font-size:0.7rem;cursor:pointer;font-family:var(--font-body);font-weight:600">Edit / Photos</button>'
+            + '<button onclick="event.stopPropagation();_grpEditMember(' + i + ')" style="margin-top:0.45rem;width:100%;padding:0.3rem;border-radius:7px;border:1px solid #2980b9;background:var(--bg-card);background:color-mix(in srgb, rgb(41,128,185) 8%, var(--bg-card));color:#2980b9;font-size:0.7rem;cursor:pointer;font-family:var(--font-body);font-weight:600">Edit / Photos</button>'
             + '</div>';
         }).join('')
       + '</div></div>';
@@ -1381,6 +1381,25 @@ function showItemDetailPage(idx, copyInvId, opts) {
   } else {
     container.innerHTML = _headHtml + html + _photoCard;
   }
+
+  // v0.9.1566 (Brad: "these three boxes should be clickable and just change
+  // the photo at the top") — clicking a member card swaps the hero to that
+  // unit's Right Side View. No navigation, no edit; the Edit/Photos button
+  // stops the bubble and keeps its old job. On phones there is no side hero
+  // (#grp-side-photo absent) and the click quietly does nothing.
+  window._grpHeroSwap = async function (gi) {
+    try {
+      var p = _grpFull && _grpFull[gi];
+      var target = document.getElementById('grp-side-photo');
+      if (!target) return;
+      if (!p || !p.photoItem) { if (typeof showToast === 'function') showToast('No photos for that unit yet'); return; }
+      var photos = await driveGetFolderPhotos(p.photoItem);
+      if (!photos || !photos.length) { if (typeof showToast === 'function') showToast('No photos for that unit yet'); return; }
+      var isRSV = function (x) { var n = String(x.name || '').toUpperCase(); return n.indexOf('RSV') !== -1 && n.indexOf('BOX') === -1; };
+      var pick = photos.find(isRSV) || photos[0];
+      _buildPhotoGallery(target, [pick], { folderLink: p.photoItem, canRename: true, stack: true });
+    } catch (e) { console.warn('hero swap:', e); }
+  };
 
   // Async: group side photo — prefer the together/SET shot (filed in the
   // lead unit's folder), fall back to THIS unit's RSV, then its first photo.
