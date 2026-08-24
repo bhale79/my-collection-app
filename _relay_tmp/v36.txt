@@ -1,0 +1,2125 @@
+// ═══ v3.6 (2026-08-24, Session 85): BARCODE PAIRS finally have a home.
+//     The app has been queuing UPC→item pairings since v0.9.1113
+//     (_bcPairShare / _bcPairDrain, opted-in users only) and posting
+//     action:'barcode_pair' — which this relay never knew, so pairings
+//     sat on devices retrying forever. By design nothing was lost; they
+//     drain the moment this version is live. ONE new tab (barcode_pairs,
+//     auto-created), one router line, one handler:
+//     • VAULT-FIRST (Brad's decision, S81): unverified pairings land
+//       here, NEVER in the master sheet. Promotion goes through review
+//       (the Task #36 cockpit) — one bad scan must not poison the
+//       catalog for everyone (the 30-7099 incident).
+//     • Repeats increment report_count + stamp last_seen, so "how many
+//       independent people saw this pairing" is one column.
+//     • The response carries ok:true because the app's drain accepts
+//       r.ok || r.success || r.status==='ok' and respond() sends a
+//       NUMERIC status — without ok:true the queue would never clear.
+//     Every other action untouched. No setup step: the tab creates
+//     itself on first post. ═══
+// ═══ v3.5 (2026-08-20, Session 81): BETA TRACKING — three additions to
+//     answer Brad's "how do I keep up with all the beta users?":
+//     • AUTO-ENROLL: a sub_check carrying the correct beta code (app
+//       v0.9.1507+ sends it, but ONLY for users who passed the gate) from
+//       an email not yet in beta_testers appends the row automatically,
+//       note "auto-enrolled YYYY-MM-DD". The roster builds itself; nobody
+//       silently lands on a 30-day trial anymore. Code lives in Script
+//       Property BETA_CODE (default BETA2026) — rotate without a repaste.
+//     • LAST SEEN + APP VERSION: every check-in stamps beta row cols
+//       D (last_seen date) and E (app_version), throttled to once per 6h
+//       per email via CacheService so the sheet is never spammed.
+//     • WEEKLY DIGEST: betaWeeklyDigest() emails DIGEST_EMAIL (property,
+//       default support@therailroster.com) every Monday 7am — new this
+//       week, active last 7 days, quiet 14+ days/never, totals.
+//     ONE-TIME after pasting: function dropdown → setupV35Beta → Run.
+//     Writes headers D1:F1 (last_seen, app_version, name — name is
+//     Brad-filled) and creates the Monday trigger (replaces, never
+//     duplicates). First run asks for email/trigger permission — approve.
+//     handleSubCheck answers EXACTLY as v3.4 otherwise; every other
+//     action untouched. ═══
+// ═══ v3.4 (2026-08-19, Session 81): NEW ACTION import_map — Task #25
+//     spreadsheet import, the ONE AI call per import. Sends tab headers +
+//     ~10 sample rows per tab; answers strict JSON: column mappings, tab
+//     classification, grade-conversion proposal, and up to 5 interview
+//     questions. AI SUGGESTS, the app's user CONFIRMS, deterministic
+//     client code WRITES — nothing returned here touches data directly.
+//     • Uses ITS OWN key: Script Property IMPORT_GEMINI_KEY (a SECOND,
+//       billing-enabled key — Brad's decision: user inventory data must
+//       never be used for Google training; the free-tier photo-reader key
+//       stays untouched). Falls back to GEMINI_API_KEY only if the import
+//       key is missing, so the action still works before the new key is set.
+//     • Model: Script Property IMPORT_GEMINI_MODEL, default gemini-3.6-flash
+//       (Brad, Session 81: best smoothness-per-penny; ~2 cents per import).
+//     • Rate limit: 10 calls per token per 6h via CacheService — imports
+//       run once per user; this only stops abuse, not real use.
+//     • ONE router line + ONE handler + ONE editor test added.
+//       NOTHING ELSE CHANGED. ═══
+// ═══ v3.3 (2026-08-16): NEW ACTION ai_quota (Brad: "where is our 20 of 20
+//     reads left button?"). A FREE ask — spends nothing, reads nothing but
+//     the usage tab — answering { remaining, cap } for the asking device,
+//     premium-aware via _ai2CapFor. Lets the app (v1472+) show
+//     "X of Y reads left today" on the crop screen / identify panel /
+//     Preferences at any time, instead of only after the day's first read.
+//     ONE router line + ONE handler added. NOTHING ELSE CHANGED. ═══
+// ═══ v3.2 (2026-08-05): PAID READS 100 → 20 (Brad: "need to take paid
+//     reads from 100 to 20"). ONE LINE: AI2_PREMIUM_CAP_DEFAULT 100 → 20.
+//     The config tab's `ai_daily_cap_premium` still overrides when set —
+//     set it to 20 there too (or clear it) so the two agree; a config row
+//     left at 100 would silently win over this default.
+//     NOTHING ELSE CHANGED — no prompt, no model, no cache key. ═══
+// ═══ v3.1 (2026-08-03): THE TWO PATHS v3.0 MISSED, CLOSED.
+//     • handleAiVerifyPhoto sent no thinkingConfig at all, so the model
+//       default (thinking ON) applied to every paid photo compare. Now
+//       thinkingLevel 'minimal' — the same knob v3.0 proved on identify2,
+//       same model (GEMINI_MODEL2 / 3.5 family).
+//     • handleAiIdentify (v1) thinkingBudget 1024 -> 0. v1 is reachable only
+//       as identify2's silent fallback (app ai-id.js), which is a deliberate
+//       resilience contract and STAYS — the fix is making the fallback cost
+//       what the primary costs, not removing the net.
+//     • NOTHING ELSE CHANGED — no prompt, no model, no cache key, so every
+//       cached answer stays valid.
+//     GATE: Reader Audit re-run on real photos covers both handlers. ═══
+// ═══ v3.0 (2026-08-02): THINKING OFF ON PHOTO ID (measured 2026-07-30).
+//     • handleAiIdentify2 now sends generationConfig.thinkingConfig.
+//       thinkingLevel = 'minimal'. Thinking was 85% of the output tokens on
+//       a photo read and output is billed at $9/1M — ~1.7c/read → ~0.4c/read.
+//       A/B on real reads: answers unchanged, search grounding still worked.
+//     • The v2.9 comment above that line claimed thinkingConfig was a Gemini
+//       2.5-only knob. Live-API testing disproved it; the comment is corrected
+//       in place so a future read of this file does not undo the change.
+//     • NOTHING ELSE CHANGED — no prompt, no model, no cache key.
+//       AI2_PROMPT_VER stays 'q3' on purpose: the answers are identical, so
+//       cached ones stay valid. Bumping it would force a needless re-read of
+//       every photo at full price.
+//     • handleAiIdentify (v1) and handleAiCard keep their own thinkingBudget
+//       settings — different models, different call sites, left alone.
+//     GATE: re-run the Reader Audit on real photos after deploying. ═══
+// ═══ v2.9 (2026-07-25): COTT-AWARE PHOTO EXTRACTION (Brad's 3659: "no
+//     usable catalog photo" on a page FULL of photos).
+//     • _vpFindImage gains an ANCHOR parameter. COTT reference links carry
+//       the item's anchor (#EALCO2023 etc. — the app's cottAnchorUrl builds
+//       them); the extractor now jumps to that anchor and takes the first
+//       real photo AFTER it, so multi-item archive pages return the RIGHT
+//       item's photo instead of the page's first image.
+//     • Content-image fallback got honest filters: skips /themes/ and
+//       /socials/ chrome (the old code returned COTT's YouTube icon, which
+//       then flunked the size check → 422), prefers /wp-content/uploads/.
+//     • ref_photo AND ai_verify_photo both split '#anchor' off the URL
+//       before fetching and hand the anchor to the extractor. ═══
+// ═══ v2.8 (2026-07-25): FREE SIDE-BY-SIDE COMPARE (Brad: "just bring up a
+//     photo from the reference page next to the user's photo and let the
+//     USER decide — no tokens").
+//     • NEW ACTION `ref_photo` — payload { action:'ref_photo', token, refUrl }.
+//       Fetches the Reference Link page, extracts its product photo (the
+//       same _vpFindImage used by ai_verify_photo), downloads it, and hands
+//       the image back base64 so the app can show it beside the collector's
+//       own photo. NO Gemini call, NO daily-pool spend, NO image upload —
+//       the payload carries only a URL. Cached 6h per page (photos on
+//       catalog pages rarely change).
+//     ai_verify_photo (paid compare) untouched — the Photo Inbox still uses
+//     it. ai_identify / ai_identify2 untouched, as always. ═══
+// ═══ v2.7 (2026-07-21): IDENTIFY v3 — PHOTO DOUBLE-CHECK (Brad's coaling-
+//     tower idea: "compare the link we think it is to our actual picture").
+//     • NEW ACTION `ai_verify_photo` — payload { action:'ai_verify_photo',
+//       token, image (base64), mime, refUrl (product page from the master's
+//       Reference Link) }. The relay fetches the page, pulls its product
+//       photo (og:image etc.), and asks Gemini (NO search grounding — cheap
+//       call): is the collector's photo the same product? Answer contract:
+//       Match: yes|no|unsure / Differences: ... / Reference item: ...
+//       Shares the v1/v2 daily cap + photo cache; refunds on any failure;
+//       does NOT touch the grounded monthly counter (no grounding used).
+//     • ai_identify2 gains OPTIONAL hints.note — "a previous attempt was
+//       rejected because ..." context for the re-identify loop. The note is
+//       hashed into the cache key ONLY when present, so normal calls keep
+//       hitting their existing cache and re-identifies never see the stale
+//       rejected answer. No prompt-version bump needed.
+//     ai_identify (v1) untouched, as always. ═══
+// ═══ v2.6 (2026-07-16): COST GUARD RAILS (Brad: "keep it free now, but where
+//     we can up high-use users") — ready for the paid-key / gemini-3.5 flip:
+//     • GLOBAL MONTHLY CEILING for grounded v2 calls: config `ai2_monthly_cap`
+//       (default 4500, under the 5,000/mo free grounded pool). Over the
+//       ceiling, ai_identify2 keeps answering but on the v1 model (its own
+//       separate free pool) — invisible to users, bill can't run away.
+//       Counter lives in ai_usage as token '__v2month__', date 'Myyyy-MM'.
+//     • PREMIUM CAPS: config `ai_premium_tokens` = comma-separated device
+//       tokens, `ai_daily_cap_premium` (default 100) = their daily cap.
+//       Raising a paying user's cap = paste their token in the config tab.
+//     • Model still gemini-2.5-flash by default; after billing is enabled,
+//       flip = Script Property GEMINI_MODEL2 = gemini-3.5-flash + testAiKey2.
+//     ai_identify (v1) untouched, as always. ═══
+// ═══ v2.5 (2026-07-16): VARIANT HONESTY (Brad's 30-9006 vs 30-9163 platform
+//     lesson — the AI picked the operating twin CONFIDENTLY from a text
+//     search that cannot see which twin is in the photo). ai_identify2's
+//     prompt now (a) forbids confidently naming one of several look-alike
+//     variants unless the photos PROVE it, and (b) adds a new labeled line
+//     the app can parse:  Possible variants: <num> (<difference>) | ...
+//     most-likely first. AI2_PROMPT_VER q1→q2 (busts the v2 answer cache).
+//     ai_identify (v1) untouched, as always. ═══
+// ═══ v2.4 (2026-07-16): IDENTIFY v2 — new `ai_identify2` action. Leaves
+//     `ai_identify` 100% UNTOUCHED; the app falls back v2→v1 on any error.
+//     What's new in the v2 identify:
+//     • MULTIPLE PHOTOS of the same item in one call (up to 4) — payload
+//       { action:'ai_identify2', token, images:[{data,mime},...], hints }
+//       (also accepts the old single image/mime fields, so it can be
+//       tested with v1-style payloads).
+//     • Model: gemini-2.5-flash for now (tested 2026-07-16: Gemini 3-family
+//       returns 429 on this key FREE tier; paid billing unlocks
+//       gemini-3.5-flash, 5,000 grounded/mo free then $14/1k). Upgrade =
+//       set Script Property GEMINI_MODEL2, no repaste. Own override
+//       GEMINI_MODEL2 (v1's GEMINI_MODEL is NOT shared, so the two
+//       versions can never affect each other).
+//     • VERIFY-THE-NUMBER rule (the AF Coaler lesson, 30-9043 vs 6-49807):
+//       any catalog number the AI reads must be VERIFIED with a Google
+//       search; a number that turns out to belong to a different brand or
+//       product than the photo shows is discarded and the search continues
+//       until the right product is found or UNKNOWN is admitted.
+//     • Same daily cap, same usage counters, same photo cache, same
+//       labeled-lines answer format — zero new parsing in the app.
+//     ONE-TIME CHECK after pasting: function dropdown > testAiKey2 > Run,
+//     then read the log — it says whether this key's project can use the
+//     new model WITH Google Search grounding (answers the free-tier /
+//     Cloud-project question without opening the Cloud console).
+//     Deploy: Manage deployments → ✏ existing deployment → New version
+//     (URL must stay ...ttxPKuaqiA). ═══
+// ═══ v2.2.1 (2026-07-08): fixes v2.2 truncation (thinking off, 1024-token ceiling, cache ver c2).
+// ═══ v2.3 (2026-07-14): PHASE C — SUBSCRIPTIONS. + `sub_check` action
+//     (email → beta / active / trial with days left / expired, plus the
+//     Stripe payment link and the enforce flag from the config tab) and a
+//     Stripe WEBHOOK endpoint (?hook=KEY on the same URL) that keeps the
+//     `subscribers` tab current automatically on checkout / renewal / cancel.
+//     New tabs (auto-created): subscribers, trials, beta_testers.
+//     Config keys (config tab): pay_link = https://buy.stripe.com/…,
+//     sub_enforce = off|on  (leave OFF until launch — the app checks but
+//     does not enforce until this says on).
+//     Script Property needed for the webhook: WEBHOOK_KEY = any long random
+//     string; the Stripe webhook URL is then  <script-url>?hook=THAT-STRING
+//     Paste procedure: same as always — Extensions → Apps Script, replace
+//     everything, Deploy → Manage deployments → ✏ on the EXISTING deployment
+//     → New version → Deploy (URL must stay ...ttxPKuaqiA).
+// ═══ v2.2 (2026-07-08): + `ai_card` action — the Contacts business-card
+// scanner can now use the SAME Gemini relay (same key, same ai_daily_cap
+// pool, same photo cache) to read a card into labeled Name/Title/Business/
+// phone/Email/Website/Address lines. Pure transcription prompt, temperature 0,
+// no web search. Paste-over upgrade: no key work, no new setup — replace the
+// script with this file and Deploy > Manage deployments > Edit > New version.
+// Everything from v2.1 is unchanged. ═══
+
+// ============================================================
+//  Lionel Vault — Collector's Market Est. + AI Photo ID Relay
+//  Google Apps Script Web Endpoint
+//  Version 1.3.2  (2026-07-03)
+//  (1.3.1: fixed daily-cap counting — Sheets auto-converts the stored
+//   date text into a Date cell, so lookups never matched and the cap
+//   never enforced. Dates are now normalized on read.)
+//  (1.3.2: answers were sometimes cut off mid-line — Gemini 2.5 spends
+//   "thinking" tokens from the same output budget. Thinking disabled
+//   (it's just reading a label) and the budget raised.)
+//
+//  WHAT'S NEW IN 1.3 (AI photo identification relay):
+//  - New action `ai_identify`: the app sends a downscaled photo of a
+//    box label; this script calls Google's Gemini Flash model and
+//    returns the answer as labeled text the app already knows how
+//    to parse. The API key NEVER leaves this script.
+//  - Per-device daily cap (default 20, change in config tab with key
+//    `ai_daily_cap`) — hard cost/abuse ceiling.
+//  - Duplicate-photo cache: the exact same photo re-sent (retry taps)
+//    is answered from the `ai_cache` tab without calling Gemini.
+//  - Everything from v1.2 (market, catalog not-found flagging) is
+//    unchanged.
+//
+//  v2.1 (2026-07-05): CLUTTERED-SHELF RULE (Brad's abacus photo) — real-world
+//  shots often show a whole shelf: many boxes, many printed numbers, none of
+//  them belonging to the item being identified. The prompt now orders the AI
+//  to identify the CENTRAL / most prominent item and to IGNORE numbers
+//  printed on other items or boxes nearby. AI_PROMPT_VER p8→p9.
+//  (Supersedes v2.0 — paste THIS file regardless of prior pastes.)
+//
+//  v2.0 (2026-07-05): SEARCH MADE CONSISTENT — Gemini was deciding per-run
+//  whether to use its search tool (same photo: rich answer one run, bare
+//  "factory building" the next). Two fixes: (a) prompt now ORDERS a search
+//  ("ALWAYS run at least one Google search…") whenever no catalog number is
+//  printed on the item; (b) thinkingBudget 256→1024 — tool planning + reading
+//  search results needs the room (output stays capped at 2048; the v1.3.2
+//  cutoff concern was about output budget, which is unchanged). AI_PROMPT_VER
+//  p7→p8. (Supersedes v1.9 — paste THIS file regardless of prior pastes.)
+//
+//  v1.9 (2026-07-05): APPROXIMATE YEARS (Brad's convention) — when search or
+//  knowledge gives a rough era but not a certain year, the AI now reports it
+//  prefixed with ~ (e.g. ~2021) instead of writing Unknown. Unknown is
+//  reserved for "cannot even estimate". AI_PROMPT_VER p6→p7. (Supersedes
+//  v1.8 — paste THIS file whether or not v1.8 was ever pasted.)
+//
+//  v1.8 (2026-07-05): GROUNDING WITH GOOGLE SEARCH — the AI can now run real
+//  Google searches while answering (tools: google_search). This is the big
+//  gap-closer vs Google Lens for items with no printed number (store-brand
+//  buildings etc.): the model can search "Menards O gauge power plant" and
+//  find the actual product page + SKU. Rules updated: the SKU line may carry
+//  a catalog number found via a CONFIDENT web match (not just printed text);
+//  guessing is still forbidden. AI_PROMPT_VER p5→p6 (busts the answer cache).
+//  Thinking budget raised 0→256: search-tool calls need a little planning
+//  room; output stays capped at 2048. (Supersedes v1.7 — paste THIS file
+//  whether or not v1.7 was ever pasted.)
+//
+//  v1.7 (2026-07-05): question set now covers BUILDINGS and PAPER/ADVERTISING
+//  (posters, catalogs, instruction sheets, ads) — universal core lines
+//  (Manufacturer / SKU / Year / Scale / Description) plus adaptive lines by
+//  what the photo shows: trains get road name + cab number + body style;
+//  buildings get Structure type; paper gets Title / Form or part number /
+//  Belongs to item or set / Original or reproduction. AI_PROMPT_VER p4→p5
+//  (busts the answer cache). (Supersedes v1.6 — paste THIS file whether or
+//  not v1.6 was ever pasted.)
+//
+//  v1.6 (2026-07-04): Known scale/gauge line added; Known description must
+//  include the product line/series name; year+scale always included when the
+//  product is recognized.
+//
+//  v1.5 (2026-07-04): the photo may now be the MODEL ITSELF (no box) — the
+//  prompt reads road name / painted number / body style off the model, for
+//  the unified Identify-from-Photo flow (app v0.9.663). Same upgrade steps.
+//
+//  v1.4 (2026-07-04): "Known ..." knowledge-enrichment lines added to the AI
+//  prompt (box-read honesty rules unchanged; knowledge appears ONLY in the
+//  clearly-marked Known lines) + prompt-versioned answer cache.
+//
+//  UPGRADE STEPS (paste-over upgrade, v2.1) — no API key work, no setup function:
+//  1. Open the "Vault — Collectors Market" Google Sheet (sheets.google.com)
+//  2. Menu: Extensions > Apps Script (editor opens in a new tab)
+//  3. Click in the code, Ctrl+A (select all), Delete, paste THIS entire file
+//  4. Click Save (the disk icon, or Ctrl+S) — there must be NO syntax error
+//  5. Deploy (blue button, top right) > Manage deployments > pencil icon on
+//     the ACTIVE deployment > Version: "New version" > Deploy.
+//     The URL shown MUST still end ...ttxPKuaqiA — same URL = app untouched.
+//
+//  SETUP INSTRUCTIONS (v1.2 → v1.3 upgrade):
+//  1. Open the central "Vault — Collectors Market" Google Sheet
+//  2. Extensions > Apps Script — select ALL existing code, delete,
+//     paste this entire file, click Save (💾)
+//  3. ADD THE API KEY (one time):
+//     Left sidebar: Project Settings (⚙ gear) > Script Properties >
+//     "Add script property"
+//        Property: GEMINI_API_KEY
+//        Value:    (paste your key from aistudio.google.com — starts AIza)
+//     Click "Save script properties".
+//  4. Back in the editor: function dropdown (top bar) > setupV13Tabs
+//     > Run. Grant permission if asked. This creates the `ai_usage`
+//     and `ai_cache` tabs. (Safe to re-run; never touches existing data.)
+//  5. OPTIONAL SANITY CHECK: function dropdown > testAiKey > Run,
+//     then View > Logs (or Executions). Should say "KEY OK".
+//  6. Deploy > Manage deployments > pencil ✏ on the EXISTING active
+//     deployment (the one ending ...uaqiA) > Version: New version >
+//     Deploy. ⚠ The URL shown after deploying MUST still end with
+//     ...ttxPKuaqiA — same URL means the app needs no change.
+// ============================================================
+
+
+// ── Sheet tab names ──
+const SUBMISSIONS_TAB = 'submissions';
+const BARCODE_PAIRS_TAB = 'barcode_pairs';   // v3.6: upc | item_num | mfr | in_master | how | first_seen | last_seen | report_count | status
+const CONFIG_TAB      = 'config';
+const COMPUTED_TAB    = 'computed';
+const AI_USAGE_TAB    = 'ai_usage';   // v1.3: one row per device per day
+const AI_CACHE_TAB    = 'ai_cache';   // v1.3: duplicate-photo answers
+const AI_PROMPT_VER   = 'p9';          // v2.1: bump on every prompt change (busts the answer cache)
+
+// ── AI defaults (config tab can override the cap: key `ai_daily_cap`) ──
+const AI_DAILY_CAP_DEFAULT = 20;
+// Model name; can be overridden with Script Property GEMINI_MODEL if
+// Google renames/retires it — no repaste needed.
+const AI_MODEL_DEFAULT = 'gemini-2.5-flash';
+// Base64 payload guard — a properly downscaled photo is ~150-400 KB.
+const AI_MAX_IMAGE_B64 = 4 * 1024 * 1024;
+
+// ── v2.4: Identify v2 (ai_identify2) knobs — kept separate from v1 on
+//    purpose so the two versions can never affect each other. Model is
+//    overridable with Script Property GEMINI_MODEL2 (no repaste needed). ──
+const AI2_MODEL_DEFAULT = 'gemini-3.5-flash';  // v2.6.1 (2026-07-16, billing ON + $100 Google cap): Gemini 3.5 unlocked - GEMINI_MODEL2 Script Property still overrides, no repaste
+const AI2_PROMPT_VER    = 'q3';   // v2.6.2: q2->q3 busts the v2 cache so every photo re-reads on the new gemini-3.5 model (model isn't part of the cache key)
+const AI2_MAX_IMAGES    = 4;      // photos per identify call (one item, several angles)
+const AI2_MONTHLY_CAP_DEFAULT = 4500;  // v2.6: global grounded-v2 calls per month (config: ai2_monthly_cap)
+const AI2_PREMIUM_CAP_DEFAULT = 20;   // v3.2 (Brad, 2026-08-05): paid reads 100 -> 20; config ai_daily_cap_premium still overrides
+
+// v2.7 (Identify v3): photo double-check against the catalog reference photo
+const AI3_VERIFY_PROMPT_VER = 'r1';               // bump on verify-prompt change (busts its cache slice)
+const AI3_MAX_REF_BYTES     = 3 * 1024 * 1024;    // reference image download cap   // v2.6: daily cap for config ai_premium_tokens devices (config: ai_daily_cap_premium)
+
+// ── v2.3: subscription tabs + knobs ──
+const SUBSCRIBERS_TAB = 'subscribers';   // email | stripe_customer | paid_through | status | updated_at
+const TRIALS_TAB      = 'trials';        // email | trial_start
+const BETA_TAB        = 'beta_testers';  // email | free_until | note
+const TRIAL_DAYS      = 30;
+const SUB_GRACE_DAYS  = 3;               // card retries etc. — don't cut access at midnight
+
+// ── Allowed condition values ──
+const VALID_CONDITIONS = ['C1','C2','C3','C4','C5','C6','C7','C8','C9','C10'];
+
+
+// ============================================================
+//  MAIN ENTRY POINT
+// ============================================================
+
+function doPost(e) {
+  try {
+    // v2.3: Stripe webhook — its payload has no `action`; routed by URL key.
+    if (e && e.parameter && e.parameter.hook) return handleStripeHook(e);
+    const payload = JSON.parse(e.postData.contents);
+    const action  = payload.action || '';
+
+    if (action === 'submit')        return handleSubmit(payload);
+    if (action === 'get_market')    return handleGetMarket(payload);
+    if (action === 'get_counts')    return handleGetCounts();
+    if (action === 'delete_token')  return handleDeleteToken(payload);
+    if (action === 'ai_identify')   return handleAiIdentify(payload);   // v1.3
+    if (action === 'ai_identify2')  return handleAiIdentify2(payload);  // v2.4
+    if (action === 'ai_verify_photo') return handleAiVerifyPhoto(payload); // v2.7
+    if (action === 'ref_photo')     return handleRefPhoto(payload);     // v2.8
+    if (action === 'ai_card')       return handleAiCard(payload);       // v2.2
+    if (action === 'sub_check')     return handleSubCheck(payload);     // v2.3
+    if (action === 'ai_quota')      return handleAiQuota(payload);      // v3.3
+    if (action === 'import_map')    return handleImportMap(payload);    // v3.4
+    if (action === 'barcode_pair')  return handleBarcodePair(payload); // v3.6
+
+    return respond(400, 'Unknown action');
+  } catch(err) {
+    return respond(500, 'Server error: ' + err.message);
+  }
+}
+
+function doGet(e) {
+  try {
+    return handleGetCounts();
+  } catch(err) {
+    return respond(500, 'Server error: ' + err.message);
+  }
+}
+
+
+// ============================================================
+//  ACTION: ai_quota (v3.3) — "how many photo IDs do I have left?"
+//  Payload: { action:'ai_quota', token }
+//  Returns: { status:200, remaining, cap } — premium-aware, spends nothing.
+//  Powers the app's always-on "X of Y reads left today" counter (v1472).
+// ============================================================
+function handleAiQuota(payload) {
+  const token = String(payload.token || '').trim();
+  if (!token) return respond(400, 'Missing token');
+  const config = getConfig();
+  const cap = _ai2CapFor(token, config);
+  let used = 0;
+  try {
+    const sheet = getSheet(AI_USAGE_TAB);
+    const today = _aiToday();
+    const data  = sheet.getDataRange().getValues();
+    for (let i = 1; i < data.length; i++) {
+      if (data[i][0] === token && _aiDateStr(data[i][1]) === today) {
+        used = parseInt(data[i][2]) || 0;
+        break;
+      }
+    }
+  } catch (e) {}
+  return respond(200, 'OK', { remaining: Math.max(0, cap - used), cap: cap });
+}
+
+
+// ============================================================
+//  ONE-TIME SETUP (v1.2) — writes the submissions column headers.
+//  Already run if you upgraded through v1.2; harmless to re-run.
+// ============================================================
+
+function setupV12Columns() {
+  const sheet = getSheet(SUBMISSIONS_TAB);
+  const headers = ['token','item_num','variation','condition','est_worth',
+                   'sold_price','updated','in_master','manufacturer',
+                   'description','road_name','source'];
+  sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+}
+
+// ============================================================
+//  ONE-TIME SETUP (v1.3) — creates the AI tabs if missing.
+//  Run once from the editor after pasting this file.
+//  Safe to re-run: never deletes or overwrites existing data.
+// ============================================================
+
+function setupV13Tabs() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let usage = ss.getSheetByName(AI_USAGE_TAB);
+  if (!usage) {
+    usage = ss.insertSheet(AI_USAGE_TAB);
+    usage.getRange(1, 1, 1, 3).setValues([['token','date','count']]);
+  }
+  let cache = ss.getSheetByName(AI_CACHE_TAB);
+  if (!cache) {
+    cache = ss.insertSheet(AI_CACHE_TAB);
+    cache.getRange(1, 1, 1, 4).setValues([['hash','text','created','hits']]);
+  }
+  Logger.log('v1.3 tabs ready: ' + AI_USAGE_TAB + ', ' + AI_CACHE_TAB);
+}
+
+// Optional key check — run from the editor, read the log.
+function testAiKey() {
+  const key = PropertiesService.getScriptProperties().getProperty('GEMINI_API_KEY');
+  if (!key) { Logger.log('NO KEY — add Script Property GEMINI_API_KEY first'); return; }
+  const model = PropertiesService.getScriptProperties().getProperty('GEMINI_MODEL') || AI_MODEL_DEFAULT;
+  const url = 'https://generativelanguage.googleapis.com/v1beta/models/' + model
+            + ':generateContent?key=' + encodeURIComponent(key);
+  const res = UrlFetchApp.fetch(url, {
+    method: 'post',
+    contentType: 'application/json',
+    payload: JSON.stringify({ contents: [{ parts: [{ text: 'Reply with the single word OK.' }] }] }),
+    muteHttpExceptions: true,
+  });
+  const code = res.getResponseCode();
+  Logger.log(code === 200 ? ('KEY OK — model ' + model + ' answered.') :
+             ('KEY PROBLEM — HTTP ' + code + ': ' + res.getContentText().substring(0, 300)));
+}
+
+// v2.4: key check for Identify v2 — verifies the NEW model AND Google Search
+// grounding work on this key's project. Run from the editor, read the log.
+function testAiKey2() {
+  const key = PropertiesService.getScriptProperties().getProperty('GEMINI_API_KEY');
+  if (!key) { Logger.log('NO KEY — add Script Property GEMINI_API_KEY first'); return; }
+  const model = PropertiesService.getScriptProperties().getProperty('GEMINI_MODEL2') || AI2_MODEL_DEFAULT;
+  const url = 'https://generativelanguage.googleapis.com/v1beta/models/' + model
+            + ':generateContent?key=' + encodeURIComponent(key);
+  const res = UrlFetchApp.fetch(url, {
+    method: 'post',
+    contentType: 'application/json',
+    payload: JSON.stringify({
+      contents: [{ parts: [{ text: 'Search the web: what model-train product is Lionel catalog number 6-49807? Answer in one short line.' }] }],
+      tools: [{ google_search: {} }],
+      generationConfig: { temperature: 0.1, maxOutputTokens: 4096 },
+    }),
+    muteHttpExceptions: true,
+  });
+  const code = res.getResponseCode();
+  if (code === 200) {
+    let text = '';
+    try {
+      const j = JSON.parse(res.getContentText());
+      const parts = j.candidates && j.candidates[0] && j.candidates[0].content
+                 && j.candidates[0].content.parts;
+      text = (parts || []).map(function(p) { return p.text || ''; }).join(' ').trim();
+    } catch (e) {}
+    Logger.log('V2 KEY OK — model ' + model + ' + grounding answered: ' + text.substring(0, 200));
+  } else {
+    Logger.log('V2 KEY PROBLEM — HTTP ' + code + ': ' + res.getContentText().substring(0, 300));
+  }
+}
+
+
+// ============================================================
+//  ACTION: ai_identify  (v1.3)
+//  Payload: { action:'ai_identify', token, image (base64, no data: prefix),
+//             mime ('image/jpeg'), hints:{ scale, type, mfrs:[] } }
+//  Returns: { status:200, text:'Manufacturer SKU...', remaining, cached }
+//           { status:429, message:'quota' }  when the device cap is hit
+// ============================================================
+
+function handleAiIdentify(payload) {
+  // ── validate ──
+  if (!payload.token) return respond(400, 'Missing token');
+  const token = String(payload.token).replace(/[^a-z0-9]/gi, '').substring(0, 16);
+  if (token.length < 6) return respond(400, 'Invalid token');
+
+  const img = String(payload.image || '');
+  if (!img) return respond(400, 'Missing image');
+  if (img.length > AI_MAX_IMAGE_B64) return respond(400, 'Image too large');
+  // base64 sanity (also blocks accidental "data:image/..." prefixes)
+  if (!/^[A-Za-z0-9+/=]+$/.test(img.substring(0, 100))) return respond(400, 'Bad image encoding');
+
+  const mime = (payload.mime === 'image/png') ? 'image/png' : 'image/jpeg';
+
+  const key = PropertiesService.getScriptProperties().getProperty('GEMINI_API_KEY');
+  if (!key) return respond(500, 'AI not configured');
+
+  // ── duplicate-photo cache (retry taps cost nothing) ──
+  // v1.4: prompt version is part of the cache key — a prompt change must not
+  // serve answers cached under the old format.
+  const hash = _aiHash(img + '|' + AI_PROMPT_VER);
+  const cached = _aiCacheGet(hash);
+  if (cached) {
+    return respond(200, 'OK', { text: cached, cached: true, remaining: _aiRemaining(token) });
+  }
+
+  // ── per-device daily cap ──
+  const config = getConfig();
+  const cap = parseInt(config.ai_daily_cap) || AI_DAILY_CAP_DEFAULT;
+  const lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  let used;
+  try {
+    used = _aiUsageIncrement(token, cap);
+  } finally {
+    lock.releaseLock();
+  }
+  if (used < 0) {
+    return respond(429, 'quota', { remaining: 0, cap: cap });
+  }
+
+  // ── build the prompt (mirrors the app's Lens prompt + labeled format) ──
+  const hints = payload.hints || {};
+  let subject = [String(hints.scale || ''), String(hints.type || '')].filter(String).join(' ').trim()
+             || 'model train item';
+  let mfrs = Array.isArray(hints.mfrs) ? hints.mfrs.filter(String).slice(0, 5) : [];
+  const mfrPhrase = mfrs.length ? ', possibly made by ' + mfrs.join(' or ') : '';
+
+  const prompt =
+      'This is a photo of a toy/model train collectible (' + subject + mfrPhrase + '): a train box or '
+    + 'box-end label, the model/train item itself, a BUILDING or accessory, or a PAPER item '
+    + '(poster, catalog, instruction sheet, brochure, or other advertising). '
+    + 'IMPORTANT — the photo may show a shelf or table with MANY items. Identify ONLY the central, '
+    + 'most prominent, in-focus item. Numbers printed on OTHER items or boxes near it are NOT this '
+    + 'item\'s number — ignore them. '
+    + 'If it is the model itself (no box), read the lettering painted/printed ON the model. '
+    + 'If it is a paper item, read the title and any form/part number printed on it. '
+    + 'Read the printed text and identify the item. Respond with EXACTLY these lines, '
+    + 'each on its own line, nothing else:\n'
+    + 'Manufacturer SKU or catalog number: <the unique product/catalog code printed on the '
+    + 'item, e.g. 6-22993, 30-4021, 6464-125, 279-4324. This is NOT the cab/road number painted on the '
+    + 'model. If none is printed, SEARCH THE WEB for this exact product (use its appearance, lettering, '
+    + 'brand, and type) and give the catalog number from a confident match. If still not certain, '
+    + 'write exactly: no specific catalog number found>\n'
+    + 'Manufacturer: <brand, e.g. Lionel, MTH, Atlas, Weaver, K-Line, Menards, RMT, or Unknown>\n'
+    + 'Year manufactured: <year manufactured or published. If you are not certain but can estimate from search results or knowledge, prefix with ~ like ~2021. Write Unknown ONLY if you cannot even estimate>\n'
+    + 'Scale or gauge: <e.g. O, O-27, Standard Gauge, HO, S, or Unknown>\n'
+    + 'Description: <one short line describing the item as printed on it>\n'
+    + 'If it is a locomotive or train car, ALSO add these lines:\n'
+    + 'Road name: <the railroad represented, e.g. Santa Fe, or Unknown>\n'
+    + 'Cab number: <the number painted on the model, or Unknown>\n'
+    + 'Locomotive class or body style: <e.g. F3, Boxcar, GP-9, or Unknown>\n'
+    + 'If it is a building or accessory, ALSO add this line:\n'
+    + 'Structure type: <what the building/accessory is, e.g. Passenger Station, Auto Dealership, Water Tower>\n'
+    + 'If it is a paper or advertising item, ALSO add these lines:\n'
+    + 'Title: <the title printed on it>\n'
+    + 'Form or part number: <the form/part number printed on it, or Unknown>\n'
+    + 'Belongs to item or set: <which product, set, or catalog number it goes with, or Unknown>\n'
+    + 'Original or reproduction: <Original, Reproduction, or Unknown>\n'
+    + 'THEN, only if you confidently recognize this exact product (catalog number + brand) '
+    + 'from your general knowledge, ALSO add any of these lines — omit any you are not sure of:\n'
+    + 'Known year: <year(s) this product was made; prefix with ~ if approximate, e.g. ~2021>\n'
+    + 'Known road name: <railroad represented, if any>\n'
+    + 'Known number: <the number painted on the model>\n'
+    + 'Known body style: <e.g. Caboose, Boxcar, F3>\n'
+    + 'Known scale or gauge: <e.g. O, O-27, Standard Gauge, HO>\n'
+    + 'Known description: <one line about the product — INCLUDE the product line/series name (e.g. Tinplate Traditions, RailKing, Postwar Celebration), color, features>\n'
+    + 'Rules: you have Google Search available. If no catalog number is printed on the item, you MUST '
+    + 'run at least one Google search for it before answering (search its brand, lettering, colors, and '
+    + 'type — e.g. "Menards O gauge power plant building"). Do not answer from the photo alone in that case. '
+    + 'When the search identifies the product, the Description must name the specific product, not just '
+    + 'the building type. Never invent a catalog number: it must be '
+    + 'printed on the item OR come from a confident web match for this exact product. Never repeat the '
+    + 'cab number as the SKU. Apart from a searched catalog number, the first section reports what is '
+    + 'printed on the item; the Known lines carry your general knowledge and search findings, and only '
+    + 'when the product identification is certain. '
+    + 'When you DO recognize the product, always include at least Known year and Known scale or gauge. '
+    + 'Always try to give a year: an approximate ~year from search findings beats Unknown.';
+
+  // ── call Gemini ──
+  const model = PropertiesService.getScriptProperties().getProperty('GEMINI_MODEL') || AI_MODEL_DEFAULT;
+  const url = 'https://generativelanguage.googleapis.com/v1beta/models/' + model
+            + ':generateContent?key=' + encodeURIComponent(key);
+  const body = {
+    contents: [{
+      parts: [
+        { inline_data: { mime_type: mime, data: img } },
+        { text: prompt },
+      ],
+    }],
+    tools: [{ google_search: {} }],
+    // v3.1 (2026-08-03): thinkingBudget 1024 -> 0. Same measurement as v3.0's
+    // identify2 change: thinking was the bulk of billed output and the answers
+    // did not need it. handleAiCard has run this model with thinkingBudget 0
+    // since v2.2.1. v1 is only reachable as identify2's fallback, but a
+    // fallback that costs 4x is still a leak.
+    generationConfig: { temperature: 0.1, maxOutputTokens: 2048, thinkingConfig: { thinkingBudget: 0 } },
+  };
+
+  let res;
+  try {
+    res = UrlFetchApp.fetch(url, {
+      method: 'post',
+      contentType: 'application/json',
+      payload: JSON.stringify(body),
+      muteHttpExceptions: true,
+    });
+  } catch (err) {
+    _aiUsageRefund(token);   // network failure shouldn't burn a scan
+    return respond(502, 'AI unreachable: ' + err.message);
+  }
+
+  const code = res.getResponseCode();
+  if (code !== 200) {
+    _aiUsageRefund(token);
+    // 429 from Google = the whole project's free tier is exhausted today.
+    if (code === 429) return respond(503, 'AI busy — try again later');
+    return respond(502, 'AI error HTTP ' + code);
+  }
+
+  let text = '';
+  try {
+    const j = JSON.parse(res.getContentText());
+    const parts = j.candidates && j.candidates[0] && j.candidates[0].content
+               && j.candidates[0].content.parts;
+    text = (parts || []).map(function(p) { return p.text || ''; }).join('\n').trim();
+  } catch (err) {
+    return respond(502, 'AI answer unreadable');
+  }
+  if (!text) return respond(502, 'AI gave no answer');
+  text = text.substring(0, 2000);
+
+  _aiCachePut(hash, text);
+
+  return respond(200, 'OK', { text: text, cached: false, remaining: Math.max(0, cap - used) });
+}
+
+
+// ============================================================
+//  ACTION: ai_identify2  (v2.4) — Identify v2
+//  Payload: { action:'ai_identify2', token,
+//             images:[{data:<base64, no data: prefix>, mime}, ...] (1-4),
+//             hints:{ scale, type, mfrs:[], collect } }
+//           (single-image v1 fields image/mime also accepted.)
+//  Returns: SAME shape as ai_identify — { status:200, text, remaining,
+//           cached } / { status:429, message:'quota' } — so the app's
+//           existing parser and fallback logic need nothing new.
+//  Differences vs v1: newer model (AI2_MODEL_DEFAULT / GEMINI_MODEL2),
+//  several photos of the SAME item in one call, and the verify-the-number
+//  rule. Shares the SAME daily cap, usage tab, and cache tab as v1.
+// ============================================================
+
+function handleAiIdentify2(payload) {
+  // ── validate ──
+  if (!payload.token) return respond(400, 'Missing token');
+  const token = String(payload.token).replace(/[^a-z0-9]/gi, '').substring(0, 16);
+  if (token.length < 6) return respond(400, 'Invalid token');
+
+  // Collect images: preferred `images` array, else v1-style single image.
+  let rawImages = [];
+  if (Array.isArray(payload.images) && payload.images.length) {
+    rawImages = payload.images;
+  } else if (payload.image) {
+    rawImages = [{ data: payload.image, mime: payload.mime }];
+  }
+  if (!rawImages.length) return respond(400, 'Missing image');
+  rawImages = rawImages.slice(0, AI2_MAX_IMAGES);
+
+  const images = [];
+  for (let i = 0; i < rawImages.length; i++) {
+    const data = String((rawImages[i] && rawImages[i].data) || '');
+    if (!data) return respond(400, 'Empty image #' + (i + 1));
+    if (data.length > AI_MAX_IMAGE_B64) return respond(400, 'Image #' + (i + 1) + ' too large');
+    if (!/^[A-Za-z0-9+/=]+$/.test(data.substring(0, 100))) return respond(400, 'Bad image encoding #' + (i + 1));
+    const mime = ((rawImages[i] && rawImages[i].mime) === 'image/png') ? 'image/png' : 'image/jpeg';
+    images.push({ data: data, mime: mime });
+  }
+
+  const key = PropertiesService.getScriptProperties().getProperty('GEMINI_API_KEY');
+  if (!key) return respond(500, 'AI not configured');
+
+  // ── duplicate cache (same tab as v1; hash of per-image hashes keeps the
+  //    digest input small even with 4 photos) ──
+  // v2.7: an optional re-identify note becomes part of the cache key, so a
+  // rejected answer can never be served back from cache to the retry.
+  const note2 = String((payload.hints && payload.hints.note) || '').substring(0, 300);
+  const hash = _aiHash(images.map(function(im) { return _aiHash(im.data); }).join('') + '|v2|' + AI2_PROMPT_VER
+             + (note2 ? '|note|' + _aiHash(note2) : ''));
+  const cached = _aiCacheGet(hash);
+  if (cached) {
+    return respond(200, 'OK', { text: cached, cached: true, remaining: _aiRemaining(token) });
+  }
+
+  // ── per-device daily cap (SHARED with v1 — one pool, one meter) ──
+  // v2.6: premium devices (config ai_premium_tokens) get ai_daily_cap_premium.
+  const config = getConfig();
+  const cap = _ai2CapFor(token, config);
+  const lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  let used, g;
+  try {
+    used = _aiUsageIncrement(token, cap);
+    // v2.6 GUARD RAIL: global monthly ceiling for the grounded v2 pool.
+    g = (used < 0) ? 0 : _ai2GlobalIncrement(parseInt(config.ai2_monthly_cap) || AI2_MONTHLY_CAP_DEFAULT);
+  } finally {
+    lock.releaseLock();
+  }
+  if (used < 0) {
+    return respond(429, 'quota', { remaining: 0, cap: cap });
+  }
+
+  // ── build the prompt — v1's labeled-lines contract + multi-photo intro
+  //    + the verify-the-number rule (the AF Coaler lesson) ──
+  const hints = payload.hints || {};
+  let subject = [String(hints.scale || ''), String(hints.type || '')].filter(String).join(' ').trim()
+             || 'model train item';
+  let mfrs = Array.isArray(hints.mfrs) ? hints.mfrs.filter(String).slice(0, 5) : [];
+  const mfrPhrase = mfrs.length ? ', possibly made by ' + mfrs.join(' or ') : '';
+  const collect = String(hints.collect || '').substring(0, 200);
+  const collectPhrase = collect
+    ? 'For context, the owner mainly collects: ' + collect + '. Use this only as a gentle prior — the photo evidence always wins. '
+    : '';
+  // v2.7: re-identify context after a failed reference-photo double-check
+  const notePhrase = note2
+    ? 'IMPORTANT — a previous identification attempt was rejected: ' + note2 + ' '
+      + 'Do NOT repeat a rejected catalog number unless the photos clearly prove it; search for the correct product instead. '
+    : '';
+
+  const photoIntro = (images.length > 1)
+    ? 'These are ' + images.length + ' photos of the SAME single toy/model train collectible (' + subject + mfrPhrase + '), '
+      + 'taken from different angles (the item, its box, its label, or paperwork that came with it). '
+      + 'Combine the evidence from ALL photos before answering — a number readable in one photo may be blurry in another. '
+    : 'This is a photo of a toy/model train collectible (' + subject + mfrPhrase + '). ';
+
+  const prompt =
+      photoIntro
+    + notePhrase
+    + 'The item may be: a train box or box-end label, the model/train item itself, a BUILDING or '
+    + 'accessory, or a PAPER item (poster, catalog, instruction sheet, brochure, or other advertising). '
+    + collectPhrase
+    + 'IMPORTANT — a photo may show a shelf or table with MANY items. Identify ONLY the central, '
+    + 'most prominent, in-focus item. Numbers printed on OTHER items or boxes near it are NOT this '
+    + 'item\'s number — ignore them. '
+    + 'If it is the model itself (no box), read the lettering painted/printed ON the model. '
+    + 'If it is a paper item, read the title and any form/part number printed on it. '
+    + 'Read the printed text and identify the item. Respond with EXACTLY these lines, '
+    + 'each on its own line, nothing else:\n'
+    + 'Manufacturer SKU or catalog number: <the unique product/catalog code printed on the '
+    + 'item, e.g. 6-22993, 30-4021, 6464-125, 279-4324. This is NOT the cab/road number painted on the '
+    + 'model. If none is printed, SEARCH THE WEB for this exact product (use its appearance, lettering, '
+    + 'brand, and type) and give the catalog number from a confident match. If still not certain, '
+    + 'write exactly: no specific catalog number found>\n'
+    + 'Manufacturer: <brand, e.g. Lionel, MTH, Atlas, Weaver, K-Line, Menards, RMT, or Unknown>\n'
+    + 'Year manufactured: <year manufactured or published. If you are not certain but can estimate from search results or knowledge, prefix with ~ like ~2021. Write Unknown ONLY if you cannot even estimate>\n'
+    + 'Scale or gauge: <e.g. O, O-27, Standard Gauge, HO, S, or Unknown>\n'
+    + 'Description: <one short line describing the item as printed on it>\n'
+    + 'If it is a locomotive or train car, ALSO add these lines:\n'
+    + 'Road name: <the railroad represented, e.g. Santa Fe, or Unknown>\n'
+    + 'Cab number: <the number painted on the model, or Unknown>\n'
+    + 'Locomotive class or body style: <e.g. F3, Boxcar, GP-9, or Unknown>\n'
+    + 'If it is a building or accessory, ALSO add this line:\n'
+    + 'Structure type: <what the building/accessory is, e.g. Passenger Station, Auto Dealership, Water Tower>\n'
+    + 'If it is a paper or advertising item, ALSO add these lines:\n'
+    + 'Title: <the title printed on it>\n'
+    + 'Form or part number: <the form/part number printed on it, or Unknown>\n'
+    + 'Belongs to item or set: <which product, set, or catalog number it goes with, or Unknown>\n'
+    + 'Original or reproduction: <Original, Reproduction, or Unknown>\n'
+    + 'If this product family comes in NEAR-IDENTICAL VARIANTS (operating vs non-operating, '
+    + 'lighted vs unlighted, several catalog numbers for the same look) and the photos do not '
+    + 'PROVE which one this is, ALSO add this line, most likely candidate FIRST:\n'
+    + 'Possible variants: <number> (<two-or-three word difference>) | <number> (<difference>)\n'
+    + 'THEN, only if you confidently recognize this exact product (catalog number + brand) '
+    + 'from your general knowledge, ALSO add any of these lines — omit any you are not sure of:\n'
+    + 'Known year: <year(s) this product was made; prefix with ~ if approximate, e.g. ~2021>\n'
+    + 'Known road name: <railroad represented, if any>\n'
+    + 'Known number: <the number painted on the model>\n'
+    + 'Known body style: <e.g. Caboose, Boxcar, F3>\n'
+    + 'Known scale or gauge: <e.g. O, O-27, Standard Gauge, HO>\n'
+    + 'Known description: <one line about the product — INCLUDE the product line/series name (e.g. Tinplate Traditions, RailKing, Postwar Celebration), color, features>\n'
+    + 'Rules: you have Google Search available. '
+    + 'VERIFY EVERY NUMBER: when you read a catalog number, you MUST run a Google search for it '
+    + '(with the brand, e.g. "Lionel 6-49807") BEFORE reporting it. If the search shows that number '
+    + 'belongs to a DIFFERENT product or brand than what the photos show, it was probably printed on '
+    + 'a nearby box or another item — DISCARD it and search for the correct product instead (by its '
+    + 'appearance, lettering, brand, and type). Report only a number whose search result MATCHES the '
+    + 'item in the photos. '
+    + 'If no catalog number is printed on the item, you MUST run at least one Google search for it '
+    + 'before answering (search its brand, lettering, colors, and type — e.g. "Menards O gauge power '
+    + 'plant building"). Do not answer from the photos alone in that case. '
+    + 'VARIANTS: a web search cannot SEE which look-alike variant is in the photos. Never report one '
+    + 'variant\'s number as certain unless the photos prove it (a printed number, a visible mechanism '
+    + 'or feature, different lettering). When unproven, give your best guess on the catalog-number '
+    + 'line AND list every candidate on the Possible variants line, most likely first. '
+    + 'When the search identifies the product, the Description must name the specific product, not just '
+    + 'the building type. Never invent a catalog number: it must be '
+    + 'printed on the item OR come from a confident web match for this exact product — and in BOTH '
+    + 'cases its search result must match the item. Never repeat the '
+    + 'cab number as the SKU. Apart from a searched catalog number, the first section reports what is '
+    + 'printed on the item; the Known lines carry your general knowledge and search findings, and only '
+    + 'when the product identification is certain. '
+    + 'When you DO recognize the product, always include at least Known year and Known scale or gauge. '
+    + 'Always try to give a year: an approximate ~year from search findings beats Unknown.';
+
+  // ── call Gemini (v2 model; thinkingConfig → thinkingLevel 'minimal', v3.0)
+  //    The v2.9 comment here said this knob was a Gemini 2.5 setting and the
+  //    3-family managed its own reasoning. Measured against the live API on
+  //    2026-07-30, that was wrong: the 3-family honours thinkingLevel and
+  //    'minimal' takes thinking tokens to zero.
+  //      • Thinking was 85% of output on a photo read (answer 42, thinking 238).
+  //      • A/B: 299 output tokens default vs 46 minimal, and every answer
+  //        stayed correct — one identical word for word, one more specific.
+  //      • Search grounding still worked with thinking off — the risk that
+  //        mattered, tested for that reason.
+  //      • ~1.7c per read → ~0.4c per read.
+  //    maxOutputTokens stays 4096 — it is a ceiling, not a spend, and the v2.8
+  //    doubling still protects long search+answer replies.
+  //    If photo accuracy ever drops, try 'low' before reverting: the A/B above
+  //    was text, and text parity does not prove photo parity. ──
+  // v2.6: monthly ceiling hit (g < 0) → run this call on the v1 model
+  // instead (separate free pool). Invisible to the user; costs stay pinned.
+  const model = (g < 0)
+    ? (PropertiesService.getScriptProperties().getProperty('GEMINI_MODEL') || AI_MODEL_DEFAULT)
+    : (PropertiesService.getScriptProperties().getProperty('GEMINI_MODEL2') || AI2_MODEL_DEFAULT);
+  const url = 'https://generativelanguage.googleapis.com/v1beta/models/' + model
+            + ':generateContent?key=' + encodeURIComponent(key);
+  const parts = images.map(function(im) {
+    return { inline_data: { mime_type: im.mime, data: im.data } };
+  });
+  parts.push({ text: prompt });
+  const body = {
+    contents: [{ parts: parts }],
+    tools: [{ google_search: {} }],
+    generationConfig: { temperature: 0.1, maxOutputTokens: 4096,
+                        thinkingConfig: { thinkingLevel: 'minimal' } },
+  };
+
+  let res;
+  try {
+    res = UrlFetchApp.fetch(url, {
+      method: 'post',
+      contentType: 'application/json',
+      payload: JSON.stringify(body),
+      muteHttpExceptions: true,
+    });
+  } catch (err) {
+    _aiUsageRefund(token);   // network failure shouldn't burn a scan
+    if (g > 0) _ai2GlobalRefund();   // v2.6: give the month its call back too
+    return respond(502, 'AI unreachable: ' + err.message);
+  }
+
+  const code = res.getResponseCode();
+  if (code !== 200) {
+    _aiUsageRefund(token);
+    if (g > 0) _ai2GlobalRefund();   // v2.6
+    // 429 from Google = the whole project's free tier is exhausted today.
+    if (code === 429) return respond(503, 'AI busy — try again later');
+    return respond(502, 'AI error HTTP ' + code);
+  }
+
+  let text = '';
+  try {
+    const j = JSON.parse(res.getContentText());
+    const p = j.candidates && j.candidates[0] && j.candidates[0].content
+           && j.candidates[0].content.parts;
+    text = (p || []).map(function(x) { return x.text || ''; }).join('\n').trim();
+  } catch (err) {
+    return respond(502, 'AI answer unreadable');
+  }
+  if (!text) return respond(502, 'AI gave no answer');
+  text = text.substring(0, 2000);
+
+  _aiCachePut(hash, text);
+
+  return respond(200, 'OK', { text: text, cached: false, remaining: Math.max(0, cap - used) });
+}
+
+
+
+// ============================================================
+//  ACTION: ref_photo  (v2.8 — Brad's free side-by-side compare)
+//  Fetches the master row's Reference Link page and returns its product
+//  photo so the APP can show it next to the collector's own photo and let
+//  the HUMAN judge. No Gemini call, no daily-pool spend, no image upload.
+//  Payload: { action:'ref_photo', token, refUrl }
+//  Returns: { status:200, img:<base64>, mime, refImg:<image url>, cached }
+//           { status:422, message:'no reference image' }
+// ============================================================
+
+function handleRefPhoto(payload) {
+  if (!payload.token) return respond(400, 'Missing token');
+  const token = String(payload.token).replace(/[^a-z0-9]/gi, '').substring(0, 16);
+  if (token.length < 6) return respond(400, 'Invalid token');
+  const refUrl = String(payload.refUrl || '').substring(0, 400);
+  if (!/^https?:\/\//i.test(refUrl)) return respond(400, 'Missing or bad refUrl');
+  // v2.9: '#ANCHOR' marks the item's spot on multi-item pages — split it off
+  // before fetching, hand it to the extractor.
+  const hashAt = refUrl.indexOf('#');
+  const pageUrl = hashAt >= 0 ? refUrl.substring(0, hashAt) : refUrl;
+  const anchor = hashAt >= 0 ? refUrl.substring(hashAt + 1) : '';
+
+  // Cache by FULL URL (anchor included — different items, different photos).
+  const cacheKey = 'rp_' + _aiHash(refUrl);
+  try {
+    const hit = CacheService.getScriptCache().get(cacheKey);
+    if (hit) {
+      const p = JSON.parse(hit);
+      return respond(200, 'OK', { img: p.i, mime: p.m, refImg: p.u, cached: true });
+    }
+  } catch (e) {}
+
+  // Fetch the product page and find its photo (anchor-aware, v2.9).
+  let refImgUrl = '';
+  try {
+    const page = UrlFetchApp.fetch(pageUrl, { muteHttpExceptions: true, followRedirects: true });
+    if (page.getResponseCode() === 200) refImgUrl = _vpFindImage(page.getContentText(), pageUrl, anchor);
+  } catch (err) { /* handled below */ }
+  if (!refImgUrl) return respond(422, 'no reference image');
+
+  // Download the photo itself.
+  let refB64 = '', refMime = 'image/jpeg';
+  try {
+    const imgRes = UrlFetchApp.fetch(refImgUrl, { muteHttpExceptions: true, followRedirects: true });
+    if (imgRes.getResponseCode() !== 200) throw new Error('HTTP ' + imgRes.getResponseCode());
+    const blob = imgRes.getBlob();
+    const bytes = blob.getBytes();
+    if (bytes.length < 1000 || bytes.length > AI3_MAX_REF_BYTES) throw new Error('bad size ' + bytes.length);
+    const ct = String(blob.getContentType() || '');
+    if (ct.indexOf('image/') !== 0) throw new Error('not an image: ' + ct);
+    refMime = (ct === 'image/png') ? 'image/png' : 'image/jpeg';
+    refB64 = Utilities.base64Encode(bytes);
+  } catch (err) { return respond(422, 'no reference image'); }
+
+  try {
+    const packed = JSON.stringify({ i: refB64, m: refMime, u: refImgUrl });
+    if (packed.length < 95000) CacheService.getScriptCache().put(cacheKey, packed, 21600);
+  } catch (e) {}
+  return respond(200, 'OK', { img: refB64, mime: refMime, refImg: refImgUrl, cached: false });
+}
+
+// ============================================================
+//  ACTION: ai_verify_photo  (v2.7, Identify v3)
+//  "Does the collector's photo show the SAME product as the catalog page's
+//  reference photo?"  Payload: { action:'ai_verify_photo', token,
+//  image (base64, no data: prefix), mime, refUrl (http(s) product page) }
+//  Returns: { status:200, text:'Match: yes|no|unsure\nDifferences: ...\nReference item: ...',
+//             refImg:<image url used>, cached, remaining }
+//           { status:422, message:'no reference image' } when the page has no usable photo
+//           { status:429, message:'quota' } when the shared daily cap is hit
+//  Costs one read from the SHARED daily pool (refunded on any failure).
+//  No Google-Search grounding — does not touch the grounded monthly counter.
+// ============================================================
+
+function handleAiVerifyPhoto(payload) {
+  // ── validate ──
+  if (!payload.token) return respond(400, 'Missing token');
+  const token = String(payload.token).replace(/[^a-z0-9]/gi, '').substring(0, 16);
+  if (token.length < 6) return respond(400, 'Invalid token');
+  const data = String(payload.image || '');
+  if (!data) return respond(400, 'Missing image');
+  if (data.length > AI_MAX_IMAGE_B64) return respond(400, 'Image too large');
+  if (!/^[A-Za-z0-9+/=]+$/.test(data.substring(0, 100))) return respond(400, 'Bad image encoding');
+  const mime = (payload.mime === 'image/png') ? 'image/png' : 'image/jpeg';
+  const refUrl = String(payload.refUrl || '').substring(0, 400);
+  if (!/^https?:\/\//i.test(refUrl)) return respond(400, 'Missing or bad refUrl');
+
+  const key = PropertiesService.getScriptProperties().getProperty('GEMINI_API_KEY');
+  if (!key) return respond(500, 'AI not configured');
+
+  // ── duplicate cache (same tab; its own |vp| key slice) ──
+  const hash = _aiHash(_aiHash(data) + '|vp|' + refUrl + '|' + AI3_VERIFY_PROMPT_VER);
+  const cached = _aiCacheGet(hash);
+  if (cached) {
+    return respond(200, 'OK', { text: cached, cached: true, remaining: _aiRemaining(token) });
+  }
+
+  // ── shared daily cap (one pool with v1/v2; premium tokens honored) ──
+  const config = getConfig();
+  const cap = _ai2CapFor(token, config);
+  const lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  let used;
+  try {
+    used = _aiUsageIncrement(token, cap);
+  } finally {
+    lock.releaseLock();
+  }
+  if (used < 0) return respond(429, 'quota', { remaining: 0, cap: cap });
+
+  // ── fetch the product page and find its reference photo ──
+  let refImgUrl = '';
+  try {
+    // v2.9: split '#ANCHOR' (item's spot on multi-item pages) off the URL.
+    const vHashAt = refUrl.indexOf('#');
+    const vPageUrl = vHashAt >= 0 ? refUrl.substring(0, vHashAt) : refUrl;
+    const vAnchor = vHashAt >= 0 ? refUrl.substring(vHashAt + 1) : '';
+    const page = UrlFetchApp.fetch(vPageUrl, { muteHttpExceptions: true, followRedirects: true });
+    if (page.getResponseCode() === 200) {
+      const htmlText = page.getContentText();
+      refImgUrl = _vpFindImage(htmlText, vPageUrl, vAnchor);
+    }
+  } catch (err) { /* handled below */ }
+  if (!refImgUrl) {
+    _aiUsageRefund(token);
+    return respond(422, 'no reference image');
+  }
+
+  // ── download the reference photo ──
+  let refB64 = '', refMime = 'image/jpeg';
+  try {
+    const imgRes = UrlFetchApp.fetch(refImgUrl, { muteHttpExceptions: true, followRedirects: true });
+    if (imgRes.getResponseCode() !== 200) throw new Error('HTTP ' + imgRes.getResponseCode());
+    const blob = imgRes.getBlob();
+    const bytes = blob.getBytes();
+    if (bytes.length < 1000 || bytes.length > AI3_MAX_REF_BYTES) throw new Error('bad size ' + bytes.length);
+    const ct = String(blob.getContentType() || '');
+    if (ct.indexOf('image/') !== 0) throw new Error('not an image: ' + ct);
+    refMime = (ct === 'image/png') ? 'image/png' : 'image/jpeg';
+    refB64 = Utilities.base64Encode(bytes);
+  } catch (err) {
+    _aiUsageRefund(token);
+    return respond(422, 'no reference image');
+  }
+
+  // ── ask Gemini to compare (no grounding — the photos are the evidence) ──
+  const prompt =
+      'Image 1 is a collector\'s photo of a toy/model train item they own. '
+    + 'Image 2 is the official reference photo from a catalog product listing page. '
+    + 'Question: does Image 1 show the SAME PRODUCT as Image 2? '
+    + 'Judge by the product itself — body shape, colors, lettering, features. IGNORE differences in '
+    + 'background, lighting, angle, wear/condition, packaging, and photo quality. '
+    + 'A different paint scheme, different road name, different structure type, or a clearly different '
+    + 'model means NO. Small angle/lighting differences of the same product mean YES. '
+    + 'If Image 2 shows the product only partially, or you genuinely cannot tell, say unsure. '
+    + 'Respond with EXACTLY these three lines, nothing else:\n'
+    + 'Match: <yes, no, or unsure>\n'
+    + 'Differences: <if no or unsure: the two-to-eight word visible difference, e.g. "reference is cream tower with red roof, photo is silver lattice tower". If yes: none>\n'
+    + 'Reference item: <one short line naming what Image 2 shows>';
+  const model = PropertiesService.getScriptProperties().getProperty('GEMINI_MODEL2') || AI2_MODEL_DEFAULT;
+  const url = 'https://generativelanguage.googleapis.com/v1beta/models/' + model
+            + ':generateContent?key=' + encodeURIComponent(key);
+  const body = {
+    contents: [{ parts: [
+      { inline_data: { mime_type: mime, data: data } },
+      { inline_data: { mime_type: refMime, data: refB64 } },
+      { text: prompt },
+    ] }],
+    // v3.1 (2026-08-03): this call sent NO thinkingConfig, so the 3.5-family
+    // default (thinking ON) applied — the one paid path v3.0 missed. Same
+    // knob, same model family, same A/B-proven setting as identify2.
+    generationConfig: { temperature: 0.1, maxOutputTokens: 512, thinkingConfig: { thinkingLevel: 'minimal' } },
+  };
+
+  let res;
+  try {
+    res = UrlFetchApp.fetch(url, {
+      method: 'post',
+      contentType: 'application/json',
+      payload: JSON.stringify(body),
+      muteHttpExceptions: true,
+    });
+  } catch (err) {
+    _aiUsageRefund(token);
+    return respond(502, 'AI unreachable: ' + err.message);
+  }
+  const code = res.getResponseCode();
+  if (code !== 200) {
+    _aiUsageRefund(token);
+    if (code === 429) return respond(503, 'AI busy — try again later');
+    return respond(502, 'AI error HTTP ' + code);
+  }
+  let text = '';
+  try {
+    const j = JSON.parse(res.getContentText());
+    const p = j.candidates && j.candidates[0] && j.candidates[0].content
+           && j.candidates[0].content.parts;
+    text = (p || []).map(function(x) { return x.text || ''; }).join('\n').trim();
+  } catch (err) {
+    return respond(502, 'AI answer unreadable');
+  }
+  if (!text) return respond(502, 'AI gave no answer');
+  text = text.substring(0, 600);
+
+  _aiCachePut(hash, text);
+  return respond(200, 'OK', { text: text, refImg: refImgUrl, cached: false, remaining: Math.max(0, cap - used) });
+}
+
+// v2.7 helper: pull the product photo URL out of a product page's HTML.
+// Tries og:image / twitter:image / link image_src, then the first large-looking
+// content <img>. Returns '' when nothing usable is found.
+function _vpFindImage(htmlText, baseUrl, anchor) {
+  // v2.9: anchor first — on multi-item archive pages (COTT) the right photo
+  // is the first real image AFTER the item's id="ANCHOR" marker.
+  if (anchor) {
+    const esc = String(anchor).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const am = htmlText.match(new RegExp('(?:id|name)=["\']' + esc + '["\']', 'i'));
+    if (am) {
+      const after = htmlText.substring(am.index);
+      const hit = _vpContentImg(after, baseUrl);
+      if (hit) return hit;
+    }
+  }
+  const metas = [
+    /<meta[^>]+property=["']og:image(?::secure_url)?["'][^>]+content=["']([^"']+)["']/i,
+    /<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image(?::secure_url)?["']/i,
+    /<meta[^>]+name=["']twitter:image["'][^>]+content=["']([^"']+)["']/i,
+    /<link[^>]+rel=["']image_src["'][^>]+href=["']([^"']+)["']/i,
+  ];
+  for (let i = 0; i < metas.length; i++) {
+    const m = htmlText.match(metas[i]);
+    if (m && m[1]) return _vpAbsUrl(m[1], baseUrl);
+  }
+  return _vpContentImg(htmlText, baseUrl);
+}
+
+// v2.9: first <img> that plausibly shows a PRODUCT. Two passes — real
+// upload-library photos first (WordPress /wp-content/uploads/), then any
+// non-chrome image. Theme/social chrome is never returned (the old code
+// grabbed COTT's YouTube icon, which then flunked the size check → 422).
+function _vpContentImg(htmlText, baseUrl) {
+  const imgs = htmlText.match(/<img[^>]+src=["']([^"']+)["'][^>]*>/gi) || [];
+  const chrome = /logo|icon|sprite|banner|header|footer|avatar|pixel|blank|spacer|button|\/themes\/|\/socials\//i;
+  for (let pass = 0; pass < 2; pass++) {
+    for (let i = 0; i < imgs.length; i++) {
+      const m = imgs[i].match(/src=["']([^"']+)["']/i);
+      if (!m) continue;
+      const u = m[1];
+      if (chrome.test(u)) continue;
+      if (!/\.(jpe?g|png|webp)(\?|$)/i.test(u)) continue;
+      if (pass === 0 && !/wp-content\/uploads\//i.test(u)) continue;
+      return _vpAbsUrl(u, baseUrl);
+    }
+  }
+  return '';
+}
+
+function _vpAbsUrl(u, baseUrl) {
+  u = String(u || '').trim().replace(/&amp;/g, '&');   // pages HTML-escape query strings
+  if (!u) return '';
+  if (/^https?:\/\//i.test(u)) return u;
+  const m = baseUrl.match(/^(https?:\/\/[^\/]+)(\/[^?#]*)?/i);
+  if (!m) return '';
+  if (u.indexOf('//') === 0) return 'https:' + u;
+  if (u.indexOf('/') === 0) return m[1] + u;
+  const dir = (m[2] || '/').replace(/[^\/]*$/, '');
+  return m[1] + dir + u;
+}
+
+
+// ── AI helpers ──────────────────────────────────────────────
+
+function _aiHash(b64) {
+  const raw = Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, b64);
+  return raw.map(function(b) {
+    const v = (b < 0 ? b + 256 : b).toString(16);
+    return v.length === 1 ? '0' + v : v;
+  }).join('');
+}
+
+function _aiToday() {
+  return Utilities.formatDate(new Date(), 'America/New_York', 'yyyy-MM-dd');
+}
+
+// v1.3.1: Sheets auto-converts "2026-07-03" text into a real Date cell,
+// so comparing the cell to a date STRING silently never matches (that
+// broke the daily cap). Normalize whatever the cell holds back to text.
+function _aiDateStr(v) {
+  if (v instanceof Date) return Utilities.formatDate(v, 'America/New_York', 'yyyy-MM-dd');
+  return String(v || '');
+}
+
+// Increment today's counter for this device. Returns the new count,
+// or -1 if the cap was already reached (nothing incremented).
+function _aiUsageIncrement(token, cap) {
+  const sheet = getSheet(AI_USAGE_TAB);
+  const today = _aiToday();
+  const data  = sheet.getDataRange().getValues();
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][0] === token && _aiDateStr(data[i][1]) === today) {
+      const count = parseInt(data[i][2]) || 0;
+      if (count >= cap) return -1;
+      sheet.getRange(i + 1, 3).setValue(count + 1);
+      return count + 1;
+    }
+  }
+  sheet.appendRow([token, today, 1]);
+  // Light housekeeping: drop rows older than ~30 days once the tab gets big.
+  if (data.length > 2000) _aiUsagePurge(sheet);
+  return 1;
+}
+
+// Give a scan back when the AI call itself failed (network/Google error).
+function _aiUsageRefund(token) {
+  try {
+    const sheet = getSheet(AI_USAGE_TAB);
+    const today = _aiToday();
+    const data  = sheet.getDataRange().getValues();
+    for (let i = 1; i < data.length; i++) {
+      if (data[i][0] === token && _aiDateStr(data[i][1]) === today) {
+        const count = parseInt(data[i][2]) || 0;
+        if (count > 0) sheet.getRange(i + 1, 3).setValue(count - 1);
+        return;
+      }
+    }
+  } catch (e) {}
+}
+
+function _aiRemaining(token) {
+  try {
+    const cap = parseInt(getConfig().ai_daily_cap) || AI_DAILY_CAP_DEFAULT;
+    const sheet = getSheet(AI_USAGE_TAB);
+    const today = _aiToday();
+    const data  = sheet.getDataRange().getValues();
+    for (let i = 1; i < data.length; i++) {
+      if (data[i][0] === token && _aiDateStr(data[i][1]) === today) {
+        return Math.max(0, cap - (parseInt(data[i][2]) || 0));
+      }
+    }
+    return cap;
+  } catch (e) { return 0; }
+}
+
+function _aiUsagePurge(sheet) {
+  try {
+    const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const cutStr = Utilities.formatDate(cutoff, 'America/New_York', 'yyyy-MM-dd');
+    const data = sheet.getDataRange().getValues();
+    for (let i = data.length - 1; i >= 1; i--) {
+      if (_aiDateStr(data[i][1]) < cutStr) sheet.deleteRow(i + 1);
+    }
+  } catch (e) {}
+}
+
+function _aiCacheGet(hash) {
+  try {
+    const sheet = getSheet(AI_CACHE_TAB);
+    const data  = sheet.getDataRange().getValues();
+    for (let i = 1; i < data.length; i++) {
+      if (data[i][0] === hash) {
+        sheet.getRange(i + 1, 4).setValue((parseInt(data[i][3]) || 0) + 1);
+        return String(data[i][1] || '');
+      }
+    }
+  } catch (e) {}
+  return null;
+}
+
+function _aiCachePut(hash, text) {
+  try {
+    const sheet = getSheet(AI_CACHE_TAB);
+    sheet.appendRow([hash, text, new Date().toISOString(), 0]);
+    // Keep the cache tab from growing forever — oldest rows go first.
+    if (sheet.getLastRow() > 3000) {
+      sheet.deleteRows(2, 500);
+    }
+  } catch (e) {}
+}
+
+
+// ── v2.6 guard-rail helpers ─────────────────────────────────
+// Premium device caps: raising a paying user's cap = paste their device
+// token into config `ai_premium_tokens` (comma-separated). No code change.
+function _ai2CapFor(token, config) {
+  try {
+    const list = String(config.ai_premium_tokens || '').split(',').map(function (s) { return s.trim(); }).filter(String);
+    if (list.indexOf(token) > -1) return parseInt(config.ai_daily_cap_premium) || AI2_PREMIUM_CAP_DEFAULT;
+  } catch (e) {}
+  return parseInt(config.ai_daily_cap) || AI_DAILY_CAP_DEFAULT;
+}
+// Global month counter for grounded v2 calls — ai_usage row with token
+// '__v2month__' and date 'Myyyy-MM' (the leading M keeps Sheets from
+// coercing it into a Date cell; the v1.3.1 lesson). Returns the new count,
+// or -1 when the ceiling is reached (nothing incremented).
+function _ai2GlobalIncrement(cap) {
+  const sheet = getSheet(AI_USAGE_TAB);
+  const mk = 'M' + Utilities.formatDate(new Date(), 'America/New_York', 'yyyy-MM');
+  const data = sheet.getDataRange().getValues();
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][0] === '__v2month__' && String(data[i][1]) === mk) {
+      const c = parseInt(data[i][2]) || 0;
+      if (c >= cap) return -1;
+      sheet.getRange(i + 1, 3).setValue(c + 1);
+      return c + 1;
+    }
+  }
+  sheet.appendRow(['__v2month__', mk, 1]);
+  return 1;
+}
+// Give the month its call back when Gemini itself failed.
+function _ai2GlobalRefund() {
+  try {
+    const sheet = getSheet(AI_USAGE_TAB);
+    const mk = 'M' + Utilities.formatDate(new Date(), 'America/New_York', 'yyyy-MM');
+    const data = sheet.getDataRange().getValues();
+    for (let i = 1; i < data.length; i++) {
+      if (data[i][0] === '__v2month__' && String(data[i][1]) === mk) {
+        const c = parseInt(data[i][2]) || 0;
+        if (c > 0) sheet.getRange(i + 1, 3).setValue(c - 1);
+        return;
+      }
+    }
+  } catch (e) {}
+}
+
+
+// ============================================================
+//  ACTION: submit
+// ============================================================
+
+function handleSubmit(payload) {
+  if (!payload.token)  return respond(400, 'Missing token');
+  if (!payload.items || !payload.items.length) return respond(400, 'No items');
+
+  const token = String(payload.token).replace(/[^a-z0-9]/gi, '').substring(0, 16);
+  if (token.length < 6) return respond(400, 'Invalid token');
+
+  const sheet = getSheet(SUBMISSIONS_TAB);
+  const now   = new Date().toISOString();
+  const rows  = [];
+
+  for (const item of payload.items) {
+    if (!item.item_num)   continue;
+
+    // v1.2: in_master flag — defaults to TRUE for older app versions
+    // that don't send it, so legacy submissions behave exactly as before.
+    const inMaster = !(item.in_master === false || item.in_master === 'false');
+
+    // Normalize condition — accept both "8" and "C8" formats
+    let condRaw = String(item.condition || '').toUpperCase().trim();
+    if (/^\d+$/.test(condRaw)) condRaw = 'C' + condRaw;  // "8" → "C8"
+    if (!VALID_CONDITIONS.includes(condRaw)) {
+      // v1.2: market rows still require a valid condition; a not-in-master
+      // row is kept anyway (blank condition) so the catalog review sees it.
+      if (inMaster) continue;
+      condRaw = '';
+    }
+
+    const itemNum      = String(item.item_num).replace(/[^a-zA-Z0-9\-\.]/g, '').substring(0, 20);
+    const variation    = String(item.variation || '').substring(0, 60);
+    const estWorth     = parseFloat(item.est_worth)  || 0;
+    const soldPrice    = parseFloat(item.sold_price) || 0;
+    // v1.2 extras — harmless blanks for older app versions.
+    const manufacturer = String(item.manufacturer || '').substring(0, 30);
+    const description  = String(item.description  || '').substring(0, 140);
+    const roadName     = String(item.road_name    || '').substring(0, 60);
+    const source       = String(item.source       || '').substring(0, 20);
+
+    rows.push([token, itemNum, variation, condRaw, estWorth, soldPrice, now,
+               inMaster, manufacturer, description, roadName, source]);
+  }
+
+  if (!rows.length) return respond(400, 'No valid items after validation');
+
+  removeRowsByToken(sheet, token);
+
+  const lastRow = sheet.getLastRow();
+  sheet.getRange(lastRow + 1, 1, rows.length, 12).setValues(rows);
+
+  rebuildComputed();
+
+  return respond(200, 'OK', { rows_written: rows.length });
+}
+
+
+// ============================================================
+//  ACTION: get_market
+// ============================================================
+
+function handleGetMarket(payload) {
+  if (!payload.item_num) return respond(400, 'Missing item_num');
+
+  const config    = getConfig();
+  const minPoints = config.min_datapoints || 10;
+
+  const itemNum   = String(payload.item_num).replace(/[^a-zA-Z0-9\-\.]/g, '');
+  const variation = String(payload.variation || '');
+
+  const computed = getComputedData();
+  const key      = makeKey(itemNum, variation);
+  const entry    = computed[key];
+
+  if (!entry) return respond(200, 'no_data', { reason: 'not_found' });
+
+  const result = {};
+  for (const [cond, data] of Object.entries(entry)) {
+    if (data.count >= minPoints) {
+      result[cond] = {
+        avg:   Math.round(data.avg),
+        low:   Math.round(data.low),
+        high:  Math.round(data.high),
+        count: data.count
+      };
+    }
+  }
+
+  if (!Object.keys(result).length) {
+    return respond(200, 'no_data', { reason: 'below_threshold', threshold: minPoints });
+  }
+
+  return respond(200, 'OK', { market: result });
+}
+
+
+// ============================================================
+//  ACTION: get_counts
+// ============================================================
+
+function handleGetCounts() {
+  const config           = getConfig();
+  const revealThreshold  = config.reveal_threshold || 300;
+  const sheet            = getSheet(SUBMISSIONS_TAB);
+  const data             = sheet.getDataRange().getValues();
+
+  const tokens = new Set();
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][0]) tokens.add(data[i][0]);
+  }
+
+  return respond(200, 'OK', {
+    contributor_count: tokens.size,
+    reveal_threshold:  revealThreshold,
+    revealed:          tokens.size >= revealThreshold
+  });
+}
+
+
+// ============================================================
+//  ACTION: delete_token
+// ============================================================
+
+function handleDeleteToken(payload) {
+  if (!payload.token) return respond(400, 'Missing token');
+  const token = String(payload.token).replace(/[^a-z0-9]/gi, '').substring(0, 16);
+  const sheet = getSheet(SUBMISSIONS_TAB);
+  const removed = removeRowsByToken(sheet, token);
+  rebuildComputed();
+  // v1.3: also clear the device's AI usage rows (full opt-out = full wipe).
+  try {
+    const usage = getSheet(AI_USAGE_TAB);
+    removeRowsByToken(usage, token);
+  } catch (e) {}
+  return respond(200, 'OK', { rows_removed: removed });
+}
+
+
+// ============================================================
+//  COMPUTED TAB BUILDER
+// ============================================================
+
+function rebuildComputed() {
+  const config  = getConfig();
+  const trimPct = (config.trim_percent || 10) / 100;
+  const sheet   = getSheet(SUBMISSIONS_TAB);
+  const data    = sheet.getDataRange().getValues();
+
+  const groups = {};
+  for (let i = 1; i < data.length; i++) {
+    const row       = data[i];
+    const itemNum   = row[1];
+    const variation = row[2];
+    const condition = row[3];
+    const estWorth  = parseFloat(row[4]) || 0;
+    if (!itemNum || !condition || estWorth <= 0) continue;
+
+    const key = makeKey(itemNum, variation) + '|' + condition;
+    if (!groups[key]) groups[key] = { itemNum, variation, condition, values: [] };
+    groups[key].values.push(estWorth);
+  }
+
+  const outputRows = [['item_num','variation','condition','avg','low','high','count','updated']];
+  const now = new Date().toISOString();
+
+  for (const [key, g] of Object.entries(groups)) {
+    const trimmed = trimOutliers(g.values, trimPct);
+    if (!trimmed.length) continue;
+
+    const avg  = trimmed.reduce((a,b) => a+b, 0) / trimmed.length;
+    const low  = Math.min(...trimmed);
+    const high = Math.max(...trimmed);
+
+    outputRows.push([g.itemNum, g.variation, g.condition,
+                     Math.round(avg), Math.round(low), Math.round(high),
+                     g.values.length, now]);
+  }
+
+  const computedSheet = getSheet(COMPUTED_TAB);
+  computedSheet.clearContents();
+  computedSheet.getRange(1, 1, outputRows.length, 8).setValues(outputRows);
+}
+
+
+// ============================================================
+//  RARITY CALCULATOR
+// ============================================================
+
+function getRarityLabel(itemCount, totalContributors, config) {
+  if (!totalContributors || totalContributors < 1) return null;
+  const pct = (itemCount / totalContributors) * 100;
+
+  const bands = [
+    config.rare_band_1 || 0.5,
+    config.rare_band_2 || 3,
+    config.rare_band_3 || 10,
+    config.rare_band_4 || 30,
+    config.rare_band_5 || 60
+  ];
+
+  if (pct < bands[0]) return 'Highly Rare';
+  if (pct < bands[1]) return 'Rare';
+  if (pct < bands[2]) return 'Hard to Find';
+  if (pct < bands[3]) return 'Scarce';
+  if (pct < bands[4]) return 'Plentiful';
+  return 'Common';
+}
+
+
+// ============================================================
+//  HELPERS
+// ============================================================
+
+function getSheet(name) {
+  const ss    = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName(name);
+  if (!sheet) throw new Error('Tab not found: ' + name);
+  return sheet;
+}
+
+function getConfig() {
+  const sheet  = getSheet(CONFIG_TAB);
+  const data   = sheet.getDataRange().getValues();
+  const config = {};
+  for (let i = 1; i < data.length; i++) {
+    const key = String(data[i][0]).trim();
+    const val = data[i][1];
+    if (key) config[key] = isNaN(val) ? val : parseFloat(val);
+  }
+  return config;
+}
+
+function getComputedData() {
+  const sheet = getSheet(COMPUTED_TAB);
+  const data  = sheet.getDataRange().getValues();
+  const result = {};
+  for (let i = 1; i < data.length; i++) {
+    const [itemNum, variation, condition, avg, low, high, count] = data[i];
+    if (!itemNum) continue;
+    const key = makeKey(itemNum, variation);
+    if (!result[key]) result[key] = {};
+    result[key][condition] = { avg, low, high, count };
+  }
+  return result;
+}
+
+// ── generic utilities (restored from the v1.2 archive — the v1.3 project-
+// folder copy was truncated exactly here; unchanged since v1.2) ──
+function makeKey(itemNum, variation) {
+  return String(itemNum).trim() + '|' + String(variation || '').trim();
+}
+
+function removeRowsByToken(sheet, token) {
+  const data = sheet.getDataRange().getValues();
+  let removed = 0;
+  for (let i = data.length - 1; i >= 1; i--) {
+    if (data[i][0] === token) {
+      sheet.deleteRow(i + 1);
+      removed++;
+    }
+  }
+  return removed;
+}
+
+function trimOutliers(values, trimPct) {
+  if (values.length < 3) return values;
+  const sorted   = [...values].sort((a, b) => a - b);
+  const cutCount = Math.floor(sorted.length * trimPct);
+  return sorted.slice(cutCount, sorted.length - cutCount);
+}
+
+function respond(status, message, data) {
+  const payload = { status, message, ...(data || {}) };
+  return ContentService
+    .createTextOutput(JSON.stringify(payload))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+
+// ============================================================
+//  ACTION: ai_card  (v2.2) — business-card reader for Contacts
+//  Payload: { action:'ai_card', token, image (base64, no data: prefix), mime }
+//  Returns: { status:200, text:'Name: ...\nTitle: ...', remaining, cached }
+//           { status:429, message:'quota' } when the shared daily cap is hit
+//  Shares ai_daily_cap + the ai_cache tab with ai_identify.
+// ============================================================
+const AI_CARD_PROMPT_VER = 'c2';   // bump on every card-prompt change (c2: kills answers cached under the truncating c1 config)
+
+function handleAiCard(payload) {
+  if (!payload.token) return respond(400, 'Missing token');
+  const token = String(payload.token).replace(/[^a-z0-9]/gi, '').substring(0, 16);
+  if (token.length < 6) return respond(400, 'Invalid token');
+
+  const img = String(payload.image || '');
+  if (!img) return respond(400, 'Missing image');
+  if (img.length > AI_MAX_IMAGE_B64) return respond(400, 'Image too large');
+  if (!/^[A-Za-z0-9+/=]+$/.test(img.substring(0, 100))) return respond(400, 'Bad image encoding');
+
+  const mime = (payload.mime === 'image/png') ? 'image/png' : 'image/jpeg';
+
+  const key = PropertiesService.getScriptProperties().getProperty('GEMINI_API_KEY');
+  if (!key) return respond(500, 'AI not configured');
+
+  // duplicate-photo cache (re-scanning the same card costs nothing)
+  const hash = _aiHash(img + '|card|' + AI_CARD_PROMPT_VER);
+  const cached = _aiCacheGet(hash);
+  if (cached) {
+    return respond(200, 'OK', { text: cached, cached: true, remaining: _aiRemaining(token) });
+  }
+
+  // shared per-device daily cap
+  const config = getConfig();
+  const cap = parseInt(config.ai_daily_cap) || AI_DAILY_CAP_DEFAULT;
+  const lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  let used;
+  try {
+    used = _aiUsageIncrement(token, cap);
+  } finally {
+    lock.releaseLock();
+  }
+  if (used < 0) {
+    return respond(429, 'quota', { remaining: 0, cap: cap });
+  }
+
+  const prompt =
+      'This is a photo of a BUSINESS CARD. Transcribe what is printed on it. '
+    + 'Respond with EXACTLY these labeled lines, each on its own line, nothing else. '
+    + 'If something is not on the card, leave that line blank after the colon.\n'
+    + 'Name: <the person\'s name>\n'
+    + 'Title: <their job title, e.g. Owner, Retail Store Manager>\n'
+    + 'Business: <the company or store name, including LLC/Inc if printed — read the logo if that is where the name is>\n'
+    + 'Store phone: <the main / store / office number>\n'
+    + 'Cell phone: <the number marked c, cell, or mobile>\n'
+    + 'Home phone: <the number marked h or home>\n'
+    + 'Email: <the email address exactly as printed>\n'
+    + 'Website: <the web address, without http:// or www.>\n'
+    + 'Address: <street, city, state zip — the FIRST address if the card lists several>\n'
+    + 'Rules: transcribe EXACTLY what is printed — never guess missing digits or letters. '
+    + 'A lone unlabeled phone number goes on the Store phone line. OMIT fax numbers entirely. '
+    + 'Read 1/l and 0/O carefully in emails and web addresses (domains are normally lowercase '
+    + 'words or numbers), and if the email domain and website are clearly the same, spell them '
+    + 'the same. No commentary, no extra lines.';
+
+  const model = PropertiesService.getScriptProperties().getProperty('GEMINI_MODEL') || AI_MODEL_DEFAULT;
+  const url = 'https://generativelanguage.googleapis.com/v1beta/models/' + model
+            + ':generateContent?key=' + encodeURIComponent(key);
+  const body = {
+    contents: [{
+      parts: [
+        { inline_data: { mime_type: mime, data: img } },
+        { text: prompt },
+      ],
+    }],
+    // v2.2.1: thinking OFF — transcription needs none, and Gemini's default
+    // thinking tokens count against maxOutputTokens; with 512 the reply was
+    // cut off after ~3 lines (Brad's George LaHaye scan: no phones/email).
+    generationConfig: { temperature: 0, maxOutputTokens: 1024, thinkingConfig: { thinkingBudget: 0 } },
+  };
+
+  let res;
+  try {
+    res = UrlFetchApp.fetch(url, {
+      method: 'post',
+      contentType: 'application/json',
+      payload: JSON.stringify(body),
+      muteHttpExceptions: true,
+    });
+  } catch (err) {
+    _aiUsageRefund(token);
+    return respond(502, 'AI unreachable: ' + err.message);
+  }
+
+  const code = res.getResponseCode();
+  if (code !== 200) {
+    _aiUsageRefund(token);
+    if (code === 429) return respond(503, 'AI busy — try again later');
+    return respond(502, 'AI error HTTP ' + code);
+  }
+
+  let text = '';
+  try {
+    const j = JSON.parse(res.getContentText());
+    const parts = j.candidates && j.candidates[0] && j.candidates[0].content
+               && j.candidates[0].content.parts;
+    text = (parts || []).map(function(p) { return p.text || ''; }).join('\n').trim();
+  } catch (err) {
+    return respond(502, 'AI answer unreadable');
+  }
+  if (!text) return respond(502, 'AI gave no answer');
+  text = text.substring(0, 1200);
+
+  _aiCachePut(hash, text);
+
+  return respond(200, 'OK', { text: text, cached: false, remaining: Math.max(0, cap - used) });
+}
+
+
+// ============================================================
+//  ACTION: barcode_pair  (v3.6) — community UPC→item pairings
+//  Payload: { action:'barcode_pair', token, pairs:[{u,n,m,im,h,d}] }
+//    u = upc digits · n = item number · m = maker · im = 1/0 in-master
+//    h = how ('scan'…) · d = YYYY-MM-DD first seen on that device
+// ============================================================
+
+function handleBarcodePair(payload) {
+  if (!payload.token) return respond(400, 'Missing token');
+  const token = String(payload.token).replace(/[^a-z0-9]/gi, '').substring(0, 16);
+  if (token.length < 6) return respond(400, 'Invalid token');
+  const pairs = payload.pairs;
+  if (!pairs || !pairs.length) return respond(400, 'No pairs');
+  if (pairs.length > 200) return respond(400, 'Too many pairs');
+
+  const sh = _subSheet_(BARCODE_PAIRS_TAB,
+    ['upc', 'item_num', 'mfr', 'in_master', 'how', 'first_seen', 'last_seen', 'report_count', 'status']);
+  const data = sh.getDataRange().getValues();
+  const byKey = {};
+  for (let i = 1; i < data.length; i++) {
+    byKey[String(data[i][0]) + '|' + String(data[i][1])] = i + 1;   // sheet row
+  }
+  const now = new Date().toISOString().slice(0, 10);
+  let added = 0, bumped = 0;
+  for (const p of pairs) {
+    const upc = String(p.u || '').replace(/\D/g, '').substring(0, 14);
+    const num = String(p.n || '').replace(/[^a-zA-Z0-9\-\.]/g, '').substring(0, 20);
+    if (upc.length < 8 || !num) continue;                 // not a UPC / not a number
+    const key = upc + '|' + num;
+    const row = byKey[key];
+    if (row) {
+      // a repeat report: bump the count, stamp last_seen — "how many
+      // independent people saw this pairing" is what review reads.
+      const cur = Number(sh.getRange(row, 8).getValue()) || 1;
+      sh.getRange(row, 7, 1, 2).setValues([[now, cur + 1]]);
+      bumped++;
+    } else {
+      const mfr = String(p.m || '').substring(0, 30);
+      const how = String(p.h || 'scan').substring(0, 20);
+      const first = String(p.d || now).substring(0, 10);
+      sh.appendRow([upc, num, mfr, p.im ? true : false, how, first, now, 1, 'new']);
+      byKey[key] = sh.getLastRow();
+      added++;
+    }
+  }
+  // ok:true is REQUIRED — the app's _bcPairDrain clears its queue only on
+  // r.ok || r.success || r.status==='ok', and respond() sends numeric status.
+  return respond(200, 'ok', { ok: true, added: added, repeats: bumped });
+}
+
+
+// ============================================================
+//  v2.3 — SUBSCRIPTIONS (Phase C)
+// ============================================================
+
+function _subSheet_(name, headers) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sh = ss.getSheetByName(name);
+  if (!sh) { sh = ss.insertSheet(name); sh.appendRow(headers); }
+  return sh;
+}
+function _subNorm_(em) { return String(em || '').trim().toLowerCase(); }
+function _subIso_(d) { return Utilities.formatDate(d, 'UTC', 'yyyy-MM-dd'); }
+function _subCfg_(key, dflt) {
+  try {
+    const sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(CONFIG_TAB);
+    if (!sh) return dflt;
+    const vals = sh.getDataRange().getValues();
+    for (let i = 0; i < vals.length; i++) {
+      if (String(vals[i][0]).trim() === key) return String(vals[i][1]).trim();
+    }
+  } catch (err) {}
+  return dflt;
+}
+// Find a row by email in col A. Returns {row, vals} or null.
+function _subFind_(sheetName, email) {
+  const sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(sheetName);
+  if (!sh) return null;
+  const vals = sh.getDataRange().getValues();
+  for (let i = 1; i < vals.length; i++) {
+    if (_subNorm_(vals[i][0]) === email) return { row: i + 1, vals: vals[i], sheet: sh };
+  }
+  return null;
+}
+
+// ── ACTION: sub_check  {action:'sub_check', email} ──
+// Answers: {status:200, sub:'beta'|'active'|'trial'|'expired', daysLeft,
+//           paidThrough, freeUntil, payLink, enforce}
+// Fail-open philosophy lives in the APP (network failure = full access);
+// this endpoint just reports the truth.
+function handleSubCheck(p) {
+  const email = _subNorm_(p.email);
+  if (!email || email.indexOf('@') < 0) return respond(400, 'bad email');
+  _subSheet_(SUBSCRIBERS_TAB, ['email', 'stripe_customer', 'paid_through', 'status', 'updated_at']);
+  _subSheet_(TRIALS_TAB, ['email', 'trial_start']);
+  _subSheet_(BETA_TAB, ['email', 'free_until', 'note']);
+  const today = new Date();
+  // ── v3.5: beta tracking (auto-enroll + last-seen/version stamp) ──
+  // Guarded end to end: any failure here must never break the sub answer.
+  try {
+    const wantCode = PropertiesService.getScriptProperties().getProperty('BETA_CODE') || 'BETA2026';
+    const gotCode = String(p.betaCode || '').trim().toUpperCase();
+    if (gotCode && gotCode === wantCode && !_subFind_(BETA_TAB, email)) {
+      _subSheet_(BETA_TAB, ['email', 'free_until', 'note'])
+        .appendRow([email, '', 'auto-enrolled ' + _subIso_(today)]);
+    }
+  } catch (eEnroll) {}
+  try {
+    const cacheLS = CacheService.getScriptCache();
+    const ckLS = 'blseen_' + email;
+    if (!cacheLS.get(ckLS)) {
+      const bRow = _subFind_(BETA_TAB, email);
+      if (bRow) {
+        bRow.sheet.getRange(bRow.row, 4).setValue(_subIso_(today));
+        const av = String(p.appVersion || '').substring(0, 20);
+        if (av) bRow.sheet.getRange(bRow.row, 5).setValue(av);
+        cacheLS.put(ckLS, '1', 21600);
+      }
+    }
+  } catch (eSeen) {}
+  const base = { payLink: _subCfg_('pay_link', ''), enforce: _subCfg_('sub_enforce', 'off') === 'on' };
+
+  // 1. Beta testers — free year (or open-ended while free_until is blank).
+  const beta = _subFind_(BETA_TAB, email);
+  if (beta) {
+    const fu = beta.vals[1] ? new Date(beta.vals[1]) : null;
+    if (!fu || fu.getTime() >= today.getTime()) {
+      return respond(200, 'ok', Object.assign(base, { sub: 'beta', freeUntil: beta.vals[1] ? _subIso_(fu) : '' }));
+    }
+  }
+  // 2. Paying subscribers (grace window for card retries).
+  const sub = _subFind_(SUBSCRIBERS_TAB, email);
+  if (sub && sub.vals[2]) {
+    const pt = new Date(sub.vals[2]);
+    if (pt.getTime() + SUB_GRACE_DAYS * 864e5 >= today.getTime()) {
+      return respond(200, 'ok', Object.assign(base, { sub: 'active', paidThrough: _subIso_(pt) }));
+    }
+  }
+  // 3. Trial — starts silently on first sight of this email.
+  let tr = _subFind_(TRIALS_TAB, email);
+  if (!tr) {
+    _subSheet_(TRIALS_TAB, ['email', 'trial_start']).appendRow([email, _subIso_(today)]);
+    return respond(200, 'ok', Object.assign(base, { sub: 'trial', daysLeft: TRIAL_DAYS }));
+  }
+  const started = new Date(tr.vals[1]);
+  const used = Math.floor((today.getTime() - started.getTime()) / 864e5);
+  if (used < TRIAL_DAYS) {
+    return respond(200, 'ok', Object.assign(base, { sub: 'trial', daysLeft: TRIAL_DAYS - used }));
+  }
+  return respond(200, 'ok', Object.assign(base, { sub: 'expired', daysLeft: 0 }));
+}
+
+// ── STRIPE WEBHOOK  (URL: <script-url>?hook=<WEBHOOK_KEY script property>) ──
+// Events to select in Stripe: checkout.session.completed, invoice.paid,
+// customer.subscription.deleted. Keeps `subscribers` current automatically.
+function handleStripeHook(e) {
+  const want = PropertiesService.getScriptProperties().getProperty('WEBHOOK_KEY') || '';
+  if (!want || String(e.parameter.hook) !== want) return respond(403, 'bad hook key');
+  let ev;
+  try { ev = JSON.parse(e.postData.contents); } catch (err) { return respond(400, 'bad payload'); }
+  const type = ev.type || '';
+  const obj = (ev.data && ev.data.object) || {};
+  const sh = _subSheet_(SUBSCRIBERS_TAB, ['email', 'stripe_customer', 'paid_through', 'status', 'updated_at']);
+  const now = new Date();
+  const yearOut = new Date(now.getTime() + 366 * 864e5);
+
+  function upsert(email, customer, paidThrough, status) {
+    email = _subNorm_(email);
+    if (!email) return;
+    const hit = _subFind_(SUBSCRIBERS_TAB, email);
+    const rowVals = [email, customer || (hit ? hit.vals[1] : ''), paidThrough ? _subIso_(paidThrough) : (hit ? String(hit.vals[2]) : ''), status, _subIso_(now)];
+    if (hit) hit.sheet.getRange(hit.row, 1, 1, 5).setValues([rowVals]);
+    else sh.appendRow(rowVals);
+  }
+
+  if (type === 'checkout.session.completed') {
+    const email = (obj.customer_details && obj.customer_details.email) || obj.customer_email || '';
+    upsert(email, obj.customer || '', yearOut, 'active');
+  } else if (type === 'invoice.paid' || type === 'invoice.payment_succeeded') {
+    upsert(obj.customer_email || '', obj.customer || '', yearOut, 'active');
+  } else if (type === 'customer.subscription.deleted') {
+    // No email on this event — match by customer id; keep paid_through
+    // (access runs to the end of the paid year), mark canceled.
+    const cust = String(obj.customer || '');
+    if (cust) {
+      const vals = sh.getDataRange().getValues();
+      for (let i = 1; i < vals.length; i++) {
+        if (String(vals[i][1]) === cust) {
+          sh.getRange(i + 1, 4).setValue('canceled');
+          sh.getRange(i + 1, 5).setValue(_subIso_(now));
+          break;
+        }
+      }
+    }
+  }
+  return respond(200, 'ok');
+}
+
+// ============================================================
+//  ACTION: import_map  (v3.4 — Task #25 spreadsheet import)
+//  Payload: { action:'import_map', token, data:{ tabs:[{name, headers,
+//             rowCount, samples:[{cells, highlighted, fillRgb}]}],
+//             fillGroups:[{rgb, count, tabs}], appFields:[...] } }
+//  Returns: { status:200, answer:{ mappings, tabClass, gradeTable,
+//             questions } }  — answer is UNTRUSTED by the app; it
+//             validates every field before showing anything.
+//           { status:429 } rate-limited · { status:503 } model busy
+// ============================================================
+
+function handleImportMap(payload) {
+  // ── validate ──
+  if (!payload.token) return respond(400, 'Missing token');
+  const token = String(payload.token).replace(/[^a-z0-9]/gi, '').substring(0, 16);
+  if (token.length < 6) return respond(400, 'Invalid token');
+  const data = payload.data;
+  if (!data || !data.tabs || !data.tabs.length) return respond(400, 'Missing data');
+  const dataStr = JSON.stringify(data);
+  if (dataStr.length > 400 * 1024) return respond(400, 'Payload too large');
+
+  // ── rate limit: 10 per token per 6h (imports happen once per user) ──
+  try {
+    const cache = CacheService.getScriptCache();
+    const ck = 'impmap_' + token;
+    const n = parseInt(cache.get(ck) || '0', 10);
+    if (n >= 10) return respond(429, 'quota');
+    cache.put(ck, String(n + 1), 21600);
+  } catch (e) {}
+
+  // ── key: the SECOND (billing-enabled) key; reader key untouched ──
+  const props = PropertiesService.getScriptProperties();
+  const key = props.getProperty('IMPORT_GEMINI_KEY') || props.getProperty('GEMINI_API_KEY');
+  if (!key) return respond(500, 'No API key configured');
+  const model = props.getProperty('IMPORT_GEMINI_MODEL') || 'gemini-3.6-flash';
+
+  // ── prompt ──
+  const fields = (data.appFields && data.appFields.length) ? data.appFields : [
+    'itemNum','manufacturer','gauge','yourDesc','rawGrade','location',
+    'priceItem','userEstWorth','yearMade','notes','roadName','roadNumber',
+    'hasBox','datePurchased','purchasedFrom','quantity','ignore'];
+  const prompt =
+      'You are helping a model-train collector import their personal inventory spreadsheet '
+    + 'into a collection app. You receive each sheet tab\'s name, its column headers, its row '
+    + 'count, and up to 10 sample rows (some flagged highlighted=true when the row has a '
+    + 'colored fill; fillGroups lists each distinct highlight color and how many rows use it).\n\n'
+    + 'Answer with STRICT JSON only — no prose, no markdown fences — in exactly this shape:\n'
+    + '{"mappings": {"<tabName>": {"<header>": "<field>"}},\n'
+    + ' "tabClass": {"<tabName>": "trains|books|vehicles|other"},\n'
+    + ' "gradeTable": [{"raw": "<their grade string>", "condition": "<1-10 or empty>"}],\n'
+    + ' "questions": [{"id": "<short-id>", "text": "<question>", "options": ["<opt>", ...]}]}\n\n'
+    + 'Rules:\n'
+    + '- Allowed field values, ONLY these: ' + fields.join(', ') + '\n'
+    + '- itemNum is the manufacturer catalog number. yourDesc is their free-text description. '
+    +   'rawGrade is their condition/grade column VERBATIM (do not convert it in mappings). '
+    +   'priceItem is what they PAID; userEstWorth is what they think it is WORTH now. '
+    +   'Map a header to "ignore" only when it clearly should not import. Headers you cannot '
+    +   'place: omit them (the app asks the user).\n'
+    + '- Map EVERY tab that has headers, including non-train tabs (books, die-cast vehicles, '
+    +   'airplanes) — classify those in tabClass so the app imports them as manual entries.\n'
+    + '- gradeTable: list every DISTINCT grade string you can see in the samples and your best '
+    +   '1-10 app-condition guess for each (e.g. "C10/P10" -> "10", "C7" -> "7"). Two grading '
+    +   'systems in one cell (like C10/P10): guess from the FIRST. Unsure: empty string.\n'
+    + '- questions: up to 5, ONLY about things visible in the data that genuinely need the '
+    +   'user\'s answer. If fillGroups shows highlighted rows, the FIRST question must ask what '
+    +   'that highlight means, with options ["For sale","Sold","Needs repair","Just formatting","Something else"]. '
+    +   'Other good questions: an ambiguous column meaning, a grading system you could not read, '
+    +   'a column with person names. Each question needs 2-6 short options. Fewer real '
+    +   'questions is better than 5 padded ones.\n\n'
+    + 'THE DATA:\n' + dataStr;
+
+  const body = {
+    contents: [{ parts: [{ text: prompt }] }],
+    generationConfig: { temperature: 0.1, maxOutputTokens: 8192,
+                        responseMimeType: 'application/json',
+                        thinkingConfig: { thinkingLevel: 'minimal' } },
+  };
+
+  const url = 'https://generativelanguage.googleapis.com/v1beta/models/' + model
+            + ':generateContent?key=' + encodeURIComponent(key);
+  let res;
+  try {
+    res = UrlFetchApp.fetch(url, {
+      method: 'post', contentType: 'application/json',
+      payload: JSON.stringify(body), muteHttpExceptions: true,
+    });
+  } catch (e) { return respond(503, 'AI unreachable'); }
+
+  const code = res.getResponseCode();
+  if (code === 429 || code === 503) return respond(503, 'AI busy');
+  if (code !== 200) return respond(500, 'AI error ' + code);
+
+  let answer = null;
+  try {
+    const j = JSON.parse(res.getContentText());
+    const parts = j.candidates && j.candidates[0] && j.candidates[0].content
+               && j.candidates[0].content.parts;
+    const text = (parts || []).map(function(p) { return p.text || ''; }).join('').trim();
+    answer = JSON.parse(text.replace(/^```json\s*/i, '').replace(/```\s*$/, ''));
+  } catch (e) { return respond(500, 'AI answer unparseable'); }
+
+  return respond(200, 'OK', { answer: answer, model: model });
+}
+
+// v3.4 editor check: run once after setting IMPORT_GEMINI_KEY, read the log.
+function testImportKey() {
+  const props = PropertiesService.getScriptProperties();
+  const key = props.getProperty('IMPORT_GEMINI_KEY');
+  if (!key) { Logger.log('NO IMPORT KEY — add Script Property IMPORT_GEMINI_KEY (the second, billing-enabled key).'); return; }
+  const model = props.getProperty('IMPORT_GEMINI_MODEL') || 'gemini-3.6-flash';
+  const url = 'https://generativelanguage.googleapis.com/v1beta/models/' + model
+            + ':generateContent?key=' + encodeURIComponent(key);
+  const res = UrlFetchApp.fetch(url, {
+    method: 'post', contentType: 'application/json',
+    payload: JSON.stringify({
+      contents: [{ parts: [{ text: 'Reply with strict JSON: {"ok": true}' }] }],
+      generationConfig: { responseMimeType: 'application/json', maxOutputTokens: 512 },
+    }),
+    muteHttpExceptions: true,
+  });
+  const code = res.getResponseCode();
+  Logger.log(code === 200 ? ('IMPORT KEY OK — model ' + model + ' answered: ' + res.getContentText().substring(0, 200))
+                          : ('IMPORT KEY PROBLEM — HTTP ' + code + ': ' + res.getContentText().substring(0, 300)));
+}
+
+
+// ============================================================
+//  v3.5 — BETA TRACKING SETUP + WEEKLY DIGEST
+// ============================================================
+
+// One-time after pasting v3.5: writes the tracking column headers and
+// (re)creates the Monday 7am digest trigger. Safe to re-run.
+function setupV35Beta() {
+  const sh = _subSheet_(BETA_TAB, ['email', 'free_until', 'note']);
+  sh.getRange(1, 4, 1, 3).setValues([['last_seen', 'app_version', 'name']]);
+  ScriptApp.getProjectTriggers().forEach(function (t) {
+    if (t.getHandlerFunction() === 'betaWeeklyDigest') ScriptApp.deleteTrigger(t);
+  });
+  ScriptApp.newTrigger('betaWeeklyDigest').timeBased()
+    .onWeekDay(ScriptApp.WeekDay.MONDAY).atHour(7).create();
+  Logger.log('v3.5 ready: beta cols D-F (last_seen, app_version, name) + Monday 7am digest trigger.');
+}
+
+// Monday digest — plain-text email to DIGEST_EMAIL (Script Property,
+// default support@therailroster.com). Also runnable by hand any time.
+function betaWeeklyDigest() {
+  const to = PropertiesService.getScriptProperties().getProperty('DIGEST_EMAIL') || 'support@therailroster.com';
+  const sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(BETA_TAB);
+  if (!sh) return;
+  const vals = sh.getDataRange().getValues();
+  const now = new Date();
+  const d7 = new Date(now.getTime() - 7 * 864e5);
+  const d14 = new Date(now.getTime() - 14 * 864e5);
+  const newbies = [], active = [], quiet = [];
+  for (let i = 1; i < vals.length; i++) {
+    const email = String(vals[i][0] || '').trim();
+    if (!email) continue;
+    const note = String(vals[i][2] || '');
+    const rawSeen = vals[i][3];
+    const lastSeen = rawSeen ? new Date(rawSeen) : null;
+    const seenOk = lastSeen && !isNaN(lastSeen.getTime());
+    const ver = String(vals[i][4] || '');
+    const name = String(vals[i][5] || '');
+    const label = (name ? name + ' <' + email + '>' : email) + (ver ? ' — ' + ver : '');
+    const em = note.match(/auto-enrolled (\d{4}-\d{2}-\d{2})/);
+    if (em && new Date(em[1]).getTime() >= d7.getTime()) newbies.push(label);
+    if (seenOk && lastSeen.getTime() >= d7.getTime()) {
+      active.push(label + ' (' + _subIso_(lastSeen) + ')');
+    } else if (!seenOk || lastSeen.getTime() < d14.getTime()) {
+      quiet.push(label + (seenOk ? ' (last ' + _subIso_(lastSeen) + ')' : ' (never signed in)'));
+    }
+  }
+  const total = vals.length - 1;
+  const lines = [
+    'The Rail Roster — beta digest, ' + _subIso_(now), '',
+    'Testers on the roster: ' + total, '',
+    'New this week (' + newbies.length + '):',
+    newbies.length ? '  ' + newbies.join('\n  ') : '  none', '',
+    'Active in the last 7 days (' + active.length + '):',
+    active.length ? '  ' + active.join('\n  ') : '  none', '',
+    'Quiet 14+ days or never signed in (' + quiet.length + '):',
+    quiet.length ? '  ' + quiet.join('\n  ') : '  none', '',
+    '(Sent automatically every Monday by the relay — betaWeeklyDigest, v3.5.)',
+  ];
+  MailApp.sendEmail(to,
+    'Rail Roster beta: ' + active.length + ' active, ' + newbies.length + ' new, ' + quiet.length + ' quiet',
+    lines.join('\n'));
+}
