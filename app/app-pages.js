@@ -2124,9 +2124,18 @@ async function rrFsPriceFillSave() {
       // Column D is Asking Price on the For Sale tab (A itemNum, B variation,
       // C condition, D asking). One cell each — nothing else on the row is
       // touched, so an edit made elsewhere cannot be clobbered by this.
-      await sheetsUpdate(state.personalSheetId, 'For Sale!D' + fs.row, [[t.val]]);
-      fs.askingPrice = String(t.val);
-      done++;
+      // Session 85 (v0.9.1577): through the guarded writer. This was the one
+      // bare row-addressed write left in the app (shipped v1547, while the
+      // §234 census was down with the crashed suite) — a For Sale row moved
+      // by a sale or removal meant this price landed on a STRANGER'S row.
+      if (await rrVerifiedRowUpdate(state.personalSheetId, 'For Sale', fs.row,
+            'For Sale!D' + fs.row, [[t.val]],
+            { num: fs.itemNum || '', invId: fs.inventoryId || '' }, 'For Sale list')) {
+        fs.askingPrice = String(t.val);
+        done++;
+      } else {
+        failed++;
+      }
     } catch (e) {
       failed++;
       console.warn('[For Sale] price save failed for row ' + fs.row + ':', e && e.message);

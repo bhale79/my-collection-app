@@ -4089,7 +4089,10 @@
           + 'border-radius:8px;padding:0.4rem 0.55rem;margin-top:0.3rem;cursor:pointer;color:var(--text);font-family:var(--font-body)">'
           + '<span style="font-family:var(--font-mono);font-weight:700;font-size:0.82rem;color:' + (isBase ? '#2980b9' : 'var(--accent2,#c9922a)') + ';flex-shrink:0">' + esc(label) + '</span>'
           + '<span style="font-size:0.74rem;color:var(--text-dim);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(desc || '') + '</span>'
-          + (link ? '<a href="' + esc(link) + '" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="flex-shrink:0;font-size:0.7rem;font-weight:700;color:#2980b9;text-decoration:none">view \u2197</a>' : '')
+          // Session 85: an <a> may not nest inside a <button> (invalid HTML;
+          // screen readers announce one control containing another). Same
+          // look, same behaviour, as a span that opens the link itself.
+          + (link ? '<span onclick="event.stopPropagation();window.open(\'' + esc(link) + '\',\'_blank\',\'noopener\')" style="flex-shrink:0;font-size:0.7rem;font-weight:700;color:#2980b9;cursor:pointer">view \u2197</span>' : '')
           + '</button>';
       };
       // The base first — but only when a real item row carries it.
@@ -6437,7 +6440,7 @@
       _rescueRender(_rescuePlanNow);
     } catch (e) {
       console.warn('[Rescue] scan failed:', e && e.message);
-      showToast('Could not scan the inbox — ' + ((e && e.message) || 'unknown error'));
+      showToast((typeof rrSaveError === 'function') ? rrSaveError(e, 'the inbox scan') : 'Could not scan the inbox — please try again.', 4500, true);
     } finally { _setBusy(false); }
   };
 

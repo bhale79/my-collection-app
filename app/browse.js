@@ -703,6 +703,20 @@ var _ERA_KEY_TO_PERIOD = {
   menards:      'modern',   // Menards store brand, 2014 onward
   kline:        'modern',   // K-Line 1975-2006 (see ERAS)
   williams:     'modern',   // Williams Reproductions, 1971 onward
+  // Session 85 (v0.9.1577): the nine Phase C eras. All modern by manufacture
+  // date — Aristo-Craft ~1988-2013, Accucraft and Bachmann current. Missing
+  // entries here are the v1159 disease: year-less rows hide behind the
+  // period chips, reachable only under "Any Era". The revived
+  // photo-inbox-tests §era-period guard now fails if an era is left out.
+  aristocraft:    'modern',
+  accucraft:      'modern',
+  bachmann_ho:    'modern',
+  bachmann_n:     'modern',
+  bachmann_g:     'modern',
+  bachmann_o:     'modern',
+  bachmann_on30:  'modern',
+  bachmann_hon30: 'modern',
+  bachmann_all:   'modern',
   thirdrail:    'modern',   // 3rd Rail / Sunset Models brass, 1990s onward
   usatrains:    'modern',   // USA Trains, 1988 onward
   lgb:          'modern',   // LGB, 1968 onward — effectively all post-1970
@@ -1867,13 +1881,18 @@ function _itemExternalLinkURL(item) {
   // reason about — but the owner's own words are exactly what a person
   // would Google. Maker + number + first words of their description.
   var _mDesc = String(item.yourDescription || item.description || '').trim();
-  if (item.itemNum || _mDesc) {
+  // Session 85: CUSTOM RUN is Weaver's stock-number field saying there ISN'T
+  // a number (the v1245 rule) — the v1509 fallback was resurrecting a literal
+  // "CUSTOM RUN" search for rows with nothing else to say.
+  var _mNum = String(item.itemNum || '').trim();
+  if (/^custom\s*run$/i.test(_mNum)) _mNum = '';
+  if (_mNum || _mDesc) {
     var _mMaker = String(item.manufacturer || '').trim();
     // v0.9.1512 (Brad: a numberless "George H Bush 1992 Whistlestop Michigan"
     // searched the REAL campaign train). Without a maker the query has to say
     // it is a model, or the world answers instead of the hobby.
     var _mQ = [_mMaker,
-               String(item.itemNum || '').trim(),
+               _mNum,
                _mDesc.split(/\s+/).slice(0, 8).join(' '),
                _mMaker ? '' : 'model train'].filter(Boolean).join(' ');
     if (_mQ.length > 3) return 'https://www.google.com/search?q=' + encodeURIComponent(_mQ);

@@ -5528,7 +5528,7 @@ function renderWizardStep() {
       // reading words on screen breaks the moment the wording changes.
       _ingPhotoBtn.id = 'wiz-photoid-block';
       _ingPhotoBtn.onclick = function() { if (typeof _wizScanBarcode === 'function') _wizScanBarcode(); else openIdentify('wizard'); };
-      _ingPhotoBtn.style.cssText = 'width:100%;margin-top:0.6rem;padding:0.65rem 1rem;border-radius:8px;border:1.5px dashed #2980b9;background:rgba(41,128,185,0.08);color:#2980b9;font-family:var(--font-head);font-size:0.78rem;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:0.5rem;transition:all 0.15s';
+      _ingPhotoBtn.style.cssText = 'width:100%;margin-top:0.6rem;padding:0.65rem 1rem;border-radius:8px;border:1.5px dashed #2980b9;background:var(--bg-card);background:color-mix(in srgb, rgb(41,128,185) 8%, var(--bg-card));color:#2980b9;font-family:var(--font-head);font-size:0.78rem;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:0.5rem;transition:all 0.15s';
       _ingPhotoBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 0 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg> Don\x27t know the number? Photo ID';
       // v0.9.1474 (Brad: "dont want to have to scroll down to see photo id
       // button"): a long suggestion list pushed this below the fold. It sits
@@ -5842,8 +5842,8 @@ function renderWizardStep() {
           var _thLbl = (typeof window.resolveRefLabel === 'function') ? window.resolveRefLabel(_thUrl, { verbose: true }) : 'View reference \u2197';
           return '<div style="margin-top:0.55rem;padding:0.55rem 0.7rem;border-radius:8px;border:1px dashed var(--border);background:var(--surface2);font-size:0.75rem;color:var(--text-mid);line-height:1.5">'
             + '<b>Need help identifying the tender you have?</b> '
-            + (_thUrl ? ('Check this engine\u2019s listing \u2014 <a href="' + _thUrl + '" target="_blank" rel="noopener" style="color:var(--accent2)">' + _thLbl + '</a> \u2014 or identify it from a photo:') : 'Identify it from a photo:')
-            + '<button type="button" onclick="_wizTenderPhotoId()" style="display:block;width:100%;margin-top:0.45rem;padding:0.5rem;border-radius:8px;border:1.5px dashed #2980b9;background:rgba(41,128,185,0.08);color:#2980b9;font-family:var(--font-head);font-size:0.72rem;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;cursor:pointer">Photo ID the tender</button>'
+            + (_thUrl ? ('Check this engine\u2019s listing \u2014 <a href="' + _thUrl + '" target="_blank" rel="noopener" style="color:var(--accent2);display:inline-flex;align-items:center;min-height:34px;padding:0.4rem 0.2rem;box-sizing:border-box">' + _thLbl + '</a> \u2014 or identify it from a photo:') : 'Identify it from a photo:')
+            + '<button type="button" onclick="_wizTenderPhotoId()" style="display:block;width:100%;margin-top:0.45rem;padding:0.5rem;border-radius:8px;border:1.5px dashed #2980b9;background:var(--bg-card);background:color-mix(in srgb, rgb(41,128,185) 8%, var(--bg-card));color:#2980b9;font-family:var(--font-head);font-size:0.72rem;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;cursor:pointer">Photo ID the tender</button>'
             + '</div>';
         })();
         html += '<div style="font-size:0.7rem;color:var(--text-dim);font-style:italic;margin-top:0.5rem;text-align:center">Need to remove the tender? Go Back and pick Engine only.</div>';

@@ -4,7 +4,7 @@
 // fetches fresh copies in the background for next load.
 // NEVER caches Google API, OAuth, or Sheets calls.
 
-const CACHE_NAME = 'mca-v1586';
+const CACHE_NAME = 'mca-v1587';
 
 // ── v0.9.1214: the version stamp has to survive as far as the cache ──
 // Brad, on v1213: "im reset twice and it still looks the same." He was
@@ -54,6 +54,15 @@ const SHELL_FILES = [
   './sheets.js',
   './drive.js',
   './browse.js',
+  // Session 85 (v0.9.1577): three scripts index.html loads that were never
+  // precached — the offline app silently lacked the importer (v1469-era
+  // import-core/import-ui) and the help guides (v1539). The revived
+  // photo-inbox-tests precache guard now diffs this list against
+  // index.html, so the next forgotten script fails a test instead of
+  // failing offline.
+  './import-core.js',
+  './import-ui.js',
+  './help-guides.js',
   './type-groups.js',
   './dashboard.js',
   './wizard-steps.js',

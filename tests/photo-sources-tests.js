@@ -195,7 +195,11 @@ if (drivePreFix === DRIVE) {
   // that NO guard in the file is silent — which is the one that would have
   // caught the miss; this stays pinned so a new guard shows up as a change.
   drilled('every "still working" guard goes through the shared bounce',
-          (INBOX.match(/_pinBusyBounce\(\); return;/g) || []).length === 10,
+          // Session 85: 10 → 15. The v1560s-70s inbox work (bulk tagging,
+          // rescue scan, set routing) added five more busy paths — and
+          // inbox-busy-tests' count-free "no guard is silent" property holds
+          // for all fifteen, which is the check that actually matters.
+          (INBOX.match(/_pinBusyBounce\(\); return;/g) || []).length === 15,
           /\{ showToast\('Still working on the last batch…', 2500, true\); return; \}/.test(INBOX));
   ok('the bounce repaints the waiting line before it scolds',
      /_pinGPStatus\(\)/.test(bounce) && /Cancel/.test(bounce));

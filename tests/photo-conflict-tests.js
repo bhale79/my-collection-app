@@ -121,8 +121,10 @@ drilled('a conflicted, unswapped number is hedged',
         /_rc0 && _rc0\.conflict && _rc0\.num === meta\.itemNum[\s\S]{0,120}meta\._hedge = 1;/.test(apply),
         // pre-fix: no conflict handling existed in apply at all
         !/_rc0\.conflict/.test(apply));
+// Session 85: the ternary was reformatted onto its own line when the
+// prev-guess fallback arrived — same feed, new line breaks.
 ok('...and the hedge is what feeds the stored guess flag',
-   /guess: meta\.itemNum \? \(meta\._hedge \? 1 : 0\)/.test(INBOX));
+   /guess:[\s\S]{0,120}?meta\.itemNum \? \(meta\._hedge \? 1 : 0\)/.test(INBOX));
 
 // ══ 4. The card — warn, then offer what actually matches ═══════════════════
 section('Review card — the two halves are finally compared');

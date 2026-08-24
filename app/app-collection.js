@@ -2632,13 +2632,30 @@ async function _breakUpGroup(pdKey) {
   });
   for (var i = 0; i < pdKeys.length; i++){
     var p = state.personalData[pdKeys[i]];
-    if (p) { p.groupId = ''; if (p.row && p.row !== 99999) { try { await rrVerifiedRowUpdate(state.personalSheetId, PERSONAL_TAB, p.row, PERSONAL_TAB + '!' + personalColLetter('groupId') + p.row, [['']], { num: p.itemNum || '', invId: p.inventoryId || '' }, 'collection'); } catch(e){} } }
+    // Session 85 (v0.9.1577, §238): the write's answer GATES the in-memory
+    // clear. A refused write (row moved elsewhere) used to leave memory
+    // saying "ungrouped" while the sheet still said grouped — divergence
+    // until the next full sync. Placeholder rows (99999) keep the old
+    // memory-only clear; their sheet row does not exist yet.
+    if (p) {
+      if (p.row && p.row !== 99999) {
+        var _ok85 = false;
+        try { _ok85 = await rrVerifiedRowUpdate(state.personalSheetId, PERSONAL_TAB, p.row, PERSONAL_TAB + '!' + personalColLetter('groupId') + p.row, [['']], { num: p.itemNum || '', invId: p.inventoryId || '' }, 'collection'); } catch(e){}
+        if (_ok85) p.groupId = '';
+      } else { p.groupId = ''; }
+    }
   }
   var isKeys = [];
   Object.entries(state.isData || {}).forEach(function(e){ if (e[1] && e[1].groupId === gid) isKeys.push(e[0]); });
   for (var j = 0; j < isKeys.length; j++){
     var ip = state.isData[isKeys[j]];
-    if (ip) { ip.groupId = ''; if (ip.row && ip.row !== 99999) { try { await rrVerifiedRowUpdate(state.personalSheetId, 'Instruction Sheets', ip.row, 'Instruction Sheets!H' + ip.row, [['']], { num: ip.itemNum || '' }, 'Instruction Sheets list'); } catch(e){} } }
+    if (ip) {
+      if (ip.row && ip.row !== 99999) {
+        var _okIs85 = false;
+        try { _okIs85 = await rrVerifiedRowUpdate(state.personalSheetId, 'Instruction Sheets', ip.row, 'Instruction Sheets!H' + ip.row, [['']], { num: ip.itemNum || '' }, 'Instruction Sheets list'); } catch(e){}
+        if (_okIs85) ip.groupId = '';
+      } else { ip.groupId = ''; }
+    }
   }
   if (typeof _cachePersonalData === 'function') _cachePersonalData();
 }
@@ -2710,7 +2727,7 @@ async function removeCollectionItem(itemNum, variation, row, invId, opts) {
             <button id="rm-breakup" style="padding:0.55rem 1rem;border-radius:8px;border:1.5px solid var(--accent2);background:var(--bg-card);background:color-mix(in srgb, rgb(201,146,42) 10%, var(--bg-card));color:var(--accent2);font-family:var(--font-body);font-size:0.85rem;cursor:pointer;text-align:left;font-weight:600;line-height:1.4">
               Break Up Group — keep every piece, just unlink them
             </button>
-            <button id="rm-all-group" style="padding:0.55rem 1rem;border-radius:8px;border:1.5px solid #e74c3c;background:color-mix(in srgb, rgb(231,76,60) 10%, var(--surface2));color:#e74c3c;font-family:var(--font-body);font-size:0.85rem;cursor:pointer;text-align:left;font-weight:600;line-height:1.4">
+            <button id="rm-all-group" style="padding:0.55rem 1rem;border-radius:8px;border:1.5px solid #e74c3c;background:var(--bg-card);background:color-mix(in srgb, rgb(231,76,60) 10%, var(--bg-card));color:#e74c3c;font-family:var(--font-body);font-size:0.85rem;cursor:pointer;text-align:left;font-weight:600;line-height:1.4">
               ⚠ Remove ALL ${groupSiblings.length} pieces (${groupLabels})
             </button>
           </div>

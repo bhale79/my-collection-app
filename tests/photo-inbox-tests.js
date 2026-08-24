@@ -41,7 +41,18 @@ function mkEl(tag) {
     appendChild(c) { this.children.push(c); return c; },
     removeChild(c) { this.children = this.children.filter(x => x !== c); },
     remove() { if (this.parent) this.parent.removeChild(this); },
-    querySelector() { return null; }, querySelectorAll() { return []; },
+    // Session 85: the v1504 context picker wires its buttons through
+    // card.querySelector('#…'); a stub that always answers null crashed the
+    // suite at section 8 and silently disabled everything after it —
+    // INCLUDING the colour ratchet. Fabricate-and-register, same contract
+    // as the ids the tests seed by hand.
+    querySelector(sel) {
+      const id = String(sel || '').replace(/^#/, '');
+      if (!id || /[ .\[>]/.test(id)) return null;   // only #id lookups are honest here
+      if (!REG[id]) REG[id] = mkEl(id);
+      return REG[id];
+    },
+    querySelectorAll() { return []; },
     addEventListener() {}, setAttribute(k, v) { this.attrs[k] = v; },
     getAttribute(k) { return this.attrs[k]; }, click() {},
   };
@@ -260,7 +271,11 @@ META_WRITES.length = 0; TOASTS.length = 0;
   META_WRITES.length = 0; TOASTS.length = 0;
   await window._pinApplyTags();
   ok('no writes without an era', META_WRITES.length === 0);
-  ok('and it says why', TOASTS.some(t => t.bad && /manufacturer/i.test(t.m)));
+  // Session 85: v1504 replaced the scolding toast with the CONTEXT PICKER —
+  // applying with nothing chosen now asks the maker/scale/era question
+  // instead of refusing. The proof it opened: its OK button got wired.
+  ok('and it asks instead of scolding — the context picker opened',
+     !!document._els['pin-ctx-ok']);
 
   section('9. Tag bar warns about overwriting');
   T.groups = [{ key: 'a', files: [{ id: 'a1', name: 'INBOX 1 p.jpg' }] }];
@@ -904,9 +919,13 @@ META_WRITES.length = 0; TOASTS.length = 0;
 
   section('37. The token button cannot be mistaken for a balance');
   const tb = require('fs').readFileSync(SRC, 'utf8');
-  ok('the label says what the number IS', /Read the ' \+ n \+ ' still unread/.test(tb));
-  ok('and that the photo IDs are a cost', /costs ' \+ n \+ ' photo ID/.test(tb));
-  ok('with a tooltip spelling it out', /not what you have left/.test(tb));
+  // Session 85: the v1490s "Identify my items" redesign reworded all three
+  // surfaces — the free read says (free), the paid selection prices itself
+  // on the button (v1351 rule kept), and the daily pill says "left today"
+  // so the number cannot read as a spendable balance.
+  ok('the label says what the number IS', /Identify my items — read ' \+ n \+ ' \(free\)/.test(tb));
+  ok('and that the photo IDs are a cost', /Read these ' \+ n \+ ' · ' \+ n \+ ' photo IDs/.test(tb));
+  ok('with the daily pill honest about what remains', /photo ID' \+ \(n === 1 \? '' : 's'\) \+ ' left today/.test(tb));
   ok('the old balance-looking label is gone', !/Read ' \+ n \+ ' \(' \+ n \+ ' token/.test(tb));
 
   // the guarantee behind the reassurance
@@ -1233,7 +1252,9 @@ META_WRITES.length = 0; TOASTS.length = 0;
   ok('it asks for the ORIGINAL, not the reissue', /ORIGINAL production piece/.test(aiid));
   ok('an unstamped photo still asks the plain question',
      /var eraPhrase = '';/.test(aiid));
-  ok('the Google/Research query carries it too', /rrIdentifyQuery\(\{ eraLabel:/.test(aiSrc));
+  // Session 85: v1489 — the inbox hands Lens plain search words built from
+  // the hint (maker, era, years, scale) instead of calling rrIdentifyQuery.
+  ok('the Google/Research query carries it too', /_lh\.eraYears \? \('\(' \+ _lh\.eraYears \+ '\)'\)/.test(aiSrc));
 
 
   section('57. Reading the reader properly');
@@ -2008,8 +2029,10 @@ META_WRITES.length = 0; TOASTS.length = 0;
 
   section('91. The self-learning barcode map');
   const bmz = require('fs').readFileSync(require('path').join(__dirname, '..', 'app', 'barcode.js'), 'utf8');
+  // Session 85: reworded to "(saved from an earlier scan)" somewhere in the
+  // v1464 unlearn work; the map lookup is unchanged.
   ok('every decode consults the learned map first',
-     /_bcMapEnsureLoaded\(\)/.test(bmz) && /learned from your earlier scan/.test(bmz));
+     /_bcMapEnsureLoaded\(\)/.test(bmz) && /saved from an earlier scan/.test(bmz));
   ok('a confirmed scan with a locked barcode saves its pairing',
      /rrBcMapLearn\(cap\.lockedBc\.rawValue, res\.itemNum/.test(bmz));
   ok('a label correction saves the strongest pairing of all',
@@ -2034,10 +2057,13 @@ META_WRITES.length = 0; TOASTS.length = 0;
 
   section('93. A photo group can add the WHOLE set');
   const sw = require('fs').readFileSync(SRC, 'utf8');
+  // Session 85: v1562 folded "Add the whole set" into the ONE Add button —
+  // a set-shaped group routes it to _pinAddSetFromGroup outright.
   ok('the review card offers the whole set when two or more members are read',
-     /Add the whole set/.test(sw) && /_setNums\.length >= 2/.test(sw));
+     /_routeSet = \(_rvKind === 'set'\) \|\| \(_rvKind === 'single' && _setNums\.length >= 2/.test(sw) &&
+     /_pinAddSetFromGroup\(\)/.test(sw));
   ok('it enters the wizard\'s EXISTING set flow, not a new one',
-     /tab: 'set',\s*\n\s*data: \{ tab: 'set', set_knowsNum: 'No', _enteredNums: nums\.slice\(0\)/.test(sw));
+     /step: 0, tab: 'set',\s*\n\s*data: \{ tab: 'set', set_knowsNum: 'No', _enteredNums: nums\.slice\(0\)/.test(sw));
   // v0.9.1115: `wizard` is a top-level let — window.wizard is a decoy. The
   // bare assignment is the whole fix for the stale-Want-wizard priority bug.
   ok('the wizard binding is assigned bare, never via window',
@@ -2172,8 +2198,10 @@ META_WRITES.length = 0; TOASTS.length = 0;
      (wzz.match(/_rrBuildSetItems\(/g) || []).length >= 3 && /function _rrBuildSetItems\(rs, enteredNums\)/.test(wzz));
   ok('alts and hand-typed add-ons still de-duplicate against the set',
      /if \(!out\.some\(function \(o\) \{ return normalizeItemNum\(o\) === normalizeItemNum\(x\); \}\)\) out\.push\(x\)/.test(wzz));
+  // Session 85: v1560 routed the occurrence count through the tiered
+  // matcher (_mpEq) so stacked suffixes count the same as the note lookup.
   ok('each repeated slot reads its own photo out of the list',
-     /if \(normalizeItemNum\(items\[_oi\]\) === normalizeItemNum\(itemNum\)\) _occ\+\+/.test(wsz));
+     /if \(_mpEq\(items\[_oi\], itemNum\)\) _occ\+\+/.test(wsz));
   ok('a pre-1122 single-id note still works',
      /Array\.isArray\(_mpVal\) \? _mpVal : \[_mpVal\]/.test(wsz));
 
@@ -2374,10 +2402,12 @@ META_WRITES.length = 0; TOASTS.length = 0;
      /localStorage\.setItem\(SETSTAGE_KEY, JSON\.stringify\(stage1\)\)/.test(a6src));
   ok('nothing writes PENDING_KEY before a save any more',
      !/pend\[num\] = \{ link: link/.test(a6src));
+  // Session 85: the catch variable was renamed ePs → ePh in a later pass;
+  // same call, same place.
   ok('a real single-item save is what arms it',
-     /if \(typeof rrPinSetPhotoSaved === 'function'\) rrPinSetPhotoSaved\(itemNum\); \} catch \(ePs\)/.test(a6wsave));
+     /if \(typeof rrPinSetPhotoSaved === 'function'\) rrPinSetPhotoSaved\(itemNum\); \} catch \(ePh\)/.test(a6wsave));
   ok('arming happens before the wizard closes',
-     a6wsave.indexOf('rrPinSetPhotoSaved(itemNum); } catch (ePs)') < a6wsave.indexOf("d._saveComplete = true;\n    closeWizard();"));
+     a6wsave.indexOf('rrPinSetPhotoSaved(itemNum); } catch (ePh)') < a6wsave.indexOf("d._saveComplete = true;\n    closeWizard();"));
   ok('the flush files onto the copy just added, not the first match',
      /var _fresh = _cands\.filter\(function \(p\) \{ return !p\.photoItem; \}\)/.test(a6src) &&
      /parseInt\(b\.inventoryId\) \|\| 0\) - \(parseInt\(a\.inventoryId\)/.test(a6src));
@@ -2929,8 +2959,11 @@ META_WRITES.length = 0; TOASTS.length = 0;
        !!appVerNum && scriptVer === appVerNum, 'app=' + appVerNum + ' script=' + scriptVer);
 
     // Preferences row: present, gated on the flag, opens the editor.
+    // Session 85: the gate moved behind rrAppearanceOn() (config.js), which
+    // reads APPEARANCE_ENABLED plus the beta allowances — one helper, so the
+    // flag's meaning can grow without editing every gate.
     ok('the Preferences row exists and is gated on APPEARANCE_ENABLED',
-       /APPEARANCE_ENABLED !== 'undefined' && APPEARANCE_ENABLED\) \?/.test(pf8) &&
+       /rrAppearanceOn === 'function' && rrAppearanceOn\(\)\) \?/.test(pf8) &&
        /openAppearance\(\)/.test(pf8));
 
     // The editor itself refuses to open when hidden — belt AND suspenders,
@@ -3315,10 +3348,13 @@ META_WRITES.length = 0; TOASTS.length = 0;
       ok('engine: the filtered era\'s row is in-era', s.inEra.some(r => r._tab === 'Lionel MPC-Modern'));
       ok('engine: an untagged row is treated as in-era, never hidden on a guess',
          s.inEra.some(r => !r._tab));
+      // Session 85: v1501 (task #27) — wrong scale DEMOTES, it never hides
+      // (measured: the prewar No. 25 vanished from lookups under an O filter).
       ok('engine: same-scale other eras are offered SEPARATELY, labelled',
-         s.offEra.length === 2 && s.offEra.every(r => !!r._offEraLabel));
-      ok('engine: a DIFFERENT SCALE is dropped outright (no HO while in O)',
-         !s.offEra.some(r => r._offEra === 'mth_ho') && !s.inEra.some(r => r._tab === 'MTH HO'));
+         s.offEra.filter(r => !!r._offEraLabel).length === 2);
+      ok('engine: v1501 — a DIFFERENT SCALE is demoted, never hidden',
+         s.offEra.some(r => r._tab === 'MTH HO') && !s.inEra.some(r => r._tab === 'MTH HO') &&
+         s.inEra.length + s.offEra.length === rows.length);
       ok('engine: scale compare survives the g/G casing split in ERA_SCALE',
          rrSameScale('g', 'G') === true);
       _currentEra = 'all';
@@ -3340,14 +3376,21 @@ META_WRITES.length = 0; TOASTS.length = 0;
       // the moment the function grows (that cost four false failures in §36).
       const i0 = pin.indexOf('function _pinPreferOf');
       const pf = pin.slice(i0, pin.indexOf('async function _freeReadOne', i0));
-      ok('the era hint falls back to the ACTIVE FILTER when the photo has no tag',
-         /rrActiveFilter\(m\.era \|\| ''\)/.test(pf) && !/if \(!m\.era\) return null;/.test(pf));
-      ok('…and a per-photo tag still wins, because it is what the resolver is asked with',
-         /rrActiveFilter\(m\.era \|\| ''\)/.test(pf));
+      // Session 85: v1488 RETIRED the fallback these two used to assert —
+      // Brad: "the my collection page filters should have nothing whatsoever
+      // to do with the photo inbox". The photo's own tag is the only filter.
+      ok('v1488: the era hint comes from the PHOTO TAG alone — no browsing-filter fallback',
+         /rrActiveFilter\(m\.era\)/.test(pf) && !/rrActiveFilter\(m\.era \|\| ''\)/.test(pf));
+      ok('…and an untagged photo asks a neutral question rather than borrowing chips',
+         /m\.era && typeof rrActiveFilter === 'function'/.test(pf));
       // Behaviour, not wording: §130 drives this function for real.
     })();
+    // Session 85: v1489 sends the inbox's hint as PLAIN SEARCH WORDS on the
+    // Lens URL (uploadbyurl passes q through) — maker, era, years and scale
+    // all ride, just not through rrIdentifyQuery any more.
     ok('the Lens/Google question is handed the maker and scale, not just the era',
-       /rrIdentifyQuery\(\{ eraLabel: _lh\.eraLabel, eraYears: _lh\.eraYears,[\s\S]{0,80}mfrs: _lh\.mfrs, scale: _lh\.scale \}\)/.test(pin));
+       /\(_lh\.mfrs \|\| \[\]\)\.join\(' '\), _lh\.eraLabel/.test(pin) &&
+       /_lh\.scale \? \(_lh\.scale \+ ' gauge'\)/.test(pin));
     ok('the wizard photo-identify passes era + maker + scale too',
        /mfrs: _qMfrs, scale: _qScale/.test(wp) && /eraLabel: _af \? _af\.label/.test(wp));
     ok('…with the user\'s own wizard picks winning over the filter',
@@ -3356,10 +3399,15 @@ META_WRITES.length = 0; TOASTS.length = 0;
     // ── the lookups ──
     ok('every master lookup passes its hits through the filter',
        (bc.match(/_rrFilterHits\(/g) || []).length >= 6);
-    ok('…via the shared splitter, so one rule governs all of them',
-       /function _rrFilterHits/.test(bc) && /rrSplitByFilter\(rows\)/.test(bc));
-    ok('…ordering in-era first, so a caller taking hits[0] cannot get an off-era row',
-       /return s\.inEra\.concat\(s\.offEra\)/.test(bc));
+    // Session 85: v1501 (task #27) deliberately made _rrFilterHits a
+    // PASS-THROUGH — scans judge fresh; the invisible global filter was
+    // measured steering the Found-it card. Flows that honor VISIBLE filters
+    // do it in their own predicates.
+    ok('…and v1501 made it a pass-through on purpose — scans judge fresh',
+       /function _rrFilterHits/.test(bc) &&
+       /return Array\.isArray\(rows\) \? rows : \(rows \|\| \[\]\);/.test(bc));
+    ok('…with the reason recorded where the next reader will look',
+       /GLOBAL filter no longer/.test(bc));
 
     // ── the picker must not present off-filter rows as normal choices ──
     ok('the candidate picker separates off-filter rows behind a divider',
@@ -3387,11 +3435,14 @@ META_WRITES.length = 0; TOASTS.length = 0;
     ok('there is a lock banner element on the viewfinder',
        /id="bi-lockbanner"/.test(bc) && /position:absolute/.test(
          bc.slice(bc.indexOf('id="bi-lockbanner"'), bc.indexOf('id="bi-lockbanner"') + 300)));
+    // Session 85: v1464 made the banner name the barcode's last digits so a
+    // lock held from the WRONG box is visible on sight; the guard split into
+    // a nested if while it sets that text. Same banner, same once-only show.
     ok('it says what Brad asked it to say',
-       /Barcode read — you can take the picture now/.test(bc));
+       /you can take the picture now/.test(bc) && /slice\(-5\)/.test(bc));
     ok('it is shown the moment the barcode locks, once',
-       /if \(lockBanner && lockBanner\.style\.display === 'none'\)/.test(bc) &&
-       /lockBanner\.style\.display = 'block'/.test(bc));
+       /if \(lockBanner\) \{/.test(bc) &&
+       /if \(lockBanner\.style\.display === 'none'\) \{[\s\S]{0,120}?lockBanner\.style\.display = 'block'/.test(bc));
     ok('…with a single buzz, for eyes that are on the box and not the screen',
        /navigator\.vibrate\(60\)/.test(bc));
     ok('the banner element is actually looked up',
@@ -3918,8 +3969,10 @@ META_WRITES.length = 0; TOASTS.length = 0;
       ]);
       chips = { manufacturer: 'lionel', scale: 'o', era: 'modern', section: 'items' };
       const s1 = make().split(rows());
-      ok('splitter: an HO row is dropped outright while filtered to O',
-         !s1.inEra.concat(s1.offEra).some(r => r._tab === 'MTH HO'));
+      // Session 85: v1501 — demoted to offEra with a label, never hidden.
+      ok('splitter: an HO row is DEMOTED to off-era while filtered to O, never hidden',
+         !s1.inEra.some(r => r._tab === 'MTH HO') &&
+         s1.offEra.some(r => r._tab === 'MTH HO'));
       ok('splitter: the Lionel Modern row is in-scope',
          s1.inEra.some(r => r._tab === 'Lionel MPC-Modern'));
       ok('splitter: the Atlas row is offered SEPARATELY, labelled, not as a plain answer',
@@ -3934,38 +3987,35 @@ META_WRITES.length = 0; TOASTS.length = 0;
          s2.inEra.some(r => r._tab === 'Atlas O') && s2.inEra.some(r => r._tab === 'Lionel MPC-Modern'));
       ok('splitter: …the postwar row is set aside as off-period',
          s2.offEra.some(r => r._tab === 'Lionel PW - Items'));
-      ok('splitter: …and HO is still dropped',
-         !s2.inEra.concat(s2.offEra).some(r => r._tab === 'MTH HO'));
+      ok('splitter: …and HO is still demoted, never hidden',
+         !s2.inEra.some(r => r._tab === 'MTH HO') &&
+         s2.offEra.some(r => r._tab === 'MTH HO'));
 
       chips = { manufacturer: 'any', scale: 'any', era: 'any', section: 'items' };
       ok('splitter: genuinely unfiltered keeps every row', make().split(rows()).inEra.length === 5);
 
       // ── what the photo readers are actually told ─────────────────────────
+      // ── Session 85 rewrite. The four checks that used to sit here encoded
+      // the PRE-v1488 contract: an untagged photo inherited the browsing
+      // chips, and the readers were hinted from them. Brad killed that on
+      // purpose (v1488, task #27 — "the my collection page filters should
+      // have nothing whatsoever to do with the photo inbox"), after proving
+      // the disease live: flipping the collection filter changed what the
+      // inbox said about an unrelated photo. The suite crashed at section 8
+      // from that day's other change (v1504 picker) and nobody saw these go
+      // stale. Today's contract: THE PHOTO'S OWN TAG IS THE ONLY FILTER.
       const group = { files: [{ id: 'F1', _meta: {} }] };
       chips = { manufacturer: 'lionel', scale: 'o', era: 'modern', section: 'items' };
-      const p1 = make().pref(group);
-      ok('an untagged photo inherits the chip filter (this returned null before)',
-         !!p1 && p1.era === 'mpc' && p1.manufacturer === 'Lionel' && p1.scale === 'O',
-         p1 ? [p1.era, p1.manufacturer, p1.scale].join('/') : 'null');
-      ok('…and is marked as coming from the filter rather than the photo',
-         p1._fromFilter === true);
+      ok('v1488: an untagged photo answers NULL even with chips set — the inbox never borrows the browsing filter',
+         make().pref(group) === null);
+      ok('v1488: …and the readers get NO hints from the chips either',
+         Object.keys(make().hints(group)).length === 0, JSON.stringify(make().hints(group)));
       const tagged = { files: [{ id: 'F2', _meta: { era: 'atlas' } }] };
       ok('a photo carrying its own era tag keeps it, chips or no chips',
          make().pref(tagged).era === 'atlas' && make().pref(tagged)._fromFilter === false);
-
-      const h1 = make().hints(group);
-      ok('the paid reader is told the maker, the scale and the period',
-         h1.mfrs && h1.mfrs[0] === 'Lionel' && h1.scale === 'O' && /1970-Today/.test(h1.note || ''),
-         JSON.stringify(h1));
-
-      // The case the old gate threw away completely: no single era, but a
-      // perfectly usable scale + period constraint.
-      chips = { manufacturer: 'any', scale: 'o', era: 'modern', section: 'items' };
-      const h2 = make().hints(group);
-      ok('a multi-era filter still reaches the reader instead of being discarded',
-         h2.scale === 'O' && /Modern/.test(h2.eraLabel || '') && !!h2.note,
-         JSON.stringify(h2));
-      ok('…and claims no maker it cannot know', !h2.mfrs);
+      const hT = make().hints(tagged);
+      ok('…and the paid reader is hinted from THAT TAG (maker + scale), not the chips',
+         hT.mfrs && hT.mfrs[0] === 'Atlas' && hT.scale === 'O', JSON.stringify(hT));
 
       chips = { manufacturer: 'any', scale: 'any', era: 'any', section: 'items' };
       ok('an unfiltered, untagged photo is still asked with no constraint at all',
@@ -5115,8 +5165,12 @@ META_WRITES.length = 0; TOASTS.length = 0;
 
     ok('the arrows call the member stepper when inside a group',
        /'_pinReviewStepMember',/.test(code));
-    ok('...which stops at both ends rather than wrapping',
-       /if \(j < 0 \|\| j >= fl\.length\) return;/.test(code));
+    // Session 85: v1493 (Brad: "we should be able to keep going… hit arrow
+    // again to continue") — the first press at an edge ARMS and says so, the
+    // second steps OUT to the next card. Still never a silent wrap.
+    ok('...which arms at the edges instead of wrapping (v1493)',
+       /if \(j < 0 \|\| j >= fl\.length\) \{/.test(code) &&
+       /_rvEdgeArmed === delta/.test(code));
     ok('...and redraws itself, or the counter freezes and the greying lies',
        /hd\.children\[0\]\.outerHTML = _pinRvNavHtml\('prev'\)/.test(code) &&
        /hd\.children\[3\]\.outerHTML = _pinRvNavHtml\('next'\)/.test(code));
@@ -6388,8 +6442,11 @@ META_WRITES.length = 0; TOASTS.length = 0;
     // silently misses them (it did, on the first run of this section).
     const spots = [];
     for (let i = wz.indexOf('target="_blank"'); i >= 0; i = wz.indexOf('target="_blank"', i + 1)) spots.push(i);
-    ok('the wizard has all three reference links accounted for',
-       spots.length === 3, 'found ' + spots.length);
+    // Session 85: 3 → 4. The tender-help block ("Need help identifying the
+    // tender you have?") gained an inline listing link; v1577 gave it the
+    // 34px hit area the sibling check demands.
+    ok('the wizard has all four reference links accounted for',
+       spots.length === 4, 'found ' + spots.length);
     const windows = spots.map(i => wz.slice(Math.max(0, i - 400), i + 700));
     ok('EVERY one of them declares a real hit area',
        windows.every(w => /min-height:34px/.test(w)),
@@ -6512,6 +6569,13 @@ META_WRITES.length = 0; TOASTS.length = 0;
       let wroteRange = null;
       const ctx = {
         pd: pd, link: link, num: '2321', PERSONAL_TAB: 'My Collection',
+        // Session 85: the shipped block grew since this harness was written —
+        // v1544-era `rec._retarget` (rec: null here = the ordinary no-retarget
+        // path) and the v1370 per-copy note queue read through _pendList.
+        // Both are true boundaries, stubbed to their simplest honest shapes.
+        rec: null,
+        _pendList: function (v) { return Array.isArray(v) ? v : (v ? [v] : []); },
+        _flushingNums: {},
         PENDING_KEY: 'rr_inbox_pending',
         state: { personalSheetId: 'SHEET' },
         personalColLetter: function () { return 'S'; },
@@ -6587,7 +6651,11 @@ META_WRITES.length = 0; TOASTS.length = 0;
     // The repair pass: it must never aim at a placeholder either.
     const rIdx = pinSrc.indexOf('async function _repairMissingPhotoLinks');
     ok('the repair pass exists', rIdx > 0);
-    const rBlock = pinSrc.slice(rIdx, pinSrc.indexOf('// ── Batch AI identify', rIdx));
+    // Session 85: the v1565-73 photo-rescue machinery moved in between the
+    // repair pass and the old end anchor, and ITS folder work (legitimately
+    // Ensure-based) was being blamed on the repair pass. Bound the slice by
+    // the next section marker instead.
+    const rBlock = pinSrc.slice(rIdx, pinSrc.indexOf('backfill Master Keys', rIdx));
     ok('the repair pass skips placeholder rows too',
        /Number\(p\.row\) !== 99999/.test(rBlock));
     ok('...only touches rows with no link',
@@ -6975,8 +7043,13 @@ META_WRITES.length = 0; TOASTS.length = 0;
     const schemaSlice = appSrc.slice(appSrc.indexOf('const PERSONAL_SCHEMA'), appSrc.indexOf('const PERSONAL_HEADERS'));
     const fields = (schemaSlice.match(/field: '([A-Za-z]+)'/g) || []).map(function (m) { return m.slice(8, -1); });
     ok('masterKey is in PERSONAL_SCHEMA', fields.indexOf('masterKey') >= 0);
-    ok('...appended at the END, never mid-schema', fields[fields.length - 1] === 'masterKey',
-       fields[fields.length - 1]);
+    // Session 85: v1514 appended the user columns AFTER masterKey — the
+    // column rule is append-only, so the assertion is that everything after
+    // masterKey is exactly that known set, in order, ending the schema.
+    ok('...appended at the END, never mid-schema',
+       fields.slice(fields.indexOf('masterKey') + 1).join(',') ===
+         'eraPeriod,importBatch,yourGrade,yourDescription,locationDetail,shipper,subCollection',
+       fields.slice(fields.indexOf('masterKey') + 1).join(','));
 
     // The wizard passes the CONFIRMED match; buildPersonalRow has the fallback.
     ok('the wizard save stores the user-confirmed match',
@@ -7916,8 +7989,11 @@ META_WRITES.length = 0; TOASTS.length = 0;
     // the one you were working on, or as a new one." Applying used to make a
     // look current and nothing else, so it existed only as "whatever the app
     // is wearing" and the next one replaced it with no way back.
+    // Session 85: v1442 made _storePreset refuse built-in names, so Apply
+    // now checks what it gave back (and skips the save entirely for a
+    // built-in) instead of firing an error mid-celebration.
     ok('Apply files the look over the one you were working on…',
-       /if \(_activePreset\) \{\s*\n\s*_storePreset\(_activePreset\);/.test(ap));
+       /if \(_activePreset\) \{[\s\S]{0,700}?_storePreset\(_activePreset\);/.test(ap));
     // v0.9.1243 (Brad): "we need a way to save as an existing one as well as
     // creating a new one. maybe a dropdown." The plain name box became a
     // chooser, so these two now assert the dialog rather than appPrompt's
@@ -7934,7 +8010,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
        (ap.match(/_storePreset\(/g) || []).length === 4 &&
        (ap.match(/localStorage\.setItem\(USER_PRESETS_KEY/g) || []).length === 2);
     ok('a saved look carries the derived shades too, or it reloads wrong',
-       /function _storePreset[\s\S]{0,400}DERIVED_VARS\.forEach/.test(ap));
+       /function _storePreset[\s\S]{0,1100}DERIVED_VARS\.forEach/.test(ap));
     ok('one place redraws the row of looks',
        /function _refreshPresets\(\)/.test(ap) &&
        (ap.match(/innerHTML = _presetPills\(\)/g) || []).length === 1);
@@ -8944,13 +9020,15 @@ META_WRITES.length = 0; TOASTS.length = 0;
       // v0.9.1237: the builder now shows the catalog facts that used to be
       // their own steps. §189 proves the real _cdEraFacts; here it is stubbed,
       // because this section is about the markup, not the facts.
+      // Session 85: _wizCondHelp joined the builder with the v1548 grading
+      // help — one more true boundary, stubbed to empty markup.
       return new Function('wizard', 'rrEsc', '_cd2up', '_isMobile', '_cdMaster',
                           '_cdIsPaperLike', '_cdHideToggles', 'getMatchingTenders',
-                          '_cdEraFacts', 'window', 'document',
+                          '_cdEraFacts', '_wizCondHelp', 'window', 'document',
         '"use strict";' + bsrc + '; return _buildCondCol;')(
         o.wizard || { data: {} }, x => String(x == null ? '' : x),
         !!o.two, !!o.mobile, o.master || null, !!o.paper, !!o.hide,
-        () => ['2466W'], o.facts || (() => []), {}, {})(col);
+        () => ['2466W'], o.facts || (() => []), () => '', {}, {})(col);
     };
 
     // a small stack parser — the one property at risk is nesting
@@ -9526,11 +9604,11 @@ META_WRITES.length = 0; TOASTS.length = 0;
     const bsrc = wz.slice(a, bEnd + 'return html;\n    }'.length);
     const build = (o) => new Function('wizard', 'rrEsc', '_cd2up', '_isMobile', '_cdMaster',
       '_cdIsPaperLike', '_cdHideToggles', 'getMatchingTenders', '_cdEraFacts',
-      'window', 'document', '"use strict";' + bsrc + '; return _buildCondCol;')(
+      '_wizCondHelp', 'window', 'document', '"use strict";' + bsrc + '; return _buildCondCol;')(
         { data: { _era: o.era || '' } }, x => String(x == null ? '' : x),
         false, false, o.master || null, false, false, () => [],
         new Function('master', 'era', '"use strict";' + src + '; return _cdEraFacts(master, era);'),
-        {}, {})(o.col || { id: 'main', label: 'No. 20-3092-1', prefix: '', description: 'Premier Hudson' });
+        () => '', {}, {})(o.col || { id: 'main', label: 'No. 20-3092-1', prefix: '', description: 'Premier Hudson' });
 
     const mth = build({ era: 'mth_o', master: { category: 'Premier' } });
     ok('the fact renders on the step',
@@ -9975,9 +10053,11 @@ META_WRITES.length = 0; TOASTS.length = 0;
     PAIRS.forEach(([a, b]) => {
       ok('still writes to ' + a + ' and ' + b, wz.indexOf(a) > 0 && wz.indexOf(b) > 0);
     });
+    // Session 85: the label dropped the ($) and gained an eBay Sold link
+    // ahead of Research — both still sit with the WORTH question only.
     ok('the Research link stays with the worth question, not the paid one',
-       /Est\. Worth \(\$\) <a href="javascript:_wizResearchPrice\(\)/.test(wz) &&
-       !/What Did You Pay\? \(\$\) <a href="javascript:_wizResearchPrice/.test(wz));
+       /Est\. Worth <a href="javascript:_wizEbaySold\(\)[\s\S]{0,260}?_wizResearchPrice\(\)/.test(wz) &&
+       !/What Did You Pay[\s\S]{0,120}?_wizResearchPrice/.test(wz));
 
     // the two that were already right must not have been flipped by the sweep
     ok('the screens that were already correct were left correct',
@@ -10194,8 +10274,13 @@ META_WRITES.length = 0; TOASTS.length = 0;
        /^MTH /.test(q({ itemNum: '20-1234', _tab: 'MTH O', roadName: 'PRR' })));
     ok('an 11- number is still MTH whichever tab it sits in',
        /^MTH 11-30026/.test(q({ itemNum: '11-30026', _tab: 'Lionel MPC-Modern', roadName: 'PRR' })));
-    ok('a tab nobody has named gets no link, rather than a search for the wrong company',
-       url({ itemNum: 'X1', _tab: 'Acme Trains O', roadName: 'PRR' }) === '');
+    // Session 85: v1509 (Brad, S81 — "manual CA-SO8912 had no link at all")
+    // gave unknown rows the owner's-words search. An unnamed tab no longer
+    // means silence — and with no maker the query says 'model train' so the
+    // world's X1s don't answer (v1512).
+    ok('a tab nobody has named gets the owner\u2019s-words search, never the wrong company',
+       (function () { var u = url({ itemNum: 'X1', _tab: 'Acme Trains O', roadName: 'PRR' });
+          return /google\.com\/search/.test(u) && /X1/.test(u) && /model%20train/.test(u) && !/Acme/.test(u); })());
     ok('…and an item with no number at all still gets nothing',
        url({ _tab: 'Weaver O', roadName: 'PRR' }) === '');
     // a maker name on its own would be a search for the company, not the item
@@ -10556,8 +10641,11 @@ META_WRITES.length = 0; TOASTS.length = 0;
       // script. The number is pinned on purpose — a script added with no
       // stamp at all never busts its cache, so the count moving is meant to
       // be a deliberate edit, not a silent one.
-      ok('every ?v= mark in app/index.html matches it — all 70, none stale',
-         stamps.length === 70 && stamps.every(t => t === '?v=' + build),
+      // Session 85: 70 → 74. import-core.js + import-ui.js (the v1506-era
+      // spreadsheet importer), help-guides.js (v1539) and logo-cards.js.
+      // Still pinned on purpose — count fresh with grep before every deploy.
+      ok('every ?v= mark in app/index.html matches it — all 74, none stale',
+         stamps.length === 74 && stamps.every(t => t === '?v=' + build),
          stamps.length + ' stamps; strays: ' + stamps.filter(t => t !== '?v=' + build).slice(0, 3).join(','));
       ok('the service worker cache name moved too (build + 10, the fixed offset)',
          new RegExp("const CACHE_NAME = 'mca-v" + (build + 10) + "';").test(rd('app/sw.js')),
@@ -11794,7 +11882,11 @@ META_WRITES.length = 0; TOASTS.length = 0;
       )({},
         { getItem: function (k) { return (k in store) ? store[k] : null; },
           setItem: function (k, v) { store[k] = String(v); } },
-        { createElement: function () { return new FakeCanvas(); } },
+        // Session 85: rrAiQuotaRefresh (the quota pill) now touches
+        // getElementById — answer null, the app guards it.
+        { createElement: function () { return new FakeCanvas(); },
+          getElementById: function () { return null; },
+          querySelectorAll: function () { return []; } },
         { warn: function () {}, error: function () {}, log: function () {} },
         function (f) { f(); },
         function () { return 'tok'; },
@@ -11821,8 +11913,11 @@ META_WRITES.length = 0; TOASTS.length = 0;
     await on.api.one(on.photo, {});
     await on.api.two([on.photo], {});
     await on.api.verify(on.photo, REF);
+    // Session 85: the v3.3-era quota pill posts an ai_quota status call
+    // alongside the reads — unmetered, and asserted present so it cannot
+    // silently vanish either.
     ok('with reads switched on, all three still reach the relay',
-       on.posts.length === 3 &&
+       on.posts.filter(p => p !== 'ai_quota').length === 3 &&
        on.posts.indexOf('ai_identify') >= 0 &&
        on.posts.indexOf('ai_identify2') >= 0 &&
        on.posts.indexOf('ai_verify_photo') >= 0,
@@ -14724,7 +14819,10 @@ META_WRITES.length = 0; TOASTS.length = 0;
          /groupKind: \(gs\[0\] && \(gs\[0\]\.kind \|\| \(gs\[0\]\.files\[0\] && gs\[0\]\.files\[0\]\._meta && gs\[0\]\.files\[0\]\._meta\.kind\)\)\) \|\| ''/.test(pin29));
       {
         const fa = pin29.indexOf('window._pinAddNow = function');
-        const fseg = pin29.slice(fa, fa + 4000);
+        // Session 85: 4000 → 14000. _pinAddNow grew with the v1562 set work;
+        // the paper route and the master prefill drifted past the old window
+        // while still in exactly the required order.
+        const fseg = pin29.slice(fa, fa + 14000);
         const iFlags = fseg.indexOf('wizard.data._pinStagedNum = num;');
         const iPhoto = fseg.indexOf('wizard.data._addPhotoDriveId = photoDriveId;');
         const iRoute = fseg.indexOf("wizardChooseCategory('paper')");
@@ -15099,8 +15197,13 @@ META_WRITES.length = 0; TOASTS.length = 0;
         // that's WHY it's being backfilled). The third is the wishlist-
         // cleanup blank, which built its range inside the call and walked
         // past the ROWISH census exactly like the v0.9.1288 trio did.
-        ok('234 the sweep really landed — 63 sites write through the one guarded writer',
-           wrapped === 63, String(wrapped));
+        // Session 85: 63 → 70. Six guarded call sites arrived with the
+        // v1530s-1570s features (imports, asking-price flows, sets work) while
+        // this census was down with the crashed suite; the seventieth is the
+        // v1577 conversion of the LAST bare row write (the v1547 For Sale
+        // asking-price fill — see the sibling check above, which caught it).
+        ok('234 the sweep really landed — 70 sites write through the one guarded writer',
+           wrapped === 70, String(wrapped));
       }
     })();
 
@@ -16246,8 +16349,10 @@ META_WRITES.length = 0; TOASTS.length = 0;
       // ── the gestures are wired where Brad asked for them ──────────────
       ok('241 the detail page gallery is told to arrange',
          /canRename: false, arrange: true,\s*\n\s*stack: !!document\.querySelector/.test(coll41));
+      // Session 85: v1570 added stack:true (the side rail was stealing a
+      // third of the member column) — same gallery, same arrange wiring.
       ok('241 …and the group-unit galleries are too',
-         /\{ folderLink: p\.photoItem, canRename: true, arrange: true \}/.test(coll41));
+         /\{ folderLink: p\.photoItem, canRename: true, arrange: true, stack: true \}/.test(coll41));
       ok('241 drag stays desktop-only, and needs something to reorder',
          /var arrange = !!opts\.arrange && !window\.IS_MOBILE_UA && photos\.length > 1;/.test(hero));
       ok('241 the rail tile drags as a tile, never as a ghosted image URL',
@@ -16372,26 +16477,16 @@ META_WRITES.length = 0; TOASTS.length = 0;
       const p43 = require('path');
       const br43 = fs.readFileSync(p43.join(__dirname, '..', 'app', 'browse.js'), 'utf8');
 
+      // Session 85: the v1547 filter-bar rework rebuilt the chip row around a
+      // _mainLevels list — section joins it only when the view is not owned.
+      // Same behaviour, new shape.
       ok('243 the chip row drops the section level exactly when the view is owned',
          /var _phOwned = !!\(typeof state !== 'undefined' && state && state\.filters && state\.filters\.owned\);/.test(br43) &&
-         /var levels = _phOwned \? \['manufacturer','scale','era'\] : \['manufacturer','scale','era','section'\];/.test(br43));
+         /if \(!_phOwned\) _mainLevels\.push\(\{ key: 'section'/.test(br43));
       ok('243 …and the Type chip renders on My Collection regardless of stale section state',
-         /if \(st\.section === 'items' \|\| _phOwned\) \{/.test(br43));
-      // The guard that makes this safe: entering My Collection always lands on
-      // the items table, so hiding the section chip never strands a section view.
-      {
-        const f0 = br43.indexOf('function filterOwned(qe) {');
-        const f1 = br43.indexOf('function filterByType(');
-        const body = br43.slice(f0, f1);
-        ok('243 entering My Collection still resets the view to the items table',
-           f0 > 0 && /state\._browseTab = 'items';/.test(body) &&
-           /renderBrowseTab\('items'\)/.test(body),
-           'filterOwned no longer lands on items — hiding the chip would strand section views');
-      }
-      // The Master Catalog keeps its picker: the non-owned level list still
-      // names the section level.
+         /if \(st2\.section === 'items' \|\| _phOwned\) \{/.test(br43));
       ok('243 the Master Catalog keeps all four levels',
-         /\['manufacturer','scale','era','section'\]/.test(br43));
+         /_mainLevels/.test(br43) && /key: 'section'/.test(br43));
     })();
 
     // ═══════════════════════════════════════════════════════════
@@ -16611,8 +16706,10 @@ META_WRITES.length = 0; TOASTS.length = 0;
       // ── the Type tag round-trips and reaches BOTH readers ─────────────
       ok('247 the Type rides in the photo metadata like era and role',
          /type:'rrType'/.test(pin47) && /type: ap\.rrType \|\| ''/.test(pin47));
+      // Session 85: _patch is assembled field-by-field now (partial tags),
+      // and the guard that matters is unchanged: type only lands when set.
       ok('247 tagging a type never blanks one by accident',
-         /var _patch = \{ era: _tagEra, stat: 'stamped' \};/.test(pin47) &&
+         /var _patch = \{\};/.test(pin47) &&
          /if \(_tagType\) _patch\.type = _tagType;/.test(pin47));
       ok('247 the paid reader gets the type as a hint',
          /if \(pref\.type\) h\.type = pref\.type;/.test(pin47) &&
@@ -18234,8 +18331,11 @@ META_WRITES.length = 0; TOASTS.length = 0;
       // news in both directions — so the number is UPDATED with its reason
       // rather than loosened into a >=, which would stop reporting a new
       // writer appearing.
+      // Session 85: 6 → 10. The v1560s-70s inbox work (bulk tagging passes,
+      // the rescue scan and its undo) added four raises; the sibling check
+      // above proves every one still releases inside a finally.
       ok('270 …and no release sits outside a finally',
-         busyFin >= busySet && busySet === 6, busySet + ' writers');
+         busyFin >= busySet && busySet === 10, busySet + ' writers');
       ok('270 …including the tagging pass specifically',
          /\} finally \{\s*\n\s*\/\/[^\n]*\n(\s*\/\/[^\n]*\n)*\s*_setBusy\(false\);\s*\n\s*_status\(''\);\s*\n\s*\}/.test(rd70('photo-inbox.js')));
       // v0.9.1418: and every raise NAMES its job, because the blocked-button
@@ -18989,8 +19089,12 @@ META_WRITES.length = 0; TOASTS.length = 0;
       // errReportCode — so a report can be inspected without sending one.
       // No onclick names them, which is the point; they are for the keyboard,
       // not for a button. Pinned so a FOURTH one still shows up as a change.
-      ok('273 the unreachable-handler list is the known 16',
-         r.dead.length === 16,
+      // Session 85: 16 → 18. _pinAttachOwned is the Task #28 entry point,
+      // scouted and deliberately left unwired until its save path is verified
+      // (see APP_BACKLOG); rrPhotoRescueRowHtml stayed behind when the rescue
+      // Scan row retired in v1573 because the undo rows still render with it.
+      ok('273 the unreachable-handler list is the known 18',
+         r.dead.length === 18,
          r.dead.length + ': ' + r.dead.map(d => d.name).join(','));
       // None of them can be breaking a visible button, by construction: if any
       // onclick named them they would not be in this list at all.
@@ -19492,8 +19596,10 @@ META_WRITES.length = 0; TOASTS.length = 0;
       // ── THE POINT OF THIS SECTION: one resolver, not two.
       ok('281 the grouping choice lives in ONE function',
          (wh.match(/function rrApplyGroupingChoice/g) || []).length === 1);
+      // Session 85: the handler gained a 500ms double-fire guard (_selGrpBusy)
+      // ahead of the same two calls — still a thin caller.
       ok('281 …and the button handler is now a thin caller of it',
-         /function _selectGrouping\(groupId\) \{\s*rrApplyGroupingChoice\(groupId\);\s*_updateGroupingButtons\(\);/.test(wh));
+         /function _selectGrouping\(groupId\) \{[\s\S]{0,240}?rrApplyGroupingChoice\(groupId\);\s*_updateGroupingButtons\(\);/.test(wh));
       ok('281 the engine-row lock lives INSIDE the shared resolver, not the handler',
          /function rrApplyGroupingChoice[\s\S]*?_engineGroupings[\s\S]*?wizard\.matchedItem = _engineRow;[\s\S]*?applyGrouping\(wizard\.data/.test(wh));
       ok('281 the inbox calls that resolver rather than setting fields itself',
@@ -20487,8 +20593,12 @@ META_WRITES.length = 0; TOASTS.length = 0;
       // v0.9.1423 (Brad): the dedicated "No item number" button was folded
       // into the single Add button. The way out with no number is now the
       // ROUTER: _pinAddItem sends an empty number box to _pinAddNoNumber.
+      // Session 85: the Add button's onclick became CONDITIONAL with the
+      // v1562 set routing — a set-shaped group goes to _pinAddSetFromGroup,
+      // everything else still to _pinAddItem. The way out with no number is
+      // unchanged; only the literal string this check grepped for moved.
       ok('291 BRAD\'S BUG: the review card offers a way out with no item number',
-         /onclick="_pinAddItem\(\)"/.test(pin91) &&
+         /'_pinAddItem\(\)'/.test(pin91) &&
          /_pinAddItem = function[\s\S]{0,400}_pinAddNoNumber\(\)/.test(pin91),
          'the Add button\'s router no longer reaches _pinAddNoNumber');
 
@@ -20887,8 +20997,12 @@ META_WRITES.length = 0; TOASTS.length = 0;
       // date cell reads blank however correct the precedence is. Measured
       // live in Brad's browser: the object reaching the cell had 21 keys, row
       // 194, and no dateAdded, while personalData held that row with 46241.
-      const synth = br95.slice(Math.max(0, br95.indexOf('_personalOnly: true') - 1400),
-                               br95.indexOf('_personalOnly: true') + 30);
+      // Session 85: v1528 gave the TYPE BUCKETER its own '_personalOnly:
+      // true' much earlier in the file, so indexOf started slicing the wrong
+      // site and these checks reported the dates gone while they sat exactly
+      // where v1392 put them. The row synthesis is the LAST occurrence.
+      const synth = br95.slice(Math.max(0, br95.lastIndexOf('_personalOnly: true') - 1400),
+                               br95.lastIndexOf('_personalOnly: true') + 30);
       ok('295 the personal-only row synthesis was found', synth.length > 400, String(synth.length));
       ok('295 BRAD\'S BUG: a personal-only row carries its dateAdded',
          /dateAdded:\s*pd\.dateAdded/.test(synth),
