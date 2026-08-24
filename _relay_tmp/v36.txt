@@ -1754,10 +1754,17 @@ function handleBarcodePair(payload) {
 
   const sh = _subSheet_(BARCODE_PAIRS_TAB,
     ['upc', 'item_num', 'mfr', 'in_master', 'how', 'first_seen', 'last_seen', 'report_count', 'status']);
+  // Leading zeros are the classic UPC trap: Sheets stores '022899…' as the
+  // NUMBER 22899…, so a raw string compare never matches a repeat. Keys are
+  // therefore zero-stripped digits on BOTH sides, and the stored cell is
+  // forced to text format so the zeros survive in the data itself.
+  const bpKey = function (u, n) {
+    return String(u).replace(/\D/g, '').replace(/^0+/, '') + '|' + String(n);
+  };
   const data = sh.getDataRange().getValues();
   const byKey = {};
   for (let i = 1; i < data.length; i++) {
-    byKey[String(data[i][0]) + '|' + String(data[i][1])] = i + 1;   // sheet row
+    byKey[bpKey(data[i][0], data[i][1])] = i + 1;   // sheet row
   }
   const now = new Date().toISOString().slice(0, 10);
   let added = 0, bumped = 0;
@@ -1765,7 +1772,7 @@ function handleBarcodePair(payload) {
     const upc = String(p.u || '').replace(/\D/g, '').substring(0, 14);
     const num = String(p.n || '').replace(/[^a-zA-Z0-9\-\.]/g, '').substring(0, 20);
     if (upc.length < 8 || !num) continue;                 // not a UPC / not a number
-    const key = upc + '|' + num;
+    const key = bpKey(upc, num);
     const row = byKey[key];
     if (row) {
       // a repeat report: bump the count, stamp last_seen — "how many
@@ -1778,7 +1785,9 @@ function handleBarcodePair(payload) {
       const how = String(p.h || 'scan').substring(0, 20);
       const first = String(p.d || now).substring(0, 10);
       sh.appendRow([upc, num, mfr, p.im ? true : false, how, first, now, 1, 'new']);
-      byKey[key] = sh.getLastRow();
+      const newRow = sh.getLastRow();
+      sh.getRange(newRow, 1).setNumberFormat('@').setValue(upc);   // keep the leading zeros
+      byKey[key] = newRow;
       added++;
     }
   }
