@@ -37,6 +37,21 @@ var _IMP_EXCELJS_URL = 'https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exc
 var _IMP_GRADE_PREF = 'rr_grade_table_v1';
 var _IMP_BATCH_PREF = 'rr_import_batches_v1';
 
+// Session 85: ONE writer for the batch record. Created with status
+// 'writing' BEFORE the first append (so a half-finished import is still
+// removable), updated per chunk with the photo ids uploaded so far, and
+// finalised with status 'done'. Merge, never clobber.
+function _impRecordBatch(batchId, patch) {
+  try {
+    var batches = JSON.parse(_prefGet(_IMP_BATCH_PREF, '[]'));
+    var b = null;
+    for (var i = 0; i < batches.length; i++) if (batches[i].id === batchId) b = batches[i];
+    if (!b) { b = { id: batchId, when: new Date().toISOString() }; batches.push(b); }
+    Object.keys(patch || {}).forEach(function (k) { b[k] = patch[k]; });
+    _prefSet(_IMP_BATCH_PREF, JSON.stringify(batches.slice(-10)));
+  } catch (e) {}
+}
+
 // ── Entry ───────────────────────────────────────────────────────
 function rrImportOpen() {
   if (document.getElementById('imp-overlay')) return;
@@ -154,7 +169,7 @@ function _impRender() {
     entry: _impStepEntry, consent: _impStepConsent, mapping: _impStepMapping,
     tabfacts: _impStepTabFacts, catalog: _impStepCatalog,
     interview: _impStepInterview, grades: _impStepGrades, cleanup: _impStepCleanup, triage: _impStepTriage,
-    prices: _impStepPrices, eracheck: _impStepEraCheck, ambig: _impStepAmbig, nearmiss: _impStepNearMiss, preview: _impStepPreview, writing: _impStepWriting,
+    prices: _impStepPrices, eracheck: _impStepEraCheck, ambig: _impStepAmbig, nearmiss: _impStepNearMiss, preview: _impStepPreview, photos: _impStepPhotos, writing: _impStepWriting,
     done: _impStepDone,
   }[_imp.step];
   if (fn) fn();
@@ -162,7 +177,21 @@ function _impRender() {
 
 // ── Step: entry (file or paste) ─────────────────────────────────
 function _impStepEntry() {
-  _impBody().innerHTML =
+  // Session 85: a batch that started writing and never finished (closed
+  // tab mid-import) left lv_imp_active behind. Photos and the staged rows
+  // cannot resume after a reload — the honest offer is one-tap removal of
+  // the partial batch, then a clean re-run.
+  var _orphan = '';
+  try {
+    var _act = JSON.parse(localStorage.getItem('lv_imp_active') || 'null');
+    if (_act && _act.id) {
+      _orphan = '<div class="imp-card" style="border-color:var(--accent2)"><b>⚠ A previous import was interrupted.</b> ' +
+        '<span class="imp-muted">Batch ' + _impEsc(_act.id) + ' started writing and did not finish. ' +
+        'Remove the partial import, then run it again with your file and photo folder.</span><br>' +
+        '<button class="imp-btn" style="margin-top:0.4rem" onclick="rrImportUndo(\'' + _impEsc(_act.id) + '\',this)">Remove partial import</button></div>';
+    }
+  } catch (eOr) {}
+  _impBody().innerHTML = _orphan +
     '<div class="imp-h">Bring in a collection you already track in a spreadsheet.</div>' +
     '<div class="imp-drop" id="imp-drop" onclick="document.getElementById(\'imp-file\').click()">' +
     '<div style="font-size:1.6rem">📄</div><div><strong>Drop your Excel file here</strong> or tap to choose</div>' +
@@ -424,7 +453,7 @@ var _IMP_FIELD_LABELS = {
   location: 'Location', priceItem: 'Price Paid', userEstWorth: 'Estimated Worth',
   yearMade: 'Year Made', notes: 'Notes', roadName: 'Road Name', roadNumber: 'Road Number',
   hasBox: 'Has Box', datePurchased: 'Date Purchased', purchasedFrom: 'Purchased From',
-  quantity: 'Quantity (copies)', ignore: '— not imported —',
+  quantity: 'Quantity (copies)', photoFile: 'Photo filename', ignore: '— not imported —',
   // v0.9.1514 (Phase 2): Scott's Shipper / Collection / Owner columns finally
   // have real homes. Custom slots show the user's own name once they name one.
   locationDetail: 'Location Detail (Tote 12…)', shipper: 'Shipper (outer carton)',
@@ -443,6 +472,7 @@ var _IMP_FIELD_HELP = {
   location: 'The big place it lives: Basement, Storage Unit 206, Room 107.',
   locationDetail: 'The spot inside that place: Tote 12, Rack 1 Shelf 3. Splitting them lets you ask “what’s in Tote 12?”',
   shipper: 'The outer carton you’d ship it in — NOT the item’s own box. You can have both.',
+  photoFile: 'The photo file for this item (ZW250.JPG). Map it and the import asks for the folder those files live in — every matched photo uploads to your Drive and attaches to its item, all in the same import.',
   subCollection: 'Your own groups for quick look-ups — “all my Disney cars”, “all my mint cars”, 6464 series. One item, one group.',
   priceItem: 'What YOU paid for it.',
   userEstWorth: 'What you think it’s worth now.',
@@ -1911,6 +1941,16 @@ function _impStepAmbig() {
   html += '</div>';
   html += '<div class="imp-muted" style="font-size:0.75rem;margin-top:0.4rem">' + rowCount.toLocaleString() +
     ' rows in total. Every one of them is imported either way.</div>';
+  // Session 85: a photo-shaped column that was NOT mapped gets one honest
+  // warning here — Brad's rule: photos cannot be imported automatically
+  // later, so say it before the user commits to rows-only.
+  var _pcand = _impUnmappedPhotoColumns();
+  if (_pcand.length) {
+    html += '<div class="imp-card" style="border-color:var(--accent2)"><b>⚠ Your sheet has a photo column that isn\u2019t mapped.</b> ' +
+      '<span class="imp-muted">Column \u201c' + _impEsc(_pcand[0].header) + '\u201d looks like photo filenames (' + _pcand[0].count.toLocaleString() + ' rows). ' +
+      'If you import without mapping it, those photos cannot be imported automatically later \u2014 you would remove this import and redo it. ' +
+      'To include them: go back to the column screen and set that column to \u201cPhoto filename\u201d.</span></div>';
+  }
   html += '<div class="imp-foot"><button class="imp-btn" onclick="_imp.step=\'triage\';_impRender()">← Back</button>' +
     '<button class="imp-btn primary" onclick="_impApplyAmbig()">Next →</button></div>';
   _impBody().innerHTML = html;
@@ -2044,6 +2084,16 @@ function _impStepPrices() {
       '$<input class="imp-money" inputmode="decimal" value="' + _impEsc(_imp.itemPrices[key] || '') + '" ' +
       'onchange="_imp.itemPrices[\'' + _impEsc(key).replace(/'/g, '&#39;') + '\']=this.value"></div>';
   });
+  // Session 85: a photo-shaped column that was NOT mapped gets one honest
+  // warning here — Brad's rule: photos cannot be imported automatically
+  // later, so say it before the user commits to rows-only.
+  var _pcand = _impUnmappedPhotoColumns();
+  if (_pcand.length) {
+    html += '<div class="imp-card" style="border-color:var(--accent2)"><b>⚠ Your sheet has a photo column that isn\u2019t mapped.</b> ' +
+      '<span class="imp-muted">Column \u201c' + _impEsc(_pcand[0].header) + '\u201d looks like photo filenames (' + _pcand[0].count.toLocaleString() + ' rows). ' +
+      'If you import without mapping it, those photos cannot be imported automatically later \u2014 you would remove this import and redo it. ' +
+      'To include them: go back to the column screen and set that column to \u201cPhoto filename\u201d.</span></div>';
+  }
   html += '<div class="imp-foot"><button class="imp-btn" onclick="_imp.step=\'triage\';_impRender()">← Back</button>' +
     '<button class="imp-btn primary" onclick="_imp.step=\'' + (_impVintageGroup().length ? 'eracheck' : 'preview') + '\';_impRender()">Next →</button></div>';
   _impBody().innerHTML = html;
@@ -2081,8 +2131,18 @@ function _impStepPreview() {
   picks.forEach(function (w) { html += _impPreviewCard(w); });
   html += '<div class="imp-card" style="text-align:center"><strong>' + ws.length.toLocaleString() + '</strong> items ready to import.' +
     '<div class="imp-muted" style="margin-top:0.3rem">One tap removes the whole batch afterward if anything looks wrong.</div></div>';
+  // Session 85: a photo-shaped column that was NOT mapped gets one honest
+  // warning here — Brad's rule: photos cannot be imported automatically
+  // later, so say it before the user commits to rows-only.
+  var _pcand = _impUnmappedPhotoColumns();
+  if (_pcand.length) {
+    html += '<div class="imp-card" style="border-color:var(--accent2)"><b>⚠ Your sheet has a photo column that isn\u2019t mapped.</b> ' +
+      '<span class="imp-muted">Column \u201c' + _impEsc(_pcand[0].header) + '\u201d looks like photo filenames (' + _pcand[0].count.toLocaleString() + ' rows). ' +
+      'If you import without mapping it, those photos cannot be imported automatically later \u2014 you would remove this import and redo it. ' +
+      'To include them: go back to the column screen and set that column to \u201cPhoto filename\u201d.</span></div>';
+  }
   html += '<div class="imp-foot"><button class="imp-btn" onclick="_imp.step=\'triage\';_impRender()">← Back</button>' +
-    '<button class="imp-btn primary" onclick="_impWrite()">Import ' + ws.length.toLocaleString() + ' items</button></div>';
+    '<button class="imp-btn primary" onclick="_impToPhotosOrWrite()">Import ' + ws.length.toLocaleString() + ' items</button></div>';
   _impBody().innerHTML = html;
 }
 
@@ -2124,6 +2184,147 @@ function _impPreviewCard(w) {
 // suites never caught it because they cover the pure core, not the screens.
 // The writing screen is painted by _impWrite (progress bar + counter) and
 // re-rendering must not wipe it mid-write, so this is deliberately a no-op.
+
+// ═══ Session 85: the PHOTOS step — photos travel WITH the import ═══
+// Brad's spec, decided over Lyle's fullnumber.xlsx: map the photo column
+// → this step asks for the folder → matching is case-insensitive EXACT
+// filename → rows and photos land as ONE job under one batch id. Skip
+// carries the warning; there is NO attach-later surface ("that can
+// become a mess").
+
+// Photo-shaped columns the user did NOT map (for the preview warning).
+function _impUnmappedPhotoColumns() {
+  var out = [];
+  try {
+    (_imp.tabs || []).forEach(function (t) {
+      var cands = (typeof rrImpPhotoColumnCandidates === 'function')
+        ? rrImpPhotoColumnCandidates(t, _imp.mappings[t.name] || {}) : [];
+      cands.forEach(function (c) {
+        if (!out.some(function (o) { return o.header === c.header; })) out.push(c);
+      });
+    });
+  } catch (e) {}
+  return out;
+}
+
+function _impPhotoMapped() {
+  var yes = false;
+  try {
+    Object.keys(_imp.mappings || {}).forEach(function (tab) {
+      var m = _imp.mappings[tab] || {};
+      Object.keys(m).forEach(function (h) { if (m[h] === 'photoFile') yes = true; });
+    });
+  } catch (e) {}
+  return yes;
+}
+
+// The preview's Import button lands here: photos step only when a photo
+// column is mapped AND at least one row names a file. Otherwise straight
+// to the write, exactly as before.
+function _impToPhotosOrWrite() {
+  var any = _impWritables().some(function (w) { return String(w.item.photoFile || '').trim(); });
+  if (_impPhotoMapped() && any) { _imp.step = 'photos'; _impRender(); return; }
+  _impWrite();
+}
+
+// Folder ingestion. Two doors, same index: drag-drop (recurses folders
+// via webkitGetAsEntry) and a webkitdirectory picker. File objects live
+// only while this page lives — a reload forgets them, which is why the
+// import must not be left half-done (see lv_imp_active).
+function _impPhotoFilesChosen(files) {
+  _imp.photoFiles = files;
+  var idx = rrImpPhotoIndex(files);
+  var items = _impWritables().map(function (w) { return w.item; });
+  _imp.photoMatch = rrImpPhotoMatch(items, idx);
+  _impRender();
+}
+
+function _impPhotoPick(input) {
+  var files = Array.prototype.slice.call(input.files || []);
+  _impPhotoFilesChosen(files.map(function (f) { return { name: f.webkitRelativePath || f.name, file: f }; }));
+}
+
+async function _impPhotoDrop(ev) {
+  ev.preventDefault();
+  ev.stopPropagation();
+  var out = [];
+  async function walk(entry, prefix) {
+    if (!entry) return;
+    if (entry.isFile) {
+      await new Promise(function (res) {
+        entry.file(function (f) { out.push({ name: prefix + f.name, file: f }); res(); }, function () { res(); });
+      });
+    } else if (entry.isDirectory) {
+      var reader = entry.createReader();
+      // readEntries returns batches of ~100 — drain it.
+      var batch;
+      do {
+        batch = await new Promise(function (res) { reader.readEntries(res, function () { res([]); }); });
+        for (var i = 0; i < batch.length; i++) await walk(batch[i], prefix + entry.name + '/');
+      } while (batch.length);
+    }
+  }
+  var items = ev.dataTransfer && ev.dataTransfer.items;
+  if (items && items.length && items[0].webkitGetAsEntry) {
+    for (var i = 0; i < items.length; i++) {
+      var e = items[i].webkitGetAsEntry && items[i].webkitGetAsEntry();
+      if (e) await walk(e, '');
+    }
+  } else {
+    var fl = (ev.dataTransfer && ev.dataTransfer.files) || [];
+    for (var j = 0; j < fl.length; j++) out.push({ name: fl[j].name, file: fl[j] });
+  }
+  _impPhotoFilesChosen(out);
+}
+
+function _impPhotoSkip() {
+  if (!confirm('Import WITHOUT photos?\n\nPhotos cannot be imported automatically later. ' +
+    'If you want them attached, you would remove this import and run it again with the folder handy.')) return;
+  _imp.photoMatch = null;
+  _imp.photoFiles = null;
+  _impWrite();
+}
+
+function _impStepPhotos() {
+  var named = _impWritables().filter(function (w) { return String(w.item.photoFile || '').trim(); }).length;
+  var html = '<div class="imp-h">Your photos</div>' +
+    '<div class="imp-muted">Your sheet names a photo file for ' + named.toLocaleString() +
+    ' item' + (named === 1 ? '' : 's') + '. Drag the folder those photos live in below ' +
+    '(subfolders are fine) and each one uploads to your own Google Drive and attaches to its item — all part of this one import.</div>';
+  html += '<div id="imp-photo-drop" ondragover="event.preventDefault()" ondrop="_impPhotoDrop(event)" ' +
+    'style="border:2px dashed var(--border);border-radius:10px;padding:2rem 1rem;text-align:center;margin:0.8rem 0;cursor:pointer" ' +
+    'onclick="document.getElementById(\'imp-photo-input\').click()">' +
+    '<div style="font-size:2rem">📁</div><div><b>Drag your photo folder here</b></div>' +
+    '<div class="imp-muted">or click to choose the folder</div>' +
+    '<input id="imp-photo-input" type="file" webkitdirectory multiple style="display:none" onchange="_impPhotoPick(this)"></div>';
+  var m = _imp.photoMatch;
+  if (m) {
+    html += '<div class="imp-card"><b>' + m.matched.length.toLocaleString() + '</b> photo' + (m.matched.length === 1 ? '' : 's') +
+      ' matched to items (' + m.uniqueFilesUsed.toLocaleString() + ' files).';
+    if (m.missingNames.length) {
+      html += '<br><b>' + m.missingNames.length.toLocaleString() + '</b> named in your sheet but not in that folder' +
+        ' <span class="imp-muted">(' + _impEsc(m.missingNames.slice(0, 3).join(', ')) + (m.missingNames.length > 3 ? '…' : '') + ')</span> — those rows import without a photo.';
+    }
+    if (m.unclaimedNames.length) {
+      html += '<br><span class="imp-muted">' + m.unclaimedNames.length.toLocaleString() + ' file' + (m.unclaimedNames.length === 1 ? '' : 's') +
+        ' in the folder no row names — left alone.</span>';
+    }
+    if (m.matched.length) {
+      var mins = Math.max(1, Math.round(m.uniqueFilesUsed * 1.5 / 60));
+      html += '<br><span class="imp-muted">Uploading will take roughly ' + mins + ' minute' + (mins === 1 ? '' : 's') +
+        '. Keep this tab open until it finishes.</span>';
+    }
+    html += '</div>';
+  }
+  html += '<div class="imp-foot"><button class="imp-btn" onclick="_imp.step=\'preview\';_impRender()">← Back</button>' +
+    '<button class="imp-btn" onclick="_impPhotoSkip()">Skip — no photos</button>' +
+    (m && m.matched.length
+      ? '<button class="imp-btn primary" onclick="_impWrite()">Import items + ' + m.matched.length.toLocaleString() + ' photos</button>'
+      : '') +
+    '</div>';
+  _impBody().innerHTML = html;
+}
+
 function _impStepWriting() { /* _impWrite owns this screen */ }
 
 // ── Step: WRITE (chunked, guarded, undoable) ────────────────────
@@ -2138,6 +2339,16 @@ async function _impWrite() {
   try {
     var batchId = _imp.batchId;
     var rows = [], forSale = [], invIds = [];
+    // Session 85: photos ride the same job. Matched files by source row.
+    var _impPmap = {}, photoJobs = [], photoIds = [], photoFails = [];
+    ((_imp.photoMatch && _imp.photoMatch.matched) || []).forEach(function (e) {
+      _impPmap[e.item.srcTab + '|' + e.item.srcRow] = (e.file && e.file.file) || e.file;
+    });
+    // The batch record exists BEFORE anything writes, so a half-finished
+    // import (closed tab, network death) is still one-click removable from
+    // Preferences. lv_imp_active is the tripwire the next open reads.
+    _impRecordBatch(batchId, { status: 'writing', count: 0, photoIds: [] });
+    try { localStorage.setItem('lv_imp_active', JSON.stringify({ id: batchId, when: Date.now() })); } catch (eA) {}
     ws.forEach(function (w) {
       var it = w.item, m = w.master;
       var invId = (typeof nextInventoryId === 'function') ? nextInventoryId() : ('IMP-' + Math.random().toString(36).slice(2, 10));
@@ -2197,6 +2408,13 @@ async function _impWrite() {
         fields.hasBox = /^(y|yes|true|x|1|✓)/i.test(String(it.hasBox).trim()) ? 'Yes' : String(it.hasBox);
       }
       rows.push(buildPersonalRow(fields));
+      // Session 85: this row's matched photo becomes an upload job. Each
+      // COPY uploads its own file (the per-copy Drive folder model), so two
+      // rows sharing a filename mean two uploads of the same picture.
+      if (_impPmap && _impPmap[it.srcTab + '|' + it.srcRow]) {
+        photoJobs.push({ rowIdx: rows.length - 1, file: _impPmap[it.srcTab + '|' + it.srcRow],
+                         invId: invId, itemNum: fields.itemNum });
+      }
       if (isRed) {
         var key = it.srcTab + '|' + it.srcRow;
         var ask = (_imp.priceWhen === 'now') ? rrImpCleanMoney(_imp.itemPrices[key] || '') : '';
@@ -2210,13 +2428,37 @@ async function _impWrite() {
     });
 
     // Chunked appends — each chunk is ONE atomic server-side append.
-    var CHUNK = 100, done = 0;
+    var CHUNK = 100, done = 0, photosDone = 0;
+    var _plIdx = -1;
+    (PERSONAL_SCHEMA || []).forEach(function (c, ci) { if (c.field === 'photoLink') _plIdx = ci; });
+    var _units = rows.length + photoJobs.length;
     for (var i = 0; i < rows.length; i += CHUNK) {
+      // Session 85: this chunk's photos upload FIRST, so the appended rows
+      // already carry their Drive links — one atomic job, no second pass.
+      var _jobs = photoJobs.filter(function (j) { return j.rowIdx >= i && j.rowIdx < i + CHUNK; });
+      for (var jn = 0; jn < _jobs.length; jn++) {
+        var job = _jobs[jn], link = '';
+        for (var attempt = 0; attempt < 2 && !link; attempt++) {
+          try {
+            link = await driveUploadItemPhoto(job.file, job.itemNum, 'RSV', job.invId, null,
+              function (up) { if (up && up.id) photoIds.push(up.id); });
+          } catch (ePh) {
+            if (attempt === 1) { photoFails.push(job.file && job.file.name || job.itemNum); console.warn('[Import] photo failed:', job.itemNum, ePh && ePh.message); }
+          }
+        }
+        if (link && _plIdx >= 0) rows[job.rowIdx][_plIdx] = link;
+        photosDone++;
+        var elp = document.getElementById('imp-wbar');
+        if (elp) elp.style.width = Math.round(((done + photosDone) / _units) * 90) + '%';
+        var msgp = document.getElementById('imp-wmsg');
+        if (msgp) msgp.textContent = photosDone.toLocaleString() + ' of ' + photoJobs.length.toLocaleString() + ' photos up, ' + done.toLocaleString() + ' of ' + rows.length.toLocaleString() + ' rows written…';
+      }
       var chunk = rows.slice(i, i + CHUNK);
       await sheetsAppend(state.personalSheetId, PERSONAL_TAB + '!A:A', chunk);
       done += chunk.length;
+      _impRecordBatch(batchId, { status: 'writing', count: done, photoIds: photoIds });
       var el = document.getElementById('imp-wbar');
-      if (el) el.style.width = Math.round((done / rows.length) * 90) + '%';
+      if (el) el.style.width = Math.round(((done + photosDone) / _units) * 90) + '%';
       var msg = document.getElementById('imp-wmsg');
       if (msg) msg.textContent = done.toLocaleString() + ' of ' + rows.length.toLocaleString() + ' written…';
     }
@@ -2244,16 +2486,16 @@ async function _impWrite() {
       });
     } catch (eEnable) {}
 
-    // Batch record — undo + Phase 2 (stored answers) live here.
-    try {
-      var batches = JSON.parse(_prefGet(_IMP_BATCH_PREF, '[]'));
-      batches.push({
-        id: batchId, when: new Date().toISOString(), count: rows.length,
-        forSale: forSale.length, answers: _imp.answers,
-        skippedAmbiguous: _imp.triage.ambiguous.length,
-      });
-      _prefSet(_IMP_BATCH_PREF, JSON.stringify(batches.slice(-10)));
-    } catch (e) {}
+    // Batch record — undo + Phase 2 (stored answers) live here. Created
+    // before the write (Session 85); this finalises it.
+    _impRecordBatch(batchId, {
+      status: 'done', count: rows.length, forSale: forSale.length,
+      answers: _imp.answers, skippedAmbiguous: _imp.triage.ambiguous.length,
+      photoIds: photoIds, photos: photoIds.length, photoFails: photoFails.length,
+    });
+    try { localStorage.removeItem('lv_imp_active'); } catch (eA2) {}
+    _imp.writtenPhotos = photoIds.length;
+    _imp.failedPhotos = photoFails.length;
 
     var bar = document.getElementById('imp-wbar');
     if (bar) bar.style.width = '100%';
@@ -2275,6 +2517,10 @@ async function _impWrite() {
 function _impStepDone() {
   _impBody().innerHTML =
     '<div class="imp-h">✓ Imported ' + _imp.written.toLocaleString() + ' items.</div>' +
+    (_imp.writtenPhotos ? '<div class="imp-card">📷 ' + _imp.writtenPhotos.toLocaleString() +
+      ' photo' + (_imp.writtenPhotos === 1 ? '' : 's') + ' uploaded to your Drive and attached.' +
+      (_imp.failedPhotos ? ' <span class="imp-muted">' + _imp.failedPhotos.toLocaleString() +
+        ' failed to upload — those items imported without a photo.</span>' : '') + '</div>' : '') +
     (_imp.writtenForSale ? '<div class="imp-card"><span class="imp-badge sale">FOR SALE</span> ' + _imp.writtenForSale.toLocaleString() +
       ' of them are on your For Sale list' + (_imp.priceWhen === 'later' ? ' waiting for asking prices' : '') + '.</div>' : '') +
     (_imp.nearMissResolved && _imp.nearMissResolved.fixed
@@ -2308,7 +2554,27 @@ async function rrImportUndo(batchId, btn) {
     // and honest: we delete For Sale rows whose inventoryId is gone from the
     // collection after the main delete.
     removed += await _impDeleteOrphanForSale();
-    showToast('✓ Removed ' + removed.toLocaleString() + ' imported rows', 4000);
+    // Session 85: the batch journaled every uploaded photo id — undo
+    // removes BOTH (Brad: rows and photos are one job). Trash, not hard
+    // delete, so ~30 days of second thoughts remain.
+    var trashedPhotos = 0;
+    try {
+      var _bts = JSON.parse(_prefGet(_IMP_BATCH_PREF, '[]'));
+      var _rec = null;
+      for (var _bi = 0; _bi < _bts.length; _bi++) if (_bts[_bi].id === batchId) _rec = _bts[_bi];
+      var _pids = (_rec && _rec.photoIds) || [];
+      for (var _pi = 0; _pi < _pids.length; _pi++) {
+        try {
+          if (typeof driveRequest === 'function') {
+            await driveRequest('PATCH', '/files/' + _pids[_pi] + '?fields=id', { trashed: true });
+            trashedPhotos++;
+          }
+        } catch (eT) { console.warn('[Import] photo trash failed:', _pids[_pi], eT && eT.message); }
+      }
+    } catch (eTr) {}
+    try { localStorage.removeItem('lv_imp_active'); } catch (eAc) {}
+    showToast('✓ Removed ' + removed.toLocaleString() + ' imported rows' +
+      (trashedPhotos ? ' and ' + trashedPhotos.toLocaleString() + ' photos' : ''), 4000);
     try {
       var batches = JSON.parse(_prefGet(_IMP_BATCH_PREF, '[]'));
       _prefSet(_IMP_BATCH_PREF, JSON.stringify(batches.filter(function (b) { return b.id !== batchId; })));

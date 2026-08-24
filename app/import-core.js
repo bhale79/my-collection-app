@@ -266,6 +266,9 @@ var RR_IMP_HEADER_SYNONYMS = [
   { field: 'datePurchased', re: /^(date\s*(purchased|bought|acquired)|purchased|acquired)$/ },
   { field: 'purchasedFrom', re: /^(purchased\s*from|bought\s*from|seller|source|dealer)$/ },
   { field: 'quantity',     re: /^(qty|quantity|count|copies|how\s*many)$/ },
+  // Session 85 (Brad, over Lyle's fullnumber.xlsx): a photo-filename column
+  // is a first-class mapping target — photos import WITH the import.
+  { field: 'photoFile',    re: /^(photos?|photo\s*file(name)?s?|images?|image\s*file(name)?s?|pictures?|pics?)$/ },
   // v0.9.1514 (Phase 2): the user columns are real mapping targets now.
   { field: 'locationDetail', re: /^(location\s*detail|sub\s*location|tote|shelf|bin|spot)$/ },
   { field: 'shipper',        re: /^(shipper|shipping\s*box|outer\s*box|carton)$/ },
@@ -1042,7 +1045,8 @@ function rrImpBuildAiPayload(tabs, fillGroups, appFields) {
       'itemNum', 'manufacturer', 'gauge', 'yourDesc', 'rawGrade', 'location',
       'locationDetail', 'shipper', 'subCollection',
       'priceItem', 'userEstWorth', 'yearMade', 'notes', 'roadName',
-      'roadNumber', 'hasBox', 'datePurchased', 'purchasedFrom', 'quantity', 'ignore',
+      'roadNumber', 'hasBox', 'datePurchased', 'purchasedFrom', 'quantity',
+      'photoFile', 'ignore',
     ],
   };
 }
@@ -1100,6 +1104,98 @@ function rrImpValidateAiAnswer(ans, tabs) {
 }
 
 // ── Exports ─────────────────────────────────────────────────────
+
+// ═══ Session 85: photos travel WITH the import ═══════════════════
+// Brad's decisions, verbatim spirit: photos attach DURING the import,
+// never later ("that can become a mess"); matching is case-insensitive
+// EXACT filename — the sheet column IS the pairing, nothing inferred;
+// a photo-shaped column left unmapped earns an explicit warning.
+// Measured on Lyle's fullnumber.xlsx: 2,052 bare .JPG names, all but
+// one unique, zero paths, zero URLs — bare basenames are the format.
+
+var RR_IMP_PHOTO_EXT_RE = /\.(jpe?g|png|gif|webp|bmp|heic|heif|tiff?)$/i;
+
+// Share of non-blank values that read as photo FILENAMES (an extension,
+// no URL, no drive-letter path). 0 when nothing does.
+function rrImpPhotoishShare(values) {
+  var seen = 0, hits = 0;
+  (values || []).forEach(function (v) {
+    var t = String(v == null ? '' : v).trim();
+    if (!t) return;
+    seen++;
+    if (/^https?:/i.test(t)) return;             // a link is the web tier, not a file
+    if (!RR_IMP_PHOTO_EXT_RE.test(t)) return;
+    hits++;
+  });
+  return seen ? hits / seen : 0;
+}
+
+// Columns that LOOK like photo filenames but were not mapped to
+// photoFile — the "you'll want to know this now" detector. 60% of a
+// column's non-blank values must be filename-shaped, and at least 3 rows.
+function rrImpPhotoColumnCandidates(tab, mapping) {
+  var out = [];
+  (tab && tab.headers || []).forEach(function (h, i) {
+    var n = rrImpNormHeader(h);
+    if (!n) return;
+    if ((mapping || {})[n] === 'photoFile') return;
+    var vals = [], nonBlank = 0;
+    (tab.rows || []).forEach(function (r) {
+      var v = (r.cells || [])[i];
+      if (String(v == null ? '' : v).trim()) nonBlank++;
+      vals.push(v);
+    });
+    if (nonBlank < 3) return;
+    var share = rrImpPhotoishShare(vals);
+    if (share >= 0.6) out.push({ header: h, share: share, count: nonBlank });
+  });
+  return out;
+}
+
+// files: [{ name }] where name may carry a relative path (folder drops
+// recurse) — the BASENAME is the identity, lowercased. Non-image files
+// never enter the index. Value is an array: identical basenames from two
+// subfolders both survive (first is used; the report says so).
+function rrImpPhotoIndex(files) {
+  var idx = {};
+  (files || []).forEach(function (f) {
+    var name = String(f && f.name || '');
+    var base = name.split(/[\\/]/).pop();
+    if (!base || !RR_IMP_PHOTO_EXT_RE.test(base)) return;
+    var k = base.toLowerCase();
+    if (!idx[k]) idx[k] = [];
+    idx[k].push(f);
+  });
+  return idx;
+}
+
+// items: staged rows (photoFile optional) × index from rrImpPhotoIndex.
+// Exact basename match, case-insensitive. Two rows naming one file BOTH
+// match it — the Task #39 quantity pattern; the file uploads once and is
+// shared (the write handles that; this just pairs).
+function rrImpPhotoMatch(items, idx) {
+  var matched = [], missing = {}, used = {};
+  (items || []).forEach(function (it) {
+    var t = String(it && it.photoFile || '').trim();
+    if (!t) return;
+    var k = t.split(/[\\/]/).pop().toLowerCase();
+    if (idx && idx[k] && idx[k].length) {
+      matched.push({ item: it, key: k, file: idx[k][0] });
+      used[k] = 1;
+    } else {
+      missing[t] = 1;
+    }
+  });
+  var unclaimed = [];
+  Object.keys(idx || {}).forEach(function (k) { if (!used[k]) unclaimed.push(k); });
+  return {
+    matched: matched,
+    missingNames: Object.keys(missing),
+    unclaimedNames: unclaimed,
+    uniqueFilesUsed: Object.keys(used).length,
+  };
+}
+
 var RR_IMPORT_CORE = {
   rrImpNormCell: rrImpNormCell,
   rrImpDetectHeaderRow: rrImpDetectHeaderRow,
@@ -1143,6 +1239,10 @@ var RR_IMPORT_CORE = {
   rrImpTypeFromText: rrImpTypeFromText,
   rrImpTypeSurvey: rrImpTypeSurvey,
   RR_IMP_TYPE_RULES: RR_IMP_TYPE_RULES,
+  rrImpPhotoishShare: rrImpPhotoishShare,
+  rrImpPhotoColumnCandidates: rrImpPhotoColumnCandidates,
+  rrImpPhotoIndex: rrImpPhotoIndex,
+  rrImpPhotoMatch: rrImpPhotoMatch,
 };
 
 if (typeof module !== 'undefined' && module.exports) module.exports = RR_IMPORT_CORE;
