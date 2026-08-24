@@ -56,7 +56,13 @@ const WHAT_I_COLLECT = {
                 'mth_o', 'mth_ho', 'mth_s', 'mth_tinplate', 'mth_g',
                 'weaver', 'rmt', 'menards', 'thirdrail', 'usatrains', 'lgb',
                 // v0.9.1159: placed rather than left to fall to the end.
-                'kline', 'williams', 'marx', 'other_o'],
+                'kline', 'williams', 'marx', 'other_o',
+                // Session 85 (Phase C): the nine S84 catalog tabs, grouped
+                // with the other G makers in spirit — placed after the
+                // existing long tail so nobody's saved mental map shifts.
+                'aristocraft', 'accucraft',
+                'bachmann_ho', 'bachmann_n', 'bachmann_g', 'bachmann_o',
+                'bachmann_on30', 'bachmann_hon30', 'bachmann_all'],
 
   // Accent color per era — pulled into card styling.
   eraColors: {
@@ -88,6 +94,18 @@ const WHAT_I_COLLECT = {
     thirdrail:    '#7f8c8d',   // steel grey
     usatrains:    '#f39c12',   // amber
     lgb:          '#27ae60',   // garden green — G scale, outdoors
+    // Session 85 (Phase C): nine new eras. Bachmann family shares a brown/
+    // copper ramp (distinct from every existing hue family); Aristo-Craft
+    // amber-gold, Accucraft deep teal. Budget rebaselined with Brad's OK.
+    aristocraft:    '#d68910',   // amber-gold — large scale, outdoors
+    accucraft:      '#117a65',   // deep teal — live steam
+    bachmann_ho:    '#795548',   // brown — Bachmann family base
+    bachmann_n:     '#a1887f',   // lighter brown
+    bachmann_g:     '#6d4c41',   // darker brown
+    bachmann_o:     '#8d6e63',   // mid brown
+    bachmann_on30:  '#5d4037',   // deep brown — narrow gauge
+    bachmann_hon30: '#bcaaa4',   // pale brown — narrow gauge, small
+    bachmann_all:   '#4e342e',   // darkest — the catch-all
   },
 
   // ── Session 136: Scale preference (Tier 3.14) ──
@@ -108,6 +126,11 @@ const WHAT_I_COLLECT = {
     // have HIDDEN all 17,596 from anyone with a saved scale list.
     n:        { id: 'n',        label: 'N Scale',                  default: false },
     z:        { id: 'z',        label: 'Z Scale',                  default: false },
+    // Session 85 (Phase C, Brad): On30/HOn30 are their OWN scales — "a
+    // different thing to shop for" — not folded under O/HO. Safe to add:
+    // the PREF_BASELINE mechanism turns new options ON for existing saves.
+    on30:     { id: 'on30',     label: 'On30 Narrow Gauge',        default: false },
+    hon30:    { id: 'hon30',    label: 'HOn30 Narrow Gauge',       default: false },
   },
 
   // Era key -> scale id. null = mixed scale (Pre-War) -> falls back to
@@ -148,6 +171,17 @@ const WHAT_I_COLLECT = {
     thirdrail:    'o',
     usatrains:    'g',
     lgb:          'g',
+    // Session 85 (Phase C). bachmann_all is explicitly null (mixed —
+    // track/tools/scenery with no scale on the page), the Pre-War pattern.
+    aristocraft:    'g',
+    accucraft:      'g',
+    bachmann_ho:    'ho',
+    bachmann_n:     'n',
+    bachmann_g:     'g',
+    bachmann_o:     'o',
+    bachmann_on30:  'on30',
+    bachmann_hon30: 'hon30',
+    bachmann_all:   null,
   },
 
   // ── Session 137: Manufacturer preference (Tier 3.15) ──
@@ -183,6 +217,13 @@ const WHAT_I_COLLECT = {
     'k-line':  { id: 'k-line',   label: 'K-Line',   default: false },
     williams:  { id: 'williams', label: 'Williams', default: false },
     marx:      { id: 'marx',     label: 'Marx',     default: false },
+    // Session 85 (Phase C). THE KEY MUST EQUAL ERAS[era].manufacturer
+    // .toLowerCase() — hence 'aristo-craft' with the hyphen. No color: on
+    // purpose, same reasoning as the three above. Baseline mechanism turns
+    // these ON for existing saves — Brad approved (S85).
+    'aristo-craft': { id: 'aristo-craft', label: 'Aristo-Craft', default: false },
+    accucraft:      { id: 'accucraft',    label: 'Accucraft',    default: false },
+    bachmann:       { id: 'bachmann',     label: 'Bachmann',     default: false },
   },
 
   // ── v0.9.1159: what the option sets looked like BEFORE this version ──

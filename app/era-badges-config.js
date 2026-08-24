@@ -43,6 +43,19 @@ const ERA_BADGES = {
     weaver:       'WVR',
     // Session 155: RMT
     rmt:          'RMT',
+    // Session 85 (Phase C): the nine S84 catalog tabs. (Eras missing from
+    // this list fall back to the era id uppercased, which is why kline &
+    // friends never broke — but these ids uppercase into noise like
+    // BACHMANN_HON30, so short labels are worth having.)
+    aristocraft:    'ARI',
+    accucraft:      'ACU',
+    bachmann_ho:    'BHO',
+    bachmann_n:     'BN',
+    bachmann_g:     'BG',
+    bachmann_o:     'BO',
+    bachmann_on30:  'BO30',
+    bachmann_hon30: 'BH30',
+    bachmann_all:   'BAS',
   },
 
   // Tab-name → era-id mapping. Used when we only have the `_tab` string

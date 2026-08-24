@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.1573';
+const APP_VERSION = 'v0.9.1574';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -401,9 +401,25 @@ const ERAS = {
   // sources; see USATRAINS_LGB_RECON.md in project).
   usatrains: { id: 'usatrains', label: 'USA Trains G', years: 'All', prefix: 'USA Trains G', manufacturer: 'USA Trains' },
   lgb:       { id: 'lgb',       label: 'LGB G',        years: 'All', prefix: 'LGB G',        manufacturer: 'LGB' },
+  // Session 85 (Phase C): the nine catalog tabs imported in Session 84 —
+  // 4,759 rows, verified row-for-row against their sources. Aristo-Craft
+  // wound down ~2013 (closed catalog, gscale.net crawl); Accucraft is live
+  // steam / large scale; Bachmann spans five tabs by scale (Brad's S84
+  // decisions: HOn30 separate, "All Scales" is a real tab for track/tools/
+  // scenery with no scale on the page). Source has no years — 'All', not
+  // invented ranges.
+  aristocraft:    { id: 'aristocraft',    label: 'Aristo-Craft G',      years: 'All', prefix: 'Aristo-Craft G',      manufacturer: 'Aristo-Craft' },
+  accucraft:      { id: 'accucraft',      label: 'Accucraft G',         years: 'All', prefix: 'Accucraft G',         manufacturer: 'Accucraft' },
+  bachmann_ho:    { id: 'bachmann_ho',    label: 'Bachmann HO',         years: 'All', prefix: 'Bachmann HO',         manufacturer: 'Bachmann' },
+  bachmann_n:     { id: 'bachmann_n',     label: 'Bachmann N',          years: 'All', prefix: 'Bachmann N',          manufacturer: 'Bachmann' },
+  bachmann_g:     { id: 'bachmann_g',     label: 'Bachmann Large G',    years: 'All', prefix: 'Bachmann Large G',    manufacturer: 'Bachmann' },
+  bachmann_o:     { id: 'bachmann_o',     label: 'Bachmann O',          years: 'All', prefix: 'Bachmann O',          manufacturer: 'Bachmann' },
+  bachmann_on30:  { id: 'bachmann_on30',  label: 'Bachmann On30',      years: 'All', prefix: 'Bachmann On30',       manufacturer: 'Bachmann' },
+  bachmann_hon30: { id: 'bachmann_hon30', label: 'Bachmann HOn30',     years: 'All', prefix: 'Bachmann HOn30',      manufacturer: 'Bachmann' },
+  bachmann_all:   { id: 'bachmann_all',   label: 'Bachmann All Scales', years: 'All', prefix: 'Bachmann All Scales', manufacturer: 'Bachmann' },
 };
 // Real-era IDs in load priority order (excluding 'all' meta-era).
-const REAL_ERA_IDS = ['pw', 'mpc', 'prewar', 'atlas', 'atlas_ho', 'atlas_n', 'atlas_z', 'mth_o', 'mth_ho', 'mth_s', 'mth_tinplate', 'mth_g', 'weaver', 'rmt', 'menards', 'thirdrail', 'usatrains', 'lgb', 'kline', 'williams', 'marx', 'other_o'];
+const REAL_ERA_IDS = ['pw', 'mpc', 'prewar', 'atlas', 'atlas_ho', 'atlas_n', 'atlas_z', 'mth_o', 'mth_ho', 'mth_s', 'mth_tinplate', 'mth_g', 'weaver', 'rmt', 'menards', 'thirdrail', 'usatrains', 'lgb', 'kline', 'williams', 'marx', 'other_o', 'aristocraft', 'accucraft', 'bachmann_ho', 'bachmann_n', 'bachmann_g', 'bachmann_o', 'bachmann_on30', 'bachmann_hon30', 'bachmann_all'];
 
 // ── Master sheet tab names per era ──
 // Session 154: scale per era — drives the want-list Scale filter (master
@@ -413,6 +429,13 @@ const ERA_SCALE = {
   pw: 'O', mpc: 'O', atlas: 'O', mth_o: 'O', weaver: 'O', rmt: 'O', menards: 'O', thirdrail: 'O',
   kline: 'O', williams: 'O', marx: 'O', other_o: 'O',
   usatrains: 'g', lgb: 'g',
+  // Session 85 (Phase C). On30/HOn30 are their own scales (Brad: "a
+  // different thing to shop for"); bachmann_all is track/tools/scenery
+  // with no scale — blank on purpose, same meaning as a missing key, kept
+  // explicit so nobody "fixes" the gap.
+  aristocraft: 'g', accucraft: 'g', bachmann_g: 'g',
+  bachmann_ho: 'HO', bachmann_n: 'N', bachmann_o: 'O',
+  bachmann_on30: 'On30', bachmann_hon30: 'HOn30', bachmann_all: '',
   mth_ho: 'HO',
   mth_s: 'S',
   mth_g: 'G',
@@ -536,6 +559,17 @@ const ERA_TABS = {
   lgb: {
     items:    'LGB G',
   },
+  // Session 85 (Phase C): tab names verified against the live master sheet
+  // 2026-08-24 — exact strings, counts matched Session 84's import.
+  aristocraft:    { items: 'Aristo-Craft G' },
+  accucraft:      { items: 'Accucraft G' },
+  bachmann_ho:    { items: 'Bachmann HO' },
+  bachmann_n:     { items: 'Bachmann N' },
+  bachmann_g:     { items: 'Bachmann Large G' },
+  bachmann_o:     { items: 'Bachmann O' },
+  bachmann_on30:  { items: 'Bachmann On30' },
+  bachmann_hon30: { items: 'Bachmann HOn30' },
+  bachmann_all:   { items: 'Bachmann All Scales' },
 };
 
 // ═══════════════════════════════════════════════════════════════════
@@ -570,7 +604,7 @@ const ERA_TABS = {
 // Chip vocabulary ('o','ho','standard') → the ERA_SCALE vocabulary
 // ('O','HO','Standard'), so the constraint reads identically downstream
 // whichever route produced it.
-var _RR_CHIP_SCALE_LABEL = { o: 'O', ho: 'HO', s: 'S', g: 'G', standard: 'Standard', n: 'N', z: 'Z' };
+var _RR_CHIP_SCALE_LABEL = { o: 'O', ho: 'HO', s: 'S', g: 'G', standard: 'Standard', n: 'N', z: 'Z', on30: 'On30', hon30: 'HOn30' };
 var _RR_PERIOD_LABEL = { prewar: 'Pre-War', postwar: 'Postwar', modern: 'Modern' };
 var _RR_PERIOD_YEARS = { prewar: '1901-1944', postwar: '1945-1969', modern: '1970-Today' };
 

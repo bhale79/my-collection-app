@@ -117,6 +117,13 @@
       "raised": [
         "app-collection.js: 154 → 157"
       ]
+    },
+    {
+      "date": "2026-08-24",
+      "reason": "Session 85 Phase C: nine new catalog eras (Aristo-Craft, Accucraft, seven Bachmann tabs) get eraColors entries for their dashboard cards and badges -- same shape as the v0.9.1000 era-color additions. Brad approved the rebaseline in-session.",
+      "raised": [
+        "onboarding-config.js: 34 → 43"
+      ]
     }
   ],
   "budgets": {
@@ -142,7 +149,7 @@
     "health-check.js": 10,
     "index.html": 52,
     "migration-ui.js": 12,
-    "onboarding-config.js": 34,
+    "onboarding-config.js": 43,
     "onboarding.js": 16,
     "photo-crop.js": 19,
     "photo-inbox.js": 198,

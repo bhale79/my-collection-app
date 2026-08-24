@@ -2489,7 +2489,9 @@ function pickerHandleFile(inputEl, isCamera) {
 // context-dependent so it's deliberately absent).
 function _eraForMfr(mfr) {
   var m = String(mfr || '').trim().toLowerCase();
-  var map = { atlas: 'atlas', weaver: 'weaver', rmt: 'rmt', menards: 'menards', '3rd rail': 'thirdrail', 'sunset models': 'thirdrail', 'usa trains': 'usatrains', lgb: 'lgb', mth: 'mth_o', williams: '', 'k-line': '' };
+  // Session 85: Aristo-Craft and Accucraft are unambiguous (one era each);
+  // Bachmann spans five eras so it stays ambiguous, like Lionel/Williams.
+  var map = { atlas: 'atlas', weaver: 'weaver', rmt: 'rmt', menards: 'menards', '3rd rail': 'thirdrail', 'sunset models': 'thirdrail', 'usa trains': 'usatrains', lgb: 'lgb', mth: 'mth_o', williams: '', 'k-line': '', 'aristo-craft': 'aristocraft', aristocraft: 'aristocraft', accucraft: 'accucraft', bachmann: '' };
   return map[m] || '';
 }
 
