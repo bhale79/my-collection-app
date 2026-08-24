@@ -3060,7 +3060,7 @@ function _renderOwnedSubTab(tabKey) {
     var _kEsc = String(r._key).replace(/'/g, "\\'");
     var _trOpen = '<tr onclick="showNonItemDetailPage(&apos;' + r._type + '&apos;,&apos;' + _kEsc + '&apos;)" style="cursor:pointer">';
     return _trOpen
-      + '<td><span class="item-num">' + r.itemNum + '</span>' + ((typeof eraBadgeHTML === 'function' && window.ERA_BADGES && window.ERA_BADGES.showInBrowse) ? eraBadgeHTML(r._tab || 'Lionel PW - Items') : '') + '</td>'
+      + '<td><span class="item-num">' + r.itemNum + '</span>' + ((typeof eraBadgeHTML === 'function' && window.ERA_BADGES && window.ERA_BADGES.showInBrowse) ? eraBadgeHTML(r._tab || 'Lionel PW - Items') : '') + ((typeof lineBadgeHTML === 'function') ? lineBadgeHTML(r) : '') + '</td>'
       + '<td><span class="tag">' + (typeof getTypeBucketLabel === 'function' ? getTypeBucketLabel(r) : r.itemType) + '</span></td>'
       + '<td>' + r.description + '</td>'
       + '<td>' + r.variation + '</td>'
@@ -4100,7 +4100,7 @@ function renderBrowse() {
     if (search) {
       // v0.9.1506 (Session 81): imported items are searchable by the words THEY
       // wrote — their own description and grade ride the haystack when present.
-      const haystack = `${item.itemNum} ${item.roadName||''} ${item.description||''} ${item.itemType||''} ${(pd&&pd.yourDescription)||''} ${(pd&&pd.yourGrade)||''}`.toLowerCase();
+      const haystack = `${item.itemNum} ${item.roadName||''} ${item.description||''} ${item.itemType||''} ${item.category||''} ${(pd&&pd.yourDescription)||''} ${(pd&&pd.yourGrade)||''}`.toLowerCase();
       if (!_aliasSearch(haystack, search)) return false;
     }
     return true;
@@ -4732,7 +4732,7 @@ function renderBrowse() {
           ${_inShareMode ? '<input type="checkbox" id="share-cb-' + _shareKey + '" ' + (_isShareSelected ? 'checked' : '') + ' onclick="event.stopPropagation();toggleShareItem(\'' + _shareKey + '\')" style="width:1.1rem;height:1.1rem;accent-color:#2ecc71;flex-shrink:0">' : ''}
           <div style="flex:1;min-width:0">
             <div style="display:flex;align-items:center;gap:0.4rem;flex-wrap:nowrap">
-              <span class="browse-card-num" style="white-space:nowrap">${_displayItemNum(item)}${item.variation ? ' <span style="font-size:0.72rem;color:var(--text-dim)">' + item.variation + '</span>' : ''}</span>${_noNumTag(item.itemNum)}${(typeof eraBadgeHTML === 'function' && window.ERA_BADGES && window.ERA_BADGES.showInBrowse) ? eraBadgeHTML(item._tab) : ''}
+              <span class="browse-card-num" style="white-space:nowrap">${_displayItemNum(item)}${item.variation ? ' <span style="font-size:0.72rem;color:var(--text-dim)">' + item.variation + '</span>' : ''}</span>${_noNumTag(item.itemNum)}${(typeof eraBadgeHTML === 'function' && window.ERA_BADGES && window.ERA_BADGES.showInBrowse) ? eraBadgeHTML(item._tab) : ''}${(typeof lineBadgeHTML === 'function') ? lineBadgeHTML(item) : ''}
               <span style="display:flex;gap:0.2rem;align-items:center">${_statusIcons}</span>
             </div>
             ${item.roadName ? `<div class="browse-card-name" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${item.roadName}</div>` : ''}
@@ -4827,7 +4827,7 @@ function renderBrowse() {
         _cells.num = `<td data-col="num" style="max-width:170px;overflow:hidden">
           <span class="item-num" style="display:inline-block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:bottom" title="${String(_displayItemNum(item)).replace(/"/g,'&quot;')}">${_displayItemNum(item)}</span>${_noNumTag(item.itemNum)}
           <div style="margin-top:1px;line-height:1.1;white-space:nowrap">
-            ${(typeof eraBadgeHTML === 'function' && window.ERA_BADGES && window.ERA_BADGES.showInBrowse) ? eraBadgeHTML(item._tab) : ''}
+            ${(typeof eraBadgeHTML === 'function' && window.ERA_BADGES && window.ERA_BADGES.showInBrowse) ? eraBadgeHTML(item._tab) : ''}${(typeof lineBadgeHTML === 'function') ? lineBadgeHTML(item) : ''}
             ${(function(){
               // v0.9.1569 (audit step 4): the folded lead row wears the
               // group's badge WITH the piece count — "ABA SET · 3 pieces".
@@ -4900,10 +4900,11 @@ function renderBrowse() {
       const _isErrCar = pd && pd.isError === 'Yes';
       const _isQuick = pd && pd.quickEntry;
       const _eraBadgeHtml = (typeof eraBadgeHTML === 'function' && window.ERA_BADGES && window.ERA_BADGES.showInBrowse) ? eraBadgeHTML(item._tab) : '';
+      const _lineBadgeHtml = (typeof lineBadgeHTML === 'function') ? lineBadgeHTML(item) : '';
       return `<tr onclick="browseRowClick(event, ${globalIdx})" style="cursor:pointer${_isQuick ? ';opacity:0.78' : ''}" title="${_isErrCar ? '⚠ Error car: ' + (pd.errorDesc||'see notes') : _isQuick ? '⚡ Quick Entry — details not yet filled in' : ''}">
         ${_mfrBadge(item)}
         <td>
-          <span class="item-num">${_displayItemNum(item)}${_isErrCar ? '<sup style="color:var(--accent);font-size:0.65rem">*</sup>' : ''}${_isQuick ? '<span onclick="event.stopPropagation();completeQuickEntry(\''+_rrAttrArg(item.itemNum)+'\',\''+_rrAttrArg(item.variation||'')+'\','+globalIdx+',\''+(pd.inventoryId||'')+'\')" style="font-size:0.6rem;background:#2ecc71;color:#fff;border-radius:3px;padding:1px 4px;vertical-align:middle;font-weight:600;cursor:pointer" title="Complete this Quick Entry">⚡</span>' : ''}</span>${_noNumTag(item.itemNum)}${_eraBadgeHtml}
+          <span class="item-num">${_displayItemNum(item)}${_isErrCar ? '<sup style="color:var(--accent);font-size:0.65rem">*</sup>' : ''}${_isQuick ? '<span onclick="event.stopPropagation();completeQuickEntry(\''+_rrAttrArg(item.itemNum)+'\',\''+_rrAttrArg(item.variation||'')+'\','+globalIdx+',\''+(pd.inventoryId||'')+'\')" style="font-size:0.6rem;background:#2ecc71;color:#fff;border-radius:3px;padding:1px 4px;vertical-align:middle;font-weight:600;cursor:pointer" title="Complete this Quick Entry">⚡</span>' : ''}</span>${_noNumTag(item.itemNum)}${_eraBadgeHtml}${_lineBadgeHtml}
           ${_itemExternalLinkHTML(item)}
           <span id="cam-${_rrRowDomKey(item)}" style="margin-left:5px;font-size:0.85rem;cursor:pointer;display:none" onclick="event.stopPropagation();openPhotoFolder('${_rrAttrArg(item.itemNum)}','${_rrAttrArg(pd&&pd.photoItem?pd.photoItem:'')}')" title="Open photo folder">📷</span>
         </td>

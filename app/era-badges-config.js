@@ -58,6 +58,16 @@ const ERA_BADGES = {
     bachmann_all:   'BAS',
   },
 
+  // Session 85: product-LINE badges. Keyed by the master row's Category
+  // value — the line marker the Williams job wrote ("Williams by
+  // Bachmann" on 73 rows). When the K-Line by Lionel crawl stamps its
+  // marker, that badge is one entry here, zero code. label = the chip
+  // text (2-5 chars); title = the hover text. Style is the outlined
+  // themed chip in era-badges.js — no colors live here.
+  lineBadges: {
+    'Williams by Bachmann': { label: 'WbB', title: 'Williams by Bachmann' },
+  },
+
   // Tab-name → era-id mapping. Used when we only have the `_tab` string
   // (e.g. "Lionel PW - Items") and need to resolve back to an era.
   // Primary items tabs are auto-detected from ERA_TABS.*.items, but
