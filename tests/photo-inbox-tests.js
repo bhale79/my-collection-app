@@ -8230,11 +8230,17 @@ META_WRITES.length = 0; TOASTS.length = 0;
        /is selected\./.test(ap));
     // v0.9.1213, Brad: "also need titles to the pick boxes for font, text
     // color, and border." A control with no label is a guess.
+    // v0.9.1578: 7 -> 10. The mark tiles gained their own labelled dials --
+    // "How big" on the watermark and sidebar tiles, "Round badge" on the
+    // sidebar/header tiles (Brad: billboard watermark boxed in the middle of
+    // the cream + the roundel's square background). Same rrap-flab labelling
+    // discipline; appearance_marks_tests.js pins their behavior.
     ok('every header-line control sits in a labelled field',
-       (ap.match(/class="rrap-flab">/g) || []).length === 7 &&
+       (ap.match(/class="rrap-flab">/g) || []).length === 10 &&
        /Header line — the words<\/span>/.test(ap) && /Typeface<\/span>/.test(ap) &&
        /Border<\/span>/.test(ap) && /Text colour<\/span>/.test(ap) &&
-       /Size<\/span>/.test(ap) && /Style<\/span>/.test(ap));
+       /Size<\/span>/.test(ap) && /Style<\/span>/.test(ap) &&
+       /How big<\/span>/.test(ap) && /Round badge/.test(ap));
     // v0.9.1222, Brad: "need more fonts than the 10 or so you show, also some
     // better boards [borders]. font size would be amazing with bold,
     // italsized, etc."

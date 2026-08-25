@@ -1232,6 +1232,14 @@
     var o = { data: sl.data, kind: String(sl.kind || ''), sw: sl.sw };
     var n = parseFloat(sl.opacity);
     o.opacity = (isFinite(n) && n >= 0.01 && n <= 1) ? n : WM_DEFAULT;
+    // v0.9.1578 (Brad): "we need to be able to control the size of the
+    // picture too" + "Round badge" for square-cornered logos. Both ride
+    // the slot record -- the same vehicle as the faintness -- so Preview,
+    // Cancel, Apply and Reset keep meaning exactly what they meant, and a
+    // junk value from a hand-edited record can never reach a style
+    // attribute: unknown sizes normalize to 'std' right here.
+    o.size = ({ small: 1, std: 1, large: 1, xl: 1, fill: 1, cover: 1 })[sl.size] ? sl.size : 'std';
+    o.round = !!sl.round;
     return o;
   }
   function _brandFill(r) {
@@ -1239,8 +1247,11 @@
     var t = r.title || {};
     return {
       watermark: r.watermark ? _fillSlot(r.watermark) : null,
-      sidebar:   r.sidebar   || null,
-      header:    r.header    || null,
+      // v0.9.1578: sidebar/header go through _fillSlot too, so their size
+      // and round choices are normalized the same way. _fillSlot only ever
+      // ADDS fields; an old record reads back unchanged.
+      sidebar:   (r.sidebar && r.sidebar.data) ? _fillSlot(r.sidebar) : null,
+      header:    (r.header && r.header.data)   ? _fillSlot(r.header)  : null,
       title: {
         text:   String(t.text || ''),
         font:   String(t.font || ''),
@@ -1328,6 +1339,11 @@
   // looks like a logo shape, not a long text box" — now one per home. The
   // ARMED tile is the one a paste, a drop or the file picker lands in, so
   // there is never a question of where an image went.
+  function _sizeOpts(cur, opts) {
+    return opts.map(function (o) {
+      return '<option value="' + o[0] + '"' + (o[0] === cur ? ' selected' : '') + '>' + o[1] + '</option>';
+    }).join('');
+  }
   function _logoBarHtml() {
     var rec = _brandNow();
     var html = '<div class="rrap-bsec"><div class="rrap-lh">Your marks</div><div class="rrap-tiles">';
@@ -1346,6 +1362,23 @@
               + '<input class="rrap-wm" type="range" min="2" max="40" step="1" value="'
               + Math.round((slot.opacity || WM_DEFAULT) * 100) + '"'
               + ' oninput="window._rrapWmSet(this.value)"></label>'
+            : '')
+        + (key === 'watermark' && slot && slot.data
+            ? '<label class="rrap-wmwrap"><span class="rrap-flab">How big</span>'
+              + '<select class="rrap-tsel" onchange="window._rrapSlotSize(\'watermark\',this.value)">'
+              + _sizeOpts(slot.size, [['std', 'Standard'], ['large', 'Large'], ['fill', 'Fill the area'], ['cover', 'Cover the area']])
+              + '</select></label>'
+            : '')
+        + (key === 'sidebar' && slot && slot.data
+            ? '<label class="rrap-wmwrap"><span class="rrap-flab">How big</span>'
+              + '<select class="rrap-tsel" onchange="window._rrapSlotSize(\'sidebar\',this.value)">'
+              + _sizeOpts(slot.size, [['small', 'Small'], ['std', 'Standard'], ['large', 'Large'], ['xl', 'Extra large']])
+              + '</select></label>'
+            : '')
+        + (key !== 'watermark' && slot && slot.data
+            ? '<label class="rrap-wmwrap"><span class="rrap-flab"><input type="checkbox"'
+              + (slot.round ? ' checked' : '')
+              + ' onchange="window._rrapSlotRound(\'' + key + '\',this.checked)"> Round badge</span></label>'
             : '')
         + (slot && slot.data
             ? '<div class="rrap-lbtns">'
@@ -1486,6 +1519,16 @@
   window._rrapWmSet = function (pct) {
     var v = Math.min(1, Math.max(0.01, (parseFloat(pct) || 5) / 100));
     _brandEdit(function (r) { if (r.watermark) r.watermark.opacity = v; });
+    _paintCandidate();
+  };
+  // v0.9.1578: the size and round dials -- same shape as the faint dial:
+  // edit the candidate, repaint. _brandFill normalizes any junk value.
+  window._rrapSlotSize = function (slot, v) {
+    _brandEdit(function (r) { if (r[slot]) r[slot].size = v; });
+    _paintCandidate();
+  };
+  window._rrapSlotRound = function (slot, on) {
+    _brandEdit(function (r) { if (r[slot]) r[slot].round = !!on; });
     _paintCandidate();
   };
   window._rrapTitleToggle = function (field) {
@@ -1691,14 +1734,18 @@
         ? 'linear-gradient(' + wash + ',' + wash + '),url(' + wm.data + ')' : '';
       replica.style.backgroundRepeat = 'no-repeat';
       replica.style.backgroundPosition = 'center';
-      replica.style.backgroundSize = 'auto,38%';
+      replica.style.backgroundSize = 'auto,'
+        + (({ std: '38%', large: '55%', fill: 'contain', cover: 'cover' })[wm && wm.size] || '38%');
     }
     if (_preview) applyBranding(rec);
   }
   function _paintReplicaMark(id, slot, maxH) {
     var el = document.getElementById(id); if (!el) return;
+    // scaled to the replica the way SB_SIZES scales the real sidebar (110px std)
+    var mul = ({ small: 0.64, std: 1, large: 1.45, xl: 2 })[slot && slot.size] || 1;
     el.innerHTML = (slot && slot.data)
-      ? '<img src="' + slot.data + '" style="max-width:100%;max-height:' + maxH + 'px;object-fit:contain">' : '';
+      ? '<img src="' + slot.data + '" style="max-width:100%;max-height:' + Math.round(maxH * mul) + 'px;object-fit:contain'
+        + (slot.round ? ';border-radius:50%' : '') + '">' : '';
   }
   function _paintReplicaHeader(slot, title) {
     var el = document.getElementById('ra-brand-head'); if (!el) return;
@@ -1800,6 +1847,18 @@
     try { _wmRO.observe(host); } catch (e) {}
   }
 
+  // Brad (v0.9.1578, seeing his billboard boxed in the middle of the
+  // cream): "this needs to be able to fill it up the whole cream part.
+  // need a fit to screen or something like that." Four sizes; 'std' is
+  // the v1241 value verbatim, so an untouched mark looks exactly as it
+  // always did. 'fill' shows the whole picture as large as it fits;
+  // 'cover' paints every pixel of the cream like wallpaper.
+  var WM_SIZES = {
+    std:   'min(110vmin,840px)',
+    large: 'min(160vmin,1260px)',
+    fill:  'contain',
+    cover: 'cover'
+  };
   function applyLogoBackdrop(slot) {
     if (slot === undefined) slot = _brandRec().watermark;
     var el = document.getElementById('rr-logo-bg');
@@ -1821,6 +1880,9 @@
     // the node it was appended to still exists.
     if (el.parentNode !== host) host.appendChild(el);
     el.style.backgroundImage = 'url(' + slot.data + ')';
+    // Set on EVERY apply, not just at creation -- changing the size of a
+    // mark already on screen must actually resize it.
+    el.style.backgroundSize = WM_SIZES[slot.size] || WM_SIZES.std;
     el.style.opacity = String(slot.opacity || WM_DEFAULT);
     _fitLogoBackdrop();
     _watchLogoBackdrop();
@@ -1838,8 +1900,23 @@
     var el = document.getElementById('rr-brand-sidebar');
     if (!host || !slot || !slot.data) { if (el) el.remove(); return; }
     if (!el) { el = document.createElement('div'); el.id = 'rr-brand-sidebar'; }
-    el.innerHTML = '<img src="' + slot.data + '" alt="">';
+    el.innerHTML = '<img src="' + slot.data + '"' + _markImgStyle(slot) + ' alt="">';
     host.appendChild(el);
+  }
+
+  // v0.9.1578 (Brad): "2 issues here, size and transparent background."
+  // The sidebar mark's size lived in one CSS cap (110px, app.css). An
+  // inline style from the slot's own setting beats it; no choice means no
+  // inline style, so today's look is untouched. Round badge clips a
+  // square-cornered logo to a circle on screen -- the honest fix for a
+  // baked-in background without any image surgery.
+  var SB_SIZES = { small: '70px', std: '', large: '160px', xl: '220px' };
+  function _markImgStyle(slot) {
+    var s = '';
+    var mh = SB_SIZES[slot.size] || '';
+    if (mh) s += 'max-height:' + mh + ';';
+    if (slot.round) s += 'border-radius:50%;';
+    return s ? ' style="' + s + '"' : '';
   }
 
   // The top bar, beside THE RAIL ROSTER — inserted before .header-right so
@@ -1865,8 +1942,10 @@
     var text = String(t.text || '').trim();
     var hasLogo = !!(slot && slot.data);
     if (!hasLogo && !text) return '';
+    var istyle = (imgH ? 'height:' + imgH + 'px;width:auto;display:block;' : '')
+               + (slot && slot.round ? 'border-radius:50%;' : '');
     return (hasLogo ? '<img src="' + slot.data + '" alt=""'
-             + (imgH ? ' style="height:' + imgH + 'px;width:auto;display:block"' : '') + '>' : '')
+             + (istyle ? ' style="' + istyle + '"' : '') + '>' : '')
       + (text ? '<span style="' + _rrTitleStyle(t) + (fontSize ? ';font-size:' + fontSize : '') + '">'
              + _esc(text) + '</span>' : '');
   }
