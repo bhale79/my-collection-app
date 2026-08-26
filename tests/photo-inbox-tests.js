@@ -10643,15 +10643,12 @@ META_WRITES.length = 0; TOASTS.length = 0;
       ok('APP_VERSION exists and is the source of truth', !!_vm, 'config.js APP_VERSION not found');
       const build = _vm ? parseInt(_vm[1], 10) : 0;
       const stamps = idx.match(/\?v=(\d+)/g) || [];
-      // v0.9.1416: 69 → 70. error-report.js (v0.9.1413) is the 70th stamped
-      // script. The number is pinned on purpose — a script added with no
-      // stamp at all never busts its cache, so the count moving is meant to
-      // be a deliberate edit, not a silent one.
-      // Session 85: 70 → 74. import-core.js + import-ui.js (the v1506-era
-      // spreadsheet importer), help-guides.js (v1539) and logo-cards.js.
-      // Still pinned on purpose — count fresh with grep before every deploy.
-      ok('every ?v= mark in app/index.html matches it — all 74, none stale',
-         stamps.length === 74 && stamps.every(t => t === '?v=' + build),
+      // Pinned on purpose: an unstamped script never busts its cache, so the
+      // count moving must be a deliberate edit. History: v1416 69→70
+      // (error-report), S85 70→74 (import-core/-ui, help-guides,
+      // logo-cards), v1580 74→75 (yardmaster — the owner-only Office).
+      ok('every ?v= mark in app/index.html matches it — all 75, none stale',
+         stamps.length === 75 && stamps.every(t => t === '?v=' + build),
          stamps.length + ' stamps; strays: ' + stamps.filter(t => t !== '?v=' + build).slice(0, 3).join(','));
       ok('the service worker cache name moved too (build + 10, the fixed offset)',
          new RegExp("const CACHE_NAME = 'mca-v" + (build + 10) + "';").test(rd('app/sw.js')),
@@ -14475,8 +14472,14 @@ META_WRITES.length = 0; TOASTS.length = 0;
         }
         ok('224 no raw values :clear or :append survives outside sheets.js',
            strays.length === 0, strays.join(' | ') || files24.length + ' files scanned');
-        ok('224 the only PUT outside sheets.js is the lock probe, and only it',
-           putsElsewhere === 1 && probePuts === 1,
+        // v0.9.1580: 1 -> 2. The Yardmaster's Office chore mark-done PUTs one
+      // cell (chores!C<row>) of the VAULT sheet — a different spreadsheet
+      // from the user-sheet writers this pin guards; the row comes from the
+      // same batchGet that rendered it, the column is header-derived, and
+      // the page exists only for the two owner accounts. yardmaster_tests
+      // pins that exact shape.
+      ok('224 the only PUTs outside sheets.js are the lock probe and the Office chore cell',
+           putsElsewhere === 2 && probePuts === 1,
            putsElsewhere + ' PUT(s) outside sheets.js');
       }
 

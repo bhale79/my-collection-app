@@ -109,6 +109,36 @@ async function vaultPost(payload) {
   }
 }
 
+// ── v0.9.1580 (Session 86): anonymous daily heartbeat ───────────
+// Brad: "how many people actually use the app?" Once per device per
+// day, carrying NOTHING but the app version — no email, no token, no
+// id. The relay (v3.7) tallies it into the Vault 'usage' tab; the
+// Monday digest and the Yardmaster's Office read the tally. The day
+// is marked only on a confirmed ok, so a failed ping retries on the
+// NEXT app load (never loops within a session).
+function _rrHeartbeat() {
+  try {
+    var today = new Date().toISOString().slice(0, 10);
+    if (localStorage.getItem('lv_hb_day') === today) return;
+    vaultPost({ action: 'heartbeat', v: (typeof APP_VERSION !== 'undefined' ? APP_VERSION : '') })
+      .then(function (r) {
+        if (r && r.ok) { try { localStorage.setItem('lv_hb_day', today); } catch (e) {} }
+      });
+  } catch (e) {}
+}
+(function _rrHeartbeatBoot() {
+  var tries = 0;
+  var t = setInterval(function () {
+    tries++;
+    if (tries > 150) { clearInterval(t); return; }
+    var appEl = document.getElementById('app');
+    if (appEl && appEl.classList.contains('active')) {
+      clearInterval(t);
+      _rrHeartbeat();
+    }
+  }, 2000);
+})();
+
 async function vaultGet(params) {
   try {
     const url = VAULT.ENDPOINT + '?' + new URLSearchParams(params);
