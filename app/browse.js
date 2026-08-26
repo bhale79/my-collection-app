@@ -701,6 +701,7 @@ var _ERA_KEY_TO_PERIOD = {
   weaver:       'modern',
   rmt:          'modern',   // RMT (Ready Made Trains), late 1990s onward
   menards:      'modern',   // Menards store brand, 2014 onward
+  menards_ho:   'modern',   // Session 86: the HO split of the same brand
   kline:        'modern',   // K-Line 1975-2006 (see ERAS)
   williams:     'modern',   // Williams Reproductions, 1971 onward
   // Session 85 (v0.9.1577): the nine Phase C eras. All modern by manufacture
@@ -3941,6 +3942,14 @@ function renderBrowse() {
         // Measured live: the pd records classify as 'postwar' correctly; only
         // the copy handed to the filter was blind. eraPeriod rides along too.
         yearMade: pd.yearMade || '', eraPeriod: pd.eraPeriod || '',
+        // ── v0.9.1579 (Brad: Menards O buildings under the G/One Gauge
+        // chip) — STRIKE THREE of the v1392/v1425 disease: gauge was never
+        // on this hand-copied list, so the v1511 own-gauge-outranks-all
+        // rule and _scaleOfItem were both blind for personal-only rows,
+        // and every manual item fell into "unknown scale shows under every
+        // scale chip". Measured live: pd held gauge 'O'; the copy held
+        // nothing. filter_bar_tests pins this field on the list now.
+        gauge: pd.gauge || '',
         _personalOnly: true
       };
     });

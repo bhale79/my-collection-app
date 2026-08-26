@@ -21007,7 +21007,10 @@ META_WRITES.length = 0; TOASTS.length = 0;
       // true' much earlier in the file, so indexOf started slicing the wrong
       // site and these checks reported the dates gone while they sat exactly
       // where v1392 put them. The row synthesis is the LAST occurrence.
-      const synth = br95.slice(Math.max(0, br95.lastIndexOf('_personalOnly: true') - 1400),
+      // v0.9.1579: window 1400 -> 2100. The gauge field (strike three of the
+      // v1392/v1425 copy-list disease, Session 86) joined the copy list with
+      // its documentation between the dates and the closing marker.
+      const synth = br95.slice(Math.max(0, br95.lastIndexOf('_personalOnly: true') - 2100),
                                br95.lastIndexOf('_personalOnly: true') + 30);
       ok('295 the personal-only row synthesis was found', synth.length > 400, String(synth.length));
       ok('295 BRAD\'S BUG: a personal-only row carries its dateAdded',

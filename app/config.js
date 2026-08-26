@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.1578';
+const APP_VERSION = 'v0.9.1579';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -383,6 +383,11 @@ const ERAS = {
   // 2026-07-02: Menards — O-gauge store brand (Gold Line etc.). Tab starts
   // nearly empty; grows via the catalog-review pipe as boxes get scanned.
   menards: { id: 'menards', label: 'Menards O', years: 'All',     prefix: 'Menards O', manufacturer: 'Menards' },
+  // Session 86: Menards split per-scale (the Atlas precedent). Brad:
+  // "there is a menards o gauge tab so everything on that tab is o gauge.
+  // we do need to add a menards ho tab." 25 HO rows moved + 39 new from
+  // the 2026-08-26 menards.com crawl (503 products, 455 new items total).
+  menards_ho: { id: 'menards_ho', label: 'Menards HO', years: 'All', prefix: 'Menards HO', manufacturer: 'Menards' },
   // 2026-07-28 (Brad): brands the app could not carry because they had no master
   // tab. K-Line and Williams came from the Trainz catalog crawl (2,658 and 1,201
   // models); Marx is the postwar tinplate maker Brad asked for. "Other O Brands"
@@ -419,14 +424,14 @@ const ERAS = {
   bachmann_all:   { id: 'bachmann_all',   label: 'Bachmann All Scales', years: 'All', prefix: 'Bachmann All Scales', manufacturer: 'Bachmann' },
 };
 // Real-era IDs in load priority order (excluding 'all' meta-era).
-const REAL_ERA_IDS = ['pw', 'mpc', 'prewar', 'atlas', 'atlas_ho', 'atlas_n', 'atlas_z', 'mth_o', 'mth_ho', 'mth_s', 'mth_tinplate', 'mth_g', 'weaver', 'rmt', 'menards', 'thirdrail', 'usatrains', 'lgb', 'kline', 'williams', 'marx', 'other_o', 'aristocraft', 'accucraft', 'bachmann_ho', 'bachmann_n', 'bachmann_g', 'bachmann_o', 'bachmann_on30', 'bachmann_hon30', 'bachmann_all'];
+const REAL_ERA_IDS = ['pw', 'mpc', 'prewar', 'atlas', 'atlas_ho', 'atlas_n', 'atlas_z', 'mth_o', 'mth_ho', 'mth_s', 'mth_tinplate', 'mth_g', 'weaver', 'rmt', 'menards', 'menards_ho', 'thirdrail', 'usatrains', 'lgb', 'kline', 'williams', 'marx', 'other_o', 'aristocraft', 'accucraft', 'bachmann_ho', 'bachmann_n', 'bachmann_g', 'bachmann_o', 'bachmann_on30', 'bachmann_hon30', 'bachmann_all'];
 
 // ── Master sheet tab names per era ──
 // Session 154: scale per era — drives the want-list Scale filter (master
 // Gauge column is only ~10% populated, so derive scale from the era).
 const ERA_SCALE = {
   prewar: 'Standard', mth_tinplate: 'Standard',
-  pw: 'O', mpc: 'O', atlas: 'O', mth_o: 'O', weaver: 'O', rmt: 'O', menards: 'O', thirdrail: 'O',
+  pw: 'O', mpc: 'O', atlas: 'O', mth_o: 'O', weaver: 'O', rmt: 'O', menards: 'O', menards_ho: 'HO', thirdrail: 'O',
   kline: 'O', williams: 'O', marx: 'O', other_o: 'O',
   usatrains: 'g', lgb: 'g',
   // Session 85 (Phase C). On30/HOn30 are their own scales (Brad: "a
@@ -450,7 +455,9 @@ if (typeof window !== 'undefined') window.ERA_SCALE = ERA_SCALE;
 // vanish behind a Scale O pick (measured: the Quick Capture picker hid
 // Pre-War entirely, and lookups demoted the prewar No. 25, under Scale O).
 // Menards sells O and HO lines (Brad, same session) -- one catalog for now.
-const ERA_SCALES_MULTI = { prewar: ['O', 'Standard'], mth_tinplate: ['O', 'Standard'], menards: ['O', 'HO'] };
+// Session 86: menards REMOVED — the tab is pure O now that Menards HO
+// exists (25 HO rows moved there 2026-08-26). One catalog, one scale.
+const ERA_SCALES_MULTI = { prewar: ['O', 'Standard'], mth_tinplate: ['O', 'Standard'] };
 if (typeof window !== 'undefined') window.ERA_SCALES_MULTI = ERA_SCALES_MULTI;
 
 // v0.9.1504 (task #29, Brad: "we should be able to pick scale and era by
@@ -549,6 +556,9 @@ const ERA_TABS = {
   },
   menards: {
     items:    'Menards O',
+  },
+  menards_ho: {
+    items:    'Menards HO',
   },
   thirdrail: {
     items:    '3rd Rail O',

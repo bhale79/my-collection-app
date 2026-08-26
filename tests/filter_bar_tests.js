@@ -67,5 +67,16 @@ ok('...and clears the user-maker filter with it', /state\.filters\.ownMaker = ''
 ok('...while plain flags stay plain', /which === 'imported'\) state\.filters\.imported = ''/.test(js));
 
 console.log('');
+
+// ── v0.9.1579 (Session 86): the personal-only copy carries gauge ──
+// Brad's Menards O buildings showed under the G / One Gauge chip: the
+// hand-copied personal-only item was blind to pd.gauge (strike three of
+// the v1392 dates / v1425 yearMade disease), so the v1511 own-gauge rule
+// never fired for manual rows. The field is pinned to the copy list now.
+ok('the personal-only copy hands gauge to the filter (v1392/v1425 disease, strike three)',
+   /gauge:\s*pd\.gauge\s*\|\|\s*''/.test(js));
+ok('…placed on the same copied-subset object as the date fix',
+   /dateAdded:\s*pd\.dateAdded[\s\S]{0,1600}gauge:\s*pd\.gauge/.test(js));
+
 console.log(fail === 0 ? 'ALL FILTER-BAR TESTS GREEN (' + pass + ')' : fail + ' FAILING of ' + (pass + fail));
 process.exit(fail === 0 ? 0 : 1);

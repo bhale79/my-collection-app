@@ -54,7 +54,7 @@ const WHAT_I_COLLECT = {
   eraOrder:    ['prewar', 'pw', 'mpc',
                 'atlas', 'atlas_ho', 'atlas_n', 'atlas_z',
                 'mth_o', 'mth_ho', 'mth_s', 'mth_tinplate', 'mth_g',
-                'weaver', 'rmt', 'menards', 'thirdrail', 'usatrains', 'lgb',
+                'weaver', 'rmt', 'menards', 'menards_ho', 'thirdrail', 'usatrains', 'lgb',
                 // v0.9.1159: placed rather than left to fall to the end.
                 'kline', 'williams', 'marx', 'other_o',
                 // Session 85 (Phase C): the nine S84 catalog tabs, grouped
@@ -91,6 +91,7 @@ const WHAT_I_COLLECT = {
     atlas_n:      '#5dade2',   // lighter still — Atlas N
     atlas_z:      '#85c1e9',   // lightest — Atlas Z
     menards:      '#c0392b',   // deep red
+    menards_ho:   '#a93226',   // Session 86: darker Menards red for the HO tab
     thirdrail:    '#7f8c8d',   // steel grey
     usatrains:    '#f39c12',   // amber
     lgb:          '#27ae60',   // garden green — G scale, outdoors
@@ -164,6 +165,7 @@ const WHAT_I_COLLECT = {
     weaver:       'o',
     rmt:          'o',
     menards:      'o',
+    menards_ho:   'ho',
     kline:        'o',
     williams:     'o',
     marx:         'o',

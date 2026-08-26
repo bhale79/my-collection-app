@@ -139,6 +139,36 @@ ok("_eraForMfr maps 'accucraft' → accucraft",
 ok("_eraForMfr leaves bachmann AMBIGUOUS (five eras, like Lionel)",
    /bachmann:\s*''/.test(wpSrc));
 
+
+// ── Session 86: the Menards per-scale split ──────────────────────
+// Brad: "there is a menards o gauge tab so everything on that tab is
+// o gauge. we do need to add a menards ho tab." Proven failing on the
+// v0.9.1578 tree before the wiring.
+(function () {
+  const C = ctx.window.__cfg;
+  ok('menards_ho exists in ERAS with the Menards manufacturer',
+     !!(C.ERAS.menards_ho && C.ERAS.menards_ho.manufacturer === 'Menards'));
+  ok('…its label is Menards HO', C.ERAS.menards_ho && C.ERAS.menards_ho.label === 'Menards HO');
+  ok('…REAL_ERA_IDS lists it', C.REAL_ERA_IDS.indexOf('menards_ho') >= 0);
+  ok('…ERA_SCALE says HO', C.ERA_SCALE.menards_ho === 'HO');
+  ok('…ERA_TABS names the EXACT live tab', C.ERA_TABS.menards_ho && C.ERA_TABS.menards_ho.items === 'Menards HO');
+  ok('menards is NO LONGER multi-scale — the tab is pure O now',
+     !(C.ERA_SCALES_MULTI && C.ERA_SCALES_MULTI.menards));
+  const ob = ctx.window.__wic;
+  ok('onboarding ERA_TO_SCALE maps menards_ho to ho', ob.ERA_TO_SCALE.menards_ho === 'ho');
+  ok('…eraOrder places it beside menards', ob.eraOrder.indexOf('menards_ho') === ob.eraOrder.indexOf('menards') + 1);
+  ok('…it has its own era color', /^#[0-9a-f]{6}$/i.test(ob.eraColors.menards_ho || ''));
+  const eb = ctx.window.__badges;
+  ok('badge short label exists (MENARDS_HO uppercased is noise)',
+     !!eb.shortLabel.menards_ho && eb.shortLabel.menards_ho.length <= 4);
+  const bc = src('barcode.js');
+  ok('barcode era list carries menards_ho', /'menards_ho'/.test(bc));
+  const rs = src('research.js');
+  ok('research modern group carries menards_ho', /'menards_ho'/.test(rs));
+  const br = src('browse.js');
+  ok('period map knows menards_ho is modern', /menards_ho:\s*'modern'/.test(br));
+})();
+
 console.log('\n' + pass + ' passed, ' + fail + ' failed');
 if (fail) { console.log('PHASE-C WIRING TESTS FAILING'); process.exit(1); }
 console.log('ALL PHASE-C WIRING TESTS GREEN (' + pass + ')');

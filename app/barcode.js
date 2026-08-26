@@ -25,7 +25,7 @@ function eraSupportsBarcode(era) {
   // eras join them. Marx stays out — it wound down (~1975) as UPCs arrived.
   var SHOW = ['mod','mpc','atlas',
               'mth_o','mth_ho','mth_s','mth_tinplate','mth_g',
-              'mod_ho','mod_s','weaver','rmt','menards','thirdrail','usatrains','lgb',
+              'mod_ho','mod_s','weaver','rmt','menards','menards_ho','thirdrail','usatrains','lgb',
               'kline','williams','other_o',
               'aristocraft','accucraft','bachmann_ho','bachmann_n','bachmann_g',
               'bachmann_o','bachmann_on30','bachmann_hon30','bachmann_all'];
