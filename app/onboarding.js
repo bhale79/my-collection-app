@@ -461,6 +461,12 @@
           'padding:0.9rem 1rem;border-left:4px solid ' + _escape(accent) + ';' +
           'min-height:' + s.btnH + '">' +
           '<input type="checkbox" data-era="' + _escape(eraKey) + '" ' + (checked ? 'checked' : '') + ' ' +
+            // v0.9.1584 (Brad: "you select several and then cant move
+            // forward. its grayed out"): the v1415 gate only re-checked on
+            // Select all/Clear all and at screen-open — ticking boxes BY
+            // HAND never called onboardEraSync, so Save stayed disabled for
+            // exactly the people who made careful choices. One wire fixes it.
+            'onchange="onboardEraSync()" ' +
             'style="width:22px;height:22px;flex-shrink:0;cursor:pointer;accent-color:' + _escape(accent) + '">' +
           '<div style="flex:1">' +
             '<div style="font-family:var(--font-head);font-size:' + s.cardTitle + ';font-weight:700;color:var(--text);line-height:1.2">' +
