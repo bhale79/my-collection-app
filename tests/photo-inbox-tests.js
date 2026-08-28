@@ -21491,6 +21491,43 @@ META_WRITES.length = 0; TOASTS.length = 0;
          /@media \(max-width: 699px\)[\s\S]*#page-photo-inbox\.pin-grp-slim #pin-drop/.test(css303), '');
     })();
 
+    // ═══════════════════════════════════════════════════════════
+    // 304. THE SHEET MEASURES ITS OWN CLEARANCE (v0.9.1597). Brad, live
+    // on his phone after v1596: "still does it." The v1596 clearance was
+    // a CSS constant mirroring the sheet's 34vh cap — an assumption about
+    // the device. Now every panel paint measures the sheet's REAL height
+    // and writes the drop zone's bottom padding from it (the CSS constant
+    // stays as a paint-to-measure fallback), and closing the panel takes
+    // the clearance with it.
+    // ═══════════════════════════════════════════════════════════
+    section('304. Phone group mode: clearance from the sheet\'s measured height');
+    await (async function () {
+      const _origAppend4 = document.body.appendChild.bind(document.body);
+      document.body.appendChild = (c) => { if (c && c.id) REG[c.id] = c; return _origAppend4(c); };
+      const pnl = reg('pin-grp-panel');   // pre-registered so the renderer reuses it
+      pnl.offsetHeight = 345;
+      REG['pin-drop'].style.paddingBottom = '';
+      ok('304 group mode is off to start', T.purpose !== 'group', String(T.purpose));
+      try { window._pinStartMode('group'); } catch (e) {}
+      ok('304 BRAD\'S BUG: the drop zone\'s clearance is the sheet\'s REAL height + margin',
+         REG['pin-drop'].style.paddingBottom === '369px', String(REG['pin-drop'].style.paddingBottom));
+      // the sheet grows (more thumbs ticked) → the next paint re-measures
+      pnl.offsetHeight = 500;
+      try { window._pinStartMode('group'); } catch (e) {}   // off (also closes panel)
+      ok('304 closing the sheet takes the clearance with it',
+         REG['pin-drop'].style.paddingBottom === '', String(REG['pin-drop'].style.paddingBottom));
+      delete REG['pin-grp-panel'];
+      try { window._pinStartMode('group'); } catch (e) {}   // fresh panel, no offsetHeight in fake DOM
+      const padNow = REG['pin-drop'].style.paddingBottom;
+      ok('304 a paint that cannot measure leaves the CSS fallback in charge',
+         padNow === '' || padNow === undefined, String(padNow));
+      const css304 = fs.readFileSync(require('path').join(__dirname, '..', 'app', 'app.css'), 'utf8');
+      ok('304 …and the 34vh CSS fallback is still there',
+         /#page-photo-inbox\.pin-grp-slim #pin-drop[\s\S]{0,120}calc\(34vh/.test(css304), '');
+      try { window._pinStartMode('group'); } catch (e) {}   // leave mode off
+      document.body.appendChild = _origAppend4;
+    })();
+
   })().then(function () {
     console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
     process.exit(fail ? 1 : 0);

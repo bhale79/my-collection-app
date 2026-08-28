@@ -922,6 +922,11 @@
   function _pinGrpPanelClose() {
     var p = document.getElementById('pin-grp-panel');
     if (p) p.remove();
+    // v0.9.1597: the sheet takes its clearance with it.
+    try {
+      var _drop97c = document.getElementById('pin-drop');
+      if (_drop97c) _drop97c.style.paddingBottom = '';
+    } catch (ePad) {}
   }
 
   function _pinGrpPanelRender() {
@@ -997,6 +1002,18 @@
       +   '<button id="pin-grp-panel-done" style="flex:1;padding:0.6rem;border-radius:8px;border:none;background:var(--accent2);color:#1a1a1a;font-weight:700;font-size:0.82rem;min-height:44px;cursor:pointer">Done</button>'
       + '</div>';
     p.innerHTML = html;
+    // v0.9.1597 (Brad: "still does it"): the v1596 clearance was a CSS
+    // constant mirroring the sheet's 34vh cap — an assumption about the
+    // device. Now the sheet MEASURES itself after every paint and writes the
+    // drop zone's clearance from its real height (inline style beats the CSS
+    // fallback, which stays for the paint-to-measure gap). Re-runs on every
+    // tick because every tick re-renders this panel.
+    try {
+      if (narrow) {
+        var _drop97 = document.getElementById('pin-drop');
+        if (_drop97 && p.offsetHeight) _drop97.style.paddingBottom = (p.offsetHeight + 24) + 'px';
+      }
+    } catch (ePad) {}
     try {
       Array.prototype.forEach.call(p.querySelectorAll('img[data-gppfid]'), function (im) {
         loadDriveThumb(im.getAttribute('data-gppfid'), im, im.parentElement, null, 'hi');
