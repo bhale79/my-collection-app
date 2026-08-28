@@ -74,4 +74,21 @@ ok('…on EVERY branch of the renderer (hooked at the top, deferred), not one ex
 ok('…without stomping controls that manage their own tabindex',
    /hasAttribute\('tabindex'\)/.test(wiz));
 
+
+// ── v0.9.1588: custom fields on the CATALOG add path too ─────────
+// Brad: "since he has custom columns, when he adds a new item, do we
+// give him an opportunity to fill those out?" The v1514 block lived
+// only in the MANUAL flow; the catalog Purchase & Value step (the path
+// Scott actually uses) never offered the fields.
+ok('ONE shared renderer serves the user fields (no second copy to drift)',
+   /function _wizUserFieldsHtml\(d\)/.test(wiz)
+   && (wiz.match(/_wizUserFieldsHtml\(/g) || []).length >= 3);
+ok('…the catalog Purchase & Value step renders them (before Notes)',
+   /_pvHtml \+= _wizUserFieldsHtml\(_pvD\);/.test(wiz)
+   && wiz.indexOf('_pvHtml += _wizUserFieldsHtml(_pvD);') < wiz.indexOf("Notes (optional)</div>'"));
+ok('…the manual flow now calls the same shared renderer',
+   /v1588 SHARED renderer/.test(wiz) && /_wizUserFieldsHtml\(d\) \+/.test(wiz));
+ok('…location-scoped suggestions still ride along',
+   /function _wizUserFieldsHtml[\s\S]{0,600}scopedTo === 'location'/.test(wiz));
+
 console.log('ALL USER-FIELDS PARITY TESTS GREEN (' + pass + ')');

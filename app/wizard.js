@@ -2262,6 +2262,30 @@ window._selectTender = function(tNum) {
 // every wizard control in after each render, so Tab walks the whole
 // step in DOM order and reaches Next. Elements that already manage
 // their own tabindex are left alone.
+// ── v0.9.1588 (Brad: "since he has custom columns, when he adds a new
+// item, do we give him an opportunity to fill those out?") ────────────
+// The v1514 parity block rendered ONLY in the MANUAL-entry flow; the
+// catalog add flow's Purchase & Value step never offered the fields,
+// so Scott's custom columns were unfillable on the path he actually
+// uses. ONE renderer now serves both steps — same config, same labels,
+// same location-scoped suggestions, skippable, never blocking a save.
+function _wizUserFieldsHtml(d) {
+  return ((typeof rrEnabledUserFields === 'function' ? rrEnabledUserFields() : []).map(function (f) {
+    var _lbl = (typeof rrFieldLabel === 'function' ? rrFieldLabel(f) : f.label);
+    var _dl2 = { attr: '', html: '' };
+    if (f.scopedTo === 'location' && typeof rrDatalistFor === 'function' && typeof rrLocationDetails === 'function') {
+      _dl2 = rrDatalistFor('wiz-' + f.key + '-list', rrLocationDetails(d.location || ''));
+    }
+    return '<div style="margin-bottom:0.75rem">' +
+      '<label style="font-size:0.82rem;color:var(--text-mid);display:block;margin-bottom:0.25rem">' + _lbl + '</label>' +
+      '<input type="text" id="wiz-uf-' + f.key + '" value="' + String(d[f.key] || '').replace(/"/g, '&quot;') + '"' +
+        ' oninput="wizard.data[\'' + f.key + '\']=this.value" placeholder="' + (f.hint || '') + '"' + _dl2.attr +
+        ' style="width:100%;padding:0.55rem 0.7rem;border-radius:8px;background:var(--bg);border:1px solid var(--border);color:var(--text);font-family:var(--font-body);font-size:0.88rem;box-sizing:border-box">' +
+      _dl2.html +
+    '</div>';
+  }).join(''));
+}
+
 function _wizTabOrder() {
   try {
     document.querySelectorAll('#wizard-modal select, #wizard-modal button, #wizard-modal input, #wizard-modal textarea')
@@ -2569,25 +2593,9 @@ function renderWizardStep() {
               ' style="width:100%;padding:0.55rem 0.7rem;border-radius:8px;background:var(--bg);border:1px solid var(--border);color:var(--text);font-family:var(--font-body);font-size:0.88rem;box-sizing:border-box">' + _dl.html;
           })() +
         '</div>' : '') +
-        // v0.9.1514 (Phase 2, Brad's parity rule): enabled user fields appear
-        // HERE too — same config, same labels, skippable, never blocking a save.
-        ((typeof rrEnabledUserFields === 'function' ? rrEnabledUserFields() : []).map(function (f) {
-          var _lbl = (typeof rrFieldLabel === 'function' ? rrFieldLabel(f) : f.label);
-          // v0.9.1531b: a field marked scopedTo:'location' is suggested from
-          // the details of THIS item's location — Room 107 offers its own
-          // racks, not every tote the user owns. Free text either way.
-          var _dl2 = { attr: '', html: '' };
-          if (f.scopedTo === 'location' && typeof rrDatalistFor === 'function' && typeof rrLocationDetails === 'function') {
-            _dl2 = rrDatalistFor('wiz-' + f.key + '-list', rrLocationDetails(d.location || ''));
-          }
-          return '<div>' +
-            '<label style="font-size:0.82rem;color:var(--text-mid);display:block;margin-bottom:0.25rem">' + _lbl + '</label>' +
-            '<input type="text" id="wiz-uf-' + f.key + '" value="' + String(d[f.key] || '').replace(/"/g, '&quot;') + '"' +
-              ' oninput="wizard.data[\'' + f.key + '\']=this.value" placeholder="' + (f.hint || '') + '"' + _dl2.attr +
-              ' style="width:100%;padding:0.55rem 0.7rem;border-radius:8px;background:var(--bg);border:1px solid var(--border);color:var(--text);font-family:var(--font-body);font-size:0.88rem;box-sizing:border-box">' +
-            _dl2.html +
-          '</div>';
-        }).join('')) +
+        // v0.9.1514 parity, via the v1588 SHARED renderer (also serves the
+        // catalog Purchase & Value step — one source of truth).
+        _wizUserFieldsHtml(d) +
       '</div>';
 
   } else if (s.type === 'choice') {
@@ -6210,6 +6218,10 @@ function renderWizardStep() {
     if (_pvLocEnabled) {
       _pvHtml += '<div style="margin-bottom:0.75rem">' + _wizLocationFieldHtml(_pvD.location || '') + '</div>';
     }
+
+    // v0.9.1588: the user's own columns (custom + enabled optionals),
+    // right where the manual flow offers them — before Notes.
+    _pvHtml += _wizUserFieldsHtml(_pvD);
 
     // Notes
     _pvHtml += '<div style="margin-bottom:0.75rem"><div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.3rem">Notes (optional)</div>';
