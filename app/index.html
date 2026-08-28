@@ -54,9 +54,9 @@
 <meta name="twitter:title" content="The Rail Roster — Model Train Collection Tracker">
 <meta name="twitter:description" content="Track every item, variation, and box in your collection — across every era and every maker.">
 <meta name="twitter:image" content="https://therailroster.com/app/share-card.png">
-<link rel="stylesheet" href="./app.css?v=1586">
-<link rel="stylesheet" href="./tutorial.css?v=1586">
-<link rel="stylesheet" href="./vault-styles.css?v=1586">
+<link rel="stylesheet" href="./app.css?v=1587">
+<link rel="stylesheet" href="./tutorial.css?v=1587">
+<link rel="stylesheet" href="./vault-styles.css?v=1587">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css">
 </head>
 <body>
@@ -194,7 +194,7 @@ document.addEventListener('touchmove', function(){}, {passive: true});
                fixed-width version pushed its own placeholder out below it. -->
           <div id="browse-search-wrap" style="flex:1 1 240px;min-width:170px;height:34px;box-sizing:border-box;display:flex;align-items:center;gap:0.45rem;background:var(--bg-card);border:1.5px solid var(--border);border-radius:8px;padding:0 0.6rem">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="opacity:0.5;flex-shrink:0"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-            <input id="browse-search" type="text" placeholder="Search item number, road name, description…" oninput="onPageSearch(this.value,'browse')" style="border:none;background:none;color:var(--text);font-family:var(--font-body);font-size:0.85rem;flex:1;min-width:0;outline:none">
+            <input id="browse-search" type="text" placeholder="Search item #, road, description" oninput="onPageSearch(this.value,'browse')" style="text-overflow:ellipsis;border:none;background:none;color:var(--text);font-family:var(--font-body);font-size:0.85rem;flex:1;min-width:0;outline:none">
             <button type="button" id="browse-search-clear" title="Clear search" onclick="_rrClearBrowseSearch()" style="display:none;border:none;background:none;color:var(--text-dim);font-size:1rem;line-height:1;cursor:pointer;padding:0 0.1rem">&times;</button>
           </div>
           <div id="hierarchy-chips" style="display:flex;flex-wrap:wrap;gap:0.4rem;align-items:center"></div>
@@ -705,80 +705,80 @@ document.addEventListener('touchmove', function(){}, {passive: true});
 <!-- identify-modal is built dynamically by wizard.js -->
 </div>
 
-<script src="./config.js?v=1586"></script>
-<script src="./cott-anchors.js?v=1586"></script>
-<script src="./type-groups.js?v=1586"></script>
-<script src="./back-stack.js?v=1586"></script>
-<script src="./road-typeahead.js?v=1586"></script>
-<script src="./a11y-config.js?v=1586"></script>
-<script src="./a11y.js?v=1586"></script>
-<script src="./wizard-utils.js?v=1586"></script>
-<script src="./app.js?v=1586"></script>
-<script src="./write-outbox.js?v=1586"></script>
-    <script src="./sheets.js?v=1586"></script>
-<script src="./drive.js?v=1586"></script>
-<script src="./backup.js?v=1586"></script>
-<script src="./browse.js?v=1586"></script>
-<script src="./dashboard.js?v=1586"></script>
-<script src="./sheet-builder.js?v=1586"></script>
+<script src="./config.js?v=1587"></script>
+<script src="./cott-anchors.js?v=1587"></script>
+<script src="./type-groups.js?v=1587"></script>
+<script src="./back-stack.js?v=1587"></script>
+<script src="./road-typeahead.js?v=1587"></script>
+<script src="./a11y-config.js?v=1587"></script>
+<script src="./a11y.js?v=1587"></script>
+<script src="./wizard-utils.js?v=1587"></script>
+<script src="./app.js?v=1587"></script>
+<script src="./write-outbox.js?v=1587"></script>
+    <script src="./sheets.js?v=1587"></script>
+<script src="./drive.js?v=1587"></script>
+<script src="./backup.js?v=1587"></script>
+<script src="./browse.js?v=1587"></script>
+<script src="./dashboard.js?v=1587"></script>
+<script src="./sheet-builder.js?v=1587"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
-<script src="./wizard-pdlookup.js?v=1586"></script>
-<script src="./wizard-suggestions.js?v=1586"></script>
-<script src="./wizard-steps.js?v=1586"></script>
-<script src="./wizard.js?v=1586"></script>
-<script src="./wizard-photos.js?v=1586"></script>
-<script src="./photo-crop.js?v=1586"></script>
-<script src="./variation-picker.js?v=1586"></script>
-<script src="./wizard-pickers.js?v=1586"></script>
-<script src="./wizard-handlers.js?v=1586"></script>
-<script src="./wizard-quickentry.js?v=1586"></script>
-<script src="./wizard-save.js?v=1586"></script>
-<script src="./app-misc.js?v=1586"></script>
-<script src="./app-auth.js?v=1586"></script>
-<script src="./app-setup.js?v=1586"></script>
-<script src="./app-data.js?v=1586"></script>
-<script src="./app-pages.js?v=1586"></script>
-<script src="./app-collection.js?v=1586"></script>
-<script src="./barcode.js?v=1586"></script>
-<script src="./tutorial.js?v=1586"></script>
-<script src="./tutorial-gifs-config.js?v=1586"></script>
-<script src="./migration-config.js?v=1586"></script>
-<script src="./migration-ui.js?v=1586"></script>
-<script src="./onboarding-config.js?v=1586"></script>
-<script src="./gmail-help.js?v=1586"></script>
-<script src="./onboarding.js?v=1586"></script>
-<script src="./vault.js?v=1586"></script>
-<script src="./research.js?v=1586"></script>
-<script src="./ai-id.js?v=1586"></script>
-<script src="./era-badges-config.js?v=1586"></script>
-<script src="./era-badges.js?v=1586"></script>
-<script src="./catalog-display-config.js?v=1586"></script>
-<script src="./non-item-detail-config.js?v=1586"></script>
-<script src="./item-search-filters-config.js?v=1586"></script>
-<script src="./insurance-config.js?v=1586"></script>
-<script src="./reports.js?v=1586"></script>
-<script src="./report-export.js?v=1586"></script>
-<script src="./report-library.js?v=1586"></script>
-<script src="./prefs.js?v=1586"></script>
-<script src="./import-core.js?v=1586"></script>
-<script src="./import-ui.js?v=1586"></script>
-<script src="./appearance.js?v=1586"></script>
-<script src="./logo-cards.js?v=1586"></script>
-<script src="./look-sync.js?v=1586"></script>
-<script src="./detail-nav.js?v=1586"></script>
-<script src="./tools.js?v=1586"></script>
-    <script src="./contacts.js?v=1586"></script>  <!-- contacts hook -->
+<script src="./wizard-pdlookup.js?v=1587"></script>
+<script src="./wizard-suggestions.js?v=1587"></script>
+<script src="./wizard-steps.js?v=1587"></script>
+<script src="./wizard.js?v=1587"></script>
+<script src="./wizard-photos.js?v=1587"></script>
+<script src="./photo-crop.js?v=1587"></script>
+<script src="./variation-picker.js?v=1587"></script>
+<script src="./wizard-pickers.js?v=1587"></script>
+<script src="./wizard-handlers.js?v=1587"></script>
+<script src="./wizard-quickentry.js?v=1587"></script>
+<script src="./wizard-save.js?v=1587"></script>
+<script src="./app-misc.js?v=1587"></script>
+<script src="./app-auth.js?v=1587"></script>
+<script src="./app-setup.js?v=1587"></script>
+<script src="./app-data.js?v=1587"></script>
+<script src="./app-pages.js?v=1587"></script>
+<script src="./app-collection.js?v=1587"></script>
+<script src="./barcode.js?v=1587"></script>
+<script src="./tutorial.js?v=1587"></script>
+<script src="./tutorial-gifs-config.js?v=1587"></script>
+<script src="./migration-config.js?v=1587"></script>
+<script src="./migration-ui.js?v=1587"></script>
+<script src="./onboarding-config.js?v=1587"></script>
+<script src="./gmail-help.js?v=1587"></script>
+<script src="./onboarding.js?v=1587"></script>
+<script src="./vault.js?v=1587"></script>
+<script src="./research.js?v=1587"></script>
+<script src="./ai-id.js?v=1587"></script>
+<script src="./era-badges-config.js?v=1587"></script>
+<script src="./era-badges.js?v=1587"></script>
+<script src="./catalog-display-config.js?v=1587"></script>
+<script src="./non-item-detail-config.js?v=1587"></script>
+<script src="./item-search-filters-config.js?v=1587"></script>
+<script src="./insurance-config.js?v=1587"></script>
+<script src="./reports.js?v=1587"></script>
+<script src="./report-export.js?v=1587"></script>
+<script src="./report-library.js?v=1587"></script>
+<script src="./prefs.js?v=1587"></script>
+<script src="./import-core.js?v=1587"></script>
+<script src="./import-ui.js?v=1587"></script>
+<script src="./appearance.js?v=1587"></script>
+<script src="./logo-cards.js?v=1587"></script>
+<script src="./look-sync.js?v=1587"></script>
+<script src="./detail-nav.js?v=1587"></script>
+<script src="./tools.js?v=1587"></script>
+    <script src="./contacts.js?v=1587"></script>  <!-- contacts hook -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>
-<script src="./share.js?v=1586"></script>
-<script src="./bulk-tag.js?v=1586"></script>  <!-- v0.9.1555: fill a column across many items. Self-contained; delete this line, the sw precache line, and bump versions to remove. -->
-<script src="./sell.js?v=1586"></script>
-<script src="./help-photo-id.js?v=1586"></script> <!-- v0.9.1181: the "How best to use these features" copy — words only, safe to edit -->
-<script src="./photo-inbox.js?v=1586"></script>  <!-- Photo Inbox (Lazy Mode Phase 1) — delete this ONE line to remove the feature -->
-<script src="./dispatch-board.js?v=1586"></script>  <!-- The Dispatch Board (announcements) — delete this ONE line to remove the feature -->
-<script src="./yardmaster.js?v=1586"></script>  <!-- The Yardmaster&#39;s Office (owner-only console) — delete this ONE line to remove the feature -->
-<script src="./help-guides.js?v=1586"></script>  <!-- Step-by-step written guides — delete this ONE line to remove the feature -->
-<script src="./error-report.js?v=1586"></script>  <!-- Report a problem — delete this ONE line to remove the feature -->
+<script src="./share.js?v=1587"></script>
+<script src="./bulk-tag.js?v=1587"></script>  <!-- v0.9.1555: fill a column across many items. Self-contained; delete this line, the sw precache line, and bump versions to remove. -->
+<script src="./sell.js?v=1587"></script>
+<script src="./help-photo-id.js?v=1587"></script> <!-- v0.9.1181: the "How best to use these features" copy — words only, safe to edit -->
+<script src="./photo-inbox.js?v=1587"></script>  <!-- Photo Inbox (Lazy Mode Phase 1) — delete this ONE line to remove the feature -->
+<script src="./dispatch-board.js?v=1587"></script>  <!-- The Dispatch Board (announcements) — delete this ONE line to remove the feature -->
+<script src="./yardmaster.js?v=1587"></script>  <!-- The Yardmaster&#39;s Office (owner-only console) — delete this ONE line to remove the feature -->
+<script src="./help-guides.js?v=1587"></script>  <!-- Step-by-step written guides — delete this ONE line to remove the feature -->
+<script src="./error-report.js?v=1587"></script>  <!-- Report a problem — delete this ONE line to remove the feature -->
 
 
 <script>
@@ -791,7 +791,7 @@ document.addEventListener('touchmove', function(){}, {passive: true});
 // The _swReloaded flag prevents reload loops.
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js?v=1586').then((reg) => {
+    navigator.serviceWorker.register('./sw.js?v=1587').then((reg) => {
       // Helper: tell an installed-but-waiting worker to take over now
       const trySkipWaiting = (worker) => {
         if (worker && worker.state === 'installed' && navigator.serviceWorker.controller) {

@@ -22,7 +22,12 @@ function ok(name, cond, detail) {
 // ── search leads ───────────────────────────────────────────────
 ok('search comes first in the row', html.indexOf('browse-search-wrap') < html.indexOf('id="hierarchy-chips"'));
 ok('...and grows into the spare space', /browse-search-wrap"[^>]*flex:1 1 240px/.test(html));
-ok('...with the placeholder INSIDE the box', /id="browse-search"[^>]*placeholder="Search item number/.test(html));
+// v0.9.1587 (Scott's iPad: "the words are cut off inside of the search
+// bar"): placeholder shortened to fit narrow widths + ellipsis so any
+// remaining clip fades instead of chopping mid-word.
+ok('...with the placeholder INSIDE the box — short enough for a phone, ellipsis for the rest',
+   /id="browse-search"[^>]*placeholder="Search item #, road, description"/.test(html)
+   && /id="browse-search"[^>]*text-overflow:ellipsis/.test(html));
 ok('...and its own clear button', /id="browse-search-clear"/.test(html) && /function _rrClearBrowseSearch/.test(js));
 ok('the clear button only shows with text in the box',
    /e\.target\.value \? 'block' : 'none'/.test(js));

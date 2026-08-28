@@ -59,4 +59,19 @@ ok('C: the internal derived flag never becomes a review row',
 
 console.log('\n' + pass + ' passed, ' + fail + ' failed');
 if (fail) { console.log('USER-FIELDS PARITY TESTS FAILING'); process.exit(1); }
+
+// ── v0.9.1587: Safari keyboard flow through the wizard ──────────
+// Scott (Safari/iPad): "you type and hit tab to next. but you get stuck
+// [at Bought From] and have to physically mouse click past it." Safari
+// keeps selects/buttons/date inputs OUT of the Tab ring without an
+// explicit tabindex.
+ok('every wizard control is opted into the Tab ring after each render',
+   /function _wizTabOrder/.test(wiz)
+   && /#wizard-modal select, #wizard-modal button, #wizard-modal input, #wizard-modal textarea/.test(wiz)
+   && /setAttribute\('tabindex', '0'\)/.test(wiz));
+ok('…on EVERY branch of the renderer (hooked at the top, deferred), not one exit path',
+   /function renderWizardStep\(\) \{\s*\n\s*\/\/ v0\.9\.1587[\s\S]{0,120}setTimeout\(_wizTabOrder, 0\)/.test(wiz));
+ok('…without stomping controls that manage their own tabindex',
+   /hasAttribute\('tabindex'\)/.test(wiz));
+
 console.log('ALL USER-FIELDS PARITY TESTS GREEN (' + pass + ')');

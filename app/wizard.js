@@ -2254,7 +2254,26 @@ window._selectTender = function(tNum) {
   }
 };
 
+// ── v0.9.1587 (Scott via Brad: "you type and hit tab to next. but you
+// get stuck here and have to physically mouse click past it") ─────────
+// Safari (Mac and iPad) EXCLUDES <select>, <button>, and date inputs
+// from the Tab ring unless they carry an explicit tabindex — text boxes
+// tab fine, then the keyboard strands at the Bought-From dropdown. Opt
+// every wizard control in after each render, so Tab walks the whole
+// step in DOM order and reaches Next. Elements that already manage
+// their own tabindex are left alone.
+function _wizTabOrder() {
+  try {
+    document.querySelectorAll('#wizard-modal select, #wizard-modal button, #wizard-modal input, #wizard-modal textarea')
+      .forEach(function (el) {
+        if (!el.hasAttribute('tabindex')) el.setAttribute('tabindex', '0');
+      });
+  } catch (e) {}
+}
+
 function renderWizardStep() {
+  // v0.9.1587: after this render settles (every branch of it), fix the ring.
+  setTimeout(_wizTabOrder, 0);
   // v0.9.1033: the step is about to be re-rendered, so hand back any field the
   // full-screen focus panel borrowed before its old home is thrown away.
   try { if (typeof _wizFieldFocusClose === 'function') _wizFieldFocusClose(); } catch (eF) {}
