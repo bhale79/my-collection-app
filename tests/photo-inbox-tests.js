@@ -21402,6 +21402,48 @@ META_WRITES.length = 0; TOASTS.length = 0;
       document.body.appendChild = _origAppend2;
     })();
 
+    // ═══════════════════════════════════════════════════════════
+    // 301. PHONE GROUP MODE SLIMS THE TOOLBAR (v0.9.1594, Brad's second
+    // screenshot: "when you select, the other buttons become too much
+    // too"). Nine controls stood between the page title and the first
+    // photo. While grouping on a phone, everything that is not part of
+    // grouping hides via ONE class + a media-gated CSS rule; the buttons'
+    // own display logic is untouched underneath, and desktop never
+    // changes. Kept on purpose: Finished, Select all, the count, and
+    // Combine → one item (which exists ONLY in group mode).
+    // ═══════════════════════════════════════════════════════════
+    section('301. Phone group mode: the toolbar steps aside');
+    await (async function () {
+      const pg301 = REG['page-photo-inbox'];
+      pg301.classList = {
+        _set: new Set(),
+        toggle(n, on) { on ? this._set.add(n) : this._set.delete(n); },
+        contains(n) { return this._set.has(n); },
+      };
+      ok('301 group mode is off to start', T.purpose !== 'group', String(T.purpose));
+      try { window._pinStartMode('group'); } catch (e) {}
+      ok('301 entering group mode arms the slim class',
+         pg301.classList.contains('pin-grp-slim'), [...pg301.classList._set].join(','));
+      try { window._pinStartMode('group'); } catch (e) {}   // toggle back off
+      ok('301 leaving group mode disarms it',
+         !pg301.classList.contains('pin-grp-slim'), [...pg301.classList._set].join(','));
+      delete pg301.classList;
+
+      // the CSS rule: media-gated, hides exactly the bystanders
+      const css301 = fs.readFileSync(require('path').join(__dirname, '..', 'app', 'app.css'), 'utf8');
+      const mAt = css301.indexOf('#page-photo-inbox.pin-grp-slim');
+      ok('301 the slim rule exists', mAt >= 0, 'no pin-grp-slim rule in app.css');
+      const rule = mAt >= 0 ? css301.slice(css301.lastIndexOf('@media', mAt), css301.indexOf('}', css301.indexOf('display: none', mAt)) + 1) : '';
+      ok('301 …media-gated to phones only', /@media \(max-width: 699px\)/.test(rule), rule.slice(0, 60));
+      const hidden = ['pin-idsel-btn','pin-discard-btn','pin-add-photos','pin-group-btn','pin-filter-row','pin-refresh-btn','pin-more-btn','pin-overflow','pin-tag-btn'];
+      ok('301 …hiding every bystander', hidden.every(id => rule.indexOf('#' + id) >= 0),
+         hidden.filter(id => rule.indexOf('#' + id) < 0).join(','));
+      ok('301 …and NOT the keepers (Finished, Select all, count, Combine)',
+         ['pin-finish-btn','pin-selall-btn','pin-selinfo','pin-assign-btn'].every(id => rule.indexOf('#' + id) < 0), '');
+      ok('301 …with !important, since the buttons carry inline display values',
+         /display: none !important/.test(rule), '');
+    })();
+
   })().then(function () {
     console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
     process.exit(fail ? 1 : 0);

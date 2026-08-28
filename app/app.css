@@ -1212,6 +1212,28 @@
   .rr-obb-x { background: none; border: none; color: var(--text-dim);
     font-size: 1rem; cursor: pointer; padding: 0.2rem 0.4rem; }
 
+  /* ── v0.9.1594: phone group mode slims the inbox toolbar ────────────────
+     While the Group-photos sheet is up on a phone, every toolbar control
+     that is not part of grouping hides, so the grid stays tappable. KEPT on
+     purpose: #pin-finish-btn (the exit), #pin-selall-btn, #pin-selinfo (the
+     count), and #pin-assign-btn — Combine → one item exists ONLY in group
+     mode, so hiding it here would remove the feature on phones entirely.
+     Desktop is untouched (media-gated); the class comes and goes in
+     _selInfo, and !important is deliberate — these buttons carry inline
+     display values written by their own show/hide logic, which this must
+     override without touching. */
+  @media (max-width: 699px) {
+    #page-photo-inbox.pin-grp-slim #pin-idsel-btn,
+    #page-photo-inbox.pin-grp-slim #pin-discard-btn,
+    #page-photo-inbox.pin-grp-slim #pin-add-photos,
+    #page-photo-inbox.pin-grp-slim #pin-group-btn,
+    #page-photo-inbox.pin-grp-slim #pin-filter-row,
+    #page-photo-inbox.pin-grp-slim #pin-refresh-btn,
+    #page-photo-inbox.pin-grp-slim #pin-more-btn,
+    #page-photo-inbox.pin-grp-slim #pin-overflow,
+    #page-photo-inbox.pin-grp-slim #pin-tag-btn { display: none !important; }
+  }
+
   /* ── The dashboard's add buttons (v0.9.1244, Brad) ──────────────────────
      "the add buttons on top need to sit above the background logo, and not be
      transparant."

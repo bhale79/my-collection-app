@@ -2193,6 +2193,17 @@
     }
     // v0.9.1057: which actions show depends on WHY you are selecting.
     var isGroup = _selPurpose === 'group', isTag = _selPurpose === 'tag';
+    // v0.9.1594 (Brad, second phone screenshot: "when you select, the other
+    // buttons become too much too"). While GROUPING on a phone the toolbar
+    // slims to what grouping needs — Finished, Select all, the count, and
+    // Combine (which exists only in group mode, so it must stay reachable).
+    // The class is the whole mechanism; app.css hides the rest behind a
+    // max-width media query, so desktop never changes and every button's
+    // own display logic is untouched underneath.
+    try {
+      var _pgSlim = document.getElementById('page-photo-inbox');
+      if (_pgSlim && _pgSlim.classList) _pgSlim.classList.toggle('pin-grp-slim', isGroup && _selectMode);
+    } catch (eSl) {}
     if (ab) ab.style.display = (isGroup && gs.length > 1) ? '' : 'none';   // combine needs 2+ items
     // v0.9.1297: the "Group as…" toolbar button is gone — the floating panel
     // IS the grouping surface, and every tick repaints it.
