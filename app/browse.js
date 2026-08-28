@@ -3801,10 +3801,30 @@ function renderBrowse() {
   // ONE resolver for "which owned item does this catalog row represent" —
   // the filter, the sorter and the row renderer all use it, so a row can
   // never pass the filter as owned and then render unowned (or vice versa).
+  // ── v0.9.1581 (Scott's field report: "search wasn't loading") ──
+  // MEASURED on Brad's desktop: 5.9s PER KEYSTROKE in all-eras browse —
+  // 141,854 findPD scans to find at most ~213 owned rows (30M+ personal-
+  // data callback hits per render). On Scott's 2015 Mac in Safari that
+  // was a frozen minute. The haystack was innocent (129ms, measured).
+  // Fix: ONE pass over personalData builds the exact-number set; any
+  // catalog row whose display number no personal row carries — and no
+  // adoption seat names — can NEVER own a pd, so it skips findPD
+  // entirely. Exactness is safe by construction: the no-bleed check
+  // below already discards every non-exact findPD return, and the
+  // adoption branch is consulted before rejecting. Post-fix: ~0.1s.
+  var _pdNumsExact = new Set();
+  Object.values(state.personalData || {}).forEach(function (p) {
+    if (p && p.itemNum) _pdNumsExact.add(p.itemNum);
+  });
   function _rrPdForRow(item) {
     if (item._copyPd) return item._copyPd;
     if (item._personalOnly) return item;
     var _dn = _displayItemNum(item);
+    if (!_pdNumsExact.has(_dn)) {
+      if (!_bvAdopt) return null;
+      if (!_bvAdopt.get(_dn)
+          && !_bvAdopt.get(_dn + '|v|' + String(item.variation == null ? '' : item.variation).trim().toUpperCase())) return null;
+    }
     var _p = findPD(_dn, item.variation);
     if (_p && _p.itemNum !== _dn) _p = null;                     // no -P/-D bleed
     if (_p && String(_p.era || '') === 'Manual') _p = null;      // v0.9.718

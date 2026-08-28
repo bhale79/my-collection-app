@@ -2891,9 +2891,15 @@ function goToWantList() {
 function onPageSearch(val, page) {
   const q = val.toLowerCase();
   if (page === 'browse') {
+    // v0.9.1581 (Scott's report): five keystrokes used to mean five full
+    // 141K-row renders back to back. The state updates INSTANTLY (anything
+    // else that renders meanwhile sees the current query); only the render
+    // waits for a 250ms typing pause, so a burst of keystrokes costs ONE
+    // pass instead of five.
     state.filters.search = q;
     state.currentPage = 1;
-    renderBrowse();
+    clearTimeout(window._rrBrowseSearchT);
+    window._rrBrowseSearchT = setTimeout(function () { renderBrowse(); }, 250);
   } else if (page === 'sold') {
     state._soldSearch = q;
     buildSoldPage();

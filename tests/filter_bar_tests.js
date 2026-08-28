@@ -78,5 +78,22 @@ ok('the personal-only copy hands gauge to the filter (v1392/v1425 disease, strik
 ok('…placed on the same copied-subset object as the date fix',
    /dateAdded:\s*pd\.dateAdded[\s\S]{0,1600}gauge:\s*pd\.gauge/.test(js));
 
+
+// ── v0.9.1581 (Session 86): Scott's "search wasn't loading" report ──
+// Measured: 5.9s PER KEYSTROKE (141,854 findPD scans to find ~213 owned
+// rows), 21s for a five-character search — a frozen minute on his Mac.
+const appjs = fs.readFileSync(path.join(__dirname, '..', 'app', 'app.js'), 'utf8');
+ok('browse search DEBOUNCES the render — a keystroke burst costs one pass',
+   /_rrBrowseSearchT/.test(appjs)
+   && /clearTimeout\(window\._rrBrowseSearchT\)/.test(appjs)
+   && /setTimeout\(function \(\) \{ renderBrowse\(\); \}, 250\)/.test(appjs));
+ok('…but the STATE updates instantly, before the timer (no stale-query window)',
+   /state\.filters\.search = q;[\s\S]{0,400}_rrBrowseSearchT/.test(appjs));
+ok('the pd lookup fast-rejects rows no personal number can own (the 5.9s root cause)',
+   /_pdNumsExact = new Set\(\)/.test(js)
+   && /if \(!_pdNumsExact\.has\(_dn\)\)/.test(js));
+ok('…and the adoption seats are consulted BEFORE rejecting (v1120/v1193 rules intact)',
+   /_pdNumsExact\.has\(_dn\)[\s\S]{0,300}_bvAdopt\.get\(_dn\)/.test(js));
+
 console.log(fail === 0 ? 'ALL FILTER-BAR TESTS GREEN (' + pass + ')' : fail + ' FAILING of ' + (pass + fail));
 process.exit(fail === 0 ? 0 : 1);
