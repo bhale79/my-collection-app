@@ -202,8 +202,49 @@
   // Quiet when there is nothing to say. A badge, not a modal: the writes that
   // failed are usually recoverable and interrupting an add to say so would be
   // its own kind of rude.
+  //
+  // v0.9.1591 (Session 87, S86 finding 2): the badge alone was too quiet for
+  // the one case that matters most — a PHONE, which reloads the app readily,
+  // stranding an offline save behind the conscience rule (correct, kept).
+  // A stranded write is one this code will NOT auto-replay: recorded in a
+  // previous session, or with rows moved since. Those used to sit behind a
+  // small pill a user could read as decoration; on boot they now get a
+  // BANNER that names the count and opens the review panel. Same-session
+  // failures stay quiet — they retry on their own and the badge covers them.
+  function _stranded() {
+    try {
+      return _load().filter(function (e) { return !rrOutboxCanAutoRetry(e); }).length;
+    } catch (e) { return 0; }
+  }
+  var _bannerDismissed = false;
+  function _paintBanner() {
+    try {
+      var n = _stranded();
+      var el = document.getElementById('rr-outbox-boot');
+      if (!n || _bannerDismissed) { if (el) el.remove(); return; }
+      if (!el) {
+        el = document.createElement('div');
+        el.id = 'rr-outbox-boot';
+        document.body.appendChild(el);
+      }
+      // sit just under the offline banner when both are up
+      try { el.style.top = document.getElementById('offline-banner') ? '2.4rem' : ''; } catch (e2) {}
+      el.innerHTML =
+        '<span class="rr-obb-t">\u26a0 ' + (n === 1 ? 'A change you made has not reached your Google Sheet.'
+                                                    : n + ' changes you made have not reached your Google Sheet.') + '</span>'
+        + '<button type="button" class="rr-obb-btn" onclick="rrOutboxShow()">Review &amp; send</button>'
+        + '<button type="button" class="rr-obb-x" onclick="rrOutboxBootDismiss()" aria-label="Dismiss">\u2715</button>';
+    } catch (e) {}
+  }
+  window.rrOutboxBootDismiss = function () {
+    _bannerDismissed = true;            // this load only — it returns next boot
+    var el = document.getElementById('rr-outbox-boot');
+    if (el) el.remove();
+  };
+
   function _paint() {
     try {
+      _paintBanner();
       var n = rrOutboxCount();
       var el = document.getElementById('rr-outbox-badge');
       if (!n) { if (el) el.remove(); return; }
@@ -281,7 +322,18 @@
     _session();
     _paint();
     try {
-      window.addEventListener('online', function () { rrOutboxRetry(); });
+      window.addEventListener('online', function () {
+        rrOutboxRetry().then(function (r) {
+          // v0.9.1591: what auto-retry may not touch must not stay silent.
+          // skipped = stranded writes (previous session / rows moved) — the
+          // user has to choose; say so the moment the connection returns.
+          if (r && r.skipped && typeof showToast === 'function') {
+            showToast('Back online \u2014 ' + r.skipped + (r.skipped === 1 ? ' earlier change' : ' earlier changes')
+              + ' still need' + (r.skipped === 1 ? 's' : '') + ' your OK to send. Tap \u201cReview & send\u201d.', 5500, true);
+          }
+          _paintBanner();
+        });
+      });
       document.addEventListener('visibilitychange', function () {
         if (!document.hidden) rrOutboxRetry();
       });

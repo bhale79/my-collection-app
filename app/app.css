@@ -1193,6 +1193,25 @@
     border: 1.5px solid var(--border); background: var(--surface2); color: var(--text); }
   .rr-ob-ok { background: var(--accent); border-color: var(--accent); color: var(--cream); }
 
+  /* ── v0.9.1591: the LOUD unsent-saves banner (Session 87) ───────────────
+     Shown on boot only for STRANDED writes — ones the conscience rule will
+     not auto-replay (previous session / rows moved). Same-session failures
+     keep the quiet badge; these need a decision, so they get a bar. */
+  #rr-outbox-boot { position: fixed; top: 0; left: 0; right: 0; z-index: 9997;
+    display: flex; align-items: center; justify-content: center; gap: 0.7rem;
+    flex-wrap: wrap; padding: 0.55rem 1rem;
+    padding-top: calc(env(safe-area-inset-top, 0px) + 0.55rem);
+    background: var(--surface); color: var(--text);
+    border-bottom: 2px solid var(--warn, var(--accent2));
+    box-shadow: 0 4px 16px var(--scrim); font-family: var(--font-body); }
+  .rr-obb-t { font-size: 0.85rem; font-weight: 700; color: var(--accent2); }
+  .rr-obb-btn { padding: 0.4rem 0.9rem; border-radius: 999px; cursor: pointer;
+    border: 1.5px solid var(--accent2); background: var(--surface2);
+    color: var(--accent2); font-family: var(--font-body); font-weight: 700;
+    font-size: 0.8rem; }
+  .rr-obb-x { background: none; border: none; color: var(--text-dim);
+    font-size: 1rem; cursor: pointer; padding: 0.2rem 0.4rem; }
+
   /* ── The dashboard's add buttons (v0.9.1244, Brad) ──────────────────────
      "the add buttons on top need to sit above the background logo, and not be
      transparant."

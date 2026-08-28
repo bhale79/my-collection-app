@@ -21277,6 +21277,82 @@ META_WRITES.length = 0; TOASTS.length = 0;
       await window.__StageDrain();
     })();
 
+    // ═══════════════════════════════════════════════════════════
+    // 299. UNSENT SAVES ARE LOUD (v0.9.1591, Session 87, S86 finding 2).
+    //
+    // The write-outbox conscience rule is CORRECT and untouched: a write
+    // recorded in a previous session is never auto-replayed — a range is a
+    // position, not an identity. But on a phone the app reloads readily, so
+    // an offline save landed behind a quiet corner pill that reads as data
+    // loss. Now: stranded writes get a BANNER on boot naming the count and
+    // opening the review panel, and the reconnect auto-retry SAYS what it
+    // had to skip. This section boots the REAL write-outbox.js twice — once
+    // as the session that failed, once as the reload after it.
+    // ═══════════════════════════════════════════════════════════
+    section('299. Unsent saves: loud banner on boot, nudge on reconnect, conscience intact');
+    await (async function () {
+      const p29 = require('path');
+      const obSrc = fs.readFileSync(p29.join(__dirname, '..', 'app', 'write-outbox.js'), 'utf8');
+      const tick = () => new Promise(r => setTimeout(r, 5));
+
+      // scoped plumbing: register body children by id, capture listeners
+      const _origAppend = document.body.appendChild.bind(document.body);
+      document.body.appendChild = (c) => { if (c && c.id) REG[c.id] = c; return _origAppend(c); };
+      const LIST299 = [];
+      global.addEventListener = (ev, fn) => { LIST299.push([ev, fn]); };
+      const seen = { update: 0, append: 0 };
+      global.sheetsUpdate = async () => { seen.update++; return {}; };
+      global.sheetsAppend = async () => { seen.append++; return {}; };
+      localStorage.removeItem('rr_write_outbox');
+      delete REG['rr-outbox-boot']; delete REG['rr-outbox-badge'];
+
+      // ── boot 1: the session in which a save fails ──
+      eval(obSrc);
+      window.rrOutboxStart();
+      ok('299 a clean boot paints nothing', !REG['rr-outbox-boot'] && !REG['rr-outbox-badge'],
+         Object.keys(REG).filter(k => /outbox/.test(k)).join(','));
+      window.rrOutboxRecord('update', { sheetId: 'S1', range: 'Collection!A5:V5', values: [['x']] }, new Error('offline'));
+      ok('299 a same-session failure gets the quiet badge…', !!REG['rr-outbox-badge']
+         && /1 change has not saved/.test(REG['rr-outbox-badge'].textContent), REG['rr-outbox-badge'] && REG['rr-outbox-badge'].textContent);
+      ok('299 …but NOT the boot banner — it retries on its own', !REG['rr-outbox-boot'], 'banner painted for a same-session entry');
+
+      // ── boot 2: the reload after it (the phone case) ──
+      delete REG['rr-outbox-badge'];
+      const preListeners = LIST299.length;
+      eval(obSrc);                       // fresh IIFE = fresh session id
+      window.rrOutboxStart();
+      const boot = REG['rr-outbox-boot'];
+      ok('299 BRAD\'S CASE: after a reload the stranded save gets a LOUD banner',
+         !!boot && /not reached your Google Sheet/.test(boot.innerHTML), boot ? boot.innerHTML.slice(0, 140) : 'no banner');
+      ok('299 …that opens the review panel', !!boot && /rrOutboxShow/.test(boot.innerHTML), '');
+      ok('299 …and can be dismissed for this load only', !!boot && /rrOutboxBootDismiss/.test(boot.innerHTML)
+         && typeof window.rrOutboxBootDismiss === 'function', '');
+      ok('299 the conscience rule STANDS: nothing was auto-replayed', seen.update === 0, seen.update + ' sheet write(s)');
+      ok('299 …and the stranded entry is formally not auto-retryable',
+         window.rrOutboxCanAutoRetry(window.rrOutboxList()[0]) === false, '');
+
+      // ── reconnect: the auto-retry says what it had to skip ──
+      TOASTS.length = 0;
+      for (const [ev, fn] of LIST299.slice(preListeners)) { if (ev === 'online') fn(); }
+      await tick(); await tick();
+      ok('299 reconnect NUDGE: the skipped stranded save is named out loud',
+         TOASTS.some(t => t.bad && /still need/.test(t.m)), JSON.stringify(TOASTS.map(t => t.m)));
+      ok('299 …and it is still in the outbox, not sent', window.rrOutboxCount() === 1 && seen.update === 0,
+         window.rrOutboxCount() + ' queued, ' + seen.update + ' sent');
+
+      // ── the user chooses: force retry sends it and the noise stands down ──
+      const r = await window.rrOutboxRetry({ force: true });
+      ok('299 the user\'s own Try-again sends it', seen.update === 1 && r.sent === 1 && window.rrOutboxCount() === 0,
+         JSON.stringify(r) + ' / ' + seen.update + ' sent');
+
+      // ── the banner has real styling, pinned ──
+      const css29 = fs.readFileSync(p29.join(__dirname, '..', 'app', 'app.css'), 'utf8');
+      ok('299 the banner is styled as a fixed top bar in the stylesheet',
+         /#rr-outbox-boot \{ position: fixed; top: 0/.test(css29), '');
+
+      document.body.appendChild = _origAppend;
+    })();
+
   })().then(function () {
     console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
     process.exit(fail ? 1 : 0);
