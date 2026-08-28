@@ -21468,6 +21468,29 @@ META_WRITES.length = 0; TOASTS.length = 0;
          /minmax\(150px,1fr\)/.test(fs.readFileSync(require('path').join(__dirname, '..', 'app', 'photo-inbox.js'), 'utf8')), '');
     })();
 
+    // ═══════════════════════════════════════════════════════════
+    // 303. THE LAST ROW SCROLLS CLEAR OF THE GROUP SHEET (v0.9.1596,
+    // Brad: "you can['t] scroll down far enough to see the last 3 pictures
+    // as they are behind the blue group photo box"). The sheet is
+    // position:fixed — outside the scroll flow — so the page never made
+    // room for it. While the slim class is up, the drop zone carries
+    // bottom padding matching the sheet's 34vh cap, so no photo can be
+    // permanently underneath it. Same class + media gate as §301/302.
+    // ═══════════════════════════════════════════════════════════
+    section('303. Phone group mode: the last row scrolls clear of the sheet');
+    (function () {
+      const css303 = fs.readFileSync(require('path').join(__dirname, '..', 'app', 'app.css'), 'utf8');
+      const at = css303.indexOf('#page-photo-inbox.pin-grp-slim #pin-drop');
+      ok('303 the clearance rule exists', at >= 0, 'no slim #pin-drop rule');
+      const rule = at >= 0 ? css303.slice(at, css303.indexOf('}', at) + 1) : '';
+      ok('303 …its padding clears the sheet\'s own 34vh cap',
+         /padding-bottom: calc\(34vh \+ [0-9.]+rem\) !important/.test(rule), rule);
+      ok('303 …and the sheet cap it mirrors is still 34vh (the two move together)',
+         /max-height:34vh/.test(fs.readFileSync(require('path').join(__dirname, '..', 'app', 'photo-inbox.js'), 'utf8')), '');
+      ok('303 …inside the same phone-only media gate',
+         /@media \(max-width: 699px\)[\s\S]*#page-photo-inbox\.pin-grp-slim #pin-drop/.test(css303), '');
+    })();
+
   })().then(function () {
     console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
     process.exit(fail ? 1 : 0);
