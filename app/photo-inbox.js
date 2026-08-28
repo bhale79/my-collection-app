@@ -922,10 +922,10 @@
   function _pinGrpPanelClose() {
     var p = document.getElementById('pin-grp-panel');
     if (p) p.remove();
-    // v0.9.1597: the sheet takes its clearance with it.
+    // v0.9.1598: the sheet takes its clearance spacer with it.
     try {
-      var _drop97c = document.getElementById('pin-drop');
-      if (_drop97c) _drop97c.style.paddingBottom = '';
+      var _sp98c = document.getElementById('pin-grp-spacer');
+      if (_sp98c) _sp98c.remove();
     } catch (ePad) {}
   }
 
@@ -968,7 +968,22 @@
           + '<span style="font-size:0.72rem;color:var(--text-dim);flex:1;min-width:0">Tap photos in the grid \u2014 they collect here.</span>'
           + '<button type="button" onclick="var h=document.getElementById(\'pin-grp-help-more\');if(h)h.style.display=h.style.display===\'none\'?\'\':\'none\'" aria-label="How grouping works" style="flex-shrink:0;width:26px;height:26px;border-radius:50%;border:1.5px solid var(--border);background:var(--surface2);color:var(--text-mid);font-weight:700;font-size:0.8rem;line-height:1;cursor:pointer;padding:0">?</button>'
           + '</div>'
-          + '<div id="pin-grp-help-more" style="display:none;font-size:0.74rem;color:var(--text-dim);line-height:1.45;margin-bottom:0.55rem">' + _grpHelpFull + '</div>'
+          + '<div id="pin-grp-help-more" style="display:none;font-size:0.74rem;color:var(--text-dim);line-height:1.45;margin-bottom:0.55rem">' + _grpHelpFull
+            // v0.9.1598 diagnostic (temporary): the phone scroll ceiling has
+            // resisted two blind fixes — these are the numbers a screenshot
+            // of this panel hands back. Remove once the case closes.
+            + '<div id="pin-grp-diag" style="margin-top:0.4rem;font-size:0.62rem;opacity:0.7">' + (function () {
+                try {
+                  var _mc = document.getElementById('main-content');
+                  var _dr = document.getElementById('pin-drop');
+                  var _gr = document.getElementById('pin-grid');
+                  return 'diag ' + APP_VERSION + ': mc=' + (_mc ? _mc.clientHeight + '/' + _mc.scrollHeight + '@' + Math.round(_mc.scrollTop) : 'x')
+                    + ' win=' + window.innerWidth + 'x' + window.innerHeight + '@' + Math.round(window.scrollY || 0)
+                    + ' doc=' + Math.round((document.documentElement || {}).scrollHeight || 0)
+                    + ' drop=' + (_dr ? _dr.offsetHeight : 'x') + ' grid=' + (_gr ? _gr.children.length : 'x');
+                } catch (eD) { return 'diag unavailable'; }
+              })() + '</div>'
+            + '</div>'
         : '<div style="font-family:var(--font-head);font-size:0.95rem;font-weight:700;margin-bottom:0.15rem">Group photos</div>'
           + '<div style="font-size:0.74rem;color:var(--text-dim);line-height:1.45;margin-bottom:0.55rem">' + _grpHelpFull + '</div>')
       + (files.length
@@ -1002,16 +1017,26 @@
       +   '<button id="pin-grp-panel-done" style="flex:1;padding:0.6rem;border-radius:8px;border:none;background:var(--accent2);color:#1a1a1a;font-weight:700;font-size:0.82rem;min-height:44px;cursor:pointer">Done</button>'
       + '</div>';
     p.innerHTML = html;
-    // v0.9.1597 (Brad: "still does it"): the v1596 clearance was a CSS
-    // constant mirroring the sheet's 34vh cap — an assumption about the
-    // device. Now the sheet MEASURES itself after every paint and writes the
-    // drop zone's clearance from its real height (inline style beats the CSS
-    // fallback, which stays for the paint-to-measure gap). Re-runs on every
-    // tick because every tick re-renders this panel.
+    // v0.9.1598 (Brad: "i can't scroll down to see the last picture", still,
+    // on a confirmed v1597): the clearance moves from PADDING (v1596 CSS
+    // constant, v1597 measured inline — neither reached his device's scroll
+    // ceiling) to a real SPACER ELEMENT after the grid, sized from the
+    // sheet's measured height + the phone nav bar. A layout element's height
+    // cannot be absorbed by any box-model or scroll-architecture quirk: if
+    // the grid scrolls at all, it now scrolls past the sheet. Re-measured on
+    // every paint (every tick re-renders this panel).
     try {
       if (narrow) {
-        var _drop97 = document.getElementById('pin-drop');
-        if (_drop97 && p.offsetHeight) _drop97.style.paddingBottom = (p.offsetHeight + 24) + 'px';
+        var _drop98 = document.getElementById('pin-drop');
+        if (_drop98) {
+          var _sp98 = document.getElementById('pin-grp-spacer');
+          if (!_sp98) {
+            _sp98 = document.createElement('div');
+            _sp98.id = 'pin-grp-spacer';
+            _drop98.appendChild(_sp98);
+          }
+          _sp98.style.cssText = 'height:' + ((p.offsetHeight || 260) + 110) + 'px;flex:0 0 auto;pointer-events:none';
+        }
       }
     } catch (ePad) {}
     try {

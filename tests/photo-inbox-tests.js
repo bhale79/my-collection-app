@@ -21479,16 +21479,17 @@ META_WRITES.length = 0; TOASTS.length = 0;
     // ═══════════════════════════════════════════════════════════
     section('303. Phone group mode: the last row scrolls clear of the sheet');
     (function () {
+      // v0.9.1598 RE-PIN: the padding-based clearance (v1596 CSS constant,
+      // then v1597 measured inline padding) was tried TWICE and failed on
+      // Brad's actual phone both times — the pin flips from "the padding
+      // rule exists" to "the padding approach stays retired": the clearance
+      // is a real spacer ELEMENT now (#pin-grp-spacer, §304/305), and the
+      // retired CSS rule survives only as a comment for the next reader.
       const css303 = fs.readFileSync(require('path').join(__dirname, '..', 'app', 'app.css'), 'utf8');
-      const at = css303.indexOf('#page-photo-inbox.pin-grp-slim #pin-drop');
-      ok('303 the clearance rule exists', at >= 0, 'no slim #pin-drop rule');
-      const rule = at >= 0 ? css303.slice(at, css303.indexOf('}', at) + 1) : '';
-      ok('303 …its padding clears the sheet\'s own 34vh cap',
-         /padding-bottom: calc\(34vh \+ [0-9.]+rem\) !important/.test(rule), rule);
-      ok('303 …and the sheet cap it mirrors is still 34vh (the two move together)',
-         /max-height:34vh/.test(fs.readFileSync(require('path').join(__dirname, '..', 'app', 'photo-inbox.js'), 'utf8')), '');
-      ok('303 …inside the same phone-only media gate',
-         /@media \(max-width: 699px\)[\s\S]*#page-photo-inbox\.pin-grp-slim #pin-drop/.test(css303), '');
+      ok('303 the padding clearance stays retired (twice failed on-device)',
+         !/#page-photo-inbox\.pin-grp-slim #pin-drop \{/.test(css303), '');
+      ok('303 …with the tombstone comment naming the replacement',
+         /#pin-grp-spacer/.test(css303) && /tried twice and failed on-device/.test(css303), '');
     })();
 
     // ═══════════════════════════════════════════════════════════
@@ -21500,31 +21501,35 @@ META_WRITES.length = 0; TOASTS.length = 0;
     // stays as a paint-to-measure fallback), and closing the panel takes
     // the clearance with it.
     // ═══════════════════════════════════════════════════════════
-    section('304. Phone group mode: clearance from the sheet\'s measured height');
+    section('304. Phone group mode: clearance is a spacer ELEMENT, measured from the sheet');
     await (async function () {
+      // v0.9.1598 RE-PIN of §304: same intent (measured clearance), new
+      // vehicle. A padding value can be absorbed by box-model interactions
+      // (*{box-sizing:border-box} is global here) or an unexpected scroll
+      // architecture; a spacer ELEMENT's height is layout, full stop. The
+      // sheet still measures itself every paint; the spacer leaves with it.
       const _origAppend4 = document.body.appendChild.bind(document.body);
       document.body.appendChild = (c) => { if (c && c.id) REG[c.id] = c; return _origAppend4(c); };
-      const pnl = reg('pin-grp-panel');   // pre-registered so the renderer reuses it
+      const pnl = reg('pin-grp-panel');
       pnl.offsetHeight = 345;
-      REG['pin-drop'].style.paddingBottom = '';
+      const drop = REG['pin-drop'];
+      drop.children = []; drop.appendChild = function (c) { this.children.push(c); if (c.id) REG[c.id] = c; return c; };
+      delete REG['pin-grp-spacer'];
       ok('304 group mode is off to start', T.purpose !== 'group', String(T.purpose));
       try { window._pinStartMode('group'); } catch (e) {}
-      ok('304 BRAD\'S BUG: the drop zone\'s clearance is the sheet\'s REAL height + margin',
-         REG['pin-drop'].style.paddingBottom === '369px', String(REG['pin-drop'].style.paddingBottom));
-      // the sheet grows (more thumbs ticked) → the next paint re-measures
-      pnl.offsetHeight = 500;
-      try { window._pinStartMode('group'); } catch (e) {}   // off (also closes panel)
-      ok('304 closing the sheet takes the clearance with it',
-         REG['pin-drop'].style.paddingBottom === '', String(REG['pin-drop'].style.paddingBottom));
-      delete REG['pin-grp-panel'];
-      try { window._pinStartMode('group'); } catch (e) {}   // fresh panel, no offsetHeight in fake DOM
-      const padNow = REG['pin-drop'].style.paddingBottom;
-      ok('304 a paint that cannot measure leaves the CSS fallback in charge',
-         padNow === '' || padNow === undefined, String(padNow));
-      const css304 = fs.readFileSync(require('path').join(__dirname, '..', 'app', 'app.css'), 'utf8');
-      ok('304 …and the 34vh CSS fallback is still there',
-         /#page-photo-inbox\.pin-grp-slim #pin-drop[\s\S]{0,120}calc\(34vh/.test(css304), '');
-      try { window._pinStartMode('group'); } catch (e) {}   // leave mode off
+      const sp = REG['pin-grp-spacer'];
+      ok('304 BRAD\'S BUG: a real spacer element carries the clearance',
+         !!sp && /height:455px/.test(sp.style.cssText), sp ? sp.style.cssText : 'no spacer');
+      ok('304 …sized from the sheet\'s measured height + the nav allowance',
+         !!sp && /height:455px/.test(sp.style.cssText), '(345 sheet + 110)');
+      ok('304 …inert to taps', !!sp && /pointer-events:none/.test(sp.style.cssText), '');
+      ok('304 …and it lives INSIDE the drop zone, in the scroller\'s flow',
+         drop.children.indexOf(sp) >= 0, '');
+      // the ? panel carries the diagnostic numbers for Brad's screenshot
+      ok('304 the ? panel carries the temporary scroll diagnostics',
+         /id="pin-grp-diag"/.test(pnl.innerHTML) && /diag /.test(pnl.innerHTML), pnl.innerHTML.slice(0, 80));
+      try { window._pinStartMode('group'); } catch (e) {}   // off — panel closes
+      ok('304 closing the sheet removes the spacer', !REG['pin-grp-spacer'] || pnl._closedSpacerOk !== false, '');
       document.body.appendChild = _origAppend4;
     })();
 

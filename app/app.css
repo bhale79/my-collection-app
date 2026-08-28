@@ -1241,14 +1241,11 @@
     #page-photo-inbox.pin-grp-slim #pin-grid {
       grid-template-columns: repeat(auto-fill, minmax(75px, 1fr)) !important;
       gap: 0.4rem !important; }
-    /* v0.9.1596 (Brad): "you can['t] scroll down far enough to see the last
-       3 pictures as they are behind the blue group photo box." The sheet is
-       position:fixed, so the page scroll never accounted for it — the last
-       grid row was permanently underneath. Padding matching the sheet's
-       34vh cap (+ a little) lets every row scroll clear. Same class, same
-       gate: it appears and disappears with the sheet itself. */
-    #page-photo-inbox.pin-grp-slim #pin-drop {
-      padding-bottom: calc(34vh + 1.2rem) !important; }
+    /* v0.9.1598: the v1596 padding clearance retired — the clearance is a
+       real spacer ELEMENT now (#pin-grp-spacer, sized in _pinGrpPanelRender
+       from the sheet's measured height), which no box-model or scroll
+       quirk can absorb. Rule kept as a comment so the next reader knows
+       the padding approach was tried twice and failed on-device. */
   }
 
   /* ── The dashboard's add buttons (v0.9.1244, Brad) ──────────────────────
