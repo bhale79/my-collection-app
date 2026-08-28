@@ -4154,7 +4154,11 @@ function renderBrowse() {
     if (search) {
       // v0.9.1506 (Session 81): imported items are searchable by the words THEY
       // wrote — their own description and grade ride the haystack when present.
-      const haystack = `${item.itemNum} ${item.roadName||''} ${item.description||''} ${item.itemType||''} ${item.category||''} ${(pd&&pd.yourDescription)||''} ${(pd&&pd.yourGrade)||''}`.toLowerCase();
+      // v0.9.1583 (Scott's report #2: "no way to search notes"): his own
+      // notes column never joined the haystack — yourDescription and
+      // yourGrade did in v1506, notes were simply missed. Owned rows only
+      // (pd is null for the other 141K), so the cost is ~nothing.
+      const haystack = `${item.itemNum} ${item.roadName||''} ${item.description||''} ${item.itemType||''} ${item.category||''} ${(pd&&pd.yourDescription)||''} ${(pd&&pd.yourGrade)||''} ${(pd&&pd.notes)||''}`.toLowerCase();
       if (!_aliasSearch(haystack, search)) return false;
     }
     return true;

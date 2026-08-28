@@ -108,5 +108,10 @@ ok('…and _aliasSearch itself no longer walks Object.keys per call',
 ok('…same word-boundary discipline: rows still test through _aliasTermHit',
    /function _aliasSearch\(haystack, query\) \{[\s\S]{0,400}_aliasTermHit\(haystack, terms\[i\]\)/.test(js));
 
+
+// ── v0.9.1583 (Session 86): Scott's report #2 — notes were unsearchable ──
+ok("the search haystack reads the owner's NOTES (not just imported testimony)",
+   /haystack = `[^`]*pd&&pd\.notes/.test(js));
+
 console.log(fail === 0 ? 'ALL FILTER-BAR TESTS GREEN (' + pass + ')' : fail + ' FAILING of ' + (pass + fail));
 process.exit(fail === 0 ? 0 : 1);
