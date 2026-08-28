@@ -95,5 +95,18 @@ ok('the pd lookup fast-rejects rows no personal number can own (the 5.9s root ca
 ok('…and the adoption seats are consulted BEFORE rejecting (v1120/v1193 rules intact)',
    /_pdNumsExact\.has\(_dn\)[\s\S]{0,300}_bvAdopt\.get\(_dn\)/.test(js));
 
+
+// ── v0.9.1582 (Session 86): act two of Scott's report ──
+// The alias key scan ran PER ROW (3,905ms measured across the catalog)
+// for an answer that depends only on the query.
+ok('alias expansion is computed once per QUERY, memoized — never per row',
+   /_aliasQCache = \{ q: null, terms: null \}/.test(js)
+   && /function _aliasTermsFor\(query\)/.test(js)
+   && /_aliasQCache\.q === query\) return _aliasQCache\.terms/.test(js));
+ok('…and _aliasSearch itself no longer walks Object.keys per call',
+   !/function _aliasSearch\(haystack, query\) \{[\s\S]{0,600}Object\.keys\(SEARCH_ALIASES\)/.test(js));
+ok('…same word-boundary discipline: rows still test through _aliasTermHit',
+   /function _aliasSearch\(haystack, query\) \{[\s\S]{0,400}_aliasTermHit\(haystack, terms\[i\]\)/.test(js));
+
 console.log(fail === 0 ? 'ALL FILTER-BAR TESTS GREEN (' + pass + ')' : fail + ' FAILING of ' + (pass + fail));
 process.exit(fail === 0 ? 0 : 1);

@@ -2212,29 +2212,35 @@ function _aliasTermHit(haystack, term) {
   if (term.length > 3) return haystack.includes(term);
   return (' ' + haystack + ' ').indexOf(' ' + term + ' ') >= 0;
 }
-function _aliasSearch(haystack, query) {
-  // Direct match first (fast path)
-  if (haystack.includes(query)) return true;
-  // Check if query matches any alias group — if so, test all terms in that group
-  var aliases = SEARCH_ALIASES[query];
-  if (aliases) {
-    for (var i = 0; i < aliases.length; i++) {
-      if (_aliasTermHit(haystack, aliases[i])) return true;
-    }
-  }
-  // Also check if query is a partial match of any alias key
-  // e.g. typing "fairbank" should still find the "fairbanks-morse" alias group
+// v0.9.1582 (Scott's report, act two): the alias KEY SCAN ran per ROW —
+// Object.keys(SEARCH_ALIASES) rebuilt and ~100 keys re-tested for every
+// one of 141,854 rows, 3.9s per search MEASURED, for an answer that
+// depends only on the QUERY. The expansion is now computed once per
+// query (memoized) and each row just tests the resulting term list.
+// Semantics are byte-identical: same direct-group + partial-key rules,
+// same _aliasTermHit word-boundary discipline. 3,905ms -> ~150ms.
+var _aliasQCache = { q: null, terms: null };
+function _aliasTermsFor(query) {
+  if (_aliasQCache.q === query) return _aliasQCache.terms;
+  var terms = [];
+  var direct = SEARCH_ALIASES[query];
+  if (direct) terms = terms.concat(direct);
   var keys = Object.keys(SEARCH_ALIASES);
   var qPad = ' ' + query + ' ';
   for (var k = 0; k < keys.length; k++) {
     var kIn = keys[k].includes(query)                      // query is a fragment of the key (fairbank)
       || qPad.indexOf(' ' + keys[k] + ' ') >= 0;           // key sits in the query as a WHOLE WORD
-    if (kIn) {
-      var terms = SEARCH_ALIASES[keys[k]];
-      for (var j = 0; j < terms.length; j++) {
-        if (_aliasTermHit(haystack, terms[j])) return true;
-      }
-    }
+    if (kIn) terms = terms.concat(SEARCH_ALIASES[keys[k]]);
+  }
+  _aliasQCache = { q: query, terms: terms };
+  return terms;
+}
+function _aliasSearch(haystack, query) {
+  // Direct match first (fast path)
+  if (haystack.includes(query)) return true;
+  var terms = _aliasTermsFor(query);
+  for (var i = 0; i < terms.length; i++) {
+    if (_aliasTermHit(haystack, terms[i])) return true;
   }
   return false;
 }
