@@ -1232,6 +1232,15 @@
     #page-photo-inbox.pin-grp-slim #pin-more-btn,
     #page-photo-inbox.pin-grp-slim #pin-overflow,
     #page-photo-inbox.pin-grp-slim #pin-tag-btn { display: none !important; }
+    /* v0.9.1595 (Brad): "the pictures when grouping are too large, can you
+       cut them in half to make selecting multiples easier?" The grid's
+       inline 150px minimum gives two fat columns on a phone; while the
+       slim class is up, half that — four-plus small tiles per row, so a
+       multi-photo group is picked without scrolling. Normal browsing keeps
+       the full-size tiles. */
+    #page-photo-inbox.pin-grp-slim #pin-grid {
+      grid-template-columns: repeat(auto-fill, minmax(75px, 1fr)) !important;
+      gap: 0.4rem !important; }
   }
 
   /* ── The dashboard's add buttons (v0.9.1244, Brad) ──────────────────────

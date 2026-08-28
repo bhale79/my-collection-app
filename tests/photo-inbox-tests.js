@@ -21444,6 +21444,30 @@ META_WRITES.length = 0; TOASTS.length = 0;
          /display: none !important/.test(rule), '');
     })();
 
+    // ═══════════════════════════════════════════════════════════
+    // 302. HALF-SIZE TILES WHILE GROUPING ON A PHONE (v0.9.1595, Brad:
+    // "the pictures when grouping are too large, can you cut them in half
+    // to make selecting multiples easier?"). The grid's inline 150px
+    // minimum = two fat columns on a phone; under the slim class it drops
+    // to 75px — four-plus per row. Same media gate, same class, so normal
+    // browsing and desktop keep full-size tiles.
+    // ═══════════════════════════════════════════════════════════
+    section('302. Phone group mode: half-size tiles for multi-select');
+    (function () {
+      const css302 = fs.readFileSync(require('path').join(__dirname, '..', 'app', 'app.css'), 'utf8');
+      const at = css302.indexOf('#page-photo-inbox.pin-grp-slim #pin-grid');
+      ok('302 the slim grid rule exists', at >= 0, 'no slim #pin-grid rule');
+      const rule = at >= 0 ? css302.slice(at, css302.indexOf('}', at) + 1) : '';
+      ok('302 …tiles are HALF the inline 150px minimum',
+         /minmax\(75px, 1fr\)/.test(rule), rule);
+      ok('302 …with !important over the grid\'s inline style',
+         /repeat\(auto-fill, minmax\(75px, 1fr\)\) !important/.test(rule), '');
+      ok('302 …inside the same phone-only media gate as the slim toolbar',
+         /@media \(max-width: 699px\)[\s\S]*#page-photo-inbox\.pin-grp-slim #pin-grid/.test(css302), '');
+      ok('302 the grid\'s own inline minimum is untouched (normal browsing keeps big tiles)',
+         /minmax\(150px,1fr\)/.test(fs.readFileSync(require('path').join(__dirname, '..', 'app', 'photo-inbox.js'), 'utf8')), '');
+    })();
+
   })().then(function () {
     console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
     process.exit(fail ? 1 : 0);
