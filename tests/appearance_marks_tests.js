@@ -229,6 +229,37 @@ const PNG = 'data:image/png;base64,x';
      !/_rrapSlotSize[\s\S]{0,400}#[0-9a-fA-F]{3}\b/.test(app));
 }
 
+
+// ── v0.9.1586: hand-picked roles survive a background change ─────
+// Brad: "you can select headers and change them but when you select
+// background it changes the headers as well." _rrApplyRole('--bg')
+// derives --surface/--surface2/--border — correct as a DEFAULT, wrong
+// as an overwrite of a role the user picked this session.
+{
+  const t = boot();
+  // a recording stage so we can see what _set actually painted
+  const vars = {};
+  const stage = fakeNode('div'); stage.id = 'rrap-stage';
+  stage.style = { setProperty: (k, v) => { vars[k] = v; }, removeProperty: (k) => { delete vars[k]; } };
+  t.byId['rrap-stage'] = stage;
+  t.win._rrapRoleColor('--surface', '#123456');
+  t.win._rrapRoleColor('--bg', '#0a0a14');
+  ok('a hand-picked Panels & header colour SURVIVES choosing a background after it',
+     vars['--surface'] === '#123456', vars['--surface']);
+  ok('…while the untouched shades still derive from the new background',
+     !!vars['--surface2'] && !!vars['--border'] && vars['--bg'] === '#0a0a14');
+}
+{
+  const t = boot();
+  const vars = {};
+  const stage = fakeNode('div'); stage.id = 'rrap-stage';
+  stage.style = { setProperty: (k, v) => { vars[k] = v; }, removeProperty: (k) => { delete vars[k]; } };
+  t.byId['rrap-stage'] = stage;
+  t.win._rrapRoleColor('--bg', '#0a0a14');
+  ok('with NOTHING hand-picked, the background still derives the panel shade (the old default)',
+     !!vars['--surface'] && vars['--surface'] !== '#0a0a14');
+}
+
 console.log('\n' + pass + ' passed, ' + fail + ' failed');
 if (fail) { console.log('APPEARANCE-MARKS TESTS FAILING'); process.exit(1); }
 console.log('ALL APPEARANCE-MARKS TESTS GREEN (' + pass + ')');

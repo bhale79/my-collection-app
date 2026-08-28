@@ -189,6 +189,10 @@
 
   var _root = document.documentElement;
   var _live = {};        // the CANDIDATE skin — not on :root until Preview
+  // v0.9.1586 (Brad: "you can select headers and change them but when you
+  // select background it changes the headers as well"): the roles the user
+  // picked BY HAND this session. Background derivation fills only the rest.
+  var _explicitRoles = {};
   var _saved = false;
   var _scale = 1;        // stage fit-to-window factor
   var _swatches = [];    // colours pulled from the logo
@@ -504,7 +508,7 @@
     var old = document.getElementById('rrap'); if (old) old.remove();
     // A draft left behind by a tab that closed mid-edit is not a candidate,
     // it is litter. Every session starts from what is actually saved.
-    _live = {}; _saved = false; _armed = -1; _preview = false; _scale = 1; _activePreset = '';
+    _live = {}; _explicitRoles = {}; _saved = false; _armed = -1; _preview = false; _scale = 1; _activePreset = '';
     _dropDraft();
     _swatches = _savedSwatches();
 
@@ -569,6 +573,7 @@
         _loadingPreset = true;
         Object.keys(map).forEach(function (k) { _set(k, map[k]); });
         _loadingPreset = false;
+        _explicitRoles = {};   // v1586: a preset is a fresh baseline, not a hand-pick
         _activePreset = pill.dataset.preset;
         _refreshPanel();
         _refreshPresets();
@@ -1547,9 +1552,17 @@
   };
 
   function _rrApplyRole(v, hex) {
+    _explicitRoles[v] = 1;
     if (v === '--bg') {
       var d = _rrDeriveFromBg(hex);
-      Object.keys(d).forEach(function (k) { _set(k, d[k]); });
+      Object.keys(d).forEach(function (k) {
+        // v0.9.1586: deriving panel/header shades from the background is
+        // the DEFAULT for roles the user never touched — never an
+        // overwrite of one they hand-picked this session (Brad's repro:
+        // set Panels & header, then set Background — header got stomped).
+        if (k !== v && _explicitRoles[k]) return;
+        _set(k, d[k]);
+      });
     } else {
       _set(v, hex);
     }
@@ -2012,7 +2025,7 @@
       if (st) st.style.removeProperty(v);
       if (_preview) _root.style.removeProperty(v);
     });
-    _live = {};
+    _live = {}; _explicitRoles = {};
     var def = _defaultPalette();
     // `true` because every one is being set explicitly — deriving the text
     // shades here would overwrite the defaults we just read for them.
