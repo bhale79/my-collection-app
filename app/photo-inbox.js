@@ -947,11 +947,25 @@
     // right-hand card would sit on top of the grid being picked from.
     var narrow = (window.innerWidth || 0) < 700;
     p.style.cssText = narrow
-      ? 'position:fixed;left:0;right:0;bottom:0;z-index:10040;background:var(--surface);border-top:2px solid var(--accent2);box-shadow:0 -4px 18px var(--scrim);padding:0.7rem 0.8rem;max-height:45vh;overflow-y:auto'
+      ? 'position:fixed;left:0;right:0;bottom:0;z-index:10040;background:var(--surface);border-top:2px solid var(--accent2);box-shadow:0 -4px 18px var(--scrim);padding:0.7rem 0.8rem;max-height:34vh;overflow-y:auto'
       : 'position:fixed;top:70px;right:16px;width:300px;z-index:10040;background:var(--surface);border:1.5px solid var(--accent2);border-radius:12px;box-shadow:0 6px 22px var(--scrim);padding:0.75rem 0.85rem;max-height:72vh;overflow-y:auto';
+    // v0.9.1593 (Brad, phone screenshot): the seven-line explainer plus a
+    // 45vh sheet left ZERO visible grid on a phone — "when grouping items on
+    // your phone you cant see anything to be able to pick photos". On narrow
+    // screens the sheet is capped at 34vh and the full explainer collapses
+    // behind a ? toggle (one hint line stays). The TEXT itself is unchanged
+    // and still rendered (display:none) — §282's promises stay pinned to it.
+    var _grpHelpFull = 'Tap photos in the grid — they collect here. An AA, AB or ABA saves as separate items that stay linked. A set shot of everything together becomes the group\'s cover picture, and is never read for a number \u2014 it has several.' + ' In a train set, a photo showing a PAIR (engine + tender, AA, AB, ABA) files with the set\'s engine instead of becoming its own item. A paper or other collectible stays one item however many shots. Tap a thumbnail to see it full size.';
     var html =
-      '<div style="font-family:var(--font-head);font-size:0.95rem;font-weight:700;margin-bottom:0.15rem">Group photos</div>'
-      + '<div style="font-size:0.74rem;color:var(--text-dim);line-height:1.45;margin-bottom:0.55rem">Tap photos in the grid — they collect here. An AA, AB or ABA saves as separate items that stay linked. A set shot of everything together becomes the group\'s cover picture, and is never read for a number \u2014 it has several.' + ' In a train set, a photo showing a PAIR (engine + tender, AA, AB, ABA) files with the set\'s engine instead of becoming its own item. A paper or other collectible stays one item however many shots. Tap a thumbnail to see it full size.</div>'
+      (narrow
+        ? '<div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.3rem">'
+          + '<span style="font-family:var(--font-head);font-size:0.95rem;font-weight:700">Group photos</span>'
+          + '<span style="font-size:0.72rem;color:var(--text-dim);flex:1;min-width:0">Tap photos in the grid \u2014 they collect here.</span>'
+          + '<button type="button" onclick="var h=document.getElementById(\'pin-grp-help-more\');if(h)h.style.display=h.style.display===\'none\'?\'\':\'none\'" aria-label="How grouping works" style="flex-shrink:0;width:26px;height:26px;border-radius:50%;border:1.5px solid var(--border);background:var(--surface2);color:var(--text-mid);font-weight:700;font-size:0.8rem;line-height:1;cursor:pointer;padding:0">?</button>'
+          + '</div>'
+          + '<div id="pin-grp-help-more" style="display:none;font-size:0.74rem;color:var(--text-dim);line-height:1.45;margin-bottom:0.55rem">' + _grpHelpFull + '</div>'
+        : '<div style="font-family:var(--font-head);font-size:0.95rem;font-weight:700;margin-bottom:0.15rem">Group photos</div>'
+          + '<div style="font-size:0.74rem;color:var(--text-dim);line-height:1.45;margin-bottom:0.55rem">' + _grpHelpFull + '</div>')
       + (files.length
           ? '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(52px,1fr));gap:0.35rem;margin-bottom:0.6rem">'
             + files.map(function (f, i) {
@@ -1968,6 +1982,14 @@
     // v0.9.1297: group mode opens the floating panel immediately (empty, so
     // its blurb explains the flow); any other mode closes it.
     try { if (purpose === 'group') _pinGrpPanelRender(); else _pinGrpPanelClose(); } catch (eGP) {}
+    // v0.9.1593: on a phone the toolbar above + the sheet below left no grid
+    // in view — scroll the photos to the top so what remains is tappable.
+    try {
+      if (purpose === 'group' && (window.innerWidth || 0) < 700) {
+        var _gd = document.getElementById('pin-drop');
+        if (_gd && _gd.scrollIntoView) _gd.scrollIntoView({ block: 'start', behavior: 'smooth' });
+      }
+    } catch (eSV) {}
   };
 
   function _pinCloseMode() {

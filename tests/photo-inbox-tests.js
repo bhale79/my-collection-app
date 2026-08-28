@@ -21353,6 +21353,55 @@ META_WRITES.length = 0; TOASTS.length = 0;
       document.body.appendChild = _origAppend;
     })();
 
+    // ═══════════════════════════════════════════════════════════
+    // 300. PHONE GROUP MODE CAN SEE THE GRID (v0.9.1593, Brad's screenshot:
+    // "when grouping items on your phone you cant see anything to be able
+    // to pick photos"). The bottom sheet was 45vh with a seven-line
+    // explainer always rendered — plus the toolbar above, the grid had zero
+    // visible pixels. Now, on narrow screens: the sheet caps at 34vh, the
+    // full explainer collapses behind a ? toggle (one hint line stays, and
+    // the FULL text is still in the DOM display:none so §282's promises
+    // hold), and entering group mode scrolls the grid to the top. The
+    // harness has no innerWidth, which reads as narrow — exactly the
+    // variant under test.
+    // ═══════════════════════════════════════════════════════════
+    section('300. Phone group mode: the sheet leaves room to actually pick photos');
+    await (async function () {
+      const _origAppend2 = document.body.appendChild.bind(document.body);
+      document.body.appendChild = (c) => { if (c && c.id) REG[c.id] = c; return _origAppend2(c); };
+      const SCROLLS = [];
+      REG['pin-drop'].scrollIntoView = (o) => { SCROLLS.push(o || {}); };
+      delete REG['pin-grp-panel'];
+
+      ok('300 group mode is not already active', T.purpose !== 'group', String(T.purpose));
+      T.sel = {};
+      try { window._pinStartMode('group'); } catch (e) {}
+      const panel = REG['pin-grp-panel'];
+      ok('300 the group sheet rendered', !!panel, 'no pin-grp-panel');
+      ok('300 BRAD\'S BUG: the phone sheet is capped at 34vh, not 45vh',
+         !!panel && /max-height:34vh/.test(panel.style.cssText) && !/max-height:45vh/.test(panel.style.cssText),
+         panel ? panel.style.cssText.slice(-60) : '');
+      ok('300 the seven-line explainer is collapsed behind a ? toggle',
+         !!panel && /id="pin-grp-help-more" style="display:none/.test(panel.innerHTML)
+                 && /aria-label="How grouping works"/.test(panel.innerHTML), '');
+      ok('300 …one hint line stays visible', !!panel && /Tap photos in the grid/.test(panel.innerHTML), '');
+      ok('300 …and the FULL text is still in the DOM (§282 promises hold)',
+         !!panel && /set shot of everything together/.test(panel.innerHTML)
+                 && /Tap a thumbnail to see it full size/.test(panel.innerHTML), '');
+      ok('300 entering group mode scrolls the grid into view',
+         SCROLLS.length === 1 && SCROLLS[0].block === 'start', JSON.stringify(SCROLLS));
+
+      // desktop keeps the always-visible explainer — pinned in the source
+      const pi300 = fs.readFileSync(require('path').join(__dirname, '..', 'app', 'photo-inbox.js'), 'utf8');
+      const seg300 = pi300.slice(pi300.indexOf('function _pinGrpPanelRender'), pi300.indexOf('window._pinConfirmUngroup'));
+      ok('300 desktop still shows the full explainer without a toggle',
+         /: '<div style="font-family:var\(--font-head\);font-size:0\.95rem;font-weight:700;margin-bottom:0\.15rem">Group photos<\/div>'\s*\+ '<div style="font-size:0\.74rem;[^"]*">' \+ _grpHelpFull/.test(seg300), '');
+
+      // leave the mode as we found it
+      try { window._pinStartMode('group'); } catch (e) {}   // toggles back off
+      document.body.appendChild = _origAppend2;
+    })();
+
   })().then(function () {
     console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
     process.exit(fail ? 1 : 0);
