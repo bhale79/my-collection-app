@@ -46,7 +46,18 @@
     'lv_skin_custom',      // the eleven colours plus the derived shades
     'rr_skin_presets',     // saved looks
     'rr_skin_brand',       // watermark, sidebar and header marks + the line
-    'rr_logo_cards'        // the dashboard card library
+    'rr_logo_cards',       // the dashboard card library
+    // ── v0.9.1585: the COLLECTION SETUP travels too (Brad: custom columns
+    // from an import were invisible everywhere but the importing device —
+    // their names and enables lived only in that browser's storage). Same
+    // file, same newest-stamp-wins rules; the name "look" is now history.
+    'lv_label_custom1', 'lv_label_custom2', 'lv_label_custom3',
+    'lv_label_custom4', 'lv_label_custom5',
+    'lv_custom1_enabled', 'lv_custom2_enabled', 'lv_custom3_enabled',
+    'lv_custom4_enabled', 'lv_custom5_enabled',
+    'lv_locdetail_enabled', 'lv_shipper_enabled', 'lv_subcoll_enabled',
+    'lv_coll_columns_v1',      // the chosen column layout
+    'lv_coll_columns_seen_v1'  // which auto-offers were already made
   ];
 
   function _get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }

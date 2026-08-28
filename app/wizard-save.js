@@ -2081,7 +2081,19 @@ async function saveWizardItem() {
     }
 
     // ── Save instruction sheet if user said they have one ──
-    if (d.hasIS === 'Yes' && tab === 'collection') {
+    // v0.9.1585: IDEMPOTENT. On an edit of an item that already owns its
+    // {itemNum}-IS row (derived Yes, or the user re-answered Yes), saving
+    // must not mint a TWIN -IS row. The guard checks the live data, not
+    // just the wizard flag, so even a fresh add that raced a previous
+    // save cannot double up.
+    var _isAlready = false;
+    try {
+      var _wantIS2 = itemNum + '-IS';
+      _isAlready = Object.values(state.personalData || {}).some(function (p) {
+        return p && p.owned && String(p.itemNum || '').trim() === _wantIS2;
+      });
+    } catch (e) {}
+    if (d.hasIS === 'Yes' && tab === 'collection' && !_isAlready) {
       try {
         const isSheetNum = (d.is_sheetNum || '').trim() || itemNum + '-IS';
         const isPhotoObj = d.photosIS || {};

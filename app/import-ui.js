@@ -563,6 +563,7 @@ function _impStepMapping() {
             try {
               var _auto = String(h).trim();
               localStorage.setItem('lv_label_' + cur, _auto.charAt(0).toUpperCase() + _auto.slice(1));
+              if (typeof rrLookTouch === 'function') rrLookTouch(); // v1585: setup travels
               var _d = (window.RR_USER_FIELDS || []).filter(function (x) { return x.key === cur; })[0];
               if (_d) localStorage.setItem(_d.pref, 'true');
             } catch (eA) {}
@@ -611,6 +612,7 @@ function _impRenameCustom(key, val) {
   if (!v) return;
   try {
     localStorage.setItem('lv_label_' + key, v);
+    if (typeof rrLookTouch === 'function') rrLookTouch(); // v1585: setup travels
     var def = (window.RR_USER_FIELDS || []).filter(function (x) { return x.key === key; })[0];
     if (def) localStorage.setItem(def.pref, 'true');
   } catch (e) {}
@@ -719,6 +721,7 @@ function _impSetMap(gi, headerNorm, field, sel) {
     var nice = raw.charAt(0).toUpperCase() + raw.slice(1);
     try {
       localStorage.setItem('lv_label_' + slot, nice);
+              if (typeof rrLookTouch === 'function') rrLookTouch(); // v1585: setup travels
       var def = (window.RR_USER_FIELDS || []).filter(function (x) { return x.key === slot; })[0];
       if (def) localStorage.setItem(def.pref, 'true');
     } catch (e) {}
@@ -2482,6 +2485,7 @@ async function _impWrite() {
         if (f.custom && !localStorage.getItem('lv_label_' + f.key)) {
           var h = String(_usedKeys[f.key] || '').trim();
           if (h) localStorage.setItem('lv_label_' + f.key, h.charAt(0).toUpperCase() + h.slice(1));
+          if (typeof rrLookTouch === 'function') rrLookTouch(); // v1585: setup travels
         }
       });
     } catch (eEnable) {}

@@ -5669,6 +5669,24 @@ function renderWizardStep() {
         }
         if (!wizard.data._setMode && !_cdHideToggles && !wizard.data[errKey]) wizard.data[errKey] = _defIsError;
       });
+      // ── v0.9.1585 (Brad: "you say yes and it doesn't show yes when
+      // saved") — an EXISTING -IS row answers before any preference does.
+      // Saving Yes creates a grouped {itemNum}-IS row (S154) but never
+      // stored the answer on the item, so every revisit re-defaulted to
+      // the lv_def_hasIS preference ('No') and the screen lied.
+      if (!_cdHideToggles && !wizard.data.hasIS) {
+        try {
+          var _wantIS = String(wizard.data.itemNum || '').trim() + '-IS';
+          var _isRow = Object.values(state.personalData || {}).filter(function (p) {
+            return p && p.owned && String(p.itemNum || '').trim() === _wantIS;
+          })[0];
+          if (_isRow) {
+            wizard.data.hasIS = 'Yes';
+            wizard.data._hasISExisting = true;   // save-side: do not create a twin
+            if (!wizard.data.is_condition && _isRow.condition) wizard.data.is_condition = _isRow.condition;
+          }
+        } catch (e) {}
+      }
       if (!_cdHideToggles && !wizard.data.hasIS) wizard.data.hasIS = _defHasIS;
       if (!_cdHideToggles && !wizard.data._setMode && !wizard.data.hasMasterBox) wizard.data.hasMasterBox = _defMasterBox;
     }
@@ -6354,9 +6372,18 @@ function renderWizardStep() {
       salePrice:'Sale Price', dateSold:'Date Sold',
       set_num:'Set Number',
     };
+    // v0.9.1585 (Brad: "instruction sheets is not on the final review page
+    // before you see an item"): a collection item whose flow never visited
+    // the details step answers the IS question HERE — No, unless a real
+    // -IS row or a Yes already said otherwise. Display + honesty only;
+    // saving 'No' changes nothing.
+    if (wizard.tab === 'collection' && !_isEph && !wizard.data.boxOnly
+        && !wizard.data._photoOnly && !wizard.data._setMode && !wizard.data.hasIS) {
+      wizard.data.hasIS = 'No';
+    }
     const _skipKeys = new Set(['tab','itemCategory','_photoOnly','_tenderDone','_setDone','tenderMatch','setMatch','setType','unitPower','wantErrorPhotos','photosMasterBox','boxOnly','entryMode','_setId','_rawItemNum','matchedItem','_partialMatches','_partialQuery','_itemGrouping','_fromWantList','_fromWantKey','_returnPage','_manualEntry','_drivePhotos','_setMode','_setGroupId','_setFinalItems','_setItemIndex','_setItemsSaved','_setEntryMode','_resolvedSet','_setLocoNum','_setPrice','_setDate','_setWorth','_setCondition','_setHasBoxChecked','_setWantPhotos','_setPhotoThenSave','_prefilledCondition','_setQEPhotos','_setMemberPhotos','set_hasBox','set_boxCond','set_boxPhotos','set_notes','_suggestions_cache','_biBoxPhotoFile','_idItemPhotoFile','_boxAutoKnown','_completingQuickEntry','_existingGroupId','_fillItemMode','_wizSaveLock','_photoInventoryId','_addPhotoDriveId','_addPhotoDriveIds','_saveComplete','_era','suggestedRoadName','_manualEra','_alsoListForSale','_fromUpgradeList','_fromUpgradeKey','_cleanupWishlistMatches','_suggestedPricePaid','forSale_salePrice','forSale_dateListed','selectedForSaleKey','selectedSoldKey',
       '_photoUploadsInFlight','_identifyMeta','_identifyMfrHints','_identifyScaleHint','_identifyTypeHint','_alreadyOwnedFyi',
-      '_skipAllPhotos']);  // v0.9.906 (Brad, item [6]): internal photo-skip flag — never a review row
+      '_skipAllPhotos','_hasISExisting']);  // v0.9.906 + v1585: internal flags — never review rows
     // Skip set_num from summary if it's already shown in the header
     if (wizard.data._resolvedSet || wizard.data.set_num) _skipKeys.add('set_num');
     // Skip notes from summary for tabs that have inline notes on confirm step

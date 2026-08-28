@@ -931,6 +931,7 @@ function _ufRename(key, val) {
   var v = String(val || '').trim();
   try {
     if (v) { localStorage.setItem('lv_label_' + key, v); localStorage.setItem(f.pref, 'true'); }
+    if (typeof rrLookTouch === 'function') rrLookTouch();   // v1585: setup travels
     else localStorage.removeItem('lv_label_' + key);
   } catch (e) {}
   var cb = document.getElementById('uf-on-' + key);

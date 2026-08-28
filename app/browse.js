@@ -237,6 +237,36 @@ function _collColLabel(id) {
 }
 // The columns actually rendered, in order. Default = today's layout, so a
 // user who never opens the picker sees exactly what they saw before.
+// ── v0.9.1585 (Brad: "you have to hit edit on the my collection page
+// before you can see them. these should automatically show") ─────────
+// The era-prefs roster pattern: a user field that BECOMES enabled (an
+// import claimed it, or the user switched it on) joins the visible
+// columns AUTOMATICALLY — once. The seen-roster remembers we offered
+// it, so hiding it in the picker afterwards is respected forever.
+var _COLL_COLS_SEEN = 'lv_coll_columns_seen_v1';
+function _collAutoNewCols(current) {
+  var out = current.slice();
+  try {
+    var seen = [];
+    try { seen = JSON.parse(localStorage.getItem(_COLL_COLS_SEEN) || '[]') || []; } catch (e) {}
+    if (!Array.isArray(seen)) seen = [];
+    var fresh = [];
+    (typeof rrEnabledUserFields === 'function' ? rrEnabledUserFields() : []).forEach(function (f) {
+      var col = _COLL_EXTRA_COLS.filter(function (c) { return c.pdKey === f.key; })[0];
+      if (!col) return;
+      if (seen.indexOf(col.col) >= 0) return;
+      fresh.push(col.col);
+      if (out.indexOf(col.col) < 0) out.push(col.col);
+    });
+    if (fresh.length) {
+      localStorage.setItem(_COLL_COLS_SEEN, JSON.stringify(seen.concat(fresh)));
+      // if the user had a saved layout, persist the auto-added columns into it
+      var raw2 = localStorage.getItem(_COLL_COLS_PREF);
+      if (raw2) _collSaveCols(out.filter(function (id) { return _COLL_LOCKED.indexOf(id) < 0; }));
+    }
+  } catch (e) {}
+  return out;
+}
 function _collVisibleCols() {
   var def = _COLL_COLS.map(function (c) { return c.col; });
   var chosen = null;
@@ -244,17 +274,18 @@ function _collVisibleCols() {
     var raw = localStorage.getItem(_COLL_COLS_PREF);
     if (raw) chosen = JSON.parse(raw);
   } catch (e) {}
-  if (!Array.isArray(chosen) || !chosen.length) return def;
+  if (!Array.isArray(chosen) || !chosen.length) return _collAutoNewCols(def);
   var known = {};
   _collAllCols().forEach(function (c) { known[c.col] = 1; });
   var out = _COLL_LOCKED.slice();
   chosen.forEach(function (id) {
     if (known[id] && _COLL_LOCKED.indexOf(id) < 0 && out.indexOf(id) < 0) out.push(id);
   });
-  return out;
+  return _collAutoNewCols(out);
 }
 function _collSaveCols(list) {
   try { localStorage.setItem(_COLL_COLS_PREF, JSON.stringify(list)); } catch (e) {}
+  if (typeof rrLookTouch === 'function') rrLookTouch();   // v1585: the layout travels
 }
 // ── Column picker modal (v0.9.1517, Task #34) ───────────────────────────
 // Drag to reorder, tick to show. Mfr and Item # are pinned and cannot be
