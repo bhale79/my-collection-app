@@ -10364,8 +10364,12 @@ META_WRITES.length = 0; TOASTS.length = 0;
       ok('a failed ' + k + ' is recorded',
          sh.indexOf("_rrWriteFailed('" + k + "'") > 0);
     });
+    // v0.9.1599 RE-PIN: 4 → 6. The two extras are the OFFLINE-BOOT paths in
+    // sheetsUpdate/sheetsAppend — the v826 view-only refusal became a record-
+    // then-throw through the same chokepoint, so an offline boot's write is
+    // kept instead of refused. Same contract: recorded, rethrown unchanged.
     ok('…and the original error is rethrown, so no caller behaves differently',
-       (sh.match(/throw _rrWriteFailed\(/g) || []).length === 4 &&
+       (sh.match(/throw _rrWriteFailed\(/g) || []).length === 6 &&
        /return err;/.test(sh));
     ok('a blocked write is not a failed one — the trial gate is not queued',
        /if \(why === 'readonly'\) return null;/.test(ob));
@@ -21531,6 +21535,52 @@ META_WRITES.length = 0; TOASTS.length = 0;
       try { window._pinStartMode('group'); } catch (e) {}   // off — panel closes
       ok('304 closing the sheet removes the spacer', !REG['pin-grp-spacer'] || pnl._closedSpacerOk !== false, '');
       document.body.appendChild = _origAppend4;
+    })();
+
+    // ═══════════════════════════════════════════════════════════
+    // 305. THE APPEND DRAIN (v0.9.1599, show mode). New rows recorded
+    // offline auto-send after the sheet is re-read — an append has no
+    // position to get wrong. The conscience rule STANDS for everything
+    // else, and the drain runs only through the app's row-exists guard:
+    // a row that already landed (request died after reaching Google, the
+    // train-show special) is dropped, not sent twice.
+    // ═══════════════════════════════════════════════════════════
+    section('305. Offline-added rows drain themselves — once, and only once');
+    await (async function () {
+      const p30 = require('path');
+      const obSrc = fs.readFileSync(p30.join(__dirname, '..', 'app', 'write-outbox.js'), 'utf8');
+      const seen = { appends: [], updates: 0 };
+      global.sheetsAppend = async (id, range, values) => { seen.appends.push(values[0][0]); return {}; };
+      global.sheetsUpdate = async () => { seen.updates++; return {}; };
+      global.addEventListener = () => {};
+      localStorage.setItem('rr_write_outbox', JSON.stringify([
+        { id: 'a1', kind: 'append', args: { sheetId: 'S', range: 'Collection!A:A', values: [['ROW-NEW']] }, why: 'offline', at: 1, session: 'OLD.x', movedAt: 0, tries: 1 },
+        { id: 'a2', kind: 'append', args: { sheetId: 'S', range: 'Collection!A:A', values: [['ROW-DUP']] }, why: 'offline', at: 2, session: 'OLD.x', movedAt: 0, tries: 1 },
+        { id: 'u1', kind: 'update', args: { sheetId: 'S', range: 'Collection!A9:V9', values: [['EDIT']] }, why: 'offline', at: 3, session: 'OLD.x', movedAt: 0, tries: 1 },
+        { id: 'd1', kind: 'delete', args: { sheetId: 'S', sheetName: 'Collection', rowNumber: 4 }, why: 'offline', at: 4, session: 'OLD.x', movedAt: 0, tries: 1 },
+      ]));
+      eval(obSrc);
+      ok('305 the drain exists', typeof window.rrOutboxDrainAppends === 'function', '');
+      const r = await window.rrOutboxDrainAppends(e => e.args.values[0][0] === 'ROW-DUP');
+      ok('305 BRAD\'S SHOW CASE: the new row went up on its own',
+         seen.appends.length === 1 && seen.appends[0] === 'ROW-NEW', JSON.stringify(seen.appends));
+      ok('305 …the row that already landed was dropped, not doubled',
+         r.dropped === 1 && seen.appends.indexOf('ROW-DUP') < 0, JSON.stringify(r));
+      const left = window.rrOutboxList();
+      ok('305 the EDIT still waits for Review & send — the conscience rule stands',
+         left.some(e => e.kind === 'update') && seen.updates === 0, JSON.stringify(left.map(e => e.kind)));
+      ok('305 …and the delete was not touched, as ever',
+         left.some(e => e.kind === 'delete'), '');
+      ok('305 a failed drain keeps the row for the next reconnect', await (async () => {
+        localStorage.setItem('rr_write_outbox', JSON.stringify([
+          { id: 'a3', kind: 'append', args: { sheetId: 'S', range: 'Collection!A:A', values: [['ROW-RETRY']] }, why: 'offline', at: 5, session: 'OLD.y', movedAt: 0, tries: 0 },
+        ]));
+        global.sheetsAppend = async () => { throw new Error('Failed to fetch'); };
+        const r2 = await window.rrOutboxDrainAppends(() => false);
+        const l2 = window.rrOutboxList();
+        return r2.kept === 1 && l2.length === 1 && l2[0].tries === 1;
+      })(), '');
+      localStorage.removeItem('rr_write_outbox');
     })();
 
   })().then(function () {

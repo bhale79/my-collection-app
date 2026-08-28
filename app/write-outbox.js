@@ -198,6 +198,50 @@
     } finally { _retrying = false; }
   }
 
+  // ── v0.9.1599: the APPEND drain — new rows go up on their own ────────
+  //
+  // The conscience rule stands untouched for updates and deletes: a RANGE
+  // is a position, and positions move. But an APPEND has no position — the
+  // sheet's :append endpoint finds the end server-side — so a new row
+  // recorded offline cannot land on the wrong item, ever. What it CAN do,
+  // on a train-show network that dies after the request reached Google, is
+  // land TWICE. That is what existsFn is for: the app passes a checker that
+  // answers "is this row already in the freshly loaded sheet data?" (by
+  // inventoryId for collection rows). A duplicate is dropped, everything
+  // else replays, failures stay queued for the next drain. Called by the
+  // app AFTER data load — never blind, never before the sheet was read.
+  async function rrOutboxDrainAppends(existsFn) {
+    if (_retrying) return { ok: false, why: 'busy' };
+    _retrying = true;
+    var sent = 0, dropped = 0, kept = 0;
+    try {
+      var list = _load();
+      var still = [];
+      for (var i = 0; i < list.length; i++) {
+        var e = list[i];
+        if (e.kind !== 'append') { still.push(e); continue; }
+        var dup = false;
+        try { dup = !!(existsFn && existsFn(e)); } catch (eEx) {}
+        if (dup) { dropped++; continue; }        // already in the sheet — done
+        try {
+          await _replay(e);
+          sent++;
+        } catch (err) {
+          e.tries = (e.tries || 0) + 1;
+          e.why = String((err && err.message) || err || '');
+          still.push(e); kept++;
+        }
+      }
+      _save(still);
+      _paint();
+      if (sent && typeof showToast === 'function') {
+        showToast(sent + (sent === 1 ? ' item added offline has' : ' items added offline have') + ' reached your sheet', 4000);
+      }
+      return { ok: true, sent: sent, dropped: dropped, kept: kept };
+    } finally { _retrying = false; }
+  }
+  window.rrOutboxDrainAppends = rrOutboxDrainAppends;
+
   // ── telling the user ─────────────────────────────────────────────
   // Quiet when there is nothing to say. A badge, not a modal: the writes that
   // failed are usually recoverable and interrupting an add to say so would be
@@ -332,6 +376,9 @@
               + ' still need' + (r.skipped === 1 ? 's' : '') + ' your OK to send. Tap \u201cReview & send\u201d.', 5500, true);
           }
           _paintBanner();
+          // v0.9.1599: stranded APPENDS drain through the app's checker once
+          // fresh data exists — the app wires this after its next load.
+          try { if (typeof window._rrOfflineAppendDrain === 'function') window._rrOfflineAppendDrain(); } catch (eAD) {}
         });
       });
       document.addEventListener('visibilitychange', function () {

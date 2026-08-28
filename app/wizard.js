@@ -1165,11 +1165,14 @@ function _syncWizKindBar(s) {
 if (typeof window !== 'undefined') { window._wizSetKind = _wizSetKind; }
 
 async function openWizard(tab) {
-  // v0.9.826 (TODO-003): offline is view-only — say so up front instead of
-  // failing at save time.
-  if (window._offlineMode) {
-    if (typeof showToast === 'function') showToast("You're offline — you can browse your collection, but adding items needs a connection", 4000, true);
-    return;
+  // v0.9.1599 (Brad: train shows have no wifi): the v826 view-only refusal
+  // is gone. The wizard runs on cached catalog data offline; the save is
+  // recorded by the write-outbox (sheets.js) and auto-sends after reconnect
+  // (appends) or waits behind Review & send (edits). Photos: the wizard's
+  // photo step stages nothing itself offline — Quick Capture / Batch Add
+  // stage into the inbox (v1590) and that is the offline photo path.
+  if (window._offlineMode && typeof showToast === 'function') {
+    showToast('You\u2019re offline \u2014 items save on this device and go up when you reconnect.', 3200);
   }
   // v0.9.840 (Phase C): lapsed = view-only; the bottom banner has the button.
   if (window._readOnlyMode) {

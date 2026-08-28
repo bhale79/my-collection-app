@@ -337,10 +337,14 @@ if (typeof window !== 'undefined') window.sheetsUpdateRow = sheetsUpdateRow;
 async function sheetsUpdate(spreadsheetId, range, values) {
   // v0.9.985 (perf): any write = data changed — invalidate cached page renders.
   try { window._rrDataRev = (window._rrDataRev || 0) + 1; } catch (e) {}
-  // v0.9.826 (TODO-003): view-only offline mode — writes need a connection.
+  // v0.9.1599 (Brad: work the lists at a train show with no wifi): an
+  // offline BOOT is no longer view-only. The v826 refusal predates the
+  // write-outbox — the write is now RECORDED exactly like a mid-session
+  // network failure, so it reaches the sheet after reconnect. Same throw
+  // contract downstream; only the bookkeeping and the words changed.
   if (window._offlineMode) {
-    if (typeof showToast === 'function') showToast("You're offline — this change needs a connection", 3500, true);
-    throw new Error('offline');
+    if (typeof showToast === 'function') showToast('You\u2019re offline \u2014 saved on this device. It goes to your sheet when you\u2019re back on.', 3500);
+    throw _rrWriteFailed('update', { sheetId: spreadsheetId, range: range, values: values }, new Error('offline'));
   }
   // v0.9.840 (Phase C): lapsed trial/subscription = view-and-export-only.
   if (window._readOnlyMode) {
@@ -374,10 +378,13 @@ async function sheetsUpdate(spreadsheetId, range, values) {
 async function sheetsAppend(spreadsheetId, range, values) {
   // v0.9.985 (perf): any write = data changed — invalidate cached page renders.
   try { window._rrDataRev = (window._rrDataRev || 0) + 1; } catch (e) {}
-  // v0.9.826 (TODO-003): view-only offline mode — writes need a connection.
+  // v0.9.1599: offline boot records the append instead of refusing it (see
+  // sheetsUpdate). New rows are the train-show case — they auto-send after
+  // reconnect through rrOutboxDrainAppends, with the app's row-exists check
+  // standing guard against a request that died AFTER reaching Google.
   if (window._offlineMode) {
-    if (typeof showToast === 'function') showToast("You're offline — this change needs a connection", 3500, true);
-    throw new Error('offline');
+    if (typeof showToast === 'function') showToast('You\u2019re offline \u2014 saved on this device. It goes to your sheet when you\u2019re back on.', 3500);
+    throw _rrWriteFailed('append', { sheetId: spreadsheetId, range: range, values: values }, new Error('offline'));
   }
   // v0.9.840 (Phase C): lapsed trial/subscription = view-and-export-only.
   if (window._readOnlyMode) {
@@ -443,8 +450,11 @@ async function sheetsAppend(spreadsheetId, range, values) {
 // update beats one that updated wrongly.
 async function sheetsClear(spreadsheetId, range) {
   try { window._rrDataRev = (window._rrDataRev || 0) + 1; } catch (e) {}
+  // v0.9.1599: deliberately NOT recorded-for-later (unlike update/append) —
+  // a queued clear replayed against a list that changed meanwhile is the
+  // half-rebuilt-sale-sheet disaster this function's header describes.
   if (window._offlineMode) {
-    if (typeof showToast === 'function') showToast("You're offline — this change needs a connection", 3500, true);
+    if (typeof showToast === 'function') showToast('You\u2019re offline \u2014 rebuilding the sale list needs a connection.', 3500, true);
     throw new Error('offline');
   }
   if (window._readOnlyMode) {

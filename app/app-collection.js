@@ -5075,7 +5075,7 @@ function addItemToWantList(idx) {
   // calls it, this door didn't, so with no wizard opened earlier in the
   // session there was nothing to open. Same offline/read-only guards as
   // openWizard, for the same reasons.
-  if (window._offlineMode) { if (typeof showToast === 'function') showToast("You're offline — adding to your Want List needs a connection", 4000, true); return; }
+  // v0.9.1599: want-list adds work offline — the write records to the outbox.
   if (window._readOnlyMode) { if (typeof showToast === 'function') showToast('Your trial has ended — subscribe to keep adding items', 4000, true); return; }
   if (typeof _buildWizardModal === 'function') _buildWizardModal();
   const _activePg = document.querySelector('.page.active');

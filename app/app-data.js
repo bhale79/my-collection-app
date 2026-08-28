@@ -146,6 +146,7 @@ async function loadAllData() {
       _patchMasterData();
       _inferMissingYears();
       buildApp(); if (typeof _auditCatalogResolution === 'function') setTimeout(_auditCatalogResolution, 1500);
+      try { if (typeof window._rrOfflineAppendDrain === 'function') setTimeout(window._rrOfflineAppendDrain, 2500); } catch (eAD) {}
       _scheduleLookupIndex(6000);   // v0.9.971: full-catalog lookup index (background)
     // v0.9.1535 (Brad: "what about the beta tester sheets, when will they get
       // updated if they are already created?"). Fair question — the answer was
@@ -192,6 +193,9 @@ async function loadAllData() {
     buildPartnerMap();
     _loadMasterVersion();   // v0.9.1103 — which master sheet is live (fail-silent)
     buildApp(); if (typeof _auditCatalogResolution === 'function') setTimeout(_auditCatalogResolution, 1500);
+    // v0.9.1599: fresh sheet data is finally in hand — offline-added rows
+    // (stranded appends) can drain with the duplicate guard armed.
+    try { if (typeof window._rrOfflineAppendDrain === 'function') setTimeout(window._rrOfflineAppendDrain, 2500); } catch (eAD) {}
     _scheduleLookupIndex(6000);   // v0.9.971: full-catalog lookup index (background)
     // v0.9.1535 (Brad: "what about the beta tester sheets, when will they get
     // updated if they are already created?"). Fair question — the answer was
@@ -2070,3 +2074,38 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
 
 
 
+
+
+// ── v0.9.1599: the append drain's duplicate guard (Session 87, show mode) ──
+// A train-show network can die AFTER a request reached Google — the row
+// landed, the response didn't, and the outbox kept the append. Draining it
+// blind would write the item twice. Collection rows carry an inventoryId,
+// so a drained append is checked against the FRESHLY LOADED sheet first:
+// found = already up there, drop the queued copy. Rows without a readable
+// inventoryId (want/parts/other tabs) replay without the check — the worst
+// case is a visible duplicate row the user deletes, never a lost save.
+window._rrOfflineAppendDrain = function () {
+  try {
+    if (typeof rrOutboxDrainAppends !== 'function') return;
+    if (window._offlineMode || (typeof navigator !== 'undefined' && navigator.onLine === false)) return;
+    var invIdx = -1;
+    try { invIdx = PERSONAL_SCHEMA.findIndex(function (f) { return f.field === 'inventoryId'; }); } catch (e) {}
+    var have = {};
+    try {
+      Object.keys(state.personalData || {}).forEach(function (k) {
+        var r = state.personalData[k];
+        if (r && r.inventoryId != null && r.inventoryId !== '') have[String(r.inventoryId)] = 1;
+      });
+    } catch (e) {}
+    rrOutboxDrainAppends(function (entry) {
+      try {
+        if (invIdx < 0) return false;
+        var row = entry && entry.args && entry.args.values && entry.args.values[0];
+        if (!row) return false;
+        var iv = row[invIdx];
+        if (iv == null || iv === '') return false;   // not a collection row — replay it
+        return !!have[String(iv)];                   // true = already in the sheet, drop
+      } catch (e) { return false; }
+    });
+  } catch (e) {}
+};
