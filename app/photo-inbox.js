@@ -2200,6 +2200,23 @@
     try { _pinRenderTagBar(); } catch (eT) {}
   }
 
+  // ── v0.9.1589: OFFLINE = REFUSE UP FRONT (Session 87, Brad's airplane
+  // test). Photos added offline used to run the whole upload loop, fail file
+  // by file, and vanish — the app looked like it accepted them (S86 finding).
+  // Until local staging exists, every door into the inbox refuses an offline
+  // add before touching a single file, and says so plainly. Both flavours of
+  // offline count: an offline BOOT (window._offlineMode, view-only snapshot)
+  // and airplane mode flipped on mid-session (navigator.onLine === false) —
+  // the same dual check the dashboard uses.
+  function _pinOffline() {
+    return !!(window._offlineMode || (typeof navigator !== 'undefined' && navigator.onLine === false));
+  }
+  function _pinOfflineRefuse(doing) {
+    if (!_pinOffline()) return false;
+    showToast('You\u2019re offline \u2014 ' + doing + ' needs a connection. Nothing was added; reconnect and try again.', 4500, true);
+    return true;
+  }
+
   // ── Import ───────────────────────────────────────────────────
   window._pinPickFiles = function () {
     var inp = document.getElementById('pin-file-input');
@@ -2214,6 +2231,7 @@
   // option: an unstamped photo is exactly as useful as every photo taken before
   // today, so this must never be a wall.
   window._pinAddSource = function () {
+    if (_pinOfflineRefuse('adding photos')) return;
     if (!_pinSession) {
       return window._pinPickContext({
         title: 'What are you about to photograph?',
@@ -2288,6 +2306,7 @@
   };
 
   async function _upload(files) {
+    if (_pinOfflineRefuse('adding photos')) return;
     if (_busy) { _pinBusyBounce(); return; }
     _setBusy(true, 'Adding photos');
     try {
@@ -9871,6 +9890,7 @@
   }
 
   window._pinGPhotos = async function () {
+    if (_pinOfflineRefuse('a Google Photos import')) return;
     if (_busy) { _pinBusyBounce(); return; }
     if (!_qcToken()) { showToast('Please sign in first', 3000, true); return; }
     _setBusy(true, 'Google Photos import'); _gpAbort = false;
@@ -10202,6 +10222,7 @@
   }
 
   window._qcOpen = function () {
+    if (_pinOfflineRefuse('Quick Capture')) return;
     if (!_qc) _qc = { base: new Date().getTime(), group: 1, shots: 0, total: 0, pending: 0, failed: [], recent: [], nextIsNew: false, view: 'RSV', used: {} };
     var ov = document.getElementById('qc-ov');
     if (!ov) {

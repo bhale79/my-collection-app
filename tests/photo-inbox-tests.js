@@ -142,7 +142,8 @@ const HOOK = '\n;window.__T = { get groups(){return _groups;}, set groups(v){_gr
      + '\n;window.__setConfirm=function(fn){_pinConfirm=fn;};window.__Confirm=_pinConfirm;'
      + '\n;window.__ReadFiles=_pinReadFiles;window.__ReadFid=_pinReadFid;'
      + '\n;window.__DescArbitrate=_pinDescArbitrate;window.__IsSetRow=_pinIsSetRow;'
-     + '\n;window.__ReconcileStored=_pinReconcileStored;';
+     + '\n;window.__ReconcileStored=_pinReconcileStored;'
+     + '\n;window.__Upload=_upload;';
 const cut = src.lastIndexOf('})();');
 if (cut < 0) { console.log('could not find IIFE end'); process.exit(2); }
 src = src.slice(0, cut) + HOOK + '\n' + src.slice(cut);
@@ -21103,6 +21104,54 @@ META_WRITES.length = 0; TOASTS.length = 0;
       ok('296 the schema derivation catches Date Added and Date Purchased',
          heads.indexOf('dateAdded') >= 0 && heads.indexOf('datePurchased') >= 0,
          heads.join(','));
+    })();
+
+
+    // ═══════════════════════════════════════════════════════════
+    // 297. OFFLINE = REFUSE UP FRONT (Session 87, Brad's airplane test).
+    //
+    // S86 finding 1: with the wifi off, dropping photos on the inbox ran the
+    // whole upload loop, every file failed, and the only trace was a transient
+    // toast — the photos were simply gone. The app LOOKED like it accepted
+    // them. Until local staging exists (S87 release 2), every door into the
+    // inbox must refuse an offline add before touching a single file, and say
+    // so in words a person at a train show can act on.
+    // ═══════════════════════════════════════════════════════════
+    section('297. Offline: every photo door refuses up front');
+    await (async function () {
+      const UP = [];
+      global.driveUploadFile = async (f, name, fid) => { UP.push(String(name)); return { id: 'up' + UP.length }; };
+      navigator.onLine = false;
+      window._offlineMode = false;   // mid-session airplane, not an offline boot
+
+      TOASTS.length = 0;
+      try { await window.__Upload([{ name: 'shot.jpg', type: 'image/jpeg' }]); } catch (e) {}
+      ok('297 BRAD\'S BUG: an offline drop uploads nothing', UP.length === 0, UP.length + ' upload call(s)');
+      ok('297 …and says offline, plainly and as a warning',
+         TOASTS.some(t => t.bad && /offline/i.test(t.m)), JSON.stringify(TOASTS.map(t => t.m)));
+
+      TOASTS.length = 0;
+      try { window._pinAddSource(); } catch (e) {}
+      ok('297 the Add-photos door refuses offline',
+         TOASTS.some(t => /offline/i.test(t.m)), JSON.stringify(TOASTS.map(t => t.m)));
+
+      TOASTS.length = 0;
+      try { window._qcOpen(); } catch (e) {}
+      ok('297 Quick Capture refuses offline',
+         TOASTS.some(t => /offline/i.test(t.m)), JSON.stringify(TOASTS.map(t => t.m)));
+
+      TOASTS.length = 0;
+      try { await window._pinGPhotos(); } catch (e) {}
+      ok('297 Google Photos import refuses offline',
+         TOASTS.some(t => /offline/i.test(t.m)), JSON.stringify(TOASTS.map(t => t.m)));
+
+      // Back online the same doors must open — the guard is a gate, not a wall.
+      navigator.onLine = true;
+      TOASTS.length = 0;
+      try { await window.__Upload([{ name: 'shot2.jpg', type: 'image/jpeg' }]); } catch (e) {}
+      ok('297 …and an online drop still uploads', UP.length === 1, UP.length + ' upload call(s)');
+      ok('297 …with no offline refusal in the way',
+         !TOASTS.some(t => /offline/i.test(t.m)), JSON.stringify(TOASTS.map(t => t.m)));
     })();
 
   })().then(function () {

@@ -2510,19 +2510,6 @@ function filterOwned(qe) {
   // jump-bar builder below. Any copy of the old top-right button is removed.
   var _oldColsBtn = document.getElementById('cols-btn-collection');
   if (_oldColsBtn) _oldColsBtn.remove();
-  if (false && _btnArea && !document.getElementById('cols-btn-collection')) {
-    var _colsBtn = document.createElement('button');
-    _colsBtn.id = 'cols-btn-collection';
-    _colsBtn.className = 'btn';
-    // v0.9.1543 (Brad): "instead of the columns button at the top, on the
-    // header bar itself, i hit an edit button." The button stays as a way in
-    // for anyone who has learned it, but it now turns on the same header edit
-    // mode rather than opening a separate list of column names.
-    _colsBtn.onclick = function () { if (typeof _collColEdit === 'function') _collColEdit(!state._collColEdit); };
-    _colsBtn.style.cssText = 'display:flex;align-items:center;gap:0.4rem;border:1.5px solid var(--border);color:var(--text-mid);background:var(--bg-card);font-weight:600;font-size:0.85rem;padding:0.5rem 0.9rem;margin-right:0.4rem';
-    _colsBtn.innerHTML = '\u2637 Columns';
-    _btnArea.appendChild(_colsBtn);
-  }
   if (_btnArea && !document.getElementById('share-btn-collection')) {
     var _shareBtn = document.createElement('button');
     _shareBtn.id = 'share-btn-collection';

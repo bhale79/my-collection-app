@@ -59,7 +59,14 @@ ok('there is an Add menu for columns not on the table', /function _collAddColMen
 ok('...listing only what is missing', /vis\.indexOf\(c\.col\) < 0 && _COLL_LOCKED\.indexOf\(c\.col\) < 0/.test(js));
 ok('Maker and Item # cannot be dragged or removed',
    /th\.coll-th-edit:not\(\.locked\)/.test(js) && /locked \? 'false' : 'true'/.test(js));
-ok('the old Columns button now opens the same edit mode', /_collColEdit\(!state\._collColEdit\)/.test(js));
+// v0.9.1589 RE-PIN: the old top-right Columns button's code was a branch
+// wired permanently shut (`if (false && …)`) since the v1543/1545 rework
+// moved the way in onto the header bar itself. Session 87 deleted the dead
+// block (no-drill-residue flagged it), so the pin flips: the residue must
+// STAY gone. The live way into edit mode is _collColEdit via the header-bar
+// Edit Headers button, which the checks above already cover.
+ok('the old Columns button stays deleted, not parked behind if(false)',
+   !/if \(false && _btnArea/.test(js) && !/'\u2637 Columns'/.test(js));
 
 // ── v0.9.1544: one vertical scrollbar, and a reachable sideways one ─────
 const html = fs.readFileSync(path.join(__dirname, '..', 'app', 'index.html'), 'utf8');
