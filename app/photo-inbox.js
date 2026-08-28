@@ -256,6 +256,7 @@
         '<div id="pin-skipnote" style="display:none;font-size:0.78rem;color:var(--text-dim);margin:0.5rem 0 0"></div>' +
         '<div id="pin-status" style="display:none;font-size:0.8rem;color:var(--text-dim);margin:0.5rem 0 0"></div>' +
       '</div>' +
+      '<div id="pin-staged" style="display:none"></div>' +
       '<div id="pin-drop" style="min-height:50vh;border:2px dashed var(--border);border-radius:12px;padding:0.8rem;margin-top:0.8rem">' +
         '<div id="pin-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:0.6rem"></div>' +
         '<div id="pin-empty" style="display:none;text-align:center;padding:3rem 1rem;color:var(--text-dim)"><div style="font-size:0.95rem;margin-bottom:0.3rem;font-weight:600">Inbox is empty</div><div style="font-size:0.8rem">Drag photos here from any folder, or click Add photos.</div></div>' +
@@ -1596,6 +1597,11 @@
 
   window._pinRefresh = async function () {
     if (!_ensurePage()) return;
+    // v0.9.1590: the staged strip re-reads its store on every refresh, and a
+    // refresh is a fine moment to try the drain (it costs nothing when the
+    // store is empty or the connection is still down).
+    try { _stageRenderStrip(); } catch (e) {}
+    try { _stageDrain(); } catch (e) {}
     _status('Loading inbox…');
     try {
       var fid = await _folder();
@@ -2217,6 +2223,183 @@
     return true;
   }
 
+  // ═══ v0.9.1590: LOCAL PHOTO STAGING (Session 87 release 2) ═══════════
+  //
+  // The v1589 guard stopped offline photo adds from silently vanishing by
+  // refusing them. This is the feature the guard was holding the door for:
+  // offline adds now land in an IndexedDB blob store ON THIS DEVICE, show in
+  // the inbox as a "waiting to upload" strip, and go up on their own when the
+  // connection returns — then flow through the normal Drive pipeline
+  // (unchanged). Rules:
+  //   • A staged photo is deleted ONLY after Drive confirms the upload (an
+  //     id came back). A failed upload keeps the record and retries later.
+  //   • One drain at a time (_stageDraining), and a cross-tab lock in
+  //     localStorage so two tabs cannot both drain the same store into
+  //     duplicate uploads.
+  //   • Every IndexedDB touch is wrapped: storage failing must degrade to
+  //     the v1589 refusal, never to a crash or a silent loss.
+  //   • Google Photos import still refuses offline — its picker IS the
+  //     network; there is nothing local to stage.
+  var _STAGE_DB = 'rr_photo_stage', _STAGE_STORE = 'photos';
+  var _STAGE_LOCK = 'rr_stage_drain_lock';
+  var _stageDraining = false;
+  var _stageUrls = [];
+
+  function _stageOpen() {
+    return new Promise(function (res, rej) {
+      var rq = indexedDB.open(_STAGE_DB, 1);
+      rq.onupgradeneeded = function () {
+        try { rq.result.createObjectStore(_STAGE_STORE, { keyPath: 'id' }); } catch (e) {}
+      };
+      rq.onsuccess = function () { res(rq.result); };
+      rq.onerror = function () { rej((rq && rq.error) || new Error('idb open failed')); };
+    });
+  }
+  function _stageWrite(fn) {
+    return _stageOpen().then(function (db) {
+      return new Promise(function (res, rej) {
+        var tx = db.transaction(_STAGE_STORE, 'readwrite');
+        fn(tx.objectStore(_STAGE_STORE));
+        tx.oncomplete = function () { try { db.close(); } catch (e) {} res(true); };
+        tx.onerror = function () { try { db.close(); } catch (e) {} rej((tx && tx.error) || new Error('idb write failed')); };
+      });
+    });
+  }
+  function _stagePut(rec) { return _stageWrite(function (st) { st.put(rec); }); }
+  function _stageDel(id) { return _stageWrite(function (st) { st.delete(id); }); }
+  function _stageAll() {
+    return _stageOpen().then(function (db) {
+      return new Promise(function (res) {
+        var rq = db.transaction(_STAGE_STORE, 'readonly').objectStore(_STAGE_STORE).getAll();
+        rq.onsuccess = function () { try { db.close(); } catch (e) {} res(rq.result || []); };
+        rq.onerror = function () { try { db.close(); } catch (e) {} res([]); };
+      });
+    }).catch(function () { return []; });
+  }
+
+  // One staged record. era/view are stamped as Drive appProperties after the
+  // upload lands, exactly as the live paths do.
+  async function _stageOne(file, name, era, view) {
+    var rec = {
+      id: 'stg' + Date.now() + '.' + Math.random().toString(36).slice(2, 8),
+      name: name, type: (file && file.type) || 'image/jpeg', blob: file,
+      era: era || '', view: view || '', at: Date.now(), tries: 0, lastErr: ''
+    };
+    await _stagePut(rec);
+    return rec.id;
+  }
+
+  // The drop/picker batch, with _upload's exact era semantics: a one-shot era
+  // is spent by the FIRST photo and springs back; everything else gets the
+  // home era. Returns how many photos were actually saved to the device.
+  async function _stageFiles(files) {
+    var ts = Date.now(), n = 0;
+    var spent = false;
+    for (var i = 0; i < files.length; i++) {
+      var f = files[i];
+      var safe = ((f && f.name) || 'photo.jpg').replace(/[^\w.\- ]+/g, '').slice(-60);
+      var name = 'INBOX ' + ts + ' g' + (ts + i) + ' ' + safe;
+      var thisEra = (_pinOneShot && !spent) ? _pinOneShot : _pinHomeEra();
+      if (i === 0 && _pinOneShot) spent = true;
+      try { await _stageOne(f, name, thisEra, ''); n++; }
+      catch (e) { console.warn('[Inbox] could not stage ' + safe + ':', e); }
+    }
+    if (n && _pinOneShot) { _pinOneShot = null; try { _pinRenderBar(); } catch (e) {} }
+    return n;
+  }
+
+  // ── the drain: staged → Drive, on reconnect / boot / demand ──────────
+  async function _stageDrain() {
+    if (_stageDraining) return;
+    if (_pinOffline()) return;
+    if (!_qcToken()) return;                    // wait for a signed-in token
+    try {                                        // cross-tab: newest lock wins
+      var lk = parseInt(localStorage.getItem(_STAGE_LOCK) || '0', 10);
+      if (lk && (Date.now() - lk) < 60000) return;
+      localStorage.setItem(_STAGE_LOCK, String(Date.now()));
+    } catch (e) {}
+    var list = await _stageAll();
+    if (!list.length) { try { localStorage.removeItem(_STAGE_LOCK); } catch (e) {} return; }
+    _stageDraining = true;
+    var ok = 0, fail = 0;
+    try {
+      var fid = await _folder();
+      for (var i = 0; i < list.length; i++) {
+        var r = list[i];
+        try {
+          var up = await driveUploadFile(r.blob, r.name, fid);
+          if (!up || !up.id) throw new Error('no id back from Drive');
+          var meta = {};
+          if (r.era) { meta.era = r.era; meta.stat = 'stamped'; }
+          if (r.view) meta.view = r.view;
+          // a stamp that fails must not fail the upload — same rule as _upload
+          if (meta.era || meta.view) { try { await _pinMetaSet(up.id, meta); } catch (eM) {} }
+          await _stageDel(r.id);                // ONLY after the confirmed ok
+          ok++;
+        } catch (e) {
+          fail++;
+          r.tries = (r.tries || 0) + 1;
+          r.lastErr = String((e && e.message) || e || '');
+          try { await _stagePut(r); } catch (e2) {}
+          if (_pinOffline()) break;             // gone again — rest waits
+        }
+      }
+    } catch (eOuter) { console.warn('[Inbox] stage drain:', eOuter); }
+    _stageDraining = false;
+    try { localStorage.removeItem(_STAGE_LOCK); } catch (e) {}
+    try { await _stageRenderStrip(); } catch (e) {}
+    if (ok) {
+      showToast(ok + ' photo' + (ok > 1 ? 's' : '') + ' taken offline ' + (ok > 1 ? 'have' : 'has') + ' reached your inbox', 3500);
+      try { _pinRefresh(); } catch (e) {}
+    }
+    if (fail && !_pinOffline()) {
+      showToast(fail + ' photo' + (fail > 1 ? 's' : '') + ' from this device could not upload yet \u2014 they are kept and will retry', 4200, true);
+    }
+  }
+  window._pinStageDrainNow = function () { _stageDrain(); };
+
+  // ── the strip: staged photos are VISIBLE, with a waiting badge ───────
+  async function _stageRenderStrip() {
+    var host = document.getElementById('pin-staged');
+    if (!host) return;
+    var list = await _stageAll();
+    _stageUrls.forEach(function (u) { try { URL.revokeObjectURL(u); } catch (e) {} });
+    _stageUrls = [];
+    if (!list.length) { host.style.display = 'none'; host.innerHTML = ''; return; }
+    host.style.display = '';
+    var thumbs = list.slice(0, 12).map(function (r) {
+      var u = '';
+      try { u = URL.createObjectURL(r.blob); if (u) _stageUrls.push(u); } catch (e) {}
+      return '<div style="position:relative;width:72px;height:72px;border-radius:8px;overflow:hidden;border:1.5px solid var(--border);flex:0 0 auto;background:var(--surface2)">'
+        + (u ? '<img src="' + u + '" style="width:100%;height:100%;object-fit:cover" alt="">' : '')
+        + '<div style="position:absolute;left:0;right:0;bottom:0;background:rgba(0,0,0,0.62);color:#fff;font-size:0.55rem;font-weight:700;text-align:center;padding:1px 2px">waiting</div></div>';
+    }).join('');
+    var more = list.length > 12 ? '<span style="font-size:0.75rem;color:var(--text-dim);align-self:center">+' + (list.length - 12) + ' more</span>' : '';
+    host.innerHTML =
+      '<div style="border:1.5px solid var(--border);border-radius:12px;background:var(--bg-card);padding:0.7rem 0.8rem;margin-top:0.8rem">'
+      + '<div style="display:flex;align-items:center;gap:0.6rem;flex-wrap:wrap">'
+      +   '<span style="font-weight:700;font-size:0.85rem;color:var(--text)">\ud83d\udcf5 ' + list.length + ' photo' + (list.length > 1 ? 's' : '') + ' waiting to upload</span>'
+      +   '<span style="font-size:0.78rem;color:var(--text-dim)">' + (_pinOffline()
+            ? 'Saved on this device \u2014 they\u2019ll go up on their own when you\u2019re back online.'
+            : 'Saved on this device \u2014 uploading\u2026') + '</span>'
+      +   (!_pinOffline() ? '<button onclick="_pinStageDrainNow()" style="padding:0.35rem 0.8rem;border-radius:8px;border:1.5px solid var(--border);background:var(--bg-card);color:var(--text-mid);font-family:var(--font-body);font-weight:700;font-size:0.78rem;cursor:pointer">Upload now</button>' : '')
+      + '</div>'
+      + '<div style="display:flex;gap:0.5rem;overflow-x:auto;margin-top:0.6rem;padding-bottom:0.2rem">' + thumbs + more + '</div></div>';
+  }
+
+  // Reconnect + boot triggers. The offline-BOOT flavour reloads the page when
+  // the connection returns (app-misc), so the boot poller is what catches
+  // those; the 'online' listener catches airplane mode flipped mid-session.
+  try {
+    window.addEventListener('online', function () { setTimeout(function () { _stageDrain(); }, 1500); });
+  } catch (e) {}
+  var _stageBootPoll = setInterval(function () {
+    if (_pinOffline()) return;
+    if (!_qcToken()) return;
+    clearInterval(_stageBootPoll);
+    _stageDrain();
+  }, 4000);
+
   // ── Import ───────────────────────────────────────────────────
   window._pinPickFiles = function () {
     var inp = document.getElementById('pin-file-input');
@@ -2231,7 +2414,8 @@
   // option: an unstamped photo is exactly as useful as every photo taken before
   // today, so this must never be a wall.
   window._pinAddSource = function () {
-    if (_pinOfflineRefuse('adding photos')) return;
+    // v0.9.1590: the door opens offline again — local files STAGE now.
+    // Google Photos keeps its own refusal (the picker is the network).
     if (!_pinSession) {
       return window._pinPickContext({
         title: 'What are you about to photograph?',
@@ -2306,7 +2490,20 @@
   };
 
   async function _upload(files) {
-    if (_pinOfflineRefuse('adding photos')) return;
+    if (_pinOffline()) {
+      // v0.9.1590: no connection — save the photos on the device and say so.
+      // If the device store itself fails, fall back to the v1589 refusal:
+      // an honest no is still better than a silent loss.
+      var _stN = await _stageFiles(files);
+      if (_stN) {
+        showToast('You\u2019re offline \u2014 ' + _stN + ' photo' + (_stN > 1 ? 's' : '') + ' saved on this device. '
+          + (_stN > 1 ? 'They\u2019ll' : 'It\u2019ll') + ' upload on their own when you reconnect.', 5000);
+      } else {
+        showToast('You\u2019re offline and the photos could not be saved on this device \u2014 reconnect and add them again.', 5000, true);
+      }
+      try { await _stageRenderStrip(); } catch (e) {}
+      return;
+    }
     if (_busy) { _pinBusyBounce(); return; }
     _setBusy(true, 'Adding photos');
     try {
@@ -10222,7 +10419,7 @@
   }
 
   window._qcOpen = function () {
-    if (_pinOfflineRefuse('Quick Capture')) return;
+    // v0.9.1590: Quick Capture works offline — shots stage on the device.
     if (!_qc) _qc = { base: new Date().getTime(), group: 1, shots: 0, total: 0, pending: 0, failed: [], recent: [], nextIsNew: false, view: 'RSV', used: {} };
     var ov = document.getElementById('qc-ov');
     if (!ov) {
@@ -10367,6 +10564,21 @@
   }
 
   async function _qcUpload(file, name, rec) {
+    // v0.9.1590: offline shot — stage it on the device instead of letting the
+    // upload fail into the will-be-lost list. The view stamp rides the staged
+    // record and lands as Drive appProperties when the drain uploads it.
+    if (_pinOffline()) {
+      try {
+        await _stageOne(file, name, '', (rec && rec.view) || '');
+        if (rec) rec.staged = true;
+        try { await _stageRenderStrip(); } catch (e) {}
+      } catch (eS) {
+        console.warn('[QuickCapture] could not stage offline shot:', eS);
+        if (_qc) _qc.failed.push({ file: file, name: name, rec: rec });
+      }
+      try { _qcRender(); } catch (e) {}
+      return;
+    }
     _qc.pending++;
     _qcRender();
     try {

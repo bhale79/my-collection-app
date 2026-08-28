@@ -77,6 +77,46 @@ global.window = global;
 global.navigator = { userAgent: 'node', maxTouchPoints: 0 };
 global.localStorage = { _d: {}, getItem(k){return this._d[k]===undefined?null:this._d[k];},
   setItem(k,v){this._d[k]=String(v);}, removeItem(k){delete this._d[k];} };
+// ── v0.9.1590: in-memory IndexedDB, shaped exactly like the staging code's
+// usage (open/onupgradeneeded/onsuccess, transaction→objectStore→
+// put/delete/getAll, tx.oncomplete). Anything fancier would be dishonest —
+// the point is to drive the REAL staging functions, not to imitate them.
+function _mkIdbRq(v) { const r = { result: v }; setTimeout(() => { if (r.onsuccess) r.onsuccess(); }, 0); return r; }
+function _mkIdbDb(raw) {
+  return {
+    createObjectStore(n, o) { raw[n] = { keyPath: (o && o.keyPath) || 'id', data: new Map() }; },
+    close() {},
+    transaction(n, mode) {
+      const st = raw[n];
+      const tx = {};
+      tx.objectStore = () => ({
+        put(rec) { st.data.set(rec[st.keyPath], rec); return _mkIdbRq(undefined); },
+        delete(k) { st.data.delete(k); return _mkIdbRq(undefined); },
+        getAll() { return _mkIdbRq([...st.data.values()]); },
+      });
+      setTimeout(() => { if (tx.oncomplete) tx.oncomplete(); }, 0);
+      return tx;
+    },
+  };
+}
+global.indexedDB = {
+  _raw: {},
+  open(name) {
+    const rq = {};
+    setTimeout(() => {
+      const fresh = !this._raw[name];
+      if (fresh) this._raw[name] = {};
+      rq.result = _mkIdbDb(this._raw[name]);
+      if (fresh && rq.onupgradeneeded) rq.onupgradeneeded();
+      if (rq.onsuccess) rq.onsuccess();
+    }, 0);
+    return rq;
+  },
+};
+if (typeof global.URL === 'undefined') global.URL = {};
+if (typeof global.URL.createObjectURL !== 'function') global.URL.createObjectURL = () => { throw new Error('no blobs here'); };
+if (typeof global.URL.revokeObjectURL !== 'function') global.URL.revokeObjectURL = () => {};
+
 global.rrEsc = v => (v == null ? '' : String(v)
   .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'));
 global.TOASTS = [];
@@ -143,7 +183,12 @@ const HOOK = '\n;window.__T = { get groups(){return _groups;}, set groups(v){_gr
      + '\n;window.__ReadFiles=_pinReadFiles;window.__ReadFid=_pinReadFid;'
      + '\n;window.__DescArbitrate=_pinDescArbitrate;window.__IsSetRow=_pinIsSetRow;'
      + '\n;window.__ReconcileStored=_pinReconcileStored;'
-     + '\n;window.__Upload=_upload;';
+     + '\n;window.__Upload=_upload;'
+     + '\n;window.__StageAll=typeof _stageAll==="function"?_stageAll:null;'
+     + '\n;window.__StageDrain=typeof _stageDrain==="function"?_stageDrain:null;'
+     + '\n;window.__StageStrip=typeof _stageRenderStrip==="function"?_stageRenderStrip:null;'
+     + '\n;window.__QcUpload=typeof _qcUpload==="function"?_qcUpload:null;'
+     + '\n;window.__StageBootPoll=typeof _stageBootPoll!=="undefined"?_stageBootPoll:null;';
 const cut = src.lastIndexOf('})();');
 if (cut < 0) { console.log('could not find IIFE end'); process.exit(2); }
 src = src.slice(0, cut) + HOOK + '\n' + src.slice(cut);
@@ -152,6 +197,9 @@ eval(src);
 const T = window.__T;
 // _render / _pinRefresh touch Drive; neuter them for the harness
 window._pinRefresh = async () => {};
+// the v1590 staging boot poller must not fire mid-suite and drain a store a
+// test is about to assert on
+if (window.__StageBootPoll) clearInterval(window.__StageBootPoll);
 const _origRender = null;
 
 function mkGroups(n) {
@@ -21108,50 +21156,125 @@ META_WRITES.length = 0; TOASTS.length = 0;
 
 
     // ═══════════════════════════════════════════════════════════
-    // 297. OFFLINE = REFUSE UP FRONT (Session 87, Brad's airplane test).
-    //
-    // S86 finding 1: with the wifi off, dropping photos on the inbox ran the
-    // whole upload loop, every file failed, and the only trace was a transient
-    // toast — the photos were simply gone. The app LOOKED like it accepted
-    // them. Until local staging exists (S87 release 2), every door into the
-    // inbox must refuse an offline add before touching a single file, and say
-    // so in words a person at a train show can act on.
+    // 297. OFFLINE PHOTO DOORS (Session 87). v0.9.1589 made every door
+    // REFUSE offline — photos used to run the upload loop, fail file by
+    // file, and vanish. v0.9.1590 RE-PINS most of this section: refusal
+    // became LOCAL STAGING, so the doors open again and an offline add is
+    // SAVED ON THE DEVICE. What must never come back: a silent Drive call
+    // pretending to work offline. Google Photos keeps the v1589 refusal —
+    // its picker IS the network; there is nothing local to stage.
     // ═══════════════════════════════════════════════════════════
-    section('297. Offline: every photo door refuses up front');
+    section('297. Offline photo doors: stage or refuse, never lose');
     await (async function () {
       const UP = [];
       global.driveUploadFile = async (f, name, fid) => { UP.push(String(name)); return { id: 'up' + UP.length }; };
+      global.accessToken = '';          // signed out as far as the drain cares
       navigator.onLine = false;
-      window._offlineMode = false;   // mid-session airplane, not an offline boot
+      window._offlineMode = false;      // mid-session airplane, not an offline boot
 
       TOASTS.length = 0;
-      try { await window.__Upload([{ name: 'shot.jpg', type: 'image/jpeg' }]); } catch (e) {}
-      ok('297 BRAD\'S BUG: an offline drop uploads nothing', UP.length === 0, UP.length + ' upload call(s)');
-      ok('297 …and says offline, plainly and as a warning',
-         TOASTS.some(t => t.bad && /offline/i.test(t.m)), JSON.stringify(TOASTS.map(t => t.m)));
+      try { await window.__Upload([{ name: 'shot.jpg', type: 'image/jpeg' }, { name: 'shot2.jpg', type: 'image/jpeg' }]); } catch (e) {}
+      ok('297 an offline drop calls Drive zero times', UP.length === 0, UP.length + ' upload call(s)');
+      ok('297 …and says offline, plainly', TOASTS.some(t => /offline/i.test(t.m)), JSON.stringify(TOASTS.map(t => t.m)));
+      const staged = window.__StageAll ? await window.__StageAll() : [];
+      ok('297 v1590: the photos are STAGED on the device, not dropped', staged.length === 2,
+         (window.__StageAll ? staged.length + ' staged' : 'no staging store exists'));
+      ok('297 …and the toast says saved-on-device, not a red refusal',
+         TOASTS.some(t => !t.bad && /saved on this device/i.test(t.m)), JSON.stringify(TOASTS.map(t => t.m)));
 
+      // v0.9.1590 RE-PIN (flip of the v1589 pin): these doors OPEN offline now.
       TOASTS.length = 0;
       try { window._pinAddSource(); } catch (e) {}
-      ok('297 the Add-photos door refuses offline',
-         TOASTS.some(t => /offline/i.test(t.m)), JSON.stringify(TOASTS.map(t => t.m)));
-
+      ok('297 v1590: the Add-photos door opens offline (staging behind it)',
+         !TOASTS.some(t => /offline/i.test(t.m)), JSON.stringify(TOASTS.map(t => t.m)));
       TOASTS.length = 0;
       try { window._qcOpen(); } catch (e) {}
-      ok('297 Quick Capture refuses offline',
-         TOASTS.some(t => /offline/i.test(t.m)), JSON.stringify(TOASTS.map(t => t.m)));
+      ok('297 v1590: Quick Capture opens offline',
+         !TOASTS.some(t => /offline/i.test(t.m)), JSON.stringify(TOASTS.map(t => t.m)));
 
       TOASTS.length = 0;
       try { await window._pinGPhotos(); } catch (e) {}
-      ok('297 Google Photos import refuses offline',
+      ok('297 Google Photos import still refuses offline',
          TOASTS.some(t => /offline/i.test(t.m)), JSON.stringify(TOASTS.map(t => t.m)));
 
-      // Back online the same doors must open — the guard is a gate, not a wall.
       navigator.onLine = true;
       TOASTS.length = 0;
-      try { await window.__Upload([{ name: 'shot2.jpg', type: 'image/jpeg' }]); } catch (e) {}
-      ok('297 …and an online drop still uploads', UP.length === 1, UP.length + ' upload call(s)');
+      try { await window.__Upload([{ name: 'shot3.jpg', type: 'image/jpeg' }]); } catch (e) {}
+      ok('297 an online drop still uploads straight to Drive', UP.length === 1, UP.length + ' upload call(s)');
       ok('297 …with no offline refusal in the way',
          !TOASTS.some(t => /offline/i.test(t.m)), JSON.stringify(TOASTS.map(t => t.m)));
+    })();
+
+    // ═══════════════════════════════════════════════════════════
+    // 298. THE STAGING ENGINE (v0.9.1590). Staged photos are visible,
+    // drain on reconnect, and a record is deleted ONLY after Drive
+    // confirms the upload with an id. A failed upload keeps the photo
+    // and retries; the era/view stamps ride the staged record and land
+    // as Drive appProperties exactly as the live paths write them.
+    // ═══════════════════════════════════════════════════════════
+    section('298. Staged photos: visible, drained on reconnect, kept until Drive confirms');
+    await (async function () {
+      if (!window.__StageDrain || !window.__StageAll) {
+        ok('298 the staging engine exists', false, 'no _stageDrain/_stageAll in photo-inbox.js');
+        return;
+      }
+      // the two photos section 297 staged are the cargo
+      global.accessToken = 'tok';
+      navigator.onLine = true;
+      const UP = [];
+      global.driveUploadFile = async (f, name) => { UP.push(String(name)); return { id: 'drv' + UP.length }; };
+      META_WRITES.length = 0;
+      TOASTS.length = 0;
+      localStorage.removeItem('rr_stage_drain_lock');
+      ok('298 the staged photos from 297 are waiting', (await window.__StageAll()).length === 2,
+         (await window.__StageAll()).length + ' in store');
+      await window.__StageDrain();
+      ok('298 reconnect uploads every staged photo', UP.length === 2, UP.length + ' uploads');
+      ok('298 …with their INBOX names intact', UP.every(n => /^INBOX \d+ g\d+ /.test(n)), JSON.stringify(UP));
+      ok('298 …and the store is empty afterwards', (await window.__StageAll()).length === 0,
+         (await window.__StageAll()).length + ' left');
+      ok('298 …and the user is told they arrived',
+         TOASTS.some(t => /reached your inbox/i.test(t.m)), JSON.stringify(TOASTS.map(t => t.m)));
+
+      // an offline Quick Capture shot stages, carrying its view stamp
+      navigator.onLine = false;
+      const upBefore = UP.length;
+      try { await window.__QcUpload({ name: 'qc.jpg', type: 'image/jpeg' }, 'INBOX 5 g5-1 p1.jpg', { view: 'RSV' }); } catch (e) {}
+      const qcStaged = await window.__StageAll();
+      ok('298 an offline Quick Capture shot stages with its view',
+         qcStaged.length === 1 && qcStaged[0].view === 'RSV', JSON.stringify(qcStaged.map(r => r.view)));
+      ok('298 …without a single Drive call', UP.length === upBefore, (UP.length - upBefore) + ' extra call(s)');
+
+      // a failed upload KEEPS the record; the retry clears it
+      navigator.onLine = true;
+      let boom = true;
+      global.driveUploadFile = async (f, name) => { if (boom) throw new Error('Failed to fetch'); UP.push(String(name)); return { id: 'drvR' }; };
+      localStorage.removeItem('rr_stage_drain_lock');
+      await window.__StageDrain();
+      let keep = await window.__StageAll();
+      ok('298 a failed upload keeps the staged photo for retry',
+         keep.length === 1 && keep[0].tries === 1, JSON.stringify(keep.map(r => ({ tries: r.tries, err: r.lastErr }))));
+      boom = false;
+      localStorage.removeItem('rr_stage_drain_lock');
+      await window.__StageDrain();
+      keep = await window.__StageAll();
+      ok('298 …and the retry clears it once Drive confirms', keep.length === 0, keep.length + ' left');
+      ok('298 …with the view stamp landing as appProperties',
+         META_WRITES.some(w => w.patch && w.patch.view === 'RSV'), JSON.stringify(META_WRITES));
+
+      // the strip: staged photos are VISIBLE with a waiting badge
+      navigator.onLine = false;
+      try { await window.__Upload([{ name: 'strip.jpg', type: 'image/jpeg' }]); } catch (e) {}
+      reg('pin-staged');
+      await window.__StageStrip();
+      const strip = REG['pin-staged'];
+      ok('298 the staged strip shows, and says waiting to upload',
+         strip.style.display !== 'none' && /waiting to upload/i.test(strip.innerHTML), strip.innerHTML.slice(0, 120));
+      // leave the store empty for anything after us
+      navigator.onLine = true;
+      global.driveUploadFile = async () => ({ id: 'zz' });
+      localStorage.removeItem('rr_stage_drain_lock');
+      await window.__StageDrain();
     })();
 
   })().then(function () {
