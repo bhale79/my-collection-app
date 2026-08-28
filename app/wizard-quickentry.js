@@ -182,10 +182,19 @@ async function quickEntryAdd() {
     const _qeLeadInvId = nextInventoryId();
     let _qePhotoLink = '';
     if (d._qePhotoFile) {
-      try {
-        _qePhotoLink = await driveUploadItemPhoto(d._qePhotoFile, rows[0].itemNum, 'QE', _qeLeadInvId) || '';
-      } catch(photoErr) {
-        console.warn('[QE] Photo upload failed, continuing without photo:', photoErr);
+      // v0.9.1592 (Session 87 offline audit): this catch used to be a bare
+      // console.warn — the user attached a photo, the save "worked", and the
+      // photo was silently gone. Offline skips the doomed attempt; any
+      // failure is SAID, with the way to recover.
+      if (window._offlineMode || (typeof navigator !== 'undefined' && navigator.onLine === false)) {
+        showToast('You\u2019re offline \u2014 the item will save, but its photo can\u2019t upload. Add the photo from the item\u2019s page when you\u2019re back online.', 5200, true);
+      } else {
+        try {
+          _qePhotoLink = await driveUploadItemPhoto(d._qePhotoFile, rows[0].itemNum, 'QE', _qeLeadInvId) || '';
+        } catch(photoErr) {
+          console.warn('[QE] Photo upload failed, continuing without photo:', photoErr);
+          showToast('The photo did not upload \u2014 the item saved without it. Add it from the item\u2019s page later.', 5000, true);
+        }
       }
     }
     const _qeEstWorth = d._qeEstWorth || '';

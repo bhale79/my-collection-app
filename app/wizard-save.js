@@ -992,9 +992,19 @@ async function _saveManualEntry() {
   const _mp = d.manualPhotos || {};
   photoLink = Object.values(_mp).find(function (v) { return v; }) || '';
   if (!photoLink && d._drivePhotos && d._drivePhotos.length > 0) {
-    try {
-      photoLink = await driveUploadItemPhoto(d._drivePhotos[0].file || d._drivePhotos[0], displayId, 'MANUAL') || '';
-    } catch(e) { console.warn('[Manual] Photo upload failed:', e); }
+    // v0.9.1592 (Session 87 offline audit): same disease as Quick Entry —
+    // a bare console.warn ate the photo. Offline skips the attempt; any
+    // failure is SAID, with the way to recover.
+    if (window._offlineMode || (typeof navigator !== 'undefined' && navigator.onLine === false)) {
+      showToast('You\u2019re offline \u2014 the item will save, but its photo can\u2019t upload. Add the photo from the item\u2019s page when you\u2019re back online.', 5200, true);
+    } else {
+      try {
+        photoLink = await driveUploadItemPhoto(d._drivePhotos[0].file || d._drivePhotos[0], displayId, 'MANUAL') || '';
+      } catch(e) {
+        console.warn('[Manual] Photo upload failed:', e);
+        showToast('The photo did not upload \u2014 the item saved without it. Add it from the item\u2019s page later.', 5000, true);
+      }
+    }
   }
 
   // Build description + type as combined notes/description

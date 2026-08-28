@@ -53,6 +53,14 @@ async function handlePhotoDrop(event, stepId, viewKey) {
 
 
 async function uploadWizardPhoto(file, stepId, viewKey) {
+  // v0.9.1592 (Session 87 offline audit): refuse up front, in honest words.
+  // The catch below already toasted, but only AFTER the spinner dance, and
+  // rrSaveError's wording is sheet-centric ("did not reach your sheet") for
+  // what is a Drive photo upload. Same dual check as the photo inbox.
+  if (window._offlineMode || (typeof navigator !== 'undefined' && navigator.onLine === false)) {
+    showToast('You\u2019re offline \u2014 photos can\u2019t upload right now. Save the item and add its photos when you\u2019re back online.', 5200, true);
+    return;
+  }
   // Pre-flight: ensure we have a valid token (critical on mobile after returning from camera)
   if (!accessToken) {
     var _saved = localStorage.getItem('lv_token');
