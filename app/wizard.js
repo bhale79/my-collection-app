@@ -1283,6 +1283,10 @@ function closeWizard() {
 }
 
 function _doCloseWizard() {
+  // v0.9.1600: a pending photo-pairing that was not claimed by a save dies
+  // with the wizard — otherwise a cancelled add would hand its photo to
+  // whatever item the NEXT save happens to be.
+  try { window._rrPendingStagePair = null; } catch (e) {}
   try { if (typeof _wizFieldFocusClose === 'function') _wizFieldFocusClose(); } catch (eF) {}
   // v0.9.1387 — a numberless inbox add that was CANCELLED leaves a staging
   // note keyed "__nonum__<time>", which can never match a real item and so

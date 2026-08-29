@@ -1631,6 +1631,17 @@ async function saveWizardItem() {
     }
   }
 
+  // v0.9.1600 (show mode 2): a staged offline photo waiting for this save
+  // claims it NOW — before the append, so an offline save (which records to
+  // the outbox and answers row-unknown) still pairs. The invId is read from
+  // the built row itself, so every branch above agrees on it.
+  try {
+    if (window._rrPendingStagePair && typeof window._rrStagePairCommit === 'function' && typeof row !== 'undefined' && row) {
+      var _spIdx = PERSONAL_SCHEMA.findIndex(function (f) { return f.field === 'inventoryId'; });
+      window._rrStagePairCommit(itemNum, (_spIdx >= 0 && row[_spIdx]) || '');
+    }
+  } catch (eSP) {}
+
   var _mainApRow = 0;   // v0.9.1196: the sheet row this item actually landed on
   if (d._fillItemMode && existing?.row) {
         // Updating existing row with new item details (e.g. filling in a quick-entry row)

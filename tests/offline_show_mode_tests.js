@@ -24,7 +24,9 @@ const app = sh.slice(sh.indexOf('async function sheetsAppend'), sh.indexOf('asyn
 ok('an offline-boot UPDATE is recorded to the outbox, not refused',
    /_offlineMode\) \{[\s\S]{0,700}?throw _rrWriteFailed\('update'/.test(upd), '');
 ok('an offline-boot APPEND is recorded to the outbox, not refused',
-   /_offlineMode\) \{[\s\S]{0,700}?throw _rrWriteFailed\('append'/.test(app), '');
+   /_offlineMode\) \{[\s\S]{0,900}?_rrWriteFailed\('append'/.test(app), '');
+ok('…and RETURNS row-unknown so a multi-row save queues every row (v1600)',
+   /_rrWriteFailed\('append'[\s\S]{0,120}?return 0;/.test(app), '');
 ok('…and neither keeps the old bare refusal throw',
    !/needs a connection", 3500, true\);\s*throw new Error\('offline'\)/.test(upd + app), '');
 ok('…while the toast says SAVED ON THIS DEVICE, not refused',

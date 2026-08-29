@@ -384,7 +384,15 @@ async function sheetsAppend(spreadsheetId, range, values) {
   // standing guard against a request that died AFTER reaching Google.
   if (window._offlineMode) {
     if (typeof showToast === 'function') showToast('You\u2019re offline \u2014 saved on this device. It goes to your sheet when you\u2019re back on.', 3500);
-    throw _rrWriteFailed('append', { sheetId: spreadsheetId, range: range, values: values }, new Error('offline'));
+    // v0.9.1600 (show mode 2): record, then RETURN row-unknown instead of
+    // throwing. A wizard save is many appends in sequence (engine + tender,
+    // item + box, the IS row); a throw at the first aborts the rest, so only
+    // one row of a multi-row save would ever queue — a partial save wearing
+    // a kept-toast. 0 is the v1200 documented "row unknown" answer every
+    // caller already tolerates; the save runs to completion, every row
+    // queues, local state updates, and the wizard closes normally.
+    _rrWriteFailed('append', { sheetId: spreadsheetId, range: range, values: values }, new Error('offline'));
+    return 0;
   }
   // v0.9.840 (Phase C): lapsed trial/subscription = view-and-export-only.
   if (window._readOnlyMode) {

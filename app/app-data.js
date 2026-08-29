@@ -2097,7 +2097,7 @@ window._rrOfflineAppendDrain = function () {
         if (r && r.inventoryId != null && r.inventoryId !== '') have[String(r.inventoryId)] = 1;
       });
     } catch (e) {}
-    rrOutboxDrainAppends(function (entry) {
+    var _drainP = rrOutboxDrainAppends(function (entry) {
       try {
         if (invIdx < 0) return false;
         var row = entry && entry.args && entry.args.values && entry.args.values[0];
@@ -2107,5 +2107,19 @@ window._rrOfflineAppendDrain = function () {
         return !!have[String(iv)];                   // true = already in the sheet, drop
       } catch (e) { return false; }
     });
+    // v0.9.1600 (show mode 2): rows just landed — refresh personal data so
+    // the paired-photo drain can find them (row numbers + inventoryIds),
+    // then kick it. Fire-and-forget; every step tolerates being early.
+    if (_drainP && _drainP.then) {
+      _drainP.then(function (r) {
+        if (!r || !r.sent) { try { if (window._pinStageDrainNow) window._pinStageDrainNow(); } catch (e) {} return; }
+        Promise.resolve(typeof loadPersonalData === 'function' ? loadPersonalData() : null)
+          .then(function () {
+            try { if (typeof buildPartnerMap === 'function') buildPartnerMap(); } catch (e) {}
+            try { if (window._pinStageDrainNow) window._pinStageDrainNow(); } catch (e) {}
+          })
+          .catch(function () { try { if (window._pinStageDrainNow) window._pinStageDrainNow(); } catch (e) {} });
+      }).catch(function () {});
+    }
   } catch (e) {}
 };

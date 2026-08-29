@@ -188,7 +188,8 @@ const HOOK = '\n;window.__T = { get groups(){return _groups;}, set groups(v){_gr
      + '\n;window.__StageDrain=typeof _stageDrain==="function"?_stageDrain:null;'
      + '\n;window.__StageStrip=typeof _stageRenderStrip==="function"?_stageRenderStrip:null;'
      + '\n;window.__QcUpload=typeof _qcUpload==="function"?_qcUpload:null;'
-     + '\n;window.__StageBootPoll=typeof _stageBootPoll!=="undefined"?_stageBootPoll:null;';
+     + '\n;window.__StageBootPoll=typeof _stageBootPoll!=="undefined"?_stageBootPoll:null;'
+     + '\n;window.__StagePairSet=typeof _stagePairSet==="function"?_stagePairSet:null;';
 const cut = src.lastIndexOf('})();');
 if (cut < 0) { console.log('could not find IIFE end'); process.exit(2); }
 src = src.slice(0, cut) + HOOK + '\n' + src.slice(cut);
@@ -7310,10 +7311,16 @@ META_WRITES.length = 0; TOASTS.length = 0;
     ok('a write that SUCCEEDS records nothing',
        good.recorded.length === 0 && noRange.recorded.length === 0);
 
+    // v0.9.1600 RE-PIN (show mode 2): offline no longer refuses — it RECORDS
+    // the append to the outbox and answers the honest row-unknown 0, so a
+    // multi-append wizard save queues every row instead of aborting at the
+    // first throw. Zero network requests leave the device.
     var offline = run({}, { win: { _offlineMode: true } });
-    var threwOff = false;
-    try { offline.fn('SHEET', 'T!A:A', [['x']]); } catch (e) { threwOff = /offline/.test(e.message); }
-    ok('offline mode still refuses the write up front', threwOff);
+    var offRow = offline.fn('SHEET', 'T!A:A', [['x']]);
+    ok('offline mode RECORDS the append and answers row-unknown (v1600)',
+       offRow === 0 && offline.recorded.length === 1 && offline.recorded[0].kind === 'append'
+       && offline.recorded[0].args.range === 'T!A:A', JSON.stringify(offline.recorded));
+    ok('…without a single network request', offline.calls.length === 0, offline.calls.length + ' fetch(es)');
   })();
 
   section('169. Handlers survive odd item names, and thumbnails forget replaced photos (v0.9.1201)');
@@ -10367,10 +10374,16 @@ META_WRITES.length = 0; TOASTS.length = 0;
     // v0.9.1599 RE-PIN: 4 → 6. The two extras are the OFFLINE-BOOT paths in
     // sheetsUpdate/sheetsAppend — the v826 view-only refusal became a record-
     // then-throw through the same chokepoint, so an offline boot's write is
+    // kept instead of refused. v0.9.1600 RE-PIN 6->5: append's offline path
+    // now records WITHOUT throwing and returns 0 (row unknown) so a
+    // multi-append wizard save queues EVERY row instead of aborting at the
+    // first — the next check pins that exact shape.
     // kept instead of refused. Same contract: recorded, rethrown unchanged.
     ok('…and the original error is rethrown, so no caller behaves differently',
-       (sh.match(/throw _rrWriteFailed\(/g) || []).length === 6 &&
+       (sh.match(/throw _rrWriteFailed\(/g) || []).length === 5 &&
        /return err;/.test(sh));
+    ok('…except the offline APPEND, which records and answers row-unknown (v1600)',
+       /_rrWriteFailed\('append', \{ sheetId: spreadsheetId, range: range, values: values \}, new Error\('offline'\)\);\s*\n\s*return 0;/.test(sh));
     ok('a blocked write is not a failed one — the trial gate is not queued',
        /if \(why === 'readonly'\) return null;/.test(ob));
 
@@ -15264,8 +15277,12 @@ META_WRITES.length = 0; TOASTS.length = 0;
         // this census was down with the crashed suite; the seventieth is the
         // v1577 conversion of the LAST bare row write (the v1547 For Sale
         // asking-price fill — see the sibling check above, which caught it).
-        ok('234 the sweep really landed — 70 sites write through the one guarded writer',
-           wrapped === 70, String(wrapped));
+        // v0.9.1600: 70 → 71. The seventy-first is _stageFileToItem's photo
+        // link-fix (show mode 2) — a staged offline photo's Item Photo Link
+        // cell, written through the SAME verified writer the photo-only save
+        // uses. Exactly where a new row write is supposed to flow.
+        ok('234 the sweep really landed — 71 sites write through the one guarded writer',
+           wrapped === 71, String(wrapped));
       }
     })();
 
@@ -21581,6 +21598,113 @@ META_WRITES.length = 0; TOASTS.length = 0;
         return r2.kept === 1 && l2.length === 1 && l2[0].tries === 1;
       })(), '');
       localStorage.removeItem('rr_write_outbox');
+    })();
+
+    // ═══════════════════════════════════════════════════════════
+    // 306. SHOW MODE 2 (v0.9.1600): staged photos FILE ONTO ITEMS.
+    // Brad: "add items from the photo inbox just like i was on line."
+    // A staged photo pairs with an item — via the picker or the wizard's
+    // pending-pair handshake — and the drain delivers it STRAIGHT to the
+    // item's Drive folder (driveUploadItemPhoto, proper name), then fixes
+    // the row's Item Photo Link cell through the same verified write the
+    // photo-only save uses. Upload and link-fix are separately persisted:
+    // a row that has not loaded yet keeps the record WITHOUT re-uploading.
+    // ═══════════════════════════════════════════════════════════
+    section('306. Staged photos file onto their items, once, with the link fixed');
+    await (async function () {
+      const tick = () => new Promise(r => setTimeout(r, 8));
+      if (!window.__StageAll || !window.__StageDrain) { ok('306 staging engine present', false, 'missing'); return; }
+      // clean slate
+      global.accessToken = 'tok'; navigator.onLine = true;
+      global.driveUploadFile = async () => ({ id: 'flush' });
+      localStorage.removeItem('rr_stage_drain_lock');
+      await window.__StageDrain();
+
+      // two photos staged offline
+      navigator.onLine = false;
+      await window.__Upload([{ name: 'a.jpg', type: 'image/jpeg' }, { name: 'b.jpg', type: 'image/jpeg' }]);
+      let all = await window.__StageAll();
+      ok('306 two photos wait on the device', all.length === 2, all.length + ' staged');
+
+      // the wizard handshake pairs them with the item being saved
+      window._rrPendingStagePair = { ids: all.map(r => r.id), at: Date.now() };
+      window._rrStagePairCommit('2343', '777');
+      await tick(); await tick(); await tick();
+      all = await window.__StageAll();
+      ok('306 the pending pair claims both photos for the saved item',
+         all.length === 2 && all.every(r => r.itemNum === '2343' && r.invId === '777'),
+         JSON.stringify(all.map(r => [r.itemNum, r.invId])));
+      ok('306 …first as the Right Side View, the rest as extras',
+         all.map(r => r.view).sort().join(',') === 'EXTRA,RSV', all.map(r => r.view).join(','));
+      ok('306 …and the pending set is spent', window._rrPendingStagePair === null, '');
+
+      // the picker re-pairs one of them to a different owned item
+      window._stagePairPicked(all[1].id, '6464', '888');
+      await tick(); await tick(); await tick();
+      all = await window.__StageAll();
+      const nums = all.map(r => r.itemNum).sort().join(',');
+      ok('306 the picker re-pairs a photo to an owned item', nums === '2343,6464', nums);
+
+      // reconnect: the drain files each to ITS item and fixes the row cell
+      navigator.onLine = true;
+      const UPI = [], VER = [];
+      global.driveUploadItemPhoto = async (f, num, view, inv) => { UPI.push(num + '/' + view + '/' + String(inv)); return 'https://drive/f/' + num; };
+      global.rrVerifiedRowUpdate = async (sid, tab, rowN, range, vals) => { VER.push(range + '=' + vals[0][0]); return true; };
+      global.PERSONAL_TAB = 'My Collection';
+      global.personalColLetter = () => 'S';
+      state.personalData = {
+        k1: { itemNum: '2343', inventoryId: '777', row: 55, photoItem: '' },
+        k2: { itemNum: '6464', inventoryId: '888', row: 60, photoItem: '' },
+      };
+      TOASTS.length = 0;
+      localStorage.removeItem('rr_stage_drain_lock');
+      await window.__StageDrain();
+      ok('306 BRAD\'S ASK: each photo filed straight to its item, no inbox detour',
+         UPI.length === 2 && UPI.some(u => u.indexOf('2343/') === 0) && UPI.some(u => u.indexOf('6464/') === 0),
+         JSON.stringify(UPI));
+      ok('306 …and each row\'s Item Photo Link cell was fixed, verified',
+         VER.length === 2 && VER.some(v => v.indexOf('!S55=') > 0) && VER.some(v => v.indexOf('!S60=') > 0),
+         JSON.stringify(VER));
+      ok('306 …the store is empty afterwards', (await window.__StageAll()).length === 0, '');
+      ok('306 …and the toast says FILED, not inboxed',
+         TOASTS.some(t => /filed to their items/.test(t.m)), JSON.stringify(TOASTS.map(t => t.m)));
+
+      // a row that has not loaded yet: kept, upload NOT repeated
+      navigator.onLine = false;
+      await window.__Upload([{ name: 'c.jpg', type: 'image/jpeg' }]);
+      let rec = (await window.__StageAll())[0];
+      await window.__StagePairSet([rec.id], '9999', '999');
+      navigator.onLine = true;
+      localStorage.removeItem('rr_stage_drain_lock');
+      await window.__StageDrain();
+      rec = (await window.__StageAll())[0];
+      ok('306 an unloaded row keeps the photo, with the upload already banked',
+         !!rec && rec.tries === 1 && typeof rec.upLink === 'string' && rec.upLink.indexOf('9999') > 0,
+         rec ? JSON.stringify({ tries: rec.tries, upLink: rec.upLink }) : 'record gone');
+      const upiBefore = UPI.length;
+      localStorage.removeItem('rr_stage_drain_lock');
+      await window.__StageDrain();
+      ok('306 …a second drain does NOT upload again', UPI.length === upiBefore, (UPI.length - upiBefore) + ' extra upload(s)');
+      // the row arrives; the fix lands; the record leaves
+      state.personalData.k3 = { itemNum: '9999', inventoryId: '999', row: 70, photoItem: '' };
+      localStorage.removeItem('rr_stage_drain_lock');
+      await window.__StageDrain();
+      ok('306 …and once the row loads, the link lands and the record leaves',
+         (await window.__StageAll()).length === 0 && VER.some(v => v.indexOf('!S70=') > 0), JSON.stringify(VER));
+
+      // the surfaces: strip thumbs review, wizard hook, cancel hygiene
+      const pi306 = fs.readFileSync(require('path').join(__dirname, '..', 'app', 'photo-inbox.js'), 'utf8');
+      ok('306 strip thumbs open the review card', /onclick="_stageReview\(/.test(pi306), '');
+      ok('306 …which offers attach-to-owned and add-as-new',
+         /_stagePickItem\(/.test(pi306) && /_stageAddAsItem\(/.test(pi306), '');
+      ok('306 …and paired thumbs wear their item number', /→ ' \+ rrEsc\(r\.itemNum\)/.test(pi306), '');
+      const ws306 = fs.readFileSync(require('path').join(__dirname, '..', 'app', 'wizard-save.js'), 'utf8');
+      ok('306 the wizard save claims the pending pair BEFORE the append',
+         /window\._rrStagePairCommit\(itemNum,[\s\S]{0,80}\)/.test(ws306)
+         && ws306.indexOf('_rrStagePairCommit(itemNum') < ws306.indexOf('var _mainApRow = 0'), '');
+      const wz306 = fs.readFileSync(require('path').join(__dirname, '..', 'app', 'wizard.js'), 'utf8');
+      ok('306 a cancelled wizard cannot leak its photo onto the next save',
+         /function _doCloseWizard\(\) \{[\s\S]{0,400}_rrPendingStagePair = null/.test(wz306), '');
     })();
 
   })().then(function () {

@@ -2383,6 +2383,177 @@
     return n;
   }
 
+  // ═══ v0.9.1600: SHOW MODE 2 — staged photos FILE ONTO ITEMS offline ═══
+  //
+  // Brad: "i should be able to add them to the photo inbox, then add items
+  // from the photo inbox just like i was on line." A staged photo can now be
+  // PAIRED — with an item he owns (picker) or with the item the wizard is
+  // about to save (the pending-pair handshake with wizard-save). A paired
+  // record drains STRAIGHT to the item's Drive folder via
+  // driveUploadItemPhoto (proper name, no inbox detour), then fixes the
+  // row's Item Photo Link cell through the same verified write the
+  // photo-only save uses. Upload and link-fix are separate persisted steps:
+  // a crash between them re-runs only the fix, never the upload.
+
+  window._rrPendingStagePair = window._rrPendingStagePair || null;
+
+  async function _stagePairSet(ids, itemNum, invId) {
+    var list = await _stageAll();
+    var first = true;
+    for (var i = 0; i < list.length; i++) {
+      var r = list[i];
+      if (ids.indexOf(r.id) === -1) continue;
+      r.itemNum = String(itemNum || '');
+      r.invId = String(invId || '');
+      if (r.itemNum && !r.view) { r.view = first ? 'RSV' : 'EXTRA'; first = false; }
+      await _stagePut(r);
+    }
+    try { _stageRenderStrip(); } catch (e) {}
+  }
+
+  // wizard-save calls this the moment a collection row is BUILT (before the
+  // append, so an offline save — which records and answers row-unknown —
+  // still pairs). Cancelling the wizard clears the pending set instead.
+  window._rrStagePairCommit = function (itemNum, invId) {
+    var pend = window._rrPendingStagePair;
+    window._rrPendingStagePair = null;
+    if (!pend || !pend.ids || !pend.ids.length || !itemNum) return;
+    _stagePairSet(pend.ids, itemNum, invId).catch(function (e) {
+      console.warn('[Inbox] stage pair commit:', e);
+    });
+  };
+
+  // ── the staged photo's review card ───────────────────────────────
+  window._stageReview = async function (id) {
+    var list = await _stageAll();
+    var r = null;
+    for (var i = 0; i < list.length; i++) if (list[i].id === id) { r = list[i]; break; }
+    if (!r) { try { _stageRenderStrip(); } catch (e) {} return; }
+    var old = document.getElementById('stage-review-ov'); if (old) old.remove();
+    var u = '';
+    try { u = URL.createObjectURL(r.blob); if (u) _stageUrls.push(u); } catch (e) {}
+    var ov = document.createElement('div');
+    ov.id = 'stage-review-ov';
+    ov.style.cssText = 'position:fixed;inset:0;z-index:100060;background:rgba(0,0,0,0.9);display:flex;flex-direction:column;padding:max(0.8rem,env(safe-area-inset-top)) 0.9rem max(0.8rem,env(safe-area-inset-bottom))';
+    ov.innerHTML =
+      '<div style="display:flex;align-items:center;justify-content:space-between;color:#fff;margin-bottom:0.5rem">'
+      + '<strong style="font-size:0.95rem">Photo waiting to upload</strong>'
+      + '<button onclick="document.getElementById(\'stage-review-ov\').remove()" style="background:none;border:none;color:#bbb;font-size:1.5rem;line-height:1;cursor:pointer;padding:0.2rem 0.4rem">✕</button>'
+      + '</div>'
+      + '<div style="flex:1;min-height:0;display:flex;align-items:center;justify-content:center">'
+      +   (u ? '<img src="' + u + '" style="max-width:100%;max-height:100%;border-radius:10px" alt="">' : '<div style="color:#888">Preview unavailable</div>')
+      + '</div>'
+      + (r.itemNum
+          ? '<div style="color:#eee;font-size:0.85rem;text-align:center;margin-top:0.6rem">Filing to <b>' + rrEsc(r.itemNum) + '</b> when you reconnect'
+            + ' <button onclick="_stageUnpair(\'' + r.id + '\')" style="margin-left:0.6rem;padding:0.3rem 0.7rem;border-radius:8px;border:1px solid #666;background:#2a2a2a;color:#eee;font-size:0.78rem;cursor:pointer">Unpair</button></div>'
+          : '')
+      + '<div style="display:flex;gap:0.5rem;margin-top:0.7rem;flex-wrap:wrap">'
+      +   '<button onclick="_stagePickItem(\'' + r.id + '\')" style="flex:1;min-width:9rem;padding:0.8rem;border-radius:10px;border:none;background:#2980b9;color:#fff;font-family:var(--font-body);font-weight:700;font-size:0.9rem;cursor:pointer">Attach to an item I own…</button>'
+      +   '<button onclick="_stageAddAsItem(\'' + r.id + '\')" style="flex:1;min-width:9rem;padding:0.8rem;border-radius:10px;border:none;background:var(--accent);color:var(--on-accent);font-family:var(--font-body);font-weight:700;font-size:0.9rem;cursor:pointer">Add as a new item…</button>'
+      +   '<button onclick="_stageDiscard(\'' + r.id + '\')" style="flex:0 0 auto;padding:0.8rem;border-radius:10px;border:1px solid #a33;background:#2a2a2a;color:#f08080;font-family:var(--font-body);font-weight:600;font-size:0.85rem;cursor:pointer">Remove</button>'
+      + '</div>';
+    document.body.appendChild(ov);
+  };
+
+  window._stageUnpair = function (id) {
+    _stagePairSet([id], '', '').then(function () {
+      var ov = document.getElementById('stage-review-ov'); if (ov) ov.remove();
+      window._stageReview(id);
+    });
+  };
+
+  window._stageDiscard = async function (id) {
+    var go = true;
+    try { if (typeof appConfirm === 'function') go = await appConfirm('Remove this waiting photo from this device? It has not been uploaded anywhere.', { title: 'Remove photo', ok: 'Remove it', cancel: 'Keep it', danger: true }); } catch (e) {}
+    if (!go) return;
+    try { await _stageDel(id); } catch (e) {}
+    var ov = document.getElementById('stage-review-ov'); if (ov) ov.remove();
+    try { _stageRenderStrip(); } catch (e) {}
+  };
+
+  window._stageAddAsItem = function (id) {
+    window._rrPendingStagePair = { ids: [id], at: Date.now() };
+    var ov = document.getElementById('stage-review-ov'); if (ov) ov.remove();
+    if (typeof openWizard === 'function') openWizard('collection');
+  };
+
+  // ── pick an owned item to attach to ──────────────────────────────
+  window._stagePickItem = function (id) {
+    var old = document.getElementById('stage-pick-ov'); if (old) old.remove();
+    var ov = document.createElement('div');
+    ov.id = 'stage-pick-ov';
+    ov.style.cssText = 'position:fixed;inset:0;z-index:100070;background:var(--scrim);display:flex;align-items:flex-start;justify-content:center;padding:2rem 1rem';
+    ov.innerHTML =
+      '<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:1rem;width:100%;max-width:480px;max-height:80vh;display:flex;flex-direction:column">'
+      + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.6rem">'
+      +   '<strong style="color:var(--text);font-size:0.95rem">Attach to which item?</strong>'
+      +   '<button onclick="document.getElementById(\'stage-pick-ov\').remove()" style="background:none;border:none;color:var(--text-dim);font-size:1.3rem;cursor:pointer">✕</button>'
+      + '</div>'
+      + '<input id="stage-pick-q" placeholder="Type an item number or words from the name…" style="padding:0.6rem 0.7rem;border-radius:9px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text);font-size:0.9rem;margin-bottom:0.55rem">'
+      + '<div id="stage-pick-list" style="flex:1;overflow-y:auto;min-height:0"></div>'
+      + '</div>';
+    document.body.appendChild(ov);
+    var q = document.getElementById('stage-pick-q'), listEl = document.getElementById('stage-pick-list');
+    function paint() {
+      var term = String((q && q.value) || '').toLowerCase().trim();
+      var rows = [];
+      try {
+        Object.keys(state.personalData || {}).forEach(function (k) {
+          var r2 = state.personalData[k];
+          if (!r2 || !r2.itemNum) return;
+          var hay = (r2.itemNum + ' ' + (r2.masterDescription || '') + ' ' + (r2.yourDescription || '')).toLowerCase();
+          if (!term || hay.indexOf(term) >= 0) rows.push(r2);
+        });
+      } catch (e) {}
+      rows = rows.slice(0, 20);
+      listEl.innerHTML = rows.length ? rows.map(function (r2) {
+        var safeNum = String(r2.itemNum).replace(/[^\w.\- ]+/g, '');
+        return '<div onclick="_stagePairPicked(\'' + id + '\',\'' + safeNum + '\',\'' + String(r2.inventoryId || '') + '\')"'
+          + ' style="padding:0.55rem 0.4rem;border-top:1px solid var(--border);cursor:pointer">'
+          + '<b style="color:var(--text);font-size:0.88rem">' + rrEsc(r2.itemNum) + '</b>'
+          + ' <span style="color:var(--text-mid);font-size:0.8rem">' + rrEsc(String(r2.masterDescription || '').slice(0, 60)) + '</span></div>';
+      }).join('') : '<div style="color:var(--text-dim);font-size:0.85rem;padding:0.6rem 0.2rem">Nothing matches.</div>';
+    }
+    if (q) q.oninput = paint;
+    paint();
+  };
+
+  window._stagePairPicked = function (id, itemNum, invId) {
+    _stagePairSet([id], itemNum, invId).then(function () {
+      var p1 = document.getElementById('stage-pick-ov'); if (p1) p1.remove();
+      var p2 = document.getElementById('stage-review-ov'); if (p2) p2.remove();
+      showToast('Will file to ' + itemNum + ' when you’re back online', 3200);
+    });
+  };
+
+  // ── a paired record drains straight to its item ──────────────────
+  async function _stageFileToItem(r) {
+    if (!r.upLink) {
+      var f = r.blob;
+      try { if (!f.name) f = new File([r.blob], 'photo.jpg', { type: r.type || 'image/jpeg' }); } catch (eF) {}
+      var link = await driveUploadItemPhoto(f, r.itemNum, r.view || 'RSV', r.invId || undefined);
+      if (!link) throw new Error('no link back from Drive');
+      r.upLink = link;
+      try { await _stagePut(r); } catch (e) {}   // crash-safe: never upload twice
+    }
+    if (!r.invId) return;                         // no row to point at — folder delivery is the job
+    var pd = null;
+    try {
+      var ks = Object.keys(state.personalData || {});
+      for (var i = 0; i < ks.length; i++) {
+        var row = state.personalData[ks[i]];
+        if (row && String(row.inventoryId || '') === String(r.invId)) { pd = row; break; }
+      }
+    } catch (e) {}
+    if (!pd) throw new Error('row for ' + r.itemNum + ' not loaded yet');   // kept — retried next drain
+    if (pd.photoItem) return;                     // row already has a photo link
+    if (!pd.row || pd.row === 99999) throw new Error('row number for ' + r.itemNum + ' unknown yet');
+    var okUp = await rrVerifiedRowUpdate(state.personalSheetId, PERSONAL_TAB, pd.row,
+      PERSONAL_TAB + '!' + personalColLetter('photoItem') + pd.row, [[r.upLink]],
+      { num: pd.itemNum || '', invId: pd.inventoryId || '' }, 'collection');
+    if (okUp) pd.photoItem = r.upLink;
+  }
+
   // ── the drain: staged → Drive, on reconnect / boot / demand ──────────
   async function _stageDrain() {
     if (_stageDraining) return;
@@ -2396,12 +2567,19 @@
     var list = await _stageAll();
     if (!list.length) { try { localStorage.removeItem(_STAGE_LOCK); } catch (e) {} return; }
     _stageDraining = true;
-    var ok = 0, fail = 0;
+    var ok = 0, fail = 0, _filed = 0;
     try {
       var fid = await _folder();
       for (var i = 0; i < list.length; i++) {
         var r = list[i];
         try {
+          // v0.9.1600: paired photos file straight to their item
+          if (r.itemNum) {
+            await _stageFileToItem(r);
+            await _stageDel(r.id);
+            ok++; _filed++;
+            continue;
+          }
           var up = await driveUploadFile(r.blob, r.name, fid);
           if (!up || !up.id) throw new Error('no id back from Drive');
           var meta = {};
@@ -2424,7 +2602,9 @@
     try { localStorage.removeItem(_STAGE_LOCK); } catch (e) {}
     try { await _stageRenderStrip(); } catch (e) {}
     if (ok) {
-      showToast(ok + ' photo' + (ok > 1 ? 's' : '') + ' taken offline ' + (ok > 1 ? 'have' : 'has') + ' reached your inbox', 3500);
+      // v0.9.1600: filed photos went to their ITEMS, not the inbox — say so.
+      if (_filed) showToast(_filed + ' photo' + (_filed > 1 ? 's' : '') + ' filed to ' + (_filed > 1 ? 'their items' : 'its item'), 3500);
+      if (ok > _filed) showToast((ok - _filed) + ' photo' + (ok - _filed > 1 ? 's' : '') + ' taken offline ' + (ok - _filed > 1 ? 'have' : 'has') + ' reached your inbox', 3500);
       try { _pinRefresh(); } catch (e) {}
     }
     if (fail && !_pinOffline()) {
@@ -2445,9 +2625,14 @@
     var thumbs = list.slice(0, 12).map(function (r) {
       var u = '';
       try { u = URL.createObjectURL(r.blob); if (u) _stageUrls.push(u); } catch (e) {}
-      return '<div style="position:relative;width:72px;height:72px;border-radius:8px;overflow:hidden;border:1.5px solid var(--border);flex:0 0 auto;background:var(--surface2)">'
+      // v0.9.1600: tap a waiting photo to review it — attach it to an item,
+      // add it as a new item, or remove it. Paired ones wear their item.
+      return '<div onclick="_stageReview(\'' + r.id + '\')" style="position:relative;width:72px;height:72px;border-radius:8px;overflow:hidden;border:1.5px solid var(--border);flex:0 0 auto;background:var(--surface2);cursor:pointer">'
         + (u ? '<img src="' + u + '" style="width:100%;height:100%;object-fit:cover" alt="">' : '')
-        + '<div style="position:absolute;left:0;right:0;bottom:0;background:rgba(0,0,0,0.62);color:#fff;font-size:0.55rem;font-weight:700;text-align:center;padding:1px 2px">waiting</div></div>';
+        + (r.itemNum
+            ? '<div style="position:absolute;left:0;right:0;bottom:0;background:rgba(0,0,0,0.62);color:#fff;font-size:0.55rem;font-weight:700;text-align:center;padding:1px 2px;white-space:nowrap;overflow:hidden">→ ' + rrEsc(r.itemNum) + '</div>'
+            : '<div style="position:absolute;left:0;right:0;bottom:0;background:rgba(0,0,0,0.62);color:#fff;font-size:0.55rem;font-weight:700;text-align:center;padding:1px 2px">waiting</div>')
+        + '</div>';
     }).join('');
     var more = list.length > 12 ? '<span style="font-size:0.75rem;color:var(--text-dim);align-self:center">+' + (list.length - 12) + ' more</span>' : '';
     host.innerHTML =
