@@ -2117,6 +2117,9 @@ window._rrOfflineAppendDrain = function () {
           .then(function () {
             try { if (typeof buildPartnerMap === 'function') buildPartnerMap(); } catch (e) {}
             try { if (window._pinStageDrainNow) window._pinStageDrainNow(); } catch (e) {}
+            // v0.9.1602: rows are in the sheet AND freshly loaded — pending
+            // photo-filing notes can find their rows and real row numbers.
+            try { if (typeof window._pinFlushPendingNow === 'function') window._pinFlushPendingNow(); } catch (e) {}
           })
           .catch(function () { try { if (window._pinStageDrainNow) window._pinStageDrainNow(); } catch (e) {} });
       }).catch(function () {});

@@ -21777,6 +21777,32 @@ META_WRITES.length = 0; TOASTS.length = 0;
       ok('307 the bank prunes itself (newest ~600 kept)', /list\.length <= 600/.test(pi7), '');
     })();
 
+    // ═══════════════════════════════════════════════════════════
+    // 308. OFFLINE FILING OF DRIVE-HOSTED PHOTOS (v0.9.1602, build 2 of
+    // Brad's brainstorm). The discovery that shaped this release: the
+    // pending-note pipeline was ALREADY offline-tolerant — notes are
+    // localStorage, armed at save (a local act), retried by _flushPending
+    // for up to a week. So offline filing = the cached inbox (§307) + the
+    // offline wizard (v1599/1600) + these three welds, pinned here.
+    // ═══════════════════════════════════════════════════════════
+    section('308. Photos filed offline move the minute the connection returns');
+    (function () {
+      const pi8 = fs.readFileSync(require('path').join(__dirname, '..', 'app', 'photo-inbox.js'), 'utf8');
+      ok('308 reconnect kicks the pending-note flusher (after the row drain)',
+         /setTimeout\(function \(\) \{ try \{ _flushPending\(\); \} catch \(e\) \{\} \}, 4000\)/.test(pi8), '');
+      ok('308 …and the flusher is reachable by the append-drain chain',
+         /window\._pinFlushPendingNow = _flushPending/.test(pi8), '');
+      const ad8 = fs.readFileSync(require('path').join(__dirname, '..', 'app', 'app-data.js'), 'utf8');
+      ok('308 the append drain files pending notes once rows land and reload',
+         /window\._pinFlushPendingNow === 'function'\) window\._pinFlushPendingNow\(\)/.test(ad8), '');
+      const dr8 = fs.readFileSync(require('path').join(__dirname, '..', 'app', 'drive.js'), 'utf8');
+      const fullSeg = dr8.slice(dr8.indexOf('async function _loadDriveThumbFull'), dr8.indexOf('async function _loadDriveThumbFull') + 1400);
+      ok('308 the review card\'s big view serves the banked copy offline',
+         /window\._rrThumbCache\.get\(fileId\)/.test(fullSeg) && /Not saved on this device yet/.test(fullSeg), '');
+      ok('308 the add-from-inbox door itself carries NO offline gate (the wizard is the gate, and it opens)',
+         !/_pinOfflineRefuse/.test(pi8.slice(pi8.indexOf('window._pinAddNow'), pi8.indexOf('window._pinAddNow') + 1200)), '');
+    })();
+
   })().then(function () {
     console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
     process.exit(fail ? 1 : 0);

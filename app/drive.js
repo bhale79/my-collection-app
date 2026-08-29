@@ -1020,6 +1020,17 @@ async function _loadDriveThumbSmall(fileId, imgEl, containerEl, thumbLink) {
 async function _loadDriveThumbFull(fileId, imgEl, containerEl) {
   const cacheKey = fileId;
   if (_blobCache[cacheKey]) { imgEl.src = _blobCache[cacheKey]; return; }
+  // v0.9.1602: offline, the banked thumbnail beats an authenticated fetch
+  // that cannot happen — the review card's big view shows the banked copy
+  // instead of an error square.
+  if ((window._offlineMode || (typeof navigator !== 'undefined' && navigator.onLine === false)) && window._rrThumbCache) {
+    try {
+      var _bk = await window._rrThumbCache.get(fileId);
+      if (_bk) { imgEl.src = URL.createObjectURL(_bk); return; }
+    } catch (e) {}
+    if (containerEl) containerEl.innerHTML = '<span style="font-size:0.9rem" title="Not saved on this device yet">\ud83d\udcf5</span>';
+    return;
+  }
   try {
     // Use thumbnail endpoint with size parameter (requires auth)
     const thumbUrl = `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media&acknowledgeAbuse=true`;

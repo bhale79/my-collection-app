@@ -2753,7 +2753,12 @@
   // the connection returns (app-misc), so the boot poller is what catches
   // those; the 'online' listener catches airplane mode flipped mid-session.
   try {
-    window.addEventListener('online', function () { setTimeout(function () { _stageDrain(); }, 1500); });
+    window.addEventListener('online', function () {
+      setTimeout(function () { _stageDrain(); }, 1500);
+      // v0.9.1602: photos filed offline (pending notes) move the minute the
+      // connection returns — 4s so the row drains ahead of the mover.
+      setTimeout(function () { try { _flushPending(); } catch (e) {} }, 4000);
+    });
   } catch (e) {}
   var _stageBootPoll = setInterval(function () {
     if (_pinOffline()) return;
@@ -6605,6 +6610,12 @@
   // only acts on items that now exist in the collection, so a cancelled add
   // leaves its photos untouched in the inbox. (Session 168, Brad)
   var _flushingNums = {};
+  // v0.9.1602 (show mode, build 2): the pending-note pipeline was ALREADY
+  // offline-tolerant by design — notes are localStorage, armed at save time
+  // (a local act), and this flusher retries on every dashboard build for up
+  // to a week. What was missing: a kick the moment the connection returns,
+  // so photos filed offline move the minute they can instead of waiting for
+  // the next dashboard visit. Exposed for the append-drain chain too.
   async function _flushPending() {
     var pend;
     try { pend = JSON.parse(localStorage.getItem(PENDING_KEY) || '{}'); } catch (e) { pend = {}; }
@@ -11067,6 +11078,7 @@
         var r = orig.apply(this, arguments);
         try {
           _injectNav(); _flushPending(); _repairMissingPhotoLinks(); _backfillMasterKeys();
+          window._pinFlushPendingNow = _flushPending;   // v0.9.1602: reconnect + drain-chain kick
           if (!_startupCounted) { _startupCounted = true; setTimeout(function () { _pinCountRefresh(); }, 1500); }
         } catch (e) {}
         return r;
