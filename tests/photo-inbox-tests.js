@@ -87,12 +87,16 @@ function _mkIdbDb(raw) {
     createObjectStore(n, o) { raw[n] = { keyPath: (o && o.keyPath) || 'id', data: new Map() }; },
     close() {},
     transaction(n, mode) {
+      // v0.9.1601: the DB grew stores (inbox_cache, thumbs). The real browser
+      // creates them in onupgradeneeded; this stub just provides them.
+      if (!raw[n]) raw[n] = { keyPath: 'id', data: new Map() };
       const st = raw[n];
       const tx = {};
       tx.objectStore = () => ({
         put(rec) { st.data.set(rec[st.keyPath], rec); return _mkIdbRq(undefined); },
         delete(k) { st.data.delete(k); return _mkIdbRq(undefined); },
         getAll() { return _mkIdbRq([...st.data.values()]); },
+        get(k) { return _mkIdbRq(st.data.get(k)); },   // v0.9.1601: the cache reads by key
       });
       setTimeout(() => { if (tx.oncomplete) tx.oncomplete(); }, 0);
       return tx;
@@ -189,7 +193,10 @@ const HOOK = '\n;window.__T = { get groups(){return _groups;}, set groups(v){_gr
      + '\n;window.__StageStrip=typeof _stageRenderStrip==="function"?_stageRenderStrip:null;'
      + '\n;window.__QcUpload=typeof _qcUpload==="function"?_qcUpload:null;'
      + '\n;window.__StageBootPoll=typeof _stageBootPoll!=="undefined"?_stageBootPoll:null;'
-     + '\n;window.__StagePairSet=typeof _stagePairSet==="function"?_stagePairSet:null;';
+     + '\n;window.__StagePairSet=typeof _stagePairSet==="function"?_stagePairSet:null;'
+     + '\n;window.__InboxCacheSave=typeof _inboxCacheSave==="function"?_inboxCacheSave:null;'
+     + '\n;window.__InboxCacheLoad=typeof _inboxCacheLoad==="function"?_inboxCacheLoad:null;'
+     + '\n;window.__BuildGroups=typeof _pinBuildGroups==="function"?_pinBuildGroups:null;';
 const cut = src.lastIndexOf('})();');
 if (cut < 0) { console.log('could not find IIFE end'); process.exit(2); }
 src = src.slice(0, cut) + HOOK + '\n' + src.slice(cut);
@@ -21705,6 +21712,69 @@ META_WRITES.length = 0; TOASTS.length = 0;
       const wz306 = fs.readFileSync(require('path').join(__dirname, '..', 'app', 'wizard.js'), 'utf8');
       ok('306 a cancelled wizard cannot leak its photo onto the next save',
          /function _doCloseWizard\(\) \{[\s\S]{0,400}_rrPendingStagePair = null/.test(wz306), '');
+    })();
+
+    // ═══════════════════════════════════════════════════════════
+    // 307. THE INBOX REMEMBERS ITSELF (v0.9.1601, Brad's brainstorm: "if i
+    // have photos of items in my photo inbox and i loose connection, is
+    // there a way for me to still see them"). A COMPLETE online listing
+    // saves itself (ids, names, tags — never the expiring signed links);
+    // offline, the SAME group builder renders the saved listing, and
+    // thumbnails come from the on-device bank drive.js fills as they paint.
+    // No prune, sync, or reconcile ever runs against a cached listing.
+    // ═══════════════════════════════════════════════════════════
+    section('307. Offline inbox: the saved listing, the same groups, the thumb bank');
+    await (async function () {
+      if (!window.__InboxCacheSave || !window.__BuildGroups) {
+        ok('307 the offline-memory machinery exists', false, 'missing'); return;
+      }
+      // a listing with a grouped pair and a loose photo, tags in appProperties
+      const files = [
+        { id: 'fA', name: 'INBOX 1 gG1 a.jpg', createdTime: '2026-08-28', appProperties: { rrGrp: 'G1', rrEra: 'pw', rrKind: 'set' }, thumbnailLink: 'https://lh3/sig-expires' },
+        { id: 'fB', name: 'INBOX 1 gG1 b.jpg', createdTime: '2026-08-28', appProperties: { rrGrp: 'G1', rrEra: 'pw' } },
+        { id: 'fC', name: 'INBOX 2 gG2 c.jpg', createdTime: '2026-08-27', appProperties: {} },
+      ];
+      await window.__InboxCacheSave(files);
+      const back = await window.__InboxCacheLoad();
+      ok('307 a complete listing saves itself with ids, names and tags',
+         !!back && back.files.length === 3 && back.files[0].appProperties.rrGrp === 'G1' && back.at > 0,
+         back ? back.files.length + ' files' : 'nothing saved');
+      ok('307 …but never the expiring signed thumbnail links',
+         !JSON.stringify(back.files).includes('sig-expires'), '');
+      // the SAME builder groups the cached listing exactly like the live one
+      T.groups = [];
+      window.__BuildGroups(back.files);
+      ok('307 the cached listing groups through the one real builder',
+         T.groups.length === 2 && T.groups[0].files.length === 2 && T.groups[0].key === 'gG1',
+         JSON.stringify(T.groups.map(g => [g.key, g.files.length])));
+      ok('307 …with the group tags alive (era rides the cache)',
+         T.groups[0].files[0]._meta && T.groups[0].files[0]._meta.era === 'pw', '');
+      // the thumbnail bank round-trips
+      const fakeBlob = { size: 12345, type: 'image/jpeg' };
+      await window._rrThumbCache.put('fA', fakeBlob);
+      const got = await window._rrThumbCache.get('fA');
+      ok('307 the thumbnail bank stores and returns a photo', got === fakeBlob, '');
+      ok('307 …and answers null honestly for a photo never banked',
+         (await window._rrThumbCache.get('nope')) === null, '');
+
+      // source pins: the wiring that cannot be driven headless
+      const pi7 = fs.readFileSync(require('path').join(__dirname, '..', 'app', 'photo-inbox.js'), 'utf8');
+      ok('307 refresh saves ONLY a listing Drive confirmed complete',
+         /if \(_pinListComplete\) \{ try \{ _inboxCacheSave\(files\); \} catch/.test(pi7), '');
+      const offBranch = pi7.slice(pi7.indexOf('if (_pinOffline()) {', pi7.indexOf('window._pinRefresh')), pi7.indexOf("_status('Loading inbox…')"));
+      ok('307 the offline branch renders the cache and RETURNS before prune/sync/reconcile',
+         /_pinBuildGroups\(_cached\.files\)/.test(offBranch) && /_render\(\)/.test(offBranch)
+         && (offBranch.match(/return;/g) || []).length === 2
+         && !/_pinReconcileStored|_pinSyncReadState/.test(offBranch), '');
+      ok('307 …and says when the saved copy is from',
+         /showing your inbox as saved/.test(offBranch), '');
+      const dr7 = fs.readFileSync(require('path').join(__dirname, '..', 'app', 'drive.js'), 'utf8');
+      ok('307 drive.js serves offline thumbs from the bank, placeholder on a miss',
+         /window\._rrThumbCache\.get\(fileId\)/.test(dr7) && /Not saved on this device yet/.test(dr7), '');
+      ok('307 …and banks thumbs as they paint, fire-and-forget via canvas',
+         /_rrThumbBank\(fileId, _sized\)/.test(dr7) && /crossOrigin = 'anonymous'/.test(dr7)
+         && /toBlob\(/.test(dr7), '');
+      ok('307 the bank prunes itself (newest ~600 kept)', /list\.length <= 600/.test(pi7), '');
     })();
 
   })().then(function () {

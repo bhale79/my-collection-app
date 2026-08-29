@@ -1651,6 +1651,28 @@
     return seeded;
   }
 
+  // v0.9.1601: the ONE group builder — the live listing and the offline
+  // cached listing flow through the same code, so cached groups can never
+  // drift from real ones. Returns the key map (the caller prunes _sel with
+  // it); sets _groups and _thumbLink as the inline code always did.
+  function _pinBuildGroups(files) {
+    var map = {}, order = [];
+    _thumbLink = {};
+    files.forEach(function (f) {
+      if (f.thumbnailLink) _thumbLink[f.id] = f.thumbnailLink;
+      // v0.9.1047: metadata first, filename as the fallback — so photos from
+      // before today group exactly as they always did.
+      f._meta = _pinMetaOf(f);
+      var key = f._meta.grp ? 'g' + f._meta.grp : 'f' + f.id;
+      if (!map[key]) { map[key] = { key: key, files: [], kind: f._meta.kind, era: f._meta.era }; order.push(key); }
+      map[key].files.push(f);
+    });
+    _groups = order.map(function (k) { return map[k]; });
+    // v0.9.1283: a dragged order outranks the listing order, per group.
+    _groups.forEach(function (g) { g.files = _pinSortByOrd(g.files); });
+    return map;
+  }
+
   window._pinRefresh = async function () {
     if (!_ensurePage()) return;
     // v0.9.1590: the staged strip re-reads its store on every refresh, and a
@@ -1658,6 +1680,24 @@
     // store is empty or the connection is still down).
     try { _stageRenderStrip(); } catch (e) {}
     try { _stageDrain(); } catch (e) {}
+    // v0.9.1601 (Brad's brainstorm): offline, the inbox shows its SAVED
+    // self — the last complete listing, grouped by the same builder, with
+    // thumbnails from the on-device bank. No prune, no read-state sync, no
+    // reconcile runs against a cached listing: those only ever act on a
+    // listing Drive just confirmed.
+    if (_pinOffline()) {
+      var _cached = await _inboxCacheLoad();
+      if (!_cached || !_cached.files || !_cached.files.length) {
+        _status('You\u2019re offline and no saved copy of your inbox exists on this device yet \u2014 it saves itself whenever the inbox loads online.');
+        return;
+      }
+      _pinBuildGroups(_cached.files);
+      _render();
+      var _when = '';
+      try { _when = new Date(_cached.at).toLocaleString(); } catch (eW) {}
+      _status('\ud83d\udcf5 Offline \u2014 showing your inbox as saved ' + _when + '. Photos load from this device; identify needs a connection.');
+      return;
+    }
     _status('Loading inbox…');
     try {
       var fid = await _folder();
@@ -1697,7 +1737,7 @@
         if (++_guard > 40) { _pinListComplete = false; break; }   // ~8,000 photos; never spin forever
       } while (_pageTok);
       // Group by the g<id> tag; untagged files are their own group.
-      var map = {}, order = [];
+      var map = _pinBuildGroups(files);
       // v0.9.1326 (MEASURED): the listing now asks for thumbnailLink, which
       // files.list returns in the SAME request at no extra cost. Without it,
       // loadDriveThumb was handed null and had to fetch each photo's link
@@ -1711,20 +1751,10 @@
       // Kept as a side map rather than a data- attribute on purpose: these are
       // long signed URLs, and putting 500 of them in the grid's HTML would
       // trade a network win for a DOM one.
-      _thumbLink = {};
-      files.forEach(function (f) {
-        if (f.thumbnailLink) _thumbLink[f.id] = f.thumbnailLink;
-        // v0.9.1047: metadata first, filename as the fallback — so photos from
-        // before today group exactly as they always did.
-        f._meta = _pinMetaOf(f);
-        var key = f._meta.grp ? 'g' + f._meta.grp : 'f' + f.id;
-        if (!map[key]) { map[key] = { key: key, files: [], kind: f._meta.kind, era: f._meta.era }; order.push(key); }
-        map[key].files.push(f);
-      });
-      _groups = order.map(function (k) { return map[k]; });
-      // v0.9.1283: a dragged order outranks the listing order, per group.
-      _groups.forEach(function (g) { g.files = _pinSortByOrd(g.files); });
       try { _pinReconcileStored(); } catch (eRS) {}
+      // v0.9.1601: a COMPLETE listing is the inbox's offline memory — save
+      // it (ids, names, tags; never the expiring signed thumbnail links).
+      if (_pinListComplete) { try { _inboxCacheSave(files); } catch (eCS) {} }
       // v0.9.1412 — reconcile read-state with Drive so the phone and the
       // desktop agree (and the phone never pays to re-read what the desktop
       // already read). PULL is synchronous so the counts below are right;
@@ -2320,16 +2350,88 @@
   var _stageDraining = false;
   var _stageUrls = [];
 
+  // v0.9.1601: version 2 adds the inbox's OFFLINE MEMORY — the last-loaded
+  // listing (ids, names, tags) and a thumbnail store — beside the staged
+  // photos. Existing v1 databases upgrade in place; every create is guarded
+  // so a store that already exists never fails the open.
+  var _CACHE_STORE = 'inbox_cache', _THUMB_STORE = 'thumbs';
   function _stageOpen() {
     return new Promise(function (res, rej) {
-      var rq = indexedDB.open(_STAGE_DB, 1);
+      var rq = indexedDB.open(_STAGE_DB, 2);
       rq.onupgradeneeded = function () {
-        try { rq.result.createObjectStore(_STAGE_STORE, { keyPath: 'id' }); } catch (e) {}
+        var db = rq.result;
+        [_STAGE_STORE, _CACHE_STORE, _THUMB_STORE].forEach(function (st) {
+          try { if (!db.objectStoreNames || !db.objectStoreNames.contains || !db.objectStoreNames.contains(st)) db.createObjectStore(st, { keyPath: 'id' }); } catch (e) {}
+        });
       };
       rq.onsuccess = function () { res(rq.result); };
       rq.onerror = function () { rej((rq && rq.error) || new Error('idb open failed')); };
     });
   }
+  function _idbPut(store, rec) {
+    return _stageOpen().then(function (db) {
+      return new Promise(function (res, rej) {
+        var tx = db.transaction(store, 'readwrite');
+        tx.objectStore(store).put(rec);
+        tx.oncomplete = function () { try { db.close(); } catch (e) {} res(true); };
+        tx.onerror = function () { try { db.close(); } catch (e) {} rej((tx && tx.error) || new Error('idb write failed')); };
+      });
+    });
+  }
+  function _idbGet(store, id) {
+    return _stageOpen().then(function (db) {
+      return new Promise(function (res) {
+        var rq = db.transaction(store, 'readonly').objectStore(store).get(id);
+        rq.onsuccess = function () { try { db.close(); } catch (e) {} res(rq.result || null); };
+        rq.onerror = function () { try { db.close(); } catch (e) {} res(null); };
+      });
+    }).catch(function () { return null; });
+  }
+  function _idbAll(store) {
+    return _stageOpen().then(function (db) {
+      return new Promise(function (res) {
+        var rq = db.transaction(store, 'readonly').objectStore(store).getAll();
+        rq.onsuccess = function () { try { db.close(); } catch (e) {} res(rq.result || []); };
+        rq.onerror = function () { try { db.close(); } catch (e) {} res([]); };
+      });
+    }).catch(function () { return []; });
+  }
+  function _idbDel(store, id) {
+    return _stageOpen().then(function (db) {
+      return new Promise(function (res) {
+        var tx = db.transaction(store, 'readwrite');
+        tx.objectStore(store).delete(id);
+        tx.oncomplete = function () { try { db.close(); } catch (e) {} res(true); };
+        tx.onerror = function () { try { db.close(); } catch (e) {} res(false); };
+      });
+    }).catch(function () { return false; });
+  }
+
+  // the inbox's saved listing + the thumbnail bank (window-shared so
+  // drive.js's thumbnail loader can read and feed it)
+  function _inboxCacheSave(files) {
+    var slim = files.map(function (f) {
+      return { id: f.id, name: f.name, createdTime: f.createdTime, appProperties: f.appProperties || {} };
+    });
+    return _idbPut(_CACHE_STORE, { id: 'listing', at: Date.now(), files: slim });
+  }
+  function _inboxCacheLoad() { return _idbGet(_CACHE_STORE, 'listing'); }
+  var _thumbPutCount = 0;
+  window._rrThumbCache = {
+    get: function (fileId) { return _idbGet(_THUMB_STORE, fileId).then(function (r) { return r && r.blob ? r.blob : null; }); },
+    put: function (fileId, blob) {
+      var pr = _idbPut(_THUMB_STORE, { id: fileId, blob: blob, at: Date.now() }).catch(function () {});
+      // a light prune every 25 puts: keep the newest ~600 thumbnails
+      if ((++_thumbPutCount % 25) === 0) {
+        _idbAll(_THUMB_STORE).then(function (list) {
+          if (list.length <= 600) return;
+          list.sort(function (a, b) { return (a.at || 0) - (b.at || 0); });
+          list.slice(0, list.length - 600).forEach(function (r) { _idbDel(_THUMB_STORE, r.id); });
+        });
+      }
+      return pr;
+    },
+  };
   function _stageWrite(fn) {
     return _stageOpen().then(function (db) {
       return new Promise(function (res, rej) {

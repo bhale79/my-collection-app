@@ -934,8 +934,47 @@ function loadDriveThumb(fileId, imgEl, containerEl, thumbLink, priority) {
     return _loadDriveThumbSmall(fileId, imgEl, containerEl, thumbLink);
   }, priority === 'hi' ? 'hi' : 'lo');
 }
+// ── v0.9.1601: the on-device thumbnail bank ─────────────────────────────
+// Drive's signed thumbnail links cannot be fetch()ed cross-origin, so the
+// bank is filled the one way the browser allows: a separate anonymous
+// Image drawn to a canvas, compressed, and stored — fire-and-forget, so a
+// CORS refusal costs nothing. Offline, the bank is the only source there is.
+var _rrThumbTried = {};
+function _rrThumbBank(fileId, link) {
+  try {
+    if (!window._rrThumbCache || _rrThumbTried[fileId]) return;
+    _rrThumbTried[fileId] = 1;
+    window._rrThumbCache.get(fileId).then(function (have) {
+      if (have) return;
+      var im = new Image();
+      im.crossOrigin = 'anonymous';
+      im.onload = function () {
+        try {
+          var w = im.naturalWidth || 400, h = im.naturalHeight || 400;
+          var scale = Math.min(1, 400 / Math.max(w, h));
+          var c = document.createElement('canvas');
+          c.width = Math.max(1, Math.round(w * scale));
+          c.height = Math.max(1, Math.round(h * scale));
+          c.getContext('2d').drawImage(im, 0, 0, c.width, c.height);
+          c.toBlob(function (b) { if (b) window._rrThumbCache.put(fileId, b); }, 'image/jpeg', 0.8);
+        } catch (e) {}
+      };
+      im.onerror = function () {};
+      im.src = link;
+    }).catch(function () {});
+  } catch (e) {}
+}
+
 async function _loadDriveThumbSmall(fileId, imgEl, containerEl, thumbLink) {
   try {
+    // v0.9.1601: offline — the bank or nothing. A miss shows an honest
+    // placeholder instead of a broken image or a hung fetch.
+    if ((window._offlineMode || (typeof navigator !== 'undefined' && navigator.onLine === false)) && window._rrThumbCache) {
+      var _banked = await window._rrThumbCache.get(fileId);
+      if (_banked) { imgEl.src = URL.createObjectURL(_banked); return; }
+      if (containerEl) containerEl.innerHTML = '<span style="font-size:0.9rem" title="Not saved on this device yet">\ud83d\udcf5</span>';
+      return;
+    }
     // Prefer a locally-cached blob (e.g. a just-cropped image) over Drive's
     // server thumbnail, which lags behind edits and would show the old shot.
     if (_blobCache[fileId]) { imgEl.src = _blobCache[fileId]; return; }
@@ -970,7 +1009,9 @@ async function _loadDriveThumbSmall(fileId, imgEl, containerEl, thumbLink) {
       // The queue now only throttles the metadata fetch; images paint on their
       // own, and any load error falls back to the full original.
       imgEl.onerror = function() { imgEl.onerror = null; _loadDriveThumbFull(fileId, imgEl, containerEl); };
-      imgEl.src = link.replace(/=s\d+(-c)?$/, '=s400');
+      var _sized = link.replace(/=s\d+(-c)?$/, '=s400');
+      imgEl.src = _sized;
+      _rrThumbBank(fileId, _sized);   // v0.9.1601: fire-and-forget into the bank
       return;
     }
   } catch (e) {}
