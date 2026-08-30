@@ -22316,6 +22316,36 @@ META_WRITES.length = 0; TOASTS.length = 0;
          /e\.pointerType === 'mouse'\) return;/.test(wz18), '');
     })();
 
+    // ═══════════════════════════════════════════════════════════
+    // 319. BRAD'S EVENING TRIO (v0.9.1615): the group panel defaults to
+    // "One item" (not ABA); the desktop panel can be grabbed by its title
+    // and moved (his red circle: it sat on his photos); and Install is
+    // ALWAYS reachable — a Preferences row on the web, plus a one-time
+    // install offer with a Cancel button when browsing the website.
+    // ═══════════════════════════════════════════════════════════
+    section('319. One-item default, movable panel, install always reachable');
+    (function () {
+      const pi19 = fs.readFileSync(require('path').join(__dirname, '..', 'app', 'photo-inbox.js'), 'utf8');
+      ok('319 the group panel defaults to One item, not ABA',
+         /var _grpPanelKind = 'single';/.test(pi19) && !/var _grpPanelKind = 'aba';/.test(pi19), '');
+      ok('319 the desktop panel is draggable by its title, spot remembered per session',
+         /Drag to move this panel/.test(pi19) && /window\._grpPanelPos = \{ left: L/.test(pi19)
+         && /window\._grpPanelPos\) \{/.test(pi19), '');
+      ok('319 …and the phone bottom-sheet is untouched by the drag wiring',
+         /if \(!narrow\) \{\s*\n\s*try \{\s*\n\s*var _ttl/.test(pi19), '');
+      const pr19 = fs.readFileSync(require('path').join(__dirname, '..', 'app', 'prefs.js'), 'utf8');
+      ok('319 Preferences carries Install on this device, hidden only when standalone',
+         /pref-install-section/.test(pr19) && /_pwaInstall === 'function'\) _pwaInstall\(\)/.test(pr19)
+         && /display-mode: standalone/.test(pr19), '');
+      const am19 = fs.readFileSync(require('path').join(__dirname, '..', 'app', 'app-misc.js'), 'utf8');
+      ok('319 the web shows a one-time install offer with Install AND Cancel',
+         /Install The Rail Roster on this device\?/.test(am19)
+         && /pwa-offer-go/.test(am19) && /pwa-offer-no/.test(am19), '');
+      ok('319 …that never nags: Not-now sleeps 30 days, Install ends it, standalone never sees it',
+         /30 \* 24 \* 3600 \* 1000/.test(am19) && /'-1'/.test(am19)
+         && /_pwaIsInstalled\(\)\) return;/.test(am19.slice(am19.indexOf('_pwaOfferInit'))), '');
+    })();
+
   })().then(function () {
     console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
     process.exit(fail ? 1 : 0);

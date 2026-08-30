@@ -254,6 +254,50 @@ if (typeof window !== 'undefined') {
 }
 setTimeout(_pwaMenuInit, 3000);
 
+// ── v0.9.1615 (Brad): the first-visit install offer on the WEB ───────────
+// "when a user first logs on to the website app, have a small pop up that
+// says 'install on this device' button, also include a cancel button."
+// Shows once per dismissal (a Not-now sleeps it 30 days; Install ends it
+// for good), never inside the installed app, and waits until the app has
+// actually rendered so it never covers sign-in.
+function _pwaOfferInit() {
+  try {
+    if (_pwaIsInstalled()) return;
+    var dis = 0;
+    try { dis = parseInt(localStorage.getItem('lv_install_offer_ts') || '0', 10); } catch (e) {}
+    if (dis === -1) return;                                  // installed via the offer — done forever
+    if (dis && (Date.now() - dis) < 30 * 24 * 3600 * 1000) return;   // Not now = 30-day sleep
+    if (!document.getElementById('main-content')) { setTimeout(_pwaOfferInit, 4000); return; }
+    if (document.getElementById('pwa-install-offer')) return;
+    var b = document.createElement('div');
+    b.id = 'pwa-install-offer';
+    b.style.cssText = 'position:fixed;bottom:5.5rem;left:50%;transform:translateX(-50%);z-index:9995;'
+      + 'background:var(--surface);color:var(--text);border:1.5px solid var(--accent);border-radius:14px;'
+      + 'padding:0.8rem 1rem;max-width:min(92vw,420px);box-shadow:0 8px 28px var(--scrim);'
+      + 'font-family:var(--font-body);display:flex;align-items:center;gap:0.9rem;flex-wrap:wrap';
+    b.innerHTML =
+      '<div style="flex:1;min-width:12rem">'
+      + '<div style="font-weight:700;font-size:0.9rem">Install The Rail Roster on this device?</div>'
+      + '<div style="font-size:0.76rem;color:var(--text-dim)">Its own window, faster starts, works offline.</div>'
+      + '</div>'
+      + '<div style="display:flex;gap:0.5rem;flex-shrink:0">'
+      + '<button id="pwa-offer-go" style="padding:0.5rem 1rem;border-radius:9px;border:none;background:var(--accent);color:var(--on-accent);font-family:var(--font-head);font-weight:700;font-size:0.78rem;letter-spacing:0.04em;text-transform:uppercase;cursor:pointer">Install on this device</button>'
+      + '<button id="pwa-offer-no" style="padding:0.5rem 0.9rem;border-radius:9px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-weight:600;font-size:0.8rem;cursor:pointer">Cancel</button>'
+      + '</div>';
+    document.body.appendChild(b);
+    document.getElementById('pwa-offer-go').onclick = function () {
+      try { localStorage.setItem('lv_install_offer_ts', '-1'); } catch (e) {}
+      b.remove();
+      _pwaInstall();
+    };
+    document.getElementById('pwa-offer-no').onclick = function () {
+      try { localStorage.setItem('lv_install_offer_ts', String(Date.now())); } catch (e) {}
+      b.remove();
+    };
+  } catch (e) {}
+}
+setTimeout(_pwaOfferInit, 8000);
+
 function _showIOSInstallHint() {
   const isIOS = _isAppleTouch();
   const isStandalone = window.navigator.standalone === true;

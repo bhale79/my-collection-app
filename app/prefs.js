@@ -186,7 +186,17 @@ function buildPrefsPage() {
         <div class="pref-row" style="padding:0.45rem 0.6rem">
           <div class="pref-row-label"><strong>Condition</strong></div>
           <select class="pref-select" style="min-width:72px" id="pref-def-cond" onchange="_prefSet('lv_default_cond', this.value)">
-            ${[...Array(10)].map((_,i)=>{const v=i+1; return `<option value="${v}" ${_prefGet('lv_default_cond','7')===String(v)?'selected':''}>${v}</option>`;}).join('')}
+            ${[...Array(10)].map((_,i)=>{const v=i+1; return `<option value="${v}" ${_prefGet('lv_default_cond','7')===String(v)?'selected':''}>${v}</option>`;
+
+  // v0.9.1615: a <script> inside innerHTML never runs — the install row's
+  // visibility is decided HERE, after the render. Web = visible; the
+  // installed app never sees it.
+  try {
+    if (!((window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || window.navigator.standalone === true)) {
+      var _pis = document.getElementById('pref-install-section');
+      if (_pis) _pis.style.display = '';
+    }
+  } catch (ePI) {}}).join('')}
           </select>
         </div>
       </div>
@@ -383,6 +393,19 @@ function buildPrefsPage() {
       </div>
     </div>
 
+    <!-- ── v0.9.1615 (Brad): Install — ALWAYS reachable from the web ──
+         Hidden only when already running as the installed app, where it
+         would be noise. _pwaInstall handles every case (native dialog /
+         Apple 3-step hint / Chrome-menu instructions). -->
+    <div class="pref-section" id="pref-install-section" style="display:none">
+      <div class="pref-row" style="display:flex;align-items:center;justify-content:space-between;gap:0.8rem">
+        <div>
+          <div style="font-weight:600;color:var(--text)">Install on this device</div>
+          <div style="font-size:0.78rem;color:var(--text-dim)">Put The Rail Roster on your home screen or desktop — its own window, faster starts, works offline.</div>
+        </div>
+        <button onclick="if (typeof _pwaInstall === 'function') _pwaInstall()" style="padding:0.5rem 1rem;border-radius:9px;border:none;background:var(--accent);color:var(--on-accent);font-family:var(--font-head);font-weight:700;font-size:0.8rem;letter-spacing:0.04em;text-transform:uppercase;cursor:pointer;flex-shrink:0">Install</button>
+      </div>
+    </div>
     <!-- ── About ──────────────────────────────── -->
     <div class="pref-section">
       <div class="pref-section-title" onclick="_togglePrefSection(this)" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center">About <span style="font-size:0.7rem;color:var(--text-dim);transition:transform 0.2s">▶</span></div>

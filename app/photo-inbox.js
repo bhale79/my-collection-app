@@ -862,7 +862,8 @@
   // two taps away. Saving is the same v0.9.1050 machinery — one group id, a
   // kind, a role per photo — extracted into _pinGroupApply below so the old
   // dialog's behavior survives with a different roof over it.
-  var _grpPanelKind = 'aba';
+  // v0.9.1615 (Brad): "the default should be one item not aba-a,b,a."
+  var _grpPanelKind = 'single';
   var _grpPanelRoles = [];
 
   // The one writer for "make these photos a group" (was the dialog's save).
@@ -962,6 +963,13 @@
     p.style.cssText = narrow
       ? 'position:fixed;left:0;right:0;bottom:0;z-index:10040;background:var(--surface);border-top:2px solid var(--accent2);box-shadow:0 -4px 18px var(--scrim);padding:0.7rem 0.8rem;max-height:34vh;overflow-y:auto'
       : 'position:fixed;top:70px;right:16px;width:300px;z-index:10040;background:var(--surface);border:1.5px solid var(--accent2);border-radius:12px;box-shadow:0 6px 22px var(--scrim);padding:0.75rem 0.85rem;max-height:72vh;overflow-y:auto';
+    // v0.9.1615 (Brad's circle around the panel sitting on his photos): on
+    // desktop the card can be GRABBED by its title and moved; the spot is
+    // remembered for the session, and every re-render (each tick re-paints
+    // this panel) puts it back where he left it.
+    if (!narrow && window._grpPanelPos) {
+      try { p.style.left = window._grpPanelPos.left; p.style.top = window._grpPanelPos.top; p.style.right = 'auto'; } catch (eP) {}
+    }
     // v0.9.1593 (Brad, phone screenshot): the seven-line explainer plus a
     // 45vh sheet left ZERO visible grid on a phone — "when grouping items on
     // your phone you cant see anything to be able to pick photos". On narrow
@@ -1025,6 +1033,35 @@
       +   '<button id="pin-grp-panel-done" style="flex:1;padding:0.6rem;border-radius:8px;border:none;background:var(--accent2);color:#1a1a1a;font-weight:700;font-size:0.82rem;min-height:44px;cursor:pointer">Done</button>'
       + '</div>';
     p.innerHTML = html;
+    // v0.9.1615: grab the title to move the desktop card out of the way.
+    if (!narrow) {
+      try {
+        var _ttl = p.querySelector ? p.firstChild : null;
+        var _hdr = null;
+        // the title element is the first div carrying "Group photos"
+        var _cands = p.querySelectorAll ? p.querySelectorAll('div') : [];
+        for (var _h = 0; _h < _cands.length; _h++) { if (/Group photos/.test(_cands[_h].textContent || '')) { _hdr = _cands[_h]; break; } }
+        if (_hdr) {
+          _hdr.style.cursor = 'move';
+          _hdr.title = 'Drag to move this panel';
+          _hdr.onpointerdown = function (e) {
+            if (e.button !== undefined && e.button !== 0) return;
+            var r = p.getBoundingClientRect();
+            var ox = e.clientX - r.left, oy = e.clientY - r.top;
+            function mv(ev) {
+              var L = Math.max(0, Math.min(window.innerWidth - 80, ev.clientX - ox));
+              var T = Math.max(0, Math.min(window.innerHeight - 60, ev.clientY - oy));
+              p.style.left = L + 'px'; p.style.top = T + 'px'; p.style.right = 'auto';
+              window._grpPanelPos = { left: L + 'px', top: T + 'px' };
+            }
+            function up() { document.removeEventListener('pointermove', mv); document.removeEventListener('pointerup', up); }
+            document.addEventListener('pointermove', mv);
+            document.addEventListener('pointerup', up);
+            e.preventDefault();
+          };
+        }
+      } catch (eDrag) {}
+    }
     // v0.9.1598 (Brad: "i can't scroll down to see the last picture", still,
     // on a confirmed v1597): the clearance moves from PADDING (v1596 CSS
     // constant, v1597 measured inline — neither reached his device's scroll
