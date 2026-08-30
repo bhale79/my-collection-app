@@ -22273,6 +22273,49 @@ META_WRITES.length = 0; TOASTS.length = 0;
          /Add to Home screen/.test(am), '');
     })();
 
+    // ═══════════════════════════════════════════════════════════
+    // 318. SLOT SWAP, WHOLE (v0.9.1614). Brad asked for drag-to-swap —
+    // which v1433 built, for mice only: HTML5 drag never fires on touch,
+    // so on his phone it did not exist. And the v1433 trade had two holes:
+    // _photoFileIds (the crop button's map) never swapped — crop-after-
+    // swap edited the WRONG photo — and uploaded files kept their old
+    // view's NAME, so gallery labels lied.
+    // ═══════════════════════════════════════════════════════════
+    section('318. Photo slots swap completely — data, crop map, filenames, and by touch');
+    await (async function () {
+      const wz18 = fs.readFileSync(require('path').join(__dirname, '..', 'app', 'wizard.js'), 'utf8');
+      // functional: drive the REAL swap with both slots uploaded
+      const seg = wz18.slice(wz18.indexOf('function _wizSwapRename'), wz18.indexOf('// ── v0.9.1614: TOUCH drag'));
+      const RENAMES = [];
+      const wiz = { data: { photosItem: { TOP: 'urlA', BOT: 'urlB' }, _photoFileIds: { 'photosItem|TOP': 'fidA', 'photosItem|BOT': 'fidB' } } };
+      const swap = new Function('wizard', 'renderWizardStep', 'driveRequest', 'window', 'navigator', 'console',
+        '"use strict";' + seg + '; return window._wizSlotSwap;')(
+        wiz, () => {}, (m, u, b) => { RENAMES.push(m + ' ' + u + ' ' + JSON.stringify(b || '')); return Promise.resolve({ name: 'Lionel 2025 ID9 TOP.jpg' }); },
+        {}, { onLine: true }, { warn: () => {} });
+      swap('photosItem|TOP', 'photosItem|BOT', 'photosItem');
+      ok('318 the pictures trade places', wiz.data.photosItem.TOP === 'urlB' && wiz.data.photosItem.BOT === 'urlA',
+         JSON.stringify(wiz.data.photosItem));
+      ok('318 BRAD-ADJACENT BUG: the crop button\'s file map trades with them',
+         wiz.data._photoFileIds['photosItem|TOP'] === 'fidB' && wiz.data._photoFileIds['photosItem|BOT'] === 'fidA',
+         JSON.stringify(wiz.data._photoFileIds));
+      ok('318 …and both uploaded files get re-named for their new views',
+         RENAMES.filter(r => r.indexOf('GET') === 0).length === 2, JSON.stringify(RENAMES));
+      // the rename swaps ONLY the view word, keeping the identity
+      const ren = seg.match(/nm\.replace\(([^,]+),/);
+      ok('318 …by replacing only the LAST word of the name (the view token)',
+         /\[\^ \.\]\+\(\\\.\[\^\.\]\+\)\$/.test(seg), '');
+      // touch machinery pins
+      ok('318 touch drag exists: press-and-hold (300ms), early move = scroll',
+         /_wizTouchDragStart/.test(wz18) && /setTimeout\(function \(\) \{\s*st\.dragging = true/.test(wz18)
+         && /> 100\) clean\(\);/.test(wz18), '');
+      ok('318 …hit-tests the slot under the finger and swaps through the ONE engine',
+         /elementFromPoint\(ev\.clientX, ev\.clientY\)/.test(wz18)
+         && /closest\('\.photo-drop-zone'\)/.test(wz18)
+         && wz18.indexOf('window._wizSlotSwap(fromIk, toIk, stepDataId)') > 0, '');
+      ok('318 …and is wired on filled slots for non-mouse pointers only',
+         /e\.pointerType === 'mouse'\) return;/.test(wz18), '');
+    })();
+
   })().then(function () {
     console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
     process.exit(fail ? 1 : 0);

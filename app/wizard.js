@@ -4816,6 +4816,13 @@ function renderWizardStep() {
             e.dataTransfer.effectAllowed = 'move';
           } catch (eDS) {}
         };
+        // v0.9.1614: on a touch screen HTML5 drag never fires — press-and-
+        // hold starts the pointer drag instead (a quick tap still opens the
+        // source picker; an early move is read as a scroll and lets go).
+        div.addEventListener('pointerdown', function (e) {
+          if (e.pointerType === 'mouse') return;
+          if (typeof window._wizTouchDragStart === 'function') window._wizTouchDragStart(e, div, stepId + '|' + viewKey, s.id);
+        });
       }
 
       const prog = document.createElement('div');
@@ -6846,6 +6853,27 @@ window.addEventListener('resize', function () {
 // wizard.data[stepId][viewKey], or an inbox Drive id pinned in
 // wizard.data._inboxSlotMap. Swapping handles both, independently, so an
 // uploaded photo and an inbox photo can trade places too. Re-render redraws.
+// v0.9.1614 (Brad: "if i drag a picture from the top to the bottom view,
+// and there is a picture already in the bottom view, just swap them"): two
+// v1433 gaps closed. (a) _photoFileIds — the map the crop button targets —
+// never traded, so cropping after a swap edited the WRONG photo. (b) An
+// uploaded photo's Drive file is NAMED by its view ("… 2025 ID12 TOP.jpg"),
+// and galleries label thumbnails from that last word — a swap without a
+// rename left every label lying. Renames are fire-and-forget (offline or a
+// blip: the picture is right on screen and at save; only the label lags).
+function _wizSwapRename(fileId, newView) {
+  try {
+    if (!fileId || !newView || typeof driveRequest !== 'function') return;
+    if (window._offlineMode || (typeof navigator !== 'undefined' && navigator.onLine === false)) return;
+    driveRequest('GET', '/files/' + fileId + '?fields=name').then(function (meta) {
+      var nm = (meta && meta.name) || '';
+      if (!nm) return;
+      var next = nm.replace(/ [^ .]+(\.[^.]+)$/, ' ' + String(newView).replace('EXTRA2', 'EXTRA') + '$1');
+      if (next === nm) return;
+      return driveRequest('PATCH', '/files/' + fileId, { name: next });
+    }).catch(function (e) { console.warn('[slot-swap] rename skipped:', e && e.message); });
+  } catch (e) {}
+}
 window._wizSlotSwap = function (fromIk, toIk, stepDataId) {
   try {
     if (!fromIk || !toIk || fromIk === toIk) return;
@@ -6859,8 +6887,83 @@ window._wizSlotSwap = function (fromIk, toIk, stepDataId) {
     if (bUrl) stored[fv] = bUrl; else delete stored[fv];
     if (aFid) map[toIk] = aFid; else delete map[toIk];
     if (bFid) map[fromIk] = bFid; else delete map[fromIk];
+    // v0.9.1614(a): the crop button's file map trades with the pictures.
+    var ids = wizard.data._photoFileIds || (wizard.data._photoFileIds = {});
+    var aId = ids[fromIk] || '', bId = ids[toIk] || '';
+    if (aId) ids[toIk] = aId; else delete ids[toIk];
+    if (bId) ids[fromIk] = bId; else delete ids[fromIk];
+    // v0.9.1614(b): uploaded files re-wear their new view's name.
+    if (aId) _wizSwapRename(aId, tv);
+    if (bId) _wizSwapRename(bId, fv);
     renderWizardStep();
   } catch (e) { console.warn('[slot-swap]', e); }
+};
+
+// ── v0.9.1614: TOUCH drag — press-and-hold, then drag to the other slot ──
+// HTML5 drag-and-drop never fires on touch screens, so on the phone the
+// v1433 feature simply did not exist (Brad asked for it again today).
+// Hold 300ms (a move >10px first means a scroll — cancelled), then a ghost
+// chip follows the finger, the slot underneath highlights, and lifting on
+// a slot trades places through the same _wizSlotSwap.
+var _wtd = null;
+window._wizTouchDragStart = function (e, div, ik, stepDataId) {
+  if (_wtd) return;
+  var sx = e.clientX, sy = e.clientY;
+  var st = { div: div, ik: ik, sid: stepDataId, dragging: false, ghost: null, over: null };
+  _wtd = st;
+  function clean() {
+    try { document.removeEventListener('pointermove', onMove); } catch (e2) {}
+    try { document.removeEventListener('pointerup', onUp); } catch (e2) {}
+    try { document.removeEventListener('pointercancel', onUp); } catch (e2) {}
+    try { document.removeEventListener('touchmove', blockScroll, { passive: false }); } catch (e2) {}
+    if (st.hold) clearTimeout(st.hold);
+    if (st.ghost) try { st.ghost.remove(); } catch (e2) {}
+    if (st.over) try { st.over.style.borderColor = ''; } catch (e2) {}
+    try { div.style.opacity = ''; } catch (e2) {}
+    _wtd = null;
+  }
+  function blockScroll(ev) { if (st.dragging) ev.preventDefault(); }
+  function onMove(ev) {
+    var dx = ev.clientX - sx, dy = ev.clientY - sy;
+    if (!st.dragging) {
+      if ((dx * dx + dy * dy) > 100) clean();   // moved before the hold — a scroll
+      return;
+    }
+    if (st.ghost) { st.ghost.style.left = (ev.clientX - 28) + 'px'; st.ghost.style.top = (ev.clientY - 60) + 'px'; }
+    var el = document.elementFromPoint(ev.clientX, ev.clientY);
+    var zone = el && el.closest ? el.closest('.photo-drop-zone') : null;
+    if (st.over && st.over !== zone) { st.over.style.borderColor = ''; st.over = null; }
+    if (zone && zone !== div && zone !== st.over) { st.over = zone; zone.style.borderColor = 'var(--accent)'; }
+  }
+  function onUp(ev) {
+    if (st.dragging && st.over && st.over.dataset && st.over.dataset.view) {
+      var toIk = st.over.dataset.sid + '|' + st.over.dataset.view;
+      var fromIk = st.ik;
+      clean();
+      window._wizSlotSwap(fromIk, toIk, stepDataId);
+      return;
+    }
+    clean();
+  }
+  st.hold = setTimeout(function () {
+    st.dragging = true;
+    try { div.style.opacity = '0.45'; } catch (e2) {}
+    try {
+      var g = document.createElement('div');
+      g.id = 'wiz-drag-ghost';
+      g.textContent = '\u21c6 drop on another box to swap';
+      g.style.cssText = 'position:fixed;z-index:100090;left:' + (sx - 28) + 'px;top:' + (sy - 60) + 'px;'
+        + 'background:var(--surface);color:var(--text);border:1.5px solid var(--accent);border-radius:999px;'
+        + 'padding:0.35rem 0.8rem;font-family:var(--font-body);font-weight:700;font-size:0.75rem;'
+        + 'pointer-events:none;box-shadow:0 4px 16px var(--scrim)';
+      document.body.appendChild(g);
+      st.ghost = g;
+    } catch (e2) {}
+    document.addEventListener('touchmove', blockScroll, { passive: false });
+  }, 300);
+  document.addEventListener('pointermove', onMove);
+  document.addEventListener('pointerup', onUp);
+  document.addEventListener('pointercancel', onUp);
 };
 
 // ── Category/Tab/Choice handlers (moved to wizard-handlers.js — Session 110, Round 1 Chunk 6) ──
