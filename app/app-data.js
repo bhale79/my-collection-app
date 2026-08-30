@@ -1275,6 +1275,26 @@ function suggestSets(enteredItems) {
     .slice(0, 5);
 }
 
+// v0.9.1617: does this row LOOK like a leftover header rather than data?
+// See the note at its call site in the My Collection parser.
+function _rrHeaderishRow(r) {
+  try {
+    const itemNumCol = PERSONAL_FIELD_INDEX.itemNum;
+    const a = String(r[itemNumCol] || '').trim().toLowerCase();
+    if (/^item\s*(number|no\.?|#)$/.test(a)) return true;
+    let hits = 0;
+    for (let i = 0; i < PERSONAL_HEADERS.length && i < r.length; i++) {
+      const cell = String(r[i] || '').trim().toLowerCase();
+      if (cell && cell === String(PERSONAL_HEADERS[i] || '').trim().toLowerCase()) {
+        hits++;
+        if (hits >= 3) return true;
+      }
+    }
+  } catch (e) {}
+  return false;
+}
+if (typeof window !== 'undefined') window._rrHeaderishRow = _rrHeaderishRow;
+
 async function loadPersonalData() {
   if (!state.personalSheetId) {
     state.personalSheetId = localStorage.getItem('lv_personal_id');
@@ -1650,7 +1670,19 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
   // My Collection (Session 155 v11: schema-driven parser)
   (collRes.values || []).forEach((r, idx) => {
     const itemNumCol = PERSONAL_FIELD_INDEX.itemNum;
-    if (r[itemNumCol] === 'Item Number') return;
+    // v0.9.1617 (Brad's first beta tester: emptied his sheet, the app said
+    // 1 item; added one, it said 2). The app reads from row 3, trusting
+    // every sheet to carry exactly two header rows above it — but an
+    // EARLY-GENERATION sheet can have a header row inside that window, and
+    // the old guard here was an exact match on the MODERN spelling at the
+    // MODERN column position. A different wording ('Item #') or an older
+    // column order slipped past it, and the v1509 rule (no number but
+    // something at the inventory-id position = a legitimate imported item)
+    // then counted the stray header as an item. The sniff now catches any
+    // header variant in the number cell, and — the strong signal — any row
+    // where THREE OR MORE cells literally spell their own column headers.
+    // No real item can do that; no migration touches anyone's sheet.
+    if (_rrHeaderishRow(r)) return;
     // v0.9.1509 (found live: Brad's Scott-sheet import): 378 imported rows —
     // books, Texaco planes, anything with no catalog number — were WRITTEN to
     // the sheet but this guard made them INVISIBLE in the app (and on the For

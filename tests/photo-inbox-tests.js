@@ -22389,6 +22389,48 @@ META_WRITES.length = 0; TOASTS.length = 0;
          /view labels for uploaded photos need a connection/.test(pi20), '');
       ok('320 the picker names the slot and offers Clear only when held',
          /Which photo is the /.test(pi20) && /Clear this slot/.test(pi20), '');
+
+      // ── v0.9.1617 (Brad's two refinements, same evening) ──
+      ok('320/1617 an assigned photo LEAVES the rail (it lives in its slot)',
+         /_railThumbs = thumbs\.filter\(function \(t\) \{ return !_viewOfFid\[t\]; \}\)/.test(pi20)
+         && (pi20.match(/_railThumbs\.slice\(0, 12\)\.map\(/g) || []).length === 3, '');
+      ok('320/1617 …but the card never loses its anchor when all are sorted',
+         /if \(!_railThumbs\.length\) _railThumbs = thumbs\.slice\(0, 1\);/.test(pi20), '');
+      ok('320/1617 a rail thumb can be DROPPED straight onto a slot',
+         /ondrop="event\.preventDefault\(\);event\.stopPropagation\(\);[^"]*_pinRvAssignView\(f,/.test(pi20)
+         && /ondragover="event\.preventDefault\(\)/.test(pi20), '');
+    })();
+
+    // ═══════════════════════════════════════════════════════════
+    // 321. THE HEADER SNIFF (v0.9.1617). Brad's first beta tester emptied
+    // his sheet — the app said 1 item; added one, it said 2. An early-
+    // generation sheet can carry a header row inside the A3+ data window,
+    // and the old guard was an exact match on the modern spelling at the
+    // modern position. The sniff catches header VARIANTS in the number
+    // cell and any row where 3+ cells literally spell their own column
+    // headers — something no real item can do.
+    // ═══════════════════════════════════════════════════════════
+    section('321. A leftover header row never counts as an item');
+    (function () {
+      const ad21 = fs.readFileSync(require('path').join(__dirname, '..', 'app', 'app-data.js'), 'utf8');
+      const seg = ad21.slice(ad21.indexOf('function _rrHeaderishRow'), ad21.indexOf('async function loadPersonalData'));
+      ok('321 the sniff exists and guards the parser',
+         seg.length > 100 && /if \(_rrHeaderishRow\(r\)\) return;/.test(ad21), '');
+      const HEADERS = ['Item Number', 'Manufacturer', 'Item Type', 'Master Description', 'Condition'];
+      const fn = new Function('PERSONAL_FIELD_INDEX', 'PERSONAL_HEADERS', 'window',
+        '"use strict";' + seg + '; return _rrHeaderishRow;')({ itemNum: 0 }, HEADERS, {});
+      ok('321 the modern header is caught (the old guard\'s one case)',
+         fn(['Item Number', 'Manufacturer']) === true, '');
+      ok('321 THE TESTER\'S CASE: header VARIANTS are caught too',
+         fn(['Item #']) === true && fn(['item number ']) === true && fn(['Item No.']) === true
+         && fn(['ITEM NO']) === true, '');
+      ok('321 a SHUFFLED old header row is caught by the 3-cell rule',
+         fn(['', 'Manufacturer', 'Item Type', 'Master Description', 'x']) === true, '');
+      ok('321 real items sail through — a number, an import with no number, even one header-word coincidence',
+         fn(['2343', 'Lionel']) === false
+         && fn(['', 'Lionel', 'Boxcar', 'a red one', '7']) === false
+         && fn(['6464-275', 'Manufacturer']) === false, '');
+      ok('321 …and a blank row is not a header', fn([]) === false && fn(['']) === false, '');
     })();
 
   })().then(function () {

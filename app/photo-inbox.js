@@ -4019,7 +4019,14 @@
     return '<div id="pin-rv-views" style="display:flex;gap:0.35rem;overflow-x:auto;-webkit-overflow-scrolling:touch;margin-bottom:0.7rem;padding:0.15rem 0">' +
       _RV_SLOTS.map(function (sl) {
         var f = byView[sl.key];
-        return '<div onclick="_pinRvSlotTap(\'' + sl.key + '\')" title="Tap to choose which photo is the ' + sl.label + '" style="flex:0 0 auto;width:56px;cursor:pointer;text-align:center">' +
+        // v0.9.1617 (Brad: "need to add the drag option here as well"): a
+        // rail thumb can be DROPPED straight onto a slot — the rail's own
+        // reorder drag already carries the fid as text/plain.
+        return '<div onclick="_pinRvSlotTap(\'' + sl.key + '\')"' +
+          ' ondragover="event.preventDefault();this.style.outline=\'2px solid var(--accent)\'"' +
+          ' ondragleave="this.style.outline=\'\'"' +
+          ' ondrop="event.preventDefault();event.stopPropagation();this.style.outline=\'\';var f=event.dataTransfer.getData(\'text/plain\');if(f)_pinRvAssignView(f,\'' + sl.key + '\')"' +
+          ' title="Tap to choose which photo is the ' + sl.label + ' — or drag a photo here" style="flex:0 0 auto;width:56px;cursor:pointer;text-align:center">' +
           (f
             ? '<div style="width:56px;height:48px;border-radius:8px;overflow:hidden;border:1.5px solid var(--accent2);background:var(--surface2)"><img data-rvv="' + f.id + '" style="width:100%;height:100%;object-fit:cover;display:block" alt=""></div>'
             : '<div style="width:56px;height:48px;border-radius:8px;border:1.5px dashed var(--border);background:var(--surface2);display:flex;align-items:center;justify-content:center;color:var(--text-dim);font-size:1rem">+</div>') +
@@ -4154,6 +4161,16 @@
     var old = document.getElementById('pin-review-ov'); if (old) old.remove();
     var thumbs = [];
     _rvGroups.forEach(function (g) { g.files.forEach(function (f) { thumbs.push(f.id); }); });
+    // v0.9.1617 (Brad): a photo placed in a view slot LEAVES the rail above
+    // — it lives in its slot now, so it cannot be pasted twice and the rail
+    // shrinks to what still needs sorting. (Double-placing was already
+    // impossible at the data level — one photo carries one view stamp — but
+    // the rail should SAY so.) When everything is sorted, one thumb stays
+    // so the card keeps its anchor and the MAIN VIEW badge means something.
+    var _viewOfFid = {};
+    _rvGroups.forEach(function (g) { g.files.forEach(function (f) { if (f._meta && f._meta.view) _viewOfFid[f.id] = f._meta.view; }); });
+    var _railThumbs = thumbs.filter(function (t) { return !_viewOfFid[t]; });
+    if (!_railThumbs.length) _railThumbs = thumbs.slice(0, 1);
     // v0.9.913 (Brad): desktop shows a two-column split — details on the left,
     // a big full-res photo filling the right half so you can read the label
     // without a separate zoom. Phone stays stacked (small screen).
@@ -4297,7 +4314,7 @@
     // Phone: horizontal strip on top (unchanged).
     var _stripHtml =
       '<div id="pin-rv-photos" style="display:flex;gap:0.45rem;overflow-x:auto;-webkit-overflow-scrolling:touch;margin-bottom:0.7rem">' +
-        thumbs.slice(0, 12).map(function (fidT, i) {
+        _railThumbs.slice(0, 12).map(function (fidT, i) {
           return '<div data-dragfid="' + fidT + '" style="position:relative;flex-shrink:0;width:' + (i === 0 ? '160px;height:160px' : '74px;height:74px;align-self:flex-end') + ';border-radius:10px;overflow:hidden;background:var(--surface2,#26262e)">' +
             (i === 0 ? '<div style="position:absolute;top:0;left:0;background:var(--accent);color:#fff;font-size:0.55rem;font-weight:700;letter-spacing:0.04em;padding:1px 6px;border-radius:0 0 6px 0;z-index:2;pointer-events:none">MAIN VIEW</div>' : '') +
             '<img data-rvfid="' + fidT + '" onclick="_pinZoomPhoto(\'' + fidT + '\')" title="Tap to view full size — zoom in to read the label" style="width:100%;height:100%;object-fit:cover;display:block;cursor:zoom-in" alt="">' +
@@ -4322,9 +4339,9 @@
           '<button onclick="_pinZoomPhoto(document.getElementById(\'pin-rv-main\').getAttribute(\'data-rvbig\'))" title="Full-screen zoom" style="' + _cornBtn + ';left:8px;bottom:8px">🔍</button>' +
           '<button onclick="_pinCropPhoto(document.getElementById(\'pin-rv-main\').getAttribute(\'data-rvbig\'))" title="Crop / Rotate this photo" style="' + _cornBtn + ';top:8px;right:8px">✂</button>' +
         '</div>' +
-        (thumbs.length > 1
+        (_railThumbs.length > 1
           ? '<div style="display:flex;gap:0.4rem;overflow-x:auto;-webkit-overflow-scrolling:touch">' +
-              thumbs.slice(0, 12).map(function (fidT, i) {
+              _railThumbs.slice(0, 12).map(function (fidT, i) {
                 var _tSug = _ids()[fidT];
                 var _tNum = (_tSug && _tSug.num) ? String(_tSug.num) : '';
                 return '<div data-dragfid="' + fidT + '" onclick="_pinRvSetMain(\'' + fidT + '\')" title="Show this photo — drag to reorder" style="position:relative;flex-shrink:0;width:64px;height:64px;border-radius:8px;overflow:hidden;background:var(--surface2,#26262e);cursor:pointer;border:1.5px solid transparent">' +
@@ -4348,9 +4365,9 @@
         '<button onclick="_pinZoomPhoto(document.getElementById(\'pin-rv-main\').getAttribute(\'data-rvbig\'))" title="Full-screen zoom" style="' + _cornBtn + ';left:8px;bottom:8px">🔍</button>' +
         '<button onclick="_pinCropPhoto(document.getElementById(\'pin-rv-main\').getAttribute(\'data-rvbig\'))" title="Crop / Rotate this photo" style="' + _cornBtn + ';top:8px;right:8px">✂</button>' +
       '</div>' +
-      (thumbs.length > 1
+      (_railThumbs.length > 1
         ? '<div style="display:flex;gap:0.4rem;overflow-x:auto;-webkit-overflow-scrolling:touch;margin-bottom:0.6rem">' +
-            thumbs.slice(0, 12).map(function (fidT, i) {
+            _railThumbs.slice(0, 12).map(function (fidT, i) {
               return '<div data-dragfid="' + fidT + '" onclick="_pinRvSetMain(\'' + fidT + '\')" title="Show this photo — drag to reorder" style="position:relative;flex-shrink:0;width:64px;height:64px;border-radius:8px;overflow:hidden;background:var(--surface2,#26262e);cursor:pointer;border:1.5px solid transparent">' +
                 (i === 0 ? '<div style="position:absolute;top:0;left:0;background:var(--accent);color:#fff;font-size:0.55rem;font-weight:700;letter-spacing:0.04em;padding:1px 6px;border-radius:0 0 6px 0;z-index:2;pointer-events:none">MAIN VIEW</div>' : '') +
                 '<img data-rvfid="' + fidT + '" style="width:100%;height:100%;object-fit:cover;display:block" alt=""></div>';
