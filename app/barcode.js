@@ -69,10 +69,39 @@ window.eraSupportsBarcode = eraSupportsBarcode;
   // currently loaded into memory). If no hit, scan every other era's IDB
   // cache filled by the Session 162 preloader. Each hit gets tagged with
   // its source era so the wizard can route the save correctly.
-  function _matchInArray(arr, candidates) {
+  // ── v0.9.1605 (Brad, scanning boxes at a train show) ─────────────────
+  // Two defects, one scan. His Lionel box (UPC 023922-06743-2, item
+  // 2542162) came back as three ATLAS suggestions:
+  //
+  //  (a) A Lionel UPC carries five digits that are the OLD-style item
+  //      number (6-XXXXX). Modern seven-digit products (2542162) are not
+  //      encoded in it at all, so the exact lookup finds nothing — and the
+  //      last-5 fallback below then matched ANY maker's number ending in
+  //      those digits. Atlas has tens of thousands (20004204, 40004204…),
+  //      so Atlas won every time. The UPC prefix PROVED the maker is
+  //      Lionel; a fuzzy guess must never cross that line. `mfr` is passed
+  //      in from the prefix table, and fuzzy hits are filtered to it.
+  //  (b) A fuzzy hit is now MARKED (_fuzzy) so the search above it can
+  //      prefer an exact match found anywhere else — see findMasterItems.
+  //
+  // Exact matching is untouched: it never had either problem.
+  function _bcMfrKey(x) { return String(x || '').toLowerCase().replace(/[^a-z0-9]/g, ''); }
+  function _bcRowIsMfr(m, want) {
+    if (!want) return true;
+    var tab = _bcMfrKey(m && m._tab);
+    if (tab && tab.indexOf(want) === 0) return true;
+    var eraMfr = '';
+    try { eraMfr = _bcMfrKey(typeof _manufacturerOfEra === 'function' && m && m._era ? _manufacturerOfEra(m._era) : ''); } catch (e) {}
+    if (eraMfr && (eraMfr === want || want.indexOf(eraMfr) === 0)) return true;
+    var rowMfr = _bcMfrKey(m && m.manufacturer);
+    if (rowMfr && (rowMfr === want || want.indexOf(rowMfr) === 0 || rowMfr.indexOf(want) === 0)) return true;
+    return false;
+  }
+  function _matchInArray(arr, candidates, mfr) {
     if (!arr || !arr.length) return [];
     var out = [];
     var seen = {};
+    var wantMfr = _bcMfrKey(mfr);
     function addAll(pred) {
       arr.forEach(function(m) {
         if (!pred(m)) return;
@@ -89,14 +118,26 @@ window.eraSupportsBarcode = eraSupportsBarcode;
           || m.itemNum === ('6-' + cand);
       });
     });
+    var exactCount = out.length;
     if (candidates[0]) {
       var tail = candidates[0].replace(/^6-/, '').slice(-5);
       addAll(function(m) {
+        // v0.9.1605(a): never guess across the maker the barcode proved.
+        if (wantMfr && !_bcRowIsMfr(m, wantMfr)) return false;
         var n = String(m.itemNum || '').replace(/\D+/g, '');
         return n.length >= 5 && n.slice(-5) === tail;
       });
+      // v0.9.1605(b): everything added past the exact block is a
+      // last-5-digits GUESS. Marked, so findMasterItems can prefer a real
+      // match elsewhere and the picker can say which is which.
+      for (var _fi = exactCount; _fi < out.length; _fi++) {
+        try { out[_fi]._fuzzy = true; } catch (eF) {}
+      }
     }
     return out;
+  }
+  function _bcAnyExact(rows) {
+    return !!(rows && rows.some(function (r) { return !r._fuzzy; }));
   }
   // ── v0.9.1152: respect the user's era filter ──────────────────────
   // Brad: "when i select lionel o scale modern, the barcode scanner, and our ai
@@ -124,22 +165,36 @@ window.eraSupportsBarcode = eraSupportsBarcode;
     return Array.isArray(rows) ? rows : (rows || []);
   }
 
-  async function findMasterItems(candidates) {
+  async function findMasterItems(candidates, mfr) {
     if (!candidates || candidates.length === 0) return [];
+    // v0.9.1605(b) — THE NON-DETERMINISM Brad measured in the field: same
+    // box, two scans, two answers. Pass A returned as soon as the era that
+    // happened to be in memory yielded ANYTHING — including last-5 noise —
+    // so a fuzzy Atlas row beat the real row sitting in another era's
+    // cache, and which answer you got depended on what was loaded at that
+    // moment. An EXACT match anywhere now outranks a GUESS everywhere:
+    // fuzzy hits are held aside and only returned if no pass finds a real
+    // one.
+    var held = [];
     // Pass A — current era (in memory, fast)
     if (typeof state !== 'undefined' && state.masterData && state.masterData.length) {
-      var current = _matchInArray(state.masterData, candidates);
-      if (current.length) return _rrFilterHits(current);
+      var current = _matchInArray(state.masterData, candidates, mfr);
+      if (_bcAnyExact(current)) return _rrFilterHits(current);
+      if (current.length) held = held.concat(current);
     }
     // Pass B (v0.9.971): the shared full-catalog rows built by app-data.js —
     // one dataset for every lookup. Falls through to the per-era IDB crawl
     // only while the index hasn't been built yet this session.
     if (typeof state !== 'undefined' && Array.isArray(state.masterAllRows) && state.masterAllRows.length) {
-      return _rrFilterHits(_matchInArray(state.masterAllRows, candidates));
+      var _all = _matchInArray(state.masterAllRows, candidates, mfr);
+      // The full catalog is the best source there is: an exact hit wins
+      // outright, and its own fuzzy hits outrank Pass A's.
+      if (_bcAnyExact(_all) || _all.length) return _rrFilterHits(_all.length ? _all : held);
+      return _rrFilterHits(held);
     }
     // Pass C — every other era's IDB cache (legacy fallback)
-    if (typeof REAL_ERA_IDS === 'undefined' || !Array.isArray(REAL_ERA_IDS)) return [];
-    if (typeof idbGet !== 'function') return [];
+    if (typeof REAL_ERA_IDS === 'undefined' || !Array.isArray(REAL_ERA_IDS)) return _rrFilterHits(held);
+    if (typeof idbGet !== 'function') return _rrFilterHits(held);
     var curEra = (typeof _currentEra !== 'undefined') ? _currentEra : null;
     for (var i = 0; i < REAL_ERA_IDS.length; i++) {
       var era = REAL_ERA_IDS[i];
@@ -147,15 +202,18 @@ window.eraSupportsBarcode = eraSupportsBarcode;
       try {
         var cached = await idbGet('lv_master_cache_' + era);
         if (!cached || !cached.length) continue;
-        var hits = _matchInArray(cached, candidates);
+        var hits = _matchInArray(cached, candidates, mfr);
         if (hits.length) {
           // Tag every hit with its source era so the wizard adopts it.
           hits.forEach(function(h) { if (!h._era) h._era = era; });
-          return _rrFilterHits(hits);
+          // v0.9.1605(b): a real match here beats anything held; a guess
+          // here just joins the pile and the crawl keeps looking.
+          if (_bcAnyExact(hits)) return _rrFilterHits(hits);
+          held = held.concat(hits);
         }
       } catch(e) {}
     }
-    return [];
+    return _rrFilterHits(held);
   }
   // Back-compat single-result helper (first match or null). Async now.
   async function findMasterItem(candidates) {
@@ -1150,7 +1208,9 @@ window.eraSupportsBarcode = eraSupportsBarcode;
       const info = UPC_PREFIXES[prefix];
       if (info && info.mfr === 'Lionel') {
         const parsed = info.parse(upc12);
-        const matches = await findMasterItems(parsed.itemNumCandidates);
+        // v0.9.1605(a): the prefix proved the maker — hand it to the lookup
+        // so a last-5 guess can never wander into another maker's catalog.
+        const matches = await findMasterItems(parsed.itemNumCandidates, info.mfr);
         if (matches.length === 1) {
           const master = matches[0];
           return {

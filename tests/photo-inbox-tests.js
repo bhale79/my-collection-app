@@ -21855,6 +21855,64 @@ META_WRITES.length = 0; TOASTS.length = 0;
          /_rrThumbShrink\(blob\)/.test(fullSeg9) && /_rrThumbCache\.put\(fileId, sm\)/.test(fullSeg9), '');
     })();
 
+    // ═══════════════════════════════════════════════════════════
+    // 310. THE SCAN LOOKUP (v0.9.1605) — Brad, scanning boxes in a train
+    // store: a Lionel box (UPC 023922-06743-2, item 2542162) came back as
+    // three ATLAS suggestions, and the same box scanned twice gave two
+    // different answers. Two defects: the last-5-digit fallback crossed
+    // the maker the UPC prefix PROVED, and the search returned as soon as
+    // the era that happened to be loaded yielded anything — including that
+    // noise — so a guess beat a real match sitting in another era.
+    // ═══════════════════════════════════════════════════════════
+    section('310. Barcode lookup: a guess never crosses the maker, and never beats a real match');
+    (function () {
+      const bcSrc = fs.readFileSync(require('path').join(__dirname, '..', 'app', 'barcode.js'), 'utf8');
+      const seg = bcSrc.slice(bcSrc.indexOf('function _bcMfrKey'), bcSrc.indexOf('async function findMasterItem('));
+      const fn = new Function('_manufacturerOfEra', '"use strict";' + seg
+        + '; return { match: _matchInArray, anyExact: _bcAnyExact, isMfr: _bcRowIsMfr };')(function (e) {
+          return ({ pw: 'Lionel', mod: 'Lionel', atlas: 'Atlas', atlas_n: 'Atlas' })[e] || '';
+        });
+
+      // Brad's shape: a Lionel UPC's five digits, an Atlas catalog in memory.
+      const atlasRows = [
+        { itemNum: '20004204', _tab: 'Atlas HO', _era: 'atlas' },
+        { itemNum: '40004204', _tab: 'Atlas N',  _era: 'atlas_n' },
+        { itemNum: '50004204', _tab: 'Atlas N',  _era: 'atlas_n' },
+      ];
+      const noMfr = fn.match(atlasRows, ['6-04204', '04204']);
+      ok('310 without a maker the old behaviour stands (3 tail matches)',
+         noMfr.length === 3 && noMfr.every(r => r._fuzzy), JSON.stringify(noMfr.map(r => r.itemNum)));
+      const asLionel = fn.match(atlasRows, ['6-04204', '04204'], 'Lionel');
+      ok('310 BRAD\'S BUG: a Lionel barcode offers ZERO Atlas guesses',
+         asLionel.length === 0, JSON.stringify(asLionel.map(r => r.itemNum + '/' + r._tab)));
+
+      // an exact Lionel row is still found, and is NOT marked a guess
+      const mixed = atlasRows.concat([{ itemNum: '6-04204', _tab: 'Lionel MPC-Modern', _era: 'mod' }]);
+      const hits = fn.match(mixed, ['6-04204', '04204'], 'Lionel');
+      ok('310 …while the real Lionel row is found, and marked exact',
+         hits.length === 1 && hits[0].itemNum === '6-04204' && !hits[0]._fuzzy,
+         JSON.stringify(hits.map(r => r.itemNum + (r._fuzzy ? '(guess)' : '(exact)'))));
+      ok('310 an in-maker tail match IS still offered, marked as a guess',
+         (function () {
+            const r = fn.match([{ itemNum: '1904204', _tab: 'Lionel MPC-Modern', _era: 'mod' }], ['6-04204', '04204'], 'Lionel');
+            return r.length === 1 && r[0]._fuzzy === true;
+         })(), '');
+      ok('310 _bcAnyExact tells the two apart',
+         fn.anyExact(hits) === true && fn.anyExact([{ _fuzzy: true }]) === false, '');
+
+      // the ordering rule, pinned in the source (async passes need the app)
+      const fmi = bcSrc.slice(bcSrc.indexOf('async function findMasterItems'), bcSrc.indexOf('async function findMasterItem('));
+      ok('310 THE NON-DETERMINISM: Pass A returns early only on an EXACT hit',
+         /if \(_bcAnyExact\(current\)\) return _rrFilterHits\(current\);/.test(fmi)
+         && /held = held\.concat\(current\)/.test(fmi), '');
+      ok('310 …guesses are held aside and returned only if nothing real is found',
+         (fmi.match(/_rrFilterHits\(held\)/g) || []).length >= 3, '');
+      ok('310 …and every pass is maker-bounded',
+         (fmi.match(/_matchInArray\([^)]*candidates, mfr\)/g) || []).length === 3, '');
+      ok('310 the scan hands the lookup the maker its prefix proved',
+         /findMasterItems\(parsed\.itemNumCandidates, info\.mfr\)/.test(bcSrc), '');
+    })();
+
   })().then(function () {
     console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
     process.exit(fail ? 1 : 0);
