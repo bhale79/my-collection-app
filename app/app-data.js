@@ -2084,19 +2084,61 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
 // found = already up there, drop the queued copy. Rows without a readable
 // inventoryId (want/parts/other tabs) replay without the check — the worst
 // case is a visible duplicate row the user deletes, never a lost save.
-window._rrOfflineAppendDrain = function () {
+window._rrOfflineAppendDrain = async function () {
   try {
     if (typeof rrOutboxDrainAppends !== 'function') return;
     if (window._offlineMode || (typeof navigator !== 'undefined' && navigator.onLine === false)) return;
     var invIdx = -1;
     try { invIdx = PERSONAL_SCHEMA.findIndex(function (f) { return f.field === 'inventoryId'; }); } catch (e) {}
+
+    // ── v0.9.1607 — THE BUG THAT ATE BRAD'S ITEM ────────────────────────
+    // Reported: added an item in airplane mode, Recent Additions showed it,
+    // came back online — and it was GONE. Not in the sheet, not in Recent
+    // Additions, its photo still sitting in the inbox.
+    //
+    // CAUSE, exactly here: `have` was built from state.personalData — which
+    // is the app's LOCAL MIRROR, and an offline save writes the new item
+    // into it immediately (that is why Recent Additions showed it). So the
+    // drain asked "is this queued row already in the sheet?", found the
+    // app's own local copy of the very row it was about to send, called it
+    // a duplicate, and DELETED the queued write without ever sending it.
+    // The item existed only in memory; the next load from the sheet erased
+    // it. The guard meant to prevent a double-add caused a silent loss —
+    // the one outcome this whole outbox exists to prevent.
+    //
+    // THE DISCRIMINATOR: a row that came FROM the sheet carries its real
+    // row number. A row created by an offline save carries 0 (sheetsAppend
+    // answers row-unknown offline, by design since v1600) — and 99999 is
+    // the app's long-standing "row unknown" sentinel. So only a row with a
+    // real sheet row number is evidence the sheet has it.
+    //
+    // AND THE STANDING RULE, written here because this cost a real item: a
+    // visible duplicate row is something Brad can delete in ten seconds; a
+    // silently dropped save is unrecoverable. When the evidence is anything
+    // short of certain, SEND.
+    //
+    // Best evidence of all is a fresh read, so when there are queued
+    // appends we re-read the sheet FIRST and judge against that.
+    var queued = [];
+    try {
+      queued = (typeof rrOutboxList === 'function' ? rrOutboxList() : []).filter(function (e) { return e && e.kind === 'append'; });
+    } catch (e) {}
+    if (!queued.length) { try { if (window._pinStageDrainNow) window._pinStageDrainNow(); } catch (e) {} return; }
+    try {
+      if (typeof loadPersonalData === 'function') await loadPersonalData();
+    } catch (e) { /* no fresh read — the row-number rule below still holds */ }
+
     var have = {};
     try {
       Object.keys(state.personalData || {}).forEach(function (k) {
         var r = state.personalData[k];
-        if (r && r.inventoryId != null && r.inventoryId !== '') have[String(r.inventoryId)] = 1;
+        if (!r || r.inventoryId == null || r.inventoryId === '') return;
+        var rowNum = parseInt(r.row, 10);
+        if (!(rowNum > 0) || rowNum === 99999) return;   // local mirror — NOT proof
+        have[String(r.inventoryId)] = 1;
       });
     } catch (e) {}
+
     var _drainP = rrOutboxDrainAppends(function (entry) {
       try {
         if (invIdx < 0) return false;
@@ -2104,18 +2146,24 @@ window._rrOfflineAppendDrain = function () {
         if (!row) return false;
         var iv = row[invIdx];
         if (iv == null || iv === '') return false;   // not a collection row — replay it
-        return !!have[String(iv)];                   // true = already in the sheet, drop
+        var dup = !!have[String(iv)];
+        // A drop is a deletion. Never let one happen silently again.
+        if (dup) { try { console.warn('[outbox] queued add ' + iv + ' is already in the sheet (row known) — dropping the duplicate'); } catch (e2) {} }
+        return dup;
       } catch (e) { return false; }
     });
-    // v0.9.1600 (show mode 2): rows just landed — refresh personal data so
-    // the paired-photo drain can find them (row numbers + inventoryIds),
-    // then kick it. Fire-and-forget; every step tolerates being early.
     if (_drainP && _drainP.then) {
       _drainP.then(function (r) {
         if (!r || !r.sent) { try { if (window._pinStageDrainNow) window._pinStageDrainNow(); } catch (e) {} return; }
+        // v0.9.1600 (show mode 2): rows just landed — refresh personal data
+        // so the paired-photo drain can find them (row numbers + ids), then
+        // kick it. Fire-and-forget; every step tolerates being early.
         Promise.resolve(typeof loadPersonalData === 'function' ? loadPersonalData() : null)
           .then(function () {
             try { if (typeof buildPartnerMap === 'function') buildPartnerMap(); } catch (e) {}
+            // v0.9.1607: the rows are real now — repaint, or Recent Additions
+            // keeps showing the pre-drain picture.
+            try { if (typeof buildApp === 'function') buildApp(); } catch (e) {}
             try { if (window._pinStageDrainNow) window._pinStageDrainNow(); } catch (e) {}
             // v0.9.1602: rows are in the sheet AND freshly loaded — pending
             // photo-filing notes can find their rows and real row numbers.

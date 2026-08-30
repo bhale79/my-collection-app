@@ -21959,6 +21959,91 @@ META_WRITES.length = 0; TOASTS.length = 0;
          /if \(_pinOffline\(\)\) \{[\s\S]{0,400}showToast\([\s\S]{0,200}did not go through/.test(seg), '');
     })();
 
+    // ═══════════════════════════════════════════════════════════
+    // 312. THE GUARD THAT ATE AN ITEM (v0.9.1607). Brad added an item in
+    // airplane mode; Recent Additions showed it; back online it was GONE —
+    // not in the sheet, not in the app, photo still in the inbox. Cause:
+    // the append drain's duplicate guard built its "already in the sheet"
+    // set from state.personalData — the app's LOCAL MIRROR, which an
+    // offline save writes into immediately. So it found the app's own copy
+    // of the row it was about to send, called it a duplicate, and DELETED
+    // the queued write. Only a row carrying a REAL SHEET ROW NUMBER is
+    // evidence; a local mirror carries 0 (or the 99999 sentinel).
+    // ═══════════════════════════════════════════════════════════
+    section('312. The append drain never mistakes the app\'s own copy for the sheet\'s');
+    await (async function () {
+      const src = fs.readFileSync(require('path').join(__dirname, '..', 'app', 'app-data.js'), 'utf8');
+      // shape-agnostic on purpose: the pre-v1607 function was NOT async, and
+      // a slice that missed it would "fail" for the wrong reason instead of
+      // proving the guard's behaviour.
+      const _dStart = src.indexOf('window._rrOfflineAppendDrain = ');
+      const fnSrc = src.slice(_dStart, src.indexOf('\n};', _dStart) + 3);
+      ok('312 the drain source is extractable', fnSrc.length > 400, String(fnSrc.length));
+
+      function run(personal, queuedRows, opts) {
+        opts = opts || {};
+        const decisions = [];
+        const ctx = {
+          window: { _offlineMode: false },
+          navigator: { onLine: true },
+          PERSONAL_SCHEMA: [{ field: 'itemNum' }, { field: 'inventoryId' }],   // invIdx = 1
+          state: { personalData: personal },
+          rrOutboxList: () => queuedRows.map(r => ({ kind: 'append', args: { values: [r] } })),
+          rrOutboxDrainAppends: async (existsFn) => {
+            queuedRows.forEach(r => decisions.push({ row: r, dropped: !!existsFn({ args: { values: [r] } }) }));
+            return { ok: true, sent: decisions.filter(d => !d.dropped).length, dropped: decisions.filter(d => d.dropped).length };
+          },
+          loadPersonalData: opts.reload || (async () => {}),
+          buildPartnerMap: () => {}, buildApp: () => {},
+          console: { warn: () => {}, log: () => {} },
+        };
+        const fn = new Function(...Object.keys(ctx), '"use strict";' + fnSrc + '; return window._rrOfflineAppendDrain;')(...Object.values(ctx));
+        return Promise.resolve(fn()).then(() => new Promise(r => setTimeout(() => r(decisions), 10)));
+      }
+
+      // BRAD'S CASE: the local mirror of the very row being sent (row 0).
+      let d = await run({ k1: { itemNum: '2542162', inventoryId: '777', row: 0 } }, [['2542162', '777']]);
+      ok('312 BRAD\'S BUG: a local mirror of the queued row is NOT proof — it sends',
+         d.length === 1 && d[0].dropped === false, JSON.stringify(d));
+
+      // the 99999 "row unknown" sentinel is not proof either
+      d = await run({ k1: { itemNum: 'X', inventoryId: '888', row: 99999 } }, [['X', '888']]);
+      ok('312 …nor is the 99999 row-unknown sentinel', d[0].dropped === false, JSON.stringify(d));
+
+      // the case the guard exists for: the row really is in the sheet, with
+      // a real row number (request landed, response lost, sheet re-read).
+      d = await run({ k1: { itemNum: 'Y', inventoryId: '999', row: 57 } }, [['Y', '999']]);
+      ok('312 a row with a REAL sheet row number IS proof — the duplicate is dropped',
+         d[0].dropped === true, JSON.stringify(d));
+
+      // a row with no inventory id (want/parts) always replays
+      d = await run({}, [['Z', '']]);
+      ok('312 a row with no inventory id always replays', d[0].dropped === false, JSON.stringify(d));
+
+      // the drain re-reads the sheet BEFORE judging, when anything is queued
+      let reloaded = 0;
+      await run({ k1: { itemNum: 'Q', inventoryId: '111', row: 0 } }, [['Q', '111']],
+                { reload: async () => { reloaded++; } });
+      // (there are TWO reads by design: one before judging, one after the
+      // send so the UI shows real row numbers — order is what matters)
+      ok('312 …and it re-reads the sheet BEFORE judging, so it judges against truth',
+         reloaded >= 1
+         && fnSrc.indexOf('await loadPersonalData()') < fnSrc.indexOf('rrOutboxDrainAppends(')
+         && fnSrc.indexOf('await loadPersonalData()') < fnSrc.indexOf('var have = {}'),
+         String(reloaded));
+
+      // nothing queued = no reload, no drain
+      reloaded = 0;
+      d = await run({}, [], { reload: async () => { reloaded++; } });
+      ok('312 an empty outbox costs nothing', d.length === 0 && reloaded === 0, JSON.stringify({ d: d.length, reloaded }));
+
+      ok('312 the standing rule is written where the next reader will need it',
+         /visible duplicate row is something Brad can delete/.test(fnSrc) && /SEND\./.test(fnSrc), '');
+      ok('312 …and a drop is never silent again', /console\.warn\('\[outbox\] queued add/.test(fnSrc), '');
+      ok('312 the UI is repainted after rows land, so Recent Additions tells the truth',
+         /buildApp\(\)/.test(fnSrc), '');
+    })();
+
   })().then(function () {
     console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
     process.exit(fail ? 1 : 0);
