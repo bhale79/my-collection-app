@@ -22044,6 +22044,42 @@ META_WRITES.length = 0; TOASTS.length = 0;
          /buildApp\(\)/.test(fnSrc), '');
     })();
 
+    // ═══════════════════════════════════════════════════════════
+    // 313. A CLAIMED PHOTO SAYS SO (v0.9.1608). Brad: "the photo doesn't
+    // go away once its added. i can keep adding the same picture over and
+    // over." The deferred move (Session 168: photos leave only after the
+    // save really finishes — on reconnect, for offline saves) is correct
+    // and untouched; what was missing was any SIGN that a photo was
+    // already spoken for, and any brake on re-adding it.
+    // ═══════════════════════════════════════════════════════════
+    section('313. A photo claimed by an add wears it, and re-adding asks first');
+    (function () {
+      const pi13 = fs.readFileSync(require('path').join(__dirname, '..', 'app', 'photo-inbox.js'), 'utf8');
+      const mapSeg = pi13.slice(pi13.indexOf('function _pinNoteFileMap'), pi13.indexOf('function _render'));
+      ok('313 the claim map reads both note stores (staged + armed)',
+         /\[SETSTAGE_KEY, PENDING_KEY\]\.forEach/.test(mapSeg) && /_pendList/.test(mapSeg), '');
+      const fn = new Function('localStorage', 'SETSTAGE_KEY', 'PENDING_KEY', '_pendList',
+        '"use strict";' + mapSeg + '; return _pinNoteFileMap;')(
+        { getItem: (k) => k === 'SS' ? JSON.stringify({ '2542162': { files: [{ id: 'fA' }, { id: 'fB' }] } })
+                                     : JSON.stringify({ '6464': [{ files: [{ id: 'fC' }] }] }) },
+        'SS', 'PK', (v) => Array.isArray(v) ? v : [v]);
+      const m = fn();
+      ok('313 …and answers file → claiming item for both',
+         m.fA === '2542162' && m.fB === '2542162' && m.fC === '6464', JSON.stringify(m));
+      ok('313 the tile wears the claim (hourglass + the item number)',
+         /claimBadge/.test(pi13) && /\\u23f3 \\u2192 ' \+ rrEsc\(_claimedBy\)/.test(pi13)
+         && /chip \+ claimBadge \+/.test(pi13), '');
+      ok('313 …with the explanation on hover',
+         /move to the item once its save finishes/.test(pi13), '');
+      const raSeg = pi13.slice(pi13.indexOf('window._pinReviewAdd = async function'), pi13.indexOf('function _pinSetMemberMap'));
+      ok('313 re-adding a claimed photo ASKS, naming the claim',
+         /Photos already spoken for/.test(raSeg) && /makes a SECOND item/.test(raSeg), '');
+      ok('313 …and the ask comes BEFORE the review card is removed or anything stages',
+         raSeg.indexOf('Photos already spoken for') < raSeg.indexOf("var ov = document.getElementById('pin-review-ov')"), '');
+      ok('313 …declining costs nothing (a plain return)',
+         /cancel: 'Never mind', danger: true \}\)\)\) \{\s*return;/.test(raSeg), '');
+    })();
+
   })().then(function () {
     console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
     process.exit(fail ? 1 : 0);

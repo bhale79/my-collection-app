@@ -1809,9 +1809,37 @@
     }
   };
 
+  // ── v0.9.1608 (Brad: "the photo doesn't go away once its added. i can
+  // keep adding the same picture over and over") ───────────────────────
+  // The photos of a saved add leave the inbox only when _flushPending
+  // MOVES them — deliberately deferred since Session 168 so a cancelled
+  // wizard costs nothing, and offline that deferral lasts until reconnect.
+  // The gap: nothing SHOWED that a photo was already spoken for, so
+  // re-adding it looked natural and minted duplicate items. This map reads
+  // both note stores (staged + armed) and answers, per file id, which
+  // item's add has claimed it. The tile wears it; _pinReviewAdd warns on it.
+  function _pinNoteFileMap() {
+    var map = {};
+    try {
+      [SETSTAGE_KEY, PENDING_KEY].forEach(function (storeKey) {
+        var store = JSON.parse(localStorage.getItem(storeKey) || '{}');
+        Object.keys(store).forEach(function (num) {
+          var notes = (typeof _pendList === 'function') ? _pendList(store[num]) : [store[num]];
+          notes.forEach(function (rec) {
+            if (rec && typeof rec === 'object' && rec.files) {
+              rec.files.forEach(function (f) { if (f && f.id && !map[f.id]) map[f.id] = num; });
+            }
+          });
+        });
+      });
+    } catch (e) {}
+    return map;
+  }
+
   function _render() {
     var grid = document.getElementById('pin-grid'), empty = document.getElementById('pin-empty');
     if (!grid) return;
+    var _noteMap = _pinNoteFileMap();
     // v0.9.1051: draw what passes the filters, but keep counting the whole inbox.
     var _vis = _pinVisibleGroups();
     var total = 0;
@@ -1825,6 +1853,14 @@
       var _gkTxt = (_gk && _gk !== 'single') ? _pinKindLabel(_gk)
         : (g.files.length + ' photos · ' + (_pinIsMultiPiece(g) ? 'several items' : '1 item'));
       var chip = g.files.length > 1 ? '<div style="position:absolute;top:6px;right:6px;background:rgba(0,0,0,0.66);color:#fff;font-size:0.62rem;font-weight:700;padding:1px 7px;border-radius:9px">' + rrEsc(_gkTxt) + (_gk !== 'single' ? ' · ' + g.files.length : '') + '</div>' : '';
+      // v0.9.1608: a photo an add has already claimed says so on its face.
+      var _claimedBy = '';
+      for (var _ci = 0; _ci < g.files.length; _ci++) {
+        if (_noteMap[g.files[_ci].id]) { _claimedBy = _noteMap[g.files[_ci].id]; break; }
+      }
+      var claimBadge = _claimedBy
+        ? '<div style="position:absolute;top:6px;left:6px;background:rgba(0,0,0,0.72);color:#ffd27d;font-size:0.6rem;font-weight:700;padding:1px 7px;border-radius:9px" title="These photos move to the item once its save finishes (offline saves finish when you reconnect)">\u23f3 \u2192 ' + rrEsc(_claimedBy) + '</div>'
+        : '';
       var when = '';
       try { when = new Date(g.files[0].createdTime).toLocaleDateString(); } catch (e) {}
       // v0.9.886: AI suggestion (from Identify all) shows on the tile bar
@@ -1877,7 +1913,7 @@
         : '<div onclick="event.stopPropagation();_pinConfirmUngroup(\'' + g.key + '\')" title="Split this group apart" style="position:absolute;left:6px;bottom:26px;width:24px;height:24px;border-radius:7px;background:rgba(0,0,0,0.55);color:#fff;display:flex;align-items:center;justify-content:center;font-size:0.9rem;cursor:pointer">⊟</div>';
       return '<div class="pin-tile" data-key="' + g.key + '" onclick="' + _tileClick + '(\'' + g.key + '\')" style="position:relative;border-radius:10px;overflow:hidden;cursor:pointer;background:var(--surface2,#26262e);aspect-ratio:1;border:3px solid ' + (isSel ? '#2980b9' : 'transparent') + '">' +
         '<img loading="lazy" data-fid="' + _pinCoverFid(g) + '" style="width:100%;height:100%;object-fit:cover;object-position:center;display:block" alt="">' +
-        chip +
+        chip + claimBadge +
         _circle +
         _crop +
         _copy +
@@ -5628,6 +5664,25 @@
       showToast('You don’t own ' + num + ' yet — use “File to my Collection” to add it, or type a number you already own', 5000, true);
       return;
     }
+    // v0.9.1608: these photos may already belong to an add in progress —
+    // saying yes twice is how the same picture makes two items. Ask, with
+    // the claim named, before anything is staged again.
+    try {
+      var _nm8 = _pinNoteFileMap();
+      var _dupNum = '';
+      for (var _g8 = 0; _g8 < gs.length && !_dupNum; _g8++) {
+        for (var _f8 = 0; _f8 < gs[_g8].files.length; _f8++) {
+          if (_nm8[gs[_g8].files[_f8].id]) { _dupNum = _nm8[gs[_g8].files[_f8].id]; break; }
+        }
+      }
+      if (_dupNum && typeof appConfirm === 'function') {
+        if (!(await appConfirm('These photos are already attached to an add of ' + _dupNum + ' that is still finishing'
+              + ' (offline saves finish when you reconnect). Adding again makes a SECOND item with the same pictures.',
+              { title: 'Photos already spoken for', ok: 'Add a second item', cancel: 'Never mind', danger: true }))) {
+          return;
+        }
+      }
+    } catch (eDup) {}
     var ov = document.getElementById('pin-review-ov'); if (ov) ov.remove();
     _setBusy(true, 'Filing to your collection');
     try {
