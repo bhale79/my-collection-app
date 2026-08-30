@@ -22093,6 +22093,75 @@ META_WRITES.length = 0; TOASTS.length = 0;
          && rSeg.indexOf('filter:grayscale') > rSeg.indexOf('data-fid'), '');
     })();
 
+    // ═══════════════════════════════════════════════════════════
+    // 314. THE SECOND EATER — id collision (v0.9.1610). Brad again: saved
+    // offline, photo grayed, reconnected — no pill, sheet ends without the
+    // row. An OFFLINE save mints its inventory id from the device's local
+    // max; a stale snapshot mints an id a DIFFERENT real item already
+    // wears, and the v1607 guard (id alone) called the queued save its
+    // duplicate and deleted it. Identity is id + ITEM NUMBER now, and a
+    // collision REMINTS past the fresh max and SENDS.
+    // ═══════════════════════════════════════════════════════════
+    section('314. An id collision remints and sends — only a true duplicate drops');
+    await (async function () {
+      const src = fs.readFileSync(require('path').join(__dirname, '..', 'app', 'app-data.js'), 'utf8');
+      const _dS = src.indexOf('window._rrOfflineAppendDrain = ');
+      const fnSrc = src.slice(_dS, src.indexOf('\n};', _dS) + 3);
+      function run(personal, queuedRows) {
+        const sent = [], dropped = [], toasts = [];
+        const ctx = {
+          window: { _offlineMode: false },
+          navigator: { onLine: true },
+          PERSONAL_SCHEMA: [{ field: 'itemNum' }, { field: 'inventoryId' }],
+          state: { personalData: personal },
+          rrOutboxList: () => queuedRows.map(r => ({ kind: 'append', args: { values: [r] } })),
+          rrOutboxDrainAppends: async (existsFn) => {
+            queuedRows.forEach(r => { (existsFn({ args: { values: [r] } }) ? dropped : sent).push(r); });
+            return { ok: true, sent: sent.length, dropped: dropped.length };
+          },
+          loadPersonalData: async () => {}, buildPartnerMap: () => {}, buildApp: () => {},
+          showToast: (m) => toasts.push(String(m)),
+          console: { warn: () => {}, log: () => {} },
+        };
+        const fn = new Function(...Object.keys(ctx), '"use strict";' + fnSrc + '; return window._rrOfflineAppendDrain;')(...Object.values(ctx));
+        return Promise.resolve(fn()).then(() => new Promise(r2 => setTimeout(() => r2({ sent, dropped, toasts }), 10)));
+      }
+
+      // BRAD'S CASE: queued CSX minted inv 215 — which a real junk row owns.
+      let r = await run(
+        { a: { itemNum: 'JUNK-TEST', inventoryId: '215', row: 210 },
+          b: { itemNum: '6464', inventoryId: '220', row: 211 } },
+        [['2542162', '215']]);
+      ok('314 BRAD\'S BUG: a colliding id is NOT a duplicate — the save SENDS',
+         r.sent.length === 1 && r.dropped.length === 0, JSON.stringify(r));
+      ok('314 …with a FRESH id minted past the sheet\'s max (220 → 221)',
+         r.sent.length === 1 && r.sent[0][1] === '221', JSON.stringify(r.sent));
+
+      // a TRUE duplicate (same id, same number, real row) still drops — loudly
+      r = await run(
+        { a: { itemNum: '2542162', inventoryId: '215', row: 210 } },
+        [['2542162', '215']]);
+      ok('314 a true duplicate (id AND number match a real row) still drops',
+         r.dropped.length === 1 && r.sent.length === 0, JSON.stringify(r));
+      ok('314 …and SAYS so now, instead of a console-only whisper',
+         r.toasts.some(t => /already in your sheet/.test(t)), JSON.stringify(r.toasts));
+
+      // two collisions in one drain get DISTINCT fresh ids
+      r = await run(
+        { a: { itemNum: 'JUNK', inventoryId: '215', row: 210 } },
+        [['2542162', '215'], ['9999', '215']]);
+      ok('314 two collisions mint two distinct fresh ids',
+         r.sent.length === 2 && r.sent[0][1] !== r.sent[1][1], JSON.stringify(r.sent));
+
+      // the local mirror (row 0) still counts toward the max — no re-collision
+      r = await run(
+        { a: { itemNum: 'JUNK', inventoryId: '215', row: 210 },
+          m: { itemNum: 'MIRROR', inventoryId: '230', row: 0 } },
+        [['2542162', '215']]);
+      ok('314 the remint clears even ids the local mirror holds',
+         r.sent.length === 1 && parseInt(r.sent[0][1], 10) > 230, JSON.stringify(r.sent));
+    })();
+
   })().then(function () {
     console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
     process.exit(fail ? 1 : 0);

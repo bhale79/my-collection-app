@@ -2128,14 +2128,34 @@ window._rrOfflineAppendDrain = async function () {
       if (typeof loadPersonalData === 'function') await loadPersonalData();
     } catch (e) { /* no fresh read — the row-number rule below still holds */ }
 
+    // ── v0.9.1610 — THE SECOND EATER: inventory-id COLLISION ──────────
+    // Brad again: saved offline, no pill, not in the sheet. The v1607 guard
+    // judged by inventoryId alone — but an OFFLINE save MINTS its id from
+    // whatever data the device booted with (nextInventoryId = local max+1),
+    // and a stale snapshot mints an id a DIFFERENT, real item already
+    // wears. Reconnect: the guard finds that id in the fresh sheet at a
+    // real row, calls the queued row a duplicate of it, and deletes the
+    // save. His sheet ended at row 226 with neither queued row on it.
+    //
+    // IDENTITY IS id + ITEM NUMBER now. Three outcomes:
+    //   • same id, same itemNum, real row  → genuinely landed — drop.
+    //   • same id, DIFFERENT itemNum      → collision: REMINT the queued
+    //     row's id past the fresh max and SEND. (The v1607 rule again:
+    //     when the evidence is short of certain, send.)
+    //   • id unknown                      → send.
     var have = {};
+    var _maxInv = 0;
+    var _numIdx = -1;
+    try { _numIdx = PERSONAL_SCHEMA.findIndex(function (f) { return f.field === 'itemNum'; }); } catch (e) {}
     try {
       Object.keys(state.personalData || {}).forEach(function (k) {
         var r = state.personalData[k];
         if (!r || r.inventoryId == null || r.inventoryId === '') return;
+        var _ivN = parseInt(r.inventoryId, 10);
+        if (_ivN > _maxInv) _maxInv = _ivN;          // max over EVERYTHING, mirror included
         var rowNum = parseInt(r.row, 10);
         if (!(rowNum > 0) || rowNum === 99999) return;   // local mirror — NOT proof
-        have[String(r.inventoryId)] = 1;
+        have[String(r.inventoryId)] = String(r.itemNum || '');
       });
     } catch (e) {}
 
@@ -2146,10 +2166,20 @@ window._rrOfflineAppendDrain = async function () {
         if (!row) return false;
         var iv = row[invIdx];
         if (iv == null || iv === '') return false;   // not a collection row — replay it
-        var dup = !!have[String(iv)];
-        // A drop is a deletion. Never let one happen silently again.
-        if (dup) { try { console.warn('[outbox] queued add ' + iv + ' is already in the sheet (row known) — dropping the duplicate'); } catch (e2) {} }
-        return dup;
+        if (!(String(iv) in have)) return false;     // unknown id — send
+        var sheetNum = have[String(iv)];
+        var queuedNum = (_numIdx >= 0) ? String(row[_numIdx] || '') : '';
+        if (sheetNum === queuedNum) {
+          // A drop is a deletion. Never let one happen silently again.
+          try { console.warn('[outbox] queued add ' + queuedNum + ' (inv ' + iv + ') is already in the sheet at a real row — dropping the duplicate'); } catch (e2) {}
+          try { if (typeof showToast === 'function') showToast(queuedNum + ' was already in your sheet — the queued copy was dropped, not doubled.', 4000); } catch (e3) {}
+          return true;
+        }
+        // COLLISION: the sheet's row with this id is a DIFFERENT item.
+        var fresh = String(++_maxInv);
+        try { console.warn('[outbox] inventory id ' + iv + ' belongs to ' + sheetNum + ' in the sheet — reminting queued ' + queuedNum + ' as inv ' + fresh + ' and sending'); } catch (e4) {}
+        row[invIdx] = fresh;
+        return false;                                 // send, with the fresh id
       } catch (e) { return false; }
     });
     if (_drainP && _drainP.then) {
