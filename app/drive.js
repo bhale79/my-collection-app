@@ -934,33 +934,50 @@ function loadDriveThumb(fileId, imgEl, containerEl, thumbLink, priority) {
     return _loadDriveThumbSmall(fileId, imgEl, containerEl, thumbLink);
   }, priority === 'hi' ? 'hi' : 'lo');
 }
-// ── v0.9.1601: the on-device thumbnail bank ─────────────────────────────
-// Drive's signed thumbnail links cannot be fetch()ed cross-origin, so the
-// bank is filled the one way the browser allows: a separate anonymous
-// Image drawn to a canvas, compressed, and stored — fire-and-forget, so a
-// CORS refusal costs nothing. Offline, the bank is the only source there is.
+// ── v0.9.1601/1603: the on-device thumbnail bank ────────────────────────
+// v1601 tried to fill the bank from the signed thumbnail links via an
+// anonymous Image + canvas. MEASURED DEAD on 2026-08-28 (Session 87, in
+// Brad's own Chrome, on his own inbox photo): lh3.googleusercontent
+// refuses BOTH a cors fetch ("Failed to fetch") AND an anonymous image
+// load (onerror) — the bank stayed at zero and Brad's airplane test showed
+// sixteen placeholders. The one route the browser allows is the same one
+// _loadDriveThumbFull already uses: the AUTHENTICATED alt=media fetch
+// (googleapis serves CORS), downscaled in-browser to a ~30KB JPEG
+// (measured: 2.75MB → 28KB, ~3s). Full bytes per photo is the price, so:
+// lo-priority queue slot (never crowds a real load), one attempt per file
+// per session, capped per session, and skipped when already banked.
 var _rrThumbTried = {};
-function _rrThumbBank(fileId, link) {
+var _rrThumbBanked = 0;
+var _RR_THUMB_BANK_CAP = 80;   // per session — a show day's worth, not a data bill
+async function _rrThumbShrink(bigBlob) {
+  try {
+    var bmp = await createImageBitmap(bigBlob);
+    var scale = Math.min(1, 400 / Math.max(bmp.width || 400, bmp.height || 400));
+    var c = document.createElement('canvas');
+    c.width = Math.max(1, Math.round((bmp.width || 400) * scale));
+    c.height = Math.max(1, Math.round((bmp.height || 400) * scale));
+    c.getContext('2d').drawImage(bmp, 0, 0, c.width, c.height);
+    var small = await new Promise(function (r) { c.toBlob(r, 'image/jpeg', 0.8); });
+    return (small && small.size) ? small : bigBlob;
+  } catch (e) { return bigBlob; }
+}
+function _rrThumbBank(fileId) {
   try {
     if (!window._rrThumbCache || _rrThumbTried[fileId]) return;
+    if (_rrThumbBanked >= _RR_THUMB_BANK_CAP) return;
+    if (window._offlineMode || (typeof navigator !== 'undefined' && navigator.onLine === false)) return;
     _rrThumbTried[fileId] = 1;
     window._rrThumbCache.get(fileId).then(function (have) {
       if (have) return;
-      var im = new Image();
-      im.crossOrigin = 'anonymous';
-      im.onload = function () {
+      _thumbEnqueue(async function () {
         try {
-          var w = im.naturalWidth || 400, h = im.naturalHeight || 400;
-          var scale = Math.min(1, 400 / Math.max(w, h));
-          var c = document.createElement('canvas');
-          c.width = Math.max(1, Math.round(w * scale));
-          c.height = Math.max(1, Math.round(h * scale));
-          c.getContext('2d').drawImage(im, 0, 0, c.width, c.height);
-          c.toBlob(function (b) { if (b) window._rrThumbCache.put(fileId, b); }, 'image/jpeg', 0.8);
+          if (_rrThumbBanked >= _RR_THUMB_BANK_CAP) return;
+          var res = await fetch('https://www.googleapis.com/drive/v3/files/' + fileId + '?alt=media', { headers: { Authorization: 'Bearer ' + accessToken } });
+          if (!res.ok) return;
+          var small = await _rrThumbShrink(await res.blob());
+          if (small && small.size) { window._rrThumbCache.put(fileId, small); _rrThumbBanked++; }
         } catch (e) {}
-      };
-      im.onerror = function () {};
-      im.src = link;
+      }, 'lo');
     }).catch(function () {});
   } catch (e) {}
 }
@@ -1011,7 +1028,7 @@ async function _loadDriveThumbSmall(fileId, imgEl, containerEl, thumbLink) {
       imgEl.onerror = function() { imgEl.onerror = null; _loadDriveThumbFull(fileId, imgEl, containerEl); };
       var _sized = link.replace(/=s\d+(-c)?$/, '=s400');
       imgEl.src = _sized;
-      _rrThumbBank(fileId, _sized);   // v0.9.1601: fire-and-forget into the bank
+      _rrThumbBank(fileId);   // v0.9.1603: fire-and-forget into the bank (authenticated path)
       return;
     }
   } catch (e) {}
@@ -1045,6 +1062,13 @@ async function _loadDriveThumbFull(fileId, imgEl, containerEl) {
     const url = URL.createObjectURL(blob);
     _blobCache[cacheKey] = url;
     imgEl.src = url;
+    // v0.9.1603: the big bytes are already here — bank the downscale free.
+    try {
+      if (window._rrThumbCache && !_rrThumbTried[fileId]) {
+        _rrThumbTried[fileId] = 1;
+        _rrThumbShrink(blob).then(function (sm) { if (sm && sm.size) window._rrThumbCache.put(fileId, sm); }).catch(function () {});
+      }
+    } catch (eBk) {}
   } catch(e) {
     containerEl.innerHTML = '<span style="font-size:0.65rem;color:var(--text-dim)">⚠ err</span>';
   }

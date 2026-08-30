@@ -21771,9 +21771,14 @@ META_WRITES.length = 0; TOASTS.length = 0;
       const dr7 = fs.readFileSync(require('path').join(__dirname, '..', 'app', 'drive.js'), 'utf8');
       ok('307 drive.js serves offline thumbs from the bank, placeholder on a miss',
          /window\._rrThumbCache\.get\(fileId\)/.test(dr7) && /Not saved on this device yet/.test(dr7), '');
-      ok('307 …and banks thumbs as they paint, fire-and-forget via canvas',
-         /_rrThumbBank\(fileId, _sized\)/.test(dr7) && /crossOrigin = 'anonymous'/.test(dr7)
-         && /toBlob\(/.test(dr7), '');
+      // v0.9.1603 RE-PIN: the v1601 canvas-from-signed-link path was MEASURED
+      // DEAD in Brad's own Chrome (lh3 refuses cors fetch AND anonymous
+      // image loads — the bank stayed at zero, Brad saw 16 placeholders).
+      // The bank fills through the AUTHENTICATED alt=media fetch downscaled
+      // in-browser (measured 2.75MB → 28KB), lo-priority, session-capped.
+      ok('307 …and banks thumbs as they paint through the AUTHENTICATED path',
+         /_rrThumbBank\(fileId\)/.test(dr7) && /alt=media/.test(dr7)
+         && !/crossOrigin = 'anonymous'/.test(dr7), '');
       ok('307 the bank prunes itself (newest ~600 kept)', /list\.length <= 600/.test(pi7), '');
     })();
 
@@ -21801,6 +21806,31 @@ META_WRITES.length = 0; TOASTS.length = 0;
          /window\._rrThumbCache\.get\(fileId\)/.test(fullSeg) && /Not saved on this device yet/.test(fullSeg), '');
       ok('308 the add-from-inbox door itself carries NO offline gate (the wizard is the gate, and it opens)',
          !/_pinOfflineRefuse/.test(pi8.slice(pi8.indexOf('window._pinAddNow'), pi8.indexOf('window._pinAddNow') + 1200)), '');
+    })();
+
+    // ═══════════════════════════════════════════════════════════
+    // 309. THE BANK FILLS FOR REAL (v0.9.1603). Brad's airplane test:
+    // "the pictures just show the red offline icon" — the v1601 canvas
+    // path could never bank a thumbnail (measured: Google's signed links
+    // refuse anonymous CORS entirely). These pin the working design.
+    // ═══════════════════════════════════════════════════════════
+    section('309. Thumbnail banking: authenticated, downscaled, capped, free-rides the full loader');
+    (function () {
+      const dr9 = fs.readFileSync(require('path').join(__dirname, '..', 'app', 'drive.js'), 'utf8');
+      const bankSeg = dr9.slice(dr9.indexOf('function _rrThumbBank'), dr9.indexOf('async function _loadDriveThumbSmall'));
+      ok('309 banking fetches the AUTHENTICATED bytes, never the refusing signed link',
+         /alt=media/.test(bankSeg) && /Authorization: 'Bearer ' \+ accessToken/.test(bankSeg)
+         && !/new Image\(\)/.test(bankSeg), '');
+      ok('309 …in a lo-priority queue slot, one try per file, session-capped',
+         /_thumbEnqueue\(/.test(bankSeg) && /'lo'\)/.test(bankSeg)
+         && /_rrThumbTried\[fileId\]/.test(bankSeg) && /_RR_THUMB_BANK_CAP/.test(dr9), '');
+      ok('309 …and never burns data while offline',
+         /navigator\.onLine === false\)\) return;/.test(bankSeg), '');
+      ok('309 the downscaler is shared and honest (falls back to the big blob)',
+         /async function _rrThumbShrink/.test(dr9) && /return bigBlob;/.test(dr9), '');
+      const fullSeg9 = dr9.slice(dr9.indexOf('async function _loadDriveThumbFull'), dr9.indexOf('async function _loadDriveThumbFull') + 2200);
+      ok('309 the full loader banks its blob for FREE — bytes it already paid for',
+         /_rrThumbShrink\(blob\)/.test(fullSeg9) && /_rrThumbCache\.put\(fileId, sm\)/.test(fullSeg9), '');
     })();
 
   })().then(function () {
