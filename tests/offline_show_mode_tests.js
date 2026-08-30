@@ -60,8 +60,13 @@ ok('the Want List guards are lifted (both files)',
 
 // ── the drain is wired: checker + post-load call sites + reconnect nudge ──
 const ad = rd('app-data.js');
+// v0.9.1607 RE-PIN: the drain became async (it re-reads the sheet before
+// judging), so the shape check is shape-agnostic now — what matters is that
+// the guard exists and keys on inventoryId, not how the function is spelled.
 ok('the duplicate guard exists and reads inventoryId from the schema',
-   /window\._rrOfflineAppendDrain = function/.test(ad) && /f\.field === 'inventoryId'/.test(ad), '');
+   /window\._rrOfflineAppendDrain = (async )?function/.test(ad) && /f\.field === 'inventoryId'/.test(ad), '');
+ok('…and only a REAL sheet row number counts as proof (v1607: the guard that ate an item)',
+   /rowNum > 0/.test(ad) && /99999/.test(ad) && /NOT proof/.test(ad), '');
 ok('…and is called after BOTH data-load branches',
    (ad.match(/_rrOfflineAppendDrain === 'function'\) setTimeout\(window\._rrOfflineAppendDrain, 2500\)/g) || []).length === 2, '');
 ok('…and nudged from the reconnect listener',
