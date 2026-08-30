@@ -7273,8 +7273,16 @@ META_WRITES.length = 0; TOASTS.length = 0;
     function run(response, opts) {
       const calls = [];
       const recorded = [];
+      // v0.9.1604: the doors read BOTH flavours of offline through one
+      // helper, so the harness provides it built from the same two values
+      // the real one reads — an imitation that could disagree would be
+      // exactly the kind of harness lie section 130's note warns about.
+      const winObj = (opts && opts.win) || {};
+      const navObj = (opts && opts.nav) || { onLine: true };
       const ctx = {
-        window: (opts && opts.win) || {},
+        window: winObj,
+        navigator: navObj,
+        _rrOfflineNow: function () { return !!(winObj._offlineMode || navObj.onLine === false); },
         showToast: function () {},
         _withTokenRetry: function (fn) { return fn(); },
         _encodeRange: function (r) { return encodeURIComponent(r); },
@@ -7317,6 +7325,17 @@ META_WRITES.length = 0; TOASTS.length = 0;
        JSON.stringify(errRes.recorded[0].args.values) === '[["x"]]');
     ok('a write that SUCCEEDS records nothing',
        good.recorded.length === 0 && noRange.recorded.length === 0);
+
+    // v0.9.1604: airplane flipped ON MID-SESSION (the flag is false, the
+    // browser says offline) must behave exactly like an offline boot —
+    // record and answer row-unknown. Before v1604 this threw, which aborted
+    // a multi-append wizard save at its first row: Brad added an item in
+    // airplane mode and it did not add.
+    var airplane = run({}, { win: {}, nav: { onLine: false } });
+    var airRow = airplane.fn('SHEET', 'T!A:A', [['x']]);
+    ok('306b BRAD\'S BUG: airplane mid-session records and answers row-unknown',
+       airRow === 0 && airplane.recorded.length === 1 && airplane.calls.length === 0,
+       JSON.stringify({ row: airRow, recorded: airplane.recorded.length, fetches: airplane.calls.length }));
 
     // v0.9.1600 RE-PIN (show mode 2): offline no longer refuses — it RECORDS
     // the append to the outbox and answers the honest row-unknown 0, so a
@@ -14502,12 +14521,15 @@ META_WRITES.length = 0; TOASTS.length = 0;
         const clrSrc = sh.slice(sh.indexOf('async function sheetsClear'),
                                 sh.indexOf('if (typeof window !== \'undefined\') window.sheetsClear'));
         const recorded = [];
+        // v0.9.1604: the door now asks _rrOfflineNow() — this slice runs
+        // isolated, so the helper is provided, built from the same window
+        // the slice gets (online here: {} has no _offlineMode).
         const mkClear = (fetchImpl) => new Function('window', 'showToast',
-          '_withTokenRetry', 'fetch', 'accessToken', '_encodeRange', '_rrWriteFailed', 'console',
+          '_withTokenRetry', 'fetch', 'accessToken', '_encodeRange', '_rrWriteFailed', 'console', '_rrOfflineNow',
           '"use strict";' + clrSrc + '; return sheetsClear;')(
             {}, undefined, fn => fn(), fetchImpl, 'tok', r => encodeURIComponent(r),
             (kind, args, err) => { recorded.push({ kind: kind, range: args.range }); return err; },
-            { error: () => {} });
+            { error: () => {} }, () => false);
         const forbidden = mkClear(async () => ({ ok: false, status: 403, json: async () => ({}) }));
         let threw = null;
         await forbidden('SHEET1', 'Sheet1!A1:E1000').catch(e => { threw = e; });

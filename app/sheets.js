@@ -163,6 +163,27 @@ async function _withTokenRetry(fetchFn) {
 //
 // So: every write that puts a USER'S VALUE into a cell goes through here. That
 // is the claim, and it is the one worth keeping true.
+// ── v0.9.1604 (Brad: "i added an item in airplane mode, but it did not add
+// it") ─────────────────────────────────────────────────────────────────
+// MEASURED in Brad's own Chrome: these three doors checked ONLY
+// window._offlineMode — the flag app-auth sets when the app BOOTS with no
+// connection. Airplane flipped ON mid-session leaves that flag false, so a
+// write took the live path, fetch failed, and sheetsAppend THREW. A wizard
+// save is a sequence of appends (engine + tender, item + box, the IS row);
+// a throw at the first aborts the rest, so the item never reached local
+// state and never appeared — the exact report. Both flavours of offline
+// mean the same thing to a write, and now they read the same:
+//   • _offlineMode        — booted with no connection (view-only start)
+//   • navigator.onLine===false — airplane/wifi dropped while running
+// The same dual check the photo inbox (_pinOffline) and the dashboard have
+// used for versions.
+function _rrOfflineNow() {
+  try {
+    return !!(window._offlineMode || (typeof navigator !== 'undefined' && navigator.onLine === false));
+  } catch (e) { return false; }
+}
+if (typeof window !== 'undefined') window._rrOfflineNow = _rrOfflineNow;
+
 function _rrWriteFailed(kind, args, err) {
   try { if (typeof rrOutboxRecord === 'function') rrOutboxRecord(kind, args, err); } catch (e) {}
   return err;
@@ -338,11 +359,11 @@ async function sheetsUpdate(spreadsheetId, range, values) {
   // v0.9.985 (perf): any write = data changed — invalidate cached page renders.
   try { window._rrDataRev = (window._rrDataRev || 0) + 1; } catch (e) {}
   // v0.9.1599 (Brad: work the lists at a train show with no wifi): an
-  // offline BOOT is no longer view-only. The v826 refusal predates the
+  // offline BOOT — v0.9.1604: or airplane mid-session — is no longer view-only. The v826 refusal predates the
   // write-outbox — the write is now RECORDED exactly like a mid-session
   // network failure, so it reaches the sheet after reconnect. Same throw
   // contract downstream; only the bookkeeping and the words changed.
-  if (window._offlineMode) {
+  if (_rrOfflineNow()) {
     if (typeof showToast === 'function') showToast('You\u2019re offline \u2014 saved on this device. It goes to your sheet when you\u2019re back on.', 3500);
     throw _rrWriteFailed('update', { sheetId: spreadsheetId, range: range, values: values }, new Error('offline'));
   }
@@ -382,7 +403,7 @@ async function sheetsAppend(spreadsheetId, range, values) {
   // sheetsUpdate). New rows are the train-show case — they auto-send after
   // reconnect through rrOutboxDrainAppends, with the app's row-exists check
   // standing guard against a request that died AFTER reaching Google.
-  if (window._offlineMode) {
+  if (_rrOfflineNow()) {
     if (typeof showToast === 'function') showToast('You\u2019re offline \u2014 saved on this device. It goes to your sheet when you\u2019re back on.', 3500);
     // v0.9.1600 (show mode 2): record, then RETURN row-unknown instead of
     // throwing. A wizard save is many appends in sequence (engine + tender,
@@ -461,7 +482,7 @@ async function sheetsClear(spreadsheetId, range) {
   // v0.9.1599: deliberately NOT recorded-for-later (unlike update/append) —
   // a queued clear replayed against a list that changed meanwhile is the
   // half-rebuilt-sale-sheet disaster this function's header describes.
-  if (window._offlineMode) {
+  if (_rrOfflineNow()) {
     if (typeof showToast === 'function') showToast('You\u2019re offline \u2014 rebuilding the sale list needs a connection.', 3500, true);
     throw new Error('offline');
   }

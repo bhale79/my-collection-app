@@ -22,15 +22,23 @@ const sh = rd('sheets.js');
 const upd = sh.slice(sh.indexOf('async function sheetsUpdate'), sh.indexOf('async function sheetsAppend'));
 const app = sh.slice(sh.indexOf('async function sheetsAppend'), sh.indexOf('async function sheetsClear'));
 ok('an offline-boot UPDATE is recorded to the outbox, not refused',
-   /_offlineMode\) \{[\s\S]{0,700}?throw _rrWriteFailed\('update'/.test(upd), '');
+   /_rrOfflineNow\(\)\) \{[\s\S]{0,700}?throw _rrWriteFailed\('update'/.test(upd), '');
 ok('an offline-boot APPEND is recorded to the outbox, not refused',
-   /_offlineMode\) \{[\s\S]{0,900}?_rrWriteFailed\('append'/.test(app), '');
+   /_rrOfflineNow\(\)\) \{[\s\S]{0,900}?_rrWriteFailed\('append'/.test(app), '');
 ok('…and RETURNS row-unknown so a multi-row save queues every row (v1600)',
    /_rrWriteFailed\('append'[\s\S]{0,120}?return 0;/.test(app), '');
 ok('…and neither keeps the old bare refusal throw',
    !/needs a connection", 3500, true\);\s*throw new Error\('offline'\)/.test(upd + app), '');
 ok('…while the toast says SAVED ON THIS DEVICE, not refused',
    /saved on this device/i.test(upd) && /saved on this device/i.test(app), '');
+
+// ── v0.9.1604: BOTH flavours of offline reach the doors ──
+ok('there is ONE offline test, and it covers airplane-mid-session too',
+   /function _rrOfflineNow\(\)/.test(sh)
+   && /window\._offlineMode \|\| \(typeof navigator !== 'undefined' && navigator\.onLine === false\)/.test(sh), '');
+ok('…and all three write doors use it — none checks the boot flag alone',
+   (sh.match(/if \(_rrOfflineNow\(\)\) \{/g) || []).length === 3
+   && !/if \(window\._offlineMode\) \{/.test(sh), '');
 
 // ── sheetsClear keeps its deliberate refusal, with the reason on the spot ──
 const clr = sh.slice(sh.indexOf('async function sheetsClear'), sh.indexOf('async function sheetsClear') + 1400);
