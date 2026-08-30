@@ -156,10 +156,18 @@
     if (_fid && _fidChecked) return _fid;
     var cached = localStorage.getItem(FID_KEY);
     if (cached) {
+      // v0.9.1606: offline, the check below cannot run — and the old code
+      // treated an unreachable Drive as a MISSING folder and deleted the
+      // cached id, so a device that spent a day at a show came home having
+      // forgotten where its inbox lives. Offline, trust the cached id.
+      if (_pinOffline()) { _fid = cached; return _fid; }   // not marked checked: verify when back on
       try {
         var chk = await driveRequest('GET', '/files/' + cached + '?fields=id,trashed');
         if (chk && chk.id && !chk.trashed) { _fid = cached; _fidChecked = true; return _fid; }
-      } catch (e) {}
+      } catch (e) {
+        // v0.9.1606: only a real answer from Drive may retire the cached id.
+        if (_pinOffline()) { _fid = cached; return _fid; }
+      }
       localStorage.removeItem(FID_KEY);
     }
     await driveEnsureSetup();
@@ -5623,7 +5631,21 @@
     var ov = document.getElementById('pin-review-ov'); if (ov) ov.remove();
     _setBusy(true, 'Filing to your collection');
     try {
-      var fromFid = await _folder();
+      // ── v0.9.1606 (Brad, airplane test: "as soon as i hit add to my
+      // collection it takes me back to the photo inbox") ─────────────────
+      // MEASURED CAUSE: everything below resolves DRIVE FOLDERS first —
+      // _folder(), driveEnsureItemFolder, driveFindOrCreateFolder — and
+      // offline every one of those throws. The outer catch then wrote a
+      // status line and stopped, with the review card already removed two
+      // lines above, so the user landed back on the inbox grid and the Add
+      // wizard never opened. The folders are not needed yet: for a NEW item
+      // the note is staged and the wizard does the rest, and v0.9.1118
+      // already established that a staged note may carry NO folders —
+      // _flushPending resolves fromFid/toFid/link at move time (it has done
+      // so for set-adds since then). So offline we skip the folder work
+      // entirely and let the same pipeline finish on reconnect.
+      var _offAdd = _pinOffline();
+      var fromFid = _offAdd ? '' : await _folder();
       // v0.9.1498 (task #28): attaching to a copy that already HAS a photo
       // folder files into THAT folder -- making a second folder for the same
       // copy is how photos scatter. Only a copy with no folder yet gets one
@@ -5633,7 +5655,12 @@
       try { _tgtFid = (_tgt && _tgt.photoItem && (String(_tgt.photoItem).match(/folders\/([a-zA-Z0-9_-]+)/) || [])[1]) || ''; } catch (eTF) { _tgtFid = ''; }
       if (_tgtFid === 'undefined') _tgtFid = '';
       var toFid, link;
-      if (_tgtFid && _tgt && _tgt.inventoryId && typeof driveFindOrCreateFolder === 'function'
+      if (_offAdd) {
+        // Offline: no folder can be made or read. Leave them blank —
+        // _flushPending fills them in when the connection returns.
+        toFid = ''; link = '';
+      }
+      else if (_tgtFid && _tgt && _tgt.inventoryId && typeof driveFindOrCreateFolder === 'function'
           && _pinFolderShared(_tgtFid, _tgt)) {
         // v0.9.1500: the picked copy's folder is ALSO another copy's folder.
         // Filing into it would re-mix the copies -- this copy gets its own
@@ -5662,6 +5689,27 @@
         for (var f = 0; f < gs[g].files.length; f++) { fileList.push(gs[g].files[f]); }
       }
       var ts = new Date().getTime();
+      // v0.9.1606: attaching to an item you ALREADY own needs Drive to move
+      // the files, which offline cannot happen — but the note pipeline can
+      // carry it. Stage the note and ARM it immediately (the row exists, so
+      // _flushPending will file it the moment the connection returns), then
+      // say so plainly instead of failing.
+      if (_attach && _offAdd) {
+        try {
+          var _stgA = JSON.parse(localStorage.getItem(SETSTAGE_KEY) || '{}');
+          _stgA[_tgtNum] = { link: '', fromFid: '', toFid: '', ts: ts,
+            rsvFid: (fileList[0] && fileList[0].id) || '',
+            files: fileList.map(function (fl) { return { id: fl.id, name: fl.name, role: (fl._meta && fl._meta.role) || '' }; }) };
+          localStorage.setItem(SETSTAGE_KEY, JSON.stringify(_stgA));
+          if (typeof rrPinSetPhotoSaved === 'function') rrPinSetPhotoSaved(_tgtNum);
+        } catch (eSA) { console.warn('[Inbox] offline attach note:', eSA); }
+        _sel = {};
+        _status('');
+        _pinRefresh();
+        showToast('You\u2019re offline \u2014 ' + fileList.length + ' photo' + (fileList.length > 1 ? 's' : '')
+          + ' will move to ' + _tgtNum + ' when you\u2019re back online. They stay in the inbox until then.', 5200);
+        return;
+      }
       if (_attach) {
         // Already in the collection: committed action, no wizard to cancel,
         // so file the photos into its folder right away.
@@ -5744,7 +5792,8 @@
           localStorage.setItem(SETSTAGE_KEY, JSON.stringify(stage1));
         } catch (eP) {}
         _pinRefresh();
-        showToast(fileList.length + ' photo' + (fileList.length > 1 ? 's' : '') + ' will attach when you save — they stay in the inbox until then', 3500);
+        showToast(fileList.length + ' photo' + (fileList.length > 1 ? 's' : '') + ' will attach when you save'
+          + (_offAdd ? ' — and upload when you\u2019re back online' : ' — they stay in the inbox until then'), 3500);
         var _aiS = {}; try { _aiS = _ids()[gs[0].files[0].id] || {}; } catch (eAi) {}
         // v0.9.907 (Brad, item [1a]): hand the first inbox photo's Drive id to the
         // wizard so the variation step can preview the item you're adding.
@@ -5759,7 +5808,15 @@
       }
     } catch (e) {
       console.error('[Inbox] add/attach:', e);
-      _status('Filing failed partway — hit Refresh to see what’s left, then try again.');
+      // v0.9.1606: a failure here used to leave a status line on a page the
+      // user had just been bounced back to, with no idea why. Say it.
+      if (_pinOffline()) {
+        _status('You\u2019re offline — that did not go through. Try again once you\u2019re back on.');
+        showToast('You\u2019re offline — that did not go through. Nothing was lost; try again when you reconnect.', 5000, true);
+      } else {
+        _status('Filing failed partway — hit Refresh to see what’s left, then try again.');
+        showToast('That did not finish — hit Refresh to see what is left, then try again.', 4500, true);
+      }
     } finally { _setBusy(false); }
   };
 

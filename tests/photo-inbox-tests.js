@@ -21913,6 +21913,52 @@ META_WRITES.length = 0; TOASTS.length = 0;
          /findMasterItems\(parsed\.itemNumCandidates, info\.mfr\)/.test(bcSrc), '');
     })();
 
+    // ═══════════════════════════════════════════════════════════
+    // 311. ADD-FROM-INBOX WORKS OFFLINE (v0.9.1606). Brad, airplane test:
+    // "as soon as i hit add to my collection it takes me back to the photo
+    // inbox." _pinReviewAdd resolved DRIVE FOLDERS before anything else —
+    // _folder(), driveEnsureItemFolder, driveFindOrCreateFolder — and
+    // offline each of those throws. The review card had already been
+    // removed, so the catch dropped the user back on the grid and the
+    // wizard never opened. The folders are not needed yet: v0.9.1118
+    // established that a staged note may carry NONE, because _flushPending
+    // resolves them at move time.
+    // ═══════════════════════════════════════════════════════════
+    section('311. Add from the inbox offline: no Drive work up front, the wizard still opens');
+    (function () {
+      const pi11 = fs.readFileSync(require('path').join(__dirname, '..', 'app', 'photo-inbox.js'), 'utf8');
+      const seg = pi11.slice(pi11.indexOf('window._pinReviewAdd = async function'),
+                             pi11.indexOf('function _pinSetMemberMap'));
+      ok('311 the offline test is taken ONCE, before any Drive call', /var _offAdd = _pinOffline\(\);/.test(seg), '');
+      ok('311 BRAD\'S BUG: the inbox folder is not resolved offline',
+         /var fromFid = _offAdd \? '' : await _folder\(\);/.test(seg), '');
+      ok('311 …and no item folder is made or read offline',
+         /if \(_offAdd\) \{[\s\S]{0,220}toFid = ''; link = '';/.test(seg), '');
+      // NOTE: match real CALLS, not the comment above them (which names the
+      // same functions while explaining the bug) — the first cut of this
+      // check read its own documentation and failed.
+      ok('311 …so nothing throws before _pinAddNow opens the wizard',
+         seg.indexOf('var _offAdd') < seg.indexOf('await _folder()')
+         && seg.indexOf('var _offAdd') < seg.indexOf('await driveEnsureItemFolder'), '');
+      ok('311 the staged note is still written (the pipeline resolves folders at move time)',
+         /stage1\[num\] = \{ link: link, fromFid: fromFid, toFid: toFid/.test(seg), '');
+      ok('311 …and _flushPending really does resolve missing folders later',
+         /if \(!rec\.fromFid\) rec\.fromFid = await _folder\(\);/.test(pi11)
+         && /if \(!rec\.toFid\) rec\.toFid = await driveEnsureItemFolder\(num\);/.test(pi11), '');
+      ok('311 attaching to an owned item offline stages AND arms, instead of failing',
+         /if \(_attach && _offAdd\) \{[\s\S]{0,700}rrPinSetPhotoSaved\(_tgtNum\)/.test(seg), '');
+      ok('311 …and says the photos move on reconnect',
+         /will move to ' \+ _tgtNum \+ ' when you\\u2019re back online/.test(seg), '');
+      const fseg = pi11.slice(pi11.indexOf('async function _folder()'), pi11.indexOf('async function _folder()') + 1400);
+      ok('311 offline never FORGETS the inbox folder id (a show day would erase it)',
+         /if \(_pinOffline\(\)\) \{ _fid = cached; return _fid; \}/.test(fseg)
+         && fseg.indexOf('_pinOffline()') < fseg.indexOf('localStorage.removeItem(FID_KEY)'), '');
+      ok('311 …and only a real answer from Drive may retire it',
+         /catch \(e\) \{[\s\S]{0,200}if \(_pinOffline\(\)\) \{ _fid = cached; return _fid; \}/.test(fseg), '');
+      ok('311 a real failure now SPEAKS instead of leaving a silent grid',
+         /if \(_pinOffline\(\)\) \{[\s\S]{0,400}showToast\([\s\S]{0,200}did not go through/.test(seg), '');
+    })();
+
   })().then(function () {
     console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
     process.exit(fail ? 1 : 0);
