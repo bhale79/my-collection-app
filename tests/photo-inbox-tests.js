@@ -22346,6 +22346,51 @@ META_WRITES.length = 0; TOASTS.length = 0;
          && /_pwaIsInstalled\(\)\) return;/.test(am19.slice(am19.indexOf('_pwaOfferInit'))), '');
     })();
 
+    // ═══════════════════════════════════════════════════════════
+    // 320. VIEW SLOTS ON THE REVIEW CARD (v0.9.1616). Brad: "we need to
+    // have the photo slots for each view like right side, left side, top,
+    // bottom, front, back, and detail 1 detail 2 … so that we can move the
+    // pictures into the correct slot before we add the item." The wizard
+    // has ALWAYS dealt by these stamps (v1440); this is the surface that
+    // sets them, with Brad's swap rule from v1614.
+    // ═══════════════════════════════════════════════════════════
+    section('320. Review-card view slots: assign, swap, clear — the wizard deals by them');
+    await (async function () {
+      const pi20 = fs.readFileSync(require('path').join(__dirname, '..', 'app', 'photo-inbox.js'), 'utf8');
+      ok('320 the eight slots Brad named exist, in shooting-friendly order',
+         /'TV',\s*label: 'Top'/.test(pi20) && /'RSV',\s*label: 'Right Side'/.test(pi20)
+         && /'EXTRA',\s*label: 'Detail 1'/.test(pi20) && /'EXTRA2',\s*label: 'Detail 2'/.test(pi20), '');
+      ok('320 the bar joins ALL THREE rails (phone strip, desktop panel, wide layout)',
+         (pi20.match(/_pinRvViewsBarHtml\(\)/g) || []).length >= 4, '');
+      // functional: assign with a swap, on the REAL handler
+      META_WRITES.length = 0;
+      T.rvGroups = [{ key: 'gX', files: [
+        { id: 'fT', _meta: { view: 'TV' } },
+        { id: 'fR', _meta: { view: 'RSV' } },
+        { id: 'fN', _meta: {} },
+      ] }];
+      window._pinReview = window._pinReview || function () {};
+      const _realReview = window._pinReview; window._pinReview = function () {};
+      navigator.onLine = true;
+      await window._pinRvAssignView('fT', 'RSV');   // Top's photo claims Right Side
+      ok('320 BRAD\'S RULE: assigning onto an occupied slot SWAPS the two stamps',
+         META_WRITES.some(w => w.fileId === 'fT' && w.patch.view === 'RSV')
+         && META_WRITES.some(w => w.fileId === 'fR' && w.patch.view === 'TV'),
+         JSON.stringify(META_WRITES));
+      ok('320 …and the cached meta repaints truthfully at once',
+         T.rvGroups[0].files[0]._meta.view === 'RSV' && T.rvGroups[0].files[1]._meta.view === 'TV', '');
+      META_WRITES.length = 0;
+      await window._pinRvAssignView('', 'RSV');     // Clear this slot
+      ok('320 clearing a slot unstamps its holder',
+         META_WRITES.length === 1 && META_WRITES[0].patch.view === '' && T.rvGroups[0].files[0]._meta.view === '',
+         JSON.stringify(META_WRITES));
+      window._pinReview = _realReview;
+      ok('320 an offline failure says so and changes nothing',
+         /view labels for uploaded photos need a connection/.test(pi20), '');
+      ok('320 the picker names the slot and offers Clear only when held',
+         /Which photo is the /.test(pi20) && /Clear this slot/.test(pi20), '');
+    })();
+
   })().then(function () {
     console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
     process.exit(fail ? 1 : 0);

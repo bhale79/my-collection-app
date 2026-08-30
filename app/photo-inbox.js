@@ -3984,6 +3984,118 @@
   // ticked INVISIBLY after the card closed, because the tick circle is only
   // drawn in select mode while the toolbar arms Discard and Identify on the
   // COUNT alone. An explicit argument cannot leak.
+  // ═══ v0.9.1616 (Brad): VIEW SLOTS ON THE REVIEW CARD ═════════════════
+  // "on grouped items, we need to have the photo slots for each view like
+  // right side, left side, top, bottom, front, back, and detail 1 detail 2
+  // … so that we can move the pictures into the correct slot before we add
+  // the item." The stamps were always the wizard's dealing order
+  // (_pinMetaOf(f).view → the v1440 slot deal) — what was missing was a
+  // surface to SET them here. Tap a slot → pick which photo it is; if that
+  // photo held another slot and this one was occupied, the two stamps SWAP
+  // (the same rule as the wizard's v1614 drag). Stamps are Drive
+  // appProperties, so they need a connection for uploaded photos — a
+  // failure says so and changes nothing on screen.
+  var _RV_SLOTS = [
+    { key: 'TV',     label: 'Top' },
+    { key: 'LSV',    label: 'Left Side' },
+    { key: 'FV',     label: 'Front' },
+    { key: 'RSV',    label: 'Right Side' },
+    { key: 'BKV',    label: 'Back' },
+    { key: 'BV',     label: 'Bottom' },
+    { key: 'EXTRA',  label: 'Detail 1' },
+    { key: 'EXTRA2', label: 'Detail 2' },
+  ];
+  function _pinRvFiles() {
+    var out = [];
+    (_rvGroups || []).forEach(function (g) { (g.files || []).forEach(function (f) { out.push(f); }); });
+    return out;
+  }
+  function _pinRvViewOf(f) { return (f && f._meta && f._meta.view) || ''; }
+  function _pinRvViewsBarHtml() {
+    var files = _pinRvFiles();
+    if (files.length < 2) return '';   // one photo has nothing to sort
+    var byView = {};
+    files.forEach(function (f) { var v = _pinRvViewOf(f); if (v && !byView[v]) byView[v] = f; });
+    return '<div id="pin-rv-views" style="display:flex;gap:0.35rem;overflow-x:auto;-webkit-overflow-scrolling:touch;margin-bottom:0.7rem;padding:0.15rem 0">' +
+      _RV_SLOTS.map(function (sl) {
+        var f = byView[sl.key];
+        return '<div onclick="_pinRvSlotTap(\'' + sl.key + '\')" title="Tap to choose which photo is the ' + sl.label + '" style="flex:0 0 auto;width:56px;cursor:pointer;text-align:center">' +
+          (f
+            ? '<div style="width:56px;height:48px;border-radius:8px;overflow:hidden;border:1.5px solid var(--accent2);background:var(--surface2)"><img data-rvv="' + f.id + '" style="width:100%;height:100%;object-fit:cover;display:block" alt=""></div>'
+            : '<div style="width:56px;height:48px;border-radius:8px;border:1.5px dashed var(--border);background:var(--surface2);display:flex;align-items:center;justify-content:center;color:var(--text-dim);font-size:1rem">+</div>') +
+          '<div style="font-size:0.55rem;font-weight:700;color:' + (f ? 'var(--text)' : 'var(--text-dim)') + ';letter-spacing:0.02em;margin-top:2px;white-space:nowrap">' + sl.label + '</div>' +
+        '</div>';
+      }).join('') +
+    '</div>';
+  }
+  window._pinRvSlotTap = function (viewKey) {
+    var files = _pinRvFiles();
+    if (!files.length) return;
+    var sl = null;
+    for (var i = 0; i < _RV_SLOTS.length; i++) if (_RV_SLOTS[i].key === viewKey) sl = _RV_SLOTS[i];
+    var holder = null;
+    files.forEach(function (f) { if (_pinRvViewOf(f) === viewKey) holder = f; });
+    var old = document.getElementById('pin-rv-slotpick'); if (old) old.remove();
+    var ov = document.createElement('div');
+    ov.id = 'pin-rv-slotpick';
+    ov.style.cssText = 'position:fixed;inset:0;z-index:100075;background:var(--scrim);display:flex;align-items:center;justify-content:center;padding:1rem';
+    ov.innerHTML =
+      '<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:1rem;width:100%;max-width:420px;max-height:80vh;overflow-y:auto">' +
+        '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.6rem">' +
+          '<strong style="color:var(--text);font-size:0.95rem">Which photo is the ' + (sl ? sl.label : viewKey) + '?</strong>' +
+          '<button onclick="document.getElementById(\'pin-rv-slotpick\').remove()" style="background:none;border:none;color:var(--text-dim);font-size:1.3rem;cursor:pointer">✕</button>' +
+        '</div>' +
+        '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(84px,1fr));gap:0.45rem">' +
+          files.map(function (f) {
+            var v = _pinRvViewOf(f);
+            var vLbl = '';
+            for (var j = 0; j < _RV_SLOTS.length; j++) if (_RV_SLOTS[j].key === v) vLbl = _RV_SLOTS[j].label;
+            return '<div onclick="_pinRvAssignView(\'' + f.id + '\',\'' + viewKey + '\')" style="cursor:pointer;position:relative;aspect-ratio:1;border-radius:8px;overflow:hidden;border:2px solid ' + (v === viewKey ? 'var(--accent)' : 'var(--border)') + ';background:var(--surface2)">' +
+              '<img data-rvv="' + f.id + '" style="width:100%;height:100%;object-fit:cover;display:block" alt="">' +
+              (vLbl ? '<div style="position:absolute;left:0;right:0;bottom:0;background:rgba(0,0,0,0.62);color:#fff;font-size:0.55rem;font-weight:700;text-align:center;padding:1px 2px">' + vLbl + '</div>' : '') +
+            '</div>';
+          }).join('') +
+        '</div>' +
+        (holder
+          ? '<button onclick="_pinRvAssignView(\'\',\'' + viewKey + '\')" style="margin-top:0.7rem;width:100%;padding:0.6rem;border-radius:9px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-weight:600;font-size:0.85rem;cursor:pointer">Clear this slot</button>'
+          : '') +
+      '</div>';
+    document.body.appendChild(ov);
+    try {
+      ov.querySelectorAll('img[data-rvv]').forEach(function (img) {
+        loadDriveThumb(img.getAttribute('data-rvv'), img, img.parentElement, _thumbLink[img.getAttribute('data-rvv')] || null, 'hi');
+      });
+    } catch (eT) {}
+  };
+  window._pinRvAssignView = async function (fid, viewKey) {
+    var files = _pinRvFiles();
+    var picked = null, holder = null;
+    files.forEach(function (f) {
+      if (f.id === fid) picked = f;
+      if (_pinRvViewOf(f) === viewKey && f.id !== fid) holder = f;
+    });
+    var oldView = picked ? _pinRvViewOf(picked) : '';
+    var ok1 = true, ok2 = true;
+    try {
+      if (picked) ok1 = await _pinMetaSet(picked.id, { view: viewKey });
+      else if (holder) ok1 = await _pinMetaSet(holder.id, { view: '' });        // Clear this slot
+      // Brad's swap rule: the displaced photo takes the mover's old slot.
+      if (picked && holder) ok2 = await _pinMetaSet(holder.id, { view: oldView || '' });
+    } catch (e) { ok1 = false; }
+    if (!ok1 || !ok2) {
+      showToast(_pinOffline()
+        ? 'You’re offline — view labels for uploaded photos need a connection. Nothing was changed.'
+        : 'Could not save that view label — try again.', 4200, true);
+      return;
+    }
+    // reflect in the cached meta so the card repaints truthfully at once
+    if (picked) { picked._meta = picked._meta || {}; picked._meta.view = viewKey; }
+    if (picked && holder) { holder._meta = holder._meta || {}; holder._meta.view = oldView || ''; }
+    if (!picked && holder) { holder._meta = holder._meta || {}; holder._meta.view = ''; }
+    var pk = document.getElementById('pin-rv-slotpick'); if (pk) pk.remove();
+    try { window._pinReview(_rvKey || '', _rvGroups); } catch (e) {}
+  };
+
   window._pinReview = function (key, only) {
     _rvKey = key || '';          // v0.9.1057: which group the card is showing
     _rvGroups = key ? _groups.filter(function (g) { return g.key === key; })
@@ -4198,7 +4310,8 @@
             })() +
           '</div>';
         }).join('') +
-      '</div>';
+      '</div>' +
+      _pinRvViewsBarHtml();
 
     // Desktop: big photo panel on the right; other photos as a strip beneath.
     var _cornBtn = 'position:absolute;width:30px;height:30px;border-radius:8px;border:none;background:rgba(0,0,0,0.6);color:#fff;font-size:0.9rem;line-height:1;cursor:pointer;padding:0;z-index:2';
@@ -4222,6 +4335,7 @@
               }).join('') +
             '</div>'
           : '') +
+        _pinRvViewsBarHtml() +
       '</div>';
 
     // v0.9.964 (Brad): DESKTOP layout — the "From the photo" read and the
@@ -4242,7 +4356,8 @@
                 '<img data-rvfid="' + fidT + '" style="width:100%;height:100%;object-fit:cover;display:block" alt=""></div>';
             }).join('') +
           '</div>'
-        : '');
+        : '') +
+      _pinRvViewsBarHtml();
     var _aiL = (_pinAiLine(_mainFid) || '') + _pinTagLineHtml(_mainFid), _chips = _pinAltChips();
     var _wideBtn = 'flex:1 1 160px;padding:0.72rem 0.6rem;border-radius:10px;font-family:var(--font-body);font-weight:700;font-size:0.9rem;cursor:pointer;';
     var _wideBody =
@@ -4285,6 +4400,10 @@
     } catch (eH) {}
     ov.querySelectorAll('img[data-rvfid]').forEach(function (img) {
       loadDriveThumb(img.getAttribute('data-rvfid'), img, img.parentElement, null, 'hi');
+    });
+    // v0.9.1616: the view-slot bar's minis load the same way.
+    ov.querySelectorAll('img[data-rvv]').forEach(function (img) {
+      loadDriveThumb(img.getAttribute('data-rvv'), img, img.parentElement, null, 'hi');
     });
     try { _pinDemoteAdd(false); } catch (eD) {}
     var _rvMainImg = document.getElementById('pin-rv-main');
