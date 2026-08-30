@@ -14497,12 +14497,16 @@ META_WRITES.length = 0; TOASTS.length = 0;
         const entries = [{ kind: 'update' }, { kind: 'append' },
                          { kind: 'delete' }, { kind: 'clear' }];
         let saved = null; const replayed = [];
+        // v0.9.1612: the loop now paints the sync pill and reports through
+        // _pillAfter + rrSyncLog — no-ops here; §316 tests the pill itself.
         const retry = new Function('_load', '_save', '_paint', '_replay',
           'rrOutboxCanAutoRetry', '_AUTO_RETRYABLE', 'showToast',
+          'rrSyncPill', '_pillAfter', 'rrSyncLog', 'rrOutboxCount',
           '"use strict"; var _retrying = false;' + retrySrc + '; return rrOutboxRetry;')(
             () => entries.slice(), s => { saved = s; }, () => {},
             async e => { replayed.push(e.kind); },
-            () => false, ['update', 'append'], undefined);
+            () => false, ['update', 'append'], undefined,
+            () => {}, () => {}, () => {}, () => 0);
         const res = await retry({ force: true });
         replayed.sort();
         ok('224 a forced retry replays updates and appends…',
@@ -22187,6 +22191,66 @@ META_WRITES.length = 0; TOASTS.length = 0;
       const er15 = fs.readFileSync(require('path').join(__dirname, '..', 'app', 'error-report.js'), 'utf8');
       ok('315 Report-a-problem carries the recorder and the photo-note keys',
          /c\.syncLog = /.test(er15) && /rr_sync_log/.test(er15) && /c\.photoNotes/.test(er15), '');
+    })();
+
+    // ═══════════════════════════════════════════════════════════
+    // 316. THE SYNC PILL (v0.9.1612) — Brad's spec, verbatim: "Back
+    // online, 3 of 23 uploading… upload complete, 23 of 23 saved." And
+    // his flight-recorder run named the real reconnect villain: Google's
+    // interactive re-sign-in, appearing as a mystery popup (or not
+    // appearing, and stranding every save). Now the pill carries it:
+    // "N saves are waiting — tap to finish signing in" — the tap IS the
+    // user gesture Google requires.
+    // ═══════════════════════════════════════════════════════════
+    section('316. The sync pill: progress, completion, and the sign-in tap');
+    await (async function () {
+      const p16 = require('path');
+      const obSrc = fs.readFileSync(p16.join(__dirname, '..', 'app', 'write-outbox.js'), 'utf8');
+      const PILLS = [];
+      const _origAppend6 = document.body.appendChild.bind(document.body);
+      document.body.appendChild = (c) => { if (c && c.id) REG[c.id] = c; return _origAppend6(c); };
+      global.addEventListener = () => {};
+      global.sheetsAppend = async () => ({});
+      global.sheetsUpdate = async () => ({});
+      localStorage.setItem('rr_write_outbox', JSON.stringify([
+        { id: 'p1', kind: 'append', args: { sheetId: 'S', range: 'C!A:A', values: [['x']] }, why: 'offline', at: 1, session: 'OLD.p', movedAt: 0, tries: 0 },
+        { id: 'p2', kind: 'append', args: { sheetId: 'S', range: 'C!A:A', values: [['y']] }, why: 'offline', at: 2, session: 'OLD.p', movedAt: 0, tries: 0 },
+      ]));
+      // capture pill texts at the source — internal calls never touch the
+      // window binding, so the wrapper trick cannot see them (the same
+      // reason the harness patches _pinMetaSet at the source).
+      global.PILLS = PILLS;
+      eval(obSrc.replace('function rrSyncPill(text, opts) {',
+        'function rrSyncPill(text, opts) { try { PILLS.push({ t: String(text || \'\'), warn: !!(opts && opts.warn), click: !!(opts && opts.onclick) }); } catch (eC) {}'));
+      await window.rrOutboxDrainAppends(() => false);
+      ok('316 the pill counts progress ("sending item 1 of 2…")',
+         PILLS.some(p => /sending item 1 of 2/.test(p.t)) && PILLS.some(p => /sending item 2 of 2/.test(p.t)),
+         JSON.stringify(PILLS.map(p => p.t)));
+      ok('316 …and announces completion in Brad\'s words ("All saved — 2 of 2 ✓")',
+         PILLS.some(p => /All saved — 2 of 2/.test(p.t)), JSON.stringify(PILLS.map(p => p.t)));
+
+      // the sign-in case: replay fails with SESSION_EXPIRED → actionable pill
+      PILLS.length = 0;
+      localStorage.setItem('rr_write_outbox', JSON.stringify([
+        { id: 'p3', kind: 'append', args: { sheetId: 'S', range: 'C!A:A', values: [['z']] }, why: 'offline', at: 3, session: 'OLD.p', movedAt: 0, tries: 0 },
+      ]));
+      global.sheetsAppend = async () => { throw new Error('SESSION_EXPIRED'); };
+      await window.rrOutboxDrainAppends(() => false);
+      ok('316 an expired session becomes the TAP pill, not a mystery popup',
+         PILLS.some(p => p.warn && p.click && /tap to finish signing in/.test(p.t)),
+         JSON.stringify(PILLS.map(p => p.t + (p.click ? '(tap)' : ''))));
+      ok('316 the tap handler exists and drains everything after sign-in',
+         typeof window._rrFinishSignIn === 'function'
+         && /rrOutboxRetry\(\{ force: true \}\)/.test(obSrc)
+         && /_pinStageDrainNow/.test(obSrc.slice(obSrc.indexOf('_rrFinishSignIn'))), '');
+      const pi16 = fs.readFileSync(p16.join(__dirname, '..', 'app', 'photo-inbox.js'), 'utf8');
+      ok('316 the photo drain reports through the same pill',
+         /rrSyncPill\('Uploading photo ' \+ \(ok \+ fail \+ 1\) \+ ' of '/.test(pi16)
+         && /Photos saved \\u2014 ' \+ ok \+ ' of ' \+ ok/.test(pi16), '');
+      ok('316 the pill is styled once, in the stylesheet, theme vars only',
+         /#rr-sync-pill \{ position: fixed/.test(fs.readFileSync(p16.join(__dirname, '..', 'app', 'app.css'), 'utf8')), '');
+      localStorage.removeItem('rr_write_outbox');
+      document.body.appendChild = _origAppend6;
     })();
 
   })().then(function () {

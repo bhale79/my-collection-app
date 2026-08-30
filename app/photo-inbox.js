@@ -2733,6 +2733,8 @@
       for (var i = 0; i < list.length; i++) {
         var r = list[i];
         try {
+          // v0.9.1612: the pill counts photos the same way it counts saves.
+          try { if (typeof rrSyncPill === 'function' && list.length) rrSyncPill('Uploading photo ' + (ok + fail + 1) + ' of ' + list.length + '\u2026', { sticky: true }); } catch (eP) {}
           // v0.9.1600: paired photos file straight to their item
           if (r.itemNum) {
             await _stageFileToItem(r);
@@ -2761,6 +2763,7 @@
     _stageDraining = false;
     try { localStorage.removeItem(_STAGE_LOCK); } catch (e) {}
     try { await _stageRenderStrip(); } catch (e) {}
+    try { if (typeof rrSyncPill === 'function') { if (ok && !fail) rrSyncPill('Photos saved \u2014 ' + ok + ' of ' + ok + ' \u2713'); else if (fail) rrSyncPill(fail + ' photo' + (fail > 1 ? 's' : '') + ' still waiting \u2014 will retry', { warn: true, holdMs: 5000 }); } } catch (eP2) {}
     if (ok) {
       // v0.9.1600: filed photos went to their ITEMS, not the inbox — say so.
       if (_filed) showToast(_filed + ' photo' + (_filed > 1 ? 's' : '') + ' filed to ' + (_filed > 1 ? 'their items' : 'its item'), 3500);

@@ -67,6 +67,84 @@
     } catch (e) {}
   }
   window.rrSyncLog = rrSyncLog;
+
+  // ── v0.9.1612: THE SYNC PILL — Brad's spec, verbatim ───────────────────
+  // "the only thing i would want to see is a pill that says Back online,
+  // 3 of 23 uploading or something similar, then when its finished, say
+  // upload complete, 23 of 23 saved." And the mystery Google popup his
+  // flight-recorder run exposed becomes the pill too: when a resend needs
+  // an interactive sign-in (Google's rule — an expired session can only be
+  // renewed from a user gesture), the pill says so and IS the gesture.
+  var _pillTimer = null;
+  function rrSyncPill(text, opts) {
+    opts = opts || {};
+    try {
+      var el = document.getElementById('rr-sync-pill');
+      if (!text) { if (el) el.remove(); return; }
+      if (!el) {
+        el = document.createElement('div');
+        el.id = 'rr-sync-pill';
+        document.body.appendChild(el);
+      }
+      el.textContent = text;
+      el.className = opts.warn ? 'rr-sp-warn' : '';
+      el.onclick = opts.onclick || null;
+      el.style.cursor = opts.onclick ? 'pointer' : 'default';
+      if (_pillTimer) { clearTimeout(_pillTimer); _pillTimer = null; }
+      if (!opts.sticky) {
+        _pillTimer = setTimeout(function () { var e2 = document.getElementById('rr-sync-pill'); if (e2) e2.remove(); }, opts.holdMs || 4000);
+      }
+    } catch (e) {}
+  }
+  window.rrSyncPill = rrSyncPill;
+
+  // The pill's sign-in tap: an INTERACTIVE token request (allowed, because
+  // it rides the user's own gesture), then everything drains.
+  window._rrFinishSignIn = function () {
+    try {
+      if (typeof tokenClient === 'undefined' || !tokenClient) { rrSyncPill('Please reload the app to sign in again', { warn: true }); return; }
+      rrSyncPill('Signing in\u2026', { sticky: true });
+      var hint = '';
+      try { hint = (window.state && state.user && state.user.email) || ''; } catch (e) {}
+      var prev = tokenClient.callback;
+      tokenClient.callback = function (resp) {
+        tokenClient.callback = prev;
+        if (resp && resp.access_token) {
+          window.accessToken = resp.access_token;
+          rrSyncLog('signin', 'interactive ok — draining');
+          rrOutboxRetry({ force: true }).then(function () {
+            try { if (typeof window._rrOfflineAppendDrain === 'function') window._rrOfflineAppendDrain(); } catch (e) {}
+            try { if (window._pinStageDrainNow) window._pinStageDrainNow(); } catch (e) {}
+            try { if (typeof window._pinFlushPendingNow === 'function') window._pinFlushPendingNow(); } catch (e) {}
+          });
+        } else {
+          rrSyncLog('signin', 'interactive failed: ' + ((resp && resp.error) || '?'));
+          rrSyncPill('Sign-in didn\u2019t finish \u2014 tap to try again', { warn: true, sticky: true, onclick: window._rrFinishSignIn });
+        }
+      };
+      tokenClient.requestAccessToken({ prompt: '', login_hint: hint });
+    } catch (e) { rrSyncLog('signin', 'threw: ' + e.message); }
+  };
+
+  // After any retry/drain: entries stuck on an expired session get the
+  // actionable pill instead of silence.
+  function _pillAfter(still, sent, phase) {
+    try {
+      var needAuth = (still || []).some(function (e) {
+        return /SESSION_EXPIRED|sign in|Token required|Not signed in|Cannot refresh/i.test(String((e && e.why) || ''));
+      });
+      if (needAuth) {
+        var n = still.length;
+        rrSyncPill(n + (n === 1 ? ' save is' : ' saves are') + ' waiting \u2014 tap to finish signing in', { warn: true, sticky: true, onclick: window._rrFinishSignIn });
+        return;
+      }
+      if (sent && !(still && still.length) && rrOutboxCount() === 0) {
+        rrSyncPill('All saved \u2014 ' + sent + ' of ' + sent + ' \u2713');
+      } else if (still && still.length) {
+        rrSyncPill(still.length + ' still waiting \u2014 will retry', { warn: true, holdMs: 5000 });
+      }
+    } catch (e) {}
+  }
   var MAX = 200;                 // a cap, so a bad night cannot fill storage
   var _sessionId = null;         // set once per load; identifies "this session"
   var _rowsMovedAt = 0;          // when a delete last shifted row numbers
@@ -190,6 +268,10 @@
     try {
       var list = _load();
       var still = [];
+      var _toSend = 0;
+      for (var _c = 0; _c < list.length; _c++) {
+        if (opts.force ? (_AUTO_RETRYABLE.indexOf(list[_c].kind) !== -1) : rrOutboxCanAutoRetry(list[_c])) _toSend++;
+      }
       for (var i = 0; i < list.length; i++) {
         var e = list[i];
         // v0.9.1274 (R14): allowlist here too. `force` is the user choosing,
@@ -197,6 +279,7 @@
         var allowed = opts.force ? (_AUTO_RETRYABLE.indexOf(e.kind) !== -1) : rrOutboxCanAutoRetry(e);
         if (!allowed) { still.push(e); skipped++; continue; }
         try {
+          if (_toSend > 0) rrSyncPill('Back online \u2014 sending ' + (sent + kept + 1) + ' of ' + _toSend + '\u2026', { sticky: true });
           await _replay(e);
           sent++;
         } catch (err) {
@@ -208,6 +291,7 @@
       _save(still);
       _paint();
       rrSyncLog('retry', 'sent=' + sent + ' kept=' + kept + ' skipped=' + skipped + (opts.force ? ' (forced)' : ''));
+      if (sent || kept) _pillAfter(still.filter(function (e2) { return _AUTO_RETRYABLE.indexOf(e2.kind) !== -1; }), sent, 'retry');
       if (sent && typeof showToast === 'function') {
         showToast(sent + (sent === 1 ? ' change that had not saved is saved now'
                                      : ' changes that had not saved are saved now'), 4000);
@@ -235,6 +319,8 @@
     try {
       var list = _load();
       var still = [];
+      var _apTotal = 0;
+      for (var _a = 0; _a < list.length; _a++) { if (list[_a].kind === 'append') _apTotal++; }
       for (var i = 0; i < list.length; i++) {
         var e = list[i];
         if (e.kind !== 'append') { still.push(e); continue; }
@@ -242,6 +328,7 @@
         try { dup = !!(existsFn && existsFn(e)); } catch (eEx) {}
         if (dup) { dropped++; continue; }        // already in the sheet — done
         try {
+          if (_apTotal > 0) rrSyncPill('Back online \u2014 sending item ' + (sent + kept + dropped + 1) + ' of ' + _apTotal + '\u2026', { sticky: true });
           await _replay(e);
           sent++;
         } catch (err) {
@@ -253,6 +340,7 @@
       _save(still);
       _paint();
       rrSyncLog('drainAppends', 'sent=' + sent + ' dropped=' + dropped + ' kept=' + kept);
+      if (sent || kept) _pillAfter(still.filter(function (e2) { return e2.kind === 'append'; }), sent, 'drain');
       if (sent && typeof showToast === 'function') {
         showToast(sent + (sent === 1 ? ' item added offline has' : ' items added offline have') + ' reached your sheet', 4000);
       }

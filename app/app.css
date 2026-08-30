@@ -1212,6 +1212,18 @@
   .rr-obb-x { background: none; border: none; color: var(--text-dim);
     font-size: 1rem; cursor: pointer; padding: 0.2rem 0.4rem; }
 
+  /* ── v0.9.1612: the sync pill (Brad's spec) ─────────────────────────────
+     "Back online, 3 of 23 uploading… / upload complete, 23 of 23 saved."
+     One pill, bottom-center, that also carries the tap-to-sign-in moment. */
+  #rr-sync-pill { position: fixed; bottom: 4.5rem; left: 50%;
+    transform: translateX(-50%); z-index: 9996; max-width: 92vw;
+    padding: 0.55rem 1.1rem; border-radius: 999px; text-align: center;
+    background: var(--surface); color: var(--text); font-family: var(--font-body);
+    font-weight: 700; font-size: 0.85rem; border: 1.5px solid var(--accent);
+    box-shadow: 0 4px 16px var(--scrim); }
+  #rr-sync-pill.rr-sp-warn { border-color: var(--warn, var(--accent2));
+    color: var(--accent2); }
+
   /* ── v0.9.1594: phone group mode slims the inbox toolbar ────────────────
      While the Group-photos sheet is up on a phone, every toolbar control
      that is not part of grouping hides, so the grid stays tappable. KEPT on
