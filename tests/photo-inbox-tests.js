@@ -22253,6 +22253,26 @@ META_WRITES.length = 0; TOASTS.length = 0;
       document.body.appendChild = _origAppend6;
     })();
 
+    // ═══════════════════════════════════════════════════════════
+    // 317. THE INSTALL BUTTON SHOWS WHENEVER NOT INSTALLED (v0.9.1613).
+    // Brad: "add the app to homescreen button is missing." It only showed
+    // when Chrome had fired beforeinstallprompt (withheld for a while
+    // after an uninstall — exactly what update-testing produces) or on
+    // Apple touch. _pwaInstall handles every case, so the gate was pure
+    // downside: not-installed = visible, always.
+    // ═══════════════════════════════════════════════════════════
+    section('317. The install button never hides from a user who could want it');
+    (function () {
+      const am = fs.readFileSync(require('path').join(__dirname, '..', 'app', 'app-misc.js'), 'utf8');
+      const seg = am.slice(am.indexOf('function _pwaMenuInit'), am.indexOf('function _showIOSInstallHint'));
+      ok('317 installed still hides it', /_pwaIsInstalled\(\)\) \{ mi\.style\.display = \'none\'; return; \}/.test(seg), '');
+      ok('317 …but NOT-installed shows it unconditionally — no prompt gate, no Apple gate',
+         !/window\._pwaPrompt \|\| _isAppleTouch\(\)\) mi\.style\.display/.test(seg)
+         && /mi\.style\.display = \'\';\n\}/.test(seg), '');
+      ok('317 the click handler really does cover the no-prompt case (Chrome-menu words)',
+         /Add to Home screen/.test(am), '');
+    })();
+
   })().then(function () {
     console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
     process.exit(fail ? 1 : 0);

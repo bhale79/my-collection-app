@@ -237,7 +237,15 @@ function _pwaMenuInit() {
   }
   _pwaMenuTries = 99;                       // menu found — stop the retry chain
   if (_pwaIsInstalled()) { mi.style.display = 'none'; return; }
-  if (window._pwaPrompt || _isAppleTouch()) mi.style.display = '';
+  // v0.9.1613 (Brad: "add the app to homescreen button is missing"): the
+  // button used to appear only when Chrome had fired beforeinstallprompt or
+  // on Apple touch. But Chrome withholds that event for a while after an
+  // uninstall (exactly what a day of update-testing produces) — leaving NO
+  // button at all on Android. _pwaInstall was never the dead half: it
+  // already handles every case (stashed prompt → native dialog; Apple →
+  // the 3-step hint; neither → the Chrome-menu instructions). So the
+  // button now shows whenever the app is NOT installed, full stop.
+  mi.style.display = '';
 }
 if (typeof window !== 'undefined') {
   window._pwaInstall     = _pwaInstall;
