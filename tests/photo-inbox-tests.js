@@ -22078,6 +22078,19 @@ META_WRITES.length = 0; TOASTS.length = 0;
          raSeg.indexOf('Photos already spoken for') < raSeg.indexOf("var ov = document.getElementById('pin-review-ov')"), '');
       ok('313 …declining costs nothing (a plain return)',
          /cancel: 'Never mind', danger: true \}\)\)\) \{\s*return;/.test(raSeg), '');
+
+      // ── v0.9.1609 (Brad: "gray out the picture and push it to the bottom") ──
+      const rSeg = pi13.slice(pi13.indexOf('function _render()'), pi13.indexOf('function _render()') + 9000);   // wide: the v1609 partition sits between the head and the img line
+      ok('313/1609 claimed groups sink below open ones — a STABLE partition, not a sort',
+         /_visOpen9\.concat\(_visClaimed9\)/.test(rSeg)
+         && /\(claimed \? _visClaimed9 : _visOpen9\)\.push\(g\)/.test(rSeg), '');
+      ok('313/1609 …decided by the same claim map the badge uses',
+         /_noteMap\[g\.files\[i9\]\.id\]/.test(rSeg), '');
+      ok('313/1609 the claimed PICTURE grays out',
+         /filter:grayscale\(85%\);opacity:0\.55/.test(rSeg), '');
+      ok('313/1609 …on the IMG, not the tile — the amber badge stays readable',
+         /the filter rides the IMG, not the tile/.test(rSeg)
+         && rSeg.indexOf('filter:grayscale') > rSeg.indexOf('data-fid'), '');
     })();
 
   })().then(function () {

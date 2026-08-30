@@ -1842,6 +1842,17 @@
     var _noteMap = _pinNoteFileMap();
     // v0.9.1051: draw what passes the filters, but keep counting the whole inbox.
     var _vis = _pinVisibleGroups();
+    // v0.9.1609 (Brad: "can we not gray out the picture and push it to the
+    // bottom of the list?"): claimed groups — photos an add in progress has
+    // spoken for — SINK below the open ones. A stable partition, not a
+    // sort: within each half the listing order (newest first) is untouched.
+    var _visOpen9 = [], _visClaimed9 = [];
+    _vis.forEach(function (g) {
+      var claimed = false;
+      for (var i9 = 0; i9 < g.files.length; i9++) { if (_noteMap[g.files[i9].id]) { claimed = true; break; } }
+      (claimed ? _visClaimed9 : _visOpen9).push(g);
+    });
+    _vis = _visOpen9.concat(_visClaimed9);
     var total = 0;
     _groups.forEach(function (g) { total += g.files.length; });
     grid.innerHTML = _vis.map(function (g) {
@@ -1912,7 +1923,10 @@
       var _ungroup = (_selectMode || g.files.length < 2) ? ''
         : '<div onclick="event.stopPropagation();_pinConfirmUngroup(\'' + g.key + '\')" title="Split this group apart" style="position:absolute;left:6px;bottom:26px;width:24px;height:24px;border-radius:7px;background:rgba(0,0,0,0.55);color:#fff;display:flex;align-items:center;justify-content:center;font-size:0.9rem;cursor:pointer">⊟</div>';
       return '<div class="pin-tile" data-key="' + g.key + '" onclick="' + _tileClick + '(\'' + g.key + '\')" style="position:relative;border-radius:10px;overflow:hidden;cursor:pointer;background:var(--surface2,#26262e);aspect-ratio:1;border:3px solid ' + (isSel ? '#2980b9' : 'transparent') + '">' +
-        '<img loading="lazy" data-fid="' + _pinCoverFid(g) + '" style="width:100%;height:100%;object-fit:cover;object-position:center;display:block" alt="">' +
+        '<img loading="lazy" data-fid="' + _pinCoverFid(g) + '" style="width:100%;height:100%;object-fit:cover;object-position:center;display:block'
+          // v0.9.1609: the filter rides the IMG, not the tile, so the amber
+          // claim badge above it stays readable at full colour.
+          + (_claimedBy ? ';filter:grayscale(85%);opacity:0.55' : '') + '" alt="">' +
         chip + claimBadge +
         _circle +
         _crop +
