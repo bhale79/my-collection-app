@@ -2123,6 +2123,7 @@ window._rrOfflineAppendDrain = async function () {
     try {
       queued = (typeof rrOutboxList === 'function' ? rrOutboxList() : []).filter(function (e) { return e && e.kind === 'append'; });
     } catch (e) {}
+    try { if (typeof rrSyncLog === 'function') rrSyncLog('drainStart', 'queuedAppends=' + queued.length + ' online=' + (navigator.onLine !== false)); } catch (eL) {}
     if (!queued.length) { try { if (window._pinStageDrainNow) window._pinStageDrainNow(); } catch (e) {} return; }
     try {
       if (typeof loadPersonalData === 'function') await loadPersonalData();
@@ -2172,12 +2173,14 @@ window._rrOfflineAppendDrain = async function () {
         if (sheetNum === queuedNum) {
           // A drop is a deletion. Never let one happen silently again.
           try { console.warn('[outbox] queued add ' + queuedNum + ' (inv ' + iv + ') is already in the sheet at a real row — dropping the duplicate'); } catch (e2) {}
+          try { if (typeof rrSyncLog === 'function') rrSyncLog('DROP-dup', queuedNum + ' inv=' + iv); } catch (e5) {}
           try { if (typeof showToast === 'function') showToast(queuedNum + ' was already in your sheet — the queued copy was dropped, not doubled.', 4000); } catch (e3) {}
           return true;
         }
         // COLLISION: the sheet's row with this id is a DIFFERENT item.
         var fresh = String(++_maxInv);
         try { console.warn('[outbox] inventory id ' + iv + ' belongs to ' + sheetNum + ' in the sheet — reminting queued ' + queuedNum + ' as inv ' + fresh + ' and sending'); } catch (e4) {}
+        try { if (typeof rrSyncLog === 'function') rrSyncLog('REMINT', queuedNum + ' ' + iv + '->' + fresh); } catch (e6) {}
         row[invIdx] = fresh;
         return false;                                 // send, with the fresh id
       } catch (e) { return false; }

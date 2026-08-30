@@ -7327,6 +7327,7 @@ async function _wizardNextCore() {
       await _quickEntrySaveSet(cond, worth, photoFiles);
     } catch(e) {
       if (_nextBtn) { _nextBtn.disabled = false; _nextBtn.textContent = 'Next \u2192'; }
+      try { if (typeof rrSyncLog === 'function') rrSyncLog('saveFAILED', String((e && e.message) || e).slice(0, 80)); } catch (eL) {}
       showToast((typeof rrSaveError === 'function') ? rrSaveError(e, 'your change') : '\u274c Save failed: ' + e.message, 5000);
     }
     return;

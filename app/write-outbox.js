@@ -51,6 +51,22 @@
   'use strict';
 
   var KEY = 'rr_write_outbox';
+
+  // ── v0.9.1611: the FLIGHT RECORDER ─────────────────────────────────────
+  // Session 87 spent an afternoon deducing, from symptoms alone, why
+  // offline saves vanished — three real bugs deep, and still guessing at
+  // the fourth. This log ends the guessing: every record, replay, drain,
+  // drop and clear appends one line (localStorage, capped at 40, survives
+  // reloads), and the error report carries it. One "Report a problem" tap
+  // after a failed sync hands over the whole timeline.
+  function rrSyncLog(event, info) {
+    try {
+      var log = JSON.parse(localStorage.getItem('rr_sync_log') || '[]');
+      log.push({ t: new Date().toISOString().slice(5, 19), v: (typeof APP_VERSION !== 'undefined' ? APP_VERSION : '?'), e: event, i: info || '' });
+      localStorage.setItem('rr_sync_log', JSON.stringify(log.slice(-40)));
+    } catch (e) {}
+  }
+  window.rrSyncLog = rrSyncLog;
   var MAX = 200;                 // a cap, so a bad night cannot fill storage
   var _sessionId = null;         // set once per load; identifies "this session"
   var _rowsMovedAt = 0;          // when a delete last shifted row numbers
@@ -117,6 +133,7 @@
       list.push(entry);
       _save(list);
       _paint();
+      rrSyncLog('record', kind + ' ' + ((args && args.range) || '') + ' why=' + why);
       return entry.id;
     } catch (e) { return null; }
   }
@@ -129,7 +146,7 @@
 
   function rrOutboxList() { return _load(); }
   function rrOutboxCount() { return _load().length; }
-  function rrOutboxClear() { _save([]); _paint(); }
+  function rrOutboxClear() { rrSyncLog('CLEAR', 'user forgot ' + rrOutboxCount() + ' entries'); _save([]); _paint(); }
 
   // ── may this entry be replayed without asking? ───────────────────
   // Three conditions, all required. Exported so the tests can state them.
@@ -190,6 +207,7 @@
       }
       _save(still);
       _paint();
+      rrSyncLog('retry', 'sent=' + sent + ' kept=' + kept + ' skipped=' + skipped + (opts.force ? ' (forced)' : ''));
       if (sent && typeof showToast === 'function') {
         showToast(sent + (sent === 1 ? ' change that had not saved is saved now'
                                      : ' changes that had not saved are saved now'), 4000);
@@ -234,6 +252,7 @@
       }
       _save(still);
       _paint();
+      rrSyncLog('drainAppends', 'sent=' + sent + ' dropped=' + dropped + ' kept=' + kept);
       if (sent && typeof showToast === 'function') {
         showToast(sent + (sent === 1 ? ' item added offline has' : ' items added offline have') + ' reached your sheet', 4000);
       }

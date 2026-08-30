@@ -258,6 +258,13 @@ var ERR_REPORT_CFG = {
         }
       }
     } catch (e) {}
+    // v0.9.1611: the sync flight recorder + the photo-note keys — counts,
+    // events and item numbers only, never row values (PRIVACY note 4 holds).
+    try { c.syncLog = (localStorage.getItem('rr_sync_log') || '[]').slice(0, 3500); } catch (e) {}
+    try {
+      c.photoNotes = 'staged=' + Object.keys(JSON.parse(localStorage.getItem('rr_inbox_setstage') || '{}')).join(',')
+                   + ' pending=' + Object.keys(JSON.parse(localStorage.getItem('rr_inbox_pending') || '{}')).join(',');
+    } catch (e) {}
     return c;
   }
 

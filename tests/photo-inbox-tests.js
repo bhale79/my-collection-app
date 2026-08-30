@@ -22162,6 +22162,33 @@ META_WRITES.length = 0; TOASTS.length = 0;
          r.sent.length === 1 && parseInt(r.sent[0][1], 10) > 230, JSON.stringify(r.sent));
     })();
 
+    // ═══════════════════════════════════════════════════════════
+    // 315. THE FLIGHT RECORDER (v0.9.1611). After an afternoon of deducing
+    // vanished offline saves from symptoms, the sync pipeline now writes
+    // its own timeline: record / retry / drain / drop / remint / clear /
+    // saveComplete / saveFAILED, in localStorage (rr_sync_log, capped 40,
+    // survives reloads), and the error report carries it. One tap after a
+    // failure hands over the whole story.
+    // ═══════════════════════════════════════════════════════════
+    section('315. Every sync step writes the flight recorder, and the report carries it');
+    (function () {
+      const ob15 = fs.readFileSync(require('path').join(__dirname, '..', 'app', 'write-outbox.js'), 'utf8');
+      ok('315 the recorder exists, capped and reload-proof',
+         /function rrSyncLog\(event, info\)/.test(ob15) && /rr_sync_log/.test(ob15) && /slice\(-40\)/.test(ob15), '');
+      ok('315 record, retry, drain and CLEAR all log',
+         /rrSyncLog\('record'/.test(ob15) && /rrSyncLog\('retry'/.test(ob15)
+         && /rrSyncLog\('drainAppends'/.test(ob15) && /rrSyncLog\('CLEAR'/.test(ob15), '');
+      const ad15 = fs.readFileSync(require('path').join(__dirname, '..', 'app', 'app-data.js'), 'utf8');
+      ok('315 the guard logs its verdicts — start, drop, remint',
+         /rrSyncLog\('drainStart'/.test(ad15) && /rrSyncLog\('DROP-dup'/.test(ad15) && /rrSyncLog\('REMINT'/.test(ad15), '');
+      ok('315 the wizard logs completion AND failure — the missing half of every timeline so far',
+         /rrSyncLog\('saveComplete'/.test(fs.readFileSync(require('path').join(__dirname, '..', 'app', 'wizard-save.js'), 'utf8'))
+         && /rrSyncLog\('saveFAILED'/.test(fs.readFileSync(require('path').join(__dirname, '..', 'app', 'wizard.js'), 'utf8')), '');
+      const er15 = fs.readFileSync(require('path').join(__dirname, '..', 'app', 'error-report.js'), 'utf8');
+      ok('315 Report-a-problem carries the recorder and the photo-note keys',
+         /c\.syncLog = /.test(er15) && /rr_sync_log/.test(er15) && /c\.photoNotes/.test(er15), '');
+    })();
+
   })().then(function () {
     console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
     process.exit(fail ? 1 : 0);

@@ -2305,6 +2305,7 @@ async function saveWizardItem() {
         }
       } catch (ePs) {}
     }
+    try { if (typeof rrSyncLog === 'function') rrSyncLog('saveComplete', String(itemNum || '').slice(0, 24) + ' row=' + _mainApRow); } catch (eL) {}
     d._saveComplete = true;
     closeWizard();
 
