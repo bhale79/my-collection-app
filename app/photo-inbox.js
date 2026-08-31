@@ -7328,9 +7328,17 @@
         || typeof personalColLetter !== 'function') return;
     _repairRan = true; _repairLastAt = _rrNowMs();
     try {
+      // v0.9.1624 (Brad's 238): this repair once FRONT-RAN the deferred
+      // filing — it stamped the SHARED number-folder onto a fresh row while
+      // the flush was about to file the photos into the copy's own
+      // subfolder, so the page showed his OLD engine's pictures. A row with
+      // a queued filing note is the flush's business, not ours.
+      var _pendNums = {};
+      try { _pendNums = JSON.parse(localStorage.getItem(PENDING_KEY) || '{}'); } catch (ePN) {}
       var targets = Object.values(state.personalData).filter(function (p) {
         return p && p.owned && p.itemNum && !p.photoItem
             && p.row && Number(p.row) !== 99999          // a placeholder is not a row
+            && !Object.prototype.hasOwnProperty.call(_pendNums, String(p.itemNum))
             && !_repairDone[String(p.inventoryId || p.itemNum)];
       }).slice(0, 12);                            // small batch; the rest heal next build
       for (var i = 0; i < targets.length; i++) {
@@ -7346,6 +7354,17 @@
         try { link = await driveFindItemFolder(p.itemNum); }
         catch (eF) { delete _repairDone[k]; continue; }
         if (!link) continue;                      // genuinely has no folder — leave it alone
+        // v0.9.1624: when the number-folder holds a subfolder named with
+        // THIS row's inventory id, that is the copy's true home (the
+        // "<itemNum>/<inventoryId>/" shape every wizard upload has used
+        // since v0.9.1128) — link the copy's photos, not the shared pool.
+        try {
+          var _rpFid = (String(link).match(/folders\/([a-zA-Z0-9_-]+)/) || [])[1] || '';
+          if (_rpFid && p.inventoryId) {
+            var _rpQ = await driveRequest('GET', '/files?q=' + encodeURIComponent("'" + _rpFid + "' in parents and name='" + String(p.inventoryId) + "' and mimeType='application/vnd.google-apps.folder' and trashed=false") + '&fields=files(id)');
+            if (_rpQ && _rpQ.files && _rpQ.files[0]) link = driveFolderLink(_rpQ.files[0].id);
+          }
+        } catch (eSub) {}
         try {
           if (!(await rrVerifiedRowUpdate(state.personalSheetId, PERSONAL_TAB, p.row, PERSONAL_TAB + '!' + personalColLetter('photoItem') + p.row, [[link]], { num: p.itemNum || '', invId: p.inventoryId || '' }, 'collection'))) continue;
           p.photoItem = link;

@@ -1489,7 +1489,8 @@ async function saveWizardItem() {
       allOriginal: d.unit2AllOriginal || '',
       hasBox: d.unit2HasBox || 'No',
       boxCond: d.unit2BoxCond || '',
-      notes: setPriceNote((d.notes || '').trim(), itemNum),
+      notes: ((d.unit2NotOriginalDesc || '').trim() ? 'Modifications: ' + d.unit2NotOriginalDesc.trim() + ' | ' : '')
+           + setPriceNote((d.notes || '').trim(), itemNum),   // v0.9.1624: the unit's own damage note survives
       // v0.9.1127 — the B unit's photos uploaded to Drive and were never linked.
       photoItem: Object.values(d.photosUnit2Item || {}).find(v => v) || '',
       photoBox:  Object.values(d.photosUnit2Box  || {}).find(v => v) || '',
@@ -1519,7 +1520,8 @@ async function saveWizardItem() {
         allOriginal: d.unit3AllOriginal || '',
         hasBox: d.unit3HasBox || 'No',
         boxCond: d.unit3BoxCond || '',
-        notes: setPriceNote((d.notes || '').trim(), itemNum),
+        notes: ((d.unit3NotOriginalDesc || '').trim() ? 'Modifications: ' + d.unit3NotOriginalDesc.trim() + ' | ' : '')
+           + setPriceNote((d.notes || '').trim(), itemNum),   // v0.9.1624: the unit's own damage note survives
         // v0.9.1127 — the second A unit's photos, same gap.
         photoItem: Object.values(d.photosUnit3Item || {}).find(v => v) || '',
         photoBox:  Object.values(d.photosUnit3Box  || {}).find(v => v) || '',
@@ -1584,7 +1586,13 @@ async function saveWizardItem() {
     const tenderNote = (() => {
       const ref = 'Set price on item ' + itemNum;
       const nonOrigFlag = d.tenderIsNonOriginal ? '; non-original tender' : '';
-      return (d.notes ? d.notes.trim() + '; ' + ref : ref) + nonOrigFlag;
+      // v0.9.1624 (Brad's "missing eye on left side"): the tender screen's
+      // modifications box saves under tenderNotOriginalDesc — and NOTHING
+      // ever read it, so the text silently vanished. Each piece's damage
+      // note now lands on its own row, in the engine row's own spelling.
+      const mods = (d.tenderNotOriginalDesc || '').trim();
+      return (mods ? 'Modifications: ' + mods + ' | ' : '')
+           + (d.notes ? d.notes.trim() + '; ' + ref : ref) + nonOrigFlag;
     })();
     // Session 156: tRow (tender) via buildPersonalRow
     const tRow = buildPersonalRow({

@@ -22655,6 +22655,32 @@ META_WRITES.length = 0; TOASTS.length = 0;
       window._pinReview = _rr26;
     })();
 
+    // ═══════════════════════════════════════════════════════════
+    // 327. EVERY PIECE'S DAMAGE NOTE SURVIVES, AND THE REPAIR STOPS
+    // FRONT-RUNNING THE FILING (v0.9.1624). Brad's "missing eye on left
+    // side": typed in the tender screen's modifications box, saved under
+    // tenderNotOriginalDesc — which nothing ever read. Same hole for
+    // unit2/unit3. And his 238's photo link: the v1192 link repair raced
+    // the deferred filing, stamping the SHARED number-folder onto the
+    // fresh row while the flush filed his photos into the copy's own
+    // subfolder — the page then showed his OLD engine's pictures.
+    // ═══════════════════════════════════════════════════════════
+    section('327. No piece\u2019s note is dropped; the link repair yields to the filing');
+    (function () {
+      const ws27 = fs.readFileSync(require('path').join(__dirname, '..', 'app', 'wizard-save.js'), 'utf8');
+      const pi27 = fs.readFileSync(require('path').join(__dirname, '..', 'app', 'photo-inbox.js'), 'utf8');
+      ok('327 BRAD\'S NOTE: the tender\u2019s modifications text lands on the tender\u2019s row',
+         /tenderNotOriginalDesc/.test(ws27)
+         && /Modifications: ' \+ mods/.test(ws27.slice(ws27.indexOf('const tenderNote'))), '');
+      ok('327 …and the B-unit screens\u2019 texts land on THEIR rows too',
+         /unit2NotOriginalDesc/.test(ws27) && /unit3NotOriginalDesc/.test(ws27), '');
+      const rp = pi27.slice(pi27.indexOf('async function _repairMissingPhotoLinks'), pi27.indexOf('_backfillMasterKeys'));
+      ok('327 a row with a QUEUED filing note is the flush\u2019s business — the repair skips it',
+         /_pendNums/.test(rp) && /hasOwnProperty/.test(rp), '');
+      ok('327 when the copy has its own inventory-id subfolder, THAT is the link written',
+         /mimeType='application\/vnd\.google-apps\.folder'/.test(rp) && /driveFolderLink/.test(rp), '');
+    })();
+
   })().then(function () {
     console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
     process.exit(fail ? 1 : 0);
