@@ -212,11 +212,14 @@
       + ' <span style="color:var(--text-dim)">(submission/barcode verdicts join the queue below in a coming release)</span></div>');
 
     // 1b — CATALOG REVIEW QUEUE (v0.9.1622, Task #36's front door)
-    var open = d.batches.filter(function (b) { return b.status !== 'committed' && b.status !== 'dismissed'; });
+    // v0.9.1628: committed batches STAY (dimmed) — vanishing stranded
+    // Brad's 3 no-tab rows behind an unreachable Review button.
+    var open = d.batches.filter(function (b) { return b.status !== 'dismissed'; });
     var brows = open.map(function (b) {
       var c = b.counts, done = c.approved + c.edited + c.rejected;
-      return '<div style="display:flex;align-items:center;gap:0.9rem;flex-wrap:wrap;padding:0.5rem 0;border-top:1px solid var(--border)">'
-        + '<div style="flex:1;min-width:220px"><div style="font-weight:700;color:var(--text);font-size:1.15rem">' + _esc(b.label) + '</div>'
+      var _cm = b.status === 'committed';
+      return '<div style="display:flex;align-items:center;gap:0.9rem;flex-wrap:wrap;padding:0.5rem 0;border-top:1px solid var(--border)' + (_cm ? ';opacity:0.75' : '') + '">'
+        + '<div style="flex:1;min-width:220px"><div style="font-weight:700;color:var(--text);font-size:1.15rem">' + _esc(b.label) + (_cm ? ' <span style="font-size:0.85rem;color:var(--green);font-weight:700">\u2713 committed</span>' : '') + '</div>'
         + '<div style="font-size:0.98rem;color:var(--text-dim)">' + _esc(b.created) + ' · ' + _esc(b.note) + '</div></div>'
         + '<div style="font-size:1.05rem;color:var(--text-mid);white-space:nowrap">'
         + '<span style="font-weight:700;color:' + (c.pending ? 'var(--accent)' : 'var(--text-dim)') + '">' + c.pending + '</span> pending'
@@ -422,7 +425,7 @@
     if (!_isOwner() || !_ymData) return;
     var b = null;
     _ymData.batches.forEach(function (x) { if (x.id === _ymBatchId) b = x; });
-    if (!b || b.status === 'committed') return;
+    if (!b) return;   // v0.9.1628: a committed batch may commit again — the dedupe holds what's landed; only fresh rows append
     var MID = (typeof MASTER_SHEET_ID !== 'undefined') ? MASTER_SHEET_ID : '';
     if (!MID) { if (typeof showToast === 'function') showToast('Master sheet id unavailable \u2014 reload the app.', 3500, true); return; }
     var H = { Authorization: 'Bearer ' + window.accessToken, 'Content-Type': 'application/json' };
@@ -448,7 +451,9 @@
         var numIdx = heads.map(String).indexOf('Item Number');
         var existing = {};
         vals.slice(1).forEach(function (r) { var n = String((r[numIdx] || '')).trim(); if (n) existing[n] = 1; });
-        var fresh = [], rowsBefore = vals.filter(function (r) { return String((r[numIdx] || '')).trim(); }).length;
+        // v0.9.1628: the first cut counted the HEADER on this side only —
+        // one short every time, a false alarm AFTER the rows had landed.
+        var fresh = [], rowsBefore = vals.slice(1).filter(function (r) { return String((r[numIdx] || '')).trim(); }).length;
         byTab[t2].forEach(function (dd) {
           if (existing[String(dd.num).trim()]) heldDup.push(dd); else fresh.push(dd);
         });
@@ -456,6 +461,15 @@
       }
       var toO = (plan['Menards O'] || { fresh: [] }).fresh.length;
       var toHO = (plan['Menards HO'] || { fresh: [] }).fresh.length;
+      if (toO + toHO === 0) {
+        // everything approved already sits in the master — the dedupe held
+        // it all. Say so and mark the batch committed; nothing to write.
+        await fetch('https://sheets.googleapis.com/v4/spreadsheets/' + YM.VAULT_ID + '/values:batchUpdate', { method: 'POST', headers: H, body: JSON.stringify({ valueInputOption: 'RAW', data: [{ range: 'crawl_batches!E' + (b.sheetRow || 2), values: [['committed']] }] }) });
+        b.status = 'committed';
+        if (typeof showToast === 'function') showToast('Everything approved is already in the master' + (heldNoTab.length ? ' \u2014 ' + heldNoTab.length + ' still need a tab (use Edit)' : '') + '.', 5000);
+        window._ymBatchOpen(_ymBatchId, true);
+        return;
+      }
       var lines = 'Append ' + toO + ' rows to Menards O and ' + toHO + ' to Menards HO.'
         + (heldDup.length ? ' ' + heldDup.length + ' held \u2014 number already in master.' : '')
         + (heldNoTab.length ? ' ' + heldNoTab.length + ' held \u2014 no tab picked.' : '')
@@ -604,7 +618,7 @@
         + '<div style="font-size:1.02rem;color:var(--text-mid)">' + _esc(b.note) + ' \u2014 '
           + c.pending + ' to review \u00b7 ' + (c.approved + c.edited) + ' approved \u00b7 ' + c.rejected + ' rejected \u00b7 ' + c.deferred + ' deferred</div>'
         + '<div style="margin-left:auto;display:flex;gap:0.5rem">'
-          + ((b.status !== 'committed' && (c.approved + c.edited) > 0)
+          + (((c.approved + c.edited) > 0)
               ? '<button onclick="_ymCommit()" style="padding:0.3rem 0.85rem;border-radius:8px;border:none;background:var(--accent);color:var(--on-accent);font-family:var(--font-body);font-weight:700;cursor:pointer;font-size:0.92rem">Commit ' + (c.approved + c.edited) + ' \u2192 master</button>'
               : '')
           + '<button onclick="_ymApproveClean()" style="padding:0.3rem 0.85rem;border-radius:8px;border:1.5px solid var(--green);background:var(--surface);color:var(--green);font-family:var(--font-body);font-weight:700;cursor:pointer;font-size:0.92rem">Approve all clean</button>'

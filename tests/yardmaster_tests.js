@@ -156,8 +156,11 @@ ok('1626 undo restores each row\u2019s PREVIOUS verdict — a bulk approve inclu
 // appended counts verify.
 const ym27 = src('yardmaster.js');
 const cm27 = ym27.slice(ym27.indexOf('v0.9.1627: COMMIT'), ym27.indexOf('window._ymBatchOpen = function'));
+// v0.9.1628 RE-PIN: the status gate moved into the dedupe — Commit is
+// offered while approved rows remain, and a re-run appends only what
+// the master lacks. The button and the function are the pin now.
 ok('1627 the Commit button exists, gated on approved rows and a not-yet-committed batch',
-   /_ymCommit/.test(ym27) && /Commit /.test(ym27) && /!== 'committed'/.test(ym27));
+   /_ymCommit/.test(ym27) && /Commit /.test(ym27) && /\(c\.approved \+ c\.edited\) > 0/.test(ym27));
 ok('1627 backups land BEFORE any master write — and a failed backup ABORTS',
    cm27.indexOf('upload/drive/v3/files') > 0
    && cm27.indexOf('upload/drive/v3/files') < cm27.indexOf('sheetsAppend(MID')
@@ -183,6 +186,26 @@ ok('1627b the editor writes the delta BACK to the Vault, tab included',
    /crawl_deltas!D/.test(ym27) && /ym-ed-tab/.test(ym27));
 ok('1627b the tab picker offers both Menards homes',
    />Menards O</.test(ym27) && />Menards HO</.test(ym27));
+
+// ── v0.9.1628: THE VERIFY COUNTS TRUE, AND A COMMITTED BATCH STAYS ──
+// Brad's first real commit: every row LANDED, then the count check
+// cried foul — it counted the header row on one side only, came up
+// one short every time, and refused to mark the batch committed. The
+// check was miscalibrated, not the commit. Fixed symmetric. And a
+// committed batch no longer vanishes from the queue (his 3 no-tab
+// rows would have been stranded): it stays, dimmed, reviewable, with
+// Commit still offered while approved rows remain — safe to re-run
+// because the dedupe holds everything already in master.
+const ym28 = src('yardmaster.js');
+const cm28 = ym28.slice(ym28.indexOf('v0.9.1627: COMMIT'), ym28.indexOf('window._ymBatchOpen = function'));
+ok('1628 both sides of the verify skip the header row — symmetric at last',
+   /rowsBefore = vals\.slice\(1\)\.filter/.test(cm28));
+ok('1628 a commit with nothing fresh left marks the batch committed and says so',
+   /already in the master/.test(cm28));
+ok('1628 committed batches STAY in the queue, dimmed but reviewable',
+   /!== 'dismissed'; \}\);/.test(ym28) && /u2713 committed/.test(ym28));
+ok('1628 Commit stays offered while approved rows remain',
+   !/b\.status !== 'committed' && \(c\.approved/.test(ym28));
 
 console.log('\n' + pass + ' passed, ' + fail + ' failed');
 if (fail) { console.log('YARDMASTER TESTS FAILING'); process.exit(1); }
