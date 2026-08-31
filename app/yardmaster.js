@@ -266,11 +266,73 @@
     page.innerHTML = html;
   };
 
-  // ── v0.9.1622: the batch review view (read-only first hop) ─────
+  // ── v0.9.1622 → v0.9.1625: the batch review view ───────────────
+  // v1625, Brad's three (Session 88): the list sits on a SOLID card so
+  // the page watermark cannot bleed through; every row takes a verdict
+  // (Approve / Reject / Defer — tap the same one again to return it to
+  // pending), written to crawl_deltas the moment it's tapped; and
+  // Research leads with a GOOGLE search built from the item itself —
+  // the Wayback bodies are JS shells (known from the S86 crawl), so
+  // the Archive link is the secondary door, kept for the rows where
+  // the snapshot works.
   var _ymBatchId = '';
   var _ymFilter = 'all';
   window._ymBatchBack = function () { _ymBatchId = ''; window.ymBuildPage(false); };
   window._ymBatchFilter = function (f) { _ymFilter = f; window._ymBatchOpen(_ymBatchId); };
+  function _ymRecount() {
+    if (!_ymData) return;
+    _ymData.batches.forEach(function (b) {
+      var c = { pending: 0, approved: 0, edited: 0, rejected: 0, deferred: 0 };
+      _ymData.deltas.forEach(function (dd) {
+        if (dd.batch === b.id) c[c[dd.status] == null ? 'pending' : dd.status]++;
+      });
+      b.counts = c;
+    });
+  }
+  // One write path for one verdict or a hundred: values:batchUpdate with a
+  // range per row (status + decided together). Local copies update only
+  // after the Vault says yes — the screen never claims what didn't save.
+  window._ymVerdictMany = async function (list, status) {
+    if (!_isOwner() || !list.length) return;
+    var today = new Date().toISOString().slice(0, 10);
+    var data = list.map(function (dd) {
+      return { range: 'crawl_deltas!P' + dd.sheetRow + ':Q' + dd.sheetRow,
+               values: [[status, status === 'pending' ? '' : today]] };
+    });
+    try {
+      var r = await fetch('https://sheets.googleapis.com/v4/spreadsheets/' + YM.VAULT_ID + '/values:batchUpdate',
+        { method: 'POST',
+          headers: { Authorization: 'Bearer ' + window.accessToken, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ valueInputOption: 'RAW', data: data }) });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      list.forEach(function (dd) { dd.status = status; });
+      _ymRecount();
+      window._ymBatchOpen(_ymBatchId);
+    } catch (e) {
+      if (typeof showToast === 'function') showToast('That verdict didn\u2019t reach the Vault \u2014 check the connection and tap it again.', 4000, true);
+    }
+  };
+  window._ymVerdict = function (deltaId, status) {
+    if (!_ymData) return;
+    var dd = null;
+    _ymData.deltas.forEach(function (x) { if (x.id === deltaId && x.batch === _ymBatchId) dd = x; });
+    if (!dd) return;
+    var cur = dd.status || 'pending';
+    // the same verdict again = take it back (returns the row to pending)
+    window._ymVerdictMany([dd], status === cur ? 'pending' : status);
+  };
+  window._ymApproveClean = function () {
+    if (!_ymData) return;
+    var clean = _ymData.deltas.filter(function (dd) {
+      return dd.batch === _ymBatchId && !dd.flag && (dd.status || 'pending') === 'pending';
+    });
+    if (!clean.length) { if (typeof showToast === 'function') showToast('No clean pending rows left', 2500); return; }
+    var go = function () { window._ymVerdictMany(clean, 'approved'); };
+    if (typeof appConfirm === 'function') {
+      appConfirm('Approve all ' + clean.length + ' clean pending rows?', { title: 'Approve clean rows', ok: 'Approve ' + clean.length })
+        .then(function (yes) { if (yes) go(); });
+    } else if (confirm('Approve all ' + clean.length + ' clean pending rows?')) go();
+  };
   window._ymBatchOpen = function (id) {
     var page = document.getElementById('page-yardmaster');
     if (!page || !_isOwner() || !_ymData) return;
@@ -278,6 +340,7 @@
     var b = null;
     _ymData.batches.forEach(function (x) { if (x.id === id) b = x; });
     if (!b) { window.ymBuildPage(false); return; }
+    var maker = String(b.label || '').split(' ')[0] || '';
     var all = _ymData.deltas.filter(function (dd) { return dd.batch === id; });
     var flagged = all.filter(function (dd) { return dd.flag; });
     var list = _ymFilter === 'flagged' ? flagged
@@ -289,32 +352,49 @@
         + (on ? 'var(--accent)' : 'var(--border)') + ';background:' + (on ? 'var(--accent)' : 'var(--surface2)')
         + ';color:' + (on ? 'var(--on-accent)' : 'var(--text)') + ';font-family:var(--font-body);cursor:pointer;font-size:0.95rem">' + label + '</button>';
     };
+    var vbtn = function (dd, st, label) {
+      var on = (dd.status || 'pending') === st;
+      var tone = st === 'approved' ? 'var(--green)' : st === 'rejected' ? 'var(--accent)' : 'var(--text-dim)';
+      return '<button onclick="_ymVerdict(\'' + _esc(dd.id) + '\',\'' + st + '\')" title="Tap the same verdict again to undo it" style="padding:0.25rem 0.65rem;border-radius:7px;cursor:pointer;font-family:var(--font-body);font-size:0.9rem;font-weight:600;'
+        + 'border:1.5px solid ' + (on ? tone : 'var(--border)') + ';background:var(--surface);color:' + (on ? tone : 'var(--text-mid)') + '">'
+        + (on ? '\u2713 ' : '') + label + '</button>';
+    };
     var rows = list.map(function (dd) {
-      return '<div style="border-top:1px solid var(--border);padding:0.55rem 0;display:flex;gap:0.9rem;align-items:flex-start;flex-wrap:wrap">'
-        + '<div style="min-width:88px;font-weight:700;color:var(--text);font-size:1.1rem">' + _esc(dd.num || '—') + '</div>'
+      var gq = encodeURIComponent((maker + ' ' + dd.num + ' ' + dd.desc).trim());
+      return '<div style="border-top:1px solid var(--border);padding:0.6rem 0;display:flex;gap:0.9rem;align-items:flex-start;flex-wrap:wrap">'
+        + '<div style="min-width:88px;font-weight:700;color:var(--text);font-size:1.1rem">' + _esc(dd.num || '\u2014') + '</div>'
         + '<div style="flex:1;min-width:240px">'
           + '<div style="color:var(--text);font-size:1.05rem">' + _esc(dd.desc) + '</div>'
           + '<div style="font-size:0.95rem;color:var(--text-dim)">'
-            + _esc(dd.tab || 'no tab yet') + (dd.type ? ' · ' + _esc(dd.type) : '') + (dd.years ? ' · ' + _esc(dd.years) : '')
-            + (dd.msrp ? ' · $' + _esc(dd.msrp) : '') + '</div>'
-          + (dd.flag ? '<div style="font-size:0.95rem;color:var(--accent);margin-top:0.15rem">⚠ ' + _esc(dd.flag) + '</div>' : '')
+            + _esc(dd.tab || 'no tab yet') + (dd.type ? ' \u00b7 ' + _esc(dd.type) : '') + (dd.years ? ' \u00b7 ' + _esc(dd.years) : '')
+            + (dd.msrp ? ' \u00b7 $' + _esc(dd.msrp) : '') + '</div>'
+          + (dd.flag ? '<div style="font-size:0.95rem;color:var(--accent);margin-top:0.15rem">\u26a0 ' + _esc(dd.flag) + '</div>' : '')
         + '</div>'
-        + '<div style="white-space:nowrap;display:flex;gap:0.5rem;align-items:center">'
-          + '<span style="font-size:0.9rem;color:var(--text-dim)">' + _esc(dd.status) + '</span>'
-          + (dd.link ? '<a href="' + _esc(dd.link) + '" target="_blank" rel="noopener" style="padding:0.25rem 0.7rem;border-radius:7px;'
-              + 'border:1px solid var(--border);background:var(--surface2);color:var(--accent2);text-decoration:none;font-size:0.95rem">Research</a>' : '')
+        + '<div style="display:flex;flex-direction:column;gap:0.4rem;align-items:flex-end">'
+          + '<div style="display:flex;gap:0.4rem">'
+            + '<a href="https://www.google.com/search?q=' + gq + '" target="_blank" rel="noopener" style="padding:0.25rem 0.7rem;border-radius:7px;'
+              + 'border:1px solid var(--accent2);background:var(--surface);color:var(--accent2);text-decoration:none;font-size:0.9rem;font-weight:600">Google</a>'
+            + (dd.link ? '<a href="' + _esc(dd.link) + '" target="_blank" rel="noopener" style="padding:0.25rem 0.7rem;border-radius:7px;'
+              + 'border:1px solid var(--border);background:var(--surface);color:var(--text-dim);text-decoration:none;font-size:0.9rem">Archive</a>' : '')
+          + '</div>'
+          + '<div style="display:flex;gap:0.4rem">' + vbtn(dd, 'approved', 'Approve') + vbtn(dd, 'rejected', 'Reject') + vbtn(dd, 'deferred', 'Defer') + '</div>'
         + '</div></div>';
     }).join('');
+    var c = b.counts || {};
     page.innerHTML =
       '<div style="display:flex;align-items:center;gap:0.8rem;flex-wrap:wrap">'
-      + '<button onclick="_ymBatchBack()" style="padding:0.35rem 0.9rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);cursor:pointer">← Office</button>'
+      + '<button onclick="_ymBatchBack()" style="padding:0.35rem 0.9rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);cursor:pointer">\u2190 Office</button>'
       + '<div class="page-title" style="margin:0;font-size:1.6rem">' + _esc(b.label) + '</div></div>'
-      + '<div style="font-size:1.05rem;color:var(--text-dim);margin:0.3rem 0 0.6rem">' + _esc(b.note)
-      + ' — read-only preview; verdict buttons arrive in the next release.</div>'
-      + '<div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:0.4rem">'
-      + chip('all', 'All (' + all.length + ')') + chip('flagged', '⚠ Flagged (' + flagged.length + ')')
+      + '<div style="background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:0.9rem 1.1rem;margin-top:0.7rem">'
+      + '<div style="display:flex;align-items:center;gap:0.8rem;flex-wrap:wrap">'
+        + '<div style="font-size:1.02rem;color:var(--text-mid)">' + _esc(b.note) + ' \u2014 '
+          + c.pending + ' pending \u00b7 ' + (c.approved + c.edited) + ' approved \u00b7 ' + c.rejected + ' rejected \u00b7 ' + c.deferred + ' deferred</div>'
+        + '<button onclick="_ymApproveClean()" style="margin-left:auto;padding:0.3rem 0.85rem;border-radius:8px;border:1.5px solid var(--green);background:var(--surface);color:var(--green);font-family:var(--font-body);font-weight:700;cursor:pointer;font-size:0.92rem">Approve all clean</button>'
+      + '</div>'
+      + '<div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin:0.55rem 0 0.2rem">'
+      + chip('all', 'All (' + all.length + ')') + chip('flagged', '\u26a0 Flagged (' + flagged.length + ')')
       + chip('clean', 'Clean (' + (all.length - flagged.length) + ')') + '</div>'
-      + '<div>' + rows + '</div>';
+      + rows + '</div>';
     try { var mc = document.getElementById('main-content'); if (mc) mc.scrollTop = 0; } catch (e) {}
   };
 

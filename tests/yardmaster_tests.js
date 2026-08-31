@@ -93,6 +93,33 @@ ok('1622 delta columns are found BY HEADER NAME, never fixed index',
 ok('1622 still zero hardcoded hex in yardmaster.js',
    !/#[0-9a-fA-F]{3,6}\b/.test(ym22.replace(/&#39;/g, '')));
 
+// ── v0.9.1625: VERDICTS + a list Brad can read (Session 88, his three) ──
+// (1) "can't read it cause the background comes through" — the batch view
+// now lives on a solid card like every other Office panel. (2) "i can't
+// do anything but research it" — Approve / Reject / Defer per row, saved
+// to the Vault the moment they're tapped (tap again to change your mind),
+// plus Approve-all-clean. (3) "all i get is the second upload" — the
+// Wayback bodies are shells, so Research leads with a Google search
+// built from the item itself; the Archive link stays secondary.
+const ym25 = src('yardmaster.js');
+const bo25 = ym25.slice(ym25.indexOf('window._ymBatchOpen'), ym25.indexOf('// ── Injection'));
+ok('1625 the review list sits on a SOLID card — no watermark bleed-through',
+   /background:var\(--surface2\);border:1px solid var\(--border\);border-radius:12px/.test(bo25)
+   && /\+ rows \+ '<\/div>'/.test(bo25), '');
+ok('1625 every row offers Approve / Reject / Defer',
+   /vbtn\(dd, 'approved', 'Approve'\)/.test(ym25) && /vbtn\(dd, 'rejected', 'Reject'\)/.test(ym25)
+   && /vbtn\(dd, 'deferred', 'Defer'\)/.test(ym25));
+ok('1625 a verdict lands in the Vault the moment it is tapped (one batch write)',
+   /_ymVerdict/.test(ym25) && /values:batchUpdate/.test(ym25));
+ok('1625 tapping the same verdict again returns the row to pending',
+   /=== cur \? 'pending'/.test(ym25) || /same verdict again/.test(ym25));
+ok('1625 the clean rows can be approved in ONE tap',
+   /Approve all clean/.test(ym25));
+ok('1625 Research leads with Google; the Archive shell is secondary',
+   /google\.com\/search/.test(ym25) && />Archive</.test(ym25));
+ok('1625 read-only wording is GONE from the batch view',
+   !/verdict buttons arrive in the next release/.test(ym25));
+
 console.log('\n' + pass + ' passed, ' + fail + ' failed');
 if (fail) { console.log('YARDMASTER TESTS FAILING'); process.exit(1); }
 console.log('ALL YARDMASTER TESTS GREEN (' + pass + ')');
