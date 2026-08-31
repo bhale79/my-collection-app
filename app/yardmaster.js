@@ -266,19 +266,19 @@
     page.innerHTML = html;
   };
 
-  // ── v0.9.1622 → v0.9.1625: the batch review view ───────────────
-  // v1625, Brad's three (Session 88): the list sits on a SOLID card so
-  // the page watermark cannot bleed through; every row takes a verdict
-  // (Approve / Reject / Defer — tap the same one again to return it to
-  // pending), written to crawl_deltas the moment it's tapped; and
-  // Research leads with a GOOGLE search built from the item itself —
-  // the Wayback bodies are JS shells (known from the S86 crawl), so
-  // the Archive link is the secondary door, kept for the rows where
-  // the snapshot works.
+  // ── v0.9.1622 → v0.9.1626: the batch review view ───────────────
+  // v1625: solid card, verdicts saved on tap, Google-first research.
+  // v1626, Brad's rhythm: a verdict repaint KEEPS the scroll (only
+  // opening a batch goes to the top); decided rows LEAVE the working
+  // views (a Decided chip holds them for second thoughts); and Undo-
+  // last sits beside Approve-all-clean, reversing the last action —
+  // a bulk approve included. One write path (_ymApplyVerdicts) serves
+  // taps, bulk, and undo, so the Vault and the screen cannot drift.
   var _ymBatchId = '';
   var _ymFilter = 'all';
-  window._ymBatchBack = function () { _ymBatchId = ''; window.ymBuildPage(false); };
-  window._ymBatchFilter = function (f) { _ymFilter = f; window._ymBatchOpen(_ymBatchId); };
+  var _ymUndoStack = null;   // the LAST action only: [{dd, prev}]
+  window._ymBatchBack = function () { _ymBatchId = ''; _ymUndoStack = null; window.ymBuildPage(false); };
+  window._ymBatchFilter = function (f) { _ymFilter = f; window._ymBatchOpen(_ymBatchId, true); };
   function _ymRecount() {
     if (!_ymData) return;
     _ymData.batches.forEach(function (b) {
@@ -289,15 +289,16 @@
       b.counts = c;
     });
   }
-  // One write path for one verdict or a hundred: values:batchUpdate with a
-  // range per row (status + decided together). Local copies update only
-  // after the Vault says yes — the screen never claims what didn't save.
-  window._ymVerdictMany = async function (list, status) {
-    if (!_isOwner() || !list.length) return;
+  // One write path for everything: pairs of {dd, status}. Local copies
+  // update only after the Vault says yes — the screen never claims what
+  // didn't save. recordUndo captures each row's PREVIOUS verdict so a
+  // bulk approve undoes as one gesture.
+  window._ymApplyVerdicts = async function (pairs, recordUndo) {
+    if (!_isOwner() || !pairs.length) return;
     var today = new Date().toISOString().slice(0, 10);
-    var data = list.map(function (dd) {
-      return { range: 'crawl_deltas!P' + dd.sheetRow + ':Q' + dd.sheetRow,
-               values: [[status, status === 'pending' ? '' : today]] };
+    var data = pairs.map(function (pr) {
+      return { range: 'crawl_deltas!P' + pr.dd.sheetRow + ':Q' + pr.dd.sheetRow,
+               values: [[pr.status, pr.status === 'pending' ? '' : today]] };
     });
     try {
       var r = await fetch('https://sheets.googleapis.com/v4/spreadsheets/' + YM.VAULT_ID + '/values:batchUpdate',
@@ -305,12 +306,16 @@
           headers: { Authorization: 'Bearer ' + window.accessToken, 'Content-Type': 'application/json' },
           body: JSON.stringify({ valueInputOption: 'RAW', data: data }) });
       if (!r.ok) throw new Error('HTTP ' + r.status);
-      list.forEach(function (dd) { dd.status = status; });
+      if (recordUndo) _ymUndoStack = pairs.map(function (pr) { return { dd: pr.dd, prev: pr.dd.status || 'pending' }; });
+      pairs.forEach(function (pr) { pr.dd.status = pr.status; });
       _ymRecount();
-      window._ymBatchOpen(_ymBatchId);
+      window._ymBatchOpen(_ymBatchId, true);
     } catch (e) {
       if (typeof showToast === 'function') showToast('That verdict didn\u2019t reach the Vault \u2014 check the connection and tap it again.', 4000, true);
     }
+  };
+  window._ymVerdictMany = function (list, status) {
+    window._ymApplyVerdicts(list.map(function (dd) { return { dd: dd, status: status }; }), true);
   };
   window._ymVerdict = function (deltaId, status) {
     if (!_ymData) return;
@@ -320,6 +325,13 @@
     var cur = dd.status || 'pending';
     // the same verdict again = take it back (returns the row to pending)
     window._ymVerdictMany([dd], status === cur ? 'pending' : status);
+  };
+  window._ymUndoLast = function () {
+    if (!_ymUndoStack || !_ymUndoStack.length) return;
+    var pairs = _ymUndoStack.map(function (u) { return { dd: u.dd, status: u.prev }; });
+    _ymUndoStack = null;
+    window._ymApplyVerdicts(pairs, false);
+    if (typeof showToast === 'function') showToast('Undone \u2014 ' + pairs.length + (pairs.length === 1 ? ' row went back' : ' rows went back'), 2500);
   };
   window._ymApproveClean = function () {
     if (!_ymData) return;
@@ -333,19 +345,24 @@
         .then(function (yes) { if (yes) go(); });
     } else if (confirm('Approve all ' + clean.length + ' clean pending rows?')) go();
   };
-  window._ymBatchOpen = function (id) {
+  window._ymBatchOpen = function (id, keepScroll) {
     var page = document.getElementById('page-yardmaster');
     if (!page || !_isOwner() || !_ymData) return;
     _ymBatchId = id;
     var b = null;
     _ymData.batches.forEach(function (x) { if (x.id === id) b = x; });
     if (!b) { window.ymBuildPage(false); return; }
+    var mc = document.getElementById('main-content');
+    var _scroll = (keepScroll && mc) ? mc.scrollTop : 0;
     var maker = String(b.label || '').split(' ')[0] || '';
     var all = _ymData.deltas.filter(function (dd) { return dd.batch === id; });
-    var flagged = all.filter(function (dd) { return dd.flag; });
+    var pend = all.filter(function (dd) { return (dd.status || 'pending') === 'pending'; });
+    var decided = all.filter(function (dd) { return (dd.status || 'pending') !== 'pending'; });
+    var flagged = pend.filter(function (dd) { return dd.flag; });
     var list = _ymFilter === 'flagged' ? flagged
-             : _ymFilter === 'clean' ? all.filter(function (dd) { return !dd.flag; })
-             : all;
+             : _ymFilter === 'clean' ? pend.filter(function (dd) { return !dd.flag; })
+             : _ymFilter === 'decided' ? decided
+             : pend;
     var chip = function (f, label) {
       var on = _ymFilter === f;
       return '<button onclick="_ymBatchFilter(\'' + f + '\')" style="padding:0.25rem 0.8rem;border-radius:999px;border:1px solid '
@@ -380,6 +397,10 @@
           + '<div style="display:flex;gap:0.4rem">' + vbtn(dd, 'approved', 'Approve') + vbtn(dd, 'rejected', 'Reject') + vbtn(dd, 'deferred', 'Defer') + '</div>'
         + '</div></div>';
     }).join('');
+    if (!list.length) {
+      rows = '<div style="border-top:1px solid var(--border);padding:1rem 0;color:var(--text-dim);font-size:1.05rem">'
+        + (_ymFilter === 'decided' ? 'Nothing decided yet.' : 'Nothing left to review here \u2014 nice work.') + '</div>';
+    }
     var c = b.counts || {};
     page.innerHTML =
       '<div style="display:flex;align-items:center;gap:0.8rem;flex-wrap:wrap">'
@@ -388,14 +409,24 @@
       + '<div style="background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:0.9rem 1.1rem;margin-top:0.7rem">'
       + '<div style="display:flex;align-items:center;gap:0.8rem;flex-wrap:wrap">'
         + '<div style="font-size:1.02rem;color:var(--text-mid)">' + _esc(b.note) + ' \u2014 '
-          + c.pending + ' pending \u00b7 ' + (c.approved + c.edited) + ' approved \u00b7 ' + c.rejected + ' rejected \u00b7 ' + c.deferred + ' deferred</div>'
-        + '<button onclick="_ymApproveClean()" style="margin-left:auto;padding:0.3rem 0.85rem;border-radius:8px;border:1.5px solid var(--green);background:var(--surface);color:var(--green);font-family:var(--font-body);font-weight:700;cursor:pointer;font-size:0.92rem">Approve all clean</button>'
+          + c.pending + ' to review \u00b7 ' + (c.approved + c.edited) + ' approved \u00b7 ' + c.rejected + ' rejected \u00b7 ' + c.deferred + ' deferred</div>'
+        + '<div style="margin-left:auto;display:flex;gap:0.5rem">'
+          + '<button onclick="_ymApproveClean()" style="padding:0.3rem 0.85rem;border-radius:8px;border:1.5px solid var(--green);background:var(--surface);color:var(--green);font-family:var(--font-body);font-weight:700;cursor:pointer;font-size:0.92rem">Approve all clean</button>'
+          + (_ymUndoStack && _ymUndoStack.length
+              ? '<button onclick="_ymUndoLast()" style="padding:0.3rem 0.85rem;border-radius:8px;border:1.5px solid var(--border);background:var(--surface);color:var(--text);font-family:var(--font-body);font-weight:700;cursor:pointer;font-size:0.92rem">\u21a9 Undo last</button>'
+              : '')
+        + '</div>'
       + '</div>'
       + '<div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin:0.55rem 0 0.2rem">'
-      + chip('all', 'All (' + all.length + ')') + chip('flagged', '\u26a0 Flagged (' + flagged.length + ')')
-      + chip('clean', 'Clean (' + (all.length - flagged.length) + ')') + '</div>'
+      + chip('all', 'To review (' + pend.length + ')') + chip('flagged', '\u26a0 Flagged (' + flagged.length + ')')
+      + chip('clean', 'Clean (' + (pend.length - flagged.length) + ')') + chip('decided', 'Decided (' + decided.length + ')') + '</div>'
       + rows + '</div>';
-    try { var mc = document.getElementById('main-content'); if (mc) mc.scrollTop = 0; } catch (e) {}
+    try {
+      if (mc) {
+        if (!keepScroll) mc.scrollTop = 0;
+        else mc.scrollTop = _scroll;
+      }
+    } catch (e) {}
   };
 
   // ── Injection (owner only) ─────────────────────────────────────

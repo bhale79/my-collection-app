@@ -84,8 +84,11 @@ ok('1622 a batch opens into a review list with a back door',
    /_ymBatchOpen/.test(ym22) && /_ymBatchBack/.test(ym22));
 ok('1622 flagged candidates SAY why (the sweep\u2019s 46 warnings survive)',
    /flag/.test(ym22) && /_ymBatchFilter/.test(ym22));
+// v0.9.1625 RE-PIN: "Research" split into Google (primary — the Wayback
+// bodies are shells) + Archive (secondary). The behavior pinned here is
+// that every candidate still carries an outbound research door.
 ok('1622 every candidate carries its Research link (the Wayback snapshot)',
-   /Research/.test(ym22) && /rel="noopener"/.test(ym22));
+   /google\.com\/search/.test(ym22) && /rel="noopener"/.test(ym22));
 ok('1622 read-only is SAID, not implied — verdicts are the next release',
    /read-only/i.test(ym22));
 ok('1622 delta columns are found BY HEADER NAME, never fixed index',
@@ -119,6 +122,27 @@ ok('1625 Research leads with Google; the Archive shell is secondary',
    /google\.com\/search/.test(ym25) && />Archive</.test(ym25));
 ok('1625 read-only wording is GONE from the batch view',
    !/verdict buttons arrive in the next release/.test(ym25));
+
+// ── v0.9.1626: THE REVIEW FLOW LEARNS BRAD'S RHYTHM (Session 88) ──
+// "everytime i select something it shoots me back to the top" — a
+// verdict repaint keeps the scroll; only OPENING a batch goes to the
+// top. "once i approve or reject it, it should be removed" — decided
+// rows leave the working views; a Decided chip holds them for second
+// thoughts. And an Undo-last button sits right of Approve-all-clean,
+// reversing the last action — a bulk approve included.
+const ym26 = src('yardmaster.js');
+ok('1626 a verdict repaint KEEPS the scroll — only opening a batch goes to top',
+   /_ymBatchOpen = function \(id, keepScroll\)/.test(ym26) && /if \(!keepScroll\)/.test(ym26)
+   && /_ymBatchOpen\(_ymBatchId, true\)/.test(ym26));
+ok('1626 decided rows leave the working views',
+   /'pending'\) === 'pending'/.test(ym26.slice(ym26.indexOf('window._ymBatchOpen'))));
+ok('1626 …and live under a Decided chip for second thoughts',
+   /chip\('decided'/.test(ym26));
+ok('1626 Undo sits beside Approve-all-clean and reverses the LAST action',
+   /_ymUndoLast/.test(ym26) && /Undo last/.test(ym26)
+   && ym26.indexOf('_ymUndoLast') > 0 && /_ymUndoStack/.test(ym26));
+ok('1626 undo restores each row\u2019s PREVIOUS verdict — a bulk approve included',
+   /prev/.test(ym26.slice(ym26.indexOf('_ymUndoStack'), ym26.indexOf('_ymUndoStack') + 2500)));
 
 console.log('\n' + pass + ' passed, ' + fail + ' failed');
 if (fail) { console.log('YARDMASTER TESTS FAILING'); process.exit(1); }
