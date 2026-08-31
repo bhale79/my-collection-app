@@ -22713,6 +22713,72 @@ META_WRITES.length = 0; TOASTS.length = 0;
          /pointerType === 'mouse'\) return/.test(wp28.slice(wp28.indexOf('_wizTrayMount'))), '');
     })();
 
+    // ═══════════════════════════════════════════════════════════
+    // 329. A SET SHOT IS NEVER AN ITEM VIEW (v0.9.1630). Brad's audit:
+    // his together shot, named "238 ID295 SET RSV.jpg" (the view token
+    // rode along by an old design slip), masqueraded as a SECOND Right
+    // Side on the engine's page. _rrViewOfName already knew "a box shot
+    // is never an item view" — SET is its twin now; strips label such a
+    // photo "Set shot"; and _photoFileName (the ONE naming chokepoint)
+    // drops the view token from set shots. Foundation for the Group
+    // photos section (next build, in the S88 summary).
+    // ═══════════════════════════════════════════════════════════
+    section('329. A set shot is never an item view');
+    (function () {
+      const ac29 = fs.readFileSync(require('path').join(__dirname, '..', 'app', 'app-collection.js'), 'utf8');
+      const dr29 = fs.readFileSync(require('path').join(__dirname, '..', 'app', 'drive.js'), 'utf8');
+      // functional: drive the REAL _rrViewOfName
+      const seg = ac29.slice(ac29.indexOf('function _rrViewOfName'), ac29.indexOf('function _rrOrderOfName'));
+      const fn = new Function('"use strict";' + seg + '; return _rrViewOfName;')();
+      ok('329 BRAD\'S FILE: "238 ID295 SET RSV.jpg" is NOT a Right Side view',
+         fn('Lionel 238 ID295 SET RSV.jpg') === '', JSON.stringify(fn('Lionel 238 ID295 SET RSV.jpg')));
+      ok('329 …while a plain view file still answers its view',
+         fn('Lionel 238 ID295 RSV.jpg') === 'RSV' && fn('238 TV.jpg') === 'TV', '');
+      ok('329 …and the box rule it mirrors still holds',
+         fn('238 BOX-RSV.jpg') === '', '');
+      ok('329 strips label a set shot \u201cSet shot\u201d, never its last word',
+         (ac29.match(/Set shot/g) || []).length >= 2, '');
+      // the naming chokepoint drops the view token from set shots
+      const nseg = dr29.slice(dr29.indexOf('function _photoFileName'), dr29.indexOf('window._photoFileName'));
+      const nfn = new Function('"use strict";' + nseg + '; return _photoFileName;')();
+      ok('329 future together uploads carry SET and NO view token',
+         nfn('238', 'RSV', '295', '238 SET') === '238 ID295 SET'
+         || nfn('238', 'RSV', '295', '238 SET').indexOf('RSV') < 0, nfn('238', 'RSV', '295', '238 SET'));
+      ok('329 …and ordinary uploads keep their view exactly as before',
+         nfn('238', 'RSV', '295', undefined).indexOf('RSV') > 0, nfn('238', 'RSV', '295', undefined));
+    })();
+
+    // ═══════════════════════════════════════════════════════════
+    // 330. A CROP SHOWS ITSELF (v0.9.1631). Brad: "i cropped the picture,
+    // applied it and it shows the precropped picture" — the crop SAVED
+    // (reopening the cropper proved it) but every renderer kept serving
+    // stale bytes: the session blob cache, the server-thumbnail memo,
+    // and the on-device bank. The v961 force-fresh contract existed but
+    // only the INBOX crop path fed it. One healer now rides the ONE crop
+    // writer: fresh bytes into the blob cache and the bank, stale memos
+    // dropped, the file marked force-fresh — and the detail page
+    // re-renders so the hero repaints no matter what its img id is.
+    // ═══════════════════════════════════════════════════════════
+    section('330. A crop shows itself — every cache heals at the one writer');
+    (function () {
+      const dr30 = fs.readFileSync(require('path').join(__dirname, '..', 'app', 'drive.js'), 'utf8');
+      const pc30 = fs.readFileSync(require('path').join(__dirname, '..', 'app', 'photo-crop.js'), 'utf8');
+      const pi30 = fs.readFileSync(require('path').join(__dirname, '..', 'app', 'photo-inbox.js'), 'utf8');
+      const ac30 = fs.readFileSync(require('path').join(__dirname, '..', 'app', 'app-collection.js'), 'utf8');
+      const heal = dr30.slice(dr30.indexOf('rrPhotoBytesChanged'), dr30.indexOf('rrPhotoBytesChanged') + 1400);
+      ok('330 the healer exists and touches every cache: blob, link memo, retry guard, bank, force-fresh',
+         /_blobCache\[fileId\]/.test(heal) && /_thumbLinkCache\[fileId\]/.test(heal)
+         && /_rrThumbTried\[fileId\]/.test(heal) && /_rrThumbCache\.put/.test(heal)
+         && /_rrMarkCropped/.test(heal), '');
+      ok('330 the ONE crop writer calls it on success — every crop path heals at once',
+         /rrPhotoBytesChanged\(fileId, blob\)/.test(pc30.slice(pc30.indexOf('_cropReplaceDriveFile'))), '');
+      ok('330 the inbox\u2019s force-fresh marker is published for the healer',
+         /window\._rrMarkCropped = _markCropped/.test(pi30), '');
+      ok('330 the detail page re-renders after a crop — the hero repaints whatever its img id',
+         ac30.indexOf('the id lookup above misses') > 0
+         && /showItemDetailPage\(window\._lastDetailIdx/.test(ac30.slice(ac30.indexOf('the id lookup above misses'), ac30.indexOf('the id lookup above misses') + 700)), '');
+    })();
+
   })().then(function () {
     console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
     process.exit(fail ? 1 : 0);

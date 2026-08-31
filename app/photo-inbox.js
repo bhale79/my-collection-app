@@ -7779,6 +7779,7 @@
   function _cropped() { try { return JSON.parse(localStorage.getItem(CROPPED_KEY) || '{}'); } catch (e) { return {}; } }
   function _croppedSave(m) { try { localStorage.setItem(CROPPED_KEY, JSON.stringify(m)); } catch (e) {} window._rrForceFreshBytes = m; }
   function _markCropped(fid) { if (!fid) return; var c = _cropped(); c[fid] = 1; _croppedSave(c); }
+  window._rrMarkCropped = _markCropped;   // v0.9.1631: the crop healer (drive.js) marks detail-page crops too
   // Publish the current markers to drive.js up front, and again after each load
   // (pruned to what's still in the inbox so the set can't grow without bound).
   window._rrForceFreshBytes = _cropped();

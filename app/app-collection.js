@@ -1674,6 +1674,7 @@ function _buildPhotoGallery(el, photos, opts) {
       var _vKey = _rrViewOfName(p.name);
       var _vDef = _vKey && (typeof ITEM_VIEWS !== 'undefined' ? ITEM_VIEWS : []).find(function (v) { return v.key === _vKey; });
       tl.textContent = (_vDef && _vDef.abbr)
+        || (/\bSET\b/i.test(String(p.name || '')) ? 'Set shot' : '')   // v0.9.1630
         || ((p.name || '').replace(/\.[^.]+$/, '').replace(/^\d{2}· /, '').split(' ').pop())
         || ('#' + (i + 1));
       t.appendChild(ti); t.appendChild(tl);
@@ -1796,6 +1797,15 @@ async function _detailPhotoEdit(fileId, fileName, folderLink, imgId) {
       if (typeof showToast === 'function') showToast('\u2713 Photo updated');
       var img = (imgId && document.getElementById(imgId)) || document.getElementById('idp-' + fileId) || document.getElementById('nip-' + fileId);
       if (img) img.src = URL.createObjectURL(blob);
+      // v0.9.1631 (Brad's hero): the id lookup above misses some galleries —
+      // re-render the page so EVERY rendering of this photo shows the crop
+      // (the healed caches serve the fresh bytes).
+      try {
+        var _dpg = document.getElementById('page-itemdetail');
+        if (_dpg && _dpg.classList.contains('active') && typeof window._lastDetailIdx === 'number' && typeof showItemDetailPage === 'function') {
+          setTimeout(function () { showItemDetailPage(window._lastDetailIdx, window._lastDetailCopyInv); }, 250);
+        }
+      } catch (eRR) {}
     } else if (typeof showToast === 'function') {
       showToast('Could not save the edited photo — try again', 3500, true);
     }
@@ -3152,6 +3162,7 @@ var _RR_GAL_BLUE = '#2980b9';   // the want-list blue every gallery accent share
 function _rrViewOfName(name) {
   var n = ' ' + String(name || '').toUpperCase().replace(/\.[^.]+$/, '') + ' ';
   if (n.indexOf('BOX') >= 0) return '';          // a box shot is never an item view
+  if (n.indexOf(' SET ') >= 0) return '';        // v0.9.1630 (Brad's 238 audit): nor is a set/together shot — "SET RSV" names masqueraded as a second Right Side
   var keys = ['RSV', 'LSV', 'FV', 'BKV', 'TV', 'BV'];
   for (var i = 0; i < keys.length; i++) {
     if (n.indexOf(' ' + keys[i] + ' ') >= 0) return keys[i];
@@ -3369,7 +3380,9 @@ window._rrDetailGallery = async function (tr2, folderLink) {
       + (vKey ? _RR_GAL_BLUE : 'var(--text-dim)') + ';letter-spacing:0.03em'
       + (vKey ? ';font-weight:700' : '');
     const vDef = vKey && (typeof ITEM_VIEWS !== 'undefined' ? ITEM_VIEWS : []).find(function (v) { return v.key === vKey; });
-    lbl.textContent = vDef ? vDef.abbr : p.name.replace(/\.[^.]+$/, '').replace(/^\d{2}· /, '').split(' ').pop();
+    lbl.textContent = vDef ? vDef.abbr
+      : (/\bSET\b/i.test(String(p.name || '')) ? 'Set shot'   // v0.9.1630
+      : p.name.replace(/\.[^.]+$/, '').replace(/^\d{2}· /, '').split(' ').pop());
     a.appendChild(img);
     a.appendChild(lbl);
     wrap.appendChild(a);

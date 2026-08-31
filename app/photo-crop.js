@@ -390,6 +390,9 @@ async function _cropReplaceDriveFile(fileId, blob) {
     var r = await fetch('https://www.googleapis.com/upload/drive/v3/files/' + fileId + '?uploadType=media', {
       method: 'PATCH', headers: { Authorization: 'Bearer ' + accessToken, 'Content-Type': 'image/jpeg' }, body: blob
     });
+    // v0.9.1631: the bytes changed — heal every cache in one motion, so no
+    // renderer anywhere can keep showing the pre-crop picture.
+    if (r.ok) { try { if (window.rrPhotoBytesChanged) window.rrPhotoBytesChanged(fileId, blob); } catch (eB) {} }
     return r.ok;
   } catch (e) { console.warn('[crop] replace by id', e); return false; }
 }

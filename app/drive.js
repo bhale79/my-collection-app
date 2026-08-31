@@ -947,6 +947,27 @@ function loadDriveThumb(fileId, imgEl, containerEl, thumbLink, priority) {
 // lo-priority queue slot (never crowds a real load), one attempt per file
 // per session, capped per session, and skipped when already banked.
 var _rrThumbTried = {};
+// ── v0.9.1631 (Brad's hero crop): A CROP SHOWS ITSELF ─────────────────────
+// "i cropped the picture, applied it and it shows the precropped picture."
+// The crop SAVED — but every renderer kept serving stale bytes. This is the
+// ONE answer, called by every successful crop replace: the fresh bytes land
+// in the session blob cache (every later render hits it first), the stale
+// server-thumbnail memo and retry guard are dropped, the on-device bank is
+// overwritten with the cropped bytes (offline shows truth too), and the
+// file is marked force-fresh so future sessions skip Drive's lagging
+// preview. (The inbox prunes force-fresh markers to its own files — fine:
+// by the time a detail-cropped marker lapses, the bank holds the crop and
+// Drive has usually regenerated its preview.)
+if (typeof window !== 'undefined') window.rrPhotoBytesChanged = function (fileId, blob) {
+  try {
+    if (!fileId || !blob) return;
+    try { _blobCache[fileId] = URL.createObjectURL(blob); } catch (e) {}
+    try { delete _thumbLinkCache[fileId]; } catch (e) {}
+    try { delete _rrThumbTried[fileId]; } catch (e) {}
+    try { if (window._rrThumbCache) window._rrThumbCache.put(fileId, blob); } catch (e) {}
+    try { if (typeof window._rrMarkCropped === 'function') window._rrMarkCropped(fileId); } catch (e) {}
+  } catch (e) {}
+};
 var _rrThumbBanked = 0;
 var _RR_THUMB_BANK_CAP = 80;   // per session — a show day's worth, not a data bill
 async function _rrThumbShrink(bigBlob) {
@@ -1091,7 +1112,10 @@ function _photoFileName(itemNum, viewAbbr, inventoryId, fileLabel) {
   // Manual entries already carry the maker in the label ("Marx Tank Car") —
   // don't double it.
   if (mfr && base.toLowerCase().indexOf(mfr.toLowerCase()) === 0) mfr = '';
-  return [mfr, base, (inventoryId ? 'ID' + inventoryId : ''), (setTag ? 'SET' : ''), String(viewAbbr || '')]
+  // v0.9.1630 (Brad's 238 audit): a set/together shot has NO view — the old
+  // "SET RSV" spelling made it masquerade as a second Right Side everywhere
+  // the view resolver looked. SET is the whole identity now.
+  return [mfr, base, (inventoryId ? 'ID' + inventoryId : ''), (setTag ? 'SET' : ''), (setTag ? '' : String(viewAbbr || ''))]
     .filter(Boolean).join(' ');
 }
 if (typeof window !== 'undefined') window._photoFileName = _photoFileName;
