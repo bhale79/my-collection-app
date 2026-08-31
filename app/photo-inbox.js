@@ -4031,7 +4031,25 @@
   function _pinRvRoleOf(f) { return (f && f._meta && f._meta.role) || ''; }
   function _pinRvSlotCell(sl, f, roleKey) {
     var dropJs = 'event.preventDefault();event.stopPropagation();this.style.outline=\'\';var f=event.dataTransfer.getData(\'text/plain\');if(f)_pinRvAssignView(f,\'' + sl.key + '\'' + (roleKey ? ',\'' + roleKey + '\'' : '') + ')';
-    return '<div onclick="_pinRvSlotTap(\'' + sl.key + '\'' + (roleKey ? ',\'' + roleKey + '\'' : '') + ')"' +
+    // v0.9.1619 (Brad: "need to be able to drag pictures between different
+    // views when I get the wrong [slot]. right now i can drag down but not
+    // from view to view"). v1617 made slots drop TARGETS only — a photo
+    // already in a slot had no way to START a drag. A filled slot now
+    // carries its fid on text/plain, the rail's own protocol, so a drop on
+    // any other slot lands in the ONE assign handler (_pinRvAssignView) and
+    // every rule — swap on occupied, cross-piece re-file, the together
+    // slot — comes for free. Mouse = HTML5 drag; touch = the v1614
+    // press-and-hold below (HTML5 drag never fires on a touch screen).
+    // The INTERNAL stamp keeps the import drop zone from ever reading this
+    // drag as a new-photo upload.
+    var dragJs = f
+      ? ' draggable="true"' +
+        ' ondragstart="event.dataTransfer.setData(\'text/plain\',\'' + f.id + '\');event.dataTransfer.effectAllowed=\'move\';window._pinInternalDrag=true;this.style.opacity=\'0.45\'"' +
+        ' ondragend="window._pinInternalDrag=false;this.style.opacity=\'\'"' +
+        ' onpointerdown="_pinRvSlotDragTouch(event,this)"'
+      : '';
+    return '<div data-rvslot="' + sl.key + '" data-rvrole="' + (roleKey || '') + '"' + (f ? ' data-slotfid="' + f.id + '"' : '') + dragJs +
+      ' onclick="_pinRvSlotTap(\'' + sl.key + '\'' + (roleKey ? ',\'' + roleKey + '\'' : '') + ')"' +
       ' ondragover="event.preventDefault();this.style.outline=\'2px solid var(--accent)\'"' +
       ' ondragleave="this.style.outline=\'\'"' +
       ' ondrop="' + dropJs + '"' +
@@ -4042,6 +4060,76 @@
       '<div style="font-size:0.55rem;font-weight:700;color:' + (f ? 'var(--text)' : 'var(--text-dim)') + ';letter-spacing:0.02em;margin-top:2px;white-space:nowrap">' + sl.label + '</div>' +
     '</div>';
   }
+  // ── v0.9.1619: TOUCH drag between slots — press-and-hold, then drag ──
+  // The v1614 wizard pattern applied to the slot bar: hold 300ms (an early
+  // move >10px means a scroll — cancelled), a ghost chip follows the
+  // finger, the slot underneath highlights, and lifting on a slot hands
+  // the fid to _pinRvAssignView — the same one handler the tap picker and
+  // the rail drop use. A quick tap still opens the picker.
+  var _rvtd = null;
+  window._pinRvSlotDragTouch = function (e, div) {
+    if (e.pointerType === 'mouse') return;   // mouse uses HTML5 drag above
+    if (_rvtd) return;
+    var fid = div.getAttribute('data-slotfid');
+    if (!fid) return;
+    var sx = e.clientX, sy = e.clientY;
+    var st = { dragging: false, ghost: null, over: null, hold: null };
+    _rvtd = st;
+    function clean() {
+      try { document.removeEventListener('pointermove', onMove); } catch (e2) {}
+      try { document.removeEventListener('pointerup', onUp); } catch (e2) {}
+      try { document.removeEventListener('pointercancel', onUp); } catch (e2) {}
+      try { document.removeEventListener('touchmove', blockScroll, { passive: false }); } catch (e2) {}
+      if (st.hold) clearTimeout(st.hold);
+      if (st.ghost) try { st.ghost.remove(); } catch (e2) {}
+      if (st.over) try { st.over.style.outline = ''; } catch (e2) {}
+      try { div.style.opacity = ''; } catch (e2) {}
+      _rvtd = null;
+    }
+    function blockScroll(ev) { if (st.dragging) ev.preventDefault(); }
+    function onMove(ev) {
+      var dx = ev.clientX - sx, dy = ev.clientY - sy;
+      if (!st.dragging) {
+        if ((dx * dx + dy * dy) > 100) clean();   // moved before the hold — a scroll
+        return;
+      }
+      if (st.ghost) { st.ghost.style.left = (ev.clientX - 28) + 'px'; st.ghost.style.top = (ev.clientY - 60) + 'px'; }
+      var el = document.elementFromPoint(ev.clientX, ev.clientY);
+      var cell = el && el.closest ? el.closest('[data-rvslot]') : null;
+      if (cell === div) cell = null;
+      if (st.over && st.over !== cell) { st.over.style.outline = ''; st.over = null; }
+      if (cell && cell !== st.over) { st.over = cell; cell.style.outline = '2px solid var(--accent)'; }
+    }
+    function onUp() {
+      if (st.dragging && st.over) {
+        var v = st.over.getAttribute('data-rvslot') || '';
+        var r = st.over.getAttribute('data-rvrole') || '';
+        clean();
+        window._pinRvAssignView(fid, v, r || undefined);
+        return;
+      }
+      clean();
+    }
+    st.hold = setTimeout(function () {
+      st.dragging = true;
+      try { div.style.opacity = '0.45'; } catch (e2) {}
+      try {
+        var g = document.createElement('div');
+        g.id = 'pin-rv-drag-ghost';
+        g.textContent = '\u21c6 drop on another slot to move it';
+        g.style.cssText = 'position:fixed;z-index:100090;left:' + (sx - 28) + 'px;top:' + (sy - 60) + 'px;'
+          + 'background:var(--surface);color:var(--text);border:1.5px solid var(--accent);border-radius:999px;'
+          + 'padding:0.35rem 0.8rem;font-family:var(--font-body);font-weight:700;font-size:0.75rem;'
+          + 'pointer-events:none;box-shadow:0 4px 16px var(--scrim)';
+        document.body.appendChild(g);
+        st.ghost = g;
+      } catch (e2) {}
+      document.addEventListener('touchmove', blockScroll, { passive: false });
+    }, 300);
+    document.addEventListener('pointermove', onMove);
+    document.addEventListener('pointerup', onUp);
+    document.addEventListener('pointercancel', onUp);
+  };
   function _pinRvViewsBarHtml() {
     var files = _pinRvFiles();
     if (files.length < 2) return '';   // one photo has nothing to sort

@@ -22481,6 +22481,45 @@ META_WRITES.length = 0; TOASTS.length = 0;
          /var patch = _tog \? \{ view: '', role: 'together' \} : \{ view: viewKey \};\s*\n\s*if \(roleKey && !_tog\) patch\.role = roleKey;/.test(pi22), '');
     })();
 
+    // ═══════════════════════════════════════════════════════════
+    // 323. SLOT-TO-SLOT DRAG (v0.9.1619). Brad: "need to be able to drag
+    // pictures between different views when I get the wrong [slot]. right
+    // now i can drag down but not from view to view." v1617 made the slots
+    // drop TARGETS but never drag SOURCES — a filled slot had no way to
+    // start a drag. Now it carries its fid on text/plain (the rail's own
+    // protocol) so the drop lands in the ONE assign handler and every rule
+    // (swap, cross-piece re-file, together) comes for free. Touch gets the
+    // v1614 press-and-hold — HTML5 drag never fires on a touch screen.
+    // ═══════════════════════════════════════════════════════════
+    section('323. A filled slot can be dragged to another slot — mouse and touch');
+    (function () {
+      const pi23 = fs.readFileSync(require('path').join(__dirname, '..', 'app', 'photo-inbox.js'), 'utf8');
+      ok('323 a FILLED slot is a drag source carrying its fid on text/plain',
+         /data-slotfid=/.test(pi23)
+         && /ondragstart="event\.dataTransfer\.setData/.test(pi23)
+         && / draggable="true"'/.test(pi23), '');
+      ok('323 only a filled slot drags — an empty one has nothing to pick up',
+         /var dragJs = f\s*\n?\s*\?/.test(pi23), '');
+      ok('323 every slot cell wears its address so a touch drop knows where it landed',
+         /data-rvslot="' \+ sl\.key \+ '"/.test(pi23) && /data-rvrole="' \+ \(roleKey \|\| ''\) \+ '"/.test(pi23), '');
+      ok('323 the drag is stamped INTERNAL so the import zone can never mistake it',
+         /ondragstart="[^"]*window\._pinInternalDrag=true/.test(pi23)
+         && /ondragend="window\._pinInternalDrag=false/.test(pi23), '');
+      ok('323 touch: press-and-hold exists, and a mouse pointer is left to HTML5 drag',
+         typeof window._pinRvSlotDragTouch === 'function'
+         && /if \(e\.pointerType === 'mouse'\) return;/.test(pi23), '');
+      ok('323 touch: the v1614 semantics — 300ms hold, an early move is a scroll',
+         /\(dx \* dx \+ dy \* dy\) > 100\) clean\(\)/.test(pi23.slice(pi23.indexOf('_pinRvSlotDragTouch')))
+         && /}, 300\);/.test(pi23.slice(pi23.indexOf('_pinRvSlotDragTouch'))), '');
+      ok('323 touch: lifting on a slot hands the fid to the ONE assign handler',
+         /_pinRvAssignView\(fid, v, r \|\| undefined\)/.test(pi23), '');
+      // functional: a mouse pointerdown must NOT arm the touch drag
+      let threw = false;
+      try { window._pinRvSlotDragTouch({ pointerType: 'mouse' }, { getAttribute: function () { return 'fX'; } }); }
+      catch (e) { threw = true; }
+      ok('323 a mouse pointerdown passes through untouched (no arm, no throw)', threw === false, '');
+    })();
+
   })().then(function () {
     console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
     process.exit(fail ? 1 : 0);
