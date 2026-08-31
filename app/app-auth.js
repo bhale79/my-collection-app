@@ -537,6 +537,16 @@ function onGoogleSignIn(response) {
   localStorage.setItem('lv_user', JSON.stringify(state.user));
 }
 
+// ── v0.9.1620: the token keeper writes the FLIGHT RECORDER ──────────────
+// Brad's reconnect/account-picker loop survived the phone-Chrome sign-in
+// fix (S87 open item 2), so per that plan the keeper now writes its diary
+// into rr_sync_log ('auth' lines): every renewal attempt with its reason,
+// every Google answer with its error code, the gesture layer, the card,
+// and the 6-second consent fallback. Instrumentation ONLY — behavior is
+// byte-for-byte v1619 (§324 pins the requestAccessToken count to prove it).
+// Guarded: write-outbox.js loads first, but odd worlds get a silent no-op.
+function _rrAuthLog(m) { try { if (window.rrSyncLog) window.rrSyncLog('auth', m); } catch (e) {} }
+
 var accessToken = null;
 
 // Restore token from localStorage (survives mobile page suspension)
@@ -546,6 +556,9 @@ var accessToken = null;
   if (saved && expiry > Date.now()) {
     accessToken = saved;
     console.log('[Auth] Restored token from localStorage, expires in', Math.round((expiry - Date.now())/60000), 'min');
+    _rrAuthLog('boot: token restored, ' + Math.round((expiry - Date.now())/60000) + ' min left');
+  } else if (saved) {
+    _rrAuthLog('boot: stored token expired');
   }
 })();
 
@@ -560,6 +573,7 @@ function onTokenReceived(resp) {
   if (resp.error) {
     try { _resetSignInButton(); } catch(e) {}
     console.error('Token error:', resp);
+    _rrAuthLog('token error: ' + (resp.error || '?') + (resp.error_subtype ? '/' + resp.error_subtype : ''));
     // If silent token refresh failed, prompt user to sign in again
     if (resp.error === 'interaction_required' || resp.error === 'login_required') {
       // v0.9.1540 (Brad: "i don't want the user to have to sign out and sign
@@ -585,6 +599,7 @@ function onTokenReceived(resp) {
 
   const isInitial = _tokenIsInitial;
   _tokenIsInitial = false; // all subsequent tokens are background refreshes
+  _rrAuthLog('token ok (' + (isInitial ? 'initial' : 'refresh') + ')');
 
   _rrNoteGrantedScopes(resp && resp.scope);   // v0.9.998: what Google actually granted
   accessToken = resp.access_token;
@@ -776,12 +791,14 @@ function rrEnsureFreshToken(reason) {
     _rrTokenRenewing = true;
     var hint = (state.user && state.user.email) || '';
     console.log('[Auth] renewing token (' + (reason || 'check') + ')');
+    _rrAuthLog('renewing (' + (reason || 'check') + ')');
     tokenClient.requestAccessToken({ prompt: '', login_hint: hint });
     // If nothing comes back, the quiet path was blocked. Do not nag — wait
     // for a click and try again then, when the browser will allow it.
     setTimeout(function () {
       if (_rrTokenRenewing && !_rrTokenHealthy()) {
         _rrTokenRenewing = false;
+        _rrAuthLog('quiet renew silent after 6s');
         _rrArmGestureRenew();
       }
     }, 6000);
@@ -796,22 +813,24 @@ function _rrArmGestureRenew() {
   if (_rrTokenGestureArmed || _rrTokenHealthy()) return;
   _rrTokenGestureArmed = true;
   console.log('[Auth] quiet renewal blocked — will retry on your next click');
+  _rrAuthLog('armed: retry on next tap');
   var go = function () {
     document.removeEventListener('pointerdown', go, true);
     document.removeEventListener('keydown', go, true);
     _rrTokenGestureArmed = false;
+    _rrAuthLog('tap retry: requesting token');
     try {
       _rrTokenRenewing = true;
       tokenClient.requestAccessToken({ prompt: '', login_hint: (state.user && state.user.email) || '' });
       setTimeout(function () {
-        if (!_rrTokenHealthy()) { _rrTokenRenewing = false; _rrShowReconnect(); }
+        if (!_rrTokenHealthy()) { _rrTokenRenewing = false; _rrAuthLog('tap retry silent after 6s \u2192 card'); _rrShowReconnect(); }
       }, 6000);
-    } catch (e) { _rrTokenRenewing = false; _rrShowReconnect(); }
+    } catch (e) { _rrTokenRenewing = false; _rrAuthLog('tap retry threw: ' + (e && e.message)); _rrShowReconnect(); }
   };
   document.addEventListener('pointerdown', go, true);
   document.addEventListener('keydown', go, true);
   // A click may never come — someone reading a list. Give it a while, then ask.
-  setTimeout(function () { if (!_rrTokenHealthy()) _rrShowReconnect(); }, 90000);
+  setTimeout(function () { if (!_rrTokenHealthy()) { _rrAuthLog('no tap for 90s \u2192 card'); _rrShowReconnect(); } }, 90000);
 }
 // Layer 3. Plain words, one button, and the app stays where it is.
 function _rrShowReconnect() {
@@ -833,10 +852,12 @@ function _rrShowReconnect() {
         'background:var(--accent);color:var(--on-accent);font-family:var(--font-body);font-size:0.8rem;' +
         'font-weight:700;cursor:pointer;flex-shrink:0">Reconnect</button>';
     document.body.appendChild(bar);
+    _rrAuthLog('reconnect card SHOWN');
   } catch (e) {}
 }
 // The button. A click IS the gesture, so this is the request that works.
 function rrReconnectNow() {
+  _rrAuthLog('Reconnect tapped: quiet request');
   var bar = document.getElementById('rr-reconnect-bar');
   if (bar) {
     var b = bar.querySelector('button');
@@ -850,6 +871,7 @@ function rrReconnectNow() {
       // Still nothing: ask Google to show the account chooser. Still not a
       // sign-out — the app and its data stay exactly where they are.
       _rrTokenRenewing = false;
+      _rrAuthLog('6s CONSENT FALLBACK: forcing account chooser');
       try { tokenClient.requestAccessToken({ prompt: 'consent', login_hint: (state.user && state.user.email) || '' }); }
       catch (e2) {}
       var b2 = bar && bar.querySelector('button');
@@ -857,6 +879,7 @@ function rrReconnectNow() {
     }, 6000);
   } catch (e) {
     _rrTokenRenewing = false;
+    _rrAuthLog('Reconnect threw: ' + (e && e.message));
     var b3 = bar && bar.querySelector('button');
     if (b3) { b3.disabled = false; b3.textContent = 'Reconnect'; }
   }

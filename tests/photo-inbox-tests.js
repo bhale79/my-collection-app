@@ -22520,6 +22520,41 @@ META_WRITES.length = 0; TOASTS.length = 0;
       ok('323 a mouse pointerdown passes through untouched (no arm, no throw)', threw === false, '');
     })();
 
+    // ═══════════════════════════════════════════════════════════
+    // 324. THE TOKEN KEEPER WRITES THE FLIGHT RECORDER (v0.9.1620).
+    // Brad's reconnect/account-picker loop survived the phone-Chrome
+    // sign-in fix, so per the S87 plan the token keeper now writes its
+    // own diary into rr_sync_log — every renewal attempt with its
+    // reason, every Google answer with its error code, the gesture
+    // layer arming and firing, the reconnect card, and ESPECIALLY the
+    // 6-second consent fallback (the prime suspect: it can force the
+    // account chooser while the first request is still mid-flight).
+    // Instrumentation ONLY — the keeper's behavior is untouched.
+    // ═══════════════════════════════════════════════════════════
+    section('324. The token keeper writes the flight recorder — and nothing else changed');
+    (function () {
+      const au24 = fs.readFileSync(require('path').join(__dirname, '..', 'app', 'app-auth.js'), 'utf8');
+      ok('324 a guarded logger exists (rrSyncLog may load after in odd worlds)',
+         /function _rrAuthLog\(m\)/.test(au24) && /if \(window\.rrSyncLog\) window\.rrSyncLog\('auth', m\)/.test(au24), '');
+      ok('324 boot restore logs how many minutes the stored token had left',
+         /_rrAuthLog\('boot: token restored, ' \+/.test(au24) && /_rrAuthLog\('boot: stored token expired'\)/.test(au24), '');
+      ok('324 every Google answer is logged — the error WITH its code, success with initial/refresh',
+         /_rrAuthLog\('token error: ' \+/.test(au24) && /_rrAuthLog\('token ok \(' \+ \(isInitial \? 'initial' : 'refresh'\)/.test(au24), '');
+      ok('324 a quiet renewal logs its reason, and 6s of silence is logged too',
+         /_rrAuthLog\('renewing \(' \+ \(reason \|\| 'check'\)/.test(au24) && /_rrAuthLog\('quiet renew silent after 6s'\)/.test(au24), '');
+      ok('324 the gesture layer logs arming, the tap retry, and every road to the card',
+         /_rrAuthLog\('armed: retry on next tap'\)/.test(au24)
+         && /_rrAuthLog\('tap retry: requesting token'\)/.test(au24)
+         && /_rrAuthLog\('tap retry silent after 6s/.test(au24)
+         && /_rrAuthLog\('no tap for 90s/.test(au24), '');
+      ok('324 the reconnect card being SHOWN is logged',
+         /_rrAuthLog\('reconnect card SHOWN'\)/.test(au24), '');
+      ok('324 THE PRIME SUSPECT: the Reconnect tap and the 6s consent fallback are both logged',
+         /_rrAuthLog\('Reconnect tapped/.test(au24) && /_rrAuthLog\('6s CONSENT FALLBACK: forcing account chooser'\)/.test(au24), '');
+      ok('324 instrumentation only — the keeper asks Google exactly as often as v1619 did',
+         (au24.match(/requestAccessToken\(/g) || []).length === 8, '');
+    })();
+
   })().then(function () {
     console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
     process.exit(fail ? 1 : 0);
