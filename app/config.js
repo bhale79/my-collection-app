@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.1620';
+const APP_VERSION = 'v0.9.1621';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -1125,10 +1125,47 @@ if (typeof window !== 'undefined') setTimeout(function () {
   } catch (e) { /* never break the app over a self-check */ }
 }, 8000);
 
-// ── v0.9.1336: visible update notice ─────────────────────────────────────
+// ── v0.9.1336 → v0.9.1621: the update ASKS FIRST ─────────────────────────
+// Brad's white-flash mystery, solved in S88: every deploy silently reloaded
+// every open copy at the next "quiet moment", and the busy check's gaps ate
+// work in progress (the v1524 complaint, still alive). His design, near
+// verbatim: "new version ready hit Okay or cancel and we will reload
+// tonight" — so the card now offers Update now / Tonight, and Tonight means
+// 3:00 AM device time, still refusing to reload over unfinished work.
+// A CLOSED app needs none of this — it gets the new version on next open.
 // Lives at BODY level (a fixed element inside .main paints under the header
 // — the v1332 lesson). Colours are CSS vars only. Shown once per detected
-// server version; dismiss keeps it away until a NEWER version appears.
+// server version; Tonight keeps it away until a NEWER version appears.
+window._RR_NIGHT_RELOAD_HOUR = 3;   // Brad, S88 — the ONE place this hour lives
+window._rrNightReloadTimer = null;
+window._rrScheduleNightReload = function () {
+  try {
+    if (window._rrNightReloadTimer) return;   // already scheduled
+    var now = new Date();
+    var at = new Date(now.getFullYear(), now.getMonth(), now.getDate(), window._RR_NIGHT_RELOAD_HOUR, 0, 0, 0);
+    if (at <= now) at.setDate(at.getDate() + 1);
+    var fire = function () {
+      // even at 3 AM, never reload out from under unfinished work —
+      // check the shared conscience and come back in two minutes if busy.
+      var busy = false;
+      try { busy = (typeof window._rrBusyNow === 'function') && window._rrBusyNow(); } catch (eB) {}
+      if (busy) { window._rrNightReloadTimer = setTimeout(fire, 120000); return; }
+      try { if (window._rrLastPage) sessionStorage.setItem('rr_resume_page', window._rrLastPage); } catch (eP) {}
+      location.reload();
+    };
+    window._rrNightReloadTimer = setTimeout(fire, at.getTime() - now.getTime());
+  } catch (e) {}
+};
+window._rrUpdateNow = function () {
+  try { if (window._rrLastPage) sessionStorage.setItem('rr_resume_page', window._rrLastPage); } catch (e) {}
+  location.reload();
+};
+window._rrUpdateTonight = function (netApp) {
+  try { localStorage.setItem('rr_update_bar_seen', netApp); } catch (e) {}
+  var b = document.getElementById('rr-update-bar'); if (b) b.remove();
+  window._rrScheduleNightReload();
+  try { if (typeof showToast === 'function') showToast('OK \u2014 the update will install itself around 3:00 AM, or next time you open the app', 5200); } catch (e) {}
+};
 window._rrShowUpdateBar = function (netApp) {
   try {
     if (!netApp || netApp === APP_VERSION) return;
@@ -1142,16 +1179,13 @@ window._rrShowUpdateBar = function (netApp) {
       'display:flex;align-items:center;gap:0.7rem;padding:0.55rem 0.85rem;border-radius:10px;' +
       'background:var(--surface);border:1px solid var(--accent2);' +
       'font-family:var(--font-body);font-size:0.83rem;color:var(--text);max-width:calc(100vw - 2rem)';
+    var safeVer = String(netApp).replace(/[^0-9A-Za-z.\-]/g, '');
     bar.innerHTML =
       '<span>A new version of The Rail Roster is ready.</span>' +
-      '<button type="button" onclick="location.reload()" style="border:none;border-radius:7px;padding:0.35rem 0.8rem;' +
-        'background:var(--accent);color:var(--on-accent);font-family:var(--font-body);font-size:0.8rem;font-weight:700;cursor:pointer;flex-shrink:0">Refresh</button>' +
-      '<button type="button" onclick="_rrDismissUpdateBar(\'' + String(netApp).replace(/[^0-9v.]/g, '') + '\')" title="Not now" style="border:none;background:none;' +
-        'color:var(--text-dim);font-size:1.05rem;line-height:1;cursor:pointer;padding:0.2rem 0.3rem;flex-shrink:0">\u2715</button>';
+      '<button type="button" onclick="_rrUpdateNow()" style="border:none;border-radius:7px;padding:0.35rem 0.8rem;' +
+        'background:var(--accent);color:var(--on-accent);font-family:var(--font-body);font-size:0.8rem;font-weight:700;cursor:pointer;flex-shrink:0">Update now</button>' +
+      '<button type="button" onclick="_rrUpdateTonight(\'' + safeVer + '\')" title="Reload around 3:00 AM instead" style="border:1.5px solid var(--border);border-radius:7px;' +
+        'padding:0.35rem 0.8rem;background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.8rem;font-weight:600;cursor:pointer;flex-shrink:0">Tonight</button>';
     document.body.appendChild(bar);
   } catch (e) { /* a notice must never break the app */ }
-};
-window._rrDismissUpdateBar = function (netApp) {
-  try { localStorage.setItem('rr_update_bar_seen', netApp); } catch (e) {}
-  var b = document.getElementById('rr-update-bar'); if (b) b.remove();
 };

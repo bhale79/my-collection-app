@@ -657,7 +657,11 @@ META_WRITES.length = 0; TOASTS.length = 0;
   const html = require('fs').readFileSync(APP_FILE('index.html'), 'utf8');
   ok('the busy guard knows about the audit overlay', /pin-audit-ov/.test(html));
   ok('the busy guard knows about long jobs', /_rrLongJob/.test(html));
-  ok('a deploy reload remembers the page', /sessionStorage\.setItem\('rr_resume_page'/.test(html));
+  // v0.9.1621 RE-PIN: the resume-save moved to config.js — the card's
+  // Update-now button and the 3 AM timer both save the page before the
+  // blink; index.html's instant reload only fires on the sign-in screen,
+  // where there is no page to remember.
+  ok('a deploy reload remembers the page', /sessionStorage\.setItem\('rr_resume_page'/.test(require('fs').readFileSync(APP_FILE('config.js'), 'utf8')));
   ok('and restores it on the way back', /getItem\('rr_resume_page'\)/.test(html));
   ok('a genuinely fresh visit still opens on the Dashboard',
      /if \(!want \|\| want === 'dashboard'\) return;/.test(html));
@@ -18810,8 +18814,10 @@ META_WRITES.length = 0; TOASTS.length = 0;
          /rr_update_bar_seen/.test(fn) && /localStorage\.setItem\('rr_update_bar_seen', netApp\)/.test(cf));
       ok('277 it appends to BODY (a fixed element inside .main paints under the header — the v1332 lesson)',
          /document\.body\.appendChild\(bar\)/.test(fn));
+      // v0.9.1621 RE-PIN: Refresh became "Update now" (reloads via
+      // _rrUpdateNow, which remembers the page first) beside "Tonight".
       ok('277 the Refresh button reloads',
-         /onclick="location\.reload\(\)"/.test(fn));
+         /onclick="_rrUpdateNow\(\)"/.test(fn) && /_rrUpdateNow = function/.test(cf));
     })();
 
     // ═══════════════════════════════════════════════════════════
@@ -22553,6 +22559,43 @@ META_WRITES.length = 0; TOASTS.length = 0;
          /_rrAuthLog\('Reconnect tapped/.test(au24) && /_rrAuthLog\('6s CONSENT FALLBACK: forcing account chooser'\)/.test(au24), '');
       ok('324 instrumentation only — the keeper asks Google exactly as often as v1619 did',
          (au24.match(/requestAccessToken\(/g) || []).length === 8, '');
+    })();
+
+    // ═══════════════════════════════════════════════════════════
+    // 325. THE UPDATE ASKS FIRST (v0.9.1621). Brad's white-flash mystery:
+    // every deploy silently reloaded every open copy of the app at the
+    // next "quiet moment" — and the busy check's gaps meant losing work
+    // in progress (the v1524 complaint, still alive). His design,
+    // verbatim shape: "new version ready hit Okay or cancel and we will
+    // reload tonight" — a card with Update now / Tonight, the Tonight
+    // reload at 3:00 AM, still refusing to reload over unfinished work.
+    // The v826 reconnect reload (offline boot + wifi returns = blind
+    // reload in 1.5s) learns the same manners. A CLOSED app needs none
+    // of this: it gets the new version on next open, as always.
+    // ═══════════════════════════════════════════════════════════
+    section('325. A new version asks first — Update now, or Tonight at 3:00 AM');
+    (function () {
+      const cf25 = fs.readFileSync(require('path').join(__dirname, '..', 'app', 'config.js'), 'utf8');
+      const ix25 = fs.readFileSync(require('path').join(__dirname, '..', 'app', 'index.html'), 'utf8');
+      const am25 = fs.readFileSync(require('path').join(__dirname, '..', 'app', 'app-misc.js'), 'utf8');
+      ok('325 the card offers BOTH of Brad\'s buttons — Update now and Tonight',
+         />Update now</.test(cf25) && />Tonight</.test(cf25), '');
+      ok('325 tonight means 3:00 AM, named in ONE place',
+         /_RR_NIGHT_RELOAD_HOUR = 3;/.test(cf25) && (cf25.match(/_RR_NIGHT_RELOAD_HOUR = /g) || []).length === 1, '');
+      ok('325 Tonight schedules the night reload and SAYS so',
+         /_rrUpdateTonight/.test(cf25) && /_rrScheduleNightReload\(\)/.test(cf25) && /around 3:00 AM/.test(cf25), '');
+      ok('325 even at 3 AM the reload refuses to interrupt unfinished work',
+         /_rrBusyNow/.test(cf25.slice(cf25.indexOf('_rrScheduleNightReload = function'), cf25.indexOf('_rrScheduleNightReload = function') + 1600)), '');
+      ok('325 the SILENT idle reload is gone — a deploy now OFFERS the card',
+         !/_rrReloadWhenIdle/.test(ix25) && /_rrOfferUpdate/.test(ix25) && /_rrShowUpdateBar\(/.test(ix25), '');
+      ok('325 the busy check is published so every reload path shares ONE conscience',
+         /window\._rrBusyNow = _rrBusy;/.test(ix25), '');
+      ok('325 the sign-in screen still reloads instantly — there is nothing to lose there',
+         /_swReloaded = true; window\.location\.reload\(\); return;/.test(ix25), '');
+      ok('325 Update now keeps its promise: your PAGE comes back after the blink',
+         /rr_resume_page/.test(cf25), '');
+      ok('325 the v826 reconnect reload waits for quiet now — and says why',
+         /_rrBusyNow/.test(am25) && /refresh when you finish/.test(am25), '');
     })();
 
   })().then(function () {

@@ -392,7 +392,23 @@ window.addEventListener('offline', _showOfflineBanner);
 window.addEventListener('online', function () {
   if (window._offlineMode) {
     if (typeof showToast === 'function') showToast('Back online — reconnecting…', 2500);
-    setTimeout(function () { location.reload(); }, 1500);
+    // v0.9.1621: v826 reloaded blindly 1.5s later — fine when offline was
+    // view-only, a work-eater since S87 made offline boots fully usable
+    // (mid-add at a train show + a wifi blip = white flash, work gone).
+    // Same reload, now with the shared conscience: wait until nothing is
+    // in progress. Announce the wait ONCE so the pause isn't a mystery.
+    var told = false;
+    var go = function () {
+      var busy = false;
+      try { busy = (typeof window._rrBusyNow === 'function') && window._rrBusyNow(); } catch (e) {}
+      if (!busy) { location.reload(); return; }
+      if (!told) {
+        told = true;
+        if (typeof showToast === 'function') showToast('Back online — the app will refresh when you finish what you\u2019re doing', 4200);
+      }
+      setTimeout(go, 5000);
+    };
+    setTimeout(go, 1500);
   }
 });
 window.addEventListener('online', _hideOfflineBanner);
