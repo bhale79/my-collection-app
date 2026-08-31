@@ -144,6 +144,46 @@ ok('1626 Undo sits beside Approve-all-clean and reverses the LAST action',
 ok('1626 undo restores each row\u2019s PREVIOUS verdict — a bulk approve included',
    /prev/.test(ym26.slice(ym26.indexOf('_ymUndoStack'), ym26.indexOf('_ymUndoStack') + 2500)));
 
+// ── v0.9.1627: COMMIT — the cockpit's last mile (Session 88) ──
+// Brad reviewed all 182 in one sitting; this lands the approved rows.
+// The standing rules, in code: dated per-tab CSV BACKUPS reach the
+// RailRoster Backups folder BEFORE any master write, and a backup
+// failure ABORTS the commit; rows are built BY HEADER NAME against the
+// target tab's own header row; a number already in master is HELD,
+// never overwritten — the commit is append-only, so no existing row
+// (trap rows included) can be touched; approved rows with no proposed
+// tab are held and SAID; the batch is marked committed only after the
+// appended counts verify.
+const ym27 = src('yardmaster.js');
+const cm27 = ym27.slice(ym27.indexOf('v0.9.1627: COMMIT'), ym27.indexOf('window._ymBatchOpen = function'));
+ok('1627 the Commit button exists, gated on approved rows and a not-yet-committed batch',
+   /_ymCommit/.test(ym27) && /Commit /.test(ym27) && /!== 'committed'/.test(ym27));
+ok('1627 backups land BEFORE any master write — and a failed backup ABORTS',
+   cm27.indexOf('upload/drive/v3/files') > 0
+   && cm27.indexOf('upload/drive/v3/files') < cm27.indexOf('sheetsAppend(MID')
+   && /backup failed/i.test(cm27));
+ok('1627 master rows are built BY HEADER NAME, never by fixed index',
+   /_ymMasterCell/.test(cm27) && /'Item Number'/.test(cm27) && /'Year Produced'/.test(cm27)
+   && /heads\.map\(function \(h\)/.test(cm27));
+ok('1627 a number already in master is HELD — append-only, nothing deleted or overwritten',
+   /held/i.test(cm27) && !/deleteRange|deleteDimension|clear\(/.test(cm27) && /sheetsAppend\(MID/.test(cm27));
+ok('1627 approved rows with NO proposed tab are held and SAID',
+   /no tab/i.test(cm27));
+ok('1627 the batch is marked committed only after the counts verify',
+   /committed/.test(cm27) && /verify/i.test(cm27));
+
+// v0.9.1627(b): EDIT — Brad mid-review: "how do i change things you
+// flagged?" Every row opens into an inline editor; saving writes the
+// delta back to the Vault stamped 'edited', which the commit treats
+// exactly like approved. The tab picker is the door for the 11
+// no-gauge rows the commit would otherwise hold.
+ok('1627b every row offers Edit, and saving counts as approved',
+   /_ymEditOpen/.test(ym27) && /_ymEditSave/.test(ym27) && /'edited', today/.test(ym27));
+ok('1627b the editor writes the delta BACK to the Vault, tab included',
+   /crawl_deltas!D/.test(ym27) && /ym-ed-tab/.test(ym27));
+ok('1627b the tab picker offers both Menards homes',
+   />Menards O</.test(ym27) && />Menards HO</.test(ym27));
+
 console.log('\n' + pass + ' passed, ' + fail + ' failed');
 if (fail) { console.log('YARDMASTER TESTS FAILING'); process.exit(1); }
 console.log('ALL YARDMASTER TESTS GREEN (' + pass + ')');

@@ -128,13 +128,14 @@
     if (d.crawlBatches && d.crawlBatches.length) {
       d.crawlBatches[0].forEach(function (h, i) { _bcol[String(h)] = i; });
       var gb = function (r, name) { var i = _bcol[name]; return i == null ? '' : String(r[i] == null ? '' : r[i]); };
-      out.batches = d.crawlBatches.slice(1).filter(function (r) { return gb(r, 'batch_id'); }).map(function (r) {
+      out.batches = d.crawlBatches.slice(1).map(function (r, i) { r._sheetRow = i + 2; return r; })
+        .filter(function (r) { return gb(r, 'batch_id'); }).map(function (r) {
         var id = gb(r, 'batch_id');
         var counts = { pending: 0, approved: 0, edited: 0, rejected: 0, deferred: 0 };
         out.deltas.forEach(function (dd) {
           if (dd.batch === id) counts[counts[dd.status] == null ? 'pending' : dd.status]++;
         });
-        return { id: id, source: gb(r, 'source'), created: gb(r, 'created'), label: gb(r, 'label'),
+        return { id: id, sheetRow: r._sheetRow, source: gb(r, 'source'), created: gb(r, 'created'), label: gb(r, 'label'),
                  status: gb(r, 'status'), total: gb(r, 'total'), note: gb(r, 'note'), counts: counts };
       });
     }
@@ -345,6 +346,171 @@
         .then(function (yes) { if (yes) go(); });
     } else if (confirm('Approve all ' + clean.length + ' clean pending rows?')) go();
   };
+  // ── v0.9.1627(b): EDIT — Brad: "how do i change things you flagged?" ──
+  // Every row opens into an inline editor: proposed tab (the door for the
+  // 11 no-gauge rows), number, type, road, description, years, MSRP.
+  // Saving writes the delta back to the Vault and stamps it 'edited' —
+  // which the commit treats exactly like approved.
+  var _ymEditId = '';
+  window._ymEditOpen = function (id) { _ymEditId = id; window._ymBatchOpen(_ymBatchId, true); };
+  window._ymEditCancel = function () { _ymEditId = ''; window._ymBatchOpen(_ymBatchId, true); };
+  window._ymEditSave = async function (id) {
+    if (!_isOwner() || !_ymData) return;
+    var dd = null;
+    _ymData.deltas.forEach(function (x) { if (x.id === id && x.batch === _ymBatchId) dd = x; });
+    if (!dd) return;
+    var gv = function (eid) { var el = document.getElementById(eid); return el ? String(el.value).trim() : ''; };
+    var nv = { tab: gv('ym-ed-tab'), num: gv('ym-ed-num'), type: gv('ym-ed-type'), road: gv('ym-ed-road'),
+               desc: gv('ym-ed-desc'), years: gv('ym-ed-years'), msrp: gv('ym-ed-msrp') };
+    if (!nv.num) { if (typeof showToast === 'function') showToast('The item number can\u2019t be empty.', 3000, true); return; }
+    var today = new Date().toISOString().slice(0, 10);
+    try {
+      var r = await fetch('https://sheets.googleapis.com/v4/spreadsheets/' + YM.VAULT_ID + '/values:batchUpdate',
+        { method: 'POST',
+          headers: { Authorization: 'Bearer ' + window.accessToken, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ valueInputOption: 'RAW', data: [
+            { range: 'crawl_deltas!D' + dd.sheetRow + ':H' + dd.sheetRow, values: [[nv.tab, nv.num, nv.type, nv.road, nv.desc]] },
+            { range: 'crawl_deltas!K' + dd.sheetRow, values: [[nv.years]] },
+            { range: 'crawl_deltas!M' + dd.sheetRow, values: [[nv.msrp]] },
+            { range: 'crawl_deltas!P' + dd.sheetRow + ':Q' + dd.sheetRow, values: [['edited', today]] }
+          ] }) });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      dd.tab = nv.tab; dd.num = nv.num; dd.type = nv.type; dd.road = nv.road;
+      dd.desc = nv.desc; dd.years = nv.years; dd.msrp = nv.msrp; dd.status = 'edited';
+      _ymEditId = '';
+      _ymRecount();
+      window._ymBatchOpen(_ymBatchId, true);
+      if (typeof showToast === 'function') showToast('Saved \u2014 counted as approved with your changes.', 3000);
+    } catch (e) {
+      if (typeof showToast === 'function') showToast('The edit didn\u2019t reach the Vault \u2014 try again.', 3500, true);
+    }
+  };
+
+  // ── v0.9.1627: COMMIT — the cockpit's last mile ────────────────
+  // The standing rules, enforced in order: dated per-tab CSV backups
+  // reach the RailRoster Backups folder BEFORE any master write (a
+  // backup failed = the commit ABORTS untouched); master rows are
+  // built BY HEADER NAME against the target tab's own header row; a
+  // number already in master is HELD, never overwritten — append-only,
+  // so no existing row (trap rows included) can be touched; approved
+  // rows with no tab are held and SAID; the batch is marked committed
+  // only after the appended counts VERIFY against a fresh read.
+  function _ymCsv(rows) {
+    return rows.map(function (r) {
+      return r.map(function (c) {
+        var v = String(c == null ? '' : c);
+        return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v;
+      }).join(',');
+    }).join('\r\n');
+  }
+  function _ymMasterCell(h, dd, today) {
+    switch (String(h)) {
+      case 'Item Number': return dd.num;
+      case 'Item Type': return dd.type;
+      case 'Road Name': return dd.road;
+      case 'Description': return dd.desc;
+      case 'Gauge': return dd.gauge;
+      case 'Year Produced': return dd.years;
+      case 'Variation': return dd.variation;
+      case 'Reference Link': return dd.link;
+      case 'MSRP': return dd.msrp;
+      case 'Source': return (dd.source || 'Wayback sweep') + ' \u2014 approved ' + today + ' (Yardmaster cockpit)';
+      default: return '';
+    }
+  }
+  window._ymCommit = async function () {
+    if (!_isOwner() || !_ymData) return;
+    var b = null;
+    _ymData.batches.forEach(function (x) { if (x.id === _ymBatchId) b = x; });
+    if (!b || b.status === 'committed') return;
+    var MID = (typeof MASTER_SHEET_ID !== 'undefined') ? MASTER_SHEET_ID : '';
+    if (!MID) { if (typeof showToast === 'function') showToast('Master sheet id unavailable \u2014 reload the app.', 3500, true); return; }
+    var H = { Authorization: 'Bearer ' + window.accessToken, 'Content-Type': 'application/json' };
+    var today = new Date().toISOString().slice(0, 10);
+    var approved = _ymData.deltas.filter(function (dd) {
+      return dd.batch === _ymBatchId && (dd.status === 'approved' || dd.status === 'edited');
+    });
+    if (!approved.length) { if (typeof showToast === 'function') showToast('Nothing approved to commit yet.', 3000); return; }
+    var byTab = {}, heldNoTab = [];
+    approved.forEach(function (dd) {
+      var t = String(dd.tab || '').trim();
+      if (t === 'Menards O' || t === 'Menards HO') (byTab[t] = byTab[t] || []).push(dd);
+      else heldNoTab.push(dd);   // no tab picked yet — held and said below
+    });
+    try {
+      // read each target tab's headers + existing numbers; dedupe HOLDS
+      var tabs = Object.keys(byTab), plan = {}, heldDup = [];
+      for (var ti = 0; ti < tabs.length; ti++) {
+        var t2 = tabs[ti];
+        var got = await fetch('https://sheets.googleapis.com/v4/spreadsheets/' + MID + '/values/' + encodeURIComponent("'" + t2 + "'!A1:V5000"), { headers: H }).then(function (x) { return x.json(); });
+        var vals = got.values || [];
+        var heads = vals[0] || [];
+        var numIdx = heads.map(String).indexOf('Item Number');
+        var existing = {};
+        vals.slice(1).forEach(function (r) { var n = String((r[numIdx] || '')).trim(); if (n) existing[n] = 1; });
+        var fresh = [], rowsBefore = vals.filter(function (r) { return String((r[numIdx] || '')).trim(); }).length;
+        byTab[t2].forEach(function (dd) {
+          if (existing[String(dd.num).trim()]) heldDup.push(dd); else fresh.push(dd);
+        });
+        plan[t2] = { heads: heads, fresh: fresh, rowsBefore: rowsBefore, allVals: vals };
+      }
+      var toO = (plan['Menards O'] || { fresh: [] }).fresh.length;
+      var toHO = (plan['Menards HO'] || { fresh: [] }).fresh.length;
+      var lines = 'Append ' + toO + ' rows to Menards O and ' + toHO + ' to Menards HO.'
+        + (heldDup.length ? ' ' + heldDup.length + ' held \u2014 number already in master.' : '')
+        + (heldNoTab.length ? ' ' + heldNoTab.length + ' held \u2014 no tab picked.' : '')
+        + ' Dated backups of both tabs are written first.';
+      var yes = (typeof appConfirm === 'function')
+        ? await appConfirm(lines, { title: 'Commit to the master catalog', ok: 'Back up, then commit' })
+        : confirm(lines);
+      if (!yes) return;
+      // ── backups FIRST — a failure here aborts with master untouched ──
+      var fq = encodeURIComponent("name='RailRoster Backups' and mimeType='application/vnd.google-apps.folder' and trashed=false");
+      var ff = await fetch('https://www.googleapis.com/drive/v3/files?q=' + fq + '&fields=files(id)', { headers: { Authorization: H.Authorization } }).then(function (x) { return x.json(); });
+      var folderId = ff.files && ff.files[0] && ff.files[0].id;
+      if (!folderId) {
+        var mk = await fetch('https://www.googleapis.com/drive/v3/files', { method: 'POST', headers: H, body: JSON.stringify({ name: 'RailRoster Backups', mimeType: 'application/vnd.google-apps.folder' }) }).then(function (x) { return x.json(); });
+        folderId = mk.id;
+      }
+      for (var bi = 0; bi < tabs.length; bi++) {
+        var t3 = tabs[bi];
+        var csv = _ymCsv(plan[t3].allVals);
+        var bnd = 'rrbk' + Date.now();
+        var meta = { name: t3 + ' \u2014 backup ' + today + ' before ' + _ymBatchId + '.csv', parents: [folderId] };
+        var body = '--' + bnd + '\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n' + JSON.stringify(meta)
+          + '\r\n--' + bnd + '\r\nContent-Type: text/csv\r\n\r\n' + csv + '\r\n--' + bnd + '--';
+        var up = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', { method: 'POST', headers: { Authorization: H.Authorization, 'Content-Type': 'multipart/related; boundary=' + bnd }, body: body });
+        if (!up.ok) throw new Error('backup failed for ' + t3 + ' (HTTP ' + up.status + ') \u2014 nothing was committed');
+      }
+      // ── append, by header name, one call per tab ──
+      var appended = 0;
+      for (var ai = 0; ai < tabs.length; ai++) {
+        var t4 = tabs[ai];
+        if (!plan[t4].fresh.length) continue;
+        var rows = plan[t4].fresh.map(function (dd) {
+          return plan[t4].heads.map(function (h) { return _ymMasterCell(h, dd, today); });
+        });
+        // §224's census is right: raw :append belongs in sheets.js alone.
+        // The guarded sheetsAppend does the write — same chokepoint, same
+        // outbox protection, as every other append in the app.
+        if (typeof sheetsAppend !== 'function') throw new Error('sheetsAppend unavailable \u2014 reload the app');
+        await sheetsAppend(MID, "'" + t4 + "'!A:A", rows);
+        appended += rows.length;
+        // verify the counts against a fresh read before believing anything
+        var chk = await fetch('https://sheets.googleapis.com/v4/spreadsheets/' + MID + '/values/' + encodeURIComponent("'" + t4 + "'!A1:A5000"), { headers: H }).then(function (x) { return x.json(); });
+        var after = (chk.values || []).slice(1).filter(function (r) { return String((r[0] || '')).trim(); }).length;
+        if (after !== plan[t4].rowsBefore + plan[t4].fresh.length) throw new Error('count verify failed on ' + t4 + ' \u2014 check the tab before trusting this commit');
+      }
+      // ── only now: the batch is committed ──
+      await fetch('https://sheets.googleapis.com/v4/spreadsheets/' + YM.VAULT_ID + '/values:batchUpdate', { method: 'POST', headers: H, body: JSON.stringify({ valueInputOption: 'RAW', data: [{ range: 'crawl_batches!E' + (b.sheetRow || 2), values: [['committed']] }] }) });
+      b.status = 'committed';
+      _ymUndoStack = null;
+      if (typeof showToast === 'function') showToast('Committed \u2014 ' + appended + ' rows added to the master catalog. Backups are in RailRoster Backups.', 6000);
+      window.ymBuildPage(true);
+    } catch (e) {
+      if (typeof showToast === 'function') showToast('Commit stopped: ' + (e && e.message), 6000, true);
+    }
+  };
   window._ymBatchOpen = function (id, keepScroll) {
     var page = document.getElementById('page-yardmaster');
     if (!page || !_isOwner() || !_ymData) return;
@@ -376,7 +542,32 @@
         + 'border:1.5px solid ' + (on ? tone : 'var(--border)') + ';background:var(--surface);color:' + (on ? tone : 'var(--text-mid)') + '">'
         + (on ? '\u2713 ' : '') + label + '</button>';
     };
+    var _inp = function (eid, label, val, w) {
+      return '<label style="display:flex;flex-direction:column;gap:0.15rem;font-size:0.8rem;color:var(--text-dim)">' + label
+        + '<input id="' + eid + '" value="' + _esc(val) + '" style="width:' + (w || '9rem') + ';background:var(--surface);border:1px solid var(--border);border-radius:7px;padding:0.35rem 0.5rem;color:var(--text);font-family:var(--font-body);font-size:0.95rem"></label>';
+    };
     var rows = list.map(function (dd) {
+      if (dd.id === _ymEditId) {
+        var selO = dd.tab === 'Menards O' ? ' selected' : '', selH = dd.tab === 'Menards HO' ? ' selected' : '';
+        return '<div style="border-top:1px solid var(--border);padding:0.7rem 0;display:flex;gap:0.7rem;flex-wrap:wrap;align-items:flex-end">'
+          + '<label style="display:flex;flex-direction:column;gap:0.15rem;font-size:0.8rem;color:var(--text-dim)">Tab'
+            + '<select id="ym-ed-tab" style="background:var(--surface);border:1px solid var(--border);border-radius:7px;padding:0.35rem 0.5rem;color:var(--text);font-family:var(--font-body);font-size:0.95rem">'
+            + '<option value=""' + (dd.tab ? '' : ' selected') + '>\u2014 pick \u2014</option>'
+            + '<option value="Menards O"' + selO + '>Menards O</option>'
+            + '<option value="Menards HO"' + selH + '>Menards HO</option></select></label>'
+          + _inp('ym-ed-num', 'Number', dd.num, '7rem')
+          + _inp('ym-ed-type', 'Type', dd.type, '9rem')
+          + _inp('ym-ed-road', 'Road name', dd.road, '10rem')
+          + _inp('ym-ed-desc', 'Description', dd.desc, '22rem')
+          + _inp('ym-ed-years', 'Years', dd.years, '9rem')
+          + _inp('ym-ed-msrp', 'MSRP', dd.msrp, '5rem')
+          + '<div style="display:flex;gap:0.4rem">'
+            + '<button onclick="_ymEditSave(\'' + _esc(dd.id) + '\')" style="padding:0.35rem 0.9rem;border-radius:7px;border:none;background:var(--accent);color:var(--on-accent);font-family:var(--font-body);font-weight:700;cursor:pointer">Save</button>'
+            + '<button onclick="_ymEditCancel()" style="padding:0.35rem 0.9rem;border-radius:7px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-family:var(--font-body);cursor:pointer">Cancel</button>'
+          + '</div>'
+          + (dd.flag ? '<div style="width:100%;font-size:0.92rem;color:var(--accent)">\u26a0 ' + _esc(dd.flag) + '</div>' : '')
+        + '</div>';
+      }
       var gq = encodeURIComponent((maker + ' ' + dd.num + ' ' + dd.desc).trim());
       return '<div style="border-top:1px solid var(--border);padding:0.6rem 0;display:flex;gap:0.9rem;align-items:flex-start;flex-wrap:wrap">'
         + '<div style="min-width:88px;font-weight:700;color:var(--text);font-size:1.1rem">' + _esc(dd.num || '\u2014') + '</div>'
@@ -394,7 +585,9 @@
             + (dd.link ? '<a href="' + _esc(dd.link) + '" target="_blank" rel="noopener" style="padding:0.25rem 0.7rem;border-radius:7px;'
               + 'border:1px solid var(--border);background:var(--surface);color:var(--text-dim);text-decoration:none;font-size:0.9rem">Archive</a>' : '')
           + '</div>'
-          + '<div style="display:flex;gap:0.4rem">' + vbtn(dd, 'approved', 'Approve') + vbtn(dd, 'rejected', 'Reject') + vbtn(dd, 'deferred', 'Defer') + '</div>'
+          + '<div style="display:flex;gap:0.4rem">' + vbtn(dd, 'approved', 'Approve') + vbtn(dd, 'rejected', 'Reject') + vbtn(dd, 'deferred', 'Defer')
+            + '<button onclick="_ymEditOpen(\'' + _esc(dd.id) + '\')" title="Change the tab, number, description\u2026 then it counts as approved with your changes" style="padding:0.25rem 0.65rem;border-radius:7px;cursor:pointer;font-family:var(--font-body);font-size:0.9rem;font-weight:600;border:1.5px solid var(--accent2);background:var(--surface);color:var(--accent2)">' + (dd.status === 'edited' ? '\u2713 ' : '') + 'Edit</button>'
+          + '</div>'
         + '</div></div>';
     }).join('');
     if (!list.length) {
@@ -411,6 +604,9 @@
         + '<div style="font-size:1.02rem;color:var(--text-mid)">' + _esc(b.note) + ' \u2014 '
           + c.pending + ' to review \u00b7 ' + (c.approved + c.edited) + ' approved \u00b7 ' + c.rejected + ' rejected \u00b7 ' + c.deferred + ' deferred</div>'
         + '<div style="margin-left:auto;display:flex;gap:0.5rem">'
+          + ((b.status !== 'committed' && (c.approved + c.edited) > 0)
+              ? '<button onclick="_ymCommit()" style="padding:0.3rem 0.85rem;border-radius:8px;border:none;background:var(--accent);color:var(--on-accent);font-family:var(--font-body);font-weight:700;cursor:pointer;font-size:0.92rem">Commit ' + (c.approved + c.edited) + ' \u2192 master</button>'
+              : '')
           + '<button onclick="_ymApproveClean()" style="padding:0.3rem 0.85rem;border-radius:8px;border:1.5px solid var(--green);background:var(--surface);color:var(--green);font-family:var(--font-body);font-weight:700;cursor:pointer;font-size:0.92rem">Approve all clean</button>'
           + (_ymUndoStack && _ymUndoStack.length
               ? '<button onclick="_ymUndoLast()" style="padding:0.3rem 0.85rem;border-radius:8px;border:1.5px solid var(--border);background:var(--surface);color:var(--text);font-family:var(--font-body);font-weight:700;cursor:pointer;font-size:0.92rem">\u21a9 Undo last</button>'
