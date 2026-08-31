@@ -53,7 +53,8 @@
 
   // ── Vault reads: one batchGet, owner token ─────────────────────
   function _fetchVault() {
-    var ranges = ['submissions!A1:L1000', 'barcode_pairs!A1:I1000', 'chores!A1:D200', 'usage!A1:C400']
+    var ranges = ['submissions!A1:L1000', 'barcode_pairs!A1:I1000', 'chores!A1:D200', 'usage!A1:C400',
+                  'crawl_batches!A1:G50', 'crawl_deltas!A1:Q400']
       .map(function (r) { return 'ranges=' + encodeURIComponent(r); }).join('&');
     return fetch('https://sheets.googleapis.com/v4/spreadsheets/' + YM.VAULT_ID
         + '/values:batchGet?' + ranges,
@@ -64,7 +65,8 @@
       })
       .then(function (j) {
         var v = (j.valueRanges || []).map(function (x) { return x.values || []; });
-        return { submissions: v[0], barcodes: v[1], chores: v[2], usage: v[3] };
+        return { submissions: v[0], barcodes: v[1], chores: v[2], usage: v[3],
+                 crawlBatches: v[4], crawlDeltas: v[5] };
       });
   }
 
@@ -102,6 +104,40 @@
     out.usage = (d.usage || []).slice(1).slice(-7).map(function (r) {
       return { date: String(r[0] || '').slice(0, 10), opens: r[1] || 0, versions: String(r[2] || '') };
     });
+    // ── v0.9.1622: the review queue (Task #36's front door) ──────
+    // crawl_batches / crawl_deltas are seeded by crawl sessions; the
+    // Office is their review surface. Columns found BY HEADER NAME
+    // (the house rule) so a future column at the END breaks nothing.
+    out.batches = [];
+    out.deltas = [];
+    var _dcol = {};
+    if (d.crawlDeltas && d.crawlDeltas.length) {
+      d.crawlDeltas[0].forEach(function (h, i) { _dcol[String(h)] = i; });
+      var g = function (r, name) { var i = _dcol[name]; return i == null ? '' : String(r[i] == null ? '' : r[i]); };
+      out.deltas = d.crawlDeltas.slice(1).filter(function (r) { return g(r, 'delta_id'); }).map(function (r, i) {
+        return {
+          sheetRow: i + 2, batch: g(r, 'batch_id'), id: g(r, 'delta_id'), action: g(r, 'action'),
+          tab: g(r, 'proposed_tab'), num: g(r, 'item_num'), type: g(r, 'item_type'),
+          road: g(r, 'road_name'), desc: g(r, 'description'), gauge: g(r, 'gauge'),
+          variation: g(r, 'variation'), years: g(r, 'years'), link: g(r, 'ref_link'),
+          msrp: g(r, 'msrp'), flag: g(r, 'flag'), status: g(r, 'status') || 'pending'
+        };
+      });
+    }
+    var _bcol = {};
+    if (d.crawlBatches && d.crawlBatches.length) {
+      d.crawlBatches[0].forEach(function (h, i) { _bcol[String(h)] = i; });
+      var gb = function (r, name) { var i = _bcol[name]; return i == null ? '' : String(r[i] == null ? '' : r[i]); };
+      out.batches = d.crawlBatches.slice(1).filter(function (r) { return gb(r, 'batch_id'); }).map(function (r) {
+        var id = gb(r, 'batch_id');
+        var counts = { pending: 0, approved: 0, edited: 0, rejected: 0, deferred: 0 };
+        out.deltas.forEach(function (dd) {
+          if (dd.batch === id) counts[counts[dd.status] == null ? 'pending' : dd.status]++;
+        });
+        return { id: id, source: gb(r, 'source'), created: gb(r, 'created'), label: gb(r, 'label'),
+                 status: gb(r, 'status'), total: gb(r, 'total'), note: gb(r, 'note'), counts: counts };
+      });
+    }
     return out;
   }
 
@@ -172,7 +208,26 @@
       + '<div><span style="font-size:1.9rem;font-weight:700;color:' + (d.pairs ? 'var(--accent)' : 'var(--text-dim)') + '">' + d.pairs + '</span> barcode pairings awaiting promotion</div>'
       + '</div>'
       + '<div style="margin-top:0.6rem;font-size:1.05rem"><a href="' + YM.VAULT_URL + '" target="_blank" rel="noopener" style="color:var(--accent2)">Review them in the Vault →</a>'
-      + ' <span style="color:var(--text-dim)">(the approve/reject cockpit is future work — Task #36)</span></div>');
+      + ' <span style="color:var(--text-dim)">(submission/barcode verdicts join the queue below in a coming release)</span></div>');
+
+    // 1b — CATALOG REVIEW QUEUE (v0.9.1622, Task #36's front door)
+    var open = d.batches.filter(function (b) { return b.status !== 'committed' && b.status !== 'dismissed'; });
+    var brows = open.map(function (b) {
+      var c = b.counts, done = c.approved + c.edited + c.rejected;
+      return '<div style="display:flex;align-items:center;gap:0.9rem;flex-wrap:wrap;padding:0.5rem 0;border-top:1px solid var(--border)">'
+        + '<div style="flex:1;min-width:220px"><div style="font-weight:700;color:var(--text);font-size:1.15rem">' + _esc(b.label) + '</div>'
+        + '<div style="font-size:0.98rem;color:var(--text-dim)">' + _esc(b.created) + ' · ' + _esc(b.note) + '</div></div>'
+        + '<div style="font-size:1.05rem;color:var(--text-mid);white-space:nowrap">'
+        + '<span style="font-weight:700;color:' + (c.pending ? 'var(--accent)' : 'var(--text-dim)') + '">' + c.pending + '</span> pending'
+        + (done ? ' · ' + done + ' decided' : '') + (c.deferred ? ' · ' + c.deferred + ' deferred' : '') + '</div>'
+        + '<button onclick="_ymBatchOpen(\'' + _esc(b.id) + '\')" style="padding:0.35rem 0.95rem;border-radius:8px;border:1px solid var(--accent2);'
+        + 'background:var(--surface2);color:var(--accent2);font-family:var(--font-body);font-weight:700;cursor:pointer">Review →</button>'
+        + '</div>';
+    }).join('');
+    html += _card('Catalog review queue' + (open.length ? '' : ' — empty'),
+      open.length
+        ? brows + '<div style="margin-top:0.5rem;font-size:0.95rem;color:var(--text-dim)">Read-only for now — approve/reject verdicts arrive in the next release.</div>'
+        : '<div style="color:var(--text-dim)">No crawl batches waiting. New sweeps land here automatically.</div>');
 
     // 2 — CHORES
     var due = d.chores.filter(function (c) { return c.due; });
@@ -209,6 +264,58 @@
         : '<div style="color:var(--text-dim)">No heartbeats counted yet — they start arriving as devices update to this release.</div>');
 
     page.innerHTML = html;
+  };
+
+  // ── v0.9.1622: the batch review view (read-only first hop) ─────
+  var _ymBatchId = '';
+  var _ymFilter = 'all';
+  window._ymBatchBack = function () { _ymBatchId = ''; window.ymBuildPage(false); };
+  window._ymBatchFilter = function (f) { _ymFilter = f; window._ymBatchOpen(_ymBatchId); };
+  window._ymBatchOpen = function (id) {
+    var page = document.getElementById('page-yardmaster');
+    if (!page || !_isOwner() || !_ymData) return;
+    _ymBatchId = id;
+    var b = null;
+    _ymData.batches.forEach(function (x) { if (x.id === id) b = x; });
+    if (!b) { window.ymBuildPage(false); return; }
+    var all = _ymData.deltas.filter(function (dd) { return dd.batch === id; });
+    var flagged = all.filter(function (dd) { return dd.flag; });
+    var list = _ymFilter === 'flagged' ? flagged
+             : _ymFilter === 'clean' ? all.filter(function (dd) { return !dd.flag; })
+             : all;
+    var chip = function (f, label) {
+      var on = _ymFilter === f;
+      return '<button onclick="_ymBatchFilter(\'' + f + '\')" style="padding:0.25rem 0.8rem;border-radius:999px;border:1px solid '
+        + (on ? 'var(--accent)' : 'var(--border)') + ';background:' + (on ? 'var(--accent)' : 'var(--surface2)')
+        + ';color:' + (on ? 'var(--on-accent)' : 'var(--text)') + ';font-family:var(--font-body);cursor:pointer;font-size:0.95rem">' + label + '</button>';
+    };
+    var rows = list.map(function (dd) {
+      return '<div style="border-top:1px solid var(--border);padding:0.55rem 0;display:flex;gap:0.9rem;align-items:flex-start;flex-wrap:wrap">'
+        + '<div style="min-width:88px;font-weight:700;color:var(--text);font-size:1.1rem">' + _esc(dd.num || '—') + '</div>'
+        + '<div style="flex:1;min-width:240px">'
+          + '<div style="color:var(--text);font-size:1.05rem">' + _esc(dd.desc) + '</div>'
+          + '<div style="font-size:0.95rem;color:var(--text-dim)">'
+            + _esc(dd.tab || 'no tab yet') + (dd.type ? ' · ' + _esc(dd.type) : '') + (dd.years ? ' · ' + _esc(dd.years) : '')
+            + (dd.msrp ? ' · $' + _esc(dd.msrp) : '') + '</div>'
+          + (dd.flag ? '<div style="font-size:0.95rem;color:var(--accent);margin-top:0.15rem">⚠ ' + _esc(dd.flag) + '</div>' : '')
+        + '</div>'
+        + '<div style="white-space:nowrap;display:flex;gap:0.5rem;align-items:center">'
+          + '<span style="font-size:0.9rem;color:var(--text-dim)">' + _esc(dd.status) + '</span>'
+          + (dd.link ? '<a href="' + _esc(dd.link) + '" target="_blank" rel="noopener" style="padding:0.25rem 0.7rem;border-radius:7px;'
+              + 'border:1px solid var(--border);background:var(--surface2);color:var(--accent2);text-decoration:none;font-size:0.95rem">Research</a>' : '')
+        + '</div></div>';
+    }).join('');
+    page.innerHTML =
+      '<div style="display:flex;align-items:center;gap:0.8rem;flex-wrap:wrap">'
+      + '<button onclick="_ymBatchBack()" style="padding:0.35rem 0.9rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);cursor:pointer">← Office</button>'
+      + '<div class="page-title" style="margin:0;font-size:1.6rem">' + _esc(b.label) + '</div></div>'
+      + '<div style="font-size:1.05rem;color:var(--text-dim);margin:0.3rem 0 0.6rem">' + _esc(b.note)
+      + ' — read-only preview; verdict buttons arrive in the next release.</div>'
+      + '<div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:0.4rem">'
+      + chip('all', 'All (' + all.length + ')') + chip('flagged', '⚠ Flagged (' + flagged.length + ')')
+      + chip('clean', 'Clean (' + (all.length - flagged.length) + ')') + '</div>'
+      + '<div>' + rows + '</div>';
+    try { var mc = document.getElementById('main-content'); if (mc) mc.scrollTop = 0; } catch (e) {}
   };
 
   // ── Injection (owner only) ─────────────────────────────────────

@@ -22598,6 +22598,63 @@ META_WRITES.length = 0; TOASTS.length = 0;
          /_rrBusyNow/.test(am25) && /refresh when you finish/.test(am25), '');
     })();
 
+    // ═══════════════════════════════════════════════════════════
+    // 326. A SAVED STAMP IS TRUE EVERYWHERE AT ONCE (v0.9.1623).
+    // Brad's 238: he sorted engine+tender photos into their card slots,
+    // hit Add — and the wizard dealt them in SHOOTING ORDER (his folder:
+    // Top/Left Side/Front/Right Side/Back). MEASURED CAUSE: _pinMetaSet
+    // wrote Drive and the card's own _meta cache, but never the local
+    // file.appProperties — and the wizard handoff reads _pinMetaOf(f),
+    // which is built from appProperties. Every stamp set since the last
+    // listing was invisible to the handoff. The fix is one chokepoint:
+    // a successful write merges the same props into the local file, so
+    // every reader sees what Drive just accepted. Plus: the dashboard
+    // repaints when background filing completes (his missing Recent-
+    // Additions thumbnail), and a swap that sends a photo back to the
+    // rail SAYS so (his "the second one disappeared").
+    // ═══════════════════════════════════════════════════════════
+    section('326. A saved stamp is true everywhere at once');
+    await (async function () {
+      const pi26 = fs.readFileSync(require('path').join(__dirname, '..', 'app', 'photo-inbox.js'), 'utf8');
+      ok('326 the REAL _pinMetaSet lands the truth locally after Drive accepts',
+         /_pinMetaMergeLocal\(fileId, props\)/.test(pi26)
+         && pi26.indexOf('_pinMetaMergeLocal(fileId, props)') > pi26.indexOf("driveRequest('PATCH', '/files/' + fileId"), '');
+      // functional: the merge updates appProperties AND the parsed _meta
+      const fX = { id: 'fX', appProperties: { rrView: 'TV', rrRole: 'engine' } };
+      fX._meta = { view: 'TV', role: 'engine' };
+      T.groups = [{ key: 'gM', files: [fX] }];
+      window._pinMetaMergeLocal('fX', { rrV: '3', rrView: 'RSV', rrRole: null });
+      ok('326 THE 238 CASE: after a stamp write, _pinMetaOf sees the NEW view',
+         fX.appProperties.rrView === 'RSV' && window._pinMetaOf(fX).view === 'RSV', JSON.stringify(fX.appProperties));
+      ok('326 …and a cleared key is truly gone locally (null deletes, like Drive)',
+         !('rrRole' in fX.appProperties) && fX._meta && fX._meta.view === 'RSV', '');
+      ok('326 the wizard handoff still reads _pinMetaOf — one truth, no second path',
+         /var _v = _pinMetaOf\(f\)\.view/.test(pi26) && /var _r = _pinMetaOf\(f\)\.role/.test(pi26), '');
+      // fix B: filing completion repaints the dashboard it was called from
+      ok('326 background filing repaints the dashboard — only when something FILED',
+         /_filedAny/.test(pi26) && /buildDashboard\(\)/.test(pi26.slice(pi26.indexOf('async function _flushPending'))), '');
+      // fix C: the displacing swap speaks
+      META_WRITES.length = 0; TOASTS.length = 0;
+      T.rvGroups = [{ key: 'gS', files: [
+        { id: 'fH', _meta: { view: 'RSV' }, appProperties: { rrView: 'RSV' } },
+        { id: 'fN', _meta: {}, appProperties: {} },
+      ] }];
+      const _rr26 = window._pinReview; window._pinReview = function () {};
+      navigator.onLine = true;
+      await window._pinRvAssignView('fN', 'RSV');   // unplaced photo claims an occupied slot
+      ok('326 BRAD\'S \u201cDISAPPEARED\u201d: the displaced photo\u2019s return to the rail is SAID',
+         TOASTS.some(t => /back (on|to) the (photo )?rail/i.test(String((t && t.m) || t))), JSON.stringify(TOASTS));
+      TOASTS.length = 0;
+      T.rvGroups = [{ key: 'gS2', files: [
+        { id: 'fA', _meta: { view: 'TV' }, appProperties: { rrView: 'TV' } },
+        { id: 'fB', _meta: { view: 'RSV' }, appProperties: { rrView: 'RSV' } },
+      ] }];
+      await window._pinRvAssignView('fA', 'RSV');   // clean swap — both keep slots
+      ok('326 …but a clean swap stays quiet (both photos still hold slots)',
+         !TOASTS.some(t => /rail/i.test(String(t))), JSON.stringify(TOASTS));
+      window._pinReview = _rr26;
+    })();
+
   })().then(function () {
     console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
     process.exit(fail ? 1 : 0);

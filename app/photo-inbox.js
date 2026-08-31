@@ -1553,11 +1553,35 @@
     });
     try {
       await driveRequest('PATCH', '/files/' + fileId + '?fields=id', { appProperties: props });
+      // v0.9.1623 (Brad's 238): Drive took the write, but every in-memory
+      // reader kept the OLD appProperties — above all the wizard handoff,
+      // which reads _pinMetaOf(f) and so dealt his carefully slotted
+      // engine+tender photos in shooting order (his folder: Top/Left Side/
+      // Front/Right Side/Back). One chokepoint fixes every reader at once:
+      // merge the same props into the local file object and refresh its
+      // parsed _meta, so what Drive just accepted is true everywhere.
+      try { _pinMetaMergeLocal(fileId, props); } catch (eM) {}
       return true;
     } catch (e) {
       console.warn('[inbox] could not save photo details', fileId, e && e.message);
       return false;
     }
+  }
+
+  // The local half of a stamp write. null deletes a key, exactly as Drive
+  // does — the two copies cannot drift. Exposed for the test harness.
+  function _pinMetaMergeLocal(fileId, props) {
+    (_groups || []).forEach(function (g) {
+      (g.files || []).forEach(function (f) {
+        if (!f || f.id !== fileId) return;
+        f.appProperties = f.appProperties || {};
+        Object.keys(props || {}).forEach(function (k) {
+          if (props[k] === null || props[k] === undefined) delete f.appProperties[k];
+          else f.appProperties[k] = props[k];
+        });
+        f._meta = _pinMetaOf(f);
+      });
+    });
   }
 
   // Same patch across several photos, four at a time so a batch of a hundred
@@ -1578,6 +1602,7 @@
   if (typeof window !== 'undefined') {
     window._pinMetaOf = _pinMetaOf;
     window._pinMetaSet = _pinMetaSet;
+    window._pinMetaMergeLocal = _pinMetaMergeLocal;
     window._pinMetaSetMany = _pinMetaSetMany;
   }
 
@@ -4252,6 +4277,13 @@
     // reflect in the cached meta so the card repaints truthfully at once
     if (picked) { picked._meta = picked._meta || {}; picked._meta.view = _tog ? '' : viewKey; if (roleKey) picked._meta.role = _tog ? 'together' : roleKey; }
     if (picked && holder) { holder._meta = holder._meta || {}; holder._meta.view = _tog ? (oldView || '') : (oldView || ''); if (roleKey) holder._meta.role = oldRole || (_tog ? '' : roleKey); }
+    // v0.9.1623 (Brad: "the second one disappeared"): dropping an unplaced
+    // photo on an occupied slot swaps — and the displaced photo, inheriting
+    // no view, returns to the rail. Correct, but it read as a vanishing.
+    // Say it the one time it surprises; a clean swap stays quiet.
+    if (picked && holder && !_tog && !oldView) {
+      try { showToast('Swapped — the photo that held that slot went back to the photo rail', 3800); } catch (eT) {}
+    }
     if (!picked && holder) { holder._meta = holder._meta || {}; if (_tog) holder._meta.role = ''; else holder._meta.view = ''; }
     var pk = document.getElementById('pin-rv-slotpick'); if (pk) pk.remove();
     try { window._pinReview(_rvKey || '', _rvGroups); } catch (e) {}
@@ -7077,6 +7109,14 @@
     try { pend = JSON.parse(localStorage.getItem(PENDING_KEY) || '{}'); } catch (e) { pend = {}; }
     var nums = Object.keys(pend);
     if (!nums.length || !window.state || !state.personalData) return;
+    // v0.9.1623 (Brad's missing Recent-Additions thumbnail): the dashboard
+    // paints BEFORE this background filing finishes, then never hears the
+    // link landed — the row's thumb and the inbox card stayed stale until
+    // the next visit. Track whether anything actually FILED this pass, and
+    // repaint the dashboard once at the end (only on success: a retried
+    // failure keeps the old quiet behavior, so no rebuild loop is possible
+    // — a filed note is retired and cannot file twice).
+    var _filedAny = false;
     for (var ni = 0; ni < nums.length; ni++) {
       var num = nums[ni];
       if (_flushingNums[num]) continue;
@@ -7252,7 +7292,14 @@
           } catch (eD) {}
         }
         try { _pinRefresh(); } catch (eR) {}
+        if (_linkDone) _filedAny = true;
       } finally { delete _flushingNums[num]; }
+    }
+    if (_filedAny) {
+      try {
+        var _dp = document.getElementById('page-dashboard');
+        if (_dp && _dp.classList.contains('active') && typeof buildDashboard === 'function') buildDashboard();
+      } catch (eDB) {}
     }
   }
 

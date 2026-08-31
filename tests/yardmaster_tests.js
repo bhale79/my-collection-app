@@ -69,6 +69,30 @@ const sw = src('sw.js');
 ok('sw.js precaches yardmaster.js (the S85 offline-app lesson)',
    /'\.\/yardmaster\.js'/.test(sw));
 
+// ── v0.9.1622: THE REVIEW QUEUE, READ-ONLY FIRST HOP (Session 88) ──
+// Task #36's front door opens: crawl batches land in Vault tabs
+// (crawl_batches / crawl_deltas, seeded S88 with the 182 retired
+// Menards) and the Office shows them — batch card with progress
+// counts, a review list with flags and Wayback research links.
+// Verdict buttons are the NEXT release; commit the one after.
+const ym22 = src('yardmaster.js');
+ok('1622 the Vault read now includes the crawl queue tabs',
+   /crawl_batches!A1:G50/.test(ym22) && /crawl_deltas!A1:Q400/.test(ym22));
+ok('1622 the queue card exists and counts what is waiting',
+   /Catalog review queue/.test(ym22) && /pending/.test(ym22));
+ok('1622 a batch opens into a review list with a back door',
+   /_ymBatchOpen/.test(ym22) && /_ymBatchBack/.test(ym22));
+ok('1622 flagged candidates SAY why (the sweep\u2019s 46 warnings survive)',
+   /flag/.test(ym22) && /_ymBatchFilter/.test(ym22));
+ok('1622 every candidate carries its Research link (the Wayback snapshot)',
+   /Research/.test(ym22) && /rel="noopener"/.test(ym22));
+ok('1622 read-only is SAID, not implied — verdicts are the next release',
+   /read-only/i.test(ym22));
+ok('1622 delta columns are found BY HEADER NAME, never fixed index',
+   /_colIdx\(d\.crawlDeltas/.test(ym22) || /_dcol/.test(ym22));
+ok('1622 still zero hardcoded hex in yardmaster.js',
+   !/#[0-9a-fA-F]{3,6}\b/.test(ym22.replace(/&#39;/g, '')));
+
 console.log('\n' + pass + ' passed, ' + fail + ' failed');
 if (fail) { console.log('YARDMASTER TESTS FAILING'); process.exit(1); }
 console.log('ALL YARDMASTER TESTS GREEN (' + pass + ')');
