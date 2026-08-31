@@ -4011,9 +4011,62 @@
     return out;
   }
   function _pinRvViewOf(f) { return (f && f._meta && f._meta.view) || ''; }
+  // v0.9.1618 (Brad's engine+tender): a PAIR group gets one slot row PER
+  // PIECE — the roles set at grouping time (engine / tender / A-unit …) ARE
+  // the folders he described, so the bar sections by them, plus a single
+  // "together" slot for the shot of both. Assigning across rows moves the
+  // photo to that piece (role and view travel together — the same two
+  // stamps the wizard has dealt by since v1440). Train SETS keep the flat
+  // bar: their roles are car types, and members split by number at add
+  // time — per-type slot rows would be noise, not order.
+  function _pinRvRoleSections() {
+    if (!_rvGroups || _rvGroups.length !== 1) return null;
+    var g = _rvGroups[0];
+    var kindId = g.kind || (g.files[0] && g.files[0]._meta && g.files[0]._meta.kind) || 'single';
+    if (kindId === 'single' || kindId === 'paper' || kindId === 'set') return null;
+    var k = _pinKind(kindId);
+    if (!k.roles || !k.roles.length) return null;
+    return k.roles;   // [['engine','Engine'],['tender','Tender'],['together','Both together']]
+  }
+  function _pinRvRoleOf(f) { return (f && f._meta && f._meta.role) || ''; }
+  function _pinRvSlotCell(sl, f, roleKey) {
+    var dropJs = 'event.preventDefault();event.stopPropagation();this.style.outline=\'\';var f=event.dataTransfer.getData(\'text/plain\');if(f)_pinRvAssignView(f,\'' + sl.key + '\'' + (roleKey ? ',\'' + roleKey + '\'' : '') + ')';
+    return '<div onclick="_pinRvSlotTap(\'' + sl.key + '\'' + (roleKey ? ',\'' + roleKey + '\'' : '') + ')"' +
+      ' ondragover="event.preventDefault();this.style.outline=\'2px solid var(--accent)\'"' +
+      ' ondragleave="this.style.outline=\'\'"' +
+      ' ondrop="' + dropJs + '"' +
+      ' title="Tap to choose which photo is the ' + sl.label + ' — or drag a photo here" style="flex:0 0 auto;width:56px;cursor:pointer;text-align:center">' +
+      (f
+        ? '<div style="width:56px;height:48px;border-radius:8px;overflow:hidden;border:1.5px solid var(--accent2);background:var(--surface2)"><img data-rvv="' + f.id + '" style="width:100%;height:100%;object-fit:cover;display:block" alt=""></div>'
+        : '<div style="width:56px;height:48px;border-radius:8px;border:1.5px dashed var(--border);background:var(--surface2);display:flex;align-items:center;justify-content:center;color:var(--text-dim);font-size:1rem">+</div>') +
+      '<div style="font-size:0.55rem;font-weight:700;color:' + (f ? 'var(--text)' : 'var(--text-dim)') + ';letter-spacing:0.02em;margin-top:2px;white-space:nowrap">' + sl.label + '</div>' +
+    '</div>';
+  }
   function _pinRvViewsBarHtml() {
     var files = _pinRvFiles();
     if (files.length < 2) return '';   // one photo has nothing to sort
+    var sections = _pinRvRoleSections();
+    if (sections) {
+      // one row per piece + the together slot
+      var html = '<div id="pin-rv-views" style="margin-bottom:0.7rem">';
+      sections.forEach(function (ro) {
+        var rKey = ro[0], rLabel = ro[1];
+        if (rKey === 'together') return;   // rendered once, after the pieces
+        var byV = {};
+        files.forEach(function (f) { if (_pinRvRoleOf(f) === rKey) { var v = _pinRvViewOf(f); if (v && !byV[v]) byV[v] = f; } });
+        html += '<div style="font-size:0.62rem;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--text-mid);margin:0.35rem 0 0.15rem">' + rrEsc(rLabel) + '</div>' +
+          '<div style="display:flex;gap:0.35rem;overflow-x:auto;-webkit-overflow-scrolling:touch;padding:0.1rem 0">' +
+          _RV_SLOTS.map(function (sl) { return _pinRvSlotCell(sl, byV[sl.key], rKey); }).join('') +
+          '</div>';
+      });
+      var tog = null;
+      files.forEach(function (f) { if (!tog && _pinRvRoleOf(f) === 'together') tog = f; });
+      html += '<div style="font-size:0.62rem;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--text-mid);margin:0.35rem 0 0.15rem">Both together</div>' +
+        '<div style="display:flex;gap:0.35rem;padding:0.1rem 0">' +
+        _pinRvSlotCell({ key: '', label: 'Set shot' }, tog, 'together') +
+        '</div></div>';
+      return html;
+    }
     var byView = {};
     files.forEach(function (f) { var v = _pinRvViewOf(f); if (v && !byView[v]) byView[v] = f; });
     return '<div id="pin-rv-views" style="display:flex;gap:0.35rem;overflow-x:auto;-webkit-overflow-scrolling:touch;margin-bottom:0.7rem;padding:0.15rem 0">' +
@@ -4022,26 +4075,22 @@
         // v0.9.1617 (Brad: "need to add the drag option here as well"): a
         // rail thumb can be DROPPED straight onto a slot — the rail's own
         // reorder drag already carries the fid as text/plain.
-        return '<div onclick="_pinRvSlotTap(\'' + sl.key + '\')"' +
-          ' ondragover="event.preventDefault();this.style.outline=\'2px solid var(--accent)\'"' +
-          ' ondragleave="this.style.outline=\'\'"' +
-          ' ondrop="event.preventDefault();event.stopPropagation();this.style.outline=\'\';var f=event.dataTransfer.getData(\'text/plain\');if(f)_pinRvAssignView(f,\'' + sl.key + '\')"' +
-          ' title="Tap to choose which photo is the ' + sl.label + ' — or drag a photo here" style="flex:0 0 auto;width:56px;cursor:pointer;text-align:center">' +
-          (f
-            ? '<div style="width:56px;height:48px;border-radius:8px;overflow:hidden;border:1.5px solid var(--accent2);background:var(--surface2)"><img data-rvv="' + f.id + '" style="width:100%;height:100%;object-fit:cover;display:block" alt=""></div>'
-            : '<div style="width:56px;height:48px;border-radius:8px;border:1.5px dashed var(--border);background:var(--surface2);display:flex;align-items:center;justify-content:center;color:var(--text-dim);font-size:1rem">+</div>') +
-          '<div style="font-size:0.55rem;font-weight:700;color:' + (f ? 'var(--text)' : 'var(--text-dim)') + ';letter-spacing:0.02em;margin-top:2px;white-space:nowrap">' + sl.label + '</div>' +
-        '</div>';
+        return _pinRvSlotCell(sl, f, '');
       }).join('') +
     '</div>';
   }
-  window._pinRvSlotTap = function (viewKey) {
+  window._pinRvSlotTap = function (viewKey, roleKey) {
     var files = _pinRvFiles();
     if (!files.length) return;
     var sl = null;
     for (var i = 0; i < _RV_SLOTS.length; i++) if (_RV_SLOTS[i].key === viewKey) sl = _RV_SLOTS[i];
     var holder = null;
-    files.forEach(function (f) { if (_pinRvViewOf(f) === viewKey) holder = f; });
+    files.forEach(function (f) {
+      // v0.9.1618: in a sectioned bar a slot is held per PIECE — the
+      // together slot is held by role alone (it carries no view).
+      if (roleKey === 'together') { if (_pinRvRoleOf(f) === 'together') holder = f; return; }
+      if (_pinRvViewOf(f) === viewKey && (!roleKey || _pinRvRoleOf(f) === roleKey)) holder = f;
+    });
     var old = document.getElementById('pin-rv-slotpick'); if (old) old.remove();
     var ov = document.createElement('div');
     ov.id = 'pin-rv-slotpick';
@@ -4057,14 +4106,14 @@
             var v = _pinRvViewOf(f);
             var vLbl = '';
             for (var j = 0; j < _RV_SLOTS.length; j++) if (_RV_SLOTS[j].key === v) vLbl = _RV_SLOTS[j].label;
-            return '<div onclick="_pinRvAssignView(\'' + f.id + '\',\'' + viewKey + '\')" style="cursor:pointer;position:relative;aspect-ratio:1;border-radius:8px;overflow:hidden;border:2px solid ' + (v === viewKey ? 'var(--accent)' : 'var(--border)') + ';background:var(--surface2)">' +
+            return '<div onclick="_pinRvAssignView(\'' + f.id + '\',\'' + viewKey + '\'' + (roleKey ? ',\'' + roleKey + '\'' : '') + ')" style="cursor:pointer;position:relative;aspect-ratio:1;border-radius:8px;overflow:hidden;border:2px solid ' + (v === viewKey ? 'var(--accent)' : 'var(--border)') + ';background:var(--surface2)">' +
               '<img data-rvv="' + f.id + '" style="width:100%;height:100%;object-fit:cover;display:block" alt="">' +
               (vLbl ? '<div style="position:absolute;left:0;right:0;bottom:0;background:rgba(0,0,0,0.62);color:#fff;font-size:0.55rem;font-weight:700;text-align:center;padding:1px 2px">' + vLbl + '</div>' : '') +
             '</div>';
           }).join('') +
         '</div>' +
         (holder
-          ? '<button onclick="_pinRvAssignView(\'\',\'' + viewKey + '\')" style="margin-top:0.7rem;width:100%;padding:0.6rem;border-radius:9px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-weight:600;font-size:0.85rem;cursor:pointer">Clear this slot</button>'
+          ? '<button onclick="_pinRvAssignView(\'\',\'' + viewKey + '\'' + (roleKey ? ',\'' + roleKey + '\'' : '') + ')" style="margin-top:0.7rem;width:100%;padding:0.6rem;border-radius:9px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-weight:600;font-size:0.85rem;cursor:pointer">Clear this slot</button>'
           : '') +
       '</div>';
     document.body.appendChild(ov);
@@ -4074,20 +4123,37 @@
       });
     } catch (eT) {}
   };
-  window._pinRvAssignView = async function (fid, viewKey) {
+  window._pinRvAssignView = async function (fid, viewKey, roleKey) {
     var files = _pinRvFiles();
     var picked = null, holder = null;
     files.forEach(function (f) {
       if (f.id === fid) picked = f;
-      if (_pinRvViewOf(f) === viewKey && f.id !== fid) holder = f;
+      if (f.id === fid) return;
+      // v0.9.1618: sectioned bars hold slots per piece; the together slot
+      // is held by role alone.
+      if (roleKey === 'together') { if (_pinRvRoleOf(f) === 'together') holder = f; return; }
+      if (_pinRvViewOf(f) === viewKey && (!roleKey || _pinRvRoleOf(f) === roleKey)) holder = f;
     });
     var oldView = picked ? _pinRvViewOf(picked) : '';
+    var oldRole = picked ? _pinRvRoleOf(picked) : '';
+    var _tog = roleKey === 'together';
     var ok1 = true, ok2 = true;
     try {
-      if (picked) ok1 = await _pinMetaSet(picked.id, { view: viewKey });
-      else if (holder) ok1 = await _pinMetaSet(holder.id, { view: '' });        // Clear this slot
-      // Brad's swap rule: the displaced photo takes the mover's old slot.
-      if (picked && holder) ok2 = await _pinMetaSet(holder.id, { view: oldView || '' });
+      if (picked) {
+        // role and view travel together — crossing rows re-files the photo.
+        var patch = _tog ? { view: '', role: 'together' } : { view: viewKey };
+        if (roleKey && !_tog) patch.role = roleKey;
+        ok1 = await _pinMetaSet(picked.id, patch);
+      } else if (holder) {
+        ok1 = await _pinMetaSet(holder.id, _tog ? { role: oldRole && oldRole !== 'together' ? oldRole : '' } : { view: '' });   // Clear this slot
+      }
+      // Brad's swap rule: the displaced photo takes the mover's old place —
+      // BOTH stamps, so a cross-piece swap is a true trade.
+      if (picked && holder) {
+        var back = _tog ? { view: oldView || '', role: oldRole || '' } : { view: oldView || '' };
+        if (roleKey && !_tog) back.role = oldRole || roleKey;
+        ok2 = await _pinMetaSet(holder.id, back);
+      }
     } catch (e) { ok1 = false; }
     if (!ok1 || !ok2) {
       showToast(_pinOffline()
@@ -4096,9 +4162,9 @@
       return;
     }
     // reflect in the cached meta so the card repaints truthfully at once
-    if (picked) { picked._meta = picked._meta || {}; picked._meta.view = viewKey; }
-    if (picked && holder) { holder._meta = holder._meta || {}; holder._meta.view = oldView || ''; }
-    if (!picked && holder) { holder._meta = holder._meta || {}; holder._meta.view = ''; }
+    if (picked) { picked._meta = picked._meta || {}; picked._meta.view = _tog ? '' : viewKey; if (roleKey) picked._meta.role = _tog ? 'together' : roleKey; }
+    if (picked && holder) { holder._meta = holder._meta || {}; holder._meta.view = _tog ? (oldView || '') : (oldView || ''); if (roleKey) holder._meta.role = oldRole || (_tog ? '' : roleKey); }
+    if (!picked && holder) { holder._meta = holder._meta || {}; if (_tog) holder._meta.role = ''; else holder._meta.view = ''; }
     var pk = document.getElementById('pin-rv-slotpick'); if (pk) pk.remove();
     try { window._pinReview(_rvKey || '', _rvGroups); } catch (e) {}
   };

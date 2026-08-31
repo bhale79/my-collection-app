@@ -22396,8 +22396,12 @@ META_WRITES.length = 0; TOASTS.length = 0;
          && (pi20.match(/_railThumbs\.slice\(0, 12\)\.map\(/g) || []).length === 3, '');
       ok('320/1617 …but the card never loses its anchor when all are sorted',
          /if \(!_railThumbs\.length\) _railThumbs = thumbs\.slice\(0, 1\);/.test(pi20), '');
+      // v0.9.1618 RE-PIN: the drop handler moved into the shared slot cell
+      // (dropJs, built once for flat AND sectioned bars) — same behaviour,
+      // new spelling.
       ok('320/1617 a rail thumb can be DROPPED straight onto a slot',
-         /ondrop="event\.preventDefault\(\);event\.stopPropagation\(\);[^"]*_pinRvAssignView\(f,/.test(pi20)
+         /var dropJs = 'event\.preventDefault\(\);event\.stopPropagation\(\);/.test(pi20)
+         && /_pinRvAssignView\(f,/.test(pi20)
          && /ondragover="event\.preventDefault\(\)/.test(pi20), '');
     })();
 
@@ -22431,6 +22435,50 @@ META_WRITES.length = 0; TOASTS.length = 0;
          && fn(['', 'Lionel', 'Boxcar', 'a red one', '7']) === false
          && fn(['6464-275', 'Manufacturer']) === false, '');
       ok('321 …and a blank row is not a header', fn([]) === false && fn(['']) === false, '');
+    })();
+
+    // ═══════════════════════════════════════════════════════════
+    // 322. PER-PIECE SLOT ROWS (v0.9.1618). Brad's engine + tender: "the
+    // first pic is the engine, the next two are the tender, and the 4th is
+    // the engine + tender." The roles set at grouping ARE his folders — a
+    // pair group's bar sections one row per piece plus a Both-together
+    // slot, and assigning across rows re-files the photo (role and view
+    // travel together, the two stamps the wizard has dealt by since
+    // v1440). Sets and singles keep the flat bar.
+    // ═══════════════════════════════════════════════════════════
+    section('322. A pair group sorts per piece; crossing rows re-files the photo');
+    await (async function () {
+      const pi22 = fs.readFileSync(require('path').join(__dirname, '..', 'app', 'photo-inbox.js'), 'utf8');
+      ok('322 pair kinds section; single, paper and SET stay flat',
+         /kindId === 'single' \|\| kindId === 'paper' \|\| kindId === 'set'\) return null;/.test(pi22), '');
+      ok('322 …with a Both-together slot rendered once after the pieces',
+         /Both together<\/div>/.test(pi22) && /Set shot/.test(pi22), '');
+      ok('322 one shared slot cell serves flat AND sectioned bars (no drift)',
+         /function _pinRvSlotCell/.test(pi22) && (pi22.match(/_pinRvSlotCell\(sl,/g) || []).length >= 2, '');
+
+      // functional: cross-piece assignment trades BOTH stamps
+      META_WRITES.length = 0;
+      T.rvGroups = [{ key: 'gP', kind: 'tender', files: [
+        { id: 'fE', _meta: { role: 'engine', view: 'RSV' } },
+        { id: 'fT', _meta: { role: 'tender', view: 'RSV' } },
+      ] }];
+      const _rr = window._pinReview; window._pinReview = function () {};
+      navigator.onLine = true;
+      await window._pinRvAssignView('fE', 'RSV', 'tender');   // engine's photo dropped on the TENDER's Right Side
+      ok('322 BRAD\'S GESTURE: crossing rows re-roles the photo AND sets its view',
+         META_WRITES.some(w => w.fileId === 'fE' && w.patch.view === 'RSV' && w.patch.role === 'tender'),
+         JSON.stringify(META_WRITES));
+      ok('322 …and the displaced photo takes the mover\'s old place — a TRUE trade',
+         META_WRITES.some(w => w.fileId === 'fT' && w.patch.view === 'RSV' && w.patch.role === 'engine'),
+         JSON.stringify(META_WRITES));
+      META_WRITES.length = 0;
+      await window._pinRvAssignView('fE', '', 'together');    // the 4th-photo case
+      ok('322 the together slot stamps role together and clears the view',
+         META_WRITES.some(w => w.fileId === 'fE' && w.patch.role === 'together' && w.patch.view === ''),
+         JSON.stringify(META_WRITES));
+      window._pinReview = _rr;
+      ok('322 the flat bar still assigns with NO role stamp (nothing to re-file)',
+         /var patch = _tog \? \{ view: '', role: 'together' \} : \{ view: viewKey \};\s*\n\s*if \(roleKey && !_tog\) patch\.role = roleKey;/.test(pi22), '');
     })();
 
   })().then(function () {
