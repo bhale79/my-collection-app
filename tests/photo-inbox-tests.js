@@ -22681,6 +22681,38 @@ META_WRITES.length = 0; TOASTS.length = 0;
          /mimeType='application\/vnd\.google-apps\.folder'/.test(rp) && /driveFolderLink/.test(rp), '');
     })();
 
+    // ═══════════════════════════════════════════════════════════
+    // 328. EDIT/PHOTOS GROWS UP (v0.9.1629). Brad, from his 238 page:
+    // no "You have this item" panel when he is editing photos on a copy
+    // he already chose; the slots PRELOAD what is already filed (view-
+    // named photos in their slots, unviewed ones in a TRAY); and the
+    // tray takes bulk adds — a multi-select from the computer and the
+    // Google Photos picker — each chip DRAGGED onto its view slot.
+    // A dragged on-file photo RENAMES into its view; a dragged new file
+    // uploads through the one standard path (uploadWizardPhoto).
+    // ═══════════════════════════════════════════════════════════
+    section('328. Photo-only mode: no dedupe panel, slots preload, a tray that drags');
+    (function () {
+      const wz28 = fs.readFileSync(require('path').join(__dirname, '..', 'app', 'wizard.js'), 'utf8');
+      const wp28 = fs.readFileSync(require('path').join(__dirname, '..', 'app', 'wizard-photos.js'), 'utf8');
+      const mount = wz28.slice(wz28.indexOf('wiz-owned-side'), wz28.indexOf('wiz-owned-side') + 1200);
+      ok('328 the owned-copies panel stands down in photo-only mode',
+         /_photoOnly\) return;/.test(mount), '');
+      ok('328 slots preview what is already ON the item — informational, nothing re-uploads',
+         /_wizExistingByView/.test(wz28) && /on file/.test(wz28), '');
+      ok('328 the tray exists and takes a MULTI-select from the computer',
+         /_wizTrayMount/.test(wz28) && /_wizTrayMount/.test(wp28) && /multiple/.test(wp28.slice(wp28.indexOf('_wizTrayMount'))), '');
+      ok('328 the Google Photos door reuses the one session picker',
+         /rrGPhotosPickSession/.test(wp28) && /rrGPhotosFile/.test(wp28), '');
+      ok('328 a dragged NEW file uploads through the standard path; an on-file photo RENAMES into its view',
+         /_wizTrayDrop/.test(wp28) && /uploadWizardPhoto\(/.test(wp28.slice(wp28.indexOf('_wizTrayDrop')))
+         && /rrView/.test(wp28.slice(wp28.indexOf('_wizTrayDrop'))), '');
+      ok('328 every view slot accepts the tray\u2019s drag',
+         /text\/rr-tray/.test(wz28) && /text\/rr-tray/.test(wp28), '');
+      ok('328 touch gets the v1614 press-and-hold; a mouse is left to HTML5 drag',
+         /pointerType === 'mouse'\) return/.test(wp28.slice(wp28.indexOf('_wizTrayMount'))), '');
+    })();
+
   })().then(function () {
     console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
     process.exit(fail ? 1 : 0);

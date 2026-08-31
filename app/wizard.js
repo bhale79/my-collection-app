@@ -4738,16 +4738,24 @@ function renderWizardStep() {
           if (_vi >= 0) { inboxFid = _inboxQueue.splice(_vi, 1)[0]; _inboxSeen[_ik] = inboxFid; }
         }
       }
+      // v0.9.1629: photo-only mode PRELOADS what is already filed — a
+      // view-named photo previews in its slot ("on file"). Informational:
+      // nothing re-uploads, the save path never sees these.
+      var exFid = '';
+      if (!hasPic && !inboxFid && wizard.data._photoOnly
+          && wizard.data._wizExistingByView) {
+        exFid = wizard.data._wizExistingByView[viewKey] || '';
+      }
 
       const div = document.createElement('div');
       div.className = 'photo-drop-zone';
       div.dataset.view = viewKey;
       div.dataset.sid = stepId;
-      div.style.cssText = 'border:2px dashed ' + ((hasPic || inboxFid) ? 'var(--accent2)' : 'var(--border)') + ';'
+      div.style.cssText = 'border:2px dashed ' + ((hasPic || inboxFid || exFid) ? 'var(--accent2)' : 'var(--border)') + ';'
         + 'border-radius:8px;aspect-ratio:1;min-height:58px;'
         + 'display:flex;flex-direction:column;align-items:center;justify-content:center;'
         + 'cursor:pointer;transition:all 0.2s;position:relative;overflow:hidden;'
-        + 'background:' + ((hasPic || inboxFid) ? 'rgba(201,146,42,0.08)' : 'var(--surface2)');
+        + 'background:' + ((hasPic || inboxFid || exFid) ? 'rgba(201,146,42,0.08)' : 'var(--surface2)');
       div.ondragover = function(e) { e.preventDefault(); div.style.borderColor = 'var(--accent)'; };
       div.ondragleave = function() { div.style.borderColor = hasPic ? 'var(--accent2)' : 'var(--border)'; };
       // v0.9.1433 (Brad: "i should be able to drag them around"): a drop can
@@ -4757,6 +4765,10 @@ function renderWizardStep() {
         var _sk = '';
         try { _sk = (e.dataTransfer && e.dataTransfer.getData('text/rr-slot')) || ''; } catch (eDT) {}
         if (_sk) { e.preventDefault(); e.stopPropagation(); _wizSlotSwap(_sk, stepId + '|' + viewKey, s.id); return; }
+        // v0.9.1629: a chip from the photo TRAY lands in this view.
+        var _tk = '';
+        try { _tk = (e.dataTransfer && e.dataTransfer.getData('text/rr-tray')) || ''; } catch (eDT2) {}
+        if (_tk) { e.preventDefault(); e.stopPropagation(); if (typeof _wizTrayDrop === 'function') _wizTrayDrop(_tk, stepId, viewKey); return; }
         handlePhotoDrop(e, stepId, viewKey);
       };
       div.onclick = function() { showPhotoSourcePicker(stepId, viewKey); };
@@ -4777,7 +4789,7 @@ function renderWizardStep() {
         div.appendChild(img);
         div.appendChild(overlay);
         div.appendChild(lbl);
-      } else if (inboxFid) {
+      } else if (inboxFid || exFid) {
         const img = document.createElement('img');
         img.style.cssText = 'width:100%;height:100%;object-fit:cover;position:absolute;inset:0;opacity:0.82';
         const overlay = document.createElement('div');
@@ -4786,11 +4798,11 @@ function renderWizardStep() {
         lbl.style.cssText = 'position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,0.65);'
           + 'font-size:0.68rem;color:#fff;padding:2px 3px;text-align:center;'
           + 'font-family:var(--font-head);letter-spacing:0.04em;text-transform:uppercase';
-        lbl.textContent = abbr + ' \u2713 from inbox';
+        lbl.textContent = abbr + (exFid ? ' \u2713 on file' : ' \u2713 from inbox');
         div.appendChild(img);
         div.appendChild(overlay);
         div.appendChild(lbl);
-        try { if (typeof loadDriveThumb === 'function') loadDriveThumb(inboxFid, img, div, null, 'hi'); } catch (e) {}
+        try { if (typeof loadDriveThumb === 'function') loadDriveThumb(inboxFid || exFid, img, div, null, 'hi'); } catch (e) {}
       } else {
         const inner = document.createElement('div');
         inner.style.cssText = 'font-size:0.72rem;color:var(--text-dim);text-align:center;padding:0.25rem;pointer-events:none;display:flex;flex-direction:column;align-items:center;justify-content:center;width:100%';
@@ -5040,6 +5052,13 @@ function renderWizardStep() {
     }
 
     wrap.appendChild(grid);
+
+    // v0.9.1629: photo-only mode gets the TRAY — existing unviewed photos
+    // plus bulk adds (computer multi-select, Google Photos), each chip
+    // dragged onto its view slot above.
+    if (wizard.data._photoOnly && typeof _wizTrayMount === 'function') {
+      try { _wizTrayMount(wrap, s.id); } catch (eTM) { console.warn('[tray]', eTM); }
+    }
 
     // "Add another photo" button
     const addBtn = document.createElement('button');
@@ -6782,6 +6801,10 @@ window._wizOwnedMount = function () {
     var o2 = document.getElementById('wiz-owned-band'); if (o2) o2.remove();
     if (window._wizOwnedGlue) { clearInterval(window._wizOwnedGlue); window._wizOwnedGlue = null; }
     if (typeof wizard === 'undefined' || !wizard || !wizard.data) return;
+    // v0.9.1629 (Brad's Edit/Photos rework): editing photos on a copy he
+    // already CHOSE — the owned-copies helper is noise there, and it sat
+    // over the working area.
+    if (wizard.data._photoOnly) return;
     if (['collection', 'want', 'set'].indexOf(wizard.tab) < 0) return;
     var modal = document.getElementById('wizard-modal');
     if (!modal || !modal.classList.contains('open')) return;

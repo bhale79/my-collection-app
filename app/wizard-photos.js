@@ -2660,3 +2660,214 @@ function _wizScanLabel() {
     // Cancelled — leave wizard as-is, user can type manually
   });
 }
+
+
+// ══ v0.9.1629 — THE PHOTO TRAY (photo-only mode) ═══════════════════════════
+// Brad, from his 238 page: "The photo screen should show the pictures that
+// are already in there... i should be able to add more than one photo at a
+// time... click open desktop folder, or google photos... drag them over to
+// the correct pic view." One tray under the slot grid: photos already ON
+// the item with no view yet, plus bulk adds from the computer (multi-
+// select) and the Google Photos picker. Drag a chip onto a view slot —
+// an on-file photo RENAMES into that view (name token + rrView stamp, the
+// same convention every reader honors); a new file uploads through the ONE
+// standard path (uploadWizardPhoto). Mouse = HTML5 drag; touch = the v1614
+// press-and-hold. All of it exists only in _photoOnly mode.
+
+async function _wizPhotoOnlyInit(stepId) {
+  var d = wizard.data;
+  if (d._exInit) return;
+  d._exInit = true;
+  d._wizExistingByView = {};
+  d._wizTray = d._wizTray || [];
+  try {
+    var pd = (window.state && state.personalData && state.personalData[d._updatePdKey]) || {};
+    var m = String(pd.photoItem || '').match(/folders\/([a-zA-Z0-9_-]+)/);
+    if (!m) { _wizTrayRender(stepId); return; }   // no folder yet — uploads will create one
+    var q = "'" + m[1] + "' in parents and trashed=false and mimeType contains 'image/'";
+    var r = await driveRequest('GET', '/files?q=' + encodeURIComponent(q) + '&fields=' + encodeURIComponent('files(id,name)') + '&pageSize=100');
+    var seen = {};
+    (r && r.files || []).forEach(function (f) {
+      var vm = String(f.name || '').match(/\s(TV|LSV|FV|RSV|BKV|BV|EXTRA2|EXTRA)[\s.]/);
+      var v = vm ? vm[1] : '';
+      if (v && !seen[v]) { seen[v] = 1; d._wizExistingByView[v] = f.id; }
+      else d._wizTray.push({ k: 'drive', id: f.id, name: String(f.name || '') });
+    });
+  } catch (e) { console.warn('[tray] existing-photo listing failed:', e && e.message); }
+  try { renderWizardStep(); } catch (e2) {}
+}
+
+function _wizTrayMount(wrap, stepId) {
+  var d = wizard.data;
+  var box = document.createElement('div');
+  box.id = 'wiz-tray';
+  box.style.cssText = 'margin-top:0.7rem;border:1px solid var(--border);border-radius:10px;padding:0.6rem 0.7rem;background:var(--surface2)';
+  wrap.appendChild(box);
+  if (!d._exInit) { box.innerHTML = '<div style="font-size:0.85rem;color:var(--text-dim)">Reading this item\u2019s photos\u2026</div>'; _wizPhotoOnlyInit(stepId); return; }
+  _wizTrayRender(stepId);
+}
+
+function _wizTrayRender(stepId) {
+  var d = wizard.data;
+  var box = document.getElementById('wiz-tray');
+  if (!box) return;
+  var tray = d._wizTray || [];
+  var chips = tray.map(function (t, i) {
+    var tok = (t.k === 'drive' ? 'D' : 'L') + i;
+    return '<div class="wiz-tray-chip" draggable="true" data-tray="' + tok + '" title="Drag onto a view slot above"'
+      + ' style="width:56px;height:48px;border-radius:8px;overflow:hidden;border:1.5px solid var(--border);background:var(--surface);flex:0 0 auto;cursor:grab;position:relative">'
+      + (t.k === 'local' ? '<img src="' + t.url + '" style="width:100%;height:100%;object-fit:cover">' : '<img data-trayfid="' + t.id + '" style="width:100%;height:100%;object-fit:cover">')
+      + (t.k === 'drive' ? '<div style="position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,0.6);color:#fff;font-size:0.5rem;text-align:center">on item</div>' : '')
+      + '</div>';
+  }).join('');
+  box.innerHTML =
+    '<div style="display:flex;align-items:center;gap:0.6rem;flex-wrap:wrap;margin-bottom:0.45rem">'
+    + '<div style="font-size:0.85rem;font-weight:700;color:var(--text)">Photo tray</div>'
+    + '<div style="font-size:0.78rem;color:var(--text-dim)">drag a picture onto its view slot above</div>'
+    + '<div style="margin-left:auto;display:flex;gap:0.4rem">'
+      + '<button type="button" id="wiz-tray-add" style="padding:0.3rem 0.7rem;border-radius:7px;border:1.5px solid var(--accent2);background:var(--surface);color:var(--accent2);font-family:var(--font-body);font-size:0.8rem;font-weight:600;cursor:pointer">\u2795 Add photos\u2026</button>'
+      + '<button type="button" id="wiz-tray-gp" style="padding:0.3rem 0.7rem;border-radius:7px;border:1.5px solid var(--border);background:var(--surface);color:var(--text-mid);font-family:var(--font-body);font-size:0.8rem;cursor:pointer">\u2601\ufe0f Google Photos</button>'
+    + '</div></div>'
+    + '<input type="file" id="wiz-tray-file" accept="image/*" multiple style="display:none">'
+    + (tray.length
+        ? '<div style="display:flex;gap:0.4rem;overflow-x:auto;padding:0.15rem 0">' + chips + '</div>'
+        : '<div style="font-size:0.8rem;color:var(--text-dim)">Nothing waiting \u2014 every photo on this item has a view. Add more with the buttons above.</div>');
+  // thumbs for on-item chips
+  box.querySelectorAll('img[data-trayfid]').forEach(function (img) {
+    try { if (typeof loadDriveThumb === 'function') loadDriveThumb(img.getAttribute('data-trayfid'), img, img.parentElement, null, 'lo'); } catch (e) {}
+  });
+  // bulk add from the computer
+  var fi = box.querySelector('#wiz-tray-file');
+  box.querySelector('#wiz-tray-add').onclick = function () { fi.click(); };
+  fi.onchange = function () {
+    Array.prototype.slice.call(fi.files || []).forEach(function (f) {
+      if (/^image\//.test(f.type)) d._wizTray.push({ k: 'local', file: f, url: URL.createObjectURL(f) });
+    });
+    _wizTrayRender(stepId);
+  };
+  // Google Photos — the one session picker, multi-item
+  box.querySelector('#wiz-tray-gp').onclick = function () {
+    if (typeof window.rrGPhotosPickSession !== 'function') { showToast('Google Photos isn\u2019t available right now', 3000, true); return; }
+    showToast('Pick photos in the Google Photos tab, press Done there, then come back', 4500);
+    window.rrGPhotosPickSession({}).then(async function (pick) {
+      if (!pick || pick.error) {
+        if (pick && pick.error === 'scope') showToast('Google Photos permission was not granted', 3500, true);
+        else if (pick && pick.error && pick.error !== 'cancelled') showToast('Google Photos picker error \u2014 try again', 3000, true);
+        return;
+      }
+      var ph = (pick.items || []).filter(function (x) { return String(x.type || '').toUpperCase() !== 'VIDEO'; }).slice(0, 12);
+      for (var i = 0; i < ph.length; i++) {
+        try {
+          var f = await window.rrGPhotosFile(ph[i], pick.auth, 'gphotos-' + (i + 1) + '.jpg');
+          if (f) d._wizTray.push({ k: 'local', file: f, url: URL.createObjectURL(f) });
+        } catch (eGP) {}
+      }
+      try { window.rrGPhotosEnd(pick.sessionId, pick.auth); } catch (eE) {}
+      _wizTrayRender(stepId);
+      if (ph.length) showToast(ph.length + (ph.length === 1 ? ' photo' : ' photos') + ' in the tray \u2014 drag each onto its view', 3500);
+    });
+  };
+  // drag: mouse = HTML5; touch = the v1614 press-and-hold
+  box.querySelectorAll('.wiz-tray-chip').forEach(function (chip) {
+    chip.ondragstart = function (e) {
+      try { e.dataTransfer.setData('text/rr-tray', chip.getAttribute('data-tray')); e.dataTransfer.effectAllowed = 'move'; } catch (eDS) {}
+      chip.style.opacity = '0.45';
+    };
+    chip.ondragend = function () { chip.style.opacity = ''; };
+    chip.addEventListener('pointerdown', function (e) {
+      if (e.pointerType === 'mouse') return;
+      _wizTrayTouchDrag(e, chip, stepId);
+    });
+  });
+}
+
+var _wttd = null;
+function _wizTrayTouchDrag(e, chip, stepId) {
+  if (_wttd) return;
+  var tok = chip.getAttribute('data-tray');
+  var sx = e.clientX, sy = e.clientY;
+  var st = { dragging: false, ghost: null, over: null, hold: null };
+  _wttd = st;
+  function clean() {
+    try { document.removeEventListener('pointermove', onMove); } catch (e2) {}
+    try { document.removeEventListener('pointerup', onUp); } catch (e2) {}
+    try { document.removeEventListener('pointercancel', onUp); } catch (e2) {}
+    try { document.removeEventListener('touchmove', blockScroll, { passive: false }); } catch (e2) {}
+    if (st.hold) clearTimeout(st.hold);
+    if (st.ghost) try { st.ghost.remove(); } catch (e2) {}
+    if (st.over) try { st.over.style.borderColor = ''; } catch (e2) {}
+    try { chip.style.opacity = ''; } catch (e2) {}
+    _wttd = null;
+  }
+  function blockScroll(ev) { if (st.dragging) ev.preventDefault(); }
+  function onMove(ev) {
+    var dx = ev.clientX - sx, dy = ev.clientY - sy;
+    if (!st.dragging) { if ((dx * dx + dy * dy) > 100) clean(); return; }
+    if (st.ghost) { st.ghost.style.left = (ev.clientX - 28) + 'px'; st.ghost.style.top = (ev.clientY - 60) + 'px'; }
+    var el = document.elementFromPoint(ev.clientX, ev.clientY);
+    var zone = el && el.closest ? el.closest('.photo-drop-zone') : null;
+    if (st.over && st.over !== zone) { st.over.style.borderColor = ''; st.over = null; }
+    if (zone && zone !== st.over) { st.over = zone; zone.style.borderColor = 'var(--accent)'; }
+  }
+  function onUp() {
+    if (st.dragging && st.over && st.over.dataset && st.over.dataset.view) {
+      var sid = st.over.dataset.sid, vk = st.over.dataset.view;
+      clean();
+      _wizTrayDrop(tok, sid, vk);
+      return;
+    }
+    clean();
+  }
+  st.hold = setTimeout(function () {
+    st.dragging = true;
+    try { chip.style.opacity = '0.45'; } catch (e2) {}
+    try {
+      var g = document.createElement('div');
+      g.textContent = '\u21c6 drop on a view slot';
+      g.style.cssText = 'position:fixed;z-index:100090;left:' + (sx - 28) + 'px;top:' + (sy - 60) + 'px;'
+        + 'background:var(--surface);color:var(--text);border:1.5px solid var(--accent);border-radius:999px;'
+        + 'padding:0.35rem 0.8rem;font-family:var(--font-body);font-weight:700;font-size:0.75rem;'
+        + 'pointer-events:none;box-shadow:0 4px 16px var(--scrim)';
+      document.body.appendChild(g);
+      st.ghost = g;
+    } catch (e2) {}
+    document.addEventListener('touchmove', blockScroll, { passive: false });
+  }, 300);
+  document.addEventListener('pointermove', onMove);
+  document.addEventListener('pointerup', onUp);
+  document.addEventListener('pointercancel', onUp);
+}
+
+async function _wizTrayDrop(token, stepId, viewKey) {
+  var d = wizard.data;
+  var idx = parseInt(String(token).slice(1), 10);
+  var t = (d._wizTray || [])[idx];
+  if (!t) return;
+  var stored = d[stepId] || {};
+  if (stored[viewKey]) { showToast('That slot already holds a new upload \u2014 clear or pick another view', 3500, true); return; }
+  if (t.k === 'local') {
+    d._wizTray.splice(idx, 1);
+    await uploadWizardPhoto(t.file, stepId, viewKey);
+    try { renderWizardStep(); } catch (e) {}
+    return;
+  }
+  // an on-file photo: RENAME into its view (token + rrView stamp — the
+  // conventions every reader already honors). The displaced holder, if
+  // any, returns to the tray as an unviewed photo.
+  try {
+    var ext = (String(t.name || '').split('.').pop() || 'jpg').toLowerCase().slice(0, 5);
+    var newName = (d.itemNum || 'item') + ' ' + viewKey + ' ' + Date.now() + '.' + ext;
+    await driveRequest('PATCH', '/files/' + t.id, { name: newName, appProperties: { rrView: viewKey } });
+    var prev = d._wizExistingByView[viewKey] || '';
+    if (prev && prev !== t.id) {
+      try { await driveRequest('PATCH', '/files/' + prev, { name: (d.itemNum || 'item') + ' ADD ' + Date.now() + '.jpg', appProperties: { rrView: null } }); } catch (eP) {}
+      d._wizTray.push({ k: 'drive', id: prev, name: 'displaced' });
+    }
+    d._wizExistingByView[viewKey] = t.id;
+    d._wizTray.splice(idx, 1);
+    try { renderWizardStep(); } catch (e) {}
+    showToast('Filed as the ' + viewKey + ' view', 2500);
+  } catch (e) {
+    showToast('Couldn\u2019t re-label that photo \u2014 try again', 3500, true);
+  }
+}
