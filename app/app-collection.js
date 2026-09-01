@@ -1364,7 +1364,14 @@ function showItemDetailPage(idx, copyInvId, opts) {
       ${_photoLink ? `<a href="${_photoLink}" target="_blank" rel="noopener" style="font-size:0.75rem;color:var(--accent2);text-decoration:none">Open Drive Folder \u2197</a>` : ''}
     </div>
     ${_grpPhotoMembers.length
-      ? '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:0 1.25rem;align-items:start">'
+      ? '<div style="margin-bottom:0.9rem;border:1px solid var(--border);border-radius:10px;padding:0.7rem 0.85rem;background:var(--surface2)">'
+        + '<div style="display:flex;align-items:center;gap:0.7rem;flex-wrap:wrap;margin-bottom:0.45rem">'
+        + '<div style="font-size:0.7rem;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--accent3,#2ecc71)">\ud83d\udd17 Group Photos — the pieces together</div>'
+        + '<button onclick="_grpAddGroupPhoto()" style="margin-left:auto;padding:0.3rem 0.75rem;border-radius:7px;border:1.5px solid var(--accent2);background:var(--surface);color:var(--accent2);font-family:var(--font-body);font-size:0.75rem;font-weight:600;cursor:pointer">\u2795 Add group photo</button>'
+        + '</div>'
+        + '<div id="grp-photos-set" style="min-height:40px"><div style="color:var(--text-dim);font-size:0.78rem">Loading\u2026</div></div>'
+        + '</div>'
+        + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:0 1.25rem;align-items:start">'
         + _grpPhotoMembers.map(function (p, gi) {
           // v0.9.936 (Brad): each unit is its own column so paired units sit
           // BESIDE each other on wide screens instead of stacking.
@@ -1476,6 +1483,9 @@ function showItemDetailPage(idx, copyInvId, opts) {
       driveGetFolderPhotos(p.photoItem).then(function (photos) {
         var el = document.getElementById('grp-photos-' + gi);
         if (!el) return;
+        // v0.9.1632 (Brad's design): set/together shots live in the GROUP
+        // PHOTOS section above — a member's gallery shows only its own views.
+        photos = (photos || []).filter(function (p) { return !/\bSET\b/i.test(String(p.name || '')); });
         if (!photos || !photos.length) { el.innerHTML = '<div style="grid-column:1/-1;color:var(--text-dim);font-size:0.78rem">No photos in this folder</div>'; return; }
         // v0.9.937 (Brad): hero + thumbnail-rail gallery per unit (rename via
         // the hero label, ✂ crops the photo shown large).
@@ -1489,6 +1499,55 @@ function showItemDetailPage(idx, copyInvId, opts) {
         if (el) el.innerHTML = '<div style="grid-column:1/-1;color:var(--text-dim);font-size:0.78rem">Could not load photos</div>';
       });
     });
+  }
+
+  // ── v0.9.1632: the GROUP PHOTOS section (Brad's design, S88) ──
+  // The SET-token photos from the LEAD's folder, shown on EVERY member's
+  // page — the tender finally sees the together shots. Display-layer only:
+  // no file moves, nothing re-keyed. The Add door uploads into the exact
+  // folder this section reads, named by the ONE namer with the SET label
+  // (v1630: no view token).
+  if (_grpPhotoMembers.length) {
+    (function () {
+      var lead = _grpPhotoMembers[0];
+      function isSet(p) { return /\bSET\b/i.test(String(p.name || '')); }
+      driveGetFolderPhotos(lead.photoItem).then(function (leadPhotos) {
+        var el = document.getElementById('grp-photos-set');
+        if (!el) return;
+        var setPhotos = (leadPhotos || []).filter(isSet);
+        if (!setPhotos.length) { el.innerHTML = '<div style="color:var(--text-dim);font-size:0.78rem">No group photos yet \u2014 the together shot from the wizard lands here, or add one above.</div>'; return; }
+        _buildPhotoGallery(el, setPhotos, { folderLink: lead.photoItem, canRename: true, arrange: true, stack: true });
+      }).catch(function () {
+        var el = document.getElementById('grp-photos-set');
+        if (el) el.innerHTML = '<div style="color:var(--text-dim);font-size:0.78rem">Could not load the group photos</div>';
+      });
+      window._grpAddGroupPhoto = function () {
+        var inp = document.createElement('input');
+        inp.type = 'file'; inp.accept = 'image/*'; inp.multiple = true;
+        inp.onchange = async function () {
+          var files = Array.prototype.filter.call(inp.files || [], function (f) { return /^image\//.test(f.type); });
+          if (!files.length) return;
+          var fid = (String(lead.photoItem || '').match(/folders\/([a-zA-Z0-9_-]+)/) || [])[1] || '';
+          if (!fid) { if (typeof showToast === 'function') showToast('This group has no photo folder yet \u2014 add a regular photo first.', 4000, true); return; }
+          var okCount = 0;
+          for (var i = 0; i < files.length; i++) {
+            try {
+              var ext = (String(files[i].name || '').split('.').pop() || 'jpg').toLowerCase().slice(0, 5);
+              var name = ((typeof window._photoFileName === 'function')
+                ? window._photoFileName(lead.itemNum, '', lead.inventoryId, String(lead.itemNum || '') + ' SET')
+                : (String(lead.itemNum || 'group') + ' SET ' + Date.now())) + '.' + ext;
+              await driveUploadPhoto(files[i], name, fid);
+              okCount++;
+            } catch (eU) { console.warn('[group photo]', eU); }
+          }
+          if (typeof showToast === 'function') showToast(okCount ? ('\u2713 ' + okCount + (okCount === 1 ? ' group photo added' : ' group photos added')) : 'Upload failed \u2014 try again', 3500, !okCount);
+          if (okCount && typeof window._lastDetailIdx === 'number' && typeof showItemDetailPage === 'function') {
+            setTimeout(function () { showItemDetailPage(window._lastDetailIdx, window._lastDetailCopyInv); }, 300);
+          }
+        };
+        inp.click();
+      };
+    })();
   }
 
   // Async: load photos

@@ -22779,6 +22779,34 @@ META_WRITES.length = 0; TOASTS.length = 0;
          && /showItemDetailPage\(window\._lastDetailIdx/.test(ac30.slice(ac30.indexOf('the id lookup above misses'), ac30.indexOf('the id lookup above misses') + 700)), '');
     })();
 
+    // ═══════════════════════════════════════════════════════════
+    // 331. THE GROUP PHOTOS SECTION (v0.9.1632). Brad's design: "maybe
+    // the engine should have a section called group photos that is
+    // seperate... this would be for all grouped photos too so we need
+    // to be careful." A grouped item's page now shows a GROUP PHOTOS
+    // gallery — the SET-token photos from the LEAD's folder — on EVERY
+    // member's page (the tender finally sees the together shots), with
+    // an Add-group-photo door that names uploads through the ONE namer
+    // (SET label, no view token — v1630's rule). The member galleries
+    // exclude SET files: they have their own home now. Display-layer
+    // only — no file moved, nothing re-keyed.
+    // ═══════════════════════════════════════════════════════════
+    section('331. Group photos live in their own section, on every member\u2019s page');
+    (function () {
+      const ac31 = fs.readFileSync(require('path').join(__dirname, '..', 'app', 'app-collection.js'), 'utf8');
+      ok('331 the section exists on group pages, with its own gallery mount',
+         /grp-photos-set/.test(ac31) && /Group Photos/i.test(ac31), '');
+      ok('331 it draws the SET-token photos from the LEAD\u2019s folder',
+         /_grpPhotoMembers\[0\]/.test(ac31.slice(ac31.indexOf('grp-photos-set')))
+         || /leadPhotos\.filter\(isSet\)/.test(ac31), '');
+      ok('331 member galleries EXCLUDE set shots — they have their own home now',
+         /\(photos \|\| \[\]\)\.filter\(function \(p\) \{ return !\/\\bSET\\b\/i\.test/.test(ac31), '');
+      ok('331 Add-group-photo names uploads through the ONE namer with the SET label',
+         /_grpAddGroupPhoto/.test(ac31) && /' SET'/.test(ac31.slice(ac31.indexOf('_grpAddGroupPhoto = '))), '');
+      ok('331 the side hero still prefers the together shot (unchanged)',
+         /leadPhotos\.find\(isSet\)/.test(ac31), '');
+    })();
+
   })().then(function () {
     console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
     process.exit(fail ? 1 : 0);
