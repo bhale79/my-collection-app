@@ -1161,6 +1161,10 @@ function showItemDetailPage(idx, copyInvId, opts) {
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
       Break Up Group
     </button>` : ''}
+    ${(typeof _maintIsOwner==='function' && _maintIsOwner()) ? `<button id="detail-maintenance" onclick="_maintOpenPanel(${idx})" data-ctip="Owner preview: manuals, parts diagrams, repair videos and parts search for this item." style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #16a085;background:var(--bg-card);background:color-mix(in srgb, rgb(22,160,133) 10%, var(--bg-card));color:#16a085;font-family:var(--font-body);font-size:0.82rem;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:0.4rem">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+      Maintenance
+    </button>` : ''}
     <button id="detail-share-item" onclick="shareSingleItem(${idx},'${pd && pd.inventoryId ? pd.inventoryId : ''}')" data-ctip="Share this item as a PDF — photos, condition and details — by email or text." style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #2ecc71;background:var(--bg-card);background:color-mix(in srgb, rgb(46,204,113) 10%, var(--bg-card));color:#2ecc71;font-family:var(--font-body);font-size:0.82rem;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:0.4rem">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
       Share
