@@ -184,8 +184,15 @@ ok('1627b every row offers Edit, and saving counts as approved',
    /_ymEditOpen/.test(ym27) && /_ymEditSave/.test(ym27) && /'edited', today/.test(ym27));
 ok('1627b the editor writes the delta BACK to the Vault, tab included',
    /crawl_deltas!D/.test(ym27) && /ym-ed-tab/.test(ym27));
-ok('1627b the tab picker offers both Menards homes',
-   />Menards O</.test(ym27) && />Menards HO</.test(ym27));
+// v0.9.1633 superseded the hardcoded pair: the picker now derives from
+// config. The GUARANTEE stands — both Menards homes must still be
+// reachable — asserted through the mechanism that now provides them.
+const _cfg33 = src('config.js');
+ok('1627b/1633 both Menards homes still reachable as commit targets (via ERA_TABS)',
+   /_ymMasterTabs\(\)\.map/.test(ym27)
+   && /items:\s*'Menards O'/.test(_cfg33) && /items:\s*'Menards HO'/.test(_cfg33)
+   && /'menards'/.test(_cfg33.slice(_cfg33.indexOf('REAL_ERA_IDS'), _cfg33.indexOf('REAL_ERA_IDS') + 700))
+   && /'menards_ho'/.test(_cfg33.slice(_cfg33.indexOf('REAL_ERA_IDS'), _cfg33.indexOf('REAL_ERA_IDS') + 700)));
 
 // ── v0.9.1628: THE VERIFY COUNTS TRUE, AND A COMMITTED BATCH STAYS ──
 // Brad's first real commit: every row LANDED, then the count check
@@ -206,6 +213,27 @@ ok('1628 committed batches STAY in the queue, dimmed but reviewable',
    /!== 'dismissed'; \}\);/.test(ym28) && /u2713 committed/.test(ym28));
 ok('1628 Commit stays offered while approved rows remain',
    !/b\.status !== 'committed' && \(c\.approved/.test(ym28));
+
+
+// ── v0.9.1633: the commit router serves EVERY real era tab ─────
+// The Menards pilot proved the cockpit; the Wayback sweeps (K-Line,
+// Lionel, Weaver, MTH, LGB…) need their own tabs as commit targets.
+// And the old A1:V5000 read cap would have BLINDED the dedupe on a
+// 21,000-row tab (Lionel MPC-Modern) — silent duplicates. Proven to
+// FAIL on the v0.9.1632 tree before the build.
+const ym33 = src('yardmaster.js');
+ok('1633 valid commit tabs derive from REAL_ERA_IDS + ERA_TABS — one source of truth, no second list',
+   /_ymMasterTabs/.test(ym33) && /REAL_ERA_IDS\.forEach/.test(ym33) && /ERA_TABS\[id\]/.test(ym33));
+ok('1633 the router no longer hardcodes the Menards pair',
+   !/t === 'Menards O' \|\| t === 'Menards HO'/.test(ym33));
+ok('1633 the Edit dropdown is built FROM the derived list, never typed twice',
+   /_ymMasterTabs\(\)\.map/.test(ym33) && !/<option value="Menards O"/.test(ym33));
+ok('1633 dedupe + verify reads are UNBOUNDED — a 21,000-row tab cannot blind the dedupe',
+   !/A1:V5000/.test(ym33) && !/A1:A5000/.test(ym33) && ym33.indexOf('\'!A1:V"') >= 0 && ym33.indexOf('\'!A1:A"') >= 0);
+ok('1633 the Vault delta read holds a sweep-sized queue (Q4000)',
+   /crawl_deltas!A1:Q4000/.test(ym33));
+ok('1633 the confirm line reports per-tab append counts',
+   /perTab\.join/.test(ym33) && /totFresh/.test(ym33));
 
 console.log('\n' + pass + ' passed, ' + fail + ' failed');
 if (fail) { console.log('YARDMASTER TESTS FAILING'); process.exit(1); }

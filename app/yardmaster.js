@@ -54,7 +54,7 @@
   // ── Vault reads: one batchGet, owner token ─────────────────────
   function _fetchVault() {
     var ranges = ['submissions!A1:L1000', 'barcode_pairs!A1:I1000', 'chores!A1:D200', 'usage!A1:C400',
-                  'crawl_batches!A1:G50', 'crawl_deltas!A1:Q400']
+                  'crawl_batches!A1:G50', 'crawl_deltas!A1:Q4000']
       .map(function (r) { return 'ranges=' + encodeURIComponent(r); }).join('&');
     return fetch('https://sheets.googleapis.com/v4/spreadsheets/' + YM.VAULT_ID
         + '/values:batchGet?' + ranges,
@@ -73,6 +73,24 @@
   function _colIdx(rows, name) {
     if (!rows || !rows.length) return -1;
     return rows[0].map(String).indexOf(name);
+  }
+
+  // ── v0.9.1633: every real era tab is a commit target ───────────
+  // ONE source of truth: REAL_ERA_IDS + ERA_TABS (config.js). A new
+  // era tab added there becomes a commit target automatically — no
+  // second list to forget to update here.
+  function _ymMasterTabs() {
+    try {
+      if (typeof REAL_ERA_IDS !== 'undefined' && typeof ERA_TABS !== 'undefined') {
+        var out = [];
+        REAL_ERA_IDS.forEach(function (id) {
+          var t = ERA_TABS[id] && ERA_TABS[id].items;
+          if (t && out.indexOf(t) < 0) out.push(t);
+        });
+        if (out.length) return out;
+      }
+    } catch (e) {}
+    return ['Menards O', 'Menards HO'];   // config unavailable — the v1627 pair, never expected
   }
 
   function _summarize(d) {
@@ -435,17 +453,18 @@
     });
     if (!approved.length) { if (typeof showToast === 'function') showToast('Nothing approved to commit yet.', 3000); return; }
     var byTab = {}, heldNoTab = [];
+    var validTabs = _ymMasterTabs();
     approved.forEach(function (dd) {
       var t = String(dd.tab || '').trim();
-      if (t === 'Menards O' || t === 'Menards HO') (byTab[t] = byTab[t] || []).push(dd);
-      else heldNoTab.push(dd);   // no tab picked yet — held and said below
+      if (validTabs.indexOf(t) >= 0) (byTab[t] = byTab[t] || []).push(dd);
+      else heldNoTab.push(dd);   // no tab picked (or not a real master tab) — held and said below
     });
     try {
       // read each target tab's headers + existing numbers; dedupe HOLDS
       var tabs = Object.keys(byTab), plan = {}, heldDup = [];
       for (var ti = 0; ti < tabs.length; ti++) {
         var t2 = tabs[ti];
-        var got = await fetch('https://sheets.googleapis.com/v4/spreadsheets/' + MID + '/values/' + encodeURIComponent("'" + t2 + "'!A1:V5000"), { headers: H }).then(function (x) { return x.json(); });
+        var got = await fetch('https://sheets.googleapis.com/v4/spreadsheets/' + MID + '/values/' + encodeURIComponent("'" + t2 + "'!A1:V"), { headers: H }).then(function (x) { return x.json(); });
         var vals = got.values || [];
         var heads = vals[0] || [];
         var numIdx = heads.map(String).indexOf('Item Number');
@@ -459,9 +478,9 @@
         });
         plan[t2] = { heads: heads, fresh: fresh, rowsBefore: rowsBefore, allVals: vals };
       }
-      var toO = (plan['Menards O'] || { fresh: [] }).fresh.length;
-      var toHO = (plan['Menards HO'] || { fresh: [] }).fresh.length;
-      if (toO + toHO === 0) {
+      var totFresh = 0, perTab = [];
+      tabs.forEach(function (tt) { var n = plan[tt].fresh.length; totFresh += n; if (n) perTab.push(n + ' to ' + tt); });
+      if (totFresh === 0) {
         // everything approved already sits in the master — the dedupe held
         // it all. Say so and mark the batch committed; nothing to write.
         await fetch('https://sheets.googleapis.com/v4/spreadsheets/' + YM.VAULT_ID + '/values:batchUpdate', { method: 'POST', headers: H, body: JSON.stringify({ valueInputOption: 'RAW', data: [{ range: 'crawl_batches!E' + (b.sheetRow || 2), values: [['committed']] }] }) });
@@ -470,7 +489,7 @@
         window._ymBatchOpen(_ymBatchId, true);
         return;
       }
-      var lines = 'Append ' + toO + ' rows to Menards O and ' + toHO + ' to Menards HO.'
+      var lines = 'Append ' + totFresh + ' row' + (totFresh === 1 ? '' : 's') + ' — ' + perTab.join(', ') + '.'
         + (heldDup.length ? ' ' + heldDup.length + ' held \u2014 number already in master.' : '')
         + (heldNoTab.length ? ' ' + heldNoTab.length + ' held \u2014 no tab picked.' : '')
         + ' Dated backups of both tabs are written first.';
@@ -511,7 +530,7 @@
         await sheetsAppend(MID, "'" + t4 + "'!A:A", rows);
         appended += rows.length;
         // verify the counts against a fresh read before believing anything
-        var chk = await fetch('https://sheets.googleapis.com/v4/spreadsheets/' + MID + '/values/' + encodeURIComponent("'" + t4 + "'!A1:A5000"), { headers: H }).then(function (x) { return x.json(); });
+        var chk = await fetch('https://sheets.googleapis.com/v4/spreadsheets/' + MID + '/values/' + encodeURIComponent("'" + t4 + "'!A1:A"), { headers: H }).then(function (x) { return x.json(); });
         var after = (chk.values || []).slice(1).filter(function (r) { return String((r[0] || '')).trim(); }).length;
         if (after !== plan[t4].rowsBefore + plan[t4].fresh.length) throw new Error('count verify failed on ' + t4 + ' \u2014 check the tab before trusting this commit');
       }
@@ -562,13 +581,12 @@
     };
     var rows = list.map(function (dd) {
       if (dd.id === _ymEditId) {
-        var selO = dd.tab === 'Menards O' ? ' selected' : '', selH = dd.tab === 'Menards HO' ? ' selected' : '';
+        var tabOpts = '<option value=""' + (dd.tab ? '' : ' selected') + '>\u2014 pick \u2014</option>'
+          + _ymMasterTabs().map(function (tt) { return '<option value="' + _esc(tt) + '"' + (dd.tab === tt ? ' selected' : '') + '>' + _esc(tt) + '</option>'; }).join('');
         return '<div style="border-top:1px solid var(--border);padding:0.7rem 0;display:flex;gap:0.7rem;flex-wrap:wrap;align-items:flex-end">'
           + '<label style="display:flex;flex-direction:column;gap:0.15rem;font-size:0.8rem;color:var(--text-dim)">Tab'
             + '<select id="ym-ed-tab" style="background:var(--surface);border:1px solid var(--border);border-radius:7px;padding:0.35rem 0.5rem;color:var(--text);font-family:var(--font-body);font-size:0.95rem">'
-            + '<option value=""' + (dd.tab ? '' : ' selected') + '>\u2014 pick \u2014</option>'
-            + '<option value="Menards O"' + selO + '>Menards O</option>'
-            + '<option value="Menards HO"' + selH + '>Menards HO</option></select></label>'
+            + tabOpts + '</select></label>'
           + _inp('ym-ed-num', 'Number', dd.num, '7rem')
           + _inp('ym-ed-type', 'Type', dd.type, '9rem')
           + _inp('ym-ed-road', 'Road name', dd.road, '10rem')
