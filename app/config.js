@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.1633';
+const APP_VERSION = 'v0.9.1634';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -121,7 +121,7 @@ window.bindOverlayClose = function (ov, closeFn) {
 // cannot go out until this one word is updated. A version stamp nobody trusts
 // is worse than none — and the date sitting next to the version number is what
 // makes the version number look untrustworthy.
-const APP_DATE    = 'August 2026';
+const APP_DATE    = 'September 2026';
 
 // ── varShortLabel — SINGLE SOURCE for short variation labels (v0.9.657) ──
 // COTT Variation Details are verbatim multi-line sections that begin with a

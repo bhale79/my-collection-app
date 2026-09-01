@@ -235,6 +235,25 @@ ok('1633 the Vault delta read holds a sweep-sized queue (Q4000)',
 ok('1633 the confirm line reports per-tab append counts',
    /perTab\.join/.test(ym33) && /totFresh/.test(ym33));
 
+
+// ── v0.9.1634: the commit gets its rule-#5 guard — the hard way ─
+// Five stacked Commit taps during the K-Line pilot each read the
+// still-clean tab (the backup upload is the slow middle) and appended
+// the same 50 rows: 250 rows, repaired by hand. Also: the dedupe and
+// verify reads were bare fetches — a failed read looked like an EMPTY
+// tab, a second door to duplicates. And a blank item number could ride
+// an Approve straight into master. Proven to FAIL on v0.9.1633.
+const ym34 = src('yardmaster.js');
+const cm34 = ym34.slice(ym34.indexOf('window._ymCommit ='), ym34.indexOf('window._ymBatchOpen ='));
+ok('1634 commit carries an in-flight guard, set before the first await, cleared in finally',
+   /_ymCommitBusy/.test(cm34) && /already running/.test(cm34) && /finally\s*\{\s*window\._ymCommitBusy = false/.test(cm34));
+ok('1634 a failed dedupe read STOPS the commit instead of impersonating an empty tab',
+   /gotRes\.ok/.test(cm34) && /commit stopped before any write/.test(cm34));
+ok('1634 a failed verify read says rows landed, never a silent lie',
+   /chkRes\.ok/.test(cm34) && /rows were appended/.test(cm34));
+ok('1634 approved rows with a blank item number are HELD and said',
+   /heldNoNum/.test(cm34) && /no item number/.test(cm34));
+
 console.log('\n' + pass + ' passed, ' + fail + ' failed');
 if (fail) { console.log('YARDMASTER TESTS FAILING'); process.exit(1); }
 console.log('ALL YARDMASTER TESTS GREEN (' + pass + ')');

@@ -452,19 +452,27 @@
       return dd.batch === _ymBatchId && (dd.status === 'approved' || dd.status === 'edited');
     });
     if (!approved.length) { if (typeof showToast === 'function') showToast('Nothing approved to commit yet.', 3000); return; }
-    var byTab = {}, heldNoTab = [];
+    var byTab = {}, heldNoTab = [], heldNoNum = [];
     var validTabs = _ymMasterTabs();
     approved.forEach(function (dd) {
       var t = String(dd.tab || '').trim();
-      if (validTabs.indexOf(t) >= 0) (byTab[t] = byTab[t] || []).push(dd);
+      if (!String(dd.num || '').trim()) heldNoNum.push(dd);   // v1634: a blank number must never reach master
+      else if (validTabs.indexOf(t) >= 0) (byTab[t] = byTab[t] || []).push(dd);
       else heldNoTab.push(dd);   // no tab picked (or not a real master tab) — held and said below
     });
+    // ── v0.9.1634: the in-flight guard — stability rule #5, learned the
+    // hard way when five stacked Commit taps each read the still-clean
+    // K-Line O tab during the backup upload and appended 250 rows.
+    if (window._ymCommitBusy) { if (typeof showToast === 'function') showToast('A commit is already running \u2014 hold on.', 3000); return; }
+    window._ymCommitBusy = true;
     try {
       // read each target tab's headers + existing numbers; dedupe HOLDS
       var tabs = Object.keys(byTab), plan = {}, heldDup = [];
       for (var ti = 0; ti < tabs.length; ti++) {
         var t2 = tabs[ti];
-        var got = await fetch('https://sheets.googleapis.com/v4/spreadsheets/' + MID + '/values/' + encodeURIComponent("'" + t2 + "'!A1:V"), { headers: H }).then(function (x) { return x.json(); });
+        var gotRes = await fetch('https://sheets.googleapis.com/v4/spreadsheets/' + MID + '/values/' + encodeURIComponent("'" + t2 + "'!A1:V"), { headers: H });
+        if (!gotRes.ok) throw new Error('could not read ' + t2 + ' (HTTP ' + gotRes.status + ') \u2014 commit stopped before any write');
+        var got = await gotRes.json();
         var vals = got.values || [];
         var heads = vals[0] || [];
         var numIdx = heads.map(String).indexOf('Item Number');
@@ -485,13 +493,14 @@
         // it all. Say so and mark the batch committed; nothing to write.
         await fetch('https://sheets.googleapis.com/v4/spreadsheets/' + YM.VAULT_ID + '/values:batchUpdate', { method: 'POST', headers: H, body: JSON.stringify({ valueInputOption: 'RAW', data: [{ range: 'crawl_batches!E' + (b.sheetRow || 2), values: [['committed']] }] }) });
         b.status = 'committed';
-        if (typeof showToast === 'function') showToast('Everything approved is already in the master' + (heldNoTab.length ? ' \u2014 ' + heldNoTab.length + ' still need a tab (use Edit)' : '') + '.', 5000);
+        if (typeof showToast === 'function') showToast('Everything approved is already in the master' + (heldNoTab.length ? ' \u2014 ' + heldNoTab.length + ' still need a tab (use Edit)' : '') + (heldNoNum.length ? ' \u2014 ' + heldNoNum.length + ' still need an item number (use Edit)' : '') + '.', 5000);
         window._ymBatchOpen(_ymBatchId, true);
         return;
       }
       var lines = 'Append ' + totFresh + ' row' + (totFresh === 1 ? '' : 's') + ' — ' + perTab.join(', ') + '.'
         + (heldDup.length ? ' ' + heldDup.length + ' held \u2014 number already in master.' : '')
         + (heldNoTab.length ? ' ' + heldNoTab.length + ' held \u2014 no tab picked.' : '')
+        + (heldNoNum.length ? ' ' + heldNoNum.length + ' held \u2014 no item number.' : '')
         + ' Dated backups of both tabs are written first.';
       var yes = (typeof appConfirm === 'function')
         ? await appConfirm(lines, { title: 'Commit to the master catalog', ok: 'Back up, then commit' })
@@ -530,7 +539,9 @@
         await sheetsAppend(MID, "'" + t4 + "'!A:A", rows);
         appended += rows.length;
         // verify the counts against a fresh read before believing anything
-        var chk = await fetch('https://sheets.googleapis.com/v4/spreadsheets/' + MID + '/values/' + encodeURIComponent("'" + t4 + "'!A1:A"), { headers: H }).then(function (x) { return x.json(); });
+        var chkRes = await fetch('https://sheets.googleapis.com/v4/spreadsheets/' + MID + '/values/' + encodeURIComponent("'" + t4 + "'!A1:A"), { headers: H });
+        if (!chkRes.ok) throw new Error('verify read failed on ' + t4 + ' (HTTP ' + chkRes.status + ') \u2014 rows were appended; check the tab before recommitting');
+        var chk = await chkRes.json();
         var after = (chk.values || []).slice(1).filter(function (r) { return String((r[0] || '')).trim(); }).length;
         if (after !== plan[t4].rowsBefore + plan[t4].fresh.length) throw new Error('count verify failed on ' + t4 + ' \u2014 check the tab before trusting this commit');
       }
@@ -542,6 +553,8 @@
       window.ymBuildPage(true);
     } catch (e) {
       if (typeof showToast === 'function') showToast('Commit stopped: ' + (e && e.message), 6000, true);
+    } finally {
+      window._ymCommitBusy = false;
     }
   };
   window._ymBatchOpen = function (id, keepScroll) {
