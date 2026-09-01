@@ -128,6 +128,15 @@ const HARNESS = `<!doctype html><html><head><meta charset="utf-8">
           .forEach(function (el) {
             const b = el.getBoundingClientRect();
             if (b.width === 0 && b.height === 0) return;      // a hidden scene
+            // S89: an element inside a horizontally SCROLLABLE strip (the
+            // presets row, overflow-x:auto) is reachable, not cut off.
+            let anc = el.parentElement, scrollable = false;
+            while (anc && anc !== document.body) {
+              const cs = getComputedStyle(anc);
+              if ((cs.overflowX === 'auto' || cs.overflowX === 'scroll') && anc.scrollWidth > anc.clientWidth + 1) { scrollable = true; break; }
+              anc = anc.parentElement;
+            }
+            if (scrollable) return;
             if (b.right > vw + 1 || b.bottom > vh + 1 || b.left < -1 || b.top < -1) {
               off.push((el.dataset.var || el.dataset.slot || el.className.split(' ')[0])
                 + '[' + Math.round(b.left) + ',' + Math.round(b.top) + ','
@@ -375,10 +384,19 @@ const HARNESS = `<!doctype html><html><head><meta charset="utf-8">
       const a = wzSrc.indexOf('function _buildCondCol(col) {');
       const bEnd = wzSrc.indexOf('return html;\n    }', a);
       const bsrc = wzSrc.slice(a, bEnd + 'return html;\n    }'.length);
+      // Harness fix (S89): _buildCondCol now calls _wizCondHelp (the "?"
+      // grading-help button) at BUILD time. Extract the real helper too, so
+      // the measured markup carries the real button — a stub would measure
+      // a lie. If wizard.js grows another build-time dependency, extract it
+      // here the same way; the eval names below are the full contract.
+      const h0 = wzSrc.indexOf('function _wizCondHelp() {');
+      if (h0 < 0) throw new Error('_wizCondHelp no longer found in wizard.js — update the harness extract');
+      const hEnd = wzSrc.indexOf('\n}', h0) + 2;
+      const hsrc = wzSrc.slice(h0, hEnd);
       const build = (two, data) => new Function('wizard', 'rrEsc', '_cd2up', '_isMobile',
         '_cdMaster', '_cdIsPaperLike', '_cdHideToggles', 'getMatchingTenders',
         '_cdEraFacts', 'window', 'document',
-        '"use strict";' + bsrc + '; return _buildCondCol;')(
+        '"use strict";' + hsrc + ';' + bsrc + '; return _buildCondCol;')(
           { data: data || {} }, x => String(x == null ? '' : x), two, false, null, false, false,
           () => [], () => [], {}, {})({ id: 'main', label: '\u{1F682} No. 2343', prefix: '',
                               description: 'Santa Fe F3 A Unit' });
@@ -1100,8 +1118,12 @@ _pinOpaqueTint(document.getElementById('jt-active'), '41,128,185', 18);
         return m;
       };
       const wide = await measure(760, false, 'gallery-wide.html');
+      // S89: v1629 added an instruction label ahead of the chips — filter
+      // it out; the seven chips and their projection order are unchanged.
+      const chipOnly = function (a) { return a.filter(function (t) { return !/Drop the photo/.test(t); }); };
+      const wideChips = chipOnly(wide.chipTexts);
       ok('gallery: all seven view chips render, in projection order',
-         wide.chipTexts.length === 7 && wide.chipTexts[0] === 'Top View' && wide.chipTexts[6] === 'plain photo',
+         wideChips.length === 7 && wideChips[0] === 'Top View' && wideChips[6] === 'plain photo',
          JSON.stringify(wide.chipTexts));
       ok('gallery: the Right Side view leads an unstamped folder',
          /RSV/.test(wide.heroLabel), wide.heroLabel);
@@ -1115,8 +1137,8 @@ _pinOpaqueTint(document.getElementById('jt-active'), '41,128,185', 18);
          wide.overhang <= 1, wide.overhang + 'px overhang');
       const side = await measure(360, true, 'gallery-side.html');
       ok('gallery: the chip row wraps inside the narrow side column',
-         side.overhang <= 1 && side.chipTexts.length === 7,
-         side.overhang + 'px overhang, ' + side.chipTexts.length + ' chips');
+         side.overhang <= 1 && chipOnly(side.chipTexts).length === 7,
+         side.overhang + 'px overhang, ' + side.chipTexts.length + ' row children');
       // keep the screenshots for review
       try {
         fs.mkdirSync(path.join(__dirname, '..', '_shots'), { recursive: true });
@@ -1239,12 +1261,14 @@ ${exHtml}
       const masterChips = await chipMeasure(false, 'chips-master.html');
       ok('chips: My Collection has NO Section chip',
          ownedChips.indexOf('Items') < 0, JSON.stringify(ownedChips));
-      ok('chips: …but keeps Manufacturer, Scale, Era and All Types',
-         ownedChips.indexOf('Any Manufacturer') >= 0 && ownedChips.indexOf('Any Scale') >= 0 &&
-         ownedChips.indexOf('Any Era') >= 0 && ownedChips.indexOf('All Types') >= 0,
+      // S89: the filter-bar rework renamed the chips (Any Manufacturer ->
+      // Maker, All Types -> Type). Same four filters, same intent.
+      ok('chips: …but keeps Maker, Scale, Era and Type',
+         ownedChips.indexOf('Maker') >= 0 && ownedChips.indexOf('Scale') >= 0 &&
+         ownedChips.indexOf('Era') >= 0 && ownedChips.indexOf('Type') >= 0,
          JSON.stringify(ownedChips));
       ok('chips: the Master Catalog still has its Section chip',
-         masterChips.indexOf('Items') >= 0 && masterChips.indexOf('All Types') >= 0,
+         masterChips.indexOf('Items') >= 0 && masterChips.indexOf('Type') >= 0,
          JSON.stringify(masterChips));
       try {
         fs.mkdirSync(path.join(__dirname, '..', '_shots'), { recursive: true });
@@ -1381,7 +1405,10 @@ showCandidatePicker(${CANDS}, { itemNum: '6464-500' });
       const s0 = pinSrc.indexOf('  var _grpPanelKind = ');
       const s1 = pinSrc.indexOf('  window._pinConfirmUngroup');
       ok('panel: the real source slice was found', s0 > 0 && s1 > s0);
-      const kindsSlice = pinSrc.slice(pinSrc.indexOf('  var _PIN_KINDS = ['), pinSrc.indexOf('\n  }', pinSrc.indexOf('function _pinDefaultRoles')) + 4);
+      // S89 harness fix: v1623's set-shot work calls _pinCarryRole at
+      // RENDER time (kind 'set'), and it lives above the panel slice with
+      // its _PIN_CARRY table. Extend the extract through the real thing.
+      const kindsSlice = pinSrc.slice(pinSrc.indexOf('  var _PIN_KINDS = ['), pinSrc.indexOf('\n  }', pinSrc.indexOf('function _pinCarryRole')) + 4);
       const panelPage = `<!doctype html><html><head><meta charset="utf-8">
 <link rel="stylesheet" href="file://${APP}/app.css">
 <style>html,body{margin:0}#grid{height:1600px;background:var(--bg);padding:14px;color:var(--text-dim)}</style>
@@ -1917,19 +1944,24 @@ window.__pageReady = runSharedPhotos();
       const st = await pgU.evaluate(function () {
         localStorage.removeItem('rr_update_bar_seen');
         var out = {};
-        // Signed-out: the bar must refuse
+        // Signed-out: the card must refuse (unchanged intent)
         document.getElementById('app').classList.remove('active');
         _rrShowUpdateBar('v9.9.9');
         out.refusedOverSignIn = !document.getElementById('rr-update-bar');
-        // Signed-in: it shows, at body level, with a working dismiss
+        // Signed-in: the v1621 card shows, at body level, offering the
+        // TWO choices Brad designed: Update now / Tonight.
         document.getElementById('app').classList.add('active');
         _rrShowUpdateBar('v9.9.9');
         var bar = document.getElementById('rr-update-bar');
         out.shown = !!bar;
         out.atBody = !!bar && bar.parentElement === document.body;
-        out.hasRefresh = !!bar && /Refresh/.test(bar.textContent);
-        _rrDismissUpdateBar('v9.9.9');
+        out.hasNow = !!bar && /Update now/.test(bar.textContent);
+        out.hasTonight = !!bar && /Tonight/.test(bar.textContent);
+        // Tonight = remember THIS version, remove the card, arm the 3 AM reload
+        _rrUpdateTonight('v9.9.9');
         out.dismissed = !document.getElementById('rr-update-bar');
+        out.armed = !!window._rrNightReloadTimer;
+        try { clearTimeout(window._rrNightReloadTimer); window._rrNightReloadTimer = null; } catch (e) {}
         _rrShowUpdateBar('v9.9.9');
         out.staysAwaySameVersion = !document.getElementById('rr-update-bar');
         _rrShowUpdateBar('v9.9.10');
@@ -1939,11 +1971,13 @@ window.__pageReady = runSharedPhotos();
         return out;
       });
       await pgU.close();
-      ok('updatebar: refuses to show over the sign-in screen', st.refusedOverSignIn);
-      ok('updatebar: shows at BODY level with a Refresh button once signed in',
-         st.shown && st.atBody && st.hasRefresh, JSON.stringify(st));
-      ok('updatebar: dismiss hides it and remembers THIS version', st.dismissed && st.staysAwaySameVersion);
-      ok('updatebar: a NEWER version brings it back', st.returnsForNewer);
+      // S89: v1621 replaced Refresh/dismiss with Update now / Tonight.
+      ok('updatecard: refuses to show over the sign-in screen', st.refusedOverSignIn);
+      ok('updatecard: shows at BODY level offering Update now AND Tonight',
+         st.shown && st.atBody && st.hasNow && st.hasTonight, JSON.stringify(st));
+      ok('updatecard: Tonight removes the card, remembers THIS version, and arms the night reload',
+         st.dismissed && st.armed && st.staysAwaySameVersion, JSON.stringify(st));
+      ok('updatecard: a NEWER version brings it back', st.returnsForNewer);
     }
 
     // ══════════════════════════════════════════════════════════════════
