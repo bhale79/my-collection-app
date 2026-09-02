@@ -1,5 +1,5 @@
 // ============================================================
-//  maintenance.js — 🔧 Maintenance panel (v0.9.1636, Session 90)
+//  maintenance.js — 🔧 Maintenance panel (v0.9.1637, Session 90)
 //  OWNER-ONLY (admin preview): the button renders only when the
 //  signed-in email is on MAINT.OWNER_EMAILS. Everyone else's app
 //  is untouched — delete this ONE file + its index.html line to
@@ -163,12 +163,32 @@
   // ── the panel ────────────────────────────────────────────────
   var _panelItem = null;
 
-  window._maintOpenPanel = function (idx) {
+  window._maintOpenPanel = function (idx, itemNum, variation, invId) {
+    // invId = Brad's OWNED copy (inventoryId — the per-unit identity that
+    // phase 2's parts/history will key on). itemNum+variation = the CATALOG
+    // identity (catalog rows have no inventoryId; docs/videos live there).
     if (!_isOwner()) return;
-    var item = (window.state && state.masterData && idx >= 0) ? state.masterData[idx] : null;
+    // v0.9.1637 (Brad's No. 53 opening as an MTH 30-1469-1): the panel was
+    // trusting the POSITIONAL idx — stability rule #4 says identity, never
+    // position. The number+variation is the identity; idx is only a hint
+    // that must AGREE with it, or it is ignored.
+    var want = String(itemNum == null ? '' : itemNum).trim();
+    var wantVar = String(variation == null ? '' : variation).trim();
+    var item = null;
+    var cand = (window.state && state.masterData && idx >= 0) ? state.masterData[idx] : null;
+    if (cand && (!want || String(cand.itemNum || '').trim() === want)) item = cand;
+    if (!item && want && window.state && state.masterData) {
+      item = state.masterData.find(function (m) {
+        return m && String(m.itemNum || '').trim() === want
+            && (!wantVar || String(m.variation || '').trim() === wantVar);
+      }) || state.masterData.find(function (m) {
+        return m && String(m.itemNum || '').trim() === want;
+      }) || null;
+    }
     if (!item && window._lastDetailPdKey && state.personalData) item = state.personalData[window._lastDetailPdKey];
     if (!item) { if (typeof showToast === 'function') showToast('Could not find this item.', 3000, true); return; }
     _panelItem = item;
+    window._maintPanelInvId = String(invId == null ? '' : invId);   // phase 2 hook
 
     var eraKey = null;
     try { eraKey = (typeof _itemEraKey === 'function') ? _itemEraKey(item) : (item._era || item.era || null); } catch (e) {}
