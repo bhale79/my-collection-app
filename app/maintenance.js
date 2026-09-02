@@ -1,5 +1,5 @@
 // ============================================================
-//  maintenance.js — 🔧 Maintenance panel (v0.9.1638, Session 90)
+//  maintenance.js — 🔧 Maintenance panel (v0.9.1639, Session 90)
 //  OWNER-ONLY (admin preview): the button renders only when the
 //  signed-in email is on MAINT.OWNER_EMAILS. Everyone else's app
 //  is untouched — delete this ONE file + its index.html line to
@@ -53,7 +53,7 @@
   // (books 1-4) through Brad's member session: file → the catalog
   // numbers its section covers. We store ONLY links; the PDFs live on
   // lionelcollectors.org behind LCCA's own member login.
-  var PWSM_BASE = 'https://www.lionelcollectors.org/docs/default-source/hda/holtmann2/';
+  var PWSM_BASE = 'https://www.lionelcollectors.org/docs/default-source/hda/holtmann2/pwsm/';   // v0.9.1639: the pwsm/ folder was missing -> every PDF 404'd
   var PWSM_HOME = 'https://www.lionelcollectors.org/hda/holtmann2/vols/pwsm';
   var PWSM_FILES = {
     'acc_1047': '1047',
