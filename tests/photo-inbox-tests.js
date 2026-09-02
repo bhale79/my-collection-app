@@ -10743,8 +10743,8 @@ META_WRITES.length = 0; TOASTS.length = 0;
       // count moving must be a deliberate edit. History: v1416 69→70
       // (error-report), S85 70→74 (import-core/-ui, help-guides,
       // logo-cards), v1580 74→75 (yardmaster — the owner-only Office).
-      ok('every ?v= mark in app/index.html matches it — all 76, none stale',
-         stamps.length === 76 && stamps.every(t => t === '?v=' + build),
+      ok('every ?v= mark in app/index.html matches it — all 77, none stale',
+         stamps.length === 77 && stamps.every(t => t === '?v=' + build),
          stamps.length + ' stamps; strays: ' + stamps.filter(t => t !== '?v=' + build).slice(0, 3).join(','));
       ok('the service worker cache name moved too (build + 10, the fixed offset)',
          new RegExp("const CACHE_NAME = 'mca-v" + (build + 10) + "';").test(rd('app/sw.js')),

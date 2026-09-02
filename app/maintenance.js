@@ -1,5 +1,5 @@
 // ============================================================
-//  maintenance.js — 🔧 Maintenance panel (v0.9.1645, Session 91)
+//  maintenance.js — 🔧 Maintenance panel (v0.9.1646, Session 91)
 //  OWNER-ONLY (admin preview): the button renders only when the
 //  signed-in email is on MAINT.OWNER_EMAILS. Everyone else's app
 //  is untouched — delete this ONE file + its index.html line to
@@ -1200,6 +1200,28 @@
     return hits[0].e;
   }
 
+  // ── v0.9.1646: Trainz exploded diagrams (see trainz-diagrams-config.js) ──
+  var _tzLookup = null;
+  function _tzDiagram(item) {
+    var list = window.TRAINZ_DIAGRAMS;
+    if (!list || !list.length) return null;
+    if (!_tzLookup) {
+      _tzLookup = {};
+      list.forEach(function (e) {
+        e.n.split('|').forEach(function (k) { if (k && _tzLookup[k] == null) _tzLookup[k] = e; });
+      });
+    }
+    var n = String(item && item.itemNum || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '').replace(/^X/, '');
+    if (!n) return null;
+    var tries = [n];
+    if (/^6\d{4,}$/.test(n)) tries.push(n.slice(1));          // 618860 -> 18860
+    else if (/^\d{4,}$/.test(n)) tries.push('6' + n);         // 18860 -> 618860
+    var base = n.replace(/[A-Z]+$/, '');
+    if (base && base !== n) tries.push(base);                 // 2343C -> 2343 (after exact)
+    for (var i = 0; i < tries.length; i++) if (_tzLookup[tries[i]]) return _tzLookup[tries[i]];
+    return null;
+  }
+
   var _pwsmLookup = null;
   function _pwsmFile(num) {
     if (!_pwsmLookup) {
@@ -1482,6 +1504,11 @@
                 + '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.45rem">MTH has exploded diagrams for many (not all) items — look for the gears icon.</div>';
             } else {
               h += '<div style="font-size:0.8rem;color:var(--text-dim);padding:0.4rem 0;border-bottom:1px dashed var(--border);margin-bottom:0.5rem">' + _esc(mk) + ' does not publish a parts list for this one — use the searches below.</div>';
+            }
+            // ── Trainz exploded diagram, when their library has this item ──
+            var tzd = _tzDiagram(item);
+            if (tzd) {
+              h += '<div style="margin-top:0.5rem"><button onclick="window.open(\'https://www.trainz.com/pages/parts-diagram/' + _esc(tzd.h) + '\',\'_blank\')" style="' + linkBtn + '">Trainz diagram: ' + _esc(tzd.t) + ' →</button></div>';
             }
             // ── always: Google (with MODEL words) + supplier dropdown ──
             var mw = _modelWords(item);
