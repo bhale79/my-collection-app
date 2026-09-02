@@ -1,5 +1,5 @@
 // ============================================================
-//  maintenance.js — 🔧 Maintenance panel (v0.9.1646, Session 91)
+//  maintenance.js — 🔧 Maintenance panel (v0.9.1647, Session 91)
 //  OWNER-ONLY (admin preview): the button renders only when the
 //  signed-in email is on MAINT.OWNER_EMAILS. Everyone else's app
 //  is untouched — delete this ONE file + its index.html line to
@@ -1364,6 +1364,28 @@
       o.value = name; o.textContent = name; sel.appendChild(o); sel.value = name;
     }
   };
+  // v0.9.1647 (phase 2): create a Parts Needed entry pre-linked to THIS
+  // owned copy (the _maintPanelInvId hook from v1637, cashed in).
+  window._maintAddPartWanted = async function () {
+    if (!_panelItem) return;
+    var box = document.getElementById('maint-part-desc');
+    var txt = box ? String(box.value || '').trim() : '';
+    if (!txt) { if (typeof showToast === 'function') showToast('Type the part (number or description) first \u2014 read it off the diagram.', 3500, true); return; }
+    try {
+      if (typeof _ensurePartsTab === 'function') await _ensurePartsTab();
+      if (typeof _ensurePartsLifecycleCols === 'function') await _ensurePartsLifecycleCols();
+      var _t = function (v) { v = String(v || ''); return v && v.charAt(0) !== "'" ? "'" + v : v; };
+      var isNum = /^[A-Za-z]{0,4}[\-#]?[A-Za-z0-9][A-Za-z0-9\-\/\.]*$/.test(txt) && /\d/.test(txt);
+      var row = [_t('part-' + Date.now()), isNum ? '' : txt, _t(isNum ? txt : ''),
+                 _t(String(_panelItem.itemNum || '')), _t(window._maintPanelInvId || ''),
+                 '', 'added from Maintenance panel', new Date().toISOString().split('T')[0],
+                 'wanted', '', '', ''];
+      await sheetsAppend(state.personalSheetId, 'Parts Needed!A:L', [row]);
+      if (typeof buildPartsPage === 'function') buildPartsPage();
+      if (typeof showToast === 'function') showToast('\u2713 Added to Parts Wanted \u2014 linked to ' + String(_panelItem.itemNum || ''));
+      if (box) box.value = '';
+    } catch (e) { if (typeof showToast === 'function') showToast('Could not save the part \u2014 ' + (e && e.message || 'try again'), 4000, true); }
+  };
   window._maintSupplierGo = function () {
     if (!_panelItem) return;
     var sel = document.getElementById('maint-supplier');
@@ -1543,8 +1565,9 @@
           + '<div style="display:flex;gap:0.4rem;margin-top:0.5rem;flex-wrap:wrap">'
           +   '<input id="maint-part-desc" placeholder="part number / description" style="flex:1;min-width:150px;padding:0.45rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.82rem">'
           +   '<button onclick="_maintSearchParts()" style="' + linkBtn + '">Search →</button>'
+          +   '<button onclick="_maintAddPartWanted()" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #e67e22;background:var(--bg-card);background:color-mix(in srgb, rgb(230,126,34) 10%, var(--bg-card));color:#e67e22;font-family:var(--font-body);font-size:0.82rem;cursor:pointer;font-weight:600">+ Add to Parts Wanted</button>'
           + '</div>'
-          + '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.45rem">Searches Google as: &quot;dealer&quot; &quot;maker&quot; &quot;item number&quot; &quot;part&quot;</div>')
+          + '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.45rem">Search Google as &quot;dealer&quot; &quot;maker&quot; &quot;item number&quot; &quot;part&quot; \u2014 or add what you typed straight to your Parts Wanted list, linked to this item.</div>')
 
       + '</div></div>';
 

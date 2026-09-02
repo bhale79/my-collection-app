@@ -4279,11 +4279,24 @@ async function _ensurePartsTab() {
       body: JSON.stringify({ requests: [{ addSheet: { properties: { title: 'Parts Needed', tabColor: { red: 0.62, green: 0.42, blue: 0.20 } } } }] })
     });
     await sheetsUpdate(state.personalSheetId, 'Parts Needed!A1', [['🔧 Parts Needed']]);
-    await sheetsUpdate(state.personalSheetId, 'Parts Needed!A2:H2',
-      [['Part ID', 'Description', 'Part Number', 'For Item', 'For Inventory ID', 'Photo Link', 'Notes', 'Date Added']]);
+    await sheetsUpdate(state.personalSheetId, 'Parts Needed!A2:L2',
+      [['Part ID', 'Description', 'Part Number', 'For Item', 'For Inventory ID', 'Photo Link', 'Notes', 'Date Added', 'Status', 'Date Bought', 'Date Installed', 'Price Paid']]);
     return true;
   } catch (e) { console.warn('[Parts] ensure tab failed', e && e.message); return false; }
 }
+// v0.9.1647 (phase 2): lifecycle columns I-L appended to EXISTING tabs
+// (columns at the END — stability rule; blank Status means 'wanted', so
+// old rows migrate by meaning alone, no rewrite).
+async function _ensurePartsLifecycleCols() {
+  try {
+    var r = await sheetsGet(state.personalSheetId, 'Parts Needed!I2:L2').catch(function () { return { values: [] }; });
+    var have = (r.values && r.values[0]) || [];
+    if (String(have[0] || '') === 'Status') return true;
+    await sheetsUpdate(state.personalSheetId, 'Parts Needed!I2:L2', [['Status', 'Date Bought', 'Date Installed', 'Price Paid']]);
+    return true;
+  } catch (e) { console.warn('[Parts] lifecycle cols failed', e && e.message); return false; }
+}
+if (typeof window !== 'undefined') { window._ensurePartsTab = _ensurePartsTab; window._ensurePartsLifecycleCols = _ensurePartsLifecycleCols; }
 
 // v0.9.827: THE parts-row parser — used by the page below AND the offline
 // snapshot loader in app-data.js (single source of truth).
@@ -4294,7 +4307,9 @@ function _parsePartsRows(values) {
     var _s = function (v) { return (v !== null && v !== undefined && v !== '') ? String(v) : ''; };
     parts['p' + (idx + 3)] = {
       row: idx + 3, id: _s(r[0]), description: _s(r[1]), partNum: _s(r[2]),
-      forItem: _s(r[3]), forInv: _s(r[4]), photo: _s(r[5]), notes: _s(r[6]), dateAdded: _s(r[7])
+      forItem: _s(r[3]), forInv: _s(r[4]), photo: _s(r[5]), notes: _s(r[6]), dateAdded: _s(r[7]),
+      // v0.9.1647 lifecycle (I-L): blank status MEANS 'wanted' — zero-touch migration.
+      status: _s(r[8]).toLowerCase() || 'wanted', dateBought: _s(r[9]), dateInstalled: _s(r[10]), pricePaid: _s(r[11])
     };
   });
   return parts;
@@ -4309,7 +4324,7 @@ async function buildPartsPage() {
   listEl.innerHTML = '<div style="padding:2rem;text-align:center;color:var(--text-dim)">Loading parts…</div>';
   try {
     await _ensurePartsTab();
-    var res = await sheetsGet(state.personalSheetId, 'Parts Needed!A3:H').catch(function () { return { values: [] }; });
+    var res = await sheetsGet(state.personalSheetId, 'Parts Needed!A3:L').catch(function () { return { values: [] }; });
     state.partsData = _parsePartsRows(res.values);
   } catch (e) { state.partsData = state.partsData || {}; }
   _renderPartsList();
@@ -4332,8 +4347,15 @@ function _renderPartsList() {
   if (!listEl) return;
   var parts = Object.values(state.partsData || {});
   _updatePartsBadge();
+  // v0.9.1647 (phase 2, owner preview): lifecycle view — open parts
+  // (wanted/bought) by default, a toggle reveals installed history.
+  var _lc = (typeof _maintIsOwner === 'function' && _maintIsOwner());
+  if (_lc && !window._partsShowInstalled) {
+    parts = parts.filter(function (p) { return (p.status || 'wanted') !== 'installed'; });
+  }
   var cnt = document.getElementById('parts-count');
   if (cnt) cnt.textContent = parts.length ? (' ' + parts.length + ' part' + (parts.length !== 1 ? 's' : '')) : '';
+  var _instCount = _lc ? Object.values(state.partsData || {}).filter(function (p) { return (p.status || 'wanted') === 'installed'; }).length : 0;
   if (!parts.length) {
     listEl.innerHTML = '<div style="text-align:center;padding:3rem 1rem;color:var(--text-dim)">'
       + '<div style="font-size:2.5rem;margin-bottom:0.5rem">🔧</div>'
@@ -4369,15 +4391,41 @@ function _renderPartsList() {
       + '</div>'
       + (p.notes ? '<div style="font-size:0.78rem;color:var(--text-dim);margin-top:0.2rem">' + p.notes + '</div>' : '')
       + '</div>'
-      + '<div style="display:flex;gap:0.35rem;flex-wrap:wrap">'
-      + ((p.forInv && state.personalData && state.personalData[p.forInv]) ? '<button onclick="markPartInstalled(' + p.row + ')" style="padding:0.35rem 0.6rem;border-radius:7px;border:1.5px solid #2ecc71;background:var(--bg-card);background:color-mix(in srgb, rgb(46,204,113) 12%, var(--bg-card));color:#2ecc71;font-family:var(--font-body);font-size:0.75rem;cursor:pointer;font-weight:600">\u2713 Installed</button>' : '')
+      + '<div style="display:flex;gap:0.35rem;flex-wrap:wrap;align-items:center">'
+      + (_lc ? ('<span style="padding:0.2rem 0.55rem;border-radius:99px;font-size:0.68rem;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;'
+          + ((p.status || 'wanted') === 'installed' ? 'background:var(--bg-card);background:color-mix(in srgb, rgb(46,204,113) 18%, var(--bg-card));color:#2ecc71'
+            : (p.status === 'bought' ? 'background:var(--bg-card);background:color-mix(in srgb, rgb(230,126,34) 18%, var(--bg-card));color:#e67e22'
+            : 'background:var(--surface2);color:var(--text-dim)'))
+          + '">' + ((p.status || 'wanted') === 'installed' ? '\u2713 installed' + (p.dateInstalled ? ' ' + p.dateInstalled : '') : (p.status === 'bought' ? 'bought' + (p.dateBought ? ' ' + p.dateBought : '') + ' \u2014 in the drawer' : 'wanted')) + '</span>') : '')
+      + (_lc && (p.status || 'wanted') === 'wanted' ? '<button onclick="markPartBought(' + p.row + ')" style="padding:0.35rem 0.6rem;border-radius:7px;border:1.5px solid #e67e22;background:var(--bg-card);background:color-mix(in srgb, rgb(230,126,34) 10%, var(--bg-card));color:#e67e22;font-family:var(--font-body);font-size:0.75rem;cursor:pointer;font-weight:600">Bought it</button>' : '')
+      + ((p.forInv && state.personalData && state.personalData[p.forInv] && (p.status || 'wanted') !== 'installed') ? '<button onclick="markPartInstalled(' + p.row + ')" style="padding:0.35rem 0.6rem;border-radius:7px;border:1.5px solid #2ecc71;background:var(--bg-card);background:color-mix(in srgb, rgb(46,204,113) 12%, var(--bg-card));color:#2ecc71;font-family:var(--font-body);font-size:0.75rem;cursor:pointer;font-weight:600">\u2713 Installed</button>' : '')
       + '<button onclick="googlePart(\'' + esc(p.partNum) + '\',\'' + esc(p.forItem) + '\',\'' + esc(p.description) + '\')" style="padding:0.35rem 0.6rem;border-radius:7px;border:1.5px solid #2980b9;background:var(--bg-card);background:color-mix(in srgb, rgb(41,128,185) 10%, var(--bg-card));color:#2980b9;font-family:var(--font-body);font-size:0.75rem;cursor:pointer;font-weight:600">Google</button>'
       + '<button onclick="showAddPartModal(\'' + p.id + '\')" style="padding:0.35rem 0.6rem;border-radius:7px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.75rem;cursor:pointer">Edit</button>'
       + '<button onclick="removePart(' + p.row + ')" style="padding:0.35rem 0.6rem;border-radius:7px;border:1.5px solid #e74c3c;background:var(--bg-card);background:color-mix(in srgb, rgb(231,76,60) 10%, var(--bg-card));color:#e74c3c;font-family:var(--font-body);font-size:0.75rem;cursor:pointer">Remove</button>'
       + '</div></div></div>';
   }).join('');
+  if (_lc && (_instCount || window._partsShowInstalled)) {
+    listEl.innerHTML += '<div style="text-align:center;margin-top:0.8rem"><button onclick="window._partsShowInstalled=!window._partsShowInstalled;_renderPartsList()" style="padding:0.45rem 0.9rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body);font-size:0.78rem;cursor:pointer">'
+      + (window._partsShowInstalled ? 'Hide installed history' : 'Show installed history (' + _instCount + ')') + '</button></div>';
+  }
   _thumbs.forEach(function (t) { var el = document.getElementById(t.id); if (el && typeof loadDriveThumb === 'function') loadDriveThumb(t.fid, el, el.parentElement); });
 }
+
+// v0.9.1647: wanted -> bought. Stamps I:J on the row (verified first).
+async function markPartBought(rowNum) {
+  var p = Object.values(state.partsData || {}).find(function (x) { return x.row === rowNum; });
+  if (!p) return;
+  var today = new Date().toISOString().split('T')[0];
+  try {
+    if (typeof _ensurePartsLifecycleCols === 'function') await _ensurePartsLifecycleCols();
+    if (!(await rrVerifiedRowUpdate(state.personalSheetId, 'Parts Needed', rowNum,
+        'Parts Needed!I' + rowNum + ':J' + rowNum, [['bought', today]], { num: p.id }, 'Parts list'))) return;
+    p.status = 'bought'; p.dateBought = today;
+    _renderPartsList();
+    if (typeof showToast === 'function') showToast('\u2713 Marked bought \u2014 it\u2019s in the drawer');
+  } catch (e) { if (typeof showToast === 'function') showToast(rrSaveError(e, 'the part'), 4000, true); }
+}
+if (typeof window !== 'undefined') window.markPartBought = markPartBought;
 
 function googlePart(partNum, forItem, desc) {
   var mfr = (forItem && typeof _brandOfItem === 'function') ? (_brandOfItem(forItem) || '') : '';
@@ -4633,7 +4681,19 @@ async function _savePartInstalled(rowNum) {
     }
     pd.notes = newNotes;
     if (orig) pd.allOriginal = orig;
-    await removePart(rowNum);
+    // v0.9.1647 (phase 2): the OWNER keeps the row as installed history
+    // (status/date/price in I-L); everyone else keeps the original
+    // delete-on-install behavior — their app is unchanged.
+    if (typeof _maintIsOwner === 'function' && _maintIsOwner()) {
+      if (typeof _ensurePartsLifecycleCols === 'function') await _ensurePartsLifecycleCols();
+      if (await rrVerifiedRowUpdate(state.personalSheetId, 'Parts Needed', rowNum,
+          'Parts Needed!I' + rowNum + ':L' + rowNum, [['installed', p.dateBought || '', date, price || '']], { num: p.id }, 'Parts list')) {
+        p.status = 'installed'; p.dateInstalled = date; if (price) p.pricePaid = price;
+      }
+      _renderPartsList();
+    } else {
+      await removePart(rowNum);
+    }
     if (typeof renderBrowse === 'function') renderBrowse();
     if (typeof buildDashboard === 'function') buildDashboard();
     if (typeof _cachePersonalData === 'function') _cachePersonalData();

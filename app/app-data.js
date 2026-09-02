@@ -1659,7 +1659,7 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
     sheetsGet(sheetId, 'My Sets!A3:N').catch((e) => { console.warn('[My Sets load failed]', e && e.message); return {values:[], _failed:true}; }),
     // v0.9.827 (Brad): Parts + Contacts join the offline snapshot — small
     // lists you want at a train show (part numbers, dealer phone numbers).
-    sheetsGet(sheetId, 'Parts Needed!A3:H').catch((e) => { console.warn('[Parts Needed load failed]', e && e.message); return {values:[], _failed:true}; }),
+    sheetsGet(sheetId, 'Parts Needed!A3:L').catch((e) => { console.warn('[Parts Needed load failed]', e && e.message); return {values:[], _failed:true}; }),
     sheetsGet(sheetId, 'Contacts!A2:P').catch((e) => { console.warn('[Contacts load failed]', e && e.message); return {values:[], _failed:true}; }),
   ]);
   // Defaults — overwritten once the secondary promise resolves below

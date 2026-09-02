@@ -15318,8 +15318,8 @@ META_WRITES.length = 0; TOASTS.length = 0;
         // link-fix (show mode 2) — a staged offline photo's Item Photo Link
         // cell, written through the SAME verified writer the photo-only save
         // uses. Exactly where a new row write is supposed to flow.
-        ok('234 the sweep really landed — 71 sites write through the one guarded writer',
-           wrapped === 71, String(wrapped));
+        ok('234 the sweep really landed — 73 sites write through the one guarded writer',
+           wrapped === 73, String(wrapped));   // v0.9.1647: +2 (parts lifecycle bought/installed writes)
       }
     })();
 
