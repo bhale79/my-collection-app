@@ -1,5 +1,5 @@
 // ============================================================
-//  maintenance.js — 🔧 Maintenance panel (v0.9.1647, Session 91)
+//  maintenance.js — 🔧 Maintenance panel (v0.9.1648, Session 91)
 //  OWNER-ONLY (admin preview): the button renders only when the
 //  signed-in email is on MAINT.OWNER_EMAILS. Everyone else's app
 //  is untouched — delete this ONE file + its index.html line to
@@ -1454,16 +1454,37 @@
     // that must AGREE with it, or it is ignored.
     var want = String(itemNum == null ? '' : itemNum).trim();
     var wantVar = String(variation == null ? '' : variation).trim();
+    // v0.9.1648 (Brad's Lionel 54 Ballast Tamper opening as the MARX 54
+    // KCS): number+variation is STILL not an identity — catalog numbers
+    // repeat ACROSS MAKERS (the v1157 lesson). The owned copy knows its
+    // era, so the inventoryId anchors it.
+    var wantEra = null;
+    try {
+      if (invId && window.state && state.personalData) {
+        var pdk = Object.keys(state.personalData).find(function (k) {
+          var p = state.personalData[k];
+          return p && String(p.inventoryId || '') === String(invId) && String(p.itemNum || '').trim() === want;
+        });
+        if (pdk && typeof _itemEraKey === 'function') wantEra = _itemEraKey(state.personalData[pdk]);
+      }
+    } catch (e0) {}
+    var eraOf = function (m) { try { return (typeof _itemEraKey === 'function') ? _itemEraKey(m) : (m._era || null); } catch (e1) { return null; } };
+    var fits = function (m, needVar, needEra) {
+      if (!m || String(m.itemNum || '').trim() !== want) return false;
+      if (needVar && wantVar && String(m.variation || '').trim() !== wantVar) return false;
+      if (needEra && wantEra && eraOf(m) !== wantEra) return false;
+      return true;
+    };
     var item = null;
     var cand = (window.state && state.masterData && idx >= 0) ? state.masterData[idx] : null;
-    if (cand && (!want || String(cand.itemNum || '').trim() === want)) item = cand;
+    if (cand && (!want || fits(cand, false, true))) item = cand;
     if (!item && want && window.state && state.masterData) {
-      item = state.masterData.find(function (m) {
-        return m && String(m.itemNum || '').trim() === want
-            && (!wantVar || String(m.variation || '').trim() === wantVar);
-      }) || state.masterData.find(function (m) {
-        return m && String(m.itemNum || '').trim() === want;
-      }) || null;
+      var md = state.masterData;
+      item = md.find(function (m) { return fits(m, true, true); })
+          || md.find(function (m) { return fits(m, false, true); })
+          || md.find(function (m) { return fits(m, true, false); })
+          || md.find(function (m) { return fits(m, false, false); })
+          || null;
     }
     if (!item && window._lastDetailPdKey && state.personalData) item = state.personalData[window._lastDetailPdKey];
     if (!item) { if (typeof showToast === 'function') showToast('Could not find this item.', 3000, true); return; }
