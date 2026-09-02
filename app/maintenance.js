@@ -1,5 +1,5 @@
 // ============================================================
-//  maintenance.js — 🔧 Maintenance panel (v0.9.1644, Session 91)
+//  maintenance.js — 🔧 Maintenance panel (v0.9.1645, Session 91)
 //  OWNER-ONLY (admin preview): the button renders only when the
 //  signed-in email is on MAINT.OWNER_EMAILS. Everyone else's app
 //  is untouched — delete this ONE file + its index.html line to
@@ -20,6 +20,7 @@
     OWNER_EMAILS: ['bhale@ipd-llc.com', 'support@therailroster.com'],
     PREF_CHANNELS: 'maint_yt_channels',   // JSON array of channel names
     PREF_DEALERS:  'maint_parts_dealers', // JSON array of dealer names
+    PREF_SUPPLIERS: 'maint_diagram_suppliers', // JSON array; seeded with Trainz
   };
 
   function _isOwner() {
@@ -40,7 +41,12 @@
     try {
       var v = (typeof _prefGet === 'function') ? _prefGet(key, '[]') : '[]';
       var a = JSON.parse(v);
-      return Array.isArray(a) ? a.filter(Boolean) : [];
+      a = Array.isArray(a) ? a.filter(Boolean) : [];
+      // Trainz ships in the supplier list — Brad: "I just know Trainz is
+      // going to be popular, make sure it works great." Removable like any
+      // favorite; it just starts there.
+      if (key === MAINT.PREF_SUPPLIERS && !a.length && !_prefGet(key + '_touched', '')) a = ['Trainz'];
+      return a;
     } catch (e) { return []; }
   }
   function _saveFavs(key, arr) {
@@ -1251,6 +1257,17 @@
       .split(/\s+/).slice(0, 5).join(' ');
     return d;
   }
+  // v0.9.1645 (Brad's ET44): the item number alone finds nothing — the
+  // query needs the MODEL words. Description first (may carry "GP15T"),
+  // then the item type ("Diesel Locomotive"); road name skipped when the
+  // description already is the road name (the ET44's was).
+  function _modelWords(item) {
+    var d = _shortName(item);
+    var t = String(item && (item.itemType || item.type) || '').trim();
+    var road = String(item && item.roadName || '').trim().toLowerCase();
+    if (d && road && d.toLowerCase() === road) d = '';
+    return [d, t].filter(Boolean).join(' ').trim();
+  }
   function _baseNum(item) {
     var n = String(item && item.itemNum || '').trim();
     try { if (typeof baseItemNum === 'function') return baseItemNum(n) || n; } catch (e) {}
@@ -1311,22 +1328,43 @@
   window._maintAddFav = function (prefKey, selectId) {
     var name = prompt(prefKey === MAINT.PREF_CHANNELS
       ? 'YouTube channel name or @handle (e.g. @TrainRepairGuy):'
+      : prefKey === MAINT.PREF_SUPPLIERS
+      ? 'Parts supplier name (e.g. Trainz, Olsen\'s):'
       : 'Parts dealer name (e.g. Joe\'s Train Shop):');
     if (!name || !String(name).trim()) return;
     name = String(name).trim();
     var favs = _favs(prefKey);
     if (favs.indexOf(name) < 0) { favs.push(name); _saveFavs(prefKey, favs); }
+    try { if (typeof _prefSet === 'function') _prefSet(prefKey + '_touched', '1'); } catch (e2) {}
     var sel = document.getElementById(selectId);
     if (sel) {
       var o = document.createElement('option');
       o.value = name; o.textContent = name; sel.appendChild(o); sel.value = name;
     }
   };
+  window._maintSupplierGo = function () {
+    if (!_panelItem) return;
+    var sel = document.getElementById('maint-supplier');
+    var sup = (sel && sel.value) || 'Trainz';
+    var mk = _makerName(_panelItem, _panelItem._era) || '';
+    var mw = _modelWords(_panelItem);
+    var url;
+    if (/^trainz$/i.test(sup.trim())) {
+      // Trainz's search ANDs every word and item numbers match nothing
+      // (proven: "atlas 30138671 parts" = 0 results) — maker + model
+      // words only, the eBay lesson from research.js all over again.
+      url = 'https://www.trainz.com/search?q=' + encodeURIComponent((mk + ' ' + mw + ' parts').replace(/\s+/g, ' ').trim());
+    } else {
+      url = 'https://www.google.com/search?q=' + encodeURIComponent(('"' + sup + '" "' + mk + '" ' + mw + ' parts diagram').replace(/\s+/g, ' ').trim());
+    }
+    window.open(url, '_blank');
+  };
   window._maintDelFav = function (prefKey, selectId) {
     var sel = document.getElementById(selectId);
     if (!sel || !sel.value) return;
     var favs = _favs(prefKey).filter(function (f) { return f !== sel.value; });
     _saveFavs(prefKey, favs);
+    try { if (typeof _prefSet === 'function') _prefSet(prefKey + '_touched', '1'); } catch (e2) {}
     sel.remove(sel.selectedIndex);
     sel.value = '';
   };
@@ -1445,12 +1483,16 @@
             } else {
               h += '<div style="font-size:0.8rem;color:var(--text-dim);padding:0.4rem 0;border-bottom:1px dashed var(--border);margin-bottom:0.5rem">' + _esc(mk) + ' does not publish a parts list for this one — use the searches below.</div>';
             }
-            // ── always: Google + Trainz ──
-            var gq = 'https://www.google.com/search?q=' + encodeURIComponent('"' + mk + '" "' + num + '" parts diagram');
-            var tz = 'https://www.trainz.com/search?q=' + encodeURIComponent(mk + ' ' + num + ' parts');
-            h += '<div style="display:flex;gap:0.4rem;margin-top:0.55rem;flex-wrap:wrap">'
+            // ── always: Google (with MODEL words) + supplier dropdown ──
+            var mw = _modelWords(item);
+            var gq = 'https://www.google.com/search?q=' + encodeURIComponent(('"' + mk + '" "' + num + '" ' + mw + ' parts diagram').replace(/\s+/g, ' '));
+            h += '<div style="display:flex;gap:0.4rem;margin-top:0.55rem;flex-wrap:wrap;align-items:center">'
               +   '<button onclick="window.open(\'' + _esc(gq) + '\',\'_blank\')" style="padding:0.4rem 0.8rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body);font-size:0.78rem;cursor:pointer">Google the parts diagram →</button>'
-              +   '<button onclick="window.open(\'' + _esc(tz) + '\',\'_blank\')" style="padding:0.4rem 0.8rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body);font-size:0.78rem;cursor:pointer">Trainz parts diagrams →</button>'
+              + '</div>'
+              + '<div style="font-size:0.7rem;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-dim);margin-top:0.6rem;margin-bottom:0.35rem">Parts suppliers</div>'
+              + _favRow(MAINT.PREF_SUPPLIERS, 'maint-supplier', 'Pick a supplier…')
+              + '<div style="display:flex;gap:0.4rem;margin-top:0.4rem">'
+              +   '<button onclick="_maintSupplierGo()" style="padding:0.4rem 0.8rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body);font-size:0.78rem;cursor:pointer">Search that supplier →</button>'
               + '</div>';
             return h;
           })())
