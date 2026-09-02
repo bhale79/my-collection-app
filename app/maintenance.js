@@ -1,5 +1,5 @@
 // ============================================================
-//  maintenance.js — 🔧 Maintenance panel (v0.9.1641, Session 90)
+//  maintenance.js — 🔧 Maintenance panel (v0.9.1642, Session 90)
 //  OWNER-ONLY (admin preview): the button renders only when the
 //  signed-in email is on MAINT.OWNER_EMAILS. Everyone else's app
 //  is untouched — delete this ONE file + its index.html line to
@@ -964,9 +964,12 @@
       return pf ? (PWSM_BASE + pf + '.pdf' + (PWSM_TOK[pf] ? '?sfvrsn=' + PWSM_TOK[pf] : '')) : PWSM_HOME;
     }
     if (route === 'lionel')
-      return 'https://www.lionelsupport.com/service-documents/index.cfm?doAction=search&keywords=' + encodeURIComponent(num);
+      // v0.9.1642: lionelsupport's own search is JS-only and its old CFM
+      // documents index is dead (404'd on Brad). Google's index of the
+      // site finds the manual + parts PDFs reliably.
+      return 'https://www.google.com/search?q=' + encodeURIComponent('site:lionelsupport.com "' + num + '"');
     if (route === 'mth')
-      return 'https://mthpartsandsales.com/search?q=' + encodeURIComponent(num);
+      return 'https://mthpartsandsales.com/shop/search/results?searchContext=' + encodeURIComponent(num);   // v0.9.1642: their real search route (the guessed /search?q= 404'd on Brad)
     if (route === 'atlas')
       return 'https://shop.atlasrr.com/t-partsdiagrams.aspx';
     // generic: a plain web search for this maker's docs
@@ -1035,10 +1038,19 @@
   // lionelcollectors.org; the user pastes in that tab's address bar.
   window._maintLccaGo = function (url) {
     var done = function (ok) {
+      // v0.9.1642: the new tab covers the app instantly, so a toast plays
+      // to an empty room (Brad never saw it). The instruction lives IN
+      // the panel now — still there when the user switches back.
+      var note = document.getElementById('maint-lcca-note');
+      if (note) {
+        note.style.display = 'block';
+        note.innerHTML = ok
+          ? '<b>Link copied!</b> Due to LCCA\'s permissions, please <b>log in</b> on the LCCA tab that just opened (check <b>Remember Me</b> — you only have to do this once). Once logged in, <b>right-click the web address bar</b> and hit <b>Paste and go</b> — that takes you straight to the manual pages.'
+          : 'Could not copy the link automatically — here it is to copy by hand:<br><span style="user-select:all;word-break:break-all">' + _esc(url) + '</span>';
+      }
+      if (typeof showToast === 'function' && !ok)
+        showToast('Could not copy the link — see the Maintenance panel.', 5000, true);
       window.open('https://www.lionelcollectors.org', '_blank');
-      if (typeof showToast === 'function')
-        showToast(ok ? 'Manual link copied! In the LCCA tab: click the address bar, paste (Ctrl+V), hit Enter. Sign in first if asked.'
-                     : 'Could not copy — long-press the button to copy the link manually.', 7000, !ok);
     };
     try {
       navigator.clipboard.writeText(url).then(function(){ done(true); }, function(){ done(false); });
@@ -1110,6 +1122,7 @@
             : '<button onclick="window.open(\'' + _esc(_docsUrl(route, item)) + '\',\'_blank\')" style="' + linkBtn + '">' + _esc(routeLabel) + ' →</button>')
           + (route === 'lcca'
             ? ((_pwsmHit ? '<div style="margin-top:0.5rem"><button onclick="_maintLccaGo(\'' + PWSM_HOME + '\')" style="padding:0.4rem 0.8rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body);font-size:0.78rem;cursor:pointer">Browse the whole archive →</button></div>' : '')
+              + '<div id="maint-lcca-note" style="display:none;font-size:0.8rem;color:var(--text);background:var(--bg-card);background:color-mix(in srgb, rgb(22,160,133) 12%, var(--surface2));border:1px solid #16a085;border-radius:8px;padding:0.55rem 0.7rem;margin-top:0.55rem"></div>'
               + '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.45rem">' + (_pwsmHit ? 'Copies the link to this item\'s manual section and opens LCCA in a new tab — paste the link in that tab\'s address bar (LCCA\'s login only allows links opened by you, not by apps).' : 'No direct section mapped for ' + _esc(String(item.itemNum || '')) + ' — the button copies the archive link; paste it in the LCCA tab.') + ' Requires LCCA membership.</div>')
             : route !== 'generic'
             ? '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.45rem">Opens a search for ' + _esc(String(item.itemNum || '')) + ' — pick the parts list or owner\'s manual there.</div>'
