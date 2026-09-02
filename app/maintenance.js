@@ -1,5 +1,5 @@
 // ============================================================
-//  maintenance.js — 🔧 Maintenance panel (v0.9.1635, Session 90)
+//  maintenance.js — 🔧 Maintenance panel (v0.9.1636, Session 90)
 //  OWNER-ONLY (admin preview): the button renders only when the
 //  signed-in email is on MAINT.OWNER_EMAILS. Everyone else's app
 //  is untouched — delete this ONE file + its index.html line to
@@ -52,7 +52,12 @@
   // Era stamps are facts (see _itemEraKey); numbers are not identities.
   function _docsRoute(eraKey) {
     var e = String(eraKey || '').toLowerCase();
-    if (e === 'pw' || e === 'mpc' || e === 'mod' || e === 'prewar' || e === 'kline') return 'lionel';
+    // v0.9.1636 (Brad): postwar/prewar docs are NOT on lionelsupport (it
+    // skews modern) — they live in the LCCA members' digital archive
+    // (Postwar Service Manual 1945-69). LCCA handles its own login; the
+    // browser's cookie keeps members signed in. We never store credentials.
+    if (e === 'pw' || e === 'prewar') return 'lcca';
+    if (e === 'mpc' || e === 'mod' || e === 'kline') return 'lionel';
     if (e.indexOf('mth') === 0) return 'mth';
     if (e.indexOf('atlas') === 0) return 'atlas';
     return 'generic';
@@ -89,6 +94,8 @@
   // ── URL builders (all open in a new tab; no API keys anywhere) ─
   function _docsUrl(route, item) {
     var num = String(item && item.itemNum || '').trim();
+    if (route === 'lcca')
+      return 'https://www.lionelcollectors.org/hda/holtmann2/vols/pwsm';
     if (route === 'lionel')
       return 'https://www.lionelsupport.com/service-documents/index.cfm?doAction=search&keywords=' + encodeURIComponent(num);
     if (route === 'mth')
@@ -166,7 +173,8 @@
     var eraKey = null;
     try { eraKey = (typeof _itemEraKey === 'function') ? _itemEraKey(item) : (item._era || item.era || null); } catch (e) {}
     var route = _docsRoute(eraKey);
-    var routeLabel = route === 'lionel' ? 'Lionel Support (manuals & parts diagrams)'
+    var routeLabel = route === 'lcca' ? 'LCCA Postwar Service Manual archive (members)'
+                   : route === 'lionel' ? 'Lionel Support (manuals & parts diagrams)'
                    : route === 'mth' ? 'MTH Parts & Sales (diagrams & parts)'
                    : route === 'atlas' ? 'Atlas parts diagrams'
                    : 'Search the web for docs';
@@ -192,7 +200,9 @@
       // Docs
       + sec('Manuals &amp; Parts Diagrams',
           '<button onclick="window.open(\'' + _esc(_docsUrl(route, item)) + '\',\'_blank\')" style="' + linkBtn + '">' + _esc(routeLabel) + ' →</button>'
-          + (route !== 'generic'
+          + (route === 'lcca'
+            ? '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.45rem">LCCA Postwar Service Manuals (members) — volumes by category: locomotives/e-units, operating cars, switches/transformers, etc. Sign in once; your browser remembers. Look up ' + _esc(String(item.itemNum || '')) + ' there.</div>'
+            : route !== 'generic'
             ? '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.45rem">Opens a search for ' + _esc(String(item.itemNum || '')) + ' — pick the parts list or owner\'s manual there.</div>'
             : ''))
 
