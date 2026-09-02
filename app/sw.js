@@ -4,7 +4,7 @@
 // fetches fresh copies in the background for next load.
 // NEVER caches Google API, OAuth, or Sheets calls.
 
-const CACHE_NAME = 'mca-v1649';
+const CACHE_NAME = 'mca-v1650';
 
 // ── v0.9.1214: the version stamp has to survive as far as the cache ──
 // Brad, on v1213: "im reset twice and it still looks the same." He was
@@ -138,7 +138,7 @@ const SHELL_FILES = [
   './help-img/strongman.jpg',
   './dispatch-board.js',
   './yardmaster.js',   // v0.9.1580: the owner-only Office (the S85 precache lesson)
-  './maintenance.js',   // v0.9.1639: Maintenance panel (owner-only preview, Session 90)
+  './maintenance.js',   // v0.9.1640: Maintenance panel (owner-only preview, Session 90)
   './img/dispatch-board-192.png',
   './img/dispatch-board-512.png',
   './img/dispatch-board-64.png',
