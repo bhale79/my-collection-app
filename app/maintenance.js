@@ -1,5 +1,5 @@
 // ============================================================
-//  maintenance.js — 🔧 Maintenance panel (v0.9.1643, Session 91)
+//  maintenance.js — 🔧 Maintenance panel (v0.9.1644, Session 91)
 //  OWNER-ONLY (admin preview): the button renders only when the
 //  signed-in email is on MAINT.OWNER_EMAILS. Everyone else's app
 //  is untouched — delete this ONE file + its index.html line to
@@ -1419,17 +1419,41 @@
 
       // Docs
       + sec('Manuals &amp; Parts Diagrams',
-          (route === 'lcca'
-            ? '<button onclick="_maintLccaGo(\'' + _esc(_docsUrl(route, item)) + '\')" style="' + linkBtn + '">' + _esc(routeLabel) + ' →</button>'
-            : '<button onclick="window.open(\'' + _esc(_atlasHit && route === 'atlas' ? (ATLAS_DL + _atlasHit.u) : _docsUrl(route, item)) + '\',\'_blank\')" style="' + linkBtn + '">' + _esc(routeLabel) + ' →</button>'
-              + (_atlasHit ? '<div style="margin-top:0.5rem"><button onclick="window.open(\'' + ATLAS_PAGE + '\',\'_blank\')" style="padding:0.4rem 0.8rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body);font-size:0.78rem;cursor:pointer">All Atlas diagrams →</button></div>' : ''))
-          + (route === 'lcca'
-            ? ((_pwsmHit ? '<div style="margin-top:0.5rem"><button onclick="_maintLccaGo(\'' + PWSM_HOME + '\')" style="padding:0.4rem 0.8rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body);font-size:0.78rem;cursor:pointer">Browse the whole archive →</button></div>' : '')
-              + '<div id="maint-lcca-note" style="display:none;font-size:0.8rem;color:var(--text);background:var(--bg-card);background:color-mix(in srgb, rgb(22,160,133) 12%, var(--surface2));border:1px solid #16a085;border-radius:8px;padding:0.55rem 0.7rem;margin-top:0.55rem"></div>'
-              + '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.45rem">' + (_pwsmHit ? 'Copies the link to this item\'s manual section and opens LCCA in a new tab — paste the link in that tab\'s address bar (LCCA\'s login only allows links opened by you, not by apps).' : 'No direct section mapped for ' + _esc(String(item.itemNum || '')) + ' — the button copies the archive link; paste it in the LCCA tab.') + ' Requires LCCA membership.</div>')
-            : route !== 'generic'
-            ? '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.45rem">Opens a search for ' + _esc(String(item.itemNum || '')) + ' — pick the parts list or owner\'s manual there.</div>'
-            : ''))
+          (function () {
+            // v0.9.1644 (Brad's spec): MANUFACTURER source first — direct
+            // PDF when we have it, honest "there isn't one" when we don't —
+            // then always: Google the parts diagram + Trainz parts diagrams.
+            // Postwar order once Brad's originals are uploaded: his Lionel
+            // parts diagrams FIRST, then LCCA. (Slot reserved below.)
+            var mk = _makerName(item, eraKey) || 'this maker';
+            var num = String(item.itemNum || '').trim();
+            var h = '';
+            // ── the manufacturer row ──
+            if (route === 'lcca') {
+              // FUTURE SLOT: Brad's original Lionel parts diagrams go here, above LCCA.
+              h += '<button onclick="_maintLccaGo(\'' + _esc(_docsUrl(route, item)) + '\')" style="' + linkBtn + '">' + _esc(routeLabel) + ' →</button>'
+                + '<div id="maint-lcca-note" style="display:none;font-size:0.8rem;color:var(--text);background:var(--bg-card);background:color-mix(in srgb, rgb(22,160,133) 12%, var(--surface2));border:1px solid #16a085;border-radius:8px;padding:0.55rem 0.7rem;margin-top:0.55rem"></div>'
+                + '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.45rem">' + (_pwsmHit ? 'Copies the link to this item\'s manual section and opens LCCA in a new tab — see the note above after you tap.' : 'No direct section mapped — the button copies the archive link; paste it in the LCCA tab.') + ' Requires LCCA membership.</div>';
+            } else if (route === 'atlas' && _atlasHit) {
+              h += '<button onclick="window.open(\'' + _esc(ATLAS_DL + _atlasHit.u) + '\',\'_blank\')" style="' + linkBtn + '">Parts diagram: ' + _esc(_atlasHit.t) + ' →</button>';
+            } else if (route === 'atlas') {
+              h += '<button onclick="window.open(\'' + ATLAS_PAGE + '\',\'_blank\')" style="' + linkBtn + '">Atlas parts diagrams (browse) →</button>'
+                + '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.45rem">No family match for ' + _esc(num) + ' — find your model on Atlas\'s list.</div>';
+            } else if (route === 'mth') {
+              h += '<button onclick="window.open(\'' + _esc(_docsUrl(route, item)) + '\',\'_blank\')" style="' + linkBtn + '">MTH Parts &amp; Sales: search ' + _esc(num) + ' →</button>'
+                + '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.45rem">MTH has exploded diagrams for many (not all) items — look for the gears icon.</div>';
+            } else {
+              h += '<div style="font-size:0.8rem;color:var(--text-dim);padding:0.4rem 0;border-bottom:1px dashed var(--border);margin-bottom:0.5rem">' + _esc(mk) + ' does not publish a parts list for this one — use the searches below.</div>';
+            }
+            // ── always: Google + Trainz ──
+            var gq = 'https://www.google.com/search?q=' + encodeURIComponent('"' + mk + '" "' + num + '" parts diagram');
+            var tz = 'https://www.trainz.com/search?q=' + encodeURIComponent(mk + ' ' + num + ' parts');
+            h += '<div style="display:flex;gap:0.4rem;margin-top:0.55rem;flex-wrap:wrap">'
+              +   '<button onclick="window.open(\'' + _esc(gq) + '\',\'_blank\')" style="padding:0.4rem 0.8rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body);font-size:0.78rem;cursor:pointer">Google the parts diagram →</button>'
+              +   '<button onclick="window.open(\'' + _esc(tz) + '\',\'_blank\')" style="padding:0.4rem 0.8rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body);font-size:0.78rem;cursor:pointer">Trainz parts diagrams →</button>'
+              + '</div>';
+            return h;
+          })())
 
       // Videos
       + sec('Repair Videos (YouTube)',
