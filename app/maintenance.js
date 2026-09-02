@@ -1,5 +1,5 @@
 // ============================================================
-//  maintenance.js — 🔧 Maintenance panel (v0.9.1648, Session 91)
+//  maintenance.js — 🔧 Maintenance panel (v0.9.1649, Session 91)
 //  OWNER-ONLY (admin preview): the button renders only when the
 //  signed-in email is on MAINT.OWNER_EMAILS. Everyone else's app
 //  is untouched — delete this ONE file + its index.html line to
@@ -1304,10 +1304,10 @@
       return pf ? (PWSM_BASE + pf + '.pdf' + (PWSM_TOK[pf] ? '?sfvrsn=' + PWSM_TOK[pf] : '')) : PWSM_HOME;
     }
     if (route === 'lionel')
-      // v0.9.1642: lionelsupport's own search is JS-only and its old CFM
-      // documents index is dead (404'd on Brad). Google's index of the
-      // site finds the manual + parts PDFs reliably.
-      return 'https://www.google.com/search?q=' + encodeURIComponent('site:lionelsupport.com "' + num + '"');
+      // v0.9.1649 (Brad supplied the working URL): lionelsupport's real
+      // search param is ?keywords= (the ?q= guess rendered empty). Bare
+      // SKU form — 17294, not 6-17294.
+      return 'https://www.lionelsupport.com/search?keywords=' + encodeURIComponent(num.replace(/^6-/, ''));
     if (route === 'mth')
       return 'https://mthpartsandsales.com/shop/search/results?searchContext=' + encodeURIComponent(num);   // v0.9.1642: their real search route (the guessed /search?q= 404'd on Brad)
     if (route === 'atlas')
@@ -1542,6 +1542,9 @@
             } else if (route === 'atlas') {
               h += '<button onclick="window.open(\'' + ATLAS_PAGE + '\',\'_blank\')" style="' + linkBtn + '">Atlas parts diagrams (browse) →</button>'
                 + '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.45rem">No family match for ' + _esc(num) + ' — find your model on Atlas\'s list.</div>';
+            } else if (route === 'lionel') {
+              h += '<button onclick="window.open(\'' + _esc(_docsUrl(route, item)) + '\',\'_blank\')" style="' + linkBtn + '">Lionel Support: search ' + _esc(num.replace(/^6-/, '')) + ' →</button>'
+                + '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.45rem">Owner\'s manuals and parts on lionelsupport.com.</div>';
             } else if (route === 'mth') {
               h += '<button onclick="window.open(\'' + _esc(_docsUrl(route, item)) + '\',\'_blank\')" style="' + linkBtn + '">MTH Parts &amp; Sales: search ' + _esc(num) + ' →</button>'
                 + '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.45rem">MTH has exploded diagrams for many (not all) items — look for the gears icon.</div>';
