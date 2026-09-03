@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.1652';
+const APP_VERSION = 'v0.9.1653';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -360,6 +360,12 @@ const ERAS = {
   prewar: { id: 'prewar', label: 'Lionel Pre-War',     years: '1901-1942',  prefix: 'Lionel Pre-War', manufacturer: 'Lionel' },
   pw:     { id: 'pw',     label: 'Lionel Postwar',     years: '1945-1969',  prefix: 'Lionel PW',      manufacturer: 'Lionel' },
   mpc:    { id: 'mpc',    label: 'Lionel MPC/Modern',  years: '1970-Today', prefix: 'Lionel',         manufacturer: 'Lionel' },
+  // Session 92 (Brad: "build it"): the S156 scaffold RESTORED — tabs now
+  // exist in the master. mod_ho = modern Lionel HO (2018+ sets, 2003-05 HO
+  // Challengers, current M-USA boxcars); mod_s = Lionel's American Flyer
+  // S-gauge line. Badge/color/barcode configs kept these keys all along.
+  mod_ho: { id: 'mod_ho', label: 'Lionel HO',   years: '1970-Today', prefix: 'Lionel HO',      manufacturer: 'Lionel' },
+  mod_s:  { id: 'mod_s',  label: 'American Flyer S', years: '1970-Today', prefix: 'American Flyer', manufacturer: 'Lionel' },
   atlas:  { id: 'atlas',  label: 'Atlas O',     years: 'All',        prefix: 'Atlas O',        manufacturer: 'Atlas' },
   // Session 174 (Brad): Atlas HO/N/Z tabs exist & are populated in the master
   // sheet (added in the 2026-07-21 merge) but were never wired up, so ~33.5k
@@ -424,14 +430,14 @@ const ERAS = {
   bachmann_all:   { id: 'bachmann_all',   label: 'Bachmann All Scales', years: 'All', prefix: 'Bachmann All Scales', manufacturer: 'Bachmann' },
 };
 // Real-era IDs in load priority order (excluding 'all' meta-era).
-const REAL_ERA_IDS = ['pw', 'mpc', 'prewar', 'atlas', 'atlas_ho', 'atlas_n', 'atlas_z', 'mth_o', 'mth_ho', 'mth_s', 'mth_tinplate', 'mth_g', 'weaver', 'rmt', 'menards', 'menards_ho', 'thirdrail', 'usatrains', 'lgb', 'kline', 'williams', 'marx', 'other_o', 'aristocraft', 'accucraft', 'bachmann_ho', 'bachmann_n', 'bachmann_g', 'bachmann_o', 'bachmann_on30', 'bachmann_hon30', 'bachmann_all'];
+const REAL_ERA_IDS = ['pw', 'mpc', 'mod_ho', 'mod_s', 'prewar', 'atlas', 'atlas_ho', 'atlas_n', 'atlas_z', 'mth_o', 'mth_ho', 'mth_s', 'mth_tinplate', 'mth_g', 'weaver', 'rmt', 'menards', 'menards_ho', 'thirdrail', 'usatrains', 'lgb', 'kline', 'williams', 'marx', 'other_o', 'aristocraft', 'accucraft', 'bachmann_ho', 'bachmann_n', 'bachmann_g', 'bachmann_o', 'bachmann_on30', 'bachmann_hon30', 'bachmann_all'];
 
 // ── Master sheet tab names per era ──
 // Session 154: scale per era — drives the want-list Scale filter (master
 // Gauge column is only ~10% populated, so derive scale from the era).
 const ERA_SCALE = {
   prewar: 'Standard', mth_tinplate: 'Standard',
-  pw: 'O', mpc: 'O', atlas: 'O', mth_o: 'O', weaver: 'O', rmt: 'O', menards: 'O', menards_ho: 'HO', thirdrail: 'O',
+  pw: 'O', mpc: 'O', mod_ho: 'HO', mod_s: 'S', atlas: 'O', mth_o: 'O', weaver: 'O', rmt: 'O', menards: 'O', menards_ho: 'HO', thirdrail: 'O',
   kline: 'O', williams: 'O', marx: 'O', other_o: 'O',
   usatrains: 'g', lgb: 'g',
   // Session 85 (Phase C). On30/HOn30 are their own scales (Brad: "a
@@ -534,8 +540,15 @@ const ERA_TABS = {
   mth_g: {
     items:    'MTH G Scale',
   },
-  // Session 156: pw_ho/mpc_ho/mod_ho/mod_s scaffolded entries removed — tabs were never created in master sheet, were causing 400 spam on sign-in.
-  // Restore here if/when those master tabs get built.
+  // Session 156: pw_ho/mpc_ho/mod_ho/mod_s scaffolded entries were removed
+  // (tabs did not exist -> 400 spam). Session 92: mod_ho/mod_s RESTORED —
+  // the tabs are real now. pw_ho/mpc_ho stay retired (no such products).
+  mod_ho: {
+    items:    'Lionel Modern HO - Items',
+  },
+  mod_s: {
+    items:    'Lionel Modern S - Items',
+  },
   weaver: {
     items:    'Weaver O',
   },

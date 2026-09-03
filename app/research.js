@@ -262,7 +262,7 @@
   // williams, other_o — pre-existing gap, Brad approved) plus the nine Phase
   // C tabs. Marx spans all three periods (ERA_SPANS_PERIODS), so it appears
   // in each group rather than being findable in none.
-  var ERA_GROUP = { prewar: ['prewar', 'marx'], pw: ['pw', 'marx'], modern: ['mpc', 'atlas', 'mth_o', 'mth_ho', 'mth_s', 'mth_tinplate', 'mth_g', 'weaver', 'rmt', 'menards', 'menards_ho', 'thirdrail', 'usatrains', 'lgb', 'kline', 'williams', 'other_o', 'marx', 'aristocraft', 'accucraft', 'bachmann_ho', 'bachmann_n', 'bachmann_g', 'bachmann_o', 'bachmann_on30', 'bachmann_hon30', 'bachmann_all'] };
+  var ERA_GROUP = { prewar: ['prewar', 'marx'], pw: ['pw', 'marx'], modern: ['mpc', 'mod_ho', 'mod_s', 'atlas', 'mth_o', 'mth_ho', 'mth_s', 'mth_tinplate', 'mth_g', 'weaver', 'rmt', 'menards', 'menards_ho', 'thirdrail', 'usatrains', 'lgb', 'kline', 'williams', 'other_o', 'marx', 'aristocraft', 'accucraft', 'bachmann_ho', 'bachmann_n', 'bachmann_g', 'bachmann_o', 'bachmann_on30', 'bachmann_hon30', 'bachmann_all'] };
   function _filterHits(list, opts) {
     var r = list || [];
     opts = opts || {};

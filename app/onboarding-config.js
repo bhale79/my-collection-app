@@ -51,7 +51,7 @@ const WHAT_I_COLLECT = {
   // v0.9.1000: the picker renders every era in REAL_ERA_IDS and uses this
   // list purely for sorting; anything not named here still shows, at the
   // end. Add new eras here to place them, not to make them visible.
-  eraOrder:    ['prewar', 'pw', 'mpc',
+  eraOrder:    ['prewar', 'pw', 'mpc', 'mod_ho', 'mod_s',
                 'atlas', 'atlas_ho', 'atlas_n', 'atlas_z',
                 'mth_o', 'mth_ho', 'mth_s', 'mth_tinplate', 'mth_g',
                 'weaver', 'rmt', 'menards', 'menards_ho', 'thirdrail', 'usatrains', 'lgb',

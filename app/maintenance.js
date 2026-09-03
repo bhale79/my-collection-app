@@ -1,5 +1,5 @@
 // ============================================================
-//  maintenance.js — 🔧 Maintenance panel (v0.9.1652, Session 91)
+//  maintenance.js — 🔧 Maintenance panel (v0.9.1653, Session 92)
 //  OWNER-ONLY (admin preview): the button renders only when the
 //  signed-in email is on MAINT.OWNER_EMAILS. Everyone else's app
 //  is untouched — delete this ONE file + its index.html line to
@@ -1251,7 +1251,7 @@
     // (Postwar Service Manual 1945-69). LCCA handles its own login; the
     // browser's cookie keeps members signed in. We never store credentials.
     if (e === 'pw' || e === 'prewar') return 'lcca';
-    if (e === 'mpc' || e === 'mod' || e === 'kline') return 'lionel';
+    if (e === 'mpc' || e === 'mod' || e === 'mod_ho' || e === 'mod_s' || e === 'kline') return 'lionel';   // modern AF + HO are Lionel-made, serviced on lionelsupport
     if (e.indexOf('mth') === 0) return 'mth';
     if (e.indexOf('atlas') === 0) return 'atlas';
     // v0.9.1652 — the parts-suppliers scan (PARTS_SUPPLIERS_SCAN_2026-09-03.md)
