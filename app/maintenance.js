@@ -1,5 +1,5 @@
 // ============================================================
-//  maintenance.js — 🔧 Maintenance panel (v0.9.1650, Session 91)
+//  maintenance.js — 🔧 Maintenance panel (v0.9.1651, Session 91)
 //  OWNER-ONLY (admin preview): the button renders only when the
 //  signed-in email is on MAINT.OWNER_EMAILS. Everyone else's app
 //  is untouched — delete this ONE file + its index.html line to
@@ -1309,7 +1309,7 @@
       // SKU form — 17294, not 6-17294.
       return 'https://www.lionelsupport.com/search?keywords=' + encodeURIComponent(num.replace(/^6-/, ''));
     if (route === 'mth')
-      return 'https://mthpartsandsales.com/shop/search/results?searchContext=' + encodeURIComponent(num);   // v0.9.1642: their real search route (the guessed /search?q= 404'd on Brad)
+      return 'https://mthpartsandsales.com/shop/search/results?type=lists&searchContext=' + encodeURIComponent(num);   // v0.9.1651 (Brad): type=lists lands on the PART LISTS view — Mechanical / Electronics side by side, user picks
     if (route === 'atlas')
       return ATLAS_PAGE;   // family match handled in the panel (needs the era)
     // generic: a plain web search for this maker's docs
@@ -1555,7 +1555,7 @@
                 + '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.45rem">Owner\'s manuals and parts on lionelsupport.com.</div>';
             } else if (route === 'mth') {
               h += '<button onclick="window.open(\'' + _esc(_docsUrl(route, item)) + '\',\'_blank\')" style="' + linkBtn + '">MTH Parts &amp; Sales: search ' + _esc(num) + ' →</button>'
-                + '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.45rem">MTH has exploded diagrams for many (not all) items — look for the gears icon.</div>';
+                + '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.45rem">Lands on MTH\'s part lists for this item — pick Mechanical or Electronics. They add new lists monthly.</div>';
             } else {
               h += '<div style="font-size:0.8rem;color:var(--text-dim);padding:0.4rem 0;border-bottom:1px dashed var(--border);margin-bottom:0.5rem">' + _esc(mk) + ' does not publish a parts list for this one — use the searches below.</div>';
             }
