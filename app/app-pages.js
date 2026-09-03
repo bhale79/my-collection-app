@@ -4690,6 +4690,7 @@ async function _savePartInstalled(rowNum) {
           'Parts Needed!I' + rowNum + ':L' + rowNum, [['installed', p.dateBought || '', date, price || '']], { num: p.id }, 'Parts list')) {
         p.status = 'installed'; p.dateInstalled = date; if (price) p.pricePaid = price;
       }
+      if (typeof window._maintLogPartInstalled === 'function') window._maintLogPartInstalled(pd.inventoryId, pd.itemNum, desc, partNum, vendor ? ('self — from ' + vendor) : 'self');   // v0.9.1654: the Workbench auto-trail
       _renderPartsList();
     } else {
       await removePart(rowNum);

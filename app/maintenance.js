@@ -1,5 +1,5 @@
 // ============================================================
-//  maintenance.js — 🔧 Maintenance panel (v0.9.1653, Session 92)
+//  maintenance.js — 🔧 Maintenance panel + Workbench (v0.9.1654, Session 92)
 //  OWNER-ONLY (admin preview): the button renders only when the
 //  signed-in email is on MAINT.OWNER_EMAILS. Everyone else's app
 //  is untouched — delete this ONE file + its index.html line to
@@ -1611,6 +1611,18 @@
             return h;
           })())
 
+      // ── Workbench (phase 3): chores + service history ──
+      + sec('Workbench',
+          '<div style="display:flex;gap:0.4rem;flex-wrap:wrap;align-items:center">'
+          + '<select id="maint-chore-pick" style="flex:1;min-width:150px;padding:0.45rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.82rem">'
+          + CHORES.map(function (ch) { return '<option value="' + _esc(ch) + '">' + _esc(ch) + '</option>'; }).join('')
+          + '<option value="__custom">Something else…</option>'
+          + '</select>'
+          + '<button onclick="_maintAddChore()" style="' + linkBtn + '">+ Add to Workbench</button>'
+          + '<button onclick="_maintShowHistory(\'' + _esc(String(window._maintPanelInvId || '')) + '\',\'' + _esc(String(item.itemNum || '')) + '\')" style="padding:0.5rem 0.9rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body);font-size:0.82rem;cursor:pointer">Service history</button>'
+          + '</div>'
+          + '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.45rem">A chore puts this item on your Workbench page until you mark it done.</div>')
+
       // Videos
       + sec('Repair Videos (YouTube)',
           _favRow(MAINT.PREF_CHANNELS, 'maint-yt-channel', 'All of YouTube')
@@ -1652,4 +1664,229 @@
     var part = (document.getElementById('maint-part-desc') || {}).value || '';
     window.open(_partsUrl(dealer, _panelItem, part.trim()), '_blank');
   };
+
+  // ════════════════════════════════════════════════════════════════
+  //  PHASE 3 (v0.9.1654, Session 92): THE WORKBENCH
+  //  Brad's design calls: page name "Workbench"; badge counts ITEMS
+  //  needing attention (an engine with 3 open needs counts once).
+  //  Self-injecting owner-only nav + page (the yardmaster.js pattern).
+  //  Data: 'Maintenance Log' personal-sheet tab (append-mostly) +
+  //  the phase-2 parts lifecycle already in state.partsData.
+  // ════════════════════════════════════════════════════════════════
+  var LOG_TAB = 'Maintenance Log';
+  var CHORES = ['Oil / lubricate', 'Replace traction tire', 'Clean rollers & wheels', 'E-unit service', 'Find a part', 'Test run'];
+
+  async function _ensureLogTab() {
+    try {
+      var meta = await (await fetch('https://sheets.googleapis.com/v4/spreadsheets/' + state.personalSheetId + '?fields=sheets.properties',
+        { headers: { Authorization: 'Bearer ' + accessToken } })).json();
+      if ((meta.sheets || []).some(function (sh) { return sh.properties && sh.properties.title === LOG_TAB; })) return true;
+      await fetch('https://sheets.googleapis.com/v4/spreadsheets/' + state.personalSheetId + ':batchUpdate', {
+        method: 'POST', headers: { Authorization: 'Bearer ' + accessToken, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ requests: [{ addSheet: { properties: { title: LOG_TAB, tabColor: { red: 0.09, green: 0.63, blue: 0.52 } } } }] })
+      });
+      await sheetsUpdate(state.personalSheetId, LOG_TAB + '!A1:J1',
+        [['Log ID', 'Inventory ID', 'Item Number', 'Type', 'Text', 'Part Number', 'Serviced By', 'Date Added', 'Date Done', 'Status']]);
+      return true;
+    } catch (e) { console.warn('[Workbench] ensure log tab failed', e && e.message); return false; }
+  }
+
+  function _parseLog(values) {
+    var out = [];
+    (values || []).forEach(function (r, i) {
+      if (!r[0] || r[0] === 'Log ID') return;
+      var g = function (j) { return (r[j] !== null && r[j] !== undefined) ? String(r[j]) : ''; };
+      out.push({ row: i + 2, id: g(0), invId: g(1), itemNum: g(2), type: g(3), text: g(4),
+                 partNum: g(5), by: g(6), dateAdded: g(7), dateDone: g(8), status: g(9) || 'done' });
+    });
+    return out;
+  }
+
+  async function _loadLog() {
+    try {
+      if (!(await _ensureLogTab())) return;
+      var res = await sheetsGet(state.personalSheetId, LOG_TAB + '!A2:J').catch(function () { return { values: [] }; });
+      state.maintLog = _parseLog(res.values);
+    } catch (e) { state.maintLog = state.maintLog || []; }
+  }
+
+  function _openNeeds() {
+    // item-keyed open needs: open chores (log) + open linked parts (partsData)
+    var by = {};
+    var add = function (invId, itemNum, need) {
+      var k = invId || ('num:' + itemNum);
+      if (!by[k]) by[k] = { invId: invId, itemNum: itemNum, needs: [] };
+      by[k].needs.push(need);
+    };
+    (state.maintLog || []).forEach(function (l) {
+      if (l.type === 'chore' && l.status === 'open') add(l.invId, l.itemNum, { kind: 'chore', label: l.text, since: l.dateAdded, row: l.row, id: l.id });
+    });
+    Object.values(state.partsData || {}).forEach(function (p) {
+      var st = p.status || 'wanted';
+      if ((st === 'wanted' || st === 'bought') && (p.forInv || p.forItem))
+        add(p.forInv, p.forItem, { kind: 'part', label: (st === 'bought' ? 'in the drawer: ' : 'part wanted: ') + (p.description || p.partNum || 'part'), since: p.dateAdded });
+    });
+    return Object.values(by);
+  }
+
+  function _wbBadge() {
+    var b = document.getElementById('nav-workbench-count');
+    if (b) { var n = _openNeeds().length; b.textContent = n ? n : ''; b.style.display = n ? '' : 'none'; }
+  }
+
+  window._maintAddChore = async function () {
+    if (!_isOwner() || !_panelItem) return;
+    var sel = document.getElementById('maint-chore-pick');
+    var chore = sel && sel.value === '__custom' ? (prompt('What does it need?') || '').trim() : (sel ? sel.value : '');
+    if (!chore) return;
+    try {
+      if (!(await _ensureLogTab())) throw new Error('log tab unavailable');
+      var _t = function (v) { v = String(v || ''); return v && v.charAt(0) !== "'" ? "'" + v : v; };
+      var row = [_t('log-' + Date.now()), _t(window._maintPanelInvId || ''), _t(String(_panelItem.itemNum || '')),
+                 'chore', chore, '', '', new Date().toISOString().split('T')[0], '', 'open'];
+      await sheetsAppend(state.personalSheetId, LOG_TAB + '!A:J', [row]);
+      await _loadLog(); _wbBadge();
+      if (typeof showToast === 'function') showToast('✓ On the Workbench: ' + chore);
+    } catch (e) { if (typeof showToast === 'function') showToast('Could not save the chore — ' + (e && e.message || 'try again'), 4000, true); }
+  };
+
+  window._maintChoreDone = async function (rowNum, logId) {
+    var today = new Date().toISOString().split('T')[0];
+    try {
+      var ok = (typeof rrVerifiedRowUpdate === 'function')
+        ? await rrVerifiedRowUpdate(state.personalSheetId, LOG_TAB, rowNum, LOG_TAB + '!I' + rowNum + ':J' + rowNum, [[today, 'done']], { num: logId }, 'Workbench')
+        : false;
+      if (!ok) return;
+      var l = (state.maintLog || []).find(function (x) { return x.row === rowNum; });
+      if (l) { l.status = 'done'; l.dateDone = today; }
+      _wbBuild(); _wbBadge();
+      if (typeof showToast === 'function') showToast('✓ Done — written to the service history');
+    } catch (e) { if (typeof showToast === 'function') showToast(rrSaveError ? rrSaveError(e, 'the chore') : 'Save failed', 4000, true); }
+  };
+
+  window._maintAddNote = async function (invId, itemNum) {
+    var txt = (prompt('Service note for ' + itemNum + ' (what was done?):') || '').trim();
+    if (!txt) return;
+    var by = (prompt('Serviced by? (self / service station / other)', 'self') || 'self').trim();
+    try {
+      if (!(await _ensureLogTab())) throw new Error('log tab unavailable');
+      var _t = function (v) { v = String(v || ''); return v && v.charAt(0) !== "'" ? "'" + v : v; };
+      var today = new Date().toISOString().split('T')[0];
+      await sheetsAppend(state.personalSheetId, LOG_TAB + '!A:J',
+        [[_t('log-' + Date.now()), _t(invId || ''), _t(String(itemNum || '')), 'note', txt, '', by, today, today, 'done']]);
+      await _loadLog();
+      window._maintShowHistory(invId, itemNum);
+      if (typeof showToast === 'function') showToast('✓ Noted');
+    } catch (e) { if (typeof showToast === 'function') showToast('Could not save the note', 4000, true); }
+  };
+
+  window._maintLogPartInstalled = async function (invId, itemNum, desc, partNum, by) {
+    // called by app-pages._savePartInstalled (owner path) — the auto trail
+    try {
+      if (!(await _ensureLogTab())) return;
+      var _t = function (v) { v = String(v || ''); return v && v.charAt(0) !== "'" ? "'" + v : v; };
+      var today = new Date().toISOString().split('T')[0];
+      await sheetsAppend(state.personalSheetId, LOG_TAB + '!A:J',
+        [[_t('log-' + Date.now()), _t(invId || ''), _t(String(itemNum || '')), 'part-installed', desc || 'part installed', _t(partNum || ''), by || 'self', today, today, 'done']]);
+      await _loadLog(); _wbBadge();
+    } catch (e) { console.warn('[Workbench] log part-installed failed', e && e.message); }
+  };
+
+  window._maintShowHistory = function (invId, itemNum) {
+    var old = document.getElementById('wb-history'); if (old) old.remove();
+    var entries = (state.maintLog || []).filter(function (l) {
+      return (invId && l.invId === String(invId)) || (!invId && l.itemNum === String(itemNum));
+    }).slice().sort(function (a, b) { return (b.dateDone || b.dateAdded || '').localeCompare(a.dateDone || a.dateAdded || ''); });
+    var lines = entries.map(function (l) {
+      var icon = l.type === 'part-installed' ? '🔩' : l.type === 'chore' ? (l.status === 'open' ? '⏳' : '✓') : '📝';
+      return '<div style="padding:0.45rem 0;border-bottom:1px solid var(--border);font-size:0.85rem;color:var(--text)">'
+        + icon + ' <b>' + _esc(l.dateDone || l.dateAdded) + '</b> — ' + _esc(l.text)
+        + (l.partNum ? ' <span style="font-family:var(--font-mono);color:var(--accent2)">#' + _esc(l.partNum) + '</span>' : '')
+        + (l.by && l.by !== 'self' ? ' <span style="color:var(--text-dim)">(' + _esc(l.by) + ')</span>' : '')
+        + (l.type === 'chore' && l.status === 'open' ? ' <span style="color:#e67e22">open</span>' : '')
+        + '</div>';
+    }).join('') || '<div style="color:var(--text-dim);font-size:0.85rem;padding:0.6rem 0">No service history yet.</div>';
+    var html = '<div id="wb-history" style="position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9600;display:flex;align-items:flex-start;justify-content:center;overflow-y:auto;padding:2rem 1rem" onclick="if(event.target===this)this.remove()">'
+      + '<div style="background:var(--bg-card);border:1px solid var(--border);border-radius:16px;max-width:520px;width:100%;padding:1.2rem 1.3rem;margin-bottom:2rem">'
+      + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.7rem">'
+      + '<div style="font-family:var(--font-head);font-weight:700;color:var(--text)">🔧 Service history — ' + _esc(itemNum) + '</div>'
+      + '<button onclick="document.getElementById(\'wb-history\').remove()" style="background:none;border:none;color:var(--text-dim);font-size:1.3rem;cursor:pointer">&times;</button></div>'
+      + lines
+      + '<div style="margin-top:0.8rem"><button onclick="_maintAddNote(\'' + _esc(String(invId || '')) + '\',\'' + _esc(String(itemNum || '')) + '\')" style="padding:0.45rem 0.9rem;border-radius:8px;border:1.5px solid #16a085;background:var(--bg-card);background:color-mix(in srgb, rgb(22,160,133) 10%, var(--bg-card));color:#16a085;font-family:var(--font-body);font-size:0.8rem;cursor:pointer;font-weight:600">+ Add service note</button></div>'
+      + '</div></div>';
+    document.body.insertAdjacentHTML('beforeend', html);
+  };
+
+  function _wbBuild() {
+    var pg = document.getElementById('page-workbench');
+    if (!pg) return;
+    var items = _openNeeds();
+    var head = '<div class="page-header"><h2>🔧 The Workbench</h2>'
+      + '<div style="font-size:0.82rem;color:var(--text-dim)">Everything that needs a wrench — open chores and parts. Owner preview.</div></div>';
+    if (!items.length) {
+      pg.innerHTML = head + '<div style="text-align:center;padding:3rem 1rem;color:var(--text-dim)"><div style="font-size:2.5rem;margin-bottom:0.5rem">🔧</div><p>Nothing on the bench.</p><p style="font-size:0.8rem;margin-top:0.4rem">Add a chore from any item’s Maintenance panel, or a part from Parts Needed.</p></div>';
+      return;
+    }
+    pg.innerHTML = head + items.map(function (it) {
+      var m = (typeof findMaster === 'function' && it.itemNum) ? findMaster(it.itemNum) : null;
+      var label = _esc(it.itemNum) + (m && m.roadName ? ' — ' + _esc(m.roadName) : '');
+      return '<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:0.85rem 1rem;margin-bottom:0.6rem">'
+        + '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.4rem">'
+        + '<div style="font-weight:700;color:var(--text)">' + label + '</div>'
+        + '<button onclick="_maintShowHistory(\'' + _esc(String(it.invId || '')) + '\',\'' + _esc(String(it.itemNum || '')) + '\')" style="padding:0.3rem 0.7rem;border-radius:7px;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-size:0.75rem;cursor:pointer">History</button>'
+        + '</div>'
+        + it.needs.map(function (n) {
+            return '<div style="display:flex;justify-content:space-between;align-items:center;gap:0.5rem;padding:0.35rem 0;border-top:1px solid var(--border);margin-top:0.35rem">'
+              + '<div style="font-size:0.83rem;color:var(--text)">' + (n.kind === 'chore' ? '🔧 ' : '⚙️ ') + _esc(n.label)
+              + (n.since ? ' <span style="color:var(--text-dim);font-size:0.72rem">since ' + _esc(n.since) + '</span>' : '') + '</div>'
+              + (n.kind === 'chore'
+                 ? '<button onclick="_maintChoreDone(' + n.row + ',\'' + _esc(n.id) + '\')" style="padding:0.3rem 0.65rem;border-radius:7px;border:1.5px solid #2ecc71;background:var(--bg-card);background:color-mix(in srgb, rgb(46,204,113) 10%, var(--bg-card));color:#2ecc71;font-size:0.75rem;cursor:pointer;font-weight:600">✓ Done</button>'
+                 : '<button onclick="showPage(\'parts\',document.getElementById(\'nav-parts-btn\'));if(typeof buildPartsPage===\'function\')buildPartsPage()" style="padding:0.3rem 0.65rem;border-radius:7px;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-size:0.75rem;cursor:pointer">Parts list</button>')
+              + '</div>';
+          }).join('')
+        + '</div>';
+    }).join('');
+  }
+  window._wbBuild = _wbBuild;
+
+  function _wbInjectUI() {
+    var main = document.querySelector('.main-content') || document.getElementById('app');
+    if (!main) return false;
+    if (!document.getElementById('page-workbench')) {
+      var pg = document.createElement('div');
+      pg.className = 'page'; pg.id = 'page-workbench';
+      main.appendChild(pg);
+    }
+    var sidebar = document.querySelector('.sidebar');
+    if (!sidebar) return false;
+    if (!document.getElementById('nav-workbench-btn')) {
+      var ymBtn = document.getElementById('nav-yardmaster-btn');
+      var refreshBtn = sidebar.querySelector('#refresh-btn');
+      var homeSection = (ymBtn && ymBtn.parentElement) || (refreshBtn && refreshBtn.parentElement) || sidebar.querySelector('.nav-section');
+      if (!homeSection) return false;
+      var btn = document.createElement('button');
+      btn.className = 'nav-item'; btn.id = 'nav-workbench-btn';
+      btn.setAttribute('data-ctip', 'The Workbench — open chores and parts, per item. Only you see this.');
+      btn.onclick = function () { showPage('workbench', this); _loadLog().then(function(){ _wbBuild(); _wbBadge(); }); _wbBuild(); };
+      btn.innerHTML = '<span style="width:17px;text-align:center;flex-shrink:0">🔧</span>Workbench<span id="nav-workbench-count" class="nav-badge" style="display:none"></span>';
+      if (ymBtn) homeSection.insertBefore(btn, ymBtn);
+      else if (refreshBtn) homeSection.insertBefore(btn, refreshBtn);
+      else homeSection.appendChild(btn);
+    }
+    _loadLog().then(_wbBadge);
+    return true;
+  }
+
+  (function _wbBoot() {
+    var tries = 0;
+    var t = setInterval(function () {
+      tries++;
+      if (tries > 240) { clearInterval(t); return; }
+      var appEl = document.getElementById('app');
+      if (!appEl || !appEl.classList.contains('active') || !window.state || !state.user || !state.user.email) return;
+      if (!_isOwner()) { clearInterval(t); return; }
+      if (_wbInjectUI()) clearInterval(t);
+    }, 500);
+  })();
+
 })();
