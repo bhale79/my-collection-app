@@ -1,5 +1,5 @@
 // ============================================================
-//  maintenance.js — 🔧 Maintenance panel (v0.9.1651, Session 91)
+//  maintenance.js — 🔧 Maintenance panel (v0.9.1652, Session 91)
 //  OWNER-ONLY (admin preview): the button renders only when the
 //  signed-in email is on MAINT.OWNER_EMAILS. Everyone else's app
 //  is untouched — delete this ONE file + its index.html line to
@@ -45,7 +45,7 @@
       // Trainz ships in the supplier list — Brad: "I just know Trainz is
       // going to be popular, make sure it works great." Removable like any
       // favorite; it just starts there.
-      if (key === MAINT.PREF_SUPPLIERS && !a.length && !_prefGet(key + '_touched', '')) a = ['Trainz'];
+      if (key === MAINT.PREF_SUPPLIERS && !a.length && !_prefGet(key + '_touched', '')) a = ['Trainz', 'The Train Tender', "Henning's Trains"];   // v0.9.1652: verified-live sellers from the suppliers scan
       return a;
     } catch (e) { return []; }
   }
@@ -1254,6 +1254,13 @@
     if (e === 'mpc' || e === 'mod' || e === 'kline') return 'lionel';
     if (e.indexOf('mth') === 0) return 'mth';
     if (e.indexOf('atlas') === 0) return 'atlas';
+    // v0.9.1652 — the parts-suppliers scan (PARTS_SUPPLIERS_SCAN_2026-09-03.md)
+    if (e === 'lgb') return 'lgb';
+    if (e === 'usatrains') return 'usatrains';
+    if (e.indexOf('bachmann') === 0 || e === 'williams') return 'bachmann';
+    if (e === 'thirdrail') return 'thirdrail';
+    if (e === 'weaver') return 'weaver';
+    if (e === 'aristocraft') return 'aristocraft';
     return 'generic';
   }
   function _makerName(item, eraKey) {
@@ -1312,6 +1319,14 @@
       return 'https://mthpartsandsales.com/shop/search/results?type=lists&searchContext=' + encodeURIComponent(num);   // v0.9.1651 (Brad): type=lists lands on the PART LISTS view — Mechanical / Electronics side by side, user picks
     if (route === 'atlas')
       return ATLAS_PAGE;   // family match handled in the panel (needs the era)
+    if (route === 'lgb')
+      return 'https://www.lgb.com/service/manuals-spare-parts/spare-parts-search';   // official; accepts OLD LGB numbers
+    if (route === 'usatrains')
+      return 'http://usatdb.largescaletrains.com';   // community diagram archive (USA Trains publishes none)
+    if (route === 'bachmann')
+      return 'https://estore.bachmanntrains.com/index.php?main_page=advanced_search_result&keyword=' + encodeURIComponent(num);
+    if (route === 'thirdrail')
+      return 'https://www.get3rparts.com';   // official OEM parts home for 3rd Rail/Sunset/GGD
     // generic: a plain web search for this maker's docs
     var maker = _makerName(item, null);
     return 'https://www.google.com/search?q=' + encodeURIComponent(
@@ -1544,7 +1559,8 @@
               // FUTURE SLOT: Brad's original Lionel parts diagrams go here, above LCCA.
               h += '<button onclick="_maintLccaGo(\'' + _esc(_docsUrl(route, item)) + '\')" style="' + linkBtn + '">' + _esc(routeLabel) + ' →</button>'
                 + '<div id="maint-lcca-note" style="display:none;font-size:0.8rem;color:var(--text);background:var(--bg-card);background:color-mix(in srgb, rgb(22,160,133) 12%, var(--surface2));border:1px solid #16a085;border-radius:8px;padding:0.55rem 0.7rem;margin-top:0.55rem"></div>'
-                + '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.45rem">' + (_pwsmHit ? 'Copies the link to this item\'s manual section and opens LCCA in a new tab — see the note above after you tap.' : 'No direct section mapped — the button copies the archive link; paste it in the LCCA tab.') + ' Requires LCCA membership.</div>';
+                + '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.45rem">' + (_pwsmHit ? 'Copies the link to this item\'s manual section and opens LCCA in a new tab — see the note above after you tap.' : 'No direct section mapped — the button copies the archive link; paste it in the LCCA tab.') + ' Requires LCCA membership.</div>'
+                + '<div style="margin-top:0.5rem"><button onclick="window.open(\'https://www.olsenstoy.com/searchcd1.htm\',\'_blank\')" style="padding:0.4rem 0.8rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body);font-size:0.78rem;cursor:pointer">Olsen\'s service library (free, no login) →</button></div>';
             } else if (route === 'atlas' && _atlasHit) {
               h += '<button onclick="window.open(\'' + _esc(ATLAS_DL + _atlasHit.u) + '\',\'_blank\')" style="' + linkBtn + '">Parts diagram: ' + _esc(_atlasHit.t) + ' →</button>';
             } else if (route === 'atlas') {
@@ -1556,6 +1572,23 @@
             } else if (route === 'mth') {
               h += '<button onclick="window.open(\'' + _esc(_docsUrl(route, item)) + '\',\'_blank\')" style="' + linkBtn + '">MTH Parts &amp; Sales: search ' + _esc(num) + ' →</button>'
                 + '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.45rem">Lands on MTH\'s part lists for this item — pick Mechanical or Electronics. They add new lists monthly.</div>';
+            } else if (route === 'lgb') {
+              h += '<button onclick="window.open(\'' + _esc(_docsUrl(route, item)) + '\',\'_blank\')" style="' + linkBtn + '">LGB spare-parts search (official) →</button>'
+                + '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.45rem">Marklin\'s official LGB spare-parts search — it accepts old LGB article numbers like ' + _esc(num) + '.</div>';
+            } else if (route === 'usatrains') {
+              h += '<button onclick="window.open(\'' + _esc(_docsUrl(route, item)) + '\',\'_blank\')" style="' + linkBtn + '">USA Trains diagram archive (community) →</button>'
+                + '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.45rem">USA Trains publishes no diagrams — this is the community-run archive. Their own site sells ~30 per-model service parts.</div>';
+            } else if (route === 'bachmann') {
+              h += '<button onclick="window.open(\'' + _esc(_docsUrl(route, item)) + '\',\'_blank\')" style="' + linkBtn + '">Bachmann parts eStore: search ' + _esc(num) + ' →</button>'
+                + '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.45rem">Official Bachmann/Williams parts. Unlisted parts: parts@bachmanntrains.com.</div>';
+            } else if (route === 'thirdrail') {
+              h += '<button onclick="window.open(\'' + _esc(_docsUrl(route, item)) + '\',\'_blank\')" style="' + linkBtn + '">Get 3R Parts (official 3rd Rail/Sunset) →</button>'
+                + '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.45rem">50 years of Sunset/3rd Rail OEM parts, browse by project number. No diagrams exist.</div>';
+            } else if (route === 'weaver') {
+              h += '<div style="font-size:0.8rem;color:var(--text-dim);padding:0.4rem 0;border-bottom:1px dashed var(--border);margin-bottom:0.5rem">Weaver closed in 2015 — no official parts source. Try P&amp;D Hobby, eBay, or the searches below; some tooling went to Atlas O and Lionel.</div>';
+            } else if (route === 'aristocraft') {
+              h += '<button onclick="window.open(\'https://reindeerpass.com\',\'_blank\')" style="' + linkBtn + '">Reindeer Pass (compatible motor blocks) →</button>'
+                + '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.45rem">Aristo-Craft closed in 2013 — no OEM parts. Reindeer Pass sells compatible motor blocks and trucks.</div>';
             } else {
               h += '<div style="font-size:0.8rem;color:var(--text-dim);padding:0.4rem 0;border-bottom:1px dashed var(--border);margin-bottom:0.5rem">' + _esc(mk) + ' does not publish a parts list for this one — use the searches below.</div>';
             }
