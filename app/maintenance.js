@@ -1,5 +1,5 @@
 // ============================================================
-//  maintenance.js — 🔧 Maintenance panel (v0.9.1649, Session 91)
+//  maintenance.js — 🔧 Maintenance panel (v0.9.1650, Session 91)
 //  OWNER-ONLY (admin preview): the button renders only when the
 //  signed-in email is on MAINT.OWNER_EMAILS. Everyone else's app
 //  is untouched — delete this ONE file + its index.html line to
@@ -1394,10 +1394,18 @@
     var mw = _modelWords(_panelItem);
     var url;
     if (/^trainz$/i.test(sup.trim())) {
-      // Trainz's search ANDs every word and item numbers match nothing
-      // (proven: "atlas 30138671 parts" = 0 results) — maker + model
-      // words only, the eBay lesson from research.js all over again.
-      url = 'https://www.trainz.com/search?q=' + encodeURIComponent((mk + ' ' + mw + ' parts').replace(/\s+/g, ' ').trim());
+      // v0.9.1650 (Brad's Fort Knox boxcar, 0 results): when WE hold the
+      // Trainz diagram, the search button goes straight to it. When we
+      // don't, the query slims to maker + number + parts — their search
+      // ANDs every word, and long description words zero it ("lionel
+      // Fort Knox Gold Reserve Mint Boxcar parts" found nothing while
+      // their listings say "6445"). Modern Atlas-style numbers still
+      // miss, so those fall back to model words.
+      var tzd = _tzDiagram(_panelItem);
+      if (tzd) { window.open('https://www.trainz.com/pages/parts-diagram/' + tzd.h, '_blank'); return; }
+      var bn = _baseNum(_panelItem);
+      var q = (bn && bn.length <= 7) ? (mk + ' ' + bn + ' parts') : (mk + ' ' + mw + ' parts');
+      url = 'https://www.trainz.com/search?q=' + encodeURIComponent(q.replace(/\s+/g, ' ').trim());
     } else {
       url = 'https://www.google.com/search?q=' + encodeURIComponent(('"' + sup + '" "' + mk + '" ' + mw + ' parts diagram').replace(/\s+/g, ' ').trim());
     }
