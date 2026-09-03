@@ -1,5 +1,5 @@
 // ============================================================
-//  maintenance.js — 🔧 Maintenance panel + Workbench + My Manuals (v0.9.1655, Session 92)
+//  maintenance.js — 🔧 Maintenance panel + Workbench + My Manuals (v0.9.1656, Session 92)
 //  OWNER-ONLY (admin preview): the button renders only when the
 //  signed-in email is on MAINT.OWNER_EMAILS. Everyone else's app
 //  is untouched — delete this ONE file + its index.html line to
@@ -1759,50 +1759,71 @@
     } catch (e) {}
     return out.slice(0, 20).join(', ');
   }
-  async function _saveDoc(type, title, url, item) {
-    if (!(await _ensureDocsTab())) throw new Error('My Manuals tab unavailable');
-    var covers = (prompt('Which item numbers does this cover? (comma-separated)', _suggestCovers(item)) || '').trim();
-    if (!covers) return false;
-    var topics = (prompt('Topic tags? (e.g. traction tire, e-unit — optional)', '') || '').trim();
-    var _t = function (v) { v = String(v || ''); return v && v.charAt(0) !== "'" ? "'" + v : v; };
-    await sheetsAppend(state.personalSheetId, DOCS_TAB + '!A:H',
-      [[_t('doc-' + Date.now()), title, type, url, covers, topics, '', new Date().toISOString().split('T')[0]]]);
-    state.myManuals = null;   // force reload
-    return true;
-  }
-  window._maintSaveLink = async function () {
-    if (!_panelItem) return;
-    var url = (prompt('Paste the link (manual page, PDF, anything):') || '').trim();
-    if (!url) return;
-    if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
-    var title = (prompt('Name it:', '') || '').trim() || url.replace(/^https?:\/\//, '').slice(0, 60);
-    try {
-      if (await _saveDoc('link', title, url, _panelItem)) {
+  // v0.9.1656 (Brad: the prompt boxes VANISH when you switch windows to
+  // copy something): one persistent FORM instead of a prompt chain. It
+  // stays open across window switches; nothing saves until Save.
+  function _docForm(type, fixedUrl, pendingFile) {
+    var old = document.getElementById('maint-docform'); if (old) old.remove();
+    var IN = 'width:100%;box-sizing:border-box;padding:0.5rem 0.65rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.88rem;margin-bottom:0.7rem';
+    var LB = 'font-size:0.72rem;color:var(--text-dim);display:block;margin-bottom:0.2rem;text-transform:uppercase;letter-spacing:0.05em';
+    var html = '<div id="maint-docform" style="position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9700;display:flex;align-items:flex-start;justify-content:center;overflow-y:auto;padding:2rem 1rem" onclick="if(event.target===this && confirm(\'Close without saving?\'))this.remove()">'
+      + '<div style="background:var(--bg-card);border:1px solid var(--border);border-radius:16px;max-width:480px;width:100%;padding:1.2rem 1.3rem;margin-bottom:2rem">'
+      + '<div style="font-family:var(--font-head);font-weight:700;color:var(--text);margin-bottom:0.8rem">' + (type === 'picture' ? '📎 Save a picture' : '🔗 Save a link') + ' — My Manuals</div>'
+      + (type === 'link'
+          ? '<label style="' + LB + '">Link (paste it — switch windows all you like, this form waits)</label><input id="docf-url" type="text" placeholder="https://…" style="' + IN + '">'
+          : '<div style="font-size:0.82rem;color:var(--text);margin-bottom:0.7rem">Picture chosen ✓ — it uploads when you hit Save.</div>')
+      + '<label style="' + LB + '">Name</label><input id="docf-title" type="text" placeholder="e.g. Vulcan switcher service pages" style="' + IN + '">'
+      + '<label style="' + LB + '">Covers (item numbers, comma-separated)</label><input id="docf-covers" type="text" value="' + _esc(_suggestCovers(_panelItem)) + '" style="' + IN + '">'
+      + '<label style="' + LB + '">Topics (e.g. traction tire, e-unit — optional)</label><input id="docf-topics" type="text" style="' + IN + '">'
+      + '<div style="display:flex;gap:0.6rem;margin-top:0.3rem">'
+      + '<button onclick="document.getElementById(\'maint-docform\').remove()" style="flex:1;padding:0.6rem;border-radius:8px;border:1px solid var(--border);background:none;color:var(--text-dim);font-family:var(--font-body);cursor:pointer">Cancel</button>'
+      + '<button id="docf-save" style="flex:2;padding:0.6rem;border-radius:8px;border:none;background:#16a085;color:#fff;font-family:var(--font-body);font-weight:700;cursor:pointer">Save to My Manuals</button>'
+      + '</div></div></div>';
+    document.body.insertAdjacentHTML('beforeend', html);
+    if (window.BackStack && BackStack.wire) BackStack.wire(document.getElementById('maint-docform'));
+    document.getElementById('docf-save').onclick = async function () {
+      var g = function (id) { var el = document.getElementById(id); return el ? String(el.value || '').trim() : ''; };
+      var url = fixedUrl || g('docf-url');
+      if (type === 'link') {
+        if (!url) { if (typeof showToast === 'function') showToast('Paste the link first.', 2500, true); return; }
+        if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
+      }
+      var covers = g('docf-covers');
+      if (!covers) { if (typeof showToast === 'function') showToast('Covers is empty — at least this item\u2019s number.', 3000, true); return; }
+      var title = g('docf-title') || (type === 'picture' ? 'Saved diagram' : url.replace(/^https?:\/\//, '').slice(0, 60));
+      var topics = g('docf-topics');
+      var btn = this; btn.disabled = true; btn.textContent = 'Saving…';
+      try {
+        if (type === 'picture' && pendingFile) {
+          await driveEnsureSetup();
+          var folder = await driveFindOrCreateFolder('Manuals', driveCache.photosId);
+          var up = await driveUploadPhoto(pendingFile, 'manual-' + Date.now() + '.jpg', folder);
+          if (!up || !up.id) throw new Error('upload failed');
+          url = 'https://drive.google.com/file/d/' + up.id + '/view';
+        }
+        if (!(await _ensureDocsTab())) throw new Error('My Manuals tab unavailable');
+        var _t = function (v) { v = String(v || ''); return v && v.charAt(0) !== "'" ? "'" + v : v; };
+        await sheetsAppend(state.personalSheetId, DOCS_TAB + '!A:H',
+          [[_t('doc-' + Date.now()), title, type, url, covers, topics, '', new Date().toISOString().split('T')[0]]]);
+        state.myManuals = null;
+        var f = document.getElementById('maint-docform'); if (f) f.remove();
         _maintRenderMyDocs();
         if (typeof showToast === 'function') showToast('✓ Saved to My Manuals');
+      } catch (e) {
+        btn.disabled = false; btn.textContent = 'Save to My Manuals';
+        if (typeof showToast === 'function') showToast('Could not save — ' + (e && e.message || 'try again'), 4000, true);
       }
-    } catch (e) { if (typeof showToast === 'function') showToast('Could not save — ' + (e && e.message || 'try again'), 4000, true); }
-  };
+    };
+    var first = document.getElementById(type === 'link' ? 'docf-url' : 'docf-title'); if (first) first.focus();
+  }
+  window._maintSaveLink = function () { if (_panelItem) _docForm('link', null, null); };
   window._maintSavePicture = function () {
     if (!_panelItem) return;
     var inp = document.createElement('input');
     inp.type = 'file'; inp.accept = 'image/*';
-    inp.onchange = async function () {
+    inp.onchange = function () {
       var f = inp.files && inp.files[0];
-      if (!f) return;
-      try {
-        if (typeof showToast === 'function') showToast('Uploading…', 2000);
-        await driveEnsureSetup();
-        var folder = await driveFindOrCreateFolder('Manuals', driveCache.photosId);
-        var up = await driveUploadPhoto(f, 'manual-' + Date.now() + '.jpg', folder);
-        if (!up || !up.id) throw new Error('upload failed');
-        var url = 'https://drive.google.com/file/d/' + up.id + '/view';
-        var title = (prompt('Name this picture:', 'Diagram — ' + String(_panelItem.itemNum || '')) || '').trim() || 'Saved diagram';
-        if (await _saveDoc('picture', title, url, _panelItem)) {
-          _maintRenderMyDocs();
-          if (typeof showToast === 'function') showToast('✓ Picture saved to My Manuals');
-        }
-      } catch (e) { if (typeof showToast === 'function') showToast('Could not save the picture — ' + (e && e.message || 'try again'), 4500, true); }
+      if (f) _docForm('picture', null, f);
     };
     inp.click();
   };
