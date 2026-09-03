@@ -1,5 +1,5 @@
 // ============================================================
-//  maintenance.js — 🔧 Maintenance panel + Workbench (v0.9.1654, Session 92)
+//  maintenance.js — 🔧 Maintenance panel + Workbench + My Manuals (v0.9.1655, Session 92)
 //  OWNER-ONLY (admin preview): the button renders only when the
 //  signed-in email is on MAINT.OWNER_EMAILS. Everyone else's app
 //  is untouched — delete this ONE file + its index.html line to
@@ -1528,12 +1528,15 @@
     var old = document.getElementById('maint-overlay');
     if (old) old.remove();
 
-    var sec = function (title, inner) {
-      return '<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:0.9rem 1rem;margin-bottom:0.8rem">'
+    // v0.9.1655 (Brad's v2 flow): the panel is a LAUNCHER; each section
+    // belongs to a group (docs / work) shown one at a time.
+    var sec = function (title, inner, grp) {
+      return '<div class="maint-sec" data-grp="' + (grp || 'docs') + '" style="display:none;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:0.9rem 1rem;margin-bottom:0.8rem">'
         + '<div style="font-family:var(--font-head);font-size:0.7rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--accent2);margin-bottom:0.6rem">' + title + '</div>'
         + inner + '</div>';
     };
     var linkBtn = 'padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #2980b9;background:var(--bg-card);color:#2980b9;font-family:var(--font-body);font-size:0.82rem;cursor:pointer;font-weight:600';
+    var bigBtn = 'text-align:left;padding:0.75rem 1rem;border-radius:12px;border:1.5px solid var(--border);background:var(--surface);color:var(--text);font-family:var(--font-body);font-size:0.95rem;cursor:pointer;font-weight:700';
 
     var html = '<div id="maint-overlay" style="position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9500;display:flex;align-items:flex-start;justify-content:center;overflow-y:auto;padding:2rem 1rem" onclick="if(event.target===this)this.remove()">'
       + '<div style="background:var(--bg-card);border:1px solid var(--border);border-radius:16px;max-width:560px;width:100%;padding:1.25rem 1.4rem;margin-bottom:2rem">'
@@ -1542,6 +1545,21 @@
       +   '<button onclick="document.getElementById(\'maint-overlay\').remove()" style="background:none;border:none;color:var(--text-dim);font-size:1.3rem;cursor:pointer;line-height:1">&times;</button>'
       + '</div>'
       + '<div style="font-size:0.72rem;color:var(--text-dim);margin-bottom:0.8rem">Owner preview — only you can see this button.</div>'
+      + '<div id="maint-launcher" style="display:flex;flex-direction:column;gap:0.55rem;margin-bottom:0.8rem">'
+      +   '<button onclick="_maintShowGrp(\'docs\')" style="' + bigBtn + '">📖 Find manuals &amp; diagrams<span style="display:block;font-weight:400;font-size:0.74rem;color:var(--text-dim)">Your saved docs, factory sources, searches</span></button>'
+      +   '<button onclick="_maintShowGrp(\'work\')" style="' + bigBtn + '">🔨 Work on it<span style="display:block;font-weight:400;font-size:0.74rem;color:var(--text-dim)">Chores, parts and repair videos for this item</span></button>'
+      +   '<button onclick="_maintShowHistory(\'' + _esc(String(window._maintPanelInvId || '')) + '\',\'' + _esc(String(item.itemNum || '')) + '\')" style="' + bigBtn + '">🕘 Service history<span style="display:block;font-weight:400;font-size:0.74rem;color:var(--text-dim)">Everything ever done to this one</span></button>'
+      + '</div>'
+      + '<button id="maint-back" onclick="_maintShowGrp(\'\')" style="display:none;margin-bottom:0.6rem;padding:0.35rem 0.8rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body);font-size:0.78rem;cursor:pointer">← Back</button>'
+      + '<div class="maint-sec" data-grp="docs" style="display:none;background:var(--surface);border:1px solid #16a085;border-radius:12px;padding:0.9rem 1rem;margin-bottom:0.8rem">'
+      +   '<div style="font-family:var(--font-head);font-size:0.7rem;letter-spacing:0.12em;text-transform:uppercase;color:#16a085;margin-bottom:0.6rem">My saved docs for this item</div>'
+      +   '<div id="maint-mydocs" style="font-size:0.82rem;color:var(--text-dim)">Loading…</div>'
+      +   '<div style="display:flex;gap:0.4rem;margin-top:0.6rem;flex-wrap:wrap">'
+      +     '<button onclick="_maintSavePicture()" style="' + linkBtn + '">📎 Save a picture</button>'
+      +     '<button onclick="_maintSaveLink()" style="' + linkBtn + '">🔗 Save a link</button>'
+      +   '</div>'
+      +   '<div style="font-size:0.7rem;color:var(--text-dim);margin-top:0.45rem">Paste a screenshot or save a manual link — it shows here for every item it covers, and in your Toolbox.</div>'
+      + '</div>'
 
       // Docs
       + sec('Manuals &amp; Parts Diagrams',
@@ -1609,7 +1627,7 @@
               +   '<button onclick="_maintSupplierGo()" style="padding:0.4rem 0.8rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body);font-size:0.78rem;cursor:pointer">Search that supplier →</button>'
               + '</div>';
             return h;
-          })())
+          })(), 'docs')
 
       // ── Workbench (phase 3): chores + service history ──
       + sec('Workbench',
@@ -1621,7 +1639,7 @@
           + '<button onclick="_maintAddChore()" style="' + linkBtn + '">+ Add to Workbench</button>'
           + '<button onclick="_maintShowHistory(\'' + _esc(String(window._maintPanelInvId || '')) + '\',\'' + _esc(String(item.itemNum || '')) + '\')" style="padding:0.5rem 0.9rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body);font-size:0.82rem;cursor:pointer">Service history</button>'
           + '</div>'
-          + '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.45rem">A chore puts this item on your Workbench page until you mark it done.</div>')
+          + '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.45rem">A chore puts this item on your Workbench page until you mark it done.</div>', 'work')
 
       // Videos
       + sec('Repair Videos (YouTube)',
@@ -1634,7 +1652,7 @@
                 }).join('')
           +   '</select>'
           +   '<button onclick="_maintSearchYt()" style="' + linkBtn + '">Search →</button>'
-          + '</div>')
+          + '</div>', 'work')
 
       // Parts search
       + sec('Find a Part (your favorite dealers)',
@@ -1644,11 +1662,18 @@
           +   '<button onclick="_maintSearchParts()" style="' + linkBtn + '">Search →</button>'
           +   '<button onclick="_maintAddPartWanted()" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #e67e22;background:var(--bg-card);background:color-mix(in srgb, rgb(230,126,34) 10%, var(--bg-card));color:#e67e22;font-family:var(--font-body);font-size:0.82rem;cursor:pointer;font-weight:600">+ Add to Parts Wanted</button>'
           + '</div>'
-          + '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.45rem">Search Google as &quot;dealer&quot; &quot;maker&quot; &quot;item number&quot; &quot;part&quot; \u2014 or add what you typed straight to your Parts Wanted list, linked to this item.</div>')
+          + '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.45rem">Search Google as &quot;dealer&quot; &quot;maker&quot; &quot;item number&quot; &quot;part&quot; \u2014 or add what you typed straight to your Parts Wanted list, linked to this item.</div>', 'work')
 
       + '</div></div>';
 
     document.body.insertAdjacentHTML('beforeend', html);
+    window._maintShowGrp = function (g) {
+      var ov = document.getElementById('maint-overlay'); if (!ov) return;
+      ov.querySelectorAll('.maint-sec').forEach(function (el) { el.style.display = (g && el.getAttribute('data-grp') === g) ? '' : 'none'; });
+      var l = document.getElementById('maint-launcher'); if (l) l.style.display = g ? 'none' : 'flex';
+      var b = document.getElementById('maint-back'); if (b) b.style.display = g ? '' : 'none';
+      if (g === 'docs') _maintRenderMyDocs();
+    };
   };
 
   window._maintSearchYt = function () {
@@ -1663,6 +1688,123 @@
     var dealer = (document.getElementById('maint-dealer') || {}).value || '';
     var part = (document.getElementById('maint-part-desc') || {}).value || '';
     window.open(_partsUrl(dealer, _panelItem, part.trim()), '_blank');
+  };
+
+  // ════════════════════════════════════════════════════════════════
+  //  v0.9.1655: MY MANUALS — the personal doc library (v2 flow bite 1)
+  //  Personal tab "My Manuals": Doc ID, Title, Type, URL, Covers,
+  //  Topics, Notes, Date Added. covers = item numbers (fitment for
+  //  documents); topics feed the future Toolbox filter.
+  // ════════════════════════════════════════════════════════════════
+  var DOCS_TAB = 'My Manuals';
+  async function _ensureDocsTab() {
+    try {
+      var meta = await (await fetch('https://sheets.googleapis.com/v4/spreadsheets/' + state.personalSheetId + '?fields=sheets.properties',
+        { headers: { Authorization: 'Bearer ' + accessToken } })).json();
+      if ((meta.sheets || []).some(function (sh) { return sh.properties && sh.properties.title === DOCS_TAB; })) return true;
+      await fetch('https://sheets.googleapis.com/v4/spreadsheets/' + state.personalSheetId + ':batchUpdate', {
+        method: 'POST', headers: { Authorization: 'Bearer ' + accessToken, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ requests: [{ addSheet: { properties: { title: DOCS_TAB, tabColor: { red: 0.16, green: 0.5, blue: 0.72 } } } }] })
+      });
+      await sheetsUpdate(state.personalSheetId, DOCS_TAB + '!A1:H1',
+        [['Doc ID', 'Title', 'Type', 'URL', 'Covers', 'Topics', 'Notes', 'Date Added']]);
+      return true;
+    } catch (e) { console.warn('[MyManuals] ensure failed', e && e.message); return false; }
+  }
+  async function _loadMyDocs() {
+    try {
+      if (!(await _ensureDocsTab())) return;
+      var res = await sheetsGet(state.personalSheetId, DOCS_TAB + '!A2:H').catch(function () { return { values: [] }; });
+      state.myManuals = (res.values || []).filter(function (r) { return r[0]; }).map(function (r, i) {
+        var g = function (j) { return (r[j] != null) ? String(r[j]) : ''; };
+        return { row: i + 2, id: g(0), title: g(1), type: g(2), url: g(3), covers: g(4), topics: g(5), notes: g(6), date: g(7) };
+      });
+    } catch (e) { state.myManuals = state.myManuals || []; }
+  }
+  function _docCovers(item) {
+    var n = String(item && item.itemNum || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+    return (state.myManuals || []).filter(function (d) {
+      return d.covers.split(',').some(function (c) {
+        var cc = c.trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+        return cc && cc === n;
+      });
+    });
+  }
+  function _maintRenderMyDocs() {
+    var el = document.getElementById('maint-mydocs');
+    if (!el || !_panelItem) return;
+    var render = function () {
+      var docs = _docCovers(_panelItem);
+      if (!docs.length) { el.innerHTML = 'Nothing saved for this item yet.'; return; }
+      el.innerHTML = docs.map(function (d) {
+        var icon = d.type === 'picture' ? '🖼️' : d.type === 'video' ? '🎬' : '📄';
+        return '<div style="padding:0.35rem 0;border-bottom:1px solid var(--border)">'
+          + '<a href="' + _esc(d.url) + '" target="_blank" rel="noopener" style="color:#2980b9;font-weight:600;text-decoration:none">' + icon + ' ' + _esc(d.title || 'untitled') + '</a>'
+          + (d.topics ? ' <span style="color:var(--text-dim);font-size:0.72rem">[' + _esc(d.topics) + ']</span>' : '')
+          + '</div>';
+      }).join('');
+    };
+    if (state.myManuals) render(); else _loadMyDocs().then(render);
+  }
+  window._maintRenderMyDocs = _maintRenderMyDocs;
+
+  function _suggestCovers(item) {
+    // prefill from what we already KNOW: the item + LCCA/Trainz families
+    var out = [String(item.itemNum || '').trim()];
+    try {
+      var pf = _pwsmFile(String(item.itemNum || ''));
+      if (pf && PWSM_FILES[pf]) PWSM_FILES[pf].split(',').forEach(function (n) { if (n && out.indexOf(n) < 0) out.push(n); });
+      var tz = _tzDiagram(item);
+      if (tz) tz.n.split('|').forEach(function (n) { if (n && out.indexOf(n) < 0) out.push(n); });
+    } catch (e) {}
+    return out.slice(0, 20).join(', ');
+  }
+  async function _saveDoc(type, title, url, item) {
+    if (!(await _ensureDocsTab())) throw new Error('My Manuals tab unavailable');
+    var covers = (prompt('Which item numbers does this cover? (comma-separated)', _suggestCovers(item)) || '').trim();
+    if (!covers) return false;
+    var topics = (prompt('Topic tags? (e.g. traction tire, e-unit — optional)', '') || '').trim();
+    var _t = function (v) { v = String(v || ''); return v && v.charAt(0) !== "'" ? "'" + v : v; };
+    await sheetsAppend(state.personalSheetId, DOCS_TAB + '!A:H',
+      [[_t('doc-' + Date.now()), title, type, url, covers, topics, '', new Date().toISOString().split('T')[0]]]);
+    state.myManuals = null;   // force reload
+    return true;
+  }
+  window._maintSaveLink = async function () {
+    if (!_panelItem) return;
+    var url = (prompt('Paste the link (manual page, PDF, anything):') || '').trim();
+    if (!url) return;
+    if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
+    var title = (prompt('Name it:', '') || '').trim() || url.replace(/^https?:\/\//, '').slice(0, 60);
+    try {
+      if (await _saveDoc('link', title, url, _panelItem)) {
+        _maintRenderMyDocs();
+        if (typeof showToast === 'function') showToast('✓ Saved to My Manuals');
+      }
+    } catch (e) { if (typeof showToast === 'function') showToast('Could not save — ' + (e && e.message || 'try again'), 4000, true); }
+  };
+  window._maintSavePicture = function () {
+    if (!_panelItem) return;
+    var inp = document.createElement('input');
+    inp.type = 'file'; inp.accept = 'image/*';
+    inp.onchange = async function () {
+      var f = inp.files && inp.files[0];
+      if (!f) return;
+      try {
+        if (typeof showToast === 'function') showToast('Uploading…', 2000);
+        await driveEnsureSetup();
+        var folder = await driveFindOrCreateFolder('Manuals', driveCache.photosId);
+        var up = await driveUploadPhoto(f, 'manual-' + Date.now() + '.jpg', folder);
+        if (!up || !up.id) throw new Error('upload failed');
+        var url = 'https://drive.google.com/file/d/' + up.id + '/view';
+        var title = (prompt('Name this picture:', 'Diagram — ' + String(_panelItem.itemNum || '')) || '').trim() || 'Saved diagram';
+        if (await _saveDoc('picture', title, url, _panelItem)) {
+          _maintRenderMyDocs();
+          if (typeof showToast === 'function') showToast('✓ Picture saved to My Manuals');
+        }
+      } catch (e) { if (typeof showToast === 'function') showToast('Could not save the picture — ' + (e && e.message || 'try again'), 4500, true); }
+    };
+    inp.click();
   };
 
   // ════════════════════════════════════════════════════════════════
