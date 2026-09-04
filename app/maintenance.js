@@ -1,5 +1,5 @@
 // ============================================================
-//  maintenance.js — 🔧 Maintenance panel + Workbench + My Manuals (v0.9.1656, Session 92)
+//  maintenance.js — 🔧 Maintenance panel + Workbench + My Manuals (v0.9.1657, Session 92)
 //  OWNER-ONLY (admin preview): the button renders only when the
 //  signed-in email is on MAINT.OWNER_EMAILS. Everyone else's app
 //  is untouched — delete this ONE file + its index.html line to
@@ -1984,8 +1984,8 @@
     var pg = document.getElementById('page-workbench');
     if (!pg) return;
     var items = _openNeeds();
-    var head = '<div class="page-header"><h2>🔧 The Workbench</h2>'
-      + '<div style="font-size:0.82rem;color:var(--text-dim)">Everything that needs a wrench — open chores and parts. Owner preview.</div></div>';
+    var head = '<div class="page-title">🔧 The Workbench</div>'
+      + '<div style="font-size:0.82rem;color:var(--text-dim);margin-bottom:0.85rem">Everything that needs a wrench — open chores and parts. Owner preview.</div>';
     if (!items.length) {
       pg.innerHTML = head + '<div style="text-align:center;padding:3rem 1rem;color:var(--text-dim)"><div style="font-size:2.5rem;margin-bottom:0.5rem">🔧</div><p>Nothing on the bench.</p><p style="font-size:0.8rem;margin-top:0.4rem">Add a chore from any item’s Maintenance panel, or a part from Parts Needed.</p></div>';
       return;
@@ -2013,7 +2013,7 @@
   window._wbBuild = _wbBuild;
 
   function _wbInjectUI() {
-    var main = document.querySelector('.main-content') || document.getElementById('app');
+    var main = document.getElementById('main-content');   // v0.9.1657: was querySelector('.main-content') — the element's CLASS is 'main'; null fell back to #app and the page rendered BELOW the billboard (Brad's screenshot)
     if (!main) return false;
     if (!document.getElementById('page-workbench')) {
       var pg = document.createElement('div');
