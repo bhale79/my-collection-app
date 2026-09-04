@@ -1,5 +1,5 @@
 // ============================================================
-//  maintenance.js — 🔧 Maintenance panel + Workbench + My Manuals (v0.9.1659, Session 92)
+//  maintenance.js — 🔧 Maintenance panel + Workbench + My Manuals (v0.9.1661, Session 92)
 //  OWNER-ONLY (admin preview): the button renders only when the
 //  signed-in email is on MAINT.OWNER_EMAILS. Everyone else's app
 //  is untouched — delete this ONE file + its index.html line to
@@ -1634,7 +1634,7 @@
       + sec('Workbench',
           '<div style="display:flex;gap:0.4rem;flex-wrap:wrap;align-items:center">'
           + '<select id="maint-chore-pick" style="flex:1;min-width:150px;padding:0.45rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.82rem">'
-          + CHORES.map(function (ch) { return '<option value="' + _esc(ch) + '">' + _esc(ch) + '</option>'; }).join('')
+          + _allChores().map(function (ch) { return '<option value="' + _esc(ch) + '">' + _esc(ch) + '</option>'; }).join('')
           + '<option value="__custom">Something else…</option>'
           + '</select>'
           + '<button onclick="_maintAddChore()" style="' + linkBtn + '">+ Add to Workbench</button>'
@@ -1653,7 +1653,9 @@
                 }).join('')
           +   '</select>'
           +   '<button onclick="_maintSearchYt()" style="' + linkBtn + '">Search →</button>'
-          + '</div>', 'work')
+          +   '<button onclick="_maintSaveVideo()" style="' + linkBtn + '">🎬 Save a video</button>'
+          + '</div>'
+          + '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.45rem">Found a good one? Paste its link with Save a video — it joins My Manuals and your Toolbox, tagged with the part you typed.</div>', 'work')
 
       // Parts search
       + sec('Find a Part (your favorite dealers)',
@@ -1763,19 +1765,19 @@
   // v0.9.1656 (Brad: the prompt boxes VANISH when you switch windows to
   // copy something): one persistent FORM instead of a prompt chain. It
   // stays open across window switches; nothing saves until Save.
-  function _docForm(type, fixedUrl, pendingFile) {
+  function _docForm(type, fixedUrl, pendingFile, presetTopic) {
     var old = document.getElementById('maint-docform'); if (old) old.remove();
     var IN = 'width:100%;box-sizing:border-box;padding:0.5rem 0.65rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.88rem;margin-bottom:0.7rem';
     var LB = 'font-size:0.72rem;color:var(--text-dim);display:block;margin-bottom:0.2rem;text-transform:uppercase;letter-spacing:0.05em';
     var html = '<div id="maint-docform" style="position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9700;display:flex;align-items:flex-start;justify-content:center;overflow-y:auto;padding:2rem 1rem" onclick="if(event.target===this && confirm(\'Close without saving?\'))this.remove()">'
       + '<div style="background:var(--bg-card);border:1px solid var(--border);border-radius:16px;max-width:480px;width:100%;padding:1.2rem 1.3rem;margin-bottom:2rem">'
-      + '<div style="font-family:var(--font-head);font-weight:700;color:var(--text);margin-bottom:0.8rem">' + (type === 'picture' ? '📎 Save a picture' : type === 'document' ? '📄 Save a document' : '🔗 Save a link') + ' — My Manuals</div>'
-      + (type === 'link'
-          ? '<label style="' + LB + '">Link (paste it — switch windows all you like, this form waits)</label><input id="docf-url" type="text" placeholder="https://…" style="' + IN + '">'
+      + '<div style="font-family:var(--font-head);font-weight:700;color:var(--text);margin-bottom:0.8rem">' + (type === 'picture' ? '📎 Save a picture' : type === 'document' ? '📄 Save a document' : type === 'video' ? '🎬 Save a video' : '🔗 Save a link') + ' — My Manuals</div>'
+      + ((type === 'link' || type === 'video')
+          ? '<label style="' + LB + '">' + (type === 'video' ? 'YouTube link (paste it)' : 'Link (paste it — switch windows all you like, this form waits)') + '</label><input id="docf-url" type="text" placeholder="https://…" style="' + IN + '">'
           : '<div style="font-size:0.82rem;color:var(--text);margin-bottom:0.7rem">' + _esc(pendingFile && pendingFile.name || 'File') + ' chosen ✓ — it uploads when you hit Save.</div>')
       + '<label style="' + LB + '">Name</label><input id="docf-title" type="text" placeholder="e.g. Vulcan switcher service pages" style="' + IN + '">'
       + '<label style="' + LB + '">Covers (item numbers, comma-separated)</label><input id="docf-covers" type="text" value="' + _esc(_suggestCovers(_panelItem)) + '" style="' + IN + '">'
-      + '<label style="' + LB + '">Topics (e.g. traction tire, e-unit — optional)</label><input id="docf-topics" type="text" style="' + IN + '">'
+      + '<label style="' + LB + '">Topics (e.g. traction tire, e-unit — optional)</label><input id="docf-topics" type="text" value="' + _esc(presetTopic || '') + '" style="' + IN + '">'
       + '<div style="display:flex;gap:0.6rem;margin-top:0.3rem">'
       + '<button onclick="document.getElementById(\'maint-docform\').remove()" style="flex:1;padding:0.6rem;border-radius:8px;border:1px solid var(--border);background:none;color:var(--text-dim);font-family:var(--font-body);cursor:pointer">Cancel</button>'
       + '<button id="docf-save" style="flex:2;padding:0.6rem;border-radius:8px;border:none;background:#16a085;color:#fff;font-family:var(--font-body);font-weight:700;cursor:pointer">Save to My Manuals</button>'
@@ -1785,7 +1787,7 @@
     document.getElementById('docf-save').onclick = async function () {
       var g = function (id) { var el = document.getElementById(id); return el ? String(el.value || '').trim() : ''; };
       var url = fixedUrl || g('docf-url');
-      if (type === 'link') {
+      if (type === 'link' || type === 'video') {
         if (!url) { if (typeof showToast === 'function') showToast('Paste the link first.', 2500, true); return; }
         if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
       }
@@ -1819,6 +1821,11 @@
     var first = document.getElementById(type === 'link' ? 'docf-url' : 'docf-title'); if (first) first.focus();
   }
   window._maintSaveLink = function () { if (_panelItem) _docForm('link', null, null); };
+  window._maintSaveVideo = function () {
+    if (!_panelItem) return;
+    var part = document.getElementById('maint-yt-part');
+    _docForm('video', null, null, part ? String(part.value || '').trim() : '');
+  };
   function _pickFile(accept, type) {
     if (!_panelItem) return;
     var inp = document.createElement('input');
@@ -1841,7 +1848,15 @@
   //  the phase-2 parts lifecycle already in state.partsData.
   // ════════════════════════════════════════════════════════════════
   var LOG_TAB = 'Maintenance Log';
-  var CHORES = ['Oil / lubricate', 'Replace traction tire', 'Clean rollers & wheels', 'E-unit service', 'Find a part', 'Test run'];
+  // v0.9.1661 (Brad): Find-a-part and Test-run cut (didn't make sense as
+  // chores), Change battery added, and CUSTOM chores are REMEMBERED —
+  // type one once via "Something else…" and it joins the dropdown.
+  var CHORES = ['Oil / lubricate', 'Replace traction tire', 'Clean rollers & wheels', 'E-unit service', 'Change battery'];
+  MAINT.PREF_CHORES = 'maint_custom_chores';
+  function _allChores() {
+    var custom = _favs(MAINT.PREF_CHORES);
+    return CHORES.concat(custom.filter(function (c) { return CHORES.indexOf(c) < 0; }));
+  }
 
   async function _ensureLogTab() {
     try {
@@ -1906,6 +1921,10 @@
     var sel = document.getElementById('maint-chore-pick');
     var chore = sel && sel.value === '__custom' ? (prompt('What does it need?') || '').trim() : (sel ? sel.value : '');
     if (!chore) return;
+    if (sel && sel.value === '__custom') {
+      var customs = _favs(MAINT.PREF_CHORES);
+      if (customs.indexOf(chore) < 0 && CHORES.indexOf(chore) < 0) { customs.push(chore); _saveFavs(MAINT.PREF_CHORES, customs); }
+    }
     try {
       if (!(await _ensureLogTab())) throw new Error('log tab unavailable');
       var _t = function (v) { v = String(v || ''); return v && v.charAt(0) !== "'" ? "'" + v : v; };
