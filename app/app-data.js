@@ -2055,7 +2055,7 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
   // tab. Belt and braces with the canonical set in syncUserDefinedTabsFromSheet:
   // this one stops it LOADING even if a stale cached userDefinedTabs entry
   // survives, which is exactly how it kept its Show chip.
-  const _RESERVED_TABS = { 'Parts Needed': 1, 'Contacts': 1, 'Barcode Map': 1 };   // v0.9.794: never load Contacts as an ephemera tab
+  const _RESERVED_TABS = { 'Parts Needed': 1, 'Contacts': 1, 'Barcode Map': 1, 'Maintenance Log': 1, 'My Manuals': 1 };   // v0.9.794 Contacts; v0.9.1658: the Workbench tabs leaked into My Collection as sellable phantom items (Brad's screenshot — log rows with For Sale buttons)
   const _utPromises = (state.userDefinedTabs||[]).filter(ut => ut && !_RESERVED_TABS[ut.label]).map(ut =>
     sheetsGet(sheetId, ut.label + '!A3:J').catch((e) => { console.warn('[Custom tab ' + ut.label + ' load failed]', e && e.message); return {values:[], _failed:true}; })
       .then(utRes => parseEphemeraRows(utRes.values, newEphemera[ut.id]))
