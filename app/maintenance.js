@@ -1,5 +1,5 @@
 // ============================================================
-//  maintenance.js — 🔧 Maintenance panel + Workbench + My Manuals (v0.9.1657, Session 92)
+//  maintenance.js — 🔧 Maintenance panel + Workbench + My Manuals (v0.9.1659, Session 92)
 //  OWNER-ONLY (admin preview): the button renders only when the
 //  signed-in email is on MAINT.OWNER_EMAILS. Everyone else's app
 //  is untouched — delete this ONE file + its index.html line to
@@ -1556,9 +1556,10 @@
       +   '<div id="maint-mydocs" style="font-size:0.82rem;color:var(--text-dim)">Loading…</div>'
       +   '<div style="display:flex;gap:0.4rem;margin-top:0.6rem;flex-wrap:wrap">'
       +     '<button onclick="_maintSavePicture()" style="' + linkBtn + '">📎 Save a picture</button>'
+      +     '<button onclick="_maintSaveDocument()" style="' + linkBtn + '">📄 Save a document</button>'
       +     '<button onclick="_maintSaveLink()" style="' + linkBtn + '">🔗 Save a link</button>'
       +   '</div>'
-      +   '<div style="font-size:0.7rem;color:var(--text-dim);margin-top:0.45rem">Paste a screenshot or save a manual link — it shows here for every item it covers, and in your Toolbox.</div>'
+      +   '<div style="font-size:0.7rem;color:var(--text-dim);margin-top:0.45rem">Save a screenshot, a PDF/document, or a manual link — it shows here for every item it covers, and in your Toolbox.</div>'
       + '</div>'
 
       // Docs
@@ -1768,10 +1769,10 @@
     var LB = 'font-size:0.72rem;color:var(--text-dim);display:block;margin-bottom:0.2rem;text-transform:uppercase;letter-spacing:0.05em';
     var html = '<div id="maint-docform" style="position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9700;display:flex;align-items:flex-start;justify-content:center;overflow-y:auto;padding:2rem 1rem" onclick="if(event.target===this && confirm(\'Close without saving?\'))this.remove()">'
       + '<div style="background:var(--bg-card);border:1px solid var(--border);border-radius:16px;max-width:480px;width:100%;padding:1.2rem 1.3rem;margin-bottom:2rem">'
-      + '<div style="font-family:var(--font-head);font-weight:700;color:var(--text);margin-bottom:0.8rem">' + (type === 'picture' ? '📎 Save a picture' : '🔗 Save a link') + ' — My Manuals</div>'
+      + '<div style="font-family:var(--font-head);font-weight:700;color:var(--text);margin-bottom:0.8rem">' + (type === 'picture' ? '📎 Save a picture' : type === 'document' ? '📄 Save a document' : '🔗 Save a link') + ' — My Manuals</div>'
       + (type === 'link'
           ? '<label style="' + LB + '">Link (paste it — switch windows all you like, this form waits)</label><input id="docf-url" type="text" placeholder="https://…" style="' + IN + '">'
-          : '<div style="font-size:0.82rem;color:var(--text);margin-bottom:0.7rem">Picture chosen ✓ — it uploads when you hit Save.</div>')
+          : '<div style="font-size:0.82rem;color:var(--text);margin-bottom:0.7rem">' + _esc(pendingFile && pendingFile.name || 'File') + ' chosen ✓ — it uploads when you hit Save.</div>')
       + '<label style="' + LB + '">Name</label><input id="docf-title" type="text" placeholder="e.g. Vulcan switcher service pages" style="' + IN + '">'
       + '<label style="' + LB + '">Covers (item numbers, comma-separated)</label><input id="docf-covers" type="text" value="' + _esc(_suggestCovers(_panelItem)) + '" style="' + IN + '">'
       + '<label style="' + LB + '">Topics (e.g. traction tire, e-unit — optional)</label><input id="docf-topics" type="text" style="' + IN + '">'
@@ -1794,10 +1795,11 @@
       var topics = g('docf-topics');
       var btn = this; btn.disabled = true; btn.textContent = 'Saving…';
       try {
-        if (type === 'picture' && pendingFile) {
+        if (pendingFile) {
           await driveEnsureSetup();
           var folder = await driveFindOrCreateFolder('Manuals', driveCache.photosId);
-          var up = await driveUploadPhoto(pendingFile, 'manual-' + Date.now() + '.jpg', folder);
+          var ext = (pendingFile.name && pendingFile.name.indexOf('.') >= 0) ? pendingFile.name.slice(pendingFile.name.lastIndexOf('.')) : '';
+          var up = await driveUploadPhoto(pendingFile, 'manual-' + Date.now() + ext, folder);
           if (!up || !up.id) throw new Error('upload failed');
           url = 'https://drive.google.com/file/d/' + up.id + '/view';
         }
@@ -1817,16 +1819,18 @@
     var first = document.getElementById(type === 'link' ? 'docf-url' : 'docf-title'); if (first) first.focus();
   }
   window._maintSaveLink = function () { if (_panelItem) _docForm('link', null, null); };
-  window._maintSavePicture = function () {
+  function _pickFile(accept, type) {
     if (!_panelItem) return;
     var inp = document.createElement('input');
-    inp.type = 'file'; inp.accept = 'image/*';
+    inp.type = 'file'; inp.accept = accept;
     inp.onchange = function () {
       var f = inp.files && inp.files[0];
-      if (f) _docForm('picture', null, f);
+      if (f) _docForm(type, null, f);
     };
     inp.click();
-  };
+  }
+  window._maintSavePicture = function () { _pickFile('image/*', 'picture'); };
+  window._maintSaveDocument = function () { _pickFile('.pdf,.doc,.docx,.txt,.rtf,.xls,.xlsx', 'document'); };
 
   // ════════════════════════════════════════════════════════════════
   //  PHASE 3 (v0.9.1654, Session 92): THE WORKBENCH
