@@ -5329,6 +5329,6 @@ if (typeof window !== 'undefined') {
   document.addEventListener('input', function (e) {
     if (!e.target || e.target.id !== 'browse-search') return;
     var x = document.getElementById('browse-search-clear');
-    if (x) x.style.display = e.target.value ? 'block' : 'none';
+    if (x) x.style.display = e.target.value ? 'inline-flex' : 'none';   // v0.9.1660 (Brad): 'block' rendered the × below the box
   });
 }
