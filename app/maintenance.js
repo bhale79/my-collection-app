@@ -1,5 +1,5 @@
 // ============================================================
-//  maintenance.js — 🔧 Maintenance panel + Workbench + My Manuals (v0.9.1661, Session 92)
+//  maintenance.js — 🔧 Maintenance panel + Workbench + My Manuals (v0.9.1662, Session 92)
 //  OWNER-ONLY (admin preview): the button renders only when the
 //  signed-in email is on MAINT.OWNER_EMAILS. Everyone else's app
 //  is untouched — delete this ONE file + its index.html line to
@@ -1401,31 +1401,8 @@
       if (box) box.value = '';
     } catch (e) { if (typeof showToast === 'function') showToast('Could not save the part \u2014 ' + (e && e.message || 'try again'), 4000, true); }
   };
-  window._maintSupplierGo = function () {
-    if (!_panelItem) return;
-    var sel = document.getElementById('maint-supplier');
-    var sup = (sel && sel.value) || 'Trainz';
-    var mk = _makerName(_panelItem, _panelItem._era) || '';
-    var mw = _modelWords(_panelItem);
-    var url;
-    if (/^trainz$/i.test(sup.trim())) {
-      // v0.9.1650 (Brad's Fort Knox boxcar, 0 results): when WE hold the
-      // Trainz diagram, the search button goes straight to it. When we
-      // don't, the query slims to maker + number + parts — their search
-      // ANDs every word, and long description words zero it ("lionel
-      // Fort Knox Gold Reserve Mint Boxcar parts" found nothing while
-      // their listings say "6445"). Modern Atlas-style numbers still
-      // miss, so those fall back to model words.
-      var tzd = _tzDiagram(_panelItem);
-      if (tzd) { window.open('https://www.trainz.com/pages/parts-diagram/' + tzd.h, '_blank'); return; }
-      var bn = _baseNum(_panelItem);
-      var q = (bn && bn.length <= 7) ? (mk + ' ' + bn + ' parts') : (mk + ' ' + mw + ' parts');
-      url = 'https://www.trainz.com/search?q=' + encodeURIComponent(q.replace(/\s+/g, ' ').trim());
-    } else {
-      url = 'https://www.google.com/search?q=' + encodeURIComponent(('"' + sup + '" "' + mk + '" ' + mw + ' parts diagram').replace(/\s+/g, ' ').trim());
-    }
-    window.open(url, '_blank');
-  };
+  // v0.9.1662: _maintSupplierGo removed with the docs suppliers dropdown (check 273 flagged it unreachable).
+
   window._maintDelFav = function (prefKey, selectId) {
     var sel = document.getElementById(selectId);
     if (!sel || !sel.value) return;
@@ -1619,13 +1596,11 @@
             // ── always: Google (with MODEL words) + supplier dropdown ──
             var mw = _modelWords(item);
             var gq = 'https://www.google.com/search?q=' + encodeURIComponent(('"' + mk + '" "' + num + '" ' + mw + ' parts diagram').replace(/\s+/g, ' '));
+            // v0.9.1662 (Brad): Parts Suppliers dropdown CUT from the docs
+            // section — the Google button covers it. (The dealer dropdown in
+            // Find-a-Part stays; _maintSupplierGo survives unused-by-docs.)
             h += '<div style="display:flex;gap:0.4rem;margin-top:0.55rem;flex-wrap:wrap;align-items:center">'
               +   '<button onclick="window.open(\'' + _esc(gq) + '\',\'_blank\')" style="padding:0.4rem 0.8rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body);font-size:0.78rem;cursor:pointer">Google the parts diagram →</button>'
-              + '</div>'
-              + '<div style="font-size:0.7rem;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-dim);margin-top:0.6rem;margin-bottom:0.35rem">Parts suppliers</div>'
-              + _favRow(MAINT.PREF_SUPPLIERS, 'maint-supplier', 'Pick a supplier…')
-              + '<div style="display:flex;gap:0.4rem;margin-top:0.4rem">'
-              +   '<button onclick="_maintSupplierGo()" style="padding:0.4rem 0.8rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body);font-size:0.78rem;cursor:pointer">Search that supplier →</button>'
               + '</div>';
             return h;
           })(), 'docs')
