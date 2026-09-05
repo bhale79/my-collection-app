@@ -1,5 +1,5 @@
 // ============================================================
-//  maintenance.js — 🔧 Maintenance panel + Workbench + My Manuals (v0.9.1665, Session 92)
+//  maintenance.js — 🔧 Maintenance panel + Workbench + My Manuals + task cards (v0.9.1666, Session 92)
 //  OWNER-ONLY (admin preview): the button renders only when the
 //  signed-in email is on MAINT.OWNER_EMAILS. Everyone else's app
 //  is untouched — delete this ONE file + its index.html line to
@@ -1612,16 +1612,17 @@
           })(), 'docs')
 
       // ── Workbench (phase 3): chores + service history ──
-      + sec('Workbench',
+      + sec('Tasks for this item',
           '<div style="display:flex;gap:0.4rem;flex-wrap:wrap;align-items:center">'
-          + '<select id="maint-chore-pick" style="flex:1;min-width:150px;padding:0.45rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.82rem">'
+          + '<select id="maint-chore-pick" onchange="_maintChorePickChange(this)" style="flex:1;min-width:150px;padding:0.45rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.82rem">'
           + _allChores().map(function (ch) { return '<option value="' + _esc(ch) + '">' + _esc(ch) + '</option>'; }).join('')
           + '<option value="__custom">Something else…</option>'
           + '</select>'
-          + '<button onclick="_maintAddChore()" style="' + linkBtn + '">+ Add to Workbench</button>'
-          + '<button onclick="_maintShowHistory(\'' + _esc(String(window._maintPanelInvId || '')) + '\',\'' + _esc(String(item.itemNum || '')) + '\')" style="padding:0.5rem 0.9rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body);font-size:0.82rem;cursor:pointer">Service history</button>'
+          + '<button onclick="_maintAddChore()" style="' + linkBtn + '">+ Add task</button>'
           + '</div>'
-          + '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.45rem">A chore puts this item on your Workbench page until you mark it done.</div>', 'work')
+          + '<div id="maint-chore-custom" style="display:none;margin-top:0.4rem"><input id="maint-chore-custom-in" placeholder="Name the new task — it joins the list for next time" onkeydown="if(event.key===\'Enter\')_maintAddChore()" style="width:100%;box-sizing:border-box;padding:0.45rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.82rem"></div>'
+          + '<div id="maint-tasks" style="margin-top:0.6rem"></div>'
+          + '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.45rem">Each task is a card: notes, a part if it needs one, videos for the job, Done when it\'s done.</div>', 'work')
 
       // Videos
       + sec('Repair Videos (YouTube)',
@@ -1657,6 +1658,7 @@
       var l = document.getElementById('maint-launcher'); if (l) l.style.display = g ? 'none' : 'flex';
       var b = document.getElementById('maint-back'); if (b) b.style.display = g ? '' : 'none';
       if (g === 'docs') _maintRenderMyDocs();
+      if (g === 'work') _maintRenderTasks();
     };
   };
 
@@ -1848,10 +1850,19 @@
         method: 'POST', headers: { Authorization: 'Bearer ' + accessToken, 'Content-Type': 'application/json' },
         body: JSON.stringify({ requests: [{ addSheet: { properties: { title: LOG_TAB, tabColor: { red: 0.09, green: 0.63, blue: 0.52 } } } }] })
       });
-      await sheetsUpdate(state.personalSheetId, LOG_TAB + '!A1:J1',
-        [['Log ID', 'Inventory ID', 'Item Number', 'Type', 'Text', 'Part Number', 'Serviced By', 'Date Added', 'Date Done', 'Status']]);
+      await sheetsUpdate(state.personalSheetId, LOG_TAB + '!A1:K1',
+        [['Log ID', 'Inventory ID', 'Item Number', 'Type', 'Text', 'Part Number', 'Serviced By', 'Date Added', 'Date Done', 'Status', 'Notes']]);
       return true;
     } catch (e) { console.warn('[Workbench] ensure log tab failed', e && e.message); return false; }
+  }
+  // v0.9.1666: task NOTES live on the task row (column K, appended at the end)
+  async function _ensureLogNotesCol() {
+    try {
+      var r = await sheetsGet(state.personalSheetId, LOG_TAB + '!K1').catch(function () { return { values: [] }; });
+      if (String(((r.values || [])[0] || [])[0] || '') === 'Notes') return true;
+      await sheetsUpdate(state.personalSheetId, LOG_TAB + '!K1', [['Notes']]);
+      return true;
+    } catch (e) { return false; }
   }
 
   function _parseLog(values) {
@@ -1860,7 +1871,7 @@
       if (!r[0] || r[0] === 'Log ID') return;
       var g = function (j) { return (r[j] !== null && r[j] !== undefined) ? String(r[j]) : ''; };
       out.push({ row: i + 2, id: g(0), invId: g(1), itemNum: g(2), type: g(3), text: g(4),
-                 partNum: g(5), by: g(6), dateAdded: g(7), dateDone: g(8), status: g(9) || 'done' });
+                 partNum: g(5), by: g(6), dateAdded: g(7), dateDone: g(8), status: g(9) || 'done', notes: g(10) });
     });
     return out;
   }
@@ -1868,7 +1879,7 @@
   async function _loadLog() {
     try {
       if (!(await _ensureLogTab())) return;
-      var res = await sheetsGet(state.personalSheetId, LOG_TAB + '!A2:J').catch(function () { return { values: [] }; });
+      var res = await sheetsGet(state.personalSheetId, LOG_TAB + '!A2:K').catch(function () { return { values: [] }; });
       state.maintLog = _parseLog(res.values);
     } catch (e) { state.maintLog = state.maintLog || []; }
   }
@@ -1897,11 +1908,17 @@
     if (b) { var n = _openNeeds().length; b.textContent = n ? n : ''; b.style.display = n ? '' : 'none'; }
   }
 
+  window._maintChorePickChange = function (sel) {
+    var box = document.getElementById('maint-chore-custom');
+    if (box) box.style.display = (sel && sel.value === '__custom') ? '' : 'none';
+    if (box && sel && sel.value === '__custom') { var i = box.querySelector('input'); if (i) i.focus(); }
+  };
   window._maintAddChore = async function () {
     if (!_isOwner() || !_panelItem) return;
     var sel = document.getElementById('maint-chore-pick');
-    var chore = sel && sel.value === '__custom' ? (prompt('What does it need?') || '').trim() : (sel ? sel.value : '');
-    if (!chore) return;
+    var customIn = document.getElementById('maint-chore-custom-in');
+    var chore = sel && sel.value === '__custom' ? (customIn ? String(customIn.value || '').trim() : '') : (sel ? sel.value : '');
+    if (!chore) { if (typeof showToast === 'function') showToast('Type the new task first.', 2500, true); return; }
     if (sel && sel.value === '__custom') {
       var customs = _favs(MAINT.PREF_CHORES);
       if (customs.indexOf(chore) < 0 && CHORES.indexOf(chore) < 0) { customs.push(chore); _saveFavs(MAINT.PREF_CHORES, customs); }
@@ -1912,7 +1929,8 @@
       var row = [_t('log-' + Date.now()), _t(window._maintPanelInvId || ''), _t(String(_panelItem.itemNum || '')),
                  'chore', chore, '', '', new Date().toISOString().split('T')[0], '', 'open'];
       await sheetsAppend(state.personalSheetId, LOG_TAB + '!A:J', [row]);
-      await _loadLog(); _wbBadge();
+      await _loadLog(); _wbBadge(); _maintRenderTasks();
+      if (customIn) customIn.value = '';
       if (typeof showToast === 'function') showToast('✓ On the Workbench: ' + chore);
     } catch (e) { if (typeof showToast === 'function') showToast('Could not save the chore — ' + (e && e.message || 'try again'), 4000, true); }
   };
@@ -1926,7 +1944,7 @@
       if (!ok) return;
       var l = (state.maintLog || []).find(function (x) { return x.row === rowNum; });
       if (l) { l.status = 'done'; l.dateDone = today; }
-      _wbBuild(); _wbBadge();
+      _wbBuild(); _wbBadge(); _maintRenderTasks();
       if (typeof showToast === 'function') showToast('✓ Done — written to the service history');
     } catch (e) { if (typeof showToast === 'function') showToast(rrSaveError ? rrSaveError(e, 'the chore') : 'Save failed', 4000, true); }
   };
@@ -1982,6 +2000,138 @@
       + '<div style="margin-top:0.8rem"><button onclick="_maintAddNote(\'' + _esc(String(invId || '')) + '\',\'' + _esc(String(itemNum || '')) + '\')" style="padding:0.45rem 0.9rem;border-radius:8px;border:1.5px solid #16a085;background:var(--bg-card);background:color-mix(in srgb, rgb(22,160,133) 10%, var(--bg-card));color:#16a085;font-family:var(--font-body);font-size:0.8rem;cursor:pointer;font-weight:600">+ Add service note</button></div>'
       + '</div></div>';
     document.body.insertAdjacentHTML('beforeend', html);
+  };
+
+  // ── v0.9.1666: TASK CARDS (bite 2) — the task is the unit of work ──
+  function _itemTasks() {
+    var inv = String(window._maintPanelInvId || '');
+    var num = String(_panelItem && _panelItem.itemNum || '').trim();
+    return (state.maintLog || []).filter(function (l) {
+      if (l.type !== 'chore' || l.status !== 'open') return false;
+      return inv ? l.invId === inv : l.itemNum === num;
+    });
+  }
+  function _taskParts(taskId) {
+    return Object.values(state.partsData || {}).filter(function (p) { return p.taskId && p.taskId === taskId; });
+  }
+  function _maintRenderTasks() {
+    var el = document.getElementById('maint-tasks');
+    if (!el || !_panelItem) return;
+    var render = function () {
+      var tasks = _itemTasks();
+      if (!tasks.length) { el.innerHTML = '<div style="font-size:0.8rem;color:var(--text-dim);padding:0.3rem 0">No open tasks on this one.</div>'; return; }
+      var IN = 'width:100%;box-sizing:border-box;padding:0.4rem 0.55rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.8rem';
+      var small = 'padding:0.35rem 0.7rem;border-radius:7px;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body);font-size:0.76rem;cursor:pointer';
+      el.innerHTML = tasks.map(function (t) {
+        var parts = _taskParts(t.id);
+        var partLine = parts.length
+          ? parts.map(function (p) {
+              var st = p.status || 'wanted';
+              var label = st === 'installed' ? '✓ installed' : st === 'bought' ? 'in the drawer — ready' : 'waiting on it';
+              return '<div style="font-size:0.76rem;color:var(--text);margin-top:0.25rem">⚙️ ' + _esc(p.description || p.partNum || 'part') + ' <span style="color:' + (st === 'bought' ? '#e67e22' : st === 'installed' ? '#2ecc71' : 'var(--text-dim)') + '">' + label + '</span></div>';
+            }).join('')
+          : '';
+        return '<div class="maint-task" data-id="' + _esc(t.id) + '" style="border:1px solid var(--border);border-radius:10px;padding:0.65rem 0.75rem;margin-bottom:0.5rem;background:var(--bg-card)">'
+          + '<div style="display:flex;justify-content:space-between;align-items:center;gap:0.4rem;flex-wrap:wrap">'
+          +   '<div style="font-weight:700;color:var(--text)">🔧 ' + _esc(t.text) + ' <span style="font-weight:400;font-size:0.72rem;color:var(--text-dim)">since ' + _esc(t.dateAdded) + '</span></div>'
+          +   '<button onclick="_maintChoreDone(' + t.row + ',\'' + _esc(t.id) + '\')" style="padding:0.3rem 0.65rem;border-radius:7px;border:1.5px solid #2ecc71;background:var(--bg-card);background:color-mix(in srgb, rgb(46,204,113) 10%, var(--bg-card));color:#2ecc71;font-size:0.75rem;cursor:pointer;font-weight:600">✓ Done</button>'
+          + '</div>'
+          + '<textarea id="task-notes-' + _esc(t.id) + '" placeholder="Notes for this repair…" rows="2" style="' + IN + ';margin-top:0.5rem;resize:vertical">' + _esc(t.notes || '') + '</textarea>'
+          + '<div style="display:flex;gap:0.4rem;flex-wrap:wrap;align-items:center;margin-top:0.4rem">'
+          +   '<button onclick="_maintSaveTaskNotes(' + t.row + ',\'' + _esc(t.id) + '\')" style="' + small + '">Save notes</button>'
+          +   '<label style="display:flex;align-items:center;gap:0.3rem;font-size:0.78rem;color:var(--text);cursor:pointer"><input type="checkbox" onchange="if(this.checked){this.checked=false;_maintPartsPopup(\'' + _esc(t.id) + '\',\'' + _esc(t.text) + '\')}"> Need a part</label>'
+          +   '<button onclick="_maintTaskVideos(\'' + _esc(t.text) + '\')" style="' + small + '">🎬 Videos for this job</button>'
+          + '</div>'
+          + partLine
+          + '</div>';
+      }).join('');
+    };
+    if (state.maintLog) render(); else _loadLog().then(render);
+  }
+  window._maintRenderTasks = _maintRenderTasks;
+
+  window._maintSaveTaskNotes = async function (rowNum, logId) {
+    var ta = document.getElementById('task-notes-' + logId);
+    var txt = ta ? String(ta.value || '').trim() : '';
+    try {
+      await _ensureLogNotesCol();
+      var ok = await rrVerifiedRowUpdate(state.personalSheetId, LOG_TAB, rowNum, LOG_TAB + '!K' + rowNum, [[txt]], { num: logId }, 'Workbench');
+      if (!ok) return;
+      var l = (state.maintLog || []).find(function (x) { return x.id === logId; }); if (l) l.notes = txt;
+      if (typeof showToast === 'function') showToast('✓ Notes saved');
+    } catch (e) { if (typeof showToast === 'function') showToast('Could not save the notes', 3500, true); }
+  };
+
+  window._maintTaskVideos = function (taskName) {
+    if (!_panelItem) return;
+    var ch = (document.getElementById('maint-yt-channel') || {}).value || '';
+    window.open(_ytUrl(ch, _panelItem, taskName, ''), '_blank');
+  };
+
+  // ── the Need-a-part popup: find your part + your parts diagrams ──
+  window._maintPartsPopup = function (taskId, taskName) {
+    if (!_panelItem) return;
+    var old = document.getElementById('maint-parts-pop'); if (old) old.remove();
+    var IN = 'flex:1;min-width:150px;padding:0.45rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.82rem';
+    var linkBtn = 'padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #2980b9;background:var(--bg-card);color:#2980b9;font-family:var(--font-body);font-size:0.82rem;cursor:pointer;font-weight:600';
+    var docs = _docCovers(_panelItem);
+    var docHtml = docs.length
+      ? docs.map(function (d) {
+          var icon = d.type === 'picture' ? '🖼️' : d.type === 'video' ? '🎬' : '📄';
+          return '<div style="padding:0.3rem 0;border-bottom:1px solid var(--border)"><a href="' + _esc(d.url) + '" target="_blank" rel="noopener" style="color:#2980b9;font-weight:600;text-decoration:none">' + icon + ' ' + _esc(d.title || 'untitled') + '</a></div>';
+        }).join('')
+      : '<div style="font-size:0.8rem;color:var(--text-dim);margin-bottom:0.4rem">No diagram saved for this item yet.</div>';
+    var html = '<div id="maint-parts-pop" style="position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9650;display:flex;align-items:flex-start;justify-content:center;overflow-y:auto;padding:2rem 1rem">'
+      + '<div style="background:var(--bg-card);border:1px solid var(--border);border-radius:16px;max-width:520px;width:100%;padding:1.2rem 1.3rem;margin-bottom:2rem">'
+      + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.7rem">'
+      +   '<div style="font-family:var(--font-head);font-weight:700;color:var(--text)">⚙️ Need a part — ' + _esc(taskName) + '</div>'
+      +   '<button onclick="document.getElementById(\'maint-parts-pop\').remove()" style="background:none;border:none;color:var(--text-dim);font-size:1.3rem;cursor:pointer">&times;</button></div>'
+      + '<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:0.9rem 1rem;margin-bottom:0.8rem">'
+      +   '<div style="font-family:var(--font-head);font-size:0.7rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--accent2);margin-bottom:0.6rem">Find your part</div>'
+      +   '<div style="font-size:0.74rem;color:var(--text-dim);margin-bottom:0.5rem">Check your drawer first — the parts bin is next on the build list. Then:</div>'
+      +   _favRow(MAINT.PREF_DEALERS, 'maint-pop-dealer', 'Any dealer')
+      +   '<div style="display:flex;gap:0.4rem;margin-top:0.5rem;flex-wrap:wrap">'
+      +     '<input id="maint-pop-part" placeholder="part number / description" style="' + IN + '">'
+      +     '<button onclick="_maintPopSearch()" style="' + linkBtn + '">Search →</button>'
+      +     '<button onclick="_maintPopAddWanted(\'' + _esc(taskId) + '\')" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #e67e22;background:var(--bg-card);background:color-mix(in srgb, rgb(230,126,34) 10%, var(--bg-card));color:#e67e22;font-family:var(--font-body);font-size:0.82rem;cursor:pointer;font-weight:600">+ Add to Parts Wanted</button>'
+      +   '</div>'
+      +   '<div style="font-size:0.7rem;color:var(--text-dim);margin-top:0.4rem">Added parts link to THIS task — the card shows when it\'s in the drawer.</div>'
+      + '</div>'
+      + '<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:0.9rem 1rem">'
+      +   '<div style="font-family:var(--font-head);font-size:0.7rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--accent2);margin-bottom:0.6rem">Parts diagram</div>'
+      +   docHtml
+      +   '<div style="margin-top:0.5rem"><button onclick="document.getElementById(\'maint-parts-pop\').remove();_maintShowGrp(\'docs\')" style="' + linkBtn + '">📖 Find manuals &amp; diagrams →</button></div>'
+      + '</div>'
+      + '</div></div>';
+    document.body.insertAdjacentHTML('beforeend', html);
+    var pi = document.getElementById('maint-pop-part'); if (pi) pi.focus();
+  };
+  window._maintPopSearch = function () {
+    if (!_panelItem) return;
+    var dealer = (document.getElementById('maint-pop-dealer') || {}).value || '';
+    var part = (document.getElementById('maint-pop-part') || {}).value || '';
+    window.open(_partsUrl(dealer, _panelItem, part.trim()), '_blank');
+  };
+  window._maintPopAddWanted = async function (taskId) {
+    if (!_panelItem) return;
+    var box = document.getElementById('maint-pop-part');
+    var txt = box ? String(box.value || '').trim() : '';
+    if (!txt) { if (typeof showToast === 'function') showToast('Type the part (number or description) first.', 3000, true); return; }
+    try {
+      if (typeof _ensurePartsTab === 'function') await _ensurePartsTab();
+      if (typeof _ensurePartsLifecycleCols === 'function') await _ensurePartsLifecycleCols();
+      var _t = function (v) { v = String(v || ''); return v && v.charAt(0) !== "'" ? "'" + v : v; };
+      var isNum = /^[A-Za-z]{0,4}[\-#]?[A-Za-z0-9][A-Za-z0-9\-\/\.]*$/.test(txt) && /\d/.test(txt);
+      var row = [_t('part-' + Date.now()), isNum ? '' : txt, _t(isNum ? txt : ''),
+                 _t(String(_panelItem.itemNum || '')), _t(window._maintPanelInvId || ''),
+                 '', 'for Workbench task', new Date().toISOString().split('T')[0],
+                 'wanted', '', '', '', _t(taskId)];
+      await sheetsAppend(state.personalSheetId, 'Parts Needed!A:M', [row]);
+      if (typeof buildPartsPage === 'function') await buildPartsPage();
+      var pop = document.getElementById('maint-parts-pop'); if (pop) pop.remove();
+      _maintRenderTasks(); _wbBadge();
+      if (typeof showToast === 'function') showToast('✓ Added to Parts Wanted — linked to this task');
+    } catch (e) { if (typeof showToast === 'function') showToast('Could not save the part — ' + (e && e.message || 'try again'), 4000, true); }
   };
 
   function _wbBuild() {

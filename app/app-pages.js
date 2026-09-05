@@ -4280,7 +4280,7 @@ async function _ensurePartsTab() {
     });
     await sheetsUpdate(state.personalSheetId, 'Parts Needed!A1', [['🔧 Parts Needed']]);
     await sheetsUpdate(state.personalSheetId, 'Parts Needed!A2:L2',
-      [['Part ID', 'Description', 'Part Number', 'For Item', 'For Inventory ID', 'Photo Link', 'Notes', 'Date Added', 'Status', 'Date Bought', 'Date Installed', 'Price Paid']]);
+      [['Part ID', 'Description', 'Part Number', 'For Item', 'For Inventory ID', 'Photo Link', 'Notes', 'Date Added', 'Status', 'Date Bought', 'Date Installed', 'Price Paid', 'Task ID']]);
     return true;
   } catch (e) { console.warn('[Parts] ensure tab failed', e && e.message); return false; }
 }
@@ -4289,10 +4289,10 @@ async function _ensurePartsTab() {
 // old rows migrate by meaning alone, no rewrite).
 async function _ensurePartsLifecycleCols() {
   try {
-    var r = await sheetsGet(state.personalSheetId, 'Parts Needed!I2:L2').catch(function () { return { values: [] }; });
+    var r = await sheetsGet(state.personalSheetId, 'Parts Needed!I2:M2').catch(function () { return { values: [] }; });
     var have = (r.values && r.values[0]) || [];
-    if (String(have[0] || '') === 'Status') return true;
-    await sheetsUpdate(state.personalSheetId, 'Parts Needed!I2:L2', [['Status', 'Date Bought', 'Date Installed', 'Price Paid']]);
+    if (String(have[0] || '') === 'Status' && String(have[4] || '') === 'Task ID') return true;
+    await sheetsUpdate(state.personalSheetId, 'Parts Needed!I2:M2', [['Status', 'Date Bought', 'Date Installed', 'Price Paid', 'Task ID']]);   // v0.9.1666: Task ID (M) links a part to a Workbench task
     return true;
   } catch (e) { console.warn('[Parts] lifecycle cols failed', e && e.message); return false; }
 }
@@ -4309,7 +4309,8 @@ function _parsePartsRows(values) {
       row: idx + 3, id: _s(r[0]), description: _s(r[1]), partNum: _s(r[2]),
       forItem: _s(r[3]), forInv: _s(r[4]), photo: _s(r[5]), notes: _s(r[6]), dateAdded: _s(r[7]),
       // v0.9.1647 lifecycle (I-L): blank status MEANS 'wanted' — zero-touch migration.
-      status: _s(r[8]).toLowerCase() || 'wanted', dateBought: _s(r[9]), dateInstalled: _s(r[10]), pricePaid: _s(r[11])
+      status: _s(r[8]).toLowerCase() || 'wanted', dateBought: _s(r[9]), dateInstalled: _s(r[10]), pricePaid: _s(r[11]),
+      taskId: _s(r[12])   // v0.9.1666: which Workbench task wants this part
     };
   });
   return parts;
@@ -4324,7 +4325,7 @@ async function buildPartsPage() {
   listEl.innerHTML = '<div style="padding:2rem;text-align:center;color:var(--text-dim)">Loading parts…</div>';
   try {
     await _ensurePartsTab();
-    var res = await sheetsGet(state.personalSheetId, 'Parts Needed!A3:L').catch(function () { return { values: [] }; });
+    var res = await sheetsGet(state.personalSheetId, 'Parts Needed!A3:M').catch(function () { return { values: [] }; });
     state.partsData = _parsePartsRows(res.values);
   } catch (e) { state.partsData = state.partsData || {}; }
   _renderPartsList();
