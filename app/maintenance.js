@@ -1,5 +1,5 @@
 // ============================================================
-//  maintenance.js — 🔧 Maintenance panel + Workbench + My Manuals + task cards + Parts Bin (v0.9.1671, Session 92)
+//  maintenance.js — 🔧 Maintenance panel + Workbench + My Manuals + task cards + Parts Bin (v0.9.1672, Session 92)
 //  OWNER-ONLY (admin preview): the button renders only when the
 //  signed-in email is on MAINT.OWNER_EMAILS. Everyone else's app
 //  is untouched — delete this ONE file + its index.html line to
@@ -1930,21 +1930,7 @@
     } catch (e) { if (typeof showToast === 'function') showToast(rrSaveError ? rrSaveError(e, 'the chore') : 'Save failed', 4000, true); }
   };
 
-  window._maintAddNote = async function (invId, itemNum) {
-    var txt = (prompt('Service note for ' + itemNum + ' (what was done?):') || '').trim();
-    if (!txt) return;
-    var by = (prompt('Serviced by? (self / service station / other)', 'self') || 'self').trim();
-    try {
-      if (!(await _ensureLogTab())) throw new Error('log tab unavailable');
-      var _t = function (v) { v = String(v || ''); return v && v.charAt(0) !== "'" ? "'" + v : v; };
-      var today = new Date().toISOString().split('T')[0];
-      await sheetsAppend(state.personalSheetId, LOG_TAB + '!A:J',
-        [[_t('log-' + Date.now()), _t(invId || ''), _t(String(itemNum || '')), 'note', txt, '', by, _t(today), _t(today), 'done']]);
-      await _loadLog();
-      window._maintShowHistory(invId, itemNum);
-      if (typeof showToast === 'function') showToast('✓ Noted');
-    } catch (e) { if (typeof showToast === 'function') showToast('Could not save the note', 4000, true); }
-  };
+  // _maintAddNote removed in v0.9.1672 (Brad: notes live on tasks; history entries edit in place).
 
   window._maintLogPartInstalled = async function (invId, itemNum, desc, partNum, by) {
     // called by app-pages._savePartInstalled (owner path) — the auto trail
@@ -1963,13 +1949,18 @@
     var entries = (state.maintLog || []).filter(function (l) {
       return (invId && l.invId === String(invId)) || (!invId && l.itemNum === String(itemNum));
     }).slice().sort(function (a, b) { return (b.dateDone || b.dateAdded || '').localeCompare(a.dateDone || a.dateAdded || ''); });
+    // v0.9.1672 (Brad): entries are CLICKABLE (open to view/edit) and carry Remove.
     var lines = entries.map(function (l) {
       var icon = l.type === 'part-installed' ? '🔩' : l.type === 'chore' ? (l.status === 'open' ? '⏳' : '✓') : '📝';
-      return '<div style="padding:0.45rem 0;border-bottom:1px solid var(--border);font-size:0.85rem;color:var(--text)">'
+      return '<div style="display:flex;justify-content:space-between;align-items:center;gap:0.5rem;padding:0.45rem 0;border-bottom:1px solid var(--border)">'
+        + '<div onclick="_maintEditEntry(\'' + _esc(l.id) + '\')" title="Open to view or edit" style="flex:1;cursor:pointer;font-size:0.85rem;color:var(--text)">'
         + icon + ' <b>' + _esc(l.dateDone || l.dateAdded) + '</b> — ' + _esc(l.text)
         + (l.partNum ? ' <span style="font-family:var(--font-mono);color:var(--accent2)">#' + _esc(l.partNum) + '</span>' : '')
         + (l.by && l.by !== 'self' ? ' <span style="color:var(--text-dim)">(' + _esc(l.by) + ')</span>' : '')
         + (l.type === 'chore' && l.status === 'open' ? ' <span style="color:#e67e22">open</span>' : '')
+        + (l.notes ? '<div style="font-size:0.76rem;color:var(--text-dim);margin-top:0.15rem">' + _esc(l.notes).slice(0, 140) + (l.notes.length > 140 ? '…' : '') + '</div>' : '')
+        + '</div>'
+        + '<button onclick="_maintRemoveEntry(\'' + _esc(l.id) + '\')" style="flex-shrink:0;padding:0.25rem 0.55rem;border-radius:7px;border:1px solid var(--border);background:var(--surface2);color:#e74c3c;font-size:0.72rem;cursor:pointer">Remove</button>'
         + '</div>';
     }).join('') || '<div style="color:var(--text-dim);font-size:0.85rem;padding:0.6rem 0">No service history yet.</div>';
     var html = '<div id="wb-history" style="position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9600;display:flex;align-items:flex-start;justify-content:center;overflow-y:auto;padding:2rem 1rem" onclick="if(event.target===this)this.remove()">'
@@ -1978,9 +1969,68 @@
       + '<div style="font-family:var(--font-head);font-weight:700;color:var(--text)">🔧 Service history — ' + _esc(itemNum) + '</div>'
       + '<button onclick="document.getElementById(\'wb-history\').remove()" style="background:none;border:none;color:var(--text-dim);font-size:1.3rem;cursor:pointer">&times;</button></div>'
       + lines
-      + '<div style="margin-top:0.8rem"><button onclick="_maintAddNote(\'' + _esc(String(invId || '')) + '\',\'' + _esc(String(itemNum || '')) + '\')" style="padding:0.45rem 0.9rem;border-radius:8px;border:1.5px solid #16a085;background:var(--bg-card);background:color-mix(in srgb, rgb(22,160,133) 10%, var(--bg-card));color:#16a085;font-family:var(--font-body);font-size:0.8rem;cursor:pointer;font-weight:600">+ Add service note</button></div>'
+      + '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.6rem">Tap an entry to view or edit it.</div>'
       + '</div></div>';
     document.body.insertAdjacentHTML('beforeend', html);
+    window._wbHistoryCtx = { invId: invId, itemNum: itemNum };
+  };
+
+  // v0.9.1672: view/edit one history entry (text, serviced by, date, notes)
+  window._maintEditEntry = function (logId) {
+    var l = (state.maintLog || []).find(function (x) { return x.id === logId; });
+    if (!l) return;
+    var old = document.getElementById('wb-entry'); if (old) old.remove();
+    var IN = 'width:100%;box-sizing:border-box;padding:0.5rem 0.65rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.88rem;margin-bottom:0.6rem';
+    var LB = 'font-size:0.72rem;color:var(--text-dim);display:block;margin-bottom:0.2rem;text-transform:uppercase;letter-spacing:0.05em';
+    var kind = l.type === 'part-installed' ? 'Part installed' : l.type === 'chore' ? (l.status === 'open' ? 'Open task' : 'Completed task') : 'Service note';
+    var html = '<div id="wb-entry" style="position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9700;display:flex;align-items:flex-start;justify-content:center;overflow-y:auto;padding:2rem 1rem">'
+      + '<div class="maint-card" style="background:var(--bg-card);border:1px solid var(--border);border-radius:16px;max-width:480px;width:100%;padding:1.2rem 1.3rem;margin-bottom:2rem">'
+      + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.8rem"><div style="font-family:var(--font-head);font-weight:700;color:var(--text)">' + kind + ' — ' + _esc(l.itemNum) + '</div>'
+      + '<button onclick="document.getElementById(\'wb-entry\').remove()" style="background:none;border:none;color:var(--text-dim);font-size:1.3rem;cursor:pointer">&times;</button></div>'
+      + '<label style="' + LB + '">What was done</label><input id="ent-text" type="text" value="' + _esc(l.text) + '" style="' + IN + '">'
+      + '<div style="display:flex;gap:0.6rem"><div style="flex:1"><label style="' + LB + '">Date</label><input id="ent-date" type="date" value="' + _esc(l.dateDone || l.dateAdded) + '" style="' + IN + '"></div>'
+      + '<div style="flex:1"><label style="' + LB + '">Serviced by</label><input id="ent-by" type="text" value="' + _esc(l.by) + '" placeholder="self / service station" style="' + IN + '"></div></div>'
+      + (l.partNum ? '<label style="' + LB + '">Part number</label><input id="ent-part" type="text" value="' + _esc(l.partNum) + '" style="' + IN + ';font-family:var(--font-mono)">' : '')
+      + '<label style="' + LB + '">Notes</label><textarea id="ent-notes" rows="4" style="' + IN + ';resize:vertical">' + _esc(l.notes || '') + '</textarea>'
+      + '<div style="display:flex;gap:0.6rem;margin-top:0.3rem">'
+      + '<button onclick="_maintRemoveEntry(\'' + _esc(l.id) + '\')" style="padding:0.6rem 0.9rem;border-radius:8px;border:1px solid var(--border);background:none;color:#e74c3c;font-family:var(--font-body);cursor:pointer">Remove</button>'
+      + '<button onclick="document.getElementById(\'wb-entry\').remove()" style="flex:1;padding:0.6rem;border-radius:8px;border:1px solid var(--border);background:none;color:var(--text-dim);font-family:var(--font-body);cursor:pointer">Cancel</button>'
+      + '<button id="ent-save" style="flex:2;padding:0.6rem;border-radius:8px;border:none;background:#16a085;color:#fff;font-family:var(--font-body);font-weight:700;cursor:pointer">Save</button>'
+      + '</div></div></div>';
+    document.body.insertAdjacentHTML('beforeend', html);
+    if (window.BackStack && BackStack.wire) BackStack.wire(document.getElementById('wb-entry'));
+    document.getElementById('ent-save').onclick = async function () {
+      var g = function (id) { var el = document.getElementById(id); return el ? String(el.value || '').trim() : ''; };
+      var text = g('ent-text'); if (!text) { if (typeof showToast === 'function') showToast('Say what was done.', 2500, true); return; }
+      var date = g('ent-date'), by = g('ent-by'), part = l.partNum ? g('ent-part') : l.partNum, notes = g('ent-notes');
+      var btn = this; btn.disabled = true; btn.textContent = 'Saving…';
+      try {
+        await _ensureLogNotesCol();
+        var _t = function (v) { v = String(v || ''); return v && v.charAt(0) !== "'" ? "'" + v : v; };
+        // E..K: Text, Part Number, Serviced By, Date Added, Date Done, Status, Notes
+        var dateDone = (l.type === 'chore' && l.status === 'open') ? '' : date;
+        var vals = [[text, _t(part), by, _t(l.dateAdded || date), _t(dateDone), l.status, notes]];
+        var ok = await rrVerifiedRowUpdate(state.personalSheetId, LOG_TAB, l.row, LOG_TAB + '!E' + l.row + ':K' + l.row, vals, { num: l.id }, 'service history');
+        if (!ok) { btn.disabled = false; btn.textContent = 'Save'; return; }
+        l.text = text; l.partNum = part; l.by = by; l.notes = notes; if (dateDone) l.dateDone = dateDone; else l.dateAdded = date || l.dateAdded;
+        var f = document.getElementById('wb-entry'); if (f) f.remove();
+        var ctx = window._wbHistoryCtx || {}; window._maintShowHistory(ctx.invId, ctx.itemNum);
+        _maintRenderTasks(); _wbBuild();
+        if (typeof showToast === 'function') showToast('✓ Entry updated');
+      } catch (e) { btn.disabled = false; btn.textContent = 'Save'; if (typeof showToast === 'function') showToast('Could not save — ' + (e && e.message || 'try again'), 4000, true); }
+    };
+  };
+  window._maintRemoveEntry = async function (logId) {
+    var l = (state.maintLog || []).find(function (x) { return x.id === logId; });
+    if (!l || !confirm('Remove "' + l.text + '" (' + (l.dateDone || l.dateAdded) + ') from the service history?')) return;
+    try {
+      var blank = [['', '', '', '', '', '', '', '', '', '', '']];
+      if (!(await rrRemoveRowConfirmed(state.personalSheetId, LOG_TAB, l.row, LOG_TAB + '!A' + l.row + ':K' + l.row, blank, { num: l.id }, 'service history'))) return;
+      await _loadLog();
+      var f = document.getElementById('wb-entry'); if (f) f.remove();
+      var ctx = window._wbHistoryCtx || {}; window._maintShowHistory(ctx.invId, ctx.itemNum);
+      _maintRenderTasks(); _wbBuild(); _wbBadge();
+    } catch (e) { if (typeof showToast === 'function') showToast('Could not remove it', 3500, true); }
   };
 
   // ── v0.9.1666: TASK CARDS (bite 2) — the task is the unit of work ──
@@ -2328,33 +2378,61 @@
   function _wbBuild() {
     var pg = document.getElementById('page-workbench');
     if (!pg) return;
-    var items = _openNeeds();
+    // v0.9.1672 (Brad): "just a row for the item, what the maintenance is,
+    // and if a part is needed — no buttons; those live on the card you get
+    // when you click the row."
+    var rows = [];
+    var linkedTaskIds = {};
+    (state.maintLog || []).forEach(function (l) {
+      if (l.type !== 'chore' || l.status !== 'open') return;
+      var parts = Object.values(state.partsData || {}).filter(function (p) { return p.taskId && p.taskId === l.id; });
+      parts.forEach(function (p) { linkedTaskIds[p.id] = true; });
+      var partTxt = parts.length
+        ? parts.map(function (p) { var st = p.status || 'wanted'; return (p.description || p.partNum || 'part') + (st === 'bought' ? ' — in the drawer' : st === 'installed' ? ' — installed' : ' — waiting'); }).join('; ')
+        : '';
+      rows.push({ invId: l.invId, itemNum: l.itemNum, need: l.text, part: partTxt, since: l.dateAdded });
+    });
+    Object.values(state.partsData || {}).forEach(function (p) {
+      var st = p.status || 'wanted';
+      if (linkedTaskIds[p.id] || st === 'installed' || !(p.forInv || p.forItem)) return;
+      rows.push({ invId: p.forInv, itemNum: p.forItem, need: 'Part wanted', part: (p.description || p.partNum || 'part') + (st === 'bought' ? ' — in the drawer' : ' — waiting'), since: p.dateAdded });
+    });
     var head = '<div class="page-title">🔧 The Workbench</div>'
-      + '<div style="font-size:0.82rem;color:var(--text-dim);margin-bottom:0.85rem">Everything that needs a wrench — open chores and parts. Owner preview.</div>';
-    if (!items.length) {
-      pg.innerHTML = head + '<div style="text-align:center;padding:3rem 1rem;color:var(--text-dim)"><div style="font-size:2.5rem;margin-bottom:0.5rem">🔧</div><p>Nothing on the bench.</p><p style="font-size:0.8rem;margin-top:0.4rem">Add a chore from any item’s Maintenance panel, or a part from Parts Needed.</p></div>';
+      + '<div style="font-size:0.82rem;color:var(--text-dim);margin-bottom:0.85rem">Everything that needs a wrench. Click a row to open its card.</div>';
+    if (!rows.length) {
+      pg.innerHTML = head + '<div style="text-align:center;padding:3rem 1rem;color:var(--text-dim)"><div style="font-size:2.5rem;margin-bottom:0.5rem">🔧</div><p>Nothing on the bench.</p><p style="font-size:0.8rem;margin-top:0.4rem">Add a task from any item’s Maintenance panel.</p></div>';
       return;
     }
-    pg.innerHTML = head + items.map(function (it) {
-      var m = (typeof findMaster === 'function' && it.itemNum) ? findMaster(it.itemNum) : null;
-      var label = _esc(it.itemNum) + (m && m.roadName ? ' — ' + _esc(m.roadName) : '');
-      return '<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:0.85rem 1rem;margin-bottom:0.6rem">'
-        + '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.4rem">'
-        + '<div style="font-weight:700;color:var(--text)">' + label + '</div>'
-        + '<button onclick="_maintShowHistory(\'' + _esc(String(it.invId || '')) + '\',\'' + _esc(String(it.itemNum || '')) + '\')" style="padding:0.3rem 0.7rem;border-radius:7px;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-size:0.75rem;cursor:pointer">History</button>'
-        + '</div>'
-        + it.needs.map(function (n) {
-            return '<div style="display:flex;justify-content:space-between;align-items:center;gap:0.5rem;padding:0.35rem 0;border-top:1px solid var(--border);margin-top:0.35rem">'
-              + '<div style="font-size:0.83rem;color:var(--text)">' + (n.kind === 'chore' ? '🔧 ' : '⚙️ ') + _esc(n.label)
-              + (n.since ? ' <span style="color:var(--text-dim);font-size:0.72rem">since ' + _esc(n.since) + '</span>' : '') + '</div>'
-              + (n.kind === 'chore'
-                 ? '<button onclick="_maintChoreDone(' + n.row + ',\'' + _esc(n.id) + '\')" style="padding:0.3rem 0.65rem;border-radius:7px;border:1.5px solid #2ecc71;background:var(--bg-card);background:color-mix(in srgb, rgb(46,204,113) 10%, var(--bg-card));color:#2ecc71;font-size:0.75rem;cursor:pointer;font-weight:600">✓ Done</button>'
-                 : '<button onclick="showPage(\'parts\',document.getElementById(\'nav-parts-btn\'));if(typeof buildPartsPage===\'function\')buildPartsPage()" style="padding:0.3rem 0.65rem;border-radius:7px;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-size:0.75rem;cursor:pointer">Parts list</button>')
-              + '</div>';
-          }).join('')
-        + '</div>';
-    }).join('');
+    rows.sort(function (a, b) { return String(a.itemNum).localeCompare(String(b.itemNum), undefined, { numeric: true }) || (a.since || '').localeCompare(b.since || ''); });
+    var th = 'text-align:left;font-family:var(--font-head);font-size:0.7rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-dim);padding:0.5rem 0.75rem;border-bottom:1px solid var(--border)';
+    var td = 'padding:0.6rem 0.75rem;border-bottom:1px solid var(--border);font-size:0.9rem;color:var(--text);vertical-align:top';
+    pg.innerHTML = head
+      + '<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;overflow:hidden">'
+      + '<table style="width:100%;border-collapse:collapse"><thead><tr><th style="' + th + '">Item</th><th style="' + th + '">Needs</th><th style="' + th + '">Part</th><th style="' + th + '">Since</th></tr></thead><tbody>'
+      + rows.map(function (r) {
+          var m = (typeof findMaster === 'function' && r.itemNum) ? findMaster(r.itemNum) : null;
+          var label = _esc(r.itemNum) + (m && m.roadName ? ' <span style="color:var(--text-dim);font-weight:400">' + _esc(m.roadName) + '</span>' : '');
+          return '<tr onclick="_wbOpen(\'' + _esc(String(r.invId || '')) + '\',\'' + _esc(String(r.itemNum || '')) + '\')" style="cursor:pointer" onmouseover="this.style.background=\'var(--surface2)\'" onmouseout="this.style.background=\'\'">'
+            + '<td style="' + td + ';font-weight:700;white-space:nowrap">' + label + '</td>'
+            + '<td style="' + td + '">' + _esc(r.need) + '</td>'
+            + '<td style="' + td + ';color:' + (r.part ? 'var(--text)' : 'var(--text-dim)') + '">' + (r.part ? '⚙️ ' + _esc(r.part) : '—') + '</td>'
+            + '<td style="' + td + ';color:var(--text-dim);white-space:nowrap">' + _esc(r.since || '') + '</td>'
+            + '</tr>';
+        }).join('')
+      + '</tbody></table></div>';
   }
+  // click a Workbench row -> that item's Maintenance card, straight to Work on it
+  window._wbOpen = function (invId, itemNum) {
+    var pd = null;
+    if (invId && state.personalData) {
+      var k = Object.keys(state.personalData).find(function (kk) { var p = state.personalData[kk]; return p && String(p.inventoryId || '') === String(invId); });
+      pd = k ? state.personalData[k] : null;
+    }
+    var num = String((pd && pd.itemNum) || itemNum || '');
+    var variation = pd ? String(pd.variation || '') : '';
+    window._maintOpenPanel(-1, num, variation, invId || (pd && pd.inventoryId) || '');
+    setTimeout(function () { if (typeof window._maintShowGrp === 'function') window._maintShowGrp('work'); }, 30);
+  };
   window._wbBuild = _wbBuild;
 
   function _wbInjectUI() {
