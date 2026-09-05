@@ -1,5 +1,5 @@
 // ============================================================
-//  maintenance.js — 🔧 Maintenance panel + Workbench + My Manuals + task cards + Parts Bin (v0.9.1672, Session 92)
+//  maintenance.js — Maintenance panel + Workbench + My Manuals + task cards + Parts Bin (v0.9.1672, Session 92)
 //  OWNER-ONLY (admin preview): the button renders only when the
 //  signed-in email is on MAINT.OWNER_EMAILS. Everyone else's app
 //  is untouched — delete this ONE file + its index.html line to
@@ -39,6 +39,26 @@
     return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;')
       .replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   }
+
+  // ── BUTTONS — the item page's toolbar scheme, from ONE helper ──────────
+  // v0.9.1676 (Brad: "all buttons should match our existing button scheme.
+  // why are we reinventing them" — and "remove the icons from all buttons,
+  // only keep the dashboard"). Every button this file draws is TEXT ONLY
+  // and dressed by _btn(): the toolbar's outline-is-the-text-colour look,
+  // its five colours named once here. Modal footers keep the app's modal
+  // pair (ghost Cancel + filled Save). Nothing else is invented.
+  var BTN_C = { blue: ['#2980b9', '41,128,185'], green: ['#2ecc71', '46,204,113'], orange: ['#e67e22', '230,126,34'], red: ['#e74c3c', '231,76,60'], teal: ['#16a085', '22,160,133'] };
+  function _btnSize(size) { return size === 'sm' ? 'padding:0.35rem 0.7rem;font-size:0.76rem;border-radius:7px' : 'padding:0.5rem 0.9rem;font-size:0.82rem;border-radius:8px'; }
+  function _btn(color, size, extra) {
+    var c = BTN_C[color] || BTN_C.blue;
+    return _btnSize(size) + ';border:1.5px solid ' + c[0] + ';background:var(--bg-card);background:color-mix(in srgb, rgb(' + c[1] + ') 10%, var(--bg-card));color:' + c[0]
+      + ';font-family:var(--font-body);cursor:pointer;font-weight:600;display:inline-flex;align-items:center;justify-content:center;gap:0.4rem;line-height:1.2' + (extra ? ';' + extra : '');
+  }
+  function _btnQuiet(size, extra) {
+    return _btnSize(size) + ';border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body);cursor:pointer;font-weight:600;display:inline-flex;align-items:center;justify-content:center;gap:0.4rem;line-height:1.2' + (extra ? ';' + extra : '');
+  }
+  function _btnSave(extra) { return 'padding:0.6rem;border-radius:8px;border:none;background:#16a085;color:#fff;font-family:var(--font-body);font-weight:700;cursor:pointer' + (extra ? ';' + extra : ''); }
+  function _btnCancel(extra) { return 'padding:0.6rem;border-radius:8px;border:1px solid var(--border);background:none;color:var(--text-dim);font-family:var(--font-body);cursor:pointer' + (extra ? ';' + extra : ''); }
 
   // ── favorites (per-device prefs) ─────────────────────────────
   function _favs(key) {
@@ -1362,8 +1382,8 @@
       + favs.map(function (f) { return '<option value="' + _esc(f) + '">' + _esc(f) + '</option>'; }).join('');
     return '<div style="display:flex;gap:0.4rem;align-items:center;flex-wrap:wrap">'
       + '<select id="' + selectId + '" style="flex:1;min-width:130px;padding:0.45rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.82rem">' + opts + '</select>'
-      + '<button onclick="_maintAddFav(\'' + prefKey + '\',\'' + selectId + '\')" title="Add a favorite" style="padding:0.45rem 0.7rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);cursor:pointer;font-size:0.82rem">+ Add</button>'
-      + '<button onclick="_maintDelFav(\'' + prefKey + '\',\'' + selectId + '\')" title="Remove the selected favorite" style="padding:0.45rem 0.7rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);cursor:pointer;font-size:0.82rem">&minus;</button>'
+      + '<button onclick="_maintAddFav(\'' + prefKey + '\',\'' + selectId + '\')" title="Add a favorite" style="' + _btnQuiet() + '">+ Add</button>'
+      + '<button onclick="_maintDelFav(\'' + prefKey + '\',\'' + selectId + '\')" title="Remove the selected favorite" style="' + _btnQuiet() + '">&minus;</button>'
       + '</div>';
   }
   window._maintAddFav = function (prefKey, selectId) {
@@ -1497,31 +1517,33 @@
         + '<div style="font-family:var(--font-head);font-size:0.7rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--accent2);margin-bottom:0.6rem">' + title + '</div>'
         + inner + '</div>';
     };
-    var linkBtn = 'padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #2980b9;background:var(--bg-card);color:#2980b9;font-family:var(--font-body);font-size:0.82rem;cursor:pointer;font-weight:600';
-    var bigBtn = 'text-align:left;padding:0.75rem 1rem;border-radius:12px;border:1.5px solid var(--border);background:var(--surface);color:var(--text);font-family:var(--font-body);font-size:0.95rem;cursor:pointer;font-weight:700';
+    var linkBtn = _btn('blue');
+    // the launcher's three choices: the same scheme, teal (the Maintenance
+    // colour), a size up, with a one-line description under the label
+    var bigBtn = _btn('teal', null, 'text-align:left;padding:0.75rem 1rem;font-size:0.95rem;border-radius:10px;flex-direction:column;align-items:flex-start;gap:0.15rem;width:100%');
 
     // v0.9.1665 (Brad): a stray click outside the card used to close the
     // whole panel and lose everything typed. Close is the × (or Back) only.
     var html = '<div id="maint-overlay" style="position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9500;display:flex;align-items:flex-start;justify-content:center;overflow-y:auto;padding:2rem 1rem">'
       + '<div class="maint-card" style="background:var(--bg-card);border:1px solid var(--border);border-radius:16px;max-width:560px;width:100%;padding:1.25rem 1.4rem;margin-bottom:2rem">'
       + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.9rem">'
-      +   '<div style="font-family:var(--font-head);font-size:1.05rem;font-weight:700;color:var(--text)">🔧 Maintenance — ' + _esc(item.itemNum || '') + (item.roadName ? ' · ' + _esc(item.roadName) : '') + '</div>'
+      +   '<div style="font-family:var(--font-head);font-size:1.05rem;font-weight:700;color:var(--text)">Maintenance — ' + _esc(item.itemNum || '') + (item.roadName ? ' · ' + _esc(item.roadName) : '') + '</div>'
       +   '<button onclick="_maintClosePanel()" style="background:none;border:none;color:var(--text-dim);font-size:1.3rem;cursor:pointer;line-height:1">&times;</button>'
       + '</div>'
       + '<div style="font-size:0.72rem;color:var(--text-dim);margin-bottom:0.8rem">Beta preview — only you (and invited testers) can see this button.</div>'
       + '<div id="maint-launcher" style="display:flex;flex-direction:column;gap:0.55rem;margin-bottom:0.8rem">'
-      +   '<button onclick="_maintShowGrp(\'docs\')" style="' + bigBtn + '">📖 Find manuals &amp; diagrams<span style="display:block;font-weight:400;font-size:0.74rem;color:var(--text-dim)">Your saved docs, factory sources, searches</span></button>'
-      +   '<button onclick="_maintShowGrp(\'work\')" style="' + bigBtn + '">🔨 Work on it<span style="display:block;font-weight:400;font-size:0.74rem;color:var(--text-dim)">Chores, parts and repair videos for this item</span></button>'
-      +   '<button onclick="_maintShowHistory(\'' + _esc(String(window._maintPanelInvId || '')) + '\',\'' + _esc(String(item.itemNum || '')) + '\')" style="' + bigBtn + '">🕘 Service history<span style="display:block;font-weight:400;font-size:0.74rem;color:var(--text-dim)">Everything ever done to this one</span></button>'
+      +   '<button onclick="_maintShowGrp(\'docs\')" style="' + bigBtn + '">Find manuals &amp; diagrams<span style="display:block;font-weight:400;font-size:0.74rem;color:var(--text-dim)">Your saved docs, factory sources, searches</span></button>'
+      +   '<button onclick="_maintShowGrp(\'work\')" style="' + bigBtn + '">Work on it<span style="display:block;font-weight:400;font-size:0.74rem;color:var(--text-dim)">Chores, parts and repair videos for this item</span></button>'
+      +   '<button onclick="_maintShowHistory(\'' + _esc(String(window._maintPanelInvId || '')) + '\',\'' + _esc(String(item.itemNum || '')) + '\')" style="' + bigBtn + '">Service history<span style="display:block;font-weight:400;font-size:0.74rem;color:var(--text-dim)">Everything ever done to this one</span></button>'
       + '</div>'
-      + '<button id="maint-back" onclick="_maintShowGrp(\'\')" style="display:none;margin-bottom:0.6rem;padding:0.35rem 0.8rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body);font-size:0.78rem;cursor:pointer">← Back</button>'
+      + '<button id="maint-back" onclick="_maintShowGrp(\'\')" style="' + _btnQuiet('sm', 'display:none;margin-bottom:0.6rem') + '">← Back</button>'
       + '<div class="maint-sec" data-grp="docs" style="display:none;background:var(--surface);border:1px solid #16a085;border-radius:12px;padding:0.9rem 1rem;margin-bottom:0.8rem">'
       +   '<div style="font-family:var(--font-head);font-size:0.7rem;letter-spacing:0.12em;text-transform:uppercase;color:#16a085;margin-bottom:0.6rem">My saved docs for this item</div>'
       +   '<div id="maint-mydocs" style="font-size:0.82rem;color:var(--text-dim)">Loading…</div>'
       +   '<div style="display:flex;gap:0.4rem;margin-top:0.6rem;flex-wrap:wrap">'
-      +     '<button onclick="_maintSavePicture()" style="' + linkBtn + '">📎 Save a picture</button>'
-      +     '<button onclick="_maintSaveDocument()" style="' + linkBtn + '">📄 Save a document</button>'
-      +     '<button onclick="_maintSaveLink()" style="' + linkBtn + '">🔗 Save a link</button>'
+      +     '<button onclick="_maintSavePicture()" style="' + linkBtn + '">Save a picture</button>'
+      +     '<button onclick="_maintSaveDocument()" style="' + linkBtn + '">Save a document</button>'
+      +     '<button onclick="_maintSaveLink()" style="' + linkBtn + '">Save a link</button>'
       +   '</div>'
       +   '<div style="font-size:0.7rem;color:var(--text-dim);margin-top:0.45rem">Save a screenshot, a PDF/document, or a manual link — it shows here for every item it covers, and in your Toolbox.</div>'
       + '</div>'
@@ -1543,7 +1565,7 @@
               h += '<button onclick="_maintLccaGo(\'' + _esc(_docsUrl(route, item)) + '\')" style="' + linkBtn + '">' + _esc(routeLabel) + ' →</button>'
                 + '<div id="maint-lcca-note" style="display:none;font-size:0.8rem;color:var(--text);background:var(--bg-card);background:color-mix(in srgb, rgb(22,160,133) 12%, var(--surface2));border:1px solid #16a085;border-radius:8px;padding:0.55rem 0.7rem;margin-top:0.55rem"></div>'
                 + '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.45rem">' + (_pwsmHit ? 'Copies the link to this item\'s manual section and opens LCCA in a new tab — see the note above after you tap.' : 'No direct section mapped — the button copies the archive link; paste it in the LCCA tab.') + ' Requires LCCA membership.</div>'
-                + '<div style="margin-top:0.5rem"><button onclick="window.open(\'https://www.olsenstoy.com/searchcd1.htm\',\'_blank\')" style="padding:0.4rem 0.8rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body);font-size:0.78rem;cursor:pointer">Olsen\'s service library (free, no login) →</button></div>';
+                + '<div style="margin-top:0.5rem"><button onclick="window.open(\'https://www.olsenstoy.com/searchcd1.htm\',\'_blank\')" style="' + _btnQuiet() + '">Olsen\'s service library (free, no login) →</button></div>';
             } else if (route === 'atlas' && _atlasHit) {
               h += '<button onclick="window.open(\'' + _esc(ATLAS_DL + _atlasHit.u) + '\',\'_blank\')" style="' + linkBtn + '">Parts diagram: ' + _esc(_atlasHit.t) + ' →</button>';
             } else if (route === 'atlas') {
@@ -1587,7 +1609,7 @@
             // section — the Google button covers it. (The dealer dropdown in
             // Find-a-Part stays; _maintSupplierGo survives unused-by-docs.)
             h += '<div style="display:flex;gap:0.4rem;margin-top:0.55rem;flex-wrap:wrap;align-items:center">'
-              +   '<button onclick="window.open(\'' + _esc(gq) + '\',\'_blank\')" style="padding:0.4rem 0.8rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body);font-size:0.78rem;cursor:pointer">Google the parts diagram →</button>'
+              +   '<button onclick="window.open(\'' + _esc(gq) + '\',\'_blank\')" style="' + _btnQuiet() + '">Google the parts diagram →</button>'
               + '</div>';
             return h;
           })(), 'docs')
@@ -1616,7 +1638,7 @@
                 }).join('')
           +   '</select>'
           +   '<button onclick="_maintSearchYt()" style="' + linkBtn + '">Search →</button>'
-          +   '<button onclick="_maintSaveVideo()" style="' + linkBtn + '">🎬 Save a video</button>'
+          +   '<button onclick="_maintSaveVideo()" style="' + linkBtn + '">Save a video</button>'
           + '</div>'
           + '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.45rem">Found a good one? Paste its link with Save a video — it joins My Manuals and your Toolbox, tagged with the part you typed.</div>', 'work')
 
@@ -1701,9 +1723,9 @@
       var docs = _docCovers(_panelItem);
       if (!docs.length) { el.innerHTML = 'Nothing saved for this item yet.'; return; }
       el.innerHTML = docs.map(function (d) {
-        var icon = d.type === 'picture' ? '🖼️' : d.type === 'video' ? '🎬' : '📄';
         return '<div style="padding:0.35rem 0;border-bottom:1px solid var(--border)">'
-          + '<a href="' + _esc(d.url) + '" target="_blank" rel="noopener" style="color:#2980b9;font-weight:600;text-decoration:none">' + icon + ' ' + _esc(d.title || 'untitled') + '</a>'
+          + '<a href="' + _esc(d.url) + '" target="_blank" rel="noopener" style="color:var(--accent2);font-weight:600;text-decoration:none">' + _esc(d.title || 'untitled') + '</a>'
+          + ' <span style="color:var(--text-dim);font-size:0.72rem">' + _esc(d.type || 'link') + '</span>'
           + (d.topics ? ' <span style="color:var(--text-dim);font-size:0.72rem">[' + _esc(d.topics) + ']</span>' : '')
           + '</div>';
       }).join('');
@@ -1737,7 +1759,7 @@
     var LB = 'font-size:0.72rem;color:var(--text-dim);display:block;margin-bottom:0.2rem;text-transform:uppercase;letter-spacing:0.05em';
     var html = '<div id="maint-docform" style="position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9700;display:flex;align-items:flex-start;justify-content:center;overflow-y:auto;padding:2rem 1rem" onclick="if(event.target===this && confirm(\'Close without saving?\'))this.remove()">'
       + '<div class="maint-card" style="background:var(--bg-card);border:1px solid var(--border);border-radius:16px;max-width:480px;width:100%;padding:1.2rem 1.3rem;margin-bottom:2rem">'
-      + '<div style="font-family:var(--font-head);font-weight:700;color:var(--text);margin-bottom:0.8rem">' + (type === 'picture' ? '📎 Save a picture' : type === 'document' ? '📄 Save a document' : type === 'video' ? '🎬 Save a video' : '🔗 Save a link') + ' — My Manuals</div>'
+      + '<div style="font-family:var(--font-head);font-weight:700;color:var(--text);margin-bottom:0.8rem">' + (type === 'picture' ? 'Save a picture' : type === 'document' ? 'Save a document' : type === 'video' ? 'Save a video' : 'Save a link') + ' — My Manuals</div>'
       + ((type === 'link' || type === 'video')
           ? '<label style="' + LB + '">' + (type === 'video' ? 'YouTube link (paste it)' : 'Link (paste it — switch windows all you like, this form waits)') + '</label><input id="docf-url" type="text" placeholder="https://…" style="' + IN + '">'
           : '<div style="font-size:0.82rem;color:var(--text);margin-bottom:0.7rem">' + _esc(pendingFile && pendingFile.name || 'File') + ' chosen ✓ — it uploads when you hit Save.</div>')
@@ -1745,8 +1767,8 @@
       + '<label style="' + LB + '">Covers (item numbers, comma-separated' + (general ? ' — optional' : '') + ')</label><input id="docf-covers" type="text" value="' + _esc(general ? '' : _suggestCovers(_panelItem)) + '" placeholder="' + (general ? 'leave blank if it applies to everything' : '') + '" style="' + IN + '">'
       + '<label style="' + LB + '">Topics (e.g. traction tire, e-unit' + (general ? '' : ' — optional') + ')</label><input id="docf-topics" type="text" value="' + _esc(presetTopic || '') + '" placeholder="' + (general ? 'what is it about? — this is how the Toolbox finds it' : '') + '" style="' + IN + '">'
       + '<div style="display:flex;gap:0.6rem;margin-top:0.3rem">'
-      + '<button onclick="document.getElementById(\'maint-docform\').remove()" style="flex:1;padding:0.6rem;border-radius:8px;border:1px solid var(--border);background:none;color:var(--text-dim);font-family:var(--font-body);cursor:pointer">Cancel</button>'
-      + '<button id="docf-save" style="flex:2;padding:0.6rem;border-radius:8px;border:none;background:#16a085;color:#fff;font-family:var(--font-body);font-weight:700;cursor:pointer">Save to My Manuals</button>'
+      + '<button onclick="document.getElementById(\'maint-docform\').remove()" style="' + _btnCancel('flex:1') + '">Cancel</button>'
+      + '<button id="docf-save" style="' + _btnSave('flex:2') + '">Save to My Manuals</button>'
       + '</div></div></div>';
     document.body.insertAdjacentHTML('beforeend', html);
     if (window.BackStack && BackStack.wire) BackStack.wire(document.getElementById('maint-docform'));
@@ -1962,6 +1984,8 @@
       await sheetsAppend(state.personalSheetId, LOG_TAB + '!A:J',
         [[_t('log-' + Date.now()), _t(invId || ''), _t(String(itemNum || '')), 'part-installed', desc || 'part installed', _t(partNum || ''), by || 'self', _t(today), _t(today), 'done']]);
       await _loadLog(); _wbBadge();
+      _maintRenderTasks();   // v0.9.1676: the task card's "Parts on hand" line becomes "Installed"
+      if (_previewArgs && document.getElementById('maint-preview')) window._maintRenderPreview(_previewArgs.idx, _previewArgs.it, _previewArgs.pd);
     } catch (e) { console.warn('[Workbench] log part-installed failed', e && e.message); }
   };
 
@@ -1972,22 +1996,22 @@
     }).slice().sort(function (a, b) { return (b.dateDone || b.dateAdded || '').localeCompare(a.dateDone || a.dateAdded || ''); });
     // v0.9.1672 (Brad): entries are CLICKABLE (open to view/edit) and carry Remove.
     var lines = entries.map(function (l) {
-      var icon = l.type === 'part-installed' ? '🔩' : l.type === 'chore' ? (l.status === 'open' ? '⏳' : '✓') : '📝';
+      var icon = l.type === 'part-installed' ? 'Installed' : l.type === 'chore' ? (l.status === 'open' ? '' : '✓') : 'Note';
       return '<div style="display:flex;justify-content:space-between;align-items:center;gap:0.5rem;padding:0.45rem 0;border-bottom:1px solid var(--border)">'
         + '<div onclick="_maintEditEntry(\'' + _esc(l.id) + '\')" title="Open to view or edit" style="flex:1;cursor:pointer;font-size:0.85rem;color:var(--text)">'
-        + icon + ' <b>' + _esc(l.dateDone || l.dateAdded) + '</b> — ' + _esc(l.text)
+        + (icon ? icon + ' ' : '') + '<b>' + _esc(l.dateDone || l.dateAdded) + '</b> — ' + _esc(l.text)
         + (l.partNum ? ' <span style="font-family:var(--font-mono);color:var(--accent2)">#' + _esc(l.partNum) + '</span>' : '')
         + (l.by && l.by !== 'self' ? ' <span style="color:var(--text-dim)">(' + _esc(l.by) + ')</span>' : '')
         + (l.type === 'chore' && l.status === 'open' ? ' <span style="color:#e67e22">open</span>' : '')
         + (l.notes ? '<div style="font-size:0.76rem;color:var(--text-dim);margin-top:0.15rem">' + _esc(l.notes).slice(0, 140) + (l.notes.length > 140 ? '…' : '') + '</div>' : '')
         + '</div>'
-        + '<button onclick="_maintRemoveEntry(\'' + _esc(l.id) + '\')" style="flex-shrink:0;padding:0.25rem 0.55rem;border-radius:7px;border:1px solid var(--border);background:var(--surface2);color:#e74c3c;font-size:0.72rem;cursor:pointer">Remove</button>'
+        + '<button onclick="_maintRemoveEntry(\'' + _esc(l.id) + '\')" style="' + _btn('red', 'sm', 'flex-shrink:0') + '">Remove</button>'
         + '</div>';
     }).join('') || '<div style="color:var(--text-dim);font-size:0.85rem;padding:0.6rem 0">No service history yet.</div>';
     var html = '<div id="wb-history" style="position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9600;display:flex;align-items:flex-start;justify-content:center;overflow-y:auto;padding:2rem 1rem" onclick="if(event.target===this)this.remove()">'
       + '<div class="maint-card" style="background:var(--bg-card);border:1px solid var(--border);border-radius:16px;max-width:520px;width:100%;padding:1.2rem 1.3rem;margin-bottom:2rem">'
       + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.7rem">'
-      + '<div style="font-family:var(--font-head);font-weight:700;color:var(--text)">🔧 Service history — ' + _esc(itemNum) + '</div>'
+      + '<div style="font-family:var(--font-head);font-weight:700;color:var(--text)">Service history — ' + _esc(itemNum) + '</div>'
       + '<button onclick="document.getElementById(\'wb-history\').remove()" style="background:none;border:none;color:var(--text-dim);font-size:1.3rem;cursor:pointer">&times;</button></div>'
       + lines
       + '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.6rem">Tap an entry to view or edit it.</div>'
@@ -2014,9 +2038,9 @@
       + (l.partNum ? '<label style="' + LB + '">Part number</label><input id="ent-part" type="text" value="' + _esc(l.partNum) + '" style="' + IN + ';font-family:var(--font-mono)">' : '')
       + '<label style="' + LB + '">Notes</label><textarea id="ent-notes" rows="4" style="' + IN + ';resize:vertical">' + _esc(l.notes || '') + '</textarea>'
       + '<div style="display:flex;gap:0.6rem;margin-top:0.3rem">'
-      + '<button onclick="_maintRemoveEntry(\'' + _esc(l.id) + '\')" style="padding:0.6rem 0.9rem;border-radius:8px;border:1px solid var(--border);background:none;color:#e74c3c;font-family:var(--font-body);cursor:pointer">Remove</button>'
-      + '<button onclick="document.getElementById(\'wb-entry\').remove()" style="flex:1;padding:0.6rem;border-radius:8px;border:1px solid var(--border);background:none;color:var(--text-dim);font-family:var(--font-body);cursor:pointer">Cancel</button>'
-      + '<button id="ent-save" style="flex:2;padding:0.6rem;border-radius:8px;border:none;background:#16a085;color:#fff;font-family:var(--font-body);font-weight:700;cursor:pointer">Save</button>'
+      + '<button onclick="_maintRemoveEntry(\'' + _esc(l.id) + '\')" style="' + _btn('red') + '">Remove</button>'
+      + '<button onclick="document.getElementById(\'wb-entry\').remove()" style="' + _btnCancel('flex:1') + '">Cancel</button>'
+      + '<button id="ent-save" style="' + _btnSave('flex:2') + '">Save</button>'
       + '</div></div></div>';
     document.body.insertAdjacentHTML('beforeend', html);
     if (window.BackStack && BackStack.wire) BackStack.wire(document.getElementById('wb-entry'));
@@ -2073,35 +2097,76 @@
       var tasks = _itemTasks();
       if (!tasks.length) { el.innerHTML = '<div style="font-size:0.8rem;color:var(--text-dim);padding:0.3rem 0">No open tasks on this one.</div>'; return; }
       var IN = 'width:100%;box-sizing:border-box;padding:0.4rem 0.55rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.8rem';
-      var small = 'padding:0.35rem 0.7rem;border-radius:7px;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body);font-size:0.76rem;cursor:pointer';
+      var small = _btnQuiet('sm');
+      // v0.9.1676 (Brad: "if we have a part on the want list for you to buy,
+      // it needs to show under the task — 'Waiting on xxx'; when you buy it
+      // and mark it bought it should change to 'Parts on hand'"). Parts tied
+      // to the task show under it with a Bought-it / Installed-it button
+      // right there; parts wanted for this UNIT that were never tied to a
+      // task (added from the Parts Needed page, or before Task IDs existed)
+      // fold into the card when there is exactly one open task, else they
+      // get their own block below the tasks.
+      var inv = String(window._maintPanelInvId || '');
+      var num = String(_panelItem.itemNum || '').trim();
+      var loose = Object.values(state.partsData || {}).filter(function (p) {
+        if (p.taskId) return false;
+        if ((p.status || 'wanted') === 'installed') return false;
+        return inv ? p.forInv === inv : (p.forItem === num && !p.forInv);
+      });
+      var partRow = function (p, fromList) {
+        var st = p.status || 'wanted';
+        var name = _esc(p.description || p.partNum || 'part');
+        var txt = st === 'installed' ? '<b>Installed</b> — ' + name
+                : st === 'bought' ? '<span style="color:var(--green)">✓ <b>Parts on hand</b></span> — ' + name
+                : '<span style="color:var(--warn)"><b>Waiting on</b></span> “' + name + '”';
+        var act = st === 'bought' ? '<button onclick="_maintPartInstalled(' + p.row + ')" style="' + _btn('green', 'sm', 'flex-shrink:0') + '">Installed it</button>'
+                : st === 'wanted' ? '<button onclick="_maintPartBought(' + p.row + ')" style="' + _btn('green', 'sm', 'flex-shrink:0') + '">Bought it</button>' : '';
+        return '<div style="display:flex;justify-content:space-between;align-items:center;gap:0.5rem;font-size:0.8rem;color:var(--text);margin-top:0.35rem">'
+          + '<div>' + txt
+          + (p.partNum && p.description ? ' <span style="font-family:var(--font-mono);color:var(--text-dim);font-size:0.72rem">#' + _esc(p.partNum) + '</span>' : '')
+          + (fromList ? ' <span style="color:var(--text-dim);font-size:0.7rem">(from your Parts Needed list)</span>' : '')
+          + '</div>' + act + '</div>';
+      };
+      var looseBlock = (loose.length && tasks.length !== 1)
+        ? '<div style="border:1px dashed var(--border);border-radius:10px;padding:0.55rem 0.75rem;margin-bottom:0.5rem">'
+          + '<div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.08em">Parts for this item — not tied to a task</div>'
+          + loose.map(function (p) { return partRow(p, false); }).join('') + '</div>'
+        : '';
       el.innerHTML = tasks.map(function (t) {
         var parts = _taskParts(t.id);
-        var partLine = parts.length
-          ? parts.map(function (p) {
-              var st = p.status || 'wanted';
-              var label = st === 'installed' ? '✓ installed' : st === 'bought' ? 'in the drawer — ready' : 'waiting on it';
-              return '<div style="font-size:0.76rem;color:var(--text);margin-top:0.25rem">⚙️ ' + _esc(p.description || p.partNum || 'part') + ' <span style="color:' + (st === 'bought' ? '#e67e22' : st === 'installed' ? '#2ecc71' : 'var(--text-dim)') + '">' + label + '</span></div>';
-            }).join('')
-          : '';
+        var partLine = parts.map(function (p) { return partRow(p, false); }).join('')
+          + ((tasks.length === 1) ? loose.map(function (p) { return partRow(p, true); }).join('') : '');
         return '<div class="maint-task" data-id="' + _esc(t.id) + '" style="border:1px solid var(--border);border-radius:10px;padding:0.65rem 0.75rem;margin-bottom:0.5rem;background:var(--bg-card)">'
           + '<div style="display:flex;justify-content:space-between;align-items:center;gap:0.4rem;flex-wrap:wrap">'
-          +   '<div style="font-weight:700;color:var(--text)">🔧 ' + _esc(t.text) + ' <span style="font-weight:400;font-size:0.72rem;color:var(--text-dim)">since ' + _esc(t.dateAdded) + '</span></div>'
+          +   '<div style="font-weight:700;color:var(--text)">' + _esc(t.text) + ' <span style="font-weight:400;font-size:0.72rem;color:var(--text-dim)">since ' + _esc(t.dateAdded) + '</span></div>'
           + '</div>'
           + '<textarea id="task-notes-' + _esc(t.id) + '" placeholder="Notes for this repair… (saves by itself)" rows="2" oninput="_maintNotesTyped(' + t.row + ',\'' + _esc(t.id) + '\')" onblur="_maintSaveTaskNotes(' + t.row + ',\'' + _esc(t.id) + '\',true)" style="' + IN + ';margin-top:0.5rem;resize:vertical">' + _esc(t.notes || '') + '</textarea>'
           + '<div id="task-notes-hint-' + _esc(t.id) + '" style="font-size:0.7rem;color:var(--text-dim);min-height:0.9rem"></div>'
           + '<div style="display:flex;gap:0.4rem;flex-wrap:wrap;align-items:center;margin-top:0.3rem">'
-          +   '<button onclick="_maintPartsPopup(\'' + _esc(t.id) + '\',\'' + _esc(t.text) + '\')" style="padding:0.4rem 0.8rem;border-radius:7px;border:1.5px solid #e67e22;background:var(--bg-card);background:color-mix(in srgb, rgb(230,126,34) 10%, var(--bg-card));color:#e67e22;font-family:var(--font-body);font-size:0.78rem;cursor:pointer;font-weight:600">⚙️ Need a part</button>'
+          +   '<button onclick="_maintPartsPopup(\'' + _esc(t.id) + '\',\'' + _esc(t.text) + '\')" style="' + _btn('orange') + '">Need a part</button>'
           + '</div>'
           + partLine
           + '<div style="display:flex;justify-content:flex-end;margin-top:0.55rem;padding-top:0.45rem;border-top:1px dashed var(--border)">'
-          +   '<button onclick="if(confirm(\'Mark \\u201c' + _esc(t.text).replace(/'/g, '') + '\\u201d complete? It moves to the service history.\'))_maintChoreDone(' + t.row + ',\'' + _esc(t.id) + '\')" style="padding:0.3rem 0.7rem;border-radius:7px;border:1.5px solid #2ecc71;background:var(--bg-card);background:color-mix(in srgb, rgb(46,204,113) 10%, var(--bg-card));color:#2ecc71;font-size:0.75rem;cursor:pointer;font-weight:600">✓ Mark complete — job finished</button>'
+          +   '<button onclick="if(confirm(\'Mark \\u201c' + _esc(t.text).replace(/'/g, '') + '\\u201d complete? It moves to the service history.\'))_maintChoreDone(' + t.row + ',\'' + _esc(t.id) + '\')" style="' + _btn('green', 'sm') + '">Mark complete — job finished</button>'
           + '</div>'
           + '</div>';
-      }).join('');
+      }).join('') + looseBlock;
     };
     if (state.maintLog) render(); else _loadLog().then(render);
   }
   window._maintRenderTasks = _maintRenderTasks;
+  // v0.9.1676: the part's lifecycle from the task card — same writers the
+  // Parts Needed page uses (markPartBought / markPartInstalled in
+  // app-pages.js), then the card and the detail-page preview redraw.
+  window._maintPartBought = async function (rowNum) {
+    if (typeof markPartBought !== 'function') return;
+    await markPartBought(rowNum);
+    _maintRenderTasks();
+    if (_previewArgs && document.getElementById('maint-preview')) window._maintRenderPreview(_previewArgs.idx, _previewArgs.it, _previewArgs.pd);
+  };
+  window._maintPartInstalled = function (rowNum) {
+    if (typeof markPartInstalled === 'function') markPartInstalled(rowNum);   // its Save calls _maintLogPartInstalled → card redraws
+  };
 
   // v0.9.1670 (Brad): notes save BY THEMSELVES — a pause in typing or
   // leaving the box writes the row; no Save button.
@@ -2135,18 +2200,17 @@
     if (!_panelItem) return;
     var old = document.getElementById('maint-parts-pop'); if (old) old.remove();
     var IN = 'flex:1;min-width:150px;padding:0.45rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.82rem';
-    var linkBtn = 'padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #2980b9;background:var(--bg-card);color:#2980b9;font-family:var(--font-body);font-size:0.82rem;cursor:pointer;font-weight:600';
+    var linkBtn = _btn('blue');
     var docs = _docCovers(_panelItem);
     var docHtml = docs.length
       ? docs.map(function (d) {
-          var icon = d.type === 'picture' ? '🖼️' : d.type === 'video' ? '🎬' : '📄';
-          return '<div style="padding:0.3rem 0;border-bottom:1px solid var(--border)"><a href="' + _esc(d.url) + '" target="_blank" rel="noopener" style="color:#2980b9;font-weight:600;text-decoration:none">' + icon + ' ' + _esc(d.title || 'untitled') + '</a></div>';
+          return '<div style="padding:0.3rem 0;border-bottom:1px solid var(--border)"><a href="' + _esc(d.url) + '" target="_blank" rel="noopener" style="color:var(--accent2);font-weight:600;text-decoration:none">' + _esc(d.title || 'untitled') + '</a></div>';
         }).join('')
       : '<div style="font-size:0.8rem;color:var(--text-dim);margin-bottom:0.4rem">No diagram saved for this item yet.</div>';
     var html = '<div id="maint-parts-pop" style="position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9650;display:flex;align-items:flex-start;justify-content:center;overflow-y:auto;padding:2rem 1rem">'
       + '<div class="maint-card" style="background:var(--bg-card);border:1px solid var(--border);border-radius:16px;max-width:520px;width:100%;padding:1.2rem 1.3rem;margin-bottom:2rem">'
       + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.7rem">'
-      +   '<div style="font-family:var(--font-head);font-weight:700;color:var(--text)">⚙️ Need a part — ' + _esc(taskName) + '</div>'
+      +   '<div style="font-family:var(--font-head);font-weight:700;color:var(--text)">Need a part — ' + _esc(taskName) + '</div>'
       +   '<button onclick="document.getElementById(\'maint-parts-pop\').remove()" style="background:none;border:none;color:var(--text-dim);font-size:1.3rem;cursor:pointer">&times;</button></div>'
       + '<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:0.9rem 1rem;margin-bottom:0.8rem">'
       +   '<div style="font-family:var(--font-head);font-size:0.7rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--accent2);margin-bottom:0.6rem">Find your part</div>'
@@ -2158,14 +2222,14 @@
       +   _favRow(MAINT.PREF_DEALERS, 'maint-pop-dealer', 'Any dealer')
       +   '<div style="display:flex;gap:0.4rem;margin-top:0.5rem;flex-wrap:wrap">'
       +     '<button onclick="_maintPopSearch()" style="' + linkBtn + '">Search →</button>'
-      +     '<button onclick="_maintPopAddWanted(\'' + _esc(taskId) + '\')" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #e67e22;background:var(--bg-card);background:color-mix(in srgb, rgb(230,126,34) 10%, var(--bg-card));color:#e67e22;font-family:var(--font-body);font-size:0.82rem;cursor:pointer;font-weight:600">+ Add to Parts Wanted</button>'
+      +     '<button onclick="_maintPopAddWanted(\'' + _esc(taskId) + '\')" style="' + _btn('orange') + '">+ Add to Parts Wanted</button>'
       +   '</div>'
       +   '<div style="font-size:0.7rem;color:var(--text-dim);margin-top:0.4rem">Added parts link to THIS task — the card shows when it\'s in the drawer.</div>'
       + '</div>'
       + '<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:0.9rem 1rem">'
       +   '<div style="font-family:var(--font-head);font-size:0.7rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--accent2);margin-bottom:0.6rem">Parts diagram</div>'
       +   docHtml
-      +   '<div style="margin-top:0.5rem"><button onclick="document.getElementById(\'maint-parts-pop\').remove();_maintShowGrp(\'docs\')" style="' + linkBtn + '">📖 Find manuals &amp; diagrams →</button></div>'
+      +   '<div style="margin-top:0.5rem"><button onclick="document.getElementById(\'maint-parts-pop\').remove();_maintShowGrp(\'docs\')" style="' + linkBtn + '">Find manuals &amp; diagrams →</button></div>'
       + '</div>'
       + '</div></div>';
     document.body.insertAdjacentHTML('beforeend', html);
@@ -2255,7 +2319,7 @@
     var LB = 'font-size:0.72rem;color:var(--text-dim);display:block;margin-bottom:0.2rem;text-transform:uppercase;letter-spacing:0.05em';
     var html = '<div id="bin-form" style="position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9700;display:flex;align-items:flex-start;justify-content:center;overflow-y:auto;padding:2rem 1rem">'
       + '<div class="maint-card" style="background:var(--bg-card);border:1px solid var(--border);border-radius:16px;max-width:480px;width:100%;padding:1.2rem 1.3rem;margin-bottom:2rem">'
-      + '<div style="font-family:var(--font-head);font-weight:700;color:var(--text);margin-bottom:0.8rem">🧰 ' + (existing.id ? 'Edit bin part' : 'Add to the Parts Bin') + '</div>'
+      + '<div style="font-family:var(--font-head);font-weight:700;color:var(--text);margin-bottom:0.8rem">' + (existing.id ? 'Edit bin part' : 'Add to the Parts Bin') + '</div>'
       + '<label style="' + LB + '">Description *</label><input id="binf-desc" type="text" value="' + _esc(existing.desc || '') + '" placeholder="e.g. postwar 3-position e-unit" style="' + IN + '">'
       + '<label style="' + LB + '">Part number (if known)</label><input id="binf-num" type="text" value="' + _esc(existing.partNum || '') + '" style="' + IN + ';font-family:var(--font-mono)">'
       + '<div style="display:flex;gap:0.6rem"><div style="flex:1"><label style="' + LB + '">Quantity *</label><input id="binf-qty" type="number" min="0" value="' + _esc(String(existing.qty != null ? existing.qty : 1)) + '" style="' + IN + '"></div>'
@@ -2268,8 +2332,8 @@
       + '<input id="binf-asking" type="text" value="' + _esc(existing.asking || '') + '" placeholder="asking price" style="' + IN + ';margin:0;flex:1"></div>'
       + (existing.id ? '' : '<label style="' + LB + '">Photo (optional — the baggie IS the record)</label><input id="binf-photo" type="file" accept="image/*" style="margin-bottom:0.7rem;font-size:0.8rem;color:var(--text)">')
       + '<div style="display:flex;gap:0.6rem;margin-top:0.3rem">'
-      + '<button onclick="document.getElementById(\'bin-form\').remove()" style="flex:1;padding:0.6rem;border-radius:8px;border:1px solid var(--border);background:none;color:var(--text-dim);font-family:var(--font-body);cursor:pointer">Cancel</button>'
-      + '<button id="binf-save" style="flex:2;padding:0.6rem;border-radius:8px;border:none;background:#16a085;color:#fff;font-family:var(--font-body);font-weight:700;cursor:pointer">' + (existing.id ? 'Save changes' : 'Add to bin') + '</button>'
+      + '<button onclick="document.getElementById(\'bin-form\').remove()" style="' + _btnCancel('flex:1') + '">Cancel</button>'
+      + '<button id="binf-save" style="' + _btnSave('flex:2') + '">' + (existing.id ? 'Save changes' : 'Add to bin') + '</button>'
       + '</div></div></div>';
     document.body.insertAdjacentHTML('beforeend', html);
     if (window.BackStack && BackStack.wire) BackStack.wire(document.getElementById('bin-form'));
@@ -2364,8 +2428,8 @@
       if (!hits.length) { el.innerHTML = '<span style="color:var(--text-dim)">Nothing matching in your bin' + ((state.partsBin || []).length ? '' : ' (it’s empty)') + ' — order one below.</span>'; return; }
       el.innerHTML = hits.map(function (b) {
         return '<div style="display:flex;justify-content:space-between;align-items:center;gap:0.5rem;padding:0.3rem 0;border-bottom:1px solid var(--border)">'
-          + '<div>🧰 <b>' + _esc(b.desc || b.partNum) + '</b>' + (b.partNum && b.desc ? ' <span style="font-family:var(--font-mono);color:var(--accent2)">#' + _esc(b.partNum) + '</span>' : '') + ' <span style="color:var(--text-dim)">×' + b.qty + (b.where ? ' · ' + _esc(b.where) : '') + '</span></div>'
-          + '<button onclick="_maintBinUse(\'' + _esc(b.id) + '\',\'' + _esc(taskId) + '\')" style="padding:0.3rem 0.65rem;border-radius:7px;border:1.5px solid #2ecc71;background:var(--bg-card);background:color-mix(in srgb, rgb(46,204,113) 10%, var(--bg-card));color:#2ecc71;font-size:0.75rem;cursor:pointer;font-weight:600">Use one</button>'
+          + '<div><b>' + _esc(b.desc || b.partNum) + '</b>' + (b.partNum && b.desc ? ' <span style="font-family:var(--font-mono);color:var(--accent2)">#' + _esc(b.partNum) + '</span>' : '') + ' <span style="color:var(--text-dim)">×' + b.qty + (b.where ? ' · ' + _esc(b.where) : '') + '</span></div>'
+          + '<button onclick="_maintBinUse(\'' + _esc(b.id) + '\',\'' + _esc(taskId) + '\')" style="' + _btn('green', 'sm') + '">Use one</button>'
           + '</div>';
       }).join('');
     };
@@ -2376,26 +2440,26 @@
     var pg = document.getElementById('page-partsbin');
     if (!pg) return;
     var bin = (state.partsBin || []).slice().sort(function (a, b) { return (b.date || '').localeCompare(a.date || ''); });
-    var head = '<div class="page-title" style="display:flex;align-items:center;justify-content:space-between;gap:0.5rem"><span>🧰 Parts Bin</span>'
+    var head = '<div class="page-title" style="display:flex;align-items:center;justify-content:space-between;gap:0.5rem"><span>Parts Bin</span>'
       + '<button onclick="_maintBinForm()" class="btn" style="border:1.5px solid var(--accent);color:var(--accent);background:var(--bg-card);background:color-mix(in srgb, var(--accent) 10%, var(--bg-card));font-weight:600;font-size:0.78rem;padding:0.45rem 0.65rem">+ Add parts</button></div>'
       + '<div style="font-size:0.82rem;color:var(--text-dim);margin-bottom:0.85rem">Parts you own that aren’t on a train yet — show-table finds, spares, the drawer. Need-a-part checks here first.</div>';
-    if (!bin.length) { pg.innerHTML = head + '<div style="text-align:center;padding:3rem 1rem;color:var(--text-dim)"><div style="font-size:2.5rem;margin-bottom:0.5rem">🧰</div><p>The bin is empty.</p><p style="font-size:0.8rem;margin-top:0.4rem">Bought an assortment at a show? Add it here with a quantity.</p></div>'; return; }
-    var small = 'padding:0.3rem 0.6rem;border-radius:7px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:0.75rem;cursor:pointer';
+    if (!bin.length) { pg.innerHTML = head + '<div style="text-align:center;padding:3rem 1rem;color:var(--text-dim)"><p>The bin is empty.</p><p style="font-size:0.8rem;margin-top:0.4rem">Bought an assortment at a show? Add it here with a quantity.</p></div>'; return; }
+    var small = _btnQuiet('sm');
     pg.innerHTML = head + bin.map(function (b) {
       return '<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:0.8rem 1rem;margin-bottom:0.6rem;display:flex;gap:0.7rem;align-items:flex-start;flex-wrap:wrap">'
-        + (b.photo ? '<a href="' + _esc(b.photo) + '" target="_blank" rel="noopener" style="flex-shrink:0;font-size:1.4rem;text-decoration:none">🖼️</a>' : '')
+        + (b.photo ? '<a href="' + _esc(b.photo) + '" target="_blank" rel="noopener" style="flex-shrink:0;font-size:0.76rem;color:var(--accent2);text-decoration:none;border:1px solid var(--border);border-radius:6px;padding:0.2rem 0.45rem">photo</a>' : '')
         + '<div style="flex:1;min-width:200px">'
         +   '<div style="font-weight:700;color:var(--text)">' + _esc(b.desc || b.partNum) + (b.partNum && b.desc ? ' <span style="font-family:var(--font-mono);color:var(--accent2);font-weight:400">#' + _esc(b.partNum) + '</span>' : '') + '</div>'
         +   '<div style="font-size:0.78rem;color:var(--text-dim);margin-top:0.15rem">' + [b.where, b.dateAcq, b.price ? 'paid ' + b.price : '', b.topics ? '[' + b.topics + ']' : ''].filter(Boolean).map(_esc).join(' · ') + '</div>'
         +   (b.notes ? '<div style="font-size:0.76rem;color:var(--text-dim)">' + _esc(b.notes) + '</div>' : '')
-        +   (b.forSale ? '<div style="font-size:0.74rem;color:#e67e22;margin-top:0.15rem">🏷️ For sale' + (b.asking ? ' — asking ' + _esc(b.asking) : '') + '</div>' : '')
+        +   (b.forSale ? '<div style="font-size:0.74rem;color:#e67e22;margin-top:0.15rem">For sale' + (b.asking ? ' — asking ' + _esc(b.asking) : '') + '</div>' : '')
         + '</div>'
         + '<div style="display:flex;gap:0.35rem;align-items:center;flex-wrap:wrap">'
         +   '<button onclick="_maintBinQty(\'' + _esc(b.id) + '\',-1)" style="' + small + '">−</button>'
         +   '<span style="min-width:2.2rem;text-align:center;font-weight:700;color:var(--text)">×' + b.qty + '</span>'
         +   '<button onclick="_maintBinQty(\'' + _esc(b.id) + '\',1)" style="' + small + '">+</button>'
-        +   '<button onclick="_maintBinEdit(\'' + _esc(b.id) + '\')" style="' + small + '">Edit</button>'
-        +   '<button onclick="_maintBinRemove(\'' + _esc(b.id) + '\')" style="' + small + ';color:#e74c3c">Remove</button>'
+        +   '<button onclick="_maintBinEdit(\'' + _esc(b.id) + '\')" style="' + _btn('blue', 'sm') + '">Edit</button>'
+        +   '<button onclick="_maintBinRemove(\'' + _esc(b.id) + '\')" style="' + _btn('red', 'sm') + '">Remove</button>'
         + '</div></div>';
     }).join('');
   }
@@ -2430,7 +2494,7 @@
   function _tbSplit(v) {
     return String(v == null ? '' : v).split(',').map(function (t) { return t.trim(); }).filter(Boolean);
   }
-  function _tbIcon(type) { return type === 'picture' ? '🖼️' : type === 'video' ? '🎬' : type === 'document' ? '📄' : '🔗'; }
+  function _tbIcon(type) { return ''; }   // v0.9.1676: no icons — the type chip says it
   function _tbTopics() {
     // every topic anyone typed, once, in a stable order
     var seen = {}, out = [];
@@ -2480,14 +2544,14 @@
     }
     var st = _tbState;
     var SEL = 'padding:0.45rem 0.6rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.84rem';
-    var linkBtn = 'padding:0.45rem 0.85rem;border-radius:8px;border:1.5px solid #2980b9;background:var(--bg-card);color:#2980b9;font-family:var(--font-body);font-size:0.8rem;cursor:pointer;font-weight:600';
+    var linkBtn = _btn('blue');
     var topics = _tbTopics();
     box.innerHTML = '<div style="font-size:0.82rem;color:var(--text-dim);margin-bottom:0.85rem">Your personalized maintenance manual — everything you saved from any item, in one place. Click a title to open it, Edit to retag it.</div>'
       + '<div style="display:flex;gap:0.4rem;flex-wrap:wrap;margin-bottom:0.9rem">'
-      +   '<button onclick="_tbSaveLink()" style="' + linkBtn + '">🔗 Save a link</button>'
-      +   '<button onclick="_tbSavePicture()" style="' + linkBtn + '">🖼️ Save a picture</button>'
-      +   '<button onclick="_tbSaveDocument()" style="' + linkBtn + '">📄 Save a document</button>'
-      +   '<button onclick="_tbSaveVideo()" style="' + linkBtn + '">🎬 Save a video</button>'
+      +   '<button onclick="_tbSaveLink()" style="' + linkBtn + '">Save a link</button>'
+      +   '<button onclick="_tbSavePicture()" style="' + linkBtn + '">Save a picture</button>'
+      +   '<button onclick="_tbSaveDocument()" style="' + linkBtn + '">Save a document</button>'
+      +   '<button onclick="_tbSaveVideo()" style="' + linkBtn + '">Save a video</button>'
       +   '<span style="font-size:0.72rem;color:var(--text-dim);align-self:center">General docs go here — ones for a specific item are saved from its Maintenance card.</span>'
       + '</div>'
       + '<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:0.8rem 1rem;margin-bottom:0.9rem;display:flex;gap:0.5rem;flex-wrap:wrap;align-items:center">'
@@ -2496,10 +2560,10 @@
       +     topics.map(function (t) { return '<option value="' + _esc(t) + '"' + (t.toLowerCase() === st.topic.toLowerCase() ? ' selected' : '') + '>' + _esc(t) + '</option>'; }).join('')
       +   '</select>'
       +   '<select id="tb-type" onchange="_tbFilter()" style="' + SEL + '">'
-      +     [['', 'All types'], ['picture', '🖼️ Pictures'], ['link', '🔗 Links'], ['document', '📄 Documents'], ['video', '🎬 Videos']].map(function (o) { return '<option value="' + o[0] + '"' + (o[0] === st.type ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('')
+      +     [['', 'All types'], ['picture', 'Pictures'], ['link', 'Links'], ['document', 'Documents'], ['video', 'Videos']].map(function (o) { return '<option value="' + o[0] + '"' + (o[0] === st.type ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('')
       +   '</select>'
       +   '<input id="tb-item" type="text" placeholder="Item #" value="' + _esc(st.item) + '" oninput="_tbFilter()" style="' + SEL + ';width:7rem">'
-      +   '<button onclick="_tbClear()" style="padding:0.45rem 0.7rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body);font-size:0.78rem;cursor:pointer">Clear</button>'
+      +   '<button onclick="_tbClear()" style="' + _btnQuiet() + '">Clear</button>'
       + '</div>'
       + '<div id="tb-list"></div>';
     _tbList();
@@ -2513,7 +2577,7 @@
     var filtered = all.filter(_tbMatches).slice().sort(function (a, b) { return (b.date || '').localeCompare(a.date || '') || (b.row - a.row); });
     var active = !!(st.q || st.topic || st.type || st.item);
     if (!all.length) {
-      el.innerHTML = '<div style="text-align:center;padding:3rem 1rem;color:var(--text-dim)"><div style="font-size:2.5rem;margin-bottom:0.5rem">🧰</div><p>Your Toolbox is empty.</p><p style="font-size:0.8rem;margin-top:0.4rem">Save a manual, diagram, picture or video from any item’s Maintenance card — or a general one with the buttons above.</p></div>';
+      el.innerHTML = '<div style="text-align:center;padding:3rem 1rem;color:var(--text-dim)"><p>Your Toolbox is empty.</p><p style="font-size:0.8rem;margin-top:0.4rem">Save a manual, diagram, picture or video from any item’s Maintenance card — or a general one with the buttons above.</p></div>';
       return;
     }
     var count = '<div style="font-size:0.76rem;color:var(--text-dim);margin-bottom:0.5rem">' + filtered.length + ' of ' + all.length
@@ -2528,7 +2592,6 @@
       + filtered.map(function (d) {
           var covers = _tbSplit(d.covers), tps = _tbSplit(d.topics);
           return '<div style="display:flex;gap:0.75rem;align-items:flex-start;padding:0.7rem 0.9rem;border-bottom:1px solid var(--border)">'
-            + '<div style="font-size:1.3rem;line-height:1.2;flex-shrink:0">' + _tbIcon(d.type) + '</div>'
             + '<div style="flex:1;min-width:0">'
             +   '<a href="' + _esc(d.url) + '" target="_blank" rel="noopener" style="color:var(--accent2);font-weight:600;text-decoration:none;font-size:0.92rem;word-break:break-word">' + _esc(d.title || 'untitled') + '</a>'
             +   ' <span style="' + chip + '">' + _esc(d.type || 'link') + '</span>'
@@ -2539,7 +2602,7 @@
             +   '</div>'
             +   (d.notes ? '<div style="font-size:0.78rem;color:var(--text-mid);margin-top:0.2rem">' + _esc(d.notes).slice(0, 160) + (d.notes.length > 160 ? '…' : '') + '</div>' : '')
             + '</div>'
-            + '<button onclick="_tbEdit(\'' + _esc(d.id) + '\')" style="flex-shrink:0;padding:0.3rem 0.65rem;border-radius:7px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.74rem;cursor:pointer">Edit</button>'
+            + '<button onclick="_tbEdit(\'' + _esc(d.id) + '\')" style="' + _btn('blue', 'sm', 'flex-shrink:0') + '">Edit</button>'
             + '</div>';
         }).join('')
       + '</div>';
@@ -2554,20 +2617,20 @@
     var LB = 'font-size:0.72rem;color:var(--text-dim);display:block;margin-bottom:0.2rem;text-transform:uppercase;letter-spacing:0.05em';
     var html = '<div id="tb-edit" style="position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9700;display:flex;align-items:flex-start;justify-content:center;overflow-y:auto;padding:2rem 1rem">'
       + '<div class="maint-card" style="background:var(--bg-card);border:1px solid var(--border);border-radius:16px;max-width:480px;width:100%;padding:1.2rem 1.3rem;margin-bottom:2rem">'
-      + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.8rem"><div style="font-family:var(--font-head);font-weight:700;color:var(--text)">' + _tbIcon(d.type) + ' Edit — My Manuals</div>'
+      + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.8rem"><div style="font-family:var(--font-head);font-weight:700;color:var(--text)">Edit — My Manuals</div>'
       + '<button onclick="document.getElementById(\'tb-edit\').remove()" style="background:none;border:none;color:var(--text-dim);font-size:1.3rem;cursor:pointer">&times;</button></div>'
       + '<label style="' + LB + '">Name</label><input id="tbe-title" type="text" value="' + _esc(d.title) + '" style="' + IN + '">'
       + '<div style="display:flex;gap:0.6rem"><div style="flex:1"><label style="' + LB + '">Type</label><select id="tbe-type" style="' + IN + '">'
-      +   ['picture', 'link', 'document', 'video'].map(function (t) { return '<option value="' + t + '"' + (t === d.type ? ' selected' : '') + '>' + _tbIcon(t) + ' ' + t + '</option>'; }).join('')
+      +   ['picture', 'link', 'document', 'video'].map(function (t) { return '<option value="' + t + '"' + (t === d.type ? ' selected' : '') + '>' + t + '</option>'; }).join('')
       + '</select></div></div>'
       + '<label style="' + LB + '">Link</label><input id="tbe-url" type="text" value="' + _esc(d.url) + '" style="' + IN + '">'
       + '<label style="' + LB + '">Covers (item numbers, comma-separated — blank = general)</label><input id="tbe-covers" type="text" value="' + _esc(d.covers) + '" style="' + IN + '">'
       + '<label style="' + LB + '">Topics (comma-separated)</label><input id="tbe-topics" type="text" value="' + _esc(d.topics) + '" style="' + IN + '">'
       + '<label style="' + LB + '">Notes</label><textarea id="tbe-notes" rows="3" style="' + IN + ';resize:vertical">' + _esc(d.notes || '') + '</textarea>'
       + '<div style="display:flex;gap:0.6rem;margin-top:0.3rem">'
-      + '<button onclick="_tbRemove(\'' + _esc(d.id) + '\')" style="padding:0.6rem 0.9rem;border-radius:8px;border:1px solid var(--border);background:none;color:#e74c3c;font-family:var(--font-body);cursor:pointer">Remove</button>'
-      + '<button onclick="document.getElementById(\'tb-edit\').remove()" style="flex:1;padding:0.6rem;border-radius:8px;border:1px solid var(--border);background:none;color:var(--text-dim);font-family:var(--font-body);cursor:pointer">Cancel</button>'
-      + '<button id="tbe-save" style="flex:2;padding:0.6rem;border-radius:8px;border:none;background:#16a085;color:#fff;font-family:var(--font-body);font-weight:700;cursor:pointer">Save</button>'
+      + '<button onclick="_tbRemove(\'' + _esc(d.id) + '\')" style="' + _btn('red') + '">Remove</button>'
+      + '<button onclick="document.getElementById(\'tb-edit\').remove()" style="' + _btnCancel('flex:1') + '">Cancel</button>'
+      + '<button id="tbe-save" style="' + _btnSave('flex:2') + '">Save</button>'
       + '</div></div></div>';
     document.body.insertAdjacentHTML('beforeend', html);
     if (window.BackStack && BackStack.wire) BackStack.wire(document.getElementById('tb-edit'));
@@ -2614,31 +2677,31 @@
       var parts = Object.values(state.partsData || {}).filter(function (p) { return p.taskId && p.taskId === l.id; });
       parts.forEach(function (p) { linkedTaskIds[p.id] = true; });
       var partTxt = parts.length
-        ? parts.map(function (p) { var st = p.status || 'wanted'; return (p.description || p.partNum || 'part') + (st === 'bought' ? ' — in the drawer' : st === 'installed' ? ' — installed' : ' — waiting'); }).join('; ')
+        ? parts.map(function (p) { var st = p.status || 'wanted'; var nm = p.description || p.partNum || 'part'; return st === 'bought' ? 'Parts on hand — ' + nm : st === 'installed' ? 'Installed — ' + nm : 'Waiting on ' + nm; }).join('; ')
         : '';
       rows.push({ invId: l.invId, itemNum: l.itemNum, need: l.text, part: partTxt, since: l.dateAdded });
     });
     Object.values(state.partsData || {}).forEach(function (p) {
       var st = p.status || 'wanted';
       if (linkedTaskIds[p.id] || st === 'installed' || !(p.forInv || p.forItem)) return;
-      rows.push({ invId: p.forInv, itemNum: p.forItem, need: 'Part wanted', part: (p.description || p.partNum || 'part') + (st === 'bought' ? ' — in the drawer' : ' — waiting'), since: p.dateAdded });
+      rows.push({ invId: p.forInv, itemNum: p.forItem, need: 'Part wanted', part: (st === 'bought' ? 'Parts on hand — ' : 'Waiting on ') + (p.description || p.partNum || 'part'), since: p.dateAdded });
     });
     // v0.9.1674 (bite 3): two tabs — Bench (this table) and Toolbox (the
     // saved library). Same page, one nav entry, Brad's call.
     var docsN = state.myManuals ? state.myManuals.length : 0;
     var tabs = '<div style="display:flex;gap:0.5rem;margin-bottom:0.9rem;flex-wrap:wrap">'
-      + '<button class="eph-tab' + (_wbTabName === 'bench' ? ' active' : '') + '" onclick="_wbTab(\'bench\')">🔨 Bench' + (rows.length ? ' · ' + rows.length : '') + '</button>'
-      + '<button class="eph-tab' + (_wbTabName === 'toolbox' ? ' active' : '') + '" onclick="_wbTab(\'toolbox\')" data-ctip="Your personalized maintenance manual — every manual, diagram, picture and video you saved, filterable by topic, type or item.">🧰 Toolbox' + (docsN ? ' · ' + docsN : '') + '</button>'
+      + '<button class="eph-tab' + (_wbTabName === 'bench' ? ' active' : '') + '" onclick="_wbTab(\'bench\')">Bench' + (rows.length ? ' · ' + rows.length : '') + '</button>'
+      + '<button class="eph-tab' + (_wbTabName === 'toolbox' ? ' active' : '') + '" onclick="_wbTab(\'toolbox\')" data-ctip="Your personalized maintenance manual — every manual, diagram, picture and video you saved, filterable by topic, type or item.">Toolbox' + (docsN ? ' · ' + docsN : '') + '</button>'
       + '</div>';
     if (_wbTabName === 'toolbox') {
-      pg.innerHTML = '<div class="page-title">🔧 The Workbench</div>' + tabs + '<div id="wb-toolbox"></div>';
+      pg.innerHTML = '<div class="page-title">The Workbench</div>' + tabs + '<div id="wb-toolbox"></div>';
       _tbRender();
       return;
     }
-    var head = '<div class="page-title">🔧 The Workbench</div>' + tabs
+    var head = '<div class="page-title">The Workbench</div>' + tabs
       + '<div style="font-size:0.82rem;color:var(--text-dim);margin-bottom:0.85rem">Everything that needs a wrench. Click a row to open its card.</div>';
     if (!rows.length) {
-      pg.innerHTML = head + '<div style="text-align:center;padding:3rem 1rem;color:var(--text-dim)"><div style="font-size:2.5rem;margin-bottom:0.5rem">🔧</div><p>Nothing on the bench.</p><p style="font-size:0.8rem;margin-top:0.4rem">Add a task from any item’s Maintenance panel.</p></div>';
+      pg.innerHTML = head + '<div style="text-align:center;padding:3rem 1rem;color:var(--text-dim)"><p>Nothing on the bench.</p><p style="font-size:0.8rem;margin-top:0.4rem">Add a task from any item’s Maintenance panel.</p></div>';
       return;
     }
     rows.sort(function (a, b) { return String(a.itemNum).localeCompare(String(b.itemNum), undefined, { numeric: true }) || (a.since || '').localeCompare(b.since || ''); });
@@ -2653,7 +2716,7 @@
           return '<tr onclick="_wbOpen(\'' + _esc(String(r.invId || '')) + '\',\'' + _esc(String(r.itemNum || '')) + '\')" style="cursor:pointer" onmouseover="this.style.background=\'var(--surface2)\'" onmouseout="this.style.background=\'\'">'
             + '<td style="' + td + ';font-weight:700;white-space:nowrap">' + label + '</td>'
             + '<td style="' + td + '">' + _esc(r.need) + '</td>'
-            + '<td style="' + td + ';color:' + (r.part ? 'var(--text)' : 'var(--text-dim)') + '">' + (r.part ? '⚙️ ' + _esc(r.part) : '—') + '</td>'
+            + '<td style="' + td + ';color:' + (r.part ? 'var(--text)' : 'var(--text-dim)') + '">' + (r.part ? _esc(r.part) : '—') + '</td>'
             + '<td style="' + td + ';color:var(--text-dim);white-space:nowrap">' + _esc(r.since || '') + '</td>'
             + '</tr>';
         }).join('')
@@ -2715,35 +2778,35 @@
         parts.forEach(function (p) { linked[p.id] = true; });
         var partTxt = parts.map(function (p) {
           var st = p.status || 'wanted';
-          return '⚙️ ' + _esc(p.description || p.partNum || 'part') + (st === 'bought' ? ' — in the drawer' : st === 'installed' ? ' — installed' : ' — waiting');
+          var nm = _esc(p.description || p.partNum || 'part');
+          return st === 'bought' ? '✓ Parts on hand — ' + nm : st === 'installed' ? 'Installed — ' + nm : 'Waiting on “' + nm + '”';
         }).join(' · ');
-        body += line('⏳ <b>' + _esc(t.text) + '</b> ' + dim('since ' + _esc(t.dateAdded || '?'))
+        body += line('<b>' + _esc(t.text) + '</b> ' + dim('since ' + _esc(t.dateAdded || '?'))
           + (partTxt ? '<div style="font-size:0.78rem;color:var(--text-mid);margin-left:1.3rem">' + partTxt + '</div>' : ''));
       });
       Object.values(state.partsData || {}).forEach(function (p) {
         var st = p.status || 'wanted';
         if (linked[p.id] || st === 'installed') return;
         if (!(invId ? p.forInv === invId : (p.forItem === num && !p.forInv))) return;
-        body += line('⚙️ <b>Part wanted:</b> ' + _esc(p.description || p.partNum || 'part') + ' ' + dim(st === 'bought' ? 'in the drawer' : 'waiting'));
+        body += line((st === 'bought' ? '✓ <b>Parts on hand</b> — ' : '<b>Waiting on</b> ') + _esc(p.description || p.partNum || 'part') + ' ' + dim('Parts Needed list'));
       });
       if (history.length) {
         var h = history[0];
-        var icon = h.type === 'part-installed' ? '🔩' : h.type === 'chore' ? '✓' : '📝';
-        body += line(icon + ' <b>Last service:</b> ' + _esc(h.dateDone || h.dateAdded || '') + ' — ' + _esc(h.text)
+        body += line('<b>Last service:</b> ' + _esc(h.dateDone || h.dateAdded || '') + ' — ' + (h.type === 'part-installed' ? 'installed ' : '') + _esc(h.text)
           + (history.length > 1 ? ' ' + dim('+' + (history.length - 1) + ' more') : ''));
       }
       var docs = state.myManuals ? _docCovers({ itemNum: num }) : null;
-      body += line('📄 ' + (docs === null ? dim('loading manuals…')
+      body += line((docs === null ? dim('loading manuals…')
         : docs.length ? '<b>' + docs.length + '</b> saved ' + (docs.length === 1 ? 'manual / doc' : 'manuals / docs') + ' for ' + _esc(num)
         : dim('No manuals saved for ' + _esc(num) + ' yet')));
-      if (!tasks.length && !history.length && docs !== null && !docs.length && body.indexOf('Part wanted') < 0) {
+      if (!tasks.length && !history.length && docs !== null && !docs.length && body.indexOf('Waiting on') < 0 && body.indexOf('Parts on hand') < 0) {
         body = line(dim('Nothing on the bench — open the card to add a task, find manuals, or log service.'));
       }
       box.innerHTML = '<div onclick="_maintOpenPanel(' + openArgs + ')" title="Open the Maintenance card" '
         + 'onmouseover="this.style.background=\'var(--surface2)\'" onmouseout="this.style.background=\'var(--surface)\'" '
         + 'style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:0.75rem 0.9rem;margin-top:0.5rem;cursor:pointer">'
         + '<div style="display:flex;justify-content:space-between;align-items:center;gap:0.5rem;margin-bottom:0.35rem">'
-        +   '<div style="font-family:var(--font-head);font-size:0.7rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--accent2)">🔧 Maintenance</div>'
+        +   '<div style="font-family:var(--font-head);font-size:0.7rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--accent2)">Maintenance</div>'
         +   '<div style="font-size:0.72rem;color:var(--text-dim);white-space:nowrap">Open card →</div>'
         + '</div>'
         + body
@@ -2784,7 +2847,7 @@
       btn.className = 'nav-item'; btn.id = 'nav-workbench-btn';
       btn.setAttribute('data-ctip', 'The Workbench — open chores and parts, per item. Only you see this.');
       btn.onclick = function () { showPage('workbench', this); _loadLog().then(function(){ _wbBuild(); _wbBadge(); }); if (!state.myManuals) _loadMyDocs().then(_wbBuild); _wbBuild(); };
-      btn.innerHTML = '<span style="width:17px;text-align:center;flex-shrink:0">🔧</span>Workbench<span id="nav-workbench-count" class="nav-badge" style="display:none"></span>';
+      btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>Workbench<span id="nav-workbench-count" class="nav-badge" style="display:none"></span>';
       if (ymBtn) homeSection.insertBefore(btn, ymBtn);
       else if (refreshBtn) homeSection.insertBefore(btn, refreshBtn);
       else homeSection.appendChild(btn);
@@ -2800,7 +2863,7 @@
       btn2.className = 'nav-item'; btn2.id = 'nav-partsbin-btn';
       btn2.setAttribute('data-ctip', 'Parts you own that aren’t on a train yet. Need-a-part checks here first.');
       btn2.onclick = function () { showPage('partsbin', this); _loadBin().then(_binBuild); _binBuild(); };
-      btn2.innerHTML = '<span style="width:17px;text-align:center;flex-shrink:0">🧰</span>Parts Bin';
+      btn2.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 8V21H3V8"/><path d="M1 3h22v5H1z"/><path d="M10 12h4"/></svg>Parts Bin';
       if (wbBtn && wbBtn.parentElement) wbBtn.parentElement.insertBefore(btn2, wbBtn.nextSibling);
     }
     _loadLog().then(_wbBadge);
