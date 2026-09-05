@@ -1,5 +1,5 @@
 // ============================================================
-//  maintenance.js — 🔧 Maintenance panel + Workbench + My Manuals (v0.9.1662, Session 92)
+//  maintenance.js — 🔧 Maintenance panel + Workbench + My Manuals (v0.9.1664, Session 92)
 //  OWNER-ONLY (admin preview): the button renders only when the
 //  signed-in email is on MAINT.OWNER_EMAILS. Everyone else's app
 //  is untouched — delete this ONE file + its index.html line to
@@ -18,6 +18,10 @@
 
   var MAINT = {
     OWNER_EMAILS: ['bhale@ipd-llc.com', 'support@therailroster.com'],
+    // v0.9.1664 (Brad): beta testers — they get the whole maintenance suite
+    // (button, Workbench, parts lifecycle, My Manuals). NOT the Yardmaster's
+    // Office; that list lives in yardmaster.js and stays owner-only.
+    BETA_EMAILS: ['browntailflyer@gmail.com'],
     PREF_CHANNELS: 'maint_yt_channels',   // JSON array of channel names
     PREF_DEALERS:  'maint_parts_dealers', // JSON array of dealer names
     PREF_SUPPLIERS: 'maint_diagram_suppliers', // JSON array; seeded with Trainz
@@ -26,7 +30,7 @@
   function _isOwner() {
     try {
       var em = window.state && state.user && String(state.user.email || '').toLowerCase();
-      return !!em && MAINT.OWNER_EMAILS.indexOf(em) >= 0;
+      return !!em && (MAINT.OWNER_EMAILS.indexOf(em) >= 0 || MAINT.BETA_EMAILS.indexOf(em) >= 0);
     } catch (e) { return false; }
   }
   window._maintIsOwner = _isOwner;   // app-collection.js gates the button on this
@@ -1521,7 +1525,7 @@
       +   '<div style="font-family:var(--font-head);font-size:1.05rem;font-weight:700;color:var(--text)">🔧 Maintenance — ' + _esc(item.itemNum || '') + (item.roadName ? ' · ' + _esc(item.roadName) : '') + '</div>'
       +   '<button onclick="document.getElementById(\'maint-overlay\').remove()" style="background:none;border:none;color:var(--text-dim);font-size:1.3rem;cursor:pointer;line-height:1">&times;</button>'
       + '</div>'
-      + '<div style="font-size:0.72rem;color:var(--text-dim);margin-bottom:0.8rem">Owner preview — only you can see this button.</div>'
+      + '<div style="font-size:0.72rem;color:var(--text-dim);margin-bottom:0.8rem">Beta preview — only you (and invited testers) can see this button.</div>'
       + '<div id="maint-launcher" style="display:flex;flex-direction:column;gap:0.55rem;margin-bottom:0.8rem">'
       +   '<button onclick="_maintShowGrp(\'docs\')" style="' + bigBtn + '">📖 Find manuals &amp; diagrams<span style="display:block;font-weight:400;font-size:0.74rem;color:var(--text-dim)">Your saved docs, factory sources, searches</span></button>'
       +   '<button onclick="_maintShowGrp(\'work\')" style="' + bigBtn + '">🔨 Work on it<span style="display:block;font-weight:400;font-size:0.74rem;color:var(--text-dim)">Chores, parts and repair videos for this item</span></button>'
