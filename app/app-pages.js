@@ -4272,7 +4272,11 @@ async function _ensurePartsTab() {
   try {
     var meta = await (await fetch('https://sheets.googleapis.com/v4/spreadsheets/' + state.personalSheetId + '?fields=sheets.properties',
       { headers: { Authorization: 'Bearer ' + accessToken } })).json();
-    var exists = (meta.sheets || []).some(function (s) { return s.properties && s.properties.title === 'Parts Needed'; });
+    // v0.9.1675: a failed metadata read (expired token → {error}) is not a
+    // missing tab — bail rather than create-on-a-guess and queue a phantom
+    // header write in the outbox.
+    if (!meta || !Array.isArray(meta.sheets)) return false;
+    var exists = meta.sheets.some(function (s) { return s.properties && s.properties.title === 'Parts Needed'; });
     if (exists) return true;
     await fetch('https://sheets.googleapis.com/v4/spreadsheets/' + state.personalSheetId + ':batchUpdate', {
       method: 'POST', headers: { Authorization: 'Bearer ' + accessToken, 'Content-Type': 'application/json' },

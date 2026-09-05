@@ -1656,7 +1656,12 @@
     try {
       var meta = await (await fetch('https://sheets.googleapis.com/v4/spreadsheets/' + state.personalSheetId + '?fields=sheets.properties',
         { headers: { Authorization: 'Bearer ' + accessToken } })).json();
-      if ((meta.sheets || []).some(function (sh) { return sh.properties && sh.properties.title === DOCS_TAB; })) return true;
+      // v0.9.1675: a FAILED read (expired token → {error}, no sheets) is
+      // not "the tab is missing". Bail; never try to create on a guess —
+      // the header write that followed used to land in the offline outbox
+      // as a phantom "1 change has not saved".
+      if (!meta || !Array.isArray(meta.sheets)) return false;
+      if (meta.sheets.some(function (sh) { return sh.properties && sh.properties.title === DOCS_TAB; })) return true;
       await fetch('https://sheets.googleapis.com/v4/spreadsheets/' + state.personalSheetId + ':batchUpdate', {
         method: 'POST', headers: { Authorization: 'Bearer ' + accessToken, 'Content-Type': 'application/json' },
         body: JSON.stringify({ requests: [{ addSheet: { properties: { title: DOCS_TAB, tabColor: { red: 0.16, green: 0.5, blue: 0.72 } } } }] })
@@ -1825,7 +1830,12 @@
     try {
       var meta = await (await fetch('https://sheets.googleapis.com/v4/spreadsheets/' + state.personalSheetId + '?fields=sheets.properties',
         { headers: { Authorization: 'Bearer ' + accessToken } })).json();
-      if ((meta.sheets || []).some(function (sh) { return sh.properties && sh.properties.title === LOG_TAB; })) return true;
+      // v0.9.1675: a FAILED read (expired token → {error}, no sheets) is
+      // not "the tab is missing". Bail; never try to create on a guess —
+      // the header write that followed used to land in the offline outbox
+      // as a phantom "1 change has not saved".
+      if (!meta || !Array.isArray(meta.sheets)) return false;
+      if (meta.sheets.some(function (sh) { return sh.properties && sh.properties.title === LOG_TAB; })) return true;
       await fetch('https://sheets.googleapis.com/v4/spreadsheets/' + state.personalSheetId + ':batchUpdate', {
         method: 'POST', headers: { Authorization: 'Bearer ' + accessToken, 'Content-Type': 'application/json' },
         body: JSON.stringify({ requests: [{ addSheet: { properties: { title: LOG_TAB, tabColor: { red: 0.09, green: 0.63, blue: 0.52 } } } }] })
@@ -2203,7 +2213,12 @@
     try {
       var meta = await (await fetch('https://sheets.googleapis.com/v4/spreadsheets/' + state.personalSheetId + '?fields=sheets.properties',
         { headers: { Authorization: 'Bearer ' + accessToken } })).json();
-      if ((meta.sheets || []).some(function (sh) { return sh.properties && sh.properties.title === BIN_TAB; })) return true;
+      // v0.9.1675: a FAILED read (expired token → {error}, no sheets) is
+      // not "the tab is missing". Bail; never try to create on a guess —
+      // the header write that followed used to land in the offline outbox
+      // as a phantom "1 change has not saved".
+      if (!meta || !Array.isArray(meta.sheets)) return false;
+      if (meta.sheets.some(function (sh) { return sh.properties && sh.properties.title === BIN_TAB; })) return true;
       await fetch('https://sheets.googleapis.com/v4/spreadsheets/' + state.personalSheetId + ':batchUpdate', {
         method: 'POST', headers: { Authorization: 'Bearer ' + accessToken, 'Content-Type': 'application/json' },
         body: JSON.stringify({ requests: [{ addSheet: { properties: { title: BIN_TAB, tabColor: { red: 0.55, green: 0.35, blue: 0.15 } } } }] })
