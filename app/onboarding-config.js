@@ -54,6 +54,7 @@ const WHAT_I_COLLECT = {
   eraOrder:    ['prewar', 'pw', 'mpc', 'mod_ho', 'mod_s',
                 'atlas', 'atlas_ho', 'atlas_n', 'atlas_z',
                 'mth_o', 'mth_ho', 'mth_s', 'mth_tinplate', 'mth_g',
+                'af_gilbert', 'am_s', 'shelper',   // v0.9.1686: the S-gauge makers, after Lionel's AF
                 'weaver', 'rmt', 'menards', 'menards_ho', 'thirdrail', 'usatrains', 'lgb',
                 // v0.9.1159: placed rather than left to fall to the end.
                 'kline', 'williams', 'marx', 'other_o',
@@ -83,6 +84,10 @@ const WHAT_I_COLLECT = {
     mod_s:        '#95a5a6',   // silver — S Gauge metallic vibe
     // Session 154: Weaver
     weaver:       '#16a085',   // teal — Weaver
+    // v0.9.1686: S-gauge makers — silver family like mod_s
+    af_gilbert:   '#7f8c8d',   // slate — Gilbert American Flyer
+    am_s:         '#b2bec3',   // light steel — American Models
+    shelper:      '#636e72',   // dark steel — S-Helper Service
     // Session 155: RMT
     rmt:          '#e67e22',   // orange — RMT
     // v0.9.1000: colors for the eras that were missing from this screen
@@ -163,6 +168,9 @@ const WHAT_I_COLLECT = {
     mth_tinplate: 'standard',
     mth_g:        'g',
     weaver:       'o',
+    af_gilbert:   's',   // v0.9.1686
+    am_s:         's',
+    shelper:      's',
     rmt:          'o',
     menards:      'o',
     menards_ho:   'ho',
@@ -198,6 +206,10 @@ const WHAT_I_COLLECT = {
     mth:    { id: 'mth',    label: 'MTH',    color: '#e74c3c',       default: false },
     atlas:  { id: 'atlas',  label: 'Atlas',  color: '#2980b9',       default: false },
     weaver: { id: 'weaver', label: 'Weaver', color: '#16a085',       default: false },
+    // v0.9.1686: keys equal ERAS[era].manufacturer.toLowerCase()
+    'a.c. gilbert':     { id: 'a.c. gilbert',     label: 'A.C. Gilbert (American Flyer)', color: '#7f8c8d', default: false },
+    'american models':  { id: 'american models',  label: 'American Models',               color: '#b2bec3', default: false },
+    's-helper service': { id: 's-helper service', label: 'S-Helper Service',              color: '#636e72', default: false },
     rmt:    { id: 'rmt',    label: 'RMT',    color: '#e67e22',       default: false },
     menards:{ id: 'menards',label: 'Menards',color: '#2c8a4b',       default: false },
     '3rd rail':{ id: '3rd rail', label: '3rd Rail', color: '#8e44ad', default: false },

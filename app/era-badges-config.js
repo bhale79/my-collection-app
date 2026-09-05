@@ -41,6 +41,10 @@ const ERA_BADGES = {
     mod_s:        'MODS',
     // Session 154: Weaver
     weaver:       'WVR',
+    // v0.9.1686: S-gauge makers
+    af_gilbert:   'GILB',
+    am_s:         'AM',
+    shelper:      'SHS',
     // Session 155: RMT
     rmt:          'RMT',
     // Session 85 (Phase C): the nine S84 catalog tabs. (Eras missing from
@@ -98,6 +102,10 @@ const ERA_BADGES = {
     'Lionel Modern S - Items':    'mod_s',
     // Session 154: Weaver
     'Weaver O':                   'weaver',
+    // v0.9.1686: S-gauge makers
+    'American Flyer S - Gilbert': 'af_gilbert',
+    'American Models S':          'am_s',
+    'S-Helper Service S':         'shelper',
     // Session 155: RMT
     'RMT O':                      'rmt',
   },

@@ -26,6 +26,7 @@ function eraSupportsBarcode(era) {
   var SHOW = ['mod','mpc','atlas',
               'mth_o','mth_ho','mth_s','mth_tinplate','mth_g',
               'mod_ho','mod_s','weaver','rmt','menards','menards_ho','thirdrail','usatrains','lgb',
+              'am_s','shelper',   // v0.9.1686: modern S makers carry UPCs; Gilbert (1946-66) does not
               'kline','williams','other_o',
               'aristocraft','accucraft','bachmann_ho','bachmann_n','bachmann_g',
               'bachmann_o','bachmann_on30','bachmann_hon30','bachmann_all'];

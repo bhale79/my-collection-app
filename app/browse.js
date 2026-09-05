@@ -730,6 +730,9 @@ var _ERA_KEY_TO_PERIOD = {
   mth_tinplate: 'modern',
   mth_g:        'modern',
   weaver:       'modern',
+  af_gilbert:   'postwar',  // v0.9.1686: Gilbert's American Flyer, 1946-66 = the postwar period
+  am_s:         'modern',   // v0.9.1686: American Models, 1981-
+  shelper:      'modern',   // v0.9.1686: S-Helper Service, 1994-2012
   rmt:          'modern',   // RMT (Ready Made Trains), late 1990s onward
   menards:      'modern',   // Menards store brand, 2014 onward
   menards_ho:   'modern',   // Session 86: the HO split of the same brand
@@ -1939,6 +1942,9 @@ function _makerForTab(tabLower) {
   var t = String(tabLower || '');
   var MAKERS = [
     ['weaver',     'Weaver'],
+    ['gilbert',    'A.C. Gilbert'],        // v0.9.1686
+    ['american models', 'American Models'],
+    ['s-helper',   'S-Helper Service'],
     ['k-line',     'K-Line'],
     ['williams',   'Williams'],
     ['marx',       'Marx'],

@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.1685';
+const APP_VERSION = 'v0.9.1686';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -366,6 +366,13 @@ const ERAS = {
   // S-gauge line. Badge/color/barcode configs kept these keys all along.
   mod_ho: { id: 'mod_ho', label: 'Lionel HO',   years: '1970-Today', prefix: 'Lionel HO',      manufacturer: 'Lionel' },
   mod_s:  { id: 'mod_s',  label: 'American Flyer S', years: '1970-Today', prefix: 'American Flyer', manufacturer: 'Lionel' },
+  // v0.9.1686 (Session 90, Brad's tab plan for the Greenberg AF 2017 guide):
+  // three S-gauge makers get their own eras + tabs — A.C. Gilbert's
+  // original American Flyer line (1946-66, plus its catalogs and paper),
+  // American Models (1981-), and S-Helper Service (1994-2012).
+  af_gilbert: { id: 'af_gilbert', label: 'American Flyer S (Gilbert)', years: '1946-1966', prefix: 'American Flyer', manufacturer: 'A.C. Gilbert' },
+  am_s:       { id: 'am_s',       label: 'American Models S',          years: 'All',       prefix: 'American Models', manufacturer: 'American Models' },
+  shelper:    { id: 'shelper',    label: 'S-Helper Service S',         years: '1994-2012', prefix: 'S-Helper',        manufacturer: 'S-Helper Service' },
   atlas:  { id: 'atlas',  label: 'Atlas O',     years: 'All',        prefix: 'Atlas O',        manufacturer: 'Atlas' },
   // Session 174 (Brad): Atlas HO/N/Z tabs exist & are populated in the master
   // sheet (added in the 2026-07-21 merge) but were never wired up, so ~33.5k
@@ -430,7 +437,7 @@ const ERAS = {
   bachmann_all:   { id: 'bachmann_all',   label: 'Bachmann All Scales', years: 'All', prefix: 'Bachmann All Scales', manufacturer: 'Bachmann' },
 };
 // Real-era IDs in load priority order (excluding 'all' meta-era).
-const REAL_ERA_IDS = ['pw', 'mpc', 'mod_ho', 'mod_s', 'prewar', 'atlas', 'atlas_ho', 'atlas_n', 'atlas_z', 'mth_o', 'mth_ho', 'mth_s', 'mth_tinplate', 'mth_g', 'weaver', 'rmt', 'menards', 'menards_ho', 'thirdrail', 'usatrains', 'lgb', 'kline', 'williams', 'marx', 'other_o', 'aristocraft', 'accucraft', 'bachmann_ho', 'bachmann_n', 'bachmann_g', 'bachmann_o', 'bachmann_on30', 'bachmann_hon30', 'bachmann_all'];
+const REAL_ERA_IDS = ['pw', 'mpc', 'mod_ho', 'mod_s', 'af_gilbert', 'am_s', 'shelper', 'prewar', 'atlas', 'atlas_ho', 'atlas_n', 'atlas_z', 'mth_o', 'mth_ho', 'mth_s', 'mth_tinplate', 'mth_g', 'weaver', 'rmt', 'menards', 'menards_ho', 'thirdrail', 'usatrains', 'lgb', 'kline', 'williams', 'marx', 'other_o', 'aristocraft', 'accucraft', 'bachmann_ho', 'bachmann_n', 'bachmann_g', 'bachmann_o', 'bachmann_on30', 'bachmann_hon30', 'bachmann_all'];
 
 // ── Master sheet tab names per era ──
 // Session 154: scale per era — drives the want-list Scale filter (master
@@ -449,6 +456,7 @@ const ERA_SCALE = {
   bachmann_on30: 'On30', bachmann_hon30: 'HOn30', bachmann_all: '',
   mth_ho: 'HO',
   mth_s: 'S',
+  af_gilbert: 'S', am_s: 'S', shelper: 'S',   // v0.9.1686
   mth_g: 'G',
   atlas_ho: 'HO', atlas_n: 'N', atlas_z: 'Z',
 };
@@ -549,6 +557,10 @@ const ERA_TABS = {
   mod_s: {
     items:    'Lionel Modern S - Items',
   },
+  // v0.9.1686: the three S-gauge maker tabs (created 2026-09-05)
+  af_gilbert: { items: 'American Flyer S - Gilbert' },
+  am_s:       { items: 'American Models S' },
+  shelper:    { items: 'S-Helper Service S' },
   weaver: {
     items:    'Weaver O',
   },
