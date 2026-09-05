@@ -1,5 +1,5 @@
 // ============================================================
-//  maintenance.js — 🔧 Maintenance panel + Workbench + My Manuals + task cards (v0.9.1666, Session 92)
+//  maintenance.js — 🔧 Maintenance panel + Workbench + My Manuals + task cards + Parts Bin (v0.9.1667, Session 92)
 //  OWNER-ONLY (admin preview): the button renders only when the
 //  signed-in email is on MAINT.OWNER_EMAILS. Everyone else's app
 //  is untouched — delete this ONE file + its index.html line to
@@ -2088,10 +2088,13 @@
       +   '<button onclick="document.getElementById(\'maint-parts-pop\').remove()" style="background:none;border:none;color:var(--text-dim);font-size:1.3rem;cursor:pointer">&times;</button></div>'
       + '<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:0.9rem 1rem;margin-bottom:0.8rem">'
       +   '<div style="font-family:var(--font-head);font-size:0.7rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--accent2);margin-bottom:0.6rem">Find your part</div>'
-      +   '<div style="font-size:0.74rem;color:var(--text-dim);margin-bottom:0.5rem">Check your drawer first — the parts bin is next on the build list. Then:</div>'
+      +   '<div style="display:flex;gap:0.4rem;flex-wrap:wrap">'
+      +     '<input id="maint-pop-part" placeholder="part number / description" oninput="_maintBinCheck(\'' + _esc(taskId) + '\')" style="' + IN + '">'
+      +   '</div>'
+      +   '<div id="maint-pop-bin" style="font-size:0.8rem;color:var(--text);margin:0.5rem 0 0.6rem;padding:0.45rem 0.6rem;background:var(--bg-card);border:1px dashed var(--border);border-radius:8px"><span style="color:var(--text-dim)">Type what you need above and the bin gets checked.</span></div>'
+      +   '<div style="font-size:0.72rem;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-dim);margin-bottom:0.35rem">Not in the bin? Order one</div>'
       +   _favRow(MAINT.PREF_DEALERS, 'maint-pop-dealer', 'Any dealer')
       +   '<div style="display:flex;gap:0.4rem;margin-top:0.5rem;flex-wrap:wrap">'
-      +     '<input id="maint-pop-part" placeholder="part number / description" style="' + IN + '">'
       +     '<button onclick="_maintPopSearch()" style="' + linkBtn + '">Search →</button>'
       +     '<button onclick="_maintPopAddWanted(\'' + _esc(taskId) + '\')" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #e67e22;background:var(--bg-card);background:color-mix(in srgb, rgb(230,126,34) 10%, var(--bg-card));color:#e67e22;font-family:var(--font-body);font-size:0.82rem;cursor:pointer;font-weight:600">+ Add to Parts Wanted</button>'
       +   '</div>'
@@ -2104,6 +2107,7 @@
       + '</div>'
       + '</div></div>';
     document.body.insertAdjacentHTML('beforeend', html);
+    if (!state.partsBin) _loadBin();
     var pi = document.getElementById('maint-pop-part'); if (pi) pi.focus();
   };
   window._maintPopSearch = function () {
@@ -2133,6 +2137,202 @@
       if (typeof showToast === 'function') showToast('✓ Added to Parts Wanted — linked to this task');
     } catch (e) { if (typeof showToast === 'function') showToast('Could not save the part — ' + (e && e.message || 'try again'), 4000, true); }
   };
+
+  // ════════════════════════════════════════════════════════════════
+  //  PHASE 4 (v0.9.1667): THE PARTS BIN — parts you own that belong to
+  //  no item yet (the ten e-units from the show table). Personal tab
+  //  "Parts Bin" (reserved in app-data.js the same commit). Using one
+  //  on a task decrements the bin and writes a Parts Needed row in the
+  //  BOUGHT state linked to the task — the phase-2 lifecycle takes it
+  //  from there.
+  // ════════════════════════════════════════════════════════════════
+  var BIN_TAB = 'Parts Bin';
+  async function _ensureBinTab() {
+    try {
+      var meta = await (await fetch('https://sheets.googleapis.com/v4/spreadsheets/' + state.personalSheetId + '?fields=sheets.properties',
+        { headers: { Authorization: 'Bearer ' + accessToken } })).json();
+      if ((meta.sheets || []).some(function (sh) { return sh.properties && sh.properties.title === BIN_TAB; })) return true;
+      await fetch('https://sheets.googleapis.com/v4/spreadsheets/' + state.personalSheetId + ':batchUpdate', {
+        method: 'POST', headers: { Authorization: 'Bearer ' + accessToken, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ requests: [{ addSheet: { properties: { title: BIN_TAB, tabColor: { red: 0.55, green: 0.35, blue: 0.15 } } } }] })
+      });
+      await sheetsUpdate(state.personalSheetId, BIN_TAB + '!A1:M1',
+        [['Bin ID', 'Part Number', 'Description', 'Quantity', 'Where Acquired', 'Date Acquired', 'Price Paid', 'Photo Link', 'Topics', 'For Sale', 'Asking Price', 'Notes', 'Date Added']]);
+      return true;
+    } catch (e) { console.warn('[Bin] ensure failed', e && e.message); return false; }
+  }
+  async function _loadBin() {
+    try {
+      if (!(await _ensureBinTab())) return;
+      var res = await sheetsGet(state.personalSheetId, BIN_TAB + '!A2:M').catch(function () { return { values: [] }; });
+      state.partsBin = (res.values || []).map(function (r, i) {
+        var g = function (j) { return (r[j] != null) ? String(r[j]) : ''; };
+        return { row: i + 2, id: g(0), partNum: g(1), desc: g(2), qty: parseInt(g(3), 10) || 0, where: g(4), dateAcq: g(5),
+                 price: g(6), photo: g(7), topics: g(8), forSale: /^(yes|true|1)$/i.test(g(9)), asking: g(10), notes: g(11), date: g(12) };
+      }).filter(function (b) { return b.id; });
+    } catch (e) { state.partsBin = state.partsBin || []; }
+  }
+  function _binSearch(text) {
+    var q = String(text || '').toLowerCase().replace(/[^a-z0-9 ]/g, ' ').split(/\s+/).filter(function (w) { return w.length >= 2; });
+    return (state.partsBin || []).filter(function (b) {
+      if (b.qty <= 0) return false;
+      var hay = (b.partNum + ' ' + b.desc + ' ' + b.topics).toLowerCase();
+      return q.length && q.some(function (w) { return hay.indexOf(w) >= 0; });
+    });
+  }
+
+  window._maintBinForm = function (existing) {
+    var old = document.getElementById('bin-form'); if (old) old.remove();
+    existing = existing || {};
+    var IN = 'width:100%;box-sizing:border-box;padding:0.5rem 0.65rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.88rem;margin-bottom:0.6rem';
+    var LB = 'font-size:0.72rem;color:var(--text-dim);display:block;margin-bottom:0.2rem;text-transform:uppercase;letter-spacing:0.05em';
+    var html = '<div id="bin-form" style="position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9700;display:flex;align-items:flex-start;justify-content:center;overflow-y:auto;padding:2rem 1rem">'
+      + '<div style="background:var(--bg-card);border:1px solid var(--border);border-radius:16px;max-width:480px;width:100%;padding:1.2rem 1.3rem;margin-bottom:2rem">'
+      + '<div style="font-family:var(--font-head);font-weight:700;color:var(--text);margin-bottom:0.8rem">🧰 ' + (existing.id ? 'Edit bin part' : 'Add to the Parts Bin') + '</div>'
+      + '<label style="' + LB + '">Description *</label><input id="binf-desc" type="text" value="' + _esc(existing.desc || '') + '" placeholder="e.g. postwar 3-position e-unit" style="' + IN + '">'
+      + '<label style="' + LB + '">Part number (if known)</label><input id="binf-num" type="text" value="' + _esc(existing.partNum || '') + '" style="' + IN + ';font-family:var(--font-mono)">'
+      + '<div style="display:flex;gap:0.6rem"><div style="flex:1"><label style="' + LB + '">Quantity *</label><input id="binf-qty" type="number" min="0" value="' + _esc(String(existing.qty != null ? existing.qty : 1)) + '" style="' + IN + '"></div>'
+      + '<div style="flex:1"><label style="' + LB + '">Price paid (total)</label><input id="binf-price" type="text" value="' + _esc(existing.price || '') + '" placeholder="e.g. 40" style="' + IN + '"></div></div>'
+      + '<div style="display:flex;gap:0.6rem"><div style="flex:2"><label style="' + LB + '">Where acquired</label><input id="binf-where" type="text" value="' + _esc(existing.where || '') + '" placeholder="e.g. York show, table 41" style="' + IN + '"></div>'
+      + '<div style="flex:1"><label style="' + LB + '">Date</label><input id="binf-date" type="date" value="' + _esc(existing.dateAcq || '') + '" style="' + IN + '"></div></div>'
+      + '<label style="' + LB + '">Topics (e.g. e-unit, traction tire)</label><input id="binf-topics" type="text" value="' + _esc(existing.topics || '') + '" style="' + IN + '">'
+      + '<label style="' + LB + '">Notes</label><input id="binf-notes" type="text" value="' + _esc(existing.notes || '') + '" style="' + IN + '">'
+      + '<div style="display:flex;gap:0.6rem;align-items:center;margin-bottom:0.6rem"><label style="display:flex;align-items:center;gap:0.35rem;font-size:0.85rem;color:var(--text)"><input id="binf-sale" type="checkbox" ' + (existing.forSale ? 'checked' : '') + '> For sale</label>'
+      + '<input id="binf-asking" type="text" value="' + _esc(existing.asking || '') + '" placeholder="asking price" style="' + IN + ';margin:0;flex:1"></div>'
+      + (existing.id ? '' : '<label style="' + LB + '">Photo (optional — the baggie IS the record)</label><input id="binf-photo" type="file" accept="image/*" style="margin-bottom:0.7rem;font-size:0.8rem;color:var(--text)">')
+      + '<div style="display:flex;gap:0.6rem;margin-top:0.3rem">'
+      + '<button onclick="document.getElementById(\'bin-form\').remove()" style="flex:1;padding:0.6rem;border-radius:8px;border:1px solid var(--border);background:none;color:var(--text-dim);font-family:var(--font-body);cursor:pointer">Cancel</button>'
+      + '<button id="binf-save" style="flex:2;padding:0.6rem;border-radius:8px;border:none;background:#16a085;color:#fff;font-family:var(--font-body);font-weight:700;cursor:pointer">' + (existing.id ? 'Save changes' : 'Add to bin') + '</button>'
+      + '</div></div></div>';
+    document.body.insertAdjacentHTML('beforeend', html);
+    if (window.BackStack && BackStack.wire) BackStack.wire(document.getElementById('bin-form'));
+    document.getElementById('binf-save').onclick = async function () {
+      var g = function (id) { var el = document.getElementById(id); return el ? String(el.value || '').trim() : ''; };
+      var desc = g('binf-desc'), num = g('binf-num'), qty = parseInt(g('binf-qty'), 10);
+      if (!desc && !num) { if (typeof showToast === 'function') showToast('Describe the part (or give its number).', 3000, true); return; }
+      if (isNaN(qty) || qty < 0) { if (typeof showToast === 'function') showToast('Quantity needs a number.', 3000, true); return; }
+      var btn = this; btn.disabled = true; btn.textContent = 'Saving…';
+      try {
+        if (!(await _ensureBinTab())) throw new Error('bin tab unavailable');
+        var _t = function (v) { v = String(v || ''); return v && v.charAt(0) !== "'" ? "'" + v : v; };
+        var photo = existing.photo || '';
+        var pf = document.getElementById('binf-photo');
+        if (pf && pf.files && pf.files[0]) {
+          await driveEnsureSetup();
+          var folder = await driveFindOrCreateFolder('Parts', driveCache.photosId);
+          var up = await driveUploadPhoto(pf.files[0], 'bin-' + Date.now() + '.jpg', folder);
+          if (up && up.id) photo = 'https://drive.google.com/file/d/' + up.id + '/view';
+        }
+        var sale = document.getElementById('binf-sale'); var forSale = sale && sale.checked ? 'Yes' : '';
+        var row = [_t(existing.id || ('bin-' + Date.now())), _t(num), desc, String(qty), g('binf-where'), g('binf-date'), g('binf-price'), photo, g('binf-topics'), forSale, g('binf-asking'), g('binf-notes'), existing.date || new Date().toISOString().split('T')[0]];
+        if (existing.id) {
+          if (!(await rrVerifiedRowUpdate(state.personalSheetId, BIN_TAB, existing.row, BIN_TAB + '!A' + existing.row + ':M' + existing.row, [row], { num: existing.id }, 'Parts Bin'))) { btn.disabled = false; btn.textContent = 'Save changes'; return; }
+        } else {
+          await sheetsAppend(state.personalSheetId, BIN_TAB + '!A:M', [row]);
+        }
+        await _loadBin();
+        var f = document.getElementById('bin-form'); if (f) f.remove();
+        _binBuild();
+        if (typeof showToast === 'function') showToast('✓ Parts Bin updated');
+      } catch (e) {
+        btn.disabled = false; btn.textContent = existing.id ? 'Save changes' : 'Add to bin';
+        if (typeof showToast === 'function') showToast('Could not save — ' + (e && e.message || 'try again'), 4000, true);
+      }
+    };
+    var first = document.getElementById('binf-desc'); if (first) first.focus();
+  };
+  window._maintBinEdit = function (id) {
+    var b = (state.partsBin || []).find(function (x) { return x.id === id; });
+    if (b) window._maintBinForm(b);
+  };
+  window._maintBinQty = async function (id, delta) {
+    var b = (state.partsBin || []).find(function (x) { return x.id === id; });
+    if (!b) return;
+    var q = Math.max(0, (b.qty || 0) + delta);
+    try {
+      if (!(await rrVerifiedRowUpdate(state.personalSheetId, BIN_TAB, b.row, BIN_TAB + '!D' + b.row, [[String(q)]], { num: b.id }, 'Parts Bin'))) return;
+      b.qty = q; _binBuild();
+    } catch (e) { if (typeof showToast === 'function') showToast('Could not update the quantity', 3500, true); }
+  };
+  window._maintBinRemove = async function (id) {
+    var b = (state.partsBin || []).find(function (x) { return x.id === id; });
+    if (!b || !confirm('Remove "' + (b.desc || b.partNum) + '" from your Parts Bin?')) return;
+    try {
+      if (typeof rrRemoveRowConfirmed === 'function') {
+        if (!(await rrRemoveRowConfirmed(state.personalSheetId, BIN_TAB, b.row, BIN_TAB + '!A' + b.row + ':M' + b.row, [['', '', '', '', '', '', '', '', '', '', '', '', '']], { num: b.id }, 'Parts Bin'))) return;
+      } else {
+        if (!(await rrVerifiedRowUpdate(state.personalSheetId, BIN_TAB, b.row, BIN_TAB + '!A' + b.row + ':M' + b.row, [['', '', '', '', '', '', '', '', '', '', '', '', '']], { num: b.id }, 'Parts Bin'))) return;
+      }
+      await _loadBin(); _binBuild();
+    } catch (e) { if (typeof showToast === 'function') showToast('Could not remove it', 3500, true); }
+  };
+
+  // use one from the bin on a task: decrement + a BOUGHT Parts Needed row linked to the task
+  window._maintBinUse = async function (binId, taskId) {
+    var b = (state.partsBin || []).find(function (x) { return x.id === binId; });
+    if (!b || !_panelItem) return;
+    try {
+      if (!(await rrVerifiedRowUpdate(state.personalSheetId, BIN_TAB, b.row, BIN_TAB + '!D' + b.row, [[String(Math.max(0, b.qty - 1))]], { num: b.id }, 'Parts Bin'))) return;
+      b.qty = Math.max(0, b.qty - 1);
+      if (typeof _ensurePartsTab === 'function') await _ensurePartsTab();
+      if (typeof _ensurePartsLifecycleCols === 'function') await _ensurePartsLifecycleCols();
+      var _t = function (v) { v = String(v || ''); return v && v.charAt(0) !== "'" ? "'" + v : v; };
+      var today = new Date().toISOString().split('T')[0];
+      var row = [_t('part-' + Date.now()), b.desc, _t(b.partNum), _t(String(_panelItem.itemNum || '')), _t(window._maintPanelInvId || ''),
+                 b.photo || '', 'from Parts Bin' + (b.where ? ' (' + b.where + ')' : ''), today,
+                 'bought', b.dateAcq || today, '', b.price || '', _t(taskId || '')];
+      await sheetsAppend(state.personalSheetId, 'Parts Needed!A:M', [row]);
+      if (typeof buildPartsPage === 'function') await buildPartsPage();
+      var pop = document.getElementById('maint-parts-pop'); if (pop) pop.remove();
+      _maintRenderTasks(); _wbBadge();
+      if (typeof showToast === 'function') showToast('✓ Pulled one from the bin — it’s on the task, ready to install');
+    } catch (e) { if (typeof showToast === 'function') showToast('Could not use the bin part — ' + (e && e.message || 'try again'), 4000, true); }
+  };
+  window._maintBinCheck = function (taskId) {
+    var el = document.getElementById('maint-pop-bin'); if (!el) return;
+    var q = (document.getElementById('maint-pop-part') || {}).value || '';
+    var render = function () {
+      var hits = _binSearch(q);
+      if (!q.trim()) { el.innerHTML = '<span style="color:var(--text-dim)">Type what you need above and the bin gets checked.</span>'; return; }
+      if (!hits.length) { el.innerHTML = '<span style="color:var(--text-dim)">Nothing matching in your bin' + ((state.partsBin || []).length ? '' : ' (it’s empty)') + ' — order one below.</span>'; return; }
+      el.innerHTML = hits.map(function (b) {
+        return '<div style="display:flex;justify-content:space-between;align-items:center;gap:0.5rem;padding:0.3rem 0;border-bottom:1px solid var(--border)">'
+          + '<div>🧰 <b>' + _esc(b.desc || b.partNum) + '</b>' + (b.partNum && b.desc ? ' <span style="font-family:var(--font-mono);color:var(--accent2)">#' + _esc(b.partNum) + '</span>' : '') + ' <span style="color:var(--text-dim)">×' + b.qty + (b.where ? ' · ' + _esc(b.where) : '') + '</span></div>'
+          + '<button onclick="_maintBinUse(\'' + _esc(b.id) + '\',\'' + _esc(taskId) + '\')" style="padding:0.3rem 0.65rem;border-radius:7px;border:1.5px solid #2ecc71;background:var(--bg-card);background:color-mix(in srgb, rgb(46,204,113) 10%, var(--bg-card));color:#2ecc71;font-size:0.75rem;cursor:pointer;font-weight:600">Use one</button>'
+          + '</div>';
+      }).join('');
+    };
+    if (state.partsBin) render(); else _loadBin().then(render);
+  };
+
+  function _binBuild() {
+    var pg = document.getElementById('page-partsbin');
+    if (!pg) return;
+    var bin = (state.partsBin || []).slice().sort(function (a, b) { return (b.date || '').localeCompare(a.date || ''); });
+    var head = '<div class="page-title" style="display:flex;align-items:center;justify-content:space-between;gap:0.5rem"><span>🧰 Parts Bin</span>'
+      + '<button onclick="_maintBinForm()" class="btn" style="border:1.5px solid var(--accent);color:var(--accent);background:var(--bg-card);background:color-mix(in srgb, var(--accent) 10%, var(--bg-card));font-weight:600;font-size:0.78rem;padding:0.45rem 0.65rem">+ Add parts</button></div>'
+      + '<div style="font-size:0.82rem;color:var(--text-dim);margin-bottom:0.85rem">Parts you own that aren’t on a train yet — show-table finds, spares, the drawer. Need-a-part checks here first.</div>';
+    if (!bin.length) { pg.innerHTML = head + '<div style="text-align:center;padding:3rem 1rem;color:var(--text-dim)"><div style="font-size:2.5rem;margin-bottom:0.5rem">🧰</div><p>The bin is empty.</p><p style="font-size:0.8rem;margin-top:0.4rem">Bought an assortment at a show? Add it here with a quantity.</p></div>'; return; }
+    var small = 'padding:0.3rem 0.6rem;border-radius:7px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:0.75rem;cursor:pointer';
+    pg.innerHTML = head + bin.map(function (b) {
+      return '<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:0.8rem 1rem;margin-bottom:0.6rem;display:flex;gap:0.7rem;align-items:flex-start;flex-wrap:wrap">'
+        + (b.photo ? '<a href="' + _esc(b.photo) + '" target="_blank" rel="noopener" style="flex-shrink:0;font-size:1.4rem;text-decoration:none">🖼️</a>' : '')
+        + '<div style="flex:1;min-width:200px">'
+        +   '<div style="font-weight:700;color:var(--text)">' + _esc(b.desc || b.partNum) + (b.partNum && b.desc ? ' <span style="font-family:var(--font-mono);color:var(--accent2);font-weight:400">#' + _esc(b.partNum) + '</span>' : '') + '</div>'
+        +   '<div style="font-size:0.78rem;color:var(--text-dim);margin-top:0.15rem">' + [b.where, b.dateAcq, b.price ? 'paid ' + b.price : '', b.topics ? '[' + b.topics + ']' : ''].filter(Boolean).map(_esc).join(' · ') + '</div>'
+        +   (b.notes ? '<div style="font-size:0.76rem;color:var(--text-dim)">' + _esc(b.notes) + '</div>' : '')
+        +   (b.forSale ? '<div style="font-size:0.74rem;color:#e67e22;margin-top:0.15rem">🏷️ For sale' + (b.asking ? ' — asking ' + _esc(b.asking) : '') + '</div>' : '')
+        + '</div>'
+        + '<div style="display:flex;gap:0.35rem;align-items:center;flex-wrap:wrap">'
+        +   '<button onclick="_maintBinQty(\'' + _esc(b.id) + '\',-1)" style="' + small + '">−</button>'
+        +   '<span style="min-width:2.2rem;text-align:center;font-weight:700;color:var(--text)">×' + b.qty + '</span>'
+        +   '<button onclick="_maintBinQty(\'' + _esc(b.id) + '\',1)" style="' + small + '">+</button>'
+        +   '<button onclick="_maintBinEdit(\'' + _esc(b.id) + '\')" style="' + small + '">Edit</button>'
+        +   '<button onclick="_maintBinRemove(\'' + _esc(b.id) + '\')" style="' + small + ';color:#e74c3c">Remove</button>'
+        + '</div></div>';
+    }).join('');
+  }
+  window._binBuild = _binBuild;
 
   function _wbBuild() {
     var pg = document.getElementById('page-workbench');
@@ -2189,6 +2389,20 @@
       if (ymBtn) homeSection.insertBefore(btn, ymBtn);
       else if (refreshBtn) homeSection.insertBefore(btn, refreshBtn);
       else homeSection.appendChild(btn);
+    }
+    if (!document.getElementById('page-partsbin')) {
+      var pg2 = document.createElement('div');
+      pg2.className = 'page'; pg2.id = 'page-partsbin';
+      main.appendChild(pg2);
+    }
+    if (!document.getElementById('nav-partsbin-btn')) {
+      var wbBtn = document.getElementById('nav-workbench-btn');
+      var btn2 = document.createElement('button');
+      btn2.className = 'nav-item'; btn2.id = 'nav-partsbin-btn';
+      btn2.setAttribute('data-ctip', 'Parts you own that aren’t on a train yet. Need-a-part checks here first.');
+      btn2.onclick = function () { showPage('partsbin', this); _loadBin().then(_binBuild); _binBuild(); };
+      btn2.innerHTML = '<span style="width:17px;text-align:center;flex-shrink:0">🧰</span>Parts Bin';
+      if (wbBtn && wbBtn.parentElement) wbBtn.parentElement.insertBefore(btn2, wbBtn.nextSibling);
     }
     _loadLog().then(_wbBadge);
     return true;
