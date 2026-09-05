@@ -54,7 +54,7 @@
   // ── Vault reads: one batchGet, owner token ─────────────────────
   function _fetchVault() {
     var ranges = ['submissions!A1:L1000', 'barcode_pairs!A1:I1000', 'chores!A1:D200', 'usage!A1:C400',
-                  'crawl_batches!A1:G50', 'crawl_deltas!A1:X4000']   // v0.9.1683: image_url is column R; v0.9.1685: var_desc/sub_type/notes/category after it — all found BY HEADER
+                  'crawl_batches!A1:G50', 'crawl_deltas!A1:X12000']   // v0.9.1683: image_url is column R; v0.9.1685: var_desc/sub_type/notes/category after it — all found BY HEADER. v0.9.1687: 4000 → 12000 rows (the two Greenberg transcriptions alone are 6,455 deltas)
       .map(function (r) { return 'ranges=' + encodeURIComponent(r); }).join('&');
     return fetch('https://sheets.googleapis.com/v4/spreadsheets/' + YM.VAULT_ID
         + '/values:batchGet?' + ranges,
