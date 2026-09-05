@@ -73,6 +73,10 @@
       + (closeJs ? '<button class="btn-close" onclick="' + closeJs + '" aria-label="Close">&#x2715;</button>' : '')
       + '</div>';
   }
+  // v0.9.1679 (Brad: "match all the desktop only screens to the maintenance
+  // box size"): the Workbench and Parts Bin pages sit in ONE wrapper that
+  // shares the maintenance box's desktop zoom rule (.rr-desk-zoom, app.css).
+  function _dz(html) { return '<div class="rr-desk-zoom">' + html + '</div>'; }
   function _cardFoot(inner) { return '<div style="display:flex;gap:0.75rem;justify-content:flex-end;padding-top:1rem;margin-top:0.5rem;border-top:1px solid var(--border)">' + inner + '</div>'; }
 
   // ── favorites (per-device prefs) ─────────────────────────────
@@ -2448,9 +2452,9 @@
     var head = '<div class="page-title" style="display:flex;align-items:center;justify-content:space-between;gap:0.5rem"><span>Parts Bin</span>'
       + '<button onclick="_maintBinForm()" class="btn" style="border:1.5px solid var(--accent);color:var(--accent);background:var(--bg-card);background:color-mix(in srgb, var(--accent) 10%, var(--bg-card));font-weight:600;font-size:0.78rem;padding:0.45rem 0.65rem">+ Add parts</button></div>'
       + '<div style="font-size:0.82rem;color:var(--text-dim);margin-bottom:0.85rem">Parts you own that aren’t on a train yet — show-table finds, spares, the drawer. Need-a-part checks here first.</div>';
-    if (!bin.length) { pg.innerHTML = head + '<div style="text-align:center;padding:3rem 1rem;color:var(--text-dim)"><p>The bin is empty.</p><p style="font-size:0.8rem;margin-top:0.4rem">Bought an assortment at a show? Add it here with a quantity.</p></div>'; return; }
+    if (!bin.length) { pg.innerHTML = _dz(head + '<div style="text-align:center;padding:3rem 1rem;color:var(--text-dim)"><p>The bin is empty.</p><p style="font-size:0.8rem;margin-top:0.4rem">Bought an assortment at a show? Add it here with a quantity.</p></div>'); return; }
     var small = _btnQuiet('sm');
-    pg.innerHTML = head + bin.map(function (b) {
+    pg.innerHTML = _dz(head + bin.map(function (b) {
       return '<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:0.8rem 1rem;margin-bottom:0.6rem;display:flex;gap:0.7rem;align-items:flex-start;flex-wrap:wrap">'
         + (b.photo ? '<a href="' + _esc(b.photo) + '" target="_blank" rel="noopener" style="flex-shrink:0;font-size:0.76rem;color:var(--accent2);text-decoration:none;border:1px solid var(--border);border-radius:6px;padding:0.2rem 0.45rem">photo</a>' : '')
         + '<div style="flex:1;min-width:200px">'
@@ -2466,7 +2470,7 @@
         +   '<button onclick="_maintBinEdit(\'' + _esc(b.id) + '\')" ' + _btn('blue', 'sm') + '>Edit</button>'
         +   '<button onclick="_maintBinRemove(\'' + _esc(b.id) + '\')" ' + _btn('red', 'sm') + '>Remove</button>'
         + '</div></div>';
-    }).join('');
+    }).join(''));
   }
   window._binBuild = _binBuild;
 
@@ -2696,20 +2700,20 @@
       + '<button class="eph-tab' + (_wbTabName === 'toolbox' ? ' active' : '') + '" onclick="_wbTab(\'toolbox\')" data-ctip="Your personalized maintenance manual — every manual, diagram, picture and video you saved, filterable by topic, type or item.">Toolbox' + (docsN ? ' · ' + docsN : '') + '</button>'
       + '</div>';
     if (_wbTabName === 'toolbox') {
-      pg.innerHTML = '<div class="page-title">The Workbench</div>' + tabs + '<div id="wb-toolbox"></div>';
+      pg.innerHTML = _dz('<div class="page-title">The Workbench</div>' + tabs + '<div id="wb-toolbox"></div>');
       _tbRender();
       return;
     }
     var head = '<div class="page-title">The Workbench</div>' + tabs
       + '<div style="font-size:0.82rem;color:var(--text-dim);margin-bottom:0.85rem">Everything that needs a wrench. Click a row to open its card.</div>';
     if (!rows.length) {
-      pg.innerHTML = head + '<div style="text-align:center;padding:3rem 1rem;color:var(--text-dim)"><p>Nothing on the bench.</p><p style="font-size:0.8rem;margin-top:0.4rem">Add a task from any item’s Maintenance panel.</p></div>';
+      pg.innerHTML = _dz(head + '<div style="text-align:center;padding:3rem 1rem;color:var(--text-dim)"><p>Nothing on the bench.</p><p style="font-size:0.8rem;margin-top:0.4rem">Add a task from any item’s Maintenance panel.</p></div>');
       return;
     }
     rows.sort(function (a, b) { return String(a.itemNum).localeCompare(String(b.itemNum), undefined, { numeric: true }) || (a.since || '').localeCompare(b.since || ''); });
     var th = 'text-align:left;font-family:var(--font-head);font-size:0.7rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-dim);padding:0.5rem 0.75rem;border-bottom:1px solid var(--border)';
     var td = 'padding:0.6rem 0.75rem;border-bottom:1px solid var(--border);font-size:0.9rem;color:var(--text);vertical-align:top';
-    pg.innerHTML = head
+    pg.innerHTML = _dz(head
       + '<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;overflow:hidden">'
       + '<table style="width:100%;border-collapse:collapse"><thead><tr><th style="' + th + '">Item</th><th style="' + th + '">Needs</th><th style="' + th + '">Part</th><th style="' + th + '">Since</th></tr></thead><tbody>'
       + rows.map(function (r) {
@@ -2722,7 +2726,7 @@
             + '<td style="' + td + ';color:var(--text-dim);white-space:nowrap">' + _esc(r.since || '') + '</td>'
             + '</tr>';
         }).join('')
-      + '</tbody></table></div>';
+      + '</tbody></table></div>');
   }
   // click a Workbench row -> that item's Maintenance card, straight to Work on it
   window._wbOpen = function (invId, itemNum) {

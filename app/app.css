@@ -2724,7 +2724,22 @@ html[data-theme="high-contrast"] button[style*="#e74c3c"] {
 /* v0.9.1671 (Brad): EVERY maintenance screen (panel, Need-a-part popup,
    save-doc form, service history, bin form) shares .maint-card and the
    same scale — the average of the 2x panel and the 1x popup he compared.
-   zoom scales text AND box together; phones stay 1x. */
-.maint-card { zoom: 1; }
-@media (min-width: 1000px) and (max-width: 1399px) { .maint-card { zoom: 1.25; } }
-@media (min-width: 1400px) { .maint-card { zoom: 1.5; } }
+   zoom scales text AND box together; phones stay 1x.
+   v0.9.1679 (Brad: "match all the desktop only screens to the maintenance
+   box size" + "the add pages need to be upsized as well"): ONE rule now
+   covers the maintenance pop-ups, the Workbench / Toolbox / Parts Bin
+   pages (.rr-desk-zoom wrapper, maintenance.js _dz()) and the ADD wizard
+   (#wizard-modal .modal). zoom multiplies viewport units too — measured:
+   a 92dvh modal at zoom 1.5 is 138% of the window and its NEXT button is
+   off-screen — so the wizard's max-height is divided back by the same
+   factor. Change the factor in ONE place: both lines of each block. */
+.maint-card, .rr-desk-zoom { zoom: 1; }
+.rr-desk-zoom { display: flex; flex-direction: column; gap: 1.25rem; }
+@media (min-width: 1000px) and (max-width: 1399px) {
+  .maint-card, .rr-desk-zoom, #wizard-modal .modal { zoom: 1.25; }
+  #wizard-modal .modal { max-height: calc(92dvh / 1.25); }
+}
+@media (min-width: 1400px) {
+  .maint-card, .rr-desk-zoom, #wizard-modal .modal { zoom: 1.5; }
+  #wizard-modal .modal { max-height: calc(92dvh / 1.5); }
+}
