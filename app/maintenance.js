@@ -1670,10 +1670,14 @@
     try {
       if (!(await _ensureDocsTab())) return;
       var res = await sheetsGet(state.personalSheetId, DOCS_TAB + '!A2:H').catch(function () { return { values: [] }; });
-      state.myManuals = (res.values || []).filter(function (r) { return r[0]; }).map(function (r, i) {
+      // v0.9.1674: map THEN filter — the row number is the sheet position,
+      // so a blanked (removed) row in the middle must still count. Filter-
+      // then-map numbered every doc below a blank one row too high, and the
+      // guarded writer would then refuse every edit ("changed somewhere else").
+      state.myManuals = (res.values || []).map(function (r, i) {
         var g = function (j) { return (r[j] != null) ? String(r[j]) : ''; };
         return { row: i + 2, id: g(0), title: g(1), type: g(2), url: g(3), covers: g(4), topics: g(5), notes: g(6), date: _isoDate(g(7)) };
-      });
+      }).filter(function (d) { return d.id; });
     } catch (e) { state.myManuals = state.myManuals || []; }
   }
   function _docCovers(item) {
@@ -1717,7 +1721,12 @@
   // v0.9.1656 (Brad: the prompt boxes VANISH when you switch windows to
   // copy something): one persistent FORM instead of a prompt chain. It
   // stays open across window switches; nothing saves until Save.
-  function _docForm(type, fixedUrl, pendingFile, presetTopic) {
+  function _docForm(type, fixedUrl, pendingFile, presetTopic, opts) {
+    // v0.9.1674 (bite 3): opts.general = saving from the Toolbox with no
+    // item in hand — Covers is optional there (a lube guide fits everything),
+    // so a topic OR an item number is required instead, else it could never
+    // be found again.
+    var general = !!(opts && opts.general);
     var old = document.getElementById('maint-docform'); if (old) old.remove();
     var IN = 'width:100%;box-sizing:border-box;padding:0.5rem 0.65rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.88rem;margin-bottom:0.7rem';
     var LB = 'font-size:0.72rem;color:var(--text-dim);display:block;margin-bottom:0.2rem;text-transform:uppercase;letter-spacing:0.05em';
@@ -1728,8 +1737,8 @@
           ? '<label style="' + LB + '">' + (type === 'video' ? 'YouTube link (paste it)' : 'Link (paste it — switch windows all you like, this form waits)') + '</label><input id="docf-url" type="text" placeholder="https://…" style="' + IN + '">'
           : '<div style="font-size:0.82rem;color:var(--text);margin-bottom:0.7rem">' + _esc(pendingFile && pendingFile.name || 'File') + ' chosen ✓ — it uploads when you hit Save.</div>')
       + '<label style="' + LB + '">Name</label><input id="docf-title" type="text" placeholder="e.g. Vulcan switcher service pages" style="' + IN + '">'
-      + '<label style="' + LB + '">Covers (item numbers, comma-separated)</label><input id="docf-covers" type="text" value="' + _esc(_suggestCovers(_panelItem)) + '" style="' + IN + '">'
-      + '<label style="' + LB + '">Topics (e.g. traction tire, e-unit — optional)</label><input id="docf-topics" type="text" value="' + _esc(presetTopic || '') + '" style="' + IN + '">'
+      + '<label style="' + LB + '">Covers (item numbers, comma-separated' + (general ? ' — optional' : '') + ')</label><input id="docf-covers" type="text" value="' + _esc(general ? '' : _suggestCovers(_panelItem)) + '" placeholder="' + (general ? 'leave blank if it applies to everything' : '') + '" style="' + IN + '">'
+      + '<label style="' + LB + '">Topics (e.g. traction tire, e-unit' + (general ? '' : ' — optional') + ')</label><input id="docf-topics" type="text" value="' + _esc(presetTopic || '') + '" placeholder="' + (general ? 'what is it about? — this is how the Toolbox finds it' : '') + '" style="' + IN + '">'
       + '<div style="display:flex;gap:0.6rem;margin-top:0.3rem">'
       + '<button onclick="document.getElementById(\'maint-docform\').remove()" style="flex:1;padding:0.6rem;border-radius:8px;border:1px solid var(--border);background:none;color:var(--text-dim);font-family:var(--font-body);cursor:pointer">Cancel</button>'
       + '<button id="docf-save" style="flex:2;padding:0.6rem;border-radius:8px;border:none;background:#16a085;color:#fff;font-family:var(--font-body);font-weight:700;cursor:pointer">Save to My Manuals</button>'
@@ -1744,9 +1753,10 @@
         if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
       }
       var covers = g('docf-covers');
-      if (!covers) { if (typeof showToast === 'function') showToast('Covers is empty — at least this item\u2019s number.', 3000, true); return; }
-      var title = g('docf-title') || (type === 'picture' ? 'Saved diagram' : url.replace(/^https?:\/\//, '').slice(0, 60));
       var topics = g('docf-topics');
+      if (!covers && !general) { if (typeof showToast === 'function') showToast('Covers is empty — at least this item\u2019s number.', 3000, true); return; }
+      if (!covers && !topics) { if (typeof showToast === 'function') showToast('Give it a topic or an item number so the Toolbox can find it again.', 3500, true); return; }
+      var title = g('docf-title') || (type === 'picture' ? 'Saved diagram' : url.replace(/^https?:\/\//, '').slice(0, 60));
       var btn = this; btn.disabled = true; btn.textContent = 'Saving…';
       try {
         if (pendingFile) {
@@ -1764,6 +1774,7 @@
         state.myManuals = null;
         var f = document.getElementById('maint-docform'); if (f) f.remove();
         _maintRenderMyDocs();
+        _tbRefresh();   // v0.9.1674: the Toolbox, if it is on screen, shows the new one
         if (typeof showToast === 'function') showToast('✓ Saved to My Manuals');
       } catch (e) {
         btn.disabled = false; btn.textContent = 'Save to My Manuals';
@@ -1778,13 +1789,13 @@
     var part = document.getElementById('maint-yt-part');
     _docForm('video', null, null, part ? String(part.value || '').trim() : '');
   };
-  function _pickFile(accept, type) {
-    if (!_panelItem) return;
+  function _pickFile(accept, type, opts) {
+    if (!_panelItem && !(opts && opts.general)) return;
     var inp = document.createElement('input');
     inp.type = 'file'; inp.accept = accept;
     inp.onchange = function () {
       var f = inp.files && inp.files[0];
-      if (f) _docForm(type, null, f);
+      if (f) _docForm(type, null, f, '', opts);
     };
     inp.click();
   }
@@ -2375,6 +2386,206 @@
   }
   window._binBuild = _binBuild;
 
+  // ════════════════════════════════════════════════════════════════
+  //  BITE 3 (v0.9.1674): THE TOOLBOX — the Workbench's second tab.
+  //  Brad: "even if we are not on a specific item, i can look in my
+  //  toolbox, and filter traction tire replacement and i can see all the
+  //  links and videos that were about traction tires." The whole My
+  //  Manuals library (pictures, links, documents, videos), filterable by
+  //  topic / type / item number plus a search box; click a doc to retag
+  //  it (title, type, link, covers, topics, notes) or remove it; and
+  //  general docs — a lube guide that fits everything — can be saved
+  //  right here with no item in hand. Identity is the Doc ID in column
+  //  A; the row number is looked up at write time and verified by the
+  //  guarded writer.
+  // ════════════════════════════════════════════════════════════════
+  var _wbTabName = 'bench';
+  var _tbState = { q: '', topic: '', type: '', item: '' };
+  window._wbTab = function (name) {
+    _wbTabName = (name === 'toolbox') ? 'toolbox' : 'bench';
+    _wbBuild();
+    if (_wbTabName === 'toolbox' && !state.myManuals) _loadMyDocs().then(_wbBuild);
+  };
+  function _tbRefresh() {
+    // the Toolbox is on screen → reload the library and redraw it
+    if (!document.getElementById('wb-toolbox')) return;
+    _loadMyDocs().then(_wbBuild);
+  }
+  function _tbNorm(v) { return String(v == null ? '' : v).trim().toUpperCase().replace(/[^A-Z0-9]/g, ''); }
+  function _tbSplit(v) {
+    return String(v == null ? '' : v).split(',').map(function (t) { return t.trim(); }).filter(Boolean);
+  }
+  function _tbIcon(type) { return type === 'picture' ? '🖼️' : type === 'video' ? '🎬' : type === 'document' ? '📄' : '🔗'; }
+  function _tbTopics() {
+    // every topic anyone typed, once, in a stable order
+    var seen = {}, out = [];
+    (state.myManuals || []).forEach(function (d) {
+      _tbSplit(d.topics).forEach(function (t) { var k = t.toLowerCase(); if (!seen[k]) { seen[k] = true; out.push(t); } });
+    });
+    return out.sort(function (a, b) { return a.toLowerCase().localeCompare(b.toLowerCase()); });
+  }
+  function _tbMatches(d) {
+    var st = _tbState;
+    if (st.type && d.type !== st.type) return false;
+    if (st.topic && !_tbSplit(d.topics).some(function (t) { return t.toLowerCase() === st.topic.toLowerCase(); })) return false;
+    if (st.item) {
+      var want = _tbNorm(st.item);
+      var hit = _tbSplit(d.covers).some(function (c) { var cc = _tbNorm(c); return cc === want || (want.length >= 3 && cc.indexOf(want) >= 0); });
+      if (!hit) return false;
+    }
+    if (st.q) {
+      var q = st.q.toLowerCase();
+      var hay = [d.title, d.topics, d.covers, d.notes, d.url, d.type].join(' ').toLowerCase();
+      if (hay.indexOf(q) < 0) return false;
+    }
+    return true;
+  }
+  window._tbFilter = function () {
+    var g = function (id) { var el = document.getElementById(id); return el ? String(el.value || '').trim() : ''; };
+    _tbState = { q: g('tb-q'), topic: g('tb-topic'), type: g('tb-type'), item: g('tb-item') };
+    _tbList();
+  };
+  window._tbTopic = function (topic) {
+    _tbState.topic = topic || '';
+    _tbRender();
+  };
+  window._tbClear = function () { _tbState = { q: '', topic: '', type: '', item: '' }; _tbRender(); };
+  // general saves — no item in hand, Covers optional, topic required instead
+  window._tbSaveLink = function () { _docForm('link', null, null, '', { general: true }); };
+  window._tbSaveVideo = function () { _docForm('video', null, null, '', { general: true }); };
+  window._tbSavePicture = function () { _pickFile('image/*', 'picture', { general: true }); };
+  window._tbSaveDocument = function () { _pickFile('.pdf,.doc,.docx,.txt,.rtf,.xls,.xlsx', 'document', { general: true }); };
+
+  function _tbRender() {
+    var box = document.getElementById('wb-toolbox');
+    if (!box) return;
+    if (!state.myManuals) {
+      box.innerHTML = '<div style="text-align:center;padding:2rem 1rem;color:var(--text-dim)"><div class="spinner" style="margin:0 auto 0.5rem;width:20px;height:20px;border-width:2px"></div>Loading your Toolbox…</div>';
+      return;
+    }
+    var st = _tbState;
+    var SEL = 'padding:0.45rem 0.6rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.84rem';
+    var linkBtn = 'padding:0.45rem 0.85rem;border-radius:8px;border:1.5px solid #2980b9;background:var(--bg-card);color:#2980b9;font-family:var(--font-body);font-size:0.8rem;cursor:pointer;font-weight:600';
+    var topics = _tbTopics();
+    box.innerHTML = '<div style="font-size:0.82rem;color:var(--text-dim);margin-bottom:0.85rem">Your personalized maintenance manual — everything you saved from any item, in one place. Click a title to open it, Edit to retag it.</div>'
+      + '<div style="display:flex;gap:0.4rem;flex-wrap:wrap;margin-bottom:0.9rem">'
+      +   '<button onclick="_tbSaveLink()" style="' + linkBtn + '">🔗 Save a link</button>'
+      +   '<button onclick="_tbSavePicture()" style="' + linkBtn + '">🖼️ Save a picture</button>'
+      +   '<button onclick="_tbSaveDocument()" style="' + linkBtn + '">📄 Save a document</button>'
+      +   '<button onclick="_tbSaveVideo()" style="' + linkBtn + '">🎬 Save a video</button>'
+      +   '<span style="font-size:0.72rem;color:var(--text-dim);align-self:center">General docs go here — ones for a specific item are saved from its Maintenance card.</span>'
+      + '</div>'
+      + '<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:0.8rem 1rem;margin-bottom:0.9rem;display:flex;gap:0.5rem;flex-wrap:wrap;align-items:center">'
+      +   '<input id="tb-q" type="search" placeholder="Search titles, topics, notes…" value="' + _esc(st.q) + '" oninput="_tbFilter()" style="' + SEL + ';flex:1 1 14rem;min-width:160px">'
+      +   '<select id="tb-topic" onchange="_tbFilter()" style="' + SEL + '"><option value="">All topics</option>'
+      +     topics.map(function (t) { return '<option value="' + _esc(t) + '"' + (t.toLowerCase() === st.topic.toLowerCase() ? ' selected' : '') + '>' + _esc(t) + '</option>'; }).join('')
+      +   '</select>'
+      +   '<select id="tb-type" onchange="_tbFilter()" style="' + SEL + '">'
+      +     [['', 'All types'], ['picture', '🖼️ Pictures'], ['link', '🔗 Links'], ['document', '📄 Documents'], ['video', '🎬 Videos']].map(function (o) { return '<option value="' + o[0] + '"' + (o[0] === st.type ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('')
+      +   '</select>'
+      +   '<input id="tb-item" type="text" placeholder="Item #" value="' + _esc(st.item) + '" oninput="_tbFilter()" style="' + SEL + ';width:7rem">'
+      +   '<button onclick="_tbClear()" style="padding:0.45rem 0.7rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body);font-size:0.78rem;cursor:pointer">Clear</button>'
+      + '</div>'
+      + '<div id="tb-list"></div>';
+    _tbList();
+  }
+
+  function _tbList() {
+    var el = document.getElementById('tb-list');
+    if (!el) return;
+    var all = state.myManuals || [];
+    var st = _tbState;
+    var filtered = all.filter(_tbMatches).slice().sort(function (a, b) { return (b.date || '').localeCompare(a.date || '') || (b.row - a.row); });
+    var active = !!(st.q || st.topic || st.type || st.item);
+    if (!all.length) {
+      el.innerHTML = '<div style="text-align:center;padding:3rem 1rem;color:var(--text-dim)"><div style="font-size:2.5rem;margin-bottom:0.5rem">🧰</div><p>Your Toolbox is empty.</p><p style="font-size:0.8rem;margin-top:0.4rem">Save a manual, diagram, picture or video from any item’s Maintenance card — or a general one with the buttons above.</p></div>';
+      return;
+    }
+    var count = '<div style="font-size:0.76rem;color:var(--text-dim);margin-bottom:0.5rem">' + filtered.length + ' of ' + all.length
+      + (active ? ' — filtered' + (st.topic ? ' by <b>' + _esc(st.topic) + '</b>' : '') : '') + '</div>';
+    if (!filtered.length) {
+      el.innerHTML = count + '<div style="text-align:center;padding:2rem 1rem;color:var(--text-dim)">Nothing matches — <a href="#" onclick="_tbClear();return false" style="color:var(--accent2)">clear the filters</a>.</div>';
+      return;
+    }
+    var chip = 'display:inline-block;padding:0.1rem 0.5rem;border-radius:10px;background:var(--surface2);border:1px solid var(--border);color:var(--text-dim);font-size:0.72rem;margin:0.15rem 0.25rem 0 0';
+    var topicChip = chip + ';cursor:pointer;color:var(--accent2);border-color:var(--accent2)';
+    el.innerHTML = count + '<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;overflow:hidden">'
+      + filtered.map(function (d) {
+          var covers = _tbSplit(d.covers), tps = _tbSplit(d.topics);
+          return '<div style="display:flex;gap:0.75rem;align-items:flex-start;padding:0.7rem 0.9rem;border-bottom:1px solid var(--border)">'
+            + '<div style="font-size:1.3rem;line-height:1.2;flex-shrink:0">' + _tbIcon(d.type) + '</div>'
+            + '<div style="flex:1;min-width:0">'
+            +   '<a href="' + _esc(d.url) + '" target="_blank" rel="noopener" style="color:var(--accent2);font-weight:600;text-decoration:none;font-size:0.92rem;word-break:break-word">' + _esc(d.title || 'untitled') + '</a>'
+            +   ' <span style="' + chip + '">' + _esc(d.type || 'link') + '</span>'
+            +   (d.date ? ' <span style="font-size:0.72rem;color:var(--text-dim)">' + _esc(d.date) + '</span>' : '')
+            +   '<div>'
+            +     (covers.length ? '<span style="font-size:0.72rem;color:var(--text-dim)">covers</span> ' + covers.slice(0, 12).map(function (c) { return '<span style="' + chip + '">' + _esc(c) + '</span>'; }).join('') + (covers.length > 12 ? '<span style="' + chip + '">+' + (covers.length - 12) + '</span>' : '') : '<span style="font-size:0.72rem;color:var(--text-dim)">general — fits everything</span>')
+            +     (tps.length ? ' ' + tps.map(function (t) { return '<span onclick="_tbTopic(\'' + _esc(t.replace(/\\/g, '\\\\').replace(/'/g, "\\'")) + '\')" title="Show everything about ' + _esc(t) + '" style="' + topicChip + '">' + _esc(t) + '</span>'; }).join('') : '')
+            +   '</div>'
+            +   (d.notes ? '<div style="font-size:0.78rem;color:var(--text-mid);margin-top:0.2rem">' + _esc(d.notes).slice(0, 160) + (d.notes.length > 160 ? '…' : '') + '</div>' : '')
+            + '</div>'
+            + '<button onclick="_tbEdit(\'' + _esc(d.id) + '\')" style="flex-shrink:0;padding:0.3rem 0.65rem;border-radius:7px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.74rem;cursor:pointer">Edit</button>'
+            + '</div>';
+        }).join('')
+      + '</div>';
+  }
+
+  // click Edit → retag it (title, type, link, covers, topics, notes) or remove it
+  window._tbEdit = function (docId) {
+    var d = (state.myManuals || []).find(function (x) { return x.id === docId; });
+    if (!d) return;
+    var old = document.getElementById('tb-edit'); if (old) old.remove();
+    var IN = 'width:100%;box-sizing:border-box;padding:0.5rem 0.65rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.88rem;margin-bottom:0.6rem';
+    var LB = 'font-size:0.72rem;color:var(--text-dim);display:block;margin-bottom:0.2rem;text-transform:uppercase;letter-spacing:0.05em';
+    var html = '<div id="tb-edit" style="position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9700;display:flex;align-items:flex-start;justify-content:center;overflow-y:auto;padding:2rem 1rem">'
+      + '<div class="maint-card" style="background:var(--bg-card);border:1px solid var(--border);border-radius:16px;max-width:480px;width:100%;padding:1.2rem 1.3rem;margin-bottom:2rem">'
+      + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.8rem"><div style="font-family:var(--font-head);font-weight:700;color:var(--text)">' + _tbIcon(d.type) + ' Edit — My Manuals</div>'
+      + '<button onclick="document.getElementById(\'tb-edit\').remove()" style="background:none;border:none;color:var(--text-dim);font-size:1.3rem;cursor:pointer">&times;</button></div>'
+      + '<label style="' + LB + '">Name</label><input id="tbe-title" type="text" value="' + _esc(d.title) + '" style="' + IN + '">'
+      + '<div style="display:flex;gap:0.6rem"><div style="flex:1"><label style="' + LB + '">Type</label><select id="tbe-type" style="' + IN + '">'
+      +   ['picture', 'link', 'document', 'video'].map(function (t) { return '<option value="' + t + '"' + (t === d.type ? ' selected' : '') + '>' + _tbIcon(t) + ' ' + t + '</option>'; }).join('')
+      + '</select></div></div>'
+      + '<label style="' + LB + '">Link</label><input id="tbe-url" type="text" value="' + _esc(d.url) + '" style="' + IN + '">'
+      + '<label style="' + LB + '">Covers (item numbers, comma-separated — blank = general)</label><input id="tbe-covers" type="text" value="' + _esc(d.covers) + '" style="' + IN + '">'
+      + '<label style="' + LB + '">Topics (comma-separated)</label><input id="tbe-topics" type="text" value="' + _esc(d.topics) + '" style="' + IN + '">'
+      + '<label style="' + LB + '">Notes</label><textarea id="tbe-notes" rows="3" style="' + IN + ';resize:vertical">' + _esc(d.notes || '') + '</textarea>'
+      + '<div style="display:flex;gap:0.6rem;margin-top:0.3rem">'
+      + '<button onclick="_tbRemove(\'' + _esc(d.id) + '\')" style="padding:0.6rem 0.9rem;border-radius:8px;border:1px solid var(--border);background:none;color:#e74c3c;font-family:var(--font-body);cursor:pointer">Remove</button>'
+      + '<button onclick="document.getElementById(\'tb-edit\').remove()" style="flex:1;padding:0.6rem;border-radius:8px;border:1px solid var(--border);background:none;color:var(--text-dim);font-family:var(--font-body);cursor:pointer">Cancel</button>'
+      + '<button id="tbe-save" style="flex:2;padding:0.6rem;border-radius:8px;border:none;background:#16a085;color:#fff;font-family:var(--font-body);font-weight:700;cursor:pointer">Save</button>'
+      + '</div></div></div>';
+    document.body.insertAdjacentHTML('beforeend', html);
+    if (window.BackStack && BackStack.wire) BackStack.wire(document.getElementById('tb-edit'));
+    document.getElementById('tbe-save').onclick = async function () {
+      var g = function (id) { var el = document.getElementById(id); return el ? String(el.value || '').trim() : ''; };
+      var title = g('tbe-title'), type = g('tbe-type') || d.type, url = g('tbe-url'), covers = g('tbe-covers'), topics = g('tbe-topics'), notes = g('tbe-notes');
+      if (!url) { if (typeof showToast === 'function') showToast('The link can\u2019t be empty.', 2500, true); return; }
+      if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
+      if (!covers && !topics) { if (typeof showToast === 'function') showToast('Give it a topic or an item number so the Toolbox can find it again.', 3500, true); return; }
+      var btn = this; btn.disabled = true; btn.textContent = 'Saving…';
+      try {
+        // B..G: Title, Type, URL, Covers, Topics, Notes — column A (Doc ID) is the identity the writer verifies
+        var ok = await rrVerifiedRowUpdate(state.personalSheetId, DOCS_TAB, d.row, DOCS_TAB + '!B' + d.row + ':G' + d.row, [[title, type, url, covers, topics, notes]], { num: d.id }, 'My Manuals');
+        if (!ok) { btn.disabled = false; btn.textContent = 'Save'; return; }
+        var f = document.getElementById('tb-edit'); if (f) f.remove();
+        await _loadMyDocs();
+        _wbBuild(); _maintRenderMyDocs();
+        if (typeof showToast === 'function') showToast('✓ Updated');
+      } catch (e) { btn.disabled = false; btn.textContent = 'Save'; if (typeof showToast === 'function') showToast('Could not save — ' + (e && e.message || 'try again'), 4000, true); }
+    };
+    var first = document.getElementById('tbe-title'); if (first) first.focus();
+  };
+  window._tbRemove = async function (docId) {
+    var d = (state.myManuals || []).find(function (x) { return x.id === docId; });
+    if (!d || !confirm('Remove "' + (d.title || 'this') + '" from My Manuals? (The link or file itself is not deleted.)')) return;
+    var blank = [['', '', '', '', '', '', '', '']];
+    if (!(await rrRemoveRowConfirmed(state.personalSheetId, DOCS_TAB, d.row, DOCS_TAB + '!A' + d.row + ':H' + d.row, blank, { num: d.id }, 'My Manuals'))) return;
+    var f = document.getElementById('tb-edit'); if (f) f.remove();
+    await _loadMyDocs();
+    _wbBuild(); _maintRenderMyDocs();
+    if (typeof showToast === 'function') showToast('✓ Removed from My Manuals');
+  };
+
   function _wbBuild() {
     var pg = document.getElementById('page-workbench');
     if (!pg) return;
@@ -2397,7 +2608,19 @@
       if (linkedTaskIds[p.id] || st === 'installed' || !(p.forInv || p.forItem)) return;
       rows.push({ invId: p.forInv, itemNum: p.forItem, need: 'Part wanted', part: (p.description || p.partNum || 'part') + (st === 'bought' ? ' — in the drawer' : ' — waiting'), since: p.dateAdded });
     });
-    var head = '<div class="page-title">🔧 The Workbench</div>'
+    // v0.9.1674 (bite 3): two tabs — Bench (this table) and Toolbox (the
+    // saved library). Same page, one nav entry, Brad's call.
+    var docsN = state.myManuals ? state.myManuals.length : 0;
+    var tabs = '<div style="display:flex;gap:0.5rem;margin-bottom:0.9rem;flex-wrap:wrap">'
+      + '<button class="eph-tab' + (_wbTabName === 'bench' ? ' active' : '') + '" onclick="_wbTab(\'bench\')">🔨 Bench' + (rows.length ? ' · ' + rows.length : '') + '</button>'
+      + '<button class="eph-tab' + (_wbTabName === 'toolbox' ? ' active' : '') + '" onclick="_wbTab(\'toolbox\')" data-ctip="Your personalized maintenance manual — every manual, diagram, picture and video you saved, filterable by topic, type or item.">🧰 Toolbox' + (docsN ? ' · ' + docsN : '') + '</button>'
+      + '</div>';
+    if (_wbTabName === 'toolbox') {
+      pg.innerHTML = '<div class="page-title">🔧 The Workbench</div>' + tabs + '<div id="wb-toolbox"></div>';
+      _tbRender();
+      return;
+    }
+    var head = '<div class="page-title">🔧 The Workbench</div>' + tabs
       + '<div style="font-size:0.82rem;color:var(--text-dim);margin-bottom:0.85rem">Everything that needs a wrench. Click a row to open its card.</div>';
     if (!rows.length) {
       pg.innerHTML = head + '<div style="text-align:center;padding:3rem 1rem;color:var(--text-dim)"><div style="font-size:2.5rem;margin-bottom:0.5rem">🔧</div><p>Nothing on the bench.</p><p style="font-size:0.8rem;margin-top:0.4rem">Add a task from any item’s Maintenance panel.</p></div>';
@@ -2545,7 +2768,7 @@
       var btn = document.createElement('button');
       btn.className = 'nav-item'; btn.id = 'nav-workbench-btn';
       btn.setAttribute('data-ctip', 'The Workbench — open chores and parts, per item. Only you see this.');
-      btn.onclick = function () { showPage('workbench', this); _loadLog().then(function(){ _wbBuild(); _wbBadge(); }); _wbBuild(); };
+      btn.onclick = function () { showPage('workbench', this); _loadLog().then(function(){ _wbBuild(); _wbBadge(); }); if (!state.myManuals) _loadMyDocs().then(_wbBuild); _wbBuild(); };
       btn.innerHTML = '<span style="width:17px;text-align:center;flex-shrink:0">🔧</span>Workbench<span id="nav-workbench-count" class="nav-badge" style="display:none"></span>';
       if (ymBtn) homeSection.insertBefore(btn, ymBtn);
       else if (refreshBtn) homeSection.insertBefore(btn, refreshBtn);
