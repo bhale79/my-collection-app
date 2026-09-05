@@ -2678,19 +2678,31 @@
     // when you click the row."
     var rows = [];
     var linkedTaskIds = {};
-    (state.maintLog || []).forEach(function (l) {
-      if (l.type !== 'chore' || l.status !== 'open') return;
+    var partWords = function (p) { var st = p.status || 'wanted'; var nm = p.description || p.partNum || 'part'; return st === 'bought' ? 'Parts on hand — ' + nm : st === 'installed' ? 'Installed — ' + nm : 'Waiting on ' + nm; };
+    var openTasks = (state.maintLog || []).filter(function (l) { return l.type === 'chore' && l.status === 'open'; });
+    // v0.9.1680: the SAME fold rule as the task card — a part wanted for a
+    // unit that was never tied to a task rides on that unit's row when it
+    // has exactly one open task, instead of a second "Part wanted" row.
+    var unitKey = function (invId, itemNum) { return invId ? 'inv:' + invId : 'num:' + String(itemNum || ''); };
+    var openPerUnit = {};
+    openTasks.forEach(function (l) { var k = unitKey(l.invId, l.itemNum); openPerUnit[k] = (openPerUnit[k] || 0) + 1; });
+    var loosePerUnit = {};
+    Object.values(state.partsData || {}).forEach(function (p) {
+      var st = p.status || 'wanted';
+      if (p.taskId || st === 'installed' || !(p.forInv || p.forItem)) return;
+      var k = unitKey(p.forInv, p.forItem);
+      if (openPerUnit[k] === 1) { (loosePerUnit[k] = loosePerUnit[k] || []).push(p); linkedTaskIds[p.id] = true; }
+    });
+    openTasks.forEach(function (l) {
       var parts = Object.values(state.partsData || {}).filter(function (p) { return p.taskId && p.taskId === l.id; });
       parts.forEach(function (p) { linkedTaskIds[p.id] = true; });
-      var partTxt = parts.length
-        ? parts.map(function (p) { var st = p.status || 'wanted'; var nm = p.description || p.partNum || 'part'; return st === 'bought' ? 'Parts on hand — ' + nm : st === 'installed' ? 'Installed — ' + nm : 'Waiting on ' + nm; }).join('; ')
-        : '';
-      rows.push({ invId: l.invId, itemNum: l.itemNum, need: l.text, part: partTxt, since: l.dateAdded });
+      parts = parts.concat(loosePerUnit[unitKey(l.invId, l.itemNum)] || []);
+      rows.push({ invId: l.invId, itemNum: l.itemNum, need: l.text, part: parts.map(partWords).join('; '), since: l.dateAdded });
     });
     Object.values(state.partsData || {}).forEach(function (p) {
       var st = p.status || 'wanted';
       if (linkedTaskIds[p.id] || st === 'installed' || !(p.forInv || p.forItem)) return;
-      rows.push({ invId: p.forInv, itemNum: p.forItem, need: 'Part wanted', part: (st === 'bought' ? 'Parts on hand — ' : 'Waiting on ') + (p.description || p.partNum || 'part'), since: p.dateAdded });
+      rows.push({ invId: p.forInv, itemNum: p.forItem, need: 'Part wanted', part: partWords(p), since: p.dateAdded });
     });
     // v0.9.1674 (bite 3): two tabs — Bench (this table) and Toolbox (the
     // saved library). Same page, one nav entry, Brad's call.
