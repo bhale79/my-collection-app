@@ -1089,6 +1089,12 @@ function showItemDetailPage(idx, copyInvId, opts) {
   var _descBlock = _descInner.trim()
     ? `<div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:0.75rem 0.9rem;margin-top:0.5rem">${_descInner}</div>`
     : '';
+  // v0.9.1673 (Brad): the Maintenance card PREVIEW slot rides right under
+  // the description (both layouts). maintenance.js fills it for owners/
+  // testers with an owned copy; for everyone else it stays an empty div
+  // that takes no space. Kept apart from _descBlock so "no description →
+  // no box" (§265) holds unchanged.
+  var _maintSlot = `<div id="maint-preview"></div>`;
   let _headHtml = `
   <div style="margin-bottom:1.5rem">
     <!-- v0.9.1155 (Brad): "we need a next item, previous item with arrows on
@@ -1113,7 +1119,7 @@ function showItemDetailPage(idx, copyInvId, opts) {
           ${it.yearProd ? `<span style="font-size:0.82rem;color:var(--text-dim)">${it.yearProd}</span>` : ''}
         </div>
         <div style="font-size:1.05rem;color:var(--text);margin-bottom:0.2rem">${it.roadName || ''}</div>
-        ${_isPhoneDetail ? '' : _descBlock}
+        ${_isPhoneDetail ? '' : _descBlock + _maintSlot}
       </div>
       <div style="display:flex;flex-direction:column;align-items:flex-end;gap:0.4rem;flex-shrink:0">
         ${_wantMode
@@ -1420,9 +1426,21 @@ function showItemDetailPage(idx, copyInvId, opts) {
     // this places the galleries up top for groups too, which is what a phone
     // user wants: pictures first.)
     container.innerHTML = _headHtml + _photoCard
-      + '<div style="margin:0.9rem 0 1.25rem">' + _descBlock + '</div>' + html;
+      + '<div style="margin:0.9rem 0 1.25rem">' + _descBlock + _maintSlot + '</div>' + html;
   } else {
     container.innerHTML = _headHtml + html + _photoCard;
+  }
+
+  // v0.9.1673 (Brad: "add the maintenance card preview here, be able to
+  // click on it to view it"): maintenance.js fills #maint-preview with a
+  // compact read-only summary of this copy's Maintenance card — open tasks
+  // and their parts, last service, saved manuals — and the whole card
+  // opens the real one. Owners/testers with an OWNED copy only; for
+  // everyone else the placeholder stays empty and takes no space. Want-
+  // list views (no copy to service) never get one.
+  if (!_wantMode && pd && pd.owned && typeof window._maintRenderPreview === 'function') {
+    try { window._maintRenderPreview(idx, it, pd); }
+    catch (ePrev) { console.warn('[maint] preview failed', ePrev && ePrev.message); }
   }
 
   // v0.9.1566 (Brad: "these three boxes should be clickable and just change

@@ -1506,7 +1506,7 @@
       + '<div class="maint-card" style="background:var(--bg-card);border:1px solid var(--border);border-radius:16px;max-width:560px;width:100%;padding:1.25rem 1.4rem;margin-bottom:2rem">'
       + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.9rem">'
       +   '<div style="font-family:var(--font-head);font-size:1.05rem;font-weight:700;color:var(--text)">🔧 Maintenance — ' + _esc(item.itemNum || '') + (item.roadName ? ' · ' + _esc(item.roadName) : '') + '</div>'
-      +   '<button onclick="document.getElementById(\'maint-overlay\').remove()" style="background:none;border:none;color:var(--text-dim);font-size:1.3rem;cursor:pointer;line-height:1">&times;</button>'
+      +   '<button onclick="_maintClosePanel()" style="background:none;border:none;color:var(--text-dim);font-size:1.3rem;cursor:pointer;line-height:1">&times;</button>'
       + '</div>'
       + '<div style="font-size:0.72rem;color:var(--text-dim);margin-bottom:0.8rem">Beta preview — only you (and invited testers) can see this button.</div>'
       + '<div id="maint-launcher" style="display:flex;flex-direction:column;gap:0.55rem;margin-bottom:0.8rem">'
@@ -2434,6 +2434,98 @@
     setTimeout(function () { if (typeof window._maintShowGrp === 'function') window._maintShowGrp('work'); }, 30);
   };
   window._wbBuild = _wbBuild;
+
+  // ════════════════════════════════════════════════════════════════
+  //  v0.9.1673 (Brad: "on the item detail page, we need to add the
+  //  maintenance card preview here, be able to click on it to view it")
+  //  A compact, read-only summary of THIS copy's Maintenance card, sitting
+  //  under the description on the detail page: open tasks (with the state
+  //  of any part tied to them), loose parts wanted for this unit, the last
+  //  service entry, and how many manuals are saved for this number. The
+  //  whole card is one click → the real card. app-collection.js owns the
+  //  empty placeholder and calls this only for owners/testers with an
+  //  owned copy, so nobody else ever sees a thing. Identity is the
+  //  inventoryId (the unit), never the row or the index.
+  // ════════════════════════════════════════════════════════════════
+  var _previewArgs = null;
+  window._maintRenderPreview = function (idx, it, pd) {
+    var el = document.getElementById('maint-preview');
+    if (!el) return;
+    if (!_isOwner() || !pd || !pd.owned) { el.innerHTML = ''; return; }
+    _previewArgs = { idx: idx, it: it, pd: pd };
+    var invId = String(pd.inventoryId || '');
+    var num = String((it && it.itemNum) || pd.itemNum || '').trim();
+    var variation = String((it && it.variation != null ? it.variation : pd.variation) || '');
+    // a quote inside a variation must survive BOTH the attribute decode and
+    // the JS string: backslash it for JS first, then HTML-escape the lot
+    var openArgs = (typeof idx === 'number' ? idx : -1) + ",'" + _esc(num) + "','" + _esc(variation.replace(/\\/g, '\\\\').replace(/'/g, "\\'")) + "','" + _esc(invId) + "'";
+    var line = function (txt) { return '<div style="font-size:0.85rem;color:var(--text);line-height:1.5;padding:0.15rem 0">' + txt + '</div>'; };
+    var dim = function (txt) { return '<span style="color:var(--text-dim);font-size:0.76rem">' + txt + '</span>'; };
+    var render = function () {
+      var box = document.getElementById('maint-preview');
+      if (!box) return;   // the detail page moved on while a load was in flight
+      var mine = function (l) { return invId ? l.invId === invId : l.itemNum === num; };
+      var log = (state.maintLog || []).filter(mine);
+      var tasks = log.filter(function (l) { return l.type === 'chore' && l.status === 'open'; })
+        .sort(function (a, b) { return (a.dateAdded || '').localeCompare(b.dateAdded || ''); });
+      var history = log.filter(function (l) { return !(l.type === 'chore' && l.status === 'open'); })
+        .sort(function (a, b) { return (b.dateDone || b.dateAdded || '').localeCompare(a.dateDone || a.dateAdded || ''); });
+      var linked = {};
+      var body = '';
+      tasks.forEach(function (t) {
+        var parts = _taskParts(t.id);
+        parts.forEach(function (p) { linked[p.id] = true; });
+        var partTxt = parts.map(function (p) {
+          var st = p.status || 'wanted';
+          return '⚙️ ' + _esc(p.description || p.partNum || 'part') + (st === 'bought' ? ' — in the drawer' : st === 'installed' ? ' — installed' : ' — waiting');
+        }).join(' · ');
+        body += line('⏳ <b>' + _esc(t.text) + '</b> ' + dim('since ' + _esc(t.dateAdded || '?'))
+          + (partTxt ? '<div style="font-size:0.78rem;color:var(--text-mid);margin-left:1.3rem">' + partTxt + '</div>' : ''));
+      });
+      Object.values(state.partsData || {}).forEach(function (p) {
+        var st = p.status || 'wanted';
+        if (linked[p.id] || st === 'installed') return;
+        if (!(invId ? p.forInv === invId : (p.forItem === num && !p.forInv))) return;
+        body += line('⚙️ <b>Part wanted:</b> ' + _esc(p.description || p.partNum || 'part') + ' ' + dim(st === 'bought' ? 'in the drawer' : 'waiting'));
+      });
+      if (history.length) {
+        var h = history[0];
+        var icon = h.type === 'part-installed' ? '🔩' : h.type === 'chore' ? '✓' : '📝';
+        body += line(icon + ' <b>Last service:</b> ' + _esc(h.dateDone || h.dateAdded || '') + ' — ' + _esc(h.text)
+          + (history.length > 1 ? ' ' + dim('+' + (history.length - 1) + ' more') : ''));
+      }
+      var docs = state.myManuals ? _docCovers({ itemNum: num }) : null;
+      body += line('📄 ' + (docs === null ? dim('loading manuals…')
+        : docs.length ? '<b>' + docs.length + '</b> saved ' + (docs.length === 1 ? 'manual / doc' : 'manuals / docs') + ' for ' + _esc(num)
+        : dim('No manuals saved for ' + _esc(num) + ' yet')));
+      if (!tasks.length && !history.length && docs !== null && !docs.length && body.indexOf('Part wanted') < 0) {
+        body = line(dim('Nothing on the bench — open the card to add a task, find manuals, or log service.'));
+      }
+      box.innerHTML = '<div onclick="_maintOpenPanel(' + openArgs + ')" title="Open the Maintenance card" '
+        + 'onmouseover="this.style.background=\'var(--surface2)\'" onmouseout="this.style.background=\'var(--surface)\'" '
+        + 'style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:0.75rem 0.9rem;margin-top:0.5rem;cursor:pointer">'
+        + '<div style="display:flex;justify-content:space-between;align-items:center;gap:0.5rem;margin-bottom:0.35rem">'
+        +   '<div style="font-family:var(--font-head);font-size:0.7rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--accent2)">🔧 Maintenance</div>'
+        +   '<div style="font-size:0.72rem;color:var(--text-dim);white-space:nowrap">Open card →</div>'
+        + '</div>'
+        + body
+        + '</div>';
+    };
+    render();
+    // what the card needs but the page may not have loaded yet
+    var waits = [];
+    if (!state.maintLog) waits.push(_loadLog());
+    if (!state.myManuals) waits.push(_loadMyDocs());
+    if (waits.length) Promise.all(waits).then(render, render);
+  };
+  // the panel's × — closes it and brings the preview underneath up to date
+  window._maintClosePanel = function () {
+    var ov = document.getElementById('maint-overlay');
+    if (ov) ov.remove();
+    if (_previewArgs && document.getElementById('maint-preview')) {
+      window._maintRenderPreview(_previewArgs.idx, _previewArgs.it, _previewArgs.pd);
+    }
+  };
 
   function _wbInjectUI() {
     var main = document.getElementById('main-content');   // v0.9.1657: was querySelector('.main-content') — the element's CLASS is 'main'; null fell back to #app and the page rendered BELOW the billboard (Brad's screenshot)
