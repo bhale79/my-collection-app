@@ -47,7 +47,10 @@
   // and dressed by _btn(): the toolbar's outline-is-the-text-colour look,
   // its five colours named once here. Modal footers keep the app's modal
   // pair (ghost Cancel + filled Save). Nothing else is invented.
-  var BTN_C = { blue: ['#2980b9', '41,128,185'], green: ['#2ecc71', '46,204,113'], orange: ['#e67e22', '230,126,34'], red: ['#e74c3c', '231,76,60'], teal: ['#16a085', '22,160,133'] };
+  // blue = the sky-blue rule under THE RAIL ROSTER (the header's 4px line) —
+  // Brad, v0.9.1677: "the green should be the sky blue line under the rail
+  // roster". It is the suite's colour; the old teal is retired.
+  var BTN_C = { blue: ['#2980b9', '41,128,185'], green: ['#2ecc71', '46,204,113'], orange: ['#e67e22', '230,126,34'], red: ['#e74c3c', '231,76,60'] };
   function _btnSize(size) { return size === 'sm' ? 'padding:0.35rem 0.7rem;font-size:0.76rem;border-radius:7px' : 'padding:0.5rem 0.9rem;font-size:0.82rem;border-radius:8px'; }
   function _btn(color, size, extra) {
     var c = BTN_C[color] || BTN_C.blue;
@@ -57,7 +60,7 @@
   function _btnQuiet(size, extra) {
     return _btnSize(size) + ';border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body);cursor:pointer;font-weight:600;display:inline-flex;align-items:center;justify-content:center;gap:0.4rem;line-height:1.2' + (extra ? ';' + extra : '');
   }
-  function _btnSave(extra) { return 'padding:0.6rem;border-radius:8px;border:none;background:#16a085;color:#fff;font-family:var(--font-body);font-weight:700;cursor:pointer' + (extra ? ';' + extra : ''); }
+  function _btnSave(extra) { return 'padding:0.6rem;border-radius:8px;border:none;background:#2980b9;color:#fff;font-family:var(--font-body);font-weight:700;cursor:pointer' + (extra ? ';' + extra : ''); }
   function _btnCancel(extra) { return 'padding:0.6rem;border-radius:8px;border:1px solid var(--border);background:none;color:var(--text-dim);font-family:var(--font-body);cursor:pointer' + (extra ? ';' + extra : ''); }
 
   // ── favorites (per-device prefs) ─────────────────────────────
@@ -1518,9 +1521,9 @@
         + inner + '</div>';
     };
     var linkBtn = _btn('blue');
-    // the launcher's three choices: the same scheme, teal (the Maintenance
-    // colour), a size up, with a one-line description under the label
-    var bigBtn = _btn('teal', null, 'text-align:left;padding:0.75rem 1rem;font-size:0.95rem;border-radius:10px;flex-direction:column;align-items:flex-start;gap:0.15rem;width:100%');
+    // the launcher's three choices: the same scheme, the header blue, a
+    // size up, with a one-line description under the label
+    var bigBtn = _btn('blue', null, 'text-align:left;padding:0.75rem 1rem;font-size:0.95rem;border-radius:10px;flex-direction:column;align-items:flex-start;gap:0.15rem;width:100%');
 
     // v0.9.1665 (Brad): a stray click outside the card used to close the
     // whole panel and lose everything typed. Close is the × (or Back) only.
@@ -1537,8 +1540,8 @@
       +   '<button onclick="_maintShowHistory(\'' + _esc(String(window._maintPanelInvId || '')) + '\',\'' + _esc(String(item.itemNum || '')) + '\')" style="' + bigBtn + '">Service history<span style="display:block;font-weight:400;font-size:0.74rem;color:var(--text-dim)">Everything ever done to this one</span></button>'
       + '</div>'
       + '<button id="maint-back" onclick="_maintShowGrp(\'\')" style="' + _btnQuiet('sm', 'display:none;margin-bottom:0.6rem') + '">← Back</button>'
-      + '<div class="maint-sec" data-grp="docs" style="display:none;background:var(--surface);border:1px solid #16a085;border-radius:12px;padding:0.9rem 1rem;margin-bottom:0.8rem">'
-      +   '<div style="font-family:var(--font-head);font-size:0.7rem;letter-spacing:0.12em;text-transform:uppercase;color:#16a085;margin-bottom:0.6rem">My saved docs for this item</div>'
+      + '<div class="maint-sec" data-grp="docs" style="display:none;background:var(--surface);border:1px solid #2980b9;border-radius:12px;padding:0.9rem 1rem;margin-bottom:0.8rem">'
+      +   '<div style="font-family:var(--font-head);font-size:0.7rem;letter-spacing:0.12em;text-transform:uppercase;color:#2980b9;margin-bottom:0.6rem">My saved docs for this item</div>'
       +   '<div id="maint-mydocs" style="font-size:0.82rem;color:var(--text-dim)">Loading…</div>'
       +   '<div style="display:flex;gap:0.4rem;margin-top:0.6rem;flex-wrap:wrap">'
       +     '<button onclick="_maintSavePicture()" style="' + linkBtn + '">Save a picture</button>'
@@ -1563,7 +1566,7 @@
             if (route === 'lcca') {
               // FUTURE SLOT: Brad's original Lionel parts diagrams go here, above LCCA.
               h += '<button onclick="_maintLccaGo(\'' + _esc(_docsUrl(route, item)) + '\')" style="' + linkBtn + '">' + _esc(routeLabel) + ' →</button>'
-                + '<div id="maint-lcca-note" style="display:none;font-size:0.8rem;color:var(--text);background:var(--bg-card);background:color-mix(in srgb, rgb(22,160,133) 12%, var(--surface2));border:1px solid #16a085;border-radius:8px;padding:0.55rem 0.7rem;margin-top:0.55rem"></div>'
+                + '<div id="maint-lcca-note" style="display:none;font-size:0.8rem;color:var(--text);background:var(--bg-card);background:color-mix(in srgb, rgb(41,128,185) 12%, var(--surface2));border:1px solid #2980b9;border-radius:8px;padding:0.55rem 0.7rem;margin-top:0.55rem"></div>'
                 + '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.45rem">' + (_pwsmHit ? 'Copies the link to this item\'s manual section and opens LCCA in a new tab — see the note above after you tap.' : 'No direct section mapped — the button copies the archive link; paste it in the LCCA tab.') + ' Requires LCCA membership.</div>'
                 + '<div style="margin-top:0.5rem"><button onclick="window.open(\'https://www.olsenstoy.com/searchcd1.htm\',\'_blank\')" style="' + _btnQuiet() + '">Olsen\'s service library (free, no login) →</button></div>';
             } else if (route === 'atlas' && _atlasHit) {
