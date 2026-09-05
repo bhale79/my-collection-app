@@ -158,6 +158,43 @@
     } catch (e) { if (typeof showToast === 'function') showToast('Could not save — ' + (e && e.message || 'try again'), 4000, true); }
   };
 
+  // ── THE WANTED QUEUE (v0.9.1684) ─────────────────────────────────
+  // A miss — an item with a maker source but no picture at it — is worth
+  // one crawl read of the product page. The SKU + era (nothing about the
+  // user) is queued on the device and posted to the relay as
+  // action:'image_wanted'; the relay files it in the Vault's image_wanted
+  // tab and Monday's crawl works that tab. Same shape as the barcode
+  // pairings (v0.9.1113): if the relay does not know the action yet the
+  // queue simply holds and retries on the next run or app load.
+  var WANT_Q = 'rr_imgwanted_q';
+  function _wantQ() { try { return JSON.parse(localStorage.getItem(WANT_Q) || '[]') || []; } catch (e) { return []; } }
+  function _wantSave(q) { try { localStorage.setItem(WANT_Q, JSON.stringify(q.slice(-300))); } catch (e) {} }
+  function _wantAdd(pd) {
+    var n = String(pd.itemNum || '').trim(), e = _era(pd) || '';
+    if (!n) return;
+    var q = _wantQ();
+    if (!q.some(function (x) { return x.n === n && x.e === e; })) { q.push({ n: n, e: e, d: new Date().toISOString().slice(0, 10) }); _wantSave(q); }
+  }
+  async function _wantDrain() {
+    try {
+      if (typeof vaultPost !== 'function') return false;
+      var q = _wantQ(); if (!q.length) return true;
+      var r = await vaultPost({ action: 'image_wanted', items: q });
+      if (r && (r.ok || r.success || r.status === 'ok')) { _wantSave([]); return true; }
+      return false;   // the relay does not know this action yet — hold and retry later
+    } catch (e) { return false; }
+  }
+  window._stockWantDrain = _wantDrain;
+  (function _wantBoot() {
+    var tries = 0;
+    var t = setInterval(function () {
+      tries++;
+      if (tries > 150) { clearInterval(t); return; }
+      var appEl = document.getElementById('app');
+      if (appEl && appEl.classList.contains('active')) { clearInterval(t); if (_wantQ().length) _wantDrain(); }
+    }, 2000);
+  })();
+
   // ── THE TOOL (Collection Tools card) ────────────────────────────
   var _found = [];   // [{pd, url, state}]
   function _host() { return document.getElementById('stock-photos-results'); }
@@ -200,16 +237,20 @@
       if (st === 'has') { prog(); continue; }
       var url = await _firstLive(pd);
       if (url) { hits++; _found.push({ pd: pd, url: url, state: st }); }
-      else misses.push(pd);
+      else { misses.push(pd); _wantAdd(pd); }
       prog();
     }
-    _renderGrid(misses, noSource, pds.length);
+    var sent = misses.length ? await _wantDrain() : true;
+    _renderGrid(misses, noSource, pds.length, sent);
   };
 
-  function _renderGrid(misses, noSource, total) {
+  function _renderGrid(misses, noSource, total, sent) {
+    var missNote = misses.length
+      ? ' ' + misses.length + ' item' + (misses.length === 1 ? '' : 's') + ' without a photo had no stock photo at the maker — ' + (sent ? 'noted for the next catalog crawl.' : 'noted; it goes to the next catalog crawl when the app can reach the Vault.')
+      : '';
     if (!_found.length) {
-      _say('<div style="font-size:0.85rem;color:var(--text-dim)">Nothing to add — of ' + total + ' items, the ones without photos have no stock photo at their maker yet'
-        + (misses.length ? ' (' + misses.length + ' checked, not found)' : '') + (noSource ? '; ' + noSource + ' have no maker source (postwar, prewar, makers not yet crawled)' : '') + '.</div>');
+      _say('<div style="font-size:0.85rem;color:var(--text-dim)">Nothing to add — of ' + total + ' items, the ones without photos have no stock photo at their maker yet.'
+        + missNote + (noSource ? ' ' + noSource + ' have no maker source (postwar, prewar, makers not yet crawled).' : '') + '</div>');
       return;
     }
     var rows = _found.map(function (f, i) {
@@ -223,7 +264,7 @@
     }).join('');
     var th = 'text-align:left;font-size:0.68rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-dim);padding:0.4rem 0.5rem;border-bottom:1px solid var(--border)';
     _say('<div style="font-size:0.85rem;color:var(--text-mid);margin-bottom:0.5rem">' + _found.length + ' stock photo' + (_found.length === 1 ? '' : 's') + ' found. Tick the ones you want — nothing is added until you say so.'
-        + (misses.length ? ' <span style="color:var(--text-dim)">' + misses.length + ' item' + (misses.length === 1 ? '' : 's') + ' without a photo had no stock photo at the maker.</span>' : '')
+        + (missNote ? ' <span style="color:var(--text-dim)">' + missNote.trim() + '</span>' : '')
         + (noSource ? ' <span style="color:var(--text-dim)">' + noSource + ' have no maker source (postwar, prewar, makers not yet crawled).</span>' : '') + '</div>'
       + '<div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;margin-bottom:0.5rem">'
       +   '<button onclick="_stockSelectAll(true)" class="maint-btn" style="padding:0.35rem 0.65rem;font-size:0.76rem;background:var(--surface2);color:var(--text-mid);border:1px solid var(--border);border-radius:8px;font-family:var(--font-body);font-weight:600;cursor:pointer">Select all</button>'
@@ -257,7 +298,7 @@
     if (typeof showToast === 'function') showToast('✓ ' + done + ' stock photo' + (done === 1 ? '' : 's') + ' added' + (failed ? ' — ' + failed + ' could not be saved' : ''), 4000, !!failed);
     _found = _found.filter(function (f) { return !f.pd[STOCK.field]; });
     var misses = [];
-    _renderGrid(misses, 0, 0);
+    _renderGrid(misses, 0, 0, true);
     if (!_found.length) _say('<div style="font-size:0.85rem;color:var(--text-mid)">✓ Done — ' + done + ' added. They show on the item pages and in My Collection with the STOCK PHOTO banner.</div>');
   };
 })();
