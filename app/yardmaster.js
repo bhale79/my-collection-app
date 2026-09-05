@@ -54,7 +54,7 @@
   // ── Vault reads: one batchGet, owner token ─────────────────────
   function _fetchVault() {
     var ranges = ['submissions!A1:L1000', 'barcode_pairs!A1:I1000', 'chores!A1:D200', 'usage!A1:C400',
-                  'crawl_batches!A1:G50', 'crawl_deltas!A1:T4000']   // v0.9.1683: image_url is column R (the crawl adds it at the END)
+                  'crawl_batches!A1:G50', 'crawl_deltas!A1:X4000']   // v0.9.1683: image_url is column R; v0.9.1685: var_desc/sub_type/notes/category after it — all found BY HEADER
       .map(function (r) { return 'ranges=' + encodeURIComponent(r); }).join('&');
     return fetch('https://sheets.googleapis.com/v4/spreadsheets/' + YM.VAULT_ID
         + '/values:batchGet?' + ranges,
@@ -139,7 +139,12 @@
           road: g(r, 'road_name'), desc: g(r, 'description'), gauge: g(r, 'gauge'),
           variation: g(r, 'variation'), years: g(r, 'years'), link: g(r, 'ref_link'),
           msrp: g(r, 'msrp'), flag: g(r, 'flag'), status: g(r, 'status') || 'pending',
-          imageUrl: g(r, 'image_url')   // v0.9.1683: the maker's product-photo LINK (stock-photos.js draws it, by link)
+          imageUrl: g(r, 'image_url'),   // v0.9.1683: the maker's product-photo LINK (stock-photos.js draws it, by link)
+          // v0.9.1685 (Greenberg Marx transcription): the columns a BOOK row
+          // carries that a crawl row never did — the variation's own text,
+          // the guide's sub-type, the page citation, the section. Optional,
+          // at the END, by header; older batches simply leave them blank.
+          varDesc: g(r, 'var_desc'), subType: g(r, 'sub_type'), notes: g(r, 'notes'), category: g(r, 'category')
         };
       });
     }
@@ -437,6 +442,11 @@
       case 'Reference Link': return dd.link;
       case 'MSRP': return dd.msrp;
       case 'Image URL': return dd.imageUrl || '';   // v0.9.1683
+      // v0.9.1685: book rows — the master spells these two ways across tabs
+      case 'Variation Description': case 'Variation Details': return dd.varDesc || '';
+      case 'Sub Type': case 'Sub-Type': return dd.subType || '';
+      case 'Notes': return dd.notes || '';
+      case 'Category': return dd.category || '';
       case 'Source': return (dd.source || 'Wayback sweep') + ' \u2014 approved ' + today + ' (Yardmaster cockpit)';
       default: return '';
     }
@@ -632,7 +642,7 @@
       return '<div style="border-top:1px solid var(--border);padding:0.6rem 0;display:flex;gap:0.9rem;align-items:flex-start;flex-wrap:wrap">'
         + '<div style="min-width:88px;font-weight:700;color:var(--text);font-size:1.1rem">' + _esc(dd.num || '\u2014') + '</div>'
         + '<div style="flex:1;min-width:240px">'
-          + '<div style="color:var(--text);font-size:1.05rem">' + _esc(dd.desc) + '</div>'
+          + '<div style="color:var(--text);font-size:1.05rem">' + _esc(dd.desc) + (dd.varDesc && dd.varDesc !== dd.desc && dd.varDesc !== 'no variation' ? ' <span style="color:var(--text-dim)">— var ' + _esc(dd.variation || '') + ': ' + _esc(dd.varDesc) + '</span>' : '') + '</div>'
           + '<div style="font-size:0.95rem;color:var(--text-dim)">'
             + _esc(dd.tab || 'no tab yet') + (dd.type ? ' \u00b7 ' + _esc(dd.type) : '') + (dd.years ? ' \u00b7 ' + _esc(dd.years) : '')
             + (dd.msrp ? ' \u00b7 $' + _esc(dd.msrp) : '') + '</div>'
