@@ -1,5 +1,5 @@
 // ============================================================
-//  maintenance.js — 🔧 Maintenance panel + Workbench + My Manuals + task cards + Parts Bin (v0.9.1669, Session 92)
+//  maintenance.js — 🔧 Maintenance panel + Workbench + My Manuals + task cards + Parts Bin (v0.9.1670, Session 92)
 //  OWNER-ONLY (admin preview): the button renders only when the
 //  signed-in email is on MAINT.OWNER_EMAILS. Everyone else's app
 //  is untouched — delete this ONE file + its index.html line to
@@ -1385,26 +1385,7 @@
   };
   // v0.9.1647 (phase 2): create a Parts Needed entry pre-linked to THIS
   // owned copy (the _maintPanelInvId hook from v1637, cashed in).
-  window._maintAddPartWanted = async function () {
-    if (!_panelItem) return;
-    var box = document.getElementById('maint-part-desc');
-    var txt = box ? String(box.value || '').trim() : '';
-    if (!txt) { if (typeof showToast === 'function') showToast('Type the part (number or description) first \u2014 read it off the diagram.', 3500, true); return; }
-    try {
-      if (typeof _ensurePartsTab === 'function') await _ensurePartsTab();
-      if (typeof _ensurePartsLifecycleCols === 'function') await _ensurePartsLifecycleCols();
-      var _t = function (v) { v = String(v || ''); return v && v.charAt(0) !== "'" ? "'" + v : v; };
-      var isNum = /^[A-Za-z]{0,4}[\-#]?[A-Za-z0-9][A-Za-z0-9\-\/\.]*$/.test(txt) && /\d/.test(txt);
-      var row = [_t('part-' + Date.now()), isNum ? '' : txt, _t(isNum ? txt : ''),
-                 _t(String(_panelItem.itemNum || '')), _t(window._maintPanelInvId || ''),
-                 '', 'added from Maintenance panel', _t(new Date().toISOString().split('T')[0]),
-                 'wanted', '', '', ''];
-      await sheetsAppend(state.personalSheetId, 'Parts Needed!A:L', [row]);
-      if (typeof buildPartsPage === 'function') buildPartsPage();
-      if (typeof showToast === 'function') showToast('\u2713 Added to Parts Wanted \u2014 linked to ' + String(_panelItem.itemNum || ''));
-      if (box) box.value = '';
-    } catch (e) { if (typeof showToast === 'function') showToast('Could not save the part \u2014 ' + (e && e.message || 'try again'), 4000, true); }
-  };
+  // window._maintAddPartWanted removed in v0.9.1670 (its section went away).
   // v0.9.1662: _maintSupplierGo removed with the docs suppliers dropdown (check 273 flagged it unreachable).
 
   window._maintDelFav = function (prefKey, selectId) {
@@ -1522,7 +1503,7 @@
     // v0.9.1665 (Brad): a stray click outside the card used to close the
     // whole panel and lose everything typed. Close is the × (or Back) only.
     var html = '<div id="maint-overlay" style="position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9500;display:flex;align-items:flex-start;justify-content:center;overflow-y:auto;padding:2rem 1rem">'
-      + '<div style="background:var(--bg-card);border:1px solid var(--border);border-radius:16px;max-width:560px;width:100%;padding:1.25rem 1.4rem;margin-bottom:2rem">'
+      + '<div class="maint-card" style="background:var(--bg-card);border:1px solid var(--border);border-radius:16px;max-width:560px;width:100%;padding:1.25rem 1.4rem;margin-bottom:2rem">'
       + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.9rem">'
       +   '<div style="font-family:var(--font-head);font-size:1.05rem;font-weight:700;color:var(--text)">🔧 Maintenance — ' + _esc(item.itemNum || '') + (item.roadName ? ' · ' + _esc(item.roadName) : '') + '</div>'
       +   '<button onclick="document.getElementById(\'maint-overlay\').remove()" style="background:none;border:none;color:var(--text-dim);font-size:1.3rem;cursor:pointer;line-height:1">&times;</button>'
@@ -1639,15 +1620,8 @@
           + '</div>'
           + '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.45rem">Found a good one? Paste its link with Save a video — it joins My Manuals and your Toolbox, tagged with the part you typed.</div>', 'work')
 
-      // Parts search
-      + sec('Find a Part (your favorite dealers)',
-          _favRow(MAINT.PREF_DEALERS, 'maint-dealer', 'Any dealer')
-          + '<div style="display:flex;gap:0.4rem;margin-top:0.5rem;flex-wrap:wrap">'
-          +   '<input id="maint-part-desc" placeholder="part number / description" style="flex:1;min-width:150px;padding:0.45rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.82rem">'
-          +   '<button onclick="_maintSearchParts()" style="' + linkBtn + '">Search →</button>'
-          +   '<button onclick="_maintAddPartWanted()" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #e67e22;background:var(--bg-card);background:color-mix(in srgb, rgb(230,126,34) 10%, var(--bg-card));color:#e67e22;font-family:var(--font-body);font-size:0.82rem;cursor:pointer;font-weight:600">+ Add to Parts Wanted</button>'
-          + '</div>'
-          + '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.45rem">Search Google as &quot;dealer&quot; &quot;maker&quot; &quot;item number&quot; &quot;part&quot; \u2014 or add what you typed straight to your Parts Wanted list, linked to this item.</div>', 'work')
+      // v0.9.1670 (Brad): standalone Find-a-Part section REMOVED — Need a part on the task card covers it.
+
 
       + '</div></div>';
 
@@ -1669,12 +1643,7 @@
     var act = (document.getElementById('maint-yt-action') || {}).value || '';
     window.open(_ytUrl(ch, _panelItem, part.trim(), act), '_blank');
   };
-  window._maintSearchParts = function () {
-    if (!_panelItem) return;
-    var dealer = (document.getElementById('maint-dealer') || {}).value || '';
-    var part = (document.getElementById('maint-part-desc') || {}).value || '';
-    window.open(_partsUrl(dealer, _panelItem, part.trim()), '_blank');
-  };
+  // window._maintSearchParts removed in v0.9.1670 (its section went away).
 
   // ════════════════════════════════════════════════════════════════
   //  v0.9.1655: MY MANUALS — the personal doc library (v2 flow bite 1)
@@ -2047,10 +2016,10 @@
           + '<div style="display:flex;justify-content:space-between;align-items:center;gap:0.4rem;flex-wrap:wrap">'
           +   '<div style="font-weight:700;color:var(--text)">🔧 ' + _esc(t.text) + ' <span style="font-weight:400;font-size:0.72rem;color:var(--text-dim)">since ' + _esc(t.dateAdded) + '</span></div>'
           + '</div>'
-          + '<textarea id="task-notes-' + _esc(t.id) + '" placeholder="Notes for this repair…" rows="2" style="' + IN + ';margin-top:0.5rem;resize:vertical">' + _esc(t.notes || '') + '</textarea>'
-          + '<div style="display:flex;gap:0.4rem;flex-wrap:wrap;align-items:center;margin-top:0.4rem">'
-          +   '<button onclick="_maintSaveTaskNotes(' + t.row + ',\'' + _esc(t.id) + '\')" style="' + small + '">Save notes</button>'
-          +   '<label style="display:flex;align-items:center;gap:0.3rem;font-size:0.78rem;color:var(--text);cursor:pointer"><input type="checkbox" onchange="if(this.checked){this.checked=false;_maintPartsPopup(\'' + _esc(t.id) + '\',\'' + _esc(t.text) + '\')}"> Need a part</label>'
+          + '<textarea id="task-notes-' + _esc(t.id) + '" placeholder="Notes for this repair… (saves by itself)" rows="2" oninput="_maintNotesTyped(' + t.row + ',\'' + _esc(t.id) + '\')" onblur="_maintSaveTaskNotes(' + t.row + ',\'' + _esc(t.id) + '\',true)" style="' + IN + ';margin-top:0.5rem;resize:vertical">' + _esc(t.notes || '') + '</textarea>'
+          + '<div id="task-notes-hint-' + _esc(t.id) + '" style="font-size:0.7rem;color:var(--text-dim);min-height:0.9rem"></div>'
+          + '<div style="display:flex;gap:0.4rem;flex-wrap:wrap;align-items:center;margin-top:0.3rem">'
+          +   '<button onclick="_maintPartsPopup(\'' + _esc(t.id) + '\',\'' + _esc(t.text) + '\')" style="padding:0.4rem 0.8rem;border-radius:7px;border:1.5px solid #e67e22;background:var(--bg-card);background:color-mix(in srgb, rgb(230,126,34) 10%, var(--bg-card));color:#e67e22;font-family:var(--font-body);font-size:0.78rem;cursor:pointer;font-weight:600">⚙️ Need a part</button>'
           +   '<button onclick="_maintTaskVideos(\'' + _esc(t.text) + '\')" style="' + small + '">🎬 Videos for this job</button>'
           + '</div>'
           + partLine
@@ -2064,16 +2033,29 @@
   }
   window._maintRenderTasks = _maintRenderTasks;
 
-  window._maintSaveTaskNotes = async function (rowNum, logId) {
+  // v0.9.1670 (Brad): notes save BY THEMSELVES — a pause in typing or
+  // leaving the box writes the row; no Save button.
+  var _notesTimers = {};
+  window._maintNotesTyped = function (rowNum, logId) {
+    var h = document.getElementById('task-notes-hint-' + logId); if (h) h.textContent = 'typing…';
+    clearTimeout(_notesTimers[logId]);
+    _notesTimers[logId] = setTimeout(function () { window._maintSaveTaskNotes(rowNum, logId, true); }, 1200);
+  };
+  window._maintSaveTaskNotes = async function (rowNum, logId, quiet) {
+    clearTimeout(_notesTimers[logId]);
     var ta = document.getElementById('task-notes-' + logId);
     var txt = ta ? String(ta.value || '').trim() : '';
+    var l = (state.maintLog || []).find(function (x) { return x.id === logId; });
+    if (l && (l.notes || '') === txt) { var h0 = document.getElementById('task-notes-hint-' + logId); if (h0) h0.textContent = txt ? 'saved' : ''; return; }
+    var h = document.getElementById('task-notes-hint-' + logId); if (h) h.textContent = 'saving…';
     try {
       await _ensureLogNotesCol();
       var ok = await rrVerifiedRowUpdate(state.personalSheetId, LOG_TAB, rowNum, LOG_TAB + '!K' + rowNum, [[txt]], { num: logId }, 'Workbench');
-      if (!ok) return;
-      var l = (state.maintLog || []).find(function (x) { return x.id === logId; }); if (l) l.notes = txt;
-      if (typeof showToast === 'function') showToast('✓ Notes saved');
-    } catch (e) { if (typeof showToast === 'function') showToast('Could not save the notes', 3500, true); }
+      if (!ok) { if (h) h.textContent = 'not saved — refresh'; return; }
+      if (l) l.notes = txt;
+      if (h) h.textContent = 'saved';
+      if (!quiet && typeof showToast === 'function') showToast('✓ Notes saved');
+    } catch (e) { if (h) h.textContent = 'not saved'; if (typeof showToast === 'function') showToast('Could not save the notes', 3500, true); }
   };
 
   window._maintTaskVideos = function (taskName) {

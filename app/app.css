@@ -2719,3 +2719,11 @@ html[data-theme="high-contrast"] button[style*="#e74c3c"] {
   font-weight: 600;
 }
 #page-browse .item-table th[data-col].rr-tag-col { color: var(--accent); }
+
+
+/* v0.9.1670 (Brad): the Maintenance panel reads tiny on a big monitor —
+   "double the fonts, make the box 2x". zoom scales text AND box together;
+   phones keep 1x so nothing overflows. */
+.maint-card { zoom: 1; }
+@media (min-width: 1000px) and (max-width: 1399px) { .maint-card { zoom: 1.5; } }
+@media (min-width: 1400px) { .maint-card { zoom: 2; } }
