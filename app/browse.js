@@ -2707,7 +2707,7 @@ function renderBrowseTab(tab) {
   // Session 157: top search bar is items-only; each sub-panel (catalogs,
   // sets, IS, science, etc.) has its own search input.
   const searchWrap = document.getElementById('browse-search-wrap');
-  if (searchWrap) searchWrap.style.display = onItems ? '' : 'none';
+  if (searchWrap) searchWrap.style.display = onItems ? 'flex' : 'none';   // v0.9.1668: '' ERASED the inline display:flex — the box fell to block, the input collapsed to ~20 chars and the clear x dropped below (the whole v1660-1663 saga)
 
   const titleEl = document.getElementById('browse-title-text');
   const mTitles = { items:'Master Catalog', sets:'Set Master List', catalogs:'Catalog List', science:'Science Sets', construction:'Construction Sets', paper:'Paper Items', other:'Other Items', service:'Service Tools', is:'Instruction Sheet List' };
@@ -4300,6 +4300,25 @@ function renderBrowse() {
       return (a.itemNum||'').localeCompare(b.itemNum||'');
     });
   }
+  // v0.9.1668 (Brad: "9723 gave me 19723 first"): when searching, rank
+  // EXACT item-number matches first, then numbers that START with the
+  // query, then everything else — a stable partition on top of whatever
+  // sort ran above, so ties keep their order.
+  (function () {
+    var q = String(state.filters.search || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+    if (!q || !Array.isArray(state.filteredData) || state.filteredData.length < 2) return;
+    var rank = function (r) {
+      var n = String(r && r.itemNum || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+      if (!n) return 3;
+      if (n === q) return 0;
+      if (n.indexOf(q) === 0) return 1;
+      if (n.indexOf(q) >= 0) return 2;
+      return 3;
+    };
+    var keyed = state.filteredData.map(function (r, i) { return { r: r, k: rank(r), i: i }; });
+    keyed.sort(function (a, b) { return a.k - b.k || a.i - b.i; });
+    state.filteredData = keyed.map(function (x) { return x.r; });
+  })();
   // Option A (Session 154): in My Collection, show one row per owned COPY.
   // A master item owned multiple times collapses to one row because
   // renderBrowse iterates masterData once. Expand each such item so every
