@@ -116,6 +116,11 @@ const PERSONAL_SCHEMA = [
   { field: 'custom3',              header: 'Custom 3' },
   { field: 'custom4',              header: 'Custom 4' },
   { field: 'custom5',              header: 'Custom 5' },
+  // v0.9.1682 (Session 90, Brad): the maker's stock photo, BY LINK — never a
+  // copied file. Written only by the Find-stock-photos tool (owner + beta),
+  // read only by the item page and the My Collection thumbnails, which draw
+  // it under a STOCK PHOTO banner. Appended at END (column rule).
+  { field: 'stockPhotoLink',       header: 'Stock Photo Link' },
 ];
 const PERSONAL_HEADERS = PERSONAL_SCHEMA.map(s => s.header);
 const PERSONAL_FIELD_INDEX = {};

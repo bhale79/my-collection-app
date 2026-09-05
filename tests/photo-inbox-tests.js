@@ -7107,9 +7107,11 @@ META_WRITES.length = 0; TOASTS.length = 0;
     // Session 85: v1514 appended the user columns AFTER masterKey — the
     // column rule is append-only, so the assertion is that everything after
     // masterKey is exactly that known set, in order, ending the schema.
+    // v1682: stockPhotoLink appended after the user columns (custom1-5 carry
+    // digits and are invisible to the [A-Za-z]+ capture above).
     ok('...appended at the END, never mid-schema',
        fields.slice(fields.indexOf('masterKey') + 1).join(',') ===
-         'eraPeriod,importBatch,yourGrade,yourDescription,locationDetail,shipper,subCollection',
+         'eraPeriod,importBatch,yourGrade,yourDescription,locationDetail,shipper,subCollection,stockPhotoLink',
        fields.slice(fields.indexOf('masterKey') + 1).join(','));
 
     // The wizard passes the CONFIRMED match; buildPersonalRow has the fallback.
@@ -10743,8 +10745,9 @@ META_WRITES.length = 0; TOASTS.length = 0;
       // count moving must be a deliberate edit. History: v1416 69→70
       // (error-report), S85 70→74 (import-core/-ui, help-guides,
       // logo-cards), v1580 74→75 (yardmaster — the owner-only Office).
-      ok('every ?v= mark in app/index.html matches it — all 77, none stale',
-         stamps.length === 77 && stamps.every(t => t === '?v=' + build),
+      // v1682 77→78 (stock-photos.js — stock photos by link, owner + beta).
+      ok('every ?v= mark in app/index.html matches it — all 78, none stale',
+         stamps.length === 78 && stamps.every(t => t === '?v=' + build),
          stamps.length + ' stamps; strays: ' + stamps.filter(t => t !== '?v=' + build).slice(0, 3).join(','));
       ok('the service worker cache name moved too (build + 10, the fixed offset)',
          new RegExp("const CACHE_NAME = 'mca-v" + (build + 10) + "';").test(rd('app/sw.js')),

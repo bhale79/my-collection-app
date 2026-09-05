@@ -1588,11 +1588,15 @@ function showItemDetailPage(idx, copyInvId, opts) {
       ? rrPhotoFolderFor(pd)
       : Promise.resolve(_photoLink || '');
     _detailLinkP.then(function (_lnk) {
-    if (!_lnk) return;
+    // v0.9.1682: no folder at all → the maker's stock photo (by link, banner
+    // on it) takes the gallery's place when the user chose one. Same below
+    // for an empty folder; a box-only folder gets the stock card underneath.
+    if (!_lnk) { if (typeof window._stockDetail === 'function') window._stockDetail(pd, it, 'empty'); return; }
     return driveGetFolderPhotos(_lnk).then(function(photos) {
       const el = document.getElementById('item-detail-photos');
       if (!el) return;
       if (!photos || photos.length === 0) {
+        if (typeof window._stockDetail === 'function' && window._stockLinkOf && window._stockLinkOf(pd)) { window._stockDetail(pd, it, 'empty'); return; }
         el.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:2rem 1rem;color:var(--text-dim)"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" opacity="0.3" style="margin:0 auto 0.5rem;display:block"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg><div style="font-size:0.85rem;margin-bottom:0.5rem">No photos in folder</div><button onclick="showItemDetailPage_photos(' + idx + ')" style="padding:0.4rem 0.8rem;border-radius:7px;border:1.5px solid var(--gold);background:var(--bg-card);background:color-mix(in srgb, rgb(212,168,67) 8%, var(--bg-card));color:var(--gold);font-family:var(--font-body);font-size:0.78rem;cursor:pointer;font-weight:600">Add Photos</button></div>';
         return;
       }
@@ -1600,6 +1604,7 @@ function showItemDetailPage(idx, copyInvId, opts) {
       // as clickable thumbnails beside it; ✂ acts on the photo shown large).
       _buildPhotoGallery(el, photos, { folderLink: _lnk, canRename: false, arrange: true,
         stack: !!document.querySelector('.rr-detail-side') });   // v0.9.1009
+      if (typeof window._stockDetail === 'function') window._stockDetail(pd, it, 'extra', photos);   // v0.9.1682: box-only folders
     });
     }).catch(function(e) {
       console.warn('Photo gallery load:', e);

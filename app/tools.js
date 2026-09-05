@@ -96,6 +96,20 @@ function buildToolsPage() {
   // v0.9.1303 (Brad): the un-share button for clickable photo links. Every
   // photo the share sheet opened up is listed here with its deadline; Stop
   // sharing puts the lock back on regardless of the timer.
+  // v0.9.1682 (Session 90, Brad): stock photos BY LINK for items with no
+  // photo or only a box photo. Owner + beta only (the Maintenance gate).
+  // The whole feature lives in stock-photos.js; this card is its only door.
+  var CARD_STOCK_PHOTOS = (typeof _maintIsOwner === 'function' && _maintIsOwner()) ?
+    '<div class="tools-card">' +
+      '<div class="tools-card-title">' +
+        '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2980b9" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>' +
+        'Find Stock Photos' +
+      '</div>' +
+      '<div class="tools-card-desc">Beta. Checks every item that has no photo (or only a box photo) for the maker\'s own product picture and lets you pick which ones to use. Shown by link with a STOCK PHOTO banner — nothing is copied, and they never go into sale listings or reports. Modern Lionel today; other makers as their catalogs are crawled.</div>' +
+      '<button onclick="runStockPhotoFinder()" style="padding:0.55rem 1.1rem;border-radius:8px;border:1.5px solid #2980b9;background:var(--bg-card);background:color-mix(in srgb, rgb(41,128,185) 10%, var(--bg-card));color:#2980b9;font-family:var(--font-body);font-size:0.85rem;cursor:pointer;font-weight:600">Find stock photos</button>' +
+      '<div id="stock-photos-results" style="margin-top:1rem"></div>' +
+    '</div>' : '';
+
   var CARD_SHARED_PHOTOS =
     '<div class="tools-card">' +
       '<div class="tools-card-title">' +
@@ -304,7 +318,7 @@ function buildToolsPage() {
   var html = '<div class="page-title" style="margin-bottom:0.5rem">Collection Tools</div>';
   // Universal = works across every manufacturer.
   html += SECTION_HEADER('universal', 'Universal Tools', 'Work across all manufacturers');
-  html += '<div id="universal-body">' + CARD_DUPLICATE_CHECKER + CARD_VAULT_CLEANUP + CARD_MASTER_FIXUP + CARD_VERSION_TIDY + CARD_MASTER_173 + CARD_MASTER_174 + CARD_MASTER_175 + CARD_SHARED_PHOTOS + '</div>';
+  html += '<div id="universal-body">' + CARD_DUPLICATE_CHECKER + CARD_STOCK_PHOTOS + CARD_VAULT_CLEANUP + CARD_MASTER_FIXUP + CARD_VERSION_TIDY + CARD_MASTER_173 + CARD_MASTER_174 + CARD_MASTER_175 + CARD_SHARED_PHOTOS + '</div>';
 
   // Postwar Lionel = tools that rely on Lionel postwar catalog data (grouping,
   // sets, companions). Smart Group Finder lives here (it's postwar-Lionel only).

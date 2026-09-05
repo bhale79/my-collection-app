@@ -578,6 +578,10 @@ const MASTER_COL_SPEC = [
   ['upc',            null, ['upcbarcode', 'upc']],
   ['manufacturer',   null, ['manufacturer']],
   ['stampedMarkings', null, ['stampedmarkings']],
+  // v0.9.1682: the maker's product-photo address, filled by the crawls
+  // (Bachmann tabs have it since S83; Lionel/MTH/Atlas as their crawls run).
+  // Data only — nothing displays it except the stock-photo tool, by link.
+  ['imageUrl',       null, ['imageurl']],
 ];
 
 // Build a field -> column-index map from a sheet's header row.
