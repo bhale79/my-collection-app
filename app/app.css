@@ -2735,11 +2735,21 @@ html[data-theme="high-contrast"] button[style*="#e74c3c"] {
    factor. Change the factor in ONE place: both lines of each block. */
 .maint-card, .rr-desk-zoom { zoom: 1; }
 .rr-desk-zoom { display: flex; flex-direction: column; gap: 1.25rem; }
+/* v0.9.1681 (Brad: "do 2 next" — the remaining pop-ups): EVERY standard
+   pop-up card scales — .rr-card (all the add / research / picker cards,
+   incl. the wizard's inner pickers) and .modal (the wizard, the item
+   modal, the ephemera cards). The max-height compensation is !important
+   because three legacy cards carry an inline 80dvh / 85vh / 90vh that
+   would otherwise win and overflow the window at 1.5x. Cards outside the
+   standard (info pop-ups, contacts, backups, tutorials — see the .rr-card
+   scope note above) keep their own size on purpose. 86 rather than 92:
+   .rr-card is content-box, so its 1.4rem padding sits OUTSIDE max-height
+   and is zoomed too — measured at 92 the card ran edge to edge. */
 @media (min-width: 1000px) and (max-width: 1399px) {
-  .maint-card, .rr-desk-zoom, #wizard-modal .modal { zoom: 1.25; }
-  #wizard-modal .modal { max-height: calc(92dvh / 1.25); }
+  .maint-card, .rr-desk-zoom, .rr-card, .modal { zoom: 1.25; }
+  .rr-card, .modal { max-height: calc(86dvh / 1.25) !important; }
 }
 @media (min-width: 1400px) {
-  .maint-card, .rr-desk-zoom, #wizard-modal .modal { zoom: 1.5; }
-  #wizard-modal .modal { max-height: calc(92dvh / 1.5); }
+  .maint-card, .rr-desk-zoom, .rr-card, .modal { zoom: 1.5; }
+  .rr-card, .modal { max-height: calc(86dvh / 1.5) !important; }
 }
