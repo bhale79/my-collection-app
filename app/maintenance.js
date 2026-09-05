@@ -1,5 +1,5 @@
 // ============================================================
-//  maintenance.js — 🔧 Maintenance panel + Workbench + My Manuals + task cards + Parts Bin (v0.9.1667, Session 92)
+//  maintenance.js — 🔧 Maintenance panel + Workbench + My Manuals + task cards + Parts Bin (v0.9.1669, Session 92)
 //  OWNER-ONLY (admin preview): the button renders only when the
 //  signed-in email is on MAINT.OWNER_EMAILS. Everyone else's app
 //  is untouched — delete this ONE file + its index.html line to
@@ -1397,7 +1397,7 @@
       var isNum = /^[A-Za-z]{0,4}[\-#]?[A-Za-z0-9][A-Za-z0-9\-\/\.]*$/.test(txt) && /\d/.test(txt);
       var row = [_t('part-' + Date.now()), isNum ? '' : txt, _t(isNum ? txt : ''),
                  _t(String(_panelItem.itemNum || '')), _t(window._maintPanelInvId || ''),
-                 '', 'added from Maintenance panel', new Date().toISOString().split('T')[0],
+                 '', 'added from Maintenance panel', _t(new Date().toISOString().split('T')[0]),
                  'wanted', '', '', ''];
       await sheetsAppend(state.personalSheetId, 'Parts Needed!A:L', [row]);
       if (typeof buildPartsPage === 'function') buildPartsPage();
@@ -1703,7 +1703,7 @@
       var res = await sheetsGet(state.personalSheetId, DOCS_TAB + '!A2:H').catch(function () { return { values: [] }; });
       state.myManuals = (res.values || []).filter(function (r) { return r[0]; }).map(function (r, i) {
         var g = function (j) { return (r[j] != null) ? String(r[j]) : ''; };
-        return { row: i + 2, id: g(0), title: g(1), type: g(2), url: g(3), covers: g(4), topics: g(5), notes: g(6), date: g(7) };
+        return { row: i + 2, id: g(0), title: g(1), type: g(2), url: g(3), covers: g(4), topics: g(5), notes: g(6), date: _isoDate(g(7)) };
       });
     } catch (e) { state.myManuals = state.myManuals || []; }
   }
@@ -1791,7 +1791,7 @@
         if (!(await _ensureDocsTab())) throw new Error('My Manuals tab unavailable');
         var _t = function (v) { v = String(v || ''); return v && v.charAt(0) !== "'" ? "'" + v : v; };
         await sheetsAppend(state.personalSheetId, DOCS_TAB + '!A:H',
-          [[_t('doc-' + Date.now()), title, type, url, covers, topics, '', new Date().toISOString().split('T')[0]]]);
+          [[_t('doc-' + Date.now()), title, type, url, covers, topics, '', _t(new Date().toISOString().split('T')[0])]]);
         state.myManuals = null;
         var f = document.getElementById('maint-docform'); if (f) f.remove();
         _maintRenderMyDocs();
@@ -1865,13 +1865,25 @@
     } catch (e) { return false; }
   }
 
+  // v0.9.1669: Sheets turned our ISO dates into serial numbers (46270)
+  // on USER_ENTERED writes and handed digits back. Translate on read;
+  // write dates as text (leading apostrophe) from now on.
+  function _isoDate(v) {
+    var t = String(v == null ? '' : v).trim();
+    if (/^\d{5}$/.test(t)) {
+      var d = new Date(Date.UTC(1899, 11, 30) + parseInt(t, 10) * 86400000);
+      return d.toISOString().slice(0, 10);
+    }
+    return t;
+  }
+  window._maintIsoDate = _isoDate;
   function _parseLog(values) {
     var out = [];
     (values || []).forEach(function (r, i) {
       if (!r[0] || r[0] === 'Log ID') return;
       var g = function (j) { return (r[j] !== null && r[j] !== undefined) ? String(r[j]) : ''; };
       out.push({ row: i + 2, id: g(0), invId: g(1), itemNum: g(2), type: g(3), text: g(4),
-                 partNum: g(5), by: g(6), dateAdded: g(7), dateDone: g(8), status: g(9) || 'done', notes: g(10) });
+                 partNum: g(5), by: g(6), dateAdded: _isoDate(g(7)), dateDone: _isoDate(g(8)), status: g(9) || 'done', notes: g(10) });
     });
     return out;
   }
@@ -1927,7 +1939,7 @@
       if (!(await _ensureLogTab())) throw new Error('log tab unavailable');
       var _t = function (v) { v = String(v || ''); return v && v.charAt(0) !== "'" ? "'" + v : v; };
       var row = [_t('log-' + Date.now()), _t(window._maintPanelInvId || ''), _t(String(_panelItem.itemNum || '')),
-                 'chore', chore, '', '', new Date().toISOString().split('T')[0], '', 'open'];
+                 'chore', chore, '', '', _t(new Date().toISOString().split('T')[0]), '', 'open'];
       await sheetsAppend(state.personalSheetId, LOG_TAB + '!A:J', [row]);
       await _loadLog(); _wbBadge(); _maintRenderTasks();
       if (customIn) customIn.value = '';
@@ -1939,7 +1951,7 @@
     var today = new Date().toISOString().split('T')[0];
     try {
       var ok = (typeof rrVerifiedRowUpdate === 'function')
-        ? await rrVerifiedRowUpdate(state.personalSheetId, LOG_TAB, rowNum, LOG_TAB + '!I' + rowNum + ':J' + rowNum, [[today, 'done']], { num: logId }, 'Workbench')
+        ? await rrVerifiedRowUpdate(state.personalSheetId, LOG_TAB, rowNum, LOG_TAB + '!I' + rowNum + ':J' + rowNum, [["'" + today, 'done']], { num: logId }, 'Workbench')
         : false;
       if (!ok) return;
       var l = (state.maintLog || []).find(function (x) { return x.row === rowNum; });
@@ -1958,7 +1970,7 @@
       var _t = function (v) { v = String(v || ''); return v && v.charAt(0) !== "'" ? "'" + v : v; };
       var today = new Date().toISOString().split('T')[0];
       await sheetsAppend(state.personalSheetId, LOG_TAB + '!A:J',
-        [[_t('log-' + Date.now()), _t(invId || ''), _t(String(itemNum || '')), 'note', txt, '', by, today, today, 'done']]);
+        [[_t('log-' + Date.now()), _t(invId || ''), _t(String(itemNum || '')), 'note', txt, '', by, _t(today), _t(today), 'done']]);
       await _loadLog();
       window._maintShowHistory(invId, itemNum);
       if (typeof showToast === 'function') showToast('✓ Noted');
@@ -1972,7 +1984,7 @@
       var _t = function (v) { v = String(v || ''); return v && v.charAt(0) !== "'" ? "'" + v : v; };
       var today = new Date().toISOString().split('T')[0];
       await sheetsAppend(state.personalSheetId, LOG_TAB + '!A:J',
-        [[_t('log-' + Date.now()), _t(invId || ''), _t(String(itemNum || '')), 'part-installed', desc || 'part installed', _t(partNum || ''), by || 'self', today, today, 'done']]);
+        [[_t('log-' + Date.now()), _t(invId || ''), _t(String(itemNum || '')), 'part-installed', desc || 'part installed', _t(partNum || ''), by || 'self', _t(today), _t(today), 'done']]);
       await _loadLog(); _wbBadge();
     } catch (e) { console.warn('[Workbench] log part-installed failed', e && e.message); }
   };
@@ -2034,7 +2046,6 @@
         return '<div class="maint-task" data-id="' + _esc(t.id) + '" style="border:1px solid var(--border);border-radius:10px;padding:0.65rem 0.75rem;margin-bottom:0.5rem;background:var(--bg-card)">'
           + '<div style="display:flex;justify-content:space-between;align-items:center;gap:0.4rem;flex-wrap:wrap">'
           +   '<div style="font-weight:700;color:var(--text)">🔧 ' + _esc(t.text) + ' <span style="font-weight:400;font-size:0.72rem;color:var(--text-dim)">since ' + _esc(t.dateAdded) + '</span></div>'
-          +   '<button onclick="_maintChoreDone(' + t.row + ',\'' + _esc(t.id) + '\')" style="padding:0.3rem 0.65rem;border-radius:7px;border:1.5px solid #2ecc71;background:var(--bg-card);background:color-mix(in srgb, rgb(46,204,113) 10%, var(--bg-card));color:#2ecc71;font-size:0.75rem;cursor:pointer;font-weight:600">✓ Done</button>'
           + '</div>'
           + '<textarea id="task-notes-' + _esc(t.id) + '" placeholder="Notes for this repair…" rows="2" style="' + IN + ';margin-top:0.5rem;resize:vertical">' + _esc(t.notes || '') + '</textarea>'
           + '<div style="display:flex;gap:0.4rem;flex-wrap:wrap;align-items:center;margin-top:0.4rem">'
@@ -2043,6 +2054,9 @@
           +   '<button onclick="_maintTaskVideos(\'' + _esc(t.text) + '\')" style="' + small + '">🎬 Videos for this job</button>'
           + '</div>'
           + partLine
+          + '<div style="display:flex;justify-content:flex-end;margin-top:0.55rem;padding-top:0.45rem;border-top:1px dashed var(--border)">'
+          +   '<button onclick="if(confirm(\'Mark \\u201c' + _esc(t.text).replace(/'/g, '') + '\\u201d complete? It moves to the service history.\'))_maintChoreDone(' + t.row + ',\'' + _esc(t.id) + '\')" style="padding:0.3rem 0.7rem;border-radius:7px;border:1.5px solid #2ecc71;background:var(--bg-card);background:color-mix(in srgb, rgb(46,204,113) 10%, var(--bg-card));color:#2ecc71;font-size:0.75rem;cursor:pointer;font-weight:600">✓ Mark complete — job finished</button>'
+          + '</div>'
           + '</div>';
       }).join('');
     };
@@ -2128,7 +2142,7 @@
       var isNum = /^[A-Za-z]{0,4}[\-#]?[A-Za-z0-9][A-Za-z0-9\-\/\.]*$/.test(txt) && /\d/.test(txt);
       var row = [_t('part-' + Date.now()), isNum ? '' : txt, _t(isNum ? txt : ''),
                  _t(String(_panelItem.itemNum || '')), _t(window._maintPanelInvId || ''),
-                 '', 'for Workbench task', new Date().toISOString().split('T')[0],
+                 '', 'for Workbench task', _t(new Date().toISOString().split('T')[0]),
                  'wanted', '', '', '', _t(taskId)];
       await sheetsAppend(state.personalSheetId, 'Parts Needed!A:M', [row]);
       if (typeof buildPartsPage === 'function') await buildPartsPage();
@@ -2167,8 +2181,8 @@
       var res = await sheetsGet(state.personalSheetId, BIN_TAB + '!A2:M').catch(function () { return { values: [] }; });
       state.partsBin = (res.values || []).map(function (r, i) {
         var g = function (j) { return (r[j] != null) ? String(r[j]) : ''; };
-        return { row: i + 2, id: g(0), partNum: g(1), desc: g(2), qty: parseInt(g(3), 10) || 0, where: g(4), dateAcq: g(5),
-                 price: g(6), photo: g(7), topics: g(8), forSale: /^(yes|true|1)$/i.test(g(9)), asking: g(10), notes: g(11), date: g(12) };
+        return { row: i + 2, id: g(0), partNum: g(1), desc: g(2), qty: parseInt(g(3), 10) || 0, where: g(4), dateAcq: _isoDate(g(5)),
+                 price: g(6), photo: g(7), topics: g(8), forSale: /^(yes|true|1)$/i.test(g(9)), asking: g(10), notes: g(11), date: _isoDate(g(12)) };
       }).filter(function (b) { return b.id; });
     } catch (e) { state.partsBin = state.partsBin || []; }
   }
@@ -2224,7 +2238,7 @@
           if (up && up.id) photo = 'https://drive.google.com/file/d/' + up.id + '/view';
         }
         var sale = document.getElementById('binf-sale'); var forSale = sale && sale.checked ? 'Yes' : '';
-        var row = [_t(existing.id || ('bin-' + Date.now())), _t(num), desc, String(qty), g('binf-where'), g('binf-date'), g('binf-price'), photo, g('binf-topics'), forSale, g('binf-asking'), g('binf-notes'), existing.date || new Date().toISOString().split('T')[0]];
+        var row = [_t(existing.id || ('bin-' + Date.now())), _t(num), desc, String(qty), g('binf-where'), _t(g('binf-date')), g('binf-price'), photo, g('binf-topics'), forSale, g('binf-asking'), g('binf-notes'), _t(existing.date || new Date().toISOString().split('T')[0])];
         if (existing.id) {
           if (!(await rrVerifiedRowUpdate(state.personalSheetId, BIN_TAB, existing.row, BIN_TAB + '!A' + existing.row + ':M' + existing.row, [row], { num: existing.id }, 'Parts Bin'))) { btn.disabled = false; btn.textContent = 'Save changes'; return; }
         } else {
@@ -2279,8 +2293,8 @@
       var _t = function (v) { v = String(v || ''); return v && v.charAt(0) !== "'" ? "'" + v : v; };
       var today = new Date().toISOString().split('T')[0];
       var row = [_t('part-' + Date.now()), b.desc, _t(b.partNum), _t(String(_panelItem.itemNum || '')), _t(window._maintPanelInvId || ''),
-                 b.photo || '', 'from Parts Bin' + (b.where ? ' (' + b.where + ')' : ''), today,
-                 'bought', b.dateAcq || today, '', b.price || '', _t(taskId || '')];
+                 b.photo || '', 'from Parts Bin' + (b.where ? ' (' + b.where + ')' : ''), _t(today),
+                 'bought', _t(b.dateAcq || today), '', b.price || '', _t(taskId || '')];
       await sheetsAppend(state.personalSheetId, 'Parts Needed!A:M', [row]);
       if (typeof buildPartsPage === 'function') await buildPartsPage();
       var pop = document.getElementById('maint-parts-pop'); if (pop) pop.remove();

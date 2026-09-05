@@ -4307,9 +4307,9 @@ function _parsePartsRows(values) {
     var _s = function (v) { return (v !== null && v !== undefined && v !== '') ? String(v) : ''; };
     parts['p' + (idx + 3)] = {
       row: idx + 3, id: _s(r[0]), description: _s(r[1]), partNum: _s(r[2]),
-      forItem: _s(r[3]), forInv: _s(r[4]), photo: _s(r[5]), notes: _s(r[6]), dateAdded: _s(r[7]),
+      forItem: _s(r[3]), forInv: _s(r[4]), photo: _s(r[5]), notes: _s(r[6]), dateAdded: (typeof window._maintIsoDate === 'function' ? window._maintIsoDate(_s(r[7])) : _s(r[7])),   // v0.9.1669: serial dates back to ISO
       // v0.9.1647 lifecycle (I-L): blank status MEANS 'wanted' — zero-touch migration.
-      status: _s(r[8]).toLowerCase() || 'wanted', dateBought: _s(r[9]), dateInstalled: _s(r[10]), pricePaid: _s(r[11]),
+      status: _s(r[8]).toLowerCase() || 'wanted', dateBought: (typeof window._maintIsoDate === 'function' ? window._maintIsoDate(_s(r[9])) : _s(r[9])), dateInstalled: (typeof window._maintIsoDate === 'function' ? window._maintIsoDate(_s(r[10])) : _s(r[10])), pricePaid: _s(r[11]),
       taskId: _s(r[12])   // v0.9.1666: which Workbench task wants this part
     };
   });
