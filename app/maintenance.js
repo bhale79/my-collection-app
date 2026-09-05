@@ -1,5 +1,5 @@
 // ============================================================
-//  maintenance.js — 🔧 Maintenance panel + Workbench + My Manuals + task cards + Parts Bin (v0.9.1670, Session 92)
+//  maintenance.js — 🔧 Maintenance panel + Workbench + My Manuals + task cards + Parts Bin (v0.9.1671, Session 92)
 //  OWNER-ONLY (admin preview): the button renders only when the
 //  signed-in email is on MAINT.OWNER_EMAILS. Everyone else's app
 //  is untouched — delete this ONE file + its index.html line to
@@ -1722,7 +1722,7 @@
     var IN = 'width:100%;box-sizing:border-box;padding:0.5rem 0.65rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.88rem;margin-bottom:0.7rem';
     var LB = 'font-size:0.72rem;color:var(--text-dim);display:block;margin-bottom:0.2rem;text-transform:uppercase;letter-spacing:0.05em';
     var html = '<div id="maint-docform" style="position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9700;display:flex;align-items:flex-start;justify-content:center;overflow-y:auto;padding:2rem 1rem" onclick="if(event.target===this && confirm(\'Close without saving?\'))this.remove()">'
-      + '<div style="background:var(--bg-card);border:1px solid var(--border);border-radius:16px;max-width:480px;width:100%;padding:1.2rem 1.3rem;margin-bottom:2rem">'
+      + '<div class="maint-card" style="background:var(--bg-card);border:1px solid var(--border);border-radius:16px;max-width:480px;width:100%;padding:1.2rem 1.3rem;margin-bottom:2rem">'
       + '<div style="font-family:var(--font-head);font-weight:700;color:var(--text);margin-bottom:0.8rem">' + (type === 'picture' ? '📎 Save a picture' : type === 'document' ? '📄 Save a document' : type === 'video' ? '🎬 Save a video' : '🔗 Save a link') + ' — My Manuals</div>'
       + ((type === 'link' || type === 'video')
           ? '<label style="' + LB + '">' + (type === 'video' ? 'YouTube link (paste it)' : 'Link (paste it — switch windows all you like, this form waits)') + '</label><input id="docf-url" type="text" placeholder="https://…" style="' + IN + '">'
@@ -1973,7 +1973,7 @@
         + '</div>';
     }).join('') || '<div style="color:var(--text-dim);font-size:0.85rem;padding:0.6rem 0">No service history yet.</div>';
     var html = '<div id="wb-history" style="position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9600;display:flex;align-items:flex-start;justify-content:center;overflow-y:auto;padding:2rem 1rem" onclick="if(event.target===this)this.remove()">'
-      + '<div style="background:var(--bg-card);border:1px solid var(--border);border-radius:16px;max-width:520px;width:100%;padding:1.2rem 1.3rem;margin-bottom:2rem">'
+      + '<div class="maint-card" style="background:var(--bg-card);border:1px solid var(--border);border-radius:16px;max-width:520px;width:100%;padding:1.2rem 1.3rem;margin-bottom:2rem">'
       + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.7rem">'
       + '<div style="font-family:var(--font-head);font-weight:700;color:var(--text)">🔧 Service history — ' + _esc(itemNum) + '</div>'
       + '<button onclick="document.getElementById(\'wb-history\').remove()" style="background:none;border:none;color:var(--text-dim);font-size:1.3rem;cursor:pointer">&times;</button></div>'
@@ -2020,7 +2020,6 @@
           + '<div id="task-notes-hint-' + _esc(t.id) + '" style="font-size:0.7rem;color:var(--text-dim);min-height:0.9rem"></div>'
           + '<div style="display:flex;gap:0.4rem;flex-wrap:wrap;align-items:center;margin-top:0.3rem">'
           +   '<button onclick="_maintPartsPopup(\'' + _esc(t.id) + '\',\'' + _esc(t.text) + '\')" style="padding:0.4rem 0.8rem;border-radius:7px;border:1.5px solid #e67e22;background:var(--bg-card);background:color-mix(in srgb, rgb(230,126,34) 10%, var(--bg-card));color:#e67e22;font-family:var(--font-body);font-size:0.78rem;cursor:pointer;font-weight:600">⚙️ Need a part</button>'
-          +   '<button onclick="_maintTaskVideos(\'' + _esc(t.text) + '\')" style="' + small + '">🎬 Videos for this job</button>'
           + '</div>'
           + partLine
           + '<div style="display:flex;justify-content:flex-end;margin-top:0.55rem;padding-top:0.45rem;border-top:1px dashed var(--border)">'
@@ -2058,11 +2057,7 @@
     } catch (e) { if (h) h.textContent = 'not saved'; if (typeof showToast === 'function') showToast('Could not save the notes', 3500, true); }
   };
 
-  window._maintTaskVideos = function (taskName) {
-    if (!_panelItem) return;
-    var ch = (document.getElementById('maint-yt-channel') || {}).value || '';
-    window.open(_ytUrl(ch, _panelItem, taskName, ''), '_blank');
-  };
+  // _maintTaskVideos removed in v0.9.1671 (Brad: the video finder sits right below the card).
 
   // ── the Need-a-part popup: find your part + your parts diagrams ──
   window._maintPartsPopup = function (taskId, taskName) {
@@ -2078,7 +2073,7 @@
         }).join('')
       : '<div style="font-size:0.8rem;color:var(--text-dim);margin-bottom:0.4rem">No diagram saved for this item yet.</div>';
     var html = '<div id="maint-parts-pop" style="position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9650;display:flex;align-items:flex-start;justify-content:center;overflow-y:auto;padding:2rem 1rem">'
-      + '<div style="background:var(--bg-card);border:1px solid var(--border);border-radius:16px;max-width:520px;width:100%;padding:1.2rem 1.3rem;margin-bottom:2rem">'
+      + '<div class="maint-card" style="background:var(--bg-card);border:1px solid var(--border);border-radius:16px;max-width:520px;width:100%;padding:1.2rem 1.3rem;margin-bottom:2rem">'
       + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.7rem">'
       +   '<div style="font-family:var(--font-head);font-weight:700;color:var(--text)">⚙️ Need a part — ' + _esc(taskName) + '</div>'
       +   '<button onclick="document.getElementById(\'maint-parts-pop\').remove()" style="background:none;border:none;color:var(--text-dim);font-size:1.3rem;cursor:pointer">&times;</button></div>'
@@ -2183,7 +2178,7 @@
     var IN = 'width:100%;box-sizing:border-box;padding:0.5rem 0.65rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.88rem;margin-bottom:0.6rem';
     var LB = 'font-size:0.72rem;color:var(--text-dim);display:block;margin-bottom:0.2rem;text-transform:uppercase;letter-spacing:0.05em';
     var html = '<div id="bin-form" style="position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9700;display:flex;align-items:flex-start;justify-content:center;overflow-y:auto;padding:2rem 1rem">'
-      + '<div style="background:var(--bg-card);border:1px solid var(--border);border-radius:16px;max-width:480px;width:100%;padding:1.2rem 1.3rem;margin-bottom:2rem">'
+      + '<div class="maint-card" style="background:var(--bg-card);border:1px solid var(--border);border-radius:16px;max-width:480px;width:100%;padding:1.2rem 1.3rem;margin-bottom:2rem">'
       + '<div style="font-family:var(--font-head);font-weight:700;color:var(--text);margin-bottom:0.8rem">🧰 ' + (existing.id ? 'Edit bin part' : 'Add to the Parts Bin') + '</div>'
       + '<label style="' + LB + '">Description *</label><input id="binf-desc" type="text" value="' + _esc(existing.desc || '') + '" placeholder="e.g. postwar 3-position e-unit" style="' + IN + '">'
       + '<label style="' + LB + '">Part number (if known)</label><input id="binf-num" type="text" value="' + _esc(existing.partNum || '') + '" style="' + IN + ';font-family:var(--font-mono)">'
