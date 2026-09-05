@@ -54,7 +54,7 @@
   // ── Vault reads: one batchGet, owner token ─────────────────────
   function _fetchVault() {
     var ranges = ['submissions!A1:L1000', 'barcode_pairs!A1:I1000', 'chores!A1:D200', 'usage!A1:C400',
-                  'crawl_batches!A1:G50', 'crawl_deltas!A1:Q4000']
+                  'crawl_batches!A1:G50', 'crawl_deltas!A1:T4000']   // v0.9.1683: image_url is column R (the crawl adds it at the END)
       .map(function (r) { return 'ranges=' + encodeURIComponent(r); }).join('&');
     return fetch('https://sheets.googleapis.com/v4/spreadsheets/' + YM.VAULT_ID
         + '/values:batchGet?' + ranges,
@@ -138,7 +138,8 @@
           tab: g(r, 'proposed_tab'), num: g(r, 'item_num'), type: g(r, 'item_type'),
           road: g(r, 'road_name'), desc: g(r, 'description'), gauge: g(r, 'gauge'),
           variation: g(r, 'variation'), years: g(r, 'years'), link: g(r, 'ref_link'),
-          msrp: g(r, 'msrp'), flag: g(r, 'flag'), status: g(r, 'status') || 'pending'
+          msrp: g(r, 'msrp'), flag: g(r, 'flag'), status: g(r, 'status') || 'pending',
+          imageUrl: g(r, 'image_url')   // v0.9.1683: the maker's product-photo LINK (stock-photos.js draws it, by link)
         };
       });
     }
@@ -435,6 +436,7 @@
       case 'Variation': return dd.variation;
       case 'Reference Link': return dd.link;
       case 'MSRP': return dd.msrp;
+      case 'Image URL': return dd.imageUrl || '';   // v0.9.1683
       case 'Source': return (dd.source || 'Wayback sweep') + ' \u2014 approved ' + today + ' (Yardmaster cockpit)';
       default: return '';
     }
@@ -470,7 +472,7 @@
       var tabs = Object.keys(byTab), plan = {}, heldDup = [];
       for (var ti = 0; ti < tabs.length; ti++) {
         var t2 = tabs[ti];
-        var gotRes = await fetch('https://sheets.googleapis.com/v4/spreadsheets/' + MID + '/values/' + encodeURIComponent("'" + t2 + "'!A1:V"), { headers: H });
+        var gotRes = await fetch('https://sheets.googleapis.com/v4/spreadsheets/' + MID + '/values/' + encodeURIComponent("'" + t2 + "'!A1:AD"), { headers: H });   // v0.9.1683: was A1:V — MTH tabs run to W, and Image URL lands after that
         if (!gotRes.ok) throw new Error('could not read ' + t2 + ' (HTTP ' + gotRes.status + ') \u2014 commit stopped before any write');
         var got = await gotRes.json();
         var vals = got.values || [];
@@ -529,6 +531,19 @@
       for (var ai = 0; ai < tabs.length; ai++) {
         var t4 = tabs[ai];
         if (!plan[t4].fresh.length) continue;
+        // v0.9.1683: a row carrying an image link needs somewhere to put it.
+        // The column is added at the END of the tab's header row (the column
+        // rule), once, only when a fresh row actually has a link — Bachmann
+        // tabs already have it; Lionel MPC-Modern gets it on its first
+        // approved crawl row. Header write first, so the row below lines up.
+        var _hasImg = plan[t4].fresh.some(function (dd) { return !!(dd.imageUrl && String(dd.imageUrl).trim()); });
+        if (_hasImg && plan[t4].heads.map(String).indexOf('Image URL') < 0) {
+          var _newIdx = plan[t4].heads.length;   // 0-based index of the new last column
+          var _colL = (typeof colLetter === 'function') ? colLetter(_newIdx) : String.fromCharCode(65 + _newIdx);
+          if (typeof sheetsUpdate !== 'function') throw new Error('sheetsUpdate unavailable \u2014 reload the app');
+          await sheetsUpdate(MID, "'" + t4 + "'!" + _colL + '1', [['Image URL']]);
+          plan[t4].heads = plan[t4].heads.concat(['Image URL']);
+        }
         var rows = plan[t4].fresh.map(function (dd) {
           return plan[t4].heads.map(function (h) { return _ymMasterCell(h, dd, today); });
         });
@@ -629,6 +644,8 @@
               + 'border:1px solid var(--accent2);background:var(--surface);color:var(--accent2);text-decoration:none;font-size:0.9rem;font-weight:600">Google</a>'
             + (dd.link ? '<a href="' + _esc(dd.link) + '" target="_blank" rel="noopener" style="padding:0.25rem 0.7rem;border-radius:7px;'
               + 'border:1px solid var(--border);background:var(--surface);color:var(--text-dim);text-decoration:none;font-size:0.9rem">Archive</a>' : '')
+            + (dd.imageUrl ? '<a href="' + _esc(dd.imageUrl) + '" target="_blank" rel="noopener" title="The maker\u2019s product photo this row carries (shown to users by link only)" style="padding:0.25rem 0.7rem;border-radius:7px;'
+              + 'border:1px solid var(--border);background:var(--surface);color:var(--text-dim);text-decoration:none;font-size:0.9rem">Photo</a>' : '')   // v0.9.1683
           + '</div>'
           + '<div style="display:flex;gap:0.4rem">' + vbtn(dd, 'approved', 'Approve') + vbtn(dd, 'rejected', 'Reject') + vbtn(dd, 'deferred', 'Defer')
             + '<button onclick="_ymEditOpen(\'' + _esc(dd.id) + '\')" title="Change the tab, number, description\u2026 then it counts as approved with your changes" style="padding:0.25rem 0.65rem;border-radius:7px;cursor:pointer;font-family:var(--font-body);font-size:0.9rem;font-weight:600;border:1.5px solid var(--accent2);background:var(--surface);color:var(--accent2)">' + (dd.status === 'edited' ? '\u2713 ' : '') + 'Edit</button>'
