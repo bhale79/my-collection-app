@@ -1,5 +1,6 @@
 // ══════════════════════════════════════════════════════════════
 //  yardmaster.js — The Yardmaster's Office (v0.9.1580, Session 86)
+//  v0.9.1688: Clear finished / Show finished / Put back on the queue card.
 //
 //  Brad: "I need something like an admin page that will help me keep
 //  track of everything." Decided S86: queues front and center.
@@ -152,6 +153,10 @@
     if (d.crawlBatches && d.crawlBatches.length) {
       d.crawlBatches[0].forEach(function (h, i) { _bcol[String(h)] = i; });
       var gb = function (r, name) { var i = _bcol[name]; return i == null ? '' : String(r[i] == null ? '' : r[i]); };
+      // v0.9.1688: the status column's LETTER, read from the header once,
+      // so every status write (commit, clear, put back) goes through
+      // _ymBatchStatusRange — never a second hardcoded 'E'.
+      out.batchStatusCol = _bcol.status == null ? 'E' : String.fromCharCode(65 + _bcol.status);
       out.batches = d.crawlBatches.slice(1).map(function (r, i) { r._sheetRow = i + 2; return r; })
         .filter(function (r) { return gb(r, 'batch_id'); }).map(function (r) {
         var id = gb(r, 'batch_id');
@@ -239,23 +244,43 @@
     // v0.9.1628: committed batches STAY (dimmed) — vanishing stranded
     // Brad's 3 no-tab rows behind an unreachable Review button.
     var open = d.batches.filter(function (b) { return b.status !== 'dismissed'; });
-    var brows = open.map(function (b) {
+    // v0.9.1688 (Brad: "clean up my yardmaster office from the completed
+    // items"): a batch is FINISHED when it is committed, nothing is
+    // pending or deferred, and no approved row is still held (no tab or
+    // no number) — the v1628 stranding case, kept visible on purpose.
+    // "Clear finished" marks those batches dismissed in the Vault (one
+    // cell each, reversible); "Show N finished" lists them again, each
+    // with "Put back". Rows in crawl_deltas are never touched.
+    var finished = open.filter(_ymIsFinished);
+    var hidden = d.batches.filter(function (b) { return b.status === 'dismissed'; });
+    var shown = _ymShowFinished ? open.concat(hidden) : open;
+    var brows = shown.map(function (b) {
       var c = b.counts, done = c.approved + c.edited + c.rejected;
-      var _cm = b.status === 'committed';
-      return '<div style="display:flex;align-items:center;gap:0.9rem;flex-wrap:wrap;padding:0.5rem 0;border-top:1px solid var(--border)' + (_cm ? ';opacity:0.75' : '') + '">'
-        + '<div style="flex:1;min-width:220px"><div style="font-weight:700;color:var(--text);font-size:1.15rem">' + _esc(b.label) + (_cm ? ' <span style="font-size:0.85rem;color:var(--green);font-weight:700">\u2713 committed</span>' : '') + '</div>'
+      var _cm = b.status === 'committed', _dm = b.status === 'dismissed', held = _ymHeldCount(b);
+      return '<div style="display:flex;align-items:center;gap:0.9rem;flex-wrap:wrap;padding:0.5rem 0;border-top:1px solid var(--border)' + (_cm ? ';opacity:0.75' : _dm ? ';opacity:0.55' : '') + '">'
+        + '<div style="flex:1;min-width:220px"><div style="font-weight:700;color:var(--text);font-size:1.15rem">' + _esc(b.label) + (_cm ? ' <span style="font-size:0.85rem;color:var(--green);font-weight:700">\u2713 committed</span>' : _dm ? ' <span style="font-size:0.85rem;color:var(--text-dim);font-weight:700">finished</span>' : '') + '</div>'
         + '<div style="font-size:0.98rem;color:var(--text-dim)">' + _esc(b.created) + ' · ' + _esc(b.note) + '</div></div>'
         + '<div style="font-size:1.05rem;color:var(--text-mid);white-space:nowrap">'
         + '<span style="font-weight:700;color:' + (c.pending ? 'var(--accent)' : 'var(--text-dim)') + '">' + c.pending + '</span> pending'
-        + (done ? ' · ' + done + ' decided' : '') + (c.deferred ? ' · ' + c.deferred + ' deferred' : '') + '</div>'
+        + (done ? ' · ' + done + ' decided' : '') + (c.deferred ? ' · ' + c.deferred + ' deferred' : '')
+        + (held ? ' · <span style="color:var(--accent)">' + held + ' held</span>' : '') + '</div>'
         + '<button onclick="_ymBatchOpen(\'' + _esc(b.id) + '\')" style="padding:0.35rem 0.95rem;border-radius:8px;border:1px solid var(--accent2);'
         + 'background:var(--surface2);color:var(--accent2);font-family:var(--font-body);font-weight:700;cursor:pointer">Review →</button>'
+        + (_dm ? '<button onclick="_ymPutBack(\'' + _esc(b.id) + '\')" title="Show this batch in the queue again" style="padding:0.35rem 0.95rem;border-radius:8px;border:1px solid var(--border);'
+          + 'background:var(--surface2);color:var(--text);font-family:var(--font-body);cursor:pointer">Put back</button>' : '')
         + '</div>';
     }).join('');
-    html += _card('Catalog review queue' + (open.length ? '' : ' — empty'),
-      open.length
-        ? brows + '<div style="margin-top:0.5rem;font-size:0.95rem;color:var(--text-dim)">Read-only for now — approve/reject verdicts arrive in the next release.</div>'
-        : '<div style="color:var(--text-dim)">No crawl batches waiting. New sweeps land here automatically.</div>');
+    var _qbtn = 'padding:0.3rem 0.85rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);cursor:pointer;font-size:0.95rem';
+    var qfoot = (finished.length || hidden.length)
+      ? '<div style="display:flex;gap:0.6rem;flex-wrap:wrap;align-items:center;margin-top:0.7rem;padding-top:0.6rem;border-top:1px solid var(--border)">'
+        + (finished.length ? '<button onclick="_ymClearFinished()" title="Hides every committed batch with nothing left to do. Rows stay in the Vault; Show finished brings a batch back." style="' + _qbtn + '">Clear finished (' + finished.length + ')</button>' : '')
+        + (hidden.length ? '<button onclick="_ymToggleFinished()" style="' + _qbtn + '">' + (_ymShowFinished ? 'Hide finished' : 'Show ' + hidden.length + ' finished') + '</button>' : '')
+        + '</div>'
+      : '';
+    html += _card('Catalog review queue' + (shown.length ? '' : ' — empty'),
+      shown.length
+        ? brows + qfoot + '<div style="margin-top:0.5rem;font-size:0.95rem;color:var(--text-dim)">Read-only for now — approve/reject verdicts arrive in the next release.</div>'
+        : '<div style="color:var(--text-dim)">No crawl batches waiting. New sweeps land here automatically.</div>' + qfoot);
 
     // 2 — CHORES
     var due = d.chores.filter(function (c) { return c.due; });
@@ -292,6 +317,57 @@
         : '<div style="color:var(--text-dim)">No heartbeats counted yet — they start arriving as devices update to this release.</div>');
 
     page.innerHTML = html;
+  };
+
+  // ── v0.9.1688: clearing finished batches from the queue ────────
+  // Everything below writes ONE cell per batch — the status cell of its
+  // crawl_batches row, found by header — and nothing in crawl_deltas.
+  var _ymShowFinished = false;
+  var _ymStatusBusy = false;   // stability rule #5: one status write in flight
+  function _ymHeldCount(b) {
+    // approved/edited rows that could not land: blank number or no real tab
+    if (!_ymData) return 0;
+    var validTabs = _ymMasterTabs(), n = 0;
+    _ymData.deltas.forEach(function (dd) {
+      if (dd.batch !== b.id || (dd.status !== 'approved' && dd.status !== 'edited')) return;
+      if (!String(dd.num || '').trim() || validTabs.indexOf(String(dd.tab || '').trim()) < 0) n++;
+    });
+    return n;
+  }
+  function _ymIsFinished(b) {
+    var c = b.counts || {};
+    return b.status === 'committed' && !c.pending && !c.deferred && !_ymHeldCount(b);
+  }
+  function _ymBatchStatusRange(b) {
+    return 'crawl_batches!' + ((_ymData && _ymData.batchStatusCol) || 'E') + (b.sheetRow || 2);
+  }
+  async function _ymSetBatchStatus(list, status, doneMsg) {
+    if (!_isOwner() || !_ymData || !list.length) return;
+    if (_ymStatusBusy) { if (typeof showToast === 'function') showToast('Still saving the last change \u2014 one moment.', 2500); return; }
+    _ymStatusBusy = true;
+    try {
+      var r = await fetch('https://sheets.googleapis.com/v4/spreadsheets/' + YM.VAULT_ID + '/values:batchUpdate',
+        { method: 'POST',
+          headers: { Authorization: 'Bearer ' + window.accessToken, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ valueInputOption: 'RAW', data: list.map(function (b) { return { range: _ymBatchStatusRange(b), values: [[status]] }; }) }) });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      list.forEach(function (b) { b.status = status; });   // local copies only after the Vault said yes
+      if (typeof showToast === 'function') showToast(doneMsg, 3000);
+      window.ymBuildPage(false);
+    } catch (e) {
+      if (typeof showToast === 'function') showToast('That change didn\u2019t reach the Vault \u2014 check the connection and try again.', 4000, true);
+    } finally { _ymStatusBusy = false; }
+  }
+  window._ymClearFinished = function () {
+    if (!_ymData) return;
+    var list = _ymData.batches.filter(function (b) { return b.status !== 'dismissed' && _ymIsFinished(b); });
+    _ymSetBatchStatus(list, 'dismissed', list.length + (list.length === 1 ? ' finished batch cleared' : ' finished batches cleared') + ' \u2014 Show finished brings them back.');
+  };
+  window._ymToggleFinished = function () { _ymShowFinished = !_ymShowFinished; window.ymBuildPage(false); };
+  window._ymPutBack = function (id) {
+    if (!_ymData) return;
+    var list = _ymData.batches.filter(function (b) { return b.id === id && b.status === 'dismissed'; });
+    _ymSetBatchStatus(list, 'committed', 'Back in the queue.');
   };
 
   // ── v0.9.1622 → v0.9.1626: the batch review view ───────────────
@@ -503,7 +579,7 @@
       if (totFresh === 0) {
         // everything approved already sits in the master — the dedupe held
         // it all. Say so and mark the batch committed; nothing to write.
-        await fetch('https://sheets.googleapis.com/v4/spreadsheets/' + YM.VAULT_ID + '/values:batchUpdate', { method: 'POST', headers: H, body: JSON.stringify({ valueInputOption: 'RAW', data: [{ range: 'crawl_batches!E' + (b.sheetRow || 2), values: [['committed']] }] }) });
+        await fetch('https://sheets.googleapis.com/v4/spreadsheets/' + YM.VAULT_ID + '/values:batchUpdate', { method: 'POST', headers: H, body: JSON.stringify({ valueInputOption: 'RAW', data: [{ range: _ymBatchStatusRange(b), values: [['committed']] }] }) });
         b.status = 'committed';
         if (typeof showToast === 'function') showToast('Everything approved is already in the master' + (heldNoTab.length ? ' \u2014 ' + heldNoTab.length + ' still need a tab (use Edit)' : '') + (heldNoNum.length ? ' \u2014 ' + heldNoNum.length + ' still need an item number (use Edit)' : '') + '.', 5000);
         window._ymBatchOpen(_ymBatchId, true);
@@ -571,7 +647,7 @@
         if (after !== plan[t4].rowsBefore + plan[t4].fresh.length) throw new Error('count verify failed on ' + t4 + ' \u2014 check the tab before trusting this commit');
       }
       // ── only now: the batch is committed ──
-      await fetch('https://sheets.googleapis.com/v4/spreadsheets/' + YM.VAULT_ID + '/values:batchUpdate', { method: 'POST', headers: H, body: JSON.stringify({ valueInputOption: 'RAW', data: [{ range: 'crawl_batches!E' + (b.sheetRow || 2), values: [['committed']] }] }) });
+      await fetch('https://sheets.googleapis.com/v4/spreadsheets/' + YM.VAULT_ID + '/values:batchUpdate', { method: 'POST', headers: H, body: JSON.stringify({ valueInputOption: 'RAW', data: [{ range: _ymBatchStatusRange(b), values: [['committed']] }] }) });
       b.status = 'committed';
       _ymUndoStack = null;
       if (typeof showToast === 'function') showToast('Committed \u2014 ' + appended + ' rows added to the master catalog. Backups are in RailRoster Backups.', 6000);

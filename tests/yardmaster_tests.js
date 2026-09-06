@@ -77,7 +77,7 @@ ok('sw.js precaches yardmaster.js (the S85 offline-app lesson)',
 // Verdict buttons are the NEXT release; commit the one after.
 const ym22 = src('yardmaster.js');
 ok('1622 the Vault read now includes the crawl queue tabs',
-   /crawl_batches!A1:G50/.test(ym22) && /crawl_deltas!A1:Q400/.test(ym22));
+   /crawl_batches!A1:G50/.test(ym22) && /crawl_deltas!A1:[A-Z]+\d{3,}/.test(ym22));   // v1687: X12000 (was Q4000) — the two Greenberg transcriptions
 ok('1622 the queue card exists and counts what is waiting',
    /Catalog review queue/.test(ym22) && /pending/.test(ym22));
 ok('1622 a batch opens into a review list with a back door',
@@ -229,9 +229,9 @@ ok('1633 the router no longer hardcodes the Menards pair',
 ok('1633 the Edit dropdown is built FROM the derived list, never typed twice',
    /_ymMasterTabs\(\)\.map/.test(ym33) && !/<option value="Menards O"/.test(ym33));
 ok('1633 dedupe + verify reads are UNBOUNDED — a 21,000-row tab cannot blind the dedupe',
-   !/A1:V5000/.test(ym33) && !/A1:A5000/.test(ym33) && ym33.indexOf('\'!A1:V"') >= 0 && ym33.indexOf('\'!A1:A"') >= 0);
-ok('1633 the Vault delta read holds a sweep-sized queue (Q4000)',
-   /crawl_deltas!A1:Q4000/.test(ym33));
+   !/A1:V5000/.test(ym33) && !/A1:A5000/.test(ym33) && !/A1:AD\d/.test(ym33) && ym33.indexOf('\'!A1:AD"') >= 0 && ym33.indexOf('\'!A1:A"') >= 0);   // v1683: A1:V → A1:AD (Image URL lands past W)
+ok('1633 the Vault delta read holds a sweep-sized queue (12,000 since v1687)',
+   /crawl_deltas!A1:X12000/.test(ym33));
 ok('1633 the confirm line reports per-tab append counts',
    /perTab\.join/.test(ym33) && /totFresh/.test(ym33));
 
@@ -253,6 +253,36 @@ ok('1634 a failed verify read says rows landed, never a silent lie',
    /chkRes\.ok/.test(cm34) && /rows were appended/.test(cm34));
 ok('1634 approved rows with a blank item number are HELD and said',
    /heldNoNum/.test(cm34) && /no item number/.test(cm34));
+
+// ── v0.9.1688: Clear finished — the queue card stops hoarding ────
+// Brad, 2026-09-05 evening, ten committed batches (7,197 decided rows)
+// dimmed in the Office: "clean up my yardmaster office from the
+// completed items." A batch is finished only when it is committed AND
+// nothing is pending or deferred AND no approved row is still held
+// (blank number / no real tab — the v1628 stranding case stays
+// visible). Clear finished writes 'dismissed' to ONE cell per batch,
+// the status cell found BY HEADER; Show N finished lists them again
+// with Put back. crawl_deltas is never written by any of it.
+const ym88 = src('yardmaster.js');
+ok('1688 finished = committed + nothing pending/deferred + nothing held',
+   /function _ymIsFinished\(b\)/.test(ym88) && /b\.status === 'committed' && !c\.pending && !c\.deferred && !_ymHeldCount\(b\)/.test(ym88));
+ok('1688 held = approved rows with a blank number or a tab that is not a real master tab',
+   /function _ymHeldCount\(b\)/.test(ym88) && /validTabs\.indexOf\(String\(dd\.tab \|\| ''\)\.trim\(\)\) < 0/.test(ym88));
+ok('1688 Clear finished, Show/Hide finished and Put back are wired to buttons',
+   /onclick="_ymClearFinished\(\)"/.test(ym88) && /onclick="_ymToggleFinished\(\)"/.test(ym88) && /onclick="_ymPutBack\(/.test(ym88)
+   && /window\._ymClearFinished = function/.test(ym88) && /window\._ymToggleFinished = function/.test(ym88) && /window\._ymPutBack = function/.test(ym88));
+ok('1688 the batch status column comes from the crawl_batches header, and NO status write hardcodes a column letter',
+   /out\.batchStatusCol = _bcol\.status == null \? 'E'/.test(ym88) && /function _ymBatchStatusRange\(b\)/.test(ym88)
+   && !/'crawl_batches!E'/.test(ym88) && (ym88.match(/range: _ymBatchStatusRange\(b\)/g) || []).length === 3);
+ok('1688 one status write in flight at a time (rule #5), local copies update only after the Vault says yes',
+   /_ymStatusBusy = true/.test(ym88) && /finally \{ _ymStatusBusy = false; \}/.test(ym88)
+   && /if \(!r\.ok\) throw new Error\('HTTP ' \+ r\.status\);\n\s*list\.forEach\(function \(b\) \{ b\.status = status; \}\)/.test(ym88));
+ok('1688 clearing touches crawl_batches only — never a crawl_deltas cell',
+   !/crawl_deltas!/.test(ym88.slice(ym88.indexOf('v0.9.1688: clearing finished'), ym88.indexOf('v0.9.1622 → v0.9.1626: the batch review view'))));
+ok('1688 the open-queue filter of v1628 is untouched (committed batches still show until cleared)',
+   /!== 'dismissed'; \}\);/.test(ym88) && /var shown = _ymShowFinished \? open\.concat\(hidden\) : open;/.test(ym88));
+ok('1688 an emptied queue still offers Show N finished',
+   /New sweeps land here automatically\.<\/div>' \+ qfoot/.test(ym88));
 
 console.log('\n' + pass + ' passed, ' + fail + ' failed');
 if (fail) { console.log('YARDMASTER TESTS FAILING'); process.exit(1); }
