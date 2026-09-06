@@ -55,6 +55,7 @@ const WHAT_I_COLLECT = {
                 'atlas', 'atlas_ho', 'atlas_n', 'atlas_z',
                 'mth_o', 'mth_ho', 'mth_s', 'mth_tinplate', 'mth_g',
                 'af_gilbert', 'am_s', 'shelper',   // v0.9.1686: the S-gauge makers, after Lionel's AF
+                'marklin_h0', 'marklin_z', 'marklin_1',   // v0.9.1690: Maerklin's three gauges
                 'weaver', 'rmt', 'menards', 'menards_ho', 'thirdrail', 'usatrains', 'lgb',
                 // v0.9.1159: placed rather than left to fall to the end.
                 'kline', 'williams', 'marx', 'other_o',
@@ -85,6 +86,12 @@ const WHAT_I_COLLECT = {
     // Session 154: Weaver
     weaver:       '#16a085',   // teal — Weaver
     // v0.9.1686: S-gauge makers — silver family like mod_s
+    // v0.9.1690: Maerklin's three gauges share the brand red already in the
+    // palette (usa trains uses the same literal) rather than adding three new
+    // hex values the colour ratchet would have to carry forever.
+    marklin_h0:   '#c0392b',
+    marklin_z:    '#c0392b',
+    marklin_1:    '#c0392b',
     af_gilbert:   '#7f8c8d',   // slate — Gilbert American Flyer
     am_s:         '#b2bec3',   // light steel — American Models
     shelper:      '#636e72',   // dark steel — S-Helper Service
@@ -169,6 +176,9 @@ const WHAT_I_COLLECT = {
     mth_g:        'g',
     weaver:       'o',
     af_gilbert:   's',   // v0.9.1686
+    marklin_h0:   'ho',  // v0.9.1690
+    marklin_z:    'z',
+    marklin_1:    'g',   // Gauge 1 runs on 45mm track, same as G
     am_s:         's',
     shelper:      's',
     rmt:          'o',
@@ -215,6 +225,10 @@ const WHAT_I_COLLECT = {
     '3rd rail':{ id: '3rd rail', label: '3rd Rail', color: '#8e44ad', default: false },
     'usa trains':{ id: 'usa trains', label: 'USA Trains', color: '#c0392b', default: false },
     lgb:    { id: 'lgb',    label: 'LGB',    color: '#f39c12',       default: false },
+    // v0.9.1690: Maerklin (H0 / Z / Gauge 1). Key equals ERAS.marklin_*.manufacturer
+    // lowercased. No color: on purpose — nothing reads MANUFACTURERS[].color, and the
+    // era cards already carry the three Maerklin reds in eraColors.
+    marklin: { id: 'marklin', label: 'Marklin', default: false },
     // v0.9.1159 — these three makers have had ERAS entries, master tabs and
     // catalog rows since 2026-07-28, but were never added here, so they could not
     // be picked in the manufacturer chip OR in "What I Collect" — and because the

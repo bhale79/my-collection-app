@@ -10746,8 +10746,8 @@ META_WRITES.length = 0; TOASTS.length = 0;
       // (error-report), S85 70→74 (import-core/-ui, help-guides,
       // logo-cards), v1580 74→75 (yardmaster — the owner-only Office).
       // v1682 77→78 (stock-photos.js — stock photos by link, owner + beta).
-      ok('every ?v= mark in app/index.html matches it — all 78, none stale',
-         stamps.length === 78 && stamps.every(t => t === '?v=' + build),
+      ok('every ?v= mark in app/index.html matches it — all 79, none stale',
+         stamps.length === 79 && stamps.every(t => t === '?v=' + build),
          stamps.length + ' stamps; strays: ' + stamps.filter(t => t !== '?v=' + build).slice(0, 3).join(','));
       ok('the service worker cache name moved too (build + 10, the fixed offset)',
          new RegExp("const CACHE_NAME = 'mca-v" + (build + 10) + "';").test(rd('app/sw.js')),

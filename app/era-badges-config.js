@@ -42,6 +42,9 @@ const ERA_BADGES = {
     // Session 154: Weaver
     weaver:       'WVR',
     // v0.9.1686: S-gauge makers
+    marklin_h0:   'MHO',   // v0.9.1690
+    marklin_z:    'MZ',
+    marklin_1:    'M1',
     af_gilbert:   'GILB',
     am_s:         'AM',
     shelper:      'SHS',
@@ -103,6 +106,9 @@ const ERA_BADGES = {
     // Session 154: Weaver
     'Weaver O':                   'weaver',
     // v0.9.1686: S-gauge makers
+    'Marklin H0': 'marklin_h0',        // v0.9.1690
+    'Marklin Z': 'marklin_z',
+    'Marklin Gauge 1': 'marklin_1',
     'American Flyer S - Gilbert': 'af_gilbert',
     'American Models S':          'am_s',
     'S-Helper Service S':         'shelper',

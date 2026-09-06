@@ -4,7 +4,7 @@
 // fetches fresh copies in the background for next load.
 // NEVER caches Google API, OAuth, or Sheets calls.
 
-const CACHE_NAME = 'mca-v1699';
+const CACHE_NAME = 'mca-v1700';
 
 // ── v0.9.1214: the version stamp has to survive as far as the cache ──
 // Brad, on v1213: "im reset twice and it still looks the same." He was
@@ -141,6 +141,7 @@ const SHELL_FILES = [
   './maintenance.js',   // v0.9.1672: Maintenance panel (owner-only preview, Session 90)
   './stock-photos.js',   // v0.9.1682: stock photos by link (owner + beta, Session 90)
   './trainz-diagrams-config.js',   // v0.9.1646: Trainz diagram index
+  './marklin-parts-config.js',     // v0.9.1690: Maerklin diagram + parts index
   './img/dispatch-board-192.png',
   './img/dispatch-board-512.png',
   './img/dispatch-board-64.png',

@@ -755,6 +755,14 @@ var _ERA_KEY_TO_PERIOD = {
   thirdrail:    'modern',   // 3rd Rail / Sunset Models brass, 1990s onward
   usatrains:    'modern',   // USA Trains, 1988 onward
   lgb:          'modern',   // LGB, 1968 onward — effectively all post-1970
+  // v0.9.1690: Maerklin. The product database reaches back to the 1930s, but
+  // the vast majority of what it lists is post-1970 production, and the era
+  // field on the row (when the detail pass fills it) is the prototype's era,
+  // not the model's. 'modern' is the honest default; a pre-war Maerklin model
+  // still shows under "Any Era".
+  marklin_h0:   'modern',
+  marklin_z:    'modern',
+  marklin_1:    'modern',
 };
 function _itemEraPeriod(item) {
   if (!item) return null;
@@ -1952,7 +1960,8 @@ function _makerForTab(tabLower) {
     ['menards',    'Menards'],
     ['3rd rail',   '3rd Rail'],
     ['usa trains', 'USA Trains'],
-    ['lgb',        'LGB']
+    ['lgb',        'LGB'],
+    ['marklin',    'Marklin']   // v0.9.1690
   ];
   for (var i = 0; i < MAKERS.length; i++) {
     if (t.indexOf(MAKERS[i][0]) === 0) return MAKERS[i][1];

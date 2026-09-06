@@ -1265,6 +1265,25 @@
     return null;
   }
 
+  // ── v0.9.1690: Maerklin's own spare-parts index (marklin-parts-config.js).
+  // Maerklin keys everything by article number and never re-uses one, so this
+  // is an exact-number lookup — no prefix juggling, unlike Lionel. Only
+  // Maerklin-tab items ask, so an Atlas 37087 cannot borrow a Maerklin sheet.
+  function _marklinParts(item) {
+    var P = window.MARKLIN_PARTS;
+    if (!P || !item) return null;
+    var era = String(item._era || item.era || '').toLowerCase();
+    var mfr = String(item.manufacturer || '').toLowerCase();
+    if (era.indexOf('marklin') !== 0
+        && mfr.indexOf('marklin') < 0 && mfr.indexOf('m\u00e4rklin') < 0) return null;
+    var n = String(item.itemNum || '').trim().replace(/[^0-9]/g, '');
+    if (!n) return null;
+    var e = P[n] || P[n.replace(/^0+/, '')] || P['0' + n];
+    if (!e) return null;
+    var out = { t: e.t || '', d: e.d || '', s: e.s ? 1 : 0, num: n };
+    return (out.d || out.s) ? out : null;
+  }
+
   var _pwsmLookup = null;
   function _pwsmFile(num) {
     if (!_pwsmLookup) {
@@ -1616,6 +1635,21 @@
                 + '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.45rem">Aristo-Craft closed in 2013 — no OEM parts. Reindeer Pass sells compatible motor blocks and trucks.</div>';
             } else {
               h += '<div style="font-size:0.8rem;color:var(--text-dim);padding:0.4rem 0;border-bottom:1px dashed var(--border);margin-bottom:0.5rem">' + _esc(mk) + ' does not publish a parts list for this one — use the searches below.</div>';
+            }
+            // ── v0.9.1690: Maerklin publishes BOTH for about half its
+            // catalogue — the exploded-diagram/manual sheet as a PDF on its
+            // own server, and a live parts list in its shop, both keyed by
+            // the same article number the catalog row already carries.
+            // Links only; the sheet and the parts stay on Maerklin's side.
+            var mkp = _marklinParts(item);
+            if (mkp) {
+              if (mkp.d) {
+                h += '<div style="margin-top:0.5rem"><button onclick="window.open(\'' + _esc((window.MARKLIN_PARTS_PDF_BASE || '') + mkp.d) + '\',\'_blank\')" ' + linkBtn + '>Marklin exploded diagram (PDF)' + (mkp.t ? ': ' + _esc(mkp.t) : '') + ' \u2192</button></div>';
+              }
+              if (mkp.s) {
+                h += '<div style="margin-top:0.5rem"><button onclick="window.open(\'' + _esc((window.MARKLIN_PARTS_SHOP || '') + encodeURIComponent(mkp.num)) + '\',\'_blank\')" ' + linkBtn + '>Marklin parts list for ' + _esc(mkp.num) + ' \u2192</button>'
+                  + '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.45rem">Maerklin\'s own shop \u2014 every part they still stock for this model.</div></div>';
+              }
             }
             // ── Trainz exploded diagram, when their library has this item ──
             var tzd = _tzDiagram(item);

@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.1689';
+const APP_VERSION = 'v0.9.1690';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -373,6 +373,13 @@ const ERAS = {
   af_gilbert: { id: 'af_gilbert', label: 'American Flyer S (Gilbert)', years: '1946-1966', prefix: 'American Flyer', manufacturer: 'A.C. Gilbert' },
   am_s:       { id: 'am_s',       label: 'American Models S',          years: 'All',       prefix: 'American Models', manufacturer: 'American Models' },
   shelper:    { id: 'shelper',    label: 'S-Helper Service S',         years: '1994-2012', prefix: 'S-Helper',        manufacturer: 'S-Helper Service' },
+  // v0.9.1690 (Session 90, Brad: "can we get marklin trains?"): Maerklin's
+  // own product database (maerklin.de/en/service/product-database) is the
+  // source — three gauges, three tabs, the house rule. LGB is Maerklin-owned
+  // and already has its own era; these are the Maerklin-branded lines.
+  marklin_h0: { id: 'marklin_h0', label: 'Marklin H0',      years: 'All', prefix: 'Marklin H0',      manufacturer: 'Marklin' },
+  marklin_z:  { id: 'marklin_z',  label: 'Marklin Z',       years: 'All', prefix: 'Marklin Z',       manufacturer: 'Marklin' },
+  marklin_1:  { id: 'marklin_1',  label: 'Marklin Gauge 1', years: 'All', prefix: 'Marklin Gauge 1', manufacturer: 'Marklin' },
   atlas:  { id: 'atlas',  label: 'Atlas O',     years: 'All',        prefix: 'Atlas O',        manufacturer: 'Atlas' },
   // Session 174 (Brad): Atlas HO/N/Z tabs exist & are populated in the master
   // sheet (added in the 2026-07-21 merge) but were never wired up, so ~33.5k
@@ -437,7 +444,7 @@ const ERAS = {
   bachmann_all:   { id: 'bachmann_all',   label: 'Bachmann All Scales', years: 'All', prefix: 'Bachmann All Scales', manufacturer: 'Bachmann' },
 };
 // Real-era IDs in load priority order (excluding 'all' meta-era).
-const REAL_ERA_IDS = ['pw', 'mpc', 'mod_ho', 'mod_s', 'af_gilbert', 'am_s', 'shelper', 'prewar', 'atlas', 'atlas_ho', 'atlas_n', 'atlas_z', 'mth_o', 'mth_ho', 'mth_s', 'mth_tinplate', 'mth_g', 'weaver', 'rmt', 'menards', 'menards_ho', 'thirdrail', 'usatrains', 'lgb', 'kline', 'williams', 'marx', 'other_o', 'aristocraft', 'accucraft', 'bachmann_ho', 'bachmann_n', 'bachmann_g', 'bachmann_o', 'bachmann_on30', 'bachmann_hon30', 'bachmann_all'];
+const REAL_ERA_IDS = ['pw', 'mpc', 'mod_ho', 'mod_s', 'af_gilbert', 'am_s', 'shelper', 'prewar', 'atlas', 'atlas_ho', 'atlas_n', 'atlas_z', 'mth_o', 'mth_ho', 'mth_s', 'mth_tinplate', 'mth_g', 'marklin_h0', 'marklin_z', 'marklin_1', 'weaver', 'rmt', 'menards', 'menards_ho', 'thirdrail', 'usatrains', 'lgb', 'kline', 'williams', 'marx', 'other_o', 'aristocraft', 'accucraft', 'bachmann_ho', 'bachmann_n', 'bachmann_g', 'bachmann_o', 'bachmann_on30', 'bachmann_hon30', 'bachmann_all'];
 
 // ── Master sheet tab names per era ──
 // Session 154: scale per era — drives the want-list Scale filter (master
@@ -457,6 +464,7 @@ const ERA_SCALE = {
   mth_ho: 'HO',
   mth_s: 'S',
   af_gilbert: 'S', am_s: 'S', shelper: 'S',   // v0.9.1686
+  marklin_h0: 'HO', marklin_z: 'Z', marklin_1: 'G',   // v0.9.1690 — Maerklin Gauge 1 is 1:32 on 45mm track, the same track as G
   mth_g: 'G',
   atlas_ho: 'HO', atlas_n: 'N', atlas_z: 'Z',
 };
@@ -559,6 +567,10 @@ const ERA_TABS = {
   },
   // v0.9.1686: the three S-gauge maker tabs (created 2026-09-05)
   af_gilbert: { items: 'American Flyer S - Gilbert' },
+  // v0.9.1690: the three Maerklin tabs
+  marklin_h0: { items: 'Marklin H0' },
+  marklin_z:  { items: 'Marklin Z' },
+  marklin_1:  { items: 'Marklin Gauge 1' },
   am_s:       { items: 'American Models S' },
   shelper:    { items: 'S-Helper Service S' },
   weaver: {

@@ -126,6 +126,7 @@ function _eraOf(pd) {
   if (_mfr.indexOf('mth') === 0)    return 'mth_o';
   if (_mfr.indexOf('atlas') === 0)  return 'atlas';
   if (_mfr.indexOf('weaver') === 0) return 'weaver';
+  if (_mfr.indexOf('marklin') === 0 || _mfr.indexOf('m\u00e4rklin') === 0) return 'marklin_h0';   // v0.9.1690 — gauge decides the tab; H0 is the default guess
   if (_mfr.indexOf('a.c. gilbert') === 0 || _mfr.indexOf('gilbert') === 0) return 'af_gilbert';   // v0.9.1686
   if (_mfr.indexOf('american models') === 0) return 'am_s';
   if (_mfr.indexOf('s-helper') === 0) return 'shelper';

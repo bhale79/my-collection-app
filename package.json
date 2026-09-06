@@ -2,9 +2,10 @@
   "name": "the-rail-roster",
   "private": true,
   "scripts": {
-    "test": "npm run test:syntax && npm run test:suite && npm run test:yardmaster && npm run test:archive && npm run test:pwa && npm run test:sources && npm run test:busy && npm run test:conflict && npm run test:safearea && npm run test:share && npm run test:layout && npm run test:colors",
+    "test": "npm run test:syntax && npm run test:suite && npm run test:yardmaster && npm run test:archive && npm run test:marklin && npm run test:pwa && npm run test:sources && npm run test:busy && npm run test:conflict && npm run test:safearea && npm run test:share && npm run test:layout && npm run test:colors",
     "test:yardmaster": "node tests/yardmaster_tests.js",
     "test:archive": "node tests/yardmaster_archive_tests.js",
+    "test:marklin": "node tests/marklin_tests.js",
     "test:syntax": "node tests/syntax-check.js",
     "test:suite": "node tests/photo-inbox-tests.js",
     "test:layout": "node tests/layout-check.js",
