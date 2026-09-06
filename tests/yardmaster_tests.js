@@ -270,19 +270,60 @@ ok('1688 held = approved rows with a blank number or a tab that is not a real ma
    /function _ymHeldCount\(b\)/.test(ym88) && /validTabs\.indexOf\(String\(dd\.tab \|\| ''\)\.trim\(\)\) < 0/.test(ym88));
 ok('1688 Clear finished, Show/Hide finished and Put back are wired to buttons',
    /onclick="_ymClearFinished\(\)"/.test(ym88) && /onclick="_ymToggleFinished\(\)"/.test(ym88) && /onclick="_ymPutBack\(/.test(ym88)
-   && /window\._ymClearFinished = function/.test(ym88) && /window\._ymToggleFinished = function/.test(ym88) && /window\._ymPutBack = function/.test(ym88));
+   && /window\._ymClearFinished = (async )?function/.test(ym88) && /window\._ymToggleFinished = function/.test(ym88) && /window\._ymPutBack = function/.test(ym88));
 ok('1688 the batch status column comes from the crawl_batches header, and NO status write hardcodes a column letter',
    /out\.batchStatusCol = _bcol\.status == null \? 'E'/.test(ym88) && /function _ymBatchStatusRange\(b\)/.test(ym88)
    && !/'crawl_batches!E'/.test(ym88) && (ym88.match(/range: _ymBatchStatusRange\(b\)/g) || []).length === 3);
 ok('1688 one status write in flight at a time (rule #5), local copies update only after the Vault says yes',
    /_ymStatusBusy = true/.test(ym88) && /finally \{ _ymStatusBusy = false; \}/.test(ym88)
    && /if \(!r\.ok\) throw new Error\('HTTP ' \+ r\.status\);\n\s*list\.forEach\(function \(b\) \{ b\.status = status; \}\)/.test(ym88));
-ok('1688 clearing touches crawl_batches only — never a crawl_deltas cell',
-   !/crawl_deltas!/.test(ym88.slice(ym88.indexOf('v0.9.1688: clearing finished'), ym88.indexOf('v0.9.1622 → v0.9.1626: the batch review view'))));
+ok('1688 clearing never writes a VALUE into a crawl_deltas cell (v1689: the only crawl_deltas mutation is the verified archive move)',
+   !/DELTAS_TAB \+ '!' \+ [^;]*values:batchUpdate/.test(ym88.slice(ym88.indexOf('v0.9.1688: clearing finished'), ym88.indexOf('v0.9.1622 → v0.9.1626: the batch review view')))
+   && !/crawl_deltas!/.test(ym88.slice(ym88.indexOf('v0.9.1688: clearing finished'), ym88.indexOf('v0.9.1622 → v0.9.1626: the batch review view'))));
 ok('1688 the open-queue filter of v1628 is untouched (committed batches still show until cleared)',
    /!== 'dismissed'; \}\);/.test(ym88) && /var shown = _ymShowFinished \? open\.concat\(hidden\) : open;/.test(ym88));
 ok('1688 an emptied queue still offers Show N finished',
    /New sweeps land here automatically\.<\/div>' \+ qfoot/.test(ym88));
+
+// ── v0.9.1689: the archive — decided rows leave the working tab ──
+// Brad said yes to the suggestion under v1688: the Office was still
+// reading all 7,197 decided rows on every open. Clear finished now also
+// MOVES the decided rows of cleared batches to crawl_deltas_archive. The
+// behaviour is proven for real in yardmaster_archive_tests.js (in-memory
+// Vault); these pins guard the shape.
+const ym89 = src('yardmaster.js');
+const ar89 = ym89.slice(ym89.indexOf('async function _ymArchiveRows'), ym89.indexOf('v0.9.1622 → v0.9.1626: the batch review view'));
+ok('1689 both tab names live in YM — one place', /DELTAS_TAB: 'crawl_deltas'/.test(ym89) && /ARCHIVE_TAB: 'crawl_deltas_archive'/.test(ym89));
+ok('1689 the move starts from a FRESH read of the working tab, never the cached copy',
+   /readVals\(YM\.DELTAS_TAB \+ '!A1:AZ'/.test(ar89) && ar89.indexOf('readVals(YM.DELTAS_TAB') < ar89.indexOf('upload/drive'));
+ok('1689 backup FIRST: the CSV upload precedes the archive tab, the append and the delete',
+   ar89.indexOf('upload/drive') < ar89.indexOf('addSheet') && ar89.indexOf('upload/drive') < ar89.indexOf(':append') && ar89.indexOf(':append') < ar89.indexOf('deleteDimension'));
+ok('1689 the archive count must VERIFY before a single row is removed',
+   /archive count did not verify/.test(ar89) && ar89.indexOf('archive count did not verify') < ar89.indexOf('deleteDimension'));
+ok('1689 already-archived ids are skipped, so a half-finished move reruns without doubling up',
+   /var fresh = picks\.filter\(function \(p\) \{ return !have\[p\.id\]; \}\)/.test(ar89));
+ok('1689 rows are appended BY HEADER and new columns go at the END of the archive header',
+   /aHeads\.map\(function \(h\) \{ var i = heads\.indexOf\(h\)/.test(ar89) && /aHeads = aHeads\.concat\(missing\)/.test(ar89));
+ok('1689 deletes go highest row first, as contiguous runs',
+   /sort\(function \(a, b\) \{ return b - a; \}\)/.test(ar89) && /if \(rr === lo - 1\) \{ lo = rr; continue; \}/.test(ar89));
+ok('1689 pending and deferred rows never move, whatever batch they sit in',
+   /st !== 'pending' && st !== 'deferred'\) picks\.push/.test(ar89));
+ok('1689 one archive in flight at a time; a stopped archive SAYS why',
+   /_ymArchiveBusy = true/.test(ar89) && /finally \{ _ymArchiveBusy = false; \}/.test(ar89) && /showToast\('Archive stopped: ' \+ why/.test(ar89) && /the connection dropped/.test(ar89));   // raw browser errors are never shown (§198)
+ok('1689 Clear finished asks once, then dismisses, then archives, then RELOADS (cached row numbers are stale after a move)',
+   /title: 'Clear finished batches'/.test(ym89) && /await _ymSetBatchStatus\(list, 'dismissed', ''\)/.test(ym89)
+   && /await _ymArchiveRows\(_ymDismissedIds\(\)\)/.test(ym89) && /_ymReload\(\);\n  \};\n  window\._ymArchiveLeftovers/.test(ym89));
+ok('1689 leftovers of an earlier clear get their own Archive N rows button', /onclick="_ymArchiveLeftovers\(\)"/.test(ym89) && /window\._ymArchiveLeftovers = async function/.test(ym89));
+ok('1689 deltas are numbered BEFORE the blank-id filter (a blank row can no longer shift every sheetRow below it)',
+   /d\.crawlDeltas\.slice\(1\)\.map\(function \(r, i\) \{ r\._sheetRow = i \+ 2; return r; \}\)\n\s*\.filter\(function \(r\) \{ return g\(r, 'delta_id'\); \}\)/.test(ym89) && /sheetRow: r\._sheetRow, batch:/.test(ym89));
+ok('1689 verdicts AND edits check the row still carries their delta_id before writing',
+   /async function _ymRowsStillMatch\(list\)/.test(ym89)
+   && /window\._ymApplyVerdicts = async function \(pairs, recordUndo\) \{\n\s*if \(!_isOwner\(\) \|\| !pairs\.length\) return;\n\s*if \(!\(await _ymRowsStillMatch\(/.test(ym89)
+   && /if \(!\(await _ymRowsStillMatch\(\[dd\]\)\)\) return;/.test(ym89));
+ok('1689 a mismatch writes nothing, reloads to the same view, and says so',
+   /catch \(e\) \{ bad = list; \}/.test(ym89) && /queue changed underneath this screen/.test(ym89) && /function _ymReload\(\)/.test(ym89) && /if \(_ymBatchId\) window\._ymBatchOpen\(_ymBatchId, true\); else window\.ymBuildPage\(false\);/.test(ym89));
+ok('1689 every header→column-letter answer goes through _ymColLetter (AA-safe)',
+   /function _ymColLetter\(i\)/.test(ym89) && !/String\.fromCharCode\(65 \+ _/.test(ym89) && (ym89.match(/_ymColLetter\(/g) || []).length >= 4);
 
 console.log('\n' + pass + ' passed, ' + fail + ' failed');
 if (fail) { console.log('YARDMASTER TESTS FAILING'); process.exit(1); }

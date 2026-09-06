@@ -1,6 +1,9 @@
 // ══════════════════════════════════════════════════════════════
 //  yardmaster.js — The Yardmaster's Office (v0.9.1580, Session 86)
 //  v0.9.1688: Clear finished / Show finished / Put back on the queue card.
+//  v0.9.1689: Clear finished also ARCHIVES the decided rows (crawl_deltas →
+//  crawl_deltas_archive, backup first, verified); verdicts/edits check the
+//  row still carries their delta_id before writing.
 //
 //  Brad: "I need something like an admin page that will help me keep
 //  track of everything." Decided S86: queues front and center.
@@ -33,6 +36,8 @@
     OWNER_EMAILS: ['bhale@ipd-llc.com', 'support@therailroster.com'],
     VAULT_ID: '1h4LlDPT9SrToNjg450kU71kCo7ago-n6veI-DNB3nPU',
     VAULT_URL: 'https://docs.google.com/spreadsheets/d/1h4LlDPT9SrToNjg450kU71kCo7ago-n6veI-DNB3nPU/edit',
+    DELTAS_TAB: 'crawl_deltas',                 // v0.9.1689: the working queue …
+    ARCHIVE_TAB: 'crawl_deltas_archive',        // … and where decided rows of cleared batches go
     pollMs: 2000,
     pollMax: 150
   };
@@ -50,6 +55,13 @@
       var em = window.state && state.user && String(state.user.email || '').toLowerCase();
       return !!em && YM.OWNER_EMAILS.indexOf(em) >= 0;
     } catch (e) { return false; }
+  }
+  // v0.9.1689: 0 → A, 25 → Z, 26 → AA. Every "which column is this header"
+  // answer goes through here, so a 27th column cannot break a range.
+  function _ymColLetter(i) {
+    var s = ''; i = i + 1;
+    while (i > 0) { var m = (i - 1) % 26; s = String.fromCharCode(65 + m) + s; i = Math.floor((i - 1) / 26); }
+    return s;
   }
 
   // ── Vault reads: one batchGet, owner token ─────────────────────
@@ -133,9 +145,14 @@
     if (d.crawlDeltas && d.crawlDeltas.length) {
       d.crawlDeltas[0].forEach(function (h, i) { _dcol[String(h)] = i; });
       var g = function (r, name) { var i = _dcol[name]; return i == null ? '' : String(r[i] == null ? '' : r[i]); };
-      out.deltas = d.crawlDeltas.slice(1).filter(function (r) { return g(r, 'delta_id'); }).map(function (r, i) {
+      // v0.9.1689: number the rows BEFORE filtering. The old order (filter,
+      // then i + 2) would have shifted every sheetRow below a blank row —
+      // and a verdict writes by sheetRow. Same lesson as _loadMyDocs.
+      out.deltaIdCol = _dcol.delta_id == null ? 'B' : _ymColLetter(_dcol.delta_id);
+      out.deltas = d.crawlDeltas.slice(1).map(function (r, i) { r._sheetRow = i + 2; return r; })
+        .filter(function (r) { return g(r, 'delta_id'); }).map(function (r) {
         return {
-          sheetRow: i + 2, batch: g(r, 'batch_id'), id: g(r, 'delta_id'), action: g(r, 'action'),
+          sheetRow: r._sheetRow, batch: g(r, 'batch_id'), id: g(r, 'delta_id'), action: g(r, 'action'),
           tab: g(r, 'proposed_tab'), num: g(r, 'item_num'), type: g(r, 'item_type'),
           road: g(r, 'road_name'), desc: g(r, 'description'), gauge: g(r, 'gauge'),
           variation: g(r, 'variation'), years: g(r, 'years'), link: g(r, 'ref_link'),
@@ -156,7 +173,7 @@
       // v0.9.1688: the status column's LETTER, read from the header once,
       // so every status write (commit, clear, put back) goes through
       // _ymBatchStatusRange — never a second hardcoded 'E'.
-      out.batchStatusCol = _bcol.status == null ? 'E' : String.fromCharCode(65 + _bcol.status);
+      out.batchStatusCol = _bcol.status == null ? 'E' : _ymColLetter(_bcol.status);
       out.batches = d.crawlBatches.slice(1).map(function (r, i) { r._sheetRow = i + 2; return r; })
         .filter(function (r) { return gb(r, 'batch_id'); }).map(function (r) {
         var id = gb(r, 'batch_id');
@@ -266,14 +283,17 @@
         + (held ? ' · <span style="color:var(--accent)">' + held + ' held</span>' : '') + '</div>'
         + '<button onclick="_ymBatchOpen(\'' + _esc(b.id) + '\')" style="padding:0.35rem 0.95rem;border-radius:8px;border:1px solid var(--accent2);'
         + 'background:var(--surface2);color:var(--accent2);font-family:var(--font-body);font-weight:700;cursor:pointer">Review →</button>'
+        + (_dm && !(c.approved + c.edited + c.rejected + c.pending + c.deferred) ? '<span style="font-size:0.95rem;color:var(--text-dim)">rows in the archive tab</span>' : '')
         + (_dm ? '<button onclick="_ymPutBack(\'' + _esc(b.id) + '\')" title="Show this batch in the queue again" style="padding:0.35rem 0.95rem;border-radius:8px;border:1px solid var(--border);'
           + 'background:var(--surface2);color:var(--text);font-family:var(--font-body);cursor:pointer">Put back</button>' : '')
         + '</div>';
     }).join('');
     var _qbtn = 'padding:0.3rem 0.85rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);cursor:pointer;font-size:0.95rem';
-    var qfoot = (finished.length || hidden.length)
+    var leftover = _ymArchivable().length;   // v0.9.1689: decided rows of cleared batches still in the working tab
+    var qfoot = (finished.length || hidden.length || leftover)
       ? '<div style="display:flex;gap:0.6rem;flex-wrap:wrap;align-items:center;margin-top:0.7rem;padding-top:0.6rem;border-top:1px solid var(--border)">'
-        + (finished.length ? '<button onclick="_ymClearFinished()" title="Hides every committed batch with nothing left to do. Rows stay in the Vault; Show finished brings a batch back." style="' + _qbtn + '">Clear finished (' + finished.length + ')</button>' : '')
+        + (finished.length ? '<button onclick="_ymClearFinished()" title="Hides every committed batch with nothing left to do and moves its decided rows to the archive tab. Show finished brings a batch back." style="' + _qbtn + '">Clear finished (' + finished.length + ')</button>' : '')
+        + (leftover ? '<button onclick="_ymArchiveLeftovers()" title="Decided rows of cleared batches are still in the working tab \u2014 move them to the archive so the Office loads faster" style="' + _qbtn + '">Archive ' + leftover + ' row' + (leftover === 1 ? '' : 's') + '</button>' : '')
         + (hidden.length ? '<button onclick="_ymToggleFinished()" style="' + _qbtn + '">' + (_ymShowFinished ? 'Hide finished' : 'Show ' + hidden.length + ' finished') + '</button>' : '')
         + '</div>'
       : '';
@@ -352,17 +372,176 @@
           body: JSON.stringify({ valueInputOption: 'RAW', data: list.map(function (b) { return { range: _ymBatchStatusRange(b), values: [[status]] }; }) }) });
       if (!r.ok) throw new Error('HTTP ' + r.status);
       list.forEach(function (b) { b.status = status; });   // local copies only after the Vault said yes
-      if (typeof showToast === 'function') showToast(doneMsg, 3000);
-      window.ymBuildPage(false);
+      if (doneMsg) {
+        if (typeof showToast === 'function') showToast(doneMsg, 3000);
+        window.ymBuildPage(false);
+      }
+      return true;
     } catch (e) {
       if (typeof showToast === 'function') showToast('That change didn\u2019t reach the Vault \u2014 check the connection and try again.', 4000, true);
+      return false;
     } finally { _ymStatusBusy = false; }
   }
-  window._ymClearFinished = function () {
+  // v0.9.1689: Clear finished = hide the batches AND move their decided
+  // rows to the archive tab, after one confirm. If the archive half fails,
+  // the batches stay hidden and "Archive N rows" appears — nothing is lost.
+  window._ymClearFinished = async function () {
     if (!_ymData) return;
     var list = _ymData.batches.filter(function (b) { return b.status !== 'dismissed' && _ymIsFinished(b); });
-    _ymSetBatchStatus(list, 'dismissed', list.length + (list.length === 1 ? ' finished batch cleared' : ' finished batches cleared') + ' \u2014 Show finished brings them back.');
+    var ids = list.map(function (b) { return b.id; });
+    var nRows = _ymData.deltas.filter(function (dd) { return ids.indexOf(dd.batch) >= 0; }).length + _ymArchivable().length;
+    var lines = 'Hide ' + list.length + (list.length === 1 ? ' finished batch' : ' finished batches') + ' and move ' + nRows
+      + ' decided row' + (nRows === 1 ? '' : 's') + ' to the archive tab (' + YM.ARCHIVE_TAB + ')? A dated backup of ' + YM.DELTAS_TAB
+      + ' is written first. The rows stay in the Vault; the Office just stops loading them.';
+    var yes = (typeof appConfirm === 'function')
+      ? await appConfirm(lines, { title: 'Clear finished batches', ok: 'Back up, then clear' })
+      : confirm(lines);
+    if (!yes) return;
+    if (!(await _ymSetBatchStatus(list, 'dismissed', ''))) return;
+    var moved = await _ymArchiveRows(_ymDismissedIds());
+    if (typeof showToast === 'function' && moved >= 0) showToast(list.length + (list.length === 1 ? ' batch cleared' : ' batches cleared') + ' \u00b7 ' + moved + ' row' + (moved === 1 ? '' : 's') + ' archived. Show finished brings a batch back.', 4500);
+    _ymReload();
   };
+  window._ymArchiveLeftovers = async function () {
+    if (!_ymData) return;
+    var n = _ymArchivable().length;
+    var lines = 'Move ' + n + ' decided row' + (n === 1 ? '' : 's') + ' of cleared batches from ' + YM.DELTAS_TAB + ' to ' + YM.ARCHIVE_TAB + '? A dated backup is written first.';
+    var yes = (typeof appConfirm === 'function')
+      ? await appConfirm(lines, { title: 'Archive cleared rows', ok: 'Back up, then archive' })
+      : confirm(lines);
+    if (!yes) return;
+    var moved = await _ymArchiveRows(_ymDismissedIds());
+    if (typeof showToast === 'function' && moved >= 0) showToast(moved + ' row' + (moved === 1 ? '' : 's') + ' archived.', 3500);
+    _ymReload();
+  };
+  function _ymDismissedIds() {
+    return _ymData ? _ymData.batches.filter(function (b) { return b.status === 'dismissed'; }).map(function (b) { return b.id; }) : [];
+  }
+  // decided rows of cleared batches still sitting in the working tab (the cached view — for the button and the confirm only)
+  function _ymArchivable() {
+    if (!_ymData) return [];
+    var dis = {};
+    _ymDismissedIds().forEach(function (id) { dis[id] = 1; });
+    return _ymData.deltas.filter(function (dd) { var st = dd.status || 'pending'; return dis[dd.batch] && st !== 'pending' && st !== 'deferred'; });
+  }
+  var _ymArchiveBusy = false;   // rule #5, again
+  // THE MOVE. Order is everything: fresh read of the working tab (row
+  // numbers must be current, never the cached copy) → dated CSV backup →
+  // archive tab exists with the working tab's header → rows already
+  // archived are skipped (a rerun after a half-finished move must not
+  // double up) → append by header → the archive count VERIFIES → only then
+  // the rows leave the working tab, highest row first, so no delete shifts
+  // a later one. Returns rows moved, or -1 when it stopped (the toast said why).
+  async function _ymArchiveRows(batchIds) {
+    if (!_isOwner() || !batchIds.length) return 0;
+    if (_ymArchiveBusy) { if (typeof showToast === 'function') showToast('An archive is already running \u2014 hold on.', 3000); return -1; }
+    _ymArchiveBusy = true;
+    var H = { Authorization: 'Bearer ' + window.accessToken, 'Content-Type': 'application/json' };
+    var today = new Date().toISOString().slice(0, 10);
+    var SS = 'https://sheets.googleapis.com/v4/spreadsheets/' + YM.VAULT_ID;
+    var colOf = _ymColLetter;
+    var readVals = async function (range, what) {
+      var r = await fetch(SS + '/values/' + encodeURIComponent(range), { headers: H });
+      if (!r.ok) throw new Error('could not read ' + what + ' (HTTP ' + r.status + ')');
+      return (await r.json()).values || [];
+    };
+    var idsIn = function (vals, idx) { var m = {}; vals.slice(1).forEach(function (r) { var v = String(r[idx] == null ? '' : r[idx]); if (v) m[v] = 1; }); return m; };
+    try {
+      // 1 — fresh read of the working tab
+      var vals = await readVals(YM.DELTAS_TAB + '!A1:AZ', YM.DELTAS_TAB);
+      var heads = (vals[0] || []).map(String);
+      var iBatch = heads.indexOf('batch_id'), iId = heads.indexOf('delta_id'), iStatus = heads.indexOf('status');
+      if (iBatch < 0 || iId < 0 || iStatus < 0) throw new Error(YM.DELTAS_TAB + ' is missing batch_id / delta_id / status in its header \u2014 stopped before any write');
+      var want = {}; batchIds.forEach(function (id) { want[id] = 1; });
+      var picks = [];
+      vals.forEach(function (r, i) {
+        if (i === 0) return;
+        var st = String(r[iStatus] == null ? '' : r[iStatus]) || 'pending';
+        var id = String(r[iId] == null ? '' : r[iId]);
+        if (id && want[String(r[iBatch] == null ? '' : r[iBatch])] && st !== 'pending' && st !== 'deferred') picks.push({ row: i + 1, id: id, r: r });
+      });
+      if (!picks.length) return 0;
+      // 2 — backup of the whole working tab FIRST (a failure here stops everything)
+      var fq = encodeURIComponent("name='RailRoster Backups' and mimeType='application/vnd.google-apps.folder' and trashed=false");
+      var ff = await fetch('https://www.googleapis.com/drive/v3/files?q=' + fq + '&fields=files(id)', { headers: { Authorization: H.Authorization } }).then(function (x) { return x.json(); });
+      var folderId = ff.files && ff.files[0] && ff.files[0].id;
+      if (!folderId) {
+        var mk = await fetch('https://www.googleapis.com/drive/v3/files', { method: 'POST', headers: H, body: JSON.stringify({ name: 'RailRoster Backups', mimeType: 'application/vnd.google-apps.folder' }) }).then(function (x) { return x.json(); });
+        folderId = mk.id;
+      }
+      var bnd = 'rrbk' + Date.now();
+      var meta = { name: YM.DELTAS_TAB + ' \u2014 backup ' + today + ' before archiving ' + picks.length + ' rows.csv', parents: [folderId] };
+      var body = '--' + bnd + '\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n' + JSON.stringify(meta)
+        + '\r\n--' + bnd + '\r\nContent-Type: text/csv\r\n\r\n' + _ymCsv(vals) + '\r\n--' + bnd + '--';
+      var up = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', { method: 'POST', headers: { Authorization: H.Authorization, 'Content-Type': 'multipart/related; boundary=' + bnd }, body: body });
+      if (!up.ok) throw new Error('backup failed (HTTP ' + up.status + ') \u2014 nothing was archived');
+      // 3 — the archive tab: create it with the working header, or extend its header if the working tab grew
+      var sp = await fetch(SS + '?fields=sheets.properties', { headers: H });
+      if (!sp.ok) throw new Error('could not read the Vault\u2019s tab list (HTTP ' + sp.status + ') \u2014 nothing was archived');
+      var sheets = ((await sp.json()).sheets || []).map(function (x) { return x.properties; });
+      var work = sheets.filter(function (x) { return x.title === YM.DELTAS_TAB; })[0];
+      var arch = sheets.filter(function (x) { return x.title === YM.ARCHIVE_TAB; })[0];
+      if (!work) throw new Error(YM.DELTAS_TAB + ' tab not found \u2014 nothing was archived');
+      var aHeads;
+      if (!arch) {
+        var add = await fetch(SS + ':batchUpdate', { method: 'POST', headers: H, body: JSON.stringify({ requests: [{ addSheet: { properties: { title: YM.ARCHIVE_TAB, gridProperties: { rowCount: 1000, columnCount: heads.length + 4 } } } }] }) });
+        if (!add.ok) throw new Error('could not create ' + YM.ARCHIVE_TAB + ' (HTTP ' + add.status + ') \u2014 nothing was archived');
+        aHeads = heads.slice();
+        var hw = await fetch(SS + '/values:batchUpdate', { method: 'POST', headers: H, body: JSON.stringify({ valueInputOption: 'RAW', data: [{ range: YM.ARCHIVE_TAB + '!A1', values: [aHeads] }] }) });
+        if (!hw.ok) throw new Error('could not write the archive header (HTTP ' + hw.status + ') \u2014 nothing was archived');
+      } else {
+        aHeads = ((await readVals(YM.ARCHIVE_TAB + '!A1:AZ1', 'the archive header'))[0] || []).map(String);
+        var missing = heads.filter(function (h) { return aHeads.indexOf(h) < 0; });
+        if (missing.length) {
+          aHeads = aHeads.concat(missing);   // new columns at the END — the column rule
+          var hx = await fetch(SS + '/values:batchUpdate', { method: 'POST', headers: H, body: JSON.stringify({ valueInputOption: 'RAW', data: [{ range: YM.ARCHIVE_TAB + '!A1', values: [aHeads] }] }) });
+          if (!hx.ok) throw new Error('could not extend the archive header (HTTP ' + hx.status + ') \u2014 nothing was archived');
+        }
+      }
+      var aId = aHeads.indexOf('delta_id');
+      if (aId < 0) throw new Error('the archive tab has no delta_id column \u2014 nothing was archived');
+      // 4 — skip what a half-finished run already archived
+      var aCol = colOf(aId);
+      var have = idsIn(await readVals(YM.ARCHIVE_TAB + '!' + aCol + '1:' + aCol, 'the archive'), 0);
+      var beforeA = Object.keys(have).length;
+      var fresh = picks.filter(function (p) { return !have[p.id]; });
+      // 5 — append BY HEADER, in chunks
+      var rows = fresh.map(function (p) {
+        return aHeads.map(function (h) { var i = heads.indexOf(h); return i < 0 || p.r[i] == null ? '' : p.r[i]; });
+      });
+      for (var ci = 0; ci < rows.length; ci += 500) {
+        var ap = await fetch(SS + '/values/' + encodeURIComponent(YM.ARCHIVE_TAB + '!A1') + ':append?valueInputOption=RAW&insertDataOption=INSERT_ROWS', { method: 'POST', headers: H, body: JSON.stringify({ values: rows.slice(ci, ci + 500) }) });
+        if (!ap.ok) throw new Error('archive append failed after ' + ci + ' rows (HTTP ' + ap.status + ') \u2014 nothing was removed from ' + YM.DELTAS_TAB + '; run Archive again, already-archived rows are skipped');
+      }
+      // 6 — the archive count VERIFIES before anything is removed
+      var afterA = Object.keys(idsIn(await readVals(YM.ARCHIVE_TAB + '!' + aCol + '1:' + aCol, 'the archive'), 0)).length;
+      if (afterA !== beforeA + fresh.length) throw new Error('archive count did not verify (expected ' + (beforeA + fresh.length) + ', found ' + afterA + ') \u2014 nothing was removed from ' + YM.DELTAS_TAB);
+      // 7 — remove from the working tab: contiguous runs, highest first
+      var rowsDesc = picks.map(function (p) { return p.row; }).sort(function (a, b) { return b - a; });
+      var reqs = [], hi = rowsDesc[0], lo = rowsDesc[0];
+      for (var ri = 1; ri <= rowsDesc.length; ri++) {
+        var rr = rowsDesc[ri];
+        if (rr === lo - 1) { lo = rr; continue; }
+        reqs.push({ deleteDimension: { range: { sheetId: work.sheetId, dimension: 'ROWS', startIndex: lo - 1, endIndex: hi } } });
+        hi = rr; lo = rr;
+      }
+      for (var di = 0; di < reqs.length; di += 300) {
+        var del = await fetch(SS + ':batchUpdate', { method: 'POST', headers: H, body: JSON.stringify({ requests: reqs.slice(di, di + 300) }) });
+        if (!del.ok) throw new Error('removing rows from ' + YM.DELTAS_TAB + ' stopped midway (HTTP ' + del.status + ') \u2014 the archive holds every row; run Archive again to finish, nothing is lost');
+      }
+      // 8 — verify none of the archived ids remain in the working tab
+      var left = idsIn(await readVals(YM.DELTAS_TAB + '!' + colOf(iId) + '1:' + colOf(iId), YM.DELTAS_TAB), 0);
+      var stray = picks.filter(function (p) { return left[p.id]; }).length;
+      if (stray && typeof showToast === 'function') showToast(stray + ' archived row' + (stray === 1 ? ' is' : 's are') + ' still in ' + YM.DELTAS_TAB + ' \u2014 run Archive again.', 5000, true);
+      return picks.length - stray;
+    } catch (e) {
+      // our own messages carry an em dash and say what to do; anything else
+      // is a raw browser error the user cannot act on — say "connection"
+      var why = (e && /\u2014/.test(String(e.message))) ? e.message : 'the connection dropped \u2014 nothing was removed from ' + YM.DELTAS_TAB + '; try again';
+      if (typeof showToast === 'function') showToast('Archive stopped: ' + why, 7000, true);
+      return -1;
+    } finally { _ymArchiveBusy = false; }
+  }
   window._ymToggleFinished = function () { _ymShowFinished = !_ymShowFinished; window.ymBuildPage(false); };
   window._ymPutBack = function (id) {
     if (!_ymData) return;
@@ -397,8 +576,38 @@
   // update only after the Vault says yes — the screen never claims what
   // didn't save. recordUndo captures each row's PREVIOUS verdict so a
   // bulk approve undoes as one gesture.
+  // v0.9.1689: rows can MOVE now (the archive removes rows above them, and
+  // a second Office tab may have done it). One read of the delta_id column;
+  // every row about to be written must still carry the id the screen
+  // thinks it has. On any mismatch: write NOTHING, reload, say so.
+  async function _ymRowsStillMatch(list) {
+    var bad = null;
+    try {
+      var col = (_ymData && _ymData.deltaIdCol) || 'B';
+      var r = await fetch('https://sheets.googleapis.com/v4/spreadsheets/' + YM.VAULT_ID + '/values/' + encodeURIComponent(YM.DELTAS_TAB + '!' + col + '1:' + col),
+        { headers: { Authorization: 'Bearer ' + window.accessToken } });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      var ids = (await r.json()).values || [];
+      bad = list.filter(function (dd) { var row = ids[dd.sheetRow - 1]; return !row || String(row[0] == null ? '' : row[0]) !== String(dd.id); });
+    } catch (e) { bad = list; }   // could not check = do not write
+    if (!bad.length) return true;
+    if (typeof showToast === 'function') showToast('The queue changed underneath this screen \u2014 reloading it. Nothing was written; tap again.', 4500, true);
+    _ymReload();
+    return false;
+  }
+  // refetch the Vault and come back to the SAME view (batch or Office)
+  function _ymReload() {
+    return _fetchVault().then(function (d) {
+      _ymData = _summarize(d); _ymErr = '';
+      if (_ymBatchId) window._ymBatchOpen(_ymBatchId, true); else window.ymBuildPage(false);
+    }).catch(function (e) {
+      _ymErr = e.message; _ymData = null; _ymBatchId = '';
+      window.ymBuildPage(false);
+    });
+  }
   window._ymApplyVerdicts = async function (pairs, recordUndo) {
     if (!_isOwner() || !pairs.length) return;
+    if (!(await _ymRowsStillMatch(pairs.map(function (pr) { return pr.dd; })))) return;
     var today = new Date().toISOString().slice(0, 10);
     var data = pairs.map(function (pr) {
       return { range: 'crawl_deltas!P' + pr.dd.sheetRow + ':Q' + pr.dd.sheetRow,
@@ -466,6 +675,7 @@
     var nv = { tab: gv('ym-ed-tab'), num: gv('ym-ed-num'), type: gv('ym-ed-type'), road: gv('ym-ed-road'),
                desc: gv('ym-ed-desc'), years: gv('ym-ed-years'), msrp: gv('ym-ed-msrp') };
     if (!nv.num) { if (typeof showToast === 'function') showToast('The item number can\u2019t be empty.', 3000, true); return; }
+    if (!(await _ymRowsStillMatch([dd]))) return;   // v0.9.1689
     var today = new Date().toISOString().slice(0, 10);
     try {
       var r = await fetch('https://sheets.googleapis.com/v4/spreadsheets/' + YM.VAULT_ID + '/values:batchUpdate',
@@ -625,7 +835,7 @@
         var _hasImg = plan[t4].fresh.some(function (dd) { return !!(dd.imageUrl && String(dd.imageUrl).trim()); });
         if (_hasImg && plan[t4].heads.map(String).indexOf('Image URL') < 0) {
           var _newIdx = plan[t4].heads.length;   // 0-based index of the new last column
-          var _colL = (typeof colLetter === 'function') ? colLetter(_newIdx) : String.fromCharCode(65 + _newIdx);
+          var _colL = _ymColLetter(_newIdx);   // v0.9.1689: one letter helper for the whole file
           if (typeof sheetsUpdate !== 'function') throw new Error('sheetsUpdate unavailable \u2014 reload the app');
           await sheetsUpdate(MID, "'" + t4 + "'!" + _colL + '1', [['Image URL']]);
           plan[t4].heads = plan[t4].heads.concat(['Image URL']);
