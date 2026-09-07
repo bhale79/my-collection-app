@@ -107,17 +107,37 @@
   }
 
   function _summarize(d) {
-    var out = { subs: 0, pairs: 0, chores: [], usage: [] };
+    var out = { subs: 0, pairs: 0, chores: [], usage: [], subRows: [], pairRows: [] };
+    // v0.9.1694: keep the waiting ROWS (by header, with their sheet row) so
+    // "Queue into review" can turn them into deltas and stamp them back.
     var im = _colIdx(d.submissions, 'in_master');
-    if (im >= 0) d.submissions.slice(1).forEach(function (r) {
-      var v = String(r[im] || '').trim().toLowerCase();
-      if (v === 'no' || v === 'false') out.subs++;
-    });
+    if (im >= 0) {
+      var sh = (d.submissions[0] || []).map(String), sg = function (r, n) { var i = sh.indexOf(n); return i < 0 ? '' : String(r[i] == null ? '' : r[i]); };
+      d.submissions.slice(1).forEach(function (r, i) {
+        var v = String(r[im] || '').trim().toLowerCase();
+        if (v === 'no' || v === 'false') {
+          out.subs++;
+          out.subRows.push({ row: i + 2, num: sg(r, 'item_num').trim(), variation: sg(r, 'variation').trim(), condition: sg(r, 'condition'),
+                             mfr: sg(r, 'manufacturer').trim(), desc: sg(r, 'description').trim(), road: sg(r, 'road_name').trim(),
+                             source: sg(r, 'source'), updated: sg(r, 'updated') });
+        }
+      });
+      out.subInMasterCol = _ymColLetter(im);
+    }
     var st = _colIdx(d.barcodes, 'status');
-    if (st >= 0) d.barcodes.slice(1).forEach(function (r) {
-      var v = String(r[st] || '').trim().toLowerCase();
-      if (v !== 'promoted' && v !== 'rejected') out.pairs++;
-    });
+    if (st >= 0) {
+      var bh = (d.barcodes[0] || []).map(String), bg = function (r, n) { var i = bh.indexOf(n); return i < 0 ? '' : String(r[i] == null ? '' : r[i]); };
+      d.barcodes.slice(1).forEach(function (r, i) {
+        var v = String(r[st] || '').trim().toLowerCase();
+        if (v !== 'promoted' && v !== 'rejected' && v !== 'queued') {
+          out.pairs++;
+          out.pairRows.push({ row: i + 2, upc: bg(r, 'upc').trim(), num: bg(r, 'item_num').trim(), mfr: bg(r, 'mfr').trim(),
+                              inMaster: bg(r, 'in_master'), how: bg(r, 'how'), count: bg(r, 'report_count') });
+        }
+      });
+      out.pairStatusCol = _ymColLetter(st);
+      out.pairUpcCol = _ymColLetter(Math.max(0, bh.indexOf('upc')));
+    }
     (d.chores || []).slice(1).forEach(function (r, i) {
       var name = String(r[0] || '').trim();
       if (!name) return;
@@ -254,8 +274,10 @@
       + '<div><span style="font-size:1.9rem;font-weight:700;color:' + (d.subs ? 'var(--accent)' : 'var(--text-dim)') + '">' + d.subs + '</span> community submissions not in master</div>'
       + '<div><span style="font-size:1.9rem;font-weight:700;color:' + (d.pairs ? 'var(--accent)' : 'var(--text-dim)') + '">' + d.pairs + '</span> barcode pairings awaiting promotion</div>'
       + '</div>'
-      + '<div style="margin-top:0.6rem;font-size:1.05rem"><a href="' + YM.VAULT_URL + '" target="_blank" rel="noopener" style="color:var(--accent2)">Review them in the Vault →</a>'
-      + ' <span style="color:var(--text-dim)">(submission/barcode verdicts join the queue below in a coming release)</span></div>');
+      + '<div style="margin-top:0.6rem;font-size:1.05rem;display:flex;gap:0.8rem;align-items:center;flex-wrap:wrap">'
+      + (waiting ? '<button onclick="_ymQueueWaiting()" style="padding:0.35rem 0.95rem;border-radius:8px;border:1px solid var(--accent2);background:var(--surface2);color:var(--accent2);font-family:var(--font-body);font-weight:700;cursor:pointer">Queue ' + waiting + ' into review \u2192</button>' : '')
+      + '<a href="' + YM.VAULT_URL + '" target="_blank" rel="noopener" style="color:var(--accent2)">Open the Vault \u2192</a>'
+      + ' <span style="color:var(--text-dim)">' + (waiting ? 'Queued items become review rows below \u2014 approve, edit or reject them like any batch.' : 'Nothing waiting.') + '</span></div>');
 
     // 1b — CATALOG REVIEW QUEUE (v0.9.1622, Task #36's front door)
     // v0.9.1628: committed batches STAY (dimmed) — vanishing stranded
@@ -280,7 +302,7 @@
         + '<div style="font-size:1.05rem;color:var(--text-mid);white-space:nowrap">'
         + '<span style="font-weight:700;color:' + (c.pending ? 'var(--accent)' : 'var(--text-dim)') + '">' + c.pending + '</span> pending'
         + (done ? ' · ' + done + ' decided' : '') + (c.deferred ? ' · ' + c.deferred + ' deferred' : '')
-        + (held ? ' · <span style="color:var(--accent)">' + held + ' held</span>' : '') + '</div>'
+        + (held ? ' · <span style="color:var(--accent);font-weight:700">' + (function () { var s = _ymHeldSplit(b), p = []; if (s.tab) p.push(s.tab + ' need a tab'); if (s.num) p.push(s.num + ' need a number'); return p.join(' \u00b7 '); })() + '</span>' : '') + '</div>'
         + '<button onclick="_ymBatchOpen(\'' + _esc(b.id) + '\')" style="padding:0.35rem 0.95rem;border-radius:8px;border:1px solid var(--accent2);'
         + 'background:var(--surface2);color:var(--accent2);font-family:var(--font-body);font-weight:700;cursor:pointer">Review →</button>'
         + (_dm && !(c.approved + c.edited + c.rejected + c.pending + c.deferred) ? '<span style="font-size:0.95rem;color:var(--text-dim)">rows in the archive tab</span>' : '')
@@ -344,15 +366,27 @@
   // crawl_batches row, found by header — and nothing in crawl_deltas.
   var _ymShowFinished = false;
   var _ymStatusBusy = false;   // stability rule #5: one status write in flight
-  function _ymHeldCount(b) {
-    // approved/edited rows that could not land: blank number or no real tab
-    if (!_ymData) return 0;
-    var validTabs = _ymMasterTabs(), n = 0;
+  // v0.9.1694 (S89 carried item #4): the SPLIT — a held row needs a tab OR
+  // a number, and Brad fixes each with Edit. The card says which.
+  function _ymHeldSplit(b) {
+    var out = { tab: 0, num: 0 };
+    if (!_ymData) return out;
+    var validTabs = _ymMasterTabs();
     _ymData.deltas.forEach(function (dd) {
       if (dd.batch !== b.id || (dd.status !== 'approved' && dd.status !== 'edited')) return;
-      if (!String(dd.num || '').trim() || validTabs.indexOf(String(dd.tab || '').trim()) < 0) n++;
+      if (!String(dd.num || '').trim()) out.num++;
+      else if (validTabs.indexOf(String(dd.tab || '').trim()) < 0) out.tab++;
     });
-    return n;
+    return out;
+  }
+  function _ymIsHeldRow(dd, validTabs) {
+    if (dd.status !== 'approved' && dd.status !== 'edited') return false;
+    return !String(dd.num || '').trim() || validTabs.indexOf(String(dd.tab || '').trim()) < 0;
+  }
+  function _ymHeldCount(b) {
+    // approved/edited rows that could not land: blank number or no real tab
+    var s = _ymHeldSplit(b);
+    return s.tab + s.num;
   }
   function _ymIsFinished(b) {
     var c = b.counts || {};
@@ -699,6 +733,119 @@
     }
   };
 
+  // ── v0.9.1694: QUEUE INTO REVIEW — submissions + barcode pairs ────
+  // Brad: the Waiting card used to send him to the spreadsheet. Now one
+  // button turns every waiting submission and barcode pairing into review
+  // rows in two ROLLING batches, and stamps the source row 'queued' so it
+  // is counted once and never re-queued. The rows are then approved,
+  // edited or rejected exactly like a crawl batch. Nothing here touches
+  // the master.
+  var SUBS_BATCH = 'CB-COMMUNITY-SUBS', PAIRS_BATCH = 'CB-BARCODE-PAIRS';
+  // the ONE tab a maker maps to, or '' when the maker has several (Lionel
+  // has four, MTH five) — then the row is flagged and Brad picks in Edit
+  function _ymTabForMaker(mfr) {
+    var m = String(mfr || '').trim().toLowerCase();
+    if (!m || typeof ERAS === 'undefined' || typeof ERA_TABS === 'undefined') return '';
+    var tabs = [];
+    Object.keys(ERAS).forEach(function (id) {
+      var e = ERAS[id];
+      if (e && String(e.manufacturer || '').toLowerCase() === m && ERA_TABS[id] && ERA_TABS[id].items && tabs.indexOf(ERA_TABS[id].items) < 0) tabs.push(ERA_TABS[id].items);
+    });
+    return tabs.length === 1 ? tabs[0] : '';
+  }
+  var _ymQueueBusy = false;
+  window._ymQueueWaiting = async function () {
+    if (!_isOwner() || !_ymData || _ymQueueBusy) return;
+    var subs = _ymData.subRows || [], pairs = _ymData.pairRows || [];
+    if (!subs.length && !pairs.length) return;
+    var lines = 'Queue ' + (subs.length ? subs.length + ' community submission' + (subs.length === 1 ? '' : 's') : '')
+      + (subs.length && pairs.length ? ' and ' : '') + (pairs.length ? pairs.length + ' barcode pairing' + (pairs.length === 1 ? '' : 's') : '')
+      + ' into the review queue? Each becomes a row you approve, edit or reject. The source rows are marked queued.';
+    var yes = (typeof appConfirm === 'function') ? await appConfirm(lines, { title: 'Queue into review', ok: 'Queue them' }) : confirm(lines);
+    if (!yes) return;
+    _ymQueueBusy = true;
+    var H = { Authorization: 'Bearer ' + window.accessToken, 'Content-Type': 'application/json' };
+    var SS = 'https://sheets.googleapis.com/v4/spreadsheets/' + YM.VAULT_ID;
+    var today = new Date().toISOString().slice(0, 10);
+    try {
+      // headers, by name, fresh
+      var dhRes = await fetch(SS + '/values/' + encodeURIComponent(YM.DELTAS_TAB + '!A1:AZ1'), { headers: H });
+      var bhRes = await fetch(SS + '/values/' + encodeURIComponent('crawl_batches!A1:Z1'), { headers: H });
+      if (!dhRes.ok || !bhRes.ok) throw new Error('could not read the queue headers \u2014 nothing was queued');
+      var dh = ((await dhRes.json()).values || [[]])[0].map(String), bh = ((await bhRes.json()).values || [[]])[0].map(String);
+      var ex = (await (await fetch(SS + '/values/' + encodeURIComponent('crawl_batches!A1:G'), { headers: H })).json()).values || [];
+      var bAt = function (h) { return bh.indexOf(h); };
+      var ensureBatch = async function (id, label, note) {
+        var idx = -1; ex.forEach(function (r, i) { if (String(r[bAt('batch_id')] || '') === id) idx = i; });
+        if (idx < 0) {
+          var row = bh.map(function (h) { return { batch_id: id, source: 'The Rail Roster users (relay)', created: today, label: label, status: 'pending', total: '0', note: note }[h] || ''; });
+          var ap = await fetch(SS + '/values/' + encodeURIComponent('crawl_batches!A1:G') + ':append?valueInputOption=RAW&insertDataOption=INSERT_ROWS', { method: 'POST', headers: H, body: JSON.stringify({ values: [row] }) });
+          if (!ap.ok) throw new Error('could not create the ' + label + ' batch \u2014 nothing was queued');
+          ex.push(row); idx = ex.length - 1;
+        } else if (['committed', 'dismissed'].indexOf(String(ex[idx][bAt('status')] || '')) >= 0) {
+          // a rolling batch reopens when new rows arrive
+          await fetch(SS + '/values:batchUpdate', { method: 'POST', headers: H, body: JSON.stringify({ valueInputOption: 'RAW', data: [{ range: 'crawl_batches!' + _ymColLetter(bAt('status')) + (idx + 1), values: [['pending']] }] }) });
+        }
+        return idx + 1;   // sheet row
+      };
+      // existing delta ids in these batches, so sequence numbers never collide
+      var idsRes = await fetch(SS + '/values/' + encodeURIComponent(YM.DELTAS_TAB + '!A1:B'), { headers: H });
+      var seq = {}; seq[SUBS_BATCH] = 0; seq[PAIRS_BATCH] = 0;
+      ((await idsRes.json()).values || []).slice(1).forEach(function (r) {
+        var b = String(r[0] || ''), id = String(r[1] || ''); var m = id.match(/-(\d+)$/);
+        if (seq[b] != null && m) seq[b] = Math.max(seq[b], parseInt(m[1], 10) || 0);
+      });
+      var mk = function (o) { return dh.map(function (h) { return o[h] == null ? '' : String(o[h]); }); };
+      var rows = [], stampSubs = [], stampPairs = [];
+      if (subs.length) {
+        var sRow = await ensureBatch(SUBS_BATCH, 'Community submissions (not in the catalog)', 'rolling \u2014 grows as users add items the catalog lacks');
+        subs.forEach(function (s) {
+          var tab = _ymTabForMaker(s.mfr), flag = [];
+          if (!tab) flag.push(s.mfr ? 'needs a tab \u2014 ' + s.mfr + ' has several' : 'needs a tab \u2014 no maker given');
+          if (!s.num) flag.push('needs a number');
+          rows.push(mk({ batch_id: SUBS_BATCH, delta_id: SUBS_BATCH + '-' + String(++seq[SUBS_BATCH]).padStart(4, '0'), action: 'add', proposed_tab: tab,
+            item_num: s.num, item_type: '', road_name: s.road, description: s.desc, gauge: '', variation: s.variation, years: '', ref_link: '', msrp: '',
+            source: 'community submission' + (s.updated ? ' ' + String(s.updated).slice(0, 10) : ''), flag: flag.join('; '), status: 'pending', decided: '',
+            image_url: '', var_desc: '', sub_type: '', notes: 'submissions row ' + s.row + (s.condition ? '; condition ' + s.condition : '') + (s.source ? '; via ' + s.source : ''), category: '' }));
+          stampSubs.push(s.row);
+        });
+        var subTotal = seq[SUBS_BATCH];
+        await fetch(SS + '/values:batchUpdate', { method: 'POST', headers: H, body: JSON.stringify({ valueInputOption: 'RAW', data: [{ range: 'crawl_batches!' + _ymColLetter(bAt('total')) + sRow, values: [[String(subTotal)]] }] }) });
+      }
+      if (pairs.length) {
+        var pRow = await ensureBatch(PAIRS_BATCH, 'Barcode pairings (UPC \u2192 item)', 'rolling \u2014 from users\u2019 scans; approving writes the UPC onto the master row');
+        pairs.forEach(function (p) {
+          var tab = _ymTabForMaker(p.mfr), flag = [];
+          if (!tab) flag.push(p.mfr ? 'needs a tab \u2014 ' + p.mfr + ' has several' : 'needs a tab \u2014 no maker given');
+          if (!p.num) flag.push('needs a number');
+          if (!/^\d{8,14}$/.test(p.upc)) flag.push('UPC looks wrong');
+          rows.push(mk({ batch_id: PAIRS_BATCH, delta_id: PAIRS_BATCH + '-' + String(++seq[PAIRS_BATCH]).padStart(4, '0'), action: 'barcode', proposed_tab: tab,
+            item_num: p.num, item_type: '', road_name: '', description: 'UPC ' + p.upc + ' \u2192 ' + p.num + (p.mfr ? ' (' + p.mfr + ')' : ''), gauge: '', variation: '', years: '', ref_link: '', msrp: '',
+            source: 'barcode pairing from users\u2019 scans', flag: flag.join('; '), status: 'pending', decided: '',
+            image_url: '', var_desc: '', sub_type: '', notes: 'UPC ' + p.upc + '; barcode_pairs row ' + p.row + (p.count ? '; reported ' + p.count + 'x' : '') + (p.how ? '; how: ' + p.how : ''), category: '' }));
+          stampPairs.push(p.row);
+        });
+        await fetch(SS + '/values:batchUpdate', { method: 'POST', headers: H, body: JSON.stringify({ valueInputOption: 'RAW', data: [{ range: 'crawl_batches!' + _ymColLetter(bAt('total')) + pRow, values: [[String(seq[PAIRS_BATCH])]] }] }) });
+      }
+      // deltas first, then the source stamps — a stamp without a row would lose the item
+      for (var i = 0; i < rows.length; i += 200) {
+        var ap2 = await fetch(SS + '/values/' + encodeURIComponent(YM.DELTAS_TAB + '!A1:V') + ':append?valueInputOption=RAW&insertDataOption=INSERT_ROWS', { method: 'POST', headers: H, body: JSON.stringify({ values: rows.slice(i, i + 200) }) });
+        if (!ap2.ok) throw new Error('queue append failed after ' + i + ' rows (HTTP ' + ap2.status + ') \u2014 source rows were NOT marked; run Queue again');
+      }
+      var data = [];
+      stampSubs.forEach(function (r) { data.push({ range: 'submissions!' + _ymData.subInMasterCol + r, values: [['queued']] }); });
+      stampPairs.forEach(function (r) { data.push({ range: 'barcode_pairs!' + _ymData.pairStatusCol + r, values: [['queued']] }); });
+      if (data.length) {
+        var st = await fetch(SS + '/values:batchUpdate', { method: 'POST', headers: H, body: JSON.stringify({ valueInputOption: 'RAW', data: data }) });
+        if (!st.ok) throw new Error('the rows were queued but the source rows could not be marked (HTTP ' + st.status + ') \u2014 they will show as waiting again; do not re-queue, tell Claude');
+      }
+      if (typeof showToast === 'function') showToast(rows.length + ' row' + (rows.length === 1 ? '' : 's') + ' queued into review.', 4000);
+      _ymReload();
+    } catch (e) {
+      if (typeof showToast === 'function') showToast('Queue stopped: ' + ((e && /\u2014/.test(String(e.message))) ? e.message : 'the connection dropped \u2014 nothing was marked; try again'), 7000, true);
+    } finally { _ymQueueBusy = false; }
+  };
+
   // ── v0.9.1627: COMMIT — the cockpit's last mile ────────────────
   // The standing rules, enforced in order: dated per-tab CSV backups
   // reach the RailRoster Backups folder BEFORE any master write (a
@@ -750,6 +897,10 @@
       return dd.batch === _ymBatchId && (dd.status === 'approved' || dd.status === 'edited');
     });
     if (!approved.length) { if (typeof showToast === 'function') showToast('Nothing approved to commit yet.', 3000); return; }
+    // v0.9.1694: a barcode batch commits by a different path — it EDITS one
+    // cell of an existing row instead of appending. Never mixed with adds.
+    if (approved.every(function (dd) { return dd.action === 'barcode'; })) { await _ymCommitBarcodes(b, approved, MID, H, today); return; }
+    if (approved.some(function (dd) { return dd.action === 'barcode'; })) { if (typeof showToast === 'function') showToast('This batch mixes barcode rows with catalog rows \u2014 it cannot commit as one. Tell Claude.', 6000, true); return; }
     var byTab = {}, heldNoTab = [], heldNoNum = [];
     var validTabs = _ymMasterTabs();
     approved.forEach(function (dd) {
@@ -860,6 +1011,7 @@
       await fetch('https://sheets.googleapis.com/v4/spreadsheets/' + YM.VAULT_ID + '/values:batchUpdate', { method: 'POST', headers: H, body: JSON.stringify({ valueInputOption: 'RAW', data: [{ range: _ymBatchStatusRange(b), values: [['committed']] }] }) });
       b.status = 'committed';
       _ymUndoStack = null;
+      if (b.id === SUBS_BATCH) await _ymStampSubmissions(H);   // v0.9.1694: yes / rejected back onto the submissions tab
       if (typeof showToast === 'function') showToast('Committed \u2014 ' + appended + ' rows added to the master catalog. Backups are in RailRoster Backups.', 6000);
       window.ymBuildPage(true);
     } catch (e) {
@@ -868,6 +1020,153 @@
       window._ymCommitBusy = false;
     }
   };
+  // v0.9.1694: after the submissions batch lands, tell the submissions tab
+  // what became of each row (in_master yes / rejected) — by the row number
+  // the delta's notes carry, verified against a fresh read of that column.
+  async function _ymStampSubmissions(H) {
+    try {
+      var SS = 'https://sheets.googleapis.com/v4/spreadsheets/' + YM.VAULT_ID;
+      var col = _ymData.subInMasterCol || 'H';
+      var cur = (await (await fetch(SS + '/values/' + encodeURIComponent('submissions!' + col + '1:' + col), { headers: H })).json()).values || [];
+      var data = [];
+      _ymData.deltas.forEach(function (dd) {
+        if (dd.batch !== SUBS_BATCH) return;
+        var m = String(dd.notes || '').match(/submissions row (\d+)/); if (!m) return;
+        var row = parseInt(m[1], 10), now = String((cur[row - 1] || [])[0] || '').toLowerCase();
+        if (now !== 'queued') return;   // only rows this queue marked; never touch anything else
+        if (dd.status === 'approved' || dd.status === 'edited') data.push({ range: 'submissions!' + col + row, values: [['yes']] });
+        else if (dd.status === 'rejected') data.push({ range: 'submissions!' + col + row, values: [['rejected']] });
+      });
+      if (data.length) await fetch(SS + '/values:batchUpdate', { method: 'POST', headers: H, body: JSON.stringify({ valueInputOption: 'RAW', data: data }) });
+    } catch (e) { if (typeof showToast === 'function') showToast('Committed, but the submissions tab could not be marked \u2014 tell Claude.', 5000, true); }
+  }
+
+  // v0.9.1694: BARCODE COMMIT — the cockpit's first edit of a live master
+  // row, and it is as narrow as it can be (Brad approved these guards):
+  // one cell, only the "UPC / Barcode" column, only when that cell is empty
+  // or already equal, the Item Number re-read at that row right before the
+  // write, a dated backup of the tab first, and rows that cannot be placed
+  // are HELD and said. The column is added at the END of the tab when it is
+  // missing (the v1683 Image URL precedent — a header cell, never a row).
+  async function _ymCommitBarcodes(b, approved, MID, H, today) {
+    var validTabs = _ymMasterTabs(), byTab = {}, heldNoTab = [], heldNoNum = [], heldBadUpc = [];
+    approved.forEach(function (dd) {
+      var upc = (String(dd.notes || '').match(/UPC (\d{8,14})/) || [])[1] || '';
+      var t = String(dd.tab || '').trim();
+      if (!String(dd.num || '').trim()) heldNoNum.push(dd);
+      else if (!upc) heldBadUpc.push(dd);
+      else if (validTabs.indexOf(t) >= 0) { dd._upc = upc; (byTab[t] = byTab[t] || []).push(dd); }
+      else heldNoTab.push(dd);
+    });
+    if (window._ymCommitBusy) { if (typeof showToast === 'function') showToast('A commit is already running \u2014 hold on.', 3000); return; }
+    window._ymCommitBusy = true;
+    try {
+      var tabs = Object.keys(byTab), plan = {}, heldNotFound = [], heldDifferent = [], writes = 0, same = 0;
+      for (var ti = 0; ti < tabs.length; ti++) {
+        var t = tabs[ti];
+        var gotRes = await fetch('https://sheets.googleapis.com/v4/spreadsheets/' + MID + '/values/' + encodeURIComponent("'" + t + "'!A1:AD"), { headers: H });
+        if (!gotRes.ok) throw new Error('could not read ' + t + ' (HTTP ' + gotRes.status + ') \u2014 stopped before any write');
+        var vals = (await gotRes.json()).values || [], heads = (vals[0] || []).map(String);
+        var numIdx = heads.indexOf('Item Number'), upcIdx = heads.indexOf('UPC / Barcode');
+        if (numIdx < 0) throw new Error(t + ' has no Item Number column \u2014 stopped before any write');
+        var byNum = {};
+        vals.slice(1).forEach(function (r, i) { var n = String(r[numIdx] == null ? '' : r[numIdx]).trim(); if (n && byNum[n] == null) byNum[n] = i + 2; });
+        var todo = [];
+        byTab[t].forEach(function (dd) {
+          var row = byNum[String(dd.num).trim()];
+          if (!row) { heldNotFound.push(dd); return; }
+          var cur = upcIdx >= 0 ? String((vals[row - 1] || [])[upcIdx] == null ? '' : vals[row - 1][upcIdx]).trim() : '';
+          if (cur && cur !== dd._upc) { heldDifferent.push(dd); return; }
+          if (cur === dd._upc) { same++; dd._done = true; return; }
+          todo.push({ dd: dd, row: row });
+        });
+        plan[t] = { vals: vals, heads: heads, numIdx: numIdx, upcIdx: upcIdx, todo: todo };
+      }
+      var total = 0; tabs.forEach(function (t) { total += plan[t].todo.length; });
+      var lines = 'Write ' + total + ' UPC' + (total === 1 ? '' : 's') + ' onto existing master rows'
+        + (tabs.length ? ' (' + tabs.map(function (t) { return plan[t].todo.length + ' in ' + t; }).join(', ') + ')' : '') + '.'
+        + (same ? ' ' + same + ' already there.' : '') + (heldNotFound.length ? ' ' + heldNotFound.length + ' held \u2014 number not in that tab.' : '')
+        + (heldDifferent.length ? ' ' + heldDifferent.length + ' held \u2014 a different UPC is already on the row.' : '')
+        + (heldNoTab.length ? ' ' + heldNoTab.length + ' held \u2014 no tab.' : '') + (heldNoNum.length ? ' ' + heldNoNum.length + ' held \u2014 no number.' : '')
+        + (heldBadUpc.length ? ' ' + heldBadUpc.length + ' held \u2014 no usable UPC.' : '')
+        + ' One cell per row, nothing else on the row is touched. Dated backups first.';
+      if (!total) {
+        if (typeof showToast === 'function') showToast(lines.replace(/^Write 0 UPCs[^.]*\./, 'Nothing to write.'), 7000);
+        if (!heldNotFound.length && !heldDifferent.length && !heldNoTab.length && !heldNoNum.length && !heldBadUpc.length) {
+          await fetch('https://sheets.googleapis.com/v4/spreadsheets/' + YM.VAULT_ID + '/values:batchUpdate', { method: 'POST', headers: H, body: JSON.stringify({ valueInputOption: 'RAW', data: [{ range: _ymBatchStatusRange(b), values: [['committed']] }] }) });
+          b.status = 'committed'; await _ymStampPairs(H); window.ymBuildPage(true);
+        }
+        return;
+      }
+      var yes = (typeof appConfirm === 'function') ? await appConfirm(lines, { title: 'Write UPCs onto master rows', ok: 'Back up, then write' }) : confirm(lines);
+      if (!yes) return;
+      // backups first — every tab that will be touched
+      var fq = encodeURIComponent("name='RailRoster Backups' and mimeType='application/vnd.google-apps.folder' and trashed=false");
+      var ff = await fetch('https://www.googleapis.com/drive/v3/files?q=' + fq + '&fields=files(id)', { headers: { Authorization: H.Authorization } }).then(function (x) { return x.json(); });
+      var folderId = ff.files && ff.files[0] && ff.files[0].id;
+      if (!folderId) { var mk = await fetch('https://www.googleapis.com/drive/v3/files', { method: 'POST', headers: H, body: JSON.stringify({ name: 'RailRoster Backups', mimeType: 'application/vnd.google-apps.folder' }) }).then(function (x) { return x.json(); }); folderId = mk.id; }
+      for (var bi = 0; bi < tabs.length; bi++) {
+        var t3 = tabs[bi]; if (!plan[t3].todo.length) continue;
+        var bnd = 'rrbk' + Date.now();
+        var meta = { name: t3 + ' \u2014 backup ' + today + ' before ' + b.id + ' (UPC write).csv', parents: [folderId] };
+        var body = '--' + bnd + '\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n' + JSON.stringify(meta) + '\r\n--' + bnd + '\r\nContent-Type: text/csv\r\n\r\n' + _ymCsv(plan[t3].vals) + '\r\n--' + bnd + '--';
+        var up = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', { method: 'POST', headers: { Authorization: H.Authorization, 'Content-Type': 'multipart/related; boundary=' + bnd }, body: body });
+        if (!up.ok) throw new Error('backup failed for ' + t3 + ' (HTTP ' + up.status + ') \u2014 nothing was written');
+      }
+      for (var wi = 0; wi < tabs.length; wi++) {
+        var t4 = tabs[wi], p = plan[t4]; if (!p.todo.length) continue;
+        // the column, at the END, if the tab never had one (header cell only)
+        if (p.upcIdx < 0) {
+          if (typeof sheetsUpdate !== 'function') throw new Error('sheetsUpdate unavailable \u2014 reload the app');
+          await sheetsUpdate(MID, "'" + t4 + "'!" + _ymColLetter(p.heads.length) + '1', [['UPC / Barcode']]);
+          p.upcIdx = p.heads.length; p.heads = p.heads.concat(['UPC / Barcode']);
+        }
+        // VERIFY: re-read the Item Number cell of every target row, right now
+        var numCol = _ymColLetter(p.numIdx), upcCol = _ymColLetter(p.upcIdx);
+        var ranges = p.todo.map(function (x) { return 'ranges=' + encodeURIComponent("'" + t4 + "'!" + numCol + x.row); }).join('&');
+        var vr = await fetch('https://sheets.googleapis.com/v4/spreadsheets/' + MID + '/values:batchGet?' + ranges, { headers: H });
+        if (!vr.ok) throw new Error('verify read failed on ' + t4 + ' \u2014 nothing was written to it');
+        var seen = ((await vr.json()).valueRanges || []).map(function (x) { return String(((x.values || [[]])[0] || [])[0] || '').trim(); });
+        var data = [];
+        p.todo.forEach(function (x, i) {
+          if (seen[i] !== String(x.dd.num).trim()) { heldNotFound.push(x.dd); return; }   // the row moved — hold, never guess
+          data.push({ range: "'" + t4 + "'!" + upcCol + x.row, values: [[x.dd._upc]] }); x.dd._done = true;
+        });
+        if (data.length) {
+          var wr = await fetch('https://sheets.googleapis.com/v4/spreadsheets/' + MID + '/values:batchUpdate', { method: 'POST', headers: H, body: JSON.stringify({ valueInputOption: 'RAW', data: data }) });
+          if (!wr.ok) throw new Error('UPC write failed on ' + t4 + ' (HTTP ' + wr.status + ') \u2014 check the tab; the backup is in RailRoster Backups');
+          writes += data.length;
+        }
+      }
+      await fetch('https://sheets.googleapis.com/v4/spreadsheets/' + YM.VAULT_ID + '/values:batchUpdate', { method: 'POST', headers: H, body: JSON.stringify({ valueInputOption: 'RAW', data: [{ range: _ymBatchStatusRange(b), values: [['committed']] }] }) });
+      b.status = 'committed'; _ymUndoStack = null;
+      await _ymStampPairs(H);
+      if (typeof showToast === 'function') showToast('Committed \u2014 ' + writes + ' UPC' + (writes === 1 ? '' : 's') + ' written' + (same ? ', ' + same + ' already there' : '') + ((heldNotFound.length + heldDifferent.length) ? ', ' + (heldNotFound.length + heldDifferent.length) + ' held (see the Held filter)' : '') + '.', 6000);
+      window.ymBuildPage(true);
+    } catch (e) {
+      if (typeof showToast === 'function') showToast('Commit stopped: ' + (e && e.message), 6000, true);
+    } finally { window._ymCommitBusy = false; }
+  }
+  // the pairs tab learns what happened: promoted when the UPC landed (or was
+  // already there), rejected when Brad said no; found by the row in the notes
+  async function _ymStampPairs(H) {
+    try {
+      var SS = 'https://sheets.googleapis.com/v4/spreadsheets/' + YM.VAULT_ID;
+      var col = _ymData.pairStatusCol || 'I';
+      var cur = (await (await fetch(SS + '/values/' + encodeURIComponent('barcode_pairs!' + col + '1:' + col), { headers: H })).json()).values || [];
+      var data = [];
+      _ymData.deltas.forEach(function (dd) {
+        if (dd.batch !== PAIRS_BATCH) return;
+        var m = String(dd.notes || '').match(/barcode_pairs row (\d+)/); if (!m) return;
+        var row = parseInt(m[1], 10), now = String((cur[row - 1] || [])[0] || '').toLowerCase();
+        if (now !== 'queued') return;
+        if (dd._done) data.push({ range: 'barcode_pairs!' + col + row, values: [['promoted']] });
+        else if (dd.status === 'rejected') data.push({ range: 'barcode_pairs!' + col + row, values: [['rejected']] });
+      });
+      if (data.length) await fetch(SS + '/values:batchUpdate', { method: 'POST', headers: H, body: JSON.stringify({ valueInputOption: 'RAW', data: data }) });
+    } catch (e) { if (typeof showToast === 'function') showToast('Committed, but the barcode_pairs tab could not be marked \u2014 tell Claude.', 5000, true); }
+  }
+
   window._ymBatchOpen = function (id, keepScroll) {
     var page = document.getElementById('page-yardmaster');
     if (!page || !_isOwner() || !_ymData) return;
@@ -882,9 +1181,12 @@
     var pend = all.filter(function (dd) { return (dd.status || 'pending') === 'pending'; });
     var decided = all.filter(function (dd) { return (dd.status || 'pending') !== 'pending'; });
     var flagged = pend.filter(function (dd) { return dd.flag; });
+    var _vt = _ymMasterTabs();
+    var heldRows = all.filter(function (dd) { return _ymIsHeldRow(dd, _vt); });   // v0.9.1694
     var list = _ymFilter === 'flagged' ? flagged
              : _ymFilter === 'clean' ? pend.filter(function (dd) { return !dd.flag; })
              : _ymFilter === 'decided' ? decided
+             : _ymFilter === 'held' ? heldRows
              : pend;
     var chip = function (f, label) {
       var on = _ymFilter === f;
@@ -950,7 +1252,7 @@
     }).join('');
     if (!list.length) {
       rows = '<div style="border-top:1px solid var(--border);padding:1rem 0;color:var(--text-dim);font-size:1.05rem">'
-        + (_ymFilter === 'decided' ? 'Nothing decided yet.' : 'Nothing left to review here \u2014 nice work.') + '</div>';
+        + (_ymFilter === 'decided' ? 'Nothing decided yet.' : _ymFilter === 'held' ? 'Nothing held \u2014 every approved row has a tab and a number.' : 'Nothing left to review here \u2014 nice work.') + '</div>';
     }
     var c = b.counts || {};
     page.innerHTML =
@@ -973,7 +1275,8 @@
       + '</div>'
       + '<div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin:0.55rem 0 0.2rem">'
       + chip('all', 'To review (' + pend.length + ')') + chip('flagged', '\u26a0 Flagged (' + flagged.length + ')')
-      + chip('clean', 'Clean (' + (pend.length - flagged.length) + ')') + chip('decided', 'Decided (' + decided.length + ')') + '</div>'
+      + chip('clean', 'Clean (' + (pend.length - flagged.length) + ')') + chip('decided', 'Decided (' + decided.length + ')')
+      + (heldRows.length ? chip('held', 'Held \u2014 needs a tab or number (' + heldRows.length + ')') : '') + '</div>'
       + rows + '</div>';
     try {
       if (mc) {

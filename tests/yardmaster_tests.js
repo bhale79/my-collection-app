@@ -273,7 +273,7 @@ ok('1688 Clear finished, Show/Hide finished and Put back are wired to buttons',
    && /window\._ymClearFinished = (async )?function/.test(ym88) && /window\._ymToggleFinished = function/.test(ym88) && /window\._ymPutBack = function/.test(ym88));
 ok('1688 the batch status column comes from the crawl_batches header, and NO status write hardcodes a column letter',
    /out\.batchStatusCol = _bcol\.status == null \? 'E'/.test(ym88) && /function _ymBatchStatusRange\(b\)/.test(ym88)
-   && !/'crawl_batches!E'/.test(ym88) && (ym88.match(/range: _ymBatchStatusRange\(b\)/g) || []).length === 3);
+   && !/'crawl_batches!E'/.test(ym88) && (ym88.match(/range: _ymBatchStatusRange\(b\)/g) || []).length >= 3);   // v1694: the barcode commit added two more
 ok('1688 one status write in flight at a time (rule #5), local copies update only after the Vault says yes',
    /_ymStatusBusy = true/.test(ym88) && /finally \{ _ymStatusBusy = false; \}/.test(ym88)
    && /if \(!r\.ok\) throw new Error\('HTTP ' \+ r\.status\);\n\s*list\.forEach\(function \(b\) \{ b\.status = status; \}\)/.test(ym88));
@@ -324,6 +324,31 @@ ok('1689 a mismatch writes nothing, reloads to the same view, and says so',
    /catch \(e\) \{ bad = list; \}/.test(ym89) && /queue changed underneath this screen/.test(ym89) && /function _ymReload\(\)/.test(ym89) && /if \(_ymBatchId\) window\._ymBatchOpen\(_ymBatchId, true\); else window\.ymBuildPage\(false\);/.test(ym89));
 ok('1689 every header→column-letter answer goes through _ymColLetter (AA-safe)',
    /function _ymColLetter\(i\)/.test(ym89) && !/String\.fromCharCode\(65 \+ _/.test(ym89) && (ym89.match(/_ymColLetter\(/g) || []).length >= 4);
+
+// ── v0.9.1694: the Office plumbing (S89 carried #4 and #6) ────────
+// Submissions and barcode pairings join the review queue through ONE
+// button; a barcode commit is the cockpit's first edit of a live master
+// row, kept to one guarded cell. Behaviour is proven for real in
+// yardmaster_archive_tests.js §8–10; these pin the shape.
+const ym94 = src('yardmaster.js');
+const q94 = ym94.slice(ym94.indexOf('v0.9.1694: QUEUE INTO REVIEW'), ym94.indexOf('v0.9.1627: COMMIT'));
+const c94 = ym94.slice(ym94.indexOf('async function _ymCommitBarcodes'), ym94.indexOf('async function _ymStampPairs'));
+ok('1694 the card splits the held count into need-a-tab / need-a-number', /function _ymHeldSplit\(b\)/.test(ym94) && /need a tab/.test(ym94) && /need a number/.test(ym94));
+ok('1694 the batch view has a Held filter that lists exactly the uncommittable approved rows', /_ymFilter === 'held' \? heldRows/.test(ym94) && /function _ymIsHeldRow\(dd, validTabs\)/.test(ym94));
+ok('1694 one Queue button, wired, guarded by a busy flag', /onclick="_ymQueueWaiting\(\)"/.test(ym94) && /window\._ymQueueWaiting = async function/.test(q94) && /_ymQueueBusy = true;/.test(q94) && /finally \{ _ymQueueBusy = false; \}/.test(q94));
+ok('1694 two ROLLING batches with fixed ids, reopened when new rows arrive', /SUBS_BATCH = 'CB-COMMUNITY-SUBS', PAIRS_BATCH = 'CB-BARCODE-PAIRS'/.test(ym94) && /a rolling batch reopens when new rows arrive/.test(q94));
+ok('1694 a maker maps to a tab only when it has exactly ONE — otherwise the row is flagged, never guessed', /return tabs\.length === 1 \? tabs\[0\] : '';/.test(q94) && /needs a tab \\u2014 ' \+ s\.mfr \+ ' has several/.test(q94));
+ok('1694 deltas land BEFORE the source rows are stamped (a stamp without a row would lose the item)', q94.indexOf(':append?valueInputOption=RAW') < q94.indexOf("values: [['queued']]"));
+ok('1694 source stamps are by header-derived column + the row the delta carries in its notes', /subInMasterCol/.test(ym94) && /pairStatusCol/.test(ym94) && /submissions row ' \+ s\.row/.test(q94) && /barcode_pairs row ' \+ p\.row/.test(q94));
+ok('1694 a barcode batch takes its own commit path; a MIXED batch refuses to commit', /approved\.every\(function \(dd\) \{ return dd\.action === 'barcode'; \}\)/.test(ym94) && /mixes barcode rows with catalog rows/.test(ym94));
+ok('1694 barcode commit: only the UPC / Barcode column, found by header', /heads\.indexOf\('UPC \/ Barcode'\)/.test(c94) && !/upcIdx = \d/.test(c94));
+ok('1694 barcode commit: empty-or-equal only — a different UPC on the row is HELD', /if \(cur && cur !== dd\._upc\) \{ heldDifferent\.push\(dd\); return; \}/.test(c94));
+ok('1694 barcode commit: the Item Number is RE-READ at the row right before the write; a mismatch holds', /values:batchGet\?' \+ ranges/.test(c94) && /if \(seen\[i\] !== String\(x\.dd\.num\)\.trim\(\)\) \{ heldNotFound\.push\(x\.dd\); return; \}/.test(c94));
+ok('1694 barcode commit: backup FIRST, then the header cell (END of the row) if the column is missing, then the cells', c94.indexOf('upload/drive') < c94.indexOf("[['UPC / Barcode']]") && c94.indexOf("[['UPC / Barcode']]") < c94.indexOf('values:batchUpdate\', { method: \'POST\', headers: H, body: JSON.stringify({ valueInputOption: \'RAW\', data: data })'));
+ok('1694 barcode commit: one write per cell, never a whole row', /values: \[\[x\.dd\._upc\]\]/.test(c94) && !/_ymMasterCell/.test(c94));
+ok('1694 barcode commit: rule #5 guard shared with the append commit', /window\._ymCommitBusy = true;/.test(c94) && /finally \{ window\._ymCommitBusy = false; \}/.test(c94));
+ok('1694 the pairs tab is stamped promoted only for rows that actually landed (or were already there)', /if \(dd\._done\) data\.push/.test(ym94) && /if \(now !== 'queued'\) return;/.test(ym94));
+ok('1694 the submissions tab is stamped yes / rejected after ITS batch commits, only rows this queue marked', /if \(b\.id === SUBS_BATCH\) await _ymStampSubmissions\(H\);/.test(ym94) && (ym94.match(/if \(now !== 'queued'\) return;/g) || []).length === 2);
 
 console.log('\n' + pass + ' passed, ' + fail + ' failed');
 if (fail) { console.log('YARDMASTER TESTS FAILING'); process.exit(1); }

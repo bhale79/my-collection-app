@@ -52,8 +52,21 @@ function makeVault() {
     ['C', 'test', '2026-09-03', 'Batch C', 'committed', '3', 'note C'],
     ['D', 'test', '2026-09-04', 'Batch D', 'committed', '2', 'note D'],
     ['E', 'test', '2026-09-04', 'Batch E', 'dismissed', '2', 'note E']];
-  return { tabs: { crawl_batches: batches, crawl_deltas: deltas, submissions: [['a']], barcode_pairs: [['a']], chores: [['a']], usage: [['a']] },
-           ids: { crawl_batches: 11, crawl_deltas: 22 }, nextId: 100, log: [], drive: [] };
+  const subs = [['token','item_num','variation','condition','est_worth','sold_price','updated','in_master','manufacturer','description','road_name','source'],
+    ['t1','999','','7','','','2026-09-01','no','Marx','Tin whistle car','','wizard'],
+    ['t2','6-12345','','','','','2026-09-02','no','Lionel','Boxcar the catalog lacks','Santa Fe','wizard'],   // Lionel has several tabs → needs a tab
+    ['t3','777','','','','','2026-09-03','yes','Marx','already in','','wizard'],
+    ['t4','','','','','','2026-09-03','no','','no number at all','','wizard']];
+  const pairs = [['upc','item_num','mfr','in_master','how','first_seen','last_seen','report_count','status'],
+    ['012345678905','N1','Marx','yes','scan-corrected','2026-09-01','2026-09-02','3','pending'],
+    ['023456789012','N2','Marx','yes','scan','2026-09-01','2026-09-01','1','pending'],
+    ['034567890123','NOPE','Marx','no','scan','2026-09-01','2026-09-01','1','pending'],
+    ['045678901234','N3','Marx','yes','scan','2026-09-01','2026-09-01','1','promoted']];
+  // a MASTER tab (same fake spreadsheet namespace — tab names do not collide)
+  const marx = [['Item Number','Item Type','Description','UPC / Barcode'],
+    ['N1','Boxcar','one',''], ['N2','Boxcar','two','023456789012'], ['N4','Boxcar','four','999999999999']];
+  return { tabs: { crawl_batches: batches, crawl_deltas: deltas, submissions: subs, barcode_pairs: pairs, chores: [['a']], usage: [['a']], 'Marx O': marx },
+           ids: { crawl_batches: 11, crawl_deltas: 22, submissions: 33, barcode_pairs: 44, 'Marx O': 55 }, nextId: 100, log: [], drive: [] };
 }
 
 function colIdx(letter) { let n = 0; for (const ch of letter) n = n * 26 + (ch.charCodeAt(0) - 64); return n - 1; }
@@ -151,9 +164,11 @@ function boot(v, opts) {
     showToast: (msg) => toasts.push(String(msg)),
     appConfirm: async () => (opts && opts.confirm === false ? false : true),
     document: { getElementById: (id) => (id === 'page-yardmaster' ? page : null), querySelector: () => null, createElement: () => ({}) },
-    REAL_ERA_IDS: ['marx'], ERA_TABS: { marx: { items: 'Marx O' } },
+    REAL_ERA_IDS: ['marx', 'pw', 'mpc'], ERA_TABS: { marx: { items: 'Marx O' }, pw: { items: 'Lionel PW - Items' }, mpc: { items: 'Lionel MPC-Modern' } },
+    ERAS: { marx: { manufacturer: 'Marx' }, pw: { manufacturer: 'Lionel' }, mpc: { manufacturer: 'Lionel' } },
     MASTER_SHEET_ID: 'master'
   };
+  sandbox.sheetsUpdate = async (id, range, values) => { writeRange(v, range.replace(/'/g, ''), values); v.log.push('sheetsUpdate ' + range); return true; };
   sandbox.window = sandbox;
   sandbox.encodeURIComponent = encodeURIComponent;
   vm.createContext(sandbox);
@@ -172,7 +187,7 @@ const idsIn = (tab) => tab.slice(1).map(r => r[1]).filter(Boolean);
     ok('the queue renders from the fake Vault', /Batch A/.test(ctx.page.innerHTML) && /Batch D/.test(ctx.page.innerHTML));
     ok('Clear finished counts A and C only — B has a pending row, D has a held (no-tab) row, E is already cleared',
        /Clear finished \(2\)/.test(ctx.page.innerHTML), (ctx.page.innerHTML.match(/Clear finished \(\d+\)/) || [''])[0]);
-    ok('D says "1 held" on its row', /1 held/.test(ctx.page.innerHTML));
+    ok('D says "1 need a tab" on its row (v1694: the held count, split by what is missing)', /1 need a tab/.test(ctx.page.innerHTML));
     ok('the leftover rows of already-cleared E are offered for archiving', /Archive 2 rows/.test(ctx.page.innerHTML));
 
     await ctx.sandbox._ymClearFinished();
@@ -283,6 +298,90 @@ const idsIn = (tab) => tab.slice(1).map(r => r[1]).filter(Boolean);
     await tick(120);
     const rowB2 = v.tabs.crawl_deltas.find(r => r[1] === 'B-0002');
     ok('guard: after the reload the verdict lands on B-0002 itself', rowB2 && rowB2[15] === 'approved' && v.tabs.crawl_deltas.filter(r => r[15] === 'approved' && r[1] !== 'B-0002').length === 9, JSON.stringify(v.tabs.crawl_deltas.map(r => r[1] + ':' + r[15])));
+  }
+
+  // ═══ 8. v0.9.1694 — Queue into review ═══
+  {
+    const v = makeVault(); const ctx = boot(v);
+    await loaded(ctx);
+    ok('queue: the Waiting card offers to queue the 3 waiting submissions + 3 pairs (the yes/promoted rows are not waiting)',
+       /Queue 6 into review/.test(ctx.page.innerHTML), (ctx.page.innerHTML.match(/Queue \d+ into review/) || [''])[0]);
+    ok('queue: the card shows N need a tab · M need a number (the v1688 held count, split)',
+       /1 need a tab/.test(ctx.page.innerHTML), ctx.page.innerHTML.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').slice(0, 400));
+    await ctx.sandbox._ymQueueWaiting();
+    for (let i = 0; i < 80 && v.log.filter(l => /batchGet/.test(l)).length < 2; i++) await tick();
+    await tick(60);
+    const d = v.tabs.crawl_deltas, ids = idsIn(d);
+    const subsRows = d.slice(1).filter(r => r[0] === 'CB-COMMUNITY-SUBS'), pairRows = d.slice(1).filter(r => r[0] === 'CB-BARCODE-PAIRS');
+    ok('queue: 3 submission rows and 3 pair rows became deltas', subsRows.length === 3 && pairRows.length === 3, subsRows.length + '/' + pairRows.length);
+    ok('queue: both rolling batches exist and are pending with the right totals',
+       v.tabs.crawl_batches.some(r => r[0] === 'CB-COMMUNITY-SUBS' && r[4] === 'pending' && r[5] === '3') && v.tabs.crawl_batches.some(r => r[0] === 'CB-BARCODE-PAIRS' && r[4] === 'pending' && r[5] === '3'));
+    ok('queue: a maker with ONE tab gets it; a maker with several is flagged needs a tab; no number is flagged',
+       subsRows[0][3] === 'Marx O' && subsRows[1][3] === '' && /needs a tab/.test(subsRows[1][14]) && /needs a number/.test(subsRows[2][14]));
+    ok('queue: a barcode delta carries action=barcode and the UPC in its notes',
+       pairRows.every(r => r[2] === 'barcode') && /UPC 012345678905; barcode_pairs row 2/.test(pairRows[0][20]));
+    ok('queue: the source rows are stamped queued — and ONLY the waiting ones',
+       v.tabs.submissions[1][7] === 'queued' && v.tabs.submissions[2][7] === 'queued' && v.tabs.submissions[4][7] === 'queued' && v.tabs.submissions[3][7] === 'yes'
+       && v.tabs.barcode_pairs[1][8] === 'queued' && v.tabs.barcode_pairs[4][8] === 'promoted');
+    ok('queue: the deltas were written BEFORE the source stamps', v.log.findIndex(l => /crawl_deltas!A1:V:append/.test(l)) < v.log.findIndex(l => /POST .*values:batchUpdate/.test(l) && v.tabs.submissions[1][7] === 'queued'));
+    ok('queue: delta ids are unique and sequenced', new Set(ids).size === ids.length && /-0001$/.test(subsRows[0][1]) && /-0003$/.test(subsRows[2][1]));
+    ok('queue: after the reload the Waiting card shows nothing waiting', /Nothing waiting/.test(ctx.page.innerHTML));
+    // run it AGAIN — nothing must double up
+    const before = JSON.stringify(v.tabs.crawl_deltas);
+    await ctx.sandbox._ymQueueWaiting(); await tick(60);
+    ok('queue: a second press queues nothing (all sources are stamped)', JSON.stringify(v.tabs.crawl_deltas) === before);
+  }
+
+  // ═══ 9. v0.9.1694 — the barcode commit: one cell, guarded ═══
+  {
+    const v = makeVault(); const ctx = boot(v);
+    await loaded(ctx);
+    await ctx.sandbox._ymQueueWaiting();
+    for (let i = 0; i < 80 && v.log.filter(l => /batchGet/.test(l)).length < 2; i++) await tick();
+    await tick(60);
+    // approve all three pair rows, then commit the pairs batch
+    ctx.sandbox._ymBatchOpen('CB-BARCODE-PAIRS', false);
+    const pairs = v.tabs.crawl_deltas.slice(1).filter(r => r[0] === 'CB-BARCODE-PAIRS').map(r => r[1]);
+    for (const id of pairs) { ctx.sandbox._ymVerdict(id, 'approved'); await tick(120); }
+    const masterBefore = JSON.stringify(v.tabs['Marx O']);
+    await ctx.sandbox._ymCommit();
+    for (let i = 0; i < 80 && !/committed/.test(String(v.tabs.crawl_batches.find(r => r[0] === 'CB-BARCODE-PAIRS')[4])); i++) await tick();
+    await tick(60);
+    const m = v.tabs['Marx O'];
+    ok('barcode commit: N1 got its UPC — one cell', m[1][3] === '012345678905' && m[1][0] === 'N1' && m[1][1] === 'Boxcar' && m[1][2] === 'one');
+    ok('barcode commit: N2 already had the same UPC — left alone, counted as already there', m[2][3] === '023456789012');
+    ok('barcode commit: NOPE is not in the tab — HELD, nothing written for it', m.length === 4 && !m.some(r => r[3] === '034567890123'));
+    ok('barcode commit: no other cell on any row changed', JSON.stringify(m.map(r => r.slice(0, 3))) === JSON.stringify(JSON.parse(masterBefore).map(r => r.slice(0, 3))));
+    ok('barcode commit: a backup CSV of the tab went to Drive first', v.drive.some(b => /Marx O — backup .* \(UPC write\)\.csv/.test(b)));
+    ok('barcode commit: the Item Number cell was RE-READ at the target row right before the write',
+       v.log.some(l => /batchGet\?ranges=.*Marx%20O.*!A2/.test(l) || /batchGet\?ranges=.*Marx O.*!A2/.test(decodeURIComponent(l))));
+    ok('barcode commit: the pairs tab learned — promoted for the two that landed/were there, still queued for the held one',
+       v.tabs.barcode_pairs[1][8] === 'promoted' && v.tabs.barcode_pairs[2][8] === 'promoted' && v.tabs.barcode_pairs[3][8] === 'queued');
+    ok('barcode commit: the batch is committed', v.tabs.crawl_batches.find(r => r[0] === 'CB-BARCODE-PAIRS')[4] === 'committed');
+  }
+
+  // ═══ 10. v0.9.1694 — a mismatched row is held, never written ═══
+  {
+    const v = makeVault(); const ctx = boot(v);
+    await loaded(ctx);
+    await ctx.sandbox._ymQueueWaiting();
+    for (let i = 0; i < 80 && v.log.filter(l => /batchGet/.test(l)).length < 2; i++) await tick();
+    await tick(60);
+    ctx.sandbox._ymBatchOpen('CB-BARCODE-PAIRS', false);
+    const first = v.tabs.crawl_deltas.slice(1).filter(r => r[0] === 'CB-BARCODE-PAIRS')[0][1];
+    ctx.sandbox._ymVerdict(first, 'approved'); await tick(120);
+    // between the plan read and the write, the master row moves (a row inserted above it)
+    const realFetch = ctx.sandbox.fetch;
+    let armed = false;
+    ctx.sandbox.fetch = async (url, init) => {
+      const r = await realFetch(url, init);
+      if (!armed && /Marx%20O'?!A1%3AAD|Marx O'!A1:AD/.test(decodeURIComponent(url))) { armed = true; v.tabs['Marx O'].splice(1, 0, ['N0','Boxcar','zero','']); }
+      return r;
+    };
+    await ctx.sandbox._ymCommit(); await tick(200);
+    const m = v.tabs['Marx O'];
+    ok('moved row: the verify caught it — NO UPC was written anywhere', !m.some(r => r[3] === '012345678905'));
+    ok('moved row: the pair stays queued (not promoted)', v.tabs.barcode_pairs[1][8] === 'queued');
   }
 
   console.log('\n' + pass + ' passed, ' + fail + ' failed');
