@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.1692';
+const APP_VERSION = 'v0.9.1693';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -380,6 +380,13 @@ const ERAS = {
   marklin_h0: { id: 'marklin_h0', label: 'Marklin H0',      years: 'All', prefix: 'Marklin H0',      manufacturer: 'Marklin' },
   marklin_z:  { id: 'marklin_z',  label: 'Marklin Z',       years: 'All', prefix: 'Marklin Z',       manufacturer: 'Marklin' },
   marklin_1:  { id: 'marklin_1',  label: 'Marklin Gauge 1', years: 'All', prefix: 'Marklin Gauge 1', manufacturer: 'Marklin' },
+  // v0.9.1693 (Session 90, Brad: Kato USA, models AND parts): three tabs —
+  // models by scale, spare parts in their own tab so a locomotive search does
+  // not return forty couplers. Source: katousa.com (the US store; Kato Japan
+  // is a separate job). Kato prices are real USD list prices → msrp.
+  kato_n:     { id: 'kato_n',     label: 'Kato N',          years: 'All', prefix: 'Kato N',          manufacturer: 'Kato' },
+  kato_ho:    { id: 'kato_ho',    label: 'Kato HO',         years: 'All', prefix: 'Kato HO',         manufacturer: 'Kato' },
+  kato_parts: { id: 'kato_parts', label: 'Kato Parts',      years: 'All', prefix: 'Kato Parts',      manufacturer: 'Kato' },
   atlas:  { id: 'atlas',  label: 'Atlas O',     years: 'All',        prefix: 'Atlas O',        manufacturer: 'Atlas' },
   // Session 174 (Brad): Atlas HO/N/Z tabs exist & are populated in the master
   // sheet (added in the 2026-07-21 merge) but were never wired up, so ~33.5k
@@ -444,7 +451,7 @@ const ERAS = {
   bachmann_all:   { id: 'bachmann_all',   label: 'Bachmann All Scales', years: 'All', prefix: 'Bachmann All Scales', manufacturer: 'Bachmann' },
 };
 // Real-era IDs in load priority order (excluding 'all' meta-era).
-const REAL_ERA_IDS = ['pw', 'mpc', 'mod_ho', 'mod_s', 'af_gilbert', 'am_s', 'shelper', 'prewar', 'atlas', 'atlas_ho', 'atlas_n', 'atlas_z', 'mth_o', 'mth_ho', 'mth_s', 'mth_tinplate', 'mth_g', 'marklin_h0', 'marklin_z', 'marklin_1', 'weaver', 'rmt', 'menards', 'menards_ho', 'thirdrail', 'usatrains', 'lgb', 'kline', 'williams', 'marx', 'other_o', 'aristocraft', 'accucraft', 'bachmann_ho', 'bachmann_n', 'bachmann_g', 'bachmann_o', 'bachmann_on30', 'bachmann_hon30', 'bachmann_all'];
+const REAL_ERA_IDS = ['pw', 'mpc', 'mod_ho', 'mod_s', 'af_gilbert', 'am_s', 'shelper', 'prewar', 'atlas', 'atlas_ho', 'atlas_n', 'atlas_z', 'mth_o', 'mth_ho', 'mth_s', 'mth_tinplate', 'mth_g', 'marklin_h0', 'marklin_z', 'marklin_1', 'kato_n', 'kato_ho', 'kato_parts', 'weaver', 'rmt', 'menards', 'menards_ho', 'thirdrail', 'usatrains', 'lgb', 'kline', 'williams', 'marx', 'other_o', 'aristocraft', 'accucraft', 'bachmann_ho', 'bachmann_n', 'bachmann_g', 'bachmann_o', 'bachmann_on30', 'bachmann_hon30', 'bachmann_all'];
 
 // ── Master sheet tab names per era ──
 // Session 154: scale per era — drives the want-list Scale filter (master
@@ -465,6 +472,7 @@ const ERA_SCALE = {
   mth_s: 'S',
   af_gilbert: 'S', am_s: 'S', shelper: 'S',   // v0.9.1686
   marklin_h0: 'HO', marklin_z: 'Z', marklin_1: 'G',   // v0.9.1690 — Maerklin Gauge 1 is 1:32 on 45mm track, the same track as G
+  kato_n: 'N', kato_ho: 'HO', kato_parts: '',   // v0.9.1693 — parts span both scales; blank on purpose (same meaning as bachmann_all)
   mth_g: 'G',
   atlas_ho: 'HO', atlas_n: 'N', atlas_z: 'Z',
 };
@@ -571,6 +579,10 @@ const ERA_TABS = {
   marklin_h0: { items: 'Marklin H0' },
   marklin_z:  { items: 'Marklin Z' },
   marklin_1:  { items: 'Marklin Gauge 1' },
+  // v0.9.1693: the three Kato tabs
+  kato_n:     { items: 'Kato N' },
+  kato_ho:    { items: 'Kato HO' },
+  kato_parts: { items: 'Kato Parts' },
   am_s:       { items: 'American Models S' },
   shelper:    { items: 'S-Helper Service S' },
   weaver: {

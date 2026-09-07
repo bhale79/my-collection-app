@@ -56,6 +56,7 @@ const WHAT_I_COLLECT = {
                 'mth_o', 'mth_ho', 'mth_s', 'mth_tinplate', 'mth_g',
                 'af_gilbert', 'am_s', 'shelper',   // v0.9.1686: the S-gauge makers, after Lionel's AF
                 'marklin_h0', 'marklin_z', 'marklin_1',   // v0.9.1690: Maerklin's three gauges
+                'kato_n', 'kato_ho', 'kato_parts',         // v0.9.1693: Kato USA
                 'weaver', 'rmt', 'menards', 'menards_ho', 'thirdrail', 'usatrains', 'lgb',
                 // v0.9.1159: placed rather than left to fall to the end.
                 'kline', 'williams', 'marx', 'other_o',
@@ -92,6 +93,10 @@ const WHAT_I_COLLECT = {
     marklin_h0:   '#c0392b',
     marklin_z:    '#c0392b',
     marklin_1:    '#c0392b',
+    // v0.9.1693: Kato — the blue already used for Atlas, no new literal
+    kato_n:       '#2980b9',
+    kato_ho:      '#2980b9',
+    kato_parts:   '#2980b9',
     af_gilbert:   '#7f8c8d',   // slate — Gilbert American Flyer
     am_s:         '#b2bec3',   // light steel — American Models
     shelper:      '#636e72',   // dark steel — S-Helper Service
@@ -179,6 +184,9 @@ const WHAT_I_COLLECT = {
     marklin_h0:   'ho',  // v0.9.1690
     marklin_z:    'z',
     marklin_1:    'g',   // Gauge 1 runs on 45mm track, same as G
+    kato_n:       'n',   // v0.9.1693
+    kato_ho:      'ho',
+    kato_parts:   'n',   // parts span N and HO; filed under N so the era is pickable (the row's Gauge column says which)
     am_s:         's',
     shelper:      's',
     rmt:          'o',
@@ -229,6 +237,7 @@ const WHAT_I_COLLECT = {
     // lowercased. No color: on purpose — nothing reads MANUFACTURERS[].color, and the
     // era cards already carry the three Maerklin reds in eraColors.
     marklin: { id: 'marklin', label: 'Marklin', default: false },
+    kato:    { id: 'kato',    label: 'Kato',    default: false },   // v0.9.1693
     // v0.9.1159 — these three makers have had ERAS entries, master tabs and
     // catalog rows since 2026-07-28, but were never added here, so they could not
     // be picked in the manufacturer chip OR in "What I Collect" — and because the

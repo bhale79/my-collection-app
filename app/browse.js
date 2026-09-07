@@ -763,6 +763,9 @@ var _ERA_KEY_TO_PERIOD = {
   marklin_h0:   'modern',
   marklin_z:    'modern',
   marklin_1:    'modern',
+  kato_n:       'modern',   // v0.9.1693: Kato USA, 1986 onward
+  kato_ho:      'modern',
+  kato_parts:   'modern',
 };
 function _itemEraPeriod(item) {
   if (!item) return null;
@@ -1961,7 +1964,8 @@ function _makerForTab(tabLower) {
     ['3rd rail',   '3rd Rail'],
     ['usa trains', 'USA Trains'],
     ['lgb',        'LGB'],
-    ['marklin',    'Marklin']   // v0.9.1690
+    ['marklin',    'Marklin'],  // v0.9.1690
+    ['kato',       'Kato']      // v0.9.1693
   ];
   for (var i = 0; i < MAKERS.length; i++) {
     if (t.indexOf(MAKERS[i][0]) === 0) return MAKERS[i][1];

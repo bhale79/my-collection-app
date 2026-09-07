@@ -42,6 +42,9 @@ const ERA_BADGES = {
     // Session 154: Weaver
     weaver:       'WVR',
     // v0.9.1686: S-gauge makers
+    kato_n:       'KN',    // v0.9.1693
+    kato_ho:      'KHO',
+    kato_parts:   'KP',
     marklin_h0:   'MHO',   // v0.9.1690
     marklin_z:    'MZ',
     marklin_1:    'M1',
@@ -106,6 +109,9 @@ const ERA_BADGES = {
     // Session 154: Weaver
     'Weaver O':                   'weaver',
     // v0.9.1686: S-gauge makers
+    'Kato N': 'kato_n',                // v0.9.1693
+    'Kato HO': 'kato_ho',
+    'Kato Parts': 'kato_parts',
     'Marklin H0': 'marklin_h0',        // v0.9.1690
     'Marklin Z': 'marklin_z',
     'Marklin Gauge 1': 'marklin_1',
