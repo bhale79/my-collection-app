@@ -22810,6 +22810,53 @@ META_WRITES.length = 0; TOASTS.length = 0;
          /leadPhotos\.find\(isSet\)/.test(ac31), '');
     })();
 
+    section('332. Parts for sale — the bin\u2019s for-sale parts on the For Sale page (v0.9.1691)');
+    // Brad, 2026-09-06 (Piece 5/6): a SEPARATE section under the item list, so
+    // the item table keeps its share cards and sale sheets untouched; Mark sold
+    // writes one Sold row through the same builder every sale uses, with a
+    // marker in the notes, THEN decrements the bin (the sale is never at the
+    // mercy of the bin write); Sold Items lets the marker through its era filter.
+    (function () {
+      const mt32 = fs.readFileSync(require('path').join(__dirname, '..', 'app', 'maintenance.js'), 'utf8');
+      const ap32 = fs.readFileSync(require('path').join(__dirname, '..', 'app', 'app-pages.js'), 'utf8');
+      const sec = mt32.slice(mt32.indexOf('v0.9.1691: PARTS FOR SALE'), mt32.indexOf('use one from the bin on a task'));
+      ok('332 the For Sale page calls the section renderer at the END of its build (items first, parts under them)',
+         /window\._maintRenderFsParts\(\);\n\}/.test(ap32) && ap32.indexOf('_maintRenderFsParts') > ap32.indexOf("const navBadge = document.getElementById('nav-forsale')"));
+      ok('332 the section injects its own host under the item table and never edits the item markup',
+         /host\.id = 'forsale-parts'/.test(sec) && /getElementById\('forsale-table-wrap'\)/.test(sec) && !/forsale-tbody/.test(sec));
+      ok('332 owner+beta gate, same as the rest of the suite; nobody else gets a section',
+         /if \(!_isOwner\(\)\) \{ host\.innerHTML = ''; return; \}/.test(sec));
+      ok('332 only parts flagged for sale WITH quantity appear',
+         /return b\.forSale && b\.qty > 0;/.test(sec));
+      ok('332 empty = no section at all, not an empty table',
+         /if \(!list\.length\) \{ host\.innerHTML = ''; return; \}/.test(sec));
+      ok('332 three actions, wired: Sold, Not for sale, Edit',
+         /window\._maintFsPartSold = async function/.test(sec) && /window\._maintFsPartUnlist = async function/.test(sec) && /window\._maintFsPartEdit = function/.test(sec)
+         && /btn\('_maintFsPartSold'/.test(sec) && /btn\('_maintFsPartUnlist'/.test(sec) && /btn\('_maintFsPartEdit'/.test(sec));
+      ok('332 Mark sold asks the price through the app\u2019s own prompt, defaulting to the asking price',
+         /appPrompt\('Enter the price it sold for\. Leave blank to use the asking price\.', b\.asking \|\| ''/.test(sec));
+      ok('332 the Sold row comes from the ONE builder every sale path uses, appended to Sold!A:T',
+         /_buildSoldRow\(\{ itemNum: b\.partNum \|\| 'PART'/.test(sec) && /sheetsAppend\(state\.personalSheetId, 'Sold!A:T', \[soldRow\]\)/.test(sec));
+      ok('332 the sale is written BEFORE the bin is touched (a failed bin write cannot lose a sale)',
+         sec.indexOf("sheetsAppend(state.personalSheetId, 'Sold!A:T'") < sec.indexOf("rrVerifiedRowUpdate(state.personalSheetId, BIN_TAB, b.row, BIN_TAB + '!D'"));
+      ok('332 the Sold row carries the marker Sold Items keys on, plus what was paid and the photo link',
+         /FS_PART_NOTE = 'Part from Parts Bin'/.test(sec) && /pricePaid: b\.price \|\| ''/.test(sec) && /'; photo ' \+ b\.photo/.test(sec));
+      ok('332 a single-file Drive link is NOT passed off as a photo FOLDER (photoItem stays blank)',
+         /photoItem: ''/.test(sec) && !/photoItem: b\.photo/.test(sec));
+      ok('332 the bin write is guarded: verified update for qty, confirmed remove at zero',
+         /rrRemoveRowConfirmed\(state\.personalSheetId, BIN_TAB, b\.row/.test(sec) && /rrVerifiedRowUpdate\(state\.personalSheetId, BIN_TAB, b\.row, BIN_TAB \+ '!D' \+ b\.row, \[\[String\(q\)\]\]/.test(sec));
+      ok('332 one sale at a time (rule #5) and the busy flag clears in finally',
+         /_fsPartBusy = true;/.test(sec) && /finally \{ _fsPartBusy = false; \}/.test(sec));
+      ok('332 a bin write that fails SAYS so instead of claiming the count updated',
+         /The sale is recorded, but the bin count did not update/.test(sec));
+      ok('332 Not for sale clears ONLY the flag cell (column J) — the part stays in the bin',
+         /BIN_TAB \+ '!J' \+ b\.row, \[\[''\]\]/.test(sec) && /it is still in your bin/.test(sec));
+      ok('332 Sold Items lets a sold part through the era filter by its marker',
+         /\/\^Part from Parts Bin\/\.test\(String\(sd\.notes \|\| ''\)\) \|\| typeof _isInCurrentEra !== 'function'/.test(ap32));
+      ok('332 no emoji anywhere in the section (Brad\u2019s rule)',
+         !/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/u.test(sec));
+    })();
+
   })().then(function () {
     console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
     process.exit(fail ? 1 : 0);

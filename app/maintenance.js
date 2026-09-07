@@ -2441,6 +2441,119 @@
     } catch (e) { if (typeof showToast === 'function') showToast('Could not remove it', 3500, true); }
   };
 
+  // ── v0.9.1691: PARTS FOR SALE on the For Sale page (Piece 5 / Piece 6) ──
+  // Brad, 2026-09-06: a separate section under the item list (items keep
+  // their share cards and sale sheets untouched), only when the bin has a
+  // part flagged for sale, owner+beta gate like the rest of the suite.
+  // Mark sold writes ONE Sold row (the same _buildSoldRow every sale path
+  // uses, "Part from Parts Bin" in the notes so Sold Items can tell it from
+  // a train), then takes one off the bin — the sale is recorded FIRST, so a
+  // bin write that fails can never lose the sale (the v1289 rule).
+  var FS_PART_NOTE = 'Part from Parts Bin';
+  function _fsPartsHost() {
+    var page = document.getElementById('page-forsale');
+    if (!page) return null;
+    var host = document.getElementById('forsale-parts');
+    if (!host) {
+      host = document.createElement('div');
+      host.id = 'forsale-parts';
+      host.style.marginTop = '1rem';
+      var after = document.getElementById('forsale-table-wrap');
+      if (after && after.parentNode === page) page.insertBefore(host, after.nextSibling);
+      else page.appendChild(host);
+    }
+    return host;
+  }
+  function _fsPartsList() {
+    return (state.partsBin || []).filter(function (b) { return b.forSale && b.qty > 0; });
+  }
+  window._maintRenderFsParts = function () {
+    var host = _fsPartsHost();
+    if (!host) return;
+    if (!_isOwner()) { host.innerHTML = ''; return; }
+    if (!state.partsBin) { _loadBin().then(function () { window._maintRenderFsParts(); }); return; }
+    var list = _fsPartsList();
+    if (!list.length) { host.innerHTML = ''; return; }
+    var cur = (typeof _currencySymbol === 'function') ? _currencySymbol() : '$';
+    var total = list.reduce(function (s, b) { return s + (parseFloat(b.asking) || 0) * (b.qty || 1); }, 0);
+    var money = function (v) { var n = parseFloat(v); return isFinite(n) && n > 0 ? cur + n.toLocaleString() : '\u2014'; };
+    var btn = function (fn, id, label, tone) {
+      var t = tone === 'green' ? 'var(--green)' : 'var(--border)';
+      var c = tone === 'green' ? 'var(--green)' : 'var(--text-dim)';
+      return '<button onclick="event.stopPropagation();' + fn + '(\'' + _esc(id) + '\')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid ' + t + ';background:var(--surface2);color:' + c + ';font-family:var(--font-body);margin-right:0.3rem">' + label + '</button>';
+    };
+    var rows = list.map(function (b) {
+      var photo = b.photo ? ' <a href="' + _esc(b.photo) + '" target="_blank" rel="noopener" style="font-size:0.72rem;color:var(--accent2);text-decoration:none">Photo</a>' : '';
+      return '<tr>'
+        + '<td><span style="font-family:var(--font-head);color:var(--accent)">' + _esc(b.partNum || '\u2014') + '</span>' + photo + '</td>'
+        + '<td style="white-space:normal">' + _esc(b.desc || '') + (b.where ? '<div style="font-size:0.72rem;color:var(--text-dim)">from ' + _esc(b.where) + '</div>' : '') + '</td>'
+        + '<td>' + b.qty + '</td>'
+        + '<td class="market-val" style="color:var(--forsale)">' + money(b.asking) + '</td>'
+        + '<td class="text-dim">' + money(b.price) + '</td>'
+        + '<td style="white-space:normal">' + btn('_maintFsPartSold', b.id, 'Sold', 'green') + btn('_maintFsPartUnlist', b.id, 'Not for sale') + btn('_maintFsPartEdit', b.id, 'Edit') + '</td>'
+        + '</tr>';
+    }).join('');
+    host.innerHTML =
+      '<div class="page-title" style="display:flex;align-items:baseline;gap:0.6rem;margin:0.4rem 0 0.5rem;font-size:1.05rem">Parts for sale'
+      + '<span style="font-size:0.85rem;color:var(--text-dim);font-weight:400">' + list.length + (list.length === 1 ? ' part' : ' parts') + (total > 0 ? ' \u00b7 ' + cur + Math.round(total).toLocaleString() + ' asking' : '') + '</span></div>'
+      + '<div class="table-wrap" style="max-height:40vh;overflow-y:auto"><table class="item-table"><thead><tr>'
+      + '<th>Part #</th><th>Description</th><th>Qty</th><th>Asking</th><th>Paid</th><th>Actions</th></tr></thead>'
+      + '<tbody>' + rows + '</tbody></table></div>';
+  };
+  window._maintFsPartEdit = function (id) {
+    var b = (state.partsBin || []).find(function (x) { return x.id === id; });
+    if (b) window._maintBinForm(b);
+  };
+  window._maintFsPartUnlist = async function (id) {
+    var b = (state.partsBin || []).find(function (x) { return x.id === id; });
+    if (!b) return;
+    try {
+      if (!(await rrVerifiedRowUpdate(state.personalSheetId, BIN_TAB, b.row, BIN_TAB + '!J' + b.row, [['']], { num: b.id }, 'Parts Bin'))) return;
+      b.forSale = false;
+      window._maintRenderFsParts();
+      if (typeof showToast === 'function') showToast('Taken off the For Sale list \u2014 it is still in your bin.', 2500);
+    } catch (e) { if (typeof showToast === 'function') showToast('Could not update the part', 3500, true); }
+  };
+  var _fsPartBusy = false;   // rule #5: one sale at a time
+  window._maintFsPartSold = async function (id) {
+    var b = (state.partsBin || []).find(function (x) { return x.id === id; });
+    if (!b || _fsPartBusy) return;
+    var cur = (typeof _currencySymbol === 'function') ? _currencySymbol() : '$';
+    var price = (typeof appPrompt === 'function')
+      ? await appPrompt('Enter the price it sold for. Leave blank to use the asking price.', b.asking || '', { title: 'Record sale \u2014 ' + (b.desc || b.partNum), type: 'number', prefix: cur, ok: 'Mark sold' })
+      : prompt('Price it sold for:', b.asking || '');
+    if (price === null || price === undefined) return;
+    price = String(price).trim() || String(b.asking || '').trim();
+    _fsPartBusy = true;
+    try {
+      var today = new Date().toISOString().split('T')[0];
+      var note = FS_PART_NOTE + (b.desc ? ' \u2014 ' + b.desc : '') + (b.notes ? '; ' + b.notes : '') + (b.photo ? '; photo ' + b.photo : '');
+      // 1 — the sale, first and unconditionally
+      var soldRow = _buildSoldRow({ itemNum: b.partNum || 'PART', variation: '', copy: '1', pricePaid: b.price || '', salePrice: price, dateSold: today,
+                                    notes: note, inventoryId: '', manufacturer: '', src: { description: b.desc || '', datePurchased: b.dateAcq || '' } });
+      var apRow = (await sheetsAppend(state.personalSheetId, 'Sold!A:T', [soldRow])) || 0;
+      var k = (typeof _newSoldKey === 'function') ? _newSoldKey() : ('sold-opt-' + Date.now());
+      state.soldData = state.soldData || {};
+      state.soldData[k] = { row: apRow, key: k, itemNum: b.partNum || 'PART', variation: '', priceItem: b.price || '', salePrice: price, dateSold: today,
+                            notes: note, photoItem: '', description: b.desc || '', datePurchased: b.dateAcq || '', inventoryId: '', manufacturer: '' };
+      // 2 — then the bin: one fewer, gone at zero
+      var q = Math.max(0, (b.qty || 0) - 1);
+      var ok;
+      if (q === 0 && typeof rrRemoveRowConfirmed === 'function') {
+        ok = await rrRemoveRowConfirmed(state.personalSheetId, BIN_TAB, b.row, BIN_TAB + '!A' + b.row + ':M' + b.row, [['', '', '', '', '', '', '', '', '', '', '', '', '']], { num: b.id }, 'Parts Bin');
+      } else {
+        ok = await rrVerifiedRowUpdate(state.personalSheetId, BIN_TAB, b.row, BIN_TAB + '!D' + b.row, [[String(q)]], { num: b.id }, 'Parts Bin');
+      }
+      if (ok) { b.qty = q; await _loadBin(); }
+      if (typeof showToast === 'function') showToast(ok ? 'Sold \u2014 recorded in Sold Items' + (q === 0 ? ' and cleared from the bin.' : '; ' + q + ' left in the bin.') : 'The sale is recorded, but the bin count did not update \u2014 check the Parts Bin.', 3500, !ok);
+      window._maintRenderFsParts();
+      if (typeof _binBuild === 'function' && document.getElementById('page-partsbin')) _binBuild();
+      if (typeof updateNavBadges === 'function') updateNavBadges();
+    } catch (e) {
+      if (typeof showToast === 'function') showToast('The sale did not reach the sheet \u2014 check the connection and try again.', 4000, true);
+    } finally { _fsPartBusy = false; }
+  };
+
   // use one from the bin on a task: decrement + a BOUGHT Parts Needed row linked to the task
   window._maintBinUse = async function (binId, taskId) {
     var b = (state.partsBin || []).find(function (x) { return x.id === binId; });

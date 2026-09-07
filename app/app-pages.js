@@ -1632,7 +1632,9 @@ function buildSoldPage() {
 
   // Enrich with master data (with era filter)
   let soldEntries = Object.values(state.soldData)
-    .filter(sd => typeof _isInCurrentEra !== 'function' || _isInCurrentEra(sd.itemNum))
+    // v0.9.1691: a sold PART is not a catalog item — the era filter would hide
+    // it everywhere but "All eras". Its Sold row says what it is; let it through.
+    .filter(sd => /^Part from Parts Bin/.test(String(sd.notes || '')) || typeof _isInCurrentEra !== 'function' || _isInCurrentEra(sd.itemNum))
     .map(sd => {
       const master = findMaster(sd.itemNum, sd.variation, sd) || {};
       return { ...sd, _type: master.itemType || '', _roadName: sd.roadName || master.roadName || '', _master: master, _mfr: (typeof _manufacturerOfItem==='function' ? (_manufacturerOfItem(master.itemNum?master:sd)||'') : '') };
@@ -2371,6 +2373,8 @@ function buildForSalePage() {
 
   const navBadge = document.getElementById('nav-forsale');
   if (navBadge) navBadge.textContent = fsEntries.length;
+  // v0.9.1691: the Parts Bin's for-sale parts, as their own section (maintenance.js)
+  if (typeof window._maintRenderFsParts === 'function') window._maintRenderFsParts();
 }
 
 // Phase 3: signature is now (fsKey, askingPrice). fsKey is the entry's
