@@ -286,6 +286,24 @@ var ERR_REPORT_CFG = {
     return out;
   }
 
+  // The diary is stored as JSON and clipped to 3,500 chars on the way into
+  // the context, so the tail can be a torn entry — drop it rather than lose
+  // the whole list.
+  function _diaryLines(raw) {
+    var out = [];
+    if (!raw || raw === '[]') return out;
+    var arr = null;
+    try { arr = JSON.parse(raw); } catch (e) {
+      try { arr = JSON.parse(raw.slice(0, raw.lastIndexOf('}') + 1) + ']'); } catch (e2) { arr = null; }
+    }
+    if (!arr || !arr.length) return out;
+    for (var i = 0; i < arr.length; i++) {
+      var d = arr[i] || {};
+      out.push((d.t || '?') + '  ' + String(d.e || '?').toUpperCase() + '  ' + (d.i || ''));
+    }
+    return out;
+  }
+
   function _buildReportText(answers, shotLinks) {
     var ctx = _context();
     var L = [];
@@ -329,6 +347,19 @@ var ERR_REPORT_CFG = {
       for (var i = 0; i < kept.length; i++) {
         L.push('  ' + _fmtTime(kept[i].t) + '  ' + kept[i].kind.toUpperCase() + '  ' + kept[i].text);
       }
+    }
+    // v0.9.1696: the flight recorder finally rides along. v1611 collected
+    // rr_sync_log into the context but the text never printed it, so the
+    // one thing that explains "the app keeps making me reconnect" (the
+    // 'auth' lines) never reached Brad. Events, reasons and Google's error
+    // codes only — never an email address, a token or a cell value.
+    L.push('');
+    L.push('SYNC & SIGN-IN DIARY (newest last; auth = token keeper, record/drain = unsent saves)');
+    var diary = _diaryLines(ctx.syncLog);
+    if (!diary.length) {
+      L.push('  (nothing recorded)');
+    } else {
+      for (var k = 0; k < diary.length; k++) L.push('  ' + diary[k]);
     }
     if (shotLinks && shotLinks.length) {
       L.push('');

@@ -22554,8 +22554,18 @@ META_WRITES.length = 0; TOASTS.length = 0;
       ok('324 the gesture layer logs arming, the tap retry, and every road to the card',
          /_rrAuthLog\('armed: retry on next tap'\)/.test(au24)
          && /_rrAuthLog\('tap retry: requesting token'\)/.test(au24)
-         && /_rrAuthLog\('tap retry silent after 6s/.test(au24)
-         && /_rrAuthLog\('no tap for 90s/.test(au24), '');
+         && /_rrAuthLog\('tap retry silent after 6s/.test(au24), '');
+      // v0.9.1696 (the Mac testers): the retry fires on a real click — Safari
+      // and touch screens never counted pointerdown — and nobody is nagged
+      // for merely reading: the 90-second "no tap → card" timer is gone.
+      ok('324/1696 the click retry listens for click + keydown, never pointerdown',
+         /addEventListener\('click', go, true\)[\s\S]{0,120}addEventListener\('keydown', go, true\)/.test(au24)
+         && /removeEventListener\('click', go, true\)/.test(au24)
+         && !/addEventListener\('pointerdown', go, true\)/.test(au24), '');
+      ok('324/1696 the idle nag is gone — the card only follows a failed click retry',
+         !/no tap for 90s/.test(au24) && /tap retry silent after 6s \\u2192 card/.test(au24), '');
+      ok('324/1696 a click on the Reconnect bar is left to rrReconnectNow (one click, one request)',
+         /closest\('#rr-reconnect-bar'\)\) return;/.test(au24), '');
       ok('324 the reconnect card being SHOWN is logged',
          /_rrAuthLog\('reconnect card SHOWN'\)/.test(au24), '');
       ok('324 THE PRIME SUSPECT: the Reconnect tap and the 6s consent fallback are both logged',

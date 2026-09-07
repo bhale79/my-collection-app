@@ -35,10 +35,12 @@ ok('a healthy token means no request at all',
 
 // Layer 2 — the click retry, which is the fix for the case Brad hit.
 ok('a blocked renewal waits for the next click', /function _rrArmGestureRenew/.test(src));
-ok('...listening for a click OR a keypress',
-   /addEventListener\('pointerdown', go, true\)[\s\S]{0,120}addEventListener\('keydown', go, true\)/.test(src));
+ok('...listening for a click OR a keypress (v1696: click, not pointerdown — Safari/touch never counted it)',
+   /addEventListener\('click', go, true\)[\s\S]{0,120}addEventListener\('keydown', go, true\)/.test(src));
 ok('...and the listeners remove themselves once used',
-   /removeEventListener\('pointerdown', go, true\)/.test(src));
+   /removeEventListener\('click', go, true\)/.test(src));
+ok('...and a reader is never nagged: no idle timer to the card (v1696)',
+   !/no tap for 90s/.test(src));
 
 // Layer 3 — asking, only as a last resort, and never a sign-out.
 ok('the banner is the LAST resort', /function _rrShowReconnect/.test(src));

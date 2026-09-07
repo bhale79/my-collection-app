@@ -809,13 +809,32 @@ function rrEnsureFreshToken(reason) {
   }
 }
 // Layer 2. One-shot listeners; they remove themselves the moment they fire.
+//
+// v0.9.1696 — TWO LESSONS FROM THE MAC TESTERS (Brian + browntailflyer,
+// 2026-09-07: "the app has to sync to Google all the time"):
+//   (a) The gesture was `pointerdown`. Chrome counts that as a real click
+//       for popup purposes; Safari does not reliably, and on a touch screen
+//       it never counts (the spec grants activation on pointerup/click
+//       there). So on Safari the invisible retry could not open Google's
+//       popup, went silent, and EVERY renewal escalated to the Reconnect
+//       bar. `click` is the one event every browser accepts — it is what
+//       Google's own samples use — so that is the trigger now. keydown
+//       stays (it always counted). A click on the Reconnect bar itself is
+//       left to rrReconnectNow, so one click never fires two requests.
+//   (b) The 90-second "no tap → card" timer nagged people who were simply
+//       reading an item page. A reader needs no token. The listener now
+//       stays armed for as long as it takes and the first real click
+//       renews; the card is shown only when a click-retry actually failed.
 function _rrArmGestureRenew() {
   if (_rrTokenGestureArmed || _rrTokenHealthy()) return;
   _rrTokenGestureArmed = true;
   console.log('[Auth] quiet renewal blocked — will retry on your next click');
   _rrAuthLog('armed: retry on next tap');
-  var go = function () {
-    document.removeEventListener('pointerdown', go, true);
+  var go = function (ev) {
+    try {
+      if (ev && ev.target && ev.target.closest && ev.target.closest('#rr-reconnect-bar')) return;
+    } catch (e0) {}
+    document.removeEventListener('click', go, true);
     document.removeEventListener('keydown', go, true);
     _rrTokenGestureArmed = false;
     _rrAuthLog('tap retry: requesting token');
@@ -827,10 +846,8 @@ function _rrArmGestureRenew() {
       }, 6000);
     } catch (e) { _rrTokenRenewing = false; _rrAuthLog('tap retry threw: ' + (e && e.message)); _rrShowReconnect(); }
   };
-  document.addEventListener('pointerdown', go, true);
+  document.addEventListener('click', go, true);
   document.addEventListener('keydown', go, true);
-  // A click may never come — someone reading a list. Give it a while, then ask.
-  setTimeout(function () { if (!_rrTokenHealthy()) { _rrAuthLog('no tap for 90s \u2192 card'); _rrShowReconnect(); } }, 90000);
 }
 // Layer 3. Plain words, one button, and the app stays where it is.
 function _rrShowReconnect() {
