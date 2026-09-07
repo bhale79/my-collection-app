@@ -2490,14 +2490,14 @@
         + '<td>' + b.qty + '</td>'
         + '<td class="market-val" style="color:var(--forsale)">' + money(b.asking) + '</td>'
         + '<td class="text-dim">' + money(b.price) + '</td>'
-        + '<td style="white-space:normal">' + btn('_maintFsPartSold', b.id, 'Sold', 'green') + btn('_maintFsPartUnlist', b.id, 'Not for sale') + btn('_maintFsPartEdit', b.id, 'Edit') + '</td>'
+        + '<td style="white-space:nowrap">' + btn('_maintFsPartSold', b.id, 'Sold', 'green') + btn('_maintFsPartUnlist', b.id, 'Not for sale') + btn('_maintFsPartEdit', b.id, 'Edit') + '</td>'
         + '</tr>';
     }).join('');
     host.innerHTML =
       '<div class="page-title" style="display:flex;align-items:baseline;gap:0.6rem;margin:0.4rem 0 0.5rem;font-size:1.05rem">Parts for sale'
       + '<span style="font-size:0.85rem;color:var(--text-dim);font-weight:400">' + list.length + (list.length === 1 ? ' part' : ' parts') + (total > 0 ? ' \u00b7 ' + cur + Math.round(total).toLocaleString() + ' asking' : '') + '</span></div>'
       + '<div class="table-wrap" style="max-height:40vh;overflow-y:auto"><table class="item-table"><thead><tr>'
-      + '<th>Part #</th><th>Description</th><th>Qty</th><th>Asking</th><th>Paid</th><th>Actions</th></tr></thead>'
+      + '<th style="width:12%">Part #</th><th style="width:48%">Description</th><th>Qty</th><th>Asking</th><th>Paid</th><th style="white-space:nowrap">Actions</th></tr></thead>'
       + '<tbody>' + rows + '</tbody></table></div>';
   };
   window._maintFsPartEdit = function (id) {
