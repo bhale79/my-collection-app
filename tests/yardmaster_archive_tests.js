@@ -56,7 +56,9 @@ function makeVault() {
     ['t1','999','','7','','','2026-09-01','no','Marx','Tin whistle car','','wizard'],
     ['t2','6-12345','','','','','2026-09-02','no','Lionel','Boxcar the catalog lacks','Santa Fe','wizard'],   // Lionel has several tabs → needs a tab
     ['t3','777','','','','','2026-09-03','yes','Marx','already in','','wizard'],
-    ['t4','','','','','','2026-09-03','no','','no number at all','','wizard']];
+    ['t4','','','','','','2026-09-03','no','','no number at all','','wizard'],
+    ['t5','N2','','','','','2026-09-04','no','Marx','already in the master today','','wizard'],
+    ['t6','999','','','','','2026-09-04','no','Marx','Tin whistle car, filed twice','','wizard']];
   const pairs = [['upc','item_num','mfr','in_master','how','first_seen','last_seen','report_count','status'],
     ['012345678905','N1','Marx','yes','scan-corrected','2026-09-01','2026-09-02','3','pending'],
     ['023456789012','N2','Marx','yes','scan','2026-09-01','2026-09-01','1','pending'],
@@ -304,8 +306,8 @@ const idsIn = (tab) => tab.slice(1).map(r => r[1]).filter(Boolean);
   {
     const v = makeVault(); const ctx = boot(v);
     await loaded(ctx);
-    ok('queue: the Waiting card offers to queue the 3 waiting submissions + 3 pairs (the yes/promoted rows are not waiting)',
-       /Queue 6 into review/.test(ctx.page.innerHTML), (ctx.page.innerHTML.match(/Queue \d+ into review/) || [''])[0]);
+    ok('queue: the Waiting card offers to queue the 5 waiting submissions + 3 pairs (the yes/promoted rows are not waiting)',
+       /Queue 8 into review/.test(ctx.page.innerHTML), (ctx.page.innerHTML.match(/Queue \d+ into review/) || [''])[0]);
     ok('queue: the card shows N need a tab · M need a number (the v1688 held count, split)',
        /1 need a tab/.test(ctx.page.innerHTML), ctx.page.innerHTML.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').slice(0, 400));
     await ctx.sandbox._ymQueueWaiting();
@@ -313,7 +315,8 @@ const idsIn = (tab) => tab.slice(1).map(r => r[1]).filter(Boolean);
     await tick(60);
     const d = v.tabs.crawl_deltas, ids = idsIn(d);
     const subsRows = d.slice(1).filter(r => r[0] === 'CB-COMMUNITY-SUBS'), pairRows = d.slice(1).filter(r => r[0] === 'CB-BARCODE-PAIRS');
-    ok('queue: 3 submission rows and 3 pair rows became deltas', subsRows.length === 3 && pairRows.length === 3, subsRows.length + '/' + pairRows.length);
+    ok('queue: 3 submission rows and 3 pair rows became deltas — N2 (already in master) and the second 999 did NOT', subsRows.length === 3 && pairRows.length === 3, subsRows.length + '/' + pairRows.length);
+    ok('queue: the already-in-master submission is stamped yes, the duplicate filing queued', v.tabs.submissions[5][7] === 'yes' && v.tabs.submissions[6][7] === 'queued');
     ok('queue: both rolling batches exist and are pending with the right totals',
        v.tabs.crawl_batches.some(r => r[0] === 'CB-COMMUNITY-SUBS' && r[4] === 'pending' && r[5] === '3') && v.tabs.crawl_batches.some(r => r[0] === 'CB-BARCODE-PAIRS' && r[4] === 'pending' && r[5] === '3'));
     ok('queue: a maker with ONE tab gets it; a maker with several is flagged needs a tab; no number is flagged',

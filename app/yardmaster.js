@@ -66,7 +66,10 @@
 
   // ── Vault reads: one batchGet, owner token ─────────────────────
   function _fetchVault() {
-    var ranges = ['submissions!A1:L1000', 'barcode_pairs!A1:I1000', 'chores!A1:D200', 'usage!A1:C400',
+    // v0.9.1695: submissions is 3,638 rows and growing — the old A1:L1000 read
+    // saw only the first thousand (all in_master=true) and reported 0 waiting
+    // while 885 sat below the cut. Both queue tabs are read unbounded now.
+    var ranges = ['submissions!A1:L', 'barcode_pairs!A1:I', 'chores!A1:D200', 'usage!A1:C400',
                   'crawl_batches!A1:G50', 'crawl_deltas!A1:X12000']   // v0.9.1683: image_url is column R; v0.9.1685: var_desc/sub_type/notes/category after it — all found BY HEADER. v0.9.1687: 4000 → 12000 rows (the two Greenberg transcriptions alone are 6,455 deltas)
       .map(function (r) { return 'ranges=' + encodeURIComponent(r); }).join('&');
     return fetch('https://sheets.googleapis.com/v4/spreadsheets/' + YM.VAULT_ID
@@ -760,7 +763,7 @@
     if (!subs.length && !pairs.length) return;
     var lines = 'Queue ' + (subs.length ? subs.length + ' community submission' + (subs.length === 1 ? '' : 's') : '')
       + (subs.length && pairs.length ? ' and ' : '') + (pairs.length ? pairs.length + ' barcode pairing' + (pairs.length === 1 ? '' : 's') : '')
-      + ' into the review queue? Each becomes a row you approve, edit or reject. The source rows are marked queued.';
+      + ' into the review queue? Numbers already in the catalog are skipped and marked; a number filed twice becomes one row. Each row is then approved, edited or rejected like a crawl batch.';
     var yes = (typeof appConfirm === 'function') ? await appConfirm(lines, { title: 'Queue into review', ok: 'Queue them' }) : confirm(lines);
     if (!yes) return;
     _ymQueueBusy = true;
@@ -796,7 +799,30 @@
         if (seq[b] != null && m) seq[b] = Math.max(seq[b], parseInt(m[1], 10) || 0);
       });
       var mk = function (o) { return dh.map(function (h) { return o[h] == null ? '' : String(o[h]); }); };
-      var rows = [], stampSubs = [], stampPairs = [];
+      var rows = [], stampSubs = [], stampPairs = [], stampYes = [];
+      // v0.9.1695: a submission whose number is ALREADY in the master today
+      // (the catalog grew since it was filed) is not a candidate — it is
+      // stamped in_master=yes, the relay's own meaning, and never queued.
+      // One read of every real tab's Item Number column, ~2 s.
+      var inMaster = {};
+      try {
+        var MID2 = (typeof MASTER_SHEET_ID !== 'undefined') ? MASTER_SHEET_ID : '';
+        var tabsAll = _ymMasterTabs();
+        var mg = await fetch('https://sheets.googleapis.com/v4/spreadsheets/' + MID2 + '/values:batchGet?' + tabsAll.map(function (t) { return 'ranges=' + encodeURIComponent("'" + t + "'!A2:A"); }).join('&'), { headers: H });
+        if (!mg.ok) throw new Error('master read ' + mg.status);
+        ((await mg.json()).valueRanges || []).forEach(function (vr, i) {
+          (vr.values || []).forEach(function (r) { var n = String(r[0] == null ? '' : r[0]).trim().toUpperCase().replace(/[^A-Z0-9]/g, ''); if (n && !inMaster[n]) inMaster[n] = tabsAll[i]; });
+        });
+      } catch (e) { throw new Error('could not read the master item numbers \u2014 nothing was queued (try again)'); }
+      var normNum = function (n) { return String(n || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, ''); };
+      var seenSub = {};
+      subs = subs.filter(function (s) {
+        var k = normNum(s.num);
+        if (k && inMaster[k]) { stampYes.push(s.row); return false; }          // already in the catalog now
+        var dk = (s.mfr || '').toLowerCase() + '|' + k + '|' + (s.variation || '').toLowerCase();
+        if (k && seenSub[dk]) { stampSubs.push(s.row); return false; }         // same item filed twice — one review row, both stamped
+        seenSub[dk] = 1; return true;
+      });
       if (subs.length) {
         var sRow = await ensureBatch(SUBS_BATCH, 'Community submissions (not in the catalog)', 'rolling \u2014 grows as users add items the catalog lacks');
         subs.forEach(function (s) {
@@ -833,13 +859,14 @@
         if (!ap2.ok) throw new Error('queue append failed after ' + i + ' rows (HTTP ' + ap2.status + ') \u2014 source rows were NOT marked; run Queue again');
       }
       var data = [];
+      stampYes.forEach(function (r) { data.push({ range: 'submissions!' + _ymData.subInMasterCol + r, values: [['yes']] }); });
       stampSubs.forEach(function (r) { data.push({ range: 'submissions!' + _ymData.subInMasterCol + r, values: [['queued']] }); });
       stampPairs.forEach(function (r) { data.push({ range: 'barcode_pairs!' + _ymData.pairStatusCol + r, values: [['queued']] }); });
       if (data.length) {
         var st = await fetch(SS + '/values:batchUpdate', { method: 'POST', headers: H, body: JSON.stringify({ valueInputOption: 'RAW', data: data }) });
         if (!st.ok) throw new Error('the rows were queued but the source rows could not be marked (HTTP ' + st.status + ') \u2014 they will show as waiting again; do not re-queue, tell Claude');
       }
-      if (typeof showToast === 'function') showToast(rows.length + ' row' + (rows.length === 1 ? '' : 's') + ' queued into review.', 4000);
+      if (typeof showToast === 'function') showToast(rows.length + ' row' + (rows.length === 1 ? '' : 's') + ' queued into review' + (stampYes.length ? '; ' + stampYes.length + ' already in the catalog, marked yes' : '') + '.', 5000);
       _ymReload();
     } catch (e) {
       if (typeof showToast === 'function') showToast('Queue stopped: ' + ((e && /\u2014/.test(String(e.message))) ? e.message : 'the connection dropped \u2014 nothing was marked; try again'), 7000, true);

@@ -350,6 +350,12 @@ ok('1694 barcode commit: rule #5 guard shared with the append commit', /window\.
 ok('1694 the pairs tab is stamped promoted only for rows that actually landed (or were already there)', /if \(dd\._done\) data\.push/.test(ym94) && /if \(now !== 'queued'\) return;/.test(ym94));
 ok('1694 the submissions tab is stamped yes / rejected after ITS batch commits, only rows this queue marked', /if \(b\.id === SUBS_BATCH\) await _ymStampSubmissions\(H\);/.test(ym94) && (ym94.match(/if \(now !== 'queued'\) return;/g) || []).length === 2);
 
+// v0.9.1695: the queue reads the WHOLE submissions tab and dedupes against the master at queue time
+const ym95 = src('yardmaster.js');
+ok('1695 the queue tabs are read unbounded (the A1:L1000 cap hid 885 waiting rows)', /'submissions!A1:L', 'barcode_pairs!A1:I'/.test(ym95) && !/submissions!A1:L1000/.test(ym95));
+ok('1695 a submission already in the master is stamped yes, never queued; a failed master read stops the queue', /if \(k && inMaster\[k\]\) \{ stampYes\.push\(s\.row\); return false; \}/.test(ym95) && /could not read the master item numbers/.test(ym95));
+ok('1695 the same maker+number+variation filed twice queues ONCE and both rows are stamped', /if \(k && seenSub\[dk\]\) \{ stampSubs\.push\(s\.row\); return false; \}/.test(ym95));
+
 console.log('\n' + pass + ' passed, ' + fail + ' failed');
 if (fail) { console.log('YARDMASTER TESTS FAILING'); process.exit(1); }
 console.log('ALL YARDMASTER TESTS GREEN (' + pass + ')');
