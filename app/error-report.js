@@ -868,6 +868,40 @@ var ERR_REPORT_CFG = {
         if (signOut) menu.insertBefore(mbtn, signOut);
         else menu.appendChild(mbtn);
       }
+      // ── v0.9.1702 (Brad: "where is report a problem on the phone" →
+      //    "yes i do want it at the end of the scroll bar") ─────────────────
+      // The THIRD door, and the one that matters most, because a phone is
+      // where the bugs get hit. Below 640px app.css hides .sidebar outright
+      // and there is no hamburger, so the sidebar entry above simply does not
+      // exist on a phone; the account menu was the only route and Brad could
+      // not find it twice (v0.9.1414 already moved it once for the same
+      // reason).
+      //
+      // It goes at the END on purpose. The bar's own comment says
+      // "position = priority" — this is not a place you go, it is a place you
+      // reach for when something has already gone wrong, so it must not push
+      // a daily destination off-screen. The ">" hint at the right edge is
+      // what tells you the bar keeps going; re-syncing it below is what keeps
+      // that hint honest now the bar is one item longer.
+      var mnav = document.querySelector('.mobile-nav-items');
+      if (mnav && !document.getElementById('mnav-errreport')) {
+        var nb = document.createElement('button');
+        nb.className = 'mobile-nav-item';
+        nb.id = 'mnav-errreport';
+        // No showPage() and no `this` — this opens a modal, it is not a page,
+        // so it must never take the active highlight from the page you are on.
+        nb.onclick = function () { errReportOpen(); };
+        nb.innerHTML = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">'
+          + '<path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>'
+          + '<line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>'
+          + '<span>Report</span>';
+        mnav.appendChild(nb);
+        // The ">" hint is computed from the bar's scroll width. Adding an item
+        // changes that, and the hint only recalculates on scroll or resize —
+        // so nudge its own scroll handler rather than firing a window resize,
+        // which half the app listens to.
+        try { mnav.dispatchEvent(new Event('scroll')); } catch (eH) {}
+      }
       return true;
     } catch (e) { return false; }
   }
