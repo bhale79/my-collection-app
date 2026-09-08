@@ -480,9 +480,20 @@ function buildPrefsPage() {
       <div class="pref-row">
         <div class="pref-row-label"><strong>Master Catalog</strong><span id="pref-catalog-count">${state.masterData?.length?.toLocaleString() || '—'} items loaded${state.masterVersion?.v ? ' · sheet v' + state.masterVersion.v + (state.masterVersion.date ? ' (' + state.masterVersion.date + ')' : '') : ''}</span></div>
       </div>
+      <!-- v0.9.1701 (Brad: "where is report a problem on the phone"). Below
+           640px the sidebar is display:none and there is no hamburger, so the
+           sidebar's "Report a problem" does not exist on a phone — the only
+           route was the account menu, which he could not find. Preferences IS
+           in the mobile bottom bar, so the button belongs here.
+           It now opens the REAL reporter rather than a bare mailto. That
+           matters: the reporter attaches the breadcrumb trail, the sync diary
+           and the crop flash diary; the mailto attached a version string and
+           nothing else. Two doors marked "tell us what went wrong", one of
+           them useless, was the actual bug. The mailto stays as the fallback
+           for the case where error-report.js did not load. -->
       <div class="pref-row">
-        <div class="pref-row-label"><strong>Send Feedback</strong><span>Report a bug or suggest a feature</span></div>
-        <a href="${_rrFeedbackMailto()}" class="pref-btn" style="text-decoration:none">Email ↗</a>
+        <div class="pref-row-label"><strong>Report a problem</strong><span>Something went wrong? This sends the details with it</span></div>
+        <button class="pref-btn" onclick="if(typeof errReportOpen==='function'){errReportOpen();}else{location.href='${_rrFeedbackMailto()}';}">Report ↗</button>
       </div>
       <div class="pref-row">
         <div class="pref-row-label"><strong>Terms of Service</strong><span>The rules for using The Rail Roster</span></div>

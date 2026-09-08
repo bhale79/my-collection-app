@@ -376,6 +376,12 @@ var ERR_REPORT_CFG = {
       L.push('');
       L.push('CROP FLASH DIARY (last crop screen on this device)');
       L.push('  ' + cf.head);
+      // v0.9.1701: the two lines that decide it. v1 proved the flash is not
+      // the viewport and not the page behind, so v2 measures the inside —
+      // how many megapixels the phone is holding, and whether it kept up.
+      if (cf.frames) L.push('  ' + cf.frames);
+      if (cf.mem) L.push('  ' + cf.mem);
+      if (cf.inTop && cf.inTop.length) L.push('  busiest INSIDE the crop screen: ' + cf.inTop.join(', '));
       if (cf.top && cf.top.length) L.push('  busiest behind the overlay: ' + cf.top.join(', '));
       if (cf.hits && cf.hits.length) L.push('  named handlers that ran: ' + cf.hits.join(', '));
       if (cf.lines && cf.lines.length) {

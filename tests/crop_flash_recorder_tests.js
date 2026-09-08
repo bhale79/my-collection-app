@@ -57,8 +57,10 @@ ok('what it stores is clipped before it reaches localStorage',
    /localStorage\.setItem\('rr_crop_flash', JSON\.stringify\(out\)\.slice\(0, 3200\)\)/.test(pc), '');
 
 // ── it answers the actual question ────────────────────────────────────────
-ok('it ignores the cropper’s own DOM work and watches only what is BEHIND',
-   /if \(ov && t && ov\.contains\(t\)\) continue;/.test(pc), '');
+// v1 skipped the cropper's own DOM entirely. v2 keeps the distinction but
+// records BOTH sides — see the v2 block at the foot of this file.
+ok('it can tell the cropper’s own work apart from the page behind it',
+   /inside = !!\(ov && t && ov\.contains\(t\)\)/.test(pc), '');
 ok('…ranking what changed behind the overlay',
    /Object\.keys\(R\.bucket\)\.sort\(/.test(pc), '');
 ok('…and counting the named suspects by hand',
@@ -83,6 +85,32 @@ ok('…and a report with no crop session prints no empty section',
    /if \(cf && cf\.head\) \{/.test(er), '');
 ok('…and a torn or missing record cannot break the report',
    /catch \(eCF\) \{ cf = null; \}/.test(er), '');
+
+// ── v2 (v0.9.1701): v1's answer sent the hunt inside the overlay ──────────
+// v1 measured: 0 viewport events, page height moved 0x, 27 changes behind in
+// 45s. That eliminates the viewport and the page beneath — the two things the
+// v0.9.1031 fix was built around — and leaves the crop surface itself, which
+// v1 deliberately ignored. These pins hold v2 honest about the difference.
+ok('v2 counts what happens INSIDE the overlay too (v1 threw it away)',
+   /if \(inside\) \{ R\.inMut\+\+; R\.inBucket\[k\] = \(R\.inBucket\[k\] \|\| 0\) \+ 1; \}/.test(pc), '');
+ok('…while still keeping inside and behind APART, so the answer stays readable',
+   /else \{ R\.mut\+\+; R\.bucket\[k\] = \(R\.bucket\[k\] \|\| 0\) \+ 1; \}/.test(pc), '');
+ok('v2 measures frame timing — the honest test of "it flashes"',
+   /requestAnimationFrame\(_tick\)/.test(pc) && /if \(d > 100\) R\.slow100\+\+;/.test(pc)
+   && /if \(d > 250\) R\.slow250\+\+;/.test(pc), '');
+ok('…and cancels that loop when it stops (no rAF left spinning)',
+   /if \(R\.raf\) cancelAnimationFrame\(R\.raf\)/.test(pc), '');
+ok('…and the loop stops itself if the recorder was replaced',
+   /if \(!_flashRec \|\| _flashRec !== R \|\| R\.stopped\) return;/.test(pc), '');
+ok('v2 records how many MEGAPIXELS the phone is being asked to hold',
+   /naturalWidth \* _im\.naturalHeight\) \/ 1000000/.test(pc), '');
+ok('…read once the photo has decoded, not guessed before',
+   /_im\.addEventListener\('load', _grab, \{ once: true \}\)/.test(pc), '');
+ok('v1’s finding is written down where the next reader will see it',
+   /0 viewport events, 27 changes behind the overlay/.test(pc)
+   && /The URL bar NEVER MOVED/.test(pc), '');
+ok('the report prints the frame line and the inside ranking',
+   /cf\.frames/.test(er) && /busiest INSIDE the crop screen/.test(er), '');
 
 console.log('\n  ' + pass + ' passed, ' + fail + ' failed');
 process.exit(fail ? 1 : 0);

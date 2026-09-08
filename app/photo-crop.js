@@ -121,6 +121,30 @@ function _rrLoadBox(cropper) {
 //   · stops itself after 45 seconds or 400 samples, whichever comes first
 //   · numbers and element names only — never image data, never a value
 // Once the culprit is named, this can come out.
+//
+// ── WHAT v1 (v0.9.1700) FOUND, 2026-09-08, Brad's Android phone ──────────
+//   crop 45.0s  0 viewport events, 27 changes behind the overlay, page
+//   height moved 0x   busiest behind: img x18, div x9
+//   t+0.0  innerH=700 vvH=700 vvTop=0 bodyH=700  behind=div#page-photo-inbox
+//
+// That is decisive, and it kills the theory the v0.9.1031 fix was built on.
+// The URL bar NEVER MOVED. The page height NEVER CHANGED. Nothing behind the
+// overlay was thrashing — 27 mutations in 45 seconds is thumbnails finishing.
+// So the flash is not the viewport and not the page beneath.
+//
+// It is INSIDE the overlay — which is precisely what v1 refused to watch
+// (`if (ov.contains(t)) continue`). My mistake, and an instructive one: the
+// overlay IS the whole screen, so "the whole screen flashes" and "the crop
+// surface flashes" are the same sentence.
+//
+// v2 therefore measures the inside: how many megapixels the photo actually
+// is, how hard the cropper's own DOM is churning, and — the real question —
+// whether frames are being dropped. Constant flashing looks like sustained
+// long frames; a settled screen looks like 16ms frames. The suspicion worth
+// testing: _pinCropPhoto hands the cropper the FULL Drive original (a phone
+// camera JPEG is 12MP+) to display on a 360x700 screen, while the output is
+// capped at 2400px anyway — so the extra pixels buy nothing and may be what
+// Android Chrome is thrashing on.
 var _flashRec = null;
 
 function _flashLabel(n) {
@@ -139,7 +163,11 @@ function _flashStart(ov, phone) {
   var R = _flashRec = {
     t0: Date.now(), lines: [], n: 0, stopped: false,
     ev: 0, mut: 0, bodyH: 0, hits: {}, bucket: {}, tick: null, mo: null, timer: null,
-    lastH: -1, lastVV: -1, lastTop: -1, lastBody: -1
+    lastH: -1, lastVV: -1, lastTop: -1, lastBody: -1,
+    // v2 (v0.9.1701): the inside of the overlay, which is where v1 proved the
+    // flash must be.
+    inMut: 0, inBucket: {}, frames: 0, slow100: 0, slow250: 0, worst: 0,
+    mp: '', imgWH: '', raf: null, lastFrame: 0
   };
   function put(s) { if (R.lines.length < 90) R.lines.push(s); }
   function at() { return ((Date.now() - R.t0) / 1000).toFixed(1); }
@@ -175,10 +203,12 @@ function _flashStart(ov, phone) {
     R.mo = new MutationObserver(function (recs) {
       for (var i = 0; i < recs.length; i++) {
         var t = recs[i].target;
-        try { if (ov && t && ov.contains(t)) continue; } catch (e0) {}   // ignore the cropper's own work
-        R.mut++;
+        var inside = false;
+        try { inside = !!(ov && t && ov.contains(t)); } catch (e0) {}
         var k = _flashLabel(t);
-        R.bucket[k] = (R.bucket[k] || 0) + 1;
+        // v2: v1 threw the inside away. Both are counted now, separately.
+        if (inside) { R.inMut++; R.inBucket[k] = (R.inBucket[k] || 0) + 1; }
+        else { R.mut++; R.bucket[k] = (R.bucket[k] || 0) + 1; }
       }
     });
     R.mo.observe(document.body, { attributes: true, childList: true, subtree: true, attributeFilter: ['style', 'class'] });
@@ -195,6 +225,38 @@ function _flashStart(ov, phone) {
     } catch (e) {}
   });
 
+  // ── Frame timing: the honest measure of "it flashes" ──
+  // A settled screen paints every ~16ms. A screen thrashing on a huge image
+  // paints in long, irregular bursts. Counting long frames says which.
+  R.lastFrame = (window.performance && performance.now) ? performance.now() : Date.now();
+  var _tick = function () {
+    if (!_flashRec || _flashRec !== R || R.stopped) return;
+    var now = (window.performance && performance.now) ? performance.now() : Date.now();
+    var d = now - R.lastFrame;
+    R.lastFrame = now;
+    R.frames++;
+    if (d > 100) R.slow100++;
+    if (d > 250) R.slow250++;
+    if (d > R.worst) R.worst = Math.round(d);
+    R.raf = requestAnimationFrame(_tick);
+  };
+  R.raf = requestAnimationFrame(_tick);
+
+  // How big is the photo we are asking the phone to hold? (The output is
+  // capped at 2400px by getCroppedCanvas, so anything above that is waste.)
+  try {
+    var _im = ov.querySelector('#_rrCropImg');
+    var _grab = function () {
+      try {
+        if (!_im || !_im.naturalWidth) return;
+        R.imgWH = _im.naturalWidth + 'x' + _im.naturalHeight;
+        R.mp = ((_im.naturalWidth * _im.naturalHeight) / 1000000).toFixed(1) + 'MP';
+        put('t+' + at() + '  photo decoded  ' + R.imgWH + ' (' + R.mp + ')');
+      } catch (e) {}
+    };
+    if (_im) { if (_im.complete && _im.naturalWidth) _grab(); else _im.addEventListener('load', _grab, { once: true }); }
+  } catch (e) {}
+
   R.timer = setTimeout(function () { _flashStop('45s cap'); }, 45000);
 }
 
@@ -209,6 +271,7 @@ function _flashStop(why) {
     if (vv) { vv.removeEventListener('resize', R.hVvR); vv.removeEventListener('scroll', R.hVvS); }
   } catch (e) {}
   try { if (R.mo) R.mo.disconnect(); } catch (e) {}
+  try { if (R.raf) cancelAnimationFrame(R.raf); } catch (e) {}
   ['_rrFitLogoBackdrop', '_wizOwnedRefresh', '_pinRenderBar', 'rrSyncPill'].forEach(function (fn) {
     try { if (window[fn] && window[fn].__flashWrapped) window[fn] = window[fn].__flashOrig; } catch (e) {}
   });
@@ -216,9 +279,25 @@ function _flashStop(why) {
   var top = Object.keys(R.bucket).sort(function (a, b) { return R.bucket[b] - R.bucket[a]; }).slice(0, 6)
     .map(function (k) { return k + ' x' + R.bucket[k]; });
   var hits = Object.keys(R.hits).map(function (k) { return k + ' x' + R.hits[k]; });
-  var head = 'crop ' + ((Date.now() - R.t0) / 1000).toFixed(1) + 's (' + why + ')  '
+  var inTop = Object.keys(R.inBucket).sort(function (a, b) { return R.inBucket[b] - R.inBucket[a]; }).slice(0, 6)
+    .map(function (k) { return k + ' x' + R.inBucket[k]; });
+  var secs = Math.max(0.1, (Date.now() - R.t0) / 1000);
+  var head = 'crop ' + secs.toFixed(1) + 's (' + why + ')  '
     + R.ev + ' viewport events, ' + R.mut + ' changes behind the overlay, page height moved ' + R.bodyH + 'x';
-  var out = { at: Date.now(), head: head, top: top, hits: hits, lines: R.lines };
+  // v2: the two numbers that decide it — how big the photo is, and whether
+  // the phone kept up with it.
+  var frameLine = 'photo ' + (R.imgWH || '?') + ' ' + (R.mp || '') + '  |  '
+    + R.frames + ' frames in ' + secs.toFixed(1) + 's ('
+    + (R.frames / secs).toFixed(1) + '/sec), ' + R.slow100 + ' over 100ms, '
+    + R.slow250 + ' over 250ms, worst ' + R.worst + 'ms';
+  var mem = '';
+  try {
+    if (window.performance && performance.memory) {
+      mem = 'heap ' + Math.round(performance.memory.usedJSHeapSize / 1048576) + 'MB of '
+          + Math.round(performance.memory.jsHeapSizeLimit / 1048576) + 'MB';
+    }
+  } catch (e) {}
+  var out = { at: Date.now(), head: head, frames: frameLine, mem: mem, inTop: inTop, top: top, hits: hits, lines: R.lines };
   try { localStorage.setItem('rr_crop_flash', JSON.stringify(out).slice(0, 3200)); } catch (e) {}
   _flashRec = null;
 }
