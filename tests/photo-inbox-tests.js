@@ -21338,6 +21338,37 @@ META_WRITES.length = 0; TOASTS.length = 0;
       global.driveUploadFile = async () => ({ id: 'zz' });
       localStorage.removeItem('rr_stage_drain_lock');
       await window.__StageDrain();
+
+      // ══ v0.9.1699 — A FAILED SHOT IS RESCUED, NOT MOURNED ══════════════
+      // Brad, on a phone: "i hit done, it said to wait or i might lose the
+      // pictures." That warning was TRUE: a failed upload sat in _qc.failed
+      // holding the only copy of the photo in memory, so closing the app
+      // lost it. Being ONLINE was the gap — an offline shot has always
+      // staged (proved above); an online shot that failed had nowhere to go.
+      // Rescuing it is what allowed the warning, and the dialog, to be
+      // deleted rather than reworded.
+      global.driveUploadFile = async () => { throw new Error('Failed to fetch'); };
+      try {
+        await window.__QcUpload({ name: 'lost.jpg', type: 'image/jpeg' },
+                                'INBOX 9 g9-1 p1.jpg', { view: 'LEFT' });
+      } catch (e) {}
+      const rescued = await window.__StageAll();
+      ok('299b an ONLINE Quick Capture upload that fails is saved to this device, not lost',
+         rescued.length === 1 && rescued[0].name === 'INBOX 9 g9-1 p1.jpg',
+         JSON.stringify(rescued.map(r => r.name)));
+      ok('299b …carrying its view stamp, so the drain files it as the right shot',
+         rescued.length === 1 && rescued[0].view === 'LEFT',
+         JSON.stringify(rescued.map(r => r.view)));
+      const upB4 = UP.length;
+      global.driveUploadFile = async (f, name) => { UP.push(String(name)); return { id: 'drvRescue' }; };
+      localStorage.removeItem('rr_stage_drain_lock');
+      await window.__StageDrain();
+      ok('299b …and it really reaches the inbox on the next drain',
+         (await window.__StageAll()).length === 0 && UP.length === upB4 + 1,
+         (UP.length - upB4) + ' upload(s), ' + (await window.__StageAll()).length + ' left');
+      // put the rig back the way we found it
+      global.driveUploadFile = async () => ({ id: 'zz' });
+      localStorage.removeItem('rr_stage_drain_lock');
     })();
 
     // ═══════════════════════════════════════════════════════════

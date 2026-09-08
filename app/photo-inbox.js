@@ -11306,6 +11306,30 @@
   var QC_CROP_KEY = 'rr_qc_crop';   // '1' = open the cropper on every shot
   var _qc = null;   // { base, group, shots, total, pending, failed:[{file,name,rec}], recent:[{url,name,driveId,group}], nextIsNew }
 
+  // ══ v0.9.1699 (Brad, on a phone): "i added pictures, i hit done, and the
+  //    photos were not in there. i had to click dashboard before they showed
+  //    up" — and separately "it said to wait or i might lose the pictures.
+  //    can we not hit done, and it wait till the pictures are loaded so we
+  //    don't loose them".
+  //
+  //    Two faults, one shape. _upload() (drop / picker / desktop) ends in
+  //    _pinRefresh(); this Quick Capture path never did, so the only thing
+  //    that noticed new shots was the buildDashboard hook further down —
+  //    hence "click Dashboard and they appear". And a failed upload sat in
+  //    _qc.failed holding the only copy of the photo in memory, which is why
+  //    Done had to warn about losing them.
+  //
+  //    The counter below is why closing instantly is now safe. Upload
+  //    bookkeeping used to live on _qc, which Done sets to null — so an
+  //    upload still in flight when the sheet closed would throw on the way
+  //    out, and a FAILED one would throw before it could be rescued. Flight
+  //    is counted here instead, outside the UI session, so Done can close
+  //    whenever it likes and the uploads finish on their own.
+  var _qcFlight = 0;      // uploads in the air right now (survives Done)
+  var _qcRescued = 0;     // failed → saved to this device instead of lost
+  var _qcLanded = 0;      // reached Drive
+  var _qcClosedMid = false;   // Done was pressed while some were still flying
+
   function _qcToken() {
     if (!window.accessToken) {
       var s = localStorage.getItem('lv_token'), ex = parseInt(localStorage.getItem('lv_token_expiry') || '0', 10);
@@ -11316,7 +11340,10 @@
 
   window._qcOpen = function () {
     // v0.9.1590: Quick Capture works offline — shots stage on the device.
-    if (!_qc) _qc = { base: new Date().getTime(), group: 1, shots: 0, total: 0, pending: 0, failed: [], recent: [], nextIsNew: false, view: 'RSV', used: {} };
+    // v0.9.1699: a fresh sheet starts fresh counters. _qcFlight is deliberately
+    // NOT reset — shots from a previous sheet may still be in the air, and
+    // zeroing it here would fire _qcAllLanded() early.
+    if (!_qc) { _qc = { base: new Date().getTime(), group: 1, shots: 0, total: 0, pending: 0, failed: [], recent: [], nextIsNew: false, view: 'RSV', used: {} }; _qcLanded = 0; _qcRescued = 0; }
     var ov = document.getElementById('qc-ov');
     if (!ov) {
       ov = document.createElement('div');
@@ -11475,8 +11502,8 @@
       try { _qcRender(); } catch (e) {}
       return;
     }
-    _qc.pending++;
-    _qcRender();
+    _qcFlight++;
+    if (_qc) { _qc.pending++; _qcRender(); }
     try {
       if (!_qcToken()) throw new Error('signed out');
       var fid = await _folder();
@@ -11487,13 +11514,65 @@
       if (rec && res && res.id && rec.view) {
         try { await _pinMetaSet(res.id, { view: rec.view }); } catch (eV) {}
       }
+      _qcLanded++;
     } catch (e) {
-      console.warn('[QuickCapture] upload failed:', e);
-      _qc.failed.push({ file: file, name: name, rec: rec });
+      // v0.9.1699: a failed shot is RESCUED, not mourned. The photo goes to
+      // the same device store an offline shot uses, so _stageDrain() uploads
+      // it when the connection is back. Before this, _qc.failed held the only
+      // copy — in memory — and closing the app lost it for good. That is the
+      // fact the old "they may not reach the inbox" warning was reporting,
+      // and rescuing the file is what lets the warning go away.
+      console.warn('[QuickCapture] upload failed — rescuing to this device:', e);
+      var _saved = false;
+      try {
+        await _stageOne(file, name, '', (rec && rec.view) || '');
+        _saved = true; _qcRescued++;
+        if (rec) rec.staged = true;
+        try { await _stageRenderStrip(); } catch (eStrip) {}
+      } catch (eS) {
+        console.warn('[QuickCapture] rescue failed too:', eS);
+      }
+      // Only a photo we could not even save to the device belongs on the
+      // failed list — that list is what the in-sheet Retry button works from.
+      if (!_saved && _qc) _qc.failed.push({ file: file, name: name, rec: rec });
     } finally {
-      _qc.pending--;
-      _qcRender();
+      _qcFlight--;
+      if (_qc) { _qc.pending--; _qcRender(); }
+      if (_qcFlight <= 0) { _qcFlight = 0; _qcAllLanded(); }
     }
+  }
+
+  // ── Everything that was in the air has settled ────────────────
+  // This is the moment the inbox is actually worth re-reading, and it is the
+  // fix for "I had to click Dashboard". It runs whether or not the capture
+  // sheet is still open, so closing early costs nothing.
+  function _qcAllLanded() {
+    try { _pinCountRefresh(); } catch (e) {}
+    try {
+      // Redraw the grid only when the inbox is the page on screen — the same
+      // test the Discard path uses. _pinGo() refreshes on arrival anyway, so
+      // there is nothing to gain by re-reading Drive for a page nobody is on.
+      if (document.querySelector('#page-photo-inbox.active') && typeof window._pinRefresh === 'function') {
+        window._pinRefresh();
+      }
+    } catch (e) {}
+    // Only chase the staged store when something actually LANDED. If every
+    // shot in this batch failed, the connection is down and a drain would
+    // just fail again and bump each record's retry count for nothing — the
+    // drain already runs on reconnect and on every _pinRefresh().
+    if (_qcLanded) { try { _stageDrain(); } catch (e) {} }
+    if (_qcClosedMid) {
+      _qcClosedMid = false;
+      var msg = _qcLanded
+        ? ('All ' + _qcLanded + ' photo' + (_qcLanded > 1 ? 's are' : ' is') + ' in your inbox')
+        : '';
+      if (_qcRescued) {
+        msg += (msg ? ' \u2014 ' : '')
+          + _qcRescued + ' saved on this phone, uploading when you\u2019re back online';
+      }
+      if (msg) { try { showToast(msg, 3500); } catch (e) {} }
+    }
+    _qcLanded = 0; _qcRescued = 0;
   }
 
   window._qcRetry = function () {
@@ -11546,30 +11625,53 @@
     });
   };
 
-  // v0.9.1325: async because the two native confirm() dialogs became
-  // appConfirm (see the note on _pinDiscard — a native dialog freezes the
-  // extension bridge, and this file's own _pinConfirm comment says so).
-  // Every caller invokes this from an onclick and ignores the return value,
-  // so returning a promise changes nothing for them.
+  // v0.9.1325 made this async because two native confirm() dialogs became
+  // appConfirm. v0.9.1699 removed both dialogs, so nothing here awaits any
+  // more — it stays async only because every caller invokes it from an
+  // onclick and ignores the return value, so the signature is free to keep
+  // and changing it would churn the callers and the pins for no gain.
+  // (The reason native confirm() is banned in this file is still live: see
+  // the _pinDiscard note above — it would freeze the extension bridge.)
+  // v0.9.1699 (Brad): Done CLOSES, immediately, every time. Both dialogs are
+  // gone — "still uploading, leave anyway?" and "failed and will be lost".
+  //
+  // They asked the user to make a decision the app is better placed to make,
+  // and the second one stated a fact that is no longer true: a failed shot is
+  // now rescued to this device by _qcUpload and drained later. Nothing is
+  // lost by closing, so there is nothing to warn about.
+  //
+  // Uploads still in the air are NOT abandoned — _qcFlight is counted outside
+  // this session object, so they run to completion after the sheet is gone and
+  // _qcAllLanded() refreshes the inbox and the badge when the last one settles.
   window._qcDone = async function () {
-    if (_qc && _qc.pending > 0) {
-      if (!(await appConfirm(_qc.pending + ' photo' + (_qc.pending > 1 ? 's are' : ' is')
-            + ' still uploading. Leave anyway? ' + (_qc.pending > 1 ? 'They' : 'It') + ' may not reach the inbox.',
-            { title: 'Still uploading', ok: 'Leave anyway', cancel: 'Wait', danger: true }))) return;
-    }
-    if (_qc && _qc.failed.length) {
-      if (!(await appConfirm(_qc.failed.length + ' photo' + (_qc.failed.length > 1 ? 's' : '')
-            + ' failed to upload and will be lost. Close anyway?',
-            { title: 'Uploads failed', ok: 'Close anyway', cancel: 'Go back', danger: true }))) return;
-    }
-    var total = _qc ? (_qc.total - _qc.failed.length) : 0;
+    var flying = _qcFlight;
+    var landed = _qcLanded, rescued = _qcRescued;
     if (_qc) _qc.recent.forEach(function (r) { try { URL.revokeObjectURL(r.url); } catch (e) {} });
     var rv = document.getElementById('qc-review-ov'); if (rv) rv.remove();
     var ov = document.getElementById('qc-ov');
     if (ov) ov.remove();
     if (window.BackStack && BackStack.pop) BackStack.pop('qc-ov');
     _qc = null;
-    if (total > 0) showToast(total + ' photo' + (total > 1 ? 's' : '') + ' in your inbox — file them at the desk', 3500);
+    if (flying > 0) {
+      // Say what is true right now; _qcAllLanded() speaks again when they land.
+      _qcClosedMid = true;
+      showToast(flying + ' photo' + (flying > 1 ? 's are' : ' is') + ' still uploading \u2014 '
+        + (flying > 1 ? 'they' : 'it') + '\u2019ll finish on '
+        + (flying > 1 ? 'their' : 'its') + ' own, you can carry on', 3500);
+      return;   // the refresh + the final word come from _qcAllLanded()
+    }
+    var msg = landed
+      ? (landed + ' photo' + (landed > 1 ? 's' : '') + ' in your inbox \u2014 file them at the desk')
+      : '';
+    if (rescued) {
+      msg += (msg ? ' \u2014 ' : '')
+        + rescued + ' saved on this phone, uploading when you\u2019re back online';
+    }
+    if (msg) showToast(msg, 3500);
+    // Nothing was in the air, so the folder is settled: re-read it now. This
+    // is the missing line that made the photos invisible until a dashboard
+    // rebuild — _upload() has always ended this way.
+    _qcAllLanded();
   };
 
   // ── Batch Add — lives in the Add-to-My-Collection wizard footer,
