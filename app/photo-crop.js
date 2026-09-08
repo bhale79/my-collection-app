@@ -475,6 +475,10 @@ function _openCropper(src, onResult, onCancel, opts) {   // v0.9.787: onCancel =
   function done() {
     window._rrCropOpen = false;
     try { _flashStop('closed'); } catch (eF) {}
+    // v0.9.1703: the screen is ours again — let the rebuilds we held back
+    // happen now, once each. _rrCropOpen is cleared FIRST, above, or they
+    // would simply defer themselves again.
+    try { if (typeof rrFlushRepaints === 'function') rrFlushRepaints(); } catch (eR) {}
     if (_rotT) { clearTimeout(_rotT); _rotT = null; }
     try { window.removeEventListener('orientationchange', _onOrient); } catch (e) {}
     try { if (cropper) cropper.destroy(); } catch (e) {}

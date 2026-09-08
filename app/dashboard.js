@@ -636,6 +636,14 @@ if (typeof window !== 'undefined') window._showCardHelp = _showCardHelp;
 
 
 function buildDashboard() {
+  // v0.9.1703: same hold as renderBrowse. The dashboard is the other heavy
+  // builder, it is rebuilt on the same data-load events, and it is just as
+  // invisible behind a full-screen overlay.
+  // NOTE for whoever changes this: photo-inbox.js WRAPS buildDashboard to
+  // re-inject its nav item and flush pending photo links. The wrapper is
+  // outside this guard on purpose — it is cheap, and the Photo Inbox badge
+  // should keep working while a crop is open.
+  if (typeof rrHoldRepaint === 'function' && rrHoldRepaint('dashboard', buildDashboard)) return;
   // v0.9.871: one Edit Dashboard entry next to the greeting
   (function() {
     var g = document.getElementById('dash-greeting');

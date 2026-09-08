@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.1702';
+const APP_VERSION = 'v0.9.1703';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -350,6 +350,72 @@ function rrIsRealOwner() {
     return !!em && RR_OWNER_EMAILS.indexOf(em) >= 0;
   } catch (e) { return false; }
 }
+
+// ── HOLD STILL WHILE A FULL-SCREEN OVERLAY IS UP (v0.9.1703, Session 93) ──
+//
+// Brad, Android phone: "when i go to crop any image on my phone it flashes
+// constantly … the whole screen flashes … if you wait 30 seconds or so it
+// will stop." This is the SECOND report; v0.9.1031 fixed it on a theory and
+// it came back. v0.9.1700–1701 put a recorder in the crop screen instead of
+// guessing again, and the recorder answered:
+//
+//   0 viewport events, page height moved 0x   <- the v1031 theory, dead
+//   1258 frames in 45.0s (28.0/sec), 26 over 250ms, worst 1141ms
+//   busiest behind the overlay: div#hierarchy-chips x53, tr x27,
+//     span#result-count x27, div#browse-cards x27, div#pagination-btns x27
+//
+// The Master Catalog page rebuilt itself 27 TIMES while a solid-black crop
+// overlay covered the screen — re-filtering 135,000 rows on a phone for a
+// page nobody could see. 26 long frames, 27 rebuilds: the same events. The
+// app had cold-booted twice in the previous minute (tapping the camera can
+// make Android discard and reload the page), so the boot's data load was
+// landing tab by tab, and every batch triggered another full rebuild.
+// "Thirty seconds and it stops" is the data load finishing.
+//
+// So v0.9.1031's RULE was right all along — the page beneath must hold still
+// while the crop screen is open — and it was simply aimed at the wrong
+// mechanism. It guarded viewport resize listeners, which the recorder proved
+// never fire. What does not hold still is data-driven re-rendering.
+//
+// The heavy page builders ask rrHoldRepaint() before they work. While an
+// overlay is up they record their name and return; rrFlushRepaints() runs
+// each one ONCE when the overlay closes. Deferred, never dropped — and only
+// while a modal is covering the screen, so nothing can be left looking stale.
+var _rrHeldRepaints = {};
+
+function rrOverlayUp() {
+  try { return !!window._rrCropOpen; } catch (e) { return false; }
+}
+
+// Returns TRUE if the caller should stand down for now. The function is kept
+// by NAME, so twenty deferred rebuilds collapse into one on the way out —
+// which is the whole point.
+function rrHoldRepaint(name, fn) {
+  try {
+    if (!rrOverlayUp()) return false;
+    if (typeof fn === 'function') _rrHeldRepaints[name] = fn;
+    return true;
+  } catch (e) { return false; }
+}
+
+function rrFlushRepaints() {
+  var held = _rrHeldRepaints;
+  _rrHeldRepaints = {};            // cleared FIRST, so a repaint that throws —
+                                   // or that somehow defers again — cannot
+                                   // re-enter this list and loop.
+  var names = Object.keys(held);
+  for (var i = 0; i < names.length; i++) {
+    // Each one is isolated: a builder that throws must not cost the others
+    // their repaint, which is exactly how a page gets left looking stale.
+    try { held[names[i]](); } catch (e) { try { console.warn('[hold] ' + names[i] + ' repaint failed:', e && e.message); } catch (e2) {} }
+  }
+}
+
+try {
+  window.rrOverlayUp     = rrOverlayUp;
+  window.rrHoldRepaint   = rrHoldRepaint;
+  window.rrFlushRepaints = rrFlushRepaints;
+} catch (e) {}
 
 try {
   window.RR_OWNER_EMAILS = RR_OWNER_EMAILS;

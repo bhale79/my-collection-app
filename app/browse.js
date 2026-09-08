@@ -3639,6 +3639,14 @@ function renderMasterSubTab(tabKey) {
 }
 
 function renderBrowse() {
+  // v0.9.1703: THE ONE THE RECORDER CAUGHT. On Brad's phone this ran 27 times
+  // while a solid-black crop overlay covered the screen — re-filtering 135,000
+  // rows for a page nobody could see, 26 of those rebuilds landing as frames
+  // over 250ms. The signature cache below cannot help: a background data load
+  // changes the data, so the signature changes, so it renders. The only thing
+  // that helps is not doing it at all until someone can see it.
+  // Deferred, never dropped — rrFlushRepaints() runs it once on close.
+  if (typeof rrHoldRepaint === 'function' && rrHoldRepaint('browse', renderBrowse)) return;
   // v0.9.985 (perf): if NOTHING this page is built from changed since the last
   // successful render (same filters, page, sort, section, era, chips — and no
   // data write since, tracked by _rrDataRev + a cheap collection fingerprint),
