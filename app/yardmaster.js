@@ -33,7 +33,11 @@
   'use strict';
 
   var YM = {
-    OWNER_EMAILS: ['bhale@ipd-llc.com', 'support@therailroster.com'],
+    // v0.9.1697: the list moved to config.js (RR_OWNER_EMAILS) so it is not
+    // typed out in two files any more. This copy is a FALLBACK ONLY, for the
+    // case where config.js has not loaded yet — edit config.js, not this.
+    OWNER_EMAILS: (typeof RR_OWNER_EMAILS !== 'undefined' && RR_OWNER_EMAILS)
+                  || ['bhale@ipd-llc.com', 'support@therailroster.com'],
     VAULT_ID: '1h4LlDPT9SrToNjg450kU71kCo7ago-n6veI-DNB3nPU',
     VAULT_URL: 'https://docs.google.com/spreadsheets/d/1h4LlDPT9SrToNjg450kU71kCo7ago-n6veI-DNB3nPU/edit',
     DELTAS_TAB: 'crawl_deltas',                 // v0.9.1689: the working queue …
@@ -52,6 +56,11 @@
 
   function _isOwner() {
     try {
+      // v0.9.1697 RECORDING MODE: while Brad is recording the help videos on his
+      // own account, the app must behave exactly like a stranger's copy — so
+      // the Office is not merely hidden, it never injects. The switch that
+      // turns this back off asks rrIsRealOwner(), which ignores recording mode.
+      if (typeof window.rrRecordingMode === 'function' && window.rrRecordingMode()) return false;
       var em = window.state && state.user && String(state.user.email || '').toLowerCase();
       return !!em && YM.OWNER_EMAILS.indexOf(em) >= 0;
     } catch (e) { return false; }

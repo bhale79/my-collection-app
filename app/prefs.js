@@ -56,6 +56,69 @@ async function _prefsOpenPhotosFolder() {
 }
 if (typeof window !== 'undefined') window._prefsOpenPhotosFolder = _prefsOpenPhotosFolder;
 
+// ── Owner tools — Recording mode (v0.9.1697, Session 93) ──────────────────
+// Brad records the help-menu videos on his own account, which is an owner
+// account, so the app shows him tools no ordinary user has. Recording mode makes
+// his copy behave like a stranger's for as long as it is on.
+//
+// TWO THINGS TO KNOW BEFORE EDITING THIS:
+//
+// 1. The gate here is rrIsRealOwner(), NOT the recording-mode-aware _isOwner()
+//    that every gated feature uses. That is deliberate. This row is the OFF
+//    switch; gate it the same way as the features and turning recording mode on
+//    would hide the way back, leaving nothing but clearing site data.
+//
+// 2. Flipping it RELOADS the page. yardmaster.js and maintenance.js inject
+//    their nav items and pages once at boot, so a live toggle would leave
+//    half-attached buttons behind. A reload is the honest answer and costs
+//    about a second.
+function _prefsOwnerToolsHtml() {
+  try {
+    if (typeof rrIsRealOwner !== 'function' || !rrIsRealOwner()) return '';
+    var on = (typeof rrRecordingMode === 'function') && rrRecordingMode();
+    return ''
+      + '<div class="pref-section">'
+      +   '<div class="pref-section-title" onclick="_togglePrefSection(this)" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center">'
+      +     'Owner tools <span style="font-size:0.7rem;color:var(--text-dim);transition:transform 0.2s">\u25b6</span>'
+      +   '</div>'
+      +   '<div class="pref-section-body" style="display:none">'
+      +     '<div class="pref-row">'
+      +       '<div class="pref-row-label">'
+      +         '<strong>Recording mode</strong>'
+      +         '<span>Hide the owner-only tools so this looks like an ordinary member\u2019s app \u2014 for screen recordings and screenshots. '
+      +         'Hides the Yardmaster\u2019s Office, Workbench, Parts Bin, the Maintenance card on items, and the stock-photo tools. '
+      +         'Nothing is deleted and no data moves. Only you can see this switch.</span>'
+      +       '</div>'
+      +       '<label class="pref-toggle" title="recording-mode">'
+      +         '<input type="checkbox" id="ptog-recording-mode"' + (on ? ' checked' : '')
+      +           ' onchange="_prefsToggleRecordingMode(this.checked)">'
+      +         '<div class="pref-toggle-track"></div>'
+      +       '</label>'
+      +     '</div>'
+      +     (on
+        ? '<div class="pref-row"><div class="pref-row-label"><span style="color:var(--accent2);font-weight:600">'
+          + 'Recording mode is ON \u2014 your owner tools are hidden. Turn it off here when you are done recording.'
+          + '</span></div></div>'
+        : '')
+      +   '</div>'
+      + '</div>';
+  } catch (e) { return ''; }
+}
+
+function _prefsToggleRecordingMode(on) {
+  try {
+    if (typeof rrSetRecordingMode !== 'function') return;
+    rrSetRecordingMode(!!on);
+    if (typeof showToast === 'function') {
+      showToast(on ? 'Recording mode ON \u2014 reloading as an ordinary member\u2026'
+                   : 'Recording mode OFF \u2014 reloading with your owner tools\u2026', 2200);
+    }
+    setTimeout(function () { location.reload(); }, 700);
+  } catch (e) {
+    if (typeof showToast === 'function') showToast('Could not switch recording mode.', 3500, true);
+  }
+}
+
 function buildPrefsPage() {
   const el = document.getElementById('prefs-content');
   if (!el) return;
@@ -406,6 +469,7 @@ function buildPrefsPage() {
         <button onclick="if (typeof _pwaInstall === 'function') _pwaInstall()" style="padding:0.5rem 1rem;border-radius:9px;border:none;background:var(--accent);color:var(--on-accent);font-family:var(--font-head);font-weight:700;font-size:0.8rem;letter-spacing:0.04em;text-transform:uppercase;cursor:pointer;flex-shrink:0">Install</button>
       </div>
     </div>
+    ${_prefsOwnerToolsHtml()}
     <!-- ── About ──────────────────────────────── -->
     <div class="pref-section">
       <div class="pref-section-title" onclick="_togglePrefSection(this)" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center">About <span style="font-size:0.7rem;color:var(--text-dim);transition:transform 0.2s">▶</span></div>

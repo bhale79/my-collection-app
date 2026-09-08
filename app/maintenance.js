@@ -17,7 +17,11 @@
   'use strict';
 
   var MAINT = {
-    OWNER_EMAILS: ['bhale@ipd-llc.com', 'support@therailroster.com'],
+    // v0.9.1697: the list moved to config.js (RR_OWNER_EMAILS) so it is not
+    // typed out in two files any more. This copy is a FALLBACK ONLY, for the
+    // case where config.js has not loaded yet — edit config.js, not this.
+    OWNER_EMAILS: (typeof RR_OWNER_EMAILS !== 'undefined' && RR_OWNER_EMAILS)
+                  || ['bhale@ipd-llc.com', 'support@therailroster.com'],
     // v0.9.1664 (Brad): beta testers — they get the whole maintenance suite
     // (button, Workbench, parts lifecycle, My Manuals). NOT the Yardmaster's
     // Office; that list lives in yardmaster.js and stays owner-only.
@@ -29,6 +33,12 @@
 
   function _isOwner() {
     try {
+      // v0.9.1697 RECORDING MODE: one line, and the whole gated suite goes with it
+      // — Maintenance card, Workbench, Parts Bin, My Manuals, and the stock
+      // photo tools (stock-photos.js rides on window._maintIsOwner). Beta
+      // testers are covered too: recording mode is per device, so a tester who
+      // never turns it on is unaffected.
+      if (typeof window.rrRecordingMode === 'function' && window.rrRecordingMode()) return false;
       var em = window.state && state.user && String(state.user.email || '').toLowerCase();
       return !!em && (MAINT.OWNER_EMAILS.indexOf(em) >= 0 || MAINT.BETA_EMAILS.indexOf(em) >= 0);
     } catch (e) { return false; }

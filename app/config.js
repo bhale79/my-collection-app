@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.1696';
+const APP_VERSION = 'v0.9.1698';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -300,6 +300,63 @@ const MASTER_SHEET_ID = '1Y9-cg8C1CkIqy0RQ66DfP7fmGrE3IGBpyJbtdfYx8q0';
 // bounced with "Address not found". Caught by Brad testing on 26 July 2026.
 // support@ is a real user account, so this reaches a person.
 const ADMIN_EMAIL  = 'support@therailroster.com';
+
+// ── OWNER EMAILS — SINGLE SOURCE OF TRUTH (v0.9.1697, Session 93) ──────
+// The two addresses that see the owner-only suite: the Yardmaster's Office
+// (yardmaster.js), and the Maintenance panel / Workbench / Parts Bin /
+// My Manuals (maintenance.js), with the stock-photo tools riding on the
+// maintenance gate (stock-photos.js).
+//
+// This list used to be typed out separately in BOTH yardmaster.js and
+// maintenance.js. Two copies of one list is exactly the trip hazard the
+// stability rules warn about — edit one, forget the other, and the app
+// disagrees with itself about who you are. It lives here now. Both files
+// keep a hardcoded fallback copy so a late-loading config.js can never lock
+// Brad out of his own console; that fallback is a seatbelt, not a second
+// source of truth. THIS is the list to edit.
+const RR_OWNER_EMAILS = ['bhale@ipd-llc.com', 'support@therailroster.com'];
+
+// ── RECORDING MODE (v0.9.1697, Session 93) ───────────────────────
+// Brad records the help-menu screen captures on his OWN account, which is an
+// owner account, so the app normally shows him tools no ordinary user has.
+// Recording mode makes his copy behave exactly like a stranger's: the
+// owner-only suite disappears and everything else is untouched. It moves no data, signs
+// nobody out and writes to no sheet — it only answers the question "is this
+// person an owner?" with "no" for as long as it is on.
+//
+// Toggled from Preferences → Owner tools. Remembered per device, per browser.
+const RR_RECORDING_MODE_KEY = 'rr_recording_mode';
+
+function rrRecordingMode() {
+  try { return localStorage.getItem(RR_RECORDING_MODE_KEY) === '1'; } catch (e) { return false; }
+}
+
+function rrSetRecordingMode(on) {
+  try { localStorage.setItem(RR_RECORDING_MODE_KEY, on ? '1' : '0'); return true; }
+  catch (e) { return false; }
+}
+
+// rrIsRealOwner() — the email test WITHOUT the recording-mode veto.
+//
+// Read this before changing anything here. Every owner-only FEATURE asks its
+// own _isOwner(), which recording mode turns off. The Preferences switch must
+// NOT, because the switch is how recording mode gets turned back OFF. Gate it
+// on a recording-mode-aware test and flipping it on hides the off switch along
+// with everything else, leaving no way back but clearing site data.
+// So: features ask _isOwner(); the switch asks this.
+function rrIsRealOwner() {
+  try {
+    var em = String((window.state && window.state.user && window.state.user.email) || '').toLowerCase();
+    return !!em && RR_OWNER_EMAILS.indexOf(em) >= 0;
+  } catch (e) { return false; }
+}
+
+try {
+  window.RR_OWNER_EMAILS = RR_OWNER_EMAILS;
+  window.rrRecordingMode    = rrRecordingMode;
+  window.rrSetRecordingMode = rrSetRecordingMode;
+  window.rrIsRealOwner      = rrIsRealOwner;
+} catch (e) {}
 
 // ── Brand copy — SINGLE SOURCE OF TRUTH (v0.9.997, Brad) ────────────────
 // The tagline used to be typed out separately in the beta gate and TWICE in
