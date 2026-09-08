@@ -99,6 +99,131 @@ function _rrLoadBox(cropper) {
   } catch (e) { return null; }
 }
 
+// ══ v0.9.1700 — THE CROP FLASH RECORDER (Brad, Session 93) ═══════════════
+//
+// Brad, on an Android phone: "when i go to crop any image on my phone it
+// flashes constantly … the whole screen flashes, not just the picture …
+// if you wait 30 seconds or so it will stop." Reported from the Photo
+// Inbox — both Quick Capture and re-cropping a photo already there. NOT
+// from the Add wizard.
+//
+// This is the SECOND time this bug has been reported. v0.9.1031 diagnosed
+// the chain — page height changes → Android slides its URL bar → that fires
+// a viewport resize → something relayouts → the height changes again — and
+// put three brakes on it. The brakes hold the CROPPER still. They do not
+// stop anything else on the page from reacting, and five other viewport
+// listeners still run while the crop screen is open.
+//
+// Rather than guess a sixth time, this records what actually happens and
+// hands it to the error report. It is deliberately cheap and deliberately
+// temporary:
+//   · phones only, and only while the crop overlay is open
+//   · stops itself after 45 seconds or 400 samples, whichever comes first
+//   · numbers and element names only — never image data, never a value
+// Once the culprit is named, this can come out.
+var _flashRec = null;
+
+function _flashLabel(n) {
+  try {
+    if (!n || n.nodeType !== 1) return String((n && n.nodeName) || '?').toLowerCase();
+    var t = n.nodeName.toLowerCase();
+    if (n.id) t += '#' + n.id;
+    else if (n.className && typeof n.className === 'string') t += '.' + n.className.trim().split(/\s+/).slice(0, 2).join('.');
+    return t.slice(0, 44);
+  } catch (e) { return '?'; }
+}
+
+function _flashStart(ov, phone) {
+  if (!phone || _flashRec) return;
+  var vv = window.visualViewport || null;
+  var R = _flashRec = {
+    t0: Date.now(), lines: [], n: 0, stopped: false,
+    ev: 0, mut: 0, bodyH: 0, hits: {}, bucket: {}, tick: null, mo: null, timer: null,
+    lastH: -1, lastVV: -1, lastTop: -1, lastBody: -1
+  };
+  function put(s) { if (R.lines.length < 90) R.lines.push(s); }
+  function at() { return ((Date.now() - R.t0) / 1000).toFixed(1); }
+
+  put('t+0.0  crop opened  innerH=' + window.innerHeight
+      + (vv ? ' vvH=' + Math.round(vv.height) + ' vvTop=' + Math.round(vv.offsetTop || 0) : ' (no visualViewport)')
+      + ' bodyH=' + document.body.scrollHeight
+      + ' behind=' + _flashLabel(document.querySelector('.page.active') || document.body));
+
+  // Every viewport event, with the numbers that say whether the URL bar moved.
+  R.onEv = function (kind) {
+    return function () {
+      R.ev++;
+      var h = window.innerHeight;
+      var vh = vv ? Math.round(vv.height) : -1;
+      var vt = vv ? Math.round(vv.offsetTop || 0) : -1;
+      var bh = document.body.scrollHeight;
+      if (h !== R.lastH || vh !== R.lastVV || vt !== R.lastTop || bh !== R.lastBody) {
+        if (bh !== R.lastBody && R.lastBody >= 0) R.bodyH++;
+        put('t+' + at() + '  ' + kind + '  innerH=' + h + ' vvH=' + vh + ' vvTop=' + vt + ' bodyH=' + bh);
+        R.lastH = h; R.lastVV = vh; R.lastTop = vt; R.lastBody = bh;
+      }
+    };
+  };
+  R.hWin = R.onEv('win-resize');
+  R.hVvR = R.onEv('vv-resize');
+  R.hVvS = R.onEv('vv-scroll');
+  window.addEventListener('resize', R.hWin, true);
+  if (vv) { vv.addEventListener('resize', R.hVvR); vv.addEventListener('scroll', R.hVvS); }
+
+  // What is CHANGING behind the overlay — the question the whole hunt turns on.
+  try {
+    R.mo = new MutationObserver(function (recs) {
+      for (var i = 0; i < recs.length; i++) {
+        var t = recs[i].target;
+        try { if (ov && t && ov.contains(t)) continue; } catch (e0) {}   // ignore the cropper's own work
+        R.mut++;
+        var k = _flashLabel(t);
+        R.bucket[k] = (R.bucket[k] || 0) + 1;
+      }
+    });
+    R.mo.observe(document.body, { attributes: true, childList: true, subtree: true, attributeFilter: ['style', 'class'] });
+  } catch (e) {}
+
+  // Name the usual suspects by counting them directly.
+  ['_rrFitLogoBackdrop', '_wizOwnedRefresh', '_pinRenderBar', 'rrSyncPill'].forEach(function (fn) {
+    try {
+      var o = window[fn];
+      if (typeof o !== 'function' || o.__flashWrapped) return;
+      var w = function () { R.hits[fn] = (R.hits[fn] || 0) + 1; return o.apply(this, arguments); };
+      w.__flashWrapped = true; w.__flashOrig = o;
+      window[fn] = w;
+    } catch (e) {}
+  });
+
+  R.timer = setTimeout(function () { _flashStop('45s cap'); }, 45000);
+}
+
+function _flashStop(why) {
+  var R = _flashRec;
+  if (!R || R.stopped) return;
+  R.stopped = true;
+  try { clearTimeout(R.timer); } catch (e) {}
+  try { window.removeEventListener('resize', R.hWin, true); } catch (e) {}
+  try {
+    var vv = window.visualViewport;
+    if (vv) { vv.removeEventListener('resize', R.hVvR); vv.removeEventListener('scroll', R.hVvS); }
+  } catch (e) {}
+  try { if (R.mo) R.mo.disconnect(); } catch (e) {}
+  ['_rrFitLogoBackdrop', '_wizOwnedRefresh', '_pinRenderBar', 'rrSyncPill'].forEach(function (fn) {
+    try { if (window[fn] && window[fn].__flashWrapped) window[fn] = window[fn].__flashOrig; } catch (e) {}
+  });
+  // The busiest things behind the overlay, which is the answer we are after.
+  var top = Object.keys(R.bucket).sort(function (a, b) { return R.bucket[b] - R.bucket[a]; }).slice(0, 6)
+    .map(function (k) { return k + ' x' + R.bucket[k]; });
+  var hits = Object.keys(R.hits).map(function (k) { return k + ' x' + R.hits[k]; });
+  var head = 'crop ' + ((Date.now() - R.t0) / 1000).toFixed(1) + 's (' + why + ')  '
+    + R.ev + ' viewport events, ' + R.mut + ' changes behind the overlay, page height moved ' + R.bodyH + 'x';
+  var out = { at: Date.now(), head: head, top: top, hits: hits, lines: R.lines };
+  try { localStorage.setItem('rr_crop_flash', JSON.stringify(out).slice(0, 3200)); } catch (e) {}
+  _flashRec = null;
+}
+if (typeof window !== 'undefined') { window._rrFlashStop = _flashStop; }
+
 function _openCropper(src, onResult, onCancel, opts) {   // v0.9.787: onCancel = proceed without cropping
   // v0.9.1052: opts lets a caller reword the screen — the crop-before-a-paid-read
   // flow needs its Cancel to read "Use whole photo", because there it is a real
@@ -178,6 +303,7 @@ function _openCropper(src, onResult, onCancel, opts) {   // v0.9.787: onCancel =
       || (window.matchMedia && window.matchMedia('(max-width: 640px)').matches);
   } catch (eP) {}
   window._rrCropOpen = true;
+  try { _flashStart(ov, _phone); } catch (eF) {}
 
   // PHONES ONLY. On desktop the stage stays fluid so Cropper's `responsive`
   // option can still re-fit when the window is actually resized.
@@ -269,6 +395,7 @@ function _openCropper(src, onResult, onCancel, opts) {   // v0.9.787: onCancel =
 
   function done() {
     window._rrCropOpen = false;
+    try { _flashStop('closed'); } catch (eF) {}
     if (_rotT) { clearTimeout(_rotT); _rotT = null; }
     try { window.removeEventListener('orientationchange', _onOrient); } catch (e) {}
     try { if (cropper) cropper.destroy(); } catch (e) {}

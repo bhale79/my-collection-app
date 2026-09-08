@@ -261,6 +261,9 @@ var ERR_REPORT_CFG = {
     // v0.9.1611: the sync flight recorder + the photo-note keys — counts,
     // events and item numbers only, never row values (PRIVACY note 4 holds).
     try { c.syncLog = (localStorage.getItem('rr_sync_log') || '[]').slice(0, 3500); } catch (e) {}
+    // v0.9.1700: the crop flash recorder (photo-crop.js). Phones only, written
+    // when the crop screen closes. Numbers and element names only.
+    try { c.cropFlash = (localStorage.getItem('rr_crop_flash') || '').slice(0, 3200); } catch (e) {}
     try {
       c.photoNotes = 'staged=' + Object.keys(JSON.parse(localStorage.getItem('rr_inbox_setstage') || '{}')).join(',')
                    + ' pending=' + Object.keys(JSON.parse(localStorage.getItem('rr_inbox_pending') || '{}')).join(',');
@@ -360,6 +363,24 @@ var ERR_REPORT_CFG = {
       L.push('  (nothing recorded)');
     } else {
       for (var k = 0; k < diary.length; k++) L.push('  ' + diary[k]);
+    }
+    // v0.9.1700: the crop flash diary. Brad has now reported the crop screen
+    // flashing on an Android phone TWICE (v0.9.1031, and again in Session 93).
+    // The first fix was made on a theory; this one waits for evidence. What
+    // matters most is the "behind the overlay" list — the crop overlay is
+    // solid black, so whatever is busiest back there is what keeps the page
+    // height moving and the URL bar sliding.
+    var cf = null;
+    try { cf = ctx.cropFlash ? JSON.parse(ctx.cropFlash) : null; } catch (eCF) { cf = null; }
+    if (cf && cf.head) {
+      L.push('');
+      L.push('CROP FLASH DIARY (last crop screen on this device)');
+      L.push('  ' + cf.head);
+      if (cf.top && cf.top.length) L.push('  busiest behind the overlay: ' + cf.top.join(', '));
+      if (cf.hits && cf.hits.length) L.push('  named handlers that ran: ' + cf.hits.join(', '));
+      if (cf.lines && cf.lines.length) {
+        for (var m = 0; m < cf.lines.length; m++) L.push('  ' + cf.lines[m]);
+      }
     }
     if (shotLinks && shotLinks.length) {
       L.push('');
