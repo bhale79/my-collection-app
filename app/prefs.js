@@ -551,67 +551,9 @@ function _rrFeedbackMailto() {
 }
 if (typeof window !== 'undefined') window._rrFeedbackMailto = _rrFeedbackMailto;
 
-function _runHealthCheck() {
-  var out = document.getElementById("health-check-output");
-  var btn = document.getElementById("health-check-btn");
-  if (!out) return;
-  out.style.display = "block";
-  out.innerHTML = "<span style='color:var(--text-dim)'>Running checks...</span>";
-  if (btn) { btn.disabled = true; btn.textContent = "Running..."; }
-  setTimeout(function() {
-    var results = [];
-    function pass(l,d){results.push({s:"pass",l:l,d:d});}
-    function fail(l,d){results.push({s:"fail",l:l,d:d});}
-    function warn(l,d){results.push({s:"warn",l:l,d:d});}
-    ["showPage","renderBrowse","buildDashboard","buildWantPage","buildForSalePage","buildSoldPage",
-     "buildQuickEntryList","showItemDetailPage","updateCollectionItem","removeCollectionItem",
-     "loadPersonalData","sheetsAppend","sheetsDeleteRow","driveUploadItemPhoto","driveEnsureSetup",
-     "collectionActionForSale","collectionActionSold","showAddToUpgradeModal"
-    ].forEach(function(fn){typeof window[fn]==="function"?pass(fn+"()"):fail(fn+"()","Not found");});
-    ["openWizard","quickEntryAdd","closeWizard","saveItem","launchSetItemWizard","_showQuickEntryMultiUI"
-    ].forEach(function(fn){typeof window[fn]==="function"?pass(fn+"()"):fail(fn+"()","wizard.js may not have loaded");});
-    ["vaultInit","vaultSubmitData","vaultIsOptedIn","vaultRenderMarketCard","vaultRenderPrefsRow"
-    ].forEach(function(fn){typeof window[fn]==="function"?pass(fn+"()"):warn(fn+"()","vault.js non-critical");});
-    if (typeof state === "undefined") {
-      fail("state object","Not defined");
-    } else {
-      pass("state object");
-      if (state.personalSheetId) pass("personalSheetId", state.personalSheetId.substring(0,16)+"..."); else fail("personalSheetId","null - not signed in?");
-      if (state.masterData && state.masterData.length) pass("masterData", state.masterData.length.toLocaleString()+" items"); else fail("masterData","Empty");
-      if (state.personalData && Object.keys(state.personalData).length) pass("personalData", Object.keys(state.personalData).length+" items"); else warn("personalData","Empty");
-    }
-    var tok = localStorage.getItem("lv_token"), exp = parseInt(localStorage.getItem("lv_token_expiry")||"0");
-    if (!tok) warn("accessToken","No token - sign in again");
-    else if (exp < Date.now()) warn("accessToken","Expired - will refresh on next action");
-    else pass("accessToken","Valid ~"+Math.round((exp-Date.now())/60000)+" min");
-    if (typeof driveCache !== "undefined") {
-      if (driveCache.photosId) pass("driveCache.photosId"); else warn("driveCache.photosId","Not set");
-      if (driveCache.vaultId) pass("driveCache.vaultId"); else warn("driveCache.vaultId","Not set");
-    } else { fail("driveCache","Not defined"); }
-    ["page-browse","page-dashboard","page-quickentry","browse-tbody","result-count","page-info","wizard-modal"
-    ].forEach(function(id){document.getElementById(id)?pass("#"+id):fail("#"+id,"Missing from DOM");});
-    if (typeof state !== "undefined" && state.personalData) {
-      var samp = Object.values(state.personalData).filter(function(p){return p.owned;}).slice(0,3);
-      if (samp.length) {
-        if (samp.some(function(p){return "userEstWorth" in p;})) pass("col N: userEstWorth"); else warn("col N: userEstWorth","Not found");
-        if (samp.some(function(p){return "photoItem" in p;})) pass("col J: photoItem"); else warn("col J: photoItem","Not found");
-      }
-    }
-    var passes=results.filter(function(r){return r.s==="pass";}).length;
-    var fails=results.filter(function(r){return r.s==="fail";}).length;
-    var warns=results.filter(function(r){return r.s==="warn";}).length;
-    var sc=fails>0?"#e74c3c":warns>0?"#d4a843":"#2ecc71";
-    var st=fails>0?fails+" issue(s) found":warns>0?"Minor warnings only":"All systems go!";
-    var html="<div style='font-weight:700;color:"+sc+";margin-bottom:0.6rem;font-size:0.82rem'>"+passes+" passed &middot; "+fails+" failed &middot; "+warns+" warnings &mdash; "+st+"</div>";
-    results.forEach(function(r) {
-      var icon = r.s==="pass" ? "&#9989;" : r.s==="fail" ? "&#10060;" : "&#9888;";
-      var c = r.s==="pass"?"#2ecc71":r.s==="fail"?"#e74c3c":"#d4a843";
-      html += "<div style='color:"+c+"'>"+icon+" "+r.l+(r.d?" <span style='color:var(--text-dim);font-size:0.7rem'>&rarr; "+r.d+"</span>":"")+"</div>";
-    });
-    out.innerHTML = html;
-    if (btn) { btn.disabled = false; btn.textContent = "Run Again"; }
-  }, 50);
-}
+// v0.9.1708 (silent-control audit B6): _runHealthCheck went the same way as
+// the script below — its Preferences button was removed long ago and the
+// function could only ever find no #health-check-output and return.
 
 // v0.9.1285 (overnight housekeeping): a ~10KB console health-check script
 // (_HEALTH_CHECK_SCRIPT) and its copier (_copyHealthCheckScript) sat here
@@ -749,8 +691,6 @@ window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () 
 })();
 
 // ── NAVIGATION ─────────────────────────────────────────────────────
-// ── EPHEMERA ─────────────────────────────────────────────────────
-let _ephCurrentTab = 'catalogs';
 
 
 // ── Re-apply Sheet Protection ──────────────────────────────────
@@ -895,7 +835,6 @@ function _togglePrefEra(eraId, on) {
   }
   _setEnabledEras(enabled);
   if (on && typeof _ensureEnabledErasLoaded === 'function') _ensureEnabledErasLoaded();
-  if (typeof _applyEraVisibility === 'function') _applyEraVisibility();
 }
 
 // v0.9.1163: the Photo ID spending switch, from Preferences. Writes through the
@@ -933,7 +872,6 @@ function _togglePrefScale(scaleId, on) {
   _setEnabledScales(enabled);
   if (on && typeof _ensureEnabledErasLoaded === 'function') _ensureEnabledErasLoaded();
   var _restoreScroll = _prefsScrollSnapshot();   // v0.9.653: capture BEFORE the re-renders
-  if (typeof _applyEraVisibility === 'function') _applyEraVisibility();
   if (typeof buildDashboard === 'function') buildDashboard();
   if (typeof renderBrowse === 'function') renderBrowse();
   // Session 138: re-render so the Eras list filter updates
@@ -967,7 +905,6 @@ function _togglePrefMfr(mfrId, on) {
   }
   if (on && typeof _ensureEnabledErasLoaded === 'function') _ensureEnabledErasLoaded();
   var _restoreScroll = _prefsScrollSnapshot();   // v0.9.653: capture BEFORE the re-renders
-  if (typeof _applyEraVisibility === 'function') _applyEraVisibility();
   if (typeof buildDashboard === 'function') buildDashboard();
   if (typeof renderBrowse === 'function') renderBrowse();
   // Session 138: re-render so the Eras list filter updates

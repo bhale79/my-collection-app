@@ -1201,7 +1201,7 @@ function showItemDetailPage(idx, copyInvId, opts) {
           var cond = p.condition ? p.condition + '/10' : '—';
           var box = /-(BOX|MBOX)$/i.test(String(p.itemNum||'')) ? '' : (p.hasBox === 'Yes' ? ('Box ✓' + (p.boxCond ? ' (' + p.boxCond + ')' : '')) : 'No box');
           var worth = p.userEstWorth ? _currencySymbol() + parseFloat(p.userEstWorth).toLocaleString() : '';
-          return '<div onclick="if(typeof _grpHeroSwap===\'function\')_grpHeroSwap(' + i + ')" title="Show this unit\'s photo above" style="cursor:pointer;flex:1;min-width:150px;max-width:230px;background:var(--surface2);border:1px solid ' + (me ? 'var(--accent3,#2ecc71)' : 'var(--border)') + ';border-radius:10px;padding:0.6rem 0.75rem">'
+          return '<div onclick="if(typeof _grpHeroSwap===\'function\')_grpHeroSwap(' + i + ')" title="' + ((window.innerWidth || 0) >= 1000 ? 'Show this unit\'s photo above' : 'Jump to this unit\'s photos') + '" style="cursor:pointer;flex:1;min-width:150px;max-width:230px;background:var(--surface2);border:1px solid ' + (me ? 'var(--accent3,#2ecc71)' : 'var(--border)') + ';border-radius:10px;padding:0.6rem 0.75rem">'
             + '<div style="font-size:0.64rem;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--accent3,#2ecc71)">' + role + (me ? ' · this page' : '') + '</div>'
             + '<div style="font-family:var(--font-mono);font-weight:700;color:var(--accent);font-size:0.95rem;margin:0.15rem 0">' + String(p.itemNum || '').replace(/</g, '&lt;') + (p.photoItem ? ' <span title="Has photos" style="font-size:0.78rem">📷</span>' : '') + '</div>'
             + '<div style="font-size:0.74rem;color:var(--text-mid);line-height:1.5">Cond ' + cond + (box ? ' · ' + box : '') + (worth ? '<br>Worth ' + worth : '') + '</div>'
@@ -1446,14 +1446,32 @@ function showItemDetailPage(idx, copyInvId, opts) {
   // v0.9.1566 (Brad: "these three boxes should be clickable and just change
   // the photo at the top") — clicking a member card swaps the hero to that
   // unit's Right Side View. No navigation, no edit; the Edit/Photos button
-  // stops the bubble and keeps its old job. On phones there is no side hero
-  // (#grp-side-photo absent) and the click quietly does nothing.
+  // stops the bubble and keeps its old job.
+  //
+  // v0.9.1708 (silent-control audit, finding A1): below 1000px there is no
+  // side hero, and this used to return without a word — a tappable box that
+  // did nothing, the same class as the review card's › arrow (v1705). The
+  // unit's own gallery IS on this page, further down, so on a narrow screen
+  // a tap goes THERE — the box means "show me this unit's photos" on every
+  // screen. A unit with no photos still says so.
   window._grpHeroSwap = async function (gi) {
     try {
       var p = _grpFull && _grpFull[gi];
-      var target = document.getElementById('grp-side-photo');
-      if (!target) return;
       if (!p || !p.photoItem) { if (typeof showToast === 'function') showToast('No photos for that unit yet'); return; }
+      var target = document.getElementById('grp-side-photo');
+      if (!target) {
+        var _mi = _grpPhotoMembers.indexOf(p);
+        var _gal = _mi >= 0 ? document.getElementById('grp-photos-' + _mi) : null;
+        if (!_gal) { if (typeof showToast === 'function') showToast('No photos for that unit yet'); return; }
+        var _sec = _gal.parentElement || _gal;        // the unit's heading + gallery
+        try { _sec.scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch (eS) { _sec.scrollIntoView(); }
+        try {
+          _sec.style.transition = 'box-shadow 0.4s';
+          _sec.style.boxShadow = '0 0 0 3px var(--accent3)';   // the card's own accent; --accent3 exists in every theme
+          setTimeout(function () { _sec.style.boxShadow = ''; }, 1400);
+        } catch (eH) {}
+        return;
+      }
       var photos = await driveGetFolderPhotos(p.photoItem);
       if (!photos || !photos.length) { if (typeof showToast === 'function') showToast('No photos for that unit yet'); return; }
       var isRSV = function (x) { var n = String(x.name || '').toUpperCase(); return n.indexOf('RSV') !== -1 && n.indexOf('BOX') === -1; };

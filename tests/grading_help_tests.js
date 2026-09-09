@@ -51,7 +51,10 @@ const scaleLines = (wiz.match(/<span>Poor<\/span><span>Excellent/g) || []).lengt
 const withHelp = (wiz.match(/<span>Excellent' \+ _wizCondHelp\(\) \+ '<\/span>/g) || []).length;
 ok('every condition scale line carries it', scaleLines > 0 && scaleLines === withHelp,
    withHelp + ' of ' + scaleLines + ' scale lines');
-ok('...covering all five renderers', withHelp >= 5, withHelp);
+// Five renderers until v0.9.1708: the fifth was Quick-Entry Step 1, ~290 lines
+// sitting after an unconditional `return` — nobody could reach its slider. The
+// silent-control audit (B5) removed it, so four is every renderer a user can see.
+ok('...covering all four reachable renderers', withHelp >= 4, withHelp);
 ok('no renderer was patched twice', !/rrgOpen&&rrgOpen\('grading'\)/.test(wiz),
    'the one-off links from v1550 were removed when the shared one landed');
 ok('clicking it cannot nudge the slider',

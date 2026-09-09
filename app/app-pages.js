@@ -2,8 +2,10 @@
 // Extracted from app.js in Session 111 (Round 2 Chunk 14).
 //
 // Contents:
-//   • Ephemera page: buildEphemeraPage, switchEphTab, openEphemeraDetail,
-//     ephemeraDelete, ephemeraForSale, ephemeraSold (+ _ephTabNames/_ephTabCols)
+//   • Ephemera detail: openEphemeraDetail, ephemeraDelete, ephemeraForSale,
+//     ephemeraSold (+ _ephTabNames/_ephTabCols). The old Ephemera PAGE
+//     (buildEphemeraPage/switchEphTab) went in v0.9.1708 — nothing had opened
+//     it since the catalog's paper/catalog tabs took over (silent-control audit B1).
 //   • Want page: buildWantPage, showVarDescPopup, showWantDesc, removeWantItem,
 //     moveWantToCollection
 //   • eBay search modal: wantFindOnEbay, _ebaySetType, _ebayDoSearch,
@@ -513,68 +515,6 @@ function _collectionSetSearch(val) {
 window.buildCollectionPage  = buildCollectionPage;
 window._collectionSetTab    = _collectionSetTab;
 window._collectionSetSearch = _collectionSetSearch;
-
-function buildEphemeraPage() {
-  // Rebuild tab buttons to include user-defined tabs
-  const tabBar = document.getElementById('ephemera-tabs');
-  if (tabBar) {
-    const stdTabs = [
-      { id:'catalogs', emoji:'📒', label:'Catalogs' },
-      { id:'paper',    emoji:'📄', label:'Paper Items' },
-      { id:'mockups',  emoji:'🔩', label:'Mock-Ups' },
-      { id:'other',    emoji:'📦', label:'Other Lionel' },
-    ];
-    const allTabs = [...stdTabs, ...(state.userDefinedTabs||[]).map(t => ({ id:t.id, emoji:'⭐', label:t.label }))];
-    tabBar.innerHTML = allTabs.map(t =>
-      `<button class="eph-tab${_ephCurrentTab===t.id?' active':''}" data-eph="${t.id}" onclick="switchEphTab('${t.id}',this)">${t.emoji} ${t.label}</button>`
-    ).join('');
-  }
-  switchEphTab(_ephCurrentTab, document.querySelector('.eph-tab.active'));
-}
-
-function switchEphTab(tabId, btn) {
-  _ephCurrentTab = tabId;
-  document.querySelectorAll('.eph-tab').forEach(b => b.classList.remove('active'));
-  if (btn) btn.classList.add('active');
-  if (!state.ephemeraData[tabId]) state.ephemeraData[tabId] = {};
-  const bucket = state.ephemeraData[tabId];
-  const items = Object.values(bucket);
-  const container = document.getElementById('ephemera-content');
-  if (!container) return;
-  const isMockup = tabId === 'mockups';
-
-  if (items.length === 0) {
-    const labels = { catalogs:'Catalogs', paper:'Paper Items', mockups:'Mock-Ups', other:'Other Lionel Items' };
-    const emojis = { catalogs:'📒', paper:'📄', mockups:'🔩', other:'📦' };
-    container.innerHTML = `<div class="empty-state"><div class="empty-icon">${emojis[tabId]}</div><p>No ${labels[tabId]} yet — tap Add Item to get started</p></div>`;
-    return;
-  }
-
-  container.innerHTML = items.sort((a,b) => (b.row||0)-(a.row||0)).map(item => {
-    const val = item.estValue ? _currencySymbol() + parseFloat(item.estValue).toLocaleString() : '';
-    const cond = item.condition ? item.condition + '/10' : '';
-    const isCatalog2 = tabId === 'catalogs';
-    const subtitle = [
-      isCatalog2 && item.catType ? item.catType : '',
-      isCatalog2 && item.hasMailer === 'Yes' ? '✉ Has mailer' : '',
-      isMockup && item.itemNumRef ? 'Ref: ' + item.itemNumRef : '',
-      item.manufacturer && item.manufacturer !== 'Lionel' ? item.manufacturer : '',
-      isMockup && item.productionStatus ? item.productionStatus : '',
-      !isCatalog2 && item.quantity > 1 ? 'Qty: ' + item.quantity : '',
-      cond,
-    ].filter(Boolean).join(' · ');
-    return `<div class="eph-row" onclick="openEphemeraDetail('${tabId}',${item.row})">
-      <div style="font-size:1.4rem;width:28px;text-align:center;flex-shrink:0">${{catalogs:'📒',paper:'📄',mockups:'🔩',other:'📦'}[tabId]}</div>
-      <div style="flex:1;min-width:0">
-        <div class="eph-title">${item.title}</div>
-        ${subtitle ? `<div style="font-size:0.72rem;color:var(--text-dim);margin-top:1px">${subtitle}</div>` : ''}
-      </div>
-      ${item.year ? `<span class="eph-year">${item.year}</span>` : ''}
-      ${val ? `<span class="eph-val">${val}</span>` : ''}
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--text-dim)" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
-    </div>`;
-  }).join('');
-}
 
 // v0.9.796 (Brad's GM50 dwg): the detail modal's Edit button called
 // openEphemeraEdit — which NEVER EXISTED (ReferenceError → crash banner).

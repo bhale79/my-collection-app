@@ -8785,8 +8785,12 @@ META_WRITES.length = 0; TOASTS.length = 0;
     ok('the button that opens it is drawn on Condition & Details',
        /_showTenderPicker\(\)"[^]{0,400}Other tender/.test(wz.replace(/\n/g, '')) ||
        /Other tender/.test(wz));
+    // Three call sites until v0.9.1708 — one of them sat in Quick-Entry Step 1,
+    // ~290 lines after an unconditional `return`, so no user could press it.
+    // The silent-control audit (B5) removed that block; two reachable callers
+    // on two different steps is what "not just one branch" means.
     ok('every caller is reachable from anywhere, not just one branch',
-       (wz.match(/_showTenderPicker\(\)/g) || []).length >= 3);
+       (wz.match(/_showTenderPicker\(\)/g) || []).length >= 2);
 
     // RUN it: with only the module-level globals stubbed, the picker must be
     // callable. A grep can prove where the text sits; only running it proves

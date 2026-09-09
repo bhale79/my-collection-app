@@ -569,7 +569,6 @@
     }
     try {
       if (typeof _setEnabledEras === 'function') _setEnabledEras(selected);
-      if (typeof _applyEraVisibility === 'function') _applyEraVisibility();
     } catch(e) { console.warn('[Onboarding] save prefs failed:', e); }
   }
 

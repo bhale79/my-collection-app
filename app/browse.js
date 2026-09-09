@@ -70,9 +70,7 @@ function _isFirstOwnedCopyByRow(itemNum, variation, pdRow) {
 }
 
 function _updateBrowseTabsForEra() {
-  // Sync era dropdown on browse page
-  var _esel = document.getElementById('era-select');
-  if (_esel && _esel.value !== _currentEra) _esel.value = _currentEra;
+  // (The #era-select dropdown this once synced is gone — v0.9.1708.)
   // Tabs only shown for eras that have them
   var _pwOnly = ['sets','science','construction','paper','other','service','is'];
   _pwOnly.forEach(function(t) {
@@ -2403,47 +2401,6 @@ function populateFilters() {
   // The browser silently no-ops if the value isn't in the new options
   // (self-healing — old raw itemType values from pre-bucket era).
   if (typeEl) typeEl.value = state.filters.type || '';
-  if (typeof updateFilterBadge === 'function') updateFilterBadge();
-}
-
-// ── Browse filter popup ──────────────────────────────────────────
-function toggleBrowseFilterPanel() {
-  const panel = document.getElementById('browse-filter-panel');
-  if (!panel) return;
-  const isOpen = panel.style.display === 'block';
-  panel.style.display = isOpen ? 'none' : 'block';
-  if (!isOpen) {
-    setTimeout(() => {
-      document.addEventListener('click', function _closeFP(e) {
-        const btn = document.getElementById('browse-filter-btn');
-        if (panel && !panel.contains(e.target) && btn && !btn.contains(e.target)) {
-          panel.style.display = 'none';
-          document.removeEventListener('click', _closeFP);
-        }
-      });
-    }, 0);
-  }
-}
-
-function updateFilterBadge() {
-  const badge = document.getElementById('browse-filter-badge');
-  const btn   = document.getElementById('browse-filter-btn');
-  if (!badge) return;
-  const t = (document.getElementById('filter-type')?.value || '').trim();
-  const r = (window._roadComboValue || '').trim();
-  const count = (t ? 1 : 0) + (r ? 1 : 0);
-  badge.textContent = count;
-  badge.style.display = count > 0 ? 'inline' : 'none';
-  if (btn) btn.style.borderColor = count > 0 ? 'var(--accent)' : 'var(--border)';
-  if (btn) btn.style.color = count > 0 ? 'var(--accent)' : 'var(--text-mid)';
-}
-
-function clearBrowseFilters() {
-  const ft = document.getElementById('filter-type');
-  if (ft) ft.value = '';
-  _roadComboClear();
-  updateFilterBadge();
-  applyFilters();
 }
 
 function applyFilters() {
@@ -2508,7 +2465,6 @@ function resetFilters() {
   state.currentPage = 1;
   document.getElementById('filter-type').value = '';
   _roadComboClear();
-  updateFilterBadge();
   state._browseTab = 'items';
   renderBrowseTab('items');
 }

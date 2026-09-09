@@ -1782,19 +1782,6 @@ function _bucketsInCurrentEra() {
     .map(function(b){ return b.label; });
 }
 
-// Hide era-dropdown options the user has disabled. Always keep the CURRENT era
-// visible so the user can switch away even if it's disabled.
-function _applyEraVisibility() {
-  var sel = document.getElementById('era-select');
-  if (!sel) return;
-  var enabled = _getEnabledEras();
-  Array.from(sel.options).forEach(function(opt) {
-    var visible = enabled.indexOf(opt.value) >= 0 || opt.value === _currentEra;
-    opt.style.display = visible ? '' : 'none';
-    opt.disabled = !visible;
-  });
-}
-
 // ── Catalog loading status (Tiers 1-3): pill, auto-recover, stall banner ──
 var _catWatchTimer = null, _catWatchStart = 0, _catLastLoaded = -1, _catProgressAt = 0;
 function _catalogReady() {
@@ -1891,11 +1878,8 @@ async function switchEra(era) {
   state.partnerMap = {};
   state.catalogRefData = [];
   state.isRefData = [];
-  // Update browse page era dropdown
-  var _sel = document.getElementById('era-select');
-  if (_sel) _sel.value = era;
-  // Re-apply visibility (hides eras the user opted out of)
-  if (typeof _applyEraVisibility === 'function') _applyEraVisibility();
+  // (The browse page's #era-select dropdown is gone — the hierarchy chips
+  // replaced it — so there is nothing to sync here any more; v0.9.1708.)
   // Reload data
   showLoading();
   showToast('Switching to ' + ERAS[era].label + ' era…');
@@ -1957,11 +1941,6 @@ async function loadAllErasMode() {
   localStorage.setItem('lv_era', 'all');
   if (typeof _catalogLoadingBegin === 'function') _catalogLoadingBegin();
   _applyEraTabs('all'); // SHEET_TABS gets pw fallback for bystander code
-
-  // Update dropdown
-  var _sel = document.getElementById('era-select');
-  if (_sel) _sel.value = 'all';
-  if (typeof _applyEraVisibility === 'function') _applyEraVisibility();
 
   // Reset state — we're about to rebuild it cross-era
   state.masterData = [];
@@ -2502,8 +2481,6 @@ function buildApp() {
   populateFilters();
   buildDashboard();
   _applyDisclaimerPref();
-  // Apply era-dropdown visibility based on user prefs
-  if (typeof _applyEraVisibility === 'function') _applyEraVisibility();
   // Wishlist badge: combined Want + Upgrade count (Session 161+).
   // Previously only counted state.upgradeData, so on hard refresh the badge
   // showed '—' for users with only Want entries until they clicked the nav.
@@ -2517,7 +2494,6 @@ function buildApp() {
   if (sheetLink && state.personalSheetId) {
     sheetLink.href = 'https://docs.google.com/spreadsheets/d/' + state.personalSheetId;
   }
-  buildQuickEntryList();
   _injectQuickActionsBar();
   _applyCompactMode();
   // Initialize location preference toggle
@@ -2753,7 +2729,6 @@ async function forceRefreshData() {
     buildForSalePage();
     buildWantPage();
     renderBrowse();
-    buildQuickEntryList && buildQuickEntryList();
     showToast('✓ Synced from Google Sheet');
     // Update sheet dashboard in background — non-blocking
     applySheetFormatting(state.personalSheetId).catch((e) => console.warn('[applySheetFormatting failed]', e && e.message));
@@ -2772,112 +2747,6 @@ async function forceRefreshData() {
 
 // ── Browse filters — moved to browse.js (Session 63) ────────
 
-
-function buildQuickEntryList() {
-  const container = document.getElementById('qe-list-container');
-  if (!container) return;
-
-  const qeItems = Object.values(state.personalData)
-    .filter(pd => pd.owned && pd.quickEntry)
-    .sort((a, b) => (b.row || 0) - (a.row || 0));
-
-  if (qeItems.length === 0) {
-    container.innerHTML = '<div class="empty-state" style="padding:3rem 1rem">'
-      + '<div style="font-size:3rem;margin-bottom:0.75rem">&#9889;</div>'
-      + '<div style="font-weight:600;font-size:1rem;margin-bottom:0.4rem">No quick entries yet</div>'
-      + '<div style="font-size:0.85rem;color:var(--text-dim);line-height:1.6">When you add an item using Quick Entry, it will appear here so you can come back and fill in the details.</div>'
-      + '</div>';
-    return;
-  }
-
-  // Update badge
-  const badge = document.getElementById('nav-qe-count');
-  if (badge) badge.textContent = qeItems.length;
-
-  var gridEl = document.createElement('div');
-  gridEl.style.cssText = 'display:flex;flex-direction:column;gap:0.5rem';
-    qeItems.forEach(function(pd) {
-    var master = state.masterData.find(function(m) {
-      return m.itemNum === pd.itemNum && (!pd.variation || m.variation === pd.variation);
-    }) || findMaster(pd.itemNum, '', pd);
-    var itemName = master ? (master.roadName || master.description || master.itemType || '') : '';
-    var itemType = master ? (master.itemType || '') : '';
-    var itemYear = master ? (master.yearProd || '') : '';
-    var variation = pd.variation || '';
-    var meta = [itemType, itemYear].filter(Boolean).join(' · ');
-
-    var row = document.createElement('div');
-    row.style.cssText = 'display:flex;align-items:center;gap:0.85rem;padding:0.9rem 1rem;background:var(--surface);border:1.5px solid rgba(46,204,113,0.3);border-radius:12px;cursor:pointer;transition:all 0.15s';
-    row.onmouseenter = function() { this.style.borderColor='#2ecc71'; this.style.background='rgba(46,204,113,0.06)'; };
-    row.onmouseleave = function() { this.style.borderColor='rgba(46,204,113,0.3)'; this.style.background='var(--surface)'; };
-    row.onclick = (function(num, vari, pdInvId) { return function() {
-      var globalIdx = state.masterData ? state.masterData.findIndex(function(m) {
-        return m.itemNum === num && (!vari || m.variation === vari);
-      }) : -1;
-      completeQuickEntry(num, vari, globalIdx, pdInvId);
-    }; })(pd.itemNum, variation, pd.inventoryId || '');
-
-    var icon = document.createElement('div');
-    icon.style.cssText = 'background:rgba(46,204,113,0.12);border-radius:8px;padding:0.5rem;flex-shrink:0';
-    icon.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2ecc71" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>';
-
-    var info = document.createElement('div');
-    info.style.cssText = 'flex:1;min-width:0';
-
-    var topRow = document.createElement('div');
-    topRow.style.cssText = 'display:flex;align-items:baseline;gap:0.5rem;flex-wrap:wrap';
-    var numSpan = document.createElement('span');
-    numSpan.style.cssText = 'font-family:var(--font-mono);font-weight:700;color:var(--accent2);font-size:1rem';
-    numSpan.textContent = pd.itemNum;
-    topRow.appendChild(numSpan);
-    if (variation) {
-      var varSpan = document.createElement('span');
-      varSpan.style.cssText = 'font-size:0.75rem;color:var(--text-dim);background:var(--surface2);padding:0.1rem 0.4rem;border-radius:4px';
-      varSpan.textContent = variation;
-      topRow.appendChild(varSpan);
-    }
-    info.appendChild(topRow);
-
-    if (itemName) {
-      var nameEl = document.createElement('div');
-      nameEl.style.cssText = 'font-size:0.85rem;color:var(--text-mid);margin-top:0.15rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis';
-      nameEl.textContent = itemName;
-      info.appendChild(nameEl);
-    }
-    if (meta) {
-      var metaEl = document.createElement('div');
-      metaEl.style.cssText = 'font-size:0.75rem;color:var(--text-dim);margin-top:0.1rem';
-      metaEl.textContent = meta;
-      info.appendChild(metaEl);
-    }
-
-    var right = document.createElement('div');
-    right.style.cssText = 'flex-shrink:0;text-align:right';
-    var addInfoBtn = document.createElement('button');
-    addInfoBtn.textContent = 'Add Info';
-    addInfoBtn.style.cssText = 'font-size:0.78rem;color:#fff;font-weight:600;background:#2ecc71;border:none;padding:0.3rem 0.7rem;border-radius:6px;cursor:pointer;white-space:nowrap';
-    addInfoBtn.onclick = (function(num, vari, pdInvId) { return function(e) {
-      e.stopPropagation();
-      var globalIdx = state.masterData ? state.masterData.findIndex(function(m) {
-        return m.itemNum === num && (!vari || m.variation === vari);
-      }) : -1;
-      completeQuickEntry(num, vari, globalIdx, pdInvId);
-    }; })(pd.itemNum, variation, pd.inventoryId || '');
-    right.appendChild(addInfoBtn);
-
-    row.appendChild(icon);
-    row.appendChild(info);
-    row.appendChild(right);
-    gridEl.appendChild(row);
-  });
-  var footer = document.createElement('div');
-  footer.style.cssText = 'margin-top:1rem;padding:0.75rem 1rem;background:rgba(46,204,113,0.06);border-radius:10px;border:1px solid rgba(46,204,113,0.2);font-size:0.82rem;color:var(--text-dim);text-align:center';
-  footer.textContent = qeItems.length + ' item' + (qeItems.length !== 1 ? 's' : '') + ' waiting for details — tap any item to open and complete it.';
-
-  container.innerHTML = '';
-  container.appendChild(gridEl);
-  container.appendChild(footer);
-}
 
 function goToMyCollection() {
   const navBtn = document.querySelector('.nav-item[onclick*="filterOwned"]');
