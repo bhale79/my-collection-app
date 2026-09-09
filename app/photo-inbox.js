@@ -1921,6 +1921,8 @@
   // redundant reload. Deliberately the simpler tool.
   var _WATCH_MS = 60000;           // one look a minute — the one number to tune
   var _WATCH_EVENT_GAP_MS = 5000;  // focus + visibility fire together; look once
+  var _WATCH_RETRY_MS = 15000;     // one quick second look after a failed one
+  var _pinWatchRetried = false;    // ONE quick retry per failure streak, never a 15s hammer
   var _pinWatchSig = null;         // fingerprint the screen was built from; null = none yet
   var _pinWatchBusy = false;       // a look is in flight
   var _pinWatchTimer = null;
@@ -1997,6 +1999,7 @@
     _pinWatchLastAt = Date.now();
     try {
       var files = await _pinWatchProbe();
+      _pinWatchRetried = false;            // Drive answered: the quick-retry latch re-arms
       if (!files) return 'folder too big';
       var sig = _pinWatchSigOf(files);
       if (_pinWatchSig === null) { _pinWatchSig = sig; return 'baseline'; }
@@ -2017,7 +2020,12 @@
       }
       return 'reloaded';
     } catch (e) {
+      // v0.9.1705: measured 2026-09-09 — the first look after a tab was hidden
+      // for half an hour failed because the sign-in token was mid-renewal
+      // (401 → refresh), and the change waited for the next minute tick. One
+      // quick retry covers that; a persistent fault falls back to the timer.
       console.warn('[inbox watch] look failed:', e && e.message);
+      if (!_pinWatchRetried) { _pinWatchRetried = true; _pinWatchSoon('retry', _WATCH_RETRY_MS); }
       return 'error';
     } finally { _pinWatchBusy = false; }
   }
@@ -4251,9 +4259,14 @@
       ' ondragover="event.preventDefault();this.style.outline=\'2px solid var(--accent)\'"' +
       ' ondragleave="this.style.outline=\'\'"' +
       ' ondrop="' + dropJs + '"' +
-      ' title="Tap to choose which photo is the ' + sl.label + ' — or drag a photo here" style="flex:0 0 auto;width:56px;cursor:pointer;text-align:center">' +
+      ' title="' + (f ? 'Tap the picture to show it; tap the label to choose which photo is the ' : 'Tap to choose which photo is the ') + sl.label + ' — or drag a photo here" style="flex:0 0 auto;width:56px;cursor:pointer;text-align:center">' +
       (f
-        ? '<div style="width:56px;height:48px;border-radius:8px;overflow:hidden;border:1.5px solid var(--accent2);background:var(--surface2)"><img data-rvv="' + f.id + '" style="width:100%;height:100%;object-fit:cover;display:block" alt=""></div>'
+        // v0.9.1705 (Brad: "tap the pictures in the small boxes that have the
+        // view labels to select the picture i want to edit"): the PICTURE in a
+        // filled slot makes that photo the current one — it left the rail when
+        // it was slotted (v1617), so this box is the only place to tap it. The
+        // label beneath still opens the which-photo picker, as does an empty box.
+        ? '<div data-slotpic="' + f.id + '" onclick="event.stopPropagation();_pinRvSetMain(\'' + f.id + '\')" style="width:56px;height:48px;border-radius:8px;overflow:hidden;border:1.5px solid var(--accent2);background:var(--surface2)"><img data-rvv="' + f.id + '" style="width:100%;height:100%;object-fit:cover;display:block" alt=""></div>'
         : '<div style="width:56px;height:48px;border-radius:8px;border:1.5px dashed var(--border);background:var(--surface2);display:flex;align-items:center;justify-content:center;color:var(--text-dim);font-size:1rem">+</div>') +
       '<div style="font-size:0.55rem;font-weight:700;color:' + (f ? 'var(--text)' : 'var(--text-dim)') + ';letter-spacing:0.02em;margin-top:2px;white-space:nowrap">' + sl.label + '</div>' +
     '</div>';
@@ -4670,70 +4683,73 @@
       '<div id="pin-rv-info" style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:0.85rem 0.95rem;margin-bottom:0.7rem;display:flex;flex-direction:column;gap:0.4rem"></div>' +
       _btnArea;
 
-    // Phone: horizontal strip on top (unchanged).
-    var _stripHtml =
-      '<div id="pin-rv-photos" style="display:flex;gap:0.45rem;overflow-x:auto;-webkit-overflow-scrolling:touch;margin-bottom:0.7rem">' +
+    // ══ v0.9.1705 — ONE BIG "CURRENT PHOTO", ON EVERY DEVICE ═══════════════
+    // Brad, phone, 2026-09-09: "when you open an items pictures, it says
+    // 1 of 2, you can crop the first one, you can not hit the arrow to advance
+    // to the next picture to crop it … I should be able to tap the pictures
+    // in the small boxes that have the view labels to select the picture i
+    // want to edit, and i would want the arrow to work then select it to
+    // edit it."
+    //
+    // The card has always had a "current photo": #pin-rv-main. The arrows,
+    // the "1 of 2" counter, the ✂, the read line and the number box all act on
+    // it (_pinRvSetMain, _pinOnScreenFid). It existed in the DESKTOP layout
+    // only. The phone card was a strip of thumbnails with no big picture, so
+    // on a phone _pinRvSetMain found no element and returned — the arrow
+    // pressed against nothing, silently, and the counter froze at "1 of 2".
+    //
+    // So the big picture is now built in ONE place and both layouts use it,
+    // and so is the rail beneath it. Tap a rail thumb, or the picture in a
+    // filled view-slot box, to make it the current photo; the ✂ and 🔍 on
+    // the big picture act on whatever is showing. The per-thumb ✂/🔍 buttons
+    // the phone strip used to carry are gone with it — they crowded a 74px
+    // tile and they are what the big picture's own buttons are for.
+    var _cornBtn = 'position:absolute;width:30px;height:30px;border-radius:8px;border:none;background:rgba(0,0,0,0.6);color:#fff;font-size:0.9rem;line-height:1;cursor:pointer;padding:0;z-index:2';
+    // The big picture. `fixedH` (phone) pins the box height so the card does
+    // not jump between a portrait and a landscape photo; `maxH` (desktop)
+    // lets it size to the photo as before.
+    function _pinRvHeroHtml(fixedH, maxH) {
+      var box = 'position:relative;border-radius:12px;overflow:hidden;background:var(--surface2,#26262e);display:flex;align-items:center;justify-content:center;margin-bottom:0.5rem;'
+        + (fixedH ? 'height:' + fixedH + ';' : 'max-height:' + maxH + ';');
+      var img = 'max-width:100%;object-fit:contain;display:block;cursor:zoom-in;' + (fixedH ? 'max-height:100%;' : 'max-height:' + maxH + ';');
+      return '<div style="' + box + '">' +
+        '<img id="pin-rv-main" data-rvbig="' + _mainFid + '" onclick="_pinZoomPhoto(this.getAttribute(\'data-rvbig\'))" title="Tap for full-screen zoom" style="' + img + '" alt="">' +
+        '<button onclick="_pinZoomPhoto(document.getElementById(\'pin-rv-main\').getAttribute(\'data-rvbig\'))" title="Full-screen zoom" style="' + _cornBtn + ';left:8px;bottom:8px">🔍</button>' +
+        '<button onclick="_pinCropPhoto(document.getElementById(\'pin-rv-main\').getAttribute(\'data-rvbig\'))" title="Crop / Rotate this photo" style="' + _cornBtn + ';top:8px;right:8px">✂</button>' +
+      '</div>';
+    }
+    // The rail of photos still waiting to be sorted into a view slot
+    // (v0.9.1617: a slotted photo lives in its slot). First one wears MAIN
+    // VIEW; each carries its own read number; a tap makes it the current
+    // photo. Only drawn when there is more than one — a lone thumb under a
+    // big picture of the same photo says nothing.
+    function _pinRvRailHtml(sizePx) {
+      if (_railThumbs.length <= 1) return '';
+      var canDrag = !window.IS_MOBILE_UA;   // _pinWireRvDrag is desktop-only
+      return '<div id="pin-rv-photos" style="display:flex;gap:0.4rem;overflow-x:auto;-webkit-overflow-scrolling:touch;margin-bottom:0.6rem;padding:2px">' +
         _railThumbs.slice(0, 12).map(function (fidT, i) {
-          return '<div data-dragfid="' + fidT + '" style="position:relative;flex-shrink:0;width:' + (i === 0 ? '160px;height:160px' : '74px;height:74px;align-self:flex-end') + ';border-radius:10px;overflow:hidden;background:var(--surface2,#26262e)">' +
+          var _tSug = _ids()[fidT];
+          var _tNum = (_tSug && _tSug.num) ? String(_tSug.num) : '';
+          return '<div data-dragfid="' + fidT + '" onclick="_pinRvSetMain(\'' + fidT + '\')" title="Show this photo' + (canDrag ? ' — drag to reorder' : '') + '" style="position:relative;flex-shrink:0;width:' + sizePx + 'px;height:' + sizePx + 'px;border-radius:8px;overflow:hidden;background:var(--surface2,#26262e);cursor:pointer;border:1.5px solid transparent">' +
             (i === 0 ? '<div style="position:absolute;top:0;left:0;background:var(--accent);color:#fff;font-size:0.55rem;font-weight:700;letter-spacing:0.04em;padding:1px 6px;border-radius:0 0 6px 0;z-index:2;pointer-events:none">MAIN VIEW</div>' : '') +
-            '<img data-rvfid="' + fidT + '" onclick="_pinZoomPhoto(\'' + fidT + '\')" title="Tap to view full size — zoom in to read the label" style="width:100%;height:100%;object-fit:cover;display:block;cursor:zoom-in" alt="">' +
-            '<button onclick="event.stopPropagation();_pinZoomPhoto(\'' + fidT + '\')" title="View full size" style="position:absolute;left:4px;bottom:4px;width:26px;height:26px;border-radius:7px;border:none;background:rgba(0,0,0,0.55);color:#fff;font-size:0.8rem;line-height:1;cursor:pointer;padding:0">🔍</button>' +
-            '<button onclick="event.stopPropagation();_pinCropPhoto(\'' + fidT + '\')" title="Crop / Rotate this photo" style="position:absolute;top:4px;right:4px;width:26px;height:26px;border-radius:7px;border:none;background:rgba(0,0,0,0.55);color:#fff;font-size:0.85rem;line-height:1;cursor:pointer;padding:0">✂</button>' +
-            (function () {
-              var _tS = _ids()[fidT];
-              var _tN = (_tS && _tS.num) ? String(_tS.num) : '';
-              return _tN ? '<div style="position:absolute;left:34px;right:34px;bottom:4px;background:rgba(0,0,0,0.62);color:' + (_tS.guess ? '#ffb454' : '#7ec3ef') + ';font-size:0.6rem;font-weight:700;text-align:center;padding:1px 3px;border-radius:5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + rrEsc(_tN) + '</div>' : '';
-            })() +
+            '<img data-rvfid="' + fidT + '" style="width:100%;height:100%;object-fit:cover;display:block" alt="">' +
+            (_tNum ? '<div style="position:absolute;left:0;right:0;bottom:0;background:rgba(0,0,0,0.62);color:' + (_tSug.guess ? '#ffb454' : '#7ec3ef') + ';font-size:0.58rem;font-weight:700;text-align:center;padding:1px 2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + rrEsc(_tNum) + '</div>' : '') +
           '</div>';
         }).join('') +
-      '</div>' +
-      _pinRvViewsBarHtml();
-
-    // Desktop: big photo panel on the right; other photos as a strip beneath.
-    var _cornBtn = 'position:absolute;width:30px;height:30px;border-radius:8px;border:none;background:rgba(0,0,0,0.6);color:#fff;font-size:0.9rem;line-height:1;cursor:pointer;padding:0;z-index:2';
-    var _panelHtml =
-      '<div style="flex:1 1 50%;min-width:0;display:flex;flex-direction:column;gap:0.5rem">' +
-        '<div style="position:relative;flex:1;min-height:360px;border-radius:12px;overflow:hidden;background:var(--surface2,#26262e);display:flex;align-items:center;justify-content:center">' +
-          '<img id="pin-rv-main" data-rvbig="' + _mainFid + '" onclick="_pinZoomPhoto(this.getAttribute(\'data-rvbig\'))" title="Tap for full-screen zoom" style="max-width:100%;max-height:74vh;object-fit:contain;display:block;cursor:zoom-in" alt="">' +
-          '<button onclick="_pinZoomPhoto(document.getElementById(\'pin-rv-main\').getAttribute(\'data-rvbig\'))" title="Full-screen zoom" style="' + _cornBtn + ';left:8px;bottom:8px">🔍</button>' +
-          '<button onclick="_pinCropPhoto(document.getElementById(\'pin-rv-main\').getAttribute(\'data-rvbig\'))" title="Crop / Rotate this photo" style="' + _cornBtn + ';top:8px;right:8px">✂</button>' +
-        '</div>' +
-        (_railThumbs.length > 1
-          ? '<div style="display:flex;gap:0.4rem;overflow-x:auto;-webkit-overflow-scrolling:touch">' +
-              _railThumbs.slice(0, 12).map(function (fidT, i) {
-                var _tSug = _ids()[fidT];
-                var _tNum = (_tSug && _tSug.num) ? String(_tSug.num) : '';
-                return '<div data-dragfid="' + fidT + '" onclick="_pinRvSetMain(\'' + fidT + '\')" title="Show this photo — drag to reorder" style="position:relative;flex-shrink:0;width:64px;height:64px;border-radius:8px;overflow:hidden;background:var(--surface2,#26262e);cursor:pointer;border:1.5px solid transparent">' +
-                  (i === 0 ? '<div style="position:absolute;top:0;left:0;background:var(--accent);color:#fff;font-size:0.55rem;font-weight:700;letter-spacing:0.04em;padding:1px 6px;border-radius:0 0 6px 0;z-index:2;pointer-events:none">MAIN VIEW</div>' : '') +
-                  '<img data-rvfid="' + fidT + '" style="width:100%;height:100%;object-fit:cover;display:block" alt="">' +
-                  (_tNum ? '<div style="position:absolute;left:0;right:0;bottom:0;background:rgba(0,0,0,0.62);color:' + (_tSug.guess ? '#ffb454' : '#7ec3ef') + ';font-size:0.58rem;font-weight:700;text-align:center;padding:1px 2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + rrEsc(_tNum) + '</div>' : '') +
-                  '</div>';
-              }).join('') +
-            '</div>'
-          : '') +
-        _pinRvViewsBarHtml() +
       '</div>';
+    }
+
+    // Phone: big picture (a fixed 40% of the screen — one number to tune),
+    // the rail, then the view-slot bar. Stacked, as before, just with the
+    // element the arrows were always pointed at.
+    var _stripHtml = _pinRvHeroHtml('40vh', null) + _pinRvRailHtml(74) + _pinRvViewsBarHtml();
 
     // v0.9.964 (Brad): DESKTOP layout — the "From the photo" read and the
     // catalog details sit as full-width boxes across the TOP, the photo fills
     // the middle full-width, and the action buttons run in a row across the
-    // BOTTOM. (Phone stays stacked below.)
-    var _photoWide =
-      '<div style="position:relative;border-radius:12px;overflow:hidden;background:var(--surface2,#26262e);display:flex;align-items:center;justify-content:center;max-height:52vh;margin-bottom:0.5rem">' +
-        '<img id="pin-rv-main" data-rvbig="' + _mainFid + '" onclick="_pinZoomPhoto(this.getAttribute(\'data-rvbig\'))" title="Tap for full-screen zoom" style="max-width:100%;max-height:52vh;object-fit:contain;display:block;cursor:zoom-in" alt="">' +
-        '<button onclick="_pinZoomPhoto(document.getElementById(\'pin-rv-main\').getAttribute(\'data-rvbig\'))" title="Full-screen zoom" style="' + _cornBtn + ';left:8px;bottom:8px">🔍</button>' +
-        '<button onclick="_pinCropPhoto(document.getElementById(\'pin-rv-main\').getAttribute(\'data-rvbig\'))" title="Crop / Rotate this photo" style="' + _cornBtn + ';top:8px;right:8px">✂</button>' +
-      '</div>' +
-      (_railThumbs.length > 1
-        ? '<div style="display:flex;gap:0.4rem;overflow-x:auto;-webkit-overflow-scrolling:touch;margin-bottom:0.6rem">' +
-            _railThumbs.slice(0, 12).map(function (fidT, i) {
-              return '<div data-dragfid="' + fidT + '" onclick="_pinRvSetMain(\'' + fidT + '\')" title="Show this photo — drag to reorder" style="position:relative;flex-shrink:0;width:64px;height:64px;border-radius:8px;overflow:hidden;background:var(--surface2,#26262e);cursor:pointer;border:1.5px solid transparent">' +
-                (i === 0 ? '<div style="position:absolute;top:0;left:0;background:var(--accent);color:#fff;font-size:0.55rem;font-weight:700;letter-spacing:0.04em;padding:1px 6px;border-radius:0 0 6px 0;z-index:2;pointer-events:none">MAIN VIEW</div>' : '') +
-                '<img data-rvfid="' + fidT + '" style="width:100%;height:100%;object-fit:cover;display:block" alt=""></div>';
-            }).join('') +
-          '</div>'
-        : '') +
-      _pinRvViewsBarHtml();
+    // BOTTOM. (The old right-hand split panel — _panelHtml — was built on
+    // every open and never used since v964; it is gone.)
+    var _photoWide = _pinRvHeroHtml(null, '52vh') + _pinRvRailHtml(64) + _pinRvViewsBarHtml();
     var _aiL = (_pinAiLine(_mainFid) || '') + _pinTagLineHtml(_mainFid), _chips = _pinAltChips();
     var _wideBtn = 'flex:1 1 160px;padding:0.72rem 0.6rem;border-radius:10px;font-family:var(--font-body);font-weight:700;font-size:0.9rem;cursor:pointer;';
     var _wideBody =
@@ -4784,6 +4800,7 @@
     try { _pinDemoteAdd(false); } catch (eD) {}
     var _rvMainImg = document.getElementById('pin-rv-main');
     if (_rvMainImg && window._pinRvLoadFull) window._pinRvLoadFull(_rvMainImg, _rvMainImg.getAttribute('data-rvbig'));
+    try { _pinRvMarkCurrent(_mainFid); } catch (eMk) {}   // v0.9.1705: outline the current photo's thumb
     // Only look up what is actually in the box. A guess left as a chip must not
     // silently produce a Maker / Item # / Description panel — that panel is what
     // made "58" read as a finding rather than a hunch.
@@ -10259,7 +10276,25 @@
   // and switch which photo is featured when a strip thumb is clicked.
   window._pinRvLoadFull = async function (img, fid) {
     if (!img || !fid) return;
-    try { if (typeof loadDriveThumb === 'function') loadDriveThumb(fid, img, img.parentElement, null, 'hi'); } catch (e) {}
+    try { if (typeof loadDriveThumb === 'function') loadDriveThumb(fid, img, img.parentElement, _thumbLink[fid] || null, 'hi'); } catch (e) {}
+    // v0.9.1705: ON A PHONE THE BIG PICTURE IS A SHARPER THUMBNAIL, NOT THE
+    // ORIGINAL. The crop-flash recorder's one 1141ms frame was a 12MP camera
+    // JPEG being decoded to fill a 360px-wide box. Drive serves its preview at
+    // any size, so the phone asks for 1200px — plenty for a phone screen at
+    // 3x — and never touches the full file here. Zoom and crop fetch the
+    // original themselves, when the user actually asks for it. A photo marked
+    // force-fresh (cropped this session) already loaded its real bytes above.
+    if (window.IS_MOBILE_UA) {
+      try {
+        if (window._rrForceFreshBytes && window._rrForceFreshBytes[fid]) return;
+        var lk = _thumbLink[fid] || (typeof _thumbLinkCache !== 'undefined' ? _thumbLinkCache[fid] : '') || '';
+        if (!lk) return;
+        var sharp = new Image();
+        sharp.onload = function () { if (img.getAttribute('data-rvbig') === fid) img.src = sharp.src; };
+        sharp.src = lk.replace(/=s\d+(-c)?$/, '=s1200');
+      } catch (e) { /* keep the thumbnail */ }
+      return;
+    }
     try {
       if (!_qcToken()) return;
       var blob = await _pinBytes(fid);
@@ -10294,6 +10329,20 @@
         + '</div>';
     } catch (e) { return ''; }
   }
+  // v0.9.1705: the current photo's thumb — on the rail or in its view-slot
+  // box — wears the accent outline, so "which one is the big picture" is
+  // answered at a glance on both layouts. Purely visual; nothing reads it.
+  function _pinRvMarkCurrent(fid) {
+    var ov = document.getElementById('pin-review-ov');
+    if (!ov) return;
+    ov.querySelectorAll('[data-dragfid]').forEach(function (d) {
+      d.style.borderColor = d.getAttribute('data-dragfid') === fid ? 'var(--accent)' : 'transparent';
+    });
+    ov.querySelectorAll('[data-slotpic]').forEach(function (d) {
+      d.style.outline = d.getAttribute('data-slotpic') === fid ? '2px solid var(--accent)' : '';
+      d.style.outlineOffset = '1px';
+    });
+  }
   window._pinRvSetMain = function (fid) {
     var img = document.getElementById('pin-rv-main');
     if (!img) return;
@@ -10320,6 +10369,7 @@
     } catch (eKeep) {}
     img.setAttribute('data-rvbig', fid);
     window._pinRvLoadFull(img, fid);
+    try { _pinRvMarkCurrent(fid); } catch (eMk) {}   // v0.9.1705
     // v0.9.1090: the identification follows the photo. Tap the Summit car and
     // the line describes the Summit car, not the engine at the front of the
     // group.
@@ -10407,7 +10457,12 @@
         // read makes this photo count as unread, so the button picks it up.
         try { var mm = _ids(); if (mm[fid]) { delete mm[fid]; _idsSave(mm); } } catch (eA) {}
         try { var ff = _freeTried(); if (ff[fid]) { delete ff[fid]; _freeTriedSave(ff); } } catch (eB) {}
-        showToast('Cropped — it’ll be read fresh when you hit Identify my items', 3000);
+        // v0.9.1705 (Brad: "what is the 'it will be read fresh' comment that
+        // flashes up. i don't think that is needed"): just the confirmation.
+        // The rule behind the old wording still holds — the crop CLEARS the
+        // old read (two lines up) and does NOT read on the spot; Identify my
+        // items picks the photo up as unread.
+        showToast('Cropped \u2713', 2000);
         try { _render(); } catch (eC) {}
         try { _updateIdentifyBtn(); } catch (eD) {}
       } catch (e4) { showToast('Could not save the crop — the original is untouched', 3000, true); }

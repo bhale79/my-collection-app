@@ -482,9 +482,17 @@ META_WRITES.length = 0; TOASTS.length = 0;
   ok('no automatic read fires after an upload or refresh',
      !/setTimeout\(function \(\) \{ try \{ _pinAutoRead\(\); \}/.test(body) &&
      !/_pinRefresh[\s\S]{0,400}?_pinAutoRead\(\)/.test(fnBody('window._pinRefresh = async function')));
+  // v0.9.1705 RE-PIN (Brad: "what is the 'it will be read fresh' comment
+  // that flashes up. i don't think that is needed"): the toast is now just
+  // "Cropped ✓". The RULE this pin defends is unchanged — a crop clears the
+  // old read and does NOT read on the spot — so pin the clearing and the
+  // absence of a re-read, not the wording of a confirmation.
+  const _cropFn = fnBody('window._pinCropPhoto = async function');
   ok('…and the crop no longer reads on the spot either',
      !/showToast\('Cropped — re-reading/.test(body) &&
-     /read fresh when you hit Identify my items/.test(body));
+     /showToast\('Cropped \\u2713'/.test(_cropFn) &&
+     /var mm = _ids\(\); if \(mm\[fid\]\) \{ delete mm\[fid\]; _idsSave\(mm\); \}/.test(_cropFn) &&
+     !/aiIdentifyImage|_freeReadOne\(|_pinAutoRead\(/.test(_cropFn));
 
 
   section('16. Finished warns when nothing was applied');
@@ -15162,11 +15170,19 @@ META_WRITES.length = 0; TOASTS.length = 0;
          /_groups\.forEach\(function \(g\) \{ g\.files = _pinSortByOrd\(g\.files\); \}\);/.test(pin33));
 
       // ── the card: three strips, all draggable, first thumb badged ────
-      ok('233 all three thumb strips carry the drag handle',
-         (pin33.match(/data-dragfid="' \+ fidT \+ '"/g) || []).length === 3,
+      // v0.9.1705 RE-PIN: the three copies of the rail (phone strip, an unused
+      // desktop panel, the wide layout) became ONE builder, _pinRvRailHtml,
+      // that both layouts call. The rule — every rail carries the drag handle
+      // and badges its first photo — now has one place to be true.
+      const _rail33 = pin33.slice(pin33.indexOf('function _pinRvRailHtml('), pin33.indexOf("var _stripHtml = "));
+      ok('233 the rail is built in ONE place and it carries the drag handle',
+         (pin33.match(/data-dragfid="' \+ fidT \+ '"/g) || []).length === 1
+         && /data-dragfid="' \+ fidT \+ '"/.test(_rail33)
+         && (pin33.match(/_pinRvRailHtml\(\d+\)/g) || []).length === 2,
          String((pin33.match(/data-dragfid="' \+ fidT \+ '"/g) || []).length));
-      ok('233 …and each badges its FIRST photo as the main view',
-         (pin33.match(/\(i === 0 \? '<div style="position:absolute;top:0;left:0;background:var\(--accent\)/g) || []).length === 3,
+      ok('233 …and it badges its FIRST photo as the main view',
+         (pin33.match(/\(i === 0 \? '<div style="position:absolute;top:0;left:0;background:var\(--accent\)/g) || []).length === 1
+         && /\(i === 0 \? '<div style="position:absolute;top:0;left:0;background:var\(--accent\)/.test(_rail33),
          String((pin33.match(/\(i === 0 \? '<div/g) || []).length));
       ok('233 the wiring refuses multi-item cards — order has no meaning across items',
          /_rvGroups\.length !== 1\) return;/.test(pin33.slice(pin33.indexOf('function _pinWireRvDrag'), pin33.indexOf('window._pinSaveRvOrder'))));
@@ -22400,8 +22416,12 @@ META_WRITES.length = 0; TOASTS.length = 0;
       ok('320 the eight slots Brad named exist, in shooting-friendly order',
          /'TV',\s*label: 'Top'/.test(pi20) && /'RSV',\s*label: 'Right Side'/.test(pi20)
          && /'EXTRA',\s*label: 'Detail 1'/.test(pi20) && /'EXTRA2',\s*label: 'Detail 2'/.test(pi20), '');
-      ok('320 the bar joins ALL THREE rails (phone strip, desktop panel, wide layout)',
-         (pi20.match(/_pinRvViewsBarHtml\(\)/g) || []).length >= 4, '');
+      // v0.9.1705 RE-PIN: the unused desktop panel is gone; the bar joins the
+      // two layouts that exist (phone stack, wide layout) — definition + 2.
+      ok('320 the bar joins BOTH layouts (phone stack, wide layout)',
+         (pi20.match(/_pinRvViewsBarHtml\(\)/g) || []).length === 3
+         && /var _stripHtml = [^\n]*_pinRvViewsBarHtml\(\)/.test(pi20)
+         && /var _photoWide = [^\n]*_pinRvViewsBarHtml\(\)/.test(pi20), '');
       // functional: assign with a swap, on the REAL handler
       META_WRITES.length = 0;
       T.rvGroups = [{ key: 'gX', files: [
@@ -22433,7 +22453,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
       // ── v0.9.1617 (Brad's two refinements, same evening) ──
       ok('320/1617 an assigned photo LEAVES the rail (it lives in its slot)',
          /_railThumbs = thumbs\.filter\(function \(t\) \{ return !_viewOfFid\[t\]; \}\)/.test(pi20)
-         && (pi20.match(/_railThumbs\.slice\(0, 12\)\.map\(/g) || []).length === 3, '');
+         && (pi20.match(/_railThumbs\.slice\(0, 12\)\.map\(/g) || []).length === 1, '');   // v0.9.1705: one rail builder
       ok('320/1617 …but the card never loses its anchor when all are sorted',
          /if \(!_railThumbs\.length\) _railThumbs = thumbs\.slice\(0, 1\);/.test(pi20), '');
       // v0.9.1618 RE-PIN: the drop handler moved into the shared slot cell

@@ -241,6 +241,24 @@ const L2gone = [{ id: 'a', modifiedTime: 't1' }];                               
     const f = makeWatcher({ listing: L1, driveFail: true });
     ok('RUN: a failed look is swallowed — no reload, no throw, and the flag is released',
        await f.api.tick('t') === 'error' && (f.ctx.driveFail = false, await f.api.tick('t')) === 'baseline', '');
+    // v0.9.1705 (measured 2026-09-09): the first look after a tab sat hidden
+    // for half an hour failed on a token mid-renewal, and the change waited
+    // for the next minute tick. ONE quick retry per failure streak — a fault
+    // that persists must not turn into a 15-second hammer on Drive.
+    const r = makeWatcher({ listing: L1, driveFail: true });
+    await r.api.tick('t');
+    const retries = () => r.ctx.timeouts.filter(t => t.ms === 15000).length;
+    ok('RUN: a failed look schedules ONE quick retry, 15s out', retries() === 1, String(retries()));
+    await r.api.tick('t');
+    ok('RUN: a second failure in the same streak schedules NO further quick retry', retries() === 1, String(retries()));
+    r.ctx.driveFail = false;
+    await r.api.tick('t');                       // Drive answers → the latch re-arms
+    r.ctx.driveFail = true;
+    await r.api.tick('t');
+    ok('RUN: …and after a good look, the next failure earns a fresh quick retry', retries() === 2, String(retries()));
+    ok('the retry is one number in the source, and the latch is cleared only by an answer from Drive',
+       /var _WATCH_RETRY_MS = 15000;/.test(PI) && /if \(!_pinWatchRetried\) \{ _pinWatchRetried = true; _pinWatchSoon\('retry', _WATCH_RETRY_MS\); \}/.test(PI)
+       && /var files = await _pinWatchProbe\(\);\s*\n\s*_pinWatchRetried = false;/.test(PI), '');
     const s = makeWatcher({ listing: L1 });
     await s.api.tick('t');
     s.api.soon('focus', 100); s.api.soon('visible', 100);
