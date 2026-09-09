@@ -2296,6 +2296,12 @@ function _aliasSearch(haystack, query) {
 }
 
 function populateFilters() {
+  // v0.9.1706: built from every catalog row (261–461ms measured, three times
+  // per startup) for two dropdowns nobody can see until the catalog page or
+  // My Collection is open. Same hold as the page builders: off screen means
+  // stale, and rrPageShown() refills them — BEFORE the repaint whose chips
+  // read them (RR_DEFERRABLE lists 'filters' first for exactly that reason).
+  if (typeof rrHoldRepaint === 'function' && rrHoldRepaint('filters', populateFilters)) return;
   // Session 155: deduplicate road-name dropdown via normalizer (safety net
   // against future drift after the master cleanup). Picks the most-popular
   // spelling per normalized group as the dropdown's display label.
@@ -2655,6 +2661,14 @@ var _lastBrowseHash = '';
 // repainting the browse tab never reached it. It was only ever rebuilt by
 // navigating to it. Ask which page is actually on screen and redraw that one.
 function rrRepaintBrowse() {
+  // v0.9.1706: THE ONE THE STOPWATCH CAUGHT — 36 of the 41 hidden catalog
+  // rebuilds in one startup came through here, one per maker as it landed
+  // (~300ms each, 12.5s in all, on a desktop). This function already asked
+  // "which page is on screen?" — but only to choose WHAT to draw. Now the
+  // answer also decides WHETHER: neither the catalog page nor My Collection
+  // on screen means mark them stale and stop; rrPageShown() runs this once
+  // when either is next revealed. Deferred, never dropped.
+  if (typeof rrHoldRepaint === 'function' && rrHoldRepaint('browse-repaint', rrRepaintBrowse)) return;
   var active = '';
   try {
     var el = document.querySelector('.page.active');

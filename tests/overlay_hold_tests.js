@@ -39,9 +39,12 @@ ok('the hold lives in config.js, not copied into each caller',
    /function rrHoldRepaint\(name, fn\)/.test(cfg) && /function rrFlushRepaints\(\)/.test(cfg), '');
 ok('…exposed on window for the files that use it',
    /window\.rrHoldRepaint   = rrHoldRepaint;/.test(cfg) && /window\.rrFlushRepaints = rrFlushRepaints;/.test(cfg), '');
-ok('…and it holds only while an overlay is actually up',
+// v0.9.1706 RE-PIN: the hold gained a SECOND reason — the page is off screen
+// (tests/page_stale_tests.js). The overlay reason is unchanged: it is still
+// decided by _rrCropOpen and still the last word before "carry on".
+ok('…and the OVERLAY reason is still exactly the crop flag, checked last before carrying on',
    /function rrOverlayUp\(\)[\s\S]{0,160}?window\._rrCropOpen/.test(cfg)
-   && /if \(!rrOverlayUp\(\)\) return false;/.test(cfg), '');
+   && /if \(!rrOverlayUp\(\)\) return false;\s*\n\s*if \(typeof fn === 'function'\) _rrHeldRepaints\[name\] = fn;/.test(cfg), '');
 ok('repaints are kept BY NAME, so many rebuilds collapse into one',
    /_rrHeldRepaints\[name\] = fn;/.test(cfg), '');
 

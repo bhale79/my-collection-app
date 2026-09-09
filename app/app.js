@@ -2697,6 +2697,10 @@ function showLoading() {
     if (!tb2) return;
     if (tb2.innerHTML.indexOf('Loading The Rail Roster') === -1) return;
     if (!state.masterData || state.masterData.length === 0) return;
+    // v0.9.1706: a hidden catalog page is no longer rendered at boot, so its
+    // splash is EXPECTED to still be there — it is replaced the moment the
+    // page is shown (rrPageShown). Only a splash the user can see is stuck.
+    if (typeof rrPageOnScreen === 'function' && !rrPageOnScreen(['page-browse'])) return;
     try {
       if (typeof renderBrowse === 'function') renderBrowse();
     } catch(e) {
@@ -3173,6 +3177,13 @@ function showPage(name, clickedEl) {
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   document.querySelectorAll('.mobile-nav-item').forEach(n => n.classList.remove('active'));
   document.getElementById('page-' + name).classList.add('active');
+  // v0.9.1706: this is the ONE line in the app that reveals a page, so it is
+  // the one place a page marked stale while hidden (rrHoldRepaint in
+  // config.js) gets rebuilt — before anything below can show old data, and
+  // whichever door opened it: sidebar, phone bar, a dashboard card, the
+  // device back button, a deep link. The builder calls further down still
+  // run; they find a fresh page and their signature caches make them cheap.
+  try { if (typeof rrPageShown === 'function') rrPageShown('page-' + name); } catch (eStale) {}
   // v0.9.905 (Brad, item [7]): single source of truth for "where the user is",
   // recorded on every navigation. The Add wizard is a modal (it doesn't call
   // showPage), so this still holds the page the user was viewing when they

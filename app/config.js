@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.1705';
+const APP_VERSION = 'v0.9.1706';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -383,19 +383,87 @@ function rrIsRealOwner() {
 // while a modal is covering the screen, so nothing can be left looking stale.
 var _rrHeldRepaints = {};
 
+// ══ v0.9.1706 — A PAGE NOBODY IS LOOKING AT IS NOT REBUILT ═══════════════
+// MEASURED 2026-09-09 on Brad's desktop (43 makers on, 147,970 catalog rows,
+// the Dashboard on screen, one startup data load): the Master Catalog page
+// was rebuilt 41 TIMES in 24 seconds — 36 of them "one redraw per maker as
+// it lands" — and it was hidden for every one. 39 were full rebuilds, 300ms
+// on average, 473ms at worst: 12.5 SECONDS of frozen main thread for a page
+// nobody could see. The filter dropdowns (built from every row) went three
+// more times, ~1s. The Dashboard, which IS on screen at boot, cost 77ms for
+// its four builds and needs nothing. On a phone every one of those numbers
+// is several times bigger — that is the thirty seconds of stutter.
+//
+// So the hold above gains a SECOND reason to say "stand down": the builder's
+// page is not on screen. RR_DEFERRABLE says, per hold name, which pages count
+// as on screen and which builder brings the page fully up to date. While a
+// page is hidden it is marked STALE; rrPageShown() — called from showPage(),
+// the ONE function that reveals a page — rebuilds it exactly once, before
+// anyone can see old data. Deferred, never dropped, and the work is only
+// ever done for a page someone is looking at.
+//
+// Order matters: 'filters' is listed first so the dropdowns are refilled
+// before the repaint whose chips read them.
+var RR_DEFERRABLE = {
+  // The filter dropdowns feed the catalog page AND My Collection's chip bar.
+  'filters':        { pages: ['page-browse', 'page-collection'], build: 'populateFilters' },
+  // renderBrowse draws the Items list only; the reveal runs the FULL browse
+  // repaint (the active sub-tab, or My Collection) so a stale Sets tab can
+  // never be left behind.
+  'browse':         { pages: ['page-browse'],                    build: 'rrRepaintBrowse' },
+  'browse-repaint': { pages: ['page-browse', 'page-collection'], build: 'rrRepaintBrowse' },
+};
+var _rrStale = {};
+
 function rrOverlayUp() {
   try { return !!window._rrCropOpen; } catch (e) { return false; }
 }
 
-// Returns TRUE if the caller should stand down for now. The function is kept
-// by NAME, so twenty deferred rebuilds collapse into one on the way out —
-// which is the whole point.
+// Is one of these pages the active page? With no DOM at all (a test rig, a
+// worker) the answer is "yes": never hold work on a guess.
+function rrPageOnScreen(pages) {
+  try {
+    if (typeof document === 'undefined' || !document.querySelector) return true;
+    var active = document.querySelector('.page.active');
+    if (!active) return true;
+    for (var i = 0; i < pages.length; i++) if (active.id === pages[i]) return true;
+    return false;
+  } catch (e) { return true; }
+}
+
+// Returns TRUE if the caller should stand down for now. Two reasons, checked
+// in this order: the page is off screen (marked stale, rebuilt on show), or
+// a full-screen overlay is up (the function is kept by NAME, so twenty
+// deferred rebuilds collapse into one on the way out — which is the point).
 function rrHoldRepaint(name, fn) {
   try {
+    var d = RR_DEFERRABLE[name];
+    if (d && !rrPageOnScreen(d.pages)) { _rrStale[name] = true; return true; }
     if (!rrOverlayUp()) return false;
     if (typeof fn === 'function') _rrHeldRepaints[name] = fn;
     return true;
   } catch (e) { return false; }
+}
+
+// The page with this id has just been made active. Every stale entry that
+// counts it as its screen is cleared FIRST (the rrFlushRepaints rule), then
+// each distinct builder runs ONCE, isolated. Returns the builders it ran.
+function rrPageShown(pageId) {
+  var todo = [];
+  try {
+    var names = Object.keys(RR_DEFERRABLE);
+    for (var i = 0; i < names.length; i++) {
+      var d = RR_DEFERRABLE[names[i]];
+      if (!_rrStale[names[i]] || d.pages.indexOf(pageId) < 0) continue;
+      delete _rrStale[names[i]];
+      if (todo.indexOf(d.build) < 0) todo.push(d.build);
+    }
+  } catch (e) { return todo; }
+  for (var j = 0; j < todo.length; j++) {
+    try { var f = window[todo[j]]; if (typeof f === 'function') f(); }
+    catch (e) { try { console.warn('[hold] ' + todo[j] + ' rebuild on show failed:', e && e.message); } catch (e2) {} }
+  }
+  return todo;
 }
 
 function rrFlushRepaints() {
@@ -414,6 +482,8 @@ function rrFlushRepaints() {
 try {
   window.rrOverlayUp     = rrOverlayUp;
   window.rrHoldRepaint   = rrHoldRepaint;
+  window.rrPageOnScreen  = rrPageOnScreen;
+  window.rrPageShown     = rrPageShown;
   window.rrFlushRepaints = rrFlushRepaints;
 } catch (e) {}
 
