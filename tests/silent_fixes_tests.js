@@ -95,8 +95,13 @@ section('The audit is part of the repo now');
 const pkg = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'package.json'), 'utf8'));
 ok('acorn is a devDependency (the scanner tokenizes for real; the fallback desyncs on nested templates)',
    !!(pkg.devDependencies && pkg.devDependencies.acorn), '');
-ok('npm run test:silent runs the audit; test:silentfix runs these pins and is part of npm test',
-   pkg.scripts['test:silent'] === 'node tests/silent-audit.js' && pkg.scripts['test:silentfix'] === 'node tests/silent_fixes_tests.js' && /test:silentfix/.test(pkg.scripts.test), '');
+// v0.9.1709: `npm test` became tests/run-all.js, which finds this file by its
+// name — so "part of npm test" is now proved by asking the runner, not by
+// grepping a chain of script names.
+const runAll = require('./run-all.js');
+ok('npm run test:silent runs the audit; test:silentfix runs these pins; and the runner picks this file up by name',
+   pkg.scripts['test:silent'] === 'node tests/silent-audit.js' && pkg.scripts['test:silentfix'] === 'node tests/silent_fixes_tests.js' &&
+   pkg.scripts.test === 'node tests/run-all.js' && runAll.discover().quick.includes('silent_fixes_tests.js'), '');
 const auditSrc = fs.existsSync(path.join(__dirname, 'silent-audit.js')) ? fs.readFileSync(path.join(__dirname, 'silent-audit.js'), 'utf8') : '';
 ok('the audit file exists and only ever exits 0 (an audit, not a gate)',
    auditSrc.length > 0 && /process\.exit\(0\)/.test(auditSrc) && !/process\.exit\((?!0\))/.test(auditSrc), '');

@@ -21,7 +21,15 @@ function ok(name, cond, detail) {
 
 // ── search leads ───────────────────────────────────────────────
 ok('search comes first in the row', html.indexOf('browse-search-wrap') < html.indexOf('id="hierarchy-chips"'));
-ok('...and grows into the spare space', /browse-search-wrap"[^>]*flex:1 1 240px/.test(html));
+// v0.9.1660 (Brad's screenshots): the grow-to-fill wrap stretched to nearly
+// full width while the input ellipsized its own placeholder — a huge frame
+// with a stub of type-area. Now a fixed ~30rem box (about 3x the placeholder)
+// that can still shrink on a phone, and the whole box is clickable.
+ok('...as a fixed ~30rem box that can still shrink on a phone (v1660 — it used to stretch to full width)',
+   /browse-search-wrap"[^>]*flex:0 1 30rem;min-width:220px;max-width:100%/.test(html));
+ok('...and clicking anywhere in the box focuses the input',
+   /browse-search-wrap" onclick="var i=document\.getElementById\('browse-search'\); if\(i\) i\.focus\(\);"/.test(html)
+   && /browse-search-wrap"[^>]*cursor:text/.test(html));
 // v0.9.1587 (Scott's iPad: "the words are cut off inside of the search
 // bar"): placeholder shortened to fit narrow widths + ellipsis so any
 // remaining clip fades instead of chopping mid-word.
@@ -29,8 +37,10 @@ ok('...with the placeholder INSIDE the box — short enough for a phone, ellipsi
    /id="browse-search"[^>]*placeholder="Search item #, road, description"/.test(html)
    && /id="browse-search"[^>]*text-overflow:ellipsis/.test(html));
 ok('...and its own clear button', /id="browse-search-clear"/.test(html) && /function _rrClearBrowseSearch/.test(js));
-ok('the clear button only shows with text in the box',
-   /e\.target\.value \? 'block' : 'none'/.test(js));
+// v0.9.1660: 'block' rendered the × BELOW the box; inline-flex keeps it inside,
+// to the right of the text. The rule is unchanged: only shown with text.
+ok('the clear button only shows with text in the box (inline-flex, so it stays inside the box — v1660)',
+   /e\.target\.value \? 'inline-flex' : 'none'/.test(js) && !/e\.target\.value \? 'block'/.test(js));
 
 // ── on and off look different ──────────────────────────────────
 ok('an active filter is a solid blue pill', /var _FON = '#2980b9'/.test(js));

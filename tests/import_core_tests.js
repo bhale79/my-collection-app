@@ -6,15 +6,24 @@
 // red for-sale rows on a CUSTOM indexed palette at 13/14).
 //
 // Run:  node tests/import_core_tests.js [path-to-fixture.xlsx]
-// Needs: exceljs (devDependency). Skips fixture tests (still fails the
-// run) if the fixture file is missing — the fixture is part of the test.
+//       (or set RR_IMPORT_FIXTURE=<path>; or drop the file at the repo root)
+// Needs: exceljs (devDependency — `npm install`).
+//
+// The fixture is Scott's REAL inventory, so it is deliberately not in the
+// repo. Its home is Brad's PC:
+//   C:\Users\Brad\Documents\TheRailRoster\TheRailRoster\Scott_Inventory_TEST_FIXTURE.xlsx
+// Session 94: a missing fixture used to FAIL the run, which made the suite
+// red on every fresh clone for weeks — and a suite that is "always red"
+// hides the next real failure. Now a missing fixture SKIPS the fixture
+// section, loudly (the tally says how many pins did not run), and the run
+// stays green. When the file IS present its 18 pins run and count.
 // ═══════════════════════════════════════════════════════════════
 
 const path = require('path');
 const fs = require('fs');
 const core = require('../app/import-core.js');
 
-let pass = 0, fail = 0;
+let pass = 0, fail = 0, skipped = 0, skipNote = '';
 function is_close(name, got, want) { ok(name, Math.abs(got - want) < 0.001, got); }
 function ok(name, cond, detail) {
   if (cond) { pass++; console.log('PASS  ' + name + (detail !== undefined ? '  -> ' + detail : '')); }
@@ -838,16 +847,21 @@ ok('675 stays for the prewar/postwar verify (two vintage candidates)',
 })();
 
 // ── Fixture tests (Scott's real workbook) ───────────────────────
-const fixturePath = process.argv[2] || path.join(__dirname, '..', 'Scott_Inventory_TEST_FIXTURE.xlsx');
+const FIXTURE_PINS = 18;   // how many pins the section below holds — keep in step
+const FIXTURE_HOME = 'C:\\Users\\Brad\\Documents\\TheRailRoster\\TheRailRoster\\Scott_Inventory_TEST_FIXTURE.xlsx';
+const fixturePath = process.argv[2] || process.env.RR_IMPORT_FIXTURE || path.join(__dirname, '..', 'Scott_Inventory_TEST_FIXTURE.xlsx');
 
 async function fixtureTests() {
   if (!fs.existsSync(fixturePath)) {
-    ok('FIXTURE PRESENT at ' + fixturePath, false, 'missing — pass the path as argv[2]');
+    skipped = FIXTURE_PINS;
+    skipNote = 'fixture not on this machine (' + fixturePath + '). It lives at ' + FIXTURE_HOME +
+               ' — pass its path as argv[2] or RR_IMPORT_FIXTURE to run the ' + FIXTURE_PINS + ' fixture pins.';
+    console.log('SKIP  ' + FIXTURE_PINS + ' fixture pins — ' + skipNote);
     return;
   }
   let ExcelJS;
   try { ExcelJS = require('exceljs'); }
-  catch (e) { ok('exceljs available', false, 'npm install exceljs'); return; }
+  catch (e) { ok('exceljs available (devDependency — npm install)', false, 'the fixture is here but its reader is not; npm install'); return; }
 
   const wb = new ExcelJS.Workbook();
   await wb.xlsx.readFile(fixturePath);
@@ -977,8 +991,19 @@ async function fixtureTests() {
   ok('fixture: type read from 80%+ of descriptions', pct >= 80, typed + '/' + seen + ' = ' + pct + '%');
 }
 
+const _beforeFixture = pass + fail;
 fixtureTests().then(() => {
+  // The SKIP line promises a number; make sure it is the true one.
+  if (!skipped) {
+    const ran = pass + fail - _beforeFixture;
+    ok('the fixture section holds exactly FIXTURE_PINS pins (keep the constant in step with the section)',
+       ran === FIXTURE_PINS, ran + ' ran, FIXTURE_PINS = ' + FIXTURE_PINS);
+  }
   console.log('');
-  console.log(fail === 0 ? 'ALL IMPORT-CORE TESTS GREEN (' + pass + ')' : fail + ' FAILING of ' + (pass + fail));
+  const tally = fail === 0 ? 'ALL IMPORT-CORE TESTS GREEN (' + pass + ')' : fail + ' FAILING of ' + (pass + fail);
+  console.log(skipped ? tally + '  —  ' + skipped + ' SKIPPED: ' + skipNote : tally);
   process.exit(fail === 0 ? 0 : 1);
+}, err => {
+  console.log('FAIL  fixture section threw: ' + (err && err.message || err));
+  process.exit(1);
 });
