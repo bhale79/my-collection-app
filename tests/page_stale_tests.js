@@ -43,13 +43,13 @@ ok('the registry lives in config.js beside the overlay hold — one mechanism, n
    /var RR_DEFERRABLE = \{/.test(cfg) && cfg.indexOf('var RR_DEFERRABLE') > cfg.indexOf('var _rrHeldRepaints = {};')
    && cfg.indexOf('var RR_DEFERRABLE') < cfg.indexOf('function rrFlushRepaints()'), '');
 ok('it names the three hidden builders the stopwatch caught',
-   /'filters':\s*\{ pages: \['page-browse', 'page-collection'\], build: 'populateFilters' \}/.test(cfg)
+   /'filters':\s*\{ pages: \['page-browse', 'page-collection'\], build: 'populateFilters', warm: true \}/.test(cfg)
    && /'browse':\s*\{ pages: \['page-browse'\],\s*build: 'rrRepaintBrowse' \}/.test(cfg)
    && /'browse-repaint':\s*\{ pages: \['page-browse', 'page-collection'\], build: 'rrRepaintBrowse' \}/.test(cfg), '');
 ok("'filters' is listed FIRST, so dropdowns are refilled before the repaint whose chips read them",
    cfg.indexOf("'filters':") < cfg.indexOf("'browse':") && cfg.indexOf("'browse':") < cfg.indexOf("'browse-repaint':"), '');
 ok('the page rule is checked BEFORE the overlay rule (hidden + overlay = stale, not held-by-name)',
-   /function rrHoldRepaint\(name, fn\) \{\s*\n\s*try \{\s*\n\s*var d = RR_DEFERRABLE\[name\];\s*\n\s*if \(d && !rrPageOnScreen\(d\.pages\)\) \{ _rrStale\[name\] = true; return true; \}\s*\n\s*if \(!rrOverlayUp\(\)\) return false;/.test(cfg), '');
+   /function rrHoldRepaint\(name, fn\) \{\s*\n\s*try \{\s*\n\s*var d = RR_DEFERRABLE\[name\];\s*\n\s*if \(d && name !== _rrWarming && !rrPageOnScreen\(d\.pages\)\) \{ _rrStale\[name\] = true; return true; \}\s*\n\s*if \(!rrOverlayUp\(\)\) return false;/.test(cfg), '');
 ok('rrPageShown clears the stale marks FIRST, then runs each distinct builder once, isolated',
    /delete _rrStale\[names\[i\]\];\s*\n\s*if \(todo\.indexOf\(d\.build\) < 0\) todo\.push\(d\.build\);/.test(cfg)
    && /try \{ var f = window\[todo\[j\]\]; if \(typeof f === 'function'\) f\(\); \}\s*\n\s*catch \(e\)/.test(cfg), '');
@@ -184,6 +184,77 @@ function rig(activePageId) {
   new Function('window', src)(window);   // no `document` in scope at all
   ok('RUN: with no document (the v1703 test rig, a worker) the page rule never holds',
      window.rrHoldRepaint('browse', function () {}) === false && window.rrPageOnScreen(['page-browse']) === true, '');
+}
+
+// ── 3. v0.9.1707 — the idle warm-up ──────────────────────────────────────
+// MEASURED on v1706: the first open of the catalog after a startup cost
+// 1.15s on Brad's desktop — 0.65s filling the filter dropdowns, 0.5s drawing
+// the page. The fill draws nothing, so it may run quietly once the load has
+// settled and the browser is idle; the DRAW may not. Desktop only.
+section('The idle warm-up (v1707)');
+ok("only 'filters' is warmable — no page DRAW ever carries the flag",
+   (cfg.match(/warm: true/g) || []).length === 1 && /build: 'populateFilters', warm: true/.test(cfg), '');
+ok('the warm-up is idle-scheduled, with a plain timer where idle callbacks do not exist',
+   /window\.requestIdleCallback\(run, \{ timeout: 5000 \}\)/.test(cfg) && /else setTimeout\(run, 1500\);/.test(cfg), '');
+ok('it never runs on a phone or tablet', /if \(typeof window === 'undefined' \|\| window\.IS_MOBILE_UA\) return false;/.test(cfg), '');
+ok('the bypass is ONE name, one call, cleared in finally',
+   /_rrWarming = names\[i\];\s*\n\s*try \{ var f = window\[d\.build\];[\s\S]{0,200}?finally \{ _rrWarming = ''; \}/.test(cfg), '');
+ok('both settle points call it: the all-eras loop end, and the single-era boot',
+   /All eras up to date[\s\S]{0,400}?rrWarmStale\(\)/.test(app) && /rrWarmStale\(\)/.test(rd('app-data.js')), '');
+function warmRig(activePageId, mobile, withIdle) {
+  const src = cfg.slice(cfg.indexOf('var _rrHeldRepaints = {};'), cfg.indexOf('window.rrFlushRepaints = rrFlushRepaints;') + 'window.rrFlushRepaints = rrFlushRepaints;'.length) + '}catch(e){}';
+  const st = { active: activePageId, calls: [], idle: [], timers: [] };
+  const window = { _rrCropOpen: false, IS_MOBILE_UA: !!mobile };
+  if (withIdle) window.requestIdleCallback = function (fn) { st.idle.push(fn); };
+  const document = { querySelector: function (sel) { return sel === '.page.active' && st.active ? { id: st.active } : null; } };
+  const setTimeout = function (fn, ms) { st.timers.push({ fn: fn, ms: ms }); };
+  new Function('window', 'document', 'console', 'setTimeout', src)(window, document, { warn: function () {} }, setTimeout);
+  window.populateFilters = function () { if (window.rrHoldRepaint('filters', window.populateFilters)) return 'held'; st.calls.push('filters'); };
+  window.rrRepaintBrowse = function () { if (window.rrHoldRepaint('browse-repaint', window.rrRepaintBrowse)) return 'held'; st.calls.push('repaint'); };
+  st.window = window;
+  st.show = function (id) { st.active = id; return window.rrPageShown(id); };
+  st.fire = function () { st.idle.splice(0).forEach(f => f()); st.timers.splice(0).forEach(t => t.fn()); };
+  return st;
+}
+{
+  const s = warmRig('page-dashboard', false, true);
+  s.window.populateFilters(); s.window.rrRepaintBrowse();          // both stale, hidden
+  ok('RUN: rrWarmStale on a desktop schedules an idle callback and runs nothing yet',
+     s.window.rrWarmStale() === true && s.idle.length === 1 && s.calls.length === 0, '');
+  s.fire();
+  ok('RUN: when idle, it fills the filters ONLY — the page draw stays stale', s.calls.join(',') === 'filters', s.calls.join(','));
+  ok('RUN: …with the page still hidden (the bypass let exactly that one builder through)', s.active === 'page-dashboard', '');
+  ok('RUN: a later hidden filter call is held again — the bypass did not leak',
+     (s.window.populateFilters(), s.calls.join(',') === 'filters'), s.calls.join(','));
+  const ran = s.show('page-browse');
+  ok('RUN: opening the catalog then runs the draw plus the re-stale filters — nothing lost, nothing doubled',
+     ran.join(',') === 'populateFilters,rrRepaintBrowse', ran.join(','));
+}
+{
+  const s = warmRig('page-dashboard', false, false);
+  s.window.populateFilters();
+  s.window.rrWarmStale();
+  ok('RUN: without requestIdleCallback it falls back to a 1.5s timer', s.timers.length === 1 && s.timers[0].ms === 1500, '');
+  s.fire();
+  ok('RUN: …which fills the filters the same way', s.calls.join(',') === 'filters', '');
+  ok('RUN: with nothing stale, a warm-up does nothing', (s.fire(), s.window.rrWarmStale(), s.fire(), s.calls.length === 1), '');
+}
+{
+  const p = warmRig('page-dashboard', true, true);
+  p.window.populateFilters();
+  ok('RUN: on a phone the warm-up refuses outright — no idle callback, no timer, nothing run',
+     p.window.rrWarmStale() === false && p.idle.length === 0 && p.timers.length === 0 && p.calls.length === 0, '');
+  ok('RUN: …and the phone still gets its honest rebuild on first open', p.show('page-browse').join(',') === 'populateFilters', '');
+}
+{
+  const s = warmRig('page-dashboard', false, true);
+  s.window.populateFilters();
+  s.window.populateFilters = function () { throw new Error('boom'); };
+  s.window.rrWarmStale(); s.fire();
+  s.window.populateFilters = function () { if (s.window.rrHoldRepaint('filters', s.window.populateFilters)) return 'held'; s.calls.push('filters'); };
+  s.window.populateFilters();
+  ok('RUN: a warm-up that throws leaves the bypass CLEARED — the next hidden call is held, not let through',
+     s.calls.length === 0, s.calls.join(','));
 }
 
 console.log('\n  ' + pass + ' passed, ' + fail + ' failed');

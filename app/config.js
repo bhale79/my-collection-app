@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.1706';
+const APP_VERSION = 'v0.9.1707';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -406,7 +406,9 @@ var _rrHeldRepaints = {};
 // before the repaint whose chips read them.
 var RR_DEFERRABLE = {
   // The filter dropdowns feed the catalog page AND My Collection's chip bar.
-  'filters':        { pages: ['page-browse', 'page-collection'], build: 'populateFilters' },
+  // `warm`: safe to fill quietly during idle time (see rrWarmStale) — it
+  // draws nothing on screen. Page draws never carry this flag.
+  'filters':        { pages: ['page-browse', 'page-collection'], build: 'populateFilters', warm: true },
   // renderBrowse draws the Items list only; the reveal runs the FULL browse
   // repaint (the active sub-tab, or My Collection) so a stale Sets tab can
   // never be left behind.
@@ -414,6 +416,7 @@ var RR_DEFERRABLE = {
   'browse-repaint': { pages: ['page-browse', 'page-collection'], build: 'rrRepaintBrowse' },
 };
 var _rrStale = {};
+var _rrWarming = '';   // the ONE hold name rrWarmStale is running right now (bypasses its page rule)
 
 function rrOverlayUp() {
   try { return !!window._rrCropOpen; } catch (e) { return false; }
@@ -438,7 +441,7 @@ function rrPageOnScreen(pages) {
 function rrHoldRepaint(name, fn) {
   try {
     var d = RR_DEFERRABLE[name];
-    if (d && !rrPageOnScreen(d.pages)) { _rrStale[name] = true; return true; }
+    if (d && name !== _rrWarming && !rrPageOnScreen(d.pages)) { _rrStale[name] = true; return true; }
     if (!rrOverlayUp()) return false;
     if (typeof fn === 'function') _rrHeldRepaints[name] = fn;
     return true;
@@ -466,6 +469,41 @@ function rrPageShown(pageId) {
   return todo;
 }
 
+// ── v0.9.1707: THE IDLE WARM-UP ──────────────────────────────────────────
+// MEASURED on v1706: with nothing built behind the user's back, the FIRST
+// open of the catalog after a startup cost 1.15s on Brad's desktop — 0.65s
+// of it filling the filter dropdowns (9,100 road names from 148k rows),
+// 0.5s drawing the page. The dropdown fill draws nothing anyone can see, so
+// it is safe to do quietly once the startup load has settled and the
+// browser is idle; the page draw is NOT — a draw that overruns the idle
+// window is a stutter, which is what this file exists to prevent. So only
+// entries flagged `warm` qualify, and only on a desktop: a phone opens the
+// catalog rarely and must never freeze behind the user's back, so it keeps
+// the honest first-open cost instead.
+//
+// The bypass is one name, one call, under try/finally: _rrWarming lets that
+// builder's own hold through its page rule exactly once.
+function rrWarmStale() {
+  try {
+    if (typeof window === 'undefined' || window.IS_MOBILE_UA) return false;
+    var run = function () {
+      var names = Object.keys(RR_DEFERRABLE);
+      for (var i = 0; i < names.length; i++) {
+        var d = RR_DEFERRABLE[names[i]];
+        if (!d.warm || !_rrStale[names[i]]) continue;
+        delete _rrStale[names[i]];
+        _rrWarming = names[i];
+        try { var f = window[d.build]; if (typeof f === 'function') f(); }
+        catch (e) { try { console.warn('[hold] ' + d.build + ' warm-up failed:', e && e.message); } catch (e2) {} }
+        finally { _rrWarming = ''; }
+      }
+    };
+    if (typeof window.requestIdleCallback === 'function') window.requestIdleCallback(run, { timeout: 5000 });
+    else setTimeout(run, 1500);
+    return true;
+  } catch (e) { return false; }
+}
+
 function rrFlushRepaints() {
   var held = _rrHeldRepaints;
   _rrHeldRepaints = {};            // cleared FIRST, so a repaint that throws —
@@ -484,6 +522,7 @@ try {
   window.rrHoldRepaint   = rrHoldRepaint;
   window.rrPageOnScreen  = rrPageOnScreen;
   window.rrPageShown     = rrPageShown;
+  window.rrWarmStale     = rrWarmStale;
   window.rrFlushRepaints = rrFlushRepaints;
 } catch (e) {}
 

@@ -193,6 +193,9 @@ async function loadAllData() {
     buildPartnerMap();
     _loadMasterVersion();   // v0.9.1103 — which master sheet is live (fail-silent)
     buildApp(); if (typeof _auditCatalogResolution === 'function') setTimeout(_auditCatalogResolution, 1500);
+    // v0.9.1707: single-era boot has no background era loop to settle after —
+    // warm the hidden filter dropdowns once the browser is idle (desktop only).
+    try { if (typeof rrWarmStale === 'function') rrWarmStale(); } catch (eWarm) {}
     // v0.9.1599: fresh sheet data is finally in hand — offline-added rows
     // (stranded appends) can drain with the duplicate guard armed.
     try { if (typeof window._rrOfflineAppendDrain === 'function') setTimeout(window._rrOfflineAppendDrain, 2500); } catch (eAD) {}

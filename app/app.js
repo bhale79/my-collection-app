@@ -2264,6 +2264,9 @@ async function loadAllErasMode() {
     else if (typeof renderBrowse === 'function') renderBrowse();
     if (typeof buildDashboard === 'function') buildDashboard();
     showToast('All eras up to date — ' + (state.masterData||[]).length + ' items', 2500);
+    // v0.9.1707: the load has settled — fill the hidden filter dropdowns
+    // once, quietly, when the browser is next idle (desktop only).
+    try { if (typeof rrWarmStale === 'function') rrWarmStale(); } catch (eWarm) {}
   })().catch(function(e) {
     window._skipBackgroundRefresh = false;
     console.error('[loadAllErasMode] background refresh failed:', e);
