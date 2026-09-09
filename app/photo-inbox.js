@@ -1743,7 +1743,17 @@
     return map;
   }
 
+  // v0.9.1704: ONE refresh at a time. Refresh pressed twice, or the inbox
+  // watcher (below) landing while a refresh is already listing, used to start
+  // a second full listing beside the first — two renders racing to draw the
+  // same grid. A second call now simply rides the refresh in flight.
+  var _pinRefreshFlight = null;
   window._pinRefresh = async function () {
+    if (_pinRefreshFlight) return _pinRefreshFlight;
+    _pinRefreshFlight = _pinRefreshRun();
+    try { return await _pinRefreshFlight; } finally { _pinRefreshFlight = null; }
+  };
+  async function _pinRefreshRun() {
     if (!_ensurePage()) return;
     // v0.9.1590: the staged strip re-reads its store on every refresh, and a
     // refresh is a fine moment to try the drain (it costs nothing when the
@@ -1793,8 +1803,10 @@
         // still throws — there is nothing partial to show.
         var res;
         try {
+          // v0.9.1704: modifiedTime rides along (same request, no extra cost)
+          // so this listing can be the inbox watcher's fingerprint baseline.
           res = await driveRequest('GET', '/files?q=' + q +
-            '&fields=nextPageToken,files(id,name,createdTime,appProperties,thumbnailLink)&orderBy=createdTime desc&pageSize=200' +
+            '&fields=nextPageToken,files(id,name,createdTime,modifiedTime,appProperties,thumbnailLink)&orderBy=createdTime desc&pageSize=200' +
             (_pageTok ? '&pageToken=' + _pageTok : ''));
         } catch (ePage) {
           if (!files.length) throw ePage;
@@ -1806,6 +1818,11 @@
         _pageTok = (res && res.nextPageToken) || '';
         if (++_guard > 40) { _pinListComplete = false; break; }   // ~8,000 photos; never spin forever
       } while (_pageTok);
+      // v0.9.1704: this listing is what the screen is about to show, so it is
+      // the fingerprint the inbox watcher compares Drive against. Only a
+      // COMPLETE listing may be a baseline — a partial one would make every
+      // photo past the cut look like a change on another device.
+      _pinWatchSig = _pinListComplete ? _pinWatchSigOf(files) : null;
       // Group by the g<id> tag; untagged files are their own group.
       var map = _pinBuildGroups(files);
       // v0.9.1326 (MEASURED): the listing now asks for thumbnailLink, which
@@ -1870,6 +1887,159 @@
       _status('Could not load the inbox — check your connection and try Refresh.');
     }
   };
+
+  // ══ v0.9.1704 — THE INBOX WATCHER ═══════════════════════════════════════
+  // Brad, 2026-09-09: "when i add photos to the inbox from my app, my desktop
+  // app has to be refreshed to see them. can we not automatically refresh the
+  // desktop when we make edits on the phone. i am okay with that happening
+  // when i hit done or apply."
+  //
+  // The photos themselves are the signal. The phone puts them in the Drive
+  // inbox folder, so the desktop needs nothing from the phone — it needs to
+  // LOOK. About once a minute, while the Photo Inbox page (or the Dashboard,
+  // for its inbox card) is on screen, it asks Drive for a fingerprint of the
+  // folder: every photo's id and last-changed time, nothing else. One small
+  // request. If the fingerprint differs from what the screen was built from —
+  // a photo added, cropped, tagged or filed away on another device — the inbox
+  // reloads itself exactly as if Refresh had been pressed, and the badge
+  // follows. Done and Apply on the phone are exactly the moments the folder
+  // changes, so they are exactly the moments this notices.
+  //
+  // THREE RULES, each pinned in tests/inbox_watch_tests.js:
+  //   1. It reloads only on a REAL difference. Same fingerprint, no redraw.
+  //   2. It holds still while the user is mid-anything — a review card, the
+  //      crop screen, select mode, a panel, a drag, a running job, a refresh
+  //      already in flight, the app hidden or offline. A change seen while
+  //      held is not dropped: the fingerprint is left unmatched, so the next
+  //      idle tick reloads. Deferred, never dropped (the v0.9.1703 rule).
+  //   3. Phones and tablets NEVER poll. The phone is the device making the
+  //      changes, and polling costs battery for nothing.
+  //
+  // Why not Drive's changes feed: it is cheaper on the wire but needs a saved
+  // page token per device with its own expiry rules — state that can go stale
+  // or corrupt. A fingerprint has no state to lose; the worst case is one
+  // redundant reload. Deliberately the simpler tool.
+  var _WATCH_MS = 60000;           // one look a minute — the one number to tune
+  var _WATCH_EVENT_GAP_MS = 5000;  // focus + visibility fire together; look once
+  var _pinWatchSig = null;         // fingerprint the screen was built from; null = none yet
+  var _pinWatchBusy = false;       // a look is in flight
+  var _pinWatchTimer = null;
+  var _pinWatchLastAt = 0;
+
+  // The fingerprint: order-independent, so a re-sorted listing is not a change.
+  function _pinWatchSigOf(files) {
+    try {
+      return (files || []).map(function (f) { return f.id + '@' + (f.modifiedTime || ''); }).sort().join('|');
+    } catch (e) { return null; }
+  }
+
+  // Where is the user? Only two screens show the inbox: the page itself, and
+  // the dashboard when its Photo Inbox card or panel is placed. Anywhere else
+  // there is nothing to keep fresh, so nothing is asked of Drive.
+  function _pinWatchScreen() {
+    try {
+      var p = document.querySelector('.page.active');
+      var id = (p && p.id) || '';
+      if (id === 'page-photo-inbox') return 'inbox';
+      if (id === 'page-dashboard' && (document.getElementById('pin-panel-grid') || document.getElementById('pin-card-value'))) return 'dashboard';
+    } catch (e) {}
+    return '';
+  }
+
+  // Why the watcher must hold still right now, or '' when it may act. This is
+  // not a user-action guard — nobody pressed anything, so there is nothing to
+  // say out loud — it only READS the busy flag into a reason for the console.
+  function _pinWatchHold() {
+    try {
+      if (window.IS_MOBILE_UA) return 'phone';
+      if (document.hidden) return 'hidden';
+      if (_pinOffline()) return 'offline';
+      if (!_qcToken()) return 'signed out';
+      var job = _busy ? ('busy: ' + (_busyWhat || 'a job')) : '';
+      if (job) return job;
+      if (_pinRefreshFlight) return 'refresh in flight';
+      if (window._rrCropOpen) return 'crop screen';
+      if (_selectMode) return 'select mode';
+      if (window._pinInternalDrag) return 'drag';
+      var open = ['pin-review-ov', 'pin-rv-slotpick', 'pin-ctx-sheet', 'pin-wf-sheet', 'pin-help-sheet', 'pin-grp-panel'];
+      for (var i = 0; i < open.length; i++) if (document.getElementById(open[i])) return open[i];
+      var wiz = document.getElementById('wizard-modal');
+      if (wiz && wiz.classList.contains('open')) return 'wizard';
+    } catch (e) { return 'error'; }
+    return '';
+  }
+
+  // One look: ids + modifiedTime for the whole folder, 1,000 per page. A
+  // folder too big to fingerprint in a few pages says nothing this tick rather
+  // than comparing a partial list (that would read as everything changed).
+  async function _pinWatchProbe() {
+    var fid = await _folder();
+    var q = encodeURIComponent("'" + fid + "' in parents and mimeType contains 'image/' and trashed=false");
+    var files = [], tok = '', guard = 0;
+    do {
+      var r = await driveRequest('GET', '/files?q=' + q + '&fields=nextPageToken,files(id,modifiedTime)&pageSize=1000' +
+        (tok ? '&pageToken=' + tok : ''));
+      ((r && r.files) || []).forEach(function (f) { files.push(f); });
+      tok = (r && r.nextPageToken) || '';
+    } while (tok && ++guard < 8);
+    return tok ? null : files;
+  }
+
+  // The tick. Returns a one-word verdict so the tests (and the console) can
+  // see exactly which rule decided. `why` names what woke it.
+  async function _pinWatchTick(why) {
+    var screen = _pinWatchScreen();
+    if (!screen) return 'off screen';
+    var hold = _pinWatchHold();
+    if (hold) return hold;
+    if (_pinWatchBusy) return 'already looking';
+    _pinWatchBusy = true;
+    _pinWatchLastAt = Date.now();
+    try {
+      var files = await _pinWatchProbe();
+      if (!files) return 'folder too big';
+      var sig = _pinWatchSigOf(files);
+      if (_pinWatchSig === null) { _pinWatchSig = sig; return 'baseline'; }
+      if (sig === _pinWatchSig) return 'same';
+      // Drive moved on since the screen was drawn. Ask again before acting —
+      // the user may have opened a card while Drive was answering. Held now
+      // means the baseline stays unmatched, so the next idle tick reloads.
+      hold = _pinWatchHold();
+      if (hold) { console.log('[inbox watch] change seen, holding (' + hold + ')'); return 'held'; }
+      if (screen === 'inbox') {
+        console.log('[inbox watch] inbox changed on another device (' + why + ') — reloading');
+        await window._pinRefresh();        // takes the new baseline from its own complete listing
+      } else {
+        console.log('[inbox watch] inbox changed on another device (' + why + ') — updating the dashboard card');
+        _pinWatchSig = sig;
+        _navBadge(files.length);
+        try { _pinPanelFill(); } catch (eP) {}
+      }
+      return 'reloaded';
+    } catch (e) {
+      console.warn('[inbox watch] look failed:', e && e.message);
+      return 'error';
+    } finally { _pinWatchBusy = false; }
+  }
+  // Event-driven looks (tab shown, window focused, card closed) are cheap but
+  // arrive in clusters; one look per few seconds is plenty.
+  function _pinWatchSoon(why, delayMs) {
+    setTimeout(function () {
+      if (Date.now() - _pinWatchLastAt < _WATCH_EVENT_GAP_MS) return;
+      _pinWatchTick(why);
+    }, delayMs || 800);
+  }
+  function _pinWatchStart() {
+    if (_pinWatchTimer || window.IS_MOBILE_UA) return;   // rule 3: phones never poll
+    _pinWatchTimer = setInterval(function () { _pinWatchTick('timer'); }, _WATCH_MS);
+    try {
+      document.addEventListener('visibilitychange', function () {
+        if (document.visibilityState === 'visible') _pinWatchSoon('tab shown', 1200);
+      });
+      window.addEventListener('focus', function () { _pinWatchSoon('window focused', 800); });
+    } catch (e) {}
+  }
+  window._pinWatchTick = _pinWatchTick;   // for the tests and the console; not a UI hook
 
   // ── v0.9.1608 (Brad: "the photo doesn't go away once its added. i can
   // keep adding the same picture over and over") ───────────────────────
@@ -3933,6 +4103,9 @@
     var ov = document.getElementById('pin-review-ov');
     if (ov) ov.remove();
     _rvOrderKeys = null;         // v0.9.1307: next opening snapshots fresh
+    // v0.9.1704: the card was the thing holding the inbox watcher still, so
+    // whatever the phone did while it was open can show now.
+    try { _pinWatchSoon('card closed', 400); } catch (eW) {}
   };
 
   // Left/right arrow keys do the same thing on a desktop keyboard. Ignored
@@ -11727,4 +11900,7 @@
   // The phone bottom bar is static HTML — give it its Inbox button right
   // away (the sidebar half of _injectNav waits for login harmlessly).
   try { _injectNav(); } catch (e) {}
+  // v0.9.1704: the inbox watcher. Idle until signed in and the inbox (or the
+  // dashboard's inbox card) is on screen; never started on a phone.
+  try { _pinWatchStart(); } catch (e) {}
 })();
