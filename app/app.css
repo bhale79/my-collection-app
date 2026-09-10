@@ -1862,7 +1862,7 @@
 /* ── Insurance report print styles (Session 112) ── */
 /* When the user prints, hide app chrome and show just the report content. */
 @media print {
-  .sidebar, .mobile-nav, .tut-help-widget, #tut-help-widget, #tut-overlay,
+  .sidebar, .mobile-nav, .tut-help-widget, #tut-help-widget,
   #gmail-help-overlay, #onboarding-map-overlay, #onboarding-return-bar,
   .header, #mnav, .nav-toggle, .report-controls, .qa-fab, #qa-panel,
   #export-report-btn, #report-type, select, button {

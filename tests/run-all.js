@@ -24,8 +24,8 @@
 //            minutes to an hour (guide-buttons and guide-chaos walk every
 //            step of every guide four ways); run them when guides, the
 //            wizard's photo viewer, or app/sw.js change
-//   audits   button-audit / phone-audit / silent-audit / update-color-budget —
-//            reports, never gates; run by hand, never by this runner
+//   audits   button-audit / phone-audit / silent-audit / press-audit /
+//            update-color-budget — reports, never gates; run by hand
 // Anything else in tests/ (except tests/lib/) is UNCLASSIFIED and turns the
 // run red until it is given a home — a test that runs nowhere is the bug this
 // file exists to prevent.
@@ -44,7 +44,7 @@ const TESTS = __dirname;
 const QUICK_EXTRA = ['syntax-check.js', 'color-count.js', 'no-drill-residue.js', 'lookup_canary.js',
                      'layout-check.js', 'help-hub.js', 'help-surfaces.js'];
 const BROWSER = ['photo-viewer.js', 'sw-nav-cache.js'];           // plus guide-*.js
-const AUDITS = ['button-audit.js', 'phone-audit.js', 'silent-audit.js', 'update-color-budget.js'];
+const AUDITS = ['button-audit.js', 'phone-audit.js', 'silent-audit.js', 'press-audit.js', 'update-color-budget.js'];
 // Browser suites walk every guide step with real waits; guide-buttons and
 // guide-chaos alone run past ten minutes, so the browser tier is given half
 // an hour each and is run ONE AT A TIME — four Chromiums abreast starve each

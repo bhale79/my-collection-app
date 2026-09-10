@@ -2087,6 +2087,56 @@ async function loadAllErasMode() {
     var _phase6OK = false;
     var _eraFailed = [];
     function _sleepMs(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+
+    // ── THE HOLDING PEN (v0.9.1710, startup perf) ─────────────────────────
+    //
+    // A maker that landed used to swap its rows in, reindex the whole catalog
+    // and repaint, on its own, immediately. With 43 makers that is ~40 of
+    // those, and over Brad's 147,970-row catalog each one costs ~70ms of
+    // FROZEN screen — the 3s the deferred-render work (v0.9.1706) measured
+    // and left alone.
+    //
+    // The three steps must stay TOGETHER — see the v0.9.1236 note inside
+    // _applyPendingEras — but they need not run once per maker. Landed rows
+    // wait here and are applied in ONE batch every _ERA_APPLY_MS, and once
+    // more the moment a round ends. Four makers are always in flight, so most
+    // land inside the same window and share a single reindex.
+    //
+    // Nothing else reads the pen: until a batch is applied, state.masterData
+    // holds exactly what it held before — that maker's CACHED rows, which is
+    // what was on screen a moment ago. The only thing that changes is that a
+    // fresh maker appears up to half a second later, during a phase that is
+    // already showing "loading more eras 2/7".
+    var _ERA_APPLY_MS = 500;
+    var _eraPen = new Map();       // era -> its deduped rows, waiting
+    var _eraPenTimer = null;
+    function _applyPendingEras() {
+      if (_eraPenTimer) { clearTimeout(_eraPenTimer); _eraPenTimer = null; }
+      if (!_eraPen.size) return 0;
+      var pending = _eraPen; _eraPen = new Map();
+      var drop = new Set(pending.keys());
+      var incoming = [];
+      pending.forEach(function (rows) { for (var i = 0; i < rows.length; i++) incoming.push(rows[i]); });
+      // Swap in these makers' slices — every other maker's rows stay untouched.
+      state.masterData = (state.masterData || []).filter(function (m) { return !drop.has(m._era); }).concat(incoming);
+      // v0.9.1236 (identity audit): that line MOVES these makers' blocks to the
+      // end of the array, so every row at or after them changes index. The
+      // rendered browse rows carry their index baked into their onclick, and
+      // the app invites the user to keep working while eras load ("loading
+      // more eras 2/7"). Clicking a row during that window opened a different
+      // item — and answering "yes, I own this" filed the wrong one. Rebuilding
+      // here also bumps _rrDataRev, which is what tells the browse render its
+      // cached DOM is stale; the length-based fingerprint cannot see a
+      // reorder. Swap, reindex, repaint: one step, never split.
+      if (typeof _rebuildMasterIndex === 'function') _rebuildMasterIndex();
+      // v0.9.1251 (finding 13): repaint the VISIBLE tab, not just the Items
+      // list — the sub-tabs bake the same masterData index into their rows.
+      if (typeof rrRepaintBrowse === 'function') rrRepaintBrowse();
+      else if (typeof renderBrowse === 'function') renderBrowse();
+      try { window._rrEraApplies = (window._rrEraApplies || 0) + 1; } catch (e) {}   // what the stopwatch counts
+      return drop.size;
+    }
+
     async function _refreshOneEra(_era) {
       var rows = await _fetchMasterTabs(_era);
       if (!rows || !rows.length) throw new Error('no rows returned');   // empty = failure: never cache a blank catalog over a good one
@@ -2094,21 +2144,13 @@ async function loadAllErasMode() {
       deduped.forEach(function(m) { m._era = _era; });
       idbSet('lv_master_cache_' + _era, deduped);
       try { localStorage.setItem('lv_master_cache_ts_' + _era, Date.now().toString()); } catch(e) {}
-      // Swap in just this era's slice — every other era's rows stay untouched.
-      state.masterData = (state.masterData || []).filter(function(m) { return m._era !== _era; }).concat(deduped);
-      // v0.9.1236 (identity audit): that line MOVES this era's block to the end
-      // of the array, so every row at or after it changes index. The rendered
-      // browse rows carry their index baked into their onclick, and the app
-      // invites the user to keep working while eras load ("loading more eras
-      // 2/7"). Clicking a row during that window opened a different item — and
-      // answering "yes, I own this" filed the wrong one. Rebuilding here also
-      // bumps _rrDataRev, which is what tells the browse render its cached DOM
-      // is stale; the length-based fingerprint cannot see a reorder.
-      if (typeof _rebuildMasterIndex === 'function') _rebuildMasterIndex();
-      // v0.9.1251 (finding 13): repaint the VISIBLE tab, not just the Items
-      // list — the sub-tabs bake the same masterData index into their rows.
-      if (typeof rrRepaintBrowse === 'function') rrRepaintBrowse();
-      else if (typeof renderBrowse === 'function') renderBrowse();
+      // Into the pen; applied with everything else that lands in this window.
+      // The timer is started by the FIRST maker of a window only, so a batch
+      // can never be starved by a steady trickle of arrivals.
+      _eraPen.set(_era, deduped);
+      if (!_eraPenTimer) _eraPenTimer = setTimeout(_applyPendingEras, _ERA_APPLY_MS);
+      // The counter measures makers fetched, which is what the indicator has
+      // always shown; their rows reach the screen within _ERA_APPLY_MS.
       if (state.loading && state.loading.allEras) {
         state.loading.allEras.loaded++;
         if (typeof _renderAllLoadingIndicator === 'function') _renderAllLoadingIndicator();
@@ -2124,7 +2166,10 @@ async function loadAllErasMode() {
         }
       }
       await Promise.all([_worker(), _worker(), _worker(), _worker()]);
-      _rebuildMasterIndex();
+      // v0.9.1710: nothing waits on the timer once the round is over. The
+      // flush reindexes itself; the bare rebuild is for the case where the pen
+      // was already empty (every maker failed, or the last batch just landed).
+      if (!_applyPendingEras()) _rebuildMasterIndex();
       _phase6OK = true;
       if (state.loading && state.loading.allEras) {
         state.loading.allEras.refreshing = false;
@@ -2156,7 +2201,7 @@ async function loadAllErasMode() {
             catch (eR) { _still.push(_e3); }
           }
           if (_still.length < _eraFailed.length) {
-            _rebuildMasterIndex();
+            if (!_applyPendingEras()) _rebuildMasterIndex();   // v0.9.1710: the retries fill the same pen
             if (typeof renderBrowse === 'function') renderBrowse();
             if (typeof _scheduleLookupIndex === 'function') _scheduleLookupIndex(2000, true);
           }
@@ -2713,15 +2758,29 @@ async function forceRefreshData() {
   if (btn) btn.disabled = true;
   if (icon) icon.style.animation = 'spin 0.8s linear infinite';
   try {
+    // v0.9.1710 (press audit A2): do NOT wipe first and do NOT drop the cache
+    // first. The loader (v0.9.824, BUG-003 "Brad's vanished collection") keeps
+    // the old data when a tab fails to read — but only if there is old data
+    // to keep. Wiping beforehand meant a failed read left the collection
+    // EMPTY on screen, cached that empty result, and then said "✓ Synced".
+    // A forced load replaces every store on a clean read, which is all the
+    // wipe was ever for; the one store the loader ADDS to rather than
+    // replaces (upgradeData) starts empty here and is put back on failure.
+    const _before = { personal: state.personalData, sold: state.soldData, forSale: state.forSaleData, upgrade: state.upgradeData, want: state.wantData };
+    state.upgradeData = {};
+    window._plLastFailed = false;
+    await _loadPersonalFromSheets(state.personalSheetId, true);
+    if (window._plLastFailed) {
+      state.personalData = _before.personal; state.soldData = _before.sold; state.forSaleData = _before.forSale;
+      state.upgradeData = _before.upgrade; state.wantData = _before.want;
+      resetFilters(); buildDashboard(); buildSoldPage(); buildForSalePage(); buildWantPage(); renderBrowse();
+      showToast(window._plRetryPending
+        ? "Couldn't reach Google Sheets — your collection is unchanged. Retrying in a few seconds…"
+        : "Couldn't reach Google Sheets — your collection is unchanged. Check your connection or sign-in and try again.", 5000, true);
+      return;
+    }
     localStorage.removeItem('lv_personal_cache');
     localStorage.removeItem('lv_personal_cache_ts');
-    // Wipe state completely so merge logic can't keep stale optimistic items
-    state.personalData = {};
-    state.soldData = {};
-    state.forSaleData = {};
-    state.upgradeData = {};
-    state.wantData = {};
-    await _loadPersonalFromSheets(state.personalSheetId, true);
     _cachePersonalData();
     resetFilters();
     buildDashboard();

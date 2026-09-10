@@ -1919,6 +1919,10 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
   // empty tab. If any primary tab failed we kept the old data above — now say
   // so and retry the whole load once after 5s (mirrors the upgrade self-heal).
   var _plFailed = [collRes, soldRes, forSaleRes, wishlistRes].some(function(r) { return r && r._failed; });
+  // v0.9.1710 (press audit A2): the result of THIS load, for callers that must
+  // know (forceRefreshData). _plRetryPending is not that — it can already be
+  // true from an earlier failure and is cleared by a retry, not by a caller.
+  window._plLastFailed = _plFailed;
   if (_plFailed && !window._plRetryPending && !window._offlineMode && navigator.onLine !== false) {
     window._plRetryPending = true;
     if (typeof showToast === 'function') showToast("Couldn't reach Google Sheets for part of your data — retrying in a few seconds…", 4500, true);

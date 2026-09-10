@@ -513,6 +513,15 @@
   //
   // The technical text is not thrown away, it is moved: console.warn keeps it
   // for a debugging session, where it belongs.
+  // v0.9.1710 (press audit B1–B3): ONE rule for "this failed because the user
+  // is signed out", so no message blames the connection for a sign-in problem.
+  // The backup threw "Sign in to back up your collection." and was told
+  // "Please try again"; the inbox and the photo-folder link said "check your
+  // connection". All three now ask this.
+  function rrIsSignInError(err) {
+    var raw = String((err && err.message) || err || '');
+    return raw === 'SESSION_EXPIRED' || /Not signed in|Token required|sign in again|Cannot refresh|Sign in to\b|not signed in/i.test(raw);
+  }
   function rrSaveError(err, what, opts) {
     opts = opts || {};
     var raw = String((err && err.message) || err || '');
@@ -536,7 +545,7 @@
         ? RR_ROW_MOVED_MSG
         : 'That row moved in your spreadsheet — nothing was saved. Refresh and try again.';
     }
-    if (raw === 'SESSION_EXPIRED' || /Not signed in|Token required|sign in again|Cannot refresh/i.test(raw)) {
+    if (rrIsSignInError(raw)) {
       return 'You have been signed out. Sign in again and ' + thing + ' will save.';
     }
     if (raw === 'offline' || /Failed to fetch|NetworkError|network|ERR_INTERNET/i.test(raw)) {
@@ -552,6 +561,7 @@
     return 'Could not save ' + thing + '.' + (tail || ' Please try again.');
   }
   window.rrSaveError = rrSaveError;
+  window.rrIsSignInError = rrIsSignInError;
 
   // ── v0.9.1409 — a write that SUCCEEDED makes a queued write to the same
   // cells stale. sheetsUpdate calls this the moment a PUT lands, so a later

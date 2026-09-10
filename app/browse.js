@@ -69,25 +69,15 @@ function _isFirstOwnedCopyByRow(itemNum, variation, pdRow) {
   return lowest !== null && pdRow === lowest;
 }
 
-function _updateBrowseTabsForEra() {
-  // (The #era-select dropdown this once synced is gone — v0.9.1708.)
-  // Tabs only shown for eras that have them
-  var _pwOnly = ['sets','science','construction','paper','other','service','is'];
-  _pwOnly.forEach(function(t) {
-    var btn = document.getElementById('btab-' + t);
-    if (btn) btn.style.display = SHEET_TABS[t === 'service' ? 'serviceTools' : t === 'is' ? 'instrSheets' : t] ? '' : 'none';
-  });
-  // Catalogs: always show if era has catalogs tab
-  var catBtn = document.getElementById('btab-catalogs');
-  if (catBtn) catBtn.style.display = SHEET_TABS.catalogs ? '' : 'none';
-  // Always show items
-  var itemsBtn = document.getElementById('btab-items');
-  if (itemsBtn) itemsBtn.style.display = '';
-  // If current visible tab is hidden, switch to items
-  var activeTab = document.querySelector('[id^="btab-"][style*="border-bottom: 2px solid var(--accent)"], [id^="btab-"][style*="border-bottom:2px solid var(--accent)"]');
-  if (activeTab && activeTab.style.display === 'none') {
-    renderBrowseTab('items');
-  }
+// v0.9.1710 (press audit, finding D — the guarded no-op class): this was
+// _updateBrowseTabsForEra, and all but its last three lines showed, hid,
+// relabelled and highlighted the old browse tab strip (#btab-items,
+// #btab-sets, …). That strip is gone: nothing in the app creates a single
+// btab- element, so every one of those lookups came back null and every
+// line was skipped by its own `if`. Harmless, invisible, and run on every
+// era switch and every browse render — the trap the next reader falls into.
+// What is left is the one thing that was doing work, under its real name.
+function _refreshBrowseHeadersForEra() {
   // Refresh table headers for the current era (Atlas vs Lionel layouts differ)
   if (typeof _refreshBrowseHeaders === 'function' && !state.filters.owned) {
     _refreshBrowseHeaders();
@@ -2655,31 +2645,11 @@ function renderBrowseTab(tab) {
   if (tab === 'mockups' && !inCollection) tab = 'items';
   state._browseTab = tab || 'items';
 
-  // Tab button visibility:
-  //   - Science/Construction/Paper/Other/Service/IS: hide only if the
-  //     active era doesn't carry that sheet tab. Visible in both views.
-  //   - Mockups: collection view only (it's user-data only).
-  var _tabKeyMap = {'btab-science':'science','btab-construction':'construction','btab-paper':'paper','btab-other':'other','btab-service':'serviceTools'};
-  ['btab-science','btab-construction','btab-paper','btab-other','btab-service'].forEach(function(id) {
-    var b = document.getElementById(id);
-    if (b) b.style.display = !SHEET_TABS[_tabKeyMap[id]] ? 'none' : '';
-  });
-  const isBtn = document.getElementById('btab-is');
-  if (isBtn) isBtn.style.display = !SHEET_TABS.instrSheets ? 'none' : '';
-  const moBtn = document.getElementById('btab-mockups');
-  if (moBtn) moBtn.style.display = inCollection ? '' : 'none';
-  const catBtn = document.getElementById('btab-catalogs');
-  if (catBtn) catBtn.textContent = inCollection ? 'My Catalogs & Paper Items' : 'Catalogs';
-
-  const tabs = { items:'btab-items', sets:'btab-sets', catalogs:'btab-catalogs', science:'btab-science', construction:'btab-construction', paper:'btab-paper', other:'btab-other', service:'btab-service', is:'btab-is', mockups:'btab-mockups' };
-  Object.entries(tabs).forEach(([key, id]) => {
-    const btn = document.getElementById(id);
-    if (!btn) return;
-    const active = key === state._browseTab;
-    btn.style.borderBottom = active ? '2px solid var(--accent)' : '2px solid transparent';
-    btn.style.color = active ? 'var(--accent)' : 'var(--text-dim)';
-  });
-
+  // v0.9.1710 (press audit, finding D): ~24 lines that showed, hid, relabelled
+  // and underlined the old browse tab strip's buttons lived here. No btab-
+  // element has existed for a long time, so all of it was guarded no-ops. The
+  // PANELS below are the live half — those ids are real, in index.html — and
+  // they are what actually switches the tab.
   const panels = { items:'browse-items-panel', sets:'browse-sets-panel', catalogs:'browse-catalogs-panel', science:'browse-science-panel', construction:'browse-construction-panel', paper:'browse-paper-panel', other:'browse-other-panel', service:'browse-service-panel', is:'browse-is-panel', mockups:'browse-mockups-panel' };
   Object.entries(panels).forEach(([key, id]) => {
     const el = document.getElementById(id);
@@ -3640,7 +3610,7 @@ function renderBrowse() {
     window._rrBrowseSig = null;               // mark stale until this render finishes
     window._rrBrowseSigPending = _rrSig;
   } catch (eSig) { window._rrBrowseSigPending = null; }
-  _updateBrowseTabsForEra();
+  _refreshBrowseHeadersForEra();
   if (typeof _renderHierarchyChips === 'function') _renderHierarchyChips();
   const { type, road, owned, unowned, boxed, search } = state.filters;
   // v0.9.1007b (Brad): rebuild the collection header in the SAME pass as the

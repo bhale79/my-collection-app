@@ -36,7 +36,7 @@ ok('…and includes the 3,929-pin photo-inbox suite, syntax-check, colours and t
 ok('the browser tier holds the slow real-Chromium gates (every guide-*.js, the photo viewer, the sw check)',
    tiers.browser.filter(n => /^guide-/.test(n)).length >= 10 && tiers.browser.includes('photo-viewer.js') && tiers.browser.includes('sw-nav-cache.js'), tiers.browser.join(', '));
 ok('the audits are reports, never gates — the runner knows them by name and does not run them',
-   ['button-audit.js', 'phone-audit.js', 'silent-audit.js', 'update-color-budget.js'].every(n => tiers.audit.includes(n)) &&
+   ['button-audit.js', 'phone-audit.js', 'silent-audit.js', 'press-audit.js', 'update-color-budget.js'].every(n => tiers.audit.includes(n)) &&
    !tiers.quick.some(n => /audit/.test(n)) && !tiers.browser.some(n => /audit/.test(n)), '');
 ok('classification is by file name: *_tests.js / *-tests.js → quick, guide-*.js → browser, a stray name → unclassified',
    runner.classify('anything_tests.js') === 'quick' && runner.classify('anything-tests.js') === 'quick' &&

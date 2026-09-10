@@ -578,7 +578,6 @@ if (typeof window !== 'undefined') window.startGuide = startGuide;
 // Kept as the public names because inline HTML across the app calls them.
 // One engine behind all three now.
 function tutStart(id) { startGuide(id); }
-function tutNext()    { /* the guided tour owns its own Next button */ }
 function tutEnd()     { if (typeof _gtEnd === 'function') _gtEnd(); }
 if (typeof window !== 'undefined') { window.tutStart = tutStart; window.tutEnd = tutEnd; }
 
@@ -615,30 +614,16 @@ function _buildTutorialUI() {
   // tutToggleMenu has always preferred openHelpHub, so nothing reached it.
 
 
-  // Tutorial spotlight overlay
-  var overlay = document.createElement('div');
-  overlay.id = 'tut-overlay';
-  document.body.appendChild(overlay);
-
-  // Conductor panel
-  var panel = document.createElement('div');
-  panel.id = 'tut-panel';
-  panel.className = 'tut-hidden';
-  panel.innerHTML =
-    '<img id="tut-conductor" src="./img/conductor-pointing.png">' +
-    '<div id="tut-bubble">' +
-      '<div class="tut-bubble-title" id="tut-title">Getting Started</div>' +
-      '<div class="tut-bubble-msg" id="tut-msg">Let me show you around!</div>' +
-      '<div id="tut-click-hint" style="display:none;font-size:0.78rem;color:#b07d20;font-weight:600;margin-bottom:0.5rem;letter-spacing:0.02em;">&#x1F446; Tap the highlighted item to continue</div>' +
-      '<div class="tut-bubble-footer">' +
-        '<span class="tut-counter" id="tut-counter">Step 1 of 5</span>' +
-        '<div class="tut-btn-row">' +
-          '<button class="tut-btn-skip" id="tut-skip" onclick="tutEnd()">Skip tour</button>' +
-          '<button class="tut-btn-next" id="tut-next" onclick="tutNext()">Next \u2192</button>' +
-        '</div>' +
-      '</div>' +
-    '</div>';
-  document.body.appendChild(panel);
+  // v0.9.1710 (press audit, finding D): the legacy spotlight overlay
+  // (#tut-overlay) and conductor panel (#tut-panel — bubble, step counter,
+  // Skip tour / Next →) were appended to EVERY page load and hidden by
+  // .tut-hidden, which nothing ever removed. The guided tour has drawn its
+  // own card (#gt-callout, #gt-blocker, #gt-hole) since v0.9.1204, and
+  // tutNext() had already been emptied to a comment because "the guided tour
+  // owns its own Next button". Two elements and ~25 lines built on every
+  // start for a screen no user could reach. Their styles went with them
+  // (tutorial.css) — what remains there is the Help widget and the #gt-*
+  // card that are actually on screen.
 }
 
 function tutShowHelpBtn() {

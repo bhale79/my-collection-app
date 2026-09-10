@@ -63,6 +63,9 @@ function _repSetType(id) { var s = document.getElementById('report-type'); if (s
 
 function _repPreview(id) {
   _repSetType(id);
+  // v0.9.1710: opening a report is a person asking — give a failed parts read
+  // (want/upgrade/parts) one fresh attempt; automatic re-renders never do.
+  if (typeof _wupPartsFailed !== 'undefined') _wupPartsFailed = false;
   try { buildReport(); } catch (e) { console.error(e); }
   var def = REPORT_DEFS.find(function (d) { return d.id === id; });
   var nm = def ? def.name : (id.indexOf('custom:') === 0 ? ((state.savedReports || []).find(function (r) { return 'custom:' + r.id === id; }) || {}).name : id);

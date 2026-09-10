@@ -9639,14 +9639,24 @@ META_WRITES.length = 0; TOASTS.length = 0;
     })();
 
     // ── 5. A background era refresh renumbered the list under the user ──
-    const roe = app.slice(app.indexOf('async function _refreshOneEra'),
-                          app.indexOf('try {\n      var _queue = realEras.slice();'));
+    // v0.9.1710: the swap moved out of _refreshOneEra into _applyPendingEras,
+    // which applies every maker that landed in the same half-second in ONE
+    // step (40 reindexes of a 147,970-row catalog per startup → about a
+    // dozen; tests/era_batch_tests.js). The invariant is unchanged and is
+    // what these pins are actually about, so they follow it to its new home.
+    const roe = app.slice(app.indexOf('function _applyPendingEras()'),
+                          app.indexOf('async function _refreshOneEra'));
     ok('an era swap rebuilds the index it just invalidated',
        /_rebuildMasterIndex\(\)/.test(roe));
     ok('…right after the swap, before anything can render a stale index',
        roe.indexOf('state.masterData = ') < roe.indexOf('_rebuildMasterIndex()'));
     ok('…and repaints, since the rows on screen carry the old numbering',
        roe.indexOf('_rebuildMasterIndex()') < roe.indexOf('renderBrowse()'));
+    ok('…with nothing between them that could let a render see the gap',
+       !/await|setTimeout\(/.test(roe.slice(roe.indexOf('state.masterData = '), roe.indexOf('rrRepaintBrowse()'))));
+    ok('…and a maker that landed is applied through that one step, never on its own',
+       /_eraPen\.set\(_era, deduped\);/.test(app) &&
+       !/_rebuildMasterIndex/.test(app.slice(app.indexOf('async function _refreshOneEra'), app.indexOf('async function _worker()'))));
   })();
 
 
@@ -10556,7 +10566,10 @@ META_WRITES.length = 0; TOASTS.length = 0;
        /console\.warn\('\[save\] '/.test(ob));
 
     // ── RUN the message builder ─────────────────────────────────────────
-    const src = ob.slice(ob.indexOf('function rrSaveError(err, what, opts)'),
+    // v0.9.1710: the "is this a sign-in problem" rule moved out of rrSaveError
+    // into rrIsSignInError (shared with the inbox and the photo-folder link),
+    // so the slice starts at the helper — rrSaveError alone no longer stands.
+    const src = ob.slice(ob.indexOf('function rrIsSignInError(err)'),
                          ob.indexOf('window.rrSaveError'));
     const say = (msg, what, count) => new Function('console', 'rrOutboxCount',
       '"use strict";' + src + '; return rrSaveError;')(
@@ -10976,8 +10989,8 @@ META_WRITES.length = 0; TOASTS.length = 0;
        /function rrRepaintBrowse\(\)/.test(brw) && /window\.rrRepaintBrowse = rrRepaintBrowse/.test(brw));
     ok('it draws the current tab, not just Items',
        /renderBrowseTab\(\(typeof state !== 'undefined' && state\._browseTab\) \|\| 'items'\)/.test(brw));
-    ok('the background era refresh calls it',
-       /rrRepaintBrowse\(\);\s*\n\s*else if \(typeof renderBrowse === 'function'\) renderBrowse\(\);\s*\n\s*if \(state\.loading/.test(appjs));
+    ok('the background era refresh calls it (v0.9.1710: from the batch step it now shares)',
+       /rrRepaintBrowse\(\);\s*\n\s*else if \(typeof renderBrowse === 'function'\) renderBrowse\(\);\s*\n\s*try \{ window\._rrEraApplies/.test(appjs));
     ok('so does the all-eras finish',
        (strip(appjs).match(/rrRepaintBrowse\(\)/g) || []).length >= 2,
        String((strip(appjs).match(/rrRepaintBrowse\(\)/g) || []).length));

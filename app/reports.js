@@ -5,7 +5,16 @@
 
 var _wupView = 'all';
 var _wupPartsLoading = false;
-function _setWupView(v){ _wupView = v; buildReport(); }
+// v0.9.1710 (press audit A1): when the parts read FAILED, remember it. The
+// v0.9.1325 note said "leave partsData unloaded; the next render retries" —
+// but the failure handler itself re-rendered, the re-render found parts
+// unloaded and read again, that read failed, and round it went: measured at
+// ~2,900 failed reads a second, forever, with the page frozen. Now a failed
+// read draws "Parts couldn't be loaded — Retry" and starts NOTHING; only a
+// person (Retry, a section button, or reopening the report) reads again.
+var _wupPartsFailed = false;
+function _setWupView(v){ _wupView = v; _wupPartsFailed = false; buildReport(); }
+function _wupRetryParts(){ _wupPartsFailed = false; buildReport(); }
 // v0.9.1333: the preview modal moved to <body> (v1332, the stacking-context
 // fix) — and these helpers still found the report's wrapper by PAGE
 // ('#page-reports .table-wrap'), which now matches NOTHING, so the insurance
@@ -21,7 +30,7 @@ function _wupControls(){
   var views=[['all','All'],['want','Want'],['upgrade','Upgrade'],['parts','Parts']];
   c.innerHTML = views.map(function(v){ var on=(_wupView===v[0]); return '<button onclick="_setWupView(\''+v[0]+'\')" style="padding:0.4rem 0.85rem;border-radius:7px;border:1.5px solid '+(on?'var(--accent2)':'var(--border)')+';background:'+(on?'rgba(180,140,60,0.12)':'var(--surface2)')+';color:'+(on?'var(--accent2)':'var(--text-mid)')+';font-family:var(--font-body);font-size:0.82rem;font-weight:600;cursor:pointer">'+v[1]+'</button>'; }).join('');
 }
-if (typeof window!=='undefined'){ window._setWupView=_setWupView; }
+if (typeof window!=='undefined'){ window._setWupView=_setWupView; window._wupRetryParts=_wupRetryParts; }
 
 function buildReport() {
   const type = document.getElementById('report-type')?.value || 'insurance';
@@ -301,7 +310,13 @@ function buildReport() {
       html+= u.length ? u.map(e=>{ const m=findMaster(e.itemNum,e.variation, e)||{}; const d=rrEsc((m.roadName||m.description||'—'))+(e._wantMates?' 🔗 '+rrEsc(e._wantMates.join(' + ')):''); const tgt=[esc(e.priority),e.targetCondition?('→ cond '+e.targetCondition):''].filter(Boolean).join(' '); const pr=e.maxPrice?_currencySymbol()+parseFloat(e.maxPrice).toLocaleString():'—'; return `<tr><td><span class="item-num">${esc(e.itemNum)}</span></td><td>${d}</td><td>${esc(e.variation)||'—'}</td><td>${tgt||'—'}</td><td class="market-val">${pr}</td><td style="font-size:0.77rem;color:var(--text-dim)">${cn(e.notes)}</td></tr>`; }).join('') : '<tr><td colspan="6" class="ui-empty">Nothing on your upgrade list</td></tr>';
     }
     if (showParts) {
-      if (!state.partsData) {
+      if (!state.partsData && _wupPartsFailed) {
+        // v0.9.1710 (press audit A1): the read failed. Say so, offer Retry,
+        // and start nothing — see _wupPartsFailed above.
+        html+=sect('Parts Needed', '?');
+        html+='<tr><td colspan="6" class="ui-empty">Parts couldn\u2019t be loaded' + (navigator.onLine === false ? ' \u2014 you\u2019re offline' : '') +
+              '. <button type="button" onclick="_wupRetryParts()" style="margin-left:0.4rem;padding:0.25rem 0.7rem;border-radius:7px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.8rem;font-weight:600;cursor:pointer">Retry</button></td></tr>';
+      } else if (!state.partsData) {
         // Parts load lazily (only fetched when needed). Show a placeholder and
         // fetch in the background so want/upgrade always render immediately.
         html+=sect('Parts Needed', '…');
@@ -315,9 +330,10 @@ function buildReport() {
           // said your parts list was empty for the rest of the session, no
           // matter how many times you re-opened it. (The Parts PAGE self-heals
           // because it re-fetches per visit; only the report was stuck.)
-          // Now a failure leaves it undefined, so the next render retries.
+          // A failure leaves it undefined; v0.9.1710 adds _wupPartsFailed so
+          // the re-render offers Retry instead of reading again by itself.
           _wupPartsLoading=true;
-          (async()=>{ try{ if(typeof _ensurePartsTab==='function') await _ensurePartsTab(); const res=await sheetsGet(state.personalSheetId,'Parts Needed!A3:H'); const parts={}; (res.values||[]).forEach((r,idx)=>{ if(!r[0]||r[0]==='Part ID')return; parts['p'+(idx+3)]={row:idx+3,id:r[0]||'',description:r[1]||'',partNum:r[2]||'',forItem:r[3]||'',forInv:r[4]||'',photo:r[5]||'',notes:r[6]||'',dateAdded:r[7]||''}; }); state.partsData=parts; }catch(e){ console.warn('[Report] parts read failed \u2014 leaving unloaded so the next render retries:', e); } _wupPartsLoading=false; var _sel=document.getElementById('report-type'); if(_sel && _sel.value==='wantupgrade') buildReport(); })();
+          (async()=>{ try{ if(typeof _ensurePartsTab==='function') await _ensurePartsTab(); const res=await sheetsGet(state.personalSheetId,'Parts Needed!A3:H'); const parts={}; (res.values||[]).forEach((r,idx)=>{ if(!r[0]||r[0]==='Part ID')return; parts['p'+(idx+3)]={row:idx+3,id:r[0]||'',description:r[1]||'',partNum:r[2]||'',forItem:r[3]||'',forInv:r[4]||'',photo:r[5]||'',notes:r[6]||'',dateAdded:r[7]||''}; }); state.partsData=parts; _wupPartsFailed=false; }catch(e){ console.warn('[Report] parts read failed \u2014 left unloaded; the report offers Retry (v0.9.1710):', e); _wupPartsFailed=true; } _wupPartsLoading=false; var _sel=document.getElementById('report-type'); if(_sel && _sel.value==='wantupgrade') buildReport(); })();
         }
       } else {
         const pp=Object.values(state.partsData||{});

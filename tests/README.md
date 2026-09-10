@@ -57,9 +57,24 @@ fixed — a gate born red is a gate everyone learns to ignore.
     node tests/phone-audit.js      every page at phone widths (needs playwright)
     node tests/silent-audit.js     no control may do nothing without saying so
                                    (needs acorn — `npm install`)
+    node tests/press-audit.js      Sweep 2: PRESS every control on every page at
+                                   four widths and record what happened — about
+                                   40 minutes; `--pages x,y --widths 360` for a
+                                   subset, `--count` to enumerate only
 
 `silent-audit` hunts the class the review card's › arrow belonged to
 (v0.9.1705): a handler that fetches an element, finds nothing because that
 element only exists in one layout, and returns without a word. Its first run
 is written up in `SILENT_CONTROL_AUDIT_2026-09-09.md` (Brad's folder and the
 project). `tests/silent_fixes_tests.js` pins what that run fixed.
+
+`press-audit` is the second half (v0.9.1710): the real app booted headless
+with the synthetic collection, every visible control pressed from a fresh
+boot of its page, the outcome sorted (NAVIGATED / OPENED / SPOKE / CHANGED /
+… / NOTHING); destructive controls are on a deny-list printed at the top of
+every run; the page under an open overlay is not pressed. Its first run is
+written up in `PRESS_AUDIT_SWEEP2_2026-09-10.md`; `tests/press_fixes_tests.js`
+pins what it fixed (the want/upgrade report's retry loop, Sync from Sheet
+wiping the collection on a failed read, three sign-in messages) by running
+the app headless with Google unreachable. Run it again after any release
+that touches navigation, modals or the reports.

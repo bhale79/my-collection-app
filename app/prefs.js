@@ -51,7 +51,9 @@ async function _prefsOpenPhotosFolder() {
     window.open('https://drive.google.com/drive/folders/' + pid, '_blank');
   } catch (e) {
     console.warn('[Prefs] photos folder open:', e);
-    showToast('Could not open the photo folder — check your connection', 3000, true);
+    showToast((typeof rrIsSignInError === 'function' && rrIsSignInError(e))
+      ? 'You\u2019re signed out \u2014 sign in to open your photo folder'
+      : 'Could not open the photo folder \u2014 check your connection', 3000, true);   // v0.9.1710 (press audit B3)
   }
 }
 if (typeof window !== 'undefined') window._prefsOpenPhotosFolder = _prefsOpenPhotosFolder;

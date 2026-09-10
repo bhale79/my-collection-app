@@ -244,13 +244,16 @@ function collectBirths(files, fns) {
   const idx = path.join(APP, 'index.html');
   if (fs.existsSync(idx)) {
     const html = fs.readFileSync(idx, 'utf8');
-    const re = /\bid\s*=\s*["']([A-Za-z][\w-]*)["']/g;
+    const re = /\bid\s*=\s*["']([A-Za-z_][\w-]*)["']/g;
     let m;
     while ((m = re.exec(html))) add(m[1], { where: 'index.html:' + lineOf(html, m.index), forked: false, static: true });
   }
   const enclosing = (file, at) => enclosingFn(fns, file, at);
   files.forEach(({ file, code }) => {
-    const re = /\bid\s*=\s*\\?["']([A-Za-z][\w-]*)\\?["']|\.id\s*=\s*['"]([A-Za-z][\w-]*)['"]|\bid:\s*['"]([A-Za-z][\w-]*)['"]/g;
+    // v0.9.1710: [A-Za-z] missed every id that begins with an underscore
+    // (_part-modal, _part-desc, _grpfs-price-input, _inst-desc…), so their
+    // births were invisible and every lookup of them read as NEVER-CREATED.
+    const re = /\bid\s*=\s*\\?["']([A-Za-z_][\w-]*)\\?["']|\.id\s*=\s*['"]([A-Za-z_][\w-]*)['"]|\bid:\s*['"]([A-Za-z_][\w-]*)['"]/g;
     let m;
     while ((m = re.exec(code))) {
       const id = m[1] || m[2] || m[3];
@@ -315,8 +318,41 @@ function bailOutsIn(fn, files) {
   return out;
 }
 
+// ── 4b. Guarded no-ops (v0.9.1710) ──────────────────────────────
+// The bail-out above is `if (!x) return` — the control gives up. This is its
+// quieter twin: `var b = getElementById('id'); if (b) b.style.display = …`.
+// Nothing returns, nothing is said, and when that id exists nowhere the line
+// simply never runs. Sweep 2 met a whole block of them: the old browse tab
+// strip (#btab-items, #btab-sets, …) was removed long ago, but ~40 lines
+// across two functions still tried to show, hide, relabel and underline its
+// buttons on every era switch and every browse render.
+//
+// A guard on an element that CAN exist is good defensive code — only a guard
+// on an id that is born nowhere is a finding, so this returns candidates and
+// main() keeps the ones with no birth.
+function guardedNoopsIn(fn) {
+  const body = fn.body;
+  const fetches = new Map();
+  const F1 = /\b(?:var|let|const)\s+([A-Za-z_$][\w$]*)\s*=\s*document\.getElementById\(\s*['"]([^'"]+)['"]\s*\)/g;
+  let m;
+  while ((m = F1.exec(body))) fetches.set(m[1], m[2]);
+  if (!fetches.size) return [];
+  const out = [];
+  // if (X) …  /  if (X && …) …  — and NOT a bail-out (no return in the block)
+  const G = /if\s*\(\s*([A-Za-z_$][\w$]*)(?:\s*&&[^)]*)?\)\s*(\{[^}]*\}|[^\n;]*;)/g;
+  while ((m = G.exec(body))) {
+    const id = fetches.get(m[1]);
+    if (!id) continue;
+    if (/\breturn\b/.test(m[2])) continue;             // that is a bail-out, handled above
+    out.push({ id, name: m[1],
+               line: fn.line + body.slice(0, m.index).split('\n').length - 1,
+               snippet: m[0].replace(/\s+/g, ' ').slice(0, 100) });
+  }
+  return out;
+}
+
 // ── 5. Put it together ──────────────────────────────────────────
-module.exports = { scanKeepLines, matchFrom, collectFunctions, collectControls, collectBirths, bailOutsIn, readApp };
+module.exports = { scanKeepLines, matchFrom, collectFunctions, collectControls, collectBirths, bailOutsIn, guardedNoopsIn, readApp };
 
 // The report runs only when this file is the program (`node tests/silent-audit.js`).
 // Required from a test, it just lends its scanners. (A bare top-level `return`
@@ -378,12 +414,24 @@ handlerNames.forEach(h => {
   });
 });
 
+// GUARDED-NOOP is not reachability-scoped: work done for nothing is worth
+// knowing about wherever it sits, and the "born nowhere" filter is strict
+// enough that the list stays short.
+const noops = [];
+fns.forEach(fn => {
+  guardedNoopsIn(fn).forEach(g => {
+    if ((births.get(g.id) || []).length) return;        // the element can exist — a fair guard
+    noops.push({ fn: fn.name, file: fn.file, ...g });
+  });
+});
+
 const order = ['NEVER-CREATED', 'FORKED', 'FORKED-PARTLY', 'DYNAMIC', 'DYNAMIC-ID', 'SAME-BUILDER', 'STATIC', 'STATE'];
 findings.sort((a, b) => order.indexOf(a.klass) - order.indexOf(b.klass) || a.file.localeCompare(b.file) || a.line - b.line);
 const counts = {};
 findings.forEach(f => { counts[f.klass] = (counts[f.klass] || 0) + 1; });
 
 console.log('silent-audit — controls: ' + controls.length + ' inline handlers naming ' + handlerNames.length + ' app functions; ' + fns.size + ' functions indexed; ' + births.size + ' element ids born\n');
+console.log('GUARDED NO-OPS (an `if (el)` on an id born nowhere, anywhere in the app): ' + noops.length + '\n');
 console.log('SILENT BAIL-OUTS reachable from a control (handler, or one call deep):');
 order.forEach(k => { if (counts[k]) console.log('  ' + k.padEnd(14) + counts[k]); });
 console.log('');
@@ -412,7 +460,18 @@ const show = k => {
   });
   console.log('');
 })();
-fs.writeFileSync(path.join(OUT, 'findings.json'), JSON.stringify({ counts, findings }, null, 1));
+if (noops.length) {
+  console.log('── GUARDED-NOOP (' + noops.length + ') — `if (el) el.…` on an id that is born NOWHERE: the line never runs ──');
+  const byId = {};
+  noops.forEach(g => { (byId[g.id] = byId[g.id] || []).push(g); });
+  Object.keys(byId).sort().forEach(id => {
+    const g = byId[id][0];
+    console.log('  #' + id.padEnd(26) + ' x' + byId[id].length + '  ' + g.file + ':' + g.line + '  in ' + g.fn);
+    console.log('      ' + g.snippet);
+  });
+  console.log('');
+}
+fs.writeFileSync(path.join(OUT, 'findings.json'), JSON.stringify({ counts, findings, guardedNoops: noops }, null, 1));
 console.log('Report: ' + path.join(OUT, 'findings.json'));
 process.exit(0);   // an audit, not a gate — findings are for reading, never for failing a build
 }

@@ -1779,6 +1779,12 @@
       return;
     }
     _status('Loading inbox…');
+    // v0.9.1710 (press audit B2): a read that fails in a few milliseconds
+    // replaced "Loading inbox…" with the same failure text that was already
+    // there, so a repeat press of Refresh looked like nothing. The failure
+    // text now waits for "Loading inbox…" to have been on screen ~400ms — and
+    // only if no newer refresh has started since (the sequence number).
+    var _rfStart = Date.now(), _rfSeq = (window._pinRefreshSeq = (window._pinRefreshSeq || 0) + 1);
     try {
       var fid = await _folder();
       var q = encodeURIComponent("'" + fid + "' in parents and mimeType contains 'image/' and trashed=false");
@@ -1884,7 +1890,11 @@
       try { _updateIdentifyBtn(); } catch (eIB) {}
     } catch (e) {
       console.error('[Inbox] refresh:', e);
-      _status('Could not load the inbox — check your connection and try Refresh.');
+      var _rfMsg = (typeof rrIsSignInError === 'function' && rrIsSignInError(e))
+        ? 'You\u2019re signed out \u2014 sign in to load the inbox.'                         // v0.9.1710 (press audit B2)
+        : 'Could not load the inbox \u2014 check your connection and try Refresh.';
+      var _rfWait = Math.max(0, 400 - (Date.now() - _rfStart));
+      setTimeout(function () { if (window._pinRefreshSeq === _rfSeq) _status(_rfMsg); }, _rfWait);
     }
   };
 
