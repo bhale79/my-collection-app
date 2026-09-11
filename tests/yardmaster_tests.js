@@ -534,6 +534,37 @@ ok('1715 the Pre-sort fills a BLANK type only and never overwrites one that is t
 ok('1715 the type column is found BY HEADER like the other three, and the confirm says how many get one',
    /type: _dcol\.item_type == null \? 'F' : _ymColLetter\(_dcol\.item_type\)/.test(ym15) && /' get a type read from the description'/.test(ym15));
 
+// ── v0.9.1716 (Session 96): someone's list number, not a catalog number ───
+// Found by reading the live queue: 132 of the 889 rows still pending sat in a
+// run of CONSECUTIVE numbers whose descriptions run A-Z — a collection
+// spreadsheet exported with the row number as the item number. The real
+// catalog number is often in the description ("6464-525"). Batch-wide by
+// nature, so it runs in the Pre-sort and never at queue time.
+const cfg16 = src('config.js'), ym16 = src('yardmaster.js');
+const _a16 = cfg16.indexOf('const RR_INVENTORY_MIN_RUN'), _b16 = cfg16.indexOf('\n}\n', cfg16.indexOf('function rrInventoryRows')) + 3;
+const k16 = {};
+require('vm').runInNewContext(cfg16.slice(_a16, _b16) + ';this.f = rrInventoryRows; this.min = RR_INVENTORY_MIN_RUN; this.alpha = RR_INVENTORY_ALPHA;', k16);
+const mk16 = (pairs) => pairs.map(([num, desc], i) => ({ id: 'r' + i, num: String(num), desc: desc }));
+ok('1716 the rule lives in config.js with both thresholds exposed, and is exported',
+   typeof k16.f === 'function' && k16.min === 5 && k16.alpha === 0.8 && /window\.rrInventoryRows\s+= rrInventoryRows/.test(cfg16));
+const books16 = k16.f(mk16([[32136, 'Short lines of the Pacific Northwest'], [32137, 'Spokane, Portland & Seattle Railway In Color'],
+  [32138, 'Spokane, Portland and Seattle color Guide'], [32139, 'Standard Catalog of American Flyer Trains'],
+  [32140, 'Standard Catalog of Farm Toys 3rd Edition'], [32141, 'Standard Catalog of Lionel Train Sets 1945-1969']]));
+ok('1716 a consecutive run in A-Z order is caught, every row of it', Object.keys(books16).length === 6);
+const atlas16 = k16.f(mk16([[6051, '4 1/2" Straight (12 pcs)'], [6052, '1 3/4" Straight Track (6 pkgs)'], [6053, '5 1/2" Straight (21 pcs)'],
+  [6054, '10" Straight'], [6055, '2 1/2" Straight'], [6056, '19" Straight']]));
+ok('1716 a GENUINE consecutive catalog run is NOT caught — its descriptions are not alphabetical', Object.keys(atlas16).length === 0);
+ok('1716 a run shorter than the minimum is never caught', Object.keys(k16.f(mk16([[100, 'aaa'], [101, 'bbb'], [102, 'ccc'], [103, 'ddd']]))).length === 0);
+ok('1716 a gap breaks the run — 5 in a row is 5 CONSECUTIVE, not 5 sorted',
+   Object.keys(k16.f(mk16([[200, 'aaa'], [201, 'bbb'], [203, 'ccc'], [204, 'ddd'], [205, 'eee']]))).length === 0);
+ok('1716 non-numeric and short numbers are ignored outright', Object.keys(k16.f(mk16([['6464-500', 'aaa'], ['K-1121', 'bbb'], ['12', 'ccc'], ['ABC', 'ddd'], ['', 'eee']]))).length === 0);
+ok('1716 an empty batch, a tiny batch and junk input are all safe', Object.keys(k16.f([])).length === 0 && Object.keys(k16.f(null)).length === 0 && Object.keys(k16.f(mk16([[100, '']]))).length === 0);
+ok('1716 the Office asks config and falls back to catching NOTHING when config is missing',
+   /if \(typeof rrInventoryRows !== 'function'\) return \{\};/.test(ym16));
+ok('1716 it runs ONCE over the whole batch inside the Pre-sort plan, and never at queue time',
+   /var inv = _ymInventoryRows\(rows\);/.test(ym16) && /if \(inv\[dd\.id\]\) reasons\.unshift\('a list number, not a catalog number'\);/.test(ym16)
+   && !/_ymInventoryRows/.test(ym16.slice(ym16.indexOf('window._ymQueueWaiting'), ym16.indexOf('window._ymCommit'))));
+
 console.log('\n' + pass + ' passed, ' + fail + ' failed');
 if (fail) { console.log('YARDMASTER TESTS FAILING'); process.exit(1); }
 console.log('ALL YARDMASTER TESTS GREEN (' + pass + ')');

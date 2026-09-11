@@ -399,6 +399,10 @@ const idsIn = (tab) => tab.slice(1).map(r => r[1]).filter(Boolean);
     const ta = cfgSrc.indexOf('const RR_TYPE_WORDS'), tb = cfgSrc.indexOf('\n}\n', cfgSrc.indexOf('function rrTypeFromDescription')) + 3;
     const tcfg = {}; vm.runInNewContext(cfgSrc.slice(ta, tb) + ';this.g = { RR_TYPE_WORDS, rrTypeFromDescription };', tcfg);
     Object.assign(cfg.g, tcfg.g);
+    // v0.9.1716: the list-number rule, from the same file
+    const ia = cfgSrc.indexOf('const RR_INVENTORY_MIN_RUN'), ib = cfgSrc.indexOf('\n}\n', cfgSrc.indexOf('function rrInventoryRows')) + 3;
+    const icfg = {}; vm.runInNewContext(cfgSrc.slice(ia, ib) + ';this.g = { RR_INVENTORY_MIN_RUN, RR_INVENTORY_ALPHA, rrInventoryRows };', icfg);
+    Object.assign(cfg.g, icfg.g);
     const globals = Object.assign({}, cfg.g, {
       REAL_ERA_IDS: ['marx', 'pw', 'mpc', 'mod_ho', 'other_o'],
       ERA_TABS: { marx: { items: 'Marx O' }, pw: { items: 'Lionel PW - Items' }, mpc: { items: 'Lionel MPC-Modern' }, mod_ho: { items: 'Lionel Modern HO - Items' }, other_o: { items: 'Other O Brands' } },
@@ -460,12 +464,18 @@ const idsIn = (tab) => tab.slice(1).map(r => r[1]).filter(Boolean);
       mkrow({ batch_id: 'CB-COMMUNITY-SUBS', delta_id: 'CB-COMMUNITY-SUBS-0006', action: 'add', proposed_tab: '', item_num: '6060', description: 'O-54 Full Curve Track (1 pcs)', flag: 'needs a tab — Atlas has several', status: 'pending', notes: 'submissions row 6; via app' }),
       mkrow({ batch_id: 'CB-COMMUNITY-SUBS', delta_id: 'CB-COMMUNITY-SUBS-0007', action: 'add', proposed_tab: 'Lionel PW - Items', item_num: '6060', description: 'Lionel postwar something', flag: '', status: 'pending', notes: 'submissions row 7; via app' }),   // same number, DIFFERENT known maker → not a duplicate
       mkrow({ batch_id: 'CB-COMMUNITY-SUBS', delta_id: 'CB-COMMUNITY-SUBS-0008', action: 'add', proposed_tab: 'Marx O', item_num: '997', item_type: 'Caboose', description: 'Marx Boxcar', flag: '', status: 'pending', notes: 'submissions row 8; maker Marx; via app' }),   // v1715: type already set, and it DISAGREES with the description
+      // v0.9.1716: a consecutive run in A-Z order — somebody's collection list
+      mkrow({ batch_id: 'CB-COMMUNITY-SUBS', delta_id: 'CB-COMMUNITY-SUBS-0101', action: 'add', proposed_tab: 'Marx O', item_num: '7001', description: 'Alpha boxcar', flag: '', status: 'pending', notes: 'maker Marx' }),
+      mkrow({ batch_id: 'CB-COMMUNITY-SUBS', delta_id: 'CB-COMMUNITY-SUBS-0102', action: 'add', proposed_tab: 'Marx O', item_num: '7002', description: 'Bravo boxcar', flag: '', status: 'pending', notes: 'maker Marx' }),
+      mkrow({ batch_id: 'CB-COMMUNITY-SUBS', delta_id: 'CB-COMMUNITY-SUBS-0103', action: 'add', proposed_tab: 'Marx O', item_num: '7003', description: 'Charlie boxcar', flag: '', status: 'pending', notes: 'maker Marx' }),
+      mkrow({ batch_id: 'CB-COMMUNITY-SUBS', delta_id: 'CB-COMMUNITY-SUBS-0104', action: 'add', proposed_tab: 'Marx O', item_num: '7004', description: 'Delta boxcar', flag: '', status: 'pending', notes: 'maker Marx' }),
+      mkrow({ batch_id: 'CB-COMMUNITY-SUBS', delta_id: 'CB-COMMUNITY-SUBS-0105', action: 'add', proposed_tab: 'Marx O', item_num: '7005', description: 'Echo boxcar', flag: '', status: 'pending', notes: 'maker Marx' }),
       mkrow({ batch_id: 'B', delta_id: 'B-0001', action: 'add', proposed_tab: 'Marx O', item_num: 'N1', description: 'another batch', flag: '', status: 'pending', notes: '' })];
     v2.tabs.crawl_batches.push(['CB-COMMUNITY-SUBS', 'The Rail Roster users (relay)', '2026-09-01', 'Community submissions (not in the catalog)', 'pending', '7', 'rolling']);
     const ctx2 = boot(v2, { globals });
     await loaded(ctx2);
     ctx2.sandbox._ymBatchOpen('CB-COMMUNITY-SUBS', false); await tick(60);
-    ok('presort button: shown on the community batch with the pending count', /onclick="_ymPreSort\(\)"[^>]*>Pre-sort 7<\/button>/.test(ctx2.page.innerHTML), (ctx2.page.innerHTML.match(/Pre-sort \d+/) || [''])[0]);
+    ok('presort button: shown on the community batch with the pending count', /onclick="_ymPreSort\(\)"[^>]*>Pre-sort 12<\/button>/.test(ctx2.page.innerHTML), (ctx2.page.innerHTML.match(/Pre-sort \d+/) || [''])[0]);
     ctx2.sandbox._ymBatchOpen('B', false); await tick(60);
     ok('presort button: NOT on other batches', !/_ymPreSort\(\)/.test(ctx2.page.innerHTML));
     ctx2.sandbox._ymBatchOpen('CB-COMMUNITY-SUBS', false); await tick(60);
@@ -474,7 +484,7 @@ const idsIn = (tab) => tab.slice(1).map(r => r[1]).filter(Boolean);
     for (let i = 0; i < 80 && !ctx2.toasts.some(t => /Pre-sorted/.test(t)); i++) await tick();
     await tick(120);
     const d2 = v2.tabs.crawl_deltas, row = (id) => d2.find(r => r[1] === id);
-    ok('presort button: the toast reports the rewrite', ctx2.toasts.some(t => /Pre-sorted 6 rows/.test(t)), ctx2.toasts.join(' | '));
+    ok('presort button: the toast reports the rewrite', ctx2.toasts.some(t => /Pre-sorted 11 rows/.test(t)), ctx2.toasts.join(' | '));
     ok('presort button: the old Lionel row got the MPC-Modern tab and a clean flag', row('CB-COMMUNITY-SUBS-0001')[3] === 'Lionel MPC-Modern' && row('CB-COMMUNITY-SUBS-0001')[14] === '');
     ok('presort button: the excavator flag now says why (maker from the OLD flag text), and the maker is filed into the notes', row('CB-COMMUNITY-SUBS-0002')[14] === 'not a train maker — Die-cast Masters; looks like a vehicle or aircraft, not a train' && /; maker Die-cast Masters$/.test(row('CB-COMMUNITY-SUBS-0002')[20]), row('CB-COMMUNITY-SUBS-0002')[14]);
     ok('presort button: the FIRST copy stays clean, the SECOND is marked duplicate', row('CB-COMMUNITY-SUBS-0003')[14] === '' && row('CB-COMMUNITY-SUBS-0004')[14] === 'duplicate — filed again');
@@ -482,6 +492,10 @@ const idsIn = (tab) => tab.slice(1).map(r => r[1]).filter(Boolean);
     ok('presort button (1715): a blank type is filled from the description, and a type already on the row is left alone even when it disagrees',
        row('CB-COMMUNITY-SUBS-0001')[5] === 'Boxcar' && row('CB-COMMUNITY-SUBS-0006')[5] === 'Track' && row('CB-COMMUNITY-SUBS-0008')[5] === 'Caboose'
        && row('CB-COMMUNITY-SUBS-0002')[5] === '', [row('CB-COMMUNITY-SUBS-0001')[5], row('CB-COMMUNITY-SUBS-0006')[5], row('CB-COMMUNITY-SUBS-0008')[5]].join(' | '));
+    ok('presort button (1716): the consecutive A-Z run is flagged as a list number, and the one-off rows around it are not',
+       ['0101','0102','0103','0104','0105'].every(n => row('CB-COMMUNITY-SUBS-' + n)[14] === 'a list number, not a catalog number')
+       && row('CB-COMMUNITY-SUBS-0003')[14] === '' && row('CB-COMMUNITY-SUBS-0001')[14] === '',
+       row('CB-COMMUNITY-SUBS-0101')[14] + ' | ' + row('CB-COMMUNITY-SUBS-0003')[14]);
     ok('presort button: the decided row and the other batch were not touched', JSON.stringify(d2[5]) === snapDecided && JSON.stringify(d2[8]) === snapOther);
     ok('presort button: no verdict was written — every pending row is still pending', d2.slice(1).filter(r => r[0] === 'CB-COMMUNITY-SUBS' && r[1] !== 'CB-COMMUNITY-SUBS-0005').every(r => r[15] === 'pending'));
     // run it again: nothing to do
