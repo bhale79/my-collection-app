@@ -356,6 +356,47 @@ ok('1695 the queue tabs are read unbounded (the A1:L1000 cap hid 885 waiting row
 ok('1695 a submission already in the master is stamped yes, never queued; a failed master read stops the queue', /if \(k && inMaster\[k\]\) \{ stampYes\.push\(s\.row\); return false; \}/.test(ym95) && /could not read the master item numbers/.test(ym95));
 ok('1695 the same maker+number+variation filed twice queues ONCE and both rows are stamped', /if \(k && seenSub\[dk\]\) \{ stampSubs\.push\(s\.row\); return false; \}/.test(ym95));
 
+// ── v0.9.1712 (Session 95): a flag is a NOTE or a CHECK ───────────────────
+// Brad: "when it says 'maker still lists it — may not be retired', why does
+// this matter? … If I google it and it shows up as a real item, it should be
+// in the list." The retired-maker sweeps wrote notes about the RETIRED label
+// and the queue painted them red. Now only a CHECK ("I couldn't confirm this
+// exists or what it is") counts as flagged; a NOTE rides along in grey and
+// the row is clean. And: one tap approves or rejects every pending row that
+// carries the same flag.
+const cfg12 = src('config.js'), ym12 = src('yardmaster.js');
+const vm12 = require('vm');
+const _a12 = cfg12.indexOf('const RR_FLAG_NOTES'), _b12 = cfg12.indexOf('\n}\n', cfg12.indexOf('function rrFlagKind')) + 3;
+const k12 = {};
+vm12.runInNewContext(cfg12.slice(_a12, _b12) + ';this.k = rrFlagKind; this.notes = RR_FLAG_NOTES;', k12);
+ok('1712 rrFlagKind lives in config.js (ONE list to edit) and is exported', typeof k12.k === 'function' && /window\.rrFlagKind\s*=\s*rrFlagKind/.test(cfg12) && /window\.RR_FLAG_NOTES\s*=\s*RR_FLAG_NOTES/.test(cfg12));
+ok('1712 an empty flag is neither', k12.k('') === '' && k12.k(null) === '');
+ok('1712 the two sweep phrases Brad asked about are NOTES', k12.k('maker still lists it — may not be retired') === 'note' && k12.k('EU market item') === 'note');
+ok('1712 the Kato feed’s phrases are NOTES (1,592 of 2,640 rows say "Kato still sells it")',
+   ['Kato still sells it', 'no photo on site', 'no price shown', 'filed to Kato N by default', 'Kato lists it under BOTH N and HO — works with either', 'no category on the site — filed as a part', '009 narrow gauge (Kato UK range)'].every(f => k12.k(f) === 'note'));
+ok('1712 several notes joined by ";" are still a NOTE', k12.k('Kato still sells it; no photo on site; no price shown') === 'note');
+ok('1712 a doubt about existence or identity is a CHECK',
+   ['inferred — verify', 'no record found anywhere', 'needs a tab — Lionel has several', 'needs a number', 'UPC looks wrong', 'suspected misread SKU', 'ALREADY IN MASTER — reject?'].every(f => k12.k(f) === 'check'));
+ok('1712 a flag that asks for eyes ("check" / "verify" / "?") is a CHECK even when it also says a note phrase',
+   k12.k('type guessed — check') === 'check' && k12.k('scale not found — check') === 'check' && k12.k('looks like a part but its category is not Parts — check') === 'check');
+ok('1712 …but the same phrase without the ask is a NOTE (Marx / Greenberg "type guessed")', k12.k('type guessed') === 'note');
+ok('1712 a note joined to a check is a CHECK (one doubt is enough)', k12.k('no record found anywhere; maker still lists it') === 'check');
+ok('1712 a phrase the list has never seen is a CHECK, never a free pass', k12.k('something brand new') === 'check');
+ok('1712 the crawl-brief convention: "note: …" is always a NOTE', k12.k('note: sold only through club stores') === 'note');
+ok('1712 the Office asks config for the kind and falls back to CHECK if config is missing (the old, stricter rule)',
+   /function _ymFlagKind\(dd\) \{[\s\S]{0,200}typeof rrFlagKind === 'function'\) \? rrFlagKind\(dd\.flag\) : 'check'/.test(ym12));
+ok('1712 "flagged" means CHECK rows only; "clean" is everything that is not a check', /var flagged = pend\.filter\(_ymIsCheck\);/.test(ym12) && /_ymFilter === 'clean' \? pend\.filter\(function \(dd\) \{ return !_ymIsCheck\(dd\); \}\)/.test(ym12));
+ok('1712 Approve all clean takes rows that carry only a note', /return dd\.batch === _ymBatchId && !_ymIsCheck\(dd\) && \(dd\.status \|\| 'pending'\) === 'pending';/.test(ym12) && !/!dd\.flag && \(dd\.status/.test(ym12));
+ok('1712 a check is drawn red with ⚠, a note grey with ⓘ', /kind === 'check'\s*\?\s*'<div style="' \+ extra \+ 'color:var\(--accent\)">\\u26a0 '/.test(ym12) && /color:var\(--text-dim\)">\\u24d8 '/.test(ym12));
+ok('1712 the chip says what it is now: "Needs a look" + a clean count that shows how many carry notes', /Needs a look \(' \+ flagged\.length/.test(ym12) && /' with notes'/.test(ym12));
+ok('1712 the per-flag strip: distinct flags, PENDING counts, Approve all / Reject all each', /var _flagStrip = function \(items\)/.test(ym12) && /if \(!dd\.flag \|\| \(dd\.status \|\| 'pending'\) !== 'pending'\) return;/.test(ym12) && /Approve all ' \+ g\.n/.test(ym12) && /Reject all ' \+ g\.n/.test(ym12));
+ok('1712 …shown on the To review, Needs a look and Clean tabs (not Decided / Held)', /\(_ymFilter === 'all' \|\| _ymFilter === 'flagged' \|\| _ymFilter === 'clean'\) \? _flagStrip\(list\) : ''/.test(ym12));
+ok('1712 _ymVerdictFlag acts on this batch’s PENDING rows with EXACTLY that flag text, confirms first, and goes through _ymVerdictMany (so Undo works)',
+   /window\._ymVerdictFlag = function \(flagText, status\)/.test(ym12) && /String\(dd\.flag \|\| ''\) === want && \(dd\.status \|\| 'pending'\) === 'pending'/.test(ym12) && /appConfirm\(q, \{ title: verb \+ ' by flag'/.test(ym12) && /var go = function \(\) \{ window\._ymVerdictMany\(rows, status\); \};/.test(ym12));
+ok('1712 the flag text is JS-escaped BEFORE it is HTML-escaped for the onclick (an entity would decode back into a bare quote)', /ke = _esc\(k\.replace\(\/\\\\\/g, '\\\\\\\\'\)\.replace\(\/'\/g, "\\\\'"\)\)/.test(ym12));
+ok('1712 the stale "Read-only for now" line is gone from the Office', !/Read-only for now/.test(ym12));
+ok('1712 no hex colours were introduced', !/#[0-9a-fA-F]{3,6}\b/.test(ym12.slice(ym12.indexOf('function _ymFlagKind'), ym12.indexOf('function _ymIsFinished'))) && !/#[0-9a-fA-F]{6}\b/.test(ym12.slice(ym12.indexOf('var _flagLine'), ym12.indexOf('var rows = list.map'))));
+
 console.log('\n' + pass + ' passed, ' + fail + ' failed');
 if (fail) { console.log('YARDMASTER TESTS FAILING'); process.exit(1); }
 console.log('ALL YARDMASTER TESTS GREEN (' + pass + ')');
