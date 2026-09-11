@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.1715';
+const APP_VERSION = 'v0.9.1716';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -540,6 +540,72 @@ function rrTypeFromDescription(num, desc) {
   return '';
 }
 
+// ── SOMEONE'S LIST NUMBER, NOT A CATALOG NUMBER (v0.9.1716, Session 96) ──
+// Found by reading the live queue: 132 of the 889 rows still pending carried
+// the SUBMITTER'S OWN inventory number. The giveaway is a run of CONSECUTIVE
+// numbers whose descriptions run in A-Z order — a spreadsheet of somebody's
+// collection, sorted by description, exported with the row number used as the
+// item number. 32136-32150 are books in title order; 32243-32250 are M&StL
+// boxcars whose real Lionel numbers (6464-525, 6464-515, 6464-350) sit in the
+// description text instead. Approving those would file fake numbers like
+// 2577, 3043 and 32136 into the master — numbers that belong to other trains.
+//
+// This is the one rule that cannot be judged from a single row: it needs the
+// whole batch. So it runs in the Pre-sort, which has every pending row, and
+// never at queue time, which sees only what is arriving.
+//
+// A genuine consecutive catalog run does NOT trip it, because its
+// descriptions are not alphabetical — Atlas track 6051 "4 1/2\" Straight",
+// 6052 "1 3/4\" Straight", 6053 "5 1/2\" Straight" is consecutive but out of
+// order. Raise MIN_RUN or ALPHA to make the rule stricter.
+const RR_INVENTORY_MIN_RUN = 5;     // at least this many consecutive numbers
+const RR_INVENTORY_ALPHA   = 0.8;   // at least this share in A-Z order
+// rows: [{ id, num, desc }] → an object with true for each id that looks like
+// a list number. Ids not returned are untouched.
+function rrInventoryRows(rows) {
+  var out = {};
+  if (!rows || rows.length < RR_INVENTORY_MIN_RUN) return out;
+  var byNum = {}, keys = [];
+  for (var i = 0; i < rows.length; i++) {
+    var n = String(rows[i].num == null ? '' : rows[i].num).trim();
+    if (!/^\d{3,7}$/.test(n)) continue;
+    var k = parseInt(n, 10);
+    if (!byNum[k]) { byNum[k] = []; keys.push(k); }
+    byNum[k].push(rows[i]);
+  }
+  keys.sort(function (a, b) { return a - b; });
+  var run = [];
+  var close = function () {
+    if (run.length >= RR_INVENTORY_MIN_RUN) {
+      var d = [], a, b;
+      for (a = 0; a < run.length; a++) {
+        var rs = byNum[run[a]];
+        for (b = 0; b < rs.length; b++) {
+          var t = String(rs[b].desc == null ? '' : rs[b].desc).toLowerCase().replace(/^[^a-z0-9]+/, '');
+          if (t) { d.push(t); break; }
+        }
+      }
+      if (d.length >= RR_INVENTORY_MIN_RUN) {
+        var ord = 0;
+        for (var c = 0; c + 1 < d.length; c++) if (d[c] <= d[c + 1]) ord++;
+        if (ord / (d.length - 1) >= RR_INVENTORY_ALPHA) {
+          for (var e = 0; e < run.length; e++) {
+            var grp = byNum[run[e]];
+            for (var f = 0; f < grp.length; f++) if (grp[f].id) out[grp[f].id] = true;
+          }
+        }
+      }
+    }
+    run = [];
+  };
+  for (var j = 0; j < keys.length; j++) {
+    if (run.length && keys[j] !== run[run.length - 1] + 1) close();
+    run.push(keys[j]);
+  }
+  close();
+  return out;
+}
+
 // ── RECORDING MODE (v0.9.1697, Session 93) ───────────────────────
 // Brad records the help-menu screen captures on his OWN account, which is an
 // owner account, so the app normally shows him tools no ordinary user has.
@@ -762,6 +828,7 @@ try {
   window.rrPreSortReasons    = rrPreSortReasons;
   window.RR_TYPE_WORDS       = RR_TYPE_WORDS;          // v0.9.1715
   window.rrTypeFromDescription = rrTypeFromDescription;
+  window.rrInventoryRows     = rrInventoryRows;        // v0.9.1716
   window.rrRecordingMode    = rrRecordingMode;
   window.rrSetRecordingMode = rrSetRecordingMode;
   window.rrIsRealOwner      = rrIsRealOwner;

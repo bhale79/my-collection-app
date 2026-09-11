@@ -11,6 +11,10 @@
 //  in the last 7 days, opens in total and last seen (relay v4.0 keeps the
 //  count on each tester's beta_testers row). Brad: "I want names/emails of
 //  who used the app, opens in the past week and in total."
+//  v0.9.1716: the Pre-sort also spots SOMEONE'S LIST NUMBER — a run of
+//  consecutive numbers whose descriptions run A-Z is a collection export, not
+//  catalog numbers (rrInventoryRows, config.js). Batch-wide by nature, so it
+//  runs only in the Pre-sort, never at queue time.
 //  v0.9.1715: the blank TYPE is read out of the description. Brad: "many say
 //  boxcar in the title and the type is blank." rrTypeFromDescription
 //  (config.js) does the reading; queueing and the Pre-sort both fill it, and
@@ -836,9 +840,11 @@
   }
   function _ymPreSortPlan(rows) {
     var seen = {}, plan = [];
+    var inv = _ymInventoryRows(rows);   // v0.9.1716: needs the whole batch
     rows.forEach(function (dd) {
       var maker = _ymDeltaMaker(dd), m = _ymMakerNorm(maker), isDup = false;
       var reasons = _ymPreSortReasons({ maker: maker, num: dd.num, desc: dd.desc, notes: dd.notes });
+      if (inv[dd.id]) reasons.unshift('a list number, not a catalog number');   // v0.9.1716
       if (dd.num) {
         var bare = _ymDupKey('', dd.num, dd.variation), prev = seen[bare];
         if (prev && (!m || prev.unknown || prev.makers[m])) isDup = true;
@@ -1012,6 +1018,14 @@
   // not loaded or nothing in the words names a body.
   function _ymTypeFor(num, desc) {
     try { return (typeof rrTypeFromDescription === 'function') ? (rrTypeFromDescription(num, desc) || '') : ''; } catch (e) { return ''; }
+  }
+  // v0.9.1716: which of these rows carry a list number rather than a catalog
+  // number. Batch-wide — the answer for one row depends on its neighbours.
+  function _ymInventoryRows(list) {
+    try {
+      if (typeof rrInventoryRows !== 'function') return {};
+      return rrInventoryRows(list.map(function (dd) { return { id: dd.id, num: dd.num, desc: dd.desc }; })) || {};
+    } catch (e) { return {}; }
   }
   // v0.9.1714: a delta's maker — from "maker X" in its notes (queued by
   // v1714+), else the maker whose ONE tab it carries, else the maker named
