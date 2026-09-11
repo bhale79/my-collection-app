@@ -11,6 +11,10 @@
 //  in the last 7 days, opens in total and last seen (relay v4.0 keeps the
 //  count on each tester's beta_testers row). Brad: "I want names/emails of
 //  who used the app, opens in the past week and in total."
+//  v0.9.1717: the Google button searches the ROW'S maker, not the batch's.
+//  The batch name's first word is right for a crawl ("Kato N (Kato USA
+//  Store)") and useless for the community batch, which searched the word
+//  "Community" on every row. Brad hit it looking up an Atlas boxcar.
 //  v0.9.1716: the Pre-sort also spots SOMEONE'S LIST NUMBER — a run of
 //  consecutive numbers whose descriptions run A-Z is a collection export, not
 //  catalog numbers (rrInventoryRows, config.js). Batch-wide by nature, so it
@@ -1594,7 +1598,10 @@
           + _flagLine(dd, 'width:100%;font-size:0.92rem;')
         + '</div>';
       }
-      var gq = encodeURIComponent((maker + ' ' + dd.num + ' ' + dd.desc).trim());
+      // v0.9.1717: the row knows its own maker (v1714 files it in the notes);
+      // the batch label's first word is only the fallback. "Atlas 0528-1 …"
+      // finds the item; "Community 0528-1 …" finds nothing useful.
+      var gq = encodeURIComponent(((_ymDeltaMaker(dd) || maker) + ' ' + dd.num + ' ' + dd.desc).trim());
       return '<div style="border-top:1px solid var(--border);padding:0.6rem 0;display:flex;gap:0.9rem;align-items:flex-start;flex-wrap:wrap">'
         + '<div style="min-width:88px;font-weight:700;color:var(--text);font-size:1.1rem">' + _esc(dd.num || '\u2014') + '</div>'
         + '<div style="flex:1;min-width:240px">'
