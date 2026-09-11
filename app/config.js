@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.1711';
+const APP_VERSION = 'v0.9.1712';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -316,6 +316,67 @@ const ADMIN_EMAIL  = 'support@therailroster.com';
 // source of truth. THIS is the list to edit.
 const RR_OWNER_EMAILS = ['bhale@ipd-llc.com', 'support@therailroster.com'];
 
+// ── REVIEW-QUEUE FLAGS: NOTES vs CHECKS (v0.9.1712, Session 95) ──────────
+// Brad, on the Yardmaster's review queue: "when it says 'maker still lists
+// it — may not be retired', why does this matter? … If I google it and it
+// shows up as a real item, it should be in the list. If it doesn't show up
+// or there are multiple things it could be, then yes I want to flag it."
+//
+// The retired-maker sweeps were hunting for things a maker STOPPED selling,
+// so their researchers wrote "maker still lists it" and "EU market item" as
+// warnings about the RETIRED label — never as doubts that the item is real.
+// The Kato feed says "Kato still sells it" on 1,592 of 2,640 rows. Every one
+// of those is a real product on the maker's own site, and the queue was
+// painting them red and keeping them out of "Approve all clean".
+//
+// So a flag is now one of two kinds:
+//   NOTE  — information about a real item (still sold, EU market, no photo,
+//           no price, filed to a default tab, type guessed…). Shown in grey,
+//           COUNTS AS CLEAN. "Approve all clean" takes it.
+//   CHECK — "I could not confirm this exists, or what it is" (inferred, no
+//           record, needs a tab / a number, UPC looks wrong, duplicate…).
+//           Shown in red, stays in the Flagged tab for Brad's eyes.
+//
+// The rule, in order: an empty flag is neither. A flag that asks for eyes
+// ("check", "verify", "?") is a CHECK whatever else it says. A flag whose
+// every ';'-separated part starts with one of the NOTE phrases below (or
+// with "note:", the convention crawl briefs should use from now on) is a
+// NOTE (the phrase may sit anywhere in the part — "Kato lists it under BOTH
+// N and HO", "Greenberg 9th ed. — replaces a retail-listing row"). Anything
+// else — including a phrase this list has never seen — is a CHECK, because
+// an unknown flag deserves a look, not a free pass.
+//
+// THIS is the list to edit when a sweep invents a new informational phrase.
+const RR_FLAG_NOTES = [
+  'note:',
+  'maker still lists it',
+  'eu market item',
+  'still sells it',                 // "Kato still sells it"
+  'no photo on site',
+  'no price shown',
+  'filed to kato n',                // "filed to Kato N" / "… by default"
+  'lists it under both n and ho',   // "Kato lists it under BOTH N and HO — works with either"
+  'no category on the site',        // "… — filed as a part"
+  '009 narrow gauge',
+  'type guessed',                   // Marx / AF Greenberg batches
+  'replaces a'                      // "…replaces a 2026-07-28 retail-listing row"
+];
+
+function rrFlagKind(flag) {
+  var f = String(flag == null ? '' : flag).trim();
+  if (!f) return '';
+  var lower = f.toLowerCase();
+  if (/\bcheck\b|\bverify\b|\?/.test(lower)) return 'check';
+  var parts = lower.split(';').map(function (x) { return x.trim(); }).filter(Boolean);
+  var allNotes = parts.length > 0 && parts.every(function (part) {
+    for (var i = 0; i < RR_FLAG_NOTES.length; i++) {
+      if (part.indexOf(RR_FLAG_NOTES[i]) >= 0) return true;
+    }
+    return false;
+  });
+  return allNotes ? 'note' : 'check';
+}
+
 // ── RECORDING MODE (v0.9.1697, Session 93) ───────────────────────
 // Brad records the help-menu screen captures on his OWN account, which is an
 // owner account, so the app normally shows him tools no ordinary user has.
@@ -528,6 +589,8 @@ try {
 
 try {
   window.RR_OWNER_EMAILS = RR_OWNER_EMAILS;
+  window.RR_FLAG_NOTES  = RR_FLAG_NOTES;
+  window.rrFlagKind     = rrFlagKind;
   window.rrRecordingMode    = rrRecordingMode;
   window.rrSetRecordingMode = rrSetRecordingMode;
   window.rrIsRealOwner      = rrIsRealOwner;

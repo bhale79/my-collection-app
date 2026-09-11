@@ -4,6 +4,9 @@
 //  v0.9.1689: Clear finished also ARCHIVES the decided rows (crawl_deltas →
 //  crawl_deltas_archive, backup first, verified); verdicts/edits check the
 //  row still carries their delta_id before writing.
+//  v0.9.1712: a flag is a NOTE or a CHECK (rrFlagKind, config.js). Notes
+//  count as clean; only checks are "flagged". Per-flag Approve all / Reject
+//  all buttons on the batch view. Brad: "I have thousands to approve."
 //
 //  Brad: "I need something like an admin page that will help me keep
 //  track of everything." Decided S86: queues front and center.
@@ -333,7 +336,7 @@
       : '';
     html += _card('Catalog review queue' + (shown.length ? '' : ' — empty'),
       shown.length
-        ? brows + qfoot + '<div style="margin-top:0.5rem;font-size:0.95rem;color:var(--text-dim)">Read-only for now — approve/reject verdicts arrive in the next release.</div>'
+        ? brows + qfoot   // v0.9.1712: the "read-only for now" line is gone — verdicts have worked since v0.9.1625
         : '<div style="color:var(--text-dim)">No crawl batches waiting. New sweeps land here automatically.</div>' + qfoot);
 
     // 2 — CHORES
@@ -400,6 +403,15 @@
     var s = _ymHeldSplit(b);
     return s.tab + s.num;
   }
+  // v0.9.1712: NOTE vs CHECK. Only a CHECK flag makes a row "flagged"; a
+  // NOTE rides along in grey and the row counts as clean. If config.js has
+  // not defined the rule (never expected), every flag is a check — the old,
+  // stricter behaviour.
+  function _ymFlagKind(dd) {
+    if (!dd || !dd.flag) return '';
+    return (typeof rrFlagKind === 'function') ? rrFlagKind(dd.flag) : 'check';
+  }
+  function _ymIsCheck(dd) { return _ymFlagKind(dd) === 'check'; }
   function _ymIsFinished(b) {
     var c = b.counts || {};
     return b.status === 'committed' && !c.pending && !c.deferred && !_ymHeldCount(b);
@@ -695,7 +707,7 @@
   window._ymApproveClean = function () {
     if (!_ymData) return;
     var clean = _ymData.deltas.filter(function (dd) {
-      return dd.batch === _ymBatchId && !dd.flag && (dd.status || 'pending') === 'pending';
+      return dd.batch === _ymBatchId && !_ymIsCheck(dd) && (dd.status || 'pending') === 'pending';   // v0.9.1712: notes are clean
     });
     if (!clean.length) { if (typeof showToast === 'function') showToast('No clean pending rows left', 2500); return; }
     var go = function () { window._ymVerdictMany(clean, 'approved'); };
@@ -703,6 +715,23 @@
       appConfirm('Approve all ' + clean.length + ' clean pending rows?', { title: 'Approve clean rows', ok: 'Approve ' + clean.length })
         .then(function (yes) { if (yes) go(); });
     } else if (confirm('Approve all ' + clean.length + ' clean pending rows?')) go();
+  };
+  // ── v0.9.1712: one verdict for every pending row that carries the SAME flag ──
+  // Brad: "I also need a faster way to approve multiple items that have the
+  // same flag." The flag text is the key, exactly as the sheet holds it.
+  window._ymVerdictFlag = function (flagText, status) {
+    if (!_ymData) return;
+    var want = String(flagText || '');
+    var rows = _ymData.deltas.filter(function (dd) {
+      return dd.batch === _ymBatchId && String(dd.flag || '') === want && (dd.status || 'pending') === 'pending';
+    });
+    if (!rows.length) { if (typeof showToast === 'function') showToast('No pending rows carry that flag any more', 2500); return; }
+    var verb = status === 'approved' ? 'Approve' : status === 'rejected' ? 'Reject' : 'Defer';
+    var go = function () { window._ymVerdictMany(rows, status); };
+    var q = verb + ' all ' + rows.length + ' pending rows flagged \u201c' + want + '\u201d?';
+    if (typeof appConfirm === 'function') {
+      appConfirm(q, { title: verb + ' by flag', ok: verb + ' ' + rows.length }).then(function (yes) { if (yes) go(); });
+    } else if (confirm(q)) go();
   };
   // ── v0.9.1627(b): EDIT — Brad: "how do i change things you flagged?" ──
   // Every row opens into an inline editor: proposed tab (the door for the
@@ -1216,11 +1245,12 @@
     var all = _ymData.deltas.filter(function (dd) { return dd.batch === id; });
     var pend = all.filter(function (dd) { return (dd.status || 'pending') === 'pending'; });
     var decided = all.filter(function (dd) { return (dd.status || 'pending') !== 'pending'; });
-    var flagged = pend.filter(function (dd) { return dd.flag; });
+    var flagged = pend.filter(_ymIsCheck);                                        // v0.9.1712: CHECK flags only
+    var noted = pend.filter(function (dd) { return _ymFlagKind(dd) === 'note'; });   // v0.9.1712: notes ride along as clean
     var _vt = _ymMasterTabs();
     var heldRows = all.filter(function (dd) { return _ymIsHeldRow(dd, _vt); });   // v0.9.1694
     var list = _ymFilter === 'flagged' ? flagged
-             : _ymFilter === 'clean' ? pend.filter(function (dd) { return !dd.flag; })
+             : _ymFilter === 'clean' ? pend.filter(function (dd) { return !_ymIsCheck(dd); })
              : _ymFilter === 'decided' ? decided
              : _ymFilter === 'held' ? heldRows
              : pend;
@@ -1241,6 +1271,45 @@
       return '<label style="display:flex;flex-direction:column;gap:0.15rem;font-size:0.8rem;color:var(--text-dim)">' + label
         + '<input id="' + eid + '" value="' + _esc(val) + '" style="width:' + (w || '9rem') + ';background:var(--surface);border:1px solid var(--border);border-radius:7px;padding:0.35rem 0.5rem;color:var(--text);font-family:var(--font-body);font-size:0.95rem"></label>';
     };
+    // v0.9.1712: a CHECK is red with a warning sign; a NOTE is grey with an info mark.
+    var _flagLine = function (dd, extra) {
+      var kind = _ymFlagKind(dd);
+      if (!kind) return '';
+      return kind === 'check'
+        ? '<div style="' + extra + 'color:var(--accent)">\u26a0 ' + _esc(dd.flag) + '</div>'
+        : '<div style="' + extra + 'color:var(--text-dim)">\u24d8 ' + _esc(dd.flag) + '</div>';
+    };
+    // v0.9.1712: the per-flag strip — every distinct flag in the list on screen,
+    // with its count and one-tap Approve all / Reject all. Counts are PENDING
+    // rows only, which is exactly what _ymVerdictFlag will act on.
+    var _flagStrip = function (items) {
+      var groups = {}, order = [];
+      items.forEach(function (dd) {
+        if (!dd.flag || (dd.status || 'pending') !== 'pending') return;
+        var k = String(dd.flag);
+        if (!groups[k]) { groups[k] = { n: 0, kind: _ymFlagKind(dd) }; order.push(k); }
+        groups[k].n++;
+      });
+      if (!order.length) return '';
+      order.sort(function (a, b) { return groups[b].n - groups[a].n || a.localeCompare(b); });
+      var sbtn = 'padding:0.15rem 0.55rem;border-radius:6px;background:var(--surface);font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer;';
+      return '<div style="display:flex;flex-direction:column;gap:0.3rem;margin:0.45rem 0 0.2rem;padding:0.55rem 0.7rem;border:1px dashed var(--border);border-radius:10px">'
+        + '<div style="font-size:0.85rem;color:var(--text-dim)">Same flag, one tap \u2014 red needs your eyes, grey is a note about a real item</div>'
+        + order.map(function (k) {
+            // The flag text rides inside a JS string inside an HTML attribute:
+            // JS-escape first (backslash, quote), THEN HTML-escape — an entity
+            // in the attribute would be decoded back into a bare quote before
+            // the JS is ever parsed, which is the wrong order.
+            var g = groups[k], ke = _esc(k.replace(/\\/g, '\\\\').replace(/'/g, "\\'"));
+            return '<div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap">'
+              + '<span style="color:' + (g.kind === 'check' ? 'var(--accent)' : 'var(--text-dim)') + ';font-size:0.92rem">' + (g.kind === 'check' ? '\u26a0 ' : '\u24d8 ') + _esc(k) + '</span>'
+              + '<span style="font-weight:700;color:var(--text)">' + g.n + '</span>'
+              + '<button onclick="_ymVerdictFlag(\'' + ke + '\',\'approved\')" style="' + sbtn + 'border:1.5px solid var(--green);color:var(--green)">Approve all ' + g.n + '</button>'
+              + '<button onclick="_ymVerdictFlag(\'' + ke + '\',\'rejected\')" style="' + sbtn + 'border:1.5px solid var(--accent);color:var(--accent)">Reject all ' + g.n + '</button>'
+              + '</div>';
+          }).join('')
+        + '</div>';
+    };
     var rows = list.map(function (dd) {
       if (dd.id === _ymEditId) {
         var tabOpts = '<option value=""' + (dd.tab ? '' : ' selected') + '>\u2014 pick \u2014</option>'
@@ -1259,7 +1328,7 @@
             + '<button onclick="_ymEditSave(\'' + _esc(dd.id) + '\')" style="padding:0.35rem 0.9rem;border-radius:7px;border:none;background:var(--accent);color:var(--on-accent);font-family:var(--font-body);font-weight:700;cursor:pointer">Save</button>'
             + '<button onclick="_ymEditCancel()" style="padding:0.35rem 0.9rem;border-radius:7px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-family:var(--font-body);cursor:pointer">Cancel</button>'
           + '</div>'
-          + (dd.flag ? '<div style="width:100%;font-size:0.92rem;color:var(--accent)">\u26a0 ' + _esc(dd.flag) + '</div>' : '')
+          + _flagLine(dd, 'width:100%;font-size:0.92rem;')
         + '</div>';
       }
       var gq = encodeURIComponent((maker + ' ' + dd.num + ' ' + dd.desc).trim());
@@ -1270,7 +1339,7 @@
           + '<div style="font-size:0.95rem;color:var(--text-dim)">'
             + _esc(dd.tab || 'no tab yet') + (dd.type ? ' \u00b7 ' + _esc(dd.type) : '') + (dd.years ? ' \u00b7 ' + _esc(dd.years) : '')
             + (dd.msrp ? ' \u00b7 $' + _esc(dd.msrp) : '') + '</div>'
-          + (dd.flag ? '<div style="font-size:0.95rem;color:var(--accent);margin-top:0.15rem">\u26a0 ' + _esc(dd.flag) + '</div>' : '')
+          + _flagLine(dd, 'font-size:0.95rem;margin-top:0.15rem;')
         + '</div>'
         + '<div style="display:flex;flex-direction:column;gap:0.4rem;align-items:flex-end">'
           + '<div style="display:flex;gap:0.4rem">'
@@ -1303,16 +1372,17 @@
           + (((c.approved + c.edited) > 0)
               ? '<button onclick="_ymCommit()" style="padding:0.3rem 0.85rem;border-radius:8px;border:none;background:var(--accent);color:var(--on-accent);font-family:var(--font-body);font-weight:700;cursor:pointer;font-size:0.92rem">Commit ' + (c.approved + c.edited) + ' \u2192 master</button>'
               : '')
-          + '<button onclick="_ymApproveClean()" style="padding:0.3rem 0.85rem;border-radius:8px;border:1.5px solid var(--green);background:var(--surface);color:var(--green);font-family:var(--font-body);font-weight:700;cursor:pointer;font-size:0.92rem">Approve all clean</button>'
+          + '<button onclick="_ymApproveClean()" title="Every pending row without a red flag \u2014 rows carrying only a grey note are included" style="padding:0.3rem 0.85rem;border-radius:8px;border:1.5px solid var(--green);background:var(--surface);color:var(--green);font-family:var(--font-body);font-weight:700;cursor:pointer;font-size:0.92rem">Approve all clean</button>'
           + (_ymUndoStack && _ymUndoStack.length
               ? '<button onclick="_ymUndoLast()" style="padding:0.3rem 0.85rem;border-radius:8px;border:1.5px solid var(--border);background:var(--surface);color:var(--text);font-family:var(--font-body);font-weight:700;cursor:pointer;font-size:0.92rem">\u21a9 Undo last</button>'
               : '')
         + '</div>'
       + '</div>'
       + '<div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin:0.55rem 0 0.2rem">'
-      + chip('all', 'To review (' + pend.length + ')') + chip('flagged', '\u26a0 Flagged (' + flagged.length + ')')
-      + chip('clean', 'Clean (' + (pend.length - flagged.length) + ')') + chip('decided', 'Decided (' + decided.length + ')')
+      + chip('all', 'To review (' + pend.length + ')') + chip('flagged', '\u26a0 Needs a look (' + flagged.length + ')')
+      + chip('clean', 'Clean (' + (pend.length - flagged.length) + (noted.length ? ', ' + noted.length + ' with notes' : '') + ')') + chip('decided', 'Decided (' + decided.length + ')')
       + (heldRows.length ? chip('held', 'Held \u2014 needs a tab or number (' + heldRows.length + ')') : '') + '</div>'
+      + ((_ymFilter === 'all' || _ymFilter === 'flagged' || _ymFilter === 'clean') ? _flagStrip(list) : '')   // v0.9.1712
       + rows + '</div>';
     try {
       if (mc) {
