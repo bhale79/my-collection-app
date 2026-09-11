@@ -894,7 +894,13 @@ async function subCheck() {
     // tester into beta_testers on first sign-in and stamp last_seen +
     // app_version on every check-in (6h-throttled server-side). Fail-soft:
     // missing globals just send blanks and the relay behaves exactly as v3.4.
+    // v0.9.1713 (Session 96): the check-in also carries the person's name.
+    // Relay v4.0 files it — with a running count of opens and a 14-day
+    // ledger — on the tester's own row in beta_testers, and ONLY there:
+    // Brad, "this is just for Beta people … only for the beta people after
+    // launch." Anyone not in that tab is recorded nowhere, as before.
     const r = await vaultPost({ action: 'sub_check', email: state.user.email,
+      name: String(state.user.name || '').slice(0, 80),
       betaCode: (typeof _isBetaVerified === 'function' && _isBetaVerified()
                  && typeof _BETA_CODE !== 'undefined') ? _BETA_CODE : '',
       appVersion: (typeof APP_VERSION !== 'undefined') ? APP_VERSION : '' });

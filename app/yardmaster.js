@@ -7,6 +7,10 @@
 //  v0.9.1712: a flag is a NOTE or a CHECK (rrFlagKind, config.js). Notes
 //  count as clean; only checks are "flagged". Per-flag Approve all / Reject
 //  all buttons on the batch view. Brad: "I have thousands to approve."
+//  v0.9.1713: "Who's using the app" — beta testers by name/email with opens
+//  in the last 7 days, opens in total and last seen (relay v4.0 keeps the
+//  count on each tester's beta_testers row). Brad: "I want names/emails of
+//  who used the app, opens in the past week and in total."
 //
 //  Brad: "I need something like an admin page that will help me keep
 //  track of everything." Decided S86: queues front and center.
@@ -27,6 +31,9 @@
 //                    it; setupV38Chores). Mark done writes ONLY the
 //                    last_done cell of that row, nothing else.
 //    usage         — anonymous daily opens (relay v3.7 heartbeat)
+//    beta_testers  — v0.9.1713: who is using the app — beta testers ONLY;
+//                    relay v4.0 stamps last_seen | app_version | opens |
+//                    recent_days | name on each tester's row per open
 //  The Monday digest email (relay v3.8) reads the same tabs — one
 //  source of truth, two views.
 //
@@ -82,7 +89,8 @@
     // saw only the first thousand (all in_master=true) and reported 0 waiting
     // while 885 sat below the cut. Both queue tabs are read unbounded now.
     var ranges = ['submissions!A1:L', 'barcode_pairs!A1:I', 'chores!A1:D200', 'usage!A1:C400',
-                  'crawl_batches!A1:G50', 'crawl_deltas!A1:X12000']   // v0.9.1683: image_url is column R; v0.9.1685: var_desc/sub_type/notes/category after it — all found BY HEADER. v0.9.1687: 4000 → 12000 rows (the two Greenberg transcriptions alone are 6,455 deltas)
+                  'crawl_batches!A1:G50', 'crawl_deltas!A1:X12000',   // v0.9.1683: image_url is column R; v0.9.1685: var_desc/sub_type/notes/category after it — all found BY HEADER. v0.9.1687: 4000 → 12000 rows (the two Greenberg transcriptions alone are 6,455 deltas)
+                  'beta_testers!A1:H']                                // v0.9.1713: added at the END so v[0..5] keep their meaning; columns found BY HEADER
       .map(function (r) { return 'ranges=' + encodeURIComponent(r); }).join('&');
     return fetch('https://sheets.googleapis.com/v4/spreadsheets/' + YM.VAULT_ID
         + '/values:batchGet?' + ranges,
@@ -94,7 +102,7 @@
       .then(function (j) {
         var v = (j.valueRanges || []).map(function (x) { return x.values || []; });
         return { submissions: v[0], barcodes: v[1], chores: v[2], usage: v[3],
-                 crawlBatches: v[4], crawlDeltas: v[5] };
+                 crawlBatches: v[4], crawlDeltas: v[5], betaTesters: v[6] };   // v0.9.1713
       });
   }
 
@@ -119,6 +127,30 @@
       }
     } catch (e) {}
     return ['Menards O', 'Menards HO'];   // config unavailable — the v1627 pair, never expected
+  }
+
+  // v0.9.1713: "2026-09-10:2;2026-09-11:1" → opens in the last N days (today
+  // included). Pure: (ledger string, N, now) → number. Bad parts are ignored.
+  function _ymLedgerSum(ledger, days, now) {
+    var cutoff = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()) - (days - 1) * 864e5;
+    var sum = 0;
+    String(ledger || '').split(';').forEach(function (part) {
+      var mm = part.split(':');
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(mm[0])) return;
+      var t = Date.parse(mm[0] + 'T00:00:00Z');
+      if (t >= cutoff) sum += Number(mm[1]) || 0;
+    });
+    return sum;
+  }
+  function _ymBetaRows(rows, now) {
+    if (!rows.length) return [];
+    var h = (rows[0] || []).map(function (x) { return String(x || '').trim().toLowerCase(); });
+    var g = function (r, name) { var i = h.indexOf(name); return i < 0 ? '' : String(r[i] == null ? '' : r[i]).trim(); };
+    return rows.slice(1).filter(function (r) { return g(r, 'email'); }).map(function (r) {
+      var seen = g(r, 'last_seen').slice(0, 10);
+      return { email: g(r, 'email'), name: g(r, 'name'), seen: seen, version: g(r, 'app_version'),
+               total: Number(g(r, 'opens')) || 0, week: _ymLedgerSum(g(r, 'recent_days'), 7, now) };
+    }).sort(function (a, b) { return (b.seen || '').localeCompare(a.seen || '') || a.email.localeCompare(b.email); });
   }
 
   function _summarize(d) {
@@ -170,6 +202,13 @@
     out.usage = (d.usage || []).slice(1).slice(-7).map(function (r) {
       return { date: String(r[0] || '').slice(0, 10), opens: r[1] || 0, versions: String(r[2] || '') };
     });
+    // ── v0.9.1713: who is using the app (beta testers only) ────────
+    // One row per tester, columns BY HEADER (relay v4.0 writes last_seen,
+    // app_version, opens, recent_days, name at the END of the row; older
+    // relays leave them blank and the card says so). "Last 7 days" is
+    // summed from the 14-day ledger, today included; total is the relay's
+    // running count. Most recently seen first; never-seen testers last.
+    out.beta = _ymBetaRows(d.betaTesters || [], new Date());
     // ── v0.9.1622: the review queue (Task #36's front door) ──────
     // crawl_batches / crawl_deltas are seeded by crawl sessions; the
     // Office is their review surface. Columns found BY HEADER NAME
@@ -360,17 +399,42 @@
           + '<div style="margin-top:0.5rem;font-size:0.95rem;color:var(--text-dim)">Add or edit chores in the Vault’s <b>chores</b> tab — no deploy needed.</div>'
         : '<div style="color:var(--text-dim)">No chores tab yet — run setupV38Chores() in the relay once.</div>');
 
-    // 3 — THIS WEEK
+    // 3 — WHO IS USING THE APP (v0.9.1713, beta testers only)
+    var counted = d.beta.filter(function (b) { return b.total > 0; }).length;
+    var bsum = d.beta.reduce(function (acc, b) { acc.week += b.week; acc.total += b.total; return acc; }, { week: 0, total: 0 });
+    var brws = d.beta.map(function (b) {
+      var dim = 'color:var(--text-dim)';
+      return '<tr>'
+        + '<td style="padding:0.25rem 0.8rem 0.25rem 0;white-space:nowrap"><span style="font-weight:700;color:var(--text)">' + _esc(b.name || b.email) + '</span>'
+          + (b.name ? '<br><span style="' + dim + ';font-size:0.95rem">' + _esc(b.email) + '</span>' : '') + '</td>'
+        + '<td style="padding:0.25rem 0.8rem;font-weight:700;color:var(--text);text-align:right">' + b.week + '</td>'
+        + '<td style="padding:0.25rem 0.8rem;font-weight:700;color:var(--text);text-align:right">' + b.total + '</td>'
+        + '<td style="padding:0.25rem 0.8rem;' + dim + ';white-space:nowrap">' + (b.seen ? _esc(b.seen) : 'never') + '</td>'
+        + '<td style="padding:0.25rem 0;' + dim + ';font-size:0.98rem">' + _esc(b.version) + '</td></tr>';
+    }).join('');
+    var bth = 'color:var(--text-dim);padding-right:0.8rem;text-align:right';
+    html += _card('Who’s using the app' + (d.beta.length ? ' — ' + counted + ' of ' + d.beta.length + ' testers, ' + bsum.week + ' opens this week' : ''),
+      d.beta.length
+        ? '<div style="overflow-x:auto"><table style="border-collapse:collapse;font-size:1.15rem">'
+          + '<tr><td style="color:var(--text-dim);padding-right:0.8rem">tester</td><td style="' + bth + '">last 7 days</td><td style="' + bth + '">total</td>'
+          + '<td style="color:var(--text-dim);padding-right:0.8rem">last seen</td><td style="color:var(--text-dim)">version</td></tr>'
+          + brws + '</table></div>'
+          + '<div style="margin-top:0.5rem;font-size:0.95rem;color:var(--text-dim)">Beta testers only — the relay (v4.0) counts one open each time a tester’s app loads; nobody outside the beta_testers tab is recorded.'
+          + (counted ? '' : ' Counts start when relay v4.0 is in place.') + '</div>'
+        : '<div style="color:var(--text-dim)">No beta_testers tab yet, or nobody enrolled.</div>');
+
+    // 4 — THIS WEEK (anonymous devices per day)
     var urows = d.usage.map(function (u) {
       return '<tr><td style="padding:0.25rem 0.8rem 0.25rem 0;color:var(--text-dim);white-space:nowrap">' + _esc(u.date) + '</td>'
         + '<td style="padding:0.25rem 0.8rem;font-weight:700;color:var(--text)">' + _esc(u.opens) + '</td>'
         + '<td style="padding:0.25rem 0;color:var(--text-dim);font-size:0.98rem">' + _esc(u.versions) + '</td></tr>';
     }).join('');
-    html += _card('App opens, last 7 days',
+    html += _card('App opens, last 7 days — devices per day',
       d.usage.length
         ? '<div style="overflow-x:auto"><table style="border-collapse:collapse;font-size:1.15rem">'
           + '<tr><td style="color:var(--text-dim);padding-right:0.8rem">date</td><td style="color:var(--text-dim);padding-right:0.8rem">opens</td><td style="color:var(--text-dim)">versions</td></tr>'
           + urows + '</table></div>'
+          + '<div style="margin-top:0.5rem;font-size:0.95rem;color:var(--text-dim)">Anonymous heartbeat: one per device per day, signed in or not — no names here by design.</div>'
         : '<div style="color:var(--text-dim)">No heartbeats counted yet — they start arriving as devices update to this release.</div>');
 
     page.innerHTML = html;
