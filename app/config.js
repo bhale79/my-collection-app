@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.1714';
+const APP_VERSION = 'v0.9.1715';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -480,6 +480,66 @@ function rrPreSortReasons(o) {
   return out;
 }
 
+// ── READING THE TYPE OUT OF A DESCRIPTION (v0.9.1715, Session 96) ────────
+// Brad, on the community queue: "many say boxcar in the title and the type is
+// blank." They do — every community row arrives with item_type empty, because
+// a user's submission never carries one. The app already owns a type engine
+// (getTypeBucket, type-groups.js, verified on 32,571 master items), but it
+// only runs once a type EXISTS: given a blank one it returns 'Other' for
+// every row. What was missing is the step before it — reading the body style
+// out of the words — and that is what this is.
+//
+// Ordered, FIRST MATCH WINS, so a body style beats an incidental word:
+// "Boxcar #3345 Light Grey" is a boxcar, not a light; "Historical Art Wood
+// Sided Reefer" is a reefer, not paper. Rules marked 'head' read only the
+// text BEFORE a "with" / "w/" / "from" clause, because that clause names the
+// LOAD or the parent set: "Flatcar with Combine Load" is a flatcar, and
+// "6464-125 From #2293 … F3 Freight Set" is not a locomotive.
+//
+// Every id it can return is one of the 23 TYPE_BUCKETS — that list stays the
+// single source of truth for the vocabulary. When nothing matches it returns
+// '' and the row keeps its blank type: a wrong type is worse than none.
+// THIS is the list to edit when a body style is being read wrong.
+const RR_TYPE_WORDS = [
+  ['Set', /\b(?:\d+[-\s]?)?(?:car|piece|pc|unit)s?\s+set\b|\b\d+[-\s]?pack\b|\btrain set\b|\b(?:freight|passenger|starter|add[-\s]?on|expansion|diesel|steam)\s+set\b|\bset\s*$/i, 'head'],
+  ['Track', /\b(?:straight|curve[d]?|turnout|switches|crossing|rail\s*joiners?|roadbed|re-?railer|bumper|terminal joiner|track screws|accessory rails|unitrack|fastrack|track section)\b|\bO-\d{2}\b.*\b(?:track|switch|curve)\b|\bswitch\b(?!er)/i],
+  ['Trolley', /\b(?:trolley|interurban|subway car)\b/i],
+  ['LOCO', /\b(?:locomotive|loco\b|engine\b|diesel|steam\b|switcher|gg-?1|f[379][ab]?\b|f-?[23]\b|e[789]\b|fa-?\d|fb-?\d|pa-?\d|pb-?\d|gp-?\d+|sd-?\d+|rs-?\d+|u\d\db|dash\s?[89]|es44|ac4400|trainmaster|geep|docksider|mp-?15|sw-?\d+|alco|emd\b|baldwin|\d-\d-\d(?:-\d)?)\b/i, 'head'],
+  ['Passenger Car', /\b(?:coach|observation|vista\s?dome|dome car|baggage|rpo\b|pullman|sleeper|diner\b|dining car|combine\b|passenger car|streamline[d]?|heavyweight|business car|excursion car|parlor|solarium|bi-?level|gallery car|commuter)\b/i, 'head'],
+  ['Caboose', /\b(?:caboose|cabin car|bay window|cupola)\b/i],
+  ['Tender', /\btender\b/i],
+  ['Intermodal', /\b(?:container|well car|maxi-?\s?(?:i|iv|stack)|stack car|auto\s?(?:carrier|rack)|piggy-?back|tofc|cofc|front runner|husky stack|double-?stack)\b/i],
+  ['Tank Car', /\b(?:tank\s?car|tanker|(?:single|double|triple|two|three|four)[-\s]?dome|vat car|oil car)\b/i],
+  ['Hopper', /\b(?:hopper|ore car|coal car|ballast car|coalporter)\b/i],
+  ['Gondola', /\b(?:gondola|gon car)\b/i],
+  ['Stock Car', /\b(?:stock car|cattle car|horse car|elephant car|poultry car)\b/i],
+  ['Operating Freight', /\b(?:operating|crane car|searchlight|floodlight|dump car|milk car|giraffe|aquarium|missile|rocket launcher|derrick|snow\s?plow|boom car|cop and hobo|culvert|log dump|mine car|barrel car|tool car|bunk car|work caboose|welding car|fire car)\b/i],
+  ['Flatcar', /\b(?:flat\s?car|bulkhead|depressed[-\s]center|log car|pulpwood|coil steel|skeleton car|center\s?beam|ramp car|auto loader|wheel car|flat\b)\b/i],
+  ['Boxcar', /\b(?:box\s?car|reefer|refrigerator|mint car|hi-?cube|high-?cube|plug door|double door|single door|express car|merchandise car|automobile car|wood\s?sided|beer car|airslide|center partition)\b/i],
+  ['Transformer/Power', /\b(?:transformer|power\s?supply|powerhouse|controller|power pack|circuit breaker)\b/i, 'head'],
+  ['Accessory', /\b(?:figures?|figurine|people pack|building|station\b|billboard|sign\b|water tower|lamp\s?post|gateman|crossing gate|tower\b|bridge|tunnel|platform|tree|trees|greenery|scenery|ballast|bulbs?|shed\b|factory|bakery|supermarket|roundhouse|turntable)\b/i, 'head'],
+  ['Paper / Box / Misc', /\b(?:catalog|catalogue|book|books|vol\.?\s?\d|volume|greenbergs?|dvd|video|magazine|service manual|manual\b|brochure|drawing|dwg|poster|blueprint|calendar|print\b|art\b)\b/i, 'head']
+];
+function rrTypeFromDescription(num, desc) {
+  var d = String(desc == null ? '' : desc).trim();
+  if (!d) return '';
+  var head = d.split(/\s(?:with|w\/|from)\s/i)[0];
+  for (var i = 0; i < RR_TYPE_WORDS.length; i++) {
+    var hay = RR_TYPE_WORDS[i][2] === 'head' ? head : d;
+    if (!RR_TYPE_WORDS[i][1].test(hay)) continue;
+    var id = RR_TYPE_WORDS[i][0];
+    if (id !== 'LOCO') return id;
+    // which kind of locomotive: the app's own engine reads the name
+    if (typeof getTypeBucket === 'function') {
+      var t = getTypeBucket({ itemNum: num, description: d, itemType: 'Locomotive' });
+      if (t && /Locomotive|Motorized/.test(t)) return t;
+    }
+    return /\b(?:steam|\d-\d-\d|baldwin|docksider|porter)\b/i.test(d) ? 'Steam Locomotive'
+         : /\b(?:gg-?1|electric)\b/i.test(d) ? 'Electric Locomotive' : 'Diesel Locomotive';
+  }
+  return '';
+}
+
 // ── RECORDING MODE (v0.9.1697, Session 93) ───────────────────────
 // Brad records the help-menu screen captures on his OWN account, which is an
 // owner account, so the app normally shows him tools no ordinary user has.
@@ -700,6 +760,8 @@ try {
   window.RR_PRESORT_WORDS    = RR_PRESORT_WORDS;
   window.rrMakerNorm         = rrMakerNorm;
   window.rrPreSortReasons    = rrPreSortReasons;
+  window.RR_TYPE_WORDS       = RR_TYPE_WORDS;          // v0.9.1715
+  window.rrTypeFromDescription = rrTypeFromDescription;
   window.rrRecordingMode    = rrRecordingMode;
   window.rrSetRecordingMode = rrSetRecordingMode;
   window.rrIsRealOwner      = rrIsRealOwner;

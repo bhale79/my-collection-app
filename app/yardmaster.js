@@ -11,6 +11,10 @@
 //  in the last 7 days, opens in total and last seen (relay v4.0 keeps the
 //  count on each tester's beta_testers row). Brad: "I want names/emails of
 //  who used the app, opens in the past week and in total."
+//  v0.9.1715: the blank TYPE is read out of the description. Brad: "many say
+//  boxcar in the title and the type is blank." rrTypeFromDescription
+//  (config.js) does the reading; queueing and the Pre-sort both fill it, and
+//  neither ever overwrites a type that is already there.
 //  v0.9.1714: the community PRE-SORT. Brad: "it mixes real trains we lack
 //  with junk (model airplanes, cars) … flag the obvious junk as a CHECK and
 //  leave the obvious trains clean." Reasons come from rrPreSortReasons
@@ -230,7 +234,8 @@
       // then i + 2) would have shifted every sheetRow below a blank row —
       // and a verdict writes by sheetRow. Same lesson as _loadMyDocs.
       out.deltaIdCol = _dcol.delta_id == null ? 'B' : _ymColLetter(_dcol.delta_id);
-      out.deltaCols = { tab: _dcol.proposed_tab == null ? 'D' : _ymColLetter(_dcol.proposed_tab),   // v0.9.1714: the Pre-sort writes these three
+      out.deltaCols = { tab: _dcol.proposed_tab == null ? 'D' : _ymColLetter(_dcol.proposed_tab),   // v0.9.1714/1715: the Pre-sort writes these four
+                        type: _dcol.item_type == null ? 'F' : _ymColLetter(_dcol.item_type),
                         flag: _dcol.flag == null ? 'O' : _ymColLetter(_dcol.flag),
                         notes: _dcol.notes == null ? 'U' : _ymColLetter(_dcol.notes) };
       out.deltas = d.crawlDeltas.slice(1).map(function (r, i) { r._sheetRow = i + 2; return r; })
@@ -840,13 +845,16 @@
         else { prev = prev || { makers: {}, unknown: false }; if (m) prev.makers[m] = 1; else prev.unknown = true; seen[bare] = prev; }
       }
       var tab = String(dd.tab || '') || _ymTabFor(maker, dd.num, dd.desc);
+      // v0.9.1715: fill a BLANK type only — a type already on the row, whether
+      // the crawl's or one Brad typed in Edit, is never overwritten.
+      var type = String(dd.type || '') || _ymTypeFor(dd.num, dd.desc);
       var newFlag = _ymShapeFlag(reasons, tab, dd.num, maker, isDup);
       // a row queued before v1714 knows its maker only from the old flag text
       // or its tab; once the flag is rewritten that would be gone — so the
       // maker is filed into the notes first, the way v1714 queues rows.
       var notes = (maker && !/(?:^|; )maker /.test(String(dd.notes || ''))) ? (String(dd.notes || '') + (dd.notes ? '; ' : '') + 'maker ' + maker) : null;
-      plan.push({ dd: dd, tab: tab, flag: newFlag, notes: notes, reasons: isDup ? ['duplicate \u2014 filed again'] : reasons,
-                  changed: newFlag !== String(dd.flag || '') || tab !== String(dd.tab || '') || notes !== null });
+      plan.push({ dd: dd, tab: tab, type: type, flag: newFlag, notes: notes, reasons: isDup ? ['duplicate \u2014 filed again'] : reasons,
+                  changed: newFlag !== String(dd.flag || '') || tab !== String(dd.tab || '') || type !== String(dd.type || '') || notes !== null });
     });
     return plan;
   }
@@ -862,19 +870,22 @@
     plan.forEach(function (x) { x.reasons.forEach(function (r) { var k = r.split(' \u2014 ')[0]; counts[k] = (counts[k] || 0) + 1; }); });
     var summary = Object.keys(counts).sort(function (a, b) { return counts[b] - counts[a] || a.localeCompare(b); }).map(function (k) { return counts[k] + ' ' + k; });
     var gotTab = plan.filter(function (x) { return x.tab && !x.dd.tab; }).length;
+    var gotType = plan.filter(function (x) { return x.type && !x.dd.type; }).length;   // v0.9.1715
     var clean = plan.filter(function (x) { return !x.reasons.length && x.tab && x.dd.num; }).length;
     var q = 'Pre-sort ' + rows.length + ' pending rows? ' + (summary.length ? summary.join(' \u00b7 ') + '. ' : '')
-      + clean + ' come out clean' + (gotTab ? ', ' + gotTab + ' get a tab' : '') + '. Flags are rewritten (' + changed.length
+      + clean + ' come out clean' + (gotTab ? ', ' + gotTab + ' get a tab' : '') + (gotType ? ', ' + gotType + ' get a type read from the description' : '')
+      + '. Flags are rewritten (' + changed.length
       + ' row' + (changed.length === 1 ? '' : 's') + ' change); nothing is approved or rejected.';
     var yes = (typeof appConfirm === 'function') ? await appConfirm(q, { title: 'Pre-sort', ok: 'Sort ' + changed.length }) : confirm(q);
     if (!yes) return;
     _ymPreSortBusy = true;
     try {
       if (!(await _ymRowsStillMatch(changed.map(function (x) { return x.dd; })))) return;   // v0.9.1689 guard
-      var cols = (_ymData && _ymData.deltaCols) || { tab: 'D', flag: 'O', notes: 'U' };
+      var cols = (_ymData && _ymData.deltaCols) || { tab: 'D', type: 'F', flag: 'O', notes: 'U' };
       var data = [];
       changed.forEach(function (x) {
         if (x.tab !== String(x.dd.tab || '')) data.push({ range: YM.DELTAS_TAB + '!' + cols.tab + x.dd.sheetRow, values: [[x.tab]] });
+        if (x.type !== String(x.dd.type || '')) data.push({ range: YM.DELTAS_TAB + '!' + cols.type + x.dd.sheetRow, values: [[x.type]] });   // v0.9.1715
         if (x.flag !== String(x.dd.flag || '')) data.push({ range: YM.DELTAS_TAB + '!' + cols.flag + x.dd.sheetRow, values: [[x.flag]] });
         if (x.notes !== null) data.push({ range: YM.DELTAS_TAB + '!' + cols.notes + x.dd.sheetRow, values: [[x.notes]] });
       });
@@ -997,6 +1008,11 @@
   function _ymPreSortReasons(o) {
     try { return (typeof rrPreSortReasons === 'function') ? (rrPreSortReasons(o) || []) : []; } catch (e) { return []; }
   }
+  // v0.9.1715: the type read out of the description, or '' when config.js is
+  // not loaded or nothing in the words names a body.
+  function _ymTypeFor(num, desc) {
+    try { return (typeof rrTypeFromDescription === 'function') ? (rrTypeFromDescription(num, desc) || '') : ''; } catch (e) { return ''; }
+  }
   // v0.9.1714: a delta's maker — from "maker X" in its notes (queued by
   // v1714+), else the maker whose ONE tab it carries, else the maker named
   // in an old needs-a-tab flag. '' when nothing says.
@@ -1101,7 +1117,7 @@
           var tab = _ymTabFor(s.mfr, s.num, s.desc);
           var flag = _ymShapeFlag(_ymPreSortReasons({ maker: s.mfr, num: s.num, desc: s.desc, notes: s.source ? 'via ' + s.source : '' }), tab, s.num, s.mfr, false);
           rows.push(mk({ batch_id: SUBS_BATCH, delta_id: SUBS_BATCH + '-' + String(++seq[SUBS_BATCH]).padStart(4, '0'), action: 'add', proposed_tab: tab,
-            item_num: s.num, item_type: '', road_name: s.road, description: s.desc, gauge: '', variation: s.variation, years: '', ref_link: '', msrp: '',
+            item_num: s.num, item_type: _ymTypeFor(s.num, s.desc), road_name: s.road, description: s.desc, gauge: '', variation: s.variation, years: '', ref_link: '', msrp: '',   // v0.9.1715: the type, read from the description
             source: 'community submission' + (s.updated ? ' ' + String(s.updated).slice(0, 10) : ''), flag: flag, status: 'pending', decided: '',
             image_url: '', var_desc: '', sub_type: '', notes: 'submissions row ' + s.row + (s.mfr ? '; maker ' + s.mfr : '') + (s.condition ? '; condition ' + s.condition : '') + (s.source ? '; via ' + s.source : ''), category: '' }));
           stampSubs.push(s.row);
