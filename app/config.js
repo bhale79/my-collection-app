@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.1713';
+const APP_VERSION = 'v0.9.1714';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -377,6 +377,109 @@ function rrFlagKind(flag) {
   return allNotes ? 'note' : 'check';
 }
 
+// ── COMMUNITY PRE-SORT (v0.9.1714, Session 96) ───────────────────────────
+// Brad: "the Community submissions batch … is the only queue I have to work
+// by hand — it mixes real trains we lack with junk (model airplanes, cars).
+// Propose a pre-sort so the obvious junk is flagged as a CHECK and the
+// obvious trains are clean." Measured on the 2026-09-11 batch (1,559 rows):
+// 565 duplicates, 78 from diecast-vehicle makers, ~60 vehicle/aircraft
+// descriptions, 37 books/paper, 25 track/scenery, 30 empty box records.
+//
+// THESE are the lists to edit. Every reason below is a CHECK (rrFlagKind
+// treats any phrase not in RR_FLAG_NOTES as one), so a row it catches always
+// gets Brad's eyes — nothing here rejects by itself; the per-flag strip
+// rejects a whole reason in one tap. A train word in the description
+// ("flatcar with tractor", "Boeing airplane parts car") protects a row from
+// the vehicle / paper / track rules. Makers compare lowercase, after
+// RR_MAKER_ALIASES.
+const RR_NOT_TRAIN_MAKERS = [            // diecast vehicles, farm toys, planes — never trains
+  'first gear', 'die-cast masters', 'diecast masters', 'ertl', 'norscot', 'spec cast', 'speccast',
+  'tonkin', 'trucks n’stuff (tonkin)', 'trucks n\'stuff (tonkin)', 'sword models', 'yat ming',
+  'cararama', 'corgi', 'gearbox toys', 'luxury diecast', 'first response replicas',
+  'tk collectibils', 'tk collectibles', 'imprint specialty co', 'motor max', 'motormax',
+  'american truck series', 'k-line kruisers', 'hyundai', 'greenlight', 'matchbox', 'hot wheels',
+  'maisto', 'bburago', 'franklin mint', 'danbury mint', 'johnny lightning', 'auto world',
+  'racing champions', 'jada', 'welly', 'solido', 'minichamps', 'autoart', 'kyosho', 'nzg', 'conrad'
+];
+const RR_OTHER_O_BRANDS = [               // small O-gauge makers and custom-run dealers → ERA 'other_o'
+  'rgs', 'trotta’s trains', 'trotta\'s trains', 'trottas trains', 'right-of-way industries',
+  'right of way industries', 'big-rugged loco', 'big rugged loco', 'phoenix rail ways',
+  'phoenix railways', 'industrial rail', 'frank’s roundhouse', 'frank\'s roundhouse',
+  'newbraugh brothers', 'o-line reproductions', 'kmt', 'kusan', 'crown model products',
+  'red caboose', 'pecos river brass', 'sunset models', 'lionel by trotta' ];
+const RR_MAKER_ALIASES = {                // spelling on the submission → the maker ERAS knows
+  'k-line by lionel': 'k-line', 'k line': 'k-line', 'kline': 'k-line',
+  'williams by bachmann': 'williams', 'williams electric trains': 'williams',
+  'märklín': 'marklin', 'märklin': 'marklin', 'marklín': 'marklin', 'maerklin': 'marklin',
+  'mth electric trains': 'mth', 'm.t.h.': 'mth', 'lionel llc': 'lionel', 'lionel corporation': 'lionel',
+  'lionel trains': 'lionel', 'american flyer': 'a.c. gilbert', 'a. c. gilbert': 'a.c. gilbert',
+  'atlas o': 'atlas', 'atlas model railroad': 'atlas', 'weaver models': 'weaver', 'rmt (ready made toys)': 'rmt',
+  'ready made toys': 'rmt', 'menards inc': 'menards', '3rd rail division of sunset models': '3rd rail',
+  'usa trains': 'usa trains', 'lgb of america': 'lgb', 'aristocraft': 'aristo-craft', 'aristo craft': 'aristo-craft'
+};
+// Words are matched whole (word boundaries), case-insensitive. Keep them lowercase.
+const RR_PRESORT_WORDS = {
+  train: [ 'boxcar', 'box car', 'flatcar', 'flat car', 'reefer', 'hopper', 'gondola', 'caboose', 'tank car', 'tanker',
+           'coach', 'passenger', 'observation', 'dome', 'baggage', 'rpo', 'pullman', 'sleeper', 'diner', 'dining car',
+           'locomotive', 'loco', 'engine', 'diesel', 'steam', 'electric', 'switcher', 'f3', 'f7', 'e7', 'e8', 'fa', 'fb',
+           'pa', 'pb', 'gp7', 'gp9', 'gp20', 'gp30', 'gp35', 'gp38', 'gp40', 'sd40', 'sd45', 'sd70', 'rs1', 'rs-1', 'rs3',
+           'rs-3', 'rs11', 'gg1', 'alco', 'emd', 'mint car', 'crane car', 'stock car', 'auto carrier', 'maxi stack',
+           'maxi-stack', 'stack car', 'well car', 'container car', 'searchlight', 'dump car', 'log car', 'ore car',
+           'covered hopper', 'vista dome', 'combine', 'a unit', 'b unit', 'a-unit', 'b-unit', 'aa set', 'aba set',
+           'dummy', 'powered', 'train', 'freight', 'railway', 'railroad', 'tender', 'trolley', 'handcar', 'hand car',
+           'rail car', 'railcar', 'express car', 'mail car', 'cabin car', 'bay window', 'cupola', 'banquet car',
+           'convention car', 'parts car', 'display car', 'circus car', 'sound car', 'operating', 'aquarium car',
+           'milk car', 'ice car', 'wood side', 'woodside', 'double door', 'single door', 'plug door', 'depressed center',
+           'bulkhead', 'centerbeam', 'autorack', 'auto rack', 'piggyback', 'tofc', 'trailer car', 'transfer caboose',
+           'work caboose', 'boom car', 'derrick', 'snowplow', 'rotary', 'inspection car', 'speeder', 'motorized' ],
+  vehicle: [ 'excavator', 'dozer', 'bulldozer', 'loader', 'backhoe', 'grader', 'skid steer', 'tractor', 'harvester',
+             'farm toy', 'truck', 'semi', 'trailer', 'pickup', 'pick up', 'van', 'helicopter', 'airplane', 'aircraft',
+             'plane', 'planes', 'jet', 'bomber', 'fighter', 'humvee', 'jeep', 'corvette', 'mustang', 'shelby', 'camaro',
+             'ford', 'chevy', 'chevrolet', 'dodge', 'pontiac', 'cadillac', 'porsche', 'mercedes', 'mercedes-benz', 'bmw',
+             'audi', 'volkswagen', 'vw', 'hyundai', 'toyota', 'honda', 'harley', 'motorcycle', 'bus', 'fire engine',
+             'fire truck', 'ambulance', 'police car', 'taxi', 'limousine', 'convertible', 'coupe', 'sedan', 'roadster',
+             'cabrio', 'peterbilt', 'kenworth', 'freightliner', 'mack', 'caterpillar', 'komatsu', 'john deere', 'case ih',
+             'crawler', 'dragline', 'forklift', 'day cab', 'wrecker', 'tow truck', 'dump truck', 'cement mixer' ],
+  paper: [ 'book', 'books', 'guide', 'vol', 'volume', 'greenberg', 'greenbergs', 'catalog', 'catalogs', 'catalogue',
+           'dvd', 'video', 'magazine', 'manual', 'history of', 'atlas of', 'projects for', 'animations for', 'calendar',
+           'poster', 'print', 'drawing', 'dwg', 'brochure', 'promo', 'banner', 'shirt', 't-shirt', 'hat', 'mug', 'pin',
+           'watch', 'puzzle', 'mockup', 'mock-up', 'page', 'advertising', 'collectors guide', 'price guide', 'abacus',
+           'ornament', 'lapel', 'patch', 'decal', 'sticker' ],
+  track: [ 'track', 'tracks', 'switch', 'switches', 'curve', 'straight', 'roadbed', 'fastrack', 'fast track',
+           'transformer', 'power supply', 'powerhouse', 'controller', 'remote', 'lockon', 'lock-on', 'bumper',
+           'figure pack', 'figure', 'figures', 'figurine', 'people', 'greenery', 'tree', 'trees', 'ballast', 'scenery',
+           'smoke fluid', 'lubricant', 'grease', 'bulb', 'bulbs', 'screws', 'pkgs', 'turnout', 'crossing', 'uncoupler',
+           'wire', 'erect-a-wire', 'billboard', 'neon', 'track cleaner', 'rail cleaner', 'cleaning car' ]
+};
+function rrMakerNorm(mfr) {
+  var m = String(mfr == null ? '' : mfr).trim().toLowerCase().replace(/\s+/g, ' ');
+  return (RR_MAKER_ALIASES[m] || m);
+}
+function _rrWordRe(list) {
+  var alts = list.map(function (w) { return String(w).replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/ /g, '\\s+'); });
+  return new RegExp('(?:^|[^a-z0-9])(?:' + alts.join('|') + ')(?=$|[^a-z0-9])', 'i');
+}
+var _rrPreSortRe = null;
+// o = { maker, num, desc, notes } → [] (clean) or the reasons, each a CHECK phrase.
+function rrPreSortReasons(o) {
+  o = o || {};
+  if (!_rrPreSortRe) _rrPreSortRe = { train: _rrWordRe(RR_PRESORT_WORDS.train), vehicle: _rrWordRe(RR_PRESORT_WORDS.vehicle),
+                                      paper: _rrWordRe(RR_PRESORT_WORDS.paper), track: _rrWordRe(RR_PRESORT_WORDS.track) };
+  var maker = rrMakerNorm(o.maker), makerShown = String(o.maker == null ? '' : o.maker).trim();
+  var num = String(o.num == null ? '' : o.num).trim(), desc = String(o.desc == null ? '' : o.desc).trim(), notes = String(o.notes == null ? '' : o.notes);
+  var out = [];
+  if ((/-(MBOX|IS)$/i.test(num) && !desc) || (/grouped with/i.test(notes) && !desc)) out.push('box record, not an item');
+  if (maker && RR_NOT_TRAIN_MAKERS.indexOf(maker) >= 0) out.push('not a train maker \u2014 ' + makerShown);
+  if (num && (!/\d/.test(num) || /^[a-z]{10,}/i.test(num))) out.push('no catalog number');
+  var hasTrain = !!desc && (_rrPreSortRe.train.test(desc) || /\b\d-\d{1,2}-\d\b/.test(desc));   // 4-6-4, 2-8-8-2
+  if (desc && !hasTrain) {
+    if (_rrPreSortRe.vehicle.test(desc)) out.push('looks like a vehicle or aircraft, not a train');
+    if (_rrPreSortRe.paper.test(desc)) out.push('book, paper or memorabilia, not a product');
+    if (_rrPreSortRe.track.test(desc)) out.push('track, power or scenery');
+  }
+  return out;
+}
+
 // ── RECORDING MODE (v0.9.1697, Session 93) ───────────────────────
 // Brad records the help-menu screen captures on his OWN account, which is an
 // owner account, so the app normally shows him tools no ordinary user has.
@@ -591,6 +694,12 @@ try {
   window.RR_OWNER_EMAILS = RR_OWNER_EMAILS;
   window.RR_FLAG_NOTES  = RR_FLAG_NOTES;
   window.rrFlagKind     = rrFlagKind;
+  window.RR_NOT_TRAIN_MAKERS = RR_NOT_TRAIN_MAKERS;   // v0.9.1714
+  window.RR_OTHER_O_BRANDS   = RR_OTHER_O_BRANDS;
+  window.RR_MAKER_ALIASES    = RR_MAKER_ALIASES;
+  window.RR_PRESORT_WORDS    = RR_PRESORT_WORDS;
+  window.rrMakerNorm         = rrMakerNorm;
+  window.rrPreSortReasons    = rrPreSortReasons;
   window.rrRecordingMode    = rrRecordingMode;
   window.rrSetRecordingMode = rrSetRecordingMode;
   window.rrIsRealOwner      = rrIsRealOwner;

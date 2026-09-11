@@ -11,6 +11,13 @@
 //  in the last 7 days, opens in total and last seen (relay v4.0 keeps the
 //  count on each tester's beta_testers row). Brad: "I want names/emails of
 //  who used the app, opens in the past week and in total."
+//  v0.9.1714: the community PRE-SORT. Brad: "it mixes real trains we lack
+//  with junk (model airplanes, cars) … flag the obvious junk as a CHECK and
+//  leave the obvious trains clean." Reasons come from rrPreSortReasons
+//  (config.js — THE lists to edit); duplicates of a row already waiting are
+//  never queued twice any more; Lionel with a modern number goes to the
+//  MPC-Modern tab and small O-gauge brands to Other O Brands; a "Pre-sort"
+//  button on the community batch rewrites the flags of PENDING rows only.
 //
 //  Brad: "I need something like an admin page that will help me keep
 //  track of everything." Decided S86: queues front and center.
@@ -223,6 +230,9 @@
       // then i + 2) would have shifted every sheetRow below a blank row —
       // and a verdict writes by sheetRow. Same lesson as _loadMyDocs.
       out.deltaIdCol = _dcol.delta_id == null ? 'B' : _ymColLetter(_dcol.delta_id);
+      out.deltaCols = { tab: _dcol.proposed_tab == null ? 'D' : _ymColLetter(_dcol.proposed_tab),   // v0.9.1714: the Pre-sort writes these three
+                        flag: _dcol.flag == null ? 'O' : _ymColLetter(_dcol.flag),
+                        notes: _dcol.notes == null ? 'U' : _ymColLetter(_dcol.notes) };
       out.deltas = d.crawlDeltas.slice(1).map(function (r, i) { r._sheetRow = i + 2; return r; })
         .filter(function (r) { return g(r, 'delta_id'); }).map(function (r) {
         return {
@@ -797,6 +807,91 @@
       appConfirm(q, { title: verb + ' by flag', ok: verb + ' ' + rows.length }).then(function (yes) { if (yes) go(); });
     } else if (confirm(q)) go();
   };
+  // ── v0.9.1714: PRE-SORT — Brad: "flag the obvious junk as a CHECK and
+  // leave the obvious trains clean." Pending rows of the community batch
+  // only. Each row gets its reasons from config's lists (rrPreSortReasons),
+  // a "duplicate — filed again" mark when the same number + variation is
+  // already earlier in the batch (same maker, or maker unknown on one side —
+  // never two different known makers), and a tab from _ymTabFor when it had
+  // none. Only the flag and an EMPTY proposed tab are rewritten — no
+  // verdicts, so there is nothing to undo; running it again re-derives the
+  // same flags. The per-flag strip then rejects a whole reason in one tap.
+  // The flag a row ends up with. One shape, used at queue time AND by the
+  // Pre-sort, so the per-flag strip groups cleanly: a duplicate carries ONLY
+  // "duplicate — filed again" (its first copy carries the real reasons); a
+  // junk row carries its reasons and no "needs a tab" tail (it is getting
+  // eyes anyway — if Brad keeps it, the commit holds it until he picks a
+  // tab, as v1628 always did); a clean row carries the tab / number needs.
+  function _ymShapeFlag(reasons, tab, num, maker, isDup) {
+    if (isDup) return 'duplicate \u2014 filed again';
+    var flag = reasons.slice();
+    if (!flag.length && !tab) flag.push(_ymNoTabFlag(maker));
+    if (!num) flag.push('needs a number');
+    return flag.join('; ');
+  }
+  function _ymPreSortPlan(rows) {
+    var seen = {}, plan = [];
+    rows.forEach(function (dd) {
+      var maker = _ymDeltaMaker(dd), m = _ymMakerNorm(maker), isDup = false;
+      var reasons = _ymPreSortReasons({ maker: maker, num: dd.num, desc: dd.desc, notes: dd.notes });
+      if (dd.num) {
+        var bare = _ymDupKey('', dd.num, dd.variation), prev = seen[bare];
+        if (prev && (!m || prev.unknown || prev.makers[m])) isDup = true;
+        else { prev = prev || { makers: {}, unknown: false }; if (m) prev.makers[m] = 1; else prev.unknown = true; seen[bare] = prev; }
+      }
+      var tab = String(dd.tab || '') || _ymTabFor(maker, dd.num, dd.desc);
+      var newFlag = _ymShapeFlag(reasons, tab, dd.num, maker, isDup);
+      // a row queued before v1714 knows its maker only from the old flag text
+      // or its tab; once the flag is rewritten that would be gone — so the
+      // maker is filed into the notes first, the way v1714 queues rows.
+      var notes = (maker && !/(?:^|; )maker /.test(String(dd.notes || ''))) ? (String(dd.notes || '') + (dd.notes ? '; ' : '') + 'maker ' + maker) : null;
+      plan.push({ dd: dd, tab: tab, flag: newFlag, notes: notes, reasons: isDup ? ['duplicate \u2014 filed again'] : reasons,
+                  changed: newFlag !== String(dd.flag || '') || tab !== String(dd.tab || '') || notes !== null });
+    });
+    return plan;
+  }
+  var _ymPreSortBusy = false;
+  window._ymPreSort = async function () {
+    if (!_isOwner() || !_ymData || _ymBatchId !== SUBS_BATCH || _ymPreSortBusy) return;
+    var toast = function (msg, bad) { if (typeof showToast === 'function') showToast(msg, bad ? 5000 : 3000, !!bad); };
+    var rows = _ymData.deltas.filter(function (dd) { return dd.batch === SUBS_BATCH && (dd.status || 'pending') === 'pending'; });
+    if (!rows.length) { toast('No pending rows to sort'); return; }
+    var plan = _ymPreSortPlan(rows), changed = plan.filter(function (x) { return x.changed; });
+    if (!changed.length) { toast('Already sorted \u2014 nothing would change'); return; }
+    var counts = {};
+    plan.forEach(function (x) { x.reasons.forEach(function (r) { var k = r.split(' \u2014 ')[0]; counts[k] = (counts[k] || 0) + 1; }); });
+    var summary = Object.keys(counts).sort(function (a, b) { return counts[b] - counts[a] || a.localeCompare(b); }).map(function (k) { return counts[k] + ' ' + k; });
+    var gotTab = plan.filter(function (x) { return x.tab && !x.dd.tab; }).length;
+    var clean = plan.filter(function (x) { return !x.reasons.length && x.tab && x.dd.num; }).length;
+    var q = 'Pre-sort ' + rows.length + ' pending rows? ' + (summary.length ? summary.join(' \u00b7 ') + '. ' : '')
+      + clean + ' come out clean' + (gotTab ? ', ' + gotTab + ' get a tab' : '') + '. Flags are rewritten (' + changed.length
+      + ' row' + (changed.length === 1 ? '' : 's') + ' change); nothing is approved or rejected.';
+    var yes = (typeof appConfirm === 'function') ? await appConfirm(q, { title: 'Pre-sort', ok: 'Sort ' + changed.length }) : confirm(q);
+    if (!yes) return;
+    _ymPreSortBusy = true;
+    try {
+      if (!(await _ymRowsStillMatch(changed.map(function (x) { return x.dd; })))) return;   // v0.9.1689 guard
+      var cols = (_ymData && _ymData.deltaCols) || { tab: 'D', flag: 'O', notes: 'U' };
+      var data = [];
+      changed.forEach(function (x) {
+        if (x.tab !== String(x.dd.tab || '')) data.push({ range: YM.DELTAS_TAB + '!' + cols.tab + x.dd.sheetRow, values: [[x.tab]] });
+        if (x.flag !== String(x.dd.flag || '')) data.push({ range: YM.DELTAS_TAB + '!' + cols.flag + x.dd.sheetRow, values: [[x.flag]] });
+        if (x.notes !== null) data.push({ range: YM.DELTAS_TAB + '!' + cols.notes + x.dd.sheetRow, values: [[x.notes]] });
+      });
+      var H = { Authorization: 'Bearer ' + window.accessToken, 'Content-Type': 'application/json' };
+      for (var i = 0; i < data.length; i += 400) {   // a few hundred cells per request, in order
+        var r = await fetch('https://sheets.googleapis.com/v4/spreadsheets/' + YM.VAULT_ID + '/values:batchUpdate',
+          { method: 'POST', headers: H, body: JSON.stringify({ valueInputOption: 'RAW', data: data.slice(i, i + 400) }) });
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+      }
+      toast('Pre-sorted ' + changed.length + ' row' + (changed.length === 1 ? '' : 's') + ' \u2014 use the per-flag strip to reject a whole reason at once');
+    } catch (e) {
+      toast('Pre-sort stopped: ' + (e && e.message) + ' \u2014 reloading; run it again', true);
+    } finally {
+      _ymPreSortBusy = false;
+      _ymReload();
+    }
+  };
   // ── v0.9.1627(b): EDIT — Brad: "how do i change things you flagged?" ──
   // Every row opens into an inline editor: proposed tab (the door for the
   // 11 no-gauge rows), number, type, road, description, years, MSRP.
@@ -848,15 +943,79 @@
   var SUBS_BATCH = 'CB-COMMUNITY-SUBS', PAIRS_BATCH = 'CB-BARCODE-PAIRS';
   // the ONE tab a maker maps to, or '' when the maker has several (Lionel
   // has four, MTH five) — then the row is flagged and Brad picks in Edit
-  function _ymTabForMaker(mfr) {
-    var m = String(mfr || '').trim().toLowerCase();
-    if (!m || typeof ERAS === 'undefined' || typeof ERA_TABS === 'undefined') return '';
+  // v0.9.1714: makers compare through config's alias map ("K-Line by Lionel"
+  // → k-line) when config.js is loaded; plain lowercase otherwise.
+  function _ymMakerNorm(mfr) {
+    return (typeof rrMakerNorm === 'function') ? rrMakerNorm(mfr) : String(mfr || '').trim().toLowerCase();
+  }
+  function _ymMakerTabs(mfr) {
+    var m = _ymMakerNorm(mfr);
+    if (!m || typeof ERAS === 'undefined' || typeof ERA_TABS === 'undefined') return [];
     var tabs = [];
     Object.keys(ERAS).forEach(function (id) {
       var e = ERAS[id];
       if (e && String(e.manufacturer || '').toLowerCase() === m && ERA_TABS[id] && ERA_TABS[id].items && tabs.indexOf(ERA_TABS[id].items) < 0) tabs.push(ERA_TABS[id].items);
     });
+    return tabs;
+  }
+  function _ymTabForMaker(mfr) {
+    var tabs = _ymMakerTabs(mfr);
     return tabs.length === 1 ? tabs[0] : '';
+  }
+  // v0.9.1714: two more ways to a tab, both Brad's rules (2026-09-11):
+  //  • Lionel with a modern 5-to-7-digit number ("6-12345", "27780",
+  //    "2401150") → the MPC-Modern tab, unless the description says HO or
+  //    S gauge; a 4-digit postwar-style number still needs his pick.
+  //  • a small O-gauge brand from RR_OTHER_O_BRANDS → the Other O Brands tab.
+  // Era ids (mpc, mod_ho, mod_s, other_o) are the stable handles; the tab
+  // NAMES come from ERA_TABS and are never typed here.
+  function _ymTabFor(mfr, num, desc) {
+    var one = _ymTabForMaker(mfr);
+    if (one) return one;
+    var m = _ymMakerNorm(mfr), d = ' ' + String(desc || '') + ' ';
+    var tabOf = function (id) { return (typeof ERA_TABS !== 'undefined' && ERA_TABS[id] && ERA_TABS[id].items) || ''; };
+    if (m === 'lionel') {
+      if (/^\d{5,7}$/.test(String(num || '').trim().replace(/^6-/, ''))) {
+        if (/[^a-z0-9]HO[^a-z0-9]/.test(d)) return tabOf('mod_ho');
+        if (/[^a-z0-9]S[- ](gauge|scale)[^a-z0-9]/i.test(d)) return tabOf('mod_s');
+        return tabOf('mpc');
+      }
+      return '';
+    }
+    if (typeof RR_OTHER_O_BRANDS !== 'undefined' && RR_OTHER_O_BRANDS.indexOf(m) >= 0) return tabOf('other_o');
+    return '';
+  }
+  // v0.9.1714: the no-tab flag says WHY — "has several" only when that is
+  // true; a maker the app has no tab for at all says so instead.
+  function _ymNoTabFlag(mfr) {
+    var m = String(mfr || '').trim();
+    if (!m) return 'needs a tab \u2014 no maker given';
+    return _ymMakerTabs(m).length > 1 ? 'needs a tab \u2014 ' + m + ' has several' : 'needs a tab \u2014 no tab yet for ' + m;
+  }
+  // v0.9.1714: config's pre-sort reasons, or none when config is not loaded
+  // (the old behaviour — never a guess).
+  function _ymPreSortReasons(o) {
+    try { return (typeof rrPreSortReasons === 'function') ? (rrPreSortReasons(o) || []) : []; } catch (e) { return []; }
+  }
+  // v0.9.1714: a delta's maker — from "maker X" in its notes (queued by
+  // v1714+), else the maker whose ONE tab it carries, else the maker named
+  // in an old needs-a-tab flag. '' when nothing says.
+  function _ymDeltaMaker(dd) {
+    var mm = String(dd.notes || '').match(/(?:^|; )maker ([^;]+)/);
+    if (mm) return mm[1].trim();
+    if (dd.tab && typeof ERAS !== 'undefined' && typeof ERA_TABS !== 'undefined') {
+      var found = '';
+      Object.keys(ERAS).forEach(function (id) { if (!found && ERA_TABS[id] && ERA_TABS[id].items === dd.tab && ERAS[id]) found = String(ERAS[id].manufacturer || ''); });
+      if (found) return found;
+    }
+    var fm = String(dd.flag || '').match(/needs a tab \u2014 (?:no tab yet for )?(.+?)(?: has several)?(?:;|$)/);
+    return (fm && fm[1].trim() !== 'no maker given') ? fm[1].trim() : '';
+  }
+  // the cross-run duplicate key: number + variation (+ maker when known)
+  function _ymDupKey(mfr, num, variation) {
+    var k = String(num || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '') + '|' + String(variation || '').trim().toLowerCase();
+    var m = _ymMakerNorm(mfr);
+    return m ? m + '|' + k : k;
   }
   var _ymQueueBusy = false;
   window._ymQueueWaiting = async function () {
@@ -917,24 +1076,34 @@
         });
       } catch (e) { throw new Error('could not read the master item numbers \u2014 nothing was queued (try again)'); }
       var normNum = function (n) { return String(n || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, ''); };
+      // v0.9.1714: a number already WAITING in the queue is not queued again
+      // (the 2026-09-11 batch held 565 second copies from a second run). The
+      // filing is stamped queued — it IS in the queue, as the first copy.
+      var pendingKeys = {};
+      (_ymData.deltas || []).forEach(function (dd) {
+        if (dd.batch !== SUBS_BATCH || (dd.status || 'pending') !== 'pending' || !dd.num) return;
+        pendingKeys[_ymDupKey(_ymDeltaMaker(dd), dd.num, dd.variation)] = 1;
+        pendingKeys[_ymDupKey('', dd.num, dd.variation)] = 1;
+      });
       var seenSub = {};
       subs = subs.filter(function (s) {
         var k = normNum(s.num);
         if (k && inMaster[k]) { stampYes.push(s.row); return false; }          // already in the catalog now
         var dk = (s.mfr || '').toLowerCase() + '|' + k + '|' + (s.variation || '').toLowerCase();
         if (k && seenSub[dk]) { stampSubs.push(s.row); return false; }         // same item filed twice — one review row, both stamped
+        if (k && (pendingKeys[_ymDupKey(s.mfr, s.num, s.variation)] || pendingKeys[_ymDupKey('', s.num, s.variation)])) { stampSubs.push(s.row); return false; }   // v0.9.1714: already waiting
         seenSub[dk] = 1; return true;
       });
       if (subs.length) {
         var sRow = await ensureBatch(SUBS_BATCH, 'Community submissions (not in the catalog)', 'rolling \u2014 grows as users add items the catalog lacks');
         subs.forEach(function (s) {
-          var tab = _ymTabForMaker(s.mfr), flag = [];
-          if (!tab) flag.push(s.mfr ? 'needs a tab \u2014 ' + s.mfr + ' has several' : 'needs a tab \u2014 no maker given');
-          if (!s.num) flag.push('needs a number');
+          // v0.9.1714: junk reasons first (config lists), then the tab rules
+          var tab = _ymTabFor(s.mfr, s.num, s.desc);
+          var flag = _ymShapeFlag(_ymPreSortReasons({ maker: s.mfr, num: s.num, desc: s.desc, notes: s.source ? 'via ' + s.source : '' }), tab, s.num, s.mfr, false);
           rows.push(mk({ batch_id: SUBS_BATCH, delta_id: SUBS_BATCH + '-' + String(++seq[SUBS_BATCH]).padStart(4, '0'), action: 'add', proposed_tab: tab,
             item_num: s.num, item_type: '', road_name: s.road, description: s.desc, gauge: '', variation: s.variation, years: '', ref_link: '', msrp: '',
-            source: 'community submission' + (s.updated ? ' ' + String(s.updated).slice(0, 10) : ''), flag: flag.join('; '), status: 'pending', decided: '',
-            image_url: '', var_desc: '', sub_type: '', notes: 'submissions row ' + s.row + (s.condition ? '; condition ' + s.condition : '') + (s.source ? '; via ' + s.source : ''), category: '' }));
+            source: 'community submission' + (s.updated ? ' ' + String(s.updated).slice(0, 10) : ''), flag: flag, status: 'pending', decided: '',
+            image_url: '', var_desc: '', sub_type: '', notes: 'submissions row ' + s.row + (s.mfr ? '; maker ' + s.mfr : '') + (s.condition ? '; condition ' + s.condition : '') + (s.source ? '; via ' + s.source : ''), category: '' }));
           stampSubs.push(s.row);
         });
         var subTotal = seq[SUBS_BATCH];
@@ -944,7 +1113,7 @@
         var pRow = await ensureBatch(PAIRS_BATCH, 'Barcode pairings (UPC \u2192 item)', 'rolling \u2014 from users\u2019 scans; approving writes the UPC onto the master row');
         pairs.forEach(function (p) {
           var tab = _ymTabForMaker(p.mfr), flag = [];
-          if (!tab) flag.push(p.mfr ? 'needs a tab \u2014 ' + p.mfr + ' has several' : 'needs a tab \u2014 no maker given');
+          if (!tab) flag.push(_ymNoTabFlag(p.mfr));   // v0.9.1714: same wording helper
           if (!p.num) flag.push('needs a number');
           if (!/^\d{8,14}$/.test(p.upc)) flag.push('UPC looks wrong');
           rows.push(mk({ batch_id: PAIRS_BATCH, delta_id: PAIRS_BATCH + '-' + String(++seq[PAIRS_BATCH]).padStart(4, '0'), action: 'barcode', proposed_tab: tab,
@@ -1437,6 +1606,9 @@
               ? '<button onclick="_ymCommit()" style="padding:0.3rem 0.85rem;border-radius:8px;border:none;background:var(--accent);color:var(--on-accent);font-family:var(--font-body);font-weight:700;cursor:pointer;font-size:0.92rem">Commit ' + (c.approved + c.edited) + ' \u2192 master</button>'
               : '')
           + '<button onclick="_ymApproveClean()" title="Every pending row without a red flag \u2014 rows carrying only a grey note are included" style="padding:0.3rem 0.85rem;border-radius:8px;border:1.5px solid var(--green);background:var(--surface);color:var(--green);font-family:var(--font-body);font-weight:700;cursor:pointer;font-size:0.92rem">Approve all clean</button>'
+          + ((_ymBatchId === SUBS_BATCH && pend.length)   // v0.9.1714
+              ? '<button onclick="_ymPreSort()" title="Junk gets a red check, trains stay clean, second copies are marked duplicate \u2014 pending rows only; nothing is approved or rejected" style="padding:0.3rem 0.85rem;border-radius:8px;border:1.5px solid var(--accent2);background:var(--surface);color:var(--accent2);font-family:var(--font-body);font-weight:700;cursor:pointer;font-size:0.92rem">Pre-sort ' + pend.length + '</button>'
+              : '')
           + (_ymUndoStack && _ymUndoStack.length
               ? '<button onclick="_ymUndoLast()" style="padding:0.3rem 0.85rem;border-radius:8px;border:1.5px solid var(--border);background:var(--surface);color:var(--text);font-family:var(--font-body);font-weight:700;cursor:pointer;font-size:0.92rem">\u21a9 Undo last</button>'
               : '')
