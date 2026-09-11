@@ -397,6 +397,44 @@ ok('1712 the flag text is JS-escaped BEFORE it is HTML-escaped for the onclick (
 ok('1712 the stale "Read-only for now" line is gone from the Office', !/Read-only for now/.test(ym12));
 ok('1712 no hex colours were introduced', !/#[0-9a-fA-F]{3,6}\b/.test(ym12.slice(ym12.indexOf('function _ymFlagKind'), ym12.indexOf('function _ymIsFinished'))) && !/#[0-9a-fA-F]{6}\b/.test(ym12.slice(ym12.indexOf('var _flagLine'), ym12.indexOf('var rows = list.map'))));
 
+// ── v0.9.1713 (Session 96): who is using the app — beta testers only ──────
+// Brad: "I want names/emails of who used the app, opens in the past week and
+// in total … this is just for Beta people … only for the beta people after
+// launch." Relay v4.0 keeps the count on each tester's beta_testers row; the
+// Office reads that tab (added at the END of the batchGet) and sums a 14-day
+// ledger into "last 7 days". Nobody outside beta_testers is recorded.
+const ym13 = src('yardmaster.js'), vault13 = src('vault.js');
+const privacy13 = fs.readFileSync(path.join(__dirname, '..', 'privacy', 'index.html'), 'utf8');
+ok('1713 the check-in carries the name (capped) — the only new field the app sends', /action: 'sub_check', email: state\.user\.email,\s*\n\s*name: String\(state\.user\.name \|\| ''\)\.slice\(0, 80\),/.test(vault13));
+ok('1713 the heartbeat is untouched — still anonymous, still once per device per day', /vaultPost\(\{ action: 'heartbeat', v: \(typeof APP_VERSION/.test(vault13) && /lv_hb_day/.test(vault13) && !/heartbeat', email/.test(vault13));
+ok('1713 beta_testers!A1:H is read in the same batchGet, at the END of the list (v[0..5] keep their meaning)',
+   /'crawl_batches!A1:G50', 'crawl_deltas!A1:X12000',[^\n]*\n\s*'beta_testers!A1:H'\]/.test(ym13) && /crawlBatches: v\[4\], crawlDeltas: v\[5\], betaTesters: v\[6\]/.test(ym13));
+ok('1713 columns are found BY HEADER (email, last_seen, app_version, opens, recent_days, name), never by position',
+   /function _ymBetaRows\(rows, now\)/.test(ym13) && ["'email'", "'last_seen'", "'app_version'", "'opens'", "'recent_days'", "'name'"].every(k => ym13.indexOf("g(r, " + k + ")") >= 0) && !/r\[3\]|r\[4\]|r\[5\]|r\[6\]|r\[7\]/.test(ym13.slice(ym13.indexOf('function _ymBetaRows'), ym13.indexOf('function _summarize'))));
+// run the two pure helpers on the real code
+const _a13 = ym13.indexOf('  function _ymLedgerSum'), _b13 = ym13.indexOf('  function _summarize(d) {');
+const k13 = {};
+require('vm').runInNewContext(ym13.slice(_a13, _b13) + ';this.sum = _ymLedgerSum; this.rows = _ymBetaRows;', k13);
+const now13 = new Date('2026-09-11T15:00:00Z');
+ok('1713 the 7-day sum counts today and the six days before it, nothing older',
+   k13.sum('2026-09-04:9;2026-09-05:1;2026-09-11:2', 7, now13) === 3 && k13.sum('', 7, now13) === 0 && k13.sum('junk;2026-09-11:x', 7, now13) === 0);
+const rows13 = [['email', 'free_until', 'note', 'last_seen', 'app_version', 'opens', 'recent_days', 'name'],
+                ['a@x.com', '', '', '2026-09-10', 'v0.9.1712', 40, '2026-09-04:3;2026-09-10:2', 'Ann'],
+                ['b@x.com', '', 'auto-enrolled', '', '', '', '', ''],
+                ['', '', '', '', '', '', '', ''],
+                ['c@x.com', '', '', '2026-09-11', 'v0.9.1713', '7', '2026-09-11:1', '']];
+const out13 = k13.rows(rows13, now13);
+ok('1713 one line per tester with email, name, opens last 7 days, opens total, last seen, version; blank rows skipped',
+   out13.length === 3 && out13.some(r => r.email === 'a@x.com' && r.name === 'Ann' && r.week === 2 && r.total === 40 && r.seen === '2026-09-10' && r.version === 'v0.9.1712'));
+ok('1713 …most recently seen first, never-seen testers last', out13.map(r => r.email).join(',') === 'c@x.com,a@x.com,b@x.com' && out13[2].seen === '' && out13[2].total === 0);
+ok('1713 an old relay (blank columns) yields zeros, not NaN', out13[2].week === 0 && out13[2].total === 0);
+ok('1713 the card names the tester (name over email), shows last 7 days / total / last seen / version, and says who is counted',
+   /_card\('Who’s using the app'/.test(ym13) && /_esc\(b\.name \|\| b\.email\)/.test(ym13) && /b\.seen \? _esc\(b\.seen\) : 'never'/.test(ym13) && /Beta testers only — the relay \(v4\.0\) counts one open each time a tester’s app loads; nobody outside the beta_testers tab is recorded\./.test(ym13));
+ok('1713 the anonymous daily table stays, labelled as devices per day', /_card\('App opens, last 7 days — devices per day'/.test(ym13) && /Anonymous heartbeat: one per device per day, signed in or not/.test(ym13));
+ok('1713 the privacy page says it: beta testers only, last opened + how often, nothing about the collection',
+   /for beta testers only, when the app was last opened and how often/.test(privacy13) && /Beta testers only: the date you last opened the app, the app version, and a count of opens/.test(privacy13) && /nothing about your collection or what you did in the app/.test(privacy13));
+ok('1713 no hex colours in the new card', !/#[0-9a-fA-F]{3,6}\b/.test(ym13.slice(ym13.indexOf('// 3 — WHO IS USING THE APP'), ym13.indexOf('// 4 — THIS WEEK'))));
+
 console.log('\n' + pass + ' passed, ' + fail + ' failed');
 if (fail) { console.log('YARDMASTER TESTS FAILING'); process.exit(1); }
 console.log('ALL YARDMASTER TESTS GREEN (' + pass + ')');
