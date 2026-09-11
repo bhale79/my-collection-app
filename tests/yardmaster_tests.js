@@ -565,6 +565,17 @@ ok('1716 it runs ONCE over the whole batch inside the Pre-sort plan, and never a
    /var inv = _ymInventoryRows\(rows\);/.test(ym16) && /if \(inv\[dd\.id\]\) reasons\.unshift\('a list number, not a catalog number'\);/.test(ym16)
    && !/_ymInventoryRows/.test(ym16.slice(ym16.indexOf('window._ymQueueWaiting'), ym16.indexOf('window._ymCommit'))));
 
+// ── v0.9.1717 (Session 96): the Google button searches the ROW'S maker ────
+// The batch label's first word is right for a crawl batch ("Kato N (Kato USA
+// Store)" → Kato) and useless for the community one ("Community submissions
+// (not in the catalog)" → every row searched the word "Community"). Brad hit
+// it looking up Atlas 0528-1, and the search matched the ROAD number #98513
+// instead, which Atlas also uses in another scale.
+const ym17 = src('yardmaster.js');
+ok('1717 the search leads with the row’s own maker, falling back to the batch label',
+   /var gq = encodeURIComponent\(\(\(_ymDeltaMaker\(dd\) \|\| maker\) \+ ' ' \+ dd\.num \+ ' ' \+ dd\.desc\)\.trim\(\)\);/.test(ym17));
+ok('1717 the batch label is still what the fallback reads', /var maker = String\(b\.label \|\| ''\)\.split\(' '\)\[0\] \|\| '';/.test(ym17));
+
 console.log('\n' + pass + ' passed, ' + fail + ' failed');
 if (fail) { console.log('YARDMASTER TESTS FAILING'); process.exit(1); }
 console.log('ALL YARDMASTER TESTS GREEN (' + pass + ')');
