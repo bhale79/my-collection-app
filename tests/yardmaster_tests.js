@@ -493,6 +493,47 @@ ok('1714 the Pre-sort files the maker of an old row into its notes before the ol
 ok('1714 an old "no maker given" flag is not mistaken for a maker called that', /!== 'no maker given'\) \? fm\[1\]\.trim\(\) : '';/.test(ym14));
 ok('1714 no hex colours in the new code', !/#[0-9a-fA-F]{3,6}\b/.test(ym14.slice(ym14.indexOf('function _ymPreSortPlan'), ym14.indexOf("// ── v0.9.1627(b): EDIT"))));
 
+// ── v0.9.1715 (Session 96): the blank TYPE, read from the description ─────
+// Brad: "many say boxcar in the title and the type is blank." Every community
+// row arrives with item_type empty; getTypeBucket only runs once a type
+// exists, so it answered 'Other' for all 1,559. These are the real misreads
+// found on the live batch and fixed: an incidental word beating a body style,
+// and a load / parent-set clause being read as the car itself.
+const cfg15 = src('config.js'), ym15 = src('yardmaster.js');
+const _a15 = cfg15.indexOf('const RR_TYPE_WORDS'), _b15 = cfg15.indexOf('\n}\n', cfg15.indexOf('function rrTypeFromDescription')) + 3;
+const k15 = {};
+require('vm').runInNewContext(cfg15.slice(_a15, _b15) + ';this.t = rrTypeFromDescription; this.words = RR_TYPE_WORDS;', k15);
+const T = (d) => k15.t('', d);
+ok('1715 the reader lives in config.js and is exported', typeof k15.t === 'function' && /window\.rrTypeFromDescription = rrTypeFromDescription/.test(cfg15) && /window\.RR_TYPE_WORDS\s+= RR_TYPE_WORDS/.test(cfg15));
+ok('1715 every type it can return is one of the 23 TYPE_BUCKETS (that list stays the vocabulary)', (function () {
+  const tg = src('type-groups.js'); const sb = { window: {} }; sb.window.window = sb.window;
+  require('vm').runInNewContext(tg, sb);
+  const ids = sb.window.TYPE_BUCKETS.map(b => b.id).concat(['Steam Locomotive', 'Diesel Locomotive', 'Electric Locomotive']);
+  return k15.words.every(w => w[0] === 'LOCO' || ids.indexOf(w[0]) >= 0);
+})());
+ok('1715 a body style beats an incidental word — "Light Grey" is not a light, "Historical Art" is not paper',
+   T('GN 1937 AAR Double Door Boxcar #3345 Light Grey Peterson Supply') === 'Boxcar' && T('NYC Historical Art Wood Sided Reefer') === 'Boxcar');
+ok('1715 a "with …" clause names the LOAD, not the car', T('Flatcar with Combine Load') === 'Flatcar'
+   && T('BN Depressed Center Flatcar with Black Transformer Load') === 'Flatcar' && T('ATSF Die-cast Hopper with Coal Load') === 'Hopper' && T('UP Flatcar w/ Ertl Green Spreaders') === 'Flatcar');
+ok('1715 a "from …" clause names the parent set, so it never types the row — blank beats wrong', T('6464-125 From #2293 Illinois Central F3 Freight Set') === '');
+ok('1715 a road name is not a wheel arrangement ("Texas & Pacific" is not a Pacific)', T('Texas & Pacific Railway Double Deck Stock Car') === 'Stock Car');
+ok('1715 the plain cases Brad meant: it says boxcar in the title', ['WWII Boxcar “Old Crow Express”', 'PRR Heinz Boxcar', 'NH Boxcar Brown “6464-425”'].every(d => T(d) === 'Boxcar'));
+ok('1715 locomotives split into steam / diesel / electric', T('PRR GG1 #4817') === 'Electric Locomotive' && T('SP&S SW-9 Loco Peterson Supply #45') === 'Diesel Locomotive' && T('Southern Pacific FT Diesel Engine') === 'Diesel Locomotive');
+ok('1715 sets, track, passenger, intermodal and paper each read correctly',
+   T('ATSF Black Bonnet 4 Car 70’ Streamline Passenger Car Set') === 'Set' && T('O-54 Full Curve Track (1 pcs)') === 'Track'
+   && T('Amtrak Superliner Aluminum Coach #34102 18”') === 'Passenger Car' && T('40’ Container APL #6175229') === 'Intermodal'
+   && T('Lionel A Collectors Guide & History Vol 4 1970-1980') === 'Paper / Box / Misc');
+ok('1715 nothing recognisable means NO type, never a guess', T('') === '' && T('Janelco #8891') === '' && T(null) === '');
+ok('1715 a switch is track but a switcher is a locomotive', T('O-72 LH Switch (2 pcs)') === 'Track' && T('Hooker Plymouth Switcher') === 'Diesel Locomotive');
+ok('1715 the Office asks config and falls back to NO type when config is missing',
+   /function _ymTypeFor\(num, desc\) \{\s*try \{ return \(typeof rrTypeFromDescription === 'function'\) \? \(rrTypeFromDescription\(num, desc\) \|\| ''\) : ''; \}/.test(ym15));
+ok('1715 queueing fills the type from the description', /item_num: s\.num, item_type: _ymTypeFor\(s\.num, s\.desc\)/.test(ym15));
+ok('1715 the Pre-sort fills a BLANK type only and never overwrites one that is there',
+   /var type = String\(dd\.type \|\| ''\) \|\| _ymTypeFor\(dd\.num, dd\.desc\);/.test(ym15)
+   && /if \(x\.type !== String\(x\.dd\.type \|\| ''\)\) data\.push\(\{ range: YM\.DELTAS_TAB \+ '!' \+ cols\.type/.test(ym15));
+ok('1715 the type column is found BY HEADER like the other three, and the confirm says how many get one',
+   /type: _dcol\.item_type == null \? 'F' : _ymColLetter\(_dcol\.item_type\)/.test(ym15) && /' get a type read from the description'/.test(ym15));
+
 console.log('\n' + pass + ' passed, ' + fail + ' failed');
 if (fail) { console.log('YARDMASTER TESTS FAILING'); process.exit(1); }
 console.log('ALL YARDMASTER TESTS GREEN (' + pass + ')');
