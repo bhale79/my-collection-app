@@ -337,7 +337,9 @@ ok('1694 the card splits the held count into need-a-tab / need-a-number', /funct
 ok('1694 the batch view has a Held filter that lists exactly the uncommittable approved rows', /_ymFilter === 'held' \? heldRows/.test(ym94) && /function _ymIsHeldRow\(dd, validTabs\)/.test(ym94));
 ok('1694 one Queue button, wired, guarded by a busy flag', /onclick="_ymQueueWaiting\(\)"/.test(ym94) && /window\._ymQueueWaiting = async function/.test(q94) && /_ymQueueBusy = true;/.test(q94) && /finally \{ _ymQueueBusy = false; \}/.test(q94));
 ok('1694 two ROLLING batches with fixed ids, reopened when new rows arrive', /SUBS_BATCH = 'CB-COMMUNITY-SUBS', PAIRS_BATCH = 'CB-BARCODE-PAIRS'/.test(ym94) && /a rolling batch reopens when new rows arrive/.test(q94));
-ok('1694 a maker maps to a tab only when it has exactly ONE — otherwise the row is flagged, never guessed', /return tabs\.length === 1 \? tabs\[0\] : '';/.test(q94) && /needs a tab \\u2014 ' \+ s\.mfr \+ ' has several/.test(q94));
+ok('1694 a maker maps to a tab only when it has exactly ONE — otherwise the row is flagged, never guessed (v1714: the flag says WHY — has several / no tab yet)',
+   /return tabs\.length === 1 \? tabs\[0\] : '';/.test(ym94) && /_ymShapeFlag\(_ymPreSortReasons\(\{ maker: s\.mfr, num: s\.num, desc: s\.desc/.test(q94) && /if \(!flag\.length && !tab\) flag\.push\(_ymNoTabFlag\(maker\)\);/.test(ym94)
+   && /' has several' : 'needs a tab \\u2014 no tab yet for ' \+ m;/.test(ym94));
 ok('1694 deltas land BEFORE the source rows are stamped (a stamp without a row would lose the item)', q94.indexOf(':append?valueInputOption=RAW') < q94.indexOf("values: [['queued']]"));
 ok('1694 source stamps are by header-derived column + the row the delta carries in its notes', /subInMasterCol/.test(ym94) && /pairStatusCol/.test(ym94) && /submissions row ' \+ s\.row/.test(q94) && /barcode_pairs row ' \+ p\.row/.test(q94));
 ok('1694 a barcode batch takes its own commit path; a MIXED batch refuses to commit', /approved\.every\(function \(dd\) \{ return dd\.action === 'barcode'; \}\)/.test(ym94) && /mixes barcode rows with catalog rows/.test(ym94));
@@ -434,6 +436,62 @@ ok('1713 the anonymous daily table stays, labelled as devices per day', /_card\(
 ok('1713 the privacy page says it: beta testers only, last opened + how often, nothing about the collection',
    /for beta testers only, when the app was last opened and how often/.test(privacy13) && /Beta testers only: the date you last opened the app, the app version, and a count of opens/.test(privacy13) && /nothing about your collection or what you did in the app/.test(privacy13));
 ok('1713 no hex colours in the new card', !/#[0-9a-fA-F]{3,6}\b/.test(ym13.slice(ym13.indexOf('// 3 — WHO IS USING THE APP'), ym13.indexOf('// 4 — THIS WEEK'))));
+
+// ── v0.9.1714 (Session 96): the community PRE-SORT ────────────────────────
+// Brad: "it mixes real trains we lack with junk (model airplanes, cars).
+// Propose a pre-sort so the obvious junk is flagged as a CHECK and the
+// obvious trains are clean." Lists live in config.js; measured on the real
+// batch of 2026-09-11 (1,559 rows: 565 duplicates, 78 diecast makers, …).
+const cfg14 = src('config.js'), ym14 = src('yardmaster.js');
+const _a14 = cfg14.indexOf('const RR_NOT_TRAIN_MAKERS'), _b14 = cfg14.indexOf('\n}\n', cfg14.indexOf('function rrPreSortReasons')) + 3;
+const k14 = {};
+require('vm').runInNewContext(cfg14.slice(_a14, _b14) + ';this.f = rrPreSortReasons; this.n = rrMakerNorm; this.notTrain = RR_NOT_TRAIN_MAKERS; this.otherO = RR_OTHER_O_BRANDS;', k14);
+const r14 = (o) => k14.f(o);
+ok('1714 the lists and the classifier live in config.js (ONE place) and are exported', typeof k14.f === 'function' && Array.isArray(k14.notTrain) && Array.isArray(k14.otherO)
+   && ['RR_NOT_TRAIN_MAKERS', 'RR_OTHER_O_BRANDS', 'RR_MAKER_ALIASES', 'RR_PRESORT_WORDS', 'rrMakerNorm', 'rrPreSortReasons'].every(n => new RegExp('window\\.' + n + '\\s*=\\s*' + n).test(cfg14)));
+ok('1714 a diecast maker is junk twice over (maker + description) and names the maker in the flag',
+   JSON.stringify(r14({ maker: 'Die-cast Masters', num: '85925', desc: 'Cat 335F L Hydraulic Excavator' })) === JSON.stringify(['not a train maker — Die-cast Masters', 'looks like a vehicle or aircraft, not a train']));
+ok('1714 a train word protects the row: a flatcar WITH a tractor, tanks on a flat car, an airplane PARTS CAR, an operating car are clean',
+   [r14({ maker: 'Menards', num: '279-3090', desc: 'Norfolk Southern Long Flatcar with USA Missle' }), r14({ maker: 'MTH', num: '20-90361F', desc: 'TTX #98111 60’ Flat Car with 2 M1A Abrams Tanks' }),
+    r14({ maker: 'K-Line', num: 'K691-1152', desc: '2005 PND TCA Boeing Airplane Parts Car' }), r14({ maker: 'K-Line', num: 'K-42438', desc: 'Operating Boy and Airplane' }),
+    r14({ maker: 'Lionel', num: '3039', desc: 'PRR GG1 #4817' }), r14({ maker: 'MTH', num: '31872', desc: '#263 Baby Blue Comet 4-Car Set (#612 Pullman, #613 Pullman)' })].every(x => x.length === 0));
+ok('1714 a car with no train word is a vehicle even from a train maker (MTH Ford Shelby, K-Line Kruisers Porsche)',
+   r14({ maker: 'MTH', num: '30-50066A', desc: 'Ford Shelby GT-500KR 1968 Silver/Black' }).join() === 'looks like a vehicle or aircraft, not a train'
+   && r14({ maker: 'K-Line Kruisers', num: 'K-94424', desc: 'Porsche 356B Coupe with Caravan Brown' }).length === 2);
+ok('1714 books, catalogs and drawings are paper; track, switches and figure packs are track/scenery',
+   r14({ maker: 'Lionel', num: '32096', desc: 'Greenbergs Lionel Catalogs Vol 6 1961-1969' }).join() === 'book, paper or memorabilia, not a product'
+   && r14({ maker: 'Lionel', num: '75lamppostdwg', desc: '#75 Lamp Post Drawing' }).join() === 'book, paper or memorabilia, not a product'
+   && r14({ maker: 'Atlas', num: '6072', desc: 'O-72 LH Switch (2 pcs)' }).join() === 'track, power or scenery'
+   && r14({ maker: 'Woodland Scenics', num: 'A2725', desc: 'Dogs and Cats Figure Pack' }).join() === 'track, power or scenery');
+ok('1714 an empty -MBOX / -IS box record and a made-up number are caught; a plain blank description is not junk by itself',
+   r14({ maker: 'Lionel', num: '51222-MBOX', desc: '', notes: 'submissions row 3377; via grouped with 51222' }).join() === 'box record, not an item'
+   && r14({ maker: 'Lionel', num: 'LennytheLionSwinging', desc: 'Lionel... The Leader in Model Railroading' }).join() === 'no catalog number'
+   && r14({ maker: 'K-Line', num: 'K-1234', desc: '' }).length === 0);
+ok('1714 makers compare through the alias map (K-Line by Lionel → k-line, Märklín → marklin)', k14.n('K-Line by Lionel') === 'k-line' && k14.n('Märklín') === 'marklin' && k14.n('  MTH ') === 'mth');
+ok('1714 the Office asks config for reasons and falls back to NONE when config is missing (never a guess)',
+   /function _ymPreSortReasons\(o\) \{\s*try \{ return \(typeof rrPreSortReasons === 'function'\) \? \(rrPreSortReasons\(o\) \|\| \[\]\) : \[\]; \}/.test(ym14));
+ok('1714 Lionel with a modern 5-to-7-digit number goes to the MPC-Modern tab by era id (mpc / mod_ho / mod_s), never by a typed tab name',
+   /if \(\/\^\\d\{5,7\}\$\/\.test\(String\(num \|\| ''\)\.trim\(\)\.replace\(\/\^6-\/, ''\)\)\) \{/.test(ym14) && /return tabOf\('mpc'\);/.test(ym14) && /return tabOf\('mod_ho'\);/.test(ym14) && /return tabOf\('mod_s'\);/.test(ym14)
+   && !/'Lionel MPC-Modern'/.test(ym14.slice(ym14.indexOf('function _ymTabFor('), ym14.indexOf('function _ymNoTabFlag'))));
+ok('1714 small O-gauge brands go to the other_o tab by era id', /RR_OTHER_O_BRANDS\.indexOf\(m\) >= 0\) return tabOf\('other_o'\);/.test(ym14));
+ok('1714 queueing skips a number already WAITING in the queue and stamps the filing queued (the 565-duplicate cause)',
+   /var pendingKeys = \{\};/.test(ym14) && /pendingKeys\[_ymDupKey\(_ymDeltaMaker\(dd\), dd\.num, dd\.variation\)\] = 1;/.test(ym14) && /pendingKeys\[_ymDupKey\(s\.mfr, s\.num, s\.variation\)\] \|\| pendingKeys\[_ymDupKey\('', s\.num, s\.variation\)\]\)\) \{ stampSubs\.push\(s\.row\); return false; \}/.test(ym14));
+ok('1714 a queued row remembers its maker in the notes, so a later Pre-sort knows it', /notes: 'submissions row ' \+ s\.row \+ \(s\.mfr \? '; maker ' \+ s\.mfr : ''\)/.test(ym14) && /match\(\/\(\?:\^\|; \)maker \(\[\^;\]\+\)\/\)/.test(ym14));
+ok('1714 the Pre-sort button is on the community batch only, and the handler touches PENDING rows only — the flag and an EMPTY tab, no verdicts',
+   /\(_ymBatchId === SUBS_BATCH && pend\.length\)/.test(ym14) && /onclick="_ymPreSort\(\)"/.test(ym14)
+   && /_ymBatchId !== SUBS_BATCH \|\| _ymPreSortBusy\) return;/.test(ym14) && /dd\.batch === SUBS_BATCH && \(dd\.status \|\| 'pending'\) === 'pending'; \}\);\s*\n\s*if \(!rows\.length\)/.test(ym14)
+   && /var tab = String\(dd\.tab \|\| ''\) \|\| _ymTabFor\(maker, dd\.num, dd\.desc\);/.test(ym14) && !/status.*approved|'rejected'/.test(ym14.slice(ym14.indexOf('function _ymPreSortPlan'), ym14.indexOf('window._ymPreSort = '))));
+ok('1714 the Pre-sort confirms with counts first, re-checks the row ids before writing (v1689 guard), and writes the two columns found by header',
+   /appConfirm\(q, \{ title: 'Pre-sort', ok: 'Sort ' \+ changed\.length \}\)/.test(ym14) && /await _ymRowsStillMatch\(changed\.map\(function \(x\) \{ return x\.dd; \}\)\)/.test(ym14)
+   && /out\.deltaCols = \{ tab: _dcol\.proposed_tab == null \? 'D' : _ymColLetter\(_dcol\.proposed_tab\)/.test(ym14) && /cols\.flag \+ x\.dd\.sheetRow/.test(ym14));
+ok('1714 a second copy is a duplicate only for the same maker or an unknown maker — never two different known makers',
+   /if \(prev && \(!m \|\| prev\.unknown \|\| prev\.makers\[m\]\)\) isDup = true;/.test(ym14));
+ok('1714 ONE flag shape for queue time and the Pre-sort: a duplicate carries only its mark, junk carries its reasons without the needs-a-tab tail, a clean row carries the tab / number needs',
+   /function _ymShapeFlag\(reasons, tab, num, maker, isDup\)/.test(ym14) && /if \(isDup\) return 'duplicate \\u2014 filed again';/.test(ym14) && (ym14.match(/_ymShapeFlag\(/g) || []).length === 3);
+ok('1714 the Pre-sort files the maker of an old row into its notes before the old flag (its only record) is rewritten — so a second press changes nothing',
+   /var notes = \(maker && !\/\(\?:\^\|; \)maker \/\.test\(String\(dd\.notes \|\| ''\)\)\)/.test(ym14) && /if \(x\.notes !== null\) data\.push\(\{ range: YM\.DELTAS_TAB \+ '!' \+ cols\.notes/.test(ym14));
+ok('1714 an old "no maker given" flag is not mistaken for a maker called that', /!== 'no maker given'\) \? fm\[1\]\.trim\(\) : '';/.test(ym14));
+ok('1714 no hex colours in the new code', !/#[0-9a-fA-F]{3,6}\b/.test(ym14.slice(ym14.indexOf('function _ymPreSortPlan'), ym14.indexOf("// ── v0.9.1627(b): EDIT"))));
 
 console.log('\n' + pass + ' passed, ' + fail + ' failed');
 if (fail) { console.log('YARDMASTER TESTS FAILING'); process.exit(1); }

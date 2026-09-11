@@ -54,7 +54,7 @@ function makeVault() {
     ['E', 'test', '2026-09-04', 'Batch E', 'dismissed', '2', 'note E']];
   const subs = [['token','item_num','variation','condition','est_worth','sold_price','updated','in_master','manufacturer','description','road_name','source'],
     ['t1','999','','7','','','2026-09-01','no','Marx','Tin whistle car','','wizard'],
-    ['t2','6-12345','','','','','2026-09-02','no','Lionel','Boxcar the catalog lacks','Santa Fe','wizard'],   // Lionel has several tabs → needs a tab
+    ['t2','2343','','','','','2026-09-02','no','Lionel','F3 the catalog lacks','Santa Fe','wizard'],   // Lionel has several tabs → needs a tab (v1714: a MODERN 5-7 digit number would pick MPC-Modern — see §11)
     ['t3','777','','','','','2026-09-03','yes','Marx','already in','','wizard'],
     ['t4','','','','','','2026-09-03','no','','no number at all','','wizard'],
     ['t5','N2','','','','','2026-09-04','no','Marx','already in the master today','','wizard'],
@@ -170,6 +170,7 @@ function boot(v, opts) {
     ERAS: { marx: { manufacturer: 'Marx' }, pw: { manufacturer: 'Lionel' }, mpc: { manufacturer: 'Lionel' } },
     MASTER_SHEET_ID: 'master'
   };
+  if (opts && opts.globals) Object.assign(sandbox, opts.globals);   // v0.9.1714: config lists for the pre-sort tests
   sandbox.sheetsUpdate = async (id, range, values) => { writeRange(v, range.replace(/'/g, ''), values); v.log.push('sheetsUpdate ' + range); return true; };
   sandbox.window = sandbox;
   sandbox.encodeURIComponent = encodeURIComponent;
@@ -385,6 +386,97 @@ const idsIn = (tab) => tab.slice(1).map(r => r[1]).filter(Boolean);
     const m = v.tabs['Marx O'];
     ok('moved row: the verify caught it — NO UPC was written anywhere', !m.some(r => r[3] === '012345678905'));
     ok('moved row: the pair stays queued (not promoted)', v.tabs.barcode_pairs[1][8] === 'queued');
+  }
+
+  // ═══ 11. v0.9.1714 — the community PRE-SORT, end to end in the fake Vault ═══
+  // Brad: "flag the obvious junk as a CHECK and leave the obvious trains clean."
+  {
+    // config's real lists + classifier, loaded from config.js itself
+    const cfgSrc = fs.readFileSync(path.join(__dirname, '..', 'app', 'config.js'), 'utf8');
+    const ca = cfgSrc.indexOf('const RR_NOT_TRAIN_MAKERS'), cb = cfgSrc.indexOf('\n}\n', cfgSrc.indexOf('function rrPreSortReasons')) + 3;
+    const cfg = {}; vm.runInNewContext(cfgSrc.slice(ca, cb) + ';this.g = { RR_NOT_TRAIN_MAKERS, RR_OTHER_O_BRANDS, RR_MAKER_ALIASES, RR_PRESORT_WORDS, rrMakerNorm, rrPreSortReasons };', cfg);
+    const globals = Object.assign({}, cfg.g, {
+      REAL_ERA_IDS: ['marx', 'pw', 'mpc', 'mod_ho', 'other_o'],
+      ERA_TABS: { marx: { items: 'Marx O' }, pw: { items: 'Lionel PW - Items' }, mpc: { items: 'Lionel MPC-Modern' }, mod_ho: { items: 'Lionel Modern HO - Items' }, other_o: { items: 'Other O Brands' } },
+      ERAS: { marx: { manufacturer: 'Marx' }, pw: { manufacturer: 'Lionel' }, mpc: { manufacturer: 'Lionel' }, mod_ho: { manufacturer: 'Lionel' }, other_o: { manufacturer: 'Other' } }
+    });
+    const v = makeVault();
+    v.tabs.submissions = [v.tabs.submissions[0],
+      ['t1','999','','7','','','2026-09-01','no','Marx','Tin whistle car','','wizard'],                                   // one tab → clean
+      ['t2','6-12345','','','','','2026-09-02','no','Lionel','Boxcar the catalog lacks','Santa Fe','wizard'],            // modern number → MPC-Modern, clean
+      ['t3','27780','','','','','2026-09-02','no','Lionel','New Haven Boxcar HO','','wizard'],                            // says HO → Modern HO
+      ['t4','2343','','','','','2026-09-02','no','Lionel','Santa Fe F3 AA','','wizard'],                                  // postwar-style → Lionel has several
+      ['t5','3106','','','','','2026-09-03','no','RGS','MKT White Boxcar with Pastel Blue Door','','app'],                // small O brand → Other O Brands
+      ['t6','85925','','','','','2026-09-03','no','Die-cast Masters','Cat 335F L Hydraulic Excavator','','app'],          // junk, twice over
+      ['t7','51222-MBOX','','','','','2026-09-03','no','Lionel','','','grouped with 51222'],                               // box record
+      ['t8','32096','','','','','2026-09-03','no','Lionel','Greenbergs Lionel Catalogs Vol 6 1961-1969','','app'],       // paper
+      ['t9','K-1','','','','','2026-09-04','no','K-Line by Lionel','PRR Boxcar','','app']];                               // alias → K-Line … (no K-Line era here → no tab yet)
+    const ctx = boot(v, { globals });
+    await loaded(ctx);
+    await ctx.sandbox._ymQueueWaiting();
+    for (let i = 0; i < 80 && v.log.filter(l => /batchGet/.test(l)).length < 2; i++) await tick();
+    await tick(60);
+    const d = v.tabs.crawl_deltas;
+    const byNum = (n) => d.slice(1).find(r => r[0] === 'CB-COMMUNITY-SUBS' && r[4] === n);
+    ok('presort queue: Marx → Marx O, clean', byNum('999') && byNum('999')[3] === 'Marx O' && byNum('999')[14] === '');
+    ok('presort queue: Lionel 6-12345 → Lionel MPC-Modern, clean; 27780 "HO" → Modern HO', byNum('6-12345') && byNum('6-12345')[3] === 'Lionel MPC-Modern' && byNum('6-12345')[14] === '' && byNum('27780')[3] === 'Lionel Modern HO - Items');
+    ok('presort queue: Lionel 2343 still needs a pick — "has several"', byNum('2343')[3] === '' && byNum('2343')[14] === 'needs a tab — Lionel has several');
+    ok('presort queue: RGS → Other O Brands, clean', byNum('3106')[3] === 'Other O Brands' && byNum('3106')[14] === '');
+    ok('presort queue: the excavator is flagged not-a-train-maker + vehicle (no needs-a-tab tail on junk)', byNum('85925')[14] === 'not a train maker — Die-cast Masters; looks like a vehicle or aircraft, not a train', byNum('85925')[14]);
+    ok('presort queue: the empty -MBOX row is a box record; the Greenberg book is paper (and, being a Lionel 5-digit, still gets the MPC tab — the CHECK is what keeps it out of Approve all clean)', byNum('51222-MBOX')[14] === 'box record, not an item' && byNum('32096')[14] === 'book, paper or memorabilia, not a product' && byNum('32096')[3] === 'Lionel MPC-Modern', byNum('51222-MBOX')[14] + ' | ' + byNum('32096')[14]);
+    ok('presort queue: an aliased maker is normalised for the tab lookup and the flag names what the user typed', byNum('K-1')[14] === 'needs a tab — no tab yet for K-Line by Lionel');
+    ok('presort queue: every row remembers its maker in the notes', d.slice(1).filter(r => r[0] === 'CB-COMMUNITY-SUBS').every(r => /; maker /.test(r[20])) && /submissions row 2; maker Marx; condition 7; via wizard/.test(byNum('999')[20]), byNum('999')[20]);
+
+    // ── a second run: the same items filed again (new submission rows, in_master=no) must NOT double up ──
+    const before = d.length;
+    v.tabs.submissions.push(['t1b','999','','8','','','2026-09-05','no','Marx','Tin whistle car, filed again','','wizard']);
+    v.tabs.submissions.push(['t2b','6-12345','','','','','2026-09-05','no','Lionel','Boxcar the catalog lacks','Santa Fe','wizard']);
+    v.tabs.submissions.push(['t2c','6-12345','','','','','2026-09-05','no','','Boxcar, maker unknown this time','','wizard']);   // maker blank → still a match on number
+    v.tabs.submissions.push(['t9b','777777','','','','','2026-09-05','no','Lionel','A genuinely new one','','wizard']);
+    await ctx.sandbox.ymBuildPage(true); await tick(120);
+    await ctx.sandbox._ymQueueWaiting();
+    for (let i = 0; i < 80 && v.log.filter(l => /batchGet/.test(l)).length < 4; i++) await tick();
+    await tick(60);
+    const added = v.tabs.crawl_deltas.slice(before).filter(r => r[0] === 'CB-COMMUNITY-SUBS');
+    ok('presort second run: only the genuinely new number was queued — the three re-filings were skipped', added.length === 1 && added[0][4] === '777777', added.map(r => r[4]).join(','));
+    ok('presort second run: the skipped re-filings are stamped queued (they ARE in the queue, as the first copy)', v.tabs.submissions.slice(-4, -1).every(r => r[7] === 'queued'));
+
+    // ── the Pre-sort button on rows an older release queued (no maker in the notes, old flags, duplicates) ──
+    const v2 = makeVault();
+    const DH = v2.tabs.crawl_deltas[0]; const mkrow = (o) => DH.map(h => o[h] == null ? '' : String(o[h]));
+    v2.tabs.crawl_deltas = [DH.slice(),
+      mkrow({ batch_id: 'CB-COMMUNITY-SUBS', delta_id: 'CB-COMMUNITY-SUBS-0001', action: 'add', proposed_tab: '', item_num: '27780', description: 'New Haven Boxcar Remake', flag: 'needs a tab — Lionel has several', status: 'pending', notes: 'submissions row 2; condition C10; via app' }),
+      mkrow({ batch_id: 'CB-COMMUNITY-SUBS', delta_id: 'CB-COMMUNITY-SUBS-0002', action: 'add', proposed_tab: '', item_num: '85925', description: 'Cat 335F L Hydraulic Excavator', flag: 'needs a tab — Die-cast Masters has several', status: 'pending', notes: 'submissions row 3; via app' }),
+      mkrow({ batch_id: 'CB-COMMUNITY-SUBS', delta_id: 'CB-COMMUNITY-SUBS-0003', action: 'add', proposed_tab: 'Marx O', item_num: '999', description: 'Tin whistle car', flag: '', status: 'pending', notes: 'submissions row 4; via app' }),
+      mkrow({ batch_id: 'CB-COMMUNITY-SUBS', delta_id: 'CB-COMMUNITY-SUBS-0004', action: 'add', proposed_tab: 'Marx O', item_num: '999', description: 'Tin whistle car', flag: '', status: 'pending', notes: 'submissions row 9; via app' }),          // second copy, same maker
+      mkrow({ batch_id: 'CB-COMMUNITY-SUBS', delta_id: 'CB-COMMUNITY-SUBS-0005', action: 'add', proposed_tab: 'Marx O', item_num: '998', description: 'Already decided', flag: 'needs a look', status: 'approved', decided: '2026-09-10', notes: 'submissions row 5; via app' }),   // decided: untouched
+      mkrow({ batch_id: 'CB-COMMUNITY-SUBS', delta_id: 'CB-COMMUNITY-SUBS-0006', action: 'add', proposed_tab: '', item_num: '6060', description: 'O-54 Full Curve Track (1 pcs)', flag: 'needs a tab — Atlas has several', status: 'pending', notes: 'submissions row 6; via app' }),
+      mkrow({ batch_id: 'CB-COMMUNITY-SUBS', delta_id: 'CB-COMMUNITY-SUBS-0007', action: 'add', proposed_tab: 'Lionel PW - Items', item_num: '6060', description: 'Lionel postwar something', flag: '', status: 'pending', notes: 'submissions row 7; via app' }),   // same number, DIFFERENT known maker → not a duplicate
+      mkrow({ batch_id: 'B', delta_id: 'B-0001', action: 'add', proposed_tab: 'Marx O', item_num: 'N1', description: 'another batch', flag: '', status: 'pending', notes: '' })];
+    v2.tabs.crawl_batches.push(['CB-COMMUNITY-SUBS', 'The Rail Roster users (relay)', '2026-09-01', 'Community submissions (not in the catalog)', 'pending', '7', 'rolling']);
+    const ctx2 = boot(v2, { globals });
+    await loaded(ctx2);
+    ctx2.sandbox._ymBatchOpen('CB-COMMUNITY-SUBS', false); await tick(60);
+    ok('presort button: shown on the community batch with the pending count', /onclick="_ymPreSort\(\)"[^>]*>Pre-sort 6<\/button>/.test(ctx2.page.innerHTML), (ctx2.page.innerHTML.match(/Pre-sort \d+/) || [''])[0]);
+    ctx2.sandbox._ymBatchOpen('B', false); await tick(60);
+    ok('presort button: NOT on other batches', !/_ymPreSort\(\)/.test(ctx2.page.innerHTML));
+    ctx2.sandbox._ymBatchOpen('CB-COMMUNITY-SUBS', false); await tick(60);
+    const snapDecided = JSON.stringify(v2.tabs.crawl_deltas[5]), snapOther = JSON.stringify(v2.tabs.crawl_deltas[8]);
+    await ctx2.sandbox._ymPreSort();
+    for (let i = 0; i < 80 && !ctx2.toasts.some(t => /Pre-sorted/.test(t)); i++) await tick();
+    await tick(120);
+    const d2 = v2.tabs.crawl_deltas, row = (id) => d2.find(r => r[1] === id);
+    ok('presort button: the toast reports the rewrite', ctx2.toasts.some(t => /Pre-sorted 6 rows/.test(t)), ctx2.toasts.join(' | '));
+    ok('presort button: the old Lionel row got the MPC-Modern tab and a clean flag', row('CB-COMMUNITY-SUBS-0001')[3] === 'Lionel MPC-Modern' && row('CB-COMMUNITY-SUBS-0001')[14] === '');
+    ok('presort button: the excavator flag now says why (maker from the OLD flag text), and the maker is filed into the notes', row('CB-COMMUNITY-SUBS-0002')[14] === 'not a train maker — Die-cast Masters; looks like a vehicle or aircraft, not a train' && /; maker Die-cast Masters$/.test(row('CB-COMMUNITY-SUBS-0002')[20]), row('CB-COMMUNITY-SUBS-0002')[14]);
+    ok('presort button: the FIRST copy stays clean, the SECOND is marked duplicate', row('CB-COMMUNITY-SUBS-0003')[14] === '' && row('CB-COMMUNITY-SUBS-0004')[14] === 'duplicate — filed again');
+    ok('presort button: the same number under a different known maker is NOT a duplicate (Atlas track vs Lionel 6060)', row('CB-COMMUNITY-SUBS-0006')[14] === 'track, power or scenery' && row('CB-COMMUNITY-SUBS-0007')[14] === '', row('CB-COMMUNITY-SUBS-0006')[14] + ' | ' + row('CB-COMMUNITY-SUBS-0007')[14]);
+    ok('presort button: the decided row and the other batch were not touched', JSON.stringify(d2[5]) === snapDecided && JSON.stringify(d2[8]) === snapOther);
+    ok('presort button: no verdict was written — every pending row is still pending', d2.slice(1).filter(r => r[0] === 'CB-COMMUNITY-SUBS' && r[1] !== 'CB-COMMUNITY-SUBS-0005').every(r => r[15] === 'pending'));
+    // run it again: nothing to do
+    ctx2.toasts.length = 0;
+    await ctx2.sandbox._ymPreSort(); await tick(120);
+    ok('presort button: a second press finds nothing to change', ctx2.toasts.some(t => /Already sorted/.test(t)), ctx2.toasts.join(' | '));
   }
 
   console.log('\n' + pass + ' passed, ' + fail + ' failed');
