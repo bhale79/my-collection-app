@@ -4349,20 +4349,23 @@ META_WRITES.length = 0; TOASTS.length = 0;
     };
     const brwBlk = codeOf('app/browse.js', 'Step 3b: chip-state-aware filter',
                                            'if (road && item.roadName');
-    const wantBlk = codeOf('app/app-pages.js', 'Session 155: user-selected era period filter',
-                                               '// Priority filter');
+    // v0.9.1711: the Want List page's copy of this rule went with the legacy
+    // renderer (_buildWantPageLegacy, unreachable since v0.9.1348). The LIVE
+    // copy is the one v0.9.1348 moved to the merged Upgrade page — pin that.
+    const wantBlk = codeOf('app/app-pages.js', 'v0.9.1348 — period filter, moved here from the Want List page',
+                                               '// Type filter');
 
     ok('the browse chip filter hides a row only on a KNOWN period mismatch',
        /if \(_itmPeriod && _itmPeriod !== _stp3b\.era\) return false;/.test(brwBlk));
     ok('…and the old form that hid every unknown period is gone',
        !/if \(_itmPeriod !== _stp3b\.era\) return false;/.test(brwBlk));
-    ok('the Want list uses the SAME rule, so one item cannot behave two ways',
-       /if \(_wPeriod && _wPeriod !== _we\) return false;/.test(wantBlk));
+    ok('the Want list (now the merged Upgrade page) uses the SAME rule, so one item cannot behave two ways',
+       /if \(_uPeriod && _uPeriod !== _ue\) return false;/.test(wantBlk));
     ok('…and a hand-typed want with no catalog match is no longer dropped outright',
        !/if \(!_wMaster\) return false;/.test(wantBlk));
     ok('each of the two period filters asks the shared helper exactly once',
        (brwBlk.match(/_itemEraPeriod\(item\)/g) || []).length === 1 &&
-       (wantBlk.match(/_itemEraPeriod\(_wMaster\)/g) || []).length === 1);
+       (wantBlk.match(/_itemEraPeriod\(_uMaster\)/g) || []).length === 1);
 
     // Behaviour: the lookup splitter, run for real, must agree with the lists.
     (function () {
@@ -8787,10 +8790,14 @@ META_WRITES.length = 0; TOASTS.length = 0;
        /Other tender/.test(wz));
     // Three call sites until v0.9.1708 — one of them sat in Quick-Entry Step 1,
     // ~290 lines after an unconditional `return`, so no user could press it.
-    // The silent-control audit (B5) removed that block; two reachable callers
-    // on two different steps is what "not just one branch" means.
-    ok('every caller is reachable from anywhere, not just one branch',
-       (wz.match(/_showTenderPicker\(\)/g) || []).length >= 2);
+    // The silent-control audit (B5) removed that block. v0.9.1711: the second
+    // "caller" this pin counted was the Change button _selectTender wrote INTO
+    // #qe1-tender-label — an element born nowhere since 1708, so that button
+    // was never on screen either (guarded-no-op sweep). One reachable caller
+    // remains, on Condition & Details, and it is drawn at module scope.
+    ok('the one caller left is reachable (Condition & Details), and the dead qe1 branch is gone',
+       (wz.match(/_showTenderPicker\(\)/g) || []).length === 1 &&
+       !/qe1-tender-label/.test(wz.replace(/\/\/[^\n]*/g, '')));
 
     // RUN it: with only the module-level globals stubbed, the picker must be
     // callable. A grep can prove where the text sits; only running it proves
@@ -11359,12 +11366,15 @@ META_WRITES.length = 0; TOASTS.length = 0;
     // of the CALL (the quote that closes the string argument), and assert the
     // cut really reached it so a reshaped call fails loudly instead of
     // silently checking a prefix again.
-    const hint = (pages.match(/maybeShowContextualHint\('sold_empty',\s*'(?:[^'\\]|\\.)*'/) || [''])[0];
-    ok('the empty-Sold hint exists to be checked — the WHOLE hint',
-       hint.length > 40 && /'$/.test(hint),
-       'extraction did not reach the closing quote — checking a prefix proves nothing');
-    ok('…and does not say "Sold List"', !/Sold List/.test(hint));
-    ok('…and still names the page', /<strong>Sold<\/strong>/.test(hint));
+    // v0.9.1711: the hint itself is gone — it was gated on #sold-page /
+    // .page-sold, neither of which exists (the page is #page-sold), so no user
+    // ever saw it (guarded-no-op sweep, finding D). What finding G protects —
+    // ONE name for Sold — is now pinned on the file's remaining user-facing
+    // strings instead of on a hint nobody could reach.
+    ok('the unreachable empty-Sold hint is gone', !/sold_empty/.test(pages));
+    ok('…and no user-facing string in app-pages.js calls the page "Sold List"',
+       !/Sold List\b(?!ings)/.test(pages.replace(/\/\/[^\n]*/g, '')),
+       '("Sold Listings" — the eBay search toggle — is a different thing and is allowed)');
 
     section('205c. The master sheet id is written once');
     const setup = rd205('app/app-setup.js');
@@ -17323,7 +17333,9 @@ META_WRITES.length = 0; TOASTS.length = 0;
       const sites = [
         ['browse.js', /cottAnchorUrl\(item\.refLink, item\.itemNum, window\.cottRowWords \? window\.cottRowWords\(item\)/],
         ['browse.js', /cottAnchorUrl\(_sib\.refLink, item\.itemNum, window\.cottRowWords \? window\.cottRowWords\(item\)/],
-        ['app-pages.js', /cottAnchorUrl\(master\.refLink \|\| '', w\.itemNum, window\.cottRowWords \? window\.cottRowWords\(master\)/],
+        // v0.9.1711: was the legacy Want page's call (master/w) — that renderer
+        // is gone; the merged Upgrade page's call (vm/u) is the live one.
+        ['app-pages.js', /cottAnchorUrl\(vm\.refLink \|\| '', u\.itemNum, window\.cottRowWords \? window\.cottRowWords\(vm\)/],
         ['barcode.js', /cottAnchorUrl\(rl, r\.masterItem\.itemNum, window\.cottRowWords \? window\.cottRowWords\(r\.masterItem\)/],
         ['photo-inbox.js', /cottAnchorUrl\(_vrRef, lk\.master\.itemNum, window\.cottRowWords \? window\.cottRowWords\(lk\.master\)/],
         ['wizard.js', /cottAnchorUrl\(singleItem\.refLink, itemNum, window\.cottRowWords \? window\.cottRowWords\(singleItem\)/],
@@ -18189,7 +18201,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
       const sites = [
         ['browse.js', /cottRowWords\(item\) : '', item\.variation \|\| ''\) : item\.refLink/],
         ['browse.js', /cottRowWords\(item\) : '', item\.variation \|\| ''\) : _sib\.refLink/],
-        ['app-pages.js', /cottRowWords\(master\) : '', w\.variation \|\| ''\)/],
+        ['app-pages.js', /cottRowWords\(vm\) : '', u\.variation \|\| ''\)/],   // v0.9.1711: the live Upgrade-page site
         ['barcode.js', /cottRowWords\(r\.masterItem\) : '', r\.masterItem\.variation \|\| ''\)/],
         ['photo-inbox.js', /cottRowWords\(lk\.master\) : '', lk\.master\.variation \|\| ''\)/],
         ['wizard.js', /cottRowWords\(singleItem\) : '', singleItem\.variation \|\| ''\)/],

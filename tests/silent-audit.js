@@ -205,7 +205,7 @@ function collectFunctions(files) {
         // wraps buildDashboard and renderWizardStep). Keep the LONGEST body —
         // the wrapper is a few lines; the audit wants the real thing.
         const prev = fns.get(name);
-        if (!prev || body.length > prev.body.length) fns.set(name, { name, file, line: lineOf(code, m.index), start: b, end: e + 1, body });
+        if (!prev || body.length > prev.body.length) fns.set(name, { name, file, line: lineOf(code, m.index), start: b, end: e + 1, body, params: code.slice(pOpen + 1, pClose) });
       }
     });
   });
@@ -265,7 +265,75 @@ function collectBirths(files, fns) {
       add(id, { where: file + ':' + lineOf(code, m.index), forked: !!forked, fn: fn ? fn.name : '', static: false });
     }
   });
+
+  // v0.9.1711 — two births the first scanner could not see (both found by
+  // hand-checking the sweep-2 list, where they were the only false positives):
+  //
+  // (a) A PREFIX birth: `id="ptog-${id}"` / `id="thumb-' + fid` / `.id = 'cam-' + n`.
+  //     The prefix is recorded; a lookup whose id starts with a recorded prefix is
+  //     treated as born (dynamic). Prefixes shorter than 3 characters are ignored —
+  //     `id="${x}"` would otherwise match everything.
+  // (b) A HELPER birth: `mkDrop('wiz-search-mfr', …)` where mkDrop's body writes
+  //     its parameter into an id (`id="' + fieldId + '"`, `.id = fieldId`,
+  //     `id="${fieldId}"`). For every app function whose body does that with one
+  //     of its parameters, each call site's literal string in that argument
+  //     position is a birth.
+  births.prefixes = new Set();
+  files.forEach(({ file, code }) => {
+    const re = /\bid\s*=\s*\\?["']([A-Za-z_][\w-]*?)(?:\$\{|["']\s*\+)|\.id\s*=\s*['"]([A-Za-z_][\w-]*?)['"]\s*\+/g;
+    let m;
+    while ((m = re.exec(code))) {
+      const pre = m[1] || m[2];
+      if (pre && pre.length >= 3) births.prefixes.add(pre);
+    }
+  });
+  const makers = [];   // { name, argIndex }
+  fns.forEach(fn => {
+    if (!fn.params) return;
+    const params = fn.params.split(',').map(x => x.trim().replace(/=.*$/, '').trim()).filter(x => /^[A-Za-z_$][\w$]*$/.test(x));
+    params.forEach((pname, i) => {
+      const esc = pname.replace(/\$/g, '\\$');
+      const uses = new RegExp(
+        '\\bid\\s*=\\s*\\\\?["\'](?:\\\\?["\'])?\\s*\\+\\s*' + esc + '\\b' +   // id="' + fieldId  (one quote closes the HTML attr, one the JS string)
+        '|\\.id\\s*=\\s*' + esc + '\\b' +                                  // el.id = fieldId
+        '|\\bid\\s*=\\s*\\\\?["\']\\$\\{\\s*' + esc + '\\s*\\}');            // id="${fieldId}"
+      if (uses.test(fn.body)) makers.push({ name: fn.name, argIndex: i });
+    });
+  });
+  files.forEach(({ file, code }) => {
+    makers.forEach(mk => {
+      const re = new RegExp('\\b' + mk.name.replace(/\$/g, '\\$') + '\\s*\\(', 'g');
+      let m;
+      while ((m = re.exec(code))) {
+        const open = m.index + m[0].length - 1;
+        const close = matchFrom(code, open, '(', ')');
+        if (close < 0) continue;
+        // split the argument list at top-level commas (string-aware, bracket-aware)
+        const args = []; let depth = 0, cur = '', i = open + 1;
+        for (; i < close; i++) {
+          const c = code[i];
+          if (c === '"' || c === "'" || c === '`') { const q = c; cur += c; i++; while (i < close && code[i] !== q) { if (code[i] === '\\') { cur += code[i]; i++; } cur += code[i]; i++; } cur += code[i]; continue; }
+          if ('([{'.includes(c)) depth++;
+          else if (')]}'.includes(c)) depth--;
+          if (c === ',' && depth === 0) { args.push(cur); cur = ''; continue; }
+          cur += c;
+        }
+        args.push(cur);
+        const arg = (args[mk.argIndex] || '').trim();
+        const lit = arg.match(/^['"]([A-Za-z_][\w-]*)['"]$/);
+        if (lit) add(lit[1], { where: file + ':' + lineOf(code, m.index), forked: false, fn: mk.name, static: false, helper: true });
+      }
+    });
+  });
   return births;
+}
+
+// A lookup id is "born" if it has a recorded birth, or starts with a recorded
+// dynamic prefix (`ptog-${id}` births ptog-disclaimer, ptog-location, …).
+function bornAnywhere(births, id) {
+  if ((births.get(id) || []).length) return true;
+  if (births.prefixes) for (const p of births.prefixes) if (id.length > p.length && id.startsWith(p)) return true;
+  return false;
 }
 
 // The innermost app function whose body contains position `at` in `file`.
@@ -352,7 +420,7 @@ function guardedNoopsIn(fn) {
 }
 
 // ── 5. Put it together ──────────────────────────────────────────
-module.exports = { scanKeepLines, matchFrom, collectFunctions, collectControls, collectBirths, bailOutsIn, guardedNoopsIn, readApp };
+module.exports = { scanKeepLines, matchFrom, collectFunctions, collectControls, collectBirths, bornAnywhere, bailOutsIn, guardedNoopsIn, readApp };
 
 // The report runs only when this file is the program (`node tests/silent-audit.js`).
 // Required from a test, it just lends its scanners. (A bare top-level `return`
@@ -420,7 +488,7 @@ handlerNames.forEach(h => {
 const noops = [];
 fns.forEach(fn => {
   guardedNoopsIn(fn).forEach(g => {
-    if ((births.get(g.id) || []).length) return;        // the element can exist — a fair guard
+    if (bornAnywhere(births, g.id)) return;             // the element can exist — a fair guard
     noops.push({ fn: fn.name, file: fn.file, ...g });
   });
 });

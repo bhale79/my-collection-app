@@ -429,12 +429,6 @@ function launchSetItemWizard() {
     }
   }
 
-  // Show item counter in wizard title area
-  const titleEl = document.getElementById('wizard-step-title');
-  if (titleEl) {
-    titleEl.setAttribute('data-set-progress', `Item ${idx + 1} of ${items.length}: ${itemNum}`);
-  }
-
   renderWizardStep();
 }
 

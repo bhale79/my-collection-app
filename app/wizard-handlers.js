@@ -450,8 +450,6 @@ function _confirmDoneEdit(key) {
 
 function _pvToggleMasterBox(val) {
   wizard.data.hasMasterBox = val;
-  var reveal = document.getElementById('pv-mb-reveal');
-  if (reveal) reveal.style.display = (val === 'Yes') ? 'block' : 'none';
   document.querySelectorAll('[onclick*="_pvToggleMasterBox"]').forEach(function(btn) {
     var sel = btn.textContent.trim() === val;
     btn.style.border = '1.5px solid ' + (sel ? 'var(--accent)' : 'var(--border)');

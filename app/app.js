@@ -2534,16 +2534,12 @@ function buildApp() {
     const _total = (typeof wishlistFoldedCount === 'function') ? wishlistFoldedCount() : 0;   // v0.9.722
     _uEl.textContent = _total > 0 ? _total.toLocaleString() : '—';
   }
-  // Wire up the Google Sheet link in the sidebar
-  const sheetLink = document.getElementById('nav-sheet-link');
-  if (sheetLink && state.personalSheetId) {
-    sheetLink.href = 'https://docs.google.com/spreadsheets/d/' + state.personalSheetId;
-  }
+  // (v0.9.1711: the sidebar #nav-sheet-link is born nowhere — the Preferences
+  // page carries its own #nav-sheet-link-p — so its wiring is gone.)
   _injectQuickActionsBar();
   _applyCompactMode();
-  // Initialize location preference toggle
-  const _locToggle = document.getElementById('pref-location-toggle');
-  if (_locToggle) _locToggle.checked = _prefLocEnabled;
+  // (v0.9.1711: the hidden #pref-location-toggle is born nowhere; Preferences
+  // uses #ptog-location and _prefLocEnabled directly.)
   // Browse, Sold, For Sale, Want, Reports built lazily on first nav via showPage()
   // Tutorial is NOT auto-launched. Replaced 2026-04-14 with showWelcomeCard
   // (Option C: single-page welcome) + maybeShowContextualHint (Option D:

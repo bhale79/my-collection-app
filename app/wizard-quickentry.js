@@ -342,8 +342,6 @@ function _showQuickEntryMultiUI(itemNum, variation, tenders, isSet, bUnit) {
   body.innerHTML = '';
   body.appendChild(wrap);
 
-  const titleEl = document.getElementById('wiz-title');
-  if (titleEl) titleEl.textContent = 'Quick Entry — ' + itemNum;
   const nextBtn = document.getElementById('wizard-next-btn');
   const backBtn = document.getElementById('wizard-back-btn');
   if (nextBtn) nextBtn.style.display = 'none';

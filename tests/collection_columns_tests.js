@@ -97,7 +97,12 @@ ok('the pencil on the Actions heading still opens edit mode',
 ok('...and is a real button, not a faint glyph',
    /_collColEdit\(true\)[\s\S]{0,200}border:1px solid var\(--border\)/.test(js));
 ok('edit mode still offers Done', /_collColEdit\(false\)[\s\S]{0,220}Done<\/button>/.test(js));
-ok('the old top-right Columns button is gone', /var _oldColsBtn = document\.getElementById\('cols-btn-collection'\);\s*if \(_oldColsBtn\) _oldColsBtn\.remove\(\);/.test(js));
+// v0.9.1711: this used to pin the LINE that removed a stray old button —
+// but nothing has built #cols-btn-collection since 1545, so that line was a
+// guarded no-op and went in the sweep. What matters is that nothing BUILDS
+// the old top-right button any more; pin that directly.
+ok('the old top-right Columns button is gone (nothing builds or names #cols-btn-collection)',
+   !/cols-btn-collection/.test(js.replace(/\/\/[^\n]*/g, '')));
 ok('the row no longer vanishes when a collection has no catalogs or paper',
    /if \(!state\.filters\.owned \|\| isMobile\) \{ if \(bar\) bar\.style\.display = 'none'; return; \}/.test(js),
    'it carries Edit Headers now, which every collection needs');

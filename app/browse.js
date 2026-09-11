@@ -2145,93 +2145,11 @@ function _displayItemNum(item) {
 }
 
 
-// ── Road Name Searchable Combobox ──
-window._roadComboValue = '';
-window._allRoads = [];
-
-function _roadComboBuild() {
-  var list = document.getElementById('road-combo-list');
-  if (!list) return;
-  list.innerHTML = '';
-  _roadComboRender(window._allRoads, list);
-}
-
-function _roadComboRender(roads, list) {
-  if (!list) list = document.getElementById('road-combo-list');
-  if (!list) return;
-  list.innerHTML = '';
-  // "All Roads" option
-  var allOpt = document.createElement('div');
-  allOpt.className = 'road-opt';
-  allOpt.textContent = 'All Roads';
-  allOpt.onclick = function() { _roadComboSelect('', 'All Roads'); };
-  list.appendChild(allOpt);
-  // Filtered roads
-  roads.forEach(function(r) {
-    var opt = document.createElement('div');
-    opt.className = 'road-opt';
-    opt.innerHTML = r.name + '<span class="road-count">' + r.count + '</span>';
-    opt.onclick = function() { _roadComboSelect(r.name, r.name); };
-    list.appendChild(opt);
-  });
-}
-
-function _roadComboOpen() {
-  var list = document.getElementById('road-combo-list');
-  var input = document.getElementById('filter-road-input');
-  if (!list) return;
-  input.select();
-  _roadComboRender(window._allRoads, list);
-  list.style.display = 'block';
-  // Close on outside click
-  setTimeout(function() {
-    document.addEventListener('click', _roadComboOutside, { once: true, capture: true });
-  }, 10);
-}
-
-function _roadComboOutside(e) {
-  var combo = document.getElementById('road-combo');
-  if (combo && !combo.contains(e.target)) {
-    _roadComboClose();
-  } else {
-    // Re-attach listener if click was inside combo
-    setTimeout(function() {
-      document.addEventListener('click', _roadComboOutside, { once: true, capture: true });
-    }, 10);
-  }
-}
-
-function _roadComboClose() {
-  var list = document.getElementById('road-combo-list');
-  if (list) list.style.display = 'none';
-}
-
-function _roadComboFilter(query) {
-  var list = document.getElementById('road-combo-list');
-  if (!list) return;
-  var q = (query || '').toLowerCase().trim();
-  var filtered = q ? window._allRoads.filter(function(r) {
-    return r.name.toLowerCase().indexOf(q) >= 0;
-  }) : window._allRoads;
-  _roadComboRender(filtered, list);
-  list.style.display = 'block';
-}
-
-function _roadComboSelect(value, label) {
-  var input = document.getElementById('filter-road-input');
-  var clearBtn = document.getElementById('road-combo-clear');
-  window._roadComboValue = value;
-  if (input) input.value = value ? label : '';
-  if (input) input.placeholder = value ? '' : 'All Roads';
-  if (clearBtn) clearBtn.style.display = value ? 'block' : 'none';
-  _roadComboClose();
-  applyFilters();
-}
-
-function _roadComboClear() {
-  _roadComboSelect('', '');
-}
-
+// v0.9.1711: the road-name searchable combobox (_roadCombo*) lived here.
+// Its elements (#road-combo, #road-combo-list, #filter-road-input,
+// #road-combo-clear) are born nowhere, so every function was a guarded
+// no-op; window._roadComboValue could only ever be ''. Removed (finding D,
+// sweep 2). Road filtering by state.filters.road is unchanged.
 
 // ── Alias-aware search: expands abbreviations & nicknames ──
 // v0.9.1316 (Brad: "why does the text search not work"): it ran, but matched
@@ -2290,38 +2208,9 @@ function populateFilters() {
   // stale, and rrPageShown() refills them — BEFORE the repaint whose chips
   // read them (RR_DEFERRABLE lists 'filters' first for exactly that reason).
   if (typeof rrHoldRepaint === 'function' && rrHoldRepaint('filters', populateFilters)) return;
-  // Session 155: deduplicate road-name dropdown via normalizer (safety net
-  // against future drift after the master cleanup). Picks the most-popular
-  // spelling per normalized group as the dropdown's display label.
-  function _normRoadKey(s) {
-    if (!s) return '';
-    return String(s).toLowerCase()
-      .replace(/[\u2020\u2021\u00b1\u00ae*\u2013\u2014]/g, '')   // strip footnote / symbol marks
-      .replace(/ & /g, ' and ').replace(/&/g, ' and ')
-      .replace(/[-/]/g, ' ')
-      .replace(/[^\w\s]/g, ' ')
-      .replace(/\s+/g, ' ').trim();
-  }
-  const _roadGroupsTmp = {};       // normKey -> [{raw, count}]
-  const _rawRoadCounts = {};       // raw spelling -> count (for legacy callers)
-  state.masterData.forEach(function(i) {
-    if (!i.roadName) return;
-    _rawRoadCounts[i.roadName] = (_rawRoadCounts[i.roadName] || 0) + 1;
-    const k = _normRoadKey(i.roadName);
-    if (!_roadGroupsTmp[k]) _roadGroupsTmp[k] = [];
-    _roadGroupsTmp[k].push({ raw: i.roadName });
-  });
-  const _roadDeduped = Object.keys(_roadGroupsTmp).map(function(k) {
-    const variants = _roadGroupsTmp[k];
-    const byRaw = {};
-    variants.forEach(function(v) { byRaw[v.raw] = (byRaw[v.raw] || 0) + 1; });
-    const sortedRaws = Object.keys(byRaw).sort(function(a, b) { return byRaw[b] - byRaw[a]; });
-    const canonical = sortedRaws[0];
-    const total = variants.length;
-    return { canonical: canonical, count: total };
-  }).sort(function(a, b) { return a.canonical.localeCompare(b.canonical); });
-  const roads = _roadDeduped.map(function(r) { return r.canonical; });
-
+  // v0.9.1711: a Session-155 pass that normalised and counted every road name
+  // across the whole catalog ran here on every fill — and fed only the road
+  // combobox, whose elements no longer exist. Gone with it.
   const typeEl = document.getElementById('filter-type');
   // Session 118 Phase C: reset dropdown to fix triple-rebuild bug AND populate from TYPE_BUCKETS (clean tier-1 buckets, alphabetical by short label).
   typeEl.innerHTML = '<option value="">All Types</option>';
@@ -2380,11 +2269,6 @@ function populateFilters() {
     });
   }
 
-  // Store all roads for the combobox (with counts) — Session 155: counts now
-  // reflect the normalized group total (sum across all variants), not raw spelling.
-  window._allRoads = _roadDeduped.map(function(r) { return { name: r.canonical, count: r.count }; });
-  _roadComboBuild();
-
   // Session 119: re-sync dropdown to whatever filter is held in state.
   // Era-switch rebuilds this dropdown which used to silently blank the
   // visual selection even though state.filters.type was still active.
@@ -2399,7 +2283,7 @@ function applyFilters() {
   state.filters.imported = '';
   state.filters.needsDetails = '';
   state.filters.ownMaker = ''; state.filters.subCollection = ''; state.filters.subType = ''; // QE filter only applies in My Collection view
-  state.filters.road = window._roadComboValue || '';
+  state.filters.road = '';   // v0.9.1711: was window._roadComboValue, which the dead combobox left at ''
   state.filters.wantList = false;
   state.currentPage = 1;
   renderBrowse();
@@ -2419,8 +2303,6 @@ function resetFilters() {
     titleEl.textContent = 'Master Catalog';
     titleEl.style.cssText = '';
   }
-  const idBtn = document.getElementById('identify-btn');
-  if (idBtn) idBtn.style.display = '';
   // Restore table headers to default (era-aware)
   const thead = document.querySelector('#page-browse .item-table thead tr');
   if (thead) {
@@ -2437,8 +2319,6 @@ function resetFilters() {
   if (_tbl) _tbl.classList.remove('collection-view');
   var _fbMaster = document.querySelector('#page-browse .filter-bar');
   if (_fbMaster) _fbMaster.style.display = '';
-  var _leg = document.getElementById('collection-icon-legend');
-  if (_leg) _leg.style.display = 'none';
   removeQEFilter();
   state.filters.owned = false;
   state.filters.unowned = false;
@@ -2454,7 +2334,7 @@ function resetFilters() {
   state.filters.subType = '';
   state.currentPage = 1;
   document.getElementById('filter-type').value = '';
-  _roadComboClear();
+  applyFilters();   // v0.9.1711: was _roadComboClear(), which only ever reached this call
   state._browseTab = 'items';
   renderBrowseTab('items');
 }
@@ -2469,8 +2349,6 @@ function filterOwned(qe) {
     titleEl.textContent = 'My Collection List';
     titleEl.style.cssText = 'font-family:var(--font-head);font-size:0.95rem;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;color:var(--text)';
   }
-  const idBtn = document.getElementById('identify-btn');
-  if (idBtn) idBtn.style.display = 'none';
   // Show Share button for collection view — place it to the RIGHT of the + Add
   // button (inside the quick-actions container) so both sit at the top-right.
   var _qaActions = document.querySelector('#page-browse > .page-title > .qa-tr-actions');
@@ -2478,9 +2356,8 @@ function filterOwned(qe) {
   // v0.9.1545 (Brad): "move the button to here, make it the same size and
   // shape as the trains filter, and change the text to Edit Headers." It now
   // lives on the Show: row directly above the headings it edits — see the
-  // jump-bar builder below. Any copy of the old top-right button is removed.
-  var _oldColsBtn = document.getElementById('cols-btn-collection');
-  if (_oldColsBtn) _oldColsBtn.remove();
+  // jump-bar builder below. (v0.9.1711: the line that removed a stray copy of
+  // the old #cols-btn-collection is gone — nothing has built one since 1545.)
   if (_btnArea && !document.getElementById('share-btn-collection')) {
     var _shareBtn = document.createElement('button');
     _shareBtn.id = 'share-btn-collection';
@@ -2496,66 +2373,20 @@ function filterOwned(qe) {
   if (_fbOwned) _fbOwned.style.display = 'none';
   var _tbl2 = document.querySelector('#page-browse .item-table');
   if (_tbl2) _tbl2.classList.add('collection-view');
-  var _leg = document.getElementById('collection-icon-legend');
-  if (_leg) _leg.style.display = 'flex';
   renderBrowse();
   // Update tab visibility for collection context
   state._browseTab = 'items';
   renderBrowseTab('items');
-  // QE-only checkbox removed (Phase 3 streamline) — Quick Entry is being
-  // deprecated. Block the injection and also strip any stale element.
-  setTimeout(function() {
-    var stale = document.getElementById('qe-only-toggle');
-    if (stale) stale.remove();
-    // v0.9.1546: the Imported and Needs-details pills used to be built here,
-    // as two loose checkbox labels wedged in beside the search box. Brad, on
-    // the rework: "fold it into more." They are rows in the More menu now and
-    // still appear as blue pills when ON — see _renderHierarchyChips. Any
-    // copy left over from an older render is cleared away.
-    try {
-      var _impStale = document.getElementById('imp-only-toggle');
-      if (_impStale) _impStale.remove();
-      var _ndStale = document.getElementById('nd-only-toggle');
-      if (_ndStale) _ndStale.remove();
-    } catch (eOldPills) {}
-    return;
-    // (legacy body retained below but unreachable; will be deleted in a follow-up.)
-    // eslint-disable-next-line no-unreachable
-    if (document.getElementById('qe-only-toggle')) return;
-    var wrap = document.getElementById('browse-search-wrap');
-    if (!wrap || !wrap.parentNode) return;
-    var lbl = document.createElement('label');
-    lbl.id = 'qe-only-toggle';
-    lbl.title = 'Show only Quick Entry items';
-    lbl.style.cssText = 'display:flex;align-items:center;gap:0.35rem;flex-shrink:0;'
-      + 'font-size:0.8rem;color:var(--text-dim);cursor:pointer;'
-      + 'padding:0.35rem 0.7rem;background:var(--bg-card);'
-      + 'border:1.5px solid var(--border);border-radius:14px;'
-      + 'white-space:nowrap;user-select:none';
-    var cb = document.createElement('input');
-    cb.type = 'checkbox';
-    cb.id = 'qe-only-cb';
-    cb.checked = state.filters.quickEntry === 'quick';
-    cb.style.cssText = 'margin:0;cursor:pointer;accent-color:var(--accent)';
-    cb.onchange = function() {
-      state.filters.quickEntry = this.checked ? 'quick' : '';
-      renderBrowse();
-    };
-    lbl.appendChild(cb);
-    var txt = document.createElement('span');
-    txt.textContent = '⚡ QE only';
-    lbl.appendChild(txt);
-    // Insert as sibling immediately AFTER the search bar wrapper
-    wrap.parentNode.insertBefore(lbl, wrap.nextSibling);
-  }, 50);
+  // v0.9.1711: a 50ms timer used to remove stray #qe-only-toggle /
+  // #imp-only-toggle / #nd-only-toggle pills and then carried the old QE-only
+  // checkbox builder after an unconditional return. None of those elements is
+  // built anywhere any more; the timer is gone (finding D, sweep 2).
 }
 
 function removeQEFilter() {
-  // Session 158: clean up checkbox (newer UI) AND legacy dropdown if present.
-  var el = document.getElementById('qe-only-toggle');
-  if (el) el.remove();
-  var legacy = document.getElementById('filter-quick-inline');
-  if (legacy) legacy.remove();
+  // Session 158 removed the QE checkbox and legacy dropdown here; v0.9.1711:
+  // neither #qe-only-toggle nor #filter-quick-inline is built anywhere now,
+  // so only the state reset remains.
   state.filters.quickEntry = '';
   state.filters.imported = '';
   state.filters.needsDetails = '';
@@ -2658,11 +2489,9 @@ function renderBrowseTab(tab) {
 
   const filterBar = document.querySelector('#page-browse .filter-bar');
   const disclaimer = document.getElementById('disclaimer-browse');
-  const identBtn = document.getElementById('identify-btn');
   const onItems = state._browseTab === 'items';
   if (filterBar) filterBar.style.display = (onItems && !state.filters.owned) ? '' : 'none';
   if (disclaimer) disclaimer.style.display = (onItems && _prefGet('lv_show_disclaimer', 'true') === 'true') ? 'flex' : 'none';
-  if (identBtn) identBtn.style.display = inCollection ? 'none' : (onItems ? '' : 'none');
   // Session 157: top search bar is items-only; each sub-panel (catalogs,
   // sets, IS, science, etc.) has its own search input.
   const searchWrap = document.getElementById('browse-search-wrap');
@@ -3688,12 +3517,9 @@ function renderBrowse() {
       + '</div></td></tr>';
     const _gcards = document.getElementById('browse-cards');
     if (_gcards) _gcards.innerHTML = '';
-    const _gpag = document.getElementById('browse-pagination');
-    if (_gpag) _gpag.style.display = 'none';
-    // Session 119: clear ALL three count/info elements so leftover stale text
+    // Session 119: clear the count/info elements so leftover stale text
     // (e.g. "0 items" from a previous zero-result render) doesn't linger.
-    const _gcount = document.getElementById('browse-count');
-    if (_gcount) _gcount.textContent = '';
+    // (v0.9.1711: #browse-pagination / #browse-count were never built.)
     const _grc = document.getElementById('result-count');
     if (_grc) _grc.textContent = '';
     const _gpi = document.getElementById('page-info');

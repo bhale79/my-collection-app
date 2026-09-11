@@ -799,7 +799,7 @@ function buildDashboard() {
     // NOTE for anyone adding a nav badge later: add it here as well, or it
     // will inherit exactly this bug.
     try {
-      [['nav-total', 0], ['nav-owned', 0], ['nav-wishlist-count', 0],
+      [['nav-owned', 0], ['nav-wishlist-count', 0],
        ['nav-forsale', 0], ['nav-parts', 0], ['nav-sold', 0]].forEach(function (pair) {
         var el = document.getElementById(pair[0]);
         if (el) el.textContent = String(pair[1]);
@@ -880,7 +880,7 @@ function buildDashboard() {
 
   var soldCount = Object.keys(state.soldData).length;
   var wantCount = total - owned - soldCount;
-  var _nt = document.getElementById('nav-total'); if (_nt) _nt.textContent = total.toLocaleString();
+  // (v0.9.1711: #nav-total is born nowhere; the sidebar shows #nav-owned only.)
   // Session 115: nav-owned counts ALL owned items across every collection
   // type — Lionel items, owned sets, catalogs, paper, instruction sheets,
   // science/construction sets, mockups, and user-defined ephemera. Matches

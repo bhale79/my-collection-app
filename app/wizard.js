@@ -2249,13 +2249,9 @@ window._selectTender = function(tNum) {
   if (_step3Active) wizard.data._tenderConfirmed = true;
   var modal = document.getElementById('tender-picker-modal');
   if (modal) modal.remove();
-  // Update tender label in DOM without full re-render
-  var lbl = document.getElementById('qe1-tender-label');
-  if (lbl) {
-    var nonOrig = wizard.data.tenderIsNonOriginal;
-    lbl.innerHTML = 'TENDER <span style="font-family:var(--font-mono);font-weight:700;color:' + (nonOrig ? '#f39c12' : '#8b5cf6') + '">' + tNum + (nonOrig ? ' &#x26A0;' : '') + '</span>'
-      + '<button type="button" onclick="_showTenderPicker()" style="margin-left:0.4rem;padding:0.15rem 0.5rem;border-radius:10px;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-size:0.65rem;font-family:var(--font-body);cursor:pointer;white-space:nowrap">Not yours?</button>';
-  } else if (_step3Active) {
+  // v0.9.1711: the Quick-Entry Step 1 tender label (#qe1-tender-label) went
+  // with QE Step 1 in v0.9.1708; the branch that rewrote it is gone too.
+  if (_step3Active) {
     // Session 159: re-render Step 3 to reflect the new tender choice
     renderWizardStep();
   }
@@ -6846,8 +6842,6 @@ async function wizardSkipAllPhotos() {
 async function wizardAdvance() {
   const _nextBtn = document.getElementById('wizard-next-btn');
   if (_nextBtn && _nextBtn.disabled) return;
-  const _warn = document.getElementById('year-range-warning');
-  if (_warn) _warn.remove();
   await _wizardNextCore();
 }
 

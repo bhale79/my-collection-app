@@ -75,15 +75,13 @@ function _detailBackToBrowse() {
     if (ls.owned) {
       // Reapply collection view, then jump to the saved tab
       if (typeof filterOwned === 'function') filterOwned();
-      // v0.9.801: the chip bar's source of truth is the hidden #filter-type /
-      // #filter-road SELECTS — v0.9.798 restored state only, so the list was
+      // v0.9.801: the chip bar's source of truth is the hidden #filter-type
+      // SELECT (v0.9.1711: #filter-road no longer exists) — v0.9.798 restored state only, so the list was
       // filtered while the chips said "All Types" (ghost filter). Restore the
       // SELECTS, then let applyFilters recompute state from them.
       if (ls.filters && state.filters) {
         var _ft = document.getElementById('filter-type');
         if (_ft) _ft.value = ls.filters.type || '';
-        var _fr = document.getElementById('filter-road');
-        if (_fr) _fr.value = ls.filters.road || '';
         Object.assign(state.filters, ls.filters, { owned: true });
         if (typeof applyFilters === 'function') applyFilters();
         else if (typeof renderBrowse === 'function') renderBrowse();
@@ -4746,33 +4744,10 @@ function openItem(idx) {
   const _errSuffix = _errPd && _errPd.isError === 'Yes' ? ' ⚠ Error' : '';
   document.getElementById('modal-item-num').textContent = `No. ${item.itemNum}${item.variation ? ' — Variation ' + item.variation : ''}${_errSuffix}`;
   document.getElementById('modal-title').textContent = item.roadName || item.itemType || item.description.substring(0, 60);
-  const modalMatchedTo = pd?.matchedTo || '';
-  const modalIsTender = isTender(item.itemNum);
   document.getElementById('modal-subtitle').textContent = `${item.itemType}${item.subType ? ' — ' + item.subType : ''}${item.yearProd ? ' · ' + item.yearProd : ''}`;
-  // Set ID badge
-  const setIdBadgeEl = document.getElementById('modal-set-badge');
-  if (setIdBadgeEl) {
-    if (pd?.setId) {
-      setIdBadgeEl.style.display = 'inline-flex';
-      // Find all other items in this set
-      const setMates = Object.values(state.personalData)
-        .filter(p => p.setId === pd.setId && p.itemNum !== item.itemNum)
-        .map(p => p.itemNum);
-      setIdBadgeEl.textContent = '🔗 Set: ' + pd.setId + (setMates.length ? ' (with ' + setMates.join(', ') + ')' : '');
-    } else {
-      setIdBadgeEl.style.display = 'none';
-    }
-  }
-
-  const matchedBadgeEl = document.getElementById('modal-matched-badge');
-  if (matchedBadgeEl) {
-    if (modalMatchedTo) {
-      matchedBadgeEl.style.display = 'inline-flex';
-      matchedBadgeEl.innerHTML = `Matched ${modalIsTender ? 'Engine' : 'Tender'}: <strong style="margin-left:0.3rem">${modalMatchedTo}</strong>`;   // v0.9.1434: train icons purged
-    } else {
-      matchedBadgeEl.style.display = 'none';
-    }
-  }
+  // v0.9.1711: the Set and Matched badges (#modal-set-badge,
+  // #modal-matched-badge) were filled here, but the modal built above never
+  // includes them. Removed (finding D, sweep 2).
   document.getElementById('mi-type').textContent = item.itemType || '—';
   document.getElementById('mi-year').textContent = item.yearProd || '—';
   document.getElementById('mi-road').textContent = item.roadName || '—';

@@ -510,11 +510,6 @@ function buildPrefsPage() {
 
   _prefsApplySectionState();
 
-  // Keep hidden pref-location-toggle in sync (used by wizard)
-  const locTog = document.getElementById('ptog-location');
-  const oldTog = document.getElementById('pref-location-toggle');
-  if (oldTog && locTog) oldTog.checked = locTog.checked;
-
   // Render Collector's Market opt-in row
   if (typeof vaultRenderPrefsRow === 'function') {
     vaultRenderPrefsRow(document.getElementById('vault-prefs-row'));
@@ -609,9 +604,6 @@ function _onPrefChange(id, val) {
   if (id === 'location') {
     // Apply live so the wizard shows the location field without a reload
     if (typeof _prefLocEnabled !== 'undefined') _prefLocEnabled = !!val;
-    // Keep hidden toggle in sync
-    const old = document.getElementById('pref-location-toggle');
-    if (old) old.checked = val;
   }
   if (id === 'disclaimer') {
     _applyDisclaimerPref();

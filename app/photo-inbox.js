@@ -5881,8 +5881,7 @@
       console.warn('[Inbox] read screenshot:', e);
       showToast('Could not read that screenshot — try again or type the number', 3800, true);
     } finally {
-      var b2 = document.getElementById('pin-rv-shot');
-      if (typeof _shotBusy === 'function') _shotBusy(); else if (b2) { b2.disabled = false; }
+      if (typeof _shotBusy === 'function') _shotBusy();
     }
   }
 
@@ -11921,12 +11920,8 @@
     else window._pinGo(document.getElementById('nav-photo-inbox'));
   };
 
-  function _batchBtnSync() {
-    // Batch Add moved to the +Add menu ("Batch Add Photos") — it's no longer a
-    // wizard-footer button. Remove any stray instance; never create one.
-    var btn = document.getElementById('qc-batch-btn');
-    if (btn) btn.remove();
-  }
+  // v0.9.1711: _batchBtnSync (removed a stray #qc-batch-btn that nothing has
+  // built since Batch Add moved to the +Add menu) is gone.
 
   // Piggyback on dashboard rebuilds (fires after login and after every
   // wizard save) — inject the sidebar entry and flush pending links —
@@ -11955,7 +11950,6 @@
       var origR = window.renderWizardStep;
       window.renderWizardStep = function () {
         var r = origR.apply(this, arguments);
-        try { _batchBtnSync(); } catch (e) {}
         return r;
       };
       window.renderWizardStep._pinWrapped = true;

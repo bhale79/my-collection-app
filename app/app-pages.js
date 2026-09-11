@@ -988,205 +988,10 @@ function buildWantPage() {
 }
 if (typeof window !== 'undefined') window.buildWantPage = buildWantPage;
 
-// The original renderer, kept for reference and unreachable. Its empty-state
-// hint never ran in any case: it looked up 'want-page' / 'want-list-container'
-// / '.page-want' and the real id was 'page-want', so the anchor was always
-// null (pre-beta audit, finding 7).
-function _buildWantPageLegacy() {
-  const isMobile = window.innerWidth <= 640;
-  const _wq = (state._wantSearch || '').toLowerCase();
-  const _wp = state._wantPriority || '';
-  const _wt = state._wantType || '';
-  const _we = state._wantEra || '';          // Session 155: era filter
-  const _ws = state._wantSort || 'priority';
-  // Sync dropdowns with state
-  const _wpEl = document.getElementById('want-priority-filter');
-  if (_wpEl && _wpEl.value !== _wp) _wpEl.value = _wp;
-  const _weEl = document.getElementById('want-era-filter');  // Session 155
-  if (_weEl && _weEl.value !== _we) _weEl.value = _we;
-  const _wtEl = document.getElementById('want-type-filter');
-  if (_wtEl && _wtEl.value !== _wt) _wtEl.value = _wt;
-  const _wsEl = document.getElementById('want-sort');
-  if (_wsEl && _wsEl.value !== _ws) _wsEl.value = _ws;
-  const totalCount = Object.keys(state.wantData).length;
-  const entries = Object.values(state.wantData).filter(w => {
-    // Era filter: skip if item not in current era
-    if (typeof _isInCurrentEra === 'function' && !_isInCurrentEra(w.itemNum)) return false;
-    // Session 155: user-selected era period filter (prewar / postwar / modern)
-    // v0.9.1161: the SAME rule as the browse chips — hide only on a KNOWN
-    // mismatch. Two rows here have no period at all: one whose maker spans
-    // periods with no printed year (Marx, Other O), and one with no catalog
-    // match because the user typed it in by hand. Both used to vanish from all
-    // three period filters, which for a hand-entered want is especially wrong —
-    // the user put it on the list themselves and then could not find it.
-    if (_we && typeof _itemEraPeriod === 'function') {
-      var _wMaster = (typeof findMaster === 'function') ? findMaster(w.itemNum, '', w) : null;
-      var _wPeriod = _wMaster ? _itemEraPeriod(_wMaster) : null;
-      if (_wPeriod && _wPeriod !== _we) return false;
-    }
-    // Priority filter
-    if (_wp && (w.priority || 'Medium') !== _wp) return false;
-    // Type filter — lookup master to get item type
-    if (_wt) {
-      const _setMatch = _wt === 'Set' && state.setData && state.setData.find(s => s.setNum === w.itemNum);
-      if (_wt === 'Set' && !_setMatch) return false;
-      if (_wt !== 'Set') {
-        const _master = findMaster(w.itemNum, '', w);
-        if (!_master || (_master.itemType || '') !== _wt) return false;
-      }
-    }
-    // Text search
-    if (_wq) {
-      const master = findMaster(w.itemNum, w.variation, w) || {};
-      return (w.itemNum||'').toLowerCase().includes(_wq)
-        || (master.roadName||'').toLowerCase().includes(_wq)
-        || (master.itemType||'').toLowerCase().includes(_wq)
-        || (w.variation||'').toLowerCase().includes(_wq)
-        || (w.notes||'').toLowerCase().includes(_wq);
-    }
-    return true;
-  });
-  // Sort
-  const priorityOrder = { 'High': 0, 'Medium': 1, 'Low': 2 };
-  if (_ws === 'priority') {
-    entries.sort((a, b) => (priorityOrder[a.priority] ?? 1) - (priorityOrder[b.priority] ?? 1));
-  } else if (_ws === 'itemnum') {
-    entries.sort((a, b) => (a.itemNum||'').localeCompare(b.itemNum||'', undefined, {numeric:true}));
-  } else if (_ws === 'price') {
-    entries.sort((a, b) => (parseFloat(b.expectedPrice)||0) - (parseFloat(a.expectedPrice)||0));
-  }
-  // v0.9.714 (Brad): grouped pairs (engine+tender, A+B units) fold to ONE row.
-  const shownEntries = (typeof foldWantEntries === 'function') ? foldWantEntries(entries) : entries;
-  // Count display
-  const countEl = document.getElementById('want-count');
-  if (countEl) {
-    countEl.textContent = entries.length === totalCount
-      ? (shownEntries.length + ' item' + (shownEntries.length !== 1 ? 's' : '') + (shownEntries.length !== entries.length ? ' · ' + entries.length + ' pieces (pairs grouped)' : ''))
-      : 'Showing ' + shownEntries.length + ' of ' + totalCount;
-  }
-  // Keep nav count badge in sync
-  // Updated for combined Wishlist nav badge.
-  const countBadge = document.getElementById('nav-wishlist-count');
-  if (countBadge) countBadge.textContent = ((typeof wishlistFoldedCount === 'function') ? wishlistFoldedCount() : (totalCount + Object.keys(state.upgradeData||{}).length)).toLocaleString();   // v0.9.722
-  const cardsEl = document.getElementById('want-cards');
-  const tableEl = document.getElementById('want-table');
-  const tbody   = document.getElementById('want-tbody');
-  const priorityColor = { High: 'var(--accent)', Medium: 'var(--accent2)', Low: 'var(--text-dim)' };
-
-  if (shownEntries.length === 0) {
-    const hasFilters = _wq || _wp || _wt || _we;
-    const emptyIcon = hasFilters ? '🔍' : '❤️';
-    const emptyMsg = hasFilters ? 'No items match your filters' : 'Your want list is empty';
-    const emptyTip = hasFilters ? 'Try adjusting your search or filters' : 'Add items you\'re looking for';
-    const empty = `<div style="text-align:center;padding:3rem 1rem;color:var(--text-dim)"><div style="font-size:2.5rem;margin-bottom:0.5rem">${emptyIcon}</div><p>${emptyMsg}</p><p style="font-size:0.8rem;margin-top:0.5rem">${emptyTip}</p></div>`;
-    if (cardsEl) cardsEl.innerHTML = empty;
-    if (tbody) tbody.innerHTML = '<tr><td colspan="7" class="ui-empty">' + emptyMsg + '</td></tr>';
-    return;
-  }
-
-  if (isMobile) {
-    if (tableEl) tableEl.style.display = 'none';
-    if (cardsEl) cardsEl.style.display = 'flex';
-    cardsEl.innerHTML = shownEntries.map(w => {
-      const master = findMaster(w.itemNum, w.variation, w);
-      const name = master ? (master.roadName || master.description || master.itemType || '') : '';
-      const pColor = priorityColor[w.priority] || 'var(--text-dim)';
-      const masterIdx2 = master ? _masterIdxOf(master) : -1;
-      const escVar = (w.variation||'').replace(/'/g,"\\'");
-      const escName = (name||'').replace(/'/g,"\\'");
-      // Set detection for mobile cards
-      const _mSetMatch = state.setData ? state.setData.find(s => s.setNum === w.itemNum) : null;
-      const _mIsSet = !!_mSetMatch;
-      const _mSetLabel = _mIsSet ? [_mSetMatch.setName, _mSetMatch.year].filter(Boolean).join(' · ') : '';
-      const _mChipsHtml = _mIsSet ? '<div style="display:flex;flex-wrap:wrap;gap:0.2rem;margin-top:0.35rem">' + _mSetMatch.items.slice(0,6).map(n => '<span style="font-family:var(--font-mono);font-size:0.65rem;padding:1px 5px;border-radius:3px;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim)">' + n + '</span>').join('') + (_mSetMatch.items.length > 6 ? '<span style="font-size:0.65rem;color:var(--text-dim)">+' + (_mSetMatch.items.length-6) + ' more</span>' : '') + '</div>' : '';
-      // v0.9.921 (chunk 2): upgrade entries carry inventoryId (per-copy stable);
-      // want entries are catalog-level and keep the composite fallback.
-      const _wShareKey = w.inventoryId || (w.itemNum + '|' + (w.variation||'') + '|' + (w.row||0));
-      const _wInShare = typeof isShareMode === 'function' && isShareMode('want');
-      const _wSelected = _wInShare && window._shareItems && window._shareItems[_wShareKey];
-      if (_wInShare) { if (!window._shareDataMap) window._shareDataMap = {}; window._shareDataMap[_wShareKey] = { itemNum: w.itemNum, variation: w.variation||'', want: w, master: master }; }
-      return `<div id="share-card-${_wShareKey}" style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:0.85rem 1rem${_wSelected ? ';outline:2px solid #2ecc71' : ''}">
-        <div style="display:flex;align-items:center;gap:0.75rem;cursor:pointer" onclick="${_wInShare ? 'toggleShareItem(\'' + _wShareKey + '\')' : `_wantViewDetail('${w.itemNum}','${escVar}')`}">
-          ${_wInShare ? '<input type="checkbox" id="share-cb-' + _wShareKey + '" ' + (_wSelected ? 'checked' : '') + ' onclick="event.stopPropagation();toggleShareItem(\'' + _wShareKey + '\')" style="width:1.1rem;height:1.1rem;accent-color:#2ecc71;flex-shrink:0">' : ''}
-          <div style="flex:1;min-width:0">
-            <div style="display:flex;align-items:center;gap:0.5rem">
-              <span style="font-family:var(--font-head);font-size:1.1rem;color:var(--accent)">${w.itemNum}</span>
-              ${w._wantMates ? `<span style="font-size:0.72rem;color:#9ecbff">🔗 ${w._wantMates.join(' + ')}</span> <span style="font-size:0.6rem;font-weight:700;color:var(--accent3,#2ecc71);border:1px solid var(--accent3,#2ecc71);border-radius:4px;padding:0.05rem 0.3rem;vertical-align:middle">${w._groupCfg || 'Set'}</span>` : ''}
-              ${_mIsSet ? '<span style="font-size:0.62rem;color:#e67e22;font-weight:600">SET</span>' : (w.variation ? `<span style="font-size:0.72rem;color:var(--text-dim)">${w.variation}</span>` : '')}
-              <span style="font-size:0.65rem;font-weight:600;color:${pColor};border:1px solid ${pColor};border-radius:4px;padding:0.1rem 0.4rem">${w.priority || 'Medium'}</span>
-            </div>
-            ${_mIsSet ? (_mSetLabel ? `<div style="font-size:0.82rem;color:var(--text);margin-top:0.15rem">${_mSetLabel}</div>` : '') + _mChipsHtml : (name ? `<div style="font-size:0.82rem;color:var(--text);margin-top:0.15rem">${name}</div>` : '')}
-            ${w.notes ? `<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.15rem">${w.notes}</div>` : ''}
-          </div>
-          <div style="text-align:right;flex-shrink:0">
-            ${(w._pairPrice || w.expectedPrice) ? `<div style="font-family:var(--font-mono);color:var(--accent2);font-size:0.9rem">$${parseFloat(w._pairPrice || w.expectedPrice).toLocaleString()}${w._pairPrice ? '<span style="font-size:0.62rem;color:var(--text-dim)"> pair</span>' : ''}</div>` : ''}
-          </div>
-        </div>
-        ${!_wInShare ? `<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.4rem;margin-top:0.6rem">
-          <button class="row-add-collection" onclick="event.stopPropagation();moveWantToCollection('${w.itemNum}','${escVar}')" style="min-width:0;padding:0.45rem 0.3rem;border-radius:7px;font-size:0.75rem;cursor:pointer;border:1.5px solid #2ecc71;background:var(--bg-card);background:color-mix(in srgb, rgb(46,204,113) 12%, var(--bg-card));color:#2ecc71;font-family:var(--font-body);font-weight:600">+ Collection</button>
-          <button onclick="event.stopPropagation();wantFindOnEbay('${w.itemNum}','${escName}')" style="min-width:0;padding:0.45rem 0.3rem;border-radius:7px;font-size:0.75rem;cursor:pointer;border:1.5px solid #e67e22;background:var(--bg-card);background:color-mix(in srgb, rgb(230,126,34) 12%, var(--bg-card));color:#e67e22;font-family:var(--font-body);font-weight:600">eBay</button>
-          <button onclick="event.stopPropagation();wantSearchOtherSites('${w.itemNum}','${escName}')" style="min-width:0;padding:0.45rem 0.3rem;border-radius:7px;font-size:0.75rem;cursor:pointer;border:1.5px solid #2980b9;background:var(--bg-card);background:color-mix(in srgb, rgb(41,128,185) 12%, var(--bg-card));color:#2980b9;font-family:var(--font-body);font-weight:600">Search</button>
-          <button onclick="event.stopPropagation();removeWantItem('${w.itemNum}','${escVar}',${w.row})" style="min-width:0;padding:0.45rem 0.3rem;border-radius:7px;font-size:0.75rem;cursor:pointer;border:1.5px solid var(--border);background:var(--surface2);color:#f05008;font-family:var(--font-body)">Remove</button>
-        </div>` : ''}
-      </div>`;
-    }).join('');
-  } else {
-    if (tableEl) tableEl.style.display = '';
-    if (cardsEl) cardsEl.style.display = 'none';
-    // Store descriptions in a map to avoid quoting issues in onclick
-    window._wantDescs = {};
-    tbody.innerHTML = shownEntries.map((w, idx) => {
-      const master = findMaster(w.itemNum, w.variation, w);
-      const roadName = master ? (master.roadName || '') : '';
-      const varDesc  = master ? (master.varDesc || master.variationDesc || '') : '';
-      const fullDesc = master ? (master.description || '') : '';
-
-      // Check if this is a set want entry
-      const _setMatch = state.setData ? state.setData.find(s => s.setNum === w.itemNum) : null;
-      const _isSet = !!_setMatch;
-      const _setLabel = _isSet
-        ? [_setMatch.setName, _setMatch.year, _setMatch.gauge].filter(Boolean).join(' · ')
-        : '';
-      const _setChipsHtml = _isSet
-        ? _setMatch.items.slice(0, 6).map(n =>
-            `<span style="font-family:var(--font-mono);font-size:0.67rem;padding:1px 5px;border-radius:3px;border:1px solid var(--border);background:var(--surface);color:var(--text-dim)">${n}</span>`
-          ).join('') + (_setMatch.items.length > 6
-            ? `<span style="font-size:0.67rem;color:var(--text-dim)">+${_setMatch.items.length - 6} more</span>`
-            : '')
-        : '';
-
-      const refLink = master ? ((typeof window.cottAnchorUrl==='function') ? window.cottAnchorUrl(master.refLink || '', w.itemNum, window.cottRowWords ? window.cottRowWords(master) : '', w.variation || '') : (master.refLink || '')) : '';
-      window._wantDescs[idx] = { title: (_isSet ? _setLabel : roadName) || w.itemNum, varDesc, fullDesc, refLink };
-      const pColor = priorityColor[w.priority] || 'var(--text-dim)';
-      const shortVar = varDesc.length > 30 ? varDesc.substring(0, 30) + '…' : varDesc;
-      const varCell = _isSet
-        ? `<div style="display:flex;flex-wrap:wrap;gap:0.2rem;align-items:center">${_setChipsHtml}</div>`
-        : varDesc
-          ? `<span style="cursor:pointer;border-bottom:1px dashed var(--border);color:var(--text-mid)" onclick="showWantDesc(${idx})">${shortVar}</span>`
-          : (w.variation ? `<span class="text-dim">${w.variation}</span>` : '<span class="text-dim">—</span>');
-      const _displayRoad = _isSet ? _setLabel : roadName;
-      // v0.9.921 (chunk 2): inventoryId when present, composite fallback.
-      const _wDShareKey = w.inventoryId || (w.itemNum + '|' + (w.variation||'') + '|' + (w.row||0));
-      const _wDInShare = typeof isShareMode === 'function' && isShareMode('want');
-      const _wDSelected = _wDInShare && window._shareItems && window._shareItems[_wDShareKey];
-      if (_wDInShare) { if (!window._shareDataMap) window._shareDataMap = {}; window._shareDataMap[_wDShareKey] = { itemNum: w.itemNum, variation: w.variation||'', want: w, master: master }; }
-      return `<tr id="share-card-${_wDShareKey}" ${_wDInShare ? 'onclick="toggleShareItem(\'' + _wDShareKey + '\')"' : ''} style="cursor:${_wDInShare ? 'pointer' : 'default'}${_wDSelected ? ';outline:2px solid #2ecc71;background:rgba(46,204,113,0.06)' : ''}">
-        <td ${!_wDInShare ? `onclick="_wantViewDetail('${w.itemNum}','${(w.variation||'').replace(/'/g,"\\'")}')" style="cursor:pointer"` : ''}><span class="item-num">${_wDInShare ? '<input type="checkbox" id="share-cb-' + _wDShareKey + '" ' + (_wDSelected ? 'checked' : '') + ' onclick="event.stopPropagation();toggleShareItem(\'' + _wDShareKey + '\')" style="width:1rem;height:1rem;accent-color:#2ecc71;margin-right:5px;vertical-align:middle">' : ''}${_composeItemNumHTML(w.itemNum, w.variation)}</span>${w._wantMates ? ' <span style="font-size:0.7rem;color:#9ecbff;vertical-align:middle">🔗 ' + w._wantMates.join(' + ') + '</span> <span style="font-size:0.6rem;font-weight:700;color:var(--accent3,#2ecc71);border:1px solid var(--accent3,#2ecc71);border-radius:4px;padding:0.05rem 0.3rem;vertical-align:middle">' + (w._groupCfg || 'Set') + '</span>' : ''}${_isSet ? ' <span style="font-size:0.62rem;color:#e67e22;font-weight:600;vertical-align:middle">SET</span>' : ''}</td>
-        <td>${_displayRoad || '<span class="text-dim">—</span>'}</td>
-        <td>${_isSet ? '<span class="text-dim">—</span>' : (w.variation || '<span class="text-dim">—</span>')}</td>
-        <td>${varCell}</td>
-        <td><span style="color:${pColor};font-weight:500">${w.priority || 'Medium'}</span></td>
-        <td class="market-val">${(w._pairPrice || w.expectedPrice) ? _currencySymbol() + parseFloat(w._pairPrice || w.expectedPrice).toLocaleString() + (w._pairPrice ? ' <span style="font-size:0.65rem;color:var(--text-dim)">pair</span>' : '') : '<span class="text-dim">—</span>'}</td>
-        <td style="white-space:nowrap">
-          ${!_wDInShare ? `<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.3rem;min-width:190px"><button class="row-add-collection" onclick="moveWantToCollection('${w.itemNum}','${(w.variation||'').replace(/'/g,"\\'")}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #2ecc71;background:var(--bg-card);background:color-mix(in srgb, rgb(46,204,113) 12%, var(--bg-card));color:#2ecc71;font-family:var(--font-body)" title="Add to My Collection">+ Collection</button>
-          <button onclick="wantFindOnEbay('${w.itemNum}','${(roadName||'').replace(/'/g,"\\'")}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #e67e22;background:var(--bg-card);background:color-mix(in srgb, rgb(230,126,34) 12%, var(--bg-card));color:#e67e22;font-family:var(--font-body)" title="Search eBay">eBay</button>
-          <button onclick="wantSearchOtherSites('${w.itemNum}','${(roadName||'').replace(/'/g,"\\'")}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #2980b9;background:var(--bg-card);background:color-mix(in srgb, rgb(41,128,185) 12%, var(--bg-card));color:#2980b9;font-family:var(--font-body)" title="Search other auction sites">Search</button>
-          <button onclick="removeWantItem('${w.itemNum}','${(w.variation||'').replace(/'/g,"\\'")}',${w.row})" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid var(--border);background:var(--surface2);color:#f05008;font-family:var(--font-body)" title="Remove from Want List">Remove</button></div>` : ''}
-        </td>
-      </tr>`;
-    }).join('') || '<tr><td colspan="7" class="ui-empty">No items on want list</td></tr>';
-  }
-}
+// v0.9.1711: _buildWantPageLegacy (the pre-1348 Want page renderer, ~195
+// lines kept "for reference") lived here. Unreachable since v0.9.1348, and every
+// element it wrote to (#want-cards, #want-table, the three want-* filters,
+// #want-sort) is born nowhere. Removed (finding D, sweep 2).
 
 function showVarDescPopup(idx) {
   const item = state.masterData[idx];
@@ -1554,14 +1359,9 @@ function soldSortBy(field) {
 }
 
 function buildSoldPage() {
-  // Contextual hint for an empty Sold page.
-  // v0.9.1256: this hint was the last survivor of audit finding G (one name for
-  // Sold). It still said "Sold List" after every other surface was renamed,
-  // because the G test read the page headings and never reached a hint string.
-  if (typeof maybeShowContextualHint === 'function' && Object.keys(state.soldData || {}).length === 0) {
-    var _spcAnchor = document.getElementById('sold-page') || document.querySelector('.page-sold');
-    if (_spcAnchor) maybeShowContextualHint('sold_empty', '<strong>Sold</strong> records items you\'ve sold. From My Collection, click <em>Add to Sold</em> on any item to log a sale.', _spcAnchor);
-  }
+  // v0.9.1711: an empty-page hint was gated here on #sold-page / .page-sold —
+  // neither exists (the page is #page-sold), so it never showed. Removed with the
+  // guarded-no-op sweep (finding D); the hint helper itself is untouched.
   // Initialize sort/filter state if needed
   if (!state._soldSortField) state._soldSortField = 'dateSold';
   if (!state._soldSortDir) state._soldSortDir = 'desc';
@@ -2099,11 +1899,9 @@ if (typeof window !== 'undefined') {
 }
 
 function buildForSalePage() {
-  // Contextual hint for empty For Sale List
-  if (typeof maybeShowContextualHint === 'function' && Object.keys(state.forSaleData || {}).length === 0) {
-    var _fpcAnchor = document.getElementById('forsale-page') || document.querySelector('.page-forsale');
-    if (_fpcAnchor) maybeShowContextualHint('forsale_empty', '<strong>For Sale List</strong> tracks items you\'re selling. From My Collection, click <em>Add to For Sale</em> on any item to list it.', _fpcAnchor);
-  }
+  // v0.9.1711: an empty-page hint was gated here on #forsale-page / .page-forsale —
+  // neither exists (the page is #page-forsale), so it never showed. Removed with the
+  // guarded-no-op sweep (finding D); the hint helper itself is untouched.
   const _fq = (state._forsaleSearch || '').toLowerCase();
   // v0.9.1541 (Brad): the import has been telling people "you can filter to
   // 'no asking price' and fill them in anytime" — and no such filter existed.
@@ -2853,9 +2651,7 @@ function buildSetsPage() {
     return true;
   });
 
-  // Update count badge + label
-  const badge = document.getElementById('nav-sets-count');
-  if (badge) badge.textContent = state.setData.length.toLocaleString();
+  // Update count label (v0.9.1711: the #nav-sets-count badge is born nowhere)
   const countLbl = document.getElementById('sets-count-label');
   if (countLbl) countLbl.textContent = entries.length + ' of ' + state.setData.length + ' sets';
 
