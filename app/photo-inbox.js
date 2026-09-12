@@ -11629,6 +11629,30 @@
   }
   window._qcPickView = function (k) { _qc.view = k; _qcRender(); };
 
+  // v0.9.1725: change what is being stamped WITHOUT leaving the capture sheet.
+  // The same picker every other surface uses — its overlay is z-index 10050 and
+  // this sheet is 10000, so it opens on top rather than behind, which is the
+  // whole bug this row exists to answer.
+  // Whatever he picks becomes the session's home era and any armed one-shot is
+  // dropped: the label he just chose is what the next shot must get, and a
+  // one-shot still armed underneath would quietly take the very next photo.
+  window._qcPickEra = function () {
+    if (typeof window._pinPickContext !== 'function') return;
+    window._pinPickContext({
+      title: 'What are you photographing?',
+      blurb: 'Every shot from here on is stamped with this.',
+      okLabel: 'Use this',
+      cancelLabel: 'Leave it as it is',
+      current: _pinActiveEra(),
+      onPick: function (era) {
+        _pinSetHomeEra(era);
+        _pinOneShot = null;
+        try { _pinRenderBar(); } catch (e) {}
+        _qcRender();
+      },
+    });
+  };
+
   function _qcCropOn() { return localStorage.getItem(QC_CROP_KEY) === '1'; }
   window._qcCropToggle = function () {
     localStorage.setItem(QC_CROP_KEY, _qcCropOn() ? '0' : '1');
@@ -11656,11 +11680,35 @@
             '</div>';
         }).join('') + '</div>';
     }
+    // ══ v0.9.1725 (Brad, 2026-09-12) — SAY IT ON THE SCREEN HE IS LOOKING AT ══
+    // v0.9.1724 fixed the stamp; this is why the missing stamp survived a whole
+    // shoot. The capture sheet is full-screen, so the context bar reading "Now
+    // shooting Lionel Postwar" sits BEHIND it the entire time you take pictures.
+    // Nothing on screen ever contradicted him, and 66 photos went by.
+    // This file already knows the rule, from the tagging bar: "A tag you cannot
+    // see is a tag you cannot trust — after tagging 80 photos you want to SEE it."
+    // Tapping it opens the same era picker every other surface uses (_PIN_SHEET_OV
+    // is z-index 10050, above this sheet's 10000), so a wrong era is fixed where
+    // you notice it rather than after the fact.
+    // Colours are tokens only: photo-inbox.js is AT its hardcoded-colour budget,
+    // 232 of 232, and the ratchet refuses a 233rd.
+    var _qcEraKey = _pinActiveEra();
+    var _qcEraRow =
+      '<button onclick="_qcPickEra()" style="display:flex;align-items:center;gap:0.5rem;width:100%;'
+        + 'padding:0.45rem 0.7rem;margin-bottom:0.6rem;border-radius:9px;text-align:left;cursor:pointer;'
+        + 'border:1.5px solid ' + (_qcEraKey ? 'var(--info)' : 'var(--accent)') + ';background:var(--surface2);'
+        + 'color:' + (_qcEraKey ? 'var(--info)' : 'var(--accent)') + ';font-family:var(--font-body);font-size:0.8rem;min-height:38px">'
+      + '<span style="font-size:0.64rem;letter-spacing:0.07em;text-transform:uppercase;color:var(--text-dim);font-weight:700;flex-shrink:0">Tagging</span>'
+      + '<span style="font-weight:700;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'
+        + rrEsc(_qcEraKey ? _pinEraLabel(_qcEraKey) : 'Nothing — reads will be unfiltered') + '</span>'
+      + '<span style="color:var(--text-dim);flex-shrink:0">' + (_qcEraKey ? 'Change' : 'Set') + ' ▾</span>'
+      + '</button>';
     body.innerHTML =
       '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.6rem">' +
         '<span style="font-family:var(--font-head);font-weight:700;font-size:1.05rem;color:var(--text)">Quick Capture</span>' +
         '<button onclick="_qcCropToggle()" style="border:1px solid ' + (_qcCropOn() ? '#2980b9' : 'var(--border)') + ';background:' + (_qcCropOn() ? 'rgba(41,128,185,0.15)' : 'var(--surface2)') + ';color:' + (_qcCropOn() ? '#2980b9' : 'var(--text-dim)') + ';border-radius:7px;font-size:0.7rem;font-weight:700;padding:0.25rem 0.6rem;cursor:pointer;font-family:var(--font-body)">Crop each photo: ' + (_qcCropOn() ? 'ON' : 'OFF') + '</button>' +
       '</div>' +
+      _qcEraRow +
       '<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0.4rem;min-height:0">' +
         '<div style="font-family:var(--font-head);font-weight:700;font-size:1.5rem;color:var(--text);text-align:center">' + counter + '</div>' +
         '<div style="font-size:0.78rem;color:var(--text-dim);min-height:1.2em;text-align:center">' + (pend || (_qc.total ? _qc.total + ' photo' + (_qc.total > 1 ? 's' : '') + ' in your inbox' : 'Photos upload as you go')) + '</div>' +
