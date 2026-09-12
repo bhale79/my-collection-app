@@ -11709,7 +11709,25 @@
       // v0.9.1433: stamp the shot with the view that was lit when it was taken,
       // then gray that view out and walk the highlight to the next unused one.
       var _vStamp = (_qc.view === 'EXTRA2') ? 'EXTRA' : _qc.view;
-      var rec = { url: URL.createObjectURL(finalFile), name: name, driveId: null, group: _qc.group, view: _vStamp };
+      // ══ v0.9.1724 (Brad, 2026-09-12) — AND THE ERA, WHICH NEVER RODE ALONG ══
+      // "i did the photo inbox add with my phone and i tagge the photos, but it
+      //  didn't tag the photos. I had to retag them in the inbox."
+      // He had. Add photos asks "What are you about to photograph?", he answered,
+      // the bar read "Now shooting Lionel Postwar" — and this path then stamped
+      // the VIEW and nothing else. _upload (the drop / camera-roll path) has
+      // always written { era, stat:'stamped' } right beside its upload; Quick
+      // Capture simply never did, on any of its three routes.
+      // The cost was not the re-tagging. His 66 photos were read while untagged,
+      // and an untagged read has no catalog to check against: one came back
+      // "81153 — CSX SD70MAC", high confidence, a number that exists ONLY in
+      // Lionel MPC-Modern, pieced together out of the fragments 173/64273/
+      // 1153/153. With the postwar tag in force the era gate rejects that row
+      // outright — there was just no tag for it to use.
+      // Same one-shot rule as _upload: an armed one-shot is spent by THIS shot
+      // and springs back, so one odd item cannot leak into the next forty.
+      var _eStamp = _pinOneShot || _pinHomeEra();
+      if (_pinOneShot) { _pinOneShot = null; try { _pinRenderBar(); } catch (eB) {} }
+      var rec = { url: URL.createObjectURL(finalFile), name: name, driveId: null, group: _qc.group, view: _vStamp, era: _eStamp };
       if (_qc.view !== 'EXTRA2') _qc.used[_qc.view] = 1;
       _qc.view = _qcNextView();
       _qc.recent.push(rec);
@@ -11729,7 +11747,9 @@
     // record and lands as Drive appProperties when the drain uploads it.
     if (_pinOffline()) {
       try {
-        await _stageOne(file, name, '', (rec && rec.view) || '');
+        // v0.9.1724: the era rides the staged record too, or a shot taken out
+        // of signal arrives in the inbox stripped of the tag the bar promised.
+        await _stageOne(file, name, (rec && rec.era) || '', (rec && rec.view) || '');
         if (rec) rec.staged = true;
         try { await _stageRenderStrip(); } catch (e) {}
       } catch (eS) {
@@ -11748,8 +11768,14 @@
       if (rec && res && res.id) rec.driveId = res.id;
       // v0.9.1433: the view stamp survives as Drive appProperties, same rails
       // as every other photo tag — the wizard reads it at add time.
-      if (rec && res && res.id && rec.view) {
-        try { await _pinMetaSet(res.id, { view: rec.view }); } catch (eV) {}
+      // v0.9.1724: the ERA goes on with it. 'stamped' rides only with an era —
+      // _pinStatusOf derives status from era presence, so claiming it without
+      // one would put the photo in the Tagged filter with nothing behind it.
+      if (rec && res && res.id && (rec.view || rec.era)) {
+        var _qMeta = {};
+        if (rec.view) _qMeta.view = rec.view;
+        if (rec.era) { _qMeta.era = rec.era; _qMeta.stat = 'stamped'; }
+        try { await _pinMetaSet(res.id, _qMeta); } catch (eV) {}
       }
       _qcLanded++;
     } catch (e) {
@@ -11762,7 +11788,8 @@
       console.warn('[QuickCapture] upload failed — rescuing to this device:', e);
       var _saved = false;
       try {
-        await _stageOne(file, name, '', (rec && rec.view) || '');
+        // v0.9.1724: a rescued shot keeps its era as well as its view.
+        await _stageOne(file, name, (rec && rec.era) || '', (rec && rec.view) || '');
         _saved = true; _qcRescued++;
         if (rec) rec.staged = true;
         try { await _stageRenderStrip(); } catch (eStrip) {}
