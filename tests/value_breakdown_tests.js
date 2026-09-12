@@ -48,6 +48,13 @@ function bodyAt(from) {
 const COMPUTE = bodyAt(CARD0);
 const BUCKET = SRC.slice(SRC.indexOf('function _valueBucketOf'), SRC.indexOf('function _eraOf(pd)'));
 
+// A tiny catalog, so the v0.9.1727 resolution has something to resolve against.
+const CATALOG = {
+  '2046W': { brand: 'Lionel', era: 'pw' },
+  '9700':  { brand: 'Lionel', era: 'mpc' },
+  '1303':  { brand: 'Atlas',  era: 'atlas' },
+};
+
 const ERAS = {
   pw:   { label: 'Lionel Postwar' },
   mpc:  { label: 'Lionel MPC/Modern' },
@@ -65,8 +72,9 @@ function mkCompute(mode) {
     _getSlots: () => [{ id: 'value', breakdown: mode }],
     _currencySymbol: () => '$',
     _eraOf: (pd) => pd.era || '',
-    _brandOfItem: () => '',
+    _brandOfItem: (n) => (CATALOG[String(n || '').trim()] || {}).brand || '',
     _manufacturerOfEra: (e) => (e === 'pw' || e === 'mpc') ? 'Lionel' : '',
+    findMaster: (n) => { const c = CATALOG[String(n || '').trim()]; return c ? { _era: c.era } : null; },
     rrEsc: (s) => String(s == null ? '' : s),
   };
   const names = Object.keys(env);
@@ -118,25 +126,50 @@ section('The total is untouched');
   ok('[' + mode + '] THE LINES ADD UP TO THE TOTAL', sum === GRAND, sum + ' vs ' + GRAND);
   ok('[' + mode + '] an item you no longer own is in neither', !r.html.includes('9,999') && nums[0] !== GRAND + 9999);
   ok('[' + mode + '] an item with no Est. Worth adds no line and no dollars', sum === GRAND);
-  // In THIS fixture there are nine buckets, so the smallest — Paper / Sets at
-  // $50 — is correctly folded into Other. Its own line is checked below, on a
-  // collection with room for it. What matters here is that folding it did not
-  // lose it, and the sum pin above already proves that.
+  // The $50 of paper here carries no maker and no item reference, so it lands
+  // in Other — checked properly in the v0.9.1727 section below. What matters
+  // here is that it was not lost, and the sum pin above proves it.
   ok('[' + mode + '] folding the tail never loses a dollar', sum === GRAND);
 });
 
-section('Paper / Sets, on a collection with room for it');
+// ── v0.9.1727 ───────────────────────────────────────────────────
+// Brad: "paper and instruction sheets should have a manufacturer." v0.9.1726
+// swept all of them into one 'Paper / Sets' line. A Lionel catalog is Lionel
+// value, and a service sheet for a 2046W belongs beside the 2046W.
+section('Paper, sheets and sets land on their maker');
 {
-  const small = {
-    personalData: { a: { owned: true, itemNum: 'A', era: 'pw', manufacturer: 'Lionel', userEstWorth: '100' } },
-    ephemeraData: { b: { p: { estValue: '40' } } }, isData: { i: { estValue: '10' } },
-    scienceData: {}, constructionData: {},
+  const mixed = {
+    personalData: { a: { owned: true, itemNum: '2046W', era: 'pw', manufacturer: 'Lionel', userEstWorth: '100' } },
+    // Paper carries its own manufacturer column.
+    ephemeraData: {
+      paper:    { p1: { estValue: '40', manufacturer: 'Lionel' },
+                  p2: { estValue: '30', manufacturer: 'Atlas' } },
+      catalogs: { c1: { estValue: '20', itemNum: '9700' } },       // resolves by its own number
+    },
+    // An instruction sheet names the item it belongs to.
+    isData:    { i1: { estValue: '10', linkedItem: '2046W' } },
+    scienceData:      { s1: { estValue: '5', itemNum: '1303' } },
+    constructionData: { k1: { estValue: '7' } },                   // nothing to go on
   };
-  const h = mkCompute('maker')(small, 0).html;
-  ok('paper and instruction sheets get their own honest line',
-     /Paper \/ Sets/.test(h) && money(h).includes(50), h.replace(/<[^>]+>/g, ' ').trim());
-  ok('…and they are NOT guessed into a maker', !/Lionel<\/span><span[^>]*>\$150/.test(h));
-  ok('the total still includes them', money(h)[0] === 150);
+  const TOT = 100 + 40 + 30 + 20 + 10 + 5 + 7;
+
+  const hm = mkCompute('maker')(mixed, 0).html;
+  ok('the catch-all Paper / Sets line is GONE', !/Paper \/ Sets/.test(hm), hm.replace(/<[^>]+>/g, ' ').trim());
+  ok('paper uses its own manufacturer column — Lionel paper joins Lionel',
+     money(hm).includes(100 + 40 + 20 + 10), 'expected $' + (100 + 40 + 20 + 10));
+  ok('…and Atlas paper joins Atlas, not Lionel', /Atlas/.test(hm) && money(hm).includes(30 + 5));
+  ok('an instruction sheet resolves through the item it is FOR', money(hm).includes(100 + 40 + 20 + 10));
+  ok('a catalog resolves through its own number', money(hm).includes(100 + 40 + 20 + 10));
+  ok('something with nothing to go on still gets a line', /Other/.test(hm) && money(hm).includes(7));
+  ok('[maker] the lines still add up', money(hm).slice(1).reduce((a, b) => a + b, 0) === TOT);
+
+  const he = mkCompute('era')(mixed, 0).html;
+  ok('by era, a sheet lands in its item\'s era', /Lionel Postwar/.test(he) && money(he).includes(100 + 10));
+  ok('…a catalog in its own', /Lionel MPC\/Modern/.test(he) && money(he).includes(20));
+  ok('…and a science set in its', /Atlas O/.test(he) && money(he).includes(5));
+  ok('paper with a maker but no item number cannot claim an era — it goes to Other',
+     /Other/.test(he) && money(he).includes(40 + 30 + 7));
+  ok('[era] the lines still add up', money(he).slice(1).reduce((a, b) => a + b, 0) === TOT);
 }
 
 section('Manufacturer');
