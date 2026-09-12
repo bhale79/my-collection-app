@@ -202,10 +202,20 @@
       // An older caller that passed a plain string still works — there is no
       // road then, and the resolver behaves exactly as it did before.
       var _road = (rowWords && typeof rowWords === 'object' && rowWords.road) ? String(rowWords.road) : '';
-      if (!refLink || String(refLink).indexOf('#') >= 0) return plain;
+      if (!refLink) return plain;
       var m = String(refLink).match(/cornucopiaoftoytrains\.com\/([^\/#?]+)/i);
       if (!m) return plain;
       var slug = m[1].toLowerCase();
+      // v0.9.1722 — a STORED anchor is read, not obeyed on sight.
+      // Until now an anchor already written into the master's refLink column
+      // ended the function right here. That is why v0.9.1721 did not fix
+      // Brad's 212: the wrong anchor was not being BUILT, it was already
+      // sitting in his sheet (73 of the 122 Alco rows carry one), so the new
+      // road-name step never got a look in.
+      // A stored anchor is still the default answer. The ONLY thing allowed to
+      // overrule it is the road name, and only under the guard below.
+      var _hash = String(refLink).indexOf('#');
+      var _stored = _hash >= 0 ? String(refLink).slice(_hash + 1) : '';
       // v0.9.1322: a hand-picked row answers outright — page + RAW number +
       // variation must ALL match, so a pick can never leak onto a sibling
       // variation (6050 var 7 stays Savings Bank while var 9 goes to Swift).
@@ -226,6 +236,26 @@
       var list = rec.a;
       var base = String(refLink).replace(/[#?].*$/, '').replace(/\/+$/, '');
 
+      // v0.9.1722 — THE GUARD on revisiting a stored anchor. All three must
+      // hold, or the stored anchor is returned untouched:
+      //   a) the page was harvested, and this catalogue number has a known set
+      //      of sections on it (everything above this line);
+      //   b) the stored anchor is ONE OF THAT SET — so the only move possible
+      //      is between sections of this same number on this same page. A
+      //      stored anchor we do not recognise is left alone, because it may
+      //      be something hand-written that the harvest never saw;
+      //   c) there is more than one section to choose between.
+      // Then only step 0 below may act. The word matcher and the dead-anchor
+      // rule are weaker signals than a value somebody stored on purpose, so
+      // they are shut out further down.
+      if (_stored) {
+        var _known = false;
+        for (var s0 = 0; s0 < list.length; s0++) {
+          if (String(list[s0][0]).toUpperCase() === _stored.toUpperCase()) { _known = true; break; }
+        }
+        if (!_known || list.length < 2) return plain;
+      }
+
       // 0. v0.9.1721 — THE ROAD NAME DECIDES FIRST.
       //    Brad, 2026-09-12: "my 212 sante fe engine link went to the wrong
       //    picture" — it opened the blue U.S.M.C. 212 instead of the Santa Fe.
@@ -241,9 +271,14 @@
       //    the road name gets to answer on its own first, and only a road name
       //    that picks exactly ONE candidate counts — a tie here still falls
       //    through to the word matcher, so safe-by-design is preserved.
-      //    Measured over all 165,044 master rows: 7 links move, and every
-      //    single one moves onto its correctly-named section (5 Alcos, the
-      //    6465 Gulf tank car, the 6517 TCA caboose). Nothing else changes.
+      //    Measured end to end over all 6,524 COTT rows in the master: 7 links
+      //    move and nothing else does. Checked against the live pages on
+      //    2026-09-12: the 5 Alcos and the 6517 TCA caboose all land on real
+      //    anchors. The 7th (6465 Gulf) moves between two anchors that are
+      //    BOTH dead — COTT has rebuilt tank-cars-two-dome-plastic since the
+      //    2026-08-03 harvest and it now carries no item anchors at all, so
+      //    that link lands at the top of the page before and after. Harmless,
+      //    but it means the harvest is going stale and is worth re-running.
       if (_road) {
         var rWords = stemWords(_road);
         var rBest = 0, rI = -1, rTie = false;
@@ -259,6 +294,12 @@
         }
         if (rBest > 0 && !rTie) return base + '/#' + list[rI][0];
       }
+
+      // v0.9.1722: the road name had nothing decisive to say, so a stored
+      // anchor stands. Steps 1 and 2 below are for links that arrived with no
+      // anchor at all — letting them second-guess a stored value would undo
+      // deliberate data on a weaker signal than the one that just declined.
+      if (_stored) return plain;
 
       // 1. let the row's own words choose, when they can
       if (rowWords) {
