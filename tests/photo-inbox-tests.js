@@ -17325,10 +17325,18 @@ META_WRITES.length = 0; TOASTS.length = 0;
          slugs.length === 76 && nums === 572 && anchors === 904 && badShape === 0,
          slugs.length + ' pages, ' + nums + ' numbers, ' + anchors + ' anchors, ' + badShape + ' bad');
       // ── row-words helper builds from the master row fields ──
+      // v0.9.1721: cottRowWords also hands the road name over under its own
+      // name, so the resolver can let the RAILROAD decide which section of a
+      // page a link opens (Brad's 212 Santa Fe was opening the U.S.M.C. 212).
+      // The STRING it produces is unchanged and still the contract every call
+      // site relies on, which is what this pin is really about — so it reads
+      // through String(), exactly as stemWords() does.
       ok('254 cottRowWords joins roadName + itemType + varDesc, skips blanks',
-         win.cottRowWords({ roadName: 'New Haven', itemType: 'Boxcar', varDesc: 'TYPE 1' }) === 'New Haven Boxcar TYPE 1' &&
-         win.cottRowWords({ roadName: '', itemType: 'Boxcar' }) === 'Boxcar' &&
+         String(win.cottRowWords({ roadName: 'New Haven', itemType: 'Boxcar', varDesc: 'TYPE 1' })) === 'New Haven Boxcar TYPE 1' &&
+         String(win.cottRowWords({ roadName: '', itemType: 'Boxcar' })) === 'Boxcar' &&
          win.cottRowWords(null) === '');
+      ok('254 …and carries the road name separately, for the road-name tie-break',
+         win.cottRowWords({ roadName: 'New Haven', itemType: 'Boxcar' }).road === 'New Haven');
       // ── every call site passes the row's words ──
       const sites = [
         ['browse.js', /cottAnchorUrl\(item\.refLink, item\.itemNum, window\.cottRowWords \? window\.cottRowWords\(item\)/],
