@@ -1952,7 +1952,7 @@ async function loadAllErasMode() {
   _rebuildMasterIndex();
 
   showLoading();
-  showToast('Loading all eras…');
+  showToast('Loading your Master Catalog…');
 
   // Step 1: Hydrate from per-era IDB caches in parallel for instant
   // first paint. Each cache may or may not exist depending on whether
@@ -2053,9 +2053,9 @@ async function loadAllErasMode() {
   }
 
   if (hydrated === 0) {
-    showToast('Loading every era from your sheet — first time may take ~15s…', 5000);
+    showToast('Loading your Master Catalog from your sheet — first time may take ~15s…', 5000);
   } else {
-    showToast(hydrated + ' era' + (hydrated === 1 ? '' : 's') + ' loaded from cache. Refreshing in background…', 3500);
+    showToast('Master Catalog loaded. Refreshing in the background…', 3500);
   }
 
   // Step 2: Sequentially refresh each era from Sheets in the background
@@ -2287,14 +2287,14 @@ async function loadAllErasMode() {
     if (typeof rrRepaintBrowse === 'function') rrRepaintBrowse();
     else if (typeof renderBrowse === 'function') renderBrowse();
     if (typeof buildDashboard === 'function') buildDashboard();
-    showToast('All eras up to date — ' + (state.masterData||[]).length + ' items', 2500);
+    showToast('Master Catalog up to date — ' + (state.masterData||[]).length + ' items', 2500);
     // v0.9.1707: the load has settled — fill the hidden filter dropdowns
     // once, quietly, when the browser is next idle (desktop only).
     try { if (typeof rrWarmStale === 'function') rrWarmStale(); } catch (eWarm) {}
   })().catch(function(e) {
     window._skipBackgroundRefresh = false;
     console.error('[loadAllErasMode] background refresh failed:', e);
-    showToast('Some era data could not refresh — using cached version.', 4000, true);
+    showToast('Some of the Master Catalog could not refresh — using the cached copy.', 4000, true);
   });
 }
 
