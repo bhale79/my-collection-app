@@ -175,15 +175,19 @@ section('Paper, sheets and sets land on their maker');
 section('Manufacturer');
 {
   const h = mkCompute('maker')(STATE, 0).html;
-  ok('rolls both Lionel eras into ONE Lionel line', /Lionel/.test(h) && money(h).includes(22830 + 1170 + 75));
+  // 22830 postwar + 1170 mpc + 75 (no maker saved, resolved via its era)
+  // + 10 (v0.9.1728: the unlinked instruction sheet falls back to postwar,
+  // and postwar's maker is Lionel).
+  const LIONEL = 22830 + 1170 + 75 + 10;
+  ok('rolls both Lionel eras into ONE Lionel line', /Lionel/.test(h) && money(h).includes(LIONEL));
   ok('…including a row with no maker saved, via its era — that is the $75',
-     money(h).includes(22830 + 1170 + 75) && !money(h).includes(22830 + 1170));
+     money(h).includes(LIONEL) && !money(h).includes(22830 + 1170));
   ok('names the cut on the card, so a screenshot is self-explanatory', /by manufacturer/.test(h));
   // Pittman ($300) is the 7th bucket here, so it is correctly folded into
   // Other. What must be true either way is that its money did not join
   // Lionel's line — a fallback that grabbed too much would show 24,375.
   ok('a named maker is never swept into Lionel by the era fallback',
-     !money(h).includes(22830 + 1170 + 75 + 300));
+     !money(h).includes(LIONEL + 300));
 }
 
 section('Era');
@@ -192,8 +196,68 @@ section('Era');
   ok('uses the era LABELS, not the internal keys', /Lionel Postwar/.test(h) && !/>pw</.test(h));
   ok('keeps Postwar and MPC/Modern apart — the whole point of this cut',
      /Lionel Postwar/.test(h) && /Lionel MPC\/Modern/.test(h));
-  ok('Postwar carries every postwar row, whoever made it', money(h).includes(22830 + 300 + 75));
+  // Every postwar row whoever made it, plus the unlinked sheet (v0.9.1728).
+  ok('Postwar carries every postwar row, whoever made it', money(h).includes(22830 + 300 + 75 + 10));
   ok('names the cut', /by era/.test(h));
+}
+
+// ── v0.9.1728 ───────────────────────────────────────────────────
+// Brad: "the only instruction sheets we have are lionel from the postwar
+// era… now instruction sheets CAN be from other eras but the ones in our
+// master list are postwar." Both halves are pinned: a sheet that names its
+// item still resolves on its own, whatever era that item is, and only an
+// UNLINKED sheet falls back to postwar.
+section('An unlinked instruction sheet falls back to postwar');
+{
+  const sheets = {
+    personalData: {},
+    ephemeraData: {},
+    isData: {
+      linked:   { estValue: '10', linkedItem: '9700' },   // MPC/Modern item
+      unlinked: { estValue: '20' },                       // nothing to go on
+    },
+    scienceData: {}, constructionData: {},
+  };
+  const he = mkCompute('era')(sheets, 0).html;
+  ok('a sheet that NAMES its item keeps that item\'s era, not postwar',
+     /Lionel MPC\/Modern/.test(he) && money(he).includes(10), he.replace(/<[^>]+>/g, ' ').trim());
+  ok('an UNLINKED sheet falls back to Lionel Postwar, not Other',
+     /Lionel Postwar/.test(he) && money(he).includes(20) && !/Other/.test(he));
+
+  const hm = mkCompute('maker')(sheets, 0).html;
+  ok('by maker, the unlinked sheet is Lionel — derived FROM the fallback era',
+     /Lionel/.test(hm) && !/Other/.test(hm));
+  ok('…and both sheets land on the one Lionel line', money(hm).includes(30));
+  ok('the sum still holds', money(hm).slice(1).reduce((a, b) => a + b, 0) === 30);
+  ok('only the instruction-sheet tab gets a fallback',
+     /_extraWalk\(Object\.values\(state\.isData\|\|\{\}\), 'linkedItem', 'pw'\)/.test(SRC)
+     && /_extraWalk\(Object\.values\(state\.scienceData\|\|\{\}\), 'itemNum'\)/.test(SRC));
+}
+
+// ── v0.9.1728: the Paper ADD flow finally asks ──────────────────
+// The column has existed since the tab was built and the Edit form has always
+// changed it, but wizard-save's `d.eph_manufacturer || 'Lionel'` had no writer,
+// so every paper item arrived labelled Lionel.
+section('Paper add: Manufacturer is asked for');
+{
+  const WIZ = fs.readFileSync(path.join(__dirname, '..', 'app', 'wizard.js'), 'utf8');
+  const step = WIZ.slice(WIZ.indexOf("} else if (s.type === 'paperExtras') {"), WIZ.indexOf("} else if (s.type === 'pricePaid') {"));
+  ok('the step writes eph_manufacturer — the field wizard-save already reads',
+     /wizard\.data\.eph_manufacturer=this\.value/.test(step));
+  ok('it is pre-filled, so adding Lionel paper costs no extra taps',
+     /wizard\.data\.eph_manufacturer \|\| 'Lionel'/.test(step));
+  ok('a datalist offers the makers the app knows',
+     /list="pe-mfr-list"/.test(step) && /WHAT_I_COLLECT\.MANUFACTURERS/.test(step));
+  ok('…but it is a TEXT box, so an unlisted maker is not a dead end',
+     /<input type="text" id="pe-mfr"/.test(step));
+  ok('the maker label is escaped', /rrEsc\(\(_M\[k\] && _M\[k\]\.label\)/.test(step));
+  ok('the maker list is guarded — a missing config cannot break the step',
+     /typeof WHAT_I_COLLECT !== 'undefined'/.test(step));
+  ok('the step stays optional, exactly as it was',
+     /All fields optional/.test(step));
+  // wizard.js is AT its colour budget (238 of 238).
+  ok('the new field uses colour TOKENS only',
+     !/#[0-9a-fA-F]{3,8}\b|rgba?\(/.test(step.slice(step.indexOf('Manufacturer'), step.indexOf('Est. Worth'))));
 }
 
 section('Six lines, then Other — and the sum still holds');
