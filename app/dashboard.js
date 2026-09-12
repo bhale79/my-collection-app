@@ -148,18 +148,32 @@ function _valueBucketOf(pd, mode) {
 //
 // Unresolved still lands in Other rather than being dropped, because the lines
 // have to keep adding up to the total above them.
-function _extraBucketOf(row, mode, refKey) {
+// v0.9.1728 — `fallbackEra` is for a tab whose contents are known, not a guess.
+// Brad on instruction sheets: "now instruction sheets can be from other eras
+// but the ones in our master list are postwar." Both halves matter. A sheet
+// that names its item resolves through the catalog and always will, whatever
+// era it is — so a pre-war sheet lands in pre-war on its own. This only ever
+// catches a sheet with NO linkedItem, where the honest answer is what the
+// master list actually holds. Nothing else passes a fallback, and the day the
+// master carries pre-war sheets this line is the one to revisit.
+function _extraBucketOf(row, mode, refKey, fallbackEra) {
   var ref = String((row && (row[refKey] || row.itemNum)) || '').trim();
   if (mode === 'era') {
     var m = null;
     try { if (ref && typeof findMaster === 'function') m = findMaster(ref); } catch (e) {}
     try {
       if (m && m._era && typeof ERAS !== 'undefined' && ERAS[m._era] && ERAS[m._era].label) return ERAS[m._era].label;
+      if (fallbackEra && typeof ERAS !== 'undefined' && ERAS[fallbackEra] && ERAS[fallbackEra].label) return ERAS[fallbackEra].label;
     } catch (e2) {}
     return 'Other';
   }
   var mk = String((row && row.manufacturer) || '').trim();
   if (!mk && ref) { try { mk = String((typeof _brandOfItem === 'function' && _brandOfItem(ref)) || '').trim(); } catch (e3) {} }
+  // The maker comes FROM the fallback era rather than being named twice, so the
+  // two cuts can never disagree about what an unlinked sheet is.
+  if (!mk && fallbackEra) {
+    try { mk = String((typeof _manufacturerOfEra === 'function' && _manufacturerOfEra(fallbackEra)) || '').trim(); } catch (e4) {}
+  }
   return mk || 'Other';
 }
 
@@ -371,16 +385,20 @@ var CARD_CATALOG = [
       // own, and the rest name the item they belong to (linkedItem for a sheet,
       // itemNum for a catalog or a science set), which resolves through the
       // catalog like any other number.
-      function _extraWalk(rows, refKey) {
+      function _extraWalk(rows, refKey, fallbackEra) {
         rows.forEach(function (it) {
           var v = (it && it.estValue) ? (parseFloat(it.estValue) || 0) : 0;
           if (!v) return;
           total += v;
-          if (_mode) _vAdd(_extraBucketOf(it, _mode, refKey), v);
+          if (_mode) _vAdd(_extraBucketOf(it, _mode, refKey, fallbackEra), v);
         });
       }
       Object.values(state.ephemeraData||{}).forEach(function (b) { _extraWalk(Object.values(b||{}), 'itemNumRef'); });
-      _extraWalk(Object.values(state.isData||{}), 'linkedItem');
+      // v0.9.1728 (Brad): a sheet that names its item resolves on its own, in
+      // whatever era that item is. An UNLINKED one falls back to postwar —
+      // "instruction sheets can be from other eras but the ones in our master
+      // list are postwar." Only this tab gets a fallback.
+      _extraWalk(Object.values(state.isData||{}), 'linkedItem', 'pw');
       _extraWalk(Object.values(state.scienceData||{}), 'itemNum');
       _extraWalk(Object.values(state.constructionData||{}), 'itemNum');
 
@@ -728,7 +746,7 @@ var _CARD_HELP = {
   // Collect. It has not since v0.9.1553, which removed that filter precisely
   // because it hid $34,430 of Brad's own collection from his own total. The
   // help had never caught up. Corrected, and the breakdown described.
-  value: 'Adds up the Est. Worth you entered on each owned item, plus paper/instruction-sheet/science/construction values. Grouped pairs count once (the price lives on the lead item). EVERY item you own counts — Preferences → What I Collect narrows the catalog you browse, not what your collection is worth. Items without an Est. Worth add nothing. In Edit Dashboard you can break the total down by manufacturer or by era; the lines always add up to the total above them. Paper, instruction sheets, catalogs and science/construction sets land on their own maker \u2014 from the Paper tab\u2019s Manufacturer column, or from the item each one belongs to. Anything that cannot be resolved shows under Other rather than being left out.',
+  value: 'Adds up the Est. Worth you entered on each owned item, plus paper/instruction-sheet/science/construction values. Grouped pairs count once (the price lives on the lead item). EVERY item you own counts — Preferences → What I Collect narrows the catalog you browse, not what your collection is worth. Items without an Est. Worth add nothing. In Edit Dashboard you can break the total down by manufacturer or by era; the lines always add up to the total above them. Paper, instruction sheets, catalogs and science/construction sets land on their own maker \u2014 from the Paper tab\u2019s Manufacturer column, or from the item each one belongs to. An instruction sheet that names its item follows that item\u2019s era; an unlinked one counts as Lionel Postwar, which is what the master list holds. Anything else that cannot be resolved shows under Other rather than being left out.',
   catalog: 'How many DIFFERENT catalog numbers you own from the current era\'s master catalog, and what percent of that catalog it is. Works per-era — switch off the All view to see it. Multiple copies of the same number count once.',
   activity: 'Your want list, for-sale list, and sold counts at a glance. Respects Preferences → What I Collect.',
   eraProgress: 'Per-era ownership progress bars: unique catalog numbers you own vs the size of each era\'s catalog. Only enabled eras appear.',

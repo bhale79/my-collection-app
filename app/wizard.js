@@ -3475,7 +3475,33 @@ function renderWizardStep() {
     const ev  = wizard.data.eph_estValue    || '';
     const da  = wizard.data.eph_dateAcquired|| '';
     const nt  = wizard.data.eph_notes       || '';
+    // ── v0.9.1728 (Brad): "paper items should have manufacter as column to
+    // fill out." The column has existed in the sheet since the tab was built,
+    // the detail page shows it and the Edit form changes it — but the ADD flow
+    // never asked, so wizard-save's `d.eph_manufacturer || 'Lionel'` fell to
+    // Lionel every time and a Marx catalog had to be corrected afterwards.
+    // It sits HERE rather than in a step of its own (his call): almost all
+    // paper is Lionel, this step is already optional, and a screen you tap
+    // past is worse than a field that is already right.
+    // A text box with a datalist, not a dropdown — the makers the app knows
+    // are offered, and anything else can still be typed. A closed list would
+    // be a dead end for the one maker nobody listed.
+    const mf  = wizard.data.eph_manufacturer || 'Lionel';
+    let _mfOpts = '';
+    try {
+      const _M = (typeof WHAT_I_COLLECT !== 'undefined' && WHAT_I_COLLECT.MANUFACTURERS) || {};
+      _mfOpts = Object.keys(_M).map(function (k) {
+        return '<option value="' + rrEsc((_M[k] && _M[k].label) || k) + '">';
+      }).join('');
+    } catch (eMf) {}
     body.innerHTML = '<div style="padding-top:0.5rem;display:flex;flex-direction:column;gap:0.9rem">'
+      + '<div>'
+      +   '<div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-dim);margin-bottom:0.35rem">Manufacturer</div>'
+      +   '<input type="text" id="pe-mfr" list="pe-mfr-list" value="' + rrEsc(mf) + '" placeholder="Lionel"'
+      +   ' style="width:100%;box-sizing:border-box;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:0.6rem 0.75rem;color:var(--text);font-family:var(--font-body);font-size:1rem"'
+      +   ' oninput="wizard.data.eph_manufacturer=this.value">'
+      +   '<datalist id="pe-mfr-list">' + _mfOpts + '</datalist>'
+      + '</div>'
       // v0.9.1242 (Brad): Est. Worth is asked BEFORE what you paid, on every
       // screen that asks both. What a thing is worth is the answer he wants
       // recorded; what he paid is history. Five screens asked these two
