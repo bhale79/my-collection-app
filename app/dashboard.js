@@ -107,6 +107,59 @@ function _standaloneISCount(state) {
   return n;
 }
 
+// ── v0.9.1726 — which line of the Collection Value breakdown an item belongs on.
+// Brad: "underneath the total, can we break it down by Manufacturer or by era."
+//
+// MAKER falls back twice on purpose. The saved manufacturer is the truth when a
+// row has one, but plenty of older rows do not, and an item with no line to sit
+// on would make the breakdown stop adding up to the total printed above it —
+// the one thing this card must never do again (see the v0.9.1553 note on the
+// card itself). So: the row's own manufacturer, then the catalog's brand for
+// that number, then the maker its era implies. Only a genuine unknown lands in
+// Other, and Other is still a line, so the sum still holds.
+function _valueBucketOf(pd, mode) {
+  if (mode === 'era') {
+    var ek = '';
+    try { ek = (typeof _eraOf === 'function') ? _eraOf(pd) : ''; } catch (e) {}
+    try {
+      if (ek && typeof ERAS !== 'undefined' && ERAS[ek] && ERAS[ek].label) return ERAS[ek].label;
+    } catch (e2) {}
+    return 'Other';
+  }
+  var mk = String(pd.manufacturer || '').trim();
+  if (!mk) { try { mk = String((typeof _brandOfItem === 'function' && _brandOfItem(pd.itemNum)) || '').trim(); } catch (e3) {} }
+  if (!mk) {
+    try {
+      var e4 = (typeof _eraOf === 'function') ? _eraOf(pd) : '';
+      mk = String((typeof _manufacturerOfEra === 'function' && _manufacturerOfEra(e4)) || '').trim();
+    } catch (e5) {}
+  }
+  return mk || 'Other';
+}
+
+// The lines themselves — same shape as the Items I Own breakdown so the two
+// cards read as siblings. Biggest first, because that is the question being
+// asked. The card is small, so beyond six lines the tail is folded into Other
+// rather than scrolling; folding keeps the sum intact, hiding would not.
+function _valueBreakdownLines(buckets) {
+  var rows = Object.keys(buckets)
+    .filter(function (k) { return buckets[k] > 0; })
+    .map(function (k) { return [k, buckets[k]]; })
+    .sort(function (a, b) { return b[1] - a[1]; });
+  if (rows.length > 6) {
+    var tail = rows.slice(5).reduce(function (s, r) { return s + r[1]; }, 0);
+    rows = rows.slice(0, 5);
+    rows.push(['Other', tail]);
+  }
+  var sym = (typeof _currencySymbol === 'function') ? _currencySymbol() : '$';
+  return rows.map(function (r) {
+    return '<div style="display:flex;justify-content:space-between;font-size:0.72rem;color:var(--text-mid);margin-top:2px">'
+      + '<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + rrEsc(r[0]) + '</span>'
+      + '<span style="color:var(--text);font-weight:600;flex-shrink:0;padding-left:0.4rem">'
+      + sym + Math.round(r[1]).toLocaleString() + '</span></div>';
+  }).join('');
+}
+
 function _eraOf(pd) {
   // Returns era key for a personal data item. Handles various era formats.
   var e = (pd.era || '').toLowerCase().trim();
@@ -260,14 +313,46 @@ var CARD_CATALOG = [
       // Brad: "i agree" — the preference narrows the CATALOG you browse. It
       // does not disown items you actually have. A man with 3,370 items must
       // not be shown the value of 2,900 of them under the word Total.
+      // ── v0.9.1726 (Brad): "underneath the total, can we break it down by
+      // Manufacturer or by era. let the user choose in the edit card menu."
+      // The mode lives on the SLOT, the same way Catalog Coverage pins its
+      // maker/era (v0.9.874), so two copies of this card could show two
+      // different cuts.
+      //
+      // THE RULE THIS CARD ALREADY LEARNED THE HARD WAY (v0.9.1553): the lines
+      // must SUM TO THE TOTAL above them. That is why every bucket is filled
+      // in the same pass that adds to `total`, from the same number — not by a
+      // second walk that could filter differently. In particular the breakdown
+      // does NOT apply Preferences → What I Collect, even though Items I Own's
+      // breakdown does: that filter narrows the CATALOG you browse, and it
+      // once hid $34,430 of Brad's own collection from his own total.
+      var _slotIdx = arguments.length > 1 ? arguments[1] : -1;
+      var _mode = '';
+      try { var _vSl = _getSlots()[_slotIdx]; _mode = (_vSl && _vSl.breakdown) || ''; } catch (e) {}
+      var _buckets = {};
+      function _vAdd(label, v) { if (!v) return; _buckets[label] = (_buckets[label] || 0) + v; }
+
       Object.values(state.personalData).filter(function(pd){return pd.owned;}).forEach(function(pd) {
-        if (pd.userEstWorth) total += parseFloat(pd.userEstWorth)||0;
+        var v = pd.userEstWorth ? (parseFloat(pd.userEstWorth) || 0) : 0;
+        total += v;
+        if (_mode) _vAdd(_valueBucketOf(pd, _mode), v);
       });
-      Object.values(state.ephemeraData||{}).forEach(function(b) { Object.values(b).forEach(function(it) { if (it.estValue) total += parseFloat(it.estValue)||0; }); });
-      Object.values(state.isData||{}).forEach(function(is) { if (is.estValue) total += parseFloat(is.estValue)||0; });
-      Object.values(state.scienceData||{}).forEach(function(s) { if (s.estValue) total += parseFloat(s.estValue)||0; });
-      Object.values(state.constructionData||{}).forEach(function(s) { if (s.estValue) total += parseFloat(s.estValue)||0; });
-      return { value: total > 0 ? _currencySymbol() + Math.round(total).toLocaleString() : '—', sub: 'estimated worth' };
+      // Paper, instruction sheets, science and construction sets carry value but
+      // no maker or era of their own — one honest line rather than a guess.
+      var _extra = 0;
+      Object.values(state.ephemeraData||{}).forEach(function(b) { Object.values(b).forEach(function(it) { if (it.estValue) _extra += parseFloat(it.estValue)||0; }); });
+      Object.values(state.isData||{}).forEach(function(is) { if (is.estValue) _extra += parseFloat(is.estValue)||0; });
+      Object.values(state.scienceData||{}).forEach(function(s) { if (s.estValue) _extra += parseFloat(s.estValue)||0; });
+      Object.values(state.constructionData||{}).forEach(function(s) { if (s.estValue) _extra += parseFloat(s.estValue)||0; });
+      total += _extra;
+      if (_mode) _vAdd('Paper / Sets', _extra);
+
+      var _shown = total > 0 ? _currencySymbol() + Math.round(total).toLocaleString() : '—';
+      if (!_mode) return { value: _shown, sub: 'estimated worth' };
+      return { html: '<div class="stat-value">' + _shown + '</div>'
+        + '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:1px">estimated worth · by '
+        + (_mode === 'era' ? 'era' : 'manufacturer') + '</div>'
+        + _valueBreakdownLines(_buckets) };
     }
   },
   {
@@ -602,7 +687,11 @@ function _saveSlots(slots) {
 // Items-I-Own card hid his RMT item — saved-era + What-I-Collect gating).
 var _CARD_HELP = {
   owned: 'Counts every item you own, broken down by catalog era/maker. Items are bucketed by the ERA AND MANUFACTURER saved on each row — a mis-saved item shows under the wrong maker. Only eras enabled under Preferences → What I Collect appear; boxes (-BOX rows) are not counted. Paper / Sets rolls up catalogs, paper, instruction sheets, science and construction sets.',
-  value: 'Adds up the Est. Worth you entered on each owned item, plus paper/instruction-sheet/science/construction values. Grouped pairs count once (the price lives on the lead item). Only eras enabled under Preferences → What I Collect are included. Items without an Est. Worth add nothing.',
+  // v0.9.1726: this text still claimed the total honours Preferences → What I
+  // Collect. It has not since v0.9.1553, which removed that filter precisely
+  // because it hid $34,430 of Brad's own collection from his own total. The
+  // help had never caught up. Corrected, and the breakdown described.
+  value: 'Adds up the Est. Worth you entered on each owned item, plus paper/instruction-sheet/science/construction values. Grouped pairs count once (the price lives on the lead item). EVERY item you own counts — Preferences → What I Collect narrows the catalog you browse, not what your collection is worth. Items without an Est. Worth add nothing. In Edit Dashboard you can break the total down by manufacturer or by era; the lines always add up to the total above them.',
   catalog: 'How many DIFFERENT catalog numbers you own from the current era\'s master catalog, and what percent of that catalog it is. Works per-era — switch off the All view to see it. Multiple copies of the same number count once.',
   activity: 'Your want list, for-sale list, and sold counts at a glance. Respects Preferences → What I Collect.',
   eraProgress: 'Per-era ownership progress bars: unique catalog numbers you own vs the size of each era\'s catalog. Only enabled eras appear.',
@@ -1860,7 +1949,36 @@ function _dashEdSpot(type, entry, i, total) {
     // library checkboxes. Same in-memory state; nothing persists until Save.
     + '<button onclick="event.stopPropagation();_dashEdRemove(\'' + type + '\',' + i + ')" title="Remove this card" '
     + 'style="position:absolute;top:3px;right:5px;background:none;border:none;color:#f05008;font-size:0.95rem;font-weight:700;line-height:1;cursor:pointer;padding:2px 4px">×</button>'
-    + '<strong style="font-size:0.7rem;line-height:1.25;padding:0 0.9rem">' + _dashEdLabel(type, entry.id) + '</strong>' + arrows + '</div>';
+    + '<strong style="font-size:0.7rem;line-height:1.25;padding:0 0.9rem">' + _dashEdLabel(type, entry.id) + '</strong>'
+    // v0.9.1726 (Brad): "let the user choose in the edit card menu." The
+    // Collection Value tile carries its own breakdown picker here, rather than
+    // a popup, because this IS the card menu he meant. draggable="false" and
+    // the stopPropagation calls keep the tile's own drag-to-reorder from
+    // swallowing the clicks that open the dropdown.
+    + ((type === 's' && entry.id === 'value') ? _dashEdBreakdownSel(i, entry.breakdown || '') : '')
+    + arrows + '</div>';
+}
+
+var _BREAKDOWN_OPTS = [['', 'Total only'], ['maker', 'By manufacturer'], ['era', 'By era']];
+
+function _dashEdBreakdownSel(i, cur) {
+  return '<select draggable="false" onclick="event.stopPropagation()" ondragstart="event.stopPropagation()"'
+    + ' onchange="event.stopPropagation();_dashEdBreakdown(' + i + ',this.value)"'
+    + ' style="margin-top:0.25rem;max-width:100%;padding:0.15rem 0.25rem;border-radius:6px;'
+    + 'border:1px solid var(--border);background:var(--surface2);color:var(--text-mid);'
+    + 'font-family:var(--font-body);font-size:0.62rem;cursor:pointer">'
+    + _BREAKDOWN_OPTS.map(function (o) {
+        return '<option value="' + o[0] + '"' + (o[0] === cur ? ' selected' : '') + '>' + o[1] + '</option>';
+      }).join('')
+    + '</select>';
+}
+
+// Held in the editor's in-memory state like every other change here — nothing
+// persists until Save, so a cancelled edit leaves the dashboard alone.
+function _dashEdBreakdown(i, v) {
+  if (!_dEd || !_dEd.s[i]) return;
+  if (v) _dEd.s[i].breakdown = v; else delete _dEd.s[i].breakdown;
+  _dashEdRender();
 }
 
 function _dashEdRemove(type, i) {
@@ -1922,6 +2040,7 @@ function _dashEdRender() {
 }
 
 window.openDashEditor = openDashEditor;
+window._dashEdBreakdown = _dashEdBreakdown;   // v0.9.1726
 window._dashEdToggle = _dashEdToggle;
 window._dashEdRemove = _dashEdRemove;
 window._dashEdMove = _dashEdMove;
