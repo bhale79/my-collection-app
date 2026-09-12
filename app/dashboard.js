@@ -137,6 +137,32 @@ function _valueBucketOf(pd, mode) {
   return mk || 'Other';
 }
 
+// ── v0.9.1727 — the same question for paper, sheets and sets.
+// Brad: "paper and instruction sheets should have a manufacturer."
+//
+// Paper and Other have a manufacturer column of their own (the sheet parser
+// even defaults a blank one to Lionel, so that convention is inherited here
+// rather than invented). Everything else names the ITEM it belongs to —
+// linkedItem on an instruction sheet, itemNum on a catalog or a science set —
+// and that number resolves through the catalog exactly like any other.
+//
+// Unresolved still lands in Other rather than being dropped, because the lines
+// have to keep adding up to the total above them.
+function _extraBucketOf(row, mode, refKey) {
+  var ref = String((row && (row[refKey] || row.itemNum)) || '').trim();
+  if (mode === 'era') {
+    var m = null;
+    try { if (ref && typeof findMaster === 'function') m = findMaster(ref); } catch (e) {}
+    try {
+      if (m && m._era && typeof ERAS !== 'undefined' && ERAS[m._era] && ERAS[m._era].label) return ERAS[m._era].label;
+    } catch (e2) {}
+    return 'Other';
+  }
+  var mk = String((row && row.manufacturer) || '').trim();
+  if (!mk && ref) { try { mk = String((typeof _brandOfItem === 'function' && _brandOfItem(ref)) || '').trim(); } catch (e3) {} }
+  return mk || 'Other';
+}
+
 // The lines themselves — same shape as the Items I Own breakdown so the two
 // cards read as siblings. Biggest first, because that is the question being
 // asked. The card is small, so beyond six lines the tail is folded into Other
@@ -337,15 +363,26 @@ var CARD_CATALOG = [
         total += v;
         if (_mode) _vAdd(_valueBucketOf(pd, _mode), v);
       });
-      // Paper, instruction sheets, science and construction sets carry value but
-      // no maker or era of their own — one honest line rather than a guess.
-      var _extra = 0;
-      Object.values(state.ephemeraData||{}).forEach(function(b) { Object.values(b).forEach(function(it) { if (it.estValue) _extra += parseFloat(it.estValue)||0; }); });
-      Object.values(state.isData||{}).forEach(function(is) { if (is.estValue) _extra += parseFloat(is.estValue)||0; });
-      Object.values(state.scienceData||{}).forEach(function(s) { if (s.estValue) _extra += parseFloat(s.estValue)||0; });
-      Object.values(state.constructionData||{}).forEach(function(s) { if (s.estValue) _extra += parseFloat(s.estValue)||0; });
-      total += _extra;
-      if (_mode) _vAdd('Paper / Sets', _extra);
+      // v0.9.1727 (Brad): "paper and instruction sheets should have a
+      // manufacturer." He is right, and v0.9.1726 was wrong to sweep them into
+      // one 'Paper / Sets' line: a Lionel catalog is Lionel value, and a service
+      // sheet for a 2046W belongs on the same line as the 2046W. The tabs carry
+      // what is needed — Paper and Other have a manufacturer column of their
+      // own, and the rest name the item they belong to (linkedItem for a sheet,
+      // itemNum for a catalog or a science set), which resolves through the
+      // catalog like any other number.
+      function _extraWalk(rows, refKey) {
+        rows.forEach(function (it) {
+          var v = (it && it.estValue) ? (parseFloat(it.estValue) || 0) : 0;
+          if (!v) return;
+          total += v;
+          if (_mode) _vAdd(_extraBucketOf(it, _mode, refKey), v);
+        });
+      }
+      Object.values(state.ephemeraData||{}).forEach(function (b) { _extraWalk(Object.values(b||{}), 'itemNumRef'); });
+      _extraWalk(Object.values(state.isData||{}), 'linkedItem');
+      _extraWalk(Object.values(state.scienceData||{}), 'itemNum');
+      _extraWalk(Object.values(state.constructionData||{}), 'itemNum');
 
       var _shown = total > 0 ? _currencySymbol() + Math.round(total).toLocaleString() : '—';
       if (!_mode) return { value: _shown, sub: 'estimated worth' };
@@ -691,7 +728,7 @@ var _CARD_HELP = {
   // Collect. It has not since v0.9.1553, which removed that filter precisely
   // because it hid $34,430 of Brad's own collection from his own total. The
   // help had never caught up. Corrected, and the breakdown described.
-  value: 'Adds up the Est. Worth you entered on each owned item, plus paper/instruction-sheet/science/construction values. Grouped pairs count once (the price lives on the lead item). EVERY item you own counts — Preferences → What I Collect narrows the catalog you browse, not what your collection is worth. Items without an Est. Worth add nothing. In Edit Dashboard you can break the total down by manufacturer or by era; the lines always add up to the total above them.',
+  value: 'Adds up the Est. Worth you entered on each owned item, plus paper/instruction-sheet/science/construction values. Grouped pairs count once (the price lives on the lead item). EVERY item you own counts — Preferences → What I Collect narrows the catalog you browse, not what your collection is worth. Items without an Est. Worth add nothing. In Edit Dashboard you can break the total down by manufacturer or by era; the lines always add up to the total above them. Paper, instruction sheets, catalogs and science/construction sets land on their own maker \u2014 from the Paper tab\u2019s Manufacturer column, or from the item each one belongs to. Anything that cannot be resolved shows under Other rather than being left out.',
   catalog: 'How many DIFFERENT catalog numbers you own from the current era\'s master catalog, and what percent of that catalog it is. Works per-era — switch off the All view to see it. Multiple copies of the same number count once.',
   activity: 'Your want list, for-sale list, and sold counts at a glance. Respects Preferences → What I Collect.',
   eraProgress: 'Per-era ownership progress bars: unique catalog numbers you own vs the size of each era\'s catalog. Only enabled eras appear.',
