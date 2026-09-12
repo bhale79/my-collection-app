@@ -84,9 +84,49 @@ ok('a road name that cannot split the candidates changes nothing (both 215s are 
    anchor(ALCO, '215', { roadName: 'Santa Fe', itemType: 'Diesel Locomotive', varDesc: 'gray shell painted silver, red, yellow & black' }, '2') === 'LAL215');
 ok('an unmapped page is still returned untouched',
    window.cottAnchorUrl('https://example.com/whatever/', '212', window.cottRowWords({ roadName: 'Santa Fe' }), '4') === 'https://example.com/whatever/');
-ok('a link that already carries an anchor is never rewritten',
-   window.cottAnchorUrl(ALCO + '#LAL212', '212', window.cottRowWords({ roadName: 'Santa Fe' }), '4') === ALCO + '#LAL212');
 ok('no row at all is harmless', window.cottRowWords(null) === '');
+
+// ── v0.9.1722: revisiting an anchor stored in the master sheet ───
+// v0.9.1721 did not fix Brad's 212, because the wrong anchor was not being
+// BUILT — it was already written into his sheet's refLink column (73 of the
+// 122 Alco rows carry one), and the resolver used to stop dead the moment it
+// saw a '#'. A stored anchor is still the default answer. The road name is
+// the ONLY thing that may overrule it, and only inside this number's own set
+// of sections on this same page. These pins are the fence around that.
+section('A stored anchor is read, not obeyed on sight');
+const STORED = (anchorIn, road, num, v) =>
+  String(window.cottAnchorUrl(ALCO + '#' + anchorIn, num || '212',
+    window.cottRowWords({ roadName: road, itemType: 'Diesel Locomotive', varDesc: SF_212 }), v || '4')).split('#')[1];
+
+ok("Brad's complaint, end to end: stored LAL212 + a Santa Fe row opens the Santa Fe",
+   STORED('LAL212', 'Santa Fe') === 'LAL212SF');
+ok('stored LAL212 + a U.S. Marines row is left alone (its two USMC sections tie)',
+   STORED('LAL212', 'U.S. Marines') === 'LAL212');
+ok('stored LAL221 + a Santa Fe row opens the Santa Fe 221',
+   STORED('LAL221', 'Santa Fe', '221', '2') === 'LAL221SF');
+ok('stored LAL221 + a Rio Grande row keeps the Rio Grande 221',
+   STORED('LAL221', 'Rio Grande', '221', '1') === 'LAL221');
+
+ok('an UNRECOGNISED stored anchor is never touched — it may be hand-written',
+   STORED('LAL212HANDTYPED', 'Santa Fe') === 'LAL212HANDTYPED');
+ok('a stored anchor on a number with only ONE section is never touched',
+   String(window.cottAnchorUrl('https://cornucopiaoftoytrains.com/boxcars-9-1-4-inch-with-operating-doors/#BOX3454',
+     '3454', window.cottRowWords({ roadName: 'Santa Fe', varDesc: 'x' }), '1')).split('#')[1] === 'BOX3454');
+ok('a stored anchor on an unharvested page is never touched',
+   String(window.cottAnchorUrl('https://cornucopiaoftoytrains.com/some-page-nobody-mapped/#ZZ99',
+     '212', window.cottRowWords({ roadName: 'Santa Fe' }), '4')).split('#')[1] === 'ZZ99');
+ok('a stored anchor survives a row with no road name at all',
+   String(window.cottAnchorUrl(ALCO + '#LAL212', '212', '', '4')).split('#')[1] === 'LAL212');
+ok('a road name that cannot split the sections leaves the stored anchor alone',
+   STORED('LAL215', 'Santa Fe', '215', '2') === 'LAL215');
+// The word matcher is a weaker signal than a value somebody stored on purpose.
+// If the road name declines, nothing else gets to second-guess the sheet.
+ok('the WORD matcher cannot override a stored anchor, even when it has an opinion',
+   String(window.cottAnchorUrl(ALCO + '#LAL215', '215',
+     window.cottRowWords({ roadName: 'Santa Fe', itemType: 'Diesel', varDesc: '1965 1966 with the 218 C B unit' }), '2')).split('#')[1] === 'LAL215');
+ok('a bare link with no anchor still gets one built, as before',
+   String(window.cottAnchorUrl(ALCO, '212',
+     window.cottRowWords({ roadName: 'Santa Fe', itemType: 'Diesel Locomotive', varDesc: SF_212 }), '4')).split('#')[1] === 'LAL212SF');
 
 // ── the builder's contract, which eight call sites depend on ─────
 // cottRowWords gained a .road field. Every caller passes the result straight
