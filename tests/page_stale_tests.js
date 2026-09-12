@@ -200,7 +200,7 @@ ok('it never runs on a phone or tablet', /if \(typeof window === 'undefined' \|\
 ok('the bypass is ONE name, one call, cleared in finally',
    /_rrWarming = names\[i\];\s*\n\s*try \{ var f = window\[d\.build\];[\s\S]{0,200}?finally \{ _rrWarming = ''; \}/.test(cfg), '');
 ok('both settle points call it: the all-eras loop end, and the single-era boot',
-   /All eras up to date[\s\S]{0,400}?rrWarmStale\(\)/.test(app) && /rrWarmStale\(\)/.test(rd('app-data.js')), '');
+   /Master Catalog up to date[\s\S]{0,400}?rrWarmStale\(\)/.test(app) && /rrWarmStale\(\)/.test(rd('app-data.js')), '');
 function warmRig(activePageId, mobile, withIdle) {
   const src = cfg.slice(cfg.indexOf('var _rrHeldRepaints = {};'), cfg.indexOf('window.rrFlushRepaints = rrFlushRepaints;') + 'window.rrFlushRepaints = rrFlushRepaints;'.length) + '}catch(e){}';
   const st = { active: activePageId, calls: [], idle: [], timers: [] };
