@@ -97,7 +97,7 @@ function mkEnv(personal, opts) {
   };
   env.window.state = env.state;
   const f0 = TOOLS.indexOf('async function runCompanionSuggester()');
-  const f1 = TOOLS.indexOf('async function companionAddToWantList');
+  const f1 = TOOLS.indexOf('function companionAddToWantList');
   const names = ['window', 'document', 'localStorage', 'showToast', 'rrEsc', 'isTender', 'findMaster',
     'sheetsGet', 'sheetsUpdate', 'parseCompanionRows', 'SHEET_TABS', 'PERSONAL_TAB', 'personalColLetter',
     'getMatchingLocos', 'getMatchingTenders', 'getSetPartner', 'state'];
@@ -252,6 +252,84 @@ ok('a double press cannot write two group ids', /_ccLinking/.test(TOOLS));
   const block = TOOLS.slice(TOOLS.indexOf('(e.linkOffers || []).forEach'), TOOLS.indexOf('// Deduplicate suggestions by companion number'));
   ok('the new link row uses colour TOKENS only — tools.js has no budget left',
      !/#[0-9a-fA-F]{3,8}\b|rgba?\(/.test(block) && /var\(--green\)/.test(block));
+}
+
+// ── v0.9.1729: + Want List opens the ADD MENU ───────────────────
+// Brad: "it suggested an engine 736. i hit add to want list. it added it but it
+// should have went to the add to want list add menu. then when i went to the
+// want list, i could [not] edit it."
+//
+// Three faults, one cause: the button did the job itself instead of using the
+// flow that already existed.
+//   1. It re-looked-up the number with a bare masterData.find. There are
+//      FIFTEEN rows numbered 736; the first is American Flyer's "Missouri
+//      Pacific Stock Car" and the Lionel postwar Berkshire is the fourth.
+//   2. Its optimistic in-memory row had no `row`, and the want editor opens
+//      with `if (!u || !u.row) showToast('Could not find this want entry')`.
+//   3. Nothing asked for priority, price or condition — it just appended.
+section('+ Want List hands over to the want wizard');
+{
+  const fn = TOOLS.slice(TOOLS.indexOf('function companionAddToWantList'));
+  const body = fn.slice(0, fn.indexOf('\n}\n') + 3);
+  ok('it opens the want wizard — the add menu Brad asked for', /openWizard\('want'\)/.test(body));
+  ok('…guarded, so a half-loaded app says so instead of failing silently',
+     /typeof openWizard !== 'function'/.test(body));
+  ok('the item number is prefilled', /wizard\.data\.itemNum = String\(companionNum/.test(body));
+  ok('it NO LONGER appends a row itself', !/sheetsAppend/.test(body));
+  ok('…so it cannot write the stub row that made the entry uneditable',
+     !/state\.wantData\[/.test(body));
+  ok('it uses the master row the CARD resolved, not a fresh number-only find',
+     /var master = s && s\.master;/.test(body) && !/masterData\.find/.test(body));
+  ok('…and only seeds a variation when there is one to trust',
+     /if \(master && master\.variation\)/.test(body));
+  ok('the deduped list the button indexes is reachable from the handler',
+     /e\._shown = dedupedSuggestions;/.test(TOOLS) && /e\._shown\[suggIdx\]/.test(TOOLS));
+  ok('the card hands its resolved row over', /s\.master = compMaster;/.test(TOOLS));
+  // The card's own lookup is the careful one — postwar-scoped and role-checked.
+  // If that ever loses its scope, the button inherits the bug, so pin it here.
+  ok('the card lookup is still era-scoped and role-checked',
+     /\(!m\._era \|\| m\._era === 'pw'\)/.test(TOOLS) && /_cRole === 'TENDER'/.test(TOOLS));
+}
+
+// ── v0.9.1729: and the want PAGE must show the right 736 too ────
+// Fixing the add path is not enough: the detail page re-finds the master row
+// from the saved number + variation, and American Flyer's "Missouri Pacific
+// Stock Car" is row 0 of fifteen 736s AND carries variation 1. So even a
+// correctly saved want row displayed as a stock car. A want row records the
+// maker it was saved with; that is what settles it.
+section('The want page picks the right row of fifteen');
+{
+  const PAGES = fs.readFileSync(path.join(__dirname, '..', 'app', 'app-pages.js'), 'utf8');
+  const fn = PAGES.slice(PAGES.indexOf('function _itemMasterIdx'), PAGES.indexOf('function _wantViewDetail'));
+
+  // Run it, over Brad's real collision.
+  const MASTER = [
+    { itemNum: '736', variation: '1', _era: 'af_gilbert', _tab: 'American Flyer', description: 'Missouri Pacific Stock Car' },
+    { itemNum: '736', variation: '1', _era: 'shelper',    _tab: 'S-Helper',       description: 'GN Ore Car' },
+    { itemNum: '736', variation: '',  _era: 'atlas',      _tab: 'Atlas O',        description: 'N&W Caboose' },
+    { itemNum: '736', variation: '1', _era: 'pw',         _tab: 'Lionel PW',      description: '2-8-4 Steam Locomotive' },
+    { itemNum: '736', variation: '2', _era: 'pw',         _tab: 'Lionel PW',      description: '2-8-4 Steam Locomotive' },
+  ];
+  const MFR = { af_gilbert: 'A.C. Gilbert', shelper: 'S-Helper', atlas: 'Atlas', pw: 'Lionel' };
+  const run = new Function('state', '_manufacturerOfEra', fn + '\nreturn _itemMasterIdx;')(
+    { masterData: MASTER }, (e) => MFR[e] || '');
+
+  ok('with the maker known, 736 var 1 is the LIONEL Berkshire', run('736', '1', 'Lionel') === 3,
+     'got row ' + run('736', '1', 'Lionel') + ' — ' + (MASTER[run('736', '1', 'Lionel')] || {}).description);
+  ok('…and NOT American Flyer, which shares the number AND the variation',
+     run('736', '1', 'Lionel') !== 0);
+  ok('a different maker gets its own row', run('736', '1', 'S-Helper') === 1);
+  ok('maker beats variation — Lionel var 9 still lands on a Lionel row',
+     [3, 4].indexOf(run('736', '9', 'Lionel')) >= 0);
+  ok('a maker with no row at all still shows something rather than nothing',
+     run('736', '1', 'Marx') === 0);
+  ok('WITHOUT a maker the old behaviour is byte-identical', run('736', '1') === 0 && run('736', '2') === 4);
+  ok('an unknown number is still -1', run('9999', '1', 'Lionel') === -1);
+
+  ok('the want page finds its entry BEFORE resolving the row, so it can pass the maker',
+     /var idx = _itemMasterIdx\(itemNum, variation, entry && entry\.manufacturer\);/.test(PAGES));
+  ok('the other two callers are untouched — they pass no maker and get today\'s answer',
+     (PAGES.match(/_itemMasterIdx\(fs\.itemNum, fs\.variation\)/g) || []).length === 2);
 }
 
 console.log('\n  ' + pass + ' passed, ' + fail + ' failed');

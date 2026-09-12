@@ -17512,7 +17512,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
         };
         env.window.state = env.state;
         const f0 = tl57.indexOf('async function runCompanionSuggester()');
-        const f1 = tl57.indexOf('async function companionAddToWantList');
+        const f1 = tl57.indexOf('function companionAddToWantList');
         const run = new Function(
           'window', 'document', 'localStorage', 'showToast', 'rrEsc', 'isTender', 'findMaster', 'sheetsGet', 'parseCompanionRows', 'SHEET_TABS', 'state',
           tl57.slice(f0, f1) + ' return runCompanionSuggester;')(
