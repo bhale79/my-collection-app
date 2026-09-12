@@ -830,6 +830,52 @@ function findMaster(itemNum, variation, prefer) {
   if (state.masterByItemAll) _r = _findMasterCore(state.masterByItemAll, itemNum, variation, prefer);
   return _r || null;
 }
+// ══ v0.9.1730 — THE LETTER STAMPED ON THE CAR ═════════════════════════════
+// Brad photographed his Erie boxcar and the app answered "3830 — Flatcar with
+// Operating Submarine". Its own trace showed it had READ the right number:
+// "Numbers seen: 6454 …". The car is stencilled X6454 BUILT BY LIONEL.
+//
+// Nothing was missing from the catalog. The reference book transcribed this
+// family under the mark on the car's side, so all 23 rows (Baby Ruth, Santa
+// Fe, New York Central, Erie, Pennsylvania, Southern Pacific) are filed under
+// "X6454" — and the plain "6454" belongs to ATLAS. So the postwar lookup for
+// 6454 missed, the only 6454 in the master was another maker's, the era filter
+// correctly refused it, and the reader fell through to a number assembled out
+// of loose digits. Twenty-nine postwar numbers carry such a letter (X2454,
+// X2458, X3464, X3474, X4454, X6004, the L-series lamps); thirteen cannot be
+// reached by typing the number at all, and X6454 lands on a different maker.
+//
+// This is the P/D/T/C suffix problem with the affix on the other end, so it
+// gets the same answer: one bridge, at the one function every lookup already
+// routes through — the Photo Inbox, typed entry, Lens, the wizard and Research
+// all cross it at once.
+//
+// Deliberately NOT a list of letters to try. Guessing "L" onto a typed 430
+// would hand back a lamp instead of the 430 someone meant. The bridge is built
+// FROM the master, so only a spelling the catalog actually contains can ever
+// be offered — and it is consulted ONLY when the number as typed has nothing
+// for the catalog being asked about, so no answer that works today can change.
+var _lkCache = (typeof WeakMap !== 'undefined') ? new WeakMap() : null;
+function _letterKinRows(idx, bare) {
+  if (!idx || typeof idx.forEach !== 'function') return [];
+  if (!bare || !/^\d{2,6}$/.test(bare)) return [];
+  var ent = _lkCache && _lkCache.get(idx);
+  if (!ent || ent.n !== idx.size) {
+    var m = new Map();
+    idx.forEach(function (rows, key) {
+      var hit = /^([A-Za-z])(\d{2,6})$/.exec(String(key || ''));
+      if (!hit || !Array.isArray(rows)) return;
+      var b = hit[2], cur = m.get(b);
+      if (!cur) { cur = []; m.set(b, cur); }
+      for (var i = 0; i < rows.length; i++) if (cur.indexOf(rows[i]) < 0) cur.push(rows[i]);
+    });
+    ent = { n: idx.size, map: m };
+    if (_lkCache) _lkCache.set(idx, ent);
+  }
+  return ent.map.get(bare) || [];
+}
+if (typeof window !== 'undefined') window._letterKinRows = _letterKinRows;
+
 function _findMasterCore(idx, itemNum, variation, prefer) {
   const k = String(itemNum).trim();
   const exact = (idx && idx.get(k)) || [];
@@ -867,23 +913,59 @@ function _findMasterCore(idx, itemNum, variation, prefer) {
     }
     return b;
   }
+  // v0.9.1730 — the car-side letter (see _letterKinRows above). The ONE test
+  // that keeps this from ever changing a working answer: does the exact bucket
+  // already hold a row from the catalog the caller named? If it does, nothing
+  // is added. If the caller named no catalog, nothing is added unless the
+  // bucket is empty. So the only reachable case is the broken one — a number
+  // that the asked-for catalog does not have under that spelling.
+  // The Photo Inbox names its catalogs as an era LIST (prefer.eras) rather
+  // than the single prefer.era the wizard passes, and a maker prefix alone
+  // ("lionel") spans prewar, postwar and MPC. Honouring the list keeps the
+  // bridge pointed at the catalog the photo was actually tagged with. It can
+  // only ever narrow what the bridge offers.
+  const _prefEraList = (prefer && Array.isArray(prefer.eras) && prefer.eras.length)
+    ? prefer.eras.map(e => String(e))
+    : (_prefTab && prefer && prefer.era ? [String(prefer.era)] : []);
+  const _kinBelongs = (m) => {
+    if (!m) return false;
+    if (_prefEraList.length && _prefEraList.indexOf(String(m._era || '')) < 0) return false;
+    if (_prefTab && m._tab === _prefTab) return true;
+    if (_prefMfr && String(m._tab || '').toLowerCase().indexOf(_prefMfr) === 0) return true;
+    return !!(_prefEraList.length && !_prefTab && !_prefMfr);
+  };
+  const _kinNamed = !!(_prefTab || _prefMfr || _prefEraList.length);
+  let pool = exact;
+  if (/^\d{2,6}$/.test(k) && !(_kinNamed ? exact.some(_kinBelongs) : exact.length)) {
+    const _kin = _letterKinRows(idx, k)
+      .filter(r => exact.indexOf(r) < 0 && (!_kinNamed || _kinBelongs(r)));
+    // Kin go FIRST, and that ordering is the whole answer, not a nicety. The
+    // scorer below can only separate rows it has a hint for: a caller that
+    // names its catalogs as an era list gives _prefBoost nothing to weigh, so
+    // every row ties at zero and the first one wins. With the exact bucket
+    // first that is the Atlas 6454 all over again — bridge built, unused.
+    // Putting kin first is sound because the bridge fires ONLY when the exact
+    // bucket holds nothing for the catalog that was asked about: by
+    // construction these are the only rows that answer the question.
+    if (_kin.length) pool = _kin.concat(exact);
+  }
   // Non-suffixed item whose exact key exists = the common case → keep legacy
   // behavior exactly (variation match, else first) so nothing regresses —
   // unless a prefer hint is given and there are multiple candidates.
-  if (!suf && exact.length) {
+  if (!suf && pool.length) {
     if (variation != null && variation !== '') {
-      const hit = exact.find(r => String(r.variation || '') === String(variation));
+      const hit = pool.find(r => String(r.variation || '') === String(variation));
       if (hit) return hit;
     }
-    if (prefer && exact.length > 1) {
-      let bestE = exact[0], bsE = _prefBoost(exact[0]);
-      for (let i = 1; i < exact.length; i++) { const s2 = _prefBoost(exact[i]); if (s2 > bsE) { bestE = exact[i]; bsE = s2; } }
+    if (prefer && pool.length > 1) {
+      let bestE = pool[0], bsE = _prefBoost(pool[0]);
+      for (let i = 1; i < pool.length; i++) { const s2 = _prefBoost(pool[i]); if (s2 > bsE) { bestE = pool[i]; bsE = s2; } }
       return bestE;
     }
-    return exact[0];
+    return pool[0];
   }
   // Build candidate pool = exact bucket + base bucket (for suffixed/missing).
-  let cands = exact.slice();
+  let cands = pool.slice();
   if (typeof baseItemNum === 'function') {
     const bk = baseItemNum(k);
     if (bk && bk !== k) {
@@ -944,6 +1026,19 @@ function findAllMaster(itemNum) {
   if (!b.length && typeof baseItemNum === 'function') {
     const bk = baseItemNum(k);
     if (bk && bk !== k) b = _mbAllGet(bk);
+  }
+  // v0.9.1730 — still nothing, and it is a plain number: the catalog may file
+  // it under the letter stamped on the car ("X6454"). Only ever fills a blank,
+  // never replaces an answer, so "6454" still lists its Atlas rows.
+  if (!b.length && /^\d{2,6}$/.test(k)) {
+    const seenK = {}, merged = [];
+    [state.masterByItem, state.masterByItemAll].forEach(function (ix) {
+      _letterKinRows(ix, k).forEach(function (r) {
+        const s = (r.itemNum || '') + '|' + (r.variation || '') + '|' + (r._tab || '');
+        if (!seenK[s]) { seenK[s] = 1; merged.push(r); }
+      });
+    });
+    if (merged.length) b = merged;
   }
   return b;
 }
