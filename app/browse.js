@@ -740,6 +740,7 @@ var _ERA_KEY_TO_PERIOD = {
   bachmann_on30:  'modern',
   bachmann_hon30: 'modern',
   bachmann_all:   'modern',
+  microtrains_n: 'modern',  // v0.9.1719: Micro-Trains, 1972 onward — the maker's own database starts at 1972 and runs to 2026, so the whole tab is modern
   thirdrail:    'modern',   // 3rd Rail / Sunset Models brass, 1990s onward
   usatrains:    'modern',   // USA Trains, 1988 onward
   lgb:          'modern',   // LGB, 1968 onward — effectively all post-1970

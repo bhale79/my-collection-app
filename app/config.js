@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.1718';
+const APP_VERSION = 'v0.9.1719';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -920,6 +920,16 @@ const ERAS = {
   kato_n:     { id: 'kato_n',     label: 'Kato N',          years: 'All', prefix: 'Kato N',          manufacturer: 'Kato' },
   kato_ho:    { id: 'kato_ho',    label: 'Kato HO',         years: 'All', prefix: 'Kato HO',         manufacturer: 'Kato' },
   kato_parts: { id: 'kato_parts', label: 'Kato Parts',      years: 'All', prefix: 'Kato Parts',      manufacturer: 'Kato' },
+  // v0.9.1719: Micro-Trains Line (Talent, Oregon; owned by Atlas since 2023,
+  // which is why half its downloads sit on download.atlasrr.com). N scale.
+  // The tab was built from the maker's OWN published databases — ndatabs.xls
+  // (7,184 rolling stock), nlocos.xls (93 locomotives) and carstyle.xls, which
+  // maps an item number's first three digits to a body style and so gives the
+  // item type for 99% of rows. Not a crawl: there was nothing to scrape.
+  // NOTE: the N Scale Collector special runs (Lowell Smith commissions, "NSC"
+  // numbers) are NOT in the maker's database — they were built by Micro-Trains
+  // but never catalogued, and trovestar.com is where those live.
+  microtrains_n: { id: 'microtrains_n', label: 'Micro-Trains N', years: 'All', prefix: 'Micro-Trains N', manufacturer: 'Micro-Trains' },
   atlas:  { id: 'atlas',  label: 'Atlas O',     years: 'All',        prefix: 'Atlas O',        manufacturer: 'Atlas' },
   // Session 174 (Brad): Atlas HO/N/Z tabs exist & are populated in the master
   // sheet (added in the 2026-07-21 merge) but were never wired up, so ~33.5k
@@ -984,7 +994,7 @@ const ERAS = {
   bachmann_all:   { id: 'bachmann_all',   label: 'Bachmann All Scales', years: 'All', prefix: 'Bachmann All Scales', manufacturer: 'Bachmann' },
 };
 // Real-era IDs in load priority order (excluding 'all' meta-era).
-const REAL_ERA_IDS = ['pw', 'mpc', 'mod_ho', 'mod_s', 'af_gilbert', 'am_s', 'shelper', 'prewar', 'atlas', 'atlas_ho', 'atlas_n', 'atlas_z', 'mth_o', 'mth_ho', 'mth_s', 'mth_tinplate', 'mth_g', 'marklin_h0', 'marklin_z', 'marklin_1', 'kato_n', 'kato_ho', 'kato_parts', 'weaver', 'rmt', 'menards', 'menards_ho', 'thirdrail', 'usatrains', 'lgb', 'kline', 'williams', 'marx', 'other_o', 'aristocraft', 'accucraft', 'bachmann_ho', 'bachmann_n', 'bachmann_g', 'bachmann_o', 'bachmann_on30', 'bachmann_hon30', 'bachmann_all'];
+const REAL_ERA_IDS = ['pw', 'mpc', 'mod_ho', 'mod_s', 'af_gilbert', 'am_s', 'shelper', 'prewar', 'atlas', 'atlas_ho', 'atlas_n', 'atlas_z', 'mth_o', 'mth_ho', 'mth_s', 'mth_tinplate', 'mth_g', 'marklin_h0', 'marklin_z', 'marklin_1', 'kato_n', 'kato_ho', 'kato_parts', 'microtrains_n', 'weaver', 'rmt', 'menards', 'menards_ho', 'thirdrail', 'usatrains', 'lgb', 'kline', 'williams', 'marx', 'other_o', 'aristocraft', 'accucraft', 'bachmann_ho', 'bachmann_n', 'bachmann_g', 'bachmann_o', 'bachmann_on30', 'bachmann_hon30', 'bachmann_all'];
 
 // ── Master sheet tab names per era ──
 // Session 154: scale per era — drives the want-list Scale filter (master
@@ -1006,6 +1016,7 @@ const ERA_SCALE = {
   af_gilbert: 'S', am_s: 'S', shelper: 'S',   // v0.9.1686
   marklin_h0: 'HO', marklin_z: 'Z', marklin_1: 'G',   // v0.9.1690 — Maerklin Gauge 1 is 1:32 on 45mm track, the same track as G
   kato_n: 'N', kato_ho: 'HO', kato_parts: '',   // v0.9.1693 — parts span both scales; blank on purpose (same meaning as bachmann_all)
+  microtrains_n: 'N',   // v0.9.1719
   mth_g: 'G',
   atlas_ho: 'HO', atlas_n: 'N', atlas_z: 'Z',
 };
@@ -1116,6 +1127,7 @@ const ERA_TABS = {
   kato_n:     { items: 'Kato N' },
   kato_ho:    { items: 'Kato HO' },
   kato_parts: { items: 'Kato Parts' },
+  microtrains_n: { items: 'Micro-Trains N' },   // v0.9.1719
   am_s:       { items: 'American Models S' },
   shelper:    { items: 'S-Helper Service S' },
   weaver: {

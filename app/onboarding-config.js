@@ -57,6 +57,7 @@ const WHAT_I_COLLECT = {
                 'af_gilbert', 'am_s', 'shelper',   // v0.9.1686: the S-gauge makers, after Lionel's AF
                 'marklin_h0', 'marklin_z', 'marklin_1',   // v0.9.1690: Maerklin's three gauges
                 'kato_n', 'kato_ho', 'kato_parts',         // v0.9.1693: Kato USA
+                'microtrains_n',                           // v0.9.1719: Micro-Trains Line
                 'weaver', 'rmt', 'menards', 'menards_ho', 'thirdrail', 'usatrains', 'lgb',
                 // v0.9.1159: placed rather than left to fall to the end.
                 'kline', 'williams', 'marx', 'other_o',
@@ -187,6 +188,7 @@ const WHAT_I_COLLECT = {
     kato_n:       'n',   // v0.9.1693
     kato_ho:      'ho',
     kato_parts:   'n',   // parts span N and HO; filed under N so the era is pickable (the row's Gauge column says which)
+    microtrains_n: 'n',  // v0.9.1719
     am_s:         's',
     shelper:      's',
     rmt:          'o',
@@ -238,6 +240,10 @@ const WHAT_I_COLLECT = {
     // era cards already carry the three Maerklin reds in eraColors.
     marklin: { id: 'marklin', label: 'Marklin', default: false },
     kato:    { id: 'kato',    label: 'Kato',    default: false },   // v0.9.1693
+    // v0.9.1719: the key MUST stay 'micro-trains' — it is matched against the
+    // lowercased manufacturer string in ERAS, and the preference reads as an
+    // allow-list, so a mismatch here HIDES every row on the tab.
+    'micro-trains': { id: 'micro-trains', label: 'Micro-Trains', default: false },
     // v0.9.1159 — these three makers have had ERAS entries, master tabs and
     // catalog rows since 2026-07-28, but were never added here, so they could not
     // be picked in the manufacturer chip OR in "What I Collect" — and because the
@@ -457,6 +463,14 @@ const GMAIL_HELP = {
 // Expose globals for use in gmail-help.js + onboarding.js
 window.ONBOARD_UI      = ONBOARD_UI;
 window.FEATURE_MAP     = FEATURE_MAP;
+// v0.9.1719: Micro-Trains takes the Atlas blue BY REFERENCE. Atlas has owned
+// the brand since 2023, so it belongs to that colour family — and pointing at
+// the existing value keeps the colour ratchet honest instead of writing a
+// fifth copy of the same literal for it to carry forever. (v0.9.1690 solved
+// the same problem for Maerklin by reusing a literal; this is the tidier
+// version of that idea, and it costs the budget nothing.)
+WHAT_I_COLLECT.eraColors.microtrains_n = WHAT_I_COLLECT.eraColors.atlas;
+
 window.GMAIL_HELP      = GMAIL_HELP;
 window.WHAT_I_COLLECT  = WHAT_I_COLLECT;
 window.COMMUNITY_OPTIN = COMMUNITY_OPTIN;

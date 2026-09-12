@@ -28,6 +28,7 @@ function eraSupportsBarcode(era) {
               'mod_ho','mod_s','weaver','rmt','menards','menards_ho','thirdrail','usatrains','lgb',
               'am_s','shelper',   // v0.9.1686: modern S makers carry UPCs; Gilbert (1946-66) does not
               'marklin_h0','marklin_z','marklin_1','kato_n','kato_ho','kato_parts',   // v0.9.1693: both carry EAN/UPC barcodes
+              'microtrains_n',   // v0.9.1719: the maker publishes UPCs; 1,194 of them shipped with the tab
               'kline','williams','other_o',
               'aristocraft','accucraft','bachmann_ho','bachmann_n','bachmann_g',
               'bachmann_o','bachmann_on30','bachmann_hon30','bachmann_all'];
@@ -222,6 +223,74 @@ window.eraSupportsBarcode = eraSupportsBarcode;
     var all = await findMasterItems(candidates);
     return all.length ? all[0] : null;
   }
+
+  // ── v0.9.1719: the catalog's own UPC column, as a FALLBACK only ──────
+  // Brad approved this on 2026-09-12, and chose the careful version. The
+  // history matters: v1112 let remembered pairings outrank real decoding,
+  // one bad save (the 30-7099 poisoning) made every later scan of that
+  // barcode wrong, and v1465 answered by never consulting the learned map
+  // during a scan — "recording, not recalling". That rule STANDS. What is
+  // new is that the master now carries manufacturer-published barcodes
+  // (Micro-Trains shipped 1,194; Bachmann has its own), and those are
+  // catalog data, not a guess the app made about a photo.
+  //
+  // So this is reached ONLY where a fresh decode has already come up empty:
+  // the barcode's own digits could not name an item in the catalog. It can
+  // never override a decode, which is the whole point — a wrong pairing
+  // sitting in the column cannot beat what the camera actually read. Hits
+  // are marked `_byCatalogUpc` so the picker can say where they came from.
+  function _upcCandidates(upc12, raw) {
+    var out = [];
+    [upc12, raw, '0' + upc12, String(upc12).replace(/^0+/, '')].forEach(function (v) {
+      var d = String(v || '').replace(/\D+/g, '');
+      if (d && out.indexOf(d) < 0) out.push(d);
+    });
+    return out;
+  }
+  function _matchUpcInArray(arr, upcs) {
+    if (!arr || !arr.length || !upcs.length) return [];
+    var out = [], seen = {};
+    arr.forEach(function (m) {
+      var u = String(m.upc || '').replace(/\D+/g, '');
+      if (!u || upcs.indexOf(u) < 0) return;
+      var key = (m.itemNum || '') + '|' + (m.variation || '') + '|' + (m._tab || '');
+      if (seen[key]) return;
+      seen[key] = 1;
+      try { m._byCatalogUpc = true; } catch (e) {}
+      out.push(m);
+    });
+    return out;
+  }
+  async function findMasterByUpc(upc12, raw) {
+    var upcs = _upcCandidates(upc12, raw);
+    if (!upcs.length) return [];
+    // Pass A — current era (in memory)
+    if (typeof state !== 'undefined' && state.masterData && state.masterData.length) {
+      var cur = _matchUpcInArray(state.masterData, upcs);
+      if (cur.length) return cur;
+    }
+    // Pass B — the shared full-catalog rows, the best source there is
+    if (typeof state !== 'undefined' && Array.isArray(state.masterAllRows) && state.masterAllRows.length) {
+      return _matchUpcInArray(state.masterAllRows, upcs);
+    }
+    // Pass C — every other era's IDB cache (same fallback ladder as findMasterItems)
+    if (typeof REAL_ERA_IDS === 'undefined' || !Array.isArray(REAL_ERA_IDS)) return [];
+    if (typeof idbGet !== 'function') return [];
+    for (var i = 0; i < REAL_ERA_IDS.length; i++) {
+      var era = REAL_ERA_IDS[i];
+      try {
+        var cached = await idbGet('lv_master_cache_' + era);
+        if (!cached || !cached.length) continue;
+        var hits = _matchUpcInArray(cached, upcs);
+        if (hits.length) {
+          hits.forEach(function (h) { if (!h._era) h._era = era; });
+          return hits;
+        }
+      } catch (e) {}
+    }
+    return [];
+  }
+  window._rrFindMasterByUpc = findMasterByUpc;
   // Session 169: exact-only variant for OCR scans — same as findMasterItems
   // but without the fuzzy last-5 fallback that masks bad OCR extractions.
   async function _findMasterItemsExact(candidates) {
@@ -1208,6 +1277,33 @@ window.eraSupportsBarcode = eraSupportsBarcode;
       }
       const prefix = upc12.substring(0, 6);
       const info = UPC_PREFIXES[prefix];
+      // v0.9.1719: the catalog's own barcode column. Called ONLY from the
+      // points below where the fresh decode has already failed to name an
+      // item — never ahead of one. Returns a result, or null to carry on to
+      // the manual-entry answer that was there before.
+      const _catalogUpcHit = async function () {
+        const hits = await findMasterByUpc(upc12, raw);
+        if (!hits.length) return null;
+        const mfrOf = function (m) {
+          return String((m && (m.manufacturer || m.maker)) || (info && info.mfr) || '');
+        };
+        if (hits.length === 1) {
+          const m = hits[0];
+          return {
+            handled: true, rawBarcode: raw, format: fmt, upc: upc12,
+            manufacturer: mfrOf(m), itemNum: m.itemNum, variation: m.variation || '',
+            masterItem: m, byCatalogUpc: true,
+            isSet: String(m.itemType || '').toLowerCase() === 'set',
+            statusMessage: 'Found ' + m.itemNum + ' — matched on the barcode in your catalog',
+          };
+        }
+        return {
+          handled: true, rawBarcode: raw, format: fmt, upc: upc12,
+          manufacturer: mfrOf(hits[0]), multipleMatches: true, candidates: hits,
+          byCatalogUpc: true,
+          statusMessage: hits.length + ' catalog items carry this barcode — pick the right one',
+        };
+      };
       if (info && info.mfr === 'Lionel') {
         const parsed = info.parse(upc12);
         // v0.9.1605(a): the prefix proved the maker — hand it to the lookup
@@ -1242,7 +1338,11 @@ window.eraSupportsBarcode = eraSupportsBarcode;
             statusMessage: matches.length + ' possible matches — pick the right one',
           };
         }
-        // Lionel prefix but not in master — offer manual entry with item# pre-filled
+        // Lionel prefix but not in master — the decode is spent, so the
+        // catalog's barcode column may answer before we fall back to manual.
+        const _lionelByUpc = await _catalogUpcHit();
+        if (_lionelByUpc) return _lionelByUpc;
+        // offer manual entry with item# pre-filled
         return {
           handled: true,
           rawBarcode: raw,
@@ -1255,6 +1355,10 @@ window.eraSupportsBarcode = eraSupportsBarcode;
           statusMessage: 'Lionel item 6-' + parsed.code5 + ' not in our catalog. Adding manually…',
         };
       }
+      // v0.9.1719: no decode exists for these prefixes at all, so the
+      // catalog's barcode column is the only thing that can name the item.
+      const _otherByUpc = await _catalogUpcHit();
+      if (_otherByUpc) return _otherByUpc;
       if (info) {
         // Non-Lionel known manufacturer — Phase 2
         return {
