@@ -72,14 +72,20 @@ ok('…while _qcDone keeps its async signature (callers and pins rely on it)',
    /window\._qcDone = async function \(\)/.test(pi), '');
 
 const upl = body('async function _qcUpload(file, name, rec)', 'window._qcRetry');
-ok('a failed upload is RESCUED to the device store',
-   /catch \(e\) \{[\s\S]{0,900}?await _stageOne\(file, name, '', \(rec && rec\.view\) \|\| ''\)/.test(upl), '');
+// v0.9.1724: these two pinned the literal `''` that _stageOne takes as its ERA
+// argument. That empty string was never the point of the pin — it was the bug
+// Brad found ("i tagge the photos, but it didn't tag the photos"): Quick
+// Capture dropped the session era on all three of its routes. The pins now
+// assert what they were always about — that a shot is staged rather than lost —
+// and additionally that it keeps the era, which is the half that was missing.
+ok('a failed upload is RESCUED to the device store, era and all',
+   /catch \(e\) \{[\s\S]{0,900}?await _stageOne\(file, name, \(rec && rec\.era\) \|\| '', \(rec && rec\.view\) \|\| ''\)/.test(upl), '');
 ok('…and only a photo that could not even be saved lands on the failed list',
    /if \(!_saved && _qc\) _qc\.failed\.push/.test(upl), '');
 ok('…so the old in-memory-only failure list is gone',
    !/\n      _qc\.failed\.push\(\{ file: file, name: name, rec: rec \}\);\n    \} finally \{/.test(pi), '');
-ok('the offline branch is untouched — it staged correctly already',
-   /if \(_pinOffline\(\)\) \{[\s\S]{0,400}?await _stageOne\(file, name, '', \(rec && rec\.view\) \|\| ''\);/.test(upl), '');
+ok('the offline branch stages the same way, era and all',
+   /if \(_pinOffline\(\)\) \{[\s\S]{0,500}?await _stageOne\(file, name, \(rec && rec\.era\) \|\| '', \(rec && rec\.view\) \|\| ''\);/.test(upl), '');
 
 // ── don't hammer a dead connection ────────────────────────────────────────
 ok('the staged drain is only chased when something actually landed',
