@@ -146,6 +146,43 @@ ok('the drop / camera-roll path is untouched — it was already right',
 ok('_stageFiles still computes its own era for drops',
    /var thisEra = \(_pinOneShot && !spent\) \? _pinOneShot : _pinHomeEra\(\);/.test(SRC));
 
+// ── v0.9.1725: the sheet SAYS what it is stamping ───────────────
+// The stamp was fixed in v0.9.1724. This is why a missing stamp survived a
+// whole shoot: the capture sheet is full-screen, so the context bar reading
+// "Now shooting Lionel Postwar" sits BEHIND it the entire time you shoot, and
+// nothing on screen ever contradicts you. 66 photos went by.
+section('The capture sheet says what it is tagging');
+{
+  const render = SRC.slice(SRC.indexOf('function _qcRender()'), SRC.indexOf('window._qcTake'));
+  ok('the sheet reads the era it will actually stamp',
+     /var _qcEraKey = _pinActiveEra\(\);/.test(render));
+  ok('…the SAME call the shot record uses, so the two cannot disagree',
+     (SRC.match(/_pinActiveEra\(\)/g) || []).length >= 3);
+  ok('the row is rendered, not just built', /\+\s*_qcEraRow\s*\+/.test(render));
+  ok('an untagged session is WARNED about, in the words that matter',
+     /reads will be unfiltered/.test(render));
+  ok('a set era shows its own label', /_pinEraLabel\(_qcEraKey\)/.test(render));
+  ok('the two states are told apart by colour', /_qcEraKey \? 'var\(--info\)' : 'var\(--accent\)'/.test(render));
+  ok('the label is escaped — an era label still goes through rrEsc', /rrEsc\(_qcEraKey \?/.test(render));
+  // photo-inbox.js sits exactly on its hardcoded-colour budget (232 of 232).
+  // A hex here fails the ratchet; this says why out loud.
+  const row = SRC.slice(SRC.indexOf('var _qcEraRow ='), SRC.indexOf("body.innerHTML ="));
+  ok('the new row uses colour TOKENS only — the file has no budget left',
+     !/#[0-9a-fA-F]{3,8}\b|rgba?\(/.test(row) && /var\(--info\)/.test(row));
+}
+{
+  const pick = SRC.slice(SRC.indexOf('window._qcPickEra = function'), SRC.indexOf('function _qcCropOn'));
+  ok('tapping it opens the era picker', /_pinPickContext\(\{/.test(pick));
+  ok('…guarded, so a missing picker cannot break the capture sheet',
+     /typeof window\._pinPickContext !== 'function'/.test(pick));
+  ok('the pick becomes the session home era', /_pinSetHomeEra\(era\)/.test(pick));
+  ok('an armed one-shot is dropped, so it cannot steal the very next photo',
+     /_pinOneShot = null/.test(pick));
+  ok('the sheet redraws, so the row shows what he just chose', /_qcRender\(\)/.test(pick));
+  ok('the picker opens ABOVE this sheet, not behind it — the whole point',
+     /z-index:10050/.test(SRC) && /z-index:10000/.test(SRC));
+}
+
 console.log('\n  ' + pass + ' passed, ' + fail + ' failed');
 process.exit(fail ? 1 : 0);
 
