@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.1719';
+const APP_VERSION = 'v0.9.1720';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -624,6 +624,28 @@ function rrRecordingMode() {
 function rrSetRecordingMode(on) {
   try { localStorage.setItem(RR_RECORDING_MODE_KEY, on ? '1' : '0'); return true; }
   catch (e) { return false; }
+}
+
+// ── the BETA badges ────────────────────────────────────────────
+// v0.9.1720. Brad, recording the help-menu captures: "i need the record mode
+// to remove Beta references so i can do screen shots." So the badges now
+// travel with the owner tools — showing while he works, gone while he films.
+//
+// Every BETA badge in the app renders from HERE, which is the point: one
+// switch instead of three copies in three files drifting apart. Callers pass
+// their own attributes, so each badge still looks exactly as it did.
+//
+// The sign-in gate is deliberately NOT included — Brad's call, 2026-09-12.
+// There the word is doing a real job rather than decorating: a stranger
+// reading "Beta Testing In Progress" is being told something true.
+// --on-accent (#ffffff in app.css) rather than a bare #fff: it is the app's own
+// token for text sitting on an accent fill, the colour ratchet stays untouched,
+// and the badge follows the theme instead of pinning itself white forever.
+const RR_BETA_BADGE_STYLE = 'style="font-size:0.6rem;background:var(--accent);color:var(--on-accent);border-radius:4px;padding:0.1rem 0.35rem"';
+
+function rrBetaBadge(attrs) {
+  if (typeof rrRecordingMode === 'function' && rrRecordingMode()) return '';
+  return '<span ' + (attrs || RR_BETA_BADGE_STYLE) + '>BETA</span>';
 }
 
 // rrIsRealOwner() — the email test WITHOUT the recording-mode veto.

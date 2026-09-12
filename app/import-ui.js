@@ -97,7 +97,8 @@ function rrImportOpen() {
   // progress. A new version waits until this overlay closes.
   ov.setAttribute('data-rr-busy', 'import');
   ov.innerHTML = '<div id="imp-panel"><div id="imp-head">' +
-    '<div id="imp-title">Import a Spreadsheet <span class="imp-beta">BETA</span></div>' +
+    '<div id="imp-title">Import a Spreadsheet ' +
+      (typeof rrBetaBadge === 'function' ? rrBetaBadge('class="imp-beta"') : '') + '</div>' +
     '<button id="imp-close" onclick="rrImportClose()">✕</button></div>' +
     '<div id="imp-body"></div></div>';
   document.body.appendChild(ov);

@@ -767,7 +767,9 @@ function buildDashboard() {
         // already keep. Names the Google Sheets export path explicitly, since
         // that is how most non-Excel users will get here.
         +   '<div style="flex:1 1 300px;min-width:260px;border:1px solid var(--border);border-radius:10px;padding:0.9rem 1rem">'
-        +     '<div style="font-weight:700;font-size:0.92rem;margin-bottom:0.3rem;color:var(--text)">Already have a list? <span style="font-size:0.62rem;background:var(--accent);color:#fff;border-radius:4px;padding:0.1rem 0.35rem;vertical-align:middle">BETA</span></div>'
+        +     '<div style="font-weight:700;font-size:0.92rem;margin-bottom:0.3rem;color:var(--text)">Already have a list? '
+        +       (typeof rrBetaBadge === 'function' ? rrBetaBadge('style="font-size:0.62rem;background:var(--accent);color:var(--on-accent);border-radius:4px;padding:0.1rem 0.35rem;vertical-align:middle"') : '')
+        +     '</div>'
         +     '<div style="font-size:0.82rem;color:var(--text-dim);line-height:1.5;margin-bottom:0.75rem">Bring in a collection you already track in a spreadsheet \u2014 an Excel file (.xlsx) keeps your row colors and every tab. Keep a Google Sheet? File \u2192 Download \u2192 Microsoft Excel first. CSV works too. We check every column with you before anything is saved.</div>'
         +     '<button onclick="if(typeof rrImportOpen===\'function\')rrImportOpen()" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:var(--bg-card);background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card));color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Import a spreadsheet</button>'
         +   '</div>'
@@ -1002,20 +1004,130 @@ function buildDashboard() {
       th.style.display = 'none'; th.innerHTML = ''; return;
     }
     th.style.display = '';
-    th.innerHTML = '<div class="panel rr-ticker-wrap" style="padding:0.55rem 0;overflow:hidden;margin-bottom:1.25rem">'
-      + '<div id="rr-ticker-track" class="rr-ticker-track"><div style="padding:0.5rem 1rem;color:var(--text-dim);font-size:0.78rem">Loading photos…</div></div>'
+    // a fresh strip means a fresh track element, so the base duration is
+    // measured again from whatever this build's first batch turns out to be
+    window._tickerBaseSet = false;
+    // v0.9.1720: the scroller keeps the hover-pause class; the speed arrows sit
+    // OUTSIDE it, under the pictures, because the scroller clips its overflow
+    // and anything inside it would be cut off.
+    var _sBtn = 'width:26px;height:22px;border-radius:6px;border:1px solid var(--border);background:var(--surface2,var(--surface));color:var(--text-dim);font-family:var(--font-body);font-size:0.7rem;line-height:1;cursor:pointer;padding:0';
+    th.innerHTML = '<div class="panel" style="padding:0.55rem 0 0.4rem;margin-bottom:1.25rem">'
+      + '<div class="rr-ticker-wrap" style="overflow:hidden">'
+      +   '<div id="rr-ticker-track" class="rr-ticker-track"><div style="padding:0.5rem 1rem;color:var(--text-dim);font-size:0.78rem">Loading photos…</div></div>'
+      + '</div>'
+      + '<div style="display:flex;align-items:center;justify-content:center;gap:0.35rem;padding-top:0.45rem">'
+      +   '<button id="rr-ticker-slower" onclick="_tickerSpeedStep(-1)" title="Slower" aria-label="Scroll the photos slower" style="' + _sBtn + '">▼</button>'
+      +   '<span id="rr-ticker-speed" style="min-width:2.6rem;text-align:center;font-size:0.68rem;color:var(--text-dim);font-family:var(--font-mono,monospace)"></span>'
+      +   '<button id="rr-ticker-faster" onclick="_tickerSpeedStep(1)" title="Faster" aria-label="Scroll the photos faster" style="' + _sBtn + '">▲</button>'
+      + '</div>'
       + '</div>';
     if (typeof window._tickerFill === 'function') setTimeout(window._tickerFill, 0);
   })();
 }
 
-// Fill the ticker with a random spread of collection photos. The set is
-// doubled so the CSS loop is seamless; speed scales with how many photos
-// there are (~5s per photo — a slow drift, not a stock ticker).
+// ── the ticker's photo QUEUE (v0.9.1720) ───────────────────────────────────
+// Brad: "the pictures scrolling from right to left are the same 18 or so
+// pictures. its should be going throught the complete collection."
+//
+// He was right, and the cause was plain: _tickerFill asked for 18 thumbnails
+// ONCE when the dashboard built, drew them twice so the CSS loop joins up, and
+// never asked again — so those same 18 circled for as long as the page was
+// open. The fix is a queue: every photo in the collection, shuffled once, with
+// a cursor that carries ACROSS refills. Each completed pass takes the next 18
+// and the strip works through the whole collection before any picture repeats.
+// Reshuffled at the end of each full cycle so the order is not the same twice.
+//
+// Still only 18 pictures in the DOM at a time — the queue holds items, not
+// images, so a big collection costs nothing until its turn comes round.
+window._tickerQueue = null;
+window._tickerAt = 0;
+
+async function _tickerBatch(n, resolveCap) {
+  if (!Array.isArray(window._tickerQueue) || !window._tickerQueue.length) {
+    var pds = _photoPds().slice();
+    for (var i = pds.length - 1; i > 0; i--) { var j = Math.floor(Math.random() * (i + 1)); var t = pds[i]; pds[i] = pds[j]; pds[j] = t; }
+    window._tickerQueue = pds;
+    window._tickerAt = 0;
+  }
+  var q = window._tickerQueue, out = [], resolves = 0, scanned = 0;
+  // scanned is the guard: a collection where every remaining photo needs a
+  // Drive resolve (and the cap is spent) must not spin here forever.
+  while (out.length < n && scanned < q.length) {
+    if (window._tickerAt >= q.length) {
+      window._tickerAt = 0;
+      // a full cycle finished — reshuffle so the next pass is not a rerun
+      for (var a = q.length - 1; a > 0; a--) { var b = Math.floor(Math.random() * (a + 1)); var s = q[a]; q[a] = q[b]; q[b] = s; }
+    }
+    var pd = q[window._tickerAt++];
+    scanned++;
+    if (!pd) continue;
+    var known = _thumbFids()[String(pd.inventoryId || pd.itemNum)];
+    if (!known) { if (resolves >= resolveCap) continue; resolves++; }
+    var fid = await _thumbFor(pd);
+    if (fid) out.push({ pd: pd, fid: fid });
+  }
+  return out;
+}
+
+// ── the speed arrows (v0.9.1720) ───────────────────────────────────────────
+// Brad: "would be nice to have below the scrolling pictures a speed up down
+// arrows". Multipliers, not raw seconds: the base duration already scales with
+// how many photos are on screen, so a multiplier means the same arrow press
+// feels the same whatever is in the strip. Remembered per device, like the
+// strip's own on/off switch.
+var RR_TICKER_SPEEDS = [0.5, 0.75, 1, 1.5, 2, 3];
+var RR_TICKER_SPEED_KEY = 'lv_dash_ticker_speed';
+window._tickerBaseDur = 90;
+
+function _tickerSpeedIdx() {
+  var i = 2;
+  try { i = parseInt(_prefGet(RR_TICKER_SPEED_KEY, '2'), 10); } catch (e) {}
+  if (!(i >= 0 && i < RR_TICKER_SPEEDS.length)) i = 2;
+  return i;
+}
+
+function _tickerApplySpeed(keepPosition) {
+  var track = document.getElementById('rr-ticker-track');
+  if (!track) return;
+  var idx = _tickerSpeedIdx(), mult = RR_TICKER_SPEEDS[idx];
+  var oldDur = parseFloat(track.style.getPropertyValue('--rr-ticker-dur')) || window._tickerBaseDur;
+  var newDur = Math.max(6, window._tickerBaseDur / mult);
+  // Changing the duration restarts a CSS animation, which would snap the strip
+  // back to the start. A negative animation-delay of the same fraction resumes
+  // it exactly where it was, so a speed change looks like a speed change.
+  if (keepPosition && window._tickerStartedAt) {
+    var frac = (((Date.now() - window._tickerStartedAt) / 1000) % oldDur) / oldDur;
+    track.style.animationDelay = '-' + (frac * newDur).toFixed(2) + 's';
+    window._tickerStartedAt = Date.now() - frac * newDur * 1000;
+  }
+  // Only write when it actually changes: re-setting an animation property on a
+  // running animation restarts it, and a refill must not make the strip jump.
+  if (Math.abs(newDur - oldDur) > 0.01 || !track.style.getPropertyValue('--rr-ticker-dur')) {
+    track.style.setProperty('--rr-ticker-dur', newDur + 's');
+  }
+  var lbl = document.getElementById('rr-ticker-speed');
+  if (lbl) lbl.textContent = (mult === 1 ? '1' : String(mult)) + '×';
+  var slower = document.getElementById('rr-ticker-slower'), faster = document.getElementById('rr-ticker-faster');
+  if (slower) slower.disabled = (idx === 0);
+  if (faster) faster.disabled = (idx === RR_TICKER_SPEEDS.length - 1);
+  [slower, faster].forEach(function (b) { if (b) b.style.opacity = b.disabled ? '0.35' : '1'; });
+}
+window._tickerApplySpeed = _tickerApplySpeed;
+
+window._tickerSpeedStep = function (dir) {
+  var i = _tickerSpeedIdx() + (dir > 0 ? 1 : -1);
+  if (i < 0 || i >= RR_TICKER_SPEEDS.length) return;
+  try { _prefSet(RR_TICKER_SPEED_KEY, String(i)); } catch (e) {}
+  _tickerApplySpeed(true);
+};
+
+// Fill the ticker with the next stretch of collection photos. The set is
+// doubled so the CSS loop is seamless; the base speed scales with how many
+// photos are on screen (~5s per photo — a slow drift, not a stock ticker).
 window._tickerFill = async function () {
   var track = document.getElementById('rr-ticker-track');
   if (!track) return;
-  var picks = await _pickThumbs(18, 8);
+  var picks = await _tickerBatch(18, 8);
   track = document.getElementById('rr-ticker-track');
   if (!track) return;
   if (picks.length < 4) {
@@ -1029,7 +1141,29 @@ window._tickerFill = async function () {
   };
   track.innerHTML = picks.map(function (t, i) { return cellHtml(t, i, 'a'); }).join('')
                   + picks.map(function (t, i) { return cellHtml(t, i, 'b'); }).join('');
-  track.style.setProperty('--rr-ticker-dur', Math.max(40, picks.length * 5) + 's');
+  // The base duration is set ONCE per strip, not per refill. A later batch can
+  // come back a picture or two short (a Drive resolve that did not land inside
+  // the cap), and letting that change the duration would rewrite a running CSS
+  // animation — which restarts it, and the strip visibly jumps at the join.
+  if (!window._tickerBaseSet) {
+    window._tickerBaseDur = Math.max(40, picks.length * 5);
+    window._tickerBaseSet = true;
+  }
+  window._tickerStartedAt = Date.now();
+  _tickerApplySpeed(false);
+  // v0.9.1720: refill at the JOIN. One iteration is a complete pass of the
+  // doubled set, so swapping the pictures at that instant is invisible — the
+  // parade simply keeps producing trains it has not shown yet. Bound once;
+  // re-running _tickerFill replaces the track's children, not the track.
+  if (!track._rrCycleBound) {
+    track._rrCycleBound = true;
+    track.addEventListener('animationiteration', function () {
+      if (window._tickerFilling) return;
+      window._tickerFilling = true;
+      Promise.resolve(window._tickerFill()).catch(function () {})
+        .then(function () { window._tickerFilling = false; });
+    });
+  }
   ['a', 'b'].forEach(function (copy) {
     picks.forEach(function (t, i) {
       var cell = track.querySelector('[data-tk="' + copy + '-' + i + '"]');

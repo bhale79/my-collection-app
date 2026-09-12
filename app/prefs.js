@@ -397,7 +397,7 @@ function buildPrefsPage() {
       </div>
       <!-- v0.9.1506 (Session 81, Task #25 Phase 1): spreadsheet import — Brad picked Settings/Tools as the home. -->
       <div class="pref-row">
-        <div class="pref-row-label"><strong>Import a Spreadsheet</strong> <span style="font-size:0.6rem;background:var(--accent);color:#fff;border-radius:4px;padding:0.1rem 0.35rem">BETA</span><span>Bring in a collection you already track in Excel — colors, tabs and all</span></div>
+        <div class="pref-row-label"><strong>Import a Spreadsheet</strong> ${typeof rrBetaBadge === 'function' ? rrBetaBadge() : ''}<span>Bring in a collection you already track in Excel — colors, tabs and all</span></div>
         <button class="pref-btn" onclick="if(typeof rrImportOpen==='function')rrImportOpen()">Import</button>
       </div>
       ${typeof rrImportRecentBatchesHtml === 'function' ? rrImportRecentBatchesHtml() : ''}
