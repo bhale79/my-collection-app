@@ -328,10 +328,43 @@ function _wantPartner(itemNum, variation, entry) {
 
 // Find the master row index for showItemDetailPage. Tolerant of trailing
 // -P/-C/-T suffixes (set members) that don't have their own master row.
-function _itemMasterIdx(itemNum, variation) {
+function _itemMasterIdx(itemNum, variation, preferMfr) {
   if (!state.masterData) return -1;
   var num = String(itemNum || '');
   var v = variation === undefined ? '' : String(variation || '');
+  // ── v0.9.1729 (Brad's 736) ────────────────────────────────────────────────
+  // "it suggested an engine 736… then when i went to the want list" — and the
+  // page said Missouri Pacific Stock Car.
+  // Number plus variation is NOT an identity in a 165,000-row multi-maker
+  // catalog. There are FIFTEEN rows numbered 736; the first is American
+  // Flyer's Missouri Pacific stock car, which also carries variation 1, so it
+  // won a match meant for the Lionel postwar Berkshire sitting four rows down.
+  // A want row records the maker it was saved with, so when the caller knows
+  // it, a row from that maker is preferred before anything else is considered.
+  // Without it nothing changes — every existing caller behaves exactly as it
+  // did.
+  var _want = String(preferMfr || '').toLowerCase().trim();
+  function _mfrOf(m) {
+    var got = '';
+    try { if (typeof _manufacturerOfEra === 'function') got = String(_manufacturerOfEra(m && m._era) || ''); } catch (e) {}
+    if (!got && m && m._tab) got = String(m._tab).split(' ')[0];
+    return got.toLowerCase().trim();
+  }
+  function _makerOk(m) {
+    if (!_want) return true;
+    var got = _mfrOf(m);
+    if (!got) return false;                       // unknown maker cannot claim a preference
+    return got === _want || got.indexOf(_want) === 0 || _want.indexOf(got) === 0;
+  }
+  if (_want) {
+    var mIdx = state.masterData.findIndex(function (m) {
+      return m.itemNum === num && (m.variation === v || (!v && !m.variation)) && _makerOk(m);
+    });
+    if (mIdx >= 0) return mIdx;
+    mIdx = state.masterData.findIndex(function (m) { return m.itemNum === num && _makerOk(m); });
+    if (mIdx >= 0) return mIdx;
+    // No row from that maker at all — fall through rather than show nothing.
+  }
   var idx = state.masterData.findIndex(function(m) {
     return m.itemNum === num && (m.variation === v || (!v && !m.variation));
   });
@@ -348,19 +381,21 @@ function _itemMasterIdx(itemNum, variation) {
 // Open the catalog item-detail page for a Want/Upgrade row (Session 162+).
 // Reuses showItemDetailPage; _itemMasterIdx tolerates -P/-C/-T set suffixes.
 function _wantViewDetail(itemNum, variation) {
-  var idx = _itemMasterIdx(itemNum, variation);
-  if (idx >= 0 && typeof showItemDetailPage === 'function') {
-    var _v = variation || '';
-    var entry = null;
-    var pools = [state.wantData, state.upgradeData];
-    for (var pi = 0; pi < pools.length && !entry; pi++) {
-      var pool = pools[pi] || {};
-      var keys = Object.keys(pool);
-      for (var ki = 0; ki < keys.length; ki++) {
-        var e = pool[keys[ki]];
-        if (e && e.itemNum === itemNum && (e.variation || '') === _v) { entry = e; break; }
-      }
+  // v0.9.1729: the entry is found FIRST now, because the maker recorded on it
+  // is what tells _itemMasterIdx which of the fifteen 736s he meant.
+  var _v = variation || '';
+  var entry = null;
+  var pools = [state.wantData, state.upgradeData];
+  for (var pi = 0; pi < pools.length && !entry; pi++) {
+    var pool = pools[pi] || {};
+    var keys = Object.keys(pool);
+    for (var ki = 0; ki < keys.length; ki++) {
+      var e = pool[keys[ki]];
+      if (e && e.itemNum === itemNum && (e.variation || '') === _v) { entry = e; break; }
     }
+  }
+  var idx = _itemMasterIdx(itemNum, variation, entry && entry.manufacturer);
+  if (idx >= 0 && typeof showItemDetailPage === 'function') {
     var partner = (typeof _wantPartner === 'function') ? _wantPartner(itemNum, variation, entry) : '';
     // Order engine-first: if the clicked item is a tender and the single
     // partner is not, lead with the partner (e.g. '726 with a 2426W').

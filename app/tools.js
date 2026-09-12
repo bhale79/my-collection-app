@@ -1273,6 +1273,11 @@ async function runCompanionSuggester() {
       seen[norm(s.companionNum)] = true;
       return true;
     });
+    // v0.9.1729: the + Want List button indexes THIS list, not e.suggestions,
+    // so it has to be reachable from the handler. Stashing it also lets the
+    // button use the very master row the card resolved and displayed, instead
+    // of looking the number up a second time and getting a different answer.
+    e._shown = dedupedSuggestions;
 
     dedupedSuggestions.forEach(function(s, sIdx) {
       // Get companion road name/description from master
@@ -1296,6 +1301,11 @@ async function runCompanionSuggester() {
         }) || _cCands[0] || null;
       }
       var compDesc = compMaster ? (compMaster.roadName || compMaster.subType || '') : '';
+      // v0.9.1729: hand the resolved row to the + Want List button. This block
+      // already does the careful work — postwar-scoped, role-checked — and the
+      // button used to redo it as a bare number-only find. See the note on
+      // companionAddToWantList for what that cost.
+      s.master = compMaster;
 
       // Type label and color
       var typeLabel, typeColor;
@@ -1373,33 +1383,53 @@ async function companionLinkItems(idx, offerIdx) {
   }
 }
 
-async function companionAddToWantList(companionNum, engineIdx, suggIdx) {
-  var norm = function(n) { return (n || '').toString().trim().toUpperCase(); };
+// ══ v0.9.1729 (Brad, 2026-09-12) ═══════════════════════════════════════════
+// "when i used the companion finder, it suggested an engine 736. i hit add to
+//  want list. it added it but it should have went to the add to want list add
+//  menu. then when i went to the want list, i could [not] edit it."
+//
+// Three faults, one cause — this function did the job itself instead of using
+// the flow that already exists.
+//
+// 1. THE WRONG 736. It re-looked-up the number with a bare
+//    `masterData.find(m => m.itemNum === '736')`. There are FIFTEEN rows
+//    numbered 736 in the master; the first is American Flyer's "Missouri
+//    Pacific Stock Car", and the Lionel postwar Berkshire the suggester was
+//    actually talking about is the fourth. So his want list gained a Missouri
+//    Pacific stock car with a Steam Locomotive badge. The card above had
+//    already resolved the right row — postwar-scoped and role-checked — and
+//    this threw that away. It now uses the row the card showed him, so what he
+//    clicked and what he gets cannot differ.
+// 2. IT COULD NOT BE EDITED. The optimistic in-memory row was
+//    `{ itemNum, variation, notes }` — no `row`, and the want editor opens with
+//    `if (!u || !u.row) showToast('Could not find this want entry')`. So every
+//    item added this way was uneditable until a reload told him so.
+// 3. IT SKIPPED THE ADD MENU. Nothing asked for priority, expected price or
+//    target condition; the row was appended silently.
+//
+// Handing it to openWizard('want') answers all three at once: the wizard does
+// its own correct lookup, writes a COMPLETE row (so the editor finds it), and
+// is the add menu. Same pattern research.js has used since v0.9.742, which is
+// Brad's own earlier "straight into the normal want-list steps, item
+// prefilled."
+function companionAddToWantList(companionNum, engineIdx, suggIdx) {
+  var e = window._companionEngines && window._companionEngines[engineIdx];
+  var s = e && e._shown && e._shown[suggIdx];
+  var master = s && s.master;            // the row the CARD resolved and displayed
 
-  // Look up master data for this companion — prefer B unit entry for same-item-number companions
-  var master = state.masterData && (
-    state.masterData.find(function(m) {
-      return norm(m.itemNum) === norm(companionNum) && m.unit === 'B';
-    }) ||
-    state.masterData.find(function(m) {
-      return norm(m.itemNum) === norm(companionNum);
-    })
-  );
-  var variation = master ? (master.variation || '') : '';
-  var wantRow = [companionNum, variation, '', '', 'Added via Companion Suggester'];
-
-  try {
-    // Want-Upgrade combined: append 9-col row with List Type='Want'.
-    var _wuRow = [wantRow[0], wantRow[1], 'Want', wantRow[2], wantRow[3], '', '', wantRow[4], wantRow[5]];
-    await sheetsAppend(state.personalSheetId, 'Want-Upgrade List!A:I', [_wuRow]);
-    var wantKey = companionNum + '|' + variation;
-    state.wantData[wantKey] = { itemNum: companionNum, variation: variation, notes: wantRow[4] };
-    showToast('★ ' + companionNum + ' added to Want List', 2500);
-    // Refresh the display
-    runCompanionSuggester();
-  } catch(e) {
-    showToast('Could not add to want list — try again', 3000, true);
+  if (typeof openWizard !== 'function') {
+    showToast('Want list is still loading — try again', 3000, true);
+    return;
   }
+  Promise.resolve(openWizard('want')).then(function () {
+    try {
+      wizard.data.itemNum = String(companionNum || '');
+      // Only seed a variation we are sure of. A wrong one is worse than none:
+      // the wizard can still ask, but it cannot un-pick a stock car.
+      if (master && master.variation) wizard.data.variation = String(master.variation);
+      if (typeof renderWizardStep === 'function') renderWizardStep();
+    } catch (err) {}
+  });
 }
 
 // ═══════════════════════════════════════════════════════════════
