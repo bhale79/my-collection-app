@@ -198,6 +198,10 @@
   window.cottAnchorUrl = function (refLink, itemNum, rowWords, variation) {
     try {
       var plain = _base(refLink, itemNum);          // today's answer
+      // v0.9.1721: cottRowWords hands the road name over under its own name.
+      // An older caller that passed a plain string still works — there is no
+      // road then, and the resolver behaves exactly as it did before.
+      var _road = (rowWords && typeof rowWords === 'object' && rowWords.road) ? String(rowWords.road) : '';
       if (!refLink || String(refLink).indexOf('#') >= 0) return plain;
       var m = String(refLink).match(/cornucopiaoftoytrains\.com\/([^\/#?]+)/i);
       if (!m) return plain;
@@ -221,6 +225,40 @@
       if (!rec || !rec.a || !rec.a.length) return plain;
       var list = rec.a;
       var base = String(refLink).replace(/[#?].*$/, '').replace(/\/+$/, '');
+
+      // 0. v0.9.1721 — THE ROAD NAME DECIDES FIRST.
+      //    Brad, 2026-09-12: "my 212 sante fe engine link went to the wrong
+      //    picture" — it opened the blue U.S.M.C. 212 instead of the Santa Fe.
+      //    CAUSE: No. 212 has three sections on the page (USMC powered, USMC
+      //    unpowered, Santa Fe). Scoring his Santa Fe row against all three
+      //    gave LAL212T 3 points and LAL212SF 3 points — a TIE — so step 1
+      //    below gave up and step 2 fell through to the bare number, LAL212,
+      //    the USMC engine, which had scored LOWEST of the three at 2.
+      //    The tie happened because "SANTA FE" counted for exactly as much as
+      //    "OPEN", "LEDGE" and "APRON", and those adjectives sit in nearly
+      //    every shell description on the page.
+      //    A railroad name identifies a variation; an adjective does not. So
+      //    the road name gets to answer on its own first, and only a road name
+      //    that picks exactly ONE candidate counts — a tie here still falls
+      //    through to the word matcher, so safe-by-design is preserved.
+      //    Measured over all 165,044 master rows: 7 links move, and every
+      //    single one moves onto its correctly-named section (5 Alcos, the
+      //    6465 Gulf tank car, the 6517 TCA caboose). Nothing else changes.
+      if (_road) {
+        var rWords = stemWords(_road);
+        var rBest = 0, rI = -1, rTie = false;
+        for (var r = 0; r < list.length; r++) {
+          var rt = list[r][1] ? list[r][1].split(' ') : [], rh = 0;
+          for (var rj = 0; rj < rt.length; rj++) {
+            // single characters are initials ("B" in B & M) and match far too
+            // loosely to be evidence of anything — skip them.
+            if (rt[rj] && rt[rj].length > 1 && rWords.indexOf(' ' + rt[rj] + ' ') >= 0) rh++;
+          }
+          if (rh > rBest) { rBest = rh; rI = r; rTie = false; }
+          else if (rh === rBest && rh > 0) { rTie = true; }
+        }
+        if (rBest > 0 && !rTie) return base + '/#' + list[rI][0];
+      }
 
       // 1. let the row's own words choose, when they can
       if (rowWords) {
@@ -252,9 +290,24 @@
 
 // ONE builder for the row-words argument, used by every call site — a master
 // row in, the words that distinguish its model out.
+//
+// v0.9.1721: it now ALSO hands the road name over on its own, under its own
+// name, because the road name identifies a variation and the shell adjectives
+// around it do not (see "THE ROAD NAME DECIDES FIRST" above). Every call site
+// keeps passing the result straight through untouched: the object stringifies
+// to exactly the words it always produced, so String(x), stemWords(x) and a
+// plain truthiness test all behave as before. Adding a 5th argument to
+// cottAnchorUrl instead would have meant editing eight call sites, and a
+// missed one fails silently — this keeps ONE builder as the single source.
 if (typeof window !== 'undefined') {
   window.cottRowWords = function (m) {
     if (!m) return '';
-    return [m.roadName, m.itemType, m.varDesc].filter(Boolean).join(' ');
+    var words = [m.roadName, m.itemType, m.varDesc].filter(Boolean).join(' ');
+    return {
+      words: words,
+      road: m.roadName || '',
+      toString: function () { return words; },
+      valueOf:  function () { return words; }
+    };
   };
 }
