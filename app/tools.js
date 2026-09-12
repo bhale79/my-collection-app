@@ -1060,6 +1060,49 @@ async function runCompanionSuggester() {
     });
   }
 
+  // ══ v0.9.1723 (Brad, 2026-09-12) — TWO FEATURES, TWO DIFFERENT BOOKS ══
+  // "the companion checker is not see the 665 engine in my collection to match
+  //  it with the 2046w. but if i add a new 2046w tender it wants to add it to
+  //  the 665."
+  // He was looking at one app disagreeing with itself. This tool read the
+  // Companions tab ALONE — 160 rows, which know 7 engines for the 2046W and
+  // none of them the 665. The wizard reads state.partnerMap, which app.js
+  // builds from Companions AND Sets AND the master itself — 12 engines for the
+  // 2046W, the 665 among them. So the tool could not see a partner he already
+  // owned, and told him seven engines were missing.
+  // The partner map is the wider book and the one the rest of the app already
+  // trusts, so the OWNERSHIP question is asked there. Note what is NOT changed:
+  // suggestions still come from the Companions tab. The map is used only to
+  // answer "do you already have one?", so this can only ever make the tool
+  // quieter, never noisier.
+  function _ccPartnerNums(anchorNum) {
+    var out = [];
+    try { (getMatchingLocos(anchorNum)   || []).forEach(function (x) { out.push(x); }); } catch (e) {}
+    try { (getMatchingTenders(anchorNum) || []).forEach(function (x) { out.push(x); }); } catch (e) {}
+    try { var sp = getSetPartner(anchorNum); if (sp) out.push(sp); } catch (e) {}
+    return out;
+  }
+  // An owned item that fills this role for the anchor and is not yet joined to
+  // it. That is the whole of Brad's case: he owns the 665, it is simply not
+  // linked to the 2046W. Finding it turns seven wrong "you don't have it"
+  // lines into one offer worth acting on.
+  function _ccOwnedUnlinkedMate(anchorNum, role) {
+    var aCanon = _ccCanon(anchorNum);
+    var mates = _ccPartnerNums(anchorNum).map(function (n) { return _ccCanon(n).key; });
+    if (!mates.length) return null;
+    var found = null;
+    Object.values(state.personalData).forEach(function (p) {
+      if (found || !p.owned) return;
+      var c = _ccCanon(p.itemNum);
+      if (c.key === aCanon.key) return;                        // the anchor itself
+      if (mates.indexOf(c.key) < 0 && mates.indexOf(c.base) < 0) return;
+      if (!_ccFillsRole(p, role)) return;                      // a tender cannot be the engine
+      if (_ccItemGrouped(p)) return;                           // already spoken for elsewhere
+      found = p;
+    });
+    return found;
+  }
+
   // suggestMap: keyed by the owned item number, groups missing companions
   var suggestMap = {};
 
@@ -1094,6 +1137,19 @@ async function runCompanionSuggester() {
 
     // Already grouped/matched with an owned partner that fills this role -> not missing.
     if (_hasGroupedCompanion(ownedKey, missingType)) return;
+
+    // v0.9.1723: he already owns something that fills this role — it is only
+    // unlinked. Nothing is missing, so no suggestion is pushed; the anchor
+    // carries a link offer instead, and every later pairing for the same role
+    // hits this same return. Seven lines become one.
+    var _mate = _ccOwnedUnlinkedMate(ownedNum, missingType);
+    if (_mate) {
+      if (!suggestMap[ownedKey]) suggestMap[ownedKey] = { ownedNum: ownedNum, suggestions: [], trig: _trig };
+      var _offers = suggestMap[ownedKey].linkOffers || (suggestMap[ownedKey].linkOffers = []);
+      var _dup = _offers.some(function (o) { return o.pd === _mate; });
+      if (!_dup) _offers.push({ pd: _mate, role: missingType, master: _ccMasterOf(_mate) });
+      return;
+    }
 
     // v0.9.1308 (Brad's 218): "i have the 218-p paired with a 218-d unit. so
     // i shouldn't need a companion for that." Greenberg lists 218 as sold BOTH
@@ -1150,7 +1206,11 @@ async function runCompanionSuggester() {
     }
   });
 
-  var items = Object.values(suggestMap).filter(function(e) { return e.suggestions.length > 0; });
+  // v0.9.1723: an anchor whose only outcome is a link offer still has
+  // something to say, so it must survive this filter.
+  var items = Object.values(suggestMap).filter(function(e) {
+    return e.suggestions.length > 0 || (e.linkOffers && e.linkOffers.length > 0);
+  });
 
   if (!items.length) {
     out.innerHTML = '<div style="padding:0.75rem;background:rgba(46,204,113,0.08);border:1px solid rgba(46,204,113,0.25);border-radius:8px;color:#4dc880;font-size:0.85rem">✓ All items in your collection have their companions — nothing missing!</div>';
@@ -1183,6 +1243,28 @@ async function runCompanionSuggester() {
         '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#2ecc71" stroke-width="2" style="flex-shrink:0"><circle cx="9" cy="9" r="4"/><path d="M20 20c0-3.31-2.69-6-6-6H9a6 6 0 0 0-6 6"/></svg>' +
         itemLabel +
       '</div>';
+
+    // v0.9.1723: the link offers come FIRST — they are the useful half. Brad's
+    // 2046W showed seven engines he does not own while the 665 sat in his
+    // collection two rows away, unlinked. One offer says what is actually true
+    // and gives him the button that makes it so.
+    // Colours are tokens only (--green, --green-light): tools.js sits exactly
+    // on its hardcoded-colour budget, and the ratchet refuses a 149th literal.
+    (e.linkOffers || []).forEach(function (o, oIdx) {
+      var _om = o.master;
+      var _oBits = [];
+      if (_om && _om.roadName) _oBits.push(_om.roadName);
+      if (_om && _om.description) _oBits.push(_om.description);
+      if (o.pd.condition) _oBits.push('condition ' + o.pd.condition);
+      html += '<div style="display:flex;align-items:center;gap:0.6rem;padding:0.4rem 0.5rem;background:var(--surface);border:1px solid var(--green);border-radius:7px;width:100%;box-sizing:border-box">' +
+        '<span style="font-size:0.75rem;color:var(--green-light);flex-shrink:0">you already have the</span>' +
+        '<span style="font-family:var(--font-mono);font-size:0.85rem;color:var(--text)">' + rrEsc(o.pd.itemNum) + '</span>' +
+        '<span style="font-size:0.75rem;color:var(--green);border:1px solid var(--green);border-radius:4px;padding:0.1rem 0.4rem;flex-shrink:0">' + rrEsc(o.role) + '</span>' +
+        '<span style="font-size:0.78rem;color:var(--text-dim);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' +
+          (_oBits.length ? rrEsc(_oBits.join(' · ')) + ' — ' : '') + 'they are just not linked</span>' +
+        '<button id="comp-link-btn-' + idx + '-' + oIdx + '" onclick="companionLinkItems(' + idx + ',' + oIdx + ')" style="margin-left:auto;padding:0.25rem 0.6rem;border-radius:6px;border:1px solid var(--green);background:var(--bg-card);color:var(--green-light);font-size:0.75rem;cursor:pointer;white-space:nowrap;flex-shrink:0">Link them</button>' +
+      '</div>';
+    });
 
     // Deduplicate suggestions by companion number
     var seen = {};
@@ -1247,6 +1329,48 @@ async function runCompanionSuggester() {
 
   window._companionEngines = items;
   out.innerHTML = html;
+}
+
+// v0.9.1723 — join an owned pair the suggester found unlinked.
+// Deliberately the SAME writer the Smart Group Finder uses (confirmGroupItems
+// above): one GRP- id written to the groupId column of both rows through
+// personalColLetter, so a future column reorder cannot send it somewhere else.
+// Two features writing groups two different ways is how the 665 got missed in
+// the first place.
+async function companionLinkItems(idx, offerIdx) {
+  var e = window._companionEngines && window._companionEngines[idx];
+  var offer = e && e.linkOffers && e.linkOffers[offerIdx];
+  if (!e || !offer || !e.trig) return;
+
+  var a = e.trig.pd, b = offer.pd;
+  var btn = document.getElementById('comp-link-btn-' + idx + '-' + offerIdx);
+  if (btn) { btn.textContent = 'Linking…'; btn.disabled = true; }
+
+  // Guard against a double press writing two group ids over each other.
+  if (a._ccLinking) return;
+  a._ccLinking = true;
+
+  var groupId = 'GRP-' + String(a.itemNum || '').replace(/[^A-Za-z0-9]/g, '-') + '-' + Date.now();
+  var _grpCol = (typeof personalColLetter === 'function') ? personalColLetter('groupId') : 'AB';
+
+  try {
+    var pair = [a, b];
+    for (var i = 0; i < pair.length; i++) {
+      var pd = pair[i];
+      if (!pd.row || pd.row === 99999) continue;
+      await sheetsUpdate(state.personalSheetId,
+        PERSONAL_TAB + '!' + _grpCol + pd.row + ':' + _grpCol + pd.row,
+        [[groupId]]);
+      pd.groupId = groupId;
+    }
+    showToast('✓ Linked ' + a.itemNum + ' + ' + b.itemNum, 2500);
+    a._ccLinking = false;
+    runCompanionSuggester();
+  } catch (err) {
+    a._ccLinking = false;
+    showToast('Could not link — try again', 3000, true);
+    if (btn) { btn.textContent = 'Link them'; btn.disabled = false; }
+  }
 }
 
 async function companionAddToWantList(companionNum, engineIdx, suggIdx) {
