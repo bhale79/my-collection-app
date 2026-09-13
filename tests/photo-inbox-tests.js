@@ -23225,6 +23225,52 @@ META_WRITES.length = 0; TOASTS.length = 0;
          /function _rvReadText\(\)/.test(psrc)
          && /if \(srcText === undefined\) srcText = _rvReadText\(\);/.test(psrc)
          && /_pinBestMaster\(num, aiMfr, prefer, srcText\)/.test(psrc));
+      // ══ v0.9.1735: THE EMPTY BOX MAY NOT OUT-VOTE THE CAR ═══════════════
+      // Measured on the live card, which still said Libby's after v1734. A box
+      // is lettered with the name of the car inside it, so it scores
+      // identically every time. Under 6050 the real Savings Bank row and its
+      // BOX both scored 5, the helper correctly refused to choose on a tie,
+      // and the fallback was load order - Libby's. The guard against guessing
+      // became the thing that guaranteed the wrong answer.
+      const BOXROW = { itemNum:'6050', variation:'', _era:'pw', _tab:'Lionel PW - Boxes',
+                       itemType:'Box', roadName:'', description:'Lionel Savings Bank Boxcar, 6' };
+      ok('335 the box scores the same words as the car it came in',
+         (function () {
+           const w = ['SAVINGS','BANK'];
+           const hay = (BOXROW.roadName + ' ' + BOXROW.description).toUpperCase();
+           return w.every(x => hay.indexOf(x) >= 0);
+         })());
+      ok('335 with the box in the list the car is STILL picked, not tied away',
+         (function () {
+           const g = pick(ROWS.concat([BOXROW]), CAR);
+           return !!g && g.row.roadName === 'Lionel Savings Bank' && g.row._tab === 'Lionel PW - Items';
+         })(), JSON.stringify((function(){ const g = pick(ROWS.concat([BOXROW]), CAR); return g && { road:g.row.roadName, tab:g.row._tab }; })()));
+      ok('335 it is _pinDemotedRow that keeps boxes out, not a new rule here',
+         /_pinDemotedRow\(r\)\) return;/.test(fs.readFileSync(SRC, 'utf8')));
+
+      // ══ v0.9.1735: the panel LINES actually pick ═════════════════════════
+      // Brad: "it says pick the one you have and you cant pick it to add it."
+      // Every line called _pinPickNum with the SAME number, so clicking one
+      // retyped a number the box already held and nothing moved.
+      const p35 = fs.readFileSync(SRC, 'utf8');
+      ok('335 a base line calls the identity picker, not the number-only one',
+         /_pinPickRow\(\\'/.test(p35) && /line\(n, r\.description \|\| r\.roadName \|\| '', r\.refLink \|\| '', true, r\.roadName \|\| ''\)/.test(p35));
+      ok('335 a picked identity beats the OCR words and load order outright',
+         /if \(_rvPickedId && String\(_rvPickedId\.num\) === num\)/.test(p35)
+         && /_pinPickedRow\(num, _rvPickedId, prefer\)/.test(p35));
+      ok('335 the picked row is matched on road + description, never position',
+         /idk === want/.test(p35) && /String\(r\.roadName \|\| ''\)\.toUpperCase\(\) === String\(pick\.road\)\.toUpperCase\(\)/.test(p35));
+      ok('335 a pick is scoped to the photo\u2019s eras',
+         /var eras = _prefEras\(prefer\);[\s\S]{0,400}eras\.indexOf\(r\._era\) < 0\) continue;/.test(p35));
+      ok('335 a pick cannot survive onto a DIFFERENT photo',
+         /_rvClearPick\(\);/.test(p35) && /window\._pinReview = function \(key, only\) \{\s*\n\s*\/\/ v0\.9\.1735/.test(p35));
+      ok('335 ...nor onto a different number on the same photo',
+         /String\(_rvPickedId\.num\) === String\(num\)/.test(p35));
+      ok('335 the pick rides into ALL THREE destinations (they share one path)',
+         /_aiS = Object\.assign\(\{\}, _aiS, \{ road: _rvPickedId\.road \}\)/.test(p35));
+      ok('335 plain _pinPickNum clears any previous pick',
+         /window\._pinPickNum = function \(n\) \{\s*\n\s*_rvClearPick\(\);/.test(p35));
+
       ok('335 the word rank is SOFT — an explicit maker or era still wins',
          /_pinRowFromWords\(bucket, srcText\)/.test(psrc)
          && psrc.indexOf('_pinRowFromWords(bucket, srcText)') < psrc.indexOf('// What the reader claims to have seen still wins'));
