@@ -74,9 +74,20 @@ ok('one helper does both quarter turns',
 ok('left turns by -1 and right by +1',
    /_qL\.onclick = function \(\) \{ _turn\(-1\); \}/.test(pc)
    && /_qR\.onclick = function \(\) \{ _turn\(1\); \}/.test(pc), '');
-ok('the footer Rotate button shares the same helper, so it cannot drift',
-   /_rotateBtn\.onclick = function \(\) \{ _turn\(1\); \}/.test(pc),
-   'the footer button still has its own copy of the 90° arithmetic');
+// v0.9.1737 (Brad: "remove that rotate button"). v1736 put ↺ 90° and ↻ 90°
+// directly under the picture — both directions, beside the fine steps — so the
+// footer button was a second way to do a thing that already had a better one,
+// and two controls for one action is how they drift apart.
+ok('the footer Rotate button is gone from the markup',
+   !/_rrCropRotate/.test(pc), 'the button id is still being built');
+ok('…and nothing is left listening for it',
+   !/_rotateBtn/.test(pc), 'a dead handler for the removed button remains');
+ok('…so the footer is just Cancel and Apply',
+   /_rrCropCancel[\s\S]{0,400}_rrCropApply/.test(pc)
+   && !/margin-right:auto/.test(pc), 'the footer still has the pushed-left slot');
+ok('the 90° turns survive in the row above — this removed a duplicate, not a feature',
+   /_rrCropRotQtrL/.test(pc) && /_rrCropRotQtrR/.test(pc)
+   && /function _turn\(n\)/.test(pc), 'the quarter turns went with it');
 
 // ── zoom by button ────────────────────────────────────────────────────────
 ok('a zoom-out and a zoom-in button exist',

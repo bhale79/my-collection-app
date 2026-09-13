@@ -177,6 +177,7 @@ const HOOK = '\n;window.__T = { get groups(){return _groups;}, set groups(v){_gr
      + ' filter:function(f){ Object.assign(window._pinFilterState(), f); } };'
      + '\n;window.__MetaOf=_pinMetaOf;window.__UnreadTodo=_pinUnreadTodo;window.__GroupApply=_pinGroupApply;'
      + '\n;window.__NumFromText=_numberFromText;window.__PreferOf=_pinPreferOf;'
+     + '\n;window.__PinBytes=_pinBytes;window.__PinTokenLapsed=_pinTokenLapsed;'
      + '\n;window.__BestMaster=_pinBestMaster;window.__Lookup=_pinLookup;'
      + '\n;window.__DescMatch=_pinDescMatch;'
      + '\n;window.__Reconcile=_pinReconcileAiNum;'
@@ -23274,6 +23275,111 @@ META_WRITES.length = 0; TOASTS.length = 0;
       ok('335 the word rank is SOFT — an explicit maker or era still wins',
          /_pinRowFromWords\(bucket, srcText\)/.test(psrc)
          && psrc.indexOf('_pinRowFromWords(bucket, srcText)') < psrc.indexOf('// What the reader claims to have seen still wins'));
+    })();
+
+    // ══════════════════════════════════════════════════════════════════════
+    section('336. A Drive failure says what it was (v0.9.1738)');
+    // Brad, twice in one afternoon: "Your sign-in expired — refresh the page,
+    // then crop again." His auth log for those minutes: token healthy, renewed
+    // on schedule, no errors. All 66 inbox photos fetched HTTP 200 with that
+    // token. The message was wrong and nothing could say why, because
+    // _pinBytes threw Google's answer away and called every 401 AND 403
+    // "SESSION_EXPIRED". A 403 from Drive is usually a rate limit.
+    await (async function () {
+      const PB = window.__PinBytes;
+      ok('336 _pinBytes is reachable', typeof PB === 'function');
+      const realFetch = global.fetch, realST = global.setTimeout;
+      const realLog = window.rrSyncLog;
+      const realExpiry = localStorage.getItem('lv_token_expiry');
+      let logged = [];
+      window.rrSyncLog = function (e, i) { logged.push(e + ' ' + i); };
+      // retries must not really sleep 1s+2s per case
+      global.setTimeout = function (fn) { return realST(fn, 0); };
+      const script = (codes) => {
+        let i = 0;
+        global.fetch = async function () {
+          const c = codes[Math.min(i++, codes.length - 1)];
+          if (c === 200) return { ok: true, status: 200, blob: async () => 'BLOB' };
+          const body = c.body || {};
+          return { ok: false, status: c.status || c,
+                   json: async () => ({ error: { code: c.status || c, message: body.message || '', errors: [{ reason: body.reason || '' }] } }) };
+        };
+        return () => i;
+      };
+      const tryIt = async () => { try { return { v: await PB('1abcdefgh'), e: null }; } catch (e) { return { v: null, e: String(e && e.message) }; } };
+      window.accessToken = 'tok';
+      localStorage.setItem('lv_token_expiry', String(Date.now() + 40 * 60000));   // healthy
+
+      // ── the happy path is untouched ──────────────────────────────────────
+      logged = []; script([200]);
+      let r = await tryIt();
+      ok('336 a 200 returns the bytes and logs nothing', r.v === 'BLOB' && !r.e && logged.length === 0, JSON.stringify(r) + ' ' + logged);
+
+      // ── a rate limit is retried, and usually just works ──────────────────
+      logged = []; let calls = script([{ status: 429 }, { status: 429 }, 200]);
+      r = await tryIt();
+      ok('336 429 twice then 200 -> the bytes, no error', r.v === 'BLOB' && !r.e, JSON.stringify(r));
+      ok('336 ...after exactly 3 requests', calls() === 3, String(calls()));
+      ok('336 ...and both refusals are in the log with the try number',
+         logged.length === 2 && /-> 429/.test(logged[0]) && /\(try 2\)/.test(logged[1]), JSON.stringify(logged));
+
+      logged = []; calls = script([{ status: 403, body: { reason: 'userRateLimitExceeded', message: 'User Rate Limit Exceeded' } }, 200]);
+      r = await tryIt();
+      ok('336 a 403 userRateLimitExceeded is a rate limit, not a sign-out',
+         r.v === 'BLOB' && !r.e && calls() === 2, JSON.stringify(r));
+      ok('336 ...and the log names the reason', /403 userRateLimitExceeded/.test(logged[0] || ''), JSON.stringify(logged));
+
+      logged = []; calls = script([{ status: 429 }, { status: 429 }, { status: 429 }, { status: 429 }]);
+      r = await tryIt();
+      ok('336 three refusals -> gives up with a RATE LIMIT error, never "expired"',
+         r.e && /^rate limit:/.test(r.e) && !/SESSION_EXPIRED/.test(r.e), JSON.stringify(r));
+      ok('336 ...after exactly 3 tries, not forever', calls() === 3, String(calls()));
+
+      // ── the genuine sign-out is still named, immediately ─────────────────
+      logged = []; calls = script([{ status: 401, body: { reason: 'authError' } }]);
+      r = await tryIt();
+      ok('336 a 401 is SESSION_EXPIRED', r.e === 'SESSION_EXPIRED', JSON.stringify(r));
+      ok('336 ...with no retry (a dead token does not come alive by waiting)', calls() === 1, String(calls()));
+      ok('336 ...and it is logged too', /-> 401 authError/.test(logged[0] || ''), JSON.stringify(logged));
+
+      // ── a 403 with an auth reason: only "expired" if the token really is ─
+      localStorage.setItem('lv_token_expiry', String(Date.now() + 40 * 60000));
+      script([{ status: 403, body: { reason: 'insufficientPermissions', message: 'Insufficient Permission' } }]);
+      r = await tryIt();
+      ok('336 403 insufficientPermissions with a LIVE token is NOT "expired"',
+         r.e && /^drive 403 insufficientPermissions/.test(r.e), JSON.stringify(r));
+      localStorage.setItem('lv_token_expiry', String(Date.now() - 1000));
+      script([{ status: 403, body: { reason: 'insufficientPermissions', message: 'Insufficient Permission' } }]);
+      r = await tryIt();
+      ok('336 ...the same 403 with a LAPSED token IS expired', r.e === 'SESSION_EXPIRED', JSON.stringify(r));
+      localStorage.setItem('lv_token_expiry', String(Date.now() + 40 * 60000));
+
+      // ── anything else keeps its status and reason ────────────────────────
+      script([{ status: 404, body: { reason: 'notFound', message: 'File not found: x.' } }]);
+      r = await tryIt();
+      ok('336 a 404 says 404 and why', r.e === 'photo download 404 notFound', JSON.stringify(r));
+      script([{ status: 403, body: { reason: 'domainPolicy', message: 'Blocked by admin' } }]);
+      r = await tryIt();
+      ok('336 an unknown 403 carries its reason instead of a guess',
+         r.e && /^drive 403 domainPolicy: Blocked by admin/.test(r.e), JSON.stringify(r));
+
+      // ── the words the user sees, through the ONE shared mapper ───────────
+      if (typeof window.rrSaveError === 'function') {
+        ok('336 rrSaveError turns the rate-limit error into "slow down"',
+           /slow down/i.test(window.rrSaveError(new Error('rate limit: Drive refused the photo 3 times (429)'), 'the photo')));
+        ok('336 rrSaveError turns drive 403 into the sharing line',
+           /shared with this account/i.test(window.rrSaveError(new Error('drive 403 domainPolicy: x'), 'the photo')));
+      }
+      const p36 = require('fs').readFileSync(SRC, 'utf8');
+      ok('336 the crop toast has three honest branches, not one',
+         /rate limit\/i\.test\(_m\)/.test(p36) && /drive 403\/i\.test\(_m\)/.test(p36)
+         && /Google Drive is asking us to slow down/.test(p36));
+      ok('336 backoff is 1s, 2s, 4s', /1000 \* Math\.pow\(2, _try - 1\)/.test(p36));
+      ok('336 the old blanket 401||403 -> SESSION_EXPIRED line is gone',
+         !/if \(r\.status === 401 \|\| r\.status === 403\) throw new Error\('SESSION_EXPIRED'\);/.test(p36));
+
+      global.fetch = realFetch; global.setTimeout = realST; window.rrSyncLog = realLog;
+      if (realExpiry === null) localStorage.removeItem('lv_token_expiry'); else localStorage.setItem('lv_token_expiry', realExpiry);
     })();
 
   })().then(function () {
