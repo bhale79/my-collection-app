@@ -8216,17 +8216,71 @@
   var _idAbort = false;
   window._pinIdentifyCancel = function () { _idAbort = true; };
 
-  async function _pinBytes(fileId) {
+  // ══ v0.9.1738 — A DRIVE FAILURE NOW SAYS WHAT IT WAS ══════════════════════
+  // Brad, twice on one afternoon: "Your sign-in expired — refresh the page,
+  // then crop again." His auth log for the same minutes: token restored,
+  // renewed, healthy, no errors. All 66 inbox photos fetched HTTP 200 with
+  // that token when checked. The message was wrong, and nothing could say why,
+  // because this function threw Google's answer away:
+  //
+  //     if (r.status === 401 || r.status === 403) throw SESSION_EXPIRED
+  //
+  // A 401 is an expired sign-in. A 403 from Drive is usually NOT — it is
+  // "userRateLimitExceeded" after a burst (a 66-photo read, 66 stamps blanked
+  // and rewritten, a grid of thumbnails), and "refresh the page" only appears
+  // to cure that because the burst has passed by the time the page is back.
+  // v0.9.1443 named the 401 correctly and swept the 403 in with it.
+  //
+  // So, three things, in this order:
+  //   1. READ THE REASON Google sends, and write every failure to the app's
+  //      own sync log (the one his token history was just read from). The next
+  //      time this happens, one look at the log names the cause.
+  //   2. RETRY A RATE LIMIT on its own — 1s, 2s, 4s — before saying anything.
+  //      Most of the time that is the whole fix and no message is shown.
+  //   3. SAY "SIGNED OUT" ONLY WHEN IT IS TRUE: a 401, or a 403 with an auth
+  //      reason while the app's own token record agrees it has lapsed. Any
+  //      other 403 is reported as what it is, with the reason in the text.
+  //
+  // The thrown messages are shaped so rrSaveError (write-outbox.js) maps them
+  // without changes: "rate limit" → "Google is asking us to slow down",
+  // "drive 403 …" → the sharing/permission line. All ten callers benefit.
+  var _PIN_BYTES_TRIES = 3;
+  function _pinDriveReason(r) {
+    // Google's error body: { error: { code, message, errors: [{ reason, … }] } }
+    return r.json().then(function (j) {
+      var e = (j && j.error) || {};
+      var first = (e.errors && e.errors[0]) || {};
+      return { reason: String(first.reason || e.status || ''), msg: String(e.message || '').slice(0, 120) };
+    }).catch(function () { return { reason: '', msg: '' }; });
+  }
+  function _pinTokenLapsed() {
+    try {
+      if (typeof _rrTokenExpiry === 'function') return _rrTokenExpiry() <= Date.now();
+      var ex = parseInt(localStorage.getItem('lv_token_expiry') || '0', 10);
+      return !ex || ex <= Date.now();
+    } catch (e) { return false; }
+  }
+  async function _pinBytes(fileId, _try) {
+    _try = _try || 1;
     var r = await fetch('https://www.googleapis.com/drive/v3/files/' + fileId + '?alt=media', { headers: { Authorization: 'Bearer ' + window.accessToken } });
-    // v0.9.1443 (Brad: crop said "could not save", a refresh fixed it). A 401 or
-    // 403 here is a STALE SIGN-IN, not a broken photo. Unnamed, it reached
-    // rrSaveError as the string "photo download 401", matched none of its cases
-    // and came out as "please try again" — advice that cannot work, because the
-    // retry sends the same expired token. Named, every one of this function's
-    // ten callers gets "you have been signed out" instead.
-    if (r.status === 401 || r.status === 403) throw new Error('SESSION_EXPIRED');
-    if (!r.ok) throw new Error('photo download ' + r.status);
-    return await r.blob();
+    if (r.ok) return await r.blob();
+    var why = await _pinDriveReason(r);
+    var tag = String(fileId || '').slice(-8) + ' -> ' + r.status + (why.reason ? ' ' + why.reason : '') + (_try > 1 ? ' (try ' + _try + ')' : '');
+    try { if (typeof window.rrSyncLog === 'function') window.rrSyncLog('drive', 'GET ' + tag); } catch (eL) {}
+    var rateLimited = r.status === 429
+      || (r.status === 403 && /ratelimit|quota|backend/i.test(why.reason + ' ' + why.msg));
+    if (rateLimited && _try < _PIN_BYTES_TRIES) {
+      await new Promise(function (res) { setTimeout(res, 1000 * Math.pow(2, _try - 1)); });
+      return _pinBytes(fileId, _try + 1);
+    }
+    if (rateLimited) throw new Error('rate limit: Drive refused the photo ' + _PIN_BYTES_TRIES + ' times (' + (why.reason || r.status) + ')');
+    if (r.status === 401) throw new Error('SESSION_EXPIRED');
+    if (r.status === 403) {
+      var authShaped = /auth|token|expired|login|insufficientPermissions|forbidden/i.test(why.reason + ' ' + why.msg);
+      if (authShaped && _pinTokenLapsed()) throw new Error('SESSION_EXPIRED');
+      throw new Error('drive 403 ' + (why.reason || 'forbidden') + (why.msg ? ': ' + why.msg : ''));
+    }
+    throw new Error('photo download ' + r.status + (why.reason ? ' ' + why.reason : ''));
   }
 
   // ── FREE auto-read: read the catalog number off each photo with on-device
@@ -10743,10 +10797,20 @@
       // happened and left Brad wondering if the picture was damaged. Say what
       // actually failed, say the photo is untouched, and give advice that works.
       var _m = String((e && e.message) || e || '');
-      showToast(/SESSION_EXPIRED/.test(_m)
-        ? 'Your sign-in expired — refresh the page, then crop again. Your photo is untouched.'
-        : 'Could not open that photo for cropping. Your photo is untouched — try again.',
-        4200, true);
+      // v0.9.1738: three honest answers instead of one wrong one. A rate limit
+      // has already been retried three times by _pinBytes before it gets here;
+      // "sign-in expired" is now said only when the token really has lapsed.
+      var _say;
+      if (/SESSION_EXPIRED/.test(_m)) {
+        _say = 'Your sign-in expired — refresh the page, then crop again. Your photo is untouched.';
+      } else if (/rate limit/i.test(_m)) {
+        _say = 'Google Drive is asking us to slow down — wait a moment, then crop again. Your photo is untouched.';
+      } else if (/drive 403/i.test(_m)) {
+        _say = 'Drive would not hand over that photo (' + _m.replace(/^drive 403 /, '').split(':')[0] + '). Your photo is untouched — check the folder is still shared with this account.';
+      } else {
+        _say = 'Could not open that photo for cropping. Your photo is untouched — try again.';
+      }
+      showToast(_say, 4800, true);
       return;
     }
     window._openCropper(srcUrl, async function (blob) {

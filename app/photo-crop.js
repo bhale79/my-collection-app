@@ -376,7 +376,11 @@ function _openCropper(src, onResult, onCancel, opts) {   // v0.9.787: onCancel =
       '<button id="_rrCropZoomIn" class="rr-tap" title="Zoom in" style="' + stepBtn + '">+</button>' +
     '</div>' +
     '<div style="padding:0.85rem 1rem;display:flex;gap:0.6rem;justify-content:flex-end">' +
-      '<button id="_rrCropRotate" style="' + btn + ';margin-right:auto">\u21bb Rotate</button>' +
+      // v0.9.1737 (Brad: "remove that rotate button"): gone. v1736 put ↺ 90°
+      // and ↻ 90° directly under the picture, which does the same job in both
+      // directions and next to the fine steps, so this one was a second way to
+      // do a thing that already has a better one. Two controls for one action
+      // is how they drift apart.
       '<button id="_rrCropCancel" style="' + btn + '">' + (opts.cancelLabel || 'Cancel') + '</button>' +
       '<button id="_rrCropApply" style="' + btnA + '">' + (opts.applyLabel || 'Apply crop') + '</button>' +
     '</div>';
@@ -562,8 +566,8 @@ function _openCropper(src, onResult, onCancel, opts) {   // v0.9.787: onCancel =
   var _zOut = ov.querySelector('#_rrCropZoomOut'), _zIn = ov.querySelector('#_rrCropZoomIn');
   if (_zOut) _zOut.onclick = function () { try { if (cropper) cropper.zoom(-0.15); } catch (eZ) {} };
   if (_zIn) _zIn.onclick = function () { try { if (cropper) cropper.zoom(0.15); } catch (eZ) {} };
-  var _rotateBtn = ov.querySelector('#_rrCropRotate');
-  if (_rotateBtn) _rotateBtn.onclick = function () { _turn(1); };
+  // v0.9.1737: the footer Rotate button is gone; _turn is reached from the two
+  // 90° buttons in the row above.
   var _wholeBtn = ov.querySelector('#_rrCropWhole');
   if (_wholeBtn) _wholeBtn.onclick = function () {
     try {
