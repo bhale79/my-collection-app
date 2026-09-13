@@ -927,16 +927,69 @@ function _findMasterCore(idx, itemNum, variation, prefer) {
   const _prefEraList = (prefer && Array.isArray(prefer.eras) && prefer.eras.length)
     ? prefer.eras.map(e => String(e))
     : (_prefTab && prefer && prefer.era ? [String(prefer.era)] : []);
+  // "Belongs to the catalog the caller named" is a question about the ERA, not
+  // about which tab inside it. An era names a whole catalog — its items, its
+  // boxes, its paper — so once the caller has given one, the era alone settles
+  // it. The tab and maker tests are the fallback for a caller that gave no era.
+  // (v0.9.1731: this used to require the exact items tab even when an era was
+  // present, which meant a Boxes row did not "belong" to its own catalog. That
+  // silently disarmed the box-owner guard below — the owner of the 3464 box
+  // got the boxcar. Caught by a canary, not by reading it.)
   const _kinBelongs = (m) => {
     if (!m) return false;
-    if (_prefEraList.length && _prefEraList.indexOf(String(m._era || '')) < 0) return false;
+    if (_prefEraList.length) return _prefEraList.indexOf(String(m._era || '')) >= 0;
     if (_prefTab && m._tab === _prefTab) return true;
     if (_prefMfr && String(m._tab || '').toLowerCase().indexOf(_prefMfr) === 0) return true;
-    return !!(_prefEraList.length && !_prefTab && !_prefMfr);
+    return false;
   };
   const _kinNamed = !!(_prefTab || _prefMfr || _prefEraList.length);
+  // ══ v0.9.1731 — A CAR IS NOT ITS OWN EMPTY BOX ═══════════════════════════
+  // Found while verifying v1730 against the real master, so it is measured,
+  // not supposed: FIVE cars were still wrong. X2458, X3464, X3474, X4454 and
+  // X6004 each have a real boxcar under the X spelling — but the PLAIN number
+  // already exists in "Lionel PW - Boxes" as a Paper / Box / Misc row. v1730's
+  // gate asked "does this catalog have ANY row for this number?", the box
+  // answered yes, the bridge stayed out, and a photo of the car resolved to
+  // the empty box it came in. (Confirmed live: findMaster('3464') under a
+  // Lionel Postwar tag returned Lionel PW - Boxes.)
+  //
+  // So the gate asks a sharper question: does the catalog have a real ITEM?
+  // "Real item" is not a new fact to keep in step — it is read off ERA_TABS,
+  // where `items` names the one tab per era that holds items and every other
+  // key (boxes, paper, catalogs, sets, science, instrSheets) does not.
+  //
+  // And when the caller genuinely means the box, nothing moves. A personal row
+  // carries its own itemType (PERSONAL_SCHEMA column C) and a tagged photo
+  // carries prefer.type, so someone who owns the 3464 BOX still resolves to
+  // the box — that is the regression this guard exists to prevent, not a
+  // nicety. The kind is read through getTypeBucket rather than a private list
+  // of paper-ish words, so it cannot drift out of step with it. getTypeBucket
+  // and NOT rrNormalizeTypeToBucket: the normalizer passes "Box" through
+  // unchanged, and "Box" is the exact value a personal row carries for the
+  // thing this guard protects. Only the full classifier folds Box, Box
+  // Reference, Form and Service Manual onto Paper / Box / Misc. Measured, not
+  // assumed — the normalizer was the first thing tried here and it was wrong.
+  let _prefWantsPaper = false;
+  if (prefer) {
+    try {
+      const _pk = String(prefer.type || prefer.itemType || '').trim();
+      if (_pk && typeof getTypeBucket === 'function') {
+        _prefWantsPaper = (getTypeBucket({ itemType: _pk }) === 'Paper / Box / Misc');
+      }
+    } catch (ePK) {}
+  }
+  const _isItemsRow = (m) => {
+    if (!m || !m._tab) return true;          // unknown shape — never judge on a guess
+    let t = '';
+    try { t = (typeof ERA_TABS !== 'undefined' && ERA_TABS[m._era] && ERA_TABS[m._era].items) || ''; } catch (eIR) {}
+    return !t || m._tab === t;               // era with no items tab mapped — leave it alone
+  };
+  // The bridge is only held back by a row that is actually the THING asked
+  // for. Note this loosens the gate, never the offer: what the bridge may then
+  // add is still filtered by _kinBelongs, and ranking still has to earn it.
+  const _kinSatisfied = (m) => _kinBelongs(m) && (_prefWantsPaper || _isItemsRow(m));
   let pool = exact;
-  if (/^\d{2,6}$/.test(k) && !(_kinNamed ? exact.some(_kinBelongs) : exact.length)) {
+  if (/^\d{2,6}$/.test(k) && !(_kinNamed ? exact.some(_kinSatisfied) : exact.length)) {
     const _kin = _letterKinRows(idx, k)
       .filter(r => exact.indexOf(r) < 0 && (!_kinNamed || _kinBelongs(r)));
     // Kin go FIRST, and that ordering is the whole answer, not a nicety. The
