@@ -3612,8 +3612,12 @@
     if (_exclView.fid !== fid) _exclView = { fid: fid, nums: stored.slice() };
     else stored.forEach(function (n) { if (_exclView.nums.indexOf(n) < 0) _exclView.nums.push(n); });
     if (!_exclView.nums.length) return '';
-    return '<div id="pin-rv-excl" style="margin-top:0.55rem;padding:0.5rem 0.65rem;border:1px solid var(--border);border-radius:9px;background:var(--surface2)">'
-      + '<div style="font-size:0.7rem;font-weight:700;letter-spacing:0.03em;text-transform:uppercase;color:var(--text-dim);margin-bottom:0.3rem">Numbers excluded from earlier scans</div>'
+    // v0.9.1739: folded shut by default. It is needed one time in twenty and
+    // was spending its height every time; the count in the summary says all
+    // that matters at a glance, and one tap opens the checkboxes.
+    return '<details id="pin-rv-excl" style="margin-top:0.55rem;padding:0.5rem 0.65rem;border:1px solid var(--border);border-radius:9px;background:var(--surface2)">'
+      + '<summary style="font-size:0.7rem;font-weight:700;letter-spacing:0.03em;text-transform:uppercase;color:var(--text-dim);cursor:pointer">' + _exclView.nums.length + ' number' + (_exclView.nums.length === 1 ? '' : 's') + ' excluded from earlier scans</summary>'
+      + '<div style="margin-top:0.35rem">'
       + _exclView.nums.map(function (n, i) {
           var on = stored.indexOf(n) >= 0;
           return '<label style="display:inline-flex;align-items:center;gap:0.35rem;margin:0 0.75rem 0.3rem 0;font-size:0.82rem;color:var(--text);cursor:pointer">'
@@ -3621,7 +3625,7 @@
             + rrEsc(n) + '</label>';
         }).join('')
       + '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.25rem">Checked numbers are left out of the scan. Un-check one to allow it again — if the answer is still wrong, hit the re-scan button below.</div>'
-      + '</div>';
+      + '</div></details>';
   }
   // The checkbox handler edits ONE mark and never re-scans — the re-scan
   // button below the card is the trigger. The index points into
@@ -4634,6 +4638,15 @@
     // a big full-res photo filling the right half so you can read the label
     // without a separate zoom. Phone stays stacked (small screen).
     var _wide = !window.IS_MOBILE_UA && (window.innerWidth || 0) >= 900;
+    // v0.9.1739 (Brad, on a laptop): "having to scroll up and down to see
+    // everything ... can we widen the box and change up somethings to get it
+    // to fit without scrolling. The picture is way to big as well." At 1200px
+    // and up the card becomes two columns: ACT on the left (photo, number,
+    // every button), READ on the right (what the photo said, the catalog, the
+    // owned copies, the pick panel). The right column scrolls on its own when
+    // a car has nine variations and a mismatch warning; the buttons never
+    // move. 900-1199 keeps the stacked wide layout it always had.
+    var _wide2 = _wide && (window.innerWidth || 0) >= 1200;
     var _mainFid = thumbs[0];
 
     // v0.9.963 (Brad): answer-first layout. The read summary + catalog details
@@ -4836,7 +4849,7 @@
     // the middle full-width, and the action buttons run in a row across the
     // BOTTOM. (The old right-hand split panel — _panelHtml — was built on
     // every open and never used since v964; it is gone.)
-    var _photoWide = _pinRvHeroHtml(null, '52vh') + _pinRvRailHtml(64) + _pinRvViewsBarHtml();
+    var _photoWide = _pinRvHeroHtml(null, _wide2 ? '40vh' : '52vh') + _pinRvRailHtml(64) + _pinRvViewsBarHtml();
     var _aiL = (_pinAiLine(_mainFid) || '') + _pinTagLineHtml(_mainFid), _chips = _pinAltChips();
     var _wideBtn = 'flex:1 1 160px;padding:0.72rem 0.6rem;border-radius:10px;font-family:var(--font-body);font-weight:700;font-size:0.9rem;cursor:pointer;';
     var _wideBody =
@@ -4851,11 +4864,29 @@
       _photoWide +
       _btnArea;
 
+    // v0.9.1739 — the two-column body. Same pieces as _wideBody, arranged so
+    // nothing you need every time is ever below the fold. Both columns get
+    // min-height:0 so the grid can shrink inside the capped card; the right
+    // one scrolls, and the left one may too on a very short screen rather
+    // than clipping a button.
+    var _wideBody2 =
+      (_pinLensGroups ? _pinLensBannerHtml() : '') +
+      '<div id="pin-rv-cols" style="display:grid;grid-template-columns:1.05fr 1fr;gap:1rem;min-height:0;flex:1">' +
+        '<div id="pin-rv-act" style="display:flex;flex-direction:column;min-width:0;min-height:0;overflow-y:auto">' +
+          _photoWide +
+          _btnArea +
+        '</div>' +
+        '<div id="pin-rv-read" style="min-width:0;min-height:0;overflow-y:auto;display:flex;flex-direction:column;gap:0.75rem">' +
+          (_aiL ? '<div id="pin-rv-ailine">' + _aiL + '</div>' : '') +
+          '<div id="pin-rv-info" style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:0.85rem 0.95rem;display:flex;flex-direction:column;gap:0.4rem"></div>' +
+        '</div>' +
+      '</div>';
+
     var ov = document.createElement('div');
     ov.id = 'pin-review-ov';
     ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem';
     ov.innerHTML =
-      '<div class="rr-card"' + (_wide ? ' style="max-width:820px"' : '') + '>' +
+      '<div class="rr-card' + (_wide2 ? ' rr-card-flex' : '') + '"' + (_wide2 ? ' style="max-width:min(1500px,96vw)"' : (_wide ? ' style="max-width:820px"' : '')) + '>' +
         '<div id="pin-rv-nav" style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.6rem">' +
           _pinRvNavHtml('prev') +
           '<div style="flex:1;min-width:0;font-family:var(--font-head);font-weight:700;font-size:1rem;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + _pinRvTitle(n) + '</div>' +
@@ -4863,7 +4894,7 @@
           _pinRvNavHtml('next') +
           '<button onclick="_pinCloseReview()" style="background:none;border:none;color:var(--text-dim);font-size:1.35rem;line-height:1;cursor:pointer;padding:0.1rem 0.3rem;margin-left:0.25rem">✕</button>' +
         '</div>' +
-        (_wide ? _wideBody : _stripHtml + _controlsHtml) +
+        (_wide2 ? _wideBody2 : (_wide ? _wideBody : _stripHtml + _controlsHtml)) +
       '</div>';
     document.body.appendChild(ov);
     // v0.9.1283 (Brad: "i need to be able to drag the pictures back and
