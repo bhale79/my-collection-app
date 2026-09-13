@@ -3302,6 +3302,31 @@
     return (typeof rrDashedKin === 'function') ? rrDashedKin(num) : [];
   }
 
+  // v0.9.1735 — the row the user pointed at. Matched on road + description,
+  // never on position, and scoped to the eras the photo is tagged with so a
+  // pick cannot drag in another catalog's row that happens to share the name.
+  function _pinPickedRow(num, pick, prefer) {
+    if (!pick) return null;
+    var bucket = [];
+    try {
+      bucket = (typeof window._mbAllGet === 'function')
+        ? (window._mbAllGet(String(num).trim()) || [])
+        : ((window.state && state.masterByItem && state.masterByItem.get) ? (state.masterByItem.get(String(num).trim()) || []) : []);
+    } catch (e) { return null; }
+    var eras = _prefEras(prefer);
+    var want = (String(pick.road || '') + '|' + String(pick.desc || '')).toUpperCase();
+    var hit = null;
+    for (var i = 0; i < bucket.length; i++) {
+      var r = bucket[i];
+      if (!r) continue;
+      if (eras.length && eras.indexOf(r._era) < 0) continue;
+      var idk = (String(r.roadName || '') + '|' + String(r.description || '')).toUpperCase();
+      if (idk === want) { hit = r; break; }
+      if (!hit && pick.road && String(r.roadName || '').toUpperCase() === String(pick.road).toUpperCase()) hit = r;
+    }
+    return hit;
+  }
+
   function _pinBestMaster(num, aiMfr, prefer, srcText) {
     var bucket = null;
     // v0.9.971 (Brad): _mbAllGet = the ONE shared bucket lookup (loaded eras +
@@ -3527,6 +3552,17 @@
     // and it is the only thing that can separate nine rows sharing one number.
     if (srcText === undefined) srcText = _rvReadText();
     out.master = _pinBestMaster(num, aiMfr, prefer, srcText);
+    // v0.9.1735: the user has pointed at one of the rows under this number.
+    // That is not evidence to be weighed against OCR words and load order - it
+    // is a person telling the app which car they are holding, so it wins
+    // outright. Guarded by the number so a pick can never survive onto a
+    // different one.
+    try {
+      if (_rvPickedId && String(_rvPickedId.num) === num) {
+        var _rp = _pinPickedRow(num, _rvPickedId, prefer);
+        if (_rp) out.master = _rp;
+      }
+    } catch (ePK) {}
     if (out.master) {
       var m = out.master;
       var eraDef = (typeof ERAS !== 'undefined' && ERAS[m._era]) ? ERAS[m._era] : null;
@@ -4523,6 +4559,10 @@
   };
 
   window._pinReview = function (key, only) {
+    // v0.9.1735: a pick belongs to ONE photo. Clearing it on every card
+    // opening is what stops "I have the Savings Bank one" from silently
+    // following him onto the next car.
+    try { _rvClearPick(); } catch (ePC) {}
     _rvKey = key || '';          // v0.9.1057: which group the card is showing
     _rvGroups = key ? _groups.filter(function (g) { return g.key === key; })
                     : (only && only.length ? only.slice() : _selGroups());
@@ -5302,6 +5342,25 @@
       var groups = [], byId = {};
       rows.forEach(function (r) {
         if (!r) return;
+        // ══ v0.9.1735 — THE EMPTY BOX MAY NOT OUT-VOTE THE CAR ═════════════
+        // Measured on Brad's live 6050 card, which still said Libby's after
+        // v1734. His photo reads "XMAS ... LIONEL SAVINGS BANK SAVINGS TELLER
+        // CLUB", and the scores under 6050 came out:
+        //     Libby's Tomato Juice ............ 0
+        //     Lionel Savings Bank Boxcar ...... 5   <- the car
+        //     Swift Boxcar .................... 0
+        //     "Lionel Savings Bank Boxcar, 6" . 5   <- its BOX, in PW - Boxes
+        // A box is lettered with the name of the car inside it, so it scores
+        // identically every time. Two identities tied at 5, the helper
+        // correctly refused to choose on a tie, and the fallback was load
+        // order — Libby's. The guard against guessing became the thing that
+        // guaranteed the wrong answer.
+        //
+        // Same principle as v0.9.1733: a box is not a candidate identity for a
+        // photo of a car. _pinDemotedRow is the one place that knows which
+        // rows those are (box, set, paper, catalog, display, instruction), and
+        // it is already shared with browse.js and the relatives panel.
+        try { if (_pinDemotedRow(r)) return; } catch (eD) {}
         var road = String(r.roadName || ''), desc = String(r.description || '');
         var idk = (road + '|' + desc).toUpperCase();
         if (!byId[idk]) { byId[idk] = { row: r, hay: (road + ' ' + desc).toUpperCase() }; groups.push(byId[idk]); }
@@ -5389,9 +5448,15 @@
         return !/boxes/i.test(String(r._tab || ''));
       };
       var matchedIsSecondary = !!(matched && !_isItemRow(matched));
-      var line = function (label, desc, link, isBase) {
+      var line = function (label, desc, link, isBase, road) {
         var safe = String(label).replace(/'/g, '');
-        return '<button type="button" onclick="_pinPickNum(\'' + safe + '\')" style="display:flex;align-items:center;gap:0.5rem;width:100%;box-sizing:border-box;text-align:left;'
+        // v0.9.1735: a base line names WHICH row it is, so clicking it picks
+        // that car rather than retyping a number the box already holds.
+        var _q = function (x) { return String(x == null ? '' : x).replace(/\\/g, '').replace(/'/g, '').replace(/"/g, ''); };
+        var _go = (isBase && (road || desc))
+          ? '_pinPickRow(\'' + safe + '\',\'' + _q(road) + '\',\'' + _q(desc) + '\')'
+          : '_pinPickNum(\'' + safe + '\')';
+        return '<button type="button" onclick="' + _go + '" style="display:flex;align-items:center;gap:0.5rem;width:100%;box-sizing:border-box;text-align:left;'
           + 'background:' + (isBase ? 'rgba(41,128,185,0.14)' : 'var(--surface2)') + ';border:1px solid ' + (isBase ? '#2980b9' : 'var(--border)') + ';'
           + 'border-radius:8px;padding:0.4rem 0.55rem;margin-top:0.3rem;cursor:pointer;color:var(--text);font-family:var(--font-body)">'
           + '<span style="font-family:var(--font-mono);font-weight:700;font-size:0.82rem;color:' + (isBase ? '#2980b9' : 'var(--accent2,#c9922a)') + ';flex-shrink:0">' + esc(label) + '</span>'
@@ -5423,7 +5488,7 @@
           var idk = (String(r.roadName || '') + '|' + String(r.description || '')).toUpperCase();
           if (_seenId[idk]) return;
           _seenId[idk] = 1; _shown++;
-          html += line(n, r.description || r.roadName || '', r.refLink || '', true);
+          html += line(n, r.description || r.roadName || '', r.refLink || '', true, r.roadName || '');
         });
       }
       // then the relatives, in catalogue order
@@ -5448,10 +5513,40 @@
   }
   if (typeof window !== 'undefined') window._pinKinPanelHtml = _pinKinPanelHtml;
 
+  // ══ v0.9.1735 — "PICK THE ONE YOU HAVE" NOW ACTUALLY PICKS ═══════════════
+  // Brad, looking at the 6050 panel listing Libby's / Lionel Savings Bank /
+  // Swift: "it says pick the one you have and you cant pick it to add it."
+  // Correct — every line called _pinPickNum('6050'), and all three lines carry
+  // the SAME number, so clicking any of them typed 6050 into the box that
+  // already said 6050 and nothing moved. The panel listed the answers and
+  // offered no way to choose one.
+  //
+  // The card already has all three destinations he wants — Add to collection,
+  // Send to For Sale, and "Add to an existing item in my collection" — and
+  // every one of them acts on whatever the card currently believes the item
+  // is. So nothing new is needed: picking an identity has to change that
+  // belief, and the existing buttons follow it.
+  //
+  // _rvPickedId is that belief. It is cleared whenever a different photo is
+  // opened, so it can never leak from one review to the next.
+  var _rvPickedId = null;
+  function _rvClearPick() { _rvPickedId = null; }
   window._pinPickNum = function (n) {
+    _rvClearPick();
     var i = document.getElementById('pin-rv-num');
     if (i) i.value = n || '';
     window._pinReviewLookup(n || '');
+  };
+  // Same, but naming WHICH of the rows under that number the user means. The
+  // road name is the identity (the five Libby's variations are one identity,
+  // not five); the variation step in the Add flow is where a specific shell
+  // colour gets chosen, and it is no longer scoped away from him by v0.9.1734.
+  window._pinPickRow = function (n, road, desc) {
+    _rvPickedId = { num: String(n || ''), road: String(road || ''), desc: String(desc || '') };
+    var i = document.getElementById('pin-rv-num');
+    if (i) i.value = n || '';
+    window._pinReviewLookup(n || '');
+    try { showToast('Using ' + (road || desc || n) + ' — now choose Add, For Sale, or an item you already own', 4500); } catch (e) {}
   };
 
   // Research by Photo — the app's existing Lens route (stage the photo
@@ -6549,6 +6644,17 @@
         showToast(fileList.length + ' photo' + (fileList.length > 1 ? 's' : '') + ' will attach when you save'
           + (_offAdd ? ' — and upload when you\u2019re back online' : ' — they stay in the inbox until then'), 3500);
         var _aiS = {}; try { _aiS = _ids()[gs[0].files[0].id] || {}; } catch (eAi) {}
+        // v0.9.1735: if he picked an identity in "pick the one you have", that
+        // is the road name the Add flow must carry - otherwise the wizard's
+        // variation step scopes to the reader's guess and hides the very rows
+        // he just chose between. Covers all three destinations at once (Add,
+        // For Sale, and attach-to-an-item-I-own) because they share this path.
+        try {
+          if (_rvPickedId && String(_rvPickedId.num) === String(num)) {
+            if (_rvPickedId.road) _aiS = Object.assign({}, _aiS, { road: _rvPickedId.road });
+            if (_rvPickedId.desc) _aiS = Object.assign({}, _aiS, { desc: _rvPickedId.desc });
+          }
+        } catch (ePA) {}
         // v0.9.907 (Brad, item [1a]): hand the first inbox photo's Drive id to the
         // wizard so the variation step can preview the item you're adding.
         var _addPhotoId = (fileList[0] && fileList[0].id) || '';
