@@ -143,6 +143,9 @@ const X = new Map([
   ['191', [pre191]],
   ['L191', [l191]],
   ['1234567', []],
+  // a plain number whose own row is already a real item — the gate must not
+  // loosen for it, so it proves the v1731 change is narrow
+  ['6456', [{ itemNum: '6456', _era: 'pw', _tab: PWTAB, variation: '', itemType: 'Hopper', roadName: 'Lehigh Valley' }]],
 ]);
 const PW = { era: 'pw' }, AT = { era: 'atlas' }, MFR = { manufacturer: 'Lionel' };
 const fmX = (n, v, p) => _findMasterCore(X, n, v, p);
@@ -218,6 +221,53 @@ T('live prefer invents nothing', fmX('9999', null, LIVE), null);
 T('untagged photo (null) -> unchanged', (fmX('6454', null, null) || {})._era, 'atlas');
 const TYPEONLY = { era: '', eras: [], manufacturer: '', label: '', years: '', scale: '', type: 'Boxcar', _fromFilter: true };
 T('type-only prefer -> unchanged', (fmX('6454', null, TYPEONLY) || {})._era, 'atlas');
+
+// ── CANARY 5 (v0.9.1731): a car is not its own empty box ────────────────
+// Found by running v1730 against the REAL 165,044-row master, not by reading
+// it: five cars were still wrong. X2458, X3464, X3474, X4454 and X6004 each
+// have a real boxcar under the X spelling, but the PLAIN number already sits
+// in "Lionel PW - Boxes" as a Paper / Box / Misc row. v1730's gate asked "has
+// this catalog ANY row for this number?", the box said yes, and a photo of the
+// car resolved to the empty box it came in.
+//
+// The counter-case is the whole reason this is delicate: someone who OWNS the
+// box must still get the box. A personal row carries its own itemType, so the
+// guard has something real to read.
+const BOXTAB = 'Lionel PW - Boxes';
+ERA_TABS.pw.boxes = BOXTAB;
+const box3464 = { itemNum: '3464', _era: 'pw', _tab: BOXTAB, variation: 'A', itemType: 'Box', roadName: '' };
+const car3464 = { itemNum: 'X3464', _era: 'pw', _tab: PWTAB, variation: '1', itemType: 'Boxcar', roadName: 'New York Central' };
+X.set('3464', [box3464]);
+X.set('X3464', [car3464]);
+// Real getTypeBucket, not a stub: the first attempt here used
+// rrNormalizeTypeToBucket, which passes "Box" through unchanged and silently
+// disarmed the guard. The test must be able to catch that again.
+const tg = fs.readFileSync(path.join(__dirname, '..', 'app', 'type-groups.js'), 'utf8');
+const _tgWin = {}; (function (window) { eval(tg); })(_tgWin);
+const getTypeBucket = _tgWin.getTypeBucket;
+T('sanity: the classifier folds Box onto paper', getTypeBucket({ itemType: 'Box' }), 'Paper / Box / Misc');
+T('sanity: it does not fold Boxcar onto paper', getTypeBucket({ itemType: 'Boxcar' }), 'Boxcar');
+
+T('3464 tagged postwar -> the CAR, not the box', (fmX('3464', null, LIVE) || {}).itemNum, 'X3464');
+T('3464 tagged postwar -> the Items tab', (fmX('3464', null, LIVE) || {})._tab, PWTAB);
+T('3464 tagged postwar -> a Boxcar', (fmX('3464', null, LIVE) || {}).itemType, 'Boxcar');
+T('3464 by era list alone -> the car', (fmX('3464', null, { eras: ['pw'] }) || {}).itemNum, 'X3464');
+
+// ── and the half that protects the box owner ────────────────────────────
+const OWNSBOX = { era: 'pw', itemType: 'Box' };
+T('owner of the BOX still gets the box', (fmX('3464', null, OWNSBOX) || {}).itemNum, '3464');
+T('owner of the BOX gets the Boxes tab', (fmX('3464', null, OWNSBOX) || {})._tab, BOXTAB);
+T('photo tagged type Box -> the box',
+  (fmX('3464', null, { era: 'pw', eras: ['pw'], manufacturer: 'Lionel', type: 'Box' }) || {}).itemNum, '3464');
+T('photo tagged type Service Manual -> still paper-side',
+  (fmX('3464', null, { era: 'pw', type: 'Service Manual' }) || {}).itemNum, '3464');
+T('owner of the CAR (itemType Boxcar) gets the car',
+  (fmX('3464', null, { era: 'pw', itemType: 'Boxcar' }) || {}).itemNum, 'X3464');
+T('3464 with NO hint at all -> unchanged, the plain row', (fmX('3464', null, null) || {}).itemNum, '3464');
+
+// A number whose plain row IS already a real item must not be disturbed: the
+// gate only loosens for paper, never for items.
+T('6456 untouched: plain row is a real item', (fmX('6456', null, LIVE) || {}).itemNum, '6456');
 
 // ── the earlier canaries must be unchanged by all of the above ──────────
 T('regression: 238 period hint still 1963',
