@@ -22955,6 +22955,71 @@ META_WRITES.length = 0; TOASTS.length = 0;
          !/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/u.test(sec));
     })();
 
+    // \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
+    section('333. A stamped era is not corroboration for glued digits (v0.9.1732)');
+    // Brad's Erie boxcar: "3830 \u2014 Flatcar with Operating Submarine", from
+    // digits pieced together, on a photo tagged Lionel Postwar. The v1097
+    // guard would have caught it but for `!prefer.era` \u2014 the idea being that
+    // a stamped era gives the reconstruction a catalog to answer to. True,
+    // and not enough: Lionel Postwar holds thousands of four-digit numbers,
+    // so a four-digit window landing on one is MORE likely in a dense
+    // catalog, not less. The era decides WHERE the coincidence happens.
+    (function () {
+      const _savedFM = global.findMaster;
+      global.findMaster = (n, v, prefer) => {
+        const rows = {
+          // a real postwar item a glued window can land on
+          '3838':   { itemNum:'3838',   _era:'pw', _tab:'Lionel PW - Items',
+                      description:'Operating Submarine Car', itemType:'Operating Freight' },
+          // the dash-repaired case this machinery was BUILT for
+          '3562-1': { itemNum:'3562-1', _era:'pw', _tab:'Lionel PW - Items',
+                      description:'ATSF Barrel Car', itemType:'Operating Freight' },
+        };
+        const row = rows[String(n)];
+        if (!row) return null;
+        const eras = (prefer && prefer.eras) || (prefer && prefer.era ? [prefer.era] : []);
+        if (eras.length && eras.indexOf(row._era) < 0) return null;
+        return row;
+      };
+      const PW = { era: 'pw', eras: ['pw'], manufacturer: 'Lionel' };
+
+      // \u2500\u2500 the bug: scattered digits, era stamped \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+      const GLUED = 'ERIE BUILT BY LIONEL CAPY LD LMT LT WT 38 3 8 NEW 3 57';
+      const g = window.__NumFromText(GLUED, PW);
+      ok('333 the glued number is still FOUND', g && g.num === '3838',
+         JSON.stringify(g && g.num));
+      ok('333 but it is NOT asserted as fact, even with the era stamped',
+         g && g.matched === false, JSON.stringify(g && { num: g.num, matched: g.matched }));
+      ok('333 the reasoning says it was assembled, not read',
+         g && g.dbg && /assembled from split digits, not read/.test(g.dbg.assembledNotRead || ''),
+         JSON.stringify(g && g.dbg && g.dbg.assembledNotRead));
+      ok('333 it is offered as a choice rather than swallowed',
+         g && (g.alts || []).indexOf('3838') >= 0, JSON.stringify(g && g.alts));
+      ok('333 noEraJoin stays for the era-less case only (the two reasons are distinct)',
+         g && g.dbg && !g.dbg.noEraJoin, JSON.stringify(g && g.dbg && g.dbg.noEraJoin));
+
+      // \u2500\u2500 the half that must NOT move: dash-repaired stays a fact \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+      const DASH = 'SANTA FE BUILT BY LIONEL BARREL CAR NEW 3 3 5 6 2 1 LT WT';
+      const d = window.__NumFromText(DASH, PW);
+      ok('333 a dash-repaired reconstruction still resolves', d && d.num === '3562-1',
+         JSON.stringify(d && d.num));
+      ok('333 ...and is still ASSERTED \u2014 the dash has to land where a real family splits',
+         d && d.matched === true, JSON.stringify(d && { num: d.num, matched: d.matched }));
+      ok('333 ...so it carries no assembled-not-read caveat',
+         d && d.dbg && !d.dbg.assembledNotRead, JSON.stringify(d && d.dbg && d.dbg.assembledNotRead));
+
+      // \u2500\u2500 the source of the change, pinned against a quiet revert \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+      const pin333 = require('fs').readFileSync(SRC, 'utf8');
+      ok('333 the demotion keys on _jSrc (READ) and the dash, not on the era alone',
+         /_joinIsBare && !_joinWasRead/.test(pin333)
+         && /_joinWasRead = \(_jSrc === 'solid'\)/.test(pin333)
+         && /_joinIsBare = jHit && String\(jHit\)\.indexOf\('-'\) < 0/.test(pin333));
+      ok('333 the card SAYS it, not only the disclosure panel',
+         /Pieced together, not read \u2014 offered for you to confirm, not asserted/.test(pin333)
+         && /dbg\.assembledNotRead \? '<br>'/.test(pin333));
+      global.findMaster = _savedFM;
+    })();
+
   })().then(function () {
     console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
     process.exit(fail ? 1 : 0);
