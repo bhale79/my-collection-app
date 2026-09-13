@@ -204,6 +204,8 @@ src = src.slice(0, cut) + HOOK + '\n' + src.slice(cut);
 eval(src);
 
 const T = window.__T;
+// v0.9.1739: section 60 neuters window._pinReview for good; section 337 needs the real one.
+const REAL_PIN_REVIEW = window._pinReview;
 // _render / _pinRefresh touch Drive; neuter them for the harness
 window._pinRefresh = async () => {};
 // the v1590 staging boot poller must not fire mid-suite and drain a store a
@@ -23380,6 +23382,85 @@ META_WRITES.length = 0; TOASTS.length = 0;
 
       global.fetch = realFetch; global.setTimeout = realST; window.rrSyncLog = realLog;
       if (realExpiry === null) localStorage.removeItem('lv_token_expiry'); else localStorage.setItem('lv_token_expiry', realExpiry);
+    })();
+
+
+    section('337. The laptop review card is two columns and nothing you need is below the fold (v0.9.1739)');
+    // Brad, on a laptop: "having to scroll up and down to see everything ...
+    // can we widen the box and change up somethings to get it to fit without
+    // scrolling. The picture is way to big as well." This RENDERS the real
+    // card through the harness at three widths and reads the markup back:
+    // the layout decision is made by real code from a real window width, not
+    // asserted from a regex over the source.
+    (function () {
+      const realW = window.innerWidth, realMob = window.IS_MOBILE_UA;
+      const saveGroups = T.groups, saveKey = T.rvKey;
+      function render(w, mobile) {
+        window.innerWidth = w; window.IS_MOBILE_UA = !!mobile;
+        T.groups = mkGroups(2);
+        const before = document.body.children.length;
+        try { REAL_PIN_REVIEW('g0'); } catch (e) { return { err: String(e && e.message || e), html: '' }; }
+        const ov = document.body.children[document.body.children.length - 1];
+        const html = (document.body.children.length > before && ov) ? ov.innerHTML : '';
+        try { if (ov && document.body.children.length > before) document.body.removeChild(ov); } catch (e2) {}
+        return { err: '', html: html };
+      }
+      const lap = render(1900, false), mid = render(1000, false), ph = render(500, true);
+      ok('337 the card renders at laptop width', !lap.err && lap.html.length > 2000, lap.err || String(lap.html.length));
+      ok('337 the card renders at 1000px', !mid.err && mid.html.length > 2000, mid.err);
+      ok('337 the card renders on a phone', !ph.err && ph.html.length > 1000, ph.err);
+
+      // ── 1200 and up: two columns, ACT left, READ right ───────────────────
+      const h = lap.html;
+      const iCols = h.indexOf('id="pin-rv-cols"'), iAct = h.indexOf('id="pin-rv-act"'), iRead = h.indexOf('id="pin-rv-read"');
+      ok('337 laptop: the two-column grid exists', iCols > 0 && /id="pin-rv-cols" style="display:grid;grid-template-columns:[^"]+"/.test(h));
+      ok('337 laptop: ACT column comes first, READ second', iAct > iCols && iRead > iAct, iCols + '/' + iAct + '/' + iRead);
+      const iAdd = h.indexOf('id="pin-rv-add"'), iHero = h.indexOf('id="pin-rv-main"'), iInfo = h.indexOf('id="pin-rv-info"');
+      ok('337 laptop: the photo is in the ACT column', iHero > iAct && iHero < iRead, String(iHero));
+      ok('337 laptop: the Add button is in the ACT column, under the photo', iAdd > iHero && iAdd < iRead, String(iAdd));
+      ok('337 laptop: the catalog/owned/pick panel box is in the READ column', iInfo > iRead, String(iInfo));
+      ok('337 laptop: BOTH columns may shrink and scroll on their own (min-height:0 + overflow-y:auto)',
+         /id="pin-rv-act" style="[^"]*min-height:0[^"]*overflow-y:auto/.test(h)
+         && /id="pin-rv-read" style="[^"]*min-height:0[^"]*overflow-y:auto/.test(h));
+      ok('337 laptop: the grid itself can shrink inside the capped card', /id="pin-rv-cols" style="[^"]*min-height:0[^"]*flex:1/.test(h));
+      ok('337 laptop: the card is a flex column with overflow managed (rr-card-flex)', /class="rr-card rr-card-flex"/.test(h));
+      ok('337 laptop: the card is wide — up to 1500px, never past the screen', /max-width:min\(1500px,96vw\)/.test(h));
+      ok('337 laptop: the picture is capped at 40vh, not 52', /max-height:40vh/.test(h) && !/max-height:52vh/.test(h));
+      ok('337 laptop: every action button is present (nothing was dropped to make room)',
+         /id="pin-rv-add"/.test(h) && /Discard/.test(h) && /re-scan/i.test(h), '');
+
+      // ── 900–1199: the stacked wide card it always had ────────────────────
+      const m = mid.html;
+      ok('337 1000px: no column grid', m.indexOf('id="pin-rv-cols"') < 0);
+      ok('337 1000px: the 820px card, not the wide one', /style="max-width:820px"/.test(m) && !/1500px/.test(m));
+      ok('337 1000px: plain rr-card, not flex', /class="rr-card"/.test(m) && !/rr-card-flex/.test(m));
+      ok('337 1000px: the picture keeps its 52vh cap', /max-height:52vh/.test(m));
+
+      // ── phone: untouched ─────────────────────────────────────────────────
+      const q = ph.html;
+      ok('337 phone: no column grid, no width cap', q.indexOf('id="pin-rv-cols"') < 0 && !/max-width:/.test(q.slice(0, 80)));
+      ok('337 phone: plain rr-card', /class="rr-card"/.test(q) && !/rr-card-flex/.test(q));
+
+      // ── the decision is one line, derived from _wide, at 1200 ────────────
+      const p37 = require('fs').readFileSync(SRC, 'utf8');
+      ok('337 _wide2 is derived from _wide (a phone can never be "wide2")',
+         /var _wide2 = _wide && \(window\.innerWidth \|\| 0\) >= 1200;/.test(p37));
+      ok('337 the hero cap is chosen on the ONE _photoWide line (the 3-occurrence pin above still holds)',
+         /var _photoWide = _pinRvHeroHtml\(null, _wide2 \? '40vh' : '52vh'\) \+ _pinRvRailHtml\(64\) \+ _pinRvViewsBarHtml\(\);/.test(p37));
+      ok('337 the body is picked in one place: wide2, else wide, else stacked',
+         /\(_wide2 \? _wideBody2 : \(_wide \? _wideBody : _stripHtml \+ _controlsHtml\)\)/.test(p37));
+
+      // ── the excluded-numbers box is folded shut, count in the summary ────
+      ok('337 excluded numbers is a <details>, folded by default',
+         /return '<details id="pin-rv-excl"/.test(p37) && !/<details id="pin-rv-excl"[^>]*\bopen\b/.test(p37)
+         && /'<\/div><\/details>';/.test(p37));
+      ok('337 …its summary carries the count and pluralises',
+         /<summary[^>]*>' \+ _exclView\.nums\.length \+ ' number' \+ \(_exclView\.nums\.length === 1 \? '' : 's'\) \+ ' excluded from earlier scans<\/summary>/.test(p37));
+      ok('337 …and the checkboxes and the un-check hint are still inside it',
+         /<summary[\s\S]{0,600}type="checkbox"[\s\S]{0,900}Un-check one to allow it again[\s\S]{0,300}<\/details>/.test(p37));
+      ok('337 …the old always-open box is gone', !/<div id="pin-rv-excl"/.test(p37));
+
+      window.innerWidth = realW; window.IS_MOBILE_UA = realMob; T.groups = saveGroups; T.rvKey = saveKey;
     })();
 
   })().then(function () {

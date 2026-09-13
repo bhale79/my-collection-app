@@ -54,8 +54,10 @@ ok('#pin-rv-main exists exactly once in the source — inside that builder',
    (PI.match(/id="pin-rv-main"/g) || []).length === 1 && /id="pin-rv-main"/.test(hero), String((PI.match(/id="pin-rv-main"/g) || []).length));
 ok('the PHONE layout builds it (fixed height, so the card does not jump between portrait and landscape)',
    /var _stripHtml = _pinRvHeroHtml\('40vh', null\) \+ _pinRvRailHtml\(74\) \+ _pinRvViewsBarHtml\(\);/.test(PI), '');
+// v0.9.1739: the cap is 40vh on the two-column laptop card and 52vh on the
+// 900-1199 stacked one — still ONE line, still sized to the photo (null).
 ok('the DESKTOP layout builds it too (sized to the photo, as before)',
-   /var _photoWide = _pinRvHeroHtml\(null, '52vh'\) \+ _pinRvRailHtml\(64\) \+ _pinRvViewsBarHtml\(\);/.test(PI), '');
+   /var _photoWide = _pinRvHeroHtml\(null, _wide2 \? '40vh' : '52vh'\) \+ _pinRvRailHtml\(64\) \+ _pinRvViewsBarHtml\(\);/.test(PI), '');
 ok('its ✂ and 🔍 act on whatever is showing (data-rvbig), not on a fixed photo',
    /_pinCropPhoto\(document\.getElementById\(\\'pin-rv-main\\'\)\.getAttribute\(\\'data-rvbig\\'\)\)/.test(hero)
    && /_pinZoomPhoto\(document\.getElementById\(\\'pin-rv-main\\'\)\.getAttribute\(\\'data-rvbig\\'\)\)/.test(hero), '');
