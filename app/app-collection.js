@@ -5204,25 +5204,61 @@ function _checkWantPartners(itemNum, variation, priority, maxPrice, notes) {
   const bUnit    = getBUnit(num);          // diesel A-unit: returns "XXXC" or null
   const aUnit    = getAUnit(num);          // diesel B-unit: returns "XXX" or null
 
+  // ── v0.9.1740 (Brad, 2026-09-13): "so i added an engine from the companion
+  // checker. it said this engine matches the tender you have in your
+  // collection. i added the engine and got this screen. We need this screen
+  // if we add an engine with no tender by itself, but if we add the engine
+  // to match a tender we already have, we don't need this screen."
+  // This prompt only ever asked the WANT LIST whether a partner was spoken
+  // for — never the collection — so the tender he already owns was offered
+  // back to him as something to go looking for. If ANY partner is already
+  // in the collection, the pair is complete and there is nothing to ask.
+  // Spelling rules are the Companion Suggester's (_ccCanon): the dash before
+  // a unit letter is optional (2343C = 2343-C) and the catalog's trailing T
+  // is the app's D; a bare anchor (2343) is owned as 2343 OR 2343-P — but a
+  // bare 2466 engine is NOT a 2466T tender.
+  const _wpCanon = (n) => {
+    const s = normalizeItemNum(n).toUpperCase();
+    const m = s.match(/^(.+?\d)-?([PDTC])$/);
+    return m ? { key: m[1] + (m[2] === 'T' ? 'D' : m[2]), base: m[1], unit: m[2] === 'T' ? 'D' : m[2] } : { key: s, base: s, unit: '' };
+  };
+  const _wpOwnedKeys = new Set(), _wpOwnedPoweredBases = new Set();
+  Object.values(state.personalData || {}).forEach(pd => {
+    if (!pd || !pd.owned || !pd.itemNum) return;
+    const c = _wpCanon(pd.itemNum);
+    _wpOwnedKeys.add(c.key);
+    if (c.unit === '' || c.unit === 'P') _wpOwnedPoweredBases.add(c.base);
+  });
+  const _wpOwned = (n) => {
+    const c = _wpCanon(n);
+    if (c.unit === 'P') return _wpOwnedKeys.has(c.key) || _wpOwnedKeys.has(c.base);
+    if (c.unit) return _wpOwnedKeys.has(c.key);
+    return _wpOwnedKeys.has(c.key) || _wpOwnedPoweredBases.has(c.key);
+  };
+
   // Build list of candidates (skip any already on Want List)
   let candidates = []; // [{ itemNum, label }]
+  let partners = [];   // every partner this number has, owned or not
 
   if (isLoco) {
-    const tenders = getMatchingTenders(num);
-    tenders.forEach(t => {
+    partners = getMatchingTenders(num);
+    partners.forEach(t => {
       if (!state.wantData[t + '|']) candidates.push({ itemNum: t, label: t + ' (tender)' });
     });
   } else if (isTnd) {
-    const locos = getMatchingLocos(num);
-    locos.forEach(l => {
+    partners = getMatchingLocos(num);
+    partners.forEach(l => {
       if (!state.wantData[l + '|']) candidates.push({ itemNum: l, label: l + ' (locomotive)' });
     });
   } else if (bUnit) {
+    partners = [bUnit];
     if (!state.wantData[bUnit + '|']) candidates.push({ itemNum: bUnit, label: bUnit + ' (B unit)' });
   } else if (aUnit) {
+    partners = [aUnit];
     if (!state.wantData[aUnit + '|']) candidates.push({ itemNum: aUnit, label: aUnit + ' (A unit)' });
   }
 
+  if (partners.some(_wpOwned)) return;   // v0.9.1740: a partner is already in the collection — the pair is complete
   if (!candidates.length) return; // Nothing to offer
 
   // Build modal
