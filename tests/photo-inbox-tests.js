@@ -6392,10 +6392,12 @@ META_WRITES.length = 0; TOASTS.length = 0;
     // v0.9.1233: the description is now built by _vDescHtml (sections when
     // wide). §157 is about the LINK, so the description is stubbed to its
     // text — §185 is what proves the description itself.
-    const render = (v, isSelected) => new Function(
-      'v','itemNum','isSelected','_vBaseNum','_vEsc','_vHl','_refShort','window','_vDescHtml', tpl
+    // v0.9.1734: the card now also shows a road-name chip when the variations
+    // of one number span several roads, so the slice needs that flag in scope.
+    const render = (v, isSelected, multiRoad) => new Function(
+      'v','itemNum','isSelected','_vBaseNum','_vEsc','_vHl','_refShort','window','_vDescHtml','_vMultiRoad', tpl
     )(v, '50', !!isSelected, null, _vEsc, _vEsc, 'View ↗', win,
-      (vv) => '<span>' + _vEsc(vv.varDesc || '') + '</span>');
+      (vv) => '<span>' + _vEsc(vv.varDesc || '') + '</span>', !!multiRoad);
 
     const WITH_REF = { variation:'1', cottCode:'DE0092',
       refLink:'https://cornucopiaoftoytrains.com/gang-cars/',
@@ -20431,7 +20433,12 @@ META_WRITES.length = 0; TOASTS.length = 0;
       const p87 = require('path');
       const src87 = fs.readFileSync(p87.join(__dirname, '..', 'app', 'photo-inbox.js'), 'utf8');
       const a87 = src87.indexOf('  function _pinDashedKin(num) {');
-      const b87 = src87.indexOf('  function _pinBestMaster(num, aiMfr, prefer) {');
+      // v0.9.1734: marker made signature-agnostic. It used to spell out
+      // '(num, aiMfr, prefer)', so adding the srcText argument turned this
+      // indexOf into -1 and the slice swallowed the rest of the file — the
+      // same way two harnesses broke on 'async function companionAddToWantList'.
+      // Anchor on the NAME; arguments are not the invariant being tested.
+      const b87 = src87.indexOf('  function _pinBestMaster(');
       ok('287 the family finder exists, ahead of the resolver that needs it',
          a87 > 0 && b87 > a87);
 
@@ -23018,6 +23025,209 @@ META_WRITES.length = 0; TOASTS.length = 0;
          /Pieced together, not read \u2014 offered for you to confirm, not asserted/.test(pin333)
          && /dbg\.assembledNotRead \? '<br>'/.test(pin333));
       global.findMaster = _savedFM;
+    })();
+
+    // \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
+    section('334. A car is not its own empty box, in the READER too (v0.9.1733)');
+    // Found on Brad's real 66-photo inbox, not in a fixture: a photo reading
+    // 6462 came back "Paper / Box / Misc \u2014 NYC Gondola". The plain 6462 exists
+    // in Lionel Postwar ONLY as a box; the seven real gondolas are filed
+    // 6462-1, 6462-25, 6462-100, 6462-125, 6462-50, 6462-500. Same for 6436
+    // and 6476. v1731 fixed this shape in the catalog resolver for the LETTER
+    // form (X6454); this is the DASHED form, one level out, in the reader.
+    //
+    // v0.9.1094 already wrote the rule and only half-implemented it: "set
+    // numbers live on boxes and paperwork, not on rolling stock." Sets became
+    // invisible to the free reader's validation; boxes never did.
+    (function () {
+      const _savedFM = global.findMaster, _savedKin = global.rrDashedKin;
+      const _savedMD = global.state && state.masterData;
+      const _savedMBI = global.state && state.masterByItem;
+      // The REAL rrDashedKin out of app.js \u2014 not a stub. The first draft of
+      // this test passed with it missing, which made the whole family half
+      // vacuous; that is the same trap that made v1731's first live check lie.
+      (function () {
+        const app = require('fs').readFileSync(require('path').join(__dirname, '..', 'app', 'app.js'), 'utf8');
+        function grab(name) {
+          const i = app.indexOf('function ' + name + '(');
+          if (i < 0) throw new Error('missing ' + name);
+          let d = 0, j = app.indexOf('{', i);
+          for (let k = j; k < app.length; k++) {
+            if (app[k] === '{') d++; else if (app[k] === '}') { d--; if (!d) return app.slice(i, k + 1); }
+          }
+        }
+        eval(grab('normalizeItemNum'));
+        eval(grab('rrDashedKin'));
+        global.rrDashedKin = rrDashedKin;
+        window.rrDashedKin = rrDashedKin;
+      })();
+
+      const PWI = 'Lionel PW - Items', PWB = 'Lionel PW - Boxes';
+      const BOX = { itemNum:'6462', _era:'pw', _tab:PWB, itemType:'Box',
+                    description:'NYC Gondola, black', variation:'' };
+      const KIDS = ['6462-1','6462-25','6462-100'].map(n => ({
+        itemNum:n, _era:'pw', _tab:PWI, itemType:'Gondola',
+        roadName:'New York Central', description:'NYC Gondola', variation:'' }));
+      state.masterData = [BOX].concat(KIDS);
+      state.masterByItem = new Map();
+      state.masterData.forEach(r => {
+        const b = state.masterByItem.get(r.itemNum) || []; b.push(r);
+        state.masterByItem.set(r.itemNum, b);
+      });
+      global.findMaster = (n, v, prefer) => {
+        const row = state.masterData.find(r => String(r.itemNum) === String(n));
+        if (!row) return null;
+        const eras = (prefer && prefer.eras) || (prefer && prefer.era ? [prefer.era] : []);
+        if (eras.length && eras.indexOf(row._era) < 0) return null;
+        return row;
+      };
+      ok('334 the fixture matches the real master: kin exist, plain number is a box',
+         rrDashedKin('6462').length === 3 && BOX.itemType === 'Box');
+
+      const TXT = 'LIONEL LINES 6462 NEW YORK CENTRAL CAPY 100000 BLT 1-54 LD LMT';
+      const CAR = { era:'pw', eras:['pw'], manufacturer:'Lionel', type:'' };
+      const car = window.__NumFromText(TXT, CAR);
+      ok('334 a car photo no longer confirms against the BOX row',
+         car && car.matched === false, JSON.stringify(car && { num: car.num, matched: car.matched }));
+      ok('334 ...and the family offer it was blocking now runs',
+         car && car.dbg && /heads \d+ dashed relatives/.test(car.dbg.family || ''),
+         JSON.stringify(car && car.dbg && car.dbg.family));
+      ok('334 the number itself is still reported, not lost',
+         car && car.num === '6462', JSON.stringify(car && car.num));
+
+      // \u2500\u2500 the half that must not move: a photo OF paperwork still matches \u2500\u2500
+      const BOXPHOTO = { era:'pw', eras:['pw'], manufacturer:'Lionel', type:'', kind:'box' };
+      const bx = window.__NumFromText(TXT, BOXPHOTO);
+      ok('334 a photo tagged as a BOX still resolves to the box row',
+         bx && bx.matched === true, JSON.stringify(bx && { num: bx.num, matched: bx.matched }));
+      const PAPERPHOTO = { era:'pw', eras:['pw'], manufacturer:'Lionel', type:'Paper' };
+      const pp = window.__NumFromText(TXT, PAPERPHOTO);
+      ok('334 a photo tagged Paper still resolves',
+         pp && pp.matched === true, JSON.stringify(pp && { num: pp.num, matched: pp.matched }));
+
+      // \u2500\u2500 the source rules, pinned \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+      const pin334 = require('fs').readFileSync(SRC, 'utf8');
+      ok('334 the chokepoint rejects paper rows alongside set rows',
+         /!_isSetRow\(r\) && !_isPaperRow\(r\)/.test(pin334));
+      ok('334 "is this a real item row" is NOT re-answered \u2014 it calls _pinDemotedRow',
+         /_pinDemotedRow\(row\) && !_isSetRow\(row\)/.test(pin334)
+         && !/getTypeBucket\(\{ itemType: row/.test(pin334));
+      ok('334 the group KIND rides on prefer, so a box photo can say it is a box',
+         /kind: m\.kind \|\| ''/.test(pin334) && /prefer && prefer\.kind/.test(pin334));
+
+      global.findMaster = _savedFM; global.rrDashedKin = _savedKin;
+      if (_savedMD) state.masterData = _savedMD;
+      if (_savedMBI) state.masterByItem = _savedMBI;
+    })();
+
+    // ══════════════════════════════════════════════════════════════════════
+    section('335. Nine cars, one number — the words on the car decide (v0.9.1734)');
+    // Brad's 6050. The catalog has NINE item rows under that number: variations
+    // 1-5 Libby's Tomato Juice, 6-8 Lionel Savings Bank, 9 Swift. All Lionel,
+    // all Postwar, all Boxcar — so every rank in _pinBestMaster ties and load
+    // order handed back variation 1. His car is the Savings Bank one and says
+    // so on its side.
+    //
+    // Three separate faults, and the second is the one that trapped him:
+    //   1. the card asserted Libby's
+    //   2. the Add flow's variation list is scoped by the road name the card
+    //      chose, so it DELETED the three Savings Bank rows — the wrong guess
+    //      removed the evidence needed to correct it
+    //   3. the "pick the one you have" panel rendered only baseRows[0], so the
+    //      Savings Bank car was absent there too
+    (function () {
+      const ROWS = [];
+      for (let v = 1; v <= 5; v++) ROWS.push({ itemNum:'6050', variation:String(v), _era:'pw',
+        _tab:'Lionel PW - Items', itemType:'Boxcar', roadName:"Libby's",
+        description:"Libby's Tomato Juice Boxcar", varDesc:'TYPE 3, WHITE SHELL UNPAINTED' });
+      for (let v = 6; v <= 8; v++) ROWS.push({ itemNum:'6050', variation:String(v), _era:'pw',
+        _tab:'Lionel PW - Items', itemType:'Boxcar', roadName:'Lionel Savings Bank',
+        description:'Lionel Savings Bank Boxcar', varDesc:'TYPE 1, WHITE SHELL UNPAINTED' });
+      ROWS.push({ itemNum:'6050', variation:'9', _era:'pw', _tab:'Lionel PW - Items',
+        itemType:'Boxcar', roadName:'Swift', description:'Swift Boxcar',
+        varDesc:'TYPE 2A, DARK RED SHELL UNPAINTED' });
+
+      // ── part 1: the words on the car pick the row ──────────────────────
+      const pick = window._pinRowFromWords;
+      ok('335 the helper is exposed', typeof pick === 'function');
+      const CAR = 'LIONEL SAVINGS BANK 6050 XMAS BLT 1-61 CAPY 100000';
+      const hit = pick(ROWS, CAR);
+      ok('335 SAVINGS BANK on the car picks the Savings Bank row',
+         hit && hit.row && hit.row.roadName === 'Lionel Savings Bank',
+         JSON.stringify(hit && { road: hit.row.roadName, why: hit.why }));
+      ok('335 ...and says which words decided it',
+         hit && /SAVINGS|BANK/.test(hit.why || ''), JSON.stringify(hit && hit.why));
+      const libby = pick(ROWS, "LIBBY'S TOMATO JUICE 6050 BLT 1-63");
+      ok('335 a Libby car still picks Libby', libby && libby.row.roadName === "Libby's",
+         JSON.stringify(libby && libby.row.roadName));
+      const swift = pick(ROWS, 'SWIFT PREMIUM 6050 REFRIGERATOR');
+      ok('335 a Swift car picks Swift', swift && swift.row.roadName === 'Swift',
+         JSON.stringify(swift && swift.row.roadName));
+
+      // ── the guards: no evidence means no pick ──────────────────────────
+      ok('335 text naming none of them decides nothing',
+         pick(ROWS, 'CAPY 100000 LD LMT 123300 BLT 1-61') === null);
+      ok('335 a tie decides nothing', pick(ROWS, 'BOXCAR BOXCAR') === null);
+      ok('335 one row is never "picked" — there is nothing to choose',
+         pick([ROWS[0]], CAR) === null);
+      // THE BUG THIS TEST CAUGHT, pinned so it cannot come back: scoring row
+      // by row, the three Savings Bank variations tie with EACH OTHER on the
+      // same two words, "best beats second" never holds, and the one case this
+      // helper exists for silently returns null. Identities are scored, not
+      // rows — a tie between two spellings of the same car is not ambiguity.
+      ok('335 the winning identity having THREE variations is not a tie',
+         (function () {
+           const many = ROWS.filter(r => r.roadName === 'Lionel Savings Bank');
+           return many.length === 3 && !!pick(ROWS, CAR);
+         })());
+      ok('335 five rows of one identity plus one of another still decides',
+         (function () {
+           const mix = ROWS.filter(r => r.roadName === "Libby's" || r.roadName === 'Swift');
+           const g = pick(mix, 'SWIFT PREMIUM 6050');
+           return !!g && g.row.roadName === 'Swift';
+         })());
+      ok('335 rows that are all ONE identity decide nothing',
+         pick(ROWS.filter(r => r.roadName === "Libby's"), "LIBBY'S TOMATO JUICE") === null);
+      ok('335 no text, no pick', pick(ROWS, '') === null);
+      // varDesc must stay OUT of the haystack: every one of these rows says
+      // WHITE SHELL, and a photo of a white boxcar says WHITE too. Matching it
+      // would pick a variation for a reason unrelated to which car it is.
+      ok('335 shell-colour prose is not evidence of identity',
+         pick(ROWS, 'WHITE UNPAINTED SHELL') === null);
+
+      // ── part 2: the Add flow must not delete the rows it did not guess ──
+      const wsrc = fs.readFileSync(require('path').join(__dirname, '..', 'app', 'wizard.js'), 'utf8');
+      const vr = wsrc.slice(wsrc.indexOf('function _wizVariationRows('),
+                            wsrc.indexOf('window._wizVariationRows'));
+      ok('335 the road name no longer FILTERS the variation list',
+         !/if \(mr && String\(m\.roadName \|\| ''\)\.trim\(\) !== String\(mr\)\.trim\(\)\) return false;/.test(vr));
+      ok('335 ...it ranks instead, matching rows first',
+         /_hit\.concat\(_rest\)/.test(vr) && /String\(m\.roadName \|\| ''\)\.trim\(\) === String\(mr\)\.trim\(\)/.test(vr));
+      ok('335 itemType and period stay HARD filters — they separate real things',
+         /String\(m\.itemType \|\| ''\)\.trim\(\) !== String\(mt\)\.trim\(\)\) return false/.test(vr)
+         && /_wizPeriodOfRow\(m\) !== wantPeriod\) return false/.test(vr));
+      ok('335 the variation card names the road when the roads differ',
+         /_vMultiRoad/.test(wsrc) && /_vRoads\.size > 1/.test(wsrc));
+
+      // ── part 3: the pick panel shows every identity ────────────────────
+      const psrc = fs.readFileSync(SRC, 'utf8');
+      const panel = psrc.slice(psrc.indexOf('var baseRows = _pinKinRowsFor(n)'),
+                               psrc.indexOf('var head = baseRows.length'));
+      ok('335 the panel no longer renders only the first row',
+         !/if \(baseRows\.length\) html \+= line\(n, baseRows\[0\]\.description/.test(panel));
+      ok('335 ...it walks them, one line per distinct identity',
+         /baseRows\.forEach/.test(panel) && /_seenId\[idk\]/.test(panel));
+      ok('335 identity is road + description, so five Libby variations are ONE line',
+         /String\(r\.roadName \|\| ''\) \+ '\|' \+ String\(r\.description \|\| ''\)/.test(panel));
+
+      // and the plumbing that carries the photo's text to the picker
+      ok('335 the review card hands the read text to the picker',
+         /function _rvReadText\(\)/.test(psrc)
+         && /if \(srcText === undefined\) srcText = _rvReadText\(\);/.test(psrc)
+         && /_pinBestMaster\(num, aiMfr, prefer, srcText\)/.test(psrc));
+      ok('335 the word rank is SOFT — an explicit maker or era still wins',
+         /_pinRowFromWords\(bucket, srcText\)/.test(psrc)
+         && psrc.indexOf('_pinRowFromWords(bucket, srcText)') < psrc.indexOf('// What the reader claims to have seen still wins'));
     })();
 
   })().then(function () {
