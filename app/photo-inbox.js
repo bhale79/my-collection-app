@@ -4920,6 +4920,10 @@
     var cand = (dbg.cand || []).concat(dbg.shortCand || []);
     if (cand.length) out.push('Numbers seen: ' + cand.slice(0, 4).join(', '));
     if (dbg.joined) out.push('Pieced ' + dbg.joined + ' together from split digits');
+    // v0.9.1732 — say it on the CARD, not only behind the disclosure triangle.
+    // "Pieced X together" above reads like a success; this is the line that
+    // says it was never certain.
+    if (dbg.assembledNotRead) out.push('Pieced together, not read — offered for you to confirm, not asserted');
     if (dbg.directOverJoin) out.push('Kept the number actually read: ' + dbg.directOverJoin);
     if (dbg.viaMaker) out.push(dbg.viaMaker + ' was stamped next to the maker\u2019s name');
     if ((dbg.inEra || []).length) out.push('In that catalog: ' + dbg.inEra.slice(0, 3).join(', '));
@@ -5016,6 +5020,14 @@
             + (dbg.noEraJoin ? '<br>Assembled from split digits with no maker/era tag on this photo '
                 + '— that can match the wrong maker\u2019s list, so it is only offered. '
                 + 'Tag the photo and re-read for a filtered answer.' : '')
+            // v0.9.1732: the same honesty when the photo IS tagged. A short
+            // number carved out of scattered digits lands on a real catalog
+            // row too easily to be stated as fact, and the era does not change
+            // that — it only decides which catalog the coincidence happens in.
+            + (dbg.assembledNotRead ? '<br>' + rrEsc(dbg.assembledNotRead)
+                + ' — short numbers pieced together land on a real catalog row '
+                + 'too easily to be called certain, so it is offered for you to '
+                + 'confirm rather than asserted' : '')
             + (dbg.stampSaw ? '<br>The light-numbers pass saw: “' + rrEsc(dbg.stampSaw) + '”' : '')
             // v0.9.1294 (Brad, request #30): the excluded-numbers line MOVED
             // from this collapsed panel onto the result card, one checkbox per
@@ -8758,12 +8770,39 @@
       // demoted: 250+1 glued into 2501 is a coincidence waiting to happen,
       // while 5464475 dash-repaired into 6464-475 is seven digits of evidence,
       // and a jHit that merely re-found the direct token is no join at all.
+      // ══ v0.9.1732 — A STAMPED ERA IS NOT CORROBORATION ═══════════════════
+      // Brad's Erie boxcar came back "3830 — Flatcar with Operating Submarine"
+      // from digits pieced together, on a photo tagged Lionel Postwar. The
+      // guard above would have caught it — except for `!prefer.era`. The
+      // reasoning in v1097 was that a stamped era gives the reconstruction a
+      // particular catalog to answer to. That is true and it is not enough:
+      // Lionel Postwar holds thousands of four-digit numbers, so a four-digit
+      // window landing on one is MORE likely inside a dense catalog, not less.
+      // The era narrows where the coincidence can happen; it does not make it
+      // evidence.
+      //
+      // So the demotion now also applies, era or no era, when the number was
+      // not genuinely READ: `_jSrc === 'solid'` marks an unbroken run the
+      // reader kept together (5464475), and anything else — welded across
+      // gaps, or carved out as a window — is assembled. That is this file's
+      // own rule from v1105, "a number READ beats numbers GLUED", applied to
+      // the last corner that never got it.
+      //
+      // A DASH-REPAIRED reconstruction is exempt and stays a fact: the dash
+      // has to land where a real catalog family splits (3562-1, 6464-475), and
+      // that is structural evidence a bare four-digit window simply does not
+      // have. Demoting those would put a question in front of Brad on the
+      // cases this machinery was built to get right.
+      var _joinIsBare = jHit && String(jHit).indexOf('-') < 0;
+      var _joinWasRead = (_jSrc === 'solid');
       if (win === jHit && jHit && String(jHit) !== String(direct || '')
           && String(jHit).replace(/\D/g, '').length <= 5
-          && (!prefer || !prefer.era) && !dbg.viaMaker) {
+          && ((!prefer || !prefer.era) || (_joinIsBare && !_joinWasRead))
+          && !dbg.viaMaker) {
         var _altsJ = [String(jHit)];
         if (direct && String(direct) !== String(jHit)) _altsJ.push(String(direct));
-        dbg.noEraJoin = true;
+        if (!prefer || !prefer.era) dbg.noEraJoin = true;
+        else dbg.assembledNotRead = String(jHit) + ' was assembled from split digits, not read';
         return { num: win, matched: false, alts: _altsJ, dbg: dbg };
       }
       return { num: win, matched: solid, thin: !solid, dbg: dbg };
