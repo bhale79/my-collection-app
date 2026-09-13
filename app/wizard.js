@@ -415,14 +415,39 @@ function _wizVariationRows(itemNum) {
       if (pref && pref.period) wantPeriod = String(pref.period);
     } catch (e) {}
   }
-  return (state.masterData || []).filter(function (m) {
+  var rows = (state.masterData || []).filter(function (m) {
     if (m.itemNum !== num) return false;
     if (!m.variation) return false;
     if (mt && String(m.itemType || '').trim() !== String(mt).trim()) return false;
-    if (mr && String(m.roadName || '').trim() !== String(mr).trim()) return false;
     if (wantPeriod && _wizPeriodOfRow(m) !== wantPeriod) return false;
     return true;
   });
+  // ══ v0.9.1734 — THE ROAD NAME RANKS, IT NO LONGER DELETES ════════════════
+  // Brad's 6050 Lionel Savings Bank boxcar. The Photo Inbox card resolved the
+  // number to variation 1 — Libby's Tomato Juice, first in load order — and
+  // this filter then threw away every row whose road name was not Libby's.
+  // So the Add flow offered him five Libby's variations and silently removed
+  // the three Savings Bank rows that are his actual car.
+  //
+  // That made a guess self-sealing: the wrong headline deleted the evidence
+  // needed to correct it, and there was no way through the normal flow at all.
+  //
+  // Matching rows still come FIRST, so the common case looks exactly as it did
+  // — but nothing is hidden, and a number whose variations span several roads
+  // (6050: Libby's, Savings Bank, Swift) can always be corrected by hand. The
+  // itemType and period filters stay hard: they separate genuinely different
+  // things (the 773 fish-plate sets from the tender pairings), whereas road
+  // names separate variations of the same thing, which is what this list is
+  // FOR. Soft-ranking rather than filtering is the same shape _pinBestMaster
+  // already uses for type, period and scale.
+  if (mr && rows.length > 1) {
+    var _hit = [], _rest = [];
+    rows.forEach(function (m) {
+      (String(m.roadName || '').trim() === String(mr).trim() ? _hit : _rest).push(m);
+    });
+    if (_hit.length && _rest.length) rows = _hit.concat(_rest);
+  }
+  return rows;
 }
 if (typeof window !== 'undefined') window._wizVariationRows = _wizVariationRows;
 
@@ -2685,6 +2710,14 @@ function renderWizardStep() {
       // #1: highlight how each variation differs from the first one.
       const _vEsc = (x) => String(x == null ? '' : x).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
       const _vBaseNum = variations.length ? variations[0].variation : null;
+    // v0.9.1734 — when the variations of one number span SEVERAL ROADS, say so
+    // on each card. 6050 is five Libby's, three Lionel Savings Bank and one
+    // Swift; without this the list is nine blocks of shell-and-lettering prose
+    // with nothing to tell Brad which one is the car in his hand. The road name
+    // is the only thing that does. Shown only when it distinguishes — a normal
+    // single-road number looks exactly as it did.
+    const _vRoads = new Set(variations.map((v) => String(v.roadName || '').trim()).filter(Boolean));
+    const _vMultiRoad = _vRoads.size > 1;
       const _vBaseSet = new Set();
       if (variations.length) { String(variations[0].varDesc || variations[0].description || '').toLowerCase().split(/\s+/).forEach((w) => { const c = w.replace(/[^a-z0-9]/g,''); if (c) _vBaseSet.add(c); }); }
       const _vHl = (desc) => String(desc || '').split(/(\s+)/).map((tok) => { if (/^\s+$/.test(tok)) return tok; const c = tok.toLowerCase().replace(/[^a-z0-9]/g,''); const e = _vEsc(tok); return (c && !_vBaseSet.has(c)) ? '<span style="color:var(--accent);font-weight:700;background:rgba(232,64,28,0.14);border-radius:3px;padding:0 2px">' + e + '</span>' : e; }).join('');
@@ -2783,6 +2816,7 @@ function renderWizardStep() {
                     color:${isSelected ? 'var(--accent)' : 'var(--accent2)'};
                     min-width:2rem;
                   ">${v.variation || '—'}</span>
+                  ${_vMultiRoad && String(v.roadName || '').trim() ? '<span style="font-size:0.74rem;font-weight:700;color:var(--text);background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:0.05rem 0.4rem;flex-shrink:0;max-width:14rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + _vEsc(String(v.roadName).trim()) + '</span>' : ''}
                   ${v.cottCode ? '<span title="COTT photo code" style="font-family:var(--font-mono);font-size:0.68rem;color:var(--text-dim);border:1px solid var(--border);border-radius:4px;padding:0.05rem 0.35rem;flex-shrink:0">' + _vEsc(v.cottCode) + '</span>' : ''}
                   <span style="flex:1;min-width:0"></span>
                   ${cottLink}

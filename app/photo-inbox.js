@@ -3302,7 +3302,7 @@
     return (typeof rrDashedKin === 'function') ? rrDashedKin(num) : [];
   }
 
-  function _pinBestMaster(num, aiMfr, prefer) {
+  function _pinBestMaster(num, aiMfr, prefer, srcText) {
     var bucket = null;
     // v0.9.971 (Brad): _mbAllGet = the ONE shared bucket lookup (loaded eras +
     // the full-catalog index), so the inbox sees MTH/Atlas/etc. like Research does.
@@ -3366,6 +3366,24 @@
           if (_pm.length && _pn.length) bucket = _pm.concat(_pn);
         }
       } catch (eP9) {}
+      // v0.9.1734 — THE WORDS ON THE CAR, ranked LAST of the soft ranks so it
+      // dominates them. Brad's 6050 is nine Lionel Postwar Boxcars; type,
+      // period and scale all tie, and the hard rules below take the FIRST
+      // in-era row, so load order was the whole decision. It is not evidence.
+      // The photo said SAVINGS and BANK.
+      //
+      // Still a soft rank, not a return: an explicit maker or era statement
+      // below must keep beating it, because the user saying "this is Lionel
+      // Postwar" outranks a word that happened to appear in OCR noise.
+      try {
+        if (srcText && bucket.length > 1) {
+          var _wm = _pinRowFromWords(bucket, srcText);
+          if (_wm && _wm.row) {
+            var _wi = bucket.indexOf(_wm.row);
+            if (_wi > 0) bucket = [_wm.row].concat(bucket.slice(0, _wi), bucket.slice(_wi + 1));
+          }
+        }
+      } catch (eW9) {}
       // What the reader claims to have seen still wins — it looked at the item.
       if (aiMfr) {
         for (var i = 0; i < bucket.length; i++) {
@@ -3415,6 +3433,21 @@
       return bucket[0];
     }
     try { return (typeof findMaster === 'function') ? findMaster(num, null, prefer || null) : null; } catch (e) { return null; }
+  }
+  // v0.9.1734 — the TEXT read off the photo currently open in the review card.
+  // Sits beside _rvPrefer because it answers the same shape of question ("what
+  // does this photo tell us?") and both default into _pinLookup. Free reads
+  // store `raw`; a paid read stores `aiRaw`; either will do, and a photo with
+  // neither simply gets no word evidence.
+  function _rvReadText() {
+    try {
+      var fid = (_rvGroups && _rvGroups.length) ? _pinReadFid(_rvGroups[0]) : '';
+      if (!fid) return '';
+      var rec = _ids()[fid];
+      if (rec && typeof rec === 'object' && (rec.raw || rec.aiRaw)) return String(rec.raw || rec.aiRaw);
+      var f = _freeTried()[fid];
+      return (f && typeof f === 'object' && f.raw) ? String(f.raw) : '';
+    } catch (e) { return ''; }
   }
   // The era stamped on the photo currently open in the review card.
   function _rvPrefer() {
@@ -3482,14 +3515,18 @@
     return '';
   }
 
-  function _pinLookup(num, aiMfr, prefer) {
+  function _pinLookup(num, aiMfr, prefer, srcText) {
     num = String(num || '').trim();
     var out = { num: num, master: null, ownedPd: null, maker: '', era: '', desc: '', mfrMismatch: '' };
     if (!num) return out;
     // Default to the era stamped on the photo being reviewed, so every caller
     // gets it without having to remember to pass it.
     if (prefer === undefined) prefer = _rvPrefer();
-    out.master = _pinBestMaster(num, aiMfr, prefer);
+    // v0.9.1734: and default to the READ TEXT of the photo being reviewed, for
+    // the same reason — the free reader has stored it per file since v0.9.1068,
+    // and it is the only thing that can separate nine rows sharing one number.
+    if (srcText === undefined) srcText = _rvReadText();
+    out.master = _pinBestMaster(num, aiMfr, prefer, srcText);
     if (out.master) {
       var m = out.master;
       var eraDef = (typeof ERAS !== 'undefined' && ERAS[m._era]) ? ERAS[m._era] : null;
@@ -5230,6 +5267,61 @@
   var _FAM_STOPWORDS = { LIONEL:1, LINES:1, TRAIN:1, TRAINS:1, RAILROAD:1, RAILWAY:1,
     BOXCAR:1, GONDOLA:1, CABOOSE:1, HOPPER:1, REEFER:1, FLATCAR:1,
     CAPY:1, BUILT:1, WITH:1, THIS:1, THAT:1, FROM:1, HAVE:1, ITEM:1, SCALE:1, GAUGE:1 };
+  // ══ v0.9.1734 — WHICH OF THESE IS THE CAR IN THE PHOTO? ══════════════════
+  // Brad's 6050: the catalog has NINE item rows under that number — variations
+  // 1-5 Libby's Tomato Juice, 6-8 Lionel Savings Bank, 9 Swift. All Lionel, all
+  // Postwar, all Boxcar, so every rank in _pinBestMaster ties and load order
+  // hands back variation 1. His car is the Savings Bank one, and it says so on
+  // its side: the read text carries SAVINGS and BANK.
+  //
+  // This is the v0.9.1721 lesson again — "the road name decides" — moved from
+  // the COTT link resolver to the row picker. The words that identify a car
+  // are its road name and product name, so those are the only haystack.
+  //
+  // varDesc is deliberately NOT searched. It is shell-and-lettering prose
+  // ("TYPE 3, WHITE SHELL UNPAINTED, WITH RED & BLUE HEAT STAMPED"), and a
+  // photo of a white boxcar says WHITE too — that would pick a variation for a
+  // reason that has nothing to do with which car it is.
+  //
+  // One clear winner or nothing: best must beat second outright, exactly as
+  // _pinFamilyPick requires, because a tie is not evidence.
+  function _pinRowFromWords(rows, srcText) {
+    try {
+      if (!rows || rows.length < 2 || !srcText) return null;
+      var words = [];
+      String(srcText).toUpperCase().replace(/[^A-Z\s]/g, ' ').split(/\s+/).forEach(function (w) {
+        if (w.length >= 4 && !_FAM_STOPWORDS[w] && words.indexOf(w) < 0) words.push(w);
+      });
+      if (!words.length) return null;
+      // Score IDENTITIES, not rows. Brad's 6050 has THREE Savings Bank rows
+      // (variations 6, 7, 8) — scoring row by row, all three tie on the same
+      // two words, "best beats second" can never hold, and the winner is
+      // thrown away as ambiguous. The one case this exists for would have
+      // silently never fired. A tie between two spellings of the SAME car is
+      // not ambiguity; a tie between Libby's and Swift is.
+      var groups = [], byId = {};
+      rows.forEach(function (r) {
+        if (!r) return;
+        var road = String(r.roadName || ''), desc = String(r.description || '');
+        var idk = (road + '|' + desc).toUpperCase();
+        if (!byId[idk]) { byId[idk] = { row: r, hay: (road + ' ' + desc).toUpperCase() }; groups.push(byId[idk]); }
+      });
+      if (groups.length < 2) return null;      // one identity — nothing to choose
+      var best = null, bestN = 0, secondN = 0, bestWhy = [];
+      groups.forEach(function (g) {
+        var n = 0, why = [];
+        words.forEach(function (w) { if (g.hay.indexOf(w) >= 0) { n++; why.push(w); } });
+        if (n > bestN) { secondN = bestN; bestN = n; best = g; bestWhy = why; }
+        else if (n > secondN) secondN = n;
+      });
+      if (best && bestN >= 1 && bestN > secondN) {
+        return { row: best.row, why: bestWhy.slice(0, 3).join(', ') };
+      }
+      return null;
+    } catch (e) { return null; }
+  }
+  if (typeof window !== 'undefined') window._pinRowFromWords = _pinRowFromWords;
+
   function _pinFamilyPick(c, prefer, srcText) {
     try {
       c = String(c || '').trim();
@@ -5313,7 +5405,27 @@
       // The base first — but only when a real item row carries it.
       var baseRows = _pinKinRowsFor(n).filter(_isItemRow).filter(_eraOk);
       var html = '';
-      if (baseRows.length) html += line(n, baseRows[0].description || '', baseRows[0].refLink || '', true);
+      // ══ v0.9.1734 — EVERY IDENTITY UNDER THIS NUMBER, not just the first ══
+      // Brad's 6050 listed "Libby's Tomato Juice Boxcar" and the 6050-110
+      // Swift, and stopped. His car is the Lionel Savings Bank boxcar, which is
+      // variations 6-8 of that same 6050 — so the one panel whose whole job is
+      // "pick the one you have" was the one place his car could not be picked.
+      // It only ever rendered baseRows[0].
+      //
+      // Distinct IDENTITY means a distinct road name + description; the five
+      // Libby's variations are one identity, not five lines. Variations differ
+      // by shell colour and lettering, and that belongs in the Add flow's
+      // variation step, not here.
+      if (baseRows.length) {
+        var _seenId = {}, _shown = 0;
+        baseRows.forEach(function (r) {
+          if (_shown >= 6) return;
+          var idk = (String(r.roadName || '') + '|' + String(r.description || '')).toUpperCase();
+          if (_seenId[idk]) return;
+          _seenId[idk] = 1; _shown++;
+          html += line(n, r.description || r.roadName || '', r.refLink || '', true);
+        });
+      }
       // then the relatives, in catalogue order
       kin.slice().sort(function (a, b) { return String(a).localeCompare(String(b), undefined, { numeric: true }); })
          .forEach(function (k) {
@@ -8261,6 +8373,55 @@
     // to the free reader's validation now. (The PAID reader is untouched: it
     // sees the photo, and a photo genuinely can be of a boxed set.)
     var _isSetRow = _pinIsSetRow;   // v0.9.1094: hoisted — three indexes share it now
+    // ══ v0.9.1733 — "…AND PAPERWORK", the other half of the v1094 sentence ══
+    // The note above says it outright: "set numbers live on boxes and paperwork,
+    // not on rolling stock." Sets were made invisible to the free reader's
+    // validation; BOXES never were, and it shows on Brad's real inbox. A photo
+    // reading 6462 came back "Paper / Box / Misc — NYC Gondola": the plain 6462
+    // exists in Lionel Postwar ONLY as a box, while the seven real gondolas are
+    // filed 6462-1, 6462-25, 6462-100, 6462-125, 6462-50, 6462-500. Same for
+    // 6436 and 6476.
+    //
+    // Nothing is missing from the catalog and nothing needs picking here. The
+    // file already has the right answer one step further down: _pinFamilyPick
+    // asks whether a seen number HEADS A DASHED FAMILY and offers the variants
+    // for a human to settle (rrDashedKin's own rule — "callers offer; the human
+    // decides", because choosing among seven would be the number-only
+    // first-find bug wearing a new hat). That path never ran, because the box
+    // row answered first and looked like a hit.
+    //
+    // So a box/paper row stops being an answer for a number read off a MODEL,
+    // exactly as a set row already does, and 6462 falls through to the family
+    // offer. The kind is read through getTypeBucket, the same single source of
+    // truth v1731 uses, so Box / Box Reference / Form / Service Manual are all
+    // covered without a private list here.
+    //
+    // Unless, of course, the photo IS of paperwork: a photo tagged Paper, Box
+    // or Catalog keeps the old behaviour, so scanning a box individually still
+    // finds the box. (The BATCH reader skips paper-tagged photos entirely —
+    // v0.9.1340 — so this only affects a deliberate single scan.)
+    //
+    // "Is this a real item row?" is NOT re-answered here. _pinDemotedRow above
+    // already is that answer — "box, set, paper, catalog, display and
+    // instruction rows alike", quoted from v0.9.1444, shared with browse.js as
+    // window.rrDemotedRow and with the relatives panel. A second opinion in
+    // this file is how this project produced eight bugs from one fact; the
+    // first draft of THIS change reached for getTypeBucket and would have been
+    // the ninth (and would have silently no-opped, since getTypeBucket is not
+    // in the reader's scope in every harness).
+    var _photoIsPaper = false;
+    try {
+      var _ptK = String((prefer && (prefer.type || prefer.itemType)) || '').trim();
+      if (_ptK) _photoIsPaper = _pinDemotedRow({ itemType: _ptK });
+      // and the group kind, which is how a box photo says it is a box
+      if (!_photoIsPaper && /^(box|paper)$/i.test(String((prefer && prefer.kind) || ''))) _photoIsPaper = true;
+    } catch (ePT) {}
+    var _isPaperRow = function (row) {
+      if (!row || _photoIsPaper) return false;
+      // _isSetRow is already applied beside this one; this is the rest of the
+      // same sentence — the box and paperwork half.
+      try { return _pinDemotedRow(row) && !_isSetRow(row); } catch (eP) { return false; }
+    };
     // v0.9.1168 — THE CHOKEPOINT for a rejected answer. Filtering the producers
     // was whack-a-mole: the token list, the maker-adjacent scan, the whole-run
     // reconstruction and the sliding-window slicer each build candidates their own
@@ -8273,7 +8434,7 @@
       ? function (c) {
           if (_isRejected(c)) return null;
           var r = findMaster(c, null, prefer || null);
-          return (r && !_isSetRow(r)) ? r : null;
+          return (r && !_isSetRow(r) && !_isPaperRow(r)) ? r : null;
         }
       : null;
     // v0.9.1167 (Brad: "if i once again tell you its a lionel, don't suggest to
@@ -9913,7 +10074,11 @@
           label: _pinEraLabel(m.era),
           years: (_tp.period && typeof _RR_PERIOD_YEARS !== 'undefined' && _RR_PERIOD_YEARS[_tp.period]) || '',
           scale: _tp.scale || '', period: _tp.period || '',
-          type: m.type || '', _fromFilter: false,
+          // v0.9.1733: the KIND rides along too. The Type tag list has no
+          // "Box" in it (Paper / Catalog / Other are the paperwork tags) — a
+          // photo OF a box is marked by its group kind, and the reader needs
+          // that to know a box row is the right answer for once.
+          type: m.type || '', kind: m.kind || '', _fromFilter: false,
         };
       }
       var af = (m.era && typeof rrActiveFilter === 'function') ? rrActiveFilter(m.era) : null;
@@ -9921,7 +10086,7 @@
       // to decide what it is"): the photo's own Type tag rides on the prefer
       // object — even when no era filter resolves, a typed photo still gets
       // its type hint.
-      if (!af) return m.type ? { era: '', eras: [], manufacturer: '', label: '', years: '', scale: '', type: m.type, _fromFilter: true } : null;
+      if (!af) return (m.type || m.kind) ? { era: '', eras: [], manufacturer: '', label: '', years: '', scale: '', type: m.type || '', kind: m.kind || '', _fromFilter: true } : null;
       return {
         era:          af.era || '',        // '' when the filter spans several eras
         eras:         (af.eras && af.eras.length) ? af.eras : (af.era ? [af.era] : []),
@@ -9930,6 +10095,7 @@
         years:        af.years || '',
         scale:        af.scale || '',
         type:         m.type || '',
+        kind:         m.kind || '',      // v0.9.1733
         _fromFilter:  !m.era,
       };
     } catch (e) { return null; }
