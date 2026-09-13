@@ -317,6 +317,10 @@ function _openCropper(src, onResult, onCancel, opts) {   // v0.9.787: onCancel =
   ov.style.cssText = 'position:fixed;inset:0;z-index:100010;background:#000;display:flex;flex-direction:column';
   var btn = 'padding:0.55rem 1.1rem;border-radius:8px;font-family:var(--font-body);font-size:0.9rem;font-weight:600;cursor:pointer;border:1px solid #555;background:#2a2a2a;color:#eee';
   var btnA = 'padding:0.55rem 1.2rem;border-radius:8px;font-family:var(--font-body);font-size:0.9rem;font-weight:700;cursor:pointer;border:none;background:var(--accent);color:var(--on-accent)';
+  // v0.9.1736 (Brad): the step buttons share ONE style, built from btn above so
+  // this row introduces no colour of its own. The two hand-written copies the
+  // old −/+ buttons carried are gone with the slider.
+  var stepBtn = btn + ';padding:0.45rem 0.6rem;min-width:46px;min-height:40px;font-size:0.86rem;line-height:1;white-space:nowrap';
   ov.innerHTML =
     '<div style="padding:0.75rem 1rem;display:flex;justify-content:space-between;align-items:center;color:#fff;gap:1rem;flex-wrap:wrap">' +
       '<strong style="font-size:1rem">' + (opts.title || 'Crop photo') + '</strong>' +
@@ -349,12 +353,27 @@ function _openCropper(src, onResult, onCancel, opts) {   // v0.9.787: onCancel =
     // controllable. It is now a LEVELLING control: plus or minus 15 degrees,
     // a tenth of a degree per pixel. The ↻ button still does the 90s, and the
     // − / + buttons step a single degree for honing in.
-    '<div style="padding:0.55rem 1rem 0;display:flex;align-items:center;gap:0.4rem">' +
+    // ══ v0.9.1736 (Brad) — BUTTONS UNDER THE PICTURE, NO SLIDER ════════════
+    // "need the crop angle to adjust by .5 angle not 1. also can we -90, -.5,
+    // +.5, +90 arrows directly under the picture, don't need the scroll bar.
+    // also need a + / - zoom button."
+    //
+    // The slider is gone. v0.9.1049 already narrowed it from 360° to ±15°
+    // because a thumb-width moved it thirty degrees; the honest end of that
+    // road is that levelling a photo is a STEPPING job, not a dragging one.
+    // Every control here now moves a known amount, so the result is repeatable
+    // and nothing can fling.
+    '<div style="padding:0.55rem 1rem 0;display:flex;align-items:center;gap:0.35rem;flex-wrap:wrap;justify-content:center">' +
       '<span style="color:#ccc;font-size:0.78rem;white-space:nowrap">Level</span>' +
-      '<button id="_rrCropRotMinus" class="rr-tap" title="1 degree left" style="min-width:38px;min-height:38px;border-radius:8px;border:1px solid #555;background:#2a2a2a;color:#eee;font-size:1.05rem;line-height:1;cursor:pointer">\u2212</button>' +
-      '<input id="_rrCropRot" type="range" min="-15" max="15" step="0.5" value="0" style="flex:1;accent-color:var(--accent,#e8401c)">' +
-      '<button id="_rrCropRotPlus" class="rr-tap" title="1 degree right" style="min-width:38px;min-height:38px;border-radius:8px;border:1px solid #555;background:#2a2a2a;color:#eee;font-size:1.05rem;line-height:1;cursor:pointer">+</button>' +
-      '<span id="_rrCropRotV" style="color:#ccc;font-size:0.78rem;min-width:3.4em;text-align:right">0\u00b0</span>' +
+      '<button id="_rrCropRotQtrL" class="rr-tap" title="Turn 90 degrees left" style="' + stepBtn + '">\u21ba 90\u00b0</button>' +
+      '<button id="_rrCropRotMinus" class="rr-tap" title="Half a degree left" style="' + stepBtn + '">\u2212 0.5\u00b0</button>' +
+      '<span id="_rrCropRotV" style="color:#ccc;font-size:0.82rem;min-width:4.2em;text-align:center;font-variant-numeric:tabular-nums">0.0\u00b0</span>' +
+      '<button id="_rrCropRotPlus" class="rr-tap" title="Half a degree right" style="' + stepBtn + '">+ 0.5\u00b0</button>' +
+      '<button id="_rrCropRotQtrR" class="rr-tap" title="Turn 90 degrees right" style="' + stepBtn + '">\u21bb 90\u00b0</button>' +
+      '<span style="display:inline-block;width:0.9rem"></span>' +
+      '<span style="color:#ccc;font-size:0.78rem;white-space:nowrap">Zoom</span>' +
+      '<button id="_rrCropZoomOut" class="rr-tap" title="Zoom out" style="' + stepBtn + '">\u2212</button>' +
+      '<button id="_rrCropZoomIn" class="rr-tap" title="Zoom in" style="' + stepBtn + '">+</button>' +
     '</div>' +
     '<div style="padding:0.85rem 1rem;display:flex;gap:0.6rem;justify-content:flex-end">' +
       '<button id="_rrCropRotate" style="' + btn + ';margin-right:auto">\u21bb Rotate</button>' +
@@ -499,7 +518,9 @@ function _openCropper(src, onResult, onCancel, opts) {   // v0.9.787: onCancel =
     var total = ((_quarters * 90) + _fine);
     while (total > 180) total -= 360;
     while (total < -180) total += 360;
-    if (rotV) rotV.textContent = (Math.round(total * 10) / 10) + '°';
+    // v0.9.1736: one decimal always, so 0.5 steps read as 0.5 / 1.0 / 1.5
+    // instead of flicking between "1" and "1.5" and looking like a glitch.
+    if (rotV) rotV.textContent = (Math.round(total * 10) / 10).toFixed(1) + '°';
     try { if (cropper) cropper.rotateTo(total); } catch (eR) {}
   }
   function _setFine(v) {
@@ -520,17 +541,29 @@ function _openCropper(src, onResult, onCancel, opts) {   // v0.9.787: onCancel =
       _fine = actual - (_quarters * 90);
       if (_fine > 15 || _fine < -15) _fine = 0;
       if (rotEl) rotEl.value = _fine;
-      if (rotV) rotV.textContent = (Math.round(actual * 10) / 10) + '°';
+      if (rotV) rotV.textContent = (Math.round(actual * 10) / 10).toFixed(1) + '°';
     } catch (e) {}
   }
   if (rotEl) rotEl.addEventListener('input', function () { _setFine(parseFloat(rotEl.value) || 0); });
+  // v0.9.1736 (Brad): half a degree per press, not a whole one. A whole degree
+  // is visibly past level on a car photographed straight on — he was having to
+  // choose between one degree too little and one too much.
   var _minusBtn = ov.querySelector('#_rrCropRotMinus'), _plusBtn = ov.querySelector('#_rrCropRotPlus');
-  if (_minusBtn) _minusBtn.onclick = function () { _setFine(_fine - 1); };
-  if (_plusBtn) _plusBtn.onclick = function () { _setFine(_fine + 1); };
-  ov.querySelector('#_rrCropRotate').onclick = function () {
-    _quarters = (_quarters + 1) % 4;
-    _applyRot();
-  };
+  if (_minusBtn) _minusBtn.onclick = function () { _setFine(_fine - 0.5); };
+  if (_plusBtn) _plusBtn.onclick = function () { _setFine(_fine + 0.5); };
+  // The quarter-turns, both directions, beside the fine steps. _quarters is
+  // kept 0..3 so the existing total/seed arithmetic is untouched.
+  function _turn(n) { _quarters = (((_quarters + n) % 4) + 4) % 4; _applyRot(); }
+  var _qL = ov.querySelector('#_rrCropRotQtrL'), _qR = ov.querySelector('#_rrCropRotQtrR');
+  if (_qL) _qL.onclick = function () { _turn(-1); };
+  if (_qR) _qR.onclick = function () { _turn(1); };
+  // v0.9.1736: zoom by button as well as by pinch/scroll. Cropper's own zoom
+  // is relative, so each press is the same nudge wherever you already are.
+  var _zOut = ov.querySelector('#_rrCropZoomOut'), _zIn = ov.querySelector('#_rrCropZoomIn');
+  if (_zOut) _zOut.onclick = function () { try { if (cropper) cropper.zoom(-0.15); } catch (eZ) {} };
+  if (_zIn) _zIn.onclick = function () { try { if (cropper) cropper.zoom(0.15); } catch (eZ) {} };
+  var _rotateBtn = ov.querySelector('#_rrCropRotate');
+  if (_rotateBtn) _rotateBtn.onclick = function () { _turn(1); };
   var _wholeBtn = ov.querySelector('#_rrCropWhole');
   if (_wholeBtn) _wholeBtn.onclick = function () {
     try {
