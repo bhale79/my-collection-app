@@ -58,6 +58,7 @@ const WHAT_I_COLLECT = {
                 'marklin_h0', 'marklin_z', 'marklin_1',   // v0.9.1690: Maerklin's three gauges
                 'kato_n', 'kato_ho', 'kato_parts',         // v0.9.1693: Kato USA
                 'microtrains_n',                           // v0.9.1719: Micro-Trains Line
+                'trepro',                                  // v0.9.1747: T-Reproductions
                 'weaver', 'rmt', 'menards', 'menards_ho', 'thirdrail', 'usatrains', 'lgb',
                 // v0.9.1159: placed rather than left to fall to the end.
                 'kline', 'williams', 'marx', 'other_o',
@@ -189,6 +190,7 @@ const WHAT_I_COLLECT = {
     kato_ho:      'ho',
     kato_parts:   'n',   // parts span N and HO; filed under N so the era is pickable (the row's Gauge column says which)
     microtrains_n: 'n',  // v0.9.1719
+    trepro:       'g',   // v0.9.1747: 3¼" gauge has no chip of its own; filed under G (large scale, outdoors) so the era is pickable — ERA_SCALE and the row's Gauge column say the truth
     am_s:         's',
     shelper:      's',
     rmt:          'o',
@@ -244,6 +246,7 @@ const WHAT_I_COLLECT = {
     // lowercased manufacturer string in ERAS, and the preference reads as an
     // allow-list, so a mismatch here HIDES every row on the tab.
     'micro-trains': { id: 'micro-trains', label: 'Micro-Trains', default: false },
+    't-reproductions': { id: 't-reproductions', label: 'T-Reproductions', default: false },   // v0.9.1747: key = ERAS.trepro.manufacturer lowercased
     // v0.9.1159 — these three makers have had ERAS entries, master tabs and
     // catalog rows since 2026-07-28, but were never added here, so they could not
     // be picked in the manufacturer chip OR in "What I Collect" — and because the
@@ -470,6 +473,9 @@ window.FEATURE_MAP     = FEATURE_MAP;
 // the same problem for Maerklin by reusing a literal; this is the tidier
 // version of that idea, and it costs the budget nothing.)
 WHAT_I_COLLECT.eraColors.microtrains_n = WHAT_I_COLLECT.eraColors.atlas;
+// v0.9.1747: T-Reproductions takes the LGB garden green by reference — an
+// outdoor railroad, and no new literal for the colour ratchet to carry.
+WHAT_I_COLLECT.eraColors.trepro = WHAT_I_COLLECT.eraColors.lgb;
 
 window.GMAIL_HELP      = GMAIL_HELP;
 window.WHAT_I_COLLECT  = WHAT_I_COLLECT;

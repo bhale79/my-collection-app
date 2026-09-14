@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.1746';
+const APP_VERSION = 'v0.9.1747';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -952,6 +952,17 @@ const ERAS = {
   // numbers) are NOT in the maker's database — they were built by Micro-Trains
   // but never catalogued, and trovestar.com is where those live.
   microtrains_n: { id: 'microtrains_n', label: 'Micro-Trains N', years: 'All', prefix: 'Micro-Trains N', manufacturer: 'Micro-Trains' },
+  // v0.9.1747: T-Reproductions, LLC (Norman Thomas, Johnson City TN; defunct).
+  // NOT a Lionel reproduction house in the Williams/MTH sense: their line was
+  // the Buddy L 3¼-inch-gauge pressed-steel outdoor railroad, made under
+  // license, plus accessories and parts. The Lionel-pattern tinplate
+  // accessories collectors know them for (129 terrace, 840 power house,
+  // 114/115/116 station, 300 Hellgate) appear on their site only as a parts
+  // list. 44 rows, built from the maker's own website as captured by the
+  // Wayback Machine (see T_REPRODUCTIONS_SOURCE_2026-09-14.md). Item numbers
+  // are exactly as the site printed them, collisions included (Variation
+  // separates them) — nothing invented.
+  trepro: { id: 'trepro', label: 'T-Reproductions', years: 'All', prefix: 'T-Reproductions', manufacturer: 'T-Reproductions' },
   atlas:  { id: 'atlas',  label: 'Atlas O',     years: 'All',        prefix: 'Atlas O',        manufacturer: 'Atlas' },
   // Session 174 (Brad): Atlas HO/N/Z tabs exist & are populated in the master
   // sheet (added in the 2026-07-21 merge) but were never wired up, so ~33.5k
@@ -1016,7 +1027,7 @@ const ERAS = {
   bachmann_all:   { id: 'bachmann_all',   label: 'Bachmann All Scales', years: 'All', prefix: 'Bachmann All Scales', manufacturer: 'Bachmann' },
 };
 // Real-era IDs in load priority order (excluding 'all' meta-era).
-const REAL_ERA_IDS = ['pw', 'mpc', 'mod_ho', 'mod_s', 'af_gilbert', 'am_s', 'shelper', 'prewar', 'atlas', 'atlas_ho', 'atlas_n', 'atlas_z', 'mth_o', 'mth_ho', 'mth_s', 'mth_tinplate', 'mth_g', 'marklin_h0', 'marklin_z', 'marklin_1', 'kato_n', 'kato_ho', 'kato_parts', 'microtrains_n', 'weaver', 'rmt', 'menards', 'menards_ho', 'thirdrail', 'usatrains', 'lgb', 'kline', 'williams', 'marx', 'other_o', 'aristocraft', 'accucraft', 'bachmann_ho', 'bachmann_n', 'bachmann_g', 'bachmann_o', 'bachmann_on30', 'bachmann_hon30', 'bachmann_all'];
+const REAL_ERA_IDS = ['pw', 'mpc', 'mod_ho', 'mod_s', 'af_gilbert', 'am_s', 'shelper', 'prewar', 'atlas', 'atlas_ho', 'atlas_n', 'atlas_z', 'mth_o', 'mth_ho', 'mth_s', 'mth_tinplate', 'mth_g', 'marklin_h0', 'marklin_z', 'marklin_1', 'kato_n', 'kato_ho', 'kato_parts', 'microtrains_n', 'trepro', 'weaver', 'rmt', 'menards', 'menards_ho', 'thirdrail', 'usatrains', 'lgb', 'kline', 'williams', 'marx', 'other_o', 'aristocraft', 'accucraft', 'bachmann_ho', 'bachmann_n', 'bachmann_g', 'bachmann_o', 'bachmann_on30', 'bachmann_hon30', 'bachmann_all'];
 
 // ── Master sheet tab names per era ──
 // Session 154: scale per era — drives the want-list Scale filter (master
@@ -1039,6 +1050,7 @@ const ERA_SCALE = {
   marklin_h0: 'HO', marklin_z: 'Z', marklin_1: 'G',   // v0.9.1690 — Maerklin Gauge 1 is 1:32 on 45mm track, the same track as G
   kato_n: 'N', kato_ho: 'HO', kato_parts: '',   // v0.9.1693 — parts span both scales; blank on purpose (same meaning as bachmann_all)
   microtrains_n: 'N',   // v0.9.1719
+  trepro: '3¼"',     // v0.9.1747 — Buddy L 3¼-inch gauge; no other era runs on it
   mth_g: 'G',
   atlas_ho: 'HO', atlas_n: 'N', atlas_z: 'Z',
 };
@@ -1150,6 +1162,7 @@ const ERA_TABS = {
   kato_ho:    { items: 'Kato HO' },
   kato_parts: { items: 'Kato Parts' },
   microtrains_n: { items: 'Micro-Trains N' },   // v0.9.1719
+  trepro:        { items: 'T-Reproductions' },  // v0.9.1747
   am_s:       { items: 'American Models S' },
   shelper:    { items: 'S-Helper Service S' },
   weaver: {
