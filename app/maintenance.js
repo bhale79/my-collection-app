@@ -1051,96 +1051,96 @@
     {s:'?',m:'33|000',r:'',t:'N 33,000 Gallon Tank Car',u:'/pdf/NFreightCarPDF/NACF33000GalTankCar.pdf'},
     {s:'N',m:'ps2',r:'',t:'N PS-2 Covered Hopper',u:'/PartsPDF/NScale/N-PS-2%202%20Bay%20Cvd%20Hop.pdf'},
     {s:'?',m:'f150|fordf150',r:'',t:'N Ford® F-150 Pickup Trucks',u:'/pdf/NFreightCarPDF/NFORDF150_2Versions.pdf'},
-    {s:'O',m:'aem7|alp44',r:'',t:'HO AEM-7/ALP-44 Loco',u:'/PartsPDF/HOScale/HO%20AEM-7%20ELECTRIC%20LOCO%201.pdf'},
-    {s:'O',m:'aem7|alp44',r:'',t:'HO AEM-7/ALP-44 Loco',u:'/PartsPDF/HOScale/AEM7Diagrams.pdf'},
-    {s:'O',m:'alp45dp',r:'',t:'HO ALP45DP Loco',u:'/PartsPDF/HOScale/HOalp45dp.pdf'},
-    {s:'O',m:'b237',r:'',t:'HO B23-7 Locomotive - Silver',u:'/PartsPDF/HOScale/HOB23SilverLoco.pdf'},
-    {s:'O',m:'b237',r:'',t:'HO B23-7 Locomotive - Gold',u:'/PartsPDF/HOScale/HOB23GoldLoco.pdf'},
-    {s:'O',m:'b237|307',r:'',t:'HO B23-7/30-7 Locomotive - Analog',u:'/PartsPDF/HOScale/HOB237307LocoAnalog.pdf'},
-    {s:'O',m:'c307',r:'',t:'HO C30-7 Locomotive',u:'/PartsPDF/HOScale/HOC30-7Locomotive.pdf'},
-    {s:'O',m:'c420',r:'',t:'HO C420 Phase 1 Locomotive - Silver',u:'/PartsPDF/HOScale/HOC420SilverLocomotive.pdf'},
-    {s:'O',m:'c420',r:'',t:'HO C420 Phase 1 Locomotive - Gold',u:'/PartsPDF/HOScale/HOC420GoldLocomotive.pdf'},
-    {s:'O',m:'c420',r:'',t:'HO C420 Phase 1 High Nose Locomotive - Silver',u:'/PartsPDF/HOScale/HOC420Ph1SilverLocomotive.pdf'},
-    {s:'O',m:'c420',r:'',t:'HO C420 Phase 1 High Nose Locomotive - Gold',u:'/PartsPDF/HOScale/HOC420Ph1GoldLocomotive.pdf'},
+    {s:'HO',m:'aem7|alp44',r:'',t:'HO AEM-7/ALP-44 Loco',u:'/PartsPDF/HOScale/HO%20AEM-7%20ELECTRIC%20LOCO%201.pdf'},
+    {s:'HO',m:'aem7|alp44',r:'',t:'HO AEM-7/ALP-44 Loco',u:'/PartsPDF/HOScale/AEM7Diagrams.pdf'},
+    {s:'HO',m:'alp45dp',r:'',t:'HO ALP45DP Loco',u:'/PartsPDF/HOScale/HOalp45dp.pdf'},
+    {s:'HO',m:'b237',r:'',t:'HO B23-7 Locomotive - Silver',u:'/PartsPDF/HOScale/HOB23SilverLoco.pdf'},
+    {s:'HO',m:'b237',r:'',t:'HO B23-7 Locomotive - Gold',u:'/PartsPDF/HOScale/HOB23GoldLoco.pdf'},
+    {s:'HO',m:'b237|307',r:'',t:'HO B23-7/30-7 Locomotive - Analog',u:'/PartsPDF/HOScale/HOB237307LocoAnalog.pdf'},
+    {s:'HO',m:'c307',r:'',t:'HO C30-7 Locomotive',u:'/PartsPDF/HOScale/HOC30-7Locomotive.pdf'},
+    {s:'HO',m:'c420',r:'',t:'HO C420 Phase 1 Locomotive - Silver',u:'/PartsPDF/HOScale/HOC420SilverLocomotive.pdf'},
+    {s:'HO',m:'c420',r:'',t:'HO C420 Phase 1 Locomotive - Gold',u:'/PartsPDF/HOScale/HOC420GoldLocomotive.pdf'},
+    {s:'HO',m:'c420',r:'',t:'HO C420 Phase 1 High Nose Locomotive - Silver',u:'/PartsPDF/HOScale/HOC420Ph1SilverLocomotive.pdf'},
+    {s:'HO',m:'c420',r:'',t:'HO C420 Phase 1 High Nose Locomotive - Gold',u:'/PartsPDF/HOScale/HOC420Ph1GoldLocomotive.pdf'},
     {s:'HO',m:'c424|425',r:'',t:'HO C424/425 Loco',u:'/pdf/HO%20C-424-425%20LOCOS%20JAPAN.pdf'},
-    {s:'O',m:'c424|425',r:'',t:'HO C424/425 Locomotive',u:'/PartsPDF/HOScale/HOC424425Locomotive.pdf'},
-    {s:'O',m:'c424|425',r:'',t:'HO C424/425 Locomotive',u:'/PartsPDF/HOScale/HOC424425LocomotiveGold.pdf'},
+    {s:'HO',m:'c424|425',r:'',t:'HO C424/425 Locomotive',u:'/PartsPDF/HOScale/HOC424425Locomotive.pdf'},
+    {s:'HO',m:'c424|425',r:'',t:'HO C424/425 Locomotive',u:'/PartsPDF/HOScale/HOC424425LocomotiveGold.pdf'},
     {s:'HO',m:'c424|425',r:'',t:'HO C424/425 Locomotive (Japan)',u:'/pdf/PartsPDFs/HORepairManual/HOC424425Locomotive.pdf'},
-    {s:'O',m:'c425',r:'',t:'HO C425 Locomotive',u:'/PartsPDF/HOScale/HOC425Locomotive.pdf'},
-    {s:'O',m:'840bw|dash840bw',r:'',t:'HO DASH 8-40BW Loco',u:'/PartsPDF/HOScale/HODASH840BW.pdf'},
-    {s:'O',m:'840b|dash840b',r:'',t:'HO DASH 8-40B Locomotive',u:'/PartsPDF/HOScale/HO%20DASH8%20DIESEL%20LOCO%20CHINA1.pdf'},
-    {s:'O',m:'840c|dash840c',r:'',t:'HO DASH 8-40C Locomotive - Silver',u:'/PartsPDF/HOScale/HODash8Silver.pdf'},
-    {s:'O',m:'840c|dash840c',r:'',t:'HO DASH 8-40C Locomotive - Gold',u:'/PartsPDF/HOScale/HODash8Gold.pdf'},
-    {s:'O',m:'840c|dash840c',r:'',t:'HO DASH 8-40C Locomotive - Gold (ESU)',u:'/PartsPDF/HOScale/HODASH840CESU.pdf'},
-    {s:'O',m:'840cw|dash840cw',r:'',t:'HO DASH 8-40CW Locomotive - Silver',u:'/PartsPDF/HOScale/HODash840CWSilverLocomotive.pdf'},
-    {s:'O',m:'840cw|dash840cw',r:'',t:'HO DASH 8-40CW Locomotive - Gold',u:'/PartsPDF/HOScale/HODash840CWGoldLocomotive.pdf'},
+    {s:'HO',m:'c425',r:'',t:'HO C425 Locomotive',u:'/PartsPDF/HOScale/HOC425Locomotive.pdf'},
+    {s:'HO',m:'840bw|dash840bw',r:'',t:'HO DASH 8-40BW Loco',u:'/PartsPDF/HOScale/HODASH840BW.pdf'},
+    {s:'HO',m:'840b|dash840b',r:'',t:'HO DASH 8-40B Locomotive',u:'/PartsPDF/HOScale/HO%20DASH8%20DIESEL%20LOCO%20CHINA1.pdf'},
+    {s:'HO',m:'840c|dash840c',r:'',t:'HO DASH 8-40C Locomotive - Silver',u:'/PartsPDF/HOScale/HODash8Silver.pdf'},
+    {s:'HO',m:'840c|dash840c',r:'',t:'HO DASH 8-40C Locomotive - Gold',u:'/PartsPDF/HOScale/HODash8Gold.pdf'},
+    {s:'HO',m:'840c|dash840c',r:'',t:'HO DASH 8-40C Locomotive - Gold (ESU)',u:'/PartsPDF/HOScale/HODASH840CESU.pdf'},
+    {s:'HO',m:'840cw|dash840cw',r:'',t:'HO DASH 8-40CW Locomotive - Silver',u:'/PartsPDF/HOScale/HODash840CWSilverLocomotive.pdf'},
+    {s:'HO',m:'840cw|dash840cw',r:'',t:'HO DASH 8-40CW Locomotive - Gold',u:'/PartsPDF/HOScale/HODash840CWGoldLocomotive.pdf'},
     {s:'HO',m:'fp7',r:'',t:'HO FP-7 Loco',u:'/pdf/HO%20FP-7%20LOCOS%20AUSTRIA.pdf'},
     {s:'HO',m:'fp7',r:'',t:'HO FP-7 Truck Assembly',u:'/pdf/HO%20FP-7%20TRUCK%20ASS.%20AUSTRIA.pdf'},
-    {s:'O',m:'u23b|geu23b',r:'',t:'HO GE U23B Loco',u:'/PartsPDF/HOScale/HO%20GE%20U23B%20DIESEL%20LOCO%201.pdf'},
-    {s:'O',m:'gp7',r:'',t:'HO GP-7 Locomotive',u:'/PartsPDF/HOScale/HOGP7Locomotive.pdf'},
-    {s:'O',m:'gp7',r:'',t:'HO GP-7 Locomotive',u:'/PartsPDF/HOScale/HO_GP-7.pdf'},
+    {s:'HO',m:'u23b|geu23b',r:'',t:'HO GE U23B Loco',u:'/PartsPDF/HOScale/HO%20GE%20U23B%20DIESEL%20LOCO%201.pdf'},
+    {s:'HO',m:'gp7',r:'',t:'HO GP-7 Locomotive',u:'/PartsPDF/HOScale/HOGP7Locomotive.pdf'},
+    {s:'HO',m:'gp7',r:'',t:'HO GP-7 Locomotive',u:'/PartsPDF/HOScale/HO_GP-7.pdf'},
     {s:'HO',m:'gp7',r:'',t:'HO GP-7 Locomotive (Japan)',u:'/pdf/PartsPDFs/HORepairManual/HOGP7Locomotive.pdf'},
-    {s:'O',m:'gp38',r:'',t:'HO GP-38 Early Version Loco',u:'/PartsPDF/HOScale/HO%20EARLY%20GP-38%20LOCO%201.pdf'},
-    {s:'O',m:'gp382',r:'',t:'HO Trainman® GP38-2 Locomotive',u:'/PartsPDF/HOScale/HOTMGP38-2Locomotive.pdf'},
-    {s:'O',m:'gp392',r:'',t:'HO Trainman® GP39-2 Phase 1 Locomotive',u:'/PartsPDF/HOScale/HOTMGP39-2.pdf'},
-    {s:'O',m:'gp392',r:'',t:'HO Trainman® GP39-2 Locomotive',u:'/PartsPDF/HOScale/HOGP39-2.pdf'},
-    {s:'O',m:'gp38|2017',r:'',t:'HO GP-38 (2017) Silver Page 2',u:'/PartsPDF/HOScale/HO_GP-38_Analog_2017_P2.pdf'},
-    {s:'O',m:'gp38|2017',r:'',t:'HO GP-38 (2017) Gold Page 2',u:'/PartsPDF/HOScale/HO_GP-38_Sound_2017_P2.pdf'},
+    {s:'HO',m:'gp38',r:'',t:'HO GP-38 Early Version Loco',u:'/PartsPDF/HOScale/HO%20EARLY%20GP-38%20LOCO%201.pdf'},
+    {s:'HO',m:'gp382',r:'',t:'HO Trainman® GP38-2 Locomotive',u:'/PartsPDF/HOScale/HOTMGP38-2Locomotive.pdf'},
+    {s:'HO',m:'gp392',r:'',t:'HO Trainman® GP39-2 Phase 1 Locomotive',u:'/PartsPDF/HOScale/HOTMGP39-2.pdf'},
+    {s:'HO',m:'gp392',r:'',t:'HO Trainman® GP39-2 Locomotive',u:'/PartsPDF/HOScale/HOGP39-2.pdf'},
+    {s:'HO',m:'gp38|2017',r:'',t:'HO GP-38 (2017) Silver Page 2',u:'/PartsPDF/HOScale/HO_GP-38_Analog_2017_P2.pdf'},
+    {s:'HO',m:'gp38|2017',r:'',t:'HO GP-38 (2017) Gold Page 2',u:'/PartsPDF/HOScale/HO_GP-38_Sound_2017_P2.pdf'},
     {s:'HO',m:'gp38|40',r:'',t:'HO GP-38/40 Loco A-Roco',u:'/pdf/HO%20EMD%20GP38-40%20LOCO%20A.pdf'},
     {s:'HO',m:'gp38|40',r:'',t:'HO GP-38/40 Loco B-Roco',u:'/pdf/HO%20EMD%20GP38-40%20LOCO%20b.pdf'},
     {s:'HO',m:'gp38|40',r:'',t:'HO GP-38/40 Brush Replacement',u:'/pdf/HO%20GP-38-40%20BRUSH%20REPLACE.pdf'},
     {s:'HO',m:'gp38|40',r:'',t:'HO GP-38/40 Truck Assembly',u:'/pdf/HO%20GP-38-40%20TRUCK%20ASSEMBLY.pdf'},
     {s:'HO',m:'gp38|40',r:'',t:'HO GP-38/40 Loco (Old Version)',u:'/pdf/PartsPDFs/HOGP3840old.pdf'},
-    {s:'O',m:'gp40|2017',r:'',t:'HO GP-40 (2017) Silver',u:'/PartsPDF/HOScale/HO_GP-40_Analog_2017.pdf'},
-    {s:'O',m:'gp40|2017',r:'',t:'HO GP-40 (2017) Gold',u:'/PartsPDF/HOScale/HO_GP-40_Sound_2017.pdf'},
-    {s:'O',m:'gp40|2017|nose2017',r:'',t:'HO GP-40 High Nose (2017) Silver',u:'/PartsPDF/HOScale/HO_GP-40_HiNose%20Analog_2017.pdf'},
-    {s:'O',m:'gp40|2017|nose2017',r:'',t:'HO GP-40 High Nose (2017) Gold',u:'/PartsPDF/HOScale/HO_GP-40_HiNose_Sound_2017.pdf'},
-    {s:'O',m:'gp40',r:'',t:'HO GP-40 High Hood Loco',u:'/PartsPDF/HOScale/HO%20GP-40%20HI-HOOD%20LOCO%20CHINA.pdf'},
-    {s:'O',m:'gp402',r:'',t:'HO GP40-2 Locomotive (ESU Sound)',u:'/PartsPDF/HOScale/HOGP40-2ESU.pdf'},
-    {s:'O',m:'gp402',r:'',t:'HO GP40-2 Phase 1 Locomotive - Silver',u:'/PartsPDF/HOScale/HOGP40-2Silver.pdf'},
-    {s:'O',m:'gp402',r:'',t:'HO GP40-2 Phase 1 Locomotive - Gold',u:'/PartsPDF/HOScale/HOGP40-2Gold.pdf'},
-    {s:'O',m:'gp402',r:'',t:'HO GP40-2 Phase 2 Locomotive',u:'/PartsPDF/HOScale/HO_GP40-2_Phase_2_Page_1.pdf'},
-    {s:'O',m:'gp402w',r:'',t:'HO GP40-2W Locomotive',u:'/PartsPDF/HOScale/HOGP40-2WLocomotive.pdf'},
-    {s:'O',m:'h15|1644',r:'',t:'HO H15/16-44 Locomotive',u:'/PartsPDF/HOScale/HOH15-44Locomotive.pdf'},
-    {s:'O',m:'h15|1644',r:'',t:'HO H15/16-44 Locomotive (New Version)',u:'/PartsPDF/HOScale/HOH15-44Locomotive2018.pdf'},
-    {s:'O',m:'hh600|660',r:'',t:'HO HH600/660 Locomotive',u:'/PartsPDF/HOScale/HOHH600.pdf'},
-    {s:'O',m:'mp15dc',r:'',t:'HO MP15DC Locomotive - Silver',u:'/PartsPDF/HOScale/HOMP15DCLocomotive.pdf'},
-    {s:'O',m:'mp15dc',r:'',t:'HO MP15DC Locomotive - Gold',u:'/PartsPDF/HOScale/HOMP15DCGoldLocomotive.pdf'},
-    {s:'O',m:'rs1',r:'',t:'HO RS-1 Loco',u:'/PartsPDF/HOScale/HO%20ALCO%20RS1%20LOCO.pdf'},
-    {s:'O',m:'rs1',r:'',t:'HO RS-1 Loco (Gold)',u:'/PartsPDF/HOScale/HORS-1.pdf'},
+    {s:'HO',m:'gp40|2017',r:'',t:'HO GP-40 (2017) Silver',u:'/PartsPDF/HOScale/HO_GP-40_Analog_2017.pdf'},
+    {s:'HO',m:'gp40|2017',r:'',t:'HO GP-40 (2017) Gold',u:'/PartsPDF/HOScale/HO_GP-40_Sound_2017.pdf'},
+    {s:'HO',m:'gp40|2017|nose2017',r:'',t:'HO GP-40 High Nose (2017) Silver',u:'/PartsPDF/HOScale/HO_GP-40_HiNose%20Analog_2017.pdf'},
+    {s:'HO',m:'gp40|2017|nose2017',r:'',t:'HO GP-40 High Nose (2017) Gold',u:'/PartsPDF/HOScale/HO_GP-40_HiNose_Sound_2017.pdf'},
+    {s:'HO',m:'gp40',r:'',t:'HO GP-40 High Hood Loco',u:'/PartsPDF/HOScale/HO%20GP-40%20HI-HOOD%20LOCO%20CHINA.pdf'},
+    {s:'HO',m:'gp402',r:'',t:'HO GP40-2 Locomotive (ESU Sound)',u:'/PartsPDF/HOScale/HOGP40-2ESU.pdf'},
+    {s:'HO',m:'gp402',r:'',t:'HO GP40-2 Phase 1 Locomotive - Silver',u:'/PartsPDF/HOScale/HOGP40-2Silver.pdf'},
+    {s:'HO',m:'gp402',r:'',t:'HO GP40-2 Phase 1 Locomotive - Gold',u:'/PartsPDF/HOScale/HOGP40-2Gold.pdf'},
+    {s:'HO',m:'gp402',r:'',t:'HO GP40-2 Phase 2 Locomotive',u:'/PartsPDF/HOScale/HO_GP40-2_Phase_2_Page_1.pdf'},
+    {s:'HO',m:'gp402w',r:'',t:'HO GP40-2W Locomotive',u:'/PartsPDF/HOScale/HOGP40-2WLocomotive.pdf'},
+    {s:'HO',m:'h15|1644',r:'',t:'HO H15/16-44 Locomotive',u:'/PartsPDF/HOScale/HOH15-44Locomotive.pdf'},
+    {s:'HO',m:'h15|1644',r:'',t:'HO H15/16-44 Locomotive (New Version)',u:'/PartsPDF/HOScale/HOH15-44Locomotive2018.pdf'},
+    {s:'HO',m:'hh600|660',r:'',t:'HO HH600/660 Locomotive',u:'/PartsPDF/HOScale/HOHH600.pdf'},
+    {s:'HO',m:'mp15dc',r:'',t:'HO MP15DC Locomotive - Silver',u:'/PartsPDF/HOScale/HOMP15DCLocomotive.pdf'},
+    {s:'HO',m:'mp15dc',r:'',t:'HO MP15DC Locomotive - Gold',u:'/PartsPDF/HOScale/HOMP15DCGoldLocomotive.pdf'},
+    {s:'HO',m:'rs1',r:'',t:'HO RS-1 Loco',u:'/PartsPDF/HOScale/HO%20ALCO%20RS1%20LOCO.pdf'},
+    {s:'HO',m:'rs1',r:'',t:'HO RS-1 Loco (Gold)',u:'/PartsPDF/HOScale/HORS-1.pdf'},
     {s:'HO',m:'rs1',r:'',t:'HO RS-1 Locomotive (Japan)',u:'/pdf/PartsPDFs/HORepairManual/HORS1Locomotive.pdf'},
-    {s:'O',m:'rs3',r:'',t:'HO RS-3 Loco',u:'/PartsPDF/HOScale/HO%20RS-3%20DIESEL%20LOCO.pdf'},
+    {s:'HO',m:'rs3',r:'',t:'HO RS-3 Loco',u:'/PartsPDF/HOScale/HO%20RS-3%20DIESEL%20LOCO.pdf'},
     {s:'HO',m:'rs3',r:'',t:'HO RS-3 Locomotive (Japan)',u:'/pdf/PartsPDFs/HORepairManual/HORS3Locomotive.pdf'},
-    {s:'O',m:'rs11|2016',r:'',t:'HO RS-11 Locomotive (2016 and later)',u:'/PartsPDF/HOScale/HORS11Locomotive.pdf'},
-    {s:'O',m:'rs11',r:'',t:'HO RS-11 Locomotive',u:'/PartsPDF/HOScale/HORS-11Locomotive.pdf'},
+    {s:'HO',m:'rs11|2016',r:'',t:'HO RS-11 Locomotive (2016 and later)',u:'/PartsPDF/HOScale/HORS11Locomotive.pdf'},
+    {s:'HO',m:'rs11',r:'',t:'HO RS-11 Locomotive',u:'/PartsPDF/HOScale/HORS-11Locomotive.pdf'},
     {s:'HO',m:'rs11',r:'',t:'HO RS-11 Locomotive (Japan)',u:'/pdf/PartsPDFs/HORepairManual/HORS11Locomotive.pdf'},
     {s:'HO',m:'rsd4|rsd12',r:'',t:'HO RSD-4/5 & RSD-12 Locomotives (Japan)',u:'/pdf/PartsPDFs/HORepairManual/HORSD4512Locomotive.pdf'},
-    {s:'O',m:'rs32|36',r:'',t:'HO Trainman® RS32/36 Locomotives',u:'/PartsPDF/HOScale/HORS32.pdf'},
-    {s:'O',m:'s1|s3',r:'',t:'HO S-1/S-3 Locomotive',u:'/PartsPDF/HOScale/HOS1S3Locomotive.pdf'},
-    {s:'O',m:'s2',r:'',t:'HO S-2 Locomotive',u:'/PartsPDF/HOScale/HOS2Locomotive.pdf'},
-    {s:'O',m:'s2|s4',r:'',t:'HO S-2/S-4 Loco',u:'/PartsPDF/HOScale/S4%20SWITCHER.pdf'},
-    {s:'O',m:'sd24',r:'',t:'HO SD-24 Analog',u:'/PartsPDF/HOScale/HO%20SD24%20Analog%20final-Model.pdf'},
-    {s:'O',m:'sd24',r:'',t:'HO SD-24 w/Sound',u:'/PartsPDF/HOScale/HO%20SD24%20Soundfinal-Model.pdf'},
-    {s:'O',m:'sd26',r:'',t:'HO SD-26 Analog',u:'/PartsPDF/HOScale/HO%20SD26%20Analogffinal-Model.pdf'},
-    {s:'O',m:'sd26',r:'',t:'HO SD-26 w/Sound',u:'/PartsPDF/HOScale/HO%20SD26%20Sound1%20final-Model.pdf'},
+    {s:'HO',m:'rs32|36',r:'',t:'HO Trainman® RS32/36 Locomotives',u:'/PartsPDF/HOScale/HORS32.pdf'},
+    {s:'HO',m:'s1|s3',r:'',t:'HO S-1/S-3 Locomotive',u:'/PartsPDF/HOScale/HOS1S3Locomotive.pdf'},
+    {s:'HO',m:'s2',r:'',t:'HO S-2 Locomotive',u:'/PartsPDF/HOScale/HOS2Locomotive.pdf'},
+    {s:'HO',m:'s2|s4',r:'',t:'HO S-2/S-4 Loco',u:'/PartsPDF/HOScale/S4%20SWITCHER.pdf'},
+    {s:'HO',m:'sd24',r:'',t:'HO SD-24 Analog',u:'/PartsPDF/HOScale/HO%20SD24%20Analog%20final-Model.pdf'},
+    {s:'HO',m:'sd24',r:'',t:'HO SD-24 w/Sound',u:'/PartsPDF/HOScale/HO%20SD24%20Soundfinal-Model.pdf'},
+    {s:'HO',m:'sd26',r:'',t:'HO SD-26 Analog',u:'/PartsPDF/HOScale/HO%20SD26%20Analogffinal-Model.pdf'},
+    {s:'HO',m:'sd26',r:'',t:'HO SD-26 w/Sound',u:'/PartsPDF/HOScale/HO%20SD26%20Sound1%20final-Model.pdf'},
     {s:'HO',m:'sd2435',r:'',t:'HO SD-24-35 Loco A-Roco',u:'/pdf/HO%20EMD%20SD24-35%20LOCO%20A.pdf'},
     {s:'HO',m:'sd2435',r:'',t:'HO SD-24-35 Loco B-Roco',u:'/pdf/HO%20EMD%20SD24-35%20LOCO%20b.pdf'},
     {s:'HO',m:'sd24|sd35',r:'',t:'HO SD-24 & SD-35 Truck A',u:'/pdf/HO%20SD24%20&amp;%20SD35%20TRUCK%20A.pdf'},
     {s:'HO',m:'sd24|sd35',r:'',t:'HO SD-24 & SD-35 Truck B',u:'/pdf/HO%20SD24%20&amp;%20SD35%20TRUCK%20B.pdf'},
-    {s:'O',m:'sd35',r:'',t:'HO SD-35 Locomotive',u:'/PartsPDF/HOScale/HOSD35Locomotive.pdf'},
-    {s:'O',m:'sd35|sdp35',r:'',t:'HO SD-35/SDP-35 Locomotive - Silver',u:'/PartsPDF/HOScale/HOSD35Silver.pdf'},
-    {s:'O',m:'sd35|sdp35',r:'',t:'HO SD-35/SDP-35 Locomotive - Gold',u:'/PartsPDF/HOScale/HOSD35Gold.pdf'},
-    {s:'O',m:'u23b',r:'',t:'HO U23B Locomotive',u:'/PartsPDF/HOScale/HOU23BLocomotive.pdf'},
+    {s:'HO',m:'sd35',r:'',t:'HO SD-35 Locomotive',u:'/PartsPDF/HOScale/HOSD35Locomotive.pdf'},
+    {s:'HO',m:'sd35|sdp35',r:'',t:'HO SD-35/SDP-35 Locomotive - Silver',u:'/PartsPDF/HOScale/HOSD35Silver.pdf'},
+    {s:'HO',m:'sd35|sdp35',r:'',t:'HO SD-35/SDP-35 Locomotive - Gold',u:'/PartsPDF/HOScale/HOSD35Gold.pdf'},
+    {s:'HO',m:'u23b',r:'',t:'HO U23B Locomotive',u:'/PartsPDF/HOScale/HOU23BLocomotive.pdf'},
     {s:'?',m:'u23b',r:'',t:'HO U23B Shell Removal Instructions',u:'/pdf/Instructions/U23B%20Shell%20Removal%20Instructions.pdf'},
     {s:'HO',m:'u23b|u30b',r:'',t:'HO U23B/U30B Locomotive',u:'/pdf/HOU2330BLoco.pdf'},
-    {s:'O',m:'u30b',r:'',t:'HO U30B Locomotive',u:'/PartsPDF/HOScale/HOU30B.pdf'},
-    {s:'O',m:'u30b|2nd',r:'',t:'HO U30B Locomotive 2nd Version',u:'/PartsPDF/HOScale/HOU30B2.pdf'},
-    {s:'O',m:'u30c',r:'',t:'HO U30C Locomotive Phase 3',u:'/PartsPDF/HOScale/HOU30C.pdf'},
+    {s:'HO',m:'u30b',r:'',t:'HO U30B Locomotive',u:'/PartsPDF/HOScale/HOU30B.pdf'},
+    {s:'HO',m:'u30b|2nd',r:'',t:'HO U30B Locomotive 2nd Version',u:'/PartsPDF/HOScale/HOU30B2.pdf'},
+    {s:'HO',m:'u30c',r:'',t:'HO U30C Locomotive Phase 3',u:'/PartsPDF/HOScale/HOU30C.pdf'},
     {s:'HO',m:'u30c',r:'',t:'HO U30C Dual-Model Decoder Settings',u:'/pdf/PartsPDFs/HOU30CDMD.pdf'},
     {s:'HO',m:'u33b|36b',r:'',t:'HO U33B/36B Locomotive Part 1',u:'/pdf/HO%20U33-36B%20Page%201.pdf'},
     {s:'HO',m:'u33b|36b',r:'',t:'HO U33B/36B Locomotive Part 2',u:'/pdf/HO%20U33-36B%20Page%202.pdf'},
     {s:'HO',m:'u33c|u36c',r:'',t:'HO U33C/U36C Locomotive',u:'/pdf/PartsPDFs/HOU33C.pdf'},
-    {s:'O',m:'4650',r:'',t:'HO 4650 Centerflow Hopper',u:'/PartsPDF/HOScale/HO4650Centerflow.pdf'},
+    {s:'HO',m:'4650',r:'',t:'HO 4650 Centerflow Hopper',u:'/PartsPDF/HOScale/HO4650Centerflow.pdf'},
     {s:'O',m:'aem7|alp44',r:'',t:'O AEM-7 / ALP-44 Electric Locomotive Body',u:'/PartsPDF/OScale/oAe7Body.pdf'},
     {s:'O',m:'aem7|alp44',r:'3',t:'O AEM-7 / ALP-44 Electric Locomotive (3-Rail)',u:'/PartsPDF/OScale/oAEM73ra.pdf'},
     {s:'O',m:'aem7|alp44',r:'2',t:'O AEM-7 / ALP-44 Electric Locomotive (2-Rail)',u:'/PartsPDF/OScale/oAEM72ra.pdf'},
@@ -1156,6 +1156,13 @@
     {s:'O',m:'c630',r:'2',t:'O C630 Locomotive Body (2-Rail)',u:'/PartsPDF/OScale/C%20630%202%20body%20rail%20complete.pdf'},
     {s:'O',m:'c630',r:'2',t:'O C630 Locomotive Chassis (2-Rail)',u:'/PartsPDF/OScale/C%20630%20chassis%202%20rail%20complete.pdf'},
     {s:'O',m:'c630',r:'2',t:'O C630 Trucks (2-Rail)',u:'/PartsPDF/OScale/C%20630%202%20rail%20truck%20complete.pdf'},
+    // v0.9.1744: on Atlas's page since at least 2026-09-14, missing from the v1643 harvest
+    {s:'O',m:'eriebuilt|fmerie|erieblt',r:'3',t:'O FM Erie Built Locomotive Body (3-Rail)',u:'/PartsPDF/OScale/FM%20Erie%20Blt.%20A%20body%203%20rail%20complete.pdf'},
+    {s:'O',m:'eriebuilt|fmerie|erieblt',r:'3',t:'O FM Erie Built Locomotive Chassis (3-Rail)',u:'/PartsPDF/OScale/FM%20Erie%20Blt%20A%203%20rail%20chassis%20complete.pdf'},
+    {s:'O',m:'eriebuilt|fmerie|erieblt',r:'3',t:'O FM Erie Built Locomotive Trucks (3-Rail)',u:'/PartsPDF/OScale/FM%20Erie%20Blt%20A%203%20rail%20truck%20complete.pdf'},
+    {s:'O',m:'eriebuilt|fmerie|erieblt',r:'2',t:'O FM Erie Built Locomotive Body (2-Rail)',u:'/PartsPDF/OScale/FM%20Erie%20Blt%20A%20body%202%20rail%20complete.pdf'},
+    {s:'O',m:'eriebuilt|fmerie|erieblt',r:'2',t:'O FM Erie Built Locomotive Chassis (2-Rail)',u:'/PartsPDF/OScale/FM%20Erie%20Blt%20a%20chassis%202%20rail%20complete.pdf'},
+    {s:'O',m:'eriebuilt|fmerie|erieblt',r:'2',t:'O FM Erie Built Locomotive Trucks (2-Rail)',u:'/PartsPDF/OScale/FM%20Erie%20Blt.%20A%20truck%202%20rail%20complete.pdf'},
     {s:'O',m:'gp7',r:'3',t:'O GP-7 Locomotive Body (3-Rail)',u:'/PartsPDF/OScale/O_GP-7_3rail_Body.pdf'},
     {s:'O',m:'gp7',r:'3',t:'O GP-7 Locomotive Chassis (3-Rail)',u:'/PartsPDF/OScale/O_GP-7_3rail_Chassis.pdf'},
     {s:'O',m:'gp7',r:'3',t:'O GP-7 Locomotive Trucks (3-Rail)',u:'/PartsPDF/OScale/O_GP-7_3rail_Trucks.pdf'},
@@ -1229,10 +1236,24 @@
     {s:'O',m:'52',r:'2',t:'O TM 52\' Gondola (2-Rail)',u:'/OPartsPDF/RollingStock/trainman_Gondola_2rail.pdf'},
     {s:'O',m:'52',r:'3',t:'O TM 52\' Gondola (3-Rail)',u:'/OPartsPDF/RollingStock/trainman_Gondola_3rail.pdf'},
   ];
-  function _atlasMatch(item, eraKey) {
-    var sc = eraKey === 'atlas' ? 'O' : eraKey === 'atlas_ho' ? 'HO' : eraKey === 'atlas_n' ? 'N' : eraKey === 'atlas_z' ? 'Z' : null;
+  function _atlasScale(eraKey) {
+    return eraKey === 'atlas' ? 'O' : eraKey === 'atlas_ho' ? 'HO' : eraKey === 'atlas_n' ? 'N' : eraKey === 'atlas_z' ? 'Z' : null;
+  }
+  // v0.9.1744 (Brad, on his Atlas ET44: "its their index not the parts
+  // diagram for this engine"). Two things were wrong. The matcher read only
+  // the DESCRIPTION — "Union Pacific (Yellow/Red/Gray)" — while every Atlas
+  // row carries the model in SUB TYPE ("GP35 Locomotive"), so it matched
+  // none of the 16,863 Atlas locomotives in the master; with Sub Type it
+  // matches 11,338. And the ET44 itself is not on Atlas's page at all (their
+  // O list: AEM-7, C628, C630, FM Erie Built, GP-7/9/35/60/60B, RS-1, SD40,
+  // Trainman GP15/RSD-4/5/U23B), so the no-match wording must say so
+  // instead of sending him to look for it.
+  // Returns every sheet of the best-matching family and rail (body, chassis,
+  // trucks), best first; null when the family is not on Atlas's page.
+  function _atlasMatchAll(item, eraKey) {
+    var sc = _atlasScale(eraKey);
     if (!sc) return null;
-    var d = String((item.description || '') + ' ' + (item.itemName || '')).toLowerCase().replace(/[^a-z0-9]/g, '');
+    var d = String((item.subType || '') + ' ' + (item.description || '') + ' ' + (item.itemName || '')).toLowerCase().replace(/[^a-z0-9]/g, '');
     if (!d) return null;
     var hits = [];
     ATLAS_DOCS.forEach(function (e) {
@@ -1250,7 +1271,23 @@
     if (!hits.length) return null;
     // Longest matching key wins (gp15 beats 50); 3-rail preferred on O.
     hits.sort(function (a, b) { return (b.len - a.len) || ((b.e.r === '3') - (a.e.r === '3')); });
-    return hits[0].e;
+    var top = hits[0];
+    return hits.filter(function (h) { return h.e.m === top.e.m && h.e.r === top.e.r; }).map(function (h) { return h.e; });
+  }
+  function _atlasMatch(item, eraKey) {
+    var all = _atlasMatchAll(item, eraKey);
+    return all ? all[0] : null;
+  }
+  // The locomotive families Atlas HAS published for a scale — for the
+  // no-match line, so the reader knows what is there without a trip.
+  function _atlasFamilies(sc) {
+    var seen = {}, out = [];
+    ATLAS_DOCS.forEach(function (e) {
+      if (e.s !== sc || !/\b(loco|locomotive)\b/i.test(e.t)) return;
+      var f = e.t.replace(/^(HO|N|O|Z) (TM |Trainman\u00ae )?/, '').replace(/ (Locomotive|Loco)\b.*$/, '').replace(/ - .*$/, '').trim();
+      if (f && !seen[f]) { seen[f] = 1; out.push(f); }
+    });
+    return out;
   }
 
   // ── v0.9.1646: Trainz exploded diagrams (see trainz-diagrams-config.js) ──
@@ -1616,10 +1653,23 @@
                 + '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.45rem">' + (_pwsmHit ? 'Copies the link to this item\'s manual section and opens LCCA in a new tab — see the note above after you tap.' : 'No direct section mapped — the button copies the archive link; paste it in the LCCA tab.') + ' Requires LCCA membership.</div>'
                 + '<div style="margin-top:0.5rem"><button onclick="window.open(\'https://www.olsenstoy.com/searchcd1.htm\',\'_blank\')" ' + _btnQuiet() + '>Olsen\'s service library (free, no login) →</button></div>';
             } else if (route === 'atlas' && _atlasHit) {
+              // v0.9.1744: the whole family — body, chassis, trucks — not just the first sheet
+              var _atlasAll = _atlasMatchAll(item, eraKey) || [_atlasHit];
               h += '<button onclick="window.open(\'' + _esc(ATLAS_DL + _atlasHit.u) + '\',\'_blank\')" ' + linkBtn + '>Parts diagram: ' + _esc(_atlasHit.t) + ' →</button>';
+              if (_atlasAll.length > 1) {
+                h += '<div style="display:flex;flex-wrap:wrap;gap:0.4rem;margin-top:0.45rem">';
+                _atlasAll.slice(1).forEach(function (e) {
+                  h += '<button onclick="window.open(\'' + _esc(ATLAS_DL + e.u) + '\',\'_blank\')" ' + _btnQuiet() + '>' + _esc(e.t.replace(/^(HO|N|O|Z) /, '')) + ' →</button>';
+                });
+                h += '</div>';
+              }
+              h += '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.45rem">Atlas\'s own PDF for this family. <a href="' + ATLAS_PAGE + '" target="_blank" rel="noopener" style="color:var(--text-dim)">Their full list →</a></div>';
             } else if (route === 'atlas') {
+              var _atlasFam = _atlasFamilies(_atlasScale(eraKey));
               h += '<button onclick="window.open(\'' + ATLAS_PAGE + '\',\'_blank\')" ' + linkBtn + '>Atlas parts diagrams (browse) →</button>'
-                + '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.45rem">No family match for ' + _esc(num) + ' — find your model on Atlas\'s list.</div>';
+                + '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.45rem">Atlas hasn\'t published a parts diagram for this model'
+                + (_atlasFam.length ? ' — their ' + _esc(_atlasScale(eraKey) || '') + ' list covers: ' + _esc(_atlasFam.join(', ')) + '.' : '.')
+                + ' The Google search below is the next best bet.</div>';
             } else if (route === 'lionel') {
               h += '<button onclick="window.open(\'' + _esc(_docsUrl(route, item)) + '\',\'_blank\')" ' + linkBtn + '>Lionel Support: search ' + _esc(num.replace(/^6-/, '')) + ' →</button>'
                 + '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.45rem">Owner\'s manuals and parts on lionelsupport.com.</div>';
