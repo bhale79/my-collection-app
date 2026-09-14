@@ -42,6 +42,16 @@
       return d ? 'https://www.lionelstore.com/LionelStore-Product-Images/' + d + '-01.jpg' : '';
     },
     lionelEras: { mpc: 1, mod_ho: 1, mod_s: 1 },   // modern Lionel — where the rule applies
+    // THE MTH rule (measured live 2026-09-14, 287 of 300 random items across
+    // O / HO / G / S / Tinplate loaded): the item number exactly as MTH prints
+    // it, .jpg, on their CloudFront image host. 30-1185-1 → 30-1185-1.jpg,
+    // 80-2181-1 → 80-2181-1.jpg. The 13 misses had no product picture on
+    // mthtrains.com either, so a miss here means MTH never posted one.
+    mthStore: function (sku) {
+      var n = String(sku == null ? '' : sku).trim();
+      return n ? 'https://d2frr7198pxftr.cloudfront.net/production/public/product_images/' + encodeURIComponent(n) + '.jpg' : '';
+    },
+    mthEras: { mth_o: 1, mth_ho: 1, mth_s: 1, mth_tinplate: 1, mth_g: 1 },   // every MTH tab
     field: 'stockPhotoLink',                        // the personal-sheet column (PERSONAL_SCHEMA, at the END)
     banner: 'STOCK PHOTO',
     probeMs: 9000,
@@ -66,6 +76,7 @@
     var out = [];
     var era = _era(pd);
     if (era && STOCK.lionelEras[era]) { var u = STOCK.lionelStore(pd.itemNum); if (u) out.push(u); }
+    if (era && STOCK.mthEras[era]) { var u2 = STOCK.mthStore(pd.itemNum); if (u2) out.push(u2); }
     var m = _master(pd);
     if (m && m.imageUrl && /^https?:\/\//i.test(m.imageUrl) && out.indexOf(m.imageUrl) < 0) out.push(String(m.imageUrl).trim());
     return out;

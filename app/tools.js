@@ -105,7 +105,7 @@ function buildToolsPage() {
         '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2980b9" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>' +
         'Find Stock Photos' +
       '</div>' +
-      '<div class="tools-card-desc">Beta. Checks every item that has no photo (or only a box photo) for the maker\'s own product picture and lets you pick which ones to use. Shown by link with a STOCK PHOTO banner — nothing is copied, and they never go into sale listings or reports. Modern Lionel today; other makers as their catalogs are crawled.</div>' +
+      '<div class="tools-card-desc">Beta. Checks every item that has no photo (or only a box photo) for the maker\'s own product picture and lets you pick which ones to use. Shown by link with a STOCK PHOTO banner — nothing is copied, and they never go into sale listings or reports. Modern Lionel, MTH and Atlas today; other makers as their catalogs are crawled.</div>' +
       '<button onclick="runStockPhotoFinder()" style="padding:0.55rem 1.1rem;border-radius:8px;border:1.5px solid #2980b9;background:var(--bg-card);background:color-mix(in srgb, rgb(41,128,185) 10%, var(--bg-card));color:#2980b9;font-family:var(--font-body);font-size:0.85rem;cursor:pointer;font-weight:600">Find stock photos</button>' +
       '<div id="stock-photos-results" style="margin-top:1rem"></div>' +
     '</div>' : '';
