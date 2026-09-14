@@ -110,6 +110,20 @@
   var LOCO_DIESEL_HARD = /\b(diesel|gp[- ]?\d+\w*|sd[- ]?\d+\w*|sdp[- ]?\d+\w*|et44\w*|es44\w*|es8|ac4400\w*|ac6000\w*|c44\w*|c40\w*|c30\w*|dash[- ]?[89]\w*|u\d{2}[bc]?|f[- ]?[379][a-c]?|fa[- ]?[12]|fb[- ]?[12]|fp[- ]?[79]|pa[- ]?[12]|pb[- ]?[12]|rs[- ]?\d+\w*|rsd[- ]?\d*|rsc[- ]?\d*|sw[- ]?\d+\w*|nw[- ]?2|mp15\w*|vo-?1000|ds-?4-?4\w*|h[- ]?\d{2}-?44|h24\w*|h16\w*|fm|train ?master|genset|gevo|bl2|b23\w*|b30\w*|b36\w*|b40\w*|c420|c424|c425|c628|c630|c636|dl109|emd|3gs21b|geep|e[- ]?[5-9](?=\s*(?:locomotive|diesel|a unit|b unit|unit))|s[- ]?[124](?=\s*(?:locomotive|diesel|switcher)))\b/i;
   // Words that name a steam class AND a railroad. Weakest evidence; last.
   var LOCO_STEAM_SOFT = /\b(hudson|pacific|atlantic|columbia|prairie|northern|texas|allegheny|challenger|switcher|no\.\s*\d+e|jenny|usra.*steam|standard gauge.*steam)\b/i;
+  // v0.9.1743: the plain word ALONE — for rows that are sets. "Union Pacific
+  // Alco PA AA Diesel Set" was still Steam after v1742 because set rows were
+  // skipped wholesale; and 335 Lionel "Steam Freight Set" rows sat typed
+  // Diesel. On a set the model names prove nothing about the set as a whole
+  // (a "6-Car Box Car Set" is not a locomotive at all), but the word
+  // "Diesel" or "Steam" in a set's own name says which kind of engine it is
+  // built around. Measured: 426 rows move, 91 Steam→Diesel, 335 Diesel→Steam.
+  function locoKindFromPlainWord(text) {
+    var n = String(text || '');
+    var st = /\bsteam\b/i.test(n), di = /\bdiesel\b/i.test(n);
+    if (st && !di) return 'Steam';
+    if (di && !st) return 'Diesel';
+    return '';
+  }
   // What the text PROVES: 'Steam', 'Diesel', or '' (nothing hard, or both).
   function locoKindFromWords(text) {
     var n = String(text || '');
@@ -172,9 +186,11 @@
     // Only the row's OWN name — sub type + description. The variation prose
     // is left out on purpose: American Flyer's 561 Billboard Horn (variation
     // "(B) Santa Fe Alco with Steam Engine on Bridge") is neither.
+    // v0.9.1743: a SET row is judged by its plain word only (see
+    // locoKindFromPlainWord); any other row by the full evidence.
     var _ownName = subL + ' ' + String(item.description || '').toLowerCase();
-    if (!_own && (it === 'Steam Locomotive' || it === 'Diesel Locomotive') && !/\bsets?\b/.test(_ownName)) {
-      var _proved = locoKindFromWords(_ownName);
+    if (!_own && (it === 'Steam Locomotive' || it === 'Diesel Locomotive')) {
+      var _proved = /\bsets?\b/.test(_ownName) ? locoKindFromPlainWord(_ownName) : locoKindFromWords(_ownName);
       if (_proved === 'Diesel' && it === 'Steam Locomotive') return 'Diesel Locomotive';
       if (_proved === 'Steam' && it === 'Diesel Locomotive') return 'Steam Locomotive';
     }
@@ -366,6 +382,7 @@
   window.rrNormalizeTypeToBucket = _normalizeToBucket;
   window.getTypeBucket = getTypeBucket;
   window.locoKindFromWords = locoKindFromWords;   // v0.9.1742: one reader for every classifier
+  window.locoKindFromPlainWord = locoKindFromPlainWord;   // v0.9.1743
   window.getTypeBucketLabel = getTypeBucketLabel;
   window.BUCKET_TO_ICON = BUCKET_TO_ICON;
   window.getBucketIcon = getBucketIcon;
