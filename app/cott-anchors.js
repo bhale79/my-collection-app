@@ -113,7 +113,8 @@
       // engine's BASE number -- the powered 'P' and the B-unit 'C' are NOT part of
       // the anchor (e.g. powered 211 -> LAL211, B-unit 2343C -> the 2343 section).
       // Dummy 'D' and trailer 'T' DO appear in the anchor (LAL205D, LAL212T), so
-      // those are left untouched.
+      // those are left untouched here — v0.9.1741 below swaps a D/T anchor
+      // for its sibling ONLY where the page's verified id list says it is dead.
       if (slug.indexOf('motive-power') === 0) {
         raw = raw.replace(/(\d)-?[PC]$/i, '$1');
       }
@@ -327,6 +328,95 @@
   };
 
   window.COTT_DEEPLINK_MAP = DEEP;
+})();
+
+// ============================================================================
+// v0.9.1741 — VERIFIED PAGE ANCHORS: a dead anchor on a page we have READ
+// gets its sibling spelling, never a guess.
+//
+// Session 97 finding, raised with Brad and fixed here: 28 of the 122 Alco
+// rows deep-linked to anchors that do not exist. The base builder strips a
+// powered 'P' / B-unit 'C' but keeps a dummy 'D' / trailer 'T', and COTT
+// puts the powered unit and its dummy in ONE shared section — only LAL205D,
+// LAL212T and LAL226D are real. So 204T became #LAL204T and dropped Brad at
+// the top of the page instead of at the engine.
+//
+// The harvest map above (DEEP) only knows numbers with several sections or a
+// dead group anchor; it cannot say "this anchor is not on the page" for the
+// rest. This layer carries the COMPLETE id list of a page, read from the live
+// page's [id] attributes, so "dead" is a fact and not an inference. Only a
+// page in VERIFIED is ever touched; on one, only an anchor that is NOT on
+// its list; and then only a sibling spelling that IS on the list may replace
+// it, tried in this order:
+//   T <-> D   (the catalog's trailer letter vs the app's dummy letter:
+//              205T -> LAL205D, which is real)
+//   the base  (the shared powered/dummy section: 204T -> LAL204)
+//   base+AA   for a dummy A unit — it rides in the AA pair (218T -> LAL218AA)
+//   base+AB   for a B unit — it rides in the AB pair  (218C -> LAL218AB)
+// Nothing found: the URL is returned exactly as it arrived (2203B, 2203T
+// and 2224W are not on the Alco page at all; a blank-variation 218 could be
+// either pair). Measured live 2026-09-14 over all 6,524 COTT rows: 24 links
+// move, every one onto a real section, and nothing else does.
+//
+// TO RE-HARVEST A PAGE (any Chrome tab on that page):
+//   [...document.querySelectorAll('[id]')].map(e=>e.id).filter(x=>/^LAL/.test(x))
+// paste the list here with the date. A page that is not listed is never touched.
+// ============================================================================
+(function () {
+  var _prev = window.cottAnchorUrl;
+  var VERIFIED = {
+    'motive-power-later-alcos-a-2': { on: '2026-09-14', ids: [
+      'LAL202','LAL204','LAL205','LAL205D','LAL208','LAL209','LAL210','LAL211','LAL212','LAL212T',
+      'LAL212SF','LAL213','LAL215','LAL215218','LAL216','LAL216213','LAL217','LAL218AA','LAL218AB',
+      'LAL219','LAL220','LAL221','LAL221SF','LAL221US','LAL222','LAL223','LAL224','LAL225','LAL226',
+      'LAL226D','LAL227','LAL228','LAL229','LAL230','LAL231','LAL232','LAL1055','LAL1065','LAL1066',
+      'LAL2024','LAL2024AA','LAL2041'
+    ] }
+  };
+  var _sets = {};
+  function _idSet(slug) {
+    if (!_sets[slug]) {
+      var o = {}, ids = VERIFIED[slug].ids;
+      for (var i = 0; i < ids.length; i++) o[String(ids[i]).toUpperCase()] = true;
+      _sets[slug] = o;
+    }
+    return _sets[slug];
+  }
+  window.cottAnchorUrl = function (refLink, itemNum, rowWords, variation) {
+    var url = _prev.apply(null, arguments);
+    try {
+      var m = String(url || '').match(/cornucopiaoftoytrains\.com\/([^\/#?]+)\/?#([A-Za-z0-9]+)$/i);
+      if (!m) return url;
+      var slug = m[1].toLowerCase(), anchor = m[2].toUpperCase();
+      if (!Object.prototype.hasOwnProperty.call(VERIFIED, slug)) return url;
+      if (slug.indexOf('motive-power') !== 0) return url;   // the letter rules are locomotive rules
+      var ids = _idSet(slug);
+      if (ids[anchor]) return url;                            // real — leave it
+      var prefix = (window.COTT_PAGE_PREFIX && window.COTT_PAGE_PREFIX[slug]) || '';
+      if (!prefix || anchor.indexOf(prefix.toUpperCase()) !== 0) return url;
+      prefix = prefix.toUpperCase();
+      var num = anchor.slice(prefix.length);
+      // the unit letter comes from the ITEM NUMBER, because the base builder
+      // has already stripped a P or C off the anchor by the time we see it
+      var rawNum = String(itemNum == null ? '' : itemNum).toUpperCase().replace(/[^A-Z0-9]/g, '');
+      var um = rawNum.match(/^(.+\d)([PDTC])$/);
+      var unit = um ? um[2] : '';
+      var bm = num.match(/^(.+\d)[DT]$/);
+      var base = bm ? bm[1] : num;
+      var tries = [];
+      if (unit === 'T') tries.push(base + 'D');
+      if (unit === 'D') tries.push(base + 'T');
+      tries.push(base);
+      if (unit === 'T' || unit === 'D') tries.push(base + 'AA');
+      if (unit === 'C') tries.push(base + 'AB');
+      var head = String(url).slice(0, String(url).indexOf('#'));
+      for (var t = 0; t < tries.length; t++) {
+        if (tries[t] !== num && ids[prefix + tries[t]]) return head + '#' + prefix + tries[t];
+      }
+      return url;
+    } catch (e) { return url; }
+  };
+  window.COTT_VERIFIED_ANCHORS = VERIFIED;
 })();
 
 // ONE builder for the row-words argument, used by every call site — a master
