@@ -4202,6 +4202,7 @@ async function markPartBought(rowNum) {
         'Parts Needed!I' + rowNum + ':J' + rowNum, [['bought', today]], { num: p.id }, 'Parts list'))) return;
     p.status = 'bought'; p.dateBought = today;
     _renderPartsList();
+    if (typeof _binBuild === 'function' && document.getElementById('page-partsbin')) _binBuild();   // v0.9.1748: the drawer page shows it as spoken for
     if (typeof showToast === 'function') showToast('\u2713 Marked bought \u2014 it\u2019s in the drawer');
   } catch (e) { if (typeof showToast === 'function') showToast(rrSaveError(e, 'the part'), 4000, true); }
 }
@@ -4470,6 +4471,7 @@ async function _savePartInstalled(rowNum) {
           'Parts Needed!I' + rowNum + ':L' + rowNum, [['installed', p.dateBought || '', date, price || '']], { num: p.id }, 'Parts list')) {
         p.status = 'installed'; p.dateInstalled = date; if (price) p.pricePaid = price;
       }
+      if (typeof _binBuild === 'function' && document.getElementById('page-partsbin')) _binBuild();   // v0.9.1748: it leaves the drawer
       if (typeof window._maintLogPartInstalled === 'function') window._maintLogPartInstalled(pd.inventoryId, pd.itemNum, desc, partNum, vendor ? ('self — from ' + vendor) : 'self');   // v0.9.1654: the Workbench auto-trail
       _renderPartsList();
     } else {

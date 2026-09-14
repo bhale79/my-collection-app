@@ -2652,23 +2652,158 @@
     if (state.partsBin) render(); else _loadBin().then(render);
   };
 
+  // ════════════════════════════════════════════════════════════════
+  //  v0.9.1748 — THE DRAWER. Brad (2026-09-14), with a traction tire showing
+  //  "bought — in the drawer" on Parts Needed and the Parts Bin reading "The
+  //  bin is empty": "all parts are in the drawer, some are spoken for. if not
+  //  spoken for, it should show what they fit if possible."
+  //  So this page shows EVERYTHING physically in the drawer, in two groups:
+  //   1. spoken for — Parts Needed rows bought for a train, waiting to be
+  //      installed (the same Installed button as the Parts page);
+  //   2. loose spares — the bin, each with a "fits" line worked out from the
+  //      part number (Lionel numbers carry the item), from your own open
+  //      wants (the answer that matters: "you need one for 84631"), and
+  //      from the catalog's own parts rows. Nothing is guessed: when none of
+  //      those apply the card says so.
+  //  Nothing moves in the sheet — Parts Needed and Parts Bin stay as they are.
+  // ════════════════════════════════════════════════════════════════
+  // A Lionel part number names the item it belongs to:
+  //   postwar   2343-13 / 671-104 / 2343-013     → 2343 / 671
+  //   modern    8632-050 / 18010-020             → 8632 / 18010
+  //   modern    600-8632-050 (three-part)        → 8632
+  //   6-prefix  6-8632-050                       → 8632
+  // Anything else (a bare number, "E-unit", a spec like ".625 ID") → nothing.
+  function _binItemFromPartNum(partNum) {
+    var n = String(partNum || '').trim().toUpperCase().replace(/\s+/g, '');
+    var m = n.match(/^(?:6-|600-|610-|620-|630-)?(\d{3,5})-(\d{1,3})[A-Z]?$/);
+    if (m) return m[1];
+    m = n.match(/^\d{3}-(\d{4,5})-\d{1,3}[A-Z]?$/);
+    if (m) return m[1];
+    return '';
+  }
+  function _binOwnedCopies(itemNum) {
+    var base = (typeof baseItemNum === 'function') ? baseItemNum(itemNum) : String(itemNum || '');
+    return Object.values(state.personalData || {}).filter(function (pd) {
+      return pd && pd.owned && (typeof baseItemNum === 'function' ? baseItemNum(pd.itemNum) : String(pd.itemNum || '')) === base;
+    });
+  }
+  function _binTopicWords(b) {
+    return String((b.topics || '') + ',' + (b.desc || '')).toLowerCase().split(/[,;\/]+/)
+      .map(function (t) { return t.trim().replace(/s$/, ''); })   // "traction tires" asks the same question as "traction tire"
+      .filter(function (t) { return t.length >= 4 && !/^\d/.test(t); });
+  }
+  // every reason to believe this loose part fits something — in order of how
+  // sure each one is. Pure: (bin row, parts-needed rows, master lookup) → list.
+  function _binFits(b) {
+    var out = [];
+    var pn = String(b.partNum || '').trim();
+    var pnNorm = pn.toUpperCase().replace(/[^A-Z0-9]/g, '');
+    var words = _binTopicWords(b);
+    // 1. your own open wants — the part number, or a topic word in the want
+    Object.values(state.partsData || {}).forEach(function (p) {
+      if ((p.status || 'wanted') !== 'wanted') return;
+      var byNum = pnNorm && String(p.partNum || '').toUpperCase().replace(/[^A-Z0-9]/g, '') === pnNorm;
+      var hay = String((p.description || '') + ' ' + (p.notes || '')).toLowerCase();
+      var byWord = !byNum && words.some(function (w) { return hay.indexOf(w) >= 0; });
+      if (byNum || byWord) out.push({ kind: 'want', how: byNum ? 'same part number' : 'same topic', part: p, item: p.forItem, inv: p.forInv });
+    });
+    // 2. the part number names its item
+    var item = _binItemFromPartNum(pn);
+    if (item) {
+      var m = (typeof findMaster === 'function') ? findMaster(item) : null;
+      var owned = _binOwnedCopies(item);
+      out.push({ kind: 'number', item: item, label: item + (m && m.roadName ? ' — ' + m.roadName : '') + (m && m.description ? ' ' + String(m.description).slice(0, 60) : ''), owned: owned.length, inv: owned.length ? owned[0].inventoryId : '' });
+    }
+    // 3. the catalog's own parts row (Kato Parts, T-Reproductions parts…)
+    if (pn && typeof findMaster === 'function') {
+      var pr = findMaster(pn);
+      if (pr && /^part$/i.test(String(pr.itemType || '')) && pr.description) out.push({ kind: 'catalog', label: String(pr.description).slice(0, 120), era: pr._era || '' });
+    }
+    return out;
+  }
+  window._binFits = _binFits;
+  window._binItemFromPartNum = _binItemFromPartNum;
+
+  // "Use it for 84631": one comes out of the bin, the want becomes bought
+  // (the same I:J stamp the Parts page writes), so it shows up under
+  // "spoken for" on this very page.
+  window._maintBinUseFor = async function (binId, partRow) {
+    var b = (state.partsBin || []).find(function (x) { return x.id === binId; });
+    var p = Object.values(state.partsData || {}).find(function (x) { return x.row === partRow; });
+    if (!b || !p || b.qty <= 0) return;
+    try {
+      if (!(await rrVerifiedRowUpdate(state.personalSheetId, BIN_TAB, b.row, BIN_TAB + '!D' + b.row, [[String(Math.max(0, b.qty - 1))]], { num: b.id }, 'Parts Bin'))) return;
+      b.qty = Math.max(0, b.qty - 1);
+      if (typeof markPartBought === 'function') await markPartBought(partRow);
+      if (b.qty === 0 && typeof rrRemoveRowConfirmed === 'function') {
+        var gone = await rrRemoveRowConfirmed(state.personalSheetId, BIN_TAB, b.row, BIN_TAB + '!A' + b.row + ':M' + b.row, [['', '', '', '', '', '', '', '', '', '', '', '', '']], { num: b.id }, 'Parts Bin');
+        if (gone) await _loadBin();
+      }
+      _binBuild();
+      if (typeof showToast === 'function') showToast('✓ Spoken for — it’s on ' + (p.forItem || 'the item') + ' now, ready to install');
+    } catch (e) { if (typeof showToast === 'function') showToast('Could not use the bin part — ' + (e && e.message || 'try again'), 4000, true); }
+  };
+
+  function _binFitsHtml(b) {
+    var fits = _binFits(b);
+    if (!fits.length) return '<div style="font-size:0.78rem;color:var(--text-dim);margin-top:0.3rem">Fits: not known — add a part number or a topic and the drawer works it out.</div>';
+    return '<div style="font-size:0.78rem;margin-top:0.3rem;display:flex;flex-direction:column;gap:0.2rem">' + fits.map(function (f) {
+      if (f.kind === 'want') {
+        var lab = 'You need one for <b>' + _esc(f.item || '?') + '</b>' + (f.part.description ? ' (' + _esc(f.part.description) + ')' : '') + ' <span style="color:var(--text-dim)">— ' + f.how + '</span>';
+        return '<div style="color:var(--text)">✓ ' + lab + (b.qty > 0 ? ' <button onclick="_maintBinUseFor(\'' + _esc(b.id) + '\',' + f.part.row + ')" ' + _btn('green', 'sm') + '>Use it for ' + _esc(f.item || 'this') + '</button>' : '') + '</div>';
+      }
+      if (f.kind === 'number') {
+        var open = f.inv ? '<a href="#" onclick="event.preventDefault();_openOwnedByInvId(\'' + _esc(f.inv) + '\')" style="color:var(--accent3);text-decoration:none">' + _esc(f.label) + '</a>' : '<span style="color:var(--text)">' + _esc(f.label) + '</span>';
+        return '<div style="color:var(--text-mid)">Fits ' + open + (f.owned ? ' <span style="color:var(--green)">— in your collection</span>' : ' <span style="color:var(--text-dim)">— not in your collection</span>') + ' <span style="color:var(--text-dim)">(from the part number)</span></div>';
+      }
+      return '<div style="color:var(--text-mid)">Catalog says: ' + _esc(f.label) + '</div>';
+    }).join('') + '</div>';
+  }
+
+  function _binSpokenFor() {
+    return Object.values(state.partsData || {}).filter(function (p) { return p.status === 'bought'; })
+      .sort(function (a, b) { return String(b.dateBought || '').localeCompare(String(a.dateBought || '')); });
+  }
+  function _binSpokenHtml(p) {
+    var pd = p.forInv ? (state.personalData || {})[p.forInv] : null;
+    var m = (p.forItem && typeof findMaster === 'function') ? findMaster(p.forItem) : null;
+    var forLabel = p.forItem ? 'For ' + p.forItem + (m && m.roadName ? ' (' + m.roadName + ')' : '') : '';
+    var forHtml = !forLabel ? '' : (pd ? '<a href="#" onclick="event.preventDefault();_openOwnedByInvId(\'' + _esc(p.forInv) + '\')" style="color:var(--accent3);text-decoration:none">🔗 ' + _esc(forLabel) + '</a>' : '<span style="color:var(--accent3)">🔗 ' + _esc(forLabel) + '</span>');
+    return '<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:0.8rem 1rem;margin-bottom:0.6rem;display:flex;gap:0.7rem;align-items:flex-start;flex-wrap:wrap">'
+      + '<div style="flex:1;min-width:200px">'
+      +   '<div style="font-weight:700;color:var(--text)">' + _esc(p.description || p.partNum || '—') + (p.partNum && p.description ? ' <span style="font-family:var(--font-mono);color:var(--accent2);font-weight:400">#' + _esc(p.partNum) + '</span>' : '') + '</div>'
+      +   '<div style="font-size:0.78rem;color:var(--text-dim);margin-top:0.15rem">' + forHtml + (p.dateBought ? ' · bought ' + _esc(p.dateBought) : '') + (p.notes ? ' · ' + _esc(p.notes) : '') + '</div>'
+      + '</div>'
+      + '<div style="display:flex;gap:0.35rem;align-items:center;flex-wrap:wrap">'
+      +   '<span style="padding:0.2rem 0.55rem;border-radius:99px;font-size:0.68rem;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;background:var(--bg-card);background:color-mix(in srgb, var(--forsale) 18%, var(--bg-card));color:var(--forsale)">spoken for</span>'
+      +   (pd ? '<button onclick="markPartInstalled(' + p.row + ')" ' + _btn('green', 'sm') + '>✓ Installed</button>' : '')
+      +   '<button onclick="showPage(\'parts\',document.querySelector(\'.nav-item[onclick*=buildPartsPage]\'));if(typeof buildPartsPage===\'function\')buildPartsPage()" ' + _btnQuiet('sm') + '>Open in Parts Needed</button>'
+      + '</div></div>';
+  }
+
   function _binBuild() {
     var pg = document.getElementById('page-partsbin');
     if (!pg) return;
     var bin = (state.partsBin || []).slice().sort(function (a, b) { return (b.date || '').localeCompare(a.date || ''); });
+    var spoken = _binSpokenFor();
     var head = '<div class="page-title" style="display:flex;align-items:center;justify-content:space-between;gap:0.5rem"><span>Parts Bin</span>'
-      + '<button onclick="_maintBinForm()" class="btn" style="border:1.5px solid var(--accent);color:var(--accent);background:var(--bg-card);background:color-mix(in srgb, var(--accent) 10%, var(--bg-card));font-weight:600;font-size:0.78rem;padding:0.45rem 0.65rem">+ Add parts</button></div>'
-      + '<div style="font-size:0.82rem;color:var(--text-dim);margin-bottom:0.85rem">Parts you own that aren’t on a train yet — show-table finds, spares, the drawer. Need-a-part checks here first.</div>';
-    if (!bin.length) { pg.innerHTML = _dz(head + '<div style="text-align:center;padding:3rem 1rem;color:var(--text-dim)"><p>The bin is empty.</p><p style="font-size:0.8rem;margin-top:0.4rem">Bought an assortment at a show? Add it here with a quantity.</p></div>'); return; }
+      + '<button onclick="_maintBinForm()" class="btn" style="border:1.5px solid var(--accent);color:var(--accent);background:var(--bg-card);background:color-mix(in srgb, var(--accent) 10%, var(--bg-card));font-weight:600;padding:0.45rem 0.9rem;border-radius:8px;font-size:0.85rem">+ Add a loose part</button></div>'
+      + '<div style="font-size:0.82rem;color:var(--text-dim);margin-bottom:0.85rem">Everything in the drawer — parts spoken for by a train, and loose spares with what they fit. Need-a-part checks here first.</div>';
+    var H = function (t, n) { return '<div style="font-size:0.72rem;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--text-dim);margin:1rem 0 0.5rem">' + t + (n ? ' (' + n + ')' : '') + '</div>'; };
+    if (!bin.length && !spoken.length) {
+      pg.innerHTML = _dz(head + '<div style="text-align:center;padding:3rem 1rem;color:var(--text-dim)"><p>The drawer is empty.</p><p style="font-size:0.8rem;margin-top:0.4rem">A part marked bought on Parts Needed shows here as spoken for; a show-table assortment goes in as loose spares with a quantity.</p></div>');
+      return;
+    }
     var small = _btnQuiet('sm');
-    pg.innerHTML = _dz(head + bin.map(function (b) {
+    var loose = bin.map(function (b) {
       return '<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:0.8rem 1rem;margin-bottom:0.6rem;display:flex;gap:0.7rem;align-items:flex-start;flex-wrap:wrap">'
         + (b.photo ? '<a href="' + _esc(b.photo) + '" target="_blank" rel="noopener" style="flex-shrink:0;font-size:0.76rem;color:var(--accent2);text-decoration:none;border:1px solid var(--border);border-radius:6px;padding:0.2rem 0.45rem">photo</a>' : '')
         + '<div style="flex:1;min-width:200px">'
         +   '<div style="font-weight:700;color:var(--text)">' + _esc(b.desc || b.partNum) + (b.partNum && b.desc ? ' <span style="font-family:var(--font-mono);color:var(--accent2);font-weight:400">#' + _esc(b.partNum) + '</span>' : '') + '</div>'
         +   '<div style="font-size:0.78rem;color:var(--text-dim);margin-top:0.15rem">' + [b.where, b.dateAcq, b.price ? 'paid ' + b.price : '', b.topics ? '[' + b.topics + ']' : ''].filter(Boolean).map(_esc).join(' · ') + '</div>'
         +   (b.notes ? '<div style="font-size:0.76rem;color:var(--text-dim)">' + _esc(b.notes) + '</div>' : '')
-        +   (b.forSale ? '<div style="font-size:0.74rem;color:#e67e22;margin-top:0.15rem">For sale' + (b.asking ? ' — asking ' + _esc(b.asking) : '') + '</div>' : '')
+        +   (b.forSale ? '<div style="font-size:0.74rem;color:var(--forsale);margin-top:0.15rem">For sale' + (b.asking ? ' — asking ' + _esc(b.asking) : '') + '</div>' : '')
+        +   _binFitsHtml(b)
         + '</div>'
         + '<div style="display:flex;gap:0.35rem;align-items:center;flex-wrap:wrap">'
         +   '<button onclick="_maintBinQty(\'' + _esc(b.id) + '\',-1)" ' + small + '>−</button>'
@@ -2677,7 +2812,12 @@
         +   '<button onclick="_maintBinEdit(\'' + _esc(b.id) + '\')" ' + _btn('blue', 'sm') + '>Edit</button>'
         +   '<button onclick="_maintBinRemove(\'' + _esc(b.id) + '\')" ' + _btn('red', 'sm') + '>Remove</button>'
         + '</div></div>';
-    }).join(''));
+    }).join('');
+    pg.innerHTML = _dz(head
+      + H('Spoken for — bought for a train, waiting to be installed', spoken.length)
+      + (spoken.length ? spoken.map(_binSpokenHtml).join('') : '<div style="font-size:0.8rem;color:var(--text-dim)">Nothing waiting to be installed.</div>')
+      + H('Loose spares', bin.length)
+      + (bin.length ? loose : '<div style="font-size:0.8rem;color:var(--text-dim)">Nothing loose in the bin. Bought an assortment at a show? Add it with a quantity.</div>'));
   }
   window._binBuild = _binBuild;
 
