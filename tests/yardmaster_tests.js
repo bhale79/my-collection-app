@@ -77,7 +77,7 @@ ok('sw.js precaches yardmaster.js (the S85 offline-app lesson)',
 // Verdict buttons are the NEXT release; commit the one after.
 const ym22 = src('yardmaster.js');
 ok('1622 the Vault read now includes the crawl queue tabs',
-   /crawl_batches!A1:G50/.test(ym22) && /crawl_deltas!A1:[A-Z]+\d{3,}/.test(ym22));   // v1687: X12000 (was Q4000) — the two Greenberg transcriptions
+   /crawl_batches!A1:G\b/.test(ym22) && /crawl_deltas!A1:X\b/.test(ym22));   // v1687: X12000 (was Q4000); v1746: unbounded — the cap was outgrown
 ok('1622 the queue card exists and counts what is waiting',
    /Catalog review queue/.test(ym22) && /pending/.test(ym22));
 ok('1622 a batch opens into a review list with a back door',
@@ -230,8 +230,8 @@ ok('1633 the Edit dropdown is built FROM the derived list, never typed twice',
    /_ymMasterTabs\(\)\.map/.test(ym33) && !/<option value="Menards O"/.test(ym33));
 ok('1633 dedupe + verify reads are UNBOUNDED — a 21,000-row tab cannot blind the dedupe',
    !/A1:V5000/.test(ym33) && !/A1:A5000/.test(ym33) && !/A1:AD\d/.test(ym33) && ym33.indexOf('\'!A1:AD"') >= 0 && ym33.indexOf('\'!A1:A"') >= 0);   // v1683: A1:V → A1:AD (Image URL lands past W)
-ok('1633 the Vault delta read holds a sweep-sized queue (12,000 since v1687)',
-   /crawl_deltas!A1:X12000/.test(ym33));
+ok('1633 the Vault delta read holds a sweep-sized queue (12,000 since v1687; UNBOUNDED since v1746 — the tab reached 12,227)',
+   /'crawl_deltas!A1:X'/.test(ym33) && !/crawl_deltas!A1:X\d/.test(ym33) && !/crawl_batches!A1:G\d/.test(ym33));
 ok('1633 the confirm line reports per-tab append counts',
    /perTab\.join/.test(ym33) && /totFresh/.test(ym33));
 
@@ -410,7 +410,7 @@ const privacy13 = fs.readFileSync(path.join(__dirname, '..', 'privacy', 'index.h
 ok('1713 the check-in carries the name (capped) — the only new field the app sends', /action: 'sub_check', email: state\.user\.email,\s*\n\s*name: String\(state\.user\.name \|\| ''\)\.slice\(0, 80\),/.test(vault13));
 ok('1713 the heartbeat is untouched — still anonymous, still once per device per day', /vaultPost\(\{ action: 'heartbeat', v: \(typeof APP_VERSION/.test(vault13) && /lv_hb_day/.test(vault13) && !/heartbeat', email/.test(vault13));
 ok('1713 beta_testers!A1:H is read in the same batchGet, at the END of the list (v[0..5] keep their meaning)',
-   /'crawl_batches!A1:G50', 'crawl_deltas!A1:X12000',[^\n]*\n\s*'beta_testers!A1:H'\]/.test(ym13) && /crawlBatches: v\[4\], crawlDeltas: v\[5\], betaTesters: v\[6\]/.test(ym13));
+   /'crawl_batches!A1:G', 'crawl_deltas!A1:X',[^\n]*\n\s*'beta_testers!A1:H'\]/.test(ym13) && /crawlBatches: v\[4\], crawlDeltas: v\[5\], betaTesters: v\[6\]/.test(ym13));
 ok('1713 columns are found BY HEADER (email, last_seen, app_version, opens, recent_days, name), never by position',
    /function _ymBetaRows\(rows, now\)/.test(ym13) && ["'email'", "'last_seen'", "'app_version'", "'opens'", "'recent_days'", "'name'"].every(k => ym13.indexOf("g(r, " + k + ")") >= 0) && !/r\[3\]|r\[4\]|r\[5\]|r\[6\]|r\[7\]/.test(ym13.slice(ym13.indexOf('function _ymBetaRows'), ym13.indexOf('function _summarize'))));
 // run the two pure helpers on the real code
@@ -575,6 +575,24 @@ const ym17 = src('yardmaster.js');
 ok('1717 the search leads with the row’s own maker, falling back to the batch label',
    /var gq = encodeURIComponent\(\(\(_ymDeltaMaker\(dd\) \|\| maker\) \+ ' ' \+ dd\.num \+ ' ' \+ dd\.desc\)\.trim\(\)\);/.test(ym17));
 ok('1717 the batch label is still what the fallback reads', /var maker = String\(b\.label \|\| ''\)\.split\(' '\)\[0\] \|\| '';/.test(ym17));
+
+// ── v0.9.1746: the queue read had a row cap the data outgrew ─────────
+// Found 2026-09-14 while checking Brad's Pre-sort: crawl_deltas was 12,227
+// rows and the read stopped at 12,000, so 227 pending community submissions
+// (CB-COMMUNITY-SUBS-1333…1559) could never reach the Yardmaster page. Same
+// bug v1695 fixed for submissions. Rule: an APPEND-ONLY tab is read with no
+// row number — a cap is a time bomb, whatever it is set to.
+const ym46 = src('yardmaster.js');
+const fv46 = ym46.slice(ym46.indexOf('function _fetchVault()'), ym46.indexOf('function _fetchVault()') + 2500);
+const ranges46 = (fv46.match(/'[a-z_]+!A1:[A-Z]+\d*'/g) || []).map(s => s.slice(1, -1));
+ok('1746 _fetchVault lists its ranges', ranges46.length >= 7, ranges46.join(' '));
+['submissions', 'barcode_pairs', 'crawl_batches', 'crawl_deltas', 'beta_testers'].forEach(function (tab) {
+  const r = ranges46.find(x => x.indexOf(tab + '!') === 0);
+  ok('1746 ' + tab + ' (append-only) is read with NO row cap', !!r && /![A-Z]+1:[A-Z]+$/.test(r), r || '(missing)');
+});
+ok('1746 the deltas range keeps its X width (columns are found by header, but the read must reach category)', ranges46.indexOf('crawl_deltas!A1:X') >= 0);
+ok('1746 the batchGet slots are unchanged (v[4] batches, v[5] deltas, v[6] beta)', /crawlBatches: v\[4\], crawlDeltas: v\[5\], betaTesters: v\[6\]/.test(ym46));
+ok('1746 the reason is written beside the read', /v0\.9\.1746: the SAME bug on crawl_deltas/.test(fv46));
 
 console.log('\n' + pass + ' passed, ' + fail + ' failed');
 if (fail) { console.log('YARDMASTER TESTS FAILING'); process.exit(1); }
