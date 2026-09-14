@@ -24,6 +24,11 @@
 // and Heislers → Steam, a D&H U36B → Diesel, a GN boxcab → Electric).
 // Nothing stored as anything but a locomotive moves.
 //
+// v0.9.1743: set rows are no longer skipped wholesale — the plain word
+// "Steam"/"Diesel" in a set's own name decides (model names do not). Sweep
+// v1742 → v1743: 426 more rows, 91 Steam→Diesel ("Alco PA AA Diesel Set"
+// with a Pacific road) and 335 Diesel→Steam (Lionel "Steam Freight Set").
+//
 // Run:  node tests/loco_kind_tests.js
 // ═══════════════════════════════════════════════════════════════
 const fs = require('fs');
@@ -67,9 +72,19 @@ ok('NKP 0-8-0 Switcher (stored Diesel) → Steam by its wheels, not its "switche
 ok('Stourbridge Lion Steam Locomotive (stored Diesel) → Steam', bucket({ itemType: 'Diesel Locomotive', description: 'Stourbridge Lion Steam Locomotive' }) === 'Steam Locomotive');
 ok('a generic "Locomotive" 2-Truck Shay → Steam', bucket({ itemType: 'Locomotive', description: 'West Side Lumber LEGACY 2-Truck Shay Locomotive #5' }) === 'Steam Locomotive');
 
+section('Sets — v0.9.1743: the plain word alone decides');
+ok('"Union Pacific Alco PA AA Diesel Set" typed Steam → Diesel (the v1742 gap)', bucket({ itemType: 'Steam Locomotive', description: 'Union Pacific O Scale Premier Alco PA AA Diesel Set - 3 Rail Horn' }) === 'Diesel Locomotive');
+ok('"Southern Pacific E9 AA Diesel Locomotive Set" typed Steam → Diesel', bucket({ itemType: 'Steam Locomotive', description: 'K28882 O Southern Pacific E9 AA Diesel Locomotive Set w/TMCC' }) === 'Diesel Locomotive');
+ok('"Scout Steam Freight Set" typed Diesel → Steam', bucket({ itemType: 'Diesel Locomotive', description: 'Scout Steam Freight Set' }) === 'Steam Locomotive');
+ok('"Hogwarts Express Steam Passenger Set" typed Diesel → Steam', bucket({ itemType: 'Diesel Locomotive', description: 'Harry Potter Hogwarts Express Steam Passenger Set' }) === 'Steam Locomotive');
+ok('a set with NO plain word stays as stored: "Great Northern ... Freight Train Set" (Northern is not evidence)', bucket({ itemType: 'Steam Locomotive', subType: 'Train Sets', description: 'Great Northern Rocky Mountain Freight Train Set' }) === 'Steam Locomotive');
+ok('a set with only MODEL names stays as stored: "SD70ACe Heritage Set" typed Steam is not flipped by the model', bucket({ itemType: 'Steam Locomotive', description: 'SD70ACe Heritage Set' }) === 'Steam Locomotive');
+ok('a freight-car set typed Steam stays (no plain word — a different question)', bucket({ itemType: 'Steam Locomotive', description: 'Union Pacific O Scale Premier 6-Car Box Car Set' }) === 'Steam Locomotive');
+ok('a set saying BOTH words stays as stored', bucket({ itemType: 'Diesel Locomotive', description: 'Steam and Diesel Starter Set' }) === 'Diesel Locomotive');
+ok('an RDC Budd Car Set typed Diesel stays', bucket({ itemType: 'Diesel Locomotive', description: 'RDC Budd Car Set' }) === 'Diesel Locomotive');
+ok('locoKindFromPlainWord is exported and reads only the two words', typeof W.locoKindFromPlainWord === 'function' && W.locoKindFromPlainWord('gp9 4-8-4') === '' && W.locoKindFromPlainWord('Diesel Set') === 'Diesel' && W.locoKindFromPlainWord('Steam Set') === 'Steam');
+
 section('What must NOT move');
-ok('a SET stays as stored: "Steam Freight Set" typed Diesel is a different question', bucket({ itemType: 'Diesel Locomotive', description: 'Scout Steam Freight Set' }) === 'Diesel Locomotive');
-ok('a Train Sets sub type stays as stored', bucket({ itemType: 'Steam Locomotive', subType: 'Train Sets', description: 'Great Northern Rocky Mountain Freight Train Set' }) === 'Steam Locomotive');
 ok('the user\'s OWN row is never overridden (_personalOnly)', bucket({ _personalOnly: true, itemType: 'Steam Locomotive', description: 'Union Pacific GP9 Diesel' }) === 'Steam Locomotive');
 ok('the user\'s OWN row is never overridden (_manualRow)', bucket({ _manualRow: true, itemType: 'Diesel Locomotive', description: 'Cass Scenic Shay' }) === 'Diesel Locomotive');
 ok('both hard signals ("Alco 2-8-2") decide nothing — stored kind stands', bucket({ itemType: 'Diesel Locomotive', description: 'Alco 2-8-2 with GP9 trucks' }) === 'Diesel Locomotive' && kind('alco 2-8-2 with gp9 trucks') === '');
