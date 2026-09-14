@@ -84,6 +84,42 @@
     '26120': 'Boxcar', '26122': 'Boxcar', '26740': 'Boxcar', '52160': 'Boxcar'
   };
 
+  // ══ v0.9.1742 — WHAT A LOCOMOTIVE'S OWN WORDS PROVE ═══════════════════════
+  // Brad, 2026-09-14, on Atlas 30138671 (an ET44 diesel showing STEAM): "we
+  // have a type issue, please review the atlas tab, find out why this
+  // happened and then see what other issues might be similar and fix it."
+  //
+  // WHY: the steam-class list below had PACIFIC, NORTHERN, ATLANTIC, TEXAS,
+  // ALLEGHENY, HUDSON and SWITCHER in it and was tested BEFORE the diesel
+  // model names. Every one of those is also a RAILROAD — Union Pacific,
+  // Burlington Northern, Atlantic Coast Line, Texas & Pacific, Delaware &
+  // Hudson — so a "Union Pacific ET44" read as a 4-6-2 Pacific. Measured on
+  // the live master: 317 diesels typed Steam that way, and 201 steam engines
+  // typed Diesel by the "don't know → Diesel" default (Shays, Heislers,
+  // 2-10-0 Decapods, GS-4s), in Lionel Modern, Atlas O, Williams, MTH…
+  //
+  // THE RULE, in order of trust:
+  //   1. the plain word — "steam" / "diesel" (v0.9.1528, unchanged)
+  //   2. HARD steam evidence: a wheel arrangement (2-8-4), a class that is not
+  //      also a railroad (Mikado, Berkshire, Shay, Heisler, Big Boy…)
+  //   3. HARD diesel evidence: a builder's model (GP9, SD70MAC, ET44, ES44AC,
+  //      C44-9W, F3/F7, E6, S2, VO-1000, RS-11, Genset, Train Master…)
+  //   4. only then the words that double as railroad names
+  // Both hard signals at once ("Alco 2-8-2") decide nothing here.
+  var LOCO_STEAM_HARD = /\b(\d-\d-\d(?:-\d)?|steam|dampflok\w*|mikado|berkshire|consolidation|mogul|shay|climax|heisler|big boy|niagara|decapod|ten.?wheeler|camelback|mallet|dockside|docksider|royal hudson)\b/i;
+  var LOCO_DIESEL_HARD = /\b(diesel|gp[- ]?\d+\w*|sd[- ]?\d+\w*|sdp[- ]?\d+\w*|et44\w*|es44\w*|es8|ac4400\w*|ac6000\w*|c44\w*|c40\w*|c30\w*|dash[- ]?[89]\w*|u\d{2}[bc]?|f[- ]?[379][a-c]?|fa[- ]?[12]|fb[- ]?[12]|fp[- ]?[79]|pa[- ]?[12]|pb[- ]?[12]|rs[- ]?\d+\w*|rsd[- ]?\d*|rsc[- ]?\d*|sw[- ]?\d+\w*|nw[- ]?2|mp15\w*|vo-?1000|ds-?4-?4\w*|h[- ]?\d{2}-?44|h24\w*|h16\w*|fm|train ?master|genset|gevo|bl2|b23\w*|b30\w*|b36\w*|b40\w*|c420|c424|c425|c628|c630|c636|dl109|emd|3gs21b|geep|e[- ]?[5-9](?=\s*(?:locomotive|diesel|a unit|b unit|unit))|s[- ]?[124](?=\s*(?:locomotive|diesel|switcher)))\b/i;
+  // Words that name a steam class AND a railroad. Weakest evidence; last.
+  var LOCO_STEAM_SOFT = /\b(hudson|pacific|atlantic|columbia|prairie|northern|texas|allegheny|challenger|switcher|no\.\s*\d+e|jenny|usra.*steam|standard gauge.*steam)\b/i;
+  // What the text PROVES: 'Steam', 'Diesel', or '' (nothing hard, or both).
+  function locoKindFromWords(text) {
+    var n = String(text || '');
+    if (!n) return '';
+    var st = LOCO_STEAM_HARD.test(n), di = LOCO_DIESEL_HARD.test(n);
+    if (st && !di) return 'Steam';
+    if (di && !st) return 'Diesel';
+    return '';
+  }
+
   // ── Helper: classify generic "Locomotive" itemType into Steam/Diesel/Electric ──
   function classifyLocoByName(name) {
     if (!name) return null;
@@ -96,8 +132,11 @@
     var _saysSteam = /\bsteam\b/.test(n), _saysDiesel = /\bdiesel\b/.test(n);
     if (_saysDiesel && !_saysSteam) return 'Diesel';
     if (_saysSteam && !_saysDiesel) return 'Steam';
-    if (/no\.\s*\d+e\b|^\d+e\s|hudson|pacific|berkshire|mikado|atlantic|columbia|prairie|consolidation|mogul|0-\d-\d|2-\d-\d|4-\d-\d|switcher|northern|niagara|big boy|challenger|dock side|royal hudson|allegheny|texas|jenny|usra.*steam|standard gauge.*steam/.test(n)) return 'Steam';
     if (/electric|gg-?1|ep[- ]?\d|asea/.test(n)) return 'Electric';
+    // v0.9.1742: hard evidence first, in both directions — see the header.
+    var _hard = locoKindFromWords(n);
+    if (_hard) return _hard;
+    if (/^\d+e\s/.test(n) || LOCO_STEAM_SOFT.test(n)) return 'Steam';
     if (/gp[- ]?\d|sd[- ]?\d|sd-?\d|\brs[- ]?\d|sw[- ]?\d|f[- ]?\d|f-?\d|mp15|u\d{2}|fa[- ]?\d|fb[- ]?\d|emd|alco|bl-?\d|h-?\d|baldwin|fairbanks|bombardier|mlw|dash[- ]?\d|c[- ]?\d{3}|fp[- ]?\d|pa[- ]?\d|nw[- ]?\d|husky|fairmont|trainmaster|krauss|f40ph|fm erie|rsd|gp15|sd70ace|sd70|sd60|sd50|sd45|sd75/.test(n)) return 'Diesel';
     return null;
   }
@@ -125,6 +164,20 @@
     var itemNum = (item.itemNum || '').toString();
 
     // ── LOCOMOTIVES ──
+    // v0.9.1742: a CATALOG row's stored kind is read, not obeyed on sight.
+    // 518 master rows carry the opposite kind from what their own description
+    // proves (see locoKindFromWords). A row whose words are unambiguous shows
+    // as what it is; a row the user typed themselves is never overridden;
+    // a set row is a different question and is left alone.
+    // Only the row's OWN name — sub type + description. The variation prose
+    // is left out on purpose: American Flyer's 561 Billboard Horn (variation
+    // "(B) Santa Fe Alco with Steam Engine on Bridge") is neither.
+    var _ownName = subL + ' ' + String(item.description || '').toLowerCase();
+    if (!_own && (it === 'Steam Locomotive' || it === 'Diesel Locomotive') && !/\bsets?\b/.test(_ownName)) {
+      var _proved = locoKindFromWords(_ownName);
+      if (_proved === 'Diesel' && it === 'Steam Locomotive') return 'Diesel Locomotive';
+      if (_proved === 'Steam' && it === 'Diesel Locomotive') return 'Steam Locomotive';
+    }
     if (it === 'Steam Locomotive' || it === 'Steam Engine') return 'Steam Locomotive';
     if (it === 'Diesel Locomotive' || it === 'Diesel Engine') return 'Diesel Locomotive';
     if (it === 'Electric Locomotive' || it === 'Electric Engine') return 'Electric Locomotive';
@@ -312,6 +365,7 @@
   window.MANUAL_TYPE_OVERRIDES = MANUAL_TYPE_OVERRIDES;
   window.rrNormalizeTypeToBucket = _normalizeToBucket;
   window.getTypeBucket = getTypeBucket;
+  window.locoKindFromWords = locoKindFromWords;   // v0.9.1742: one reader for every classifier
   window.getTypeBucketLabel = getTypeBucketLabel;
   window.BUCKET_TO_ICON = BUCKET_TO_ICON;
   window.getBucketIcon = getBucketIcon;

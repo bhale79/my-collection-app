@@ -2100,6 +2100,14 @@ function _identifyConfirmMfrMismatch(itemNum, fullText, meta) {
 function _mapSubTypeToManualType(subType) {
   if (!subType) return '';
   var s = String(subType).toLowerCase();
+  // v0.9.1742: hard evidence first (a wheel arrangement or a builder's model
+  // outranks a class name that is also a railroad — "Union Pacific GP9" is
+  // a diesel). Same reader as the catalog: locoKindFromWords in type-groups.js.
+  if (typeof window !== 'undefined' && typeof window.locoKindFromWords === 'function') {
+    var _hardKind = window.locoKindFromWords(s);
+    if (_hardKind === 'Steam') return 'Steam Engine';
+    if (_hardKind === 'Diesel') return 'Diesel Engine';
+  }
   // Steam locomotive classes.
   if (/(?:hudson|pacific|berkshire|mikado|northern|mountain|atlantic|big boy|challenger|mallet|ten[-\s]?wheeler|camelback|mogul|consolidation|dockside|trainmaster.*steam)/i.test(s)) return 'Steam Engine';
   // Diesel locomotive classes.
