@@ -107,8 +107,15 @@
     // v0.9.1695: submissions is 3,638 rows and growing — the old A1:L1000 read
     // saw only the first thousand (all in_master=true) and reported 0 waiting
     // while 885 sat below the cut. Both queue tabs are read unbounded now.
+    // v0.9.1746: the SAME bug on crawl_deltas — its read was capped at 12,000
+    // rows (v1687) and the tab reached 12,227 on 2026-09-14: 227 pending
+    // community submissions (CB-COMMUNITY-SUBS-1333…1559) sat below the cut
+    // where the queue could never show them. Both crawl tabs are read
+    // unbounded now, like the queue tabs. No read here carries a row cap
+    // that the data can outgrow; the small fixed tabs (chores, usage) keep
+    // theirs because they are trimmed, not appended to.
     var ranges = ['submissions!A1:L', 'barcode_pairs!A1:I', 'chores!A1:D200', 'usage!A1:C400',
-                  'crawl_batches!A1:G50', 'crawl_deltas!A1:X12000',   // v0.9.1683: image_url is column R; v0.9.1685: var_desc/sub_type/notes/category after it — all found BY HEADER. v0.9.1687: 4000 → 12000 rows (the two Greenberg transcriptions alone are 6,455 deltas)
+                  'crawl_batches!A1:G', 'crawl_deltas!A1:X',   // v0.9.1683: image_url is column R; v0.9.1685: var_desc/sub_type/notes/category after it — all found BY HEADER. v0.9.1687: 4000 → 12000 rows (the two Greenberg transcriptions alone are 6,455 deltas)
                   'beta_testers!A1:H']                                // v0.9.1713: added at the END so v[0..5] keep their meaning; columns found BY HEADER
       .map(function (r) { return 'ranges=' + encodeURIComponent(r); }).join('&');
     return fetch('https://sheets.googleapis.com/v4/spreadsheets/' + YM.VAULT_ID
