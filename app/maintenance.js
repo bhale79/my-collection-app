@@ -2190,17 +2190,63 @@
       } catch (e) { btn.disabled = false; btn.textContent = 'Save'; if (typeof showToast === 'function') showToast('Could not save — ' + (e && e.message || 'try again'), 4000, true); }
     };
   };
+  // v0.9.1752: ONE remover for a log row — the history's Remove and the task
+  // card's Remove both come through here (no second copy of the sheet call).
+  async function _removeLogRow(l) {
+    var blank = [['', '', '', '', '', '', '', '', '', '', '']];
+    if (!(await rrRemoveRowConfirmed(state.personalSheetId, LOG_TAB, l.row, LOG_TAB + '!A' + l.row + ':K' + l.row, blank, { num: l.id }, 'service history'))) return false;
+    await _loadLog();
+    var f = document.getElementById('wb-entry'); if (f) f.remove();
+    var ctx = window._wbHistoryCtx; if (ctx) window._maintShowHistory(ctx.invId, ctx.itemNum);
+    _maintRenderTasks(); _wbBuild(); _wbBadge();
+    return true;
+  }
   window._maintRemoveEntry = async function (logId) {
     var l = (state.maintLog || []).find(function (x) { return x.id === logId; });
     if (!l || !confirm('Remove "' + l.text + '" (' + (l.dateDone || l.dateAdded) + ') from the service history?')) return;
+    try { await _removeLogRow(l); }
+    catch (e) { if (typeof showToast === 'function') showToast('Could not remove it', 3500, true); }
+  };
+  // v0.9.1752 (Brad: "i don't have a way to delete a task i did in error or
+  // added twice by accident"). An OPEN task can be removed from its card. Any
+  // part linked to it is NOT thrown away: it is unlinked first (column M
+  // blanked) and stays on the Parts Needed list for this item, so a wanted
+  // or bought part never disappears with a mis-added task.
+  window._maintRemoveTask = async function (logId) {
+    var l = (state.maintLog || []).find(function (x) { return x.id === logId; });
+    if (!l) return;
+    var parts = _taskParts(logId);
+    var msg = 'Remove the task “' + l.text + '”? It was never done, so nothing goes into the history.'
+      + (parts.length ? ' The ' + parts.length + ' part' + (parts.length > 1 ? 's' : '') + ' linked to it stay' + (parts.length > 1 ? '' : 's') + ' on your Parts Needed list for this item.' : '');
+    if (!confirm(msg)) return;
     try {
-      var blank = [['', '', '', '', '', '', '', '', '', '', '']];
-      if (!(await rrRemoveRowConfirmed(state.personalSheetId, LOG_TAB, l.row, LOG_TAB + '!A' + l.row + ':K' + l.row, blank, { num: l.id }, 'service history'))) return;
-      await _loadLog();
-      var f = document.getElementById('wb-entry'); if (f) f.remove();
-      var ctx = window._wbHistoryCtx; if (ctx) window._maintShowHistory(ctx.invId, ctx.itemNum);
-      _maintRenderTasks(); _wbBuild(); _wbBadge();
-    } catch (e) { if (typeof showToast === 'function') showToast('Could not remove it', 3500, true); }
+      for (var i = 0; i < parts.length; i++) { if (!(await _maintPartSetTask(parts[i].row, ''))) return; }
+      if (await _removeLogRow(l) && typeof showToast === 'function') showToast('✓ Task removed');
+    } catch (e) { if (typeof showToast === 'function') showToast('Could not remove the task', 3500, true); }
+  };
+  // v0.9.1752: the ONE writer that ties a Parts Needed row to a task (or to
+  // none): column M, verified, then the card, the bench and the Parts page
+  // redraw. Used by Remove task, by Move on a part line, and by the picker's
+  // "Attach to this job" / "Use it for this job".
+  async function _maintPartSetTask(partRow, taskId) {
+    var p = Object.values(state.partsData || {}).find(function (x) { return x.row === partRow; });
+    if (!p) return false;
+    var _t = function (v) { v = String(v || ''); return v && v.charAt(0) !== "'" ? "'" + v : v; };
+    if (typeof _ensurePartsLifecycleCols === 'function') await _ensurePartsLifecycleCols();
+    var ok = await rrVerifiedRowUpdate(state.personalSheetId, 'Parts Needed', partRow, 'Parts Needed!M' + partRow, [[_t(taskId || '')]], { num: p.id }, 'Parts Needed');
+    if (!ok) return false;
+    p.taskId = String(taskId || '');
+    _maintRenderTasks(); _wbBuild(); _wbBadge();
+    if (typeof _renderPartsList === 'function' && document.getElementById('parts-list')) _renderPartsList();
+    return true;
+  }
+  window._maintPartSetTask = _maintPartSetTask;
+  // Move a part line to another open task on this unit, or off every task
+  window._maintPartMove = async function (partRow, taskId, sel) {
+    if (sel && sel.value === '') return;
+    var ok = await _maintPartSetTask(partRow, taskId);
+    if (ok && typeof showToast === 'function') showToast(taskId ? '✓ Part moved to that task' : '✓ Part kept for this item — not tied to a task');
+    if (!ok && sel) sel.value = '';
   };
 
   // ── v0.9.1666: TASK CARDS (bite 2) — the task is the unit of work ──
@@ -2238,6 +2284,17 @@
         if ((p.status || 'wanted') === 'installed') return false;
         return inv ? p.forInv === inv : (p.forItem === num && !p.forInv);
       });
+      // v0.9.1752 (Brad): a part on the wrong task can be MOVED — to another
+      // open task on this unit, or off every task (kept for the item). The
+      // select lists only the other destinations; picking one writes column M.
+      var moveSel = function (p, onTask) {
+        var others = tasks.filter(function (t) { return t.id !== (p.taskId || ''); });
+        if (!others.length && !p.taskId) return '';
+        var opts = '<option value="">Move…</option>'
+          + others.map(function (t) { return '<option value="' + _esc(t.id) + '">to: ' + _esc(t.text) + '</option>'; }).join('')
+          + (p.taskId ? '<option value="__none">off this task (keep for the item)</option>' : '');
+        return '<select onchange="_maintPartMove(' + p.row + ',this.value===\'__none\'?\'\':this.value,this)" title="Move this part to another task" style="' + _QUIET + ';padding:0.2rem 0.3rem;border-radius:7px;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body);font-size:0.7rem;flex-shrink:0">' + opts + '</select>';
+      };
       var partRow = function (p, fromList) {
         var st = p.status || 'wanted';
         var name = _esc(p.description || p.partNum || 'part');
@@ -2246,11 +2303,11 @@
                 : '<span style="color:var(--warn)"><b>Waiting on</b></span> “' + name + '”';
         var act = st === 'bought' ? '<button onclick="_maintPartInstalled(' + p.row + ')" ' + _btn('green', 'sm', 'flex-shrink:0') + '>Installed it</button>'
                 : st === 'wanted' ? '<button onclick="_maintPartBought(' + p.row + ')" ' + _btn('green', 'sm', 'flex-shrink:0') + '>Bought it</button>' : '';
-        return '<div style="display:flex;justify-content:space-between;align-items:center;gap:0.5rem;font-size:0.8rem;color:var(--text);margin-top:0.35rem">'
-          + '<div>' + txt
+        return '<div style="display:flex;justify-content:space-between;align-items:center;gap:0.5rem;font-size:0.8rem;color:var(--text);margin-top:0.35rem;flex-wrap:wrap">'
+          + '<div style="flex:1;min-width:10rem">' + txt
           + (p.partNum && p.description ? ' <span style="font-family:var(--font-mono);color:var(--text-dim);font-size:0.72rem">#' + _esc(p.partNum) + '</span>' : '')
           + (fromList ? ' <span style="color:var(--text-dim);font-size:0.7rem">(from your Parts Needed list)</span>' : '')
-          + '</div>' + act + '</div>';
+          + '</div><div style="display:flex;gap:0.3rem;align-items:center;flex-shrink:0">' + (st === 'installed' ? '' : moveSel(p)) + act + '</div></div>';
       };
       var looseBlock = (loose.length && tasks.length !== 1)
         ? '<div style="border:1px dashed var(--border);border-radius:10px;padding:0.55rem 0.75rem;margin-bottom:0.5rem">'
@@ -2264,6 +2321,7 @@
         return '<div class="maint-task" data-id="' + _esc(t.id) + '" style="border:1px solid var(--border);border-radius:10px;padding:0.65rem 0.75rem;margin-bottom:0.5rem;background:var(--bg-card)">'
           + '<div style="display:flex;justify-content:space-between;align-items:center;gap:0.4rem;flex-wrap:wrap">'
           +   '<div style="font-weight:700;color:var(--text)">' + _esc(t.text) + ' <span style="font-weight:400;font-size:0.72rem;color:var(--text-dim)">since ' + _esc(t.dateAdded) + '</span></div>'
+          +   '<button onclick="_maintRemoveTask(\'' + _esc(t.id) + '\')" title="Added by mistake? Remove this task (its parts stay on the list)" ' + _btn('red', 'sm', 'flex-shrink:0') + '>Remove</button>'   // v0.9.1752
           + '</div>'
           + '<textarea id="task-notes-' + _esc(t.id) + '" placeholder="Notes for this repair… (saves by itself)" rows="2" oninput="_maintNotesTyped(' + t.row + ',\'' + _esc(t.id) + '\')" onblur="_maintSaveTaskNotes(' + t.row + ',\'' + _esc(t.id) + '\',true)" style="' + IN + ';margin-top:0.5rem;resize:vertical">' + _esc(t.notes || '') + '</textarea>'
           + '<div id="task-notes-hint-' + _esc(t.id) + '" style="font-size:0.7rem;color:var(--text-dim);min-height:0.9rem"></div>'
@@ -2320,7 +2378,63 @@
 
   // _maintTaskVideos removed in v0.9.1671 (Brad: the video finder sits right below the card).
 
-  // ── the Need-a-part popup: find your part + your parts diagrams ──
+  // v0.9.1752 (Brad: "when i go to add the task, it should take me to a page
+  // that says need part, where i can look at the parts i have or add a part
+  // to my part want list... right now i can't select the part i need").
+  // The pop-up is a PICKER before it is a typing box. Pure: (target, taskId,
+  // state) → what can be picked for this job, in order of how much it saves:
+  //   onHand  — Parts Needed rows already BOUGHT for this unit (in the
+  //             drawer, spoken for) that are not yet on this job;
+  //   wanted  — Parts Needed rows still WANTED for this unit, loose or on
+  //             another task (moving one is a column-M write, nothing new);
+  //   bin     — the loose spares in the Parts Bin (the search box narrows).
+  // A Parts Needed row is "for this unit" by inventoryId when the card has
+  // one, else by item number with no inventoryId (the same rule the task
+  // card's loose block uses).
+  function _maintPickerParts(tg, taskId) {
+    var inv = String(tg.invId || ''), num = String(tg.item && tg.item.itemNum || '').trim();
+    var forUnit = function (p) { return inv ? p.forInv === inv : (p.forItem === num && !p.forInv); };
+    var taskName = function (id) { var t = (state.maintLog || []).find(function (l) { return l.id === id; }); return t ? t.text : ''; };
+    var onHand = [], wanted = [];
+    Object.values(state.partsData || {}).forEach(function (p) {
+      if (!forUnit(p) || (p.taskId || '') === String(taskId || '')) return;
+      var st = p.status || 'wanted';
+      var e = { part: p, onTask: p.taskId ? taskName(p.taskId) : '' };
+      if (st === 'bought') onHand.push(e); else if (st === 'wanted') wanted.push(e);
+    });
+    var bin = (state.partsBin || []).filter(function (b) { return b.qty > 0; });
+    return { onHand: onHand, wanted: wanted, bin: bin };
+  }
+  window._maintPickerParts = _maintPickerParts;
+  // "Attach to this job" / "Use it for this job": the SAME column-M writer
+  window._maintPopAttach = async function (partRow, taskId) {
+    var ok = await _maintPartSetTask(partRow, taskId);
+    if (!ok) return;
+    var pop = document.getElementById('maint-parts-pop'); if (pop) pop.remove();
+    if (_wbTarget) _wbCloseCard();
+    if (typeof showToast === 'function') showToast('✓ On the task — the card shows it');
+  };
+  function _maintPickerHtml(tg, taskId) {
+    if (!taskId) return '';   // from the bench's + Add part with no job picked: nothing to attach to
+    var pk = _maintPickerParts(tg, taskId);
+    if (!pk.onHand.length && !pk.wanted.length) return '';
+    var line = function (e, verb) {
+      var p = e.part;
+      return '<div style="display:flex;justify-content:space-between;align-items:center;gap:0.5rem;padding:0.3rem 0;border-bottom:1px solid var(--border);font-size:0.8rem;color:var(--text)">'
+        + '<div><b>' + _esc(p.description || p.partNum || 'part') + '</b>'
+        + (p.partNum && p.description ? ' <span style="font-family:var(--font-mono);color:var(--accent2)">#' + _esc(p.partNum) + '</span>' : '')
+        + (e.onTask ? ' <span style="color:var(--text-dim);font-size:0.72rem">(now on: ' + _esc(e.onTask) + ')</span>' : ' <span style="color:var(--text-dim);font-size:0.72rem">(not tied to a task)</span>')
+        + '</div>'
+        + '<button onclick="_maintPopAttach(' + p.row + ',\'' + _esc(taskId) + '\')" ' + _btn('green', 'sm', 'flex-shrink:0') + '>' + verb + '</button>'
+        + '</div>';
+    };
+    return '<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:0.9rem 1rem;margin-bottom:0.8rem">'
+      + (pk.onHand.length ? '<div style="' + SECT + '">Already in your drawer for this item</div>' + pk.onHand.map(function (e) { return line(e, 'Use it for this job'); }).join('') : '')
+      + (pk.wanted.length ? '<div style="' + SECT + (pk.onHand.length ? ';margin-top:0.6rem' : '') + '">Already on your Parts Needed list for this item</div>' + pk.wanted.map(function (e) { return line(e, 'Attach to this job'); }).join('') : '')
+      + '</div>';
+  }
+
+  // ── the Need-a-part popup: pick a part you have or want, find a new one, your parts diagrams ──
   window._maintPartsPopup = function (taskId, taskName) {
     var tg = _target();
     if (!tg.item) return;
@@ -2340,12 +2454,13 @@
     var html = '<div id="maint-parts-pop" style="position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9650;display:flex;align-items:flex-start;justify-content:center;overflow-y:auto;padding:2rem 1rem">'
       + _cardOpen(520)
       + _cardHead(_esc(taskName), _wbTarget ? 'Add a part' : 'Need a part', closeJs)
+      + _maintPickerHtml(tg, taskId)   // v0.9.1752: pick before you type
       + '<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:0.9rem 1rem;margin-bottom:0.8rem">'
-      +   '<div style="' + SECT + '">Find your part</div>'
+      +   '<div style="' + SECT + '">' + (taskId ? 'Something else? Find the part' : 'Find your part') + '</div>'
       +   '<div style="display:flex;gap:0.4rem;flex-wrap:wrap">'
       +     '<input id="maint-pop-part" placeholder="part number / description" oninput="_maintBinCheck(\'' + _esc(taskId) + '\')" style="' + IN + '">'
       +   '</div>'
-      +   '<div id="maint-pop-bin" style="font-size:0.8rem;color:var(--text);margin:0.5rem 0 0.6rem;padding:0.45rem 0.6rem;background:var(--bg-card);border:1px dashed var(--border);border-radius:8px"><span style="color:var(--text-dim)">Type what you need above and the bin gets checked.</span></div>'
+      +   '<div id="maint-pop-bin" style="font-size:0.8rem;color:var(--text);margin:0.5rem 0 0.6rem;padding:0.45rem 0.6rem;background:var(--bg-card);border:1px dashed var(--border);border-radius:8px"><span style="color:var(--text-dim)">Checking your bin…</span></div>'
       +   '<div style="font-size:0.72rem;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-dim);margin-bottom:0.35rem">Not in the bin? Order one</div>'
       +   _favRow(MAINT.PREF_DEALERS, 'maint-pop-dealer', 'Any dealer')
       +   '<div style="display:flex;gap:0.4rem;margin-top:0.5rem;flex-wrap:wrap">'
@@ -2361,7 +2476,7 @@
       + '</div>'
       + '</div></div>';
     document.body.insertAdjacentHTML('beforeend', html);
-    if (!state.partsBin) _loadBin();
+    window._maintBinCheck(taskId);   // v0.9.1752: the bin's loose spares show at once; typing narrows them
     var pi = document.getElementById('maint-pop-part'); if (pi) pi.focus();
   };
   window._maintPopSearch = function () {
@@ -2667,10 +2782,14 @@
     var el = document.getElementById('maint-pop-bin'); if (!el) return;
     var q = (document.getElementById('maint-pop-part') || {}).value || '';
     var render = function () {
-      var hits = _binSearch(q);
-      if (!q.trim()) { el.innerHTML = '<span style="color:var(--text-dim)">Type what you need above and the bin gets checked.</span>'; return; }
-      if (!hits.length) { el.innerHTML = '<span style="color:var(--text-dim)">Nothing matching in your bin' + ((state.partsBin || []).length ? '' : ' (it’s empty)') + ' — order one below.</span>'; return; }
-      el.innerHTML = hits.map(function (b) {
+      // v0.9.1752: with nothing typed the whole bin shows (loose spares you
+      // could use right now, up to 8); typing narrows it as before.
+      var all = (state.partsBin || []).filter(function (b) { return b.qty > 0; });
+      var hits = q.trim() ? _binSearch(q) : all.slice(0, 8);
+      if (!q.trim() && !all.length) { el.innerHTML = '<span style="color:var(--text-dim)">Your Parts Bin is empty — type a part number or description to add one to the wanted list, or order one below.</span>'; return; }
+      if (!hits.length) { el.innerHTML = '<span style="color:var(--text-dim)">Nothing matching in your bin — order one below.</span>'; return; }
+      el.innerHTML = (q.trim() ? '' : '<div style="font-size:0.7rem;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-dim);margin-bottom:0.25rem">Loose spares in your bin' + (all.length > 8 ? ' (first 8 — type to narrow)' : '') + '</div>')
+        + hits.map(function (b) {
         return '<div style="display:flex;justify-content:space-between;align-items:center;gap:0.5rem;padding:0.3rem 0;border-bottom:1px solid var(--border)">'
           + '<div><b>' + _esc(b.desc || b.partNum) + '</b>' + (b.partNum && b.desc ? ' <span style="font-family:var(--font-mono);color:var(--accent2)">#' + _esc(b.partNum) + '</span>' : '') + ' <span style="color:var(--text-dim)">×' + b.qty + (b.where ? ' · ' + _esc(b.where) : '') + '</span></div>'
           + '<button onclick="_maintBinUse(\'' + _esc(b.id) + '\',\'' + _esc(taskId) + '\')" ' + _btn('green', 'sm') + '>Use one</button>'
