@@ -1,5 +1,5 @@
 // ============================================================
-//  maintenance.js — Maintenance panel + Workbench + My Manuals + task cards + Parts Bin (v0.9.1672, Session 92)
+//  maintenance.js — Maintenance panel + Workbench + My Manuals + task cards + Parts Bin (v0.9.1751, Session 97: bench Add task / Add part, filters, History tab)
 //  OWNER-ONLY (admin preview): the button renders only when the
 //  signed-in email is on MAINT.OWNER_EMAILS. Everyone else's app
 //  is untouched — delete this ONE file + its index.html line to
@@ -1580,6 +1580,7 @@
     if (!item) { if (typeof showToast === 'function') showToast('Could not find this item.', 3000, true); return; }
     _panelItem = item;
     window._maintPanelInvId = String(invId == null ? '' : invId);   // phase 2 hook
+    _wbTarget = null;   // v0.9.1751: the card's item is the target from here on
 
     var eraKey = null;
     try { eraKey = (typeof _itemEraKey === 'function') ? _itemEraKey(item) : (item._era || item.era || null); } catch (e) {}
@@ -1730,14 +1731,7 @@
 
       // ── Workbench (phase 3): chores + service history ──
       + sec('Tasks for this item',
-          '<div style="display:flex;gap:0.4rem;flex-wrap:wrap;align-items:center">'
-          + '<select id="maint-chore-pick" onchange="_maintChorePickChange(this)" style="flex:1;min-width:150px;padding:0.45rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.82rem">'
-          + _allChores().map(function (ch) { return '<option value="' + _esc(ch) + '">' + _esc(ch) + '</option>'; }).join('')
-          + '<option value="__custom">Something else…</option>'
-          + '</select>'
-          + '<button onclick="_maintAddChore()" ' + _btnPrimary('padding:0.5rem 0.9rem;font-size:0.78rem') + '>+ Add task</button>'
-          + '</div>'
-          + '<div id="maint-chore-custom" style="display:none;margin-top:0.4rem"><input id="maint-chore-custom-in" placeholder="Name the new task — it joins the list for next time" onkeydown="if(event.key===\'Enter\')_maintAddChore()" style="width:100%;box-sizing:border-box;padding:0.45rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.82rem"></div>'
+          _choreFormHtml('_maintAddChore()')   // v0.9.1751: one picker, shared with the Workbench's + Add task card
           + '<div id="maint-tasks" style="margin-top:0.6rem"></div>'
           + '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.45rem">Each task is a card: notes, a part if it needs one, videos for the job, Done when it\'s done.</div>', 'work')
 
@@ -2049,8 +2043,31 @@
     if (box) box.style.display = (sel && sel.value === '__custom') ? '' : 'none';
     if (box && sel && sel.value === '__custom') { var i = box.querySelector('input'); if (i) i.focus(); }
   };
+  // v0.9.1751: WHO the task/part is for. Normally the Maintenance card's
+  // item (_panelItem + its inventoryId). The Workbench's own "+ Add task" /
+  // "+ Add part" cards set _wbTarget after the item picker, and every writer
+  // below asks _target() instead of reaching for the panel — ONE save path
+  // for a task and one for a part, whichever door you came in.
+  var _wbTarget = null;
+  function _target() {
+    if (_wbTarget && _wbTarget.item) return _wbTarget;
+    return { item: _panelItem, invId: String(window._maintPanelInvId || '') };
+  }
+  // the chore picker: the same select on the card and on the Workbench card
+  function _choreFormHtml(addJs) {
+    var IN = 'flex:1;min-width:150px;padding:0.45rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.82rem';
+    return '<div style="display:flex;gap:0.4rem;flex-wrap:wrap;align-items:center">'
+      + '<select id="maint-chore-pick" onchange="_maintChorePickChange(this)" style="' + IN + '">'
+      + _allChores().map(function (ch) { return '<option value="' + _esc(ch) + '">' + _esc(ch) + '</option>'; }).join('')
+      + '<option value="__custom">Something else…</option>'
+      + '</select>'
+      + '<button onclick="' + addJs + '" ' + _btnPrimary('padding:0.5rem 0.9rem;font-size:0.78rem') + '>+ Add task</button>'
+      + '</div>'
+      + '<div id="maint-chore-custom" style="display:none;margin-top:0.4rem"><input id="maint-chore-custom-in" placeholder="Name the new task — it joins the list for next time" onkeydown="if(event.key===\'Enter\')' + addJs + '" style="width:100%;box-sizing:border-box;padding:0.45rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.82rem"></div>';
+  }
   window._maintAddChore = async function () {
-    if (!_isOwner() || !_panelItem) return;
+    var tg = _target();
+    if (!_isOwner() || !tg.item) return;
     var sel = document.getElementById('maint-chore-pick');
     var customIn = document.getElementById('maint-chore-custom-in');
     var chore = sel && sel.value === '__custom' ? (customIn ? String(customIn.value || '').trim() : '') : (sel ? sel.value : '');
@@ -2062,11 +2079,12 @@
     try {
       if (!(await _ensureLogTab())) throw new Error('log tab unavailable');
       var _t = function (v) { v = String(v || ''); return v && v.charAt(0) !== "'" ? "'" + v : v; };
-      var row = [_t('log-' + Date.now()), _t(window._maintPanelInvId || ''), _t(String(_panelItem.itemNum || '')),
+      var row = [_t('log-' + Date.now()), _t(tg.invId || ''), _t(String(tg.item.itemNum || '')),
                  'chore', chore, '', '', _t(new Date().toISOString().split('T')[0]), '', 'open'];
       await sheetsAppend(state.personalSheetId, LOG_TAB + '!A:J', [row]);
       await _loadLog(); _wbBadge(); _maintRenderTasks();
       if (customIn) customIn.value = '';
+      if (_wbTarget) _wbCloseCard();   // came in through the Workbench card → close it, redraw the bench
       if (typeof showToast === 'function') showToast('✓ On the Workbench: ' + chore);
     } catch (e) { if (typeof showToast === 'function') showToast('Could not save the chore — ' + (e && e.message || 'try again'), 4000, true); }
   };
@@ -2120,9 +2138,9 @@
         + '<button onclick="_maintRemoveEntry(\'' + _esc(l.id) + '\')" ' + _btn('red', 'sm', 'flex-shrink:0') + '>Remove</button>'
         + '</div>';
     }).join('') || '<div style="color:var(--text-dim);font-size:0.85rem;padding:0.6rem 0">No service history yet.</div>';
-    var html = '<div id="wb-history" style="position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9600;display:flex;align-items:flex-start;justify-content:center;overflow-y:auto;padding:2rem 1rem" onclick="if(event.target===this)this.remove()">'
+    var html = '<div id="wb-history" style="position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9600;display:flex;align-items:flex-start;justify-content:center;overflow-y:auto;padding:2rem 1rem" onclick="if(event.target===this){this.remove();window._wbHistoryCtx=null}">'
       + _cardOpen(520)
-      + _cardHead('No. ' + _esc(itemNum), 'Service history', "document.getElementById('wb-history').remove()")
+      + _cardHead('No. ' + _esc(itemNum), 'Service history', "document.getElementById('wb-history').remove();window._wbHistoryCtx=null")
       + lines
       + '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.6rem">Tap an entry to view or edit it.</div>'
       + '</div></div>';
@@ -2166,7 +2184,7 @@
         if (!ok) { btn.disabled = false; btn.textContent = 'Save'; return; }
         l.text = text; l.partNum = part; l.by = by; l.notes = notes; if (dateDone) l.dateDone = dateDone; else l.dateAdded = date || l.dateAdded;
         var f = document.getElementById('wb-entry'); if (f) f.remove();
-        var ctx = window._wbHistoryCtx || {}; window._maintShowHistory(ctx.invId, ctx.itemNum);
+        var ctx = window._wbHistoryCtx; if (ctx) window._maintShowHistory(ctx.invId, ctx.itemNum);   // v0.9.1751: from the History tab there is no per-item card to reopen
         _maintRenderTasks(); _wbBuild();
         if (typeof showToast === 'function') showToast('✓ Entry updated');
       } catch (e) { btn.disabled = false; btn.textContent = 'Save'; if (typeof showToast === 'function') showToast('Could not save — ' + (e && e.message || 'try again'), 4000, true); }
@@ -2180,7 +2198,7 @@
       if (!(await rrRemoveRowConfirmed(state.personalSheetId, LOG_TAB, l.row, LOG_TAB + '!A' + l.row + ':K' + l.row, blank, { num: l.id }, 'service history'))) return;
       await _loadLog();
       var f = document.getElementById('wb-entry'); if (f) f.remove();
-      var ctx = window._wbHistoryCtx || {}; window._maintShowHistory(ctx.invId, ctx.itemNum);
+      var ctx = window._wbHistoryCtx; if (ctx) window._maintShowHistory(ctx.invId, ctx.itemNum);
       _maintRenderTasks(); _wbBuild(); _wbBadge();
     } catch (e) { if (typeof showToast === 'function') showToast('Could not remove it', 3500, true); }
   };
@@ -2304,11 +2322,16 @@
 
   // ── the Need-a-part popup: find your part + your parts diagrams ──
   window._maintPartsPopup = function (taskId, taskName) {
-    if (!_panelItem) return;
+    var tg = _target();
+    if (!tg.item) return;
     var old = document.getElementById('maint-parts-pop'); if (old) old.remove();
     var IN = 'flex:1;min-width:150px;padding:0.45rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.82rem';
     var linkBtn = _btn('blue');
-    var docs = _docCovers(_panelItem);
+    var docs = _docCovers(tg.item);
+    // v0.9.1751: from the Workbench's + Add part card there may be no task
+    // yet — the part is wanted for the UNIT (the bench folds it onto the
+    // unit's one open task, or shows it as its own "Part wanted" row).
+    var closeJs = _wbTarget ? '_wbCloseCard()' : "document.getElementById('maint-parts-pop').remove()";
     var docHtml = docs.length
       ? docs.map(function (d) {
           return '<div style="padding:0.3rem 0;border-bottom:1px solid var(--border)"><a href="' + _esc(d.url) + '" target="_blank" rel="noopener" style="color:var(--accent2);font-weight:600;text-decoration:none">' + _esc(d.title || 'untitled') + '</a></div>';
@@ -2316,7 +2339,7 @@
       : '<div style="font-size:0.8rem;color:var(--text-dim);margin-bottom:0.4rem">No diagram saved for this item yet.</div>';
     var html = '<div id="maint-parts-pop" style="position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9650;display:flex;align-items:flex-start;justify-content:center;overflow-y:auto;padding:2rem 1rem">'
       + _cardOpen(520)
-      + _cardHead(_esc(taskName), 'Need a part', "document.getElementById('maint-parts-pop').remove()")
+      + _cardHead(_esc(taskName), _wbTarget ? 'Add a part' : 'Need a part', closeJs)
       + '<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:0.9rem 1rem;margin-bottom:0.8rem">'
       +   '<div style="' + SECT + '">Find your part</div>'
       +   '<div style="display:flex;gap:0.4rem;flex-wrap:wrap">'
@@ -2329,12 +2352,12 @@
       +     '<button onclick="_maintPopSearch()" ' + linkBtn + '>Search →</button>'
       +     '<button onclick="_maintPopAddWanted(\'' + _esc(taskId) + '\')" ' + _btnPrimary('padding:0.5rem 0.9rem;font-size:0.78rem') + '>+ Add to Parts Wanted</button>'
       +   '</div>'
-      +   '<div style="font-size:0.7rem;color:var(--text-dim);margin-top:0.4rem">Added parts link to THIS task — the card shows when it\'s in the drawer.</div>'
+      +   '<div style="font-size:0.7rem;color:var(--text-dim);margin-top:0.4rem">' + (taskId ? 'Added parts link to THIS task — the card shows when it\'s in the drawer.' : 'The part is wanted for this item — it shows on the bench, and on the item\'s card.') + '</div>'
       + '</div>'
       + '<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:0.9rem 1rem">'
       +   '<div style="' + SECT + '">Parts diagram</div>'
       +   docHtml
-      +   '<div style="margin-top:0.5rem"><button onclick="document.getElementById(\'maint-parts-pop\').remove();_maintShowGrp(\'docs\')" ' + linkBtn + '>Find manuals &amp; diagrams →</button></div>'
+      +   (_wbTarget ? '' : '<div style="margin-top:0.5rem"><button onclick="document.getElementById(\'maint-parts-pop\').remove();_maintShowGrp(\'docs\')" ' + linkBtn + '>Find manuals &amp; diagrams →</button></div>')
       + '</div>'
       + '</div></div>';
     document.body.insertAdjacentHTML('beforeend', html);
@@ -2342,13 +2365,15 @@
     var pi = document.getElementById('maint-pop-part'); if (pi) pi.focus();
   };
   window._maintPopSearch = function () {
-    if (!_panelItem) return;
+    var tg = _target();
+    if (!tg.item) return;
     var dealer = (document.getElementById('maint-pop-dealer') || {}).value || '';
     var part = (document.getElementById('maint-pop-part') || {}).value || '';
-    window.open(_partsUrl(dealer, _panelItem, part.trim()), '_blank');
+    window.open(_partsUrl(dealer, tg.item, part.trim()), '_blank');
   };
   window._maintPopAddWanted = async function (taskId) {
-    if (!_panelItem) return;
+    var tg = _target();
+    if (!tg.item) return;
     var box = document.getElementById('maint-pop-part');
     var txt = box ? String(box.value || '').trim() : '';
     if (!txt) { if (typeof showToast === 'function') showToast('Type the part (number or description) first.', 3000, true); return; }
@@ -2358,14 +2383,15 @@
       var _t = function (v) { v = String(v || ''); return v && v.charAt(0) !== "'" ? "'" + v : v; };
       var isNum = /^[A-Za-z]{0,4}[\-#]?[A-Za-z0-9][A-Za-z0-9\-\/\.]*$/.test(txt) && /\d/.test(txt);
       var row = [_t('part-' + Date.now()), isNum ? '' : txt, _t(isNum ? txt : ''),
-                 _t(String(_panelItem.itemNum || '')), _t(window._maintPanelInvId || ''),
-                 '', 'for Workbench task', _t(new Date().toISOString().split('T')[0]),
-                 'wanted', '', '', '', _t(taskId)];
+                 _t(String(tg.item.itemNum || '')), _t(tg.invId || ''),
+                 '', taskId ? 'for Workbench task' : 'from the Workbench', _t(new Date().toISOString().split('T')[0]),
+                 'wanted', '', '', '', _t(taskId || '')];
       await sheetsAppend(state.personalSheetId, 'Parts Needed!A:M', [row]);
       if (typeof buildPartsPage === 'function') await buildPartsPage();
       var pop = document.getElementById('maint-parts-pop'); if (pop) pop.remove();
       _maintRenderTasks(); _wbBadge();
-      if (typeof showToast === 'function') showToast('✓ Added to Parts Wanted — linked to this task');
+      if (_wbTarget) _wbCloseCard();
+      if (typeof showToast === 'function') showToast(taskId ? '✓ Added to Parts Wanted — linked to this task' : '✓ Added to Parts Wanted for No. ' + String(tg.item.itemNum || ''));
     } catch (e) { if (typeof showToast === 'function') showToast('Could not save the part — ' + (e && e.message || 'try again'), 4000, true); }
   };
 
@@ -2617,7 +2643,8 @@
   // use one from the bin on a task: decrement + a BOUGHT Parts Needed row linked to the task
   window._maintBinUse = async function (binId, taskId) {
     var b = (state.partsBin || []).find(function (x) { return x.id === binId; });
-    if (!b || !_panelItem) return;
+    var tg = _target();
+    if (!b || !tg.item) return;
     try {
       if (!(await rrVerifiedRowUpdate(state.personalSheetId, BIN_TAB, b.row, BIN_TAB + '!D' + b.row, [[String(Math.max(0, b.qty - 1))]], { num: b.id }, 'Parts Bin'))) return;
       b.qty = Math.max(0, b.qty - 1);
@@ -2625,14 +2652,15 @@
       if (typeof _ensurePartsLifecycleCols === 'function') await _ensurePartsLifecycleCols();
       var _t = function (v) { v = String(v || ''); return v && v.charAt(0) !== "'" ? "'" + v : v; };
       var today = new Date().toISOString().split('T')[0];
-      var row = [_t('part-' + Date.now()), b.desc, _t(b.partNum), _t(String(_panelItem.itemNum || '')), _t(window._maintPanelInvId || ''),
+      var row = [_t('part-' + Date.now()), b.desc, _t(b.partNum), _t(String(tg.item.itemNum || '')), _t(tg.invId || ''),
                  b.photo || '', 'from Parts Bin' + (b.where ? ' (' + b.where + ')' : ''), _t(today),
                  'bought', _t(b.dateAcq || today), '', b.price || '', _t(taskId || '')];
       await sheetsAppend(state.personalSheetId, 'Parts Needed!A:M', [row]);
       if (typeof buildPartsPage === 'function') await buildPartsPage();
       var pop = document.getElementById('maint-parts-pop'); if (pop) pop.remove();
       _maintRenderTasks(); _wbBadge();
-      if (typeof showToast === 'function') showToast('✓ Pulled one from the bin — it’s on the task, ready to install');
+      if (_wbTarget) _wbCloseCard();
+      if (typeof showToast === 'function') showToast(taskId ? '✓ Pulled one from the bin — it’s on the task, ready to install' : '✓ Pulled one from the bin — it’s spoken for this item, ready to install');
     } catch (e) { if (typeof showToast === 'function') showToast('Could not use the bin part — ' + (e && e.message || 'try again'), 4000, true); }
   };
   window._maintBinCheck = function (taskId) {
@@ -2850,7 +2878,7 @@
   var _wbTabName = 'bench';
   var _tbState = { q: '', topic: '', type: '', item: '' };
   window._wbTab = function (name) {
-    _wbTabName = (name === 'toolbox') ? 'toolbox' : 'bench';
+    _wbTabName = (name === 'toolbox') ? 'toolbox' : (name === 'history') ? 'history' : 'bench';   // v0.9.1751: History is the third tab
     _wbBuild();
     if (_wbTabName === 'toolbox' && !state.myManuals) _loadMyDocs().then(_wbBuild);
   };
@@ -3030,12 +3058,22 @@
     if (typeof showToast === 'function') showToast('✓ Removed from My Manuals');
   };
 
-  function _wbBuild() {
-    var pg = document.getElementById('page-workbench');
-    if (!pg) return;
-    // v0.9.1672 (Brad): "just a row for the item, what the maintenance is,
-    // and if a part is needed — no buttons; those live on the card you get
-    // when you click the row."
+  // v0.9.1751 (Brad, on the Workbench screenshot): "need a add task button,
+  // and add parts button. need filters for waiting on parts, ready to
+  // perform, then probably would be good to have history of maintenance
+  // button that show things we have done in the past."
+  MAINT.PREF_WB_FILTER = 'maint_wb_filter';   // all | waiting | ready — remembered per device
+  var WB_FILTERS = [['all', 'All'], ['waiting', 'Waiting on parts'], ['ready', 'Ready to work']];
+  function _wbFilterName() {
+    var f = (typeof _prefGet === 'function') ? _prefGet(MAINT.PREF_WB_FILTER, 'all') : 'all';
+    return WB_FILTERS.some(function (x) { return x[0] === f; }) ? f : 'all';
+  }
+  window._wbFilter = function (f) { if (typeof _prefSet === 'function') _prefSet(MAINT.PREF_WB_FILTER, f); _wbBuild(); };
+  var _wbHistQ = ''; var _wbHistTyping = false;
+  // the bench rows — one per open task (its parts folded in), plus one per
+  // part wanted for a unit with no task to ride on. waiting = a linked part
+  // is still on order; everything else is ready to work.
+  function _wbRows() {
     var rows = [];
     var linkedTaskIds = {};
     var partWords = function (p) { var st = p.status || 'wanted'; var nm = p.description || p.partNum || 'part'; return st === 'bought' ? 'Parts on hand — ' + nm : st === 'installed' ? 'Installed — ' + nm : 'Waiting on ' + nm; };
@@ -3053,53 +3091,198 @@
       var k = unitKey(p.forInv, p.forItem);
       if (openPerUnit[k] === 1) { (loosePerUnit[k] = loosePerUnit[k] || []).push(p); linkedTaskIds[p.id] = true; }
     });
+    var waiting = function (parts) { return parts.some(function (p) { return (p.status || 'wanted') === 'wanted'; }); };
     openTasks.forEach(function (l) {
       var parts = Object.values(state.partsData || {}).filter(function (p) { return p.taskId && p.taskId === l.id; });
       parts.forEach(function (p) { linkedTaskIds[p.id] = true; });
       parts = parts.concat(loosePerUnit[unitKey(l.invId, l.itemNum)] || []);
-      rows.push({ invId: l.invId, itemNum: l.itemNum, need: l.text, part: parts.map(partWords).join('; '), since: l.dateAdded });
+      rows.push({ invId: l.invId, itemNum: l.itemNum, need: l.text, part: parts.map(partWords).join('; '), since: l.dateAdded, waiting: waiting(parts) });
     });
     Object.values(state.partsData || {}).forEach(function (p) {
       var st = p.status || 'wanted';
       if (linkedTaskIds[p.id] || st === 'installed' || !(p.forInv || p.forItem)) return;
-      rows.push({ invId: p.forInv, itemNum: p.forItem, need: 'Part wanted', part: partWords(p), since: p.dateAdded });
+      rows.push({ invId: p.forInv, itemNum: p.forItem, need: 'Part wanted', part: partWords(p), since: p.dateAdded, waiting: st === 'wanted' });
     });
+    rows.sort(function (a, b) { return String(a.itemNum).localeCompare(String(b.itemNum), undefined, { numeric: true }) || (a.since || '').localeCompare(b.since || ''); });
+    return rows;
+  }
+  // everything already done: finished tasks, installed parts, notes — newest first
+  function _wbHistory() {
+    return (state.maintLog || []).filter(function (l) { return !(l.type === 'chore' && l.status === 'open'); })
+      .slice().sort(function (a, b) { return (b.dateDone || b.dateAdded || '').localeCompare(a.dateDone || a.dateAdded || ''); });
+  }
+  function _wbItemLabel(itemNum) {
+    var m = (typeof findMaster === 'function' && itemNum) ? findMaster(itemNum) : null;
+    return _esc(itemNum) + (m && m.roadName ? ' <span style="color:var(--text-dim);font-weight:400">' + _esc(m.roadName) + '</span>' : '');
+  }
+  function _wbBuild() {
+    var pg = document.getElementById('page-workbench');
+    if (!pg) return;
+    // v0.9.1672 (Brad): "just a row for the item, what the maintenance is,
+    // and if a part is needed — no buttons; those live on the card you get
+    // when you click the row."
+    var rows = _wbRows();
+    var hist = _wbHistory();
     // v0.9.1674 (bite 3): two tabs — Bench (this table) and Toolbox (the
-    // saved library). Same page, one nav entry, Brad's call.
+    // saved library). Same page, one nav entry, Brad's call. v0.9.1751: History.
     var docsN = state.myManuals ? state.myManuals.length : 0;
     var tabs = '<div style="display:flex;gap:0.5rem;margin-bottom:0.9rem;flex-wrap:wrap">'
       + '<button class="eph-tab' + (_wbTabName === 'bench' ? ' active' : '') + '" onclick="_wbTab(\'bench\')">Bench' + (rows.length ? ' · ' + rows.length : '') + '</button>'
       + '<button class="eph-tab' + (_wbTabName === 'toolbox' ? ' active' : '') + '" onclick="_wbTab(\'toolbox\')" data-ctip="Your personalized maintenance manual — every manual, diagram, picture and video you saved, filterable by topic, type or item.">Toolbox' + (docsN ? ' · ' + docsN : '') + '</button>'
+      + '<button class="eph-tab' + (_wbTabName === 'history' ? ' active' : '') + '" onclick="_wbTab(\'history\')" data-ctip="Everything you have done — finished tasks and installed parts, newest first.">History' + (hist.length ? ' · ' + hist.length : '') + '</button>'
       + '</div>';
     if (_wbTabName === 'toolbox') {
       pg.innerHTML = _dz('<div class="page-title">The Workbench</div>' + tabs + '<div id="wb-toolbox"></div>');
       _tbRender();
       return;
     }
-    var head = '<div class="page-title">The Workbench</div>' + tabs
-      + '<div style="font-size:0.82rem;color:var(--text-dim);margin-bottom:0.85rem">Everything that needs a wrench. Click a row to open its card.</div>';
-    if (!rows.length) {
-      pg.innerHTML = _dz(head + '<div style="text-align:center;padding:3rem 1rem;color:var(--text-dim)"><p>Nothing on the bench.</p><p style="font-size:0.8rem;margin-top:0.4rem">Add a task from any item’s Maintenance panel.</p></div>');
-      return;
-    }
-    rows.sort(function (a, b) { return String(a.itemNum).localeCompare(String(b.itemNum), undefined, { numeric: true }) || (a.since || '').localeCompare(b.since || ''); });
     var th = 'text-align:left;font-family:var(--font-head);font-size:0.7rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-dim);padding:0.5rem 0.75rem;border-bottom:1px solid var(--border)';
     var td = 'padding:0.6rem 0.75rem;border-bottom:1px solid var(--border);font-size:0.9rem;color:var(--text);vertical-align:top';
-    pg.innerHTML = _dz(head
-      + '<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;overflow:hidden">'
-      + '<table style="width:100%;border-collapse:collapse"><thead><tr><th style="' + th + '">Item</th><th style="' + th + '">Needs</th><th style="' + th + '">Part</th><th style="' + th + '">Since</th></tr></thead><tbody>'
-      + rows.map(function (r) {
-          var m = (typeof findMaster === 'function' && r.itemNum) ? findMaster(r.itemNum) : null;
-          var label = _esc(r.itemNum) + (m && m.roadName ? ' <span style="color:var(--text-dim);font-weight:400">' + _esc(m.roadName) + '</span>' : '');
-          return '<tr onclick="_wbOpen(\'' + _esc(String(r.invId || '')) + '\',\'' + _esc(String(r.itemNum || '')) + '\')" style="cursor:pointer" onmouseover="this.style.background=\'var(--surface2)\'" onmouseout="this.style.background=\'\'">'
-            + '<td style="' + td + ';font-weight:700;white-space:nowrap">' + label + '</td>'
-            + '<td style="' + td + '">' + _esc(r.need) + '</td>'
-            + '<td style="' + td + ';color:' + (r.part ? 'var(--text)' : 'var(--text-dim)') + '">' + (r.part ? _esc(r.part) : '—') + '</td>'
-            + '<td style="' + td + ';color:var(--text-dim);white-space:nowrap">' + _esc(r.since || '') + '</td>'
-            + '</tr>';
-        }).join('')
-      + '</tbody></table></div>');
+    var table = function (cols, body) {
+      return '<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;overflow:hidden">'
+        + '<table style="width:100%;border-collapse:collapse"><thead><tr>' + cols.map(function (c) { return '<th style="' + th + '">' + c + '</th>'; }).join('') + '</tr></thead><tbody>' + body + '</tbody></table></div>';
+    };
+    if (_wbTabName === 'history') {
+      window._wbHistoryCtx = null;   // entries opened from here edit in place; no per-item card to reopen
+      var q = _wbHistQ.trim().toLowerCase();
+      var shown = q ? hist.filter(function (l) {
+        var m = (typeof findMaster === 'function' && l.itemNum) ? findMaster(l.itemNum) : null;
+        return (String(l.itemNum) + ' ' + (m && m.roadName || '') + ' ' + l.text + ' ' + (l.partNum || '') + ' ' + (l.by || '') + ' ' + (l.notes || '')).toLowerCase().indexOf(q) >= 0;
+      }) : hist;
+      var IN = 'width:100%;max-width:360px;box-sizing:border-box;padding:0.5rem 0.65rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.85rem';
+      var head2 = '<div class="page-title">The Workbench</div>' + tabs
+        + '<div style="font-size:0.82rem;color:var(--text-dim);margin-bottom:0.6rem">Everything you have done, newest first. Click an entry to view or edit it.</div>'
+        + '<input id="wb-hist-q" type="search" value="' + _esc(_wbHistQ) + '" placeholder="Narrow it down — item number, road name, task, part…" oninput="_wbHistSearch(this.value)" style="' + IN + ';margin-bottom:0.85rem">';
+      if (!shown.length) {
+        pg.innerHTML = _dz(head2 + '<div style="text-align:center;padding:3rem 1rem;color:var(--text-dim)"><p>' + (q ? 'Nothing in the history matches that.' : 'No service history yet.') + '</p><p style="font-size:0.8rem;margin-top:0.4rem">' + (q ? '' : 'Finished tasks and installed parts land here.') + '</p></div>');
+        return;
+      }
+      pg.innerHTML = _dz(head2 + table(['Date', 'Item', 'Done', 'By'], shown.map(function (l) {
+        var what = (l.type === 'part-installed' ? 'Installed — ' : '') + l.text + (l.partNum ? ' #' + l.partNum : '');
+        return '<tr onclick="_wbHistOpen(\'' + _esc(l.id) + '\')" style="cursor:pointer" onmouseover="this.style.background=\'var(--surface2)\'" onmouseout="this.style.background=\'\'">'
+          + '<td style="' + td + ';color:var(--text-dim);white-space:nowrap">' + _esc(l.dateDone || l.dateAdded || '') + '</td>'
+          + '<td style="' + td + ';font-weight:700;white-space:nowrap">' + _wbItemLabel(l.itemNum) + '</td>'
+          + '<td style="' + td + '">' + _esc(what) + (l.notes ? '<div style="font-size:0.76rem;color:var(--text-dim);margin-top:0.15rem">' + _esc(l.notes).slice(0, 140) + (l.notes.length > 140 ? '…' : '') + '</div>' : '') + '</td>'
+          + '<td style="' + td + ';color:var(--text-dim);white-space:nowrap">' + _esc(l.by || '') + '</td>'
+          + '</tr>';
+      }).join('')));
+      var qi = document.getElementById('wb-hist-q'); if (qi && _wbHistTyping) { qi.focus(); qi.setSelectionRange(qi.value.length, qi.value.length); }
+      _wbHistTyping = false;
+      return;
+    }
+    var f = _wbFilterName();
+    var shownRows = f === 'waiting' ? rows.filter(function (r) { return r.waiting; }) : f === 'ready' ? rows.filter(function (r) { return !r.waiting; }) : rows;
+    var count = function (k) { return k === 'all' ? rows.length : k === 'waiting' ? rows.filter(function (r) { return r.waiting; }).length : rows.filter(function (r) { return !r.waiting; }).length; };
+    var head = '<div class="page-title">The Workbench</div>' + tabs
+      + '<div style="display:flex;gap:0.5rem;flex-wrap:wrap;align-items:center;margin-bottom:0.85rem">'
+      +   '<button onclick="_wbAddTask()" ' + _btnPrimary('padding:0.5rem 0.9rem;font-size:0.78rem') + '>+ Add task</button>'
+      +   '<button onclick="_wbAddPart()" ' + _btn('orange') + '>+ Add part</button>'
+      +   '<span style="flex:1"></span>'
+      +   WB_FILTERS.map(function (x) { return '<button class="eph-tab' + (f === x[0] ? ' active' : '') + '" onclick="_wbFilter(\'' + x[0] + '\')" style="font-size:0.76rem;padding:0.3rem 0.65rem">' + x[1] + (count(x[0]) ? ' · ' + count(x[0]) : '') + '</button>'; }).join('')
+      + '</div>'
+      + '<div style="font-size:0.82rem;color:var(--text-dim);margin-bottom:0.85rem">Everything that needs a wrench. Click a row to open its card.</div>';
+    if (!shownRows.length) {
+      pg.innerHTML = _dz(head + '<div style="text-align:center;padding:3rem 1rem;color:var(--text-dim)"><p>' + (rows.length ? (f === 'waiting' ? 'Nothing is waiting on a part.' : 'Nothing is ready to work on — every open job is waiting on a part.') : 'Nothing on the bench.') + '</p><p style="font-size:0.8rem;margin-top:0.4rem">' + (rows.length ? '' : 'Add a task above, or from any item’s Maintenance card.') + '</p></div>');
+      return;
+    }
+    pg.innerHTML = _dz(head + table(['Item', 'Needs', 'Part', 'Since'], shownRows.map(function (r) {
+      return '<tr onclick="_wbOpen(\'' + _esc(String(r.invId || '')) + '\',\'' + _esc(String(r.itemNum || '')) + '\')" style="cursor:pointer" onmouseover="this.style.background=\'var(--surface2)\'" onmouseout="this.style.background=\'\'">'
+        + '<td style="' + td + ';font-weight:700;white-space:nowrap">' + _wbItemLabel(r.itemNum) + '</td>'
+        + '<td style="' + td + '">' + _esc(r.need) + '</td>'
+        + '<td style="' + td + ';color:' + (r.part ? 'var(--text)' : 'var(--text-dim)') + '">' + (r.part ? _esc(r.part) : '—') + '</td>'
+        + '<td style="' + td + ';color:var(--text-dim);white-space:nowrap">' + _esc(r.since || '') + '</td>'
+        + '</tr>';
+    }).join('')));
   }
+  window._wbHistSearch = function (v) { _wbHistQ = String(v || ''); _wbHistTyping = true; _wbBuild(); };
+  window._wbHistOpen = function (logId) { window._wbHistoryCtx = null; window._maintEditEntry(logId); };
+
+  // ── v0.9.1751: + Add task / + Add part from the bench itself ──
+  // Step 1 is always "which item?" — your owned copies, keyed by inventoryId
+  // (the unit), never a row or index. Step 2 is the SAME picker the card
+  // uses (_choreFormHtml → _maintAddChore) or the SAME "Need a part" pop-up
+  // (_maintPartsPopup → _maintPopAddWanted / _maintBinUse), pointed at the
+  // picked unit through _wbTarget.
+  var _wbPurpose = 'task';
+  var _wbPickQ = '';
+  function _wbOwned() {
+    var out = [];
+    Object.keys(state.personalData || {}).forEach(function (k) {
+      var pd = state.personalData[k];
+      if (!pd || !pd.owned || !pd.itemNum || !pd.inventoryId) return;
+      if (typeof _isBoxItemNum === 'function' && _isBoxItemNum(pd.itemNum)) return;
+      var m = (typeof findMaster === 'function') ? findMaster(pd.itemNum, pd.variation) : null;
+      out.push({ invId: String(pd.inventoryId), itemNum: String(pd.itemNum), variation: String(pd.variation || ''),
+                 road: String((m && m.roadName) || pd.roadName || ''), desc: String((m && m.description) || pd.description || '') });
+    });
+    out.sort(function (a, b) { return a.itemNum.localeCompare(b.itemNum, undefined, { numeric: true }) || a.variation.localeCompare(b.variation); });
+    return out;
+  }
+  window._wbCloseCard = function () {
+    var c = document.getElementById('wb-card'); if (c) c.remove();
+    var p = document.getElementById('maint-parts-pop'); if (p) p.remove();
+    _wbTarget = null; _wbPickQ = '';
+    _wbBuild();
+  };
+  function _wbOverlay(inner, maxW) {
+    var old = document.getElementById('wb-card'); if (old) old.remove();
+    document.body.insertAdjacentHTML('beforeend',
+      '<div id="wb-card" style="position:fixed;inset:0;background:var(--scrim);z-index:9600;display:flex;align-items:flex-start;justify-content:center;overflow-y:auto;padding:2rem 1rem" onclick="if(event.target===this)_wbCloseCard()">'
+      + _cardOpen(maxW || 520) + inner + '</div></div>');
+    if (window.BackStack && BackStack.wire) BackStack.wire(document.getElementById('wb-card'));
+  }
+  window._wbAddTask = function () { _wbPurpose = 'task'; _wbTarget = null; _wbPick(); };
+  window._wbAddPart = function () { _wbPurpose = 'part'; _wbTarget = null; _wbPick(); };
+  window._wbPickSearch = function (v) { _wbPickQ = String(v || ''); _wbPick(true); };
+  function _wbPick(keepFocus) {
+    var all = _wbOwned();
+    var q = _wbPickQ.trim().toLowerCase();
+    var list = q ? all.filter(function (o) { return (o.itemNum + ' ' + o.road + ' ' + o.desc + ' ' + o.variation).toLowerCase().indexOf(q) >= 0; }) : all;
+    var IN = 'width:100%;box-sizing:border-box;padding:0.5rem 0.65rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.88rem;margin-bottom:0.6rem';
+    var lines = list.slice(0, 60).map(function (o) {
+      return '<div onclick="_wbPicked(\'' + _esc(o.invId) + '\')" style="display:flex;gap:0.6rem;align-items:baseline;padding:0.45rem 0.3rem;border-bottom:1px solid var(--border);cursor:pointer" onmouseover="this.style.background=\'var(--surface2)\'" onmouseout="this.style.background=\'\'">'
+        + '<b style="white-space:nowrap">' + _esc(o.itemNum) + '</b>'
+        + '<span style="color:var(--text);font-size:0.85rem;min-width:0">' + _esc(o.road) + (o.desc ? ' <span style="color:var(--text-dim)">' + _esc(o.desc).slice(0, 60) + '</span>' : '') + (o.variation ? ' <span style="color:var(--text-dim);font-size:0.72rem">var. ' + _esc(o.variation) + '</span>' : '') + '</span>'
+        + '</div>';
+    }).join('') || '<div style="color:var(--text-dim);font-size:0.85rem;padding:0.6rem 0">' + (all.length ? 'Nothing in your collection matches that.' : 'Your collection is empty — add an item first.') + '</div>';
+    _wbOverlay(_cardHead('The Workbench · Step 1 of 2', _wbPurpose === 'part' ? 'Add a part — for which item?' : 'Add a task — for which item?', '_wbCloseCard()')
+      + '<input id="wb-pick-q" type="search" value="' + _esc(_wbPickQ) + '" placeholder="Item number or road name…" oninput="_wbPickSearch(this.value)" style="' + IN + '">'
+      + '<div style="max-height:50vh;overflow-y:auto">' + lines + (list.length > 60 ? '<div style="color:var(--text-dim);font-size:0.76rem;padding:0.5rem 0.3rem">' + (list.length - 60) + ' more — keep typing to narrow it down.</div>' : '') + '</div>');
+    var qi = document.getElementById('wb-pick-q'); if (qi) { qi.focus(); if (keepFocus) qi.setSelectionRange(qi.value.length, qi.value.length); }
+  }
+  window._wbPicked = function (invId) {
+    var o = _wbOwned().find(function (x) { return x.invId === String(invId); });
+    if (!o) return;
+    var item = (typeof findMaster === 'function') ? findMaster(o.itemNum, o.variation) : null;
+    if (!item) {
+      var k = Object.keys(state.personalData || {}).find(function (kk) { var p = state.personalData[kk]; return p && String(p.inventoryId || '') === o.invId; });
+      item = k ? state.personalData[k] : { itemNum: o.itemNum, variation: o.variation };
+    }
+    _wbTarget = { item: item, invId: o.invId };
+    var plain = 'No. ' + o.itemNum + (o.road ? ' · ' + o.road : '');   // the pop-up escapes its own header
+    var ctx = _esc(plain);
+    if (_wbPurpose === 'task') {
+      _wbOverlay(_cardHead(ctx + ' · Step 2 of 2', 'Add a task', '_wbCloseCard()')
+        + _choreFormHtml('_maintAddChore()')
+        + '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.6rem">It lands on the bench and on the item’s Maintenance card.</div>');
+      var sel = document.getElementById('maint-chore-pick'); if (sel) sel.focus();
+      return;
+    }
+    // a part: tie it to one of the unit's open tasks, or to the unit itself
+    var open = (state.maintLog || []).filter(function (l) { return l.type === 'chore' && l.status === 'open' && l.invId === o.invId; });
+    if (!open.length) { var c0 = document.getElementById('wb-card'); if (c0) c0.remove(); window._maintPartsPopup('', plain); return; }
+    _wbOverlay(_cardHead(ctx + ' · Step 2 of 3', 'Add a part — for which job?', '_wbCloseCard()')
+      + open.map(function (l) {
+          return '<div onclick="_wbPartFor(\'' + _esc(l.id) + '\')" style="padding:0.5rem 0.3rem;border-bottom:1px solid var(--border);cursor:pointer" onmouseover="this.style.background=\'var(--surface2)\'" onmouseout="this.style.background=\'\'"><b>' + _esc(l.text) + '</b> <span style="color:var(--text-dim);font-size:0.76rem">since ' + _esc(l.dateAdded) + '</span></div>';
+        }).join('')
+      + '<div onclick="_wbPartFor(\'\')" style="padding:0.5rem 0.3rem;cursor:pointer;color:var(--text-dim)" onmouseover="this.style.background=\'var(--surface2)\'" onmouseout="this.style.background=\'\'">Not for a particular job — just a part this item needs</div>');
+  };
+  window._wbPartFor = function (taskId) {
+    if (!_wbTarget) return;
+    var c = document.getElementById('wb-card'); if (c) c.remove();
+    var l = taskId ? (state.maintLog || []).find(function (x) { return x.id === taskId; }) : null;
+    window._maintPartsPopup(taskId || '', 'No. ' + String(_wbTarget.item.itemNum || '') + (l ? ' · ' + l.text : ''));
+  };
   // click a Workbench row -> that item's Maintenance card, straight to Work on it
   window._wbOpen = function (invId, itemNum) {
     var pd = null;
