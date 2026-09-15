@@ -190,7 +190,8 @@ const WHAT_I_COLLECT = {
     kato_ho:      'ho',
     kato_parts:   'n',   // parts span N and HO; filed under N so the era is pickable (the row's Gauge column says which)
     microtrains_n: 'n',  // v0.9.1719
-    lionel_parts: 'o',   // v0.9.1749: lookup-only era; listed so the maps stay complete, never shown in the picker
+    lionel_parts: 'o',   // v0.9.1749
+    mth_parts:    'o',   // v0.9.1750: lookup-only era; listed so the maps stay complete, never shown in the picker
     trepro:       'g',   // v0.9.1747: 3¼" gauge has no chip of its own; filed under G (large scale, outdoors) so the era is pickable — ERA_SCALE and the row's Gauge column say the truth
     am_s:         's',
     shelper:      's',
@@ -478,6 +479,7 @@ WHAT_I_COLLECT.eraColors.microtrains_n = WHAT_I_COLLECT.eraColors.atlas;
 // outdoor railroad, and no new literal for the colour ratchet to carry.
 WHAT_I_COLLECT.eraColors.trepro = WHAT_I_COLLECT.eraColors.lgb;
 WHAT_I_COLLECT.eraColors.lionel_parts = WHAT_I_COLLECT.eraColors.pw;   // v0.9.1749: by reference; the picker never shows it
+WHAT_I_COLLECT.eraColors.mth_parts = WHAT_I_COLLECT.eraColors.mth_o;   // v0.9.1750: same
 
 window.GMAIL_HELP      = GMAIL_HELP;
 window.WHAT_I_COLLECT  = WHAT_I_COLLECT;

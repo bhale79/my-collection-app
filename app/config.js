@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.1749';
+const APP_VERSION = 'v0.9.1750';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -970,6 +970,11 @@ const ERAS = {
   // in the background lookup index, so the drawer's "fits" line and the parts
   // popup can answer from it without 30,000 parts landing in Master Catalog.
   lionel_parts: { id: 'lionel_parts', label: 'Lionel Parts', years: 'All', prefix: 'Lionel Parts', manufacturer: 'Lionel' },
+  // v0.9.1750: the MTH parts catalog, from MTH Parts & Sales' exploded-view
+  // part lists (the official parts arm): part number, name, price, stock,
+  // callout, and the model families / products each list serves. Lookup-only,
+  // like lionel_parts.
+  mth_parts: { id: 'mth_parts', label: 'MTH Parts', years: 'All', prefix: 'MTH Parts', manufacturer: 'MTH' },
   atlas:  { id: 'atlas',  label: 'Atlas O',     years: 'All',        prefix: 'Atlas O',        manufacturer: 'Atlas' },
   // Session 174 (Brad): Atlas HO/N/Z tabs exist & are populated in the master
   // sheet (added in the 2026-07-21 merge) but were never wired up, so ~33.5k
@@ -1034,14 +1039,14 @@ const ERAS = {
   bachmann_all:   { id: 'bachmann_all',   label: 'Bachmann All Scales', years: 'All', prefix: 'Bachmann All Scales', manufacturer: 'Bachmann' },
 };
 // Real-era IDs in load priority order (excluding 'all' meta-era).
-const REAL_ERA_IDS = ['pw', 'mpc', 'mod_ho', 'mod_s', 'af_gilbert', 'am_s', 'shelper', 'prewar', 'atlas', 'atlas_ho', 'atlas_n', 'atlas_z', 'mth_o', 'mth_ho', 'mth_s', 'mth_tinplate', 'mth_g', 'marklin_h0', 'marklin_z', 'marklin_1', 'kato_n', 'kato_ho', 'kato_parts', 'microtrains_n', 'trepro', 'lionel_parts', 'weaver', 'rmt', 'menards', 'menards_ho', 'thirdrail', 'usatrains', 'lgb', 'kline', 'williams', 'marx', 'other_o', 'aristocraft', 'accucraft', 'bachmann_ho', 'bachmann_n', 'bachmann_g', 'bachmann_o', 'bachmann_on30', 'bachmann_hon30', 'bachmann_all'];
+const REAL_ERA_IDS = ['pw', 'mpc', 'mod_ho', 'mod_s', 'af_gilbert', 'am_s', 'shelper', 'prewar', 'atlas', 'atlas_ho', 'atlas_n', 'atlas_z', 'mth_o', 'mth_ho', 'mth_s', 'mth_tinplate', 'mth_g', 'marklin_h0', 'marklin_z', 'marklin_1', 'kato_n', 'kato_ho', 'kato_parts', 'microtrains_n', 'trepro', 'lionel_parts', 'mth_parts', 'weaver', 'rmt', 'menards', 'menards_ho', 'thirdrail', 'usatrains', 'lgb', 'kline', 'williams', 'marx', 'other_o', 'aristocraft', 'accucraft', 'bachmann_ho', 'bachmann_n', 'bachmann_g', 'bachmann_o', 'bachmann_on30', 'bachmann_hon30', 'bachmann_all'];
 // v0.9.1749: eras that exist for LOOKUPS ONLY. They are in REAL_ERA_IDS (so
 // the background full-catalog index fetches and caches them, and the
 // Yardmaster can file rows into their tab) but _isEraEnabled says no for
 // them, so they never load at startup and never appear in Master Catalog.
 // A parts catalog is the case: findMaster('2343-13') must answer, but nobody
 // wants 30,000 screws in browse.
-const LOOKUP_ONLY_ERAS = ['lionel_parts'];
+const LOOKUP_ONLY_ERAS = ['lionel_parts', 'mth_parts'];   // v0.9.1750: + MTH
 if (typeof window !== 'undefined') window.LOOKUP_ONLY_ERAS = LOOKUP_ONLY_ERAS;
 
 // ── Master sheet tab names per era ──
@@ -1066,6 +1071,7 @@ const ERA_SCALE = {
   kato_n: 'N', kato_ho: 'HO', kato_parts: '',   // v0.9.1693 — parts span both scales; blank on purpose (same meaning as bachmann_all)
   microtrains_n: 'N',   // v0.9.1719
   lionel_parts: '',   // v0.9.1749 — parts span O and S; blank on purpose (same meaning as kato_parts)
+  mth_parts: '',      // v0.9.1750 — parts span O, HO, S, G and tinplate; blank on purpose
   trepro: '3¼"',     // v0.9.1747 — Buddy L 3¼-inch gauge; no other era runs on it
   mth_g: 'G',
   atlas_ho: 'HO', atlas_n: 'N', atlas_z: 'Z',
@@ -1180,6 +1186,7 @@ const ERA_TABS = {
   microtrains_n: { items: 'Micro-Trains N' },   // v0.9.1719
   trepro:        { items: 'T-Reproductions' },  // v0.9.1747
   lionel_parts:  { items: 'Lionel Parts' },     // v0.9.1749
+  mth_parts:     { items: 'MTH Parts' },        // v0.9.1750
   am_s:       { items: 'American Models S' },
   shelper:    { items: 'S-Helper Service S' },
   weaver: {
