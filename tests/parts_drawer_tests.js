@@ -107,7 +107,7 @@ ok('a spoken-for card has the Installed button (same handler as Parts Needed) wh
 ok('…and its For-link opens the item', /_openOwnedByInvId/.test(spokenHtml));
 ok('the "not known" line never guesses', /Fits: not known/.test(grab('function _binFitsHtml(b)')));
 ok('"Use it for …" pulls one from the bin AND marks the want bought (the Parts page stamp, reused)', /window\._maintBinUseFor = async function/.test(src) && /markPartBought\(partRow\)/.test(src));
-ok('marking bought or installed on the Parts page re-renders the drawer if it is open', (pages.match(/document\.getElementById\('page-partsbin'\)\) _binBuild\(\)/g) || []).length === 2);
+ok('marking bought or installed on the Parts page re-renders the drawer if it is open', (pages.match(/_binVisible\(\)\) _binBuild\(\)/g) || []).length === 2   /* v0.9.1753: the bin is the Workbench's fourth tab; _binVisible() is the one question */);
 ok('the subtitle says what the page is now', /Everything in the drawer/.test(build));
 
 console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');

@@ -121,10 +121,15 @@ ok('installed parts get no Move select', /\(st === 'installed' \? '' : moveSel\(
 ok('Move writes through _maintPartMove → _maintPartSetTask', /_maintPartMove\(' \+ p\.row/.test(moveSel));
 
 section('Page pins');
-ok('config.js is v0.9.1752', /APP_VERSION = 'v0\.9\.1752'/.test(fs.readFileSync(path.join(__dirname, '..', 'app', 'config.js'), 'utf8')));
-ok('sw.js is mca-v1762', /CACHE_NAME = 'mca-v1762'/.test(fs.readFileSync(path.join(__dirname, '..', 'app', 'sw.js'), 'utf8')));
+// v0.9.1753: these read the version from config.js instead of hard-coding it,
+// so the suite stays green across bumps and still catches a half-bumped trio.
+const _cfg = fs.readFileSync(path.join(__dirname, '..', 'app', 'config.js'), 'utf8');
+const _ver = (_cfg.match(/APP_VERSION = 'v0\.9\.(\d+)'/) || [])[1];
+ok('config.js is v0.9.1752 or later', _ver && +_ver >= 1752, _ver);
+const _cache = (fs.readFileSync(path.join(__dirname, '..', 'app', 'sw.js'), 'utf8').match(/CACHE_NAME = 'mca-v(\d+)'/) || [])[1];
+ok('sw.js CACHE_NAME is the app version + 10', _ver && _cache && +_cache === +_ver + 10, _ver + ' / ' + _cache);
 const idx = fs.readFileSync(path.join(__dirname, '..', 'app', 'index.html'), 'utf8');
-ok('index.html: every ?v= reads 1752', (idx.match(/\?v=1752/g) || []).length === 79 && !/\?v=1751/.test(idx), (idx.match(/\?v=1752/g) || []).length);
+ok('index.html: every ?v= reads the app version (79 of them)', _ver && (idx.match(new RegExp('\\?v=' + _ver, 'g')) || []).length === 79 && (idx.match(/\?v=\d+/g) || []).every(function (s) { return s === '?v=' + _ver; }), (idx.match(/\?v=\d+/g) || []).length);
 
 console.log('\n' + pass + ' passed, ' + fail + ' failed');
 process.exit(fail ? 1 : 0);
