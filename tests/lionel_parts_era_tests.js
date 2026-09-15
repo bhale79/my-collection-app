@@ -34,7 +34,7 @@ ok('browse.js gives it a period (never gates it, but the map stays complete)', /
 ok('onboarding eraScale and eraColors stay complete (colour by reference)', /lionel_parts:\s*'o'/.test(ob) && /WHAT_I_COLLECT\.eraColors\.lionel_parts = WHAT_I_COLLECT\.eraColors\.pw;/.test(ob));
 
 section('LOOKUP-ONLY: in the index, out of the browse');
-ok('config declares LOOKUP_ONLY_ERAS with lionel_parts, and exposes it on window', /const LOOKUP_ONLY_ERAS = \['lionel_parts'\];/.test(cfg) && /window\.LOOKUP_ONLY_ERAS = LOOKUP_ONLY_ERAS/.test(cfg));
+ok('config declares LOOKUP_ONLY_ERAS with lionel_parts, and exposes it on window', /const LOOKUP_ONLY_ERAS = \['lionel_parts'(, '[a-z_]+')*\];/.test(cfg) && /window\.LOOKUP_ONLY_ERAS = LOOKUP_ONLY_ERAS/.test(cfg));
 ok('_isEraEnabled says NO for a lookup-only era before any preference is consulted', /function _isEraEnabled\(era\) \{[^}]*if \(era === 'all'\) return true;\s*\n\s*\/\/[^\n]*\n\s*if \(typeof LOOKUP_ONLY_ERAS !== 'undefined' && LOOKUP_ONLY_ERAS\.indexOf\(era\) >= 0\) return false;/.test(app));
 ok('the startup load filters through _isEraEnabled (so the parts tab never loads for display)', /realEras\.filter\(function\(e\) \{ return _isEraEnabled\(e\); \}\)/.test(app));
 ok('the background full-catalog index takes REAL_ERA_IDS whole (so the parts tab IS fetched and cached for lookups)', /_buildAllErasLookupIndex[\s\S]*?REAL_ERA_IDS\.slice\(\)/.test(data));
