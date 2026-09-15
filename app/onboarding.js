@@ -418,6 +418,8 @@
       ? REAL_ERA_IDS.slice()
       : Object.keys(eras).filter(function (k) { return k !== 'all' && k !== 'placeholder'; });
     _allEraKeys = _allEraKeys.filter(function (k) { return !!eras[k]; });
+    // v0.9.1749: a lookup-only era (the parts catalog) is not a thing to collect — never a card here.
+    if (typeof LOOKUP_ONLY_ERAS !== 'undefined') _allEraKeys = _allEraKeys.filter(function (k) { return LOOKUP_ONLY_ERAS.indexOf(k) < 0; });
     _allEraKeys.sort(function (x, y) {
       var ix = _order.indexOf(x), iy = _order.indexOf(y);
       if (ix === -1) ix = 999;

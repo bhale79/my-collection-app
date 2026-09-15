@@ -585,6 +585,10 @@ const MASTER_COL_SPEC = [
   // (Bachmann tabs have it since S83; Lionel/MTH/Atlas as their crawls run).
   // Data only — nothing displays it except the stock-photo tool, by link.
   ['imageUrl',       null, ['imageurl']],
+  // v0.9.1749: the parts catalog's own columns — which items a part fits
+  // ("2343; 2344; 2353") and the exploded diagrams it appears on.
+  ['fits',           null, ['fits']],
+  ['diagrams',       null, ['diagrams']],
 ];
 
 // Build a field -> column-index map from a sheet's header row.

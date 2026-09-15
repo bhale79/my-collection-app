@@ -756,6 +756,7 @@ var _ERA_KEY_TO_PERIOD = {
   kato_n:       'modern',   // v0.9.1693: Kato USA, 1986 onward
   kato_ho:      'modern',
   kato_parts:   'modern',
+  lionel_parts: 'modern',   // v0.9.1749: lookup-only; the period never gates it (see LOOKUP_ONLY_ERAS)
 };
 function _itemEraPeriod(item) {
   if (!item) return null;

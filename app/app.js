@@ -1499,6 +1499,8 @@ if (typeof window !== 'undefined') { window._eraPeriod = _eraPeriod; window._get
 function _isEraEnabled(era) {
   // 'all' meta-era is always available regardless of preferences
   if (era === 'all') return true;
+  // v0.9.1749: a lookup-only era (the parts catalog) is never loaded for display.
+  if (typeof LOOKUP_ONLY_ERAS !== 'undefined' && LOOKUP_ONLY_ERAS.indexOf(era) >= 0) return false;
   // v0.9.934 (Brad): eras are TIME PERIODS (Pre-War / Postwar / Modern), not
   // Lionel-specific. Every era maps to a period (_eraPeriod); every non-Lionel
   // manufacturer is Modern by manufacture date. The saved era pref stores

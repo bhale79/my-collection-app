@@ -2714,10 +2714,18 @@
       var owned = _binOwnedCopies(item);
       out.push({ kind: 'number', item: item, label: item + (m && m.roadName ? ' — ' + m.roadName : '') + (m && m.description ? ' ' + String(m.description).slice(0, 60) : ''), owned: owned.length, inv: owned.length ? owned[0].inventoryId : '' });
     }
-    // 3. the catalog's own parts row (Kato Parts, T-Reproductions parts…)
+    // 3. the catalog's own parts row (Lionel Parts, Kato Parts, T-Reproductions parts…)
+    //    v0.9.1749: the Lionel Parts tab carries a Fits column ("2343; 2344; 2353")
+    //    — each item there is looked up and checked against the collection.
     if (pn && typeof findMaster === 'function') {
       var pr = findMaster(pn);
-      if (pr && /^part$/i.test(String(pr.itemType || '')) && pr.description) out.push({ kind: 'catalog', label: String(pr.description).slice(0, 120), era: pr._era || '' });
+      if (pr && /^part$/i.test(String(pr.itemType || '')) && pr.description) {
+        var fitsList = String(pr.fits || '').split(/\s*;\s*/).filter(Boolean).slice(0, 12).map(function (it) {
+          var mm = findMaster(it), own = _binOwnedCopies(it);
+          return { item: it, label: it + (mm && mm.roadName ? ' ' + mm.roadName : ''), owned: own.length, inv: own.length ? own[0].inventoryId : '' };
+        });
+        out.push({ kind: 'catalog', label: String(pr.description).slice(0, 120), era: pr._era || '', fits: fitsList, link: pr.refLink || '', variation: pr.variation || '' });
+      }
     }
     return out;
   }
@@ -2756,7 +2764,12 @@
         var open = f.inv ? '<a href="#" onclick="event.preventDefault();_openOwnedByInvId(\'' + _esc(f.inv) + '\')" style="color:var(--accent3);text-decoration:none">' + _esc(f.label) + '</a>' : '<span style="color:var(--text)">' + _esc(f.label) + '</span>';
         return '<div style="color:var(--text-mid)">Fits ' + open + (f.owned ? ' <span style="color:var(--green)">— in your collection</span>' : ' <span style="color:var(--text-dim)">— not in your collection</span>') + ' <span style="color:var(--text-dim)">(from the part number)</span></div>';
       }
-      return '<div style="color:var(--text-mid)">Catalog says: ' + _esc(f.label) + '</div>';
+      var fl = (f.fits || []).map(function (x) {
+        var t = _esc(x.label) + (x.owned ? ' <span style="color:var(--green)">(in your collection)</span>' : '');
+        return x.inv ? '<a href="#" onclick="event.preventDefault();_openOwnedByInvId(\'' + _esc(x.inv) + '\')" style="color:var(--accent3);text-decoration:none">' + t + '</a>' : t;
+      });
+      return '<div style="color:var(--text-mid)">Catalog: ' + _esc(f.label) + (f.variation ? ' <span style="color:var(--text-dim)">(' + _esc(f.variation) + ')</span>' : '')
+        + (fl.length ? ' \u2014 fits ' + fl.join(', ') : '') + (f.link ? ' <a href="' + _esc(f.link) + '" target="_blank" rel="noopener" style="color:var(--accent2)">diagram</a>' : '') + '</div>';
     }).join('') + '</div>';
   }
 
