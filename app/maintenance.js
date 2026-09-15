@@ -2261,6 +2261,10 @@
   function _taskParts(taskId) {
     return Object.values(state.partsData || {}).filter(function (p) { return p.taskId && p.taskId === taskId; });
   }
+  // v0.9.1753: "is that task still open?" — the one question the loose rule asks
+  function _taskOpen(taskId) {
+    return (state.maintLog || []).some(function (l) { return l.id === taskId && l.type === 'chore' && l.status === 'open'; });
+  }
   function _maintRenderTasks() {
     var el = document.getElementById('maint-tasks');
     if (!el || !_panelItem) return;
@@ -2280,7 +2284,7 @@
       var inv = String(window._maintPanelInvId || '');
       var num = String(_panelItem.itemNum || '').trim();
       var loose = Object.values(state.partsData || {}).filter(function (p) {
-        if (p.taskId) return false;
+        if (p.taskId && _taskOpen(p.taskId)) return false;   // v0.9.1753: a part whose task is gone (or done) is loose again — the preview's rule, now the card's too
         if ((p.status || 'wanted') === 'installed') return false;
         return inv ? p.forInv === inv : (p.forItem === num && !p.forInv);
       });
@@ -2303,11 +2307,13 @@
                 : '<span style="color:var(--warn)"><b>Waiting on</b></span> “' + name + '”';
         var act = st === 'bought' ? '<button onclick="_maintPartInstalled(' + p.row + ')" ' + _btn('green', 'sm', 'flex-shrink:0') + '>Installed it</button>'
                 : st === 'wanted' ? '<button onclick="_maintPartBought(' + p.row + ')" ' + _btn('green', 'sm', 'flex-shrink:0') + '>Bought it</button>' : '';
+        // v0.9.1753 (Brad: "says waiting on the part, i can't get rid of it"): Remove right here, through the one remover
+        var rm = st === 'installed' ? '' : '<button onclick="_maintPartRemove(' + p.row + ')" title="Take this part off your Parts Needed list" ' + _btn('red', 'sm', 'flex-shrink:0') + '>Remove</button>';
         return '<div style="display:flex;justify-content:space-between;align-items:center;gap:0.5rem;font-size:0.8rem;color:var(--text);margin-top:0.35rem;flex-wrap:wrap">'
           + '<div style="flex:1;min-width:10rem">' + txt
           + (p.partNum && p.description ? ' <span style="font-family:var(--font-mono);color:var(--text-dim);font-size:0.72rem">#' + _esc(p.partNum) + '</span>' : '')
           + (fromList ? ' <span style="color:var(--text-dim);font-size:0.7rem">(from your Parts Needed list)</span>' : '')
-          + '</div><div style="display:flex;gap:0.3rem;align-items:center;flex-shrink:0">' + (st === 'installed' ? '' : moveSel(p)) + act + '</div></div>';
+          + '</div><div style="display:flex;gap:0.3rem;align-items:center;flex-shrink:0">' + (st === 'installed' ? '' : moveSel(p)) + act + rm + '</div></div>';
       };
       var looseBlock = (loose.length && tasks.length !== 1)
         ? '<div style="border:1px dashed var(--border);border-radius:10px;padding:0.55rem 0.75rem;margin-bottom:0.5rem">'
@@ -2348,7 +2354,17 @@
     if (_previewArgs && document.getElementById('maint-preview')) window._maintRenderPreview(_previewArgs.idx, _previewArgs.it, _previewArgs.pd);
   };
   window._maintPartInstalled = function (rowNum) {
-    if (typeof markPartInstalled === 'function') markPartInstalled(rowNum);   // its Save calls _maintLogPartInstalled → card redraws
+    if (typeof markPartInstalled === 'function') markPartInstalled(rowNum, { onCard: true });   // its Save calls _maintLogPartInstalled → card redraws; v0.9.1753: the card is already open, don't reopen it
+  };
+  // v0.9.1753: Remove on a part line — the Parts Needed page's ONE remover, then the card, bench, badge and preview redraw
+  window._maintPartRemove = async function (rowNum) {
+    var p = Object.values(state.partsData || {}).find(function (x) { return x.row === rowNum; });
+    if (!p || typeof removePart !== 'function') return;
+    var copy = window.PARTS_COPY || {};
+    if (!confirm(String(copy.removeCard || 'Take \u201c%s\u201d off your Parts Needed list?').replace('%s', p.description || p.partNum || 'part'))) return;
+    if (!(await removePart(rowNum))) return;
+    _maintRenderTasks(); _wbBuild(); _wbBadge();
+    if (_previewArgs && document.getElementById('maint-preview')) window._maintRenderPreview(_previewArgs.idx, _previewArgs.it, _previewArgs.pd);
   };
 
   // v0.9.1670 (Brad): notes save BY THEMSELVES — a pause in typing or
@@ -2497,11 +2513,22 @@
       if (typeof _ensurePartsLifecycleCols === 'function') await _ensurePartsLifecycleCols();
       var _t = function (v) { v = String(v || ''); return v && v.charAt(0) !== "'" ? "'" + v : v; };
       var isNum = /^[A-Za-z]{0,4}[\-#]?[A-Za-z0-9][A-Za-z0-9\-\/\.]*$/.test(txt) && /\d/.test(txt);
-      var row = [_t('part-' + Date.now()), isNum ? '' : txt, _t(isNum ? txt : ''),
-                 _t(String(tg.item.itemNum || '')), _t(tg.invId || ''),
-                 '', taskId ? 'for Workbench task' : 'from the Workbench', _t(new Date().toISOString().split('T')[0]),
-                 'wanted', '', '', '', _t(taskId || '')];
-      await sheetsAppend(state.personalSheetId, 'Parts Needed!A:M', [row]);
+      var fields = { description: isNum ? '' : txt, partNum: isNum ? txt : '', forItem: String(tg.item.itemNum || ''), forInv: tg.invId || '',
+                     notes: taskId ? 'for Workbench task' : 'from the Workbench', status: 'wanted', taskId: taskId || '' };
+      // v0.9.1753 (Brad: no duplicates): already on the list for this unit → offer it, don't add it twice
+      var dup = (typeof _partsFindDup === 'function') ? _partsFindDup(fields) : null;
+      if (dup && !window._partsAddAnyway) {
+        var pc = window.PARTS_COPY || {};
+        if (taskId && (dup.taskId || '') === taskId) { if (typeof showToast === 'function') showToast(pc.dupOnJob || 'That part is already on this job.', 3500); return; }
+        var opts = [];
+        if (taskId) opts.push({ label: pc.dupAttach || 'Attach it to this job', primary: true, run: function () { window._maintPopAttach(dup.row, taskId); } });
+        else opts.push({ label: pc.dupOpen || 'Open that one', primary: true, run: function () { var pop0 = document.getElementById('maint-parts-pop'); if (pop0) pop0.remove(); if (typeof showAddPartModal === 'function') showAddPartModal(dup.id); } });
+        opts.push({ label: pc.dupAddAnyway || 'Add it anyway', run: function () { window._partsAddAnyway = true; window._maintPopAddWanted(taskId); } });
+        _partsChooser(pc.dupTitle || 'Already on your list', _esc(dup.description || dup.partNum) + ' \u2014 ' + _esc(dup.status || 'wanted') + ((typeof _partsTaskLabel === 'function' && _partsTaskLabel(dup)) ? ', ' + _esc(_partsTaskLabel(dup)) : ''), opts);
+        return;
+      }
+      window._partsAddAnyway = false;
+      await _partsAppendRow(fields);   // v0.9.1753: the one appender (app-pages.js)
       if (typeof buildPartsPage === 'function') await buildPartsPage();
       var pop = document.getElementById('maint-parts-pop'); if (pop) pop.remove();
       _maintRenderTasks(); _wbBadge();
@@ -2748,7 +2775,7 @@
       if (ok) { b.qty = q; await _loadBin(); }
       if (typeof showToast === 'function') showToast(ok ? 'Sold \u2014 recorded in Sold Items' + (q === 0 ? ' and cleared from the bin.' : '; ' + q + ' left in the bin.') : 'The sale is recorded, but the bin count did not update \u2014 check the Parts Bin.', 3500, !ok);
       window._maintRenderFsParts();
-      if (typeof _binBuild === 'function' && document.getElementById('page-partsbin')) _binBuild();
+      if (_binVisible()) _binBuild();
       if (typeof updateNavBadges === 'function') updateNavBadges();
     } catch (e) {
       if (typeof showToast === 'function') showToast('The sale did not reach the sheet \u2014 check the connection and try again.', 4000, true);
@@ -2763,14 +2790,17 @@
     try {
       if (!(await rrVerifiedRowUpdate(state.personalSheetId, BIN_TAB, b.row, BIN_TAB + '!D' + b.row, [[String(Math.max(0, b.qty - 1))]], { num: b.id }, 'Parts Bin'))) return;
       b.qty = Math.max(0, b.qty - 1);
-      if (typeof _ensurePartsTab === 'function') await _ensurePartsTab();
-      if (typeof _ensurePartsLifecycleCols === 'function') await _ensurePartsLifecycleCols();
-      var _t = function (v) { v = String(v || ''); return v && v.charAt(0) !== "'" ? "'" + v : v; };
       var today = new Date().toISOString().split('T')[0];
-      var row = [_t('part-' + Date.now()), b.desc, _t(b.partNum), _t(String(tg.item.itemNum || '')), _t(tg.invId || ''),
-                 b.photo || '', 'from Parts Bin' + (b.where ? ' (' + b.where + ')' : ''), _t(today),
-                 'bought', _t(b.dateAcq || today), '', b.price || '', _t(taskId || '')];
-      await sheetsAppend(state.personalSheetId, 'Parts Needed!A:M', [row]);
+      var fields = { description: b.desc, partNum: b.partNum, forItem: String(tg.item.itemNum || ''), forInv: tg.invId || '', photo: b.photo || '',
+                     notes: 'from Parts Bin' + (b.where ? ' (' + b.where + ')' : ''), dateAdded: today, status: 'bought', dateBought: b.dateAcq || today, price: b.price || '', taskId: taskId || '' };
+      // v0.9.1753 (Brad: no duplicates): a WANTED row for this same part and unit is fulfilled from the bin — it turns bought, no second row
+      var dup = (typeof _partsFindDup === 'function') ? _partsFindDup(fields) : null;
+      if (dup && (dup.status || 'wanted') === 'wanted' && typeof markPartBought === 'function') {
+        await markPartBought(dup.row);
+        if (taskId && (dup.taskId || '') !== taskId) await _maintPartSetTask(dup.row, taskId);
+      } else {
+        await _partsAppendRow(fields);   // the one appender (app-pages.js)
+      }
       if (typeof buildPartsPage === 'function') await buildPartsPage();
       var pop = document.getElementById('maint-parts-pop'); if (pop) pop.remove();
       _maintRenderTasks(); _wbBadge();
@@ -2942,16 +2972,16 @@
   }
 
   function _binBuild() {
-    var pg = document.getElementById('page-partsbin');
+    var pg = document.getElementById('wb-bin');   // v0.9.1753 (Brad): the bin lives on the Workbench, fourth tab
     if (!pg) return;
     var bin = (state.partsBin || []).slice().sort(function (a, b) { return (b.date || '').localeCompare(a.date || ''); });
     var spoken = _binSpokenFor();
-    var head = '<div class="page-title" style="display:flex;align-items:center;justify-content:space-between;gap:0.5rem"><span>Parts Bin</span>'
+    var head = '<div style="display:flex;align-items:center;justify-content:space-between;gap:0.5rem;flex-wrap:wrap;margin-bottom:0.3rem"><span style="font-family:var(--font-head);font-size:1rem;font-weight:700;color:var(--text)">Parts Bin</span>'
       + '<button onclick="_maintBinForm()" class="btn" style="border:1.5px solid var(--accent);color:var(--accent);background:var(--bg-card);background:color-mix(in srgb, var(--accent) 10%, var(--bg-card));font-weight:600;padding:0.45rem 0.9rem;border-radius:8px;font-size:0.85rem">+ Add a loose part</button></div>'
       + '<div style="font-size:0.82rem;color:var(--text-dim);margin-bottom:0.85rem">Everything in the drawer — parts spoken for by a train, and loose spares with what they fit. Need-a-part checks here first.</div>';
     var H = function (t, n) { return '<div style="font-size:0.72rem;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--text-dim);margin:1rem 0 0.5rem">' + t + (n ? ' (' + n + ')' : '') + '</div>'; };
     if (!bin.length && !spoken.length) {
-      pg.innerHTML = _dz(head + '<div style="text-align:center;padding:3rem 1rem;color:var(--text-dim)"><p>The drawer is empty.</p><p style="font-size:0.8rem;margin-top:0.4rem">A part marked bought on Parts Needed shows here as spoken for; a show-table assortment goes in as loose spares with a quantity.</p></div>');
+      pg.innerHTML = (head + '<div style="text-align:center;padding:3rem 1rem;color:var(--text-dim)"><p>The drawer is empty.</p><p style="font-size:0.8rem;margin-top:0.4rem">A part marked bought on Parts Needed shows here as spoken for; a show-table assortment goes in as loose spares with a quantity.</p></div>');
       return;
     }
     var small = _btnQuiet('sm');
@@ -2973,13 +3003,14 @@
         +   '<button onclick="_maintBinRemove(\'' + _esc(b.id) + '\')" ' + _btn('red', 'sm') + '>Remove</button>'
         + '</div></div>';
     }).join('');
-    pg.innerHTML = _dz(head
+    pg.innerHTML = (head
       + H('Spoken for — bought for a train, waiting to be installed', spoken.length)
       + (spoken.length ? spoken.map(_binSpokenHtml).join('') : '<div style="font-size:0.8rem;color:var(--text-dim)">Nothing waiting to be installed.</div>')
       + H('Loose spares', bin.length)
       + (bin.length ? loose : '<div style="font-size:0.8rem;color:var(--text-dim)">Nothing loose in the bin. Bought an assortment at a show? Add it with a quantity.</div>'));
   }
   window._binBuild = _binBuild;
+  window._binVisible = function () { return !!document.getElementById('wb-bin'); };   // v0.9.1753: is the bin tab on screen?
 
   // ════════════════════════════════════════════════════════════════
   //  BITE 3 (v0.9.1674): THE TOOLBOX — the Workbench's second tab.
@@ -2997,9 +3028,10 @@
   var _wbTabName = 'bench';
   var _tbState = { q: '', topic: '', type: '', item: '' };
   window._wbTab = function (name) {
-    _wbTabName = (name === 'toolbox') ? 'toolbox' : (name === 'history') ? 'history' : 'bench';   // v0.9.1751: History is the third tab
+    _wbTabName = (name === 'toolbox') ? 'toolbox' : (name === 'history') ? 'history' : (name === 'bin') ? 'bin' : 'bench';   // v0.9.1751: History is the third tab; v0.9.1753: Parts Bin is the fourth
     _wbBuild();
     if (_wbTabName === 'toolbox' && !state.myManuals) _loadMyDocs().then(_wbBuild);
+    if (_wbTabName === 'bin') _loadBin().then(_binBuild);
   };
   function _tbRefresh() {
     // the Toolbox is on screen → reload the library and redraw it
@@ -3245,11 +3277,18 @@
     // v0.9.1674 (bite 3): two tabs — Bench (this table) and Toolbox (the
     // saved library). Same page, one nav entry, Brad's call. v0.9.1751: History.
     var docsN = state.myManuals ? state.myManuals.length : 0;
+    var binN = (state.partsBin || []).filter(function (b) { return b.qty > 0; }).length;   // v0.9.1753
     var tabs = '<div style="display:flex;gap:0.5rem;margin-bottom:0.9rem;flex-wrap:wrap">'
       + '<button class="eph-tab' + (_wbTabName === 'bench' ? ' active' : '') + '" onclick="_wbTab(\'bench\')">Bench' + (rows.length ? ' · ' + rows.length : '') + '</button>'
       + '<button class="eph-tab' + (_wbTabName === 'toolbox' ? ' active' : '') + '" onclick="_wbTab(\'toolbox\')" data-ctip="Your personalized maintenance manual — every manual, diagram, picture and video you saved, filterable by topic, type or item.">Toolbox' + (docsN ? ' · ' + docsN : '') + '</button>'
       + '<button class="eph-tab' + (_wbTabName === 'history' ? ' active' : '') + '" onclick="_wbTab(\'history\')" data-ctip="Everything you have done — finished tasks and installed parts, newest first.">History' + (hist.length ? ' · ' + hist.length : '') + '</button>'
+      + '<button class="eph-tab' + (_wbTabName === 'bin' ? ' active' : '') + '" onclick="_wbTab(\'bin\')" data-ctip="Parts you own that aren’t on a train yet. Need-a-part checks here first.">Parts Bin' + (binN ? ' · ' + binN : '') + '</button>'   // v0.9.1753
       + '</div>';
+    if (_wbTabName === 'bin') {   // v0.9.1753 (Brad): "the parts bin should be inside of the work bench screen"
+      pg.innerHTML = _dz('<div class="page-title">The Workbench</div>' + tabs + '<div id="wb-bin"></div>');
+      _binBuild();
+      return;
+    }
     if (_wbTabName === 'toolbox') {
       pg.innerHTML = _dz('<div class="page-title">The Workbench</div>' + tabs + '<div id="wb-toolbox"></div>');
       _tbRender();
@@ -3403,7 +3442,7 @@
     window._maintPartsPopup(taskId || '', 'No. ' + String(_wbTarget.item.itemNum || '') + (l ? ' · ' + l.text : ''));
   };
   // click a Workbench row -> that item's Maintenance card, straight to Work on it
-  window._wbOpen = function (invId, itemNum) {
+  window._wbOpen = function (invId, itemNum, focusTaskId) {
     var pd = null;
     if (invId && state.personalData) {
       var k = Object.keys(state.personalData).find(function (kk) { var p = state.personalData[kk]; return p && String(p.inventoryId || '') === String(invId); });
@@ -3413,7 +3452,18 @@
     var variation = pd ? String(pd.variation || '') : '';
     window._maintOpenPanel(-1, num, variation, invId || (pd && pd.inventoryId) || '');
     setTimeout(function () { if (typeof window._maintShowGrp === 'function') window._maintShowGrp('work'); }, 30);
+    if (focusTaskId) _wbFocusTask(focusTaskId);   // v0.9.1753 (Brad: "take me to the task")
   };
+  // v0.9.1753: scroll the open card to one task and flash it — used by the Parts
+  // Needed page's "For …" link and by Installed when the part sits on a task.
+  function _wbFocusTask(taskId, tries) {
+    tries = tries || 0;
+    var el = document.querySelector('.maint-task[data-id="' + String(taskId).replace(/"/g, '') + '"]');
+    if (!el) { if (tries < 20) setTimeout(function () { _wbFocusTask(taskId, tries + 1); }, 150); return; }
+    try { el.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch (e) { el.scrollIntoView(); }
+    el.style.transition = 'box-shadow 0.3s'; el.style.boxShadow = '0 0 0 3px var(--accent)';
+    setTimeout(function () { el.style.boxShadow = ''; }, 1800);
+  }
   window._wbBuild = _wbBuild;
 
   // ════════════════════════════════════════════════════════════════
@@ -3532,20 +3582,7 @@
       else if (refreshBtn) homeSection.insertBefore(btn, refreshBtn);
       else homeSection.appendChild(btn);
     }
-    if (!document.getElementById('page-partsbin')) {
-      var pg2 = document.createElement('div');
-      pg2.className = 'page'; pg2.id = 'page-partsbin';
-      main.appendChild(pg2);
-    }
-    if (!document.getElementById('nav-partsbin-btn')) {
-      var wbBtn = document.getElementById('nav-workbench-btn');
-      var btn2 = document.createElement('button');
-      btn2.className = 'nav-item'; btn2.id = 'nav-partsbin-btn';
-      btn2.setAttribute('data-ctip', 'Parts you own that aren’t on a train yet. Need-a-part checks here first.');
-      btn2.onclick = function () { showPage('partsbin', this); _loadBin().then(_binBuild); _binBuild(); };
-      btn2.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 8V21H3V8"/><path d="M1 3h22v5H1z"/><path d="M10 12h4"/></svg>Parts Bin';
-      if (wbBtn && wbBtn.parentElement) wbBtn.parentElement.insertBefore(btn2, wbBtn.nextSibling);
-    }
+    // v0.9.1753: the Parts Bin is the Workbench's fourth tab — no separate page or menu entry.
     _loadLog().then(_wbBadge);
     return true;
   }

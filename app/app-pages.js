@@ -4096,6 +4096,107 @@ function _parsePartsRows(values) {
 }
 if (typeof window !== 'undefined') window._parsePartsRows = _parsePartsRows;
 
+// ════════════════════════════════════════════════════════════════════
+// v0.9.1753 (Brad, 2026-09-15: "the parts needed, the maintenance button,
+// the work bench and the parts bin all talk to each other, no duplicates or
+// issues"). ONE row builder, ONE appender and ONE duplicate check behind
+// every way a part reaches the Parts Needed tab — this page's Add form, the
+// Maintenance card's Need-a-part popup, the bin's "Use one" — plus the words
+// every surface shares. Change a label HERE and it changes everywhere.
+// ════════════════════════════════════════════════════════════════════
+var PARTS_COPY = {
+  onTask: 'on task: ',                 // Parts Needed page: the part sits on an OPEN job
+  taskDone: 'task done: ',             // … on a job already in the history
+  taskGone: 'its task was removed',    // … the job it was on no longer exists
+  boilerplate: ['for Workbench task', 'from the Workbench'],   // legacy notes the live task label replaces
+  dupTitle: 'Already on your list',
+  dupOpen: 'Open that one',
+  dupAttach: 'Attach it to this job',
+  dupAddAnyway: 'Add it anyway',
+  dupOnJob: 'That part is already on this job.',
+  whichJobTitle: 'Installed as part of which job?',
+  whichJobNone: 'No job — just record it on the engine',
+  whichEngine: 'Tell me which engine it went on first — pick it under “For item”, save, then press Installed again.',
+  markDone: 'Mark “%s” complete too? It moves to the service history.',
+  removeCard: 'Take “%s” off your Parts Needed list?',
+  cancel: 'Cancel'
+};
+function _partsEsc(s) { return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;'); }
+function _partsNorm(s) { return String(s || '').toLowerCase().replace(/[^a-z0-9]/g, ''); }
+function _partsOwnedRow(inv) {
+  if (!inv || !state.personalData) return null;
+  return state.personalData[inv] || Object.values(state.personalData).find(function (x) { return x && String(x.inventoryId || '') === String(inv); }) || null;
+}
+// The row in tab order A–M. Identifier-ish cells get the apostrophe guard so
+// Sheets never turns a part number, an id or a date into something else.
+function _partsRowBuild(f) {
+  f = f || {};
+  var _t = function (v) { v = String(v || ''); return v && v.charAt(0) !== "'" ? "'" + v : v; };
+  return [_t(f.id || ('part-' + Date.now())), String(f.description || ''), _t(f.partNum), _t(f.forItem), _t(f.forInv),
+          String(f.photo || ''), String(f.notes || ''), _t(f.dateAdded || new Date().toISOString().split('T')[0]),
+          String(f.status || 'wanted'), _t(f.dateBought), _t(f.dateInstalled), String(f.price || ''), _t(f.taskId)];
+}
+// THE appender — the only sheetsAppend for the Parts Needed tab in the app.
+async function _partsAppendRow(f) {
+  await _ensurePartsTab();
+  await _ensurePartsLifecycleCols();
+  var row = _partsRowBuild(f);
+  await sheetsAppend(state.personalSheetId, 'Parts Needed!A:M', [row]);
+  return row;
+}
+// "Is this part already on the list for this unit?" — same unit (inventory
+// id when there is one, else item number with no inventory id), same part
+// number or same description (case, spaces and punctuation ignored), and not
+// installed yet. Returns the existing part or null.
+function _partsFindDup(f, exceptId) {
+  f = f || {};
+  var inv = String(f.forInv || ''), num = String(f.forItem || '').trim();
+  var pn = _partsNorm(f.partNum), ds = _partsNorm(f.description);
+  if (!pn && !ds) return null;
+  return Object.values(state.partsData || {}).find(function (p) {
+    if (exceptId && p.id === exceptId) return false;
+    if ((p.status || 'wanted') === 'installed') return false;
+    var sameUnit = inv ? String(p.forInv || '') === inv : (String(p.forItem || '').trim() === num && !p.forInv);
+    if (!sameUnit) return false;
+    return (pn && _partsNorm(p.partNum) === pn) || (ds && _partsNorm(p.description) === ds);
+  }) || null;
+}
+// What the LIVE task link says for a part — read from the Maintenance Log,
+// never from a note typed in when the part was added.
+function _partsTaskLabel(p) {
+  if (!p || !p.taskId) return '';
+  var t = (state.maintLog || []).find(function (l) { return l.id === p.taskId; });
+  if (!t) return PARTS_COPY.taskGone;
+  return (t.status === 'open' ? PARTS_COPY.onTask : PARTS_COPY.taskDone) + (t.text || '');
+}
+// A small in-app chooser (no browser dialog): a title, a line, buttons.
+// Device Back closes it (BackStack), a tap outside closes it.
+function _partsChooser(title, sub, options) {
+  var old = document.getElementById('_parts-chooser'); if (old) old.remove();
+  var ov = document.createElement('div');
+  ov.id = '_parts-chooser';
+  ov.style.cssText = 'position:fixed;inset:0;background:var(--scrim);z-index:10090;display:flex;align-items:center;justify-content:center;padding:1.25rem';
+  ov.onclick = function (e) { if (e.target === ov) ov.remove(); };
+  var BT = 'display:block;width:100%;text-align:left;padding:0.6rem 0.75rem;margin-bottom:0.45rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.9rem;cursor:pointer';
+  ov.innerHTML = '<div class="rr-card"><div class="rr-card-title">' + title + '</div>'
+    + (sub ? '<div style="font-size:0.82rem;color:var(--text-mid);margin-bottom:0.9rem">' + sub + '</div>' : '')
+    + options.map(function (o, i) { return '<button data-i="' + i + '" style="' + BT + (o.primary ? ';border-color:var(--accent);font-weight:600' : '') + '">' + o.label + '</button>'; }).join('')
+    + '<button data-i="-1" style="' + BT + ';color:var(--text-dim);text-align:center">' + PARTS_COPY.cancel + '</button></div>';
+  ov.querySelectorAll('button[data-i]').forEach(function (b) {
+    b.onclick = function () { var i = +b.getAttribute('data-i'); ov.remove(); if (i >= 0 && options[i] && options[i].run) options[i].run(); };
+  });
+  document.body.appendChild(ov);
+  if (window.BackStack && BackStack.wire) BackStack.wire(ov);
+  return ov;
+}
+// "For 2338" on the Parts Needed page opens that engine's Maintenance card — on the part's task when it has one
+function _partsOpenCard(inv, num, taskId) { if (typeof window._wbOpen === 'function') window._wbOpen(inv, num, taskId || ''); }
+if (typeof window !== 'undefined') {
+  window.PARTS_COPY = PARTS_COPY; window._partsEsc = _partsEsc; window._partsNorm = _partsNorm; window._partsOwnedRow = _partsOwnedRow;
+  window._partsRowBuild = _partsRowBuild; window._partsAppendRow = _partsAppendRow; window._partsFindDup = _partsFindDup;
+  window._partsTaskLabel = _partsTaskLabel; window._partsChooser = _partsChooser; window._partsOpenCard = _partsOpenCard;
+}
+
 async function buildPartsPage() {
   var listEl = document.getElementById('parts-list');
   if (!listEl) return;
@@ -4148,10 +4249,14 @@ function _renderPartsList() {
   var _thumbs = [];
   listEl.innerHTML = parts.map(function (p) {
     var forLabel = '';
+    var _pdFor = _partsOwnedRow(p.forInv);   // v0.9.1753: the owned copy, when there is one
     if (p.forItem) {
-      var m = (typeof findMaster === 'function') ? findMaster(p.forItem) : null;
+      // v0.9.1753: resolve through the owned row when there is one (era-aware — the number-only first-find trap), else by number
+      var m = (typeof findMaster === 'function') ? (_pdFor ? findMaster(_pdFor.itemNum, _pdFor.variation, _pdFor) : findMaster(p.forItem)) : null;
       forLabel = 'For ' + p.forItem + (m && m.roadName ? ' (' + m.roadName + ')' : '');
     }
+    var taskLabel = _partsTaskLabel(p);   // v0.9.1753: the LIVE task link (column M), not the note
+    var noteShown = (p.notes && PARTS_COPY.boilerplate.indexOf(String(p.notes).trim()) < 0) ? p.notes : '';
     var esc = function (s) { return String(s || '').replace(/'/g, "\\'").replace(/"/g, '&quot;'); };
     var thumb = '';
     if (p.photo) {
@@ -4167,9 +4272,11 @@ function _renderPartsList() {
       + '<div style="font-size:0.8rem;color:var(--text-dim);margin-top:0.2rem">'
       + (p.partNum ? '<span style="font-family:var(--font-mono);color:var(--accent2)">Part #' + p.partNum + '</span>' : '')
       + (p.partNum && forLabel ? ' · ' : '')
-      + (forLabel ? '<span style="color:#8b5cf6">🔗 ' + forLabel + '</span>' : '')
+      + (forLabel ? ('<' + (_pdFor ? 'a href="#" onclick="event.preventDefault();_partsOpenCard(\'' + esc(p.forInv) + '\',\'' + esc(p.forItem) + '\',\'' + esc(p.taskId) + '\')" title="Open this engine\'s Maintenance card"' : 'span')
+          + ' style="color:#8b5cf6;text-decoration:none">🔗 ' + forLabel + '</' + (_pdFor ? 'a' : 'span') + '>') : '')
+      + (taskLabel ? ' · <span style="color:var(--text-dim)">' + _partsEsc(taskLabel) + '</span>' : '')
       + '</div>'
-      + (p.notes ? '<div style="font-size:0.78rem;color:var(--text-dim);margin-top:0.2rem">' + p.notes + '</div>' : '')
+      + (noteShown ? '<div style="font-size:0.78rem;color:var(--text-dim);margin-top:0.2rem">' + noteShown + '</div>' : '')
       + '</div>'
       + '<div style="display:flex;gap:0.35rem;flex-wrap:wrap;align-items:center">'
       + (_lc ? ('<span style="padding:0.2rem 0.55rem;border-radius:99px;font-size:0.68rem;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;'
@@ -4202,7 +4309,7 @@ async function markPartBought(rowNum) {
         'Parts Needed!I' + rowNum + ':J' + rowNum, [['bought', today]], { num: p.id }, 'Parts list'))) return;
     p.status = 'bought'; p.dateBought = today;
     _renderPartsList();
-    if (typeof _binBuild === 'function' && document.getElementById('page-partsbin')) _binBuild();   // v0.9.1748: the drawer page shows it as spoken for
+    if (typeof _binVisible === 'function' && _binVisible()) _binBuild();   // v0.9.1748: the drawer page shows it as spoken for
     if (typeof showToast === 'function') showToast('\u2713 Marked bought \u2014 it\u2019s in the drawer');
   } catch (e) { if (typeof showToast === 'function') showToast(rrSaveError(e, 'the part'), 4000, true); }
 }
@@ -4321,6 +4428,18 @@ async function savePart(existingRow) {
   var forInv = sel ? sel.value : '';
   var forItem = '';
   if (sel && sel.selectedIndex >= 0 && sel.options[sel.selectedIndex]) forItem = sel.options[sel.selectedIndex].getAttribute('data-item') || '';
+  // v0.9.1753 (Brad: no duplicates): the same part for the same unit is OFFERED, not added twice
+  if (!(existingRow > 0) && !window._partsAddAnyway) {
+    var _dup = _partsFindDup({ forInv: forInv, forItem: forItem, partNum: partNum, description: desc });
+    if (_dup) {
+      _partsChooser(PARTS_COPY.dupTitle,
+        _partsEsc(_dup.description || _dup.partNum) + ' \u2014 ' + _partsEsc(_dup.status || 'wanted') + (_partsTaskLabel(_dup) ? ', ' + _partsEsc(_partsTaskLabel(_dup)) : ''),
+        [{ label: PARTS_COPY.dupOpen, primary: true, run: function () { var mo = document.getElementById('_part-modal'); if (mo) mo.remove(); showAddPartModal(_dup.id); } },
+         { label: PARTS_COPY.dupAddAnyway, run: function () { window._partsAddAnyway = true; savePart(existingRow); } }]);
+      return;
+    }
+  }
+  window._partsAddAnyway = false;
   // Force identifier columns to text (avoid USER_ENTERED date-parsing part numbers)
   var _t = function (v) { v = String(v || ''); return v && v.charAt(0) !== "'" ? "'" + v : v; };
   var modal = document.getElementById('_part-modal'); if (modal) modal.remove();
@@ -4359,7 +4478,7 @@ async function savePart(existingRow) {
       }
       await sheetsUpdate(state.personalSheetId, 'Parts Needed!A' + existingRow + ':H' + existingRow, [row]);
     } else {
-      await sheetsAppend(state.personalSheetId, 'Parts Needed!A:H', [row]);
+      await _partsAppendRow({ id: id, description: desc, partNum: partNum, forItem: forItem, forInv: forInv, photo: photoLink, notes: notes });   // v0.9.1753: the one appender (A–M)
     }
     if (typeof showToast === 'function') showToast('✓ Part saved');
     buildPartsPage();
@@ -4368,7 +4487,7 @@ async function savePart(existingRow) {
 if (typeof window !== 'undefined') window.savePart = savePart;
 
 async function removePart(rowNum) {
-  if (!rowNum) return;
+  if (!rowNum) return false;
   // v0.9.1253 (finding 4): confirm the row is still this part before blanking.
   // v0.9.1288 (R3-3): this one was already honest — the success toast sat after
   // the write inside the try, so a throw skipped it. Converted anyway so every
@@ -4377,9 +4496,18 @@ async function removePart(rowNum) {
   // one ("kept on this device and will go up on its own", where that is true)
   // instead of a flat "Remove failed".
   const _expId = (Object.values(state.partsData || {}).find(function (p) { return p.row === rowNum; }) || {}).id;
-  if (!(await rrRemoveRowConfirmed(state.personalSheetId, 'Parts Needed', rowNum, 'Parts Needed!A' + rowNum + ':H' + rowNum, [['', '', '', '', '', '', '', '']], { num: _expId || '' }, 'Parts list'))) return;
+  // v0.9.1753: blank the WHOLE row (A–M) where the lifecycle columns exist, so a
+  // removed part leaves no status or task id behind; A–H on a tab without them.
+  var _wide = (typeof _maintIsOwner === 'function' && _maintIsOwner() && typeof _ensurePartsLifecycleCols === 'function') ? await _ensurePartsLifecycleCols() : false;
+  var _range = 'Parts Needed!A' + rowNum + ':' + (_wide ? 'M' : 'H') + rowNum;
+  var _blank = [_wide ? ['', '', '', '', '', '', '', '', '', '', '', '', ''] : ['', '', '', '', '', '', '', '']];
+  if (!(await rrRemoveRowConfirmed(state.personalSheetId, 'Parts Needed', rowNum, _range, _blank, { num: _expId || '' }, 'Parts list'))) return false;
+  // the in-memory list drops it at once, so the card, bench, preview and badge all redraw right
+  Object.keys(state.partsData || {}).forEach(function (k) { if (state.partsData[k] && state.partsData[k].row === rowNum) delete state.partsData[k]; });
+  if (typeof _updatePartsBadge === 'function') _updatePartsBadge();
   if (typeof showToast === 'function') showToast('Part removed');
   buildPartsPage();
+  return true;
 }
 if (typeof window !== 'undefined') window.removePart = removePart;
 
@@ -4388,11 +4516,46 @@ if (typeof window !== 'undefined') window.removePart = removePart;
 // collection item. Appends a timestamped line to the item's Notes, lets
 // the user flip All Original, then removes the part from the list.
 // ════════════════════════════════════════════════════════════════════
-function markPartInstalled(rowNum) {
+function markPartInstalled(rowNum, opts) {
+  opts = opts || {};
   var p = Object.values(state.partsData || {}).find(function (x) { return x.row === rowNum; });
   if (!p) return;
-  var pd = p.forInv ? (state.personalData || {})[p.forInv] : null;
-  if (!pd) { if (typeof showToast === 'function') showToast('Linked item is not in your collection', 3500, true); return; }
+  var pd = _partsOwnedRow(p.forInv);
+  if (!pd) {
+    // v0.9.1753 (Brad: "ask me installed on what"): no engine on the part yet → the Edit form asks which one
+    if (typeof showToast === 'function') showToast(PARTS_COPY.whichEngine, 5000);
+    if (typeof showAddPartModal === 'function') showAddPartModal(p.id);
+    return;
+  }
+  // v0.9.1753 (Brad: "if i hit installed here, it should either take me to the
+  // task or ask me"): on an open task → the card opens ON that task and the
+  // form names it; on the engine but no task → "installed as part of which
+  // job?" (its open tasks, or none); the form itself is unchanged.
+  var _log = state.maintLog || [];
+  var _task = p.taskId ? _log.find(function (l) { return l.id === p.taskId && l.type === 'chore' && l.status === 'open'; }) : null;
+  if (_task) {
+    if (!opts.onCard && typeof window._wbOpen === 'function') window._wbOpen(p.forInv, p.forItem, _task.id);
+    _partInstallForm(rowNum, p, pd, _task);
+    return;
+  }
+  if (!opts.jobPicked) {
+    var _open = _log.filter(function (l) { return l.type === 'chore' && l.status === 'open' && String(l.invId || '') === String(p.forInv); });
+    if (_open.length) {
+      _partsChooser(PARTS_COPY.whichJobTitle, _partsEsc(p.description || p.partNum || 'part') + ' \u2014 No. ' + _partsEsc(pd.itemNum),
+        _open.map(function (t) {
+          return { label: _partsEsc(t.text) + ' <span style="color:var(--text-dim);font-size:0.78rem">since ' + _partsEsc(t.dateAdded || '') + '</span>', run: function () {
+            var w = (typeof window._maintPartSetTask === 'function') ? window._maintPartSetTask(p.row, t.id) : Promise.resolve(true);
+            Promise.resolve(w).then(function (ok) { if (ok !== false) markPartInstalled(rowNum, { onCard: opts.onCard, jobPicked: true }); });
+          } };
+        }).concat([{ label: PARTS_COPY.whichJobNone, run: function () { markPartInstalled(rowNum, { onCard: opts.onCard, jobPicked: true }); } }]));
+      return;
+    }
+  }
+  _partInstallForm(rowNum, p, pd, null);
+}
+if (typeof window !== 'undefined') window.markPartInstalled = markPartInstalled;
+// the install form — one form, whether it was reached from the Parts Needed page or the card
+function _partInstallForm(rowNum, p, pd, task) {
   var m = (typeof findMaster === 'function') ? findMaster(pd.itemNum, '', pd) : null;
   var itemLabel = pd.itemNum + (m && m.roadName ? ' \u2014 ' + m.roadName : '');
   var today = new Date().toISOString().split('T')[0];
@@ -4405,7 +4568,7 @@ function markPartInstalled(rowNum) {
   ov.onclick = function (e) { if (e.target === ov) ov.remove(); };
   ov.innerHTML = '<div class="rr-card">'
     + '<div class="rr-card-title">\u2713 Mark Part Installed</div>'
-    + '<div style="font-size:0.82rem;color:var(--text-mid);margin-bottom:0.9rem">Recording this on <strong style="color:var(--text)">' + itemLabel + '</strong>. The details below get added to that item\'s notes.</div>'
+    + '<div style="font-size:0.82rem;color:var(--text-mid);margin-bottom:0.9rem">Recording this on <strong style="color:var(--text)">' + itemLabel + '</strong>' + (task ? ', task <strong style="color:var(--text)">' + _partsEsc(task.text) + '</strong>' : '') + '. The details below get added to that item\'s notes.</div>'
     + '<label style="' + LB + '">Part installed *</label>'
     + '<input id="_inst-desc" type="text" value="' + _esc(p.description) + '" style="' + IN + '">'
     + '<label style="' + LB + '">Part Number</label>'
@@ -4431,7 +4594,6 @@ function markPartInstalled(rowNum) {
   if (window.BackStack && BackStack.wire) BackStack.wire(ov); // v0.9.805 TODO-012: device Back closes this pop-up
   var di = document.getElementById('_inst-desc'); if (di) di.focus();
 }
-if (typeof window !== 'undefined') window.markPartInstalled = markPartInstalled;
 
 async function _savePartInstalled(rowNum) {
   var p = Object.values(state.partsData || {}).find(function (x) { return x.row === rowNum; });
@@ -4471,7 +4633,7 @@ async function _savePartInstalled(rowNum) {
           'Parts Needed!I' + rowNum + ':L' + rowNum, [['installed', p.dateBought || '', date, price || '']], { num: p.id }, 'Parts list')) {
         p.status = 'installed'; p.dateInstalled = date; if (price) p.pricePaid = price;
       }
-      if (typeof _binBuild === 'function' && document.getElementById('page-partsbin')) _binBuild();   // v0.9.1748: it leaves the drawer
+      if (typeof _binVisible === 'function' && _binVisible()) _binBuild();   // v0.9.1748: it leaves the drawer
       if (typeof window._maintLogPartInstalled === 'function') window._maintLogPartInstalled(pd.inventoryId, pd.itemNum, desc, partNum, vendor ? ('self — from ' + vendor) : 'self');   // v0.9.1654: the Workbench auto-trail
       _renderPartsList();
     } else {
@@ -4481,6 +4643,9 @@ async function _savePartInstalled(rowNum) {
     if (typeof buildDashboard === 'function') buildDashboard();
     if (typeof _cachePersonalData === 'function') _cachePersonalData();
     if (typeof showToast === 'function') showToast('\u2713 Installed on ' + pd.itemNum + ' \u2014 added to its notes');
+    // v0.9.1753 (Brad): the part is in — is the job done too? Ask once, in place.
+    var _t2 = p.taskId ? (state.maintLog || []).find(function (l) { return l.id === p.taskId && l.type === 'chore' && l.status === 'open'; }) : null;
+    if (_t2 && typeof window._maintChoreDone === 'function' && confirm(PARTS_COPY.markDone.replace('%s', _t2.text))) await window._maintChoreDone(_t2.row, _t2.id);
   } catch (e) {
     if (typeof showToast === 'function') showToast(rrSaveError(e, 'the installed part'), 4000, true);
   }
