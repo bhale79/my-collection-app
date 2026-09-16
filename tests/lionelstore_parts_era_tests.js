@@ -107,24 +107,46 @@ ok('"+ Want it" files the catalog\'s own number and description, for the card\'s
 ok('…found back through the picker\'s lane by era + number + variation (never by row position)', /_maintPickerParts\(tg, taskId\)\.catalog\.find\(/.test(want) && /String\(r\._era \|\| ''\) === String\(era \|\| ''\) && String\(r\.itemNum\) === String\(partNum\) && String\(r\.variation \|\| ''\) === String\(variation \|\| ''\)/.test(want));
 ok('exactly one _partsAppendRow in the popup code (the save path) plus the bin\'s Use one — nothing else appends', (mt.match(/_partsAppendRow\(fields\)/g) || []).length === 2);
 
-section('The rows file (harvests/lionelstore-parts.json)');
-const doc = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'harvests', 'lionelstore-parts.json'), 'utf8'));
-const rows = doc.rows;
-ok('one file, tab Lionel Store Parts, the count it declares', doc.tab === 'Lionel Store Parts' && doc.totalRows === rows.length && doc.of === 1);
-ok('26 columns, the Lionel Parts layout', doc.header.length === 26 && doc.header[23] === 'Fits' && doc.header[25] === 'Image URL' && rows.every(r => r.length === 26));
-ok('a real read: more than 10,000 part rows, one row per part number', rows.length > 10000 && new Set(rows.map(r => r[0])).size === rows.length, String(rows.length));
+section('The rows files (harvests/lionelstore-parts-1..3.json)');
+// v0.9.1756 shipped ONE file of 10,448 parts — the ones whose SKU named their item.
+// Phase 2b (2026-09-16 evening) read all 25,028 assemblies' exploded-view parts
+// breakdowns, which say where each part is ACTUALLY used, and the file became three
+// (the browser upload takes ~8 MB at a time). Fits is now the UNION of both answers.
+const H = path.join(__dirname, '..', 'harvests');
+const docs = [1, 2, 3].map(n => JSON.parse(fs.readFileSync(path.join(H, 'lionelstore-parts-' + n + '.json'), 'utf8')));
+const rows = docs.reduce((a, d) => a.concat(d.rows), []);
+ok('three files, one tab, the same header and total on each, parts 1..3 with no gaps',
+   docs.length === 3 && docs.every(d => d.tab === 'Lionel Store Parts' && d.totalRows === rows.length && JSON.stringify(d.header) === JSON.stringify(docs[0].header))
+   && JSON.stringify(docs.map(d => d.part)) === '[1,2,3]' && docs.every(d => d.of === 3));
+ok('the superseded single file is gone (one source, not two)', !fs.existsSync(path.join(H, 'lionelstore-parts.json')));
+ok('26 columns, the Lionel Parts layout', docs[0].header.length === 26 && docs[0].header[23] === 'Fits' && docs[0].header[25] === 'Image URL' && rows.every(r => r.length === 26));
+ok('a real read: more than 50,000 part rows, one row per part number', rows.length > 50000 && new Set(rows.map(r => r[0])).size === rows.length, String(rows.length));
 ok('every row is typed Part, category Parts, and names the read', rows.every(r => r[1] === 'Part' && r[18] === 'Parts' && /lionelsupport\.com/.test(r[15])));
-ok('no part number keeps the store wrapper (no cs- in front, no -p behind) — the app reads -P as "powered"', rows.every(r => !/^cs-/i.test(r[0]) && !/-p$/i.test(r[0])));
-ok('…and Notes carries the complete store SKU, the stock and the quantity', rows.every(r => /^Store SKU cs-.+-p(; |$)/i.test(r[13]) && /In stock|Out of stock/.test(r[13])));
-ok('Fits is always ONE 7-digit item, and it is the number written inside the part\'s own SKU', rows.every(r => /^\d{7}$/.test(r[23]) && r[0].indexOf(r[23]) >= 0));
+ok('no part number keeps a store wrapper or any whitespace — the app reads a trailing -P as "powered"',
+   rows.every(r => !/^(cs|ca)-/i.test(r[0]) && !/-p$/i.test(r[0]) && !/[\s ]/.test(r[0])));
+ok('…and Notes carries the complete store SKU', rows.every(r => /^Store SKU (cs|ca)-\S/i.test(r[13])));
+ok('a sold part states its stock; one that is not sold separately says so', rows.every(r => /In stock|Out of stock|not sold separately/.test(r[13])));
+ok('Fits is a "; " list of plain item numbers, never repeating one', rows.every(r => r[23] && r[23].split('; ').every(x => /^\d{4,7}$/.test(x)) && new Set(r[23].split('; ')).size === r[23].split('; ').length));
+ok('where a part\'s SKU names an item, that item leads its Fits list',
+   rows.filter(r => /^(\d{2,3}-)?(\d{7})-[A-Za-z]?\d{2,3}[A-Za-z]?$/.test(r[0])).every(r => r[23].split('; ')[0] === r[0].match(/(\d{7})/)[1]));
+ok('a Fits list is capped at 100, and a capped row states its true count',
+   rows.every(r => r[23].split('; ').length <= 100) && rows.filter(r => /listed\)/.test(r[13])).every(r => r[23].split('; ').length === 100 && /fits \d+ items \(100 listed\)/.test(r[13])));
 ok('Reference Link is the store page, or blank with "no store page" in Notes', rows.every(r => /^https:\/\/www\.lionelsupport\.com\/[^\s]+$/.test(r[12]) || (r[12] === '' && /no store page/.test(r[13]))));
 ok('MSRP is a plain price, or blank with "no price shown" in Notes', rows.every(r => /^\d+(\.\d{1,2})?$/.test(r[20]) || (r[20] === '' && /no price shown/.test(r[13]))));
 ok('Gauge, Variation, Diagrams and Image URL are blank (the store says nothing about them — nothing invented)', rows.every(r => r[8] === '' && r[10] === '' && r[24] === '' && r[25] === ''));
-const coil = rows.find(r => r[0] === '48-2032010-550'), deco = rows.filter(r => /^DECO\d{7}$/.test(r[0]));
-ok('spot check: 48-2032010-550 is the LC2.0 0-6-0T\'s front coil coupler, $15, fits 2032010, linked to its store page', !!coil && /COIL COUPLER \/ FRONT/.test(coil[7]) && coil[20] === '15' && coil[23] === '2032010' && /lionelsupport\.com\/COIL-COUPLER-FRONT/.test(coil[12]), coil && coil.join('|').slice(0, 200));
-ok('the DECO kits are in (their name repeats the item), a few hundred of them', deco.length > 300 && deco.every(r => r[23] === r[0].slice(4)));
-ok('nothing that is a whole product: no train set, no 6-xxxxx number, no bare 10-digit part', !rows.some(r => /Set\b/.test(r[7]) && /^6-\d{5}/.test(r[0])) && !rows.some(r => /^\d{10}$/.test(r[0])) && !rows.some(r => /^6-\d{4,5}-/.test(r[0])));
-ok('the file states its scope, number rule and fits rule', /Only the store parts/.test(doc.scope) && /without its wrapper/.test(doc.numberRule) && /7-digit item number Lionel wrote into the part SKU/.test(doc.fitsRule));
+ok('the exploded-view callout is only ever stated once per row, in Notes', rows.every(r => (r[13].match(/callout /g) || []).length <= 1));
+const coil = rows.find(r => r[0] === '48-2032010-550'), deco = rows.filter(r => /^DECO\d{7}$/.test(r[0])), enc = rows.find(r => r[0] === '6101104135');
+ok('spot check: 48-2032010-550 is still the LC2.0 0-6-0T\'s front coil coupler, $15, fits 2032010, linked to its store page',
+   !!coil && /COIL COUPLER \/ FRONT/.test(coil[7]) && coil[20] === '15' && coil[23].split('; ')[0] === '2032010' && /lionelsupport\.com\/COIL-COUPLER-FRONT/.test(coil[12]));
+ok('spot check: a ten-digit part known only from a breakdown carries its engines and its real count',
+   !!enc && /ENCODER RING/.test(enc[7]) && enc[23].split('; ').length === 100 && /fits \d{3} items \(100 listed\)/.test(enc[13]));
+ok('the DECO kits are still in (their name repeats the item), a few hundred of them', deco.length > 300 && deco.every(r => r[23].split('; ')[0] === r[0].slice(4)));
+ok('the ten-digit part numbers are in now — that was the whole point of reading the breakdowns', rows.filter(r => /^\d{10}$/.test(r[0])).length > 30000);
+ok('no service notes and no whole train sets came in as parts',
+   !rows.some(r => /SERVICE NOTE/i.test(r[0])) && !rows.some(r => /^6-\d{4,5}-\d+$/.test(r[0])));
+ok('the files state their scope, number rule, fits rule and callout rule',
+   /exploded-view parts breakdown/.test(docs[0].scope) && /without its wrapper/.test(docs[0].numberRule)
+   && /every item whose parts breakdown lists this part/.test(docs[0].fitsRule) && /only when every diagram agrees/.test(docs[0].calloutRule));
 ok('Notes never overflow a Sheets cell', rows.every(r => r[13].length <= 2000));
 
 console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
