@@ -39,7 +39,7 @@ ok('_isEraEnabled says NO for a lookup-only era before any preference is consult
 ok('the startup load filters through _isEraEnabled (so the parts tab never loads for display)', /realEras\.filter\(function\(e\) \{ return _isEraEnabled\(e\); \}\)/.test(app));
 ok('the background full-catalog index takes REAL_ERA_IDS whole (so the parts tab IS fetched and cached for lookups)', /_buildAllErasLookupIndex[\s\S]*?REAL_ERA_IDS\.slice\(\)/.test(data));
 ok('the What I Collect picker skips lookup-only eras', /LOOKUP_ONLY_ERAS\.indexOf\(k\) < 0/.test(obj));
-ok('the Yardmaster tab list still comes from REAL_ERA_IDS → ERA_TABS (Lionel Parts is a valid target tab)', /REAL_ERA_IDS\.forEach\(function \(id\) \{\s*var t = ERA_TABS\[id\] && ERA_TABS\[id\]\.items;/.test(rd('yardmaster.js')));
+ok('the Yardmaster tab list still comes from REAL_ERA_IDS → ERA_TABS (Lionel Parts is a valid target tab)', /REAL_ERA_IDS\.forEach\(function \(id\) \{[\s\S]{0,200}var t = ERA_TABS\[id\]\[k\];/.test(rd('yardmaster.js')) && /itemShaped \|\| \['items'\]/.test(rd('yardmaster.js')));   /* v0.9.1754: the same derivation, now through MASTER_TAB_SHAPES' keys (items first) */
 
 section('The parts catalog columns are read by header');
 ok("MASTER_COL_SPEC maps 'fits' by header, name-only", /\['fits',\s*null,\s*\['fits'\]\]/.test(data));
