@@ -64,7 +64,7 @@ ok('with no shared lookup the drawer falls back to findMaster — one catalog li
 r = fitsAll({ id: 'b3', partNum: '2343', desc: 'a whole engine?', qty: 1 });
 ok('a non-Part row never becomes a catalog line', !r.some(x => x.kind === 'catalog'));
 const html = grab('function _binFitsHtml(b)');
-ok('the fits line names the source in brackets and takes the link word from the era (default "diagram")', /Catalog' \+ \(f\.source \? ' \(' \+ _esc\(f\.source\) \+ '\)' : ''\) \+ ': '/.test(html) && /ERAS\[f\.era\]\.partsLink\) \|\| 'diagram'/.test(html) && /">' \+ _lw \+ '<\/a>'/.test(html));
+ok('the fits line names the source in brackets and draws its link through the ONE rule (v0.9.1759: _catalogPartLinkHtml — the era\'s link word applies only on "The maker\'s own store")', /Catalog' \+ \(f\.source \? ' \(' \+ _esc\(f\.source\) \+ '\)' : ''\) \+ ': '/.test(html) && /_catalogPartLinkHtml\(\{ _era: f\.era, refLink: f\.link, itemNum: f\.partNum, description: f\.label \}, null\)/.test(html) && !/partsLink/.test(html));
 
 section('The rows file (harvests/traintender-parts.json)');
 const doc = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'harvests', 'traintender-parts.json'), 'utf8'));

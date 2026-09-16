@@ -65,7 +65,7 @@ ok('a loose 622-12 finds the Lionel Parts row and its four fits, each looked up 
 ok('…the one in the collection is flagged and linkable', cat && cat.fits[1].owned === 1 && cat.fits[1].inv === 'i1' && cat.fits[0].owned === 0);
 ok('…and the row\'s variation and diagram link ride along', cat && cat.variation === 'Reproduction' && /trainz\.com/.test(cat.link));
 ok('the number rule still fires alongside (622-12 → 622)', r.some(x => x.kind === 'number' && x.item === '622'));
-ok('the fits line renders the catalog answer with "fits …" and the diagram link (v0.9.1755: the source in brackets, the link word from ERAS, "diagram" by default)', /Catalog' \+ \(f\.source \? ' \(' \+ _esc\(f\.source\) \+ '\)' : ''\) \+ ': ' \+ _esc\(f\.label\)/.test(mt) && /fits ' \+ fl\.join/.test(mt) && /partsLink\) \|\| 'diagram'/.test(mt));
+ok('the fits line renders the catalog answer with "fits …" and its link (v0.9.1755: the source in brackets; v0.9.1759: the link through the ONE rule, _catalogPartLinkHtml)', /Catalog' \+ \(f\.source \? ' \(' \+ _esc\(f\.source\) \+ '\)' : ''\) \+ ': ' \+ _esc\(f\.label\)/.test(mt) && /fits ' \+ fl\.join/.test(mt) && /_catalogPartLinkHtml\(\{ _era: f\.era, refLink: f\.link, itemNum: f\.partNum, description: f\.label \}, null\)/.test(mt));
 
 section('The rows file the master tab is written from (harvests/lionel-parts-1.json + -2.json)');
 const H = path.join(__dirname, '..', 'harvests');

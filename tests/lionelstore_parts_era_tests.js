@@ -35,7 +35,7 @@ function grabIn(src, sig) { const i = src.indexOf(sig); if (i < 0) return ''; le
 const grab = sig => grabIn(mt, sig);
 
 section('The era is wired like the other parts catalogs (six places)');
-ok('ERAS carries lionelstore_parts, attributed to Lionel, link word "store"', /lionelstore_parts:\s*\{\s*id:\s*'lionelstore_parts',\s*label:\s*'Lionel Store Parts'[^}]*manufacturer:\s*'Lionel',\s*partsLink:\s*'store'\s*\}/.test(cfg));
+ok('ERAS carries lionelstore_parts, attributed to Lionel, link word "store", and (v0.9.1759) marked as the maker\'s own store', /lionelstore_parts:\s*\{\s*id:\s*'lionelstore_parts',\s*label:\s*'Lionel Store Parts'[^}]*manufacturer:\s*'Lionel',\s*partsLink:\s*'store',\s*partsOfficial:\s*true\s*\}/.test(cfg));
 ok('REAL_ERA_IDS lists it (so the lookup index fetches it)', /REAL_ERA_IDS\s*=\s*\[[^\]]*'lionelstore_parts'/.test(cfg));
 ok('ERA_SCALE is blank on purpose (the store sells O, S and HO parts)', /lionelstore_parts:\s*'',\s*\/\/[^\n]*blank on purpose/.test(cfg));
 ok('ERA_TABS points at the master tab "Lionel Store Parts"', /lionelstore_parts:\s*\{\s*items:\s*'Lionel Store Parts'\s*\}/.test(cfg));
@@ -112,16 +112,21 @@ const pick = grab('function _maintPickerParts(');
 ok('_maintPickerParts returns a catalog lane read through _partsForItem, naming the item\'s era so only its maker answers (v0.9.1757)', /catalog = \(typeof _partsForItem === 'function'\) \? _partsForItem\(num, tg\.item && tg\.item\._era\) : \[\];/.test(pick) && /return \{ onHand: onHand, wanted: wanted, bin: bin, catalog: catalog \};/.test(pick));
 const pickFn = new Function('state', pick + '\nreturn _maintPickerParts;')({ partsData: {}, partsBin: [], maintLog: [] });
 ok('…and with no lookup present (an older page, the tests\' bare lift) the lane is simply empty', Array.isArray(pickFn({ item: { itemNum: '2343' }, invId: '' }, 't1').catalog) && pickFn({ item: { itemNum: '2343' }, invId: '' }, 't1').catalog.length === 0);
-const laneSrc = grab('function _maintCatalogLaneHtml(rows, q, taskId)');
+// v0.9.1759: the lane takes the card's item and draws its link through the ONE
+// link rule (_catalogPartLinkHtml — tests/catalog_part_link_tests.js owns that);
+// here a stub stands in for it, so this suite keeps testing the LANE.
+const laneSrc = grab('function _maintCatalogLaneHtml(rows, q, taskId, item)');
 const esc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-const ERAS_FIX = { lionel_parts: { label: 'Lionel Parts' }, traintender_parts: { label: 'Train Tender Parts', partsLink: 'listing' }, lionelstore_parts: { label: 'Lionel Store Parts', partsLink: 'store' } };
-const lane = new Function('_esc', '_btn', 'ERAS', laneSrc + '\nreturn _maintCatalogLaneHtml;')(esc, () => 'class="btn"', ERAS_FIX);
+const ERAS_FIX = { lionel_parts: { label: 'Lionel Parts' }, traintender_parts: { label: 'Train Tender Parts', partsLink: 'listing' }, lionelstore_parts: { label: 'Lionel Store Parts', partsLink: 'store', partsOfficial: true } };
+const linkStub = (r, item) => '<a href="#stub-' + esc(r.itemNum) + '-for-' + esc(item && item.itemNum || 'none') + '">search</a>';
+const lane = new Function('_esc', '_btn', 'ERAS', '_catalogPartLinkHtml', laneSrc + '\nreturn _maintCatalogLaneHtml;')(esc, () => 'class="btn"', ERAS_FIX, linkStub);
 const storeRows = forItem('2032010');
-let html = lane(storeRows, '', 'task-9');
-ok('the lane names the source, the price, the stock and the era\'s link word ("store")', /Lionel Store Parts · \$15 · in stock/.test(html) && /Lionel Store Parts · \$48 · out of stock/.test(html) && /href="https:\/\/www\.lionelsupport\.com\/COIL-COUPLER-FRONT-0-6-0T-LC2\.0"[^>]*>store<\/a>/.test(html));
+let html = lane(storeRows, '', 'task-9', { itemNum: '2032010' });
+ok('the lane names the source and draws ONE link through the shared rule — no price, no stock, no store link of its own (v0.9.1759)',
+   /Lionel Store Parts · <a href="#stub-48-2032010-550-for-2032010">search<\/a>/.test(html) && !/\$15|\$48|in stock|out of stock|lionelsupport\.com/.test(html));
 ok('each line shows the description and its part number, and offers "+ Want it" through _maintPopWantCatalog(era, number, variation, task)', /COIL COUPLER \/ FRONT \/ 0-6-0T LC2\.0<\/b> <span[^>]*>#48-2032010-550<\/span>/.test(html) && /_maintPopWantCatalog\('lionelstore_parts','48-2032010-550','','task-9'\)/.test(html) && (html.match(/\+ Want it/g) || []).length === 2);
-html = lane(forItem('2343'), '', 't');
-ok('Lionel Parts and Train Tender lines carry their own link word default / "listing" and the variation', /\(Reproduction\)/.test(html) && /Train Tender Parts/.test(html) && /Lionel Parts/.test(html));
+html = lane(forItem('2343'), '', 't', { itemNum: '2343' });
+ok('Lionel Parts and Train Tender lines name their source and keep the variation', /\(Reproduction\)/.test(html) && /Train Tender Parts/.test(html) && /Lionel Parts/.test(html));
 const many = []; for (let i = 0; i < 12; i++) many.push({ itemNum: 'P-' + i, itemType: 'Part', description: (i % 2 ? 'smoke unit' : 'coupler') + ' no. ' + i, fits: '1', _era: 'lionel_parts' });
 html = lane(many, '', 't');
 ok('with nothing typed the first 8 show and the head says so', (html.match(/\+ Want it/g) || []).length === 8 && /first 8 of 12 — type to narrow/.test(html));
@@ -131,7 +136,7 @@ ok('typing a part number narrows too (P-11 → one line; single characters are i
 ok('no match says so without a throw; no rows → no lane at all', /None of the 12 catalog parts match/.test(lane(many, 'zzz', 't')) && lane([], '', 't') === '');
 const popup = grab('window._maintPartsPopup = function (taskId, taskName)');
 ok('the popup has the lane\'s container between the bin and "Order one"', popup.indexOf('id="maint-pop-bin"') < popup.indexOf('id="maint-pop-catalog"') && popup.indexOf('id="maint-pop-catalog"') < popup.indexOf('Not in the bin? Order one'));
-ok('typing redraws the lane (from _maintBinCheck), which reads the picker for the card\'s item', /_maintCatalogLaneRender\(taskId\);/.test(grab('window._maintBinCheck = function (taskId)')) && /_maintCatalogLaneHtml\(_maintPickerParts\(tg, taskId\)\.catalog, q, taskId\)/.test(grab('function _maintCatalogLaneRender(taskId)')));
+ok('typing redraws the lane (from _maintBinCheck), which reads the picker for the card\'s item and hands the lane that item (v0.9.1759)', /_maintCatalogLaneRender\(taskId\);/.test(grab('window._maintBinCheck = function (taskId)')) && /_maintCatalogLaneHtml\(_maintPickerParts\(tg, taskId\)\.catalog, q, taskId, tg\.item\)/.test(grab('function _maintCatalogLaneRender(taskId)')));
 
 section('ONE save path: the typed box and "+ Want it" both go through _maintPopSaveWanted');
 const save = grab('async function _maintPopSaveWanted(fields, taskId, retry)');
@@ -139,7 +144,7 @@ const typed = grab('window._maintPopAddWanted = async function (taskId)');
 const want = grab('window._maintPopWantCatalog = async function (era, partNum, variation, taskId)');
 ok('_maintPopSaveWanted holds the duplicate check and the one appender; the two callers hold neither', /_partsFindDup\(fields\)/.test(save) && /_partsAppendRow\(fields\)/.test(save) && !/_partsFindDup|_partsAppendRow/.test(typed) && !/_partsFindDup|_partsAppendRow/.test(want));
 ok('"Add it anyway" re-runs the CALLER (retry), so a catalog line retried is still the catalog line', /window\._partsAddAnyway = true; if \(typeof retry === 'function'\) retry\(\);/.test(save) && /_maintPopSaveWanted\(fields, taskId, function \(\) \{ window\._maintPopAddWanted\(taskId\); \}\)/.test(typed) && /_maintPopSaveWanted\(fields, taskId, function \(\) \{ window\._maintPopWantCatalog\(era, partNum, variation, taskId\); \}\)/.test(want));
-ok('"+ Want it" files the catalog\'s own number and description, for the card\'s unit, with a note naming the catalog, price and link', /partNum: String\(row\.itemNum \|\| ''\)/.test(want) && /description: String\(row\.description \|\| ''\)/.test(want) && /forInv: tg\.invId \|\| ''/.test(want) && /'from the ' \+ src \+ ' catalog'/.test(want) && /row\.refLink/.test(want));
+ok('"+ Want it" files the catalog\'s own number and description, for the card\'s unit, with a note naming the catalog only (v0.9.1759: no price, no link)', /partNum: String\(row\.itemNum \|\| ''\)/.test(want) && /description: String\(row\.description \|\| ''\)/.test(want) && /forInv: tg\.invId \|\| ''/.test(want) && /var note = 'from the ' \+ src \+ ' catalog';/.test(want) && !/row\.refLink|row\.msrp/.test(want));
 ok('…found back through the picker\'s lane by era + number + variation (never by row position)', /_maintPickerParts\(tg, taskId\)\.catalog\.find\(/.test(want) && /String\(r\._era \|\| ''\) === String\(era \|\| ''\) && String\(r\.itemNum\) === String\(partNum\) && String\(r\.variation \|\| ''\) === String\(variation \|\| ''\)/.test(want));
 ok('exactly one _partsAppendRow in the popup code (the save path) plus the bin\'s Use one — nothing else appends', (mt.match(/_partsAppendRow\(fields\)/g) || []).length === 2);
 

@@ -25,7 +25,7 @@ function ok(name, cond, detail) {
 function section(t) { console.log('\n== ' + t + ' =='); }
 
 section('The era is wired like lionel_parts');
-ok('ERAS carries mth_parts, attributed to MTH', /mth_parts:\s*\{\s*id:\s*'mth_parts',\s*label:\s*'MTH Parts'[^}]*manufacturer:\s*'MTH'\s*\}/.test(cfg));
+ok('ERAS carries mth_parts, attributed to MTH, and (v0.9.1759) marked as the maker\'s own parts store', /mth_parts:\s*\{\s*id:\s*'mth_parts',\s*label:\s*'MTH Parts'[^}]*manufacturer:\s*'MTH',\s*partsOfficial:\s*true\s*\}/.test(cfg));
 ok('REAL_ERA_IDS lists it', /REAL_ERA_IDS\s*=\s*\[[^\]]*'mth_parts'/.test(cfg));
 ok('ERA_SCALE is blank on purpose (MTH parts span O, HO, S, G and tinplate)', /mth_parts:\s*'',\s*\/\/[^\n]*blank on purpose/.test(cfg));
 ok('ERA_TABS points at "MTH Parts"', /mth_parts:\s*\{\s*items:\s*'MTH Parts'\s*\}/.test(cfg));
