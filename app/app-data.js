@@ -1075,6 +1075,51 @@ function _mbAllGet(k) {
 }
 window._mbAllGet = _mbAllGet;
 
+// v0.9.1756 (Brad: the Need-a-part popup's fourth lane, "Catalog parts for
+// No. 2343"): the REVERSE of the parts catalogs' Fits column. Item number →
+// every Part row, from every parts tab (Lionel Parts, Train Tender Parts,
+// Lionel Store Parts, MTH Parts…), whose Fits names it. Built once from the
+// same rows _mbAllGet reads (the full-catalog index when it is up, else the
+// loaded eras) and rebuilt only when those rows change — so the popup, the
+// item card and anything later all answer from ONE place.
+var _fitsIdx = null, _fitsIdxRows = null, _fitsIdxLen = -1;
+function _partsFitsIndex() {
+  var rows = (state.masterAllRows && state.masterAllRows.length) ? state.masterAllRows : (state.masterData || []);
+  if (_fitsIdx && _fitsIdxRows === rows && _fitsIdxLen === rows.length) return _fitsIdx;
+  var m = new Map();
+  for (var i = 0; i < rows.length; i++) {
+    var r = rows[i];
+    if (!r || !r.fits || !/^part$/i.test(String(r.itemType || ''))) continue;
+    var toks = String(r.fits).split(/\s*;\s*/);
+    for (var j = 0; j < toks.length; j++) {
+      var k = toks[j].trim(); if (!k) continue;
+      var b = m.get(k); if (!b) { b = []; m.set(k, b); }
+      b.push(r);
+    }
+  }
+  _fitsIdx = m; _fitsIdxRows = rows; _fitsIdxLen = rows.length;
+  return m;
+}
+// The parts rows that fit an item, deduped by identity (itemNum|variation|tab),
+// in catalog order (loaded eras first, then the index). The item is looked up
+// as typed, by its base (2343-P → 2343) and without a product-line prefix
+// (6-8632 → 8632) — the same three spellings findMaster accepts.
+function _partsForItem(itemNum) {
+  var k = String(itemNum || '').trim(); if (!k) return [];
+  var idx = _partsFitsIndex(), keys = [k];
+  if (typeof baseItemNum === 'function') { var bk = baseItemNum(k); if (bk && bk !== k) keys.push(bk); }
+  var mp = k.replace(/^\d-/, ''); if (mp && mp !== k && keys.indexOf(mp) < 0) keys.push(mp);
+  var out = [], seen = {};
+  keys.forEach(function (key) {
+    (idx.get(key) || []).forEach(function (r) {
+      var s = (r.itemNum || '') + '|' + (r.variation || '') + '|' + (r._tab || '');
+      if (!seen[s]) { seen[s] = 1; out.push(r); }
+    });
+  });
+  return out;
+}
+window._partsForItem = _partsForItem;
+
 // Return ALL master rows for a given itemNum. O(1) lookup.
 function findAllMaster(itemNum) {
   if (!itemNum) return [];

@@ -2419,9 +2419,54 @@
       if (st === 'bought') onHand.push(e); else if (st === 'wanted') wanted.push(e);
     });
     var bin = (state.partsBin || []).filter(function (b) { return b.qty > 0; });
-    return { onHand: onHand, wanted: wanted, bin: bin };
+    //   catalog — v0.9.1756: the parts every parts catalog says fit this item
+    //             (the Fits column, read backwards through _partsForItem —
+    //             the ONE shared lookup in app-data.js).
+    var catalog = (typeof _partsForItem === 'function') ? _partsForItem(num) : [];
+    return { onHand: onHand, wanted: wanted, bin: bin, catalog: catalog };
   }
   window._maintPickerParts = _maintPickerParts;
+  // v0.9.1756: the fourth lane's lines. Pure: (rows, typed text, taskId) → html.
+  // With nothing typed the first 8 show; typing narrows by part number or any
+  // word of the description. Each line: what it is, its number, which catalog
+  // says so, the price and stock the catalog knows, the catalog's link (the
+  // era's own link word), and "+ Want it" — the same Parts Wanted path as the
+  // typed box (one duplicate check, one appender).
+  function _maintCatalogLaneHtml(rows, q, taskId) {
+    rows = rows || [];
+    if (!rows.length) return '';
+    var words = String(q || '').toLowerCase().replace(/[^a-z0-9 ]/g, ' ').split(/\s+/).filter(function (w) { return w.length >= 2; });
+    var hits = words.length
+      ? rows.filter(function (r) { var hay = (String(r.itemNum || '') + ' ' + String(r.description || '')).toLowerCase().replace(/[^a-z0-9 ]/g, ' '); return words.every(function (w) { return hay.indexOf(w) >= 0; }); })
+      : rows.slice(0, 8);
+    var head = '<div style="font-size:0.7rem;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-dim);margin:0.6rem 0 0.25rem">Catalog parts for this item'
+      + (words.length ? ' (' + hits.length + ' of ' + rows.length + ')' : (rows.length > 8 ? ' (first 8 of ' + rows.length + ' \u2014 type to narrow)' : '')) + '</div>';
+    if (!hits.length) return head + '<div style="font-size:0.8rem;color:var(--text-dim)">None of the ' + rows.length + ' catalog parts match what you typed.</div>';
+    return head + hits.map(function (r) {
+      var era = (typeof ERAS !== 'undefined' && ERAS[r._era]) || {};
+      var src = era.label || r._tab || '';
+      var lw = era.partsLink || 'diagram';
+      var notes = String(r.notes || '');
+      var stock = /\bIn stock\b/i.test(notes) ? 'in stock' : (/\bOut of stock\b/i.test(notes) ? 'out of stock' : '');
+      var meta = [src, r.msrp ? '$' + _esc(String(r.msrp)) : '', stock].filter(Boolean).join(' \u00b7 ');
+      return '<div style="display:flex;justify-content:space-between;align-items:center;gap:0.5rem;padding:0.3rem 0;border-bottom:1px solid var(--border)">'
+        + '<div><b>' + _esc(String(r.description || r.itemNum || 'part').slice(0, 90)) + '</b>'
+        + ' <span style="font-family:var(--font-mono);color:var(--accent2)">#' + _esc(r.itemNum) + '</span>'
+        + (r.variation ? ' <span style="color:var(--text-dim)">(' + _esc(r.variation) + ')</span>' : '')
+        + '<div style="font-size:0.72rem;color:var(--text-dim)">' + meta
+        + (r.refLink ? (meta ? ' \u00b7 ' : '') + '<a href="' + _esc(r.refLink) + '" target="_blank" rel="noopener" style="color:var(--accent2)">' + _esc(lw) + '</a>' : '') + '</div></div>'
+        + '<button onclick="_maintPopWantCatalog(\'' + _esc(r._era || '') + '\',\'' + _esc(r.itemNum) + '\',\'' + _esc(r.variation || '') + '\',\'' + _esc(taskId || '') + '\')" ' + _btn('green', 'sm', 'flex-shrink:0') + '>+ Want it</button>'
+        + '</div>';
+    }).join('');
+  }
+  window._maintCatalogLaneHtml = _maintCatalogLaneHtml;
+  // (re)draw the lane under the popup's typing box — called by _maintBinCheck on every keystroke
+  function _maintCatalogLaneRender(taskId) {
+    var el = document.getElementById('maint-pop-catalog'); if (!el) return;
+    var tg = _target(); if (!tg.item) { el.innerHTML = ''; return; }
+    var q = (document.getElementById('maint-pop-part') || {}).value || '';
+    el.innerHTML = _maintCatalogLaneHtml(_maintPickerParts(tg, taskId).catalog, q, taskId);
+  }
   // "Attach to this job" / "Use it for this job": the SAME column-M writer
   window._maintPopAttach = async function (partRow, taskId) {
     var ok = await _maintPartSetTask(partRow, taskId);
@@ -2477,6 +2522,7 @@
       +     '<input id="maint-pop-part" placeholder="part number / description" oninput="_maintBinCheck(\'' + _esc(taskId) + '\')" style="' + IN + '">'
       +   '</div>'
       +   '<div id="maint-pop-bin" style="font-size:0.8rem;color:var(--text);margin:0.5rem 0 0.6rem;padding:0.45rem 0.6rem;background:var(--bg-card);border:1px dashed var(--border);border-radius:8px"><span style="color:var(--text-dim)">Checking your bin…</span></div>'
+      +   '<div id="maint-pop-catalog" style="font-size:0.8rem;color:var(--text);margin:0 0 0.6rem"></div>'   // v0.9.1756: the fourth lane — what the parts catalogs say fits this item
       +   '<div style="font-size:0.72rem;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-dim);margin-bottom:0.35rem">Not in the bin? Order one</div>'
       +   _favRow(MAINT.PREF_DEALERS, 'maint-pop-dealer', 'Any dealer')
       +   '<div style="display:flex;gap:0.4rem;margin-top:0.5rem;flex-wrap:wrap">'
@@ -2515,25 +2561,51 @@
       var isNum = /^[A-Za-z]{0,4}[\-#]?[A-Za-z0-9][A-Za-z0-9\-\/\.]*$/.test(txt) && /\d/.test(txt);
       var fields = { description: isNum ? '' : txt, partNum: isNum ? txt : '', forItem: String(tg.item.itemNum || ''), forInv: tg.invId || '',
                      notes: taskId ? 'for Workbench task' : 'from the Workbench', status: 'wanted', taskId: taskId || '' };
-      // v0.9.1753 (Brad: no duplicates): already on the list for this unit → offer it, don't add it twice
-      var dup = (typeof _partsFindDup === 'function') ? _partsFindDup(fields) : null;
-      if (dup && !window._partsAddAnyway) {
-        var pc = window.PARTS_COPY || {};
-        if (taskId && (dup.taskId || '') === taskId) { if (typeof showToast === 'function') showToast(pc.dupOnJob || 'That part is already on this job.', 3500); return; }
-        var opts = [];
-        if (taskId) opts.push({ label: pc.dupAttach || 'Attach it to this job', primary: true, run: function () { window._maintPopAttach(dup.row, taskId); } });
-        else opts.push({ label: pc.dupOpen || 'Open that one', primary: true, run: function () { var pop0 = document.getElementById('maint-parts-pop'); if (pop0) pop0.remove(); if (typeof showAddPartModal === 'function') showAddPartModal(dup.id); } });
-        opts.push({ label: pc.dupAddAnyway || 'Add it anyway', run: function () { window._partsAddAnyway = true; window._maintPopAddWanted(taskId); } });
-        _partsChooser(pc.dupTitle || 'Already on your list', _esc(dup.description || dup.partNum) + ' \u2014 ' + _esc(dup.status || 'wanted') + ((typeof _partsTaskLabel === 'function' && _partsTaskLabel(dup)) ? ', ' + _esc(_partsTaskLabel(dup)) : ''), opts);
-        return;
-      }
-      window._partsAddAnyway = false;
-      await _partsAppendRow(fields);   // v0.9.1753: the one appender (app-pages.js)
-      if (typeof buildPartsPage === 'function') await buildPartsPage();
-      var pop = document.getElementById('maint-parts-pop'); if (pop) pop.remove();
-      _maintRenderTasks(); _wbBadge();
-      if (_wbTarget) _wbCloseCard();
-      if (typeof showToast === 'function') showToast(taskId ? '✓ Added to Parts Wanted — linked to this task' : '✓ Added to Parts Wanted for No. ' + String(tg.item.itemNum || ''));
+      await _maintPopSaveWanted(fields, taskId, function () { window._maintPopAddWanted(taskId); });
+    } catch (e) { if (typeof showToast === 'function') showToast('Could not save the part — ' + (e && e.message || 'try again'), 4000, true); }
+  };
+  // v0.9.1756: the ONE save path behind the popup's typed box AND the catalog
+  // lane's "+ Want it" — the duplicate check, the one appender, the refresh.
+  // `retry` re-runs the caller after "Add it anyway".
+  async function _maintPopSaveWanted(fields, taskId, retry) {
+    var tg = _target();
+    // v0.9.1753 (Brad: no duplicates): already on the list for this unit → offer it, don't add it twice
+    var dup = (typeof _partsFindDup === 'function') ? _partsFindDup(fields) : null;
+    if (dup && !window._partsAddAnyway) {
+      var pc = window.PARTS_COPY || {};
+      if (taskId && (dup.taskId || '') === taskId) { if (typeof showToast === 'function') showToast(pc.dupOnJob || 'That part is already on this job.', 3500); return false; }
+      var opts = [];
+      if (taskId) opts.push({ label: pc.dupAttach || 'Attach it to this job', primary: true, run: function () { window._maintPopAttach(dup.row, taskId); } });
+      else opts.push({ label: pc.dupOpen || 'Open that one', primary: true, run: function () { var pop0 = document.getElementById('maint-parts-pop'); if (pop0) pop0.remove(); if (typeof showAddPartModal === 'function') showAddPartModal(dup.id); } });
+      opts.push({ label: pc.dupAddAnyway || 'Add it anyway', run: function () { window._partsAddAnyway = true; if (typeof retry === 'function') retry(); } });
+      _partsChooser(pc.dupTitle || 'Already on your list', _esc(dup.description || dup.partNum) + ' \u2014 ' + _esc(dup.status || 'wanted') + ((typeof _partsTaskLabel === 'function' && _partsTaskLabel(dup)) ? ', ' + _esc(_partsTaskLabel(dup)) : ''), opts);
+      return false;
+    }
+    window._partsAddAnyway = false;
+    await _partsAppendRow(fields);   // v0.9.1753: the one appender (app-pages.js)
+    if (typeof buildPartsPage === 'function') await buildPartsPage();
+    var pop = document.getElementById('maint-parts-pop'); if (pop) pop.remove();
+    _maintRenderTasks(); _wbBadge();
+    if (_wbTarget) _wbCloseCard();
+    if (typeof showToast === 'function') showToast(taskId ? '✓ Added to Parts Wanted — linked to this task' : '✓ Added to Parts Wanted for No. ' + String(tg.item && tg.item.itemNum || ''));
+    return true;
+  }
+  // v0.9.1756: "+ Want it" on a catalog line — the catalog's own number and
+  // description go on the list (nothing re-typed), the note says which
+  // catalog, the price it showed and where to buy it.
+  window._maintPopWantCatalog = async function (era, partNum, variation, taskId) {
+    var tg = _target();
+    if (!tg.item) return;
+    var row = _maintPickerParts(tg, taskId).catalog.find(function (r) { return String(r._era || '') === String(era || '') && String(r.itemNum) === String(partNum) && String(r.variation || '') === String(variation || ''); });
+    if (!row) { if (typeof showToast === 'function') showToast('That catalog line is gone — reopen the popup.', 3000, true); return; }
+    try {
+      if (typeof _ensurePartsTab === 'function') await _ensurePartsTab();
+      if (typeof _ensurePartsLifecycleCols === 'function') await _ensurePartsLifecycleCols();
+      var src = (typeof ERAS !== 'undefined' && ERAS[row._era] && ERAS[row._era].label) || row._tab || 'catalog';
+      var note = 'from the ' + src + ' catalog' + (row.msrp ? ' at $' + String(row.msrp) : '') + (row.refLink ? ' \u2014 ' + String(row.refLink) : '');
+      var fields = { description: String(row.description || ''), partNum: String(row.itemNum || ''), forItem: String(tg.item.itemNum || ''), forInv: tg.invId || '',
+                     notes: note, status: 'wanted', taskId: taskId || '' };
+      await _maintPopSaveWanted(fields, taskId, function () { window._maintPopWantCatalog(era, partNum, variation, taskId); });
     } catch (e) { if (typeof showToast === 'function') showToast('Could not save the part — ' + (e && e.message || 'try again'), 4000, true); }
   };
 
@@ -2827,6 +2899,7 @@
       }).join('');
     };
     if (state.partsBin) render(); else _loadBin().then(render);
+    _maintCatalogLaneRender(taskId);   // v0.9.1756: the catalog lane narrows with the same typing
   };
 
   // ════════════════════════════════════════════════════════════════

@@ -193,6 +193,7 @@ const WHAT_I_COLLECT = {
     lionel_parts: 'o',   // v0.9.1749
     mth_parts:    'o',   // v0.9.1750: lookup-only era; listed so the maps stay complete, never shown in the picker
     traintender_parts: 'o',   // v0.9.1755: same
+    lionelstore_parts: 'o',   // v0.9.1756: same
     trepro:       'g',   // v0.9.1747: 3¼" gauge has no chip of its own; filed under G (large scale, outdoors) so the era is pickable — ERA_SCALE and the row's Gauge column say the truth
     am_s:         's',
     shelper:      's',
@@ -482,6 +483,7 @@ WHAT_I_COLLECT.eraColors.trepro = WHAT_I_COLLECT.eraColors.lgb;
 WHAT_I_COLLECT.eraColors.lionel_parts = WHAT_I_COLLECT.eraColors.pw;   // v0.9.1749: by reference; the picker never shows it
 WHAT_I_COLLECT.eraColors.mth_parts = WHAT_I_COLLECT.eraColors.mth_o;   // v0.9.1750: same
 WHAT_I_COLLECT.eraColors.traintender_parts = WHAT_I_COLLECT.eraColors.pw;   // v0.9.1755: same
+WHAT_I_COLLECT.eraColors.lionelstore_parts = WHAT_I_COLLECT.eraColors.mpc;   // v0.9.1756: same
 
 window.GMAIL_HELP      = GMAIL_HELP;
 window.WHAT_I_COLLECT  = WHAT_I_COLLECT;
