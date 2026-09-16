@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.1757';
+const APP_VERSION = 'v0.9.1758';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -1852,6 +1852,8 @@ window._rrScheduleNightReload = function () {
       try { busy = (typeof window._rrBusyNow === 'function') && window._rrBusyNow(); } catch (eB) {}
       if (busy) { window._rrNightReloadTimer = setTimeout(fire, 120000); return; }
       try { if (window._rrLastPage) sessionStorage.setItem('rr_resume_page', window._rrLastPage); } catch (eP) {}
+      // v0.9.1758: hand over to the waiting worker first, then reload (index.html).
+      if (typeof window._rrActivateUpdate === 'function') { window._rrActivateUpdate(); return; }
       location.reload();
     };
     window._rrNightReloadTimer = setTimeout(fire, at.getTime() - now.getTime());
@@ -1859,6 +1861,13 @@ window._rrScheduleNightReload = function () {
 };
 window._rrUpdateNow = function () {
   try { if (window._rrLastPage) sessionStorage.setItem('rr_resume_page', window._rrLastPage); } catch (e) {}
+  // v0.9.1758 (Brad, S99: Update now gave a blank screen, then a second reset
+  // worked). A bare reload started the page loading while the OLD worker was
+  // still in charge; the new one then took over mid-load and the requests it
+  // was holding died with it. _rrActivateUpdate hands over FIRST and reloads
+  // once the new worker is in charge — nothing in flight to lose. If no worker
+  // is waiting it reloads immediately, so this button always does something.
+  if (typeof window._rrActivateUpdate === 'function') { window._rrActivateUpdate(); return; }
   location.reload();
 };
 window._rrUpdateTonight = function (netApp) {

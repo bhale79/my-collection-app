@@ -4,7 +4,7 @@
 // fetches fresh copies in the background for next load.
 // NEVER caches Google API, OAuth, or Sheets calls.
 
-const CACHE_NAME = 'mca-v1767';
+const CACHE_NAME = 'mca-v1768';
 
 // ── v0.9.1214: the version stamp has to survive as far as the cache ──
 // Brad, on v1213: "im reset twice and it still looks the same." He was
@@ -197,7 +197,22 @@ self.addEventListener('install', event => {
       })
     ).catch(err => console.error('[sw] precache failed outright:', err))
   );
-  self.skipWaiting();
+  // ── v0.9.1758 (Brad, S99: "i hit update now... i get a blank screen, then
+  // i have to reset it again, and it works fine") ────────────────────────
+  // skipWaiting() used to be called right here, so a new worker took over the
+  // INSTANT it was ready — including in the middle of a page load. That is
+  // exactly what Update now produced: the page reloaded, the OLD worker began
+  // handing over the ~60 stamped scripts, and partway through this worker
+  // finished installing, activated, and replaced it. Every request the old
+  // worker still had in flight died with it, so the app booted half-built —
+  // the blank screen. A second reload found this worker settled and worked.
+  //
+  // A waiting worker is now OFFERED, never forced: index.html shows Brad's
+  // card and only then posts SKIP_WAITING (see the message handler at the
+  // bottom of this file), at a moment when nothing is loading. A worker with
+  // no existing controller — a first install — still activates at once, by
+  // the spec, with no skipWaiting needed. A closed app updates on next open,
+  // as it always did.
 });
 
 // Activate: clean up old caches
@@ -368,8 +383,9 @@ self.addEventListener('fetch', event => {
 
 // Listen for SKIP_WAITING message from page so a new SW can activate
 // immediately on deploy instead of waiting for tabs to close.
-// (skipWaiting() is also called in install, but this covers the case
-// where the new SW is already installed and sitting in "waiting" state.)
+// v0.9.1758: this is now the ONLY way a waiting worker takes over — the page
+// asks for it when the user presses Update now (or at 3 AM for Tonight), with
+// nothing loading. Install no longer calls skipWaiting itself; see above.
 self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'SKIP_WAITING') {
     self.skipWaiting();
