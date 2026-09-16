@@ -37,9 +37,9 @@ ok('browse period, eraScale and eraColors (by reference to mpc) stay complete', 
 
 section('ONE shared reverse lookup: item → the parts that fit it (app-data.js)');
 const idxVars = (ad.match(/var _fitsIdx = null, _fitsIdxRows = null, _fitsIdxLen = -1;/) || [''])[0];
-const idxSrc = idxVars + '\n' + grabIn(ad, 'function _partsFitsIndex()') + '\n' + grabIn(ad, 'function _partsForItem(itemNum)') + '\nreturn _partsForItem;';
+const idxSrc = idxVars + '\n' + grabIn(ad, 'function _partsFitsIndex()') + '\n' + grabIn(ad, 'function _partsMakerOf(era)') + '\n' + grabIn(ad, 'function _partsForItem(itemNum, forEra)') + '\nreturn _partsForItem;';
 ok('the index cache lives in three module vars beside the functions', idxVars.length > 0);
-ok('_partsFitsIndex and _partsForItem live in app-data.js next to _mbAllGet, and _partsForItem is on window', idxSrc.length > 200 && ad.indexOf('window._mbAllGet = _mbAllGet;') < ad.indexOf('function _partsFitsIndex()') && /window\._partsForItem = _partsForItem;/.test(ad));
+ok('_partsFitsIndex, _partsMakerOf and _partsForItem live in app-data.js next to _mbAllGet, and _partsForItem is on window', idxSrc.length > 200 && /function _partsMakerOf\(era\)/.test(idxSrc) && ad.indexOf('window._mbAllGet = _mbAllGet;') < ad.indexOf('function _partsFitsIndex()') && /window\._partsForItem = _partsForItem;/.test(ad));
 const ROWS = [
   { itemNum: '2343-13', itemType: 'Part', description: 'Horn Bracket', fits: '2343; 2344; 2353', _era: 'lionel_parts', _tab: 'Lionel Parts', variation: 'Original' },
   { itemNum: '2343-13', itemType: 'Part', description: 'horn bracket repro', fits: '2343', _era: 'traintender_parts', _tab: 'Train Tender Parts', variation: 'Reproduction' },
@@ -54,7 +54,7 @@ const ROWS = [
 ];
 const base = n => String(n || '').replace(/[-]?[PDTC]$/i, '');
 const st1 = { masterAllRows: ROWS, masterData: [] };
-const forItem = new Function('state', 'baseItemNum', idxSrc)(st1, base);
+const forItem = new Function('state', 'baseItemNum', 'ERAS', idxSrc)(st1, base, {});
 let r = forItem('2343');
 ok('2343 → its parts from every catalog (Lionel Parts + Train Tender), one line each, duplicates folded', r.length === 3 && r.map(x => x._era).join(',') === 'lionel_parts,traintender_parts,lionel_parts' && r.filter(x => x.itemNum === 'X-DUP').length === 1, JSON.stringify(r.map(x => x.itemNum + '@' + x._era)));
 ok('a non-Part row never answers even with a Fits value', !r.some(x => x.itemNum === 'NOTAPART'));
@@ -64,16 +64,45 @@ ok('2032010 → both store parts, with their price, stock note and store link in
 ok('the item is looked up by its base too (2343-P → 2343)', forItem('2343-P').length === 3);
 ok('…and without a product-line prefix (6-8632 → 8632)', forItem('6-8632').length === 1 && forItem('6-8632')[0].itemNum === '8632-050');
 ok('an unknown item → nothing; blank → nothing; never a throw', forItem('9999999').length === 0 && forItem('').length === 0);
+
+// v0.9.1757 — THE MAKER GUARD. Lionel's modern 6-xxxxx line is keyed as the bare
+// xxxxx, which collides with the short catalog numbers S-Helper, American Models,
+// Atlas N and Maerklin use: on the real catalog 1,641 item numbers matched a part
+// from a different maker. A parts catalog now answers only for its own maker's items.
+const ERAS_MFR = { lionel_parts: { manufacturer: 'Lionel' }, traintender_parts: { manufacturer: 'Lionel' },
+  lionelstore_parts: { manufacturer: 'Lionel' }, mth_parts: { manufacturer: 'MTH' }, kato_parts: { manufacturer: 'Kato' },
+  pw: { manufacturer: 'Lionel' }, mpc: { manufacturer: 'Lionel' }, mod_s: { manufacturer: 'Lionel' },
+  shelper: { manufacturer: 'S-Helper Service' }, af_gilbert: { manufacturer: 'A.C. Gilbert' }, nomfr: {} };
+const COLLIDE = [
+  { itemNum: '8632-050', itemType: 'Part', description: 'Lionel truck', fits: '8632', _era: 'lionel_parts', _tab: 'Lionel Parts' },
+  { itemNum: 'MTH-1', itemType: 'Part', description: 'MTH truck', fits: '8632', _era: 'mth_parts', _tab: 'MTH Parts' },
+  { itemNum: 'K-9', itemType: 'Part', description: 'Kato truck', fits: '8632', _era: 'kato_parts', _tab: 'Kato Parts' },
+  { itemNum: 'NM-1', itemType: 'Part', description: 'a catalog with no maker on its era', fits: '8632', _era: 'nomfr', _tab: 'Odd' },
+];
+const guard = new Function('state', 'baseItemNum', 'ERAS', idxSrc)({ masterAllRows: COLLIDE, masterData: [] }, base, ERAS_MFR);
+ok('with no era named, every catalog still answers (the drawer, where the user typed a PART number)', guard('8632').length === 4);
+ok('a Lionel item gets Lionel parts only — the MTH and Kato rows drop out', guard('8632', 'mpc').map(r => r._era).sort().join(',') === 'lionel_parts,nomfr');
+ok('an MTH item gets the MTH row; a Kato item gets the Kato row', guard('8632', 'mth_o' in ERAS_MFR ? 'mth_o' : 'mth_parts').some(r => r._era === 'mth_parts') && guard('8632', 'kato_parts').some(r => r._era === 'kato_parts'));
+ok('an S-Helper item numbered like a Lionel one gets NO Lionel parts (the bug this fixes)',
+   guard('8632', 'shelper').every(r => r._era !== 'lionel_parts') && guard('8632', 'shelper').length === 1);
+ok('A.C. Gilbert\'s original American Flyer is NOT Lionel, so Lionel store parts stay off it',
+   guard('8632', 'af_gilbert').every(r => r._era !== 'lionel_parts'));
+ok('Lionel\'s OWN American Flyer line is Lionel, so its parts still match', guard('8632', 'mod_s').some(r => r._era === 'lionel_parts'));
+ok('a catalog whose era names no maker is never filtered out — silence is not a mismatch', guard('8632', 'mpc').some(r => r._era === 'nomfr'));
+ok('an era with no maker of its own filters nothing', guard('8632', 'nomfr').length === 4);
+ok('the guard lives in the shared lookup, not in the lane, and _partsMakerOf is on window',
+   /function _partsForItem\(itemNum, forEra\)/.test(ad) && /window\._partsMakerOf = _partsMakerOf;/.test(ad));
+ok('the lane tells the lookup which item it is on', /_partsForItem\(num, tg\.item && tg\.item\._era\)/.test(mt));
 // the index rebuilds only when the rows change
 const st2 = { masterAllRows: [], masterData: [ROWS[2]] };
-const forItem2 = new Function('state', 'baseItemNum', idxSrc)(st2, base);
+const forItem2 = new Function('state', 'baseItemNum', 'ERAS', idxSrc)(st2, base, {});
 ok('before the full-catalog index is up, the loaded eras answer', forItem2('2032010').length === 1);
 st2.masterData.push(ROWS[3]);
 ok('…and a row added to them is seen on the next call (rebuilt by length)', forItem2('2032010').length === 2);
 
 section('The picker\'s fourth lane and its markup (maintenance.js)');
 const pick = grab('function _maintPickerParts(');
-ok('_maintPickerParts returns a catalog lane read through _partsForItem (the one shared lookup)', /catalog = \(typeof _partsForItem === 'function'\) \? _partsForItem\(num\) : \[\];/.test(pick) && /return \{ onHand: onHand, wanted: wanted, bin: bin, catalog: catalog \};/.test(pick));
+ok('_maintPickerParts returns a catalog lane read through _partsForItem, naming the item\'s era so only its maker answers (v0.9.1757)', /catalog = \(typeof _partsForItem === 'function'\) \? _partsForItem\(num, tg\.item && tg\.item\._era\) : \[\];/.test(pick) && /return \{ onHand: onHand, wanted: wanted, bin: bin, catalog: catalog \};/.test(pick));
 const pickFn = new Function('state', pick + '\nreturn _maintPickerParts;')({ partsData: {}, partsBin: [], maintLog: [] });
 ok('…and with no lookup present (an older page, the tests\' bare lift) the lane is simply empty', Array.isArray(pickFn({ item: { itemNum: '2343' }, invId: '' }, 't1').catalog) && pickFn({ item: { itemNum: '2343' }, invId: '' }, 't1').catalog.length === 0);
 const laneSrc = grab('function _maintCatalogLaneHtml(rows, q, taskId)');
