@@ -30,7 +30,7 @@ ok('ERAS carries traintender_parts, attributed to Lionel, with the drawer\'s lin
 ok('REAL_ERA_IDS lists it (so the lookup index fetches it and the Yardmaster can file into it)', /REAL_ERA_IDS\s*=\s*\[[^\]]*'traintender_parts'/.test(cfg));
 ok('ERA_SCALE is blank on purpose (O, OO and G; the row\'s Gauge column says which)', /traintender_parts:\s*'',\s*\/\/[^\n]*blank on purpose/.test(cfg));
 ok('ERA_TABS points at the master tab "Train Tender Parts"', /traintender_parts:\s*\{\s*items:\s*'Train Tender Parts'\s*\}/.test(cfg));
-ok('it is LOOKUP-ONLY, beside the other two parts catalogs', /const LOOKUP_ONLY_ERAS = \['lionel_parts', 'mth_parts', 'traintender_parts'\];/.test(cfg));
+ok('it is LOOKUP-ONLY, beside the other two parts catalogs', /const LOOKUP_ONLY_ERAS = \['lionel_parts', 'mth_parts', 'traintender_parts'(, '[a-z_]+')*\];/.test(cfg));
 ok('browse period, eraScale and eraColors (by reference to pw) stay complete', /traintender_parts:\s*'modern'/.test(br) && /traintender_parts:\s*'o'/.test(ob) && /WHAT_I_COLLECT\.eraColors\.traintender_parts = WHAT_I_COLLECT\.eraColors\.pw;/.test(ob));
 
 section('The drawer: every parts catalog that carries the number answers, one line per source');

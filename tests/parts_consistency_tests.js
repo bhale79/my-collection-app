@@ -105,8 +105,10 @@ ok('savePart adds a NEW part through _partsAppendRow and checks for a duplicate 
 ok('savePart keeps the edit path (A:H update) so lifecycle columns are never clobbered', /'Parts Needed!A' \+ existingRow \+ ':H' \+ existingRow/.test(savePart));
 ok('a duplicate is only checked for NEW rows, and "Add it anyway" is honoured once', /if \(!\(existingRow > 0\) && !window\._partsAddAnyway\)/.test(savePart) && /window\._partsAddAnyway = false;/.test(savePart));
 const popAdd = grabFrom(maint, 'window._maintPopAddWanted = async function (taskId)');
-ok('the Need-a-part popup adds through _partsAppendRow and checks for a duplicate first', /_partsAppendRow\(fields\)/.test(popAdd) && /_partsFindDup\(fields\)/.test(popAdd));
-ok('…a duplicate already on THIS job is refused with a toast; on another job it is offered "Attach it to this job"', /dupOnJob/.test(popAdd) && /_maintPopAttach\(dup\.row, taskId\)/.test(popAdd) && /dupAttach/.test(popAdd));
+const popSave = grabFrom(maint, 'async function _maintPopSaveWanted(fields, taskId, retry)');   // v0.9.1756: the ONE save path behind the typed box and the catalog lane
+const popCat = grabFrom(maint, 'window._maintPopWantCatalog = async function (era, partNum, variation, taskId)');
+ok('the Need-a-part popup adds through _partsAppendRow and checks for a duplicate first (v0.9.1756: inside _maintPopSaveWanted, which the typed box AND the catalog lane call)', /_partsAppendRow\(fields\)/.test(popSave) && /_partsFindDup\(fields\)/.test(popSave) && /_maintPopSaveWanted\(fields, taskId/.test(popAdd) && /_maintPopSaveWanted\(fields, taskId/.test(popCat) && !/_partsAppendRow\(/.test(popAdd) && !/_partsAppendRow\(/.test(popCat));
+ok('…a duplicate already on THIS job is refused with a toast; on another job it is offered "Attach it to this job"', /dupOnJob/.test(popSave) && /_maintPopAttach\(dup\.row, taskId\)/.test(popSave) && /dupAttach/.test(popSave));
 const binUse = grabFrom(maint, 'window._maintBinUse = async function (binId, taskId)');
 ok('the bin\'s Use one: a WANTED row for the same part and unit turns bought (no second row), else the one appender', /_partsFindDup\(fields\)/.test(binUse) && /markPartBought\(dup\.row\)/.test(binUse) && /_partsAppendRow\(fields\)/.test(binUse));
 ok('…and puts the fulfilled row on the job when it was not already there', /_maintPartSetTask\(dup\.row, taskId\)/.test(binUse));
