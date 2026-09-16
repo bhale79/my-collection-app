@@ -29,7 +29,7 @@ ok('ERAS carries mth_parts, attributed to MTH', /mth_parts:\s*\{\s*id:\s*'mth_pa
 ok('REAL_ERA_IDS lists it', /REAL_ERA_IDS\s*=\s*\[[^\]]*'mth_parts'/.test(cfg));
 ok('ERA_SCALE is blank on purpose (MTH parts span O, HO, S, G and tinplate)', /mth_parts:\s*'',\s*\/\/[^\n]*blank on purpose/.test(cfg));
 ok('ERA_TABS points at "MTH Parts"', /mth_parts:\s*\{\s*items:\s*'MTH Parts'\s*\}/.test(cfg));
-ok('it is LOOKUP-ONLY, beside lionel_parts', /const LOOKUP_ONLY_ERAS = \['lionel_parts', 'mth_parts'\];/.test(cfg));
+ok('it is LOOKUP-ONLY, beside lionel_parts (v0.9.1755: and traintender_parts)', /const LOOKUP_ONLY_ERAS = \['lionel_parts', 'mth_parts'(, '[a-z_]+')*\];/.test(cfg));
 ok('browse period, eraScale and eraColors (by reference to mth_o) stay complete', /mth_parts:\s*'modern'/.test(br) && /mth_parts:\s*'o'/.test(ob) && /WHAT_I_COLLECT\.eraColors\.mth_parts = WHAT_I_COLLECT\.eraColors\.mth_o;/.test(ob));
 
 section('The rows file (harvests/mth-parts-1..3.json)');
