@@ -12,6 +12,13 @@
 // This suite pins the era's wiring, the ONE shared reverse lookup
 // (_partsForItem, app-data.js), the picker's lane, the lane's markup, the one
 // save path, and the rows file.
+//
+// Sept 16 night (S99), the rows files again: Brad typed "tire" on 84631's
+// Need-a-part popup and got "None of the 28 catalog parts match". The tire
+// (6304678206) fits 837 engines; the evening rebuild had CAPPED every Fits list
+// at 100 item numbers and 84631 was not in the tire's first 100. 516 parts were
+// over the cap, 7,576 items were missing at least one part — always the common
+// ones. The cap is gone: a Fits list is complete, and the checks below say so.
 // Run:  node tests/lionelstore_parts_era_tests.js
 // ═══════════════════════════════════════════════════════════════
 const fs = require('fs');
@@ -158,8 +165,17 @@ ok('a sold part states its stock; one that is not sold separately says so', rows
 ok('Fits is a "; " list of plain item numbers, never repeating one', rows.every(r => r[23] && r[23].split('; ').every(x => /^\d{4,7}$/.test(x)) && new Set(r[23].split('; ')).size === r[23].split('; ').length));
 ok('where a part\'s SKU names an item, that item leads its Fits list',
    rows.filter(r => /^(\d{2,3}-)?(\d{7})-[A-Za-z]?\d{2,3}[A-Za-z]?$/.test(r[0])).every(r => r[23].split('; ')[0] === r[0].match(/(\d{7})/)[1]));
-ok('a Fits list is capped at 100, and a capped row states its true count',
-   rows.every(r => r[23].split('; ').length <= 100) && rows.filter(r => /listed\)/.test(r[13])).every(r => r[23].split('; ').length === 100 && /fits \d+ items \(100 listed\)/.test(r[13])));
+ok('NO Fits list is capped any more — no row claims "(N listed)", and a list can run past 100',
+   !rows.some(r => /listed\)/.test(r[13])) && rows.some(r => r[23].split('; ').length > 100));
+ok('a part that fits more than 100 items says how many in Notes, and the number is the list\'s real length',
+   rows.filter(r => r[23].split('; ').length > 100).every(r => parseInt((r[13].match(/fits (\d+) items/) || [])[1], 10) === r[23].split('; ').length)
+   && rows.filter(r => /fits \d+ items/.test(r[13])).every(r => r[23].split('; ').length > 100));
+ok('every Fits cell still fits a Sheets cell (50,000 characters)', rows.every(r => r[23].length <= 49000));
+const tire = rows.find(r => r[0] === '6304678206');
+ok('the one that started it: the .625" traction tire lists all its engines, 84631 among them',
+   !!tire && /TRACTION TIRE/.test(tire[7]) && tire[23].split('; ').length > 800 && tire[23].split('; ').includes('84631') && /fits 837 items$/.test(tire[13]));
+ok('…so 84631 has its full parts list — the popup said 28, the store says more than 60',
+   rows.filter(r => r[23].split('; ').includes('84631')).length > 60);
 ok('Reference Link is the store page, or blank with "no store page" in Notes', rows.every(r => /^https:\/\/www\.lionelsupport\.com\/[^\s]+$/.test(r[12]) || (r[12] === '' && /no store page/.test(r[13]))));
 ok('MSRP is a plain price, or blank with "no price shown" in Notes', rows.every(r => /^\d+(\.\d{1,2})?$/.test(r[20]) || (r[20] === '' && /no price shown/.test(r[13]))));
 ok('Gauge, Variation, Diagrams and Image URL are blank (the store says nothing about them — nothing invented)', rows.every(r => r[8] === '' && r[10] === '' && r[24] === '' && r[25] === ''));
@@ -167,15 +183,15 @@ ok('the exploded-view callout is only ever stated once per row, in Notes', rows.
 const coil = rows.find(r => r[0] === '48-2032010-550'), deco = rows.filter(r => /^DECO\d{7}$/.test(r[0])), enc = rows.find(r => r[0] === '6101104135');
 ok('spot check: 48-2032010-550 is still the LC2.0 0-6-0T\'s front coil coupler, $15, fits 2032010, linked to its store page',
    !!coil && /COIL COUPLER \/ FRONT/.test(coil[7]) && coil[20] === '15' && coil[23].split('; ')[0] === '2032010' && /lionelsupport\.com\/COIL-COUPLER-FRONT/.test(coil[12]));
-ok('spot check: a ten-digit part known only from a breakdown carries its engines and its real count',
-   !!enc && /ENCODER RING/.test(enc[7]) && enc[23].split('; ').length === 100 && /fits \d{3} items \(100 listed\)/.test(enc[13]));
+ok('spot check: a ten-digit part known only from a breakdown carries ALL its engines and says how many',
+   !!enc && /ENCODER RING/.test(enc[7]) && enc[23].split('; ').length > 100 && parseInt(enc[13].match(/fits (\d+) items/)[1], 10) === enc[23].split('; ').length);
 ok('the DECO kits are still in (their name repeats the item), a few hundred of them', deco.length > 300 && deco.every(r => r[23].split('; ')[0] === r[0].slice(4)));
 ok('the ten-digit part numbers are in now — that was the whole point of reading the breakdowns', rows.filter(r => /^\d{10}$/.test(r[0])).length > 30000);
 ok('no service notes and no whole train sets came in as parts',
    !rows.some(r => /SERVICE NOTE/i.test(r[0])) && !rows.some(r => /^6-\d{4,5}-\d+$/.test(r[0])));
 ok('the files state their scope, number rule, fits rule and callout rule',
    /exploded-view parts breakdown/.test(docs[0].scope) && /without its wrapper/.test(docs[0].numberRule)
-   && /every item whose parts breakdown lists this part/.test(docs[0].fitsRule) && /only when every diagram agrees/.test(docs[0].calloutRule));
+   && /every item whose parts breakdown lists this part/.test(docs[0].fitsRule) && /no cap/.test(docs[0].fitsRule) && /only when every diagram agrees/.test(docs[0].calloutRule));
 ok('Notes never overflow a Sheets cell', rows.every(r => r[13].length <= 2000));
 
 console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
