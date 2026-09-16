@@ -1104,20 +1104,38 @@ function _partsFitsIndex() {
 // in catalog order (loaded eras first, then the index). The item is looked up
 // as typed, by its base (2343-P → 2343) and without a product-line prefix
 // (6-8632 → 8632) — the same three spellings findMaster accepts.
-function _partsForItem(itemNum) {
+// v0.9.1757: the maker guard. A part number's fitment is only meaningful within
+// ONE maker's numbering, and the makers collide: Lionel's modern 6-xxxxx line is
+// keyed here as the bare xxxxx, which runs straight into the short catalog numbers
+// S-Helper Service, American Models, Atlas N and Maerklin use. Measured on the real
+// catalog: 1,641 item numbers matched a part from a DIFFERENT maker, 1,537 of them
+// five digits — an S-Helper hopper numbered 124 was being offered Lionel parts.
+// So a parts catalog answers only for items its own manufacturer built. `forEra` is
+// the era of the item being asked about (ERAS[forEra].manufacturer); omit it and
+// nothing is filtered, which is what the drawer wants when the user types a PART
+// number and no item is in hand. A catalog or an item with no manufacturer on its
+// era is never filtered out — silence is not evidence of a mismatch.
+function _partsMakerOf(era) {
+  return (typeof ERAS !== 'undefined' && ERAS[era] && ERAS[era].manufacturer) || '';
+}
+function _partsForItem(itemNum, forEra) {
   var k = String(itemNum || '').trim(); if (!k) return [];
   var idx = _partsFitsIndex(), keys = [k];
   if (typeof baseItemNum === 'function') { var bk = baseItemNum(k); if (bk && bk !== k) keys.push(bk); }
   var mp = k.replace(/^\d-/, ''); if (mp && mp !== k && keys.indexOf(mp) < 0) keys.push(mp);
+  var want = forEra ? _partsMakerOf(forEra) : '';
   var out = [], seen = {};
   keys.forEach(function (key) {
     (idx.get(key) || []).forEach(function (r) {
       var s = (r.itemNum || '') + '|' + (r.variation || '') + '|' + (r._tab || '');
-      if (!seen[s]) { seen[s] = 1; out.push(r); }
+      if (seen[s]) return;
+      if (want) { var got = _partsMakerOf(r._era); if (got && got !== want) return; }
+      seen[s] = 1; out.push(r);
     });
   });
   return out;
 }
+window._partsMakerOf = _partsMakerOf;
 window._partsForItem = _partsForItem;
 
 // Return ALL master rows for a given itemNum. O(1) lookup.

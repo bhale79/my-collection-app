@@ -2422,7 +2422,9 @@
     //   catalog — v0.9.1756: the parts every parts catalog says fit this item
     //             (the Fits column, read backwards through _partsForItem —
     //             the ONE shared lookup in app-data.js).
-    var catalog = (typeof _partsForItem === 'function') ? _partsForItem(num) : [];
+    //   v0.9.1757: the card knows which item it is on, so the lookup is told its era
+    //   and only that maker's parts catalogs answer (see _partsForItem, app-data.js).
+    var catalog = (typeof _partsForItem === 'function') ? _partsForItem(num, tg.item && tg.item._era) : [];
     return { onHand: onHand, wanted: wanted, bin: bin, catalog: catalog };
   }
   window._maintPickerParts = _maintPickerParts;
