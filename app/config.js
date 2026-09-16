@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.1758';
+const APP_VERSION = 'v0.9.1759';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -974,7 +974,12 @@ const ERAS = {
   // part lists (the official parts arm): part number, name, price, stock,
   // callout, and the model families / products each list serves. Lookup-only,
   // like lionel_parts.
-  mth_parts: { id: 'mth_parts', label: 'MTH Parts', years: 'All', prefix: 'MTH Parts', manufacturer: 'MTH' },
+  // v0.9.1759: partsOfficial = this catalog IS the maker's own parts store, so
+  // a part's page may be opened directly — but only when the user picks "The
+  // maker's own store" in the Need-a-part dropdown (Brad, Sept 16: no maker's
+  // site linked on its own). A dealer catalog (Trainz, Train Tender) never
+  // carries this flag: its lines link to a web search of the part instead.
+  mth_parts: { id: 'mth_parts', label: 'MTH Parts', years: 'All', prefix: 'MTH Parts', manufacturer: 'MTH', partsOfficial: true },
   // v0.9.1755 (Brad, 2026-09-15: "own tab", "Lionel only", "fits only when the
   // catalog knows it"): The Train Tender's Lionel parts lists (ttender.com) —
   // postwar, prewar, the letter-prefix parts, OO and the LTI modern pages, one
@@ -986,9 +991,10 @@ const ERAS = {
   // own parts store (lionelsupport.com), swept 2026-09-16 — the 10,448 store
   // parts whose SKU names the item they fit (48-2032010-550 → 2032010), one row
   // per part; the other 58,000 store SKUs carry no item and stay on the PC.
-  // Lookup-only, like the other parts catalogs. partsLink = the drawer's link
-  // word: the row's link opens the part's page in Lionel's store.
-  lionelstore_parts: { id: 'lionelstore_parts', label: 'Lionel Store Parts', years: 'All', prefix: 'Lionel Store Parts', manufacturer: 'Lionel', partsLink: 'store' },
+  // Lookup-only, like the other parts catalogs. partsLink = the link word when
+  // the part's own store page is shown (v0.9.1759: only on "The maker's own
+  // store"); partsOfficial = this is Lionel's own store, so that page may open.
+  lionelstore_parts: { id: 'lionelstore_parts', label: 'Lionel Store Parts', years: 'All', prefix: 'Lionel Store Parts', manufacturer: 'Lionel', partsLink: 'store', partsOfficial: true },
   atlas:  { id: 'atlas',  label: 'Atlas O',     years: 'All',        prefix: 'Atlas O',        manufacturer: 'Atlas' },
   // Session 174 (Brad): Atlas HO/N/Z tabs exist & are populated in the master
   // sheet (added in the 2026-07-21 merge) but were never wired up, so ~33.5k

@@ -28,6 +28,12 @@
     BETA_EMAILS: ['browntailflyer@gmail.com'],
     PREF_CHANNELS: 'maint_yt_channels',   // JSON array of channel names
     PREF_DEALERS:  'maint_parts_dealers', // JSON array of dealer names
+    // v0.9.1759: the dealer dropdown remembers its pick ('' = Any dealer, a
+    // favorite as typed, or MAKER_STORE) so the Workbench drawer's catalog
+    // lines search the same store the popup does. MAKER_STORE is the ONE
+    // built-in choice — "The maker's own store" — never a hardcoded dealer.
+    PREF_DEALER_PICK: 'maint_parts_dealer_pick',
+    MAKER_STORE: '__maker',
     PREF_SUPPLIERS: 'maint_diagram_suppliers', // JSON array; seeded with Trainz
   };
 
@@ -1452,21 +1458,93 @@
     }
     return 'https://www.youtube.com/results?search_query=' + encodeURIComponent(q);
   }
-  function _partsUrl(dealer, item, part) {
-    // Brad 2026-09-01: NO dealer hardcoded — the user names favorites and
-    // the query is just quoted pieces: "dealer" "maker" "number" "part".
-    var bits = [dealer, _makerName(item, item && item._era), String(item && item.itemNum || '').trim(), part]
-      .filter(Boolean).map(function (b) { return '"' + String(b).trim() + '"'; });
-    return 'https://www.google.com/search?q=' + encodeURIComponent(bits.join(' '));
+  // ── v0.9.1759: ONE web-search builder for the typed box (Search →) AND every
+  //    catalog part line (the popup's lane, the Workbench drawer). Brad, Sept 16:
+  //    no direct dealer links, no price, no stock — "the store link should google
+  //    the part number", with his own favorite store added to the search.
+  //    dealer   '' = Any dealer; a favorite as the user typed it. A plain name
+  //             ("trainz") is one more word; a site ("trainz.com", "www.trainz.com",
+  //             a pasted address) becomes site:trainz.com so the search stays on
+  //             that store. MAKER_STORE with nothing to open → the plain search.
+  //    item     the item on the card — its maker and item number ride along as
+  //             plain words; null for a loose part (the drawer), when makerWord
+  //             (the catalog's own maker) stands in.
+  //    quoted   the ONE specific thing, in quotes: the typed text or a part number.
+  //    plain    extra plain words — a catalog part's description.
+  //    Only the specific thing is quoted: Google's quotes demand the exact phrase
+  //    on the page, and four quoted phrases usually finds nothing at all.
+  //    Brad 2026-09-01 still holds: NO dealer hardcoded — the user names them.
+  function _partsUrl(dealer, item, quoted, plain, makerWord) {
+    var d = String(dealer || '').trim();
+    if (d === MAINT.MAKER_STORE) d = '';
+    var bits = [];
+    if (d) bits.push(_dealerSite(d) ? 'site:' + _dealerSite(d) : _plainWords(d));
+    var maker = item ? _makerName(item, item && item._era) : String(makerWord || '');
+    if (maker) bits.push(_plainWords(maker));
+    var num = String(item && item.itemNum || '').trim();
+    if (num) bits.push(num);
+    [].concat(plain || []).forEach(function (p) { p = _plainWords(p); if (p) bits.push(p); });
+    [].concat(quoted || []).forEach(function (q) { q = String(q || '').replace(/"/g, '').trim(); if (q) bits.push('"' + q + '"'); });
+    return 'https://www.google.com/search?q=' + encodeURIComponent(bits.join(' ').replace(/\s+/g, ' ').trim());
   }
+  // "trainz.com" / "www.trainz.com" / "https://www.trainz.com/parts" → trainz.com; "Joe's Train Shop" → ''
+  function _dealerSite(d) {
+    var s = String(d || '').trim().replace(/^https?:\/\//i, '').replace(/\/.*$/, '').replace(/^www\./i, '');
+    return /^[a-z0-9-]+(\.[a-z0-9-]+)+$/i.test(s) ? s.toLowerCase() : '';
+  }
+  // plain search words: no quote marks (a store name says .625" — Google would read
+  // that as a quote), slashes and pipes become spaces
+  function _plainWords(s) {
+    return String(s == null ? '' : s).replace(/"/g, '').replace(/[\/|]+/g, ' ').replace(/\s+/g, ' ').trim();
+  }
+  // the store the user picked: the popup's dropdown when it is on screen, else
+  // what it last remembered — so the drawer's lines search the same place. A
+  // favorite that has since been removed counts as Any dealer.
+  function _dealerPick() {
+    var sel = (typeof document !== 'undefined') ? document.getElementById('maint-pop-dealer') : null;
+    var v = sel ? String(sel.value || '') : String((typeof _prefGet === 'function') ? _prefGet(MAINT.PREF_DEALER_PICK, '') : '');
+    if (!v || v === MAINT.MAKER_STORE || _favs(MAINT.PREF_DEALERS).indexOf(v) >= 0) return v;
+    return '';
+  }
+  window._maintDealerPicked = function (sel) {
+    try { if (typeof _prefSet === 'function') _prefSet(MAINT.PREF_DEALER_PICK, String(sel && sel.value || '')); } catch (e) {}
+    var el = document.getElementById('maint-pop-catalog');
+    if (el) _maintCatalogLaneRender(el.getAttribute('data-task') || '');   // the lane's links follow the pick
+  };
+  // ── v0.9.1759: ONE link rule for a catalog part line, wherever it is drawn
+  //    (the popup's lane, the drawer's "Catalog (…)" line). Brad, Sept 16: "we
+  //    can't link directly to trainz website or show the price or if its in
+  //    stock" and "we dont need to automatically show lionel, atlas, or whoevers
+  //    parts directly unless the user select them in the dropdown". So the link
+  //    is a web search of the part — maker, item number, description, "part
+  //    number" — with the picked store added. ONLY when the pick is "The maker's
+  //    own store" AND the part came from the maker's own catalog
+  //    (ERAS[era].partsOfficial) does it open the part's page, worded by the era.
+  function _catalogPartLinkHtml(r, item) {
+    var era = (typeof ERAS !== 'undefined' && ERAS[r._era]) || {};
+    var pick = _dealerPick(), href, word;
+    if (pick === MAINT.MAKER_STORE && era.partsOfficial && r.refLink) {
+      href = String(r.refLink); word = era.partsLink || 'store';
+    } else {
+      var d = pick === MAINT.MAKER_STORE ? '' : pick;
+      href = _partsUrl(d, item, String(r.itemNum || ''), r.description, era.manufacturer || '');
+      word = d ? 'search ' + (_dealerSite(d) || d) : 'search';
+    }
+    return '<a href="' + _esc(href) + '" target="_blank" rel="noopener" style="color:var(--accent2)">' + _esc(word) + '</a>';
+  }
+  window._catalogPartLinkHtml = _catalogPartLinkHtml;
 
   // ── favorites row (shared by Videos + Parts sections) ────────
   function _favRow(prefKey, selectId, label) {
     var favs = _favs(prefKey);
-    var opts = '<option value="">' + _esc(label) + '</option>'
-      + favs.map(function (f) { return '<option value="' + _esc(f) + '">' + _esc(f) + '</option>'; }).join('');
+    // v0.9.1759: the dealer row remembers its pick and carries ONE built-in
+    // choice, "The maker's own store" (MAINT.MAKER_STORE); the other rows are as before
+    var isDealer = prefKey === MAINT.PREF_DEALERS, pick = isDealer ? _dealerPick() : '';
+    var opt = function (v, t) { return '<option value="' + _esc(v) + '"' + (isDealer && v === pick ? ' selected' : '') + '>' + _esc(t) + '</option>'; };
+    var opts = opt('', label) + (isDealer ? opt(MAINT.MAKER_STORE, "The maker's own store") : '')
+      + favs.map(function (f) { return opt(f, f); }).join('');
     return '<div style="display:flex;gap:0.4rem;align-items:center;flex-wrap:wrap">'
-      + '<select id="' + selectId + '" style="flex:1;min-width:130px;padding:0.45rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.82rem">' + opts + '</select>'
+      + '<select id="' + selectId + '"' + (isDealer ? ' onchange="_maintDealerPicked(this)"' : '') + ' style="flex:1;min-width:130px;padding:0.45rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.82rem">' + opts + '</select>'
       + '<button onclick="_maintAddFav(\'' + prefKey + '\',\'' + selectId + '\')" title="Add a favorite" ' + _btnQuiet() + '>+ Add</button>'
       + '<button onclick="_maintDelFav(\'' + prefKey + '\',\'' + selectId + '\')" title="Remove the selected favorite" ' + _btnQuiet() + '>&minus;</button>'
       + '</div>';
@@ -1486,6 +1564,7 @@
     if (sel) {
       var o = document.createElement('option');
       o.value = name; o.textContent = name; sel.appendChild(o); sel.value = name;
+      if (prefKey === MAINT.PREF_DEALERS) window._maintDealerPicked(sel);   // v0.9.1759: a new store is the pick
     }
   };
   // v0.9.1647 (phase 2): create a Parts Needed entry pre-linked to THIS
@@ -1496,11 +1575,13 @@
   window._maintDelFav = function (prefKey, selectId) {
     var sel = document.getElementById(selectId);
     if (!sel || !sel.value) return;
+    if (sel.value === MAINT.MAKER_STORE) return;   // v0.9.1759: the built-in choice is not a favorite
     var favs = _favs(prefKey).filter(function (f) { return f !== sel.value; });
     _saveFavs(prefKey, favs);
     try { if (typeof _prefSet === 'function') _prefSet(prefKey + '_touched', '1'); } catch (e2) {}
     sel.remove(sel.selectedIndex);
     sel.value = '';
+    if (prefKey === MAINT.PREF_DEALERS) window._maintDealerPicked(sel);   // v0.9.1759: back to Any dealer
   };
 
   // ── v0.9.1641: the LCCA two-step (copy link + open site) ─────
@@ -2428,13 +2509,16 @@
     return { onHand: onHand, wanted: wanted, bin: bin, catalog: catalog };
   }
   window._maintPickerParts = _maintPickerParts;
-  // v0.9.1756: the fourth lane's lines. Pure: (rows, typed text, taskId) → html.
+  // v0.9.1756: the fourth lane's lines. Pure: (rows, typed text, taskId, item) → html.
   // With nothing typed the first 8 show; typing narrows by part number or any
   // word of the description. Each line: what it is, its number, which catalog
-  // says so, the price and stock the catalog knows, the catalog's link (the
-  // era's own link word), and "+ Want it" — the same Parts Wanted path as the
-  // typed box (one duplicate check, one appender).
-  function _maintCatalogLaneHtml(rows, q, taskId) {
+  // says so, ONE link (_catalogPartLinkHtml — a web search of the part with the
+  // user's picked store, or the maker's own page when that is the pick), and
+  // "+ Want it" — the same Parts Wanted path as the typed box (one duplicate
+  // check, one appender). v0.9.1759 (Brad): the price, the stock and the
+  // catalog's own link are gone from the line — a sweep-day snapshot goes stale,
+  // and a dealer's site is never linked unless the user picked it.
+  function _maintCatalogLaneHtml(rows, q, taskId, item) {
     rows = rows || [];
     if (!rows.length) return '';
     var words = String(q || '').toLowerCase().replace(/[^a-z0-9 ]/g, ' ').split(/\s+/).filter(function (w) { return w.length >= 2; });
@@ -2447,16 +2531,11 @@
     return head + hits.map(function (r) {
       var era = (typeof ERAS !== 'undefined' && ERAS[r._era]) || {};
       var src = era.label || r._tab || '';
-      var lw = era.partsLink || 'diagram';
-      var notes = String(r.notes || '');
-      var stock = /\bIn stock\b/i.test(notes) ? 'in stock' : (/\bOut of stock\b/i.test(notes) ? 'out of stock' : '');
-      var meta = [src, r.msrp ? '$' + _esc(String(r.msrp)) : '', stock].filter(Boolean).join(' \u00b7 ');
       return '<div style="display:flex;justify-content:space-between;align-items:center;gap:0.5rem;padding:0.3rem 0;border-bottom:1px solid var(--border)">'
         + '<div><b>' + _esc(String(r.description || r.itemNum || 'part').slice(0, 90)) + '</b>'
         + ' <span style="font-family:var(--font-mono);color:var(--accent2)">#' + _esc(r.itemNum) + '</span>'
         + (r.variation ? ' <span style="color:var(--text-dim)">(' + _esc(r.variation) + ')</span>' : '')
-        + '<div style="font-size:0.72rem;color:var(--text-dim)">' + meta
-        + (r.refLink ? (meta ? ' \u00b7 ' : '') + '<a href="' + _esc(r.refLink) + '" target="_blank" rel="noopener" style="color:var(--accent2)">' + _esc(lw) + '</a>' : '') + '</div></div>'
+        + '<div style="font-size:0.72rem;color:var(--text-dim)">' + _esc(src) + (src ? ' \u00b7 ' : '') + _catalogPartLinkHtml(r, item) + '</div></div>'
         + '<button onclick="_maintPopWantCatalog(\'' + _esc(r._era || '') + '\',\'' + _esc(r.itemNum) + '\',\'' + _esc(r.variation || '') + '\',\'' + _esc(taskId || '') + '\')" ' + _btn('green', 'sm', 'flex-shrink:0') + '>+ Want it</button>'
         + '</div>';
     }).join('');
@@ -2467,7 +2546,7 @@
     var el = document.getElementById('maint-pop-catalog'); if (!el) return;
     var tg = _target(); if (!tg.item) { el.innerHTML = ''; return; }
     var q = (document.getElementById('maint-pop-part') || {}).value || '';
-    el.innerHTML = _maintCatalogLaneHtml(_maintPickerParts(tg, taskId).catalog, q, taskId);
+    el.innerHTML = _maintCatalogLaneHtml(_maintPickerParts(tg, taskId).catalog, q, taskId, tg.item);
   }
   // "Attach to this job" / "Use it for this job": the SAME column-M writer
   window._maintPopAttach = async function (partRow, taskId) {
@@ -2524,7 +2603,7 @@
       +     '<input id="maint-pop-part" placeholder="part number / description" oninput="_maintBinCheck(\'' + _esc(taskId) + '\')" style="' + IN + '">'
       +   '</div>'
       +   '<div id="maint-pop-bin" style="font-size:0.8rem;color:var(--text);margin:0.5rem 0 0.6rem;padding:0.45rem 0.6rem;background:var(--bg-card);border:1px dashed var(--border);border-radius:8px"><span style="color:var(--text-dim)">Checking your bin…</span></div>'
-      +   '<div id="maint-pop-catalog" style="font-size:0.8rem;color:var(--text);margin:0 0 0.6rem"></div>'   // v0.9.1756: the fourth lane — what the parts catalogs say fits this item
+      +   '<div id="maint-pop-catalog" data-task="' + _esc(taskId || '') + '" style="font-size:0.8rem;color:var(--text);margin:0 0 0.6rem"></div>'   // v0.9.1756: the fourth lane — what the parts catalogs say fits this item (v0.9.1759: data-task lets the dealer pick redraw it)
       +   '<div style="font-size:0.72rem;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-dim);margin-bottom:0.35rem">Not in the bin? Order one</div>'
       +   _favRow(MAINT.PREF_DEALERS, 'maint-pop-dealer', 'Any dealer')
       +   '<div style="display:flex;gap:0.4rem;margin-top:0.5rem;flex-wrap:wrap">'
@@ -2594,7 +2673,8 @@
   }
   // v0.9.1756: "+ Want it" on a catalog line — the catalog's own number and
   // description go on the list (nothing re-typed), the note says which
-  // catalog, the price it showed and where to buy it.
+  // catalog. v0.9.1759 (Brad): the sweep-day price and the catalog's own link
+  // are no longer written into the note either.
   window._maintPopWantCatalog = async function (era, partNum, variation, taskId) {
     var tg = _target();
     if (!tg.item) return;
@@ -2604,7 +2684,7 @@
       if (typeof _ensurePartsTab === 'function') await _ensurePartsTab();
       if (typeof _ensurePartsLifecycleCols === 'function') await _ensurePartsLifecycleCols();
       var src = (typeof ERAS !== 'undefined' && ERAS[row._era] && ERAS[row._era].label) || row._tab || 'catalog';
-      var note = 'from the ' + src + ' catalog' + (row.msrp ? ' at $' + String(row.msrp) : '') + (row.refLink ? ' \u2014 ' + String(row.refLink) : '');
+      var note = 'from the ' + src + ' catalog';
       var fields = { description: String(row.description || ''), partNum: String(row.itemNum || ''), forItem: String(tg.item.itemNum || ''), forInv: tg.invId || '',
                      notes: note, status: 'wanted', taskId: taskId || '' };
       await _maintPopSaveWanted(fields, taskId, function () { window._maintPopWantCatalog(era, partNum, variation, taskId); });
@@ -2985,7 +3065,7 @@
           return { item: it, label: it + (mm && mm.roadName ? ' ' + mm.roadName : ''), owned: own.length, inv: own.length ? own[0].inventoryId : '' };
         });
         var _src = (typeof ERAS !== 'undefined' && ERAS[pr._era] && ERAS[pr._era].label) || '';
-        out.push({ kind: 'catalog', label: String(pr.description).slice(0, 120), era: pr._era || '', source: _src, fits: fitsList, link: pr.refLink || '', variation: pr.variation || '' });
+        out.push({ kind: 'catalog', label: String(pr.description).slice(0, 120), era: pr._era || '', source: _src, fits: fitsList, link: pr.refLink || '', variation: pr.variation || '', partNum: String(pr.itemNum || pn) });
       });
     }
     return out;
@@ -3029,11 +3109,12 @@
         var t = _esc(x.label) + (x.owned ? ' <span style="color:var(--green)">(in your collection)</span>' : '');
         return x.inv ? '<a href="#" onclick="event.preventDefault();_openOwnedByInvId(\'' + _esc(x.inv) + '\')" style="color:var(--accent3);text-decoration:none">' + t + '</a>' : t;
       });
-      // v0.9.1755: name the source when there is more than one parts catalog, and
-      // let the era say what its link opens (ERAS[era].partsLink; "diagram" is the default).
-      var _lw = (typeof ERAS !== 'undefined' && ERAS[f.era] && ERAS[f.era].partsLink) || 'diagram';
+      // v0.9.1755: name the source when there is more than one parts catalog.
+      // v0.9.1759: the line's link is the SAME rule as the popup's lane
+      // (_catalogPartLinkHtml): a web search of the part with the picked store,
+      // or the maker's own page when "The maker's own store" is the pick.
       return '<div style="color:var(--text-mid)">Catalog' + (f.source ? ' (' + _esc(f.source) + ')' : '') + ': ' + _esc(f.label) + (f.variation ? ' <span style="color:var(--text-dim)">(' + _esc(f.variation) + ')</span>' : '')
-        + (fl.length ? ' \u2014 fits ' + fl.join(', ') : '') + (f.link ? ' <a href="' + _esc(f.link) + '" target="_blank" rel="noopener" style="color:var(--accent2)">' + _lw + '</a>' : '') + '</div>';
+        + (fl.length ? ' \u2014 fits ' + fl.join(', ') : '') + ' ' + _catalogPartLinkHtml({ _era: f.era, refLink: f.link, itemNum: f.partNum, description: f.label }, null) + '</div>';
     }).join('') + '</div>';
   }
 
