@@ -758,6 +758,7 @@ var _ERA_KEY_TO_PERIOD = {
   kato_parts:   'modern',
   lionel_parts: 'modern',   // v0.9.1749
   mth_parts:    'modern',   // v0.9.1750: lookup-only; the period never gates it (see LOOKUP_ONLY_ERAS)
+  traintender_parts: 'modern',   // v0.9.1755: same
 };
 function _itemEraPeriod(item) {
   if (!item) return null;

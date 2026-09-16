@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.1754';
+const APP_VERSION = 'v0.9.1755';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -975,6 +975,13 @@ const ERAS = {
   // callout, and the model families / products each list serves. Lookup-only,
   // like lionel_parts.
   mth_parts: { id: 'mth_parts', label: 'MTH Parts', years: 'All', prefix: 'MTH Parts', manufacturer: 'MTH' },
+  // v0.9.1755 (Brad, 2026-09-15: "own tab", "Lionel only", "fits only when the
+  // catalog knows it"): The Train Tender's Lionel parts lists (ttender.com) —
+  // postwar, prewar, the letter-prefix parts, OO and the LTI modern pages, one
+  // row per part number, bulk prices folded into Notes. Lookup-only, like
+  // lionel_parts. partsLink = the word the drawer puts on the row's link (the
+  // site has no diagrams; the link opens its price list).
+  traintender_parts: { id: 'traintender_parts', label: 'Train Tender Parts', years: 'All', prefix: 'Train Tender Parts', manufacturer: 'Lionel', partsLink: 'listing' },
   atlas:  { id: 'atlas',  label: 'Atlas O',     years: 'All',        prefix: 'Atlas O',        manufacturer: 'Atlas' },
   // Session 174 (Brad): Atlas HO/N/Z tabs exist & are populated in the master
   // sheet (added in the 2026-07-21 merge) but were never wired up, so ~33.5k
@@ -1039,14 +1046,14 @@ const ERAS = {
   bachmann_all:   { id: 'bachmann_all',   label: 'Bachmann All Scales', years: 'All', prefix: 'Bachmann All Scales', manufacturer: 'Bachmann' },
 };
 // Real-era IDs in load priority order (excluding 'all' meta-era).
-const REAL_ERA_IDS = ['pw', 'mpc', 'mod_ho', 'mod_s', 'af_gilbert', 'am_s', 'shelper', 'prewar', 'atlas', 'atlas_ho', 'atlas_n', 'atlas_z', 'mth_o', 'mth_ho', 'mth_s', 'mth_tinplate', 'mth_g', 'marklin_h0', 'marklin_z', 'marklin_1', 'kato_n', 'kato_ho', 'kato_parts', 'microtrains_n', 'trepro', 'lionel_parts', 'mth_parts', 'weaver', 'rmt', 'menards', 'menards_ho', 'thirdrail', 'usatrains', 'lgb', 'kline', 'williams', 'marx', 'other_o', 'aristocraft', 'accucraft', 'bachmann_ho', 'bachmann_n', 'bachmann_g', 'bachmann_o', 'bachmann_on30', 'bachmann_hon30', 'bachmann_all'];
+const REAL_ERA_IDS = ['pw', 'mpc', 'mod_ho', 'mod_s', 'af_gilbert', 'am_s', 'shelper', 'prewar', 'atlas', 'atlas_ho', 'atlas_n', 'atlas_z', 'mth_o', 'mth_ho', 'mth_s', 'mth_tinplate', 'mth_g', 'marklin_h0', 'marklin_z', 'marklin_1', 'kato_n', 'kato_ho', 'kato_parts', 'microtrains_n', 'trepro', 'lionel_parts', 'mth_parts', 'traintender_parts', 'weaver', 'rmt', 'menards', 'menards_ho', 'thirdrail', 'usatrains', 'lgb', 'kline', 'williams', 'marx', 'other_o', 'aristocraft', 'accucraft', 'bachmann_ho', 'bachmann_n', 'bachmann_g', 'bachmann_o', 'bachmann_on30', 'bachmann_hon30', 'bachmann_all'];
 // v0.9.1749: eras that exist for LOOKUPS ONLY. They are in REAL_ERA_IDS (so
 // the background full-catalog index fetches and caches them, and the
 // Yardmaster can file rows into their tab) but _isEraEnabled says no for
 // them, so they never load at startup and never appear in Master Catalog.
 // A parts catalog is the case: findMaster('2343-13') must answer, but nobody
 // wants 30,000 screws in browse.
-const LOOKUP_ONLY_ERAS = ['lionel_parts', 'mth_parts'];   // v0.9.1750: + MTH
+const LOOKUP_ONLY_ERAS = ['lionel_parts', 'mth_parts', 'traintender_parts'];   // v0.9.1750: + MTH; v0.9.1755: + Train Tender
 if (typeof window !== 'undefined') window.LOOKUP_ONLY_ERAS = LOOKUP_ONLY_ERAS;
 
 // ── Master sheet tab names per era ──
@@ -1072,6 +1079,7 @@ const ERA_SCALE = {
   microtrains_n: 'N',   // v0.9.1719
   lionel_parts: '',   // v0.9.1749 — parts span O and S; blank on purpose (same meaning as kato_parts)
   mth_parts: '',      // v0.9.1750 — parts span O, HO, S, G and tinplate; blank on purpose
+  traintender_parts: '',   // v0.9.1755 — parts span O, OO and G; blank on purpose (the row's Gauge column says which)
   trepro: '3¼"',     // v0.9.1747 — Buddy L 3¼-inch gauge; no other era runs on it
   mth_g: 'G',
   atlas_ho: 'HO', atlas_n: 'N', atlas_z: 'Z',
@@ -1187,6 +1195,7 @@ const ERA_TABS = {
   trepro:        { items: 'T-Reproductions' },  // v0.9.1747
   lionel_parts:  { items: 'Lionel Parts' },     // v0.9.1749
   mth_parts:     { items: 'MTH Parts' },        // v0.9.1750
+  traintender_parts: { items: 'Train Tender Parts' },   // v0.9.1755
   am_s:       { items: 'American Models S' },
   shelper:    { items: 'S-Helper Service S' },
   weaver: {
