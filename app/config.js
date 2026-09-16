@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.1753';
+const APP_VERSION = 'v0.9.1754';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -1233,6 +1233,36 @@ const ERA_TABS = {
   bachmann_on30:  { items: 'Bachmann On30' },
   bachmann_hon30: { items: 'Bachmann HOn30' },
   bachmann_all:   { items: 'Bachmann All Scales' },
+};
+
+// ═══════════════════════════════════════════════════════════════════
+// v0.9.1754 (Brad, 2026-09-15 — the Office's Edit dropdown "has no Lionel PW -
+// Boxes / Paper / Sets / Other / Catalogs and no MPC-Modern Catalogs", so 1409W
+// sat stranded): which ERA_TABS keys the Yardmaster's Office may file a queue
+// row into, and how a row's fields land on tabs whose columns are NOT the
+// items layout (SCHEMA.md "Reference tabs" / "Catalogs tabs"). ONE place — the
+// Edit dropdown, the commit targets, the duplicate check and the row writer
+// all read this (yardmaster.js _ymMasterTabs / _ymTabShape / _ymMasterCell).
+//   itemShaped — tab keys sharing the items tabs' columns 0-17; the standard
+//                header mapping applies unchanged.
+//   special    — tabs with their own headers: `map` says which queue field
+//                fills which header (a header not listed stays blank);
+//                `numberHeaders` is the column the duplicate check reads, the
+//                first one present on the tab (PW/Pre-War catalogs carry a
+//                Catalog ID, the 3-column MPC-Modern catalogs only a name).
+//                'notesWithTrail' = the row's notes + the approval trail,
+//                because these tabs have no Source column.
+// Keys deliberately NOT here: companions (a generated table — the regen
+// rule), instrSheets (keyed by sheet id, not item number).
+// ═══════════════════════════════════════════════════════════════════
+const MASTER_TAB_SHAPES = {
+  itemShaped: ['items', 'boxes', 'paper', 'other', 'science', 'construction', 'serviceTools'],
+  special: {
+    sets:     { numberHeaders: ['Set Number'],
+                map: { 'Set Number': 'num', 'Set Name': 'desc', 'Year': 'years', 'Gauge': 'gauge', 'Notes': 'notesWithTrail' } },
+    catalogs: { numberHeaders: ['Catalog ID', 'Catalog Name'],
+                map: { 'Catalog ID': 'num', 'Year': 'years', 'Type': 'type', 'Title': 'desc', 'Catalog Name': 'desc', 'Description': 'notesWithTrail', 'Notes': 'notesWithTrail' } }
+  }
 };
 
 // ═══════════════════════════════════════════════════════════════════

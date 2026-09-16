@@ -145,14 +145,43 @@
     try {
       if (typeof REAL_ERA_IDS !== 'undefined' && typeof ERA_TABS !== 'undefined') {
         var out = [];
+        // v0.9.1754: every tab key MASTER_TAB_SHAPES (config.js) allows — the era's
+        // items tab first, then its boxes / paper / other / … / sets / catalogs.
+        var shapes = (typeof MASTER_TAB_SHAPES !== 'undefined') ? MASTER_TAB_SHAPES : { itemShaped: ['items'], special: {} };
+        var keys = (shapes.itemShaped || ['items']).concat(Object.keys(shapes.special || {}));
         REAL_ERA_IDS.forEach(function (id) {
-          var t = ERA_TABS[id] && ERA_TABS[id].items;
-          if (t && out.indexOf(t) < 0) out.push(t);
+          if (!ERA_TABS[id]) return;
+          keys.forEach(function (k) { var t = ERA_TABS[id][k]; if (t && out.indexOf(t) < 0) out.push(t); });
         });
         if (out.length) return out;
       }
     } catch (e) {}
     return ['Menards O', 'Menards HO'];   // config unavailable — the v1627 pair, never expected
+  }
+  // v0.9.1754: the SHAPE of a master tab — null for the items layout, else the
+  // config's { numberHeaders, map } for a Sets / Catalogs tab.
+  function _ymTabShape(tabName) {
+    try {
+      if (typeof MASTER_TAB_SHAPES === 'undefined' || typeof ERA_TABS === 'undefined') return null;
+      var sp = MASTER_TAB_SHAPES.special || {}, found = null;
+      Object.keys(ERA_TABS).forEach(function (id) {
+        Object.keys(sp).forEach(function (k) { if (!found && ERA_TABS[id] && ERA_TABS[id][k] === tabName) found = sp[k]; });
+      });
+      return found;
+    } catch (e) { return null; }
+  }
+  // v0.9.1754: the column the duplicate check reads on a tab (0-based index into
+  // its headers, -1 if the tab has none of them) and which queue field it holds.
+  function _ymNumberCol(heads, shape) {
+    var hs = (heads || []).map(String);
+    if (shape) {
+      for (var i = 0; i < shape.numberHeaders.length; i++) {
+        var idx = hs.indexOf(shape.numberHeaders[i]);
+        if (idx >= 0) return { idx: idx, field: shape.map[shape.numberHeaders[i]] || 'num', header: shape.numberHeaders[i] };
+      }
+      return { idx: -1, field: 'num', header: shape.numberHeaders.join(' / ') };
+    }
+    return { idx: hs.indexOf('Item Number'), field: 'num', header: 'Item Number' };
   }
 
   // v0.9.1713: "2026-09-10:2;2026-09-11:1" → opens in the last N days (today
@@ -1046,7 +1075,7 @@
     if (mm) return mm[1].trim();
     if (dd.tab && typeof ERAS !== 'undefined' && typeof ERA_TABS !== 'undefined') {
       var found = '';
-      Object.keys(ERAS).forEach(function (id) { if (!found && ERA_TABS[id] && ERA_TABS[id].items === dd.tab && ERAS[id]) found = String(ERAS[id].manufacturer || ''); });
+      Object.keys(ERAS).forEach(function (id) { if (!found && ERA_TABS[id] && Object.keys(ERA_TABS[id]).some(function (k) { return ERA_TABS[id][k] === dd.tab; }) && ERAS[id]) found = String(ERAS[id].manufacturer || ''); });   // v0.9.1754: any tab of the era, not only items
       if (found) return found;
     }
     var fm = String(dd.flag || '').match(/needs a tab \u2014 (?:no tab yet for )?(.+?)(?: has several)?(?:;|$)/);
@@ -1202,7 +1231,14 @@
       }).join(',');
     }).join('\r\n');
   }
-  function _ymMasterCell(h, dd, today) {
+  function _ymMasterCell(h, dd, today, shape) {
+    var trail = (dd.source || 'Wayback sweep') + ' \u2014 approved ' + today + ' (Yardmaster cockpit)';
+    if (shape) {   // v0.9.1754: a Sets / Catalogs tab — its own headers, mapped by MASTER_TAB_SHAPES (config.js)
+      var f = shape.map[String(h)];
+      if (!f) return '';
+      if (f === 'notesWithTrail') return (dd.notes ? String(dd.notes) + ' \u2014 ' : '') + trail;
+      return dd[f] || '';
+    }
     switch (String(h)) {
       case 'Item Number': return dd.num;
       case 'Item Type': return dd.type;
@@ -1219,7 +1255,7 @@
       case 'Sub Type': case 'Sub-Type': return dd.subType || '';
       case 'Notes': return dd.notes || '';
       case 'Category': return dd.category || '';
-      case 'Source': return (dd.source || 'Wayback sweep') + ' \u2014 approved ' + today + ' (Yardmaster cockpit)';
+      case 'Source': return trail;
       default: return '';
     }
   }
@@ -1263,16 +1299,18 @@
         var got = await gotRes.json();
         var vals = got.values || [];
         var heads = vals[0] || [];
-        var numIdx = heads.map(String).indexOf('Item Number');
+        var shape2 = _ymTabShape(t2);   // v0.9.1754: null = items layout
+        var numCol = _ymNumberCol(heads, shape2), numIdx = numCol.idx;
+        if (numIdx < 0) throw new Error('could not find the ' + numCol.header + ' column on ' + t2 + ' \u2014 commit stopped before any write');
         var existing = {};
         vals.slice(1).forEach(function (r) { var n = String((r[numIdx] || '')).trim(); if (n) existing[n] = 1; });
         // v0.9.1628: the first cut counted the HEADER on this side only —
         // one short every time, a false alarm AFTER the rows had landed.
         var fresh = [], rowsBefore = vals.slice(1).filter(function (r) { return String((r[numIdx] || '')).trim(); }).length;
         byTab[t2].forEach(function (dd) {
-          if (existing[String(dd.num).trim()]) heldDup.push(dd); else fresh.push(dd);
+          if (existing[String(dd[numCol.field] || '').trim()]) heldDup.push(dd); else fresh.push(dd);   // v0.9.1754: compared on the field that fills that column
         });
-        plan[t2] = { heads: heads, fresh: fresh, rowsBefore: rowsBefore, allVals: vals };
+        plan[t2] = { heads: heads, fresh: fresh, rowsBefore: rowsBefore, allVals: vals, shape: shape2 };
       }
       var totFresh = 0, perTab = [];
       tabs.forEach(function (tt) { var n = plan[tt].fresh.length; totFresh += n; if (n) perTab.push(n + ' to ' + tt); });
@@ -1322,7 +1360,7 @@
         // rule), once, only when a fresh row actually has a link — Bachmann
         // tabs already have it; Lionel MPC-Modern gets it on its first
         // approved crawl row. Header write first, so the row below lines up.
-        var _hasImg = plan[t4].fresh.some(function (dd) { return !!(dd.imageUrl && String(dd.imageUrl).trim()); });
+        var _hasImg = !plan[t4].shape && plan[t4].fresh.some(function (dd) { return !!(dd.imageUrl && String(dd.imageUrl).trim()); });   // v0.9.1754: items-layout tabs only
         if (_hasImg && plan[t4].heads.map(String).indexOf('Image URL') < 0) {
           var _newIdx = plan[t4].heads.length;   // 0-based index of the new last column
           var _colL = _ymColLetter(_newIdx);   // v0.9.1689: one letter helper for the whole file
@@ -1331,7 +1369,7 @@
           plan[t4].heads = plan[t4].heads.concat(['Image URL']);
         }
         var rows = plan[t4].fresh.map(function (dd) {
-          return plan[t4].heads.map(function (h) { return _ymMasterCell(h, dd, today); });
+          return plan[t4].heads.map(function (h) { return _ymMasterCell(h, dd, today, plan[t4].shape); });   // v0.9.1754
         });
         // §224's census is right: raw :append belongs in sheets.js alone.
         // The guarded sheetsAppend does the write — same chokepoint, same
