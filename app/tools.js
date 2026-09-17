@@ -490,11 +490,12 @@ async function confirmGroupItems(idx) {
       await sheetsUpdate(state.personalSheetId,
         PERSONAL_TAB + '!' + _grpCol + pd.row + ':' + _grpCol + pd.row,
         [[groupId]]);
-      // Update in-memory state
-      var pdKey = findPDKey(pd.itemNum, pd.variation);
-      if (pdKey && state.personalData[pdKey]) {
-        state.personalData[pdKey].groupId = groupId;
-      }
+      // v0.9.1764: this looked the copy up again by NUMBER to update memory —
+      // so with two copies of an item the badge could appear on the wrong one
+      // until the next reload (the sheet was always right; the screen was not).
+      // `pd` IS the object in state.personalData, so there is nothing to look
+      // up: set it on the copy in hand.
+      pd.groupId = groupId;
     }
     var row = document.getElementById('grp-row-' + idx);
     if (row) {
@@ -745,11 +746,9 @@ async function toolCreateSet(idx) {
         await sheetsUpdate(state.personalSheetId,
           PERSONAL_TAB + '!' + _sidCol + pd.row + ':' + _sidCol + pd.row,
           [[setIdStr]]);
-        // Update in-memory state
-        var pdKey = findPDKey(pd.itemNum, pd.variation);
-        if (pdKey && state.personalData[pdKey]) {
-          state.personalData[pdKey].setId = setIdStr;
-        }
+        // v0.9.1764: same as the group badge above — `pd` IS the object in
+        // state.personalData, so the number lookup was both wrong and needless.
+        pd.setId = setIdStr;
         linked++;
       }
     }

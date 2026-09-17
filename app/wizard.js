@@ -6132,17 +6132,35 @@ function renderWizardStep() {
     };
 
     // Edit item handler — opens the item detail modal
+    // ── v0.9.1764 ─────────────────────────────────────────────────────────
+    // This button was broken, silently. It found the right personal-data KEY
+    // and then handed it to openItem(), which wants a CATALOG INDEX — so
+    // state.masterData[<a key>] came back undefined, and openItem read
+    // .itemNum off it and threw, AFTER it had already put its pop-up on the
+    // screen. Pressing Edit left a half-built empty box and no explanation.
+    // The same family as v1760's dead parts-diagram button: a control that
+    // fails in silence.
+    //
+    // It now opens the ordinary item detail page, pinned to this exact copy by
+    // its Inventory ID — the screen that since v1761 always knows which copy it
+    // is on, and whose every button acts on that copy. The pop-up it used to
+    // open has been deleted (see the note where it lived in app-collection.js).
     window._scEditItem = function(itemNum) {
-      // Find the pd key for this item in this group
-      let targetKey = null;
-      Object.keys(state.personalData).forEach(function(k) {
-        const pd = state.personalData[k];
+      var target = null;
+      Object.keys(state.personalData).forEach(function (k) {
+        var pd = state.personalData[k];
         if (pd && pd.groupId === _scGroupId && normalizeItemNum(pd.itemNum) === normalizeItemNum(itemNum)) {
-          targetKey = k;
+          target = pd;
         }
       });
-      if (targetKey) {
-        openItem(targetKey);
+      if (target && target.inventoryId && typeof _openOwnedByInvId === 'function') {
+        _openOwnedByInvId(target.inventoryId);
+      } else if (target && typeof showItemDetailPage === 'function' && typeof findMaster === 'function') {
+        // A row with no Inventory ID predates them; open it by its catalog row.
+        var _m = findMaster(target.itemNum, target.variation, target);
+        var _i = _m && typeof _masterIdxOf === 'function' ? _masterIdxOf(_m) : -1;
+        if (_i >= 0) showItemDetailPage(_i, '');
+        else showToast('That piece has no catalog entry to open — find it in My Collection');
       } else {
         showToast('Item not found — it may not have been saved');
       }
