@@ -112,7 +112,7 @@ ok('it says nothing goes into the history (an open task was never done)', /nothi
 
 section('The task card markup (_maintRenderTasks)');
 const card = grab('function _maintRenderTasks()');
-ok('every open task carries a Remove button wired to _maintRemoveTask', /_maintRemoveTask\(\\'' \+ _esc\(t\.id\)/.test(card));
+ok('every open task carries a Remove button wired to _maintRemoveTask (v1760: through rrJsArg, so an apostrophe cannot break the handler)', /_maintRemoveTask\(\\'' \+ rrJsArg\(t\.id\)/.test(card));
 ok('Mark complete is still the only way INTO the history', /_maintChoreDone\(/.test(card) && !/_maintChoreDone\(/.test(rmTask));
 const moveSel = grab('var moveSel = function (p, onTask)');
 ok('a part line gets a Move select listing the OTHER open tasks + "off this task"', /tasks\.filter\(function \(t\) \{ return t\.id !== \(p\.taskId \|\| ''\); \}\)/.test(moveSel) && /off this task \(keep for the item\)/.test(moveSel));

@@ -168,8 +168,14 @@ function boot(v, opts) {
     document: { getElementById: (id) => (id === 'page-yardmaster' ? page : null), querySelector: () => null, createElement: () => ({}) },
     REAL_ERA_IDS: ['marx', 'pw', 'mpc'], ERA_TABS: { marx: { items: 'Marx O' }, pw: { items: 'Lionel PW - Items' }, mpc: { items: 'Lionel MPC-Modern' } },
     ERAS: { marx: { manufacturer: 'Marx' }, pw: { manufacturer: 'Lionel' }, mpc: { manufacturer: 'Lionel' } },
-    MASTER_SHEET_ID: 'master'
+    MASTER_SHEET_ID: 'master',
+    // v0.9.1760: yardmaster.js now escapes handler arguments through app.js's
+    // shared rrJsArg (JS string first, then the HTML attribute). app.js is not
+    // loaded in this sandbox, so the fake room supplies the same two helpers.
+    rrEsc: (x) => String(x == null ? '' : x).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;'),
+    rrJsArg: function (x) { return this.rrEsc(String(x == null ? '' : x).replace(/\\/g, '\\\\').replace(/'/g, "\\'")); }
   };
+  sandbox.rrJsArg = sandbox.rrJsArg.bind(sandbox);
   if (opts && opts.globals) Object.assign(sandbox, opts.globals);   // v0.9.1714: config lists for the pre-sort tests
   sandbox.sheetsUpdate = async (id, range, values) => { writeRange(v, range.replace(/'/g, ''), values); v.log.push('sheetsUpdate ' + range); return true; };
   sandbox.window = sandbox;

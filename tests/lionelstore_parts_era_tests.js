@@ -119,7 +119,8 @@ const laneSrc = grab('function _maintCatalogLaneHtml(rows, q, taskId, item)');
 const esc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 const ERAS_FIX = { lionel_parts: { label: 'Lionel Parts' }, traintender_parts: { label: 'Train Tender Parts', partsLink: 'listing' }, lionelstore_parts: { label: 'Lionel Store Parts', partsLink: 'store', partsOfficial: true } };
 const linkStub = (r, item) => '<a href="#stub-' + esc(r.itemNum) + '-for-' + esc(item && item.itemNum || 'none') + '">search</a>';
-const lane = new Function('_esc', '_btn', 'ERAS', '_catalogPartLinkHtml', laneSrc + '\nreturn _maintCatalogLaneHtml;')(esc, () => 'class="btn"', ERAS_FIX, linkStub);
+const rrJsArg = v => esc(String(v == null ? '' : v).replace(/\\/g, '\\\\').replace(/'/g, "\\'"));
+const lane = new Function('_esc', 'rrJsArg', '_btn', 'ERAS', '_catalogPartLinkHtml', laneSrc + '\nreturn _maintCatalogLaneHtml;')(esc, rrJsArg, () => 'class="btn"', ERAS_FIX, linkStub);
 const storeRows = forItem('2032010');
 let html = lane(storeRows, '', 'task-9', { itemNum: '2032010' });
 ok('the lane names the source and draws ONE link through the shared rule — no price, no stock, no store link of its own (v0.9.1759)',

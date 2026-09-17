@@ -395,7 +395,7 @@ ok('1712 the per-flag strip: distinct flags, PENDING counts, Approve all / Rejec
 ok('1712 …shown on the To review, Needs a look and Clean tabs (not Decided / Held)', /\(_ymFilter === 'all' \|\| _ymFilter === 'flagged' \|\| _ymFilter === 'clean'\) \? _flagStrip\(list\) : ''/.test(ym12));
 ok('1712 _ymVerdictFlag acts on this batch’s PENDING rows with EXACTLY that flag text, confirms first, and goes through _ymVerdictMany (so Undo works)',
    /window\._ymVerdictFlag = function \(flagText, status\)/.test(ym12) && /String\(dd\.flag \|\| ''\) === want && \(dd\.status \|\| 'pending'\) === 'pending'/.test(ym12) && /appConfirm\(q, \{ title: verb \+ ' by flag'/.test(ym12) && /var go = function \(\) \{ window\._ymVerdictMany\(rows, status\); \};/.test(ym12));
-ok('1712 the flag text is JS-escaped BEFORE it is HTML-escaped for the onclick (an entity would decode back into a bare quote)', /ke = _esc\(k\.replace\(\/\\\\\/g, '\\\\\\\\'\)\.replace\(\/'\/g, "\\\\'"\)\)/.test(ym12));
+ok('1712 the flag text is JS-escaped BEFORE it is HTML-escaped for the onclick (an entity would decode back into a bare quote) — v1760: through the shared rrJsArg', /ke = rrJsArg\(k\)/.test(ym12));
 ok('1712 the stale "Read-only for now" line is gone from the Office', !/Read-only for now/.test(ym12));
 ok('1712 no hex colours were introduced', !/#[0-9a-fA-F]{3,6}\b/.test(ym12.slice(ym12.indexOf('function _ymFlagKind'), ym12.indexOf('function _ymIsFinished'))) && !/#[0-9a-fA-F]{6}\b/.test(ym12.slice(ym12.indexOf('var _flagLine'), ym12.indexOf('var rows = list.map'))));
 

@@ -21,8 +21,17 @@
 //     Workbench drawer: a web search, or the maker's own page ONLY when
 //     "The maker's own store" is the pick AND the catalog is the maker's own
 //     (ERAS[era].partsOfficial).
-//   - The "Any dealer" dropdown is the favorite-store list; it remembers its pick.
+//   - The "Any dealer" dropdown is the favorite-store list; it remembers its pick,
+//     and NO store is ever pre-loaded into it (Brad, v1760: "i, as a user need to
+//     add them first").
 //   - No price, no stock, no dealer link on a line; "+ Want it" writes none either.
+//
+// v0.9.1760 — Brad sent a screenshot of "did not match any documents". v1759's
+// line search carried the ENGINE's number and the whole description:
+//   lionel 84631 TRACTION TIRE .625 ID x .058 TH x .148 WD "6304678206"
+// Google requires every word, and 84631 (the engine) appears nowhere on a page
+// selling part 6304678206 — so it could never match. A PART IS FOUND BY ITS OWN
+// NUMBER: maker + the part number, nothing else. The checks below hold that line.
 // These run the real functions, lifted out of the source, with fakes around them.
 // Run:  node tests/catalog_part_link_tests.js
 // ═══════════════════════════════════════════════════════════════
@@ -70,9 +79,10 @@ function room(opts) {
   const document = {
     getElementById: id => (id === 'maint-pop-dealer' ? sel : (id === 'maint-pop-catalog' && opts.lane ? opts.lane : null)),
   };
-  const api = new Function('MAINT', 'ERAS', '_esc', '_btn', '_btnQuiet', '_makerName', '_favs', '_prefGet', '_prefSet', 'document', 'window', '_maintCatalogLaneRender',
+  const rrJsArg = v => esc(String(v == null ? '' : v).replace(/\\/g, '\\\\').replace(/'/g, "\\'"));
+  const api = new Function('MAINT', 'ERAS', '_esc', 'rrJsArg', '_btn', '_btnQuiet', '_makerName', '_favs', '_prefGet', '_prefSet', 'document', 'window', '_maintCatalogLaneRender',
     SRC.join('\n') + '\n' + picked + ';\nreturn { url: _partsUrl, site: _dealerSite, words: _plainWords, pick: _dealerPick, link: _catalogPartLinkHtml, favRow: _favRow, lane: _maintCatalogLaneHtml, picked: window._maintDealerPicked };'
-  )(MAINT, ERAS, esc, () => 'class="btn"', () => 'class="quiet"', (item) => (item && item.manufacturer) || 'Lionel',
+  )(MAINT, ERAS, esc, rrJsArg, () => 'class="btn"', () => 'class="quiet"', (item) => (item && item.manufacturer) || 'Lionel',
     (key) => (key === MAINT.PREF_DEALERS ? favs.slice() : []), (k, d) => (k in prefs ? prefs[k] : d), (k, v) => { prefs[k] = v; },
     document, {}, (t) => spy.renders.push(t));
   return { api, prefs, spy };
@@ -122,12 +132,21 @@ const word = h => (h.match(/>([^<]+)<\/a>/) || [])[1] || '';
 R = room();
 let h = R.api.link(GEAR, ITEM);
 ok('Any dealer, a Trainz part: a web search — never the trainz.com page', /google\.com\/search/.test(href(h)) && !/trainz/.test(href(h)) && word(h) === 'search');
-ok('…the search is Brad\'s: maker, item, description, "part number"', q(href(h).replace(/&amp;/g, '&')) === 'Lionel 2338 Brass Idler Gear (Repro-Brass) "2023-117"');
+ok('…and it is maker + the PART\'s own number, nothing else (v1760)', q(href(h).replace(/&amp;/g, '&')) === 'Lionel "2023-117"', q(href(h).replace(/&amp;/g, '&')));
+ok('…the ENGINE\'s number is NOT in it — 84631/2338 never appears on a page selling that part, and requiring it found nothing',
+   !/2338/.test(decodeURIComponent(href(h))));
+ok('…nor the description or its dimensions — every extra word is another way to find nothing',
+   !/Brass|Idler|Gear|Repro/i.test(decodeURIComponent(href(h))));
 h = R.api.link(TIRE, { itemNum: '84631', manufacturer: 'Lionel' });
 ok('Any dealer, a Lionel store part: a web search too — the store is NOT linked on its own', /google\.com\/search/.test(href(h)) && !/lionelsupport/.test(href(h)));
+ok('…the one that failed for Brad: it is now exactly maker + part number', q(href(h).replace(/&amp;/g, '&')) === 'Lionel "6304678206"', q(href(h).replace(/&amp;/g, '&')));
+ok('…with no 84631 and no ".625 ID x .058 TH" soup', !/84631|625|058|148|TRACTION/i.test(decodeURIComponent(href(h))));
+ok('a catalog row with NO part number falls back to the item and what the part is called',
+   /84631/.test(decodeURIComponent(href(R.api.link(Object.assign({}, TIRE, { itemNum: '' }), { itemNum: '84631', manufacturer: 'Lionel' })))));
 R = room({ favs: ['trainz.com'], select: { value: 'trainz.com' } });
 h = R.api.link(GEAR, ITEM);
 ok('a picked site: the search stays on it and the link says so', /site%3Atrainz\.com/.test(href(h)) && word(h) === 'search trainz.com');
+ok('…and it is still just maker + part number behind it', q(href(h).replace(/&amp;/g, '&')) === 'site:trainz.com Lionel "2023-117"');
 R = room({ favs: ['Olsen\'s'], select: { value: 'Olsen\'s' } });
 h = R.api.link(GEAR, ITEM);
 ok('a picked name: one more search word, and the link names it', /Olsen/.test(decodeURIComponent(href(h))) && word(h) === 'search Olsen&#39;s');
@@ -151,9 +170,21 @@ ok('no price and no stock anywhere on the lines', !/\$/.test(h) && !/in stock/i.
 ok('no dealer or store site is linked on its own', !/trainz\.com/.test(h) && !/lionelsupport\.com/.test(h));
 ok('each line: description, #number, the source, then the search link', /Brass Idler Gear \(Repro-Brass\)<\/b> <span[^>]*>#2023-117<\/span>/.test(h) && /Lionel Parts · <a href="https:\/\/www\.google\.com\/search\?q=[^"]+"[^>]*>search<\/a>/.test(h));
 ok('"+ Want it" is still there, twice', (h.match(/\+ Want it/g) || []).length === 2 && /_maintPopWantCatalog\('lionel_parts','2023-117','','task-9'\)/.test(h));
-ok('the lane is told the card\'s item, so the search carries its number', /2338/.test(h));
+ok('the lane still gets the card\'s item (a numberless row needs it) but no line\'s search carries the engine number (v1760)',
+   /_maintCatalogLaneHtml\(rows, q, taskId, item\)/.test(mt) && !/2338/.test(decodeURIComponent(h)));
 R = room({ favs: ['trainz.com'], select: { value: 'trainz.com' } });
 ok('with a store picked every line searches that store', (R.api.lane([GEAR, TIRE], '', 't', ITEM).match(/search trainz\.com/g) || []).length === 2);
+
+section('Nothing is ever pre-loaded into a store list (v1760)');
+// the CODE, with the comments stripped — the comment explains what was removed and says those names
+const favSrc = grab('function _favs(key)');
+const favCode = favSrc.replace(/\/\/[^\n]*/g, '');
+ok('_favs seeds NOTHING — no Trainz, no Train Tender, no Henning\'s in the code', !/Trainz|Train Tender|Henning|_touched/.test(favCode), favCode.replace(/\s+/g, ' ').slice(0, 160));
+ok('…it returns only what was saved, and an unreadable value is an empty list, never a default',
+   /return a;/.test(favSrc) && /catch \(e\) \{ return \[\]; \}/.test(favSrc));
+const emptyRoom = room({ favs: [] });
+ok('an untouched dealer dropdown offers only Any dealer and the maker\'s own store',
+   (emptyRoom.api.favRow('maint_parts_dealers', 'maint-pop-dealer', 'Any dealer').match(/<option/g) || []).length === 2);
 
 section('The dropdown: the favorite-store list, one built-in choice, remembers its pick');
 R = room({ favs: ['trainz.com', 'Olsen\'s'], prefs: { maint_parts_dealer_pick: 'Olsen\'s' } });
@@ -186,9 +217,9 @@ ok('Lionel\'s store and MTH Parts & Sales are official', /lionelstore_parts: \{[
 ok('Trainz and Train Tender are dealers — never official', !/lionel_parts: \{[^}]*partsOfficial/.test(cfg) && !/traintender_parts: \{[^}]*partsOfficial/.test(cfg));
 
 section('The trio moved together');
-ok('APP_VERSION v0.9.1759', /const APP_VERSION = 'v0\.9\.1759';/.test(cfg));
-ok('CACHE_NAME is the version + 10', /const CACHE_NAME = 'mca-v1769';/.test(sw));
-ok('index.html stamps every asset at 1759 and none at 1758', (ix.match(/\?v=1759/g) || []).length === 79 && !/\?v=1758/.test(ix));
+ok('APP_VERSION v0.9.1760', /const APP_VERSION = 'v0\.9\.1760';/.test(cfg));
+ok('CACHE_NAME is the version + 10', /const CACHE_NAME = 'mca-v1770';/.test(sw));
+ok('index.html stamps every asset at 1760 and none at 1759', (ix.match(/\?v=1760/g) || []).length === 79 && !/\?v=1759/.test(ix));
 
 console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
 process.exit(fail ? 1 : 0);
