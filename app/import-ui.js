@@ -2639,6 +2639,18 @@ async function _impDeleteOrphanForSale() {
 
 // ONE batchUpdate, ranges merged and DESCENDING so nothing shifts under us.
 async function _impBatchDeleteRows(tabName, rowNums) {
+  // ── v0.9.1762 ──────────────────────────────────────────────────────────
+  // This is the biggest removal the app can make — an import undo can take
+  // hundreds of the user's rows in one request — and it went straight to
+  // deleteDimension, around sheetsDeleteRow and therefore around the
+  // "Deleted Rows" archive. Found by this release's own sweep rather than by
+  // somebody losing an import they wanted back. Copy first, and if the copy
+  // cannot be made, remove nothing: the caller already catches this and tells
+  // the user the import was not removed.
+  if (typeof rrArchiveRowsBeforeRemoval === 'function'
+      && !(await rrArchiveRowsBeforeRemoval(state.personalSheetId, tabName, rowNums, 'import undone'))) {
+    throw new Error('nothing was removed \u2014 a copy of those rows could not be saved first');
+  }
   try { window._rrDataRev = (window._rrDataRev || 0) + 1; } catch (e) {}
   try { if (typeof rrOutboxRowsMoved === 'function') rrOutboxRowsMoved(); } catch (e) {}
   var metaRes = await _withTokenRetry(function () { return fetch(

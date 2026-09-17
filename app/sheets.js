@@ -564,6 +564,9 @@ if (typeof window !== 'undefined') window.rrVerifiedRowUpdate = rrVerifiedRowUpd
 // write again. See test section 238.
 async function rrRemoveRowConfirmed(spreadsheetId, tab, rowNum, range, values, expect, what) {
   try {
+    // v0.9.1762: this shape blanks the row where it stands, which erases it
+    // just as surely as a delete does. Same rule — keep a copy or don't remove.
+    if (!(await rrArchiveRowBeforeRemoval(spreadsheetId, tab, rowNum, 'cleared from ' + (what || tab), expect))) return false;
     return await rrVerifiedRowUpdate(spreadsheetId, tab, rowNum, range, values, expect, what);
   } catch (e) {
     if (typeof showToast === 'function') {
@@ -575,6 +578,190 @@ async function rrRemoveRowConfirmed(spreadsheetId, tab, rowNum, range, values, e
   }
 }
 if (typeof window !== 'undefined') window.rrRemoveRowConfirmed = rrRemoveRowConfirmed;
+
+// ══ v0.9.1762 — NOTHING LEAVES THE SHEET WITHOUT A COPY ══════════════════
+//
+// Brad, after v0.9.1761 shipped: "now can we make sure this doesn't happen
+// again."
+//
+// v1761 fixed the bug that deleted his original 6-24177 and added a sweep that
+// fails the build if that shape comes back. This is the other half, and it is
+// the half that matters more: it does not try to be RIGHT, it makes being
+// WRONG cost nothing. When his row went, the only reason it could be put back
+// was that its values happened to still be sitting in an open page's memory.
+// That was luck. Luck is not a recovery plan, and the next bug of this kind
+// will be one nobody has thought of yet.
+//
+// So: every row this app removes from the user's OWN sheet is copied to a
+// "Deleted Rows" tab first — whole, with when it went, which tab it came from,
+// which row it was, what the user was doing, and its Inventory ID. The app
+// never deletes anything from that tab.
+//
+// TWO shapes remove data, and both come through this file:
+//   sheetsDeleteRow        takes the row out (everything below shifts up)
+//   rrRemoveRowConfirmed   blanks the row where it stands
+// Archiving at those two gates rather than at the ~20 call sites is the same
+// reasoning that put the delete guard here in v1267: a check at the call sites
+// is a check that four places remember and the one that matters forgets.
+//
+// **If the copy cannot be made, the removal does not happen.** That is the
+// whole point — an unrecoverable removal is the thing being prevented. The
+// failure is always announced, never silent.
+const RR_TRASH_TAB = 'Deleted Rows';
+let _rrTrashReady = false;          // the tab is checked once per session, not per row
+
+function _rrTrashSkip(spreadsheetId, sheetName) {
+  // Only the user's OWN sheet. tools.js removes rows from the shared master
+  // catalog; that is not the user's data and does not belong in their bin.
+  try {
+    if (typeof state === 'undefined' || !state || !state.personalSheetId) return true;
+    if (String(spreadsheetId) !== String(state.personalSheetId)) return true;
+  } catch (e) { return true; }
+  return String(sheetName) === RR_TRASH_TAB;      // never archive the archive
+}
+
+async function _rrTrashEnsureTab(spreadsheetId) {
+  if (_rrTrashReady) return true;
+  const metaRes = await _withTokenRetry(() => fetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}?fields=sheets.properties.title`,
+    { headers: { Authorization: `Bearer ${accessToken}` } }
+  ));
+  const meta = await metaRes.json();
+  const titles = (((meta && meta.sheets) || [])).map(s => (s && s.properties && s.properties.title) || '');
+  if (titles.indexOf(RR_TRASH_TAB) < 0) {
+    await _withTokenRetry(() => fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}:batchUpdate`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ requests: [{ addSheet: { properties: { title: RR_TRASH_TAB } } }] })
+    }));
+    // Two header rows, because every table in this workbook has two and the
+    // app's own append anchors at A3.
+    await _withTokenRetry(() => fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${_encodeRange(RR_TRASH_TAB + '!A1')}?valueInputOption=RAW`,
+      { method: 'PUT',
+        headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ values: [
+          ['Removed rows are kept here. The Rail Roster never deletes anything from this tab \u2014 if something went that should not have, it is below.'],
+          ['Removed at', 'From tab', 'Was row', 'What happened', 'Inventory ID', 'Item Number', 'The row exactly as it was, from here on \u2192']
+        ] }) }
+    ));
+    console.log('[trash] created the "' + RR_TRASH_TAB + '" tab');
+  }
+  _rrTrashReady = true;
+  return true;
+}
+
+// The six columns in front of the row itself. One builder, so the single-row
+// and bulk forms can never drift into two different archive shapes.
+function _rrTrashHead(sheetName, rowNumber, why, cells, invId, itemNum) {
+  let id = String(invId || '');
+  if (!id) {
+    // Not told which copy — read it off the row, the same way the delete guard
+    // does. An archive with no Inventory ID is an archive you cannot match
+    // back to anything.
+    try {
+      const ident = _rrTabIdentity(sheetName);
+      if (ident && cells[ident.idx] != null) id = String(cells[ident.idx]).trim();
+    } catch (e) {}
+  }
+  return [
+    new Date().toISOString(),
+    String(sheetName),
+    String(rowNumber),
+    String(why || 'removed'),
+    id,
+    String(itemNum || (cells[0] == null ? '' : cells[0])),
+  ];
+}
+
+async function _rrTrashAppend(spreadsheetId, rows) {
+  for (let i = 0; i < rows.length; i += 500) {
+    const res = await _withTokenRetry(() => fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${_encodeRange(RR_TRASH_TAB + '!A3:A')}:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`,
+      { method: 'POST',
+        headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ values: rows.slice(i, i + 500) }) }
+    ));
+    if (!res || !res.ok) throw new Error('append returned ' + (res && res.status));
+  }
+}
+
+// The BULK form, for a removal that takes many rows in one request — today
+// that is the import undo, which can take hundreds of rows and used to build
+// its own raw row-delete request, going around sheetsDeleteRow and so around
+// the archive. Found by this release's own sweep, not by a user losing
+// something. (The name of that request is deliberately not written here: two
+// suites locate the real one by its position in this file.)
+//
+// One read of the tab instead of one per row. Returns true only when every row
+// that had anything in it has been copied.
+async function rrArchiveRowsBeforeRemoval(spreadsheetId, sheetName, rowNumbers, why) {
+  if (_rrTrashSkip(spreadsheetId, sheetName)) return true;
+  const wanted = (rowNumbers || []).filter(n => n && Number(n) !== 99999);
+  if (!wanted.length) return true;
+  if (_rrOfflineNow()) {
+    if (typeof showToast === 'function') showToast('You\u2019re offline, so nothing was removed. The app keeps a copy of every row before it goes, and it can\u2019t do that until you\u2019re back online.', 6000, true);
+    return false;
+  }
+  try {
+    const got = await sheetsGet(spreadsheetId, "'" + sheetName + "'!A:BZ");
+    const all = (got && got.values) || [];
+    const out = [];
+    wanted.forEach(function (n) {
+      const cells = all[n - 1] || [];
+      if (!cells.length || !cells.join('').trim()) return;     // nothing there to keep
+      out.push(_rrTrashHead(sheetName, n, why, cells, '', '')
+               .concat(cells.map(c => (c == null ? '' : String(c)))));
+    });
+    if (!out.length) return true;
+    await _rrTrashEnsureTab(spreadsheetId);
+    await _rrTrashAppend(spreadsheetId, out);
+    console.log('[trash] kept ' + out.length + ' rows from ' + sheetName + ' (' + why + ')');
+    return true;
+  } catch (e) {
+    console.warn('[trash] could not keep copies of ' + wanted.length + ' rows from ' + sheetName +
+                 ' — refusing to remove them:', (e && e.message) || e);
+    if (typeof showToast === 'function') showToast('Nothing was removed \u2014 the app couldn\u2019t save copies of those rows first, and it won\u2019t remove anything it can\u2019t put back. Try again in a moment.', 6500, true);
+    return false;
+  }
+}
+
+// Returns true when it is safe to remove the row (a copy is kept, or there was
+// nothing to keep), false when the removal must NOT go ahead.
+async function rrArchiveRowBeforeRemoval(spreadsheetId, sheetName, rowNumber, why, expect) {
+  if (_rrTrashSkip(spreadsheetId, sheetName)) return true;
+  if (!rowNumber || Number(rowNumber) === 99999) return true;   // nothing on the sheet yet
+  if (_rrOfflineNow()) {
+    // Offline, the removal itself would fail anyway — but say the useful thing
+    // rather than a generic write error.
+    if (typeof showToast === 'function') showToast('You\u2019re offline, so nothing was removed. The app keeps a copy of every row before it goes, and it can\u2019t do that until you\u2019re back online.', 6000, true);
+    return false;
+  }
+  try {
+    const got = await sheetsGet(spreadsheetId, sheetName + '!A' + rowNumber + ':BZ' + rowNumber);
+    const cells = (((got && got.values) || [[]])[0] || []);
+    if (!cells.length || !cells.join('').trim()) return true;   // already empty — nothing to keep
+    await _rrTrashEnsureTab(spreadsheetId);
+    const _e = (expect && typeof expect === 'object') ? expect : {};
+    const head = _rrTrashHead(sheetName, rowNumber, why, cells,
+                              _e.inventoryId || _e.invId || '', _e.itemNum || _e.num || '');
+    // RAW, deliberately: an archive records what was THERE, and USER_ENTERED
+    // would reinterpret dates, leading zeros and anything starting with '='.
+    await _rrTrashAppend(spreadsheetId, [head.concat(cells.map(c => (c == null ? '' : String(c))))]);
+    console.log('[trash] kept a copy of ' + sheetName + ' row ' + rowNumber + ' (' + why + ')');
+    return true;
+  } catch (e) {
+    console.warn('[trash] could not keep a copy of ' + sheetName + ' row ' + rowNumber +
+                 ' — refusing to remove it:', (e && e.message) || e);
+    if (typeof showToast === 'function') showToast('Nothing was removed \u2014 the app couldn\u2019t save a copy of that row first, and it won\u2019t remove anything it can\u2019t put back. Try again in a moment.', 6500, true);
+    return false;
+  }
+}
+if (typeof window !== 'undefined') {
+  window.rrArchiveRowBeforeRemoval = rrArchiveRowBeforeRemoval;
+  window.rrArchiveRowsBeforeRemoval = rrArchiveRowsBeforeRemoval;
+  window.RR_TRASH_TAB = RR_TRASH_TAB;
+}
 
 // v0.9.1267 (audit 2026-08-02 round 2, finding R3): `expected` is REQUIRED,
 // and omitting it throws rather than deleting.
@@ -608,6 +795,9 @@ async function sheetsDeleteRow(spreadsheetId, sheetName, rowNumber, expected) {
     rrRowMovedToast();
     return false;
   }
+  // v0.9.1762: keep a copy before it goes. No copy, no delete — and the row is
+  // read here, while it is still the record the guard above just confirmed.
+  if (!(await rrArchiveRowBeforeRemoval(spreadsheetId, sheetName, rowNumber, 'removed', _exp))) return false;
   // v0.9.985 (perf): any write = data changed — invalidate cached page renders.
   try { window._rrDataRev = (window._rrDataRev || 0) + 1; } catch (e) {}
   // v0.9.1246: a delete moves every row beneath it, so every range write

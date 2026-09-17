@@ -2919,7 +2919,8 @@ async function removeCollectionItem(itemNum, variation, row, invId, opts) {
     // Member-card removal: exactly one piece, said plainly.
     if (!(await appConfirm('Remove No. ' + itemNum + (variation ? ' (Var. ' + variation + ')' : '')
         + ' — one piece of this group?\n\nThe other ' + (groupSiblings.length - 1) + ' piece'
-        + (groupSiblings.length - 1 === 1 ? ' stays' : 's stay') + ' in your collection, still grouped.',
+        + (groupSiblings.length - 1 === 1 ? ' stays' : 's stay') + ' in your collection, still grouped.'
+        + '\n\nA copy of the row is kept in your sheet\u2019s "Deleted Rows" tab, so this can be undone.',
         { danger: true, ok: 'Remove this piece' }))) return;
     // falls through to the single-item removal below
   } else if (isGrouped) {
@@ -2936,7 +2937,7 @@ async function removeCollectionItem(itemNum, variation, row, invId, opts) {
             This is one set — <strong>${_setName}</strong>:
           </div>
           <div style="font-family:var(--font-mono);font-size:0.85rem;color:var(--text);background:var(--surface2);border-radius:8px;padding:0.5rem 0.7rem;margin:0.4rem 0 0.6rem;line-height:1.6">${groupSiblings.map(p => '· ' + p.itemNum).join('<br>')}</div>
-          <div style="font-size:0.85rem;color:var(--text-mid);margin-bottom:1.1rem;line-height:1.5">Removing it removes <strong>all ${groupSiblings.length} rows</strong> from your sheet. To remove a single piece, open the item and use its member card.</div>
+          <div style="font-size:0.85rem;color:var(--text-mid);margin-bottom:1.1rem;line-height:1.5">Removing it removes <strong>all ${groupSiblings.length} rows</strong> from your sheet. To remove a single piece, open the item and use its member card.<br><br>A copy of every row is kept in your sheet&rsquo;s &ldquo;Deleted Rows&rdquo; tab, so this can be undone.</div>
           <div style="display:flex;flex-direction:column;gap:0.5rem">
             <!-- v0.9.1564's lesson, kept: the SAFE choice leads and looks
                  primary. v0.9.1569: the list level offers the whole set or
@@ -3072,7 +3073,7 @@ async function removeCollectionItem(itemNum, variation, row, invId, opts) {
     // else fall through to remove just this one item
   } else {
     // Standalone item — simple confirm
-    if (!(await appConfirm('Remove No. ' + itemNum + (variation ? ' (Var. ' + variation + ')' : '') + ' from your collection?', { danger: true, ok: 'Remove' }))) return;
+    if (!(await appConfirm('Remove No. ' + itemNum + (variation ? ' (Var. ' + variation + ')' : '') + ' from your collection?\n\nA copy of the row is kept in your sheet\u2019s "Deleted Rows" tab, so this can be undone.', { danger: true, ok: 'Remove' }))) return;
   }
 
   // ── Remove single item ──
