@@ -34,7 +34,7 @@
     // built-in choice — "The maker's own store" — never a hardcoded dealer.
     PREF_DEALER_PICK: 'maint_parts_dealer_pick',
     MAKER_STORE: '__maker',
-    PREF_SUPPLIERS: 'maint_diagram_suppliers', // JSON array; seeded with Trainz
+    PREF_SUPPLIERS: 'maint_diagram_suppliers', // JSON array; never seeded (v0.9.1760)
   };
 
   function _isOwner() {
@@ -101,10 +101,12 @@
       var v = (typeof _prefGet === 'function') ? _prefGet(key, '[]') : '[]';
       var a = JSON.parse(v);
       a = Array.isArray(a) ? a.filter(Boolean) : [];
-      // Trainz ships in the supplier list — Brad: "I just know Trainz is
-      // going to be popular, make sure it works great." Removable like any
-      // favorite; it just starts there.
-      if (key === MAINT.PREF_SUPPLIERS && !a.length && !_prefGet(key + '_touched', '')) a = ['Trainz', 'The Train Tender', "Henning's Trains"];   // v0.9.1652: verified-live sellers from the suppliers scan
+      // v0.9.1760 (Brad: "you had trainz in here. i, as a user need to add them
+      // first"): NO store is ever pre-loaded into one of these lists. v1652 seeded
+      // the supplier list with Trainz / The Train Tender / Henning's; the dropdown
+      // that read it went away in v1662, so the seed had been dead code since —
+      // but dead code comes back. Every one of these lists now starts empty and
+      // holds only what the user typed.
       return a;
     } catch (e) { return []; }
   }
@@ -1418,6 +1420,14 @@
     return n;
   }
 
+  // v0.9.1760: the number as Lionel's box prints it — 8359 → 6-8359, 17294 →
+  // 6-17294, 2032010 → 2032010 (already long), 6-8359 → unchanged.
+  function _lionelBoxNum(num) {
+    var n = String(num == null ? '' : num).trim();
+    if (/^6-/.test(n)) return n;
+    return /^\d{3,5}$/.test(n) ? '6-' + n : n;
+  }
+
   // ── URL builders (all open in a new tab; no API keys anywhere) ─
   function _docsUrl(route, item) {
     var num = String(item && item.itemNum || '').trim();
@@ -1427,9 +1437,15 @@
     }
     if (route === 'lionel')
       // v0.9.1649 (Brad supplied the working URL): lionelsupport's real
-      // search param is ?keywords= (the ?q= guess rendered empty). Bare
-      // SKU form — 17294, not 6-17294.
-      return 'https://www.lionelsupport.com/search?keywords=' + encodeURIComponent(num.replace(/^6-/, ''));
+      // search param is ?keywords= (the ?q= guess rendered empty).
+      // v0.9.1760 (Brad, on 8359: "the model number is Model Number: 6-8359,
+      // so the 8359 item number should not be used, but use the 6- in front"):
+      // search the number the way the BOX prints it. Lionel's short catalog
+      // numbers (three to five digits — 8359, 17294, 83503) are printed and
+      // catalogued as 6-xxxxx, so the 6- goes back on; the long modern numbers
+      // (2032010) are printed bare and are left alone. A number that already
+      // carries the prefix keeps it — it is no longer stripped.
+      return 'https://www.lionelsupport.com/search?keywords=' + encodeURIComponent(_lionelBoxNum(num));
     if (route === 'mth')
       return 'https://mthpartsandsales.com/shop/search/results?type=lists&searchContext=' + encodeURIComponent(num);   // v0.9.1651 (Brad): type=lists lands on the PART LISTS view — Mechanical / Electronics side by side, user picks
     if (route === 'atlas')
@@ -1527,7 +1543,17 @@
       href = String(r.refLink); word = era.partsLink || 'store';
     } else {
       var d = pick === MAINT.MAKER_STORE ? '' : pick;
-      href = _partsUrl(d, item, String(r.itemNum || ''), r.description, era.manufacturer || '');
+      // ── v0.9.1760 (Brad, with the screenshot: "did not match any documents") ──
+      // v1759 sent the ENGINE's number and the part's whole description:
+      //   lionel 84631 TRACTION TIRE .625 ID x .058 TH x .148 WD "6304678206"
+      // Google requires every word. 84631 is the engine — it appears NOWHERE on a
+      // page selling part 6304678206 — so that search could never match anything,
+      // and the dimensions piled on eight more required words. A part is found by
+      // its OWN number: maker + the part number, nothing else. (A catalog row with
+      // no number at all falls back to the item + what the part is called.)
+      var pn = String(r.itemNum || '').trim();
+      href = pn ? _partsUrl(d, null, pn, '', era.manufacturer || '')
+                : _partsUrl(d, item, r.description, '', era.manufacturer || '');
       word = d ? 'search ' + (_dealerSite(d) || d) : 'search';
     }
     return '<a href="' + _esc(href) + '" target="_blank" rel="noopener" style="color:var(--accent2)">' + _esc(word) + '</a>';
@@ -1702,7 +1728,7 @@
       + '<div id="maint-launcher" style="display:flex;flex-direction:column;gap:0.55rem;margin-bottom:0.8rem">'
       +   '<button onclick="_maintShowGrp(\'docs\')" ' + bigBtn + '>Find manuals &amp; diagrams<span style="display:block;font-weight:400;font-size:0.76rem;color:var(--text-dim);font-family:var(--font-body);text-transform:none;letter-spacing:0">Your saved docs, factory sources, searches</span></button>'
       +   '<button onclick="_maintShowGrp(\'work\')" ' + bigBtn + '>Work on it<span style="display:block;font-weight:400;font-size:0.76rem;color:var(--text-dim);font-family:var(--font-body);text-transform:none;letter-spacing:0">Chores, parts and repair videos for this item</span></button>'
-      +   '<button onclick="_maintShowHistory(\'' + _esc(String(window._maintPanelInvId || '')) + '\',\'' + _esc(String(item.itemNum || '')) + '\')" ' + bigBtn + '>Service history<span style="display:block;font-weight:400;font-size:0.76rem;color:var(--text-dim);font-family:var(--font-body);text-transform:none;letter-spacing:0">Everything ever done to this one</span></button>'
+      +   '<button onclick="_maintShowHistory(\'' + rrJsArg(String(window._maintPanelInvId || '')) + '\',\'' + rrJsArg(String(item.itemNum || '')) + '\')" ' + bigBtn + '>Service history<span style="display:block;font-weight:400;font-size:0.76rem;color:var(--text-dim);font-family:var(--font-body);text-transform:none;letter-spacing:0">Everything ever done to this one</span></button>'
       + '</div>'
       + '<button id="maint-back" onclick="_maintShowGrp(\'\')" ' + _btnSecondary('display:none;margin-bottom:0.6rem;padding:0.45rem 0.8rem;font-size:0.78rem') + '>← Back</button>'
       + '<div class="maint-sec" data-grp="docs" style="display:none;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:0.9rem 1rem;margin-bottom:0.8rem">'
@@ -1730,18 +1756,18 @@
             // ── the manufacturer row ──
             if (route === 'lcca') {
               // FUTURE SLOT: Brad's original Lionel parts diagrams go here, above LCCA.
-              h += '<button onclick="_maintLccaGo(\'' + _esc(_docsUrl(route, item)) + '\')" ' + linkBtn + '>' + _esc(routeLabel) + ' →</button>'
+              h += '<button onclick="_maintLccaGo(\'' + rrJsArg(_docsUrl(route, item)) + '\')" ' + linkBtn + '>' + _esc(routeLabel) + ' →</button>'
                 + '<div id="maint-lcca-note" style="display:none;font-size:0.8rem;color:var(--text);background:var(--bg-card);background:color-mix(in srgb, rgb(41,128,185) 12%, var(--surface2));border:1px solid #2980b9;border-radius:8px;padding:0.55rem 0.7rem;margin-top:0.55rem"></div>'
                 + '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.45rem">' + (_pwsmHit ? 'Copies the link to this item\'s manual section and opens LCCA in a new tab — see the note above after you tap.' : 'No direct section mapped — the button copies the archive link; paste it in the LCCA tab.') + ' Requires LCCA membership.</div>'
                 + '<div style="margin-top:0.5rem"><button onclick="window.open(\'https://www.olsenstoy.com/searchcd1.htm\',\'_blank\')" ' + _btnQuiet() + '>Olsen\'s service library (free, no login) →</button></div>';
             } else if (route === 'atlas' && _atlasHit) {
               // v0.9.1744: the whole family — body, chassis, trucks — not just the first sheet
               var _atlasAll = _atlasMatchAll(item, eraKey) || [_atlasHit];
-              h += '<button onclick="window.open(\'' + _esc(ATLAS_DL + _atlasHit.u) + '\',\'_blank\')" ' + linkBtn + '>Parts diagram: ' + _esc(_atlasHit.t) + ' →</button>';
+              h += '<button onclick="window.open(\'' + rrJsArg(ATLAS_DL + _atlasHit.u) + '\',\'_blank\')" ' + linkBtn + '>Parts diagram: ' + _esc(_atlasHit.t) + ' →</button>';
               if (_atlasAll.length > 1) {
                 h += '<div style="display:flex;flex-wrap:wrap;gap:0.4rem;margin-top:0.45rem">';
                 _atlasAll.slice(1).forEach(function (e) {
-                  h += '<button onclick="window.open(\'' + _esc(ATLAS_DL + e.u) + '\',\'_blank\')" ' + _btnQuiet() + '>' + _esc(e.t.replace(/^(HO|N|O|Z) /, '')) + ' →</button>';
+                  h += '<button onclick="window.open(\'' + rrJsArg(ATLAS_DL + e.u) + '\',\'_blank\')" ' + _btnQuiet() + '>' + _esc(e.t.replace(/^(HO|N|O|Z) /, '')) + ' →</button>';
                 });
                 h += '</div>';
               }
@@ -1753,22 +1779,22 @@
                 + (_atlasFam.length ? ' — their ' + _esc(_atlasScale(eraKey) || '') + ' list covers: ' + _esc(_atlasFam.join(', ')) + '.' : '.')
                 + ' The Google search below is the next best bet.</div>';
             } else if (route === 'lionel') {
-              h += '<button onclick="window.open(\'' + _esc(_docsUrl(route, item)) + '\',\'_blank\')" ' + linkBtn + '>Lionel Support: search ' + _esc(num.replace(/^6-/, '')) + ' →</button>'
+              h += '<button onclick="window.open(\'' + rrJsArg(_docsUrl(route, item)) + '\',\'_blank\')" ' + linkBtn + '>Lionel Support: search ' + _esc(_lionelBoxNum(num)) + ' →</button>'
                 + '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.45rem">Owner\'s manuals and parts on lionelsupport.com.</div>';
             } else if (route === 'mth') {
-              h += '<button onclick="window.open(\'' + _esc(_docsUrl(route, item)) + '\',\'_blank\')" ' + linkBtn + '>MTH Parts &amp; Sales: search ' + _esc(num) + ' →</button>'
+              h += '<button onclick="window.open(\'' + rrJsArg(_docsUrl(route, item)) + '\',\'_blank\')" ' + linkBtn + '>MTH Parts &amp; Sales: search ' + _esc(num) + ' →</button>'
                 + '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.45rem">Lands on MTH\'s part lists for this item — pick Mechanical or Electronics. They add new lists monthly.</div>';
             } else if (route === 'lgb') {
-              h += '<button onclick="window.open(\'' + _esc(_docsUrl(route, item)) + '\',\'_blank\')" ' + linkBtn + '>LGB spare-parts search (official) →</button>'
+              h += '<button onclick="window.open(\'' + rrJsArg(_docsUrl(route, item)) + '\',\'_blank\')" ' + linkBtn + '>LGB spare-parts search (official) →</button>'
                 + '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.45rem">Marklin\'s official LGB spare-parts search — it accepts old LGB article numbers like ' + _esc(num) + '.</div>';
             } else if (route === 'usatrains') {
-              h += '<button onclick="window.open(\'' + _esc(_docsUrl(route, item)) + '\',\'_blank\')" ' + linkBtn + '>USA Trains diagram archive (community) →</button>'
+              h += '<button onclick="window.open(\'' + rrJsArg(_docsUrl(route, item)) + '\',\'_blank\')" ' + linkBtn + '>USA Trains diagram archive (community) →</button>'
                 + '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.45rem">USA Trains publishes no diagrams — this is the community-run archive. Their own site sells ~30 per-model service parts.</div>';
             } else if (route === 'bachmann') {
-              h += '<button onclick="window.open(\'' + _esc(_docsUrl(route, item)) + '\',\'_blank\')" ' + linkBtn + '>Bachmann parts eStore: search ' + _esc(num) + ' →</button>'
+              h += '<button onclick="window.open(\'' + rrJsArg(_docsUrl(route, item)) + '\',\'_blank\')" ' + linkBtn + '>Bachmann parts eStore: search ' + _esc(num) + ' →</button>'
                 + '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.45rem">Official Bachmann/Williams parts. Unlisted parts: parts@bachmanntrains.com.</div>';
             } else if (route === 'thirdrail') {
-              h += '<button onclick="window.open(\'' + _esc(_docsUrl(route, item)) + '\',\'_blank\')" ' + linkBtn + '>Get 3R Parts (official 3rd Rail/Sunset) →</button>'
+              h += '<button onclick="window.open(\'' + rrJsArg(_docsUrl(route, item)) + '\',\'_blank\')" ' + linkBtn + '>Get 3R Parts (official 3rd Rail/Sunset) →</button>'
                 + '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.45rem">50 years of Sunset/3rd Rail OEM parts, browse by project number. No diagrams exist.</div>';
             } else if (route === 'weaver') {
               h += '<div style="font-size:0.8rem;color:var(--text-dim);padding:0.4rem 0;border-bottom:1px dashed var(--border);margin-bottom:0.5rem">Weaver closed in 2015 — no official parts source. Try P&amp;D Hobby, eBay, or the searches below; some tooling went to Atlas O and Lionel.</div>';
@@ -1786,10 +1812,10 @@
             var mkp = _marklinParts(item);
             if (mkp) {
               if (mkp.d) {
-                h += '<div style="margin-top:0.5rem"><button onclick="window.open(\'' + _esc((window.MARKLIN_PARTS_PDF_BASE || '') + mkp.d) + '\',\'_blank\')" ' + linkBtn + '>Marklin exploded diagram (PDF)' + (mkp.t ? ': ' + _esc(mkp.t) : '') + ' \u2192</button></div>';
+                h += '<div style="margin-top:0.5rem"><button onclick="window.open(\'' + rrJsArg((window.MARKLIN_PARTS_PDF_BASE || '') + mkp.d) + '\',\'_blank\')" ' + linkBtn + '>Marklin exploded diagram (PDF)' + (mkp.t ? ': ' + _esc(mkp.t) : '') + ' \u2192</button></div>';
               }
               if (mkp.s) {
-                h += '<div style="margin-top:0.5rem"><button onclick="window.open(\'' + _esc((window.MARKLIN_PARTS_SHOP || '') + encodeURIComponent(mkp.num)) + '\',\'_blank\')" ' + linkBtn + '>Marklin parts list for ' + _esc(mkp.num) + ' \u2192</button>'
+                h += '<div style="margin-top:0.5rem"><button onclick="window.open(\'' + rrJsArg((window.MARKLIN_PARTS_SHOP || '') + encodeURIComponent(mkp.num)) + '\',\'_blank\')" ' + linkBtn + '>Marklin parts list for ' + _esc(mkp.num) + ' \u2192</button>'
                   + '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.45rem">Maerklin\'s own shop \u2014 every part they still stock for this model.</div></div>';
               }
             }
@@ -1805,7 +1831,7 @@
             // section — the Google button covers it. (The dealer dropdown in
             // Find-a-Part stays; _maintSupplierGo survives unused-by-docs.)
             h += '<div style="display:flex;gap:0.4rem;margin-top:0.55rem;flex-wrap:wrap;align-items:center">'
-              +   '<button onclick="window.open(\'' + _esc(gq) + '\',\'_blank\')" ' + _btnQuiet() + '>Google the parts diagram →</button>'
+              +   '<button onclick="window.open(\'' + rrJsArg(gq) + '\',\'_blank\')" ' + _btnQuiet() + '>Google the parts diagram →</button>'
               + '</div>';
             return h;
           })(), 'docs')
@@ -2209,14 +2235,14 @@
     var lines = entries.map(function (l) {
       var icon = l.type === 'part-installed' ? 'Installed' : l.type === 'chore' ? (l.status === 'open' ? '' : '✓') : 'Note';
       return '<div style="display:flex;justify-content:space-between;align-items:center;gap:0.5rem;padding:0.45rem 0;border-bottom:1px solid var(--border)">'
-        + '<div onclick="_maintEditEntry(\'' + _esc(l.id) + '\')" title="Open to view or edit" style="flex:1;cursor:pointer;font-size:0.85rem;color:var(--text)">'
+        + '<div onclick="_maintEditEntry(\'' + rrJsArg(l.id) + '\')" title="Open to view or edit" style="flex:1;cursor:pointer;font-size:0.85rem;color:var(--text)">'
         + (icon ? icon + ' ' : '') + '<b>' + _esc(l.dateDone || l.dateAdded) + '</b> — ' + _esc(l.text)
         + (l.partNum ? ' <span style="font-family:var(--font-mono);color:var(--accent2)">#' + _esc(l.partNum) + '</span>' : '')
         + (l.by && l.by !== 'self' ? ' <span style="color:var(--text-dim)">(' + _esc(l.by) + ')</span>' : '')
         + (l.type === 'chore' && l.status === 'open' ? ' <span style="color:#e67e22">open</span>' : '')
         + (l.notes ? '<div style="font-size:0.76rem;color:var(--text-dim);margin-top:0.15rem">' + _esc(l.notes).slice(0, 140) + (l.notes.length > 140 ? '…' : '') + '</div>' : '')
         + '</div>'
-        + '<button onclick="_maintRemoveEntry(\'' + _esc(l.id) + '\')" ' + _btn('red', 'sm', 'flex-shrink:0') + '>Remove</button>'
+        + '<button onclick="_maintRemoveEntry(\'' + rrJsArg(l.id) + '\')" ' + _btn('red', 'sm', 'flex-shrink:0') + '>Remove</button>'
         + '</div>';
     }).join('') || '<div style="color:var(--text-dim);font-size:0.85rem;padding:0.6rem 0">No service history yet.</div>';
     var html = '<div id="wb-history" style="position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9600;display:flex;align-items:flex-start;justify-content:center;overflow-y:auto;padding:2rem 1rem" onclick="if(event.target===this){this.remove();window._wbHistoryCtx=null}">'
@@ -2244,7 +2270,7 @@
       + '<div style="flex:1"><label style="' + LB + '">Serviced by</label><input id="ent-by" type="text" value="' + _esc(l.by) + '" placeholder="self / service station" style="' + IN + '"></div></div>'
       + (l.partNum ? '<label style="' + LB + '">Part number</label><input id="ent-part" type="text" value="' + _esc(l.partNum) + '" style="' + IN + ';font-family:var(--font-mono)">' : '')
       + '<label style="' + LB + '">Notes</label><textarea id="ent-notes" rows="4" style="' + IN + ';resize:vertical">' + _esc(l.notes || '') + '</textarea>'
-      + _cardFoot('<button onclick="_maintRemoveEntry(\'' + _esc(l.id) + '\')" ' + _btnSecondary('margin-right:auto;color:#e74c3c') + '>Remove</button>'
+      + _cardFoot('<button onclick="_maintRemoveEntry(\'' + rrJsArg(l.id) + '\')" ' + _btnSecondary('margin-right:auto;color:#e74c3c') + '>Remove</button>'
       + '<button onclick="document.getElementById(\'wb-entry\').remove()" ' + _btnCancel() + '>Cancel</button>'
       + '<button id="ent-save" ' + _btnSave() + '>Save</button>')
       + '</div></div>';
@@ -2408,16 +2434,16 @@
         return '<div class="maint-task" data-id="' + _esc(t.id) + '" style="border:1px solid var(--border);border-radius:10px;padding:0.65rem 0.75rem;margin-bottom:0.5rem;background:var(--bg-card)">'
           + '<div style="display:flex;justify-content:space-between;align-items:center;gap:0.4rem;flex-wrap:wrap">'
           +   '<div style="font-weight:700;color:var(--text)">' + _esc(t.text) + ' <span style="font-weight:400;font-size:0.72rem;color:var(--text-dim)">since ' + _esc(t.dateAdded) + '</span></div>'
-          +   '<button onclick="_maintRemoveTask(\'' + _esc(t.id) + '\')" title="Added by mistake? Remove this task (its parts stay on the list)" ' + _btn('red', 'sm', 'flex-shrink:0') + '>Remove</button>'   // v0.9.1752
+          +   '<button onclick="_maintRemoveTask(\'' + rrJsArg(t.id) + '\')" title="Added by mistake? Remove this task (its parts stay on the list)" ' + _btn('red', 'sm', 'flex-shrink:0') + '>Remove</button>'   // v0.9.1752
           + '</div>'
-          + '<textarea id="task-notes-' + _esc(t.id) + '" placeholder="Notes for this repair… (saves by itself)" rows="2" oninput="_maintNotesTyped(' + t.row + ',\'' + _esc(t.id) + '\')" onblur="_maintSaveTaskNotes(' + t.row + ',\'' + _esc(t.id) + '\',true)" style="' + IN + ';margin-top:0.5rem;resize:vertical">' + _esc(t.notes || '') + '</textarea>'
+          + '<textarea id="task-notes-' + _esc(t.id) + '" placeholder="Notes for this repair… (saves by itself)" rows="2" oninput="_maintNotesTyped(' + t.row + ',\'' + rrJsArg(t.id) + '\')" onblur="_maintSaveTaskNotes(' + t.row + ',\'' + rrJsArg(t.id) + '\',true)" style="' + IN + ';margin-top:0.5rem;resize:vertical">' + _esc(t.notes || '') + '</textarea>'
           + '<div id="task-notes-hint-' + _esc(t.id) + '" style="font-size:0.7rem;color:var(--text-dim);min-height:0.9rem"></div>'
           + '<div style="display:flex;gap:0.4rem;flex-wrap:wrap;align-items:center;margin-top:0.3rem">'
-          +   '<button onclick="_maintPartsPopup(\'' + _esc(t.id) + '\',\'' + _esc(t.text) + '\')" ' + _btn('orange') + '>Need a part</button>'
+          +   '<button onclick="_maintPartsPopup(\'' + rrJsArg(t.id) + '\',\'' + rrJsArg(t.text) + '\')" ' + _btn('orange') + '>Need a part</button>'
           + '</div>'
           + partLine
           + '<div style="display:flex;justify-content:flex-end;margin-top:0.55rem;padding-top:0.45rem;border-top:1px dashed var(--border)">'
-          +   '<button onclick="if(confirm(\'Mark \\u201c' + _esc(t.text).replace(/'/g, '') + '\\u201d complete? It moves to the service history.\'))_maintChoreDone(' + t.row + ',\'' + _esc(t.id) + '\')" ' + _btnPrimary('padding:0.45rem 0.8rem;font-size:0.74rem') + '>Mark complete — job finished</button>'
+          +   '<button onclick="if(confirm(\'Mark \\u201c' + _esc(t.text).replace(/'/g, '') + '\\u201d complete? It moves to the service history.\'))_maintChoreDone(' + t.row + ',\'' + rrJsArg(t.id) + '\')" ' + _btnPrimary('padding:0.45rem 0.8rem;font-size:0.74rem') + '>Mark complete — job finished</button>'
           + '</div>'
           + '</div>';
       }).join('') + looseBlock;
@@ -2536,7 +2562,7 @@
         + ' <span style="font-family:var(--font-mono);color:var(--accent2)">#' + _esc(r.itemNum) + '</span>'
         + (r.variation ? ' <span style="color:var(--text-dim)">(' + _esc(r.variation) + ')</span>' : '')
         + '<div style="font-size:0.72rem;color:var(--text-dim)">' + _esc(src) + (src ? ' \u00b7 ' : '') + _catalogPartLinkHtml(r, item) + '</div></div>'
-        + '<button onclick="_maintPopWantCatalog(\'' + _esc(r._era || '') + '\',\'' + _esc(r.itemNum) + '\',\'' + _esc(r.variation || '') + '\',\'' + _esc(taskId || '') + '\')" ' + _btn('green', 'sm', 'flex-shrink:0') + '>+ Want it</button>'
+        + '<button onclick="_maintPopWantCatalog(\'' + rrJsArg(r._era || '') + '\',\'' + rrJsArg(r.itemNum) + '\',\'' + rrJsArg(r.variation || '') + '\',\'' + rrJsArg(taskId || '') + '\')" ' + _btn('green', 'sm', 'flex-shrink:0') + '>+ Want it</button>'
         + '</div>';
     }).join('');
   }
@@ -2567,7 +2593,7 @@
         + (p.partNum && p.description ? ' <span style="font-family:var(--font-mono);color:var(--accent2)">#' + _esc(p.partNum) + '</span>' : '')
         + (e.onTask ? ' <span style="color:var(--text-dim);font-size:0.72rem">(now on: ' + _esc(e.onTask) + ')</span>' : ' <span style="color:var(--text-dim);font-size:0.72rem">(not tied to a task)</span>')
         + '</div>'
-        + '<button onclick="_maintPopAttach(' + p.row + ',\'' + _esc(taskId) + '\')" ' + _btn('green', 'sm', 'flex-shrink:0') + '>' + verb + '</button>'
+        + '<button onclick="_maintPopAttach(' + p.row + ',\'' + rrJsArg(taskId) + '\')" ' + _btn('green', 'sm', 'flex-shrink:0') + '>' + verb + '</button>'
         + '</div>';
     };
     return '<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:0.9rem 1rem;margin-bottom:0.8rem">'
@@ -2600,7 +2626,7 @@
       + '<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:0.9rem 1rem;margin-bottom:0.8rem">'
       +   '<div style="' + SECT + '">' + (taskId ? 'Something else? Find the part' : 'Find your part') + '</div>'
       +   '<div style="display:flex;gap:0.4rem;flex-wrap:wrap">'
-      +     '<input id="maint-pop-part" placeholder="part number / description" oninput="_maintBinCheck(\'' + _esc(taskId) + '\')" style="' + IN + '">'
+      +     '<input id="maint-pop-part" placeholder="part number / description" oninput="_maintBinCheck(\'' + rrJsArg(taskId) + '\')" style="' + IN + '">'
       +   '</div>'
       +   '<div id="maint-pop-bin" style="font-size:0.8rem;color:var(--text);margin:0.5rem 0 0.6rem;padding:0.45rem 0.6rem;background:var(--bg-card);border:1px dashed var(--border);border-radius:8px"><span style="color:var(--text-dim)">Checking your bin…</span></div>'
       +   '<div id="maint-pop-catalog" data-task="' + _esc(taskId || '') + '" style="font-size:0.8rem;color:var(--text);margin:0 0 0.6rem"></div>'   // v0.9.1756: the fourth lane — what the parts catalogs say fits this item (v0.9.1759: data-task lets the dealer pick redraw it)
@@ -2608,7 +2634,7 @@
       +   _favRow(MAINT.PREF_DEALERS, 'maint-pop-dealer', 'Any dealer')
       +   '<div style="display:flex;gap:0.4rem;margin-top:0.5rem;flex-wrap:wrap">'
       +     '<button onclick="_maintPopSearch()" ' + linkBtn + '>Search →</button>'
-      +     '<button onclick="_maintPopAddWanted(\'' + _esc(taskId) + '\')" ' + _btnPrimary('padding:0.5rem 0.9rem;font-size:0.78rem') + '>+ Add to Parts Wanted</button>'
+      +     '<button onclick="_maintPopAddWanted(\'' + rrJsArg(taskId) + '\')" ' + _btnPrimary('padding:0.5rem 0.9rem;font-size:0.78rem') + '>+ Add to Parts Wanted</button>'
       +   '</div>'
       +   '<div style="font-size:0.7rem;color:var(--text-dim);margin-top:0.4rem">' + (taskId ? 'Added parts link to THIS task — the card shows when it\'s in the drawer.' : 'The part is wanted for this item — it shows on the bench, and on the item\'s card.') + '</div>'
       + '</div>'
@@ -2862,7 +2888,7 @@
     var btn = function (fn, id, label, tone) {
       var t = tone === 'green' ? 'var(--green)' : 'var(--border)';
       var c = tone === 'green' ? 'var(--green)' : 'var(--text-dim)';
-      return '<button onclick="event.stopPropagation();' + fn + '(\'' + _esc(id) + '\')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid ' + t + ';background:var(--surface2);color:' + c + ';font-family:var(--font-body);margin-right:0.3rem">' + label + '</button>';
+      return '<button onclick="event.stopPropagation();' + fn + '(\'' + rrJsArg(id) + '\')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid ' + t + ';background:var(--surface2);color:' + c + ';font-family:var(--font-body);margin-right:0.3rem">' + label + '</button>';
     };
     var rows = list.map(function (b) {
       var photo = b.photo ? ' <a href="' + _esc(b.photo) + '" target="_blank" rel="noopener" style="font-size:0.72rem;color:var(--accent2);text-decoration:none">Photo</a>' : '';
@@ -2976,7 +3002,7 @@
         + hits.map(function (b) {
         return '<div style="display:flex;justify-content:space-between;align-items:center;gap:0.5rem;padding:0.3rem 0;border-bottom:1px solid var(--border)">'
           + '<div><b>' + _esc(b.desc || b.partNum) + '</b>' + (b.partNum && b.desc ? ' <span style="font-family:var(--font-mono);color:var(--accent2)">#' + _esc(b.partNum) + '</span>' : '') + ' <span style="color:var(--text-dim)">×' + b.qty + (b.where ? ' · ' + _esc(b.where) : '') + '</span></div>'
-          + '<button onclick="_maintBinUse(\'' + _esc(b.id) + '\',\'' + _esc(taskId) + '\')" ' + _btn('green', 'sm') + '>Use one</button>'
+          + '<button onclick="_maintBinUse(\'' + rrJsArg(b.id) + '\',\'' + rrJsArg(taskId) + '\')" ' + _btn('green', 'sm') + '>Use one</button>'
           + '</div>';
       }).join('');
     };
@@ -3099,15 +3125,15 @@
     return '<div style="font-size:0.78rem;margin-top:0.3rem;display:flex;flex-direction:column;gap:0.2rem">' + fits.map(function (f) {
       if (f.kind === 'want') {
         var lab = 'You need one for <b>' + _esc(f.item || '?') + '</b>' + (f.part.description ? ' (' + _esc(f.part.description) + ')' : '') + ' <span style="color:var(--text-dim)">— ' + f.how + '</span>';
-        return '<div style="color:var(--text)">✓ ' + lab + (b.qty > 0 ? ' <button onclick="_maintBinUseFor(\'' + _esc(b.id) + '\',' + f.part.row + ')" ' + _btn('green', 'sm') + '>Use it for ' + _esc(f.item || 'this') + '</button>' : '') + '</div>';
+        return '<div style="color:var(--text)">✓ ' + lab + (b.qty > 0 ? ' <button onclick="_maintBinUseFor(\'' + rrJsArg(b.id) + '\',' + f.part.row + ')" ' + _btn('green', 'sm') + '>Use it for ' + _esc(f.item || 'this') + '</button>' : '') + '</div>';
       }
       if (f.kind === 'number') {
-        var open = f.inv ? '<a href="#" onclick="event.preventDefault();_openOwnedByInvId(\'' + _esc(f.inv) + '\')" style="color:var(--accent3);text-decoration:none">' + _esc(f.label) + '</a>' : '<span style="color:var(--text)">' + _esc(f.label) + '</span>';
+        var open = f.inv ? '<a href="#" onclick="event.preventDefault();_openOwnedByInvId(\'' + rrJsArg(f.inv) + '\')" style="color:var(--accent3);text-decoration:none">' + _esc(f.label) + '</a>' : '<span style="color:var(--text)">' + _esc(f.label) + '</span>';
         return '<div style="color:var(--text-mid)">Fits ' + open + (f.owned ? ' <span style="color:var(--green)">— in your collection</span>' : ' <span style="color:var(--text-dim)">— not in your collection</span>') + ' <span style="color:var(--text-dim)">(from the part number)</span></div>';
       }
       var fl = (f.fits || []).map(function (x) {
         var t = _esc(x.label) + (x.owned ? ' <span style="color:var(--green)">(in your collection)</span>' : '');
-        return x.inv ? '<a href="#" onclick="event.preventDefault();_openOwnedByInvId(\'' + _esc(x.inv) + '\')" style="color:var(--accent3);text-decoration:none">' + t + '</a>' : t;
+        return x.inv ? '<a href="#" onclick="event.preventDefault();_openOwnedByInvId(\'' + rrJsArg(x.inv) + '\')" style="color:var(--accent3);text-decoration:none">' + t + '</a>' : t;
       });
       // v0.9.1755: name the source when there is more than one parts catalog.
       // v0.9.1759: the line's link is the SAME rule as the popup's lane
@@ -3126,7 +3152,7 @@
     var pd = p.forInv ? (state.personalData || {})[p.forInv] : null;
     var m = (p.forItem && typeof findMaster === 'function') ? findMaster(p.forItem) : null;
     var forLabel = p.forItem ? 'For ' + p.forItem + (m && m.roadName ? ' (' + m.roadName + ')' : '') : '';
-    var forHtml = !forLabel ? '' : (pd ? '<a href="#" onclick="event.preventDefault();_openOwnedByInvId(\'' + _esc(p.forInv) + '\')" style="color:var(--accent3);text-decoration:none">🔗 ' + _esc(forLabel) + '</a>' : '<span style="color:var(--accent3)">🔗 ' + _esc(forLabel) + '</span>');
+    var forHtml = !forLabel ? '' : (pd ? '<a href="#" onclick="event.preventDefault();_openOwnedByInvId(\'' + rrJsArg(p.forInv) + '\')" style="color:var(--accent3);text-decoration:none">🔗 ' + _esc(forLabel) + '</a>' : '<span style="color:var(--accent3)">🔗 ' + _esc(forLabel) + '</span>');
     return '<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:0.8rem 1rem;margin-bottom:0.6rem;display:flex;gap:0.7rem;align-items:flex-start;flex-wrap:wrap">'
       + '<div style="flex:1;min-width:200px">'
       +   '<div style="font-weight:700;color:var(--text)">' + _esc(p.description || p.partNum || '—') + (p.partNum && p.description ? ' <span style="font-family:var(--font-mono);color:var(--accent2);font-weight:400">#' + _esc(p.partNum) + '</span>' : '') + '</div>'
@@ -3164,11 +3190,11 @@
         +   _binFitsHtml(b)
         + '</div>'
         + '<div style="display:flex;gap:0.35rem;align-items:center;flex-wrap:wrap">'
-        +   '<button onclick="_maintBinQty(\'' + _esc(b.id) + '\',-1)" ' + small + '>−</button>'
+        +   '<button onclick="_maintBinQty(\'' + rrJsArg(b.id) + '\',-1)" ' + small + '>−</button>'
         +   '<span style="min-width:2.2rem;text-align:center;font-weight:700;color:var(--text)">×' + b.qty + '</span>'
-        +   '<button onclick="_maintBinQty(\'' + _esc(b.id) + '\',1)" ' + small + '>+</button>'
-        +   '<button onclick="_maintBinEdit(\'' + _esc(b.id) + '\')" ' + _btn('blue', 'sm') + '>Edit</button>'
-        +   '<button onclick="_maintBinRemove(\'' + _esc(b.id) + '\')" ' + _btn('red', 'sm') + '>Remove</button>'
+        +   '<button onclick="_maintBinQty(\'' + rrJsArg(b.id) + '\',1)" ' + small + '>+</button>'
+        +   '<button onclick="_maintBinEdit(\'' + rrJsArg(b.id) + '\')" ' + _btn('blue', 'sm') + '>Edit</button>'
+        +   '<button onclick="_maintBinRemove(\'' + rrJsArg(b.id) + '\')" ' + _btn('red', 'sm') + '>Remove</button>'
         + '</div></div>';
     }).join('');
     pg.innerHTML = (head
@@ -3314,11 +3340,11 @@
             +   (d.date ? ' <span style="font-size:0.72rem;color:var(--text-dim)">' + _esc(d.date) + '</span>' : '')
             +   '<div>'
             +     (covers.length ? '<span style="font-size:0.72rem;color:var(--text-dim)">covers</span> ' + covers.slice(0, 12).map(function (c) { return '<span style="' + chip + '">' + _esc(c) + '</span>'; }).join('') + (covers.length > 12 ? '<span style="' + chip + '">+' + (covers.length - 12) + '</span>' : '') : '<span style="font-size:0.72rem;color:var(--text-dim)">general — fits everything</span>')
-            +     (tps.length ? ' ' + tps.map(function (t) { return '<span onclick="_tbTopic(\'' + _esc(t.replace(/\\/g, '\\\\').replace(/'/g, "\\'")) + '\')" title="Show everything about ' + _esc(t) + '" style="' + topicChip + '">' + _esc(t) + '</span>'; }).join('') : '')
+            +     (tps.length ? ' ' + tps.map(function (t) { return '<span onclick="_tbTopic(\'' + rrJsArg(t.replace(/\\/g, '\\\\').replace(/'/g, "\\'")) + '\')" title="Show everything about ' + _esc(t) + '" style="' + topicChip + '">' + _esc(t) + '</span>'; }).join('') : '')
             +   '</div>'
             +   (d.notes ? '<div style="font-size:0.78rem;color:var(--text-mid);margin-top:0.2rem">' + _esc(d.notes).slice(0, 160) + (d.notes.length > 160 ? '…' : '') + '</div>' : '')
             + '</div>'
-            + '<button onclick="_tbEdit(\'' + _esc(d.id) + '\')" ' + _btn('blue', 'sm', 'flex-shrink:0') + '>Edit</button>'
+            + '<button onclick="_tbEdit(\'' + rrJsArg(d.id) + '\')" ' + _btn('blue', 'sm', 'flex-shrink:0') + '>Edit</button>'
             + '</div>';
         }).join('')
       + '</div>';
@@ -3341,7 +3367,7 @@
       + '<label style="' + LB + '">Covers (item numbers, comma-separated — blank = general)</label><input id="tbe-covers" type="text" value="' + _esc(d.covers) + '" style="' + IN + '">'
       + '<label style="' + LB + '">Topics (comma-separated)</label><input id="tbe-topics" type="text" value="' + _esc(d.topics) + '" style="' + IN + '">'
       + '<label style="' + LB + '">Notes</label><textarea id="tbe-notes" rows="3" style="' + IN + ';resize:vertical">' + _esc(d.notes || '') + '</textarea>'
-      + _cardFoot('<button onclick="_tbRemove(\'' + _esc(d.id) + '\')" ' + _btnSecondary('margin-right:auto;color:#e74c3c') + '>Remove</button>'
+      + _cardFoot('<button onclick="_tbRemove(\'' + rrJsArg(d.id) + '\')" ' + _btnSecondary('margin-right:auto;color:#e74c3c') + '>Remove</button>'
       + '<button onclick="document.getElementById(\'tb-edit\').remove()" ' + _btnCancel() + '>Cancel</button>'
       + '<button id="tbe-save" ' + _btnSave() + '>Save</button>')
       + '</div></div>';
@@ -3485,7 +3511,7 @@
       }
       pg.innerHTML = _dz(head2 + table(['Date', 'Item', 'Done', 'By'], shown.map(function (l) {
         var what = (l.type === 'part-installed' ? 'Installed — ' : '') + l.text + (l.partNum ? ' #' + l.partNum : '');
-        return '<tr onclick="_wbHistOpen(\'' + _esc(l.id) + '\')" style="cursor:pointer" onmouseover="this.style.background=\'var(--surface2)\'" onmouseout="this.style.background=\'\'">'
+        return '<tr onclick="_wbHistOpen(\'' + rrJsArg(l.id) + '\')" style="cursor:pointer" onmouseover="this.style.background=\'var(--surface2)\'" onmouseout="this.style.background=\'\'">'
           + '<td style="' + td + ';color:var(--text-dim);white-space:nowrap">' + _esc(l.dateDone || l.dateAdded || '') + '</td>'
           + '<td style="' + td + ';font-weight:700;white-space:nowrap">' + _wbItemLabel(l.itemNum) + '</td>'
           + '<td style="' + td + '">' + _esc(what) + (l.notes ? '<div style="font-size:0.76rem;color:var(--text-dim);margin-top:0.15rem">' + _esc(l.notes).slice(0, 140) + (l.notes.length > 140 ? '…' : '') + '</div>' : '') + '</td>'
@@ -3512,7 +3538,7 @@
       return;
     }
     pg.innerHTML = _dz(head + table(['Item', 'Needs', 'Part', 'Since'], shownRows.map(function (r) {
-      return '<tr onclick="_wbOpen(\'' + _esc(String(r.invId || '')) + '\',\'' + _esc(String(r.itemNum || '')) + '\')" style="cursor:pointer" onmouseover="this.style.background=\'var(--surface2)\'" onmouseout="this.style.background=\'\'">'
+      return '<tr onclick="_wbOpen(\'' + rrJsArg(String(r.invId || '')) + '\',\'' + rrJsArg(String(r.itemNum || '')) + '\')" style="cursor:pointer" onmouseover="this.style.background=\'var(--surface2)\'" onmouseout="this.style.background=\'\'">'
         + '<td style="' + td + ';font-weight:700;white-space:nowrap">' + _wbItemLabel(r.itemNum) + '</td>'
         + '<td style="' + td + '">' + _esc(r.need) + '</td>'
         + '<td style="' + td + ';color:' + (r.part ? 'var(--text)' : 'var(--text-dim)') + '">' + (r.part ? _esc(r.part) : '—') + '</td>'
@@ -3566,7 +3592,7 @@
     var list = q ? all.filter(function (o) { return (o.itemNum + ' ' + o.road + ' ' + o.desc + ' ' + o.variation).toLowerCase().indexOf(q) >= 0; }) : all;
     var IN = 'width:100%;box-sizing:border-box;padding:0.5rem 0.65rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.88rem;margin-bottom:0.6rem';
     var lines = list.slice(0, 60).map(function (o) {
-      return '<div onclick="_wbPicked(\'' + _esc(o.invId) + '\')" style="display:flex;gap:0.6rem;align-items:baseline;padding:0.45rem 0.3rem;border-bottom:1px solid var(--border);cursor:pointer" onmouseover="this.style.background=\'var(--surface2)\'" onmouseout="this.style.background=\'\'">'
+      return '<div onclick="_wbPicked(\'' + rrJsArg(o.invId) + '\')" style="display:flex;gap:0.6rem;align-items:baseline;padding:0.45rem 0.3rem;border-bottom:1px solid var(--border);cursor:pointer" onmouseover="this.style.background=\'var(--surface2)\'" onmouseout="this.style.background=\'\'">'
         + '<b style="white-space:nowrap">' + _esc(o.itemNum) + '</b>'
         + '<span style="color:var(--text);font-size:0.85rem;min-width:0">' + _esc(o.road) + (o.desc ? ' <span style="color:var(--text-dim)">' + _esc(o.desc).slice(0, 60) + '</span>' : '') + (o.variation ? ' <span style="color:var(--text-dim);font-size:0.72rem">var. ' + _esc(o.variation) + '</span>' : '') + '</span>'
         + '</div>';
@@ -3599,7 +3625,7 @@
     if (!open.length) { var c0 = document.getElementById('wb-card'); if (c0) c0.remove(); window._maintPartsPopup('', plain); return; }
     _wbOverlay(_cardHead(ctx + ' · Step 2 of 3', 'Add a part — for which job?', '_wbCloseCard()')
       + open.map(function (l) {
-          return '<div onclick="_wbPartFor(\'' + _esc(l.id) + '\')" style="padding:0.5rem 0.3rem;border-bottom:1px solid var(--border);cursor:pointer" onmouseover="this.style.background=\'var(--surface2)\'" onmouseout="this.style.background=\'\'"><b>' + _esc(l.text) + '</b> <span style="color:var(--text-dim);font-size:0.76rem">since ' + _esc(l.dateAdded) + '</span></div>';
+          return '<div onclick="_wbPartFor(\'' + rrJsArg(l.id) + '\')" style="padding:0.5rem 0.3rem;border-bottom:1px solid var(--border);cursor:pointer" onmouseover="this.style.background=\'var(--surface2)\'" onmouseout="this.style.background=\'\'"><b>' + _esc(l.text) + '</b> <span style="color:var(--text-dim);font-size:0.76rem">since ' + _esc(l.dateAdded) + '</span></div>';
         }).join('')
       + '<div onclick="_wbPartFor(\'\')" style="padding:0.5rem 0.3rem;cursor:pointer;color:var(--text-dim)" onmouseover="this.style.background=\'var(--surface2)\'" onmouseout="this.style.background=\'\'">Not for a particular job — just a part this item needs</div>');
   };

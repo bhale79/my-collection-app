@@ -139,7 +139,7 @@
       + '</div>'
       + '<div id="stock-photo-note" style="grid-column:1/-1;display:flex;justify-content:space-between;align-items:center;gap:0.5rem;font-size:0.74rem;color:var(--text-dim)">'
       + '<span>The maker’s picture, shown by link. Add your own photo and it moves behind it. Never used in sale listings.</span>'
-      + '<button onclick="_stockRemove(\'' + _esc(inv) + '\')" class="maint-btn" style="padding:0.3rem 0.65rem;font-size:0.72rem;background:var(--surface2);color:var(--text-mid);border:1px solid var(--border);border-radius:8px;font-family:var(--font-body);font-weight:600;cursor:pointer;flex-shrink:0">Remove stock photo</button>'
+      + '<button onclick="_stockRemove(\'' + rrJsArg(inv) + '\')" class="maint-btn" style="padding:0.3rem 0.65rem;font-size:0.72rem;background:var(--surface2);color:var(--text-mid);border:1px solid var(--border);border-radius:8px;font-family:var(--font-body);font-weight:600;cursor:pointer;flex-shrink:0">Remove stock photo</button>'
       + '</div>';
     if (mode === 'empty') el.innerHTML = html;
     else el.insertAdjacentHTML('beforeend', html);

@@ -416,10 +416,10 @@
         + '<span style="font-weight:700;color:' + (c.pending ? 'var(--accent)' : 'var(--text-dim)') + '">' + c.pending + '</span> pending'
         + (done ? ' · ' + done + ' decided' : '') + (c.deferred ? ' · ' + c.deferred + ' deferred' : '')
         + (held ? ' · <span style="color:var(--accent);font-weight:700">' + (function () { var s = _ymHeldSplit(b), p = []; if (s.tab) p.push(s.tab + ' need a tab'); if (s.num) p.push(s.num + ' need a number'); return p.join(' \u00b7 '); })() + '</span>' : '') + '</div>'
-        + '<button onclick="_ymBatchOpen(\'' + _esc(b.id) + '\')" style="padding:0.35rem 0.95rem;border-radius:8px;border:1px solid var(--accent2);'
+        + '<button onclick="_ymBatchOpen(\'' + rrJsArg(b.id) + '\')" style="padding:0.35rem 0.95rem;border-radius:8px;border:1px solid var(--accent2);'
         + 'background:var(--surface2);color:var(--accent2);font-family:var(--font-body);font-weight:700;cursor:pointer">Review →</button>'
         + (_dm && !(c.approved + c.edited + c.rejected + c.pending + c.deferred) ? '<span style="font-size:0.95rem;color:var(--text-dim)">rows in the archive tab</span>' : '')
-        + (_dm ? '<button onclick="_ymPutBack(\'' + _esc(b.id) + '\')" title="Show this batch in the queue again" style="padding:0.35rem 0.95rem;border-radius:8px;border:1px solid var(--border);'
+        + (_dm ? '<button onclick="_ymPutBack(\'' + rrJsArg(b.id) + '\')" title="Show this batch in the queue again" style="padding:0.35rem 0.95rem;border-radius:8px;border:1px solid var(--border);'
           + 'background:var(--surface2);color:var(--text);font-family:var(--font-body);cursor:pointer">Put back</button>' : '')
         + '</div>';
     }).join('');
@@ -448,7 +448,7 @@
         + '<td style="padding:0.35rem 0.6rem;white-space:nowrap">' + (c.due
             ? '<span style="color:var(--accent);font-weight:700">DUE</span>'
             : '<span style="color:var(--green)">ok</span>') + '</td>'
-        + '<td style="padding:0.35rem 0 0.35rem 0.6rem"><button onclick="_ymChoreDone(' + c.row + ',\'' + _esc(c.name).replace(/'/g, '') + '\')"'
+        + '<td style="padding:0.35rem 0 0.35rem 0.6rem"><button onclick="_ymChoreDone(' + c.row + ',\'' + rrJsArg(c.name).replace(/'/g, '') + '\')"'
         + ' style="padding:0.25rem 0.7rem;border-radius:7px;border:1px solid var(--border);background:var(--surface2);color:var(--text);cursor:pointer;font-family:var(--font-body)">Mark done</button></td>'
         + '</tr>';
     }).join('');
@@ -1575,7 +1575,7 @@
     var vbtn = function (dd, st, label) {
       var on = (dd.status || 'pending') === st;
       var tone = st === 'approved' ? 'var(--green)' : st === 'rejected' ? 'var(--accent)' : 'var(--text-dim)';
-      return '<button onclick="_ymVerdict(\'' + _esc(dd.id) + '\',\'' + st + '\')" title="Tap the same verdict again to undo it" style="padding:0.25rem 0.65rem;border-radius:7px;cursor:pointer;font-family:var(--font-body);font-size:0.9rem;font-weight:600;'
+      return '<button onclick="_ymVerdict(\'' + rrJsArg(dd.id) + '\',\'' + st + '\')" title="Tap the same verdict again to undo it" style="padding:0.25rem 0.65rem;border-radius:7px;cursor:pointer;font-family:var(--font-body);font-size:0.9rem;font-weight:600;'
         + 'border:1.5px solid ' + (on ? tone : 'var(--border)') + ';background:var(--surface);color:' + (on ? tone : 'var(--text-mid)') + '">'
         + (on ? '\u2713 ' : '') + label + '</button>';
     };
@@ -1611,8 +1611,11 @@
             // The flag text rides inside a JS string inside an HTML attribute:
             // JS-escape first (backslash, quote), THEN HTML-escape — an entity
             // in the attribute would be decoded back into a bare quote before
-            // the JS is ever parsed, which is the wrong order.
-            var g = groups[k], ke = _esc(k.replace(/\\/g, '\\\\').replace(/'/g, "\\'"));
+            // the JS is ever parsed, which is the wrong order. v0.9.1760: that
+            // is exactly what rrJsArg (app.js) does, and it is now the ONE copy —
+            // this was the only place in the app that had it right, while 63
+            // other handler arguments were still one apostrophe from silence.
+            var g = groups[k], ke = rrJsArg(k);
             return '<div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap">'
               + '<span style="color:' + (g.kind === 'check' ? 'var(--accent)' : 'var(--text-dim)') + ';font-size:0.92rem">' + (g.kind === 'check' ? '\u26a0 ' : '\u24d8 ') + _esc(k) + '</span>'
               + '<span style="font-weight:700;color:var(--text)">' + g.n + '</span>'
@@ -1637,7 +1640,7 @@
           + _inp('ym-ed-years', 'Years', dd.years, '9rem')
           + _inp('ym-ed-msrp', 'MSRP', dd.msrp, '5rem')
           + '<div style="display:flex;gap:0.4rem">'
-            + '<button onclick="_ymEditSave(\'' + _esc(dd.id) + '\')" style="padding:0.35rem 0.9rem;border-radius:7px;border:none;background:var(--accent);color:var(--on-accent);font-family:var(--font-body);font-weight:700;cursor:pointer">Save</button>'
+            + '<button onclick="_ymEditSave(\'' + rrJsArg(dd.id) + '\')" style="padding:0.35rem 0.9rem;border-radius:7px;border:none;background:var(--accent);color:var(--on-accent);font-family:var(--font-body);font-weight:700;cursor:pointer">Save</button>'
             + '<button onclick="_ymEditCancel()" style="padding:0.35rem 0.9rem;border-radius:7px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-family:var(--font-body);cursor:pointer">Cancel</button>'
           + '</div>'
           + _flagLine(dd, 'width:100%;font-size:0.92rem;')
@@ -1666,7 +1669,7 @@
               + 'border:1px solid var(--border);background:var(--surface);color:var(--text-dim);text-decoration:none;font-size:0.9rem">Photo</a>' : '')   // v0.9.1683
           + '</div>'
           + '<div style="display:flex;gap:0.4rem">' + vbtn(dd, 'approved', 'Approve') + vbtn(dd, 'rejected', 'Reject') + vbtn(dd, 'deferred', 'Defer')
-            + '<button onclick="_ymEditOpen(\'' + _esc(dd.id) + '\')" title="Change the tab, number, description\u2026 then it counts as approved with your changes" style="padding:0.25rem 0.65rem;border-radius:7px;cursor:pointer;font-family:var(--font-body);font-size:0.9rem;font-weight:600;border:1.5px solid var(--accent2);background:var(--surface);color:var(--accent2)">' + (dd.status === 'edited' ? '\u2713 ' : '') + 'Edit</button>'
+            + '<button onclick="_ymEditOpen(\'' + rrJsArg(dd.id) + '\')" title="Change the tab, number, description\u2026 then it counts as approved with your changes" style="padding:0.25rem 0.65rem;border-radius:7px;cursor:pointer;font-family:var(--font-body);font-size:0.9rem;font-weight:600;border:1.5px solid var(--accent2);background:var(--surface);color:var(--accent2)">' + (dd.status === 'edited' ? '\u2713 ' : '') + 'Edit</button>'
           + '</div>'
         + '</div></div>';
     }).join('');

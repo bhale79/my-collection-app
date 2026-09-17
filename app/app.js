@@ -1070,6 +1070,25 @@ function rrEsc(v) {
 }
 if (typeof window !== 'undefined') window.rrEsc = rrEsc;
 
+// v0.9.1760 (Brad: "the google the parts diagram button does nothing"). Text that
+// lands INSIDE a quoted JavaScript string in an on* handler — a URL, an item
+// number, a part's variation, a person's address. rrEsc is NOT enough there, and
+// this is the trap: rrEsc protects the ATTRIBUTE, but the browser DECODES the
+// attribute before the JavaScript in it is parsed. So an apostrophe in the data
+// closes the string literal early and the WHOLE handler fails to parse — the
+// button then does nothing at all, with no error and no clue. Brad's 8359 is
+// described as EMD GP-7 'GM50' Diesel Locomotive, and those two apostrophes are
+// exactly what killed its parts-diagram button (S99).
+// Escape for the JS string FIRST (backslashes, then quotes), then for the
+// attribute. The attribute's &#39; decodes back to \' — which the JS parser then
+// reads as an ordinary apostrophe inside the string, where it belongs.
+// Use this for every value dropped between quotes in an onclick/onchange; use
+// rrEsc for text the user READS.
+function rrJsArg(v) {
+  return rrEsc(String(v == null ? '' : v).replace(/\\/g, '\\\\').replace(/'/g, "\\'"));
+}
+if (typeof window !== 'undefined') window.rrJsArg = rrJsArg;
+
 function baseItemNum(n) {
   return normalizeItemNum(n).replace(/[-]?[PDTC]$/i, '');
 }

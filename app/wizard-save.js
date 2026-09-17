@@ -1001,8 +1001,14 @@ async function _saveManualEntry() {
     }
   }
 
-  // Build description + type as combined notes/description
-  const fullDesc = [itemType, description].filter(Boolean).join(' — ');
+  // v0.9.1760 (Brad: "storing the description inside Notes as well is two copies
+  // of the same sentence that can't stay in sync" — his 6-24177 carried the same
+  // doubled sentence in BOTH fields). Notes used to be built as
+  //     itemType — description | the user's own notes
+  // so every add wrote a second copy of the description that went stale the
+  // moment the description was edited. The item type is its own field and shows
+  // as a badge on the card; the description is its own field. Notes is now only
+  // what the user actually typed.
 
   // Construct row — Session 156 buildPersonalRow form
   const row = buildPersonalRow({
@@ -1013,7 +1019,7 @@ async function _saveManualEntry() {
     hasBox: hasBox,
     boxCond: boxCond,
     photoItem: photoLink,
-    notes: (fullDesc ? fullDesc + (notes ? ' | ' + notes : '') : notes) || '',
+    notes: notes || '',
     datePurchased: datePurchased,
     purchasedFrom: d.purchasedFrom || '',
     userEstWorth: userEstWorth,

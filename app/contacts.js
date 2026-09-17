@@ -781,8 +781,8 @@
         +   '<div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap;line-height:1.25">'
         +     '<span style="font-weight:800;color:var(--text);font-size:0.92rem">' + _esc(c.name)
         +       (c.business ? ' <span style="font-weight:400;color:var(--text-mid);font-size:0.78rem">· ' + _esc(c.business) + '</span>' : '') + '</span>'
-        +     (persM ? '<img data-card-thumb="' + persM[1] + '" alt="" style="width:26px;height:26px;object-fit:cover;border-radius:50%;border:1px solid var(--border);cursor:pointer;background:#111" onclick="window.open(\'' + _esc(c.personPhoto) + '\', \'_blank\')">' : '')
-        +     (cardM ? '<img data-card-thumb="' + cardM[1] + '" alt="card" class="ct-cthumb" style="width:48px;height:30px;object-fit:cover;border-radius:5px;border:1px solid var(--border);cursor:pointer;background:#111" onclick="window.open(\'' + _esc(c.cardLink) + '\', \'_blank\')">'
+        +     (persM ? '<img data-card-thumb="' + persM[1] + '" alt="" style="width:26px;height:26px;object-fit:cover;border-radius:50%;border:1px solid var(--border);cursor:pointer;background:#111" onclick="window.open(\'' + rrJsArg(c.personPhoto) + '\', \'_blank\')">' : '')
+        +     (cardM ? '<img data-card-thumb="' + cardM[1] + '" alt="card" class="ct-cthumb" style="width:48px;height:30px;object-fit:cover;border-radius:5px;border:1px solid var(--border);cursor:pointer;background:#111" onclick="window.open(\'' + rrJsArg(c.cardLink) + '\', \'_blank\')">'
         +       '<a class="ct-clink" href="' + _esc(c.cardLink) + '" target="_blank" rel="noopener" style="display:none;font-size:0.72rem;color:var(--accent2);text-decoration:none">📇 Card</a>' : '')
         +   '</div>'
         +   (c.title ? '<div style="font-size:0.7rem;color:var(--text-dim)">' + _esc(c.title) + '</div>' : '')
@@ -795,15 +795,15 @@
         +   (chips ? '<div style="margin-top:0.15rem">' + chips + '</div>' : '')
         +   (c.notes ? '<div style="font-size:0.72rem;color:var(--text-mid);margin-top:0.15rem;line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">' + _esc(c.notes) + '</div>' : '')
         +   (c.metAt ? '<div style="font-size:0.66rem;color:var(--text-dim);margin-top:0.1rem">Met: ' + _esc(c.metAt) + '</div>' : '')
-        +   (boughtN ? '<div onclick="_ctShowBought(\'' + _esc(c.id) + '\')" style="font-size:0.7rem;color:var(--accent2);margin-top:0.15rem;cursor:pointer">🛒 ' + boughtN + ' item' + (boughtN > 1 ? 's' : '') + ' bought — tap to see</div>' : '')
+        +   (boughtN ? '<div onclick="_ctShowBought(\'' + rrJsArg(c.id) + '\')" style="font-size:0.7rem;color:var(--accent2);margin-top:0.15rem;cursor:pointer">🛒 ' + boughtN + ' item' + (boughtN > 1 ? 's' : '') + ' bought — tap to see</div>' : '')
         + '</div>'
         + '<div style="display:flex;flex-direction:column;gap:0.25rem;align-items:flex-end;flex-shrink:0;max-width:270px">'
         +   '<div style="display:flex;flex-wrap:wrap;gap:0.25rem;justify-content:flex-end">'
-        +     (c.phone ? '<a href="tel:' + _esc(c.phone.replace(/[^+0-9]/g, '')) + '" onclick="return _ctTel(event, \'' + _esc(c.phone) + '\')" style="' + _sb + ';border:1px solid #2ecc71;color:#2ecc71">📞 ' + _esc(c.phone) + '</a>' : '')
-        +     (c.cellPhone ? '<a href="tel:' + _esc(c.cellPhone.replace(/[^+0-9]/g, '')) + '" onclick="return _ctTel(event, \'' + _esc(c.cellPhone) + '\')" style="' + _sb + ';border:1px solid #2ecc71;color:#2ecc71">📱 ' + _esc(c.cellPhone) + '</a>' : '')
-        +     (c.homePhone ? '<a href="tel:' + _esc(c.homePhone.replace(/[^+0-9]/g, '')) + '" onclick="return _ctTel(event, \'' + _esc(c.homePhone) + '\')" style="' + _sb + ';border:1px solid #2ecc71;color:#2ecc71">🏠 ' + _esc(c.homePhone) + '</a>' : '')
+        +     (c.phone ? '<a href="tel:' + _esc(c.phone.replace(/[^+0-9]/g, '')) + '" onclick="return _ctTel(event, \'' + rrJsArg(c.phone) + '\')" style="' + _sb + ';border:1px solid #2ecc71;color:#2ecc71">📞 ' + _esc(c.phone) + '</a>' : '')
+        +     (c.cellPhone ? '<a href="tel:' + _esc(c.cellPhone.replace(/[^+0-9]/g, '')) + '" onclick="return _ctTel(event, \'' + rrJsArg(c.cellPhone) + '\')" style="' + _sb + ';border:1px solid #2ecc71;color:#2ecc71">📱 ' + _esc(c.cellPhone) + '</a>' : '')
+        +     (c.homePhone ? '<a href="tel:' + _esc(c.homePhone.replace(/[^+0-9]/g, '')) + '" onclick="return _ctTel(event, \'' + rrJsArg(c.homePhone) + '\')" style="' + _sb + ';border:1px solid #2ecc71;color:#2ecc71">🏠 ' + _esc(c.homePhone) + '</a>' : '')
         +   '</div>'
-        +   (c.address ? '<a href="https://maps.google.com/?q=' + encodeURIComponent(c.address) + '" onclick="return _ctMap(event, \'' + encodeURIComponent(c.address) + '\')" target="_blank" rel="noopener" style="font-size:0.7rem;color:#16a085;text-decoration:none;text-align:right">📍 ' + _esc(c.address) + '</a>' : '')
+        +   (c.address ? '<a href="https://maps.google.com/?q=' + encodeURIComponent(c.address) + '" onclick="return _ctMap(event, \'' + rrJsArg(encodeURIComponent(c.address)) + '\')" target="_blank" rel="noopener" style="font-size:0.7rem;color:#16a085;text-decoration:none;text-align:right">📍 ' + _esc(c.address) + '</a>' : '')
         +   '<div style="display:flex;flex-wrap:wrap;gap:0.25rem;justify-content:flex-end">'
         +     (c.email ? '<a href="mailto:' + _esc(c.email) + '" target="_blank" rel="noopener" style="' + _sb + ';border:1px solid #3498db;color:#3498db">✉ Email</a>' : '')
         +     (c.website ? '<a href="' + _esc((/^https?:/i.test(c.website) ? c.website : 'https://' + c.website)) + '" target="_blank" rel="noopener" style="' + _sb + ';border:1px solid #9b59b6;color:#9b59b6">🌐 Web</a>' : '')
@@ -858,7 +858,7 @@
       + items.map(function (pd) {
           var label = 'No. ' + _esc(pd.itemNum || '?') + (pd.customName ? ' — ' + _esc(pd.customName) : (pd.description ? ' — ' + _esc(String(pd.description).substring(0, 40)) : ''));
           var when = pd.datePurchased ? ' <span style="color:var(--text-dim);font-size:0.72rem">' + _esc(pd.datePurchased) + '</span>' : '';
-          return '<div style="padding:0.45rem 0.2rem;border-bottom:1px solid var(--border);font-size:0.85rem;color:var(--text);cursor:pointer" onclick="_ctClose(\'ct-bought-modal\'); if (typeof _openOwnedByInvId === \'function\') _openOwnedByInvId(\'' + _esc(pd.inventoryId || '') + '\')">' + label + when + '</div>';
+          return '<div style="padding:0.45rem 0.2rem;border-bottom:1px solid var(--border);font-size:0.85rem;color:var(--text);cursor:pointer" onclick="_ctClose(\'ct-bought-modal\'); if (typeof _openOwnedByInvId === \'function\') _openOwnedByInvId(\'' + rrJsArg(pd.inventoryId || '') + '\')">' + label + when + '</div>';
         }).join('')
       + '<button onclick="_ctClose(\'ct-bought-modal\')" style="width:100%;margin-top:0.7rem;padding:0.6rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text-mid);cursor:pointer;font-family:var(--font-body)">Close</button>'
       + '</div>';
