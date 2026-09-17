@@ -7276,7 +7276,20 @@ META_WRITES.length = 0; TOASTS.length = 0;
     const pR = require('path');
     const sh = fs.readFileSync(pR.join(__dirname, '..', 'app', 'sheets.js'), 'utf8');
     const aIdx = sh.indexOf('async function sheetsAppend');
-    const aEnd = sh.indexOf('async function sheetsDeleteRow');
+    // v0.9.1762: this used to slice up to "async function sheetsDeleteRow",
+    // i.e. it assumed nothing would ever be written between the two. The
+    // "Deleted Rows" archive now lives there, and the slice swallowed it —
+    // so this suite failed describing sheetsAppend with another function's
+    // code. Brace-match the function itself; nothing inserted around it can
+    // widen the slice again.
+    const aEnd = (function () {
+      let d = 0;
+      for (let k = sh.indexOf('{', aIdx); k < sh.length; k++) {
+        if (sh[k] === '{') d++;
+        else if (sh[k] === '}') { d--; if (!d) return k + 1; }
+      }
+      return -1;
+    })();
     ok('sheetsAppend slice is findable', aIdx > 0 && aEnd > aIdx);
     const body = sh.slice(aIdx, aEnd);
 
@@ -12677,8 +12690,17 @@ META_WRITES.length = 0; TOASTS.length = 0;
       const mkDel7 = (stillIs, tabTitle) => {
         const posts = [], warns = [];
         let toasts = 0, movedTold = 0;
+        // v0.9.1762: sheetsDeleteRow now keeps a copy of the row before it goes
+        // (the "Deleted Rows" archive). This harness lifts the function out on
+        // its own, so it has to supply that helper the same way it supplies
+        // rrRowStillIs — the v1760 lesson again: a sandbox standing in for a
+        // file must gain every new global the file starts using, or the suite
+        // fails for a reason that has nothing to do with what it is testing.
+        // Archiving is proved for real in tests/deleted_archive_tests.js; here
+        // it just has to say yes so the delete path under test can run.
         const fn = new Function('rrRowStillIs', 'console', 'window', '_withTokenRetry',
           'fetch', 'accessToken', 'rrRowMovedToast', 'rrOutboxRowsMoved', '_rrWriteFailed',
+          'rrArchiveRowBeforeRemoval',
           rawDel7.replace(/\basync\s+/g, '').replace(/\bawait /g, '') +
           '\n return sheetsDeleteRow;')(
             () => stillIs,
@@ -12689,7 +12711,8 @@ META_WRITES.length = 0; TOASTS.length = 0;
               return { json: () => ({ sheets: [{ properties: { title: tabTitle, sheetId: 7 } }] }) };
             },
             'tok', () => { toasts++; }, () => { movedTold++; },
-            (kind, where, e) => e);
+            (kind, where, e) => e,
+            () => true);
         return { fn, posts, warns, t: () => toasts, m: () => movedTold };
       };
 
@@ -15718,11 +15741,17 @@ META_WRITES.length = 0; TOASTS.length = 0;
 
       const mk38 = (behaviour) => {
         const calls = { toasts: [] };
+        // v0.9.1762: this removal gate now keeps a copy of the row before it
+        // blanks it. Lifted out on its own, it needs that helper supplied —
+        // same as the delete harness above. Archiving is proved for real in
+        // tests/deleted_archive_tests.js; here it only has to say yes.
         const fn = new Function('rrVerifiedRowUpdate', 'showToast', 'rrSaveError',
+          'rrArchiveRowBeforeRemoval',
           sh38.slice(a38, b38) + ' return rrRemoveRowConfirmed;')(
             behaviour,
             (msg, ms, isErr) => { calls.toasts.push({ msg: String(msg), isErr: !!isErr }); },
-            (e, what) => 'Could not save ' + what + '. [' + String(e && e.message) + ']');
+            (e, what) => 'Could not save ' + what + '. [' + String(e && e.message) + ']',
+            async () => true);
         return { fn, calls };
       };
 

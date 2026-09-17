@@ -36,8 +36,13 @@ ok('…while the toast says SAVED ON THIS DEVICE, not refused',
 ok('there is ONE offline test, and it covers airplane-mid-session too',
    /function _rrOfflineNow\(\)/.test(sh)
    && /window\._offlineMode \|\| \(typeof navigator !== 'undefined' && navigator\.onLine === false\)/.test(sh), '');
-ok('…and all three write doors use it — none checks the boot flag alone',
-   (sh.match(/if \(_rrOfflineNow\(\)\) \{/g) || []).length === 3
+// v0.9.1762: five doors now. The three write doors, plus the two gates of the
+// "Deleted Rows" archive — a removal offline is refused rather than half-done,
+// because the app will not remove a row it cannot copy first. What this pin is
+// really for is unchanged: every door asks the SHARED test, so none of them can
+// go back to reading the boot flag on its own and missing airplane-mid-session.
+ok('…and all five doors use it — none checks the boot flag alone',
+   (sh.match(/if \(_rrOfflineNow\(\)\) \{/g) || []).length === 5
    && !/if \(window\._offlineMode\) \{/.test(sh), '');
 
 // ── sheetsClear keeps its deliberate refusal, with the reason on the spot ──
