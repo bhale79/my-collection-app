@@ -1,5 +1,6 @@
 // ═══════════════════════════════════════════════════════════════
-// deleted_archive_tests.js — v0.9.1762. NOTHING LEAVES WITHOUT A COPY.
+// deleted_archive_tests.js — v0.9.1762 + v0.9.1763. NOTHING LEAVES WITHOUT A
+// COPY, AND YOU CAN PUT IT BACK.
 //
 // Brad, after v1761 shipped: "now can we make sure this doesn't happen again."
 //
@@ -290,10 +291,208 @@ section('Trio');
   const cfg = fs.readFileSync(path.join(__dirname, '..', 'app', 'config.js'), 'utf8');
   const sw  = fs.readFileSync(path.join(__dirname, '..', 'app', 'sw.js'), 'utf8');
   const ix  = fs.readFileSync(path.join(__dirname, '..', 'app', 'index.html'), 'utf8');
-  ok('APP_VERSION v0.9.1762', /const APP_VERSION = 'v0\.9\.1762';/.test(cfg));
-  ok('CACHE_NAME is the version + 10', /const CACHE_NAME = 'mca-v1772';/.test(sw));
-  ok('index.html stamps every asset at 1762 and none at 1761',
-     (ix.match(/\?v=1762/g) || []).length === 79 && !/\?v=1761/.test(ix));
+  ok('APP_VERSION v0.9.1763', /const APP_VERSION = 'v0\.9\.1763';/.test(cfg));
+  ok('CACHE_NAME is the version + 10', /const CACHE_NAME = 'mca-v1773';/.test(sw));
+  ok('index.html stamps every asset at 1763 and none at 1762',
+     (ix.match(/\?v=1763/g) || []).length === 79 && !/\?v=1762/.test(ix));
+}
+
+
+// ══════════════════════════════════════════════════════════════════════════
+// v0.9.1763 — PUT IT BACK. The rows were already safe; this is the half that
+// lets Brad reach them without opening the spreadsheet.
+// ══════════════════════════════════════════════════════════════════════════
+
+// A fake Google with whole SHEETS in it, so the restore's reads (the bin, the
+// target tab's Inventory ID column) answer the way the real API would.
+function boot2(opts) {
+  opts = opts || {};
+  const calls = [], toasts = [];
+  const sheets = opts.sheets || {};
+  const colIdx = (L) => L.split('').reduce((a, c) => a * 26 + (c.charCodeAt(0) - 64), 0) - 1;
+  function readRange(range) {
+    const m = range.replace(/'/g, '').match(/^(.+?)!([A-Z]+)(\d*)(?::([A-Z]+)(\d*))?$/);
+    if (!m) return [];
+    const rows = sheets[m[1]] || [];
+    const c1 = colIdx(m[2]), c2 = m[4] ? colIdx(m[4]) : c1;
+    const r1 = m[3] ? Number(m[3]) : 1;
+    const r2 = m[5] ? Number(m[5]) : (m[3] && !m[4] ? Number(m[3]) : rows.length);
+    const out = [];
+    for (let r = r1; r <= r2; r++) out.push((rows[r - 1] || []).slice(c1, c2 + 1));
+    return out;
+  }
+  function reply(body, okFlag) {
+    return Promise.resolve({ ok: okFlag !== false, status: okFlag === false ? 500 : 200,
+                             json: async () => body, text: async () => JSON.stringify(body) });
+  }
+  const fetch = (url, init) => {
+    const u = decodeURIComponent(String(url));
+    const method = (init && init.method) || 'GET';
+    const body = init && init.body ? JSON.parse(init.body) : null;
+    if (method === 'GET' && /\?fields=sheets\.properties/.test(u))
+      return reply({ sheets: Object.keys(sheets).map(t => ({ properties: { title: t, sheetId: 1 } })) });
+    if (method === 'GET' && /\/values\//.test(u)) {
+      const range = (u.match(/\/values\/([^?]+)/) || [])[1];
+      calls.push({ kind: 'read', range });
+      return reply({ values: readRange(range) });
+    }
+    if (method === 'POST' && /:append/.test(u)) {
+      const range = (u.match(/\/values\/([^?:]+)/) || [])[1];
+      const tab = range.replace(/'/g, '').split('!')[0];
+      calls.push({ kind: 'append', tab, values: body && body.values, raw: /valueInputOption=RAW/.test(u) });
+      if (opts.failAppend) return reply({ error: 'nope' }, false);
+      (sheets[tab] = sheets[tab] || []).push((body.values || [])[0] || []);
+      return reply({ updates: { updatedRange: tab + '!A' + sheets[tab].length + ':Z' + sheets[tab].length } });
+    }
+    if (method === 'PUT' && /\/values\//.test(u)) {
+      const range = (u.match(/\/values\/([^?]+)/) || [])[1];
+      calls.push({ kind: 'mark', range, values: body && body.values });
+      if (opts.failMark) return reply({ error: 'nope' }, false);
+      const m = range.replace(/'/g, '').match(/^(.+?)!([A-Z]+)(\d+)$/);
+      if (m) { const rows = sheets[m[1]] || []; (rows[Number(m[3]) - 1] = rows[Number(m[3]) - 1] || [])[colIdx(m[2])] = (body.values || [[]])[0][0]; }
+      return reply({ updatedCells: 1 });
+    }
+    calls.push({ kind: 'other', url: u, method });
+    return reply({});
+  };
+  const sandbox = {
+    console: { log: () => {}, warn: () => {}, error: () => {} },
+    setTimeout, clearTimeout, fetch, encodeURIComponent, decodeURIComponent, Date, JSON, Promise, Number, String, Object, Array, Math,
+    accessToken: 'tok', API_KEY: '',
+    state: { personalSheetId: MINE, masterSheetId: MASTER },
+    PERSONAL_TAB: 'My Collection',
+    PERSONAL_FIELD_INDEX: { inventoryId: 7 },
+    colLetter: (i) => String.fromCharCode(65 + i),
+    showToast: (m) => toasts.push(String(m)),
+    navigator: { onLine: !opts.offline },
+  };
+  sandbox.window = sandbox;
+  vm.createContext(sandbox);
+  vm.runInContext(SRC, sandbox, { filename: 'sheets.js' });
+  return { sandbox, calls, toasts, sheets };
+}
+// A bin holding two removals: the 6-24177, and an older one already put back.
+const BIN = () => ({
+  'Deleted Rows': [
+    ['Removed rows are kept here.'],
+    ['Removed at', 'From tab', 'Was row', 'What happened', 'Inventory ID', 'Item Number', 'The row...'],
+    ['2026-09-01T10:00:00.000Z', 'My Collection', '11', 'removed — put back 2026-09-02', '77', '2343', '2343', 'F-3', '', '', '', '', '', '77'],
+    ['2026-09-17T02:00:00.000Z', 'My Collection', '233', 'removed', '153', '6-24177', '6-24177', 'Lionel', 'Accessory', 'Hot Air Balloon Ride', '', '', '', '153'],
+  ],
+  'My Collection': [['t'], ['h'], ['6457', '', '', '', '', '', '', '19']],
+});
+
+section('The bin can be read back, newest first');
+{
+  const t = boot2({ sheets: BIN() });
+  const list = await t.sandbox.rrTrashList(25);
+  ok('both removals are listed', list.length === 2, String(list.length));
+  ok('newest first — the 6-24177 that started all this is at the top', list[0].itemNum === '6-24177', list[0].itemNum);
+  ok('each line knows where it came from, when, why, and which copy',
+     list[0].tab === 'My Collection' && list[0].wasRow === '233' && list[0].why === 'removed' && list[0].invId === '153');
+  ok('and carries the row itself, whole', JSON.stringify(list[0].cells.slice(0, 4)) === '["6-24177","Lionel","Accessory","Hot Air Balloon Ride"]');
+  ok('one already put back is flagged, so it is not offered twice',
+     list[1].restored === true && list[0].restored === false);
+  ok('it points at its own line in the bin, for the restore to re-read', list[0].archiveRow === 4 && list[1].archiveRow === 3);
+}
+{
+  const t = boot2({ sheets: { 'My Collection': [] } });
+  const list = await t.sandbox.rrTrashList(25);
+  ok('no bin yet simply means nothing has been removed — not an error', Array.isArray(list) && list.length === 0);
+}
+
+section('Put it back — the row returns to the list it came from');
+{
+  const t = boot2({ sheets: BIN() });
+  const res = await t.sandbox.rrTrashRestore(4);
+  const ap = t.calls.find(c => c.kind === 'append');
+  ok('it reports success, and says which list', res.ok === true && res.tab === 'My Collection', JSON.stringify(res));
+  ok('the row went back to My Collection, not somewhere else', ap && ap.tab === 'My Collection');
+  ok('every cell came back exactly as archived',
+     ap && JSON.stringify(ap.values[0]) === JSON.stringify(['6-24177', 'Lionel', 'Accessory', 'Hot Air Balloon Ride', '', '', '', '153']),
+     JSON.stringify(ap && ap.values[0]));
+  ok('…including its Inventory ID, so the app still knows which copy it is', ap && ap.values[0][7] === '153');
+  ok('written RAW, the same way it was archived', ap && ap.raw === true);
+  const mark = t.calls.find(c => c.kind === 'mark');
+  ok('the bin line is annotated so it cannot be restored twice',
+     mark && / — put back \d{4}-\d\d-\d\d$/.test(mark.values[0][0]), mark && mark.values[0][0]);
+  ok('…and the original reason is kept in front of the note', mark && /^removed — put back /.test(mark.values[0][0]));
+  ok('nothing is deleted from the bin — the line is still there, just marked',
+     t.sheets['Deleted Rows'].length === 4);
+  const list2 = await t.sandbox.rrTrashList(25);
+  ok('so the screen now shows it as already put back', list2[0].restored === true);
+}
+
+section('It refuses rather than making a second copy');
+{
+  const sh = BIN(); sh['My Collection'].push(['6-24177', '', '', '', '', '', '', '153']);   // already back
+  const t = boot2({ sheets: sh });
+  const res = await t.sandbox.rrTrashRestore(4);
+  ok('a copy already in the collection is not added again', res.ok === false && res.reason === 'present', JSON.stringify(res));
+  ok('and nothing was appended', !t.calls.some(c => c.kind === 'append'));
+}
+{
+  const t = boot2({ sheets: BIN() });
+  const res = await t.sandbox.rrTrashRestore(3);        // the one already marked put back
+  ok('a line already put back is refused', res.ok === false && res.reason === 'already');
+  ok('and nothing was appended', !t.calls.some(c => c.kind === 'append'));
+}
+{
+  const t = boot2({ sheets: BIN(), offline: true });
+  const res = await t.sandbox.rrTrashRestore(4);
+  ok('offline it refuses cleanly rather than half-writing', res.ok === false && res.reason === 'offline'
+     && !t.calls.some(c => c.kind === 'append'));
+}
+{
+  const t = boot2({ sheets: BIN(), failAppend: true });
+  const res = await t.sandbox.rrTrashRestore(4);
+  ok('a failed write reports failure', res.ok === false);
+  ok('…and does NOT mark the line, so you can try again', !t.calls.some(c => c.kind === 'mark'),
+     JSON.stringify(t.calls.map(c => c.kind)));
+}
+{
+  const t = boot2({ sheets: BIN(), failMark: true });
+  const res = await t.sandbox.rrTrashRestore(4);
+  ok('if the row lands but the note fails, it still counts as put back', res.ok === true,
+     'the row IS there — failing to annotate is cosmetic');
+}
+
+section('The restore trusts the sheet, not the screen');
+{
+  const t = boot2({ sheets: BIN() });
+  await t.sandbox.rrTrashRestore(4);
+  const reads = t.calls.filter(c => c.kind === 'read').map(c => c.range.replace(/'/g, ''));
+  ok('it re-reads that bin line before writing anything',
+     reads.some(r => /^Deleted Rows!A4:BZ4$/.test(r)), reads.join(' | '));
+  ok('…and checks the target tab\'s Inventory ID column for the duplicate guard',
+     reads.some(r => /^My Collection!H:H$/.test(r)), reads.join(' | '));
+  ok('the id-column check happens BEFORE the append',
+     t.calls.findIndex(c => c.kind === 'read' && /H:H/.test(c.range)) < t.calls.findIndex(c => c.kind === 'append'));
+}
+{
+  // Parts Needed has no Inventory ID column; it cannot be guarded that way and
+  // is allowed through rather than blocked.
+  const sh = BIN();
+  sh['Deleted Rows'].push(['2026-09-17T02:30:00.000Z', 'Parts Needed', '5', 'removed', '', 'PART-7', 'PART-7', 'a drum']);
+  sh['Parts Needed'] = [['t'], ['h']];
+  const t = boot2({ sheets: sh });
+  const res = await t.sandbox.rrTrashRestore(5);
+  ok('a list with no Inventory ID column still restores', res.ok === true && res.tab === 'Parts Needed', JSON.stringify(res));
+}
+
+section('The screen exists and is reachable');
+{
+  const bk = fs.readFileSync(path.join(__dirname, '..', 'app', 'backup.js'), 'utf8');
+  const pf = fs.readFileSync(path.join(__dirname, '..', 'app', 'prefs.js'), 'utf8');
+  ok('backup.js draws Recently Removed, beside the backups', /async function uiTrashList\(\)/.test(bk) && /Recently Removed/.test(bk));
+  ok('…with a Put it back button per row', /uiTrashRestore\(' \+ t\.archiveRow \+ ',/.test(bk) && /Put it back/.test(bk));
+  ok('…and the id in that handler goes through rrJsArg (v1760\'s rule)', /rrJsArg\(t\.itemNum\)/.test(bk));
+  ok('it confirms before putting anything back, and says where it will land',
+     /appConfirm\('Put ' \+ name \+ ' back\?/.test(bk) && /bottom of that list/.test(bk));
+  ok('both are published for the Settings button', /window\.uiTrashList = uiTrashList/.test(bk) && /window\.uiTrashRestore = uiTrashRestore/.test(bk));
+  ok('Settings has the row, next to View Backups', /<strong>Recently Removed<\/strong>/.test(pf) && /onclick="uiTrashList\(\)"/.test(pf));
+  ok('the overlay wires into BackStack, so device Back closes it (the standing rule)', /BackStack\.wire\(modal\)/.test(bk));
+  ok('and it uses the palette\'s scrim rather than a new colour literal', /background:var\(--scrim\)/.test(bk));
 }
 
 console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
