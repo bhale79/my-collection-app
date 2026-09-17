@@ -4613,7 +4613,7 @@ function renderBrowse() {
                          + (_isThisCopyUG ? '<span title="This copy on Upgrade list" style="font-size:0.8rem;color:#8b5cf6">↑</span>' : '')
                          + (_isGrouped ? '<span title="Grouped item" style="font-size:0.8rem">🔗</span>' : '')
                          + (_isQE ? '<span title="Quick Entry — details incomplete" style="font-size:0.8rem">⚡</span>' : '')
-                         + (_hasPhoto ? '<span title="Has photo" style="font-size:0.8rem" onclick="event.stopPropagation();openPhotoFolder(\''+_rrAttrArg(item.itemNum)+'\',\''+_rrAttrArg(_hasPhoto||'')+'\')">📷</span>' : '');
+                         + (_hasPhoto ? '<span title="Has photo" style="font-size:0.8rem" onclick="event.stopPropagation();openPhotoFolder(\''+_rrAttrArg(item.itemNum)+'\',\''+_rrAttrArg(_hasPhoto||'')+'\',\''+_rrAttrArg(_myInvIdM||'')+'\')">📷</span>' : '');
       // v0.9.921 (chunk 2): share keys are per-copy identity — use inventoryId
       // (stable) instead of row number (shifts when sheet rows change). Items
       // without an owned copy / legacy rows keep the composite fallback.

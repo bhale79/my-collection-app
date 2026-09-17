@@ -907,7 +907,10 @@ function showItemDetailPage(idx, copyInvId, opts) {
   // Bug 12 (Session 154): remember which item the detail page is showing so
   // savePhotoOnlyUpdate can re-render it after a photo is added.
   window._lastDetailIdx = idx;
-  window._lastDetailCopyInv = copyInvId || null;
+  // v0.9.1761: _lastDetailCopyInv used to be set HERE, from what the caller
+  // said — which was nothing at nine of the call sites. It is now set ONCE,
+  // below, from the copy the page actually resolves and draws. One writer,
+  // one place; nothing between here and there reads it.
   // Session 115: capture which Browse tab + filter state the user
   // came from so the Back button restores the same tab on return.
   // Was: Back always called filterOwned() which forced _browseTab to
@@ -958,6 +961,22 @@ function showItemDetailPage(idx, copyInvId, opts) {
   // so toolbar actions (edit/sell/forsale/remove/upgrade) target THIS copy,
   // not the first matching one.
   window._lastDetailPdKey = pdKey || null;
+  // ── v0.9.1761: the page PINS the copy it is showing ────────────────────
+  // Every button on this page (Update Info/Pictures, Record Sale, Add to For
+  // Sale, Remove) asks _detailPdKey which copy it is on, and that helper is
+  // only right while _lastDetailCopyInv holds one. Nine callers opened this
+  // page without one — including My Collection itself, which had the key in
+  // hand and dropped it — and with the id missing every one of those buttons
+  // fell back to "first copy with this number wins". That is what deleted
+  // Brad's original 6-24177.
+  //
+  // So the page no longer runs without an answer: whatever the caller said,
+  // the copy actually being drawn is pinned here, on EVERY path through the
+  // lookup above. The user is told which copy it is (the "Copy 1 of 2" chip
+  // in the header) and can switch. An id is always set from this line on, so
+  // nothing downstream can guess. In want mode there is no owned copy and the
+  // pin is cleared, so a stale id cannot leak into the next page.
+  window._lastDetailCopyInv = (pd && pd.inventoryId) ? String(pd.inventoryId) : null;
   if (!pd && !item) return;
   // Infer type from suffix for personal-only items
   let _detailType = pd && pd.itemType ? pd.itemType : '';
@@ -1093,6 +1112,16 @@ function showItemDetailPage(idx, copyInvId, opts) {
   // that takes no space. Kept apart from _descBlock so "no description →
   // no box" (§265) holds unchanged.
   var _maintSlot = `<div id="maint-preview"></div>`;
+  // v0.9.1761 (Brad, on owning two of the same item): two identical rows used
+  // to look identical here — nothing on the page said which one was open, so
+  // "remove the one I just added" was a guess the user could not check. Now
+  // the header says so, and the chip opens a picker to switch.
+  var _allCopyKeys = (!_wantMode && pd && typeof rrOwnedCopyKeys === 'function')
+    ? rrOwnedCopyKeys(it.itemNum, it.variation) : [];
+  var _copyPos = (pdKey && _allCopyKeys.length) ? (_allCopyKeys.indexOf(pdKey) + 1) : 0;
+  var _copyChip = (_allCopyKeys.length > 1 && _copyPos > 0)
+    ? `<span onclick="rrShowCopyPicker(${idx})" title="You own ${_allCopyKeys.length} of this item — click to switch copies" style="font-size:0.8rem;color:var(--accent2);background:var(--surface2);border:1px solid var(--accent2);border-radius:6px;padding:0.12rem 0.5rem;cursor:pointer;white-space:nowrap">Copy ${_copyPos} of ${_allCopyKeys.length} \u25be</span>`
+    : '';
   let _headHtml = `
   <div style="margin-bottom:1.5rem">
     <!-- v0.9.1155 (Brad): "we need a next item, previous item with arrows on
@@ -1123,7 +1152,8 @@ function showItemDetailPage(idx, copyInvId, opts) {
         ${_wantMode
           ? `<span class="owned-badge" style="font-size:0.85rem;background:rgba(59,130,246,0.12);color:#3b82f6;border:1px solid #3b82f6">\u2605 On Want List</span>`
           : `<span class="owned-badge ${isForSale ? 'forsale' : 'yes'}" style="font-size:0.85rem">${isForSale ? '\ud83c\udff7\ufe0f For Sale' : '\u2713 In Collection'}</span>
-        ${cond ? `<span style="font-size:0.85rem"><span class="condition-pip ${condClass}"></span> ${cond}/10</span>` : ''}`}
+        ${cond ? `<span style="font-size:0.85rem"><span class="condition-pip ${condClass}"></span> ${cond}/10</span>` : ''}
+        ${_copyChip}`}
       </div>
     </div>
   </div>`;
@@ -1629,6 +1659,62 @@ function showItemDetailPage(idx, copyInvId, opts) {
     });
   }
 }
+
+// ── v0.9.1761: "which copy?", asked out loud ───────────────────────────────
+// One overlay, two jobs: the header chip uses it to SWITCH copies, and any
+// code that cannot name a copy on its own uses it to ASK instead of guessing.
+// Every row is labelled with what actually tells two copies apart — condition,
+// box, what you paid, when it was added, whether it has photos — and carries
+// its own Inventory ID, which is the thing the app acts on.
+function rrShowCopyPicker(idx) {
+  var item = (idx >= 0 && state.masterData) ? state.masterData[idx] : null;
+  if (!item || typeof rrOwnedCopyKeys !== 'function') return;
+  var keys = rrOwnedCopyKeys(item.itemNum, item.variation);
+  if (keys.length < 2) return;
+  var cur = String(window._lastDetailCopyInv || '');
+  var existing = document.getElementById('rr-copy-picker');
+  if (existing) existing.remove();
+  var overlay = document.createElement('div');
+  overlay.id = 'rr-copy-picker';
+  overlay.style.cssText = 'position:fixed;inset:0;background:var(--scrim);z-index:9600;display:flex;align-items:center;justify-content:center;padding:1rem';
+  var rows = keys.map(function (k, i) {
+    var p = state.personalData[k] || {};
+    var inv = String(p.inventoryId || '');
+    var bits = [];
+    if (p.condition) bits.push('Condition ' + p.condition + '/10');
+    if (p.hasBox) bits.push('Box' + (p.boxCondition ? ' ' + p.boxCondition + '/10' : ''));
+    if (p.pricePaid) bits.push('Paid ' + ((typeof _currencySymbol === 'function' ? _currencySymbol() : '$') + p.pricePaid));
+    var _d = (typeof rrBestDate === 'function') ? rrBestDate(p) : (p.dateAdded || p.datePurchased || '');
+    if (_d) bits.push('Added ' + ((typeof _formatDate === 'function') ? _formatDate(_d) : _d));
+    bits.push(p.photoItem ? 'Has photos' : 'No photos');
+    var isCur = inv && inv === cur;
+    return '<button onclick="rrPickCopy(' + idx + ',\'' + rrJsArg(inv) + '\')" style="display:block;width:100%;text-align:left;padding:0.6rem 0.75rem;margin-bottom:0.45rem;border-radius:9px;cursor:pointer;font-family:var(--font-body);'
+      + (isCur ? 'border:2px solid var(--accent);background:color-mix(in srgb, var(--accent) 12%, var(--bg-card));' : 'border:1.5px solid var(--border);background:var(--bg-card);') + '">'
+      + '<div style="font-size:0.88rem;font-weight:700;color:var(--text)">Copy ' + (i + 1) + (isCur ? ' \u2014 the one you are looking at' : '') + '</div>'
+      + '<div style="font-size:0.78rem;color:var(--text-mid);margin-top:0.15rem;line-height:1.5">' + rrEsc(bits.join(' \u00b7 ')) + '</div>'
+      + '<div style="font-size:0.7rem;color:var(--text-dim);font-family:var(--font-mono);margin-top:0.15rem">Inventory ID ' + rrEsc(inv || '(none yet)') + '</div>'
+      + '</button>';
+  }).join('');
+  overlay.innerHTML = '<div style="background:var(--surface);border:1.5px solid var(--border);border-radius:14px;padding:1.4rem;max-width:420px;width:100%;max-height:80vh;overflow:auto">'
+    + '<div style="font-size:0.72rem;font-weight:700;letter-spacing:0.1em;color:var(--accent);text-transform:uppercase;margin-bottom:0.5rem">Which copy?</div>'
+    + '<div style="font-size:0.88rem;color:var(--text);margin-bottom:0.2rem">You own <strong>' + keys.length + '</strong> of No. ' + rrEsc(item.itemNum || '') + '.</div>'
+    + '<div style="font-size:0.8rem;color:var(--text-mid);margin-bottom:0.9rem;line-height:1.5">Everything on the page \u2014 editing, photos, selling, removing \u2014 acts on the copy you pick here.</div>'
+    + rows
+    + '<button id="rr-copy-cancel" style="width:100%;padding:0.5rem 1rem;margin-top:0.3rem;border-radius:8px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text-mid);font-family:var(--font-body);font-size:0.85rem;cursor:pointer">Cancel</button>'
+    + '</div>';
+  document.body.appendChild(overlay);
+  if (window.BackStack && BackStack.wire) BackStack.wire(overlay);
+  if (typeof bindOverlayClose === 'function') bindOverlayClose(overlay, function () { overlay.remove(); });
+  var _c = overlay.querySelector('#rr-copy-cancel');
+  if (_c) _c.onclick = function () { overlay.remove(); };
+}
+function rrPickCopy(idx, inv) {
+  var o = document.getElementById('rr-copy-picker');
+  if (o) o.remove();
+  if (!inv) return;
+  if (typeof showItemDetailPage === 'function') showItemDetailPage(idx, inv);
+}
+if (typeof window !== 'undefined') { window.rrShowCopyPicker = rrShowCopyPicker; window.rrPickCopy = rrPickCopy; }
 
 // Helper functions for item detail page action buttons
 // Detail-page Remove: delegate to the shared removeCollectionItem (which
@@ -2234,19 +2320,12 @@ function openPhotoWizard(itemNum, variation, pdKey) {
   renderWizardStep();
 }
 
-function addPhotosFromCollection(globalIdx) {
-  var item = state.masterData[globalIdx] || {};
-  var itemNum = item.itemNum || '';
-  var variation = item.variation || '';
-  var pdKey = Object.keys(state.personalData).find(function(k) {
-    var pd = state.personalData[k];
-    return pd && pd.itemNum === itemNum && (!variation || pd.variation === variation) && pd.owned;
-  });
-  if (pdKey) openPhotoWizard(itemNum, variation, pdKey);
-  else showToast('Item not found in collection');
-}
+// v0.9.1761: addPhotosFromCollection lived here — a first-find-by-number photo
+// path with NO callers anywhere in the app. Deleted rather than left loaded:
+// v1760's store seeding was dead since v1662 and still shipped a bug the day
+// someone wired a dropdown back to it.
 
-async function openPhotoFolder(itemNum, storedLink) {
+async function openPhotoFolder(itemNum, storedLink, invId) {
   if (storedLink) {
     var _pfMatch = (storedLink || '').match(/folders\/([a-zA-Z0-9_-]+)/);
     if (_pfMatch && _pfMatch[1] && _pfMatch[1] !== 'undefined') {
@@ -2265,11 +2344,21 @@ async function openPhotoFolder(itemNum, storedLink) {
     var freshLink = driveFolderLink(folderId);
     window.open(freshLink, '_blank');
     // Auto-repair the broken link in the sheet
-    var _pfKey = Object.keys(state.personalData).find(function(k) {
-      var pd = state.personalData[k];
-      return pd && pd.itemNum === itemNum && pd.owned;
-    });
-    if (_pfKey && state.personalData[_pfKey].row) {
+    // ── v0.9.1761: this repair used to pick the copy by ITEM NUMBER ALONE ──
+    // — not even the variation — and then WRITE the folder link onto that
+    // row. Two faults in one line: the user asked to OPEN a folder and got a
+    // write to their sheet, and with two copies of a number the write could
+    // land on the other one. The repair stays (a stale link is worth fixing)
+    // but it only runs when the copy is NAMED: the id the caller passed, or
+    // the single owned copy when there is only one. Two copies and no id
+    // means the folder still opens and nothing is written.
+    var _pfKey = (invId && state.personalData[invId]) ? invId : '';
+    if (!_pfKey && typeof rrCopyInvFor === 'function') {
+      var _pfInv = rrCopyInvFor(itemNum, '', true);
+      if (_pfInv && state.personalData[_pfInv]) _pfKey = _pfInv;
+    }
+    if (!_pfKey) console.warn('[photos] folder link for ' + itemNum + ' not repaired — could not tell which copy it belongs to.');
+    if (_pfKey && state.personalData[_pfKey] && state.personalData[_pfKey].row) {
       state.personalData[_pfKey].photoItem = freshLink;
       try { if (typeof rrThumbBust === 'function') rrThumbBust(state.personalData[_pfKey]); } catch (eTB) {}   // v0.9.1201
       rrVerifiedRowUpdate(state.personalSheetId, PERSONAL_TAB, state.personalData[_pfKey].row, PERSONAL_TAB + '!' + personalColLetter('photoItem') + state.personalData[_pfKey].row, [[freshLink]], { num: state.personalData[_pfKey].itemNum || '', invId: state.personalData[_pfKey].inventoryId || '' }, 'collection').catch(function(e) { console.warn('Photo link update:', e); });
@@ -2420,7 +2509,7 @@ function _showSpecialOwnedMenu(idx, item, ownedItems) {
   box.appendChild(mkBtn(
     '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg> View Item Details',
     'var(--text-dim)', 'var(--surface2)',
-    function() { overlay.remove(); showItemDetailPage(idx); }
+    function() { overlay.remove(); showItemDetailPage(idx, (ownedItems[0] && ownedItems[0].inventoryId) || ''); }   // v0.9.1761: this menu counts the copies, so it can name the one it opens
   ));
   // Add Another Copy
   box.appendChild(mkBtn(
@@ -2800,6 +2889,25 @@ async function removeCollectionItem(itemNum, variation, row, invId, opts) {
   // Check if this item is part of a group with other members
   // Use inventory id (preferred) or row to disambiguate if multiple copies exist
   var pdKey = (invId && state.personalData[invId]) ? invId : findPDKeyByRow(itemNum, variation, row);
+  // ── v0.9.1761: the backstop. Nothing is deleted on a guess. ─────────────
+  // The delete guard below (sheetsDeleteRow) re-reads the row before removing
+  // it, but it can only settle the question on the Inventory ID when it is
+  // GIVEN one; with a blank id it falls back to the item number, and the item
+  // number is the very thing that is not unique. It confirms "yes, that's a
+  // 24177" on either row. So the guard could never have caught this, and the
+  // check has to happen here, before anything is chosen.
+  //
+  // If we still cannot name the copy and the user owns more than one, stop and
+  // say so rather than take the first. (With the detail page now pinning its
+  // copy on open, this should never fire — it is the seatbelt, not the brake.)
+  if (!pdKey && typeof rrOwnedCopyKeys === 'function') {
+    var _rmCands = rrOwnedCopyKeys(itemNum, variation);
+    if (_rmCands.length > 1) {
+      console.warn('[remove] ' + itemNum + ' names ' + _rmCands.length + ' owned copies and no Inventory ID was given — refusing to guess which one.');
+      if (typeof showToast === 'function') showToast('You own ' + _rmCands.length + ' of No. ' + itemNum + ' — open the one you mean and remove it from its own page.', 6000, true);
+      return;
+    }
+  }
   var thisPd = pdKey ? state.personalData[pdKey] : null;
   var groupId = thisPd && thisPd.groupId;
   var groupSiblings = groupId

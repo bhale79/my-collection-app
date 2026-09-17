@@ -221,6 +221,66 @@ function soldCopyKeys(itemNum) {
 }
 if (typeof window !== 'undefined') window.soldCopyKeys = soldCopyKeys;
 
+// ── v0.9.1761 (Brad, after the 6-24177 loss: "make sure we don't have any issues
+// like this where we are not using the item inventory id to select rows") ──────
+//
+// findPD / findPDKey answer "which copy?" with ONE key, because the index holds
+// one key per number+variation. When the user owns two of the same thing that
+// answer is a coin flip, and it is the engine behind every wrong-copy bug: the
+// Remove that deleted his original 6-24177, the photo-folder link that lands on
+// the other row, the set/tender cross-links.
+//
+// The honest answer to "which copy?" is a LIST. This is that list — the exact
+// set of owned copies findPDKey could have picked from, matched the same
+// normalized way (and through the same -P/-D catalog bridging), so the two can
+// never drift apart. Callers that must act on ONE copy take an id from here or
+// ask the user; they never take the first.
+// Pass anyVariation = true where the caller genuinely has only a number in
+// hand (the camera icon on a catalog row, say) — then every variation of that
+// number counts as a candidate, which is the safe direction: more candidates
+// means "ask", never "guess".
+function rrOwnedCopyKeys(itemNum, variation, anyVariation) {
+  var out = [];
+  if (typeof state === 'undefined' || !state || !state.personalData) return out;
+  var n = String(itemNum == null ? '' : itemNum).trim();
+  if (!n) return out;
+  var want = { };
+  want[_pdLookupKey(n, variation)] = 1;
+  want[_pdLookupKey(n + '-P', variation)] = 1;
+  want[_pdLookupKey(n + '-D', variation)] = 1;
+  Object.keys(state.personalData).forEach(function (k) {
+    var pd = state.personalData[k];
+    if (!pd || !pd.owned) return;
+    if (anyVariation) {
+      var pn = String(pd.itemNum == null ? '' : pd.itemNum).trim();
+      if (rrSameNum(pn, n) || rrSameNum(pn, n + '-P') || rrSameNum(pn, n + '-D')) out.push(k);
+      return;
+    }
+    if (want[_pdLookupKey(pd.itemNum, pd.variation)]) out.push(k);
+  });
+  // Stable order, so "Copy 1 of 2" means the same copy on every render. Row
+  // order is how the sheet reads; a row-less copy sorts last.
+  out.sort(function (a, b) {
+    var ra = Number((state.personalData[a] || {}).row) || 999999;
+    var rb = Number((state.personalData[b] || {}).row) || 999999;
+    if (ra !== rb) return ra - rb;
+    return String(a) < String(b) ? -1 : 1;
+  });
+  return out;
+}
+if (typeof window !== 'undefined') window.rrOwnedCopyKeys = rrOwnedCopyKeys;
+
+// The copy's Inventory ID when the number names exactly ONE owned copy; '' when
+// it names none or several. Used where the code has only a number in hand and
+// must not guess — an empty answer means "say which", not "use the first".
+function rrCopyInvFor(itemNum, variation, anyVariation) {
+  var keys = rrOwnedCopyKeys(itemNum, variation, anyVariation);
+  if (keys.length !== 1) return '';
+  var pd = state.personalData[keys[0]];
+  return (pd && pd.inventoryId) ? String(pd.inventoryId) : '';
+}
+if (typeof window !== 'undefined') window.rrCopyInvFor = rrCopyInvFor;
+
 function findPD(itemNum, variation) {
   const idx = _getPdIndex();
   const key = idx[_pdLookupKey(itemNum, variation)];

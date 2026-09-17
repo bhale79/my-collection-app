@@ -141,7 +141,11 @@ function _collectAllOwnedItems() {
       extras:  extras.join(' · '),
       date:    pd.datePurchased || '',
       _savedAt: pd._savedAt || 0,
-      openFn:  idx >= 0 ? "showItemDetailPage(" + idx + ")" : "goToMyCollection()",
+      // v0.9.1761: this is the My Collection list, and it is holding the exact
+      // copy's key while it builds the row — it used to open the detail page
+      // without it, so the page landed on whichever copy of that number came
+      // first and every button there acted on THAT one. Pass the id.
+      openFn:  idx >= 0 ? ("showItemDetailPage(" + idx + ", '" + rrJsArg(pd.inventoryId || '') + "')") : "goToMyCollection()",
     });
   });
 
@@ -405,7 +409,10 @@ function _wantViewDetail(itemNum, variation) {
     }
     var heading = _lead + (_second ? ' with a ' + _second : '');
     if (window._detailReturn !== 'dashboard') window._detailReturn = 'want';   // v0.9.872: opened from a dashboard card -> Back to Dashboard
-    showItemDetailPage(idx, null, { wantMode: true, wantEntry: entry, wantPartner: partner, wantHeading: heading });
+    // v0.9.1761: name the owned copy when the number names exactly one, so the
+    // page's buttons act on it rather than on the first match.
+    showItemDetailPage(idx, (typeof rrCopyInvFor === 'function' ? rrCopyInvFor(itemNum, variation) : ''),
+                       { wantMode: true, wantEntry: entry, wantPartner: partner, wantHeading: heading });
   } else if (typeof showToast === 'function') {
     showToast('Item details not found in catalog');
   }
@@ -2039,7 +2046,7 @@ function buildForSalePage() {
       if (_fsInShare) { if (!window._shareDataMap) window._shareDataMap = {}; window._shareDataMap[_fsShareKey] = { itemNum: fs.itemNum, variation: fs.variation||'', fs: fs, master: master }; }
       const _fsOpen = fs.inventoryId
         ? ('window._detailReturn=\'forsale\';_openOwnedByInvId(\'' + fs.inventoryId + '\')')
-        : (_fsMasterIdx >= 0 ? ('window._detailReturn=\'forsale\';showItemDetailPage(' + _fsMasterIdx + ', \'\')') : '');
+        : (_fsMasterIdx >= 0 ? ('window._detailReturn=\'forsale\';showItemDetailPage(' + _fsMasterIdx + ', \'' + rrJsArg(typeof rrCopyInvFor === 'function' ? rrCopyInvFor(fs.itemNum, fs.variation) : '') + '\')') : '');   // v0.9.1761: an entry with no id still names its copy when only one matches
       const _fsCardClick = _fsInShare ? ('onclick="toggleShareItem(\'' + _fsShareKey + '\')"') : (_fsOpen ? ('onclick="' + _fsOpen + '"') : '');
       const _fsCardCursor = (_fsInShare || _fsOpen) ? 'pointer' : 'default';
       // v0.9.1022 (Brad, phone For Sale): road name sits BESIDE the item
@@ -2107,7 +2114,7 @@ function buildForSalePage() {
       const _fsDMasterIdx = _itemMasterIdx(fs.itemNum, fs.variation);
       const _fsDOpen = fs.inventoryId
         ? `window._detailReturn='forsale';_openOwnedByInvId('${fs.inventoryId}')`
-        : (_fsDMasterIdx >= 0 ? `window._detailReturn='forsale';showItemDetailPage(${_fsDMasterIdx}, '')` : '');
+        : (_fsDMasterIdx >= 0 ? `window._detailReturn='forsale';showItemDetailPage(${_fsDMasterIdx}, '${rrJsArg(typeof rrCopyInvFor === 'function' ? rrCopyInvFor(fs.itemNum, fs.variation) : '')}')` : '');   // v0.9.1761
       const _fsDClickAttr = _fsDInShare
         ? `onclick="toggleShareItem('${_fsDShareKey}')"`
         : (_fsDOpen ? `onclick="${_fsDOpen}"` : '');
@@ -2550,7 +2557,7 @@ async function _removeForSaleFromDetail(idx, inventoryId) {
   buildForSalePage();
   renderBrowse();
   showToast('✓ Removed from For Sale');
-  showItemDetailPage(idx);
+  showItemDetailPage(idx, inventoryId || '');   // v0.9.1761: come back to the SAME copy
 }
 
 // Phase 3: signature is now (fsKey). fsKey is the inventoryId (or
@@ -3543,7 +3550,10 @@ function _upgradeViewMine(ugKey) {
   if (!ug) { showToast('Upgrade entry not found'); return; }
   const master = findMaster(ug.itemNum);
   if (master) {
-    showItemDetailPage(_masterIdxOf(master));
+    // v0.9.1761: the upgrade entry points at the user's actual owned copy —
+    // use it, instead of opening whichever copy of the number came first.
+    showItemDetailPage(_masterIdxOf(master),
+      ug.inventoryId || (typeof rrCopyInvFor === 'function' ? rrCopyInvFor(ug.itemNum, ug.variation) : ''));
   } else {
     showToast('Item not found in master catalog');
   }
@@ -4024,7 +4034,14 @@ async function _upgradeGotItFinish(ugKey, action) {
     if (upgradeEntry && upgradeEntry.inventoryId && state.personalData[upgradeEntry.inventoryId]) {
       pd = state.personalData[upgradeEntry.inventoryId];
     } else {
-      pd = Object.values(state.personalData).find(p => p.owned && rrSameNum(p.itemNum, itemNum) && rrSameVar(p.variation, variation));
+      // v0.9.1761: no id on the upgrade entry. One owned copy is knowledge;
+      // several is a question, and a Remove must never answer it itself.
+      const _ugCands = (typeof rrOwnedCopyKeys === 'function') ? rrOwnedCopyKeys(itemNum, variation) : [];
+      if (_ugCands.length > 1) {
+        showToast('You own ' + _ugCands.length + ' of No. ' + itemNum + ' — open the one you mean and remove it from its own page.', 6000, true);
+        return;
+      }
+      pd = _ugCands.length === 1 ? state.personalData[_ugCands[0]] : null;
     }
     if (pd) await removeCollectionItem(itemNum, variation, pd.row, pd.inventoryId);
     else showToast('Item not found in collection');

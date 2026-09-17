@@ -1483,7 +1483,7 @@ var PANEL_CATALOG = [
           var _co = (typeof _ownedCompanions === 'function') ? _ownedCompanions(pd) : [];
           var groupBadge = _co.length ? ' <span style="font-size:0.72rem;color:var(--accent3);font-weight:600" title="Grouped with ' + _co.join(', ') + '">🔗 ' + _co.join(' ') + '</span>' : (pd.groupId ? ' <span style="font-size:0.55rem;color:var(--accent3);vertical-align:super" title="Grouped">🔗</span>' : '');
           return _panelRow('', pd.itemNum + (pd.variation ? ' <span style="font-size:0.7rem;color:var(--text-dim)">' + pd.variation + '</span>' : '') + groupBadge, name, meta,
-            (pd.inventoryId ? ("_openOwnedByInvId('" + pd.inventoryId + "')") : (idx >= 0 ? 'showItemDetailPage(' + idx + ')' : 'goToMyCollection()')), pd
+            (pd.inventoryId ? ("_openOwnedByInvId('" + pd.inventoryId + "')") : (idx >= 0 ? ("showItemDetailPage(" + idx + ", '" + rrJsArg(typeof rrCopyInvFor === 'function' ? rrCopyInvFor(pd.itemNum, pd.variation) : '') + "')") : 'goToMyCollection()')), pd
           );
         }).join('') || '<div class="empty-state"><p>No items yet</p></div>';
     }
@@ -1554,7 +1554,7 @@ var PANEL_CATALOG = [
           // itemNum|variation lookup silently returned {} so photos never showed.
           var pd = (fs.inventoryId && state.personalData[fs.inventoryId]) || {};
           return _panelRow('🏷️', fs.itemNum + (fs.variation ? ' <span style="font-size:0.7rem;color:var(--text-dim)">' + fs.variation + '</span>' : ''), name, price,
-            (fs.inventoryId ? ("_openOwnedByInvId('" + fs.inventoryId + "')") : (idx >= 0 ? 'showItemDetailPage(' + idx + ')' : 'showPage(\'forsale\', document.querySelector(\'.nav-item[onclick*=buildForSalePage]\'));buildForSalePage();')),
+            (fs.inventoryId ? ("_openOwnedByInvId('" + fs.inventoryId + "')") : (idx >= 0 ? ("showItemDetailPage(" + idx + ", '" + rrJsArg(typeof rrCopyInvFor === 'function' ? rrCopyInvFor(fs.itemNum, fs.variation) : '') + "')") : 'showPage(\'forsale\', document.querySelector(\'.nav-item[onclick*=buildForSalePage]\'));buildForSalePage();')),
             pd
           );
         }).join('') || '<div class="empty-state" style="padding:1.5rem 0"><p>No items listed for sale</p></div>';
@@ -1583,7 +1583,7 @@ var PANEL_CATALOG = [
           var price = _currencySymbol() + pd._val.toLocaleString();
           var idx = master ? _masterIdxOf(master) : -1;
           return _panelRow('💰', pd.itemNum + (pd.variation ? ' <span style="font-size:0.7rem;color:var(--text-dim)">' + pd.variation + '</span>' : ''), name, price,
-            (pd.inventoryId ? ("_openOwnedByInvId('" + pd.inventoryId + "')") : (idx >= 0 ? 'showItemDetailPage(' + idx + ')' : 'goToMyCollection()')), pd
+            (pd.inventoryId ? ("_openOwnedByInvId('" + pd.inventoryId + "')") : (idx >= 0 ? ("showItemDetailPage(" + idx + ", '" + rrJsArg(typeof rrCopyInvFor === 'function' ? rrCopyInvFor(pd.itemNum, pd.variation) : '') + "')") : 'goToMyCollection()')), pd
           );
         }).join('') || '<div class="empty-state"><p>No valued items yet</p></div>';
     }
@@ -1616,7 +1616,7 @@ var PANEL_CATALOG = [
           var meta = [cond ? 'Cond: ' + cond : '', u.targetCondition ? '→ ' + u.targetCondition : ''].filter(Boolean).join(' ');
           var idx = master ? _masterIdxOf(master) : -1;
           return _panelRow('↑', u.itemNum + (u.variation ? ' <span style="font-size:0.7rem;color:var(--text-dim);">' + u.variation + '</span>' : ''), name, meta,
-            (u.inventoryId ? ("_openOwnedByInvId('" + u.inventoryId + "')") : (idx >= 0 ? 'showItemDetailPage(' + idx + ')' : "showPage('upgrade',null);buildUpgradePage()")), pd
+            (u.inventoryId ? ("_openOwnedByInvId('" + u.inventoryId + "')") : (idx >= 0 ? ("showItemDetailPage(" + idx + ", '" + rrJsArg(typeof rrCopyInvFor === 'function' ? rrCopyInvFor(u.itemNum, u.variation) : '') + "')") : "showPage('upgrade',null);buildUpgradePage()")), pd
           );
         }).join('') || '<div class="empty-state"><p>No upgrade targets yet</p></div>';
     }

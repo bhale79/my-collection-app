@@ -907,8 +907,20 @@ function getItemSubjects(data) {
   }
   return subs;
 }
-function getGroupMembers(itemNum) {
-  const pd = Object.values(state.personalData).find(p => p.itemNum === itemNum);
+// v0.9.1761: "whose group?" was answered by the first row carrying the number —
+// owned or not — so with two copies the wrong one's group came back. Prefer a
+// named copy; with several and no id, return nothing rather than the wrong set.
+function getGroupMembers(itemNum, invId) {
+  let pd = (invId && state.personalData[invId]) ? state.personalData[invId] : null;
+  if (!pd && typeof rrOwnedCopyKeys === 'function') {
+    const _keys = rrOwnedCopyKeys(itemNum, '', true);
+    if (_keys.length > 1) {
+      console.warn('[groups] ' + itemNum + ' names ' + _keys.length + ' owned copies — cannot say whose group without an Inventory ID.');
+      return [];
+    }
+    if (_keys.length === 1) pd = state.personalData[_keys[0]];
+  }
+  if (!pd) pd = Object.values(state.personalData).find(p => p.itemNum === itemNum);
   if (!pd || !pd.groupId) return [];
   return Object.values(state.personalData).filter(p => p.groupId === pd.groupId);
 }
@@ -1939,7 +1951,9 @@ async function switchEra(era) {
       });
       if (_idx >= 0 && typeof showItemDetailPage === 'function') {
         if (typeof showPage === 'function') showPage('browse');
-        showItemDetailPage(_idx);
+        // v0.9.1761: say which copy, so the page's buttons cannot pick another.
+        showItemDetailPage(_idx, _po.inventoryId
+          || (typeof rrCopyInvFor === 'function' ? rrCopyInvFor(_po.itemNum, _po.variation) : ''));
       }
     }
     if (typeof renderBrowse === 'function') renderBrowse();
@@ -2064,7 +2078,9 @@ async function loadAllErasMode() {
       });
       if (_idx >= 0 && typeof showItemDetailPage === 'function') {
         if (typeof showPage === 'function') showPage('browse');
-        showItemDetailPage(_idx);
+        // v0.9.1761: say which copy, so the page's buttons cannot pick another.
+        showItemDetailPage(_idx, _po.inventoryId
+          || (typeof rrCopyInvFor === 'function' ? rrCopyInvFor(_po.itemNum, _po.variation) : ''));
       }
     }
     if (typeof renderBrowse === 'function') renderBrowse();

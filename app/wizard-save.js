@@ -1292,7 +1292,18 @@ async function saveWizardItem() {
           if (!existingItem) {
             // Fallback (legacy / no per-candidate choices recorded):
             // first owned matching item.
-            existingItem = Object.values(state.personalData).find(pd => pd.itemNum === itemNum && pd.owned);
+            // v0.9.1761: first-owned-match wrote a groupId, and an Inventory ID
+            // backfill, onto whichever copy came first. With several copies the
+            // user has to say which — the grouping choices above are how they
+            // say it — so no choice recorded plus several copies means no write.
+            const _giCands = (typeof rrOwnedCopyKeys === 'function') ? rrOwnedCopyKeys(itemNum, '', true) : [];
+            if (_giCands.length > 1) {
+              console.warn('[grouping] ' + itemNum + ' names ' + _giCands.length + ' owned copies and no copy was chosen — not backfilling a group onto a guess.');
+              existingItem = null;
+            } else {
+              existingItem = _giCands.length === 1 ? state.personalData[_giCands[0]]
+                                                   : Object.values(state.personalData).find(pd => pd.itemNum === itemNum && pd.owned);
+            }
           }
           if (existingItem) {
             if (existingItem.groupId) {
@@ -1551,9 +1562,12 @@ async function saveWizardItem() {
   if (d.setMatch === 'link' && d._setId) {
     row[PERSONAL_FIELD_INDEX.setId] = d._setId;
     // Update the existing unit's setId if it doesn't have one
-    const existingUnit = Object.values(state.personalData).find(pd =>
-      pd.itemNum === (itemNum.endsWith('C') ? itemNum.slice(0,-1) : itemNum+'C')
-    );
+    // v0.9.1761: this took the first row carrying the partner's number —
+    // owned or not — and stamped a setId on it. Name the copy or leave it.
+    const _partnerNum = itemNum.endsWith('C') ? itemNum.slice(0, -1) : itemNum + 'C';
+    const _suCands = (typeof rrOwnedCopyKeys === 'function') ? rrOwnedCopyKeys(_partnerNum, '', true) : [];
+    if (_suCands.length > 1) console.warn('[sets] ' + _partnerNum + ' names ' + _suCands.length + ' owned copies — not stamping a set id on a guess.');
+    const existingUnit = _suCands.length === 1 ? state.personalData[_suCands[0]] : null;
     if (existingUnit && existingUnit.row && !existingUnit.setId) {
       rrVerifiedRowUpdate(state.personalSheetId, PERSONAL_TAB, existingUnit.row, PERSONAL_TAB + '!' + personalColLetter('setId') + existingUnit.row, [[d._setId]], { num: existingUnit.itemNum || '', invId: existingUnit.inventoryId || '' }, 'collection')
         .catch(e => console.warn('Set ID backfill:', e));
@@ -1631,7 +1645,12 @@ async function saveWizardItem() {
   // Cross-link: if a tender/engine was matched, update that item's matchedTo column too
   const matchedNum = (!isPairedSave && d.tenderMatch && d.tenderMatch !== 'none') ? d.tenderMatch : null;
   if (matchedNum) {
-    const matchedEntry = Object.values(state.personalData).find(pd => pd.itemNum === matchedNum);
+    // v0.9.1761: the engine/tender cross-link took the first row with that
+    // number — not checking owned, not checking the variation — and wrote
+    // matchedTo onto it. Name the copy or write nothing.
+    const _meCands = (typeof rrOwnedCopyKeys === 'function') ? rrOwnedCopyKeys(matchedNum, '', true) : [];
+    if (_meCands.length > 1) console.warn('[match] ' + matchedNum + ' names ' + _meCands.length + ' owned copies — not cross-linking a guess.');
+    const matchedEntry = _meCands.length === 1 ? state.personalData[_meCands[0]] : null;
     if (matchedEntry && matchedEntry.row) {
       // Update col O (index 14) of the matched row
       rrVerifiedRowUpdate(state.personalSheetId, PERSONAL_TAB, matchedEntry.row, PERSONAL_TAB + '!' + personalColLetter('matchedTo') + matchedEntry.row, [[itemNum]], { num: matchedEntry.itemNum || '', invId: matchedEntry.inventoryId || '' }, 'collection').catch(e => console.warn('Cross-link update:', e));
