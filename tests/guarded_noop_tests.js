@@ -196,8 +196,15 @@ ok('the mobile CSS that hid #filter-road / #filter-quick-inline is gone', !/#fil
 
 section('D6 — the live neighbours of each one-liner are intact');
 const col = rd('app-collection.js');
-ok('openItem still fills the modal subtitle and the mi-* cells around where the badges were',
-   /getElementById\('modal-subtitle'\)\.textContent/.test(col) && /getElementById\('mi-type'\)\.textContent/.test(col), '');
+// v0.9.1764: this pinned that v1711's badge removal had not damaged openItem's
+// neighbours. openItem — and the whole item pop-up it belonged to — has since
+// been DELETED (it could overwrite the wrong copy's row, and could not be
+// opened; see §206 of photo-inbox-tests.js). There are no neighbours left to
+// protect, so the check becomes: it really is gone, badges and all.
+ok('the item pop-up openItem belonged to is gone, badges and all',
+   col.indexOf('function openItem(idx)') < 0
+   && !/getElementById\('modal-subtitle'\)\.textContent/.test(col)
+   && !/modal-set-badge|modal-matched-badge/.test(col), '');
 ok('_selectTender still re-renders Step 3 on a tender change (the branch that survived)',
    /if \(_step3Active\) \{\s*\n\s*\/\/ Session 159[^\n]*\n\s*renderWizardStep\(\);/.test(rd('wizard.js')), '');
 ok('…and its one caller is still drawn on Condition & Details', (rd('wizard.js').match(/_showTenderPicker\(\)/g) || []).length === 1, '');

@@ -11410,101 +11410,51 @@ META_WRITES.length = 0; TOASTS.length = 0;
   })();
 
   // ═══════════════════════════════════════════════════════════
-  // §206. v0.9.1258 — audit 2026-08-02, finding 1: saveItem().
+  // §206. v0.9.1258 — saveItem(). ITS SCREEN WAS DELETED IN v0.9.1764.
   //
-  // It ran ~14 sheet writes with no guard anywhere, from an inline
-  // onclick with no await and no catch, and then showed "✓ Item
-  // updated!" unconditionally — the checkmark was not reporting
-  // success, it was the next line of code. Two of the four paths also
-  // erased the row in My Collection BEFORE writing its replacement, so
-  // a failed write on the Sold path destroyed the record outright.
+  // What this section used to hold: 20 pins on the item pop-up's save path —
+  // that the sale/want row is written BEFORE the collection row is erased (a
+  // failed write on the Sold path once destroyed the record outright), that
+  // the writes are awaited inside a try, that a REFUSED write stops the
+  // wrapper and not only a thrown one, that the checkmark sits below the
+  // try/catch rather than above it, and that a double tap cannot append a
+  // second sale.
   //
-  // Each function is sliced at its own closing brace (every brace
-  // INSIDE a function is indented, so "\n}\n" is the end of it). That
-  // way these assertions cannot start reading the next function along
-  // and quietly pass on the wrong code.
+  // In v0.9.1764 that whole pop-up was removed, for two reasons found in the
+  // copy-identity audit: its save located the owned copy by NUMBER and then
+  // replaced that row whole (the 6-24177 bug, in a screen the v1761 sweep
+  // never looked at), and it could not be opened at all — its only caller
+  // passed a personal-data key where it wanted a catalog index, so it threw
+  // after putting its pop-up on screen. The item detail page is now the one
+  // editing screen.
+  //
+  // The PRINCIPLE those pins protected outlives them, so it is written down
+  // here rather than deleted with them: write the replacement BEFORE erasing
+  // the original, and let a refusal stop the rest. That rule now lives in
+  // rrRemoveRowConfirmed and sheetsDeleteRow (v1762: no removal at all without
+  // a copy in the "Deleted Rows" tab first), which every removal path crosses.
   // ═══════════════════════════════════════════════════════════
   (function () {
     const fs206 = require('fs'), p206 = require('path');
-    const coll = fs206.readFileSync(p206.join(__dirname, '..', 'app', 'app-collection.js'), 'utf8');
-    const fnBody = function (decl) {
-      const a = coll.indexOf(decl);
-      if (a < 0) return '';
-      return coll.slice(a, coll.indexOf('\n}\n', a) + 3);
-    };
-    const writesFn = fnBody('async function _saveItemWrites()');
-    const saveFn   = fnBody('async function saveItem()');
-
-    section('206. Write before erase — a failed sale cannot delete an item');
-    ok('both halves of saveItem exist to be checked',
-       writesFn.length > 2000 && saveFn.length > 400,
-       'writes ' + writesFn.length + ', wrapper ' + saveFn.length);
-
-    const soldBranch = writesFn.slice(writesFn.indexOf("currentStatus === 'Sold'"),
-                                      writesFn.indexOf("currentStatus === 'Want'"));
-    ok('the Sold path still records the sale AND clears the collection row',
-       soldBranch.includes("'Sold!A:T'") && soldBranch.includes('personalBlankRow()'));
-    ok('the sale is recorded BEFORE the collection row is erased',
-       soldBranch.indexOf("'Sold!A:T'") < soldBranch.indexOf('personalBlankRow()'),
-       'the erase runs first — a failed append destroys the only copy');
-
-    const wantBranch = writesFn.slice(writesFn.indexOf("currentStatus === 'Want'"));
-    ok('the Want path still writes the want row AND clears the collection row',
-       wantBranch.includes('Want-Upgrade List!A:I') && wantBranch.includes('personalBlankRow()'));
-    ok('the want row is written BEFORE the collection row is erased',
-       wantBranch.indexOf('Want-Upgrade List!A:I') < wantBranch.indexOf('personalBlankRow()'),
-       'the erase runs first — a failed want write loses an owned item');
-
-    section('206b. A failed save says so, in the collector’s words');
-    // v0.9.1276 (R9): the old spelling required the literal `await`, so an
-    // UNawaited sheetsUpdate in saveItem() — a write that fires and floats,
-    // the exact shape §206 exists to guard — was invisible to it. No write
-    // call of any kind belongs in the wrapper, awaited or not.
-    ok('every sheet write sits inside the wrapped function',
-       !/sheets(Update|Append|Clear|DeleteRow)\(/.test(saveFn),
-       'a write is back in saveItem() itself — awaited or not, it belongs in _saveItemWrites');
-    ok('the writes are awaited inside a try',
-       /try \{[\s\S]{0,700}await _saveItemWrites\(\)[\s\S]{0,80}\} catch/.test(saveFn));
-    // v0.9.1267 (R3): a refused row write is not an exception — it is a false
-    // return — so the try/catch above cannot see it. The wrapper has to read
-    // the answer, and has to stop on it, or the dialog closes and ticks over a
-    // save that never landed.
-    ok('…and a REFUSED write stops the wrapper too, not just a thrown one',
-       /\(await _saveItemWrites\(\)\) === false\) return;/.test(saveFn));
-    ok('…and every refusal inside the writes returns that false',
-       (writesFn.match(/await personalWriteRow\([\s\S]{0,70}?\)\)\) return false;/g) || []).length === 3,
-       String((writesFn.match(/await personalWriteRow\([\s\S]{0,70}?\)\)\) return false;/g) || []).length));
-    ok('…and the writes end by saying everything landed',
-       /\n  return true;   \/\/ v0\.9\.1267/.test(writesFn));
-    ok('a failure goes through the one save-error reader',
-       /catch \(e\)[\s\S]{0,500}rrSaveError\(e, 'this item'\)/.test(saveFn));
-    ok('…and is shown as an error, not a normal toast',
-       /rrSaveError[\s\S]{0,240}5000, true\)/.test(saveFn));
-
-    section('206c. The checkmark reports success rather than just following');
-    const catchBlock = (saveFn.match(/\} catch \(e\) \{[\s\S]*?\n  \} finally \{/) || [''])[0];
-    ok('the catch block exists to be checked', catchBlock.length > 60);
-    ok('…and STOPS, instead of falling through to the success tail',
-       /\n\s*return;\s*\n/.test(catchBlock),
-       'no return — a failed save would still close the dialog and tick');
-    ok('the checkmark is below the try/catch, not above it',
-       saveFn.indexOf('catch (e)') < saveFn.indexOf("showToast('✓ Item updated!')"));
-    ok('the dialog closes below it too',
-       saveFn.indexOf('catch (e)') < saveFn.indexOf('closeModal()'));
-
-    section('206d. Save cannot run twice (project rule 5)');
-    ok('a flag guard turns a second tap into a no-op',
-       /if \(window\._saveItemBusy\) return;\s*\n\s*window\._saveItemBusy = true;/.test(saveFn),
-       'on the Sold path a second run appends a SECOND sale row');
-    ok('…and the flag is released however the save ends',
-       /finally \{[\s\S]{0,240}window\._saveItemBusy = false;/.test(saveFn));
-    ok('the button is disabled while the save is in flight',
-       /_btn\.disabled = true;[\s\S]{0,90}Saving/.test(saveFn));
-    ok('…and comes back afterwards',
-       /finally \{[\s\S]{0,320}_btn\.disabled = false;/.test(saveFn));
-    ok('the button the guard reaches for actually exists',
-       /id="fc-save-btn"[^>]*onclick="saveItem\(\)"/.test(coll),
-       'getElementById returns null and the label never changes');
+    const dir206 = p206.join(__dirname, '..', 'app');
+    const coll = fs206.readFileSync(p206.join(dir206, 'app-collection.js'), 'utf8');
+    section('206. The item pop-up is gone — and stays gone');
+    ok('saveItem and _saveItemWrites are not in the app any more',
+       coll.indexOf('async function saveItem()') < 0 && coll.indexOf('async function _saveItemWrites()') < 0);
+    ok('neither is the pop-up they belonged to',
+       ['function _buildItemModal()', 'function openItem(idx)', 'function fillItemFromBoxRow()',
+        'function closeModal()', 'function setStatus(status)'].every(f => coll.indexOf(f) < 0));
+    ok('a note says what was here and why, so it is not rebuilt by accident',
+       /THE ITEM POP-UP IS GONE/.test(coll) && /REPLACED THAT WHOLE ROW/.test(coll));
+    ok('the Edit button that used to open it now opens the detail page, pinned to the copy',
+       /_openOwnedByInvId\(target\.inventoryId\)/.test(fs206.readFileSync(p206.join(dir206, 'wizard.js'), 'utf8')));
+    ok('…and no live code anywhere still calls into the deleted screen', (function () {
+      return !fs206.readdirSync(dir206).filter(f => f.endsWith('.js')).some(function (f) {
+        const t = fs206.readFileSync(p206.join(dir206, f), 'utf8')
+          .split('\n').filter(l => !/^\s*(\/\/|\*)/.test(l)).join('\n');
+        return /\b(openItem|_buildItemModal|closeModal|fillItemFromBoxRow|setStatus|saveItem|_saveItemWrites)\s*\(/.test(t);
+      });
+    })());
   })();
 
   // ═══════════════════════════════════════════════════════════
@@ -15392,8 +15342,12 @@ META_WRITES.length = 0; TOASTS.length = 0;
         // link-fix (show mode 2) — a staged offline photo's Item Photo Link
         // cell, written through the SAME verified writer the photo-only save
         // uses. Exactly where a new row write is supposed to flow.
-        ok('234 the sweep really landed — 73 sites write through the one guarded writer',
-           wrapped === 73, String(wrapped));   // v0.9.1647: +2 (parts lifecycle bought/installed writes)
+        // v0.9.1764: 73 → 67. SIX guarded writes went with the deleted item
+        // pop-up (§206) — a census going DOWN because a screen was removed is
+        // the healthy direction, and the number stays pinned so the next
+        // change still has to be deliberate.
+        ok('234 the sweep really landed — 67 sites write through the one guarded writer',
+           wrapped === 67, String(wrapped));
       }
     })();
 
