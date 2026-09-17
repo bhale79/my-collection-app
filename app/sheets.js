@@ -763,6 +763,121 @@ if (typeof window !== 'undefined') {
   window.RR_TRASH_TAB = RR_TRASH_TAB;
 }
 
+// ══ v0.9.1763 — PUT IT BACK ══════════════════════════════════════════════
+// v1762 made every removal recoverable. It did not make it RECOVERABLE BY THE
+// USER: the rows were safe in the "Deleted Rows" tab, but getting one back
+// meant opening the spreadsheet and copying cells, and Brad does not do manual
+// steps. A safety net you have to be a spreadsheet user to reach is half a net.
+//
+// These two functions are the data side; backup.js draws the list, beside the
+// backup/restore screen that already exists. They live HERE, next to the code
+// that writes the archive, so the tab's shape is described in exactly one file.
+const RR_TRASH_HEAD_COLS = 6;      // when · from tab · was row · why · inv id · item number
+const RR_TRASH_FIRST_ROW = 3;      // two header rows, like every table in this workbook
+
+// The most recent removals, newest first. Read-only.
+async function rrTrashList(limit) {
+  const out = [];
+  if (typeof state === 'undefined' || !state || !state.personalSheetId) return out;
+  let got;
+  try {
+    got = await sheetsGet(state.personalSheetId, "'" + RR_TRASH_TAB + "'!A" + RR_TRASH_FIRST_ROW + ':BZ');
+  } catch (e) {
+    // No tab yet simply means nothing has ever been removed.
+    console.warn('[trash] could not read the bin:', (e && e.message) || e);
+    return out;
+  }
+  const rows = (got && got.values) || [];
+  for (let i = rows.length - 1; i >= 0 && out.length < (limit || 25); i--) {
+    const r = rows[i] || [];
+    if (!r.length || !String(r[1] || '').trim()) continue;          // no source tab = not one of ours
+    const why = String(r[3] == null ? '' : r[3]);
+    out.push({
+      archiveRow: RR_TRASH_FIRST_ROW + i,
+      when:     String(r[0] == null ? '' : r[0]),
+      tab:      String(r[1] == null ? '' : r[1]),
+      wasRow:   String(r[2] == null ? '' : r[2]),
+      why:      why,
+      invId:    String(r[4] == null ? '' : r[4]),
+      itemNum:  String(r[5] == null ? '' : r[5]),
+      cells:    r.slice(RR_TRASH_HEAD_COLS).map(c => (c == null ? '' : String(c))),
+      restored: / \u2014 put back /.test(why),
+    });
+  }
+  return out;
+}
+if (typeof window !== 'undefined') window.rrTrashList = rrTrashList;
+
+// Put ONE row back on the list it came from. Returns {ok, reason, row}.
+//
+// It lands at the BOTTOM of that list rather than its old position: the old row
+// number stopped meaning anything the moment the rows beneath it moved up. That
+// is not a loss — the app finds owned copies by Inventory ID, never by position
+// (v1761) — it just looks different in the sheet.
+async function rrTrashRestore(archiveRow) {
+  if (typeof state === 'undefined' || !state || !state.personalSheetId) return { ok: false, reason: 'not signed in' };
+  if (_rrOfflineNow()) return { ok: false, reason: 'offline' };
+  try {
+    // Re-read the archive line rather than trusting the list on screen.
+    const got = await sheetsGet(state.personalSheetId, "'" + RR_TRASH_TAB + "'!A" + archiveRow + ':BZ' + archiveRow);
+    const r = (((got && got.values) || [[]])[0] || []).map(c => (c == null ? '' : String(c)));
+    const tab = String(r[1] || '').trim();
+    const why = String(r[3] || '');
+    const invId = String(r[4] || '').trim();
+    const cells = r.slice(RR_TRASH_HEAD_COLS);
+    if (!tab || !cells.length || !cells.join('').trim()) return { ok: false, reason: 'that line has nothing to put back' };
+    if (/ \u2014 put back /.test(why)) return { ok: false, reason: 'already' };
+
+    // Already there? Never make a second copy of something that came back once,
+    // or that never actually left. Guarded on the Inventory ID, which is the
+    // only value that names ONE copy; a tab with no id column cannot be checked
+    // this way and is allowed through.
+    if (invId) {
+      const ident = _rrTabIdentity(tab);
+      if (ident) {
+        const col = await sheetsGet(state.personalSheetId, "'" + tab + "'!" + ident.col + ':' + ident.col);
+        const have = ((col && col.values) || []).some(x => String((x && x[0]) || '').trim() === invId);
+        if (have) return { ok: false, reason: 'present' };
+      }
+    }
+
+    // RAW, to match how it was archived: this restores what was THERE, and
+    // USER_ENTERED would reinterpret a date, a leading zero or a leading '='.
+    const res = await _withTokenRetry(() => fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${state.personalSheetId}/values/${_encodeRange(tab + '!A' + RR_TRASH_FIRST_ROW + ':A')}:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`,
+      { method: 'POST',
+        headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ values: [cells] }) }
+    ));
+    if (!res || !res.ok) throw new Error('append returned ' + (res && res.status));
+    const body = await res.json().catch(() => null);
+    const landed = Number((((body && body.updates && body.updates.updatedRange) || '').match(/!A(\d+)/) || [])[1]) || 0;
+
+    // Mark the archive line so the list cannot offer it twice. The line is kept
+    // — the app never deletes anything from this tab — only annotated, and the
+    // original reason stays in front of the note.
+    try {
+      await _withTokenRetry(() => fetch(
+        `https://sheets.googleapis.com/v4/spreadsheets/${state.personalSheetId}/values/${_encodeRange(RR_TRASH_TAB + '!D' + archiveRow)}?valueInputOption=RAW`,
+        { method: 'PUT',
+          headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ values: [[why + ' \u2014 put back ' + new Date().toISOString().slice(0, 10)]] }) }
+      ));
+    } catch (eMark) {
+      // The row IS back; failing to annotate is cosmetic. Say so in the log and
+      // let the user see it listed again rather than pretend it failed.
+      console.warn('[trash] restored but could not mark the archive line:', (eMark && eMark.message) || eMark);
+    }
+    try { window._rrDataRev = (window._rrDataRev || 0) + 1; } catch (e) {}
+    console.log('[trash] put ' + (r[5] || '') + ' back on ' + tab + (landed ? ' at row ' + landed : ''));
+    return { ok: true, row: landed, tab: tab, itemNum: String(r[5] || '') };
+  } catch (e) {
+    console.warn('[trash] could not put row back:', (e && e.message) || e);
+    return { ok: false, reason: (e && e.message) || 'the write failed' };
+  }
+}
+if (typeof window !== 'undefined') window.rrTrashRestore = rrTrashRestore;
+
 // v0.9.1267 (audit 2026-08-02 round 2, finding R3): `expected` is REQUIRED,
 // and omitting it throws rather than deleting.
 //

@@ -187,6 +187,15 @@ function buildPrefsPage() {
         </div>
         <button class="pref-btn" onclick="uiBackupList()">View</button>
       </div>
+      <!-- v0.9.1763: the other half of the v1762 safety net. Every removed row
+           is kept; this is where you put one back, without opening the sheet. -->
+      <div class="pref-row">
+        <div class="pref-row-label">
+          <strong>Recently Removed</strong>
+          <span>Put something back that you removed by mistake</span>
+        </div>
+        <button class="pref-btn" onclick="uiTrashList()">View</button>
+      </div>
       </div>
     </div>
 

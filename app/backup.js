@@ -407,6 +407,86 @@ async function uiBackupList() {
   }
 }
 
+// ══ v0.9.1763 — "Recently Removed", beside the backups ═══════════════════
+// The list of what has left the sheet, and one button to put it back. Same
+// shell as Your Backups above so there is one recovery screen to learn, not two.
+async function uiTrashList() {
+  let modal = document.getElementById('trash-list-modal');
+  if (modal) modal.remove();
+  modal = document.createElement('div');
+  modal.id = 'trash-list-modal';
+  modal.style.cssText = 'position:fixed;inset:0;background:var(--scrim);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem';
+  modal.innerHTML =
+    '<div style="background:var(--surface);color:var(--text);border-radius:12px;max-width:680px;width:100%;max-height:85vh;display:flex;flex-direction:column;border:1.5px solid var(--border)">' +
+      '<div style="padding:1rem 1.25rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">' +
+        '<strong style="font-size:1.05rem">Recently Removed</strong>' +
+        '<button onclick="document.getElementById(\'trash-list-modal\').remove()" style="background:none;border:none;color:var(--text);font-size:1.5rem;cursor:pointer;line-height:1;padding:0 0.25rem">\u00d7</button>' +
+      '</div>' +
+      '<div id="trash-list-body" style="padding:1rem 1.25rem;overflow:auto;flex:1">' +
+        '<div style="text-align:center;color:var(--text-dim);padding:2rem 0">Loading\u2026</div>' +
+      '</div>' +
+    '</div>';
+  document.body.appendChild(modal);
+  if (window.BackStack && BackStack.wire) BackStack.wire(modal);
+  modal.addEventListener('click', function (e) { if (e.target === modal) modal.remove(); });
+
+  const body = document.getElementById('trash-list-body');
+  try {
+    const rows = (typeof rrTrashList === 'function') ? await rrTrashList(25) : [];
+    if (!rows.length) {
+      body.innerHTML = '<div style="text-align:center;color:var(--text-dim);padding:2rem 0">Nothing has been removed yet.<br><span style="font-size:0.8rem">When something is, a copy is kept here and you can put it back from this screen.</span></div>';
+      return;
+    }
+    body.innerHTML =
+      '<div style="font-size:0.85rem;color:var(--text-dim);margin-bottom:0.75rem">The last ' + rows.length + ' thing' + (rows.length === 1 ? '' : 's') + ' removed from your sheet. Nothing here is ever deleted.</div>' +
+      '<div style="display:flex;flex-direction:column;gap:0.5rem">' +
+      rows.map(function (t) {
+        // what it was: the item number, then the first few cells that say something
+        const what = t.cells.slice(1, 5).filter(function (c) { return c && c.trim(); }).join(' \u00b7 ');
+        const when = (typeof _bkpRelativeTime === 'function' && t.when) ? _bkpRelativeTime(t.when) : (t.when || '').slice(0, 10);
+        const label = (t.itemNum || '(no number)') + (what ? ' \u2014 ' + what : '');
+        return '<div style="display:flex;align-items:center;gap:0.75rem;padding:0.65rem 0.75rem;background:var(--surface2);border-radius:8px;border:1px solid var(--border)"' + (t.restored ? ' data-restored="1"' : '') + '>' +
+            '<div style="flex:1;min-width:0">' +
+              '<div style="font-weight:600;font-size:0.9rem;word-break:break-word">' + rrEsc(label.slice(0, 120)) + '</div>' +
+              '<div style="font-size:0.75rem;color:var(--text-dim);margin-top:0.15rem">' +
+                rrEsc(t.tab) + ' \u00b7 ' + rrEsc(when) + (t.why ? ' \u00b7 ' + rrEsc(t.why.slice(0, 60)) : '') +
+                (t.invId ? ' \u00b7 ID ' + rrEsc(t.invId) : '') +
+              '</div>' +
+            '</div>' +
+            (t.restored
+              ? '<span style="font-size:0.78rem;color:var(--text-dim);padding:0.4rem 0.7rem">Put back</span>'
+              : '<button onclick="uiTrashRestore(' + t.archiveRow + ',\'' + rrJsArg(t.itemNum) + '\')" style="font-size:0.78rem;color:var(--on-accent);background:var(--accent);border:none;padding:0.4rem 0.7rem;border-radius:6px;cursor:pointer;font-weight:600;white-space:nowrap">Put it back</button>') +
+          '</div>';
+      }).join('') + '</div>';
+  } catch (e) {
+    console.error('[trash] list failed:', e);
+    body.innerHTML = '<div style="text-align:center;color:var(--danger);padding:2rem 0">Could not read your removed rows.<br><span style="font-size:0.8rem;color:var(--text-dim)">' + rrEsc((e && e.message) || '') + '</span></div>';
+  }
+}
+
+async function uiTrashRestore(archiveRow, itemNum) {
+  const name = itemNum ? ('No. ' + itemNum) : 'this row';
+  const okGo = (typeof appConfirm === 'function')
+    ? await appConfirm('Put ' + name + ' back?\n\nIt returns to the list it came from, with its condition, box, photos and Inventory ID exactly as they were \u2014 at the bottom of that list rather than its old position.', { ok: 'Put it back' })
+    : confirm('Put ' + name + ' back?');
+  if (!okGo) return;
+  if (typeof showToast === 'function') showToast('Putting it back\u2026', 2000);
+  const res = (typeof rrTrashRestore === 'function') ? await rrTrashRestore(archiveRow) : { ok: false, reason: 'not available' };
+  if (res && res.ok) {
+    if (typeof showToast === 'function') showToast('\u2713 ' + name + ' is back in ' + (res.tab || 'your collection') + ' \u2014 tap Sync from Sheet to see it.', 6000);
+  } else if (res && res.reason === 'present') {
+    if (typeof showToast === 'function') showToast(name + ' is already in your collection \u2014 nothing was added.', 5000, true);
+  } else if (res && res.reason === 'already') {
+    if (typeof showToast === 'function') showToast(name + ' was already put back earlier.', 5000, true);
+  } else if (res && res.reason === 'offline') {
+    if (typeof showToast === 'function') showToast('You\u2019re offline \u2014 try again when you\u2019re back.', 5000, true);
+  } else {
+    if (typeof showToast === 'function') showToast('Could not put it back \u2014 ' + ((res && res.reason) || 'try again') + '.', 6000, true);
+  }
+  await uiTrashList();      // redraw so the line shows its new state
+}
+if (typeof window !== 'undefined') { window.uiTrashList = uiTrashList; window.uiTrashRestore = uiTrashRestore; }
+
 // Wired to the Restore button in the View Backups modal.
 async function uiBackupRestore(backupId, backupName) {
   // Confirmation dialog
