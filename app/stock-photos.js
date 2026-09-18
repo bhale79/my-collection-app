@@ -165,7 +165,7 @@
     try {
       if (!(await _writeLink(pd, ''))) return;
       if (typeof showToast === 'function') showToast('✓ Stock photo removed');
-      if (typeof showItemDetailPage === 'function' && typeof window._lastDetailIdx === 'number') showItemDetailPage(window._lastDetailIdx, inv);
+      if (typeof rrDetailRepaint === 'function') rrDetailRepaint(0, inv);   // v0.9.1765: THIS copy, position resolved fresh
     } catch (e) { if (typeof showToast === 'function') showToast('Could not save — ' + (e && e.message || 'try again'), 4000, true); }
   };
 

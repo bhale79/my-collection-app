@@ -7294,8 +7294,7 @@
     doneBtn.style.cssText = 'width:100%;padding:0.7rem;border-radius:10px;border:none;font-weight:700;font-size:0.92rem;cursor:pointer';
     doneBtn.onclick = function () {
       ov.remove();
-      if (typeof window._lastDetailIdx === 'number' && typeof showItemDetailPage === 'function')
-        setTimeout(function () { showItemDetailPage(window._lastDetailIdx, window._lastDetailCopyInv); }, 150);
+      if (typeof rrDetailRepaint === 'function') rrDetailRepaint(150);   // v0.9.1765: by identity, not by remembered position
     };
     card.appendChild(doneBtn);
     ov.appendChild(card);

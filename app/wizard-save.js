@@ -891,8 +891,8 @@ async function savePhotoOnlyUpdate() {
       // photo never appeared at the bottom until back-and-reopen. Re-render.
       try {
         var _dp = document.getElementById('page-itemdetail');
-        if (_dp && _dp.classList.contains('active') && typeof window._lastDetailIdx === 'number' && typeof showItemDetailPage === 'function') {
-          showItemDetailPage(window._lastDetailIdx, window._lastDetailCopyInv);
+        if (_dp && _dp.classList.contains('active') && typeof rrDetailRepaint === 'function') {
+          rrDetailRepaint(0);   // v0.9.1765: by identity, not by remembered position
         }
       } catch (eRR) {}
     } catch(e) {
@@ -914,9 +914,8 @@ async function savePhotoOnlyUpdate() {
   }
   // Bug 12 (Session 154): re-render the item detail page so the newly added
   // photo shows immediately instead of requiring a back-out / refresh.
-  if (typeof window._lastDetailIdx === 'number' && window._lastDetailIdx >= 0
-      && typeof showItemDetailPage === 'function') {
-    setTimeout(function() { showItemDetailPage(window._lastDetailIdx, window._lastDetailCopyInv); }, 0);
+  if (typeof rrDetailRepaint === 'function') {
+    rrDetailRepaint(0);   // v0.9.1765: by identity, not by remembered position
   }
 }
 

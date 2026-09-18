@@ -900,6 +900,69 @@ async function _uploadNonItemPhotos(type, key, entry, cfg, picks, progressCb) {
 }
 window._uploadNonItemPhotos = _uploadNonItemPhotos;
 
+// ── v0.9.1765: the ONE way the item detail page repaints itself ─────────
+//
+// THE BUG THIS FIXES, because it must never come back:
+//
+//   showItemDetailPage(window._lastDetailIdx, window._lastDetailCopyInv)
+//
+// _lastDetailIdx is a POSITION in state.masterData — "row 58,303 of 165,088".
+// The app refreshes one maker's catalog at a time in the background, and that
+// refresh (app.js _applyPendingEras) drops that maker's rows and concats the
+// fresh ones onto the END, so every row at or after them changes position.
+// v0.9.1236 found exactly this for the BROWSE list and fixed it there. The
+// nine places that repainted the DETAIL page from a REMEMBERED position never
+// got the same protection.
+//
+// What that cost (Brad, 2026-09-18): he cropped a photo on an item he owns,
+// and 250ms later the repaint drew whatever now sat at that position — 84511,
+// an item he does not own — so the page came back with no photo, a blank
+// Inventory ID and a blank condition. It looked exactly like his data had been
+// destroyed. Nothing was lost; the page had been pointed at a stranger.
+//
+// THE RULE: the inventory id says WHICH COPY, the catalog row object says
+// WHICH ITEM, and the POSITION is worked out again at the moment of repaint.
+// _openOwnedByInvId (dashboard.js) already resolves a copy that way — era
+// aware, Manual-safe, personal-only-safe — so this does not invent a second
+// resolver; it routes to the one that exists.
+//
+// And when it cannot be sure, it does NOTHING and leaves the page alone. It
+// never draws whatever happens to sit at the old position. Same rule the crop
+// code states for itself: losing a repaint is an annoyance; drawing the wrong
+// item is how an afternoon goes into a photo that was never gone.
+function rrDetailRepaint(delayMs, invIdOverride) {
+  var go = function () {
+    try {
+      var inv = String(invIdOverride || window._lastDetailCopyInv || '');
+      var row = window._lastDetailRow || null;
+      if (inv) {
+        var pd = (state.personalData || {})[inv]
+          || Object.values(state.personalData || {}).find(function (p) { return p && String(p.inventoryId) === inv; });
+        // The copy is gone (removed, sold, or rebuilt away in another tab). Refuse.
+        if (!pd) return;
+        // Fast path: the row this page actually drew is still in the catalog —
+        // repaint THAT row, at whatever position it now occupies.
+        var ri = (row && typeof _masterIdxOf === 'function') ? _masterIdxOf(row) : -1;
+        if (ri >= 0) { showItemDetailPage(ri, inv); return; }
+        // The refresh replaced the row objects themselves. Re-resolve from the
+        // copy's own identity.
+        if (typeof _openOwnedByInvId === 'function') _openOwnedByInvId(inv);
+        return;
+      }
+      // No owned copy: a catalog-only page. The remembered ROW says which item.
+      if (!row) return;
+      var i = (typeof _masterIdxOf === 'function') ? _masterIdxOf(row) : -1;
+      if (i < 0 && typeof findMaster === 'function') {
+        var m = findMaster(row.itemNum, row.variation, null);
+        i = (m && typeof _masterIdxOf === 'function') ? _masterIdxOf(m) : -1;
+      }
+      if (i >= 0) showItemDetailPage(i, '');
+    } catch (e) { console.warn('[detail repaint]', e); }
+  };
+  if (delayMs > 0) setTimeout(go, delayMs); else go();
+}
+if (typeof window !== 'undefined') window.rrDetailRepaint = rrDetailRepaint;
+
 function showItemDetailPage(idx, copyInvId, opts) {
   var _wantMode = !!(opts && opts.wantMode);
   var _wantEntry = opts && opts.wantEntry;
@@ -978,6 +1041,11 @@ function showItemDetailPage(idx, copyInvId, opts) {
   // nothing downstream can guess. In want mode there is no owned copy and the
   // pin is cleared, so a stale id cannot leak into the next page.
   window._lastDetailCopyInv = (pd && pd.inventoryId) ? String(pd.inventoryId) : null;
+  // v0.9.1765: the page also pins the catalog ROW OBJECT it drew. The copy
+  // id above says WHICH COPY; this says WHICH ITEM. _lastDetailIdx is only a
+  // position, and a background era refresh moves every row after the
+  // refreshed maker — see rrDetailRepaint above for what that cost.
+  window._lastDetailRow = item || null;
   if (!pd && !item) return;
   // Infer type from suffix for personal-only items
   let _detailType = pd && pd.itemType ? pd.itemType : '';
@@ -1610,9 +1678,7 @@ function showItemDetailPage(idx, copyInvId, opts) {
             } catch (eU) { console.warn('[group photo]', eU); }
           }
           if (typeof showToast === 'function') showToast(okCount ? ('\u2713 ' + okCount + (okCount === 1 ? ' group photo added' : ' group photos added')) : 'Upload failed \u2014 try again', 3500, !okCount);
-          if (okCount && typeof window._lastDetailIdx === 'number' && typeof showItemDetailPage === 'function') {
-            setTimeout(function () { showItemDetailPage(window._lastDetailIdx, window._lastDetailCopyInv); }, 300);
-          }
+          if (okCount) rrDetailRepaint(300);   // v0.9.1765: by identity, not by remembered position
         };
         inp.click();
       };
@@ -1991,9 +2057,9 @@ async function _detailPhotoEdit(fileId, fileName, folderLink, imgId) {
       // (the healed caches serve the fresh bytes).
       try {
         var _dpg = document.getElementById('page-itemdetail');
-        if (_dpg && _dpg.classList.contains('active') && typeof window._lastDetailIdx === 'number' && typeof showItemDetailPage === 'function') {
-          setTimeout(function () { showItemDetailPage(window._lastDetailIdx, window._lastDetailCopyInv); }, 250);
-        }
+        // v0.9.1765: THIS is the line that drew 84511 over Brad's item after a
+        // crop. Repaint by identity; the position is worked out fresh.
+        if (_dpg && _dpg.classList.contains('active')) rrDetailRepaint(250);
       } catch (eRR) {}
     } else if (typeof showToast === 'function') {
       showToast('Could not save the edited photo — try again', 3500, true);
@@ -2020,8 +2086,7 @@ async function _rrPhotoBackToInbox(fileId, fileName, folderLink) {
     if (!inboxFid || !fromFid) throw new Error('Missing folder');
     await driveMoveFileToFolder(fileId, fromFid, inboxFid);
     if (typeof showToast === 'function') showToast('\u2713 Photo sent back to the Photo Inbox');
-    if (typeof window._lastDetailIdx === 'number' && typeof showItemDetailPage === 'function')
-      setTimeout(function () { showItemDetailPage(window._lastDetailIdx, window._lastDetailCopyInv); }, 200);
+    rrDetailRepaint(200);   // v0.9.1765: by identity, not by remembered position
   } catch (e) {
     console.warn('[back-to-inbox]', e);
     if (typeof showToast === 'function') showToast('Could not send the photo back \u2014 try again', 4000, true);
@@ -3630,10 +3695,7 @@ async function _deleteCollectionPhoto(fileId, fileName, wrapEl) {
     // Refresh the detail page PHOTOS card behind the modal so it reflects the
     // deletion without a manual refresh. Small delay lets Drive's trash settle
     // before the card re-fetches the folder listing.
-    if (typeof window._lastDetailIdx === 'number'
-        && typeof showItemDetailPage === 'function') {
-      setTimeout(function() { showItemDetailPage(window._lastDetailIdx, window._lastDetailCopyInv); }, 200);
-    }
+    rrDetailRepaint(200);   // v0.9.1765: by identity, not by remembered position
   } catch(e) {
     console.error('Delete photo error:', e);
     if (typeof showToast === 'function') showToast('Could not delete photo \u2014 please try again', 4000, true);
@@ -4236,9 +4298,8 @@ function showItemPanel(idx, pdKey, mode) {
         // NEW variation's catalog row — the stored index points at the old one.
         if (_varChanged && pd.inventoryId && typeof _openOwnedByInvId === 'function') {
           _openOwnedByInvId(pd.inventoryId);
-        } else if (typeof window._lastDetailIdx === 'number'
-            && typeof showItemDetailPage === 'function') {
-          showItemDetailPage(window._lastDetailIdx, window._lastDetailCopyInv);
+        } else {
+          rrDetailRepaint(0);   // v0.9.1765: by identity, not by remembered position
         }
       } catch(e) {
         saveBtn.textContent = '💾 Save All Changes'; saveBtn.disabled = false;
