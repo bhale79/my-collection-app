@@ -963,6 +963,27 @@ function rrDetailRepaint(delayMs, invIdOverride) {
 }
 if (typeof window !== 'undefined') window.rrDetailRepaint = rrDetailRepaint;
 
+// ── v0.9.1767: the handler string for a link that opens an OWNED item ───
+//
+// A position baked into an onclick is a promise about where a row sits, kept
+// until someone clicks — which may be minutes later. _applyPendingEras (app.js)
+// moves a maker's whole block mid-session, so that promise expires silently.
+// The browse list and My Collection survive it because the era swap reindexes
+// and repaints them in one step (v0.9.1251); a detail page sitting open is NOT
+// repainted, so ITS links must not depend on a position at all.
+//
+// The inventory id answers first when there is one — through _openOwnedByInvId
+// (dashboard.js), which resolves the copy and works the position out fresh.
+// The position is only for a row with no id (pre-v1761). This is the pattern
+// the dashboard cards already use; it lives here so there is ONE place that
+// decides, and the links below cannot drift apart from it.
+function _rrOpenJs(idx, inv) {
+  var i = String(inv == null ? '' : inv).trim();
+  if (i) return "_openOwnedByInvId('" + rrJsArg(i) + "')";
+  return 'showItemDetailPage(' + idx + ", '')";
+}
+if (typeof window !== 'undefined') window._rrOpenJs = _rrOpenJs;
+
 function showItemDetailPage(idx, copyInvId, opts) {
   var _wantMode = !!(opts && opts.wantMode);
   var _wantEntry = opts && opts.wantEntry;
@@ -1419,7 +1440,7 @@ function showItemDetailPage(idx, copyInvId, opts) {
       const _mtClickable = _mtPdKey && _mtIdx !== -1;
       var _mtInv = (state.personalData[_mtPdKey] && state.personalData[_mtPdKey].inventoryId) || '';
       html += `<div style="font-size:0.85rem;color:var(--text-mid);margin-bottom:0.3rem">${_mIcon} Matched to: ${_mtClickable
-        ? '<a href="javascript:void(0)" onclick="showItemDetailPage(' + _mtIdx + ", '" + _mtInv + "'" + ')" style="color:var(--accent);font-weight:700;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:3px;cursor:pointer">' + matchedTo + '</a>'
+        ? '<a href="javascript:void(0)" onclick="' + _rrOpenJs(_mtIdx, _mtInv) + '" style="color:var(--accent);font-weight:700;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:3px;cursor:pointer">' + matchedTo + '</a>'
         : '<strong style="color:var(--accent)">' + matchedTo + '</strong>'}</div>`;
     }
     if (setId) {
@@ -1439,7 +1460,7 @@ function showItemDetailPage(idx, copyInvId, opts) {
             if (_poIdx < 0) _poIdx = window._poKeys.push(_gPdKey) - 1;
             _gIdx = -(_poIdx + 1000);
           }
-          return '<a href="javascript:void(0)" onclick="showItemDetailPage(' + _gIdx + ", '" + _gInv + "'" + ')" style="color:var(--accent);font-family:var(--font-mono);text-decoration:underline;text-decoration-style:dotted;text-underline-offset:3px;cursor:pointer">' + m.itemNum + '</a>';
+          return '<a href="javascript:void(0)" onclick="' + _rrOpenJs(_gIdx, _gInv) + '" style="color:var(--accent);font-family:var(--font-mono);text-decoration:underline;text-decoration-style:dotted;text-underline-offset:3px;cursor:pointer">' + m.itemNum + '</a>';
         }
         return '<span style="color:var(--accent);font-family:var(--font-mono)">' + m.itemNum + '</span>';
       }).join(', ')}</div>`;
