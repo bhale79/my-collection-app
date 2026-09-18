@@ -153,7 +153,14 @@ FILES.forEach(function (f) {
 // works the position out fresh — see tests/detail_repaint_tests.js. A census
 // going DOWN because positional openers were removed is the healthy
 // direction; the floor stays pinned so the next change is still deliberate.
-ok('the sweep actually found the call sites (not a broken scanner)', callSites >= 26, String(callSites));
+// v0.9.1767: 26 -> 25. The detail page's "Matched to" and "Grouped with"
+// links stopped baking a catalog POSITION into their onclick (a position
+// baked into markup waits there until someone clicks, and _applyPendingEras
+// moves rows mid-session); they now build their handler with _rrOpenJs, which
+// asks by inventory id and keeps a position only for a row that has none.
+// Two call sites went, the helper's one sanctioned fallback arrived: net -1.
+// See tests/opener_identity_tests.js.
+ok('the sweep actually found the call sites (not a broken scanner)', callSites >= 25, String(callSites));
 ok('EVERY showItemDetailPage call names a copy — a new one that forgets turns this red',
    bare.length === 0, bare.join(' | '));
 
