@@ -145,7 +145,15 @@ FILES.forEach(function (f) {
     }
   });
 });
-ok('the sweep actually found the call sites (not a broken scanner)', callSites >= 28, String(callSites));
+// v0.9.1765: 35 -> 26. NINE of these were repaints that passed a REMEMBERED
+// POSITION (window._lastDetailIdx) rather than opening a named item, and a
+// background era refresh moves every row after the refreshed maker, so the
+// position could mean a different item by the time the repaint ran. They now
+// go through rrDetailRepaint, which resolves the copy by inventory id and
+// works the position out fresh — see tests/detail_repaint_tests.js. A census
+// going DOWN because positional openers were removed is the healthy
+// direction; the floor stays pinned so the next change is still deliberate.
+ok('the sweep actually found the call sites (not a broken scanner)', callSites >= 26, String(callSites));
 ok('EVERY showItemDetailPage call names a copy — a new one that forgets turns this red',
    bare.length === 0, bare.join(' | '));
 

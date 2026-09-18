@@ -22868,9 +22868,22 @@ META_WRITES.length = 0; TOASTS.length = 0;
          /rrPhotoBytesChanged\(fileId, blob\)/.test(pc30.slice(pc30.indexOf('_cropReplaceDriveFile'))), '');
       ok('330 the inbox\u2019s force-fresh marker is published for the healer',
          /window\._rrMarkCropped = _markCropped/.test(pi30), '');
+      // v0.9.1765: this pinned the repaint as showItemDetailPage(window._lastDetailIdx…),
+      // and that is the line that broke. _lastDetailIdx is a POSITION in
+      // state.masterData; the background era refresh moves every row after the
+      // refreshed maker, so 250ms after a crop the position could mean a
+      // different item. Brad's page came back as 84511 — one he does not own —
+      // with no photo and a blank Inventory ID, looking exactly like lost data.
+      // The requirement that this pin protects is unchanged (the page must
+      // re-render after a crop so the hero repaints whatever its img id); only
+      // the mechanism moved, to rrDetailRepaint, which resolves the copy by
+      // inventory id and works the position out fresh.
+      const crop30 = ac30.slice(ac30.indexOf('the id lookup above misses'),
+                                ac30.indexOf('the id lookup above misses') + 900);
       ok('330 the detail page re-renders after a crop — the hero repaints whatever its img id',
-         ac30.indexOf('the id lookup above misses') > 0
-         && /showItemDetailPage\(window\._lastDetailIdx/.test(ac30.slice(ac30.indexOf('the id lookup above misses'), ac30.indexOf('the id lookup above misses') + 700)), '');
+         ac30.indexOf('the id lookup above misses') > 0 && /rrDetailRepaint\(250\)/.test(crop30), '');
+      ok('330 …and it repaints by identity, never from a remembered position',
+         !/showItemDetailPage\(\s*window\._lastDetailIdx/.test(crop30), '');
     })();
 
     // ═══════════════════════════════════════════════════════════
