@@ -1842,6 +1842,20 @@
           + '<div id="maint-tasks" style="margin-top:0.6rem"></div>'
           + '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.45rem">Each task is a card: notes, a part if it needs one, videos for the job, Done when it\'s done.</div>', 'work')
 
+      // ── v0.9.1766 (Brad): "we need a parts box like the tasks for this item.
+      // In this box, we need to show the parts available the user has on hand
+      // for this particular item only. also need the parts add feature here."
+      // Before this, the screen said NOTHING about parts unless a task was open
+      // — _maintRenderTasks returned early — and with no task there was no way
+      // to add one either. + Add a part opens the SAME picker the task card's
+      // "Need a part" opens, with no job attached (the Workbench already opens
+      // it that way). Filled by _maintRenderTasks, so one renderer draws the
+      // part lines here and under the tasks, and neither can drift.
+      + sec('Parts for this item',
+          '<button onclick="_maintPartsPopup(\'\',\'No. ' + rrJsArg(String(item.itemNum || '')) + '\')" ' + _btnPrimary('padding:0.5rem 0.9rem;font-size:0.78rem') + '>+ Add a part</button>'
+          + '<div id="maint-parts" style="margin-top:0.6rem"></div>'
+          + '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.45rem">What you have on hand for this one, and anything you\'re still waiting on. A part that belongs to an open job shows under that job instead, so nothing is listed twice.</div>', 'work')
+
       // Videos
       + sec('Repair Videos (YouTube)',
           _favRow(MAINT.PREF_CHANNELS, 'maint-yt-channel', 'All of YouTube')
@@ -2161,6 +2175,13 @@
     return { item: _panelItem, invId: String(window._maintPanelInvId || '') };
   }
   // the chore picker: the same select on the card and on the Workbench card
+  // v0.9.1766 (Brad): typing a one-off task used to add it to the dropdown
+  // FOREVER, silently — "when we add a task, and the user hits something else,
+  // don't automatically add that to the drop down. have a check button next to
+  // it that the user can check if they want it added". So: the box is
+  // unticked by default, and a "−" beside the list takes one back out again
+  // (the same affordance the favourites rows already use). Removing a name
+  // from the list never touches tasks already made with it.
   function _choreFormHtml(addJs) {
     var IN = 'flex:1;min-width:150px;padding:0.45rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.82rem';
     return '<div style="display:flex;gap:0.4rem;flex-wrap:wrap;align-items:center">'
@@ -2168,10 +2189,31 @@
       + _allChores().map(function (ch) { return '<option value="' + _esc(ch) + '">' + _esc(ch) + '</option>'; }).join('')
       + '<option value="__custom">Something else…</option>'
       + '</select>'
+      + '<button onclick="_maintDelChore()" title="Take the selected task off this list (the built-in ones stay)" ' + _btnQuiet() + '>&minus;</button>'
       + '<button onclick="' + addJs + '" ' + _btnPrimary('padding:0.5rem 0.9rem;font-size:0.78rem') + '>+ Add task</button>'
       + '</div>'
-      + '<div id="maint-chore-custom" style="display:none;margin-top:0.4rem"><input id="maint-chore-custom-in" placeholder="Name the new task — it joins the list for next time" onkeydown="if(event.key===\'Enter\')' + addJs + '" style="width:100%;box-sizing:border-box;padding:0.45rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.82rem"></div>';
+      + '<div id="maint-chore-custom" style="display:none;margin-top:0.4rem">'
+      +   '<input id="maint-chore-custom-in" placeholder="Name the new task" onkeydown="if(event.key===\'Enter\')' + addJs + '" style="width:100%;box-sizing:border-box;padding:0.45rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.82rem">'
+      +   '<label style="display:flex;align-items:center;gap:0.4rem;margin-top:0.4rem;font-size:0.76rem;color:var(--text-dim);cursor:pointer"><input type="checkbox" id="maint-chore-custom-keep" style="cursor:pointer">Add it to my list for next time</label>'
+      + '</div>';
   }
+  // v0.9.1766: take a custom task back off the list. The five built-ins stay.
+  window._maintDelChore = function () {
+    var sel = document.getElementById('maint-chore-pick');
+    if (!sel || !sel.value || sel.value === '__custom') return;
+    if (CHORES.indexOf(sel.value) >= 0) {
+      if (typeof showToast === 'function') showToast('That one is built in — it stays on the list.', 2500);
+      return;
+    }
+    var gone = sel.value;
+    _saveFavs(MAINT.PREF_CHORES, _favs(MAINT.PREF_CHORES).filter(function (c) { return c !== gone; }));
+    sel.remove(sel.selectedIndex);
+    sel.value = CHORES[0];
+    if (typeof window._maintChorePickChange === 'function') window._maintChorePickChange(sel);
+    // Tasks already created with this name are untouched — this is the list of
+    // suggestions, not the tasks themselves.
+    if (typeof showToast === 'function') showToast('Took \u201c' + gone + '\u201d off the list');
+  };
   window._maintAddChore = async function () {
     var tg = _target();
     if (!_isOwner() || !tg.item) return;
@@ -2179,9 +2221,13 @@
     var customIn = document.getElementById('maint-chore-custom-in');
     var chore = sel && sel.value === '__custom' ? (customIn ? String(customIn.value || '').trim() : '') : (sel ? sel.value : '');
     if (!chore) { if (typeof showToast === 'function') showToast('Type the new task first.', 2500, true); return; }
+    // v0.9.1766 (Brad): only joins the dropdown if he ticked the box.
     if (sel && sel.value === '__custom') {
-      var customs = _favs(MAINT.PREF_CHORES);
-      if (customs.indexOf(chore) < 0 && CHORES.indexOf(chore) < 0) { customs.push(chore); _saveFavs(MAINT.PREF_CHORES, customs); }
+      var keep = document.getElementById('maint-chore-custom-keep');
+      if (keep && keep.checked) {
+        var customs = _favs(MAINT.PREF_CHORES);
+        if (customs.indexOf(chore) < 0 && CHORES.indexOf(chore) < 0) { customs.push(chore); _saveFavs(MAINT.PREF_CHORES, customs); }
+      }
     }
     try {
       if (!(await _ensureLogTab())) throw new Error('log tab unavailable');
@@ -2377,7 +2423,6 @@
     if (!el || !_panelItem) return;
     var render = function () {
       var tasks = _itemTasks();
-      if (!tasks.length) { el.innerHTML = '<div style="font-size:0.8rem;color:var(--text-dim);padding:0.3rem 0">No open tasks on this one.</div>'; return; }
       var IN = 'width:100%;box-sizing:border-box;padding:0.4rem 0.55rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.8rem';
       var small = _btnQuiet('sm');
       // v0.9.1676 (Brad: "if we have a part on the want list for you to buy,
@@ -2422,15 +2467,20 @@
           + (fromList ? ' <span style="color:var(--text-dim);font-size:0.7rem">(from your Parts Needed list)</span>' : '')
           + '</div><div style="display:flex;gap:0.3rem;align-items:center;flex-shrink:0">' + (st === 'installed' ? '' : moveSel(p)) + act + rm + '</div></div>';
       };
-      var looseBlock = (loose.length && tasks.length !== 1)
-        ? '<div style="border:1px dashed var(--border);border-radius:10px;padding:0.55rem 0.75rem;margin-bottom:0.5rem">'
-          + '<div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.08em">Parts for this item — not tied to a task</div>'
-          + loose.map(function (p) { return partRow(p, false); }).join('') + '</div>'
-        : '';
+      // v0.9.1766: the loose parts now live in their own box, which is drawn
+      // whether or not there are tasks — the same partRow, so the two can
+      // never disagree. (They used to fold into the single open task, or get a
+      // dashed block under the list, and vanish entirely with no tasks at all.)
+      var pel = document.getElementById('maint-parts');
+      if (pel) {
+        pel.innerHTML = loose.length
+          ? loose.map(function (p) { return partRow(p, false); }).join('')
+          : '<div style="font-size:0.8rem;color:var(--text-dim);padding:0.3rem 0">Nothing on hand for this one yet — use <b>+ Add a part</b> above.</div>';
+      }
+      if (!tasks.length) { el.innerHTML = '<div style="font-size:0.8rem;color:var(--text-dim);padding:0.3rem 0">No open tasks on this one.</div>'; return; }
       el.innerHTML = tasks.map(function (t) {
         var parts = _taskParts(t.id);
-        var partLine = parts.map(function (p) { return partRow(p, false); }).join('')
-          + ((tasks.length === 1) ? loose.map(function (p) { return partRow(p, true); }).join('') : '');
+        var partLine = parts.map(function (p) { return partRow(p, false); }).join('');   // v0.9.1766: loose parts live in the Parts box now
         return '<div class="maint-task" data-id="' + _esc(t.id) + '" style="border:1px solid var(--border);border-radius:10px;padding:0.65rem 0.75rem;margin-bottom:0.5rem;background:var(--bg-card)">'
           + '<div style="display:flex;justify-content:space-between;align-items:center;gap:0.4rem;flex-wrap:wrap">'
           +   '<div style="font-weight:700;color:var(--text)">' + _esc(t.text) + ' <span style="font-weight:400;font-size:0.72rem;color:var(--text-dim)">since ' + _esc(t.dateAdded) + '</span></div>'
@@ -2446,7 +2496,7 @@
           +   '<button onclick="if(confirm(\'Mark \\u201c' + _esc(t.text).replace(/'/g, '') + '\\u201d complete? It moves to the service history.\'))_maintChoreDone(' + t.row + ',\'' + rrJsArg(t.id) + '\')" ' + _btnPrimary('padding:0.45rem 0.8rem;font-size:0.74rem') + '>Mark complete — job finished</button>'
           + '</div>'
           + '</div>';
-      }).join('') + looseBlock;
+      }).join('');
     };
     if (state.maintLog) render(); else _loadLog().then(render);
   }
