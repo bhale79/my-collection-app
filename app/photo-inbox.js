@@ -5508,11 +5508,30 @@
       fams.forEach(function (e) {
         var n = 0, why = [];
         words.forEach(function (w) { if (e.txt.indexOf(w) >= 0) { n++; why.push(w); } });
+        e.score = n; e.why = why;
         if (n > bestN) { secondN = bestN; bestN = n; best = e; bestWhy = why; }
         else if (n > secondN) secondN = n;
       });
       if (best && bestN >= 1 && bestN > secondN) {
         return { num: best.num, fam: c, count: fams.length, why: bestWhy.slice(0, 4).join(', ') };
+      }
+      // ══ v0.9.1772 — A TIE IS NOT "NO IDEA" ═══════════════════════════════
+      // Brad's Great Northern 6464. The words GREAT and NORTHERN score the same
+      // on 6464-25 and 6464-450, both catalogued "Great Northern | Great
+      // Northern Boxcar", so the rule above correctly refuses to choose — and
+      // then threw away the fact that it had narrowed 35 relatives down to two.
+      // Refusing to pick one is right. Handing back the whole family as though
+      // nothing had been learned is not. (What separates those two is colour —
+      // -25 is orange with white lettering, -450 olive and orange with yellow —
+      // and colour is in varDesc, which this picker deliberately does not read.
+      // So two is the honest floor here, not a shortfall.)
+      if (bestN >= 1) {
+        var tied = fams.filter(function (e) { return e.score === bestN; })
+                       .map(function (e) { return String(e.num); });
+        if (tied.length > 1 && tied.length < fams.length) {
+          return { num: c, fam: c, count: fams.length, why: '',
+                   tied: tied, tiedWhy: bestWhy.slice(0, 4).join(', ') };
+        }
       }
       return { num: c, fam: c, count: fams.length, why: '' };
     } catch (e) { return null; }
@@ -9283,6 +9302,51 @@
         else dbg.assembledNotRead = String(jHit) + ' was assembled from split digits, not read';
         return { num: win, matched: false, alts: _altsJ, dbg: dbg };
       }
+      // ══ v0.9.1772 — A NUMBER READ OFF THE CAR OUTRANKS ONE GLUED TOGETHER,
+      // EVEN WHEN THE GLUE LANDS ON A DASH ═══════════════════════════════════
+      // Brad's Great Northern, 2026-09-19. The car is stamped G.N. 6464 and the
+      // reader SAW it — his own card said "Numbers seen: 6464". But the catalog
+      // has no bare 6464 row (0 of 164,820 rows; findMaster('6464') returns
+      // null), only 196 dashed variations, so the direct hit died. Meanwhile the
+      // join glued digits into 6464-525, the dash-repair exemption above
+      // promoted that back to a FACT, and the answer became a Minneapolis & St.
+      // Louis boxcar on a car lettered GREAT NORTHERN. The card admitted where
+      // it came from: "Numbers seen: 457, 700, 57 - Pieced 6464-525 together
+      // from split digits."
+      //
+      // The exemption's reasoning — a dash landing where a real family splits is
+      // structural evidence — is true and it is half the sentence. It proves the
+      // glue found a FAMILY. It never proves it found the right MEMBER. And the
+      // family question already has an answer one step further down (v0.9.1448,
+      // whose comment names this very car) that was never asked, because this
+      // path returned first. This file's own rule, stated twice: a number READ
+      // beats numbers GLUED.
+      //
+      // Two guards keep it narrow. The head must have been READ (present in
+      // `uniq`) — a head assembled from loose digits, like 3562-1 out of
+      // "3 3 5 6 2 1", never is, so every case the join machinery was built for
+      // is untouched. And the family must have actual word EVIDENCE: with none,
+      // the glued answer stands, because a bare head with nothing behind it is
+      // not an improvement on a dash-repaired hit.
+      var _jDashHead = (win === jHit && jHit && String(jHit).indexOf('-') > 0)
+        ? String(jHit).split('-')[0] : '';
+      if (_jDashHead && uniq.indexOf(_jDashHead) >= 0) {
+        var _fpD = _pinFamilyPick(_jDashHead, prefer, UP);
+        var _fpHasEvidence = !!(_fpD && (_fpD.why || (_fpD.tied && _fpD.tied.length)));
+        if (_fpHasEvidence && String(_fpD.num) !== String(jHit)) {
+          dbg.gluedOutranked = String(jHit) + ' was assembled from split digits, but '
+            + _jDashHead + ' is printed on the item';
+          dbg.family = _fpD.fam + ' heads ' + _fpD.count + ' dashed relative'
+            + (_fpD.count === 1 ? '' : 's') + ' in the stamped catalog'
+            + (_fpD.why ? ' — ' + _fpD.num + ' matched: ' + _fpD.why : '')
+            + (_fpD.tied ? ' — narrowed to ' + _fpD.tied.join(' or ')
+                 + (_fpD.tiedWhy ? ' on: ' + _fpD.tiedWhy : '') : '');
+          return { num: _fpD.num, matched: false, family: true,
+                   alts: (_fpD.tied && _fpD.tied.length)
+                           ? _fpD.tied.slice(0, 6)
+                           : [String(_fpD.num), String(jHit)], dbg: dbg };
+        }
+      }
       return { num: win, matched: solid, thin: !solid, dbg: dbg };
     }
 
@@ -9308,9 +9372,13 @@
       });
       dbg.family = _famBest.fam + ' heads ' + _famBest.count + ' dashed relative'
         + (_famBest.count === 1 ? '' : 's') + ' in the stamped catalog'
-        + (_famBest.why ? ' — ' + _famBest.num + ' matched: ' + _famBest.why : '');
+        + (_famBest.why ? ' — ' + _famBest.num + ' matched: ' + _famBest.why : '')
+        + (_famBest.tied ? ' — narrowed to ' + _famBest.tied.join(' or ')
+             + (_famBest.tiedWhy ? ' on: ' + _famBest.tiedWhy : '') : '');
       return { num: _famBest.num, matched: false, family: true,
-               alts: [String(_famBest.num)], dbg: dbg };
+               alts: (_famBest.tied && _famBest.tied.length)
+                       ? _famBest.tied.slice(0, 6)
+                       : [String(_famBest.num)], dbg: dbg };
     }
 
     // Nothing in the stamped catalog. Before giving up, look in every catalog —
