@@ -1138,6 +1138,100 @@ function _partsForItem(itemNum, forEra) {
 window._partsMakerOf = _partsMakerOf;
 window._partsForItem = _partsForItem;
 
+// ── v0.9.1770 — the two addresses a catalog part line offers ────────────────
+// Brad, 2026-09-19: "a part should have 2 links always, in this case, lionel
+// link, no trainz direct link, but a google search to search trainz for the
+// part" and "if the same part is available from a trainz link, you show that
+// link to, if its not then we have search link".
+//
+// NO STORE IS NAMED IN THIS CODE, and none ever should be (Brad, 2026-09-01).
+// A store is recognised by its web address matched against the addresses already
+// sitting in the parts catalogs we hold: Trainz is found because the Lionel Parts
+// rows ARE trainz.com addresses. Add a Kato or Atlas parts catalog tomorrow and
+// these answer for it with no code change.
+//
+// What the overlap actually is, measured 2026-09-19 on the real catalogs:
+// 55,955 Lionel-store parts, 12,469 Trainz parts, 896 part numbers in both
+// (1.6%). The two use different numbering worlds — Trainz keeps the old-style
+// numbers (001E-144), the Lionel store uses the modern SKU (02882021311). So a
+// direct second link is the RARE case and a search is the normal one. That is
+// the data, not a bug, and it is why nothing here tries to be clever: only an
+// exact part number counts as the same part. Description matching was measured
+// too (924 rows) and thrown away — "GEAR / WORM SHAFT W/ BEARINGS" alone matches
+// four different Lionel parts, and a wrong part is worse than a search box.
+
+// "https://www.trainz.com/products/x" -> "trainz.com"; "Joe's Train Shop" -> ''.
+// The ONE place that decides what counts as a web address (maintenance.js's
+// _dealerSite defers to this).
+function _linkHost(u) {
+  var s = String(u == null ? '' : u).trim()
+    .replace(/^[a-z][a-z0-9+.-]*:\/\//i, '')
+    .replace(/[\/?#].*$/, '')
+    .replace(/:\d+$/, '')
+    .replace(/^www\./i, '');
+  return /^[a-z0-9-]+(\.[a-z0-9-]+)+$/i.test(s) ? s.toLowerCase() : '';
+}
+
+// Part number -> every catalog address we hold for it. Built from the same rows
+// _partsFitsIndex reads and cached the same way, so it costs one pass.
+var _plIdx = null, _plIdxRows = null, _plIdxLen = -1;
+function _partLinksIndex() {
+  var rows = (state.masterAllRows && state.masterAllRows.length) ? state.masterAllRows : (state.masterData || []);
+  if (_plIdx && _plIdxRows === rows && _plIdxLen === rows.length) return _plIdx;
+  var m = new Map();
+  for (var i = 0; i < rows.length; i++) {
+    var r = rows[i];
+    if (!r || !r.refLink || !/^part$/i.test(String(r.itemType || ''))) continue;
+    var host = _linkHost(r.refLink); if (!host) continue;
+    var k = String(r.itemNum || '').trim().toUpperCase(); if (!k) continue;
+    var b = m.get(k); if (!b) { b = []; m.set(k, b); }
+    b.push({ link: String(r.refLink), host: host, era: r._era || '' });
+  }
+  _plIdx = m; _plIdxRows = rows; _plIdxLen = rows.length;
+  return m;
+}
+
+// The address we hold for THIS part on `host` — the row's own link first (it is
+// the row being drawn), then any other catalog row carrying the same part number.
+// `maker` is the same guard _partsForItem uses: one maker's numbering must not
+// answer for another's. A catalog with no manufacturer is never filtered out.
+function _partLinkOn(row, host, maker) {
+  host = _linkHost(host); if (!host || !row) return '';
+  if (row.refLink && _linkHost(row.refLink) === host) return String(row.refLink);
+  var k = String(row.itemNum || '').trim().toUpperCase(); if (!k) return '';
+  var hits = _partLinksIndex().get(k) || [];
+  for (var i = 0; i < hits.length; i++) {
+    if (hits[i].host !== host) continue;
+    if (maker) { var got = _partsMakerOf(hits[i].era); if (got && got !== maker) continue; }
+    return hits[i].link;
+  }
+  return '';
+}
+
+// The MAKER'S OWN page for this part: the row's own address when the row came
+// from the maker's own store (ERAS[era].partsOfficial), otherwise a same-numbered
+// row from one of that maker's official catalogs. Returns the era it came from
+// too, because the era owns the word the link is labelled with (partsLink).
+function _partOfficialLink(row, maker) {
+  var none = { href: '', era: '' };
+  if (!row) return none;
+  var era = (typeof ERAS !== 'undefined' && ERAS[row._era]) || {};
+  if (era.partsOfficial && row.refLink) return { href: String(row.refLink), era: row._era || '' };
+  var k = String(row.itemNum || '').trim().toUpperCase(); if (!k) return none;
+  var hits = _partLinksIndex().get(k) || [];
+  for (var i = 0; i < hits.length; i++) {
+    var e = (typeof ERAS !== 'undefined' && ERAS[hits[i].era]) || {};
+    if (!e.partsOfficial) continue;
+    if (maker && e.manufacturer && e.manufacturer !== maker) continue;
+    return { href: hits[i].link, era: hits[i].era };
+  }
+  return none;
+}
+window._linkHost = _linkHost;
+window._partLinksIndex = _partLinksIndex;
+window._partLinkOn = _partLinkOn;
+window._partOfficialLink = _partOfficialLink;
+
 // Return ALL master rows for a given itemNum. O(1) lookup.
 function findAllMaster(itemNum) {
   if (!itemNum) return [];

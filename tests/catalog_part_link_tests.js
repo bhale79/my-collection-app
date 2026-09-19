@@ -52,11 +52,25 @@ const SRC = [
   'function _partsUrl(dealer, item, quoted, plain, makerWord)',
   'function _dealerSite(d)',
   'function _plainWords(s)',
+  'function _partPhrase(desc)',
   'function _dealerPick()',
   'function _catalogPartLinkHtml(r, item)',
+  'function _partLinkA(href, word)',
   'function _favRow(prefKey, selectId, label)',
   'function _maintCatalogLaneHtml(rows, q, taskId, item)',
 ].map(grab);
+// v0.9.1770: the part line now offers the MAKER'S page as well as the store's,
+// and the lookups behind that live in app-data.js. They are lifted in for real —
+// leave them out and _catalogPartLinkHtml silently draws one link instead of
+// two, and this whole file would go on passing while the feature was gone.
+const dataSrc = (() => {
+  const d = rd('app-data.js');
+  const one = n => { const i = d.indexOf('function ' + n + '('); if (i < 0) return ''; let k = d.indexOf('{', i), depth = 0;
+    for (; k < d.length; k++) { if (d[k] === '{') depth++; else if (d[k] === '}') { depth--; if (!depth) return d.slice(i, k + 1); } } return ''; };
+  return ['_linkHost', '_partLinksIndex', '_partLinkOn', '_partOfficialLink'].map(one);
+})();
+ok('the maker-link lookups were lifted out of app-data.js', dataSrc.every(x => x.length > 40),
+   dataSrc.map(x => x.length).join(','));
 ok('every function the suite needs is in the source', SRC.every(s => s.length > 40), SRC.map(s => s.length).join(','));
 const picked = grab('window._maintDealerPicked = function (sel)');
 ok('…and the dealer-pick handler too', picked.length > 40);
@@ -80,11 +94,16 @@ function room(opts) {
     getElementById: id => (id === 'maint-pop-dealer' ? sel : (id === 'maint-pop-catalog' && opts.lane ? opts.lane : null)),
   };
   const rrJsArg = v => esc(String(v == null ? '' : v).replace(/\\/g, '\\\\').replace(/'/g, "\\'"));
-  const api = new Function('MAINT', 'ERAS', '_esc', 'rrJsArg', '_btn', '_btnQuiet', '_makerName', '_favs', '_prefGet', '_prefSet', 'document', 'window', '_maintCatalogLaneRender',
-    SRC.join('\n') + '\n' + picked + ';\nreturn { url: _partsUrl, site: _dealerSite, words: _plainWords, pick: _dealerPick, link: _catalogPartLinkHtml, favRow: _favRow, lane: _maintCatalogLaneHtml, picked: window._maintDealerPicked };'
+  const api = new Function('MAINT', 'ERAS', '_esc', 'rrJsArg', '_btn', '_btnQuiet', '_makerName', '_favs', '_prefGet', '_prefSet', 'document', 'window', '_maintCatalogLaneRender', 'state', '_partsMakerOf',
+    'var _plIdx = null, _plIdxRows = null, _plIdxLen = -1;\n' + dataSrc.join('\n') + '\n'
+    + SRC.join('\n') + '\n' + picked + ';\nreturn { url: _partsUrl, site: _dealerSite, words: _plainWords, phrase: _partPhrase, pick: _dealerPick, link: _catalogPartLinkHtml, favRow: _favRow, lane: _maintCatalogLaneHtml, picked: window._maintDealerPicked };'
   )(MAINT, ERAS, esc, rrJsArg, () => 'class="btn"', () => 'class="quiet"', (item) => (item && item.manufacturer) || 'Lionel',
     (key) => (key === MAINT.PREF_DEALERS ? favs.slice() : []), (k, d) => (k in prefs ? prefs[k] : d), (k, v) => { prefs[k] = v; },
-    document, {}, (t) => spy.renders.push(t));
+    document, {}, (t) => spy.renders.push(t),
+    // real parts rows carry itemType "Part"; the link index only indexes those
+    { masterAllRows: (opts.catalog || []).map(r => Object.assign({ itemType: 'Part' }, r)),
+      masterData:    (opts.catalog || []).map(r => Object.assign({ itemType: 'Part' }, r)) },
+    (era) => (ERAS[era] && ERAS[era].manufacturer) || '');
   return { api, prefs, spy };
 }
 const q = url => decodeURIComponent(String(url).replace('https://www.google.com/search?q=', '')).replace(/\+/g, ' ');
@@ -97,20 +116,27 @@ const TT = { itemNum: '2343-13', description: 'horn bracket', _era: 'traintender
 section('_partsUrl — the ONE search builder: Brad\'s search, with only the specific thing quoted');
 let R = room();
 let u = R.api.url('', ITEM, '2023-117', 'Brass Idler Gear (Repro-Brass)');
-ok('Any dealer: maker, item number and description as plain words, the part number in quotes',
-   q(u) === 'Lionel 2338 Brass Idler Gear (Repro-Brass) "2023-117"', q(u));
+ok('Any dealer: maker, item number, the quoted thing, then the plain words',
+   q(u) === 'Lionel 2338 "2023-117" Brass Idler Gear (Repro-Brass)', q(u));
 ok('…and it is a Google search', /^https:\/\/www\.google\.com\/search\?q=/.test(u));
 ok('exactly one quoted phrase — four quoted phrases usually finds nothing', (q(u).match(/"/g) || []).length === 2);
-ok('a favorite typed as a NAME ("trainz") is one more word', q(R.api.url('trainz', ITEM, '2023-117', 'Brass Idler Gear')) === 'trainz Lionel 2338 Brass Idler Gear "2023-117"');
-ok('a favorite typed as a SITE ("trainz.com") keeps the search on that store', q(R.api.url('trainz.com', ITEM, '2023-117', 'Brass Idler Gear')) === 'site:trainz.com Lionel 2338 Brass Idler Gear "2023-117"');
+ok('a favorite typed as a NAME ("trainz") is one more word', q(R.api.url('trainz', ITEM, '2023-117', 'Brass Idler Gear')) === 'trainz Lionel 2338 "2023-117" Brass Idler Gear');
+// v0.9.1770 — site: is gone. It is a hard filter, so it returned a blank page
+// every time the store did not carry the part, which is the usual case (896 of
+// 55,955 Lionel store parts exist at Trainz). As a plain word the store still
+// steers the search and a near miss still comes back with something to click.
+ok('a favorite typed as a SITE ("trainz.com") is the store as a WORD, not site:',
+   q(R.api.url('trainz.com', ITEM, '2023-117', 'Brass Idler Gear')) === 'trainz.com Lionel 2338 "2023-117" Brass Idler Gear',
+   q(R.api.url('trainz.com', ITEM, '2023-117', 'Brass Idler Gear')));
 ok('…so does a pasted address, trimmed to its host', R.api.site('https://www.trainz.com/parts/lionel') === 'trainz.com' && R.api.site('WWW.Trainz.com') === 'trainz.com');
 ok('…but a shop NAME with spaces is never a site', R.api.site("Joe's Train Shop") === '' && q(R.api.url("Joe's Train Shop", ITEM, '2023-117')) === "Joe's Train Shop Lionel 2338 \"2023-117\"");
 ok('"The maker\'s own store" with nothing to open falls back to the plain search — the key never leaks into the query',
-   q(R.api.url('__maker', ITEM, '2023-117', 'Brass Idler Gear')) === 'Lionel 2338 Brass Idler Gear "2023-117"');
+   q(R.api.url('__maker', ITEM, '2023-117', 'Brass Idler Gear')) === 'Lionel 2338 "2023-117" Brass Idler Gear');
 ok('inch marks in a description are stripped and slashes become spaces (Google would read .625" as a quote)',
-   q(R.api.url('', { itemNum: '84631', manufacturer: 'Lionel' }, TIRE.itemNum, TIRE.description)) === 'Lionel 84631 TRACTION TIRE .625 ID x .058 TH x .148 WD "6304678206"');
+   q(R.api.url('', { itemNum: '84631', manufacturer: 'Lionel' }, TIRE.itemNum, TIRE.description)) === 'Lionel 84631 "6304678206" TRACTION TIRE .625 ID x .058 TH x .148 WD',
+   q(R.api.url('', { itemNum: '84631', manufacturer: 'Lionel' }, TIRE.itemNum, TIRE.description)));
 ok('the typed box: what the user typed is the quoted thing', q(R.api.url('', ITEM, 'traction tire')) === 'Lionel 2338 "traction tire"');
-ok('a loose part with no item (the drawer): the catalog\'s maker stands in, no item number', q(R.api.url('', null, '2343-13', 'horn bracket', 'Lionel')) === 'Lionel horn bracket "2343-13"');
+ok('a loose part with no item (the drawer): the catalog\'s maker stands in, no item number', q(R.api.url('', null, '2343-13', 'horn bracket', 'Lionel')) === 'Lionel "2343-13" horn bracket');
 ok('nothing hardcoded: with no dealer, no item and no maker the query is just the part', q(R.api.url('', null, '2343-13')) === '"2343-13"');
 
 section('_dealerPick — the dropdown when it is on screen, else what it remembered');
@@ -126,54 +152,99 @@ R = room({ favs: ['trainz.com'], lane: { getAttribute: () => 'task-7' } });
 R.api.picked({ value: 'trainz.com' });
 ok('picking saves the choice and redraws the lane for its task', R.prefs.maint_parts_dealer_pick === 'trainz.com' && R.spy.renders.join() === 'task-7');
 
-section('_catalogPartLinkHtml — ONE link rule for a catalog part line');
-const href = h => (h.match(/href="([^"]+)"/) || [])[1] || '';
-const word = h => (h.match(/>([^<]+)<\/a>/) || [])[1] || '';
-R = room();
-let h = R.api.link(GEAR, ITEM);
-ok('Any dealer, a Trainz part: a web search — never the trainz.com page', /google\.com\/search/.test(href(h)) && !/trainz/.test(href(h)) && word(h) === 'search');
-ok('…and it is maker + the PART\'s own number, nothing else (v1760)', q(href(h).replace(/&amp;/g, '&')) === 'Lionel "2023-117"', q(href(h).replace(/&amp;/g, '&')));
-ok('…the ENGINE\'s number is NOT in it — 84631/2338 never appears on a page selling that part, and requiring it found nothing',
-   !/2338/.test(decodeURIComponent(href(h))));
-ok('…nor the description or its dimensions — every extra word is another way to find nothing',
-   !/Brass|Idler|Gear|Repro/i.test(decodeURIComponent(href(h))));
-h = R.api.link(TIRE, { itemNum: '84631', manufacturer: 'Lionel' });
-ok('Any dealer, a Lionel store part: a web search too — the store is NOT linked on its own', /google\.com\/search/.test(href(h)) && !/lionelsupport/.test(href(h)));
-ok('…the one that failed for Brad: it is now exactly maker + part number', q(href(h).replace(/&amp;/g, '&')) === 'Lionel "6304678206"', q(href(h).replace(/&amp;/g, '&')));
-ok('…with no 84631 and no ".625 ID x .058 TH" soup', !/84631|625|058|148|TRACTION/i.test(decodeURIComponent(href(h))));
-ok('a catalog row with NO part number falls back to the item and what the part is called',
-   /84631/.test(decodeURIComponent(href(R.api.link(Object.assign({}, TIRE, { itemNum: '' }), { itemNum: '84631', manufacturer: 'Lionel' })))));
-R = room({ favs: ['trainz.com'], select: { value: 'trainz.com' } });
-h = R.api.link(GEAR, ITEM);
-ok('a picked site: the search stays on it and the link says so', /site%3Atrainz\.com/.test(href(h)) && word(h) === 'search trainz.com');
-ok('…and it is still just maker + part number behind it', q(href(h).replace(/&amp;/g, '&')) === 'site:trainz.com Lionel "2023-117"');
-R = room({ favs: ['Olsen\'s'], select: { value: 'Olsen\'s' } });
-h = R.api.link(GEAR, ITEM);
-ok('a picked name: one more search word, and the link names it', /Olsen/.test(decodeURIComponent(href(h))) && word(h) === 'search Olsen&#39;s');
-R = room({ select: { value: '__maker' } });
-h = R.api.link(TIRE, { itemNum: '84631', manufacturer: 'Lionel' });
-ok('"The maker\'s own store" + a part from Lionel\'s own store → the part\'s page, worded by the era ("store")', href(h) === TIRE.refLink && word(h) === 'store');
-h = R.api.link(MTHP, { itemNum: '20-3045-1', manufacturer: 'MTH' });
-ok('…and an MTH part → MTH\'s own page', href(h) === MTHP.refLink);
-h = R.api.link(GEAR, ITEM);
-ok('…but a Trainz part has no maker page: back to the web search, trainz.com still never linked', /google\.com\/search/.test(href(h)) && !/trainz/.test(href(h)) && word(h) === 'search');
-h = R.api.link(TT, null);
-ok('…same for a Train Tender part (a dealer, not the maker)', /google\.com\/search/.test(href(h)) && !/ttender/.test(href(h)));
-h = R.api.link(Object.assign({}, TIRE, { refLink: '' }), null);
-ok('a store part with no page → the search, never a dead link', /google\.com\/search/.test(href(h)));
-ok('the link opens in a new tab, safely', /target="_blank" rel="noopener"/.test(h));
+section('_catalogPartLinkHtml — v0.9.1770: TWO links on a part line');
+// Brad, 2026-09-19, replacing the v0.9.1759 rule above ("we dont need to
+// automatically show lionel, atlas, or whoevers parts directly unless the user
+// select them"):
+//   "we should always show the link for the mfr part link. if they select
+//    trainz, then we should show the trainz parts lists, if another, the search
+//    that with google"
+//   "so a part should have 2 links always, in this case, lionel link, no trainz
+//    direct link, but a google search to search trainz for the part"
+// The maker's page is no longer gated on the dropdown. A DEALER's page still is
+// — that half of the Sept 16 rule stands.
+const hrefs = h => (h.match(/href="([^"]*)"/g) || []).map(x => x.slice(6, -1).replace(/&amp;/g, '&'));
+const words = h => (h.match(/>([^<]+)<\/a>/g) || []).map(x => x.slice(1, -4));
+const href = h => hrefs(h)[0] || '';
+const word = h => words(h)[0] || '';
+// The same part, carried by BOTH catalogs — the 1.6% case where a second
+// direct link is possible at all.
+const TWIN = { itemNum: TIRE.itemNum, description: 'TRACTION TIRE', _era: 'lionel_parts', _tab: 'Lionel Parts',
+               refLink: 'https://www.trainz.com/products/lionel-traction-tire' };
+const SHELF = [GEAR, TIRE, MTHP, TT, TWIN];
 
-section('The lane: description, number, source, ONE link — no price, no stock, no dealer link');
-R = room();
+R = room({ catalog: SHELF });
+let h = R.api.link(TIRE, { itemNum: '84631', manufacturer: 'Lionel' });
+ok('a Lionel store part, Any dealer: TWO links', hrefs(h).length === 2, words(h).join(' / '));
+ok('…the first is Lionel\'s own page, WITHOUT the user picking anything', hrefs(h)[0] === TIRE.refLink, hrefs(h)[0]);
+ok('…worded by the era', words(h)[0] === 'store', words(h)[0]);
+ok('…the second is a search', /google\.com\/search/.test(hrefs(h)[1]) && words(h)[1] === 'search');
+ok('…carrying the item number, the part number and what the part is called (Brad, Sept 19)',
+   q(hrefs(h)[1]) === 'Lionel 84631 6304678206 TRACTION TIRE', q(hrefs(h)[1]));
+ok('…with nothing quoted — quotes demand a page that the other store never wrote',
+   q(hrefs(h)[1]).indexOf('"') < 0, q(hrefs(h)[1]));
+ok('…and without the ".625 ID x .058 TH" soup (the v0.9.1760 lesson, now in _partPhrase)',
+   !/625|058|148/.test(q(hrefs(h)[1])), q(hrefs(h)[1]));
+
+h = R.api.link(GEAR, ITEM);
+ok('a Trainz part with no Lionel page: one link, the search — and trainz.com is NOT linked',
+   hrefs(h).length === 1 && /google\.com\/search/.test(hrefs(h)[0]) && !/trainz\.com\/products/.test(hrefs(h)[0]));
+
+R = room({ catalog: SHELF, favs: ['trainz.com'], select: { value: 'trainz.com' } });
+h = R.api.link(TIRE, { itemNum: '84631', manufacturer: 'Lionel' });
+ok('Trainz picked, and Trainz HAS this part: Lionel\'s page and Trainz\'s own page',
+   hrefs(h).length === 2 && hrefs(h)[0] === TIRE.refLink && hrefs(h)[1] === TWIN.refLink, hrefs(h).join(' '));
+ok('…the second link is named for the store', words(h)[1] === 'trainz.com', words(h)[1]);
+h = R.api.link(Object.assign({}, TIRE, { itemNum: '6304678299' }), { itemNum: '84631', manufacturer: 'Lionel' });
+ok('Trainz picked but Trainz does NOT have this part: Lionel\'s page and a search of Trainz',
+   hrefs(h).length === 2 && /google\.com\/search/.test(hrefs(h)[1]) && words(h)[1] === 'search trainz.com', hrefs(h)[1]);
+ok('…and the search names the store as a word', q(hrefs(h)[1]).indexOf('trainz.com ') === 0, q(hrefs(h)[1]));
+
+R = room({ catalog: SHELF, favs: ['Olsen\'s'], select: { value: 'Olsen\'s' } });
+h = R.api.link(TIRE, { itemNum: '84631', manufacturer: 'Lionel' });
+ok('a picked NAME (no web address): Lionel\'s page and a search naming the shop',
+   hrefs(h).length === 2 && /Olsen/.test(q(hrefs(h)[1])) && words(h)[1] === 'search Olsen&#39;s');
+ok('…and Trainz is never slipped in just because we hold its address',
+   hrefs(h).every(u => !/trainz\.com/.test(u)), hrefs(h).join(' '));
+
+R = room({ catalog: SHELF, select: { value: '__maker' } });
+h = R.api.link(MTHP, { itemNum: '20-3045-1', manufacturer: 'MTH' });
+ok('an MTH part still opens MTH\'s own page', hrefs(h)[0] === MTHP.refLink);
+h = R.api.link(TT, null);
+ok('a Train Tender part (a dealer, not the maker) is never opened on its own',
+   hrefs(h).every(u => !/ttender/.test(u)), hrefs(h).join(' '));
+h = R.api.link(Object.assign({}, TIRE, { refLink: '', itemNum: 'ZZZ1' }), null);
+ok('a store part with no page → the search, never a dead link', hrefs(h).length === 1 && /google\.com\/search/.test(hrefs(h)[0]));
+ok('every link opens in a new tab, safely', (h.match(/target="_blank" rel="noopener"/g) || []).length === hrefs(h).length);
+
+section('The lane: every part, scrollable — no price, no stock, no unpicked dealer link');
+R = room({ catalog: SHELF });
 h = R.api.lane([GEAR, TIRE], '', 'task-9', ITEM);
 ok('no price and no stock anywhere on the lines', !/\$/.test(h) && !/in stock/i.test(h) && !/out of stock/i.test(h));
-ok('no dealer or store site is linked on its own', !/trainz\.com/.test(h) && !/lionelsupport\.com/.test(h));
-ok('each line: description, #number, the source, then the search link', /Brass Idler Gear \(Repro-Brass\)<\/b> <span[^>]*>#2023-117<\/span>/.test(h) && /Lionel Parts · <a href="https:\/\/www\.google\.com\/search\?q=[^"]+"[^>]*>search<\/a>/.test(h));
+ok('the maker\'s own page IS linked now (v0.9.1770)', /lionelsupport\.com/.test(h));
+ok('…but a dealer\'s is still not, with none picked', !/trainz\.com\/products/.test(h) && !/ttender/.test(h));
+ok('each line: description, #number, the source, then its links',
+   /Brass Idler Gear \(Repro-Brass\)<\/b> <span[^>]*>#2023-117<\/span>/.test(h)
+   && /Lionel Parts · <a href="https:\/\/www\.google\.com\/search\?q=[^"]+"[^>]*>search<\/a>/.test(h));
 ok('"+ Want it" is still there, twice', (h.match(/\+ Want it/g) || []).length === 2 && /_maintPopWantCatalog\('lionel_parts','2023-117','','task-9'\)/.test(h));
-ok('the lane still gets the card\'s item (a numberless row needs it) but no line\'s search carries the engine number (v1760)',
-   /_maintCatalogLaneHtml\(rows, q, taskId, item\)/.test(mt) && !/2338/.test(decodeURIComponent(h)));
-R = room({ favs: ['trainz.com'], select: { value: 'trainz.com' } });
-ok('with a store picked every line searches that store', (R.api.lane([GEAR, TIRE], '', 't', ITEM).match(/search trainz\.com/g) || []).length === 2);
+// v0.9.1770 — Brad asked for the item number back ("also add the item number
+// too"). v1760 had removed it; it is a plain word now, not one more quoted term
+// Google must match, and the measurements it was piled on top of are gone.
+ok('the lane gets the card\'s item, and the item number rides along in the search',
+   /_maintCatalogLaneHtml\(rows, q, taskId, item\)/.test(mt) && /2338/.test(decodeURIComponent(h)));
+R = room({ catalog: SHELF, favs: ['trainz.com'], select: { value: 'trainz.com' } });
+ok('with a store picked every line offers that store', (R.api.lane([GEAR, TIRE], '', 't', ITEM).match(/trainz\.com/g) || []).length >= 2);
+// Brad, 2026-09-19: "you can't scroll down the parts". The lane drew 8 of 60.
+R = room({ catalog: SHELF });
+const MANY = Array.from({ length: 60 }, (_, i) => Object.assign({}, TIRE, { itemNum: 'P' + i, description: 'WIDGET ' + i }));
+const laneAll = R.api.lane(MANY, '', 't', ITEM);
+ok('every part is drawn, not the first 8', (laneAll.match(/\+ Want it/g) || []).length === 60,
+   String((laneAll.match(/\+ Want it/g) || []).length));
+ok('…inside a box that scrolls, so the popup keeps its height', /overflow-y:auto/.test(laneAll));
+ok('…and the heading says how many there are', /\(60 — scroll, or type to narrow\)/.test(laneAll),
+   (laneAll.match(/Catalog parts for this item[^<]*/) || [''])[0]);
+ok('typing still narrows', (R.api.lane(MANY, 'widget 42', 't', ITEM).match(/\+ Want it/g) || []).length === 1,
+   String((R.api.lane(MANY, 'widget 42', 't', ITEM).match(/\+ Want it/g) || []).length));
 
 section('Nothing is ever pre-loaded into a store list (v1760)');
 // the CODE, with the comments stripped — the comment explains what was removed and says those names
@@ -210,16 +281,21 @@ ok('the lane\'s container remembers its task so a new pick can redraw it', /id="
 ok('− cannot remove the built-in choice, and a removal goes back to Any dealer', /if \(sel\.value === MAINT\.MAKER_STORE\) return;/.test(grab('window._maintDelFav = function (prefKey, selectId)')) && /window\._maintDealerPicked\(sel\)/.test(grab('window._maintDelFav = function (prefKey, selectId)')));
 ok('adding a store makes it the pick', /if \(prefKey === MAINT\.PREF_DEALERS\) window\._maintDealerPicked\(sel\);/.test(grab('window._maintAddFav = function (prefKey, selectId)')));
 ok('the lane never reads a price or a stock note any more', !/msrp|In stock|Out of stock/.test(grab('function _maintCatalogLaneHtml(rows, q, taskId, item)')));
-ok('no catalog row link is drawn anywhere but inside the one rule', !/_esc\((r\.refLink|f\.link)\) \+ '" target="_blank"/.test(mt) && /href="' \+ _esc\(href\) \+ '" target="_blank"/.test(grab('function _catalogPartLinkHtml(r, item)')));
+// v0.9.1770: the anchor itself moved into _partLinkA, because there are two of
+// them now. Still exactly ONE place that writes a catalog row's link.
+ok('no catalog row link is drawn anywhere but inside the one rule',
+   !/_esc\((r\.refLink|f\.link)\) \+ '" target="_blank"/.test(mt)
+   && /href="' \+ _esc\(href\) \+ '" target="_blank"/.test(grab('function _partLinkA(href, word)'))
+   && (mt.match(/target="_blank" rel="noopener" style="color:var\(--accent2\)"/g) || []).length === 1);
 
 section('config.js: which catalogs are the maker\'s own store');
 ok('Lionel\'s store and MTH Parts & Sales are official', /lionelstore_parts: \{[^}]*partsOfficial: true/.test(cfg) && /mth_parts: \{[^}]*partsOfficial: true/.test(cfg));
 ok('Trainz and Train Tender are dealers — never official', !/lionel_parts: \{[^}]*partsOfficial/.test(cfg) && !/traintender_parts: \{[^}]*partsOfficial/.test(cfg));
 
 section('The trio moved together');
-ok('APP_VERSION v0.9.1769', /const APP_VERSION = 'v0\.9\.1769';/.test(cfg));
-ok('CACHE_NAME is the version + 10', /const CACHE_NAME = 'mca-v1779';/.test(sw));
-ok('index.html stamps every asset at 1769 and none at 1768', (ix.match(/\?v=1769/g) || []).length === 79 && !/\?v=1768/.test(ix));
+ok('APP_VERSION v0.9.1770', /const APP_VERSION = 'v0\.9\.1770';/.test(cfg));
+ok('CACHE_NAME is the version + 10', /const CACHE_NAME = 'mca-v1780';/.test(sw));
+ok('index.html stamps every asset at 1770 and none at 1769', (ix.match(/\?v=1770/g) || []).length === 79 && !/\?v=1769/.test(ix));
 
 console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
 process.exit(fail ? 1 : 0);

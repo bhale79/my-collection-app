@@ -130,10 +130,16 @@ html = lane(forItem('2343'), '', 't', { itemNum: '2343' });
 ok('Lionel Parts and Train Tender lines name their source and keep the variation', /\(Reproduction\)/.test(html) && /Train Tender Parts/.test(html) && /Lionel Parts/.test(html));
 const many = []; for (let i = 0; i < 12; i++) many.push({ itemNum: 'P-' + i, itemType: 'Part', description: (i % 2 ? 'smoke unit' : 'coupler') + ' no. ' + i, fits: '1', _era: 'lionel_parts' });
 html = lane(many, '', 't');
-ok('with nothing typed the first 8 show and the head says so', (html.match(/\+ Want it/g) || []).length === 8 && /first 8 of 12 — type to narrow/.test(html));
+// v0.9.1770 (Brad: "you can't scroll down the parts"). It was never a scroll
+// bug — the lane drew 8 of 60 and there was nothing below to reach. Every part
+// is drawn now, inside a box with its own scrollbar.
+ok('with nothing typed EVERY part shows, in a box that scrolls',
+   (html.match(/\+ Want it/g) || []).length === 12 && /overflow-y:auto/.test(html)
+   && /\(12 — scroll, or type to narrow\)/.test(html),
+   String((html.match(/\+ Want it/g) || []).length));
 html = lane(many, 'smoke', 't');
 ok('typing narrows by description word (6 of 12) and counts it', (html.match(/\+ Want it/g) || []).length === 6 && /\(6 of 12\)/.test(html));
-ok('typing a part number narrows too (P-11 → one line; single characters are ignored, as in the bin search)', (lane(many, 'P-11', 't').match(/\+ Want it/g) || []).length === 1 && (lane(many, 'p', 't').match(/\+ Want it/g) || []).length === 8);
+ok('typing a part number narrows too (P-11 → one line; single characters are ignored, as in the bin search)', (lane(many, 'P-11', 't').match(/\+ Want it/g) || []).length === 1 && (lane(many, 'p', 't').match(/\+ Want it/g) || []).length === 12);
 ok('no match says so without a throw; no rows → no lane at all', /None of the 12 catalog parts match/.test(lane(many, 'zzz', 't')) && lane([], '', 't') === '');
 const popup = grab('window._maintPartsPopup = function (taskId, taskName)');
 ok('the popup has the lane\'s container between the bin and "Order one"', popup.indexOf('id="maint-pop-bin"') < popup.indexOf('id="maint-pop-catalog"') && popup.indexOf('id="maint-pop-catalog"') < popup.indexOf('Not in the bin? Order one'));

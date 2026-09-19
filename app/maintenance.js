@@ -1494,17 +1494,60 @@
     var d = String(dealer || '').trim();
     if (d === MAINT.MAKER_STORE) d = '';
     var bits = [];
-    if (d) bits.push(_dealerSite(d) ? 'site:' + _dealerSite(d) : _plainWords(d));
+    // v0.9.1770 (Brad's own wording for the search: `trainz.com lionel
+    // "6101155203" eye dropper / smoke fill`). The store is a WORD now, not
+    // site:. site: is a hard filter — it returns a blank page whenever that
+    // store does not carry the part, which is the usual case: of 55,955 Lionel
+    // store parts only 896 exist at Trainz. As a word the store still steers the
+    // results and a near miss still comes back with something to click.
+    if (d) bits.push(_dealerSite(d) || _plainWords(d));
     var maker = item ? _makerName(item, item && item._era) : String(makerWord || '');
     if (maker) bits.push(_plainWords(maker));
-    var num = String(item && item.itemNum || '').trim();
+    // v0.9.1770 (Brad: "also add the item number too so this should be
+    // trainz.com lionel 6-84631 "6101155203" eye dropper / smoke fill"). The
+    // item number is spelled the way the catalogs spell it — rrSearchNumber is
+    // the one place that knows a modern Lionel 84631 is sold as 6-84631, and it
+    // is already what every other link in the app searches with (v0.9.1768).
+    var num = '';
+    if (item) {
+      num = (typeof rrSearchNumber === 'function') ? String(rrSearchNumber(item) || '') : '';
+      if (!num) num = String(item.itemNum || '');
+    }
+    num = num.trim();
     if (num) bits.push(num);
-    [].concat(plain || []).forEach(function (p) { p = _plainWords(p); if (p) bits.push(p); });
+    // quoted before plain, so anything quoted leads. The catalog part line quotes
+    // nothing at all (Brad, 2026-09-19); the typed Search box still does, because
+    // there the user typed one exact thing and meant it.
     [].concat(quoted || []).forEach(function (q) { q = String(q || '').replace(/"/g, '').trim(); if (q) bits.push('"' + q + '"'); });
+    [].concat(plain || []).forEach(function (p) { p = _plainWords(p); if (p) bits.push(p); });
     return 'https://www.google.com/search?q=' + encodeURIComponent(bits.join(' ').replace(/\s+/g, ' ').trim());
   }
+  // v0.9.1770: what the part is CALLED, out of a catalog description that is
+  // mostly measurements. "TRACTION TIRE .625 ID x .058 TH x .148 WD" → "TRACTION
+  // TIRE"; "GEAR / WORM SHAFT W/ BEARINGS W/ COUPLING" → "GEAR WORM SHAFT".
+  // Everything from the first measurement on is dropped, then the first four
+  // words are kept: a quoted phrase must appear on the page word for word, and
+  // the longer it runs the more certainly it appears nowhere.
+  function _partPhrase(desc) {
+    var w = _plainWords(desc).replace(/[,;()]+/g, ' ').split(/\s+/);
+    var out = [];
+    for (var i = 0; i < w.length && out.length < 4; i++) {
+      var t = w[i];
+      if (!t) continue;
+      if (/[\d.]/.test(t.charAt(0))) break;            // a measurement — and everything after it
+      // "W/ BEARINGS" arrives as "W BEARINGS" (_plainWords turns / into a space),
+      // so a lone W ends the name just as "w/" would.
+      if (/^(w|w\/|with|and|&|for|the|no|x)$/i.test(t)) { if (!out.length) continue; else break; }
+      out.push(t);
+    }
+    return out.join(' ').trim();
+  }
   // "trainz.com" / "www.trainz.com" / "https://www.trainz.com/parts" → trainz.com; "Joe's Train Shop" → ''
+  // v0.9.1770: ONE place decides what counts as a web address — _linkHost in
+  // app-data.js, which the part-link lookups use on the catalog's own addresses.
+  // Two spellings of that rule would drift and a store would quietly stop matching.
   function _dealerSite(d) {
+    if (typeof _linkHost === 'function') return _linkHost(d);
     var s = String(d || '').trim().replace(/^https?:\/\//i, '').replace(/\/.*$/, '').replace(/^www\./i, '');
     return /^[a-z0-9-]+(\.[a-z0-9-]+)+$/i.test(s) ? s.toLowerCase() : '';
   }
@@ -1527,22 +1570,47 @@
     var el = document.getElementById('maint-pop-catalog');
     if (el) _maintCatalogLaneRender(el.getAttribute('data-task') || '');   // the lane's links follow the pick
   };
-  // ── v0.9.1759: ONE link rule for a catalog part line, wherever it is drawn
-  //    (the popup's lane, the drawer's "Catalog (…)" line). Brad, Sept 16: "we
-  //    can't link directly to trainz website or show the price or if its in
-  //    stock" and "we dont need to automatically show lionel, atlas, or whoevers
-  //    parts directly unless the user select them in the dropdown". So the link
-  //    is a web search of the part — maker, item number, description, "part
-  //    number" — with the picked store added. ONLY when the pick is "The maker's
-  //    own store" AND the part came from the maker's own catalog
-  //    (ERAS[era].partsOfficial) does it open the part's page, worded by the era.
+  // ── v0.9.1770: TWO links on a catalog part line, wherever it is drawn (the
+  //    popup's lane, the drawer's "Catalog (…)" line). Brad, 2026-09-19:
+  //    "we should always show the link for the mfr part link. if they select
+  //    trainz, then we should show the trainz parts lists, if another, the
+  //    search that with google", then "a part should have 2 links always, in
+  //    this case, lionel link, no trainz direct link, but a google search to
+  //    search trainz for the part".
+  //
+  //      1 · THE MAKER'S OWN PAGE — always, whatever store is picked. This is
+  //          the deliberate reversal of the v0.9.1759 rule ("we dont need to
+  //          automatically show lionel, atlas, or whoevers parts directly unless
+  //          the user select them"). Do not put that gate back; Brad replaced it.
+  //      2 · THE PICKED STORE'S — its own page when we already hold this exact
+  //          part number on that store's site, a site:-scoped search of that
+  //          store when we do not. Nothing else is auto-linked, which keeps the
+  //          Sept 16 rule intact: a dealer's own page opens only for a dealer
+  //          the user picked for themselves.
+  //
+  //    No store is named here. See _partLinkOn / _partOfficialLink in app-data.js
+  //    for how a store is matched, and for the measured 1.6% overlap that makes
+  //    the search the normal outcome and the direct link the rare one.
   function _catalogPartLinkHtml(r, item) {
     var era = (typeof ERAS !== 'undefined' && ERAS[r._era]) || {};
-    var pick = _dealerPick(), href, word;
-    if (pick === MAINT.MAKER_STORE && era.partsOfficial && r.refLink) {
-      href = String(r.refLink); word = era.partsLink || 'store';
+    var maker = era.manufacturer || '';
+    var out = [];
+    // 1 · the maker's own page for this part.
+    var off = (typeof _partOfficialLink === 'function') ? _partOfficialLink(r, maker) : null;
+    if (off && off.href) {
+      var oe = (typeof ERAS !== 'undefined' && ERAS[off.era]) || era;
+      out.push(_partLinkA(off.href, oe.partsLink || 'store'));
+    }
+    // 2 · the store the user picked.
+    var pick = _dealerPick(), d = (pick === MAINT.MAKER_STORE) ? '' : pick;
+    var site = d ? _dealerSite(d) : '';
+    var direct = (site && typeof _partLinkOn === 'function') ? _partLinkOn(r, site, maker) : '';
+    // …unless that IS the page link 1 already opened (the user's favorite store
+    // is the maker's own store). One link twice is not two links; search instead.
+    if (direct && off && direct === off.href) direct = '';
+    if (direct) {
+      out.push(_partLinkA(direct, site));
     } else {
-      var d = pick === MAINT.MAKER_STORE ? '' : pick;
       // ── v0.9.1760 (Brad, with the screenshot: "did not match any documents") ──
       // v1759 sent the ENGINE's number and the part's whole description:
       //   lionel 84631 TRACTION TIRE .625 ID x .058 TH x .148 WD "6304678206"
@@ -1551,11 +1619,23 @@
       // and the dimensions piled on eight more required words. A part is found by
       // its OWN number: maker + the part number, nothing else. (A catalog row with
       // no number at all falls back to the item + what the part is called.)
-      var pn = String(r.itemNum || '').trim();
-      href = pn ? _partsUrl(d, null, pn, '', era.manufacturer || '')
-                : _partsUrl(d, item, r.description, '', era.manufacturer || '');
-      word = d ? 'search ' + (_dealerSite(d) || d) : 'search';
+      // Brad, 2026-09-19, spelling the search out himself over three messages:
+      //   "we have to search the part number and the description"
+      //   "also add the item number too"
+      //   "forgot, we have to get rid of teh " ". so trainz.com lionel 6-84631
+      //    6101155203 eye dropper / smoke fill"
+      // So: NOTHING is quoted. A quoted term is a term Google must find word for
+      // word, and the store that files this part as 001E-144 has no page saying
+      // 6101155203 — the quotes were guaranteeing the empty result. As plain
+      // words Google can weigh them and still come back with the right part.
+      // v1760's lesson survives inside _partPhrase: the measurements stay out.
+      var pn = String(r.itemNum || '').trim(), ph = _partPhrase(r.description);
+      out.push(_partLinkA(_partsUrl(d, item, '', pn ? [pn, ph] : [ph || r.description], maker),
+                          d ? 'search ' + (site || d) : 'search'));
     }
+    return out.join(' <span style="color:var(--text-dim)">·</span> ');
+  }
+  function _partLinkA(href, word) {
     return '<a href="' + _esc(href) + '" target="_blank" rel="noopener" style="color:var(--accent2)">' + _esc(word) + '</a>';
   }
   window._catalogPartLinkHtml = _catalogPartLinkHtml;
@@ -2598,13 +2678,17 @@
     rows = rows || [];
     if (!rows.length) return '';
     var words = String(q || '').toLowerCase().replace(/[^a-z0-9 ]/g, ' ').split(/\s+/).filter(function (w) { return w.length >= 2; });
+    // v0.9.1770 (Brad: "you can't scroll down the parts"). It was never a scroll
+    // bug \u2014 the lane drew the first 8 of 60 and there was nothing below to reach.
+    // Every part is drawn now, in a box with its own scrollbar so the popup keeps
+    // its height.
     var hits = words.length
       ? rows.filter(function (r) { var hay = (String(r.itemNum || '') + ' ' + String(r.description || '')).toLowerCase().replace(/[^a-z0-9 ]/g, ' '); return words.every(function (w) { return hay.indexOf(w) >= 0; }); })
-      : rows.slice(0, 8);
+      : rows;
     var head = '<div style="font-size:0.7rem;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-dim);margin:0.6rem 0 0.25rem">Catalog parts for this item'
-      + (words.length ? ' (' + hits.length + ' of ' + rows.length + ')' : (rows.length > 8 ? ' (first 8 of ' + rows.length + ' \u2014 type to narrow)' : '')) + '</div>';
+      + (words.length ? ' (' + hits.length + ' of ' + rows.length + ')' : ' (' + rows.length + (rows.length > 8 ? ' \u2014 scroll, or type to narrow' : '') + ')') + '</div>';
     if (!hits.length) return head + '<div style="font-size:0.8rem;color:var(--text-dim)">None of the ' + rows.length + ' catalog parts match what you typed.</div>';
-    return head + hits.map(function (r) {
+    return head + '<div style="max-height:44vh;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-right:0.25rem">' + hits.map(function (r) {
       var era = (typeof ERAS !== 'undefined' && ERAS[r._era]) || {};
       var src = era.label || r._tab || '';
       return '<div style="display:flex;justify-content:space-between;align-items:center;gap:0.5rem;padding:0.3rem 0;border-bottom:1px solid var(--border)">'
@@ -2614,7 +2698,7 @@
         + '<div style="font-size:0.72rem;color:var(--text-dim)">' + _esc(src) + (src ? ' \u00b7 ' : '') + _catalogPartLinkHtml(r, item) + '</div></div>'
         + '<button onclick="_maintPopWantCatalog(\'' + rrJsArg(r._era || '') + '\',\'' + rrJsArg(r.itemNum) + '\',\'' + rrJsArg(r.variation || '') + '\',\'' + rrJsArg(taskId || '') + '\')" ' + _btn('green', 'sm', 'flex-shrink:0') + '>+ Want it</button>'
         + '</div>';
-    }).join('');
+    }).join('') + '</div>';
   }
   window._maintCatalogLaneHtml = _maintCatalogLaneHtml;
   // (re)draw the lane under the popup's typing box — called by _maintBinCheck on every keystroke
