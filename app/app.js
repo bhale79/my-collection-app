@@ -1721,7 +1721,18 @@ function rrSearchTerms(item) {
   var d = String(item.description || '').replace(/\([^)]*\)/g, '').split(/[—|,.;]/)[0]
             .trim().split(/\s+/).slice(0, 5).join(' ');
   if (d && num && d.toLowerCase() === num.toLowerCase()) d = '';
-  if (d && item.roadName && String(item.roadName).toLowerCase().indexOf(d.toLowerCase()) >= 0) d = '';
+  var _rn = String(item.roadName || '').trim();
+  // v0.9.1769: BOTH directions. The road name can contain the description
+  // ("Western Pacific" / "Western Pacific"), or the description can START with
+  // the road name ("Western Pacific" + "Western Pacific Boxcar"). v1768 only
+  // guarded the first, and 6464-1 came out as
+  // "Lionel 6464-1 Western Pacific Western Pacific Boxcar postwar" — caught on
+  // Brad's own live data. The adjacent-word dedupe below cannot see a repeated
+  // PHRASE, only a repeated word.
+  if (d && _rn && _rn.toLowerCase().indexOf(d.toLowerCase()) >= 0) d = '';
+  if (d && _rn && d.toLowerCase().indexOf(_rn.toLowerCase()) === 0) {
+    d = d.slice(_rn.length).replace(/^[\s,\-]+/, '').trim();
+  }
   bits.push(d);
   // a CUSTOM RUN row has no number, so it leans on what it DOES have (v1245)
   if (!num) { bits.push(String(item.itemType || '').trim()); bits.push(String(item.variation || '').trim()); }
