@@ -1872,17 +1872,17 @@ function _itemExternalLinkURL(item) {
   if (item.itemNum) {
     var _tabL = String(item._tab || '').toLowerCase();
     var _numT = String(item.itemNum).trim();
+    // ── v0.9.1768 ──────────────────────────────────────────────────────────
+    // WAS: an MTH branch and a Lionel branch that hardcoded 'Lionel ' for every
+    // Lionel-tab row, plus the era word for modern. Brad's item 2300 is
+    // AMERICAN FLYER and searched as Lionel; "modern" was ignored by Google
+    // ("Missing: modern" on his own result page). Both branches now ask
+    // rrSearchTerms (app.js), which is the ONE place that knows the brand
+    // follows the GAUGE and which era words are worth sending.
     var _isMth = _tabL.indexOf('mth') === 0 || /^11-\d{3,}$/.test(_numT);
-    if (_isMth) {
-      var _gqM = 'MTH ' + _numT + (item.roadName ? ' ' + item.roadName : '');
-      return 'https://www.google.com/search?q=' + encodeURIComponent(_gqM);
-    }
-    if (_tabL.indexOf('lionel') === 0) {
-      var _per2 = (typeof _itemEraPeriod === 'function') ? _itemEraPeriod(item) : null;
-      var _perWord2 = ({ prewar: 'prewar', postwar: 'postwar', modern: 'modern' })[_per2] || '';
-      var _gq2 = 'Lionel ' + _numT + (item.roadName ? ' ' + item.roadName : '')
-        + (_perWord2 ? ' ' + _perWord2 : '');
-      return 'https://www.google.com/search?q=' + encodeURIComponent(_gq2);
+    if (_isMth || _tabL.indexOf('lionel') === 0) {
+      var _gq1 = (typeof rrSearchTerms === 'function') ? rrSearchTerms(item) : '';
+      if (_gq1) return 'https://www.google.com/search?q=' + encodeURIComponent(_gq1);
     }
     // ── v0.9.1245 — every other maker gets a search too ───────────────────
     // Until now this returned '' for them, so a Weaver, K-Line, Williams,

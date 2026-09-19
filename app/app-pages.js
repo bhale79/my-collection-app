@@ -1372,7 +1372,19 @@ function _ebayDoSearch(itemNum, roadName, _unused) {
 }
 
 function wantSearchOtherSites(itemNum, roadName) {
-  const query = ['lionel', itemNum, roadName || '', 'for sale'].filter(Boolean).join(' ').trim();
+  // v0.9.1768: this hardcoded lowercase 'lionel' for EVERY item, so an American
+  // Flyer S-gauge piece went looking for a Lionel one — the same fault Brad hit
+  // on the catalog link for item 2300. The three callers pass only the number,
+  // so the catalog row is resolved here and rrSearchTerms (app.js) decides the
+  // brand from the item's gauge. Falls back to the old wording if the number is
+  // not in the catalog (manual rows), which is no worse than before.
+  let query = '';
+  try {
+    const m = (typeof findMaster === 'function') ? findMaster(itemNum, '', null) : null;
+    if (m && typeof rrSearchTerms === 'function') query = rrSearchTerms(m);
+  } catch (e) {}
+  if (!query) query = ['lionel', itemNum, roadName || ''].filter(Boolean).join(' ').trim();
+  query = (query + ' for sale').trim();
   const url = 'https://www.google.com/search?q=' + encodeURIComponent(query);
   window.open(url, '_blank');
 }

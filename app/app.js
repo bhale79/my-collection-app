@@ -1655,6 +1655,91 @@ function _scaleOfItem(item) {
   return null;
 }
 
+// ── v0.9.1768 — rrSearchTerms: the ONE place that knows how to NAME an item ──
+// Brad, 2026-09-19: he clicked item 2300 (Oil Drum Loader) and landed on the
+// wrong train. The link searched "Lionel 2300 modern oil drum loader". 2300 is
+// an AMERICAN FLYER S-gauge item, and Google was told Lionel.
+//
+// Four rules live here and NOWHERE else. Before this, the Lionel branch in
+// browse.js hardcoded 'Lionel ' and wantSearchOtherSites in app-pages.js
+// hardcoded lowercase 'lionel', so a wrong brand could not be fixed in one go.
+//
+//  1. BRAND FOLLOWS GAUGE, not the tab. Brad: "all lionel s guage are branded
+//     american flyer". O and HO are Lionel. The gauge comes from the ERA
+//     (_scaleOfItem), which is why this only became correct once the 456
+//     American Flyer items were moved off the O-gauge tab on 2026-09-19.
+//  2. THE ERA WORD IS FOR PREWAR AND POSTWAR ONLY. It was added at Brad's ask
+//     because a bare "Lionel 6464-100" is swamped by modern reissues, and it
+//     earns its place there. For MODERN it separates nothing — Google's own
+//     result page said "Missing: modern". Dropped.
+//  3. MODERN LIONEL: a bare five-digit number gets its 6 back. NOT a guess —
+//     measured 2026-09-05 against the real store (84631 misses, 684631 loads),
+//     i.e. the catalogue number genuinely is 6-84631. Same rule as
+//     stock-photos.js STOCK.lionelStore.
+//  4. The ROAD NAME and the first clause of the DESCRIPTION come along. On
+//     9504 the word "Erie" is the ONLY reason Google found the right car.
+//
+// DELIBERATELY NOT DONE: guessing the American Flyer 4- / 6- prefix. Brad's
+// hypothesis (4- in the 80s, 6- later) fits two examples and is unproven. With
+// the brand right, "American Flyer 9504 Erie combination car" is already
+// unambiguous. A WRONG prefix is worse than none — it turns a vague search into
+// a confident search for the wrong item.
+function rrSearchBrand(item) {
+  var tab = String((item && item._tab) || '').toLowerCase();
+  var num = String((item && item.itemNum) || '').trim();
+  // 11-##### is MTH's numbering wearing Lionel's name (v1183) — MTH whichever
+  // tab it sits on.
+  if (tab.indexOf('mth') === 0 || /^11-\d{3,}$/.test(num)) return 'MTH';
+  if (tab.indexOf('lionel') === 0) {
+    var sc = '';
+    try { sc = (typeof _scaleOfItem === 'function') ? (_scaleOfItem(item) || '') : ''; } catch (e) {}
+    return (sc === 's') ? 'American Flyer' : 'Lionel';
+  }
+  if (typeof _makerForTab === 'function') { var m = _makerForTab(tab); if (m) return m; }
+  return String((item && item.manufacturer) || '').trim();
+}
+function rrSearchNumber(item) {
+  var num = String((item && item.itemNum) || '').trim();
+  if (!num) return '';
+  if (/^CUSTOM RUN/i.test(num)) return '';        // Weaver's field saying there ISN'T one
+  num = num.replace(/-(L|S|LP|SP)$/i, '');        // Weaver 3-rail/2-rail suffix (v1245)
+  var tab = String((item && item._tab) || '').toLowerCase();
+  if (tab.indexOf('lionel') === 0 && /^\d{5}$/.test(num)) {
+    var per = '';
+    try { per = (typeof _itemEraPeriod === 'function') ? (_itemEraPeriod(item) || '') : ''; } catch (e) {}
+    if (per === 'modern') num = '6-' + num;       // rule 3
+  }
+  return num;
+}
+function rrSearchTerms(item) {
+  if (!item) return '';
+  var brand = rrSearchBrand(item);
+  var num   = rrSearchNumber(item);
+  var bits  = [brand, num, String(item.roadName || '').trim()];
+  // first clause of the description, max 5 words, no parentheticals — the shape
+  // research.js _searchQuery proved (v0.9.711: "148 train" found Thomas posters)
+  var d = String(item.description || '').replace(/\([^)]*\)/g, '').split(/[—|,.;]/)[0]
+            .trim().split(/\s+/).slice(0, 5).join(' ');
+  if (d && num && d.toLowerCase() === num.toLowerCase()) d = '';
+  if (d && item.roadName && String(item.roadName).toLowerCase().indexOf(d.toLowerCase()) >= 0) d = '';
+  bits.push(d);
+  // a CUSTOM RUN row has no number, so it leans on what it DOES have (v1245)
+  if (!num) { bits.push(String(item.itemType || '').trim()); bits.push(String(item.variation || '').trim()); }
+  // rule 2 — prewar/postwar only
+  var per2 = '';
+  try { per2 = (typeof _itemEraPeriod === 'function') ? (_itemEraPeriod(item) || '') : ''; } catch (e) {}
+  if (per2 === 'prewar' || per2 === 'postwar') bits.push(per2);
+  var q = bits.filter(Boolean).join(' ').trim();
+  // drop adjacent duplicate words ("Lionel Lionel ...") — v0.9.740
+  q = q.split(/\s+/).filter(function (w, i, a) { return !i || w.toLowerCase() !== a[i - 1].toLowerCase(); }).join(' ');
+  return q;
+}
+if (typeof window !== 'undefined') {
+  window.rrSearchBrand  = rrSearchBrand;
+  window.rrSearchNumber = rrSearchNumber;
+  window.rrSearchTerms  = rrSearchTerms;
+}
+
 // ── Session 137 ─ Manufacturer preference helpers (Tier 3.15) ─────────────────
 // Parallel to the era + scale pref pattern. Default: all manufacturers in
 // WHAT_I_COLLECT.MANUFACTURERS are enabled. Admins always see all.
