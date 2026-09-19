@@ -291,10 +291,10 @@ section('Trio');
   const cfg = fs.readFileSync(path.join(__dirname, '..', 'app', 'config.js'), 'utf8');
   const sw  = fs.readFileSync(path.join(__dirname, '..', 'app', 'sw.js'), 'utf8');
   const ix  = fs.readFileSync(path.join(__dirname, '..', 'app', 'index.html'), 'utf8');
-  ok('APP_VERSION v0.9.1772', /const APP_VERSION = 'v0\.9\.1772';/.test(cfg));
-  ok('CACHE_NAME is the version + 10', /const CACHE_NAME = 'mca-v1782';/.test(sw));
-  ok('index.html stamps every asset at 1772 and none at 1771',
-     (ix.match(/\?v=1772/g) || []).length === 79 && !/\?v=1771/.test(ix));
+  ok('APP_VERSION v0.9.1773', /const APP_VERSION = 'v0\.9\.1773';/.test(cfg));
+  ok('CACHE_NAME is the version + 10', /const CACHE_NAME = 'mca-v1783';/.test(sw));
+  ok('index.html stamps every asset at 1773 and none at 1772',
+     (ix.match(/\?v=1773/g) || []).length === 79 && !/\?v=1772/.test(ix));
 }
 
 

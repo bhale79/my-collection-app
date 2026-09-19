@@ -21,7 +21,18 @@
       + '.cropper-point.point-ne{top:-8px;right:-8px}'
       + '.cropper-point.point-nw{top:-8px;left:-8px}'
       + '.cropper-point.point-sw{bottom:-8px;left:-8px}'
-      + '.cropper-point.point-se{bottom:-8px;right:-8px;width:16px!important;height:16px!important}';
+      + '.cropper-point.point-se{bottom:-8px;right:-8px;width:16px!important;height:16px!important}'
+      // v0.9.1773 (Brad: "the crop box blue grips are too close to the edge and
+      // is super hard to get sometimes with your fingers"). v0.9.790 already
+      // went 5px -> 16px and that is as large as the square can be before it
+      // starts hiding the picture underneath it. So grow the TARGET instead of
+      // the square: an invisible 34px pad centred on each grip, which roughly
+      // quadruples the area your finger has to hit while nothing looks any
+      // different. 34 and not the usual 44 on purpose — the crop box floor is
+      // 64px, so 44 would make opposite corners' targets overlap and you would
+      // grab the wrong one.
+      + '.cropper-point:after{content:"";position:absolute;left:50%;top:50%;'
+      +   'width:34px;height:34px;transform:translate(-50%,-50%)}';
     document.head.appendChild(stl);
   } catch (e) {}
 })();
@@ -322,7 +333,7 @@ function _openCropper(src, onResult, onCancel, opts) {   // v0.9.787: onCancel =
   // old −/+ buttons carried are gone with the slider.
   var stepBtn = btn + ';padding:0.45rem 0.6rem;min-width:46px;min-height:40px;font-size:0.86rem;line-height:1;white-space:nowrap';
   ov.innerHTML =
-    '<div style="padding:0.75rem 1rem;display:flex;justify-content:space-between;align-items:center;color:#fff;gap:1rem;flex-wrap:wrap">' +
+    '<div style="flex:0 0 auto;padding:0.75rem 1rem;display:flex;justify-content:space-between;align-items:center;color:#fff;gap:1rem;flex-wrap:wrap">' +
       '<strong style="font-size:1rem">' + (opts.title || 'Crop photo') + '</strong>' +
       '<span id="_rrCropHint" style="font-size:0.78rem;opacity:0.75">' + (opts.hint || 'Drag the box · pinch or scroll to zoom') + '</span>' +
       '<button id="_rrCropWhole" style="display:none;padding:0.4rem 0.7rem;min-height:38px;border-radius:8px;border:1px solid #555;background:#2a2a2a;color:#eee;font-size:0.78rem;cursor:pointer">Whole photo</button>' +
@@ -363,7 +374,7 @@ function _openCropper(src, onResult, onCancel, opts) {   // v0.9.787: onCancel =
     // road is that levelling a photo is a STEPPING job, not a dragging one.
     // Every control here now moves a known amount, so the result is repeatable
     // and nothing can fling.
-    '<div style="padding:0.55rem 1rem 0;display:flex;align-items:center;gap:0.35rem;flex-wrap:wrap;justify-content:center">' +
+    '<div style="flex:0 0 auto;padding:0.55rem 1rem 0;display:flex;align-items:center;gap:0.35rem;flex-wrap:wrap;justify-content:center">' +
       '<span style="color:#ccc;font-size:0.78rem;white-space:nowrap">Level</span>' +
       '<button id="_rrCropRotQtrL" class="rr-tap" title="Turn 90 degrees left" style="' + stepBtn + '">\u21ba 90\u00b0</button>' +
       '<button id="_rrCropRotMinus" class="rr-tap" title="Half a degree left" style="' + stepBtn + '">\u2212 0.5\u00b0</button>' +
@@ -375,7 +386,7 @@ function _openCropper(src, onResult, onCancel, opts) {   // v0.9.787: onCancel =
       '<button id="_rrCropZoomOut" class="rr-tap" title="Zoom out" style="' + stepBtn + '">\u2212</button>' +
       '<button id="_rrCropZoomIn" class="rr-tap" title="Zoom in" style="' + stepBtn + '">+</button>' +
     '</div>' +
-    '<div style="padding:0.85rem 1rem;display:flex;gap:0.6rem;justify-content:flex-end">' +
+    '<div style="flex:0 0 auto;padding:0.85rem 1rem;display:flex;gap:0.6rem;justify-content:flex-end">' +
       // v0.9.1737 (Brad: "remove that rotate button"): gone. v1736 put ↺ 90°
       // and ↻ 90° directly under the picture, which does the same job in both
       // directions and next to the fine steps, so this one was a second way to
@@ -409,8 +420,37 @@ function _openCropper(src, onResult, onCancel, opts) {   // v0.9.787: onCancel =
 
   // PHONES ONLY. On desktop the stage stays fluid so Cropper's `responsive`
   // option can still re-fit when the window is actually resized.
+  // ══ v0.9.1773 — MEASURE THE SCREEN YOU CAN SEE ═══════════════════════════
+  // Brad, 2026-09-19: "the picture on the crop page is too big and covers the
+  // rotate and zoom buttons. one time the crop box captured those buttons."
+  //
+  // Both halves are this. The overlay is position:fixed;inset:0, which sizes it
+  // to the LAYOUT viewport — and on a phone that is taller than what you can
+  // actually see, because the browser's own toolbar is drawn over the bottom of
+  // it. _freezeStage then measures the picture area inside that too-tall box and
+  // PINS it at that height (correctly — the pinning is v0.9.1031's fix for the
+  // flashing, and it stays). So the picture was frozen to a height that does not
+  // fit on screen, the buttons below it were pushed under the browser chrome,
+  // and a crop box dragged to the bottom of the picture area reached over them.
+  //
+  // visualViewport reports the part you can SEE. Size the overlay to that first
+  // and the measurement below is honest. Set ONCE here, and again on a real
+  // rotation via _onOrient — deliberately NOT on every viewport event, because
+  // reacting to the toolbar sliding is the exact churn v0.9.1031 removed.
+  function _fitOverlayToVisible() {
+    if (!_phone) return;
+    try {
+      var vv = window.visualViewport;
+      if (!vv || !vv.height) return;
+      ov.style.top = Math.max(0, Math.round(vv.offsetTop || 0)) + 'px';
+      ov.style.bottom = 'auto';
+      ov.style.height = Math.round(vv.height) + 'px';
+    } catch (e) { /* no visualViewport — inset:0 stands, exactly as before */ }
+  }
+
   function _freezeStage() {
     if (!_phone) return;
+    _fitOverlayToVisible();
     try {
       var r = stage.getBoundingClientRect();
       if (r.width > 40 && r.height > 40) {
@@ -433,6 +473,13 @@ function _openCropper(src, onResult, onCancel, opts) {   // v0.9.787: onCancel =
       cropper = new Cropper(img, {
         viewMode: 0, autoCropArea: 1, background: false, movable: true, zoomable: true,
         responsive: !_phone, checkOrientation: !autoOriented,
+        // v0.9.1773 (Brad: "half the time it colapses into a tiny box that i
+        // have to stretch back out"). There was no floor at all, so one clumsy
+        // drag could take the box to nearly zero. A fingertip is the floor.
+        // viewMode stays 0 on purpose — v0.9.904 chose it so a rotated photo is
+        // not clamped and zoomed to fill the frame, which is what makes the
+        // half-degree levelling behave. Do not "fix" that to 1.
+        minCropBoxWidth: 64, minCropBoxHeight: 64,
         // v0.9.1049: seeding the rotation and restoring the remembered box BOTH
         // need the cropper to be ready — setData and getImageData do nothing
         // before that, which is why doing it straight after the constructor
