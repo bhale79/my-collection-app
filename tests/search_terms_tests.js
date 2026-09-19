@@ -164,6 +164,24 @@ const qc = terms(custom);
 ok('a CUSTOM RUN row searches its road and type, not the words "CUSTOM RUN"',
    !/CUSTOM RUN/i.test(qc) && /Reading/.test(qc) && /Boxcar/.test(qc), qc);
 
+// v0.9.1769 — caught on Brad's LIVE data after v1768 shipped. 6464-1 came out
+// as "Lionel 6464-1 Western Pacific Western Pacific Boxcar postwar": the road
+// name and the start of the description are the same PHRASE, and the
+// adjacent-word dedupe cannot see a phrase. Both directions are guarded now.
+section('D2 · the road name is never said twice');
+const wp = { _tab: 'Lionel PW - Items', _era: 'pw', _period: 'postwar',
+             itemNum: '6464-1', description: 'Western Pacific Boxcar', roadName: 'Western Pacific' };
+const qwp = terms(wp);
+ok('the road name appears exactly once',
+   (qwp.match(/Western Pacific/g) || []).length === 1, qwp);
+ok('…and what it describes survives', /Boxcar/.test(qwp), qwp);
+ok('…and it is still postwar and still Lionel',
+   /postwar/.test(qwp) && /^Lionel /.test(qwp), qwp);
+const rev = { _tab: 'Lionel PW - Items', _era: 'pw', _period: 'postwar',
+              itemNum: '6464-2', description: 'Santa Fe', roadName: 'Santa Fe Railway' };
+ok('the other direction too (road name CONTAINS the description)',
+   (terms(rev).match(/Santa Fe/g) || []).length === 1, terms(rev));
+
 ok('adjacent duplicate words are dropped',
    terms({ _tab: 'Marx O', _era: 'marx', _period: 'modern', itemNum: '1',
            description: 'Marx Marx Tin Car', roadName: '' }).indexOf('Marx Marx') < 0);
