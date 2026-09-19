@@ -93,6 +93,29 @@ function _rrSaveBox(cropper) {
   } catch (e) {}
 }
 
+// v0.9.1774 — the same question _rrLoadBox answers, asked BEFORE the cropper
+// exists. "Whole photo" used to be revealed in Cropper's ready callback, which
+// runs AFTER _freezeStage has measured and pinned the picture area — so on the
+// remembered-crop path the header grew by a button's height a moment too late
+// and the picture kept a height that had just stopped being correct. The img is
+// already loaded and decoded by the time _build runs, so its own naturalWidth /
+// naturalHeight answer the orientation test without Cropper.
+//
+// If this ever disagrees with _rrLoadBox (EXIF handling differs), the cost is a
+// reserved-but-unused button row or a header that still grows — and the clamp
+// above makes both harmless. That is the point of the clamp.
+function _rrSavedBoxFits(img) {
+  try {
+    var raw = localStorage.getItem(_RR_BOX_KEY);
+    if (!raw) return false;
+    var box = JSON.parse(raw);
+    if (!box || !box.w || !box.h) return false;
+    if (Date.now() - (box.t || 0) > _RR_BOX_MAX_AGE) return false;
+    if (!img || !img.naturalWidth) return false;
+    return (img.naturalWidth >= img.naturalHeight) === !!box.land;
+  } catch (e) { return false; }
+}
+
 function _rrLoadBox(cropper) {
   try {
     var raw = localStorage.getItem(_RR_BOX_KEY);
@@ -335,7 +358,7 @@ function _openCropper(src, onResult, onCancel, opts) {   // v0.9.787: onCancel =
   ov.innerHTML =
     '<div style="flex:0 0 auto;padding:0.75rem 1rem;display:flex;justify-content:space-between;align-items:center;color:#fff;gap:1rem;flex-wrap:wrap">' +
       '<strong style="font-size:1rem">' + (opts.title || 'Crop photo') + '</strong>' +
-      '<span id="_rrCropHint" style="font-size:0.78rem;opacity:0.75">' + (opts.hint || 'Drag the box · pinch or scroll to zoom') + '</span>' +
+      '<span id="_rrCropHint" style="font-size:0.78rem;opacity:0.75">' + (opts.hint || 'Drag the box · zoom with the buttons') + '</span>' +
       '<button id="_rrCropWhole" style="display:none;padding:0.4rem 0.7rem;min-height:38px;border-radius:8px;border:1px solid #555;background:#2a2a2a;color:#eee;font-size:0.78rem;cursor:pointer">Whole photo</button>' +
     '</div>' +
     // v0.9.1031 (Brad): the crop box used to sit 16px too far RIGHT, so both
@@ -345,8 +368,29 @@ function _openCropper(src, onResult, onCancel, opts) {   // v0.9.787: onCancel =
     // crop box 1rem off the right edge. The padding now lives on a wrapper
     // and the stage itself is a plain relative box, so Cropper measures the
     // real area it gets to draw in.
-    '<div style="flex:1;min-height:0;padding:0 12px 4px;display:flex">' +
-      '<div id="_rrCropStage" style="flex:1;min-height:0;position:relative;overflow:hidden">' +
+    // ══ v0.9.1774 — THE PICTURE MAY NEVER DRAW OVER THE CONTROLS ═════════
+    // Brad, 2026-09-19, after v0.9.1773 did NOT fix it: "the screen covers the
+    // rotate buttons completely, it doesn't cover the zoom button."
+    //
+    // That sentence is the diagnosis. If the picture area were simply too tall
+    // the rows below would be PUSHED DOWN and Cancel/Apply would be off the
+    // bottom of the screen. They are not — every row is exactly where it
+    // belongs and the picture is hanging OVER the first of them.
+    //
+    // `overflow:hidden` was on the STAGE, which is frozen to a pixel height by
+    // _freezeStage. It was never on this WRAPPER. So when the frozen height is
+    // bigger than the space the wrapper actually has, the wrapper keeps its own
+    // correct size (the rows below never move) and the stage spills out of it,
+    // over the Level row — one row's worth, which stops before Zoom.
+    //
+    // Clamping here is the part that matters more than any measurement, and
+    // v0.9.1773 should have had it: with max-height the stage cannot be frozen
+    // larger than its space in the first place, and overflow:hidden means even
+    // a future mis-measure degrades to a slightly clipped picture instead of
+    // controls the user cannot reach. A fix that only works when the
+    // measurement is right is not much of a fix.
+    '<div style="flex:1;min-height:0;padding:0 12px 4px;display:flex;overflow:hidden">' +
+      '<div id="_rrCropStage" style="flex:1;min-height:0;max-height:100%;position:relative;overflow:hidden">' +
         // v0.9.1032: the raw <img> stays INVISIBLE until Cropper has taken it
         // over. It used to paint at full size first and then get swapped for
         // Cropper's own rendering — one of the blinks Brad was seeing.
@@ -465,6 +509,16 @@ function _openCropper(src, onResult, onCancel, opts) {   // v0.9.787: onCancel =
   function _build(autoOriented) {
     if (_built || !document.body.contains(ov)) return;
     _built = true;
+    // v0.9.1774: reveal "Whole photo" BEFORE measuring, not after. See
+    // _rrSavedBoxFits. The ready callback still sets both, harmlessly.
+    try {
+      if (_rrSavedBoxFits(img)) {
+        var _rbEarly = ov.querySelector('#_rrCropWhole');
+        if (_rbEarly) _rbEarly.style.display = '';
+        var _hEarly = ov.querySelector('#_rrCropHint');
+        if (_hEarly) _hEarly.textContent = 'Starting from your last crop';
+      }
+    } catch (eRB) {}
     _freezeStage();
     // v0.9.904 (Brad, item [3]): viewMode 0 (was 1) so a rotated photo isn't
     // clamped/zoomed to fill the frame — matches the box-scanner cropper, which
@@ -472,6 +526,13 @@ function _openCropper(src, onResult, onCancel, opts) {   // v0.9.787: onCancel =
     try {
       cropper = new Cropper(img, {
         viewMode: 0, autoCropArea: 1, background: false, movable: true, zoomable: true,
+        // v0.9.1774 (Brad): "now you can pinch zoom which is not good when
+        // you're trying to crop." Pinch predates this release — it was never
+        // added, it was simply always there — but v0.9.1736 gave the screen real
+        // + and - buttons, so pinch became a second way to do a thing that
+        // already has a better one, and it fires while you are trying to drag a
+        // corner. Wheel zoom stays: a mouse has no competing gesture.
+        zoomOnTouch: false,
         responsive: !_phone, checkOrientation: !autoOriented,
         // v0.9.1773 (Brad: "half the time it colapses into a tiny box that i
         // have to stretch back out"). There was no floor at all, so one clumsy
@@ -621,7 +682,7 @@ function _openCropper(src, onResult, onCancel, opts) {   // v0.9.787: onCancel =
       localStorage.removeItem(_RR_BOX_KEY);
       if (cropper) cropper.reset();
       var _h = ov.querySelector('#_rrCropHint');
-      if (_h) _h.textContent = 'Drag the box \u00b7 pinch or scroll to zoom';
+      if (_h) _h.textContent = 'Drag the box \u00b7 zoom with the buttons';
       _wholeBtn.style.display = 'none';
     } catch (e) {}
   };

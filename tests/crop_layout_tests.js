@@ -1,7 +1,23 @@
 // ════════════════════════════════════════════════════════════════════════
-// crop_layout_tests.js — v0.9.1773
+// crop_layout_tests.js — v0.9.1774
 //
 // The crop screen's layout contract.
+//
+// ── WHY THIS FILE GREW ────────────────────────────────────────────────────
+// v0.9.1773 shipped with this suite GREEN and did not fix the bug. Brad, after
+// installing it: "the screen covers the rotate buttons completely, it doesn't
+// cover the zoom button." Every invariant here passed because they were the
+// wrong invariants — they checked that the MEASUREMENT was set up correctly and
+// never checked that a wrong measurement could not reach the controls.
+//
+// That sentence of Brad's is the whole diagnosis. A picture that is merely too
+// tall PUSHES the rows below it down and Cancel/Apply go off-screen. His did
+// not: every row stayed put and the picture hung OVER the first one. The stage
+// had overflow:hidden; the WRAPPER around it did not — so a stage frozen taller
+// than its space spilled out of a wrapper that kept its own correct size.
+//
+// So section G exists, and it is the important one: the picture cannot draw
+// over the controls even when the measurement is wrong.
 //
 // Brad, 2026-09-19: "the picture on the crop page is too big and covers the
 // rotate and zoom buttons. one time the crop box captured those buttons." And:
@@ -65,8 +81,10 @@ const CHECKS = {
     s.indexOf("'<div style=\"flex:0 0 auto;padding:0.55rem 1rem 0;display:flex;align-items:center") > -1,
   actionsRowPinned: s =>
     s.indexOf("'<div style=\"flex:0 0 auto;padding:0.85rem 1rem;display:flex;gap:0.6rem") > -1,
-  stageStillFlexes: s =>
-    s.indexOf("id=\"_rrCropStage\" style=\"flex:1;min-height:0;position:relative;overflow:hidden\"") > -1,
+  stageStillFlexes: s => {
+    const m = s.match(/id="_rrCropStage" style="([^"]*)"/);
+    return !!m && /flex:1/.test(m[1]) && /min-height:0/.test(m[1]) && /overflow:hidden/.test(m[1]);
+  },
   fitsBeforeMeasuring: s => {
     const body = fnBody(s, '_freezeStage');
     const fit = body.indexOf('_fitOverlayToVisible()');
@@ -95,7 +113,24 @@ const CHECKS = {
     const floor = o.match(/minCropBoxWidth:\s*(\d+)/);
     return !!(m && floor) && +m[1] < +floor[1];
   },
-  gripSquareUnchanged: s => /\.cropper-point\{width:16px!important;height:16px!important/.test(s)
+  gripSquareUnchanged: s => /\.cropper-point\{width:16px!important;height:16px!important/.test(s),
+
+  // ── v0.9.1774 — the ones v1773 should have had ──────────────────────────
+  wrapperClamped: s =>
+    s.indexOf("padding:0 12px 4px;display:flex;overflow:hidden") > -1,
+  stageCannotExceedItsSpace: s =>
+    s.indexOf('id="_rrCropStage" style="flex:1;min-height:0;max-height:100%') > -1,
+  revealedBeforeMeasuring: s => {
+    const b = fnBody(s, '_build');
+    const reveal = b.indexOf('if (_rrSavedBoxFits(img))');
+    const freeze = b.indexOf('_freezeStage()');
+    return reveal > -1 && freeze > -1 && reveal < freeze;
+  },
+  pinchOff: s => /zoomOnTouch:\s*false/.test(cropperOptions(s)),
+  hintDoesNotPromisePinch: s => {
+    const m = s.match(/opts\.hint \|\| '([^']*)'/);
+    return !!m && !/pinch/i.test(m[1]);
+  }
 };
 
 console.log('\n== A. The buttons can never be squeezed ==');
@@ -125,6 +160,20 @@ ok('viewMode is still 0 — v0.9.904 chose it so a rotated photo is not clamped'
    CHECKS.viewModeStillZero(SRC),
    'changing this to 1 would break the half-degree levelling Brad asked for');
 
+console.log('\n== G. The picture cannot reach the controls, measurement or not ==');
+ok('the WRAPPER clips too, not just the stage inside it',
+   CHECKS.wrapperClamped(SRC),
+   'this is the one v0.9.1773 was missing');
+ok('…and the stage cannot be frozen taller than its space',
+   CHECKS.stageCannotExceedItsSpace(SRC));
+ok('"Whole photo" is revealed BEFORE the measurement, not in the ready callback',
+   CHECKS.revealedBeforeMeasuring(SRC),
+   'revealing it after is what made the header grow a moment too late');
+
+console.log('\n== H. Pinch no longer fights the drag ==');
+ok('zoom on touch is off', CHECKS.pinchOff(SRC));
+ok('…and the hint no longer promises it', CHECKS.hintDoesNotPromisePinch(SRC));
+
 console.log('\n== F. THE OFFENDERS: break each one, require red ==');
 {
   // Each entry: a name, a mutation of the source, and the check that MUST go
@@ -150,7 +199,29 @@ console.log('\n== F. THE OFFENDERS: break each one, require red ==');
       'gripTargetGrown'],
     ['someone "fixes" viewMode to 1',
       s => s.replace('viewMode: 0, autoCropArea: 1', 'viewMode: 1, autoCropArea: 1'),
-      'viewModeStillZero']
+      'viewModeStillZero'],
+    ['the wrapper stops clipping (the v1773 miss, put back)',
+      s => s.replace('padding:0 12px 4px;display:flex;overflow:hidden',
+                     'padding:0 12px 4px;display:flex'),
+      'wrapperClamped'],
+    ['the stage loses its ceiling',
+      s => s.replace('style="flex:1;min-height:0;max-height:100%;position:relative',
+                     'style="flex:1;min-height:0;position:relative'),
+      'stageCannotExceedItsSpace'],
+    ['"Whole photo" goes back to being revealed after the measurement',
+      s => { const b = fnBody(s, '_build');
+             const i = b.indexOf('    try {\n      if (_rrSavedBoxFits(img)) {');
+             const j = b.indexOf('    _freezeStage();');
+             if (i < 0 || j < 0) return s;
+             return s.replace(b, b.slice(0, i) + b.slice(j)); },
+      'revealedBeforeMeasuring'],
+    ['pinch zoom is switched back on',
+      s => s.replace('zoomOnTouch: false,', ''),
+      'pinchOff'],
+    ['the hint promises pinch again',
+      s => s.replace("opts.hint || 'Drag the box \u00b7 zoom with the buttons'",
+                     "opts.hint || 'Drag the box \u00b7 pinch or scroll to zoom'"),
+      'hintDoesNotPromisePinch']
   ];
   offenders.forEach(function (o) {
     const broken = o[1](SRC);
