@@ -1522,6 +1522,14 @@
       num:  ap.rrNum  || '',
       stat: ap.rrStat || '',
       conf: ap.rrConf || '',
+      // v0.9.1771 — the three that make a read the ACCOUNT'S, not the device's.
+      // rt: when this answer was decided (epoch ms, as a string). rej: the
+      // numbers the user has ruled out on this photo. crop: when the photo's
+      // bytes were last replaced, so ANY device knows Drive's preview is stale
+      // — not just the one that did the cropping.
+      rt:   ap.rrRt   || '',
+      rej:  ap.rrRej  || '',
+      crop: ap.rrCrop || '',
       // v0.9.1283 (Brad: "i need to be able to drag the pictures back and
       // forth"): the photo's place in its group, written when he drags. 0
       // means never ordered — listing order stands, as it always has.
@@ -1544,7 +1552,7 @@
   // and deletes any whose value is null, so only what changed goes over.
   async function _pinMetaSet(fileId, patch) {
     if (!fileId || !patch) return false;
-    var map = { era:'rrEra', grp:'rrGrp', kind:'rrKind', role:'rrRole', type:'rrType', num:'rrNum', stat:'rrStat', conf:'rrConf', ord:'rrOrd', view:'rrView' };   // ord: v0.9.1283, drag order · type: v0.9.1297 · view: v0.9.1433
+    var map = { era:'rrEra', grp:'rrGrp', kind:'rrKind', role:'rrRole', type:'rrType', num:'rrNum', stat:'rrStat', conf:'rrConf', ord:'rrOrd', view:'rrView', rt:'rrRt', rej:'rrRej', crop:'rrCrop' };   // ord: v0.9.1283, drag order · type: v0.9.1297 · view: v0.9.1433
     var props = { rrV: _PIN_META_V };
     Object.keys(patch).forEach(function (k) {
       if (!map[k]) return;
@@ -1681,30 +1689,88 @@
   // The read LOOP is untouched: syncing at load alone converges both devices,
   // and keeps the money-sensitive paid button honest without threading Drive
   // writes through the reader.
+  // v0.9.1771 — the rejected list, packed for a Drive appProperty. Values are
+  // capped at 100 characters there, so entries are dropped WHOLE rather than
+  // letting a cut land mid-number and invent a rejection nobody made.
+  function _rejStr(list) {
+    var out = [], len = 0;
+    (list || []).forEach(function (v) {
+      var t = String(v == null ? '' : v).trim();
+      if (!t || out.indexOf(t) >= 0) return;
+      if (len + t.length + 1 > 95) return;
+      out.push(t); len += t.length + 1;
+    });
+    return out.join(',');
+  }
+  function _rejList(str) {
+    return String(str || '').split(',').map(function (v) { return v.trim(); }).filter(Boolean);
+  }
+
   function _pinSyncReadState(files) {
-    var ids = _ids(), seeded = false, toPush = [];
+    var ids = _ids(), seeded = false, toPush = [], cropSeen = [];
     (files || []).forEach(function (f) {
       if (!f || !f.id) return;
       var meta = f._meta || _pinMetaOf(f);
       var local = ids[f.id];
       var localRead = !!(local && local.rv === READER_VER && (local.num || local.guess));
       var driveNum = meta && meta.num;
+      var driveRt  = (meta && parseInt(meta.rt, 10)) || 0;
+      var localRt  = (local && parseInt(local.rt, 10)) || 0;
+      var driveRej = _rejList(meta && meta.rej);
+      var localRej = (local && local.rejected) || [];
+      var sameNum  = String(driveNum || '') === String((local && local.num) || '');
+      var sameRej  = _rejStr(driveRej) === _rejStr(localRej);
+      // v0.9.1771 — a photo cropped on ANY device needs its real bytes here.
+      if (meta && meta.crop) cropSeen.push(f.id);
+
       if (driveNum && !localRead) {
         // PULL — Drive knows this read, we don't. Seed a minimal record; keep
         // any local fields we happen to have, but set the number and mark it
         // read at the current reader so the scan skips it and paid excludes it.
+        // A read with no stamp on it is pre-1771: call it time 1, so anything
+        // decided since beats it rather than the two sides tying forever.
         ids[f.id] = Object.assign({}, local || {}, {
           num: driveNum,
           guess: (meta.conf === 'lo') ? 1 : 0,
+          rejected: driveRej.length ? driveRej : localRej,
+          rt: driveRt || 1,
           rv: READER_VER, tried: 1, free: 1, fromDrive: 1
         });
         seeded = true;
-      } else if (localRead && local.num && meta.num !== local.num) {
-        // PUSH — we read it, Drive is missing or stale. Stamp the number only
-        // (+ how sure), never the status.
-        toPush.push({ id: f.id, num: local.num, guess: local.guess });
+      } else if (localRead && (!sameNum || !sameRej)) {
+        // ══ THE FIGHT THIS ENDS ═══════════════════════════════════════════
+        // Until now the device that was asking always won: it pushed its own
+        // answer over Drive's without ever comparing the two. So a re-scan on
+        // the phone pushed 6427 up, the desktop's next load pushed 6464-525
+        // straight back, and the two overwrote each other on every single load
+        // — whichever screen was opened last looked right and they could never
+        // converge. Brad, 2026-09-19. Compare the CLOCKS, not the caller.
+        if (driveNum && driveRt > localRt) {
+          ids[f.id] = Object.assign({}, local || {}, {
+            num: driveNum,
+            guess: (meta.conf === 'lo') ? 1 : 0,
+            rejected: driveRej,
+            rt: driveRt,
+            rv: READER_VER, tried: 1, fromDrive: 1
+          });
+          seeded = true;
+        } else if (local.num || localRej.length) {
+          // PUSH — this device holds the newer answer (or the only one).
+          // The rejections ride along: without them, a device that pulls a
+          // read down rebuilds it with an EMPTY exclusion list and re-offers
+          // the very numbers the user already ruled out.
+          toPush.push({ id: f.id, num: local.num, guess: local.guess,
+                        rej: _rejStr(localRej), rt: localRt || Date.now() });
+        }
       }
     });
+    if (cropSeen.length) {
+      try {
+        var cm = _cropped(), cAdd = false;
+        cropSeen.forEach(function (id) { if (!cm[id]) { cm[id] = 1; cAdd = true; } });
+        if (cAdd) _croppedSave(cm);
+      } catch (eC) {}
+    }
     if (seeded) _idsSave(ids);
     if (toPush.length) {
       (async function () {
@@ -1712,7 +1778,8 @@
           var slice = toPush.slice(i, i + 4);
           try {
             await Promise.all(slice.map(function (p) {
-              return _pinMetaSet(p.id, { num: p.num, conf: p.guess ? 'lo' : 'hi' });
+              return _pinMetaSet(p.id, { num: p.num, conf: p.guess ? 'lo' : 'hi',
+                                        rej: p.rej || null, rt: String(p.rt) });
             }));
           } catch (e) { /* best-effort — the next load retries whatever failed */ }
         }
@@ -8222,22 +8289,82 @@
   // leak that mutation to the next reader. rr_inbox_ids is written in exactly
   // one place (_idsSave, just below) and nowhere else in app/ — checked.
   var _idsRaw = null, _idsObj = null;
+  var _idsWas = null;
   function _ids() {
     try {
       var raw = localStorage.getItem(IDS_KEY) || '{}';
       if (_idsObj && raw === _idsRaw) return _idsObj;
       _idsObj = JSON.parse(raw); _idsRaw = raw;
+      _idsWas = _idsShadow(_idsObj);
       return _idsObj;
-    } catch (e) { _idsRaw = null; _idsObj = null; return {}; }
+    } catch (e) { _idsRaw = null; _idsObj = null; _idsWas = null; return {}; }
   }
-  function _idsSave(m) { try { localStorage.setItem(IDS_KEY, JSON.stringify(m)); } catch (e) {} }
+
+  // v0.9.1771 — ONE PLACE stamps a read with the moment it was decided.
+  // Every writer of rr_inbox_ids goes through _idsSave, so putting the clock
+  // here covers the reader, the paid read, the re-scan, a typed number and any
+  // path added later — the same reason the rejected-answer guard lives at a
+  // single chokepoint rather than in each producer.
+  //
+  // The shadow is the state as PARSED, which is a true "before": _ids() hands
+  // back the same object and callers mutate it in place, so the live object
+  // cannot be compared against itself. Only num and the rejected list count as
+  // a new answer; a record whose rt the caller set deliberately (a pull from
+  // Drive carries DRIVE's time) is left alone, or the pull would look local.
+  //
+  // A pre-1771 record that is not being changed is backfilled to 1, not to
+  // now: legacy reads on two devices then TIE instead of both claiming to be
+  // the newest, and any genuine new read beats them both.
+  // Self-contained on purpose: the §269 suite runs _ids() in an isolated
+  // scope, so the shadow may not reach for _rejStr (the Drive PACKER, which
+  // caps at 100 characters and would make two different lists look identical
+  // once they got long). This one only has to answer "did the list change".
+  function _rejKey(list) {
+    return (list || []).map(function (v) { return String(v == null ? '' : v); }).join(',');
+  }
+  function _idsShadow(m) {
+    var out = {};
+    Object.keys(m || {}).forEach(function (k) {
+      var r = m[k] || {};
+      out[k] = String(r.num || '') + '\u0001' + _rejKey(r.rejected)
+             + '\u0001' + String(r.rt || '');
+    });
+    return out;
+  }
+  function _idsSave(m) {
+    try {
+      var was = _idsWas || {}, now = Date.now();
+      Object.keys(m || {}).forEach(function (k) {
+        var r = m[k];
+        if (!r || typeof r !== 'object') return;
+        var prev = was[k];
+        var parts = (prev === undefined)
+          ? ['\u0000', '\u0000', '\u0000']
+          : String(prev).split('\u0001');
+        var changed = String(r.num || '') !== parts[0] || _rejKey(r.rejected) !== parts[1];
+        var rtByCaller = String(r.rt || '') !== parts[2];
+        if (!r.rt) r.rt = changed ? now : 1;
+        else if (changed && !rtByCaller) r.rt = now;
+      });
+    } catch (e) { /* stamping must never cost a save */ }
+    try { localStorage.setItem(IDS_KEY, JSON.stringify(m)); } catch (e) {}
+  }
 
   // v0.9.961 (Brad): persistent set of file IDs we've cropped. drive.js reads
   // window._rrForceFreshBytes to load their real (cropped) bytes instead of
   // Drive's stale server preview. Survives reloads via localStorage.
   function _cropped() { try { return JSON.parse(localStorage.getItem(CROPPED_KEY) || '{}'); } catch (e) { return {}; } }
   function _croppedSave(m) { try { localStorage.setItem(CROPPED_KEY, JSON.stringify(m)); } catch (e) {} window._rrForceFreshBytes = m; }
-  function _markCropped(fid) { if (!fid) return; var c = _cropped(); c[fid] = 1; _croppedSave(c); }
+  function _markCropped(fid) {
+    if (!fid) return;
+    var c = _cropped(); c[fid] = 1; _croppedSave(c);
+    // v0.9.1771 — stamp it on the photo as well. Drive keeps serving its old
+    // preview after the bytes are replaced, and until now only the device that
+    // did the cropping knew not to trust it, so the other device showed the
+    // pre-crop picture indefinitely. Best-effort: a failed stamp leaves today's
+    // behaviour exactly as it was.
+    try { _pinMetaSet(fid, { crop: String(Date.now()) }); } catch (e) {}
+  }
   window._rrMarkCropped = _markCropped;   // v0.9.1631: the crop healer (drive.js) marks detail-page crops too
   // Publish the current markers to drive.js up front, and again after each load
   // (pruned to what's still in the inbox so the set can't grow without bound).
@@ -10870,6 +10997,11 @@
         // after all the cropping, tagging and grouping is done. The cleared
         // read makes this photo count as unread, so the button picks it up.
         try { var mm = _ids(); if (mm[fid]) { delete mm[fid]; _idsSave(mm); } } catch (eA) {}
+        // v0.9.1771 — and clear it on the PHOTO, or the next load pulls the old
+        // number straight back down: this device would have no read, Drive would
+        // still hold one, and the sync would helpfully re-seed exactly the answer
+        // the crop was meant to throw away.
+        try { _pinMetaSet(fid, { num: null, conf: null, rt: String(Date.now()) }); } catch (eN) {}
         try { var ff = _freeTried(); if (ff[fid]) { delete ff[fid]; _freeTriedSave(ff); } } catch (eB) {}
         // v0.9.1705 (Brad: "what is the 'it will be read fresh' comment that
         // flashes up. i don't think that is needed"): just the confirmation.
