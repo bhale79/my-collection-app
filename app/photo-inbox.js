@@ -1165,6 +1165,74 @@
     if (ok) window._pinUngroup(key);
   };
 
+  // ══ RELEASE A CLAIMED PHOTO (v0.9.1782) ═══════════════════════════════════
+  // [stated] Brad, two photos greyed out and badged "⏳ → 6050" / "⏳ → 6346"
+  // eight days after he took them: "i am obviously online so why are these
+  // here?"
+  //
+  // He was right to push back. The badge meant an add had spoken for those
+  // photos and its save never finished; being online had nothing to do with
+  // it, and the tooltip saying "offline saves finish when you reconnect"
+  // pointed him at the one cause that was NOT his.
+  //
+  // Worse, there was no way out. The badge was read-only — no button, no menu
+  // — so a photo claimed by an abandoned add stayed claimed with nothing the
+  // user could do about it. THAT is the real defect; the expiry below is the
+  // safety net, this is the door.
+  //
+  // SURGICAL BY DESIGN: a note can claim several photos and a number can have
+  // several notes queued. Releasing ONE photo removes only that file from the
+  // note that holds it, and drops the note only when nothing is left in it.
+  // Releasing a photo must never quietly cancel the add that claimed it.
+  window._pinReleaseClaim = async function (key) {
+    var g = null;
+    _groups.forEach(function (x) { if (x.key === key) g = x; });
+    if (!g || !g.files.length) return;
+    var map = _pinNoteFileMap();
+    var ids = g.files.map(function (f) { return f.id; }).filter(function (id) { return map[id]; });
+    if (!ids.length) return;
+    var who = map[ids[0]];
+    var ok = await _pinConfirm(
+      'Release ' + (ids.length > 1 ? ('these ' + ids.length + ' photos') : 'this photo') +
+      ' from item <strong>' + rrEsc(String(who)) + '</strong>?<br><br>' +
+      'The ' + (ids.length > 1 ? 'photos stay' : 'photo stays') +
+      ' in the inbox — this only stops them waiting on an add that never finished. ' +
+      'Nothing is deleted.', 'Release');
+    if (!ok) return;
+    var freed = _pinDropClaims(ids);
+    showToast(freed ? ('Released — no longer waiting on ' + who) : 'Nothing was waiting on that photo', 3000, !freed);
+    _render();
+  };
+
+  // Remove these file ids from every claim note in BOTH stores. Returns how
+  // many files were actually freed. Shared with the expiry sweep so there is
+  // one place that knows the shape of a note.
+  function _pinDropClaims(ids) {
+    var want = {}; (ids || []).forEach(function (i) { want[i] = 1; });
+    var freed = 0;
+    [SETSTAGE_KEY, PENDING_KEY].forEach(function (storeKey) {
+      var store;
+      try { store = JSON.parse(localStorage.getItem(storeKey) || '{}'); } catch (e) { return; }
+      var dirty = false;
+      Object.keys(store).forEach(function (num) {
+        var notes = (typeof _pendList === 'function') ? _pendList(store[num]) : [store[num]];
+        var kept = [];
+        notes.forEach(function (rec) {
+          if (!rec || typeof rec !== 'object' || !rec.files) { kept.push(rec); return; }
+          var before = rec.files.length;
+          rec.files = rec.files.filter(function (f) { return !(f && f.id && want[f.id]); });
+          if (rec.files.length !== before) { freed += before - rec.files.length; dirty = true; }
+          // A note with no photos left has nothing to move — drop it.
+          if (rec.files.length) kept.push(rec);
+        });
+        if (!kept.length) { delete store[num]; dirty = true; }
+        else store[num] = (kept.length === 1 && !Array.isArray(store[num])) ? kept[0] : kept;
+      });
+      if (dirty) { try { localStorage.setItem(storeKey, JSON.stringify(store)); } catch (e) {} }
+    });
+    return freed;
+  }
+
   // Break a group back into loose photos.
   window._pinUngroup = async function (key) {
     var g = null;
@@ -2232,8 +2300,11 @@
       for (var _ci = 0; _ci < g.files.length; _ci++) {
         if (_noteMap[g.files[_ci].id]) { _claimedBy = _noteMap[g.files[_ci].id]; break; }
       }
+      // v0.9.1782: the badge is a BUTTON now. It used to be read-only, and its
+      // tooltip blamed being offline \u2014 the one cause that was not Brad's when
+      // he asked why two photos had been waiting eight days. Tap it to release.
       var claimBadge = _claimedBy
-        ? '<div style="position:absolute;top:6px;left:6px;background:rgba(0,0,0,0.72);color:#ffd27d;font-size:0.6rem;font-weight:700;padding:1px 7px;border-radius:9px" title="These photos move to the item once its save finishes (offline saves finish when you reconnect)">\u23f3 \u2192 ' + rrEsc(_claimedBy) + '</div>'
+        ? '<div onclick="event.stopPropagation();_pinReleaseClaim(\'' + g.key + '\')" title="Waiting to move to item ' + rrEsc(_claimedBy) + ' when that add finishes saving. Tap to release it back to the inbox." style="position:absolute;top:6px;left:6px;background:rgba(0,0,0,0.72);color:#ffd27d;font-size:0.6rem;font-weight:700;padding:1px 7px;border-radius:9px;cursor:pointer">\u23f3 \u2192 ' + rrEsc(_claimedBy) + '</div>'
         : '';
       var when = '';
       try { when = new Date(g.files[0].createdTime).toLocaleDateString(); } catch (e) {}
@@ -6661,8 +6732,13 @@
         }
       }
       if (_dupNum && typeof appConfirm === 'function') {
-        if (!(await appConfirm('These photos are already attached to an add of ' + _dupNum + ' that is still finishing'
-              + ' (offline saves finish when you reconnect). Adding again makes a SECOND item with the same pictures.',
+        // v0.9.1782: this carried the same misleading parenthetical the badge
+        // did — it named being offline as the reason a save had not finished,
+        // when an abandoned add is just as likely and was the actual case.
+        // Found by the test written for the badge; the same wrong sentence
+        // lived in two places.
+        if (!(await appConfirm('These photos are already attached to an add of ' + _dupNum + ' that has not finished saving'
+              + '. Adding again makes a SECOND item with the same pictures.',
               { title: 'Photos already spoken for', ok: 'Add a second item', cancel: 'Never mind', danger: true }))) {
           return;
         }
@@ -7723,7 +7799,52 @@
   // to a week. What was missing: a kick the moment the connection returns,
   // so photos filed offline move the minute they can instead of waiting for
   // the next dashboard visit. Exposed for the append-drain chain too.
+  // v0.9.1782. A note whose add never finished used to keep its photos greyed
+  // out and badged FOREVER if it was a STAGED one: the week-long retirement
+  // below lives inside the pending loop and only ever looked at PENDING_KEY.
+  // A set-add begun and abandoned writes to SETSTAGE_KEY, which nothing
+  // retired at all. That is how Brad ended up asking why two photos had been
+  // waiting eight days.
+  //
+  // Two rules, both applied to BOTH stores:
+  //   · older than a week -> retire the note; the PHOTOS always stay.
+  //   · no timestamp at all -> stamp it NOW so the clock starts. The old code
+  //     admitted an undefined ts "meant the note could never retire" and only
+  //     fixed the writing side, so notes written before that are immortal.
+  //     Starting their clock is what makes the expiry actually reachable.
+  //
+  // It runs BEFORE the early return below on purpose. With no pending notes
+  // that return fires first, and abandoned STAGING — the exact case here —
+  // would never be swept.
+  function _pinSweepStaleClaims() {
+    var now = _rrNowMs(), WEEK = 604800000;
+    [SETSTAGE_KEY, PENDING_KEY].forEach(function (storeKey) {
+      var store;
+      try { store = JSON.parse(localStorage.getItem(storeKey) || '{}'); } catch (e) { return; }
+      var dirty = false;
+      Object.keys(store).forEach(function (num) {
+        var notes = (typeof _pendList === 'function') ? _pendList(store[num]) : [store[num]];
+        var kept = [];
+        notes.forEach(function (rec) {
+          if (!rec || typeof rec !== 'object') { kept.push(rec); return; }
+          if (!rec.ts) { rec.ts = now; dirty = true; kept.push(rec); return; }
+          if ((now - rec.ts) > WEEK) {
+            dirty = true;
+            console.log('[Inbox] released photos from a claim that never completed:', num,
+                        '(photos stay in the inbox)');
+            return;                                  // drop the NOTE, never the photos
+          }
+          kept.push(rec);
+        });
+        if (!kept.length) { delete store[num]; dirty = true; }
+        else store[num] = (kept.length === 1 && !Array.isArray(store[num])) ? kept[0] : kept;
+      });
+      if (dirty) { try { localStorage.setItem(storeKey, JSON.stringify(store)); } catch (e) {} }
+    });
+  }
+
   async function _flushPending() {
+    try { _pinSweepStaleClaims(); } catch (eSw) {}
     var pend;
     try { pend = JSON.parse(localStorage.getItem(PENDING_KEY) || '{}'); } catch (e) { pend = {}; }
     var nums = Object.keys(pend);

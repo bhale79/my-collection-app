@@ -22170,8 +22170,30 @@ META_WRITES.length = 0; TOASTS.length = 0;
       ok('313 the tile wears the claim (hourglass + the item number)',
          /claimBadge/.test(pi13) && /\\u23f3 \\u2192 ' \+ rrEsc\(_claimedBy\)/.test(pi13)
          && /chip \+ claimBadge \+/.test(pi13), '');
+      // v0.9.1782: this pinned the tooltip's exact WORDS, and the words were
+      // the problem. [stated] Brad, on two photos badged for eight days: "i am
+      // obviously online so why are these here?" — the old text said "offline
+      // saves finish when you reconnect", naming the one cause that was not
+      // his. The badge is a BUTTON now, so the check asks for what it must DO:
+      // explain itself, and offer the way out.
       ok('313 …with the explanation on hover',
-         /move to the item once its save finishes/.test(pi13), '');
+         /Waiting to move to item/.test(pi13) && /when that add finishes saving/.test(pi13), '');
+      // Scoped to the BADGE MARKUP, not the file: written file-wide it matched
+      // the comment above the badge that quotes the old sentence in order to
+      // explain why it went. Same trap as the crop screen's comment-matching
+      // check. It did earn its keep first — file-wide it found the SAME wrong
+      // sentence in the re-add warning, which was fixed too.
+      const _badgeSeg = pi13.slice(pi13.indexOf('var claimBadge = _claimedBy'),
+                                   pi13.indexOf('var claimBadge = _claimedBy') + 700);
+      ok('313 …and the hover no longer blames being offline',
+         !/offline saves finish when you reconnect/i.test(_badgeSeg), '');
+      ok('313 …nor does the re-add warning, which said the same wrong thing',
+         !/offline saves finish when you reconnect/i
+            .test(pi13.slice(pi13.indexOf('Photos already spoken for') - 700,
+                             pi13.indexOf('Photos already spoken for'))), '');
+      ok('313 the badge is TAPPABLE — a claim the user can undo, not just read',
+         /onclick="event\.stopPropagation\(\);_pinReleaseClaim\(/.test(pi13)
+         && /Tap to release it back to the inbox/.test(pi13), '');
       const raSeg = pi13.slice(pi13.indexOf('window._pinReviewAdd = async function'), pi13.indexOf('function _pinSetMemberMap'));
       ok('313 re-adding a claimed photo ASKS, naming the claim',
          /Photos already spoken for/.test(raSeg) && /makes a SECOND item/.test(raSeg), '');
