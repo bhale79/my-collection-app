@@ -4231,7 +4231,14 @@ META_WRITES.length = 0; TOASTS.length = 0;
                  setItem: (k, v) => { store[k] = String(v); },
                  removeItem: k => { delete store[k]; } };
     const ERAS_STUB = { all: {}, pw: {}, mpc: {}, prewar: {} };
-    const api = new Function('localStorage', 'WHAT_I_COLLECT', 'ERAS',
+    // v0.9.1793: these setters go through _prefSet now — the one write path
+    // that makes a preference follow the ACCOUNT rather than the device. The
+    // sandbox has to gain it, exactly like the rrDismissGuard stub in §277:
+    // a stub standing in for app.js must gain every new app.js global, or the
+    // suite reports a bug that only exists in the harness. Third time here.
+    const queued = [];
+    const PREF_SET = function (k, v) { LS.setItem(k, v); LS.setItem(k + '__at', String(Date.now())); queued.push(k); };
+    const api = new Function('localStorage', 'WHAT_I_COLLECT', 'ERAS', '_prefSet',
         slice(appS, 'function _prefEnabled', '// ── Era preferences')
       + slice(appS, 'function _getEnabledEras', '// v0.9.934 ─ Time-period helpers')
       + slice(appS, 'function _allScaleIds', 'function _scaleOfEra')
@@ -4239,7 +4246,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
       + 'return { pref:_prefEnabled, mfrs:_getEnabledManufacturers,'
       + ' setMfrs:_setEnabledManufacturers, mfrOn:_isManufacturerEnabled,'
       + ' scales:_getEnabledScales, setScales:_setEnabledScales, scaleOn:_isScaleEnabled,'
-      + ' eras:_getEnabledEras, setEras:_setEnabledEras };')(LS, WIC, ERAS_STUB);
+      + ' eras:_getEnabledEras, setEras:_setEnabledEras };')(LS, WIC, ERAS_STUB, PREF_SET);
 
     const ALL_M = Object.keys(WIC.MANUFACTURERS);
     const NEW_M = ['k-line', 'williams', 'marx'];
@@ -4287,6 +4294,15 @@ META_WRITES.length = 0; TOASTS.length = 0;
     api.setEras(['pw']);
     ok('…and for eras',
        JSON.parse(store['lv_collect_eras_roster']).join() === Object.keys(ERAS_STUB).join());
+    // v0.9.1793 — [stated] Brad: "it starts me completely over." These three
+    // were written raw, so they never followed the account: signing out lost
+    // them, the welcome tour asked again with "none chosen yet", and a phone
+    // and a desktop never agreed. Every one of them must now be QUEUED.
+    ['lv_collect_mfrs', 'lv_collect_scales', 'lv_collect_eras'].forEach(function (k) {
+      ok('what you collect follows the ACCOUNT: ' + k + ' is queued for sync',
+         queued.indexOf(k) >= 0, queued.join(', '));
+      ok('…and so is its roster', queued.indexOf(k + '_roster') >= 0, queued.join(', '));
+    });
 
     // Degenerate stored values must not lock a user out of their own collection.
     Object.keys(store).forEach(k => delete store[k]);

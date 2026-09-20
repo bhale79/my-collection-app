@@ -196,5 +196,65 @@ console.log('\n== G. THE OFFENDERS: break each one, require red ==');
      !/localStorage\.setItem\(key \+ '__at'/.test(APP.replace(/localStorage\.setItem\(key \+ '__at', String\(Date\.now\(\)\)\);/, '')));
 }
 
+// ════════════════════════════════════════════════════════════════════════
+// v0.9.1793 — THE THREE "WHAT I COLLECT" SETTINGS WERE NEVER IN THE SET.
+//
+// v1779's rule was: what syncs is exactly what is written through _prefSet.
+// The rule was right; nothing checked it. Eras, manufacturers AND scales all
+// wrote with a raw localStorage.setItem, so all three stayed per-device while
+// this suite happily reported that every preference followed the account.
+//
+// [stated] Brad found it from the far end, signing out and back in: "it starts
+// me completely over" — and the welcome tour asking "none chosen yet" was the
+// same three keys, gone with the sign-out.
+//
+// A SWEEP DEFINED AS "WRITTEN THROUGH X" NEEDS A CHECK THAT NOTHING WRITES IT
+// ANY OTHER WAY. That check is the point of this section — not the three
+// fixes, which are one line each.
+// ════════════════════════════════════════════════════════════════════════
+console.log('\n== G. Every synced preference actually goes through _prefSet ==');
+{
+  const PREFS = fs.readFileSync(path.join(__dirname, '..', 'app', 'prefs.js'), 'utf8');
+  const ALL = APP + '\n' + PREFS;
+  const KEYS = ['lv_collect_eras', 'lv_collect_mfrs', 'lv_collect_scales'];
+
+  KEYS.forEach(function (k) {
+    ok(k + ' is written through _prefSet',
+       new RegExp("_prefSet\\('" + k + "'").test(ALL));
+    ok('…and NOT with a raw localStorage.setItem anywhere',
+       !new RegExp("localStorage\\.setItem\\('" + k + "'").test(ALL),
+       'raw write still present');
+  });
+
+  ok('the roster beside each value rides the account too — a synced value with a device-local roster can disagree',
+     /function _prefSaveRoster[\s\S]{0,400}_prefSet\(rosterKey/.test(APP));
+
+  // The general rule, not the three instances: anything _prefEnabled reads is
+  // a synced preference by definition, so it must not be written raw.
+  const readKeys = [];
+  const re = /_prefEnabled\('([^']+)',\s*'([^']+)'/g;
+  let m;
+  while ((m = re.exec(ALL)) !== null) { readKeys.push(m[1]); readKeys.push(m[2]); }
+  ok('_prefEnabled reads the keys we think it does', readKeys.length >= 6, readKeys.join(', '));
+  const rawWritten = readKeys.filter(function (k) {
+    return new RegExp("localStorage\\.setItem\\('" + k + "'").test(ALL);
+  });
+  ok('NO key that _prefEnabled reads is written raw — the rule, not the instances',
+     rawWritten.length === 0, rawWritten.join(', '));
+}
+
+console.log('\n== G. Planted offenders ==');
+{
+  const PREFS = fs.readFileSync(path.join(__dirname, '..', 'app', 'prefs.js'), 'utf8');
+  const ALL = APP + '\n' + PREFS;
+  const reverted = ALL.replace("_prefSet('lv_collect_eras'", "localStorage.setItem('lv_collect_eras'");
+  ok('a collect setting going back to a raw write is caught — the exact bug',
+     /localStorage\.setItem\('lv_collect_eras'/.test(reverted)
+     && !/_prefSet\('lv_collect_eras'/.test(reverted));
+  const rosterRaw = APP.replace(/(function _prefSaveRoster[\s\S]{0,400}?)_prefSet\(rosterKey/, '$1localStorage.setItem(rosterKey');
+  ok('a roster left behind on the device is caught',
+     !/function _prefSaveRoster[\s\S]{0,400}_prefSet\(rosterKey/.test(rosterRaw));
+}
+
 console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
 process.exit(fail ? 1 : 0);

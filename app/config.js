@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.1792';
+const APP_VERSION = 'v0.9.1793';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -235,6 +235,12 @@ const SIGNOUT_KEEP_KEYS = [
   'lv_page_size',
   'lv_default_cond',
   // Dismissed nags. Re-nagging someone who already said "got it" is rude.
+  // v0.9.1793: the welcome sequence is one of these, and was not on the list.
+  // It is safe to keep ONLY because it now records WHICH account finished it
+  // (rrAccountFingerprint) — a different person signing in on this machine
+  // still gets the full sequence. [stated] Brad: "it starts me completely
+  // over... it should just go straight to the apps dashboard page."
+  'lv_onboarded',
   'lv_ios_hint_dismissed',
   'rr_orient_tip_off',
   // Brad's diagnostics switch — already documented as per-device (see

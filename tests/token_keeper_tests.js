@@ -172,5 +172,44 @@ console.log('== Planted offenders — these rules can actually fail ==');
 }
 
 console.log('');
+console.log('== v1793: the sign-in BUTTON shows the account chooser ==');
+{
+  // [stated] Brad, after signing out: "i hit continue with google. nothing
+  // happens." And: "i also don't get to choose if i have multiple accounts...
+  // a user may be at a friends house." BOTH were prompt:'' — "use whatever
+  // Google session is already there, and show NOTHING." After a sign-out
+  // there is nothing to resolve silently, so nothing appeared at all.
+  function lift(name) {
+    const i = src.indexOf('function ' + name + '(');
+    let d = 0;
+    for (let k = src.indexOf('{', i); k < src.length; k++) {
+      if (src[k] === '{') d++; else if (src[k] === '}') { d--; if (!d) return src.slice(i, k + 1); }
+    }
+    return '';
+  }
+  const signIn = lift('handleSignIn');
+  ok('the button asks Google to SHOW the account chooser',
+     /requestAccessToken\(\{ prompt: 'select_account' \}\)/.test(signIn));
+  ok('…so a second account is reachable at all — the friend\'s house',
+     !/requestAccessToken\(\{ prompt: '' \}\)/.test(signIn));
+  ok('…and the tap is recorded, so a future silence is not a blank gap',
+     /_rrAuthLog\('sign-in tapped/.test(signIn) && /_rrAuthLog\('sign-in THREW/.test(signIn));
+
+  // The renewals must STAY silent — a popup every 45 minutes would be worse
+  // than the bug. This is the half that a careless fix breaks.
+  ok('the background renewal is still silent', /prompt: '', login_hint: hint/.test(lift('rrEnsureFreshToken')));
+  const reconnect = lift('rrReconnectNow');
+  ok('Reconnect still tries silently FIRST', /prompt: ''/.test(reconnect));
+  ok('…and only then falls back to the consent screens', /prompt: 'consent'/.test(reconnect));
+
+  const reverted = signIn.replace("prompt: 'select_account'", "prompt: ''");
+  ok('going back to a silent sign-in is caught — THE BUG BRAD REPORTED',
+     !/prompt: 'select_account'/.test(reverted));
+  const noisy = src.replace("tokenClient.requestAccessToken({ prompt: '', login_hint: hint });",
+                            "tokenClient.requestAccessToken({ prompt: 'select_account', login_hint: hint });");
+  ok('making the 45-minute renewal pop up a chooser is caught too',
+     /prompt: 'select_account', login_hint: hint/.test(noisy));
+}
+console.log('');
 console.log(fail === 0 ? 'ALL TOKEN-KEEPER TESTS GREEN (' + pass + ')' : fail + ' FAILING of ' + (pass + fail));
 process.exit(fail === 0 ? 0 : 1);

@@ -305,7 +305,10 @@ function _buildAppShell() {
 function closeOnboarding() { var o = document.getElementById("onboarding-overlay"); if (o) o.remove(); }
 
 function showOnboarding() {
-  if (localStorage.getItem('lv_onboarded')) return;
+  // v0.9.1793: "has THIS ACCOUNT seen it", not "has this device seen it".
+  // Same person back -> straight to the dashboard. A different account on the
+  // same machine -> the full sequence, which is the friend's-house case.
+  if (rrOnboardingSeenByCurrentAccount()) return;
   // Session 112: new feature-map onboarding (onboarding.js) replaces the
   // old 3-bullet welcome modal. lv_onboarded is now set by onboardFinish /
   // onboardSkipTour so we don't persist until the user actually completes
@@ -315,7 +318,7 @@ function showOnboarding() {
     return;
   }
   // Fallback (onboarding.js not loaded for any reason): minimal safe welcome.
-  localStorage.setItem('lv_onboarded', '1');
+  rrMarkOnboardingSeen();
   var ov = document.createElement('div');
   ov.id = 'onboarding-overlay';
   ov.style.cssText = 'position:fixed;inset:0;background:rgba(10,14,20,0.92);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1.5rem';

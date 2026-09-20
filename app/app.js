@@ -1126,6 +1126,63 @@ if (typeof window !== 'undefined') window.rrJsArg = rrJsArg;
 //
 // Read-only popups are untouched and still close on a backdrop click; there
 // is nothing to lose in them and making them ask would be noise.
+// ── v0.9.1793: WHICH ACCOUNT HAS SEEN THE WELCOME SEQUENCE ──────────────
+// [stated] Brad, having signed out and back in: "it starts me completely
+// over"; and, on what it should do instead: "it should just go straight to
+// the apps dashboard page."
+//
+// The welcome sequence was gated on one device-wide flag that sign-out wiped,
+// so signing back in replayed a tour, an era picker and a privacy consent
+// screen he had already answered. But it cannot simply survive sign-out
+// either — [stated] "a user may be at a friends house": a DIFFERENT person
+// signing in on this machine should get the full sequence.
+//
+// So the marker records WHICH account finished it. Deliberately a one-way
+// fingerprint and not the address itself: this key outlives sign-out, and a
+// machine that quietly remembers the email of whoever last used it is exactly
+// the wrong thing to leave behind when you hand your laptop to a friend. It
+// only ever has to answer "same account as last time, yes or no".
+function rrAccountFingerprint(email) {
+  var e = String(email || '').trim().toLowerCase();
+  if (!e) return '';
+  var h1 = 0x811c9dc5, h2 = 0x01000193;
+  for (var i = 0; i < e.length; i++) {
+    h1 = ((h1 ^ e.charCodeAt(i)) >>> 0) * 16777619 >>> 0;
+    h2 = ((h2 + e.charCodeAt(i) * (i + 7)) >>> 0) * 2246822519 >>> 0;
+  }
+  return (h1 >>> 0).toString(36) + (h2 >>> 0).toString(36);
+}
+if (typeof window !== 'undefined') window.rrAccountFingerprint = rrAccountFingerprint;
+
+// The two questions the welcome sequence asks, in ONE place so they cannot
+// drift: the gate that reads it and the finish that writes it are otherwise
+// in different files (app-setup.js and onboarding.js).
+var RR_ONBOARDED_KEY = 'lv_onboarded';
+function rrMarkOnboardingSeen() {
+  try {
+    var fp = rrAccountFingerprint((window.state && state.user && state.user.email) || '');
+    // No account yet (the legacy fallback can fire before sign-in): fall back
+    // to '1', which every account then treats as "not mine" and re-shows. A
+    // tour shown once too often is a nuisance; skipping one for the wrong
+    // person leaves them with no idea what the app does.
+    localStorage.setItem(RR_ONBOARDED_KEY, fp || '1');
+  } catch (e) {}
+}
+function rrOnboardingSeenByCurrentAccount() {
+  try {
+    var seen = localStorage.getItem(RR_ONBOARDED_KEY);
+    if (!seen) return false;
+    var fp = rrAccountFingerprint((window.state && state.user && state.user.email) || '');
+    if (!fp) return false;                 // cannot tell yet -> ask, don't guess
+    return seen === fp;
+  } catch (e) { return false; }
+}
+if (typeof window !== 'undefined') {
+  window.RR_ONBOARDED_KEY = RR_ONBOARDED_KEY;
+  window.rrMarkOnboardingSeen = rrMarkOnboardingSeen;
+  window.rrOnboardingSeenByCurrentAccount = rrOnboardingSeenByCurrentAccount;
+}
+
 window.rrDismissGuard = function (ov, closeFn) {
   if (!ov || ov._rrGuarded) return;
   ov._rrGuarded = true;
@@ -1528,7 +1585,11 @@ function _prefEnabled(savedKey, rosterKey, allIds, baselineIds) {
 // Written on every save, so the NEXT new option is measured against what the
 // user was actually shown this time.
 function _prefSaveRoster(rosterKey, allIds) {
-  try { localStorage.setItem(rosterKey, JSON.stringify(allIds || [])); } catch (e) {}
+  // v0.9.1793: through _prefSet, so the roster rides the account with the
+  // value it explains. A synced value beside a device-local roster can
+  // disagree on a second device, and the roster is what decides whether a
+  // stored choice is still trustworthy.
+  try { _prefSet(rosterKey, JSON.stringify(allIds || [])); } catch (e) {}
 }
 function _prefBaseline(which) {
   try {
@@ -1546,7 +1607,18 @@ function _getEnabledEras() {
                       Object.keys(ERAS), _prefBaseline('eras'));
 }
 function _setEnabledEras(arr) {
-  try { localStorage.setItem('lv_collect_eras', JSON.stringify(arr || [])); } catch(e) {}
+  // ── v0.9.1793: THESE NEVER FOLLOWED THE ACCOUNT ─────────────────────────
+  // v0.9.1779 moved "all eighteen preferences" onto the account, and the rule
+  // it set was that what syncs is exactly what is written through _prefSet.
+  // These two were written with a raw localStorage.setItem, so they were
+  // never in that set — which is why signing out loses what you collect, why
+  // the welcome tour asks again with "none chosen yet", and why a phone and a
+  // desktop have never agreed about it. [stated] Brad found it from the far
+  // end: "it starts me completely over."
+  //
+  // A sweep defined as "written through X" needs a check that nothing writes
+  // it any other way. There is one in prefs_account_sync_tests now.
+  try { _prefSet('lv_collect_eras', JSON.stringify(arr || [])); } catch(e) {}
   _prefSaveRoster('lv_collect_eras_roster', Object.keys(ERAS));
 }
 // v0.9.934 ─ Time-period helpers. 'prewar' / 'pw' / 'modern'.
@@ -1653,7 +1725,10 @@ function _getEnabledScales() {
                       _allScaleIds(), _prefBaseline('scales'));
 }
 function _setEnabledScales(arr) {
-  try { localStorage.setItem('lv_collect_scales', JSON.stringify(arr || [])); } catch(e) {}
+  // v0.9.1793: the THIRD of the "What I collect" trio that was outside the
+  // sync path — see the note on _setEnabledEras. Eras, makers and scales all
+  // wrote raw, so all three were per-device while v1779 said otherwise.
+  try { _prefSet('lv_collect_scales', JSON.stringify(arr || [])); } catch(e) {}
   _prefSaveRoster('lv_collect_scales_roster', _allScaleIds());
 }
 function _isScaleEnabled(scaleId) {
@@ -1833,7 +1908,8 @@ function _getEnabledManufacturers() {
                       _allManufacturerIds(), _prefBaseline('manufacturers'));
 }
 function _setEnabledManufacturers(arr) {
-  try { localStorage.setItem('lv_collect_mfrs', JSON.stringify(arr || [])); } catch(e) {}
+  // v0.9.1793: same blind spot as _setEnabledEras above — see the note there.
+  try { _prefSet('lv_collect_mfrs', JSON.stringify(arr || [])); } catch(e) {}
   _prefSaveRoster('lv_collect_mfrs_roster', _allManufacturerIds());
 }
 function _isManufacturerEnabled(mfrId) {

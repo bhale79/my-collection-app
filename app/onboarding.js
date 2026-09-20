@@ -796,7 +796,9 @@
   // ─── Completion / persistence ───
 
   function _persistSeen() {
-    try { localStorage.setItem('lv_onboarded', '1'); } catch(e){}
+    // v0.9.1793: records WHICH account finished, so signing back in as the
+    // same person goes straight to the dashboard.
+    try { rrMarkOnboardingSeen(); } catch(e){}
   }
 
   function _complete() {

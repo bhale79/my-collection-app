@@ -504,8 +504,26 @@ function handleSignIn() {
   if (window._signInSafetyTimer) clearTimeout(window._signInSafetyTimer);
   window._signInSafetyTimer = setTimeout(function() { _resetSignInButton(); }, 45000);
   try {
-    tokenClient.requestAccessToken({ prompt: '' });
+    // ── v0.9.1793: SHOW THE ACCOUNT CHOOSER ──────────────────────────────
+    // [stated] Brad, after signing out: "i hit continue with google. nothing
+    // happens." And: "i also don't get to choose if i have multiple
+    // accounts... a user may be at a friends house and needs to use his
+    // account and there is no way to select a different google account."
+    //
+    // BOTH of those were this one argument. `prompt: ''` means "use whatever
+    // Google session is already there, and show NOTHING." Straight after a
+    // sign-out there is nothing to resolve silently, so Google returned
+    // nothing and displayed nothing: no window, no error, no toast. And
+    // because it never shows a chooser, a second account was unreachable.
+    //
+    // Silent is the RIGHT behaviour for the background renewals that run
+    // every 45 minutes — nobody wants a popup then, and those still use
+    // prompt:''. It is the WRONG behaviour for a button a person has
+    // deliberately pressed, where showing something is the entire point.
+    _rrAuthLog('sign-in tapped: asking Google for the account chooser');
+    tokenClient.requestAccessToken({ prompt: 'select_account' });
   } catch (e) {
+    _rrAuthLog('sign-in THREW: ' + (e && e.message));
     _resetSignInButton();
     if (typeof showToast === 'function') showToast((typeof rrSaveError === 'function') ? rrSaveError(e, 'sign-in') : 'Sign-in failed: ' + e.message, 4000, true);
   }
