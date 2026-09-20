@@ -13,8 +13,13 @@ function _rrRowDomKey(item) {
   // ids, getElementById always answered with the first, and the second copy's
   // thumbnail could never fill. The copy's inventoryId (stable, unique) keeps
   // every rendered row addressable.
-  var _cp = (item && item._copyPd && item._copyPd.inventoryId)
-    ? '-c' + String(item._copyPd.inventoryId).replace(/[^A-Za-z0-9_-]/g, '_') : '';
+  // v0.9.1797 (Brad: "the two 6457 shows pictures but not in the thumbnail"):
+  // a PERSONAL-ONLY row is its own pd — it carries inventoryId directly and
+  // has no _copyPd — so three copies of an off-catalog item still shared ONE
+  // id and only the first could ever fill. Same rule, the other lane.
+  var _inv = (item && item._copyPd && item._copyPd.inventoryId)
+    || (item && item._personalOnly && item.inventoryId) || '';
+  var _cp = _inv ? '-c' + String(_inv).replace(/[^A-Za-z0-9_-]/g, '_') : '';
   return (String(item && item.itemNum || '') + '-' + String(item && item.variation || ''))
     .replace(/[^A-Za-z0-9_-]/g, '_') + _cp;   // underscore, not strip: "53 x" and "53x" stay distinct
 }
@@ -1215,6 +1220,29 @@ function _phOwnTypeValues() {
   try {
     Object.values(state.personalData || {}).forEach(function (p) {
       if (!p) return;
+      // ── v0.9.1797 (Brad: "caboose says 2 next to it but i got 38") ────────
+      // The count read the type STORED on the personal row; the list and the
+      // filter read the CATALOG row's type (v0.9.798: the catalog decides the
+      // type whenever the item is in it). 36 of his cabooses have a blank
+      // stored type — correct, the catalog supplies it — so the picker counted
+      // 2 and the filter showed 38. Count what the filter will compare: the
+      // catalog row this owned row resolves to, through the one resolver, with
+      // the row itself as the hint. Off-catalog and manual rows keep the path
+      // below. Same population as the list: owned, companions folded away.
+      if (!p.owned) return;
+      if (typeof _isCollectionCompanion === 'function' && _isCollectionCompanion(p)) {
+        // exactly the list's own rule for companions (boxes, sheets, grouped rows)
+        if (/-(BOX|MBOX|IS)$/i.test(String(p.itemNum || ''))) return;
+        if (typeof _grpFoldActive === 'function' ? _grpFoldActive() : true) return;
+      }
+      var _cm = null;
+      if (String(p.era || '') !== 'Manual' && typeof findMaster === 'function') {
+        try { _cm = findMaster(p.itemNum, p.variation || '', p); } catch (eCM) {}
+      }
+      if (_cm && typeof getTypeBucketLabel === 'function') {
+        var _cl = getTypeBucketLabel(_cm);
+        if (_cl) { out[_cl] = (out[_cl] || 0) + 1; return; }
+      }
       var t = String(p.itemType || '').trim();
       if (!t) return;
       var lbl = t;
