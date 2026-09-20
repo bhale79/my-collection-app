@@ -117,14 +117,90 @@ function _standaloneISCount(state) {
 // card itself). So: the row's own manufacturer, then the catalog's brand for
 // that number, then the maker its era implies. Only a genuine unknown lands in
 // Other, and Other is still a line, so the sum still holds.
+// ── v0.9.1794 — the other three cuts Brad asked for ──────────────────────
+// [stated] "value by era should be pre war, postwar, modern. modern is all
+// manufactures in the mpc era for example, atlas, lionel mpc, mth all added
+// together. should also have a value by manufacturer, all lionel, all mth,
+// should also have a value by scale, all o, all g, all ho.......etc. should
+// also have value by type and scale. so select the scale, and then list all
+// values by type, so all o scale boxcars, all o scale engines...etc"
+//
+// FOUR CUTS, ONE CARD, ONE SELECTOR — [stated] "its a card with a selector".
+// The scale for the type cut IS part of the mode ('type:o'), so picking the
+// scale and picking the cut are the same act and the card needs no second
+// control.
+//
+// The era cut CHANGED MEANING here, and that was the ask: it used to list era
+// TABS (Lionel Postwar, Atlas O, Lionel MPC-Modern, Williams O…). It now lists
+// the three PERIODS, so every maker in the modern period adds together on one
+// line, which is the thing he could not see before.
+var _VALUE_PERIODS = { prewar: 'Pre-war', postwar: 'Postwar', modern: 'Modern' };
+
+// The catalog row for a personal row, looked up THE SAFE WAY. A bare
+// findMaster(itemNum) is this project's recurring bug — 165,000 rows where
+// several makers reuse a number — so the personal row goes in as `prefer`,
+// which also lets a stored masterKey answer outright.
+function _valueMasterOf(pd) {
+  try {
+    if (typeof findMaster !== 'function' || !pd || !pd.itemNum) return null;
+    return findMaster(pd.itemNum, pd.variation, pd);
+  } catch (e) { return null; }
+}
+// Period wants a year; a personal row rarely has one and the catalog row does.
+// Merge rather than pick, so a year the USER typed still wins where it exists.
+function _valuePeriodLabel(pd, master) {
+  var probe = pd;
+  if (master) {
+    probe = {};
+    try { Object.keys(master).forEach(function (k) { probe[k] = master[k]; }); } catch (e) {}
+    try { Object.keys(pd).forEach(function (k) { if (pd[k] !== '' && pd[k] != null) probe[k] = pd[k]; }); } catch (e2) {}
+  }
+  var per = '';
+  try { per = (typeof _itemEraPeriod === 'function') ? (_itemEraPeriod(probe) || '') : ''; } catch (e3) {}
+  return _VALUE_PERIODS[per] || 'Other';
+}
+function _valueScaleId(pd, master) {
+  var sc = null;
+  try { if (typeof _scaleOfItem === 'function') sc = _scaleOfItem(master || pd); } catch (e) {}
+  if (!sc && master) { try { sc = _scaleOfItem(pd); } catch (e2) {} }
+  return sc || null;
+}
+function _valueScaleLabel(id) {
+  if (!id) return 'Other';
+  try {
+    if (typeof WHAT_I_COLLECT !== 'undefined' && WHAT_I_COLLECT.SCALES && WHAT_I_COLLECT.SCALES[id]) {
+      return WHAT_I_COLLECT.SCALES[id].label;
+    }
+  } catch (e) {}
+  return String(id).toUpperCase();
+}
+// The type cut is scoped to ONE scale, so on its own the lines could not add up
+// to the total printed above them — and this card's hardest-won rule
+// (v0.9.1553) is that they always must. Everything outside the chosen scale
+// therefore lands on one honest "Other scales" line rather than vanishing.
+function _valueTypeLabel(pd, master, wantScale) {
+  if (_valueScaleId(pd, master) !== wantScale) return 'Other scales';
+  var t = '';
+  try { t = String((master && master.itemType) || pd.itemType || ''); } catch (e) {}
+  try {
+    if (typeof getTypeBucket === 'function') {
+      var b = getTypeBucket({ itemType: t });
+      if (b && typeof getTypeBucketLabel === 'function') return getTypeBucketLabel(b) || 'Other';
+      if (b) return b;
+    }
+  } catch (e2) {}
+  return t || 'Other';
+}
+
 function _valueBucketOf(pd, mode) {
-  if (mode === 'era') {
-    var ek = '';
-    try { ek = (typeof _eraOf === 'function') ? _eraOf(pd) : ''; } catch (e) {}
-    try {
-      if (ek && typeof ERAS !== 'undefined' && ERAS[ek] && ERAS[ek].label) return ERAS[ek].label;
-    } catch (e2) {}
-    return 'Other';
+  // v0.9.1794: 'era' now means the PERIOD, not the era tab — [stated] "value by
+  // era should be pre war, postwar, modern". One catalog lookup serves all
+  // three new cuts, done once here rather than per-cut.
+  if (mode === 'era' || mode === 'scale' || mode.indexOf('type:') === 0) {
+    var _m = _valueMasterOf(pd);
+    if (mode === 'era') return _valuePeriodLabel(pd, _m);
+    if (mode === 'scale') return _valueScaleLabel(_valueScaleId(pd, _m));
+    return _valueTypeLabel(pd, _m, mode.slice(5));
   }
   var mk = String(pd.manufacturer || '').trim();
   if (!mk) { try { mk = String((typeof _brandOfItem === 'function' && _brandOfItem(pd.itemNum)) || '').trim(); } catch (e3) {} }
@@ -158,14 +234,20 @@ function _valueBucketOf(pd, mode) {
 // master carries pre-war sheets this line is the one to revisit.
 function _extraBucketOf(row, mode, refKey, fallbackEra) {
   var ref = String((row && (row[refKey] || row.itemNum)) || '').trim();
-  if (mode === 'era') {
+  // v0.9.1794: period / scale / type for paper, sheets and sets too. These
+  // rows name the ITEM they belong to, so a catalog row is the only place the
+  // year and the gauge can come from — one lookup, shared by all three cuts.
+  if (mode === 'era' || mode === 'scale' || mode.indexOf('type:') === 0) {
     var m = null;
     try { if (ref && typeof findMaster === 'function') m = findMaster(ref); } catch (e) {}
-    try {
-      if (m && m._era && typeof ERAS !== 'undefined' && ERAS[m._era] && ERAS[m._era].label) return ERAS[m._era].label;
-      if (fallbackEra && typeof ERAS !== 'undefined' && ERAS[fallbackEra] && ERAS[fallbackEra].label) return ERAS[fallbackEra].label;
-    } catch (e2) {}
-    return 'Other';
+    // An unlinked instruction sheet has no item to resolve, so the tab's own
+    // known era stands in — the v0.9.1728 rule, carried into the new cuts
+    // rather than re-invented.
+    if (!m && fallbackEra) { try { m = { _era: fallbackEra, itemType: (row && row.itemType) || '' }; } catch (eF) {} }
+    var probe = m || { itemType: (row && row.itemType) || '' };
+    if (mode === 'era') return _valuePeriodLabel(probe, m);
+    if (mode === 'scale') return _valueScaleLabel(_valueScaleId(probe, m));
+    return _valueTypeLabel(probe, m, mode.slice(5));
   }
   var mk = String((row && row.manufacturer) || '').trim();
   if (!mk && ref) { try { mk = String((typeof _brandOfItem === 'function' && _brandOfItem(ref)) || '').trim(); } catch (e3) {} }
@@ -406,7 +488,7 @@ var CARD_CATALOG = [
       if (!_mode) return { value: _shown, sub: 'estimated worth' };
       return { html: '<div class="stat-value">' + _shown + '</div>'
         + '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:1px">estimated worth · by '
-        + (_mode === 'era' ? 'era' : 'manufacturer') + '</div>'
+        + _valueModeLabel(_mode) + '</div>'
         + _valueBreakdownLines(_buckets) };
     }
   },
@@ -2031,7 +2113,39 @@ function _dashEdSpot(type, entry, i, total) {
     + arrows + '</div>';
 }
 
-var _BREAKDOWN_OPTS = [['', 'Total only'], ['maker', 'By manufacturer'], ['era', 'By era']];
+// ── v0.9.1794 — ONE selector, four cuts ─────────────────────────────────
+// [stated] Brad: "its a card with a selector."
+//
+// The type cut needs a scale ("select the scale, and then list all values by
+// type"). Rather than a second control appearing and disappearing, the scale
+// IS the option: 'type:o', 'type:ho', … so choosing the cut and choosing the
+// scale are one act, and the card keeps exactly one selector.
+//
+// Built from WHAT_I_COLLECT.SCALES rather than a typed list, so a scale added
+// there (N and Z were, in v0.9.1160) appears here without anyone remembering
+// to come back — the hand-kept-list mistake this project has paid for twice.
+function _breakdownOpts() {
+  var opts = [['', 'Total only'],
+              ['era', 'By era \u2014 pre-war / postwar / modern'],
+              ['maker', 'By manufacturer'],
+              ['scale', 'By scale']];
+  try {
+    if (typeof WHAT_I_COLLECT !== 'undefined' && WHAT_I_COLLECT.SCALES) {
+      Object.keys(WHAT_I_COLLECT.SCALES).forEach(function (id) {
+        opts.push(['type:' + id, 'By type \u2014 ' + (WHAT_I_COLLECT.SCALES[id].label || id)]);
+      });
+    }
+  } catch (e) {}
+  return opts;
+}
+// What the line under the total says this cut is.
+function _valueModeLabel(mode) {
+  if (mode === 'era') return 'era';
+  if (mode === 'maker') return 'manufacturer';
+  if (mode === 'scale') return 'scale';
+  if (mode && mode.indexOf('type:') === 0) return 'type \u2014 ' + _valueScaleLabel(mode.slice(5));
+  return 'manufacturer';
+}
 
 function _dashEdBreakdownSel(i, cur) {
   return '<select draggable="false" onclick="event.stopPropagation()" ondragstart="event.stopPropagation()"'
@@ -2039,7 +2153,7 @@ function _dashEdBreakdownSel(i, cur) {
     + ' style="margin-top:0.25rem;max-width:100%;padding:0.15rem 0.25rem;border-radius:6px;'
     + 'border:1px solid var(--border);background:var(--surface2);color:var(--text-mid);'
     + 'font-family:var(--font-body);font-size:0.62rem;cursor:pointer">'
-    + _BREAKDOWN_OPTS.map(function (o) {
+    + _breakdownOpts().map(function (o) {
         return '<option value="' + o[0] + '"' + (o[0] === cur ? ' selected' : '') + '>' + o[1] + '</option>';
       }).join('')
     + '</select>';

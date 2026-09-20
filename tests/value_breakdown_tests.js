@@ -30,6 +30,29 @@ function ok(name, cond, detail) {
 function section(t) { console.log('\n== ' + t + ' =='); }
 
 const SRC = fs.readFileSync(path.join(__dirname, '..', 'app', 'dashboard.js'), 'utf8');
+const BROWSE = fs.readFileSync(path.join(__dirname, '..', 'app', 'browse.js'), 'utf8');
+const LIFTED_PERIOD = (function () {
+  function grab(src, sig) {
+    const i = src.indexOf(sig);
+    let d = 0;
+    for (let k = src.indexOf('{', i); k < src.length; k++) {
+      if (src[k] === '{') d++; else if (src[k] === '}') { d--; if (!d) return src.slice(i, k + 1); }
+    }
+    return '';
+  }
+  // Brace-match the map, never cut at the first ';' — a comment inside it ends
+  // the slice early and the Function() then fails to parse for a reason that
+  // has nothing to do with what is being tested.
+  const mapAt = BROWSE.indexOf('var _ERA_KEY_TO_PERIOD');
+  let md = 0, mapEnd = mapAt;
+  for (let k = BROWSE.indexOf('{', mapAt); k < BROWSE.length; k++) {
+    if (BROWSE[k] === '{') md++;
+    else if (BROWSE[k] === '}') { md--; if (!md) { mapEnd = k + 1; break; } }
+  }
+  const map = BROWSE.slice(mapAt, mapEnd) + ';';
+  return new Function('ERA_TABS', map + '\n' + grab(BROWSE, 'function _itemEraPeriod(')
+                      + '\nreturn _itemEraPeriod;')({});
+})();
 
 // ── the real compute, lifted out and RUN ────────────────────────
 const CARD0 = SRC.indexOf("id: 'value', label: 'Collection Value'");
@@ -46,13 +69,25 @@ function bodyAt(from) {
   throw new Error('unbalanced compute body');
 }
 const COMPUTE = bodyAt(CARD0);
-const BUCKET = SRC.slice(SRC.indexOf('function _valueBucketOf'), SRC.indexOf('function _eraOf(pd)'));
+// v0.9.1794: the slice starts at the PERIOD/SCALE/TYPE helpers now, not at
+// _valueBucketOf — the three new cuts live in front of it and the bucket
+// functions call them. A slice that starts after the thing it needs is the
+// harness lying about what it ran.
+const BUCKET = SRC.slice(SRC.indexOf('var _VALUE_PERIODS'), SRC.indexOf('function _eraOf(pd)'))
+  + SRC.slice(SRC.indexOf('function _valueModeLabel'), SRC.indexOf('function _dashEdBreakdownSel'));
 
 // A tiny catalog, so the v0.9.1727 resolution has something to resolve against.
 const CATALOG = {
-  '2046W': { brand: 'Lionel', era: 'pw' },
-  '9700':  { brand: 'Lionel', era: 'mpc' },
-  '1303':  { brand: 'Atlas',  era: 'atlas' },
+  // v0.9.1794: years, gauges and types, because the period / scale / type cuts
+  // read them off the CATALOG row — a personal row rarely carries any of the three.
+  '2046W': { brand: 'Lionel', era: 'pw',    year: '1950',  gauge: 'O Gauge',  type: 'Steam Locomotive' },
+  '9700':  { brand: 'Lionel', era: 'mpc',   year: '1975',  gauge: 'O Gauge',  type: 'Boxcar' },
+  '1303':  { brand: 'Atlas',  era: 'atlas', year: '2005',  gauge: 'O Gauge',  type: 'Boxcar' },
+  '81153': { brand: 'Lionel', era: 'mpc',   year: '2016',  gauge: 'O Gauge',  type: 'Boxcar' },
+  'M1':    { brand: 'MTH',    era: 'mth_o', year: '2008',  gauge: 'O Gauge',  type: 'Steam Locomotive' },
+  'W1':    { brand: 'Williams', era: 'williams', year: '2001', gauge: 'O Gauge', type: 'Boxcar' },
+  'H1':    { brand: 'Atlas',  era: 'atlas', year: '2011',  gauge: 'HO Scale', type: 'Boxcar' },
+  'P1':    { brand: '',       era: 'pw',    year: '1938',  gauge: 'O Gauge',  type: 'Boxcar' },
 };
 
 const ERAS = {
@@ -74,8 +109,33 @@ function mkCompute(mode) {
     _eraOf: (pd) => pd.era || '',
     _brandOfItem: (n) => (CATALOG[String(n || '').trim()] || {}).brand || '',
     _manufacturerOfEra: (e) => (e === 'pw' || e === 'mpc') ? 'Lionel' : '',
-    findMaster: (n) => { const c = CATALOG[String(n || '').trim()]; return c ? { _era: c.era } : null; },
+    findMaster: (n, v, prefer) => {
+      const c = CATALOG[String(n || '').trim()];
+      return c ? { _era: c.era, yearProd: c.year, gauge: c.gauge, itemType: c.type } : null;
+    },
     rrEsc: (s) => String(s == null ? '' : s),
+    // v0.9.1794 — the sandbox gains every global the new cuts reach for. A
+    // stub standing in for the app must gain each new app global, or the
+    // suite reports a bug that only exists in the harness. (Recorded rule;
+    // this is its fourth outing.)
+    WHAT_I_COLLECT: { SCALES: { o: { label: 'O Gauge' }, ho: { label: 'HO Scale' }, s: { label: 'S Gauge' } } },
+    // The REAL _itemEraPeriod, lifted out of browse.js rather than stubbed.
+    // A stub of it got this wrong immediately: it parsed years only, so the
+    // unlinked instruction sheet — which has no year and falls back to its
+    // TAB's era (the v0.9.1728 rule) — landed in Other, and the suite blamed
+    // the app for the harness's omission. The real function has a step for
+    // exactly that. Lift, do not imitate.
+    _itemEraPeriod: LIFTED_PERIOD,
+    _scaleOfItem: (it) => {
+      const g = String((it && it.gauge) || '').toLowerCase().trim();
+      if (!g) return null;
+      if (g.charAt(0) === 'o') return 'o';
+      if (g.indexOf('ho') === 0) return 'ho';
+      if (g.charAt(0) === 's') return 's';
+      return null;
+    },
+    getTypeBucket: (o) => String((o && o.itemType) || '').toLowerCase() || null,
+    getTypeBucketLabel: (b) => b ? b.charAt(0).toUpperCase() + b.slice(1) : '',
   };
   const names = Object.keys(env);
   const body = BUCKET + '\nreturn function (state) {' + COMPUTE + '};';
@@ -164,9 +224,14 @@ section('Paper, sheets and sets land on their maker');
   ok('[maker] the lines still add up', money(hm).slice(1).reduce((a, b) => a + b, 0) === TOT);
 
   const he = mkCompute('era')(mixed, 0).html;
-  ok('by era, a sheet lands in its item\'s era', /Lionel Postwar/.test(he) && money(he).includes(100 + 10));
-  ok('…a catalog in its own', /Lionel MPC\/Modern/.test(he) && money(he).includes(20));
-  ok('…and a science set in its', /Atlas O/.test(he) && money(he).includes(5));
+  // v0.9.1794 RE-PIN: the era cut lists PERIODS now, not era tabs. [stated]
+  // "value by era should be pre war, postwar, modern." The RULE is unchanged —
+  // a sheet still resolves through the item it is for, a catalog through its
+  // own number — only the line it lands on is now the period.
+  ok('by era, a sheet lands in its item\'s period', /Postwar/.test(he) && money(he).includes(100 + 10));
+  ok('…a catalog in its own (1975 -> Modern), with a science set (2005) beside it',
+     /Modern/.test(he) && money(he).includes(20 + 5));
+  ok('…and the old era-TAB labels are gone', !/Lionel Postwar|Lionel MPC\/Modern|Atlas O/.test(he));
   ok('paper with a maker but no item number cannot claim an era — it goes to Other',
      /Other/.test(he) && money(he).includes(40 + 30 + 7));
   ok('[era] the lines still add up', money(he).slice(1).reduce((a, b) => a + b, 0) === TOT);
@@ -193,11 +258,18 @@ section('Manufacturer');
 section('Era');
 {
   const h = mkCompute('era')(STATE, 0).html;
-  ok('uses the era LABELS, not the internal keys', /Lionel Postwar/.test(h) && !/>pw</.test(h));
-  ok('keeps Postwar and MPC/Modern apart — the whole point of this cut',
-     /Lionel Postwar/.test(h) && /Lionel MPC\/Modern/.test(h));
-  // Every postwar row whoever made it, plus the unlinked sheet (v0.9.1728).
-  ok('Postwar carries every postwar row, whoever made it', money(h).includes(22830 + 300 + 75 + 10));
+  // v0.9.1794 RE-PIN, and this is the ask itself: [stated] "value by era should
+  // be pre war, postwar, modern. modern is all manufactures in the mpc era for
+  // example, atlas, lionel mpc, mth all added together."
+  ok('the lines are the three PERIODS, not era tabs',
+     /Pre-war/.test(h) && /Postwar/.test(h) && /Modern/.test(h));
+  ok('…and no era-TAB label survives', !/Lionel Postwar|Lionel MPC\/Modern|Atlas O|MTH O|Williams O/.test(h));
+  // THE POINT OF THE CHANGE: Lionel MPC + Atlas + Williams + MTH on ONE line.
+  ok('Modern adds every maker of that period together — what he could not see before',
+     money(h).includes(1170 + 1270 + 1000 + 475 + 425 + 165), '1170+1270+1000+475+425+165');
+  ok('Postwar carries every postwar row whoever made it, plus the unlinked sheet',
+     money(h).includes(22830 + 75 + 10));
+  ok('a 1938 row is Pre-war, and on its own line', money(h).includes(300));
   ok('names the cut', /by era/.test(h));
 }
 
@@ -219,10 +291,15 @@ section('An unlinked instruction sheet falls back to postwar');
     scienceData: {}, constructionData: {},
   };
   const he = mkCompute('era')(sheets, 0).html;
-  ok('a sheet that NAMES its item keeps that item\'s era, not postwar',
-     /Lionel MPC\/Modern/.test(he) && money(he).includes(10), he.replace(/<[^>]+>/g, ' ').trim());
-  ok('an UNLINKED sheet falls back to Lionel Postwar, not Other',
-     /Lionel Postwar/.test(he) && money(he).includes(20) && !/Other/.test(he));
+  // v0.9.1794 RE-PIN — same rule, period labels. The second half matters most:
+  // an unlinked sheet has no year, so only the v0.9.1728 tab fallback can place
+  // it. A FIRST ATTEMPT AT THIS CUT PUT IT IN "Other", and the harness's own
+  // stub of _itemEraPeriod hid it — the real function has a step for exactly
+  // this case, which is why the suite lifts it now instead of imitating it.
+  ok('a sheet that NAMES its item keeps that item\'s period, not postwar',
+     /Modern/.test(he) && money(he).includes(10), he.replace(/<[^>]+>/g, ' ').trim());
+  ok('an UNLINKED sheet still falls back to Postwar, not Other',
+     /Postwar/.test(he) && money(he).includes(20) && !/Other/.test(he));
 
   const hm = mkCompute('maker')(sheets, 0).html;
   ok('by maker, the unlinked sheet is Lionel — derived FROM the fallback era',
@@ -276,10 +353,71 @@ section('Six lines, then Other — and the sum still holds');
   ok('biggest first', nums[1] >= nums[2] && nums[2] >= nums[3]);
 }
 
+// ═══════════════════════════════════════════════════════════════
+// v0.9.1794 — BY SCALE, AND BY TYPE WITHIN A SCALE.
+//
+// [stated] "should also have a value by scale, all o, all g, all ho.......etc.
+// should also have value by type and scale. so select the scale, and then list
+// all values by type, so all o scale boxcars, all o scale engines...etc"
+// ═══════════════════════════════════════════════════════════════
+section('By scale');
+{
+  const h = mkCompute('scale')(STATE, 0).html;
+  ok('names the cut', /by scale/.test(h));
+  ok('every O-gauge row adds together, whatever its maker or era', money(h).includes(27045));
+  ok('a row whose scale cannot be resolved still gets a line, so the sum holds',
+     /Other/.test(h) && money(h).includes(715));
+  ok('[scale] the lines add up to the total above them',
+     money(h).slice(1).reduce((a, b) => a + b, 0) === GRAND, String(GRAND));
+  ok('uses the scale LABELS from the config, not the internal ids',
+     /O Gauge/.test(h) && !/>o</.test(h));
+}
+
+section('By type, within one scale');
+{
+  const h = mkCompute('type:o')(STATE, 0).html;
+  ok('names the cut AND the scale it is scoped to', /by type — O Gauge/.test(h));
+  ok('all the O-gauge engines on one line', money(h).includes(23305));
+  ok('…and all the O-gauge boxcars on another', money(h).includes(3740));
+  // THE INVARIANT THIS CARD LEARNED THE HARD WAY (v0.9.1553): the lines must
+  // sum to the total printed above them. A cut scoped to ONE scale could not,
+  // so everything outside it lands on one honest line rather than vanishing.
+  ok('everything outside the chosen scale is ONE honest line, not dropped',
+     /Other scales/.test(h) && money(h).includes(715));
+  ok('[type] the lines STILL add up to the total — the rule this card never breaks',
+     money(h).slice(1).reduce((a, b) => a + b, 0) === GRAND, String(GRAND));
+
+  const hHo = mkCompute('type:ho')(STATE, 0).html;
+  ok('choosing a different scale re-scopes the whole card', /by type — HO Scale/.test(hHo));
+  ok('…and with nothing owned in it, everything is Other scales and the total still holds',
+     money(hHo).slice(1).reduce((a, b) => a + b, 0) === GRAND);
+}
+
+section('Every cut keeps the card\'s one unbreakable promise');
+{
+  // v0.9.1553 cost $34,430 of Brad's collection going missing from his own
+  // total. Whatever cut is chosen, the lines must sum to the number above them.
+  ['era', 'maker', 'scale', 'type:o', 'type:ho', 'type:s'].forEach(function (mode) {
+    const h = mkCompute(mode)(STATE, 0).html;
+    ok('[' + mode + '] sums to the total', money(h).slice(1).reduce((a, b) => a + b, 0) === GRAND);
+  });
+  const r = mkCompute('')(STATE, 0);
+  ok('and "total only" is still untouched by any of it', r.value === '$' + GRAND.toLocaleString() && !r.html);
+}
+
 section('The chooser lives in Edit Dashboard, and only on this card');
 ok('the Collection Value tile carries the picker', /entry\.id === 'value'\) \? _dashEdBreakdownSel/.test(SRC));
-ok('three choices: total only, manufacturer, era',
-   /\[\['', 'Total only'\], \['maker', 'By manufacturer'\], \['era', 'By era'\]\]/.test(SRC));
+// v0.9.1794 RE-PIN: four cuts now, and the type options are BUILT from
+// WHAT_I_COLLECT.SCALES rather than typed out — a hand-kept list of scales is
+// the same mistake as a hand-kept list of files or a hand-typed version.
+ok('four cuts: total only, era, manufacturer, scale — plus one per scale for type',
+   /\['', 'Total only'\]/.test(SRC) && /\['era', 'By era/.test(SRC)
+   && /\['maker', 'By manufacturer'\]/.test(SRC) && /\['scale', 'By scale'\]/.test(SRC));
+ok('…the per-scale type options are derived from the scale config, not typed',
+   /Object\.keys\(WHAT_I_COLLECT\.SCALES\)\.forEach/.test(SRC)
+   && /'type:' \+ id/.test(SRC));
+ok('…so it is still ONE selector on the card, as he asked',
+   (SRC.match(/_dashEdBreakdownSel\(/g) || []).length === 2);
 ok('the mode is stored on the SLOT, like Catalog Coverage pins its era',
    /_dEd\.s\[i\]\.breakdown = v; else delete _dEd\.s\[i\]\.breakdown/.test(SRC));
 ok('nothing persists until Save — a cancelled edit changes nothing',
