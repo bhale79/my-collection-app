@@ -1541,6 +1541,174 @@ async function driveWriteConfig(data) {
   }
 }
 
+// ══ PREFERENCES THAT FOLLOW THE ACCOUNT (v0.9.1779) ═══════════════════════
+// [stated] Brad: his phone said photo reads were off while his desktop said 20
+// left. v0.9.1775 moved THAT one setting to the account and said plainly that
+// every other preference was still per-device, because `_prefGet`/`_prefSet`
+// (app.js) are plain localStorage. This finishes the job for all of them.
+//
+// WHY NOT appProperties, the v1775 mechanism: Google caps an app at **30
+// private properties per file**, 124 bytes each. Eighteen settings each need a
+// value AND a timestamp — 36 — before counting the two the Photo ID switch
+// already uses. It is out on arithmetic, not taste.
+//   https://developers.google.com/workspace/drive/api/guides/properties
+//
+// WHY ITS OWN FILE and not rail-roster-config.json, which already exists and
+// already has a tested merge: that file holds the ids that FIND the user's
+// sheet and vault. Brand-new preference code must not be able to damage them.
+// Single-source-of-truth is about not storing one value twice — it is not a
+// reason to crowd unrelated data into one blast radius.
+//
+// WHAT SYNCS: exactly the keys written through `_prefSet`. No list to keep in
+// step — a preference joins simply by being set the normal way. Keys written
+// with a bare `localStorage.setItem` (lv_vault_id and friends) are device
+// identity and deliberately stay out.
+//
+// PER-KEY TIMESTAMPS, not one for the file. With a single stamp, changing the
+// theme on the phone would stamp over a dashboard tweak just made on the
+// desktop — the same "each device believes itself" bug v0.9.1771 fixed for
+// photo reads, one layer up.
+const PREFS_FILENAME = 'rail-roster-prefs.json';
+const PREF_AT_SUFFIX = '__at';          // local only; never written to Drive
+
+// The merge is a PURE FUNCTION so it can be tested for real rather than
+// inferred from the IO around it. `local` is the device's values, `stamps` when
+// each was last changed here, `remote` the file's {key:{v,t}} map.
+// Returns what to apply locally and what to push, and nothing else.
+function rrPrefsMerge(local, stamps, remote, now) {
+  local = local || {}; stamps = stamps || {}; remote = remote || {};
+  const apply = {}, push = {};
+  const keys = {};
+  Object.keys(local).forEach(function (k) { keys[k] = 1; });
+  Object.keys(remote).forEach(function (k) { keys[k] = 1; });
+
+  Object.keys(keys).forEach(function (k) {
+    const r = remote[k];
+    const rt = (r && typeof r.t === 'number') ? r.t : -1;
+    const hasLocal = Object.prototype.hasOwnProperty.call(local, k);
+    const lt = hasLocal ? (Number(stamps[k]) || 0) : -1;
+
+    if (!hasLocal) { apply[k] = r.v; apply[k + PREF_AT_SUFFIX] = String(rt); return; }
+    // Only this device knows it. SEEDING: a value set before v0.9.1779 has no
+    // stamp, so it is dated `now` — it is real, it just has no history.
+    if (rt < 0) { push[k] = { v: local[k], t: lt > 0 ? lt : now }; return; }
+
+    // FIRST RUN where the file already has an answer is NOT a special case:
+    // an unstamped local value scores 0, so the line below adopts the remote
+    // one — the device that seeded the file wins and this one falls in behind.
+    // (A separate `lt === 0` branch was written here first. It was dead code
+    // that read as load-bearing, and its planted offender proved it by not
+    // offending. The rule is real; the branch was not.)
+    if (rt > lt) { apply[k] = r.v; apply[k + PREF_AT_SUFFIX] = String(rt); }
+    else if (lt > rt) { push[k] = { v: local[k], t: lt }; }
+    // equal: both sides already agree. Writing would be pure churn.
+  });
+  return { apply: apply, push: push };
+}
+
+let _prefsFileId = null, _prefsPushTimer = null;
+const _prefsDirty = {};
+
+async function _prefsFindFile() {
+  if (_prefsFileId) return _prefsFileId;
+  const q = encodeURIComponent(`name='${PREFS_FILENAME}' and trashed=false and 'me' in owners`);
+  const res = await driveRequest('GET', `/files?q=${q}&fields=files(id)&spaces=drive`);
+  _prefsFileId = (res.files && res.files.length > 0) ? res.files[0].id : null;
+  return _prefsFileId;
+}
+
+// { ok, prefs }. ok:false means the file is THERE and could not be read —
+// never write in that case, or values we cannot see are replaced by the ones
+// we happen to hold. Same rule driveWriteConfig learned. No file at all, or an
+// unparseable one, is not a failure: there is nothing to preserve.
+async function _prefsRead() {
+  const id = await _prefsFindFile();
+  if (!id) return { ok: true, prefs: {} };
+  const r = await fetch('https://www.googleapis.com/drive/v3/files/' + id + '?alt=media',
+                        { headers: { Authorization: 'Bearer ' + accessToken } });
+  if (!r.ok) return { ok: false, prefs: null };
+  try {
+    const j = await r.json();
+    return { ok: true, prefs: (j && typeof j === 'object' && j.prefs && typeof j.prefs === 'object') ? j.prefs : {} };
+  } catch (e) { return { ok: true, prefs: {} }; }
+}
+
+async function _prefsWrite(prefs) {
+  const blob = new Blob([JSON.stringify({ prefs: prefs })], { type: 'application/json' });
+  const id = await _prefsFindFile();
+  if (id) {
+    const w = await fetch('https://www.googleapis.com/upload/drive/v3/files/' + id + '?uploadType=media',
+      { method: 'PATCH', headers: { Authorization: 'Bearer ' + accessToken, 'Content-Type': 'application/json' }, body: blob });
+    if (!w.ok) throw new Error('prefs write failed: HTTP ' + w.status);
+  } else {
+    const form = new FormData();
+    form.append('metadata', new Blob([JSON.stringify({ name: PREFS_FILENAME, mimeType: 'application/json' })], { type: 'application/json' }));
+    form.append('file', blob);
+    const w = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart',
+      { method: 'POST', headers: { Authorization: 'Bearer ' + accessToken }, body: form });
+    if (!w.ok) throw new Error('prefs create failed: HTTP ' + w.status);
+    try { const j = await w.json(); _prefsFileId = j && j.id ? j.id : null; } catch (e) {}
+  }
+}
+
+// Every key this device has ever set through _prefSet, and when.
+function _prefsLocalState() {
+  const local = {}, stamps = {};
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (!k || k.slice(-PREF_AT_SUFFIX.length) !== PREF_AT_SUFFIX) continue;
+      const base = k.slice(0, -PREF_AT_SUFFIX.length);
+      const v = localStorage.getItem(base);
+      if (v === null) continue;
+      local[base] = v;
+      stamps[base] = localStorage.getItem(k);
+    }
+  } catch (e) {}
+  return { local: local, stamps: stamps };
+}
+
+function _prefsApply(apply) {
+  let touched = false;
+  Object.keys(apply).forEach(function (k) {
+    try {
+      if (localStorage.getItem(k) === String(apply[k])) return;
+      localStorage.setItem(k, String(apply[k]));
+      if (k.slice(-PREF_AT_SUFFIX.length) !== PREF_AT_SUFFIX) touched = true;
+    } catch (e) {}
+  });
+  return touched;
+}
+
+// One pass: read, merge, apply what the account knows, push what this device
+// knows that is newer. Safe to call more than once.
+window.rrPrefsSync = async function () {
+  try {
+    if (!accessToken) return false;
+    const st = _prefsLocalState();
+    const got = await _prefsRead();
+    if (!got.ok) return false;                       // read failed: never write
+    const m = rrPrefsMerge(st.local, st.stamps, got.prefs, Date.now());
+    const touched = _prefsApply(m.apply);
+    if (Object.keys(m.push).length) {
+      const merged = Object.assign({}, got.prefs, m.push);
+      await _prefsWrite(merged);
+    }
+    return touched;
+  } catch (e) { console.warn('rrPrefsSync:', e); return false; }
+};
+
+// _prefSet calls this. Debounced, because a settings page can fire several
+// changes in a row and each one is a whole file write.
+window.rrPrefsQueuePush = function (key) {
+  _prefsDirty[key] = 1;
+  if (_prefsPushTimer) clearTimeout(_prefsPushTimer);
+  _prefsPushTimer = setTimeout(function () {
+    _prefsPushTimer = null;
+    window.rrPrefsSync();
+  }, 1500);
+};
+
 // Move sheet into vault folder after creation
 async function driveMoveSheetToVault(sheetId) {
   await driveEnsureSetup();

@@ -706,6 +706,25 @@ function onTokenReceived(resp) {
         });
       } else {
         driveEnsureSetup().catch(e => console.warn('Drive setup:', e));
+        // v0.9.1779: pull the account's settings once, right after sign-in.
+        // Deliberately NOT awaited — a settings sync must never delay the
+        // collection loading, and anything it changes is re-applied below.
+        try {
+          if (typeof window.rrPrefsSync === 'function') {
+            window.rrPrefsSync().then(function (touched) {
+              if (!touched) return;
+              // Something arrived from another device. Only the settings that
+              // PAINT have to be replayed; every other one is read through
+              // _prefGet the next time it is used, so it needs nothing here.
+              // Both of these are verified to exist — app.js:applyTheme and
+              // app.js:_applyCompactMode. (A first draft called a function
+              // that does not exist; the typeof guard hid it, which is exactly
+              // how dead calls survive.)
+              try { if (typeof applyTheme === 'function') applyTheme(); } catch (e) {}
+              try { if (typeof _applyCompactMode === 'function') _applyCompactMode(); } catch (e) {}
+            });
+          }
+        } catch (e) { console.warn('prefs sync:', e); }
         loadAllData();
       }
     }

@@ -2990,7 +2990,19 @@ function onPageSearch(val, page) {
 // ── REPORTS ─────────────────────────────────────────────────────
 
 function _prefGet(key, def) { const v = localStorage.getItem(key); return v === null ? def : v; }
-function _prefSet(key, val) { localStorage.setItem(key, val); }
+// v0.9.1779: preferences follow the ACCOUNT now. This is the ONE write path
+// for every setting in the app — 25 call sites, one chokepoint — so stamping
+// here is what makes "the newer change wins" possible per setting, exactly as
+// _idsSave does for photo reads (v0.9.1771).
+// The local value is written FIRST and unconditionally: the screen must never
+// wait on Drive, and a device with no network still behaves as it always did.
+// The push is a hook rather than a direct call because drive.js may not have
+// loaded yet; a missing hook simply means this device is not syncing yet.
+function _prefSet(key, val) {
+  localStorage.setItem(key, val);
+  try { localStorage.setItem(key + '__at', String(Date.now())); } catch (e) {}
+  try { if (typeof window.rrPrefsQueuePush === 'function') window.rrPrefsQueuePush(key); } catch (e) {}
+}
 
 // ── Currency / Date formatting helpers (Session 120) ─────────────
 // Single source of truth for how prices and dates render across the app.

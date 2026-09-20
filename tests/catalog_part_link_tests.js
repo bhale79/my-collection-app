@@ -293,9 +293,9 @@ ok('Lionel\'s store and MTH Parts & Sales are official', /lionelstore_parts: \{[
 ok('Trainz and Train Tender are dealers — never official', !/lionel_parts: \{[^}]*partsOfficial/.test(cfg) && !/traintender_parts: \{[^}]*partsOfficial/.test(cfg));
 
 section('The trio moved together');
-ok('APP_VERSION v0.9.1778', /const APP_VERSION = 'v0\.9\.1778';/.test(cfg));
-ok('CACHE_NAME is the version + 10', /const CACHE_NAME = 'mca-v1788';/.test(sw));
-ok('index.html stamps every asset at 1778 and none at 1777', (ix.match(/\?v=1778/g) || []).length === 79 && !/\?v=1777/.test(ix));
+ok('APP_VERSION v0.9.1779', /const APP_VERSION = 'v0\.9\.1779';/.test(cfg));
+ok('CACHE_NAME is the version + 10', /const CACHE_NAME = 'mca-v1789';/.test(sw));
+ok('index.html stamps every asset at 1779 and none at 1778', (ix.match(/\?v=1779/g) || []).length === 79 && !/\?v=1778/.test(ix));
 
 console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
 process.exit(fail ? 1 : 0);
