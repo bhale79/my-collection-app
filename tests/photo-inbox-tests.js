@@ -18773,8 +18773,20 @@ META_WRITES.length = 0; TOASTS.length = 0;
       const m0 = ix.indexOf('id="report-preview-modal"');
       ok('275 the modal exists', m0 > 0);
       const mTag = ix.slice(ix.lastIndexOf('<div', m0), ix.indexOf('>', m0) + 1);
-      ok('275 clicking the dark backdrop closes it — and ONLY the backdrop (event.target check)',
-         /onclick="if\(event\.target===this\)_closeReportPreview\(\)"/.test(mTag));
+      // v0.9.1789 — SUPERSEDED AT BRAD'S INSTRUCTION, replaced rather than
+      // deleted. This pinned the backdrop CLOSING the preview. His standing
+      // rule since v0.9.1786 is "never close if you pick outside", and this
+      // modal was one of four overlays the v1786 scan never saw, because it
+      // wrote the dismissal as an inline attribute and lived in index.html,
+      // which that scan did not read. The handler is gone, so a backdrop click
+      // does nothing; the ✕ Close button and the device Back button remain.
+      // NOT rrDismissGuard: this modal is hidden with display and never leaves
+      // the page, and the guard wires BackStack by watching for the element to
+      // be REMOVED — an entry that would never pop. It keeps its own push/pop.
+      ok('275 the backdrop no longer closes the preview (Brad: never close if you pick outside)',
+         !/onclick=/.test(mTag), mTag);
+      ok('275 …and it still has its own way out, and its own BackStack entry',
+         /_closeReportPreview\(\)/.test(ix) && /BackStack\.push\('report-preview'/.test(rl));
       const card = ix.slice(ix.indexOf('>', m0) + 1, ix.indexOf('id="rep-prev-title"'));
       ok('275 the card is a viewport-capped flex column (the bar is a rail, not a passenger)',
          /display:flex;flex-direction:column;max-height:calc\(100vh - 3rem\)/.test(card));

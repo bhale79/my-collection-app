@@ -183,7 +183,7 @@ ok('every guarded overlay offers Cancel / Done / Close / ✕', trapped.length ==
 // v1786 pinned 15 across seven named files; v1788 scans every app file and
 // adds the Maintenance task card. The pin is here so the next change to this
 // number has to be a decision, not a drift.
-ok('16 guarded call sites, and ONE helper behind them', sites === 16, String(sites));
+ok('19 guarded call sites, and ONE helper behind them', sites === 19, String(sites));
 
 // nobody double-wires BackStack any more — the guard does it, once
 let dbl = 0;
@@ -199,21 +199,61 @@ FILES.forEach(function (f) {
 });
 ok('no guarded overlay wires BackStack twice', dbl === 0, String(dbl));
 
-// and nobody hand-rolls a backdrop dismissal on an overlay with typed fields
-const OFFENDERS = [];
-fs.readdirSync(APPDIR).filter(f => f.endsWith('.js')).forEach(function (f) {
+// ── v0.9.1789: BOTH SPELLINGS, EVERY FILE, AND NO JUDGEMENT CALL ─────────
+//
+// THIS SCAN MISSED FOUR OVERLAYS AND I TOLD BRAD IT HAD FOUND THEM ALL.
+//
+// v1786 looked for ONE spelling — `e.target === x` on the same line as a
+// `.remove()` — and only inside app/*.js. Four overlays wrote it the other
+// way, as an inline attribute calling a named function:
+//
+//     onclick="if(event.target===this)_wbCloseCard()"
+//
+// The Workbench add-task card, the service history, the My Manuals form and
+// the report preview. The first two are the same bug Brad reported, on an
+// overlay carrying a form. One of them lived in index.html, which was not
+// scanned at all.
+//
+// THE "TYPED FIELDS" CLAUSE STAYS, FOR NOW, AND HERE IS WHY IT IS WRITTEN
+// DOWN RATHER THAN QUIETLY DROPPED. Removing it turns up FOURTEEN more
+// overlays that close on a backdrop click — read-only popups and menus, which
+// v0.9.1785 deliberately left alone on the grounds that dismissing them costs
+// nothing. Brad's rule as he said it ("never close if you pick outside") has
+// no such clause, so those fourteen may well want guarding too; that is a
+// decision for him, not something to slip into a release about four other
+// overlays. He has been asked. Until he answers, this check enforces exactly
+// what v1786 promised — and now actually enforces it, in both spellings and
+// in index.html, which is what it failed to do before.
+const DISMISSALS = [
+  { name: 'e.target === x … .remove()', re: /e\.target === ([A-Za-z_$][\w$]*)\b[\s\S]{0,40}\.remove\(\)/ },
+  { name: 'inline onclick="if(event.target===this)…"', re: /event\.target\s*===\s*this/ },
+];
+const SCANNED = fs.readdirSync(APPDIR)
+  .filter(f => f.endsWith('.js') || f.endsWith('.html')).sort();
+ok('the scan reads index.html too — one of the four missed overlays lived there',
+   SCANNED.indexOf('index.html') >= 0);
+const OFFENDERS = [], READONLY = [];
+SCANNED.forEach(function (f) {
   const lines = fs.readFileSync(path.join(APPDIR, f), 'utf8').split('\n');
   lines.forEach(function (ln, i) {
     if (/rrDismissGuard\(/.test(ln)) return;
-    if (!/e\.target === ([A-Za-z_$][\w$]*)\b[\s\S]{0,40}\.remove\(\)/.test(ln)) return;
-    if (/getAttribute/.test(ln)) return;      // barcode.js tests an attribute, not identity
+    if (/^\s*(\/\/|\*|<!--)/.test(ln)) return;          // a comment ABOUT the pattern is not the pattern
+    if (/getAttribute/.test(ln)) return;                // barcode.js tests an attribute, not identity
+    if (!DISMISSALS.some(d => d.re.test(ln))) return;
+    // the overlay's own source: back to the last unindented line, on to the next
     let st = i; for (let j = i; j >= 0; j--) if (lines[j] && !/^\s/.test(lines[j])) { st = j; break; }
     let en = lines.length; for (let j = i; j < lines.length; j++) if (/^\}/.test(lines[j])) { en = j; break; }
-    if (/<input|<select|<textarea/.test(lines.slice(st, en).join('\n'))) OFFENDERS.push(f + ':' + (i + 1));
+    const body = lines.slice(st, en).join('\n');
+    (/<input|<select|<textarea/.test(body) ? OFFENDERS : READONLY).push(f + ':' + (i + 1));
   });
 });
 ok('no overlay with typed fields hand-rolls its own backdrop dismissal',
    OFFENDERS.length === 0, OFFENDERS.join(', '));
+// Not a failure — a COUNT, so the fourteen cannot quietly become forty while
+// the question of what to do about them is still open. If Brad says to guard
+// them this number goes to 0; if he says leave them, it stays pinned here.
+ok('the read-only overlays that still close on a backdrop click are the known 14',
+   READONLY.length === 14, READONLY.length + ': ' + READONLY.join(', '));
 
 // ════════════════════════════════════════════════════════════════════════
 section('E. Planted offenders — every rule above can actually fail');
@@ -265,6 +305,23 @@ section('E. Planted offenders — every rule above can actually fail');
   ok('…and is NOT fooled by an ✕ written as \\u2715', hasWayOut(escapedX));
   ok('…and reading it RAW would have been fooled — which is why it decodes',
      !WAYS.test(escapedX));
+
+  // 6 — v0.9.1789: the spelling this scan was BLIND to for three releases.
+  //     Both halves matter. It must fire on the inline attribute form, and the
+  //     OLD one-spelling pattern must be shown to miss it — otherwise there is
+  //     nothing to prove the widening was needed, and someone narrows it back.
+  const inlineOffender = 'onclick="if(event.target===this)_wbCloseCard()"';
+  const oldPattern = /e\.target === ([A-Za-z_$][\w$]*)\b[\s\S]{0,40}\.remove\(\)/;
+  ok('the inline onclick="if(event.target===this)…" spelling is caught now',
+     DISMISSALS.some(d => d.re.test(inlineOffender)));
+  ok('…and the v1786 pattern alone would have walked straight past it — the actual miss',
+     !oldPattern.test(inlineOffender));
+
+  // 7 — and the same offender hidden in index.html, which was not read at all.
+  const ixOffender = fs.readFileSync(path.join(APPDIR, 'index.html'), 'utf8')
+    .replace('<body', '<div id="x" onclick="if(event.target===this)_closeX()"></div><body');
+  ok('an offender planted in index.html is caught — the file the old scan never opened',
+     ixOffender.split('\n').some(ln => DISMISSALS.some(d => d.re.test(ln))));
 }
 
 console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');

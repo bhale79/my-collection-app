@@ -111,10 +111,27 @@ ok('three filter chips: All · Waiting on parts · Ready to work', /WB_FILTERS =
 ok('the chip is remembered per device (pref), and unknown values fall back to All', /MAINT\.PREF_WB_FILTER = 'maint_wb_filter'/.test(src) && /_prefSet\(MAINT\.PREF_WB_FILTER, f\)/.test(src) && /return WB_FILTERS\.some\(function \(x\) \{ return x\[0\] === f; \}\) \? f : 'all';/.test(src));
 ok('waiting filter keeps only waiting rows; ready keeps the rest', /f === 'waiting' \? rows\.filter\(function \(r\) \{ return r\.waiting; \}\) : f === 'ready' \? rows\.filter\(function \(r\) \{ return !r\.waiting; \}\) : rows/.test(build));
 ok('History is the third tab, with its count', /_wbTab\(\\'history\\'\)[^<]*History' \+ \(hist\.length \? ' · ' \+ hist\.length : ''\)/.test(build) && /\(name === 'history'\) \? 'history'/.test(src));
+// v0.9.1789 RE-PIN. The first half is unchanged. The second asserted the
+// EXACT old line `if (ctx) window._maintShowHistory(...)`; the history overlay
+// now wires BackStack, which closes it by removing the element WITHOUT
+// clearing _wbHistoryCtx — so a removal could pop the history back open after
+// the user had left it. The guard asks the screen instead of a stale note.
+// Superseded and replaced, not deleted: the rule is still "no stale per-item
+// card", only the test for staleness got stronger.
 ok('History rows open the entry in place — no stale per-item card', /window\._wbHistOpen = function \(logId\) \{ window\._wbHistoryCtx = null; window\._maintEditEntry\(logId\); \};/.test(src)
-   && /var ctx = window\._wbHistoryCtx; if \(ctx\) window\._maintShowHistory\(ctx\.invId, ctx\.itemNum\);/.test(src));
+   && /if \(ctx && document\.getElementById\('wb-history'\)\) window\._maintShowHistory\(ctx\.invId, ctx\.itemNum\);/.test(src));
+ok('…and it asks the SCREEN, not a note that the device Back button never clears',
+   !/if \(ctx\) window\._maintShowHistory/.test(src));
 ok('History has a search box', /id="wb-hist-q"/.test(build) && /oninput="_wbHistSearch\(this\.value\)"/.test(build));
-ok('overlays wire through BackStack (device back closes them)', /BackStack\.wire\(document\.getElementById\('wb-card'\)\)/.test(src));
+// v0.9.1789: wb-card goes through rrDismissGuard now, which wires BackStack
+// itself — so the device Back button still closes it (the rule this pinned),
+// and a stray tap on the backdrop no longer does. Wiring it BOTH ways would be
+// the double-wire the dismiss-guard suite fails on.
+ok('overlays wire through BackStack (device back closes them)',
+   /rrDismissGuard\(document\.getElementById\('wb-card'\)\)/.test(src)
+   && !/BackStack\.wire\(document\.getElementById\('wb-card'\)\)/.test(src));
+ok('…and the Workbench card no longer closes on a backdrop click (Brad, v1786)',
+   !/id="wb-card"[^>]*onclick=/.test(src));
 
 console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
 process.exit(fail ? 1 : 0);

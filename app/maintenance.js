@@ -2065,7 +2065,10 @@
     var general = !!(opts && opts.general);
     var old = document.getElementById('maint-docform'); if (old) old.remove();
     var IN = 'width:100%;box-sizing:border-box;padding:0.5rem 0.65rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.88rem;margin-bottom:0.7rem';
-    var html = '<div id="maint-docform" style="position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9700;display:flex;align-items:flex-start;justify-content:center;overflow-y:auto;padding:2rem 1rem" onclick="if(event.target===this && confirm(\'Close without saving?\'))this.remove()">'
+    // v0.9.1789: the backdrop used to close this form (after a native confirm).
+    // It holds three typed fields; rrDismissGuard means a stray tap does
+    // nothing at all, and the confirm goes with it — see the note by _wbOverlay.
+    var html = '<div id="maint-docform" style="position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9700;display:flex;align-items:flex-start;justify-content:center;overflow-y:auto;padding:2rem 1rem">'
       + _cardOpen(480)
       + _cardHead('My Manuals' + (general ? '' : ' · No. ' + _esc(String(_panelItem && _panelItem.itemNum || ''))), (type === 'picture' ? 'Save a picture' : type === 'document' ? 'Save a document' : type === 'video' ? 'Save a video' : 'Save a link'), "if(confirm('Close without saving?'))document.getElementById('maint-docform').remove()")
       + ((type === 'link' || type === 'video')
@@ -2078,7 +2081,7 @@
       + '<button id="docf-save" ' + _btnSave() + '>Save</button>')
       + '</div></div>';
     document.body.insertAdjacentHTML('beforeend', html);
-    if (window.BackStack && BackStack.wire) BackStack.wire(document.getElementById('maint-docform'));
+    rrDismissGuard(document.getElementById('maint-docform'));   // v0.9.1789 (wires BackStack too)
     document.getElementById('docf-save').onclick = async function () {
       var g = function (id) { var el = document.getElementById(id); return el ? String(el.value || '').trim() : ''; };
       var url = fixedUrl || g('docf-url');
@@ -2371,13 +2374,14 @@
         + '<button onclick="_maintRemoveEntry(\'' + rrJsArg(l.id) + '\')" ' + _btn('red', 'sm', 'flex-shrink:0') + '>Remove</button>'
         + '</div>';
     }).join('') || '<div style="color:var(--text-dim);font-size:0.85rem;padding:0.6rem 0">No service history yet.</div>';
-    var html = '<div id="wb-history" style="position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9600;display:flex;align-items:flex-start;justify-content:center;overflow-y:auto;padding:2rem 1rem" onclick="if(event.target===this){this.remove();window._wbHistoryCtx=null}">'
+    var html = '<div id="wb-history" style="position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9600;display:flex;align-items:flex-start;justify-content:center;overflow-y:auto;padding:2rem 1rem">'   // v0.9.1789: guarded below, not dismissed by the backdrop
       + _cardOpen(520)
       + _cardHead('No. ' + _esc(itemNum), 'Service history', "document.getElementById('wb-history').remove();window._wbHistoryCtx=null")
       + lines
       + '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.6rem">Tap an entry to view or edit it.</div>'
       + '</div></div>';
     document.body.insertAdjacentHTML('beforeend', html);
+    rrDismissGuard(document.getElementById('wb-history'));   // v0.9.1789 (wires BackStack too — it had none)
     window._wbHistoryCtx = { invId: invId, itemNum: itemNum };
   };
 
@@ -2417,7 +2421,12 @@
         if (!ok) { btn.disabled = false; btn.textContent = 'Save'; return; }
         l.text = text; l.partNum = part; l.by = by; l.notes = notes; if (dateDone) l.dateDone = dateDone; else l.dateAdded = date || l.dateAdded;
         var f = document.getElementById('wb-entry'); if (f) f.remove();
-        var ctx = window._wbHistoryCtx; if (ctx) window._maintShowHistory(ctx.invId, ctx.itemNum);   // v0.9.1751: from the History tab there is no per-item card to reopen
+        var ctx = window._wbHistoryCtx;
+        // v0.9.1789: ask the SCREEN whether the history is open, not a stale
+        // note about it. The device Back button closes that overlay by removing
+        // the element and never touches _wbHistoryCtx, so the old line could pop
+        // the history back open after the user had already left it.
+        if (ctx && document.getElementById('wb-history')) window._maintShowHistory(ctx.invId, ctx.itemNum);   // v0.9.1751: from the History tab there is no per-item card to reopen
         _maintRenderTasks(); _wbBuild();
         if (typeof showToast === 'function') showToast('✓ Entry updated');
       } catch (e) { btn.disabled = false; btn.textContent = 'Save'; if (typeof showToast === 'function') showToast('Could not save — ' + (e && e.message || 'try again'), 4000, true); }
@@ -2430,7 +2439,12 @@
     if (!(await rrRemoveRowConfirmed(state.personalSheetId, LOG_TAB, l.row, LOG_TAB + '!A' + l.row + ':K' + l.row, blank, { num: l.id }, 'service history'))) return false;
     await _loadLog();
     var f = document.getElementById('wb-entry'); if (f) f.remove();
-    var ctx = window._wbHistoryCtx; if (ctx) window._maintShowHistory(ctx.invId, ctx.itemNum);
+    var ctx = window._wbHistoryCtx;
+        // v0.9.1789: ask the SCREEN whether the history is open, not a stale
+        // note about it. The device Back button closes that overlay by removing
+        // the element and never touches _wbHistoryCtx, so the old line could pop
+        // the history back open after the user had already left it.
+        if (ctx && document.getElementById('wb-history')) window._maintShowHistory(ctx.invId, ctx.itemNum);
     _maintRenderTasks(); _wbBuild(); _wbBadge();
     return true;
   }
@@ -3844,9 +3858,22 @@
   function _wbOverlay(inner, maxW) {
     var old = document.getElementById('wb-card'); if (old) old.remove();
     document.body.insertAdjacentHTML('beforeend',
-      '<div id="wb-card" style="position:fixed;inset:0;background:var(--scrim);z-index:9600;display:flex;align-items:flex-start;justify-content:center;overflow-y:auto;padding:2rem 1rem" onclick="if(event.target===this)_wbCloseCard()">'
+      // ── v0.9.1789: the backdrop no longer closes this ────────────────────
+      // [stated] Brad's rule from v0.9.1786: "never close if you pick outside."
+      // v1786 applied it to fifteen overlays and MISSED these, because the
+      // scan that found them looked for one spelling — `e.target === x` on the
+      // same line as a `.remove()`. Four overlays wrote it the other way, as an
+      // inline `onclick="if(event.target===this)..."` calling a named function,
+      // and were never seen. This card is the worst of them: it carries the
+      // Add-task form, so a stray tap took a half-typed job name.
+      //
+      // The scan reads BOTH spellings now, and index.html as well as the .js
+      // files, and the rule it enforces is no longer "no overlay WITH TYPED
+      // FIELDS hand-rolls a dismissal" but simply "no overlay does" — a rule
+      // that needs no judgement about which fields count.
+      '<div id="wb-card" style="position:fixed;inset:0;background:var(--scrim);z-index:9600;display:flex;align-items:flex-start;justify-content:center;overflow-y:auto;padding:2rem 1rem">'
       + _cardOpen(maxW || 520) + inner + '</div></div>');
-    if (window.BackStack && BackStack.wire) BackStack.wire(document.getElementById('wb-card'));
+    rrDismissGuard(document.getElementById('wb-card'));   // v0.9.1789 (wires BackStack too)
   }
   window._wbAddTask = function () { _wbPurpose = 'task'; _wbTarget = null; _wbPick(); };
   window._wbAddPart = function () { _wbPurpose = 'part'; _wbTarget = null; _wbPick(); };
