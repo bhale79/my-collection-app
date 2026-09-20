@@ -420,11 +420,11 @@ function _openCropper(src, onResult, onCancel, opts) {   // v0.9.787: onCancel =
     // and nothing can fling.
     '<div style="flex:0 0 auto;padding:0.55rem 1rem 0;display:flex;align-items:center;gap:0.35rem;flex-wrap:wrap;justify-content:center">' +
       '<span style="color:#ccc;font-size:0.78rem;white-space:nowrap">Level</span>' +
-      '<button id="_rrCropRotQtrL" class="rr-tap" title="Turn 90 degrees left" style="' + stepBtn + '">\u21ba 90\u00b0</button>' +
-      '<button id="_rrCropRotMinus" class="rr-tap" title="Half a degree left" style="' + stepBtn + '">\u2212 0.5\u00b0</button>' +
+      '<button id="_rrCropRotQtrL" class="rr-tap-wide" title="Turn 90 degrees left" style="' + stepBtn + '">\u21ba 90\u00b0</button>' +
+      '<button id="_rrCropRotMinus" class="rr-tap-wide" title="Half a degree left" style="' + stepBtn + '">\u2212 0.5\u00b0</button>' +
       '<span id="_rrCropRotV" style="color:#ccc;font-size:0.82rem;min-width:4.2em;text-align:center;font-variant-numeric:tabular-nums">0.0\u00b0</span>' +
-      '<button id="_rrCropRotPlus" class="rr-tap" title="Half a degree right" style="' + stepBtn + '">+ 0.5\u00b0</button>' +
-      '<button id="_rrCropRotQtrR" class="rr-tap" title="Turn 90 degrees right" style="' + stepBtn + '">\u21bb 90\u00b0</button>' +
+      '<button id="_rrCropRotPlus" class="rr-tap-wide" title="Half a degree right" style="' + stepBtn + '">+ 0.5\u00b0</button>' +
+      '<button id="_rrCropRotQtrR" class="rr-tap-wide" title="Turn 90 degrees right" style="' + stepBtn + '">\u21bb 90\u00b0</button>' +
       '<span style="display:inline-block;width:0.9rem"></span>' +
       '<span style="color:#ccc;font-size:0.78rem;white-space:nowrap">Zoom</span>' +
       '<button id="_rrCropZoomOut" class="rr-tap" title="Zoom out" style="' + stepBtn + '">\u2212</button>' +
