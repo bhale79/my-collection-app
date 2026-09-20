@@ -324,11 +324,33 @@ var ERA_MASTER_TABS = { pw: ['Lionel PW - Items'] };
 
 // The ONE way to count an era's master rows. Everything reads this, so the
 // number on the card and the number in the cache can never drift apart.
+// ── v0.9.1795: A PREFERENCE NARROWS THE SHELF, IT DOES NOT DISOWN A TRAIN ──
+// Brad, 223 items, breakdown lines adding to 29, and no Lionel Postwar row on
+// Era Progress at all: the period half of "What I Collect" was off, and both
+// cards skipped every era that was not ticked — including the ones he OWNS
+// 190 items in. v0.9.1553 set this rule for Collection Value's total and it
+// was never carried here. ONE question, asked in ONE place, by the app cards
+// and the sheet's Dashboard tab alike: an era shows when it is ticked OR when
+// something is owned in it.
+function _eraShownOnCards(ek, ownedCount) {
+  if (ek === 'all') return false;
+  if (ownedCount > 0) return true;
+  return !(typeof _isEraEnabled === 'function' && !_isEraEnabled(ek));
+}
+if (typeof window !== 'undefined') window._eraShownOnCards = _eraShownOnCards;
+
 function _eraMasterRows(ek) {
   var md = state.masterData || [], only = ERA_MASTER_TABS[ek];
-  var n = md.filter(function (m) {
-    return m._era === ek && (!only || only.indexOf(m._tab) >= 0);
-  }).length;
+  function _count(rows) {
+    return rows.filter(function (m) {
+      return m._era === ek && (!only || only.indexOf(m._tab) >= 0);
+    }).length;
+  }
+  var n = _count(md);
+  // v0.9.1795: an era that is owned-but-unticked is not in masterData (the
+  // preference keeps it off the browse shelf) but it IS in the full lookup
+  // index — count it there so its progress bar has a denominator.
+  if (!n && state.masterAllRows && state.masterAllRows.length) n = _count(state.masterAllRows);
   // Single-era mode may not stamp _era on every row; with no tab rule to
   // apply, whatever is loaded IS this era.
   if (!n && !only && typeof _currentEra !== 'undefined' && ek === _currentEra) n = md.length;
@@ -396,9 +418,7 @@ var CARD_CATALOG = [
       items.forEach(function(pd) { var e = _eraOf(pd); byEra[e] = (byEra[e]||0) + 1; });
       var lines = '';
       Object.keys(ERAS).forEach(function(ek) {
-        if (ek === 'all') return; // 'all' is a meta-era, never a data bucket
-        // Respect Preferences "What I collect" — hide disabled eras
-        if (typeof _isEraEnabled === 'function' && !_isEraEnabled(ek)) return;
+        if (!_eraShownOnCards(ek, byEra[ek] || 0)) return;   // v0.9.1795
         if (byEra[ek]) {
           lines += '<div style="display:flex;justify-content:space-between;font-size:0.72rem;color:var(--text-mid);margin-top:2px">'
             + '<span>' + ERAS[ek].label + '</span><span style="color:var(--text);font-weight:600">' + byEra[ek].toLocaleString() + '</span></div>';
@@ -554,9 +574,7 @@ var CARD_CATALOG = [
       var eraColors = { pw: '#3aad70', mpc: '#3498db', mod: '#8e44ad' };
       var html = '';
       Object.keys(ERAS).forEach(function(ek) {
-        if (ek === 'all') return; // 'all' is a meta-era, never a data bucket
-        // Respect Preferences "What I collect" — hide disabled eras
-        if (typeof _isEraEnabled === 'function' && !_isEraEnabled(ek)) return;
+        if (!_eraShownOnCards(ek, byEra[ek] || 0)) return;   // v0.9.1795
         var owned = byEra[ek] || 0;
         // Simple: current era = live count, other eras = localStorage.
         // In 'all' mode the live state.masterData has every era mixed,

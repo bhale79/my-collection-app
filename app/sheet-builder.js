@@ -605,8 +605,7 @@ function _sheetCardModel(card, state) {
         var byEra = {}; items.forEach(function (pd) { var e = _eraOf(pd); byEra[e] = (byEra[e] || 0) + 1; });
         var rows = [];
         Object.keys(ERAS).forEach(function (ek) {
-          if (ek === 'all') return;
-          if (typeof _isEraEnabled === 'function' && !_isEraEnabled(ek)) return;
+          if (!_eraShownOnCards(ek, byEra[ek] || 0)) return;   // v0.9.1795
           if (byEra[ek]) rows.push([ERAS[ek].label, byEra[ek].toLocaleString()]);
         });
         if (extra > 0) rows.push(['Paper / Sets', extra.toLocaleString()]);
@@ -624,8 +623,7 @@ function _sheetCardModel(card, state) {
         items2.forEach(function (pd) { var e = _eraOf(pd); byEra2[e] = (byEra2[e] || 0) + 1; });
         var rows2 = [];
         Object.keys(ERAS).forEach(function (ek) {
-          if (ek === 'all') return;
-          if (typeof _isEraEnabled === 'function' && !_isEraEnabled(ek)) return;
+          if (!_eraShownOnCards(ek, byEra2[ek] || 0)) return;   // v0.9.1795
           var owned = byEra2[ek] || 0, total = 0;
           if (typeof _currentEra !== 'undefined' && _currentEra === 'all') {
             total = (typeof _getEraMasterTotal === 'function' && _getEraMasterTotal(ek)) || (state.masterData || []).filter(function (m) { return m._era === ek; }).length;

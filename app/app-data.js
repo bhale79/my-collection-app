@@ -822,17 +822,53 @@ function findMaster(itemNum, variation, prefer) {
   // hand back a different item's row.
   if (prefer && prefer.masterKey) {
     var _byKey = rrMasterByKey(prefer.masterKey);
-    if (_byKey && String(_byKey.itemNum).trim() === String(itemNum).trim()) return _byKey;
+    // v0.9.1795: the app writes 520-P, the catalog files it as 520, and the
+    // key says pw|520|1 — so the plain comparison refused EVERY stored key on a
+    // -P / -D / -T row and sent it to the guessing path below. baseItemNum is
+    // the bridge the rest of the app already uses for exactly this.
+    if (_byKey) {
+      var _kn = String(_byKey.itemNum).trim(), _in = String(itemNum).trim();
+      if (_kn === _in || (typeof baseItemNum === 'function' && baseItemNum(_in) === _kn)) return _byKey;
+    }
   }
   // v0.9.971 (Brad): ONE lookup, TWO layers. Layer 1 is the loaded (enabled-
   // era) index — byte-for-byte the old behavior, so nothing regresses. Only
   // on a total miss does Layer 2 answer: the FULL-catalog index covering every
   // era (built in the background below), so an MTH/Atlas/Weaver number
   // resolves even when those catalogs aren't in the user's collecting prefs.
+  // ── v0.9.1795: LAYER 1 WINNING ON *ANY* HIT WAS NUMBER-ONLY FIRST-FIND ────
+  // Brad's 520-P Box Cab Electric came up as a "Knuckle Coupler Kit". Measured
+  // against the master: American Flyer S (Gilbert) 520 IS a Knuckle Coupler
+  // Kit. With Postwar unticked in What I Collect the Lionel Postwar catalog is
+  // not in Layer 1, the Gilbert one is, and "return the first layer that
+  // answers at all" handed back another maker's 520 while the right row sat in
+  // Layer 2 — and while the owned row itself said era: pw.
+  //
+  // So: when the owned row NAMES its catalog, a Layer-1 answer from a
+  // DIFFERENT catalog does not end the search. Layer 2 is asked, and its
+  // answer is taken only if it IS from the named catalog. Otherwise nothing
+  // changes — this can only ever replace a wrong-catalog answer with a
+  // right-catalog one.
+  var _want = _preferEraOf(prefer);
   var _r = _findMasterCore(state.masterByItem, itemNum, variation, prefer);
-  if (_r) return _r;
-  if (state.masterByItemAll) _r = _findMasterCore(state.masterByItemAll, itemNum, variation, prefer);
+  if (_r && (!_want || String(_r._era || '') === _want)) return _r;
+  if (state.masterByItemAll) {
+    var _r2 = _findMasterCore(state.masterByItemAll, itemNum, variation, prefer);
+    if (_r2 && (!_r || String(_r2._era || '') === _want)) return _r2;
+  }
   return _r || null;
+}
+// The catalog an owned row names: its stored key first (exact), else its era
+// column. Only a REAL era counts — 'Manual', a label, or a blank names nothing.
+function _preferEraOf(prefer) {
+  if (!prefer) return '';
+  try {
+    var mk = String(prefer.masterKey || '');
+    if (mk.indexOf('|') > 0) { var e1 = mk.split('|')[0]; if (typeof ERA_TABS !== 'undefined' && ERA_TABS[e1]) return e1; }
+    var e2 = String(prefer.era || '').trim();
+    if (e2 && typeof ERA_TABS !== 'undefined' && ERA_TABS[e2]) return e2;
+  } catch (e) {}
+  return '';
 }
 // ══ v0.9.1730 — THE LETTER STAMPED ON THE CAR ═════════════════════════════
 // Brad photographed his Erie boxcar and the app answered "3830 — Flatcar with
@@ -1329,6 +1365,10 @@ async function _buildAllErasLookupIndex(force) {
     state.masterAllRows = rowsAll;
     _allIdxBuiltAt = Date.now();
     _allIdxComplete = map.size > 0;
+    // v0.9.1795: cards drawn before this moment resolved owned items against
+    // Layer 1 alone. Draw them again now that the named catalogs can answer.
+    try { if (typeof buildDashboard === 'function') buildDashboard(); } catch (eBD) {}
+    try { if (typeof renderBrowse === 'function') renderBrowse(); } catch (eRC) {}
     console.log('[lookup-index] full catalog ready: ' + map.size + ' numbers / ' + rowsAll.length + ' rows');
   } finally { _allIdxBuilding = false; }
 }
