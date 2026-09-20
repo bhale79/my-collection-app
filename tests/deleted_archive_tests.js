@@ -291,10 +291,8 @@ section('Trio');
   const cfg = fs.readFileSync(path.join(__dirname, '..', 'app', 'config.js'), 'utf8');
   const sw  = fs.readFileSync(path.join(__dirname, '..', 'app', 'sw.js'), 'utf8');
   const ix  = fs.readFileSync(path.join(__dirname, '..', 'app', 'index.html'), 'utf8');
-  ok('APP_VERSION v0.9.1783', /const APP_VERSION = 'v0\.9\.1783';/.test(cfg));
-  ok('CACHE_NAME is the version + 10', /const CACHE_NAME = 'mca-v1793';/.test(sw));
-  ok('index.html stamps every asset at 1783 and none at 1782',
-     (ix.match(/\?v=1783/g) || []).length === 79 && !/\?v=1782/.test(ix));
+  // v0.9.1784: derived from config.js, never typed here. See tests/lib/version-trio.js.
+  require('./lib/version-trio').checkTrio(ok, { cfg: cfg, sw: sw, ix: ix });
 }
 
 

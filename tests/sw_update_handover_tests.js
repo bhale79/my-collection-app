@@ -35,19 +35,26 @@ function ok(name, cond, detail) {
 function section(t) { console.log('\n== ' + t + ' =='); }
 
 // ── run the REAL service worker in a fake scope ────────────────────────────
+// v0.9.1784: these three used to be hand-typed version literals too, and the
+// obvious grep for "1783" missed the cache-name PAIR below because only ONE of
+// the two is this release. Derived now, like the trio itself.
+const VT   = require('./lib/version-trio').trioFacts();
+const THIS_CACHE = 'mca-v' + (VT.n + 10);
+const PREV_CACHE = 'mca-v' + (VT.n + 9);
+
 function runSW() {
   const calls = { skipWaiting: 0, claim: 0, deleted: [] };
   const handlers = {};
   const cache = { add: () => Promise.resolve(), put: () => Promise.resolve(), match: () => Promise.resolve(undefined) };
   const self_ = {
-    location: { href: 'https://therailroster.com/app/sw.js?v=1783' },
+    location: { href: 'https://therailroster.com/app/sw.js?v=' + VT.n },
     addEventListener: (t, h) => { (handlers[t] = handlers[t] || []).push(h); },
     skipWaiting: () => { calls.skipWaiting++; },
     clients: { claim: () => { calls.claim++; } },
   };
   const caches_ = {
     open: () => Promise.resolve(cache),
-    keys: () => Promise.resolve(['mca-v1792', 'mca-v1793']),
+    keys: () => Promise.resolve([PREV_CACHE, THIS_CACHE]),
     delete: (k) => { calls.deleted.push(k); return Promise.resolve(true); },
   };
   new Function('self', 'caches', 'fetch', 'console', 'URL', 'Response', 'Promise', swSrc)(
@@ -84,8 +91,8 @@ ok('activate claims the clients', sw.calls.claim === 1);
 ok('activate deletes every cache that is not this version, and keeps this one',
    actWaits.length === 1);
 actWaits[0].then(() => {
-  ok('…verified: mca-v1792 deleted, mca-v1793 kept',
-     sw.calls.deleted.length === 1 && sw.calls.deleted[0] === 'mca-v1792', JSON.stringify(sw.calls.deleted));
+  ok('…verified: the previous cache deleted, this one kept',
+     sw.calls.deleted.length === 1 && sw.calls.deleted[0] === PREV_CACHE, JSON.stringify(sw.calls.deleted));
   rest();
 });
 
@@ -98,7 +105,8 @@ ok('a worker already waiting at load is offered too', /if \(reg\.waiting\) offer
 ok('the offer only happens when a worker is actually in charge (never on a first install)',
    /reg\.waiting && navigator\.serviceWorker\.controller/.test(reg));
 ok('the registration is published so the card can reach it', /window\._rrSWReg = reg;/.test(ix));
-ok('the worker URL is stamped with this version', /register\('\.\/sw\.js\?v=1783'\)/.test(ix));
+ok('the worker URL is stamped with this version',
+   ix.indexOf("register('./sw.js?v=" + VT.n + "')") >= 0);
 
 section('_rrActivateUpdate, run for real: hand over FIRST, reload after');
 function liftActivate() {
@@ -165,10 +173,54 @@ ok('Tonight (3 AM) takes the same path', /window\._rrActivateUpdate\(\); return;
 ok('…and still refuses to reload over unfinished work', /_rrBusyNow/.test(night));
 
 section('The trio moved together');
-ok('APP_VERSION v0.9.1783', /const APP_VERSION = 'v0\.9\.1783';/.test(cfg));
-ok('CACHE_NAME is the version + 10', /const CACHE_NAME = 'mca-v1793';/.test(swSrc));
-ok('index.html stamps every asset at 1783 and none at 1782',
-   (ix.match(/\?v=1783/g) || []).length === 79 && !/\?v=1782/.test(ix));
+// v0.9.1784: derived from config.js, never typed here. See tests/lib/version-trio.js.
+const TRIO = require('./lib/version-trio');
+TRIO.checkTrio(ok, { cfg: cfg, sw: swSrc, ix: ix });
+
+// ── the derived check must be able to FAIL ────────────────────────────────
+// This suite owns the proof because it is the version-and-worker suite; the
+// other two consumers just call it. A check nobody can break is worth nothing
+// (feedback_scan_must_prove_itself), and this one replaced three hand-typed
+// regexes, so it has to earn that.
+section('The trio check can catch every way the trio drifts');
+{
+  const probe = (label, src) => TRIO.trioFacts(src);   // label documents the case
+
+  // 1 — the cache name is left on the previous release. THE classic: the
+  //     service worker then never swaps, and users sit on stale code.
+  const t1 = probe('stale cache', { cfg: cfg, ix: ix,
+    sw: swSrc.replace(/const CACHE_NAME = 'mca-v(\d+)';/,
+                      (m, n) => "const CACHE_NAME = 'mca-v" + (parseInt(n, 10) - 1) + "';") });
+  ok('a CACHE_NAME left on the last release is caught',
+     t1.cacheN !== t1.n + 10, String(t1.cacheN));
+
+  // 2 — ONE stamp in index.html is missed. The old check only compared
+  //     against N-1, so a stamp stranded at any OTHER version sailed through.
+  //     This is the case the old block could not see.
+  const t2 = probe('stranded stamp', { cfg: cfg, sw: swSrc,
+    ix: ix.replace(/\?v=(\d+)/, '?v=1502') });
+  ok('ONE stamp stranded at an OLD, NON-ADJACENT version is caught',
+     !(t2.distinctStamps.length === 1), t2.distinctStamps.join(', '));
+
+  // 3 — a new script is added and nobody stamps it. It carries no ?v= at
+  //     all, so counting stamps could never find it; this is new coverage.
+  const t3 = probe('unstamped asset', { cfg: cfg, sw: swSrc,
+    ix: ix.replace('</head>', '<script src="new-thing.js"></script></head>') });
+  ok('a newly added script with NO stamp at all is caught',
+     t3.unstamped.indexOf('new-thing.js') >= 0, t3.unstamped.join(', '));
+
+  // 4 — config.js stops declaring a version. Everything is derived from it,
+  //     so the derivation must not quietly pass on nothing.
+  const t4 = probe('no version', { sw: swSrc, ix: ix,
+    cfg: cfg.replace(/const APP_VERSION = 'v0\.9\.\d+';/, "const APP_VERSION = 'dev';") });
+  ok('config.js with no real version is caught', !t4.version, String(t4.version));
+
+  // 5 — and the opposite guard: an index.html with nothing in it must not
+  //     pass just because "all zero stamps agree".
+  const t5 = probe('empty index', { cfg: cfg, sw: swSrc, ix: '<html></html>' });
+  ok('an emptied index.html cannot pass on a vacuous agreement',
+     t5.stampCount < 50, String(t5.stampCount));
+}
 
 console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
 process.exit(fail ? 1 : 0);
