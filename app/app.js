@@ -1655,7 +1655,7 @@ function _isEraEnabled(era) {
   // Session 136: also gate by scale preference. An era is enabled only if its
   // scale is also enabled. Mixed-scale eras (Pre-War) get null here and are
   // always considered scale-enabled at the era level; per-item gauge filtering
-  // happens in _pdEraEnabled via _scaleOfItem().
+  // is the browse filter's job.
   var sc = _scaleOfEra(era);
   if (sc === null) return true;
   return _isScaleEnabled(sc);
@@ -1709,7 +1709,67 @@ function _ensureEnabledErasLoaded() {
     });
   } catch (e) {}
 }
-if (typeof window !== 'undefined') { window._ensureEraLoaded = _ensureEraLoaded; window._ensureEnabledErasLoaded = _ensureEnabledErasLoaded; }
+// ── v0.9.1796: THE CATALOG OF AN ERA YOU OWN ITEMS IN IS ALWAYS LOADED ─────
+// What I Collect decides which catalogs sit on the browse SHELF. It must never
+// decide whether the app has the book it identifies your own trains with.
+// Brad unticked Postwar while owning 190 postwar items: My Collection then
+// built every one of them as a catalog-less "personal-only" row, the strict
+// era chip dropped most of them ("only 8"), and the ones that stayed were
+// identified against whatever other maker reused the number.
+//
+// The list is remembered on the device so the NEXT start can load those eras
+// in the first pass, before the personal sheet has even been read. It is a
+// cache of a fact the sheet owns — never synced, rebuilt on every load.
+var RR_OWNED_ERAS_KEY = 'lv_owned_eras';
+function _ownedEraKeys() {
+  var rows = (typeof state !== 'undefined' && state.personalData) ? Object.values(state.personalData) : [];
+  if (!rows.length) {
+    try { var st = JSON.parse(localStorage.getItem(RR_OWNED_ERAS_KEY) || '[]'); return Array.isArray(st) ? st.filter(_isLoadableEra) : []; }
+    catch (e) { return []; }
+  }
+  var set = {};
+  rows.forEach(function (pd) {
+    if (!pd || !pd.owned) return;
+    var e = (typeof _preferEraOf === 'function') ? _preferEraOf(pd) : '';
+    if (e && _isLoadableEra(e)) set[e] = 1;
+  });
+  var out = Object.keys(set).sort();
+  try { localStorage.setItem(RR_OWNED_ERAS_KEY, JSON.stringify(out)); } catch (e2) {}
+  return out;
+}
+function _isLoadableEra(e) {
+  if (typeof REAL_ERA_IDS === 'undefined' || REAL_ERA_IDS.indexOf(e) < 0) return false;
+  return !(typeof LOOKUP_ONLY_ERAS !== 'undefined' && LOOKUP_ONLY_ERAS.indexOf(e) >= 0);
+}
+// The eras loaded for display = ticked ∪ owned. ONE place decides it.
+function _erasToLoad(allEras) {
+  var owned = _ownedEraKeys();
+  return (allEras || []).filter(function (e) {
+    return (typeof _isEraEnabled === 'function' && _isEraEnabled(e)) || owned.indexOf(e) >= 0;
+  });
+}
+// …and the other half: an era loaded ONLY because something is owned in it
+// stays OFF the browse shelf. Browse asks this; nothing else needs to.
+function _offShelfEras() {
+  var off = new Set();
+  try {
+    if (typeof REAL_ERA_IDS === 'undefined' || typeof _isEraEnabled !== 'function') return off;
+    REAL_ERA_IDS.forEach(function (e) { if (_isLoadableEra(e) && !_isEraEnabled(e)) off.add(e); });
+  } catch (e) {}
+  return off;
+}
+var _ownedErasEnsured = {};
+function _ensureOwnedErasLoaded() {
+  try {
+    if (typeof _currentEra !== 'undefined' && _currentEra !== 'all') return;
+    _ownedEraKeys().forEach(function (e) {
+      if (_ownedErasEnsured[e]) return;
+      _ownedErasEnsured[e] = 1;
+      _ensureEraLoaded(e);
+    });
+  } catch (e) {}
+}
+if (typeof window !== 'undefined') { window._ensureEraLoaded = _ensureEraLoaded; window._ensureEnabledErasLoaded = _ensureEnabledErasLoaded; window._ownedEraKeys = _ownedEraKeys; window._erasToLoad = _erasToLoad; window._offShelfEras = _offShelfEras; window._ensureOwnedErasLoaded = _ensureOwnedErasLoaded; }
 
 // ── Session 136 ─ Scale preference helpers (Tier 3.14) ────────────────────────
 // Default: all scales enabled. User can disable scales they don't collect to
@@ -1950,11 +2010,7 @@ function _brandOfItem(itemOrNum, variation) {
 }
 if (typeof window !== 'undefined') { window._brandOfItem = _brandOfItem; window._brandLabel = _brandLabel; }
 
-// ── Session 121 ─ Era-pref filter helpers for dashboard cards & panels ────────
-// In 'all' mode the dashboard would otherwise count items from eras the user
-// has disabled in Preferences > "What I Collect". These helpers are NO-OPs
-// outside 'all' mode (single-era data is already filtered by data load).
-// Use _filterByEraPref(arrayOrMap) at the start of any card/panel render.
+// ── Session 121 ─ the era an item belongs to ─────────────────────────────────
 function _itemEraKey(item) {
   // Returns canonical era key (pw / mpc / mod / atlas / etc.) for any item that
   // has an itemNum. Tries item.era first (personalData carries it), falls back
@@ -2000,35 +2056,12 @@ function _itemEraKey(item) {
   }
   return null;
 }
-function _pdEraEnabled(item) {
-  // Session 137: in single-era mode AND 'all' mode, also gate by item's
-  // manufacturer + scale. Era check only applies in 'all' mode.
-  if (typeof _manufacturerOfItem === 'function') {
-    var m1 = _manufacturerOfItem(item);
-    if (m1 && !_isManufacturerEnabled(m1)) return false;
-  }
-  if (typeof _scaleOfItem === 'function') {
-    var s1 = _scaleOfItem(item);
-    if (s1 && !_isScaleEnabled(s1)) return false;
-  }
-  if (typeof _currentEra === 'undefined' || _currentEra !== 'all') return true;
-  // 'all' mode also applies the era pref
-  var era = _itemEraKey(item);
-  if (!era) return true;
-  return _isEraEnabled(era);
-}
-function _filterByEraPref(items) {
-  if (typeof _currentEra === 'undefined' || _currentEra !== 'all') return items;
-  if (Array.isArray(items)) return items.filter(_pdEraEnabled);
-  if (items && typeof items === 'object') {
-    var out = {};
-    Object.keys(items).forEach(function(k) {
-      if (_pdEraEnabled(items[k])) out[k] = items[k];
-    });
-    return out;
-  }
-  return items;
-}
+// v0.9.1796: _pdEraEnabled and _filterByEraPref are GONE, on purpose. Their
+// only callers ran the user's OWN rows — owned, wanted, for sale, sold —
+// through What I Collect, which is how a man with 223 items was shown cards
+// about 29 of them. The preference narrows the catalog shelf (_offShelfEras);
+// it has no say over rows the user put there himself. own_rows_tests fails if
+// either name comes back anywhere in app/.
 
 // ── Session 125 ─ Type-filter dropdown helper ───────────────────────────────
 // Returns the subset of canonical TYPE_BUCKETS that actually have at least one
@@ -2241,7 +2274,7 @@ async function loadAllErasMode() {
   // the app is never blank.
   try {
     if (typeof _isEraEnabled === 'function') {
-      var _wantedEras = realEras.filter(function(e) { return _isEraEnabled(e); });
+      var _wantedEras = _erasToLoad(realEras);   // v0.9.1796: ticked ∪ owned
       if (_wantedEras.length) realEras = _wantedEras;
     }
   } catch (e) { console.warn('[loadAllErasMode] era-pref filter failed; loading all:', e); }
@@ -2289,6 +2322,9 @@ async function loadAllErasMode() {
     if (state.companionData.length || state.setData.length) buildPartnerMap();
     // Personal data is already cross-era; load it once.
     await loadPersonalData();
+    // v0.9.1796: now that we KNOW what is owned, make sure those catalogs are
+    // in — covers the first start after this release and a brand-new device.
+    _ensureOwnedErasLoaded();
     populateFilters();
     // Session 117: cross-era search — if a search term was queued from
     // _searchInOtherEra('all', ...), apply it now so the user lands on

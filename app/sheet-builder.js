@@ -5,12 +5,20 @@
 // ══════════════════════════════════════════════════════════════════
 
 // Bump this number to push a visual refresh to all users on next sync
+// v0.9.1796: THE STAMP LIVED IN Dashboard!A50 — INSIDE the range the dashboard
+// body writes (A5:H68+). Once Era Progress grew to 46 rows the two collided:
+// the body wiped the stamp (so every launch saw version 0 and re-ran the FULL
+// format), and the stamp then landed on top of whatever era sat on row 50 —
+// which is how Brad's sheet came to list an era called "23" where "LGB G"
+// belonged. 23 is this number. It now lives where the body can never reach,
+// and the address is written ONCE.
+const SHEET_FORMAT_STAMP_CELL = 'Dashboard!Z1';
 const SHEET_FORMAT_VER = 23; // v22 (v0.9.1535): data rows get their OWN text
 // colour. Until now the body inherited the WHITE header band, so every row an
 // append added was white text on a pale background — Brad found it in his own
 // sheet after 6,740 rows. Bumping this version is what makes existing sheets
 // repair themselves: applySheetFormatting compares this number against the one
-// stamped in Dashboard!A50 and re-applies when it is behind. Was 21 (v0.9.782): +Purchased From trailing personal column (seller Contact ID). Was 20: // v20 (v0.9.736): deterministic column widths (header-fit + curated My Collection table, autoResize REMOVED), Dashboard button merge sized to its text per tab, conductor images served from therailroster.com so no GitHub URL shows in the formula bar. Was 19: // v19 (v0.9.720): +Date Added trailing personal column. Was 18: // v18 (v0.9.666): +Scale/Gauge trailing personal column — header row rewritten. // Session 165 v12: Dashboard header rebuilt to match the app (mascot left, multicolor Oswald title, app navy + orange underline bar) + no-white styling (hide gridlines, flood page with app bg).
+// stamped in SHEET_FORMAT_STAMP_CELL and re-applies when it is behind. Was 21 (v0.9.782): +Purchased From trailing personal column (seller Contact ID). Was 20: // v20 (v0.9.736): deterministic column widths (header-fit + curated My Collection table, autoResize REMOVED), Dashboard button merge sized to its text per tab, conductor images served from therailroster.com so no GitHub URL shows in the formula bar. Was 19: // v19 (v0.9.720): +Date Added trailing personal column. Was 18: // v18 (v0.9.666): +Scale/Gauge trailing personal column — header row rewritten. // Session 165 v12: Dashboard header rebuilt to match the app (mascot left, multicolor Oswald title, app navy + orange underline bar) + no-white styling (hide gridlines, flood page with app bg).
 
 // ── Color palette ──────────────────────────────────────────────────
 const SB = {
@@ -77,7 +85,7 @@ async function applySheetFormatting(sheetId, opts) {
     const needsDash = !tabMap.hasOwnProperty('Dashboard');
     if (!needsDash) {
       const verRes = await fetch(
-        `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/Dashboard!A50`,
+        `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${SHEET_FORMAT_STAMP_CELL}`,
         { headers: { Authorization: `Bearer ${accessToken}` } }
       );
       const verData = await verRes.json();
@@ -562,7 +570,7 @@ async function applySheetFormatting(sheetId, opts) {
     // v18: label the new trailing Scale/Gauge column (idempotent full-header rewrite).
     try { await sheetsUpdate(sheetId, "'My Collection'!A1", [PERSONAL_HEADERS]); }
     catch (eH) { console.warn('[SheetFormat] personal header rewrite failed:', eH); }
-    await sheetsUpdate(sheetId, 'Dashboard!A50', [[SHEET_FORMAT_VER]]);
+    await sheetsUpdate(sheetId, SHEET_FORMAT_STAMP_CELL, [[SHEET_FORMAT_VER]]);
     console.log('[SheetFormat] Applied v' + SHEET_FORMAT_VER);
 
     // Session 155: re-apply structural protections after formatting completes.
@@ -593,7 +601,6 @@ function _sheetCardModel(card, state) {
   if (r && r.value !== undefined && r.html === undefined) {
     out.value = String(r.value); out.sub = r.sub || ''; return out;
   }
-  var eraEnabled = (typeof _pdEraEnabled === 'function') ? _pdEraEnabled : function () { return true; };
   try {
     switch (card.id) {
       case 'owned': {
@@ -612,9 +619,9 @@ function _sheetCardModel(card, state) {
         out.rows = rows; return out;
       }
       case 'activity': {
-        var w = Object.keys((typeof _filterByEraPref === 'function' ? _filterByEraPref(state.wantData || {}) : (state.wantData || {}))).length;
+        var w = Object.keys(state.wantData || {}).length;
         var fs = Object.keys(_forSaleLeads(state)).length;
-        var sd = Object.keys((typeof _filterByEraPref === 'function' ? _filterByEraPref(state.soldData || {}) : (state.soldData || {}))).length;
+        var sd = Object.keys(state.soldData || {}).length;
         out.rows = [['Want', w], ['For Sale', fs], ['Sold', sd]]; return out;
       }
       case 'eraProgress': {
@@ -638,7 +645,7 @@ function _sheetCardModel(card, state) {
       }
       case 'topRoads': {
         var roads = {};
-        Object.values(state.personalData).filter(function (pd) { return pd.owned; }).filter(eraEnabled).forEach(function (pd) {
+        Object.values(state.personalData).filter(function (pd) { return pd.owned; }).forEach(function (pd) {
           var master = (typeof findMaster==='function') ? findMaster(pd.itemNum, pd.variation, pd) : null;
           var road = master ? (master.roadName || '').trim() : '';
           if (road && road !== '—' && road !== 'N/A') roads[road] = (roads[road] || 0) + 1;
@@ -652,7 +659,7 @@ function _sheetCardModel(card, state) {
         var eS = _ownedTypeNumSet(state, _ENGINE_BUCKETS), tS = _ownedTypeNumSet(state, _TENDER_BUCKETS), cS = _ownedTypeNumSet(state, _CABOOSE_BUCKETS),
             pS = _ownedTypeNumSet(state, _PASSENGER_BUCKETS), fS = _ownedTypeNumSet(state, _FREIGHT_BUCKETS), aS = _ownedTypeNumSet(state, _ACCESSORY_BUCKETS);
         var types = { Engines: 0, Tenders: 0, Freight: 0, Passenger: 0, Cabooses: 0, Accessories: 0, Other: 0 };
-        _ownedNonBox(state).filter(eraEnabled).forEach(function (pd) {
+        _ownedNonBox(state).forEach(function (pd) {
           if (_pdMatchSet(pd, eS)) types.Engines++;
           else if (_pdMatchSet(pd, tS)) types.Tenders++;
           else if (_pdMatchSet(pd, cS)) types.Cabooses++;
@@ -698,7 +705,7 @@ async function _writeDashboardContent(sheetId) {
   ]);
 
   // Body = the app's chosen cards as compact 2-column tiles (start at sheet row 5).
-  var TOTAL = 64, NCOLS = 8;
+  var TOTAL = 96, NCOLS = 8;   // v0.9.1796: a FLOOR — grown below to fit what is actually drawn
   var active = [];
   try {
     var slots = (typeof _getSlots === 'function') ? _getSlots() : [{ id: 'owned' }, { id: 'value' }, { id: 'eraProgress' }, { id: 'activity' }];
@@ -717,17 +724,37 @@ async function _writeDashboardContent(sheetId) {
     else if (!m.value && m.sub) { lines += 1; }
     return 1 + Math.max(lines, 1);
   }
+  // v0.9.1796: THIS RANGE IS WRITTEN USER_ENTERED, SO SHEETS RE-READS EVERY
+  // CELL AS IF TYPED. Brad's Era Progress showed a row labelled "23" where
+  // "LGB G" belonged, and "1 / 12" is one owned item away from becoming
+  // January 12th. A leading apostrophe is Sheets' own "this is text" mark: it
+  // is not stored in the value and not shown. Plain numbers and money are left
+  // alone so they stay numbers.
+  function _asText(v) {
+    var t = String(v == null ? '' : v);
+    if (!t || /^[\s$€£]?[\d,]+(\.\d+)?$/.test(t)) return t;
+    return "'" + t;
+  }
   function _placeTile(body, m, top, tcol, ncol) {
-    body[top][tcol] = (m.label || '').toUpperCase();
+    body[top][tcol] = _asText((m.label || '').toUpperCase());
     var line = top + 1;
     if (m.value) {
       if (m.rows && m.rows.length) { body[line][tcol] = 'Total'; body[line][ncol] = m.value; line++; }
       else { body[line][tcol] = m.value; line++; if (m.sub) { body[line][tcol] = m.sub; line++; } }
     }
-    if (m.rows && m.rows.length) { m.rows.forEach(function (rw) { body[line][tcol] = rw[0]; body[line][ncol] = String(rw[1]); line++; }); }
+    if (m.rows && m.rows.length) { m.rows.forEach(function (rw) { body[line][tcol] = _asText(rw[0]); body[line][ncol] = _asText(rw[1]); line++; }); }
     else if (!m.value && m.sub) { body[line][tcol] = m.sub; }
   }
 
+  // v0.9.1796: the body was a fixed 64 rows and _placeTile writes body[line]
+  // blind — one more era row than that and the whole dashboard write THROWS.
+  // Measure first. Never shrinks below the floor, so a shorter dashboard still
+  // blanks whatever a longer one left behind.
+  var _need = 0;
+  for (var bi = 0; bi < models.length; bi += 2) {
+    _need += Math.max(_tileLines(models[bi]), (bi + 1 < models.length) ? _tileLines(models[bi + 1]) : 0) + 1;
+  }
+  TOTAL = Math.max(TOTAL, _need + 2);
   var body = [];
   for (var r = 0; r < TOTAL; r++) { body.push(new Array(NCOLS).fill('')); }
   var bands = [];

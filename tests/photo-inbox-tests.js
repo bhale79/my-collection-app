@@ -3971,7 +3971,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
         ? { itemNum: '3300', _era: 'prewar', description: 'Summer Trolley Trailer' } : null);
       const api = eval('(function(){var ERAS=arguments[0],findMaster=arguments[1];'
         + noExports(slice(appS, 'function _manufacturerOfEra', 'var _BRAND_LABELS'))
-        + noExports(slice(appS, 'function _itemEraKey', 'function _pdEraEnabled'))
+        + noExports(slice(appS, 'function _itemEraKey', '// v0.9.1796: _pdEraEnabled and'))
         + 'return {k:_itemEraKey,m:_manufacturerOfItem};})')(ERAS, findMaster);
 
       const atlas3300 = { itemNum: '3300', _tab: 'Atlas O', _era: 'atlas', gauge: 'O' };

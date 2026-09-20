@@ -36,7 +36,14 @@ ok('onboarding eraScale and eraColors stay complete (colour by reference)', /lio
 section('LOOKUP-ONLY: in the index, out of the browse');
 ok('config declares LOOKUP_ONLY_ERAS with lionel_parts, and exposes it on window', /const LOOKUP_ONLY_ERAS = \['lionel_parts'(, '[a-z_]+')*\];/.test(cfg) && /window\.LOOKUP_ONLY_ERAS = LOOKUP_ONLY_ERAS/.test(cfg));
 ok('_isEraEnabled says NO for a lookup-only era before any preference is consulted', /function _isEraEnabled\(era\) \{[^}]*if \(era === 'all'\) return true;\s*\n\s*\/\/[^\n]*\n\s*if \(typeof LOOKUP_ONLY_ERAS !== 'undefined' && LOOKUP_ONLY_ERAS\.indexOf\(era\) >= 0\) return false;/.test(app));
-ok('the startup load filters through _isEraEnabled (so the parts tab never loads for display)', /realEras\.filter\(function\(e\) \{ return _isEraEnabled\(e\); \}\)/.test(app));
+// v0.9.1796: the startup list is now ticked ∪ OWNED (_erasToLoad). The intent of
+// this pin is unchanged and both halves are still asserted: the preference is
+// asked, and a lookup-only era can never get in through the owned door either
+// (own_rows_tests proves that last part by RUNNING it).
+ok('the startup load goes through _erasToLoad, which asks _isEraEnabled and refuses lookup-only eras',
+   /_erasToLoad\(realEras\)/.test(app)
+   && /function _erasToLoad\([^)]*\) \{[\s\S]{0,300}_isEraEnabled\(e\)/.test(app)
+   && /function _isLoadableEra\(e\) \{[\s\S]{0,200}LOOKUP_ONLY_ERAS\.indexOf\(e\) >= 0/.test(app));
 ok('the background full-catalog index takes REAL_ERA_IDS whole (so the parts tab IS fetched and cached for lookups)', /_buildAllErasLookupIndex[\s\S]*?REAL_ERA_IDS\.slice\(\)/.test(data));
 ok('the What I Collect picker skips lookup-only eras', /LOOKUP_ONLY_ERAS\.indexOf\(k\) < 0/.test(obj));
 ok('the Yardmaster tab list still comes from REAL_ERA_IDS → ERA_TABS (Lionel Parts is a valid target tab)', /REAL_ERA_IDS\.forEach\(function \(id\) \{[\s\S]{0,200}var t = ERA_TABS\[id\]\[k\];/.test(rd('yardmaster.js')) && /itemShaped \|\| \['items'\]/.test(rd('yardmaster.js')));   /* v0.9.1754: the same derivation, now through MASTER_TAB_SHAPES' keys (items first) */

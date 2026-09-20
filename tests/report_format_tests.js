@@ -81,10 +81,13 @@ const ownCard = dash.slice(dash.indexOf("id: 'owned'"), dash.indexOf("id: 'value
 ok('Items I Own does not filter by preferences either',
    !/_pdEraEnabled/.test(code(ownCard)),
    'the two cards have to answer the same question');
-// Other cards may still narrow to what you collect — that is their job.
-ok('cards that are ABOUT what you collect still narrow',
-   /id: 'topRoads'[\s\S]{0,400}_pdEraEnabled/.test(dash),
-   'Top Road Names is a view of the catalogue you follow, not a total of your worth');
+// v0.9.1796 — SUPERSEDED, and reversed rather than loosened. This pin used to
+// REQUIRE Top Road Names to narrow to What I Collect. Brad, shown that a dozen
+// cards still hid owned items behind an unticked era: "fix it". No card over
+// his own rows asks the preference any more; own_rows_tests scans all of app/.
+ok('NO dashboard card runs owned rows through the preference any more',
+   !/_pdEraEnabled|_filterByEraPref/.test(code(dash)),
+   'the preference narrows the catalog shelf, never the rows the user owns');
 
 console.log('');
 console.log(fail === 0 ? 'ALL REPORT-FORMAT TESTS GREEN (' + pass + ')' : fail + ' FAILING of ' + (pass + fail));

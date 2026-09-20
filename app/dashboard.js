@@ -49,7 +49,7 @@ function _ownedTypeCount(state, buckets) {
   // many master variation rows, so the old "filter masterData by owned"
   // massively over-counted (e.g. 122 cabooses for 62 items).
   var nums = _ownedTypeNumSet(state, buckets);
-  return _ownedNonBox(state).filter(_pdEraEnabled).filter(function(pd) { return _pdMatchSet(pd, nums); }).length;
+  return _ownedNonBox(state).filter(function(pd) { return _pdMatchSet(pd, nums); }).length;
 }
 function _ownedNonBox(state) {
   // Returns array of owned personalData entries, excluding pure box-only rows.
@@ -79,7 +79,7 @@ function _ownedNonBox(state) {
 // For Sale entries with grouped companions (box / instruction sheet) folded
 // out, so a group counts as ONE — mirrors _ownedNonBox for the collection.
 function _forSaleLeads(state) {
-  var src = (typeof _filterByEraPref === 'function') ? _filterByEraPref(state.forSaleData || {}) : (state.forSaleData || {});
+  var src = state.forSaleData || {};   // v0.9.1796: his own rows — never narrowed by What I Collect
   var out = {};
   Object.keys(src).forEach(function(k){
     var fs = src[k];
@@ -552,9 +552,9 @@ var CARD_CATALOG = [
     id: 'activity', label: 'Activity', color: '#e67e22',
     compute: function(state) {
       // Session 121: respect Preferences "What I Collect" in 'all' mode.
-      var wantCount = (typeof foldWantEntries === 'function') ? foldWantEntries(Object.values(_filterByEraPref(state.wantData||{}))).length : Object.keys(_filterByEraPref(state.wantData||{})).length;   // v0.9.722: pairs count once
+      var wantCount = (typeof foldWantEntries === 'function') ? foldWantEntries(Object.values(state.wantData||{})).length : Object.keys(state.wantData||{}).length;   // v0.9.722: pairs count once
       var fsCount = Object.keys(_forSaleLeads(state)).length;
-      var soldCount = (typeof foldSoldEntries === 'function') ? foldSoldEntries(Object.values(_filterByEraPref(state.soldData||{}))).length : Object.keys(_filterByEraPref(state.soldData||{})).length;   // v0.9.723
+      var soldCount = (typeof foldSoldEntries === 'function') ? foldSoldEntries(Object.values(state.soldData||{})).length : Object.keys(state.soldData||{}).length;   // v0.9.723
       // Phase 3 streamline: Quick Entry tile removed from Activity card.
       var html = '<div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-top:4px">';
       html += '<div style="text-align:center;flex:1;min-width:36px"><div style="font-size:1.15rem;font-weight:700;color:var(--text)">' + wantCount + '</div><div style="font-size:0.62rem;color:var(--text-dim)">want</div></div>';
@@ -607,7 +607,7 @@ var CARD_CATALOG = [
     compute: function(state) {
       var roads = {};
       // Session 121: respect Preferences "What I Collect" in 'all' mode.
-      Object.values(state.personalData).filter(function(pd){return pd.owned;}).filter(_pdEraEnabled).forEach(function(pd) {
+      Object.values(state.personalData).filter(function(pd){return pd.owned;}).forEach(function(pd) {
         var master = findMaster(pd.itemNum, pd.variation, pd);   // v0.9.648
         var road = master ? (master.roadName||'').trim() : '';
         if (road && road !== '—' && road !== 'N/A') roads[road] = (roads[road]||0) + 1;
@@ -629,7 +629,7 @@ var CARD_CATALOG = [
       // Session 121: respect Preferences "What I Collect" in 'all' mode.
       var _eS=_ownedTypeNumSet(state,_ENGINE_BUCKETS), _tS=_ownedTypeNumSet(state,_TENDER_BUCKETS), _cS=_ownedTypeNumSet(state,_CABOOSE_BUCKETS), _pS=_ownedTypeNumSet(state,_PASSENGER_BUCKETS), _fS=_ownedTypeNumSet(state,_FREIGHT_BUCKETS), _aS=_ownedTypeNumSet(state,_ACCESSORY_BUCKETS);
       var types = { 'Engines':0, 'Tenders':0, 'Freight':0, 'Passenger':0, 'Cabooses':0, 'Accessories':0, 'Other':0 };
-      var _ownedList = _ownedNonBox(state).filter(_pdEraEnabled);
+      var _ownedList = _ownedNonBox(state);
       // Catalog not loaded yet — can't classify; show loading rather than a wrong/empty breakdown.
       if ((!state.masterData || state.masterData.length === 0) && _ownedList.length > 0) {
         // v0.9.839 (TODO-014): offline the catalog never arrives — say so
@@ -696,7 +696,7 @@ var CARD_CATALOG = [
   {
     id: 'sets', label: 'Total Sets', color: '#d35400',
     compute: function(state) {
-      var owned = new Set(Object.values(state.personalData).filter(function(pd){return pd.owned;}).filter(_pdEraEnabled).map(function(pd){return normalizeItemNum(pd.itemNum);}));
+      var owned = new Set(Object.values(state.personalData).filter(function(pd){return pd.owned;}).map(function(pd){return normalizeItemNum(pd.itemNum);}));
       var count = state.masterData.filter(function(m) { return _bucketIs(m, _SET_BUCKETS) && owned.has(normalizeItemNum(m.itemNum)); }).length;
       return { value: count.toLocaleString(), sub: 'sets in collection' };
     }
@@ -705,8 +705,8 @@ var CARD_CATALOG = [
     id: 'photos', label: 'Items with Photos', color: '#f39c12',
     compute: function(state) {
       // Session 121: respect Preferences "What I Collect" in 'all' mode.
-      var count = Object.values(state.personalData).filter(function(pd) { return pd.owned && pd.photoItem; }).filter(_pdEraEnabled).length;
-      var total = Object.values(state.personalData).filter(function(pd) { return pd.owned; }).filter(_pdEraEnabled).length;
+      var count = Object.values(state.personalData).filter(function(pd) { return pd.owned && pd.photoItem; }).length;
+      var total = Object.values(state.personalData).filter(function(pd) { return pd.owned; }).length;
       return { value: count.toLocaleString(), sub: count === 0 ? 'add photos in item detail' : 'of ' + total + ' items have photos' };
     }
   },
@@ -881,6 +881,8 @@ if (typeof window !== 'undefined') window._showCardHelp = _showCardHelp;
 
 
 function buildDashboard() {
+  // v0.9.1796: an item just added in an unticked era needs its catalog too.
+  try { if (typeof _ensureOwnedErasLoaded === 'function') _ensureOwnedErasLoaded(); } catch (eOE) {}
   // v0.9.1703: same hold as renderBrowse. The dashboard is the other heavy
   // builder, it is rebuilt on the same data-load events, and it is just as
   // invisible behind a full-screen overlay.
@@ -1497,7 +1499,6 @@ var PANEL_CATALOG = [
       // Ephemera/IS/Science/Construction are cross-era by nature, so they're not filtered.
       var trains = Object.values(state.personalData).filter(function(pd) { return pd.owned; })
         .filter(function(pd) { return !(typeof _isCollectionCompanion === 'function' && _isCollectionCompanion(pd)); })
-        .filter(_pdEraEnabled)
         .map(function(pd) { return Object.assign({}, pd, { _src: 'train' }); });
       var ephMap = { catalogs:'📒', paper:'📄', mockups:'🔩', other:'📦' };
       var ephs = [];
@@ -1614,7 +1615,7 @@ var PANEL_CATALOG = [
       var priOrder = { High: 0, Medium: 1, Low: 2 };
       var priColor = { High: 'var(--accent)', Medium: 'var(--accent2,#8b5cf6)', Low: 'var(--text-dim)' };
       // Session 121: respect Preferences "What I Collect" in 'all' mode.
-      var _wRows = Object.values(_filterByEraPref(state.wantData));
+      var _wRows = Object.values(state.wantData || {});
       if (typeof foldWantEntries === 'function') _wRows = foldWantEntries(_wRows);   // v0.9.714: pairs = one row
       return _wRows
         .sort(function(a, b) { return ((priOrder[a.priority] || 1) - (priOrder[b.priority] || 1)); })
@@ -1670,7 +1671,6 @@ var PANEL_CATALOG = [
       // Session 121: respect Preferences "What I Collect" in 'all' mode.
       return Object.values(state.personalData)
         .filter(function(pd) { return pd.owned && (pd.priceComplete || pd.priceItem); })
-        .filter(_pdEraEnabled)
         .map(function(pd) { return Object.assign({}, pd, { _val: parseFloat(pd.priceComplete || pd.priceItem || 0) }); })
         .sort(function(a, b) { return b._val - a._val; })
         .slice(0, 8)
@@ -1697,7 +1697,7 @@ var PANEL_CATALOG = [
     render: function(state) {
       var thresh = parseInt(_prefGet('lv_upgrade_thresh', '7'));
       // Session 121: respect Preferences "What I Collect" in 'all' mode.
-      var entries = Object.values(_filterByEraPref(state.upgradeData || {}));
+      var entries = Object.values(state.upgradeData || {});
       var priorityOrder = { High: 0, Medium: 1, Low: 2 };
       return entries
         .sort(function(a, b) {

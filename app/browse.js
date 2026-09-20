@@ -2545,7 +2545,9 @@ function renderSetsTab() {
     mySetKeyByEntry.set(ms, k);
   });
 
+  const _offShelfSets = inColl ? new Set() : (typeof _offShelfEras === 'function' ? _offShelfEras() : new Set());   // v0.9.1796
   const sets = (state.setData || []).filter(s => {
+    if (s._era && _offShelfSets.has(s._era)) return false;
     const k = s.setNum.toLowerCase();
     if (inColl) {
       // Only show the specific year variant the user owns
@@ -2607,7 +2609,9 @@ function renderCatalogsTab() {
   const ephKeyByItemNum = new Map();
   ephOwnedEntries.forEach(function(e) { ephKeyByItemNum.set(String((e[1] && e[1].itemNum) || '').toLowerCase(), e[0]); });
   const ownedCatIds = new Set(ownedEphCats.map(c => (c.itemNum||'').toLowerCase()));
+  const _offShelfCats = inColl ? new Set() : (typeof _offShelfEras === 'function' ? _offShelfEras() : new Set());   // v0.9.1796
   const cats = (state.catalogRefData || []).filter(c => {
+    if (c._era && _offShelfCats.has(c._era)) return false;
     if (inColl && !ownedCatIds.has(c.id.toLowerCase())) return false;
     if (!q) return true;
     return (c.id + ' ' + c.year + ' ' + c.type + ' ' + c.title).toLowerCase().includes(q);
@@ -2702,7 +2706,9 @@ function renderISTab() {
   }
 
   // Master catalog view (existing behavior)
+  const _offShelfIS = (typeof _offShelfEras === 'function' ? _offShelfEras() : new Set());   // v0.9.1796 (this branch is catalog view only)
   const sheets = (state.isRefData || []).filter(s => {
+    if (s._era && _offShelfIS.has(s._era)) return false;
     if (!q) return true;
     return (s.id + ' ' + s.itemNumber + ' ' + s.description + ' ' + s.category).toLowerCase().includes(q);
   });
@@ -3710,7 +3716,7 @@ function renderBrowse() {
       const _baseNum = pd.itemNum.replace(/-(P|T|BOX|MBOX)$/i, '');
       const _baseItem = (!_pdIsManual && _baseNum !== pd.itemNum)
         ? (_mbiFind(_baseNum, pd.variation)
-           || findMaster(_baseNum))
+           || findMaster(_baseNum, pd.variation || '', pd))   // v0.9.1796: never number-only — the row says whose it is
         : null;
       // Fallback: if no suffix match, still try to find master entry by item number alone
       // (handles cases like 2426W saved with no variation but master has variations)
@@ -3734,7 +3740,7 @@ function renderBrowse() {
           // number with a catalog item (e.g. "4C") must not lose its edited
           // type. v0.9.718 rule: a manual entry's identity is its own.
           if (!_pdIsManual) {
-            try { _tm = (typeof findMaster === 'function') ? (findMaster(pd.itemNum, pd.variation || '') || (_baseNum !== pd.itemNum ? findMaster(_baseNum) : null)) : null; } catch (eT) {}
+            try { _tm = (typeof findMaster === 'function') ? (findMaster(pd.itemNum, pd.variation || '', pd) || (_baseNum !== pd.itemNum ? findMaster(_baseNum, pd.variation || '', pd) : null)) : null; } catch (eT) {}
             // v0.9.801: variation-blind fallback — the type is the same across
             // every variation, so ANY master row with this number settles it
             // (findMaster can return null when the variation column is blank).
@@ -3802,9 +3808,12 @@ function renderBrowse() {
   const _allItemTabs = (typeof REAL_ERA_IDS !== 'undefined')
     ? REAL_ERA_IDS.map(function(e){ return (typeof ERA_TABS !== 'undefined' && ERA_TABS[e]) ? ERA_TABS[e].items : null; }).filter(Boolean)
     : [];
+  // v0.9.1796: an era loaded only because something is OWNED in it stays off
+  // the catalog shelf — What I Collect still decides what you browse.
+  const _offShelf = (!owned && typeof _offShelfEras === 'function') ? _offShelfEras() : new Set();
   const baseList = owned ? [...state.masterData, ...personalOnlyItems]
     : (_currentEra === 'all'
-        ? state.masterData.filter(function(m) { return (m._tab && _allItemTabs.indexOf(m._tab) >= 0) || !m._tab; })
+        ? state.masterData.filter(function(m) { return ((m._tab && _allItemTabs.indexOf(m._tab) >= 0) || !m._tab) && !(m._era && _offShelf.has(m._era)); })
         : state.masterData.filter(function(m) { return m._tab === SHEET_TABS.items || !m._tab; }));
 
   // v0.9.985 (perf): ONE pass over the Sold list up front, instead of re-
