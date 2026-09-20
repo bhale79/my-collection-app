@@ -771,7 +771,7 @@ function openHelpHub() {
     +   row("window.location.href='mailto:" + fb + "?subject=The Rail Roster Feedback';", '✉️', 'Send feedback', 'Report a bug or suggest a feature')
     + '</div>'
     + '</div>';
-  modal.addEventListener('click', function(e) { if (e.target === modal) modal.remove(); });
+  rrDismissGuard(modal);   // v0.9.1790: a backdrop click does nothing (Brad: "never close if you pick outside")
   document.body.appendChild(modal);
 }
 window.openHelpHub = openHelpHub;

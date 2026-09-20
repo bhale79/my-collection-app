@@ -354,10 +354,7 @@ async function uiBackupList() {
     '</div>';
   document.body.appendChild(modal);
 
-  // Click outside to close
-  modal.addEventListener('click', function(e) {
-    if (e.target === modal) modal.remove();
-  });
+  rrDismissGuard(modal);   // v0.9.1790: a backdrop click does nothing (Brad: "never close if you pick outside")
 
   // Fetch and render
   const body = document.getElementById('backup-list-body');
@@ -428,7 +425,7 @@ async function uiTrashList() {
     '</div>';
   document.body.appendChild(modal);
   if (window.BackStack && BackStack.wire) BackStack.wire(modal);
-  modal.addEventListener('click', function (e) { if (e.target === modal) modal.remove(); });
+  rrDismissGuard(modal);   // v0.9.1790: a backdrop click does nothing (Brad: "never close if you pick outside")
 
   const body = document.getElementById('trash-list-body');
   try {

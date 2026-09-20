@@ -113,7 +113,7 @@ window.rrReadyDemos = rrReadyDemos;
         (demo.description ? '<div style="font-size:0.88rem;color:var(--text-mid);margin-bottom:0.9rem">' + _escape(demo.description) + '</div>' : '') +
         '<img src="' + _escape(demo.gifUrl) + '" alt="' + _escape(demo.title || '') + '" style="width:100%;border-radius:8px;background:#000">' +
       '</div>';
-    ov.onclick = function(e) { if (e.target === ov) ov.remove(); };
+    rrDismissGuard(ov);   // v0.9.1790: a backdrop click does nothing (Brad: "never close if you pick outside")
     document.body.appendChild(ov);
   }
 

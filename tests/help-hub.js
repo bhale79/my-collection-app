@@ -242,7 +242,9 @@ window._hubSnapshot = function () {
       window._hubClear(); openHelpHub();
       await new Promise(res => setTimeout(res, 400));
       const m2 = document.getElementById('help-hub-modal');
-      // Click the backdrop itself — the listener only closes on e.target === modal
+      // v0.9.1790: the backdrop no longer closes it. Brad: "never close if you
+      // pick outside." The click is still dispatched, because the thing under
+      // test is now that it does NOTHING.
       m2.dispatchEvent(new MouseEvent('click', { bubbles: true }));
       await new Promise(res => setTimeout(res, 400));
       const afterBackdrop = !document.getElementById('help-hub-modal');
@@ -254,7 +256,13 @@ window._hubSnapshot = function () {
       return { afterX, afterBackdrop, copies };
     });
     ok('the × closes the Help Centre', closes.afterX, JSON.stringify(closes));
-    ok('…and so does clicking the dark area around it', closes.afterBackdrop, JSON.stringify(closes));
+    // v0.9.1790 SUPERSEDED AND REPLACED, not deleted (the v1778 rule). This
+    // pinned the backdrop CLOSING the Help Centre. [stated] Brad's standing
+    // rule since v0.9.1786 is "never close if you pick outside", and when
+    // asked whether the read-only overlays should follow it too — "so the rule
+    // is simply clicking outside never closes anything" — he said yes. The ×
+    // above is the way out, and the device Back button still works.
+    ok('…and clicking the dark area around it does NOTHING', !closes.afterBackdrop, JSON.stringify(closes));
     ok('…and opening it three times leaves exactly one of it',
        closes.copies === 1, 'found ' + closes.copies);
 

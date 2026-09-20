@@ -153,6 +153,25 @@ function decode(s) {
     return String.fromCharCode(parseInt(h, 16));
   });
 }
+// v0.9.1790: AND IT RESOLVES A LABEL HELD IN A COPY CONSTANT.
+//
+// _partsChooser's way out is `PARTS_COPY.cancel`, and PARTS_COPY.cancel is
+// 'Cancel'. Reading the raw source, this scan saw no Cancel and called a
+// perfectly escapable dialog a trap — the third time the same lesson has
+// arrived: the scan reads TEXT, and the text is not always the thing. First
+// the ✕ written as ✕ (v1777, again in v1786), now a label behind a
+// constant.
+//
+// Only a key defined EXACTLY ONCE in the file is resolved. A name defined
+// twice with different values would otherwise let a wrong substitution turn a
+// real trap into a pass, which is the dangerous direction to be wrong in.
+function resolveCopy(slice, fileSrc) {
+  return slice.replace(/\b[A-Z][A-Z0-9_]*\.(\w+)\b/g, function (whole, key) {
+    const hits = fileSrc.match(new RegExp('\\b' + key + ":\\s*'([^']*)'", 'g')) || [];
+    if (hits.length !== 1) return whole;
+    return (hits[0].match(/'([^']*)'/) || [null, whole])[1];
+  });
+}
 // v0.9.1788: a leading glyph is normal on a back button ("← Back"), and the
 // old pattern demanded the word sit flush against the '>'. It would have
 // called the new Maintenance task card a trap while it had a Back button in
@@ -169,13 +188,14 @@ const WAYS = /(>\s*[^<A-Za-z]{0,3}\s*(Cancel|Close|Done|Not now|Back|Skip)\b)|×
 const FILES = fs.readdirSync(APPDIR).filter(f => f.endsWith('.js')).sort();
 let sites = 0, trapped = [];
 FILES.forEach(function (f) {
-  const lines = fs.readFileSync(path.join(APPDIR, f), 'utf8').split('\n');
+  const src = fs.readFileSync(path.join(APPDIR, f), 'utf8');
+  const lines = src.split('\n');
   lines.forEach(function (ln, i) {
     if (!/rrDismissGuard\(/.test(ln)) return;
     sites++;
     let st = i; for (let j = i; j >= 0; j--) if (lines[j] && !/^\s/.test(lines[j])) { st = j; break; }
     let en = lines.length; for (let j = i; j < lines.length; j++) if (/^\}/.test(lines[j])) { en = j; break; }
-    if (!WAYS.test(decode(lines.slice(st, en).join('\n')))) trapped.push(f + ':' + (i + 1));
+    if (!WAYS.test(resolveCopy(decode(lines.slice(st, en).join('\n')), src))) trapped.push(f + ':' + (i + 1));
   });
 });
 ok('every guarded overlay offers Cancel / Done / Close / ✕', trapped.length === 0,
@@ -183,7 +203,10 @@ ok('every guarded overlay offers Cancel / Done / Close / ✕', trapped.length ==
 // v1786 pinned 15 across seven named files; v1788 scans every app file and
 // adds the Maintenance task card. The pin is here so the next change to this
 // number has to be a decision, not a drift.
-ok('19 guarded call sites, and ONE helper behind them', sites === 19, String(sites));
+// v1786 pinned 15 across seven named files; v1788 scanned every file and
+// added the Maintenance task card; v1790 guarded the fourteen read-only
+// overlays too, so there is now ONE rule with no exceptions in it.
+ok('33 guarded call sites, and ONE helper behind them', sites === 33, String(sites));
 
 // nobody double-wires BackStack any more — the guard does it, once
 let dbl = 0;
@@ -252,8 +275,13 @@ ok('no overlay with typed fields hand-rolls its own backdrop dismissal',
 // Not a failure — a COUNT, so the fourteen cannot quietly become forty while
 // the question of what to do about them is still open. If Brad says to guard
 // them this number goes to 0; if he says leave them, it stays pinned here.
-ok('the read-only overlays that still close on a backdrop click are the known 14',
-   READONLY.length === 14, READONLY.length + ': ' + READONLY.join(', '));
+// v0.9.1790 — [stated] Brad, asked whether the fourteen read-only overlays
+// should be guarded too "so the rule is simply clicking outside never closes
+// anything": "yes". So this is now ZERO, and the rule above needs no clause
+// about typed fields at all. Both checks are kept: the typed-fields one is the
+// promise v1786 made, and this one is the promise it should have made.
+ok('NOTHING closes on a backdrop click any more — one rule, no exceptions',
+   READONLY.length === 0, READONLY.length + ': ' + READONLY.join(', '));
 
 // ════════════════════════════════════════════════════════════════════════
 section('E. Planted offenders — every rule above can actually fail');
@@ -322,6 +350,19 @@ section('E. Planted offenders — every rule above can actually fail');
     .replace('<body', '<div id="x" onclick="if(event.target===this)_closeX()"></div><body');
   ok('an offender planted in index.html is caught — the file the old scan never opened',
      ixOffender.split('\n').some(ln => DISMISSALS.some(d => d.re.test(ln))));
+
+  // 8 — v0.9.1790: a way out whose LABEL lives in a copy constant. Both
+  //     halves again: the resolver must find it, and the raw read must be
+  //     shown to miss it, or the resolver looks like decoration and gets cut.
+  const fileSrc = "var PARTS_COPY = {\n  cancel: 'Cancel'\n};";
+  const viaConst = "ov.innerHTML = '<button>' + PARTS_COPY.cancel + '</button>';";
+  ok('a Cancel held in a copy constant counts as a way out',
+     WAYS.test(resolveCopy(viaConst, fileSrc)));
+  ok('…and reading it RAW would have called that dialog a trap — the actual false alarm',
+     !WAYS.test(viaConst));
+  const twice = "var A = { cancel: 'Cancel' };\nvar B = { cancel: 'Abandon' };";
+  ok('a key defined twice is NOT resolved — a wrong substitution could hide a real trap',
+     !WAYS.test(resolveCopy(viaConst, twice)));
 }
 
 console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');

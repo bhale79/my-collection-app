@@ -463,7 +463,7 @@
         + 'your sheet will not have them.', { title: 'Forget these changes', ok: 'Forget them', cancel: 'Keep them' })
         .then(function (yes) { if (yes) { rrOutboxClear(); ov.remove(); } });
     };
-    ov.onclick = function (e) { if (e.target === ov) ov.remove(); };
+    rrDismissGuard(ov);   // v0.9.1790: a backdrop click does nothing (Brad: "never close if you pick outside")
   }
 
   // ── when to try again on our own ─────────────────────────────────

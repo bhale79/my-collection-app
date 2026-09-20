@@ -137,7 +137,16 @@ const spi = grabFrom(pages, 'async function _savePartInstalled(rowNum)');
 ok('after a successful install it offers to mark the task complete — through the existing _maintChoreDone', /PARTS_COPY\.markDone/.test(spi) && /window\._maintChoreDone\(_t2\.row, _t2\.id\)/.test(spi));
 ok('the card\'s own Installed-it says "already on the card" so the card is not reopened on top of itself', /markPartInstalled\(rowNum, \{ onCard: true \}\)/.test(grabFrom(maint, 'window._maintPartInstalled = function (rowNum)')));
 const chooser = grabFrom(pages, 'function _partsChooser(');
-ok('the chooser is an in-app overlay wired to BackStack (device Back closes it), above every other modal', /BackStack\.wire\(ov\)/.test(chooser) && /z-index:10090/.test(chooser) && /PARTS_COPY\.cancel/.test(chooser));
+// v0.9.1790 RE-PIN. The rule is unchanged — an in-app overlay, device Back
+// closes it, above every other modal, with a Cancel. What changed is HOW the
+// BackStack wiring gets there: rrDismissGuard does it now, so wiring it by
+// hand as well would be the double-wire the dismiss-guard suite fails on. A
+// second assertion checks the hand-rolled call really is gone, because a
+// re-pin that only relaxes is not a re-pin.
+ok('the chooser is an in-app overlay wired to BackStack (device Back closes it), above every other modal', /rrDismissGuard\(ov\)/.test(chooser) && /z-index:10090/.test(chooser) && /PARTS_COPY\.cancel/.test(chooser));
+ok('…wired in ONE place, not two', !/BackStack\.wire\(ov\)/.test(chooser));
+ok('…and a tap outside no longer closes it (Brad: never close if you pick outside)',
+   !/e\.target === ov\) ov\.remove/.test(chooser));
 
 section('D · Remove on the card, loose rule, whole-row blank');
 const card = grabFrom(maint, 'function _maintRenderTasks()');

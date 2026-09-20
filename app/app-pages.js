@@ -730,7 +730,7 @@ function openEphemeraDetail(tabId, rowKey) {
 
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay open';
-  overlay.onclick = e => { if (e.target === overlay) overlay.remove(); };
+  rrDismissGuard(overlay);   // v0.9.1790: a backdrop click does nothing (Brad: "never close if you pick outside")
 
   const isCatalog3 = tabId === 'catalogs';
   const fields = isCatalog3 ? [
@@ -796,7 +796,7 @@ function openEphemeraDetail(tabId, rowKey) {
       </div>
     </div>`;
   document.body.appendChild(overlay);
-  if (window.BackStack && BackStack.wire) BackStack.wire(overlay); // v0.9.805 TODO-012: device Back closes this pop-up
+  // v0.9.1790: BackStack is wired by rrDismissGuard above — one place, not two.
 }
 
 // ── Ephemera Actions ─────────────────────────────────────────────
@@ -1043,7 +1043,7 @@ function showVarDescPopup(idx) {
   const overlay = document.createElement('div');
   overlay.id = 'vardesc-popup';
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1.5rem';
-  overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+  rrDismissGuard(overlay);   // v0.9.1790: a backdrop click does nothing (Brad: "never close if you pick outside")
   const box = document.createElement('div');
   box.style.cssText = 'background:var(--surface);border:1px solid var(--border);border-radius:14px;max-width:520px;width:100%;padding:1.5rem;position:relative';
   const closeBtn = document.createElement('button');
@@ -1061,7 +1061,7 @@ function showVarDescPopup(idx) {
   box.appendChild(varEl);
   overlay.appendChild(box);
   document.body.appendChild(overlay);
-  if (window.BackStack && BackStack.wire) BackStack.wire(overlay); // v0.9.805 TODO-012: device Back closes this pop-up
+  // v0.9.1790: BackStack is wired by rrDismissGuard above — one place, not two.
 }
 
 function showWantDesc(idx) {
@@ -1072,7 +1072,7 @@ function showWantDesc(idx) {
   const overlay = document.createElement('div');
   overlay.id = 'want-desc-modal';
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1.5rem';
-  overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+  rrDismissGuard(overlay);   // v0.9.1790: a backdrop click does nothing (Brad: "never close if you pick outside")
   const box = document.createElement('div');
   box.style.cssText = 'background:var(--surface);border:1px solid var(--border);border-radius:14px;max-width:520px;width:100%;padding:1.5rem;position:relative';
   const closeBtn = document.createElement('button');
@@ -1108,7 +1108,7 @@ function showWantDesc(idx) {
   }
   overlay.appendChild(box);
   document.body.appendChild(overlay);
-  if (window.BackStack && BackStack.wire) BackStack.wire(overlay); // v0.9.805 TODO-012: device Back closes this pop-up
+  // v0.9.1790: BackStack is wired by rrDismissGuard above — one place, not two.
 }
 
 // ── Want List Actions ──────────────────────────────────────────
@@ -2875,7 +2875,7 @@ function showSetDetail(setNum) {
   const overlay = document.createElement('div');
   overlay.id = 'set-detail-popup';
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1.25rem';
-  overlay.onclick = e => { if (e.target === overlay) overlay.remove(); };
+  rrDismissGuard(overlay);   // v0.9.1790: a backdrop click does nothing (Brad: "never close if you pick outside")
 
   // ── Box ──
   const box = document.createElement('div');
@@ -2992,7 +2992,7 @@ function showSetDetail(setNum) {
 
   overlay.appendChild(box);
   document.body.appendChild(overlay);
-  if (window.BackStack && BackStack.wire) BackStack.wire(overlay); // v0.9.805 TODO-012: device Back closes this pop-up
+  // v0.9.1790: BackStack is wired by rrDismissGuard above — one place, not two.
 }
 
 
@@ -3791,7 +3791,7 @@ function _chooseUpgradeScope(itemNum, variation, pdRow, invId, pd) {
   var overlay = document.createElement('div');
   overlay.id = 'upgrade-scope-modal';
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:10002;display:flex;align-items:center;justify-content:center;padding:1.25rem';
-  overlay.onclick = function(e){ if (e.target === overlay) overlay.remove(); };
+  rrDismissGuard(overlay);   // v0.9.1790: a backdrop click does nothing (Brad: "never close if you pick outside")
   overlay.innerHTML =
     '<div class="rr-card">'
     // v0.9.1139: third of the three purple headings, matched to the other two.
@@ -3803,7 +3803,7 @@ function _chooseUpgradeScope(itemNum, variation, pdRow, invId, pd) {
     + '<button id="_ugs-cancel" style="padding:0.6rem;border-radius:10px;border:1px solid var(--border);background:none;color:var(--text-dim);font-family:var(--font-body);font-size:0.85rem;cursor:pointer">Cancel</button>'
     + '</div></div>';
   document.body.appendChild(overlay);
-  if (window.BackStack && BackStack.wire) BackStack.wire(overlay); // v0.9.805 TODO-012: device Back closes this pop-up
+  // v0.9.1790: BackStack is wired by rrDismissGuard above — one place, not two.
   document.getElementById('_ugs-all').onclick = function(){ overlay.remove(); showAddToUpgradeModal(itemNum, variation, pdRow, invId, 'all'); };
   document.getElementById('_ugs-one').onclick = function(){ overlay.remove(); showAddToUpgradeModal(itemNum, variation, pdRow, invId, 'one'); };
   document.getElementById('_ugs-cancel').onclick = function(){ overlay.remove(); };
@@ -4001,7 +4001,7 @@ function _upgradeGotItOldStart(ugKey) {
   const overlay = document.createElement('div');
   overlay.id = 'upgrade-gotit-modal';
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:10002;display:flex;align-items:center;justify-content:center;padding:1.25rem';
-  overlay.onclick = e => { if (e.target === overlay) overlay.remove(); };
+  rrDismissGuard(overlay);   // v0.9.1790: a backdrop click does nothing (Brad: "never close if you pick outside")
   overlay.innerHTML = `
     <div class="rr-card">
       <button onclick="document.getElementById('upgrade-gotit-modal').remove()" style="position:absolute;top:0.75rem;right:0.75rem;background:none;border:none;color:var(--text-dim);font-size:1.1rem;cursor:pointer">✕</button>
@@ -4022,7 +4022,7 @@ function _upgradeGotItOldStart(ugKey) {
       </div>
     </div>`;
   document.body.appendChild(overlay);
-  if (window.BackStack && BackStack.wire) BackStack.wire(overlay); // v0.9.805 TODO-012: device Back closes this pop-up
+  // v0.9.1790: BackStack is wired by rrDismissGuard above — one place, not two.
 }
 
 // Phase 3: signature is now (ugKey, action).
@@ -4205,7 +4205,7 @@ function _partsChooser(title, sub, options) {
   var ov = document.createElement('div');
   ov.id = '_parts-chooser';
   ov.style.cssText = 'position:fixed;inset:0;background:var(--scrim);z-index:10090;display:flex;align-items:center;justify-content:center;padding:1.25rem';
-  ov.onclick = function (e) { if (e.target === ov) ov.remove(); };
+  rrDismissGuard(ov);   // v0.9.1790: a backdrop click does nothing (Brad: "never close if you pick outside")
   var BT = 'display:block;width:100%;text-align:left;padding:0.6rem 0.75rem;margin-bottom:0.45rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.9rem;cursor:pointer';
   ov.innerHTML = '<div class="rr-card"><div class="rr-card-title">' + title + '</div>'
     + (sub ? '<div style="font-size:0.82rem;color:var(--text-mid);margin-bottom:0.9rem">' + sub + '</div>' : '')
@@ -4215,7 +4215,7 @@ function _partsChooser(title, sub, options) {
     b.onclick = function () { var i = +b.getAttribute('data-i'); ov.remove(); if (i >= 0 && options[i] && options[i].run) options[i].run(); };
   });
   document.body.appendChild(ov);
-  if (window.BackStack && BackStack.wire) BackStack.wire(ov);
+  // v0.9.1790: BackStack is wired by rrDismissGuard above — one place, not two.
   return ov;
 }
 // "For 2338" on the Parts Needed page opens that engine's Maintenance card — on the part's task when it has one

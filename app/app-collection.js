@@ -4458,7 +4458,7 @@ function browseRowClick(event, idx) {
     // Show description popup
     const vdOverlay = document.createElement('div');
     vdOverlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1.5rem';
-    vdOverlay.onclick = function(e) { if (e.target === vdOverlay) vdOverlay.remove(); };
+    rrDismissGuard(vdOverlay);   // v0.9.1790: a backdrop click does nothing (Brad: "never close if you pick outside")
     const vdBox = document.createElement('div');
     vdBox.style.cssText = 'background:var(--surface);border:1px solid var(--border);border-radius:14px;max-width:520px;width:100%;padding:1.75rem;position:relative;max-height:80vh;overflow-y:auto';
     const closeBtn = document.createElement('button');
@@ -4537,7 +4537,7 @@ function browseRowClick(event, idx) {
     vdBox.appendChild(addBtn);
     vdOverlay.appendChild(vdBox);
     document.body.appendChild(vdOverlay);
-    if (window.BackStack && BackStack.wire) BackStack.wire(vdOverlay); // v0.9.806 TODO-012: device Back closes this pop-up
+    // v0.9.1790: BackStack is wired by rrDismissGuard above — one place, not two.
   };
   const cancelBtn = document.createElement('button');
   cancelBtn.className = 'btn btn-secondary';

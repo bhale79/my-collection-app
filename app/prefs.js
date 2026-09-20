@@ -1297,8 +1297,6 @@ function _uiShowVersionHistoryHelp() {
       '</div>' +
     '</div>';
   document.body.appendChild(modal);
-  modal.addEventListener('click', function(e) {
-    if (e.target === modal) modal.remove();
-  });
+  rrDismissGuard(modal);   // v0.9.1790: a backdrop click does nothing (Brad: "never close if you pick outside")
 }
 window._uiShowVersionHistoryHelp = _uiShowVersionHistoryHelp;
