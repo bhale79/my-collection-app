@@ -40,14 +40,14 @@ function runSW() {
   const handlers = {};
   const cache = { add: () => Promise.resolve(), put: () => Promise.resolve(), match: () => Promise.resolve(undefined) };
   const self_ = {
-    location: { href: 'https://therailroster.com/app/sw.js?v=1780' },
+    location: { href: 'https://therailroster.com/app/sw.js?v=1781' },
     addEventListener: (t, h) => { (handlers[t] = handlers[t] || []).push(h); },
     skipWaiting: () => { calls.skipWaiting++; },
     clients: { claim: () => { calls.claim++; } },
   };
   const caches_ = {
     open: () => Promise.resolve(cache),
-    keys: () => Promise.resolve(['mca-v1789', 'mca-v1790']),
+    keys: () => Promise.resolve(['mca-v1790', 'mca-v1791']),
     delete: (k) => { calls.deleted.push(k); return Promise.resolve(true); },
   };
   new Function('self', 'caches', 'fetch', 'console', 'URL', 'Response', 'Promise', swSrc)(
@@ -84,8 +84,8 @@ ok('activate claims the clients', sw.calls.claim === 1);
 ok('activate deletes every cache that is not this version, and keeps this one',
    actWaits.length === 1);
 actWaits[0].then(() => {
-  ok('…verified: mca-v1789 deleted, mca-v1790 kept',
-     sw.calls.deleted.length === 1 && sw.calls.deleted[0] === 'mca-v1789', JSON.stringify(sw.calls.deleted));
+  ok('…verified: mca-v1790 deleted, mca-v1791 kept',
+     sw.calls.deleted.length === 1 && sw.calls.deleted[0] === 'mca-v1790', JSON.stringify(sw.calls.deleted));
   rest();
 });
 
@@ -98,7 +98,7 @@ ok('a worker already waiting at load is offered too', /if \(reg\.waiting\) offer
 ok('the offer only happens when a worker is actually in charge (never on a first install)',
    /reg\.waiting && navigator\.serviceWorker\.controller/.test(reg));
 ok('the registration is published so the card can reach it', /window\._rrSWReg = reg;/.test(ix));
-ok('the worker URL is stamped with this version', /register\('\.\/sw\.js\?v=1780'\)/.test(ix));
+ok('the worker URL is stamped with this version', /register\('\.\/sw\.js\?v=1781'\)/.test(ix));
 
 section('_rrActivateUpdate, run for real: hand over FIRST, reload after');
 function liftActivate() {
@@ -165,10 +165,10 @@ ok('Tonight (3 AM) takes the same path', /window\._rrActivateUpdate\(\); return;
 ok('…and still refuses to reload over unfinished work', /_rrBusyNow/.test(night));
 
 section('The trio moved together');
-ok('APP_VERSION v0.9.1780', /const APP_VERSION = 'v0\.9\.1780';/.test(cfg));
-ok('CACHE_NAME is the version + 10', /const CACHE_NAME = 'mca-v1790';/.test(swSrc));
-ok('index.html stamps every asset at 1780 and none at 1779',
-   (ix.match(/\?v=1780/g) || []).length === 79 && !/\?v=1779/.test(ix));
+ok('APP_VERSION v0.9.1781', /const APP_VERSION = 'v0\.9\.1781';/.test(cfg));
+ok('CACHE_NAME is the version + 10', /const CACHE_NAME = 'mca-v1791';/.test(swSrc));
+ok('index.html stamps every asset at 1781 and none at 1780',
+   (ix.match(/\?v=1781/g) || []).length === 79 && !/\?v=1780/.test(ix));
 
 console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
 process.exit(fail ? 1 : 0);

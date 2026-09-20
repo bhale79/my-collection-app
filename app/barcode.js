@@ -40,6 +40,12 @@ window.eraSupportsBarcode = eraSupportsBarcode;
   const EXPLAINER_ACK_KEY = 'lv_barcode_explainer_ack';
 
   // Manufacturer prefix → handler
+  // v0.9.1781: the status amber was thirteen copies of the same hex; a
+  // fourteenth tripped the colour ratchet. One constant now, declared
+  // HERE rather than beside its helpers — `var` hoists the name but not
+  // the value, and the first use is over a thousand lines earlier.
+  var _BC_AMBER = '#ffd27d';
+
   const UPC_PREFIXES = {
     '023922': { mfr: 'Lionel',  parse: parseLionelUPC },
     '040369': { mfr: 'K-Line',  parse: parseUnknown }, // Phase 2
@@ -965,13 +971,13 @@ window.eraSupportsBarcode = eraSupportsBarcode;
             const bc = barcodes[0];
             // Two-read consensus: require the same value on two frames before accepting.
             if (bc.rawValue === _bcLastRaw) { _bcConfirm++; } else { _bcLastRaw = bc.rawValue; _bcConfirm = 1; }
-            if (_bcConfirm < 2) { _setStatus('Reading…', '#ffd27d'); await new Promise(r => setTimeout(r, 90)); continue; }
+            if (_bcConfirm < 2) { _setStatus('Reading…', _BC_AMBER); await new Promise(r => setTimeout(r, 90)); continue; }
             const result = await decodeBarcode(bc, eraHint);
             if (result.handled && result.multipleMatches) {
               stopScanning = true;
               // Always double-verify: OCR the label on the SAME frame to auto-resolve the shared-barcode ambiguity.
               statusEl.textContent = 'Barcode matches ' + result.candidates.length + ' items — reading the label to confirm…';
-              statusEl.style.color = '#ffd27d';
+              statusEl.style.color = _BC_AMBER;
               const _lvP = _bcLabelVerify(video);   // captures the current frame synchronously
               cleanup();
               const _lv = await _lvP;
@@ -1034,7 +1040,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
                 let _res = result;
                 if (result.notInMaster && result.upc && !_bcRescueTried['nm|' + bc.rawValue]) {
                   _bcRescueTried['nm|' + bc.rawValue] = 1;
-                  _setStatus('Barcode has no catalog match — reading the printed label…', '#ffd27d', 30000);
+                  _setStatus('Barcode has no catalog match — reading the printed label…', _BC_AMBER, 30000);
                   const _rr2 = await _bcLabelRescue(video);
                   _bcStickyUntil = 0;
                   if (_rr2 && _rr2.itemNum) { _res = _rr2; _res.rawBarcode = result.rawBarcode; _res.format = result.format; _res.upc = result.upc; }
@@ -1064,7 +1070,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
                 // frame once before dropping them back into the scanner.
                 if (_res.notInMaster && typeof _bcAiRescue === 'function' && !_bcRescueTried['ai|' + bc.rawValue]) {
                   _bcRescueTried['ai|' + bc.rawValue] = 1;
-                  _setStatus('🔍 Taking a closer look…', '#ffd27d', 45000);
+                  _setStatus('🔍 Taking a closer look…', _BC_AMBER, 45000);
                   const _aiR3 = await _bcAiRescue(video, eraHint, {}, (_res && _res.manufacturer) || '');
                   _bcStickyUntil = 0;
                   if (_aiR3 && _aiR3.itemNum && _aiR3.itemNum !== _res.itemNum) {
@@ -1083,7 +1089,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
               if ((result.unknownPrefix || result.phase2) && !_bcRescueTried[bc.rawValue]) {
                 _bcRescueTried[bc.rawValue] = 1;
                 _bcStickyUntil = 0;
-                _setStatus('Barcode doesn\'t identify the item — reading the printed label instead…', '#ffd27d', 30000);
+                _setStatus('Barcode doesn\'t identify the item — reading the printed label instead…', _BC_AMBER, 30000);
                 const _rr = await _bcLabelRescue(video);
                 _bcStickyUntil = 0;
                 if (_rr && !stopScanning) {
@@ -1096,7 +1102,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
                 if (stopScanning) return;   // user hit Cancel / label button while OCR ran
                 // v0.9.655: Tier 3 — barcode dead end AND label OCR failed.
                 // Give the AI one look at the same frame before giving up.
-                _setStatus('🔍 Taking a closer look…', '#ffd27d', 45000);
+                _setStatus('🔍 Taking a closer look…', _BC_AMBER, 45000);
                 var _aiWhy = {};
                 const _aiR = await _bcAiRescue(video, eraHint, _aiWhy, (result && result.manufacturer) || '');
                 _bcStickyUntil = 0;
@@ -1115,11 +1121,11 @@ window.eraSupportsBarcode = eraSupportsBarcode;
                 continue;
               }
               // Other no-item results: hold the message so it's readable, keep scanning.
-              _setStatus(result.statusMessage || 'Barcode read, but no item found — try the label button.', '#ffd27d', 5000);
+              _setStatus(result.statusMessage || 'Barcode read, but no item found — try the label button.', _BC_AMBER, 5000);
               await new Promise(r => setTimeout(r, 250));
               continue;
             } else {
-              _setStatus(result.statusMessage || ('Unknown barcode: ' + bc.rawValue), '#ffd27d');
+              _setStatus(result.statusMessage || ('Unknown barcode: ' + bc.rawValue), _BC_AMBER);
             }
           }
         } catch (e) { /* frame failed, continue */ }
@@ -2157,6 +2163,105 @@ window.eraSupportsBarcode = eraSupportsBarcode;
     return { score: score, longest: best };
   }
 
+  // v0.9.1781. THE clear-winner rule, in ONE place. Both rescues — the
+  // one-digit misread and the words-only search — must answer the same
+  // question the same way: at least two shared keys, one of them substantial,
+  // and strictly ahead of the runner-up. Otherwise nothing.
+  //
+  // It lives here because writing it twice defeated its own planted offender:
+  // the test removed one copy and the other kept the suite green. A rule
+  // worth guarding is a rule worth having once.
+  //
+  // An honest "couldn't tell" beats a confident wrong answer. That is the
+  // complaint this whole path exists to fix.
+  function _bcClearWinner(scored) {
+    if (!scored || !scored.length) return null;
+    var top = scored[0], second = scored[1];
+    if (top.score < 2) return null;
+    if (top.longest < 4) return null;
+    if (second && second.score >= top.score) return null;
+    return top.row;
+  }
+
+  // ══ NO NUMBER AT ALL: ASK THE CATALOG ABOUT THE WORDS (v0.9.1781) ════════
+  // [stated] Brad, same CSX hopper, a later shot: "Lettering: no item number
+  // read" and "The free readers couldn't tell". That message is the one shown
+  // when the label text WAS read and simply held no item number — "nothing
+  // readable" is the other one. So the app had the words off his box, and the
+  // maker from the barcode, and never asked the catalog about either.
+  //
+  // MEASURED AGAINST THE LIVE CATALOG, as with the near-miss rescue:
+  //   "201582"      -> 1 row of 22,355   (2542162, his hopper)
+  //   "CSX ACF"     -> 2 rows            (…161 and …162, differing ONLY by car number)
+  //   "CenterFlow"  -> 8 rows
+  // The QUOTED CAR NUMBER is the near-unique key; the words around it are not.
+  // So the search is anchored on 4+ digit runs from the label and the words
+  // only break the tie — the reverse would scan 22,000 rows to reach eight.
+  //
+  // CHEAP BY CONSTRUCTION: whole tabs whose maker is not the one the barcode
+  // proved are skipped without touching their rows, and within the maker's
+  // tabs the test is an indexOf on a short string. A key that matches more
+  // than a handful of rows is not a key — the pool is abandoned at 40.
+  function _bcLabelDigitKeys(text) {
+    var out = [], seen = {};
+    String(text || '').replace(/\d{4,}/g, function (m) {
+      if (!seen[m]) { seen[m] = 1; out.push(m); }
+      return m;
+    });
+    return out.slice(0, 6);
+  }
+
+  async function _bcFindByLabelWords(labelText, mfr) {
+    try {
+      if (!labelText) return null;
+      // _stripUPCs first: the barcode's own digits are not a description key.
+      var keys = _bcLabelDigitKeys(_stripUPCs(String(labelText)));
+      if (!keys.length) return null;
+
+      var want = _bcMfrKey(mfr);
+      var pool = [], tooMany = false;
+      function sift(arr, era) {
+        if (tooMany || !arr || !arr.length) return;
+        for (var i = 0; i < arr.length; i++) {
+          var m = arr[i];
+          if (!m) continue;
+          if (want && !_bcRowIsMfr(m, want)) continue;
+          var hay = String(m.description || '') + ' ' + String(m.roadName || '');
+          for (var k = 0; k < keys.length; k++) {
+            if (hay.indexOf(keys[k]) >= 0) {
+              if (!m._era) m._era = era;
+              pool.push(m);
+              break;
+            }
+          }
+          if (pool.length > 40) { tooMany = true; return; }
+        }
+      }
+
+      var curEra = (typeof state !== 'undefined' && state.currentEra) || '';
+      if (typeof state !== 'undefined' && state.masterAllRows && state.masterAllRows.length) {
+        sift(state.masterAllRows, '');
+      } else {
+        if (typeof state !== 'undefined' && state.masterData) sift(state.masterData, curEra);
+        if (typeof REAL_ERA_IDS !== 'undefined' && Array.isArray(REAL_ERA_IDS) && typeof idbGet === 'function') {
+          for (var e = 0; e < REAL_ERA_IDS.length && !tooMany; e++) {
+            var era = REAL_ERA_IDS[e];
+            if (era === curEra) continue;
+            try { sift(await idbGet('lv_master_cache_' + era), era); } catch (eIdb) {}
+          }
+        }
+      }
+      if (tooMany || !pool.length) return null;
+
+      var scored = pool.map(function (m) {
+        var s = _bcLabelScore(labelText, m);
+        return { row: m, score: s.score, longest: s.longest };
+      }).sort(function (x, y) { return y.score - x.score; });
+
+      return _bcClearWinner(scored);
+    } catch (e) { return null; }
+  }
+
   // Returns a single rescued row, or null. Deliberately conservative.
   async function _bcNearMissRescue(printedNum, labelText, mfr) {
     try {
@@ -2175,14 +2280,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         return { row: h, score: s.score, longest: s.longest };
       }).sort(function (x, y) { return y.score - x.score; });
 
-      var top = scored[0], second = scored[1];
-      // A CLEAR winner or nothing: at least two shared keys, one of them
-      // substantial, and strictly ahead of the runner-up. Ten candidates and
-      // a weak signal is exactly when this must keep quiet.
-      if (top.score < 2) return null;
-      if (top.longest < 4) return null;
-      if (second && second.score >= top.score) return null;
-      return top.row;
+      return _bcClearWinner(scored);
     } catch (e) { return null; }
   }
 
@@ -3158,7 +3256,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
     if (_dbases.length >= 2 || _outsideCrop) {
       st('master', '❓', _outsideCrop
         ? 'Catalog: a number was read OUTSIDE your crop — is it your item?'
-        : 'Catalog: ' + _dnums.length + ' different numbers in the shot — which one is YOUR item?', '#ffd27d');
+        : 'Catalog: ' + _dnums.length + ' different numbers in the shot — which one is YOUR item?', _BC_AMBER);
       var _pickN = await _biNumPicker(_dnums, _outsideCrop
         ? 'Your crop had no readable number, but ' + _dnums.slice(0, 3).join(', ') + ' was read from the FULL photo (outside your crop). Is that your item?'
         : null);
@@ -3202,7 +3300,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         // assume; the user picks. (Label stays the default on cancel: it was
         // read off the item itself.)
         var _lN = pick.itemNum, _bN = bcResult.masterItem.itemNum;
-        st('master', '❓', 'Catalog: label reads ' + _lN + ', barcode decodes to ' + _bN + ' — which is YOUR item?', '#ffd27d');
+        st('master', '❓', 'Catalog: label reads ' + _lN + ', barcode decodes to ' + _bN + ' — which is YOUR item?', _BC_AMBER);
         var _sel = await _biNumPicker([_lN + ' — from the label', _bN + ' — from the barcode'],
           'The printed label reads <b>' + _lN + '</b> but the barcode decodes to <b>' + _bN + '</b>. Which is YOUR item?');
         if (_sel && String(_sel).indexOf(_bN) === 0) { pick = bcResult.masterItem; verified = 'barcode'; }
@@ -3259,7 +3357,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
       // on a wrong number is the complaint that produced this.
       var _near = await _bcNearMissRescue(_printed, ocrText, out.bcMaker);
       if (_near) {
-        st('master', '📖', 'Catalog: ' + _printed + ' not there — ' + _near.itemNum + ' matches the label', '#ffd27d');
+        st('master', '📖', 'Catalog: ' + _printed + ' not there — ' + _near.itemNum + ' matches the label', _BC_AMBER);
         if (_biStop) return { __biCancel: true };
         return { handled: true, _boxPhoto: out.isBoxShot, itemNum: _near.itemNum,
                  variation: _near.variation || '', masterItem: _near,
@@ -3271,7 +3369,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
                             + 'Check the number on your box before using this.',
                  statusMessage: 'Read ' + _printed + ' — offering ' + _near.itemNum };
       }
-      st('master', '📖', 'Catalog: ' + _printed + ' not in the catalog — adding manually', '#ffd27d');
+      st('master', '📖', 'Catalog: ' + _printed + ' not in the catalog — adding manually', _BC_AMBER);
       if (_biStop) return { __biCancel: true };
       st('ai', '<span class="bi-spin">⟳</span>', 'Close look: getting the details…');
       var aiP = await _bcAiRescue(workCanvas, eraHint, out.why, out.bcMaker);
@@ -3283,6 +3381,22 @@ window.eraSupportsBarcode = eraSupportsBarcode;
                aiMeta: (aiP && aiP.aiMeta) || null,
                verifiedNote: '✓ Read ' + _printed + ' off the label',
                statusMessage: _printed + ' — not in our catalog, adding manually…' };
+    }
+    // v0.9.1781: no number was read — but the LABEL'S WORDS were. Ask the
+    // catalog about them before giving up and offering to spend a read.
+    var _byWords = await _bcFindByLabelWords(ocrText, out.bcMaker);
+    if (_byWords) {
+      st('master', '📖', 'Catalog: no number, but the label matches ' + _byWords.itemNum, _BC_AMBER);
+      if (_biStop) return { __biCancel: true };
+      return { handled: true, _boxPhoto: out.isBoxShot, itemNum: _byWords.itemNum,
+               variation: _byWords.variation || '', masterItem: _byWords,
+               manufacturer: out.bcMaker || '',
+               roadName: (_byWords.roadName || ''), description: (_byWords.description || ''),
+               eraTag: (typeof _eraLabel === 'function') ? _eraLabel(_byWords._era) : '',
+               cautionNote: 'No item number could be read from the label. '
+                          + _byWords.itemNum + ' is the only catalog entry matching the wording on it. '
+                          + 'Check the number on your box before using this.',
+               statusMessage: 'No number read — offering ' + _byWords.itemNum };
     }
     st('master', '➖', 'Catalog: no direct match yet');
 
