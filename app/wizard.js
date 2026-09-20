@@ -608,7 +608,7 @@ function _buildWizardModal() {
   var overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
   overlay.id = 'wizard-modal';
-  overlay.onclick = function(e) { if (e.target === overlay) closeWizardOnOverlay(e); };
+  // v0.9.1791: the backdrop close is gone — Back is already wired for this one.
   overlay.innerHTML =
     '<div class="modal" style="max-width:520px;height:580px;display:flex;flex-direction:column;overflow:hidden">' +
       '<div class="modal-header">' +
@@ -869,6 +869,12 @@ function _buildWizardModal() {
       +     '<div id="id-paste-echo-text" style="max-height:96px;overflow-y:auto;background:var(--surface2);border:1px solid var(--border);border-radius:7px;padding:0.45rem 0.6rem;font-size:0.75rem;color:var(--text-mid);white-space:pre-wrap;word-break:break-word;line-height:1.45"></div>'
       +   '</div>'
       + '</div>';
+    // v0.9.1791: guarded HERE, where the modal is built. The wiring used to
+    // sit in a window 'load' handler in wizard-photos.js that looked this
+    // element up by id — and it is created ON DEMAND when the wizard first
+    // opens, which is always AFTER load. So that handler found null every
+    // time and wired nothing: dead code that read like coverage.
+    rrDismissGuard(_identEl, function () { closeIdentify(); });
     document.body.appendChild(_identEl);
     // Wire interactive bits AFTER DOM insert (handlers live in wizard-photos.js).
     if (typeof _wireIdentifyModalV2 === 'function') _wireIdentifyModalV2();
@@ -1508,10 +1514,13 @@ async function _confirmSetCancel() {
 
 // ── Quick Entry flow (moved to wizard-quickentry.js — Session 110, Round 1 Chunk 7) ──
 
-function closeWizardOnOverlay(e) {
-  // Intentionally disabled — clicking outside the wizard does nothing.
-  // Use the Cancel button to exit.
-}
+// v0.9.1791: closeWizardOnOverlay is GONE. It had been an empty function since
+// the wizard stopped closing on a backdrop click, and its only caller — the
+// overlay's own onclick — went with this release. An empty function that reads
+// like a close handler is exactly the thing someone fills in later by mistake.
+//
+// Worth noting for the record: the wizard has been RIGHT about this all along,
+// and was the model the rest of the app should have followed three releases ago.
 
 // ── Wizard Consolidation Helpers ──
 
@@ -7595,14 +7604,14 @@ window._wizVarZoom = function (arg) {
   // even though the gesture began on the picture. The backdrop-closes rule read
   // that as "he clicked the background" and shut the viewer mid-drag. Fix: the
   // background only closes when the press STARTED there and barely moved.
-  var downOnBackdrop = false, downX = 0, downY = 0, movedPx = 0;
-  var CLICK_SLOP = 6; // px of travel still counted as a click rather than a drag
+  // v0.9.1791: downOnBackdrop / downX / downY / movedPx / CLICK_SLOP all
+  // existed ONLY to decide whether a background click was really a click. The
+  // background closes nothing now, so every one of them is dead and gone —
+  // kept "just in case" is how a helper gets called by mistake later.
   stage.addEventListener('pointerdown', function (e) {
     pointers[e.pointerId] = { x: e.clientX, y: e.clientY };
     var ks = Object.keys(pointers);
     if (ks.length === 1) {
-      downOnBackdrop = (e.target === stage);
-      downX = e.clientX; downY = e.clientY; movedPx = 0;
       dragging = true; lastX = e.clientX; lastY = e.clientY;
       stage.classList.add('rrpv-grabbing');
       try { stage.setPointerCapture(e.pointerId); } catch (err) {}
@@ -7617,7 +7626,6 @@ window._wizVarZoom = function (arg) {
   stage.addEventListener('pointermove', function (e) {
     if (!pointers[e.pointerId]) return;
     pointers[e.pointerId] = { x: e.clientX, y: e.clientY };
-    movedPx = Math.max(movedPx, Math.hypot(e.clientX - downX, e.clientY - downY));
     var ks = Object.keys(pointers);
     if (ks.length >= 2) {
       var a = pointers[ks[0]], b = pointers[ks[1]];
@@ -7660,13 +7668,16 @@ window._wizVarZoom = function (arg) {
     if (window.BackStack) window.BackStack.pop('_wiz-var-zoom');
   }
   ov.querySelector('#rrpv-close').onclick = close;
-  // Clicking the empty stage background closes; clicking or DRAGGING the picture
-  // does not. See the note by pointerdown: e.target alone cannot tell those
-  // apart once a drag has crossed off the picture, so all three must hold —
-  // released on the background, pressed on the background, and hardly moved.
-  stage.addEventListener('click', function (e) {
-    if (e.target === stage && downOnBackdrop && movedPx <= CLICK_SLOP) close();
-  });
+  // v0.9.1791: the stage background no longer closes the viewer at all.
+  // [stated] Brad: "never close if you pick outside." ✕ and the device Back
+  // button (pushed below as _wiz-var-zoom) are the ways out.
+  //
+  // What stood here was careful and is worth recording rather than just
+  // deleting: e.target alone cannot tell a click on the background from a DRAG
+  // that began on the picture and ended off it, so it required all three —
+  // released on the background, pressed on the background, and moved less than
+  // CLICK_SLOP. That care existed only because the background closed at all.
+  // It does not now, so the test and all five variables are gone.
   document.addEventListener('keydown', onKey);
 
   document.body.appendChild(ov);

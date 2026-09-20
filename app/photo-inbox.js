@@ -2455,7 +2455,7 @@
       function done(v) { try { ov.remove(); } catch (e) {} resolve(v); }
       ov.querySelector('#_pcc').onclick = function () { done(false); };
       ov.querySelector('#_pco').onclick = function () { done(true); };
-      ov.onclick = function (e) { if (e.target === ov) done(false); };
+      rrDismissGuard(ov, function () { done(false); });   // v0.9.1791: the backdrop closes nothing (Brad: "never close if you pick outside")
     });
   }
 
@@ -5980,7 +5980,7 @@
     card.id = 'pin-wf-card';
     card.style.cssText = _pinSheetCardCss(520, 82);
     ov.appendChild(card);
-    ov.onclick = function (e) { if (e.target === ov) window._pinWhereFromClose(); };
+    rrDismissGuard(ov, function () { window._pinWhereFromClose(); });   // v0.9.1791: the backdrop closes nothing (Brad: "never close if you pick outside")
     document.body.appendChild(ov);
     _pinWhereFromDraw();
     // v0.9.1179: contacts only load when the Contacts page has been opened, so a
@@ -6055,7 +6055,7 @@
         + 'font-family:var(--font-body);font-weight:700;font-size:0.95rem;cursor:pointer">'
         + (auto ? 'Got it \u2014 don\u2019t show this again' : 'Close') + '</button>';
     ov.appendChild(card);
-    ov.onclick = function (e) { if (e.target === ov) window._pinHelpClose(); };
+    rrDismissGuard(ov, function () { window._pinHelpClose(); });   // v0.9.1791: the backdrop closes nothing (Brad: "never close if you pick outside")
     document.body.appendChild(ov);
     _pinHelpMarkSeen();
   };
@@ -11076,7 +11076,7 @@
     xBtn.style.cssText = 'position:fixed;top:12px;right:14px;z-index:2;background:rgba(0,0,0,0.55);border:none;color:#fff;font-size:1.6rem;line-height:1;cursor:pointer;border-radius:8px;padding:0.1rem 0.6rem';
     xBtn.onclick = function (e) { e.stopPropagation(); close(); };
     ov.appendChild(xBtn);
-    ov.onclick = function (e) { if (e.target === ov) close(); };
+    // v0.9.1791: the backdrop close is gone — Back is already wired for this one.
     try {
       var blob = await _pinBytes(fileId);
       url = URL.createObjectURL(blob);

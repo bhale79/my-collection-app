@@ -35,6 +35,7 @@ const fs = require('fs');
 const path = require('path');
 
 const APPDIR = path.join(__dirname, '..', 'app');
+const IX = fs.readFileSync(path.join(APPDIR, 'index.html'), 'utf8');
 const APP = fs.readFileSync(path.join(APPDIR, 'app.js'), 'utf8');
 
 let pass = 0, fail = 0;
@@ -176,7 +177,10 @@ function resolveCopy(slice, fileSrc) {
 // old pattern demanded the word sit flush against the '>'. It would have
 // called the new Maintenance task card a trap while it had a Back button in
 // plain sight.
-const WAYS = /(>\s*[^<A-Za-z]{0,3}\s*(Cancel|Close|Done|Not now|Back|Skip)\b)|×|&times;|✕|✖|╳/i;
+// v0.9.1791: `data-close` counts. The dashboard's card-help pop-up says
+// "Got it" on a button marked data-close="1" — a way out declared in the
+// markup, which is stronger evidence than a word the scan happens to know.
+const WAYS = /(>\s*[^<A-Za-z]{0,3}\s*(Cancel|Close|Done|Not now|Back|Skip)\b)|data-close|×|&times;|✕|✖|╳/i;
 // v0.9.1788: EVERY app file, not a list of seven.
 //
 // The list was hand-written in v1786 and named only the files that had guarded
@@ -195,7 +199,22 @@ FILES.forEach(function (f) {
     sites++;
     let st = i; for (let j = i; j >= 0; j--) if (lines[j] && !/^\s/.test(lines[j])) { st = j; break; }
     let en = lines.length; for (let j = i; j < lines.length; j++) if (/^\}/.test(lines[j])) { en = j; break; }
-    if (!WAYS.test(resolveCopy(decode(lines.slice(st, en).join('\n')), src))) trapped.push(f + ':' + (i + 1));
+    let body = lines.slice(st, en).join('\n');
+    // v0.9.1791: an overlay built in index.html and only FETCHED here. The
+    // slice holds `getElementById('identify-modal')` and no markup at all, so
+    // the scan called two perfectly escapable sheets traps. Follow the id.
+    if (!WAYS.test(resolveCopy(decode(body), src))) {
+      (body.match(/getElementById\('([^']+)'\)/g) || []).forEach(function (g) {
+        const id = g.match(/'([^']+)'/)[1];
+        const at = IX.indexOf('id="' + id + '"');
+        if (at >= 0) body += '\n' + IX.slice(at, at + 4000);
+      });
+    }
+    // config.js's bindOverlayClose is the shared HELPER, not an overlay — it
+    // has no markup by definition. Its own assertion below is that it
+    // delegates to the guard and closes nothing.
+    if (f === 'config.js' && /bindOverlayClose/.test(body)) return;
+    if (!WAYS.test(resolveCopy(decode(body), src))) trapped.push(f + ':' + (i + 1));
   });
 });
 ok('every guarded overlay offers Cancel / Done / Close / ✕', trapped.length === 0,
@@ -206,7 +225,7 @@ ok('every guarded overlay offers Cancel / Done / Close / ✕', trapped.length ==
 // v1786 pinned 15 across seven named files; v1788 scanned every file and
 // added the Maintenance task card; v1790 guarded the fourteen read-only
 // overlays too, so there is now ONE rule with no exceptions in it.
-ok('33 guarded call sites, and ONE helper behind them', sites === 33, String(sites));
+ok('40 guarded call sites, and ONE helper behind them', sites === 40, String(sites));
 
 // nobody double-wires BackStack any more — the guard does it, once
 let dbl = 0;
@@ -282,6 +301,38 @@ ok('no overlay with typed fields hand-rolls its own backdrop dismissal',
 // promise v1786 made, and this one is the promise it should have made.
 ok('NOTHING closes on a backdrop click any more — one rule, no exceptions',
    READONLY.length === 0, READONLY.length + ': ' + READONLY.join(', '));
+
+// ── v0.9.1791: THE SHARED HELPER, which is where fourteen of them HID ────
+//
+// After v0.9.1790 said nothing closed on a backdrop click, FOURTEEN overlays
+// still did. They went through `bindOverlayClose(ov, closeFn)` in config.js,
+// and the call sites do not mention the click target at all — so no amount of
+// searching for `e.target === ov` could ever have found them. Three wrong
+// answers to Brad came out of enumerating SPELLINGS instead of asking what the
+// pattern MEANS.
+//
+// The lesson, pinned here because a shared helper is exactly where a behaviour
+// hides from a text search: **a scan over call sites cannot see a behaviour
+// that lives in the callee.** So this checks the callee directly.
+const CFG = fs.readFileSync(path.join(APPDIR, 'config.js'), 'utf8');
+const BOC = CFG.slice(CFG.indexOf('window.bindOverlayClose = function'),
+                      CFG.indexOf('window.bindOverlayClose = function') + 900);
+ok('bindOverlayClose still exists, so its 14 call sites did not have to churn',
+   /window\.bindOverlayClose = function \(ov, closeFn\)/.test(BOC));
+ok('…and it DELEGATES to the one guard instead of closing anything',
+   /rrDismissGuard\(ov, closeFn\)/.test(BOC));
+ok('…it closes nothing itself — no remove, no closeFn on a click',
+   !/\.remove\(\)/.test(BOC) && !/closeFn\(e\)/.test(BOC));
+ok('…and the drag-safety it needed only BECAUSE it closed is gone with it',
+   !/mousedown/.test(BOC) && !/touchstart/.test(BOC));
+ok('closeFn is not dead — it rides to BackStack so Back runs the overlay\'s own close',
+   /BackStack\.wire\(ov, closeFn\)/.test(APP));
+{
+  const BS = fs.readFileSync(path.join(APPDIR, 'back-stack.js'), 'utf8');
+  ok('…and BackStack.wire actually honours it, rather than removing the element anyway',
+     /function wire\(elOrId, closeFn\)/.test(BS) &&
+     /if \(typeof closeFn === 'function'\) \{ try \{ closeFn\(\); \} catch \(e\) \{\} return; \}/.test(BS));
+}
 
 // ════════════════════════════════════════════════════════════════════════
 section('E. Planted offenders — every rule above can actually fail');
@@ -363,6 +414,24 @@ section('E. Planted offenders — every rule above can actually fail');
   const twice = "var A = { cancel: 'Cancel' };\nvar B = { cancel: 'Abandon' };";
   ok('a key defined twice is NOT resolved — a wrong substitution could hide a real trap',
      !WAYS.test(resolveCopy(viaConst, twice)));
+
+  // 9 — v0.9.1791: THE SHARED HELPER GOING BACK TO CLOSING. This is the one
+  //     that actually happened, fourteen times over, and no call-site scan
+  //     would notice: the call sites would be unchanged and still read
+  //     `bindOverlayClose(ov, fn)`.
+  const bocClosing = BOC.replace(/rrDismissGuard\(ov, closeFn\)/, 'closeFn(e)');
+  ok('bindOverlayClose reverting to closing is caught — the fourteen that hid',
+     !/rrDismissGuard\(ov, closeFn\)/.test(bocClosing));
+  ok('…and a CALL-SITE scan would not have noticed, which is the whole point',
+     /bindOverlayClose\(/.test('bindOverlayClose(ov, function () { ov.remove(); });') &&
+     !DISMISSALS.some(d => d.re.test('bindOverlayClose(ov, function () { ov.remove(); });')));
+
+  // 10 — BackStack.wire quietly ignoring the closeFn: the overlay would still
+  //      vanish on Back, so it LOOKS fine, while the cleanup never runs.
+  const BS2 = fs.readFileSync(path.join(APPDIR, 'back-stack.js'), 'utf8')
+    .replace(/if \(typeof closeFn === 'function'\)[\s\S]*?return; \}/, '');
+  ok('BackStack.wire dropping the closeFn is caught — the overlay still goes, the cleanup does not',
+     !/typeof closeFn === 'function'/.test(BS2));
 }
 
 console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');

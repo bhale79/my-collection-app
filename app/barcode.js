@@ -2529,7 +2529,8 @@ window.eraSupportsBarcode = eraSupportsBarcode;
       + '<p>The number <strong>printed on the label</strong> (the large catalog number) is the real one. That&rsquo;s why, when they don&rsquo;t match, we show you both and let you choose.</p>'
       + '<p style="color:var(--accent2,#c9922a)"><strong>Rule of thumb:</strong> pick the option that matches the big printed number on the box.</p>'
       + '<button data-close="1" style="display:block;width:100%;margin-top:12px;padding:11px;border-radius:10px;border:2px solid var(--accent,#e8401c);background:var(--bg-card);background:color-mix(in srgb, rgb(232,64,28) 12%, var(--bg-card));color:var(--text,#fff);font-weight:600;cursor:pointer">Got it</button></div>';
-    d.addEventListener('click', function (e) { if ((e.target.getAttribute && e.target.getAttribute('data-close')) || e.target === d) d.remove(); });
+    // v0.9.1791: the data-close BUTTON still closes it; the backdrop no longer does.
+    d.addEventListener('click', function (e) { if (e.target.getAttribute && e.target.getAttribute('data-close')) d.remove(); });
     document.body.appendChild(d);
     if (window.BackStack && BackStack.wire) BackStack.wire(d); // v0.9.807 TODO-012: device Back closes this pop-up
   }
@@ -2552,7 +2553,8 @@ window.eraSupportsBarcode = eraSupportsBarcode;
       + '<div style="font-size:1.05rem;font-weight:600;color:var(--text,#fff);margin-bottom:10px">' + (isLabel ? 'Scan Label \u2014 help' : 'Scan Barcode / Label \u2014 help') + '</div>'
       + body
       + '<button data-close="1" style="display:block;width:100%;margin-top:12px;padding:11px;border-radius:10px;border:2px solid var(--accent,#e8401c);background:var(--bg-card);background:color-mix(in srgb, rgb(232,64,28) 12%, var(--bg-card));color:var(--text,#fff);font-weight:600;cursor:pointer">Got it</button></div>';
-    d.addEventListener('click', function (e) { if ((e.target.getAttribute && e.target.getAttribute('data-close')) || e.target === d) d.remove(); });
+    // v0.9.1791: the data-close BUTTON still closes it; the backdrop no longer does.
+    d.addEventListener('click', function (e) { if (e.target.getAttribute && e.target.getAttribute('data-close')) d.remove(); });
     document.body.appendChild(d);
     if (window.BackStack && BackStack.wire) BackStack.wire(d); // v0.9.807 TODO-012: device Back closes this pop-up
   }

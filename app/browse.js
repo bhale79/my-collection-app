@@ -5100,7 +5100,7 @@ function _rrFilterSheetOpen() {
     + '<div id="rr-filter-slot"></div>'
     + '<button onclick="_rrFilterSheetClose()" style="width:100%;margin-top:0.9rem;padding:0.75rem;border-radius:10px;border:none;background:var(--accent);color:var(--on-accent);font-family:var(--font-body);font-weight:700;font-size:0.95rem;cursor:pointer">Show results</button>'
     + '</div>';
-  ov.addEventListener('click', function (e) { if (e.target === ov) _rrFilterSheetClose(); });
+  // v0.9.1791: the backdrop close is gone — Back is already wired for this one.
   // v0.9.1028 (Brad): mount inside .main — the LIGHT theme palette is scoped
   // to .main, so a sheet parked on <body> rendered in the dark palette.
   (document.querySelector('.main') || document.body).appendChild(ov);

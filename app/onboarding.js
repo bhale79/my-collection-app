@@ -96,7 +96,7 @@
           '<button onclick="onboardCloseGifsPreview()" style="padding:0.8rem 1.6rem;background:var(--accent);border:none;border-radius:8px;color:#fff;font-size:' + s.body + ';font-weight:700;cursor:pointer;min-height:' + s.btnH + '">Back to tour</button>' +
         '</div>' +
       '</div>';
-    ov.onclick = function(e) { if (e.target === ov) onboardCloseGifsPreview(); };
+    // v0.9.1791: the backdrop close is gone — Back is already wired for this one.
     document.body.appendChild(ov);
     if (window.BackStack) window.BackStack.push('onboard-gifs-preview', _closeGifsPreviewSilently);
   }

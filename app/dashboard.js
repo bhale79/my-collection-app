@@ -773,7 +773,8 @@ function _showCardHelp(cardId) {
     + '<p style="margin:0 0 10px">' + txt + '</p>'
     + '<p style="margin:0 0 12px;font-size:0.78rem;color:var(--text-dim,#999)">Tip: cards only show eras/makers enabled under <strong>Preferences → What I Collect</strong>. Click anywhere on a card to swap it for a different one.</p>'
     + '<button data-close="1" style="display:block;width:100%;padding:10px;border-radius:9px;border:2px solid var(--accent,#e8401c);background:var(--bg-card);background:color-mix(in srgb, rgb(232,64,28) 12%, var(--bg-card));color:var(--text,#fff);font-weight:600;cursor:pointer">Got it</button></div>';
-  d.addEventListener('click', function(e) { if ((e.target.getAttribute && e.target.getAttribute('data-close')) || e.target === d) d.remove(); });
+  d.addEventListener('click', function(e) { if (e.target.getAttribute && e.target.getAttribute('data-close')) d.remove(); });   // v1791: the button, not the backdrop
+  rrDismissGuard(d);
   document.body.appendChild(d);
 }
 if (typeof window !== 'undefined') window._showCardHelp = _showCardHelp;
@@ -1934,7 +1935,7 @@ function openDashEditor() {
   ov.id = 'dash-editor';
   ov.style.cssText = 'position:fixed;inset:0;z-index:99950;background:rgba(0,0,0,0.55);display:flex;align-items:center;justify-content:center;padding:1rem;overflow-y:auto';
   ov.innerHTML = '<div id="dash-ed-box" style="background:var(--surface,#161c34);border:1px solid var(--border,#2a3a5c);border-radius:14px;max-width:820px;width:100%;max-height:92vh;overflow-y:auto;padding:1.1rem 1.2rem;box-shadow:0 12px 44px rgba(0,0,0,0.55)"></div>';
-  ov.onclick = function(e) { if (e.target === ov) _dashEdClose(); };
+  // v0.9.1791: the backdrop close is gone — Back is already wired for this one.
   document.body.appendChild(ov);
   if (window.BackStack && BackStack.wire) BackStack.wire('dash-editor');
   _dashEdRender();

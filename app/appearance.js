@@ -2139,7 +2139,7 @@
         done({ name: isNew() ? String(name.value || '').trim() : sel.value });
       };
       document.getElementById('rrap-save-skip').onclick = function () { done({ skip: true }); };
-      ov.onclick = function (e) { if (e.target === ov) done({ skip: true }); };
+      rrDismissGuard(ov, function () { done({ skip: true }); });   // v0.9.1791: the backdrop closes nothing (Brad: "never close if you pick outside")
       name.onkeydown = function (e) { if (e.key === 'Enter') { e.preventDefault(); ok.click(); } };
       setTimeout(function () { try { (sel || name).focus(); } catch (e) {} }, 30);
     });

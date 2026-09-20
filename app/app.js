@@ -1126,7 +1126,7 @@ if (typeof window !== 'undefined') window.rrJsArg = rrJsArg;
 //
 // Read-only popups are untouched and still close on a backdrop click; there
 // is nothing to lose in them and making them ask would be noise.
-window.rrDismissGuard = function (ov) {
+window.rrDismissGuard = function (ov, closeFn) {
   if (!ov || ov._rrGuarded) return;
   ov._rrGuarded = true;
   // Swallow the backdrop click. Not "ask first" — nothing at all.
@@ -1136,7 +1136,10 @@ window.rrDismissGuard = function (ov) {
   // Brad's standing rule (feedback_backstack_pattern): every overlay wires
   // through BackStack so the device Back button closes it. Back is a
   // deliberate press, so it still closes — it is a way OUT, not a stray click.
-  try { if (window.BackStack && BackStack.wire) BackStack.wire(ov); } catch (e) {}
+  // v0.9.1791: closeFn is optional and is passed straight through. Without it
+  // Back removes the element; with it, Back runs the overlay's own close, so
+  // an overlay that has cleanup to do still gets to do it.
+  try { if (window.BackStack && BackStack.wire) BackStack.wire(ov, closeFn); } catch (e) {}
 };
 
 function baseItemNum(n) {

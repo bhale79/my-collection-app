@@ -3032,7 +3032,7 @@ function _buildContactModal() {
         'This is a community resource for all Lionel and toy-train collectors. We appreciate every correction and suggestion.' +
       '</p>' +
     '</div>';
-  d.addEventListener('click', function(e) { if (e.target === d) { d.style.display = 'none'; if (window.BackStack) BackStack.pop('contact-modal'); } });
+  // v0.9.1791: the backdrop close is gone — Back is already wired for this one.
   document.body.appendChild(d);
 }
 

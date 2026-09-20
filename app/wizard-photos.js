@@ -2342,13 +2342,14 @@ function _applyIdentifiedItem(num) {
   }
 }
 
-// Close on backdrop click — deferred so DOM is ready
-window.addEventListener('load', function() {
-  var m = document.getElementById('identify-modal');
-  if (m) m.addEventListener('click', function(e) { if (e.target === this) closeIdentify(); });
-  var p = document.getElementById('photo-picker-sheet');
-  if (p) p.addEventListener('click', function(e) { if (e.target === this) closePhotoPicker(); });
-});
+// v0.9.1791: a 'load' handler used to wire the backdrop of identify-modal and
+// photo-picker-sheet here. BOTH are built on demand by wizard.js when the
+// wizard first opens — which is always after load — so it found null every
+// time and wired nothing. It has been dead for as long as it has existed, and
+// it read like coverage, which is worse than an obvious gap.
+//
+// Both are now guarded where they are CREATED (wizard.js), which is the only
+// place that can know they exist.
 
 
 // ══════════════════════════════════════════════════════════════════

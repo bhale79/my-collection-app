@@ -57,10 +57,7 @@
       'box-shadow:0 20px 60px rgba(0,0,0,0.5);margin:auto 0';
     ov.appendChild(panel);
     document.body.appendChild(ov);
-    ov.addEventListener('click', function(e) {
-      // clicks on the backdrop dismiss only if not mid-action
-      if (e.target === ov && _st.step !== 2 && _st.step !== 3) closeMigrationModal();
-    });
+    // v0.9.1791: the backdrop close is gone — Back is already wired for this one.
   }
 
   function _render() {

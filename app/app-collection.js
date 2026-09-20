@@ -4350,7 +4350,7 @@ function openISDetail(rowKey) {
   if (!it) return;
   const overlay = document.createElement('div');
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem';
-  overlay.onclick = e => { if(e.target===overlay) overlay.remove(); };
+  // v0.9.1791: the backdrop close is gone — Back is already wired for this one.
   const box = document.createElement('div');
   box.style.cssText = 'background:var(--surface);border:1px solid rgba(22,160,133,0.4);border-radius:16px;max-width:460px;width:100%;padding:1.75rem;position:relative;max-height:88vh;overflow-y:auto';
   const closeBtn = document.createElement('button');

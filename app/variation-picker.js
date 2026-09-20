@@ -209,7 +209,7 @@
     d.id = 'vp-modal';
     d.style.cssText = 'position:fixed;inset:0;z-index:9000;display:none;align-items:flex-end;justify-content:center;background:rgba(0,0,0,0.55)';
     d.innerHTML = '<div id="vp-sheet" style="width:100%;max-width:520px;background:var(--bg,#14162e);border:1px solid var(--border);border-radius:18px 18px 0 0;max-height:90vh;overflow:auto;padding:0"></div>';
-    d.addEventListener('click', function (e) { if (e.target === d) closeVariationPicker(); });
+    // v0.9.1791: the backdrop close is gone — Back is already wired for this one.
     document.body.appendChild(d);
     var st = document.createElement('style');
     st.textContent = '#vp-modal.open{display:flex}#vp-modal .vpbtn{display:block;width:100%;text-align:left;margin:8px 0;padding:13px 15px;font-size:0.95rem;border-radius:11px;cursor:pointer;border:2px solid var(--border);background:var(--surface2,#1d2040);color:var(--text);font-family:var(--font-body)}#vp-modal .vpbtn:hover{border-color:var(--accent)}#vp-modal .vpacc{border-color:var(--accent);background:rgba(232,64,28,0.10)}';

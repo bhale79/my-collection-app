@@ -131,7 +131,14 @@
   // document.body and pops the stack automatically — existing close code
   // does not need to change. (v0.9.805, TODO-012)
   var _autoWireN = 0;
-  function wire(elOrId) {
+  // v0.9.1791: an optional closeFn. Without one, Back removes the element,
+  // which is right for an overlay that is only markup. Some overlays have
+  // CLEANUP to do on the way out — a chooser that resets state, a picker that
+  // clears a selection, a modal that hides rather than removes — and removing
+  // the element behind their backs skips it. Those pass their own close here
+  // (bindOverlayClose forwards the one its caller already had), so Back does
+  // exactly what the ✕ does. One close path, not two that can drift.
+  function wire(elOrId, closeFn) {
     var el = (typeof elOrId === 'string') ? document.getElementById(elOrId) : elOrId;
     if (!el) { _log('wire: element not found', elOrId); return; }
     var id = el.id || ('_bs-auto-' + (++_autoWireN));
@@ -144,6 +151,7 @@
     push(id, function () {
       byBack = true;
       try { obs.disconnect(); } catch (e) {}
+      if (typeof closeFn === 'function') { try { closeFn(); } catch (e) {} return; }
       if (el.parentNode) el.parentNode.removeChild(el);
     });
     obs.observe(document.body, { childList: true });

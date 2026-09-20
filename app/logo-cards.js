@@ -138,7 +138,7 @@
     _editing = null;
     var ov = document.createElement('div');
     ov.id = 'rrlc-pop';
-    ov.onclick = function (e) { if (e.target === ov) _close(); };
+    // v0.9.1791: the backdrop close is gone — Back is already wired for this one.
     document.body.appendChild(ov);
     _render();
     if (window.BackStack && BackStack.wire) BackStack.wire('rrlc-pop');

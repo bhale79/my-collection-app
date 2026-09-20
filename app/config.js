@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.1790';
+const APP_VERSION = 'v0.9.1791';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -97,15 +97,35 @@ if (typeof window !== 'undefined') window.PERSONAL_TAB = PERSONAL_TAB;
 window.IS_MOBILE_UA = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
   || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
 
-// v0.9.702 (Brad): drag-safe backdrop close. A text-selection drag that ends
-// on the dark backdrop fires a "click" on the backdrop (the browser targets
-// the common ancestor of mousedown/mouseup) and was CLOSING edit panels.
-// Only close when the press STARTED on the backdrop too.
+// ── v0.9.1791: THE BACKDROP DOES NOT CLOSE ANYTHING ──────────────────────
+// [stated] Brad: "never close if you pick outside", and then, for the
+// read-only overlays too: "yes". This helper is how FOURTEEN overlays still
+// closed on a backdrop click after v0.9.1790 said none did — and it is why no
+// amount of searching for `e.target === ov` could ever have found them. The
+// call sites do not mention the click target at all. They say
+// `bindOverlayClose(ov, fn)`, and the checking happened in here.
+//
+// THE LESSON, and it cost three wrong answers to Brad: look for what a pattern
+// MEANS, not for the characters you last saw it written in. A shared helper is
+// exactly where a behaviour hides from a text search.
+//
+// It was "drag-safe backdrop close" (v0.9.702): a text-selection drag ending on
+// the backdrop fires a click there, and that was closing edit panels, so it
+// only closed when the press STARTED on the backdrop too. That care was real,
+// and it is now unnecessary — the backdrop closes nothing at all, dragged or
+// tapped, so the mousedown/touchstart tracking goes with it.
+//
+// The NAME and the signature stay, so fourteen call sites do not churn, and
+// closeFn is still used: it is handed to BackStack, so the device Back button
+// runs the overlay's own close and any cleanup in it still happens.
 window.bindOverlayClose = function (ov, closeFn) {
-  var down = false;
-  ov.addEventListener('mousedown', function (e) { down = (e.target === ov); });
-  ov.addEventListener('touchstart', function (e) { down = (e.target === ov); }, { passive: true });
-  ov.addEventListener('click', function (e) { if (e.target === ov && down) closeFn(e); down = false; });
+  if (!ov) return;
+  if (window.rrDismissGuard) { window.rrDismissGuard(ov, closeFn); return; }
+  // app.js has not loaded yet (pre-auth). Swallow it here rather than leaving
+  // the old behaviour in place as a fallback — a fallback to the bug is a bug.
+  ov.addEventListener('click', function (e) {
+    if (e.target === ov) { e.stopPropagation(); e.preventDefault(); }
+  });
 };
 // v0.9.1054 (Brad: "it says April, it's July"). This is hand-written and had
 // drifted three months.
