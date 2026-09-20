@@ -122,6 +122,7 @@ function _prefsToggleRecordingMode(on) {
 }
 
 function buildPrefsPage() {
+  try { _prefSyncPhotoReads(); } catch (e) {}   // v0.9.1775
   const el = document.getElementById('prefs-content');
   if (!el) return;
 
@@ -844,6 +845,31 @@ function _togglePrefEra(eraId, on) {
 // SAME rrAiSetOptOut the crop-screen checkbox uses — one stored flag, two places
 // to see it, never two sources of truth. The Photo Inbox reads the flag when it
 // renders, so its button text and token line correct themselves next time it opens.
+// v0.9.1775: the Photo ID switch lives on the account now (ai-id.js). The page
+// draws from this device's cached copy, then reconciles in the background and
+// corrects itself — which is the whole point: Brad's phone said "off" while his
+// desktop said "20 left", and neither ever gave way.
+function _prefSyncPhotoReads() {
+  try {
+    if (!window.rrAiSyncOptOut) return;
+    Promise.resolve(window.rrAiSyncOptOut()).then(function () {
+      try {
+        var box = document.getElementById('pref-ai-opt');
+        if (!box) return;                       // page moved on — nothing to correct
+        var off = (typeof rrAiOptedOut === 'function') && rrAiOptedOut();
+        box.checked = !off;
+        var left = document.getElementById('pref-ai-left');
+        if (left) {
+          left.textContent = off
+            ? 'Off \u2014 free readers only'
+            : ((typeof rrAiRemainingLabel === 'function' && rrAiRemainingLabel()) || '');
+        }
+      } catch (e) {}
+    });
+  } catch (e) {}
+}
+if (typeof window !== 'undefined') window._prefSyncPhotoReads = _prefSyncPhotoReads;
+
 function _togglePrefPhotoReads(on) {
   if (typeof rrAiSetOptOut === 'function') rrAiSetOptOut(!on);
   var left = document.getElementById('pref-ai-left');

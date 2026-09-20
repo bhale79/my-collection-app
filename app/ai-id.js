@@ -292,7 +292,89 @@ function rrAiOptedOut() {
   try { return localStorage.getItem('rr_ai_optout') === '1'; } catch (e) { return false; }
 }
 function rrAiSetOptOut(off) {
-  try { localStorage.setItem('rr_ai_optout', off ? '1' : '0'); } catch (e) {}
+  try {
+    localStorage.setItem('rr_ai_optout', off ? '1' : '0');
+    localStorage.setItem('rr_ai_optout_at', String(Date.now()));   // v0.9.1775
+  } catch (e) {}
+  try { rrAiPushOptOut(); } catch (e) {}                           // best-effort
+}
+
+// ══ v0.9.1775 — THE SWITCH FOLLOWS THE ACCOUNT ═══════════════════════════════
+// Brad, 2026-09-19: "my mobile photo read still says off, while my desktop says
+// 20 left." The comment three lines above this one already admitted it —
+// "preference is remembered per device" — and it had simply never been fixed.
+//
+// WIDER TRUTH, worth knowing before anyone calls this a one-off: _prefGet and
+// _prefSet (app.js) are plain localStorage, so EVERY preference in the app is
+// per-device. This fixes the one Brad hit, because it is the one that spends
+// money, and it does it through a mechanism any other preference can join
+// without inventing a second scheme.
+//
+// Where it lives: appProperties on the VAULT FOLDER itself. No new file, no new
+// format, and the same mechanism v0.9.1771 used to put photo reads on the
+// account. Read lazily — nothing is added to startup.
+//
+// The rule is v0.9.1771's rule, deliberately: the NEWER change wins, whichever
+// device is asking. Two devices that each believe their own answer is the right
+// one overwrite each other forever; that is the bug we already fixed once.
+var _rrAiSyncing = false, _rrAiSynced = false;
+
+function rrAiOptOutAt() {
+  try { return parseInt(localStorage.getItem('rr_ai_optout_at'), 10) || 0; } catch (e) { return 0; }
+}
+
+async function rrAiPushOptOut() {
+  try {
+    if (typeof driveCache === 'undefined' || !driveCache || !driveCache.vaultId) return false;
+    if (typeof driveRequest !== 'function') return false;
+    await driveRequest('PATCH', '/files/' + driveCache.vaultId + '?fields=id', {
+      appProperties: {
+        rrAiOptOut: rrAiOptedOut() ? '1' : '0',
+        rrAiOptOutAt: String(rrAiOptOutAt() || Date.now())
+      }
+    });
+    return true;
+  } catch (e) { return false; }
+}
+
+async function rrAiSyncOptOut() {
+  if (_rrAiSynced || _rrAiSyncing) return;
+  _rrAiSyncing = true;
+  try {
+    if (typeof driveCache === 'undefined' || !driveCache || !driveCache.vaultId) return;
+    if (typeof driveRequest !== 'function') return;
+    var meta = await driveRequest('GET', '/files/' + driveCache.vaultId + '?fields=appProperties');
+    var ap = (meta && meta.appProperties) || {};
+    var driveAt = parseInt(ap.rrAiOptOutAt, 10) || 0;
+    var localAt = rrAiOptOutAt();
+    if (!driveAt && !localAt) {
+      // THE ONE-TIME RECONCILE. Brad's two devices disagreed and one had to
+      // lose; he chose ON ("turn it on"), matching the desktop's 20 left. It is
+      // his money, so it was never mine to guess. Stamped, so newest-wins takes
+      // over from here and this branch never runs again.
+      try {
+        localStorage.setItem('rr_ai_optout', '0');
+        localStorage.setItem('rr_ai_optout_at', String(Date.now()));
+      } catch (e1) {}
+      await rrAiPushOptOut();
+    } else if (driveAt > localAt) {
+      try {
+        localStorage.setItem('rr_ai_optout', ap.rrAiOptOut === '1' ? '1' : '0');
+        localStorage.setItem('rr_ai_optout_at', String(driveAt));
+      } catch (e2) {}
+    } else if (localAt > driveAt) {
+      await rrAiPushOptOut();
+    }
+    _rrAiSynced = true;
+  } catch (e) {
+    /* best-effort: the next load retries. A failed sync must never cost a read. */
+  } finally {
+    _rrAiSyncing = false;
+  }
+}
+if (typeof window !== 'undefined') {
+  window.rrAiSyncOptOut = rrAiSyncOptOut;
+  window.rrAiPushOptOut = rrAiPushOptOut;
 }
 function rrAiRemainingLabel() {
   try {

@@ -1827,6 +1827,11 @@
     // store is empty or the connection is still down).
     try { _stageRenderStrip(); } catch (e) {}
     try { _stageDrain(); } catch (e) {}
+    // v0.9.1775: the Photo ID switch is the account's now — reconcile it here,
+    // where Drive is already in play and the button text that depends on it is
+    // about to be drawn. Guarded and fire-and-forget: it runs once per session
+    // and a failure never costs a read.
+    try { if (window.rrAiSyncOptOut) window.rrAiSyncOptOut(); } catch (e) {}
     // v0.9.1601 (Brad's brainstorm): offline, the inbox shows its SAVED
     // self — the last complete listing, grouped by the same builder, with
     // thumbnails from the on-device bank. No prune, no read-state sync, no
@@ -5240,6 +5245,34 @@
       + 'font-size:0.95rem;line-height:1;margin-right:0.35rem">\u21bb</span>'
       + String(label == null ? 'Working\u2026' : label).replace(/</g, '&lt;');
     return function () { try { btn.innerHTML = was; btn.disabled = wasOff; } catch (e) {} };
+  }
+
+  // ══ v0.9.1775 — A BUSY BUTTON YOU CAN PRESS ══════════════════════════════
+  // Brad: "there is not stop scan button. so the scan button when hit needs to
+  // have the rotating arrow, but also have 'stop scan' so you can stop it if
+  // you want to." _pinBtnBusy DISABLES the button, which is precisely why there
+  // was nothing to press — he reloaded the whole app instead, and that reload is
+  // what started the afternoon's confusion.
+  //
+  // Same spinner, same restore contract, but the button stays live and its click
+  // becomes the stop. The original onclick is put back with everything else.
+  function _pinBtnStop(btn, label, onStop) {
+    if (!btn) return function () {};
+    var was = btn.innerHTML, wasOff = btn.disabled, wasClick = btn.onclick;
+    btn.disabled = false;
+    btn.innerHTML = '<span style="display:inline-block;animation:spin 0.8s linear infinite;'
+      + 'font-size:0.95rem;line-height:1;margin-right:0.35rem">\u21bb</span>'
+      + String(label == null ? 'Stop scan' : label).replace(/</g, '&lt;');
+    var fired = false;
+    btn.onclick = function (ev) {
+      try { if (ev && ev.stopPropagation) ev.stopPropagation(); } catch (e) {}
+      if (fired) return;
+      fired = true;
+      try { if (onStop) onStop(); } catch (e) {}
+    };
+    return function () {
+      try { btn.innerHTML = was; btn.disabled = wasOff; btn.onclick = wasClick; } catch (e) {}
+    };
   }
 
   function _pinAiLine(fid) {
@@ -10551,7 +10584,38 @@
     var fid = _pinOnScreenFid() || _rvGroups[0].files[0].id;
     var key = _rvGroups[0].key;
     var btn = document.getElementById('pin-rv-rescan');
-    var _reBusy = _pinBtnBusy(btn, 'Re-scanning\u2026');
+    // v0.9.1775 — stoppable. On stop the card goes back EXACTLY as it was,
+    // which is Brad's call and a better reason than the one I offered: "it
+    // should go back in as that maybe the reason you wanted to stop."
+    //
+    // Restoring _prevRead also takes the rejection back off, because the new
+    // rejection is only ever written once the read FINISHES (see _rejected
+    // below) — so an abandoned scan never recorded one. Showing a number the
+    // app had simultaneously been told was wrong would contradict itself, and
+    // would suppress that number on every future scan.
+    var _aborted = false;
+    var _reBusy = _pinBtnStop(btn, 'Stop scan', function () {
+      if (_aborted) return;
+      _aborted = true;
+      try { if (_prevRead) { var _mm2 = _ids(); _mm2[fid] = _prevRead; _idsSave(_mm2); } } catch (eR) {}
+      try { _reBusy(); } catch (eB) {}
+      // IN PLACE — never window._pinReview(key) from here. Re-opening the card
+      // RESETS A GROUP TO PHOTO 1, so a stop while looking at the third photo of
+      // a set would silently move him. The photo-inbox suite guards that rule and
+      // it caught the first version of this handler, which did re-open the card.
+      // Same three elements the card updates itself, and nothing else.
+      try {
+        var _nb = document.getElementById('pin-rv-num');
+        if (_nb) _nb.value = (_prevRead && _prevRead.num) ? String(_prevRead.num) : '';
+      } catch (eN) {}
+      try { _pinStepsReset(); } catch (eS) {}
+      try {
+        var _ln = document.getElementById('pin-rv-ailine');
+        if (_ln) _ln.innerHTML = (_pinAiLine(fid) || '') + _pinTagLineHtml(fid);
+      } catch (eL) {}
+      try { _render(); } catch (eRn) {}
+      showToast('Scan stopped \u2014 put back the way it was', 2600);
+    });
     // v0.9.1168 (Brad: "if i hit this is wrong, rescan, delete everything that the
     // old scan says on my screen and start over"). The stored entry was already
     // being cleared below, but the CARD kept showing the old number, maker and
@@ -10615,10 +10679,16 @@
       // digits-only, stopping as soon as the stamped catalog confirms.
       // The rejected list travels on `prefer`, which already reaches the candidate
       // scorer — no new signatures, and one place does the filtering.
+      if (_aborted) return;                 // v0.9.1775 — stopped during the fetch
       var _pf = _preferForFid(fid);
       var _pfR = Object.assign({}, _pf || {}, { reject: _rejected });
       _pinStep(RR_READ_STEPS.bigger);
       var r = await _freeReadBlob(blob, 2400, _pfR);
+      // v0.9.1775 — THE POINT OF THE STOP. A re-scan is one full-size read, so
+      // pressing stop cannot kill the work already running; what it can do is
+      // make sure the answer never lands. The screen gave up the moment he
+      // pressed it; this is where the late result is thrown away.
+      if (_aborted) return;
       _pinStep(RR_READ_STEPS.catalog);
       var m = _ids();
       if (r && r.num) {

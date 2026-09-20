@@ -5087,7 +5087,10 @@ META_WRITES.length = 0; TOASTS.length = 0;
        /host = document\.getElementById\('pin-rv-ailine'\)/.test(code));
     ok('...in place, NOT by re-opening the card (which resets to photo 1)',
        (function () {
-         const a = code.indexOf('_reBusy = _pinBtnBusy');
+         // v0.9.1775: the re-scan's busy state is _pinBtnStop now (same
+         // spinner, same restore contract, but PRESSABLE — it is the stop).
+         // The rule this guards is unchanged and still the point.
+         const a = code.indexOf('_reBusy = _pinBtnStop');
          const b = code.indexOf('_pinReview(key)', a);
          return a > 0 && b > a && !/window\._pinReview\(key\)/.test(code.slice(a, code.indexOf('_freeReadBlob(blob, 2400', a)));
        })());
@@ -5136,12 +5139,20 @@ META_WRITES.length = 0; TOASTS.length = 0;
     })();
 
     // ── (3) the spinner ──
-    ok('there is ONE busy helper, so a scan button cannot be wired without a spinner',
-       /function _pinBtnBusy\(btn, label\)/.test(code) &&
-       /animation:spin 0\.8s linear infinite/.test(code));
-    ok('...used by re-scan, Read this photo and the screenshot read',
-       /_reBusy = _pinBtnBusy/.test(code) && /_idBusy = _pinBtnBusy/.test(code) &&
+    // v0.9.1775: TWO busy helpers now — _pinBtnBusy (disabled, for reads that
+    // cannot be stopped) and _pinBtnStop (pressable, and the press IS the stop).
+    // The rule is unchanged: no scan button without a spinner, so BOTH must
+    // carry the spinner line and neither may hand-roll its own.
+    // (the file has other spinners — the status line and the research box — so
+    // this asks each HELPER to carry one, not for a count across the file)
+    ok('every busy helper spins, so a scan button cannot be wired without one',
+       /function _pinBtnBusy\(btn, label\)[\s\S]{0,400}animation:spin 0\.8s linear infinite/.test(code) &&
+       /function _pinBtnStop\(btn, label, onStop\)[\s\S]{0,600}animation:spin 0\.8s linear infinite/.test(code));
+    ok('...used by re-scan (stoppable), Read this photo and the screenshot read',
+       /_reBusy = _pinBtnStop/.test(code) && /_idBusy = _pinBtnBusy/.test(code) &&
        /_shotBusy = _pinBtnBusy/.test(code));
+    ok('...and the stoppable one keeps the button LIVE, or there is nothing to press',
+       /function _pinBtnStop\(btn, label, onStop\)[\s\S]{0,400}btn\.disabled = false/.test(code));
     ok('...and it restores the previous label rather than re-typing one',
        /var was = btn\.innerHTML/.test(code) && /btn\.innerHTML = was/.test(code));
     ok('no new colour literal — the spinner line uses a theme variable',
