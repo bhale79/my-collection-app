@@ -418,17 +418,48 @@ function _openCropper(src, onResult, onCancel, opts) {   // v0.9.787: onCancel =
     // road is that levelling a photo is a STEPPING job, not a dragging one.
     // Every control here now moves a known amount, so the result is repeatable
     // and nothing can fling.
-    '<div style="flex:0 0 auto;padding:0.55rem 1rem 0;display:flex;align-items:center;gap:0.35rem;flex-wrap:wrap;justify-content:center">' +
-      '<span style="color:#ccc;font-size:0.78rem;white-space:nowrap">Level</span>' +
-      '<button id="_rrCropRotQtrL" class="rr-tap-wide" title="Turn 90 degrees left" style="' + stepBtn + '">\u21ba 90\u00b0</button>' +
-      '<button id="_rrCropRotMinus" class="rr-tap-wide" title="Half a degree left" style="' + stepBtn + '">\u2212 0.5\u00b0</button>' +
-      '<span id="_rrCropRotV" style="color:#ccc;font-size:0.82rem;min-width:4.2em;text-align:center;font-variant-numeric:tabular-nums">0.0\u00b0</span>' +
-      '<button id="_rrCropRotPlus" class="rr-tap-wide" title="Half a degree right" style="' + stepBtn + '">+ 0.5\u00b0</button>' +
-      '<button id="_rrCropRotQtrR" class="rr-tap-wide" title="Turn 90 degrees right" style="' + stepBtn + '">\u21bb 90\u00b0</button>' +
-      '<span style="display:inline-block;width:0.9rem"></span>' +
-      '<span style="color:#ccc;font-size:0.78rem;white-space:nowrap">Zoom</span>' +
-      '<button id="_rrCropZoomOut" class="rr-tap" title="Zoom out" style="' + stepBtn + '">\u2212</button>' +
-      '<button id="_rrCropZoomIn" class="rr-tap" title="Zoom in" style="' + stepBtn + '">+</button>' +
+    // \u2550\u2550 v0.9.1777 \u2192 v0.9.1778 (Brad): TWO SEALED ROWS, NO WRAPPING \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
+    // v1777 stopped the labels spilling out of their buttons, and then the row
+    // simply ran out of width and WRAPPED \u2014 stranding "\u21bb 90\u00b0" on a second line
+    // next to the word "Zoom", so the second line read as a mixed row rather
+    // than a group. [stated] Brad: "always 2 clean rows".
+    //
+    // The wrapping is GONE rather than tuned. It is the thing that keeps
+    // breaking: `flex-wrap:wrap` on one long row hands the break point to
+    // whatever width the device happens to report, and Brad's S25 Ultra
+    // reports a NARROW one because Samsung's Display size setting scales
+    // everything up \u2014 a physically large screen behaving like a small one.
+    //
+    // Two rows, each a SEALED group (`flex-wrap:nowrap`): levelling, then
+    // zoom. A member can never be orphaned into the other group's row,
+    // whatever width the screen claims to be.
+    //
+    // Labels tightened to buy headroom: "\u21ba 90\u00b0" \u2192 "\u21ba90\u00b0", "\u2212 0.5\u00b0" \u2192 "\u22120.5\u00b0".
+    // The word "Level" is gone \u2014 the buttons already say 90\u00b0 and 0.5\u00b0, and
+    // nothing else on that row could be mistaken for rotation. "Zoom" STAYS,
+    // because a bare \u2212 and + really is ambiguous. That takes row one from
+    // roughly 850 points on Brad's phone to roughly 700, against ~860
+    // available: about 20% headroom instead of a sliver.
+    //
+    // `overflow-x:auto` is the CLAMP, and it is there for the same reason as
+    // the wrapper clip in v0.9.1774: if a row ever does exceed the screen on
+    // some device nobody anticipated, it SCROLLS \u2014 the controls stay
+    // reachable. The worst case must be inconvenient, never invisible.
+    '<div style="flex:0 0 auto;padding:0.55rem 1rem 0">' +
+      // Row 1 \u2014 levelling. Sealed.
+      '<div id="_rrCropRowLevel" style="display:flex;align-items:center;gap:0.35rem;flex-wrap:nowrap;justify-content:center;overflow-x:auto">' +
+        '<button id="_rrCropRotQtrL" class="rr-tap-wide" title="Turn 90 degrees left" style="' + stepBtn + '">\u21ba90\u00b0</button>' +
+        '<button id="_rrCropRotMinus" class="rr-tap-wide" title="Half a degree left" style="' + stepBtn + '">\u22120.5\u00b0</button>' +
+        '<span id="_rrCropRotV" style="color:#ccc;font-size:0.82rem;min-width:4.2em;text-align:center;font-variant-numeric:tabular-nums">0.0\u00b0</span>' +
+        '<button id="_rrCropRotPlus" class="rr-tap-wide" title="Half a degree right" style="' + stepBtn + '">+0.5\u00b0</button>' +
+        '<button id="_rrCropRotQtrR" class="rr-tap-wide" title="Turn 90 degrees right" style="' + stepBtn + '">\u21bb90\u00b0</button>' +
+      '</div>' +
+      // Row 2 \u2014 zoom. Sealed. Keeps its word; a bare \u2212 and + says nothing.
+      '<div id="_rrCropRowZoom" style="display:flex;align-items:center;gap:0.35rem;flex-wrap:nowrap;justify-content:center;overflow-x:auto;margin-top:0.35rem">' +
+        '<span style="color:#ccc;font-size:0.78rem;white-space:nowrap">Zoom</span>' +
+        '<button id="_rrCropZoomOut" class="rr-tap" title="Zoom out" style="' + stepBtn + '">\u2212</button>' +
+        '<button id="_rrCropZoomIn" class="rr-tap" title="Zoom in" style="' + stepBtn + '">+</button>' +
+      '</div>' +
     '</div>' +
     '<div style="flex:0 0 auto;padding:0.85rem 1rem;display:flex;gap:0.6rem;justify-content:flex-end">' +
       // v0.9.1737 (Brad: "remove that rotate button"): gone. v1736 put ↺ 90°

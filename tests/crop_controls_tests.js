@@ -36,8 +36,12 @@ ok('the slider handler is defensive about it being absent',
    'rotEl is dereferenced without a guard somewhere');
 
 // ── five controls, under the picture, in Brad's order ─────────────────────
-const row = pc.slice(pc.indexOf("'<span style=\"color:#ccc;font-size:0.78rem;white-space:nowrap\">Level</span>'"),
-                     pc.indexOf("'<div style=\"padding:0.85rem 1rem;display:flex"));
+// v0.9.1778: this slice used to be anchored on the word "Level", which the
+// two-row rebuild removed — and that ONE stale anchor cascaded into eleven
+// red assertions that were all still perfectly true. Anchor on the row's id
+// instead: an id is a handle, a label is copy, and copy changes.
+const row = pc.slice(pc.indexOf('id="_rrCropRowLevel"'),
+                     pc.indexOf('id="_rrCropCancel"'));
 ok('the row is built at all', row.length > 200, 'row markup not found');
 ['_rrCropRotQtrL', '_rrCropRotMinus', '_rrCropRotV', '_rrCropRotPlus', '_rrCropRotQtrR']
   .forEach(function (id, i) {
@@ -50,7 +54,10 @@ ok('they appear in the order -90, -0.5, reading, +0.5, +90',
    && row.indexOf('_rrCropRotPlus') < row.indexOf('_rrCropRotQtrR'),
    'controls are out of order');
 ok('the two fine buttons are LABELLED half a degree',
-   /\\u2212 0\.5\\u00b0/.test(row) && /\+ 0\.5\\u00b0/.test(row),
+   // v0.9.1778 tightened these to "\u22120.5\u00b0" / "+0.5\u00b0" — the inner
+   // space came out to buy width. The RULE is that they say half a degree,
+   // so match that and not the spacing.
+   /\\u22120\.5\\u00b0/.test(row) && /\+0\.5\\u00b0/.test(row),
    'the buttons do not say 0.5');
 ok('the two quarter-turn buttons are labelled 90',
    (row.match(/90\\u00b0/g) || []).length >= 2, 'missing the 90° labels');
@@ -103,8 +110,26 @@ ok('every step button shares ONE style string',
 ok('…so the row hand-writes no colour of its own',
    !/_rrCropRotQtrL[\s\S]{0,200}#(?:[0-9a-f]{3}|[0-9a-f]{6})\b/i.test(pc),
    'a hex colour is inlined on the new buttons');
-ok('the row wraps rather than overflowing a phone',
-   /flex-wrap:wrap;justify-content:center/.test(pc), 'the row cannot wrap');
+// ── v0.9.1778 SUPERSEDES the wrap rule. Read this before "fixing" it. ─────
+// This used to assert `flex-wrap:wrap` — the row was allowed to wrap rather
+// than overflow a phone. That is now WRONG, at Brad's explicit instruction:
+// "always 2 clean rows".
+//
+// Wrapping hands the break point to whatever width the device reports, and on
+// his S25 Ultra — a physically large phone that reports a NARROW viewport
+// because Samsung's Display size setting scales everything up — it broke
+// between "\u21bb90\u00b0" and the word "Zoom", stranding a rotation button in
+// the zoom group. The rule is now TWO SEALED ROWS that cannot split, with a
+// sideways scroll as the safety valve, so an over-wide row stays reachable
+// instead of hiding a control. Full invariants: crop_control_rows_tests.js.
+// Scoped to the CONTROL rows via `row`, not the whole file: the header row
+// above (title, hint, "Whole photo") wraps on purpose and should keep doing
+// so, and the explanatory comment above the markup spells out the old rule —
+// a file-wide check flagged both. Scope the assertion to what it is about.
+ok('neither control row may wrap — they are sealed groups now',
+   !/flex-wrap:wrap/.test(row), 'a control row can still wrap and orphan a button');
+ok('…and an over-wide row scrolls rather than hiding a control',
+   (row.match(/overflow-x:auto/g) || []).length >= 2, 'the scroll safety valve is missing');
 ok('the buttons stay tappable (44px-ish targets)',
    /min-width:46px;min-height:40px/.test(pc), 'tap targets too small');
 

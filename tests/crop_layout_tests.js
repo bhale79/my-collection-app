@@ -77,8 +77,25 @@ function fnBody(src, name) {
 const CHECKS = {
   headerPinned: s =>
     s.indexOf("'<div style=\"flex:0 0 auto;padding:0.75rem 1rem;display:flex;justify-content:space-between") > -1,
-  levelRowPinned: s =>
-    s.indexOf("'<div style=\"flex:0 0 auto;padding:0.55rem 1rem 0;display:flex;align-items:center") > -1,
+  // v0.9.1778: the control block is now an OUTER container holding two sealed
+  // rows (levelling, zoom), so the old check — an exact match on the single
+  // row's style string — went stale the moment the rows were restructured.
+  // That is the same staleness trap that bit `stageStillFlexes` in v1774.
+  // The invariant never changed and is asserted as a PROPERTY now: the control
+  // block does not yield, only the picture does.
+  // Read the ENCLOSING div's own style attribute. A `lastIndexOf` for the
+  // flex string matched a div far earlier in the file and let a planted
+  // offender walk straight past — the same "it matched something else"
+  // failure as the comment-matching trap in v1774.
+  levelRowPinned: s => {
+    const i = s.indexOf('id="_rrCropRowLevel"');
+    if (i < 0) return false;
+    const open = s.lastIndexOf('<div style="', i);
+    if (open < 0) return false;
+    const from = open + '<div style="'.length;
+    const style = s.slice(from, s.indexOf('"', from));
+    return /flex:0 0 auto/.test(style) && /padding:0\.55rem 1rem 0/.test(style);
+  },
   actionsRowPinned: s =>
     s.indexOf("'<div style=\"flex:0 0 auto;padding:0.85rem 1rem;display:flex;gap:0.6rem") > -1,
   stageStillFlexes: s => {
