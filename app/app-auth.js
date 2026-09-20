@@ -235,6 +235,13 @@ function _rrRequestExtraScope(extraScope, onDone) {
           if (onDone) onDone(true);
         } else if (onDone) onDone(false);
       },
+      // v0.9.1792: the same blind spot as the main client — a blocked or
+      // dismissed popup here reported nothing at all and left onDone hanging.
+      error_callback: function (err) {
+        var type = (err && (err.type || err.message)) || 'unknown';
+        _rrAuthLog('extra-scope popup FAILED: ' + type);
+        if (onDone) onDone(false);
+      },
     });
     tc.requestAccessToken({ prompt: '', login_hint: (state.user && state.user.email) || undefined });
   } catch (e) {
@@ -391,6 +398,35 @@ function initGoogle() {
     client_id: CLIENT_ID,
     scope: SCOPES,
     callback: onTokenReceived,
+    // ── v0.9.1792: THE SIX-MINUTE SILENCE HAD A CAUSE, AND THIS IS IT ────
+    //
+    // Brad's diary, 2026-09-20, 20:55 to 20:57: he tapped Reconnect FOUR
+    // times, completed Google's two consent screens every time, and the log
+    // shows four "6s CONSENT FALLBACK" lines and then NOTHING. No "token ok".
+    // No "token error". Six minutes of silence, and he gave up and restarted.
+    //
+    // `callback` only ever fires for a token RESPONSE. Google Identity
+    // Services reports a popup that was blocked, dismissed, or could not open
+    // through a SEPARATE `error_callback` — and this client never had one. So
+    // every one of those failures was dropped on the floor, which is exactly
+    // why the log could say the request went out and never say what came back.
+    //
+    // An error we cannot see is an error we will be asked about again.
+    error_callback: function (err) {
+      var type = (err && (err.type || err.message)) || 'unknown';
+      _rrTokenRenewing = false;
+      _rrAuthLog('token popup FAILED: ' + type);
+      try { console.warn('[Auth] token popup failed:', err); } catch (e) {}
+      // popup_failed_to_open — the browser blocked it, and no amount of
+      // tapping the same button will change that. Say so, once, in words that
+      // tell him what to do instead of leaving him tapping.
+      var bar = document.getElementById('rr-reconnect-bar');
+      var b = bar && bar.querySelector('button');
+      if (b) { b.disabled = false; b.textContent = 'Reconnect'; }
+      if (type === 'popup_failed_to_open' && typeof showToast === 'function') {
+        showToast('Google\u2019s sign-in window was blocked by the browser. Allow pop-ups for therailroster.com, or close and reopen the app.', 7000, true);
+      }
+    },
   });
 
   // Paint (or re-affirm) the first screen. On a normal load this already ran
@@ -795,13 +831,38 @@ function onTokenReceived(resp) {
 var _rrTokenRenewing = false;      // a request is in flight
 var _rrTokenGestureArmed = false;  // waiting for the user's next click
 var _RR_TOKEN_MARGIN_MS = 15 * 60 * 1000;   // renew when under 15 minutes left
+var _RR_TOKEN_USABLE_MS = 60 * 1000;        // v0.9.1792: but he is only STUCK when it is all but gone
 
 function _rrTokenExpiry() {
   try { return parseInt(localStorage.getItem('lv_token_expiry') || '0'); } catch (e) { return 0; }
 }
-function _rrTokenHealthy() {
+// ── v0.9.1792: ONE FUNCTION WAS ANSWERING TWO DIFFERENT QUESTIONS ───────
+//
+// From Brad's own sign-in diary, 2026-09-20. At 20:12 he got a token good
+// until 21:07. At 20:53 the heartbeat looked at it, saw 14m36s left, called
+// that "not healthy", and by 20:54:53 had shown him
+// "Google needs you to reconnect" — WHILE THE TOKEN STILL HAD THIRTEEN
+// MINUTES OF LIFE IN IT. Nothing was wrong. He could still work.
+//
+// And the app knew it: at 20:59:02, after he restarted in desperation, the
+// boot path picked up THE SAME TOKEN and logged "token restored, 9 min left /
+// token ok". Boot said nine minutes was fine; the heartbeat said fourteen
+// meant logged out. Same token, two verdicts, because both were asking
+// _rrTokenHealthy() and it only ever knew how to answer one question.
+//
+// "Should I renew soon?" and "Can this person work?" are not the same
+// question, and the 15-minute margin belongs ONLY to the first. Renewing
+// early is right and stays; telling him he is logged out because a renewal
+// is DUE is the bug.
+function _rrTokenFresh() {          // should we renew? (early, on purpose)
   return !!accessToken && _rrTokenExpiry() > Date.now() + _RR_TOKEN_MARGIN_MS;
 }
+function _rrTokenUsable() {         // can he work RIGHT NOW? the only thing a user cares about
+  return !!accessToken && _rrTokenExpiry() > Date.now() + _RR_TOKEN_USABLE_MS;
+}
+// Kept as the old name so nothing silently changes meaning under a caller
+// that has not been looked at. Every call site below was.
+function _rrTokenHealthy() { return _rrTokenFresh(); }
 // The only place that asks Google for a token outside of first sign-in.
 function rrEnsureFreshToken(reason) {
   try {
@@ -861,7 +922,13 @@ function _rrArmGestureRenew() {
       _rrTokenRenewing = true;
       tokenClient.requestAccessToken({ prompt: '', login_hint: (state.user && state.user.email) || '' });
       setTimeout(function () {
-        if (!_rrTokenHealthy()) { _rrTokenRenewing = false; _rrAuthLog('tap retry silent after 6s \u2192 card'); _rrShowReconnect(); }
+        if (_rrTokenFresh()) return;
+        _rrTokenRenewing = false;
+        // v0.9.1792: a failed renewal is only worth telling him about if the
+        // token it failed to replace has actually run out. Otherwise keep quiet
+        // and let the heartbeat try again — he is still working.
+        _rrAuthLog('tap retry silent after 6s' + (_rrTokenUsable() ? ' (token still usable \u2014 staying quiet)' : ' \u2192 card'));
+        if (!_rrTokenUsable()) _rrShowReconnect();
       }, 6000);
     } catch (e) { _rrTokenRenewing = false; _rrAuthLog('tap retry threw: ' + (e && e.message)); _rrShowReconnect(); }
   };
@@ -871,7 +938,9 @@ function _rrArmGestureRenew() {
 // Layer 3. Plain words, one button, and the app stays where it is.
 function _rrShowReconnect() {
   try {
-    if (_rrTokenHealthy()) return;
+    // v0.9.1792: only when he genuinely cannot work. A renewal being DUE is
+    // not a reason to tell him Google has logged him out.
+    if (_rrTokenUsable()) return;
     if (document.getElementById('rr-reconnect-bar')) return;
     var appEl = document.getElementById('app');
     if (!appEl || !appEl.classList.contains('active')) return;   // never over sign-in
@@ -909,7 +978,16 @@ function rrReconnectNow() {
       _rrTokenRenewing = false;
       _rrAuthLog('6s CONSENT FALLBACK: forcing account chooser');
       try { tokenClient.requestAccessToken({ prompt: 'consent', login_hint: (state.user && state.user.email) || '' }); }
-      catch (e2) {}
+      catch (e2) { _rrAuthLog('consent request THREW: ' + (e2 && e2.message)); }
+      // v0.9.1792: AN ABSENT ANSWER IS STILL AN ANSWER, and the diary has to
+      // carry it. Brad's log showed four consent requests and no result of any
+      // kind, so the six-minute gap read as "nothing happened" when in fact
+      // four things happened and all four were dropped. 90 seconds is long
+      // enough for two Google screens and a considered click.
+      setTimeout(function () {
+        if (_rrTokenUsable()) return;
+        _rrAuthLog('consent returned NOTHING after 90s (no token, no error)');
+      }, 90000);
       var b2 = bar && bar.querySelector('button');
       if (b2) { b2.disabled = false; b2.textContent = 'Reconnect'; }
     }, 6000);

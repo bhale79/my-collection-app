@@ -22739,8 +22739,18 @@ META_WRITES.length = 0; TOASTS.length = 0;
          /addEventListener\('click', go, true\)[\s\S]{0,120}addEventListener\('keydown', go, true\)/.test(au24)
          && /removeEventListener\('click', go, true\)/.test(au24)
          && !/addEventListener\('pointerdown', go, true\)/.test(au24), '');
+      // v0.9.1792 RE-PIN. The rule is UNCHANGED and now stricter: the card
+      // only ever follows a failed click retry — AND only when the token that
+      // failed to renew has actually run out. Brad's 2026-09-20 diary showed
+      // the card appearing with 13 minutes of token still left, because
+      // "a renewal is due" and "he is locked out" were the same test.
+      // The log line is now conditional, so the old exact-string pin had to
+      // move with it; the second assertion is the new half of the rule.
       ok('324/1696 the idle nag is gone — the card only follows a failed click retry',
-         !/no tap for 90s/.test(au24) && /tap retry silent after 6s \\u2192 card/.test(au24), '');
+         !/no tap for 90s/.test(au24) && /tap retry silent after 6s/.test(au24), '');
+      ok('324/1792 …and only when the token is genuinely dead, not merely due for renewal',
+         /if \(!_rrTokenUsable\(\)\) _rrShowReconnect\(\);/.test(au24)
+         && /token still usable \\u2014 staying quiet/.test(au24), '');
       ok('324/1696 a click on the Reconnect bar is left to rrReconnectNow (one click, one request)',
          /closest\('#rr-reconnect-bar'\)\) return;/.test(au24), '');
       ok('324 the reconnect card being SHOWN is logged',
