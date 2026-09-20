@@ -1711,6 +1711,33 @@ function rrSearchNumber(item) {
   }
   return num;
 }
+// v0.9.1783 — a period only ends a clause when it ends a SENTENCE.
+// Splitting on every '.' chopped "No. 390 Locomotive green" down to the bare
+// word "No", so the Google query for an MTH tinplate reissue ended in "No" and
+// threw away the single most searchable thing in the row: 11-1005 IS the MTH
+// reissue of the prewar Lionel No. 390, and "No. 390" is what a collector
+// types. 933 catalog rows were affected across Lionel MPC-Modern, PW - Items
+// and Pre-War; the surviving clause is never SHORTER than before, only longer.
+// Three things that are not sentence ends: a decimal ("2.5\" Straight"), an
+// initial ("U.S.", "Wile E. Coyote", "M.O.W."), and a listed abbreviation
+// ("No.", "Bros.", "St.", "Co.", "Ry."). Everything else still breaks, so
+// "Coal dump car. Cataloged but not produced" still stops at "car".
+function _rrFirstClause(s) {
+  // the list lives INSIDE the function on purpose: it is the only thing that
+  // makes this rule what it is, and a helper a test can lift whole is a helper
+  // a test can actually run.
+  var abbrev = /(?:^|[\s(.])(?:no|nos|st|co|ry|rr|bros|mr|mrs|ms|jr|sr|dept|mfg|inc|ltd|corp|ave|[a-z])$/i;
+  s = String(s || '');
+  for (var i = 0; i < s.length; i++) {
+    var c = s.charAt(i);
+    if (c === '—' || c === '|' || c === ',' || c === ';') return s.slice(0, i);
+    if (c !== '.') continue;
+    if (/\d/.test(s.charAt(i - 1) || '') && /\d/.test(s.charAt(i + 1) || '')) continue;
+    if (abbrev.test(s.slice(0, i))) continue;
+    return s.slice(0, i);
+  }
+  return s;
+}
 function rrSearchTerms(item) {
   if (!item) return '';
   var brand = rrSearchBrand(item);
@@ -1718,7 +1745,7 @@ function rrSearchTerms(item) {
   var bits  = [brand, num, String(item.roadName || '').trim()];
   // first clause of the description, max 5 words, no parentheticals — the shape
   // research.js _searchQuery proved (v0.9.711: "148 train" found Thomas posters)
-  var d = String(item.description || '').replace(/\([^)]*\)/g, '').split(/[—|,.;]/)[0]
+  var d = _rrFirstClause(String(item.description || '').replace(/\([^)]*\)/g, ''))
             .trim().split(/\s+/).slice(0, 5).join(' ');
   if (d && num && d.toLowerCase() === num.toLowerCase()) d = '';
   var _rn = String(item.roadName || '').trim();

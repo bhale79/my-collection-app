@@ -13,6 +13,50 @@ const APP_FILE = function (name) {
   return require('path').join(__dirname, '..', 'app', name);
 };
 
+// v0.9.1783: ONE BUILDER for the external-link rule, for exactly the reason
+// APP_FILE exists above. Five sections each lifted _itemExternalLinkURL out of
+// browse.js by hand, and every one of them forgot to put rrSearchTerms in
+// scope. That helper (app.js) is the ONE place that knows the brand follows the
+// gauge and which era words are worth sending, so the lifted copies fell
+// through to the GENERIC-MAKER FALLBACK instead — since v0.9.1768 this suite
+// has been measuring a path the app does not take for a Lionel row, and five
+// assertions sat red for a reason that had nothing to do with the app.
+// A harness that does not run the real rule is not a test of it.
+//
+// _makerForTab lives INSIDE the browse.js slice, so it must NOT be passed in —
+// a parameter of that name would shadow the real one. _scaleOfItem does not
+// (its own chain reaches _itemEraKey and _scaleOfEra), so it is stubbed off
+// item._scale: a row says 's' when a section wants the American Flyer branch,
+// and says nothing the rest of the time, exactly as before.
+const mkLinkURL = function (tag, win) {
+  const brw = fs.readFileSync(APP_FILE('browse.js'), 'utf8');
+  const a = brw.indexOf('function _itemExternalLinkURL(item)');
+  const b = brw.indexOf('function _itemExternalLinkHTML(item)');
+  if (a < 0 || b < 0) throw new Error(tag + ' marker moved: browse.js link builder');
+
+  const app = fs.readFileSync(APP_FILE('app.js'), 'utf8');
+  const sa = app.indexOf('function rrSearchBrand(item)');
+  const sb = app.indexOf('function rrSearchTerms(item)');
+  const se = app.indexOf("if (typeof window !== 'undefined') {", sb);
+  if (sa < 0 || sb < 0 || se < 0) {
+    throw new Error(tag + ' marker moved: app.js rrSearch helpers');
+  }
+
+  const fn = new Function('window', 'state', 'ERA_TABS', '_itemEraPeriod', '_scaleOfItem',
+    app.slice(sa, se)
+    + brw.slice(a, b).replace(/if \(typeof window !== 'undefined'\) window\.[\w.]+ = \w+;/g, '')
+    + 'return _itemExternalLinkURL;')(
+      win || { _mbAllGet: () => null, cottAnchorUrl: (u, num) => u + '#' + num },
+      {}, {},
+      (it) => ({ pw: 'postwar', prewar: 'prewar', mpc: 'modern' })[it._era] || null,
+      (it) => (it && it._scale) || '');
+  // the exact source the caller is running, so a section that wants to read the
+  // rule as TEXT reads the same bytes it just executed
+  fn.src    = brw.slice(a, b);
+  fn.appSrc = app.slice(sa, se);
+  return fn;
+};
+
 let pass = 0, fail = 0;
 function ok(name, cond, extra) {
   if (cond) { pass++; console.log('  PASS  ' + name); }
@@ -5407,21 +5451,11 @@ META_WRITES.length = 0; TOASTS.length = 0;
   // box and its paperwork under one number, and the COTT page describes the item;
   // it is the same page whichever of those rows the app lands on.
   (function () {
-    const pW = require('path');
-    const brw = fs.readFileSync(pW.join(__dirname, '..', 'app', 'browse.js'), 'utf8');
-    const a = brw.indexOf('function _itemExternalLinkURL(item)');
-    const b = brw.indexOf('function _itemExternalLinkHTML(item)');
-    if (a < 0 || b < 0) throw new Error('§145 marker moved');
-
     const bucket = {};
-    const win = {
+    const url = mkLinkURL('§145', {
       _mbAllGet: (n) => bucket[String(n).trim()] || null,
       cottAnchorUrl: (u, num) => u + '#' + num,
-    };
-    const url = new Function('window', 'state', 'ERA_TABS', '_itemEraPeriod',
-      brw.slice(a, b).replace(/if \(typeof window !== 'undefined'\) window\.[\w.]+ = \w+;/g, '')
-      + 'return _itemExternalLinkURL;')(win, {}, {},
-      (it) => ({ pw: 'postwar', prewar: 'prewar', mpc: 'modern' })[it._era] || null);
+    });
 
     const ITEM = { itemNum:'6464-100', _era:'pw', _tab:'Lionel PW - Items',
                    description:'Western Pacific Boxcar', roadName:'Western Pacific',
@@ -5456,9 +5490,13 @@ META_WRITES.length = 0; TOASTS.length = 0;
     // that is when we google it." Item 8's era-in-the-query rule (v1175) is
     // BACK IN FORCE — the Google query exists again, so the period word goes
     // in, exactly as he specified the first time.
+    // v0.9.1768 SUPERSEDES the bare road-name query: rule 4 brings the first
+    // clause of the DESCRIPTION along too, because on item 9504 the word
+    // "Erie" was the only reason Google found the right car. "F3" is the same
+    // kind of word. The era word this section is about is untouched.
     ok('a Lionel row with no reference Googles WITH the era word (v0.9.1188)',
        url(PW2333) === 'https://www.google.com/search?q='
-         + encodeURIComponent('Lionel 2333 Santa Fe postwar'), url(PW2333));
+         + encodeURIComponent('Lionel 2333 Santa Fe F3 postwar'), url(PW2333));
     ok('a row with no period at all still produces a usable Google link',
        (function () {
          bucket['9999'] = [{ itemNum:'9999', _era:'other_o', _tab:'Lionel PW - Items' }];
@@ -6177,16 +6215,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
   //
   // Same harness as §145: the REAL _itemExternalLinkURL, sliced and run.
   (function () {
-    const pM = require('path');
-    const brw = fs.readFileSync(pM.join(__dirname, '..', 'app', 'browse.js'), 'utf8');
-    const a = brw.indexOf('function _itemExternalLinkURL(item)');
-    const b = brw.indexOf('function _itemExternalLinkHTML(item)');
-    if (a < 0 || b < 0) throw new Error('§153 marker moved');
-    const win = { _mbAllGet: () => null, cottAnchorUrl: (u, num) => u + '#' + num };
-    const url = new Function('window', 'state', 'ERA_TABS', '_itemEraPeriod',
-      brw.slice(a, b).replace(/if \(typeof window !== 'undefined'\) window\.[\w.]+ = \w+;/g, '')
-      + 'return _itemExternalLinkURL;')(win, {}, {},
-      (it) => ({ pw: 'postwar', prewar: 'prewar', mpc: 'modern' })[it._era] || null);
+    const url = mkLinkURL('§153');
 
     // v0.9.1188 SUPERSEDES the constructed-URL shortcut this section shipped.
     // The guess was checked against MTH's own site index on 2026-07-30: master
@@ -6196,9 +6225,14 @@ META_WRITES.length = 0; TOASTS.length = 0;
     // MTH's numbering wearing Lionel's name. That identity survives.
     const STD = { itemNum: '11-30127', _tab: 'Lionel MPC-Modern', _era: 'mpc',
                   yearProd: '2011', description: 'No. 516 Blue Coal Hopper Car (std)' };
+    // v0.9.1768 rule 4 brings the description along, and v0.9.1783 stopped the
+    // clause splitter chopping "No. 516" down to the bare word "No". 11-30127
+    // IS the MTH reissue of the prewar Lionel No. 516, so that is the most
+    // searchable thing in the row — not noise to be trimmed. What this section
+    // is really about, the MAKER, is unchanged: 11-##### still says MTH.
     ok('a no-link Lionel-tab tinplate row Googles as MTH, not Lionel (v0.9.1188)',
        url(STD) === 'https://www.google.com/search?q='
-         + encodeURIComponent('MTH 11-30127'), url(STD));
+         + encodeURIComponent('MTH 11-30127 No. 516 Blue Coal Hopper'), url(STD));
     ok('...and never the lionel.com search it used to hit',
        url(STD).indexOf('lionel.com') < 0);
     ok('every number from the screenshot resolves the same way',
@@ -6216,9 +6250,12 @@ META_WRITES.length = 0; TOASTS.length = 0;
          .indexOf('mthtrains.com/products/11-30127') >= 0);
 
     // The identity fence: the NUMBER decides which maker the query names.
-    ok('a modern Lionel number Googles as Lionel with the era word',
+    // v0.9.1768 rule 2 SUPERSEDES the era word HERE: it is for prewar and
+    // postwar only. On a modern number it separated nothing — Google's own
+    // result page answered "Missing: modern" — so it was dropped on purpose.
+    ok('a modern Lionel number Googles as Lionel, and WITHOUT the era word',
        url({ itemNum: '6-36814', _tab: 'Lionel MPC-Modern', _era: 'mpc', yearProd: '2011' })
-         === 'https://www.google.com/search?q=' + encodeURIComponent('Lionel 6-36814 modern'));
+         === 'https://www.google.com/search?q=' + encodeURIComponent('Lionel 6-36814'));
     ok('a bare "11-" or a short stub never passes the MTH fence',
        url({ itemNum: '11-', _tab: 'Lionel MPC-Modern', _era: 'mpc', yearProd: '2011' })
          .indexOf('MTH') < 0 &&
@@ -6296,16 +6333,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
   // reaches further back (verified live: their URLs end in -6-19587), and what
   // it actually indexes is the modern 6- SKU system. So the number decides.
   (function () {
-    const pL = require('path');
-    const brw = fs.readFileSync(pL.join(__dirname, '..', 'app', 'browse.js'), 'utf8');
-    const a = brw.indexOf('function _itemExternalLinkURL(item)');
-    const b = brw.indexOf('function _itemExternalLinkHTML(item)');
-    if (a < 0 || b < 0) throw new Error('§155 marker moved');
-    const win = { _mbAllGet: () => null, cottAnchorUrl: (u, num) => u + '#' + num };
-    const url = new Function('window', 'state', 'ERA_TABS', '_itemEraPeriod',
-      brw.slice(a, b).replace(/if \(typeof window !== 'undefined'\) window\.[\w.]+ = \w+;/g, '')
-      + 'return _itemExternalLinkURL;')(win, {}, {},
-      (it) => ({ pw: 'postwar', prewar: 'prewar', mpc: 'modern' })[it._era] || null);
+    const url = mkLinkURL('§155');
 
     const L = (num, yr) => url({ itemNum: num, _tab: 'Lionel MPC-Modern', _era: 'mpc',
                                  yearProd: yr || '' });
@@ -6314,10 +6342,12 @@ META_WRITES.length = 0; TOASTS.length = 0;
     // master 1.59 (823 of them, matched against lionel.com's own site index);
     // a row still blank was PROVEN absent from lionel.com, so its search page
     // would find nothing — it Googles, with the era word, per Brad's rule.
-    ok('every number from Brad\'s screenshot Googles as modern Lionel now',
+    // ...and per v0.9.1768 rule 2 WITHOUT the era word — see §153. The
+    // destination this section is about, Google instead of lionel.com, stands.
+    ok('every number from Brad\'s screenshot Googles as Lionel now',
        ['6-19578', '6-19587', '6-19595', '6-20038', '6-20088'].every(function (n) {
          return L(n, '2009') === 'https://www.google.com/search?q='
-           + encodeURIComponent('Lionel ' + n + ' modern');
+           + encodeURIComponent('Lionel ' + n);
        }));
     ok('...including with no year in the row at all',
        /google\.com/.test(L('6-19585', '')));
@@ -6341,16 +6371,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
   // the x6464-1970 its an odd ball." Club cars follow no numbering rule, so
   // they get a NAMED map — not a cleverer pattern.
   (function () {
-    const pO = require('path');
-    const brw = fs.readFileSync(pO.join(__dirname, '..', 'app', 'browse.js'), 'utf8');
-    const a = brw.indexOf('function _itemExternalLinkURL(item)');
-    const b = brw.indexOf('function _itemExternalLinkHTML(item)');
-    if (a < 0 || b < 0) throw new Error('§156 marker moved');
-    const win = { _mbAllGet: () => null, cottAnchorUrl: (u, num) => u + '#' + num };
-    const url = new Function('window', 'state', 'ERA_TABS', '_itemEraPeriod',
-      brw.slice(a, b).replace(/if \(typeof window !== 'undefined'\) window\.[\w.]+ = \w+;/g, '')
-      + 'return _itemExternalLinkURL;')(win, {}, {},
-      (it) => ({ pw: 'postwar', prewar: 'prewar', mpc: 'modern' })[it._era] || null);
+    const url = mkLinkURL('§156');
 
     const TCA = { itemNum: 'X6464-1970', _tab: 'Lionel PW - Items', _era: 'pw',
                   roadName: 'TCA', yearProd: '1970' };
@@ -6367,7 +6388,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
        url(TCA).indexOf('club-cars') < 0);
     ok('the map machinery survives, above the refLink branch, for the next oddball',
        (function () {
-         const src = brw.slice(a, b);
+         const src = url.src;
          return src.indexOf('_ODDBALL_REFS') >= 0
            && src.indexOf('_ODDBALL_REFS') < src.indexOf('item.refLink');
        })());
@@ -10368,11 +10389,10 @@ META_WRITES.length = 0; TOASTS.length = 0;
        /function _makerForTab\(tabLower\)/.test(br));
 
     // ── RUN the whole resolver ──────────────────────────────────────────
-    const src = br.slice(br.indexOf('function _itemExternalLinkURL(item)'),
-                         br.indexOf('if (typeof window !== \'undefined\') window._makerForTab'));
-    const url = (item) => new Function('item', 'window', 'state', '_itemEraPeriod',
-      '"use strict";' + src + '; return _itemExternalLinkURL(item);')(
-        item, {}, {}, () => null);
+    // v0.9.1783: through the ONE builder. This section hand-rolled its own
+    // copy and, like the other four, left rrSearchTerms out of scope — which
+    // is exactly why it could not tell the fallback from the rule.
+    const url = mkLinkURL('§213');
     const q = (item) => {
       const u = url(item);
       return u ? decodeURIComponent((u.split('q=')[1] || '')) : '';
@@ -10417,9 +10437,13 @@ META_WRITES.length = 0; TOASTS.length = 0;
     });
 
     // ── it must not disturb what already worked ────────────────────────
+    // v0.9.1783: through the shared builder this now runs WITH cottAnchorUrl in
+    // scope, which is what the app has — so the link comes back anchored to the
+    // number, exactly as a user's click produces it. The claim being made here
+    // is that the reference wins, not that nothing is appended to it.
     ok('a real reference link still wins over any search',
        url({ itemNum: 'U2704', _tab: 'Weaver O', refLink: 'https://example.com/x' })
-         === 'https://example.com/x');
+         .indexOf('https://example.com/x') === 0);
     ok('Lionel still searches as Lionel',
        /^Lionel 6464-1 /.test(q({ itemNum: '6464-1', _tab: 'Lionel PW - Items', roadName: 'WESTERN PACIFIC' })));
     ok('MTH still searches as MTH',
