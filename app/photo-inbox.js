@@ -266,6 +266,10 @@
       '</div>' +
       '<div id="pin-staged" style="display:none"></div>' +
       '<div id="pin-drop" style="min-height:50vh;border:2px dashed var(--border);border-radius:12px;padding:0.8rem;margin-top:0.8rem">' +
+        // v0.9.1776: this inline minimum is LEFT ALONE on purpose. It is only
+        // what shows in the instant before _pinApplyCols() sets the real
+        // column count, and app.css's phone grouping mode (v0.9.1595) measures
+        // itself against this 150px as "half the normal tile".
         '<div id="pin-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:0.6rem"></div>' +
         '<div id="pin-empty" style="display:none;text-align:center;padding:3rem 1rem;color:var(--text-dim)"><div style="font-size:0.95rem;margin-bottom:0.3rem;font-weight:600">Inbox is empty</div><div style="font-size:0.8rem">Drag photos here from any folder, or click Add photos.</div></div>' +
       '</div>' +
@@ -2158,9 +2162,46 @@
     return map;
   }
 
+  // v0.9.1776 (Brad, 2026-09-19): "lets just go two wide." The inbox grid used
+  // to let `auto-fill` guess, and on a ~320pt phone — once the page margins and
+  // the dashed drop-zone's padding come out — there was no room for two tiles
+  // of 150px, so CSS gave him ONE. The Dashboard's inbox card never had this
+  // problem because it COUNTS its columns rather than guessing.
+  //
+  // Same helper, so there is ONE rule and not two that drift apart. The card
+  // and the Showcase keep their own numbers (104px, floor of 3) by passing
+  // nothing; this page asks for larger tiles with a HARD floor of two.
+  var PIN_COLS = { target: 150, min: 2, minLarge: 2 };
+  function _pinApplyCols() {
+    try {
+      var grid = document.getElementById('pin-grid');
+      if (!grid) return;
+      var cols = (typeof window._dashPhotoCols === 'function')
+        ? window._dashPhotoCols(grid, PIN_COLS)
+        : Math.max(2, Math.floor((grid.clientWidth || 500) / PIN_COLS.target));
+      grid.style.gridTemplateColumns = 'repeat(' + cols + ', 1fr)';
+    } catch (e) {}
+  }
+  // Rotating the phone changes the answer; a toolbar sliding away does not.
+  // Debounced, registered once, and it does nothing at all when the inbox is
+  // not on screen.
+  // Guarded because this file is EVAL'd whole by photo-inbox-tests.js against a
+  // stub `window` that has no addEventListener — and it threw there, which is
+  // how this guard came to exist. A module must not need a real browser just to
+  // finish loading.
+  if (!window._pinColsHooked && typeof window.addEventListener === 'function') {
+    window._pinColsHooked = true;
+    var _pinColsT = null;
+    window.addEventListener('resize', function () {
+      if (_pinColsT) clearTimeout(_pinColsT);
+      _pinColsT = setTimeout(_pinApplyCols, 150);
+    });
+  }
+
   function _render() {
     var grid = document.getElementById('pin-grid'), empty = document.getElementById('pin-empty');
     if (!grid) return;
+    _pinApplyCols();
     var _noteMap = _pinNoteFileMap();
     // v0.9.1051: draw what passes the filters, but keep counting the whole inbox.
     var _vis = _pinVisibleGroups();

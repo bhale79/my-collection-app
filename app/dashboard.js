@@ -1787,12 +1787,28 @@ window._reelStart = async function (slot) {
 // Showcase and the Photo Inbox always share the same pattern. Scales with
 // the accessibility text-size setting: regular text keeps a 3-column
 // minimum; enlarged text (html font-size bumped) may drop to 2 columns.
-window._dashPhotoCols = function (grid) {
+// v0.9.1776 (Brad: the full Photo Inbox page showed ONE tile across on his
+// phone while this card showed three). The rule is now shared by BOTH, which
+// means this helper had to take a second caller with different numbers. It
+// does that through an OPTIONS OBJECT with the old values as defaults, so
+// `_dashPhotoCols(grid)` — the Showcase and the Dashboard card — behaves
+// EXACTLY as it did before, at every width. `dashboard_photo_cols_tests.js`
+// pins those numbers so a future change here cannot quietly move them.
+//   target   px of width one tile wants        (default 104, as before)
+//   min      fewest columns at regular text    (default 3,   as before)
+//   minLarge fewest columns at enlarged text   (default 2,   as before)
+// The full inbox page asks for 150/2/2: bigger tiles, and a HARD floor of two
+// — one across is the bug being fixed, so enlarged text must not re-create it.
+window._dashPhotoCols = function (grid, opts) {
+  opts = opts || {};
+  var target   = opts.target   || 104;
+  var min      = (opts.min      == null) ? 3 : opts.min;
+  var minLarge = (opts.minLarge == null) ? 2 : opts.minLarge;
   var fs = 1;
   try { fs = Math.max(1, (parseFloat(getComputedStyle(document.documentElement).fontSize) || 16) / 16); } catch (e) {}
   var gw = (grid && grid.clientWidth) || 500;
-  var cols = Math.floor(gw / (104 * fs));
-  return Math.max(fs > 1.15 ? 2 : 3, cols);
+  var cols = Math.floor(gw / (target * fs));
+  return Math.max(fs > 1.15 ? minLarge : min, cols);
 };
 
 // v0.9.1017 (Brad): the showcase is a slideshow now — auto-shuffles to a
