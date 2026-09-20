@@ -18893,9 +18893,29 @@ META_WRITES.length = 0; TOASTS.length = 0;
          /try \{ window\._rrShowUpdateBar && window\._rrShowUpdateBar\(netApp\); \} catch/.test(cf));
       const fn0 = cf.indexOf('window._rrShowUpdateBar = function');
       ok('277 the bar function exists', fn0 > 0);
-      const fn = cf.slice(fn0, cf.indexOf('window._rrDismissUpdateBar'));
-      ok('277 it never shows over the sign-in screen (app must be active)',
-         /classList\.contains\('active'\)/.test(fn) && /return;\s*\/\/ never over sign-in/.test(fn) === false ? /if \(!appEl \|\| !appEl\.classList\.contains\('active'\)\) return;/.test(fn) : true);
+      // v0.9.1787 — THE END ANCHOR WAS STALE AND THE SLICE WAS A LIE.
+      // It cut at 'window._rrDismissUpdateBar', a function that no longer
+      // exists anywhere in the app. indexOf returned -1, so slice(fn0, -1)
+      // handed back EVERYTHING from the function to the end of the file. It
+      // only looked correct because _rrShowUpdateBar happened to be the last
+      // thing in config.js — and v1787 appends after it, which is exactly when
+      // a slice like that starts passing on the wrong code. Same trap as the
+      // "Level" anchor in v0.9.1778: an id or a real boundary is a handle, a
+      // name that may be deleted is not.
+      const fnEnd = cf.indexOf('/* a notice must never break the app */', fn0);
+      ok('277 the slice has a REAL end anchor (the old one named a deleted function)',
+         fnEnd > fn0, 'fnEnd=' + fnEnd);
+      const fn = cf.slice(fn0, fnEnd);
+      ok('277 it still never paints over the sign-in screen',
+         /if \(!appEl \|\| !appEl\.classList\.contains\('active'\)\)/.test(fn));
+      // v0.9.1787 SUPERSEDES the old bare-return pin. Refusing to paint over
+      // sign-in is unchanged; what changed is what happens INSTEAD — the answer
+      // is held and retried rather than thrown away for the rest of the session.
+      ok('277 …and now HOLDS the version and looks again instead of forgetting it',
+         /_rrPendingUpdateVer = netApp/.test(fn) &&
+         /setTimeout\(function \(\) \{ window\._rrShowUpdateBar\(netApp\); \}/.test(fn));
+      ok('277 …bounded, so a copy parked on the sign-in screen is not polled forever',
+         /_rrPendingUpdateTries < 60/.test(fn));
       ok('277 it shows once per detected version (dismiss remembers WHICH version)',
          /rr_update_bar_seen/.test(fn) && /localStorage\.setItem\('rr_update_bar_seen', netApp\)/.test(cf));
       ok('277 it appends to BODY (a fixed element inside .main paints under the header — the v1332 lesson)',

@@ -222,6 +222,228 @@ section('The trio check can catch every way the trio drifts');
      t5.stampCount < 50, String(t5.stampCount));
 }
 
-console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
-process.exit(fail ? 1 : 0);
+// ═══════════════════════════════════════════════════════════════
+// v0.9.1787 — THE APP HAS TO ASK AGAIN, OR THE OFFER NEVER ARRIVES.
+//
+// [stated] Brad, on v0.9.1786: "did not get an update box." Twice running,
+// with the fix he was waiting for already live on his phone.
+//
+// Everything above this point protects the HANDOVER — what happens once he
+// presses Update now. None of it matters if the card never appears. Two holes
+// put it there, and his phone fell down both:
+//
+//   1. the check ran ONCE, eight seconds after load, and never again, so an
+//      app left open never found out;
+//   2. if the app was still signing in or still loading the catalog at that
+//      eight-second mark, the bar refused to paint (right) and then THREW THE
+//      ANSWER AWAY (wrong) for the rest of the session.
+//
+// These run the REAL functions lifted out of config.js against a fake window,
+// the same way _rrActivateUpdate is driven above.
+// ═══════════════════════════════════════════════════════════════
+section('The offer ARRIVES: the app asks again, and does not forget the answer');
+{
+  function liftFn(src, sig) {
+    const at = src.indexOf(sig);
+    if (at < 0) return null;
+    let d = 0;
+    for (let i = src.indexOf('{', at + sig.length - 1); i < src.length; i++) {
+      if (src[i] === '{') d++;
+      else if (src[i] === '}') { d--; if (!d) return src.slice(at, i + 1) + ';'; }
+    }
+    return null;
+  }
+
+  // A fake page. `active` says whether the app has finished signing in and
+  // loading — the thing the eight-second check kept losing the race with.
+  function page(opts) {
+    opts = opts || {};
+    const st = { appended: [], timers: [], fetched: [], listeners: {} };
+    const appEl = { classList: { contains: c => c === 'active' && !!opts.active } };
+    const doc = {
+      getElementById: id => (id === 'app' ? appEl
+                          : (id === 'rr-update-bar' ? (st.appended.length ? st.appended[0] : null) : null)),
+      createElement: () => ({ style: {}, set id(v) { this._id = v; }, get id() { return this._id; } }),
+      body: { appendChild: el => st.appended.push(el) },
+      addEventListener: (ev, fn) => { st.listeners[ev] = fn; },
+      visibilityState: opts.visibility || 'visible',
+    };
+    const store = opts.store || {};
+    const win = {
+      _rrPendingUpdateVer: null, _rrPendingUpdateTries: 0,
+      _RR_UPDATE_RECHECK_MS: 15 * 60 * 1000, _rrLastUpdateCheck: 0,
+    };
+    const localStorage = { getItem: k => (k in store ? store[k] : null),
+                           setItem: (k, v) => { store[k] = String(v); } };
+    const setT = (fn, ms) => { st.timers.push({ fn, ms }); return st.timers.length; };
+    const fetchFn = (url) => {
+      st.fetched.push(url);
+      if (opts.offline) return Promise.reject(new Error('offline'));
+      return Promise.resolve({ text: () => Promise.resolve(opts.serverSrc || '') });
+    };
+    const body = liftFn(cfg, 'window._rrShowUpdateBar = function') + '\n'
+               + liftFn(cfg, 'window._rrCheckForUpdate = function') + '\n'
+               + 'return { show: window._rrShowUpdateBar, check: window._rrCheckForUpdate };';
+    const api = new Function('window', 'document', 'localStorage', 'setTimeout',
+                             'fetch', 'APP_VERSION', 'Date', body)
+      (win, doc, localStorage, setT, fetchFn, opts.running || 'v0.9.1786',
+       opts.Date || Date);
+    return { st, api, win, store };
+  }
+
+  ok('both real functions were found in config.js — nothing here is a stub',
+     !!liftFn(cfg, 'window._rrShowUpdateBar = function') &&
+     !!liftFn(cfg, 'window._rrCheckForUpdate = function'));
+
+  // ── the bar, when the app is ready ──────────────────────────────────────
+  let p = page({ active: true });
+  p.api.show('v0.9.1787');
+  ok('a newer version with the app ready → the card is shown', p.st.appended.length === 1);
+
+  p = page({ active: true });
+  p.api.show('v0.9.1786');
+  ok('the SAME version we are running is never offered', p.st.appended.length === 0);
+
+  p = page({ active: true, store: { rr_update_bar_seen: 'v0.9.1787' } });
+  p.api.show('v0.9.1787');
+  ok('a version he already said "Tonight" to is not asked again', p.st.appended.length === 0);
+
+  p = page({ active: true, store: { rr_update_bar_seen: 'v0.9.1786' } });
+  p.api.show('v0.9.1787');
+  ok('…but a NEWER version than the one he deferred still gets asked', p.st.appended.length === 1);
+
+  // ── THE BUG: not ready yet ──────────────────────────────────────────────
+  p = page({ active: false });
+  p.api.show('v0.9.1787');
+  ok('app not ready → nothing is painted over the sign-in screen (unchanged)',
+     p.st.appended.length === 0);
+  ok('…but the answer is HELD, not thrown away — THE BUG BRAD REPORTED',
+     p.win._rrPendingUpdateVer === 'v0.9.1787' && p.st.timers.length === 1);
+  ok('…and it looks again a few seconds later', p.st.timers[0].ms === 3000);
+
+  // let the app finish loading, then let the retry fire
+  {
+    let ready = false;
+    const st2 = { appended: [], timers: [] };
+    const appEl = { classList: { contains: c => c === 'active' && ready } };
+    const doc = {
+      getElementById: id => (id === 'app' ? appEl
+                          : (id === 'rr-update-bar' ? (st2.appended.length ? st2.appended[0] : null) : null)),
+      createElement: () => ({ style: {} }),
+      body: { appendChild: el => st2.appended.push(el) },
+      addEventListener: () => {},
+    };
+    const win = { _rrPendingUpdateVer: null, _rrPendingUpdateTries: 0 };
+    const api = new Function('window', 'document', 'localStorage', 'setTimeout', 'APP_VERSION',
+      liftFn(cfg, 'window._rrShowUpdateBar = function') + '\nreturn window._rrShowUpdateBar;')
+      (win, doc, { getItem: () => null, setItem: () => {} },
+       (fn, ms) => { st2.timers.push({ fn, ms }); }, 'v0.9.1786');
+    win._rrShowUpdateBar = api;
+    api('v0.9.1787');
+    ok('while still loading, nothing is shown', st2.appended.length === 0);
+    ready = true;                       // he finishes signing in
+    st2.timers[0].fn();                 // the retry fires
+    ok('once the app IS ready the held offer finally appears — the whole point',
+       st2.appended.length === 1);
+  }
+
+  // bounded, so a copy parked on the sign-in screen is not polled forever
+  p = page({ active: false });
+  for (let i = 0; i < 80; i++) {
+    p.win._rrPendingUpdateTries = i;
+    p.api.show('v0.9.1787');
+  }
+  ok('the retry is BOUNDED — a copy left on sign-in is not polled forever',
+     p.st.timers.length === 60, String(p.st.timers.length));
+
+  // ── asking again when the app comes back to the front ───────────────────
+  const newer = "const APP_VERSION = 'v0.9.1790';";
+  p = page({ active: true, serverSrc: newer });
+  p.api.check();
+  ok('the re-check reaches the network past the service worker (?rr_selfcheck=1)',
+     p.st.fetched.length === 1 && /\?rr_selfcheck=1/.test(p.st.fetched[0]), p.st.fetched[0]);
+
+  p = page({ active: true, serverSrc: newer });
+  p.api.check();
+  p.api.check();
+  p.api.check();
+  ok('bringing the app forward three times in a row costs ONE check (throttled)',
+     p.st.fetched.length === 1, String(p.st.fetched.length));
+
+  p = page({ active: true, serverSrc: newer });
+  p.api.check();
+  p.api.check(true);
+  ok('…and a forced check still goes through', p.st.fetched.length === 2);
+
+  // The rest are ASYNC — the card can only appear after the fetch resolves.
+  // Awaiting is the point: asserting synchronously here would read an empty
+  // page and pass while proving nothing.
+  (async function () {
+    let q = page({ active: true, serverSrc: newer });
+    q.api.check();
+    await new Promise(r => setTimeout(r, 0));
+    ok('a newer version on the server raises the card', q.st.appended.length === 1);
+
+    q = page({ active: true, serverSrc: "const APP_VERSION = 'v0.9.1786';" });
+    q.api.check();
+    await new Promise(r => setTimeout(r, 0));
+    ok('the SAME version on the server raises nothing', q.st.appended.length === 0);
+
+    q = page({ active: true, offline: true });
+    q.api.check();
+    await new Promise(r => setTimeout(r, 0));
+    ok('offline is silent, and never breaks the app', q.st.appended.length === 0);
+
+    // ── planted offenders: every rule above must be able to FAIL ──────────
+    section('Planted offenders — the new rules can actually fail');
+
+    const noHold = cfg.replace(
+      /if \(window\._rrPendingUpdateVer !== netApp\)[\s\S]*?\n      return;\n    \}/,
+      'return;   // the v1786 behaviour: forget the answer');
+    ok('THE BUG BRAD REPORTED: a bar that forgets the answer is caught',
+       !/_rrPendingUpdateVer = netApp/.test(liftFn(noHold, 'window._rrShowUpdateBar = function') || ''));
+
+    const noThrottle = cfg.replace(
+      'if (!force && (now - window._rrLastUpdateCheck) < window._RR_UPDATE_RECHECK_MS) return;', '');
+    {
+      const body = liftFn(noThrottle, 'window._rrCheckForUpdate = function')
+                 + '\nreturn window._rrCheckForUpdate;';
+      const hits = [];
+      const fn = new Function('window', 'fetch', 'APP_VERSION', body)(
+        { _RR_UPDATE_RECHECK_MS: 1e9, _rrLastUpdateCheck: 0 },
+        u => { hits.push(u); return Promise.resolve({ text: () => Promise.resolve('') }); },
+        'v0.9.1786');
+      fn(); fn(); fn();
+      ok('a lost throttle — the app hammering the network on every glance — is caught',
+         hits.length !== 1, String(hits.length));
+    }
+
+    // ⚠ THIS OFFENDER WAS PLANTED IN THE WRONG PLACE FIRST TIME, and it is
+    // worth keeping the reason. That fetch line appears THREE times in
+    // config.js — twice in the older deploy-mismatch self-check — and a plain
+    // .replace() takes the FIRST. So the offender landed in a function this
+    // rule does not govern, the real one was left untouched, and the check
+    // "failed" while the code was correct. Scope the surgery to the function
+    // under test, always.
+    const checkSrc = liftFn(cfg, 'window._rrCheckForUpdate = function') || '';
+    const hasTag = s => /fetch\('\.\/config\.js\?rr_selfcheck=1'/.test(s);
+    ok('the re-check itself really does carry ?rr_selfcheck=1', hasTag(checkSrc));
+    ok('…and dropping it is caught — without the tag the worker answers from its own cache',
+       !hasTag(checkSrc.replace('./config.js?rr_selfcheck=1', './config.js')));
+
+    const unbounded = cfg.replace('window._rrPendingUpdateTries < 60', 'true');
+    ok('an UNBOUNDED retry loop is caught',
+       !/_rrPendingUpdateTries < 60/.test(liftFn(unbounded, 'window._rrShowUpdateBar = function') || ''));
+
+    ok('the app listens for coming back to the front, and acts only when VISIBLE',
+       /addEventListener\('visibilitychange'/.test(cfg) &&
+       /visibilityState === 'visible'\) window\._rrCheckForUpdate\(\)/.test(cfg));
+
+    const noListener = cfg.replace(/document\.addEventListener\('visibilitychange'[\s\S]*?\n\}/, '');
+    ok('…and losing that listener is caught', !/addEventListener\('visibilitychange'/.test(noListener));
+
+    console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
+    process.exit(fail ? 1 : 0);
+  })();
+}
 }

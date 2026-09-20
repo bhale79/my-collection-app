@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.1786';
+const APP_VERSION = 'v0.9.1787';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -1888,7 +1888,24 @@ window._rrShowUpdateBar = function (netApp) {
     if (document.getElementById('rr-update-bar')) return;
     if (localStorage.getItem('rr_update_bar_seen') === netApp) return;
     var appEl = document.getElementById('app');
-    if (!appEl || !appEl.classList.contains('active')) return;   // never over sign-in
+    if (!appEl || !appEl.classList.contains('active')) {
+      // v0.9.1787 — SUPERSEDES the bare `return` that stood here (v0.9.1336).
+      // Refusing to paint over the sign-in screen is RIGHT and stays. THROWING
+      // THE ANSWER AWAY was the bug. The app is often simply not ready yet —
+      // still signing in, still loading 165,000 catalog rows — at the moment
+      // the 8-second check fires, and the old code then gave up for the whole
+      // session. Hold the version and look again. Bounded on purpose: a copy
+      // left sitting on the sign-in screen is not polled forever.
+      if (window._rrPendingUpdateVer !== netApp) {
+        window._rrPendingUpdateVer = netApp;
+        window._rrPendingUpdateTries = 0;
+      }
+      if (window._rrPendingUpdateTries < 60) {          // 60 x 3s = three minutes
+        window._rrPendingUpdateTries++;
+        setTimeout(function () { window._rrShowUpdateBar(netApp); }, 3000);
+      }
+      return;
+    }
     var bar = document.createElement('div');
     bar.id = 'rr-update-bar';
     bar.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);bottom:14px;z-index:100010;' +
@@ -1903,5 +1920,56 @@ window._rrShowUpdateBar = function (netApp) {
       '<button type="button" onclick="_rrUpdateTonight(\'' + safeVer + '\')" title="Reload around 3:00 AM instead" style="border:1.5px solid var(--border);border-radius:7px;' +
         'padding:0.35rem 0.8rem;background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.8rem;font-weight:600;cursor:pointer;flex-shrink:0">Tonight</button>';
     document.body.appendChild(bar);
+    window._rrPendingUpdateVer = null;      // shown — stop any retry chain
   } catch (e) { /* a notice must never break the app */ }
 };
+
+// ── v0.9.1787: the app ASKS AGAIN ────────────────────────────────────────
+// [stated] Brad, on v0.9.1786: "did not get an update box." Twice in a row,
+// and the fix he was waiting on was already live on his phone.
+//
+// The self-check above runs ONCE, eight seconds after load, and never again.
+// Two holes, and his phone fell down both:
+//
+//   1. AN APP LEFT OPEN NEVER ASKS AGAIN. He keeps the Roster open. A release
+//      lands and nothing in the running page ever finds out.
+//   2. EIGHT SECONDS IS NOT ALWAYS ENOUGH — fixed just above, in the bar.
+//
+// DELIBERATELY NOT A POLLING TIMER. A hidden tab throttles timers to roughly
+// one a minute anyway (measured, S96), so a background poll buys little and is
+// machinery to maintain. The natural moment is when the app comes back to the
+// FRONT: he picks the phone up, it looks. Throttled, so bringing it forward
+// ten times in a row costs one check.
+//
+// THIS DOES NOT TOUCH THE DEPLOY-MISMATCH SELF-CHECK ABOVE. That is a
+// developer signal with its own state (rr_ver_check), its own confirm-fetch
+// and its own tests; it stays exactly as it was, once per load. This asks the
+// one question a USER cares about: is the server's version different from mine?
+window._RR_UPDATE_RECHECK_MS = 15 * 60 * 1000;   // the ONE place this interval lives
+window._rrLastUpdateCheck = 0;
+window._rrCheckForUpdate = function (force) {
+  try {
+    var now = Date.now();
+    if (!force && (now - window._rrLastUpdateCheck) < window._RR_UPDATE_RECHECK_MS) return;
+    window._rrLastUpdateCheck = now;
+    // ?rr_selfcheck=1 is NOT decoration and NOT a cache-buster: sw.js skips any
+    // URL carrying it, so this is one of the few requests in the app that
+    // reaches the network unconditionally. Without it the worker answers from
+    // Cache Storage — no-store switches off the browser's HTTP cache, not the
+    // worker in front of it — and the app compares its own version against
+    // itself and can never detect anything. (The v0.9.1271 lesson, R12.)
+    fetch('./config.js?rr_selfcheck=1', { cache: 'no-store' })
+      .then(function (r) { return r.text(); })
+      .then(function (txt) {
+        var m = txt.match(/APP_VERSION\s*=\s*'([^']+)'/);
+        if (!m || !m[1] || m[1] === APP_VERSION) return;
+        try { window._rrShowUpdateBar && window._rrShowUpdateBar(m[1]); } catch (eB) {}
+      })
+      .catch(function () { /* offline — ask again next time it comes forward */ });
+  } catch (e) { /* a check must never break the app */ }
+};
+if (typeof document !== 'undefined' && document.addEventListener) {
+  document.addEventListener('visibilitychange', function () {
+    if (document.visibilityState === 'visible') window._rrCheckForUpdate();
+  });
+}
