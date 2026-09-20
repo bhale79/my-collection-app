@@ -598,7 +598,7 @@ function openEphemeraEdit(tabId, rowKey) {
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay open';
   overlay.id = 'eph-edit-modal';
-  overlay.onclick = e => { if (e.target === overlay) overlay.remove(); };
+  rrDismissGuard(overlay);   // v0.9.1785
   overlay.innerHTML = '<div class="modal" style="max-width:480px;max-height:90vh;overflow-y:auto;padding:1rem">'
     + '<div style="font-family:var(--font-head);font-size:1.05rem;color:var(--text);margin-bottom:0.6rem">Edit — ' + esc(entry.title || entry.itemNum || '') + '</div>'
     + fields.map(function (f, i) {
@@ -1274,7 +1274,7 @@ function wantFindOnEbay(itemNum, roadName) {
   const _overlay = document.createElement('div');
   _overlay.id = 'ebay-search-modal';
   _overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem';
-  _overlay.onclick = function(e) { if (e.target === _overlay) _overlay.remove(); };
+  rrDismissGuard(_overlay);   // v0.9.1785
 
   _overlay.innerHTML = `
     <div class="rr-card">
@@ -3635,7 +3635,7 @@ function pickItemForUpgrade() {
   var overlay = document.createElement('div');
   overlay.id = 'upgrade-pick-modal';
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:10001;display:flex;align-items:center;justify-content:center;padding:1.25rem';
-  overlay.onclick = function (e) { if (e.target === overlay) overlay.remove(); };
+  rrDismissGuard(overlay);   // v0.9.1785
   overlay.innerHTML =
     '<div class="rr-card rr-card-flex" style="max-height:80dvh">'
     + '<button onclick="document.getElementById(\'upgrade-pick-modal\').remove()" style="position:absolute;top:0.75rem;right:0.75rem;background:none;border:none;color:var(--text-dim);font-size:1.1rem;cursor:pointer">\u2715</button>'
@@ -3733,7 +3733,7 @@ function showAddToUpgradeModal(itemNum, variation, pdRow, invId, groupMode) {
   const overlay = document.createElement('div');
   overlay.id = 'upgrade-add-modal';
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:10001;display:flex;align-items:center;justify-content:center;padding:1.25rem';
-  overlay.onclick = e => { if (e.target === overlay) overlay.remove(); };
+  rrDismissGuard(overlay);   // v0.9.1785
 
   overlay.innerHTML = `
     <div class="rr-card">
@@ -4412,7 +4412,7 @@ function showAddPartModal(existingId) {
     + '<button onclick="document.getElementById(\'_part-modal\').remove()" style="flex:1;padding:0.6rem;border-radius:8px;border:1px solid var(--border);background:none;color:var(--text-dim);font-family:var(--font-body);cursor:pointer">Cancel</button>'
     + '<button onclick="savePart(' + (existing.row || 0) + ')" style="flex:2;padding:0.6rem;border-radius:8px;border:none;background:var(--accent);color:var(--on-accent);font-family:var(--font-body);font-weight:600;cursor:pointer">' + (existingId ? 'Save' : '+ Add Part') + '</button>'
     + '</div></div>';
-  ov.onclick = function (e) { if (e.target === ov) ov.remove(); };
+  rrDismissGuard(ov);   // v0.9.1785
   window._partPhotoFile = null;
   document.body.appendChild(ov);
   if (window.BackStack && BackStack.wire) BackStack.wire(ov); // v0.9.805 TODO-012: device Back closes this pop-up
@@ -4594,7 +4594,7 @@ function _partInstallForm(rowNum, p, pd, task) {
   var ov = document.createElement('div');
   ov.id = '_part-install-modal';
   ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:10060;display:flex;align-items:center;justify-content:center;padding:1.25rem';
-  ov.onclick = function (e) { if (e.target === ov) ov.remove(); };
+  rrDismissGuard(ov);   // v0.9.1785
   ov.innerHTML = '<div class="rr-card">'
     + '<div class="rr-card-title">\u2713 Mark Part Installed</div>'
     + '<div style="font-size:0.82rem;color:var(--text-mid);margin-bottom:0.9rem">Recording this on <strong style="color:var(--text)">' + itemLabel + '</strong>' + (task ? ', task <strong style="color:var(--text)">' + _partsEsc(task.text) + '</strong>' : '') + '. The details below get added to that item\'s notes.</div>'

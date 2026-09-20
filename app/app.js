@@ -1101,6 +1101,91 @@ function rrJsArg(v) {
 }
 if (typeof window !== 'undefined') window.rrJsArg = rrJsArg;
 
+// ══ v0.9.1785 — a stray click must never discard typed work ══════════════
+// [stated] Brad, on the Edit want details dialog: "if you click outside of
+// the box it disappears." He had typed a condition target, a priority and a
+// max price; ONE click on the dark backdrop threw all three away, silently.
+//
+// SIX overlays carry typed fields and dismissed on a backdrop click:
+// _rrMiniEdit (which draws BOTH "Edit want details" AND "Edit asking price"),
+// openEphemeraEdit, showAddToUpgradeModal, showAddPartModal,
+// _openUserFieldsModal, and pickItemForUpgrade (a search box — annoying to
+// lose, not destructive). ONE guard for all of them: six copies of a rule is
+// how five of them drift, which is the lesson from the link builder.
+//
+// READ-ONLY popups still close on a backdrop click and always should —
+// dismissing those costs nothing and asking would be noise.
+//
+// UNCHANGED means UNCHANGED: open a dialog, touch nothing, click away, and it
+// closes exactly as before. The question is only ever asked when there is
+// something real to lose.
+function rrFieldsOf(ov) {
+  try { return Array.prototype.slice.call(ov.querySelectorAll('input,select,textarea')); }
+  catch (e) { return []; }
+}
+function rrSnapshot(ov) {
+  return rrFieldsOf(ov).map(function (el) {
+    return (el.type === 'checkbox' || el.type === 'radio')
+      ? (el.checked ? '1' : '0')
+      : String(el.value == null ? '' : el.value);
+  }).join('\u0001');
+}
+
+// An IN-APP confirm, never the browser's. `_pinConfirm`'s comment says why:
+// a native confirm() freezes the extension bridge. That one is local to
+// photo-inbox.js, so this is the shared copy — not a twelfth private one.
+function rrAskDiscard() {
+  return new Promise(function (resolve) {
+    var ov = document.createElement('div');
+    ov.style.cssText = 'position:fixed;inset:0;z-index:100020;background:var(--scrim);display:flex;align-items:center;justify-content:center;padding:1.2rem';
+    ov.innerHTML = '<div class="rr-card" style="max-width:340px">'
+      + '<div style="font-size:0.92rem;color:var(--text-mid);line-height:1.55;margin-bottom:1.1rem">'
+      + 'Discard what you typed? Your changes have not been saved.</div>'
+      + '<div style="display:flex;gap:0.6rem;justify-content:flex-end">'
+      + '<button id="_rrdk" style="padding:0.5rem 1rem;border-radius:8px;border:1.5px solid var(--border);background:none;color:var(--text-mid);font-family:var(--font-body);font-weight:600;font-size:0.85rem;cursor:pointer">Keep editing</button>'
+      + '<button id="_rrdd" style="padding:0.5rem 1rem;border-radius:8px;border:none;background:var(--accent);color:var(--on-accent);font-family:var(--font-body);font-weight:700;font-size:0.85rem;cursor:pointer">Discard</button>'
+      + '</div></div>';
+    document.body.appendChild(ov);
+    var done = function (v) { try { ov.remove(); } catch (e) {} resolve(v); };
+    ov.querySelector('#_rrdk').onclick = function () { done(false); };
+    ov.querySelector('#_rrdd').onclick = function () { done(true); };
+    // Clicking THIS backdrop keeps editing — the safe answer, never the
+    // destructive one. A guard that could itself throw the work away on a
+    // stray click would be no guard at all.
+    ov.addEventListener('click', function (e) { if (e.target === ov) done(false); });
+  });
+}
+
+// Wire an overlay's backdrop. `close` defaults to removing it; pass one when
+// the caller has its own teardown.
+//
+// The snapshot is taken on the NEXT TICK on purpose: several callers assign
+// this handler BEFORE setting innerHTML, so reading the fields now would find
+// none and every later edit would look like no change at all.
+window.rrDismissGuard = function (ov, close) {
+  if (!ov || ov._rrGuarded) return;
+  ov._rrGuarded = true;
+  var opened = null;
+  var snap = function () { try { opened = rrSnapshot(ov); } catch (e) {} };
+  snap();
+  try { setTimeout(snap, 0); } catch (e) {}
+  var shut = close || function () { try { ov.remove(); } catch (e) {} };
+  ov.addEventListener('click', function (e) {
+    if (e.target !== ov) return;
+    var now = '';
+    try { now = rrSnapshot(ov); } catch (e2) {}
+    if (opened !== null && now !== opened) {
+      rrAskDiscard().then(function (yes) { if (yes) shut(); });
+      return;
+    }
+    shut();
+  });
+  // Brad's standing rule (feedback_backstack_pattern): every overlay wires
+  // through BackStack so the device Back button closes it. This helper was
+  // missed — six other overlays in app-collection.js do it correctly.
+  try { if (window.BackStack && BackStack.wire) BackStack.wire(ov); } catch (e) {}
+};
+
 function baseItemNum(n) {
   return normalizeItemNum(n).replace(/[-]?[PDTC]$/i, '');
 }

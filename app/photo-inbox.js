@@ -1401,7 +1401,7 @@
     var card = document.createElement('div');
     card.style.cssText = _pinSheetCardCss(520, 82);
     ov.appendChild(card);
-    ov.onclick = function (e) { if (e.target === ov) ov.remove(); };
+    rrDismissGuard(ov);   // v0.9.1785
 
     function uniq(a) { var s2 = {}, o = []; a.forEach(function (v) { if (v && !s2[v]) { s2[v] = 1; o.push(v); } }); return o.sort(); }
 
@@ -3304,7 +3304,7 @@
     var ov = document.createElement('div');
     ov.id = 'pin-src-ov';
     ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:10000;display:flex;align-items:center;justify-content:center;padding:1rem';
-    ov.onclick = function (e) { if (e.target === ov) ov.remove(); };
+    rrDismissGuard(ov);   // v0.9.1785
     var bcss = 'display:flex;align-items:center;gap:0.7rem;width:100%;padding:0.95rem 1rem;border-radius:10px;border:2px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.95rem;font-weight:600;cursor:pointer;text-align:left';
     var X = "document.getElementById('pin-src-ov').remove();";
     // ── v0.9.1417 (beta tester 1, iPhone: "not able to add things from his

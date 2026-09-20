@@ -2138,7 +2138,7 @@ function _catCovConfig(slotIdx) {
     + '<button onclick="document.getElementById(\'catcov-pop\').remove()" style="padding:0.4rem 0.9rem;border-radius:7px;border:1px solid var(--border,#2a3a5c);background:var(--surface2,#222);color:var(--text,#eee);font-family:var(--font-body);font-size:0.82rem;cursor:pointer">Cancel</button>'
     + '<button onclick="_catCovSave(' + slotIdx + ')" style="padding:0.4rem 1.1rem;border-radius:7px;border:none;background:#2980b9;color:#fff;font-family:var(--font-body);font-size:0.82rem;font-weight:700;cursor:pointer">Save</button>'
     + '</div></div>';
-  ov.onclick = function(e) { if (e.target === ov) ov.remove(); };
+  rrDismissGuard(ov);   // v0.9.1785
   document.body.appendChild(ov);
   if (window.BackStack && BackStack.wire) BackStack.wire('catcov-pop');
 }

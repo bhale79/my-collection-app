@@ -119,6 +119,13 @@ function reg(id) { const e = mkEl('div'); e.id = id; REG[id] = e; return e; }
 
 global.window = global;
 global.navigator = { userAgent: 'node', maxTouchPoints: 0 };
+// v0.9.1785: rrDismissGuard is an app.js global, and index.html loads app.js
+// BEFORE photo-inbox.js, so in the real app it is always there. This sandbox
+// stands in for app.js, and the recorded rule is that such a sandbox must gain
+// every new app.js global or the code it loads THROWS — which is exactly what
+// happened here the first time (yardmaster_archive_tests hit the same thing and
+// it looked like a hang). The real one is proven in dismiss_guard_tests.js.
+global.rrDismissGuard = function (ov) { if (ov) ov.__guarded = true; };
 global.localStorage = { _d: {}, getItem(k){return this._d[k]===undefined?null:this._d[k];},
   setItem(k,v){this._d[k]=String(v);}, removeItem(k){delete this._d[k];} };
 // ── v0.9.1590: in-memory IndexedDB, shaped exactly like the staging code's

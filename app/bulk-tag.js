@@ -141,7 +141,7 @@ function rrTagOpen(preField, preValue, prePair) {
     +   '<button onclick="rrTagNext()" style="flex:2;padding:0.55rem;border-radius:9px;border:none;background:var(--accent);color:var(--on-accent);font-family:var(--font-body);font-weight:700;font-size:0.9rem;cursor:pointer">Next →</button>'
     + '</div></div>';
   document.body.appendChild(ov);
-  ov.addEventListener('click', function (e) { if (e.target === ov) ov.remove(); });
+  rrDismissGuard(ov);   // v0.9.1785
   var sel = document.getElementById('rr-tag-field');
   if (sel) sel.addEventListener('change', rrTagShowSeen);
   // v0.9.1558: arriving from "+ Custom column" — the name box is the point,

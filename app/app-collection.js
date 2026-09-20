@@ -2226,7 +2226,7 @@ function _rrDetailFieldsPicker() {
     '<button onclick="_rrDetailFieldsReset()" style="flex:1;padding:0.55rem;border-radius:9px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body);font-size:0.85rem;cursor:pointer">Reset to default</button>' +
     '<button onclick="_rrDetailFieldsApply()" style="flex:2;padding:0.55rem;border-radius:9px;border:none;background:var(--accent);color:var(--on-accent);font-family:var(--font-body);font-weight:700;font-size:0.9rem;cursor:pointer">Done</button></div>';
   ov.appendChild(box);
-  ov.addEventListener('click', function (e) { if (e.target === ov) ov.remove(); });
+  rrDismissGuard(ov);   // v0.9.1785
   document.body.appendChild(ov);
 
   var list = box.querySelector('#df-list');
@@ -5071,7 +5071,7 @@ function _rrMiniEdit(title, fields, onSave) {
     + '</div></div>';
   d.innerHTML = inner;
   document.body.appendChild(d);
-  d.addEventListener('click', function (e) { if (e.target === d) d.remove(); });
+  rrDismissGuard(d);   // v0.9.1785: a stray backdrop click must not discard typed work
   document.getElementById('rrme-cancel').onclick = function () { d.remove(); };
   document.getElementById('rrme-save').onclick = function () {
     var vals = {};

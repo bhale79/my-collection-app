@@ -979,7 +979,7 @@ function _openUserFieldsModal() {
   html += '<button onclick="document.getElementById(\'uf-modal-overlay\').remove()" style="width:100%;margin-top:0.9rem;padding:0.6rem;border-radius:9px;border:none;background:var(--accent);color:var(--on-accent);font-family:var(--font-body);font-weight:700;font-size:0.92rem;cursor:pointer">Done</button>';
   box.innerHTML = html;
   ov.appendChild(box);
-  ov.addEventListener('click', function (e) { if (e.target === ov) ov.remove(); });
+  rrDismissGuard(ov);   // v0.9.1785
   document.body.appendChild(ov);
   if (window.BackStack && BackStack.wire) BackStack.wire(ov);
 }
@@ -1193,7 +1193,7 @@ function _openLocationsModal(){
     + '</div>'
     + '</div>';
   document.body.appendChild(modal);
-  modal.addEventListener('click', function(e){ if (e.target === modal) modal.remove(); });
+  rrDismissGuard(modal);   // v0.9.1785
   document.getElementById('loc-close').addEventListener('click', function(){ modal.remove(); });
   document.getElementById('loc-add-btn').addEventListener('click', _addSavedLocation);
   document.getElementById('loc-seed-btn').addEventListener('click', _seedLocationsFromItems);
