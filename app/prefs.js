@@ -981,7 +981,7 @@ function _openUserFieldsModal() {
   ov.appendChild(box);
   rrDismissGuard(ov);   // v0.9.1785
   document.body.appendChild(ov);
-  if (window.BackStack && BackStack.wire) BackStack.wire(ov);
+  // v0.9.1786: BackStack is wired by rrDismissGuard above — one place, not two.
 }
 function _ufToggle(key, on) {
   var f = (window.RR_USER_FIELDS || []).filter(function (x) { return x.key === key; })[0];

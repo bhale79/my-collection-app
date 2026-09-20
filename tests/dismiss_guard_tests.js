@@ -1,27 +1,33 @@
 // ════════════════════════════════════════════════════════════════════════
-// dismiss_guard_tests.js — v0.9.1785
+// dismiss_guard_tests.js — v0.9.1786
 //
 // [stated] Brad, on the "Edit want details" dialog, with a screenshot showing
-// a condition target of 7, a priority of High and a max price of 150 typed in:
+// a condition target of 7, a priority of High and a max price of 150:
 //
 //     "if you click outside of the box it disappears."
 //
-// One click on the dark backdrop removed the overlay and threw all three away.
-// No confirm, no toast, nothing. The line was:
+// …and, after v0.9.1785 supposedly fixed it:
 //
-//     d.addEventListener('click', function (e) { if (e.target === d) d.remove(); });
+//     "nope, still does it."
 //
-// ⚠ THE COUNT WAS WRONG THREE TIMES BEFORE IT WAS RIGHT. A first pass using a
-// line-window said ELEVEN overlays were affected; a tighter one said THREE;
-// scanning whole function bodies said SIX; widening from four files to ALL of
-// them found SEVEN MORE, including `_partInstallForm` (five typed fields) and
-// two checkbox pickers where losing your ticks is the same bug. The real
-// number is 15 call sites. **A heuristic that has not been checked against the
-// source is a guess.** This suite pins the real list so the next change to it
-// is deliberate.
+// ⚠ v1785 GUARDED THE WRONG THING, AND THAT IS THE LESSON HERE. It asked
+// before discarding CHANGES and closed silently when nothing had been touched
+// — on the reasoning that there was nothing to lose. But the dialog opens with
+// the saved values already in it, so opening it and clicking away still made
+// it vanish. He reported the dialog VANISHING; the fix addressed losing edits,
+// which is a narrower thing. **He described a symptom; I fixed my theory of
+// the cause and never checked the theory against him.**
 //
-// ONE guard, not fifteen copies — six copies of a rule is how five of them
-// drift (the link-builder lesson from v0.9.1783).
+// [stated] Asked directly, he answered: "never close if you pick outside."
+//
+// So the rule has no conditions in it now: a backdrop click does NOTHING.
+// Cancel, Save, the ✕, or the device Back button. A rule that depends on
+// whether the app thinks you touched something is a rule you cannot trust.
+//
+// ⚠ AND THE COUNT WAS WRONG FOUR TIMES BEFORE IT WAS RIGHT: a line-window
+// said ELEVEN overlays, a tighter slice said THREE, whole function bodies said
+// SIX, widening to every file found FIFTEEN. A heuristic that has not been
+// checked against the source is a guess.
 //
 // Section D plants an offender for every rule.
 // ════════════════════════════════════════════════════════════════════════
@@ -38,227 +44,158 @@ function ok(name, cond, detail) {
 }
 function section(t) { console.log('\n== ' + t + ' =='); }
 
-// ── lift the REAL helpers out of app.js ──────────────────────────────────
-function grab(src, name) {
-  const i = src.indexOf('function ' + name + '(');
-  if (i < 0) return null;
-  let d = 0;
-  for (let k = src.indexOf('{', i); k < src.length; k++) {
-    if (src[k] === '{') d++;
-    else if (src[k] === '}') { d--; if (!d) return src.slice(i, k + 1); }
-  }
-  return null;
-}
-const sFields = grab(APP, 'rrFieldsOf');
-const sSnap   = grab(APP, 'rrSnapshot');
 const gi = APP.indexOf('window.rrDismissGuard = function');
 const ge = APP.indexOf('\n};', gi);
-const sGuard = gi < 0 ? null : APP.slice(gi, ge + 3);
+const GUARD = gi < 0 ? null : APP.slice(gi, ge + 3);
 
 // ── a DOM small enough to be honest about what it stands for ─────────────
 function mkEl(tag, attrs) {
-  const el = Object.assign({
-    tagName: (tag || 'div').toUpperCase(), children: [], _listeners: {},
-    style: { cssText: '' }, value: '', checked: false, type: 'text',
-    addEventListener(t, fn) { (this._listeners[t] = this._listeners[t] || []).push(fn); },
-    removeEventListener() {},
+  return Object.assign({
+    tagName: (tag || 'div').toUpperCase(), children: [], _l: {},
+    value: '', checked: false, type: 'text',
+    addEventListener(k, f) { (this._l[k] = this._l[k] || []).push(f); },
     appendChild(c) { this.children.push(c); c.parentNode = this; return c; },
-    remove() { this._removed = true; if (this.parentNode) this.parentNode.children =
-      this.parentNode.children.filter(x => x !== this); },
-    querySelectorAll(sel) {
-      const want = sel.split(',').map(s => s.trim().toUpperCase());
-      const out = [];
-      (function walk(n) { (n.children || []).forEach(c => {
-        if (want.indexOf(c.tagName) >= 0) out.push(c); walk(c);
-      }); })(this);
-      return out;
-    },
-    querySelector(sel) { return this.querySelectorAll(sel)[0] || null; },
-    fire(t, ev) { (this._listeners[t] || []).forEach(fn => fn(ev)); },
+    remove() { this._removed = true; },
+    fire(k, ev) { (this._l[k] || []).forEach(f => f(ev)); },
   }, attrs || {});
-  return el;
 }
-
-function build(guardSrc, fieldsSrc, snapSrc) {
-  const body = document._body = mkEl('body');
-  const document_ = {
-    body: body,
-    createElement: (t) => mkEl(t),
-  };
-  const asked = { count: 0, answer: true };
-  const sandbox = {};
-  const fn = new Function('window', 'document', 'rrAskDiscard', 'setTimeout', 'BackStack',
-    (fieldsSrc || sFields) + '\n' + (snapSrc || sSnap) + '\n' + (guardSrc || sGuard)
-    + '\nreturn { guard: window.rrDismissGuard, snap: rrSnapshot, fields: rrFieldsOf };');
+function build(src) {
   const wired = [];
   const BackStack = { wire: function (ov) { wired.push(ov); } };
-  sandbox.BackStack = BackStack;   // the guard reads window.BackStack, then calls BackStack.wire
-  const api = fn(sandbox, document_,
-    function () { asked.count++; return Promise.resolve(asked.answer); },
-    function (cb) { cb(); },                       // run the next-tick snapshot now
-    BackStack);
-  return { api, asked, wired, document_ };
+  const win = { BackStack: BackStack };
+  const guard = new Function('window', 'BackStack',
+    (src || GUARD) + '\nreturn window.rrDismissGuard;')(win, BackStack);
+  return { guard, wired };
 }
-const document = {};   // placeholder so mkEl's closure above is happy
+function ev(target) {
+  const e = { target: target, _stopped: false, _prevented: false };
+  e.stopPropagation = function () { e._stopped = true; };
+  e.preventDefault = function () { e._prevented = true; };
+  return e;
+}
 
 // ════════════════════════════════════════════════════════════════════════
-section('A. The helper ships and is ONE helper');
-
-ok('rrFieldsOf ships', !!sFields);
-ok('rrSnapshot ships', !!sSnap);
-ok('rrDismissGuard ships and is on window', !!sGuard && /window\.rrDismissGuard/.test(APP));
-ok('rrAskDiscard ships — an IN-APP dialog, never the browser confirm',
-   /function rrAskDiscard\(/.test(APP) && !/[^.\w]confirm\(/.test(sGuard || ''));
-if (!sGuard || !sFields || !sSnap) { console.log('\ncannot continue'); process.exit(1); }
+section('A. The helper ships, and it is ONE helper');
+ok('rrDismissGuard ships on window', !!GUARD && /window\.rrDismissGuard/.test(APP));
+ok('the dead v1785 helpers are GONE, not left lying around',
+   !/function rrAskDiscard\(/.test(APP) && !/function rrSnapshot\(/.test(APP)
+   && !/function rrFieldsOf\(/.test(APP));
+if (!GUARD) { console.log('\ncannot continue'); process.exit(1); }
 
 // ════════════════════════════════════════════════════════════════════════
-section('B. UNCHANGED closes. CHANGED asks. Nothing is ever lost silently.');
+section('B. An outside click does NOTHING. No conditions.');
 {
-  const { api, asked } = build();
+  const { guard } = build();
   const ov = mkEl('div');
-  const inp = mkEl('input', { value: '7' });
-  ov.appendChild(inp);
-  api.guard(ov);
-
-  // nothing touched -> closes exactly as before
-  ov.fire('click', { target: ov });
-  ok('an untouched dialog still closes on a backdrop click', ov._removed === true);
-  ok('…and it did NOT ask — no question where there is nothing to lose', asked.count === 0);
-}
-{
-  const { api, asked } = build();
-  const ov = mkEl('div');
-  const inp = mkEl('input', { value: '7' });
-  ov.appendChild(inp);
-  api.guard(ov);
-
-  inp.value = '9';                     // Brad types
-  asked.answer = false;                // …and chooses Keep editing
-  ov.fire('click', { target: ov });
-  ok('a CHANGED dialog asks before closing', asked.count === 1);
-  ok('…and "Keep editing" LEAVES IT OPEN — the typed work survives',
+  guard(ov);
+  const e = ev(ov);
+  ov.fire('click', e);
+  ok('a backdrop click does not close an untouched dialog — THE BUG BRAD REPORTED',
      ov._removed !== true);
-  ok('…with the value still in the field', inp.value === '9');
+  ok('…and the click is swallowed, not passed on underneath', e._stopped === true);
 }
 {
-  const { api, asked } = build();
+  // the v1785 behaviour must NOT come back in any form: no snapshot, no ask
+  const { guard } = build();
   const ov = mkEl('div');
-  const inp = mkEl('input', { value: 'a' });
+  const inp = mkEl('input', { value: '7' });
   ov.appendChild(inp);
-  api.guard(ov);
-  inp.value = 'b';
-  asked.answer = true;                 // …chooses Discard
-  ov.fire('click', { target: ov });
-  ok('…and "Discard" does close it', asked.count === 1);
+  guard(ov);
+  inp.value = '150';                      // typed
+  ov.fire('click', ev(ov));
+  ok('a CHANGED dialog also stays open — same rule, no special case',
+     ov._removed !== true);
+  inp.value = '7';                        // typed back to the original
+  ov.fire('click', ev(ov));
+  ok('…and so does one typed back to its original value', ov._removed !== true);
 }
 {
-  // a click INSIDE the dialog must never close it, changed or not
-  const { api, asked } = build();
+  const { guard } = build();
   const ov = mkEl('div');
   const card = mkEl('div');
-  const inp = mkEl('input', { value: '1' });
-  ov.appendChild(card); card.appendChild(inp);
-  api.guard(ov);
-  inp.value = '2';
-  ov.fire('click', { target: card });
-  ok('a click INSIDE the dialog closes nothing and asks nothing',
-     ov._removed !== true && asked.count === 0);
+  ov.appendChild(card);
+  guard(ov);
+  const e = ev(card);
+  ov.fire('click', e);
+  ok('a click INSIDE the dialog is left completely alone',
+     ov._removed !== true && e._stopped === false);
 }
 {
-  // checkboxes count — losing ten ticks is the same bug as losing a price
-  const { api, asked } = build();
+  const { guard } = build();
   const ov = mkEl('div');
-  const cb = mkEl('input', { type: 'checkbox', checked: false });
-  ov.appendChild(cb);
-  api.guard(ov);
-  cb.checked = true;
-  asked.answer = false;
-  ov.fire('click', { target: ov });
-  ok('a ticked CHECKBOX counts as a change', asked.count === 1 && ov._removed !== true);
+  guard(ov); guard(ov);
+  ok('guarding twice attaches ONE handler', (ov._l.click || []).length === 1);
 }
-{
-  // a <select> counts too — two of the guarded dialogs are dropdown-only
-  const { api, asked } = build();
-  const ov = mkEl('div');
-  const sel = mkEl('select', { value: 'Medium' });
-  ov.appendChild(sel);
-  api.guard(ov);
-  sel.value = 'High';
-  asked.answer = false;
-  ov.fire('click', { target: ov });
-  ok('a changed SELECT counts as a change', asked.count === 1 && ov._removed !== true);
-}
-{
-  // a dialog with no fields at all behaves exactly as it always did
-  const { api, asked } = build();
-  const ov = mkEl('div');
-  api.guard(ov);
-  ov.fire('click', { target: ov });
-  ok('a field-less overlay closes with no question', ov._removed === true && asked.count === 0);
-}
-{
-  // guarding twice must not stack two handlers
-  const { api, asked } = build();
-  const ov = mkEl('div');
-  const inp = mkEl('input', { value: 'x' });
-  ov.appendChild(inp);
-  api.guard(ov); api.guard(ov);
-  inp.value = 'y';
-  asked.answer = false;
-  ov.fire('click', { target: ov });
-  ok('guarding the same overlay twice asks ONCE, not twice', asked.count === 1);
-}
+ok('the guard holds no snapshot, no comparison and no prompt',
+   !/rrSnapshot|rrAskDiscard|opened/.test(GUARD), 'v1785 logic is still in there');
 
 // ════════════════════════════════════════════════════════════════════════
-section('C. The device Back button — Brad\'s standing overlay rule');
+section('C. The device Back button still gets you out');
 {
-  const { api, wired } = build();
+  const { guard, wired } = build();
   const ov = mkEl('div');
-  api.guard(ov);
+  guard(ov);
   ok('every guarded overlay wires through BackStack', wired.length === 1 && wired[0] === ov);
 }
 
 // ════════════════════════════════════════════════════════════════════════
-section('D. THE REAL CALL SITES — the list, pinned');
-// The count was wrong three times before it was right. This is the list as
-// measured against the source on 2026-09-20; changing it should be deliberate.
-const EXPECT = {
-  'app-collection.js': 2,   // _rrMiniEdit (want details AND asking price) + _rrDetailFieldsPicker
-  'app-pages.js':      6,   // ephemera edit, ebay filters, pick-for-upgrade,
-                            // add-to-upgrade, add part, part install form
-  'browse.js':         1,   // collection columns picker
-  'bulk-tag.js':       1,   // tag picker
-  'dashboard.js':      1,   // catalogue-coverage config
-  'photo-inbox.js':    2,   // context picker, file picker
-  'prefs.js':          2,   // user fields, locations
-};
-let total = 0;
-Object.keys(EXPECT).forEach(function (f) {
-  const src = fs.readFileSync(path.join(APPDIR, f), 'utf8');
-  const n = (src.match(/rrDismissGuard\(/g) || []).length;
-  total += n;
-  ok(f + ' guards ' + EXPECT[f] + ' overlay(s)', n === EXPECT[f], 'found ' + n);
+section('D. EVERY guarded overlay has a visible way OUT');
+// This is the check that makes "never close" safe. Without a Cancel, a Done,
+// a Close or an ✕, "never close on a backdrop click" would TRAP the user —
+// far worse than the bug it fixes.
+//
+// ⚠ It decodes \uXXXX first. The ✕ on pickItemForUpgrade is written '✕'
+// in source, and a first pass at this check read the raw text, reported "NO
+// WAY OUT", and very nearly had a button added to a dialog that already had
+// one. Same escape-decoding trap as the tap-target scan in v0.9.1777.
+function decode(s) {
+  return s.replace(/\\u([0-9a-fA-F]{4})/g, function (_, h) {
+    return String.fromCharCode(parseInt(h, 16));
+  });
+}
+const WAYS = /(>\s*(Cancel|Close|Done|Not now|Back|Skip)\s*<)|×|&times;|✕|✖|╳/i;
+const FILES = ['app-collection.js', 'app-pages.js', 'browse.js', 'bulk-tag.js',
+               'dashboard.js', 'photo-inbox.js', 'prefs.js'];
+let sites = 0, trapped = [];
+FILES.forEach(function (f) {
+  const lines = fs.readFileSync(path.join(APPDIR, f), 'utf8').split('\n');
+  lines.forEach(function (ln, i) {
+    if (!/rrDismissGuard\(/.test(ln)) return;
+    sites++;
+    let st = i; for (let j = i; j >= 0; j--) if (lines[j] && !/^\s/.test(lines[j])) { st = j; break; }
+    let en = lines.length; for (let j = i; j < lines.length; j++) if (/^\}/.test(lines[j])) { en = j; break; }
+    if (!WAYS.test(decode(lines.slice(st, en).join('\n')))) trapped.push(f + ':' + (i + 1));
+  });
 });
-ok('15 call sites in total, and ONE helper behind them', total === 15, String(total));
+ok('every guarded overlay offers Cancel / Done / Close / ✕', trapped.length === 0,
+   trapped.join(', '));
+ok('15 guarded call sites, and ONE helper behind them', sites === 15, String(sites));
 
-// The rule that keeps it true: nobody hand-rolls a bare backdrop-remove on an
-// overlay that holds typed fields ever again.
+// nobody double-wires BackStack any more — the guard does it, once
+let dbl = 0;
+FILES.forEach(function (f) {
+  const lines = fs.readFileSync(path.join(APPDIR, f), 'utf8').split('\n');
+  lines.forEach(function (ln, i) {
+    const m = ln.match(/rrDismissGuard\((\w+)\)/); if (!m) return;
+    let en = lines.length; for (let j = i; j < lines.length; j++) if (/^\}/.test(lines[j])) { en = j; break; }
+    lines.slice(i, en).forEach(function (l2) {
+      if (new RegExp('BackStack\\.wire\\(' + m[1] + '\\)').test(l2)) dbl++;
+    });
+  });
+});
+ok('no guarded overlay wires BackStack twice', dbl === 0, String(dbl));
+
+// and nobody hand-rolls a backdrop dismissal on an overlay with typed fields
 const OFFENDERS = [];
 fs.readdirSync(APPDIR).filter(f => f.endsWith('.js')).forEach(function (f) {
   const lines = fs.readFileSync(path.join(APPDIR, f), 'utf8').split('\n');
   lines.forEach(function (ln, i) {
     if (/rrDismissGuard\(/.test(ln)) return;
     if (!/e\.target === ([A-Za-z_$][\w$]*)\b[\s\S]{0,40}\.remove\(\)/.test(ln)) return;
-    let st = i;
-    for (let j = i; j >= 0; j--) if (lines[j] && !/^\s/.test(lines[j])) { st = j; break; }
-    let en = lines.length;
-    for (let j = i; j < lines.length; j++) if (/^\}/.test(lines[j])) { en = j; break; }
-    const body = lines.slice(st, en).join('\n');
-    // barcode.js's two handlers test e.target.getAttribute, not identity, and
-    // hold no fields of their own — deliberately left alone.
-    if (/<input|<select|<textarea/.test(body) && !/getAttribute/.test(ln)) {
-      OFFENDERS.push(f + ':' + (i + 1));
-    }
+    if (/getAttribute/.test(ln)) return;      // barcode.js tests an attribute, not identity
+    let st = i; for (let j = i; j >= 0; j--) if (lines[j] && !/^\s/.test(lines[j])) { st = j; break; }
+    let en = lines.length; for (let j = i; j < lines.length; j++) if (/^\}/.test(lines[j])) { en = j; break; }
+    if (/<input|<select|<textarea/.test(lines.slice(st, en).join('\n'))) OFFENDERS.push(f + ':' + (i + 1));
   });
 });
 ok('no overlay with typed fields hand-rolls its own backdrop dismissal',
@@ -267,90 +204,53 @@ ok('no overlay with typed fields hand-rolls its own backdrop dismissal',
 // ════════════════════════════════════════════════════════════════════════
 section('E. Planted offenders — every rule above can actually fail');
 {
-  // 1 — the guard goes back to closing unconditionally: the shipped bug.
-  const naive = sGuard
-    .replace(/if \(opened !== null && now !== opened\) \{[\s\S]*?return;\s*\}/, '');
-  const { api, asked } = build(naive);
+  // 1 — the shipped bug: the backdrop closes the dialog.
+  const naive = GUARD.replace(
+    /ov\.addEventListener\('click'[\s\S]*?\}\);/,
+    "ov.addEventListener('click', function (e) { if (e.target === ov) ov.remove(); });");
+  const b = build(naive);
   const ov = mkEl('div');
-  const inp = mkEl('input', { value: '7' });
-  ov.appendChild(inp);
-  api.guard(ov);
-  inp.value = '150';
-  ov.fire('click', { target: ov });
-  ok('a guard that closes without asking is caught — THE BUG BRAD REPORTED',
-     naive !== sGuard && ov._removed === true && asked.count === 0);
+  b.guard(ov);
+  ov.fire('click', ev(ov));
+  ok('a guard that closes on a backdrop click is caught — THE BUG BRAD REPORTED',
+     naive !== GUARD && ov._removed === true);
 
-  // 2 — the snapshot is taken but never compared (always looks unchanged).
-  const blindSnap = sSnap.replace(/return rrFieldsOf\(ov\)[\s\S]*?\.join\('\\u0001'\);/,
-                                  "return '';");
-  const b = build(null, null, blindSnap);
+  // 2 — v1785 creeping back: close when it thinks nothing changed.
+  const v1785ish = GUARD.replace(
+    "if (e.target === ov) { e.stopPropagation(); e.preventDefault(); }",
+    "if (e.target === ov && !ov._touched) ov.remove();");
+  const c = build(v1785ish);
   const ov2 = mkEl('div');
-  const inp2 = mkEl('input', { value: 'a' });
-  ov2.appendChild(inp2);
-  b.api.guard(ov2);
-  inp2.value = 'b';
-  ov2.fire('click', { target: ov2 });
-  ok('a snapshot that cannot see a change is caught',
-     blindSnap !== sSnap && ov2._removed === true && b.asked.count === 0);
+  c.guard(ov2);
+  ov2.fire('click', ev(ov2));
+  ok('the v1785 "close if unchanged" rule creeping back is caught',
+     v1785ish !== GUARD && ov2._removed === true);
 
-  // 3 — checkboxes read as .value instead of .checked, so ticks look identical.
-  const noCheck = "function rrSnapshot(ov) { return rrFieldsOf(ov).map(function (el) { "
-                + "return String(el.value == null ? '' : el.value); }).join('\u0001'); }";
-  if (noCheck !== sSnap) {
-    const c = build(null, null, noCheck);
-    const ov3 = mkEl('div');
-    const cb = mkEl('input', { type: 'checkbox', checked: false, value: 'on' });
-    ov3.appendChild(cb);
-    c.api.guard(ov3);
-    cb.checked = true;                 // value never moves
-    ov3.fire('click', { target: ov3 });
-    ok('reading a checkbox by .value instead of .checked is caught',
-       ov3._removed === true && c.asked.count === 0);
-  } else {
-    ok('reading a checkbox by .value instead of .checked is caught', false,
-       'the offender did not change the source — has the snapshot moved?');
-  }
-
-  // 4 — the BackStack wiring is dropped.
-  const noBack = sGuard.replace(/try \{ if \(window\.BackStack[\s\S]*?\} catch \(e\) \{\}/, '');
+  // 3 — the BackStack wiring is dropped, so device Back stops working.
+  const noBack = GUARD.replace(/try \{ if \(window\.BackStack[\s\S]*?\} catch \(e\) \{\}/, '');
   const d = build(noBack);
-  d.api.guard(mkEl('div'));
-  ok('losing the BackStack wiring is caught', noBack !== sGuard && d.wired.length === 0);
+  d.guard(mkEl('div'));
+  ok('losing the BackStack wiring is caught', noBack !== GUARD && d.wired.length === 0);
 
-  // 5 — the double-guard latch goes, so two handlers stack and it asks twice.
-  const noLatch = sGuard.replace(/if \(!ov \|\| ov\._rrGuarded\) return;\s*\n\s*ov\._rrGuarded = true;/,
-                                 'if (!ov) return;');
-  if (noLatch !== sGuard) {
-    const e = build(noLatch);
-    const ov5 = mkEl('div');
-    const i5 = mkEl('input', { value: '1' });
-    ov5.appendChild(i5);
-    e.api.guard(ov5); e.api.guard(ov5);
-    i5.value = '2';
-    e.asked.answer = false;
-    ov5.fire('click', { target: ov5 });
-    ok('losing the double-guard latch is caught', e.asked.count === 2);
-  } else {
-    ok('losing the double-guard latch is caught', false, 'offender did not apply');
-  }
+  // 4 — the double-guard latch goes and two handlers stack.
+  const noLatch = GUARD.replace(/if \(!ov \|\| ov\._rrGuarded\) return;\s*\n\s*ov\._rrGuarded = true;/,
+                                'if (!ov) return;');
+  const e4 = build(noLatch);
+  const ov4 = mkEl('div');
+  e4.guard(ov4); e4.guard(ov4);
+  ok('losing the double-guard latch is caught',
+     noLatch !== GUARD && (ov4._l.click || []).length === 2);
 
-  // 6 — the call-site scan must FIRE on a newly hand-rolled backdrop remove,
-  //     and must NOT fire on a read-only one. Both halves, or it is worthless.
-  const fakeTyped = "function _newThing() {\n  var ov = 1;\n  ov.innerHTML = '<input id=\"x\">';\n  ov.onclick = function (e) { if (e.target === ov) ov.remove(); };\n}";
-  const fakePlain = "function _newPlain() {\n  var ov = 1;\n  ov.innerHTML = '<p>hi</p>';\n  ov.onclick = function (e) { if (e.target === ov) ov.remove(); };\n}";
-  function scan(src) {
-    const lines = src.split('\n'); const hits = [];
-    lines.forEach(function (ln, i) {
-      if (/rrDismissGuard\(/.test(ln)) return;
-      if (!/e\.target === ([A-Za-z_$][\w$]*)\b[\s\S]{0,40}\.remove\(\)/.test(ln)) return;
-      let st = i; for (let j = i; j >= 0; j--) if (lines[j] && !/^\s/.test(lines[j])) { st = j; break; }
-      let en = lines.length; for (let j = i; j < lines.length; j++) if (/^\}/.test(lines[j])) { en = j; break; }
-      if (/<input|<select|<textarea/.test(lines.slice(st, en).join('\n'))) hits.push(i + 1);
-    });
-    return hits;
-  }
-  ok('the scan FIRES on a new hand-rolled backdrop remove with a field', scan(fakeTyped).length === 1);
-  ok('…and does NOT fire on a read-only popup', scan(fakePlain).length === 0);
+  // 5 — the way-out scan must FIRE on a trapped dialog, and must NOT be fooled
+  //     by an escaped ✕. Both halves, or it is worthless — and the second half
+  //     is the one that actually bit.
+  const trappedSrc = "function _t() {\n  var ov = 1;\n  rrDismissGuard(ov);\n  ov.innerHTML = '<div>no exit here</div>';\n}";
+  const escapedX  = "function _t() {\n  var ov = 1;\n  rrDismissGuard(ov);\n  ov.innerHTML = '<button>\\u2715</button>';\n}";
+  function hasWayOut(src) { return WAYS.test(decode(src)); }
+  ok('the scan FIRES on a dialog with no way out', !hasWayOut(trappedSrc));
+  ok('…and is NOT fooled by an ✕ written as \\u2715', hasWayOut(escapedX));
+  ok('…and reading it RAW would have been fooled — which is why it decodes',
+     !WAYS.test(escapedX));
 }
 
 console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');

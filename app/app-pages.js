@@ -613,7 +613,7 @@ function openEphemeraEdit(tabId, rowKey) {
     + '<button onclick="document.getElementById(\'eph-edit-modal\').remove()" style="flex:1;padding:0.7rem;border-radius:9px;border:1px solid var(--border);background:var(--surface2);color:var(--text-mid);cursor:pointer;font-family:var(--font-body)">Cancel</button>'
     + '</div></div>';
   document.body.appendChild(overlay);
-  if (window.BackStack && BackStack.wire) BackStack.wire(overlay); // v0.9.805 TODO-012: device Back closes this pop-up
+  // v0.9.1786: BackStack is wired by rrDismissGuard above — one place, not two.
 
   overlay.querySelector('#ephe-save').onclick = async function () {
     this.textContent = 'Saving…'; this.disabled = true;
@@ -1326,7 +1326,7 @@ function wantFindOnEbay(itemNum, roadName) {
   `;
 
   document.body.appendChild(_overlay);
-  if (window.BackStack && BackStack.wire) BackStack.wire(_overlay); // v0.9.805 TODO-012: device Back closes this pop-up
+  // v0.9.1786: BackStack is wired by rrDismissGuard above — one place, not two.
   window._ebayListingType = 'active';
 }
 
@@ -3653,7 +3653,7 @@ function pickItemForUpgrade() {
     + '<div id="upg-pick-list" style="overflow-y:auto;flex:1"></div>'
     + '</div>';
   document.body.appendChild(overlay);
-  if (window.BackStack && BackStack.wire) BackStack.wire(overlay); // v0.9.805 TODO-012: device Back closes this pop-up
+  // v0.9.1786: BackStack is wired by rrDismissGuard above — one place, not two.
   _upgPickApply();
 }
 if (typeof window !== 'undefined') window.pickItemForUpgrade = pickItemForUpgrade;
@@ -3773,7 +3773,7 @@ function showAddToUpgradeModal(itemNum, variation, pdRow, invId, groupMode) {
       </div>
     </div>`;
   document.body.appendChild(overlay);
-  if (window.BackStack && BackStack.wire) BackStack.wire(overlay); // v0.9.805 TODO-012: device Back closes this pop-up
+  // v0.9.1786: BackStack is wired by rrDismissGuard above — one place, not two.
 }
 
 // Phase 3: signature unchanged (modal already passes invId). Reload after
@@ -4415,7 +4415,7 @@ function showAddPartModal(existingId) {
   rrDismissGuard(ov);   // v0.9.1785
   window._partPhotoFile = null;
   document.body.appendChild(ov);
-  if (window.BackStack && BackStack.wire) BackStack.wire(ov); // v0.9.805 TODO-012: device Back closes this pop-up
+  // v0.9.1786: BackStack is wired by rrDismissGuard above — one place, not two.
   // Make the "For which item?" dropdown searchable (type an item # or road name).
   if (window.RoadTypeahead && typeof RoadTypeahead.attach === 'function') {
     var _pfSel = document.getElementById('_part-for');
@@ -4620,7 +4620,7 @@ function _partInstallForm(rowNum, p, pd, task) {
     + '<button onclick="_savePartInstalled(' + rowNum + ')" style="flex:2;padding:0.6rem;border-radius:8px;border:none;background:#2ecc71;color:#fff;font-family:var(--font-body);font-weight:600;cursor:pointer">\u2713 Save to item</button>'
     + '</div></div>';
   document.body.appendChild(ov);
-  if (window.BackStack && BackStack.wire) BackStack.wire(ov); // v0.9.805 TODO-012: device Back closes this pop-up
+  // v0.9.1786: BackStack is wired by rrDismissGuard above — one place, not two.
   var di = document.getElementById('_inst-desc'); if (di) di.focus();
 }
 
