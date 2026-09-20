@@ -84,22 +84,43 @@ section('The sweep: no handler argument is left unescaped');
 const FILES = ['maintenance.js', 'contacts.js', 'yardmaster.js', 'stock-photos.js'];
 const OPEN_ARG = "\\'' + ";
 let armed = 0, total = 0;
+const unarmed = [];
 FILES.forEach(function (f) {
   const s = APP(f);
   let i = 0;
   while ((i = s.indexOf(OPEN_ARG, i)) >= 0) {
-    const after = s.slice(i + OPEN_ARG.length, i + OPEN_ARG.length + 10);
+    const after = s.slice(i + OPEN_ARG.length, i + OPEN_ARG.length + 60);
     total++;
     if (after.indexOf('rrJsArg(') === 0) armed++;
     else if (after.indexOf('_esc(') === 0) { fail++; console.log('  FAIL  ' + f + ' still drops _esc() straight into a handler argument at ' + i); }
+    else unarmed.push({ file: f, expr: after.split(" + '")[0].trim() });
     i += OPEN_ARG.length;
   }
 });
-// 74 openings in all: 64 carry TEXT and are now armed; the other 10 pass internal
-// constants the code itself wrote (a pref key, a select id, a field name), which
-// cannot contain an apostrophe.
-ok('every handler argument that carries text goes through rrJsArg (64 of them)', armed === 64, 'armed ' + armed + ' of ' + total + ' openings');
-ok('…and the sweep found every opening it expected to', total === 74, String(total));
+// v0.9.1788 — TWO HAND-TYPED COUNTS REPLACED BY THE RULE THEY STOOD FOR.
+//
+// This used to read `armed === 64 && total === 74`. Both numbers moved every
+// time anyone added or removed a handler in these four files — v1788 shifted
+// them to 65 and 75 and turned the suite red while the code was correct. That
+// is the version-pin tax of v0.9.1784 in a different costume: a number a test
+// should not know, edited by hand on every release until somebody updates one
+// and not the other.
+//
+// The RULE was never about the count. It is: an opening either goes through
+// rrJsArg, or it passes an internal constant the code itself wrote — a pref
+// key, a select id, a page slug — which cannot contain an apostrophe. So
+// assert exactly that, and name the constants. Adding an armed handler now
+// needs no edit here at all; adding an UNARMED one fails and prints its own
+// name, which is far more useful than "expected 64, got 65".
+const KNOWN_CONSTANTS = ['ATLAS_PAGE', 'f', 'ke', 'prefKey', 'selectId', 'st', 'x[0]'];
+ok('every handler argument that carries text goes through rrJsArg',
+   unarmed.every(u => KNOWN_CONSTANTS.indexOf(u.expr) >= 0),
+   unarmed.filter(u => KNOWN_CONSTANTS.indexOf(u.expr) < 0).map(u => u.file + ':' + u.expr).join(', '));
+ok('…and the sweep still finds openings at all, so a broken scan cannot pass on zero',
+   total >= 70 && armed >= 60, 'armed ' + armed + ' of ' + total);
+ok('…and every named constant is still genuinely there (no stale entry left behind)',
+   KNOWN_CONSTANTS.every(c => unarmed.some(u => u.expr === c)),
+   KNOWN_CONSTANTS.filter(c => !unarmed.some(u => u.expr === c)).join(', '));
 FILES.forEach(function (f) {
   ok(f + ' has no _esc() left inside a handler argument', APP(f).indexOf("\\'' + _esc(") < 0);
 });

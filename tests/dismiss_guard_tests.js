@@ -153,9 +153,20 @@ function decode(s) {
     return String.fromCharCode(parseInt(h, 16));
   });
 }
-const WAYS = /(>\s*(Cancel|Close|Done|Not now|Back|Skip)\s*<)|×|&times;|✕|✖|╳/i;
-const FILES = ['app-collection.js', 'app-pages.js', 'browse.js', 'bulk-tag.js',
-               'dashboard.js', 'photo-inbox.js', 'prefs.js'];
+// v0.9.1788: a leading glyph is normal on a back button ("← Back"), and the
+// old pattern demanded the word sit flush against the '>'. It would have
+// called the new Maintenance task card a trap while it had a Back button in
+// plain sight.
+const WAYS = /(>\s*[^<A-Za-z]{0,3}\s*(Cancel|Close|Done|Not now|Back|Skip)\b)|×|&times;|✕|✖|╳/i;
+// v0.9.1788: EVERY app file, not a list of seven.
+//
+// The list was hand-written in v1786 and named only the files that had guarded
+// overlays THAT DAY. A guard added anywhere else — as v1788 did, in
+// maintenance.js — got no way-out check at all, which is the one check that
+// makes "never close on an outside click" safe rather than a trap. A
+// hand-kept list of files to scan is the same mistake as a hand-typed version
+// number: it is correct only until the next change.
+const FILES = fs.readdirSync(APPDIR).filter(f => f.endsWith('.js')).sort();
 let sites = 0, trapped = [];
 FILES.forEach(function (f) {
   const lines = fs.readFileSync(path.join(APPDIR, f), 'utf8').split('\n');
@@ -169,7 +180,10 @@ FILES.forEach(function (f) {
 });
 ok('every guarded overlay offers Cancel / Done / Close / ✕', trapped.length === 0,
    trapped.join(', '));
-ok('15 guarded call sites, and ONE helper behind them', sites === 15, String(sites));
+// v1786 pinned 15 across seven named files; v1788 scans every app file and
+// adds the Maintenance task card. The pin is here so the next change to this
+// number has to be a decision, not a drift.
+ok('16 guarded call sites, and ONE helper behind them', sites === 16, String(sites));
 
 // nobody double-wires BackStack any more — the guard does it, once
 let dbl = 0;

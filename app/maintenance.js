@@ -2498,6 +2498,31 @@
   function _taskOpen(taskId) {
     return (state.maintLog || []).some(function (l) { return l.id === taskId && l.type === 'chore' && l.status === 'open'; });
   }
+  // ── v0.9.1788: the tasks are a LIST; the work happens on a CARD ─────────
+  // [stated] Brad: "these task need to look like a list. so lets add a number
+  // to the left of the service title. also, lets collapse the card to title,
+  // part needed (y/n), and notes. when you click on it, it opens up a
+  // maintenance card." Asked whether the row should grow in place or open its
+  // own card: "open up a card."
+  //
+  // Seven full-height task cards stacked in a panel is a wall, not a list.
+  //
+  // THE NUMBER IS PAINT AND NOTHING ELSE. It renumbers the moment a task is
+  // finished or removed, so nothing saves it, keys on it, or refers to it —
+  // the task's own id still does all of that. (The standing rule: a position
+  // is never an identity. Stated once here so the next person reaching for
+  // "task 3" sees why they cannot have it.)
+  //
+  // NOT Y/N — THREE STATES. Brad asked for "part needed (y/n)", and a yes/no
+  // would file "ordered, I cannot start" and "it is in my hand" under the same
+  // letter. That is the difference between a job he can do tonight and one he
+  // cannot — and his own Workbench chips already say exactly that ("Waiting on
+  // parts", "Ready to work"). So the column is blank / Waiting / On hand, in
+  // the same words the chips use. He was told before this was built.
+  var _maintOpenTaskId = null;
+  // Assigned by the renderer below, because the card is drawn from the SAME
+  // closure (and the same partRow) the list is — one renderer, never two.
+  var _maintPaintTaskCard = function () {};
   function _maintRenderTasks() {
     var el = document.getElementById('maint-tasks');
     if (!el || !_panelItem) return;
@@ -2557,16 +2582,25 @@
           ? loose.map(function (p) { return partRow(p, false); }).join('')
           : '<div style="font-size:0.8rem;color:var(--text-dim);padding:0.3rem 0">Nothing on hand for this one yet — use <b>+ Add a part</b> above.</div>';
       }
-      if (!tasks.length) { el.innerHTML = '<div style="font-size:0.8rem;color:var(--text-dim);padding:0.3rem 0">No open tasks on this one.</div>'; return; }
-      el.innerHTML = tasks.map(function (t) {
-        var parts = _taskParts(t.id);
-        var partLine = parts.map(function (p) { return partRow(p, false); }).join('');   // v0.9.1766: loose parts live in the Parts box now
-        return '<div class="maint-task" data-id="' + _esc(t.id) + '" style="border:1px solid var(--border);border-radius:10px;padding:0.65rem 0.75rem;margin-bottom:0.5rem;background:var(--bg-card)">'
-          + '<div style="display:flex;justify-content:space-between;align-items:center;gap:0.4rem;flex-wrap:wrap">'
-          +   '<div style="font-weight:700;color:var(--text)">' + _esc(t.text) + ' <span style="font-weight:400;font-size:0.72rem;color:var(--text-dim)">since ' + _esc(t.dateAdded) + '</span></div>'
-          +   '<button onclick="_maintRemoveTask(\'' + rrJsArg(t.id) + '\')" title="Added by mistake? Remove this task (its parts stay on the list)" ' + _btn('red', 'sm', 'flex-shrink:0') + '>Remove</button>'   // v0.9.1752
-          + '</div>'
-          + '<textarea id="task-notes-' + _esc(t.id) + '" placeholder="Notes for this repair… (saves by itself)" rows="2" oninput="_maintNotesTyped(' + t.row + ',\'' + rrJsArg(t.id) + '\')" onblur="_maintSaveTaskNotes(' + t.row + ',\'' + rrJsArg(t.id) + '\',true)" style="' + IN + ';margin-top:0.5rem;resize:vertical">' + _esc(t.notes || '') + '</textarea>'
+      // Blank / Waiting / On hand — see the note above this function for why
+      // this is not the yes/no that was asked for. An INSTALLED part is not
+      // outstanding, so it says nothing: the job is not waiting on it.
+      var partsStatus = function (parts) {
+        var open = parts.filter(function (p) { return (p.status || 'wanted') !== 'installed'; });
+        if (!open.length) return { word: '', chip: '' };
+        var onHand = open.every(function (p) { return p.status === 'bought'; });
+        var word = onHand ? 'On hand' : 'Waiting';
+        var col = onHand ? 'var(--green)' : 'var(--warn)';
+        return { word: word, chip: '<span class="maint-task-parts" style="flex-shrink:0;font-size:0.7rem;font-weight:700;color:' + col
+          + ';border:1px solid ' + col + ';border-radius:999px;padding:0.1rem 0.45rem">' + word + '</span>' };
+      };
+      // THE GUTS OF A TASK, IN ONE PLACE. The card draws this; the row above
+      // only summarises it. A second copy of the part lifecycle (wanted →
+      // bought → installed, moved between jobs) would drift within a month —
+      // partRow is the same function the Parts box uses, for the same reason.
+      var taskBodyHtml = function (t) {
+        var partLine = _taskParts(t.id).map(function (p) { return partRow(p, false); }).join('');   // v0.9.1766: loose parts live in the Parts box now
+        return '<textarea id="task-notes-' + _esc(t.id) + '" placeholder="Notes for this repair… (saves by itself)" rows="3" oninput="_maintNotesTyped(' + t.row + ',\'' + rrJsArg(t.id) + '\')" onblur="_maintSaveTaskNotes(' + t.row + ',\'' + rrJsArg(t.id) + '\',true)" style="' + IN + ';resize:vertical">' + _esc(t.notes || '') + '</textarea>'
           + '<div id="task-notes-hint-' + _esc(t.id) + '" style="font-size:0.7rem;color:var(--text-dim);min-height:0.9rem"></div>'
           + '<div style="display:flex;gap:0.4rem;flex-wrap:wrap;align-items:center;margin-top:0.3rem">'
           +   '<button onclick="_maintPartsPopup(\'' + rrJsArg(t.id) + '\',\'' + rrJsArg(t.text) + '\')" ' + _btn('orange') + '>Need a part</button>'
@@ -2574,13 +2608,110 @@
           + partLine
           + '<div style="display:flex;justify-content:flex-end;margin-top:0.55rem;padding-top:0.45rem;border-top:1px dashed var(--border)">'
           +   '<button onclick="if(confirm(\'Mark \\u201c' + _esc(t.text).replace(/'/g, '') + '\\u201d complete? It moves to the service history.\'))_maintChoreDone(' + t.row + ',\'' + rrJsArg(t.id) + '\')" ' + _btnPrimary('padding:0.45rem 0.8rem;font-size:0.74rem') + '>Mark complete — job finished</button>'
+          + '</div>';
+      };
+      _maintPaintTaskCard = function () {
+        var tasks2 = _itemTasks();
+        var idx = -1;
+        for (var i2 = 0; i2 < tasks2.length; i2++) { if (tasks2[i2].id === _maintOpenTaskId) { idx = i2; break; } }
+        var ov = document.getElementById('maint-task-ov');
+        // Marked complete, or removed, or the panel moved to another item —
+        // the job is gone, so the card goes with it and we land back on the list.
+        if (idx < 0) { _maintOpenTaskId = null; if (ov && ov.parentNode) ov.parentNode.removeChild(ov); return; }
+        var t = tasks2[idx];
+        // Keep what he is typing across a redraw: buying a part redraws this
+        // card, and losing a half-written note to that would be the v1786 bug
+        // wearing different clothes.
+        var ta = document.getElementById('task-notes-' + t.id);
+        var keep = (ta && document.activeElement === ta)
+          ? { v: ta.value, s: ta.selectionStart, e: ta.selectionEnd } : null;
+        if (!ov) {
+          ov = document.createElement('div');
+          ov.id = 'maint-task-ov';
+          ov.style.cssText = 'position:fixed;inset:0;z-index:100020;display:flex;align-items:center;justify-content:center;'
+            + 'padding:1rem;background:var(--scrim)';
+          document.body.appendChild(ov);
+          // v0.9.1786: a tap on the backdrop does nothing at all. This card
+          // holds a note that saves itself — a stray tap must not take it.
+          // rrDismissGuard also wires BackStack, so the device Back button
+          // still closes it: a deliberate press is a way out, a stray tap is not.
+          try { if (window.rrDismissGuard) window.rrDismissGuard(ov); } catch (eG) {}
+          // BackStack closes by REMOVING the element. The id must not outlive
+          // the element, or the very next redraw would put a card he just
+          // backed out of straight back on the screen.
+          try {
+            var obs = new MutationObserver(function () {
+              if (document.body.contains(ov)) return;
+              try { obs.disconnect(); } catch (e2) {}
+              _maintOpenTaskId = null;
+            });
+            obs.observe(document.body, { childList: true });
+          } catch (eO) {}
+        }
+        ov.innerHTML = '<div class="maint-task-card" data-id="' + _esc(t.id) + '" style="width:min(680px,calc(100vw - 2rem));max-height:calc(100vh - 2.5rem);overflow:auto;'
+            + 'background:var(--bg-card);border:1px solid var(--accent2);border-radius:14px;padding:1rem 1.1rem">'
+          + '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:0.6rem;margin-bottom:0.7rem">'
+          +   '<div style="min-width:0">'
+          +     '<div style="font-family:var(--font-mono);font-size:0.72rem;color:var(--text-dim)">Task ' + (idx + 1) + ' of ' + tasks2.length + '</div>'
+          +     '<div style="font-weight:700;font-size:1.05rem;color:var(--text)">' + _esc(t.text) + '</div>'
+          +     '<div style="font-size:0.72rem;color:var(--text-dim)">since ' + _esc(t.dateAdded) + '</div>'
+          +   '</div>'
+          +   '<button onclick="_maintCloseTask()" title="Back to the task list" ' + _btnQuiet('sm', 'flex-shrink:0') + '>← Back</button>'
+          + '</div>'
+          + taskBodyHtml(t)
+          // v0.9.1752's Remove lives HERE now, not on the row. In a list you
+          // scan and tap, a destructive button is one stray thumb from gone.
+          + '<div style="display:flex;justify-content:flex-start;margin-top:0.6rem;padding-top:0.5rem;border-top:1px dashed var(--border)">'
+          +   '<button onclick="_maintRemoveTask(\'' + rrJsArg(t.id) + '\')" title="Added by mistake? Remove this task (its parts stay on the list)" ' + _btn('red', 'sm') + '>Remove task</button>'
           + '</div>'
           + '</div>';
+        if (keep) {
+          var t2 = document.getElementById('task-notes-' + t.id);
+          if (t2) { t2.value = keep.v; try { t2.focus(); t2.setSelectionRange(keep.s, keep.e); } catch (e3) {} }
+        }
+      };
+      if (!tasks.length) {
+        el.innerHTML = '<div style="font-size:0.8rem;color:var(--text-dim);padding:0.3rem 0">No open tasks on this one.</div>';
+        _maintPaintTaskCard();
+        return;
+      }
+      // THE LIST. `.maint-task[data-id]` is kept exactly as it was: the Parts
+      // Needed page's "take me to the task" link finds the row by it, and the
+      // suites pin it.
+      el.innerHTML = tasks.map(function (t, i) {
+        var st = partsStatus(_taskParts(t.id));
+        var note = String(t.notes || '').replace(/\s+/g, ' ').trim();
+        var openJs = '_maintOpenTask(\'' + rrJsArg(t.id) + '\')';
+        return '<div class="maint-task" data-id="' + _esc(t.id) + '" role="button" tabindex="0"'
+          + ' title="Open this job" onclick="' + openJs + '"'
+          + ' onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();' + openJs + '}"'
+          + ' style="display:flex;align-items:center;gap:0.55rem;cursor:pointer;border:1px solid var(--border);border-radius:10px;padding:0.55rem 0.7rem;margin-bottom:0.4rem;background:var(--bg-card)"'
+          + ' onmouseover="this.style.background=\'var(--surface2)\'" onmouseout="this.style.background=\'var(--bg-card)\'">'
+          + '<span style="font-family:var(--font-mono);font-size:0.8rem;color:var(--text-dim);min-width:1.4rem;text-align:right;flex-shrink:0">' + (i + 1) + '.</span>'
+          + '<span style="font-weight:700;color:var(--text);flex-shrink:0">' + _esc(t.text) + '</span>'
+          + st.chip
+          // The note is a PREVIEW, not the box. An editable field inside a
+          // tappable row fights itself — tapping to type would also open the card.
+          + '<span class="maint-task-note" style="flex:1;min-width:3rem;font-size:0.78rem;color:var(--text-dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + _esc(note) + '</span>'
+          + '<span style="color:var(--text-dim);flex-shrink:0">›</span>'
+          + '</div>';
       }).join('');
+      _maintPaintTaskCard();
     };
     if (state.maintLog) render(); else _loadLog().then(render);
   }
   window._maintRenderTasks = _maintRenderTasks;
+  // v0.9.1788: open one job. Keyed by the task's OWN id, never the row number
+  // beside it — that number is paint and renumbers as jobs are finished.
+  window._maintOpenTask = function (taskId) {
+    _maintOpenTaskId = String(taskId || '');
+    _maintRenderTasks();
+  };
+  window._maintCloseTask = function () {
+    _maintOpenTaskId = null;
+    var ov = document.getElementById('maint-task-ov');
+    if (ov && ov.parentNode) ov.parentNode.removeChild(ov);   // BackStack's own observer pops the stack
+  };
   // v0.9.1676: the part's lifecycle from the task card — same writers the
   // Parts Needed page uses (markPartBought / markPartInstalled in
   // app-pages.js), then the card and the detail-page preview redraw.
@@ -3782,15 +3913,20 @@
     setTimeout(function () { if (typeof window._maintShowGrp === 'function') window._maintShowGrp('work'); }, 30);
     if (focusTaskId) _wbFocusTask(focusTaskId);   // v0.9.1753 (Brad: "take me to the task")
   };
-  // v0.9.1753: scroll the open card to one task and flash it — used by the Parts
-  // Needed page's "For …" link and by Installed when the part sits on a task.
+  // v0.9.1753: take the user to one task — used by the Parts Needed page's
+  // "For …" link and by Installed when the part sits on a task.
+  //
+  // v0.9.1788: it used to SCROLL the open panel to the fat task card and flash
+  // it. The tasks are a list now and the work happens on a card, so "take me to
+  // the task" means OPEN that task's card. Same promise, one step shorter. The
+  // wait loop stays: the panel is built asynchronously and the row it is
+  // waiting for may not exist for a few hundred milliseconds yet.
   function _wbFocusTask(taskId, tries) {
     tries = tries || 0;
     var el = document.querySelector('.maint-task[data-id="' + String(taskId).replace(/"/g, '') + '"]');
     if (!el) { if (tries < 20) setTimeout(function () { _wbFocusTask(taskId, tries + 1); }, 150); return; }
+    if (typeof window._maintOpenTask === 'function') { window._maintOpenTask(taskId); return; }
     try { el.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch (e) { el.scrollIntoView(); }
-    el.style.transition = 'box-shadow 0.3s'; el.style.boxShadow = '0 0 0 3px var(--accent)';
-    setTimeout(function () { el.style.boxShadow = ''; }, 1800);
   }
   window._wbBuild = _wbBuild;
 
