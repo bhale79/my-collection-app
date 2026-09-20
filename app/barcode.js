@@ -100,6 +100,37 @@ window.eraSupportsBarcode = eraSupportsBarcode;
     if (rowMfr && (rowMfr === want || want.indexOf(rowMfr) === 0 || rowMfr.indexOf(want) === 0)) return true;
     return false;
   }
+  // v0.9.1780. Right-maker rows first, everything else after, each of the
+  // others tagged so the picker can draw a line above them. Order within each
+  // group is untouched — this is a stable partition, not a sort, the same
+  // shape as the claimed-photos partition in the Photo Inbox.
+  // v0.9.1780. The picker's section divider — a rule, a caption, a rule.
+  // One place, so a third section costs no new colour literals.
+  function _bcDivider(show, label) {
+    if (!show) return '';
+    return '<div style="display:flex;align-items:center;gap:0.5rem;margin:0.9rem 0 0.55rem">'
+         + '<div style="flex:1;height:1px;background:#444"></div>'
+         + '<div style="font-size:0.68rem;letter-spacing:0.06em;text-transform:uppercase;'
+         +      'color:#8d7f5e;white-space:nowrap">' + _bcEsc(label) + '</div>'
+         + '<div style="flex:1;height:1px;background:#444"></div>'
+         + '</div>';
+  }
+
+  function _bcRankByMaker(hits, mfr) {
+    var want = _bcMfrKey(mfr);
+    if (!want || !hits || hits.length < 2) return hits || [];
+    var mine = [], others = [];
+    hits.forEach(function (h) {
+      if (_bcRowIsMfr(h, want)) { h._otherMfr = false; mine.push(h); }
+      else { h._otherMfr = true; others.push(h); }
+    });
+    // Nothing from the stated maker means the prefix and the catalog disagree.
+    // Demoting every row would put a divider above the whole list and say
+    // nothing; leave it exactly as it was.
+    if (!mine.length) { others.forEach(function (h) { h._otherMfr = false; }); return hits; }
+    return mine.concat(others);
+  }
+
   function _matchInArray(arr, candidates, mfr) {
     if (!arr || !arr.length) return [];
     var out = [];
@@ -1454,13 +1485,16 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         // can be taken by accident (Brad: "only offer what i filter").
         var _off = !!m._offEra;
         var _firstOff = _off && (idx === 0 || !candidates[idx - 1]._offEra);
-        return (_firstOff
-            ? '<div style="display:flex;align-items:center;gap:0.5rem;margin:0.9rem 0 0.55rem">'
-              + '<div style="flex:1;height:1px;background:#444"></div>'
-              + '<div style="font-size:0.68rem;letter-spacing:0.06em;text-transform:uppercase;color:#8d7f5e;white-space:nowrap">Outside your filter</div>'
-              + '<div style="flex:1;height:1px;background:#444"></div>'
-            + '</div>'
-            : '')
+        // v0.9.1780: the same divider idiom for the maker the barcode proved.
+        // Rows below it stay tappable — demoted, not deleted — but the list no
+        // longer presents three makers as equal guesses.
+        var _firstOther = !!m._otherMfr && (idx === 0 || !candidates[idx - 1]._otherMfr);
+        // v0.9.1780: ONE divider builder, two callers. The second divider was
+        // written as a copy of the first and pushed barcode.js three colour
+        // literals over its ratchet — which is the ratchet doing its job.
+        // Sharing it puts the file BELOW where it started.
+        return _bcDivider(_firstOther, 'Other makers with this number')
+          + _bcDivider(_firstOff, 'Outside your filter')
           + '<div class="bc-cand" data-idx="' + idx + '" '
           + 'style="display:flex;align-items:center;gap:0.6rem;padding:0.7rem 0.8rem;border-radius:10px;'
           + (_off ? 'background:#1a1a1a;border:1px dashed #555;opacity:0.82;' : 'background:#222;border:1px solid #444;')
@@ -1941,6 +1975,19 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         // v0.9.640: matches from EVERY era + modern reissues quoted in
         // descriptions, so the user can pick original vs remake.
         var hits = await _findMasterItemsAllEras(lookupCands);
+        // v0.9.1780 (Brad): a barcode ending 36814 offered him a Lionel, a
+        // Märklin HO and an LGB G. All three are REAL rows — three makers use
+        // that number — but the UPC prefix had already proved the maker, and
+        // this lookup takes only the number.
+        //
+        // v0.9.1605 added a maker filter, but only to FUZZY hits; this path is
+        // exact-across-every-era, so the filter never reached it.
+        //
+        // DEMOTED, NOT DELETED — the same rule as the 6464 family work: narrow
+        // the field, never throw it away. A wrong-maker row can still be the
+        // right answer when a barcode is reused or a prefix is wrong, so it
+        // stays reachable behind a divider instead of vanishing.
+        hits = _bcRankByMaker(hits, best.mfr);
         var _seenH = {};
         hits.forEach(function (h) { _seenH[(h.itemNum || '') + '|' + (h.variation || '') + '|' + (h._tab || '') + '|' + (h._era || '')] = 1; });
         var _reissues = await _findReissueByDesc(raw, _seenH);
@@ -2011,16 +2058,132 @@ window.eraSupportsBarcode = eraSupportsBarcode;
     var wordy = letter.filter(function (t) { return t.length >= 3 && /[aeiouy]/i.test(t); });
     return letter.length >= 3 && wordy.length >= Math.ceil(letter.length * 0.6) && letter.length >= toks.length * 0.45;
   }
+  // v0.9.1780. A line is a brand wordmark if it is a contiguous run of 4+
+  // characters from a maker's name — "IONEL", "LIONE", "TLAS". Four is the
+  // floor on purpose: shorter runs ("ION", "MTH" reversed out of another
+  // word) start colliding with real description words.
+  var _BC_BRANDS = ['lionel', 'atlas', 'mth', 'kline', 'williams', 'weaver',
+                    'rmt', 'menards', 'marklin', 'bachmann', 'lgb', 'marx'];
+  function _bcIsBrandFragment(tl) {
+    var s = String(tl || '').replace(/[^a-z]/g, '');
+    if (s.length < 4) return false;
+    for (var i = 0; i < _BC_BRANDS.length; i++) {
+      if (_BC_BRANDS[i].indexOf(s) >= 0) return true;
+    }
+    return false;
+  }
+
   function _bcDescGood(l) {
     if (!l) return false;
     if (_BC_REJECT.test(l)) return false;
     var _tl = l.trim().toLowerCase().replace(/[^a-z0-9& ]/g,'').replace(/\s+/g,' ').trim();
     if (/^(atlas|lionel|mth|k-?line|williams|weaver|rmt|menards|locomotive|locomotives|aluminum|heavyweights?|streamlighting|premier|classic|o gauge|o scale|expansion pack|proof of purchase|visionline)$/.test(_tl)) return false;
+    // v0.9.1780 (Brad): his CSX hopper came back described as "IONEL" — the
+    // LIONEL wordmark off the box front with the L clipped by the crop. The
+    // test above is an EXACT match, so one missing character defeated it.
+    // A whole line that is a 4+ character run of a maker's name is that
+    // maker's wordmark, however OCR mangled its ends. It is never the
+    // description of the item inside the box.
+    if (_bcIsBrandFragment(_tl)) return false;
     if (l.trim().length <= 22 && /^[\[(]?\s*\d\s*[- ]?\s*rail\b[\s\w\/]*[\])]?$/i.test(l.trim())) return false;
     if (/^#\s*\d{1,6}$/.test(l.trim())) return true;   // bare road-number line (e.g. "#357") kept for the description
     var letters = (l.match(/[a-z]/gi) || []).length;
     var digits = (l.match(/\d/g) || []).length;
     return letters >= 4 && letters >= digits && !/^\$/.test(l) && l.length <= 60;
+  }
+
+  // ══ ONE-DIGIT MISREAD RESCUE (v0.9.1780) ══════════════════════════════════
+  // [stated] Brad's CSX hopper: the label reads 2542162, the reader said
+  // 2642162 — a 5 taken as a 6 — and the card announced it with a green tick
+  // and "not in your catalog". The catalog was never asked about anything
+  // else, so a typo the app made became a fact it reported.
+  //
+  // MEASURED AGAINST THE LIVE CATALOG before this was written, because the
+  // obvious rule does not survive contact with the data:
+  //   Lionel MPC-Modern holds 22,355 item numbers. 2542162 IS there; 2642162
+  //   is NOT — and there are **TEN** one-digit neighbours, not one. So "offer
+  //   it when exactly one exists" would have stayed silent on the very box
+  //   that prompted it.
+  //
+  // What separates them is the LABEL'S OWN WORDS, which this file already
+  // reads. The label says "CSX ACF 4-Bay Centerflow #201582"; the row for
+  // 2542162 says CSX · "CSX ACF CenterFlow 4-Bay Covered Hopper 201582".
+  // None of the other nine mention CSX, ACF or CenterFlow — they are
+  // Lackawanna hoppers, single-sheath boxcars and a malt reefer.
+  //
+  // So: digit distance proposes, the label's words decide, and when they do
+  // not decide clearly we say "not in your catalog" exactly as before. An
+  // honest failure beats a confident wrong answer — that is the whole
+  // complaint being fixed.
+
+  // Every same-length number one substitution away. 7 digits → 63 strings,
+  // which are then looked up EXACTLY through the existing machinery rather
+  // than by scanning the catalog: no new search path to keep correct.
+  function _bcOneDigitVariants(num) {
+    var s = String(num || '');
+    if (!/^\d{4,9}$/.test(s)) return [];
+    var out = [];
+    for (var i = 0; i < s.length; i++) {
+      for (var d = 0; d < 10; d++) {
+        var c = String(d);
+        if (c === s[i]) continue;
+        out.push(s.substring(0, i) + c + s.substring(i + 1));
+      }
+    }
+    return out;
+  }
+
+  var _BC_STOP = /^(the|and|for|with|from|new|car|cars|set|road|scale|gauge|series|line|rail|train|trains|inc|co|company|no|number)$/;
+  function _bcWordKeys(s) {
+    var out = {};
+    String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').split(' ').forEach(function (w) {
+      if (!w) return;
+      if (/^\d+$/.test(w)) { if (w.length >= 4) out[w] = 2; return; }   // a car number is a strong key
+      if (w.length < 3 || _BC_STOP.test(w)) return;
+      out[w] = 1;
+    });
+    return out;
+  }
+  // Shared-word score between the label text and one catalog row.
+  function _bcLabelScore(labelText, row) {
+    var a = _bcWordKeys(labelText);
+    var b = _bcWordKeys((row && (row.roadName || '')) + ' ' + (row && (row.description || '')));
+    var score = 0, best = 0;
+    Object.keys(a).forEach(function (w) {
+      if (!b[w]) return;
+      score += a[w];
+      if (w.length > best) best = w.length;
+    });
+    return { score: score, longest: best };
+  }
+
+  // Returns a single rescued row, or null. Deliberately conservative.
+  async function _bcNearMissRescue(printedNum, labelText, mfr) {
+    try {
+      var variants = _bcOneDigitVariants(printedNum);
+      if (!variants.length) return null;
+      var hits = await _findMasterItemsAllEras(variants);
+      if (!hits || !hits.length) return null;
+      // The barcode already proved the maker. A neighbour from another
+      // catalog is not a near miss, it is a different product.
+      var want = _bcMfrKey(mfr);
+      if (want) hits = hits.filter(function (h) { return _bcRowIsMfr(h, want); });
+      if (!hits.length) return null;
+
+      var scored = hits.map(function (h) {
+        var s = _bcLabelScore(labelText, h);
+        return { row: h, score: s.score, longest: s.longest };
+      }).sort(function (x, y) { return y.score - x.score; });
+
+      var top = scored[0], second = scored[1];
+      // A CLEAR winner or nothing: at least two shared keys, one of them
+      // substantial, and strictly ahead of the runner-up. Ten candidates and
+      // a weak signal is exactly when this must keep quiet.
+      if (top.score < 2) return null;
+      if (top.longest < 4) return null;
+      if (second && second.score >= top.score) return null;
+      return top.row;
+    } catch (e) { return null; }
   }
 
   function _bcDescriptionGuess(text, itemNumRaw) {
@@ -3090,6 +3253,24 @@ window.eraSupportsBarcode = eraSupportsBarcode;
       _printed = (_tagged.length ? String(_tagged[0].raw) : out.ocrNums[0]);
     }
     if (_printed) {
+      // v0.9.1780: before declaring it absent, ask whether ONE DIGIT of it was
+      // misread. Only a clear winner on the label's own words is offered, and
+      // it is offered as an AMBER caution, never a green tick — the green tick
+      // on a wrong number is the complaint that produced this.
+      var _near = await _bcNearMissRescue(_printed, ocrText, out.bcMaker);
+      if (_near) {
+        st('master', '📖', 'Catalog: ' + _printed + ' not there — ' + _near.itemNum + ' matches the label', '#ffd27d');
+        if (_biStop) return { __biCancel: true };
+        return { handled: true, _boxPhoto: out.isBoxShot, itemNum: _near.itemNum,
+                 variation: _near.variation || '', masterItem: _near,
+                 manufacturer: out.bcMaker || '',
+                 roadName: (_near.roadName || ''), description: (_near.description || ''),
+                 eraTag: (typeof _eraLabel === 'function') ? _eraLabel(_near._era) : '',
+                 cautionNote: 'The label read as ' + _printed + ', which is not in the catalog. '
+                            + _near.itemNum + ' is one digit different and matches the wording on the label. '
+                            + 'Check the number on your box before using this.',
+                 statusMessage: 'Read ' + _printed + ' — offering ' + _near.itemNum };
+      }
       st('master', '📖', 'Catalog: ' + _printed + ' not in the catalog — adding manually', '#ffd27d');
       if (_biStop) return { __biCancel: true };
       st('ai', '<span class="bi-spin">⟳</span>', 'Close look: getting the details…');
