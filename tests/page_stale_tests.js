@@ -67,7 +67,7 @@ ok('rrRepaintBrowse asks first — before it even looks at which page is active'
 ok('populateFilters asks first',
    /function populateFilters\(\) \{[\s\S]{0,700}?rrHoldRepaint\('filters', populateFilters\)\) return;/.test(br), '');
 ok('renderBrowse still asks, under the same name as v1703, BEFORE its signature cache',
-   /function renderBrowse\(\) \{[\s\S]{0,900}?rrHoldRepaint\('browse', renderBrowse\)\) return;/.test(br)
+   /function renderBrowse\(\) \{ return _rrBrowseCore\(null\); \}/.test(br) && /function _rrBrowseCore\(_co\) \{\s*\n\s*if \(!_co\) \{[\s\S]{0,900}?rrHoldRepaint\('browse', renderBrowse\)\) return;/.test(br)   /* v0.9.1798: the list-builder moved into _rrBrowseCore; a COUNT request (_co) never paints, so it never needs to stand down */
    && br.indexOf("rrHoldRepaint('browse'") < br.indexOf('_rrBrowseSig'), '');
 ok('buildDashboard is NOT in the registry — 77ms for four visible builds needs no net',
    !/'dashboard':\s*\{/.test(cfg), '');

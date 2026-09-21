@@ -1260,15 +1260,54 @@ function _phOwnTypeValues() {
   } catch (e) {}
   return out;
 }
-function _phOwnCount(field, label) {
-  if (!state.filters.owned) return '';
+// Step 3b cascade, in ONE place (v0.9.1798) — the picker's counts must
+// predict exactly the chips a pick will leave behind, so the pick and the
+// prediction share this.
+//   * Picking 'any' at any level: no cascade reset. Keep other levels.
+//   * Picking specific value: only reset descendants if they're now invalid.
+function _phCascade(st, level, value) {
+  st = Object.assign({}, st || {});
+  st[level] = value;
+  if (level === 'manufacturer' && value !== 'any') {
+    if (st.scale !== 'any' && _phScalesFor(value).indexOf(st.scale) < 0) st.scale = 'any';
+    if (st.era !== 'any' && _phErasFor(value, st.scale).indexOf(st.era) < 0) st.era = 'any';
+  } else if (level === 'scale' && value !== 'any') {
+    if (st.era !== 'any' && _phErasFor(st.manufacturer, value).indexOf(st.era) < 0) st.era = 'any';
+  } else if (level === 'era' && value !== 'any') {
+    var se3 = _phSectionsFor(value);
+    if (se3.indexOf(st.section) < 0) st.section = se3[0] || 'items';
+  }
+  return st;
+}
+
+// ── v0.9.1798 (Brad: "yes") — THE NUMBER BESIDE AN OPTION IS WHAT PICKING IT
+// SHOWS, with every other chip kept. Asked of the list-builder itself
+// (_rrBrowseCore's count request), never re-derived here. Returns
+// { optionId: rows } or null — null means "could not ask", and the picker
+// then shows NO number rather than a guessed one.
+function _phChipCounts(level, options) {
   try {
-    var own = (field === 'itemType') ? _phOwnTypeValues() : _phOwnValues(field);
-    var want = String(label).toLowerCase();
-    var n = 0;
-    Object.keys(own).forEach(function (k) { if (k.toLowerCase() === want) n += own[k]; });
-    return n ? ' (' + n.toLocaleString() + ')' : '';
-  } catch (e) { return ''; }
+    if (!state.filters.owned || typeof _rrBrowseCore !== 'function') return null;
+    if (['manufacturer', 'scale', 'era', 'type'].indexOf(level) < 0) return null;
+    var cur = _phState();
+    var req = { level: level, clearType: state.filters.type || '', clearOwnMaker: state.filters.ownMaker || '', clearChips: cur, variants: [] };
+    if (level === 'type') { req.clearType = ''; }
+    else {
+      var cleared = Object.assign({}, cur); cleared[level] = 'any';
+      req.clearChips = cleared;
+      if (level === 'manufacturer') req.clearOwnMaker = '';
+      (options || []).forEach(function (o) {
+        if (!o || o.divider || o.id === '' ) return;
+        var own = (level === 'manufacturer' && String(o.id).indexOf('own:') === 0);
+        req.variants.push({
+          id: o.id,
+          chips: own ? cleared : _phCascade(cur, level, o.id),
+          ownMaker: own ? String(o.id).slice(4) : (level === 'manufacturer' ? '' : (state.filters.ownMaker || '')),
+        });
+      });
+    }
+    return _rrBrowseCore(req);
+  } catch (e) { console.warn('[picker counts]', e); return null; }
 }
 
 function _openLevelPicker(level) {
@@ -1283,7 +1322,7 @@ function _openLevelPicker(level) {
     Object.keys(MFs).forEach(function(k) {
       var _lbl = MFs[k].label;
       _catalogLabels[String(_lbl).toLowerCase()] = 1;
-      options.push({ id: k, label: _lbl + _phOwnCount('manufacturer', _lbl) });
+      options.push({ id: k, label: _lbl });
     });
     // v0.9.1512 (Brad, live: Scott owns Micro-Trains, Ertl, First Gear,
     // Die-cast Masters... none of which could EVER be filtered to, because
@@ -1296,7 +1335,7 @@ function _openLevelPicker(level) {
       if (_extra.length) {
         options.push({ id: '__divider', label: 'Also in your collection', divider: true });
         _extra.sort(function (a, b) { return _own[b] - _own[a] || a.localeCompare(b); })
-          .forEach(function (m) { options.push({ id: 'own:' + m, label: m + ' (' + _own[m].toLocaleString() + ')' }); });
+          .forEach(function (m) { options.push({ id: 'own:' + m, label: m }); });
       }
     }
   } else if (level === 'scale') {
@@ -1328,7 +1367,7 @@ function _openLevelPicker(level) {
         var o = _ftSel.options[oi];
         var lblText = o.textContent || o.value || '';
         _seenTypes[String(o.value).toLowerCase()] = 1;
-        options.push({ id: o.value, label: lblText + (o.value ? _phOwnCount('itemType', o.value) : '') });
+        options.push({ id: o.value, label: lblText });
       }
     }
     // v0.9.1512: same treatment for TYPES — Scott's imported custom types
@@ -1339,11 +1378,18 @@ function _openLevelPicker(level) {
       if (_extraT.length) {
         options.push({ id: '__divider', label: 'Also in your collection', divider: true });
         _extraT.sort(function (a, b) { return _ownT[b] - _ownT[a] || a.localeCompare(b); })
-          .forEach(function (t) { options.push({ id: t, label: t + ' (' + _ownT[t].toLocaleString() + ')' }); });
+          .forEach(function (t) { options.push({ id: t, label: t }); });
       }
     }
   }
   if (!options.length) options.push({ id: '', label: '(none available)' });
+  // v0.9.1798: one source for every number in this picker.
+  var _pc = _phChipCounts(level, options);
+  if (_pc) options.forEach(function (o) {
+    if (!o || o.divider) return;
+    var n = _pc[o.id];
+    if (n) o.label += ' (' + n.toLocaleString() + ')';
+  });
 
   var overlayId = 'ph-picker-overlay';
   var existing = document.getElementById(overlayId);
@@ -1444,20 +1490,7 @@ function _setHierarchyChoice(level, value) {
     if (typeof _renderHierarchyChips === 'function') _renderHierarchyChips();
     return;
   }
-  var st = _phState();
-  st[level] = value;
-  // Step 3b: cascade behavior
-  //   * Picking 'any' at any level: no cascade reset. Keep other levels.
-  //   * Picking specific value: only reset descendants if they're now invalid.
-  if (level === 'manufacturer' && value !== 'any') {
-    if (st.scale !== 'any' && _phScalesFor(value).indexOf(st.scale) < 0) st.scale = 'any';
-    if (st.era !== 'any' && _phErasFor(value, st.scale).indexOf(st.era) < 0) st.era = 'any';
-  } else if (level === 'scale' && value !== 'any') {
-    if (st.era !== 'any' && _phErasFor(st.manufacturer, value).indexOf(st.era) < 0) st.era = 'any';
-  } else if (level === 'era' && value !== 'any') {
-    var se3 = _phSectionsFor(value);
-    if (se3.indexOf(st.section) < 0) st.section = se3[0] || 'items';
-  }
+  var st = _phCascade(_phState(), level, value);
   _phSave(st);
 
   // S151: era is always a period (prewar/postwar/modern) or 'any' — both
@@ -3447,7 +3480,17 @@ function renderMasterSubTab(tabKey) {
   }).join('');
 }
 
-function renderBrowse() {
+function renderBrowse() { return _rrBrowseCore(null); }
+// ── v0.9.1798: ONE LIST, TWO USES ──────────────────────────────────────────
+// Brad: the number beside a picker option must be what picking it SHOWS, with
+// every other chip kept. The only honest way to know that is to ask the code
+// that builds the list — so the list-builder takes an optional COUNT request
+// (_co) and, given one, runs the very same row test, copy expansion and set
+// folding the screen uses, touches no DOM and no state, and returns counts.
+// A second copy of "what the list would show" is exactly how v0.9.1797's
+// Caboose (2) vs 38 happened.
+function _rrBrowseCore(_co) {
+  if (!_co) {
   // v0.9.1703: THE ONE THE RECORDER CAUGHT. On Brad's phone this ran 27 times
   // while a solid-black crop overlay covered the screen — re-filtering 135,000
   // rows for a page nobody could see, 26 of those rebuilds landing as frames
@@ -3481,13 +3524,14 @@ function renderBrowse() {
   } catch (eSig) { window._rrBrowseSigPending = null; }
   _refreshBrowseHeadersForEra();
   if (typeof _renderHierarchyChips === 'function') _renderHierarchyChips();
-  const { type, road, owned, unowned, boxed, search } = state.filters;
+  }   // end if (!_co)
+  let { type, road, owned, unowned, boxed, search } = state.filters;   // v0.9.1798: `type` is re-pointed per count variant
   // v0.9.1007b (Brad): rebuild the collection header in the SAME pass as the
   // rows. It used to be rendered only when you switched INTO My Collection,
   // so turning selection mode on added the gutter cell to every row and left
   // the header one column short — headers sat over the wrong data. Header and
   // body now always agree because nothing can rebuild one without the other.
-  if (owned && typeof _renderCollectionHeader === 'function') _renderCollectionHeader();
+  if (!_co && owned && typeof _renderCollectionHeader === 'function') _renderCollectionHeader();
   // v0.9.986 (Brad): the Show chips route items by WHAT THEY ARE, not where
   // they're stored — an item typed "Paper" (like the Pittman Erect-A-Wire)
   // belongs under Paper Items even though it lives in the items list, and it
@@ -3510,7 +3554,7 @@ function renderBrowse() {
         });
       }
     } catch (eAv) { _secAvail = true; }
-    if (!_secAvail) { _collSec = 'trains'; state._collSection = 'trains'; }
+    if (!_secAvail) { _collSec = 'trains'; if (!_co) state._collSection = 'trains'; }
   }
   const _collSecFiltered = (_collSec !== 'all' && _collSec !== 'trains');
   // Which section does a train-store row belong to by TYPE? '' = a train.
@@ -3524,7 +3568,7 @@ function renderBrowse() {
     if (t === 'other lionel') return 'other';
     return '';
   };
-  if (typeof _renderCrossEraSearchBanner === 'function') _renderCrossEraSearchBanner(search);
+  if (!_co && typeof _renderCrossEraSearchBanner === 'function') _renderCrossEraSearchBanner(search);
 
   // Session 117: master-browse view in All mode + no search = 30K+ rows. Show
   // a friendly prompt instead and bail before any heavy filtering/rendering.
@@ -3540,6 +3584,7 @@ function renderBrowse() {
                                  || (_stp3b.scale && _stp3b.scale !== 'any')
                                  || (_stp3b.era && _stp3b.era !== 'any')));
   const _hasFilter = !!(type || road) || _chipNarrow;
+  if (_co && !owned) return null;   // counts are a My Collection feature; the catalog gate below paints
   if (!owned && typeof _currentEra !== 'undefined' && _currentEra === 'all'
       && (!search || !search.trim()) && !_hasFilter) {
     const _gtbody = document.getElementById('browse-tbody');
@@ -3857,7 +3902,7 @@ function renderBrowse() {
       if (s && s.itemNum) _soldKeys.add(s.itemNum + '|' + (s.variation || ''));
     }
   })();
-  state.filteredData = baseList.filter(item => {
+  const _rowPasses = item => {
     const _dispNum = _displayItemNum(item);
     // v0.9.1120: shared resolver — strict item+variation match plus the
     // blank-variation adoption above (authoritative: an item without a
@@ -4016,7 +4061,37 @@ function renderBrowse() {
       if (!_aliasSearch(haystack, search)) return false;
     }
     return true;
-  });
+  };
+  // ── v0.9.1798: THE COUNT REQUEST ──────────────────────────────────────────
+  // Everything above is set up; nothing has been painted or stored. Answer
+  // with the same three steps the screen uses — _rowPasses, _expandCopies,
+  // _foldSets — and leave. `pre` is the list with the asked-about level
+  // cleared; every variant can only NARROW it (the row test is a chain of
+  // ANDs), so each variant is tested against a few hundred rows, not 150,000.
+  if (_co) {
+    var _coOut = {}, _savedOM = state.filters.ownMaker, _savedType = type, _savedChips = _stp3b;
+    try {
+      _stp3b = _co.clearChips; type = _co.clearType; state.filters.ownMaker = _co.clearOwnMaker || '';
+      var _pre = baseList.filter(_rowPasses);
+      if (_co.level === 'type') {
+        // The type test is `bucket label === type`, so one pass buckets them all.
+        var _byLbl = {};
+        _expandCopies(_pre).forEach(function (r) {
+          var l = (typeof getTypeBucketLabel === 'function' ? getTypeBucketLabel(r) : r.itemType) || '';
+          (_byLbl[l] = _byLbl[l] || []).push(r);
+        });
+        Object.keys(_byLbl).forEach(function (l) { _coOut[l] = _foldSets(_byLbl[l]).length; });
+        _coOut[''] = _foldSets(_expandCopies(_pre)).length;   // "All Types" is an option too
+      } else {
+        (_co.variants || []).forEach(function (v) {
+          _stp3b = v.chips; state.filters.ownMaker = v.ownMaker || '';
+          _coOut[v.id] = _foldSets(_expandCopies(_pre.filter(_rowPasses))).length;
+        });
+      }
+    } finally { state.filters.ownMaker = _savedOM; type = _savedType; _stp3b = _savedChips; }
+    return _coOut;
+  }
+  state.filteredData = baseList.filter(_rowPasses);
 
   // Sort My Collection: by item number, with grouped items together
   // (default). Skipped when the user has clicked a column header to sort.
@@ -4160,7 +4235,8 @@ function renderBrowse() {
   // renderBrowse iterates masterData once. Expand each such item so every
   // copy (each inventory ID) gets its own row, carrying its specific pd so
   // condition / photos / For-Sale status / row actions are per-copy.
-  if (state.filters.owned) {
+  function _expandCopies(_list) {
+    if (!state.filters.owned) return _list;
     var _expandedFD = [];
     // v0.9.1326 (MEASURED): the filter below used to scan EVERY owned item
     // once per row on screen — Object.values(...).filter() inside a forEach
@@ -4179,7 +4255,7 @@ function renderBrowse() {
       var _b = _copiesByNum.get(_k);
       if (_b) _b.push(p); else _copiesByNum.set(_k, [p]);
     });
-    state.filteredData.forEach(function(it) {
+    _list.forEach(function(it) {
       if (it._personalOnly) { _expandedFD.push(it); return; }
       var _dnp = _displayItemNum(it);
       // v0.9.1202 (Brad's three 3545s): a copy with a STORED master key
@@ -4207,18 +4283,20 @@ function renderBrowse() {
         _expandedFD.push(_clone);
       });
     });
-    state.filteredData = _expandedFD;
+    return _expandedFD;
   }
+  state.filteredData = _expandCopies(state.filteredData);
   // v0.9.1121 (Brad: "I thought we kept grouped items on 1 row") — whole
   // SETS fold into one expandable row in My Collection. Only SET-… groups
   // fold: engine+tender pairs are already one sheet row, and GRP-… groups
   // keep their existing companion handling. Display-only — the sheet keeps
   // one row per piece. Folding skips search and column-sort views so
   // members stay findable and sortable.
-  if (state.filters.owned && !(state.filters.search || '').trim() && !(state._collSort && state._collSort.col)) {
+  function _foldSets(_list) {
+    if (!(state.filters.owned && !(state.filters.search || '').trim() && !(state._collSort && state._collSort.col))) return _list;
     var _openFolds = window._rrOpenSetFolds = window._rrOpenSetFolds || {};
     var _foldedFD = [], _foldByGid = {};
-    state.filteredData.forEach(function (it) {
+    _list.forEach(function (it) {
       var _fp = it._setFold ? null : _rrPdForRow(it);
       // v0.9.1569 (audit step 4 safety net): the companion fold catches
       // suffix-shaped members (D/T/C, tenders); this catches any OTHER
@@ -4243,8 +4321,9 @@ function renderBrowse() {
       _f.members.push(it);
       if (_openFolds[_gid]) _foldedFD.push(it);   // expanded: members render beneath the set row
     });
-    state.filteredData = _foldedFD;
+    return _foldedFD;
   }
+  state.filteredData = _foldSets(state.filteredData);
   const total = state.filteredData.length;
   const pages = Math.ceil(total / state.pageSize);
   // v0.9.1231: nothing pulled the reader back when the list SHRANK beneath

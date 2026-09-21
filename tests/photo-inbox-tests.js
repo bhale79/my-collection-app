@@ -19054,7 +19054,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
         });
       };
       const bI = brw.indexOf('var _copiesByNum = new Map();');
-      const bE = brw.indexOf('state.filteredData.forEach(function(it) {', bI);
+      const bE = brw.indexOf('_list.forEach(function(it) {', bI);   // v0.9.1798: the expander became _expandCopies(_list)
       ok('271 the bucket-build slice was found', bI > 0 && bE > bI);
       const buckets = new Function('state', '"use strict";' + brw.slice(bI, bE) + '; return _copiesByNum;')(st71);
       const fI = brw.indexOf('var _itKeyFD ='), fE = brw.indexOf('if (_copiesFD.length <= 1)', fI);

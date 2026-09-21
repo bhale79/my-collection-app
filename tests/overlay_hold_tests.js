@@ -56,7 +56,7 @@ ok('…and each repaint is isolated, so a thrower cannot cost the others theirs'
 
 // ── the two builders the recorder actually caught ────────────────────────
 ok('renderBrowse stands down while an overlay is up',
-   /function renderBrowse\(\) \{[\s\S]{0,900}?rrHoldRepaint\('browse', renderBrowse\)\) return;/.test(br), '');
+   /function renderBrowse\(\) \{ return _rrBrowseCore\(null\); \}/.test(br) && /function _rrBrowseCore\(_co\) \{\s*\n\s*if \(!_co\) \{[\s\S]{0,900}?rrHoldRepaint\('browse', renderBrowse\)\) return;/.test(br)   /* v0.9.1798: the list-builder moved into _rrBrowseCore; a COUNT request (_co) never paints, so it never needs to stand down */, '');
 ok('…BEFORE its signature cache, which a background data load defeats anyway',
    br.indexOf("rrHoldRepaint('browse'") < br.indexOf('_rrBrowseSig'), '');
 ok('buildDashboard stands down too',
