@@ -1288,10 +1288,19 @@ function _phCascade(st, level, value) {
 function _phChipCounts(level, options) {
   try {
     if (!state.filters.owned || typeof _rrBrowseCore !== 'function') return null;
-    if (['manufacturer', 'scale', 'era', 'type'].indexOf(level) < 0) return null;
+    if (['manufacturer', 'scale', 'era', 'type', 'subCollection', 'subType'].indexOf(level) < 0) return null;
     var cur = _phState();
     var req = { level: level, clearType: state.filters.type || '', clearOwnMaker: state.filters.ownMaker || '', clearChips: cur, variants: [] };
     if (level === 'type') { req.clearType = ''; }
+    else if (level === 'subCollection' || level === 'subType') {
+      // v0.9.1799: the "More" chip's two lists. Same question, same asker.
+      var _cf = {}; _cf[level] = ''; req.clearF = _cf;
+      (options || []).forEach(function (o) {
+        if (!o || o.divider) return;
+        var _vf = {}; _vf[level] = o.id;
+        req.variants.push({ id: o.id, chips: cur, ownMaker: state.filters.ownMaker || '', f: _vf });
+      });
+    }
     else {
       var cleared = Object.assign({}, cur); cleared[level] = 'any';
       req.clearChips = cleared;
@@ -1356,7 +1365,7 @@ function _openLevelPicker(level) {
     options.push({ id: '', label: (level === 'subCollection') ? 'All Groups' : 'All Sub Types' });
     var _vals = _phOwnValues(level);
     Object.keys(_vals).sort(function (a, b) { return _vals[b] - _vals[a] || a.localeCompare(b); })
-      .forEach(function (v) { options.push({ id: v, label: v + ' (' + _vals[v].toLocaleString() + ')' }); });
+      .forEach(function (v) { options.push({ id: v, label: v }); });   // v0.9.1799: the number comes from _phChipCounts below
   } else if (level === 'type') {
     // Pull options from the live #filter-type <select>. populateFilters()
     // refreshes that select per-era, so we always get the current bucket set.
@@ -1485,7 +1494,18 @@ function _setHierarchyChoice(level, value) {
         _ftSel.appendChild(_newOpt);
       }
       _ftSel.value = value || '';
-      if (typeof applyFilters === 'function') applyFilters();
+      // v0.9.1799: FOUND BY picker_counts_tests, not by reading. applyFilters()
+      // wipes ownMaker / Group / Sub Type / Quick Entry / Imported / Needs-
+      // details on its way through — so in My Collection, picking a TYPE
+      // silently threw away the Group you had just chosen ("my Disney cars" →
+      // Boxcar → every boxcar you own), and the pill vanished with it. The
+      // other three chips never did that. In My Collection a type pick now
+      // changes the type and nothing else; the catalog view keeps applyFilters.
+      if (state.filters.owned) {
+        state.filters.type = _ftSel.value;
+        state.currentPage = 1;
+        if (typeof renderBrowse === 'function') renderBrowse();
+      } else if (typeof applyFilters === 'function') applyFilters();
     }
     if (typeof _renderHierarchyChips === 'function') _renderHierarchyChips();
     return;
@@ -4070,8 +4090,13 @@ function _rrBrowseCore(_co) {
   // ANDs), so each variant is tested against a few hundred rows, not 150,000.
   if (_co) {
     var _coOut = {}, _savedOM = state.filters.ownMaker, _savedType = type, _savedChips = _stp3b;
+    // v0.9.1799: Groups / Sub Types live on state.filters and the row test
+    // reads them there, so a variant may carry filter overrides too.
+    var _savedSC = state.filters.subCollection, _savedST = state.filters.subType;
+    var _setF = function (f) { if (!f) return; if ('subCollection' in f) state.filters.subCollection = f.subCollection; if ('subType' in f) state.filters.subType = f.subType; };
     try {
       _stp3b = _co.clearChips; type = _co.clearType; state.filters.ownMaker = _co.clearOwnMaker || '';
+      _setF(_co.clearF);
       var _pre = baseList.filter(_rowPasses);
       if (_co.level === 'type') {
         // The type test is `bucket label === type`, so one pass buckets them all.
@@ -4084,11 +4109,11 @@ function _rrBrowseCore(_co) {
         _coOut[''] = _foldSets(_expandCopies(_pre)).length;   // "All Types" is an option too
       } else {
         (_co.variants || []).forEach(function (v) {
-          _stp3b = v.chips; state.filters.ownMaker = v.ownMaker || '';
+          _stp3b = v.chips; state.filters.ownMaker = v.ownMaker || ''; _setF(v.f);
           _coOut[v.id] = _foldSets(_expandCopies(_pre.filter(_rowPasses))).length;
         });
       }
-    } finally { state.filters.ownMaker = _savedOM; type = _savedType; _stp3b = _savedChips; }
+    } finally { state.filters.ownMaker = _savedOM; type = _savedType; _stp3b = _savedChips; state.filters.subCollection = _savedSC; state.filters.subType = _savedST; }
     return _coOut;
   }
   state.filteredData = baseList.filter(_rowPasses);

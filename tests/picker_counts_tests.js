@@ -43,12 +43,12 @@ function T(n, got, want) { const ok = got === want; console.log((ok ? 'PASS' : '
     let inv = 1;
     const pd = (n, v, era, mfr, x) => Object.assign({ owned: true, itemNum: n, variation: v, era: era, manufacturer: mfr, inventoryId: String(inv++), row: inv + 1 }, x || {});
     state.personalData = {
-      a: pd('6457', '3', 'pw', 'Lionel'), b: pd('6457', '3', 'pw', 'Lionel'),          // two COPIES: blank stored type
+      a: pd('6457', '3', 'pw', 'Lionel', { subCollection: 'Cabooses I run', subType: 'SP Type' }), b: pd('6457', '3', 'pw', 'Lionel', { subType: 'SP Type' }),          // two COPIES: blank stored type
       c: pd('6017', '1', 'pw', 'Lionel', { itemType: 'Boxcar' }),                      // STUCK wrong stored type
       d: pd('6464', '1', 'pw', 'Lionel', { groupId: 'SET-1500-1' }),                   // two members of one SET fold
       e: pd('2343', '1', 'pw', 'Lionel', { groupId: 'SET-1500-1' }),
       f: pd('8359', '', 'mpc', 'Lionel'), g: pd('9700', '', 'mpc', 'Lionel'),
-      h: pd('0326', '', 'atlas', 'Atlas'),
+      h: pd('0326', '', 'atlas', 'Atlas', { subCollection: 'Cabooses I run' }),
       i: pd('Ertl 1:64 truck', '', 'Manual', 'Ertl', { itemType: 'Vehicle', yearMade: '1995' }),   // own maker + own type
     };
     state.mySetsData = { s1: { setNum: '1500', groupId: 'SET-1500-1', year: '1953' } };
@@ -62,7 +62,7 @@ function T(n, got, want) { const ok = got === want; console.log((ok ? 'PASS' : '
     const shown = () => { window._rrBrowseSig = null; renderBrowse(); return (state.filteredData || []).length; };
     const reset = () => {
       localStorage.setItem('lv_browse_filter_state', JSON.stringify({ manufacturer: 'any', scale: 'any', era: 'any', section: 'items' }));
-      state.filters.ownMaker = ''; state.filters.type = '';
+      state.filters.ownMaker = ''; state.filters.type = ''; state.filters.subCollection = ''; state.filters.subType = '';
       var sel = document.getElementById('filter-type'); if (sel) sel.value = '';
     };
     const apply = pre => { reset(); (pre || []).forEach(p => _setHierarchyChoice(p[0], p[1])); };
@@ -93,6 +93,9 @@ function T(n, got, want) { const ok = got === want; console.log((ok ? 'PASS' : '
     all.push(...audit('era', [['manufacturer', 'lionel']]));
     all.push(...audit('manufacturer', [['era', 'modern']]));
     all.push(...audit('era', [['type', 'Caboose']]));
+    // v0.9.1799: the "More" chip's two lists, bare and under other chips
+    ['subCollection', 'subType'].forEach(l => { all.push(...audit(l, [])); all.push(...audit(l, [['manufacturer', 'lionel']])); all.push(...audit(l, [['type', 'Caboose']])); });
+    all.push(...audit('type', [['subCollection', 'Cabooses I run']]));
     // state must be untouched by ASKING for counts
     apply([['manufacturer', 'lionel']]); const before = shown(); const fdRef = state.filteredData;
     const sig = JSON.stringify([state.filters, localStorage.getItem('lv_browse_filter_state'), state._collSection]);
@@ -111,6 +114,12 @@ function T(n, got, want) { const ok = got === want; console.log((ok ? 'PASS' : '
   T('Caboose, no other chip: 4 (two copies + stuck-type 6017 + Atlas)', find('type', [], 'Caboose').said, 4);
   T('Caboose with the Lionel chip on: 3 — the number FOLLOWS the chip', find('type', [['manufacturer', 'lionel']], 'Caboose').said, 3);
   T('a stuck stored "Boxcar" on a caboose is not counted as a boxcar', find('type', [['era', 'postwar']], 'Boxcar').got, find('type', [['era', 'postwar']], 'Boxcar').said);
+  // Relative, on purpose: the list shows EVERY copy of a row whose first copy is in the
+  // group (a list quirk, OPEN_LIST #11) and the number must match the list, quirk and all.
+  T('Group "Cabooses I run": the Lionel chip takes exactly the Atlas one away',
+    find('subCollection', [], 'Cabooses I run').said - find('subCollection', [['manufacturer', 'lionel']], 'Cabooses I run').said, 1);
+  T('picking a Type KEEPS the Group you chose (it used to wipe it)', find('type', [['subCollection', 'Cabooses I run']], 'Boxcar').got, 0);
+  T('Sub Type "SP Type": 2 (both copies)', find('subType', [], 'SP Type').said, 2);
   T('an own maker (Ertl) gets a real number', find('manufacturer', [], 'Ertl').said, 1);
   T('an option that would show nothing carries NO number', find('manufacturer', [], 'MTH').label, 'MTH');
   T('asking for counts changes no state and repaints nothing', out.untouched, true);
