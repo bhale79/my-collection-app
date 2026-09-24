@@ -52,5 +52,65 @@ const truck = rows.find(r => r[0] === 'DA1230004');
 ok('spot check: DA1230004 (RailKing 4-wheel pilot truck) fits the GS-4 Daylight list', !!truck && /GS-4/.test(truck[23]), truck && truck[23].slice(0, 120));
 ok('Fits and Diagrams cells are capped so no cell overflows Sheets', rows.every(r => r[23].length <= 2000 && r[24].length <= 1500));
 
+
+// ═══════════════════════════════════════════════════════════════
+// v0.9.1800 — the PARTS-LIST road (Brad, 2026-09-23: MTH parts "so that it
+// works like the lionel parts does in the maintenance page").
+// MTH files parts the way its site does: item -> parts list -> parts. One screw
+// fits 9,495 MTH items, so a Fits list cannot live in a cell (Google: 50,000
+// characters; and a Fits list is never capped). The sheet's "Parts Lists"
+// column holds list numbers on BOTH sides; _partsFitsIndex joins them.
+// The fixture is the REAL data written to the sheet on 2026-09-24:
+// harvests/mth-parts-lists-2026-09-24.json.
+// ═══════════════════════════════════════════════════════════════
+section('The parts-list road (v0.9.1800) — real MTH data');
+const ad = rd('app-data.js');
+function grabIn(src, sig) { const i = src.indexOf(sig); if (i < 0) return ''; let d = 0; for (let k = src.indexOf('{', i); k < src.length; k++) { if (src[k] === '{') d++; else if (src[k] === '}') { d--; if (!d) return src.slice(i, k + 1); } } return ''; }
+ok("MASTER_COL_SPEC maps 'partsLists' by the header \"Parts Lists\", name-only", /\['partsLists',\s*null,\s*\['partslists'\]\]/.test(ad));
+const idxVars = (ad.match(/var _fitsIdx = null, _fitsIdxRows = null, _fitsIdxLen = -1;/) || [''])[0];
+function build(srcAd) {
+  const src = idxVars + '\n' + grabIn(srcAd, 'function _partsFitsIndex()') + '\n' + grabIn(srcAd, 'function _partsMakerOf(era)') + '\n' + grabIn(srcAd, 'function _partsForItem(itemNum, forEra)') + '\nreturn _partsForItem;';
+  return (rows) => new Function('state', 'baseItemNum', 'ERAS', src)({ masterAllRows: rows, masterData: [] }, k => k, ERAS_MFR);
+}
+const ERAS_MFR = { mth_parts: { manufacturer: 'MTH' }, mth_o: { manufacturer: 'MTH' }, mth_ho: { manufacturer: 'MTH' }, mth_s: { manufacturer: 'MTH' }, mth_tinplate: { manufacturer: 'MTH' }, mth_g: { manufacturer: 'MTH' }, pw: { manufacturer: 'Lionel' }, lionel_parts: { manufacturer: 'Lionel' } };
+const PL = JSON.parse(fs.readFileSync(path.join(H, 'mth-parts-lists-2026-09-24.json'), 'utf8'));
+const TAB_ERA = { 'MTH O': 'mth_o', 'MTH HO': 'mth_ho', 'MTH S Gauge': 'mth_s', 'MTH Tinplate': 'mth_tinplate', 'MTH G Scale': 'mth_g' };
+const REAL = [];
+PL.tabs['MTH Parts'].forEach(x => REAL.push({ itemNum: x[1], itemType: 'Part', partsLists: x[2], _era: 'mth_parts', _tab: 'MTH Parts', variation: '' }));
+Object.keys(TAB_ERA).forEach(t => PL.tabs[t].forEach((x, i) => REAL.push({ itemNum: x[1], itemType: 'Locomotive', partsLists: x[2], _era: TAB_ERA[t], _tab: t, variation: String(i) })));
+ok('the fixture is the real write: 18,769 part rows, 37,635 item rows, header "Parts Lists"', PL.header === 'Parts Lists' && PL.tabs['MTH Parts'].length === 18769 && Object.keys(TAB_ERA).reduce((n, t) => n + PL.tabs[t].length, 0) === 37635);
+ok('no Parts Lists cell comes anywhere near the 50,000-character limit (longest under 1,000)', Object.values(PL.tabs).every(rows => rows.every(x => x[2].length < 1000)));
+const pfi = build(ad)(REAL);
+const tender = pfi('20-3253-1', 'mth_o').map(r => r.itemNum);
+ok('20-3253-1 (Premier PRR Decapod) is offered the parts on its list — including its own tender, 20-3253-1', tender.length > 100 && tender.indexOf('20-3253-1') >= 0, String(tender.length));
+// Reverse check, the way the 2026-09-22 join counted it: how many items does a part fit?
+const seenNums = {}; let axle = 0, goose = 0, screw = 0;
+REAL.forEach(r => { if (r.itemType === 'Part' || seenNums[r.itemNum]) return; seenNums[r.itemNum] = 1; const ps = pfi(r.itemNum, r._era).map(p => p.itemNum); if (ps.indexOf('TPSF00010') >= 0) axle++; if (ps.indexOf('DA2230002') >= 0) goose++; if (ps.indexOf('IA0000003') >= 0) screw++; });
+ok('TPSF00010 (Standard Gauge axle) fits 287 items — the audited answer', axle === 287, String(axle));
+ok('DA2230002 (Galloping Goose pilot truck) fits 22 items — the audited answer', goose === 22, String(goose));
+ok('IA0000003 (the screw) fits all 9,495 items — nothing capped', screw === 9495, String(screw));
+ok('an MTH number asked about as a LIONEL item gets no MTH parts (maker guard)', pfi('20-3253-1', 'pw').length === 0);
+// Synthetic edges, each with its own offender below.
+const EDGE = [
+  { itemNum: 'P1', itemType: 'Part', partsLists: '7', _era: 'mth_parts', _tab: 'MTH Parts' },
+  { itemNum: 'P2', itemType: 'Part', partsLists: '8', _era: 'mth_parts', _tab: 'MTH Parts' },
+  { itemNum: 'L1', itemType: 'Part', partsLists: '7', _era: 'lionel_parts', _tab: 'Lionel Parts' },
+  { itemNum: '1234', itemType: 'Boxcar', partsLists: '7', _era: 'mth_o', _tab: 'MTH O' },
+  { itemNum: '1234', itemType: 'Boxcar', partsLists: '8', _era: 'mth_ho', _tab: 'MTH HO' },
+  { itemNum: '1234', itemType: 'Boxcar', partsLists: '7', _era: 'pw', _tab: 'PW Items' },
+];
+const edge = build(ad)(EDGE);
+const nm = a => a.map(r => r.itemNum).sort().join(',');
+ok('same number on MTH O and MTH HO: the item\'s OWN era\'s lists answer (HO → P2 only)', nm(edge('1234', 'mth_ho')) === 'P2', nm(edge('1234', 'mth_ho')));
+ok('a list number belongs to its MAKER: Lionel part L1 on a "list 7" never answers an MTH item', nm(edge('1234', 'mth_o')) === 'P1', nm(edge('1234', 'mth_o')));
+ok('a Lionel item row carrying "7" pulls no MTH part', nm(edge('1234', 'pw')).indexOf('P1') < 0);
+ok('the Fits road is untouched: a Fits-only part still answers', nm(build(ad)([{ itemNum: 'F1', itemType: 'Part', fits: '1234; 99', _era: 'mth_parts', _tab: 'MTH Parts' }])('1234', 'mth_o')) === 'F1');
+section('Planted offenders — each must turn the matching check red');
+function offend(from, to) { if (ad.indexOf(from) < 0) return null; return build(ad.replace(from, to)); }
+const o1 = offend("return e.era === forEra; })", "return true; })");
+ok('OFFENDER: drop the own-era preference → HO item also gets MTH O\'s part', !!o1 && nm(o1(EDGE)('1234', 'mth_ho')) !== 'P2');
+const o2 = offend("var lk = mk + '|' + id", "var lk = '|' + id");
+ok('OFFENDER: key lists without the maker → the list is lost or crosses makers', !!o2 && nm(o2(EDGE)('1234', 'mth_o')) !== 'P1');
+
 console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
 process.exit(fail ? 1 : 0);

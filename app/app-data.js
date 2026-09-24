@@ -589,6 +589,11 @@ const MASTER_COL_SPEC = [
   // ("2343; 2344; 2353") and the exploded diagrams it appears on.
   ['fits',           null, ['fits']],
   ['diagrams',       null, ['diagrams']],
+  // v0.9.1800: the maker's own PARTS LIST numbers, when a maker files its parts
+  // that way (MTH: item -> parts list -> parts). On a part row: the lists the
+  // part is on. On an item row: the lists the item uses. Numbers only, "; "
+  // between them. Read by _partsFitsIndex / _partsForItem — never capped.
+  ['partsLists',     null, ['partslists']],
 ];
 
 // Build a field -> column-index map from a sheet's header row.
@@ -1123,9 +1128,35 @@ function _partsFitsIndex() {
   var rows = (state.masterAllRows && state.masterAllRows.length) ? state.masterAllRows : (state.masterData || []);
   if (_fitsIdx && _fitsIdxRows === rows && _fitsIdxLen === rows.length) return _fitsIdx;
   var m = new Map();
+  // v0.9.1800 (Brad, 2026-09-23: MTH parts "so that it works like the lionel
+  // parts does"): the second road to the same answer. MTH files its parts the
+  // way its own site does — item -> parts list -> parts — because one screw fits
+  // 9,495 MTH items and no sheet cell can hold that as a Fits list (Google caps a
+  // cell at 50,000 characters; never cap a Fits list). So a PART row names the
+  // lists it is on and an ITEM row names the lists it uses, both in the "Parts
+  // Lists" column, and the two meet here. Built in the SAME pass and cached the
+  // SAME way as the Fits index, and hung on it, so every caller that already
+  // asks _partsFitsIndex() gets both roads with no second cache to go stale.
+  //   m.lists     list number -> [part rows on that list]
+  //   m.itemLists item number -> [{ era, ids: [list numbers] }]
+  // A list number only means something inside ONE maker's catalog, so it is
+  // keyed with the maker: 'MTH|294'. (No store or maker is named in this code.)
+  var lists = new Map(), itemLists = new Map();
   for (var i = 0; i < rows.length; i++) {
     var r = rows[i];
-    if (!r || !r.fits || !/^part$/i.test(String(r.itemType || ''))) continue;
+    if (!r) continue;
+    var isPart = /^part$/i.test(String(r.itemType || ''));
+    if (r.partsLists) {
+      var mk = _partsMakerOf(r._era);
+      var ids = String(r.partsLists).split(/\s*;\s*/).map(function (x) { return x.trim(); }).filter(Boolean);
+      if (isPart) {
+        ids.forEach(function (id) { var lk = mk + '|' + id, lb = lists.get(lk); if (!lb) { lb = []; lists.set(lk, lb); } lb.push(r); });
+      } else if (ids.length) {
+        var ik = String(r.itemNum || '').trim();
+        if (ik) { var ib = itemLists.get(ik); if (!ib) { ib = []; itemLists.set(ik, ib); } ib.push({ era: r._era || '', maker: mk, ids: ids }); }
+      }
+    }
+    if (!r.fits || !isPart) continue;
     var toks = String(r.fits).split(/\s*;\s*/);
     for (var j = 0; j < toks.length; j++) {
       var k = toks[j].trim(); if (!k) continue;
@@ -1133,6 +1164,7 @@ function _partsFitsIndex() {
       b.push(r);
     }
   }
+  m.lists = lists; m.itemLists = itemLists;
   _fitsIdx = m; _fitsIdxRows = rows; _fitsIdxLen = rows.length;
   return m;
 }
@@ -1161,12 +1193,25 @@ function _partsForItem(itemNum, forEra) {
   var mp = k.replace(/^\d-/, ''); if (mp && mp !== k && keys.indexOf(mp) < 0) keys.push(mp);
   var want = forEra ? _partsMakerOf(forEra) : '';
   var out = [], seen = {};
+  function take(r) {
+    var s = (r.itemNum || '') + '|' + (r.variation || '') + '|' + (r._tab || '');
+    if (seen[s]) return;
+    if (want) { var got = _partsMakerOf(r._era); if (got && got !== want) return; }
+    seen[s] = 1; out.push(r);
+  }
   keys.forEach(function (key) {
-    (idx.get(key) || []).forEach(function (r) {
-      var s = (r.itemNum || '') + '|' + (r.variation || '') + '|' + (r._tab || '');
-      if (seen[s]) return;
-      if (want) { var got = _partsMakerOf(r._era); if (got && got !== want) return; }
-      seen[s] = 1; out.push(r);
+    (idx.get(key) || []).forEach(take);
+    // v0.9.1800: the parts-list road (see _partsFitsIndex). The item's own
+    // catalog row says which lists it uses; every part on those lists fits.
+    // The maker guard needs nothing extra here: list keys carry the maker, and
+    // take() already refuses a part from another maker's catalog. (A separate
+    // item-row maker filter was drafted and its planted offender could not turn
+    // anything red — it was dead, so it is gone.) When this item's own era is
+    // known, a row from THAT era wins over a same-numbered row elsewhere.
+    var il = (idx.itemLists && idx.itemLists.get(key)) || [];
+    var own = forEra ? il.filter(function (e) { return e.era === forEra; }) : [];
+    (own.length ? own : il).forEach(function (e) {
+      e.ids.forEach(function (id) { ((idx.lists && idx.lists.get(e.maker + '|' + id)) || []).forEach(take); });
     });
   });
   return out;
