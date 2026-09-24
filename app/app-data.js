@@ -143,6 +143,7 @@ async function loadAllData() {
     // each era from Sheets in sequence in the background.
     if (_currentEra === 'all' && typeof loadAllErasMode === 'function') {
       await loadAllErasMode();
+      _loadMasterVersion();   // v0.9.1801 — all-eras mode never read it; it also carries sheet changes to this device
       _patchMasterData();
       _inferMissingYears();
       buildApp(); if (typeof _auditCatalogResolution === 'function') setTimeout(_auditCatalogResolution, 1500);
@@ -501,6 +502,30 @@ function _mvPickLatest(rows) {
 }
 if (typeof window !== 'undefined') { window._mvCompare = _mvCompare; window._mvDateKey = _mvDateKey; window._mvPickLatest = _mvPickLatest; }
 
+// v0.9.1801: the sheet changed → every catalog this device saved is out of date.
+// Remembers the last Master Version seen HERE; when the tab shows a different
+// one, clears every catalog's freshness stamp so the loaders and the lookup
+// index fetch them again, then rebuilds the index. A device that has never
+// recorded a version counts as changed, once — that is what carries today's
+// edits to devices already out in the field. Pure bookkeeping: it never
+// deletes a cached catalog, so a failed fetch still leaves the old rows.
+var _MV_SEEN_KEY = 'lv_master_ver_seen';
+function _rrMasterVersionCheck(v) {
+  v = String(v == null ? '' : v).trim(); if (!v) return false;
+  var seen = null;
+  try { seen = localStorage.getItem(_MV_SEEN_KEY); } catch (e) { return false; }
+  if (seen === v) return false;
+  try {
+    var eras = (typeof REAL_ERA_IDS !== 'undefined' && Array.isArray(REAL_ERA_IDS)) ? REAL_ERA_IDS : [];
+    eras.forEach(function (e) { localStorage.setItem('lv_master_cache_ts_' + e, '0'); });
+    localStorage.setItem(_MV_SEEN_KEY, v);
+  } catch (e) { return false; }
+  console.log('[master-version] ' + (seen || 'none') + ' → ' + v + ': catalogs marked out of date');
+  if (typeof _scheduleLookupIndex === 'function') _scheduleLookupIndex(8000, true);
+  return true;
+}
+if (typeof window !== 'undefined') window._rrMasterVersionCheck = _rrMasterVersionCheck;
+
 async function _loadMasterVersion() {
   try {
     if (!state.masterSheetId || typeof sheetsGet !== 'function') return;
@@ -508,6 +533,7 @@ async function _loadMasterVersion() {
     var latest = _mvPickLatest(resp && resp.values);
     if (latest) {
       state.masterVersion = latest;
+      _rrMasterVersionCheck(latest.v);
       var el = document.getElementById('pref-catalog-count');
       if (el) el.textContent = el.textContent.replace(/ · sheet v.*$/, '') + ' \u00b7 sheet v' + state.masterVersion.v;
     }
@@ -1357,8 +1383,25 @@ var _allIdxBuiltAt = 0, _allIdxBuilding = false;
 // like a genuine result. _allIdxComplete is the missing signal: TRUE only
 // after every era has been added, so callers can wait instead of guessing.
 var _allIdxComplete = false;
+// v0.9.1801 (Brad, 2026-09-24: changes to the master must reach every device —
+// "the app refreshes its catalog when the sheet changes"). Two holes, both here:
+//   1. A catalog this index had cached was NEVER fetched again. Only MISSING
+//      eras were fetched, so a catalog the app does not load for display — the
+//      four parts catalogs, and every maker the user neither ticks nor owns —
+//      stayed at whatever it was the day it was first cached. On Brad's own PC
+//      three parts catalogs had no timestamp at all and Pre-War was 97 h old.
+//   2. Nothing told a device the SHEET had changed. The Master Version tab
+//      already said so; it was only displayed.
+// Now a cached catalog with no freshness stamp is used at once AND fetched
+// again in the background, then swapped in. _rrMasterVersionCheck clears every
+// stamp when the Master Version changes, so an edit to the sheet reaches every
+// device on its next start — and a device re-downloads ONLY when the sheet
+// changed, never on a timer (the parts catalogs are tens of MB).
+// Catalogs the app loads for display are skipped here: their own loader
+// refreshes them, and fetching them twice is waste.
+var _allIdxRerun = false;
 async function _buildAllErasLookupIndex(force) {
-  if (_allIdxBuilding) return;
+  if (_allIdxBuilding) { if (force) _allIdxRerun = true; return; }
   if (!force && _allIdxBuiltAt && (Date.now() - _allIdxBuiltAt) < 10 * 60 * 1000) return;
   _allIdxBuilding = true;
   _allIdxComplete = false;
@@ -1366,56 +1409,71 @@ async function _buildAllErasLookupIndex(force) {
     var eras = (typeof REAL_ERA_IDS !== 'undefined' && Array.isArray(REAL_ERA_IDS))
       ? REAL_ERA_IDS.slice()
       : ['pw', 'mpc', 'prewar', 'atlas', 'mth_o', 'mth_ho', 'mth_s', 'mth_tinplate', 'mth_g'];
-    var map = new Map(), rowsAll = [], seen = {};
-    function add(rows, era) {
-      if (!Array.isArray(rows)) return;
-      for (var i = 0; i < rows.length; i++) {
-        var r = rows[i]; if (!r) continue;
-        var k = String(r.itemNum || '').trim(); if (!k) continue;
-        var sig = k + '|' + String(r.variation || '') + '|' + String(r._tab || '') + '|' + String(r._era || era || '');
-        if (seen[sig]) continue; seen[sig] = 1;
-        if (!r._era && era) r._era = era;
-        var b = map.get(k); if (!b) { b = []; map.set(k, b); } b.push(r);
-        rowsAll.push(r);
+    var eraRows = {};                     // era -> the rows this index holds for it
+    function assemble() {
+      var map = new Map(), rowsAll = [], seen = {};
+      function add(rows, era) {
+        if (!Array.isArray(rows)) return;
+        for (var i = 0; i < rows.length; i++) {
+          var r = rows[i]; if (!r) continue;
+          var k = String(r.itemNum || '').trim(); if (!k) continue;
+          var sig = k + '|' + String(r.variation || '') + '|' + String(r._tab || '') + '|' + String(r._era || era || '');
+          if (seen[sig]) continue; seen[sig] = 1;
+          if (!r._era && era) r._era = era;
+          var b = map.get(k); if (!b) { b = []; map.set(k, b); } b.push(r);
+          rowsAll.push(r);
+        }
       }
+      add(state.masterData, null);        // loaded rows first — they carry live edits
+      eras.forEach(function (e) { if (eraRows[e]) add(eraRows[e], e); });
+      state.masterByItemAll = map;
+      state.masterAllRows = rowsAll;
+      _allIdxBuiltAt = Date.now();
+      return map;
     }
-    add(state.masterData, null);          // loaded rows first — they carry live edits
-    var missing = [];
+    var shown = {};
+    (state.masterData || []).forEach(function (r) { if (r && r._era) shown[r._era] = 1; });
+    var missing = [], stale = [];
     for (var i2 = 0; i2 < eras.length; i2++) {
       var era2 = eras[i2], cached = null;
       try { cached = await idbGet('lv_master_cache_' + era2); } catch (e) {}
-      if (Array.isArray(cached) && cached.length) add(cached, era2);
-      else missing.push(era2);
+      if (Array.isArray(cached) && cached.length) {
+        eraRows[era2] = cached;
+        var ts = 0; try { ts = parseInt(localStorage.getItem('lv_master_cache_ts_' + era2) || '0', 10) || 0; } catch (eT) {}
+        if (!(ts > 0) && !shown[era2]) stale.push(era2);
+      } else missing.push(era2);
     }
     // Publish what we have NOW — lookups start working before any fetches.
-    state.masterByItemAll = map;
-    state.masterAllRows = rowsAll;
-    _allIdxBuiltAt = Date.now();
+    assemble();
     // One-time fetch for eras never loaded on this device (e.g. MTH for a
-    // Lionel-only collector). Cached to IDB so this doesn't repeat.
-    for (var j = 0; j < missing.length; j++) {
-      var e2 = missing[j];
+    // Lionel-only collector), then the stale ones. Cached to IDB either way.
+    var toFetch = missing.concat(stale);
+    for (var j = 0; j < toFetch.length; j++) {
+      var e2 = toFetch[j];
       try {
         if (typeof _fetchMasterTabs !== 'function') break;
         var fresh = await _fetchMasterTabs(e2);
-        if (fresh && fresh.length) {
+        // A failed or empty read keeps the cached rows — never replace a catalog with nothing.
+        if (fresh && fresh.length && !fresh._failed) {
           var ded = (typeof _deduplicateMaster === 'function') ? _deduplicateMaster(fresh) : fresh;
+          ded.forEach(function (r) { if (r && !r._era) r._era = e2; });
           idbSet('lv_master_cache_' + e2, ded);
           try { localStorage.setItem('lv_master_cache_ts_' + e2, Date.now().toString()); } catch (eT) {}
-          add(ded, e2);
+          eraRows[e2] = ded;
         }
       } catch (eF) { console.warn('[lookup-index] fetch ' + e2 + ' failed:', eF && eF.message); }
     }
-    state.masterByItemAll = map;
-    state.masterAllRows = rowsAll;
-    _allIdxBuiltAt = Date.now();
+    var map = assemble();
     _allIdxComplete = map.size > 0;
     // v0.9.1795: cards drawn before this moment resolved owned items against
     // Layer 1 alone. Draw them again now that the named catalogs can answer.
     try { if (typeof buildDashboard === 'function') buildDashboard(); } catch (eBD) {}
     try { if (typeof renderBrowse === 'function') renderBrowse(); } catch (eRC) {}
-    console.log('[lookup-index] full catalog ready: ' + map.size + ' numbers / ' + rowsAll.length + ' rows');
-  } finally { _allIdxBuilding = false; }
+    console.log('[lookup-index] full catalog ready: ' + map.size + ' numbers / ' + state.masterAllRows.length + ' rows (' + stale.length + ' refreshed, ' + missing.length + ' new)');
+  } finally {
+    _allIdxBuilding = false;
+    if (_allIdxRerun) { _allIdxRerun = false; _scheduleLookupIndex(500, true); }
+  }
 }
 function _scheduleLookupIndex(delayMs, force) {
   try {
