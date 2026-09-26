@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.1801';
+const APP_VERSION = 'v0.9.1802';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -1021,6 +1021,15 @@ const ERAS = {
   // the part's own store page is shown (v0.9.1759: only on "The maker's own
   // store"); partsOfficial = this is Lionel's own store, so that page may open.
   lionelstore_parts: { id: 'lionelstore_parts', label: 'Lionel Store Parts', years: 'All', prefix: 'Lionel Store Parts', manufacturer: 'Lionel', partsLink: 'store', partsOfficial: true },
+  // v0.9.1802 (Brad, 2026-09-26: Atlas parts on the Maintenance page "the same
+  // way as MTH"): Atlas's own parts, read off its parts-diagram PDFs (O and HO
+  // first, N to follow). Lookup-only. Each part row's "Parts Lists" names the
+  // diagram(s) it is printed on; an Atlas item reaches them through the same
+  // matcher that picks its "Parts diagram" buttons (atlas-diagrams-config.js).
+  // partsOfficial: the row's link IS Atlas's own diagram for the part, labelled
+  // partsLink. partsVarIsIndex: Variation only keeps two names Atlas printed
+  // with one number apart — it is not a variation to show.
+  atlas_parts: { id: 'atlas_parts', label: 'Atlas Parts', years: 'All', prefix: 'Atlas Parts', manufacturer: 'Atlas', partsLink: 'Atlas diagram', partsOfficial: true, partsVarIsIndex: true },
   atlas:  { id: 'atlas',  label: 'Atlas O',     years: 'All',        prefix: 'Atlas O',        manufacturer: 'Atlas' },
   // Session 174 (Brad): Atlas HO/N/Z tabs exist & are populated in the master
   // sheet (added in the 2026-07-21 merge) but were never wired up, so ~33.5k
@@ -1085,14 +1094,14 @@ const ERAS = {
   bachmann_all:   { id: 'bachmann_all',   label: 'Bachmann All Scales', years: 'All', prefix: 'Bachmann All Scales', manufacturer: 'Bachmann' },
 };
 // Real-era IDs in load priority order (excluding 'all' meta-era).
-const REAL_ERA_IDS = ['pw', 'mpc', 'mod_ho', 'mod_s', 'af_gilbert', 'am_s', 'shelper', 'prewar', 'atlas', 'atlas_ho', 'atlas_n', 'atlas_z', 'mth_o', 'mth_ho', 'mth_s', 'mth_tinplate', 'mth_g', 'marklin_h0', 'marklin_z', 'marklin_1', 'kato_n', 'kato_ho', 'kato_parts', 'microtrains_n', 'trepro', 'lionel_parts', 'mth_parts', 'traintender_parts', 'lionelstore_parts', 'weaver', 'rmt', 'menards', 'menards_ho', 'thirdrail', 'usatrains', 'lgb', 'kline', 'williams', 'marx', 'other_o', 'aristocraft', 'accucraft', 'bachmann_ho', 'bachmann_n', 'bachmann_g', 'bachmann_o', 'bachmann_on30', 'bachmann_hon30', 'bachmann_all'];
+const REAL_ERA_IDS = ['pw', 'mpc', 'mod_ho', 'mod_s', 'af_gilbert', 'am_s', 'shelper', 'prewar', 'atlas', 'atlas_ho', 'atlas_n', 'atlas_z', 'mth_o', 'mth_ho', 'mth_s', 'mth_tinplate', 'mth_g', 'marklin_h0', 'marklin_z', 'marklin_1', 'kato_n', 'kato_ho', 'kato_parts', 'microtrains_n', 'trepro', 'lionel_parts', 'mth_parts', 'traintender_parts', 'lionelstore_parts', 'atlas_parts', 'weaver', 'rmt', 'menards', 'menards_ho', 'thirdrail', 'usatrains', 'lgb', 'kline', 'williams', 'marx', 'other_o', 'aristocraft', 'accucraft', 'bachmann_ho', 'bachmann_n', 'bachmann_g', 'bachmann_o', 'bachmann_on30', 'bachmann_hon30', 'bachmann_all'];
 // v0.9.1749: eras that exist for LOOKUPS ONLY. They are in REAL_ERA_IDS (so
 // the background full-catalog index fetches and caches them, and the
 // Yardmaster can file rows into their tab) but _isEraEnabled says no for
 // them, so they never load at startup and never appear in Master Catalog.
 // A parts catalog is the case: findMaster('2343-13') must answer, but nobody
 // wants 30,000 screws in browse.
-const LOOKUP_ONLY_ERAS = ['lionel_parts', 'mth_parts', 'traintender_parts', 'lionelstore_parts'];   // v0.9.1750: + MTH; v0.9.1755: + Train Tender; v0.9.1756: + Lionel's store
+const LOOKUP_ONLY_ERAS = ['lionel_parts', 'mth_parts', 'traintender_parts', 'lionelstore_parts', 'atlas_parts'];   // v0.9.1750: + MTH; v0.9.1755: + Train Tender; v0.9.1756: + Lionel's store; v0.9.1802: + Atlas
 if (typeof window !== 'undefined') window.LOOKUP_ONLY_ERAS = LOOKUP_ONLY_ERAS;
 
 // ── Master sheet tab names per era ──
@@ -1120,6 +1129,7 @@ const ERA_SCALE = {
   mth_parts: '',      // v0.9.1750 — parts span O, HO, S, G and tinplate; blank on purpose
   traintender_parts: '',   // v0.9.1755 — parts span O, OO and G; blank on purpose (the row's Gauge column says which)
   lionelstore_parts: '',   // v0.9.1756 — the store sells O, S (American Flyer) and HO parts; blank on purpose
+  atlas_parts: '',         // v0.9.1802 — O, HO and N parts on one tab (the Gauge column says which); blank on purpose
   trepro: '3¼"',     // v0.9.1747 — Buddy L 3¼-inch gauge; no other era runs on it
   mth_g: 'G',
   atlas_ho: 'HO', atlas_n: 'N', atlas_z: 'Z',
@@ -1237,6 +1247,7 @@ const ERA_TABS = {
   mth_parts:     { items: 'MTH Parts' },        // v0.9.1750
   traintender_parts: { items: 'Train Tender Parts' },   // v0.9.1755
   lionelstore_parts: { items: 'Lionel Store Parts' },   // v0.9.1756
+  atlas_parts:   { items: 'Atlas Parts' },      // v0.9.1802
   am_s:       { items: 'American Models S' },
   shelper:    { items: 'S-Helper Service S' },
   weaver: {

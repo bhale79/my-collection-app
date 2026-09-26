@@ -69,7 +69,7 @@ function grabIn(src, sig) { const i = src.indexOf(sig); if (i < 0) return ''; le
 ok("MASTER_COL_SPEC maps 'partsLists' by the header \"Parts Lists\", name-only", /\['partsLists',\s*null,\s*\['partslists'\]\]/.test(ad));
 const idxVars = (ad.match(/var _fitsIdx = null, _fitsIdxRows = null, _fitsIdxLen = -1;/) || [''])[0];
 function build(srcAd) {
-  const src = idxVars + '\n' + grabIn(srcAd, 'function _partsFitsIndex()') + '\n' + grabIn(srcAd, 'function _partsMakerOf(era)') + '\n' + grabIn(srcAd, 'function _partsForItem(itemNum, forEra)') + '\nreturn _partsForItem;';
+  const src = idxVars + '\n' + grabIn(srcAd, 'function _partsFitsIndex()') + '\n' + grabIn(srcAd, 'function _partsMakerOf(era)') + '\n' + grabIn(srcAd, 'function _partsForItem(itemNum, forEra, item)') + '\nreturn _partsForItem;';
   return (rows) => new Function('state', 'baseItemNum', 'ERAS', src)({ masterAllRows: rows, masterData: [] }, k => k, ERAS_MFR);
 }
 const ERAS_MFR = { mth_parts: { manufacturer: 'MTH' }, mth_o: { manufacturer: 'MTH' }, mth_ho: { manufacturer: 'MTH' }, mth_s: { manufacturer: 'MTH' }, mth_tinplate: { manufacturer: 'MTH' }, mth_g: { manufacturer: 'MTH' }, pw: { manufacturer: 'Lionel' }, lionel_parts: { manufacturer: 'Lionel' } };

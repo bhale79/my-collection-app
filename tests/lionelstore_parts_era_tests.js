@@ -39,12 +39,12 @@ ok('ERAS carries lionelstore_parts, attributed to Lionel, link word "store", and
 ok('REAL_ERA_IDS lists it (so the lookup index fetches it)', /REAL_ERA_IDS\s*=\s*\[[^\]]*'lionelstore_parts'/.test(cfg));
 ok('ERA_SCALE is blank on purpose (the store sells O, S and HO parts)', /lionelstore_parts:\s*'',\s*\/\/[^\n]*blank on purpose/.test(cfg));
 ok('ERA_TABS points at the master tab "Lionel Store Parts"', /lionelstore_parts:\s*\{\s*items:\s*'Lionel Store Parts'\s*\}/.test(cfg));
-ok('it is LOOKUP-ONLY, fourth beside the other parts catalogs', /const LOOKUP_ONLY_ERAS = \['lionel_parts', 'mth_parts', 'traintender_parts', 'lionelstore_parts'\];/.test(cfg));
+ok('it is LOOKUP-ONLY, fourth beside the other parts catalogs (v0.9.1802: Atlas fifth)', /const LOOKUP_ONLY_ERAS = \['lionel_parts', 'mth_parts', 'traintender_parts', 'lionelstore_parts'(, '[a-z_]+')*\];/.test(cfg));
 ok('browse period, eraScale and eraColors (by reference to mpc) stay complete', /lionelstore_parts:\s*'modern'/.test(br) && /lionelstore_parts:\s*'o'/.test(ob) && /WHAT_I_COLLECT\.eraColors\.lionelstore_parts = WHAT_I_COLLECT\.eraColors\.mpc;/.test(ob));
 
 section('ONE shared reverse lookup: item → the parts that fit it (app-data.js)');
 const idxVars = (ad.match(/var _fitsIdx = null, _fitsIdxRows = null, _fitsIdxLen = -1;/) || [''])[0];
-const idxSrc = idxVars + '\n' + grabIn(ad, 'function _partsFitsIndex()') + '\n' + grabIn(ad, 'function _partsMakerOf(era)') + '\n' + grabIn(ad, 'function _partsForItem(itemNum, forEra)') + '\nreturn _partsForItem;';
+const idxSrc = idxVars + '\n' + grabIn(ad, 'function _partsFitsIndex()') + '\n' + grabIn(ad, 'function _partsMakerOf(era)') + '\n' + grabIn(ad, 'function _partsForItem(itemNum, forEra, item)') + '\nreturn _partsForItem;';
 ok('the index cache lives in three module vars beside the functions', idxVars.length > 0);
 ok('_partsFitsIndex, _partsMakerOf and _partsForItem live in app-data.js next to _mbAllGet, and _partsForItem is on window', idxSrc.length > 200 && /function _partsMakerOf\(era\)/.test(idxSrc) && ad.indexOf('window._mbAllGet = _mbAllGet;') < ad.indexOf('function _partsFitsIndex()') && /window\._partsForItem = _partsForItem;/.test(ad));
 const ROWS = [
@@ -98,8 +98,8 @@ ok('Lionel\'s OWN American Flyer line is Lionel, so its parts still match', guar
 ok('a catalog whose era names no maker is never filtered out — silence is not a mismatch', guard('8632', 'mpc').some(r => r._era === 'nomfr'));
 ok('an era with no maker of its own filters nothing', guard('8632', 'nomfr').length === 4);
 ok('the guard lives in the shared lookup, not in the lane, and _partsMakerOf is on window',
-   /function _partsForItem\(itemNum, forEra\)/.test(ad) && /window\._partsMakerOf = _partsMakerOf;/.test(ad));
-ok('the lane tells the lookup which item it is on', /_partsForItem\(num, tg\.item && tg\.item\._era\)/.test(mt));
+   /function _partsForItem\(itemNum, forEra(, item)?\)/.test(ad) && /window\._partsMakerOf = _partsMakerOf;/.test(ad));
+ok('the lane tells the lookup which item it is on', /_partsForItem\(num, tg\.item && tg\.item\._era(, tg\.item)?\)/.test(mt));
 // the index rebuilds only when the rows change
 const st2 = { masterAllRows: [], masterData: [ROWS[2]] };
 const forItem2 = new Function('state', 'baseItemNum', 'ERAS', idxSrc)(st2, base, {});
@@ -109,7 +109,7 @@ ok('…and a row added to them is seen on the next call (rebuilt by length)', fo
 
 section('The picker\'s fourth lane and its markup (maintenance.js)');
 const pick = grab('function _maintPickerParts(');
-ok('_maintPickerParts returns a catalog lane read through _partsForItem, naming the item\'s era so only its maker answers (v0.9.1757)', /catalog = \(typeof _partsForItem === 'function'\) \? _partsForItem\(num, tg\.item && tg\.item\._era\) : \[\];/.test(pick) && /return \{ onHand: onHand, wanted: wanted, bin: bin, catalog: catalog \};/.test(pick));
+ok('_maintPickerParts returns a catalog lane read through _partsForItem, naming the item\'s era so only its maker answers (v0.9.1757)', /catalog = \(typeof _partsForItem === 'function'\) \? _partsForItem\(num, tg\.item && tg\.item\._era(, tg\.item)?\) : \[\];/.test(pick) && /return \{ onHand: onHand, wanted: wanted, bin: bin, catalog: catalog \};/.test(pick));
 const pickFn = new Function('state', pick + '\nreturn _maintPickerParts;')({ partsData: {}, partsBin: [], maintLog: [] });
 ok('…and with no lookup present (an older page, the tests\' bare lift) the lane is simply empty', Array.isArray(pickFn({ item: { itemNum: '2343' }, invId: '' }, 't1').catalog) && pickFn({ item: { itemNum: '2343' }, invId: '' }, 't1').catalog.length === 0);
 // v0.9.1759: the lane takes the card's item and draws its link through the ONE

@@ -122,7 +122,7 @@ const idx = fs.readFileSync(path.join(APP, 'index.html'), 'utf8');
 const ver = (cfg.match(/APP_VERSION = 'v0\.9\.(\d+)'/) || [])[1];
 const cache = (sw.match(/CACHE_NAME = 'mca-v(\d+)'/) || [])[1];
 ok('sw.js CACHE_NAME is the app version + 10', ver && cache && +cache === +ver + 10, ver + ' / ' + cache);
-ok('index.html: every ?v= reads the app version (79 of them) and nothing older', ver && (idx.match(new RegExp('\\?v=' + ver, 'g')) || []).length === 79 && (idx.match(/\?v=\d+/g) || []).every(s => s === '?v=' + ver));
+ok('index.html: every ?v= reads the app version (80 of them since v0.9.1802 + atlas-diagrams-config.js) and nothing older', ver && (idx.match(new RegExp('\\?v=' + ver, 'g')) || []).length === 80 && (idx.match(/\?v=\d+/g) || []).every(s => s === '?v=' + ver));
 ok('this release is v0.9.1754 or later', ver && +ver >= 1754, ver);
 
 console.log('\n' + pass + ' passed, ' + fail + ' failed');

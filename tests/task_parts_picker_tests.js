@@ -129,7 +129,7 @@ ok('config.js is v0.9.1752 or later', _ver && +_ver >= 1752, _ver);
 const _cache = (fs.readFileSync(path.join(__dirname, '..', 'app', 'sw.js'), 'utf8').match(/CACHE_NAME = 'mca-v(\d+)'/) || [])[1];
 ok('sw.js CACHE_NAME is the app version + 10', _ver && _cache && +_cache === +_ver + 10, _ver + ' / ' + _cache);
 const idx = fs.readFileSync(path.join(__dirname, '..', 'app', 'index.html'), 'utf8');
-ok('index.html: every ?v= reads the app version (79 of them)', _ver && (idx.match(new RegExp('\\?v=' + _ver, 'g')) || []).length === 79 && (idx.match(/\?v=\d+/g) || []).every(function (s) { return s === '?v=' + _ver; }), (idx.match(/\?v=\d+/g) || []).length);
+ok('index.html: every ?v= reads the app version (80 of them since v0.9.1802 + atlas-diagrams-config.js)', _ver && (idx.match(new RegExp('\\?v=' + _ver, 'g')) || []).length === 80 && (idx.match(/\?v=\d+/g) || []).every(function (s) { return s === '?v=' + _ver; }), (idx.match(/\?v=\d+/g) || []).length);
 
 console.log('\n' + pass + ' passed, ' + fail + ' failed');
 process.exit(fail ? 1 : 0);

@@ -620,6 +620,10 @@ const MASTER_COL_SPEC = [
   // part is on. On an item row: the lists the item uses. Numbers only, "; "
   // between them. Read by _partsFitsIndex / _partsForItem — never capped.
   ['partsLists',     null, ['partslists']],
+  // v0.9.1802: a parts catalog's own caution for one row ("Atlas's diagram
+  // prints this same number for another part … confirm with Atlas when
+  // ordering"). Shown under the part as written — see _checkNoteHtml.
+  ['checkNote',      null, ['checknote']],
 ];
 
 // Build a field -> column-index map from a sheet's header row.
@@ -1212,7 +1216,7 @@ function _partsFitsIndex() {
 function _partsMakerOf(era) {
   return (typeof ERAS !== 'undefined' && ERAS[era] && ERAS[era].manufacturer) || '';
 }
-function _partsForItem(itemNum, forEra) {
+function _partsForItem(itemNum, forEra, item) {
   var k = String(itemNum || '').trim(); if (!k) return [];
   var idx = _partsFitsIndex(), keys = [k];
   if (typeof baseItemNum === 'function') { var bk = baseItemNum(k); if (bk && bk !== k) keys.push(bk); }
@@ -1240,6 +1244,20 @@ function _partsForItem(itemNum, forEra) {
       e.ids.forEach(function (id) { ((idx.lists && idx.lists.get(e.maker + '|' + id)) || []).forEach(take); });
     });
   });
+  // v0.9.1802: the same parts-list road for a maker whose ITEM rows name no
+  // lists — the list is worked out from the item itself (which parts diagram
+  // fits this model — see the *-diagrams-config.js files). Each source registers
+  // on window.ITEM_PARTS_LIST_SOURCES and answers [{ maker, ids }], the shape
+  // an item's own "Parts Lists" cell gives. No maker is named here.
+  if (item && typeof window !== 'undefined' && Array.isArray(window.ITEM_PARTS_LIST_SOURCES)) {
+    window.ITEM_PARTS_LIST_SOURCES.forEach(function (src) {
+      var got = [];
+      try { got = src(item, forEra) || []; } catch (e) { got = []; }
+      got.forEach(function (e) {
+        (e.ids || []).forEach(function (id) { ((idx.lists && idx.lists.get(e.maker + '|' + id)) || []).forEach(take); });
+      });
+    });
+  }
   return out;
 }
 window._partsMakerOf = _partsMakerOf;
