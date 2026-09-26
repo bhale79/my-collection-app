@@ -100,7 +100,20 @@ section('Freight cars — the exact Sub Type');
 ok('N "40\' Wood Reefer" (263 rows, never matched before) → its sheet', /N 40' Wood Reefer/.test(titles(lifted.all({ subType: "40' Wood Reefer" }, 'atlas_n'))));
 ok('N "60\' Auto Parts Box Car" → both door versions', lifted.all({ subType: "60' Auto Parts Box Car" }, 'atlas_n').length === 2);
 ok('O Trainman® 40\' Plug Door → the TM plug-door sheet', /O TM 40' Plug Door/.test(titles(lifted.all({ subType: "Trainman® 40' Plug Door Box Car" }, 'atlas'))));
-ok('…but a plain "40\' Plug Door Box Car" (line not known) gets NOTHING rather than a guess', lifted.all({ subType: "40' Plug Door Box Car" }, 'atlas') === null);
+// v0.9.1803 (Brad said yes 2026-09-26): eight sheets reached no item. Each
+// match below was proved on the live master: the items' Reference Link is the
+// SAME Atlas archive page as the car the sheet is for (the plain O 40'/52'6"
+// rows are noted "Trainman Line" and share the Trainman® rows' page). 799 rows.
+const T = (st, era, tp) => titles(lifted.all({ subType: st, trackPower: tp }, era));
+ok('O plain "40\' Plug Door Box Car" (Trainman Line, 68 rows) → the TM plug-door sheet, own rail', T("40' Plug Door Box Car", 'atlas', '2-Rail') === "O TM 40' Plug Door Box Car (2-Rail)" && T("40' Plug Door Box Car", 'atlas', '3-Rail') === "O TM 40' Plug Door Box Car (3-Rail)");
+ok('O plain "40\' Sliding Door Box Car" (92 rows) → the TM sliding-door sheet', T("40' Sliding Door Box Car", 'atlas', '3-Rail') === "O TM 40' Sliding Door Box Car (3-Rail)");
+ok('O "40ft Stock Car" (48 rows) → the TM stock-car sheet', T('40ft Stock Car', 'atlas', '2-Rail') === "O TM 40' Stock Car (2-Rail)");
+ok('O "52’6” Gondola" (curly quotes, as in the sheet; 82 rows) → the TM gondola sheet', T('52’6” Gondola', 'atlas', '3-Rail') === "O TM 52' Gondola (3-Rail)");
+ok('O "60\' Single Door Box Car" (auto-parts page, 48 rows) → the single-door auto-parts sheet only', T("60' Single Door Box Car", 'atlas', '3-Rail') === "O 60' Auto Parts Box Car Single Door");
+ok('O "60\' Double Door Box Car" (74 rows) → the double-door auto-parts sheet only', T("60' Double Door Box Car", 'atlas', '2-Rail') === "O 60' Auto Parts Box Car Double Door");
+ok('O "40\' Wood Refrigerator Car" (238 rows) → the O 40\' Wood Reefer sheet, own rail', T("40' Wood Refrigerator Car", 'atlas', '2-Rail') === "O 40' Wood Reefer (2-Rail)" && T("40' Wood Refrigerator Car", 'atlas', '3-Rail') === "O 40' Wood Reefer (3-Rail)");
+ok('N "45\' Pines Trailers" (149 rows) → the N 45\' Pines Trailer sheet', T("45' Pines Trailers", 'atlas_n') === "N 45' Pines Trailer");
+ok('…the neighbours stay unmatched: O 36\' and Re-Built wood reefers, O 60\' Baggage Car, N 50\' Double Door', [["36' Wood Refrigerator Cars", 'atlas'], ["40' Re-Built Wood Refrigerator Car", 'atlas'], ["60' Baggage Car", 'atlas'], ["50' Double Door Box Car", 'atlas_n']].every(([st, era]) => lifted.all({ subType: st }, era) === null));
 ok('a freight car is never matched by a model key (the words are lengths and tons)', DOCS.every(e => !e.st || !e.m));
 ok('no freight-car sheet is reachable by a bare length key like "40" or "50"', DOCS.every(e => !/^(\d{1,3})(\|\d{1,3})*$/.test(e.m)));
 
