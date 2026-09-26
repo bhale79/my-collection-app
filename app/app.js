@@ -1804,34 +1804,55 @@ function _scaleOfEra(era) {
   }
   return null;
 }
-// Item -> scale id. Uses _scaleOfEra first; falls back to gauge field for
-// mixed-scale eras like Pre-War. Returns null if unknown (caller treats null
-// as "don't hide" for safety).
-function _scaleOfItem(item) {
-  if (!item) return null;
-  var era = _itemEraKey ? _itemEraKey(item) : ((item._era || item.era || '').toLowerCase());
-  var eraScale = _scaleOfEra(era);
-  if (eraScale) return eraScale;
-  var g = String(item.gauge || '').toLowerCase().trim();
-  if (!g) return null;
+// ══ v0.9.1805 — ONE gauge reader for every scale question ══════════════════
+// Brad, 2026-09-26: items sold for any Lionel train (lamps, transformers,
+// controllers, paper) get Gauge "Standard & O" and must show under BOTH the
+// O and the Standard browse. So the reader returns a LIST of scale ids.
+//   _scalesOfGauge(text)  -> [] | ['o'] | ['standard'] | ['standard','o'] ...
+//   _scalesOfItem(item)   -> the era's own scale when it has one, else the list
+//   _scaleOfItem(item)    -> ONE id or null (a two-gauge item is null here, as
+//                            a blank was: "don't know ONE answer")
+// Before this, browse.js kept its OWN spelling table for a personal row's
+// gauge, which turned 'Standard' into 'std' — a word no scale chip uses — so a
+// personal Standard gauge row was hidden under the Standard chip too.
+function _scalesOfGauge(gauge) {
+  var g = String(gauge == null ? '' : gauge).toLowerCase().trim();
+  if (!g) return [];
+  // "Standard & O" / "Standard and O" / "O & Standard" — sold for either gauge.
+  if (/^(standard|std)(\s*gauge)?\s*(&|and|\+)\s*o(\s*gauge)?$/.test(g)
+      || /^o(\s*gauge)?\s*(&|and|\+)\s*(standard|std)(\s*gauge)?$/.test(g)) return ['standard', 'o'];
   // v0.9.1804: the Lionel Pre-War tab writes a bare 'Standard' (557 rows). Only
-  // 'standard gauge' was recognised, so every one of them came back null here —
+  // 'standard gauge' was recognised, so every one of them came back null —
   // an unknown scale — and vanished from a catalog browse filtered to Standard.
-  if (g === 'standard' || g === 'std' || g === 'standard gauge' || g === 'standard/o gauge' || g.indexOf('2-7/8') === 0) return 'standard';
-  if (g === 'oo scale' || g === 'oo') return 'standard';
-  if (g.indexOf('tinplate') >= 0) return 'standard';
-  if (g === 'ho scale' || g === 'ho') return 'ho';
-  if (g === 's gauge' || g === 's' || g === 's scale') return 's';
-  if (g === 'g scale' || g === 'g' || g === 'g/one gauge' || g === 'g / one gauge') return 'g';
+  if (g === 'standard' || g === 'std' || g === 'standard gauge' || g === 'standard/o gauge' || g.indexOf('2-7/8') === 0) return ['standard'];
+  if (g === 'oo scale' || g === 'oo') return ['standard'];
+  if (g.indexOf('tinplate') >= 0) return ['standard'];
+  if (g === 'ho scale' || g === 'ho') return ['ho'];
+  if (g === 's gauge' || g === 's' || g === 's scale') return ['s'];
+  if (g === 'g scale' || g === 'g' || g === 'g/one gauge' || g === 'g / one gauge') return ['g'];
   // v0.9.1160: N and Z. The live Atlas N/Z rows write a bare 'N' / 'Z' in the
   // Gauge column (17,554 and 42 of them), with one stray 'N Scale'. Those rows
   // now get their scale from the era anyway, so this is for rows in a MIXED era
   // that happen to name N or Z themselves.
-  if (g === 'n scale' || g === 'n' || g === 'n gauge') return 'n';
-  if (g === 'z scale' || g === 'z' || g === 'z gauge') return 'z';
-  // O variants: 'o gauge', 'o', 'o27', 'o72'
-  if (g.charAt(0) === 'o') return 'o';
-  return null;
+  if (g === 'n scale' || g === 'n' || g === 'n gauge') return ['n'];
+  if (g === 'z scale' || g === 'z' || g === 'z gauge') return ['z'];
+  // O variants: 'o gauge', 'o', 'o27', 'o-27', '027', 'o72'
+  if (g.charAt(0) === 'o' || g === '027' || g === '072') return ['o'];
+  return [];
+}
+function _scalesOfItem(item) {
+  if (!item) return [];
+  var era = _itemEraKey ? _itemEraKey(item) : ((item._era || item.era || '').toLowerCase());
+  var eraScale = _scaleOfEra(era);
+  if (eraScale) return [eraScale];
+  return _scalesOfGauge(item.gauge);
+}
+// Item -> ONE scale id. Uses _scaleOfEra first; falls back to the gauge field
+// for mixed-scale eras like Pre-War. Returns null if unknown OR two-gauge
+// (caller treats null as "don't know one answer").
+function _scaleOfItem(item) {
+  var a = _scalesOfItem(item);
+  return a.length === 1 ? a[0] : null;
 }
 
 // ── v0.9.1768 — rrSearchTerms: the ONE place that knows how to NAME an item ──

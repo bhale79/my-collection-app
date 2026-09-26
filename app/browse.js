@@ -3990,12 +3990,15 @@ function _rrBrowseCore(_co) {
       // v0.9.1511 (Brad's N-scale 3474 under the O Gauge chip): the row's
       // OWN gauge cell outranks any derived scale. Normalize the common
       // spellings; an O-27 item still counts as O.
+      // v0.9.1805: read through _scalesOfGauge (app.js), the ONE gauge reader.
+      // The table that stood here turned 'Standard' into 'std', a word no scale
+      // chip uses, so a personal Standard row was hidden under Standard; and a
+      // "Standard & O" row belongs under BOTH chips. A spelling it can't read
+      // no longer hides the row here — the catalog check below still decides.
       if (_stp3b.scale && _stp3b.scale !== 'any' && pd && pd.gauge) {
-        var _gRaw = String(pd.gauge).trim().toLowerCase().replace(/\s*gauge$|\s*scale$/, '');
-        var _gNorm = ({ 'o': 'o', 'o-27': 'o', 'o27': 'o', '027': 'o', 'ho': 'ho', 'n': 'n',
-                        's': 's', 'g': 'g', 'z': 'z', 'standard': 'std', 'std': 'std' })[_gRaw] || _gRaw;
+        var _gList = (typeof _scalesOfGauge === 'function') ? _scalesOfGauge(pd.gauge) : [];
         var _cNorm = String(_stp3b.scale).trim().toLowerCase();
-        if (_gNorm && _cNorm && _gNorm !== _cNorm) return false;
+        if (_gList.length && _cNorm && _gList.indexOf(_cNorm) < 0) return false;
       }
     }
     // v0.9.1509: "Needs details" filter — items missing maker, type, or (for
@@ -4047,15 +4050,16 @@ function _rrBrowseCore(_co) {
         if (_itmMfr !== _stp3b.manufacturer) return false;
       }
       if (_stp3b.scale && _stp3b.scale !== 'any') {
-        var _itmScale = '';
-        if (typeof _scaleOfItem === 'function') _itmScale = (_scaleOfItem(item) || '').toLowerCase();
+        // v0.9.1805: a "Standard & O" item carries TWO scales and matches either.
+        var _itmScales = (typeof _scalesOfItem === 'function') ? _scalesOfItem(item) : [];
+        var _itmScale = _itmScales.length ? String(_itmScales[0]).toLowerCase() : '';
         // Session 154: exclude items that don't DEFINITIVELY match the chosen
         // scale — including items of unknown scale (e.g. pre-war rows with a
         // blank gauge field). Previously `_itmScale && ...` let those leak into
         // every scale filter (pre-war items appearing under "HO Scale").
         // My Collection: never hide an owned item just because its scale is
         // unknown (its catalog may not be loaded). Catalog browse stays strict.
-        if (_itmScale !== _stp3b.scale && !(state.filters.owned && !_itmScale)) return false;
+        if (_itmScales.indexOf(_stp3b.scale) < 0 && !(state.filters.owned && !_itmScale)) return false;
       }
       if (_stp3b.era && _stp3b.era !== 'any') {
         // S151: chip era is a time period (prewar/postwar/modern).
