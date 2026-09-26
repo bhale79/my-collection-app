@@ -1814,7 +1814,10 @@ function _scaleOfItem(item) {
   if (eraScale) return eraScale;
   var g = String(item.gauge || '').toLowerCase().trim();
   if (!g) return null;
-  if (g === 'standard gauge' || g === 'standard/o gauge' || g.indexOf('2-7/8') === 0) return 'standard';
+  // v0.9.1804: the Lionel Pre-War tab writes a bare 'Standard' (557 rows). Only
+  // 'standard gauge' was recognised, so every one of them came back null here —
+  // an unknown scale — and vanished from a catalog browse filtered to Standard.
+  if (g === 'standard' || g === 'std' || g === 'standard gauge' || g === 'standard/o gauge' || g.indexOf('2-7/8') === 0) return 'standard';
   if (g === 'oo scale' || g === 'oo') return 'standard';
   if (g.indexOf('tinplate') >= 0) return 'standard';
   if (g === 'ho scale' || g === 'ho') return 'ho';
