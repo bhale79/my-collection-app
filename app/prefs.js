@@ -987,6 +987,9 @@ function _ufToggle(key, on) {
   var f = (window.RR_USER_FIELDS || []).filter(function (x) { return x.key === key; })[0];
   if (!f) return;
   try { localStorage.setItem(f.pref, on ? 'true' : 'false'); } catch (e) {}
+  // v0.9.1814: the on/off travels to the other devices exactly as the rename
+  // below does — look-sync carries lv_*_enabled, but only when touched.
+  if (typeof rrLookTouch === 'function') rrLookTouch();
   if (typeof showToast === 'function') showToast(on ? 'Column turned on' : 'Column hidden — nothing was deleted', 2500);
 }
 function _ufRename(key, val) {

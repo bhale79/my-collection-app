@@ -1704,7 +1704,7 @@ var PANEL_CATALOG = [
       // Session 121: respect Preferences "What I Collect" in 'all' mode.
       var entries = Object.values(state.upgradeData || {});
       var priorityOrder = { High: 0, Medium: 1, Low: 2 };
-      return entries
+      var rows = entries
         .sort(function(a, b) {
           var pA = priorityOrder[a.priority] || 1;
           var pB = priorityOrder[b.priority] || 1;
@@ -1724,7 +1724,37 @@ var PANEL_CATALOG = [
           return _panelRow('↑', u.itemNum + (u.variation ? ' <span style="font-size:0.7rem;color:var(--text-dim);">' + u.variation + '</span>' : ''), name, meta,
             (u.inventoryId ? ("_openOwnedByInvId('" + u.inventoryId + "')") : (idx >= 0 ? ("showItemDetailPage(" + idx + ", '" + rrJsArg(typeof rrCopyInvFor === 'function' ? rrCopyInvFor(u.itemNum, u.variation) : '') + "')") : "showPage('upgrade',null);buildUpgradePage()")), pd
           );
-        }).join('') || '<div class="empty-state"><p>No upgrade targets yet</p></div>';
+        });
+      // v0.9.1814 (release readiness S10): Preferences has said "Upgrade
+      // Condition Threshold — flag items below this condition" since Session
+      // 120, and `thresh` was read into a variable and never used. Nothing was
+      // ever flagged. Now it does what the label says: after the items the
+      // user put on the upgrade list themselves, the card flags every OWNED
+      // item whose condition is at or below the threshold and is not already
+      // on that list — worst first, up to the card's row limit. Opened by
+      // inventoryId, never by number.
+      var flagged = [];
+      if (rows.length < DASH_LIST_MAX && !isNaN(thresh)) {
+        var onList = function (p) {
+          return entries.some(function (u) {
+            if (u.inventoryId && p.inventoryId) return String(u.inventoryId) === String(p.inventoryId);
+            return u.itemNum === p.itemNum && (u.variation || '') === (p.variation || '');
+          });
+        };
+        flagged = Object.values(state.personalData || {})
+          .filter(function (p) { return p && p.owned && p.condition && parseInt(p.condition) <= thresh && !onList(p); })
+          .sort(function (a, b) { return parseInt(a.condition) - parseInt(b.condition); })
+          .slice(0, DASH_LIST_MAX - rows.length)
+          .map(function (p) {
+            var master = findMaster(p.itemNum, p.variation || '', p);
+            var name = master ? (master.roadName || master.itemType || p.itemNum) : p.itemNum;
+            return _panelRow('\u2691', p.itemNum + (p.variation ? ' <span style="font-size:0.7rem;color:var(--text-dim);">' + p.variation + '</span>' : ''),
+              name, 'Cond: ' + parseInt(p.condition) + ' \u2014 at or below your ' + thresh,
+              p.inventoryId ? ("_openOwnedByInvId('" + rrJsArg(String(p.inventoryId)) + "')") : '', p);
+          });
+      }
+      var html = rows.concat(flagged).join('');
+      return html || '<div class="empty-state"><p>No upgrade targets yet \u2014 nothing you own is at condition ' + thresh + ' or below</p></div>';
     }
   }
 ];
