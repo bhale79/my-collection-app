@@ -2096,9 +2096,7 @@ if (typeof window !== 'undefined') window._detailPhotoEdit = _detailPhotoEdit;
 async function _rrPhotoBackToInbox(fileId, fileName, folderLink) {
   if (!fileId) return;
   var label = String(fileName || 'photo').replace(/\.[^.]+$/, '');
-  var ok = (typeof appConfirm === 'function')
-    ? await appConfirm('Send "' + label + '" back to the Photo Inbox?\n\nIt leaves this item and shows up in the inbox, where you can re-file it onto the right copy.', { ok: 'Send back' })
-    : confirm('Send "' + label + '" back to the Photo Inbox?');
+  var ok = await appConfirm('Send "' + rrEsc(label) + '" back to the Photo Inbox?\n\nIt leaves this item and shows up in the inbox, where you can re-file it onto the right copy.', { title: 'Send back to the inbox', ok: 'Send back' });
   if (!ok) return;
   try {
     if (typeof window._pinInboxFolderId !== 'function') throw new Error('Inbox folder not available');
@@ -2141,7 +2139,7 @@ window._healPdRow = _healPdRow;
 window._grpRenamePhoto = async function (fileId, labelEl) {
   try {
     var cur = (labelEl.textContent || '').replace(/\s*✎\s*$/, '').trim();
-    var next = prompt('Rename this photo (e.g. "205-P RSV" or "205-D RSV"):', cur);
+    var next = await appPrompt('Give this photo a new name (e.g. "205-P RSV" or "205-D RSV").', cur, { title: 'Rename photo', ok: 'Rename' });
     if (!next || next.trim() === '' || next.trim() === cur) return;
     if (typeof driveRequest !== 'function') { showToast('Drive not available', 3000, true); return; }
     await driveRequest('PATCH', '/files/' + fileId, { name: next.trim() + '.jpg' });
@@ -2953,9 +2951,7 @@ async function _breakUpGroupFromDetail(idx, itemNum, variation) {
   if (!pdKey) { showToast('Item not found in collection', 3000, true); return; }
   var pd = state.personalData[pdKey] || {};
   if (!pd.groupId) { showToast('This item isn’t part of a group.', 3000); return; }
-  var ok = (typeof appConfirm === 'function')
-    ? await appConfirm('Break up this group? All pieces stay in your collection but will no longer be linked together.', { ok: 'Break Up' })
-    : confirm('Break up this group? All pieces stay in your collection but will no longer be linked together.');
+  var ok = await appConfirm('Break up this group? All pieces stay in your collection but will no longer be linked together.', { title: 'Break up this group', ok: 'Break Up' });
   if (!ok) return;
   await _breakUpGroup(pdKey);
   if (typeof renderBrowse === 'function') renderBrowse();
@@ -3704,9 +3700,7 @@ window._rrDetailGallery = async function (tr2, folderLink) {
 async function _deleteCollectionPhoto(fileId, fileName, wrapEl) {
   if (!fileId) return;
   var label = String(fileName || 'photo').replace(/\.[^.]+$/, '');
-  var ok = (typeof appConfirm === 'function')
-    ? await appConfirm('Delete photo "' + label + '"?\n\nIt will be moved to your Google Drive trash, where you can still recover it.', { danger: true, ok: 'Delete' })
-    : confirm('Delete photo "' + label + '"? (Moves to Google Drive trash — recoverable)');
+  var ok = await appConfirm('Delete photo "' + rrEsc(label) + '"?\n\nIt will be moved to your Google Drive trash, where you can still recover it.', { title: 'Delete photo', danger: true, ok: 'Delete' });
   if (!ok) return;
   try {
     if (typeof driveRequest !== 'function') throw new Error('Drive not available');

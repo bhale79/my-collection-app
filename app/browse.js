@@ -1789,9 +1789,7 @@ window._rrDropAbandonedSet = async function (gid) {
     + ' left over from that unfinished ' + (g.setNum || 'set') + ' entry?\n\n'
     + g.items.map(function (p) { return '  · ' + p.itemNum; }).join('\n')
     + '\n\nPhotos already filed to these items stay in Drive.';
-  var ok = (typeof appConfirm === 'function')
-    ? await appConfirm(msg, { danger: true, ok: 'Remove them', cancel: 'Keep them', title: 'Unfinished set entry' })
-    : window.confirm(msg);
+  var ok = await appConfirm(msg, { danger: true, ok: 'Remove them', cancel: 'Keep them', title: 'Unfinished set entry' });
   if (!ok) return;
   try {
     var n = (typeof rrRemoveSetGroup === 'function') ? await rrRemoveSetGroup(gid) : 0;
@@ -3162,9 +3160,7 @@ async function _removeOwnedSet(key) {
   const entry = state.mySetsData && state.mySetsData[key];
   if (!entry) return;
   const label = entry.setName || entry.setNum || 'this set';
-  var ok = (typeof appConfirm === 'function')
-    ? await appConfirm('Remove "' + label + '" from your collection?', { danger: true, ok: 'Remove' })
-    : confirm('Remove "' + label + '" from your collection?');
+  var ok = await appConfirm('Remove "' + rrEsc(label) + '" from your collection?', { title: 'Remove from collection', danger: true, ok: 'Remove' });
   if (!ok) return;
   if (entry.row && typeof entry.row === 'number' && entry.row >= 3 && entry.row < 1000000) {
     const blanks = [Array(14).fill('')];
@@ -3414,9 +3410,7 @@ async function _removeScienceOrConstruction(type, key) {
   const entry = bucket && bucket[key];
   if (!entry) return;
   const label = entry.description || entry.itemNum || (type === 'science' ? 'science set' : 'construction set');
-  var ok = (typeof appConfirm === 'function')
-    ? await appConfirm('Remove "' + label + '" from your collection?', { danger: true, ok: 'Remove' })
-    : confirm('Remove "' + label + '" from your collection?');
+  var ok = await appConfirm('Remove "' + rrEsc(label) + '" from your collection?', { title: 'Remove from collection', danger: true, ok: 'Remove' });
   if (!ok) return;
   const sheetName = (type === 'science') ? 'Science Sets' : 'Construction Sets';
   if (entry.row && typeof entry.row === 'number' && entry.row >= 3 && entry.row < 1000000) {
@@ -3436,9 +3430,7 @@ async function _removeInstructionSheet(key) {
   const entry = state.isData && state.isData[key];
   if (!entry) return;
   const label = entry.sheetNum || 'this instruction sheet';
-  var ok = (typeof appConfirm === 'function')
-    ? await appConfirm('Remove "' + label + '" from your collection?', { danger: true, ok: 'Remove' })
-    : confirm('Remove "' + label + '" from your collection?');
+  var ok = await appConfirm('Remove "' + rrEsc(label) + '" from your collection?', { title: 'Remove from collection', danger: true, ok: 'Remove' });
   if (!ok) return;
   if (entry.row && typeof entry.row === 'number' && entry.row >= 3 && entry.row < 1000000) {
     // IS sheet has 11 columns (A–K)

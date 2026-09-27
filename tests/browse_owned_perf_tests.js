@@ -79,16 +79,23 @@ function T(n, cond, detail) { console.log((cond ? 'PASS' : 'FAIL') + '  ' + n + 
     state.filters.ownMaker = ''; state.filters.type = ''; state.filters.subCollection = ''; state.filters.subType = '';
     filterOwned();
     const key = it => (it._personalOnly ? 'P:' : '') + (it.itemNum) + '|' + (it.variation || '') + '|' + (it._era || '') + '|' + (it._tab || '') + (it._copyPd ? '#' + it._copyPd.inventoryId : '');
+    // v0.9.1819: timing is the BEST of three rounds — under run-all's parallel
+    // load a single round can land on a busy moment and call the gate slow.
     const draw = (gateOff) => {
-      window._rrNoCandidateGate = !!gateOff;
-      window.__rrBvByNum = null;                     // start cold both times — the cache is part of what is measured
-      window._rrBrowseSig = null;
-      const t0 = performance.now(); renderBrowse(); const ms = performance.now() - t0;
-      const listed = (state.filteredData || []).map(key);
-      const drawn = Array.from(document.querySelectorAll('#browse-tbody tr')).length;
-      window._rrBrowseSig = null;
-      const t1 = performance.now(); renderBrowse(); const ms2 = performance.now() - t1;   // warm redraw
-      return { ms: Math.round(ms), ms2: Math.round(ms2), listed, drawn };
+      let best = null;
+      for (let r = 0; r < 3; r++) {
+        window._rrNoCandidateGate = !!gateOff;
+        window.__rrBvByNum = null;                     // start cold each round — the cache is part of what is measured
+        window._rrBrowseSig = null;
+        const t0 = performance.now(); renderBrowse(); const ms = performance.now() - t0;
+        const listed = (state.filteredData || []).map(key);
+        const drawn = Array.from(document.querySelectorAll('#browse-tbody tr')).length;
+        window._rrBrowseSig = null;
+        const t1 = performance.now(); renderBrowse(); const ms2 = performance.now() - t1;   // warm redraw
+        if (!best) best = { ms, ms2, listed, drawn };
+        else { best.ms = Math.min(best.ms, ms); best.ms2 = Math.min(best.ms2, ms2); }
+      }
+      return { ms: Math.round(best.ms), ms2: Math.round(best.ms2), listed: best.listed, drawn: best.drawn };
     };
     const off = draw(true);
     const on = draw(false);

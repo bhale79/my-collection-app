@@ -1090,7 +1090,7 @@ async function handleSignOut() {
     // and cannot be replayed against the next one. Ask before losing them.
     var pending = 0;
     try { pending = (typeof rrOutboxCount === 'function') ? rrOutboxCount() : 0; } catch (e) {}
-    if (pending > 0 && typeof appConfirm === 'function') {
+    if (pending > 0) {
       var go = await appConfirm(
         'You have ' + pending + ' change' + (pending === 1 ? '' : 's') +
         " that hasn't saved to your sheet yet. Signing out will discard " +

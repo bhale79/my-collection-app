@@ -463,9 +463,7 @@ async function uiTrashList() {
 
 async function uiTrashRestore(archiveRow, itemNum) {
   const name = itemNum ? ('No. ' + itemNum) : 'this row';
-  const okGo = (typeof appConfirm === 'function')
-    ? await appConfirm('Put ' + name + ' back?\n\nIt returns to the list it came from, with its condition, box, photos and Inventory ID exactly as they were \u2014 at the bottom of that list rather than its old position.', { ok: 'Put it back' })
-    : confirm('Put ' + name + ' back?');
+  const okGo = await appConfirm('Put ' + name + ' back?\n\nIt returns to the list it came from, with its condition, box, photos and Inventory ID exactly as they were \u2014 at the bottom of that list rather than its old position.', { ok: 'Put it back' })
   if (!okGo) return;
   if (typeof showToast === 'function') showToast('Putting it back\u2026', 2000);
   const res = (typeof rrTrashRestore === 'function') ? await rrTrashRestore(archiveRow) : { ok: false, reason: 'not available' };
@@ -487,19 +485,13 @@ if (typeof window !== 'undefined') { window.uiTrashList = uiTrashList; window.ui
 // Wired to the Restore button in the View Backups modal.
 async function uiBackupRestore(backupId, backupName) {
   // Confirmation dialog
-  const useNative = (typeof appConfirm !== 'function');
   const confirmMsg = BACKUP_UI_TEXT.restoreConfirmBody +
-    '\n\nBackup: ' + (backupName || backupId);
-  let ok = false;
-  if (useNative) {
-    ok = window.confirm(BACKUP_UI_TEXT.restoreConfirmTitle + '\n\n' + confirmMsg);
-  } else {
-    ok = await appConfirm(confirmMsg, {
-      title: BACKUP_UI_TEXT.restoreConfirmTitle,
-      ok: BACKUP_UI_TEXT.restoreConfirmOk,
-      danger: true,
-    });
-  }
+    '\n\nBackup: ' + rrEsc(backupName || backupId);
+  const ok = await appConfirm(confirmMsg, {
+    title: BACKUP_UI_TEXT.restoreConfirmTitle,
+    ok: BACKUP_UI_TEXT.restoreConfirmOk,
+    danger: true,
+  });
   if (!ok) return;
 
   // Close the list modal so progress shows clearly
@@ -551,11 +543,7 @@ async function uiBackupRestore(backupId, backupName) {
   } catch (e) {
     console.error('[Restore] Failed:', e);
     prog.remove();
-    if (typeof showToast === 'function') {
-      showToast(rrSaveError(e, 'the restore', { kept: false }));
-    } else {
-      window.alert(BACKUP_UI_TEXT.restoreFailed + (e.message || 'unknown'));
-    }
+    showToast(rrSaveError(e, 'the restore', { kept: false }), 6000, true);
   }
 }
 

@@ -1044,9 +1044,9 @@ function _impCatalogWait() {
 }
 // The escape hatch, for someone genuinely offline. Named plainly, because
 // what it does is import everything as a manual entry.
-function _impCatalogSkip() {
-  if (!confirm('Without the catalog, every item comes in as a manual entry \u2014 no catalog photos, ' +
-               'descriptions or era. You can remove the import and run it again once the catalog loads. Continue?')) return;
+async function _impCatalogSkip() {
+  if (!(await appConfirm('Without the catalog, every item comes in as a manual entry \u2014 no catalog photos, ' +
+               'descriptions or era. You can remove the import and run it again once the catalog loads.', { title: 'Import without the catalog', ok: 'Continue', cancel: 'Wait for it' }))) return;
   _imp.catalogSkipped = true;
   _imp.step = _imp.afterCatalog || 'grades';
   _impStage();
@@ -2281,9 +2281,9 @@ async function _impPhotoDrop(ev) {
   _impPhotoFilesChosen(out);
 }
 
-function _impPhotoSkip() {
-  if (!confirm('Import WITHOUT photos?\n\nPhotos cannot be imported automatically later. ' +
-    'If you want them attached, you would remove this import and run it again with the folder handy.')) return;
+async function _impPhotoSkip() {
+  if (!(await appConfirm('Import WITHOUT photos?\n\nPhotos cannot be imported automatically later. ' +
+    'If you want them attached, you would remove this import and run it again with the folder handy.', { title: 'Import without photos', ok: 'Import without photos', cancel: 'Go back' }))) return;
   _imp.photoMatch = null;
   _imp.photoFiles = null;
   _impWrite();

@@ -954,9 +954,7 @@
   // v0.9.773 (Brad): Delete straight from the list card (Edit | Delete split).
   window._ctDeleteRow = async function (row) {
     var c = (state.contactsData || []).find(function (x) { return x.row === row; });
-    var okDel = (typeof appConfirm === 'function')
-      ? await appConfirm('Delete ' + ((c && c.name) ? c.name : 'this contact') + '?', { danger: true, ok: 'Delete', title: 'Delete contact' })
-      : confirm('Delete ' + ((c && c.name) ? c.name : 'this contact') + '?');
+    var okDel = await appConfirm('Delete ' + ((c && c.name) ? rrEsc(c.name) : 'this contact') + '?', { danger: true, ok: 'Delete', title: 'Delete contact' });
     if (!okDel) return;
     try {
       // v0.9.1292: false means the row was not this contact any more and the
@@ -1283,9 +1281,7 @@
     };
     var del = ov.querySelector('#ct-del');
     if (del) del.onclick = async function () {
-      var okDel2 = (typeof appConfirm === 'function')
-        ? await appConfirm('Delete this contact?', { danger: true, ok: 'Delete', title: 'Delete contact' })
-        : confirm('Delete this contact?');
+      var okDel2 = await appConfirm('Delete this contact?', { danger: true, ok: 'Delete', title: 'Delete contact' });
       if (!okDel2) return;
       try {
         // v0.9.1292: same guard as the list card. The modal stays OPEN on a

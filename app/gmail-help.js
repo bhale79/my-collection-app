@@ -90,7 +90,7 @@
     var path = (cfg.paths || []).find(function(p) { return p.id === pathId; });
     if (!path) return;
     var w = window.open('', '_blank', 'width=700,height=900');
-    if (!w) { alert('Please allow pop-ups so we can open the printable page.'); return; }
+    if (!w) { showToast('Your browser blocked the printable page \u2014 allow pop-ups for this site and try again.', 6000, true); return; }
     var stepsHtml = '';
     (path.steps || []).forEach(function(step, i) {
       stepsHtml +=

@@ -1707,9 +1707,7 @@ window.showSoldDetailPage = showSoldDetailPage;
 async function _removeSoldRecord(key) {
   var sd = (state.soldData || {})[key];
   if (!sd) { if (typeof showToast === 'function') showToast('Sale record not found', 3000, true); return; }
-  var ok = (typeof appConfirm === 'function')
-    ? await appConfirm('Remove this sale record? This deletes the saved sale (price, date, and photo snapshot) from your Sold history. It cannot be undone.', { danger: true, ok: 'Remove', title: 'Remove sale record' })
-    : confirm('Remove this sale record?');
+  var ok = await appConfirm('Remove this sale record? This deletes the saved sale (price, date, and photo snapshot) from your Sold history. It cannot be undone.', { danger: true, ok: 'Remove', title: 'Remove sale record' });
   if (!ok) return;
   // v0.9.1253 (finding 12): a sale is a snapshot the user is warned cannot be
   // undone. Confirm the row still holds this sale before blanking it.
@@ -2288,10 +2286,8 @@ async function markForSaleAsSold(fsKey, askingPrice) {
   }
   const itemNum = fs.itemNum || '';
   const variation = fs.variation || '';
-  const salePrice = (typeof appPrompt === 'function')
-    ? await appPrompt('Enter the price it sold for. Leave blank to use the asking price.', askingPrice || '',
-        { title: 'Record sale', type: 'number', prefix: (typeof _currencySymbol === 'function' ? _currencySymbol() : '$'), ok: 'Mark sold' })
-    : prompt('Sale price? (leave blank for asking price)', askingPrice || '');
+  const salePrice = await appPrompt('Enter the price it sold for. Leave blank to use the asking price.', askingPrice || '',
+        { title: 'Record sale', type: 'number', prefix: (typeof _currencySymbol === 'function' ? _currencySymbol() : '$'), ok: 'Mark sold' });
   if (salePrice === null) return; // cancelled
   const dateSold = new Date().toISOString().split('T')[0];
   // Capture group members BEFORE the lead is deleted (we need its groupId link).
@@ -4147,6 +4143,9 @@ var PARTS_COPY = {
   whichJobNone: 'No job — just record it on the engine',
   whichEngine: 'Tell me which engine it went on first — pick it under “For item”, save, then press Installed again.',
   markDone: 'Mark “%s” complete too? It moves to the service history.',
+  markDoneTitle: 'Is the job done too?',       // v0.9.1819: the app's own box, its two buttons
+  markDoneYes: 'Mark it done',
+  markDoneNo: 'Not yet',
   removeCard: 'Take “%s” off your Parts Needed list?',
   cancel: 'Cancel'
 };
@@ -4674,7 +4673,7 @@ async function _savePartInstalled(rowNum) {
     if (typeof showToast === 'function') showToast('\u2713 Installed on ' + pd.itemNum + ' \u2014 added to its notes');
     // v0.9.1753 (Brad): the part is in — is the job done too? Ask once, in place.
     var _t2 = p.taskId ? (state.maintLog || []).find(function (l) { return l.id === p.taskId && l.type === 'chore' && l.status === 'open'; }) : null;
-    if (_t2 && typeof window._maintChoreDone === 'function' && confirm(PARTS_COPY.markDone.replace('%s', _t2.text))) await window._maintChoreDone(_t2.row, _t2.id);
+    if (_t2 && typeof window._maintChoreDone === 'function' && (await appConfirm(PARTS_COPY.markDone.replace('%s', rrEsc(_t2.text)), { title: PARTS_COPY.markDoneTitle, ok: PARTS_COPY.markDoneYes, cancel: PARTS_COPY.markDoneNo }))) await window._maintChoreDone(_t2.row, _t2.id);
   } catch (e) {
     if (typeof showToast === 'function') showToast(rrSaveError(e, 'the installed part'), 4000, true);
   }

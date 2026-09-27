@@ -447,8 +447,8 @@ async function rrTagApply() {
     // him choose. Cancel means neither — go back and untick them.
     var msg = conflicts.length.toLocaleString() + ' of the ' + keys.length.toLocaleString()
       + ' you picked already have something in ' + _rrTag.label + ' (for example "'
-      + conflicts[0].cur + '").\n\nOK  = replace those too\nCancel = leave those alone, fill the rest';
-    replaceThem = window.confirm(msg);
+      + rrEsc(conflicts[0].cur) + '").\n\nReplace those too, or leave them alone and fill only the rest?';
+    replaceThem = await appConfirm(msg, { title: 'Some already have a value', ok: 'Replace those too', cancel: 'Leave those alone' });
   }
   var targets = [];
   keys.forEach(function (k) {

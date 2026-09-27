@@ -574,9 +574,7 @@
     var lines = 'Hide ' + list.length + (list.length === 1 ? ' finished batch' : ' finished batches') + ' and move ' + nRows
       + ' decided row' + (nRows === 1 ? '' : 's') + ' to the archive tab (' + YM.ARCHIVE_TAB + ')? A dated backup of ' + YM.DELTAS_TAB
       + ' is written first. The rows stay in the Vault; the Office just stops loading them.';
-    var yes = (typeof appConfirm === 'function')
-      ? await appConfirm(lines, { title: 'Clear finished batches', ok: 'Back up, then clear' })
-      : confirm(lines);
+    var yes = await appConfirm(lines, { title: 'Clear finished batches', ok: 'Back up, then clear' });
     if (!yes) return;
     if (!(await _ymSetBatchStatus(list, 'dismissed', ''))) return;
     var moved = await _ymArchiveRows(_ymDismissedIds());
@@ -587,9 +585,7 @@
     if (!_ymData) return;
     var n = _ymArchivable().length;
     var lines = 'Move ' + n + ' decided row' + (n === 1 ? '' : 's') + ' of cleared batches from ' + YM.DELTAS_TAB + ' to ' + YM.ARCHIVE_TAB + '? A dated backup is written first.';
-    var yes = (typeof appConfirm === 'function')
-      ? await appConfirm(lines, { title: 'Archive cleared rows', ok: 'Back up, then archive' })
-      : confirm(lines);
+    var yes = await appConfirm(lines, { title: 'Archive cleared rows', ok: 'Back up, then archive' });
     if (!yes) return;
     var moved = await _ymArchiveRows(_ymDismissedIds());
     if (typeof showToast === 'function' && moved >= 0) showToast(moved + ' row' + (moved === 1 ? '' : 's') + ' archived.', 3500);
@@ -834,10 +830,8 @@
     });
     if (!clean.length) { if (typeof showToast === 'function') showToast('No clean pending rows left', 2500); return; }
     var go = function () { window._ymVerdictMany(clean, 'approved'); };
-    if (typeof appConfirm === 'function') {
-      appConfirm('Approve all ' + clean.length + ' clean pending rows?', { title: 'Approve clean rows', ok: 'Approve ' + clean.length })
-        .then(function (yes) { if (yes) go(); });
-    } else if (confirm('Approve all ' + clean.length + ' clean pending rows?')) go();
+    appConfirm('Approve all ' + clean.length + ' clean pending rows?', { title: 'Approve clean rows', ok: 'Approve ' + clean.length })
+      .then(function (yes) { if (yes) go(); });
   };
   // ── v0.9.1712: one verdict for every pending row that carries the SAME flag ──
   // Brad: "I also need a faster way to approve multiple items that have the
@@ -852,9 +846,7 @@
     var verb = status === 'approved' ? 'Approve' : status === 'rejected' ? 'Reject' : 'Defer';
     var go = function () { window._ymVerdictMany(rows, status); };
     var q = verb + ' all ' + rows.length + ' pending rows flagged \u201c' + want + '\u201d?';
-    if (typeof appConfirm === 'function') {
-      appConfirm(q, { title: verb + ' by flag', ok: verb + ' ' + rows.length }).then(function (yes) { if (yes) go(); });
-    } else if (confirm(q)) go();
+    appConfirm(q, { title: verb + ' by flag', ok: verb + ' ' + rows.length }).then(function (yes) { if (yes) go(); });
   };
   // ── v0.9.1714: PRE-SORT — Brad: "flag the obvious junk as a CHECK and
   // leave the obvious trains clean." Pending rows of the community batch
@@ -922,7 +914,7 @@
       + clean + ' come out clean' + (gotTab ? ', ' + gotTab + ' get a tab' : '') + (gotType ? ', ' + gotType + ' get a type read from the description' : '')
       + '. Flags are rewritten (' + changed.length
       + ' row' + (changed.length === 1 ? '' : 's') + ' change); nothing is approved or rejected.';
-    var yes = (typeof appConfirm === 'function') ? await appConfirm(q, { title: 'Pre-sort', ok: 'Sort ' + changed.length }) : confirm(q);
+    var yes = await appConfirm(q, { title: 'Pre-sort', ok: 'Sort ' + changed.length });
     if (!yes) return;
     _ymPreSortBusy = true;
     try {
@@ -1095,7 +1087,7 @@
     var lines = 'Queue ' + (subs.length ? subs.length + ' community submission' + (subs.length === 1 ? '' : 's') : '')
       + (subs.length && pairs.length ? ' and ' : '') + (pairs.length ? pairs.length + ' barcode pairing' + (pairs.length === 1 ? '' : 's') : '')
       + ' into the review queue? Numbers already in the catalog are skipped and marked; a number filed twice becomes one row. Each row is then approved, edited or rejected like a crawl batch.';
-    var yes = (typeof appConfirm === 'function') ? await appConfirm(lines, { title: 'Queue into review', ok: 'Queue them' }) : confirm(lines);
+    var yes = await appConfirm(lines, { title: 'Queue into review', ok: 'Queue them' });
     if (!yes) return;
     _ymQueueBusy = true;
     var H = { Authorization: 'Bearer ' + window.accessToken, 'Content-Type': 'application/json' };
@@ -1328,9 +1320,7 @@
         + (heldNoTab.length ? ' ' + heldNoTab.length + ' held \u2014 no tab picked.' : '')
         + (heldNoNum.length ? ' ' + heldNoNum.length + ' held \u2014 no item number.' : '')
         + ' Dated backups of both tabs are written first.';
-      var yes = (typeof appConfirm === 'function')
-        ? await appConfirm(lines, { title: 'Commit to the master catalog', ok: 'Back up, then commit' })
-        : confirm(lines);
+      var yes = await appConfirm(lines, { title: 'Commit to the master catalog', ok: 'Back up, then commit' });
       if (!yes) return;
       // ── backups FIRST — a failure here aborts with master untouched ──
       var fq = encodeURIComponent("name='RailRoster Backups' and mimeType='application/vnd.google-apps.folder' and trashed=false");
@@ -1475,7 +1465,7 @@
         }
         return;
       }
-      var yes = (typeof appConfirm === 'function') ? await appConfirm(lines, { title: 'Write UPCs onto master rows', ok: 'Back up, then write' }) : confirm(lines);
+      var yes = await appConfirm(lines, { title: 'Write UPCs onto master rows', ok: 'Back up, then write' });
       if (!yes) return;
       // backups first — every tab that will be touched
       var fq = encodeURIComponent("name='RailRoster Backups' and mimeType='application/vnd.google-apps.folder' and trashed=false");

@@ -709,9 +709,7 @@ async function _rbDeleteSelected() {
   if (!sel?.value?.startsWith('custom:')) return;
   const id  = sel.value.replace('custom:','');
   const rpt = (state.savedReports||[]).find(r=>r.id===id);
-  const okDel = (typeof appConfirm === 'function')
-    ? await appConfirm('Delete report "' + (rpt?.name||'this report') + '"?', { danger: true, ok: 'Delete', title: 'Delete report' })
-    : confirm('Delete report "' + (rpt?.name||'this report') + '"?');
+  const okDel = await appConfirm('Delete report "' + rrEsc(rpt?.name||'this report') + '"?', { danger: true, ok: 'Delete', title: 'Delete report' });
   if (!okDel) return;
   state.savedReports = (state.savedReports||[]).filter(r=>r.id!==id);
   localStorage.setItem('lv_saved_reports', JSON.stringify(state.savedReports));

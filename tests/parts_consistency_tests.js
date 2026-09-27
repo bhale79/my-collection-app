@@ -155,7 +155,7 @@ ok('the loose rule: a part whose task is not OPEN (gone or done) is loose again'
 const preview = grabFrom(maint, 'window._maintRenderPreview = function (idx, it, pd)');
 ok('…which is exactly the preview\'s rule (linked = on an OPEN task), so card and preview agree', /l\.status === 'open'/.test(preview) && /if \(linked\[p\.id\] \|\| st === 'installed'\) return;/.test(preview));
 const rmCard = grabFrom(maint, 'window._maintPartRemove = async function (rowNum)');
-ok('the card\'s Remove asks first, then goes through removePart (the one remover) and redraws card, bench, badge, preview', /confirm\(/.test(rmCard) && /await removePart\(rowNum\)/.test(rmCard) && /_maintRenderTasks\(\); _wbBuild\(\); _wbBadge\(\)/.test(rmCard) && /_maintRenderPreview/.test(rmCard));
+ok('the card\'s Remove asks first (v0.9.1819: the app\'s own box), then goes through removePart (the one remover) and redraws card, bench, badge, preview', /await appConfirm\(/.test(rmCard) && /await removePart\(rowNum\)/.test(rmCard) && /_maintRenderTasks\(\); _wbBuild\(\); _wbBadge\(\)/.test(rmCard) && /_maintRenderPreview/.test(rmCard));
 const rmPage = grabFrom(pages, 'async function removePart(rowNum)');
 ok('removePart blanks the WHOLE row (13 cells, A–M) where the lifecycle columns exist', /\['', '', '', '', '', '', '', '', '', '', '', '', ''\]/.test(rmPage) && /\(_wide \? 'M' : 'H'\)/.test(rmPage));
 ok('removePart returns true/false and drops the part from memory at once', /return true;/.test(rmPage) && /return false;/.test(rmPage) && /delete state\.partsData\[k\]/.test(rmPage));

@@ -163,7 +163,7 @@
   }
   window._stockRemove = async function (inv) {
     var pd = _pdByInv(inv);
-    if (!pd || !confirm('Remove the stock photo from this item? (Nothing is deleted anywhere else.)')) return;
+    if (!pd || !(await appConfirm('Remove the stock photo from this item? Nothing is deleted anywhere else.', { title: 'Remove stock photo', ok: 'Remove' }))) return;
     try {
       if (!(await _writeLink(pd, ''))) return;
       if (typeof showToast === 'function') showToast('✓ Stock photo removed');

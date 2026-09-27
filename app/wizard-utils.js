@@ -71,6 +71,13 @@ function _sheetLinkClick(e) {
   return false;
 }
 
+// v0.9.1819 (release readiness S2): these two boxes are THE way the app asks
+// a question or takes a line of text. The browser's own confirm()/prompt()/
+// alert() boxes are gone from the app — tests/native_dialog_tests.js holds
+// the count at zero. A '\n' in the message is a line break on screen.
+function _appDialogText(message) {
+  return String(message == null ? '' : message).replace(/\n/g, '<br>');
+}
 function appConfirm(message, opts) {
   opts = opts || {};
   const title = opts.title || 'Confirm';
@@ -82,7 +89,7 @@ function appConfirm(message, opts) {
     ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:100080;display:flex;align-items:center;justify-content:center;padding:1rem';
     ov.innerHTML = '<div style="max-width:420px;width:100%;background:var(--surface,#1a1a2e);border:1px solid var(--border,#333);border-radius:14px;padding:1.25rem 1.25rem 1rem;color:var(--text,#eee);font-family:var(--font-body,sans-serif);box-shadow:0 10px 40px rgba(0,0,0,0.5)">'
       + '<div style="font-size:1rem;font-weight:600;margin-bottom:0.55rem">' + title + '</div>'
-      + '<div style="font-size:0.9rem;line-height:1.45;color:var(--text-mid,#bbb);margin-bottom:1.1rem">' + message + '</div>'
+      + '<div style="font-size:0.9rem;line-height:1.45;color:var(--text-mid,#bbb);margin-bottom:1.1rem">' + _appDialogText(message) + '</div>'
       + '<div style="display:flex;gap:0.5rem;justify-content:flex-end">'
       + '<button id="_ac-no" style="padding:0.55rem 1.05rem;border-radius:8px;border:1px solid var(--border,#444);background:transparent;color:var(--text-dim,#aaa);font-family:inherit;cursor:pointer">' + cancelText + '</button>'
       + '<button id="_ac-yes" style="padding:0.55rem 1.15rem;border-radius:8px;border:none;background:' + (danger ? '#c0392b' : 'var(--accent,#e04028)') + ';color:#fff;font-weight:600;font-family:inherit;cursor:pointer">' + okText + '</button>'
@@ -101,9 +108,8 @@ function appConfirm(message, opts) {
 }
 window.appConfirm = appConfirm;
 
-// In-app text / number prompt — replaces the native blocking prompt(), which
-// freezes automated tests and looks out of place. Returns the entered string,
-// or null if cancelled. Mirrors appConfirm's styling. (Session 176)
+// In-app text / number prompt — the app's own text box. Returns the entered
+// string, or null if cancelled. Mirrors appConfirm's styling. (Session 176)
 function appPrompt(message, defaultValue, opts) {
   opts = opts || {};
   var title = opts.title || 'Enter a value';
@@ -118,7 +124,7 @@ function appPrompt(message, defaultValue, opts) {
     var numAttrs = (inputType === 'number') ? ' inputmode="decimal" step="any"' : '';
     ov.innerHTML = '<div style="max-width:420px;width:100%;background:var(--surface,#1a1a2e);border:1px solid var(--border,#333);border-radius:14px;padding:1.25rem;color:var(--text,#eee);font-family:var(--font-body,sans-serif);box-shadow:0 10px 40px rgba(0,0,0,0.5)">'
       + '<div style="font-size:1rem;font-weight:600;margin-bottom:0.55rem">' + title + '</div>'
-      + '<div style="font-size:0.9rem;line-height:1.45;color:var(--text-mid,#bbb);margin-bottom:0.9rem">' + message + '</div>'
+      + '<div style="font-size:0.9rem;line-height:1.45;color:var(--text-mid,#bbb);margin-bottom:0.9rem">' + _appDialogText(message) + '</div>'
       + '<div style="display:flex;align-items:center;gap:0.4rem;margin-bottom:1.1rem">'
       + (prefix ? '<span style="font-size:1rem;color:var(--text-dim,#aaa)">' + prefix + '</span>' : '')
       + '<input id="_ap-input" type="' + inputType + '"' + numAttrs + ' value="' + safeVal + '" style="flex:1;padding:0.6rem 0.7rem;border-radius:8px;border:1px solid var(--border,#444);background:var(--surface2,#222);color:var(--text,#eee);font-family:inherit;font-size:0.95rem"></div>'

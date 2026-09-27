@@ -59,7 +59,7 @@ ok('an existing value is SHOWN on the row, not just counted',
    'the column being filled is tinted while ticking');
 ok('...and rows that already have one are left alone by default',
    /if \(cur && !replaceThem\) return;/.test(tag));
-ok('...with the choice spelled out', /OK  = replace those too/.test(tag));
+ok('...with the choice spelled out on the buttons (v0.9.1819: the app\'s own box, not the browser\'s)', /appConfirm\(msg, \{ title: 'Some already have a value', ok: 'Replace those too', cancel: 'Leave those alone' \}\)/.test(tag));
 ok('every Apply is undoable', /function rrTagUndo\b/.test(tag) && /_rrTagSaveUndo/.test(tag));
 ok('...reachable from Preferences', /rrTagUndoListHtml/.test(prefs));
 

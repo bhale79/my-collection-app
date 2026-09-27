@@ -1341,12 +1341,12 @@
       + '<button onclick="_maintDelFav(\'' + prefKey + '\',\'' + selectId + '\')" title="Remove the selected favorite" ' + _btnQuiet() + '>&minus;</button>'
       + '</div>';
   }
-  window._maintAddFav = function (prefKey, selectId) {
-    var name = prompt(prefKey === MAINT.PREF_CHANNELS
-      ? 'YouTube channel name or @handle (e.g. @TrainRepairGuy):'
+  window._maintAddFav = async function (prefKey, selectId) {
+    var name = await appPrompt(prefKey === MAINT.PREF_CHANNELS
+      ? 'YouTube channel name or @handle (e.g. @TrainRepairGuy).'
       : prefKey === MAINT.PREF_SUPPLIERS
-      ? 'Parts supplier name (e.g. Trainz, Olsen\'s):'
-      : 'Parts dealer name (e.g. Joe\'s Train Shop):');
+      ? 'Parts supplier name (e.g. Trainz, Olsen\'s).'
+      : 'Parts dealer name (e.g. Joe\'s Train Shop).', '', { title: 'Add a favorite', ok: 'Add' });
     if (!name || !String(name).trim()) return;
     name = String(name).trim();
     var favs = _favs(prefKey);
@@ -1743,6 +1743,11 @@
   // v0.9.1656 (Brad: the prompt boxes VANISH when you switch windows to
   // copy something): one persistent FORM instead of a prompt chain. It
   // stays open across window switches; nothing saves until Save.
+  // v0.9.1819: the form's X asks in the app's own box (the browser's confirm() is gone).
+  window._maintDocformClose = function () {
+    appConfirm('Close without saving?', { title: 'Close this form', ok: 'Close', cancel: 'Keep editing' })
+      .then(function (yes) { if (yes) { var f = document.getElementById('maint-docform'); if (f) f.remove(); } });
+  };
   function _docForm(type, fixedUrl, pendingFile, presetTopic, opts) {
     // v0.9.1674 (bite 3): opts.general = saving from the Toolbox with no
     // item in hand — Covers is optional there (a lube guide fits everything),
@@ -1756,7 +1761,7 @@
     // nothing at all, and the confirm goes with it — see the note by _wbOverlay.
     var html = '<div id="maint-docform" style="position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9700;display:flex;align-items:flex-start;justify-content:center;overflow-y:auto;padding:2rem 1rem">'
       + _cardOpen(480)
-      + _cardHead('My Manuals' + (general ? '' : ' · No. ' + _esc(String(_panelItem && _panelItem.itemNum || ''))), (type === 'picture' ? 'Save a picture' : type === 'document' ? 'Save a document' : type === 'video' ? 'Save a video' : 'Save a link'), "if(confirm('Close without saving?'))document.getElementById('maint-docform').remove()")
+      + _cardHead('My Manuals' + (general ? '' : ' · No. ' + _esc(String(_panelItem && _panelItem.itemNum || ''))), (type === 'picture' ? 'Save a picture' : type === 'document' ? 'Save a document' : type === 'video' ? 'Save a video' : 'Save a link'), "_maintDocformClose()")
       + ((type === 'link' || type === 'video')
           ? '<label style="' + LB + '">' + (type === 'video' ? 'YouTube link (paste it)' : 'Link (paste it — switch windows all you like, this form waits)') + '</label><input id="docf-url" type="text" placeholder="https://…" style="' + IN + '">'
           : '<div style="font-size:0.82rem;color:var(--text);margin-bottom:0.7rem">' + _esc(pendingFile && pendingFile.name || 'File') + ' chosen ✓ — it uploads when you hit Save.</div>')
@@ -2011,6 +2016,13 @@
     } catch (e) { if (typeof showToast === 'function') showToast(rrSaveError(e, 'the chore'), 4000, true); }
   };
 
+  // v0.9.1819: the task card's "Mark complete" asks in the app's own box, then
+  // hands off to _maintChoreDone — the ONE way into the service history.
+  window._maintChoreDoneAsk = function (rowNum, logId) {
+    var t = (state.maintLog || []).find(function (x) { return x.id === logId; });
+    appConfirm('Mark \u201c' + rrEsc((t && t.text) || 'this task') + '\u201d complete? It moves to the service history.', { title: 'Mark complete', ok: 'Mark complete' })
+      .then(function (yes) { if (yes) window._maintChoreDone(rowNum, logId); });
+  };
   window._maintChoreDone = async function (rowNum, logId) {
     var today = new Date().toISOString().split('T')[0];
     try {
@@ -2136,7 +2148,8 @@
   }
   window._maintRemoveEntry = async function (logId) {
     var l = (state.maintLog || []).find(function (x) { return x.id === logId; });
-    if (!l || !confirm('Remove "' + l.text + '" (' + (l.dateDone || l.dateAdded) + ') from the service history?')) return;
+    if (!l) return;
+    if (!(await appConfirm('Remove \u201c' + rrEsc(l.text) + '\u201d (' + rrEsc(l.dateDone || l.dateAdded) + ') from the service history?', { title: 'Remove from history', ok: 'Remove', danger: true }))) return;
     try { await _removeLogRow(l); }
     catch (e) { if (typeof showToast === 'function') showToast('Could not remove it', 3500, true); }
   };
@@ -2149,9 +2162,9 @@
     var l = (state.maintLog || []).find(function (x) { return x.id === logId; });
     if (!l) return;
     var parts = _taskParts(logId);
-    var msg = 'Remove the task “' + l.text + '”? It was never done, so nothing goes into the history.'
+    var msg = 'Remove the task “' + rrEsc(l.text) + '”? It was never done, so nothing goes into the history.'
       + (parts.length ? ' The ' + parts.length + ' part' + (parts.length > 1 ? 's' : '') + ' linked to it stay' + (parts.length > 1 ? '' : 's') + ' on your Parts Needed list for this item.' : '');
-    if (!confirm(msg)) return;
+    if (!(await appConfirm(msg, { title: 'Remove this task', ok: 'Remove', danger: true }))) return;
     try {
       for (var i = 0; i < parts.length; i++) { if (!(await _maintPartSetTask(parts[i].row, ''))) return; }
       if (await _removeLogRow(l) && typeof showToast === 'function') showToast('✓ Task removed');
@@ -2307,7 +2320,7 @@
           + '</div>'
           + partLine
           + '<div style="display:flex;justify-content:flex-end;margin-top:0.55rem;padding-top:0.45rem;border-top:1px dashed var(--border)">'
-          +   '<button onclick="if(confirm(\'Mark \\u201c' + _esc(t.text).replace(/'/g, '') + '\\u201d complete? It moves to the service history.\'))_maintChoreDone(' + t.row + ',\'' + rrJsArg(t.id) + '\')" ' + _btnPrimary('padding:0.45rem 0.8rem;font-size:0.74rem') + '>Mark complete — job finished</button>'
+          +   '<button onclick="_maintChoreDoneAsk(' + t.row + ',\'' + rrJsArg(t.id) + '\')" ' + _btnPrimary('padding:0.45rem 0.8rem;font-size:0.74rem') + '>Mark complete — job finished</button>'
           + '</div>';
       };
       _maintPaintTaskCard = function () {
@@ -2429,7 +2442,7 @@
     var p = Object.values(state.partsData || {}).find(function (x) { return x.row === rowNum; });
     if (!p || typeof removePart !== 'function') return;
     var copy = window.PARTS_COPY || {};
-    if (!confirm(String(copy.removeCard || 'Take \u201c%s\u201d off your Parts Needed list?').replace('%s', p.description || p.partNum || 'part'))) return;
+    if (!(await appConfirm(String(copy.removeCard || 'Take \u201c%s\u201d off your Parts Needed list?').replace('%s', rrEsc(p.description || p.partNum || 'part')), { title: 'Take it off the list', ok: 'Take it off', danger: true }))) return;
     if (!(await removePart(rowNum))) return;
     _maintRenderTasks(); _wbBuild(); _wbBadge();
     if (_previewArgs && document.getElementById('maint-preview')) window._maintRenderPreview(_previewArgs.idx, _previewArgs.it, _previewArgs.pd);
@@ -2806,7 +2819,8 @@
   };
   window._maintBinRemove = async function (id) {
     var b = (state.partsBin || []).find(function (x) { return x.id === id; });
-    if (!b || !confirm('Remove "' + (b.desc || b.partNum) + '" from your Parts Bin?')) return;
+    if (!b) return;
+    if (!(await appConfirm('Remove \u201c' + rrEsc(b.desc || b.partNum) + '\u201d from your Parts Bin?', { title: 'Remove from Parts Bin', ok: 'Remove', danger: true }))) return;
     try {
       if (typeof rrRemoveRowConfirmed === 'function') {
         if (!(await rrRemoveRowConfirmed(state.personalSheetId, BIN_TAB, b.row, BIN_TAB + '!A' + b.row + ':M' + b.row, [['', '', '', '', '', '', '', '', '', '', '', '', '']], { num: b.id }, 'Parts Bin'))) return;
@@ -2895,9 +2909,7 @@
     var b = (state.partsBin || []).find(function (x) { return x.id === id; });
     if (!b || _fsPartBusy) return;
     var cur = (typeof _currencySymbol === 'function') ? _currencySymbol() : '$';
-    var price = (typeof appPrompt === 'function')
-      ? await appPrompt('Enter the price it sold for. Leave blank to use the asking price.', b.asking || '', { title: 'Record sale \u2014 ' + (b.desc || b.partNum), type: 'number', prefix: cur, ok: 'Mark sold' })
-      : prompt('Price it sold for:', b.asking || '');
+    var price = await appPrompt('Enter the price it sold for. Leave blank to use the asking price.', b.asking || '', { title: 'Record sale \u2014 ' + rrEsc(b.desc || b.partNum), type: 'number', prefix: cur, ok: 'Mark sold' });
     if (price === null || price === undefined) return;
     price = String(price).trim() || String(b.asking || '').trim();
     _fsPartBusy = true;
@@ -3362,7 +3374,8 @@
   };
   window._tbRemove = async function (docId) {
     var d = (state.myManuals || []).find(function (x) { return x.id === docId; });
-    if (!d || !confirm('Remove "' + (d.title || 'this') + '" from My Manuals? (The link or file itself is not deleted.)')) return;
+    if (!d) return;
+    if (!(await appConfirm('Remove \u201c' + rrEsc(d.title || 'this') + '\u201d from My Manuals? The link or file itself is not deleted.', { title: 'Remove from My Manuals', ok: 'Remove', danger: true }))) return;
     var blank = [['', '', '', '', '', '', '', '']];
     if (!(await rrRemoveRowConfirmed(state.personalSheetId, DOCS_TAB, d.row, DOCS_TAB + '!A' + d.row + ':H' + d.row, blank, { num: d.id }, 'My Manuals'))) return;
     var f = document.getElementById('tb-edit'); if (f) f.remove();

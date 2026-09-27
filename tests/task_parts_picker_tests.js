@@ -107,13 +107,14 @@ ok('only _removeLogRow calls the row remover for the log tab', (src.match(/rrRem
 section('Removing an open task (_maintRemoveTask)');
 ok('it unlinks every linked part BEFORE removing the row (a part never vanishes with the task)', rmTask.indexOf('_maintPartSetTask(parts[i].row, \'\')') > 0 && rmTask.indexOf('_maintPartSetTask(parts[i].row, \'\')') < rmTask.indexOf('_removeLogRow(l)'));
 ok('an unlink that fails stops the removal', /if \(!\(await _maintPartSetTask\(parts\[i\]\.row, ''\)\)\) return;/.test(rmTask));
-ok('it asks first, and says the parts stay on the list', /confirm\(msg\)/.test(rmTask) && /stay/.test(rmTask) && /Parts Needed list/.test(rmTask));
+ok('it asks first (v0.9.1819: in the app\'s own box), and says the parts stay on the list', /await appConfirm\(msg, \{ title: 'Remove this task'/.test(rmTask) && /stay/.test(rmTask) && /Parts Needed list/.test(rmTask));
 ok('it says nothing goes into the history (an open task was never done)', /nothing goes into the history/.test(rmTask));
 
 section('The task card markup (_maintRenderTasks)');
 const card = grab('function _maintRenderTasks()');
 ok('every open task carries a Remove button wired to _maintRemoveTask (v1760: through rrJsArg, so an apostrophe cannot break the handler)', /_maintRemoveTask\(\\'' \+ rrJsArg\(t\.id\)/.test(card));
-ok('Mark complete is still the only way INTO the history', /_maintChoreDone\(/.test(card) && !/_maintChoreDone\(/.test(rmTask));
+const askDone = grab('window._maintChoreDoneAsk = function (rowNum, logId)');
+ok('Mark complete is still the only way INTO the history (v0.9.1819: the card asks through _maintChoreDoneAsk, which hands off to _maintChoreDone)', /_maintChoreDoneAsk\(/.test(card) && /window\._maintChoreDone\(rowNum, logId\)/.test(askDone) && /appConfirm\(/.test(askDone) && !/_maintChoreDone\(/.test(rmTask));
 const moveSel = grab('var moveSel = function (p, onTask)');
 ok('a part line gets a Move select listing the OTHER open tasks + "off this task"', /tasks\.filter\(function \(t\) \{ return t\.id !== \(p\.taskId \|\| ''\); \}\)/.test(moveSel) && /off this task \(keep for the item\)/.test(moveSel));
 ok('a loose part (no task) with no other tasks gets no Move select', /if \(!others\.length && !p\.taskId\) return '';/.test(moveSel));

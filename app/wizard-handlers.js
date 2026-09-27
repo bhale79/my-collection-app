@@ -467,7 +467,7 @@ async function wizardChooseCategory(catId) {
   }
   if (catId === '__new__') {
     // Prompt for custom category name
-    const name = prompt('Enter a name for your custom category:');
+    const name = await appPrompt('Enter a name for your custom category.', '', { title: 'New category', ok: 'Add' });
     if (!name || !name.trim()) return;
     const label = name.trim();
     const id = 'user_' + label.toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,'');

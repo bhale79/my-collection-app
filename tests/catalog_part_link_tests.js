@@ -279,7 +279,7 @@ ok('the typed box\'s Search → goes through the same builder', /_partsUrl\(deal
 ok('the lane is redrawn with the card\'s item', /_maintCatalogLaneHtml\(_maintPickerParts\(tg, taskId\)\.catalog, q, taskId, tg\.item\)/.test(grab('function _maintCatalogLaneRender(taskId)')));
 ok('the lane\'s container remembers its task so a new pick can redraw it', /id="maint-pop-catalog" data-task="' \+ _esc\(taskId \|\| ''\) \+ '"/.test(grab('window._maintPartsPopup = function (taskId, taskName)')));
 ok('− cannot remove the built-in choice, and a removal goes back to Any dealer', /if \(sel\.value === MAINT\.MAKER_STORE\) return;/.test(grab('window._maintDelFav = function (prefKey, selectId)')) && /window\._maintDealerPicked\(sel\)/.test(grab('window._maintDelFav = function (prefKey, selectId)')));
-ok('adding a store makes it the pick', /if \(prefKey === MAINT\.PREF_DEALERS\) window\._maintDealerPicked\(sel\);/.test(grab('window._maintAddFav = function (prefKey, selectId)')));
+ok('adding a store makes it the pick', /if \(prefKey === MAINT\.PREF_DEALERS\) window\._maintDealerPicked\(sel\);/.test(grab('window._maintAddFav = async function (prefKey, selectId)')));
 ok('the lane never reads a price or a stock note any more', !/msrp|In stock|Out of stock/.test(grab('function _maintCatalogLaneHtml(rows, q, taskId, item)')));
 // v0.9.1770: the anchor itself moved into _partLinkA, because there are two of
 // them now. Still exactly ONE place that writes a catalog row's link.

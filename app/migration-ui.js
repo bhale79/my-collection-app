@@ -259,8 +259,8 @@
     if (box) {
       box.textContent = msg;
       box.style.display = '';
-    } else {
-      alert(msg);
+    } else if (typeof showToast === 'function') {
+      showToast(msg, 6000, true);
     }
   }
 

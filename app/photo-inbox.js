@@ -3058,7 +3058,7 @@
 
   window._stageDiscard = async function (id) {
     var go = true;
-    try { if (typeof appConfirm === 'function') go = await appConfirm('Remove this waiting photo from this device? It has not been uploaded anywhere.', { title: 'Remove photo', ok: 'Remove it', cancel: 'Keep it', danger: true }); } catch (e) {}
+    try { go = await appConfirm('Remove this waiting photo from this device? It has not been uploaded anywhere.', { title: 'Remove photo', ok: 'Remove it', cancel: 'Keep it', danger: true }); } catch (e) {}
     if (!go) return;
     try { await _stageDel(id); } catch (e) {}
     var ov = document.getElementById('stage-review-ov'); if (ov) ov.remove();
@@ -6731,7 +6731,7 @@
           if (_nm8[gs[_g8].files[_f8].id]) { _dupNum = _nm8[gs[_g8].files[_f8].id]; break; }
         }
       }
-      if (_dupNum && typeof appConfirm === 'function') {
+      if (_dupNum) {
         // v0.9.1782: this carried the same misleading parenthetical the badge
         // did — it named being offline as the reason a save had not finished,
         // when an abandoned add is just as likely and was the actual case.

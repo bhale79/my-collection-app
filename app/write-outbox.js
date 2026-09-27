@@ -458,7 +458,6 @@
       });
     };
     document.getElementById('rr-ob-clear').onclick = function () {
-      if (typeof appConfirm !== 'function') { rrOutboxClear(); ov.remove(); return; }
       appConfirm('Forget the changes that have not saved? They will not be tried again, and '
         + 'your sheet will not have them.', { title: 'Forget these changes', ok: 'Forget them', cancel: 'Keep them' })
         .then(function (yes) { if (yes) { rrOutboxClear(); ov.remove(); } });

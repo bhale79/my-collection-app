@@ -560,11 +560,9 @@
           _refreshPresets();
           if (typeof showToast === 'function') showToast('“' + nm + '” deleted', 2600);
         };
-        if (typeof appConfirm === 'function') {
-          appConfirm('Delete the saved look “' + nm + '”? The colours you are using now are not affected.',
-            { title: 'Delete saved look', ok: 'Delete', danger: true })
-            .then(function (yes) { if (yes) drop(); });
-        } else drop();
+        appConfirm('Delete the saved look “' + rrEsc(nm) + '”? The colours you are using now are not affected.',
+          { title: 'Delete saved look', ok: 'Delete', danger: true })
+          .then(function (yes) { if (yes) drop(); });
         return;
       }
       if (!pill) return;
@@ -1687,7 +1685,6 @@
       if (typeof showToast === 'function') showToast('Colours taken from your logo — press Preview to see them in the app', 4000);
     };
     var note = _slotLabel(slot) + ' set.' + (kind ? ' ' + _rrLogoNote(kind) : '');
-    if (typeof appConfirm !== 'function') { _toastOnly(note); return; }
     appConfirm(note + ' Would you like the whole look built from this logo\u2019s colours? '
       + 'Say no and they simply wait in the row on the left, to use where you choose.',
       { title: 'Auto-apply generated logo scheme', ok: 'Yes, use them', cancel: 'No, leave my colours' })
@@ -2158,17 +2155,15 @@
     // name the user typed was resolved to nobody. And the dialog paints at
     // z-index 99998 while this editor sits at 100040, so it opened BEHIND the
     // editor: a dialog you cannot see, discarding an answer nobody collects.
-    if (typeof appPrompt === 'function') {
-      appPrompt('Give this look a name so you can come back to it.', '',
-        { title: 'Save this look' }).then(go);
-    } else go(window.prompt('Name this look'));
+    appPrompt('Give this look a name so you can come back to it.', '',
+      { title: 'Save this look' }).then(go);
   };
   window._rrapExport = function () {
     var map = {}; EDIT_VARS.forEach(function (e) { map[e[0]] = _cur(e[0]); });
     var json = JSON.stringify(map);
     var done = function () { if (typeof showToast === 'function') showToast('Skin copied — paste it anywhere to share', 3000); };
     if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(json).then(done, done);
-    else { window.prompt('Copy this skin:', json); }
+    else { appPrompt('Copy this text and paste it on your other device.', json, { title: 'Share this look', ok: 'Done' }).then(function () {}); }
   };
   window._rrapImport = function () {
     var go = function (txt) {
@@ -2182,10 +2177,8 @@
         _refreshPanel();
       } catch (e) { if (typeof showToast === 'function') showToast('That didn’t look like a skin — paste the exported text exactly', 3500, true); }
     };
-    if (typeof appPrompt === 'function') {
-      appPrompt('Paste the text you exported from another device.', '',
-        { title: 'Import a look' }).then(go);
-    } else go(window.prompt('Paste a skin'));
+    appPrompt('Paste the text you exported from another device.', '',
+      { title: 'Import a look' }).then(go);
   };
 
   // ── Preview: the round trip Brad asked for ───────────────────────

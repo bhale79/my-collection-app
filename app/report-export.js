@@ -56,11 +56,11 @@ function _repBtnDone(msg) {
 // ── Download PDF (insurance = rich w/ photos; other types = table) ──
 async function exportReportPDF() {
   var type = (document.getElementById('report-type') || {}).value || 'insurance';
-  if (!(window.jspdf && window.jspdf.jsPDF)) { alert('PDF engine still loading — try again in a moment.'); return; }
+  if (!(window.jspdf && window.jspdf.jsPDF)) { showToast('The PDF maker is still loading \u2014 try again in a moment.', 4000, true); return; }
   try {
     if (type === 'insurance') { await _insurancePDF(); }
     else { _tablePDF(type); }
-  } catch (e) { console.error('[Report PDF]', e); alert('Could not build the PDF: ' + e.message); _repBtnDone(); }
+  } catch (e) { console.error('[Report PDF]', e); showToast(rrSaveError(e, 'the PDF', { kept: false }), 6000, true); _repBtnDone(); }
 }
 
 async function _insurancePDF() {
@@ -272,7 +272,7 @@ function _tablePDF(type) {
 // HTML → editable Doc). Uses drive.file scope (the app owns the new file).
 async function exportReportGoogleDoc() {
   var type = (document.getElementById('report-type') || {}).value || 'insurance';
-  if (!accessToken) { alert('Please sign in first.'); return; }
+  if (!accessToken) { showToast('Please sign in first.', 4000, true); return; }
   _repBtnBusy('Creating Google Doc…');
   try {
     var html = _reportToHTML(type);
@@ -294,7 +294,7 @@ async function exportReportGoogleDoc() {
     if (d.error || !d.webViewLink) throw new Error((d.error && d.error.message) || 'create failed');
     _repBtnDone('Google Doc created');
     window.open(d.webViewLink, '_blank', 'noopener');
-  } catch (e) { console.error('[Report GoogleDoc]', e); alert('Could not create the Google Doc: ' + e.message); _repBtnDone(); }
+  } catch (e) { console.error('[Report GoogleDoc]', e); showToast(rrSaveError(e, 'the Google Doc', { kept: false }), 6000, true); _repBtnDone(); }
 }
 
 // Build clean (light-themed) HTML for the Doc from the current report.
@@ -379,8 +379,8 @@ async function _archiveBlob(blob, name, mime) {
   } catch (e) { console.warn('[Past reports] archive failed:', e); }
 }
 async function _openPastReports() {
-  try { var id = await _ensurePastReports(); if (id) window.open('https://drive.google.com/drive/folders/' + id, '_blank', 'noopener'); else alert('Could not open the Past reports folder.'); }
-  catch (e) { alert('Could not open the Past reports folder.'); }
+  try { var id = await _ensurePastReports(); if (id) window.open('https://drive.google.com/drive/folders/' + id, '_blank', 'noopener'); else showToast('Could not open the Past reports folder.', 5000, true); }
+  catch (e) { console.warn('[Past reports] open failed:', e); showToast('Could not open the Past reports folder.', 5000, true); }
 }
 
 if (typeof window !== 'undefined') {
