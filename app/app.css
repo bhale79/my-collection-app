@@ -2757,7 +2757,14 @@ html[data-theme="high-contrast"] button[style*="#e74c3c"] {
    Trains are long and low, so the box is a wide rectangle, and the picture is
    FITTED (contain), never zoomed-and-trimmed (cover) — the whole photo shows,
    with a plain band where its shape differs from the box. */
-:root { --rr-thumb-w: 96px; --rr-thumb-h: 56px; --rr-thumb-preview-w: 380px; }
+:root { --rr-thumb-w: 96px; --rr-thumb-h: 56px; --rr-thumb-preview-w: 380px; --rr-photo-fit: contain; --rr-photo-tile-ratio: 4 / 3; }
+/* v0.9.1807 (Brad: "the same for the photo inbox and the dashboard cards … and the scrolling
+   cards"): EVERY small photo in the app shows the whole picture. --rr-photo-fit is the ONE
+   switch; .rr-fit is the one class the dashboard tiles, the scrolling strip, the From-my-
+   collection card and the photo-inbox tiles/rails wear. The photo TILES (Photo Inbox page,
+   the dashboard's Photo Inbox and Showcase cards) are 4:3 — a camera's own shape — instead of
+   square, so a whole picture fills the tile instead of floating in a band. */
+.rr-fit { object-fit: var(--rr-photo-fit) !important; }
 @media (max-width: 700px) { :root { --rr-thumb-w: 76px; --rr-thumb-h: 46px; } }
 .rr-row-thumb {
   width: var(--rr-thumb-w); height: var(--rr-thumb-h);
@@ -2765,7 +2772,7 @@ html[data-theme="high-contrast"] button[style*="#e74c3c"] {
   display: inline-flex; align-items: center; justify-content: center;
   vertical-align: middle; flex-shrink: 0; position: relative;
 }
-.rr-row-thumb img { width: 100%; height: 100%; object-fit: contain; display: block; }
+.rr-row-thumb img { width: 100%; height: 100%; object-fit: var(--rr-photo-fit); display: block; }
 /* Hover preview (desktop mouse only — a phone has no hover). Never catches a
    click: the row under it still opens the item. */
 #rr-thumb-preview {

@@ -5318,11 +5318,18 @@ if (typeof window !== 'undefined') {
     box = document.createElement('div');
     box.id = 'rr-thumb-preview';
     box.innerHTML = '<img alt="">';
+    // v0.9.1807: it was placed while its picture was still loading (14 px
+    // tall), so a tall picture on a row near the bottom ran off the screen.
+    // Place it again once the picture has its real size.
+    box.firstChild.onload = function () { _place(null); };
     document.body.appendChild(box);
     return box;
   }
+  var _lastEv = null;
   function _place(e) {
-    if (!box || box.style.display !== 'block') return;
+    if (e) _lastEv = e;
+    e = e || _lastEv;
+    if (!e || !box || box.style.display !== 'block') return;
     var w = box.offsetWidth, h = box.offsetHeight, pad = 18;
     var x = e.clientX + pad, y = e.clientY + pad;
     if (x + w > window.innerWidth - 8) x = e.clientX - w - pad;

@@ -1010,7 +1010,7 @@
           ? '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(52px,1fr));gap:0.35rem;margin-bottom:0.6rem">'
             + files.map(function (f, i) {
                 return '<div onmousedown="event.preventDefault()" onclick="event.stopPropagation();_pinZoomPhoto(\'' + f.id + '\')" title="Open this photo full size" style="position:relative;aspect-ratio:1;border-radius:6px;overflow:hidden;background:var(--surface2);cursor:zoom-in">'
-                  + '<img data-gppfid="' + f.id + '" style="width:100%;height:100%;object-fit:cover;display:block" alt="">'
+                  + '<img data-gppfid="' + f.id + '" class="rr-fit" style="width:100%;height:100%;display:block" alt="">'
                   + '<div style="position:absolute;left:0;bottom:0;background:var(--scrim);color:#fff;font-size:0.55rem;padding:0 3px;border-radius:0 4px 0 0">' + (i + 1) + '</div>'
                   + '</div>';
               }).join('')
@@ -1023,7 +1023,7 @@
           ? files.map(function (f, i) {
               return '<div style="display:flex;align-items:center;gap:0.45rem;padding:0.25rem 0;border-top:1px solid var(--border)">'
                 + '<div onmousedown="event.preventDefault()" onclick="event.stopPropagation();_pinZoomPhoto(\'' + f.id + '\')" title="Open this photo full size" style="width:30px;height:30px;border-radius:5px;overflow:hidden;background:var(--surface2);flex-shrink:0;position:relative;cursor:zoom-in">'
-                +   '<img data-gppfid="' + f.id + '" style="width:100%;height:100%;object-fit:cover;display:block" alt="">'
+                +   '<img data-gppfid="' + f.id + '" class="rr-fit" style="width:100%;height:100%;display:block" alt="">'
                 +   '<div style="position:absolute;left:0;bottom:0;background:var(--scrim);color:#fff;font-size:0.5rem;padding:0 2px">' + (i + 1) + '</div>'
                 + '</div>'
                 + '<select data-gpri="' + i + '" class="pin-grp-panel-role" style="flex:1;min-width:0;padding:0.35rem;border-radius:7px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text);font-size:0.78rem;min-height:36px">'
@@ -2356,8 +2356,8 @@
       // of select mode.
       var _ungroup = (_selectMode || g.files.length < 2) ? ''
         : '<div onclick="event.stopPropagation();_pinConfirmUngroup(\'' + g.key + '\')" title="Split this group apart" style="position:absolute;left:6px;bottom:26px;width:24px;height:24px;border-radius:7px;background:rgba(0,0,0,0.55);color:#fff;display:flex;align-items:center;justify-content:center;font-size:0.9rem;cursor:pointer">⊟</div>';
-      return '<div class="pin-tile" data-key="' + g.key + '" onclick="' + _tileClick + '(\'' + g.key + '\')" style="position:relative;border-radius:10px;overflow:hidden;cursor:pointer;background:var(--surface2,#26262e);aspect-ratio:1;border:3px solid ' + (isSel ? '#2980b9' : 'transparent') + '">' +
-        '<img loading="lazy" data-fid="' + _pinCoverFid(g) + '" style="width:100%;height:100%;object-fit:cover;object-position:center;display:block'
+      return '<div class="pin-tile" data-key="' + g.key + '" onclick="' + _tileClick + '(\'' + g.key + '\')" style="position:relative;border-radius:10px;overflow:hidden;cursor:pointer;background:var(--surface2,#26262e);aspect-ratio:var(--rr-photo-tile-ratio);border:3px solid ' + (isSel ? '#2980b9' : 'transparent') + '">' +
+        '<img loading="lazy" data-fid="' + _pinCoverFid(g) + '" class="rr-fit" style="width:100%;height:100%;object-position:center;display:block'
           // v0.9.1609: the filter rides the IMG, not the tile, so the amber
           // claim badge above it stays readable at full colour.
           + (_claimedBy ? ';filter:grayscale(85%);opacity:0.55' : '') + '" alt="">' +
@@ -3225,7 +3225,7 @@
       // v0.9.1600: tap a waiting photo to review it — attach it to an item,
       // add it as a new item, or remove it. Paired ones wear their item.
       return '<div onclick="_stageReview(\'' + r.id + '\')" style="position:relative;width:72px;height:72px;border-radius:8px;overflow:hidden;border:1.5px solid var(--border);flex:0 0 auto;background:var(--surface2);cursor:pointer">'
-        + (u ? '<img src="' + u + '" style="width:100%;height:100%;object-fit:cover" alt="">' : '')
+        + (u ? '<img src="' + u + '" class="rr-fit" style="width:100%;height:100%" alt="">' : '')
         + (r.itemNum
             ? '<div style="position:absolute;left:0;right:0;bottom:0;background:rgba(0,0,0,0.62);color:#fff;font-size:0.55rem;font-weight:700;text-align:center;padding:1px 2px;white-space:nowrap;overflow:hidden">→ ' + rrEsc(r.itemNum) + '</div>'
             : '<div style="position:absolute;left:0;right:0;bottom:0;background:rgba(0,0,0,0.62);color:#fff;font-size:0.55rem;font-weight:700;text-align:center;padding:1px 2px">waiting</div>')
@@ -4537,7 +4537,7 @@
         // filled slot makes that photo the current one — it left the rail when
         // it was slotted (v1617), so this box is the only place to tap it. The
         // label beneath still opens the which-photo picker, as does an empty box.
-        ? '<div data-slotpic="' + f.id + '" onclick="event.stopPropagation();_pinRvSetMain(\'' + f.id + '\')" style="width:56px;height:48px;border-radius:8px;overflow:hidden;border:1.5px solid var(--accent2);background:var(--surface2)"><img data-rvv="' + f.id + '" style="width:100%;height:100%;object-fit:cover;display:block" alt=""></div>'
+        ? '<div data-slotpic="' + f.id + '" onclick="event.stopPropagation();_pinRvSetMain(\'' + f.id + '\')" style="width:56px;height:48px;border-radius:8px;overflow:hidden;border:1.5px solid var(--accent2);background:var(--surface2)"><img data-rvv="' + f.id + '" class="rr-fit" style="width:100%;height:100%;display:block" alt=""></div>'
         : '<div style="width:56px;height:48px;border-radius:8px;border:1.5px dashed var(--border);background:var(--surface2);display:flex;align-items:center;justify-content:center;color:var(--text-dim);font-size:1rem">+</div>') +
       '<div style="font-size:0.55rem;font-weight:700;color:' + (f ? 'var(--text)' : 'var(--text-dim)') + ';letter-spacing:0.02em;margin-top:2px;white-space:nowrap">' + sl.label + '</div>' +
     '</div>';
@@ -4677,7 +4677,7 @@
             var vLbl = '';
             for (var j = 0; j < _RV_SLOTS.length; j++) if (_RV_SLOTS[j].key === v) vLbl = _RV_SLOTS[j].label;
             return '<div onclick="_pinRvAssignView(\'' + f.id + '\',\'' + viewKey + '\'' + (roleKey ? ',\'' + roleKey + '\'' : '') + ')" style="cursor:pointer;position:relative;aspect-ratio:1;border-radius:8px;overflow:hidden;border:2px solid ' + (v === viewKey ? 'var(--accent)' : 'var(--border)') + ';background:var(--surface2)">' +
-              '<img data-rvv="' + f.id + '" style="width:100%;height:100%;object-fit:cover;display:block" alt="">' +
+              '<img data-rvv="' + f.id + '" class="rr-fit" style="width:100%;height:100%;display:block" alt="">' +
               (vLbl ? '<div style="position:absolute;left:0;right:0;bottom:0;background:rgba(0,0,0,0.62);color:#fff;font-size:0.55rem;font-weight:700;text-align:center;padding:1px 2px">' + vLbl + '</div>' : '') +
             '</div>';
           }).join('') +
@@ -5016,7 +5016,7 @@
           var _tNum = (_tSug && _tSug.num) ? String(_tSug.num) : '';
           return '<div data-dragfid="' + fidT + '" onclick="_pinRvSetMain(\'' + fidT + '\')" title="Show this photo' + (canDrag ? ' — drag to reorder' : '') + '" style="position:relative;flex-shrink:0;width:' + sizePx + 'px;height:' + sizePx + 'px;border-radius:8px;overflow:hidden;background:var(--surface2,#26262e);cursor:pointer;border:1.5px solid transparent">' +
             (i === 0 ? '<div style="position:absolute;top:0;left:0;background:var(--accent);color:#fff;font-size:0.55rem;font-weight:700;letter-spacing:0.04em;padding:1px 6px;border-radius:0 0 6px 0;z-index:2;pointer-events:none">MAIN VIEW</div>' : '') +
-            '<img data-rvfid="' + fidT + '" style="width:100%;height:100%;object-fit:cover;display:block" alt="">' +
+            '<img data-rvfid="' + fidT + '" class="rr-fit" style="width:100%;height:100%;display:block" alt="">' +
             (_tNum ? '<div style="position:absolute;left:0;right:0;bottom:0;background:rgba(0,0,0,0.62);color:' + (_tSug.guess ? '#ffb454' : '#7ec3ef') + ';font-size:0.58rem;font-weight:700;text-align:center;padding:1px 2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + rrEsc(_tNum) + '</div>' : '') +
           '</div>';
         }).join('') +
@@ -7485,7 +7485,8 @@
       var row = document.createElement('div');
       row.style.cssText = 'display:flex;gap:0.7rem;align-items:flex-start;border:1px solid var(--border);border-radius:10px;padding:0.55rem;margin-bottom:0.55rem';
       var im = document.createElement('img');
-      im.style.cssText = 'width:96px;height:72px;object-fit:cover;border-radius:8px;background:var(--surface2);flex-shrink:0';
+      im.className = 'rr-fit';   // v0.9.1807: whole picture
+      im.style.cssText = 'width:96px;height:72px;border-radius:8px;background:var(--surface2);flex-shrink:0';
       try { loadDriveThumb(rec.id, im, row); } catch (eT) {}
       var right = document.createElement('div');
       right.style.cssText = 'flex:1;min-width:0';
@@ -12296,7 +12297,7 @@
       // header total covers the overflow beyond 3 rows.
       var show = files.slice(0, cols * 3);
       grid.innerHTML = show.map(function (f) {
-        return '<div style="aspect-ratio:1;border-radius:8px;overflow:hidden;background:var(--surface2,#26262e)"><img loading="lazy" data-ppfid="' + f.id + '" style="width:100%;height:100%;object-fit:cover;display:block" alt=""></div>';
+        return '<div style="aspect-ratio:var(--rr-photo-tile-ratio);border-radius:8px;overflow:hidden;background:var(--surface2,#26262e)"><img loading="lazy" data-ppfid="' + f.id + '" class="rr-fit" style="width:100%;height:100%;display:block" alt=""></div>';
       }).join('');
       grid.querySelectorAll('img[data-ppfid]').forEach(function (img) {
         loadDriveThumb(img.getAttribute('data-ppfid'), img, img.parentElement, null, 'hi');
@@ -12512,7 +12513,7 @@
         _qc.recent.slice().reverse().map(function (r, i) {
           var realIdx = _qc.recent.length - 1 - i;
           return '<div onclick="_qcReview(' + realIdx + ')" style="flex-shrink:0;width:62px;height:62px;border-radius:9px;overflow:hidden;position:relative;border:2px solid ' + (r.group === _qc.group ? '#2980b9' : 'var(--border)') + ';cursor:pointer">' +
-            '<img src="' + r.url + '" style="width:100%;height:100%;object-fit:cover;display:block" alt="">' +
+            '<img src="' + r.url + '" class="rr-fit" style="width:100%;height:100%;display:block" alt="">' +
             '<div style="position:absolute;left:0;right:0;bottom:0;background:rgba(0,0,0,0.55);color:#fff;font-size:0.55rem;text-align:center;padding:0 2px">Item ' + r.group + '</div>' +
             '</div>';
         }).join('') + '</div>';

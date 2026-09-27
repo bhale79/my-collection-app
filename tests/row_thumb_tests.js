@@ -16,6 +16,9 @@ const fs = require('fs');
 const path = require('path');
 const APP = f => fs.readFileSync(path.join(__dirname, '..', 'app', f), 'utf8');
 const CSS = APP('app.css'), BROWSE = APP('browse.js'), STOCK = APP('stock-photos.js');
+const DASH = APP('dashboard.js'), INBOX = APP('photo-inbox.js');
+// code only — a comment that SAYS "object-fit:cover" is history, not behaviour
+const code = src => src.split('\n').filter(l => !/^\s*\/\//.test(l)).join('\n');
 let pass = 0, fail = 0;
 function ok(name, cond, detail) {
   if (cond) { pass++; console.log('  PASS  ' + name); }
@@ -35,7 +38,8 @@ function checks(css, browse, stock, tag) {
   const t = s => (tag ? tag + ': ' : '') + s;
   const r = cssRule(css), im = cssImg(css);
   const A1 = /width:\s*var\(--rr-thumb-w\)/.test(r) && /height:\s*var\(--rr-thumb-h\)/.test(r);
-  const A2 = /object-fit:\s*contain/.test(im) && !/cover/.test(im);
+  const A2 = /object-fit:\s*var\(--rr-photo-fit\)/.test(im) && /--rr-photo-fit:\s*contain/.test(css) && !/cover/.test(im)
+          && /\.rr-fit\s*\{\s*object-fit:\s*var\(--rr-photo-fit\)/.test(css);
   const m = css.match(/--rr-thumb-w:\s*(\d+)px;\s*--rr-thumb-h:\s*(\d+)px/);
   const A3 = !!m && +m[1] > +m[2] && +m[1] >= 90;           // wide rectangle, bigger than the old 44
   const B1 = /<div id="thumb-\$\{_rrRowDomKey\(item\)\}" class="rr-row-thumb">/.test(browse);
@@ -72,10 +76,25 @@ ok('the preview never takes a click', /#rr-thumb-preview\s*\{[^}]*pointer-events
 ok('a click / scroll takes it down', /addEventListener\('click', _hide, true\)/.test(BROWSE) && /addEventListener\('scroll', _hide, true\)/.test(BROWSE));
 ok('it only shows a picture that actually loaded', /img\.naturalWidth === 0/.test(BROWSE));
 
+section('D2 · v0.9.1807 — dashboard cards, scrolling strip, photo inbox');
+const dashCover = d => (code(d).match(/object-fit:\s*cover/g) || []).length;
+ok('dashboard.js sets object-fit:cover nowhere', dashCover(DASH) === 0, dashCover(DASH) + ' left');
+ok('photo-inbox.js sets object-fit:cover nowhere', dashCover(INBOX) === 0, dashCover(INBOX) + ' left');
+ok('dashboard photos wear .rr-fit (strip, showcase, recent additions, From my collection)',
+  (DASH.match(/class="rr-fit"/g) || []).length >= 3 && /img\.className = 'rr-fit'/.test(DASH));
+ok('photo-inbox photos wear .rr-fit (tiles, dashboard card, review rails)', (INBOX.match(/rr-fit/g) || []).length >= 9);
+ok('photo tiles are 4:3 from ONE variable (inbox page, dashboard inbox card, showcase)',
+  /--rr-photo-tile-ratio:\s*4 \/ 3/.test(CSS) && (INBOX.match(/aspect-ratio:var\(--rr-photo-tile-ratio\)/g) || []).length === 2
+  && /aspect-ratio:var\(--rr-photo-tile-ratio\)/.test(DASH));
+ok('the hover preview re-places itself once its picture has loaded', /box\.firstChild\.onload = function \(\) \{ _place\(null\); \}/.test(BROWSE));
+
 section('E · planted offenders — each must turn a check red');
-const o1 = CSS.replace(/(\.rr-row-thumb img\s*\{[^}]*?)object-fit:\s*contain/, '$1object-fit: cover');
+const o1 = CSS.replace('--rr-photo-fit: contain;', '--rr-photo-fit: cover;');
 ok('offender 1 changed the source', o1 !== CSS);
-ok('OFFENDER 1: fit back to cover -> A2 red', !checks(o1, BROWSE, STOCK).A2);
+ok('OFFENDER 1: the one switch back to cover -> A2 red', !checks(o1, BROWSE, STOCK).A2);
+const o5 = DASH.replace(`'<img class="rr-fit" style="width:100%;height:100%;opacity:0;`, `'<img style="width:100%;height:100%;object-fit:cover;opacity:0;`);
+ok('offender 5 changed the source', o5 !== DASH);
+ok('OFFENDER 5: cover back on the scrolling strip -> dashboard check red', dashCover(o5) > 0);
 const o2 = BROWSE.replace('// v0.9.1806: size + fit come from .rr-row-thumb (app.css) — the ONE place.',
   "img.style.cssText = 'width:40px;height:40px;object-fit:cover;border-radius:4px';");
 ok('offender 2 changed the source', o2 !== BROWSE);

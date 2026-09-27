@@ -1383,7 +1383,7 @@ window._tickerFill = async function () {
   }
   var cellHtml = function (t, i, copy) {
     return '<div data-tk="' + copy + '-' + i + '" style="width:110px;height:86px;flex-shrink:0;border-radius:8px;overflow:hidden;position:relative;cursor:pointer;background:var(--surface2,#26262e)">'
-      + '<img style="width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity 0.4s" alt="">'
+      + '<img class="rr-fit" style="width:100%;height:100%;opacity:0;transition:opacity 0.4s" alt="">'
       + '<div style="position:absolute;left:0;right:0;bottom:0;background:rgba(0,0,0,0.55);color:#fff;font-size:0.6rem;padding:0.08rem 0.3rem;font-family:var(--font-mono,monospace);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + String(t.pd.itemNum).replace(/</g, '&lt;') + '</div></div>';
   };
   track.innerHTML = picks.map(function (t, i) { return cellHtml(t, i, 'a'); }).join('')
@@ -1770,7 +1770,8 @@ function _dashFlushThumbs() {
       var host = document.getElementById(job.id);
       if (!host || !fid) return;
       var img = document.createElement('img');
-      img.style.cssText = 'width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity 0.3s';
+      img.className = 'rr-fit';   // v0.9.1807: whole picture — fit lives in app.css (--rr-photo-fit)
+      img.style.cssText = 'width:100%;height:100%;opacity:0;transition:opacity 0.3s';
       img.onload = function () { img.style.opacity = 1; };
       host.innerHTML = '';
       host.appendChild(img);
@@ -1863,7 +1864,7 @@ window._reelStart = async function (slot) {
     // that the box was a fixed 86px, which is definite, so it never showed.)
     // Absolute positioning takes the image out of the flow entirely: it still
     // fills the box, but it can no longer contribute anything to the height.
-    + '<img style="position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;object-position:center;transition:opacity 0.45s;opacity:0" alt="">'
+    + '<img class="rr-fit" style="position:absolute;top:0;left:0;width:100%;height:100%;object-position:center;transition:opacity 0.45s;opacity:0" alt="">'
     + '<div style="position:absolute;left:0;right:0;bottom:0;background:rgba(0,0,0,0.55);color:#fff;font-size:0.68rem;padding:0.15rem 0.4rem;font-family:var(--font-mono,monospace)"></div></div>';
   var wrap = document.getElementById('reel-img-' + slot);
   var img = wrap.querySelector('img'), cap = wrap.querySelector('div');
@@ -1926,8 +1927,8 @@ function _showcaseRender(picks) {
   if (picks.length > cols) picks = picks.slice(0, Math.floor(picks.length / cols) * cols);
   grid.style.gridTemplateColumns = 'repeat(' + cols + ', 1fr)';
   grid.innerHTML = picks.map(function (t, i) {
-    return '<div data-sc="' + i + '" style="aspect-ratio:1;border-radius:8px;overflow:hidden;position:relative;cursor:pointer;background:var(--surface2,#26262e)">'
-      + '<img style="width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity 0.4s" alt="">'
+    return '<div data-sc="' + i + '" style="aspect-ratio:var(--rr-photo-tile-ratio);border-radius:8px;overflow:hidden;position:relative;cursor:pointer;background:var(--surface2,#26262e)">'
+      + '<img class="rr-fit" style="width:100%;height:100%;opacity:0;transition:opacity 0.4s" alt="">'
       + '<div style="position:absolute;left:0;right:0;bottom:0;background:rgba(0,0,0,0.55);color:#fff;font-size:0.62rem;padding:0.1rem 0.3rem;font-family:var(--font-mono,monospace);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + String(t.pd.itemNum).replace(/</g, '&lt;') + '</div></div>';
   }).join('');
   picks.forEach(function (t, i) {
