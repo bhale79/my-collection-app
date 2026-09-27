@@ -2373,7 +2373,14 @@ function renderWizardStep() {
   };
   const total = steps.filter(_isVisible).length;
   const current = steps.slice(0, step).filter(_isVisible).length + 1;
-  const pct = Math.round((current / total) * 100);
+  // v0.9.1822 (release readiness S8, Brad: yes): the total is a live estimate —
+  // Has box? Instruction sheet? Error item? engine + tender… each answer adds a
+  // step, so "Step 2 of 8" after "Step 1 of 6" contradicted itself. The label
+  // now says only "Step N", and the bar keeps a high-water mark PER STEP for
+  // this run, so a grown total can never slide it backwards; Back still moves
+  // it back, and the last step is always full.
+  const _progAt = wizard.data._progAt = wizard.data._progAt || {};
+  const pct = _progAt[step] = Math.max(_progAt[step] || 0, Math.round((current / total) * 100));
 
   // Declare nextBtn first — used in theme block below
   const nextBtn = document.getElementById('wizard-next-btn');
@@ -2429,7 +2436,7 @@ function renderWizardStep() {
   // Number, Condition…); this top line now says WHAT you're doing, in his
   // words — and unlike the step name it stays put through all six steps.
   document.getElementById('wizard-step-label').textContent =
-    _wizFlowTitle() + ' · Step ' + current + ' of ' + total;
+    _wizFlowTitle() + ' · Step ' + current;   // v0.9.1822: no "of N" — see the pct note above
   _wizHeroPhotoSync();   // v0.9.1369 — the header thumbnail, on every step
   _renderAddingBanner();
   const _titleText = typeof s.title === 'function' ? s.title(wizard.data) : s.title;

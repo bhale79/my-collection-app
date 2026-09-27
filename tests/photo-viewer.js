@@ -35,7 +35,7 @@ const html = `<!doctype html><html><head>
 <div id="wizard-modal" class="modal-overlay open"><div class="modal">
   <div class="modal-header">
     <div style="flex:1;min-width:0">
-      <div class="modal-item-num" id="wizard-step-label">Collection · Step 2 of 11</div>
+      <div class="modal-item-num" id="wizard-step-label">Collection · Step 2</div>
       <div class="modal-title" id="wizard-title">Do you know the item number?</div>
     </div>
     <button type="button" class="wiz-hero-photo" id="wiz-hero-photo" title="Tap to see the full photo" style="display:none"></button>

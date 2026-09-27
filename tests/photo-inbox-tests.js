@@ -3001,7 +3001,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
     ok('and no flow title is a sentence any more',
        !/Add Item to Your /.test(wz.split('\n').filter(l => !/^\s*\/\//.test(l)).join('\n')));
     ok('the step label leads with the flow title on every render',
-       /_wizFlowTitle\(\) \+ ' · Step ' \+ current \+ ' of ' \+ total/.test(wz));
+       /_wizFlowTitle\(\) \+ ' · Step ' \+ current;/.test(wz));   // v0.9.1822: "Step N", no total (S8)
     // The scope trap this fix nearly shipped: a function declared INSIDE
     // another function passes node --check but is invisible to its caller.
     (function () {
