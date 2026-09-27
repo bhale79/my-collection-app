@@ -281,6 +281,35 @@ const meanDiff = (a, b) => { let s = 0; const n = Math.min(a.length, b.length); 
     T('E2  no page errors', errs.length === 0, errs);
     await pg.close();
   }
+  // ── G · decode() that never answers: the screen still opens ──────────────
+  console.log('\n== G · a decode() that never settles cannot hang the crop screen (v1828, measured live on the desktop) ==');
+  {
+    const { pg, errs } = await open(browser, 1200);
+    const g = await pg.evaluate(async () => {
+      HTMLImageElement.prototype.decode = function () { return new Promise(function () {}); };   // Brad's desktop Chrome on a 12 MP photo
+      const src = __photo(3000, 4000);
+      const t0 = Date.now();
+      const o = await __openCrop(src);
+      const info = __cropperInfo(); const ms = Date.now() - t0;
+      document.getElementById('_rrCropCancel').click();
+      await new Promise(r => setTimeout(r, 100));
+      // OFFENDER: no cap (the wait made effectively infinite) — the screen never builds
+      _RR_DECODE_WAIT_MS = 1e9;
+      _openCropper(src, () => {}, () => {}, {});
+      await new Promise(r => setTimeout(r, 4000));
+      const img = document.getElementById('_rrCropImg');
+      const offBuilt = !!(img && img.cropper && img.cropper.ready), offWait = !!document.getElementById('_rrCropWait');
+      document.getElementById('_rrCropCancel').click();
+      _RR_DECODE_WAIT_MS = 2500;
+      await new Promise(r => setTimeout(r, 100));
+      return { info, ms, offBuilt, offWait, cap: 2500 };
+    });
+    T('G1  with decode() hung, the screen still builds on the copy — within the two capped waits (' + g.ms + ' ms)', g.info.built && g.info.cropperNatural === '1800x2400' && g.ms < 8000, g);
+    T('G2  …and it really waited for the cap rather than skipping decode() outright (≥ 2.4 s)', g.ms >= 2400, g.ms);
+    T('OFFENDER 3: without the cap the screen never opens — "Loading photo…" for ever → G1 red', !g.offBuilt && g.offWait, g);
+    T('G3  no page errors', errs.length === 0, errs);
+    await pg.close();
+  }
   await browser.close();
 
   // ── F · the source: one cap, two readers ────────────────────────────────
@@ -290,6 +319,7 @@ const meanDiff = (a, b) => { let s = 0; const n = Math.min(a.length, b.length); 
   const bare2400 = codeLines.filter(l => /\b2400\b/.test(l) && !/var _RR_CROP_MAX = 2400;/.test(l));
   T('F1  the crop cap is written ONCE (_RR_CROP_MAX); getCroppedCanvas and the copy both read it', bare2400.length === 0 && /getCroppedCanvas\(\{ maxWidth: _RR_CROP_MAX, maxHeight: _RR_CROP_MAX/.test(pc) && /_rrCropPreview\(img, _RR_CROP_MAX,/.test(pc), bare2400);
   T('F2  the copy is released when the screen closes', /if \(_previewUrl\) \{ URL\.revokeObjectURL\(_previewUrl\); _previewUrl = null; \}/.test(pc));
+  T('F3  the decode() wait is capped by ONE named number, and nothing waits on decode() outside that helper', /setTimeout\(once, _RR_DECODE_WAIT_MS\)/.test(pc) && (pc.match(/\.decode\(\)/g) || []).length === 1);
   T('OFFENDER 2: a second "2400" typed into the code → F1 red', codeLines.concat(["  var canvas = cropper.getCroppedCanvas({ maxWidth: 2400, maxHeight: 2400 });"]).filter(l => /\b2400\b/.test(l) && !/var _RR_CROP_MAX = 2400;/.test(l)).length === 1);
 
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');

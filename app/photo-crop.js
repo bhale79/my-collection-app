@@ -87,6 +87,7 @@ function _rrOrientProbe(cb) {
 // (_rrOrientProbe): a drawn copy has no EXIF to read, so an old browser keeps
 // the original and Cropper's own checkOrientation, exactly as before.
 var _RR_CROP_MAX = 2400;
+var _RR_DECODE_WAIT_MS = 2500;   // v0.9.1828: the longest a crop waits on the photo decoding — see `decoded` in _openCropper
 
 // img is the decoded photo. cb(url) with a blob URL of the smaller copy, or
 // cb(null) when the photo already fits (or anything goes wrong — the original
@@ -687,7 +688,17 @@ function _openCropper(src, onResult, onCancel, opts) {   // v0.9.787: onCancel =
   _rrOrientProbe(function (autoOrients) {
     if (!document.body.contains(ov)) return;
     var go = function () { requestAnimationFrame(function () { requestAnimationFrame(function () { _build(autoOrients); }); }); };
-    var decoded = function (fn) { try { if (img.decode) { img.decode().then(fn, fn); } else { fn(); } } catch (eD) { fn(); } };
+    // v0.9.1828: NEVER wait on decode() without a cap. Measured live on Brad's
+    // desktop Chrome, 2026-09-27: for a 12 MP photo `load` fired in 2 ms and
+    // decode()'s promise never settled at all (12 s and counting) — the crop
+    // screen sat on "Loading photo…" for ever. Cropper draws the picture
+    // whether or not decode() ever answers, so the cap costs at most a blank
+    // first paint on a slow decode; no cap cost the whole screen.
+    var decoded = function (fn) {
+      var done = false, once = function () { if (done) return; done = true; fn(); };
+      try { if (img.decode) { img.decode().then(once, once); } else { once(); return; } } catch (eD) { once(); return; }
+      setTimeout(once, _RR_DECODE_WAIT_MS);
+    };
     img.onload = function () {
       decoded(function () {
         // v0.9.1827: the first load is the photo itself. When it is bigger
