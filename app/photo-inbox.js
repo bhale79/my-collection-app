@@ -12295,7 +12295,10 @@
       // v0.9.892 (Brad): show EVERYTHING up to 3 rows (matches Showcase's
       // on-screen cap) — partial last row and all. Still no "+N" tile; the
       // header total covers the overflow beyond 3 rows.
-      var show = files.slice(0, cols * 3);
+      // v0.9.1809: as many whole rows as the card holds now that the cards
+      // are one height (was a fixed 3 — left an empty band on a tall window)
+      var _rows = (typeof window._dashPhotoRowsFit === 'function') ? window._dashPhotoRowsFit(grid, cols) : 3;
+      var show = files.slice(0, cols * _rows);
       grid.innerHTML = show.map(function (f) {
         return '<div style="aspect-ratio:var(--rr-photo-tile-ratio);border-radius:8px;overflow:hidden;background:var(--surface2,#26262e)"><img loading="lazy" data-ppfid="' + f.id + '" class="rr-fit" style="width:100%;height:100%;display:block" alt=""></div>';
       }).join('');

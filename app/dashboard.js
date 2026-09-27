@@ -1234,7 +1234,7 @@ function buildDashboard() {
       }
     });
     try { _dashFlushThumbs(); } catch (eT) {}   // v0.9.1046
-    try { if (typeof window._dashFitPanels === 'function') window._dashFitPanels(); } catch (eF) {}   // v0.9.1808
+    try { if (typeof window._dashFitPanelsNow === 'function') window._dashFitPanelsNow(); } catch (eF) {}   // v0.9.1808 / v1809: measure NOW so the photo cards can size to it
   })();
 
   // ── Photo ticker strip (v0.9.1017, Brad) ──────────────────────
@@ -1457,6 +1457,10 @@ function _openOwnedByInvId(invId) {
 if (typeof window !== 'undefined') window._openOwnedByInvId = _openOwnedByInvId;
 
 // ── Dashboard Panel System ─────────────────────────────────────────────────
+// v0.9.1809: the most rows a list card draws. The cards are one height now
+// (v1808) and _dashFitPanels hides whatever does not fit whole, so this is only
+// a ceiling for a very tall window — ONE number for every list card.
+var DASH_LIST_MAX = 15;
 var PANEL_CATALOG = [
   {
     id: 'showcase',
@@ -1555,7 +1559,7 @@ var PANEL_CATALOG = [
           var rA = a.row || 0, rB = b.row || 0;
           return rB - rA;
         })
-        .slice(0, 8)
+        .slice(0, DASH_LIST_MAX)
         .map(function(pd) {
           if (pd._src === 'eph') {
             var val = pd.estValue ? _currencySymbol() + parseFloat(pd.estValue).toLocaleString() : '';
@@ -1600,7 +1604,7 @@ var PANEL_CATALOG = [
     render: function(state) {
       var rows = Object.values(state.partsData || {});
       var go = "showPage('parts', null); if (typeof buildPartsPage === 'function') buildPartsPage();";
-      return rows.slice(0, 8).map(function(pt) {
+      return rows.slice(0, DASH_LIST_MAX).map(function(pt) {
         var forTxt = pt.forItem ? 'For #' + pt.forItem : (pt.partNum ? 'Part #' + pt.partNum : '');
         var when = pt.dateAdded && typeof _formatDate === 'function' ? _formatDate(pt.dateAdded) : '';
         return _panelRow('🔧', (pt.description || 'Part'), forTxt, when, go, null, null);
@@ -1620,7 +1624,7 @@ var PANEL_CATALOG = [
       if (typeof foldWantEntries === 'function') _wRows = foldWantEntries(_wRows);   // v0.9.714: pairs = one row
       return _wRows
         .sort(function(a, b) { return ((priOrder[a.priority] || 1) - (priOrder[b.priority] || 1)); })
-        .slice(0, 8)
+        .slice(0, DASH_LIST_MAX)
         .map(function(w) {
           var master = findMaster(w.itemNum, '', w);
           var name = master ? (master.roadName || master.itemType || w.itemNum) : w.itemNum;
@@ -1647,7 +1651,7 @@ var PANEL_CATALOG = [
       // Session 121: respect Preferences "What I Collect" in 'all' mode.
       return Object.values(_forSaleLeads(state))
         .sort(function(a, b) { return (parseFloat(b.askingPrice) || 0) - (parseFloat(a.askingPrice) || 0); })
-        .slice(0, 8)
+        .slice(0, DASH_LIST_MAX)
         .map(function(fs) {
           var master = findMaster(fs.itemNum, '', fs) || {};
           var name = master.roadName || master.itemType || '';
@@ -1674,7 +1678,7 @@ var PANEL_CATALOG = [
         .filter(function(pd) { return pd.owned && (pd.priceComplete || pd.priceItem); })
         .map(function(pd) { return Object.assign({}, pd, { _val: parseFloat(pd.priceComplete || pd.priceItem || 0) }); })
         .sort(function(a, b) { return b._val - a._val; })
-        .slice(0, 8)
+        .slice(0, DASH_LIST_MAX)
         .map(function(pd) {
           var master = (String(pd.era || '') === 'Manual') ? null : findMaster(pd.itemNum, pd.variation, pd);   // v0.9.648 + v0.9.718 manual guard
           // v0.9.645 (Brad): show the DESCRIPTION, not just road/type — a row
@@ -1709,7 +1713,7 @@ var PANEL_CATALOG = [
           var pdB = Object.values(state.personalData).find(function(p) { return p.owned && p.itemNum === b.itemNum && (p.variation||'') === (b.variation||''); });
           return (parseInt(pdA && pdA.condition || 99)) - (parseInt(pdB && pdB.condition || 99));
         })
-        .slice(0, 8)
+        .slice(0, DASH_LIST_MAX)
         .map(function(u) {
           var pd = Object.values(state.personalData).find(function(p) { return p.owned && p.itemNum === u.itemNum && (p.variation||'') === (u.variation||''); });
           var master = findMaster(u.itemNum, '', u);
@@ -1914,6 +1918,32 @@ window._dashPhotoCols = function (grid, opts) {
   return Math.max(fs > 1.15 ? minLarge : min, cols);
 };
 
+// ── v0.9.1809 (Brad: "the photo inbox, in this case should have another row
+// of photos showing on the card") ─────────────────────────────────────────
+// Since v1808 the large cards are one height (what is left of the window), so
+// a fixed "3 rows" left an empty band on a tall window. ONE helper answers
+// "how many whole rows of photo tiles fit in this card?" from the card's
+// measured height and the tile shape (--rr-photo-tile-ratio). Both photo cards
+// (Photo Inbox, Showcase) ask it. Phones / no fixed height: the old 3.
+window._dashPhotoRowsFit = function (grid, cols) {
+  var FALLBACK = 3;
+  try {
+    var host = document.getElementById('dash-panels-host');
+    if (!grid || !host || !host.style.getPropertyValue('--dash-panel-h') || window.innerWidth <= 700) return FALLBACK;
+    var body = grid.closest('[id^="dash-panel-body-"]');
+    if (!body) return FALLBACK;
+    var gs = getComputedStyle(grid);
+    var gap = parseFloat(gs.rowGap) || parseFloat(gs.gap) || 8;
+    var cgap = parseFloat(gs.columnGap) || gap;
+    var tileW = (grid.clientWidth - cgap * (cols - 1)) / cols;
+    var ratio = String(getComputedStyle(document.documentElement).getPropertyValue('--rr-photo-tile-ratio') || '4 / 3').split('/');
+    var tileH = tileW * (parseFloat(ratio[1]) || 3) / (parseFloat(ratio[0]) || 4);
+    var room = body.getBoundingClientRect().bottom - grid.getBoundingClientRect().top;
+    if (!(tileH > 0) || !(room > 0)) return FALLBACK;
+    return Math.max(1, Math.min(12, Math.floor((room + gap) / (tileH + gap))));
+  } catch (e) { return FALLBACK; }
+};
+
 // v0.9.1017 (Brad): the showcase is a slideshow now — auto-shuffles to a
 // fresh random set every 20s. ‹ walks back through sets you already saw,
 // › advances (through history first, then fresh picks), ⏸ pauses and the
@@ -1969,7 +1999,7 @@ window._showcaseNext = async function (user) {
   var grid = document.getElementById('showcase-grid');
   if (!grid) return;
   var cols = window._dashPhotoCols(grid);
-  var want = cols * 3;   // v0.9.892: 3 full rows, no scrolling
+  var want = cols * window._dashPhotoRowsFit(grid, cols);   // v0.9.1809: as many whole rows as the card holds (was 3)
   var picks = await _pickThumbs(want, Math.max(6, Math.ceil(want / 2)));
   if (!document.getElementById('showcase-grid')) return;
   st.hist.push(picks);
@@ -2358,5 +2388,6 @@ window._catCovSave = _catCovSave;
   }
   function soon() { clearTimeout(_t); _t = setTimeout(fit, 80); }
   window._dashFitPanels = soon;
+  window._dashFitPanelsNow = fit;
   window.addEventListener('resize', soon);
 })();

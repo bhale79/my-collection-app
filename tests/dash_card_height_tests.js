@@ -13,7 +13,7 @@
 const fs = require('fs');
 const path = require('path');
 const APP = f => fs.readFileSync(path.join(__dirname, '..', 'app', f), 'utf8');
-const CSS = APP('app.css'), DASH = APP('dashboard.js');
+const CSS = APP('app.css'), DASH = APP('dashboard.js'), INBOX = APP('photo-inbox.js');
 let pass = 0, fail = 0;
 function ok(name, cond, detail) {
   if (cond) { pass++; console.log('  PASS  ' + name); }
@@ -37,7 +37,7 @@ function checks(css, js) {
     hidesCut:  /r\.bottom > limit|getBoundingClientRect\(\)\.bottom > limit/.test(f) && /classList\.add\(HIDE\)/.test(f),
     gridSafe:  /a child that IS or HOLDS a photo grid is never hidden itself/.test(f),
     refits:    /new MutationObserver/.test(f) && /new ResizeObserver/.test(f) && /addEventListener\('resize', soon\)/.test(f),
-    called:    /window\._dashFitPanels\(\); \} catch \(eF\) \{\}   \/\/ v0\.9\.1808/.test(js),
+    called:    /window\._dashFitPanelsNow\(\); \} catch \(eF\) \{\}/.test(js) && /window\._dashFitPanelsNow = fit;/.test(js),
   };
 }
 
@@ -58,6 +58,15 @@ ok('a photo GRID is never hidden as a whole — only its tiles', R.gridSafe);
 ok('re-fits when a card fills in, when the strip above grows, on resize', R.refits);
 ok('called after the cards are drawn', R.called);
 
+section('C · v0.9.1809 — the photo cards fill the card (Brad: "another row of photos")');
+const rowsFit = (js, inbox) => /window\._dashPhotoRowsFit = function \(grid, cols\)/.test(js)
+  && /var want = cols \* window\._dashPhotoRowsFit\(grid, cols\);/.test(js)
+  && /var show = files\.slice\(0, cols \* _rows\);/.test(inbox) && !/files\.slice\(0, cols \* 3\)/.test(inbox);
+ok('Photo Inbox and Showcase draw as many whole rows as the card holds', rowsFit(DASH, INBOX));
+ok('the row count is measured from the card height and the tile shape', /--rr-photo-tile-ratio/.test(fitFn(DASH) + DASH) && /body\.getBoundingClientRect\(\)\.bottom - grid\.getBoundingClientRect\(\)\.top/.test(DASH));
+const listMax = js => /var DASH_LIST_MAX = \d+;/.test(js) && !/PANEL_CATALOG[\s\S]*\.slice\(0, 8\)[\s\S]*\/\/ ── v0\.9\.1808 \(Brad/.test(js);
+ok('every list card draws up to ONE ceiling (DASH_LIST_MAX), the fitter trims', listMax(DASH));
+
 section('D · planted offenders — each must turn a check red');
 const o1 = CSS.replace('height: var(--dash-panel-h, auto);', 'max-height: none;');
 ok('offender 1 changed the source', o1 !== CSS);
@@ -68,6 +77,10 @@ ok('OFFENDER 2: phones forced to the fixed height -> phones red', !checks(CSS, o
 const o3 = CSS.replace('#dash-panels-host .panel { box-sizing: border-box; height', '#dash-panels-host .panel { height');
 ok('offender 3 changed the source', o3 !== CSS);
 ok('OFFENDER 3: padding outside the height (cards run 40 px past the window) -> borderBox red', !checks(o3, DASH).borderBox);
+
+const o4 = INBOX.replace('var show = files.slice(0, cols * _rows);', 'var show = files.slice(0, cols * 3);');
+ok('offender 4 changed the source', o4 !== INBOX);
+ok('OFFENDER 4: Photo Inbox back to a fixed 3 rows -> rows check red', !rowsFit(DASH, o4));
 
 console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
 process.exit(fail ? 1 : 0);
