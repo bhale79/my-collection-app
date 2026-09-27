@@ -26,7 +26,7 @@ function _buildAuthScreen() {
   var _tag = (typeof BRAND_TAGLINE === 'string') ? BRAND_TAGLINE : 'Model Train Collection Tracker';
   // v0.9.1327: counted once in config.js — see BRAND_CATALOG_COUNT. This
   // screen and the Master Catalog page used to disagree (130,000+ vs 60,000+).
-  var _cat = (typeof BRAND_CATALOG_COUNT === 'string') ? BRAND_CATALOG_COUNT : '130,000+';
+  var _cat = (typeof BRAND_CATALOG_COUNT === 'string') ? BRAND_CATALOG_COUNT : '160,000+';
   var _mark = (typeof BRAND_WORDMARK_HTML === 'string') ? BRAND_WORDMARK_HTML
             : 'The <span style="color:var(--accent)">Rail</span> Roster';
   d.innerHTML =

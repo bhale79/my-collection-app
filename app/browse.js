@@ -3646,7 +3646,7 @@ function _rrBrowseCore(_co) {
       + '<div style="font-size:2rem;margin-bottom:0.5rem">🔍</div>'
       + '<p style="font-weight:700;font-size:1rem;margin-bottom:0.45rem;color:#2980b9">Please select a filter to start viewing the catalog.</p>'
       + '<p style="font-size:0.85rem;color:var(--text-mid);line-height:1.5">Pick an era, manufacturer, or scale above — or type an item number, road name, or description to search all '
-      + ((typeof BRAND_CATALOG_COUNT === 'string') ? BRAND_CATALOG_COUNT : '130,000+')
+      + ((typeof BRAND_CATALOG_COUNT === 'string') ? BRAND_CATALOG_COUNT : '160,000+')
       + ' items across every era.</p>'
       + '</div>'
       + '</div></td></tr>';

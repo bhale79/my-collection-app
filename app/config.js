@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.1822';
+const APP_VERSION = 'v0.9.1823';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -923,7 +923,18 @@ const BRAND_TAGLINE = 'Model Train Collection Tracker';
 //
 // Re-count before changing it: config.js has MASTER_SHEET_ID, and the count is
 // column A of every item tab from row 3 down.
-const BRAND_CATALOG_COUNT = '130,000+';
+//
+// v0.9.1823 — RE-COUNTED 2026-09-27 against the live master sheet, through the
+// app's own full-catalog index (state.masterByItemAll, every era): 160,654 items
+// across the 43 item tabs (Pre-War included; the six PARTS catalogs — 104,710
+// rows — are parts, not items, and are left out; so are the ~3,300 box / set /
+// paper / instruction-sheet rows). 265,364 rows in all. Biggest tabs: MTH O
+// 32,080 · Lionel MPC-Modern 22,338 · Atlas N 17,554 · Atlas HO 15,972 ·
+// Atlas O 12,959 · Weaver O 12,699 · Micro-Trains N 7,277. So "160,000+" is
+// the round-DOWN of the item count and true on either reading. [stated] Brad:
+// yes to 160,000+. The preview landing page (/preview-1051ec16/) is static and
+// cannot read this file — photo-inbox-tests §284 holds it to THIS value.
+const BRAND_CATALOG_COUNT = '160,000+';
 const BRAND_BLURB   = 'A web-based inventory tool for model train collectors. '
                     + 'Track every item, variation, and box in your collection '
                     + '— across every era and every maker.';

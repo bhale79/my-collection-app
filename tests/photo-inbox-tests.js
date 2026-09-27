@@ -19159,8 +19159,9 @@ META_WRITES.length = 0; TOASTS.length = 0;
       const apg = strip(rd72('app-pages.js'));
 
       // ── one source for the catalogue size ──
+      // v0.9.1823: 160,000+ (re-counted 2026-09-27: 160,654 items, 43 item tabs).
       ok('272 the catalogue count is declared once, in config',
-         /const BRAND_CATALOG_COUNT = '130,000\+';/.test(cfg) &&
+         /const BRAND_CATALOG_COUNT = '160,000\+';/.test(cfg) &&
          /window\.BRAND_CATALOG_COUNT = BRAND_CATALOG_COUNT;/.test(cfg));
       // Assert the EVIDENCE is recorded, not one particular figure — the count
       // will change as the master grows, and pinning the digits would make this
@@ -20206,16 +20207,23 @@ META_WRITES.length = 0; TOASTS.length = 0;
       const p84 = require('path');
       const pv = fs.readFileSync(p84.join(__dirname, '..', 'preview-1051ec16', 'index.html'), 'utf8');
 
-      ok('284 the stale 60,000 figure is gone everywhere', !/60,000/.test(pv));
-      const c135 = (pv.match(/135,000\+/g) || []).length;
-      ok('284 …replaced by the measured figure in all four places', c135 === 4, String(c135));
-      // Round DOWN, always. 135,388 real items makes "135,000+" true and keeps
+      ok('284 the stale 60,000 figure is gone everywhere (160,000 contains "60,000" — anchor on a non-digit)', !/(^|[^\d,])60,000/.test(pv) && !/135,000/.test(pv) && !/130,000/.test(pv));
+      // v0.9.1823 (S13 + N2): the page is static and cannot read config.js, so
+      // the ONE figure it may carry is BRAND_CATALOG_COUNT, read from config here —
+      // the next honest re-count moves one line in config and this section
+      // says where the page still disagrees.
+      const cfgFig = (fs.readFileSync(p84.join(__dirname, '..', 'app', 'config.js'), 'utf8').match(/const BRAND_CATALOG_COUNT = '([\d,]+\+)';/) || [])[1];
+      ok('284 config states the figure this section holds the page to', !!cfgFig, String(cfgFig));
+      const cFig = cfgFig ? (pv.match(new RegExp(cfgFig.replace('+', '\\+'), 'g')) || []).length : 0;
+      ok('284 …and the page carries config\'s figure in all four places', cFig === 4, String(cFig));
+      ok('284 …and no OTHER six-digit "N+" figure anywhere on it', (pv.match(/\d{2,3},\d{3}\+/g) || []).every(f => f === cfgFig), String(pv.match(/\d{2,3},\d{3}\+/g)));
+      // Round DOWN, always. 160,654 real items makes "160,000+" true and keeps
       // it true as the master grows; a rounded-UP figure goes stale the wrong
       // way and cannot be defended.
       ok('284 the claim is a round-DOWN of the real count, never a round-up',
-         !/13[6-9],000|140,000|1[4-9]\d,000/.test(pv));
+         !/16[1-9],000|1[7-9]\d,000|2\d\d,000/.test(pv));
       ok('284 the meta description carries the same number as the page',
-         /<meta name="description"[^>]*135,000\+/.test(pv));
+         cfgFig && new RegExp('<meta name="description"[^>]*' + cfgFig.replace('+', '\\+')).test(pv));
 
       // A cadence claim is a measurement nobody takes. The beta has not
       // started and there is no community adding finds weekly.
@@ -20243,9 +20251,11 @@ META_WRITES.length = 0; TOASTS.length = 0;
 
       // The one number that has to agree with the invite letter, since a
       // tester may read both.
-      const letterFigure = '135,000';
-      ok('284 the figure matches what the invite letter tells the same reader',
-         pv.indexOf(letterFigure) >= 0);
+      // v0.9.1823: the invite letter is Brad's document, not a repo file — the
+      // figure a tester reads there must be config's too. The letter is his to
+      // update; this pins the PAGE to config, which is the half we can hold.
+      ok('284 the figure the reader sees is config\'s figure',
+         cfgFig && pv.indexOf(cfgFig) >= 0);
     })();
 
 
