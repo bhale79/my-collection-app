@@ -113,12 +113,14 @@
   function _linkOf(pd) { return (_gate() && pd && pd[STOCK.field]) ? String(pd[STOCK.field]).trim() : ''; }
   window._stockLinkOf = _linkOf;
 
-  // My Collection thumbnail (44px) — called only from the two "no photo" branches
+  // My Collection thumbnail (.rr-row-thumb) — called only from the two "no photo" branches
   window._stockThumb = function (pd, hostId) {
     var url = _linkOf(pd); if (!url) return false;
     var host = document.getElementById(hostId); if (!host) return false;
-    host.innerHTML = '<div title="Stock photo — ' + _esc(_domain(url)) + '" style="position:relative;width:100%;height:100%;min-width:40px;min-height:40px;border-radius:4px;overflow:hidden">'
-      + '<img src="' + _esc(url) + '" alt="" style="width:100%;height:100%;object-fit:cover;display:block" onerror="this.parentNode.style.display=\'none\'">'
+    // v0.9.1806: the host is .rr-row-thumb — it owns the size and the fit
+    // (whole picture, never trimmed). This wrapper only carries the STOCK tag.
+    host.innerHTML = '<div title="Stock photo — ' + _esc(_domain(url)) + '" style="position:relative;width:100%;height:100%;overflow:hidden">'
+      + '<img src="' + _esc(url) + '" alt="" onerror="this.parentNode.style.display=\'none\'">'
       + '<span style="position:absolute;left:0;right:0;bottom:0;background:rgba(0,0,0,0.72);color:#fff;font-size:0.5rem;letter-spacing:0.08em;text-align:center;line-height:1.3;pointer-events:none">STOCK</span>'
       + '</div>';
     return true;

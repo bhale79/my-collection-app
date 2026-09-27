@@ -881,7 +881,7 @@
   #page-browse .item-table.collection-view th[data-col="type"],
   #page-browse .item-table.collection-view td[data-col="type"] { width: 66px; }
   #page-browse .item-table.collection-view th[data-col="photo"],
-  #page-browse .item-table.collection-view td[data-col="photo"] { width: 52px; }
+  #page-browse .item-table.collection-view td[data-col="photo"] { width: calc(var(--rr-thumb-w) + 8px); }   /* v0.9.1806: from the ONE thumb size */
   #page-browse .item-table.collection-view th[data-col="desc"],
   #page-browse .item-table.collection-view td[data-col="desc"] { min-width: 220px; }
   #page-browse .item-table.collection-view th[data-col="worth"],
@@ -2749,3 +2749,29 @@ html[data-theme="high-contrast"] button[style*="#e74c3c"] {
   .maint-card, .rr-desk-zoom, .rr-card, .modal { zoom: 1.5; }
   .rr-card, .modal { max-height: calc(86dvh / 1.5) !important; }
 }
+
+/* ── v0.9.1806 (Brad: "increase the picture size and show the complete picture,
+   not cut off on the sides") — THE row thumbnail. ONE place for its size and
+   fit; every list thumbnail (desktop table, phone rows, the stock-photo
+   thumbnail) uses .rr-row-thumb and nothing else sets a size.
+   Trains are long and low, so the box is a wide rectangle, and the picture is
+   FITTED (contain), never zoomed-and-trimmed (cover) — the whole photo shows,
+   with a plain band where its shape differs from the box. */
+:root { --rr-thumb-w: 96px; --rr-thumb-h: 56px; --rr-thumb-preview-w: 380px; }
+@media (max-width: 700px) { :root { --rr-thumb-w: 76px; --rr-thumb-h: 46px; } }
+.rr-row-thumb {
+  width: var(--rr-thumb-w); height: var(--rr-thumb-h);
+  border-radius: 6px; overflow: hidden; background: var(--surface2);
+  display: inline-flex; align-items: center; justify-content: center;
+  vertical-align: middle; flex-shrink: 0; position: relative;
+}
+.rr-row-thumb img { width: 100%; height: 100%; object-fit: contain; display: block; }
+/* Hover preview (desktop mouse only — a phone has no hover). Never catches a
+   click: the row under it still opens the item. */
+#rr-thumb-preview {
+  position: fixed; z-index: 9000; pointer-events: none; display: none;
+  width: var(--rr-thumb-preview-w); max-width: 60vw; padding: 6px;
+  background: var(--surface); border: 2px solid var(--border-hi);
+  border-radius: 10px;
+}
+#rr-thumb-preview img { width: 100%; height: auto; max-height: 60vh; object-fit: contain; display: block; border-radius: 6px; }

@@ -508,7 +508,7 @@ function _renderCollectionHeader() {
         '</span></th>';
     }
     var align = (c.col === 'worth' || c.col === 'var' || c.col === 'added' || c.col === 'photo') ? 'text-align:center;' : '';   // v0.9.727 (Brad): centered
-    if (c.col === 'photo') { return '<th data-col="photo" style="white-space:nowrap;' + align + 'width:52px">' + c.label + '</th>'; }   // v0.9.909 (Brad, item [4])
+    if (c.col === 'photo') { return '<th data-col="photo" style="white-space:nowrap;' + align + '">' + c.label + '</th>'; }   // v0.9.909 (Brad, item [4])
     if (c.noSort) { return '<th data-col="' + c.col + '" style="white-space:nowrap;' + align + '">' + c.label + '</th>'; }
     var arrow = (cs.col === c.col) ? (cs.dir === 'desc' ? ' \u25BC' : ' \u25B2') : '';
     var _wsp = (c.col === 'worth') ? 'white-space:normal;' : 'white-space:nowrap;';
@@ -4790,7 +4790,7 @@ function _rrBrowseCore(_co) {
             if (!_hasPhoto || !pd) return '';
             var _tid = 'coll-thumb-' + String(_myInvIdM || (item.itemNum + '-' + (item.variation||''))).replace(/[^A-Za-z0-9_-]/g, '');
             _collThumbJobs.push({ id: _tid, pd: pd });
-            return '<div id="' + _tid + '" style="width:56px;height:44px;border-radius:7px;overflow:hidden;background:var(--surface2);flex-shrink:0"></div>';
+            return '<div id="' + _tid + '" class="rr-row-thumb"></div>';   // v0.9.1806: size/fit in app.css
           })()}
         </div>
       </div>`;
@@ -4891,7 +4891,7 @@ function _rrBrowseCore(_co) {
         </td>`;
         _cells['var'] = `<td data-col="var" style="white-space:nowrap;text-align:center">${item.variation ? '<span style="font-size:0.78rem;color:var(--text-mid)">' + item.variation + '</span>' : '<span style="color:var(--text-dim)">—</span>'}</td>`;
         _cells.type = `<td data-col="type" style="font-size:0.78rem;color:var(--text-dim)">${_typeText}${(pd && pd.subType) ? '<div style="font-size:0.66rem;opacity:0.8;margin-top:1px">' + pd.subType + '</div>' : ''}</td>`;
-        _cells.photo = `<td data-col="photo" style="width:52px;text-align:center;padding:2px 4px"><div id="thumb-${_rrRowDomKey(item)}" style="width:44px;height:44px;border-radius:5px;background:var(--surface2);display:inline-flex;align-items:center;justify-content:center;overflow:hidden;vertical-align:middle"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.3"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg></div></td>`;
+        _cells.photo = `<td data-col="photo" style="text-align:center;padding:2px 4px"><div id="thumb-${_rrRowDomKey(item)}" class="rr-row-thumb"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.3"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg></div></td>`;
         _cells.desc = `<td data-col="desc" style="color:var(--text-mid);font-size:0.85rem" title="${(_descFull||'').replace(/"/g,'&quot;')}">${_descFull}</td>`;
         _cells.worth = (function(){
           // v0.9.1569 (Brad's decision, 2026-08-23): the folded group row's
@@ -5025,7 +5025,7 @@ function _rrBrowseCore(_co) {
           if (!host) return;
           if (!fid) { if (typeof window._stockThumb === 'function') window._stockThumb(job.pd, job.id); return; }   // v0.9.1682
           var img = document.createElement('img');
-          img.style.cssText = 'width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity 0.3s';
+          img.style.cssText = 'opacity:0;transition:opacity 0.3s';   // v0.9.1806: size/fit from .rr-row-thumb
           img.onload = function () { img.style.opacity = 1; };
           host.innerHTML = '';
           host.appendChild(img);
@@ -5070,7 +5070,7 @@ function _rrBrowseCore(_co) {
           const el = document.getElementById('thumb-' + _rrRowDomKey(item));
           if (el) {
             const img = document.createElement('img');
-            img.style.cssText = 'width:40px;height:40px;object-fit:cover;border-radius:4px';
+            // v0.9.1806: size + fit come from .rr-row-thumb (app.css) — the ONE place.
             el.innerHTML = '';
             el.appendChild(img);
             loadDriveThumb(fileId, img, el, (photos[0] && photos[0].thumbnailLink) || null, 'lo');
@@ -5300,3 +5300,52 @@ if (typeof window !== 'undefined') {
     if (x) x.style.display = e.target.value ? 'inline-flex' : 'none';   // v0.9.1660 (Brad): 'block' rendered the × below the box
   });
 }
+
+// ── v0.9.1806 (Brad: "do it all now") — hover a row thumbnail, see it big ──
+// Desktop mouse only: a phone has no hover, and a tap must keep opening the
+// item. ONE delegated listener for every .rr-row-thumb in every list, so a
+// re-rendered table needs no re-wiring. The preview never takes a click
+// (pointer-events:none in app.css) and follows the pointer, flipping to the
+// other side near the window edge so it is never cut off.
+(function () {
+  if (typeof document === 'undefined' || typeof window === 'undefined') return;
+  var _canHover = false;
+  try { _canHover = window.matchMedia && window.matchMedia('(hover: hover) and (pointer: fine)').matches; } catch (e) {}
+  if (!_canHover) return;
+  var box = null, cur = null;
+  function _box() {
+    if (box) return box;
+    box = document.createElement('div');
+    box.id = 'rr-thumb-preview';
+    box.innerHTML = '<img alt="">';
+    document.body.appendChild(box);
+    return box;
+  }
+  function _place(e) {
+    if (!box || box.style.display !== 'block') return;
+    var w = box.offsetWidth, h = box.offsetHeight, pad = 18;
+    var x = e.clientX + pad, y = e.clientY + pad;
+    if (x + w > window.innerWidth - 8) x = e.clientX - w - pad;
+    if (y + h > window.innerHeight - 8) y = Math.max(8, window.innerHeight - h - 8);
+    box.style.left = Math.max(8, x) + 'px';
+    box.style.top = y + 'px';
+  }
+  function _hide() { if (box) box.style.display = 'none'; cur = null; }
+  window.rrThumbPreviewHide = _hide;
+  document.addEventListener('mouseover', function (e) {
+    var img = e.target && e.target.closest ? e.target.closest('.rr-row-thumb img') : null;
+    if (!img) { if (cur) _hide(); return; }
+    if (img === cur) return;
+    var src = img.currentSrc || img.src;
+    if (!src || img.naturalWidth === 0) return;          // still loading, or failed — nothing to show
+    cur = img;
+    var b = _box();
+    b.firstChild.src = src;
+    b.style.display = 'block';
+    _place(e);
+  }, true);
+  document.addEventListener('mousemove', _place, true);
+  document.addEventListener('scroll', _hide, true);
+  document.addEventListener('click', _hide, true);      // the row opens its item — take the preview down
+  window.addEventListener('blur', _hide);
+})();
