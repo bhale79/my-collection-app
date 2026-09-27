@@ -140,7 +140,7 @@ if (typeof window !== 'undefined') window._gtMatchPicked = _gtMatchPicked;
 const GUIDES = {
 
   'tour': {
-    icon: '🗺️', label: 'Take the tour', desc: 'The Dashboard, one piece at a time',
+    icon: '🗺️', label: 'Take the tour', desc: 'Every page of the app, one card each',
     open: function () { showPage('dashboard'); },
     steps: [
       // v0.9.1400 — THE FIRST CARD A NEW USER EVER READS.
@@ -168,12 +168,55 @@ const GUIDES = {
       // request and the copy never followed.
       { selector: '#dash-panel-header-0', wrap: '.panel', optional: true, title: 'Recent Additions',
         body: 'The items you added most recently. <strong>Tap the panel\'s header</strong> to switch it to a different list.' },
-      { selector: '.sidebar', title: 'Your main areas',
-        body: 'Your Collection, Want / Upgrade, For Sale, Sold, the catalog, Collection Tools, Reports, the Photo Inbox and Preferences all live here.' },
+      // v0.9.1824 (M7, Brad: "the tour doesn't show very much"): the menu card
+      // names what the menu actually says (checked against the live sidebar —
+      // it had "Your Collection", "Sold", "the catalog", and left out Parts
+      // Needed and the Dispatch Board); the buttons card names all six; and the
+      // tour then WALKS every page, one card each, pointing at the real thing on
+      // it. Every name in these cards is held to the live labels by
+      // tests/tour_copy_tests.js.
+      { selector: '.sidebar, .mobile-nav', title: 'Your main areas',
+        body: 'Everything lives in this menu \u2014 My Collection, Want / Upgrade, For Sale, Parts Needed, the Master Catalog, Collection Tools, Reports, Sold Items, the Photo Inbox and Preferences. The Dispatch Board is where news from us arrives.' },
       { selector: '.dash-desktop-actions, .dash-mobile-actions', title: 'Add things fast',
-        body: 'Start here to add an item, put something on your want list, list it for sale, or record a sale.' },
-      { title: 'That\'s the Dashboard',
-        body: 'Every other guide in <strong>Help</strong> works like this one — it opens the right page and points at the real buttons.' }
+        body: 'Six buttons, one for each thing you\'ll do most: add an item, put one on your want list, note an upgrade you\'re after, list one for sale, record a sale, or research an item before you buy.' },
+      // ── the walk: each card opens its page first, then points at what is there ──
+      { before: function () { showPage('browse'); if (typeof filterOwned === 'function') filterOwned(); return 900; },
+        selector: '#hierarchy-chip-row, #browse-items-panel, #page-browse', title: 'My Collection',
+        body: 'Everything you own, in one list. The chips along the top narrow it by maker, scale, era or type, and the search box finds a number or a road name in a moment. Tap any row to open the item.' },
+      { before: function () { showPage('browse'); if (typeof resetFilters === 'function') resetFilters(); if (typeof renderBrowse === 'function') renderBrowse(); return 900; },
+        selector: '#browse-search-wrap, #hierarchy-chip-row, #page-browse', title: 'The Master Catalog',
+        body: function () { var n = (typeof BRAND_CATALOG_COUNT === 'string') ? BRAND_CATALOG_COUNT : 'over 160,000'; return 'The same list, opened to the whole catalogue \u2014 ' + n + ' items across every maker and era. Look anything up here, whether you own it or not, and add it to your collection or your want list from its page.'; } },
+      { before: function () { showPage('upgrade'); if (typeof buildUpgradePage === 'function') buildUpgradePage(); return 900; },
+        selector: '#upgrade-table, #upgrade-tbody, #page-upgrade', title: 'Want / Upgrade',
+        body: 'What you\'re hunting for: items you want, and items you own but would like a better copy of. Bring this list to a show. When you find one, it moves into your collection with two taps.' },
+      { before: function () { showPage('forsale'); if (typeof buildForSalePage === 'function') buildForSalePage(); return 900; },
+        selector: '#forsale-table-wrap, #page-forsale', title: 'For Sale',
+        body: 'Items you\'ve put up for sale, with the asking price. You can share the list as a page or a PDF, and when something sells, one tap records the sale.' },
+      { before: function () { showPage('sold'); return 900; },
+        selector: '#sold-table-wrap, #page-sold', title: 'Sold Items',
+        body: 'Your sales history \u2014 what went, when, and for how much \u2014 kept as a snapshot even after the item leaves your collection.' },
+      { before: function () { showPage('parts'); if (typeof buildPartsPage === 'function') buildPartsPage(); return 900; },
+        selector: '#parts-list, #page-parts', title: 'Parts Needed',
+        body: 'The parts you\'re tracking down, each tied to the item it\'s for. Mark one bought, then installed, and it lands in that item\'s service history on the Workbench.' },
+      { before: function () { showPage('tools'); return 900; },
+        selector: '#universal-body, #page-tools', title: 'Collection Tools',
+        body: 'Helpers that look across your whole collection \u2014 group items that belong together, spot the sets you could complete, and tidy things in bulk.' },
+      { before: function () { showPage('reports'); return 900; },
+        selector: '#report-library, #page-reports', title: 'Reports',
+        body: 'An insurance report with photos, a full collection listing, your want and upgrade lists \u2014 or build your own. Each one previews on screen and exports as a PDF or a Google Doc.' },
+      { before: function () { showPage('dashboard'); return 700; },
+        selector: '#nav-photo-inbox, #mnav-photo-inbox', title: 'The Photo Inbox',
+        body: 'Photograph a whole shelf now and do the typing later. Photos wait here until you file them onto items; the app reads numbers off boxes and labels to help.' },
+      { selector: '#nav-dispatch-btn', optional: true, title: 'The Dispatch Board',
+        body: 'News from us \u2014 what changed in the app and what\'s coming. New notes are marked until you\'ve read them.' },
+      { before: function () { showPage('prefs'); if (typeof buildPrefsPage === 'function') buildPrefsPage(); return 900; },
+        selector: '#prefs-content, #page-prefs', title: 'Preferences',
+        body: '<strong>What I Collect</strong> lives here \u2014 tick the makers, scales and eras you care about and the catalogue keeps to them. Your Google Sheet and photo folder open from <strong>Account</strong>, and your settings follow you to every device.' },
+      { before: function () { showPage('dashboard'); return 700; },
+        selector: '#tut-help-widget, #menu-help-btn', title: 'Help',
+        body: 'Every page you just saw has its own guide here \u2014 adding an item, the Photo Inbox, selling, reports \u2014 and each one opens the real screens and points at the real buttons, like this tour did.' },
+      { title: 'That\'s the tour',
+        body: 'You\'re back on the Dashboard. The quickest first step: <strong>Add to My Collection</strong> with an item number you know. Everything else can wait until you need it.' }
     ]
   },
 
@@ -2037,7 +2080,7 @@ function _guidedTour(steps) {
       +   '<strong id="gt-title" style="font-size:0.98rem;color:var(--text,#eee);line-height:1.3">' + (step.title || '') + '</strong>'
       +   '<button type="button" id="gt-exit" title="Exit" style="background:none;border:none;color:var(--text-dim,#888);font-size:1.25rem;line-height:1;cursor:pointer;padding:0 0.1rem">×</button>'
       + '</div>'
-      + '<div id="gt-body" style="font-size:0.84rem;color:var(--text-mid,#bbb);line-height:1.5;margin-top:0.35rem">' + (step.body || '') + '</div>'
+      + '<div id="gt-body" style="font-size:0.84rem;color:var(--text-mid,#bbb);line-height:1.5;margin-top:0.35rem">' + ((typeof step.body === 'function' ? step.body() : step.body) || '') + '</div>'   // v0.9.1824: a body may be a function (the catalogue count is read from config)
       + '<button type="button" id="gt-more" style="display:none;margin-top:0.3rem;padding:0.25rem 0.5rem;border-radius:7px;border:1px solid var(--border,#333);background:var(--surface2,#222);color:var(--text,#eee);font-family:inherit;font-size:0.82rem;cursor:pointer">Read the step \u25be</button>'
       + '</div>'
       // v0.9.1362 (Brad): a step that needs something typed says so HERE when

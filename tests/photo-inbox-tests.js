@@ -19266,10 +19266,12 @@ META_WRITES.length = 0; TOASTS.length = 0;
          /id="id-ai-left"/.test(wiz) && /rrAiRemainingLabel === 'function'/.test(wiz));
       ok('272 the For Sale flow no longer shows two buttons for one action on a phone',
          /s\.id === 'itemNum' && wizard\.tab !== 'sold' && !window\.IS_MOBILE_UA \?/.test(wiz));
-      ok('272 the welcome card points at a Help & Tips row that exists',
-         !/Show Welcome Tour/.test(mis) && /Help &amp; Tips → Help Center/.test(mis));
-      ok('272 …and that row really is what Preferences offers',
-         /Help Center/.test(strip(rd72('prefs.js'))));
+      // v0.9.1824 (M7): the card now points at Help in the side menu → "Show the
+      // welcome card again", which is a real row of the Help Center (tutorial.js).
+      ok('272 the welcome card points at a Help row that exists',
+         !/Show Welcome Tour/.test(mis) && /Help<\/strong> \(in the side menu\) → Show the welcome card again/.test(mis));
+      ok('272 …and that row really is what Help offers',
+         /'Show the welcome card again'/.test(strip(rd72('tutorial.js'))));
 
       // ── Back honours where you came from, on every detail page ──
       ok('272 the Sold detail page reads _detailReturn instead of hardcoding Sold',

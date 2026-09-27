@@ -79,11 +79,12 @@ function T(n, cond, detail) { console.log((cond ? 'PASS' : 'FAIL') + '  ' + n + 
     state.filters.ownMaker = ''; state.filters.type = ''; state.filters.subCollection = ''; state.filters.subType = '';
     filterOwned();
     const key = it => (it._personalOnly ? 'P:' : '') + (it.itemNum) + '|' + (it.variation || '') + '|' + (it._era || '') + '|' + (it._tab || '') + (it._copyPd ? '#' + it._copyPd.inventoryId : '');
-    // v0.9.1819: timing is the BEST of three rounds — under run-all's parallel
+    // v0.9.1819: timing is the BEST of several rounds — under run-all's parallel
     // load a single round can land on a busy moment and call the gate slow.
+    // v0.9.1824: five rounds (three still flaked once at four-abreast).
     const draw = (gateOff) => {
       let best = null;
-      for (let r = 0; r < 3; r++) {
+      for (let r = 0; r < 5; r++) {
         window._rrNoCandidateGate = !!gateOff;
         window.__rrBvByNum = null;                     // start cold each round — the cache is part of what is measured
         window._rrBrowseSig = null;

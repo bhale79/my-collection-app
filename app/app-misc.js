@@ -49,12 +49,12 @@ function showWelcomeCard(force) {
     // needs correcting — it was the ENTRY POINTS that set testers up to expect
     // magic and then feel let down. Typing the number is the reliable path and
     // is named first now; the photo reader is offered as the helper it is.
-    +   '<div style="font-size:0.86rem;line-height:1.5"><strong style="color:var(--text,#eee)">Add fast.</strong> Tap <em>Add to Collection</em> and type the item number — the catalog fills in the rest. No number handy? Scan the box barcode (modern items only), or <strong style="color:var(--text,#eee)">let a photo suggest one</strong> — the photo reader is a helper, so check what it finds before you save.</div>'
+    +   '<div style="font-size:0.86rem;line-height:1.5"><strong style="color:var(--text,#eee)">Add fast.</strong> Tap <em>Add to My Collection</em> and type the item number — the catalog fills in the rest. No number handy? Scan the box barcode (modern items only), or <strong style="color:var(--text,#eee)">let a photo suggest one</strong> — the photo reader is a helper, so check what it finds before you save.</div>'
     + '</div>'
 
     + '<div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:12px;padding:10px 12px;background:var(--surface2,#222);border-radius:9px;border:1px solid var(--border,#333)">'
     +   '<div style="font-size:1.5rem;flex-shrink:0">📋</div>'
-    +   '<div style="font-size:0.86rem;line-height:1.5"><strong style="color:var(--text,#eee)">Organize.</strong> Use the lists in the side menu — Collection, Want List, For Sale, Sold, Upgrade — to track every item through its lifecycle.</div>'
+    +   '<div style="font-size:0.86rem;line-height:1.5"><strong style="color:var(--text,#eee)">Organize.</strong> Use the lists in the side menu — My Collection, Want / Upgrade, For Sale, Parts Needed, Sold Items — to follow every item from wanted, to owned, to sold.</div>'
     + '</div>'
 
     + '<div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:18px;padding:10px 12px;background:var(--surface2,#222);border-radius:9px;border:1px solid var(--border,#333)">'
@@ -62,7 +62,7 @@ function showWelcomeCard(force) {
     +   '<div style="font-size:0.86rem;line-height:1.5"><strong style="color:var(--text,#eee)">Your data, your control.</strong> Everything saves to your own Google Sheet &amp; Drive. Open them anytime from Preferences → Account.</div>'
     + '</div>'
 
-    + '<div style="font-size:0.78rem;color:var(--text-dim,#888);line-height:1.5;margin-bottom:14px;text-align:center">Need this again? Preferences → Help &amp; Tips → Help Center.</div>'
+    + '<div style="font-size:0.78rem;color:var(--text-dim,#888);line-height:1.5;margin-bottom:14px;text-align:center">Need this again? <strong>Help</strong> (in the side menu) → Show the welcome card again.</div>'
 
     + '<div style="display:flex;justify-content:center">'
     +   '<button id="rr-welcome-go" style="padding:0.7rem 1.6rem;border-radius:9px;border:none;background:var(--accent,#e04028);color:#fff;font-weight:600;font-family:inherit;font-size:0.95rem;cursor:pointer">Got it — let\'s go</button>'
