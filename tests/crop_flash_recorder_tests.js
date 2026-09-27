@@ -104,8 +104,8 @@ ok('…and the loop stops itself if the recorder was replaced',
    /if \(!_flashRec \|\| _flashRec !== R \|\| R\.stopped\) return;/.test(pc), '');
 ok('v2 records how many MEGAPIXELS the phone is being asked to hold',
    /naturalWidth \* _im\.naturalHeight\) \/ 1000000/.test(pc), '');
-ok('…read once the photo has decoded, not guessed before',
-   /_im\.addEventListener\('load', _grab, \{ once: true \}\)/.test(pc), '');
+ok('…read when the photo has decoded, not guessed before — on EVERY load since v1827, so the last line is the copy Cropper was handed',
+   /_im\.addEventListener\('load', _grab\);/.test(pc) && !/_grab, \{ once: true \}/.test(pc), '');
 ok('v1’s finding is written down where the next reader will see it',
    /0 viewport events, 27 changes behind the overlay/.test(pc)
    && /The URL bar NEVER MOVED/.test(pc), '');

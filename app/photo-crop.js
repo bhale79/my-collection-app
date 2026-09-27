@@ -64,6 +64,51 @@ function _rrOrientProbe(cb) {
   _rrOrientWaiting.push(cb);
 }
 
+// ══ v0.9.1827 — THE CROP SCREEN WORKS ON A SCREEN-SIZED COPY ══════════════
+// Brad, 2026-09-27, the THIRD flash report ("the crazy flashing again … the
+// picture itself") — and this time the recorder's diary came off his phone
+// (v1826) and says what it is:
+//   0 viewport events, 9 changes behind the overlay, page height moved 0x
+//   593 frames in 13.4s (44.2/sec), 1 over 100ms, 0 over 250ms, worst 170ms
+//   busiest INSIDE: div.cropper-crop-box x48, img x44, div.cropper-canvas x9
+//   photo 3000x4000 12.0MP
+// The page beneath was innocent (v1703 already holds it still). The main
+// thread never stalled. Everything that moved was Cropper redrawing a
+// TWELVE-MEGAPIXEL picture on every nudge — rotate, zoom, a grip dragged —
+// and Android Chrome blanks a picture that big while it re-rasters it. That
+// blank is the flash. The v1701 note at the top of this file guessed this.
+//
+// So the picture Cropper is handed is at most _RR_CROP_MAX on its long side.
+// NOTHING IS LOST: getCroppedCanvas({ maxWidth, maxHeight }) has always drawn
+// the photo into a source canvas capped at that same size BEFORE cutting the
+// crop from it (Cropper 1.6.1, getSourceCanvas) — the saved crop never used
+// more of the photo than this. One number, both places (the v1784 rule).
+// The copy is made only when the browser applies EXIF rotation itself
+// (_rrOrientProbe): a drawn copy has no EXIF to read, so an old browser keeps
+// the original and Cropper's own checkOrientation, exactly as before.
+var _RR_CROP_MAX = 2400;
+
+// img is the decoded photo. cb(url) with a blob URL of the smaller copy, or
+// cb(null) when the photo already fits (or anything goes wrong — the original
+// is then used as it always was; a crop must never fail over its preview).
+function _rrCropPreview(img, max, cb) {
+  try {
+    var w = img.naturalWidth, h = img.naturalHeight;
+    if (!w || !h || (w <= max && h <= max)) { cb(null); return; }
+    var s = max / Math.max(w, h);
+    var c = document.createElement('canvas');
+    c.width = Math.round(w * s); c.height = Math.round(h * s);
+    var ctx = c.getContext('2d');
+    ctx.imageSmoothingEnabled = true;
+    try { ctx.imageSmoothingQuality = 'high'; } catch (eQ) {}
+    ctx.drawImage(img, 0, 0, c.width, c.height);
+    c.toBlob(function (blob) {
+      try { cb(blob ? URL.createObjectURL(blob) : null); } catch (eU) { cb(null); }
+    }, 'image/jpeg', 0.92);
+  } catch (e) { cb(null); }
+}
+if (typeof window !== 'undefined') { window._rrCropPreview = _rrCropPreview; }
+
 // ── v0.9.1049: remember the last crop box across a batch ───────────────────
 // Brad photographs a wall: a hundred shots, the item sitting in roughly the
 // same part of every frame. Starting each crop from the whole picture means
@@ -288,7 +333,9 @@ function _flashStart(ov, phone) {
         put('t+' + at() + '  photo decoded  ' + R.imgWH + ' (' + R.mp + ')');
       } catch (e) {}
     };
-    if (_im) { if (_im.complete && _im.naturalWidth) _grab(); else _im.addEventListener('load', _grab, { once: true }); }
+    // v0.9.1827: on EVERY load, not once — the photo loads, then its
+    // screen-sized copy does; the LAST line is what Cropper was handed.
+    if (_im) { if (_im.complete && _im.naturalWidth) _grab(); _im.addEventListener('load', _grab); }
   } catch (e) {}
 
   R.timer = setTimeout(function () { _flashStop('45s cap'); }, 45000);
@@ -636,11 +683,36 @@ function _openCropper(src, onResult, onCancel, opts) {   // v0.9.787: onCancel =
   // that work buys nothing. _rrOrientProbe() checks whether THIS browser does
   // (below) and, if it does, we switch checkOrientation off and the photo
   // loads exactly once. An old browser that needs the help still gets it.
+  var _previewUrl = null;   // v0.9.1827: the screen-sized copy Cropper works on; revoked in done()
   _rrOrientProbe(function (autoOrients) {
     if (!document.body.contains(ov)) return;
+    var go = function () { requestAnimationFrame(function () { requestAnimationFrame(function () { _build(autoOrients); }); }); };
+    var decoded = function (fn) { try { if (img.decode) { img.decode().then(fn, fn); } else { fn(); } } catch (eD) { fn(); } };
     img.onload = function () {
-      var go = function () { requestAnimationFrame(function () { requestAnimationFrame(function () { _build(autoOrients); }); }); };
-      try { if (img.decode) { img.decode().then(go, go); } else { go(); } } catch (eD) { go(); }
+      decoded(function () {
+        // v0.9.1827: the first load is the photo itself. When it is bigger
+        // than the crop can ever use, a screen-sized copy is loaded in its
+        // place and Cropper is built on THAT — the second load lands here
+        // again with _previewUrl set. An old browser that needs Cropper's own
+        // EXIF handling (autoOrients false) builds on the original, as before.
+        if (_previewUrl || !autoOrients) { go(); return; }
+        _rrCropPreview(img, _RR_CROP_MAX, function (url) {
+          if (!document.body.contains(ov)) { try { if (url) URL.revokeObjectURL(url); } catch (eR) {} return; }
+          if (!url) { go(); return; }
+          _previewUrl = url;
+          img.src = url;
+        });
+      });
+    };
+    // A copy that will not load (it cannot happen — it is our own JPEG — but a
+    // crop must never hang on its preview): fall back to the original.
+    img.onerror = function () {
+      if (!_previewUrl) return;
+      try { URL.revokeObjectURL(_previewUrl); } catch (eR) {}
+      _previewUrl = null;
+      img.onerror = null;
+      img.onload = function () { decoded(go); };
+      img.src = src;
     };
     img.src = src;
   });
@@ -670,6 +742,7 @@ function _openCropper(src, onResult, onCancel, opts) {   // v0.9.787: onCancel =
     if (_rotT) { clearTimeout(_rotT); _rotT = null; }
     try { window.removeEventListener('orientationchange', _onOrient); } catch (e) {}
     try { if (cropper) cropper.destroy(); } catch (e) {}
+    try { if (_previewUrl) { URL.revokeObjectURL(_previewUrl); _previewUrl = null; } } catch (e) {}   // v0.9.1827
     ov.remove();
     if (window.BackStack) BackStack.pop('_rr-cropper');
   }
@@ -747,7 +820,7 @@ function _openCropper(src, onResult, onCancel, opts) {   // v0.9.787: onCancel =
   ov.querySelector('#_rrCropApply').onclick = function () {
     if (!cropper) { done(); if (onCancel) try { onCancel(); } catch (e) {} return; }
     try { _rrSaveBox(cropper); } catch (eS) {}   // v0.9.1049: offer this box on the next photo
-    var canvas = cropper.getCroppedCanvas({ maxWidth: 2400, maxHeight: 2400, imageSmoothingQuality: 'high' });
+    var canvas = cropper.getCroppedCanvas({ maxWidth: _RR_CROP_MAX, maxHeight: _RR_CROP_MAX, imageSmoothingQuality: 'high' });   // v0.9.1827: the ONE cap, shared with the preview
     if (!canvas) { done(); if (onCancel) try { onCancel(); } catch (e) {} return; }
     canvas.toBlob(function (blob) { done(); if (blob) onResult(blob); }, 'image/jpeg', 0.9);
   };
