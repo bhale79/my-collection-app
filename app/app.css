@@ -2782,3 +2782,16 @@ html[data-theme="high-contrast"] button[style*="#e74c3c"] {
   border-radius: 10px;
 }
 #rr-thumb-preview img { width: 100%; height: auto; max-height: 60vh; object-fit: contain; display: block; border-radius: 6px; }
+
+/* ── v0.9.1808 (Brad: "All large cards should be the same size", no scrolling to
+   see the bottom). Computer only: every large dashboard card is ONE height,
+   --dash-panel-h, set by dashboard.js to what is left of the window (never below
+   --dash-panel-min-h). Anything that would be cut off is hidden whole
+   (.rr-dash-overflow) — never half a row. Phones keep stacked, natural height. */
+#dash-panels-host { --dash-panel-min-h: 260px; }
+@media (min-width: 701px) {
+  #dash-panels-host { align-items: stretch !important; }
+  #dash-panels-host .panel { box-sizing: border-box; height: var(--dash-panel-h, auto); overflow: hidden; display: flex; flex-direction: column; }
+  #dash-panels-host .panel > [id^="dash-panel-body-"] { flex: 1 1 auto; min-height: 0; overflow: hidden; }
+}
+#dash-panels-host .rr-dash-overflow { display: none !important; }

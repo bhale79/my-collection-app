@@ -1234,6 +1234,7 @@ function buildDashboard() {
       }
     });
     try { _dashFlushThumbs(); } catch (eT) {}   // v0.9.1046
+    try { if (typeof window._dashFitPanels === 'function') window._dashFitPanels(); } catch (eF) {}   // v0.9.1808
   })();
 
   // ── Photo ticker strip (v0.9.1017, Brad) ──────────────────────
@@ -2288,3 +2289,74 @@ function _catCovSave(slotIdx) {
 }
 window._catCovConfig = _catCovConfig;
 window._catCovSave = _catCovSave;
+
+
+// ── v0.9.1808 (Brad: "shouldn't have to scroll down to see the bottom here …
+// All large cards should be the same size") ──────────────────────────────────
+// On a computer the large cards (Recent Additions, Want List, Photo Inbox,
+// Showcase, Parts…) are ONE height: whatever is left of the window below their
+// top edge, never less than --dash-panel-min-h (app.css). A card shows only
+// what fits WHOLE in that height — a list row or a row of photos that would be
+// cut off is hidden, never half-shown. Phones (≤700 px) stack the cards and
+// keep their natural height. The photo cards fill in later (Drive), so a
+// watcher re-fits whenever a card's contents change or the window resizes.
+(function () {
+  if (typeof document === 'undefined' || typeof window === 'undefined') return;
+  var HIDE = 'rr-dash-overflow';
+  var _busy = false, _t = null;
+  function _items(body) {
+    // what a card is made of: its own rows, plus the tiles of any grid in it
+    var out = [];
+    var _isGrid = function (el) { return getComputedStyle(el).display === 'grid'; };
+    // a child that IS or HOLDS a photo grid is never hidden itself — its tiles are
+    Array.prototype.forEach.call(body.children, function (c) {
+      if (_isGrid(c) || Array.prototype.some.call(c.querySelectorAll('*'), _isGrid)) return;
+      out.push(c);
+    });
+    Array.prototype.forEach.call(body.querySelectorAll('*'), function (el) {
+      if (getComputedStyle(el).display === 'grid') Array.prototype.forEach.call(el.children, function (c) { out.push(c); });
+    });
+    return out;
+  }
+  function fit() {
+    var host = document.getElementById('dash-panels-host');
+    if (!host || _busy) return;
+    // the photo cards fill in AFTER the dashboard draws — watch this one box
+    // (not the whole page) and re-fit when a card's contents change
+    if (!host._rrFitObs && typeof MutationObserver === 'function') {
+      host._rrFitObs = new MutationObserver(function () { if (!_busy) soon(); });
+      host._rrFitObs.observe(host, { childList: true, subtree: true });
+    }
+    // …and when something ABOVE the cards changes height (the photo strip
+    // fills in late and pushes the cards down), measure again
+    if (!host._rrFitRo && typeof ResizeObserver === 'function' && host.parentElement) {
+      host._rrFitRo = new ResizeObserver(function () { if (!_busy) soon(); });
+      Array.prototype.forEach.call(host.parentElement.children, function (sib) {
+        if (sib !== host) host._rrFitRo.observe(sib);
+      });
+    }
+    _busy = true;
+    try {
+      Array.prototype.forEach.call(host.querySelectorAll('.' + HIDE), function (el) { el.classList.remove(HIDE); });
+      if (window.innerWidth <= 700 || !host.offsetParent) { host.style.removeProperty('--dash-panel-h'); return; }
+      var minH = parseFloat(getComputedStyle(host).getPropertyValue('--dash-panel-min-h')) || 260;
+      // top of the cards as if the page were scrolled to the top — the app
+      // scrolls inside its main area, not the window, so add that back too
+      var top = host.getBoundingClientRect().top + (window.scrollY || 0);
+      for (var sc = host.parentElement; sc && sc !== document.body; sc = sc.parentElement) {
+        if (sc.scrollTop) top += sc.scrollTop;
+      }
+      var h = Math.max(minH, Math.floor(window.innerHeight - top - 16));
+      host.style.setProperty('--dash-panel-h', h + 'px');
+      Array.prototype.forEach.call(host.querySelectorAll('[id^="dash-panel-body-"]'), function (body) {
+        var limit = body.getBoundingClientRect().bottom + 0.5;
+        _items(body).forEach(function (el) {
+          if (el.getBoundingClientRect().bottom > limit && el.getBoundingClientRect().height > 0) el.classList.add(HIDE);
+        });
+      });
+    } finally { _busy = false; }
+  }
+  function soon() { clearTimeout(_t); _t = setTimeout(fit, 80); }
+  window._dashFitPanels = soon;
+  window.addEventListener('resize', soon);
+})();
