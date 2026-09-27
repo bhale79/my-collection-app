@@ -101,7 +101,7 @@ ok('_maintPartsPopup, _maintPopAddWanted, _maintBinUse and _maintPopSearch all g
 ok('a part added with no task is filed for the UNIT (blank task id, "from the Workbench")', /taskId \? 'for Workbench task' : 'from the Workbench'/.test(addWanted) && /taskId: taskId \|\| ''/.test(addWanted) && /_maintPopSaveWanted\(fields, taskId/.test(addWanted) && /_partsAppendRow\(fields\)/.test(fnBody('async function _maintPopSaveWanted(fields, taskId, retry)'))   /* v0.9.1753: the row goes through the one builder/appender; v0.9.1756: via the popup's ONE save path */);
 ok('the chore picker is ONE helper, used by the card and by the Workbench card', (src.match(/_choreFormHtml\('_maintAddChore\(\)'\)/g) || []).length === 2 && /function _choreFormHtml\(addJs\)/.test(src));
 ok('opening the Maintenance card resets the Workbench target', /_panelItem = item;\s*\n\s*window\._maintPanelInvId = [^\n]*\n\s*_wbTarget = null;/.test(src));
-ok('the Workbench pick is keyed by inventoryId and resolved through findMaster', /window\._wbPicked = function \(invId\) \{[\s\S]*?_wbOwned\(\)\.find\(function \(x\) \{ return x\.invId === String\(invId\); \}\)[\s\S]*?findMaster\(o\.itemNum, o\.variation\)/.test(src));
+ok('the Workbench pick is keyed by inventoryId and resolved through findMaster', /window\._wbPicked = function \(invId\) \{[\s\S]*?_wbOwned\(\)\.find\(function \(x\) \{ return x\.invId === String\(invId\); \}\)[\s\S]*?findMaster\(o\.itemNum, o\.variation, _opd\)/.test(src));   // v0.9.1821: through the picked copy
 ok('a part for a unit with open tasks first asks which job (or none)', /Add a part — for which job\?/.test(src) && /_wbPartFor\(\\'\\'\)/.test(src));
 
 section('The page: buttons, filter chips, History tab');

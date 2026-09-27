@@ -153,7 +153,7 @@
     if (!ownedReal.length) {
       warn('catalog resolution', 'no owned items to check');
     } else {
-      const unresolved = ownedReal.filter(pd => !findMaster(pd.itemNum, pd.variation));
+      const unresolved = ownedReal.filter(pd => !findMaster(pd.itemNum, pd.variation, pd));   // v0.9.1821: the owned row
       if (unresolved.length === 0) pass('catalog resolution', ownedReal.length + ' owned items all resolve to the catalog');
       else fail('catalog resolution', unresolved.length + ' owned item(s) have NO catalog match: ' + unresolved.slice(0, 20).map(p => p.itemNum).join(', '));
     }

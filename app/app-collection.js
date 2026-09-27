@@ -1081,7 +1081,7 @@ function showItemDetailPage(idx, copyInvId, opts) {
     const _baseNum = pd.itemNum.replace(/-(P|T|BOX|MBOX)$/i, '');
     if (_baseNum !== pd.itemNum) {
       _baseItem = state.masterData.find(m => m.itemNum === _baseNum && (!pd.variation || m.variation === pd.variation))
-               || findMaster(_baseNum);
+               || findMaster(_baseNum, pd.variation || '', pd);   // v0.9.1821: the owned row names its catalog
     }
   }
   const it = item || {

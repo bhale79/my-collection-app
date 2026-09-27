@@ -894,7 +894,7 @@ function _wizardMfr() {
     // Lionel-only gate fail (tender photo steps skipped, box-variation hidden).
     var m = wizard.matchedItem || wizard.data.matchedItem || null;
     if (!m && wizard.data.itemNum && typeof findMaster === 'function') {
-      m = findMaster(wizard.data.itemNum, wizard.data.variation);
+      m = findMaster(wizard.data.itemNum, wizard.data.variation, (typeof _wizMasterPrefer === 'function') ? _wizMasterPrefer() : null);   // v0.9.1821
     }
     if (m && typeof _manufacturerOfItem === 'function') {
       var mk = _manufacturerOfItem(m);
@@ -5468,7 +5468,7 @@ function renderWizardStep() {
     // v0.9.1034: preference-aware fallback — a bare findMaster() here took
     // the first row for the number, which is how the Atlas hopper turned up
     // on a Lionel item.
-    const _cdMaster = wizard.matchedItem || findMaster(_cdItemNum, '', _wizMasterPrefer()) || findMaster(_cdItemNum);
+    const _cdMaster = wizard.matchedItem || findMaster(_cdItemNum, '', _wizMasterPrefer());   // v0.9.1821: no hint-less retry
     const _cdItemType = (_cdMaster && _cdMaster.itemType) ? _cdMaster.itemType : '';
     const _cdMasterTab = (_cdMaster && _cdMaster._tab) ? _cdMaster._tab : '';
     const _cdIsSimplified = ['Science Set','Construction Set'].includes(_cdItemType);

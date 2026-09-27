@@ -3048,8 +3048,8 @@
     // 2. the part number names its item
     var item = _binItemFromPartNum(pn);
     if (item) {
-      var m = (typeof findMaster === 'function') ? findMaster(item) : null;
       var owned = _binOwnedCopies(item);
+      var m = (typeof findMaster === 'function') ? findMaster(item, (owned[0] && owned[0].variation) || '', owned[0] || null) : null;   // v0.9.1821: the owned copy first
       out.push({ kind: 'number', item: item, label: item + (m && m.roadName ? ' — ' + m.roadName : '') + (m && m.description ? ' ' + String(m.description).slice(0, 60) : ''), owned: owned.length, inv: owned.length ? owned[0].inventoryId : '' });
     }
     // 3. the catalog's own parts rows (Lionel Parts, Train Tender Parts, MTH Parts,
@@ -3067,7 +3067,9 @@
       _prs.forEach(function (pr) {
         if (!(pr && /^part$/i.test(String(pr.itemType || '')) && pr.description)) return;
         var fitsList = String(pr.fits || '').split(/\s*;\s*/).filter(Boolean).slice(0, 12).map(function (it) {
-          var mm = findMaster(it), own = _binOwnedCopies(it);
+          // v0.9.1821: a part's Fits list names the MAKER's items — the owned copy first, else the part catalog's maker.
+          var own = _binOwnedCopies(it);
+          var mm = findMaster(it, (own[0] && own[0].variation) || '', own[0] || { manufacturer: (typeof _partsMakerOf === 'function' ? _partsMakerOf(pr._era) : '') });
           return { item: it, label: it + (mm && mm.roadName ? ' ' + mm.roadName : ''), owned: own.length, inv: own.length ? own[0].inventoryId : '' };
         });
         var _src = (typeof ERAS !== 'undefined' && ERAS[pr._era] && ERAS[pr._era].label) || '';
@@ -3130,7 +3132,7 @@
   }
   function _binSpokenHtml(p) {
     var pd = p.forInv ? (state.personalData || {})[p.forInv] : null;
-    var m = (p.forItem && typeof findMaster === 'function') ? findMaster(p.forItem) : null;
+    var m = (p.forItem && typeof findMaster === 'function') ? (pd ? findMaster(pd.itemNum, pd.variation, pd) : findMaster(p.forItem)) : null;   // v0.9.1821: the owned copy when there is one
     var forLabel = p.forItem ? 'For ' + p.forItem + (m && m.roadName ? ' (' + m.roadName + ')' : '') : '';
     var forHtml = !forLabel ? '' : (pd ? '<a href="#" onclick="event.preventDefault();_openOwnedByInvId(\'' + rrJsArg(p.forInv) + '\')" style="color:var(--accent3);text-decoration:none">🔗 ' + _esc(forLabel) + '</a>' : '<span style="color:var(--accent3)">🔗 ' + _esc(forLabel) + '</span>');
     return '<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:0.8rem 1rem;margin-bottom:0.6rem;display:flex;gap:0.7rem;align-items:flex-start;flex-wrap:wrap">'
@@ -3437,8 +3439,10 @@
     return (state.maintLog || []).filter(function (l) { return !(l.type === 'chore' && l.status === 'open'); })
       .slice().sort(function (a, b) { return (b.dateDone || b.dateAdded || '').localeCompare(a.dateDone || a.dateAdded || ''); });
   }
-  function _wbItemLabel(itemNum) {
-    var m = (typeof findMaster === 'function' && itemNum) ? findMaster(itemNum) : null;
+  function _wbItemLabel(itemNum, invId) {
+    // v0.9.1821: the row names its owned copy — resolve through it.
+    var pd = invId ? ((state.personalData || {})[invId] || Object.values(state.personalData || {}).find(function (x) { return x && String(x.inventoryId || '') === String(invId); }) || null) : null;
+    var m = (typeof findMaster === 'function' && itemNum) ? (pd ? findMaster(pd.itemNum, pd.variation, pd) : findMaster(itemNum)) : null;
     return _esc(itemNum) + (m && m.roadName ? ' <span style="color:var(--text-dim);font-weight:400">' + _esc(m.roadName) + '</span>' : '');
   }
   function _wbBuild() {
@@ -3479,7 +3483,8 @@
       window._wbHistoryCtx = null;   // entries opened from here edit in place; no per-item card to reopen
       var q = _wbHistQ.trim().toLowerCase();
       var shown = q ? hist.filter(function (l) {
-        var m = (typeof findMaster === 'function' && l.itemNum) ? findMaster(l.itemNum) : null;
+        var _lpd = l.invId ? ((state.personalData || {})[l.invId] || null) : null;   // v0.9.1821
+        var m = (typeof findMaster === 'function' && l.itemNum) ? (_lpd ? findMaster(_lpd.itemNum, _lpd.variation, _lpd) : findMaster(l.itemNum)) : null;
         return (String(l.itemNum) + ' ' + (m && m.roadName || '') + ' ' + l.text + ' ' + (l.partNum || '') + ' ' + (l.by || '') + ' ' + (l.notes || '')).toLowerCase().indexOf(q) >= 0;
       }) : hist;
       var IN = 'width:100%;max-width:360px;box-sizing:border-box;padding:0.5rem 0.65rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.85rem';
@@ -3494,7 +3499,7 @@
         var what = (l.type === 'part-installed' ? 'Installed — ' : '') + l.text + (l.partNum ? ' #' + l.partNum : '');
         return '<tr onclick="_wbHistOpen(\'' + rrJsArg(l.id) + '\')" style="cursor:pointer" onmouseover="this.style.background=\'var(--surface2)\'" onmouseout="this.style.background=\'\'">'
           + '<td style="' + td + ';color:var(--text-dim);white-space:nowrap">' + _esc(l.dateDone || l.dateAdded || '') + '</td>'
-          + '<td style="' + td + ';font-weight:700;white-space:nowrap">' + _wbItemLabel(l.itemNum) + '</td>'
+          + '<td style="' + td + ';font-weight:700;white-space:nowrap">' + _wbItemLabel(l.itemNum, l.invId) + '</td>'
           + '<td style="' + td + '">' + _esc(what) + (l.notes ? '<div style="font-size:0.76rem;color:var(--text-dim);margin-top:0.15rem">' + _esc(l.notes).slice(0, 140) + (l.notes.length > 140 ? '…' : '') + '</div>' : '') + '</td>'
           + '<td style="' + td + ';color:var(--text-dim);white-space:nowrap">' + _esc(l.by || '') + '</td>'
           + '</tr>';
@@ -3520,7 +3525,7 @@
     }
     pg.innerHTML = _dz(head + table(['Item', 'Needs', 'Part', 'Since'], shownRows.map(function (r) {
       return '<tr onclick="_wbOpen(\'' + rrJsArg(String(r.invId || '')) + '\',\'' + rrJsArg(String(r.itemNum || '')) + '\')" style="cursor:pointer" onmouseover="this.style.background=\'var(--surface2)\'" onmouseout="this.style.background=\'\'">'
-        + '<td style="' + td + ';font-weight:700;white-space:nowrap">' + _wbItemLabel(r.itemNum) + '</td>'
+        + '<td style="' + td + ';font-weight:700;white-space:nowrap">' + _wbItemLabel(r.itemNum, r.invId) + '</td>'
         + '<td style="' + td + '">' + _esc(r.need) + '</td>'
         + '<td style="' + td + ';color:' + (r.part ? 'var(--text)' : 'var(--text-dim)') + '">' + (r.part ? _esc(r.part) : '—') + '</td>'
         + '<td style="' + td + ';color:var(--text-dim);white-space:nowrap">' + _esc(r.since || '') + '</td>'
@@ -3544,7 +3549,7 @@
       var pd = state.personalData[k];
       if (!pd || !pd.owned || !pd.itemNum || !pd.inventoryId) return;
       if (typeof _isBoxItemNum === 'function' && _isBoxItemNum(pd.itemNum)) return;
-      var m = (typeof findMaster === 'function') ? findMaster(pd.itemNum, pd.variation) : null;
+      var m = (typeof findMaster === 'function') ? findMaster(pd.itemNum, pd.variation, pd) : null;   // v0.9.1821
       out.push({ invId: String(pd.inventoryId), itemNum: String(pd.itemNum), variation: String(pd.variation || ''),
                  road: String((m && m.roadName) || pd.roadName || ''), desc: String((m && m.description) || pd.description || '') });
     });
@@ -3599,7 +3604,8 @@
   window._wbPicked = function (invId) {
     var o = _wbOwned().find(function (x) { return x.invId === String(invId); });
     if (!o) return;
-    var item = (typeof findMaster === 'function') ? findMaster(o.itemNum, o.variation) : null;
+    var _opd = (state.personalData || {})[o.invId] || Object.values(state.personalData || {}).find(function (x) { return x && String(x.inventoryId || '') === o.invId; }) || null;
+    var item = (typeof findMaster === 'function') ? findMaster(o.itemNum, o.variation, _opd) : null;   // v0.9.1821: the picked copy
     if (!item) {
       var k = Object.keys(state.personalData || {}).find(function (kk) { var p = state.personalData[kk]; return p && String(p.inventoryId || '') === o.invId; });
       item = k ? state.personalData[k] : { itemNum: o.itemNum, variation: o.variation };

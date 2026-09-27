@@ -12,7 +12,7 @@ function _repOwnedItems() {
     var noC = !c || c === 'N/A', noP = !p || p === 'N/A';
     return !(pd.hasBox === 'Yes' && noC && noP);
   }).sort(function (a, b) {
-    var ma = findMaster(a.itemNum, a.variation) || {}, mb = findMaster(b.itemNum, b.variation) || {};
+    var ma = findMaster(a.itemNum, a.variation, a) || {}, mb = findMaster(b.itemNum, b.variation, b) || {};   // v0.9.1821: the owned rows
     if ((ma.itemType || 'ZZZ') !== (mb.itemType || 'ZZZ')) return (ma.itemType || 'ZZZ').localeCompare(mb.itemType || 'ZZZ');
     return (a.itemNum || '').localeCompare(b.itemNum || '', undefined, { numeric: true });
   });

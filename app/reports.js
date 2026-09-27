@@ -98,8 +98,8 @@ function buildReport() {
 
     // Sort by itemType then itemNum
     ownedItems.sort((a, b) => {
-      const master_a = findMaster(a.itemNum, a.variation) || {};
-      const master_b = findMaster(b.itemNum, b.variation) || {};
+      const master_a = findMaster(a.itemNum, a.variation, a) || {};   // v0.9.1821: the owned rows
+      const master_b = findMaster(b.itemNum, b.variation, b) || {};
       const typeA = master_a.itemType || 'ZZZ';
       const typeB = master_b.itemType || 'ZZZ';
       if (typeA !== typeB) return typeA.localeCompare(typeB);
@@ -266,7 +266,7 @@ function buildReport() {
       return !(pd.hasBox==='Yes' && noC && noP);
     });
     owned.sort((a,b)=>{
-      const ma=findMaster(a.itemNum,a.variation)||{}, mb=findMaster(b.itemNum,b.variation)||{};
+      const ma=findMaster(a.itemNum,a.variation,a)||{}, mb=findMaster(b.itemNum,b.variation,b)||{};   // v0.9.1821
       if ((ma.itemType||'ZZZ')!==(mb.itemType||'ZZZ')) return (ma.itemType||'ZZZ').localeCompare(mb.itemType||'ZZZ');
       return (a.itemNum||'').localeCompare(b.itemNum||'',undefined,{numeric:true});
     });
@@ -378,8 +378,8 @@ function exportReport() {
       return !(pd.hasBox === 'Yes' && noCondition && noItemPrice);
     });
     ownedItems.sort((a, b) => {
-      const ma = findMaster(a.itemNum, a.variation) || {};
-      const mb = findMaster(b.itemNum, b.variation) || {};
+      const ma = findMaster(a.itemNum, a.variation, a) || {};   // v0.9.1821
+      const mb = findMaster(b.itemNum, b.variation, b) || {};
       if ((ma.itemType||'ZZZ') !== (mb.itemType||'ZZZ')) return (ma.itemType||'ZZZ').localeCompare(mb.itemType||'ZZZ');
       return (a.itemNum||'').localeCompare(b.itemNum||'', undefined, { numeric: true });
     });

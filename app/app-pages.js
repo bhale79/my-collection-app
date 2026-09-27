@@ -1142,7 +1142,8 @@ function moveWantToCollection(itemNum, variation) {
     if (typeof wizard === 'undefined' || !wizard) return;
 
     // Look up master row (prefer variation match; fall back to any variation)
-    const master = findMaster(itemNum, variation);
+    // v0.9.1821: the want-list entry names its catalog (era / maker) — pass it.
+    const master = findMaster(itemNum, variation, (state.wantData || {})[itemNum + '|' + (variation || '')] || null);
 
     // Seed everything we know
     wizard.data._fromWantList = true;
@@ -1841,7 +1842,7 @@ function rrFsPriceFill() {
     'align-items:center;justify-content:center;padding:1rem';
   var rows = list.map(function (e, i) {
     var fs = e.fs;
-    var m = (typeof findMaster === 'function') ? (findMaster(fs.itemNum, fs.variation) || {}) : {};
+    var m = (typeof findMaster === 'function') ? (findMaster(fs.itemNum, fs.variation, fs) || {}) : {};   // v0.9.1821: the sale record names its catalog
     var pd = null;
     try { pd = fs.inventoryId ? _rrPdByInv(fs.inventoryId) : null; } catch (eP) {}
     var desc = (pd && (pd.yourDescription || pd.description)) || m.description || m.roadName || '';
@@ -1967,7 +1968,7 @@ function buildForSalePage() {
     // Era filter
     if (typeof _isInCurrentEra === 'function' && !_isInCurrentEra(fs.itemNum)) return false;
     if (!_fq) return true;
-    const _fsx = _fsEff(fs); const master = findMaster(_fsx.itemNum, _fsx.variation) || {};
+    const _fsx = _fsEff(fs); const master = findMaster(_fsx.itemNum, _fsx.variation, _fsx) || {};   // v0.9.1821: the sale record names its catalog
     return (fs.itemNum||'').toLowerCase().includes(_fq)
       || (master.roadName||'').toLowerCase().includes(_fq)
       || (master.itemType||'').toLowerCase().includes(_fq)
@@ -2045,7 +2046,7 @@ function buildForSalePage() {
     if (fsTableWrap) fsTableWrap.style.display = 'none';
     var _fsThumbJobs = [];   // v0.9.1022: card thumbnails, filled during render
     if (fsCardsEl) fsCardsEl.innerHTML = fsEntries.length ? fsEntries.map(fs => {
-      const _fsx = _fsEff(fs); const master = findMaster(_fsx.itemNum, _fsx.variation) || {};
+      const _fsx = _fsEff(fs); const master = findMaster(_fsx.itemNum, _fsx.variation, _fsx) || {};   // v0.9.1821: the sale record names its catalog
       const collPd = (fs.inventoryId && state.personalData[fs.inventoryId]) || {};
       const estWorth = fs.estWorth || collPd.userEstWorth || '';
       // v0.9.921 (chunk 2): for-sale entries carry inventoryId (per-copy stable).
@@ -2113,7 +2114,7 @@ function buildForSalePage() {
     // here so the fill pass never re-derives which row wanted which folder.
     const _fsThumbJobs = [];
     if (tbody) tbody.innerHTML = fsEntries.length ? fsEntries.map((fs, _fsI) => {
-      const _fsx = _fsEff(fs); const master = findMaster(_fsx.itemNum, _fsx.variation) || {};
+      const _fsx = _fsEff(fs); const master = findMaster(_fsx.itemNum, _fsx.variation, _fsx) || {};   // v0.9.1821: the sale record names its catalog
       const collPd = (fs.inventoryId && state.personalData[fs.inventoryId]) || {};
       const estWorth = fs.estWorth || collPd.userEstWorth || '';
       // v0.9.921 (chunk 2): inventoryId when present, composite fallback.
@@ -2912,9 +2913,12 @@ function showSetDetail(setNum) {
 
   const chipsWrap = document.createElement('div');
   chipsWrap.style.cssText = 'display:flex;flex-wrap:wrap;gap:0.3rem;margin-bottom:' + (s.alts.length ? '0.9rem' : (s.notes ? '0.9rem' : '0')) + ';';
+  // v0.9.1821: the sets tab belongs to the era being browsed — say so, or a
+  // component number shared with another maker draws the other maker's name.
+  const _setPrefer = (typeof _currentEra !== 'undefined' && _currentEra && _currentEra !== 'all') ? { era: _currentEra } : null;
   s.items.forEach(n => {
     // Look up the item name from master data for a richer chip
-    const master = findMaster(n);
+    const master = findMaster(n, '', _setPrefer);
     const label = master ? (master.roadName || master.description || master.itemType || '') : '';
     const chip = document.createElement('div');
     chip.style.cssText = 'display:flex;flex-direction:column;background:var(--surface2);border:1px solid var(--border);border-radius:7px;padding:0.3rem 0.55rem;cursor:default';
@@ -3556,7 +3560,7 @@ function _toggleUpgradePhoto(id, photoUrl) {
 function _upgradeViewMine(ugKey) {
   const ug = state.upgradeData[ugKey];
   if (!ug) { showToast('Upgrade entry not found'); return; }
-  const master = findMaster(ug.itemNum);
+  const master = findMaster(ug.itemNum, ug.variation || '', _partsOwnedRow(ug.inventoryId) || ug);   // v0.9.1821: the owned copy names its catalog
   if (master) {
     // v0.9.1761: the upgrade entry points at the user's actual owned copy —
     // use it, instead of opening whichever copy of the number came first.
@@ -3712,7 +3716,7 @@ function showAddToUpgradeModal(itemNum, variation, pdRow, invId, groupMode) {
     }) || null;
   }
   existing = existing || {};
-  const master = findMaster(itemNum);
+  const master = findMaster(itemNum, (pd && pd.variation) || '', pd || null);   // v0.9.1821
   const name = master ? (master.roadName || master.itemType || itemNum) : itemNum;
   const myCond = pd && pd.condition ? pd.condition : '';
 
@@ -3938,8 +3942,7 @@ function upgradeGotIt(ugKey) {
   // pre-filled with the item info + target condition/price as suggestions so
   // the user can capture condition / price-paid / photos in one flow.
   // Wishlist cleanup is handled via the wizard's banner + save hook.
-  const _old = document.getElementById('upgrade-gotit-modal');
-  if (_old) _old.remove();
+  // (v0.9.1821: the old #upgrade-gotit-modal and its builder are gone — nothing to clear.)
   const ug = state.upgradeData[ugKey];
   if (!ug) { showToast('Upgrade entry not found'); return; }
   const itemNum = ug.itemNum;
@@ -3948,7 +3951,7 @@ function upgradeGotIt(ugKey) {
   setTimeout(function() {
     if (typeof wizard === 'undefined' || !wizard) return;
     // Look up master row (prefer variation match; fall back to any)
-    const master = findMaster(itemNum, variation);
+    const master = findMaster(itemNum, variation, _partsOwnedRow(ug.inventoryId) || ug);   // v0.9.1821
     // Seed
     wizard.data._fromUpgradeList = true;
     wizard.data._fromUpgradeKey = ugKey;
@@ -3988,43 +3991,11 @@ function upgradeGotIt(ugKey) {
 
 // Legacy stub kept so old onclick handlers from any cached HTML don't 500.
 function _upgradeGotItModalLegacy(ugKey) { upgradeGotIt(ugKey); }
-function _upgradeGotItOldStart(ugKey) {
-  const ug = state.upgradeData[ugKey];
-  if (!ug) { showToast('Upgrade entry not found'); return; }
-  const itemNum = ug.itemNum;
-  const master = findMaster(itemNum);
-  const name = master ? (master.roadName || master.itemType || itemNum) : itemNum;
-  const overlay = document.createElement('div');
-  overlay.id = 'upgrade-gotit-modal';
-  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:10002;display:flex;align-items:center;justify-content:center;padding:1.25rem';
-  rrDismissGuard(overlay);   // v0.9.1790: a backdrop click does nothing (Brad: "never close if you pick outside")
-  overlay.innerHTML = `
-    <div class="rr-card">
-      <button onclick="document.getElementById('upgrade-gotit-modal').remove()" style="position:absolute;top:0.75rem;right:0.75rem;background:none;border:none;color:var(--text-dim);font-size:1.1rem;cursor:pointer">✕</button>
-      <div class="rr-card-title">✓ Got It!</div>
-      <div style="font-family:var(--font-mono);font-size:0.88rem;color:var(--accent);margin-bottom:0.75rem">${itemNum} — ${name}</div>
-      <p style="font-size:0.85rem;color:var(--text);margin-bottom:1rem;line-height:1.5">Did you already add the new one to your collection?</p>
-      <div style="display:flex;gap:0.5rem;margin-bottom:1.25rem">
-        <button onclick="document.getElementById('upg-gotit-added').style.display=''" style="flex:1;padding:0.5rem;border-radius:8px;border:1.5px solid #2ecc71;background:var(--bg-card);background:color-mix(in srgb, rgb(46,204,113) 10%, var(--bg-card));color:#2ecc71;font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer">Yes, it's added</button>
-        <button onclick="document.getElementById('upg-gotit-added').style.display=''" style="flex:1;padding:0.5rem;border-radius:8px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body);font-size:0.85rem;cursor:pointer">Not yet</button>
-      </div>
-      <div id="upg-gotit-added" style="display:none">
-        <p style="font-size:0.85rem;color:var(--text);margin-bottom:0.75rem;line-height:1.5">What would you like to do with your old one?</p>
-        <div style="display:flex;flex-direction:column;gap:0.4rem">
-          <button onclick="_upgradeGotItFinish('${ugKey}','keep')" style="padding:0.5rem;border-radius:8px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.85rem;cursor:pointer;text-align:left">Keep both copies</button>
-          <button onclick="_upgradeGotItFinish('${ugKey}','forsale')" style="padding:0.5rem;border-radius:8px;border:1.5px solid #e67e22;background:var(--bg-card);background:color-mix(in srgb, rgb(230,126,34) 8%, var(--bg-card));color:#e67e22;font-family:var(--font-body);font-size:0.85rem;cursor:pointer;text-align:left">🏷️ List old one for sale</button>
-          <button onclick="_upgradeGotItFinish('${ugKey}','remove')" style="padding:0.5rem;border-radius:8px;border:1.5px solid #8b8e94;background:var(--bg-card);background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card));color:#f05008;font-family:var(--font-body);font-size:0.85rem;cursor:pointer;text-align:left">Remove old entry from collection</button>
-        </div>
-      </div>
-    </div>`;
-  document.body.appendChild(overlay);
-  // v0.9.1790: BackStack is wired by rrDismissGuard above — one place, not two.
-}
+// v0.9.1821: _upgradeGotItOldStart deleted — no caller anywhere, and it looked the
+// number up with no maker (the loaded-gun kind of dead code).
 
 // Phase 3: signature is now (ugKey, action).
 async function _upgradeGotItFinish(ugKey, action) {
-  const modal = document.getElementById('upgrade-gotit-modal');
-  if (modal) modal.remove();
   const upgradeEntry = state.upgradeData[ugKey];
   const itemNum = upgradeEntry ? upgradeEntry.itemNum : '';
   const variation = upgradeEntry ? (upgradeEntry.variation || '') : '';
@@ -4032,7 +4003,7 @@ async function _upgradeGotItFinish(ugKey, action) {
   if (upgradeEntry) await removeUpgradeItem(ugKey);
   if (action === 'forsale') {
     // Navigate to for sale flow for this item
-    const master = findMaster(itemNum);
+    const master = findMaster(itemNum, variation, (upgradeEntry && _partsOwnedRow(upgradeEntry.inventoryId)) || upgradeEntry || null);   // v0.9.1821
     const idx = master ? _masterIdxOf(master) : -1;
     if (idx >= 0) collectionActionForSale(idx, itemNum, variation, null, upgradeEntry ? upgradeEntry.inventoryId : '');
     else showToast('Navigate to My Collection to list for sale');
@@ -4381,7 +4352,7 @@ function showAddPartModal(existingId) {
     var n = String(pd.itemNum || '');
     if (!n || /-(BOX|MBOX|IS)$/i.test(n) || seen[pd.inventoryId || n]) return;
     seen[pd.inventoryId || n] = true;
-    var m = (typeof findMaster === 'function') ? (findMaster(n, pd.variation) || findMaster(n)) : null;
+    var m = (typeof findMaster === 'function') ? findMaster(n, pd.variation, pd) : null;   // v0.9.1821: the owned row; the bare retry could only answer with another maker
     var _bits = m ? [m.roadName, m.description].filter(Boolean).join(' · ') : '';
     var label = n + (_bits ? ' — ' + _bits : '');
     var val = (pd.inventoryId || n);

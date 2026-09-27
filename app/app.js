@@ -394,7 +394,10 @@ function _getEraManufacturer() {
 function _isInCurrentEra(itemNum) {
   if (typeof _currentEra === 'undefined' || _currentEra === 'all') return true;
   if (typeof findMaster !== 'function' || !state.masterData) return true;
-  var m = findMaster(itemNum);
+  // v0.9.1821: the question is "does THIS era have this number?" — so ask with
+  // the era. A bare lookup answered with whichever maker's row came first and
+  // said "no" for a number the current era does hold.
+  var m = findMaster(itemNum, '', { era: _currentEra });
   if (!m) return false;
   return m._era === _currentEra;
 }
@@ -1028,7 +1031,9 @@ window._latestSale = _latestSale;
 function _buildSoldRow(opts) {
   opts = opts || {};
   var src = opts.src || {};
-  var master = (typeof findMaster === 'function' && opts.itemNum) ? (findMaster(opts.itemNum) || {}) : {};
+  // v0.9.1821: the owned copy being sold names its catalog — the snapshot must
+  // not carry another maker's road name and description into the Sold sheet.
+  var master = (typeof findMaster === 'function' && opts.itemNum) ? (findMaster(opts.itemNum, src.variation || opts.variation || '', opts.src || null) || {}) : {};
   var pick = function(a, b, c) {
     if (a !== undefined && a !== null && a !== '' && a !== 'N/A') return a;
     if (b !== undefined && b !== null && b !== '' && b !== 'N/A') return b;
@@ -2025,9 +2030,10 @@ function _brandLabel(key) {
   var k = String(key).toLowerCase().trim();
   return _BRAND_LABELS[k] || (k.charAt(0).toUpperCase() + k.slice(1));
 }
-function _brandOfItem(itemOrNum, variation) {
+function _brandOfItem(itemOrNum, variation, prefer) {
+  // v0.9.1821: a third argument, the row the number came from, when the caller has one.
   var item = (itemOrNum && typeof itemOrNum === 'object') ? itemOrNum
-    : ((typeof findMaster === 'function' && itemOrNum) ? findMaster(itemOrNum, variation) : null);
+    : ((typeof findMaster === 'function' && itemOrNum) ? findMaster(itemOrNum, variation, prefer || null) : null);
   if (!item) return '';
   var key = (typeof _manufacturerOfItem === 'function') ? _manufacturerOfItem(item) : null;
   return key ? _brandLabel(key) : '';
@@ -2075,7 +2081,7 @@ function _itemEraKey(item) {
     }
   }
   if (item.itemNum && typeof findMaster === 'function') {
-    var m = findMaster(item.itemNum, item.variation);
+    var m = findMaster(item.itemNum, item.variation, item);   // v0.9.1821: whatever the row itself knows (maker, key, period) rides along
     if (m && m._era) return m._era;
   }
   return null;

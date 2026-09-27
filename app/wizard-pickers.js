@@ -308,7 +308,7 @@ function _filterCollPicker(q) {
   var html = '';
   owned.forEach(function(entry) {
     var pdKey = entry[0], pd = entry[1];
-    var master = (String(pd.era || '') === 'Manual') ? {} : (findMaster(pd.itemNum, (pd.variation||'')) || {});   // v0.9.731: manual rule
+    var master = (String(pd.era || '') === 'Manual') ? {} : (findMaster(pd.itemNum, (pd.variation||''), pd) || {});   // v0.9.731: manual rule · v0.9.1821: the owned row
     // v0.9.919: forSaleData is keyed by inventoryId (Phase 3) — the old
     // itemNum|variation lookup always missed, so LISTED never showed.
     var alreadyListed = wizard.tab === 'forsale' ? !!(pd.inventoryId && state.forSaleData[pd.inventoryId]) : false;
@@ -423,7 +423,7 @@ function _renderFullPickList(q) {
   var html = '';
   owned.forEach(function(entry) {
     var pdKey = entry[0], pd = entry[1];
-    var master = (String(pd.era || '') === 'Manual') ? {} : (findMaster(pd.itemNum, (pd.variation||'')) || {});   // v0.9.731: manual rule
+    var master = (String(pd.era || '') === 'Manual') ? {} : (findMaster(pd.itemNum, (pd.variation||''), pd) || {});   // v0.9.731: manual rule · v0.9.1821: the owned row
     // v0.9.919: forSaleData is keyed by inventoryId (Phase 3) and soldData is a
     // per-sale history (Session 176) — the old itemNum|variation lookups always
     // missed, so LISTED/SOLD tags never showed. Check this specific copy by
@@ -479,7 +479,8 @@ function wizardPickForSaleItem(key) {
     // selection. Let the user pick the variation organically.
     if (_seedItemNum) {
       wizard.data._rawItemNum = _seedItemNum;
-      var _m = (typeof findMaster === 'function') ? findMaster(_seedItemNum) : null;
+      // v0.9.1821: the same maker/era preference every other wizard lookup uses.
+      var _m = (typeof findMaster === 'function') ? findMaster(_seedItemNum, '', (typeof _wizMasterPrefer === 'function') ? _wizMasterPrefer() : null) : null;
       if (_m) {
         var _inferredEra = (typeof eraForTab === 'function') ? eraForTab(_m._tab) : null;
         if (_inferredEra) wizard.data._era = _inferredEra;

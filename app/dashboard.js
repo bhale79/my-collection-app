@@ -239,7 +239,7 @@ function _extraBucketOf(row, mode, refKey, fallbackEra) {
   // year and the gauge can come from — one lookup, shared by all three cuts.
   if (mode === 'era' || mode === 'scale' || mode.indexOf('type:') === 0) {
     var m = null;
-    try { if (ref && typeof findMaster === 'function') m = findMaster(ref); } catch (e) {}
+    try { if (ref && typeof findMaster === 'function') m = findMaster(ref, '', row || null); } catch (e) {}   // v0.9.1821: the paper/sheet/set row's own era and maker steer the lookup
     // An unlinked instruction sheet has no item to resolve, so the tab's own
     // known era stands in — the v0.9.1728 rule, carried into the new cuts
     // rather than re-invented.

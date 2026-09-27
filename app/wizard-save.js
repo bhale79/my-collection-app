@@ -164,7 +164,10 @@ async function _quickEntrySaveSet(condition, worth, photoFiles) {
     const invId = nextInventoryId();
 
     // Match to master data for metadata
-    const master = (typeof findMaster==='function') ? findMaster(itemNum) : state.masterData.find(m => normalizeItemNum(m.itemNum) === normalizeItemNum(itemNum));
+    // v0.9.1821: this WRITES identity to the sheet — the set's era/maker preference
+    // goes with the lookup, or a component number shared with another maker
+    // saves the other maker's variation and description.
+    const master = (typeof findMaster==='function') ? findMaster(itemNum, '', (typeof _wizMasterPrefer === 'function') ? _wizMasterPrefer() : null) : state.masterData.find(m => normalizeItemNum(m.itemNum) === normalizeItemNum(itemNum));
     const variation = master ? (master.variation || '') : '';
 
     // Build personal sheet row — Session 156 buildPersonalRow form
@@ -342,7 +345,10 @@ function launchSetItemWizard() {
   // findMaster() here could write the WRONG catalog's identity to the sheet
   // for a colliding number (Lionel vs Atlas 6-8359).
   var _smPrefer = (typeof _wizMasterPrefer === 'function') ? _wizMasterPrefer() : null;
-  wizard.matchedItem = ((typeof findMaster==='function') ? (findMaster(itemNum, '', _smPrefer) || findMaster(itemNum)) : state.masterData.find(m => normalizeItemNum(m.itemNum) === normalizeItemNum(itemNum))) || null;
+  // v0.9.1821: the bare retry after the hinted lookup is gone — findMaster already
+  // falls through every catalog with the hint; a hint-less retry could only ever
+  // answer with another maker's row.
+  wizard.matchedItem = ((typeof findMaster==='function') ? findMaster(itemNum, '', _smPrefer) : state.masterData.find(m => normalizeItemNum(m.itemNum) === normalizeItemNum(itemNum))) || null;
   // v0.9.1117 (Brad's 2442): Lionel reused numbers across decades — a 1946
   // brown sheet-metal Pullman and the 1956 silver plastic car share "2442".
   // A set member is not just a number, it is a number FROM THE SET'S YEAR:
