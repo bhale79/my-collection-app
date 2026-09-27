@@ -1346,6 +1346,26 @@ _identifyShowPasteEcho(Array(40).join('The Lionel 2331 Virginian Train Master is
         ? bcSrc.indexOf('function _confirmCameraUse', s0)
         : bcSrc.indexOf('\n  // Expose globally', s0);
       ok('picker: the real source slice was found', s0 > 0 && s1 > s0);
+      // v0.9.1780 gave the picker a section divider, _bcDivider, defined
+      // OUTSIDE the sliced function. Hand-stubbing helpers is how this harness
+      // went red for a week while the app was fine: a stub that is missing
+      // throws before the first row (rules_testing: LIFT THE REAL ONE). Lift
+      // every helper the slice calls but does not define, by name, from the
+      // same file — a new helper then joins by itself.
+      const _liftFn = (name) => {
+        const a = bcSrc.indexOf('function ' + name + '(');
+        if (a < 0) return '';
+        const o = bcSrc.indexOf('{', a); let d = 0;
+        for (let k = o; k < bcSrc.length; k++) { if (bcSrc[k] === '{') d++; else if (bcSrc[k] === '}' && --d === 0) return bcSrc.slice(a, k + 1); }
+        return '';
+      };
+      const _pickSlice = bcSrc.slice(s0, s1);
+      const _defined = new Set(Array.from(_pickSlice.matchAll(/function\s+(_bc\w+)\s*\(/g), m => m[1]));
+      const _called = Array.from(new Set(Array.from(_pickSlice.matchAll(/\b(_bc\w+)\s*\(/g), m => m[1])))
+        .filter(n => !_defined.has(n) && n !== '_bcEsc' && n !== '_bcViewUrl');
+      const _lifted = _called.map(_liftFn).filter(Boolean).join('\n');
+      ok('picker: every _bc helper the slice calls was lifted from barcode.js (' + _called.join(', ') + ')',
+         _called.every(n => _liftFn(n)), JSON.stringify(_called.filter(n => !_liftFn(n))));
       const CANDS = JSON.stringify([
         { itemNum: '6464-500', variation: 'A', varDetail: 'glossy yellow, black-outlined herald', description: 'Timken Boxcar', itemType: 'Boxcar', roadName: 'Timken', yearProd: '1954', _era: 'pw', _tab: 'Lionel PW - Items' },
         { itemNum: '6464-500', variation: 'B', varDetail: 'matte yellow, solid herald', description: 'Timken Boxcar', itemType: 'Boxcar', roadName: 'Timken', yearProd: '1954', _era: 'pw', _tab: 'Lionel PW - Items' },
@@ -1360,7 +1380,8 @@ _identifyShowPasteEcho(Array(40).join('The Lionel 2331 Virginian Train Master is
   function _bcEsc(s) { return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
   function _bcViewUrl() { return '#'; }
 </script>
-<script>${bcSrc.slice(s0, s1)}
+<script>${_lifted}
+${_pickSlice}
 showCandidatePicker(${CANDS}, { itemNum: '6464-500' });
 </script></body></html>`;
       const fp = path.join(dir, 'picker.html');
@@ -1749,12 +1770,16 @@ window.__pageReady = runSharedPhotos();
           var cardR = card.getBoundingClientRect();
           var atPoint = document.elementFromPoint(cb.left + cb.width / 2, cb.top + cb.height / 2);
           var openerTolerates = /if \(window\.BackStack && BackStack\.push\)/.test(String(window._repShowPreviewModal || ''));
-          // Backdrop click: on the dark area → closes; inside the card → stays.
+          // Backdrop click: v0.9.1789 (Brad: "never close if you pick outside")
+          // — a click on the dark area does NOTHING. This check asserted the
+          // OLD behaviour (backdrop closes) for a week after the app was
+          // deliberately changed; a red that was explained but never
+          // re-measured (rules_testing). The modal has no click handler at
+          // all now — index.html says why it is not rrDismissGuard.
           var inCard = document.elementFromPoint(cardR.left + 10, Math.min(cardR.top + 10, window.innerHeight - 10));
-          m.dispatchEvent(new MouseEvent('click', { bubbles: true }));            // target === modal → close
-          var closedByBackdrop = m.style.display === 'none';
-          if (typeof _repShowPreviewModal === 'function') _repShowPreviewModal(); else m.style.display = 'block';
-          tw.dispatchEvent(new MouseEvent('click', { bubbles: true }));           // bubbles THROUGH the card to the modal — target !== modal, must stay open
+          m.dispatchEvent(new MouseEvent('click', { bubbles: true }));            // target === modal → must STAY open
+          var stayedOnBackdrop = m.style.display === 'block';
+          tw.dispatchEvent(new MouseEvent('click', { bubbles: true }));           // bubbles THROUGH the card to the modal — must stay open too
           var afterInnerBubble = m.style.display;
           closeBtn.click();                                                        // and the ✕ still closes it
           var afterCloseBtn = m.style.display;
@@ -1764,7 +1789,7 @@ window.__pageReady = runSharedPhotos();
             closeHittable: !!atPoint && (atPoint === closeBtn || closeBtn.contains(atPoint)),
             cardFits: cardR.top >= 0 && cardR.bottom <= window.innerHeight + 1,
             backdropScrolls: m.scrollHeight > m.clientHeight,
-            closedByBackdrop: closedByBackdrop,
+            stayedOnBackdrop: stayedOnBackdrop,
             afterInnerBubble: afterInnerBubble,
             afterCloseBtn: afterCloseBtn,
             openerTolerates: openerTolerates,
@@ -1779,9 +1804,9 @@ window.__pageReady = runSharedPhotos();
            st32.closeHittable);
         ok('report-preview ' + w32 + '×' + h32 + ': the card is viewport-capped — the backdrop has nothing to scroll',
            st32.cardFits && !st32.backdropScrolls);
-        ok('report-preview ' + w32 + '×' + h32 + ': clicking the dark backdrop closes the preview',
-           st32.closedByBackdrop);
-        ok('report-preview ' + w32 + '×' + h32 + ': a click INSIDE the card does NOT close it (the guard checks event.target)',
+        ok('report-preview ' + w32 + '×' + h32 + ': clicking the dark backdrop does NOT close the preview (v1789 rule)',
+           st32.stayedOnBackdrop);
+        ok('report-preview ' + w32 + '×' + h32 + ': a click INSIDE the card does NOT close it either',
            st32.afterInnerBubble === 'block');
         ok('report-preview ' + w32 + '×' + h32 + ': …and the ✕ still closes it',
            st32.afterCloseBtn === 'none');
