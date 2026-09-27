@@ -1696,6 +1696,12 @@ window.rrPrefsSync = async function () {
     }
     return touched;
   } catch (e) { console.warn('rrPrefsSync:', e); return false; }
+  finally {
+    // v0.9.1815: anything that must not decide before the account's settings
+    // have had their first say (the Dispatch Board's popup) waits on this.
+    // Set on EVERY exit — a failed pull is still a finished pull.
+    window._rrPrefsSyncDone = true;
+  }
 };
 
 // _prefSet calls this. Debounced, because a settings page can fire several

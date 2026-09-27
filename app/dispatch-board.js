@@ -29,7 +29,9 @@
 var DISPATCH_CFG = {
   tabName: 'Announcements',
   range: 'Announcements!A2:G500',
-  seenKey: 'lv_dispatch_seen',          // JSON array of seen IDs
+  seenKey: 'lv_dispatch_seen',          // JSON array of seen IDs — THIS device's own copy
+  seenSyncKey: 'lv_dispatch_seen_acct', // v0.9.1815: the same list on the ACCOUNT (via _prefSet)
+  syncWaitTries: 15,                    // v0.9.1815: popup waits for the first settings pull, ≤ 15 × pollMs
   dismissKey: 'lv_dispatch_dismissed',  // JSON array of dismissed (read) IDs
   cacheKey: 'lv_dispatch_cache',        // JSON {ts, rows} offline copy
   iconLg: 'img/dispatch-board-192.png', // popup
@@ -67,16 +69,30 @@ function _dbFmtDate(d) {
   } catch (e) { return ''; }
 }
 
-function _dbSeen() {
-  try { return JSON.parse(localStorage.getItem(DISPATCH_CFG.seenKey) || '[]'); }
+// v0.9.1815 (Brad, release readiness S1: "it should never come up fresh
+// again"). "Seen" lived in ONE browser, so the phone — or any fresh sign-in —
+// showed every announcement again. The list now rides the account through
+// _prefSet (the v1779 settings sync), AND this device keeps its own copy; a
+// read is the UNION of both, so no device ever forgets what it showed and a
+// merge can never un-read something. Dismissed (the ✕ archive) stays
+// per-device on purpose — it has a Restore button.
+function _dbListAt(key) {
+  try { var v = JSON.parse(localStorage.getItem(key) || '[]'); return Array.isArray(v) ? v : []; }
   catch (e) { return []; }
+}
+function _dbSeen() {
+  var out = _dbListAt(DISPATCH_CFG.seenKey);
+  _dbListAt(DISPATCH_CFG.seenSyncKey).forEach(function (id) { if (out.indexOf(id) < 0) out.push(id); });
+  return out;
 }
 
 function _dbMarkSeen(ids) {
   try {
     var seen = _dbSeen();
     ids.forEach(function (id) { if (seen.indexOf(id) < 0) seen.push(id); });
-    localStorage.setItem(DISPATCH_CFG.seenKey, JSON.stringify(seen));
+    var json = JSON.stringify(seen);
+    localStorage.setItem(DISPATCH_CFG.seenKey, json);
+    if (typeof _prefSet === 'function') _prefSet(DISPATCH_CFG.seenSyncKey, json);
   } catch (e) {}
 }
 
@@ -367,7 +383,12 @@ function _dbInjectUI() {
     var dataReady = shellReady && appActive
       && typeof sheetsGet === 'function'
       && window.state && state.masterSheetId;
-    if (dataReady) {
+    // v0.9.1815: the popup must not decide before the account's settings have
+    // arrived (they carry what was already shown on another device). Wait for
+    // the first pull to finish, capped at syncWaitTries × pollMs (≈30 s) so a
+    // slow or failed pull only delays the board, never silences it.
+    var prefsSettled = window._rrPrefsSyncDone === true || tries > DISPATCH_CFG.syncWaitTries;
+    if (dataReady && prefsSettled) {
       clearInterval(t);
       dbFetchAnnouncements();
     }
