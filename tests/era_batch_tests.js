@@ -69,8 +69,8 @@ ok('the main round flushes the pen, and only reindexes bare if the pen was empty
 ok('the straggler-retry round does the same (the retries fill the same pen)',
    /if \(!_applyPendingEras\(\)\) _rebuildMasterIndex\(\);   \/\/ v0\.9\.1710/.test(src), '');
 ok('the old per-landing reindex is gone from the whole all-eras block',
-   (src.slice(src.indexOf('function refreshAllErasInBackground'), src.indexOf('for (var i = 0; i < realEras.length; i++)')).match(/_rebuildMasterIndex\(\)/g) || []).length === 3,
-   String((src.slice(src.indexOf('function refreshAllErasInBackground'), src.indexOf('for (var i = 0; i < realEras.length; i++)')).match(/_rebuildMasterIndex\(\)/g) || []).length) + ' (want 3: inside the batch, and one fallback per round)');
+   (src.slice(src.indexOf('function refreshAllErasInBackground'), src.indexOf('for (var i = 0; i < refreshEras.length; i++)')).match(/_rebuildMasterIndex\(\)/g) || []).length === 3,
+   String((src.slice(src.indexOf('function refreshAllErasInBackground'), src.indexOf('for (var i = 0; i < refreshEras.length; i++)')).match(/_rebuildMasterIndex\(\)/g) || []).length) + ' (want 3: inside the batch, and one fallback per round)');
 
 // ── RUN the real function against a synthetic catalog ─────────────────────
 section('behaviour — the real _applyPendingEras, driven with stubs');

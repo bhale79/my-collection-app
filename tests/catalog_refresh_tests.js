@@ -117,7 +117,14 @@ async function main() {
 
   section('D — wiring');
   ok('_loadMasterVersion hands the version to _rrMasterVersionCheck', /state\.masterVersion = latest;\s*_rrMasterVersionCheck\(latest\.v\);/.test(AD));
-  ok('all-eras mode now reads the Master Version (it never did)', /await loadAllErasMode\(\);\s*_loadMasterVersion\(\);/.test(AD));
+  // v0.9.1818: the read moved INSIDE loadAllErasMode, awaited BEFORE the
+  // refresh decision (catalog_refresh_gate_tests pins the order) — so a
+  // changed sheet refreshes on the same start. app-data.js must not read it
+  // a second time afterwards.
+  const APPJS = fs.readFileSync(path.join(__dirname, '..', 'app', 'app.js'), 'utf8');
+  ok('all-eras mode reads the Master Version — inside loadAllErasMode, before deciding what to refresh',
+     /await _loadMasterVersion\(\)/.test(APPJS.slice(APPJS.indexOf('async function refreshAllErasInBackground')))
+     && !/await loadAllErasMode\(\);\s*_loadMasterVersion\(\);/.test(AD));
   ok('single-era mode still reads it', /buildPartnerMap\(\);\s*_loadMasterVersion\(\);/.test(AD));
 
   section('E — planted offenders: each must turn red');

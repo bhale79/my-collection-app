@@ -142,8 +142,7 @@ async function loadAllData() {
     // hydrates from per-era IDB caches in parallel and refreshes
     // each era from Sheets in sequence in the background.
     if (_currentEra === 'all' && typeof loadAllErasMode === 'function') {
-      await loadAllErasMode();
-      _loadMasterVersion();   // v0.9.1801 — all-eras mode never read it; it also carries sheet changes to this device
+      await loadAllErasMode();   // v0.9.1818: reads the Master Version itself, before deciding what to refresh
       _patchMasterData();
       _inferMissingYears();
       buildApp(); if (typeof _auditCatalogResolution === 'function') setTimeout(_auditCatalogResolution, 1500);

@@ -2268,6 +2268,23 @@ async function switchEra(era) {
 // UX: dashboard + collection light up in ~1-2s from cache. Refresh
 // happens in the background — user is already clicking around while
 // each era's fresh data lands and triggers a re-render.
+// v0.9.1818: THE decision "which cached catalogs need the sheet again". One
+// function so the parallel master loop and the sequential sets/catalogs loop
+// cannot disagree, and so catalog_refresh_gate_tests can run the real rule.
+// A maker is refreshed when it did not come from the cache, when its stamp is
+// zero (the Master Version changed — v1801 — or it was never fetched), or when
+// its stamp is older than CATALOG_REFRESH_MAX_AGE_DAYS (config.js).
+function _rrCatalogsToRefresh(eras, hydratedEras, now) {
+  var days = (typeof CATALOG_REFRESH_MAX_AGE_DAYS === 'number') ? CATALOG_REFRESH_MAX_AGE_DAYS : 7;
+  var maxAgeMs = days * 86400000;
+  return (eras || []).filter(function (e) {
+    if (!hydratedEras || !hydratedEras.has(e)) return true;
+    var ts = 0; try { ts = parseInt(localStorage.getItem('lv_master_cache_ts_' + e) || '0', 10) || 0; } catch (eTs) {}
+    return !ts || (now - ts) > maxAgeMs;
+  });
+}
+if (typeof window !== 'undefined') window._rrCatalogsToRefresh = _rrCatalogsToRefresh;
+
 async function loadAllErasMode() {
   _currentEra = 'all';
   localStorage.setItem('lv_era', 'all');
@@ -2303,6 +2320,7 @@ async function loadAllErasMode() {
     }
   } catch (e) { console.warn('[loadAllErasMode] era-pref filter failed; loading all:', e); }
   var hydrated = 0;
+  var hydratedEras = new Set();   // v0.9.1818: which makers came from the cache
   try {
     var masterCaches = await Promise.all(realEras.map(function(e) {
       return idbGet('lv_master_cache_' + e).catch(function() { return null; });
@@ -2314,6 +2332,7 @@ async function loadAllErasMode() {
         arr.forEach(function(m) { if (!m._era) m._era = era; });
         state.masterData = state.masterData.concat(arr);
         hydrated++;
+        hydratedEras.add(era);
       }
     });
     // Hydrate set/catalog/IS/companion from localStorage caches in
@@ -2418,8 +2437,29 @@ async function loadAllErasMode() {
     //     going till all are successful"
     //   • anything that still won't refresh gets a visible toast, not a
     //     buried console line
+    // ── v0.9.1818 (release readiness S3, MEASURED 2026-09-27) ────────────
+    // Every start re-downloaded all 44 makers from the sheet — 28 requests,
+    // ~12 s, seven reindex+repaint freezes between 8.5 s and 23 s — whether
+    // anything had changed or not. The app already knows when something
+    // changed: the Master Version row (v1801) zeroes every catalog stamp.
+    // So: read the version FIRST (one small request), then refresh ONLY the
+    // makers whose stamp is zero (version changed / never fetched), that did
+    // not come from the cache, or whose stamp is older than
+    // CATALOG_REFRESH_MAX_AGE_DAYS (config.js). A normal start refreshes
+    // nothing. ONE decision, written once: refreshEras drives both the
+    // parallel master loop and the sequential sets/catalogs/IS loop below.
+    try { if (typeof _loadMasterVersion === 'function') await _loadMasterVersion(); } catch (eMV) {}
+    var refreshEras = _rrCatalogsToRefresh(realEras, hydratedEras, Date.now());
+    console.log('[loadAllErasMode] catalogs to refresh: ' + refreshEras.length + ' of ' + realEras.length
+      + (refreshEras.length ? ' (' + refreshEras.join(', ') + ')' : ' — all current'));
+    if (!refreshEras.length) {
+      window._skipBackgroundRefresh = false;
+      if (state.loading && state.loading.allEras) { state.loading.allEras.refreshing = false; if (typeof _renderAllLoadingIndicator === 'function') _renderAllLoadingIndicator(); }
+      try { if (typeof rrWarmStale === 'function') rrWarmStale(); } catch (eWarm0) {}
+      return;
+    }
     state.loading = state.loading || {};
-    state.loading.allEras = { total: realEras.length, loaded: 0, refreshing: true };
+    state.loading.allEras = { total: refreshEras.length, loaded: 0, refreshing: true };
     if (typeof _renderAllLoadingIndicator === 'function') _renderAllLoadingIndicator();
     var _phase6OK = false;
     var _eraFailed = [];
@@ -2494,7 +2534,7 @@ async function loadAllErasMode() {
       }
     }
     try {
-      var _queue = realEras.slice();
+      var _queue = refreshEras.slice();   // v0.9.1818: only what is out of date
       async function _worker() {
         while (_queue.length) {
           var _era = _queue.shift();
@@ -2551,8 +2591,8 @@ async function loadAllErasMode() {
       })();
     }
 
-    for (var i = 0; i < realEras.length; i++) {
-      var era = realEras[i];
+    for (var i = 0; i < refreshEras.length; i++) {   // v0.9.1818: same decision as the master loop
+      var era = refreshEras[i];
       try {
         // Temporarily make the regular loaders see this era so they
         // pull from the right SHEET_TABS and write to the right cache

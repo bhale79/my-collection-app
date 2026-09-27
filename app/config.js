@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.1817';
+const APP_VERSION = 'v0.9.1818';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -315,6 +315,12 @@ window.ROAD_TYPEAHEAD_CONFIG = {
 
 // ── Master catalog sheet ID (read-only, shared across all users) ──
 const MASTER_SHEET_ID = '1Y9-cg8C1CkIqy0RQ66DfP7fmGrE3IGBpyJbtdfYx8q0';
+// v0.9.1818 (startup): a cached catalog is re-downloaded from the sheet when the
+// Master Version changed (v1801 zeroes its stamp) OR its stamp is older than
+// this many days — the safety net for an edit made without a version row.
+// Before this, every start re-downloaded all 44 catalogs (28 requests, ~12 s,
+// seven reindex+repaint freezes) whether anything had changed or not.
+const CATALOG_REFRESH_MAX_AGE_DAYS = 7;
 
 // ── Admin config ──
 // The address every "contact us" path hands to a user: Send Feedback in
