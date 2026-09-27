@@ -847,6 +847,27 @@ function _phErasFor(mfr, scale) {
   // Items with no matching mfr+scale in a given period just show empty results.
   return _ERA_PERIODS.slice();
 }
+// v0.9.1812 (Brad, release walk-through: a fresh account unticked S/HO/G/N
+// and eleven makers in Preferences, opened the Master Catalog's Manufacturer
+// picker, and every one of them was still offered): the ROWS have followed
+// What I Collect since v1796 (_offShelfEras), but the three picker lists
+// never asked. ONE question, the same one the rows ask: does the preference
+// tick this manufacturer / scale / period? 'any', dividers and the levels
+// that are not a preference axis always pass. Fail OPEN: a missing helper
+// hides nothing.
+function _phPrefAllows(level, id) {
+  try {
+    if (id == null || id === '' || id === 'any' || String(id).indexOf('own:') === 0) return true;
+    if (level === 'manufacturer') return (typeof _isManufacturerEnabled !== 'function') || _isManufacturerEnabled(id);
+    if (level === 'scale')        return (typeof _isScaleEnabled !== 'function') || _isScaleEnabled(id);
+    if (level === 'era') {
+      var p = (id === 'postwar') ? 'pw' : id;             // picker says 'postwar'; the preference says 'pw'
+      return (typeof _isPeriodEnabled !== 'function') || _isPeriodEnabled(p);
+    }
+  } catch (e) {}
+  return true;
+}
+if (typeof window !== 'undefined') window._phPrefAllows = _phPrefAllows;
 
 // Manufacturer -> list of scale ids that have at least one era available.
 function _phScalesFor(mfr) {
@@ -1400,6 +1421,22 @@ function _openLevelPicker(level) {
     var n = _pc[o.id];
     if (n) o.label += ' (' + n.toLocaleString() + ')';
   });
+  // v0.9.1812: the list follows What I Collect. Master Catalog: only what is
+  // ticked. My Collection: ticked PLUS anything unticked you actually own
+  // something in (its count is non-zero) — owned is never hidden (v1796), so
+  // the picker must still be able to reach it. A divider with nothing after
+  // it goes too.
+  var _inColl = !!(state.filters && state.filters.owned);
+  options = options.filter(function (o) {
+    if (!o || o.divider) return true;
+    if (_phPrefAllows(level, o.id)) return true;
+    return _inColl && !!(_pc && _pc[o.id] > 0);
+  });
+  options = options.filter(function (o, i, arr) {
+    if (!o || !o.divider) return true;
+    return arr.slice(i + 1).some(function (x) { return x && !x.divider; });
+  });
+  if (!options.length) options.push({ id: '', label: '(none available)' });
 
   var overlayId = 'ph-picker-overlay';
   var existing = document.getElementById(overlayId);
