@@ -3705,12 +3705,22 @@ function _rrBrowseCore(_co) {
   var _bvAdopt = null;
   if (state.filters.owned) {
     _bvAdopt = new Map();
-    var _bvByNum = new Map();
-    state.masterData.forEach(function (m) {
-      var _bn = _displayItemNum(m);
-      if (!_bvByNum.has(_bn)) _bvByNum.set(_bn, []);
-      _bvByNum.get(_bn).push(m);
-    });
+    // v0.9.1817 (S4, measured: 488,154 _displayItemNum calls per My Collection
+    // draw = three full walks of 162k rows for 233 items). This map is one of
+    // them, and it only changes when the catalog does — cached on the same
+    // signature masterNums uses above.
+    var _bvByNum = window.__rrBvByNum;
+    if (!_bvByNum || window.__rrBvByNumSrc !== state.masterData || window.__rrBvByNumLen !== state.masterData.length) {
+      _bvByNum = new Map();
+      state.masterData.forEach(function (m) {
+        var _bn = _displayItemNum(m);
+        if (!_bvByNum.has(_bn)) _bvByNum.set(_bn, []);
+        _bvByNum.get(_bn).push(m);
+      });
+      window.__rrBvByNum = _bvByNum;
+      window.__rrBvByNumSrc = state.masterData;
+      window.__rrBvByNumLen = state.masterData.length;
+    }
     Object.values(state.personalData).forEach(function (p) {
       if (!p || !p.owned || !p.itemNum) return;
       // v0.9.1193 (Brad's phantom Williams 2321 and "53" 1953-catalog rows):
@@ -3941,6 +3951,24 @@ function _rrBrowseCore(_co) {
     : [];
   // v0.9.1796: an era loaded only because something is OWNED in it stays off
   // the catalog shelf — What I Collect still decides what you browse.
+  // v0.9.1817 (S4): in My Collection a catalog row can pass _rowPasses ONLY
+  // if _rrPdForRow can return a copy for it — and _rrPdForRow returns null at
+  // once unless the row's display number is one the user owns
+  // (_pdNumsExact) or an adoption seat names the row (_bvAdopt). Both are
+  // known before the walk, so the candidates are exactly the _bvByNum
+  // buckets of the owned numbers plus every adopted row; every other row
+  // would fall to `owned && !isOwned` (or isSold) and return false anyway.
+  // The gate is the first line of _rowPasses, so the 162k non-candidates
+  // cost one Set lookup each instead of two _displayItemNum calls and a
+  // findPD. Rows, order and rules are unchanged — browse_owned_perf_tests
+  // proves the drawn list is identical with the gate on and off.
+  // window._rrNoCandidateGate is that test's switch; nothing else sets it.
+  var _ownedCandidates = null;
+  if (owned && _bvByNum && !window._rrNoCandidateGate) {
+    _ownedCandidates = new Set();
+    _pdNumsExact.forEach(function (n) { var b = _bvByNum.get(n); if (b) for (var i = 0; i < b.length; i++) _ownedCandidates.add(b[i]); });
+    if (_bvAdopt) _bvAdopt.forEach(function (a) { if (a && a.row) _ownedCandidates.add(a.row); });
+  }
   const _offShelf = (!owned && typeof _offShelfEras === 'function') ? _offShelfEras() : new Set();
   const baseList = owned ? [...state.masterData, ...personalOnlyItems]
     : (_currentEra === 'all'
@@ -3961,6 +3989,7 @@ function _rrBrowseCore(_co) {
     }
   })();
   const _rowPasses = item => {
+    if (_ownedCandidates && !item._personalOnly && !_ownedCandidates.has(item)) return false;   // v0.9.1817
     const _dispNum = _displayItemNum(item);
     // v0.9.1120: shared resolver — strict item+variation match plus the
     // blank-variation adoption above (authoritative: an item without a
