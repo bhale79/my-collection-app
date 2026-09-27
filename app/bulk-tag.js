@@ -486,7 +486,8 @@ async function rrTagApply() {
     }
   } catch (e) {
     console.error('[bulk tag] write failed:', e);
-    if (typeof showToast === 'function') showToast('Could not save: ' + (e && e.message ? e.message : 'error'), 6000, true);
+    // v0.9.1813: plain words for the user; the detail is in the console line above.
+    if (typeof showToast === 'function') showToast('Could not save your tags \u2014 nothing was changed. Please try again.', 6000, true);
     return;
   }
   // Local copy + undo record, then let the list repaint.
@@ -579,7 +580,8 @@ async function rrTagUndo(idx, btn) {
   try {
     for (var i = 0; i < data.length; i += 500) await _rrTagBatch(data.slice(i, i + 500));
   } catch (e) {
-    if (typeof showToast === 'function') showToast('Undo failed: ' + (e && e.message ? e.message : 'error'), 5000, true);
+    console.error('[bulk tag] undo failed:', e);
+    if (typeof showToast === 'function') showToast('Could not undo the tags \u2014 please try again.', 5000, true);
     if (btn) { btn.disabled = false; btn.textContent = 'Undo'; }
     return;
   }

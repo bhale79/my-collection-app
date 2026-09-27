@@ -7251,7 +7251,7 @@ async function _wizardNextCore() {
     } catch(e) {
       if (_nextBtn) { _nextBtn.disabled = false; _nextBtn.textContent = 'Next \u2192'; }
       try { if (typeof rrSyncLog === 'function') rrSyncLog('saveFAILED', String((e && e.message) || e).slice(0, 80)); } catch (eL) {}
-      showToast((typeof rrSaveError === 'function') ? rrSaveError(e, 'your change') : '\u274c Save failed: ' + e.message, 5000);
+      showToast(rrSaveError(e, 'your change'), 5000);
     }
     return;
   }
@@ -7265,7 +7265,7 @@ async function _wizardNextCore() {
   // Set confirm
   if (s.id === 'set_confirm') {
     if (_nextBtn) { _nextBtn.disabled = true; _nextBtn.textContent = 'Saving…'; }
-    try { await saveSet(); } catch(e) { showToast((typeof rrSaveError === 'function') ? rrSaveError(e, 'your change') : 'Error: ' + e.message, 5000, true); }
+    try { await saveSet(); } catch(e) { showToast(rrSaveError(e, 'your change'), 5000, true); }
     if (_nextBtn) { _nextBtn.disabled = false; _nextBtn.textContent = 'Save →'; }
     return;
   }
@@ -7273,7 +7273,7 @@ async function _wizardNextCore() {
   // Instruction Sheet confirm
   if (s.id === 'is_confirm') {
     if (_nextBtn) { _nextBtn.disabled = true; _nextBtn.textContent = 'Saving…'; }
-    try { await saveInstructionSheet(); } catch(e) { showToast((typeof rrSaveError === 'function') ? rrSaveError(e, 'your change') : 'Error: ' + e.message, 5000, true); }
+    try { await saveInstructionSheet(); } catch(e) { showToast(rrSaveError(e, 'your change'), 5000, true); }
     if (_nextBtn) { _nextBtn.disabled = false; _nextBtn.textContent = 'Save →'; }
     return;
   }
@@ -7286,19 +7286,19 @@ async function _wizardNextCore() {
     // If paper type is Instruction Sheet, route to IS save instead
     if (wizard.data.eph_paperType === 'Instruction Sheet') {
       if (_nextBtn) { _nextBtn.disabled = true; _nextBtn.textContent = 'Saving…'; }
-      try { await saveInstructionSheet(); } catch(e) { showToast((typeof rrSaveError === 'function') ? rrSaveError(e, 'your change') : 'Error: ' + e.message, 5000, true); }
+      try { await saveInstructionSheet(); } catch(e) { showToast(rrSaveError(e, 'your change'), 5000, true); }
       if (_nextBtn) { _nextBtn.disabled = false; _nextBtn.textContent = 'Save →'; }
       return;
     }
     // If paper type is Catalog, route to Catalogs tab save
     if (wizard.data.eph_paperType === 'Catalog') {
       if (_nextBtn) { _nextBtn.disabled = true; _nextBtn.textContent = 'Saving…'; }
-      try { await _saveCatalogFromPaper(); } catch(e) { showToast((typeof rrSaveError === 'function') ? rrSaveError(e, 'your change') : 'Error: ' + e.message, 5000, true); }
+      try { await _saveCatalogFromPaper(); } catch(e) { showToast(rrSaveError(e, 'your change'), 5000, true); }
       if (_nextBtn) { _nextBtn.disabled = false; _nextBtn.textContent = 'Save →'; }
       return;
     }
     if (_nextBtn) { _nextBtn.disabled = true; _nextBtn.textContent = 'Saving…'; }
-    try { await saveEphemeraItem(); } catch(e) { showToast((typeof rrSaveError === 'function') ? rrSaveError(e, 'your change') : 'Error: ' + e.message, 5000, true); }
+    try { await saveEphemeraItem(); } catch(e) { showToast(rrSaveError(e, 'your change'), 5000, true); }
     if (_nextBtn) { _nextBtn.disabled = false; _nextBtn.textContent = 'Save →'; }
     return;
   }
@@ -7306,7 +7306,7 @@ async function _wizardNextCore() {
   // Manual entry confirm — separate save path, no catalog matching
   if (s.type === 'confirm' && wizard.data._manualEntry) {
     if (_nextBtn) { _nextBtn.disabled = true; _nextBtn.textContent = 'Saving…'; }
-    try { await _saveManualEntry(); } catch(e) { showToast((typeof rrSaveError === 'function') ? rrSaveError(e, 'your change') : 'Error: ' + e.message, 5000, true); }
+    try { await _saveManualEntry(); } catch(e) { showToast(rrSaveError(e, 'your change'), 5000, true); }
     if (_nextBtn) { _nextBtn.disabled = false; _nextBtn.textContent = 'Save →'; }
     return;
   }
@@ -7319,18 +7319,18 @@ async function _wizardNextCore() {
     const _scTab = _scMaster._tab || '';
     if (_scType === 'Science Set' || _scTab === SHEET_TABS.science) {
       if (_nextBtn) { _nextBtn.disabled = true; _nextBtn.textContent = 'Saving…'; }
-      try { await _saveScienceConstructionItem('Science Sets', 'scienceData'); } catch(e) { showToast((typeof rrSaveError === 'function') ? rrSaveError(e, 'your change') : 'Error: ' + e.message, 5000, true); }
+      try { await _saveScienceConstructionItem('Science Sets', 'scienceData'); } catch(e) { showToast(rrSaveError(e, 'your change'), 5000, true); }
       if (_nextBtn) { _nextBtn.disabled = false; _nextBtn.textContent = 'Save →'; }
       return;
     }
     if (_scType === 'Construction Set' || _scTab === SHEET_TABS.construction) {
       if (_nextBtn) { _nextBtn.disabled = true; _nextBtn.textContent = 'Saving…'; }
-      try { await _saveScienceConstructionItem('Construction Sets', 'constructionData'); } catch(e) { showToast((typeof rrSaveError === 'function') ? rrSaveError(e, 'your change') : 'Error: ' + e.message, 5000, true); }
+      try { await _saveScienceConstructionItem('Construction Sets', 'constructionData'); } catch(e) { showToast(rrSaveError(e, 'your change'), 5000, true); }
       if (_nextBtn) { _nextBtn.disabled = false; _nextBtn.textContent = 'Save →'; }
       return;
     }
     if (_nextBtn) { _nextBtn.disabled = true; _nextBtn.textContent = 'Saving…'; }
-    try { await saveWizardItem(); } catch(e) { showToast((typeof rrSaveError === 'function') ? rrSaveError(e, 'your change') : 'Error: ' + e.message, 5000, true); }
+    try { await saveWizardItem(); } catch(e) { showToast(rrSaveError(e, 'your change'), 5000, true); }
     if (_nextBtn) { _nextBtn.disabled = false; _nextBtn.textContent = 'Save →'; }
     return;
   }

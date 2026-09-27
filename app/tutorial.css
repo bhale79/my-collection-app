@@ -28,7 +28,7 @@
   font-family: var(--font-body, sans-serif);
   font-size: 0.82rem;
   font-weight: 700;
-  color: var(--text-dim, #999);
+  color: var(--text-mid, #bbb); /* v0.9.1813: same idle tone as the nav items above it */
   white-space: nowrap;
 }
 #tut-help-conductor {

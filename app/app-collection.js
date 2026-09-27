@@ -2450,7 +2450,7 @@ async function openPhotoFolder(itemNum, storedLink, invId) {
       try { if (typeof rrThumbBust === 'function') rrThumbBust(state.personalData[_pfKey]); } catch (eTB) {}   // v0.9.1201
       rrVerifiedRowUpdate(state.personalSheetId, PERSONAL_TAB, state.personalData[_pfKey].row, PERSONAL_TAB + '!' + personalColLetter('photoItem') + state.personalData[_pfKey].row, [[freshLink]], { num: state.personalData[_pfKey].itemNum || '', invId: state.personalData[_pfKey].inventoryId || '' }, 'collection').catch(function(e) { console.warn('Photo link update:', e); });
     }
-  } catch(e) { showToast((typeof rrSaveError === 'function') ? rrSaveError(e, 'the folder') : 'Could not open Drive folder: ' + e.message, 5000, true); }
+  } catch(e) { showToast(rrSaveError(e, 'the folder'), 5000, true); }
 }
 
 function showOwnedItemMenu(idx, pdKey) {
@@ -2778,7 +2778,7 @@ function _checkGroupBeforeForSale(globalIdx, pdKey) {
       showToast('✓ Set listed for sale for ' + _currencySymbol() + parseFloat(askingPrice).toLocaleString());
     } catch(e) {
       console.error('Group for sale error:', e);
-      showToast((typeof rrSaveError === 'function') ? rrSaveError(e, 'this item') : '❌ Error: ' + e.message, 5000, true);
+      showToast(rrSaveError(e, 'this item'), 5000, true);
       if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'List all ' + allItems.length + ' items for sale'; }
     }
   };
@@ -4324,7 +4324,7 @@ function showItemPanel(idx, pdKey, mode) {
         }
       } catch(e) {
         saveBtn.textContent = '💾 Save All Changes'; saveBtn.disabled = false;
-        showToast((typeof rrSaveError === 'function') ? rrSaveError(e, 'your change') : 'Error: ' + e.message, 5000, true);
+        showToast(rrSaveError(e, 'your change'), 5000, true);
       }
     };
 

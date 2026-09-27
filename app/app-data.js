@@ -236,7 +236,7 @@ async function loadAllData() {
       if (typeof _scheduleProtectionCheck === 'function') _scheduleProtectionCheck(state.personalSheetId);
     }
   } catch(e) {
-    showToast((typeof rrSaveError === 'function') ? rrSaveError(e, 'the load') : 'Load error: ' + e.message, 5000, true);
+    showToast(rrSaveError(e, 'the load'), 5000, true);
     const tb = document.getElementById('browse-tbody');
     if (tb) tb.innerHTML = '<tr><td colspan="9" style="padding:2rem;color:var(--red);text-align:center">Error loading data. Please refresh.<br><small>' + e.message + '</small></td></tr>';
   }

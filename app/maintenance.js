@@ -1801,7 +1801,7 @@
         if (typeof showToast === 'function') showToast('✓ Saved to My Manuals');
       } catch (e) {
         btn.disabled = false; btn.textContent = 'Save';
-        if (typeof showToast === 'function') showToast('Could not save — ' + (e && e.message || 'try again'), 4000, true);
+        if (typeof showToast === 'function') showToast(rrSaveError(e, 'your change'), 4000, true);
       }
     };
     var first = document.getElementById(type === 'link' ? 'docf-url' : 'docf-title'); if (first) first.focus();
@@ -2008,7 +2008,7 @@
       if (customIn) customIn.value = '';
       if (_wbTarget) _wbCloseCard();   // came in through the Workbench card → close it, redraw the bench
       if (typeof showToast === 'function') showToast('✓ On the Workbench: ' + chore);
-    } catch (e) { if (typeof showToast === 'function') showToast('Could not save the chore — ' + (e && e.message || 'try again'), 4000, true); }
+    } catch (e) { if (typeof showToast === 'function') showToast(rrSaveError(e, 'the chore'), 4000, true); }
   };
 
   window._maintChoreDone = async function (rowNum, logId) {
@@ -2115,7 +2115,7 @@
         if (ctx && document.getElementById('wb-history')) window._maintShowHistory(ctx.invId, ctx.itemNum);   // v0.9.1751: from the History tab there is no per-item card to reopen
         _maintRenderTasks(); _wbBuild();
         if (typeof showToast === 'function') showToast('✓ Entry updated');
-      } catch (e) { btn.disabled = false; btn.textContent = 'Save'; if (typeof showToast === 'function') showToast('Could not save — ' + (e && e.message || 'try again'), 4000, true); }
+      } catch (e) { btn.disabled = false; btn.textContent = 'Save'; if (typeof showToast === 'function') showToast(rrSaveError(e, 'your change'), 4000, true); }
     };
   };
   // v0.9.1752: ONE remover for a log row — the history's Remove and the task
@@ -2637,7 +2637,7 @@
       var fields = { description: isNum ? '' : txt, partNum: isNum ? txt : '', forItem: String(tg.item.itemNum || ''), forInv: tg.invId || '',
                      notes: taskId ? 'for Workbench task' : 'from the Workbench', status: 'wanted', taskId: taskId || '' };
       await _maintPopSaveWanted(fields, taskId, function () { window._maintPopAddWanted(taskId); });
-    } catch (e) { if (typeof showToast === 'function') showToast('Could not save the part — ' + (e && e.message || 'try again'), 4000, true); }
+    } catch (e) { if (typeof showToast === 'function') showToast(rrSaveError(e, 'the part'), 4000, true); }
   };
   // v0.9.1756: the ONE save path behind the popup's typed box AND the catalog
   // lane's "+ Want it" — the duplicate check, the one appender, the refresh.
@@ -2682,7 +2682,7 @@
       var fields = { description: String(row.description || ''), partNum: String(row.itemNum || ''), forItem: String(tg.item.itemNum || ''), forInv: tg.invId || '',
                      notes: note, status: 'wanted', taskId: taskId || '' };
       await _maintPopSaveWanted(fields, taskId, function () { window._maintPopWantCatalog(era, partNum, variation, taskId); });
-    } catch (e) { if (typeof showToast === 'function') showToast('Could not save the part — ' + (e && e.message || 'try again'), 4000, true); }
+    } catch (e) { if (typeof showToast === 'function') showToast(rrSaveError(e, 'the part'), 4000, true); }
   };
 
   // ════════════════════════════════════════════════════════════════
@@ -2786,7 +2786,7 @@
         if (typeof showToast === 'function') showToast('✓ Parts Bin updated');
       } catch (e) {
         btn.disabled = false; btn.textContent = existing.id ? 'Save changes' : 'Add to bin';
-        if (typeof showToast === 'function') showToast('Could not save — ' + (e && e.message || 'try again'), 4000, true);
+        if (typeof showToast === 'function') showToast(rrSaveError(e, 'your change'), 4000, true);
       }
     };
     var first = document.getElementById('binf-desc'); if (first) first.focus();
@@ -2954,7 +2954,7 @@
       _maintRenderTasks(); _wbBadge();
       if (_wbTarget) _wbCloseCard();
       if (typeof showToast === 'function') showToast(taskId ? '✓ Pulled one from the bin — it’s on the task, ready to install' : '✓ Pulled one from the bin — it’s spoken for this item, ready to install');
-    } catch (e) { if (typeof showToast === 'function') showToast('Could not use the bin part — ' + (e && e.message || 'try again'), 4000, true); }
+    } catch (e) { if (typeof showToast === 'function') showToast(rrSaveError(e, 'the bin part'), 4000, true); }
   };
   window._maintBinCheck = function (taskId) {
     var el = document.getElementById('maint-pop-bin'); if (!el) return;
@@ -3084,7 +3084,7 @@
       }
       _binBuild();
       if (typeof showToast === 'function') showToast('✓ Spoken for — it’s on ' + (p.forItem || 'the item') + ' now, ready to install');
-    } catch (e) { if (typeof showToast === 'function') showToast('Could not use the bin part — ' + (e && e.message || 'try again'), 4000, true); }
+    } catch (e) { if (typeof showToast === 'function') showToast(rrSaveError(e, 'the bin part'), 4000, true); }
   };
 
   function _binFitsHtml(b) {
@@ -3356,7 +3356,7 @@
         await _loadMyDocs();
         _wbBuild(); _maintRenderMyDocs();
         if (typeof showToast === 'function') showToast('✓ Updated');
-      } catch (e) { btn.disabled = false; btn.textContent = 'Save'; if (typeof showToast === 'function') showToast('Could not save — ' + (e && e.message || 'try again'), 4000, true); }
+      } catch (e) { btn.disabled = false; btn.textContent = 'Save'; if (typeof showToast === 'function') showToast(rrSaveError(e, 'your change'), 4000, true); }
     };
     var first = document.getElementById('tbe-title'); if (first) first.focus();
   };

@@ -764,6 +764,7 @@ function openHelpHub() {
     +   row(X + "if(typeof showWelcomeCard==='function')showWelcomeCard(true);", '👋', 'Show the welcome card again', 'The first-run overview of what the app does')
     +   hdr('Tips & Recovery')
     +   row(X + "if(typeof _uiShowVersionHistoryHelp==='function')_uiShowVersionHistoryHelp();", '↩️', 'How to undo a mistake', 'Restore an earlier version of your data')
+    +   row(X + "if(typeof _rrTwoDevicesHelp==='function')_rrTwoDevicesHelp();", '\ud83d\udcf1', 'Using more than one device', 'Phone and computer both work \u2014 here is the one thing to know')
     +   row(X + "if(typeof resetContextualHints==='function'){resetContextualHints();if(typeof showToast==='function')showToast('Tips re-enabled. Visit a list page to see them.');}", '💡', 'Reset tips', 'Show the one-time hint bubbles again')
     +   hdr('Suggestions')
     +   row(X + "if(typeof _rrGuidePhotos==='function')_rrGuidePhotos();", '📷', 'Photographing a large collection', 'A working method for getting a whole wall or cabinet into your roster')
@@ -775,6 +776,39 @@ function openHelpHub() {
   document.body.appendChild(modal);
 }
 window.openHelpHub = openHelpHub;
+
+// ══ v0.9.1813 (release walk-through, S11) — USING MORE THAN ONE DEVICE ═══════
+// The app keeps no server copy: every device reads and writes the same Google
+// Sheet, and the last save wins. Nothing warns about it, so the Help Center
+// says it plainly. Same shape as _uiShowVersionHistoryHelp (prefs.js).
+function _rrTwoDevicesHelp() {
+  var ex = document.getElementById('rr-two-devices-help'); if (ex) ex.remove();
+  var modal = document.createElement('div');
+  modal.id = 'rr-two-devices-help';
+  modal.style.cssText = 'position:fixed;inset:0;background:var(--scrim);z-index:9999;' +
+    'display:flex;align-items:center;justify-content:center;padding:1rem';
+  modal.innerHTML =
+    '<div style="background:var(--surface);color:var(--text);border-radius:12px;max-width:520px;width:100%;' +
+      'max-height:85vh;display:flex;flex-direction:column;box-shadow:0 10px 40px var(--scrim)">' +
+      '<div style="padding:1rem 1.25rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">' +
+        '<strong style="font-size:1.05rem">Using more than one device</strong>' +
+        '<button onclick="document.getElementById(\'rr-two-devices-help\').remove()" ' +
+          'style="background:none;border:none;color:var(--text);font-size:1.5rem;cursor:pointer;line-height:1;padding:0 0.25rem" aria-label="Close">×</button>' +
+      '</div>' +
+      '<div style="padding:1.25rem;overflow:auto;line-height:1.55;font-size:0.92rem">' +
+        '<p style="margin:0 0 0.85rem">Your roster lives in <strong>one Google Sheet</strong>, and every device you sign in on ' +
+          'reads and writes that same sheet. Your phone, tablet and computer all see the same items, photos and settings.</p>' +
+        '<p style="margin:0 0 0.5rem;font-weight:600">The one thing to know:</p>' +
+        '<p style="margin:0 0 0.85rem">If two devices edit the <em>same item</em> at the same time, <strong>the last save wins</strong> ' +
+          '— the app does not merge the two. So finish an edit on one device before picking the item up on another.</p>' +
+        '<p style="margin:0 0 0.85rem">Adding different items from two devices at once is fine. And if something does get overwritten, ' +
+          'Google Sheets keeps every version — see <em>How to undo a mistake</em> in this Help Center.</p>' +
+      '</div>' +
+    '</div>';
+  document.body.appendChild(modal);
+  rrDismissGuard(modal);   // a backdrop click does nothing (Brad: "never close if you pick outside")
+}
+window._rrTwoDevicesHelp = _rrTwoDevicesHelp;
 
 // ══ v0.9.1438 (Brad) — SUGGESTIONS: how to photograph a big collection ══════
 // Brad wrote this from doing it himself; it lives in the Help Center so it is

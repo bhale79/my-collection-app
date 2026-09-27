@@ -2514,8 +2514,8 @@ async function _impWrite() {
     _impWriteDone = false;   // allow retry — appends are atomic per chunk
     _imp.step = 'preview';
     _impRender();
-    showToast('Import stopped partway: ' + (e && e.message ? e.message : 'write failed') +
-      ' — already-written items can be removed with Undo from Preferences.', 6000, true);
+    console.error('[Import] stopped partway:', e);   // v0.9.1813: the detail lives here, not in the toast
+    showToast('The import stopped partway \u2014 the items already written can be removed with Undo in Preferences, then try again.', 6000, true);
   }
 }
 
@@ -2589,7 +2589,7 @@ async function rrImportUndo(batchId, btn) {
   } catch (e) {
     console.error('[Import] undo failed:', e);
     if (btn) { btn.disabled = false; btn.textContent = 'Remove this import'; }
-    showToast('Could not remove the import: ' + (e && e.message ? e.message : 'error'), 5000, true);
+    showToast('Could not remove the import \u2014 please try again.', 5000, true);
   }
 }
 

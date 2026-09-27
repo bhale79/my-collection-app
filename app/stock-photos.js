@@ -168,7 +168,7 @@
       if (!(await _writeLink(pd, ''))) return;
       if (typeof showToast === 'function') showToast('✓ Stock photo removed');
       if (typeof rrDetailRepaint === 'function') rrDetailRepaint(0, inv);   // v0.9.1765: THIS copy, position resolved fresh
-    } catch (e) { if (typeof showToast === 'function') showToast('Could not save — ' + (e && e.message || 'try again'), 4000, true); }
+    } catch (e) { if (typeof showToast === 'function') showToast(rrSaveError(e, 'your change'), 4000, true); }
   };
 
   // ── THE WANTED QUEUE (v0.9.1684) ─────────────────────────────────

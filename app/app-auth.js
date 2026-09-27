@@ -525,7 +525,7 @@ function handleSignIn() {
   } catch (e) {
     _rrAuthLog('sign-in THREW: ' + (e && e.message));
     _resetSignInButton();
-    if (typeof showToast === 'function') showToast((typeof rrSaveError === 'function') ? rrSaveError(e, 'sign-in') : 'Sign-in failed: ' + e.message, 4000, true);
+    if (typeof showToast === 'function') showToast(rrSaveError(e, 'sign-in'), 4000, true);
   }
 }
 

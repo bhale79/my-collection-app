@@ -225,7 +225,8 @@ ok('every guarded overlay offers Cancel / Done / Close / ✕', trapped.length ==
 // v1786 pinned 15 across seven named files; v1788 scanned every file and
 // added the Maintenance task card; v1790 guarded the fourteen read-only
 // overlays too, so there is now ONE rule with no exceptions in it.
-ok('40 guarded call sites, and ONE helper behind them', sites === 40, String(sites));
+// v0.9.1813: 41 — the Help Center's "Using more than one device" card (tutorial.js).
+ok('41 guarded call sites, and ONE helper behind them', sites === 41, String(sites));
 
 // nobody double-wires BackStack any more — the guard does it, once
 let dbl = 0;

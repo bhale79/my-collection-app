@@ -10690,8 +10690,16 @@ META_WRITES.length = 0; TOASTS.length = 0;
     ok('the item and sale saves say "your item", not "your change"',
        (ws.match(/rrSaveError\(e, 'your item'\)/g) || []).length === 5,
        String((ws.match(/rrSaveError\(e, 'your item'\)/g) || []).length));
-    ok('every rewritten site still works if the helper is somehow missing',
-       (ws.match(/typeof rrSaveError === 'function'/g) || []).length >= 5);
+    // v0.9.1813 (release readiness S14): FLIPPED. The `typeof rrSaveError`
+    // fallback was `'Error: ' + e.message` — the raw text this whole section
+    // exists to keep off the screen — and the helper is a top-level function
+    // in write-outbox.js, present on every start, so the fallback could only
+    // ever run in a harness. A typeof guard is where dead code hides
+    // (rules_testing). user_message_tests.js keeps the whole app at zero.
+    ok('no rewritten site carries a raw-text fallback behind a typeof guard any more',
+       (ws.match(/typeof rrSaveError === 'function'/g) || []).length === 0);
+    ok('…because the helper is a plain top-level function, exported from write-outbox.js',
+       /^\s*function rrSaveError\(err, what, opts\)/m.test(rd('write-outbox.js')) && /window\.rrSaveError = rrSaveError/.test(rd('write-outbox.js')));
   })();
 
   // ═══════════════════════════════════════════════════════════

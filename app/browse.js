@@ -3282,7 +3282,7 @@ function _ncShowFsSoldModal(type, key, action) {
       if (typeof renderBrowse === 'function') renderBrowse();
       if (typeof buildDashboard === 'function') buildDashboard();
     } catch(e) {
-      showToast((typeof rrSaveError === 'function') ? rrSaveError(e, 'your change') : 'Error: ' + e.message, 4000, true);
+      showToast(rrSaveError(e, 'your change'), 4000, true);
     }
   };
 }
@@ -3400,7 +3400,7 @@ function _ncShowUpgradeModal(type, key) {
       showToast('✓ Added to Upgrade list');
       if (typeof buildDashboard === 'function') buildDashboard();
     } catch(e) {
-      showToast((typeof rrSaveError === 'function') ? rrSaveError(e, 'your change') : 'Error: ' + e.message, 4000, true);
+      showToast(rrSaveError(e, 'your change'), 4000, true);
     }
   };
 }
