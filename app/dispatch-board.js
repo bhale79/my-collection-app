@@ -390,6 +390,11 @@ function _dbInjectUI() {
     var prefsSettled = window._rrPrefsSyncDone === true || tries > DISPATCH_CFG.syncWaitTries;
     if (dataReady && prefsSettled) {
       clearInterval(t);
+      // v0.9.1816: publish what THIS device already showed to the account —
+      // a device that read announcements before v1815 has them only locally,
+      // and the other devices would show those again until it saw a new one.
+      // _dbMarkSeen([]) writes the union of local + account to both.
+      try { if (_dbListAt(DISPATCH_CFG.seenKey).some(function (id) { return _dbListAt(DISPATCH_CFG.seenSyncKey).indexOf(id) < 0; })) _dbMarkSeen([]); } catch (e) {}
       dbFetchAnnouncements();
     }
   }, DISPATCH_CFG.pollMs);

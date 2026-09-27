@@ -619,6 +619,24 @@ var accessToken = null;
 // Track whether this is the first token receipt (triggers full load) or a background refresh (just updates token)
 var _tokenIsInitial = true;
 
+// v0.9.1816: ONE copy of "pull the account's settings" (v1779), called from
+// onTokenReceived on every initial token. Deliberately NOT awaited — a
+// settings sync must never delay the collection loading. When something
+// arrived from another device, only the settings that PAINT are replayed;
+// every other one is read through _prefGet the next time it is used. Both
+// replay functions are real — app.js:applyTheme, app.js:_applyCompactMode
+// (a first draft called one that did not exist; the typeof guard hid it).
+function _rrPullAccountPrefs() {
+  try {
+    if (typeof window.rrPrefsSync !== 'function') return;
+    window.rrPrefsSync().then(function (touched) {
+      if (!touched) return;
+      try { if (typeof applyTheme === 'function') applyTheme(); } catch (e) {}
+      try { if (typeof _applyCompactMode === 'function') _applyCompactMode(); } catch (e) {}
+    });
+  } catch (e) { console.warn('prefs sync:', e); }
+}
+
 function onTokenReceived(resp) {
   // Bugfix 2026-04-14: only clear the sign-in overlay on ERROR path.
   // On SUCCESS path, leave the overlay up until showApp() runs — otherwise
@@ -722,6 +740,17 @@ function onTokenReceived(resp) {
   state.masterSheetId = MASTER_SHEET_ID;
   localStorage.setItem('lv_master_id', state.masterSheetId);
 
+  // v0.9.1816 — THE ACCOUNT'S SETTINGS ARE PULLED ON EVERY START.
+  // v1779 wrote this pull into the branch below that runs only when the Drive
+  // config file is MISSING and the sheet has to be found by name. On a normal
+  // start that branch is skipped, so for five weeks a device only ever SENT
+  // settings (when it changed one) and never RECEIVED the other device's —
+  // Brad's "my phone and desktop disagree", still, after "all eighteen
+  // preferences follow the account". Proven live 2026-09-27: 12 s after a
+  // normal start, rrPrefsSync had not run. Once per start, on the path every
+  // start takes, before the config read.
+  if (isInitial) _rrPullAccountPrefs();
+
   // Always sync from Drive config to ensure correct sheet ID across devices
   driveReadConfig().then(async config => {
     if (config && config.personalSheetId) {
@@ -760,25 +789,9 @@ function onTokenReceived(resp) {
         });
       } else {
         driveEnsureSetup().catch(e => console.warn('Drive setup:', e));
-        // v0.9.1779: pull the account's settings once, right after sign-in.
-        // Deliberately NOT awaited — a settings sync must never delay the
-        // collection loading, and anything it changes is re-applied below.
-        try {
-          if (typeof window.rrPrefsSync === 'function') {
-            window.rrPrefsSync().then(function (touched) {
-              if (!touched) return;
-              // Something arrived from another device. Only the settings that
-              // PAINT have to be replayed; every other one is read through
-              // _prefGet the next time it is used, so it needs nothing here.
-              // Both of these are verified to exist — app.js:applyTheme and
-              // app.js:_applyCompactMode. (A first draft called a function
-              // that does not exist; the typeof guard hid it, which is exactly
-              // how dead calls survive.)
-              try { if (typeof applyTheme === 'function') applyTheme(); } catch (e) {}
-              try { if (typeof _applyCompactMode === 'function') _applyCompactMode(); } catch (e) {}
-            });
-          }
-        } catch (e) { console.warn('prefs sync:', e); }
+        // (v0.9.1816: the account-settings pull that used to sit HERE — and
+        // therefore ran only on this fallback path — now runs on every start
+        // from _rrPullAccountPrefs, above the config read.)
         loadAllData();
       }
     }

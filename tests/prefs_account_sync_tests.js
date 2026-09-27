@@ -115,9 +115,33 @@ console.log('\n== E. It is wired to the one write path, and to sign-in ==');
      /typeof window\.rrPrefsQueuePush === 'function'/.test(APP));
   ok('the push is debounced — a settings page fires several changes in a row',
      /_prefsPushTimer = setTimeout\(/.test(DRIVE) && /clearTimeout\(_prefsPushTimer\)/.test(DRIVE));
-  ok('the account is read once at sign-in', /window\.rrPrefsSync\(\)\.then\(/.test(AUTH));
-  ok('…without blocking the collection from loading',
-     AUTH.indexOf('window.rrPrefsSync().then(') < AUTH.indexOf('loadAllData();', AUTH.indexOf('window.rrPrefsSync')));
+  // v0.9.1816 — THIS CHECK USED TO PASS ON A PULL THAT NEVER RAN. It asked only
+  // whether the call EXISTED; the call sat in the branch that runs when the
+  // Drive config file is missing, so a normal start skipped it for five weeks
+  // (proven live: 12 s after start, rrPrefsSync had not run). The rule now:
+  // ONE copy, in _rrPullAccountPrefs, called from onTokenReceived on the path
+  // every initial start takes — BEFORE the config read forks into branches.
+  const onTok = AUTH.slice(AUTH.indexOf('function onTokenReceived('));
+  const callAt = onTok.indexOf('_rrPullAccountPrefs()');
+  const forkAt = onTok.indexOf('driveReadConfig().then(');
+  ok('the account is read once at sign-in — through ONE function, _rrPullAccountPrefs',
+     /function _rrPullAccountPrefs\(\)[\s\S]{0,300}window\.rrPrefsSync\(\)\.then\(/.test(AUTH)
+     && (AUTH.match(/window\.rrPrefsSync\(\)/g) || []).length === 1);
+  ok('…called on EVERY initial start: inside onTokenReceived, BEFORE the config read forks',
+     callAt > 0 && forkAt > 0 && callAt < forkAt, JSON.stringify({ callAt, forkAt }));
+  ok('…gated on the initial token only, not every background refresh',
+     /if \(isInitial\) _rrPullAccountPrefs\(\);/.test(onTok));
+  ok('…without blocking the collection from loading (fire-and-forget, never awaited)',
+     !/await _rrPullAccountPrefs|await window\.rrPrefsSync/.test(AUTH));
+  // planted offender: the call moved back into the fallback branch
+  {
+    const moved = AUTH.replace('  if (isInitial) _rrPullAccountPrefs();\n', '')
+                      .replace("        driveEnsureSetup().catch(e => console.warn('Drive setup:', e));\n",
+                               "        driveEnsureSetup().catch(e => console.warn('Drive setup:', e));\n        if (isInitial) _rrPullAccountPrefs();\n");
+    const ot = moved.slice(moved.indexOf('function onTokenReceived('));
+    ok('OFFENDER: the pull moved back below the config fork -> red (the exact v1779 mistake)',
+       moved !== AUTH && !(ot.indexOf('_rrPullAccountPrefs()') < ot.indexOf('driveReadConfig().then(')));
+  }
   // A first draft replayed a function that does not exist; the typeof guard
   // hid it. Both of these are checked to be real.
   ok('the settings that PAINT are replayed, and both replay functions exist',

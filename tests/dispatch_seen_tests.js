@@ -98,6 +98,8 @@ ok('D2  …with a cap, so a failed pull delays the board rather than silencing i
 const sync = code(DRIVE).slice(code(DRIVE).indexOf('window.rrPrefsSync = async function'));
 const syncFn = sync.slice(0, sync.indexOf('\n};') + 3);
 ok('D3  drive.js sets the flag in a finally — every exit, success or failure', /finally\s*\{[\s\S]*?_rrPrefsSyncDone = true/.test(syncFn));
+ok('D4  at boot this device publishes what it already showed (v1816: pre-v1815 marks reach the account)',
+   /prefsSettled\) \{[\s\S]{0,600}_dbMarkSeen\(\[\]\)/.test(boot));
 
 section('E · planted offenders — each must turn a check red');
 const o1 = DB.replace("  _dbListAt(DISPATCH_CFG.seenSyncKey).forEach(function (id) { if (out.indexOf(id) < 0) out.push(id); });\n", '');
