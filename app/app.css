@@ -1552,7 +1552,15 @@
   @media (max-width: 640px) {
     /* Layout */
     .sidebar { display: none; }
-    .mobile-nav { display: block; }
+    /* v0.9.1811 (Brad: "the bottom menu bar shows on the invite-code and
+       sign-in screens, covers the sign-in box, and tapping it does nothing"):
+       the bar lives OUTSIDE #app, which stays display:none until sign-in
+       adds .active — so a bare `.mobile-nav { display:block }` showed it on
+       every phone-width screen, signed in or not. ONE signal decides it now:
+       #app.active, the same one the reconnect bar and the install offer
+       use. The bar is the sibling right after #app in index.html
+       (signin_chrome_tests.js pins that, or the ~ does nothing). */
+    #app.active ~ .mobile-nav { display: block; }
     /* v0.9.1053 (Brad: "Help and Tips is the last option I see"): this used to
        read `.app-layout { padding-bottom: 68px }` — but there IS no .app-layout
        element anywhere in the app, so the rule reserved nothing and the bottom

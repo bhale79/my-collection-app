@@ -267,7 +267,14 @@ function _pwaOfferInit() {
     try { dis = parseInt(localStorage.getItem('lv_install_offer_ts') || '0', 10); } catch (e) {}
     if (dis === -1) return;                                  // installed via the offer — done forever
     if (dis && (Date.now() - dis) < 30 * 24 * 3600 * 1000) return;   // Not now = 30-day sleep
-    if (!document.getElementById('main-content')) { setTimeout(_pwaOfferInit, 4000); return; }
+    // v0.9.1811 (Brad: "the Install box can pop up over the sign-in screen
+    // and cover the Enter button"): this used to wait for #main-content —
+    // which is in the static HTML from the first byte, so the wait was over
+    // before it began and the card landed on the invite-code / sign-in
+    // screens 8 s in. The real "the app is showing" signal is #app.active
+    // (added by sign-in, removed by sign-out); keep looking until it is.
+    var appEl = document.getElementById('app');
+    if (!appEl || !appEl.classList.contains('active')) { setTimeout(_pwaOfferInit, 4000); return; }
     if (document.getElementById('pwa-install-offer')) return;
     var b = document.createElement('div');
     b.id = 'pwa-install-offer';
@@ -303,6 +310,11 @@ function _showIOSInstallHint() {
   const isStandalone = window.navigator.standalone === true;
   const dismissed = localStorage.getItem('lv_ios_hint_dismissed');
   if (!isIOS || isStandalone || dismissed) return;
+  // v0.9.1811: same rule as _pwaOfferInit — the iPhone/iPad "Add to Home
+  // Screen" hint fired 2.5 s after load, signed in or not, and sat over the
+  // sign-in card. Wait for #app.active; keep looking until it is.
+  var appEl = document.getElementById('app');
+  if (!appEl || !appEl.classList.contains('active')) { setTimeout(_showIOSInstallHint, 4000); return; }
 
   const banner = document.createElement('div');
   banner.id = 'ios-install-hint';
