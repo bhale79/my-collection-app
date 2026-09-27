@@ -7505,8 +7505,9 @@ META_WRITES.length = 0; TOASTS.length = 0;
     const pdl5 = fs.readFileSync(pR.join(__dirname, '..', 'app', 'wizard-pdlookup.js'), 'utf8');
 
     // The expander defers to the stored key.
+    // v0.9.1820: the rule moved into _copiesOfRow, shared by the row test and the expander.
     ok('the copy-expander asks the master key before variation text',
-       /if \(p\.masterKey && _itKeyFD\) return p\.masterKey === _itKeyFD;/.test(brw5));
+       /if \(p\.masterKey && _itKey\) return p\.masterKey === _itKey;/.test(brw5));
     // The resolver releases a copy whose key names another row.
     ok('_rrPdForRow releases a copy keyed to a different catalog row',
        /_rowKeyPd && _rowKeyPd !== _p\.masterKey/.test(brw5));
@@ -7542,9 +7543,11 @@ META_WRITES.length = 0; TOASTS.length = 0;
        && made({ itemNum: '3545', variation: '1', _era: 'pw', _copyPd: copyB }) === copyB);
 
     // Simulate the REAL expander filter for both catalog rows.
-    const fIdx = brw5.indexOf('var _itKeyFD =');
-    const fEnd = brw5.indexOf('if (_copiesFD.length <= 1)', fIdx);
-    ok('the expander filter slice is findable', fIdx > 0 && fEnd > fIdx);
+    // v0.9.1820: the filter is _copiesOfRow (buckets + key rule + variation rule),
+    // one function shared by the row test and the expander — lift it whole.
+    const fIdx = brw5.indexOf('var _copiesByNum = null;');
+    const fEnd = brw5.indexOf('\n  }\n', brw5.indexOf('function _copiesOfRow(it)', fIdx)) + 4;
+    ok('the expander filter slice is findable', fIdx > 0 && fEnd > fIdx && /function _copiesOfRow\(it\)/.test(brw5.slice(fIdx, fEnd)));
     function copiesFor(it) {
       // v0.9.1204: the expander now uses the shared comparison rule — give the
       // harness the REAL helpers (sliced from wizard-pdlookup.js), not stubs.
@@ -7564,14 +7567,19 @@ META_WRITES.length = 0; TOASTS.length = 0;
         const _b = _copiesByNum.get(p.itemNum);
         if (_b) _b.push(p); else _copiesByNum.set(p.itemNum, [p]);
       });
+      // v0.9.1820: _copiesOfRow builds its own buckets from state.personalData
+      // by those same rules; the harness map above stays as the cross-check.
       const fctx = {
-        it: it, state: ctx.state,
-        _dnp: it.itemNum,
-        _copiesByNum: _copiesByNum,
+        state: ctx.state,
+        _displayItemNum: function (x) { return x.itemNum; },
         rrMasterKeyOf: ctx.rrMasterKeyOf,
         rrSameVar: _cmp.v, rrSameNum: _cmp.n,
       };
-      return new Function(...Object.keys(fctx), '"use strict";' + brw5.slice(fIdx, fEnd) + '; return _copiesFD;')(...Object.values(fctx));
+      ctx.state.filters = ctx.state.filters || {}; ctx.state.filters.owned = true;
+      const got = new Function(...Object.keys(fctx), '"use strict";' + brw5.slice(fIdx, fEnd) + '; return _copiesOfRow;')(...Object.values(fctx))(it);
+      const want = (_copiesByNum.get(it.itemNum) || []);
+      if (got.some(function (p) { return want.indexOf(p) < 0; })) throw new Error('a copy outside the bucket');
+      return got;
     }
     ok('the flatcar row expands to BOTH copies (his $150 and his $75)',
        copiesFor(flat).length === 2);
@@ -19063,13 +19071,15 @@ META_WRITES.length = 0; TOASTS.length = 0;
           return cmp71(p.variation, it.variation);
         });
       };
-      const bI = brw.indexOf('var _copiesByNum = new Map();');
-      const bE = brw.indexOf('_list.forEach(function(it) {', bI);   // v0.9.1798: the expander became _expandCopies(_list)
-      ok('271 the bucket-build slice was found', bI > 0 && bE > bI);
-      const buckets = new Function('state', '"use strict";' + brw.slice(bI, bE) + '; return _copiesByNum;')(st71);
-      const fI = brw.indexOf('var _itKeyFD ='), fE = brw.indexOf('if (_copiesFD.length <= 1)', fI);
-      const newPick = it => new Function('it', 'state', '_dnp', '_copiesByNum', 'rrMasterKeyOf', 'rrSameVar',
-        '"use strict";' + brw.slice(fI, fE) + '; return _copiesFD;')(it, st71, it.itemNum, buckets, rrMasterKeyOf71, cmp71);
+      // v0.9.1820: buckets + both identity rules live in ONE function, _copiesOfRow,
+      // shared by the row test and the expander. Lift it whole and drive it.
+      const bI = brw.indexOf('var _copiesByNum = null;');
+      const bE = brw.indexOf('\n  }\n', brw.indexOf('function _copiesOfRow(it)', bI)) + 4;
+      ok('271 the bucket-build slice was found', bI > 0 && bE > bI && /function _copiesOfRow\(it\)/.test(brw.slice(bI, bE)));
+      st71.filters = { owned: true };
+      const copiesOfRow71 = new Function('state', '_displayItemNum', 'rrMasterKeyOf', 'rrSameVar',
+        '"use strict";' + brw.slice(bI, bE) + '; return _copiesOfRow;')(st71, function (x) { return x.itemNum; }, rrMasterKeyOf71, cmp71);
+      const newPick = it => copiesOfRow71(it);
       let diffs = [];
       rows71.forEach(function (r) {
         const A = oldPick(r).map(p => p.inventoryId).sort().join(',');
@@ -19080,14 +19090,14 @@ META_WRITES.length = 0; TOASTS.length = 0;
          diffs.length === 0, diffs.join(' | ') || 'all ' + rows71.length + ' agree');
       // And the two identity rules are still the ones deciding it.
       ok('271 …with the masterKey and variation rules untouched',
-         /if \(p\.masterKey && _itKeyFD\) return p\.masterKey === _itKeyFD;/.test(brw) &&
+         /if \(p\.masterKey && _itKey\) return p\.masterKey === _itKey;/.test(brw) &&
          /return rrSameVar\(p\.variation, it\.variation\);/.test(brw));
       ok('271 …and the bucket map keys on the RAW number (Map is SameValueZero)',
-         /var _k = p\.itemNum;/.test(brw));
+         /_copiesByNum\.get\(p\.itemNum\)/.test(brw.slice(bI, bE)) && /_copiesByNum\.set\(p\.itemNum, \[p\]\)/.test(brw.slice(bI, bE)));
       // The scan-per-row is gone. If it comes back, this section is a lie.
-      const expSlice = brw.slice(bI, brw.indexOf('if (_copiesFD.length <= 1)', bI));
+      const expSlice = brw.slice(brw.indexOf('function _expandCopies(_list)'), brw.indexOf('if (_copiesFD.length <= 1)', brw.indexOf('function _expandCopies(_list)')));
       ok('271 …and nothing re-scans personalData inside the row loop any more',
-         !/Object\.values\(state\.personalData\)\.filter/.test(expSlice));
+         !/Object\.values\(state\.personalData\)\.filter/.test(expSlice) && /_copiesOfRow\(it\)/.test(expSlice));
 
       // ── 3. one listing call carries the thumbnails ──
       ok('271 the listing asks for thumbnailLink',

@@ -3780,7 +3780,7 @@ function _rrBrowseCore(_co) {
   });
   function _rrPdForRow(item) {
     if (item._copyPd) return item._copyPd;
-    if (item._personalOnly) return item;
+    if (item._personalOnly) return item._pd || item;   // v0.9.1820: the real record, not the hand-copied subset
     var _dn = _displayItemNum(item);
     if (!_pdNumsExact.has(_dn)) {
       if (!_bvAdopt) return null;
@@ -3889,6 +3889,7 @@ function _rrBrowseCore(_co) {
         // subType is what the user calls it more narrowly, and the bucketer
         // reads it when the type itself is vague.
         _personalOnly: true,
+        _pd: pd,   // v0.9.1820: the REAL record — _rrPdForRow hands this back, so no field can be "not on the list" again (v1392, v1425, and Group on a manual item)
         subType: pd.subType || '',
         description: _refItem ? _refItem.description : (pd.description || pd.notes || ''),   // v0.9.718: manual rows carry their own description
         yearProd: pd.datePurchased || (_refItem ? _refItem.yearProd : ''),
@@ -3980,13 +3981,72 @@ function _rrBrowseCore(_co) {
       if (s && s.itemNum) _soldKeys.add(s.itemNum + '|' + (s.variation || ''));
     }
   })();
+  // ── v0.9.1820 (S7, Open List #11): THE COPIES OF A ROW, and the per-copy filters ──
+  // Brad owns two 6457s and puts ONE in a Group. The row test used to ask
+  // "does this row's owned copy carry the Group?" of ONE copy (whichever
+  // findPD returned) and _expandCopies then drew EVERY copy — so the Group
+  // showed both, or lost the row when the wrong copy was asked. Now: the
+  // copies of a row are found ONCE (the v1326 buckets, the v1202 key rule,
+  // the v1204 variation rule), a per-copy filter is answered by EACH copy,
+  // a row passes when ANY copy does, and only the passing copies are drawn.
+  var _copiesByNum = null;
+  function _copiesOfRow(it) {
+    if (!state.filters.owned || it._personalOnly) return [];
+    if (!_copiesByNum) {
+      _copiesByNum = new Map();
+      Object.values(state.personalData).forEach(function (p) {
+        if (!p || !p.owned) return;
+        if (String(p.itemNum || '').toUpperCase().endsWith('-BOX')) return;
+        var _b = _copiesByNum.get(p.itemNum);
+        if (_b) _b.push(p); else _copiesByNum.set(p.itemNum, [p]);
+      });
+    }
+    var _itKey = (typeof rrMasterKeyOf === 'function') ? rrMasterKeyOf(it) : '';
+    return (_copiesByNum.get(_displayItemNum(it)) || []).filter(function (p) {
+      if (p.masterKey && _itKey) return p.masterKey === _itKey;
+      return rrSameVar(p.variation, it.variation);
+    });
+  }
+  // The filters that are a question about ONE COPY (its own cells), not the
+  // catalog row. Everything the old row test asked of `pd` alone.
+  function _copyPasses(pd) {
+    if (!pd) return false;
+    if (boxed && pd.hasBox !== 'Yes') return false;
+    const _qf = state.filters.quickEntry || '';
+    if (_qf === 'quick' && !pd.quickEntry) return false;
+    if (_qf === 'complete' && pd.quickEntry) return false;
+    if (state.filters.imported === 'imported' && !pd.importBatch) return false;
+    if (state.filters.ownMaker) {
+      var _omp = pd.manufacturer ? String(pd.manufacturer).trim().toLowerCase() : '';
+      if (_omp !== String(state.filters.ownMaker).trim().toLowerCase()) return false;
+    }
+    if (state.filters.subCollection) {
+      var _sc2 = pd.subCollection ? String(pd.subCollection).trim().toLowerCase() : '';
+      if (_sc2 !== String(state.filters.subCollection).trim().toLowerCase()) return false;
+    }
+    if (state.filters.subType) {
+      var _st2 = pd.subType ? String(pd.subType).trim().toLowerCase() : '';
+      if (_st2 !== String(state.filters.subType).trim().toLowerCase()) return false;
+    }
+    if (state.filters.needsDetails === 'needs') {
+      var _nd = !pd.manufacturer || !pd.itemType || (String(pd.era || '') === 'Manual' && !pd.yearMade);
+      if (!_nd) return false;
+    }
+    return true;
+  }
+  // Is any per-copy filter switched on? When none is, nothing below changes.
+  function _copyFiltersOn() {
+    return !!(boxed || state.filters.quickEntry || state.filters.imported === 'imported' || state.filters.ownMaker
+      || state.filters.subCollection || state.filters.subType || state.filters.needsDetails === 'needs');
+  }
+
   const _rowPasses = item => {
     if (_ownedCandidates && !item._personalOnly && !_ownedCandidates.has(item)) return false;   // v0.9.1817
     const _dispNum = _displayItemNum(item);
     // v0.9.1120: shared resolver — strict item+variation match plus the
     // blank-variation adoption above (authoritative: an item without a
     // variation lights its ONE adopted row and nothing else).
-    let pd = item._personalOnly ? null : _rrPdForRow(item);
+    let pd = _rrPdForRow(item);
     pd = pd || (item._personalOnly ? item : null);
     const isOwned = item._personalOnly ? true : (pd?.owned || false);
     const hasBox = pd?.hasBox === 'Yes';
@@ -4017,18 +4077,18 @@ function _rrBrowseCore(_co) {
       else if (_sr !== _collSec) return false;   // v0.9.990: any section key — 'is' etc. simply have no typed train-store rows
     }
     if (unowned && (isOwned || isWanted)) return false;
-    if (boxed && !hasBox) return false;
-    // Quick Entry filter — only applies when item is owned
-    if (isOwned && pd) {
-      const _qf = state.filters.quickEntry || '';
-      if (_qf === 'quick' && !pd.quickEntry) return false;
-      if (_qf === 'complete' && pd.quickEntry) return false;
+    // v0.9.1820: the per-copy filters (Boxed, Quick Entry, Imported, My maker,
+    // Group, Sub Type, Needs details) — answered by EACH copy of the row; the
+    // row is in when ANY copy is. Single-copy rows and personal-only rows ask
+    // their one record, exactly as before.
+    if (_copyFiltersOn()) {
+      if (!isOwned) { if (boxed && !hasBox) return false; if (state.filters.imported === 'imported') return false; }
+      else {
+        var _cps = _copiesOfRow(item);
+        if (_cps.length <= 1) _cps = [pd];
+        if (!_cps.some(_copyPasses)) return false;
+      }
     }
-    // v0.9.1506 (Session 81, Brad): Imported filter — "find my old stuff".
-    // Every row a spreadsheet import wrote carries pd.importBatch (schema
-    // column, permanent). The pill that sets this only renders in My
-    // Collection view and only when imported rows exist.
-    if (state.filters.imported === 'imported' && !(pd && pd.importBatch)) return false;
     // v0.9.1509 (Brad, S81 live test): in MY COLLECTION view the chips are
     // STRICT — an item with UNKNOWN maker or period no longer shows under a
     // specific maker/era chip. Reverses v1161/v1425's "unknown shows
@@ -4061,26 +4121,9 @@ function _rrBrowseCore(_co) {
     }
     // v0.9.1509: "Needs details" filter — items missing maker, type, or (for
     // manual rows) a year. Set by the pill injected in collection view.
-    // v0.9.1512: filtering by a maker only the USER has.
-    if (state.filters.ownMaker) {
-      var _omp = (pd && pd.manufacturer) ? String(pd.manufacturer).trim().toLowerCase() : '';
-      if (_omp !== String(state.filters.ownMaker).trim().toLowerCase()) return false;
-    }
-    // v0.9.1521 (Brad): "he collects 6464 cars, mint cars... a way he puts
-    // things he wants to look up quickly — I want to see all my Disney cars."
-    if (state.filters.subCollection) {
-      var _sc2 = (pd && pd.subCollection) ? String(pd.subCollection).trim().toLowerCase() : '';
-      if (_sc2 !== String(state.filters.subCollection).trim().toLowerCase()) return false;
-    }
-    if (state.filters.subType) {
-      var _st2 = (pd && pd.subType) ? String(pd.subType).trim().toLowerCase() : '';
-      if (_st2 !== String(state.filters.subType).trim().toLowerCase()) return false;
-    }
-    if (state.filters.needsDetails === 'needs') {
-      var _nd = pd && (!pd.manufacturer || !pd.itemType ||
-        (String(pd.era || '') === 'Manual' && !pd.yearMade));
-      if (!_nd) return false;
-    }
+    // v0.9.1512 My maker · v0.9.1521 Group / Sub Type ("he collects 6464 cars,
+    // mint cars… I want to see all my Disney cars") · v0.9.1509 Needs details:
+    // all per-copy now — see _copyPasses above (v0.9.1820).
     // If type filter is an ephemera category, hide train rows
     if (type) {
       const _ephTypeKeys = ['Catalog','Paper Item','Mock-Up','Other Lionel',
@@ -4326,43 +4369,21 @@ function _rrBrowseCore(_co) {
   function _expandCopies(_list) {
     if (!state.filters.owned) return _list;
     var _expandedFD = [];
-    // v0.9.1326 (MEASURED): the filter below used to scan EVERY owned item
-    // once per row on screen — Object.values(...).filter() inside a forEach
-    // over filteredData. The CPU profile put 923ms of a 2,000-item render in
-    // this one closure. One pass builds the buckets instead.
-    //
-    // Keyed on the RAW p.itemNum and looked up with _dnp, because Map uses
-    // SameValueZero — exactly the strictness of the `p.itemNum !== _dnp`
-    // comparison it replaces. Nothing about WHICH copies match has changed;
-    // only how they are found. (Verified: rendered HTML byte-identical.)
-    var _copiesByNum = new Map();
-    Object.values(state.personalData).forEach(function (p) {
-      if (!p || !p.owned) return;
-      if (String(p.itemNum || '').toUpperCase().endsWith('-BOX')) return;
-      var _k = p.itemNum;
-      var _b = _copiesByNum.get(_k);
-      if (_b) _b.push(p); else _copiesByNum.set(_k, [p]);
-    });
+    // v0.9.1326 (MEASURED): one pass builds the copy buckets (923 ms of a
+    // 2,000-item render used to go into re-scanning personalData per row).
+    // v0.9.1202 (Brad's three 3545s): a copy with a STORED master key belongs
+    // to exactly the catalog row that key names; un-keyed copies match by
+    // variation text (v0.9.1204: one comparison rule). Both now live in
+    // _copiesOfRow, shared with the row test (v0.9.1820).
+    var _perCopy = _copyFiltersOn();
     _list.forEach(function(it) {
       if (it._personalOnly) { _expandedFD.push(it); return; }
-      var _dnp = _displayItemNum(it);
-      // v0.9.1202 (Brad's three 3545s): a copy with a STORED master key
-      // belongs to exactly the catalog row that key names — variation text
-      // no longer gets a vote. His two TV Monitor Cars were saved with a
-      // BLANK variation, so this filter matched them to the blank-variation
-      // PAPER row (an instruction sheet sharing the number) instead of the
-      // var-1 flatcar, and one copy rendered twice. Keys settle it: both
-      // copies attach to the flatcar row (each getting its own copy row),
-      // and the paper row gets nobody. Un-keyed copies keep the old
-      // variation-text matching.
-      var _itKeyFD = (typeof rrMasterKeyOf === 'function') ? rrMasterKeyOf(it) : '';
-      // v0.9.1326: the owned/-BOX/number tests moved into _copiesByNum above;
-      // the two identity rules below are unchanged and still decide everything.
-      var _copiesFD = (_copiesByNum.get(_dnp) || []).filter(function(p) {
-        if (p.masterKey && _itKeyFD) return p.masterKey === _itKeyFD;
-        return rrSameVar(p.variation, it.variation);   // v0.9.1204: one comparison rule
-      });
+      var _copiesFD = _copiesOfRow(it);
       if (_copiesFD.length <= 1) { _expandedFD.push(it); return; }
+      // v0.9.1820: with a per-copy filter on, only the copies that pass are
+      // drawn — and when one is left it is NAMED (_copyPd), so the row shows
+      // THAT copy rather than whichever findPD would hand back.
+      if (_perCopy) { _copiesFD = _copiesFD.filter(_copyPasses); if (!_copiesFD.length) return; }
       _copiesFD.sort(function(a, b) { return (parseInt(a.inventoryId) || 0) - (parseInt(b.inventoryId) || 0); });
       _copiesFD.forEach(function(cp) {
         var _clone = Object.assign({}, it);
