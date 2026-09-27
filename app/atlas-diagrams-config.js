@@ -31,6 +31,8 @@
 //   · every sheet of every winning family comes back (body, chassis, trucks,
 //     Silver and Gold), in list order.
 //   · O scale: the item's own Track/Power picks the rail; 3-rail when unsaid.
+//   · a Sub Type written in shorthand ("GP-30 & 35") is spelled out first by
+//     ATLAS_SUBTYPE_MODELS below (v0.9.1810).
 (function () {
   var ATLAS_DL = 'https://download.atlasrr.com';
   var ATLAS_PAGE = 'https://shop.atlasrr.com/t-partsdiagrams.aspx';
@@ -313,6 +315,29 @@
     {s:'O',m:'',r:'3',t:'O TM 52\' Gondola (3-Rail)',u:'/OPartsPDF/RollingStock/trainman_Gondola_3rail.pdf',st:['Trainman® 52\'6" Gondola','52\'6" Gondola']}
   ];
 
+  // v0.9.1810 (Brad, 2026-09-27: "yes" — match the diagrams that reached no
+  // item). Some catalog Sub Types name two or three models in SHORTHAND:
+  // "GP-30 & 35", "DASH 8-40C/CW", "C-424 & 425". The model keys only see
+  // the first model — "35" alone is not a model, and "40C/CW" never spells
+  // "40CW" — so 13 of Atlas's sheets reached nothing. This list spells each
+  // one out, ONCE, keyed on scale + the exact Sub Type; the spelled-out names
+  // are added to the words the keys search, nothing else changes. Measured on
+  // the live master 2026-09-27: 2,651 items gain sheets, 0 items lose one.
+  // A NEW shorthand Sub Type goes here — do not add loose keys like "425"
+  // or "cw", which would hit road names and car numbers.
+  var ATLAS_SUBTYPE_MODELS = {};
+  [
+    ['N',  'DASH 8-40B/40BW/32BHW', 'DASH 8-40B, DASH 8-40BW, DASH 8-32BHW'],
+    ['N',  'DASH 8-40C/CW',         'DASH 8-40C, DASH 8-40CW'],
+    ['N',  'GP-30 & 35',            'GP-30, GP-35'],
+    ['N',  'GP-38, 40, 40-2',       'GP-38, GP-40, GP-40-2'],
+    ['N',  'SD-24/26 Locomotives',  'SD-24, SD-26'],
+    ['HO', 'C-424 & 425',           'C-424, C-425'],
+    ['HO', 'DASH 8-40B/40BW/32BHW', 'DASH 8-40B, DASH 8-40BW, DASH 8-32BHW'],
+    ['HO', 'DASH 8-40C & 40CW',     'DASH 8-40C, DASH 8-40CW'],
+    ['O',  'GP-60 60M B',           'GP-60, GP-60M, GP-60B']
+  ].forEach(function (r) { ATLAS_SUBTYPE_MODELS[r[0] + '|' + _sq(r[1])] = r[2]; });
+
   function atlasScale(eraKey) {
     return eraKey === 'atlas' ? 'O' : eraKey === 'atlas_ho' ? 'HO' : eraKey === 'atlas_n' ? 'N' : eraKey === 'atlas_z' ? 'Z' : null;
   }
@@ -332,7 +357,8 @@
     }
     // 2 · model keys, each starting a word
     if (!hits.length) {
-      var text = String((item.subType || '') + ' ' + (item.description || '') + ' ' + (item.itemName || ''))
+      var spelled = ATLAS_SUBTYPE_MODELS[sc + '|' + _sq(item.subType)] || '';
+      var text = String((item.subType || '') + ' ' + spelled + ' ' + (item.description || '') + ' ' + (item.itemName || ''))
         .toLowerCase().replace(/[®™]/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
       if (!text) return null;
       var sq = '', starts = {}, ends = {};

@@ -194,6 +194,34 @@ ok('OFFENDER: let freight cars fall through to keys too → nothing changes (st 
 const adOff = ad.replace('window.ITEM_PARTS_LIST_SOURCES.forEach(', '[].forEach(');
 ok('OFFENDER: skip the item hook in _partsForItem → the GP-35 gets no Atlas parts', adOff !== ad && build(adOff, W)(rowsObj)('1162-2', 'atlas', gp35item).length === 0);
 
+section('v0.9.1810 — Sub Types written in shorthand reach every model they name');
+const SH = [
+  ['atlas_n',  'GP-30 & 35',            /^N GP-35 Loco$/,                 /^N GP-30 Loco$/],
+  ['atlas_n',  'GP-38, 40, 40-2',       /^N GP-40 Loco$/,                 /^N GP-38 Loco$/],
+  ['atlas_n',  'GP-38, 40, 40-2',       /^N GP-40-2 Loco$/,               null],
+  ['atlas_n',  'SD-24/26 Locomotives',  /^N SD-26 Loco$/,                 /^N SD-24 Loco$/],
+  ['atlas_n',  'DASH 8-40B/40BW/32BHW', /^N DASH 8-40BW\/BHW Loco$/,      /^N DASH 8-40B Loco$/],
+  ['atlas_n',  'DASH 8-40C/CW',         /^N DASH 8-40CW Loco$/,           /^N DASH 8-40C Loco$/],
+  ['atlas_ho', 'C-424 & 425',           /^HO C425 Locomotive$/,           /^HO C424\/425 Loco/],
+  ['atlas_ho', 'DASH 8-40B/40BW/32BHW', /^HO DASH 8-40BW Loco$/,          /^HO DASH 8-40B Locomotive$/],
+  ['atlas_ho', 'DASH 8-40C & 40CW',     /^HO DASH 8-40CW Locomotive - Silver$/, /^HO DASH 8-40C Locomotive - Silver$/],
+  ['atlas_ho', 'DASH 8-40C & 40CW',     /^HO DASH 8-40CW Locomotive - Gold$/,   null],
+];
+for (const [era, st, want, keep] of SH) {
+  const got = lifted.all({ subType: st, description: 'UNDECORATED' }, era) || [];
+  ok(era + ' "' + st + '" reaches ' + want.source.replace(/[\^$\\]/g, ''), got.some(e => want.test(e.t)), titles(got));
+  if (keep) ok('  …and still keeps ' + keep.source.replace(/[\^$\\]/g, ''), got.some(e => keep.test(e.t)), titles(got));
+}
+const gp60b2 = lifted.all({ subType: 'GP-60 60M B', description: 'UNDECORATED', trackPower: '2-Rail' }, 'atlas') || [];
+ok('O "GP-60 60M B" 2-rail reaches the GP60B 2-rail body, chassis and trucks', ['Body', 'Chassis', 'Trucks'].every(w => gp60b2.some(e => e.r === '2' && /^O GP60B/.test(e.t) && e.t.indexOf(w) >= 0)), titles(gp60b2));
+ok('…and keeps the GP60 2-rail sheets, and no 3-rail sheet', gp60b2.some(e => /^O GP60 Locomotive Body \(2-Rail\)/.test(e.t)) && !gp60b2.some(e => e.r === '3'), titles(gp60b2));
+ok('the shorthand list is per SCALE — an N "C-424 & 425" is not spelled out', !/C425/.test(titles(lifted.all({ subType: 'C-424 & 425' }, 'atlas_n'))));
+ok('a plain Sub Type is untouched (N GP-30 Phase 1 & 2 gets no GP-35)', !/GP-35/.test(titles(lifted.all({ subType: 'GP-30 Phase 1 & 2' }, 'atlas_n'))));
+const o5 = offCfg("var spelled = ATLAS_SUBTYPE_MODELS[sc + '|' + _sq(item.subType)] || '';", "var spelled = '';");
+ok('OFFENDER: stop spelling shorthand out → N "GP-30 & 35" loses the GP-35 sheets again', !!o5 && !/GP-35/.test(titles(o5.atlasDiagramsFor({ subType: 'GP-30 & 35' }, 'atlas_n'))));
+const o6 = offCfg("['HO', 'C-424 & 425',           'C-424, C-425'],", '');
+ok('OFFENDER: drop one row from the list → exactly that Sub Type loses its sheet', !!o6 && !/C425 Locomotive/.test(titles(o6.atlasDiagramsFor({ subType: 'C-424 & 425' }, 'atlas_ho'))) && /DASH 8-40CW/.test(titles(o6.atlasDiagramsFor({ subType: 'DASH 8-40C & 40CW' }, 'atlas_ho'))));
+
 // ── against a full master pull, when one is on this machine ─────────
 section('Against a real master pull, when one is on this machine');
 const dump = '/tmp/claude-0/master/master_AL.json';
