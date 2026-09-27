@@ -1388,7 +1388,7 @@ function genSetId(baseNum) {
 
 // ── STATE ───────────────────────────────────────────────────────
 // ── Cached preference values (read once at startup, updated on change) ──
-var _prefLocEnabled = localStorage.getItem('lv_location_enabled') === 'true';
+var _prefLocEnabled = _prefGet('lv_location_enabled', '') === 'true';   // v0.9.1825: through the one reader
 
 var state = {
   user: null,
@@ -1414,7 +1414,7 @@ var state = {
   isRefData: [],       // all rows from master Instruction Sheets tab (reference list for IS wizard)
   filteredData: [],
   currentPage: 1,
-  pageSize: (parseInt(localStorage.getItem('lv_page_size'), 10) || 50),
+  pageSize: (parseInt(_prefGet('lv_page_size', ''), 10) || 50),   // v0.9.1825: through the one reader
   filters: { owned: false, unowned: false, boxed: false, wantList: false, type: '', road: '', search: '', quickEntry: '' },
   currentItem: null,
 };
@@ -1449,8 +1449,8 @@ function _smartDefaultEra() {
     var saved = localStorage.getItem('lv_era');
     // Session 154: only honor the saved era if it's still a valid ERAS key.
     if (saved && typeof ERAS !== 'undefined' && ERAS[saved]) return saved;
-    var rawM = localStorage.getItem('lv_collect_mfrs');
-    var rawS = localStorage.getItem('lv_collect_scales');
+    var rawM = _prefGet('lv_collect_mfrs', null);   // v0.9.1825: through the one reader
+    var rawS = _prefGet('lv_collect_scales', null);
     var mfrs = [], scales = [];
     try { if (rawM) mfrs = JSON.parse(rawM); } catch (e) { mfrs = []; }
     try { if (rawS) scales = JSON.parse(rawS); } catch (e) { scales = []; }
@@ -1571,13 +1571,13 @@ function _prefEnabled(savedKey, rosterKey, allIds, baselineIds) {
   allIds = allIds || [];
   var saved = null;
   try {
-    var raw = localStorage.getItem(savedKey);
+    var raw = _prefGet(savedKey, null);   // v0.9.1825: through the one reader (heals an unstamped value)
     if (raw) { var a = JSON.parse(raw); if (Array.isArray(a) && a.length) saved = a; }
   } catch (e) {}
   if (!saved) return allIds.slice();          // never chosen: everything on
   var roster = null;
   try {
-    var r = JSON.parse(localStorage.getItem(rosterKey) || 'null');
+    var r = JSON.parse(_prefGet(rosterKey, null) || 'null');
     if (Array.isArray(r) && r.length) roster = r;
   } catch (e2) {}
   if (!roster) roster = (baselineIds && baselineIds.length) ? baselineIds : allIds;
@@ -3239,7 +3239,31 @@ function onPageSearch(val, page) {
 // ── Item detail, owned-item menu, item modal, collection actions, saveItem, and want-partner prompt moved to app-collection.js (Session 111, Round 2 Chunk 15) ──
 // ── REPORTS ─────────────────────────────────────────────────────
 
-function _prefGet(key, def) { const v = localStorage.getItem(key); return v === null ? def : v; }
+// v0.9.1825 (S9, Brad's phone: "everything is ticked" while the desktop said MTH O only):
+// a value saved BEFORE its key went through _prefSet (pre-v1779 / v1793) carries no
+// __at stamp, and the sync only looks at stamped keys — so it never reached the
+// account and the other device never heard of it. THE READER is the one door
+// every setting passes through on its way to the screen, so it heals this: the
+// first read of an unstamped key stamps it 0 and queues a push. The merge then
+// does exactly what it was designed to do — the account's value wins if the file
+// has one; otherwise this value seeds the account, dated now (rrPrefsMerge).
+// Once per key per session; a key with no value is not stamped (nothing to seed).
+var _prefSeen = {};
+function _prefGet(key, def) {
+  const v = localStorage.getItem(key);
+  if (v === null) return def;
+  _prefSeen = _prefSeen || {};   // two callers run at script load, above the var line (hoisted, still undefined there)
+  if (!_prefSeen[key]) {
+    _prefSeen[key] = 1;
+    try {
+      if (localStorage.getItem(key + '__at') === null) {
+        localStorage.setItem(key + '__at', '0');
+        if (typeof window.rrPrefsQueuePush === 'function') window.rrPrefsQueuePush(key);
+      }
+    } catch (e) {}
+  }
+  return v;
+}
 // v0.9.1779: preferences follow the ACCOUNT now. This is the ONE write path
 // for every setting in the app — 25 call sites, one chokepoint — so stamping
 // here is what makes "the newer change wins" possible per setting, exactly as

@@ -110,7 +110,7 @@ console.log('\n== E. It is wired to the one write path, and to sign-in ==');
      /function _prefSet\(key, val\) \{[\s\S]{0,400}?localStorage\.setItem\(key \+ '__at'/.test(APP));
   ok('…AFTER writing the value, so the screen never waits on Drive',
      APP.indexOf("localStorage.setItem(key, val);") <
-     APP.indexOf("localStorage.setItem(key + '__at'"));
+     APP.indexOf("localStorage.setItem(key + '__at', String(Date.now()))"));   // v0.9.1825: the reader's '0' stamp sits earlier in the file
   ok('…and asks for a push through a hook, so load order cannot break it',
      /typeof window\.rrPrefsQueuePush === 'function'/.test(APP));
   ok('the push is debounced — a settings page fires several changes in a row',
@@ -217,7 +217,7 @@ console.log('\n== G. THE OFFENDERS: break each one, require red ==');
 
   // 7 — _prefSet stops stamping, so nothing can ever be compared.
   ok('a _prefSet that stops stamping is caught',
-     !/localStorage\.setItem\(key \+ '__at'/.test(APP.replace(/localStorage\.setItem\(key \+ '__at', String\(Date\.now\(\)\)\);/, '')));
+     !/localStorage\.setItem\(key \+ '__at', String\(Date\.now\(\)\)\)/.test(APP.replace(/localStorage\.setItem\(key \+ '__at', String\(Date\.now\(\)\)\);/, '')));
 }
 
 // ════════════════════════════════════════════════════════════════════════
@@ -278,6 +278,48 @@ console.log('\n== G. Planted offenders ==');
   const rosterRaw = APP.replace(/(function _prefSaveRoster[\s\S]{0,400}?)_prefSet\(rosterKey/, '$1localStorage.setItem(rosterKey');
   ok('a roster left behind on the device is caught',
      !/function _prefSaveRoster[\s\S]{0,400}_prefSet\(rosterKey/.test(rosterRaw));
+}
+
+console.log('\n== H. v0.9.1825 — a value saved BEFORE it synced still reaches the account ==');
+// Brad's phone (S9, 2026-09-27): "everything is ticked" while the desktop said
+// MTH O only. The desktop's lv_collect_eras was written before v1793 put it
+// through _prefSet, so it carried no __at stamp; _prefsLocalState only gathers
+// stamped keys; the value was invisible to the account for weeks. The READER
+// heals it: the first _prefGet of an unstamped key stamps it 0 and queues a
+// push, and the merge then does what it was designed to do.
+{
+  const liftGet = (src) => {
+    const i = src.indexOf('var _prefSeen = {};'); const j = src.indexOf('\n}\n', i) + 3;
+    return (store, pushes) => {
+      const ls = { getItem: k => Object.prototype.hasOwnProperty.call(store, k) ? store[k] : null, setItem: (k, v) => { store[k] = String(v); } };
+      return new Function('localStorage', 'window', src.slice(i, j) + '; return _prefGet;')(ls, { rrPrefsQueuePush: k => pushes.push(k) });
+    };
+  };
+  const store = { lv_collect_eras: '["mth_o"]', lv_dash_ticker: '1', lv_dash_ticker__at: '777' }, pushes = [];
+  const get = liftGet(APP)(store, pushes);
+  ok('an unstamped value is returned as-is', get('lv_collect_eras') === '["mth_o"]');
+  ok('…and now carries a ZERO stamp (not "now" — the account must still be able to win)', store['lv_collect_eras__at'] === '0');
+  ok('…and a push is queued for it', pushes.indexOf('lv_collect_eras') >= 0, pushes.join(','));
+  ok('a stamped value is left alone', get('lv_dash_ticker') === '1' && store['lv_dash_ticker__at'] === '777');
+  ok('a missing value gets the default and NO stamp (nothing to seed)', get('lv_nothing', 'd') === 'd' && !('lv_nothing__at' in store));
+  get('lv_collect_eras'); get('lv_collect_eras');
+  ok('the check runs once per key (one push, however many reads)', pushes.filter(k => k === 'lv_collect_eras').length === 1);
+  // and _prefsLocalState now sees it, and the merge treats it as designed
+  const merge = build(DRIVE);
+  const seeded = merge({ lv_collect_eras: '["mth_o"]' }, { lv_collect_eras: '0' }, {}, NOW);
+  ok('the account has nothing → the value SEEDS the account, dated now', seeded.push.lv_collect_eras && seeded.push.lv_collect_eras.v === '["mth_o"]' && seeded.push.lv_collect_eras.t === NOW, JSON.stringify(seeded));
+  const yields = merge({ lv_collect_eras: '["mth_o"]' }, { lv_collect_eras: '0' }, { lv_collect_eras: { v: '["pw"]', t: 500 } }, NOW);
+  ok('the account already has one → the account wins, nothing pushed', yields.apply.lv_collect_eras === '["pw"]' && Object.keys(yields.push).length === 0, JSON.stringify(yields));
+  // the keys that used to be read raw now go through the reader
+  const raw = (s) => s.replace(/\/\/[^\n]*/g, '');
+  ok('What I Collect is READ through _prefGet (_prefEnabled)', /var raw = _prefGet\(savedKey, null\)/.test(raw(APP)) && /JSON\.parse\(_prefGet\(rosterKey, null\)/.test(raw(APP)));
+  ok('…and no synced preference is still read raw', !/localStorage\.getItem\('lv_(collect_eras|collect_mfrs|collect_scales|location_enabled|page_size|default_cond)'\)/.test(raw(APP) + raw(fs.readFileSync(path.join(__dirname, '..', 'app', 'prefs.js'), 'utf8')) + raw(fs.readFileSync(path.join(__dirname, '..', 'app', 'wizard.js'), 'utf8')) + raw(fs.readFileSync(path.join(__dirname, '..', 'app', 'onboarding.js'), 'utf8'))));
+  // OFFENDER: the reader that does not heal — the old _prefGet
+  const old = APP.replace(/if \(localStorage\.getItem\(key \+ '__at'\) === null\) \{[\s\S]*?\}\n/, '');
+  ok('offender changed the source', old !== APP);
+  const s2 = { lv_collect_eras: '["mth_o"]' }, p2 = [];
+  liftGet(old)(s2, p2)('lv_collect_eras');
+  ok('OFFENDER: a reader that does not stamp leaves the value invisible to the account -> red', !('lv_collect_eras__at' in s2) && p2.length === 0);
 }
 
 console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');

@@ -690,7 +690,7 @@ window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () 
 
 // Apply stored page size on load
 (function() {
-  const stored = localStorage.getItem('lv_page_size');
+  const stored = _prefGet('lv_page_size', null);   // v0.9.1825: through the one reader
   if (stored) state.pageSize = parseInt(stored);
 })();
 

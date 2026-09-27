@@ -3109,7 +3109,7 @@ function renderWizardStep() {
     var _bcdNum = (_bcd.itemNum || '').trim();
     var _bcdMatch = _bcdNum ? Object.values(state.personalData).find(function(pd) { return pd.itemNum === _bcdNum && pd.owned; }) : null;
     var _bcdGrp = _bcd._itemGrouping || 'single';
-    var _bcdDefCond = parseInt(localStorage.getItem('lv_default_cond') || '7');
+    var _bcdDefCond = parseInt(_prefGet('lv_default_cond', '') || '7');   // v0.9.1825: through the one reader
 
     function _bcdSlider(slId, label, accent) {
       var cur = _bcd[slId] !== undefined ? _bcd[slId] : _bcdDefCond;
@@ -3255,7 +3255,7 @@ function renderWizardStep() {
     setTimeout(function() { var i = document.getElementById('bpv-price'); if (i) i.focus(); }, 50);
 
   } else if (s.type === 'slider') {
-    const val = wizard.data[s.id] || parseInt(localStorage.getItem('lv_default_cond') || '7');
+    const val = wizard.data[s.id] || parseInt(_prefGet('lv_default_cond', '') || '7');   // v0.9.1825: through the one reader
     body.innerHTML = `
       <div style="padding-top:1rem">
         <div style="display:flex;align-items:center;gap:1rem">

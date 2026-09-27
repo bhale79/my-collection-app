@@ -397,7 +397,7 @@
     // wiping someone's saved choices for opening a settings screen would be a
     // worse bug than the one this fixes.
     var _everChosen = false;
-    try { _everChosen = !!localStorage.getItem('lv_collect_eras'); } catch (e) {}
+    try { _everChosen = !!_prefGet('lv_collect_eras', null); } catch (e) {}   // v0.9.1825: through the one reader
     var currentEnabled = [];
     if (_everChosen) {
       try { currentEnabled = (typeof _getEnabledEras === 'function') ? _getEnabledEras() : Object.keys(eras); }

@@ -4238,7 +4238,11 @@ META_WRITES.length = 0; TOASTS.length = 0;
     // suite reports a bug that only exists in the harness. Third time here.
     const queued = [];
     const PREF_SET = function (k, v) { LS.setItem(k, v); LS.setItem(k + '__at', String(Date.now())); queued.push(k); };
-    const api = new Function('localStorage', 'WHAT_I_COLLECT', 'ERAS', '_prefSet',
+    // v0.9.1825: _prefEnabled now READS through _prefGet (the healing reader) —
+    // the fourth time this sandbox had to gain an app.js global. Lift the real one.
+    const _pgI = appS.indexOf('var _prefSeen = {};');
+    const PREF_GET = new Function('localStorage', 'window', appS.slice(_pgI, appS.indexOf('\n}\n', _pgI) + 3) + '; return _prefGet;')(LS, {});
+    const api = new Function('localStorage', 'WHAT_I_COLLECT', 'ERAS', '_prefSet', '_prefGet',
         slice(appS, 'function _prefEnabled', '// ── Era preferences')
       + slice(appS, 'function _getEnabledEras', '// v0.9.934 ─ Time-period helpers')
       + slice(appS, 'function _allScaleIds', 'function _scaleOfEra')
@@ -4246,7 +4250,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
       + 'return { pref:_prefEnabled, mfrs:_getEnabledManufacturers,'
       + ' setMfrs:_setEnabledManufacturers, mfrOn:_isManufacturerEnabled,'
       + ' scales:_getEnabledScales, setScales:_setEnabledScales, scaleOn:_isScaleEnabled,'
-      + ' eras:_getEnabledEras, setEras:_setEnabledEras };')(LS, WIC, ERAS_STUB, PREF_SET);
+      + ' eras:_getEnabledEras, setEras:_setEnabledEras };')(LS, WIC, ERAS_STUB, PREF_SET, PREF_GET);
 
     const ALL_M = Object.keys(WIC.MANUFACTURERS);
     const NEW_M = ['k-line', 'williams', 'marx'];
