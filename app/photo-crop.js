@@ -332,10 +332,36 @@ function _flashStop(why) {
     }
   } catch (e) {}
   var out = { at: Date.now(), head: head, frames: frameLine, mem: mem, inTop: inTop, top: top, hits: hits, lines: R.lines };
-  try { localStorage.setItem('rr_crop_flash', JSON.stringify(out).slice(0, 3200)); } catch (e) {}
+  // ── v0.9.1826 (S9, Brad's phone: "the crazy flashing again … the picture
+  // itself"): THE DIARY RIDES THE ACCOUNT FILE. Written through _prefSet, the
+  // one door every setting leaves by (v1779), it syncs to rail-roster-prefs.json
+  // like a setting — so a phone's diary can be read from the desktop, with no
+  // "Report a problem" taps and no email to paste. TEMPORARY, exactly like the
+  // recorder around it: both come out with the fix (the Session 94 rule).
+  var diary = JSON.stringify(out).slice(0, 3200);
+  try {
+    if (typeof _prefSet === 'function') _prefSet('rr_crop_flash', diary);
+    else localStorage.setItem('rr_crop_flash', diary);
+  } catch (e) {}
   _flashRec = null;
 }
 if (typeof window !== 'undefined') { window._rrFlashStop = _flashStop; }
+
+// v0.9.1826: a diary saved BEFORE this release — today's flashing — has no
+// __at stamp, so the sync cannot see it (the v1825 lesson). Stamp it once, at
+// load, with the diary's OWN time (`at`), never "now": the merge then keeps
+// the newest diary across devices, and the start-up sync seeds the account
+// with it. A diary the sync already knows is left alone; none means nothing.
+function _flashRestampOld() {
+  var old = localStorage.getItem('rr_crop_flash');
+  if (old === null || localStorage.getItem('rr_crop_flash__at') !== null) return false;
+  var at = 0;
+  try { at = Number(JSON.parse(old).at) || 0; } catch (e) {}
+  localStorage.setItem('rr_crop_flash__at', String(at));
+  try { if (typeof window.rrPrefsQueuePush === 'function') window.rrPrefsQueuePush('rr_crop_flash'); } catch (e) {}
+  return true;
+}
+try { if (typeof localStorage !== 'undefined') _flashRestampOld(); } catch (e) {}
 
 function _openCropper(src, onResult, onCancel, opts) {   // v0.9.787: onCancel = proceed without cropping
   // v0.9.1052: opts lets a caller reword the screen — the crop-before-a-paid-read

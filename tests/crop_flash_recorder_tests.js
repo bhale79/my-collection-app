@@ -53,8 +53,8 @@ ok('the line list is capped',
    /if \(R\.lines\.length < 90\) R\.lines\.push\(s\)/.test(pc), '');
 ok('a line is only written when a NUMBER actually changed',
    /if \(h !== R\.lastH \|\| vh !== R\.lastVV \|\| vt !== R\.lastTop \|\| bh !== R\.lastBody\)/.test(pc), '');
-ok('what it stores is clipped before it reaches localStorage',
-   /localStorage\.setItem\('rr_crop_flash', JSON\.stringify\(out\)\.slice\(0, 3200\)\)/.test(pc), '');
+ok('what it stores is clipped before it leaves the recorder',
+   /var diary = JSON\.stringify\(out\)\.slice\(0, 3200\);/.test(pc), '');
 
 // ── it answers the actual question ────────────────────────────────────────
 // v1 skipped the cropper's own DOM entirely. v2 keeps the distinction but
@@ -111,6 +111,76 @@ ok('v1’s finding is written down where the next reader will see it',
    && /The URL bar NEVER MOVED/.test(pc), '');
 ok('the report prints the frame line and the inside ranking',
    /cf\.frames/.test(er) && /busiest INSIDE the crop screen/.test(er), '');
+
+// ── v0.9.1826: THE DIARY RIDES THE ACCOUNT FILE ───────────────────────────
+// Brad, 2026-09-27, the THIRD report ("the crazy flashing again … the picture
+// itself"). The diary was on his phone and the only way off it was "Report a
+// problem" — taps and an email to paste. Now it is written through _prefSet,
+// so it syncs to rail-roster-prefs.json like a setting and the desktop can
+// read a phone's diary. The lifted functions below run for real on a fake
+// store; the planted offender is the old raw write, which the sync never saw.
+function grab(src, sig) {
+  const i = src.indexOf(sig); if (i < 0) return '';
+  let d = 0;
+  for (let k = src.indexOf('{', i); k < src.length; k++) { if (src[k] === '{') d++; else if (src[k] === '}') { d--; if (!d) return src.slice(i, k + 1); } }
+  return '';
+}
+function fakeStore(init) {
+  const m = Object.assign({}, init || {}), writes = [];
+  return { m, writes, getItem: k => (Object.prototype.hasOwnProperty.call(m, k) ? m[k] : null),
+           setItem: (k, v) => { m[k] = String(v); writes.push(k); }, removeItem: k => { delete m[k]; } };
+}
+function fakeR() {
+  return { stopped: false, timer: 1, hWin: function () {}, hVvR: function () {}, hVvS: function () {}, mo: { disconnect: function () {} }, raf: 1,
+           bucket: { 'div#browse-cards': 27, 'tr': 27 }, hits: { _pinRenderBar: 2 }, inBucket: { 'img#_rrCropImg': 3 }, t0: Date.now() - 5000,
+           ev: 0, mut: 54, bodyH: 0, frames: 140, slow100: 3, slow250: 1, worst: 640, imgWH: '4000x3000', mp: '12.0MP', lines: ['t+0.0  crop opened'] };
+}
+const stopSrc = grab(pc, 'function _flashStop(why)');
+const liftStop = (src, prefSet, ls) => new Function('_flashRec', 'window', 'localStorage', '_prefSet', 'clearTimeout', 'cancelAnimationFrame', src + '\nreturn _flashStop;')
+  (fakeR(), { removeEventListener: function () {}, visualViewport: null }, ls, prefSet, function () {}, function () {});
+(function () {
+  const ls = fakeStore(), calls = [];
+  liftStop(stopSrc, function (k, v) { calls.push({ k, v }); }, ls)('closed');
+  let parsed = null; try { parsed = JSON.parse(calls[0].v); } catch (e) {}
+  ok('v1826  the diary is written through _prefSet — the door the sync watches',
+     calls.length === 1 && calls[0].k === 'rr_crop_flash', JSON.stringify(calls.map(c => c.k)));
+  ok('…and it is the whole diary, clipped to 3200, still readable JSON (head, frames, at, the ranking)',
+     parsed && parsed.head && parsed.frames && parsed.at > 0 && parsed.top[0] === 'div#browse-cards x27' && calls[0].v.length <= 3200, calls[0] && calls[0].v.slice(0, 120));
+  ok('…and nothing is written raw beside it (one write, one door)', ls.writes.length === 0, ls.writes.join(','));
+})();
+(function () {
+  const ls = fakeStore();
+  liftStop(stopSrc, undefined, ls)('45s cap');
+  ok('…with no _prefSet loaded it still lands on the device (the old behaviour, never worse)',
+     ls.writes.length === 1 && ls.writes[0] === 'rr_crop_flash' && /45s cap/.test(ls.m.rr_crop_flash), ls.writes.join(','));
+})();
+const restampSrc = grab(pc, 'function _flashRestampOld()');
+const liftRestamp = (ls, pushes) => new Function('localStorage', 'window', restampSrc + '\nreturn _flashRestampOld;')(ls, { rrPrefsQueuePush: function (k) { pushes.push(k); } });
+(function () {
+  const ls = fakeStore({ rr_crop_flash: JSON.stringify({ at: 1790000000000, head: 'crop 12.0s (closed)' }) }), pushes = [];
+  const r = liftRestamp(ls, pushes)();
+  ok('v1826  a diary saved before this release is stamped at load with its OWN time, and one push is queued',
+     r === true && ls.m.rr_crop_flash__at === '1790000000000' && pushes.length === 1 && pushes[0] === 'rr_crop_flash', JSON.stringify({ r, at: ls.m.rr_crop_flash__at, pushes }));
+  const r2 = liftRestamp(ls, pushes)();
+  ok('…once: a diary the sync already knows is left alone', r2 === false && pushes.length === 1 && ls.writes.length === 1, JSON.stringify({ r2, pushes, writes: ls.writes }));
+})();
+(function () {
+  const ls = fakeStore(), pushes = [];
+  ok('…and with no diary nothing is written and nothing is pushed', liftRestamp(ls, pushes)() === false && ls.writes.length === 0 && pushes.length === 0, ls.writes.join(','));
+  const torn = fakeStore({ rr_crop_flash: '{torn' }), p2 = [];
+  ok('…a torn diary is stamped 0 (the merge dates it now) rather than lost', liftRestamp(torn, p2)() === true && torn.m.rr_crop_flash__at === '0' && p2.length === 1, JSON.stringify(torn.m));
+})();
+ok('the restamp runs once at load, guarded (a test rig with no localStorage must not throw)',
+   /try \{ if \(typeof localStorage !== 'undefined'\) _flashRestampOld\(\); \} catch \(e\) \{\}/.test(pc), '');
+ok('…and it stamps with the diary’s time, never Date.now() (the newest diary must win across devices)',
+   !/Date\.now/.test(restampSrc) && /String\(at\)/.test(restampSrc), '');
+(function () {
+  const old = stopSrc.replace("if (typeof _prefSet === 'function') _prefSet('rr_crop_flash', diary);\n    else localStorage.setItem('rr_crop_flash', diary);", "localStorage.setItem('rr_crop_flash', diary);");
+  const ls = fakeStore(), calls = [];
+  liftStop(old, function (k, v) { calls.push(k); }, ls)('closed');
+  ok('OFFENDER: the old raw write — the diary lands on the device and the sync never sees it → the v1826 pin goes red',
+     old !== stopSrc && calls.length === 0 && ls.writes.length === 1, JSON.stringify({ same: old === stopSrc, calls, writes: ls.writes }));
+})();
 
 console.log('\n  ' + pass + ' passed, ' + fail + ' failed');
 process.exit(fail ? 1 : 0);
