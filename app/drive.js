@@ -928,12 +928,40 @@ if (typeof window !== 'undefined') window._thumbEnqueue = _thumbEnqueue;
 // (often 2+ MB) for on-screen thumbnails. A small queue avoids flooding Drive;
 // inbox images pass priority 'hi' so they load ahead of collection ('lo'). Any
 // failure falls back to the original-file path below, so nothing regresses.
+// v0.9.1834 — A PICTURE THE APP ALREADY KNOWS SHOWS AT ONCE. Returns true
+// when it did (the caller can skip its fade-in), false when the picture went
+// to the queue. The dashboard is rebuilt on every data event — each catalog
+// landing at start, the collection refresh, every save — and every rebuild
+// re-created every <img> and sent it back through this queue, so pictures
+// the browser already held went blank and faded back in, dozens of times a
+// session (release readiness N3: "the photo strip blanks and reloads").
 function loadDriveThumb(fileId, imgEl, containerEl, thumbLink, priority) {
-  if (!fileId || !imgEl) return;
+  if (!fileId || !imgEl) return false;
+  if (_rrThumbKnown(fileId, imgEl, containerEl, thumbLink)) return true;
   _thumbEnqueue(function() {
     return _loadDriveThumbSmall(fileId, imgEl, containerEl, thumbLink);
   }, priority === 'hi' ? 'hi' : 'lo');
+  return false;
 }
+// The part of _loadDriveThumbSmall that needs no waiting, in the same order
+// it decides: offline → not here (the bank is asynchronous); a session blob
+// (a just-cropped picture) → that; a force-fresh file → not here (it needs
+// the full loader); a thumbnail link already known → that, with the same
+// fallback to the full file on error and the same fire-and-forget bank.
+function _rrThumbKnown(fileId, imgEl, containerEl, thumbLink) {
+  try {
+    if (window._offlineMode || (typeof navigator !== 'undefined' && navigator.onLine === false)) return false;
+    if (_blobCache[fileId]) { imgEl.src = _blobCache[fileId]; return true; }
+    if (typeof window !== 'undefined' && window._rrForceFreshBytes && window._rrForceFreshBytes[fileId]) return false;
+    var link = thumbLink || (Object.prototype.hasOwnProperty.call(_thumbLinkCache, fileId) ? _thumbLinkCache[fileId] : '');
+    if (!link) return false;
+    imgEl.onerror = function() { imgEl.onerror = null; _loadDriveThumbFull(fileId, imgEl, containerEl); };
+    imgEl.src = link.replace(/=s\d+(-c)?$/, '=s400');
+    _rrThumbBank(fileId);
+    return true;
+  } catch (e) { return false; }
+}
+if (typeof window !== 'undefined') window._rrThumbKnown = _rrThumbKnown;
 // ── v0.9.1601/1603: the on-device thumbnail bank ────────────────────────
 // v1601 tried to fill the bank from the signed thumbnail links via an
 // anonymous Image + canvas. MEASURED DEAD on 2026-08-28 (Session 87, in

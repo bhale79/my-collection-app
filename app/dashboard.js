@@ -396,7 +396,10 @@ var CARD_CATALOG = [
       setTimeout(function() { if (typeof window._reelStart === 'function') window._reelStart(i); }, 0);
       // v0.9.877 (Brad): reel-host class + flex centering \u2014 photo sits
       // centered in the card instead of hugging the top (see app.css).
-      return { html: '<div id="reel-' + i + '" class="reel-host" style="min-height:86px;color:var(--text-dim);font-size:0.72rem">Loading photos\u2026</div>' };
+      // v0.9.1834 (N3): "Loading photos\u2026" only before the FIRST picture \u2014
+      // on a rebuild _reelStart puts the picture that was showing straight back.
+      var _had = !!(window._reelLast && window._reelLast[i]);
+      return { html: '<div id="reel-' + i + '" class="reel-host" style="min-height:86px;color:var(--text-dim);font-size:0.72rem">' + (_had ? '' : 'Loading photos\u2026') + '</div>' };
     }
   },
   {
@@ -1234,6 +1237,7 @@ function buildDashboard() {
       }
     });
     try { _dashFlushThumbs(); } catch (eT) {}   // v0.9.1046
+    try { _dashReshowPhotos(); } catch (eR) {}   // v0.9.1834 (N3): the pictures that were on screen are back BEFORE the browser paints
     try { if (typeof window._dashFitPanelsNow === 'function') window._dashFitPanelsNow(); } catch (eF) {}   // v0.9.1808 / v1809: measure NOW so the photo cards can size to it
   })();
 
@@ -1252,6 +1256,12 @@ function buildDashboard() {
       th.style.display = 'none'; th.innerHTML = ''; return;
     }
     th.style.display = '';
+    // v0.9.1834 (N3): a strip that is already running is LEFT ALONE. Every
+    // rebuild used to reset it to "Loading photos…" and start the parade
+    // over — and the dashboard is rebuilt on every data event. The queue and
+    // cursor are global, so the parade simply carries on.
+    var _running = document.getElementById('rr-ticker-track');
+    if (_running && _running.querySelector('[data-tk]')) return;
     // a fresh strip means a fresh track element, so the base duration is
     // measured again from whatever this build's first batch turns out to be
     window._tickerBaseSet = false;
@@ -1418,11 +1428,21 @@ window._tickerFill = async function () {
       if (!cell) return;
       var img = cell.querySelector('img');
       img.onload = function () { img.style.opacity = 1; };
-      loadDriveThumb(t.fid, img, cell);
+      // v0.9.1834: a picture the app already knows shows at once — no fade
+      if (loadDriveThumb(t.fid, img, cell)) _dashShowNow(img);
       cell.onclick = function () { window._detailReturn = 'dashboard'; _openOwnedByInvId(t.pd.inventoryId); };
     });
   });
 };
+
+// v0.9.1834 (N3): the fade-in is for a picture that has to be FETCHED. One
+// the browser already holds (loadDriveThumb returned true) is shown in the
+// same paint as the box it sits in — the transition is switched off first,
+// or setting opacity would still animate it from blank.
+function _dashShowNow(img) {
+  try { img.style.transition = 'none'; img.style.opacity = 1; } catch (e) {}
+}
+if (typeof window !== 'undefined') window._dashShowNow = _dashShowNow;
 
 
 // Open a collection item's detail by its INVENTORY ID (unique per copy) —
@@ -1810,7 +1830,8 @@ function _dashFlushThumbs() {
       img.onload = function () { img.style.opacity = 1; };
       host.innerHTML = '';
       host.appendChild(img);
-      if (typeof loadDriveThumb === 'function') loadDriveThumb(fid, img, host, null, 'lo');
+      // v0.9.1834: a picture the app already knows shows at once — no fade
+      if (typeof loadDriveThumb === 'function' && loadDriveThumb(fid, img, host, null, 'lo')) _dashShowNow(img);
     }).catch(function () {});
   });
 }
@@ -1877,18 +1898,14 @@ async function _pickThumbs(n, resolveCap) {
   return out;
 }
 window._reelTimers = window._reelTimers || {};
-window._reelStart = async function (slot) {
-  if (window._reelTimers[slot]) { clearInterval(window._reelTimers[slot]); delete window._reelTimers[slot]; }
-  var host = document.getElementById('reel-' + slot);
-  if (!host) return;
-  var picks = await _pickThumbs(8, 4);
-  host = document.getElementById('reel-' + slot);
-  if (!host) return;
-  if (!picks.length) { host.classList.remove('reel-photo'); host.innerHTML = '<span style="font-size:0.72rem;color:var(--text-dim)">Add item photos to see them here</span>'; return; }
-  // v0.9.1428: flex:1 with 86px as a FLOOR, not a ceiling — the block now
-  // fills whatever height the card has. object-fit:cover still crops to fill,
-  // but a taller box is closer to a camera's own shape, so the crop is gentler
-  // and more of each train shows than at 86px.
+window._reelLast = window._reelLast || {};    // v0.9.1834: the picture each slot is showing
+window._reelGen = window._reelGen || {};      // v0.9.1834: one live start per slot
+// The reel's frame (one picture box + caption) drawn into a slot's host.
+// v0.9.1428: flex:1 with 86px as a FLOOR, not a ceiling — the block fills
+// whatever height the card has. object-fit:cover still crops to fill, but a
+// taller box is closer to a camera's own shape, so the crop is gentler and
+// more of each train shows than at 86px.
+function _reelFrame(host, slot) {
   host.classList.add('reel-photo');
   host.innerHTML = '<div id="reel-img-' + slot + '" style="width:100%;flex:1;min-height:86px;margin:0 auto;border-radius:8px;overflow:hidden;position:relative;cursor:pointer;background:var(--surface2,#26262e)">'
     // v0.9.1430 (Brad): "every time the picture changes the card size changes".
@@ -1902,21 +1919,69 @@ window._reelStart = async function (slot) {
     + '<img class="rr-fit" style="position:absolute;top:0;left:0;width:100%;height:100%;object-position:center;transition:opacity 0.45s;opacity:0" alt="">'
     + '<div style="position:absolute;left:0;right:0;bottom:0;background:rgba(0,0,0,0.55);color:#fff;font-size:0.68rem;padding:0.15rem 0.4rem;font-family:var(--font-mono,monospace)"></div></div>';
   var wrap = document.getElementById('reel-img-' + slot);
-  var img = wrap.querySelector('img'), cap = wrap.querySelector('div');
+  return { wrap: wrap, img: wrap.querySelector('img'), cap: wrap.querySelector('div') };
+}
+function _reelPlace(f, t, slot) {
+  f.cap.textContent = t.pd.itemNum;
+  f.wrap.onclick = function (ev) { ev.stopPropagation(); window._detailReturn = 'dashboard'; _openOwnedByInvId(t.pd.inventoryId); };
+  window._reelLast[slot] = t;
+}
+// v0.9.1834 (N3): the picture a slot was showing, drawn again at once
+// (synchronous). Returns the frame, or null when the slot has no picture yet.
+function _reelReshow(slot) {
+  try {
+    var host = document.getElementById('reel-' + slot), last = window._reelLast[slot];
+    if (!host || !last || !last.fid || !last.pd) return null;
+    var f = _reelFrame(host, slot);
+    f.img.onload = function () { f.img.style.opacity = 1; };
+    if (loadDriveThumb(last.fid, f.img, f.wrap)) _dashShowNow(f.img);
+    _reelPlace(f, last, slot);
+    return f;
+  } catch (e) { return null; }
+}
+if (typeof window !== 'undefined') window._reelReshow = _reelReshow;
+window._reelStart = async function (slot) {
+  if (window._reelTimers[slot]) { clearInterval(window._reelTimers[slot]); delete window._reelTimers[slot]; }
+  var host = document.getElementById('reel-' + slot);
+  if (!host) return;
+  // v0.9.1834 (N3): two starts for one slot used to leave two rotations
+  // running — each start awaited its picks and then set its own interval;
+  // only the LATEST one may finish.
+  var gen = window._reelGen[slot] = (window._reelGen[slot] || 0) + 1;
+  var frame = function () { return _reelFrame(host, slot); };
+  var place = function (f, t) { _reelPlace(f, t, slot); };
+  // v0.9.1834 (N3): the picture that was showing STAYS on through a rebuild —
+  // drawn again at once (buildDashboard already did, via _reelReshow, before
+  // the browser painted; if not, now), and the rotation carries on from it.
+  // It used to vanish while the picks were fetched and come back as a
+  // different random picture.
+  var last = window._reelLast[slot], f = null;
+  if (last && last.fid && last.pd) {
+    var _wrap = document.getElementById('reel-img-' + slot);
+    f = (_wrap && _wrap.querySelector('img') && _wrap.querySelector('img').src) ? { wrap: _wrap, img: _wrap.querySelector('img'), cap: _wrap.querySelector('div') } : _reelReshow(slot);
+  }
+  var picks = await _pickThumbs(8, 4);
+  if (window._reelGen[slot] !== gen) return;   // a newer start owns this slot
+  host = document.getElementById('reel-' + slot);
+  if (!host) return;
+  if (!picks.length) { host.classList.remove('reel-photo'); host.innerHTML = '<span style="font-size:0.72rem;color:var(--text-dim)">Add item photos to see them here</span>'; delete window._reelLast[slot]; return; }
+  if (!f || !document.getElementById('reel-img-' + slot)) f = frame();
+  var wrap = f.wrap, img = f.img;
   var idx = Math.floor(Math.random() * picks.length);
   function show() {
     var t = picks[idx % picks.length]; idx++;
+    img.style.transition = 'opacity 0.45s';   // a kept picture was shown without one; the rotation fades as always
     img.style.opacity = 0;
     setTimeout(function () {
+      if (window._reelGen[slot] !== gen) return;
       img.onload = function () { img.style.opacity = 1; };
       loadDriveThumb(t.fid, img, wrap);
-      cap.textContent = t.pd.itemNum;
-      wrap.onclick = function (ev) { ev.stopPropagation(); window._detailReturn = 'dashboard'; _openOwnedByInvId(t.pd.inventoryId); };
+      place(f, t);
     }, 250);
   }
-  show();
+  if (!last || !(f.img && f.img.src)) show();   // a first start shows a picture now; a rebuild keeps the one it has
   window._reelTimers[slot] = setInterval(function () {
-    if (!document.getElementById('reel-img-' + slot)) { clearInterval(window._reelTimers[slot]); delete window._reelTimers[slot]; return; }
+    if (window._reelGen[slot] !== gen || !document.getElementById('reel-img-' + slot)) { clearInterval(window._reelTimers[slot]); delete window._reelTimers[slot]; return; }
     show();
   }, 5000);
 };
@@ -1997,7 +2062,8 @@ function _showcaseRender(picks) {
     if (!cell) return;
     var img = cell.querySelector('img');
     img.onload = function () { img.style.opacity = 1; };
-    loadDriveThumb(t.fid, img, cell);
+    // v0.9.1834: a picture the app already knows shows at once — no fade
+    if (loadDriveThumb(t.fid, img, cell)) _dashShowNow(img);
     cell.onclick = function () { window._detailReturn = 'dashboard'; _openOwnedByInvId(t.pd.inventoryId); };
   });
 }
@@ -2054,11 +2120,60 @@ window._showcasePauseToggle = function () {
 
 window._showcaseFill = async function () {
   if (!document.getElementById('showcase-grid')) return;
-  window._scShow = { hist: [], pos: -1, timer: window._scShow ? window._scShow.timer : null };
+  // ══ v0.9.1834 (N3) — A REBUILD SHOWS THE SET THAT WAS ON SCREEN ═════════
+  // This used to throw the history away and pick a fresh random set every
+  // time the dashboard was rebuilt — and it is rebuilt on every data event,
+  // so the Showcase changed its pictures for no reason the user could see.
+  // Now a new set comes only from the 20-second shuffle (or ‹ ›), and the
+  // running clock is kept, not restarted. A picture of an item that is no
+  // longer owned is dropped on the way; an emptied set falls through to a
+  // fresh pick.
+  var st = window._scShow;
+  if (_showcaseReshow()) { if (!st.timer) _showcaseArmTimer(); return; }
+  window._scShow = { hist: [], pos: -1, timer: st ? st.timer : null };
   _showcaseSyncPauseBtn();
   await window._showcaseNext(false);
   _showcaseArmTimer();
 };
+// The set on screen, drawn again at once (synchronous — buildDashboard calls
+// it before the browser paints; the async fill above calls it too and finds
+// the work done). Returns true when a kept set is showing.
+function _showcaseKey(picks) { return (picks || []).map(function (t) { return t && t.fid; }).join(','); }
+function _showcaseReshow() {
+  try {
+    var grid = document.getElementById('showcase-grid');
+    var st = window._scShow;
+    var cur = (grid && st && st.hist && st.pos >= 0) ? st.hist[st.pos] : null;
+    if (!cur || !cur.length) return false;
+    // owned copies by inventory id (never by object identity — a data
+    // refresh replaces every record object)
+    var ownedIds = {};
+    Object.values(state.personalData || {}).forEach(function (p) { if (p && p.owned && p.inventoryId) ownedIds[String(p.inventoryId)] = 1; });
+    var keep = cur.filter(function (t) { return !!(t && t.pd && ownedIds[String(t.pd.inventoryId || '')]); });
+    if (!keep.length) return false;
+    st.hist[st.pos] = keep;
+    _showcaseSyncPauseBtn();
+    if (grid.getAttribute('data-sc-key') !== _showcaseKey(keep) || !grid.querySelector('img')) {
+      _showcaseRender(keep);
+      grid.setAttribute('data-sc-key', _showcaseKey(keep));
+    }
+    return true;
+  } catch (e) { return false; }
+}
+if (typeof window !== 'undefined') window._showcaseReshow = _showcaseReshow;
+
+// v0.9.1834 (N3): every kept picture back on screen in the SAME task as the
+// rebuild — the Showcase's current set and each reel's current picture. The
+// panels' own fills run a task later (setTimeout 0) and find nothing to do.
+function _dashReshowPhotos() {
+  try { _showcaseReshow(); } catch (e) {}
+  try {
+    Object.keys(window._reelLast || {}).forEach(function (slot) {
+      if (document.getElementById('reel-' + slot)) _reelReshow(slot);
+    });
+  } catch (e) {}
+}
+if (typeof window !== 'undefined') window._dashReshowPhotos = _dashReshowPhotos;
 
 var _DEFAULT_PANELS = [{id:'recent'}, {id:'wants'}];
 

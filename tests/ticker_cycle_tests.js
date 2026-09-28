@@ -35,8 +35,15 @@ ok('a completed cycle reshuffles, so the second pass is not a rerun',
    /window\._tickerAt = 0;[\s\S]{0,260}?Math\.floor\(Math\.random\(\) \* \(a \+ 1\)\)/.test(dash));
 ok('the walk is bounded — a spent resolve cap cannot spin forever',
    /scanned < q\.length/.test(dash));
+// v0.9.1834: _reelStart grew a kept-picture re-show ahead of its picks, so
+// the call is looked for inside the function, not within 300 characters of
+// its name.
 ok('_pickThumbs is left alone for its other callers (the dashboard reels)',
-   /_reelStart[\s\S]{0,300}?_pickThumbs\(8, 4\)/.test(dash));
+   (function () {
+     var i = dash.indexOf('window._reelStart = async function');
+     var j = i < 0 ? -1 : dash.indexOf('\n};', i);
+     return i >= 0 && j > i && /_pickThumbs\(8, 4\)/.test(dash.slice(i, j));
+   })());
 
 // ── the refill is bound to the join ─────────────────────────────
 section('Refilling where the loop joins');

@@ -12402,16 +12402,71 @@
               return '<div style="min-height:120px;display:flex;align-items:center;justify-content:center;color:var(--text-dim);font-size:0.78rem;text-align:center">Photos will show when you’re back online</div>';
             }
             setTimeout(function () { _pinPanelFill(); }, 0);
-            return '<div id="pin-panel-grid" onclick="window._fromDash=true;_pinGo()" title="Open Photo Inbox" style="cursor:pointer;display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:0.5rem;min-height:120px"><div class="empty-state"><p>Loading inbox…</p></div></div>';
+            // v0.9.1834 (N3): once a list has been seen, a rebuild draws it
+            // again at once (_pinPanelDrawLast, from the buildDashboard
+            // wrapper) instead of showing "Loading inbox…" while Drive is
+            // asked again. The words are only for the very first draw.
+            return '<div id="pin-panel-grid" onclick="window._fromDash=true;_pinGo()" title="Open Photo Inbox" style="cursor:pointer;display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:0.5rem;min-height:120px">'
+              + (_pinPanelLast ? '' : '<div class="empty-state"><p>Loading inbox…</p></div>') + '</div>';
           }
         });
       }
     } catch (e) { console.warn('[Inbox] dash register:', e); }
   }
 
+  // ══ v0.9.1834 (N3) — THE CARD KEEPS ITS PICTURES THROUGH A REBUILD ══════
+  // The dashboard is rebuilt on every data event, and every rebuild used to
+  // put "Loading inbox…" on this card, ask Drive for the list again (a round
+  // trip), and only then draw the tiles — so the inbox photos blanked and
+  // reloaded for no reason the user could see. Now the last list is kept:
+  // a rebuild draws it at once (from the buildDashboard wrapper, before the
+  // browser paints), Drive is still asked, and the tiles are redrawn only
+  // when the list actually changed. One drawer for both paths.
+  var _pinPanelLast = null;      // the files Drive last listed for the card
+  function _pinPanelKey(files) { return (files || []).map(function (f) { return f && f.id; }).join(','); }
+  function _pinPanelDraw(grid, files) {
+    if (!grid) return;
+    if (!files.length) {
+      grid.innerHTML = '<div class="empty-state" style="grid-column:1/-1"><p>Inbox is empty — snap some photos with Batch Add</p></div>';
+      grid.setAttribute('data-pin-key', '');
+      return;
+    }
+    // v0.9.893 (Brad): SAME column rule as the Showcase (shared helper) +
+    // explicit column count — the old auto-fill CSS guessed differently
+    // on his laptop (2 cols vs the Showcase's 3).
+    var cols = (typeof window._dashPhotoCols === 'function') ? window._dashPhotoCols(grid)
+      : Math.max(3, Math.floor((grid.clientWidth || 500) / 104));
+    grid.style.gridTemplateColumns = 'repeat(' + cols + ', 1fr)';
+    // v0.9.892 (Brad): show EVERYTHING up to 3 rows (matches Showcase's
+    // on-screen cap) — partial last row and all. Still no "+N" tile; the
+    // header total covers the overflow beyond 3 rows.
+    // v0.9.1809: as many whole rows as the card holds now that the cards
+    // are one height (was a fixed 3 — left an empty band on a tall window)
+    var _rows = (typeof window._dashPhotoRowsFit === 'function') ? window._dashPhotoRowsFit(grid, cols) : 3;
+    var show = files.slice(0, cols * _rows);
+    grid.innerHTML = show.map(function (f) {
+      return '<div style="aspect-ratio:var(--rr-photo-tile-ratio);border-radius:8px;overflow:hidden;background:var(--surface2,#26262e)"><img loading="lazy" data-ppfid="' + f.id + '" class="rr-fit" style="width:100%;height:100%;display:block" alt=""></div>';
+    }).join('');
+    grid.setAttribute('data-pin-key', _pinPanelKey(files));
+    grid.querySelectorAll('img[data-ppfid]').forEach(function (img) {
+      loadDriveThumb(img.getAttribute('data-ppfid'), img, img.parentElement, null, 'hi');
+    });
+  }
+  // A rebuild's fresh card, drawn from the last list before anything is asked.
+  function _pinPanelDrawLast() {
+    try {
+      var grid = document.getElementById('pin-panel-grid');
+      if (!grid || !_pinPanelLast || grid.querySelector('img[data-ppfid]')) return false;
+      _pinPanelDraw(grid, _pinPanelLast);
+      return true;
+    } catch (e) { return false; }
+  }
+  if (typeof window !== 'undefined') window._pinPanelDrawLast = _pinPanelDrawLast;
+
   async function _pinPanelFill() {
     var grid = document.getElementById('pin-panel-grid');
     if (!grid || !_qcToken()) return;
+    _pinPanelDrawLast();
     try {
       var fid = await _folder();
       var q = encodeURIComponent("'" + fid + "' in parents and mimeType contains 'image/' and trashed=false");
@@ -12428,31 +12483,13 @@
       });
       grid = document.getElementById('pin-panel-grid');
       if (!grid) return;
-      if (!files.length) {
-        grid.innerHTML = '<div class="empty-state" style="grid-column:1/-1"><p>Inbox is empty — snap some photos with Batch Add</p></div>';
-        return;
-      }
-      // v0.9.893 (Brad): SAME column rule as the Showcase (shared helper) +
-      // explicit column count — the old auto-fill CSS guessed differently
-      // on his laptop (2 cols vs the Showcase's 3).
-      var cols = (typeof window._dashPhotoCols === 'function') ? window._dashPhotoCols(grid)
-        : Math.max(3, Math.floor((grid.clientWidth || 500) / 104));
-      grid.style.gridTemplateColumns = 'repeat(' + cols + ', 1fr)';
-      // v0.9.892 (Brad): show EVERYTHING up to 3 rows (matches Showcase's
-      // on-screen cap) — partial last row and all. Still no "+N" tile; the
-      // header total covers the overflow beyond 3 rows.
-      // v0.9.1809: as many whole rows as the card holds now that the cards
-      // are one height (was a fixed 3 — left an empty band on a tall window)
-      var _rows = (typeof window._dashPhotoRowsFit === 'function') ? window._dashPhotoRowsFit(grid, cols) : 3;
-      var show = files.slice(0, cols * _rows);
-      grid.innerHTML = show.map(function (f) {
-        return '<div style="aspect-ratio:var(--rr-photo-tile-ratio);border-radius:8px;overflow:hidden;background:var(--surface2,#26262e)"><img loading="lazy" data-ppfid="' + f.id + '" class="rr-fit" style="width:100%;height:100%;display:block" alt=""></div>';
-      }).join('');
-      grid.querySelectorAll('img[data-ppfid]').forEach(function (img) {
-        loadDriveThumb(img.getAttribute('data-ppfid'), img, img.parentElement, null, 'hi');
-      });
+      _pinPanelLast = files;
+      // the same list as the tiles on screen — leave them be
+      if (grid.getAttribute('data-pin-key') === _pinPanelKey(files) && (files.length ? grid.querySelector('img[data-ppfid]') : true)) return;
+      _pinPanelDraw(grid, files);
     } catch (e) {
-      if (grid) grid.innerHTML = '<div class="empty-state" style="grid-column:1/-1"><p>Couldn’t load the inbox — open it to retry</p></div>';
+      // a failed ask never blanks tiles that are already showing
+      if (grid && !grid.querySelector('img[data-ppfid]')) grid.innerHTML = '<div class="empty-state" style="grid-column:1/-1"><p>Couldn’t load the inbox — open it to retry</p></div>';
     }
   }
 
@@ -12997,6 +13034,7 @@
         try { _autoPlaceOnce(); } catch (e) {}
         var r = orig.apply(this, arguments);
         try {
+          _pinPanelDrawLast();   // v0.9.1834: the inbox card's pictures are back before the browser paints
           _injectNav(); _flushPending(); _repairMissingPhotoLinks(); _backfillMasterKeys();
           window._pinFlushPendingNow = _flushPending;   // v0.9.1602: reconnect + drain-chain kick
           if (!_startupCounted) { _startupCounted = true; setTimeout(function () { _pinCountRefresh(); }, 1500); }
