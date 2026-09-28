@@ -5308,6 +5308,8 @@
                 + ') outranked longer text found in no catalog' : '')
             + (dbg.pooled ? '<br>Decided from everything all the passes read together' : '')
             + (dbg.family ? '<br>Family: ' + rrEsc(dbg.family) : '')
+            + (dbg.familyOverLead ? '<br>The family is in this catalog, so it outranks ' + rrEsc(dbg.familyOverLead)
+                + ', a number from another catalog' : '')
             + (dbg.freqPick ? '<br>Two real numbers were in view \u2014 kept the one read most often: '
                 + rrEsc(dbg.freqPick) : '')
             + (dbg.offEraLead ? '<br>The number read on the car (' + rrEsc(dbg.offEraLead)
@@ -8760,6 +8762,37 @@
   //     2410 Santa Fe car, stamped Lionel Postwar O, was misread as "210" and
   //     then matched against a Lionel PRE-WAR standard-gauge switch pair. The
   //     app had the era written on the photo and was not using it.
+  // v0.9.1831: the v1448 family question, asked in ONE place. Of the numbers
+  // READ (the candidate list), which heads a dashed family in the stamped
+  // catalog? Word evidence wins, then the head read most often. Writes the
+  // "Family:" line on dbg and returns the pick, or null when no candidate
+  // heads a family. Callers decide whether a bare head (no evidence) is enough.
+  function _pinReadFamily(uniq, prefer, UP, dbg) {
+    var _famHits = [];
+    (uniq || []).slice(0, 8).forEach(function (cF) {
+      var fpF = _pinFamilyPick(cF, prefer, UP);
+      if (fpF) _famHits.push(fpF);
+    });
+    if (!_famHits.length) return null;
+    var _famBest = _famHits[0];
+    _famHits.slice(1).forEach(function (h) {
+      if (h.why && !_famBest.why) { _famBest = h; return; }
+      if (!!h.why === !!_famBest.why) {
+        var _fA = (UP.match(new RegExp('\\b' + _famBest.fam + '\\b', 'g')) || []).length;
+        var _fB = (UP.match(new RegExp('\\b' + h.fam + '\\b', 'g')) || []).length;
+        if (_fB > _fA) _famBest = h;
+      }
+    });
+    if (dbg) {
+      dbg.family = _famBest.fam + ' heads ' + _famBest.count + ' dashed relative'
+        + (_famBest.count === 1 ? '' : 's') + ' in the stamped catalog'
+        + (_famBest.why ? ' — ' + _famBest.num + ' matched: ' + _famBest.why : '')
+        + (_famBest.tied ? ' — narrowed to ' + _famBest.tied.join(' or ')
+             + (_famBest.tiedWhy ? ' on: ' + _famBest.tiedWhy : '') : '');
+    }
+    return _famBest;
+  }
+
   function _numberFromText(text, prefer) {
     if (!text) return null;
     var UP = String(text).toUpperCase();
@@ -9362,14 +9395,32 @@
           if (_oRow && _sameMakerAsFilter(_oRow)) { _offLead = oc; break; }
         }
       }
-      if (_offLead) {
-        if (typeof _pinQuoteMatch === 'function') {
-          var _qm3 = _pinQuoteMatch(_offLead, prefer, dbg);
-          if (_qm3 && _qm3.row && _qm3.row.itemNum) {
-            dbg.quoted = _offLead + ' \u2192 ' + _qm3.row.itemNum;
-            return { num: String(_qm3.row.itemNum), matched: true, viaQuote: _offLead, dbg: dbg };
-          }
+      if (_offLead && typeof _pinQuoteMatch === 'function') {
+        var _qm3 = _pinQuoteMatch(_offLead, prefer, dbg);
+        if (_qm3 && _qm3.row && _qm3.row.itemNum) {
+          dbg.quoted = _offLead + ' \u2192 ' + _qm3.row.itemNum;
+          return { num: String(_qm3.row.itemNum), matched: true, viaQuote: _offLead, dbg: dbg };
         }
+      }
+      // ══ v0.9.1831 — THE FAMILY THE CAR NAMES OUTRANKS ANOTHER CATALOG'S LEAD ═
+      // Brad's Great Northern boxcar, 2026-09-28, on his phone: "Numbers seen:
+      // 6464, 2300, 3727, 523" and the answer was "2300 — Operating Oil Drum
+      // Loader" from the MPC list. 6464 was read off the car, it heads 196
+      // dashed relatives in the stamped catalog, and GREAT NORTHERN sat right
+      // beside it — but this branch conceded to another era's catalog (the
+      // v1105 off-era lead) before the v1448 family question, one step below,
+      // was ever asked. The same ordering fault v1772 fixed for glued dashes,
+      // one branch up. A quote-confirmed lead (above) still wins: that is a
+      // match, not a lead. An unconfirmed lead does not beat the car.
+      var _famAmb = _pinReadFamily(uniq, prefer, UP, dbg);
+      if (_famAmb && (_famAmb.why || (_famAmb.tied && _famAmb.tied.length))) {
+        dbg.familyOverLead = _offLead ? String(_offLead) : '';
+        return { num: _famAmb.num, matched: false, family: true,
+                 alts: (_famAmb.tied && _famAmb.tied.length)
+                         ? _famAmb.tied.slice(0, 6)
+                         : [String(_famAmb.num)], dbg: dbg };
+      }
+      if (_offLead) {
         dbg.offEraLead = _offLead;
         return { num: _offLead, matched: false, offEra: true,
                  alts: [String(_offLead)].concat(wHits.slice(0, 3)), dbg: dbg };
@@ -9558,27 +9609,10 @@
     // seen number HEADS A DASHED FAMILY in the stamped era. Brad's 6464-25:
     // 6464 heads ~29 postwar rows, and it lost to a literal prewar 500. When
     // several candidates head families, word evidence wins, then the one
-    // read most often.
-    var _famHits = [];
-    uniq.slice(0, 8).forEach(function (cF) {
-      var fpF = _pinFamilyPick(cF, prefer, UP);
-      if (fpF) _famHits.push(fpF);
-    });
-    if (_famHits.length) {
-      var _famBest = _famHits[0];
-      _famHits.slice(1).forEach(function (h) {
-        if (h.why && !_famBest.why) { _famBest = h; return; }
-        if (!!h.why === !!_famBest.why) {
-          var _fA = (UP.match(new RegExp('\\b' + _famBest.fam + '\\b', 'g')) || []).length;
-          var _fB = (UP.match(new RegExp('\\b' + h.fam + '\\b', 'g')) || []).length;
-          if (_fB > _fA) _famBest = h;
-        }
-      });
-      dbg.family = _famBest.fam + ' heads ' + _famBest.count + ' dashed relative'
-        + (_famBest.count === 1 ? '' : 's') + ' in the stamped catalog'
-        + (_famBest.why ? ' — ' + _famBest.num + ' matched: ' + _famBest.why : '')
-        + (_famBest.tied ? ' — narrowed to ' + _famBest.tied.join(' or ')
-             + (_famBest.tiedWhy ? ' on: ' + _famBest.tiedWhy : '') : '');
+    // read most often. (v0.9.1831: the question is asked by _pinReadFamily,
+    // ONE helper, here and in the ambiguous-windows branch above.)
+    var _famBest = _pinReadFamily(uniq, prefer, UP, dbg);
+    if (_famBest) {
       return { num: _famBest.num, matched: false, family: true,
                alts: (_famBest.tied && _famBest.tied.length)
                        ? _famBest.tied.slice(0, 6)
