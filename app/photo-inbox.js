@@ -3916,7 +3916,11 @@
     // v0.9.1444: the dashed family, whenever one exists — not only when the
     // number is missing from the catalogue (see _pinKinPanelHtml).
     try {
-      var _kinHtml = _pinKinPanelHtml(lk.num, lk.master);
+      // v0.9.1832: the read's alternatives ride along — for a family read
+      // they are the relatives the words narrowed it to, and the panel lists
+      // those first. _rvAiRec is the ONE record the card resolved (v1096).
+      var _rdAlts = (_rvAiRec && Array.isArray(_rvAiRec.alts)) ? _rvAiRec.alts : [];
+      var _kinHtml = _pinKinPanelHtml(lk.num, lk.master, _rdAlts);
       if (_kinHtml) html += _kinHtml;
     } catch (eKin) {}
     // v0.9.1294 (request #30): the excluded numbers ride on EVERY branch of
@@ -5691,7 +5695,11 @@
       return { num: c, fam: c, count: fams.length, why: '' };
     } catch (e) { return null; }
   }
-  function _pinKinPanelHtml(num, matched) {
+  // readAlts (v0.9.1832): the photo's read alternatives \u2014 for a family read
+  // (v1772 / v1831) those are the relatives the words narrowed it to, and
+  // they are listed first, marked. Anything in it that is not a member of
+  // THIS family is ignored, so a number typed over the read changes nothing.
+  function _pinKinPanelHtml(num, matched, readAlts) {
     try {
       var n = String(num || '').trim();
       if (!n || typeof rrDashedKin !== 'function') return '';
@@ -5720,7 +5728,7 @@
         return !/boxes/i.test(String(r._tab || ''));
       };
       var matchedIsSecondary = !!(matched && !_isItemRow(matched));
-      var line = function (label, desc, link, isBase, road) {
+      var line = function (label, desc, link, isBase, road, fits) {
         var safe = String(label).replace(/'/g, '');
         // v0.9.1735: a base line names WHICH row it is, so clicking it picks
         // that car rather than retyping a number the box already holds.
@@ -5728,20 +5736,58 @@
         var _go = (isBase && (road || desc))
           ? '_pinPickRow(\'' + safe + '\',\'' + _q(road) + '\',\'' + _q(desc) + '\')'
           : '_pinPickNum(\'' + safe + '\')';
+        // v0.9.1832: a relative the read narrowed the family to is green and
+        // wears a "fits" tag; the hint line above the list says what fits.
+        // The green is the palette's own (--green in app.css), never a literal
+        // here; the tint is mixed from it, with the plain surface as the
+        // fallback for a browser without color-mix.
+        var _edge = fits ? 'var(--green)' : (isBase ? '#2980b9' : 'var(--border)');
+        var _fill = fits ? 'var(--surface2);background:color-mix(in srgb, var(--green) 10%, var(--surface2))' : (isBase ? 'rgba(41,128,185,0.14)' : 'var(--surface2)');
+        var _ink = fits ? 'var(--green)' : (isBase ? '#2980b9' : 'var(--accent2,#c9922a)');
         return '<button type="button" onclick="' + _go + '" style="display:flex;align-items:center;gap:0.5rem;width:100%;box-sizing:border-box;text-align:left;'
-          + 'background:' + (isBase ? 'rgba(41,128,185,0.14)' : 'var(--surface2)') + ';border:1px solid ' + (isBase ? '#2980b9' : 'var(--border)') + ';'
+          + 'background:' + _fill + ';border:1px solid ' + _edge + ';'
           + 'border-radius:8px;padding:0.4rem 0.55rem;margin-top:0.3rem;cursor:pointer;color:var(--text);font-family:var(--font-body)">'
-          + '<span style="font-family:var(--font-mono);font-weight:700;font-size:0.82rem;color:' + (isBase ? '#2980b9' : 'var(--accent2,#c9922a)') + ';flex-shrink:0">' + esc(label) + '</span>'
+          + '<span style="font-family:var(--font-mono);font-weight:700;font-size:0.82rem;color:' + _ink + ';flex-shrink:0">' + esc(label) + '</span>'
           + '<span style="font-size:0.74rem;color:var(--text-dim);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(desc || '') + '</span>'
+          + (fits ? '<span class="pin-kin-fits" style="flex-shrink:0;font-size:0.66rem;font-weight:700;color:var(--green);border:1px solid var(--green);border-radius:999px;padding:0.05rem 0.45rem;white-space:nowrap">✓ fits</span>' : '')
           // Session 85: an <a> may not nest inside a <button> (invalid HTML;
           // screen readers announce one control containing another). Same
           // look, same behaviour, as a span that opens the link itself.
           + (link ? '<span onclick="event.stopPropagation();window.open(\'' + esc(link) + '\',\'_blank\',\'noopener\')" style="flex-shrink:0;font-size:0.7rem;font-weight:700;color:#2980b9;cursor:pointer">view \u2197</span>' : '')
           + '</button>';
       };
+      var _numeric = function (a, b) { return String(a).localeCompare(String(b), undefined, { numeric: true }); };
+      // One relative, one line — the first real item row in the card's eras
+      // (a box or paper row only when nothing better carries the number).
+      var _kinLine = function (k, fits) {
+        var rows = _pinKinRowsFor(k).filter(_isItemRow).filter(_eraOk);
+        var r0 = rows[0] || _pinKinRowsFor(k).filter(_eraOk)[0];
+        if (!r0) return false;
+        html += line(k, r0.description || '', r0.refLink || '', false, '', fits);
+        return true;
+      };
       // The base first — but only when a real item row carries it.
       var baseRows = _pinKinRowsFor(n).filter(_isItemRow).filter(_eraOk);
       var html = '';
+      // ══ v0.9.1832 — THE RELATIVES THE READ NARROWED TO COME FIRST, MARKED ══
+      // Brad's Great Northern 6464, the last S9 phone check (2026-09-28). v1831
+      // read it right — "narrowed to 6464-25 or 6464-450 on: GREAT, NORTHERN"
+      // — and the panel under that very sentence listed 6464-1, -25, -50, -75,
+      // -100 … in catalogue order, as though nothing had been learned: a
+      // scroll through the whole family to find the two the reader had
+      // already singled out. The read's alternatives ARE those relatives (the
+      // tied members, v1772); the ones that belong to THIS family lead the
+      // list, marked, and the rest follow in catalogue order exactly as before.
+      var _fit = [];
+      try {
+        (Array.isArray(readAlts) ? readAlts : []).forEach(function (a) {
+          var s = String(a == null ? '' : a).trim();
+          if (kin.indexOf(s) < 0) { var mA = s.match(/^[0-9][0-9A-Za-z.\-\/–]*/); s = mA ? mA[0] : ''; }
+          if (s && kin.indexOf(s) >= 0 && _fit.indexOf(s) < 0) _fit.push(s);
+        });
+      } catch (eFit) { _fit = []; }
+      var _shownKin = {}, _fitN = 0;
+      _fit.sort(_numeric).forEach(function (k) { if (_kinLine(k, true)) { _shownKin[k] = 1; _fitN++; } });
       // ══ v0.9.1734 — EVERY IDENTITY UNDER THIS NUMBER, not just the first ══
       // Brad's 6050 listed "Libby's Tomato Juice Boxcar" and the 6050-110
       // Swift, and stopped. His car is the Lionel Savings Bank boxcar, which is
@@ -5763,23 +5809,23 @@
           html += line(n, r.description || r.roadName || '', r.refLink || '', true, r.roadName || '');
         });
       }
-      // then the relatives, in catalogue order
-      kin.slice().sort(function (a, b) { return String(a).localeCompare(String(b), undefined, { numeric: true }); })
-         .forEach(function (k) {
-           var rows = _pinKinRowsFor(k).filter(_isItemRow).filter(_eraOk);
-           var r0 = rows[0] || _pinKinRowsFor(k).filter(_eraOk)[0];
-           if (!r0) return;
-           html += line(k, r0.description || '', r0.refLink || '', false);
-         });
+      // then the rest of the relatives, in catalogue order
+      kin.slice().sort(_numeric).forEach(function (k) { if (!_shownKin[k]) _kinLine(k, false); });
       if (!html) return '';
       var head = baseRows.length
         ? 'This number also comes as these \u2014 pick the one you have'
         : (matchedIsSecondary
             ? 'No plain ' + esc(n) + ' item exists \u2014 that match was a box or paper entry. The catalogue has these'
             : 'The catalogue lists ' + esc(n) + ' as these');
+      // v0.9.1832: say what the green "fits" lines are, in the words the
+      // disclosure uses ("what was read") \u2014 never stated as fact.
+      var _fitWord = { 1: 'one', 2: 'two', 3: 'three', 4: 'four', 5: 'five', 6: 'six' }[_fitN] || String(_fitN);
+      var _fitNote = _fitN
+        ? '<span class="pin-kin-fits-note" style="color:var(--green);font-weight:700">The first ' + (_fitN === 1 ? 'one fits' : _fitWord + ' fit') + ' what was read from the photo.</span> '
+        : '';
       return '<div style="margin-top:0.5rem;padding:0.5rem 0.6rem;border:1px solid rgba(41,128,185,0.45);border-radius:10px;background:rgba(41,128,185,0.06)">'
         + '<div style="font-size:0.76rem;font-weight:700;color:#2980b9;margin-bottom:0.1rem">' + head + '</div>'
-        + '<div style="font-size:0.68rem;color:var(--text-dim);margin-bottom:0.15rem">The sub-number is on the box, not the car \u2014 open a reference to compare.</div>'
+        + '<div style="font-size:0.68rem;color:var(--text-dim);margin-bottom:0.15rem">' + _fitNote + 'The sub-number is on the box, not the car \u2014 open a reference to compare.</div>'
         + html + '</div>';
     } catch (e) { return ''; }
   }
