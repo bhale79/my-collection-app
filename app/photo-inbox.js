@@ -4849,7 +4849,12 @@
     var _gBtn = 'padding:0.62rem 0.5rem;border-radius:9px;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer;line-height:1.2;';
     // Offered, not entered. Tapping it fills the box and runs the lookup, which
     // is the same thing pre-filling did — except the user chose it.
-    var _guessChip = sugGuess
+    // v0.9.1833: [stated] Brad — "don't need the 6464 — use this as it adds to
+    // the confusion when you have 2 to pick from." With two or more choices
+    // on the card the choice IS the guidance; the chip stays only when the
+    // reader has one guess and nothing to pick between — then it is the one
+    // way to take the guess. _pinAltList is the same list the chips draw.
+    var _guessChip = (sugGuess && _pinAltList().length < 2)
       ? '<div style="margin-bottom:0.55rem;display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap">'
         + '<span style="font-size:0.76rem;color:var(--text-dim)">Best guess from the photo:</span>'
         + '<button onclick="_pinPickNum(\'' + rrEsc(sugGuess).replace(/'/g, '') + '\')" '
@@ -5505,28 +5510,61 @@
       '</div>';
   }
 
-  // v0.9.901 (Brad): pick-one chips when the AI listed look-alike variants —
-  // the ★ chip is its best guess; tapping any chip fills the number box and
-  // runs the catalog lookup so the descriptions tell the twins apart.
-  function _pinAltChips() {
+  // v0.9.901 (Brad): pick-one chips when the reader listed look-alike
+  // variants — the ★ chip is its best guess; tapping any chip fills the
+  // number box and runs the catalog lookup.
+  //
+  // ══ v0.9.1833 — EACH CHOICE SAYS WHAT IT IS AND LINKS TO ITS PAGE ═══════
+  // [stated] Brad, phone, 2026-09-28, after picking 6464-25 from the two the
+  // reader had narrowed his Great Northern to: "if you don't know, from this
+  // screen you still don't know what to pick. need to include the link for
+  // each underneath the number so you can pick." Once a dashed number is in
+  // the box the family panel is gone (a dashed number is taken as decided),
+  // so these chips were the only way to switch — and a bare number tells
+  // you nothing. Now each choice carries its catalogue description and a
+  // "view ↗" to its reference page — the SAME row and link the family panel
+  // shows (_pinCardRowFor), so the two can be looked at before picking.
+  // _pinAltList is the one list; the chips and the "use this" guess chip
+  // both read it. The record is _rvAiRec — the ONE the card resolved (v1096).
+  function _pinAltList() {
     var s = {};
-    try { s = _ids()[_rvGroups[0].files[0].id] || {}; } catch (e) {}
+    try { s = _rvAiRec || {}; } catch (eR) { s = {}; }
     var alts = Array.isArray(s.alts) ? s.alts.slice(0) : [];
-    if (!alts.length) return '';
+    if (!alts.length) return [];
     var primary = String(s.num || '');
-    var esc = function (t) { return String(t).replace(/</g, '&lt;').replace(/"/g, '&quot;'); };
-    var covered = alts.some(function (a) { return primary && a.indexOf(primary) > -1; });
+    var covered = alts.some(function (a) { return primary && String(a).indexOf(primary) > -1; });
     if (primary && !covered) alts.unshift(primary + ' (best guess)');
-    var chips = alts.map(function (a) {
+    var out = [], seen = {};
+    alts.forEach(function (a) {
       var m = String(a).match(/[0-9][0-9A-Za-z.\-\/]*/);
       var n = m ? m[0] : '';
-      var hot = !!(n && primary && n === primary);
-      return '<button onclick="_pinPickNum(\'' + esc(n) + '\')" style="padding:0.35rem 0.6rem;border-radius:8px;border:1.5px solid ' + (hot ? '#ffb454' : 'var(--border)') + ';background:' + (hot ? 'rgba(255,180,84,0.14)' : 'var(--surface2)') + ';color:' + (hot ? '#ffb454' : 'var(--text-mid)') + ';font-size:0.75rem;font-weight:700;cursor:pointer;font-family:var(--font-body)">' + (hot ? '★ ' : '') + esc(a) + '</button>';
+      if (n) { if (seen[n]) return; seen[n] = 1; }   // the same number twice is one choice
+      var row = n ? _pinCardRowFor(n) : null;
+      out.push({ label: String(a), n: n, hot: !!(n && primary && n === primary),
+                 desc: row ? String(row.description || row.roadName || '') : '',
+                 link: row ? String(row.refLink || '') : '' });
+    });
+    return out;
+  }
+  function _pinAltChips() {
+    var list = _pinAltList();
+    if (!list.length) return '';
+    var esc = (typeof rrEsc === 'function') ? rrEsc : function (t) { return String(t).replace(/</g, '&lt;').replace(/"/g, '&quot;'); };
+    var anyHot = list.some(function (c) { return c.hot; });
+    var chips = list.map(function (c) {
+      var num = '<button type="button" onclick="_pinPickNum(\'' + esc(c.n) + '\')" style="padding:0.35rem 0.6rem;border-radius:8px;border:1.5px solid ' + (c.hot ? '#ffb454' : 'var(--border)') + ';background:' + (c.hot ? 'rgba(255,180,84,0.14)' : 'var(--surface2)') + ';color:' + (c.hot ? '#ffb454' : 'var(--text-mid)') + ';font-size:0.75rem;font-weight:700;cursor:pointer;font-family:var(--font-body)">' + (c.hot ? '★ ' : '') + esc(c.label) + '</button>';
+      // the description and the page, underneath the number (Brad's red marks)
+      var desc = c.desc ? '<div class="pin-alt-desc" style="font-size:0.7rem;color:var(--text-dim);line-height:1.3;max-width:12em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(c.desc) + '</div>' : '';
+      // the app's action blue is the palette's --want (typed as #2980b9
+      // elsewhere in this file) — no new colour literal
+      var link = c.link ? '<button type="button" class="pin-alt-view" onclick="window.open(\'' + esc(c.link) + '\',\'_blank\',\'noopener\')" style="border:none;background:none;padding:0.2rem 0;min-height:30px;color:var(--want);font-family:var(--font-body);font-size:0.74rem;font-weight:700;cursor:pointer;text-align:left">view ↗</button>' : '';
+      return '<div class="pin-alt" style="display:flex;flex-direction:column;align-items:flex-start;gap:0.1rem;max-width:12em">' + num + desc + link + '</div>';
     }).join('');
     return '<div style="margin-bottom:0.6rem">' +
-      '<div style="font-size:0.72rem;color:var(--text-dim);margin-bottom:0.3rem">Could be one of these — tap each to compare (★ = best guess):</div>' +
-      '<div style="display:flex;flex-wrap:wrap;gap:0.4rem">' + chips + '</div></div>';
+      '<div style="font-size:0.72rem;color:var(--text-dim);margin-bottom:0.3rem">Could be one of these — view each to compare, then tap the one you have' + (anyHot ? ' (★ = best guess)' : '') + ':</div>' +
+      '<div style="display:flex;flex-wrap:wrap;gap:0.4rem 0.9rem;align-items:flex-start">' + chips + '</div></div>';
   }
+  if (typeof window !== 'undefined') { window._pinAltList = _pinAltList; window._pinAltChips = _pinAltChips; }
 
   // ══ v0.9.1444 (Brad's 6436) — SHOW THE DASHED FAMILY ══════════════════════
   // "there is no way for our reader to know this is a -110. thats why we need
@@ -5549,6 +5587,27 @@
     } catch (e) {}
     return [];
   }
+  // ══ v0.9.1833 — ONE answer to "which catalogue row stands for this number
+  // on the card?" ═══════════════════════════════════════════════════════════
+  // The first real item row in the card's eras (a box, set or paper row only
+  // when nothing better carries the number — _pinDemotedRow / rrDemotedRow
+  // decides what "real" is). The family panel's lines and the pick chips
+  // both ask here, so a chip and a panel line can never describe, or link
+  // to, two different rows for the same number.
+  function _pinCardRowFor(n) {
+    try {
+      var eras = [];
+      try { eras = _prefEras(_rvPrefer()) || []; } catch (eE) { eras = []; }
+      var inEra = function (r) { return !!r && (!eras.length || eras.indexOf(r._era) >= 0); };
+      var isItem = function (r) {
+        if (typeof window.rrDemotedRow === 'function') return !window.rrDemotedRow(r);
+        return !/boxes/i.test(String(r._tab || ''));
+      };
+      var all = _pinKinRowsFor(n).filter(inEra);
+      return all.filter(isItem)[0] || all[0] || null;
+    } catch (e) { return null; }
+  }
+  if (typeof window !== 'undefined') window._pinCardRowFor = _pinCardRowFor;
   // ── v0.9.1448 (Brad's 6464-25 Great Northern, read as prewar "500"):
   // the car says 6464 — the HEAD of a dashed family. No row carries bare
   // 6464, so it matched nothing in the stamped era, and an off-era literal
@@ -5760,8 +5819,7 @@
       // One relative, one line — the first real item row in the card's eras
       // (a box or paper row only when nothing better carries the number).
       var _kinLine = function (k, fits) {
-        var rows = _pinKinRowsFor(k).filter(_isItemRow).filter(_eraOk);
-        var r0 = rows[0] || _pinKinRowsFor(k).filter(_eraOk)[0];
+        var r0 = _pinCardRowFor(k);   // v0.9.1833: the same row the pick chips describe
         if (!r0) return false;
         html += line(k, r0.description || '', r0.refLink || '', false, '', fits);
         return true;

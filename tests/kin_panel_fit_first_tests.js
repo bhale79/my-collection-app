@@ -68,7 +68,8 @@ function build(opts) {
   };
   vm.createContext(sb);
   vm.runInContext(grab(APP, 'function rrDashedKin(num)'), sb);
-  vm.runInContext((opts.panelSource || grab(SRC, 'function _pinKinPanelHtml(num, matched, readAlts)')) + '\nthis.panel = _pinKinPanelHtml;', sb);
+  // v0.9.1833: the panel's lines ask _pinCardRowFor (shared with the pick chips) which row stands for a number
+  vm.runInContext(grab(SRC, 'function _pinCardRowFor(n)') + '\n' + (opts.panelSource || grab(SRC, 'function _pinKinPanelHtml(num, matched, readAlts)')) + '\nthis.panel = _pinKinPanelHtml;', sb);
   return sb.panel;
 }
 // The lines of a rendered panel, in order: label, whether it wears the tag, its edge colour, its tap.
@@ -142,6 +143,7 @@ section('D. The plumbing: the card hands the read\'s alternatives to the panel')
      /var _rdAlts = \(_rvAiRec && Array\.isArray\(_rvAiRec\.alts\)\) \? _rvAiRec\.alts : \[\];/.test(SRC) && /_pinKinPanelHtml\(lk\.num, lk\.master, _rdAlts\)/.test(SRC));
   ok('…and it is the only caller', (SRC.match(/_pinKinPanelHtml\(/g) || []).length === 2, String((SRC.match(/_pinKinPanelHtml\(/g) || []).length));   // the definition + the one caller
   ok('the lead lines and the rest are drawn by ONE line-maker', (grab(SRC, 'function _pinKinPanelHtml(num, matched, readAlts)').match(/var _kinLine = function \(k, fits\)/g) || []).length === 1);
+  ok('…and that line-maker asks the shared row-picker (v1833), the same one the pick chips use', /var r0 = _pinCardRowFor\(k\);/.test(grab(SRC, 'function _pinKinPanelHtml(num, matched, readAlts)')));
 }
 
 section('E. THE OFFENDER: the panel that ignores the read, require red');
