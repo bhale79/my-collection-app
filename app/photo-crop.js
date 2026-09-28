@@ -688,12 +688,14 @@ function _openCropper(src, onResult, onCancel, opts) {   // v0.9.787: onCancel =
   _rrOrientProbe(function (autoOrients) {
     if (!document.body.contains(ov)) return;
     var go = function () { requestAnimationFrame(function () { requestAnimationFrame(function () { _build(autoOrients); }); }); };
-    // v0.9.1828: NEVER wait on decode() without a cap. Measured live on Brad's
-    // desktop Chrome, 2026-09-27: for a 12 MP photo `load` fired in 2 ms and
-    // decode()'s promise never settled at all (12 s and counting) — the crop
-    // screen sat on "Loading photo…" for ever. Cropper draws the picture
-    // whether or not decode() ever answers, so the cap costs at most a blank
-    // first paint on a slow decode; no cap cost the whole screen.
+    // v0.9.1828: NEVER wait on decode() without a cap. THE HONEST STORY: this
+    // was shipped for a "hang" seen in a HIDDEN Chrome tab — a background tab
+    // fires no requestAnimationFrame and never settles decode(), so nothing
+    // that needs a frame runs there; on a visible page the same 12 MP photo
+    // built in 246 ms. The cap stays because it is right on its own terms:
+    // Cropper draws the picture whether or not decode() ever answers, so a
+    // decode that really stalls (a starved tab, a browser bug) costs at most a
+    // blank first paint, never the whole screen.
     var decoded = function (fn) {
       var done = false, once = function () { if (done) return; done = true; fn(); };
       try { if (img.decode) { img.decode().then(once, once); } else { once(); return; } } catch (eD) { once(); return; }

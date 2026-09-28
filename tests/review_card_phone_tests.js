@@ -47,17 +47,20 @@ function fnBody(sig) {
 
 // ── 1. One big picture, both layouts ─────────────────────────────────────
 section('RULE 1 — one big picture, both layouts');
-const hero = fnBody('function _pinRvHeroHtml(fixedH, maxH)');
+const hero = fnBody('function _pinRvHeroHtml(maxH)');
 const rail = fnBody('function _pinRvRailHtml(sizePx)');
 ok('the big picture has ONE builder', hero.length > 200, '');
 ok('#pin-rv-main exists exactly once in the source — inside that builder',
    (PI.match(/id="pin-rv-main"/g) || []).length === 1 && /id="pin-rv-main"/.test(hero), String((PI.match(/id="pin-rv-main"/g) || []).length));
-ok('the PHONE layout builds it (fixed height, so the card does not jump between portrait and landscape)',
-   /var _stripHtml = _pinRvHeroHtml\('40vh', null\) \+ _pinRvRailHtml\(74\) \+ _pinRvViewsBarHtml\(\);/.test(PI), '');
+// v0.9.1829 (Brad: "make the photo box match the crop so that we dont have to
+// scroll so much"): the phone box is no longer a fixed 40vh — it sizes to the
+// photo and stops at 40vh, exactly like the desktop. ONE mode.
+ok('the PHONE layout builds it (sized to the photo, capped at 40vh — v1829)',
+   /var _stripHtml = _pinRvHeroHtml\('40vh'\) \+ _pinRvRailHtml\(74\) \+ _pinRvViewsBarHtml\(\);/.test(PI), '');
 // v0.9.1739: the cap is 40vh on the two-column laptop card and 52vh on the
 // 900-1199 stacked one — still ONE line, still sized to the photo (null).
 ok('the DESKTOP layout builds it too (sized to the photo, as before)',
-   /var _photoWide = _pinRvHeroHtml\(null, _wide2 \? '40vh' : '52vh'\) \+ _pinRvRailHtml\(64\) \+ _pinRvViewsBarHtml\(\);/.test(PI), '');
+   /var _photoWide = _pinRvHeroHtml\(_wide2 \? '40vh' : '52vh'\) \+ _pinRvRailHtml\(64\) \+ _pinRvViewsBarHtml\(\);/.test(PI), '');
 ok('its ✂ and 🔍 act on whatever is showing (data-rvbig), not on a fixed photo',
    /_pinCropPhoto\(document\.getElementById\(\\'pin-rv-main\\'\)\.getAttribute\(\\'data-rvbig\\'\)\)/.test(hero)
    && /_pinZoomPhoto\(document\.getElementById\(\\'pin-rv-main\\'\)\.getAttribute\(\\'data-rvbig\\'\)\)/.test(hero), '');
@@ -125,9 +128,9 @@ section('Behaviour, executed');
       w._mainFid, w._cornBtn, w._railThumbs, w._ids, w.rrEsc, w.window);
   }
   const d = build(false), m = build(true), one = build(true, ['f1']);
-  const ph = m.hero('40vh', null), dh = d.hero(null, '52vh');
-  ok('RUN: the phone hero is a fixed 40vh box with the photo fitted inside it',
-     /height:40vh;/.test(ph) && /max-height:100%;/.test(ph) && !/max-height:40vh/.test(ph), '');
+  const ph = m.hero('40vh'), dh = d.hero('52vh');
+  ok('RUN: the phone hero sizes to the photo up to 40vh — no fixed height any more (v1829)',
+     /max-height:40vh;/.test(ph) && !/height:40vh;/.test(ph.replace(/max-height:40vh;/g, '')) && /min-height:64px/.test(ph), '');
   ok('RUN: the desktop hero sizes to the photo up to 52vh, as before',
      /max-height:52vh;/.test(dh) && !/height:52vh;/.test(dh.replace(/max-height:52vh;/g, '')), '');
   ok('RUN: both carry #pin-rv-main pointed at the first photo, with ✂ and 🔍',

@@ -23600,7 +23600,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
       ok('337 _wide2 is derived from _wide (a phone can never be "wide2")',
          /var _wide2 = _wide && \(window\.innerWidth \|\| 0\) >= 1200;/.test(p37));
       ok('337 the hero cap is chosen on the ONE _photoWide line (the 3-occurrence pin above still holds)',
-         /var _photoWide = _pinRvHeroHtml\(null, _wide2 \? '40vh' : '52vh'\) \+ _pinRvRailHtml\(64\) \+ _pinRvViewsBarHtml\(\);/.test(p37));
+         /var _photoWide = _pinRvHeroHtml\(_wide2 \? '40vh' : '52vh'\) \+ _pinRvRailHtml\(64\) \+ _pinRvViewsBarHtml\(\);/.test(p37));
       ok('337 the body is picked in one place: wide2, else wide, else stacked',
          /\(_wide2 \? _wideBody2 : \(_wide \? _wideBody : _stripHtml \+ _controlsHtml\)\)/.test(p37));
 

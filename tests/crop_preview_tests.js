@@ -282,7 +282,7 @@ const meanDiff = (a, b) => { let s = 0; const n = Math.min(a.length, b.length); 
     await pg.close();
   }
   // ── G · decode() that never answers: the screen still opens ──────────────
-  console.log('\n== G · a decode() that never settles cannot hang the crop screen (v1828, measured live on the desktop) ==');
+  console.log('\n== G · a decode() that never settles cannot hang the crop screen (v1828 — the cap; the "hang" it was shipped for was a hidden tab) ==');
   {
     const { pg, errs } = await open(browser, 1200);
     const g = await pg.evaluate(async () => {

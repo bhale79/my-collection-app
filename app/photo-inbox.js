@@ -4989,13 +4989,21 @@
     // the phone strip used to carry are gone with it — they crowded a 74px
     // tile and they are what the big picture's own buttons are for.
     var _cornBtn = 'position:absolute;width:30px;height:30px;border-radius:8px;border:none;background:rgba(0,0,0,0.6);color:#fff;font-size:0.9rem;line-height:1;cursor:pointer;padding:0;z-index:2';
-    // The big picture. `fixedH` (phone) pins the box height so the card does
-    // not jump between a portrait and a landscape photo; `maxH` (desktop)
-    // lets it size to the photo as before.
-    function _pinRvHeroHtml(fixedH, maxH) {
-      var box = 'position:relative;border-radius:12px;overflow:hidden;background:var(--surface2,#26262e);display:flex;align-items:center;justify-content:center;margin-bottom:0.5rem;'
-        + (fixedH ? 'height:' + fixedH + ';' : 'max-height:' + maxH + ';');
-      var img = 'max-width:100%;object-fit:contain;display:block;cursor:zoom-in;' + (fixedH ? 'max-height:100%;' : 'max-height:' + maxH + ';');
+    // The big picture, sized to the PHOTO and capped at maxH.
+    // ══ v0.9.1829 (Brad, phone, 2026-09-28: "on the page where you crop, once
+    // you crop it can we make the photo box match the crop so that we dont have
+    // to scroll so much") ═══════════════════════════════════════════════════
+    // v1705 pinned the phone box at a fixed 40vh so the card would not jump
+    // between a portrait and a landscape photo. The cost showed up the moment
+    // he cropped a boxcar down to a wide strip: a 40vh box with the strip
+    // floating in the middle and the details pushed a screen down. So the box
+    // now sizes to the photo on EVERY device — the photo's own shape, capped
+    // at maxH — exactly as the desktop always did. One mode, one number per
+    // layout; a crop reshapes the box the moment its bytes land. min-height
+    // keeps the ✂ and 🔍 apart while the photo is still on its way.
+    function _pinRvHeroHtml(maxH) {
+      var box = 'position:relative;border-radius:12px;overflow:hidden;background:var(--surface2,#26262e);display:flex;align-items:center;justify-content:center;margin-bottom:0.5rem;min-height:64px;max-height:' + maxH + ';';
+      var img = 'max-width:100%;max-height:' + maxH + ';object-fit:contain;display:block;cursor:zoom-in;';
       return '<div style="' + box + '">' +
         '<img id="pin-rv-main" data-rvbig="' + _mainFid + '" onclick="_pinZoomPhoto(this.getAttribute(\'data-rvbig\'))" title="Tap for full-screen zoom" style="' + img + '" alt="">' +
         '<button onclick="_pinZoomPhoto(document.getElementById(\'pin-rv-main\').getAttribute(\'data-rvbig\'))" title="Full-screen zoom" style="' + _cornBtn + ';left:8px;bottom:8px">🔍</button>' +
@@ -5023,17 +5031,17 @@
       '</div>';
     }
 
-    // Phone: big picture (a fixed 40% of the screen — one number to tune),
-    // the rail, then the view-slot bar. Stacked, as before, just with the
-    // element the arrows were always pointed at.
-    var _stripHtml = _pinRvHeroHtml('40vh', null) + _pinRvRailHtml(74) + _pinRvViewsBarHtml();
+    // Phone: big picture (the photo's own shape, up to 40% of the screen —
+    // one number to tune), the rail, then the view-slot bar. Stacked, as
+    // before, just with the element the arrows were always pointed at.
+    var _stripHtml = _pinRvHeroHtml('40vh') + _pinRvRailHtml(74) + _pinRvViewsBarHtml();
 
     // v0.9.964 (Brad): DESKTOP layout — the "From the photo" read and the
     // catalog details sit as full-width boxes across the TOP, the photo fills
     // the middle full-width, and the action buttons run in a row across the
     // BOTTOM. (The old right-hand split panel — _panelHtml — was built on
     // every open and never used since v964; it is gone.)
-    var _photoWide = _pinRvHeroHtml(null, _wide2 ? '40vh' : '52vh') + _pinRvRailHtml(64) + _pinRvViewsBarHtml();
+    var _photoWide = _pinRvHeroHtml(_wide2 ? '40vh' : '52vh') + _pinRvRailHtml(64) + _pinRvViewsBarHtml();
     var _aiL = (_pinAiLine(_mainFid) || '') + _pinTagLineHtml(_mainFid), _chips = _pinAltChips();
     var _wideBtn = 'flex:1 1 160px;padding:0.72rem 0.6rem;border-radius:10px;font-family:var(--font-body);font-weight:700;font-size:0.9rem;cursor:pointer;';
     var _wideBody =

@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.1828';
+const APP_VERSION = 'v0.9.1829';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -1962,18 +1962,36 @@ window._rrShowUpdateBar = function (netApp) {
     }
     var bar = document.createElement('div');
     bar.id = 'rr-update-bar';
+    // ══ v0.9.1829 (Brad, phone, 2026-09-27: "the there is an update is all out
+    // of shape") ══════════════════════════════════════════════════════════════
+    // ONE flex row, no wrapping: on a phone the sentence was squeezed into a
+    // seven-line column beside the two buttons and "Tonight" ran off the right
+    // edge (measured at 360 px: the text 43 px wide, the bar 237). Now the
+    // sentence keeps a floor of 12em — it stays a sentence — and when the two
+    // buttons do not fit beside it they wrap UNDER it as a sealed pair (the
+    // v1778 crop-row rule: a member is never orphaned into the other group's
+    // row). On a computer it is still one row. And on a phone the bar sits
+    // ABOVE the bottom menu, not on top of it: the menu's height is read off
+    // the real element below, never typed here (app.css owns that number).
     bar.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);bottom:14px;z-index:100010;' +
-      'display:flex;align-items:center;gap:0.7rem;padding:0.55rem 0.85rem;border-radius:10px;' +
-      'background:var(--surface);border:1px solid var(--accent2);' +
+      'display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:0.55rem 0.7rem;padding:0.6rem 0.85rem;border-radius:10px;' +
+      'background:var(--surface);border:1px solid var(--accent2);box-sizing:border-box;' +
       'font-family:var(--font-body);font-size:0.83rem;color:var(--text);max-width:calc(100vw - 2rem)';
     var safeVer = String(netApp).replace(/[^0-9A-Za-z.\-]/g, '');
     bar.innerHTML =
-      '<span>A new version of The Rail Roster is ready.</span>' +
-      '<button type="button" onclick="_rrUpdateNow()" style="border:none;border-radius:7px;padding:0.35rem 0.8rem;' +
-        'background:var(--accent);color:var(--on-accent);font-family:var(--font-body);font-size:0.8rem;font-weight:700;cursor:pointer;flex-shrink:0">Update now</button>' +
-      '<button type="button" onclick="_rrUpdateTonight(\'' + safeVer + '\')" title="Reload around 3:00 AM instead" style="border:1.5px solid var(--border);border-radius:7px;' +
-        'padding:0.35rem 0.8rem;background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.8rem;font-weight:600;cursor:pointer;flex-shrink:0">Tonight</button>';
+      '<span style="flex:1 1 auto;min-width:12em;text-align:center">A new version of The Rail Roster is ready.</span>' +
+      '<span style="display:flex;flex-wrap:nowrap;gap:0.6rem;flex:0 0 auto">' +
+        '<button type="button" onclick="_rrUpdateNow()" style="border:none;border-radius:7px;padding:0.35rem 0.8rem;' +
+          'background:var(--accent);color:var(--on-accent);font-family:var(--font-body);font-size:0.8rem;font-weight:700;cursor:pointer;flex-shrink:0">Update now</button>' +
+        '<button type="button" onclick="_rrUpdateTonight(\'' + safeVer + '\')" title="Reload around 3:00 AM instead" style="border:1.5px solid var(--border);border-radius:7px;' +
+          'padding:0.35rem 0.8rem;background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.8rem;font-weight:600;cursor:pointer;flex-shrink:0">Tonight</button>' +
+      '</span>';
     document.body.appendChild(bar);
+    try {
+      var nav = document.querySelector('.mobile-nav');
+      var navH = (nav && getComputedStyle(nav).display !== 'none') ? nav.getBoundingClientRect().height : 0;
+      if (navH > 0) bar.style.bottom = Math.round(navH + 10) + 'px';
+    } catch (eNav) {}
     window._rrPendingUpdateVer = null;      // shown — stop any retry chain
   } catch (e) { /* a notice must never break the app */ }
 };
