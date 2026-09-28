@@ -236,25 +236,23 @@ const meanDiff = (a, b) => { let s = 0; const n = Math.min(a.length, b.length); 
     await pg.close();
   }
 
-  // ── D · a phone: the recorder's diary says what Cropper was handed ──────
-  console.log('\n== D · on a phone the diary reports the copy, so the next phone check can be read from the desktop ==');
+  // ── D · a phone-width screen builds on the copy too ──────────────────────
+  // (v1826–1829 this section also read the crop-flash recorder's diary; the
+  // recorder was retired in v1830 once Brad confirmed the crop is smooth.)
+  console.log('\n== D · a phone-width screen ==');
   {
     const { pg, errs } = await open(browser, 400);
     const d = await pg.evaluate(async () => {
-      localStorage.removeItem('rr_crop_flash'); localStorage.removeItem('rr_crop_flash__at');
       const src = __photo(3000, 4000);
       const o = await __openCrop(src);
       const info = __cropperInfo();
       document.getElementById('_rrCropCancel').click();
       await new Promise(r => setTimeout(r, 100));
-      let diary = null; try { diary = JSON.parse(localStorage.getItem('rr_crop_flash')); } catch (e) {}
-      return { info, diary, stamped: localStorage.getItem('rr_crop_flash__at') };
+      return { info, gone: !document.getElementById('_rrCropImg') };
     });
     T('D1  the phone-width screen builds on the copy too', d.info.cropperNatural === '1800x2400', d.info);
-    T('D2  the diary\'s photo line names the copy Cropper got (1800x2400), not the 12 MP original', d.diary && /photo 1800x2400/.test(d.diary.frames), d.diary && d.diary.frames);
-    T('D3  …and its lines show both loads: the photo, then the copy', d.diary && d.diary.lines.some(l => /photo decoded  3000x4000/.test(l)) && d.diary.lines.some(l => /photo decoded  1800x2400/.test(l)), d.diary && d.diary.lines);
-    T('D4  …stamped for the account (v1826), so Brad\'s desktop can read it', d.stamped && d.stamped !== '0', d.stamped);
-    T('D5  no page errors', errs.length === 0, errs);
+    T('D2  …and closes cleanly', d.gone, d);
+    T('D3  no page errors', errs.length === 0, errs);
     await pg.close();
   }
 

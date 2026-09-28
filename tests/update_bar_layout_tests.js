@@ -79,7 +79,11 @@ function judge(m) {
   T('A4  …and side by side on ONE row (a sealed pair)', pj.buttonsOneRow, ph.buttons);
   T('A5  …under the sentence, not beside it', ph.buttons.length === 2 && ph.buttons[0].y >= ph.sentence.b - 1, { sentence: ph.sentence, buttons: ph.buttons });
   T('A6  the bottom menu is showing on the phone, and the bar sits ABOVE it', ph.navShown && pj.aboveNav, { bar: ph.bar, nav: ph.nav });
-  T('A7  no page errors', ph.errs.length === 0, ph.errs);
+  // v0.9.1830: width:max-content — a left:50% fixed element shrink-fits to the
+  // half of the screen to its right, so v1829's bar landed at 189 px with the
+  // sentence on two lines. Now it takes the width the screen allows.
+  T('A7  the bar takes the width the screen allows (≥ 300 of 360 px) and the sentence is ONE line', ph.bar.w >= 300 && ph.bar.r <= ph.vw && ph.sentence.h <= 1.6 * ph.fontPx, { bar: ph.bar, sentence: ph.sentence, fontPx: ph.fontPx });
+  T('A8  no page errors', ph.errs.length === 0, ph.errs);
 
   console.log('\n== B · a computer (1200 × 900) ==');
   const dk = await measure(browser, 1200, 900, false), dj = judge(dk);
@@ -91,6 +95,7 @@ function judge(m) {
   const off = await measure(browser, 360, 780, true), oj = judge(off);
   T('OFFENDER 1: the sentence becomes a narrow column → A2 red', !(oj.sentenceWide && oj.sentenceShort), { sentence: off.sentence, bar: off.bar });
   T('OFFENDER 2: a button runs off the screen or out of the bar → A3 red', !oj.buttonsOnScreen, off.buttons);
+  T('OFFENDER 3: the v1829 bar without width:max-content is 189 px wide with a two-line sentence → A7 red', off.bar.w < 300, off.bar);
   await browser.close();
 
   console.log('\n== D · the source ==');

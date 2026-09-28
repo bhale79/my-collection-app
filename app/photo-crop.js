@@ -76,7 +76,7 @@ function _rrOrientProbe(cb) {
 // thread never stalled. Everything that moved was Cropper redrawing a
 // TWELVE-MEGAPIXEL picture on every nudge — rotate, zoom, a grip dragged —
 // and Android Chrome blanks a picture that big while it re-rasters it. That
-// blank is the flash. The v1701 note at the top of this file guessed this.
+// blank is the flash. The recorder's own note (retired in v1830) guessed this.
 //
 // So the picture Cropper is handed is at most _RR_CROP_MAX on its long side.
 // NOTHING IS LOST: getCroppedCanvas({ maxWidth, maxHeight }) has always drawn
@@ -179,237 +179,22 @@ function _rrLoadBox(cropper) {
   } catch (e) { return null; }
 }
 
-// ══ v0.9.1700 — THE CROP FLASH RECORDER (Brad, Session 93) ═══════════════
-//
-// Brad, on an Android phone: "when i go to crop any image on my phone it
-// flashes constantly … the whole screen flashes, not just the picture …
-// if you wait 30 seconds or so it will stop." Reported from the Photo
-// Inbox — both Quick Capture and re-cropping a photo already there. NOT
-// from the Add wizard.
-//
-// This is the SECOND time this bug has been reported. v0.9.1031 diagnosed
-// the chain — page height changes → Android slides its URL bar → that fires
-// a viewport resize → something relayouts → the height changes again — and
-// put three brakes on it. The brakes hold the CROPPER still. They do not
-// stop anything else on the page from reacting, and five other viewport
-// listeners still run while the crop screen is open.
-//
-// Rather than guess a sixth time, this records what actually happens and
-// hands it to the error report. It is deliberately cheap and deliberately
-// temporary:
-//   · phones only, and only while the crop overlay is open
-//   · stops itself after 45 seconds or 400 samples, whichever comes first
-//   · numbers and element names only — never image data, never a value
-// Once the culprit is named, this can come out.
-//
-// ── WHAT v1 (v0.9.1700) FOUND, 2026-09-08, Brad's Android phone ──────────
-//   crop 45.0s  0 viewport events, 27 changes behind the overlay, page
-//   height moved 0x   busiest behind: img x18, div x9
-//   t+0.0  innerH=700 vvH=700 vvTop=0 bodyH=700  behind=div#page-photo-inbox
-//
-// That is decisive, and it kills the theory the v0.9.1031 fix was built on.
-// The URL bar NEVER MOVED. The page height NEVER CHANGED. Nothing behind the
-// overlay was thrashing — 27 mutations in 45 seconds is thumbnails finishing.
-// So the flash is not the viewport and not the page beneath.
-//
-// It is INSIDE the overlay — which is precisely what v1 refused to watch
-// (`if (ov.contains(t)) continue`). My mistake, and an instructive one: the
-// overlay IS the whole screen, so "the whole screen flashes" and "the crop
-// surface flashes" are the same sentence.
-//
-// v2 therefore measures the inside: how many megapixels the photo actually
-// is, how hard the cropper's own DOM is churning, and — the real question —
-// whether frames are being dropped. Constant flashing looks like sustained
-// long frames; a settled screen looks like 16ms frames. The suspicion worth
-// testing: _pinCropPhoto hands the cropper the FULL Drive original (a phone
-// camera JPEG is 12MP+) to display on a 360x700 screen, while the output is
-// capped at 2400px anyway — so the extra pixels buy nothing and may be what
-// Android Chrome is thrashing on.
-var _flashRec = null;
-
-function _flashLabel(n) {
-  try {
-    if (!n || n.nodeType !== 1) return String((n && n.nodeName) || '?').toLowerCase();
-    var t = n.nodeName.toLowerCase();
-    if (n.id) t += '#' + n.id;
-    else if (n.className && typeof n.className === 'string') t += '.' + n.className.trim().split(/\s+/).slice(0, 2).join('.');
-    return t.slice(0, 44);
-  } catch (e) { return '?'; }
-}
-
-function _flashStart(ov, phone) {
-  if (!phone || _flashRec) return;
-  var vv = window.visualViewport || null;
-  var R = _flashRec = {
-    t0: Date.now(), lines: [], n: 0, stopped: false,
-    ev: 0, mut: 0, bodyH: 0, hits: {}, bucket: {}, tick: null, mo: null, timer: null,
-    lastH: -1, lastVV: -1, lastTop: -1, lastBody: -1,
-    // v2 (v0.9.1701): the inside of the overlay, which is where v1 proved the
-    // flash must be.
-    inMut: 0, inBucket: {}, frames: 0, slow100: 0, slow250: 0, worst: 0,
-    mp: '', imgWH: '', raf: null, lastFrame: 0
-  };
-  function put(s) { if (R.lines.length < 90) R.lines.push(s); }
-  function at() { return ((Date.now() - R.t0) / 1000).toFixed(1); }
-
-  put('t+0.0  crop opened  innerH=' + window.innerHeight
-      + (vv ? ' vvH=' + Math.round(vv.height) + ' vvTop=' + Math.round(vv.offsetTop || 0) : ' (no visualViewport)')
-      + ' bodyH=' + document.body.scrollHeight
-      + ' behind=' + _flashLabel(document.querySelector('.page.active') || document.body));
-
-  // Every viewport event, with the numbers that say whether the URL bar moved.
-  R.onEv = function (kind) {
-    return function () {
-      R.ev++;
-      var h = window.innerHeight;
-      var vh = vv ? Math.round(vv.height) : -1;
-      var vt = vv ? Math.round(vv.offsetTop || 0) : -1;
-      var bh = document.body.scrollHeight;
-      if (h !== R.lastH || vh !== R.lastVV || vt !== R.lastTop || bh !== R.lastBody) {
-        if (bh !== R.lastBody && R.lastBody >= 0) R.bodyH++;
-        put('t+' + at() + '  ' + kind + '  innerH=' + h + ' vvH=' + vh + ' vvTop=' + vt + ' bodyH=' + bh);
-        R.lastH = h; R.lastVV = vh; R.lastTop = vt; R.lastBody = bh;
-      }
-    };
-  };
-  R.hWin = R.onEv('win-resize');
-  R.hVvR = R.onEv('vv-resize');
-  R.hVvS = R.onEv('vv-scroll');
-  window.addEventListener('resize', R.hWin, true);
-  if (vv) { vv.addEventListener('resize', R.hVvR); vv.addEventListener('scroll', R.hVvS); }
-
-  // What is CHANGING behind the overlay — the question the whole hunt turns on.
-  try {
-    R.mo = new MutationObserver(function (recs) {
-      for (var i = 0; i < recs.length; i++) {
-        var t = recs[i].target;
-        var inside = false;
-        try { inside = !!(ov && t && ov.contains(t)); } catch (e0) {}
-        var k = _flashLabel(t);
-        // v2: v1 threw the inside away. Both are counted now, separately.
-        if (inside) { R.inMut++; R.inBucket[k] = (R.inBucket[k] || 0) + 1; }
-        else { R.mut++; R.bucket[k] = (R.bucket[k] || 0) + 1; }
-      }
-    });
-    R.mo.observe(document.body, { attributes: true, childList: true, subtree: true, attributeFilter: ['style', 'class'] });
-  } catch (e) {}
-
-  // Name the usual suspects by counting them directly.
-  ['_rrFitLogoBackdrop', '_wizOwnedRefresh', '_pinRenderBar', 'rrSyncPill'].forEach(function (fn) {
-    try {
-      var o = window[fn];
-      if (typeof o !== 'function' || o.__flashWrapped) return;
-      var w = function () { R.hits[fn] = (R.hits[fn] || 0) + 1; return o.apply(this, arguments); };
-      w.__flashWrapped = true; w.__flashOrig = o;
-      window[fn] = w;
-    } catch (e) {}
-  });
-
-  // ── Frame timing: the honest measure of "it flashes" ──
-  // A settled screen paints every ~16ms. A screen thrashing on a huge image
-  // paints in long, irregular bursts. Counting long frames says which.
-  R.lastFrame = (window.performance && performance.now) ? performance.now() : Date.now();
-  var _tick = function () {
-    if (!_flashRec || _flashRec !== R || R.stopped) return;
-    var now = (window.performance && performance.now) ? performance.now() : Date.now();
-    var d = now - R.lastFrame;
-    R.lastFrame = now;
-    R.frames++;
-    if (d > 100) R.slow100++;
-    if (d > 250) R.slow250++;
-    if (d > R.worst) R.worst = Math.round(d);
-    R.raf = requestAnimationFrame(_tick);
-  };
-  R.raf = requestAnimationFrame(_tick);
-
-  // How big is the photo we are asking the phone to hold? (The output is
-  // capped at 2400px by getCroppedCanvas, so anything above that is waste.)
-  try {
-    var _im = ov.querySelector('#_rrCropImg');
-    var _grab = function () {
-      try {
-        if (!_im || !_im.naturalWidth) return;
-        R.imgWH = _im.naturalWidth + 'x' + _im.naturalHeight;
-        R.mp = ((_im.naturalWidth * _im.naturalHeight) / 1000000).toFixed(1) + 'MP';
-        put('t+' + at() + '  photo decoded  ' + R.imgWH + ' (' + R.mp + ')');
-      } catch (e) {}
-    };
-    // v0.9.1827: on EVERY load, not once — the photo loads, then its
-    // screen-sized copy does; the LAST line is what Cropper was handed.
-    if (_im) { if (_im.complete && _im.naturalWidth) _grab(); _im.addEventListener('load', _grab); }
-  } catch (e) {}
-
-  R.timer = setTimeout(function () { _flashStop('45s cap'); }, 45000);
-}
-
-function _flashStop(why) {
-  var R = _flashRec;
-  if (!R || R.stopped) return;
-  R.stopped = true;
-  try { clearTimeout(R.timer); } catch (e) {}
-  try { window.removeEventListener('resize', R.hWin, true); } catch (e) {}
-  try {
-    var vv = window.visualViewport;
-    if (vv) { vv.removeEventListener('resize', R.hVvR); vv.removeEventListener('scroll', R.hVvS); }
-  } catch (e) {}
-  try { if (R.mo) R.mo.disconnect(); } catch (e) {}
-  try { if (R.raf) cancelAnimationFrame(R.raf); } catch (e) {}
-  ['_rrFitLogoBackdrop', '_wizOwnedRefresh', '_pinRenderBar', 'rrSyncPill'].forEach(function (fn) {
-    try { if (window[fn] && window[fn].__flashWrapped) window[fn] = window[fn].__flashOrig; } catch (e) {}
-  });
-  // The busiest things behind the overlay, which is the answer we are after.
-  var top = Object.keys(R.bucket).sort(function (a, b) { return R.bucket[b] - R.bucket[a]; }).slice(0, 6)
-    .map(function (k) { return k + ' x' + R.bucket[k]; });
-  var hits = Object.keys(R.hits).map(function (k) { return k + ' x' + R.hits[k]; });
-  var inTop = Object.keys(R.inBucket).sort(function (a, b) { return R.inBucket[b] - R.inBucket[a]; }).slice(0, 6)
-    .map(function (k) { return k + ' x' + R.inBucket[k]; });
-  var secs = Math.max(0.1, (Date.now() - R.t0) / 1000);
-  var head = 'crop ' + secs.toFixed(1) + 's (' + why + ')  '
-    + R.ev + ' viewport events, ' + R.mut + ' changes behind the overlay, page height moved ' + R.bodyH + 'x';
-  // v2: the two numbers that decide it — how big the photo is, and whether
-  // the phone kept up with it.
-  var frameLine = 'photo ' + (R.imgWH || '?') + ' ' + (R.mp || '') + '  |  '
-    + R.frames + ' frames in ' + secs.toFixed(1) + 's ('
-    + (R.frames / secs).toFixed(1) + '/sec), ' + R.slow100 + ' over 100ms, '
-    + R.slow250 + ' over 250ms, worst ' + R.worst + 'ms';
-  var mem = '';
-  try {
-    if (window.performance && performance.memory) {
-      mem = 'heap ' + Math.round(performance.memory.usedJSHeapSize / 1048576) + 'MB of '
-          + Math.round(performance.memory.jsHeapSizeLimit / 1048576) + 'MB';
-    }
-  } catch (e) {}
-  var out = { at: Date.now(), head: head, frames: frameLine, mem: mem, inTop: inTop, top: top, hits: hits, lines: R.lines };
-  // ── v0.9.1826 (S9, Brad's phone: "the crazy flashing again … the picture
-  // itself"): THE DIARY RIDES THE ACCOUNT FILE. Written through _prefSet, the
-  // one door every setting leaves by (v1779), it syncs to rail-roster-prefs.json
-  // like a setting — so a phone's diary can be read from the desktop, with no
-  // "Report a problem" taps and no email to paste. TEMPORARY, exactly like the
-  // recorder around it: both come out with the fix (the Session 94 rule).
-  var diary = JSON.stringify(out).slice(0, 3200);
-  try {
-    if (typeof _prefSet === 'function') _prefSet('rr_crop_flash', diary);
-    else localStorage.setItem('rr_crop_flash', diary);
-  } catch (e) {}
-  _flashRec = null;
-}
-if (typeof window !== 'undefined') { window._rrFlashStop = _flashStop; }
-
-// v0.9.1826: a diary saved BEFORE this release — today's flashing — has no
-// __at stamp, so the sync cannot see it (the v1825 lesson). Stamp it once, at
-// load, with the diary's OWN time (`at`), never "now": the merge then keeps
-// the newest diary across devices, and the start-up sync seeds the account
-// with it. A diary the sync already knows is left alone; none means nothing.
-function _flashRestampOld() {
-  var old = localStorage.getItem('rr_crop_flash');
-  if (old === null || localStorage.getItem('rr_crop_flash__at') !== null) return false;
-  var at = 0;
-  try { at = Number(JSON.parse(old).at) || 0; } catch (e) {}
-  localStorage.setItem('rr_crop_flash__at', String(at));
-  try { if (typeof window.rrPrefsQueuePush === 'function') window.rrPrefsQueuePush('rr_crop_flash'); } catch (e) {}
-  return true;
-}
-try { if (typeof localStorage !== 'undefined') _flashRestampOld(); } catch (e) {}
+// ══ THE CROP FLASH RECORDER — RETIRED in v0.9.1830 (the Session 94 rule) ═══
+// v0.9.1700–1701 put a recorder in this screen instead of guessing a sixth
+// time, and v0.9.1826 made its diary ride the account file so a phone's diary
+// could be read from the desktop. It named the flash three times over:
+//   v1 (v1700): 0 viewport events, page height moved 0x — the URL bar never
+//       moved; the v1031 theory was dead.
+//   v2 (v1701): 27 Master Catalog rebuilds behind an opaque overlay during a
+//       boot data load, 26 long frames — v1703's rrHoldRepaint.
+//   v3 (v1826): 0 changes that mattered behind, 0 stalled frames, and INSIDE
+//       the overlay Cropper redrawing a 3000×4000 (12 MP) picture 48+44 times
+//       — v1827's screen-sized copy (_rrCropPreview, above).
+// [stated] Brad, 2026-09-28: "yes it works." So the recorder, its restamp
+// helper, error-report's diary line and the diary key itself are gone (the
+// key is on drive.js's PREFS_RETIRED list, so it leaves the account file too);
+// tests/crop_flash_recorder_tests.js now proves they STAY gone. If the flash
+// ever comes back, the diary above is the shape to rebuild — measure first.
 
 function _openCropper(src, onResult, onCancel, opts) {   // v0.9.787: onCancel = proceed without cropping
   // v0.9.1052: opts lets a caller reword the screen — the crop-before-a-paid-read
@@ -565,7 +350,6 @@ function _openCropper(src, onResult, onCancel, opts) {   // v0.9.787: onCancel =
       || (window.matchMedia && window.matchMedia('(max-width: 640px)').matches);
   } catch (eP) {}
   window._rrCropOpen = true;
-  try { _flashStart(ov, _phone); } catch (eF) {}
 
   // PHONES ONLY. On desktop the stage stays fluid so Cropper's `responsive`
   // option can still re-fit when the window is actually resized.
@@ -747,7 +531,6 @@ function _openCropper(src, onResult, onCancel, opts) {   // v0.9.787: onCancel =
 
   function done() {
     window._rrCropOpen = false;
-    try { _flashStop('closed'); } catch (eF) {}
     // v0.9.1703: the screen is ours again — let the rebuilds we held back
     // happen now, once each. _rrCropOpen is cleared FIRST, above, or they
     // would simply defer themselves again.

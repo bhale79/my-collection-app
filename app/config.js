@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.1829';
+const APP_VERSION = 'v0.9.1830';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -1973,9 +1973,14 @@ window._rrShowUpdateBar = function (netApp) {
     // row). On a computer it is still one row. And on a phone the bar sits
     // ABOVE the bottom menu, not on top of it: the menu's height is read off
     // the real element below, never typed here (app.css owns that number).
+    // v0.9.1830: `width:max-content`. A fixed element centred with left:50%
+    // shrink-fits to the HALF of the screen to its right, so v1829's bar
+    // landed at its narrowest (189 px at 360, the sentence on two lines).
+    // max-content asks for the one-row width and max-width clamps it to the
+    // screen — the sentence gets a whole line, the buttons a whole row.
     bar.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);bottom:14px;z-index:100010;' +
       'display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:0.55rem 0.7rem;padding:0.6rem 0.85rem;border-radius:10px;' +
-      'background:var(--surface);border:1px solid var(--accent2);box-sizing:border-box;' +
+      'background:var(--surface);border:1px solid var(--accent2);box-sizing:border-box;width:max-content;' +
       'font-family:var(--font-body);font-size:0.83rem;color:var(--text);max-width:calc(100vw - 2rem)';
     var safeVer = String(netApp).replace(/[^0-9A-Za-z.\-]/g, '');
     bar.innerHTML =

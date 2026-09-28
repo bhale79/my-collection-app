@@ -1570,6 +1570,11 @@ async function driveWriteConfig(data) {
 // photo reads, one layer up.
 const PREFS_FILENAME = 'rail-roster-prefs.json';
 const PREF_AT_SUFFIX = '__at';          // local only; never written to Drive
+// v0.9.1830: keys that once synced and must now leave every device AND the
+// file. The merge can only add or update — a key nobody writes any more would
+// otherwise sit in the account for ever and be re-applied to every device that
+// signs in. `rr_crop_flash` was the crop-flash recorder's diary (v1826–1829).
+const PREFS_RETIRED = ['rr_crop_flash'];
 
 // The merge is a PURE FUNCTION so it can be tested for real rather than
 // inferred from the IO around it. `local` is the device's values, `stamps` when
@@ -1668,6 +1673,19 @@ function _prefsLocalState() {
   return { local: local, stamps: stamps };
 }
 
+// Drop the retired keys from this device and from the account's map. Returns
+// true when the FILE held one, so the caller rewrites it even with nothing
+// else to push. The sync runs it before
+// _prefsLocalState, so the merge never sees them.
+function _prefsRetire(remotePrefs) {
+  let dropped = false;
+  PREFS_RETIRED.forEach(function (k) {
+    try { localStorage.removeItem(k); localStorage.removeItem(k + PREF_AT_SUFFIX); } catch (e) {}
+    if (remotePrefs && Object.prototype.hasOwnProperty.call(remotePrefs, k)) { delete remotePrefs[k]; dropped = true; }
+  });
+  return dropped;
+}
+
 function _prefsApply(apply) {
   let touched = false;
   Object.keys(apply).forEach(function (k) {
@@ -1685,12 +1703,13 @@ function _prefsApply(apply) {
 window.rrPrefsSync = async function () {
   try {
     if (!accessToken) return false;
-    const st = _prefsLocalState();
     const got = await _prefsRead();
     if (!got.ok) return false;                       // read failed: never write
+    const dropped = _prefsRetire(got.prefs);         // v0.9.1830: retired keys leave both sides first
+    const st = _prefsLocalState();
     const m = rrPrefsMerge(st.local, st.stamps, got.prefs, Date.now());
     const touched = _prefsApply(m.apply);
-    if (Object.keys(m.push).length) {
+    if (Object.keys(m.push).length || dropped) {
       const merged = Object.assign({}, got.prefs, m.push);
       await _prefsWrite(merged);
     }

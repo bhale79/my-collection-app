@@ -322,5 +322,40 @@ console.log('\n== H. v0.9.1825 — a value saved BEFORE it synced still reaches 
   ok('OFFENDER: a reader that does not stamp leaves the value invisible to the account -> red', !('lv_collect_eras__at' in s2) && p2.length === 0);
 }
 
+console.log('\n== I. v0.9.1830 — a RETIRED key leaves every device and the file ==');
+// The crop-flash recorder's diary (rr_crop_flash) rode the account file from
+// v1826. The recorder is gone; the merge can only add or update, so without a
+// retire step the key would sit in the file for ever and be re-applied to
+// every device that signs in. _prefsRetire runs BEFORE the local state is
+// read, so the merge never sees the key on either side.
+{
+  const liftRetire = (src) => (store, remote) => new Function('localStorage', 'PREFS_RETIRED', 'PREF_AT_SUFFIX',
+    grab(src, '_prefsRetire') + '\nreturn _prefsRetire;')(
+    { removeItem: k => { delete store[k]; } }, ['rr_crop_flash'], '__at')(remote);
+  const store = { rr_crop_flash: '{"head":"crop 13.4s"}', rr_crop_flash__at: '1790547120138', lv_dash_ticker: '1', lv_dash_ticker__at: '777' };
+  const remote = { rr_crop_flash: { v: '{"head":"crop 13.4s"}', t: 1790547120138 }, lv_dash_ticker: { v: '1', t: 777 } };
+  const dropped = liftRetire(DRIVE)(store, remote);
+  ok('the retired key and its stamp leave the device', !('rr_crop_flash' in store) && !('rr_crop_flash__at' in store), JSON.stringify(store));
+  ok('…and the account\'s map — and the sync is told to REWRITE the file (dropped = true)', dropped === true && !('rr_crop_flash' in remote), JSON.stringify(remote));
+  ok('…while every other key is untouched on both sides', store.lv_dash_ticker === '1' && store.lv_dash_ticker__at === '777' && remote.lv_dash_ticker && remote.lv_dash_ticker.v === '1');
+  ok('a file that never held it → nothing to rewrite (dropped = false)', liftRetire(DRIVE)({}, { lv_dash_ticker: { v: '1', t: 777 } }) === false);
+  ok('a missing remote map does not throw', liftRetire(DRIVE)({}, null) === false);
+  ok('the list names the diary key, once, in ONE place', /const PREFS_RETIRED = \['rr_crop_flash'\];/.test(DRIVE) && (DRIVE.match(/rr_crop_flash/g) || []).length === 2);
+  // the sync: read → retire → local state → merge → write when pushed OR dropped
+  const sync = DRIVE.slice(DRIVE.indexOf('window.rrPrefsSync = async function'), DRIVE.indexOf('window.rrPrefsQueuePush'));
+  const iRead = sync.indexOf('await _prefsRead()'), iRet = sync.indexOf('_prefsRetire(got.prefs)'), iLocal = sync.indexOf('_prefsLocalState()');
+  ok('the sync retires AFTER reading the file and BEFORE reading the device (so the merge never sees the key)', iRead > 0 && iRet > iRead && iLocal > iRet, [iRead, iRet, iLocal].join(','));
+  ok('…and writes the file when a key was dropped even with nothing else to push', /if \(Object\.keys\(m\.push\)\.length \|\| dropped\) \{/.test(sync));
+  ok('the recorder itself is gone from the app (nothing writes the key any more)',
+     !/rr_crop_flash|_flashStart|_flashStop|_flashRestampOld/.test(fs.readFileSync(path.join(__dirname, '..', 'app', 'photo-crop.js'), 'utf8').replace(/\/\/[^\n]*/g, ''))
+     && !/cropFlash|rr_crop_flash/.test(fs.readFileSync(path.join(__dirname, '..', 'app', 'error-report.js'), 'utf8').replace(/\/\/[^\n]*/g, '')));
+  // OFFENDER: a retire that only cleans the device — the file keeps the key
+  const oldSrc = DRIVE.replace("if (remotePrefs && Object.prototype.hasOwnProperty.call(remotePrefs, k)) { delete remotePrefs[k]; dropped = true; }", '');
+  ok('offender changed the source', oldSrc !== DRIVE);
+  const r2 = { rr_crop_flash: { v: 'x', t: 1 } };
+  const d2 = liftRetire(oldSrc)({ rr_crop_flash: 'x' }, r2);
+  ok('OFFENDER: the key survives in the file and the sync is never told to rewrite -> red', ('rr_crop_flash' in r2) && d2 === false);
+}
+
 console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
 process.exit(fail ? 1 : 0);
