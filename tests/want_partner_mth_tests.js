@@ -192,6 +192,13 @@ html = run('2343T', 'Lionel');
 ok('Lionel 2343T (the second A): offers 2343', listed(html).join() === '2343');
 own('2343-C'); want();
 ok('Lionel: owning the B unit (app spelling) still silences the 2343 pop-up', run('2343', 'Lionel') === '');
+own('2343T-D'); want();
+ok('v1842: owning the dummy A as 2343T-D (catalog T + app D — Brad\'s own spelling) silences the 2343 pop-up too', run('2343', 'Lionel') === '', 'a pop-up was built');
+own('2343T'); want();
+ok('…and as plain 2343T', run('2343', 'Lionel') === '');
+own('2343T-D'); want();
+html = run('2343C', 'Lionel');
+ok('…while a want for the B unit 2343C, with only the dummy owned, still offers the powered 2343 (the dummy is not the A)', listed(html).join() === '2343', listed(html).join());
 
 section('E · wiring');
 ok('the wizard hands the want\'s maker to the prompt', /_checkWantPartners\(itemNum, variation, _wPriority, _wPrice, _wNotes, _wMfr\)/.test(wsave));
@@ -244,6 +251,14 @@ function worldFrom(src) { const st = { masterData: ROWS, companionData: [], setD
   ok('offender 6 changed the source', o !== appjs);
   const { w } = worldFrom(o);
   ok('OFFENDER 6: +C on every tab → the smoke fluid gets a "B unit" again → red', w.getBUnit('60-1051') === '60-1051C');
+}
+
+{
+  // 7. the second suffix no longer folded away
+  const o = coll.replace("    const s = normalizeItemNum(n).toUpperCase().replace(/([TC])-?[DP]$/, '$1');", "    const s = normalizeItemNum(n).toUpperCase();");
+  ok('offender 7 changed the source', o !== coll);
+  const c7 = makeCheck(o, W); own('2343T-D'); want(); built.length = 0; c7('2343', '', 'Medium', '', '', 'Lionel');
+  ok('OFFENDER 7: 2343T-D no longer read as the 2343T → the pop-up opens again → red', built.length > 0);
 }
 
 console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');

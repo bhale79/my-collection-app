@@ -4934,7 +4934,11 @@ function _checkWantPartners(itemNum, variation, priority, maxPrice, notes, mfr) 
   // is the app's D; a bare anchor (2343) is owned as 2343 OR 2343-P — but a
   // bare 2466 engine is NOT a 2466T tender.
   const _wpCanon = (n) => {
-    const s = normalizeItemNum(n).toUpperCase();
+    // v0.9.1842: an owned dummy A is filed as the catalog's T number PLUS the
+    // app's -D ("2343T-D" — seen in Brad's own collection); a B unit can arrive
+    // as "2343C-P" the same way. Fold that second suffix away first, or the
+    // owned 2343T-D never matches the 2343T the pop-up is about to offer.
+    const s = normalizeItemNum(n).toUpperCase().replace(/([TC])-?[DP]$/, '$1');
     const m = s.match(/^(.+?\d)-?([PDTC])$/);
     return m ? { key: m[1] + (m[2] === 'T' ? 'D' : m[2]), base: m[1], unit: m[2] === 'T' ? 'D' : m[2] } : { key: s, base: s, unit: '' };
   };

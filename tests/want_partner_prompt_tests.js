@@ -113,6 +113,12 @@ ok('B unit: owning the A unit as 2343-P satisfies the bare 2343 anchor — no sc
 own('2343'); want();
 ok('…and as plain 2343 too', run('2343C') === '');
 
+// ── v0.9.1842: the app's own second suffix on an owned partner ───────────
+// (the dummy-A half, 2343T-D, runs against the REAL map in want_partner_mth_tests)
+console.log('\n== An owned 2343C-P is the 2343C ==');
+own('2343C-P'); want();
+ok('a B unit filed as 2343C-P (catalog C + app P) satisfies the 2343C partner — no screen', run('2343') === '', 'a pop-up was built');
+
 // ── spelling rules: what must NOT count as owning the partner ────────────
 console.log('\n== A near miss is not ownership ==');
 own('2466'); want();
