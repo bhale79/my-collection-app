@@ -66,29 +66,70 @@ const VAULT = {
 // ============================================================
 //  TOKEN MANAGEMENT
 //  The token is a random 12-char alphanumeric string.
-//  It never changes, is never shown to the user, and is
-//  never linked to their name, email, or Google account.
+//  It is never shown to the user and is never linked to their
+//  name, email, or Google account.
+//
+//  ══ v0.9.1836 — ONE TICKET PER ACCOUNT, NOT PER DEVICE ══════
+//  [stated] Brad: "the phone says 18 photo ides left today and
+//  the pc says 20" → "its one shared count not per device".
+//  The relay counts daily photo-ID reads — and Market
+//  contributors — by this token, and every device used to make
+//  its own. So two devices were two daily allowances and two
+//  contributors. The token and the Market opt-in now travel
+//  through the account settings file like every other setting
+//  (_prefGet / _prefSet, v0.9.1779): the first device to sync
+//  seeds the account with its ticket, every other device adopts
+//  it (rrVaultTokenChanged, below), and both show one count.
+//  A made-up ticket goes through _prefSeed, which the account
+//  may overrule; a ROTATION (opt-out) goes through _prefSet,
+//  which every device must follow.
 // ============================================================
 
+function _vaultNewToken() {
+  return Array.from(crypto.getRandomValues(new Uint8Array(9)))
+    .map(b => b.toString(36).padStart(2,'0'))
+    .join('')
+    .substring(0, 12);
+}
+
 function vaultGetToken() {
-  let token = localStorage.getItem(VAULT.KEY_TOKEN);
+  let token = _prefGet(VAULT.KEY_TOKEN, '');
   if (!token) {
-    token = Array.from(crypto.getRandomValues(new Uint8Array(9)))
-      .map(b => b.toString(36).padStart(2,'0'))
-      .join('')
-      .substring(0, 12);
-    localStorage.setItem(VAULT.KEY_TOKEN, token);
+    token = _vaultNewToken();
+    _prefSeed(VAULT.KEY_TOKEN, token);   // the account's ticket, if it has one, wins on the next sync
   }
   return token;
 }
 
+// A NEW ticket that every device must follow (after an opt-out, so deleted
+// data can never be re-linked by another device still holding the old one).
+function vaultRotateToken() {
+  const token = _vaultNewToken();
+  _prefSet(VAULT.KEY_TOKEN, token);
+  return token;
+}
+
 function vaultIsOptedIn() {
-  return localStorage.getItem(VAULT.KEY_OPTIN) === 'true';
+  return _prefGet(VAULT.KEY_OPTIN, '') === 'true';
 }
 
 function vaultSetOptIn(value) {
-  localStorage.setItem(VAULT.KEY_OPTIN, value ? 'true' : 'false');
+  _prefSet(VAULT.KEY_OPTIN, value ? 'true' : 'false');
 }
+
+// v0.9.1836: the account's ticket arrived through the sync and differs from
+// the one this device was using (drive.js rrPrefsSync calls this). The old
+// ticket's Market rows would count this person twice, so they go; the
+// collection is submitted again under the shared ticket at the next check
+// (if opted in); and the reads label follows the shared ticket at once.
+window.rrVaultTokenChanged = async function (oldToken, newToken) {
+  try {
+    if (!oldToken || !newToken || oldToken === newToken) return;
+    try { await vaultPost({ action: 'delete_token', token: oldToken }); } catch (e) {}
+    try { localStorage.removeItem(VAULT.KEY_LAST_SUB); localStorage.removeItem(VAULT.KEY_NF_SIG); } catch (e) {}
+    try { if (typeof rrAiQuotaRefresh === 'function') rrAiQuotaRefresh(); } catch (e) {}
+  } catch (e) {}
+};
 
 
 // ============================================================
@@ -329,9 +370,9 @@ async function vaultConfirmOptOut() {
   const token = vaultGetToken();
   await vaultPost({ action: 'delete_token', token });
 
-  // Generate a new token so old data can't be re-linked
-  localStorage.removeItem(VAULT.KEY_TOKEN);
-  vaultGetToken();  // generates fresh token
+  // Generate a new token so old data can't be re-linked — on EVERY device:
+  // the rotation is stamped now, so the account and the other devices follow.
+  vaultRotateToken();
 
   // Same fault as opt-in, and worse: this one is async, so the throw became an
   // unhandled rejection. The data really WAS deleted and the token really was

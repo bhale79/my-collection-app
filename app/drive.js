@@ -1738,7 +1738,18 @@ window.rrPrefsSync = async function () {
     const dropped = _prefsRetire(got.prefs);         // v0.9.1830: retired keys leave both sides first
     const st = _prefsLocalState();
     const m = rrPrefsMerge(st.local, st.stamps, got.prefs, Date.now());
+    // v0.9.1836: the Collector's Market / photo-ID ticket is ONE per account
+    // now. When the merge hands this device a different one, vault.js is told
+    // so the old ticket's data goes and the reads label follows the new one.
+    let tokenBefore = null;
+    try { tokenBefore = localStorage.getItem('lv_vault_token'); } catch (e) {}
     const touched = _prefsApply(m.apply);
+    try {
+      const tokenAfter = localStorage.getItem('lv_vault_token');
+      if (tokenBefore && tokenAfter && tokenAfter !== tokenBefore && typeof window.rrVaultTokenChanged === 'function') {
+        window.rrVaultTokenChanged(tokenBefore, tokenAfter);
+      }
+    } catch (e) {}
     if (Object.keys(m.push).length || dropped) {
       const merged = Object.assign({}, got.prefs, m.push);
       await _prefsWrite(merged);

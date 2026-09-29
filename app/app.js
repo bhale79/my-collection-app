@@ -3277,6 +3277,20 @@ function _prefSet(key, val) {
   try { localStorage.setItem(key + '__at', String(Date.now())); } catch (e) {}
   try { if (typeof window.rrPrefsQueuePush === 'function') window.rrPrefsQueuePush(key); } catch (e) {}
 }
+// v0.9.1836: the THIRD door — a value this device MADE UP (the random
+// Collector's Market / photo-ID ticket) that the account may overrule. Stored
+// and pushed like _prefSet, but stamped 0: the merge then lets any value the
+// account already holds win, and only when the account has none does this one
+// seed it (the merge dates it then). Without this a brand-new device would
+// stamp its made-up ticket "now", beat the account's ticket on its very first
+// sync, and every other device would fall in behind the newcomer — a fresh
+// daily count and a second Market contributor, the exact thing one-ticket-
+// per-account exists to end. Never for a value the user chose: that is _prefSet.
+function _prefSeed(key, val) {
+  localStorage.setItem(key, val);
+  try { localStorage.setItem(key + '__at', '0'); } catch (e) {}
+  try { if (typeof window.rrPrefsQueuePush === 'function') window.rrPrefsQueuePush(key); } catch (e) {}
+}
 
 // ── Currency / Date formatting helpers (Session 120) ─────────────
 // Single source of truth for how prices and dates render across the app.
