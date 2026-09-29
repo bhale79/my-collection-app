@@ -4,7 +4,7 @@
 // fetches fresh copies in the background for next load.
 // NEVER caches Google API, OAuth, or Sheets calls.
 
-const CACHE_NAME = 'mca-v1846';
+const CACHE_NAME = 'mca-v1847';
 
 // ── v0.9.1214: the version stamp has to survive as far as the cache ──
 // Brad, on v1213: "im reset twice and it still looks the same." He was
@@ -162,7 +162,11 @@ const SHELL_FILES = [
   './img/icon_b_unit.png',
   './img/icon_freight.png',
   './icon-192.png',
-  './icon-512.png'
+  './icon-512.png',
+  './icon-192-maskable.png',   // v0.9.1837: the badge — Android's own icon shapes (manifest purpose maskable)
+  './icon-512-maskable.png',
+  './apple-touch-icon.png',    // v0.9.1837: the iPhone home screen (was base64 inside index.html)
+  './favicon-32.png'           // v0.9.1837: the tab (was base64 inside index.html)
   // v0.9.1289: two third-party URLs used to sit here — the Google Fonts CSS and
   // the jspdf script on cdnjs. Both were downloaded and stored on every install,
   // and neither could ever be read back: the fetch handler below returns early
