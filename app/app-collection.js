@@ -4908,11 +4908,16 @@ function _checkWantPartners(itemNum, variation, priority, maxPrice, notes, mfr) 
   const _rowOf = (n) => { try { return (typeof findMaster === 'function') ? findMaster(n, '', _hint) : null; } catch (e) { return null; } };
   const _words = (n) => {
     const r = _rowOf(n);
-    let d = String((r && r.description) || '').replace(/\s+/g, ' ').trim();
-    const road = String((r && r.roadName) || '').trim();
+    // v0.9.1841: the MTH tabs spell the road name with entities ("Baltimore
+    // &amp; Ohio") while the description has the plain "&", so the road never
+    // matched and the line prefix behind it stayed — the variant words that tell
+    // 20-2050-0 / -1 / -2 apart were the part cut off. Decode, then strip.
+    const _plain = (x) => String(x || '').replace(/&amp;/g, '&').replace(/\s+/g, ' ').trim();
+    let d = _plain(r && r.description);
+    const road = _plain(r && r.roadName);
     if (road && d.toLowerCase().indexOf(road.toLowerCase()) === 0) d = d.slice(road.length).replace(/^[\s,\-–]+/, '');
     d = d.replace(/^(?:O|HO|S|G|N)\s+(?:Scale|Gauge)\s+(?:Premier|RailKing|Rail King|Imperial|Tinplate)?\s*/i, '');   // MTH's line prefix ("O Scale Premier") says nothing about the piece
-    return d.length > 60 ? d.slice(0, 57).replace(/\s+\S*$/, '') + '…' : d;
+    return d.length > 72 ? d.slice(0, 69).replace(/\s+\S*$/, '') + '…' : d;
   };
 
   // ── v0.9.1740 (Brad, 2026-09-13): "so i added an engine from the companion

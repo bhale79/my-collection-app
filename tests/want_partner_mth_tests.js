@@ -43,7 +43,8 @@ function grab(src, name) {
 const appjs = APP('app.js'), coll = APP('app-collection.js'), wsave = APP('wizard-save.js');
 
 // ── the rows, as the live tabs spell them ───────────────────────────────────
-const MTH = (num, desc, type) => ({ _tab: 'MTH O', _era: 'mth_o', itemNum: num, description: desc, itemType: type || 'Diesel Locomotive', subType: '', unit: '', poweredDummy: '', roadName: desc.split(' O Scale')[0].indexOf(' ') > 0 && /O Scale/.test(desc) ? desc.split(' O Scale')[0] : '', manufacturer: 'MTH' });
+// the road name the way the MTH tabs spell it — with the entity ("Baltimore &amp; Ohio") while the description carries the plain "&"
+const MTH = (num, desc, type) => ({ _tab: 'MTH O', _era: 'mth_o', itemNum: num, description: desc, itemType: type || 'Diesel Locomotive', subType: '', unit: '', poweredDummy: '', roadName: (desc.split(' O Scale')[0].indexOf(' ') > 0 && /O Scale/.test(desc) ? desc.split(' O Scale')[0] : '').replace(/&/g, '&amp;'), manufacturer: 'MTH' });
 const PW = (num, unit, pd) => ({ _tab: 'Lionel PW - Items', _era: 'pw', itemNum: num, description: 'Santa Fe F-3 ' + (unit === 'B' ? 'B unit' : 'A unit'), itemType: 'Diesel Locomotive', subType: 'EMD F-3', unit, poweredDummy: pd, roadName: 'Santa Fe' });
 const ROWS = [
   // an AA set in three variants + its B unit
@@ -163,6 +164,8 @@ ok('an MTH AA set: offers the B unit only (the set already has both As)', listed
 html = run('20-2050-3');
 ok('an MTH B unit: offers EVERY variant of the AA set it fits, each told apart by its words',
    listed(html).join() === '20-2050-0,20-2050-1,20-2050-2' && /3 Rail Horn/.test(html) && /With Proto-Sound/.test(html) && /2 Rail/.test(html), listed(html).join());
+ok('…the road name (spelled "&amp;" on the tab) and "O Scale Premier" are stripped, so the variant words are what shows',
+   labels(html).join(' | ') === '(A unit — F-3 AA Diesel Set - 3 Rail Horn) | (A unit — F-3 AA Diesel Set - With Proto-Sound) | (A unit — F-3 AA Diesel Set - 2 Rail)', labels(html).join(' | '));
 ok('…with the pick-one wording', /sold in more than one version — pick the one you want/.test(html));
 html = run('20-20943-4');
 ok('an MTH second A: offers its powered A', listed(html).join() === '20-20943-1' && /This is a B unit — do you also want the A unit\?|do you also want the A unit/.test(html), listed(html).join());
