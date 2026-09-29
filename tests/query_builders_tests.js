@@ -18,6 +18,12 @@
 //   parts list → Google            number-only engine lookup, bare number
 //   photo inbox vendor search      a builder NOTHING called (dead, test-held)
 //
+// v0.9.1839 ([stated] Brad: yes): the v741 eBay rule — sellers type "lionel
+// 2245", not "2245-P" — lived in research.js alone; the want list's Search eBay
+// and the wizard's eBay Sold sent the suffix as written and missed listings
+// the research card found. rrEbayNumber (app.js) is the ONE rule now, and all
+// three eBay builders ask it (section B2).
+//
 // These tests LIFT the real builders out of their files and RUN them with
 // four real-shaped rows — American Flyer, modern Lionel five-digit, postwar,
 // MTH — plus a manual entry. Section H plants each old habit back and the
@@ -57,7 +63,8 @@ const AF   = { _tab: 'Lionel Modern S - Items', _era: 'mod_s', itemNum: '9504', 
 const MODL = { _tab: 'Lionel MPC-Modern',       _era: 'mod',   itemNum: '84631', roadName: 'Santa Fe', description: 'Boxcar', manufacturer: 'Lionel', yearProd: '2019', variation: '' };
 const PW   = { _tab: 'Lionel PW - Items',       _era: 'pw',    itemNum: '6464-100', roadName: 'Western Pacific', description: 'Boxcar, silver', manufacturer: 'Lionel', yearProd: '1954', variation: '' };
 const MTH  = { _tab: 'MTH O',                   _era: 'mth_o', itemNum: '20-3001', roadName: 'Pennsylvania', description: 'GG-1 electric', manufacturer: 'MTH', yearProd: '2001', variation: '' };
-const ROWS = { '9504': AF, '84631': MODL, '6464-100': PW, '20-3001': MTH };
+const PWP  = { _tab: 'Lionel PW - Items',       _era: 'pw',    itemNum: '2245-P', roadName: 'Texas Special', description: 'F3 A unit, powered', manufacturer: 'Lionel', yearProd: '1954', variation: '1' };
+const ROWS = { '9504': AF, '84631': MODL, '6464-100': PW, '20-3001': MTH, '2245-P': PWP };
 const SCALE  = { mod_s: 's', mod: 'o', pw: 'o', mth_o: 'o', prewar: 'o' };
 const PERIOD = { mod_s: 'modern', mod: 'modern', pw: 'postwar', mth_o: 'modern', prewar: 'prewar' };
 const scaleOf  = it => SCALE[it && it._era] || null;
@@ -67,12 +74,19 @@ const makerForTab = tab => { const M = [['weaver', 'Weaver'], ['k-line', 'K-Line
 // ── A · the shared rules, lifted from app.js and run ───────────────────────
 section('A · the shared rules ship (app.js)');
 const sClause = grab(appjs, '_rrFirstClause'), sBrand = grab(appjs, 'rrSearchBrand'), sNum = grab(appjs, 'rrSearchNumber'), sTerms = grab(appjs, 'rrSearchTerms');
+const sEbay = grab(appjs, 'normalizeItemNum') + '\n' + grab(appjs, 'baseItemNum') + '\n' + appjs.slice(appjs.indexOf('var _RR_EBAY_NUMERIC'), appjs.indexOf('if (typeof window !== \'undefined\') { window.rrEbayNumber'));
 const shared = new Function('_scaleOfItem', '_makerForTab', '_itemEraPeriod', 'window',
-  sClause + '\n' + sBrand + '\n' + sNum + '\n' + sTerms + '\nreturn { brand: rrSearchBrand, num: rrSearchNumber, terms: rrSearchTerms, clause: _rrFirstClause };')(scaleOf, makerForTab, periodOf, undefined);
+  sClause + '\n' + sBrand + '\n' + sNum + '\n' + sTerms + '\n' + sEbay + '\nreturn { brand: rrSearchBrand, num: rrSearchNumber, terms: rrSearchTerms, clause: _rrFirstClause, ebay: rrEbayNumber, ebayNumeric: rrEbayIsNumeric };')(scaleOf, makerForTab, periodOf, undefined);
 ok('rrSearchBrand: American Flyer for the S row, Lionel for O, MTH for MTH',
    shared.brand(AF) === 'American Flyer' && shared.brand(MODL) === 'Lionel' && shared.brand(PW) === 'Lionel' && shared.brand(MTH) === 'MTH');
 ok('rrSearchNumber: 6- goes back on the modern five-digit number, nothing else changes',
    shared.num(MODL) === '6-84631' && shared.num(AF) === '9504' && shared.num(PW) === '6464-100' && shared.num(MTH) === '20-3001');
+ok('rrEbayNumber (v1839): the P / D / T / C suffix comes off a numeric number — 2245-P, 2245C, 2343P → 2245 / 2343',
+   shared.ebay('2245-P') === '2245' && shared.ebay('2245C') === '2245' && shared.ebay('2343P') === '2343' && shared.ebay(' 2245-T ') === '2245');
+ok('…dashed variations and prefixed numbers are not suffixes and stay (6464-100, 6-84631, 20-3001)',
+   shared.ebay('6464-100') === '6464-100' && shared.ebay('6-84631') === '6-84631' && shared.ebay('20-3001') === '20-3001');
+ok('…and a non-numeric manual number is left exactly as typed (CA-SO8912, CUSTOM RUN)',
+   shared.ebay('CA-SO8912') === 'CA-SO8912' && shared.ebay('CUSTOM RUN') === 'CUSTOM RUN' && !shared.ebayNumeric('CA-SO8912') && shared.ebayNumeric('2245-P'));
 
 // ── B · want list — Search eBay and Search other sites (app-pages.js) ───────
 section('B · the want list\'s two searches (app-pages.js)');
@@ -85,8 +99,8 @@ function wantHarness(src, opts) {
   const doc = { getElementById: () => null };
   const code = grab(src, '_wantRowFor') + '\n' + grab(src, '_wantSearchBrand') + '\n' + grab(src, '_ebayDoSearch') + '\n' + grab(src, 'wantSearchOtherSites')
     + '\nreturn { ebay: _ebayDoSearch, other: wantSearchOtherSites, rowFor: _wantRowFor };';
-  const api = new Function('state', 'findMaster', 'rrSearchBrand', 'rrSearchTerms', 'rrSearchNumber', 'window', 'document', '_EPN_PARAMS', code)(
-    state, findMaster, shared.brand, shared.terms, shared.num, win, doc, '');
+  const api = new Function('state', 'findMaster', 'rrSearchBrand', 'rrSearchTerms', 'rrSearchNumber', 'rrEbayNumber', 'window', 'document', '_EPN_PARAMS', code)(
+    state, findMaster, shared.brand, shared.terms, shared.num, opts.noEbayRule ? undefined : shared.ebay, win, doc, '');
   return { api, opened, lookups, state };
 }
 {
@@ -135,6 +149,36 @@ ok('the eBay modal hands the variation on to _ebayDoSearch',
 const noComments = src => src.replace(/^\s*\/\/.*$/gm, '');
 ok('neither want-list search names a brand of its own any more (the fallback lives in ONE named helper)',
    !/'lionel'/.test(noComments(grab(pages, '_ebayDoSearch'))) && !/'lionel'/.test(noComments(grab(pages, 'wantSearchOtherSites'))) && /'lionel'/.test(grab(pages, '_wantSearchBrand')));
+
+// ── B2 · v1839 — the eBay number, the way sellers type it, in all three eBay builders
+section('B2 · the v741 eBay rule reaches every eBay button (v0.9.1839)');
+{
+  const h = wantHarness(pages, { wantData: { '2245-P|1': { itemNum: '2245-P', variation: '1', manufacturer: 'Lionel' } } });
+  h.api.ebay('2245-P', 'Texas Special', '1'); h.api.ebay('6464-100', 'Western Pacific', '');
+  ok('want list → Search eBay on the 2245-P searches "Lionel 2245 Texas Special" (the suffix off), the 6464-100 unchanged',
+     q(h.opened[0]) === 'Lionel 2245 Texas Special' && q(h.opened[1]) === 'Lionel 6464-100 Western Pacific', h.opened.map(q).join(' | '));
+  h.api.other('2245-P', 'Texas Special', '1');
+  ok('…while Search other sites (Google) keeps the number as the catalog spells it', /\b2245-P\b/.test(q(h.opened[2])), q(h.opened[2]));
+}
+{
+  const h = wizHarness(wizard, { itemNum: '2245-P', variation: '1' }, PWP);
+  h.w._wizEbaySold(); h.w._wizResearchPrice();
+  ok('wizard → eBay Sold Listings on the 2245-P searches "Lionel 2245 Texas Special"; the Google price search keeps 2245-P',
+     q(h.opened[0]) === 'Lionel 2245 Texas Special' && h.priceArgs[0].n === '2245-P', q(h.opened[0]) + ' | ' + JSON.stringify(h.priceArgs[0]));
+}
+{
+  const r = new Function('_rrFirstClause', 'baseItemNum', 'rrEbayNumber', 'rrEbayIsNumeric', 'window',
+    grab(research, '_searchQuery') + '\n' + grab(research, '_ebayCore') + '\n' + grab(research, '_ebaySoldUrl') + '\nreturn _ebaySoldUrl;')(shared.clause, undefined, shared.ebay, shared.ebayNumeric, {});
+  const u = r('2245-P', 'Lionel', 'Texas Special', 'F3 A unit');
+  ok('research card → eBay Sold on the 2245-P still searches "Lionel 2245" inside the trains category (the rule it always had, now shared)',
+     q(u) === 'Lionel 2245' && /_sacat=262301/.test(u) && /LH_Sold=1/.test(u), u);
+  const m = r('CA-SO8912', 'K-Line', 'Reading', 'Caboose');
+  ok('…and a manual number keeps the descriptive query with no category fence, as before', q(m) === 'K-Line CA-SO8912 Reading Caboose' && !/_sacat/.test(m), m);
+}
+ok('the rule exists ONCE: research.js no longer carries its own copy of the numeric test or the baseItemNum call',
+   !/\^\[0-9\]\[0-9A-Za-z/.test(grab(research, '_ebayCore')) && !/baseItemNum/.test(grab(research, '_ebayCore').replace(/^\s*\/\/.*$/gm, '')) && /rrEbayNumber\(n\)/.test(grab(research, '_ebayCore')));
+ok('…and all three eBay builders ask rrEbayNumber',
+   /rrEbayNumber\(itemNum\)/.test(grab(pages, '_ebayDoSearch')) && /rrEbayNumber\(i\.num\)/.test(grabAt(wizard, 'window._wizEbaySold = function')) && /rrEbayNumber\(n\)/.test(grab(research, '_ebayCore')));
 
 // ── C · parts list — the Google button (app-pages.js googlePart) ───────────
 section('C · the parts list\'s Google button (app-pages.js)');
@@ -214,8 +258,8 @@ function wizHarness(src, data, matched, extra) {
   const win = { open: u => opened.push(u), _googlePriceUrl: extra.noPriceUrl ? undefined : function (n, m, r, d, e) { priceArgs.push({ n, m, r, d, e }); return 'https://www.google.com/search?q=' + encodeURIComponent([m, n, r, d, e].filter(Boolean).join(' ')); } };
   const wiz = { data: data || {}, matchedItem: matched || null };
   const code = grabAt(src, 'window._wizResearchIdentity = function') + ';\n' + grabAt(src, 'window._wizEbaySold = function') + ';\n' + grabAt(src, 'window._wizResearchPrice = function') + ';\nreturn window;';
-  const w = new Function('window', 'wizard', 'state', 'findMaster', '_wizMasterPrefer', 'rrSearchBrand', 'rrSearchNumber', '_brandOfItem', 'showToast', '_EPN_PARAMS', 'getMasterDistinct', '_wizPeriodOfRow', '_wizScaleOfRow', 'console', code)(
-    win, wiz, { personalData: {} }, (n, v, hint) => ROWS[n] || null, () => null, shared.brand, shared.num, () => '', () => {}, '', () => [], it => PERIOD[it && it._era] || '', it => (SCALE[it && it._era] || '').toUpperCase(), { warn: (...a) => { throw new Error('warn: ' + a.join(' ')); } });
+  const w = new Function('window', 'wizard', 'state', 'findMaster', '_wizMasterPrefer', 'rrSearchBrand', 'rrSearchNumber', 'rrEbayNumber', '_brandOfItem', 'showToast', '_EPN_PARAMS', 'getMasterDistinct', '_wizPeriodOfRow', '_wizScaleOfRow', 'console', code)(
+    win, wiz, { personalData: {} }, (n, v, hint) => ROWS[n] || null, () => null, shared.brand, shared.num, shared.ebay, () => '', () => {}, '', () => [], it => PERIOD[it && it._era] || '', it => (SCALE[it && it._era] || '').toUpperCase(), { warn: (...a) => { throw new Error('warn: ' + a.join(' ')); } });
   return { w, opened, priceArgs };
 }
 {
@@ -248,7 +292,7 @@ function wizHarness(src, data, matched, extra) {
 }
 ok('the wizard identity names no brand of its own; the eBay fallback for a maker-less manual entry is the one named default',
    !/'lionel'|'Lionel'/i.test(grabAt(wizard, 'window._wizResearchIdentity = function')) &&
-   /\[i\.mfr \|\| 'lionel', i\.num, i\.road\]/.test(grabAt(wizard, 'window._wizEbaySold = function')));
+   /\[i\.mfr \|\| 'lionel', _ebn, i\.road\]/.test(grabAt(wizard, 'window._wizEbaySold = function')));
 
 // ── F · the Maintenance page (maintenance.js) ───────────────────────────────
 section('F · the Maintenance page\'s searches (maintenance.js)');
@@ -285,8 +329,8 @@ ok('no query anywhere carries the era word "modern era" any more',
 section('H · planted offenders — each old habit put back must fail its check');
 {
   // 1. the want-list eBay search with 'lionel' hardcoded again
-  const o = pages.replace("const query     = [_wantSearchBrand(_wantRowFor(itemNum, variation)), itemNum, roadName || ''].filter(Boolean).join(' ').trim();",
-                          "const query     = ['lionel', itemNum, roadName || ''].filter(Boolean).join(' ').trim();");
+  const o = pages.replace("const query     = [_wantSearchBrand(_wantRowFor(itemNum, variation)), _ebNum, roadName || ''].filter(Boolean).join(' ').trim();",
+                          "const query     = ['lionel', _ebNum, roadName || ''].filter(Boolean).join(' ').trim();");
   ok('offender 1 changed the source', o !== pages);
   const h = wantHarness(o, { wantData: { '9504|': { itemNum: '9504', variation: '' } } }); h.api.ebay('9504', 'Erie', '');
   ok('OFFENDER 1: eBay hardcoded to lionel → the American Flyer eBay check goes red', q(h.opened[0]) !== 'American Flyer 9504 Erie', q(h.opened[0]));
@@ -341,6 +385,22 @@ section('H · planted offenders — each old habit put back must fail its check'
   // 8. the dead builder put back
   const o = inbox + "\n  window._pinVendorSearchURL = function (site, num, hints) { return 'x'; };\n";
   ok('OFFENDER 8: the callerless vendor builder back → its tombstone check goes red', /_pinVendorSearchURL/.test(o.replace(/^\s*\/\/.*$/gm, '')));
+}
+
+{
+  // 9. the want list's eBay search sending the number as written again
+  const o = pages.replace("const query     = [_wantSearchBrand(_wantRowFor(itemNum, variation)), _ebNum, roadName || ''].filter(Boolean).join(' ').trim();",
+                          "const query     = [_wantSearchBrand(_wantRowFor(itemNum, variation)), itemNum, roadName || ''].filter(Boolean).join(' ').trim();");
+  ok('offender 9 changed the source', o !== pages);
+  const h = wantHarness(o, { wantData: { '2245-P|1': { itemNum: '2245-P', variation: '1' } } }); h.api.ebay('2245-P', 'Texas Special', '1');
+  ok('OFFENDER 9: the suffix sent as written → the 2245-P eBay check goes red', q(h.opened[0]) !== 'Lionel 2245 Texas Special', q(h.opened[0]));
+}
+{
+  // 10. the wizard's eBay Sold without the rule
+  const o = wizard.replace("var q = [i.mfr || 'lionel', _ebn, i.road].filter(Boolean).join(' ').trim();", "var q = [i.mfr || 'lionel', i.num, i.road].filter(Boolean).join(' ').trim();");
+  ok('offender 10 changed the source', o !== wizard);
+  const h = wizHarness(o, { itemNum: '2245-P', variation: '1' }, PWP); h.w._wizEbaySold();
+  ok('OFFENDER 10: eBay Sold with the raw number → the wizard 2245-P check goes red', q(h.opened[0]) !== 'Lionel 2245 Texas Special', q(h.opened[0]));
 }
 
 console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');

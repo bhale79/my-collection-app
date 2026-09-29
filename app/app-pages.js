@@ -1372,7 +1372,11 @@ function _ebayDoSearch(itemNum, roadName, variation) {
   // want searched eBay as Lionel, and eBay ANDs every word, so the wrong brand
   // HID the right listings. The rest of the wording is untouched (v0.9.740:
   // nothing is ever added to an eBay query).
-  const query     = [_wantSearchBrand(_wantRowFor(itemNum, variation)), itemNum, roadName || ''].filter(Boolean).join(' ').trim();
+  // v0.9.1839 ([stated] Brad: yes): the number the way sellers type it —
+  // rrEbayNumber (app.js), the v741 rule the research card's eBay buttons
+  // already followed: "2245-P" searches as "2245". Dashed variations stay.
+  const _ebNum    = (typeof rrEbayNumber === 'function') ? rrEbayNumber(itemNum) : String(itemNum || '').trim();
+  const query     = [_wantSearchBrand(_wantRowFor(itemNum, variation)), _ebNum, roadName || ''].filter(Boolean).join(' ').trim();
   const type      = window._ebayListingType || 'active';
   const condition = document.getElementById('ebay-condition')?.value || '';
   const priceMin  = document.getElementById('ebay-price-min')?.value || '';

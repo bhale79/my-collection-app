@@ -955,7 +955,10 @@ window._wizEbaySold = function () {
   try {
     var i = window._wizResearchIdentity();
     if (!i.num && !i.desc) { if (typeof showToast === 'function') showToast('Enter an item number first', 2600, true); return; }
-    var q = [i.mfr || 'lionel', i.num, i.road].filter(Boolean).join(' ').trim();
+    // v0.9.1839: the number the way sellers type it (rrEbayNumber, app.js —
+    // the v741 rule): a 2245-P searches as 2245. Google keeps i.gnum.
+    var _ebn = (typeof rrEbayNumber === 'function') ? rrEbayNumber(i.num) : i.num;
+    var q = [i.mfr || 'lionel', _ebn, i.road].filter(Boolean).join(' ').trim();
     var url = 'https://www.ebay.com/sch/i.html?_nkw=' + encodeURIComponent(q)
       + '&_sacat=180250&LH_Sold=1&LH_Complete=1'
       + ((typeof _EPN_PARAMS !== 'undefined') ? _EPN_PARAMS : '');

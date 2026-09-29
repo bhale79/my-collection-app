@@ -1208,6 +1208,24 @@ function baseItemNum(n) {
   return normalizeItemNum(n).replace(/[-]?[PDTC]$/i, '');
 }
 
+// ── v0.9.1839 — the ONE eBay number rule ─────────────────────────────────────
+// Brad, v0.9.741: sellers type "lionel 2245", not "2245-P" — so an eBay search
+// drops the powered / dummy / B-unit suffix and the companion rows search the
+// set's real number. That rule lived in research.js alone; the want list's
+// Search eBay and the wizard's eBay Sold Listings sent "2245-P" as written and
+// missed every listing the research card found. Three eBay builders, one rule,
+// here. Only a NUMERIC catalog number (starts with a digit) is touched: a
+// manual entry's "CA-SO8912" stays as typed. Dashed variations (6464-100) are
+// not suffixes and stay too — baseItemNum only knows P / D / T / C.
+var _RR_EBAY_NUMERIC = /^[0-9][0-9A-Za-z.\/-]{0,14}$/;
+function rrEbayIsNumeric(num) { return _RR_EBAY_NUMERIC.test(String(num || '').trim()); }
+function rrEbayNumber(num) {
+  var n = String(num || '').trim();
+  if (rrEbayIsNumeric(n)) { try { n = baseItemNum(n) || n; } catch (e) {} }
+  return n;
+}
+if (typeof window !== 'undefined') { window.rrEbayNumber = rrEbayNumber; window.rrEbayIsNumeric = rrEbayIsNumeric; }
+
 // ══ v0.9.1372 — dashed catalogue families, answered in ONE place ══════════
 // Brad's green giraffe car: he typed 3376, the catalogue HAS a 3376, so the
 // lookup stopped there and never mentioned 3376-160 — which is the green one
