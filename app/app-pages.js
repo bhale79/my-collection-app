@@ -1267,7 +1267,7 @@ const _EPN_PARAMS = _EPN_CAMPAIGN_ID !== 'CAMPAIGN_ID'
   ? `&mkcid=1&mkrid=711-53200-19255-0&siteid=0&campid=${_EPN_CAMPAIGN_ID}&toolid=10001&mkevt=1`
   : '';
 
-function wantFindOnEbay(itemNum, roadName) {
+function wantFindOnEbay(itemNum, roadName, variation) {   // v0.9.1838: the variation rides along so the search can find the want row
   // Remove any existing eBay modal
   const _old = document.getElementById('ebay-search-modal');
   if (_old) _old.remove();
@@ -1319,7 +1319,7 @@ function wantFindOnEbay(itemNum, roadName) {
         </div>
       </div>
 
-      <button onclick="_ebayDoSearch('${itemNum}','${(roadName||'').replace(/'/g,"\\'")}',false)" style="width:100%;padding:0.65rem;border-radius:9px;background:#e67e22;border:none;color:#fff;font-family:var(--font-head);font-size:1rem;letter-spacing:0.05em;cursor:pointer;font-weight:600">
+      <button onclick="_ebayDoSearch('${itemNum}','${(roadName||'').replace(/'/g,"\\'")}','${(variation||'').replace(/'/g,"\\'")}')" style="width:100%;padding:0.65rem;border-radius:9px;background:#e67e22;border:none;color:#fff;font-family:var(--font-head);font-size:1rem;letter-spacing:0.05em;cursor:pointer;font-weight:600">
         SEARCH EBAY ↗
       </button>
       <div style="text-align:center;margin-top:0.5rem;font-size:0.68rem;color:var(--text-dim)">Opens in a new tab</div>
@@ -1347,8 +1347,32 @@ function _ebaySetType(type) {
   }
 }
 
-function _ebayDoSearch(itemNum, roadName, _unused) {
-  const query     = ['lionel', itemNum, roadName || ''].filter(Boolean).join(' ').trim();
+// v0.9.1838 (N5): the want entry and its catalog row, found the way the list
+// itself finds them — the want row is the lookup hint (era + maker), so a
+// number shared across makers lands on the right row. Both want-list searches
+// ask this; neither names a brand of its own any more.
+function _wantRowFor(itemNum, variation) {
+  var want = null, m = null;
+  try { want = (typeof state !== 'undefined' && state.wantData) ? (state.wantData[String(itemNum || '') + '|' + String(variation || '')] || null) : null; } catch (e) {}
+  try { m = (typeof findMaster === 'function' && itemNum) ? findMaster(itemNum, variation || '', want || null) : null; } catch (e) {}
+  return { want: want, master: m };
+}
+// The brand word for a want-list search: the catalog row's (rrSearchBrand —
+// the gauge rule, so an American Flyer piece says American Flyer), else what
+// the want entry itself recorded, else the app's default maker for an entry
+// that names none (the pre-1838 wording, and only for that case).
+function _wantSearchBrand(r) {
+  try { if (r.master && typeof rrSearchBrand === 'function') { var b = rrSearchBrand(r.master); if (b) return b; } } catch (e) {}
+  return String((r.want && r.want.manufacturer) || '').trim() || 'lionel';
+}
+if (typeof window !== 'undefined') { window._wantRowFor = _wantRowFor; window._wantSearchBrand = _wantSearchBrand; }
+
+function _ebayDoSearch(itemNum, roadName, variation) {
+  // v0.9.1838: WAS 'lionel' for every item — an MTH, Atlas or American Flyer
+  // want searched eBay as Lionel, and eBay ANDs every word, so the wrong brand
+  // HID the right listings. The rest of the wording is untouched (v0.9.740:
+  // nothing is ever added to an eBay query).
+  const query     = [_wantSearchBrand(_wantRowFor(itemNum, variation)), itemNum, roadName || ''].filter(Boolean).join(' ').trim();
   const type      = window._ebayListingType || 'active';
   const condition = document.getElementById('ebay-condition')?.value || '';
   const priceMin  = document.getElementById('ebay-price-min')?.value || '';
@@ -1372,19 +1396,21 @@ function _ebayDoSearch(itemNum, roadName, _unused) {
   if (modal) modal.remove();
 }
 
-function wantSearchOtherSites(itemNum, roadName) {
+function wantSearchOtherSites(itemNum, roadName, variation) {
   // v0.9.1768: this hardcoded lowercase 'lionel' for EVERY item, so an American
   // Flyer S-gauge piece went looking for a Lionel one — the same fault Brad hit
-  // on the catalog link for item 2300. The three callers pass only the number,
-  // so the catalog row is resolved here and rrSearchTerms (app.js) decides the
-  // brand from the item's gauge. Falls back to the old wording if the number is
-  // not in the catalog (manual rows), which is no worse than before.
+  // on the catalog link for item 2300. rrSearchTerms (app.js) decides the brand
+  // from the item's gauge.
+  // v0.9.1838 (N5): the row used to be looked up by NUMBER ALONE (a null hint),
+  // which is the number-only first-find that keeps biting — a number shared
+  // across makers could answer with the wrong maker's row. The callers now pass
+  // the variation, and the want entry itself is the hint (_wantRowFor). A want
+  // that is not in the catalog (manual rows) searches with the brand the entry
+  // recorded, and only an entry that names none falls back to the old wording.
   let query = '';
-  try {
-    const m = (typeof findMaster === 'function') ? findMaster(itemNum, '', null) : null;
-    if (m && typeof rrSearchTerms === 'function') query = rrSearchTerms(m);
-  } catch (e) {}
-  if (!query) query = ['lionel', itemNum, roadName || ''].filter(Boolean).join(' ').trim();
+  const _r = _wantRowFor(itemNum, variation);
+  try { if (_r.master && typeof rrSearchTerms === 'function') query = rrSearchTerms(_r.master); } catch (e) {}
+  if (!query) query = [_wantSearchBrand(_r), itemNum, roadName || ''].filter(Boolean).join(' ').trim();
   query = (query + ' for sale').trim();
   const url = 'https://www.google.com/search?q=' + encodeURIComponent(query);
   window.open(url, '_blank');
@@ -3434,8 +3460,8 @@ function buildUpgradePage() {
         ${!_isWant ? `<div id="${photoId}" style="display:none;margin-top:0.5rem"><img src="${pd && pd.photoItem ? pd.photoItem : ''}" style="max-width:100%;max-height:180px;border-radius:8px;object-fit:contain" onerror="this.parentElement.style.display='none'"></div>` : ''}
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.4rem;margin-top:0.6rem">
           ${!_isWant ? `<button onclick="event.stopPropagation();_upgradeViewMine('${_ugEntryKey(u)}')" style="min-width:0;padding:0.45rem 0.3rem;border-radius:7px;font-size:0.72rem;cursor:pointer;border:1.5px solid #8b5cf6;background:var(--bg-card);background:color-mix(in srgb, rgb(139,92,246) 10%, var(--bg-card));color:#8b5cf6;font-family:var(--font-body);font-weight:600">View Mine</button>` : ''}
-          <button onclick="event.stopPropagation();wantFindOnEbay('${u.itemNum}','${_escName}')" style="min-width:0;padding:0.45rem 0.3rem;border-radius:7px;font-size:0.72rem;cursor:pointer;border:1.5px solid #e67e22;background:var(--bg-card);background:color-mix(in srgb, rgb(230,126,34) 12%, var(--bg-card));color:#e67e22;font-family:var(--font-body);font-weight:600">eBay</button>
-          <button onclick="event.stopPropagation();wantSearchOtherSites('${u.itemNum}','${_escName}')" style="min-width:0;padding:0.45rem 0.3rem;border-radius:7px;font-size:0.72rem;cursor:pointer;border:1.5px solid #2980b9;background:var(--bg-card);background:color-mix(in srgb, rgb(41,128,185) 12%, var(--bg-card));color:#2980b9;font-family:var(--font-body);font-weight:600">Search</button>
+          <button onclick="event.stopPropagation();wantFindOnEbay('${u.itemNum}','${_escName}','${escVar}')" style="min-width:0;padding:0.45rem 0.3rem;border-radius:7px;font-size:0.72rem;cursor:pointer;border:1.5px solid #e67e22;background:var(--bg-card);background:color-mix(in srgb, rgb(230,126,34) 12%, var(--bg-card));color:#e67e22;font-family:var(--font-body);font-weight:600">eBay</button>
+          <button onclick="event.stopPropagation();wantSearchOtherSites('${u.itemNum}','${_escName}','${escVar}')" style="min-width:0;padding:0.45rem 0.3rem;border-radius:7px;font-size:0.72rem;cursor:pointer;border:1.5px solid #2980b9;background:var(--bg-card);background:color-mix(in srgb, rgb(41,128,185) 12%, var(--bg-card));color:#2980b9;font-family:var(--font-body);font-weight:600">Search</button>
           ${_isWant
             ? `<button class="row-add-collection" onclick="event.stopPropagation();moveWantToCollection('${u.itemNum}','${escVar}')" style="min-width:0;padding:0.45rem 0.3rem;border-radius:7px;font-size:0.72rem;cursor:pointer;border:1.5px solid #2ecc71;background:var(--bg-card);background:color-mix(in srgb, rgb(46,204,113) 12%, var(--bg-card));color:#2ecc71;font-family:var(--font-body);font-weight:600">+ Collection</button>`
             : `<button onclick="event.stopPropagation();upgradeGotIt('${_ugEntryKey(u)}')" style="min-width:0;padding:0.45rem 0.3rem;border-radius:7px;font-size:0.72rem;cursor:pointer;border:1.5px solid #2ecc71;background:var(--bg-card);background:color-mix(in srgb, rgb(46,204,113) 12%, var(--bg-card));color:#2ecc71;font-family:var(--font-body);font-weight:600">✓ Got It</button>`}
@@ -3530,8 +3556,8 @@ function buildUpgradePage() {
         <td style="white-space:normal">
           ${!_isWant && hasPhoto ? `<button onclick="event.stopPropagation();_toggleUpgradePhoto('${photoId}','${(pd.photoItem||'').replace(/'/g,"\\'")}')" style="padding:0.25rem 0.4rem;border-radius:5px;font-size:0.72rem;cursor:pointer;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);margin-right:0.2rem" title="Toggle photo">📷</button>` : ''}
           ${!_isWant ? `<button onclick="event.stopPropagation();_upgradeViewMine('${_ugEntryKey(u)}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #8b5cf6;background:var(--bg-card);background:color-mix(in srgb, rgb(139,92,246) 10%, var(--bg-card));color:#8b5cf6;font-family:var(--font-body);font-weight:600;margin-right:0.2rem">View Mine</button>` : ''}
-          <button onclick="event.stopPropagation();wantFindOnEbay('${u.itemNum}','${escName}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #e67e22;background:var(--bg-card);background:color-mix(in srgb, rgb(230,126,34) 12%, var(--bg-card));color:#e67e22;font-family:var(--font-body);margin-right:0.2rem">eBay</button>
-          <button onclick="event.stopPropagation();wantSearchOtherSites('${u.itemNum}','${escName}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #2980b9;background:var(--bg-card);background:color-mix(in srgb, rgb(41,128,185) 12%, var(--bg-card));color:#2980b9;font-family:var(--font-body);margin-right:0.2rem">Search</button>
+          <button onclick="event.stopPropagation();wantFindOnEbay('${u.itemNum}','${escName}','${escVar}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #e67e22;background:var(--bg-card);background:color-mix(in srgb, rgb(230,126,34) 12%, var(--bg-card));color:#e67e22;font-family:var(--font-body);margin-right:0.2rem">eBay</button>
+          <button onclick="event.stopPropagation();wantSearchOtherSites('${u.itemNum}','${escName}','${escVar}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #2980b9;background:var(--bg-card);background:color-mix(in srgb, rgb(41,128,185) 12%, var(--bg-card));color:#2980b9;font-family:var(--font-body);margin-right:0.2rem">Search</button>
           ${_isWant
             ? `<button class="row-add-collection" onclick="event.stopPropagation();moveWantToCollection('${u.itemNum}','${escVar}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #2ecc71;background:var(--bg-card);background:color-mix(in srgb, rgb(46,204,113) 12%, var(--bg-card));color:#2ecc71;font-family:var(--font-body);font-weight:600;margin-right:0.2rem">+ Collection</button>`
             : `<button onclick="event.stopPropagation();upgradeGotIt('${_ugEntryKey(u)}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #2ecc71;background:var(--bg-card);background:color-mix(in srgb, rgb(46,204,113) 12%, var(--bg-card));color:#2ecc71;font-family:var(--font-body);font-weight:600;margin-right:0.2rem">✓ Got It</button>`}
@@ -4285,7 +4311,7 @@ function _renderPartsList() {
           + '">' + ((p.status || 'wanted') === 'installed' ? '\u2713 installed' + (p.dateInstalled ? ' ' + p.dateInstalled : '') : (p.status === 'bought' ? 'bought' + (p.dateBought ? ' ' + p.dateBought : '') + ' \u2014 in the drawer' : 'wanted')) + '</span>') : '')
       + (_lc && (p.status || 'wanted') === 'wanted' ? '<button onclick="markPartBought(' + p.row + ')" style="padding:0.35rem 0.6rem;border-radius:7px;border:1.5px solid #e67e22;background:var(--bg-card);background:color-mix(in srgb, rgb(230,126,34) 10%, var(--bg-card));color:#e67e22;font-family:var(--font-body);font-size:0.75rem;cursor:pointer;font-weight:600">Bought it</button>' : '')
       + ((p.forInv && state.personalData && state.personalData[p.forInv] && (p.status || 'wanted') !== 'installed') ? '<button onclick="markPartInstalled(' + p.row + ')" style="padding:0.35rem 0.6rem;border-radius:7px;border:1.5px solid #2ecc71;background:var(--bg-card);background:color-mix(in srgb, rgb(46,204,113) 12%, var(--bg-card));color:#2ecc71;font-family:var(--font-body);font-size:0.75rem;cursor:pointer;font-weight:600">\u2713 Installed</button>' : '')
-      + '<button onclick="googlePart(\'' + esc(p.partNum) + '\',\'' + esc(p.forItem) + '\',\'' + esc(p.description) + '\')" style="padding:0.35rem 0.6rem;border-radius:7px;border:1.5px solid #2980b9;background:var(--bg-card);background:color-mix(in srgb, rgb(41,128,185) 10%, var(--bg-card));color:#2980b9;font-family:var(--font-body);font-size:0.75rem;cursor:pointer;font-weight:600">Google</button>'
+      + '<button onclick="googlePart(\'' + esc(p.partNum) + '\',\'' + esc(p.forItem) + '\',\'' + esc(p.description) + '\',\'' + esc(p.forInv || '') + '\')" style="padding:0.35rem 0.6rem;border-radius:7px;border:1.5px solid #2980b9;background:var(--bg-card);background:color-mix(in srgb, rgb(41,128,185) 10%, var(--bg-card));color:#2980b9;font-family:var(--font-body);font-size:0.75rem;cursor:pointer;font-weight:600">Google</button>'
       + '<button onclick="showAddPartModal(\'' + p.id + '\')" style="padding:0.35rem 0.6rem;border-radius:7px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.75rem;cursor:pointer">Edit</button>'
       + '<button onclick="removePart(' + p.row + ')" style="padding:0.35rem 0.6rem;border-radius:7px;border:1.5px solid #e74c3c;background:var(--bg-card);background:color-mix(in srgb, rgb(231,76,60) 10%, var(--bg-card));color:#e74c3c;font-family:var(--font-body);font-size:0.75rem;cursor:pointer">Remove</button>'
       + '</div></div></div>';
@@ -4314,9 +4340,24 @@ async function markPartBought(rowNum) {
 }
 if (typeof window !== 'undefined') window.markPartBought = markPartBought;
 
-function googlePart(partNum, forItem, desc) {
-  var mfr = (forItem && typeof _brandOfItem === 'function') ? (_brandOfItem(forItem) || '') : '';
-  var idPart = partNum || forItem || '';
+function googlePart(partNum, forItem, desc, forInv) {
+  // v0.9.1838 (N5): when the part names an OWNED engine (forInv), that copy is
+  // the lookup hint and the catalog row decides the brand (rrSearchBrand — an
+  // American Flyer engine says American Flyer) and how the item number is
+  // spelled (rrSearchNumber — a modern Lionel 84631 is sold as 6-84631). A part
+  // with no owned copy keeps the pre-1838 path: the brand of whatever row the
+  // number alone finds.
+  var _row = null;
+  try {
+    var _pd = (forInv && typeof state !== 'undefined' && state.personalData) ? state.personalData[forInv] : null;
+    if (_pd && typeof findMaster === 'function') _row = findMaster(_pd.itemNum, _pd.variation, _pd);
+  } catch (e) { _row = null; }
+  var mfr = '';
+  if (_row && typeof rrSearchBrand === 'function') { try { mfr = rrSearchBrand(_row) || ''; } catch (e) { mfr = ''; } }
+  if (!mfr) mfr = (forItem && typeof _brandOfItem === 'function') ? (_brandOfItem(forItem) || '') : '';
+  var _itemWord = forItem || '';
+  if (_row && typeof rrSearchNumber === 'function') { try { _itemWord = rrSearchNumber(_row) || _itemWord; } catch (e) {} }
+  var idPart = partNum || _itemWord || '';
   var q = ['part for', mfr, idPart, desc].filter(Boolean).join(' ').trim();
   if (!q) return;
   // v0.9.1184 (Brad): THIS is the button the where-from picker was asked for —

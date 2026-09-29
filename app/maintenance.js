@@ -1058,6 +1058,16 @@
     return 'generic';
   }
   function _makerName(item, eraKey) {
+    // v0.9.1838 (N5): the shared brand rule first — rrSearchBrand (app.js)
+    // follows the GAUGE, so an American Flyer engine's how-to videos, parts
+    // searches and diagram searches say American Flyer, not the Lionel its
+    // tab is named for. Everything below is the pre-1838 fallback.
+    try {
+      if (item && typeof rrSearchBrand === 'function') {
+        var b = rrSearchBrand(item);
+        if (b) return String(b);
+      }
+    } catch (e0) { /* fall through */ }
     try {
       if (typeof _manufacturerOfItem === 'function') {
         var m = _manufacturerOfItem(item);
@@ -1592,7 +1602,11 @@
             }
             // ── always: Google (with MODEL words) + supplier dropdown ──
             var mw = _modelWords(item);
-            var gq = 'https://www.google.com/search?q=' + encodeURIComponent(('"' + mk + '" "' + num + '" ' + mw + ' parts diagram').replace(/\s+/g, ' '));
+            // v0.9.1838 (N5): the number the way the catalogs spell it (rrSearchNumber:
+            // 6-84631, not 84631) — the same word _partsUrl already searches with.
+            var _gqNum = num;
+            try { if (typeof rrSearchNumber === 'function') _gqNum = rrSearchNumber(item) || num; } catch (eGN) {}
+            var gq = 'https://www.google.com/search?q=' + encodeURIComponent(('"' + mk + '" "' + _gqNum + '" ' + mw + ' parts diagram').replace(/\s+/g, ' '));
             // v0.9.1662 (Brad): Parts Suppliers dropdown CUT from the docs
             // section — the Google button covers it. (The dealer dropdown in
             // Find-a-Part stays; _maintSupplierGo survives unused-by-docs.)

@@ -2020,10 +2020,15 @@ function _itemExternalLinkURL(item) {
     //     Weaver's own stock-number field saying so. Searching the words
     //     "CUSTOM RUN" is worse than useless, so those rows search on what
     //     they DO have: the road name, the car type and the road number.
+    // v0.9.1838 (N5): the number comes from the shared rule (rrSearchNumber —
+    // the Weaver suffix strip and the CUSTOM RUN rule), so it exists ONCE. The
+    // maker is _makerForTab, which is exactly what rrSearchBrand answers for
+    // these tabs (and the gate: a tab with no maker falls to the search below).
+    // The wording of this search is unchanged — it was measured on a 30-item pilot.
     var _maker = _makerForTab(_tabL);
     if (_maker) {
       var _isCustom = /^CUSTOM RUN/i.test(_numT);
-      var _base = _isCustom ? '' : _numT.replace(/-(L|S|LP|SP)$/i, '');
+      var _base = (typeof rrSearchNumber === 'function') ? rrSearchNumber(item) : (_isCustom ? '' : _numT.replace(/-(L|S|LP|SP)$/i, ''));
       var _bits = [_maker, _base, item.roadName || '',
                    _isCustom ? (item.itemType || '') : '',
                    _isCustom ? (item.variation || '') : ''];

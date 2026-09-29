@@ -17,7 +17,12 @@
     // v0.9.711 (Brad): "148 train" found Thomas posters — the query needs the
     // item's NAME: "Lionel 148 Dwarf Signal". First clause of the description,
     // max 5 words, no parentheticals.
-    var d = String(desc || '').replace(/\([^)]*\)/g, '').split(/[—|,.;]/)[0].trim().split(/\s+/).slice(0, 5).join(' ');
+    // v0.9.1838 (N5): the clause rule lives in app.js (_rrFirstClause, v1783 —
+    // a period only ends a clause when it ends a sentence, so "No. 390
+    // Locomotive" no longer shrinks to "No"). This copy used to split on every
+    // period and never got that fix.
+    var _cleaned = String(desc || '').replace(/\([^)]*\)/g, '');
+    var d = ((typeof _rrFirstClause === 'function') ? _rrFirstClause(_cleaned) : _cleaned.split(/[—|,.;]/)[0]).trim().split(/\s+/).slice(0, 5).join(' ');
     if (d && String(itemNum || '').trim().toLowerCase() === d.toLowerCase()) d = '';   // v0.9.740: manual items carry the same text in number+description
     // v0.9.1501 (Brad's "Horse Transport Car Horse Transport Car"): the row's
     // description often IS the road name -- a repeated PHRASE survives the
@@ -127,13 +132,25 @@
     }
     if (_mRow) mfr = _mRow;
     if (!mfr && typeof _brandOfItem === 'function') { try { mfr = _brandOfItem(itemNum) || ''; } catch (e) {} }
+    // v0.9.1838 (N5): the brand the SEARCHES (and the card) say follows the
+    // gauge — rrSearchBrand, app.js — so an American Flyer piece is searched
+    // and shown as American Flyer, not as the Lionel its tab is named for.
+    // _mRow above stays the maker KEY for the disagreement note: a Lionel S
+    // item IS Lionel-made, so that note must not fire on it.
+    var _gNum = itemNum;   // the Google searches spell the number the catalogs' way (6-84631); eBay keeps it bare (v0.9.740)
+    if (m) {
+      try { if (typeof rrSearchBrand === 'function') mfr = rrSearchBrand(m) || mfr; } catch (eB) {}
+      try { if (typeof rrSearchNumber === 'function') _gNum = rrSearchNumber(m) || itemNum; } catch (eN) {}
+    }
     // v0.9.1501: the card's Google button carries the matched ROW's period /
     // year / scale (the v0.9.1477+1484 idea, which this card never got).
     // From the row ONLY -- never the global filter. eBay untouched (v0.9.740).
     var _eraTerms = '';
     try {
       if (m) {
-        var _pMap1 = { prewar: 'prewar', postwar: 'postwar', modern: 'modern era' };
+        // v0.9.1838 (N5): prewar and postwar only — "modern" is our internal era
+        // word and Google ignores it ("Missing: modern"); the year and scale still ride.
+        var _pMap1 = { prewar: 'prewar', postwar: 'postwar' };
         var _per1 = '';
         try { _per1 = (typeof _wizPeriodOfRow === 'function') ? (_wizPeriodOfRow(m) || '') : ''; } catch (eP1) {}
         if (!_per1) { try { _per1 = (typeof _itemEraPeriod === 'function') ? (_itemEraPeriod(m) || '') : ''; } catch (eP2) {} }
@@ -188,7 +205,7 @@
     var _b1 = document.getElementById('rs-ebay');
     if (_b1) _b1.onclick = function () { window.open(_ebaySoldUrl(itemNum, mfr, road, desc), '_blank'); };
     var _bg = document.getElementById('rs-google');
-    if (_bg) _bg.onclick = function () { window.open(_googlePriceUrl(itemNum, mfr, road, desc, _eraTerms), '_blank'); };   // v0.9.1501: row era terms ride along
+    if (_bg) _bg.onclick = function () { window.open(_googlePriceUrl(_gNum, mfr, road, desc, _eraTerms), '_blank'); };   // v0.9.1501: row era terms ride along; v1838: the catalogs' spelling of the number
     var _bn = document.getElementById('rs-ebay-now');
     if (_bn) _bn.onclick = function () { window.open(_ebayActiveUrl(itemNum, mfr, road, desc), '_blank'); };
     var _bw = document.getElementById('rs-want');

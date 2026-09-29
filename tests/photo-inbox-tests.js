@@ -5868,16 +5868,14 @@ META_WRITES.length = 0; TOASTS.length = 0;
        window._pinWhereFromOptions().length === 2);
 
     // ── the scoped search itself ────────────────────────────────────────────
-    const vurl = window._pinVendorSearchURL('trainz.com', '6464-100',
-      { mfr: 'Lionel', road: 'Western Pacific', period: 'Postwar' });
-    const vq = decodeURIComponent(vurl.split('q=')[1] || '');
-    ok('a vendor search is narrowed to that site', /^site:trainz\.com\b/.test(vq), vq);
-    ok('...and carries the number, maker, road and period, like every other search here',
-       /6464-100/.test(vq) && /Lionel/.test(vq) && /Western Pacific/.test(vq) && /Postwar/.test(vq), vq);
-    ok('...properly encoded, so a space never truncates the query',
-       vurl.indexOf(' ') < 0 && /^https:\/\/www\.google\.com\/search\?q=/.test(vurl), vurl);
-    ok('a vendor with no hints still produces a usable search',
-       /site%3Aebay\.com/.test(window._pinVendorSearchURL('ebay.com', '2333', {})));
+    // v0.9.1838 (N5): _pinVendorSearchURL is GONE. It built a site:-narrowed
+    // search with its own maker/period wording and nothing in the app called
+    // it — the where-from picker hands its site to googlePart (app-pages.js),
+    // which asks the shared brand/number rules. Four pins here were the only
+    // thing keeping a callerless query builder alive; this one makes sure it
+    // stays gone (tests/query_builders_tests.js proves the picker's real path).
+    ok('the callerless vendor-search builder is gone (v0.9.1838) — googlePart is the where-from search',
+       typeof window._pinVendorSearchURL !== 'function' && !/_pinVendorSearchURL\s*=\s*function/.test(src));
 
     // ── wiring ─────────────────────────────────────────────────────────────
     const wcode = src.split('\n').filter(l => !/^\s*\/\//.test(l)).join('\n');
@@ -6310,7 +6308,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
   (function () {
     const pG = require('path');
     const pgs = fs.readFileSync(pG.join(__dirname, '..', 'app', 'app-pages.js'), 'utf8');
-    const a = pgs.indexOf('function googlePart(partNum, forItem, desc)');
+    const a = pgs.indexOf('function googlePart(partNum, forItem, desc, forInv)');   // v0.9.1838: the owned copy's inventory id rides along
     const b = pgs.indexOf('function showAddPartModal');
     if (a < 0 || b < 0) throw new Error('§154 marker moved');
     const slice = pgs.slice(a, b).replace(/if \(typeof window[\s\S]{0,80}googlePart;/, '');
@@ -19384,8 +19382,11 @@ META_WRITES.length = 0; TOASTS.length = 0;
       // scouted and deliberately left unwired until its save path is verified
       // (see APP_BACKLOG); rrPhotoRescueRowHtml stayed behind when the rescue
       // Scan row retired in v1573 because the undo rows still render with it.
-      ok('273 the unreachable-handler list is the known 18',
-         r.dead.length === 18,
+      // v0.9.1838 (N5): 18 → 17. _pinVendorSearchURL — a site:-narrowed query
+      // builder nothing called — was deleted rather than routed through the
+      // shared brand rules (tests/query_builders_tests.js holds its tombstone).
+      ok('273 the unreachable-handler list is the known 17',
+         r.dead.length === 17,
          r.dead.length + ': ' + r.dead.map(d => d.name).join(','));
       // None of them can be breaking a visible button, by construction: if any
       // onclick named them they would not be in this list at all.

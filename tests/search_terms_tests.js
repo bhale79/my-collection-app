@@ -197,7 +197,9 @@ ok("browse.js no longer builds \"'MTH ' + number\"",
 ok('browse.js asks rrSearchTerms instead', /rrSearchTerms\(item\)/.test(browse));
 ok("app-pages.js wantSearchOtherSites no longer hardcodes 'lionel' as the brand",
    !/\['lionel',\s*itemNum,\s*roadName\s*\|\|\s*'',\s*'for sale'\]/.test(pages));
-ok('…and asks rrSearchTerms', /rrSearchTerms\(m\)/.test(pages));
+// v0.9.1838: the row is _r.master (found with the want row as the hint) — the
+// pin reads the function body, not one spelling of the argument.
+ok('…and asks rrSearchTerms', /function wantSearchOtherSites\([\s\S]{0,1500}?rrSearchTerms\(_r\.master\)/.test(pages));
 ok('the era word "modern" is no longer built into any query',
    !/modern:\s*'modern'/.test(browse));
 

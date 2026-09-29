@@ -6117,18 +6117,12 @@
     window._pinWhereFrom = _pinWhereFrom;
   }
 
-  // A search narrowed to one site. Google's site: operator does the narrowing;
-  // the rest of the query is the same maker/period wording the app already uses
-  // everywhere else, so the results look like the ones from the item detail page.
-  window._pinVendorSearchURL = function (site, num, hints) {
-    var bits = ['site:' + String(site || '')];
-    var h = hints || {};
-    if (h.mfr) bits.push(h.mfr);
-    if (num) bits.push(String(num));
-    if (h.road) bits.push(h.road);
-    if (h.period) bits.push(h.period);
-    return 'https://www.google.com/search?q=' + encodeURIComponent(bits.join(' '));
-  };
+  // v0.9.1838 (N5): _pinVendorSearchURL used to live here — a site:-narrowed
+  // search builder with its own maker/period wording. Nothing in the app called
+  // it (the where-from picker hands its site to googlePart, app-pages.js, which
+  // asks the shared rules); only a test kept it alive. Removed rather than
+  // routed: a query builder with no caller is one more place a brand can go
+  // wrong.
 
   // ══ v0.9.1181 — the help panel ═══════════════════════════════════════════
   // Brad chose: it opens itself ONCE, on the very first review card a new user

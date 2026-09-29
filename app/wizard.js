@@ -927,9 +927,21 @@ window._wizResearchIdentity = function () {
                   || (d._era ? { era: d._era, manufacturer: d.manufacturer || '' } : null);
     m = findMaster(num, d.variation, _rpPref) || {};
   }
+  // v0.9.1838 (N5): a matched catalog row answers through the shared rules —
+  // rrSearchBrand (the brand follows the GAUGE: an American Flyer piece says
+  // American Flyer, not the Lionel its tab is named for) and rrSearchNumber
+  // (gnum — the catalogs' spelling, 6-84631 for a modern Lionel 84631, for the
+  // Google search; eBay keeps the bare number, v0.9.740). A manual entry keeps
+  // its own maker and number.
+  var _rowBrand = '', _gnum = num;
+  if (m && m.itemNum) {
+    try { if (typeof rrSearchBrand === 'function') _rowBrand = rrSearchBrand(m) || ''; } catch (eB) {}
+    try { if (typeof rrSearchNumber === 'function') _gnum = rrSearchNumber(m) || num; } catch (eN) {}
+  }
   return {
     num: num,
-    mfr: m.manufacturer || d.manualManufacturer || ((typeof _brandOfItem === 'function') ? (_brandOfItem(num) || '') : ''),
+    gnum: _gnum,
+    mfr: _rowBrand || m.manufacturer || d.manualManufacturer || ((typeof _brandOfItem === 'function') ? (_brandOfItem(num) || '') : ''),
     road: m.roadName || d.manualRoadName || d.suggestedRoadName || '',
     desc: m.description || d.manualDesc || ''
   };
@@ -986,7 +998,9 @@ window._wizResearchPrice = function () {
     var _eraTerms = '';
     try {
       var _mi = (typeof wizard !== 'undefined' && wizard.matchedItem) || null;
-      var _pMap = { prewar: 'prewar', postwar: 'postwar', modern: 'modern era' };
+      // v0.9.1838 (N5): prewar and postwar only — "modern" is our internal era
+      // word and Google ignores it ("Missing: modern"); year and scale still ride.
+      var _pMap = { prewar: 'prewar', postwar: 'postwar' };
       var _p = String(d._searchFilterPeriod || '').trim();
       if (!_p && _mi && typeof _wizPeriodOfRow === 'function') _p = _wizPeriodOfRow(_mi) || '';
       var _yr = (_mi && _mi.yearProd) ? String(_mi.yearProd).trim() : '';
@@ -997,9 +1011,10 @@ window._wizResearchPrice = function () {
       if (!_sc && _mi && typeof _wizScaleOfRow === 'function') _sc = _wizScaleOfRow(_mi) || '';
       _eraTerms = [_pMap[_p] || '', _yr, _sc ? (_sc + ' gauge') : ''].filter(Boolean).join(' ');
     } catch (eET) {}
+    var _gn = _id.gnum || num;   // v0.9.1838: the catalogs' spelling of the number (6-84631)
     var url = (typeof window._googlePriceUrl === 'function')
-      ? window._googlePriceUrl(num, mfr, road, desc, _eraTerms)
-      : 'https://www.google.com/search?q=' + encodeURIComponent([mfr, num, road, desc, _eraTerms].filter(Boolean).join(' ') + ' sold prices value');
+      ? window._googlePriceUrl(_gn, mfr, road, desc, _eraTerms)
+      : 'https://www.google.com/search?q=' + encodeURIComponent([mfr, _gn, road, desc, _eraTerms].filter(Boolean).join(' ') + ' sold prices value');
     window.open(url, '_blank');
   } catch (e) { console.warn('[research price]', e); }
 };
