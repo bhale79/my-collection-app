@@ -993,16 +993,21 @@ async function _identifyOpenLens() {
     if (typeof driveStageLensPhoto !== 'function') {
       throw new Error('Drive integration not loaded — please refresh and try again');
     }
+    // v0.9.1835: a camera shot exists only on this phone, so it is uploaded
+    // once (with its cleanup stamp in the same request); searched again
+    // inside ten minutes, the same copy is reused and the link opens at once.
     const staged = await driveStageLensPhoto(_identifyPhotoFile);
-    _identifyStagedFileId = staged.id;
-    // Schedule auto-cleanup in 10 minutes so the public photo doesn't linger.
-    if (_identifyStagedTimer) clearTimeout(_identifyStagedTimer);
-    _identifyStagedTimer = setTimeout(function() {
-      if (_identifyStagedFileId) {
-        driveCleanupLensStaging(_identifyStagedFileId);
-        _identifyStagedFileId = null;
-      }
-    }, 10 * 60 * 1000);
+    if (!staged.reused) {
+      _identifyStagedFileId = staged.id;
+      // Schedule auto-cleanup in 10 minutes so the public photo doesn't linger.
+      if (_identifyStagedTimer) clearTimeout(_identifyStagedTimer);
+      _identifyStagedTimer = setTimeout(function() {
+        if (_identifyStagedFileId) {
+          driveCleanupLensStaging(_identifyStagedFileId);
+          _identifyStagedFileId = null;
+        }
+      }, 10 * 60 * 1000);
+    }
     // Build the text query from scale + type + manufacturer chips. The prompt
     // is explicit about wanting the manufacturer's catalog SKU (not the cab
     // number printed on the model) — without that distinction, AI Overview

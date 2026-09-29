@@ -192,7 +192,9 @@ async function driveRequest(method, endpoint, body) {
   return text ? JSON.parse(text) : {};
 }
 
-async function driveUploadFile(file, name, folderId) {
+// v0.9.1835: an optional fourth argument merges extra metadata into the upload
+// (Lens staging sends its cleanup stamp this way — one request, not two).
+async function driveUploadFile(file, name, folderId, extraMeta) {
   if (!folderId) throw new Error('Missing folderId for upload: ' + name);
   if (!accessToken) {
     var _s = localStorage.getItem('lv_token');
@@ -200,7 +202,7 @@ async function driveUploadFile(file, name, folderId) {
     if (_s && _e > Date.now()) { accessToken = _s; }
     else throw new Error('Not signed in — please sign in and try again');
   }
-  const metadata = { name, parents: [folderId], mimeType: file.type };
+  const metadata = Object.assign({ name, parents: [folderId], mimeType: file.type }, extraMeta || {});
   const form = new FormData();
   form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
   form.append('file', file);
@@ -1776,12 +1778,49 @@ async function driveMoveSheetToVault(sheetId) {
 }
 
 
-// ── Lens Staging — temporary public Drive upload for "Identify by Photo" ──
-// Photos uploaded here are made readable by anyone with the link so
-// Google Lens can fetch them via uploadbyurl. The cleanup helper trashes
-// the file shortly after to limit exposure.
-
-async function driveStageLensPhoto(file) {
+// ── Lens Staging — a temporary public copy for "Identify by Photo" ─────────
+// Google Lens fetches the picture by URL (uploadbyurl), so the app gives it a
+// copy it can reach: a file in the vault's "_Lens Staging" folder, readable
+// by anyone with the link. The cleanup helper trashes it ten minutes later,
+// and the v0.9.1303 sweeper catches any the timer missed (the stamp below).
+//
+// ══ v0.9.1835 — NO ROUND TRIP THROUGH THE PHONE ═══════════════════════════
+// [stated] Brad: "when you use google lens to id something in the app, is
+// there anyway to speed that up?" — and, after the walk-through: "i want the
+// words to help id so tell me what we can do to speed it up without losing
+// that." The words (the q= hint on the Lens link) are untouched; what changed
+// is the staging in front of the link:
+//   1. A photo that is ALREADY in Drive (the Photo Inbox) is copied on
+//      Google's side — one small request — instead of being downloaded to
+//      the phone and uploaded back (two full-size transfers, 3–4 MB each on
+//      a 12 MP shot). driveStageLensCopy.
+//   2. The cleanup stamp rides the copy (or the upload) instead of a second
+//      PATCH.
+//   3. A copy still alive is REUSED: search the same photo again inside the
+//      window and the link opens at once. One memo for both paths.
+//   The picture Lens fetches stays 1600 px wide (small stampings stay legible).
+// A photo that only exists on the phone (the wizard's camera shot) still has
+// to be uploaded once — driveStageLensPhoto — with the stamp folded in.
+var _RR_LENS_TTL_MS = 10 * 60 * 1000;     // how long a staged copy lives (timer + sweeper stamp)
+var _RR_LENS_REUSE_MS = 9 * 60 * 1000;    // reuse only while a full minute of life is left
+var _rrLensMemo = {};                     // key → { id, url, exp }
+function _rrLensStamp() { return { rrShared: '1', rrShareExp: String(Date.now() + _RR_LENS_TTL_MS) }; }
+function _rrLensUrl(id) {
+  // v0.9.960 (Brad): the old uc?export=download link is unreliable for outside
+  // services — Drive often serves a preview/warning page instead of the raw
+  // image. The /thumbnail endpoint reliably returns real image bytes for
+  // any-with-link files; sz=w1600 keeps label text legible.
+  return 'https://drive.google.com/thumbnail?id=' + id + '&sz=w1600';
+}
+function _rrLensAlive(key) {
+  var m = _rrLensMemo[key];
+  return (m && Date.now() < m.exp) ? { id: m.id, url: m.url, reused: true } : null;
+}
+function _rrLensRemember(key, id) {
+  _rrLensMemo[key] = { id: id, url: _rrLensUrl(id), exp: Date.now() + _RR_LENS_REUSE_MS };
+  return { id: id, url: _rrLensUrl(id), reused: false };
+}
+async function _rrLensFolder() {
   // Ensure vault is initialized.
   if (!driveCache.vaultId) {
     var _stored = localStorage.getItem('lv_vault_id');
@@ -1794,48 +1833,55 @@ async function driveStageLensPhoto(file) {
   if (!driveCache.lensStagingId) {
     driveCache.lensStagingId = await driveFindOrCreateFolder('_Lens Staging', driveCache.vaultId);
   }
-  // Upload the file.
-  var name = 'lens_' + Date.now() + '_' + (file.name || 'photo.jpg').replace(/[^a-zA-Z0-9._-]/g, '_');
-  var uploaded = await driveUploadFile(file, name, driveCache.lensStagingId);
-  if (!uploaded || !uploaded.id) throw new Error('Lens staging upload failed');
-  // Set permission: anyone with the link can read. Required so Lens can fetch.
+  return driveCache.lensStagingId;
+}
+// Anyone with the link may read — required so Lens can fetch. Not optional:
+// a copy nobody can reach is a failed search, so this one throws.
+async function _rrLensPublish(id) {
   try {
-    await driveRequest('POST', '/files/' + uploaded.id + '/permissions?fields=id', {
-      role: 'reader',
-      type: 'anyone',
-    });
+    await driveRequest('POST', '/files/' + id + '/permissions?fields=id', { role: 'reader', type: 'anyone' });
   } catch(e) {
     console.error('[Lens] Could not make staged photo public:', e);
     throw new Error('Could not make photo public for Lens — check Drive permissions');
   }
-  // v0.9.1324: stamp the same two appProperties the share machinery uses, so
-  // this world-readable file is VISIBLE to rrSweepExpiredShares (and to the
-  // Shared Photos page, where the user can revoke it by hand).
-  //
-  // Why this was a real hole: the only cleanup was a 10-minute setTimeout
-  // below. Close the tab, refresh, or let the phone sleep and that timer dies
-  // with the page — leaving the photo readable by anyone with the link,
-  // forever, with nothing anywhere that could find it again. The v0.9.1303
-  // sweeper queries appProperties rrShared='1'; an unstamped file is invisible
-  // to it. Stamping costs one PATCH and hands the file to a sweeper that
-  // already runs at every app start.
-  //
-  // Deliberately best-effort: if the stamp fails we still return the URL, because
-  // the setTimeout cleanup is unchanged and Lens is the user's actual goal. The
-  // stamp is a SECOND net under the timer, not a replacement for it.
-  try {
-    await driveRequest('PATCH', '/files/' + uploaded.id, {
-      appProperties: { rrShared: '1', rrShareExp: String(Date.now() + 10 * 60 * 1000) },
-    });
-  } catch (eS) { console.warn('[Lens] share stamp failed (timer cleanup still armed):', eS); }
-  // Build the public image URL Lens will fetch. v0.9.960 (Brad): the old
-  // uc?export=download link is unreliable for outside services — Drive often
-  // serves a preview/warning page instead of the raw image, so Lens can get a
-  // web page rather than the photo. The /thumbnail endpoint reliably returns
-  // real image bytes for any-with-link files; sz=w1600 keeps label text legible.
-  var publicUrl = 'https://drive.google.com/thumbnail?id=' + uploaded.id + '&sz=w1600';
-  return { id: uploaded.id, url: publicUrl };
 }
+
+// A photo already in Drive: copied on Google's side, stamped in the same
+// request, published. Nothing is downloaded or uploaded by the device.
+async function driveStageLensCopy(sourceFileId) {
+  if (!sourceFileId) throw new Error('No photo to send to Lens');
+  var key = 'drive:' + sourceFileId;
+  var alive = _rrLensAlive(key);
+  if (alive) return alive;
+  var stagingId = await _rrLensFolder();
+  var copied = await driveRequest('POST', '/files/' + encodeURIComponent(sourceFileId) + '/copy?fields=id',
+    { name: 'lens_' + Date.now() + '_copy.jpg', parents: [stagingId], appProperties: _rrLensStamp() });
+  if (!copied || !copied.id) throw new Error('Lens staging copy failed');
+  await _rrLensPublish(copied.id);
+  return _rrLensRemember(key, copied.id);
+}
+
+// A photo that exists only on this device (the wizard's camera shot):
+// uploaded once, stamped in the same request, published.
+async function driveStageLensPhoto(file) {
+  if (!file) throw new Error('No photo to send to Lens');
+  var key = 'file:' + (file.name || '') + ':' + (file.size || 0) + ':' + (file.lastModified || 0);
+  var alive = _rrLensAlive(key);
+  if (alive) return alive;
+  var stagingId = await _rrLensFolder();
+  var name = 'lens_' + Date.now() + '_' + (file.name || 'photo.jpg').replace(/[^a-zA-Z0-9._-]/g, '_');
+  // v0.9.1324: the same two appProperties the share machinery uses, so this
+  // world-readable file is VISIBLE to rrSweepExpiredShares (and to the Shared
+  // Photos page, where the user can revoke it by hand). Why: the only cleanup
+  // used to be a 10-minute setTimeout; close the tab or let the phone sleep
+  // and that timer died with the page, leaving the photo readable by anyone
+  // with the link, forever. The sweeper runs at every app start.
+  var uploaded = await driveUploadFile(file, name, stagingId, { appProperties: _rrLensStamp() });
+  if (!uploaded || !uploaded.id) throw new Error('Lens staging upload failed');
+  await _rrLensPublish(uploaded.id);
+  return _rrLensRemember(key, uploaded.id);
+}
+if (typeof window !== 'undefined') { window.driveStageLensCopy = driveStageLensCopy; window.driveStageLensPhoto = driveStageLensPhoto; }
 
 async function driveCleanupLensStaging(fileId) {
   if (!fileId) return;

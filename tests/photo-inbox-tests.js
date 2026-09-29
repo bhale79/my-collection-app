@@ -18371,16 +18371,28 @@ META_WRITES.length = 0; TOASTS.length = 0;
          /b\.onclick = stopFn;/.test(pi69));
 
       // ── (2) the Lens photo is visible to the sweeper ──
-      const lens0 = dr69.indexOf('async function driveStageLensPhoto');
+      // v0.9.1835: the staging was rebuilt (a server-side copy for a photo
+      // already in Drive, the upload kept for a camera shot) and the stamp
+      // now rides the request that CREATES the file — so there is never a
+      // public, unstamped moment, and no separate stamp call that could fail.
+      const lens0 = dr69.indexOf('var _RR_LENS_TTL_MS');
       const lens1 = dr69.indexOf('async function driveCleanupLensStaging');
       ok('269 the Lens staging slice was found', lens0 > 0 && lens1 > lens0);
       const lens = dr69.slice(lens0, lens1);
       ok('269 a world-readable Lens photo is stamped rrShared so the sweeper can find it',
-         /appProperties: \{ rrShared: '1', rrShareExp: String\(Date\.now\(\) \+ 10 \* 60 \* 1000\) \}/.test(lens));
-      ok('269 …the stamp comes AFTER the permission that opened it up',
-         lens.indexOf("type: 'anyone'") < lens.indexOf("rrShared: '1'"));
-      ok('269 …and a failed stamp does NOT block Lens (best-effort, warn only)',
-         /catch \(eS\) \{ console\.warn\('\[Lens\] share stamp failed/.test(lens));
+         /function _rrLensStamp\(\) \{ return \{ rrShared: '1', rrShareExp: String\(Date\.now\(\) \+ _RR_LENS_TTL_MS\) \}; \}/.test(lens)
+         && /var _RR_LENS_TTL_MS = 10 \* 60 \* 1000;/.test(lens));
+      ok('269 …BOTH ways of staging carry the stamp in the request that creates the file (copy and upload)',
+         /\/copy\?fields=id',\n\s*\{ name: [^\n]*appProperties: _rrLensStamp\(\) \}\);/.test(lens)
+         && /driveUploadFile\(file, name, stagingId, \{ appProperties: _rrLensStamp\(\) \}\);/.test(lens));
+      ok('269 …the file is stamped BEFORE the permission opens it up (no unstamped public moment)',
+         (function () {
+           const copyAt = lens.indexOf('appProperties: _rrLensStamp()'), pubAt = lens.indexOf('await _rrLensPublish(copied.id)');
+           const upAt = lens.lastIndexOf('appProperties: _rrLensStamp()'), pub2 = lens.indexOf('await _rrLensPublish(uploaded.id)');
+           return copyAt > 0 && pubAt > copyAt && upAt > 0 && pub2 > upAt;
+         })());
+      ok('269 …and there is no separate stamp call left that could fail on its own',
+         !/share stamp failed/.test(lens) && !/PATCH', '\/files\/' \+ uploaded\.id/.test(lens));
       // The timer lives in the CALLER, not in the stager — the stamp is a
       // second net UNDER it, so assert the timer is still there. If someone
       // ever deletes the timer trusting the stamp, the sweeper only runs at

@@ -6197,12 +6197,16 @@
     var tab = null;
     try { tab = window.open('', '_blank'); } catch (e) {}
     var btn = document.getElementById('pin-rv-lens');
-    if (btn) { btn.disabled = true; btn.textContent = 'Staging photo…'; }
+    if (btn) { btn.disabled = true; btn.textContent = 'Sending to Google…'; }
     try {
-      var blob = await _pinBytes(gs[0].files[0].id);
-      var file = new File([blob], 'inbox-photo.jpg', { type: blob.type || 'image/jpeg' });
-      var staged = await driveStageLensPhoto(file);
-      setTimeout(function () { try { driveCleanupLensStaging(staged.id); } catch (e) {} }, 10 * 60 * 1000);
+      // v0.9.1835 (Brad: "is there anyway to speed that up?"): the photo is
+      // already in Drive, so Drive copies it on Google's side — one small
+      // request — instead of the phone downloading the full picture and
+      // uploading it back. A copy still alive is reused (same photo searched
+      // again inside ten minutes → the link opens at once). The words on the
+      // link below are untouched.
+      var staged = await driveStageLensCopy(gs[0].files[0].id);
+      if (!staged.reused) setTimeout(function () { try { driveCleanupLensStaging(staged.id); } catch (e) {} }, 10 * 60 * 1000);
       // v0.9.917 (Brad): question text built by the ONE shared builder in
       // ai-id.js (rrIdentifyQuery) — change it there, every button updates.
       // v0.9.1083: the same era hint goes into the shared text question, so a
