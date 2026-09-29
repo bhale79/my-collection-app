@@ -4887,12 +4887,33 @@ function addItemToWantList(idx) {
   renderWizardStep();
 }
 
-function _checkWantPartners(itemNum, variation, priority, maxPrice, notes) {
+function _checkWantPartners(itemNum, variation, priority, maxPrice, notes, mfr) {
   const num = normalizeItemNum(itemNum);
   const isLoco   = isLocomotive(num);
   const isTnd    = isTender(num);
   const bUnit    = getBUnit(num);          // diesel A-unit: returns "XXXC" or null
-  const aUnit    = getAUnit(num);          // diesel B-unit: returns "XXX" or null
+  const aUnit    = getAUnit(num);          // diesel B-unit / dummy A: the powered A, or null
+  // v0.9.1840 (roadmap 4.26 — "engine A → engine B → engine A"): the engine's
+  // SECOND A unit comes along with its B unit (Lionel's 2343T beside 2343C; MTH's
+  // "A Unit (Non-Powered)" beside the "B-Unit"), and a B unit or dummy A offers
+  // EVERY powered A it pairs with — MTH sells one AA set under -0 / -1 / -2
+  // (rail and control variants) and the B unit fits all three. Both come from
+  // the partner map, which learned MTH families in this release.
+  const dummyA   = (typeof getADummyPartner === 'function') ? getADummyPartner(num) : null;
+  const aUnits   = (typeof getAUnits === 'function') ? getAUnits(num) : (aUnit ? [aUnit] : []);
+  // the maker the want was saved with is the lookup hint for its partners'
+  // catalog rows (their words on the pop-up, their brand on the sheet) — never
+  // a number-only lookup, which is how a 20-2050-3 could land on another maker
+  const _hint = mfr ? { manufacturer: mfr } : null;
+  const _rowOf = (n) => { try { return (typeof findMaster === 'function') ? findMaster(n, '', _hint) : null; } catch (e) { return null; } };
+  const _words = (n) => {
+    const r = _rowOf(n);
+    let d = String((r && r.description) || '').replace(/\s+/g, ' ').trim();
+    const road = String((r && r.roadName) || '').trim();
+    if (road && d.toLowerCase().indexOf(road.toLowerCase()) === 0) d = d.slice(road.length).replace(/^[\s,\-–]+/, '');
+    d = d.replace(/^(?:O|HO|S|G|N)\s+(?:Scale|Gauge)\s+(?:Premier|RailKing|Rail King|Imperial|Tinplate)?\s*/i, '');   // MTH's line prefix ("O Scale Premier") says nothing about the piece
+    return d.length > 60 ? d.slice(0, 57).replace(/\s+\S*$/, '') + '…' : d;
+  };
 
   // ── v0.9.1740 (Brad, 2026-09-13): "so i added an engine from the companion
   // checker. it said this engine matches the tender you have in your
@@ -4940,12 +4961,19 @@ function _checkWantPartners(itemNum, variation, priority, maxPrice, notes) {
     partners.forEach(l => {
       if (!state.wantData[l + '|']) candidates.push({ itemNum: l, label: l + ' (locomotive)' });
     });
-  } else if (bUnit) {
-    partners = [bUnit];
-    if (!state.wantData[bUnit + '|']) candidates.push({ itemNum: bUnit, label: bUnit + ' (B unit)' });
-  } else if (aUnit) {
-    partners = [aUnit];
-    if (!state.wantData[aUnit + '|']) candidates.push({ itemNum: aUnit, label: aUnit + ' (A unit)' });
+  } else if (bUnit || dummyA) {
+    // an A unit (or an MTH AA / AB set): its B unit and its second A, whichever exist
+    partners = [bUnit, dummyA].filter(Boolean);
+    const _w = (n) => { const w = _words(n); return w ? ' — ' + w : ''; };
+    if (bUnit && !state.wantData[bUnit + '|']) candidates.push({ itemNum: bUnit, label: bUnit + ' (B unit' + _w(bUnit) + ')' });
+    if (dummyA && !state.wantData[dummyA + '|']) candidates.push({ itemNum: dummyA, label: dummyA + ' (second A unit, non-powered' + _w(dummyA) + ')' });
+  } else if (aUnits.length) {
+    // a B unit or a dummy A: every powered A it pairs with (one for Lionel; MTH may sell the AA set in three variants)
+    partners = aUnits.slice();
+    const _w = (n) => { const w = _words(n); return w ? ' — ' + w : ''; };
+    partners.forEach(a => {
+      if (!state.wantData[a + '|']) candidates.push({ itemNum: a, label: a + ' (A unit' + (partners.length > 1 ? _w(a) : '') + ')' });
+    });
   }
 
   if (partners.some(_wpOwned)) return;   // v0.9.1740: a partner is already in the collection — the pair is complete
@@ -4960,9 +4988,15 @@ function _checkWantPartners(itemNum, variation, priority, maxPrice, notes) {
     ? 'This locomotive has matching tenders. Add any to your Want List?'
     : isTnd
       ? 'This tender fits these locomotives. Add any to your Want List?'
-      : bUnit
-        ? 'This is an A unit — do you also want the B unit?'
-        : 'This is a B unit — do you also want the A unit?';
+      : (bUnit && dummyA)
+        ? 'This is an A unit — do you also want the B unit and the second A unit?'
+        : bUnit
+          ? 'This is an A unit — do you also want the B unit?'
+          : dummyA
+            ? 'This is an A unit — do you also want the second A unit?'
+            : (aUnits.length > 1)
+              ? 'This unit pairs with an A unit MTH sold in more than one version — pick the one you want:'
+              : 'This is a B unit — do you also want the A unit?';
 
   const checkboxRows = candidates.map((c, i) => `
     <label style="display:flex;align-items:center;gap:0.6rem;padding:0.5rem 0.6rem;border-radius:7px;background:var(--surface2);cursor:pointer;margin-bottom:0.4rem">
@@ -4996,7 +5030,10 @@ function _checkWantPartners(itemNum, variation, priority, maxPrice, notes) {
     let added = 0;
     for (const c of selected) {
       try {
-        const row = [c.itemNum, '', priority || 'Medium', maxPrice || '', notes || '', ((typeof _brandOfItem === 'function' && _brandOfItem(c.itemNum)) || _getEraManufacturer())];
+        // v0.9.1840: the partner's own catalog row (found with the want's maker as
+        // the hint) names its brand; the number-only lookup is only the fallback
+        const _pRow = _rowOf(c.itemNum);
+        const row = [c.itemNum, '', priority || 'Medium', maxPrice || '', notes || '', ((typeof _brandOfItem === 'function' && (_brandOfItem(_pRow || c.itemNum))) || mfr || _getEraManufacturer())];
         // Want-Upgrade combined: append partner 9-col row with List Type='Want'.
         const _wuPartnerRow = [row[0], row[1], 'Want', row[2], row[3], '', '', row[4], row[5]];
         const _wuPartnerApRow = (await sheetsAppend(state.personalSheetId, 'Want-Upgrade List!A:I', [_wuPartnerRow])) || 0;   // v0.9.1196

@@ -2064,7 +2064,7 @@ async function saveWizardItem() {
       // didn't already capture a partner (so single-item saves still get the
       // "also add tender?" prompt).
       if (_wPartners.length === 0 && typeof _checkWantPartners === 'function') {
-        setTimeout(() => _checkWantPartners(itemNum, variation, _wPriority, _wPrice, _wNotes), 500);
+        setTimeout(() => _checkWantPartners(itemNum, variation, _wPriority, _wPrice, _wNotes, _wMfr), 500);   // v0.9.1840: the maker rides along as the partners' lookup hint
       }
     }
 

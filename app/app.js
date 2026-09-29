@@ -445,11 +445,39 @@ const MY_SETS_HEADERS = [
   'Photo Link','Notes','Quick Entry','Inventory ID'
 ];
 
+// ── v0.9.1840 — which piece of an MTH cab-unit family a row is, by its words ──
+// MTH's Unit / Powered-Dummy columns are blank, so this is the ONE reader of the
+// description (roadmap 4.26). Returns { role, inferred }:
+//   'aba-set' / 'aa-set' / 'ab-set'  a set sold under one number ("F-3 ABA Diesel
+//                                    Set", "EMD E6 A-B-A Diesel Engine Set")
+//   'b'                              a B unit ("F-3 B-Unit", "DL-110 Powered B Unit")
+//   'a-dummy'                        a second A unit, non-powered
+//   'a'                              a powered A unit
+// inferred=true when the words name no unit at all and the role was read from
+// the row being a locomotive ("DL-109 Diesel Engine w/Proto-Sound" beside an
+// "-3 B Unit"): its family decides whether that counts (see buildPartnerMap).
+function rrMthUnitRole(desc, itemType) {
+  const d = String(desc || '');
+  const np = /non-?powered|unpowered|dummy/i.test(d);
+  if (/\bA-?B-?A\b/i.test(d)) return { role: 'aba-set', inferred: false };
+  if (/\bA-?A\b/i.test(d))     return { role: 'aa-set',  inferred: false };
+  if (/\bA-?B\b/i.test(d))     return { role: 'ab-set',  inferred: false };
+  if (/\bB[- ]?unit/i.test(d))  return { role: 'b',       inferred: false };
+  if (/\bA[- ]?unit/i.test(d))  return { role: np ? 'a-dummy' : 'a', inferred: false };
+  if (/locomotive/i.test(String(itemType || '')) && !/\bset\b/i.test(d)) return { role: np ? 'a-dummy' : 'a', inferred: true };
+  return { role: '', inferred: false };
+}
+if (typeof window !== 'undefined') window.rrMthUnitRole = rrMthUnitRole;
+
 // ── Partner Map — built at startup from Companions + Sets + Master data ──
-// state.partnerMap[itemNum] = { tenders:[], locos:[], bUnit:'', aUnit:'', isDiesel:false, configs:['AA','AB'] }
+// state.partnerMap[itemNum] = { tenders:[], locos:[], bUnit:'', aUnit:'', dummyA:'', aUnits:[], isDiesel:false, configs:['AA','AB'] }
 function buildPartnerMap() {
   const map = {};
-  const ensure = (num) => { if (!map[num]) map[num] = { tenders:[], locos:[], bUnit:'', aUnit:'', isDiesel:false, configs:[] }; return map[num]; };
+  // v0.9.1840 (roadmap 4.26): dummyA = the engine's SECOND A unit (Lionel's
+  // parent#T, MTH's "A Unit (Non-Powered)"); aUnits = every powered-A number a
+  // B unit or dummy A pairs with (MTH sells one AA set under -0 / -1 / -2 —
+  // rail and control variants — and the B unit fits all three).
+  const ensure = (num) => { if (!map[num]) map[num] = { tenders:[], locos:[], bUnit:'', aUnit:'', dummyA:'', aUnits:[], isDiesel:false, configs:[] }; return map[num]; };
   const addUnique = (arr, val) => { if (val && !arr.includes(val)) arr.push(val); };
 
   // 1. Companions tab: engine <-> tender, engine <-> B-unit, AA pairs
@@ -477,6 +505,7 @@ function buildPartnerMap() {
       ensure(eng).isDiesel = true;
       ensure(comp).isDiesel = true;
       ensure(comp).aUnit = eng;
+      ensure(eng).dummyA = ensure(eng).dummyA || comp;   // v0.9.1840: the second A, by number
       // v0.9.1002 (Brad): a companion row naming an A-dummy IS the evidence
       // that this loco comes as an AA pair — record the config. Without this
       // the pair was known but the "AA set" button never appeared.
@@ -501,6 +530,7 @@ function buildPartnerMap() {
       e.isDiesel = true;
       if (s.dieselDummy) {
         addUnique(e.configs, 'AA');
+        e.dummyA = e.dummyA || s.dieselDummy;   // v0.9.1840
         ensure(s.dieselDummy).isDiesel = true;
         ensure(s.dieselDummy).aUnit = s.dieselPow;
       }
@@ -564,6 +594,13 @@ function buildPartnerMap() {
     return !!info && info.unit === 'A' && info.pd === 'D';
   }
   _md.forEach(m => {
+    // v0.9.1840: P / T / C is LIONEL's convention (2343 → 2343T → 2343C). Run on
+    // every tab, the +C rule paired MTH's smoke-fluid 12-pack 60-1051 with
+    // 60-1051C "Diesel ProtoSmoke Fluid" and a 1999 dealer-program set with its
+    // caboose — 21 false "B units" measured on the live MTH O tab, each one a
+    // wrong Add-partner pop-up waiting to happen. Other makers pair through
+    // their own passes (MTH families above); this one is Lionel's alone.
+    if (String(m._tab || '').toLowerCase().indexOf('lionel') !== 0) return;
     const num = normalizeItemNum(m.itemNum);
     const pdMatch = (m.poweredDummy || '').match(/^(P|D)$/i);
     const isPaired = _isPairedDieselSubType(m.subType);
@@ -599,7 +636,63 @@ function buildPartnerMap() {
     // the Companions branch above, which records AA directly.
     if (pdMatch && !num.endsWith('C') && _hasDummyAPartner(num)) {
       addUnique(ensure(num).configs, 'AA');
+      ensure(num).dummyA = ensure(num).dummyA || (num + 'T');   // v0.9.1840: the second A, by number
+      ensure(num + 'T').aUnit = ensure(num + 'T').aUnit || num;
     }
+  });
+
+  // 4. MTH families — v0.9.1840 (roadmap 4.26: "Want List partner detection for
+  // MTH ABA sets — engine A → engine B → engine A"). MTH sells a cab-unit
+  // family under ONE base number with a suffix per piece, and the Unit and
+  // Powered/Dummy columns are BLANK on every MTH tab, so the DESCRIPTION is the
+  // only thing that says which piece a row is (measured on the live MTH O tab,
+  // 2026-09-29: 32,080 rows, 1,043 families with set language):
+  //     20-2050-0 / -1 / -2   "F-3 AA Diesel Set"  (3-rail horn / Proto-Sound / 2-rail)
+  //     20-2050-3             "F-3 B-Unit"
+  //     20-20943-1            "F-3 A Unit Diesel Engine w/Proto-Sound 3.0"
+  //     20-20943-3 / -4       "F-3 B-Unit (Non-Powered)" / "A Unit (Non-Powered)"
+  // rrMthUnitRole reads the role off the words; this pass wires the SAME
+  // fields the Lionel passes fill — the engine's bUnit and dummyA, the B unit's
+  // and dummy A's aUnit (+ aUnits, every variant) — and nothing else:
+  // isDiesel and configs stay untouched for MTH, so the wizard's AA/AB/ABA
+  // set questions do not change here (that is a separate item). An "ABA Set"
+  // is one number for the whole set — complete, nothing to pair. A family of
+  // B units alone (30 measured) pairs with an engine under ANOTHER number that
+  // the number cannot name; road + model found a single engine for 2 of the
+  // 30 and several for 27, so those stay unpaired rather than guessed.
+  const _mthFam = new Map();
+  _md.forEach(m => {
+    if (String(m._tab || '').toLowerCase().indexOf('mth') !== 0) return;
+    const raw = String(m.itemNum || '').trim();
+    const fm = raw.match(/^(\d{2}-\d{4,5})-(\d{1,2})$/);
+    if (!fm) return;
+    const role = rrMthUnitRole(m.description, m.itemType);
+    if (!role.role) return;
+    if (!_mthFam.has(fm[1])) _mthFam.set(fm[1], []);
+    _mthFam.get(fm[1]).push({ num: normalizeItemNum(raw), suf: parseInt(fm[2], 10), role: role.role, inferred: role.inferred });
+  });
+  _mthFam.forEach(members => {
+    members.sort((a, b) => a.suf - b.suf);
+    const explicitB = members.some(x => x.role === 'b' && !x.inferred);
+    // a role read from the family's shape (no unit words) only counts in a
+    // family that names a B unit outright — a lone "Diesel Engine (Non-Powered)"
+    // beside its powered twin is a hood unit's dummy, not a second A unit
+    const live = members.filter(x => !x.inferred || explicitB);
+    const bs = live.filter(x => x.role === 'b');
+    const ds = live.filter(x => x.role === 'a-dummy');
+    const engines = live.filter(x => x.role === 'a' || x.role === 'aa-set' || x.role === 'ab-set');
+    if (!engines.length || (!bs.length && !ds.length)) return;
+    engines.forEach(e => {
+      const en = ensure(e.num);
+      if (bs.length && e.role !== 'ab-set') en.bUnit = en.bUnit || bs[0].num;      // an AB set already has its B
+      if (ds.length && e.role !== 'aa-set') en.dummyA = en.dummyA || ds[0].num;    // an AA set already has both As
+    });
+    const engineNums = engines.map(e => e.num);
+    bs.concat(ds).forEach(x => {
+      const ex = ensure(x.num);
+      ex.aUnit = ex.aUnit || engineNums[0];
+      engineNums.forEach(n => addUnique(ex.aUnits, n));
+    });
   });
 
   // ── Single-unit locomotives never come as A / AA / AB / ABA ──
@@ -664,6 +757,10 @@ function isSetUnit(itemNum) {
 }
 function getBUnit(itemNum) { const p = _getPartner(itemNum); return (p && p.bUnit) ? p.bUnit : null; }
 function getAUnit(itemNum) { const p = _getPartner(itemNum); return (p && p.aUnit) ? p.aUnit : null; }
+// v0.9.1840 (roadmap 4.26): the engine's second A unit, and every powered A a
+// B unit / dummy A pairs with — read from the map, the one place that knows.
+function getADummyPartner(itemNum) { const p = _getPartner(itemNum); return (p && p.dummyA) ? p.dummyA : null; }
+function getAUnits(itemNum) { const p = _getPartner(itemNum); if (!p) return []; return (p.aUnits && p.aUnits.length) ? p.aUnits.slice() : (p.aUnit ? [p.aUnit] : []); }
 function getSetPartner(itemNum) {
   const num = _stripSuffix(itemNum);
   if (num.endsWith('C')) return getAUnit(num);
@@ -692,6 +789,8 @@ function foldWantEntries(rows) {
       if (typeof getMatchingTenders === 'function') mates = mates.concat(getMatchingTenders(n) || []);
       if (typeof getSetPartner === 'function' && !/C$/i.test(n.replace(/-(P|D)$/i, ''))) {
         var sp = getSetPartner(n); if (sp) mates.push(sp);
+        var dA = (typeof getADummyPartner === 'function') ? getADummyPartner(n) : null;   // v0.9.1840: the second A folds in too
+        if (dA) mates.push(dA);
       }
     } catch (e) {}
     mates.forEach(function (mn) {
@@ -763,6 +862,8 @@ window.foldSoldEntries = function (rows) {
       if (typeof getMatchingTenders === 'function') mates = mates.concat(getMatchingTenders(n) || []);
       if (typeof getSetPartner === 'function' && !/C$/i.test(n.replace(/-(P|D)$/i, ''))) {
         var sp = getSetPartner(n); if (sp) mates.push(sp);
+        var dA = (typeof getADummyPartner === 'function') ? getADummyPartner(n) : null;   // v0.9.1840: the second A folds in too
+        if (dA) mates.push(dA);
       }
     } catch (e) {}
     mates.forEach(function (mn) {
@@ -840,6 +941,11 @@ function getADummyUnit(itemNum) {
   var n = String(itemNum || '').trim();
   var base = (typeof baseItemNum === 'function') ? baseItemNum(n) : n.replace(/-(P|D)$/i, '');
   var nn = normalizeItemNum(n), nb = normalizeItemNum(base), dummy = '';
+  // v0.9.1840: the partner map answers first — it is where Companions, Sets,
+  // the master's T rows and MTH families all file the second A unit. The walk
+  // below stays for the one shape the map does not hold (a dummy filed under
+  // the engine's OWN number, unit A / D).
+  try { var _pm = getADummyPartner(n) || getADummyPartner(base); if (_pm) return _pm; } catch (e) {}
   (state.masterData || []).forEach(function (m) {
     if (dummy || !m.itemNum) return;
     var mi = normalizeItemNum(m.itemNum);
