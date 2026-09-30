@@ -1,17 +1,19 @@
 {
- "what": "Item Type written into 3,618 master rows that had none (of 3,821 — master-list audit finding, rule type-missing), 2026-09-30. Bachmann (2,150 rows on seven tabs): the type comes from Bachmann's own product-page category (breadcrumb, read 2026-09-30 from shop.bachmanntrains.com) for 1,830 rows, and from the words of the product name for 320 rows whose category is mixed (Thomas rolling stock, circus, narrow gauge). Every other tab (Lionel modern 1,306, MTH 175, LGB 78, Micro-Trains 74, USA Trains 18, K-Line 11, Menards 9): fifteen plain-English word rules in a fixed order (listed under 'rules'), engines through the app's own steam/diesel reader after a model-name check. Every word written is one the app's bucketer already knows. 203 rows left blank on purpose (listed under 'left_blank'): merchandise (shirts, caps, mugs — no honest type word), Micro-Trains rows whose description is only a colour, a few unreadable names. Applied from the app in Brad's Chrome: one cell first and read back, then batches; every cell read back; every other cell on the 20 tabs read back unchanged. Cells are [tab, sheet row at the time (a hint), item number (column A), type written, decided by]; the identity is tab + item number + the blank Item Type cell. [stated] Brad: 'lets do no type next' → the plan and the review workbook (TYPE_PLAN_2026-09-30.xlsx) → 'go'. Master Version 1.89.",
+ "what": "Item Type written into 3,611 master rows that had none (of 3,821 — master-list audit rule type-missing), 2026-09-30. Bachmann (2,150 rows, seven tabs): Bachmann's own product-page category (breadcrumb, shop.bachmanntrains.com, read 2026-09-30) for 1,830 rows; the words of the name for 320 rows in mixed categories. Every other tab: fifteen plain-English word rules in a fixed order (see 'rules'); engines through a model-name check, then the app's own reader. One row by hand (source typo). 210 left blank on purpose (see 'left_blank'): 116 merchandise, 1 placeholder 'Sample' row, 93 whose words decide nothing. Before writing, every planned row was run through the app's own getTypeBucket with its new type: 3,610 show as written; the one exception (Bachmann HO 16818 caboose shows as Boxcar) is an app by-number override — MANUAL_TYPE_OVERRIDES['16818'] is a Lionel boxcar applied to every tab — recorded, not changed here. 'corrections' lists the 34 rows that differ from the reviewed plan (commit 9a506d3e): found by that check and a hand audit of the small groups (Dockside Switchers are 0-4-0 steam; 'Catalog Art Boxcar' is a boxcar; a 'Manual Switch' is track; etc.). Applied from the app in Brad's Chrome: one cell first and read back, then batches; every cell read back; every other cell on the 20 tabs read back unchanged. Cells: [tab, sheet row (a hint), item number, type written, decided by]. Master Version 1.89.",
  "date": "2026-09-30",
  "master_version": "1.89",
+ "supersedes_commit": "9a506d3e",
+ "cells_sha256": "2f42c6a06c07cc7fb8a473f76a0244d386275448364e8ef6c5e8a4aae3f052b8",
  "column": "Item Type (column B on every one of these tabs)",
  "counts": {
   "typeless": 3821,
-  "written": 3618,
-  "left_blank": 203,
+  "written": 3611,
+  "left_blank": 210,
   "per_tab": {
    "Lionel MPC-Modern": {
     "typeless": 847,
-    "proposed": 801,
-    "blank": 46
+    "proposed": 795,
+    "blank": 52
    },
    "Lionel Modern HO - Items": {
     "typeless": 5,
@@ -25,8 +27,8 @@
    },
    "MTH O": {
     "typeless": 130,
-    "proposed": 36,
-    "blank": 94
+    "proposed": 35,
+    "blank": 95
    },
    "MTH HO": {
     "typeless": 38,
@@ -110,39 +112,289 @@
    }
   },
   "per_type": {
-   "Accessory": 460,
-   "Set": 153,
+   "Accessory": 464,
+   "Set": 155,
    "Intermodal": 35,
    "Gondola": 146,
    "Tank Car": 154,
    "Hopper": 388,
    "Flatcar": 157,
-   "Boxcar": 330,
-   "Passenger Car": 317,
+   "Boxcar": 333,
+   "Passenger Car": 318,
    "Operating Freight": 104,
-   "Diesel Locomotive": 440,
-   "Stock Car": 58,
-   "Electric Locomotive": 14,
-   "Steam Locomotive": 284,
+   "Diesel Locomotive": 428,
+   "Stock Car": 59,
+   "Electric Locomotive": 13,
+   "Steam Locomotive": 293,
    "Caboose": 147,
    "Motorized Unit": 21,
-   "Track": 255,
+   "Track": 259,
    "Part": 32,
    "Transformer/Power": 14,
-   "Freight Car": 33,
-   "Paper": 53,
+   "Freight Car": 29,
+   "Paper": 39,
    "Trolley": 23
   },
   "decided_by": {
-   "words": 1788,
-   "blank": 203,
+   "words": 1780,
+   "blank": 210,
+   "by hand": 1,
    "Bachmann category": 1830
   }
  },
+ "app_shows_otherwise": [
+  [
+   "Bachmann HO",
+   "16818",
+   "Caboose",
+   "Boxcar",
+   "MANUAL_TYPE_OVERRIDES['16818'] (type-groups.js) is a by-number Lionel override applied on every tab"
+  ]
+ ],
+ "corrections": [
+  {
+   "tab": "Lionel MPC-Modern",
+   "item": "6-12345",
+   "reviewed": "Steam Locomotive",
+   "written": "(left blank)",
+   "why": "held: looks like a placeholder row (\"Sample …\", item 6-12345)"
+  },
+  {
+   "tab": "Lionel MPC-Modern",
+   "item": "6-32921",
+   "reviewed": "Electric Locomotive",
+   "written": "Accessory",
+   "why": "rule: figures, people, animals, scenery, grass, trees, ballast, vehicles, buildings, kits, stations, signs, lights, signals, bridges, tunnels, catenary, ornaments, displays → Accessory"
+  },
+  {
+   "tab": "Lionel MPC-Modern",
+   "item": "6-42563",
+   "reviewed": "Diesel Locomotive",
+   "written": "Steam Locomotive",
+   "why": "rule: engine words — locomotive, engine, steam, diesel, electric, a wheel arrangement (4-6-2), a model (GP38, SD70ACe, U33C, F3, ES44, Alco, EMD…), a type name (Mikado, Berkshire, Mogul, Shay…), A / B unit, LEGACY / LionChief / FlyerChief on a single engine, a Thomas engine → the app reads the words for Steam / Diesel / Electric"
+  },
+  {
+   "tab": "Lionel MPC-Modern",
+   "item": "6-42564",
+   "reviewed": "Diesel Locomotive",
+   "written": "Steam Locomotive",
+   "why": "rule: engine words — locomotive, engine, steam, diesel, electric, a wheel arrangement (4-6-2), a model (GP38, SD70ACe, U33C, F3, ES44, Alco, EMD…), a type name (Mikado, Berkshire, Mogul, Shay…), A / B unit, LEGACY / LionChief / FlyerChief on a single engine, a Thomas engine → the app reads the words for Steam / Diesel / Electric"
+  },
+  {
+   "tab": "Lionel MPC-Modern",
+   "item": "6-42565",
+   "reviewed": "Diesel Locomotive",
+   "written": "Steam Locomotive",
+   "why": "rule: engine words — locomotive, engine, steam, diesel, electric, a wheel arrangement (4-6-2), a model (GP38, SD70ACe, U33C, F3, ES44, Alco, EMD…), a type name (Mikado, Berkshire, Mogul, Shay…), A / B unit, LEGACY / LionChief / FlyerChief on a single engine, a Thomas engine → the app reads the words for Steam / Diesel / Electric"
+  },
+  {
+   "tab": "Lionel MPC-Modern",
+   "item": "6-42566",
+   "reviewed": "Diesel Locomotive",
+   "written": "Steam Locomotive",
+   "why": "rule: engine words — locomotive, engine, steam, diesel, electric, a wheel arrangement (4-6-2), a model (GP38, SD70ACe, U33C, F3, ES44, Alco, EMD…), a type name (Mikado, Berkshire, Mogul, Shay…), A / B unit, LEGACY / LionChief / FlyerChief on a single engine, a Thomas engine → the app reads the words for Steam / Diesel / Electric"
+  },
+  {
+   "tab": "Lionel MPC-Modern",
+   "item": "6-42567",
+   "reviewed": "Diesel Locomotive",
+   "written": "Steam Locomotive",
+   "why": "rule: engine words — locomotive, engine, steam, diesel, electric, a wheel arrangement (4-6-2), a model (GP38, SD70ACe, U33C, F3, ES44, Alco, EMD…), a type name (Mikado, Berkshire, Mogul, Shay…), A / B unit, LEGACY / LionChief / FlyerChief on a single engine, a Thomas engine → the app reads the words for Steam / Diesel / Electric"
+  },
+  {
+   "tab": "Lionel MPC-Modern",
+   "item": "7-11902",
+   "reviewed": "Paper",
+   "written": "Set",
+   "why": "rule: \"… Set\" — train, freight, passenger, starter, work-train, AA / ABA, Christmas sets (not a figure / glue / clamp / connector / wheel / track set) → Set"
+  },
+  {
+   "tab": "Lionel MPC-Modern",
+   "item": "9-FGA658 (3XL)",
+   "reviewed": "Paper",
+   "written": "(left blank)",
+   "why": "held: merchandise (no type word fits)"
+  },
+  {
+   "tab": "Lionel MPC-Modern",
+   "item": "9-FGA658 (S-XL)",
+   "reviewed": "Paper",
+   "written": "(left blank)",
+   "why": "held: merchandise (no type word fits)"
+  },
+  {
+   "tab": "Lionel MPC-Modern",
+   "item": "9-FGA658 (XXL)",
+   "reviewed": "Paper",
+   "written": "(left blank)",
+   "why": "held: merchandise (no type word fits)"
+  },
+  {
+   "tab": "Lionel MPC-Modern",
+   "item": "9FGA658",
+   "reviewed": "Paper",
+   "written": "(left blank)",
+   "why": "held: merchandise (no type word fits)"
+  },
+  {
+   "tab": "Lionel MPC-Modern",
+   "item": "9FGA658-3XL",
+   "reviewed": "Paper",
+   "written": "(left blank)",
+   "why": "held: merchandise (no type word fits)"
+  },
+  {
+   "tab": "Lionel Modern S - Items",
+   "item": "6-48039",
+   "reviewed": "Diesel Locomotive",
+   "written": "Steam Locomotive",
+   "why": "rule: engine words — locomotive, engine, steam, diesel, electric, a wheel arrangement (4-6-2), a model (GP38, SD70ACe, U33C, F3, ES44, Alco, EMD…), a type name (Mikado, Berkshire, Mogul, Shay…), A / B unit, LEGACY / LionChief / FlyerChief on a single engine, a Thomas engine → the app reads the words for Steam / Diesel / Electric"
+  },
+  {
+   "tab": "Lionel Modern S - Items",
+   "item": "6-48040",
+   "reviewed": "Diesel Locomotive",
+   "written": "Steam Locomotive",
+   "why": "rule: engine words — locomotive, engine, steam, diesel, electric, a wheel arrangement (4-6-2), a model (GP38, SD70ACe, U33C, F3, ES44, Alco, EMD…), a type name (Mikado, Berkshire, Mogul, Shay…), A / B unit, LEGACY / LionChief / FlyerChief on a single engine, a Thomas engine → the app reads the words for Steam / Diesel / Electric"
+  },
+  {
+   "tab": "Lionel Modern S - Items",
+   "item": "6-48055",
+   "reviewed": "Diesel Locomotive",
+   "written": "Steam Locomotive",
+   "why": "rule: engine words — locomotive, engine, steam, diesel, electric, a wheel arrangement (4-6-2), a model (GP38, SD70ACe, U33C, F3, ES44, Alco, EMD…), a type name (Mikado, Berkshire, Mogul, Shay…), A / B unit, LEGACY / LionChief / FlyerChief on a single engine, a Thomas engine → the app reads the words for Steam / Diesel / Electric"
+  },
+  {
+   "tab": "Lionel Modern S - Items",
+   "item": "6-48056",
+   "reviewed": "Diesel Locomotive",
+   "written": "Steam Locomotive",
+   "why": "rule: engine words — locomotive, engine, steam, diesel, electric, a wheel arrangement (4-6-2), a model (GP38, SD70ACe, U33C, F3, ES44, Alco, EMD…), a type name (Mikado, Berkshire, Mogul, Shay…), A / B unit, LEGACY / LionChief / FlyerChief on a single engine, a Thomas engine → the app reads the words for Steam / Diesel / Electric"
+  },
+  {
+   "tab": "Lionel Modern S - Items",
+   "item": "6-48059",
+   "reviewed": "Diesel Locomotive",
+   "written": "Steam Locomotive",
+   "why": "rule: engine words — locomotive, engine, steam, diesel, electric, a wheel arrangement (4-6-2), a model (GP38, SD70ACe, U33C, F3, ES44, Alco, EMD…), a type name (Mikado, Berkshire, Mogul, Shay…), A / B unit, LEGACY / LionChief / FlyerChief on a single engine, a Thomas engine → the app reads the words for Steam / Diesel / Electric"
+  },
+  {
+   "tab": "Lionel Modern S - Items",
+   "item": "6-48087",
+   "reviewed": "Diesel Locomotive",
+   "written": "Steam Locomotive",
+   "why": "rule: engine words — locomotive, engine, steam, diesel, electric, a wheel arrangement (4-6-2), a model (GP38, SD70ACe, U33C, F3, ES44, Alco, EMD…), a type name (Mikado, Berkshire, Mogul, Shay…), A / B unit, LEGACY / LionChief / FlyerChief on a single engine, a Thomas engine → the app reads the words for Steam / Diesel / Electric"
+  },
+  {
+   "tab": "Lionel Modern S - Items",
+   "item": "6-48373",
+   "reviewed": "Freight Car",
+   "written": "Stock Car",
+   "why": "rule: explicit freight body — boxcar / reefer / mail car → Boxcar; hopper / ore car → Hopper; tank car → Tank Car; gondola → Gondola; flat car / bulkhead / coil / log car → Flatcar; stock / cattle car → Stock Car; auto rack / container / well car → Intermodal (the car named BEFORE \"with\" — the load does not decide)"
+  },
+  {
+   "tab": "Lionel Modern S - Items",
+   "item": "6-48390",
+   "reviewed": "Paper",
+   "written": "Boxcar",
+   "why": "rule: explicit freight body — boxcar / reefer / mail car → Boxcar; hopper / ore car → Hopper; tank car → Tank Car; gondola → Gondola; flat car / bulkhead / coil / log car → Flatcar; stock / cattle car → Stock Car; auto rack / container / well car → Intermodal (the car named BEFORE \"with\" — the load does not decide)"
+  },
+  {
+   "tab": "Lionel Modern S - Items",
+   "item": "6-48826",
+   "reviewed": "Paper",
+   "written": "Boxcar",
+   "why": "rule: explicit freight body — boxcar / reefer / mail car → Boxcar; hopper / ore car → Hopper; tank car → Tank Car; gondola → Gondola; flat car / bulkhead / coil / log car → Flatcar; stock / cattle car → Stock Car; auto rack / container / well car → Intermodal (the car named BEFORE \"with\" — the load does not decide)"
+  },
+  {
+   "tab": "Lionel Modern S - Items",
+   "item": "6-48832",
+   "reviewed": "Paper",
+   "written": "Boxcar",
+   "why": "rule: explicit freight body — boxcar / reefer / mail car → Boxcar; hopper / ore car → Hopper; tank car → Tank Car; gondola → Gondola; flat car / bulkhead / coil / log car → Flatcar; stock / cattle car → Stock Car; auto rack / container / well car → Intermodal (the car named BEFORE \"with\" — the load does not decide)"
+  },
+  {
+   "tab": "Lionel Modern S - Items",
+   "item": "6-49613",
+   "reviewed": "Diesel Locomotive",
+   "written": "Set",
+   "why": "rule: \"… Set\" — train, freight, passenger, starter, work-train, AA / ABA, Christmas sets (not a figure / glue / clamp / connector / wheel / track set) → Set"
+  },
+  {
+   "tab": "Lionel Modern S - Items",
+   "item": "6-49824",
+   "reviewed": "Freight Car",
+   "written": "Accessory",
+   "why": "rule: figures, people, animals, scenery, grass, trees, ballast, vehicles, buildings, kits, stations, signs, lights, signals, bridges, tunnels, catenary, ornaments, displays → Accessory"
+  },
+  {
+   "tab": "Lionel Modern S - Items",
+   "item": "6-49868",
+   "reviewed": "Paper",
+   "written": "Track",
+   "why": "rule: track, switch, turnout, crossover, rerailer, bumper, roadbed, crossing, uncoupler, lock-on, Mega Tracks → Track"
+  },
+  {
+   "tab": "Lionel Modern S - Items",
+   "item": "6-49869",
+   "reviewed": "Paper",
+   "written": "Track",
+   "why": "rule: track, switch, turnout, crossover, rerailer, bumper, roadbed, crossing, uncoupler, lock-on, Mega Tracks → Track"
+  },
+  {
+   "tab": "Lionel Modern S - Items",
+   "item": "6-49883",
+   "reviewed": "Paper",
+   "written": "Track",
+   "why": "rule: track, switch, turnout, crossover, rerailer, bumper, roadbed, crossing, uncoupler, lock-on, Mega Tracks → Track"
+  },
+  {
+   "tab": "Lionel Modern S - Items",
+   "item": "6-49884",
+   "reviewed": "Paper",
+   "written": "Track",
+   "why": "rule: track, switch, turnout, crossover, rerailer, bumper, roadbed, crossing, uncoupler, lock-on, Mega Tracks → Track"
+  },
+  {
+   "tab": "MTH O",
+   "item": "60-14006",
+   "reviewed": "Accessory",
+   "written": "(left blank)",
+   "why": "held: merchandise (no type word fits)"
+  },
+  {
+   "tab": "Micro-Trains N",
+   "item": "983 21 388",
+   "reviewed": "Freight Car",
+   "written": "Passenger Car",
+   "why": "by hand: the source spells it \"PAQSSENGER CAR CHRISTMAS\""
+  },
+  {
+   "tab": "LGB G",
+   "item": "5005",
+   "reviewed": "Freight Car",
+   "written": "Accessory",
+   "why": "rule: figures, people, animals, scenery, grass, trees, ballast, vehicles, buildings, kits, stations, signs, lights, signals, bridges, tunnels, catenary, ornaments, displays → Accessory"
+  },
+  {
+   "tab": "LGB G",
+   "item": "50300",
+   "reviewed": "Paper",
+   "written": "Accessory",
+   "why": "rule: figures, people, animals, scenery, grass, trees, ballast, vehicles, buildings, kits, stations, signs, lights, signals, bridges, tunnels, catenary, ornaments, displays → Accessory"
+  },
+  {
+   "tab": "LGB G",
+   "item": "52290",
+   "reviewed": "Steam Locomotive",
+   "written": "Accessory",
+   "why": "rule: figures, people, animals, scenery, grass, trees, ballast, vehicles, buildings, kits, stations, signs, lights, signals, bridges, tunnels, catenary, ornaments, displays → Accessory"
+  }
+ ],
  "rules": [
   {
    "rule": "catalog, brochure, book, DVD / CD, calendar, sticker, poster, magazine, manual, reference guide → Paper",
-   "rows": 52
+   "rows": 38
   },
   {
    "rule": "a part — power truck / block, motor, gear, axle, wheel set, coupler, shell, chassis, replacement, smoke unit, bulb, trucks (1 pair), traction tire, circuit board → Part (the word the item tabs already use)",
@@ -150,7 +402,7 @@
   },
   {
    "rule": "\"… Set\" — train, freight, passenger, starter, work-train, AA / ABA, Christmas sets (not a figure / glue / clamp / connector / wheel / track set) → Set",
-   "rows": 97
+   "rows": 99
   },
   {
    "rule": "caboose, bay window, center cupola, bobber → Caboose",
@@ -166,11 +418,11 @@
   },
   {
    "rule": "explicit freight body — boxcar / reefer / mail car → Boxcar; hopper / ore car → Hopper; tank car → Tank Car; gondola → Gondola; flat car / bulkhead / coil / log car → Flatcar; stock / cattle car → Stock Car; auto rack / container / well car → Intermodal (the car named BEFORE \"with\" — the load does not decide)",
-   "rows": 583
+   "rows": 587
   },
   {
    "rule": "track, switch, turnout, crossover, rerailer, bumper, roadbed, crossing, uncoupler, lock-on, Mega Tracks → Track",
-   "rows": 56
+   "rows": 60
   },
   {
    "rule": "trolley, streetcar, cable car, interurban → Trolley",
@@ -182,7 +434,7 @@
   },
   {
    "rule": "engine words — locomotive, engine, steam, diesel, electric, a wheel arrangement (4-6-2), a model (GP38, SD70ACe, U33C, F3, ES44, Alco, EMD…), a type name (Mikado, Berkshire, Mogul, Shay…), A / B unit, LEGACY / LionChief / FlyerChief on a single engine, a Thomas engine → the app reads the words for Steam / Diesel / Electric",
-   "rows": 333
+   "rows": 329
   },
   {
    "rule": "power pack, transformer, controller, decoder, DCC control / sound module, speed control, wall pack, power supply, throttle → Transformer/Power",
@@ -194,11 +446,11 @@
   },
   {
    "rule": "any other \"… Car\", rolling stock, freight cars → Freight Car (the app files it by body when it shows it)",
-   "rows": 26
+   "rows": 22
   },
   {
    "rule": "figures, people, animals, scenery, grass, trees, ballast, vehicles, buildings, kits, stations, signs, lights, signals, bridges, tunnels, catenary, ornaments, displays → Accessory",
-   "rows": 121
+   "rows": 125
   }
  ],
  "bachmann_categories": [
@@ -4038,13 +4290,6 @@
   ],
   [
    "Lionel MPC-Modern",
-   18489,
-   "6-12345",
-   "Steam Locomotive",
-   "rule: engine words — locomotive, engine, steam, diesel, electric, a wheel arrangement (4-6-2), a model (GP38, SD70ACe, U33C, F3, ES44, Alco, EMD…), a type name (Mikado, Berkshire, Mogul, Shay…), A / B unit, LEGACY / LionChief / FlyerChief on a single engine, a Thomas engine → the app reads the words for Steam / Diesel / Electric"
-  ],
-  [
-   "Lionel MPC-Modern",
    18926,
    "6-21925",
    "Set",
@@ -4257,8 +4502,8 @@
    "Lionel MPC-Modern",
    20679,
    "6-32921",
-   "Electric Locomotive",
-   "rule: engine words — locomotive, engine, steam, diesel, electric, a wheel arrangement (4-6-2), a model (GP38, SD70ACe, U33C, F3, ES44, Alco, EMD…), a type name (Mikado, Berkshire, Mogul, Shay…), A / B unit, LEGACY / LionChief / FlyerChief on a single engine, a Thomas engine → the app reads the words for Steam / Diesel / Electric"
+   "Accessory",
+   "rule: figures, people, animals, scenery, grass, trees, ballast, vehicles, buildings, kits, stations, signs, lights, signals, bridges, tunnels, catenary, ornaments, displays → Accessory"
   ],
   [
    "Lionel MPC-Modern",
@@ -4719,35 +4964,35 @@
    "Lionel MPC-Modern",
    21475,
    "6-42563",
-   "Diesel Locomotive",
+   "Steam Locomotive",
    "rule: engine words — locomotive, engine, steam, diesel, electric, a wheel arrangement (4-6-2), a model (GP38, SD70ACe, U33C, F3, ES44, Alco, EMD…), a type name (Mikado, Berkshire, Mogul, Shay…), A / B unit, LEGACY / LionChief / FlyerChief on a single engine, a Thomas engine → the app reads the words for Steam / Diesel / Electric"
   ],
   [
    "Lionel MPC-Modern",
    21476,
    "6-42564",
-   "Diesel Locomotive",
+   "Steam Locomotive",
    "rule: engine words — locomotive, engine, steam, diesel, electric, a wheel arrangement (4-6-2), a model (GP38, SD70ACe, U33C, F3, ES44, Alco, EMD…), a type name (Mikado, Berkshire, Mogul, Shay…), A / B unit, LEGACY / LionChief / FlyerChief on a single engine, a Thomas engine → the app reads the words for Steam / Diesel / Electric"
   ],
   [
    "Lionel MPC-Modern",
    21477,
    "6-42565",
-   "Diesel Locomotive",
+   "Steam Locomotive",
    "rule: engine words — locomotive, engine, steam, diesel, electric, a wheel arrangement (4-6-2), a model (GP38, SD70ACe, U33C, F3, ES44, Alco, EMD…), a type name (Mikado, Berkshire, Mogul, Shay…), A / B unit, LEGACY / LionChief / FlyerChief on a single engine, a Thomas engine → the app reads the words for Steam / Diesel / Electric"
   ],
   [
    "Lionel MPC-Modern",
    21478,
    "6-42566",
-   "Diesel Locomotive",
+   "Steam Locomotive",
    "rule: engine words — locomotive, engine, steam, diesel, electric, a wheel arrangement (4-6-2), a model (GP38, SD70ACe, U33C, F3, ES44, Alco, EMD…), a type name (Mikado, Berkshire, Mogul, Shay…), A / B unit, LEGACY / LionChief / FlyerChief on a single engine, a Thomas engine → the app reads the words for Steam / Diesel / Electric"
   ],
   [
    "Lionel MPC-Modern",
    21479,
    "6-42567",
-   "Diesel Locomotive",
+   "Steam Locomotive",
    "rule: engine words — locomotive, engine, steam, diesel, electric, a wheel arrangement (4-6-2), a model (GP38, SD70ACe, U33C, F3, ES44, Alco, EMD…), a type name (Mikado, Berkshire, Mogul, Shay…), A / B unit, LEGACY / LionChief / FlyerChief on a single engine, a Thomas engine → the app reads the words for Steam / Diesel / Electric"
   ],
   [
@@ -6175,8 +6420,8 @@
    "Lionel MPC-Modern",
    21879,
    "7-11902",
-   "Paper",
-   "rule: catalog, brochure, book, DVD / CD, calendar, sticker, poster, magazine, manual, reference guide → Paper"
+   "Set",
+   "rule: \"… Set\" — train, freight, passenger, starter, work-train, AA / ABA, Christmas sets (not a figure / glue / clamp / connector / wheel / track set) → Set"
   ],
   [
    "Lionel MPC-Modern",
@@ -6310,41 +6555,6 @@
    "630218P",
    "Set",
    "rule: \"… Set\" — train, freight, passenger, starter, work-train, AA / ABA, Christmas sets (not a figure / glue / clamp / connector / wheel / track set) → Set"
-  ],
-  [
-   "Lionel MPC-Modern",
-   22206,
-   "9-FGA658 (3XL)",
-   "Paper",
-   "rule: catalog, brochure, book, DVD / CD, calendar, sticker, poster, magazine, manual, reference guide → Paper"
-  ],
-  [
-   "Lionel MPC-Modern",
-   22207,
-   "9-FGA658 (S-XL)",
-   "Paper",
-   "rule: catalog, brochure, book, DVD / CD, calendar, sticker, poster, magazine, manual, reference guide → Paper"
-  ],
-  [
-   "Lionel MPC-Modern",
-   22208,
-   "9-FGA658 (XXL)",
-   "Paper",
-   "rule: catalog, brochure, book, DVD / CD, calendar, sticker, poster, magazine, manual, reference guide → Paper"
-  ],
-  [
-   "Lionel MPC-Modern",
-   22230,
-   "9FGA658",
-   "Paper",
-   "rule: catalog, brochure, book, DVD / CD, calendar, sticker, poster, magazine, manual, reference guide → Paper"
-  ],
-  [
-   "Lionel MPC-Modern",
-   22237,
-   "9FGA658-3XL",
-   "Paper",
-   "rule: catalog, brochure, book, DVD / CD, calendar, sticker, poster, magazine, manual, reference guide → Paper"
   ],
   [
    "Lionel MPC-Modern",
@@ -6525,14 +6735,14 @@
    "Lionel Modern S - Items",
    54,
    "6-48039",
-   "Diesel Locomotive",
+   "Steam Locomotive",
    "rule: engine words — locomotive, engine, steam, diesel, electric, a wheel arrangement (4-6-2), a model (GP38, SD70ACe, U33C, F3, ES44, Alco, EMD…), a type name (Mikado, Berkshire, Mogul, Shay…), A / B unit, LEGACY / LionChief / FlyerChief on a single engine, a Thomas engine → the app reads the words for Steam / Diesel / Electric"
   ],
   [
    "Lionel Modern S - Items",
    55,
    "6-48040",
-   "Diesel Locomotive",
+   "Steam Locomotive",
    "rule: engine words — locomotive, engine, steam, diesel, electric, a wheel arrangement (4-6-2), a model (GP38, SD70ACe, U33C, F3, ES44, Alco, EMD…), a type name (Mikado, Berkshire, Mogul, Shay…), A / B unit, LEGACY / LionChief / FlyerChief on a single engine, a Thomas engine → the app reads the words for Steam / Diesel / Electric"
   ],
   [
@@ -6616,21 +6826,21 @@
    "Lionel Modern S - Items",
    67,
    "6-48055",
-   "Diesel Locomotive",
+   "Steam Locomotive",
    "rule: engine words — locomotive, engine, steam, diesel, electric, a wheel arrangement (4-6-2), a model (GP38, SD70ACe, U33C, F3, ES44, Alco, EMD…), a type name (Mikado, Berkshire, Mogul, Shay…), A / B unit, LEGACY / LionChief / FlyerChief on a single engine, a Thomas engine → the app reads the words for Steam / Diesel / Electric"
   ],
   [
    "Lionel Modern S - Items",
    68,
    "6-48056",
-   "Diesel Locomotive",
+   "Steam Locomotive",
    "rule: engine words — locomotive, engine, steam, diesel, electric, a wheel arrangement (4-6-2), a model (GP38, SD70ACe, U33C, F3, ES44, Alco, EMD…), a type name (Mikado, Berkshire, Mogul, Shay…), A / B unit, LEGACY / LionChief / FlyerChief on a single engine, a Thomas engine → the app reads the words for Steam / Diesel / Electric"
   ],
   [
    "Lionel Modern S - Items",
    69,
    "6-48059",
-   "Diesel Locomotive",
+   "Steam Locomotive",
    "rule: engine words — locomotive, engine, steam, diesel, electric, a wheel arrangement (4-6-2), a model (GP38, SD70ACe, U33C, F3, ES44, Alco, EMD…), a type name (Mikado, Berkshire, Mogul, Shay…), A / B unit, LEGACY / LionChief / FlyerChief on a single engine, a Thomas engine → the app reads the words for Steam / Diesel / Electric"
   ],
   [
@@ -6714,7 +6924,7 @@
    "Lionel Modern S - Items",
    81,
    "6-48087",
-   "Diesel Locomotive",
+   "Steam Locomotive",
    "rule: engine words — locomotive, engine, steam, diesel, electric, a wheel arrangement (4-6-2), a model (GP38, SD70ACe, U33C, F3, ES44, Alco, EMD…), a type name (Mikado, Berkshire, Mogul, Shay…), A / B unit, LEGACY / LionChief / FlyerChief on a single engine, a Thomas engine → the app reads the words for Steam / Diesel / Electric"
   ],
   [
@@ -7197,8 +7407,8 @@
    "Lionel Modern S - Items",
    150,
    "6-48373",
-   "Freight Car",
-   "rule: any other \"… Car\", rolling stock, freight cars → Freight Car (the app files it by body when it shows it)"
+   "Stock Car",
+   "rule: explicit freight body — boxcar / reefer / mail car → Boxcar; hopper / ore car → Hopper; tank car → Tank Car; gondola → Gondola; flat car / bulkhead / coil / log car → Flatcar; stock / cattle car → Stock Car; auto rack / container / well car → Intermodal (the car named BEFORE \"with\" — the load does not decide)"
   ],
   [
    "Lionel Modern S - Items",
@@ -7218,8 +7428,8 @@
    "Lionel Modern S - Items",
    153,
    "6-48390",
-   "Paper",
-   "rule: catalog, brochure, book, DVD / CD, calendar, sticker, poster, magazine, manual, reference guide → Paper"
+   "Boxcar",
+   "rule: explicit freight body — boxcar / reefer / mail car → Boxcar; hopper / ore car → Hopper; tank car → Tank Car; gondola → Gondola; flat car / bulkhead / coil / log car → Flatcar; stock / cattle car → Stock Car; auto rack / container / well car → Intermodal (the car named BEFORE \"with\" — the load does not decide)"
   ],
   [
    "Lionel Modern S - Items",
@@ -8226,8 +8436,8 @@
    "Lionel Modern S - Items",
    298,
    "6-48826",
-   "Paper",
-   "rule: catalog, brochure, book, DVD / CD, calendar, sticker, poster, magazine, manual, reference guide → Paper"
+   "Boxcar",
+   "rule: explicit freight body — boxcar / reefer / mail car → Boxcar; hopper / ore car → Hopper; tank car → Tank Car; gondola → Gondola; flat car / bulkhead / coil / log car → Flatcar; stock / cattle car → Stock Car; auto rack / container / well car → Intermodal (the car named BEFORE \"with\" — the load does not decide)"
   ],
   [
    "Lionel Modern S - Items",
@@ -8254,8 +8464,8 @@
    "Lionel Modern S - Items",
    302,
    "6-48832",
-   "Paper",
-   "rule: catalog, brochure, book, DVD / CD, calendar, sticker, poster, magazine, manual, reference guide → Paper"
+   "Boxcar",
+   "rule: explicit freight body — boxcar / reefer / mail car → Boxcar; hopper / ore car → Hopper; tank car → Tank Car; gondola → Gondola; flat car / bulkhead / coil / log car → Flatcar; stock / cattle car → Stock Car; auto rack / container / well car → Intermodal (the car named BEFORE \"with\" — the load does not decide)"
   ],
   [
    "Lionel Modern S - Items",
@@ -8933,8 +9143,8 @@
    "Lionel Modern S - Items",
    399,
    "6-49613",
-   "Diesel Locomotive",
-   "rule: engine words — locomotive, engine, steam, diesel, electric, a wheel arrangement (4-6-2), a model (GP38, SD70ACe, U33C, F3, ES44, Alco, EMD…), a type name (Mikado, Berkshire, Mogul, Shay…), A / B unit, LEGACY / LionChief / FlyerChief on a single engine, a Thomas engine → the app reads the words for Steam / Diesel / Electric"
+   "Set",
+   "rule: \"… Set\" — train, freight, passenger, starter, work-train, AA / ABA, Christmas sets (not a figure / glue / clamp / connector / wheel / track set) → Set"
   ],
   [
    "Lionel Modern S - Items",
@@ -9115,8 +9325,8 @@
    "Lionel Modern S - Items",
    425,
    "6-49824",
-   "Freight Car",
-   "rule: any other \"… Car\", rolling stock, freight cars → Freight Car (the app files it by body when it shows it)"
+   "Accessory",
+   "rule: figures, people, animals, scenery, grass, trees, ballast, vehicles, buildings, kits, stations, signs, lights, signals, bridges, tunnels, catenary, ornaments, displays → Accessory"
   ],
   [
    "Lionel Modern S - Items",
@@ -9269,15 +9479,15 @@
    "Lionel Modern S - Items",
    447,
    "6-49868",
-   "Paper",
-   "rule: catalog, brochure, book, DVD / CD, calendar, sticker, poster, magazine, manual, reference guide → Paper"
+   "Track",
+   "rule: track, switch, turnout, crossover, rerailer, bumper, roadbed, crossing, uncoupler, lock-on, Mega Tracks → Track"
   ],
   [
    "Lionel Modern S - Items",
    448,
    "6-49869",
-   "Paper",
-   "rule: catalog, brochure, book, DVD / CD, calendar, sticker, poster, magazine, manual, reference guide → Paper"
+   "Track",
+   "rule: track, switch, turnout, crossover, rerailer, bumper, roadbed, crossing, uncoupler, lock-on, Mega Tracks → Track"
   ],
   [
    "Lionel Modern S - Items",
@@ -9339,15 +9549,15 @@
    "Lionel Modern S - Items",
    457,
    "6-49883",
-   "Paper",
-   "rule: catalog, brochure, book, DVD / CD, calendar, sticker, poster, magazine, manual, reference guide → Paper"
+   "Track",
+   "rule: track, switch, turnout, crossover, rerailer, bumper, roadbed, crossing, uncoupler, lock-on, Mega Tracks → Track"
   ],
   [
    "Lionel Modern S - Items",
    458,
    "6-49884",
-   "Paper",
-   "rule: catalog, brochure, book, DVD / CD, calendar, sticker, poster, magazine, manual, reference guide → Paper"
+   "Track",
+   "rule: track, switch, turnout, crossover, rerailer, bumper, roadbed, crossing, uncoupler, lock-on, Mega Tracks → Track"
   ],
   [
    "Lionel Modern S - Items",
@@ -9834,13 +10044,6 @@
   ],
   [
    "MTH O",
-   31817,
-   "60-14006",
-   "Accessory",
-   "rule: figures, people, animals, scenery, grass, trees, ballast, vehicles, buildings, kits, stations, signs, lights, signals, bridges, tunnels, catenary, ornaments, displays → Accessory"
-  ],
-  [
-   "MTH O",
    31818,
    "60-14007",
    "Accessory",
@@ -10291,8 +10494,8 @@
    "Micro-Trains N",
    6984,
    "983 21 388",
-   "Freight Car",
-   "rule: any other \"… Car\", rolling stock, freight cars → Freight Car (the app files it by body when it shows it)"
+   "Passenger Car",
+   "by hand: the source spells it \"PAQSSENGER CAR CHRISTMAS\""
   ],
   [
    "Menards O",
@@ -10522,8 +10725,8 @@
    "LGB G",
    1330,
    "5005",
-   "Freight Car",
-   "rule: any other \"… Car\", rolling stock, freight cars → Freight Car (the app files it by body when it shows it)"
+   "Accessory",
+   "rule: figures, people, animals, scenery, grass, trees, ballast, vehicles, buildings, kits, stations, signs, lights, signals, bridges, tunnels, catenary, ornaments, displays → Accessory"
   ],
   [
    "LGB G",
@@ -10550,8 +10753,8 @@
    "LGB G",
    1350,
    "50300",
-   "Paper",
-   "rule: catalog, brochure, book, DVD / CD, calendar, sticker, poster, magazine, manual, reference guide → Paper"
+   "Accessory",
+   "rule: figures, people, animals, scenery, grass, trees, ballast, vehicles, buildings, kits, stations, signs, lights, signals, bridges, tunnels, catenary, ornaments, displays → Accessory"
   ],
   [
    "LGB G",
@@ -10760,8 +10963,8 @@
    "LGB G",
    1448,
    "52290",
-   "Steam Locomotive",
-   "rule: engine words — locomotive, engine, steam, diesel, electric, a wheel arrangement (4-6-2), a model (GP38, SD70ACe, U33C, F3, ES44, Alco, EMD…), a type name (Mikado, Berkshire, Mogul, Shay…), A / B unit, LEGACY / LionChief / FlyerChief on a single engine, a Thomas engine → the app reads the words for Steam / Diesel / Electric"
+   "Accessory",
+   "rule: figures, people, animals, scenery, grass, trees, ballast, vehicles, buildings, kits, stations, signs, lights, signals, bridges, tunnels, catenary, ornaments, displays → Accessory"
   ],
   [
    "LGB G",
@@ -26132,6 +26335,13 @@
   ],
   [
    "Lionel MPC-Modern",
+   18489,
+   "6-12345",
+   "Sample Union Pacific Locomotive #987",
+   "held: looks like a placeholder row (\"Sample …\", item 6-12345)"
+  ],
+  [
+   "Lionel MPC-Modern",
    21648,
    "6-47948",
    "Norfolk SouthernSD70ACe",
@@ -26142,301 +26352,336 @@
    22181,
    "9-61004",
    "Legend Lion T-shirt",
-   "nothing decides"
+   "held: merchandise (no type word fits)"
+  ],
+  [
+   "Lionel MPC-Modern",
+   22206,
+   "9-FGA658 (3XL)",
+   "Adult Gray T-Shirt with 1942 Lionel Catalog Cover (3XL)",
+   "held: merchandise (no type word fits)"
+  ],
+  [
+   "Lionel MPC-Modern",
+   22207,
+   "9-FGA658 (S-XL)",
+   "Adult Gray T-Shirt with 1942 Lionel Catalog Cover (S-XL)",
+   "held: merchandise (no type word fits)"
+  ],
+  [
+   "Lionel MPC-Modern",
+   22208,
+   "9-FGA658 (XXL)",
+   "Adult Gray T-Shirt with 1942 Lionel Catalog Cover (XXL)",
+   "held: merchandise (no type word fits)"
   ],
   [
    "Lionel MPC-Modern",
    22209,
    "9-LNA658 (3XL)",
    "Adult Navy T-Shirt with \"Since 1900\" Lionel Logo (3XL)",
-   "nothing decides"
+   "held: merchandise (no type word fits)"
   ],
   [
    "Lionel MPC-Modern",
    22210,
    "9-LNA658 (S-XL)",
    "Adult Navy T-Shirt with \"Since 1900\" Lionel Logo (S-XL)",
-   "nothing decides"
+   "held: merchandise (no type word fits)"
   ],
   [
    "Lionel MPC-Modern",
    22211,
    "9-LNA658 (XXL)",
    "Adult Navy T-Shirt with \"Since 1900\" Lionel Logo (XXL)",
-   "nothing decides"
+   "held: merchandise (no type word fits)"
   ],
   [
    "Lionel MPC-Modern",
    22212,
    "9-LNY658 (XS-XL)",
    "Navy Youth \"Since 1900\" Lionel Logo T-Shirt — sizes XS-XL",
-   "nothing decides"
+   "held: merchandise (no type word fits)"
   ],
   [
    "Lionel MPC-Modern",
    22214,
    "951019L",
    "115th Anniversary Blue T-Shirt — size Large",
-   "nothing decides"
+   "held: merchandise (no type word fits)"
   ],
   [
    "Lionel MPC-Modern",
    22215,
    "951019M",
    "115th Anniversary Blue T-Shirt — size Medium",
-   "nothing decides"
+   "held: merchandise (no type word fits)"
   ],
   [
    "Lionel MPC-Modern",
    22216,
    "951019XL",
    "115th Anniversary Blue T-Shirt — size XL",
-   "nothing decides"
+   "held: merchandise (no type word fits)"
   ],
   [
    "Lionel MPC-Modern",
    22217,
    "951019XXL",
    "115th Anniversary Blue T-Shirt — size XXL",
-   "nothing decides"
+   "held: merchandise (no type word fits)"
   ],
   [
    "Lionel MPC-Modern",
    22218,
    "951026 : 951026 : 951026-2XL",
    "Lionel EVR-DRI Performance Polo Shirt — size 2XL",
-   "nothing decides"
+   "held: merchandise (no type word fits)"
   ],
   [
    "Lionel MPC-Modern",
    22219,
    "951026 : 951026 : 951026-3XL",
    "Lionel EVR-DRI Performance Polo Shirt — size 3XL",
-   "nothing decides"
+   "held: merchandise (no type word fits)"
   ],
   [
    "Lionel MPC-Modern",
    22220,
    "951026 : 951026 : 951026-LG",
    "Lionel EVR-DRI Performance Polo Shirt — size Large",
-   "nothing decides"
+   "held: merchandise (no type word fits)"
   ],
   [
    "Lionel MPC-Modern",
    22221,
    "951026 : 951026 : 951026-MED",
    "Lionel EVR-DRI Performance Polo Shirt — size Medium",
-   "nothing decides"
+   "held: merchandise (no type word fits)"
   ],
   [
    "Lionel MPC-Modern",
    22222,
    "951026 : 951026 : 951026-SM",
    "Lionel EVR-DRI Performance Polo Shirt — size Small",
-   "nothing decides"
+   "held: merchandise (no type word fits)"
   ],
   [
    "Lionel MPC-Modern",
    22223,
    "951026 : 951026 : 951026-XL",
    "Lionel EVR-DRI Performance Polo Shirt — size XL",
-   "nothing decides"
+   "held: merchandise (no type word fits)"
   ],
   [
    "Lionel MPC-Modern",
    22224,
    "951026-2XL",
    "Lionel EVR-DRI Performance Polo Shirt — size 2XL",
-   "nothing decides"
+   "held: merchandise (no type word fits)"
   ],
   [
    "Lionel MPC-Modern",
    22225,
    "951026-3XL",
    "Lionel EVR-DRI Performance Polo Shirt — size 3XL",
-   "nothing decides"
+   "held: merchandise (no type word fits)"
   ],
   [
    "Lionel MPC-Modern",
    22226,
    "951026-LG",
    "Lionel EVR-DRI Performance Polo Shirt — size Large",
-   "nothing decides"
+   "held: merchandise (no type word fits)"
   ],
   [
    "Lionel MPC-Modern",
    22227,
    "951026-MED",
    "Lionel EVR-DRI Performance Polo Shirt — size Medium",
-   "nothing decides"
+   "held: merchandise (no type word fits)"
   ],
   [
    "Lionel MPC-Modern",
    22228,
    "951026-SM",
    "Lionel EVR-DRI Performance Polo Shirt — size Small",
-   "nothing decides"
+   "held: merchandise (no type word fits)"
   ],
   [
    "Lionel MPC-Modern",
    22229,
    "951026-XL",
    "Lionel EVR-DRI Performance Polo Shirt — size XL",
-   "nothing decides"
+   "held: merchandise (no type word fits)"
+  ],
+  [
+   "Lionel MPC-Modern",
+   22230,
+   "9FGA658",
+   "Gray Adult with 1942 Catalog Cover T-Shirt",
+   "held: merchandise (no type word fits)"
   ],
   [
    "Lionel MPC-Modern",
    22231,
    "9FGA658 : 9FGA658 : 9FGA658-2XL",
    "Lionel 1942 Flag T-Shirt — size 2XL",
-   "nothing decides"
+   "held: merchandise (no type word fits)"
   ],
   [
    "Lionel MPC-Modern",
    22232,
    "9FGA658 : 9FGA658 : 9FGA658-3XL",
    "Lionel 1942 Flag T-Shirt — size 3XL",
-   "nothing decides"
+   "held: merchandise (no type word fits)"
   ],
   [
    "Lionel MPC-Modern",
    22233,
    "9FGA658 : 9FGA658 : 9FGA658-LG",
    "Lionel 1942 Flag T-Shirt — size Large",
-   "nothing decides"
+   "held: merchandise (no type word fits)"
   ],
   [
    "Lionel MPC-Modern",
    22234,
    "9FGA658 : 9FGA658 : 9FGA658-MED",
    "Lionel 1942 Flag T-Shirt — size Medium",
-   "nothing decides"
+   "held: merchandise (no type word fits)"
   ],
   [
    "Lionel MPC-Modern",
    22235,
    "9FGA658 : 9FGA658 : 9FGA658-XL",
    "Lionel 1942 Flag T-Shirt — size XL",
-   "nothing decides"
+   "held: merchandise (no type word fits)"
   ],
   [
    "Lionel MPC-Modern",
    22236,
    "9FGA658-2XL",
    "Lionel 1942 Flag T-Shirt — size 2XL",
-   "nothing decides"
+   "held: merchandise (no type word fits)"
+  ],
+  [
+   "Lionel MPC-Modern",
+   22237,
+   "9FGA658-3XL",
+   "Gray Adult with 1942 Catalog Cover T-Shirt",
+   "held: merchandise (no type word fits)"
   ],
   [
    "Lionel MPC-Modern",
    22238,
    "9FGA658-LG",
    "Lionel 1942 Flag T-Shirt — size Large",
-   "nothing decides"
+   "held: merchandise (no type word fits)"
   ],
   [
    "Lionel MPC-Modern",
    22239,
    "9FGA658-MED",
    "Lionel 1942 Flag T-Shirt — size Medium",
-   "nothing decides"
+   "held: merchandise (no type word fits)"
   ],
   [
    "Lionel MPC-Modern",
    22240,
    "9FGA658-SM",
    "Lionel 1942 Flag T-Shirt — size Small",
-   "nothing decides"
+   "held: merchandise (no type word fits)"
   ],
   [
    "Lionel MPC-Modern",
    22241,
    "9FGA658-XL",
    "Lionel 1942 Flag T-Shirt — size XL",
-   "nothing decides"
+   "held: merchandise (no type word fits)"
   ],
   [
    "Lionel MPC-Modern",
    22242,
    "9LNA658",
    "Navy Adult with \"Since 1900\" Lionel Logo T-Shirt",
-   "nothing decides"
+   "held: merchandise (no type word fits)"
   ],
   [
    "Lionel MPC-Modern",
    22243,
    "9LNA658 : 9LNA658 : 9LNA658-3XL",
    "Navy Adult \"Since 1900\" Lionel Logo T-Shirt — size 3XL",
-   "nothing decides"
+   "held: merchandise (no type word fits)"
   ],
   [
    "Lionel MPC-Modern",
    22244,
    "9LNA658 : 9LNA658 : 9LNA658-SM",
    "Navy Adult \"Since 1900\" Lionel Logo T-Shirt — size Small",
-   "nothing decides"
+   "held: merchandise (no type word fits)"
   ],
   [
    "Lionel MPC-Modern",
    22245,
    "9LNA658-3XL",
    "Navy Adult with \"Since 1900\" Lionel Logo T-Shirt",
-   "nothing decides"
+   "held: merchandise (no type word fits)"
   ],
   [
    "Lionel MPC-Modern",
    22246,
    "9LNA658-LG",
    "Navy Adult \"Since 1900\" Lionel Logo T-Shirt — size Large",
-   "nothing decides"
+   "held: merchandise (no type word fits)"
   ],
   [
    "Lionel MPC-Modern",
    22247,
    "9LNA658-MED",
    "Navy Adult \"Since 1900\" Lionel Logo T-Shirt — size Medium",
-   "nothing decides"
+   "held: merchandise (no type word fits)"
   ],
   [
    "Lionel MPC-Modern",
    22248,
    "9LNA658-SM",
    "Navy Adult \"Since 1900\" Lionel Logo T-Shirt — size Small",
-   "nothing decides"
+   "held: merchandise (no type word fits)"
   ],
   [
    "Lionel MPC-Modern",
    22249,
    "9LNY658",
    "Navy Youth with \"Since 1900\" Lionel Logo T-Shirt",
-   "nothing decides"
+   "held: merchandise (no type word fits)"
   ],
   [
    "Lionel MPC-Modern",
    22250,
    "9LNY658 : 9LNY658 : 9LNY658-LG",
    "Navy Youth \"Since 1900\" Lionel Logo T-Shirt — size Large",
-   "nothing decides"
+   "held: merchandise (no type word fits)"
   ],
   [
    "Lionel MPC-Modern",
    22251,
    "9LNY658 : 9LNY658 : 9LNY658-MED",
    "Navy Youth \"Since 1900\" Lionel Logo T-Shirt — size Medium",
-   "nothing decides"
+   "held: merchandise (no type word fits)"
   ],
   [
    "Lionel MPC-Modern",
    22252,
    "9LNY658 : 9LNY658 : 9LNY658-XL",
    "Navy Youth \"Since 1900\" Lionel Logo T-Shirt — size XL",
-   "nothing decides"
+   "held: merchandise (no type word fits)"
   ],
   [
    "Lionel MPC-Modern",
    22253,
    "9LNY658-XS",
    "Navy Youth \"Since 1900\" Lionel Logo T-Shirt — size XS",
-   "nothing decides"
+   "held: merchandise (no type word fits)"
   ],
   [
    "Lionel Modern S - Items",
@@ -26464,133 +26709,140 @@
    31773,
    "60-1328-L",
    "Black Polo Shirt - Contrasting -L",
-   "nothing decides"
+   "held: merchandise (no type word fits)"
   ],
   [
    "MTH O",
    31774,
    "60-1328-M",
    "Black Polo Shirt - Contrasting -M",
-   "nothing decides"
+   "held: merchandise (no type word fits)"
   ],
   [
    "MTH O",
    31775,
    "60-1328-XL",
    "Black Polo Shirt - Contrasting -XL",
-   "nothing decides"
+   "held: merchandise (no type word fits)"
   ],
   [
    "MTH O",
    31776,
    "60-1328-XXL",
    "Black Polo Shirt - Contrasting -XXL",
-   "nothing decides"
+   "held: merchandise (no type word fits)"
   ],
   [
    "MTH O",
    31777,
    "60-1329-L",
    "Gray Polo Shirt - Contrasting -L",
-   "nothing decides"
+   "held: merchandise (no type word fits)"
   ],
   [
    "MTH O",
    31778,
    "60-1329-M",
    "Gray Polo Shirt - Contrasting -M",
-   "nothing decides"
+   "held: merchandise (no type word fits)"
   ],
   [
    "MTH O",
    31779,
    "60-1329-XL",
    "Gray Polo Shirt - Contrasting -XL",
-   "nothing decides"
+   "held: merchandise (no type word fits)"
   ],
   [
    "MTH O",
    31780,
    "60-1329-XXL",
    "Gray Polo Shirt - Contrasting -XXL",
-   "nothing decides"
+   "held: merchandise (no type word fits)"
   ],
   [
    "MTH O",
    31815,
    "60-14002",
    "train prints Coffee Mug",
-   "nothing decides"
+   "held: merchandise (no type word fits)"
+  ],
+  [
+   "MTH O",
+   31817,
+   "60-14006",
+   "Black Pewter Emblem Cap",
+   "held: merchandise (no type word fits)"
   ],
   [
    "MTH O",
    31819,
    "60-14100",
    "Blue Denim Denim Shirt (small)",
-   "nothing decides"
+   "held: merchandise (no type word fits)"
   ],
   [
    "MTH O",
    31820,
    "60-14101",
    "Blue Denim Denim Shirt (medium)",
-   "nothing decides"
+   "held: merchandise (no type word fits)"
   ],
   [
    "MTH O",
    31821,
    "60-14102",
    "Blue Denim Denim Shirt (large)",
-   "nothing decides"
+   "held: merchandise (no type word fits)"
   ],
   [
    "MTH O",
    31822,
    "60-14103",
    "Blue Denim Denim Shirt (X large)",
-   "nothing decides"
+   "held: merchandise (no type word fits)"
   ],
   [
    "MTH O",
    31823,
    "60-14104",
    "Blue Denim Denim Shirt (XX large)",
-   "nothing decides"
+   "held: merchandise (no type word fits)"
   ],
   [
    "MTH O",
    31824,
    "60-14105",
    "Gray MTH Pocket Sport Shirt (small)",
-   "nothing decides"
+   "held: merchandise (no type word fits)"
   ],
   [
    "MTH O",
    31825,
    "60-14106",
    "Gray MTH Pocket Sport Shirt (medium)",
-   "nothing decides"
+   "held: merchandise (no type word fits)"
   ],
   [
    "MTH O",
    31826,
    "60-14107",
    "Gray MTH Pocket Sport Shirt (large)",
-   "nothing decides"
+   "held: merchandise (no type word fits)"
   ],
   [
    "MTH O",
    31827,
    "60-14108",
    "Gray MTH Pocket Sport Shirt (X large)",
-   "nothing decides"
+   "held: merchandise (no type word fits)"
   ],
   [
    "MTH O",
    31828,
    "60-14109",
    "Gray MTH Pocket Sport Shirt (XX large)",
-   "nothing decides"
+   "held: merchandise (no type word fits)"
   ],
   [
    "MTH O",
@@ -26632,140 +26884,140 @@
    31834,
    "60-14115",
    "Black MTH Sport Shirt (small)",
-   "nothing decides"
+   "held: merchandise (no type word fits)"
   ],
   [
    "MTH O",
    31835,
    "60-14116",
    "Black MTH Sport Shirt (medium)",
-   "nothing decides"
+   "held: merchandise (no type word fits)"
   ],
   [
    "MTH O",
    31836,
    "60-14117",
    "Black MTH Sport Shirt (large)",
-   "nothing decides"
+   "held: merchandise (no type word fits)"
   ],
   [
    "MTH O",
    31837,
    "60-14118",
    "Black MTH Sport Shirt (X large)",
-   "nothing decides"
+   "held: merchandise (no type word fits)"
   ],
   [
    "MTH O",
    31838,
    "60-14119",
    "Black MTH Sport Shirt (XX large)",
-   "nothing decides"
+   "held: merchandise (no type word fits)"
   ],
   [
    "MTH O",
    31839,
    "60-14120",
    "Stone MTH Sport Shirt (small)",
-   "nothing decides"
+   "held: merchandise (no type word fits)"
   ],
   [
    "MTH O",
    31840,
    "60-14121",
    "Stone MTH Sport Shirt (medium)",
-   "nothing decides"
+   "held: merchandise (no type word fits)"
   ],
   [
    "MTH O",
    31841,
    "60-14122",
    "Stone MTH Sport Shirt (large)",
-   "nothing decides"
+   "held: merchandise (no type word fits)"
   ],
   [
    "MTH O",
    31842,
    "60-14123",
    "Stone MTH Sport Shirt (X large)",
-   "nothing decides"
+   "held: merchandise (no type word fits)"
   ],
   [
    "MTH O",
    31843,
    "60-14124",
    "Stone MTH Sport Shirt (XX large)",
-   "nothing decides"
+   "held: merchandise (no type word fits)"
   ],
   [
    "MTH O",
    31845,
    "60-14125",
    "Yellow MTH Sport Shirt (small)",
-   "nothing decides"
+   "held: merchandise (no type word fits)"
   ],
   [
    "MTH O",
    31846,
    "60-14126",
    "Yellow MTH Sport Shirt (medium)",
-   "nothing decides"
+   "held: merchandise (no type word fits)"
   ],
   [
    "MTH O",
    31847,
    "60-14127",
    "Yellow MTH Sport Shirt (large)",
-   "nothing decides"
+   "held: merchandise (no type word fits)"
   ],
   [
    "MTH O",
    31848,
    "60-14128",
    "Yellow MTH Sport Shirt (X large)",
-   "nothing decides"
+   "held: merchandise (no type word fits)"
   ],
   [
    "MTH O",
    31849,
    "60-14129",
    "Yellow MTH Sport Shirt (XX large)",
-   "nothing decides"
+   "held: merchandise (no type word fits)"
   ],
   [
    "MTH O",
    31850,
    "60-14130",
    "Gray MTH Sweatshirt (small)",
-   "nothing decides"
+   "held: merchandise (no type word fits)"
   ],
   [
    "MTH O",
    31851,
    "60-14131",
    "Gray MTH Sweatshirt (medium)",
-   "nothing decides"
+   "held: merchandise (no type word fits)"
   ],
   [
    "MTH O",
    31852,
    "60-14132",
    "Gray MTH Sweatshirt (large)",
-   "nothing decides"
+   "held: merchandise (no type word fits)"
   ],
   [
    "MTH O",
    31854,
    "60-14133",
    "Gray MTH Sweatshirt (X large)",
-   "nothing decides"
+   "held: merchandise (no type word fits)"
   ],
   [
    "MTH O",
    31856,
    "60-14134",
    "Gray MTH Sweatshirt (XX large)",
-   "nothing decides"
+   "held: merchandise (no type word fits)"
   ],
   [
    "MTH O",
@@ -26800,175 +27052,175 @@
    31863,
    "60-14139",
    "Gray RailKing Pocket Sport Shirt (small)",
-   "nothing decides"
+   "held: merchandise (no type word fits)"
   ],
   [
    "MTH O",
    31864,
    "60-14140",
    "Gray RailKing Pocket Sport Shirt (medium)",
-   "nothing decides"
+   "held: merchandise (no type word fits)"
   ],
   [
    "MTH O",
    31865,
    "60-14141",
    "Gray RailKing Pocket Sport Shirt (large)",
-   "nothing decides"
+   "held: merchandise (no type word fits)"
   ],
   [
    "MTH O",
    31866,
    "60-14142",
    "Gray RailKing Pocket Sport Shirt (X large)",
-   "nothing decides"
+   "held: merchandise (no type word fits)"
   ],
   [
    "MTH O",
    31867,
    "60-14143",
    "Gray RailKing Pocket Sport Shirt (XX large)",
-   "nothing decides"
+   "held: merchandise (no type word fits)"
   ],
   [
    "MTH O",
    31868,
    "60-14144",
    "Black RailKing Sport Shirt (small)",
-   "nothing decides"
+   "held: merchandise (no type word fits)"
   ],
   [
    "MTH O",
    31869,
    "60-14145",
    "Black RailKing Sport Shirt (medium)",
-   "nothing decides"
+   "held: merchandise (no type word fits)"
   ],
   [
    "MTH O",
    31870,
    "60-14146",
    "Black RailKing Sport Shirt (large)",
-   "nothing decides"
+   "held: merchandise (no type word fits)"
   ],
   [
    "MTH O",
    31871,
    "60-14147",
    "Black RailKing Sport Shirt (X large)",
-   "nothing decides"
+   "held: merchandise (no type word fits)"
   ],
   [
    "MTH O",
    31872,
    "60-14148",
    "Black RailKing Sport Shirt (XX large)",
-   "nothing decides"
+   "held: merchandise (no type word fits)"
   ],
   [
    "MTH O",
    31873,
    "60-14149",
    "Stone RailKing Sport Shirt (small)",
-   "nothing decides"
+   "held: merchandise (no type word fits)"
   ],
   [
    "MTH O",
    31874,
    "60-14150",
    "Stone RailKing Sport Shirt (medium)",
-   "nothing decides"
+   "held: merchandise (no type word fits)"
   ],
   [
    "MTH O",
    31875,
    "60-14151",
    "Stone RailKing Sport Shirt (large)",
-   "nothing decides"
+   "held: merchandise (no type word fits)"
   ],
   [
    "MTH O",
    31876,
    "60-14152",
    "Stone RailKing Sport Shirt (X large)",
-   "nothing decides"
+   "held: merchandise (no type word fits)"
   ],
   [
    "MTH O",
    31877,
    "60-14153",
    "Stone RailKing Sport Shirt (XX large)",
-   "nothing decides"
+   "held: merchandise (no type word fits)"
   ],
   [
    "MTH O",
    31878,
    "60-14154",
    "Yellow RailKing Sport Shirt (small)",
-   "nothing decides"
+   "held: merchandise (no type word fits)"
   ],
   [
    "MTH O",
    31879,
    "60-14155",
    "Yellow RailKing Sport Shirt (medium)",
-   "nothing decides"
+   "held: merchandise (no type word fits)"
   ],
   [
    "MTH O",
    31880,
    "60-14156",
    "Yellow RailKing Sport Shirt (large)",
-   "nothing decides"
+   "held: merchandise (no type word fits)"
   ],
   [
    "MTH O",
    31881,
    "60-14157",
    "Yellow RailKing Sport Shirt (X large)",
-   "nothing decides"
+   "held: merchandise (no type word fits)"
   ],
   [
    "MTH O",
    31882,
    "60-14158",
    "Yellow RailKing Sport Shirt (XX large)",
-   "nothing decides"
+   "held: merchandise (no type word fits)"
   ],
   [
    "MTH O",
    31883,
    "60-14159",
    "Gray RailKing Sweatshirt (small)",
-   "nothing decides"
+   "held: merchandise (no type word fits)"
   ],
   [
    "MTH O",
    31884,
    "60-14160",
    "Gray RailKing Sweatshirt (medium)",
-   "nothing decides"
+   "held: merchandise (no type word fits)"
   ],
   [
    "MTH O",
    31885,
    "60-14161",
    "Gray RailKing Sweatshirt (large)",
-   "nothing decides"
+   "held: merchandise (no type word fits)"
   ],
   [
    "MTH O",
    31886,
    "60-14162",
    "Gray RailKing Sweatshirt (X large)",
-   "nothing decides"
+   "held: merchandise (no type word fits)"
   ],
   [
    "MTH O",
    31887,
    "60-14163",
    "Gray RailKing Sweatshirt (XX large)",
-   "nothing decides"
+   "held: merchandise (no type word fits)"
   ],
   [
    "MTH O",
@@ -27031,21 +27283,21 @@
    31899,
    "60-14172",
    "Gray Youth Sweatshirt (small)",
-   "nothing decides"
+   "held: merchandise (no type word fits)"
   ],
   [
    "MTH O",
    31900,
    "60-14173",
    "Gray Youth Sweatshirt (medium)",
-   "nothing decides"
+   "held: merchandise (no type word fits)"
   ],
   [
    "MTH O",
    31901,
    "60-14174",
    "Gray Youth Sweatshirt (large)",
-   "nothing decides"
+   "held: merchandise (no type word fits)"
   ],
   [
    "MTH O",
