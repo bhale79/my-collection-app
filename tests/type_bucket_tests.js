@@ -51,10 +51,12 @@ is('set name: Freight Set', label({ itemType: 'Freight Set' }), 'Set');
 is('a custom type survives exactly', label({ itemType: 'Wings of Texaco' }), 'Wings of Texaco');
 is('a custom type survives exactly (2)', label({ itemType: 'Books' }), 'Books');
 
-// ── the by-number overrides stay off the user's own rows ────────
+// ── a number never decides the type (v0.9.1845: the by-number table is retired) ──
+// These two used to pin the table ("900" → Boxcar on every row). Measured on the live master it put
+// 43 rows on 14 tabs in the wrong type and helped none; tests/type_overrides_retired_tests.js holds the rule.
 is('own row keeps the type its owner set', label({ itemType: 'Accessory', itemNum: '900', _personalOnly: 1 }), 'Accessory');
-is('catalog row still gets its number override', label({ itemType: 'Accessory', itemNum: '900' }), 'Boxcar');
-is('own row with NO type still takes the override', label({ itemType: '', itemNum: '900', _personalOnly: 1 }), 'Boxcar');
+is('a catalog row keeps its OWN type, whatever its number', label({ itemType: 'Accessory', itemNum: '900' }), 'Accessory');
+is('a row with no type is not given one by its number', label({ itemType: '', itemNum: '900', _personalOnly: 1 }) !== 'Boxcar', true);
 
 // ── the whole of Brad's real collection ─────────────────────────
 // 2,962 typed rows exported from the app after the (40) import.

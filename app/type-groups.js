@@ -8,7 +8,8 @@
 //   var label  = getTypeBucketLabel(item);       // returns short display label, e.g. 'Steam'
 //
 // EXTENDING:
-//   * To re-tag a specific item by its item number, add an entry to MANUAL_TYPE_OVERRIDES below.
+//   * A catalog row's own Item Type decides. There is NO by-number override table (retired v0.9.1845 —
+//     see the note above getTypeBucket). To re-tag an item, fix its Item Type on the master sheet.
 //   * Bucket display order in dropdowns/filters is alphabetical-by-label (TYPE_BUCKETS array).
 //   * If a freight description doesn't match any rule, the function falls back to 'Boxcar' (most-common default).
 
@@ -42,47 +43,20 @@
     { id: 'Trolley',              label: 'Trolley'      }
   ];
 
-  // ── MANUAL OVERRIDES — item numbers where the description is too vague to bucket via rules ──
-  // 109 entries confirmed via web research + reasoning in Session 118.
-  var MANUAL_TYPE_OVERRIDES = {
-    // Pre-War overrides
-    '600': 'Flatcar', '900': 'Boxcar', '1519': 'Passenger Car', '1520': 'Passenger Car',
-    // Post-War overrides
-    '2957': 'Caboose', 'X2758': 'Boxcar', 'X2954': 'Boxcar',
-    // MPC web-confirmed
-    '6112': 'Hopper', '6515': 'Tank Car', '6564': 'Flatcar', '6574': 'Operating Freight', '6575': 'Flatcar',
-    '15395': 'Passenger Car', '16173': 'Flatcar', '16181': 'Tank Car', '16390': 'Flatcar',
-    '17888': 'Intermodal', '17913': 'Flatcar', '17914': 'Flatcar',
-    '19445': 'Tank Car', '19479': 'Flatcar', '19483': 'Flatcar', '19669': 'Boxcar', '19671': 'Boxcar',
-    '19867': 'Operating Freight',
-    '21757': 'Set', '21766': 'Set', '21778': 'Set',
-    '26111': 'Flatcar', '26112': 'Flatcar', '26113': 'Flatcar',
-    '26934': 'Tank Car', '26936': 'Tank Car', '26941': 'Tank Car', '26942': 'Tank Car', '26943': 'Tank Car',
-    '26947': 'Tank Car', '26951': 'Intermodal', '26973': 'Tank Car', '26977': 'Tank Car',
-    '26978': 'Tank Car', '26979': 'Tank Car', '26980': 'Tank Car', '26981': 'Tank Car',
-    '29282': 'Set',
-    '36006': 'Operating Freight', '36030': 'Boxcar', '36031': 'Boxcar', '36040': 'Flatcar',
-    '39210': 'Operating Freight', '39447': 'Flatcar',
-    '52040': 'Intermodal', '52042': 'Intermodal', '52101': 'Boxcar', '52120': 'Operating Freight',
-    '52137': 'Tank Car', '52183': 'Passenger Car', '52185': 'Passenger Car', '52193': 'Operating Freight',
-    '72512': 'Boxcar', '84309': 'Accessory', '99013': 'Boxcar',
-    // Modern era
-    '1901310': 'Boxcar', '1928590': 'Operating Freight',
-    '1933561': 'Passenger Car', '1933562': 'Passenger Car', '1933563': 'Passenger Car', '1933564': 'Passenger Car',
-    '2026760': 'Boxcar',
-    '2028100': 'Operating Freight', '2028110': 'Operating Freight', '2028150': 'Operating Freight',
-    '2028270': 'Operating Freight', '2028430': 'Operating Freight', '2028530': 'Operating Freight',
-    '2228270': 'Operating Freight', '2243150': 'Set',
-    // K-Line scale boxcars
-    '3002955': 'Boxcar', '3002956': 'Boxcar', '3002957': 'Boxcar', '3002958': 'Boxcar', '3002959': 'Boxcar', '3002960': 'Boxcar',
-    '3009984': 'Boxcar', '3009985': 'Boxcar', '3009986': 'Boxcar', '3009987': 'Boxcar', '3009988': 'Boxcar',
-    '3009989': 'Boxcar', '3009990': 'Boxcar', '3009991': 'Boxcar', '3009992': 'Boxcar', '3009993': 'Boxcar',
-    '3009994': 'Boxcar', '3009995': 'Boxcar',
-    // Truly opaque MPC items — defaulted to Boxcar (most-common freight body)
-    '780': 'Boxcar', '16606': 'Boxcar', '16642': 'Boxcar', '16725': 'Boxcar', '16818': 'Boxcar', '16819': 'Boxcar',
-    '19819': 'Boxcar', '19822': 'Boxcar', '19853': 'Boxcar', '19913': 'Boxcar',
-    '26120': 'Boxcar', '26122': 'Boxcar', '26740': 'Boxcar', '52160': 'Boxcar'
-  };
+  // ── v0.9.1845: the by-number override table is RETIRED ──────────────────
+  // Session 118 kept 109 item numbers here ("600" → Flatcar, "900" → Boxcar …)
+  // for rows whose description was too vague and whose Item Type was blank. A
+  // NUMBER is not an identity: Lionel, American Flyer, S-Helper, Atlas, Marx,
+  // LGB, Märklin, USA Trains and Bachmann all reuse the same numbers, and the
+  // table forced its word onto every tab. Measured 2026-09-30 on the live master
+  // (every tab, the app's own bucketer, with and without the table): 90 of the
+  // 109 numbers changed nothing — the rows carry their own type now — and the
+  // other 19 changed 43 rows, every one of them for the WORSE (Lionel Pre-War
+  // "600 Passenger Cars" → Flatcar, Postwar "600 NW2 Switcher" → Flatcar, S-Helper
+  // "900 Santa Fe F7 ABA" → Boxcar, Bachmann's 16818 caboose → Boxcar …). No
+  // row matched by the table was without a type of its own. The row's own Item
+  // Type decides; a wrong or missing type is fixed on the sheet.
+  // tests/type_overrides_retired_tests.js holds the rule.
 
   // ══ v0.9.1742 — WHAT A LOCOMOTIVE'S OWN WORDS PROVE ═══════════════════════
   // Brad, 2026-09-14, on Atlas 30138671 (an ET44 diesel showing STEAM): "we
@@ -160,16 +134,10 @@
   // 123; line 3 of this file had it right the whole time.)
   function getTypeBucket(item) {
     if (!item) return '';
-    // v0.9.1528 (Brad, Session 82): the by-number overrides are corrections to
-    // OUR CATALOG's vague descriptions — "900" is a Lionel boxcar. They must
-    // not be applied to a row the user typed themselves: an off-catalog item
-    // that happens to be numbered 900 was being forced to Boxcar over the
-    // owner's own word. A personal-only row is flagged _personalOnly by
-    // browse.js; when the user has stated a type, the user wins.
+    // A row the user typed themselves (personal-only, flagged by browse.js)
+    // keeps the user's own word in a few places below. (v0.9.1845: the
+    // by-number override that used to sit here is retired — see above.)
     var _own = !!(item._personalOnly || item._manualRow);
-    if (MANUAL_TYPE_OVERRIDES[item.itemNum] && !(_own && (item.itemType || '').trim())) {
-      return MANUAL_TYPE_OVERRIDES[item.itemNum];
-    }
     var it = _rrTypeWordCanon((item.itemType || '').trim());
     var sub = (item.subType || '').trim();
     var subL = sub.toLowerCase();
@@ -473,7 +441,6 @@
 
   // Expose globally
   window.TYPE_BUCKETS = TYPE_BUCKETS;
-  window.MANUAL_TYPE_OVERRIDES = MANUAL_TYPE_OVERRIDES;
   window.rrNormalizeTypeToBucket = _normalizeToBucket;
   window.getTypeBucket = getTypeBucket;
   window.locoKindFromWords = locoKindFromWords;   // v0.9.1742: one reader for every classifier
