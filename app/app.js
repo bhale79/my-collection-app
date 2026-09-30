@@ -404,13 +404,9 @@ function _isInCurrentEra(itemNum) {
 
 
 
-// Ephemera tab definitions — shared structure, one tab per category
-const EPHEMERA_TABS = [
-  { id: 'catalogs',   label: 'Catalogs',    emoji: '📒', color: '#e67e22' },
-  { id: 'paper',      label: 'Paper Items', emoji: '📄', color: '#3498db' },
-  { id: 'mockups',    label: 'Mock-Ups',    emoji: '🔩', color: '#9b59b6' },
-  { id: 'other',      label: 'Other Lionel',emoji: '📦', color: '#2ecc71' },
-];
+// The four non-train sections (EPHEMERA_TABS) are defined ONCE in config.js
+// (v0.9.1843) — names, Type spellings, legacy tab names. The header rows of
+// the legacy tabs stay here with the other sheet headers.
 const EPHEMERA_HEADERS = [
   'Item ID','Title','Description','Year','Manufacturer','Condition (1-10)',
   'Quantity','Price Paid','Est. Value','Photo Link','Notes','Date Acquired',

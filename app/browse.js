@@ -2348,8 +2348,7 @@ function populateFilters() {
     : (window.TYPE_BUCKETS || []).map(function(b){ return b.label; });
   types.forEach(t => { const o = document.createElement('option'); o.value = t; o.textContent = t; typeEl.appendChild(o); });
 
-  // Add ephemera types as a group
-  const ephemeraTypes = ['Catalog','Paper Item','Mock-Up','Other Lionel'];
+  // Add the non-train sections as a group (EPHEMERA_TABS, config.js — v0.9.1843)
   // Also add catalog sub-types actually present in data
   const catSubTypes = [...new Set(
     Object.values(state.ephemeraData.catalogs||{}).map(it=>it.catType).filter(Boolean)
@@ -2360,14 +2359,14 @@ function populateFilters() {
   // 'Paper', 'Catalog', …) belong to those sections too, and an owner whose
   // paper is all typed rows never got the option at all. Both stores count
   // now (type keys mirror renderBrowse's _SEC_TYPES).
-  const _typedHas = { catalogs: false, paper: false, mockups: false, other: false };
+  // v0.9.1843: which section a Type names is decided ONCE (ephSectionOfType,
+  // config.js) — every accepted spelling, the old ones included.
+  const _typedHas = {};
+  EPHEMERA_TABS.forEach(function (t) { _typedHas[t.id] = false; });
   Object.values(state.personalData || {}).forEach(function (p) {
     if (!p || !p.owned) return;
-    const t = String(p.itemType || '').toLowerCase();
-    if (t === 'catalog') _typedHas.catalogs = true;
-    else if (t === 'paper' || t === 'paper item') _typedHas.paper = true;
-    else if (t === 'mock-up' || t === 'mockup') _typedHas.mockups = true;
-    else if (t === 'other lionel') _typedHas.other = true;
+    const _sec = ephSectionOfType(p.itemType);
+    if (_sec) _typedHas[_sec] = true;
   });
   const hasCatalogs = Object.keys(state.ephemeraData.catalogs||{}).length > 0 || _typedHas.catalogs;
   const hasPaper    = Object.keys(state.ephemeraData.paper||{}).length > 0 || _typedHas.paper;
@@ -2388,9 +2387,15 @@ function populateFilters() {
         const o2 = document.createElement('option'); o2.value = ct; o2.textContent = '  ' + ct + ' Catalog'; typeEl.appendChild(o2);
       });
     }
-    if (hasPaper)   { const o = document.createElement('option'); o.value = 'Paper Item';   o.textContent = '📄 Paper Items';        typeEl.appendChild(o); }
-    if (hasMockups) { const o = document.createElement('option'); o.value = 'Mock-Up';      o.textContent = '🔩 Mock-Ups';           typeEl.appendChild(o); }
-    if (hasOther)   { const o = document.createElement('option'); o.value = 'Other Lionel'; o.textContent = '📦 Other Lionel';       typeEl.appendChild(o); }
+    // The other three sections: value = the section's `single` (what the row
+    // test recognises), text = its emoji + label — both from the ONE definition.
+    const _secOpt = function (id) {
+      const t = ephTab(id); if (!t) return;
+      const o = document.createElement('option'); o.value = t.single; o.textContent = t.emoji + ' ' + t.label; typeEl.appendChild(o);
+    };
+    if (hasPaper)   _secOpt('paper');
+    if (hasMockups) _secOpt('mockups');
+    if (hasOther)   _secOpt('other');
     if (hasIS)      { const o = document.createElement('option'); o.value = 'Instruction Sheet'; o.textContent = '📋 Instruction Sheets'; typeEl.appendChild(o); }
     userEph.forEach(t => {
       const o = document.createElement('option'); o.value = t.label; o.textContent = '⭐ ' + t.label; typeEl.appendChild(o);
@@ -2598,10 +2603,12 @@ if (typeof window !== 'undefined') window.rrRepaintBrowse = rrRepaintBrowse;
 // ── Browse Tab Controller ─────────────────────────────────────────────────────
 function renderBrowseTab(tab) {
   const inCollection = !!state.filters.owned;
-  // Session 115: mockups has no master equivalent; everything else is
-  // navigable in both views. Collection view now filters each tab's
-  // render to owned data instead of redirecting clicks back to Items.
-  if (tab === 'mockups' && !inCollection) tab = 'items';
+  // v0.9.1843: the old "My Mock-ups & Other Items" panel is gone. It drew
+  // the mock-up and fourth-section BUCKETS, which nothing has filled since
+  // v0.9.990 (those rows live in My Collection, under their section chips),
+  // and no button has led to it since the tab strip went (v0.9.1710) — only
+  // a stale saved tab could. A saved 'mockups' lands on Items.
+  if (tab === 'mockups') tab = 'items';
   state._browseTab = tab || 'items';
 
   // v0.9.1710 (press audit, finding D): ~24 lines that showed, hid, relabelled
@@ -2609,7 +2616,7 @@ function renderBrowseTab(tab) {
   // element has existed for a long time, so all of it was guarded no-ops. The
   // PANELS below are the live half — those ids are real, in index.html — and
   // they are what actually switches the tab.
-  const panels = { items:'browse-items-panel', sets:'browse-sets-panel', catalogs:'browse-catalogs-panel', science:'browse-science-panel', construction:'browse-construction-panel', paper:'browse-paper-panel', other:'browse-other-panel', service:'browse-service-panel', is:'browse-is-panel', mockups:'browse-mockups-panel' };
+  const panels = { items:'browse-items-panel', sets:'browse-sets-panel', catalogs:'browse-catalogs-panel', science:'browse-science-panel', construction:'browse-construction-panel', paper:'browse-paper-panel', other:'browse-other-panel', service:'browse-service-panel', is:'browse-is-panel' };
   Object.entries(panels).forEach(([key, id]) => {
     const el = document.getElementById(id);
     if (el) el.style.display = key === state._browseTab ? '' : 'none';
@@ -2627,7 +2634,7 @@ function renderBrowseTab(tab) {
 
   const titleEl = document.getElementById('browse-title-text');
   const mTitles = { items:'Master Catalog', sets:'Set Master List', catalogs:'Catalog List', science:'Science Sets', construction:'Construction Sets', paper:'Paper Items', other:'Other Items', service:'Service Tools', is:'Instruction Sheet List' };
-  const cTitles = { items:'My Collection', sets:'My Sets', catalogs:'My Catalogs & Paper Items', mockups:'My Mock-ups & Other Items' };
+  const cTitles = { items:'My Collection', sets:'My Sets', catalogs:'My Catalogs & Paper Items' };
   if (titleEl) titleEl.textContent = (inCollection ? cTitles : mTitles)[state._browseTab] || 'Master Catalog';
 
   if (state._browseTab === 'items') renderBrowse();
@@ -2639,7 +2646,6 @@ function renderBrowseTab(tab) {
   else if (state._browseTab === 'paper') renderMasterSubTab('paper');
   else if (state._browseTab === 'other') renderMasterSubTab('other');
   else if (state._browseTab === 'service') renderMasterSubTab('service');
-  else if (state._browseTab === 'mockups') renderMockupsOtherTab();
   // Step 2: keep hierarchy chip row in sync when the old tab strip is used.
   if (typeof _renderHierarchyChips === 'function') _renderHierarchyChips();
 }
@@ -2852,64 +2858,6 @@ function renderISTab() {
   }).join('');
 }
 
-function renderMockupsOtherTab() {
-  const tbody = document.getElementById('mockups-tbody');
-  const countEl = document.getElementById('mockups-count');
-  if (!tbody) return;
-  const inColl = !!state.filters.owned;
-  const q = (document.getElementById('mockups-search')?.value || '').trim().toLowerCase();
-  // Session 115: keep srcType + key on each row so action buttons can
-  // dispatch to ephemeraDelete / ForSale / Sold per bucket.
-  const rows = [];
-  Object.entries(state.ephemeraData?.mockups || {}).forEach(function(entry) {
-    const k = entry[0], it = entry[1];
-    rows.push({
-      srcType: 'mockups', key: k, _raw: it,
-      type:'Mock-Up', tc:'#9b59b6',
-      id: it.title || it.itemNumRef || '—',
-      desc: it.description || '—',
-      year: it.year || '—',
-      cond: it.condition || '—',
-      val:  it.estValue ? _currencySymbol() + parseFloat(it.estValue).toLocaleString() : '—',
-    });
-  });
-  Object.entries(state.ephemeraData?.other || {}).forEach(function(entry) {
-    const k = entry[0], it = entry[1];
-    rows.push({
-      srcType: 'other', key: k, _raw: it,
-      type:'Other', tc:'#2ecc71',
-      id: it.title || it.itemNum || '—',
-      desc: it.description || '—',
-      year: it.year || '—',
-      cond: it.condition || '—',
-      val:  it.estValue ? _currencySymbol() + parseFloat(it.estValue).toLocaleString() : '—',
-    });
-  });
-  const filtered = rows.filter(r => !q || (r.type+' '+r.id+' '+r.desc).toLowerCase().includes(q));
-  if (countEl) countEl.textContent = filtered.length.toLocaleString() + ' item' + (filtered.length!==1?'s':'');
-  if (!filtered.length) {
-    tbody.innerHTML = '<tr><td colspan="' + (inColl ? 7 : 6) + '" style="text-align:center;padding:2rem;color:var(--text-dim)">' + (rows.length ? 'No items match' : 'No mock-ups or other items in your collection yet') + '</td></tr>';
-    return;
-  }
-  tbody.innerHTML = filtered.map(function(r) {
-    const actionsHTML = inColl && typeof _collectionActionsHTML === 'function'
-      ? _collectionActionsHTML(r.srcType, r.key, r._raw) : '';
-    // Session 116: row navigates to the generic detail page. srcType
-    // is already 'mockups' or 'other' so it routes to the right
-    // bucket via NON_ITEM_DETAIL_CONFIG.
-    const kEsc = String(r.key).replace(/'/g, "\\'");
-    const trOpen = '<tr onclick="showNonItemDetailPage(&apos;' + r.srcType + '&apos;,&apos;' + kEsc + '&apos;)" style="cursor:pointer">';
-    return trOpen
-      + '<td><span style="font-size:0.72rem;font-weight:700;padding:2px 7px;border-radius:4px;background:' + r.tc + '22;color:' + r.tc + '">' + r.type + '</span></td>'
-      + '<td style="font-size:0.88rem;color:var(--accent2)">' + r.id + '</td>'
-      + '<td style="font-size:0.85rem;color:var(--text-mid)">' + r.desc + '</td>'
-      + '<td style="font-size:0.85rem;color:var(--text-dim)">' + r.year + '</td>'
-      + '<td style="font-size:0.85rem">' + r.cond + '</td>'
-      + '<td style="font-size:0.85rem;color:var(--accent2)">' + r.val + '</td>'
-      + (inColl ? '<td onclick="event.stopPropagation()" style="text-align:right;white-space:nowrap">' + actionsHTML + '</td>' : '')
-      + '</tr>';
-  }).join('');
-}
 
 
 // ── Collection-view renderer for Science / Construction / Paper / Other / Service sub-tabs ──
@@ -3304,8 +3252,8 @@ async function _ncRemoveSourceRow(type, key) {
     science: { name: 'Science Sets', cols: 15 },
     construction: { name: 'Construction Sets', cols: 15 },
     is: { name: 'Instruction Sheets', cols: 11 },
-    paper: { name: 'Paper Items', cols: 14 },
-    other: { name: 'Other Lionel', cols: 14 },
+    paper: { name: ephTab('paper').sheetTab, cols: 14 },   // legacy-bucket rows only (v0.9.1843: names from config.js)
+    other: { name: ephTab('other').sheetTab, cols: 14 },
   };
   const cfg = sheetMap[type];
   if (!cfg) return false;
@@ -3596,7 +3544,10 @@ function _rrBrowseCore(_co) {
   let _collSec = (owned && window.innerWidth > 640) ? (state._collSection || 'trains') : 'all';
   // v0.9.990: typed-row section keys and their itemType matches (one source
   // of truth for the availability guard, the filter, and the chips below).
-  const _SEC_TYPES = { paper: ['paper', 'paper item'], catalogs: ['catalog'], mockups: ['mock-up', 'mockup'], other: ['other lionel'] };
+  // v0.9.1843: built from the ONE definition (config.js) — every spelling a
+  // section is read under, the old ones included.
+  const _SEC_TYPES = {};
+  EPHEMERA_TABS.forEach(function (t) { _SEC_TYPES[t.id] = t.reads; });
   if (_collSec !== 'trains' && _collSec !== 'all') {
     let _secAvail = true;
     try {
@@ -3613,14 +3564,15 @@ function _rrBrowseCore(_co) {
   }
   const _collSecFiltered = (_collSec !== 'all' && _collSec !== 'trains');
   // Which section does a train-store row belong to by TYPE? '' = a train.
-  // v0.9.990 (Phase 3): Mock-Up and 'Other Lionel' route to their sections
-  // too. Plain 'Other' stays a TRAIN type (manual-add off-catalog oddballs).
-  const _typeSection = function(it) {
-    const t = String(it.itemType || '').toLowerCase();
-    if (t === 'paper' || t === 'paper item') return 'paper';
-    if (t === 'catalog') return 'catalogs';
-    if (t === 'mock-up' || t === 'mockup') return 'mockups';
-    if (t === 'other lionel') return 'other';
+  // v0.9.990 (Phase 3): Mock-Up and the fourth section (Memorabilia) route
+  // to their sections too. Plain 'Other' stays a TRAIN type (manual-add
+  // off-catalog oddballs). v0.9.1843: ONE decider — ephSectionOfType.
+  const _typeSection = function(it) { return ephSectionOfType(it.itemType); };
+  // v0.9.1843: which section a Type-filter VALUE names — a section's `single`
+  // ("Paper Item", "Memorabilia"), exactly as the Type list offers it — or ''.
+  const _sectionOfFilter = function (tf) {
+    const t = String(tf || '').toLowerCase();
+    for (let i = 0; i < EPHEMERA_TABS.length; i++) if (EPHEMERA_TABS[i].single.toLowerCase() === t) return EPHEMERA_TABS[i].id;
     return '';
   };
   if (!_co && typeof _renderCrossEraSearchBanner === 'function') _renderCrossEraSearchBanner(search);
@@ -4129,18 +4081,30 @@ function _rrBrowseCore(_co) {
     // v0.9.1512 My maker · v0.9.1521 Group / Sub Type ("he collects 6464 cars,
     // mint cars… I want to see all my Disney cars") · v0.9.1509 Needs details:
     // all per-copy now — see _copyPasses above (v0.9.1820).
-    // If type filter is an ephemera category, hide train rows
     if (type) {
-      const _ephTypeKeys = ['Catalog','Paper Item','Mock-Up','Other Lionel',
-        ...(state.userDefinedTabs||[]).map(t=>t.label)];
-      // Check for catalog subtype match too (e.g. "Advance")
-      const _isEphFilter = _ephTypeKeys.some(k=>k.toLowerCase()===type.toLowerCase())
-        || type.toLowerCase() === 'instruction sheet'
-        || Object.values(state.ephemeraData.catalogs||{}).some(it=>(it.catType||'').toLowerCase()===type.toLowerCase());
-      if (_isEphFilter) return false; // hide all train rows when filtering to ephemera
-      // Session 118 Phase C: compare against bucket label (Steam, Diesel, Boxcar...) instead of raw itemType.
-      var _bucketLabel = (typeof getTypeBucketLabel === 'function') ? getTypeBucketLabel(item) : item.itemType;
-      if (_bucketLabel !== type) return false;
+      const _tl = String(type).toLowerCase();
+      const _tfSec = _sectionOfFilter(_tl);
+      if (_tfSec) {
+        // v0.9.1843 (found on Brad's 26 paper items while renaming the fourth
+        // section): the Type list's section options — "📄 Paper Items",
+        // "📦 Memorabilia" — name TYPED rows, which have lived in the one
+        // inventory since v0.9.990 and are offered since v0.9.1321; but this
+        // test still hid EVERY train-store row for them, the rows they named
+        // included, and the old buckets they then showed have been empty
+        // since v0.9.990. Measured live: "Paper Items" → 0 rows, the bucket
+        // word "Paper" → 26. A section option keeps that section's rows.
+        if (_typeSection(item) !== _tfSec) return false;
+      } else {
+        // A user's own tab, an instruction sheet, or a catalog sub-type
+        // (e.g. "Advance") — none of these has train-store rows: hide them all.
+        const _isEphFilter = (state.userDefinedTabs||[]).some(t=>String(t.label||'').toLowerCase()===_tl)
+          || _tl === 'instruction sheet'
+          || Object.values(state.ephemeraData.catalogs||{}).some(it=>(it.catType||'').toLowerCase()===_tl);
+        if (_isEphFilter) return false;
+        // Session 118 Phase C: compare against bucket label (Steam, Diesel, Boxcar...) instead of raw itemType.
+        var _bucketLabel = (typeof getTypeBucketLabel === 'function') ? getTypeBucketLabel(item) : item.itemType;
+        if (_bucketLabel !== type) return false;
+      }
     }
     // Step 3b: chip-state-aware filter (only relevant in 'all' meta-era mode).
     if (_currentEra === 'all' && _stp3b) {
@@ -4451,10 +4415,11 @@ function _rrBrowseCore(_co) {
 
   // Ephemera items — shown when owned filter is on OR search has text OR type filter matches an ephemera category
   const _ephemeraRows = [];
-  const _ephLabels = { catalogs:'Catalog', paper:'Paper Item', mockups:'Mock-Up', other:'Other Lionel' };
-  const _ephEmojis = { catalogs:'📒', paper:'📄', mockups:'🔩', other:'📦' };
+  // v0.9.1843: names and marks from the ONE definition (config.js); the
+  // colours stay here (the colour ratchet, v0.9.1154).
+  const _ephLabels = {}, _ephEmojis = {}, _ephTypeMap = {};
+  EPHEMERA_TABS.forEach(function (t) { _ephLabels[t.id] = t.single; _ephEmojis[t.id] = t.emoji; _ephTypeMap[t.single] = t.id; });
   const _ephColors = { catalogs:'#e67e22', paper:'#3498db', mockups:'#9b59b6', other:'#2ecc71' };
-  const _ephTypeMap = { 'Catalog':'catalogs', 'Paper Item':'paper', 'Mock-Up':'mockups', 'Other Lionel':'other' };
   const sq = (state.filters.search||'').toLowerCase();
   const tf = (state.filters.type||'').toLowerCase();
   // Show ephemera if: owned view, searching, or type filter is an ephemera category
@@ -4523,12 +4488,10 @@ function _rrBrowseCore(_co) {
     // inventory are what create the section chips. One pass over the owned
     // collection finds which sections exist.
     try {
-      const _chipMeta = {
-        catalogs: { label: '📒 Catalogs', color: '#e67e22' },
-        paper:    { label: '📄 Paper Items', color: '#3498db' },
-        mockups:  { label: '🔩 Mock-Ups', color: '#9b59b6' },
-        other:    { label: '📦 Other Lionel', color: '#2ecc71' }
-      };
+      // v0.9.1843: chip words from the ONE definition (config.js); colours stay here.
+      const _chipColors = { catalogs: '#e67e22', paper: '#3498db', mockups: '#9b59b6', other: '#2ecc71' };
+      const _chipMeta = {};
+      EPHEMERA_TABS.forEach(function (t) { _chipMeta[t.id] = { label: t.emoji + ' ' + t.label, color: _chipColors[t.id] }; });
       const _typedSecs = {};
       Object.values(state.personalData || {}).forEach(function(p) {
         if (!p || !p.owned) return;

@@ -170,7 +170,7 @@ window._catalogDisplayLabel = function (year, type, fallback) {
       },
       notes:           function(e) { return e.notes || ''; },
       photoFolder:     function(e) { return e.photoLink || ''; },
-      sheetTab:        'Catalogs',
+      sheetTab:        ephTab('catalogs').sheetTab,   // v0.9.1843: from the ONE definition (config.js)
       sheetCols:       'A:J',
       bucketPath:      'ephemeraData.catalogs',
 
@@ -248,7 +248,7 @@ window._catalogDisplayLabel = function (year, type, fallback) {
       },
       notes:           function(e) { return e.notes || ''; },
       photoFolder:     function(e) { return e.photoLink || ''; },
-      sheetTab:        'Paper Items',
+      sheetTab:        ephTab('paper').sheetTab,   // v0.9.1843: from the ONE definition (config.js)
       sheetCols:       'A:N',
       bucketPath:      'ephemeraData.paper',
       // Ephemera row layout (A-N): see EPHEMERA_HEADERS in app.js
@@ -322,7 +322,7 @@ window._catalogDisplayLabel = function (year, type, fallback) {
       },
       notes:           function(e) { return e.notes || ''; },
       photoFolder:     function(e) { return e.photoLink || ''; },
-      sheetTab:        'Mock-Ups',
+      sheetTab:        ephTab('mockups').sheetTab,   // v0.9.1843: from the ONE definition (config.js)
       sheetCols:       'A:Q',
       bucketPath:      'ephemeraData.mockups',
       // Mock-up row layout (A-Q): see MOCKUP_HEADERS in app.js
@@ -377,12 +377,15 @@ window._catalogDisplayLabel = function (year, type, fallback) {
       },
     },
 
-    // ── Other (Ephemera "Other" bucket) ──────────────────────────
+    // ── Memorabilia (the fourth section's legacy bucket) ───────────
+    // v0.9.1843: its words and its old tab's name come from the ONE
+    // definition (EPHEMERA_TABS, config.js). Only legacy-bucket rows reach
+    // this page; a row added since v0.9.990 is an item in My Collection.
     other: {
-      label: 'Other',
+      label: ephTab('other').label,
       pageTitle:       function(e) { return e.itemNum || e.title || '—'; },
       subtitle:        function(e) { return e.title || ''; },
-      typeBadge:       function(e) { return 'Other'; },
+      typeBadge:       function(e) { return ephTab('other').single; },
       itemNumDisplay:  function(e) { return e.itemNum || ''; },
       year:            function(e) { return e.year || ''; },
       description:     function(e) { return e.description || ''; },
@@ -397,10 +400,10 @@ window._catalogDisplayLabel = function (year, type, fallback) {
       },
       notes:           function(e) { return e.notes || ''; },
       photoFolder:     function(e) { return e.photoLink || ''; },
-      sheetTab:        'Other Lionel',
+      sheetTab:        ephTab('other').sheetTab,
       sheetCols:       'A:N',
       bucketPath:      'ephemeraData.other',
-      // Other Lionel uses the same EPHEMERA_HEADERS schema as Paper.
+      // The legacy tab uses the same EPHEMERA_HEADERS schema as Paper.
       rowSchema: [
         { col: 'A', key: 'itemNum' },
         { col: 'B', key: 'title' },

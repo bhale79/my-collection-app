@@ -11632,7 +11632,13 @@ META_WRITES.length = 0; TOASTS.length = 0;
                                    appSrc.indexOf('const PERSONAL_HEADERS'));
     const cfgSrc = sb.slice(sb.indexOf('const LOCK_CONFIG = {'),
                             sb.indexOf('async function lockSheetTabs'));
+    // v0.9.1843: LOCK_CONFIG names the four retired tabs through the ONE
+    // definition (EPHEMERA_TABS, config.js) — lift the real definition too.
+    const cfgJs = rd('app/config.js');
+    const ephSrc = cfgJs.slice(cfgJs.indexOf('const EPHEMERA_TABS = ['),
+                               cfgJs.indexOf("if (typeof window !== 'undefined') { window.EPHEMERA_TABS"));
     const built = new Function(
+      ephSrc +
       schemaSrc +
       'const PERSONAL_FIELD_INDEX = {};' +
       'PERSONAL_SCHEMA.forEach(function (s, i) { PERSONAL_FIELD_INDEX[s.field] = i; });' +
@@ -13224,6 +13230,11 @@ META_WRITES.length = 0; TOASTS.length = 0;
       const lockSrc19 = sb19.slice(sb19.indexOf('let _protectionEnsuredThisSession'));
       const schema19 = app19.slice(app19.indexOf('const PERSONAL_SCHEMA = ['),
                                    app19.indexOf('const PERSONAL_HEADERS'));
+      // v0.9.1843: LOCK_CONFIG names the four retired tabs through the ONE
+      // definition (EPHEMERA_TABS, config.js) — the rig lifts the real one.
+      const cfg19 = rd19('app/config.js');
+      const eph19 = cfg19.slice(cfg19.indexOf('const EPHEMERA_TABS = ['),
+                                cfg19.indexOf("if (typeof window !== 'undefined') { window.EPHEMERA_TABS"));
 
       // A scripted Sheets API with a memory. addProtectedRange and
       // deleteProtectedRange really add to and remove from a list, and metadata
@@ -13306,6 +13317,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
         const fakeTimeout = (fn, ms) => { st.timers.push({ fn: fn, ms: ms }); return st.timers.length; };
         const api = new Function(
           'fetch', 'console', 'localStorage', 'accessToken', 'setTimeout', '_formatRunning',
+          eph19 +
           schema19 +
           'const PERSONAL_FIELD_INDEX = {};' +
           'PERSONAL_SCHEMA.forEach(function (s, i) { PERSONAL_FIELD_INDEX[s.field] = i; });' +
@@ -18221,9 +18233,11 @@ META_WRITES.length = 0; TOASTS.length = 0;
          !/var compMaster = state\.masterData && state\.masterData\.find/.test(tl66));
       // 2. The Type dropdown's ephemera options count BOTH stores — the one
       //    live v0.9.1295 blind spot the retired-bucket census found.
+      //    v0.9.1843: the typed-row census asks the ONE decider (ephSectionOfType,
+      //    config.js) for every section instead of spelling the types itself.
       ok('266 the Type dropdown counts typed rows AND the old buckets',
-         /const _typedHas = \{ catalogs: false, paper: false, mockups: false, other: false \};/.test(bw66) &&
-         /if \(t === 'paper' \|\| t === 'paper item'\) _typedHas\.paper = true;/.test(bw66) &&
+         /EPHEMERA_TABS\.forEach\(function \(t\) \{ _typedHas\[t\.id\] = false; \}\);/.test(bw66) &&
+         /const _sec = ephSectionOfType\(p\.itemType\);\s*\n\s*if \(_sec\) _typedHas\[_sec\] = true;/.test(bw66) &&
          /Object\.keys\(state\.ephemeraData\.paper\|\|\{\}\)\.length > 0 \|\| _typedHas\.paper/.test(bw66) &&
          /Object\.keys\(state\.ephemeraData\.catalogs\|\|\{\}\)\.length > 0 \|\| _typedHas\.catalogs/.test(bw66));
     })();
@@ -18542,12 +18556,16 @@ META_WRITES.length = 0; TOASTS.length = 0;
       ok('270 the run-once flag is set AFTER the last write, not before it',
          flagAt > lastWrite && flagAt > 0, 'flag@' + flagAt + ' lastWrite@' + lastWrite);
       ok('270 …and it is set exactly once', (ee.match(/_ensureEphemDone = true/g) || []).length === 1);
-      // The 16 header stamps go together rather than in series (measured: 16
-      // serial round trips ≈ 6.4s at a 400ms RTT).
+      // The header stamps go together rather than in series (measured: 16
+      // serial round trips ≈ 6.4s at a 400ms RTT). v0.9.1843: the four
+      // retired tabs are stamped no more; the four LIVE tabs' eight stamps
+      // (title + headers each) ride one Promise.all, and nothing is stamped
+      // outside it.
       ok('270 the header stamps run concurrently, not one-at-a-time',
-         /await Promise\.all\(\[\s*\n\s*sheetsUpdate\(sheetId, 'Catalogs!A1:Q1'/.test(ee));
+         /await Promise\.all\(LIVE_TABS\.flatMap\(t => \[\s*\n\s*sheetsUpdate\(sheetId, t\.titleRange,\s*\[\[t\.title\]\]\),\s*\n\s*sheetsUpdate\(sheetId, t\.headerRange, \[t\.headers\]\),\s*\n\s*\]\)\);/.test(ee));
       ok('270 …and all eight are inside that one wait',
-         (ee.slice(ee.indexOf('await Promise.all(['), ee.indexOf(']);', ee.indexOf('await Promise.all(['))).match(/sheetsUpdate\(/g) || []).length === 8);
+         (ee.match(/sheetsUpdate\(/g) || []).length === 2 &&
+         (ee.slice(ee.indexOf('const LIVE_TABS = ['), ee.indexOf('];', ee.indexOf('const LIVE_TABS = ['))).match(/\{ title: '/g) || []).length === 4);
 
       // ── (b) flags released in a finally ──
       ok('270 _navSuppressHistory is cleared in the same finally as _rrNavBack',

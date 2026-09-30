@@ -152,10 +152,13 @@ async function applySheetFormatting(sheetId, opts) {
       'Sold':          { red: 0.153, green: 0.682, blue: 0.376 },
       'For Sale':      { red: 0.902, green: 0.494, blue: 0.133 },
       'Want-Upgrade List': { red: 0.353, green: 0.431, blue: 0.845 },  // combined (blend of want-blue + upgrade-purple)
-      'Catalogs':      { red: 0.827, green: 0.651, blue: 0.263 },
-      'Paper Items':   { red: 0.086, green: 0.627, blue: 0.522 },
-      'Mock-Ups':      { red: 0.608, green: 0.349, blue: 0.714 },
-      'Other Lionel':  { red: 0.498, green: 0.549, blue: 0.553 },
+      // The four retired non-train tabs, by their OLD names (a sheet made
+      // before v0.9.1843 still has them; a newer one never gets them) — the
+      // names come from the ONE definition, EPHEMERA_TABS in config.js.
+      [ephTab('catalogs').sheetTab]: { red: 0.827, green: 0.651, blue: 0.263 },
+      [ephTab('paper').sheetTab]:    { red: 0.086, green: 0.627, blue: 0.522 },
+      [ephTab('mockups').sheetTab]:  { red: 0.608, green: 0.349, blue: 0.714 },
+      [ephTab('other').sheetTab]:    { red: 0.498, green: 0.549, blue: 0.553 },
     };
     const tabColorReqs = Object.entries(TAB_COLORS)
       .filter(([n]) => tabMap.hasOwnProperty(n))
@@ -164,7 +167,7 @@ async function applySheetFormatting(sheetId, opts) {
       }}));
 
     // ── 5. Data tab header + freeze + banding ─────────────────────
-    const DATA_TABS = ['My Collection','Sold','For Sale','Want-Upgrade List','Catalogs','Paper Items','Mock-Ups','Other Lionel','Instruction Sheets','Science Sets','Construction Sets','My Sets'];
+    const DATA_TABS = ['My Collection','Sold','For Sale','Want-Upgrade List', ...EPHEMERA_TABS.map(t => t.sheetTab), 'Instruction Sheets','Science Sets','Construction Sets','My Sets'];
     // ── v13 (fmt 20): deterministic column widths ─────────────────
     // autoResize sized columns to CONTENT: "Variation" shrank to 3 digits wide
     // (mid-word header wrap) while Notes ballooned past 250 chars. Now every
@@ -900,7 +903,7 @@ const LOCK_CONFIG = {
   legacyDescriptions: ['boxcar-data-lock'],  // older versions, cleaned up on next lock
   // Tabs whose row 1 (title) and row 2 (headers) get locked.
   headerTabs: ['My Collection','Sold','For Sale','Want-Upgrade List',
-               'Catalogs','Paper Items','Mock-Ups','Other Lionel',
+               ...EPHEMERA_TABS.map(t => t.sheetTab),   // the retired tabs, by their old names, when a sheet still has them
                'Instruction Sheets','Science Sets','Construction Sets','My Sets'],
   // Tabs locked entirely (no row/col bounds = whole sheet).
   fullLockTabs: ['Dashboard'],

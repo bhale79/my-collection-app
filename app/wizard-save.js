@@ -736,9 +736,13 @@ async function saveEphemeraItem() {
 
   const d = wizard.data;
   const tab = wizard.tab;
-  const tabNames = { catalogs:'Catalogs', paper:'Paper Items', mockups:'Mock-Ups', other:'Other Lionel' };
+  // v0.9.1843: a known section (EPHEMERA_TABS, config.js) or one of the
+  // user's own tabs — anything else has nowhere to go. (Since v0.9.990 the
+  // row is written to My Collection, so this is only the "is it a real
+  // tab" guard; the legacy tab name is never written to.)
+  const _ephDef = (typeof ephTab === 'function') ? ephTab(tab) : null;
   const _userTab = (state.userDefinedTabs||[]).find(t => t.id === tab);
-  const sheetName = tabNames[tab] || (_userTab && _userTab.label) || null;
+  const sheetName = (_ephDef && _ephDef.sheetTab) || (_userTab && _userTab.label) || null;
   if (!sheetName) { closeWizard(); return; }
 
   const ephItemNum = tab === 'paper'
@@ -791,10 +795,13 @@ async function saveEphemeraItem() {
   // the ONE inventory (My Collection tab / PERSONAL_SCHEMA) instead of its
   // own tab. The tailored wizard questions stay; only the destination
   // changed. Old tabs are LEGACY-renamed and no longer written.
-  // NOTE: 'Other Lionel' (not plain 'Other') — the manual-add wizard uses
-  // 'Other' for off-catalog TRAIN oddballs, which must stay under Trains.
-  const _typeByTab = { catalogs: 'Catalog', paper: 'Paper', mockups: 'Mock-Up', other: 'Other Lionel' };
-  const _uniItemType = _typeByTab[tab] || ((_userTab && _userTab.label) || 'Other');
+  // The Type written is the section's `type` from the ONE definition
+  // (EPHEMERA_TABS, config.js — v0.9.1843: the fourth section writes
+  // "Memorabilia"; it wrote "Other Lionel" until v0.9.1842, which the
+  // definition's `reads` still accepts). NOTE: never plain 'Other' — the
+  // manual-add wizard uses 'Other' for off-catalog TRAIN oddballs, which
+  // must stay under Trains.
+  const _uniItemType = (_ephDef && _ephDef.type) || ((_userTab && _userTab.label) || 'Other');
   const _uniSubType = (d.eph_paperType || '') + (d.eph_paperSubType ? ' — ' + d.eph_paperSubType : '');
   // Description = title, with the free-text description folded in after it
   const _uniDesc = [d.eph_title || '', d.eph_description || ''].filter(Boolean).join(' — ');

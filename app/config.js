@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.1842';
+const APP_VERSION = 'v0.9.1843';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -187,7 +187,7 @@ function varShortLabel(text, max) {
 // (Referenced in app-data.js as _CACHE_VER / _PERSONAL_CACHE_VER.)
 // ═══════════════════════════════════════════════════════════════
 const CATALOG_CACHE_VER  = '127';   // v0.9.1421: 111xx master window repaired
-const PERSONAL_CACHE_VER = 'pf1';   // v0.9.782: +purchasedFrom column — bust the parsed personal cache
+const PERSONAL_CACHE_VER = 'pf2';   // v0.9.1843: section Types read through ephCanonType ("Other Lionel" → Memorabilia) — re-parse once
 
 // ═══════════════════════════════════════════════════════════════
 // SIGN-OUT — what survives, and nothing else
@@ -1690,6 +1690,63 @@ window.rrFieldEnabled = function (f) {
   } catch (e) {}
   return false;
 };
+// ═══════════════════════════════════════════════════════════════
+// THE NON-TRAIN SECTIONS — v0.9.1843 (Brad, roadmap 4.27: "Memorabilia")
+// Catalogs, Paper Items, Mock-Ups and Memorabilia: the ONE definition.
+// Since v0.9.990 these rows live in My Collection with a Type; the four
+// old tabs are never created again (a sheet that has them keeps them).
+// Until v0.9.1842 the fourth section was called "Other Lionel" — in the
+// add screen, the filter list, the section chip and the Type column of
+// every user's sheet — which told an MTH or Atlas collector their dealer
+// sign was "Other Lionel". The word was hard-typed in fifteen places
+// across eight files; now it is here, once. Nothing else spells these.
+//
+//   id       — the section key the code uses ('other' stayed: a key,
+//              not a word anyone sees)
+//   label    — the section name the user sees (chip, filter list, titles)
+//   single   — one item of it: the Type-filter value and the row badge
+//   type     — the Type written to the sheet for a new row
+//   reads    — every spelling accepted from a sheet, lower-case: what this
+//              release writes AND what older releases wrote. NEVER drop
+//              one — the rows are in people's sheets. A legacy spelling
+//              is read as the section and shown as `type` (ephCanonType);
+//              the sheet cell keeps its old word until that row is next
+//              saved, when it is written the current way.
+//   sheetTab — the old tab's name in sheets made before v0.9.990: read
+//              for legacy rows, coloured and locked by the sheet
+//              formatter when present, never created.
+//   emoji    — the chip's mark. (Chip colours stay where the chips are —
+//              the colour ratchet, v0.9.1154.)
+// ═══════════════════════════════════════════════════════════════
+const EPHEMERA_TABS = [
+  { id: 'catalogs', label: 'Catalogs',    single: 'Catalog',     type: 'Catalog',     reads: ['catalog'],                     sheetTab: 'Catalogs',     emoji: '📒' },
+  { id: 'paper',    label: 'Paper Items', single: 'Paper Item',  type: 'Paper',       reads: ['paper', 'paper item'],         sheetTab: 'Paper Items',  emoji: '📄' },
+  { id: 'mockups',  label: 'Mock-Ups',    single: 'Mock-Up',     type: 'Mock-Up',     reads: ['mock-up', 'mockup'],           sheetTab: 'Mock-Ups',     emoji: '🔩' },
+  { id: 'other',    label: 'Memorabilia', single: 'Memorabilia', type: 'Memorabilia', reads: ['memorabilia', 'other lionel'], sheetTab: 'Other Lionel', emoji: '📦' },
+];
+// The section with this id, or null.
+function ephTab(id) {
+  for (var i = 0; i < EPHEMERA_TABS.length; i++) if (EPHEMERA_TABS[i].id === id) return EPHEMERA_TABS[i];
+  return null;
+}
+// Which section a row's Type names — '' when it is a train (or anything
+// else). Every spelling in `reads` counts, so a row typed the old way
+// lands in the same section as one typed today.
+function ephSectionOfType(itemType) {
+  var t = String(itemType || '').trim().toLowerCase();
+  if (!t) return '';
+  for (var i = 0; i < EPHEMERA_TABS.length; i++) if (EPHEMERA_TABS[i].reads.indexOf(t) >= 0) return EPHEMERA_TABS[i].id;
+  return '';
+}
+// The current spelling of a section Type — a legacy spelling read from a
+// sheet becomes the word this release writes; anything else is returned
+// as it came. The personal-row parser runs every Type through this, so
+// the rest of the app only ever meets one spelling per section.
+function ephCanonType(itemType) {
+  var id = ephSectionOfType(itemType);
+  return id ? ephTab(id).type : itemType;
+}
+if (typeof window !== 'undefined') { window.EPHEMERA_TABS = EPHEMERA_TABS; window.ephTab = ephTab; window.ephSectionOfType = ephSectionOfType; window.ephCanonType = ephCanonType; }
 // ── Saved storage locations, two levels (v0.9.1531b) ────────────
 // Brad: "manage the totes INSIDE each location, and the wizard should then
 // suggest only the details belonging to the location you chose."

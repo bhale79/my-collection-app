@@ -46,8 +46,24 @@ ok('…and the report builder\'s own tabs (#rbtab-*) were NOT caught in the swee
    /id="rbtab-columns"/.test(rd('reports.js')) && /getElementById\('rbtab-'\+t\)/.test(rd('reports.js').replace(/\s/g, '')), '');
 ok('renderBrowseTab still switches the PANELS, which is what actually changes the tab',
    /const panels = \{ items:'browse-items-panel'/.test(brw) && /el\.style\.display = key === state\._browseTab \? '' : 'none'/.test(brw), '');
-ok('…and those panel ids are real (index.html builds all ten)',
-   (rd('index.html').match(/id="browse-[a-z]+-panel"/g) || []).length === 10, String((rd('index.html').match(/id="browse-[a-z]+-panel"/g) || []).length));
+// v0.9.1843: the RULE, not a count (the count was 10, then the dead
+// mock-ups panel went and it was 9 — a number pinned here is a version pin
+// wearing a different hat, rules_shipping). Every panel the controller names
+// exists in index.html, and every browse-*-panel in index.html is one the
+// controller names — no orphan either way.
+(function () {
+  const mapSrc = (/const panels = \{([^}]*)\}/.exec(brw) || ['', ''])[1];
+  const named = (mapSrc.match(/'browse-[a-z]+-panel'/g) || []).map(x => x.replace(/'/g, ''));
+  const built = (rd('index.html').match(/id="browse-[a-z]+-panel"/g) || []).map(x => x.slice(4, -1));
+  ok('…and those panel ids are real (every panel the controller names is built, and nothing is built that it does not name)',
+     named.length > 0 && named.every(id => built.includes(id)) && built.every(id => named.includes(id)),
+     'named ' + named.join(',') + ' | built ' + built.join(','));
+  // …and it can fail: a panel the controller names but index.html does not build.
+  const namedPlus = named.concat(['browse-ghost-panel']);
+  ok('…(offender) a named-but-unbuilt panel is caught', !namedPlus.every(id => built.includes(id)));
+  const builtPlus = built.concat(['browse-orphan-panel']);
+  ok('…(offender) a built-but-unnamed panel is caught', !builtPlus.every(id => named.includes(id)));
+})();
 ok('the misleading name went with the dead code: no code defines or calls _updateBrowseTabsForEra (the comment that explains its removal is not code)',
    !/_updateBrowseTabsForEra/.test(codeOf(brw)), '');
 ok('…replaced by what it actually did, under a name that says so, still called once from renderBrowse',

@@ -6,7 +6,7 @@
 //
 // Depends on globals defined in app.js: state, driveCache, gapi, tokenClient,
 // PERSONAL_HEADERS, SOLD_HEADERS, FOR_SALE_HEADERS, WANT_HEADERS,
-// UPGRADE_HEADERS, EPHEMERA_TABS, EPHEMERA_HEADERS, MY_SETS_HEADERS,
+// UPGRADE_HEADERS, EPHEMERA_HEADERS, MY_SETS_HEADERS, (EPHEMERA_TABS: config.js)
 // CATALOG_HEADERS, IS_HEADERS, _getPersonalSheetName(), _maybeRenamePersonalSheet(),
 // and helpers from sheets.js / drive.js.
 
@@ -594,11 +594,31 @@ async function ensureEphemeraSheets(sheetId) {
   );
   const meta = await metaRes.json();
   const existingTabs = (meta.sheets || []).map(s => s.properties.title);
-  const tabNames = { catalogs:'Catalogs', paper:'Paper Items', mockups:'Mock-Ups', other:'Other Lionel' };
-  const toCreate = [];
-  Object.values(tabNames).forEach(t => {
-    if (!existingTabs.includes(t)) toCreate.push({ addSheet: { properties: { title: t } } });
-  });
+  // ── v0.9.1843: the four non-train tabs are NOT made any more ──────────
+  // Catalogs, Paper Items, Mock-Ups and the fourth section's tab (see
+  // EPHEMERA_TABS in config.js) have been read by nothing and written by
+  // nothing since v0.9.990 — every such row lives in My Collection with a
+  // Type. Until v0.9.1842 this function still created all four in every
+  // new sheet and re-stamped their headers on every signed-in start: four
+  // empty tabs per user, eight wasted writes per start, and one tab named
+  // "Other Lionel" in an MTH collector's spreadsheet. A sheet that already
+  // has them keeps them (the route never deletes a tab); the sheet
+  // formatter still colours and locks them when they are there.
+  //
+  // The four tabs below are live: written by their pages, read at start.
+  // One batchUpdate creates whichever are missing; then the eight header
+  // stamps run together (v0.9.1325: serial stamps cost a round trip each —
+  // about 400 ms apiece on a phone in a train room). The stamps still run
+  // on EVERY start, on purpose: they double as a stale-header repair, and
+  // retiring that is Brad's call, not a perf pass's.
+  const LIVE_TABS = [
+    { title: 'Instruction Sheets', titleRange: 'Instruction Sheets!A1:A1', headerRange: 'Instruction Sheets!A2:K2', headers: IS_HEADERS },
+    { title: 'Science Sets',       titleRange: 'Science Sets!A1:A1',       headerRange: 'Science Sets!A2:O2',       headers: SCIENCE_HEADERS },
+    { title: 'Construction Sets',  titleRange: 'Construction Sets!A1:A1',  headerRange: 'Construction Sets!A2:O2',  headers: CONSTRUCTION_HEADERS },
+    { title: 'My Sets',            titleRange: 'My Sets!A1:A1',            headerRange: 'My Sets!A2:N2',            headers: MY_SETS_HEADERS },
+  ];
+  const toCreate = LIVE_TABS.filter(t => !existingTabs.includes(t.title))
+    .map(t => ({ addSheet: { properties: { title: t.title } } }));
   if (toCreate.length > 0) {
     await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}:batchUpdate`, {
       method: 'POST',
@@ -606,83 +626,18 @@ async function ensureEphemeraSheets(sheetId) {
       body: JSON.stringify({ requests: toCreate }),
     });
   }
-  // Write headers — clear extra columns first to fix any stale headers
-  // Clear row 1 and row 2 across all ephemera tabs (A1:Q covers any previous wide headers)
-  const _clearReqs = ['Catalogs','Paper Items','Mock-Ups','Other Lionel'].map(t => ({
-    updateCells: {
-      range: { sheetId: 0, startRowIndex: 0, endRowIndex: 2, startColumnIndex: 0, endColumnIndex: 17 },
-      fields: 'userEnteredValue',
-    }
-  }));
-  // Use values API to clear then rewrite cleanly
+  await Promise.all(LIVE_TABS.flatMap(t => [
+    sheetsUpdate(sheetId, t.titleRange,  [[t.title]]),
+    sheetsUpdate(sheetId, t.headerRange, [t.headers]),
+  ]));
+  // v0.9.1325: the run-once flag is the LAST thing here, on purpose.
   //
-  // v0.9.1325 (MEASURED): these 16 header stamps were serial `await`s, so a
-  // signed-in start paid 16 round trips of pure latency — about 6.4s at a
-  // 400ms RTT, which is what a phone in a train room actually looks like.
-  // They write to 16 DIFFERENT ranges and none reads another's result, so
-  // there was never a reason to queue them. Running them together turns 16
-  // waits into one. 16 concurrent writes is well inside Google's 60/minute.
-  //
-  // NOT changed, on purpose: these still run on EVERY start rather than only
-  // when a tab is missing. They double as a stale-header repair (see the clear
-  // above), so skipping them when the tab exists would quietly retire that
-  // repair — a real trade, and Brad's to make, not one to slip into a perf
-  // pass. Flagged in the morning report.
-  await Promise.all([
-    sheetsUpdate(sheetId, 'Catalogs!A1:Q1',    [['Catalogs','','','','','','','','','','','','','','','','']]),
-    sheetsUpdate(sheetId, 'Catalogs!A2:J2',    [CATALOG_HEADERS]),
-    sheetsUpdate(sheetId, 'Paper Items!A1:Q1', [['Paper Items','','','','','','','','','','','','','','','','']]),
-    sheetsUpdate(sheetId, 'Paper Items!A2:N2', [EPHEMERA_HEADERS]),
-    sheetsUpdate(sheetId, 'Mock-Ups!A1:Q1',    [['Mock-Ups','','','','','','','','','','','','','','','','']]),
-    sheetsUpdate(sheetId, 'Mock-Ups!A2:Q2',    [MOCKUP_HEADERS]),
-    sheetsUpdate(sheetId, 'Other Lionel!A1:Q1',[['Other Lionel','','','','','','','','','','','','','','','','']]),
-    sheetsUpdate(sheetId, 'Other Lionel!A2:N2',[EPHEMERA_HEADERS]),
-  ]);
-  // Instruction Sheets tab
-  if (!existingTabs.includes('Instruction Sheets')) {
-    await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}:batchUpdate`, {
-      method:'POST', headers:{Authorization:`Bearer ${accessToken}`,'Content-Type':'application/json'},
-      body: JSON.stringify({ requests:[{ addSheet:{ properties:{ title:'Instruction Sheets' } } }] }),
-    });
-  }
-  await sheetsUpdate(sheetId, 'Instruction Sheets!A1:A1', [['Instruction Sheets']]);
-  await sheetsUpdate(sheetId, 'Instruction Sheets!A2:K2', [IS_HEADERS]);
-  // Science Sets tab
-  if (!existingTabs.includes('Science Sets')) {
-    await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}:batchUpdate`, {
-      method:'POST', headers:{Authorization:`Bearer ${accessToken}`,'Content-Type':'application/json'},
-      body: JSON.stringify({ requests:[{ addSheet:{ properties:{ title:'Science Sets' } } }] }),
-    });
-  }
-  await sheetsUpdate(sheetId, 'Science Sets!A1:A1', [['Science Sets']]);
-  await sheetsUpdate(sheetId, 'Science Sets!A2:O2', [SCIENCE_HEADERS]);
-  // Construction Sets tab
-  if (!existingTabs.includes('Construction Sets')) {
-    await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}:batchUpdate`, {
-      method:'POST', headers:{Authorization:`Bearer ${accessToken}`,'Content-Type':'application/json'},
-      body: JSON.stringify({ requests:[{ addSheet:{ properties:{ title:'Construction Sets' } } }] }),
-    });
-  }
-  await sheetsUpdate(sheetId, 'Construction Sets!A1:A1', [['Construction Sets']]);
-  await sheetsUpdate(sheetId, 'Construction Sets!A2:O2', [CONSTRUCTION_HEADERS]);
-  // My Sets tab
-  if (!existingTabs.includes('My Sets')) {
-    await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}:batchUpdate`, {
-      method:'POST', headers:{Authorization:`Bearer ${accessToken}`,'Content-Type':'application/json'},
-      body: JSON.stringify({ requests:[{ addSheet:{ properties:{ title:'My Sets' } } }] }),
-    });
-  }
-  await sheetsUpdate(sheetId, 'My Sets!A1:A1', [['My Sets']]);
-  await sheetsUpdate(sheetId, 'My Sets!A2:N2', [MY_SETS_HEADERS]);
-  // v0.9.1325: the run-once flag MOVED HERE, from the middle of the function.
-  //
-  // It used to be set right after the first four tabs, with ~30 lines of
-  // awaited writes still to come. sheetsUpdate throws on failure (including
-  // synchronously when offline or read-only), and the startup caller swallows
-  // it — app-data.js: `ensureEphemeraSheets(...).catch(() => {})`. So one
-  // transient Sheets hiccup at sign-in left the Instruction Sheets / Science
-  // Sets / Construction Sets / My Sets tabs uncreated AND the flag set, so the
-  // two callers that await this before appending (wizard-save.js) returned
+  // It used to be set with ~30 lines of awaited writes still to come.
+  // sheetsUpdate throws on failure (including synchronously when offline or
+  // read-only), and the startup caller swallows it — app-data.js:
+  // `ensureEphemeraSheets(...).catch(() => {})`. So one transient Sheets
+  // hiccup at sign-in left tabs uncreated AND the flag set, so the two
+  // callers that await this before appending (wizard-save.js) returned
   // instantly from the guard and their append then failed. Result: "Error
   // saving your item" every time the user added a science set or an
   // instruction sheet, for the whole session — cured by a reload, which made
@@ -799,7 +754,9 @@ async function syncUserDefinedTabsFromSheet(sheetId) {
       'My Collection', 'Sold', 'For Sale', 'Want-Upgrade List',
       // Legacy names kept so users with un-migrated sheets still treat them as canonical:
       'Want List', 'Upgrade List',
-      'Catalogs', 'Paper Items', 'Mock-Ups', 'Other Lionel',
+      // The four retired non-train tabs — by their OLD names, from the one
+      // definition (config.js): a sheet made before v0.9.1843 still has them.
+      ...EPHEMERA_TABS.map(t => t.sheetTab),
       'Instruction Sheets', 'Science Sets', 'Construction Sets', 'My Sets',
       'Dashboard',
       // Standalone feature tabs that are NOT collection/ephemera tabs:

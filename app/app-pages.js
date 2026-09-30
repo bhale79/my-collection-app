@@ -128,11 +128,15 @@ function _collectAllOwnedItems() {
     // v0.9.991 (unified inventory Phase 4): classify by TYPE — paper/catalog/
     // mock-up rows live in the one inventory now, but they belong under their
     // own tabs on this page, not under "Items".
+    // v0.9.1843: the section a Type names is decided ONCE, in config.js
+    // (ephSectionOfType — every accepted spelling, old and new). This page
+    // has no Mock-Ups tab of its own, so mock-ups sit under "Other" with
+    // the memorabilia, as they always have.
     let _cTab = 'items';
-    const _ct = String(pd.itemType || '').toLowerCase();
-    if (_ct === 'paper' || _ct === 'paper item') _cTab = 'paper';
-    else if (_ct === 'catalog') _cTab = 'catalogs';
-    else if (_ct === 'mock-up' || _ct === 'mockup' || _ct === 'other lionel') _cTab = 'other';
+    const _cSec = (typeof ephSectionOfType === 'function') ? ephSectionOfType(pd.itemType) : '';
+    if (_cSec === 'paper') _cTab = 'paper';
+    else if (_cSec === 'catalogs') _cTab = 'catalogs';
+    else if (_cSec) _cTab = 'other';   // mockups + other (Memorabilia)
     out.push({
       type:    _cTab,
       key:     'pd|' + key,
@@ -726,7 +730,9 @@ function openEphemeraDetail(tabId, rowKey) {
   const item = (state.ephemeraData[tabId] || {})[rowKey];
   if (!item) return;
   const isMockup = tabId === 'mockups';
-  const labels = { catalogs:'Catalog', paper:'Paper Item', mockups:'Mock-Up', other:'Other Item' };
+  // v0.9.1843: the section's one-item name from the ONE definition (config.js).
+  const labels = {};
+  EPHEMERA_TABS.forEach(t => { labels[t.id] = t.single; });
 
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay open';
@@ -801,7 +807,9 @@ function openEphemeraDetail(tabId, rowKey) {
 
 // ── Ephemera Actions ─────────────────────────────────────────────
 
-const _ephTabNames  = { catalogs:'Catalogs', paper:'Paper Items', mockups:'Mock-Ups', other:'Other Lionel' };
+// v0.9.1843: the legacy tab of each section, from the ONE definition (config.js).
+const _ephTabNames  = {};
+EPHEMERA_TABS.forEach(t => { _ephTabNames[t.id] = t.sheetTab; });
 const _ephTabCols   = { catalogs:'J', paper:'N', mockups:'Q', other:'N' }; // Audit M3: previous widths left trailing cols alive on delete
 
 // ══ v0.9.1289 — one reader for "which sheet tab is this?" ══════════════════

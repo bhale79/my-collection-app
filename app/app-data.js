@@ -14,7 +14,8 @@
 //
 // Depends on globals defined in app.js: state, SHEET_TABS, _currentEra,
 // _getMasterTabs(), idbGet/idbSet/idbRemove, PERSONAL_HEADERS family,
-// MY_SETS_HEADERS, EPHEMERA_TABS, and sheets.js/drive.js helpers.
+// MY_SETS_HEADERS, and sheets.js/drive.js helpers; EPHEMERA_TABS + ephCanonType
+// come from config.js (v0.9.1843).
 
 // ── Post-load data patches (correct known errors in master sheet) ──
 // Phase 3 (Session 159 follow-up): state.forSaleData and state.upgradeData
@@ -2128,7 +2129,7 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
     Promise.resolve({values:[]}),   // Catalogs — retired (unified inventory)
     Promise.resolve({values:[]}),   // Paper Items — retired (unified inventory)
     Promise.resolve({values:[]}),   // Mock-Ups — retired (unified inventory)
-    Promise.resolve({values:[]}),   // Other Lionel — retired (unified inventory)
+    Promise.resolve({values:[]}),   // the fourth section's old tab (Memorabilia; "Other Lionel" before v0.9.1843) — retired (unified inventory)
     sheetsGet(sheetId, 'Instruction Sheets!A3:K').catch((e) => { console.warn('[Instruction Sheets load failed]', e && e.message); return {values:[], _failed:true}; }),
     sheetsGet(sheetId, 'Science Sets!A3:O').catch((e) => { console.warn('[Science Sets load failed]', e && e.message); return {values:[], _failed:true}; }),
     sheetsGet(sheetId, 'Construction Sets!A3:O').catch((e) => { console.warn('[Construction Sets load failed]', e && e.message); return {values:[], _failed:true}; }),
@@ -2209,6 +2210,12 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
     });
     // Special: quickEntry stored as 'Yes'/'No' but consumed as boolean
     obj.quickEntry = (obj.quickEntry === 'Yes');
+    // v0.9.1843: a non-train section's Type is read in ONE spelling — the
+    // one this release writes (EPHEMERA_TABS, config.js). A row typed
+    // "Other Lionel" by an older release is Memorabilia from here on; the
+    // sheet cell keeps its old word until the row is next saved. Trains
+    // and everything else pass through untouched.
+    if (typeof ephCanonType === 'function') obj.itemType = ephCanonType(obj.itemType);
     newPersonal[key] = obj;
   });
 

@@ -177,6 +177,18 @@
     var hay = subL + ' ' + desc;
     var itemNum = (item.itemNum || '').toString();
 
+    // ── MEMORABILIA (v0.9.1843) ──
+    // The fourth non-train section (EPHEMERA_TABS, config.js) writes the
+    // Type "Memorabilia"; a row typed "Other Lionel" by an older release
+    // is the same section. The rule below files the master catalog's OWN
+    // 'Memorabilia' rows under Paper / Box / Misc (Lionel's Other tab) and
+    // would turn a collector's dealer sign into "Paper" — so a row the user
+    // typed themselves keeps the section's own word, as a Mock-Up always
+    // has. Master rows are not touched.
+    if (_own && typeof ephSectionOfType === 'function' && ephSectionOfType(it) === 'other') {
+      return (typeof ephTab === 'function' && ephTab('other')) ? ephTab('other').single : it;
+    }
+
     // ── LOCOMOTIVES ──
     // v0.9.1742: a CATALOG row's stored kind is read, not obeyed on sight.
     // 518 master rows carry the opposite kind from what their own description
