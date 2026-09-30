@@ -9,6 +9,13 @@
 // duplicates are judged by the app's OWN dedupe key; the report and the
 // flags file say what the flags say; the second run knows what is new and
 // what cleared. Section H plants an offender for the load-bearing pieces.
+//
+// 2026-09-30, the reader: the audit reads each tab's EXPORT CSV (gid from the
+// sheet's public page), never the gviz endpoint — gviz blanks a text cell in
+// a mostly-numeric column ("116C", Variation "A"), which made 957 numbered
+// rows look numberless. B4–B6 test the gid reader, C27/C28 a lettered number
+// and a blank row's row number, F2 a tab the sheet does not have, H6 the
+// planted gviz offender.
 // ════════════════════════════════════════════════════════════════════════
 'use strict';
 const fs = require('fs'), path = require('path'), os = require('os');
@@ -41,6 +48,7 @@ const GOOD = [
   row({ itemNum: '022', itemType: 'Track', description: 'Remote-control switch pair', yearProd: '1945-1969' }),   // accessory kind: no road wanted
   row({ itemNum: '1364-12-58', itemType: 'Accessory', description: 'A number that wears dashes but is no date', yearProd: 'Fall 1958' }),
   row({ itemNum: '6017', itemType: 'Caboose', roadName: 'Lionel Lines', description: 'SP-type caboose', yearProd: '1955-1957, 1959', variation: 'B' }),
+  row({ itemNum: '116C', itemType: 'Boxcar', roadName: 'Seaboard', description: 'a number with a letter in it — the shape the gviz CSV used to blank', yearProd: '1955' }),
 ];
 const BAD = {
   'num-missing':        row({ itemNum: '', itemType: 'Boxcar', roadName: 'Erie', description: 'a boxcar with no number' }),
@@ -83,7 +91,8 @@ function writeFixture(dir, rows, header) {
   fs.mkdirSync(dir, { recursive: true });
   const H = header || HEADER;
   const pad = r => r.concat(Array(Math.max(0, H.length - r.length)).fill(''));
-  fs.writeFileSync(path.join(dir, 'Lionel PW - Items.csv'), [csvLine(H)].concat(rows.map(r => csvLine(pad(r)))).join('\n') + '\n');
+  // row 2 is blank, like the real tabs — a blank row is skipped but keeps its row number (the export keeps blank rows)
+  fs.writeFileSync(path.join(dir, 'Lionel PW - Items.csv'), [csvLine(H), csvLine(pad([]))].concat(rows.map(r => csvLine(pad(r)))).join('\n') + '\n');
   fs.writeFileSync(path.join(dir, 'Lionel Pre-War.csv'), [csvLine(H)].concat(PREWAR.map(r => csvLine(pad(r)))).join('\n') + '\n');
   fs.writeFileSync(path.join(dir, 'Master Version.csv'), csvLine(['Version', 'Date', 'Notes']) + '\n' + csvLine(['1.86', '2026-09-27', 'test']) + '\n' + csvLine(['1.85', '2026-09-27', 'older']) + '\n');
 }
@@ -112,6 +121,17 @@ function writeFixture(dir, rows, header) {
     && audit.yearsOf('Postwar era') === null && audit.yearsOf('?') === null && JSON.stringify(audit.yearsOf('')) === '[]');
   T('B3  the CSV reader keeps quoted commas, doubled quotes and a newline inside quotes',
     JSON.stringify(audit.parseCsv('"a,b","say ""hi""","two\nlines"\r\n1,2,3\n')) === JSON.stringify([['a,b', 'say "hi"', 'two\nlines'], ['1', '2', '3']]));
+  // the sheet's public page, as it really reads (names are JS string literals; the page URL carries \x3d)
+  const PAGE = 'x;items.push({name: "Lionel PW - Items", pageUrl: "https:\\/\\/docs.google.com\\/spreadsheets\\/d\\/ID\\/htmlview\\/sheet?headers\\x3dtrue&gid=129413875", gid: "129413875",initialSheet: ("129413875" == gid)});'
+             + 'items.push({name: "Brad\\x27s \\"Odd\\" Tab \\/ caf\\u00e9", pageUrl: "p", gid: "42",initialSheet: false});'
+             + 'items.push({name: "Lionel PW - Items", pageUrl: "p", gid: "999",initialSheet: false});';
+  const gm = audit.gidMapFromHtml(PAGE);
+  T('B4  the tab → gid map is read off the sheet\'s public page, names decoded, first entry wins',
+    gm['Lionel PW - Items'] === '129413875' && gm['Brad\'s "Odd" Tab / café'] === '42' && Object.keys(gm).length === 2, gm);
+  T('B4b …and a page with no tab list gives an empty map (the run then stops, loudly)', Object.keys(audit.gidMapFromHtml('<html>nothing here</html>')).length === 0);
+  T('B5  the export address carries the gid, cells as displayed — and it is not the gviz endpoint',
+    audit.exportUrl('SHEET', '129413875') === 'https://docs.google.com/spreadsheets/d/SHEET/export?format=csv&gid=129413875' && !/gviz/.test(audit.exportUrl('SHEET', '1')) && /\/htmlview$/.test(audit.htmlviewUrl('SHEET')));
+  T('B6  jsUnescape decodes \\xHH, \\uHHHH and \\-escapes', audit.jsUnescape('a\\x3db\\u00e9\\/\\"') === 'a=bé/"');
 
   // ── C ───────────────────────────────────────────────────────────────────
   section('C · the real audit on the planted tab');
@@ -152,6 +172,10 @@ function writeFixture(dir, rows, header) {
   T('C25 every rule in the table fired at least once (the fixture covers the table)',
     audit.ALL_RULES.every(r => S1.flags.some(f => f.rule === r.id)), audit.ALL_RULES.filter(r => !S1.flags.some(f => f.rule === r.id)).map(r => r.id));
   T('C26 every flag carries the cell as it stands', S1.flags.every(f => typeof f.value === 'string'));
+  T('C27 a number with a letter in it (116C) is a number — never num-missing (the shape the gviz CSV blanked)', !has('116C', 'num-missing') && !S1.flags.some(f => f.itemNum === '116C'));
+  const nm = byNum['|num-missing'] && byNum['|num-missing'][0];
+  T('C28 a flag\'s row is the SHEET row — the blank row 2 is counted, not skipped (the first planted row sits at row 3 + the good rows)',
+    nm && nm.row === 3 + GOOD.length, nm && nm.row);
 
   // ── D ───────────────────────────────────────────────────────────────────
   section('D · the files it writes');
@@ -164,8 +188,8 @@ function writeFixture(dir, rows, header) {
   T('D3  …has the by-rule table with every firing rule', audit.ALL_RULES.every(r => mdText.indexOf('`' + r.id + '`') >= 0));
   T('D4  …lists the words the app cannot read, counted', /## Words the app cannot read/.test(mdText) && /Premiums \| 1/.test(mdText) && /Toy \| 1/.test(mdText));
   T('D4b …and the coverage table per tab (road / type / gauge / year / description / link)', /\| tab \| era \| rows \| flags \| road \| type \| gauge \| year \| description \| link \|/.test(mdText) && /\| Lionel PW - Items \| pw \| \d+ \| \d+ \| \d+% \| \d+% \| \d+% \| \d+% \| \d+% \| \d+% \|/.test(mdText));
-  T('D5  …and says a csv row is not a sheet row', /csv row is not a sheet row/.test(mdText));
-  T('D6  the flags file has one line per flag plus the header, with the cell value', csvText.split('\n').filter(Boolean).length === S1.flags.length + 1 && /^tab,item number,variation,rule,kind,field,cell as it stands,note,csv row,new$/.test(csvText.split('\n')[0]));
+  T('D5  …and says the sheet row is a hint only (rows move when the sheet is edited)', /sheet row is a hint only/.test(mdText) && !/csv row/.test(mdText));
+  T('D6  the flags file has one line per flag plus the header, with the cell value', csvText.split('\n').filter(Boolean).length === S1.flags.length + 1 && /^tab,item number,variation,rule,kind,field,cell as it stands,note,sheet row,new$/.test(csvText.split('\n')[0]));
   T('D7  STATE.json holds every flag key and the counts', state1.keys.length === new Set(S1.flags.map(audit.flagKey)).size && state1.counts['dup-exact'] === 2 && state1.date === '2026-09-30');
 
   // ── E ───────────────────────────────────────────────────────────────────
@@ -189,6 +213,8 @@ function writeFixture(dir, rows, header) {
   const S3 = await audit.run({ out: path.join(tmp, 'out3'), fixture: fx3, tabs: ['Lionel PW - Items'], date: '2026-09-30' });
   T('F1  a tab whose row 1 is not an item header is flagged tab-header and marked HEADER NOT READ',
     S3.flags.some(f => f.rule === 'tab-header') && !S3.tabs[0].headerOk && /HEADER NOT READ/.test(fs.readFileSync(path.join(tmp, 'out3', 'MASTER_AUDIT_2026-09-30.md'), 'utf8')));
+  let f2err = null; try { await audit.readTab({ MASTER_SHEET_ID: 'X', _gids: { 'Other Tab': '1' } }, 'Lionel PW - Items', null); } catch (e) { f2err = e.message; }
+  T('F2  a tab the sheet\'s page does not list is refused by name, before any fetch', /no tab named "Lionel PW - Items"/.test(f2err || '') && /lists 1 tabs/.test(f2err || ''), f2err);
 
   // ── G ───────────────────────────────────────────────────────────────────
   section('G · the workbook builder');
@@ -223,6 +249,12 @@ function writeFixture(dir, rows, header) {
   T('H4  the season year on a good row is read (no year-unreadable) — a reader without seasons would flag it', !r4good.flags.some(f => f.rule === 'year-unreadable'));
   // H5: the tab list — a hand-typed list would not follow config.js
   T('H5  the tab list is not a literal in the audit: it names no tab of its own', !/'Lionel PW - Items'|'MTH O'|'Atlas O'/.test(fs.readFileSync(path.join(__dirname, '..', 'tools', 'master-audit', 'audit.js'), 'utf8').replace(/\/\/[^\n]*/g, '')));
+  // H6: the reader — the export endpoint, never gviz (which blanks text in a numeric column). The scan and its offender.
+  // full-line comments only — a "//" inside a URL string is code, not a comment
+  const auditCode = fs.readFileSync(path.join(__dirname, '..', 'tools', 'master-audit', 'audit.js'), 'utf8').replace(/^\s*\/\/[^\n]*$/gm, '');
+  const readerOk = code => /export\?format=csv&gid=/.test(code) && !/gviz\/tq/.test(code);
+  const offender = auditCode.replace("'/export?format=csv&gid=' + gid", "'/gviz/tq?tqx=out:csv&gid=' + gid");
+  T('H6  the reader asks the export endpoint and never gviz — and a reader switched back to gviz fails this check', readerOk(auditCode) && !readerOk(offender) && offender !== auditCode);
 
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
   process.exit(fail ? 1 : 0);

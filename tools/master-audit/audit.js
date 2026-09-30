@@ -10,8 +10,15 @@
 //                                      [--tabs "MTH O,Atlas O"] [--fixture <dir>]
 //
 // Every check is a plain RULE (the table below) — no Claude tokens per row.
-// The master is read the way the public already can: each tab's gviz CSV
-// (no token, no Sheets quota). The rules ask the APP'S OWN definitions, never
+// The master is read the way the public already can: each tab's EXPORT CSV
+// (export?format=csv&gid=…, cells exactly as the sheet displays them; no
+// token, no Sheets quota), the tab's gid taken from the sheet's public
+// htmlview page. NOT the gviz endpoint: gviz types a column by its majority
+// and BLANKS a text cell in a mostly-numeric column — "116C", "1A", "ART-5400"
+// and Variation # "A"/"B" all read as empty, which made 957 numbered rows look
+// numberless and five distinct MPC rows look identical (2026-09-30). The
+// export keeps text as text and keeps blank rows, so a CSV row IS a sheet row.
+// The rules ask the APP'S OWN definitions, never
 // a copy: the tab list is ERA_TABS + MASTER_TAB_KEYS (config.js), fields are
 // read by header name through MASTER_COL_SPEC / parseMasterRow (app-data.js),
 // a type is judged by getTypeBucket (type-groups.js), a gauge by
@@ -24,9 +31,8 @@
 // the banded workbook), STATE.json (the flag keys, for the next run's deltas).
 //
 // A flag is identified by tab + item number + variation + rule + field —
-// stable identifiers, never a row number. The gviz row is given only as a
-// hint: MTH S Gauge and MTH G Scale carry 200 blank rows mid-tab that a CSV
-// read skips (SCHEMA.md), so a CSV row is NOT a sheet row.
+// stable identifiers, never a row number. The sheet row is given only as a
+// hint (rows move whenever the sheet is edited).
 //
 // --fixture <dir> reads <dir>/<tab>.csv instead of the network — that is how
 // tests/master_list_tests.js runs the real rules on planted rows.
@@ -116,8 +122,27 @@ function auditTabs(A, only) {
 }
 
 // ── reading a tab ────────────────────────────────────────────────────────
-function gvizUrl(sheetId, tab) {
-  return 'https://docs.google.com/spreadsheets/d/' + sheetId + '/gviz/tq?tqx=out:csv&sheet=' + encodeURIComponent(tab) + '&headers=1';
+// The sheet's public htmlview page lists every tab with its gid; the export
+// endpoint needs the gid. One page fetch per run, then one export per tab.
+function htmlviewUrl(sheetId) { return 'https://docs.google.com/spreadsheets/d/' + sheetId + '/htmlview'; }
+function exportUrl(sheetId, gid) { return 'https://docs.google.com/spreadsheets/d/' + sheetId + '/export?format=csv&gid=' + gid; }
+// The tab names on that page are JS string literals ("\x3d", "\/", "\"") — decode them.
+function jsUnescape(s) {
+  return s.replace(/\\x([0-9A-Fa-f]{2})/g, (m, h) => String.fromCharCode(parseInt(h, 16)))
+          .replace(/\\u([0-9A-Fa-f]{4})/g, (m, h) => String.fromCharCode(parseInt(h, 16)))
+          .replace(/\\(.)/g, '$1');
+}
+function gidMapFromHtml(html) {
+  const map = {};
+  const re = /items\.push\(\{name: "((?:[^"\\]|\\.)*)", pageUrl: "[^"]*", gid: "(\d+)"/g;
+  let m; while ((m = re.exec(html))) { const name = jsUnescape(m[1]); if (!(name in map)) map[name] = m[2]; }
+  return map;
+}
+async function loadGids(A) {
+  const map = gidMapFromHtml(await fetchText(htmlviewUrl(A.MASTER_SHEET_ID)));
+  if (!Object.keys(map).length) throw new Error('the sheet\'s public page listed no tabs — nothing was read');
+  A._gids = map;
+  return map;
 }
 function fetchText(url, hops) {
   hops = hops || 0;
@@ -159,7 +184,10 @@ async function readTab(A, tab, fixtureDir) {
     if (!fs.existsSync(f)) return null;
     return parseCsv(fs.readFileSync(f, 'utf8'));
   }
-  return parseCsv(await fetchText(gvizUrl(A.MASTER_SHEET_ID, tab)));
+  const gids = A._gids || await loadGids(A);
+  const gid = gids[tab];
+  if (gid === undefined) throw new Error('no tab named "' + tab + '" on the sheet (its public page lists ' + Object.keys(gids).length + ' tabs)');
+  return parseCsv(await fetchText(exportUrl(A.MASTER_SHEET_ID, gid)));
 }
 
 // ── the rules — ONE table ────────────────────────────────────────────────
@@ -317,8 +345,8 @@ function checkTab(A, t, csvRows) {
   const parsed = [];
   for (let n = 1; n < csvRows.length; n++) {
     const r = csvRows[n];
-    if (!r || !r.some(c => String(c || '').trim())) continue;   // a blank line (gviz skips them anyway)
-    const m = A.parseMasterRow(r, t.tab, cm); m._era = t.era; m._csvRow = n + 1;
+    if (!r || !r.some(c => String(c || '').trim())) continue;   // a blank row — skipped, but it keeps its row number
+    const m = A.parseMasterRow(r, t.tab, cm); m._era = t.era; m._sheetRow = n + 1;
     parsed.push(m);
   }
   res.rowsChecked = parsed.length;
@@ -338,10 +366,10 @@ function checkTab(A, t, csvRows) {
   parsed.forEach(m => {
     RULES.forEach(rule => {
       let note = ''; try { note = rule.test(m, ctx); } catch (e) { note = 'rule threw: ' + e.message; }
-      if (note) res.flags.push({ tab: t.tab, row: m._csvRow, itemNum: m.itemNum, variation: m.variation, rule: rule.id, field: rule.field, value: String(m[rule.field] == null ? '' : m[rule.field]), note: String(note) });
+      if (note) res.flags.push({ tab: t.tab, row: m._sheetRow, itemNum: m.itemNum, variation: m.variation, rule: rule.id, field: rule.field, value: String(m[rule.field] == null ? '' : m[rule.field]), note: String(note) });
     });
   });
-  tabRules(parsed, A).forEach(f => { const m = parsed[f.i]; res.flags.push({ tab: t.tab, row: m._csvRow, itemNum: m.itemNum, variation: m.variation, rule: f.id, field: f.field, value: m.itemNum, note: f.note }); });
+  tabRules(parsed, A).forEach(f => { const m = parsed[f.i]; res.flags.push({ tab: t.tab, row: m._sheetRow, itemNum: m.itemNum, variation: m.variation, rule: f.id, field: f.field, value: m.itemNum, note: f.note }); });
   return res;
 }
 const flagKey = f => [f.tab, f.itemNum.trim(), f.variation.trim(), f.rule, f.field].join('|');
@@ -369,7 +397,7 @@ function md(S) {
   const m = S.meta;
   L.push('# Master-list audit — ' + m.date + (m.masterVersion ? ' — Master Version ' + m.masterVersion : ''));
   L.push('');
-  L.push('Read the way the public reads it (each tab\'s CSV), judged by the app\'s own rules. ' + S.tabs.length + ' tabs, **' +
+  L.push('Read the way the public reads it (each tab\'s export CSV, cells as the sheet shows them), judged by the app\'s own rules. ' + S.tabs.length + ' tabs, **' +
          S.tabs.reduce((a, t) => a + t.rowsChecked, 0).toLocaleString() + ' rows checked, ' + S.flags.length.toLocaleString() + ' flags**' +
          (m.prevDate ? (' — **' + S.fresh.length.toLocaleString() + ' new** since ' + m.prevDate + ', **' + S.cleared.length.toLocaleString() + ' cleared**.') : ' (first run — every flag counts as new).'));
   L.push('');
@@ -410,7 +438,7 @@ function md(S) {
   });
   if (S.fresh.length && m.prevDate) {
     L.push(''); L.push('## New since ' + m.prevDate + ' (first 60)'); L.push('');
-    S.fresh.slice(0, 60).forEach(f => L.push('- ' + f.tab + ' · **' + (f.itemNum || '(no number)') + (f.variation ? ' var ' + f.variation : '') + '** · `' + f.rule + '` — ' + f.note + ' (csv row ' + f.row + ')'));
+    S.fresh.slice(0, 60).forEach(f => L.push('- ' + f.tab + ' · **' + (f.itemNum || '(no number)') + (f.variation ? ' var ' + f.variation : '') + '** · `' + f.rule + '` — ' + f.note + ' (sheet row ' + f.row + ')'));
   }
   if (S.cleared.length) {
     L.push(''); L.push('## Cleared since ' + m.prevDate + ' (first 60)'); L.push('');
@@ -420,15 +448,15 @@ function md(S) {
   Object.keys(S.perRule).forEach(id => {
     const ex = S.flags.filter(f => f.rule === id).slice(0, 8); if (!ex.length) return;
     L.push('**`' + id + '` — ' + ruleTitle(id) + '**'); L.push('');
-    ex.forEach(f => L.push('- ' + f.tab + ' · ' + (f.itemNum || '(no number)') + (f.variation ? ' var ' + f.variation : '') + ' — ' + f.note + ' (csv row ' + f.row + ')'));
+    ex.forEach(f => L.push('- ' + f.tab + ' · ' + (f.itemNum || '(no number)') + (f.variation ? ' var ' + f.variation : '') + ' — ' + f.note + ' (sheet row ' + f.row + ')'));
     L.push('');
   });
-  L.push('_A flag is tab + item number + variation + rule; the csv row is a hint only — MTH S Gauge and MTH G Scale carry blank rows a CSV read skips, so a csv row is not a sheet row._');
+  L.push('_A flag is tab + item number + variation + rule; the sheet row is a hint only — rows move whenever the sheet is edited (the export keeps blank rows, so the number is the row as it stood when this ran)._');
   return L.join('\n') + '\n';
 }
 function csvEscape(s) { s = String(s == null ? '' : s); return /[",\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; }
 function flagsCsv(S) {
-  const L = ['tab,item number,variation,rule,kind,field,cell as it stands,note,csv row,new'];
+  const L = ['tab,item number,variation,rule,kind,field,cell as it stands,note,sheet row,new'];
   const freshKeys = new Set(S.fresh.map(flagKey));
   S.flags.forEach(f => L.push([f.tab, f.itemNum, f.variation, f.rule, ruleSev(f.rule), f.field, f.value || '', f.note, f.row, freshKeys.has(flagKey(f)) ? 'new' : ''].map(csvEscape).join(',')));
   return L.join('\n') + '\n';
@@ -439,6 +467,7 @@ async function run(opts) {
   const A = loadApp();
   const tabs = auditTabs(A, opts.tabs);
   const results = [];
+  if (!opts.fixture) await loadGids(A);   // one page fetch; a sheet with no readable tab list stops the run here, loudly
   let masterVersion = '';
   try {
     const mv = await readTab(A, 'Master Version', opts.fixture);
@@ -477,4 +506,4 @@ if (require.main === module) {
   }).catch(e => { console.error('FAILED: ' + (e && e.stack || e)); process.exit(1); });
 }
 
-module.exports = { loadApp, auditTabs, parseCsv, checkTab, summarize, md, flagsCsv, flagKey, run, RULES, TAB_RULES, ALL_RULES, yearsOf, looksLikeDate };
+module.exports = { loadApp, auditTabs, parseCsv, checkTab, summarize, md, flagsCsv, flagKey, run, RULES, TAB_RULES, ALL_RULES, yearsOf, looksLikeDate, readTab, loadGids, gidMapFromHtml, exportUrl, htmlviewUrl, jsUnescape };

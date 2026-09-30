@@ -18,7 +18,7 @@ from openpyxl.utils import get_column_letter
 GRAY = PatternFill('solid', fgColor='EEEEEE')
 HEAD = PatternFill('solid', fgColor='1F2A44')
 WIDTHS = {'tab': 24, 'item number': 14, 'variation': 9, 'rule': 20, 'kind': 7, 'field': 12,
-          'cell as it stands': 40, 'note': 60, 'csv row': 8, 'new': 5, 'Your decision': 28}
+          'cell as it stands': 40, 'note': 60, 'sheet row': 8, 'new': 5, 'Your decision': 28}
 
 
 def sheet(wb, title, header, rows):
