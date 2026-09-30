@@ -1426,7 +1426,7 @@
       var _lineIsScale = !_anyMaker && scaleSet.length === scales.length
         && scaleSet.every(function (c) { return _scOf(c).length === 1; });
       // v0.9.1505 (task #30): a line whose one catalog spans periods (Marx,
-      // 1930-1975) offers the period too — optional, stored only if picked.
+      // 1927-2004) offers the period too — optional, stored only if picked.
       var _eraPick0 = _anyMaker ? '' : (pick.era || (lines.length === 1 ? lines[0].key : ''));
       var _spansPer = !!(_eraPick0 && typeof ERA_SPANS_PERIODS !== 'undefined' && ERA_SPANS_PERIODS[_eraPick0]);
       if (!lines.some(function (c) { return c.key === pick.era; })) pick.era = lines.length === 1 ? lines[0].key : '';

@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.1843';
+const APP_VERSION = 'v0.9.1844';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -1054,11 +1054,11 @@ const ERAS = {
   atlas_ho: { id: 'atlas_ho', label: 'Atlas HO',    years: 'All',        prefix: 'Atlas HO',       manufacturer: 'Atlas' },
   atlas_n:  { id: 'atlas_n',  label: 'Atlas N',     years: 'All',        prefix: 'Atlas N',        manufacturer: 'Atlas' },
   atlas_z:  { id: 'atlas_z',  label: 'Atlas Z',     years: 'All',        prefix: 'Atlas Z',        manufacturer: 'Atlas' },
-  mth_o:        { id: 'mth_o',        label: 'MTH O',         years: '2000-2020', prefix: 'MTH O',        manufacturer: 'MTH' },
+  mth_o:        { id: 'mth_o',        label: 'MTH O',         years: '1995-Today', prefix: 'MTH O',        manufacturer: 'MTH' },   // v0.9.1844: measured on the tab — 1,574 rows 1995–99, 1,934 rows 2025–26 (was 2000-2020)
   mth_ho:       { id: 'mth_ho',       label: 'MTH HO',        years: '2006-2019', prefix: 'MTH HO',       manufacturer: 'MTH' },
   mth_s:        { id: 'mth_s',        label: 'MTH S Gauge',   years: '2013-2019', prefix: 'MTH S Gauge',  manufacturer: 'MTH' },
-  mth_tinplate: { id: 'mth_tinplate', label: 'MTH Tinplate',  years: '2001-2020', prefix: 'MTH Tinplate', manufacturer: 'MTH' },
-  mth_g:        { id: 'mth_g',        label: 'MTH G Scale',   years: '2001-2019', prefix: 'MTH G Scale',  manufacturer: 'MTH' },
+  mth_tinplate: { id: 'mth_tinplate', label: 'MTH Tinplate',  years: '1993-Today', prefix: 'MTH Tinplate', manufacturer: 'MTH' },   // v0.9.1844: measured — rows from 1993 to 2026 (was 2001-2020)
+  mth_g:        { id: 'mth_g',        label: 'MTH G Scale',   years: '2001-Today', prefix: 'MTH G Scale',  manufacturer: 'MTH' },   // v0.9.1844: measured — 99 rows past 2019 (was 2001-2019)
   // Session 128: Lionel HO + S sub-eras. Sheet tabs scaffolded but mostly empty
   // — Brad will populate them with actual HO/S items over time.
   // Session 154: Weaver — O-scale manufacturer. "Ultra Line" / "Gold Line" are
@@ -1081,9 +1081,9 @@ const ERAS = {
   // is ONE tab for the long tail — AMT (14 items), KMT, Industrial Rail, Bowser
   // and friends. Each of those is too small to justify its own era and nav slot,
   // but collectors still own them, so the rows exist and can be uploaded to.
-  kline:    { id: 'kline',    label: 'K-Line O',   years: '1975-2006', prefix: 'K-Line O',   manufacturer: 'K-Line' },
+  kline:    { id: 'kline',    label: 'K-Line O',   years: '1975-2021', prefix: 'K-Line O',   manufacturer: 'K-Line' },   // v0.9.1844: K-Line by Lionel rows run to 2021 (was 1975-2006)
   williams: { id: 'williams', label: 'Williams O', years: 'All',       prefix: 'Williams O', manufacturer: 'Williams' },
-  marx:     { id: 'marx',     label: 'Marx O',     years: '1930-1975', prefix: 'Marx O',     manufacturer: 'Marx' },
+  marx:     { id: 'marx',     label: 'Marx O',     years: '1927-2004', prefix: 'Marx O',     manufacturer: 'Marx' },   // v0.9.1844: the tab starts in 1927 and carries the 1990s Marx Trains reissues (was 1930-1975)
   other_o:  { id: 'other_o',  label: 'Other O Brands', years: 'All',   prefix: 'Other O',    manufacturer: '' },
   // 2026-07-19: 3rd Rail / Sunset Models (incl. Golden Gate Depot) — brass O.
   // No factory catalog numbers; itemNums are 3R-/GGD- road+model slugs from

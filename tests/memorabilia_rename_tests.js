@@ -198,7 +198,14 @@ const LIVE = ['Instruction Sheets', 'Science Sets', 'Construction Sets', 'My Set
   const memLit = /['"]Memorabilia['"]/;
   const withMem = files.filter(f => f !== 'type-groups.js' && memLit.test(stripComments(SRC(f), false)));
   T('G4  "Memorabilia" is quoted in no script but config.js (and type-groups\' master synonym)', withMem.length === 0, withMem);
-  T('G5  …and in type-groups.js only on the master synonym line', (stripComments(tg, false).match(/['"]Memorabilia['"]/g) || []).length === 1);
+  // v0.9.1844: a second master-vocabulary place — the case-canon word list
+  // (_TYPE_CANON_WORDS) names every word the direct branches compare, the
+  // master synonym 'Memorabilia' among them. Both are catalog vocabulary,
+  // neither is the section's label; anywhere else would be a third copy.
+  const tgCode = stripComments(tg, false);
+  const tgHits = (tgCode.match(/['"]Memorabilia['"]/g) || []).length;
+  const canonSlice = tgCode.slice(tgCode.indexOf('var _TYPE_CANON_WORDS = ['), tgCode.indexOf('];', tgCode.indexOf('var _TYPE_CANON_WORDS = [')));
+  T('G5  …and in type-groups.js only on the master synonym line and in the case-canon word list', tgHits === 2 && /'Memorabilia'/.test(canonSlice) && /it === 'Memorabilia'/.test(tgCode), tgHits);
   T('G6  …and nowhere in index.html', !memLit.test(stripComments(ix, 'html')));
   T('G7  app.js no longer carries its own copy of the section list', !/const EPHEMERA_TABS = \[/.test(stripComments(SRC('app.js'), false)));
   T('G8  browse.js builds its section tables from the definition, not by hand',

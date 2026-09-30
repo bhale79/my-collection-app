@@ -49,7 +49,7 @@ const BAD = {
   'num-decimal':        row({ itemNum: '3002231.0', itemType: 'Boxcar', roadName: 'Erie', description: 'a number stored as a decimal' }),
   'num-space':          row({ itemNum: ' 6464-1 ', itemType: 'Boxcar', roadName: 'Erie', description: 'a number with spaces' }),
   'type-missing':       row({ itemNum: '9001', itemType: '', roadName: 'Erie', description: 'no type at all' }),
-  'type-unknown':       row({ itemNum: '9002', itemType: 'Packet', description: 'a word the buckets do not know' }),
+  'type-unknown':       row({ itemNum: '9002', itemType: 'Premiums', description: 'a word the buckets do not know (left as its own word on purpose, v1844)' }),
   'road-blank':         row({ itemNum: '9003', itemType: 'Boxcar', roadName: '', description: 'a boxcar with no road — counted in coverage, never flagged' }),
   'desc-missing':       row({ itemNum: '9004', itemType: 'Boxcar', roadName: 'Erie', description: '' }),
   'desc-short':         row({ itemNum: '9005', itemType: 'Boxcar', roadName: 'Erie', description: 'TTX' }),
@@ -59,7 +59,7 @@ const BAD = {
   'year-out-of-range':  row({ itemNum: '9009', itemType: 'Boxcar', roadName: 'Erie', description: 'year from the future', yearProd: '2199' }),
   'year-backwards':     row({ itemNum: '9010', itemType: 'Boxcar', roadName: 'Erie', description: 'range runs backwards', yearProd: '1960-1950' }),
   'year-off-era':       row({ itemNum: '9011', itemType: 'Boxcar', roadName: 'Erie', description: 'a prewar year on the postwar tab', yearProd: '1938' }),
-  'gauge-unknown':      row({ itemNum: '9012', itemType: 'Boxcar', roadName: 'Erie', description: 'a gauge spelling the app cannot read', gauge: 'Super O Gauge' }),
+  'gauge-unknown':      row({ itemNum: '9012', itemType: 'Boxcar', roadName: 'Erie', description: 'a gauge spelling the app cannot read', gauge: 'Toy' }),
   'link-bad':           row({ itemNum: '9013', itemType: 'Boxcar', roadName: 'Erie', description: 'a link that is not one', refLink: 'see COTT page 44' }),
   'value-bad':          row({ itemNum: '9014', itemType: 'Boxcar', roadName: 'Erie', description: 'a value with no amount in it', marketVal: 'no price shown' }),
   'value-absurd':       row({ itemNum: '9018', itemType: 'Boxcar', roadName: 'Erie', description: 'an absurd amount', marketVal: '$1,250,000' }),
@@ -97,7 +97,7 @@ function writeFixture(dir, rows, header) {
   T('A2  …and the parts catalogs (lookup-only eras) are not on it', audit.auditTabs(A).every(t => A.LOOKUP_ONLY_ERAS.indexOf(t.era) < 0));
   T('A3  …and it can be narrowed to named tabs', audit.auditTabs(A, ['MTH O', 'Atlas O']).map(t => t.tab).sort().join() === 'Atlas O,MTH O');
   T('A4  types are judged by the real getTypeBucket; gauges by the real _scalesOfGauge',
-    A.getTypeBucket({ itemType: 'Boxcar' }) === 'Boxcar' && A._scalesOfGauge('O Gauge').join() === 'o' && A._scalesOfGauge('Super O Gauge').length === 0);
+    A.getTypeBucket({ itemType: 'Boxcar' }) === 'Boxcar' && A._scalesOfGauge('O Gauge').join() === 'o' && A._scalesOfGauge('Toy').length === 0);
   T('A5  duplicates are judged by the app\'s own dedupe key, lifted from _deduplicateMaster',
     A.masterDedupeKey({ itemNum: '1', roadName: 'R', variation: 'A', poweredDummy: 'P', description: 'D', trackPower: '3-Rail', subType: 'S', _yearRaw: '1950' }) === '1|R|A|P|D|3-Rail|S|1950');
   T('A6  the Master Version is picked by the app\'s own _mvPickLatest', typeof A._mvPickLatest === 'function');
@@ -131,7 +131,7 @@ function writeFixture(dir, rows, header) {
   T('C6  num-date fires on a date AND on a decimal', has('2005-01-02', 'num-date') && has('3002231.0', 'num-date'));
   T('C7  num-space', has('6464-1', 'num-space'));
   T('C8  type-missing', has('9001', 'type-missing'));
-  T('C9  type-unknown, and it says the word', has('9002', 'type-unknown') && /Packet/.test(byNum['9002|type-unknown'][0].note));
+  T('C9  type-unknown, and it says the word', has('9002', 'type-unknown') && /Premiums/.test(byNum['9002|type-unknown'][0].note));
   T('C10 a blank road is never a flag — it is counted in the coverage picture',
     !S1.flags.some(f => f.rule === 'road-missing') && S1.tabs[0].coverage && S1.tabs[0].coverage.roadOf > 0 && S1.tabs[0].coverage.road < S1.tabs[0].coverage.roadOf);
   T('C11 desc-missing', has('9004', 'desc-missing'));
@@ -142,7 +142,7 @@ function writeFixture(dir, rows, header) {
   T('C16 year-out-of-range on 2199', has('9009', 'year-out-of-range'));
   T('C17 year-out-of-range on a backwards range', has('9010', 'year-out-of-range') && /backwards/.test(byNum['9010|year-out-of-range'][0].note));
   T('C18 year-off-era on 1938 in the postwar tab', has('9011', 'year-off-era'));
-  T('C19 gauge-unknown on "Super O Gauge"', has('9012', 'gauge-unknown'));
+  T('C19 gauge-unknown on Marx\'s "Toy"', has('9012', 'gauge-unknown'));
   T('C20 link-bad', has('9013', 'link-bad'));
   T('C21 value-bad on a money cell with no amount, and on an absurd one — a cell listing several prices passes',
     has('9014', 'value-bad') && has('9018', 'value-bad') && !has('9019', 'value-bad'));
@@ -162,7 +162,7 @@ function writeFixture(dir, rows, header) {
     /Master-list audit — 2026-09-30 — Master Version 1\.86/.test(mdText) && /\*\*[\d,]+ rows checked, [\d,]+ flags\*\*/.test(mdText));
   T('D2  …says which tabs were NOT walked and why', /Not walked/.test(mdText) && /parts catalogs/.test(mdText));
   T('D3  …has the by-rule table with every firing rule', audit.ALL_RULES.every(r => mdText.indexOf('`' + r.id + '`') >= 0));
-  T('D4  …lists the words the app cannot read, counted', /## Words the app cannot read/.test(mdText) && /Packet \| 1/.test(mdText) && /Super O Gauge \| 1/.test(mdText));
+  T('D4  …lists the words the app cannot read, counted', /## Words the app cannot read/.test(mdText) && /Premiums \| 1/.test(mdText) && /Toy \| 1/.test(mdText));
   T('D4b …and the coverage table per tab (road / type / gauge / year / description / link)', /\| tab \| era \| rows \| flags \| road \| type \| gauge \| year \| description \| link \|/.test(mdText) && /\| Lionel PW - Items \| pw \| \d+ \| \d+ \| \d+% \| \d+% \| \d+% \| \d+% \| \d+% \| \d+% \|/.test(mdText));
   T('D5  …and says a csv row is not a sheet row', /csv row is not a sheet row/.test(mdText));
   T('D6  the flags file has one line per flag plus the header, with the cell value', csvText.split('\n').filter(Boolean).length === S1.flags.length + 1 && /^tab,item number,variation,rule,kind,field,cell as it stands,note,csv row,new$/.test(csvText.split('\n')[0]));

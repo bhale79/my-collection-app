@@ -170,7 +170,7 @@
     if (MANUAL_TYPE_OVERRIDES[item.itemNum] && !(_own && (item.itemType || '').trim())) {
       return MANUAL_TYPE_OVERRIDES[item.itemNum];
     }
-    var it = (item.itemType || '').trim();
+    var it = _rrTypeWordCanon((item.itemType || '').trim());
     var sub = (item.subType || '').trim();
     var subL = sub.toLowerCase();
     var desc = ((item.description || '') + ' ' + (item.originalDesc || '') + ' ' + (item.varDesc || '')).toLowerCase();
@@ -301,6 +301,45 @@
     return _normalizeToBucket(it) || 'Other';
   }
 
+  // ── v0.9.1844: the master-list audit's vocabulary pass ──────────────────
+  // Measured 2026-09-30 on the live master: 7,224 rows carried a type the
+  // buckets did not know, 185 different words. Three shapes of miss, each
+  // fixed once here rather than by 185 entries:
+  //   1. the same word in another case — "Rolling stock", "diesel", "electric"
+  //      — so every word a branch below compares exactly is canonised first;
+  //   2. Lionel's HO rows on the O tabs, typed "HO Boxcar", "HO - Tower",
+  //      "HO Caboose - Work Caboose" — the "HO " is stripped and the rest is
+  //      judged like any other type;
+  //   3. a maker's own name for a locomotive — "Diesel/Electric Locomotive"
+  //      (MTH), "Switcher", "Diesel Superbass", "F3 Unit" — sent through the
+  //      same words-decide rule as plain "Locomotive"; "Live steam" is Steam.
+  // The plain synonyms are in _TYPE_SYNONYMS below. Left as their own word on
+  // purpose: "Part" (parts on item tabs), "Auto Rack" (no bucket fits it),
+  // "Premiums" and merchandise, "Separate Sale", "Vat Car", "MOW Car" — the
+  // app shows the word itself, which is honest.
+  var _TYPE_CANON_WORDS = ['Steam Locomotive', 'Diesel Locomotive', 'Electric Locomotive', 'Steam Engine', 'Diesel Engine',
+    'Electric Engine', 'Diesel', 'Steam', 'Electric', 'Motorized Unit', 'Tender', 'Engine', 'Loco', 'Locomotive',
+    'Engine/Locomotive', 'Operating Car', 'Crane Car', 'Auto Carrier', 'Slag Car', 'Passenger Car', 'Caboose',
+    'Science Set', 'Set', 'Set Box', 'Construction Set', 'Test Set', 'Diesel Set', 'Track', 'Switches', 'Crossing',
+    'Transformer', 'Transformer/Power', 'Service Station Tool', 'Service Tool', 'Trolley', 'Interurban', 'Subway Car',
+    'Accessory', 'Billboard', 'Electronics', 'Parts/Supplies', 'Dealer Layout', 'Box', 'Box Reference', 'Form',
+    'Magazine', 'Salesman Brochure', 'Catalog', 'Service Manual', 'Newsletter', 'Stock Certificate', 'Inspection Tag',
+    'Wartime Paper', 'Memorabilia', 'Lionel Other', 'Nabisco Promotion', 'Paper', 'Freight Car', 'Rolling Stock'];
+  var _TYPE_CANON = {};
+  _TYPE_CANON_WORDS.forEach(function (w) { _TYPE_CANON[w.toLowerCase()] = w; });
+  // a maker's own word for an engine → the generic word, so the description decides steam / diesel / electric
+  var _TYPE_LOCO_WORDS = { 'diesel/electric locomotive': 'Locomotive', 'diesel-electric locomotive': 'Locomotive',
+    'switcher': 'Locomotive', 'diesel superbass': 'Diesel Locomotive', 'f3 unit': 'Diesel Locomotive',
+    'live steam': 'Steam Locomotive', 'steam locomotive (live steam)': 'Steam Locomotive' };
+  function _rrTypeWordCanon(raw) {
+    var t = String(raw || '').trim();
+    if (!t) return t;
+    t = t.replace(/^HO\s*-?\s+(?=\S)/, '');          // "HO Boxcar" → "Boxcar"; "HO - Tower" → "Tower"; never "Hopper"
+    var low = t.toLowerCase();
+    if (_TYPE_LOCO_WORDS[low]) return _TYPE_LOCO_WORDS[low];
+    return _TYPE_CANON[low] || t;
+  }
+
   // Fold a loose type string into one of the 23 buckets. Returns the string
   // unchanged when it belongs to nobody (custom user types).
   var _BUCKET_IDS = {};
@@ -327,6 +366,50 @@
     // paper
     'catalog': 'Paper / Box / Misc', 'paper': 'Paper / Box / Misc',
     'transformer': 'Transformer/Power',
+    // ── v0.9.1844: the master-list audit's words (see _rrTypeWordCanon above) ──
+    // sets
+    'car set': 'Set', 'train set': 'Set', 'r-t-r/speciality set': 'Set', 'r-t-r/specialty set': 'Set',
+    'diesel aba set': 'Set', 'diesel ab set': 'Set', 'freight 3-pack': 'Set', 'showcase car 2 pack': 'Set',
+    'support car 2 pack': 'Set', 'heavyweight car 2 pack': 'Set', 'exhibit car 4 pack': 'Set', 'trailer 2-pack': 'Set',
+    // motorized units — self-propelled work and rail cars
+    'powered rail car': 'Motorized Unit', 'rail car': 'Motorized Unit', 'railcar': 'Motorized Unit', 'speeder': 'Motorized Unit',
+    'hand car': 'Motorized Unit', 'handcar': 'Motorized Unit', 'gang car': 'Motorized Unit', 'inspection vehicle': 'Motorized Unit',
+    'jet-powered rail car': 'Motorized Unit', 'snow blower': 'Motorized Unit', 'jet blower': 'Motorized Unit',
+    'tie-jector': 'Motorized Unit', 'tamper': 'Motorized Unit', 'budd car': 'Motorized Unit', 'rdc': 'Motorized Unit',
+    // hoppers
+    'covered hopper': 'Hopper', 'ore car': 'Hopper', 'taconite car': 'Hopper', 'coal car': 'Hopper',
+    // intermodal
+    'tofc flatcar': 'Intermodal', 'intermodal car': 'Intermodal', 'well car': 'Intermodal', 'stack car': 'Intermodal',
+    'container car': 'Intermodal', 'piggyback': 'Intermodal',
+    // passenger bodies
+    'streamliner car': 'Passenger Car', 'heavyweight car': 'Passenger Car', 'heaveyweight car': 'Passenger Car',
+    'vista dome car': 'Passenger Car', 'full vista dome car': 'Passenger Car', 'dome car': 'Passenger Car',
+    'combination car': 'Passenger Car', 'combine car': 'Passenger Car', 'dining car': 'Passenger Car', 'diner': 'Passenger Car',
+    'sleeping car': 'Passenger Car', 'sleeper car': 'Passenger Car', 'mail car': 'Passenger Car', 'express car': 'Passenger Car',
+    'coach': 'Passenger Car', 'coach car': 'Passenger Car', 'baggage car': 'Passenger Car', 'observation car': 'Passenger Car',
+    // operating and specialty cars
+    'aquarium car': 'Operating Freight', 'barrel car': 'Operating Freight', 'missile car': 'Operating Freight',
+    'cannon car': 'Operating Freight', 'launch car': 'Operating Freight', 'radar car': 'Operating Freight',
+    'helicopter car': 'Operating Freight', 'generator car': 'Operating Freight', 'welding car': 'Operating Freight',
+    'cleaning car': 'Operating Freight', 'voltmeter car': 'Operating Freight', 'globe car': 'Operating Freight',
+    'tv car': 'Operating Freight', 'sound car': 'Operating Freight', 'security car': 'Operating Freight',
+    'exhibit car': 'Operating Freight', 'instruction car': 'Operating Freight', 'test car': 'Operating Freight',
+    // accessories — structures, vehicles, signals
+    'bridge': 'Accessory', 'water tower': 'Accessory', 'tower': 'Accessory', 'platform': 'Accessory', 'tunnel': 'Accessory',
+    'terminal': 'Accessory', 'landscape': 'Accessory', 'diorama': 'Accessory', 'display base': 'Accessory',
+    'display case': 'Accessory', 'vehicles': 'Accessory', 'trucks': 'Accessory', 'truck': 'Accessory',
+    'tractor and trailer': 'Accessory', 'die-cast toy': 'Accessory', 'signal': 'Accessory', 'catenary': 'Accessory',
+    'figures': 'Accessory',
+    // track
+    'switch': 'Track', 'crossover': 'Track', 'lock-on': 'Track', 'bumpers': 'Track', 'bumper': 'Track',
+    'mega track': 'Track', 'superstreets': 'Track',
+    // power and control
+    'controller': 'Transformer/Power', 'control': 'Transformer/Power', 'command control': 'Transformer/Power',
+    // paper
+    'packet': 'Paper / Box / Misc', 'manual': 'Paper / Box / Misc', 'record': 'Paper / Box / Misc',
+    'sales material': 'Paper / Box / Misc', 'ephemera': 'Paper / Box / Misc', 'instruction sheet': 'Paper / Box / Misc',
+    'certificate': 'Paper / Box / Misc', 'book': 'Paper / Box / Misc', 'print': 'Paper / Box / Misc',
+    'note cards': 'Paper / Box / Misc', 'misc lionel': 'Paper / Box / Misc',
   };
   function _normalizeToBucket(raw) {
     var t = String(raw || '').trim();

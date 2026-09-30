@@ -1949,6 +1949,21 @@ function _scalesOfGauge(gauge) {
   // v0.9.1804: the Lionel Pre-War tab writes a bare 'Standard' (557 rows). Only
   // 'standard gauge' was recognised, so every one of them came back null —
   // an unknown scale — and vanished from a catalog browse filtered to Standard.
+  // v0.9.1844 — the spellings the master-list audit found the reader could
+  // not read (4,300 rows; harmless where the era has one scale, but the
+  // reader should know them): "Standard O" and "Super O Gauge" and "027
+  // Gauge" are O; "Std Gauge" is Standard; "HO 1:87" is HO; "N 1:160" and
+  // Kato's bare "9" (millimetres) are N; "Gauge 1" and every "1:xx / 45 mm"
+  // (Accucraft, AML) and Bachmann's "Large – Runs on 45mm Track" are G, the
+  // 45 mm track; Bachmann's "Narrow Gauge HO Scale that runs on N Gauge
+  // (9mm) Track" is HOn30. Left unknown on purpose: "3¼\"" (T-Reproductions'
+  // Buddy L track is no scale the app has), "Toy", "Multi-Scale", "N/HO".
+  if (g === 'standard o' || g === 'super o' || g === 'super o gauge' || g === '027 gauge' || g === 'o27 gauge' || g === 'o-27 gauge') return ['o'];
+  if (g === 'std gauge') return ['standard'];
+  if (g === 'ho 1:87' || g === 'ho scale 1:87') return ['ho'];
+  if (g === 'n 1:160' || g === 'n scale 1:160' || g === '9' || g === '9mm' || g === '9 mm') return ['n'];
+  if (g === 'gauge 1' || g === 'gauge one' || g === '1 gauge' || /\b45\s*mm\b/.test(g) || /^1:\d+(\.\d+)?\s*\/\s*45\b/.test(g) || /^g scale\b/.test(g)) return ['g'];
+  if (/^narrow gauge ho\b/.test(g) || g === 'hon30' || g === 'hon2½' || g === 'hon2.5') return ['hon30'];
   if (g === 'standard' || g === 'std' || g === 'standard gauge' || g === 'standard/o gauge' || g.indexOf('2-7/8') === 0) return ['standard'];
   if (g === 'oo scale' || g === 'oo') return ['standard'];
   if (g.indexOf('tinplate') >= 0) return ['standard'];

@@ -698,7 +698,7 @@ var _ERA_PERIOD_LABELS = {
 // recovered). The remaining 158 are Other O Brands — see below.
 //
 // DELIBERATELY ABSENT, do not "complete" these:
-//   marx     — Marx O ran 1930-1975, which spans all three periods.
+//   marx     — Marx O runs 1927-2004 (the 1990s reissues included), which spans all three periods.
 //   other_o  — the long tail (AMT 1950s, KMT, Industrial Rail 1990s, Bowser)
 //              is several makers from several periods under one tab.
 //   all      — the meta-era, not a real one.
@@ -729,7 +729,7 @@ var _ERA_KEY_TO_PERIOD = {
   rmt:          'modern',   // RMT (Ready Made Trains), late 1990s onward
   menards:      'modern',   // Menards store brand, 2014 onward
   menards_ho:   'modern',   // Session 86: the HO split of the same brand
-  kline:        'modern',   // K-Line 1975-2006 (see ERAS)
+  kline:        'modern',   // K-Line 1975-2021 (see ERAS)
   williams:     'modern',   // Williams Reproductions, 1971 onward
   // Session 85 (v0.9.1577): the nine Phase C eras. All modern by manufacture
   // date — Aristo-Craft ~1988-2013, Accucraft and Bachmann current. Missing
@@ -4135,7 +4135,7 @@ function _rrBrowseCore(_co) {
         // S151: chip era is a time period (prewar/postwar/modern).
         var _itmPeriod = (typeof _itemEraPeriod === 'function') ? _itemEraPeriod(item) : null;
         // v0.9.1161 (Brad chose "show under every period"): hide only on a KNOWN
-        // mismatch. A maker whose era genuinely spans periods — Marx 1930-1975,
+        // mismatch. A maker whose era genuinely spans periods — Marx 1927-2004,
         // Other O Brands — has no period at all when the row carries no printed
         // production year, and `null !== 'modern'` was excluding those rows from
         // ALL THREE period chips. An item Brad owns could be absent from a list
