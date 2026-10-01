@@ -4212,7 +4212,9 @@ function _partsChooser(title, sub, options) {
   var old = document.getElementById('_parts-chooser'); if (old) old.remove();
   var ov = document.createElement('div');
   ov.id = '_parts-chooser';
-  ov.style.cssText = 'position:fixed;inset:0;background:var(--scrim);z-index:10090;display:flex;align-items:center;justify-content:center;padding:1.25rem';
+  // v0.9.1855: 100035 — above the task card (100020) and the Need-a-part popup
+  // (100030) that open it; below appConfirm/appPrompt (100080). tests/maint_layers_tests.js.
+  ov.style.cssText = 'position:fixed;inset:0;background:var(--scrim);z-index:100035;display:flex;align-items:center;justify-content:center;padding:1.25rem';
   rrDismissGuard(ov);   // v0.9.1790: a backdrop click does nothing (Brad: "never close if you pick outside")
   var BT = 'display:block;width:100%;text-align:left;padding:0.6rem 0.75rem;margin-bottom:0.45rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.9rem;cursor:pointer';
   ov.innerHTML = '<div class="rr-card"><div class="rr-card-title">' + title + '</div>'

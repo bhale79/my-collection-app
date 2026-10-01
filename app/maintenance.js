@@ -2659,7 +2659,11 @@
           return '<div style="padding:0.3rem 0;border-bottom:1px solid var(--border)"><a href="' + _esc(d.url) + '" target="_blank" rel="noopener" style="color:var(--accent2);font-weight:600;text-decoration:none">' + _esc(d.title || 'untitled') + '</a></div>';
         }).join('')
       : '<div style="font-size:0.8rem;color:var(--text-dim);margin-bottom:0.4rem">No diagram saved for this item yet.</div>';
-    var html = '<div id="maint-parts-pop" style="position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9650;display:flex;align-items:flex-start;justify-content:center;overflow-y:auto;padding:2rem 1rem">'
+    // v0.9.1855 (Brad: "it brought up the need a part page but it was behind
+    // the service page"): the task card sits at 100020; this popup sat at 9650,
+    // UNDER it. One layer above the card, and the chooser it can open sits
+    // above this (app-pages.js). tests/maint_layers_tests.js holds the order.
+    var html = '<div id="maint-parts-pop" style="position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:100030;display:flex;align-items:flex-start;justify-content:center;overflow-y:auto;padding:2rem 1rem">'
       + _cardOpen(520)
       + _cardHead(_esc(taskName), _wbTarget ? 'Add a part' : 'Need a part', closeJs)
       + _maintPickerHtml(tg, taskId)   // v0.9.1752: pick before you type

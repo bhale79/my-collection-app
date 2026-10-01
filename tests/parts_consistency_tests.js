@@ -143,7 +143,7 @@ const chooser = grabFrom(pages, 'function _partsChooser(');
 // hand as well would be the double-wire the dismiss-guard suite fails on. A
 // second assertion checks the hand-rolled call really is gone, because a
 // re-pin that only relaxes is not a re-pin.
-ok('the chooser is an in-app overlay wired to BackStack (device Back closes it), above every other modal', /rrDismissGuard\(ov\)/.test(chooser) && /z-index:10090/.test(chooser) && /PARTS_COPY\.cancel/.test(chooser));
+ok('the chooser is an in-app overlay wired to BackStack (device Back closes it), above every other modal', /rrDismissGuard\(ov\)/.test(chooser) && /z-index:100035/.test(chooser) && /PARTS_COPY\.cancel/.test(chooser));
 ok('…wired in ONE place, not two', !/BackStack\.wire\(ov\)/.test(chooser));
 ok('…and a tap outside no longer closes it (Brad: never close if you pick outside)',
    !/e\.target === ov\) ov\.remove/.test(chooser));
