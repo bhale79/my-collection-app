@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.1846';
+const APP_VERSION = 'v0.9.1847';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -96,6 +96,27 @@ if (typeof window !== 'undefined') window.PERSONAL_TAB = PERSONAL_TAB;
 // The Macintosh+touch clause catches modern iPads (they masquerade as Macs).
 window.IS_MOBILE_UA = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
   || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
+
+// ── v0.9.1847: THE ONE LIST OF HOW EACH PAGE FILLS ITSELF IN ────────────
+// [stated] Brad, after pressing Update on the desktop: the menu came back but
+// the page area was blank until he clicked a menu item. The update reload
+// returns you to the page you were on with a bare showPage(name), and showPage
+// only filled in the pages on ITS OWN list. Workbench, Yardmaster's Office and
+// the Dispatch Board were filled in by their menu BUTTONS instead, so coming
+// back to them any other way showed an empty page. There were three lists of
+// "how to fill in page X" — showPage's, the Back button's (_rrGoBackTo) and
+// each menu button's — and they disagreed.
+// Now there is ONE: a page registers its builder here, and showPage — the one
+// door every route goes through (menu, Back, the update resume, dashboard
+// cards) — calls it. A menu button just calls showPage(name, this).
+window.RR_PAGE_BUILDERS = window.RR_PAGE_BUILDERS || {};
+window.rrRegisterPage = function (name, build) { window.RR_PAGE_BUILDERS[name] = build; };
+window.rrBuildPage = function (name) {
+  var b = window.RR_PAGE_BUILDERS[name];
+  if (typeof b !== 'function') return false;
+  try { b(); } catch (e) { console.warn('[page builder]', name, e); }
+  return true;
+};
 
 // ── v0.9.1791: THE BACKDROP DOES NOT CLOSE ANYTHING ──────────────────────
 // [stated] Brad: "never close if you pick outside", and then, for the

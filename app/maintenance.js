@@ -3783,6 +3783,13 @@
     }
   };
 
+  // v0.9.1847: the Workbench's builder on THE ONE LIST (config.js) — so the
+  // menu, Back and the after-update return all fill it in, not just the button.
+  window.rrRegisterPage('workbench', function () {
+    _loadLog().then(function(){ _wbBuild(); _wbBadge(); });
+    if (!state.myManuals) _loadMyDocs().then(_wbBuild);
+    _wbBuild();
+  });
   function _wbInjectUI() {
     var main = document.getElementById('main-content');   // v0.9.1657: was querySelector('.main-content') — the element's CLASS is 'main'; null fell back to #app and the page rendered BELOW the billboard (Brad's screenshot)
     if (!main) return false;
@@ -3801,7 +3808,7 @@
       var btn = document.createElement('button');
       btn.className = 'nav-item'; btn.id = 'nav-workbench-btn';
       btn.setAttribute('data-ctip', 'The Workbench — open chores and parts, per item. Only you see this.');
-      btn.onclick = function () { showPage('workbench', this); _loadLog().then(function(){ _wbBuild(); _wbBadge(); }); if (!state.myManuals) _loadMyDocs().then(_wbBuild); _wbBuild(); };
+      btn.onclick = function () { showPage('workbench', this); };   // v0.9.1847: showPage fills it in (THE ONE LIST)
       btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>Workbench<span id="nav-workbench-count" class="nav-badge" style="display:none"></span>';
       if (ymBtn) homeSection.insertBefore(btn, ymBtn);
       else if (refreshBtn) homeSection.insertBefore(btn, refreshBtn);

@@ -726,7 +726,8 @@ META_WRITES.length = 0; TOASTS.length = 0;
   ok('a deploy reload remembers the page', /sessionStorage\.setItem\('rr_resume_page'/.test(require('fs').readFileSync(APP_FILE('config.js'), 'utf8')));
   ok('and restores it on the way back', /getItem\('rr_resume_page'\)/.test(html));
   ok('a genuinely fresh visit still opens on the Dashboard',
-     /if \(!want \|\| want === 'dashboard'\) return;/.test(html));
+     /* v0.9.1847: an item's page (itemdetail) also stays on the Dashboard — the reload forgot the item */
+     /if \(!want \|\| want === 'dashboard'(?: \|\| want === 'itemdetail')?\) return;/.test(html));
 
 
   section('23. Acting on the audit');

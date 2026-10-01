@@ -3698,20 +3698,9 @@ function showPage(name, clickedEl) {
   } catch (e) {}
   if (name !== 'itemdetail') { try { delete window._detailReturn; } catch (e) {} }
   if (clickedEl) clickedEl.classList.add('active');
-  if (name === 'browse') renderBrowse();
-  if (name === 'collection' && typeof buildCollectionPage === 'function') buildCollectionPage();
-  if (name === 'reports' && typeof renderReportLibrary === 'function') renderReportLibrary();
-  if (name === 'sold') buildSoldPage();
-  if (name === 'forsale') buildForSalePage();
-  if (name === 'parts' && typeof buildPartsPage === 'function') buildPartsPage();
-  if (name === 'want') buildWantPage();
-  if (name === 'sets') buildSetsPage();
-  if (name === 'browse' || name === 'sets') _applyDisclaimerPref();
-  if (name === 'upgrade') buildUpgradePage();
-  if (name === 'prefs') buildPrefsPage();
-  if (name === 'vault') vaultRenderPage();
-  if (name === 'tools' && typeof buildToolsPage === 'function') buildToolsPage();
-  if (name === 'contacts' && typeof buildContactsPage === 'function') buildContactsPage();   // contacts hook
+  // v0.9.1847: fill the page in from THE ONE LIST (config.js RR_PAGE_BUILDERS)
+  // — every route to a page comes through here, so every route fills it in.
+  rrBuildPage(name);
   // v0.9.873 (Brad): a page opened from a dashboard card gets a Back to
   // Dashboard bar at the top. Any other navigation removes it.
   try {
@@ -3734,6 +3723,22 @@ function showPage(name, clickedEl) {
     history.pushState({ appPage: name }, '', '');
   }
 }
+
+// v0.9.1847 — the core pages' builders, on THE ONE LIST (config.js). The
+// dashboard is not on it on purpose: it is built at start and kept current by
+// data events (v1834), and showing it must not rebuild it.
+rrRegisterPage('browse', function () { renderBrowse(); _applyDisclaimerPref(); });
+rrRegisterPage('collection', function () { if (typeof buildCollectionPage === 'function') buildCollectionPage(); });
+rrRegisterPage('reports', function () { if (typeof renderReportLibrary === 'function') renderReportLibrary(); });
+rrRegisterPage('sold', function () { buildSoldPage(); });
+rrRegisterPage('forsale', function () { buildForSalePage(); });
+rrRegisterPage('parts', function () { if (typeof buildPartsPage === 'function') buildPartsPage(); });
+rrRegisterPage('sets', function () { buildSetsPage(); _applyDisclaimerPref(); });
+rrRegisterPage('upgrade', function () { buildUpgradePage(); });
+rrRegisterPage('prefs', function () { buildPrefsPage(); });
+rrRegisterPage('vault', function () { vaultRenderPage(); });
+rrRegisterPage('tools', function () { if (typeof buildToolsPage === 'function') buildToolsPage(); });
+rrRegisterPage('contacts', function () { if (typeof buildContactsPage === 'function') buildContactsPage(); });   // contacts hook
 
 // ── Sets/Disclaimer/Contact modal/Upgrade page builders moved to app-pages.js (Session 111, Round 2 Chunk 14) ──
 // ── parseJwt moved to app-auth.js (Session 110, Round 2 Chunk 11) ──
@@ -3948,17 +3953,11 @@ function _rrGoBackTo(name) {
   var mnav = document.getElementById('mnav-' + name)
           || document.querySelector('.mobile-nav-item[onclick*="\'' + name + '\'"]');
   showPage(name, mnav || null);
+  // v0.9.1847: showPage fills the page in from THE ONE LIST — this used to
+  // keep its own second copy of it (which built most pages twice). Only the
+  // dashboard, which is deliberately not on the list, is refreshed here.
   try {
-    if (name === 'forsale' && typeof buildForSalePage === 'function') buildForSalePage();
-    else if (name === 'upgrade' && typeof buildUpgradePage === 'function') buildUpgradePage();
-    else if (name === 'want' && typeof buildWantPage === 'function') buildWantPage();
-    else if (name === 'parts' && typeof buildPartsPage === 'function') buildPartsPage();
-    else if (name === 'sets' && typeof buildSetsPage === 'function') buildSetsPage();
-    else if (name === 'prefs' && typeof buildPrefsPage === 'function') buildPrefsPage();
-    else if (name === 'tools' && typeof buildToolsPage === 'function') buildToolsPage();
-    else if (name === 'contacts' && typeof buildContactsPage === 'function') buildContactsPage();
-    else if (name === 'vault' && typeof vaultRenderPage === 'function') vaultRenderPage();
-    else if (name === 'dashboard' && typeof buildDashboard === 'function') buildDashboard();
+    if (name === 'dashboard' && typeof buildDashboard === 'function') buildDashboard();
   } catch (e) { console.warn('[back nav]', name, e); }
 }
 if (typeof window !== 'undefined') window._rrGoBackTo = _rrGoBackTo;

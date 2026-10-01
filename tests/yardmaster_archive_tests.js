@@ -173,6 +173,9 @@ function boot(v, opts) {
     // shared rrJsArg (JS string first, then the HTML attribute). app.js is not
     // loaded in this sandbox, so the fake room supplies the same two helpers.
     rrEsc: (x) => String(x == null ? '' : x).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;'),
+    // v0.9.1847: yardmaster.js registers its page builder on config.js's ONE
+    // list at load; config.js is not loaded here, so the room supplies the door.
+    rrRegisterPage: () => {},
     rrJsArg: function (x) { return this.rrEsc(String(x == null ? '' : x).replace(/\\/g, '\\\\').replace(/'/g, "\\'")); }
   };
   sandbox.rrJsArg = sandbox.rrJsArg.bind(sandbox);

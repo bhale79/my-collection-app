@@ -76,7 +76,8 @@ section('The one door');
 ok('showPage calls rrPageShown right after the page becomes active…',
    /document\.getElementById\('page-' \+ name\)\.classList\.add\('active'\);[\s\S]{0,700}?rrPageShown\('page-' \+ name\)/.test(app), '');
 ok('…and BEFORE any of its own builder calls, so no path can show old data first',
-   app.indexOf("rrPageShown('page-' + name)") < app.indexOf("if (name === 'browse') renderBrowse();"), '');
+   /* v0.9.1847: the builders moved onto THE ONE LIST (config.js); showPage calls rrBuildPage(name) */
+   app.indexOf("rrPageShown('page-' + name)") > 0 && app.indexOf("rrPageShown('page-' + name)") < app.indexOf("rrBuildPage(name);"), '');
 ok('showPage is the ONLY place a .page is activated (the audit that makes rule 2 provable)',
    (app.match(/\.classList\.add\('active'\)/g) || []).filter(function () { return true; }).length >= 1
    && (app.match(/page-' \+ name\)\.classList\.add\('active'\)/g) || []).length === 1

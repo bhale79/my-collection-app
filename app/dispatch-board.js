@@ -250,8 +250,7 @@ function _dbMaybePopup() {
   document.getElementById('db-popup-open').onclick = function () {
     _dbMarkSeen([it.id]); ov.remove();
     var btn = document.getElementById('nav-dispatch-btn');
-    showPage('dispatch', btn && btn.offsetParent ? btn : null);
-    dbBuildPage();
+    showPage('dispatch', btn && btn.offsetParent ? btn : null);   // v0.9.1847: fills it in
   };
 }
 
@@ -318,6 +317,9 @@ function dbBuildPage() {
     + '<div style="position:relative">' + html + '</div>';
 }
 
+// v0.9.1847: the Dispatch Board's builder on THE ONE LIST (config.js).
+window.rrRegisterPage('dispatch', function () { dbBuildPage(); });
+
 // ── Injection: page div, sidebar item, account-menu item ────────
 function _dbInjectUI() {
   // Page div (showPage needs it to exist)
@@ -340,7 +342,7 @@ function _dbInjectUI() {
     btn.className = 'nav-item';
     btn.id = 'nav-dispatch-btn';
     btn.setAttribute('data-ctip', 'Station announcements and what’s new in the app.');
-    btn.onclick = function () { showPage('dispatch', this); dbBuildPage(); };
+    btn.onclick = function () { showPage('dispatch', this); };   // v0.9.1847: showPage fills it in (THE ONE LIST)
     btn.innerHTML =
       '<img src="' + DISPATCH_CFG.iconSm + '" alt="" style="width:17px;height:17px;border-radius:50%;flex-shrink:0">'
       + 'Dispatch Board'
@@ -357,8 +359,7 @@ function _dbInjectUI() {
     mbtn.onclick = function () {
       if (typeof toggleAccountMenu === 'function') toggleAccountMenu();
       var nb = document.getElementById('nav-dispatch-btn');
-      showPage('dispatch', nb && nb.offsetParent ? nb : null);
-      dbBuildPage();
+      showPage('dispatch', nb && nb.offsetParent ? nb : null);   // v0.9.1847: fills it in
     };
     mbtn.innerHTML =
       '<img src="' + DISPATCH_CFG.iconSm + '" alt="" style="width:15px;height:15px;border-radius:50%">'

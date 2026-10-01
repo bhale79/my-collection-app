@@ -1703,6 +1703,9 @@
     } catch (e) {}
   };
 
+  // v0.9.1847: the Office's builder on THE ONE LIST (config.js).
+  window.rrRegisterPage('yardmaster', function () { ymBuildPage(true); });
+
   // ── Injection (owner only) ─────────────────────────────────────
   function _ymInjectUI() {
     if (!_isOwner()) return false;
@@ -1724,7 +1727,7 @@
       btn.className = 'nav-item';
       btn.id = 'nav-yardmaster-btn';
       btn.setAttribute('data-ctip', 'Owner’s console — queues, chores, and usage. Only you see this.');
-      btn.onclick = function () { showPage('yardmaster', this); ymBuildPage(true); };
+      btn.onclick = function () { showPage('yardmaster', this); };   // v0.9.1847: showPage fills it in (THE ONE LIST)
       btn.innerHTML = '<span style="width:17px;text-align:center;flex-shrink:0">🚦</span>Yardmaster’s Office';
       if (refreshBtn) homeSection.insertBefore(btn, refreshBtn);
       else homeSection.appendChild(btn);
@@ -1737,8 +1740,7 @@
       mbtn.onclick = function () {
         if (typeof toggleAccountMenu === 'function') toggleAccountMenu();
         var nb = document.getElementById('nav-yardmaster-btn');
-        showPage('yardmaster', nb && nb.offsetParent ? nb : null);
-        ymBuildPage(true);
+        showPage('yardmaster', nb && nb.offsetParent ? nb : null);   // v0.9.1847: fills it in
       };
       mbtn.innerHTML = '<span style="width:15px;text-align:center">🚦</span>Yardmaster’s Office';
       var firstItem = menu.querySelector('.account-menu-item');
