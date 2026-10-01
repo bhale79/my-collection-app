@@ -1221,6 +1221,10 @@ async function saveWizardItem() {
     if (!power || raw.endsWith('C')) return raw;
     return raw + (power === 'Powered' ? '-P' : '-D');
   };
+  // v0.9.1848: the second unit's power is what the grouping SAID (applyGrouping
+  // sets unit2Power on every choice — '' for an MTH family, whose numbers carry
+  // no -P / -D). Only a flow that never states it falls back to the old rule.
+  const _unit2PowerOf = (dd) => (typeof dd.unit2Power === 'string') ? dd.unit2Power : (dd.setType === 'AA' ? 'Dummy' : '');
   const itemNum = _pdSuffix(_rawItemNum, d.unitPower);
   const variation = (d.variation || '').trim();
   const key = `${itemNum}|${variation}`;
@@ -1491,7 +1495,7 @@ async function saveWizardItem() {
 
   if (isSetSave && d.unit2ItemNum) {
     const _u2Raw = (d.unit2ItemNum || '').trim();
-    const _u2Power = d.setType === 'AA' ? 'Dummy' : '';
+    const _u2Power = _unit2PowerOf(d);
     const u2Num = _pdSuffix(_u2Raw, _u2Power);
     // Unit 1 keeps full price/worth; other units get $0 with a note pointing to unit 1
     const setPriceNote = (baseNote, leadNum) => {
@@ -2338,7 +2342,7 @@ async function saveWizardItem() {
           // each partner row that just reached the sheet, using the same
           // suffixing their rows were built with above.
           if (isSetSave && d.unit2ItemNum)
-            rrPinSetPhotoSaved(_pdSuffix((d.unit2ItemNum || '').trim(), d.setType === 'AA' ? 'Dummy' : ''));
+            rrPinSetPhotoSaved(_pdSuffix((d.unit2ItemNum || '').trim(), _unit2PowerOf(d)));
           if (isSetSave && d.unit3ItemNum)
             rrPinSetPhotoSaved(_pdSuffix((d.unit3ItemNum || '').trim(), d.unit3Power));
         }

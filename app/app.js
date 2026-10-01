@@ -682,6 +682,10 @@ function buildPartnerMap() {
       const en = ensure(e.num);
       if (bs.length && e.role !== 'ab-set') en.bUnit = en.bUnit || bs[0].num;      // an AB set already has its B
       if (ds.length && e.role !== 'aa-set') en.dummyA = en.dummyA || ds[0].num;    // an AA set already has both As
+      // v0.9.1848: what this MTH engine IS ('a' / 'aa-set' / 'ab-set') — the Add
+      // screen's set question reads it (getGroupingOptions). isDiesel/configs
+      // stay Lionel's: their buttons and the -P/-D suffix are Lionel's numbering.
+      en.mthRole = en.mthRole || e.role;
     });
     const engineNums = engines.map(e => e.num);
     bs.concat(ds).forEach(x => {
@@ -903,9 +907,31 @@ window.wishlistFoldedCount = function () {
 // Callers: _updateGroupingButtons (wizard-handlers.js), _qe1RenderGrouping
 // (wizard.js), _hasGrouping (app-collection.js). Update RAIL_ROSTER_DECISION_MAP.md
 // if this changes.
+// v0.9.1848 — the set question for an MTH cab-unit family. MTH numbers each
+// piece (20-20943-1 powered A, -3 B unit, -4 non-powered A) and sells some sets
+// under ONE number ("F-3 AA Diesel Set"), so the choices come from what the
+// partner map (pass 4, the same answers the want list uses) found for THIS
+// number — only partners that exist are offered, and none is guessed.
+// 'single' = just this number; aa/ab/aba add the map's dummyA / bUnit.
+function _mthGroupingOptions(p) {
+  var b = !!p.bUnit, d = !!p.dummyA, r = p.mthRole;
+  if (r === 'a') {
+    if (!b && !d) return [];
+    var out = [{ id: 'single', label: 'A unit only' }];
+    if (d) out.push({ id: 'aa', label: 'AA set' });
+    if (b) out.push({ id: 'ab', label: 'AB set' });
+    if (b && d) out.push({ id: 'aba', label: 'ABA set' });
+    return out;
+  }
+  if (r === 'aa-set' && b) return [{ id: 'single', label: 'AA set only' }, { id: 'ab', label: 'AA set + B unit' }];
+  if (r === 'ab-set' && d) return [{ id: 'single', label: 'AB set only' }, { id: 'aa', label: 'AB set + second A unit' }];
+  return [];
+}
 function getGroupingOptions(itemNum, typeFilter) {
   var base = String(itemNum || '').trim().replace(/-(P|D)$/i, '');
   if (!base) return [];
+  var _mp = _getPartner(base);
+  if (_mp && _mp.mthRole) return _mthGroupingOptions(_mp);
   var hasTenders = (typeof getMatchingTenders === 'function') && getMatchingTenders(base).length > 0;
   var isF3Alco   = (typeof isF3AlcoUnit === 'function') && isF3AlcoUnit(base);
   var isBUnit    = /C$/i.test(base);
@@ -968,6 +994,10 @@ function applyGrouping(data, groupId, itemNum) {
   var bUnit = function(){ return ((typeof getBUnit === 'function' && getBUnit(n)) || (typeof getSetPartner === 'function' && getSetPartner(n)) || (n + 'C')); };
   var aDummy = function(){ return ((typeof getADummyUnit === 'function' && getADummyUnit(n)) || n); };
   data._itemGrouping = groupId;
+  // v0.9.1848: every choice states the partner units' power afresh, so a
+  // switch from AA to AB can never leave 'Dummy' behind on the B unit (the save
+  // reads unit2Power — wizard-save.js _unit2PowerOf).
+  data.unit2Power = ''; data.unit3Power = '';
   if (groupId === 'engine') {
     data.tenderMatch = 'none'; data.setMatch = ''; data.unitPower = '';
   } else if (groupId === 'engine_tender') {
@@ -990,6 +1020,11 @@ function applyGrouping(data, groupId, itemNum) {
   } else {
     data._itemGrouping = 'single'; data.tenderMatch = ''; data.setMatch = ''; data.unitPower = '';
   }
+  // v0.9.1848: an MTH family numbers every piece itself (20-20943-1 / -3 / -4),
+  // so its units carry NO power word — the save turns Powered/Dummy into
+  // Lionel's -P / -D, and "20-20943-1-P" is a number that does not exist.
+  var _mp = _getPartner(n);
+  if (_mp && _mp.mthRole) { data.unitPower = ''; data.unit2Power = ''; data.unit3Power = ''; }
   return data;
 }
 
