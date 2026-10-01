@@ -1,0 +1,25 @@
+{
+ "what": "Lionel PW - Boxes: the two box rows typed as cars set to the tab's box type, so they show as boxes",
+ "date": "2026-10-01",
+ "master_version": "1.92",
+ "cells": [
+  {
+   "row": 245,
+   "item": "600",
+   "variation": "",
+   "column": "Item Type",
+   "old": "Flatcar",
+   "new": "Paper / Box / Misc",
+   "why": "a box row (Original COTT Desc \"BOX: MKT NW2 Switcher\") typed as a car — every other box row is Paper / Box / Misc"
+  },
+  {
+   "row": 859,
+   "item": "X2758",
+   "variation": "",
+   "column": "Item Type",
+   "old": "Boxcar",
+   "new": "Paper / Box / Misc",
+   "why": "a box row (Original COTT Desc \"BOX: PRR Automobile Boxcar\") typed as a car"
+  }
+ ]
+}
