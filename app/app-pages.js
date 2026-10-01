@@ -4181,6 +4181,38 @@ async function _partsAppendRow(f) {
   await sheetsAppend(state.personalSheetId, 'Parts Needed!A:M', [row]);
   return row;
 }
+// v0.9.1856 ([stated] Brad: "it should be part # installed, and part
+// description"): the ONE rule that reads a part NUMBER out of what a person
+// TYPED. "Lionel 259E-1 Light Blue E-Unit Drum" was saved with the whole
+// line as the description and nothing in the number column — so the install
+// form showed a blank number. A part number is the first or second word
+// (the first may be a maker: Lionel, MTH…) that looks like one: digits with
+// at most two letters and the dashes/slashes Lionel uses (259E-1, 100-4,
+// 2343-117, 6304776029, WS-85); at least three digits, or two with a dash.
+// "#24" (a wire gauge), "3" (a count), "6-Wheel", "E-Unit" are words, not
+// numbers. The number comes OUT of the description. Typed as a bare number →
+// number only (the v0.9.1752 rule, kept).
+var _PARTS_NUM_RX = /^#?[A-Za-z]{0,2}-?\d[A-Za-z0-9\-\/\.]*$/;   // MTH's AA-0000012 and WS-85 too
+function _partsLooksLikeNum(tok) {
+  var t = String(tok || '').replace(/[,;:]+$/, '');
+  if (!_PARTS_NUM_RX.test(t)) return false;
+  var a = t.replace(/[^A-Za-z0-9]/g, '');
+  var digits = (a.match(/\d/g) || []).length, letters = (a.match(/[A-Za-z]/g) || []).length;
+  return letters <= 2 && (digits >= 3 || (digits >= 2 && /-/.test(t)));
+}
+function _partsSplitTyped(text) {
+  var t = String(text || '').trim().replace(/\s+/g, ' ');
+  if (!t) return { partNum: '', description: '' };
+  var toks = t.split(' ');
+  var clean = function (s) { return s.replace(/^#/, '').replace(/[,;:]+$/, ''); };
+  if (toks.length === 1 && _partsLooksLikeNum(toks[0])) return { partNum: clean(toks[0]), description: '' };
+  var at = -1;
+  if (_partsLooksLikeNum(toks[0])) at = 0;
+  else if (toks.length > 1 && /^[A-Za-z][A-Za-z.&'-]*$/.test(toks[0]) && _partsLooksLikeNum(toks[1])) at = 1;
+  if (at < 0) return { partNum: '', description: t };
+  var rest = toks.slice(0, at).concat(toks.slice(at + 1)).join(' ').trim();
+  return { partNum: clean(toks[at]), description: rest };
+}
 // "Is this part already on the list for this unit?" — same unit (inventory
 // id when there is one, else item number with no inventory id), same part
 // number or same description (case, spaces and punctuation ignored), and not
@@ -4233,6 +4265,7 @@ function _partsOpenCard(inv, num, taskId) { if (typeof window._wbOpen === 'funct
 if (typeof window !== 'undefined') {
   window.PARTS_COPY = PARTS_COPY; window._partsEsc = _partsEsc; window._partsNorm = _partsNorm; window._partsOwnedRow = _partsOwnedRow;
   window._partsRowBuild = _partsRowBuild; window._partsAppendRow = _partsAppendRow; window._partsFindDup = _partsFindDup;
+  window._partsSplitTyped = _partsSplitTyped; window._partsLooksLikeNum = _partsLooksLikeNum;
   window._partsTaskLabel = _partsTaskLabel; window._partsChooser = _partsChooser; window._partsOpenCard = _partsOpenCard;
 }
 
@@ -4419,10 +4452,11 @@ function showAddPartModal(existingId) {
   ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:10050;display:flex;align-items:center;justify-content:center;padding:1.25rem';
   ov.innerHTML = '<div class="rr-card">'
     + '<div class="rr-card-title">🔧 ' + (existingId ? 'Edit Part' : 'Add a Part') + '</div>'
-    + '<label style="font-size:0.74rem;color:var(--text-dim);display:block;margin-bottom:0.2rem;text-transform:uppercase;letter-spacing:0.05em">Description *</label>'
-    + '<input id="_part-desc" type="text" value="' + String(existing.description || '').replace(/"/g, '&quot;') + '" placeholder="e.g. pickup roller assembly" style="width:100%;box-sizing:border-box;padding:0.5rem 0.65rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.9rem;margin-bottom:0.7rem">'
+    // v0.9.1856 ([stated] Brad): the part NUMBER first, then its description — same order as the install form
     + '<label style="font-size:0.74rem;color:var(--text-dim);display:block;margin-bottom:0.2rem;text-transform:uppercase;letter-spacing:0.05em">Part Number (optional)</label>'
     + '<input id="_part-num" type="text" value="' + String(existing.partNum || '').replace(/"/g, '&quot;') + '" placeholder="if you know it" style="width:100%;box-sizing:border-box;padding:0.5rem 0.65rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-mono);font-size:0.9rem;margin-bottom:0.7rem">'
+    + '<label style="font-size:0.74rem;color:var(--text-dim);display:block;margin-bottom:0.2rem;text-transform:uppercase;letter-spacing:0.05em">Description *</label>'
+    + '<input id="_part-desc" type="text" value="' + String(existing.description || '').replace(/"/g, '&quot;') + '" placeholder="e.g. pickup roller assembly" style="width:100%;box-sizing:border-box;padding:0.5rem 0.65rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.9rem;margin-bottom:0.7rem">'
     + '<label style="font-size:0.74rem;color:var(--text-dim);display:block;margin-bottom:0.2rem;text-transform:uppercase;letter-spacing:0.05em">For which item? (optional)</label>'
     + '<select id="_part-for" style="width:100%;box-sizing:border-box;padding:0.5rem 0.65rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.9rem;margin-bottom:0.7rem">' + ownedOpts + '</select>'
     + '<label style="font-size:0.74rem;color:var(--text-dim);display:block;margin-bottom:0.2rem;text-transform:uppercase;letter-spacing:0.05em">Reference Photo (optional)</label>'
@@ -4477,6 +4511,8 @@ async function savePart(existingRow) {
   var desc = (document.getElementById('_part-desc') || {}).value || '';
   if (!desc.trim()) { if (typeof showToast === 'function') showToast('Please enter a description'); return; }
   var partNum = (document.getElementById('_part-num') || {}).value || '';
+  // v0.9.1856: a number typed at the front of the description belongs in the number box
+  if (!partNum.trim()) { var _sp = _partsSplitTyped(desc); if (_sp.partNum && _sp.description) { partNum = _sp.partNum; desc = _sp.description; } }
   var notes = (document.getElementById('_part-notes') || {}).value || '';
   var sel = document.getElementById('_part-for');
   var forInv = sel ? sel.value : '';
@@ -4614,6 +4650,8 @@ function _partInstallForm(rowNum, p, pd, task) {
   var itemLabel = pd.itemNum + (m && m.roadName ? ' \u2014 ' + m.roadName : '');
   var today = new Date().toISOString().split('T')[0];
   var _esc = function (str) { return String(str || '').replace(/"/g, '&quot;'); };
+  var _instNum = String(p.partNum || ''), _instDesc = String(p.description || '');
+  if (!_instNum.trim()) { var _sp = _partsSplitTyped(_instDesc); if (_sp.partNum && _sp.description) { _instNum = _sp.partNum; _instDesc = _sp.description; } }
   var IN = "width:100%;box-sizing:border-box;padding:0.5rem 0.65rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.9rem;margin-bottom:0.7rem";
   var LB = "font-size:0.74rem;color:var(--text-dim);display:block;margin-bottom:0.2rem;text-transform:uppercase;letter-spacing:0.05em";
   var ov = document.createElement('div');
@@ -4623,10 +4661,13 @@ function _partInstallForm(rowNum, p, pd, task) {
   ov.innerHTML = '<div class="rr-card">'
     + '<div class="rr-card-title">\u2713 Mark Part Installed</div>'
     + '<div style="font-size:0.82rem;color:var(--text-mid);margin-bottom:0.9rem">Recording this on <strong style="color:var(--text)">' + itemLabel + '</strong>' + (task ? ', task <strong style="color:var(--text)">' + _partsEsc(task.text) + '</strong>' : '') + '. The details below get added to that item\'s notes.</div>'
-    + '<label style="' + LB + '">Part installed *</label>'
-    + '<input id="_inst-desc" type="text" value="' + _esc(p.description) + '" style="' + IN + '">'
-    + '<label style="' + LB + '">Part Number</label>'
-    + '<input id="_inst-part" type="text" value="' + _esc(p.partNum) + '" placeholder="if you know it" style="' + IN + 'font-family:var(--font-mono)">'
+    // v0.9.1856 ([stated] Brad: "it should be part # installed, and part description"):
+    // the NUMBER first. A row saved with no number but one at the front of its
+    // description (the typed 259E-1 drum) shows the number in its own box.
+    + '<label style="' + LB + '">Part # installed</label>'
+    + '<input id="_inst-part" type="text" value="' + _esc(_instNum) + '" placeholder="if you know it" style="' + IN + 'font-family:var(--font-mono)">'
+    + '<label style="' + LB + '">Part description *</label>'
+    + '<input id="_inst-desc" type="text" value="' + _esc(_instDesc) + '" style="' + IN + '">'
     + '<label style="' + LB + '">Price Paid</label>'
     + '<input id="_inst-price" type="number" min="0" step="0.01" placeholder="e.g. 12.50" style="' + IN + 'font-family:var(--font-mono)">'
     + '<label style="' + LB + '">Vendor</label>'

@@ -2709,8 +2709,8 @@
       if (typeof _ensurePartsTab === 'function') await _ensurePartsTab();
       if (typeof _ensurePartsLifecycleCols === 'function') await _ensurePartsLifecycleCols();
       var _t = function (v) { v = String(v || ''); return v && v.charAt(0) !== "'" ? "'" + v : v; };
-      var isNum = /^[A-Za-z]{0,4}[\-#]?[A-Za-z0-9][A-Za-z0-9\-\/\.]*$/.test(txt) && /\d/.test(txt);
-      var fields = { description: isNum ? '' : txt, partNum: isNum ? txt : '', forItem: String(tg.item.itemNum || ''), forInv: tg.invId || '',
+      var split = _partsSplitTyped(txt);   // v0.9.1856: the number comes out of the typed line (one rule, app-pages.js)
+      var fields = { description: split.description, partNum: split.partNum, forItem: String(tg.item.itemNum || ''), forInv: tg.invId || '',
                      notes: taskId ? 'for Workbench task' : 'from the Workbench', status: 'wanted', taskId: taskId || '' };
       await _maintPopSaveWanted(fields, taskId, function () { window._maintPopAddWanted(taskId); });
     } catch (e) { if (typeof showToast === 'function') showToast(rrSaveError(e, 'the part'), 4000, true); }
