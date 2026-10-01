@@ -1416,17 +1416,40 @@
   // ── the panel ────────────────────────────────────────────────
   var _panelItem = null;
 
-  window._maintOpenPanel = function (idx, itemNum, variation, invId) {
-    // invId = Brad's OWNED copy (inventoryId — the per-unit identity that
-    // phase 2's parts/history will key on). itemNum+variation = the CATALOG
-    // identity (catalog rows have no inventoryId; docs/videos live there).
-    if (!_isOwner()) return;
+  // ── which CATALOG row a Maintenance card is about — v0.9.1849 ──────────
+  // [stated] Brad, clicking the 2356 Southern on the Workbench: "Could not find
+  // this item." → "so i am betting again we are not using inventory id again".
+  // The Workbench row found his copy by its inventoryId (278) — and then this
+  // card threw the copy away and matched the catalog by the NUMBER spelled
+  // exactly as the copy stores it, "2356-P". The catalog spells it 2356, so
+  // nothing matched; 25 of his items carry a -P / -D. Now the owned copy, found
+  // by its inventoryId, leads: findMaster — the ONE catalog resolver, which
+  // knows 2356-P is the 2356 — is asked with the copy itself as the hint.
+  // The number-and-variation search below stays only for a card opened
+  // without an owned copy (the catalog item page passes its own row).
+  function _maintResolveItem(idx, itemNum, variation, invId) {
+    var want = String(itemNum == null ? '' : itemNum).trim();
+    var wantVar = String(variation == null ? '' : variation).trim();
+    var owned = null;
+    try {
+      if (invId && window.state && state.personalData) {
+        var ok = Object.keys(state.personalData).find(function (k) {
+          var p = state.personalData[k];
+          return p && String(p.inventoryId || '') === String(invId);
+        });
+        owned = ok ? state.personalData[ok] : null;
+      }
+    } catch (eO) {}
+    if (owned && typeof findMaster === 'function') {
+      try {
+        var hit = findMaster(String(owned.itemNum || want), String(owned.variation || wantVar), owned);
+        if (hit) return hit;
+      } catch (eF) {}
+    }
     // v0.9.1637 (Brad's No. 53 opening as an MTH 30-1469-1): the panel was
     // trusting the POSITIONAL idx — stability rule #4 says identity, never
     // position. The number+variation is the identity; idx is only a hint
     // that must AGREE with it, or it is ignored.
-    var want = String(itemNum == null ? '' : itemNum).trim();
-    var wantVar = String(variation == null ? '' : variation).trim();
     // v0.9.1648 (Brad's Lionel 54 Ballast Tamper opening as the MARX 54
     // KCS): number+variation is STILL not an identity — catalog numbers
     // repeat ACROSS MAKERS (the v1157 lesson). The owned copy knows its
@@ -1460,6 +1483,15 @@
           || null;
     }
     if (!item && window._lastDetailPdKey && state.personalData) item = state.personalData[window._lastDetailPdKey];
+    return item || null;
+  }
+
+  window._maintOpenPanel = function (idx, itemNum, variation, invId) {
+    // invId = Brad's OWNED copy (inventoryId — the per-unit identity that
+    // phase 2's parts/history will key on). itemNum+variation = the CATALOG
+    // identity (catalog rows have no inventoryId; docs/videos live there).
+    if (!_isOwner()) return;
+    var item = _maintResolveItem(idx, itemNum, variation, invId);
     if (!item) { if (typeof showToast === 'function') showToast('Could not find this item.', 3000, true); return; }
     _panelItem = item;
     window._maintPanelInvId = String(invId == null ? '' : invId);   // phase 2 hook
