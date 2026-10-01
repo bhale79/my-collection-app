@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════
-// readable_text_tests.js — v0.9.1852.
+// readable_text_tests.js — v0.9.1852, v0.9.1853 (B2: colours chosen by code).
 //
 // [stated] Brad, 2026-10-01: "are there other readability issues in the app?"
 // → every screen measured live in his Chrome → a side-by-side preview of five
@@ -134,6 +134,39 @@ const hits = scanFiles(jsFiles);
 ok('no word anywhere still uses an old bright colour or var(--accent)', hits.length === 0, hits.join(', '));
 ok('the preview replica still reads the live skin (var(--accent))', /\.rrap-logo i\{color:var\(--accent\)/.test(appear));
 
+// B2 — the word colours CHOSEN BY CODE: 'color:' + (on ? 'var(--accent)' : …),
+// color:${…}, el.style.color = …  (found live after the first ship: the
+// Want List "High", the Yardmaster counts). The expression after the colour
+// is read up to its end and must not hold an old bright value.
+const OLDVAL = /(['"])(var\(--accent\)|#(?:2980b9|3498db|e74c3c|f05008|d4a843|2ecc71|e67e22|8b5cf6|16a085|0891b2|d35400|a855f7))\1/i;
+function exprEnd(s, i) {
+  let d = 0, q = null;
+  for (let j = i; j < s.length; j++) {
+    const c = s[j];
+    if (q) { if (c === '\\') { j++; continue; } if (c === q) q = null; continue; }
+    if (c === "'" || c === '"') q = c;
+    else if ('([{'.includes(c)) d++;
+    else if (')]}'.includes(c)) { if (!d) return j; d--; }
+    else if (!d && ';\n,+'.includes(c)) return j;
+  }
+  return s.length;
+}
+function chosenHits(files) {
+  const starts = [/(?<![-\w])color:(['"])\s*\+\s*/g, /(?<![-\w])color:\$\{/g, /\.style\.color\s*=\s*/g];
+  const hits = [];
+  files.forEach(([f, src]) => {
+    if (EXEMPT[f]) return;
+    starts.forEach(rx => { let m; rx.lastIndex = 0; while ((m = rx.exec(src))) {
+      const seg = src.slice(m.index + m[0].length, exprEnd(src, m.index + m[0].length));
+      if (OLDVAL.test(seg)) hits.push(f + ': ' + seg.slice(0, 50));
+    } });
+  });
+  return hits;
+}
+const chosen = chosenHits(jsFiles.filter(([f]) => /\.js$/.test(f)).concat([['gmail-help.js', '']]));
+ok('no word colour chosen by code is an old bright value or var(--accent)', chosen.length === 0, chosen.slice(0, 3).join(' | '));
+ok('the active filter pill is the deep blue (white reads ≥ 4.5)', /var _FON = '#1f6391'/.test(APP('browse.js')) && C('#ffffff', '#1f6391') >= 4.5);
+
 // ── C · the button levers still catch the buttons ─────────────────────────
 section('C · the two button levers list the var forms');
 function leversOk(src) {
@@ -217,6 +250,12 @@ ok('F6 …but background-color / border-color are not words',
    scanFiles([['sell.js', '<i style="border-color:#2980b9;background-color:#e67e22"></i>']]).length === 0);
 ok('F7 a lever selector removed is caught',
    leversOk(css.replace(', .main button[style*="var(--t-orange)"]', ', .main button[style*="var(--t-orangeX)"]')).miss.length > 0);
+ok('F9 the Want List "High" put back as var(--accent) is caught',
+   chosenHits([['dashboard.js', "'<span style=\"color:' + (hi ? 'var(--accent)' : 'var(--text-dim)') + '\">'"]]).length === 1);
+ok('F10 a style.color set to the old link blue is caught',
+   chosenHits([['detail-nav.js', "el.style.color = '#2980b9';"]]).length === 1);
+ok('F11 …but a BORDER chosen by code is not a word',
+   chosenHits([['wizard.js', "'border:2px solid ' + (sel ? 'var(--accent)' : 'var(--border)') + ';color:var(--t-accent)'"]]).length === 0);
 ok('F8 rrDarkenFor that gives the colour back unchanged would be caught',
    C('#e8cf8a', '#ede2cc') < 5);
 

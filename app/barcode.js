@@ -2955,7 +2955,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
                       // Manual mode: hold the lock, hand the shutter to Brad.
                       heldBc = bc;
                       heldSeenAt = Date.now();   // v0.9.1464: lock is fresh while its barcode is in frame
-                      stat.style.color = '#2ecc71';
+                      stat.style.color = 'var(--t-green)';
                       stat.textContent = '\u2713 Barcode locked \u2014 press \ud83d\udcf8 Capture when the label is framed';
                       // v0.9.1153: show the banner, and buzz once so the news
                       // reaches a user whose eyes are on the box, not the screen.
@@ -2979,7 +2979,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
                       // The barcode is locked and KEPT from this moment either
                       // way; the camera now gives two seconds to pull back and
                       // fit the whole box end before it fires.
-                      stat.style.color = '#2ecc71';
+                      stat.style.color = 'var(--t-green)';
                       stat.textContent = '\u2713 Barcode locked \u2014 pull back to fit the whole label\u2026 capturing in 2';
                       await new Promise(function (rW) { setTimeout(rW, 1000); });
                       if (stopLoop) return;

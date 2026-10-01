@@ -365,5 +365,5 @@ function _qeSelectChip(container, selected) {
   });
   selected.style.borderColor = 'var(--accent)';
   selected.style.background  = 'rgba(232,64,28,0.12)';
-  selected.style.color       = 'var(--accent)';
+  selected.style.color       = 'var(--t-accent)';
 }

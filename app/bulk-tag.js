@@ -196,7 +196,7 @@ function rrTagShowSeen() {
       note.textContent = free
         ? 'Your columns are yours — this one appears on the item page, in the list, and can be imported into.'
         : 'All five spare columns are in use. Preferences → Extra Columns can rename or clear one.';
-      note.style.color = free ? 'var(--text-dim)' : 'var(--accent)';
+      note.style.color = free ? 'var(--text-dim)' : 'var(--t-accent)';
       var nn = document.getElementById('rr-tag-newname');
       if (nn) setTimeout(function () { nn.focus(); }, 30);
     }

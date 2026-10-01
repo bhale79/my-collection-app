@@ -636,7 +636,7 @@ function _sellRenderCustomers() {
     return '<div style="display:flex;align-items:center;gap:0.5rem;padding:0.4rem 0.5rem;border:1px solid var(--border);border-radius:7px">' +
       '<div style="flex:1;min-width:0"><div style="font-size:0.84rem;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + _sellEsc(c.name || c.email) + '</div>' +
       '<div style="font-size:0.72rem;color:var(--text-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + _sellEsc(c.email || '') + (c.phone ? ' · ' + _sellEsc(c.phone) : '') + '</div></div>' +
-      '<button onclick="_sellToggleAccess(' + i + ')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;font-family:var(--font-body);font-weight:600;border:1.5px solid ' + (on ? '#2ecc71' : 'var(--border)') + ';background:' + (on ? 'rgba(46,204,113,0.14)' : 'var(--surface2)') + ';color:' + (on ? '#2ecc71' : 'var(--text-dim)') + '">' + (on ? '✓ Has access' : 'Grant access') + '</button>' +
+      '<button onclick="_sellToggleAccess(' + i + ')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;font-family:var(--font-body);font-weight:600;border:1.5px solid ' + (on ? '#2ecc71' : 'var(--border)') + ';background:' + (on ? 'rgba(46,204,113,0.14)' : 'var(--surface2)') + ';color:' + (on ? 'var(--t-green)' : 'var(--text-dim)') + '">' + (on ? '✓ Has access' : 'Grant access') + '</button>' +
       '<button onclick="_sellRemoveCustomer(' + i + ')" title="Remove" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;font-family:var(--font-body);border:1px solid var(--border);background:var(--surface2);color:var(--text-dim)">✕</button>' +
     '</div>';
   }).join('');

@@ -1638,7 +1638,7 @@ var PANEL_CATALOG = [
     navFn: "goToWantList();",
     render: function(state) {
       var priOrder = { High: 0, Medium: 1, Low: 2 };
-      var priColor = { High: 'var(--accent)', Medium: 'var(--accent2,#8b5cf6)', Low: 'var(--text-dim)' };
+      var priColor = { High: 'var(--t-accent)', Medium: 'var(--accent2,#8b5cf6)', Low: 'var(--text-dim)' };
       // Session 121: respect Preferences "What I Collect" in 'all' mode.
       var _wRows = Object.values(state.wantData || {});
       if (typeof foldWantEntries === 'function') _wRows = foldWantEntries(_wRows);   // v0.9.714: pairs = one row

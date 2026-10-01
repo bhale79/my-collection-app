@@ -384,8 +384,8 @@
     var waiting = d.subs + d.pairs;
     html += _card('Waiting on you' + (waiting ? ' — ' + waiting : ''),
       '<div style="display:flex;gap:1.6rem;flex-wrap:wrap;font-size:1.2rem;color:var(--text-mid)">'
-      + '<div><span style="font-size:1.9rem;font-weight:700;color:' + (d.subs ? 'var(--accent)' : 'var(--text-dim)') + '">' + d.subs + '</span> community submissions not in master</div>'
-      + '<div><span style="font-size:1.9rem;font-weight:700;color:' + (d.pairs ? 'var(--accent)' : 'var(--text-dim)') + '">' + d.pairs + '</span> barcode pairings awaiting promotion</div>'
+      + '<div><span style="font-size:1.9rem;font-weight:700;color:' + (d.subs ? 'var(--t-accent)' : 'var(--text-dim)') + '">' + d.subs + '</span> community submissions not in master</div>'
+      + '<div><span style="font-size:1.9rem;font-weight:700;color:' + (d.pairs ? 'var(--t-accent)' : 'var(--text-dim)') + '">' + d.pairs + '</span> barcode pairings awaiting promotion</div>'
       + '</div>'
       + '<div style="margin-top:0.6rem;font-size:1.05rem;display:flex;gap:0.8rem;align-items:center;flex-wrap:wrap">'
       + (waiting ? '<button onclick="_ymQueueWaiting()" style="padding:0.35rem 0.95rem;border-radius:8px;border:1px solid var(--accent2);background:var(--surface2);color:var(--accent2);font-family:var(--font-body);font-weight:700;cursor:pointer">Queue ' + waiting + ' into review \u2192</button>' : '')
@@ -413,7 +413,7 @@
         + '<div style="flex:1;min-width:220px"><div style="font-weight:700;color:var(--text);font-size:1.15rem">' + _esc(b.label) + (_cm ? ' <span style="font-size:0.85rem;color:var(--green);font-weight:700">\u2713 committed</span>' : _dm ? ' <span style="font-size:0.85rem;color:var(--text-dim);font-weight:700">finished</span>' : '') + '</div>'
         + '<div style="font-size:0.98rem;color:var(--text-dim)">' + _esc(b.created) + ' · ' + _esc(b.note) + '</div></div>'
         + '<div style="font-size:1.05rem;color:var(--text-mid);white-space:nowrap">'
-        + '<span style="font-weight:700;color:' + (c.pending ? 'var(--accent)' : 'var(--text-dim)') + '">' + c.pending + '</span> pending'
+        + '<span style="font-weight:700;color:' + (c.pending ? 'var(--t-accent)' : 'var(--text-dim)') + '">' + c.pending + '</span> pending'
         + (done ? ' · ' + done + ' decided' : '') + (c.deferred ? ' · ' + c.deferred + ' deferred' : '')
         + (held ? ' · <span style="color:var(--t-accent);font-weight:700">' + (function () { var s = _ymHeldSplit(b), p = []; if (s.tab) p.push(s.tab + ' need a tab'); if (s.num) p.push(s.num + ' need a number'); return p.join(' \u00b7 '); })() + '</span>' : '') + '</div>'
         + '<button onclick="_ymBatchOpen(\'' + rrJsArg(b.id) + '\')" style="padding:0.35rem 0.95rem;border-radius:8px;border:1px solid var(--accent2);'
@@ -1607,7 +1607,7 @@
             // other handler arguments were still one apostrophe from silence.
             var g = groups[k], ke = rrJsArg(k);
             return '<div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap">'
-              + '<span style="color:' + (g.kind === 'check' ? 'var(--accent)' : 'var(--text-dim)') + ';font-size:0.92rem">' + (g.kind === 'check' ? '\u26a0 ' : '\u24d8 ') + _esc(k) + '</span>'
+              + '<span style="color:' + (g.kind === 'check' ? 'var(--t-accent)' : 'var(--text-dim)') + ';font-size:0.92rem">' + (g.kind === 'check' ? '\u26a0 ' : '\u24d8 ') + _esc(k) + '</span>'
               + '<span style="font-weight:700;color:var(--text)">' + g.n + '</span>'
               + '<button onclick="_ymVerdictFlag(\'' + ke + '\',\'approved\')" style="' + sbtn + 'border:1.5px solid var(--green);color:var(--green)">Approve all ' + g.n + '</button>'
               + '<button onclick="_ymVerdictFlag(\'' + ke + '\',\'rejected\')" style="' + sbtn + 'border:1.5px solid var(--accent);color:var(--t-accent)">Reject all ' + g.n + '</button>'

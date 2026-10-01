@@ -759,7 +759,7 @@ function _nonItemDetailPhotos(type, key) {
         saveBtn.disabled = false;
         cancelBtn.disabled = false;
         saveBtn.textContent = 'Upload Photos';
-        status.style.color = 'var(--accent)';
+        status.style.color = 'var(--t-accent)';
         status.textContent = 'Upload failed: ' + (err && err.message ? err.message : 'try again');
       });
   };
@@ -3998,7 +3998,7 @@ function showItemPanel(idx, pdKey, mode) {
           const card = document.createElement('div');
           card.style.cssText = 'border:1.5px solid ' + (cur ? 'var(--accent)' : 'var(--border)') + ';border-radius:9px;padding:0.55rem 0.7rem;cursor:pointer;background:var(--surface2)';
           card.innerHTML =
-            '<div style="font-size:0.8rem;font-weight:700;color:' + (cur ? 'var(--accent)' : 'var(--text)') + ';margin-bottom:0.25rem">Var ' + rrEsc(String(o.v)) + (cur ? ' — current' : '') + '</div>' +
+            '<div style="font-size:0.8rem;font-weight:700;color:' + (cur ? 'var(--t-accent)' : 'var(--text)') + ';margin-bottom:0.25rem">Var ' + rrEsc(String(o.v)) + (cur ? ' — current' : '') + '</div>' +
             '<div style="font-size:0.78rem;color:var(--text-mid);line-height:1.5;white-space:normal">' + rrEsc(o.full || o.t) + '</div>';
           const u = _panelVarRefUrl(o.v);
           if (u) {

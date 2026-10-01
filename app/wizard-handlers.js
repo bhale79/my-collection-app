@@ -85,7 +85,7 @@ function _updateGroupingButtons() {
     html += '<button onpointerdown="_selectGrouping(\'' + btn.id + '\')" onclick="_selectGrouping(\'' + btn.id + '\')" style="flex:' + _btnFlex + ';min-width:0;padding:0.5rem 0.6rem;border-radius:8px;font-size:0.78rem;font-weight:600;cursor:pointer;transition:all 0.15s;font-family:var(--font-body);white-space:normal;word-break:break-word;text-align:center;line-height:1.2;'
       + 'border:2px solid ' + (sel ? 'var(--accent)' : 'var(--border)') + ';'
       + 'background:' + (sel ? 'rgba(232,64,28,0.12)' : 'var(--surface2)') + ';'
-      + 'color:' + (sel ? 'var(--accent)' : 'var(--text-mid)') + '">'
+      + 'color:' + (sel ? 'var(--t-accent)' : 'var(--text-mid)') + '">'
       + btn.label + '</button>';
   });
   html += '</div>';
@@ -310,7 +310,7 @@ function _cdToggleOrig(colId, origKey, val) {
     var sel = btn.textContent.trim() === val;
     btn.style.border = '1.5px solid ' + (sel ? 'var(--accent)' : 'var(--border)');
     btn.style.background = sel ? 'rgba(232,64,28,0.12)' : 'var(--bg)';
-    btn.style.color = sel ? 'var(--accent)' : 'var(--text-mid)';
+    btn.style.color = sel ? 'var(--t-accent)' : 'var(--text-mid)';
   });
 }
 
@@ -323,7 +323,7 @@ function _cdToggleBox(colId, val) {
       var sel = btn.textContent.trim() === val;
       btn.style.border = '1.5px solid ' + (sel ? 'var(--accent)' : 'var(--border)');
       btn.style.background = sel ? 'rgba(232,64,28,0.12)' : 'var(--bg)';
-      btn.style.color = sel ? 'var(--accent)' : 'var(--text-mid)';
+      btn.style.color = sel ? 'var(--t-accent)' : 'var(--text-mid)';
     });
   }
 }
@@ -336,7 +336,7 @@ function _cdToggleIS(val) {
     var sel = btn.textContent.trim() === val;
     btn.style.border = '1.5px solid ' + (sel ? 'var(--accent)' : 'var(--border)');
     btn.style.background = sel ? 'rgba(232,64,28,0.12)' : 'var(--bg)';
-    btn.style.color = sel ? 'var(--accent)' : 'var(--text-mid)';
+    btn.style.color = sel ? 'var(--t-accent)' : 'var(--text-mid)';
   });
 }
 
@@ -351,7 +351,7 @@ function _cdToggleError(colId, val) {
     var isYes = c === 'Yes';
     btn.style.border = '1.5px solid ' + (sel ? (isYes ? '#e74c3c' : 'var(--accent)') : 'var(--border)');
     btn.style.background = sel ? (isYes ? 'rgba(231,76,60,0.12)' : 'rgba(232,64,28,0.12)') : 'var(--bg)';
-    btn.style.color = sel ? (isYes ? '#e74c3c' : 'var(--accent)') : 'var(--text-mid)';
+    btn.style.color = sel ? (isYes ? 'var(--t-danger)' : 'var(--t-accent)') : 'var(--text-mid)';
   });
 }
 
@@ -370,7 +370,7 @@ function _confirmEdit(key) {
     var h = '';
     opts.forEach(function(o) {
       var sel = curVal === o;
-      h += '<button onclick="_confirmPickOpt(\'' + key + '\',\'' + o + '\')" style="padding:0.25rem 0.6rem;border-radius:5px;cursor:pointer;font-size:0.8rem;font-family:var(--font-body);margin-right:0.3rem;border:1.5px solid ' + (sel ? 'var(--accent)' : 'var(--border)') + ';background:' + (sel ? 'rgba(232,64,28,0.12)' : 'var(--bg)') + ';color:' + (sel ? 'var(--accent)' : 'var(--text-mid)') + '">' + o + '</button>';
+      h += '<button onclick="_confirmPickOpt(\'' + key + '\',\'' + o + '\')" style="padding:0.25rem 0.6rem;border-radius:5px;cursor:pointer;font-size:0.8rem;font-family:var(--font-body);margin-right:0.3rem;border:1.5px solid ' + (sel ? 'var(--accent)' : 'var(--border)') + ';background:' + (sel ? 'rgba(232,64,28,0.12)' : 'var(--bg)') + ';color:' + (sel ? 'var(--t-accent)' : 'var(--text-mid)') + '">' + o + '</button>';
     });
     valEl.innerHTML = h;
     btnEl.style.display = 'none';
@@ -382,7 +382,7 @@ function _confirmEdit(key) {
     var h2 = '';
     opts2.forEach(function(o) {
       var sel2 = curVal === o;
-      h2 += '<button onclick="_confirmPickOpt(\'' + key + '\',\'' + o + '\')" style="padding:0.25rem 0.5rem;border-radius:5px;cursor:pointer;font-size:0.78rem;font-family:var(--font-body);margin-right:0.2rem;border:1.5px solid ' + (sel2 ? 'var(--accent)' : 'var(--border)') + ';background:' + (sel2 ? 'rgba(232,64,28,0.12)' : 'var(--bg)') + ';color:' + (sel2 ? 'var(--accent)' : 'var(--text-mid)') + '">' + o + '</button>';
+      h2 += '<button onclick="_confirmPickOpt(\'' + key + '\',\'' + o + '\')" style="padding:0.25rem 0.5rem;border-radius:5px;cursor:pointer;font-size:0.78rem;font-family:var(--font-body);margin-right:0.2rem;border:1.5px solid ' + (sel2 ? 'var(--accent)' : 'var(--border)') + ';background:' + (sel2 ? 'rgba(232,64,28,0.12)' : 'var(--bg)') + ';color:' + (sel2 ? 'var(--t-accent)' : 'var(--text-mid)') + '">' + o + '</button>';
     });
     valEl.innerHTML = h2;
     btnEl.style.display = 'none';
@@ -454,7 +454,7 @@ function _pvToggleMasterBox(val) {
     var sel = btn.textContent.trim() === val;
     btn.style.border = '1.5px solid ' + (sel ? 'var(--accent)' : 'var(--border)');
     btn.style.background = sel ? 'rgba(232,64,28,0.12)' : 'var(--bg)';
-    btn.style.color = sel ? 'var(--accent)' : 'var(--text-mid)';
+    btn.style.color = sel ? 'var(--t-accent)' : 'var(--text-mid)';
   });
 }
 

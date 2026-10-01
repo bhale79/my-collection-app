@@ -369,7 +369,7 @@
       '<button onclick="onboardPreviewFeature(\'' + _escape(f.id) + '\')" style="' +
         'align-self:stretch;background:none;border:none;' +
         'padding:0.9rem 0.4rem;margin:0.3rem -0.4rem -0.3rem;' +
-        'color:' + _escape(f.accentColor || 'var(--accent)') + ';font-weight:600;' +
+        'color:' + _escape(f.accentColor || 'var(--t-accent)') + ';font-weight:600;' +
         'font-size:' + s.linkBtn + ';cursor:pointer;font-family:var(--font-body);' +
         'text-decoration:underline;text-align:left;min-height:' + s.btnH + '">' +
         previewLabel +

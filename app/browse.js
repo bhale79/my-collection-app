@@ -990,7 +990,7 @@ function _renderHierarchyChips() {
   // Manufacturer". The rarely-used ones live behind More, which carries a
   // count so nothing hides silently. Clear-all only exists when there is
   // something to clear.
-  var _FON = '#2980b9';   // the one blue: an active filter
+  var _FON = '#1f6391';   // the one blue: an active filter (v0.9.1852: the deep link blue, a FILL so a literal — white reads 6.3, was 4.3)
   var chipIdle = 'height:30px;padding:0 0.7rem;border-radius:999px;border:1.5px solid var(--border);'
                + 'background:var(--bg-card);color:var(--text-mid);font-family:var(--font-body);'
                + 'font-size:0.78rem;font-weight:600;cursor:pointer;display:inline-flex;'

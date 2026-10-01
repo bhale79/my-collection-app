@@ -504,7 +504,7 @@ function buildCollectionPage() {
           + 'display:inline-flex;align-items:center;gap:0.4rem;'
           + 'border:1.5px solid ' + (isActive ? 'var(--accent)' : 'var(--border)') + ';'
           + 'background:' + (isActive ? 'rgba(232,64,28,0.15)' : 'var(--surface2)') + ';'
-          + 'color:' + (isActive ? 'var(--accent)' : 'var(--text-mid)') + '">'
+          + 'color:' + (isActive ? 'var(--t-accent)' : 'var(--text-mid)') + '">'
           + '<span>' + t.emoji + '</span>'
           + '<span>' + t.label + '</span>'
           + '<span style="font-size:0.72rem;color:var(--text-dim);font-weight:500">' + n + '</span>'
@@ -2039,7 +2039,7 @@ function buildForSalePage() {
       ' <button type="button" onclick="rrFsToggleNeedsPrice()" title="Show only the ones with no asking price" ' +
       'style="margin-left:0.5rem;border:1px solid ' + (state._fsNeedsPrice ? 'var(--accent)' : 'var(--border)') + ';' +
       'background:' + (state._fsNeedsPrice ? 'color-mix(in srgb, var(--accent) 16%, transparent)' : 'transparent') + ';' +
-      'color:' + (state._fsNeedsPrice ? 'var(--accent)' : 'var(--text-mid)') + ';border-radius:999px;' +
+      'color:' + (state._fsNeedsPrice ? 'var(--t-accent)' : 'var(--text-mid)') + ';border-radius:999px;' +
       'padding:0.15rem 0.6rem;font-size:0.75rem;font-family:var(--font-body);font-weight:600;cursor:pointer">' +
       _noPrice.toLocaleString() + ' need a price</button>' +
       ' <button type="button" onclick="rrFsPriceFill()" ' +
@@ -2757,7 +2757,7 @@ function buildSetsPage() {
       return '<span style="font-family:var(--font-mono);font-size:0.68rem;padding:1px 5px;border-radius:3px;border:1px solid '
         + (isMatch ? '#2980b9' : 'var(--border)')
         + ';background:' + (isMatch ? 'rgba(41,128,185,0.12)' : 'var(--surface)')
-        + ';color:' + (isMatch ? '#2980b9' : 'var(--text-dim)') + ';font-weight:' + (isMatch ? '700' : '400') + '">' + n + '</span>';
+        + ';color:' + (isMatch ? 'var(--t-link)' : 'var(--text-dim)') + ';font-weight:' + (isMatch ? '700' : '400') + '">' + n + '</span>';
     }).join('') + (more ? '<span style="font-size:0.68rem;color:var(--text-dim)">+' + more + ' more</span>' : '');
   }
 
@@ -3373,7 +3373,7 @@ function buildUpgradePage() {
   if (typeof _renderWuHeader === 'function') _renderWuHeader();
   const tbody   = document.getElementById('upgrade-tbody');
 
-  const priorityColor = { High: 'var(--accent)', Medium: 'var(--accent2)', Low: 'var(--text-dim)' };
+  const priorityColor = { High: 'var(--t-accent)', Medium: 'var(--accent2)', Low: 'var(--text-dim)' };
 
   if (entries.length === 0) {
     // v0.9.1348 — _ue and _ut belong in this test. Without them, filtering by

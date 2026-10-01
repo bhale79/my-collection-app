@@ -166,7 +166,7 @@
 
   console.group('%c My Collection App — Health Check Report', 'font-size:14px;font-weight:bold;color:var(--t-red)');
   console.log('%c ' + passes + ' passed  |  ' + fails + ' failed  |  ' + warns + ' warnings',
-    'font-size:12px;color:' + (fails > 0 ? '#e74c3c' : warns > 0 ? '#d4a843' : '#2ecc71'));
+    'font-size:12px;color:' + (fails > 0 ? 'var(--t-danger)' : warns > 0 ? 'var(--t-gold)' : 'var(--t-green)'));
   console.log('─'.repeat(60));
 
   results.forEach(r => {

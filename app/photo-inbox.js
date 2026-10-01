@@ -691,7 +691,7 @@
     el.innerHTML =
       '<select id="pin-filter-select" onchange="_pinFilterPick(this.value)" '
       + 'style="padding:0.45rem 0.6rem;border-radius:8px;border:1.5px solid ' + (active ? 'var(--accent)' : '#8b8e94') + ';'
-      + 'background:var(--bg-card);color:' + (active ? 'var(--accent)' : '#2980b9') + ';font-family:var(--font-body);'
+      + 'background:var(--bg-card);color:' + (active ? 'var(--t-accent)' : 'var(--t-link)') + ';font-family:var(--font-body);'
       + 'font-size:0.82rem;font-weight:700;cursor:pointer;max-width:230px">'
       + '<option value="">' + (active ? 'Filter: change\u2026' : 'Filter: all photos') + '</option>'
       + groups.join('')
@@ -1349,7 +1349,7 @@
         + (armed ? 'Next photo only' : 'Shooting') + '</span>'
       + '<button onclick="_pinPickContext()" style="flex:1;min-width:150px;text-align:left;padding:0.45rem 0.7rem;border-radius:8px;'
         + 'border:1.5px solid ' + (known ? '#2980b9' : 'var(--border)') + ';background:' + (known ? '#f7f0dc' : 'var(--bg)') + ';'
-        + 'color:' + (known ? '#2980b9' : 'var(--text-dim)') + ';font-family:var(--font-head);font-weight:700;font-size:0.9rem;cursor:pointer">'
+        + 'color:' + (known ? 'var(--t-link)' : 'var(--text-dim)') + ';font-family:var(--font-head);font-weight:700;font-size:0.9rem;cursor:pointer">'
         + rrEsc(_pinEraLabel(era)) + ' \u25be</button>'
       + (armed
           ? '<button onclick="_pinClearOneShot()" style="padding:0.45rem 0.7rem;border-radius:8px;border:1px solid var(--border);'
@@ -2644,14 +2644,14 @@
       '<span style="font-size:0.68rem;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-dim);font-weight:700">Tag as</span>'
       + '<button onclick="_pinPickTagEra()" style="flex:1;min-width:150px;text-align:left;padding:0.45rem 0.7rem;border-radius:8px;'
         + 'border:1.5px solid ' + (_tagEra ? '#2980b9' : 'var(--border)') + ';background:' + (_tagEra ? '#f7f0dc' : 'var(--bg)') + ';'
-        + 'color:' + (_tagEra ? '#2980b9' : 'var(--text-dim)') + ';font-family:var(--font-head);font-weight:700;font-size:0.9rem;cursor:pointer">'
+        + 'color:' + (_tagEra ? 'var(--t-link)' : 'var(--text-dim)') + ';font-family:var(--font-head);font-weight:700;font-size:0.9rem;cursor:pointer">'
         + rrEsc(_pinEraLabel(_tagEra)) + ' \u25be</button>'
       // v0.9.1297 (Brad: "on the tag, lets add type to it as well. so i can
       // put paper, or boxcar or whatever"). '' = leave each photo's type
       // as-is, so tagging an era never silently blanks a type set earlier.
       + '<select id="pin-tag-type" style="min-width:130px;padding:0.45rem 0.55rem;border-radius:8px;'
         + 'border:1.5px solid ' + (_tagType ? '#2980b9' : 'var(--border)') + ';background:var(--bg);'
-        + 'color:' + (_tagType ? '#2980b9' : 'var(--text-dim)') + ';font-family:var(--font-body);font-weight:600;font-size:0.85rem;cursor:pointer">'
+        + 'color:' + (_tagType ? 'var(--t-link)' : 'var(--text-dim)') + ';font-family:var(--font-body);font-weight:600;font-size:0.85rem;cursor:pointer">'
         + '<option value="">Type: (leave as-is)</option>'
         + _PIN_TYPES.map(function (t) { return '<option value="' + t + '"' + (t === _tagType ? ' selected' : '') + '>' + t + '</option>'; }).join('')
       + '</select>'
@@ -12719,7 +12719,7 @@
       '<button onclick="_qcPickEra()" style="display:flex;align-items:center;gap:0.5rem;width:100%;'
         + 'padding:0.45rem 0.7rem;margin-bottom:0.6rem;border-radius:9px;text-align:left;cursor:pointer;'
         + 'border:1.5px solid ' + (_qcEraKey ? 'var(--info)' : 'var(--accent)') + ';background:var(--surface2);'
-        + 'color:' + (_qcEraKey ? 'var(--info)' : 'var(--accent)') + ';font-family:var(--font-body);font-size:0.8rem;min-height:38px">'
+        + 'color:' + (_qcEraKey ? 'var(--info)' : 'var(--t-accent)') + ';font-family:var(--font-body);font-size:0.8rem;min-height:38px">'
       + '<span style="font-size:0.64rem;letter-spacing:0.07em;text-transform:uppercase;color:var(--text-dim);font-weight:700;flex-shrink:0">Tagging</span>'
       + '<span style="font-weight:700;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'
         + rrEsc(_qcEraKey ? _pinEraLabel(_qcEraKey) : 'Nothing — reads will be unfiltered') + '</span>'
@@ -12728,7 +12728,7 @@
     body.innerHTML =
       '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.6rem">' +
         '<span style="font-family:var(--font-head);font-weight:700;font-size:1.05rem;color:var(--text)">Quick Capture</span>' +
-        '<button onclick="_qcCropToggle()" style="border:1px solid ' + (_qcCropOn() ? '#2980b9' : 'var(--border)') + ';background:' + (_qcCropOn() ? 'rgba(41,128,185,0.15)' : 'var(--surface2)') + ';color:' + (_qcCropOn() ? '#2980b9' : 'var(--text-dim)') + ';border-radius:7px;font-size:0.7rem;font-weight:700;padding:0.25rem 0.6rem;cursor:pointer;font-family:var(--font-body)">Crop each photo: ' + (_qcCropOn() ? 'ON' : 'OFF') + '</button>' +
+        '<button onclick="_qcCropToggle()" style="border:1px solid ' + (_qcCropOn() ? '#2980b9' : 'var(--border)') + ';background:' + (_qcCropOn() ? 'rgba(41,128,185,0.15)' : 'var(--surface2)') + ';color:' + (_qcCropOn() ? 'var(--t-link)' : 'var(--text-dim)') + ';border-radius:7px;font-size:0.7rem;font-weight:700;padding:0.25rem 0.6rem;cursor:pointer;font-family:var(--font-body)">Crop each photo: ' + (_qcCropOn() ? 'ON' : 'OFF') + '</button>' +
       '</div>' +
       _qcEraRow +
       '<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0.4rem;min-height:0">' +
@@ -12745,14 +12745,14 @@
       // button names the view it will take; the row below shows the whole
       // sequence — the coming view highlighted, finished views grayed (still
       // tappable to re-shoot one), and Another Detail never runs out.
-      '<button onclick="_qcTake(false)" ' + (_qc.shots ? '' : 'disabled ') + 'style="width:100%;min-height:11vh;border-radius:16px;border:1.5px solid ' + (_qc.shots ? '#2980b9' : '#8b8e94') + ';background:rgba(41,128,185,' + (_qc.shots ? '0.14' : '0.05') + ');color:' + (_qc.shots ? '#2980b9' : 'var(--text-dim)') + ';font-family:var(--font-body);font-weight:700;font-size:1rem;cursor:pointer;margin-bottom:0.5rem;opacity:' + (_qc.shots ? '1' : '0.55') + '">Next Photo of Same Item \u2014 ' + _qcViewLabel(_qc.view) + '</button>' +
+      '<button onclick="_qcTake(false)" ' + (_qc.shots ? '' : 'disabled ') + 'style="width:100%;min-height:11vh;border-radius:16px;border:1.5px solid ' + (_qc.shots ? '#2980b9' : '#8b8e94') + ';background:rgba(41,128,185,' + (_qc.shots ? '0.14' : '0.05') + ');color:' + (_qc.shots ? 'var(--t-link)' : 'var(--text-dim)') + ';font-family:var(--font-body);font-weight:700;font-size:1rem;cursor:pointer;margin-bottom:0.5rem;opacity:' + (_qc.shots ? '1' : '0.55') + '">Next Photo of Same Item \u2014 ' + _qcViewLabel(_qc.view) + '</button>' +
       '<div style="display:flex;flex-wrap:wrap;gap:0.35rem;margin-bottom:0.6rem">' +
         _QC_VIEWS.map(function (v) {
           var k = v[0], done = !!_qc.used[k], cur = (k === _qc.view);
           return '<button onclick="_qcPickView(\'' + k + '\')" style="flex:1 1 22%;min-width:72px;padding:0.5rem 0.2rem;border-radius:9px;font-family:var(--font-body);font-weight:700;font-size:0.78rem;cursor:pointer;'
             + 'border:2px solid ' + (cur ? '#2980b9' : (done ? 'var(--border)' : 'var(--border)')) + ';'
             + 'background:' + (cur ? 'rgba(41,128,185,0.22)' : (done ? 'var(--surface2)' : 'var(--bg)')) + ';'
-            + 'color:' + (cur ? '#2980b9' : (done ? '#8b8e94' : 'var(--text-mid)')) + ';'
+            + 'color:' + (cur ? 'var(--t-link)' : (done ? '#8b8e94' : 'var(--text-mid)')) + ';'
             + (done && !cur ? 'opacity:0.55;' : '') + '">'
             + v[1] + (done ? ' \u2713' : '') + '</button>';
         }).join('') +

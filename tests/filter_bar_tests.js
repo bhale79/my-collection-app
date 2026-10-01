@@ -43,7 +43,7 @@ ok('the clear button only shows with text in the box (inline-flex, so it stays i
    /e\.target\.value \? 'inline-flex' : 'none'/.test(js) && !/e\.target\.value \? 'block'/.test(js));
 
 // ── on and off look different ──────────────────────────────────
-ok('an active filter is a solid blue pill', /var _FON = '#2980b9'/.test(js));
+ok('an active filter is a solid blue pill', /var _FON = '#1f6391'/.test(js));
 ok('...blue, not the app accent (orange means for sale)', !/chipOn[\s\S]{0,200}var\(--accent\)/.test(js));
 ok('...carrying its own clear', /_pillOn = function \(label, clearFn, openFn\)/.test(js));
 ok('one pill’s × does not clear the others', /function _phClearOne/.test(js));

@@ -182,7 +182,7 @@
         + 'title="' + tip.replace(/"/g, '&quot;') + '" '
         + 'style="display:inline-flex;align-items:center;justify-content:center;width:2rem;height:2rem;'
         + 'border-radius:8px;border:1.5px solid var(--border);background:var(--bg-card);'
-        + 'color:' + (disabled ? 'var(--text-dim)' : '#2980b9') + ';'
+        + 'color:' + (disabled ? 'var(--text-dim)' : 'var(--t-link)') + ';'
         + (disabled ? 'opacity:0.45;cursor:default;' : 'cursor:pointer;')
         + '">'
         + '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">'

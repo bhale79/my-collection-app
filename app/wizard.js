@@ -2274,7 +2274,7 @@ window._showTenderPicker = function() {
     res.innerHTML = filtered.map(function(m) {
       var isKnown = known.includes(m.itemNum);
       return '<button onclick="_selectTender(\'' + m.itemNum + '\')" style="width:100%;text-align:left;padding:0.55rem 0.75rem;border-radius:8px;border:1px solid ' + (isKnown ? 'rgba(139,92,246,0.35)' : 'var(--border)') + ';background:' + (isKnown ? 'rgba(139,92,246,0.08)' : 'var(--surface2)') + ';cursor:pointer;font-family:var(--font-body)">'
-        + '<span style="font-family:var(--font-mono);font-weight:700;color:' + (isKnown ? '#8b5cf6' : 'var(--accent2)') + ';font-size:0.88rem">' + m.itemNum + '</span>'
+        + '<span style="font-family:var(--font-mono);font-weight:700;color:' + (isKnown ? 'var(--t-purple)' : 'var(--accent2)') + ';font-size:0.88rem">' + m.itemNum + '</span>'
         + (isKnown ? '<span style="margin-left:0.4rem;font-size:0.65rem;color:var(--t-purple);font-family:var(--font-head);letter-spacing:0.06em;text-transform:uppercase">known match</span>' : '')
         + (m.description ? '<div style="font-size:0.75rem;color:var(--text-dim);margin-top:0.1rem">' + m.description + '</div>' : '')
         + '</button>';
@@ -2842,7 +2842,7 @@ function renderWizardStep() {
                 <div style="display:flex;align-items:center;gap:0.6rem;width:100%">
                   <span style="
                     font-family:var(--font-mono);font-size:1rem;font-weight:600;
-                    color:${isSelected ? 'var(--accent)' : 'var(--accent2)'};
+                    color:${isSelected ? 'var(--t-accent)' : 'var(--accent2)'};
                     min-width:2rem;
                   ">${v.variation || '—'}</span>
                   ${_vMultiRoad && String(v.roadName || '').trim() ? '<span style="font-size:0.74rem;font-weight:700;color:var(--text);background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:0.05rem 0.4rem;flex-shrink:0;max-width:14rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + _vEsc(String(v.roadName).trim()) + '</span>' : ''}
@@ -3197,7 +3197,7 @@ function renderWizardStep() {
               wizard.data._boxPhotoFile = f;
               var lbl = document.getElementById('bcd-photo-label');
               if (lbl) lbl.textContent = '\u2713 ' + String(f.name || '').slice(0, 22);
-              if (photoBtn) { photoBtn.style.borderColor = '#2ecc71'; photoBtn.style.color = '#2ecc71'; }
+              if (photoBtn) { photoBtn.style.borderColor = '#2ecc71'; photoBtn.style.color = 'var(--t-green)'; }
             };
             if (window._cropFirst) window._cropFirst(photoFile.files[0], _bcdApply);
             else _bcdApply(photoFile.files[0]);
@@ -3218,7 +3218,7 @@ function renderWizardStep() {
       if (noBtn) {
         noBtn.style.borderColor = val === 'No' ? 'var(--accent)' : 'var(--border)';
         noBtn.style.background  = val === 'No' ? 'rgba(232,64,28,0.1)' : 'var(--surface2)';
-        noBtn.style.color       = val === 'No' ? 'var(--accent)' : 'var(--text-mid)';
+        noBtn.style.color       = val === 'No' ? 'var(--t-accent)' : 'var(--text-mid)';
       }
     };
 
@@ -3347,7 +3347,7 @@ function renderWizardStep() {
             padding:${_manyChoices ? '0.7rem 0.5rem' : '0.85rem'};border-radius:10px;
             border:2px solid ${val===c ? 'var(--accent)' : 'var(--border)'};
             background:${val===c ? 'rgba(232,64,28,0.15)' : 'var(--surface2)'};
-            color:${val===c ? 'var(--accent)' : 'var(--text-mid)'};
+            color:${val===c ? 'var(--t-accent)' : 'var(--text-mid)'};
             font-family:var(--font-body);font-size:${_manyChoices ? '0.82rem' : '0.95rem'};font-weight:500;cursor:pointer;transition:all 0.15s;text-align:center;
             ${_manyChoices ? '' : 'flex:1;min-width:80px;'}
           ">${c}</button>`).join('')}
@@ -3377,7 +3377,7 @@ function renderWizardStep() {
               padding:0.6rem 0.75rem;border-radius:8px;text-align:left;cursor:pointer;
               border:2px solid ${csVal===c ? 'var(--accent)' : 'var(--border)'};
               background:${csVal===c ? 'rgba(232,64,28,0.15)' : 'var(--surface2)'};
-              color:${csVal===c ? 'var(--accent)' : 'var(--text-mid)'};
+              color:${csVal===c ? 'var(--t-accent)' : 'var(--text-mid)'};
               font-family:var(--font-body);font-size:0.85rem;font-weight:500;
               transition:all 0.15s;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"
             >${c}</button>`).join('')}
@@ -3447,7 +3447,7 @@ function renderWizardStep() {
           + 'padding:0.5rem 0.75rem;border-radius:8px;text-align:left;cursor:pointer;width:100%;'
           + 'border:2px solid ' + (picked ? 'var(--accent)' : 'var(--border)') + ';'
           + 'background:' + (picked ? 'rgba(232,64,28,0.15)' : 'var(--surface2)') + ';'
-          + 'color:' + (picked ? 'var(--accent)' : 'var(--text-mid)') + ';'
+          + 'color:' + (picked ? 'var(--t-accent)' : 'var(--text-mid)') + ';'
           + 'font-family:var(--font-body);font-size:0.82rem;font-weight:500;transition:all 0.15s;margin-bottom:0.3rem">'
           + label + descLine + '</button>';
       });
@@ -3490,7 +3490,7 @@ function renderWizardStep() {
           + 'padding:0.5rem 0.75rem;border-radius:8px;text-align:left;cursor:pointer;width:100%;'
           + 'border:2px solid ' + (picked ? 'var(--accent)' : 'var(--border)') + ';'
           + 'background:' + (picked ? 'rgba(232,64,28,0.15)' : 'var(--surface2)') + ';'
-          + 'color:' + (picked ? 'var(--accent)' : 'var(--text-mid)') + ';'
+          + 'color:' + (picked ? 'var(--t-accent)' : 'var(--text-mid)') + ';'
           + 'font-family:var(--font-body);font-size:0.82rem;font-weight:500;transition:all 0.15s;margin-bottom:0.3rem">'
           + label + '</button>';
       });
@@ -3741,7 +3741,7 @@ function renderWizardStep() {
             var isSel = b.textContent === String(yr);
             b.style.border = isSel ? '2px solid var(--accent)' : '1.5px solid var(--border)';
             b.style.background = isSel ? 'rgba(232,64,28,0.15)' : 'var(--surface2)';
-            b.style.color = isSel ? 'var(--accent)' : 'var(--text-mid)';
+            b.style.color = isSel ? 'var(--t-accent)' : 'var(--text-mid)';
           });
           setTimeout(function() { wizardNext(); }, 120);
         };
@@ -3829,7 +3829,7 @@ function renderWizardStep() {
       iconEl.style.cssText = 'font-size:1.3rem';
       iconEl.textContent = opt.icon;
       const labelEl = document.createElement('div');
-      labelEl.innerHTML = '<div style="font-weight:600;color:' + (sel?'var(--accent)':'inherit') + '">' + opt.label + '</div>'
+      labelEl.innerHTML = '<div style="font-weight:600;color:' + (sel?'var(--t-accent)':'inherit') + '">' + opt.label + '</div>'
         + '<div style="font-size:0.78rem;color:var(--text-dim)">' + opt.desc + '</div>';
       top.appendChild(iconEl);
       top.appendChild(labelEl);
@@ -3931,7 +3931,7 @@ function renderWizardStep() {
       topRow.style.cssText = 'display:flex;align-items:center;justify-content:space-between';
 
       const numSpan = document.createElement('span');
-      numSpan.style.cssText = 'font-family:var(--font-head);font-size:1.2rem;color:' + (sel ? 'var(--accent)' : 'var(--text)');
+      numSpan.style.cssText = 'font-family:var(--font-head);font-size:1.2rem;color:' + (sel ? 'var(--t-accent)' : 'var(--text)');
       numSpan.textContent = num;   // v0.9.1434: train icons purged
       topRow.appendChild(numSpan);
 
@@ -4070,22 +4070,22 @@ function renderWizardStep() {
             <div style="display:flex;align-items:flex-start;gap:0.5rem">
               <div style="flex:1">
                 <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap">
-                  <span style="font-family:var(--font-mono);font-size:0.9rem;font-weight:700;color:${i===0?'#e67e22':'var(--accent)'}">${sg.setNum}</span>
+                  <span style="font-family:var(--font-mono);font-size:0.9rem;font-weight:700;color:${i===0?'var(--t-orange)':'var(--t-accent)'}">${sg.setNum}</span>
                   ${sg.setName ? `<span style="font-size:0.8rem;color:var(--text-mid)">${sg.setName}</span>` : ''}
                   ${sg.year ? `<span style="font-size:0.72rem;color:var(--text-dim)">${sg.year}</span>` : ''}
                 </div>
                 <div style="margin-top:0.35rem;display:flex;flex-wrap:wrap;gap:0.25rem">
                   ${sg.items.map(n => {
                     const isEntered = _enteredNums.some(e => normalizeItemNum(e) === normalizeItemNum(n) || baseItemNum(e) === baseItemNum(n));
-                    return `<span style="font-family:var(--font-mono);font-size:0.72rem;padding:1px 6px;border-radius:4px;border:1px solid ${isEntered?'#2ecc71':'var(--border)'};background:${isEntered?'rgba(46,204,113,0.15)':'var(--surface)'};color:${isEntered?'#2ecc71':'var(--text-dim)'};font-weight:${isEntered?'700':'400'}">${n}</span>`;
+                    return `<span style="font-family:var(--font-mono);font-size:0.72rem;padding:1px 6px;border-radius:4px;border:1px solid ${isEntered?'#2ecc71':'var(--border)'};background:${isEntered?'rgba(46,204,113,0.15)':'var(--surface)'};color:${isEntered?'var(--t-green)':'var(--text-dim)'};font-weight:${isEntered?'700':'400'}">${n}</span>`;
                   }).join('')}
                   ${sg.alts.length ? sg.alts.map(n => {
                     const isEntered = _enteredNums.some(e => normalizeItemNum(e) === normalizeItemNum(n) || baseItemNum(e) === baseItemNum(n));
-                    return `<span style="font-family:var(--font-mono);font-size:0.72rem;padding:1px 6px;border-radius:4px;border:1px solid ${isEntered?'#e67e22':'var(--border)'};background:${isEntered?'rgba(230,126,34,0.12)':'var(--surface)'};color:${isEntered?'#e67e22':'var(--text-dim)'};font-style:italic" title="Alternate">${n}</span>`;
+                    return `<span style="font-family:var(--font-mono);font-size:0.72rem;padding:1px 6px;border-radius:4px;border:1px solid ${isEntered?'#e67e22':'var(--border)'};background:${isEntered?'rgba(230,126,34,0.12)':'var(--surface)'};color:${isEntered?'var(--t-orange)':'var(--text-dim)'};font-style:italic" title="Alternate">${n}</span>`;
                   }).join('') : ''}
                 </div>
               </div>
-              <button onclick="event.stopPropagation();wizard.data._resolvedSet=wizard.data._suggestions_cache?.[${i}];wizard.data.set_num='${sg.setNum}';renderWizardStep();" style="flex-shrink:0;padding:0.35rem 0.75rem;border-radius:8px;border:1.5px solid ${i===0?'#e67e22':'var(--border)'};background:${i===0?'#e67e2222':'var(--surface)'};color:${i===0?'#e67e22':'var(--text-dim)'};font-size:0.78rem;font-weight:600;cursor:pointer;white-space:nowrap">This is mine</button>
+              <button onclick="event.stopPropagation();wizard.data._resolvedSet=wizard.data._suggestions_cache?.[${i}];wizard.data.set_num='${sg.setNum}';renderWizardStep();" style="flex-shrink:0;padding:0.35rem 0.75rem;border-radius:8px;border:1.5px solid ${i===0?'#e67e22':'var(--border)'};background:${i===0?'#e67e2222':'var(--surface)'};color:${i===0?'var(--t-orange)':'var(--text-dim)'};font-size:0.78rem;font-weight:600;cursor:pointer;white-space:nowrap">This is mine</button>
             </div>`;
           body.appendChild(card);
         });
@@ -4180,11 +4180,11 @@ function renderWizardStep() {
 
           const chips = v.items.map(n => {
             const matched = _entered.some(e => normalizeItemNum(e) === normalizeItemNum(n));
-            return `<span style="font-family:var(--font-mono);font-size:0.7rem;padding:1px 6px;border-radius:4px;border:1px solid ${matched?'#2ecc71':'var(--border)'};background:${matched?'rgba(46,204,113,0.15)':'var(--surface)'};color:${matched?'#2ecc71':'var(--text-dim)'};font-weight:${matched?'700':'400'}">${n}</span>`;
+            return `<span style="font-family:var(--font-mono);font-size:0.7rem;padding:1px 6px;border-radius:4px;border:1px solid ${matched?'#2ecc71':'var(--border)'};background:${matched?'rgba(46,204,113,0.15)':'var(--surface)'};color:${matched?'var(--t-green)':'var(--text-dim)'};font-weight:${matched?'700':'400'}">${n}</span>`;
           }).join('');
           const altChips = v.alts.length ? v.alts.map(n => {
             const matched = _entered.some(e => normalizeItemNum(e) === normalizeItemNum(n));
-            return `<span style="font-family:var(--font-mono);font-size:0.7rem;padding:1px 6px;border-radius:4px;border:1px solid ${matched?'#e67e22':'rgba(230,126,34,0.3)'};background:${matched?'rgba(230,126,34,0.12)':'var(--surface)'};color:${matched?'#e67e22':'var(--text-dim)'};font-style:italic">${n}</span>`;
+            return `<span style="font-family:var(--font-mono);font-size:0.7rem;padding:1px 6px;border-radius:4px;border:1px solid ${matched?'#e67e22':'rgba(230,126,34,0.3)'};background:${matched?'rgba(230,126,34,0.12)':'var(--surface)'};color:${matched?'var(--t-orange)':'var(--text-dim)'};font-style:italic">${n}</span>`;
           }).join('') : '';
 
           btn.innerHTML = `
@@ -4273,8 +4273,8 @@ function renderWizardStep() {
         const haveRow = document.createElement('div');
         haveRow.style.cssText = 'display:flex;gap:0.6rem;margin-bottom:0.75rem';
         haveRow.innerHTML = `
-          <button onclick="window._detailHave('${item}',true)" style="flex:1;padding:0.85rem;border-radius:10px;border:2px solid ${comp.have===true?'#2ecc71':'var(--border)'};background:${comp.have===true?'rgba(46,204,113,0.18)':'var(--surface2)'};color:${comp.have===true?'#2ecc71':'var(--text-mid)'};font-family:var(--font-body);font-size:0.92rem;font-weight:600;cursor:pointer">✓ I have it</button>
-          <button onclick="window._detailHave('${item}',false)" style="flex:1;padding:0.85rem;border-radius:10px;border:2px solid ${comp.have===false?'var(--accent)':'var(--border)'};background:${comp.have===false?'rgba(232,64,28,0.12)':'var(--surface2)'};color:${comp.have===false?'var(--accent)':'var(--text-mid)'};font-family:var(--font-body);font-size:0.92rem;font-weight:600;cursor:pointer">✗ Don't have it</button>`;
+          <button onclick="window._detailHave('${item}',true)" style="flex:1;padding:0.85rem;border-radius:10px;border:2px solid ${comp.have===true?'#2ecc71':'var(--border)'};background:${comp.have===true?'rgba(46,204,113,0.18)':'var(--surface2)'};color:${comp.have===true?'var(--t-green)':'var(--text-mid)'};font-family:var(--font-body);font-size:0.92rem;font-weight:600;cursor:pointer">✓ I have it</button>
+          <button onclick="window._detailHave('${item}',false)" style="flex:1;padding:0.85rem;border-radius:10px;border:2px solid ${comp.have===false?'var(--accent)':'var(--border)'};background:${comp.have===false?'rgba(232,64,28,0.12)':'var(--surface2)'};color:${comp.have===false?'var(--t-accent)':'var(--text-mid)'};font-family:var(--font-body);font-size:0.92rem;font-weight:600;cursor:pointer">✗ Don't have it</button>`;
         body.appendChild(haveRow);
 
         // Detail fields (if have)
@@ -4293,8 +4293,8 @@ function renderWizardStep() {
           boxRow.style.cssText = 'margin-bottom:0.65rem';
           boxRow.innerHTML = `<div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.08em;font-weight:700;margin-bottom:0.4rem">Original Box?</div>
             <div style="display:flex;gap:0.6rem">
-              <button onclick="window._detailBox('${item}',true)" style="flex:1;padding:0.65rem;border-radius:10px;border:1.5px solid ${comp.hasBox===true?'#3498db':'var(--border)'};background:${comp.hasBox===true?'rgba(52,152,219,0.15)':'var(--surface2)'};color:${comp.hasBox===true?'#3498db':'var(--text-mid)'};font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer">📦 Yes</button>
-              <button onclick="window._detailBox('${item}',false)" style="flex:1;padding:0.65rem;border-radius:10px;border:1.5px solid ${comp.hasBox===false?'var(--border)':'var(--border)'};background:${comp.hasBox===false?'rgba(232,64,28,0.08)':'var(--surface2)'};color:${comp.hasBox===false?'var(--accent)':'var(--text-mid)'};font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer">No box</button>
+              <button onclick="window._detailBox('${item}',true)" style="flex:1;padding:0.65rem;border-radius:10px;border:1.5px solid ${comp.hasBox===true?'#3498db':'var(--border)'};background:${comp.hasBox===true?'rgba(52,152,219,0.15)':'var(--surface2)'};color:${comp.hasBox===true?'var(--t-info)':'var(--text-mid)'};font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer">📦 Yes</button>
+              <button onclick="window._detailBox('${item}',false)" style="flex:1;padding:0.65rem;border-radius:10px;border:1.5px solid ${comp.hasBox===false?'var(--border)':'var(--border)'};background:${comp.hasBox===false?'rgba(232,64,28,0.08)':'var(--surface2)'};color:${comp.hasBox===false?'var(--t-accent)':'var(--text-mid)'};font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer">No box</button>
             </div>
             ${comp.hasBox===true ? `<div class="rr-cond-box-wrap" style="margin-top:0.5rem;display:flex;align-items:center;gap:0.5rem">
               <span style="font-size:0.75rem;color:var(--text-dim)">Box condition:</span>
@@ -4865,7 +4865,7 @@ function renderWizardStep() {
     const addBtn = document.createElement('button');
     addBtn.style.cssText = 'margin-top:0.6rem;display:flex;align-items:center;gap:0.4rem;padding:0.45rem 0.9rem;border-radius:8px;border:1.5px dashed var(--border);background:none;color:var(--text-dim);cursor:pointer;font-family:var(--font-body);font-size:0.82rem;width:100%;justify-content:center;transition:all 0.15s';
     addBtn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg> Add another photo';
-    addBtn.onmouseover = () => { addBtn.style.borderColor = 'var(--accent)'; addBtn.style.color = 'var(--accent)'; };
+    addBtn.onmouseover = () => { addBtn.style.borderColor = 'var(--accent)'; addBtn.style.color = 'var(--t-accent)'; };
     addBtn.onmouseout  = () => { addBtn.style.borderColor = 'var(--border)'; addBtn.style.color = 'var(--text-dim)'; };
     addBtn.onclick = () => {
       // Ask for a label first so the photo is meaningfully named
@@ -6123,7 +6123,7 @@ function renderWizardStep() {
       row.style.cssText = 'display:flex;align-items:center;gap:0.5rem;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:0.45rem 0.7rem';
       row.innerHTML = '<div style="flex:1">'
         + '<div style="display:flex;align-items:baseline;gap:0.4rem;flex-wrap:wrap">'
-        + '<span style="font-family:var(--font-mono);font-size:0.85rem;font-weight:700;color:' + (isSaved ? 'var(--accent)' : 'var(--text-dim)') + '">' + itemNum + '</span>'
+        + '<span style="font-family:var(--font-mono);font-size:0.85rem;font-weight:700;color:' + (isSaved ? 'var(--t-accent)' : 'var(--text-dim)') + '">' + itemNum + '</span>'
         + (mType ? '<span style="font-size:0.7rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.04em">' + mType + '</span>' : '')
         + (isEngine ? '<span style="font-size:0.65rem;padding:1px 5px;border-radius:4px;background:rgba(212,168,67,0.2);color:var(--accent2)">Engine</span>' : '')
         + '</div>'

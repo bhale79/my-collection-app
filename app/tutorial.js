@@ -892,7 +892,7 @@ function _rrGuidePhotos() {
       return '<span style="flex:1 1 21%;min-width:76px;text-align:center;padding:0.42rem 0.15rem;border-radius:8px;font-weight:700;font-size:0.72rem;'
         + 'border:2px solid ' + (isNow ? '#2980b9' : 'var(--border)') + ';'
         + 'background:' + (isNow ? 'rgba(41,128,185,0.22)' : (isDone ? 'var(--surface2)' : 'var(--bg)')) + ';'
-        + 'color:' + (isNow ? '#2980b9' : (isDone ? '#8b8e94' : 'var(--text-mid)')) + ';'
+        + 'color:' + (isNow ? 'var(--t-link)' : (isDone ? '#8b8e94' : 'var(--text-mid)')) + ';'
         + (isDone ? 'opacity:0.55;' : '') + '">' + v + (isDone ? ' ✓' : '') + '</span>';
     }).join('') + '</div>';
   };
