@@ -111,6 +111,8 @@ ok('every word colour: bright in :root, deep (≥ 5 / ≥ 4.5) on the cream, ≥
 ok('the highlighted menu item reads ≥ 4.5 on the navy sidebar', C(varIn(block(css, ROOT), '--t-nav'), '#132447') >= 4.5);
 ok('…and on the light theme\'s cream sidebar', C(varIn(block(css, LIGHT), '--t-nav'), '#f8e8c0') >= 4.5);
 ok('the menu item uses it', /\.nav-item\.active \{[^}]*color: var\(--t-nav\)/.test(css) && /\.mobile-nav-item\.active \{ color: var\(--t-nav\)/.test(css));
+ok('the content area names its own text colour (v1854: inherited cream "•" were invisible)',
+   /\.main \{ flex: 1; overflow-y: auto;[\s\S]{0,400}?color: var\(--text\); \}/.test(css));
 ok('the dashboard section titles use the deep link blue', /#dash-panels-host \.section-title \{ --text-dim:var\(--t-link\)/.test(css));
 
 // ── B · no old bright literal, no var(--accent), as a WORD colour ─────────
