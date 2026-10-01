@@ -76,7 +76,7 @@ const WHAT_I_COLLECT = {
     mpc:          '#2ecc71',   // green
     atlas:        '#2980b9',   // blue
     // Session 124: MTH era colors
-    mth_o:        '#e74c3c',   // red — flagship MTH O
+    mth_o:        '#c0392b',   // deep red — flagship MTH O (v1852: white letters read 5.4)
     mth_ho:       '#ec407a',   // pink — HO smaller scale
     mth_s:        '#d4ac0d',   // mustard — S Gauge
     mth_tinplate: '#607d8b',   // slate gray — metallic tinplate feel
@@ -230,7 +230,7 @@ const WHAT_I_COLLECT = {
     // This is the order shown in chip pickers AND the sort order when
     // Mfr=Any (Phase 5 Step 3b cross-manufacturer view).
     lionel: { id: 'lionel', label: 'Lionel', color: 'var(--accent)', default: true  },
-    mth:    { id: 'mth',    label: 'MTH',    color: '#e74c3c',       default: false },
+    mth:    { id: 'mth',    label: 'MTH',    color: '#c0392b',       default: false },
     atlas:  { id: 'atlas',  label: 'Atlas',  color: '#2980b9',       default: false },
     weaver: { id: 'weaver', label: 'Weaver', color: '#16a085',       default: false },
     // v0.9.1686: keys equal ERAS[era].manufacturer.toLowerCase()

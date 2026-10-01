@@ -92,7 +92,7 @@ for (const [name, acc, want] of [['Alaska gold', '#f2b428', 'var(--ink-dark)'], 
   ok(name + ' → ' + want, R.styleProps['--ink-on-accent'] === want, R.styleProps['--ink-on-accent']);
 }
 ok('the sync watches <html> style + data-theme (the one door a skin or theme change passes)',
-   /new MutationObserver\(rrSyncInkOnAccent\)\.observe\(document\.documentElement, \{ attributes: true, attributeFilter: \['style', 'data-theme'/.test(cfg));
+   /new MutationObserver\(rrSyncInk\)\.observe\(document\.documentElement, \{ attributes: true, attributeFilter: \['style', 'data-theme'/.test(cfg) && /function rrSyncInk\(\) \{ rrSyncInkOnAccent\(\);/.test(cfg));
 
 section('D · every built-in skin and every badge color gets the better letters');
 const skins = {};

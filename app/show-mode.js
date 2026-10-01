@@ -132,7 +132,7 @@
       + _tile('sm-sell', '💰', 'Selling', 'Your For Sale list and record-a-sale')
       + (nd ? '<div style="padding:0.6rem 0.9rem;border-radius:9px;border:1.5px solid var(--accent2,#c9922a);background:rgba(201,146,42,0.1);color:var(--accent2,#c9922a);font-size:0.82rem">⚡ ' + nd + ' quick grab' + (nd > 1 ? 's' : '') + ' waiting for details (finish at home)</div>' : '')
       + '<div id="sm-hunt-list"></div>'
-      + '<button id="sm-end" style="margin-top:0.4rem;padding:0.85rem;border-radius:10px;border:1.5px solid var(--accent,#e8401c);background:var(--bg-card);background:color-mix(in srgb, rgb(232,64,28) 10%, var(--bg-card));color:var(--accent,#e8401c);font-weight:700;cursor:pointer;font-family:var(--font-body,sans-serif)">🏁 End Show & See Recap</button>'
+      + '<button id="sm-end" style="margin-top:0.4rem;padding:0.85rem;border-radius:10px;border:1.5px solid var(--accent,#e8401c);background:var(--bg-card);background:color-mix(in srgb, rgb(232,64,28) 10%, var(--bg-card));color:var(--t-accent);font-weight:700;cursor:pointer;font-family:var(--font-body,sans-serif)">🏁 End Show & See Recap</button>'
       + '</div>';
   }
 
@@ -162,12 +162,12 @@
             + '<div style="flex:1;min-width:0">'
             + '<span style="font-family:var(--font-mono,monospace);font-weight:700;color:var(--accent2,#d4a843)">' + _esc(w.itemNum) + '</span>'
             + (name ? ' <span style="font-size:0.78rem;color:var(--text-mid,#aaa)">' + _esc(name) + '</span>' : '')
-            + (price ? '<span style="display:block;font-size:0.75rem;color:#2ecc71">max $' + Number(price).toLocaleString() + (w.priority ? ' · ' + _esc(w.priority) : '') + '</span>' : '')
+            + (price ? '<span style="display:block;font-size:0.75rem;color:var(--t-green)">max $' + Number(price).toLocaleString() + (w.priority ? ' · ' + _esc(w.priority) : '') + '</span>' : '')
             + '</div>'
-            + '<button data-sm-research="' + _esc(w.itemNum) + '" style="padding:0.4rem 0.55rem;border-radius:7px;border:1px solid #3498db;background:var(--bg-card);background:color-mix(in srgb, rgb(52,152,219) 10%, var(--bg-card));color:#3498db;cursor:pointer;font-size:0.78rem">🔍</button>'
+            + '<button data-sm-research="' + _esc(w.itemNum) + '" style="padding:0.4rem 0.55rem;border-radius:7px;border:1px solid #3498db;background:var(--bg-card);background:color-mix(in srgb, rgb(52,152,219) 10%, var(--bg-card));color:var(--t-info);cursor:pointer;font-size:0.78rem">🔍</button>'
             + (isFound
-              ? '<span style="font-size:0.78rem;color:#2ecc71;font-weight:700">✓ found</span>'
-              : '<button data-sm-found="' + _esc(w.itemNum) + '" style="padding:0.4rem 0.6rem;border-radius:7px;border:1px solid #2ecc71;background:var(--bg-card);background:color-mix(in srgb, rgb(46,204,113) 10%, var(--bg-card));color:#2ecc71;cursor:pointer;font-size:0.78rem;font-weight:700">Found it</button>')
+              ? '<span style="font-size:0.78rem;color:var(--t-green);font-weight:700">✓ found</span>'
+              : '<button data-sm-found="' + _esc(w.itemNum) + '" style="padding:0.4rem 0.6rem;border-radius:7px;border:1px solid #2ecc71;background:var(--bg-card);background:color-mix(in srgb, rgb(46,204,113) 10%, var(--bg-card));color:var(--t-green);cursor:pointer;font-size:0.78rem;font-weight:700">Found it</button>')
             + '</div>';
         }).join('');
   }
@@ -241,10 +241,10 @@
       + '<div style="font-family:var(--font-head,sans-serif);font-size:1.35rem;color:var(--text,#fff);margin-bottom:0.2rem">' + _esc(s.name) + '</div>'
       + '<div style="font-size:0.8rem;color:var(--text-dim,#777);margin-bottom:1.25rem">' + _esc(s.date) + '</div>'
       + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.6rem;text-align:left">'
-      +   '<div style="padding:0.9rem;border-radius:11px;border:1px solid var(--border,#333);background:var(--surface,#1c1c22)"><div style="font-size:1.5rem;font-weight:800;color:#2ecc71">' + adds + '</div><div style="font-size:0.78rem;color:var(--text-mid,#aaa)">items added · $' + spend.toLocaleString() + ' spent</div></div>'
-      +   '<div style="padding:0.9rem;border-radius:11px;border:1px solid var(--border,#333);background:var(--surface,#1c1c22)"><div style="font-size:1.5rem;font-weight:800;color:#e67e22">' + sold + '</div><div style="font-size:0.78rem;color:var(--text-mid,#aaa)">sold · $' + soldTotal.toLocaleString() + ' in</div></div>'
+      +   '<div style="padding:0.9rem;border-radius:11px;border:1px solid var(--border,#333);background:var(--surface,#1c1c22)"><div style="font-size:1.5rem;font-weight:800;color:var(--t-green)">' + adds + '</div><div style="font-size:0.78rem;color:var(--text-mid,#aaa)">items added · $' + spend.toLocaleString() + ' spent</div></div>'
+      +   '<div style="padding:0.9rem;border-radius:11px;border:1px solid var(--border,#333);background:var(--surface,#1c1c22)"><div style="font-size:1.5rem;font-weight:800;color:var(--t-orange)">' + sold + '</div><div style="font-size:0.78rem;color:var(--text-mid,#aaa)">sold · $' + soldTotal.toLocaleString() + ' in</div></div>'
       +   '<div style="padding:0.9rem;border-radius:11px;border:1px solid var(--border,#333);background:var(--surface,#1c1c22)"><div style="font-size:1.5rem;font-weight:800;color:var(--accent2,#d4a843)">' + wantsFound + '</div><div style="font-size:0.78rem;color:var(--text-mid,#aaa)">want-list finds</div></div>'
-      +   '<div style="padding:0.9rem;border-radius:11px;border:1px solid var(--border,#333);background:var(--surface,#1c1c22)"><div style="font-size:1.5rem;font-weight:800;color:#8b5cf6">' + _needsDetailsCount() + '</div><div style="font-size:0.78rem;color:var(--text-mid,#aaa)">quick grabs to finish at home</div></div>'
+      +   '<div style="padding:0.9rem;border-radius:11px;border:1px solid var(--border,#333);background:var(--surface,#1c1c22)"><div style="font-size:1.5rem;font-weight:800;color:var(--t-purple)">' + _needsDetailsCount() + '</div><div style="font-size:0.78rem;color:var(--text-mid,#aaa)">quick grabs to finish at home</div></div>'
       + '</div>'
       + '<button onclick="_smExit()" style="margin-top:1.25rem;width:100%;padding:1rem;border-radius:10px;border:none;background:#8b5cf6;color:#fff;font-weight:800;font-size:1rem;cursor:pointer;font-family:var(--font-body,sans-serif)">Done — great show 🎉</button>'
       + '</div>';
@@ -259,7 +259,7 @@
         b.id = 'sm-entry-btn';
         b.className = 'btn';
         b.innerHTML = '🎪 SHOW MODE';
-        b.style.cssText = 'border:1.5px solid #8b5cf6;color:#8b5cf6;background:rgba(139,92,246,0.08)';
+        b.style.cssText = 'border:1.5px solid #8b5cf6;color:var(--t-purple);background:rgba(139,92,246,0.08)';
         b.onclick = function () { window.openShowMode(); };
         host.appendChild(b);
       }
@@ -271,7 +271,7 @@
         var mb = document.createElement('button');
         mb.id = 'sm-entry-mobile';
         mb.innerHTML = '🎪 SHOW MODE — research, hunt & grab on the floor';
-        mb.style.cssText = 'width:100%;margin-top:0.45rem;padding:0.8rem;border-radius:9px;border:1.5px solid #8b5cf6;color:#8b5cf6;background:rgba(139,92,246,0.1);font-family:var(--font-body,sans-serif);font-size:0.85rem;font-weight:800;cursor:pointer';
+        mb.style.cssText = 'width:100%;margin-top:0.45rem;padding:0.8rem;border-radius:9px;border:1.5px solid #8b5cf6;color:var(--t-purple);background:rgba(139,92,246,0.1);font-family:var(--font-body,sans-serif);font-size:0.85rem;font-weight:800;cursor:pointer';
         mb.onclick = function () { window.openShowMode(); };
         mhost.parentElement.insertBefore(mb, mhost.nextSibling);
       }

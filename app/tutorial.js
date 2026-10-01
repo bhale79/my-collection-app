@@ -862,15 +862,15 @@ function _rrGuidePhotos() {
   var ex = document.getElementById('rr-guide-modal'); if (ex) ex.remove();
   var chip = function (t, kind) {
     var st = { primary: 'background:var(--accent);color:var(--on-accent);border:none',
-               ghost:   'background:var(--surface2);color:#2980b9;border:1.5px solid #2980b9',
+               ghost:   'background:var(--surface2);color:var(--t-link);border:1.5px solid #2980b9',
                gold:    'background:var(--bg-card);color:var(--accent2);border:1.5px solid var(--accent2)',
-               green:   'background:var(--bg-card);color:#2ecc71;border:1.5px solid #2ecc71',
+               green:   'background:var(--bg-card);color:var(--t-green);border:1.5px solid #2ecc71',
                plain:   'background:var(--surface2);color:var(--text-mid);border:1px solid var(--border)' }[kind || 'plain'];
     return '<span style="display:inline-block;font-weight:700;font-size:0.8rem;padding:0.2rem 0.5rem;border-radius:6px;white-space:nowrap;' + st + '">' + t + '</span>';
   };
   var h2 = function (n, t) {
     return '<div style="font-family:var(--font-head);font-size:1.15rem;font-weight:600;letter-spacing:0.02em;margin:1.6rem 0 0.4rem;padding-top:0.9rem;border-top:1px solid var(--border)">'
-      + '<span style="color:var(--accent);margin-right:0.5rem">' + n + '</span>' + t + '</div>';
+      + '<span style="color:var(--t-accent);margin-right:0.5rem">' + n + '</span>' + t + '</div>';
   };
   var h3 = function (t) {
     return '<div style="font-family:var(--font-head);font-size:0.95rem;font-weight:600;letter-spacing:0.03em;color:var(--text-mid);margin:1.1rem 0 0.3rem">' + t + '</div>';
@@ -904,7 +904,7 @@ function _rrGuidePhotos() {
     + p('This is how I do it myself. There is no single right way to photograph trains, but there is a way that keeps you moving, and that is what this is. Read the quick start, go shoot one shelf, and come back for the rest when you need it.')
 
     + '<div style="border:1px solid rgba(240,80,8,0.4);background:rgba(240,80,8,0.07);border-radius:12px;padding:0.9rem 1rem;margin:1.2rem 0">'
-    +   '<div style="font-family:var(--font-head);font-size:1.02rem;font-weight:700;color:var(--accent);margin-bottom:0.4rem">Your first 50 trains</div>'
+    +   '<div style="font-family:var(--font-head);font-size:1.02rem;font-weight:700;color:var(--t-accent);margin-bottom:0.4rem">Your first 50 trains</div>'
     +   '<ol style="margin:0;padding-left:1.15rem;font-size:0.88rem;line-height:1.6">'
     +     '<li>Pick <b>one shelf or one cabinet</b> — something you can shoot without moving your feet much.</li>'
     +     '<li>On your phone, open ' + chip('Photo Inbox') + ', then ' + chip('Add photos…', 'ghost') + '</li>'

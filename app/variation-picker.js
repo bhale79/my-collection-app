@@ -321,7 +321,7 @@
     return String(desc || '').split(/(\s+)/).map(function (tok) {
       if (/^\s+$/.test(tok)) return tok;
       var c = tok.toLowerCase().replace(/[^a-z0-9]/g, ''), e = _vpEsc(tok);
-      return (c && common && !common[c]) ? '<span style="color:var(--accent);font-weight:700;background:rgba(232,64,28,0.14);border-radius:3px;padding:0 2px">' + e + '</span>' : e;
+      return (c && common && !common[c]) ? '<span style="color:var(--t-accent);font-weight:700;background:rgba(232,64,28,0.14);border-radius:3px;padding:0 2px">' + e + '</span>' : e;
     }).join('');
   }
   function _vpCardHtml(id, common) {

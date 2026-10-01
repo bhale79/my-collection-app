@@ -649,7 +649,7 @@ function _buildWizardModal() {
         // here, left of the X and Next, so the big dashed block stops eating a
         // row of the form. Shown only on the item-number step (renderWizardStep).
         '<button class="btn btn-secondary" id="wizard-idphoto-btn" onclick="_wizIdentifyFromFooter()" ' +
-          'style="display:none;margin-right:auto;border-color:#2980b9;color:#2980b9;background:var(--bg-card);background:color-mix(in srgb, rgb(41,128,185) 10%, var(--bg-card));' +
+          'style="display:none;margin-right:auto;border-color:#2980b9;color:var(--t-link);background:var(--bg-card);background:color-mix(in srgb, rgb(41,128,185) 10%, var(--bg-card));' +
           'align-items:center;gap:0.35rem;min-width:0" aria-label="Photo ID">' +
           '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="flex-shrink:0">' +
           '<path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 0 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>' +
@@ -763,7 +763,7 @@ function _buildWizardModal() {
     _identEl.id = 'identify-modal';
     var _isMobileIm = !!window.IS_MOBILE_UA;   // v0.9.699: width/touch offered the WEBCAM on desktops
     var _photoButtons = _isMobileIm
-      ? '<button type="button" id="id-take-photo" style="flex:1;padding:0.6rem;border-radius:9px;border:1.5px solid var(--accent);background:var(--bg-card);background:color-mix(in srgb, rgb(232,64,28) 8%, var(--bg-card));color:var(--accent);font-family:var(--font-body);font-weight:600;font-size:0.85rem;cursor:pointer">\ud83d\udcf7 Take Photo</button>'
+      ? '<button type="button" id="id-take-photo" style="flex:1;padding:0.6rem;border-radius:9px;border:1.5px solid var(--accent);background:var(--bg-card);background:color-mix(in srgb, rgb(232,64,28) 8%, var(--bg-card));color:var(--t-accent);font-family:var(--font-body);font-weight:600;font-size:0.85rem;cursor:pointer">\ud83d\udcf7 Take Photo</button>'
         + '<button type="button" id="id-pick-photo" style="flex:1;padding:0.6rem;border-radius:9px;border:1.5px solid var(--accent2);background:var(--bg-card);background:color-mix(in srgb, rgb(201,146,42) 8%, var(--bg-card));color:var(--accent2);font-family:var(--font-body);font-weight:600;font-size:0.85rem;cursor:pointer">\ud83d\uddbc\ufe0f From Gallery</button>'
       : '<button type="button" id="id-pick-photo" style="flex:1;padding:0.7rem;border-radius:9px;border:1.5px dashed var(--accent2);background:var(--bg-card);background:color-mix(in srgb, rgb(201,146,42) 6%, var(--bg-card));color:var(--accent2);font-family:var(--font-body);font-weight:600;font-size:0.9rem;cursor:pointer">\ud83d\udcc1 Upload Photo</button>';
     var _mfrChips = ['Lionel','MTH','Atlas','K-Line','Weaver','Williams','RMT','Menards','Marx','Not sure'].map(function(m) {
@@ -1158,7 +1158,7 @@ function _wizSetKind(kind) {
 function _wizKindSelectHtml(cur, compact) {
   return '<select id="wiz-kind-select" onchange="_wizSetKind(this.value)" style="' +
     'width:100%;padding:' + (compact ? '0.4rem 0.55rem' : '0.6rem 0.75rem') + ';border-radius:8px;border:2px solid #2980b9;' +
-    'background:#f7f0dc;color:#2980b9;font-family:var(--font-head);font-weight:700;' +
+    'background:#f7f0dc;color:var(--t-link);font-family:var(--font-head);font-weight:700;' +
     'font-size:' + (compact ? '0.9rem' : '0.92rem') + ';cursor:pointer;box-sizing:border-box">' +
     _WIZ_KINDS.map(function (k) {
       return '<option value="' + k.id + '"' + (k.id === cur ? ' selected' : '') + '>' + k.label + '</option>';
@@ -1499,11 +1499,11 @@ async function _confirmSetCancel() {
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:99999;display:flex;align-items:center;justify-content:center;padding:1.5rem';
   const box = document.createElement('div');
   box.className = 'rr-card'; box.style.cssText += ';border-color:var(--accent);text-align:center';
-  box.innerHTML = '<div style="font-family:var(--font-head);font-size:1.1rem;color:var(--accent);margin-bottom:0.75rem">Cancel Set Entry?</div>'
+  box.innerHTML = '<div style="font-family:var(--font-head);font-size:1.1rem;color:var(--t-accent);margin-bottom:0.75rem">Cancel Set Entry?</div>'
     + '<div style="font-size:0.85rem;color:var(--text-mid);line-height:1.5;margin-bottom:1.25rem">Are you sure? All ' + saved.length + ' item' + (saved.length !== 1 ? 's' : '') + ' you\'ve already entered for this set will be deleted.</div>'
     + '<div style="display:flex;gap:0.5rem;justify-content:center">'
     + '<button id="set-cancel-back" style="padding:0.55rem 1.1rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text-mid);font-family:var(--font-body);font-size:0.85rem;cursor:pointer">Go Back</button>'
-    + '<button id="set-cancel-confirm" style="padding:0.55rem 1.1rem;border-radius:8px;border:1.5px solid #8b8e94;background:var(--bg-card);background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card));color:#f05008;font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer">Yes, Delete All</button>'
+    + '<button id="set-cancel-confirm" style="padding:0.55rem 1.1rem;border-radius:8px;border:1.5px solid #8b8e94;background:var(--bg-card);background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card));color:var(--t-red);font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer">Yes, Delete All</button>'
     + '</div>';
   overlay.appendChild(box);
   bindOverlayClose(overlay, function() { overlay.remove(); });
@@ -2275,7 +2275,7 @@ window._showTenderPicker = function() {
       var isKnown = known.includes(m.itemNum);
       return '<button onclick="_selectTender(\'' + m.itemNum + '\')" style="width:100%;text-align:left;padding:0.55rem 0.75rem;border-radius:8px;border:1px solid ' + (isKnown ? 'rgba(139,92,246,0.35)' : 'var(--border)') + ';background:' + (isKnown ? 'rgba(139,92,246,0.08)' : 'var(--surface2)') + ';cursor:pointer;font-family:var(--font-body)">'
         + '<span style="font-family:var(--font-mono);font-weight:700;color:' + (isKnown ? '#8b5cf6' : 'var(--accent2)') + ';font-size:0.88rem">' + m.itemNum + '</span>'
-        + (isKnown ? '<span style="margin-left:0.4rem;font-size:0.65rem;color:#8b5cf6;font-family:var(--font-head);letter-spacing:0.06em;text-transform:uppercase">known match</span>' : '')
+        + (isKnown ? '<span style="margin-left:0.4rem;font-size:0.65rem;color:var(--t-purple);font-family:var(--font-head);letter-spacing:0.06em;text-transform:uppercase">known match</span>' : '')
         + (m.description ? '<div style="font-size:0.75rem;color:var(--text-dim);margin-top:0.1rem">' + m.description + '</div>' : '')
         + '</button>';
     }).join('');
@@ -2467,7 +2467,7 @@ function renderWizardStep() {
     const _type  = _typeLabel(_master);
     _titleEl.innerHTML =
       `<div style="display:flex;align-items:baseline;flex-wrap:wrap;gap:0.5rem 0.75rem;margin-bottom:0.35rem">` +
-        `<span style="font-size:0.68rem;font-weight:700;letter-spacing:0.09em;text-transform:uppercase;color:#e67e22;white-space:nowrap">🎁 Set — Item ${_idx + 1} of ${_total}</span>` +
+        `<span style="font-size:0.68rem;font-weight:700;letter-spacing:0.09em;text-transform:uppercase;color:var(--t-orange);white-space:nowrap">🎁 Set — Item ${_idx + 1} of ${_total}</span>` +
         `<span style="font-size:0.95rem;font-weight:800;color:var(--text);font-family:var(--font-mono)">${_cur}</span>` +
         (_type ? `<span style="font-size:0.72rem;font-weight:600;color:var(--text-mid);text-transform:uppercase;letter-spacing:0.06em">${_type}</span>` : '') +
         `<span style="font-size:0.88rem;color:var(--text-mid)">— ${_titleText}</span>` +
@@ -2553,7 +2553,7 @@ function renderWizardStep() {
         '<label style="font-size:0.82rem;color:var(--text-mid);display:block;margin-bottom:0.3rem">Search all makers or type your own</label>' +
         '<div style="display:flex;gap:0.45rem">' +
           '<input type="text" id="manual-mfr-input" list="manual-mfr-list" autocomplete="off" value="' + _esc(cur) + '" placeholder="Start typing — e.g. Dorfan, Sunset, Menards" oninput="wizard.data.manualManufacturer=this.value.trim()" style="flex:1;min-width:0;padding:0.6rem 0.75rem;border-radius:8px;background:var(--bg);border:1px solid var(--border);color:var(--text);font-family:var(--font-body);font-size:0.9rem;outline:none;box-sizing:border-box">' +
-          '<button type="button" onclick="_wizAddMaker()" title="Use this maker and remember it as a button" style="flex-shrink:0;padding:0.6rem 0.8rem;border-radius:8px;border:1.5px solid #2980b9;background:var(--bg-card);background:color-mix(in srgb, rgb(41,128,185) 12%, var(--bg-card));color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.85rem;cursor:pointer;white-space:nowrap">\uFF0B Add &amp; remember</button>' +
+          '<button type="button" onclick="_wizAddMaker()" title="Use this maker and remember it as a button" style="flex-shrink:0;padding:0.6rem 0.8rem;border-radius:8px;border:1.5px solid #2980b9;background:var(--bg-card);background:color-mix(in srgb, rgb(41,128,185) 12%, var(--bg-card));color:var(--t-link);font-family:var(--font-body);font-weight:700;font-size:0.85rem;cursor:pointer;white-space:nowrap">\uFF0B Add &amp; remember</button>' +
         '</div>' +
         '<datalist id="manual-mfr-list">' + _all.map(function(m){ return '<option value="' + _esc(m) + '">'; }).join('') + '</datalist>' +
       '</div>';
@@ -2613,7 +2613,7 @@ function renderWizardStep() {
         // v0.9.968 (Brad): Est. Worth is the first/top question, matching the
         // other Add steps, then Date Purchased and Price Paid below it.
         '<div>' +
-          '<label style="font-size:0.82rem;color:var(--text-mid);display:block;margin-bottom:0.25rem">Est. Worth <a href="javascript:_wizEbaySold()" style="float:right;color:#2980b9;font-weight:700;text-decoration:none;font-size:0.78rem;margin-left:0.65rem">eBay Sold Listings</a><a href="javascript:_wizResearchPrice()" style="float:right;color:#2ecc71;font-weight:700;text-decoration:none;font-size:0.78rem">\uD83D\uDD0D Research</a></label>' +
+          '<label style="font-size:0.82rem;color:var(--text-mid);display:block;margin-bottom:0.25rem">Est. Worth <a href="javascript:_wizEbaySold()" style="float:right;color:var(--t-link);font-weight:700;text-decoration:none;font-size:0.78rem;margin-left:0.65rem">eBay Sold Listings</a><a href="javascript:_wizResearchPrice()" style="float:right;color:var(--t-green);font-weight:700;text-decoration:none;font-size:0.78rem">\uD83D\uDD0D Research</a></label>' +
           '<input type="number" step="0.01" value="' + (d.userEstWorth || '') + '"' +
             ' oninput="wizard.data.userEstWorth=this.value" placeholder="$0.00"' +
             ' style="width:100%;padding:0.55rem 0.7rem;border-radius:8px;background:var(--bg);border:1px solid var(--border);color:var(--text);font-family:var(--font-mono);font-size:0.88rem;box-sizing:border-box">' +
@@ -2749,7 +2749,7 @@ function renderWizardStep() {
     const _vMultiRoad = _vRoads.size > 1;
       const _vBaseSet = new Set();
       if (variations.length) { String(variations[0].varDesc || variations[0].description || '').toLowerCase().split(/\s+/).forEach((w) => { const c = w.replace(/[^a-z0-9]/g,''); if (c) _vBaseSet.add(c); }); }
-      const _vHl = (desc) => String(desc || '').split(/(\s+)/).map((tok) => { if (/^\s+$/.test(tok)) return tok; const c = tok.toLowerCase().replace(/[^a-z0-9]/g,''); const e = _vEsc(tok); return (c && !_vBaseSet.has(c)) ? '<span style="color:var(--accent);font-weight:700;background:rgba(232,64,28,0.14);border-radius:3px;padding:0 2px">' + e + '</span>' : e; }).join('');
+      const _vHl = (desc) => String(desc || '').split(/(\s+)/).map((tok) => { if (/^\s+$/.test(tok)) return tok; const c = tok.toLowerCase().replace(/[^a-z0-9]/g,''); const e = _vEsc(tok); return (c && !_vBaseSet.has(c)) ? '<span style="color:var(--t-accent);font-weight:700;background:rgba(232,64,28,0.14);border-radius:3px;padding:0 2px">' + e + '</span>' : e; }).join('');
       // v0.9.1233 (Brad): the description, laid out in the sections the
       // reference book wrote it in. One column as before on a narrow screen;
       // side by side when the modal has the room. The preamble (the lines
@@ -2891,7 +2891,7 @@ function renderWizardStep() {
         <button onclick="_wizScanBarcode()" style="
           width:100%;margin-top:0.6rem;padding:0.65rem 1rem;
           border-radius:8px;border:1.5px dashed #2980b9;
-          background:var(--bg-card);background:color-mix(in srgb, rgb(41,128,185) 8%, var(--bg-card));color:#2980b9;
+          background:var(--bg-card);background:color-mix(in srgb, rgb(41,128,185) 8%, var(--bg-card));color:var(--t-link);
           font-family:var(--font-head);font-size:0.78rem;font-weight:600;
           letter-spacing:0.08em;text-transform:uppercase;cursor:pointer;
           display:flex;align-items:center;justify-content:center;gap:0.5rem;
@@ -2924,7 +2924,7 @@ function renderWizardStep() {
           <div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-dim);font-weight:600;margin-bottom:0.4rem">${wizard.tab === 'sold' ? 'What did you sell?' : 'Or pick from your collection'}</div>
           ${wizard.tab === 'sold' ? (function () {
             const _src = wizard.data._soldPickSrc || (Object.keys(state.forSaleData || {}).length ? 'fs' : 'coll');
-            const _chip = (id, lbl, on) => '<button type="button" onclick="_soldPickSrcSet(\'' + id + '\')" style="flex:1;padding:0.5rem;border-radius:8px;font-weight:700;font-size:0.8rem;cursor:pointer;font-family:var(--font-body);border:1.5px solid ' + (on ? '#2ecc71;background:var(--bg-card);background:color-mix(in srgb, rgb(46,204,113) 15%, var(--bg-card));color:#2ecc71' : 'var(--border);background:var(--surface2);color:var(--text-mid)') + '">' + lbl + '</button>';
+            const _chip = (id, lbl, on) => '<button type="button" onclick="_soldPickSrcSet(\'' + id + '\')" style="flex:1;padding:0.5rem;border-radius:8px;font-weight:700;font-size:0.8rem;cursor:pointer;font-family:var(--font-body);border:1.5px solid ' + (on ? '#2ecc71;background:var(--bg-card);background:color-mix(in srgb, rgb(46,204,113) 15%, var(--bg-card));color:var(--t-green)' : 'var(--border);background:var(--surface2);color:var(--text-mid)') + '">' + lbl + '</button>';
             return '<div style="display:flex;gap:0.4rem;margin-bottom:0.45rem">' + _chip('fs', '\uD83C\uDFF7 From For Sale List', _src === 'fs') + _chip('coll', '\uD83D\uDCE6 From My Collection', _src === 'coll') + '</div>';
           })() : ''}
           ${typeof _wpSellFilterRow === 'function' ? _wpSellFilterRow() : ''}
@@ -2996,7 +2996,7 @@ function renderWizardStep() {
     const condWrap = document.createElement('div');
     condWrap.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:2px">'
       + '<span style="font-size:0.62rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-dim)">Overall Condition</span>'
-      + '<span id="se-cond-val" style="font-family:var(--font-mono);font-size:1.05rem;color:var(--accent);font-weight:700">' + _seCondVal + '</span></div>'
+      + '<span id="se-cond-val" style="font-family:var(--font-mono);font-size:1.05rem;color:var(--t-accent);font-weight:700">' + _seCondVal + '</span></div>'
       + '<input type="range" id="se-cond-slider" min="1" max="10" value="' + _seCondVal + '" style="width:100%;accent-color:var(--accent);margin:0">'
       + '<div style="display:flex;justify-content:space-between;font-size:0.6rem;color:var(--text-dim);margin-top:-2px"><span>Poor</span><span>Excellent' + _wizCondHelp() + '</span></div>';
     wrap.appendChild(condWrap);
@@ -3240,7 +3240,7 @@ function renderWizardStep() {
     // recorded; what he paid is history. Five screens asked these two
     // questions and three of them asked them the other way round.
     _bpvHtml += '<div style="margin-bottom:0.75rem">'
-      + '<div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.3rem">Estimated Worth (for insurance) <a href="javascript:_wizEbaySold()" style="float:right;color:#2980b9;font-weight:700;text-decoration:none;text-transform:none;letter-spacing:0;margin-left:0.65rem">eBay Sold Listings</a><a href="javascript:_wizResearchPrice()" style="float:right;color:#2ecc71;font-weight:700;text-decoration:none;text-transform:none;letter-spacing:0">\uD83D\uDD0D Research</a></div>'
+      + '<div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.3rem">Estimated Worth (for insurance) <a href="javascript:_wizEbaySold()" style="float:right;color:var(--t-link);font-weight:700;text-decoration:none;text-transform:none;letter-spacing:0;margin-left:0.65rem">eBay Sold Listings</a><a href="javascript:_wizResearchPrice()" style="float:right;color:var(--t-green);font-weight:700;text-decoration:none;text-transform:none;letter-spacing:0">\uD83D\uDD0D Research</a></div>'
       + '<div style="display:flex;align-items:center;gap:0.5rem;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.6rem 0.75rem">'
       + '<span style="color:var(--text-dim);font-size:1.1rem">$</span>'
       + '<input type="number" id="bpv-worth" value="' + (_bpv.userEstWorth || '') + '" placeholder="0.00" min="0" step="0.01" style="flex:1;background:none;border:none;outline:none;color:var(--text);font-family:var(--font-body);font-size:1rem" oninput="wizard.data.userEstWorth=this.value">'
@@ -3646,7 +3646,7 @@ function renderWizardStep() {
         if (_pricePaid) {
           _priceCtxHtml += '<div style="flex:1;min-width:120px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:0.6rem 0.8rem">'
             + '<div style="font-size:0.65rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-dim);margin-bottom:0.2rem">Price Paid</div>'
-            + '<div style="font-family:var(--font-head);font-size:1.15rem;color:var(--accent)">$' + parseFloat(_pricePaid).toLocaleString() + '</div>'
+            + '<div style="font-family:var(--font-head);font-size:1.15rem;color:var(--t-accent)">$' + parseFloat(_pricePaid).toLocaleString() + '</div>'
             + '</div>';
         }
         if (_estWorth) {
@@ -3665,7 +3665,7 @@ function renderWizardStep() {
     const _rpShow = (s.id === 'expectedPrice' || s.id === 'askingPrice')
       && (wizard.data.itemNum || (wizard.matchedItem || {}).itemNum);
     const _rpBtn = _rpShow
-      ? `<button type="button" onclick="_wizResearchPrice()" style="flex-shrink:0;padding:0.5rem 0.8rem;border-radius:8px;border:1.5px solid #2ecc71;background:var(--bg-card);background:color-mix(in srgb, rgb(46,204,113) 12%, var(--bg-card));color:#2ecc71;font-weight:700;font-size:0.82rem;cursor:pointer;font-family:var(--font-body)">🔍 Research</button><button type="button" onclick="_wizEbaySold()" style="flex-shrink:0;padding:0.5rem 0.8rem;border-radius:8px;border:1.5px solid #2980b9;background:var(--bg-card);background:color-mix(in srgb, rgb(41,128,185) 12%, var(--bg-card));color:#2980b9;font-weight:700;font-size:0.82rem;cursor:pointer;font-family:var(--font-body)">eBay Sold Listings</button>`
+      ? `<button type="button" onclick="_wizResearchPrice()" style="flex-shrink:0;padding:0.5rem 0.8rem;border-radius:8px;border:1.5px solid #2ecc71;background:var(--bg-card);background:color-mix(in srgb, rgb(46,204,113) 12%, var(--bg-card));color:var(--t-green);font-weight:700;font-size:0.82rem;cursor:pointer;font-family:var(--font-body)">🔍 Research</button><button type="button" onclick="_wizEbaySold()" style="flex-shrink:0;padding:0.5rem 0.8rem;border-radius:8px;border:1.5px solid #2980b9;background:var(--bg-card);background:color-mix(in srgb, rgb(41,128,185) 12%, var(--bg-card));color:var(--t-link);font-weight:700;font-size:0.82rem;cursor:pointer;font-family:var(--font-body)">eBay Sold Listings</button>`
       : '';
     body.innerHTML = `
       <div style="padding-top:0.75rem">
@@ -3721,7 +3721,7 @@ function renderWizardStep() {
     var _pwWrap = document.createElement('div');
     _pwWrap.style.cssText = 'padding-top:0.5rem';
     var _pwHint = document.createElement('div');
-    _pwHint.style.cssText = 'font-size:0.78rem;font-weight:600;color:#2980b9;margin-bottom:0.6rem';
+    _pwHint.style.cssText = 'font-size:0.78rem;font-weight:600;color:var(--t-link);margin-bottom:0.6rem';
     _pwHint.textContent = 'Tap the year:';
     _pwWrap.appendChild(_pwHint);
     var _pwGrid = document.createElement('div');
@@ -3732,7 +3732,7 @@ function renderWizardStep() {
         var _btn = document.createElement('button');
         var _sel = String(yr) === String(_pwCurr);
         _btn.style.cssText = 'padding:0.45rem 0.7rem;border-radius:8px;font-family:var(--font-mono);font-size:0.88rem;font-weight:600;cursor:pointer;transition:all 0.15s;'
-          + (_sel ? 'border:2px solid var(--accent);background:rgba(232,64,28,0.15);color:var(--accent)'
+          + (_sel ? 'border:2px solid var(--accent);background:rgba(232,64,28,0.15);color:var(--t-accent)'
                   : 'border:1.5px solid var(--border);background:var(--surface2);color:var(--text-mid)');
         _btn.textContent = yr;
         _btn.onclick = function() {
@@ -3994,7 +3994,7 @@ function renderWizardStep() {
         const hdr = document.createElement('div');
         hdr.style.cssText = 'background:rgba(46,204,113,0.1);border:1.5px solid #2ecc71;border-radius:10px;padding:0.7rem 1rem;margin-bottom:0.75rem;display:flex;align-items:center;justify-content:space-between';
         hdr.innerHTML = `<div>
-          <div style="font-size:0.68rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#2ecc71">Set Identified ✓</div>
+          <div style="font-size:0.68rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--t-green)">Set Identified ✓</div>
           <div style="font-size:0.92rem;color:var(--text);font-weight:600">${_resolvedSet.setNum}${_resolvedSet.setName ? ' — ' + _resolvedSet.setName : ''}</div>
           <div style="font-size:0.75rem;color:var(--text-dim)">${_resolvedSet.year||''} ${_resolvedSet.gauge||''} · ${_resolvedSet.items.length} components</div>
         </div>
@@ -4013,7 +4013,7 @@ function renderWizardStep() {
         _enteredNums.forEach(n => {
           const chip = document.createElement('div');
           chip.style.cssText = 'display:flex;align-items:center;gap:0.3rem;background:var(--surface2);border:1px solid var(--border);border-radius:20px;padding:0.25rem 0.6rem 0.25rem 0.75rem';
-          chip.innerHTML = `<span style="font-family:var(--font-mono);font-size:0.82rem;color:var(--accent);font-weight:600">${n}</span>
+          chip.innerHTML = `<span style="font-family:var(--font-mono);font-size:0.82rem;color:var(--t-accent);font-weight:600">${n}</span>
             <button onclick="window._setRemoveEntered('${n}')" style="border:none;background:none;color:var(--text-dim);cursor:pointer;font-size:0.9rem;line-height:1;padding:0">×</button>`;
           listWrap.appendChild(chip);
         });
@@ -4054,7 +4054,7 @@ function renderWizardStep() {
 
       if (!_resolvedSet && _suggestions.length) {
         const sugHdr = document.createElement('div');
-        sugHdr.style.cssText = 'font-size:0.72rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#e67e22;margin-bottom:0.4rem';
+        sugHdr.style.cssText = 'font-size:0.72rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--t-orange);margin-bottom:0.4rem';
         sugHdr.textContent = _suggestions.length === 1 ? '🎁 Possible set match:' : '🎁 Possible set matches:';
         body.appendChild(sugHdr);
         _suggestions.slice(0, 4).forEach((sg, i) => {
@@ -4261,9 +4261,9 @@ function renderWizardStep() {
         itemHdr.style.cssText = 'background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:0.75rem 1rem;margin-bottom:0.75rem';
         itemHdr.innerHTML = `
           <div style="display:flex;align-items:center;gap:0.6rem">
-            <span style="font-family:var(--font-mono);font-size:1.05rem;font-weight:700;color:var(--accent)">${item}</span>
-            ${isAlt ? '<span style="font-size:0.62rem;background:#e67e2222;color:#e67e22;border-radius:4px;padding:1px 6px;font-weight:700">ALTERNATE</span>' : ''}
-            ${isManual ? '<span style="font-size:0.62rem;background:rgba(52,152,219,0.15);color:#3498db;border-radius:4px;padding:1px 6px;font-weight:700">ADDED BY YOU</span>' : ''}
+            <span style="font-family:var(--font-mono);font-size:1.05rem;font-weight:700;color:var(--t-accent)">${item}</span>
+            ${isAlt ? '<span style="font-size:0.62rem;background:#e67e2222;color:var(--t-orange);border-radius:4px;padding:1px 6px;font-weight:700">ALTERNATE</span>' : ''}
+            ${isManual ? '<span style="font-size:0.62rem;background:rgba(52,152,219,0.15);color:var(--t-info);border-radius:4px;padding:1px 6px;font-weight:700">ADDED BY YOU</span>' : ''}
           </div>
           ${master ? `<div style="font-size:0.82rem;color:var(--text-mid);margin-top:0.2rem">${[master.roadName, master.description].filter(Boolean).join(' · ')}</div>` : ''}
           ${master && master.itemType ? `<div style="font-size:0.7rem;color:var(--text-dim);margin-top:0.1rem">${_typeLabel(master)}${master.yearProd?' · '+master.yearProd:''}</div>` : ''}`;
@@ -4674,10 +4674,10 @@ function renderWizardStep() {
       orientNote.className = 'rr-orient-tip';
       orientNote.style.cssText = 'background:rgba(41,128,185,0.06);border:1px solid rgba(41,128,185,0.25);border-radius:10px;padding:0.6rem 0.7rem;margin-bottom:0.6rem;text-align:center';
       orientNote.innerHTML = `
-        <div style="font-size:0.72rem;font-weight:600;color:#2980b9;margin-bottom:0.45rem;letter-spacing:0.03em">📐 Orientation tip — photograph the <b>right side</b></div>
+        <div style="font-size:0.72rem;font-weight:600;color:var(--t-link);margin-bottom:0.45rem;letter-spacing:0.03em">📐 Orientation tip — photograph the <b>right side</b></div>
         <img loading="lazy" src="${_RSV_PLACEHOLDER_PNG}" style="width:150px;max-width:70%;height:auto;display:block;margin:0 auto 0.35rem;border-radius:6px;opacity:0.9">
         <div style="display:flex;align-items:center;justify-content:center;gap:0.5rem;font-family:var(--font-mono);font-size:0.68rem;color:var(--text-dim);flex-wrap:wrap">
-          <span>← Rear</span><span style="color:#2980b9;font-weight:700;font-family:var(--font-body)">Right Side View</span><span>Front →</span>
+          <span>← Rear</span><span style="color:var(--t-link);font-weight:700;font-family:var(--font-body)">Right Side View</span><span>Front →</span>
         </div>
         <label style="display:flex;align-items:center;justify-content:center;gap:0.4rem;margin-top:0.5rem;font-size:0.72rem;color:var(--text-mid);cursor:pointer;user-select:none">
           <input type="checkbox" style="width:16px;height:16px;cursor:pointer;accent-color:#2980b9"
@@ -4710,7 +4710,7 @@ function renderWizardStep() {
       csDiv.style.cssText = 'background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:0.75rem 0.85rem;margin-bottom:0.75rem';
       csDiv.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:3px">'
         + '<span style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-dim)">' + _csLabel + '</span>'
-        + '<span id="cs-val" style="font-family:var(--font-mono);font-size:1.1rem;color:var(--accent);font-weight:700">' + _csVal + '</span></div>'
+        + '<span id="cs-val" style="font-family:var(--font-mono);font-size:1.1rem;color:var(--t-accent);font-weight:700">' + _csVal + '</span></div>'
         + '<input type="range" min="1" max="10" value="' + _csVal + '" style="width:100%;accent-color:var(--accent)"'
         + ' oninput="wizard.data[\'' + _csKey + '\']=parseInt(this.value);document.getElementById(\'cs-val\').textContent=this.value">'
         + '<div style="display:flex;justify-content:space-between;font-size:0.6rem;color:var(--text-dim)"><span>Poor</span><span>Excellent' + _wizCondHelp() + '</span></div>';
@@ -5119,7 +5119,7 @@ function renderWizardStep() {
                 ${pd.allOriginal === 'Yes' ? `<span style="color:var(--accent2)">All original</span>` : ''}
               </div>
             </div>
-            ${isSelected ? '<span style="color:var(--accent);font-size:1.1rem;align-self:center">✓</span>' : ''}
+            ${isSelected ? '<span style="color:var(--t-accent);font-size:1.1rem;align-self:center">✓</span>' : ''}
           </button>`;
         }).join('')}
         <button onclick="wizardPickSoldItem('__new__')" style="
@@ -5171,7 +5171,7 @@ function renderWizardStep() {
                 ${pd.userEstWorth ? `<span>Est. Worth: <strong style="color:var(--text)">$${parseFloat(pd.userEstWorth).toLocaleString()}</strong></span>` : ''}
               </div>
             </div>
-            ${isSelected ? '<span style="color:#e67e22;font-size:1.1rem;align-self:center">✓</span>' : ''}
+            ${isSelected ? '<span style="color:var(--t-orange);font-size:1.1rem;align-self:center">✓</span>' : ''}
           </button>`;
         }).join('')}
         <button onclick="wizardPickForSaleItem('__new__')" style="
@@ -5213,7 +5213,7 @@ function renderWizardStep() {
                   : '<span style="color:var(--green)">No box yet — will update this row</span>'}
               </div>
             </div>
-            ${isSelected ? '<span style="color:var(--accent);font-size:1rem">✓</span>' : ''}
+            ${isSelected ? '<span style="color:var(--t-accent);font-size:1rem">✓</span>' : ''}
           </button>`;
         }).join('')}
       </div>`;
@@ -5233,7 +5233,7 @@ function renderWizardStep() {
       const _mi = wizard.matchedItem;
       const _hdr = document.createElement('div');
       _hdr.style.cssText = 'background:var(--surface2);border:1.5px solid var(--border);border-radius:10px;padding:0.85rem 1rem;margin-bottom:0.75rem';
-      _hdr.innerHTML = '<div style="font-family:var(--font-head);font-size:1.2rem;color:var(--accent);letter-spacing:0.03em;font-weight:700">No. ' + _ingVal + '</div>'
+      _hdr.innerHTML = '<div style="font-family:var(--font-head);font-size:1.2rem;color:var(--t-accent);letter-spacing:0.03em;font-weight:700">No. ' + _ingVal + '</div>'
         + '<div style="font-size:0.82rem;color:var(--text-mid);margin-top:0.15rem">' + (_mi.roadName || _typeLabel(_mi) || '') + ((_mi.roadName || _typeLabel(_mi)) && _mi.description ? ' — ' : '') + (_mi.description || '') + '</div>';
       _ingWrap.appendChild(_hdr);
       
@@ -5389,7 +5389,7 @@ function renderWizardStep() {
       // reading words on screen breaks the moment the wording changes.
       _ingPhotoBtn.id = 'wiz-photoid-block';
       _ingPhotoBtn.onclick = function() { if (typeof _wizScanBarcode === 'function') _wizScanBarcode(); else openIdentify('wizard'); };
-      _ingPhotoBtn.style.cssText = 'width:100%;margin-top:0.6rem;padding:0.65rem 1rem;border-radius:8px;border:1.5px dashed #2980b9;background:var(--bg-card);background:color-mix(in srgb, rgb(41,128,185) 8%, var(--bg-card));color:#2980b9;font-family:var(--font-head);font-size:0.78rem;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:0.5rem;transition:all 0.15s';
+      _ingPhotoBtn.style.cssText = 'width:100%;margin-top:0.6rem;padding:0.65rem 1rem;border-radius:8px;border:1.5px dashed #2980b9;background:var(--bg-card);background:color-mix(in srgb, rgb(41,128,185) 8%, var(--bg-card));color:var(--t-link);font-family:var(--font-head);font-size:0.78rem;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:0.5rem;transition:all 0.15s';
       _ingPhotoBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 0 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg> Don\x27t know the number? Photo ID';
       // v0.9.1474 (Brad: "dont want to have to scroll down to see photo id
       // button"): a long suggestion list pushed this below the fold. It sits
@@ -5722,7 +5722,7 @@ function renderWizardStep() {
           return '<div style="margin-top:0.55rem;padding:0.55rem 0.7rem;border-radius:8px;border:1px dashed var(--border);background:var(--surface2);font-size:0.75rem;color:var(--text-mid);line-height:1.5">'
             + '<b>Need help identifying the tender you have?</b> '
             + (_thUrl ? ('Check this engine\u2019s listing \u2014 <a href="' + _thUrl + '" target="_blank" rel="noopener" style="color:var(--accent2);display:inline-flex;align-items:center;min-height:34px;padding:0.4rem 0.2rem;box-sizing:border-box">' + _thLbl + '</a> \u2014 or identify it from a photo:') : 'Identify it from a photo:')
-            + '<button type="button" onclick="_wizTenderPhotoId()" style="display:block;width:100%;margin-top:0.45rem;padding:0.5rem;border-radius:8px;border:1.5px dashed #2980b9;background:var(--bg-card);background:color-mix(in srgb, rgb(41,128,185) 8%, var(--bg-card));color:#2980b9;font-family:var(--font-head);font-size:0.72rem;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;cursor:pointer">Photo ID the tender</button>'
+            + '<button type="button" onclick="_wizTenderPhotoId()" style="display:block;width:100%;margin-top:0.45rem;padding:0.5rem;border-radius:8px;border:1.5px dashed #2980b9;background:var(--bg-card);background:color-mix(in srgb, rgb(41,128,185) 8%, var(--bg-card));color:var(--t-link);font-family:var(--font-head);font-size:0.72rem;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;cursor:pointer">Photo ID the tender</button>'
             + '</div>';
         })();
         html += '<div style="font-size:0.7rem;color:var(--text-dim);font-style:italic;margin-top:0.5rem;text-align:center">Need to remove the tender? Go Back and pick Engine only.</div>';
@@ -5735,7 +5735,7 @@ function renderWizardStep() {
       // which made it un-editable whenever a default/prior value was present.)
       html += '<div style="margin-bottom:0.5rem"><div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:2px">'
         + '<span style="font-size:0.7rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.04em">Condition</span>'
-        + '<span id="cd-cond-val-' + col.id + '" style="font-family:var(--font-mono);font-size:0.95rem;color:var(--accent);font-weight:700">' + condVal + '</span></div>'
+        + '<span id="cd-cond-val-' + col.id + '" style="font-family:var(--font-mono);font-size:0.95rem;color:var(--t-accent);font-weight:700">' + condVal + '</span></div>'
         + '<input type="range" min="1" max="10" value="' + condVal + '" style="width:100%;accent-color:var(--accent)"'
         + ' oninput="wizard.data[\'' + condKey + '\']=parseInt(this.value);document.getElementById(\'cd-cond-val-' + col.id + '\').textContent=this.value">'
         + '<div style="display:flex;justify-content:space-between;font-size:0.55rem;color:var(--text-dim)"><span>Poor</span><span>Excellent' + _wizCondHelp() + '</span></div></div>';
@@ -5834,7 +5834,7 @@ function renderWizardStep() {
       // screen that asks both. What a thing is worth is the answer he wants
       // recorded; what he paid is history. Five screens asked these two
       // questions and three of them asked them the other way round.
-      _cdHtml += '<div><div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-dim);margin-bottom:0.25rem">Est. Worth ($) <a href="javascript:_wizEbaySold()" style="float:right;color:#2980b9;font-weight:700;text-decoration:none;text-transform:none;letter-spacing:0;margin-left:0.65rem">eBay Sold Listings</a><a href="javascript:_wizResearchPrice()" style="float:right;color:#2ecc71;font-weight:700;text-decoration:none;text-transform:none;letter-spacing:0">\uD83D\uDD0D Research</a></div>'
+      _cdHtml += '<div><div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-dim);margin-bottom:0.25rem">Est. Worth ($) <a href="javascript:_wizEbaySold()" style="float:right;color:var(--t-link);font-weight:700;text-decoration:none;text-transform:none;letter-spacing:0;margin-left:0.65rem">eBay Sold Listings</a><a href="javascript:_wizResearchPrice()" style="float:right;color:var(--t-green);font-weight:700;text-decoration:none;text-transform:none;letter-spacing:0">\uD83D\uDD0D Research</a></div>'
         + '<div style="display:flex;align-items:center;gap:0.5rem;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.5rem 0.75rem">'
         + '<span style="color:var(--text-dim)">$</span>'
         + '<input type="number" value="' + _scVal + '" placeholder="0.00" min="0" step="0.01"'
@@ -5972,7 +5972,7 @@ function renderWizardStep() {
     // ── Set loco banner ──
     if (_pvIsSetLoco) {
       _pvHtml += '<div style="background:rgba(52,152,219,0.1);border:1.5px solid #3498db;border-radius:10px;padding:0.65rem 0.9rem;margin-bottom:0.85rem;font-size:0.82rem;color:var(--text-mid);line-height:1.45">'
-        + '<div style="font-size:0.68rem;font-weight:700;letter-spacing:0.09em;text-transform:uppercase;color:#3498db;margin-bottom:0.25rem">💰 Set Purchase Info</div>'
+        + '<div style="font-size:0.68rem;font-weight:700;letter-spacing:0.09em;text-transform:uppercase;color:var(--t-info);margin-bottom:0.25rem">💰 Set Purchase Info</div>'
         + 'Enter what you paid and the <strong style="color:var(--text)">full set\'s estimated value</strong> below. Since you bought these together, price &amp; value are stored here on the locomotive'
         + (_pvSetNum ? ' and linked to set ' + _pvSetNum : '') + '.'
         + '</div>';
@@ -5983,7 +5983,7 @@ function renderWizardStep() {
       _pvHtml += '<div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:0.65rem 0.9rem;margin-bottom:0.85rem;font-size:0.82rem;color:var(--text-dim);line-height:1.45">'
         + '<div style="font-size:0.68rem;font-weight:700;letter-spacing:0.09em;text-transform:uppercase;color:var(--text-dim);margin-bottom:0.2rem">💰 Price &amp; Value</div>'
         + 'Stored on the locomotive'
-        + (_pvLocoNum ? ' <span style="font-family:var(--font-mono);color:var(--accent);font-weight:600">' + _pvLocoNum + '</span>' : '')
+        + (_pvLocoNum ? ' <span style="font-family:var(--font-mono);color:var(--t-accent);font-weight:600">' + _pvLocoNum + '</span>' : '')
         + (_pvSetNum ? ' · Set ' + _pvSetNum : '')
         + '</div>';
     }
@@ -5993,7 +5993,7 @@ function renderWizardStep() {
 
     // Est. Worth — loco and normal items only
     if (!_pvIsSetOther) {
-      _pvHtml += '<div style="margin-bottom:0.75rem"><div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.3rem">' + (_pvIsSetLoco ? 'Est. Worth of Whole Set ($)' : 'Est. Worth ($)') + ' <a href="javascript:_wizEbaySold()" style="float:right;color:#2980b9;font-weight:700;text-decoration:none;text-transform:none;letter-spacing:0;margin-left:0.65rem">eBay Sold Listings</a><a href="javascript:_wizResearchPrice()" style="float:right;color:#2ecc71;font-weight:700;text-decoration:none;text-transform:none;letter-spacing:0">\uD83D\uDD0D Research</a></div>';
+      _pvHtml += '<div style="margin-bottom:0.75rem"><div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.3rem">' + (_pvIsSetLoco ? 'Est. Worth of Whole Set ($)' : 'Est. Worth ($)') + ' <a href="javascript:_wizEbaySold()" style="float:right;color:var(--t-link);font-weight:700;text-decoration:none;text-transform:none;letter-spacing:0;margin-left:0.65rem">eBay Sold Listings</a><a href="javascript:_wizResearchPrice()" style="float:right;color:var(--t-green);font-weight:700;text-decoration:none;text-transform:none;letter-spacing:0">\uD83D\uDD0D Research</a></div>';
       _pvHtml += '<div style="display:flex;align-items:center;gap:0.5rem;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.6rem 0.75rem">';
       _pvHtml += '<span style="color:var(--text-dim);font-size:1.1rem">$</span>';
       _pvHtml += '<input type="number" id="pv-worth" value="' + (_pvD.userEstWorth || '') + '" placeholder="0.00" min="0" step="0.01" style="flex:1;background:none;border:none;outline:none;color:var(--text);font-family:var(--font-body);font-size:1rem" oninput="wizard.data.userEstWorth=this.value"></div></div>';
@@ -6085,7 +6085,7 @@ function renderWizardStep() {
     // Header
     const scHdr = document.createElement('div');
     scHdr.style.cssText = 'background:rgba(46,204,113,0.1);border:1.5px solid #2ecc71;border-radius:10px;padding:0.65rem 0.9rem';
-    scHdr.innerHTML = '<div style="font-size:0.65rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#2ecc71">Set Complete \u2713</div>'
+    scHdr.innerHTML = '<div style="font-size:0.65rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--t-green)">Set Complete \u2713</div>'
       + '<div style="font-family:var(--font-mono);font-size:1rem;font-weight:700;color:var(--accent2)">' + _scSetNum + '</div>'
       + '<div style="font-size:0.75rem;color:var(--text-dim)">' + _scSaved.length + ' item' + (_scSaved.length !== 1 ? 's' : '') + ' saved · Group: ' + _scGroupId + '</div>';
     scWrap.appendChild(scHdr);
@@ -6131,7 +6131,7 @@ function renderWizardStep() {
         + (pdCond ? '<span>Cond: <strong style="color:var(--text-mid)">' + pdCond + '</strong></span>' : '')
         + (pdWorth ? '<span>Worth: <strong style="color:var(--gold)">$' + pdWorth + '</strong></span>' : '')
         + (pdHasBox === 'Yes' ? '<span>\ud83d\udce6 Box</span>' : '')
-        + (isSaved ? '<span style="color:#2ecc71">\u2713 Saved</span>' : '<span style="color:var(--accent)">\u2717 Not saved</span>')
+        + (isSaved ? '<span style="color:var(--t-green)">\u2713 Saved</span>' : '<span style="color:var(--t-accent)">\u2717 Not saved</span>')
         + '</div></div>'
         + '<button type="button" onclick="window._scEditItem(\'' + itemNum + '\')" style="background:none;border:none;font-size:1rem;cursor:pointer;padding:0.25rem" title="Edit">\u270f\ufe0f</button>';
       scList.appendChild(row);
@@ -6573,7 +6573,7 @@ window._rrOwnedPanelHtml = function (copies, src) {
       + '</button>';
   }).join('');
   return '<div style="padding:0.55rem 0.65rem;border:1px solid rgba(46,204,113,0.45);border-radius:10px;background:rgba(46,204,113,0.07)">'
-    + '<div style="font-size:0.78rem;font-weight:700;color:#2ecc71">\u2713 You have this item'
+    + '<div style="font-size:0.78rem;font-weight:700;color:var(--t-green)">\u2713 You have this item'
     + (copies.length > 1 ? ' \u2014 ' + copies.length + ' copies' : '') + '</div>'
     + rows
     + '<div style="font-size:0.68rem;color:var(--text-dim);margin-top:0.4rem">Adding another copy is fine \u2014 tap a copy to see its details.</div>'

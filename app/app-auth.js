@@ -125,7 +125,7 @@ function _buildBetaGate() {
   var _blb  = (typeof BRAND_BLURB === 'string') ? BRAND_BLURB
             : 'A web-based inventory tool for model train collectors.';
   var _mark = (typeof BRAND_WORDMARK_HTML === 'string') ? BRAND_WORDMARK_HTML
-            : 'The <span style="color:var(--accent)">Rail</span> Roster';
+            : 'The <span style="color:var(--t-accent)">Rail</span> Roster';
   d.innerHTML =
     '<div style="max-width:420px;width:100%">' +
       '<img src="conductor.png" alt="" aria-hidden="true" style="height:clamp(96px,13vh,140px);width:auto;display:block;margin:0 auto 0.6rem">' +
@@ -140,7 +140,7 @@ function _buildBetaGate() {
       '<div style="box-sizing:border-box;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:1.5rem;text-align:left">' +
         '<label style="font-size:0.8rem;color:var(--text-mid);display:block;margin-bottom:0.5rem;font-weight:600;text-transform:uppercase;letter-spacing:0.05em">Enter Invite Code</label>' +
         '<input type="text" id="beta-code-input" placeholder="Enter your beta access code" autocomplete="off" spellcheck="false" style="box-sizing:border-box;width:100%;padding:0.75rem 1rem;border:1px solid var(--border);border-radius:8px;background:var(--surface2);color:var(--text);font-family:var(--font-mono);font-size:1rem;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:0.75rem" onkeydown="if(event.key===\'Enter\')_checkBetaCode()">' +
-        '<div id="beta-error" style="display:none;font-size:0.8rem;color:var(--accent);margin-bottom:0.75rem">Invalid code. Please check with your invite contact.</div>' +
+        '<div id="beta-error" style="display:none;font-size:0.8rem;color:var(--t-accent);margin-bottom:0.75rem">Invalid code. Please check with your invite contact.</div>' +
         '<button onclick="_checkBetaCode()" style="box-sizing:border-box;width:100%;padding:0.75rem;border:none;border-radius:8px;background:var(--accent);color:var(--on-accent);font-family:var(--font-body);font-size:0.95rem;font-weight:600;cursor:pointer;transition:background 0.15s" onmouseenter="this.style.background=\'#d84800\'" onmouseleave="this.style.background=\'var(--accent)\'">Enter Beta</button>' +
       '</div>' +
       '<p style="font-size:0.75rem;color:var(--text-dim);margin-top:1.25rem">Don\'t have a code? Contact <a href="mailto:' + ADMIN_EMAIL + '" style="color:var(--accent2);text-decoration:none">' + ADMIN_EMAIL + '</a> to request access.</p>' +
@@ -538,7 +538,7 @@ function _showSignInLoadingOverlay() {
   ov.innerHTML =
     '<div style="text-align:center;max-width:340px">'
     +   '<div style="font-family:var(--font-head,sans-serif);font-size:1.6rem;font-weight:700;margin-bottom:1.5rem">'
-    +     'THE <span style="color:var(--accent,#e04028)">RAIL</span> ROSTER'
+    +     'THE <span style="color:var(--t-accent)">RAIL</span> ROSTER'
     +   '</div>'
     +   '<div style="display:inline-block;width:44px;height:44px;border:3px solid rgba(255,255,255,0.15);border-top-color:var(--accent,#e04028);border-radius:50%;animation:spin 0.8s linear infinite;margin-bottom:1.2rem"></div>'
     +   '<div style="font-size:1rem;color:var(--text,#eee);margin-bottom:0.4rem">Signing you in…</div>'

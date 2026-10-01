@@ -271,7 +271,7 @@ function vaultShowOptInModal(fromPrefs) {
       <div style="font-family:var(--font-head);font-size:1.3rem;color:var(--text);margin-bottom:6px;letter-spacing:0.04em">
         Collector's Market Est.
       </div>
-      <div style="font-size:0.78rem;color:var(--accent);font-family:var(--font-head);letter-spacing:0.12em;text-transform:uppercase;margin-bottom:20px">
+      <div style="font-size:0.78rem;color:var(--t-accent);font-family:var(--font-head);letter-spacing:0.12em;text-transform:uppercase;margin-bottom:20px">
         Crowd-Sourced Market Values &amp; Rarity Scores
       </div>
 
@@ -611,7 +611,7 @@ function _vaultCardLocked(count, threshold) {
   return `
     <div style="font-size:0.84rem;color:var(--text-mid);line-height:1.6;margin-bottom:12px">
       Crowd-sourced market values unlock at <strong style="color:var(--text)">${threshold} contributing collectors</strong>.
-      Currently at <strong style="color:var(--accent)">${count}</strong>.
+      Currently at <strong style="color:var(--t-accent)">${count}</strong>.
     </div>
     <div class="vault-progress-bar-wrap" style="margin-bottom:8px">
       <div class="vault-progress-bar" style="width:${pct}%"></div>
@@ -770,7 +770,7 @@ function vaultRenderPage() {
       <div style="font-family:var(--font-head);font-size:0.95rem;font-weight:700;text-transform:uppercase;color:var(--text);letter-spacing:0.04em;margin-bottom:4px">
         Collector's Market
       </div>
-      <div style="font-size:0.78rem;color:var(--accent);font-family:var(--font-head);letter-spacing:0.12em;text-transform:uppercase;margin-bottom:24px">
+      <div style="font-size:0.78rem;color:var(--t-accent);font-family:var(--font-head);letter-spacing:0.12em;text-transform:uppercase;margin-bottom:24px">
         Community Intelligence for Collectors
       </div>
 
@@ -844,7 +844,7 @@ function vaultRenderPage() {
             font-size:0.9rem;font-weight:600;cursor:pointer;min-width:160px
           ">Yes, I'll Contribute</button>
         ` : `
-          <div style="flex:1;padding:12px 16px;border-radius:8px;background:rgba(46,204,113,0.12);border:1px solid rgba(46,204,113,0.3);color:#2ecc71;font-size:0.88rem;line-height:1.5">
+          <div style="flex:1;padding:12px 16px;border-radius:8px;background:rgba(46,204,113,0.12);border:1px solid rgba(46,204,113,0.3);color:var(--t-green);font-size:0.88rem;line-height:1.5">
             ✓ You are contributing anonymously. Thank you — your data helps the whole community.
           </div>
           <button onclick="vaultConfirmOptOut()" style="

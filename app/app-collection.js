@@ -206,7 +206,7 @@ function showNonItemDetailPage(type, key) {
     // v0.9.1155: same prev/next row as the item detail page — sets, catalogs,
     // paper items and the rest step through their list too.
     +   '<div id="rr-detail-nav" style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.75rem;flex-wrap:wrap">'
-    +   '<button onclick="' + backFn + '" style="background:none;border:none;color:#2980b9;font-family:var(--font-body);font-size:1.1rem;font-weight:700;cursor:pointer;padding:0;display:flex;align-items:center;gap:0.4rem">'
+    +   '<button onclick="' + backFn + '" style="background:none;border:none;color:var(--t-link);font-family:var(--font-body);font-size:1.1rem;font-weight:700;cursor:pointer;padding:0;display:flex;align-items:center;gap:0.4rem">'
     +     '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></svg>'
     +     backLabel
     +   '</button>'
@@ -215,7 +215,7 @@ function showNonItemDetailPage(type, key) {
     +   '<div style="display:flex;align-items:flex-start;gap:1rem;flex-wrap:wrap">'
     +     '<div style="flex:1;min-width:0">'
     +       '<div style="display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap;margin-bottom:0.25rem">'
-    +         '<span style="font-family:var(--font-head);font-size:1.6rem;color:var(--accent);letter-spacing:0.03em">' + pageTitle + '</span>'
+    +         '<span style="font-family:var(--font-head);font-size:1.6rem;color:var(--t-accent);letter-spacing:0.03em">' + pageTitle + '</span>'
     +         (isForSale ? '<span style="font-size:1rem;color:var(--gold);font-family:var(--font-head);letter-spacing:0.02em">— on the sale list for ' + fsPrice + '</span>' : '')
     +         (typeBadge ? '<span class="tag">' + typeBadge + '</span>' : '')
     +         (year ? '<span style="font-size:0.82rem;color:var(--text-dim)">' + year + '</span>' : '')
@@ -231,21 +231,21 @@ function showNonItemDetailPage(type, key) {
 
   // ── ACTION TOOLBAR ──
   html += '<div class="rr-detail-actions" style="display:flex;gap:0.5rem;margin-bottom:1.5rem;flex-wrap:wrap">';
-  html +=   '<button onclick="_nonItemDetailEdit(' + typeArg + ',' + keyArg + ')" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #2980b9;background:var(--bg-card);background:color-mix(in srgb, rgb(41,128,185) 10%, var(--bg-card));color:#2980b9;font-family:var(--font-body);font-size:0.82rem;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:0.4rem">'
+  html +=   '<button onclick="_nonItemDetailEdit(' + typeArg + ',' + keyArg + ')" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #2980b9;background:var(--bg-card);background:color-mix(in srgb, rgb(41,128,185) 10%, var(--bg-card));color:var(--t-link);font-family:var(--font-body);font-size:0.82rem;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:0.4rem">'
        +     '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>'
        +     'Update Info/Pictures'
        +   '</button>';
-  html +=   '<button id="detail-record-sale" onclick="_collectionSold(' + typeArg + ',' + keyArg + ')" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #2ecc71;background:var(--bg-card);background:color-mix(in srgb, rgb(46,204,113) 10%, var(--bg-card));color:#2ecc71;font-family:var(--font-body);font-size:0.82rem;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:0.4rem">'
+  html +=   '<button id="detail-record-sale" onclick="_collectionSold(' + typeArg + ',' + keyArg + ')" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #2ecc71;background:var(--bg-card);background:color-mix(in srgb, rgb(46,204,113) 10%, var(--bg-card));color:var(--t-green);font-family:var(--font-body);font-size:0.82rem;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:0.4rem">'
        +     '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>'
        +     'Record Sale'
        +   '</button>';
   if (!isForSale) {
-    html += '<button id="detail-list-sale" onclick="_collectionForSale(' + typeArg + ',' + keyArg + ')" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #e67e22;background:var(--bg-card);background:color-mix(in srgb, rgb(230,126,34) 10%, var(--bg-card));color:#e67e22;font-family:var(--font-body);font-size:0.82rem;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:0.4rem">'
+    html += '<button id="detail-list-sale" onclick="_collectionForSale(' + typeArg + ',' + keyArg + ')" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #e67e22;background:var(--bg-card);background:color-mix(in srgb, rgb(230,126,34) 10%, var(--bg-card));color:var(--t-orange);font-family:var(--font-body);font-size:0.82rem;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:0.4rem">'
          +   '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>'
          +   'List for Sale'
          + '</button>';
   }
-  html +=   '<button onclick="_collectionUpgrade(' + typeArg + ',' + keyArg + ')" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b5cf6;background:var(--bg-card);background:color-mix(in srgb, rgb(139,92,246) 10%, var(--bg-card));color:#8b5cf6;font-family:var(--font-body);font-size:0.82rem;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:0.4rem">'
+  html +=   '<button onclick="_collectionUpgrade(' + typeArg + ',' + keyArg + ')" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b5cf6;background:var(--bg-card);background:color-mix(in srgb, rgb(139,92,246) 10%, var(--bg-card));color:var(--t-purple);font-family:var(--font-body);font-size:0.82rem;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:0.4rem">'
        +     '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 19V5M5 12l7-7 7 7"/></svg>'
        +     'Add to Upgrade List'
        +   '</button>';
@@ -393,7 +393,7 @@ function _nonItemDetailEdit(type, key) {
   box.style.cssText = 'background:var(--surface);border:1px solid var(--border);border-radius:14px;max-width:520px;width:100%;max-height:85vh;overflow-y:auto;padding:1.5rem;position:relative';
 
   var hdr = document.createElement('div');
-  hdr.style.cssText = 'font-family:var(--font-head);font-size:1.05rem;color:var(--accent);margin-bottom:0.25rem';
+  hdr.style.cssText = 'font-family:var(--font-head);font-size:1.05rem;color:var(--t-accent);margin-bottom:0.25rem';
   hdr.textContent = 'Update ' + (cfg.label || 'Item') + ' Info';
   box.appendChild(hdr);
 
@@ -634,7 +634,7 @@ function _nonItemDetailPhotos(type, key) {
   box.style.cssText = 'background:var(--surface);border:1px solid var(--border);border-radius:14px;max-width:560px;width:100%;max-height:85vh;overflow-y:auto;padding:1.5rem;position:relative';
 
   var hdr = document.createElement('div');
-  hdr.style.cssText = 'font-family:var(--font-head);font-size:1.05rem;color:var(--accent);margin-bottom:0.25rem';
+  hdr.style.cssText = 'font-family:var(--font-head);font-size:1.05rem;color:var(--t-accent);margin-bottom:0.25rem';
   hdr.textContent = 'Add Photos — ' + (cfg.label || 'Item');
   box.appendChild(hdr);
 
@@ -659,7 +659,7 @@ function _nonItemDetailPhotos(type, key) {
     });
     if (!masterFound) {
       var warn = document.createElement('div');
-      warn.style.cssText = 'font-size:0.8rem;background:rgba(230,126,34,0.1);border:1px solid #e67e22;color:#e67e22;border-radius:8px;padding:0.6rem 0.8rem;margin-bottom:1rem;line-height:1.5';
+      warn.style.cssText = 'font-size:0.8rem;background:rgba(230,126,34,0.1);border:1px solid #e67e22;color:var(--t-orange);border-radius:8px;padding:0.6rem 0.8rem;margin-bottom:1rem;line-height:1.5';
       warn.innerHTML = '⚠️ Only the Set Box slot is available. Switch to the era this set belongs to (likely Postwar) and re-open Add Photos to see item slots for each piece.';
       box.appendChild(warn);
     }
@@ -1220,7 +1220,7 @@ function showItemDetailPage(idx, copyInvId, opts) {
          returns '' when there is no list to step through (a deep link, a lone
          search hit), so the header then looks exactly as it always did. -->
     <div id="rr-detail-nav" style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.75rem;flex-wrap:wrap">
-    <button onclick="${_backFn}" style="background:none;border:none;color:#2980b9;font-family:var(--font-body);font-size:1.1rem;font-weight:700;cursor:pointer;padding:0;display:flex;align-items:center;gap:0.4rem">
+    <button onclick="${_backFn}" style="background:none;border:none;color:var(--t-link);font-family:var(--font-body);font-size:1.1rem;font-weight:700;cursor:pointer;padding:0;display:flex;align-items:center;gap:0.4rem">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></svg>
       ${_backLabel}
     </button>
@@ -1229,7 +1229,7 @@ function showItemDetailPage(idx, copyInvId, opts) {
     <div style="display:flex;align-items:flex-start;gap:1rem;flex-wrap:wrap">
       <div style="flex:1;min-width:0">
         <div style="display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap;margin-bottom:0.25rem">
-          <span style="font-family:var(--font-head);font-size:1.6rem;color:var(--accent);letter-spacing:0.03em">${_wantMode ? ('Wanted: ' + (_wantHeading || (it.itemNum + (_wantPartner ? ' with a ' + _wantPartner : '')))) : (!String(it.itemNum||'').trim() ? String((pd && (pd.yourDescription || pd.description)) || it.description || 'No item number').split(' ').slice(0, 8).join(' ') : (String(it.itemNum||'').indexOf(' ')===-1 ? 'No. ' + it.itemNum + (it.poweredDummy === 'P' ? '-P' : it.poweredDummy === 'D' ? '-D' : '') : it.itemNum))}</span>${typeof window._noNumTag==='function' ? window._noNumTag(it.itemNum) : ''}
+          <span style="font-family:var(--font-head);font-size:1.6rem;color:var(--t-accent);letter-spacing:0.03em">${_wantMode ? ('Wanted: ' + (_wantHeading || (it.itemNum + (_wantPartner ? ' with a ' + _wantPartner : '')))) : (!String(it.itemNum||'').trim() ? String((pd && (pd.yourDescription || pd.description)) || it.description || 'No item number').split(' ').slice(0, 8).join(' ') : (String(it.itemNum||'').indexOf(' ')===-1 ? 'No. ' + it.itemNum + (it.poweredDummy === 'P' ? '-P' : it.poweredDummy === 'D' ? '-D' : '') : it.itemNum))}</span>${typeof window._noNumTag==='function' ? window._noNumTag(it.itemNum) : ''}
           ${isForSale ? `<span style="font-size:1rem;color:var(--gold);font-family:var(--font-head);letter-spacing:0.02em">— on the sale list for <span id="fs-price-span">${_fsPrice}</span></span> <a href="javascript:_fsEditPrice()" style="font-size:0.78rem;color:var(--accent2);text-decoration:none;font-weight:700">edit</a>` : ''}
           ${it.variation ? `<span style="font-size:0.9rem;color:var(--text-dim);background:var(--surface2);border-radius:6px;padding:0.15rem 0.6rem">Var. ${it.variation}</span>` : ''}
           ${it.itemType ? `<span class="tag">${it.itemType}</span>` : ''}
@@ -1253,31 +1253,31 @@ function showItemDetailPage(idx, copyInvId, opts) {
   if (_wantMode) {
     html += `
   <div class="rr-detail-actions" style="display:flex;gap:0.5rem;margin-bottom:1.5rem;flex-wrap:wrap">
-    <button onclick="wantFindOnEbay('${it.itemNum}','${(it.roadName||'').replace(/'/g,"&apos;")}','${(it.variation||'').replace(/'/g,"&apos;")}')" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #e67e22;background:var(--bg-card);background:color-mix(in srgb, rgb(230,126,34) 10%, var(--bg-card));color:#e67e22;font-family:var(--font-body);font-size:0.82rem;cursor:pointer;font-weight:600">Find on eBay</button>
-    <button onclick="wantSearchOtherSites('${it.itemNum}','${(it.roadName||'').replace(/'/g,"&apos;")}','${(it.variation||'').replace(/'/g,"&apos;")}')" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #2980b9;background:var(--bg-card);background:color-mix(in srgb, rgb(41,128,185) 10%, var(--bg-card));color:#2980b9;font-family:var(--font-body);font-size:0.82rem;cursor:pointer;font-weight:600">Search Other Sites</button>
-    <button id="detail-add-collection" onclick="moveWantToCollection('${it.itemNum}','${(it.variation||'').replace(/'/g,"&apos;")}')" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #2ecc71;background:var(--bg-card);background:color-mix(in srgb, rgb(46,204,113) 10%, var(--bg-card));color:#2ecc71;font-family:var(--font-body);font-size:0.82rem;cursor:pointer;font-weight:600">+ Add to Collection</button>
+    <button onclick="wantFindOnEbay('${it.itemNum}','${(it.roadName||'').replace(/'/g,"&apos;")}','${(it.variation||'').replace(/'/g,"&apos;")}')" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #e67e22;background:var(--bg-card);background:color-mix(in srgb, rgb(230,126,34) 10%, var(--bg-card));color:var(--t-orange);font-family:var(--font-body);font-size:0.82rem;cursor:pointer;font-weight:600">Find on eBay</button>
+    <button onclick="wantSearchOtherSites('${it.itemNum}','${(it.roadName||'').replace(/'/g,"&apos;")}','${(it.variation||'').replace(/'/g,"&apos;")}')" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #2980b9;background:var(--bg-card);background:color-mix(in srgb, rgb(41,128,185) 10%, var(--bg-card));color:var(--t-link);font-family:var(--font-body);font-size:0.82rem;cursor:pointer;font-weight:600">Search Other Sites</button>
+    <button id="detail-add-collection" onclick="moveWantToCollection('${it.itemNum}','${(it.variation||'').replace(/'/g,"&apos;")}')" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #2ecc71;background:var(--bg-card);background:color-mix(in srgb, rgb(46,204,113) 10%, var(--bg-card));color:var(--t-green);font-family:var(--font-body);font-size:0.82rem;cursor:pointer;font-weight:600">+ Add to Collection</button>
   </div>`;
   } else {
   html += `
   <div class="rr-detail-actions" style="display:flex;gap:0.5rem;margin-bottom:1.5rem;flex-wrap:wrap">
-    <button onclick="showItemDetailPage_edit(${idx})" data-ctip="Edit this item's details and add photos all in one place." style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #2980b9;background:var(--bg-card);background:color-mix(in srgb, rgb(41,128,185) 10%, var(--bg-card));color:#2980b9;font-family:var(--font-body);font-size:0.82rem;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:0.4rem">
+    <button onclick="showItemDetailPage_edit(${idx})" data-ctip="Edit this item's details and add photos all in one place." style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #2980b9;background:var(--bg-card);background:color-mix(in srgb, rgb(41,128,185) 10%, var(--bg-card));color:var(--t-link);font-family:var(--font-body);font-size:0.82rem;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:0.4rem">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
       Update Info/Pictures
     </button>
-    <button id="detail-record-sale" onclick="collectionActionSold(${idx},'${it.itemNum}','${(it.variation||'').replace(/'/g,"&apos;")}',${pd && pd.row ? pd.row : 0},'${pd && pd.inventoryId ? pd.inventoryId : ''}')" data-ctip="Did you sell something? Record that here." style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #2ecc71;background:var(--bg-card);background:color-mix(in srgb, rgb(46,204,113) 10%, var(--bg-card));color:#2ecc71;font-family:var(--font-body);font-size:0.82rem;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:0.4rem">
+    <button id="detail-record-sale" onclick="collectionActionSold(${idx},'${it.itemNum}','${(it.variation||'').replace(/'/g,"&apos;")}',${pd && pd.row ? pd.row : 0},'${pd && pd.inventoryId ? pd.inventoryId : ''}')" data-ctip="Did you sell something? Record that here." style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #2ecc71;background:var(--bg-card);background:color-mix(in srgb, rgb(46,204,113) 10%, var(--bg-card));color:var(--t-green);font-family:var(--font-body);font-size:0.82rem;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:0.4rem">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
       Record Sale
     </button>
     ${isForSale
-      ? `<button id="detail-remove-forsale" onclick="_removeForSaleFromDetail(${idx},'${_detailInvId}')" data-ctip="Remove this item from your For Sale list and keep it in your collection." style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #e67e22;background:var(--bg-card);background:color-mix(in srgb, rgb(230,126,34) 25%, var(--bg-card));color:#e67e22;font-family:var(--font-body);font-size:0.82rem;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:0.4rem">
+      ? `<button id="detail-remove-forsale" onclick="_removeForSaleFromDetail(${idx},'${_detailInvId}')" data-ctip="Remove this item from your For Sale list and keep it in your collection." style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #e67e22;background:var(--bg-card);background:color-mix(in srgb, rgb(230,126,34) 25%, var(--bg-card));color:var(--t-orange);font-family:var(--font-body);font-size:0.82rem;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:0.4rem">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
       Remove from For Sale
     </button>`
-      : `<button id="detail-list-sale" onclick="collectionActionForSale(${idx},'${it.itemNum}','${(it.variation||'').replace(/'/g,"&apos;")}',${pd && pd.row ? pd.row : 0},'${pd && pd.inventoryId ? pd.inventoryId : ''}')" data-ctip="If you want to sell an item from your collection, you can list it for sale here." style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #e67e22;background:var(--bg-card);background:color-mix(in srgb, rgb(230,126,34) 10%, var(--bg-card));color:#e67e22;font-family:var(--font-body);font-size:0.82rem;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:0.4rem">
+      : `<button id="detail-list-sale" onclick="collectionActionForSale(${idx},'${it.itemNum}','${(it.variation||'').replace(/'/g,"&apos;")}',${pd && pd.row ? pd.row : 0},'${pd && pd.inventoryId ? pd.inventoryId : ''}')" data-ctip="If you want to sell an item from your collection, you can list it for sale here." style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #e67e22;background:var(--bg-card);background:color-mix(in srgb, rgb(230,126,34) 10%, var(--bg-card));color:var(--t-orange);font-family:var(--font-body);font-size:0.82rem;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:0.4rem">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
       List for Sale
     </button>`}
-    <button onclick="showAddToUpgradeModal('${it.itemNum}','${(it.variation||'').replace(/'/g,"&apos;")}',${pd && pd.row ? pd.row : 0},'${pd && pd.inventoryId ? pd.inventoryId : ''}')" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b5cf6;background:var(--bg-card);background:color-mix(in srgb, rgb(139,92,246) 10%, var(--bg-card));color:#8b5cf6;font-family:var(--font-body);font-size:0.82rem;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:0.4rem">
+    <button onclick="showAddToUpgradeModal('${it.itemNum}','${(it.variation||'').replace(/'/g,"&apos;")}',${pd && pd.row ? pd.row : 0},'${pd && pd.inventoryId ? pd.inventoryId : ''}')" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b5cf6;background:var(--bg-card);background:color-mix(in srgb, rgb(139,92,246) 10%, var(--bg-card));color:var(--t-purple);font-family:var(--font-body);font-size:0.82rem;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:0.4rem">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
       Add to Upgrade List
     </button>
@@ -1285,15 +1285,15 @@ function showItemDetailPage(idx, copyInvId, opts) {
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
       Break Up Group
     </button>` : ''}
-    ${(typeof _maintIsOwner==='function' && _maintIsOwner()) ? `<button id="detail-maintenance" onclick="_maintOpenPanel(${idx},'${it.itemNum}','${(it.variation||'').replace(/'/g,"&apos;")}','${pd && pd.inventoryId ? pd.inventoryId : ''}')" data-ctip="Owner preview: manuals, parts diagrams, repair videos and parts search for this item." style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #2980b9;background:var(--bg-card);background:color-mix(in srgb, rgb(41,128,185) 10%, var(--bg-card));color:#2980b9;font-family:var(--font-body);font-size:0.82rem;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:0.4rem">
+    ${(typeof _maintIsOwner==='function' && _maintIsOwner()) ? `<button id="detail-maintenance" onclick="_maintOpenPanel(${idx},'${it.itemNum}','${(it.variation||'').replace(/'/g,"&apos;")}','${pd && pd.inventoryId ? pd.inventoryId : ''}')" data-ctip="Owner preview: manuals, parts diagrams, repair videos and parts search for this item." style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #2980b9;background:var(--bg-card);background:color-mix(in srgb, rgb(41,128,185) 10%, var(--bg-card));color:var(--t-link);font-family:var(--font-body);font-size:0.82rem;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:0.4rem">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
       Maintenance
     </button>` : ''}
-    <button id="detail-share-item" onclick="shareSingleItem(${idx},'${pd && pd.inventoryId ? pd.inventoryId : ''}')" data-ctip="Share this item as a PDF — photos, condition and details — by email or text." style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #2ecc71;background:var(--bg-card);background:color-mix(in srgb, rgb(46,204,113) 10%, var(--bg-card));color:#2ecc71;font-family:var(--font-body);font-size:0.82rem;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:0.4rem">
+    <button id="detail-share-item" onclick="shareSingleItem(${idx},'${pd && pd.inventoryId ? pd.inventoryId : ''}')" data-ctip="Share this item as a PDF — photos, condition and details — by email or text." style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #2ecc71;background:var(--bg-card);background:color-mix(in srgb, rgb(46,204,113) 10%, var(--bg-card));color:var(--t-green);font-family:var(--font-body);font-size:0.82rem;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:0.4rem">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
       Share
     </button>
-    <button id="detail-remove-item" onclick="_removeFromCollectionDetail(${idx},'${it.itemNum}','${(it.variation||'').replace(/'/g,"&apos;")}')" data-ctip="Remove this item from your collection." style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #e74c3c;background:var(--bg-card);background:color-mix(in srgb, rgb(231,76,60) 10%, var(--bg-card));color:#e74c3c;font-family:var(--font-body);font-size:0.82rem;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:0.4rem">
+    <button id="detail-remove-item" onclick="_removeFromCollectionDetail(${idx},'${it.itemNum}','${(it.variation||'').replace(/'/g,"&apos;")}')" data-ctip="Remove this item from your collection." style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #e74c3c;background:var(--bg-card);background:color-mix(in srgb, rgb(231,76,60) 10%, var(--bg-card));color:var(--t-danger);font-family:var(--font-body);font-size:0.82rem;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:0.4rem">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
       Remove from Collection
     </button>
@@ -1321,13 +1321,13 @@ function showItemDetailPage(idx, copyInvId, opts) {
           var worth = p.userEstWorth ? _currencySymbol() + parseFloat(p.userEstWorth).toLocaleString() : '';
           return '<div onclick="if(typeof _grpHeroSwap===\'function\')_grpHeroSwap(' + i + ')" title="' + ((window.innerWidth || 0) >= 1000 ? 'Show this unit\'s photo above' : 'Jump to this unit\'s photos') + '" style="cursor:pointer;flex:1;min-width:150px;max-width:230px;background:var(--surface2);border:1px solid ' + (me ? 'var(--accent3,#2ecc71)' : 'var(--border)') + ';border-radius:10px;padding:0.6rem 0.75rem">'
             + '<div style="font-size:0.64rem;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--accent3,#2ecc71)">' + role + (me ? ' · this page' : '') + '</div>'
-            + '<div style="font-family:var(--font-mono);font-weight:700;color:var(--accent);font-size:0.95rem;margin:0.15rem 0">' + String(p.itemNum || '').replace(/</g, '&lt;') + (p.photoItem ? ' <span title="Has photos" style="font-size:0.78rem">📷</span>' : '') + '</div>'
+            + '<div style="font-family:var(--font-mono);font-weight:700;color:var(--t-accent);font-size:0.95rem;margin:0.15rem 0">' + String(p.itemNum || '').replace(/</g, '&lt;') + (p.photoItem ? ' <span title="Has photos" style="font-size:0.78rem">📷</span>' : '') + '</div>'
             + '<div style="font-size:0.74rem;color:var(--text-mid);line-height:1.5">Cond ' + cond + (box ? ' · ' + box : '') + (worth ? '<br>Worth ' + worth : '') + '</div>'
             // v0.9.1569 (audit step 5): Remove sits beside Edit/Photos — the
             // ONLY place a single piece leaves the group. Confirms per piece.
             + '<div style="display:flex;gap:0.35rem;margin-top:0.45rem">'
-            + '<button onclick="event.stopPropagation();_grpEditMember(' + i + ')" style="flex:1;padding:0.3rem;border-radius:7px;border:1px solid #2980b9;background:var(--bg-card);background:color-mix(in srgb, rgb(41,128,185) 8%, var(--bg-card));color:#2980b9;font-size:0.7rem;cursor:pointer;font-family:var(--font-body);font-weight:600">Edit / Photos</button>'
-            + '<button onclick="event.stopPropagation();_grpRemoveMember(' + idx + ',' + i + ')" title="Remove this piece only — the rest of the group stays" style="padding:0.3rem 0.5rem;border-radius:7px;border:1px solid var(--border);background:var(--surface2);color:#f05008;font-size:0.7rem;cursor:pointer;font-family:var(--font-body)">Remove</button>'
+            + '<button onclick="event.stopPropagation();_grpEditMember(' + i + ')" style="flex:1;padding:0.3rem;border-radius:7px;border:1px solid #2980b9;background:var(--bg-card);background:color-mix(in srgb, rgb(41,128,185) 8%, var(--bg-card));color:var(--t-link);font-size:0.7rem;cursor:pointer;font-family:var(--font-body);font-weight:600">Edit / Photos</button>'
+            + '<button onclick="event.stopPropagation();_grpRemoveMember(' + idx + ',' + i + ')" title="Remove this piece only — the rest of the group stays" style="padding:0.3rem 0.5rem;border-radius:7px;border:1px solid var(--border);background:var(--surface2);color:var(--t-red);font-size:0.7rem;cursor:pointer;font-family:var(--font-body)">Remove</button>'
             + '</div>'
             + '</div>';
         }).join('')
@@ -1440,11 +1440,11 @@ function showItemDetailPage(idx, copyInvId, opts) {
       const _mtClickable = _mtPdKey && _mtIdx !== -1;
       var _mtInv = (state.personalData[_mtPdKey] && state.personalData[_mtPdKey].inventoryId) || '';
       html += `<div style="font-size:0.85rem;color:var(--text-mid);margin-bottom:0.3rem">${_mIcon} Matched to: ${_mtClickable
-        ? '<a href="javascript:void(0)" onclick="' + _rrOpenJs(_mtIdx, _mtInv) + '" style="color:var(--accent);font-weight:700;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:3px;cursor:pointer">' + matchedTo + '</a>'
-        : '<strong style="color:var(--accent)">' + matchedTo + '</strong>'}</div>`;
+        ? '<a href="javascript:void(0)" onclick="' + _rrOpenJs(_mtIdx, _mtInv) + '" style="color:var(--t-accent);font-weight:700;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:3px;cursor:pointer">' + matchedTo + '</a>'
+        : '<strong style="color:var(--t-accent)">' + matchedTo + '</strong>'}</div>`;
     }
     if (setId) {
-      html += `<div style="font-size:0.85rem;color:var(--text-mid);margin-bottom:0.3rem">\ud83d\udd17 Set: <strong style="color:#a855f7">${setId}</strong></div>`;
+      html += `<div style="font-size:0.85rem;color:var(--text-mid);margin-bottom:0.3rem">\ud83d\udd17 Set: <strong style="color:var(--t-purple)">${setId}</strong></div>`;
     }
     if (groupMembers.length) {
       html += `<div style="font-size:0.78rem;color:var(--text-dim);margin-top:0.3rem">Grouped with: ${groupMembers.map(m => {
@@ -1460,9 +1460,9 @@ function showItemDetailPage(idx, copyInvId, opts) {
             if (_poIdx < 0) _poIdx = window._poKeys.push(_gPdKey) - 1;
             _gIdx = -(_poIdx + 1000);
           }
-          return '<a href="javascript:void(0)" onclick="' + _rrOpenJs(_gIdx, _gInv) + '" style="color:var(--accent);font-family:var(--font-mono);text-decoration:underline;text-decoration-style:dotted;text-underline-offset:3px;cursor:pointer">' + m.itemNum + '</a>';
+          return '<a href="javascript:void(0)" onclick="' + _rrOpenJs(_gIdx, _gInv) + '" style="color:var(--t-accent);font-family:var(--font-mono);text-decoration:underline;text-decoration-style:dotted;text-underline-offset:3px;cursor:pointer">' + m.itemNum + '</a>';
         }
-        return '<span style="color:var(--accent);font-family:var(--font-mono)">' + m.itemNum + '</span>';
+        return '<span style="color:var(--t-accent);font-family:var(--font-mono)">' + m.itemNum + '</span>';
       }).join(', ')}</div>`;
     }
     html += `</div>`;
@@ -1784,7 +1784,7 @@ function rrShowCopyPicker(idx) {
       + '</button>';
   }).join('');
   overlay.innerHTML = '<div style="background:var(--surface);border:1.5px solid var(--border);border-radius:14px;padding:1.4rem;max-width:420px;width:100%;max-height:80vh;overflow:auto">'
-    + '<div style="font-size:0.72rem;font-weight:700;letter-spacing:0.1em;color:var(--accent);text-transform:uppercase;margin-bottom:0.5rem">Which copy?</div>'
+    + '<div style="font-size:0.72rem;font-weight:700;letter-spacing:0.1em;color:var(--t-accent);text-transform:uppercase;margin-bottom:0.5rem">Which copy?</div>'
     + '<div style="font-size:0.88rem;color:var(--text);margin-bottom:0.2rem">You own <strong>' + keys.length + '</strong> of No. ' + rrEsc(item.itemNum || '') + '.</div>'
     + '<div style="font-size:0.8rem;color:var(--text-mid);margin-bottom:0.9rem;line-height:1.5">Everything on the page \u2014 editing, photos, selling, removing \u2014 acts on the copy you pick here.</div>'
     + rows
@@ -2654,7 +2654,7 @@ function _checkGroupBeforeForSale(globalIdx, pdKey) {
     + (_hasWorth ? '<th style="text-align:right;padding:0.4rem 0.6rem;font-family:var(--font-head);font-size:0.68rem;font-weight:700;letter-spacing:0.09em;text-transform:uppercase;color:var(--text-dim)">Est. Worth</th>' : '')
     + '</tr>'
     + _itemRows.map(r => '<tr style="border-top:1px solid var(--border)">'
-      + '<td style="padding:0.4rem 0.6rem;font-family:var(--font-mono);font-weight:600;color:var(--accent)">' + r.num + '</td>'
+      + '<td style="padding:0.4rem 0.6rem;font-family:var(--font-mono);font-weight:600;color:var(--t-accent)">' + r.num + '</td>'
       + (_hasPaid ? '<td style="text-align:right;padding:0.4rem 0.6rem;color:var(--text-mid)">' + (r.paid > 0 ? _currencySymbol() + r.paid.toLocaleString(undefined,{minimumFractionDigits:0,maximumFractionDigits:2}) : '—') + '</td>' : '')
       + (_hasWorth ? '<td style="text-align:right;padding:0.4rem 0.6rem;color:var(--worth)">' + (r.worth > 0 ? _currencySymbol() + r.worth.toLocaleString(undefined,{minimumFractionDigits:0,maximumFractionDigits:2}) : '—') + '</td>' : '')
       + '</tr>').join('')
@@ -2682,7 +2682,7 @@ function _checkGroupBeforeForSale(globalIdx, pdKey) {
           Sell as a set<br>
           <span style="font-weight:400;font-size:0.78rem;color:var(--text-dim)">List all ${allItems.length} items together for one price</span>
         </button>
-        <button id="_grpfs-indiv" style="padding:0.8rem 1rem;border-radius:10px;border:2px solid var(--accent);background:var(--bg-card);background:color-mix(in srgb, rgb(232,64,28) 8%, var(--bg-card));color:var(--accent);font-family:var(--font-body);font-size:0.88rem;font-weight:600;cursor:pointer;text-align:left">
+        <button id="_grpfs-indiv" style="padding:0.8rem 1rem;border-radius:10px;border:2px solid var(--accent);background:var(--bg-card);background:color-mix(in srgb, rgb(232,64,28) 8%, var(--bg-card));color:var(--t-accent);font-family:var(--font-body);font-size:0.88rem;font-weight:600;cursor:pointer;text-align:left">
           Sell individually<br>
           <span style="font-weight:400;font-size:0.78rem;color:var(--text-dim)">List only No. ${pd.itemNum} and break up the group</span>
         </button>
@@ -2850,7 +2850,7 @@ function _checkSetBeforeAction(pdKey, leadIdx, proceed) {
   var rowsHtml = pieces.map(function(c, i){
     return '<label style="display:flex;align-items:center;gap:0.6rem;padding:0.55rem 0.6rem;border-radius:8px;background:var(--surface2);margin-bottom:0.4rem;cursor:pointer">'
       + '<input type="checkbox" id="_gsel_' + i + '" checked style="width:18px;height:18px;cursor:pointer">'
-      + '<span style="font-family:var(--font-mono);font-weight:700;color:var(--accent)">' + c.num + '</span>'
+      + '<span style="font-family:var(--font-mono);font-weight:700;color:var(--t-accent)">' + c.num + '</span>'
       + '<span style="font-size:0.78rem;color:var(--text-dim)">' + c.kind + '</span></label>';
   }).join('');
 
@@ -2860,7 +2860,7 @@ function _checkSetBeforeAction(pdKey, leadIdx, proceed) {
     + rowsHtml
     + '<div style="font-size:0.76rem;color:var(--accent2);background:rgba(201,146,42,0.1);border-radius:6px;padding:0.5rem 0.7rem;margin-top:0.2rem">Unchecked pieces are unlinked and stay in your collection.</div>'
     + '<div style="display:flex;flex-direction:column;gap:0.5rem;margin-top:0.9rem">'
-    + '<button id="_gs-sell" style="padding:0.8rem 1rem;border-radius:10px;border:2px solid #2ecc71;background:var(--bg-card);background:color-mix(in srgb, rgb(46,204,113) 10%, var(--bg-card));color:#2ecc71;font-family:var(--font-body);font-size:0.9rem;font-weight:700;cursor:pointer;text-align:left">Continue to Sale →<br><span style="font-weight:400;font-size:0.76rem;color:var(--text-dim)">Sell the checked piece(s) for one price</span></button>'
+    + '<button id="_gs-sell" style="padding:0.8rem 1rem;border-radius:10px;border:2px solid #2ecc71;background:var(--bg-card);background:color-mix(in srgb, rgb(46,204,113) 10%, var(--bg-card));color:var(--t-green);font-family:var(--font-body);font-size:0.9rem;font-weight:700;cursor:pointer;text-align:left">Continue to Sale →<br><span style="font-weight:400;font-size:0.76rem;color:var(--text-dim)">Sell the checked piece(s) for one price</span></button>'
     + '<button id="_gs-cancel" style="padding:0.6rem;border-radius:10px;border:1px solid var(--border);background:none;color:var(--text-dim);font-family:var(--font-body);font-size:0.85rem;cursor:pointer">Cancel</button>'
     + '</div></div>';
   document.body.appendChild(overlay);
@@ -3015,7 +3015,7 @@ async function removeCollectionItem(itemNum, variation, row, invId, opts) {
       overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:9500;display:flex;align-items:center;justify-content:center;padding:1rem';
       overlay.innerHTML = `
         <div style="background:var(--surface);border:1.5px solid var(--border);border-radius:14px;padding:1.5rem;max-width:380px;width:100%;box-shadow:0 8px 32px rgba(0,0,0,0.5)">
-          <div style="font-size:0.72rem;font-weight:700;letter-spacing:0.1em;color:var(--accent);text-transform:uppercase;margin-bottom:0.5rem">Remove Set</div>
+          <div style="font-size:0.72rem;font-weight:700;letter-spacing:0.1em;color:var(--t-accent);text-transform:uppercase;margin-bottom:0.5rem">Remove Set</div>
           <div style="font-size:0.9rem;color:var(--text);margin-bottom:0.2rem;line-height:1.5">
             This is one set — <strong>${_setName}</strong>:
           </div>
@@ -3031,7 +3031,7 @@ async function removeCollectionItem(itemNum, variation, row, invId, opts) {
             <button id="rm-breakup" style="padding:0.55rem 1rem;border-radius:8px;border:1.5px solid var(--accent2);background:var(--bg-card);background:color-mix(in srgb, rgb(201,146,42) 10%, var(--bg-card));color:var(--accent2);font-family:var(--font-body);font-size:0.85rem;cursor:pointer;text-align:left;font-weight:600;line-height:1.4">
               Break Up Group — keep every piece, just unlink them
             </button>
-            <button id="rm-all-group" style="padding:0.55rem 1rem;border-radius:8px;border:1.5px solid #e74c3c;background:var(--bg-card);background:color-mix(in srgb, rgb(231,76,60) 10%, var(--bg-card));color:#e74c3c;font-family:var(--font-body);font-size:0.85rem;cursor:pointer;text-align:left;font-weight:600;line-height:1.4">
+            <button id="rm-all-group" style="padding:0.55rem 1rem;border-radius:8px;border:1.5px solid #e74c3c;background:var(--bg-card);background:color-mix(in srgb, rgb(231,76,60) 10%, var(--bg-card));color:var(--t-danger);font-family:var(--font-body);font-size:0.85rem;cursor:pointer;text-align:left;font-weight:600;line-height:1.4">
               ⚠ Remove ALL ${groupSiblings.length} pieces (${groupLabels})
             </button>
           </div>
@@ -3343,7 +3343,7 @@ function showPickFromCollectionForSale() {
   // Header
   const hdr = document.createElement('div');
   hdr.style.cssText = 'padding:1rem 1.25rem;border-bottom:1px solid var(--border);flex-shrink:0;display:flex;align-items:center;justify-content:space-between';
-  hdr.innerHTML = '<div style="font-family:var(--font-head);font-size:1rem;color:#e67e22">List from Collection</div>'
+  hdr.innerHTML = '<div style="font-family:var(--font-head);font-size:1rem;color:var(--t-orange)">List from Collection</div>'
     + '<button onclick="document.getElementById(\'pick-fs-overlay\').remove()" style="background:none;border:none;color:var(--text-dim);font-size:1.1rem;cursor:pointer">✕</button>';
   box.appendChild(hdr);
 
@@ -3416,7 +3416,7 @@ function _renderPickFsList(q) {
       + (pd.priceItem ? ' · Paid: $' + parseFloat(pd.priceItem).toLocaleString() : '')
       + '</div>'
       + '</div>'
-      + (alreadyListed ? '<span style="font-size:0.68rem;color:#e67e22;font-weight:600;white-space:nowrap">LISTED</span>' : '')
+      + (alreadyListed ? '<span style="font-size:0.68rem;color:var(--t-orange);font-weight:600;white-space:nowrap">LISTED</span>' : '')
       + '</button>';
   });
   listEl.innerHTML = html;
@@ -3748,7 +3748,7 @@ function showItemPanel(idx, pdKey, mode) {
   header.style.cssText = 'padding:1.25rem 1.5rem;border-bottom:1px solid var(--border);flex-shrink:0';
   header.innerHTML = '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:0.5rem">'
     + '<div>'
-    + '<div style="font-family:var(--font-head);font-size:1rem;color:#2980b9">No. ' + item.itemNum + (item.variation ? ' <span style="color:var(--text-dim);font-size:0.75rem">Var. ' + item.variation + '</span>' : '') + '</div>'
+    + '<div style="font-family:var(--font-head);font-size:1rem;color:var(--t-link)">No. ' + item.itemNum + (item.variation ? ' <span style="color:var(--text-dim);font-size:0.75rem">Var. ' + item.variation + '</span>' : '') + '</div>'
     + '<div style="font-size:0.82rem;color:var(--text-mid);margin-top:2px">' + (item.roadName || item.itemType || '') + (item.yearProd ? ' · ' + item.yearProd : '') + '</div>'
     + '</div>'
     + '<button id="item-panel-close-btn" style="background:none;border:none;color:var(--text-dim);font-size:1.1rem;cursor:pointer;flex-shrink:0">✕</button>'
@@ -3887,7 +3887,7 @@ function showItemPanel(idx, pdKey, mode) {
   photoHdr.style.cssText = 'display:flex;align-items:center;justify-content:space-between;margin-bottom:0.5rem';
   photoHdr.innerHTML = '<span style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.08em">Photos</span>';
   const addPhotoBtn = document.createElement('button');
-  addPhotoBtn.style.cssText = 'font-size:0.72rem;padding:0.2rem 0.55rem;border-radius:5px;border:1px solid #2980b9;color:#2980b9;background:rgba(224,64,40,0.08);cursor:pointer;display:flex;align-items:center;gap:0.25rem';
+  addPhotoBtn.style.cssText = 'font-size:0.72rem;padding:0.2rem 0.55rem;border-radius:5px;border:1px solid #2980b9;color:var(--t-link);background:rgba(224,64,40,0.08);cursor:pointer;display:flex;align-items:center;gap:0.25rem';
   addPhotoBtn.innerHTML = '📷 Add Photos';
   addPhotoBtn.onclick = function() {
     // Close this panel and open photo wizard for this item
@@ -3943,7 +3943,7 @@ function showItemPanel(idx, pdKey, mode) {
       if (fl2 && folderLink) {
         const a = document.createElement('a');
         a.href = folderLink; a.target = '_blank';
-        a.style.cssText = 'font-size:0.72rem;color:#2980b9';
+        a.style.cssText = 'font-size:0.72rem;color:var(--t-link)';
         a.textContent = '📁 Open Drive Folder ↗';
         fl2.innerHTML = '';
         fl2.appendChild(a);
@@ -4124,7 +4124,7 @@ function showItemPanel(idx, pdKey, mode) {
         a.href = f.val;
         a.target = '_blank';
         a.rel = 'noopener';
-        a.style.cssText = 'font-size:0.85rem;color:#2980b9;text-decoration:none;display:inline-flex;align-items:center;gap:0.3rem';
+        a.style.cssText = 'font-size:0.85rem;color:var(--t-link);text-decoration:none;display:inline-flex;align-items:center;gap:0.3rem';
         a.innerHTML = 'View on ' + (typeof _externalSiteLabel === 'function' ? _externalSiteLabel(f.val) : 'Atlas') + ' <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15,3 21,3 21,9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>';
         valWrap.appendChild(a);
         row.appendChild(lbl);
@@ -4134,7 +4134,7 @@ function showItemPanel(idx, pdKey, mode) {
       } else if (f.type === 'readonly') {
         // Read-only value with accent color, no edit
         const valEl = document.createElement('span');
-        valEl.style.cssText = 'font-size:0.85rem;color:var(--accent);font-style:italic';
+        valEl.style.cssText = 'font-size:0.85rem;color:var(--t-accent);font-style:italic';
         valEl.textContent = f.val && f.val !== '—' ? f.val : '—';
         valWrap.appendChild(valEl);
         row.appendChild(lbl);
@@ -4175,9 +4175,9 @@ function showItemPanel(idx, pdKey, mode) {
   if (_linkedIS.length) {
     const isSection = document.createElement('div');
     isSection.style.cssText = 'margin-top:0.75rem;padding-top:0.75rem;border-top:2px solid rgba(22,160,133,0.3)';
-    isSection.innerHTML = '<div style="font-size:0.72rem;font-weight:600;letter-spacing:0.1em;color:#16a085;text-transform:uppercase;margin-bottom:0.5rem">📋 Instruction Sheets</div>'
+    isSection.innerHTML = '<div style="font-size:0.72rem;font-weight:600;letter-spacing:0.1em;color:var(--t-sea);text-transform:uppercase;margin-bottom:0.5rem">📋 Instruction Sheets</div>'
       + _linkedIS.map(s => `<div onclick="openISDetail('${String(s._key || s.row).replace(/'/g, "\\'")}')" style="display:flex;align-items:center;gap:0.6rem;padding:0.45rem 0.5rem;border-radius:8px;cursor:pointer;transition:background 0.1s" class="dash-row-hover">
-        <span style="font-family:var(--font-mono);font-size:0.85rem;color:#16a085;font-weight:600;min-width:80px">${s.sheetNum}</span>
+        <span style="font-family:var(--font-mono);font-size:0.85rem;color:var(--t-sea);font-weight:600;min-width:80px">${s.sheetNum}</span>
         <span style="font-size:0.8rem;color:var(--text-mid)">${s.year||''}</span>
         ${s.condition?`<span style="font-size:0.78rem;color:var(--text-dim);margin-left:auto">Cond: ${s.condition}/10</span>`:''}
         <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="var(--text-dim)" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
@@ -4194,7 +4194,7 @@ function showItemPanel(idx, pdKey, mode) {
   if (mode === 'view') {
     const editModeBtn = document.createElement('button');
     editModeBtn.className = 'btn';
-    editModeBtn.style.cssText = 'flex:1;border:1.5px solid #2980b9;color:#2980b9;background:rgba(224,64,40,0.08);font-weight:600';
+    editModeBtn.style.cssText = 'flex:1;border:1.5px solid #2980b9;color:var(--t-link);background:rgba(224,64,40,0.08);font-weight:600';
     editModeBtn.innerHTML = '✏️ Edit This Item';
     editModeBtn.onclick = function() { mode = 'edit'; renderFields(null); footer.innerHTML = ''; buildFooter(); };
     footer.appendChild(editModeBtn);
@@ -4352,7 +4352,7 @@ function openISDetail(rowKey) {
   closeBtn.onclick=()=>overlay.remove();
   box.appendChild(closeBtn);
   box.innerHTML += `
-    <div style="font-family:var(--font-head);font-size:1rem;color:#16a085;margin-bottom:0.15rem">📋 Sheet # ${it.sheetNum}</div>
+    <div style="font-family:var(--font-head);font-size:1rem;color:var(--t-sea);margin-bottom:0.15rem">📋 Sheet # ${it.sheetNum}</div>
     <div style="font-size:0.82rem;color:var(--text-mid);margin-bottom:1.25rem">Instruction Sheet${it.linkedItem?' for Item No. '+it.linkedItem:''}</div>
     <div style="display:flex;flex-direction:column;gap:0.5rem;font-size:0.85rem">
       ${[
@@ -4365,7 +4365,7 @@ function openISDetail(rowKey) {
         <span style="color:var(--text-dim);min-width:110px;flex-shrink:0">${l}</span>
         <span>${v}</span>
       </div>`).join('')}
-      ${it.photoLink?`<div style="margin-top:0.75rem"><a href="${it.photoLink}" target="_blank" rel="noopener" style="font-size:0.82rem;color:#16a085;text-decoration:none">📷 View Photos ↗</a></div>`:''}
+      ${it.photoLink?`<div style="margin-top:0.75rem"><a href="${it.photoLink}" target="_blank" rel="noopener" style="font-size:0.82rem;color:var(--t-sea);text-decoration:none">📷 View Photos ↗</a></div>`:''}
     </div>`;
   overlay.appendChild(box);
   document.body.appendChild(overlay);
@@ -4415,7 +4415,7 @@ function browseRowClick(event, idx) {
   box.className = 'rr-card'; box.style.borderColor = 'rgba(232,64,28,0.4)';
   // Header
   const hdr = document.createElement('div');
-  hdr.style.cssText = 'font-family:var(--font-head);font-size:1.05rem;color:var(--accent);margin-bottom:0.25rem';
+  hdr.style.cssText = 'font-family:var(--font-head);font-size:1.05rem;color:var(--t-accent);margin-bottom:0.25rem';
   hdr.textContent = 'No. ' + item.itemNum + (item.variation ? ' — Var. ' + item.variation : '');
   box.appendChild(hdr);
   const sub = document.createElement('div');
@@ -4517,7 +4517,7 @@ function browseRowClick(event, idx) {
       cottA.href = _detailUrl;
       cottA.target = '_blank';
       cottA.rel = 'noopener';
-      cottA.style.cssText = 'font-size:0.82rem;color:#2980b9;text-decoration:none;display:inline-flex;align-items:center;gap:0.35rem';
+      cottA.style.cssText = 'font-size:0.82rem;color:var(--t-link);text-decoration:none;display:inline-flex;align-items:center;gap:0.35rem';
       cottA.innerHTML = 'View on ' + (typeof _externalSiteLabel === 'function' ? _externalSiteLabel(_detailUrl) : 'External') + ' <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15,3 21,3 21,9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>';
       cottRow.appendChild(cottA);
       vdBox.appendChild(cottRow);
@@ -4545,13 +4545,13 @@ function browseRowClick(event, idx) {
   btnRow.appendChild(yesBtn);
   if (state.wantData && state.wantData[_wantedKey]) {
     const wantedLbl = document.createElement('span');
-    wantedLbl.style.cssText = 'font-size:0.8rem;color:#2ecc71;align-self:center;white-space:nowrap;font-weight:600';
+    wantedLbl.style.cssText = 'font-size:0.8rem;color:var(--t-green);align-self:center;white-space:nowrap;font-weight:600';
     wantedLbl.textContent = '✓ On Want List';
     btnRow.appendChild(wantedLbl);
   } else {
     const wantBtn = document.createElement('button');
     wantBtn.className = 'btn btn-secondary';
-    wantBtn.style.cssText = 'flex:1;border:1.5px solid #2ecc71;background:rgba(46,204,113,0.12);color:#2ecc71;font-weight:600';
+    wantBtn.style.cssText = 'flex:1;border:1.5px solid #2ecc71;background:rgba(46,204,113,0.12);color:var(--t-green);font-weight:600';
     wantBtn.textContent = '+ Want List';
     wantBtn.onclick = function() { overlay.remove(); addItemToWantList(idx); };
     btnRow.appendChild(wantBtn);
@@ -4624,7 +4624,7 @@ function showRefItemPopup(type, idx) {
   box.className = 'rr-card'; box.style.borderColor = 'rgba(232,64,28,0.4)';
   // Header
   var hdr = document.createElement('div');
-  hdr.style.cssText = 'font-family:var(--font-head);font-size:1.05rem;color:var(--accent);margin-bottom:0.25rem';
+  hdr.style.cssText = 'font-family:var(--font-head);font-size:1.05rem;color:var(--t-accent);margin-bottom:0.25rem';
   hdr.textContent = title;
   box.appendChild(hdr);
   if (subtitle) {
@@ -4669,7 +4669,7 @@ function showRefItemPopup(type, idx) {
       // badge, surface a real "View Full Details" button that opens
       // the new generic detail page for this set. Brad wanted the
       // modal preserved (quick-look) AND a path to the full page.
-      addBtn.style.cssText = 'margin-top:1.25rem;width:100%;background:rgba(41,128,185,0.1);border:1.5px solid #2980b9;border-radius:10px;padding:0.75rem;line-height:1.25;color:#2980b9;font-family:var(--font-body);font-size:0.92rem;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:0.5rem';
+      addBtn.style.cssText = 'margin-top:1.25rem;width:100%;background:rgba(41,128,185,0.1);border:1.5px solid #2980b9;border-radius:10px;padding:0.75rem;line-height:1.25;color:var(--t-link);font-family:var(--font-body);font-size:0.92rem;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:0.5rem';
       addBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>'
         + '<span>View Full Details</span>';
       addBtn._mySetKeyForDetail = _mySetKey;
@@ -5010,7 +5010,7 @@ function _checkWantPartners(itemNum, variation, priority, maxPrice, notes, mfr) 
   const checkboxRows = candidates.map((c, i) => `
     <label style="display:flex;align-items:center;gap:0.6rem;padding:0.5rem 0.6rem;border-radius:7px;background:var(--surface2);cursor:pointer;margin-bottom:0.4rem">
       <input type="checkbox" id="wpc-${i}" checked style="width:16px;height:16px;accent-color:var(--accent);cursor:pointer">
-      <span style="font-family:var(--font-mono);font-weight:600;color:var(--accent)">${c.itemNum}</span>
+      <span style="font-family:var(--font-mono);font-weight:600;color:var(--t-accent)">${c.itemNum}</span>
       <span style="font-size:0.78rem;color:var(--text-dim)">${c.label.replace(c.itemNum + ' ', '')}</span>
     </label>`).join('');
 

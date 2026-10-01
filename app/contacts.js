@@ -712,8 +712,8 @@
       + '<div class="page-title">Contacts</div>'
       + '<div style="display:flex;gap:0.5rem;align-items:center;margin-bottom:0.8rem;flex-wrap:wrap">'
       + '<input id="ct-search" type="text" placeholder="Search name, business, specialty…" oninput="_ctRenderList()" style="flex:1;min-width:200px;padding:0.6rem 0.8rem;border-radius:9px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.9rem">'
-      + '<button onclick="_ctOpenEdit(null)" style="padding:0.6rem 1.1rem;border-radius:9px;border:1.5px solid var(--accent);background:var(--bg-card);background:color-mix(in srgb, rgb(232,64,28) 10%, var(--bg-card));color:var(--accent);font-weight:700;cursor:pointer;font-family:var(--font-body)">+ Add Contact</button>'
-      + '<button onclick="_ctShareOpen()" style="padding:0.6rem 1.1rem;border-radius:9px;border:1.5px solid #3498db;background:var(--bg-card);background:color-mix(in srgb, rgb(52,152,219) 8%, var(--bg-card));color:#3498db;font-weight:700;cursor:pointer;font-family:var(--font-body)">↗ Share</button>'
+      + '<button onclick="_ctOpenEdit(null)" style="padding:0.6rem 1.1rem;border-radius:9px;border:1.5px solid var(--accent);background:var(--bg-card);background:color-mix(in srgb, rgb(232,64,28) 10%, var(--bg-card));color:var(--t-accent);font-weight:700;cursor:pointer;font-family:var(--font-body)">+ Add Contact</button>'
+      + '<button onclick="_ctShareOpen()" style="padding:0.6rem 1.1rem;border-radius:9px;border:1.5px solid #3498db;background:var(--bg-card);background:color-mix(in srgb, rgb(52,152,219) 8%, var(--bg-card));color:var(--t-info);font-weight:700;cursor:pointer;font-family:var(--font-body)">↗ Share</button>'
       + '</div>'
       + '<div id="ct-list"><div class="loading"><div class="spinner"></div></div></div>';
     await _load();
@@ -799,16 +799,16 @@
         + '</div>'
         + '<div style="display:flex;flex-direction:column;gap:0.25rem;align-items:flex-end;flex-shrink:0;max-width:270px">'
         +   '<div style="display:flex;flex-wrap:wrap;gap:0.25rem;justify-content:flex-end">'
-        +     (c.phone ? '<a href="tel:' + _esc(c.phone.replace(/[^+0-9]/g, '')) + '" onclick="return _ctTel(event, \'' + rrJsArg(c.phone) + '\')" style="' + _sb + ';border:1px solid #2ecc71;color:#2ecc71">📞 ' + _esc(c.phone) + '</a>' : '')
-        +     (c.cellPhone ? '<a href="tel:' + _esc(c.cellPhone.replace(/[^+0-9]/g, '')) + '" onclick="return _ctTel(event, \'' + rrJsArg(c.cellPhone) + '\')" style="' + _sb + ';border:1px solid #2ecc71;color:#2ecc71">📱 ' + _esc(c.cellPhone) + '</a>' : '')
-        +     (c.homePhone ? '<a href="tel:' + _esc(c.homePhone.replace(/[^+0-9]/g, '')) + '" onclick="return _ctTel(event, \'' + rrJsArg(c.homePhone) + '\')" style="' + _sb + ';border:1px solid #2ecc71;color:#2ecc71">🏠 ' + _esc(c.homePhone) + '</a>' : '')
+        +     (c.phone ? '<a href="tel:' + _esc(c.phone.replace(/[^+0-9]/g, '')) + '" onclick="return _ctTel(event, \'' + rrJsArg(c.phone) + '\')" style="' + _sb + ';border:1px solid #2ecc71;color:var(--t-green)">📞 ' + _esc(c.phone) + '</a>' : '')
+        +     (c.cellPhone ? '<a href="tel:' + _esc(c.cellPhone.replace(/[^+0-9]/g, '')) + '" onclick="return _ctTel(event, \'' + rrJsArg(c.cellPhone) + '\')" style="' + _sb + ';border:1px solid #2ecc71;color:var(--t-green)">📱 ' + _esc(c.cellPhone) + '</a>' : '')
+        +     (c.homePhone ? '<a href="tel:' + _esc(c.homePhone.replace(/[^+0-9]/g, '')) + '" onclick="return _ctTel(event, \'' + rrJsArg(c.homePhone) + '\')" style="' + _sb + ';border:1px solid #2ecc71;color:var(--t-green)">🏠 ' + _esc(c.homePhone) + '</a>' : '')
         +   '</div>'
-        +   (c.address ? '<a href="https://maps.google.com/?q=' + encodeURIComponent(c.address) + '" onclick="return _ctMap(event, \'' + rrJsArg(encodeURIComponent(c.address)) + '\')" target="_blank" rel="noopener" style="font-size:0.7rem;color:#16a085;text-decoration:none;text-align:right">📍 ' + _esc(c.address) + '</a>' : '')
+        +   (c.address ? '<a href="https://maps.google.com/?q=' + encodeURIComponent(c.address) + '" onclick="return _ctMap(event, \'' + rrJsArg(encodeURIComponent(c.address)) + '\')" target="_blank" rel="noopener" style="font-size:0.7rem;color:var(--t-sea);text-decoration:none;text-align:right">📍 ' + _esc(c.address) + '</a>' : '')
         +   '<div style="display:flex;flex-wrap:wrap;gap:0.25rem;justify-content:flex-end">'
-        +     (c.email ? '<a href="mailto:' + _esc(c.email) + '" target="_blank" rel="noopener" style="' + _sb + ';border:1px solid #3498db;color:#3498db">✉ Email</a>' : '')
+        +     (c.email ? '<a href="mailto:' + _esc(c.email) + '" target="_blank" rel="noopener" style="' + _sb + ';border:1px solid #3498db;color:var(--t-info)">✉ Email</a>' : '')
         +     (c.website ? '<a href="' + _esc((/^https?:/i.test(c.website) ? c.website : 'https://' + c.website)) + '" target="_blank" rel="noopener" style="' + _sb + ';border:1px solid #9b59b6;color:#9b59b6">🌐 Web</a>' : '')
         +     '<button onclick="_ctOpenEdit(' + c.row + ')" style="' + _sb + ';border:1px solid var(--border);background:var(--surface2);color:var(--text-mid)">Edit</button>'
-        +     '<button onclick="_ctDeleteRow(' + c.row + ')" style="' + _sb + ';border:1px solid #e74c3c;color:#e74c3c">Delete</button>'
+        +     '<button onclick="_ctDeleteRow(' + c.row + ')" style="' + _sb + ';border:1px solid #e74c3c;color:var(--t-danger)">Delete</button>'
         +   '</div>'
         + '</div></div></div>';
     }).join('');
@@ -994,8 +994,8 @@
     ov.innerHTML = '<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;max-width:480px;width:100%;padding:0.9rem 1rem;max-height:92vh;overflow-y:auto">'
       + '<div style="font-family:var(--font-head);font-size:1.05rem;color:var(--text);margin-bottom:0.5rem">' + (row ? 'Edit Contact' : '📇 New Contact') + '</div>'
       + '<div id="ct-card-dropwrap" style="display:flex;gap:0.5rem;margin-bottom:0.7rem">'
-      +   '<button onclick="document.getElementById(\'ct-card-file\').click()" style="flex:1;padding:0.75rem;border-radius:9px;border:1.5px dashed #3498db;background:var(--bg-card);background:color-mix(in srgb, rgb(52,152,219) 8%, var(--bg-card));color:#3498db;font-weight:700;cursor:pointer;font-family:var(--font-body)">📷 Take photo of card</button>'
-      +   '<button onclick="document.getElementById(\'ct-card-gallery\').click()" style="flex:1;padding:0.75rem;border-radius:9px;border:1.5px dashed #3498db;background:var(--bg-card);background:color-mix(in srgb, rgb(52,152,219) 8%, var(--bg-card));color:#3498db;font-weight:700;cursor:pointer;font-family:var(--font-body)">🖼 From gallery</button>'
+      +   '<button onclick="document.getElementById(\'ct-card-file\').click()" style="flex:1;padding:0.75rem;border-radius:9px;border:1.5px dashed #3498db;background:var(--bg-card);background:color-mix(in srgb, rgb(52,152,219) 8%, var(--bg-card));color:var(--t-info);font-weight:700;cursor:pointer;font-family:var(--font-body)">📷 Take photo of card</button>'
+      +   '<button onclick="document.getElementById(\'ct-card-gallery\').click()" style="flex:1;padding:0.75rem;border-radius:9px;border:1.5px dashed #3498db;background:var(--bg-card);background:color-mix(in srgb, rgb(52,152,219) 8%, var(--bg-card));color:var(--t-info);font-weight:700;cursor:pointer;font-family:var(--font-body)">🖼 From gallery</button>'
       + '</div>'
       + '<input type="file" id="ct-card-file" accept="image/*" capture="environment" style="display:none">'
       + '<input type="file" id="ct-card-gallery" accept="image/*" style="display:none">'
@@ -1036,7 +1036,7 @@
       + '<textarea id="ct-f-notes" rows="2" placeholder="strong on tinplate, will negotiate, ships…" style="width:100%;box-sizing:border-box;padding:0.45rem 0.6rem;border-radius:7px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.85rem;resize:vertical">' + _esc(c.notes) + '</textarea></div>'
       + '<div style="display:flex;gap:0.5rem">'
       + '<button id="ct-save" style="flex:2;padding:0.8rem;border-radius:9px;border:none;background:var(--accent);color:var(--on-accent);font-weight:800;cursor:pointer;font-family:var(--font-body)">✓ Save Contact</button>'
-      + (row ? '<button id="ct-del" style="flex:1;padding:0.8rem;border-radius:9px;border:1px solid #e74c3c;background:none;color:#e74c3c;cursor:pointer;font-family:var(--font-body)">Delete</button>' : '')
+      + (row ? '<button id="ct-del" style="flex:1;padding:0.8rem;border-radius:9px;border:1px solid #e74c3c;background:none;color:var(--t-danger);cursor:pointer;font-family:var(--font-body)">Delete</button>' : '')
       + '<button onclick="_ctClose(\'ct-modal\')" style="flex:1;padding:0.8rem;border-radius:9px;border:1px solid var(--border);background:var(--surface2);color:var(--text-mid);cursor:pointer;font-family:var(--font-body)">Cancel</button>'
       + '</div></div>';
     document.body.appendChild(ov);

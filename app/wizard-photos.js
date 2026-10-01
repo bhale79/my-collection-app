@@ -1990,7 +1990,7 @@ function _identifyShowMasterChooser(candidates, meta, fullText) {
 
   var html = '<div style="background:var(--surface);border:1.5px solid var(--accent);border-radius:14px;max-width:520px;width:100%;padding:1.25rem;max-height:88vh;overflow-y:auto;position:relative">'
     + '<button id="id-chooser-close" aria-label="Close" style="position:absolute;top:0.35rem;right:0.55rem;background:none;border:none;color:var(--text-dim);font-size:1.5rem;line-height:1;cursor:pointer;padding:0.15rem 0.5rem;border-radius:6px">\u00d7</button>'
-    + '<div style="font-family:var(--font-head);font-size:1rem;color:var(--accent);margin-bottom:0.4rem;padding-right:1.5rem">\ud83d\udd0d Pick the matching item</div>'
+    + '<div style="font-family:var(--font-head);font-size:1rem;color:var(--t-accent);margin-bottom:0.4rem;padding-right:1.5rem">\ud83d\udd0d Pick the matching item</div>'
     + '<div style="font-size:0.82rem;color:var(--text-mid);line-height:1.5;margin-bottom:0.9rem">'
     +   'Google identified this as ' + (meta.subType ? '<strong>' + meta.subType + '</strong> ' : '') + (meta.roadName ? '<strong>' + meta.roadName + '</strong>' : '') + '. '
     +   'Your master sheet has these candidates \u2014 pick the one that matches:'
@@ -2076,7 +2076,7 @@ function _identifyConfirmMfrMismatch(itemNum, fullText, meta) {
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:10001;display:flex;align-items:center;justify-content:center;padding:1rem';
   overlay.innerHTML =
     '<div style="background:var(--surface);border:1.5px solid var(--accent);border-radius:14px;max-width:440px;width:100%;padding:1.25rem">'
-    + '<div style="font-family:var(--font-head);font-size:1rem;color:var(--accent);margin-bottom:0.5rem">\u26a0\ufe0f Manufacturer mismatch</div>'
+    + '<div style="font-family:var(--font-head);font-size:1rem;color:var(--t-accent);margin-bottom:0.5rem">\u26a0\ufe0f Manufacturer mismatch</div>'
     + '<div style="font-size:0.85rem;color:var(--text);line-height:1.5;margin-bottom:0.4rem">'
     +   'We found <strong>' + itemNum + '</strong> in your master sheet, but on the <strong>' + tabLabel + '</strong> tab.'
     + '</div>'
@@ -2240,7 +2240,7 @@ function _idShowConfirmCard(num, meta) {
     var d = document.createElement('div');
     d.id = 'id-confirm-card';
     d.style.cssText = 'position:fixed;top:72px;right:16px;z-index:100005;max-width:360px;background:var(--surface,#1b1e3a);border:2px solid #2ecc71;border-radius:12px;padding:0.8rem 1rem;box-shadow:0 6px 24px rgba(0,0,0,0.5);color:var(--text,#fff);font-family:var(--font-body,sans-serif);cursor:pointer';
-    d.innerHTML = '<div style="color:#2ecc71;font-weight:700;font-size:0.95rem;margin-bottom:4px">\u2713 Read Google\u2019s answer</div>'
+    d.innerHTML = '<div style="color:var(--t-green);font-weight:700;font-size:0.95rem;margin-bottom:4px">\u2713 Read Google\u2019s answer</div>'
       + '<div style="font-size:0.92rem;line-height:1.45;font-weight:600">' + esc(bits.join(' \u2014 ')) + '</div>'
       + '<div style="font-size:0.78rem;color:var(--text-dim,#999);margin-top:6px">Filled in below \u2014 check the match, then press Next. (Click to dismiss)</div>'
       // v0.9.1490: the answer's OTHER candidates, one tap to switch — the

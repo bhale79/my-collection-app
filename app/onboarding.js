@@ -73,7 +73,7 @@
       // v0.9.1285: rrReadyDemos() filters on gifUrl, so every demo here IS
       // ready — the Coming-soon branch could never run and read as if empty
       // demos still rendered. One badge, the true one.
-      var badge = '<span style="font-size:' + s.small + ';color:#2ecc71;font-weight:600">Ready</span>';
+      var badge = '<span style="font-size:' + s.small + ';color:var(--t-green);font-weight:600">Ready</span>';
       return '<div style="display:flex;align-items:center;gap:0.75rem;padding:0.9rem 0;border-bottom:1px solid var(--border)">' +
         '<div style="font-size:1.5rem">\uD83C\uDFAC</div>' +
         '<div style="flex:1">' +
@@ -314,7 +314,7 @@
     var wrap = document.createElement('div');
     var intro =
       '<div style="font-size:' + s.body + ';color:var(--text-mid);line-height:1.55;margin-bottom:1.2rem">' +
-        (u.welcomeSubtitle ? '<div style="color:var(--accent);font-weight:600;margin-bottom:0.35rem">' + _escape(u.welcomeSubtitle) + '</div>' : '') +
+        (u.welcomeSubtitle ? '<div style="color:var(--t-accent);font-weight:600;margin-bottom:0.35rem">' + _escape(u.welcomeSubtitle) + '</div>' : '') +
         _escape(u.welcomeIntro || '') +
       '</div>';
     var cards = '<div id="onboarding-map-grid" style="' +
@@ -330,7 +330,7 @@
         '<div style="text-align:center;margin:0.3rem 0 1rem">' +
           '<button onclick="onboardShowGifsPreview()" style="' +
             'background:none;border:1px dashed var(--border);border-radius:10px;' +
-            'padding:0.8rem 1.2rem;color:var(--accent);font-family:var(--font-body);' +
+            'padding:0.8rem 1.2rem;color:var(--t-accent);font-family:var(--font-body);' +
             'font-size:' + s.linkBtn + ';cursor:pointer;min-height:' + s.btnH + ';font-weight:600">' +
             '\uD83C\uDFAC  Watch how-to demos \u2192' +
           '</button>' +
@@ -627,7 +627,7 @@
 
     var wrap = document.createElement('div');
     wrap.innerHTML =
-      '<div style="font-size:' + s.small + ';color:var(--accent);font-family:var(--font-head);font-weight:600;letter-spacing:0.12em;text-transform:uppercase;margin-bottom:0.6rem">' +
+      '<div style="font-size:' + s.small + ';color:var(--t-accent);font-family:var(--font-head);font-weight:600;letter-spacing:0.12em;text-transform:uppercase;margin-bottom:0.6rem">' +
         _escape(cfg.subtitle || '') +
       '</div>' +
       paraHtml +

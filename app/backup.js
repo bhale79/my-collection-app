@@ -528,7 +528,7 @@ async function uiBackupRestore(backupId, backupName) {
     done.innerHTML =
       '<div style="background:var(--surface,#fff);color:var(--text,#111);' +
         'border-radius:12px;max-width:480px;width:100%;padding:1.5rem;text-align:center">' +
-        '<div style="font-weight:700;font-size:1.05rem;margin-bottom:0.5rem;color:var(--accent,#4a7)">' +
+        '<div style="font-weight:700;font-size:1.05rem;margin-bottom:0.5rem;color:var(--t-accent)">' +
           BACKUP_UI_TEXT.restoreSuccess + '</div>' +
         (successName
           ? '<div style="font-size:0.82rem;color:var(--text-dim,#777);margin-bottom:1rem">' +

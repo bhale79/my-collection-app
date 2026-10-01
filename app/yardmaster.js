@@ -415,7 +415,7 @@
         + '<div style="font-size:1.05rem;color:var(--text-mid);white-space:nowrap">'
         + '<span style="font-weight:700;color:' + (c.pending ? 'var(--accent)' : 'var(--text-dim)') + '">' + c.pending + '</span> pending'
         + (done ? ' · ' + done + ' decided' : '') + (c.deferred ? ' · ' + c.deferred + ' deferred' : '')
-        + (held ? ' · <span style="color:var(--accent);font-weight:700">' + (function () { var s = _ymHeldSplit(b), p = []; if (s.tab) p.push(s.tab + ' need a tab'); if (s.num) p.push(s.num + ' need a number'); return p.join(' \u00b7 '); })() + '</span>' : '') + '</div>'
+        + (held ? ' · <span style="color:var(--t-accent);font-weight:700">' + (function () { var s = _ymHeldSplit(b), p = []; if (s.tab) p.push(s.tab + ' need a tab'); if (s.num) p.push(s.num + ' need a number'); return p.join(' \u00b7 '); })() + '</span>' : '') + '</div>'
         + '<button onclick="_ymBatchOpen(\'' + rrJsArg(b.id) + '\')" style="padding:0.35rem 0.95rem;border-radius:8px;border:1px solid var(--accent2);'
         + 'background:var(--surface2);color:var(--accent2);font-family:var(--font-body);font-weight:700;cursor:pointer">Review →</button>'
         + (_dm && !(c.approved + c.edited + c.rejected + c.pending + c.deferred) ? '<span style="font-size:0.95rem;color:var(--text-dim)">rows in the archive tab</span>' : '')
@@ -446,7 +446,7 @@
         + '<td style="padding:0.35rem 0.6rem;white-space:nowrap;color:var(--text-dim)">every ' + c.every + 'd</td>'
         + '<td style="padding:0.35rem 0.6rem;white-space:nowrap;color:var(--text-dim)">' + (c.last ? c.last.toISOString().slice(0, 10) : 'never') + '</td>'
         + '<td style="padding:0.35rem 0.6rem;white-space:nowrap">' + (c.due
-            ? '<span style="color:var(--accent);font-weight:700">DUE</span>'
+            ? '<span style="color:var(--t-accent);font-weight:700">DUE</span>'
             : '<span style="color:var(--green)">ok</span>') + '</td>'
         + '<td style="padding:0.35rem 0 0.35rem 0.6rem"><button onclick="_ymChoreDone(' + c.row + ',\'' + rrJsArg(c.name).replace(/'/g, '') + '\')"'
         + ' style="padding:0.25rem 0.7rem;border-radius:7px;border:1px solid var(--border);background:var(--surface2);color:var(--text);cursor:pointer;font-family:var(--font-body)">Mark done</button></td>'
@@ -1578,7 +1578,7 @@
       var kind = _ymFlagKind(dd);
       if (!kind) return '';
       return kind === 'check'
-        ? '<div style="' + extra + 'color:var(--accent)">\u26a0 ' + _esc(dd.flag) + '</div>'
+        ? '<div style="' + extra + 'color:var(--t-accent)">\u26a0 ' + _esc(dd.flag) + '</div>'
         : '<div style="' + extra + 'color:var(--text-dim)">\u24d8 ' + _esc(dd.flag) + '</div>';
     };
     // v0.9.1712: the per-flag strip — every distinct flag in the list on screen,
@@ -1610,7 +1610,7 @@
               + '<span style="color:' + (g.kind === 'check' ? 'var(--accent)' : 'var(--text-dim)') + ';font-size:0.92rem">' + (g.kind === 'check' ? '\u26a0 ' : '\u24d8 ') + _esc(k) + '</span>'
               + '<span style="font-weight:700;color:var(--text)">' + g.n + '</span>'
               + '<button onclick="_ymVerdictFlag(\'' + ke + '\',\'approved\')" style="' + sbtn + 'border:1.5px solid var(--green);color:var(--green)">Approve all ' + g.n + '</button>'
-              + '<button onclick="_ymVerdictFlag(\'' + ke + '\',\'rejected\')" style="' + sbtn + 'border:1.5px solid var(--accent);color:var(--accent)">Reject all ' + g.n + '</button>'
+              + '<button onclick="_ymVerdictFlag(\'' + ke + '\',\'rejected\')" style="' + sbtn + 'border:1.5px solid var(--accent);color:var(--t-accent)">Reject all ' + g.n + '</button>'
               + '</div>';
           }).join('')
         + '</div>';

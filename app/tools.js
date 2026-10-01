@@ -32,7 +32,7 @@ function buildToolsPage() {
         'Smart Group Finder' +
       '</div>' +
       '<div class="tools-card-desc">Scans your collection for engine/tender pairs, boxes, and instruction sheets that belong together but aren\'t yet linked. Review each suggestion and group them with one click.</div>' +
-      '<button onclick="runGroupFinder()" style="padding:0.55rem 1.1rem;border-radius:8px;border:1.5px solid #8b5cf6;background:var(--bg-card);background:color-mix(in srgb, rgb(139,92,246) 10%, var(--bg-card));color:#8b5cf6;font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer">Scan My Collection</button>' +
+      '<button onclick="runGroupFinder()" style="padding:0.55rem 1.1rem;border-radius:8px;border:1.5px solid #8b5cf6;background:var(--bg-card);background:color-mix(in srgb, rgb(139,92,246) 10%, var(--bg-card));color:var(--t-purple);font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer">Scan My Collection</button>' +
       '<div id="group-finder-results" style="margin-top:1rem"></div>' +
     '</div>';
 
@@ -43,7 +43,7 @@ function buildToolsPage() {
         'Duplicate Checker' +
       '</div>' +
       '<div class="tools-card-desc">Works across all eras and manufacturers. Scans your collection for items you own more than once — same item number and variation. Review each duplicate group to decide which copy to keep, sell, or remove.</div>' +
-      '<button onclick="runDuplicateChecker()" style="padding:0.55rem 1.1rem;border-radius:8px;border:1.5px solid #d4a843;background:var(--bg-card);background:color-mix(in srgb, rgb(212,168,67) 10%, var(--bg-card));color:#d4a843;font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer">Scan for Duplicates</button>' +
+      '<button onclick="runDuplicateChecker()" style="padding:0.55rem 1.1rem;border-radius:8px;border:1.5px solid #d4a843;background:var(--bg-card);background:color-mix(in srgb, rgb(212,168,67) 10%, var(--bg-card));color:var(--t-gold);font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer">Scan for Duplicates</button>' +
       '<div id="duplicate-checker-results" style="margin-top:1rem"></div>' +
     '</div>';
 
@@ -67,7 +67,7 @@ function buildToolsPage() {
           '<option value="99">5+ — missing many items</option>' +
         '</select>' +
         '<label style="font-size:0.85rem;color:var(--text-mid)">or fewer items to complete</label>' +
-        '<button onclick="runSetBuilder()" style="padding:0.55rem 1.1rem;border-radius:8px;border:1.5px solid #0891b2;background:var(--bg-card);background:color-mix(in srgb, rgb(8,145,178) 10%, var(--bg-card));color:#0891b2;font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer">Scan Sets</button>' +
+        '<button onclick="runSetBuilder()" style="padding:0.55rem 1.1rem;border-radius:8px;border:1.5px solid #0891b2;background:var(--bg-card);background:color-mix(in srgb, rgb(8,145,178) 10%, var(--bg-card));color:var(--t-teal);font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer">Scan Sets</button>' +
       '</div>' +
       '<div id="set-builder-results" style="margin-top:0.5rem"></div>' +
     '</div>';
@@ -79,7 +79,7 @@ function buildToolsPage() {
         'Companion Suggester \u00b7 Lionel Postwar' +
       '</div>' +
       '<div class="tools-card-desc"><strong>Lionel postwar only.</strong> Scans your collection for missing Lionel postwar companions — tenders without their engine, B units without their A unit, and engines without their tender or B unit. Add any missing piece straight to your Want List.</div>' +
-      '<button onclick="runCompanionSuggester()" style="padding:0.55rem 1.1rem;border-radius:8px;border:1.5px solid #2ecc71;background:var(--bg-card);background:color-mix(in srgb, rgb(46,204,113) 10%, var(--bg-card));color:#2ecc71;font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer">Scan My Collection</button>' +
+      '<button onclick="runCompanionSuggester()" style="padding:0.55rem 1.1rem;border-radius:8px;border:1.5px solid #2ecc71;background:var(--bg-card);background:color-mix(in srgb, rgb(46,204,113) 10%, var(--bg-card));color:var(--t-green);font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer">Scan My Collection</button>' +
       '<div id="companion-suggester-results" style="margin-top:1rem"></div>' +
     '</div>';
 
@@ -106,7 +106,7 @@ function buildToolsPage() {
         'Find Stock Photos' +
       '</div>' +
       '<div class="tools-card-desc">Beta. Checks every item that has no photo (or only a box photo) for the maker\'s own product picture and lets you pick which ones to use. Shown by link with a STOCK PHOTO banner — nothing is copied, and they never go into sale listings or reports. Modern Lionel, MTH and Atlas today; other makers as their catalogs are crawled.</div>' +
-      '<button onclick="runStockPhotoFinder()" style="padding:0.55rem 1.1rem;border-radius:8px;border:1.5px solid #2980b9;background:var(--bg-card);background:color-mix(in srgb, rgb(41,128,185) 10%, var(--bg-card));color:#2980b9;font-family:var(--font-body);font-size:0.85rem;cursor:pointer;font-weight:600">Find stock photos</button>' +
+      '<button onclick="runStockPhotoFinder()" style="padding:0.55rem 1.1rem;border-radius:8px;border:1.5px solid #2980b9;background:var(--bg-card);background:color-mix(in srgb, rgb(41,128,185) 10%, var(--bg-card));color:var(--t-link);font-family:var(--font-body);font-size:0.85rem;cursor:pointer;font-weight:600">Find stock photos</button>' +
       '<div id="stock-photos-results" style="margin-top:1rem"></div>' +
     '</div>' : '';
 
@@ -117,7 +117,7 @@ function buildToolsPage() {
         'Shared Photos' +
       '</div>' +
       '<div class="tools-card-desc">Photos you made clickable on a share sheet are viewable by anyone with the link until their timer runs out — or until you stop sharing them here. Stopping kills the old links immediately.</div>' +
-      '<button onclick="runSharedPhotos()" style="padding:0.55rem 1.1rem;border-radius:8px;border:1.5px solid #e67e22;background:var(--bg-card);background:color-mix(in srgb, rgb(230,126,34) 10%, var(--bg-card));color:#e67e22;font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer">Show Shared Photos</button>' +
+      '<button onclick="runSharedPhotos()" style="padding:0.55rem 1.1rem;border-radius:8px;border:1.5px solid #e67e22;background:var(--bg-card);background:color-mix(in srgb, rgb(230,126,34) 10%, var(--bg-card));color:var(--t-orange);font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer">Show Shared Photos</button>' +
       '<div id="shared-photos-results" style="margin-top:1rem"></div>' +
     '</div>';
 
@@ -148,7 +148,7 @@ function buildToolsPage() {
         'Vault Cleanup · one-time' +
       '</div>' +
       '<div class="tools-card-desc">From the Aug 3 Drive scan: merge the doubled 20-93699 into MTH O, remove three empty leftover folders (84631, 84631-BOX, 0028CC — today’s 2205 is left alone), and move the old Lionel Vault’s stranded photos into the active vault so the app can finally see them. Preview shows every step before anything moves.</div>' +
-      '<button onclick="rrVaultCleanupPreview()" style="padding:0.55rem 1.1rem;border-radius:8px;border:1.5px solid #e74c3c;background:var(--bg-card);background:color-mix(in srgb, rgb(231,76,60) 10%, var(--bg-card));color:#e74c3c;font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer">Preview the cleanup</button>' +
+      '<button onclick="rrVaultCleanupPreview()" style="padding:0.55rem 1.1rem;border-radius:8px;border:1.5px solid #e74c3c;background:var(--bg-card);background:color-mix(in srgb, rgb(231,76,60) 10%, var(--bg-card));color:var(--t-danger);font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer">Preview the cleanup</button>' +
       '<div id="vault-cleanup-results" style="margin-top:1rem"></div>' +
     '</div>';
 
@@ -169,7 +169,7 @@ function buildToolsPage() {
         'Master Fix-Up · one-time (v1.72)' +
       '</div>' +
       '<div class="tools-card-desc">Applies the five duplicate-row decisions from the Aug 4 master audit to the live master sheet (1130T, 2243, 2245, 50, 55) and tidies the Master Version tab into one row per version, ending at 1.72 — matching the rebuilt LIVE workbook. Preview shows every step and verifies each row before anything is written.</div>' +
-      '<button onclick="rrMasterFixupPreview()" style="padding:0.55rem 1.1rem;border-radius:8px;border:1.5px solid #e74c3c;background:var(--bg-card);background:color-mix(in srgb, rgb(231,76,60) 10%, var(--bg-card));color:#e74c3c;font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer">Preview the fix-up</button>' +
+      '<button onclick="rrMasterFixupPreview()" style="padding:0.55rem 1.1rem;border-radius:8px;border:1.5px solid #e74c3c;background:var(--bg-card);background:color-mix(in srgb, rgb(231,76,60) 10%, var(--bg-card));color:var(--t-danger);font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer">Preview the fix-up</button>' +
       '<div id="master-fixup-results" style="margin-top:1rem;color:var(--text)"></div>' +
     '</div>';
 
@@ -198,7 +198,7 @@ function buildToolsPage() {
         'Master Version tab · tidy (one-time)' +
       '</div>' +
       '<div class="tools-card-desc">Puts the newest version on top where Preferences and a human both look for it, keeps 1.70 from displaying as 1.7, shows the dates as dates instead of numbers, and clears one stray note left below the history. Touches nothing but the Master Version tab \u2014 no item rows. Preview shows the before and after first.</div>' +
-      '<button onclick="rrVersionTidyPreview()" style="padding:0.55rem 1.1rem;border-radius:8px;border:1.5px solid #e74c3c;background:var(--bg-card);background:color-mix(in srgb, rgb(231,76,60) 10%, var(--bg-card));color:#e74c3c;font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer">Preview the tidy-up</button>' +
+      '<button onclick="rrVersionTidyPreview()" style="padding:0.55rem 1.1rem;border-radius:8px;border:1.5px solid #e74c3c;background:var(--bg-card);background:color-mix(in srgb, rgb(231,76,60) 10%, var(--bg-card));color:var(--t-danger);font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer">Preview the tidy-up</button>' +
       '<div id="version-tidy-results" style="margin-top:1rem;color:var(--text)"></div>' +
     '</div>';
 
@@ -226,7 +226,7 @@ function buildToolsPage() {
         'Master Fix-Up \u00b7 one-time (v1.73)' +
       '</div>' +
       '<div class="tools-card-desc">Numbers the ten unnumbered accessory variations (193, 195, 455) and settles the 6511-2 collision \u2014 eleven cells, no rows added or removed. Each row is found by its COTT code, which is unique, and checked again at write time. Preview first.</div>' +
-      '<button onclick="rrMaster173Preview()" style="padding:0.55rem 1.1rem;border-radius:8px;border:1.5px solid #e74c3c;background:var(--bg-card);background:color-mix(in srgb, rgb(231,76,60) 10%, var(--bg-card));color:#e74c3c;font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer">Preview the fix-up</button>' +
+      '<button onclick="rrMaster173Preview()" style="padding:0.55rem 1.1rem;border-radius:8px;border:1.5px solid #e74c3c;background:var(--bg-card);background:color-mix(in srgb, rgb(231,76,60) 10%, var(--bg-card));color:var(--t-danger);font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer">Preview the fix-up</button>' +
       '<div id="master-173-results" style="margin-top:1rem;color:var(--text)"></div>' +
     '</div>';
 
@@ -264,7 +264,7 @@ function buildToolsPage() {
         'Master Fix-Up · one-time (v1.74)' +
       '</div>' +
       '<div class="tools-card-desc">Fixes what v1.73 broke on 193 and 195. Each is in the sheet twice — once from the reference book, once from COTT — and v1.73 numbered the COTT rows 1..N on top of book rows that were already numbered 1..N. This keeps COTT’s rows, moves the one sentence only the book has, and removes the five duplicate book rows. 455 is left alone and comes to you separately. Preview is read-only.</div>' +
-      '<button onclick="rrMaster174Preview()" style="padding:0.55rem 1.1rem;border-radius:8px;border:1.5px solid #e74c3c;background:var(--bg-card);background:color-mix(in srgb, rgb(231,76,60) 10%, var(--bg-card));color:#e74c3c;font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer">Preview the fix-up</button>' +
+      '<button onclick="rrMaster174Preview()" style="padding:0.55rem 1.1rem;border-radius:8px;border:1.5px solid #e74c3c;background:var(--bg-card);background:color-mix(in srgb, rgb(231,76,60) 10%, var(--bg-card));color:var(--t-danger);font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer">Preview the fix-up</button>' +
       '<div id="master-174-results" style="margin-top:1rem;color:var(--text)"></div>' +
     '</div>';
 
@@ -311,7 +311,7 @@ function buildToolsPage() {
         'Master Fix-Up · one-time (v1.75) — the 455 Oil Derrick' +
       '</div>' +
       '<div class="tools-card-desc">Settles 455. COTT’s four keep variations 1–4; the book’s apple green becomes 5 and its matching-top pale green becomes 6. The two book rows COTT already covers are removed, and the book’s better dates move onto the COTT rows. Run v1.74 first. Preview is read-only and shows every edit before anything is written.</div>' +
-      '<button onclick="rrMaster175Preview()" style="padding:0.55rem 1.1rem;border-radius:8px;border:1.5px solid #e74c3c;background:var(--bg-card);background:color-mix(in srgb, rgb(231,76,60) 10%, var(--bg-card));color:#e74c3c;font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer">Preview the 455 fix-up</button>' +
+      '<button onclick="rrMaster175Preview()" style="padding:0.55rem 1.1rem;border-radius:8px;border:1.5px solid #e74c3c;background:var(--bg-card);background:color-mix(in srgb, rgb(231,76,60) 10%, var(--bg-card));color:var(--t-danger);font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer">Preview the 455 fix-up</button>' +
       '<div id="master-175-results" style="margin-top:1rem;color:var(--text)"></div>' +
     '</div>';
 
@@ -450,7 +450,7 @@ function runGroupFinder() {
         '<div style="font-size:0.88rem;color:var(--text)">' + labels + '</div>' +
         (types ? '<div style="font-size:0.75rem;color:var(--text-dim);margin-top:1px">' + types + '</div>' : '') +
       '</div>' +
-      '<button onclick="confirmGroupItems(' + idx + ')" style="padding:0.35rem 0.75rem;border-radius:7px;border:1.5px solid #8b5cf6;background:var(--bg-card);background:color-mix(in srgb, rgb(139,92,246) 10%, var(--bg-card));color:#8b5cf6;font-family:var(--font-body);font-size:0.78rem;font-weight:600;cursor:pointer;white-space:nowrap">Group Them</button>' +
+      '<button onclick="confirmGroupItems(' + idx + ')" style="padding:0.35rem 0.75rem;border-radius:7px;border:1.5px solid #8b5cf6;background:var(--bg-card);background:color-mix(in srgb, rgb(139,92,246) 10%, var(--bg-card));color:var(--t-purple);font-family:var(--font-body);font-size:0.78rem;font-weight:600;cursor:pointer;white-space:nowrap">Group Them</button>' +
       '<button onclick="skipGroupSuggestion(' + idx + ')" style="padding:0.35rem 0.65rem;border-radius:7px;border:1px solid var(--border);background:var(--surface);color:var(--text-dim);font-family:var(--font-body);font-size:0.78rem;cursor:pointer;margin-left:0.35rem">Skip</button>' +
     '</div>';
   });
@@ -600,7 +600,7 @@ async function runSetBuilder() {
       '<div class="tools-set-header" onclick="toggleSetRow(' + idx + ')">' +
         '<div style="flex:1;min-width:0">' +
           '<div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap">' +
-            '<span style="font-family:var(--font-head);font-size:0.92rem;color:var(--accent)">Set ' + r.set.setNum + '</span>' +
+            '<span style="font-family:var(--font-head);font-size:0.92rem;color:var(--t-accent)">Set ' + r.set.setNum + '</span>' +
             (r.set.setName ? '<span style="font-size:0.82rem;color:var(--text-mid)">' + r.set.setName + '</span>' : '') +
             completeBadge +
             (r.set.year ? '<span style="font-size:0.75rem;color:var(--text-dim)">' + r.set.year + '</span>' : '') +
@@ -662,8 +662,8 @@ function _buildSetBody(r, idx) {
     });
     html += '<div style="margin-top:0.85rem;display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap">' +
       (alreadyLinked
-        ? '<span style="font-size:0.82rem;color:#0891b2;font-weight:600">✓ Set already linked in your collection</span>'
-        : '<button onclick="toolCreateSet(' + idx + ')" style="padding:0.45rem 0.9rem;border-radius:8px;border:1.5px solid #0891b2;background:var(--bg-card);background:color-mix(in srgb, rgb(8,145,178) 10%, var(--bg-card));color:#0891b2;font-family:var(--font-body);font-size:0.82rem;font-weight:600;cursor:pointer">Link Owned Pieces as Set ' + r.set.setNum + '</button>') +
+        ? '<span style="font-size:0.82rem;color:var(--t-teal);font-weight:600">✓ Set already linked in your collection</span>'
+        : '<button onclick="toolCreateSet(' + idx + ')" style="padding:0.45rem 0.9rem;border-radius:8px;border:1.5px solid #0891b2;background:var(--bg-card);background:color-mix(in srgb, rgb(8,145,178) 10%, var(--bg-card));color:var(--t-teal);font-family:var(--font-body);font-size:0.82rem;font-weight:600;cursor:pointer">Link Owned Pieces as Set ' + r.set.setNum + '</button>') +
     '</div>';
   }
 
@@ -770,7 +770,7 @@ function runDuplicateChecker() {
   out.innerHTML = '<div style="color:var(--text-dim);font-size:0.85rem">Scanning…</div>';
 
   if (!state.personalData || !Object.keys(state.personalData).length) {
-    out.innerHTML = '<div style="padding:0.75rem;background:rgba(240,80,8,0.08);border:1px solid rgba(240,80,8,0.25);border-radius:8px;color:var(--accent);font-size:0.85rem">Collection data not loaded yet — try again in a moment.</div>';
+    out.innerHTML = '<div style="padding:0.75rem;background:rgba(240,80,8,0.08);border:1px solid rgba(240,80,8,0.25);border-radius:8px;color:var(--t-accent);font-size:0.85rem">Collection data not loaded yet — try again in a moment.</div>';
     return;
   }
 
@@ -817,7 +817,7 @@ function runDuplicateChecker() {
         '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#d4a843" stroke-width="2" style="flex-shrink:0"><rect x="2" y="2" width="13" height="13" rx="2"/><rect x="9" y="9" width="13" height="13" rx="2"/></svg>' +
         '<strong>' + g.itemNum + '</strong>' + varLabel +
         (roadName ? '<span style="color:var(--text-dim);font-size:0.8rem">· ' + roadName + '</span>' : '') +
-        '<span style="font-size:0.75rem;color:#d4a843;border:1px solid rgba(212,168,67,0.4);border-radius:4px;padding:0.1rem 0.4rem;flex-shrink:0">' + g.copies.length + ' copies</span>' +
+        '<span style="font-size:0.75rem;color:var(--t-gold);border:1px solid rgba(212,168,67,0.4);border-radius:4px;padding:0.1rem 0.4rem;flex-shrink:0">' + g.copies.length + ' copies</span>' +
       '</div>';
 
     // Find master data index for this item (for showItemDetailPage)
@@ -891,10 +891,10 @@ function runDuplicateChecker() {
         '<span style="font-size:0.75rem;color:var(--accent2);font-family:var(--font-mono)">' + groupedStr + '</span>' +
         '<span style="display:flex;gap:0.35rem;flex-shrink:0">' +
         '<button onclick="event.stopPropagation();' + _dOpen + '" ' +
-          'style="padding:0.2rem 0.5rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #2980b9;background:var(--bg-card);background:color-mix(in srgb, rgb(41,128,185) 10%, var(--bg-card));color:#2980b9;font-family:var(--font-body);font-weight:600;white-space:nowrap" ' +
+          'style="padding:0.2rem 0.5rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #2980b9;background:var(--bg-card);background:color-mix(in srgb, rgb(41,128,185) 10%, var(--bg-card));color:var(--t-link);font-family:var(--font-body);font-weight:600;white-space:nowrap" ' +
           'title="Open this copy’s detail page">Details</button>' +
         '<button onclick="event.stopPropagation();listForSaleFromCollection(' + _cIdx + ',&apos;' + pdKey + '&apos;)" ' +
-          'style="padding:0.2rem 0.5rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #e67e22;background:var(--bg-card);background:color-mix(in srgb, rgb(230,126,34) 10%, var(--bg-card));color:#e67e22;font-family:var(--font-body);font-weight:600;white-space:nowrap" ' +
+          'style="padding:0.2rem 0.5rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #e67e22;background:var(--bg-card);background:color-mix(in srgb, rgb(230,126,34) 10%, var(--bg-card));color:var(--t-orange);font-family:var(--font-body);font-weight:600;white-space:nowrap" ' +
           'title="Add this copy to your For Sale list">🏷️ Add to For Sale List</button>' +
         '</span>' +
       '</div>';
@@ -928,7 +928,7 @@ async function runCompanionSuggester() {
     } catch (e) {}
   }
   if (!state.companionData || !state.companionData.length) {
-    out.innerHTML = '<div style="padding:0.75rem;background:rgba(240,80,8,0.08);border:1px solid rgba(240,80,8,0.25);border-radius:8px;color:var(--accent);font-size:0.85rem">Could not load Lionel postwar companion data. Tap Sync, then Scan again.</div>';
+    out.innerHTML = '<div style="padding:0.75rem;background:rgba(240,80,8,0.08);border:1px solid rgba(240,80,8,0.25);border-radius:8px;color:var(--t-accent);font-size:0.85rem">Could not load Lionel postwar companion data. Tap Sync, then Scan again.</div>';
     return;
   }
 
@@ -1552,7 +1552,7 @@ async function runPhotoNameCleanup() {
     + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;font-size:0.7rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--accent2);padding-bottom:0.3rem;border-bottom:1px solid var(--border)"><span>Current name</span><span>New name</span></div>'
     + '<div style="max-height:340px;overflow-y:auto">' + rows + '</div>'
     + '<div style="display:flex;gap:0.6rem;margin-top:0.85rem">'
-    +   '<button onclick="_photoNamesApply()" style="padding:0.55rem 1.1rem;border-radius:8px;border:1.5px solid #2ecc71;background:var(--bg-card);background:color-mix(in srgb, rgb(46,204,113) 10%, var(--bg-card));color:#2ecc71;font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer">Rename ' + plan.length + ' Photo' + (plan.length > 1 ? 's' : '') + '</button>'
+    +   '<button onclick="_photoNamesApply()" style="padding:0.55rem 1.1rem;border-radius:8px;border:1.5px solid #2ecc71;background:var(--bg-card);background:color-mix(in srgb, rgb(46,204,113) 10%, var(--bg-card));color:var(--t-green);font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer">Rename ' + plan.length + ' Photo' + (plan.length > 1 ? 's' : '') + '</button>'
     +   '<button onclick="document.getElementById(\'photo-names-results\').innerHTML=\'\';_photoNamePlan=null" style="padding:0.55rem 1.1rem;border-radius:8px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer">Cancel</button>'
     + '</div>';
 }
@@ -1580,7 +1580,7 @@ async function _photoNamesApply() {
   } finally { _photoNamesRunning = false; }
   _photoNamePlan = null;
   out.innerHTML = '<div style="font-size:0.85rem;color:var(--text-mid)">✓ <strong style="color:var(--text)">' + ok + '</strong> photo' + (ok === 1 ? '' : 's') + ' renamed'
-    + (fail ? ' · <span style="color:#e74c3c">' + fail + ' failed — run the scan again to retry</span>' : '') + '.</div>';
+    + (fail ? ' · <span style="color:var(--t-danger)">' + fail + ' failed — run the scan again to retry</span>' : '') + '.</div>';
   if (typeof showToast === 'function') showToast('✓ Photo names cleaned up (' + ok + ')');
 }
 if (typeof window !== 'undefined') window._photoNamesApply = _photoNamesApply;
@@ -1625,13 +1625,13 @@ async function runSharedPhotos() {
           '<div style="font-size:0.85rem;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + rrEsc(f.name || 'photo') + '</div>' +
           '<div class="shp-exp" style="font-size:0.75rem;color:var(--text-dim)">' + rrShareExpText(parseInt((f.appProperties || {}).rrShareExp || '0', 10), now) + '</div>' +
         '</div>' +
-        '<button onclick="rrStopSharingOne(\'' + f.id + '\')" style="padding:0.4rem 0.8rem;border-radius:8px;border:1.5px solid #e67e22;background:var(--bg-card);background:color-mix(in srgb, rgb(230,126,34) 10%, var(--bg-card));color:#e67e22;font-family:var(--font-body);font-size:0.78rem;font-weight:600;cursor:pointer;flex-shrink:0">Stop sharing</button>' +
+        '<button onclick="rrStopSharingOne(\'' + f.id + '\')" style="padding:0.4rem 0.8rem;border-radius:8px;border:1.5px solid #e67e22;background:var(--bg-card);background:color-mix(in srgb, rgb(230,126,34) 10%, var(--bg-card));color:var(--t-orange);font-family:var(--font-body);font-size:0.78rem;font-weight:600;cursor:pointer;flex-shrink:0">Stop sharing</button>' +
       '</div>';
     }).join('');
     out.innerHTML =
       '<div style="font-size:0.8rem;color:var(--text-mid);margin-bottom:0.4rem">' + files.length + ' photo' + (files.length > 1 ? 's' : '') + ' currently shared</div>' +
       rows +
-      '<button onclick="rrStopSharingAll()" style="margin-top:0.7rem;padding:0.5rem 1rem;border-radius:8px;border:1.5px solid #e74c3c;background:var(--bg-card);background:color-mix(in srgb, rgb(231,76,60) 10%, var(--bg-card));color:#e74c3c;font-family:var(--font-body);font-size:0.82rem;font-weight:600;cursor:pointer">Stop sharing all</button>';
+      '<button onclick="rrStopSharingAll()" style="margin-top:0.7rem;padding:0.5rem 1rem;border-radius:8px;border:1.5px solid #e74c3c;background:var(--bg-card);background:color-mix(in srgb, rgb(231,76,60) 10%, var(--bg-card));color:var(--t-danger);font-family:var(--font-body);font-size:0.82rem;font-weight:600;cursor:pointer">Stop sharing all</button>';
     files.forEach(function (f) {
       var im = document.getElementById('shp-' + f.id);
       if (im && typeof loadDriveThumb === 'function') loadDriveThumb(f.id, im);
@@ -1705,7 +1705,7 @@ async function rrVaultCleanupPreview() {
   try {
     var rootId = (typeof driveCache !== 'undefined' && driveCache.photosId) || localStorage.getItem('lv_photos_id');
     var soldId = (typeof driveCache !== 'undefined' && driveCache.soldPhotosId) || localStorage.getItem('lv_sold_photos_id');
-    if (!rootId) { out.innerHTML = '<div style="color:var(--accent);font-size:0.85rem">Photos folder not known yet — open the app fully signed in, then try again.</div>'; return; }
+    if (!rootId) { out.innerHTML = '<div style="color:var(--t-accent);font-size:0.85rem">Photos folder not known yet — open the app fully signed in, then try again.</div>'; return; }
 
     // ── 1. the doubled 20-93699 ──
     var twins = await _vcFindFolders('mth No. 20-93699', rootId);
@@ -1777,7 +1777,7 @@ async function rrVaultCleanupPreview() {
       }
     }
   } catch (err) {
-    out.innerHTML = '<div style="color:var(--accent);font-size:0.85rem">Could not finish looking: ' + rrEsc(err && err.message || 'error') + ' — nothing was changed.</div>';
+    out.innerHTML = '<div style="color:var(--t-accent);font-size:0.85rem">Could not finish looking: ' + rrEsc(err && err.message || 'error') + ' — nothing was changed.</div>';
     return;
   }
 
@@ -1819,7 +1819,7 @@ async function rrVaultCleanupRun() {
   }
   var h = '<div style="padding:0.6rem;background:rgba(46,204,113,0.08);border:1px solid rgba(46,204,113,0.25);border-radius:8px;color:#4dc880;font-size:0.85rem">✓ ' + done + ' of ' + plan.length + ' steps done.</div>';
   if (failed.length) {
-    h += '<div style="font-size:0.78rem;color:var(--accent);margin-top:0.4rem">' + failed.length + ' step' + (failed.length > 1 ? 's' : '') + ' could not run (nothing was half-done — each step stands alone):</div>'
+    h += '<div style="font-size:0.78rem;color:var(--t-accent);margin-top:0.4rem">' + failed.length + ' step' + (failed.length > 1 ? 's' : '') + ' could not run (nothing was half-done — each step stands alone):</div>'
        + failed.map(function (f) { return '<div style="font-size:0.74rem;color:var(--text-dim);padding:0.1rem 0">' + rrEsc(f) + '</div>'; }).join('')
        + '<div style="font-size:0.76rem;color:var(--text-dim);margin-top:0.3rem">Preview again to retry what is left.</div>';
   } else {
@@ -1937,7 +1937,7 @@ async function rrMasterFixupPreview() {
     }
     html += '<div style="padding:0.5rem 0.7rem;border:1px solid var(--border);border-radius:8px;margin-bottom:0.4rem;font-size:0.82rem"><strong>Master Version tab → clean history, 1.72 on top</strong><br><span style="color:var(--text-dim)">Rewrites rows 1–8 as one row per version and clears the four split entries at rows 1000–1011.</span></div>';
     for (var p = 0; p < loc.problems.length; p++) {
-      html += '<div style="padding:0.5rem 0.7rem;border:1.5px solid #e74c3c;border-radius:8px;margin-bottom:0.4rem;font-size:0.82rem;color:#e74c3c">' + loc.problems[p] + '</div>';
+      html += '<div style="padding:0.5rem 0.7rem;border:1.5px solid #e74c3c;border-radius:8px;margin-bottom:0.4rem;font-size:0.82rem;color:var(--t-danger)">' + loc.problems[p] + '</div>';
     }
     if (loc.targets.length) {
       html += '<button onclick="rrMasterFixupApply()" style="margin-top:0.4rem;padding:0.55rem 1.1rem;border-radius:8px;border:none;background:#e74c3c;color:var(--on-accent);font-family:var(--font-body);font-size:0.85rem;font-weight:700;cursor:pointer">Apply ' + loc.targets.length + ' step' + (loc.targets.length === 1 ? '' : 's') + ' + version 1.72</button>';
@@ -1946,7 +1946,7 @@ async function rrMasterFixupPreview() {
     }
     box.innerHTML = html;
   } catch (e) {
-    box.innerHTML = '<div style="color:#e74c3c;font-size:0.85rem">Could not read the master sheet: ' + String(e && e.message || e).replace(/</g, '&lt;') + '</div>';
+    box.innerHTML = '<div style="color:var(--t-danger);font-size:0.85rem">Could not read the master sheet: ' + String(e && e.message || e).replace(/</g, '&lt;') + '</div>';
   }
 }
 
@@ -2111,7 +2111,7 @@ async function rrVersionTidyPreview() {
     html += '<div style="padding:0.5rem 0.7rem;border:1px solid var(--border);border-radius:8px;margin-bottom:0.4rem;font-size:0.82rem;color:var(--text)">'
       + '<strong>After</strong><br><span style="color:var(--text-dim)">Rows 1–8: header, then <strong>1.72</strong> on top, down to 60. Versions and dates written as text, so 1.70 stays 1.70 and the date reads 2026-08-05 instead of 46239. Everything below row 8 cleared.</span></div>';
     if (ins.unknown.length) {
-      html += '<div style="padding:0.5rem 0.7rem;border:1.5px solid #e74c3c;border-radius:8px;margin-bottom:0.4rem;font-size:0.82rem;color:#e74c3c">'
+      html += '<div style="padding:0.5rem 0.7rem;border:1.5px solid #e74c3c;border-radius:8px;margin-bottom:0.4rem;font-size:0.82rem;color:var(--t-danger)">'
         + 'REFUSING: this tab holds a version this tool does not know about — ' + rrEsc(ins.unknown.join(', '))
         + '. A newer master may have been uploaded. Nothing will be written.</div>';
     } else {
@@ -2119,7 +2119,7 @@ async function rrVersionTidyPreview() {
     }
     box.innerHTML = html;
   } catch (e) {
-    box.innerHTML = '<div style="color:#e74c3c;font-size:0.85rem">Could not read the Master Version tab: ' + rrEsc(String(e && e.message || e)) + '</div>';
+    box.innerHTML = '<div style="color:var(--t-danger);font-size:0.85rem">Could not read the Master Version tab: ' + rrEsc(String(e && e.message || e)) + '</div>';
   }
 }
 
@@ -2246,14 +2246,14 @@ async function rrMaster173Preview() {
     }
     html += '<div style="padding:0.45rem 0.7rem;border:1px solid var(--border);border-radius:8px;margin-bottom:0.35rem;font-size:0.82rem;color:var(--text)"><strong>Master Version → 1.73 added on top</strong></div>';
     for (var p = 0; p < loc.problems.length; p++) {
-      html += '<div style="padding:0.45rem 0.7rem;border:1.5px solid #e74c3c;border-radius:8px;margin-bottom:0.35rem;font-size:0.82rem;color:#e74c3c">' + rrEsc(loc.problems[p]) + '</div>';
+      html += '<div style="padding:0.45rem 0.7rem;border:1.5px solid #e74c3c;border-radius:8px;margin-bottom:0.35rem;font-size:0.82rem;color:var(--t-danger)">' + rrEsc(loc.problems[p]) + '</div>';
     }
     html += loc.targets.length
       ? '<button onclick="rrMaster173Apply()" style="margin-top:0.4rem;padding:0.55rem 1.1rem;border-radius:8px;border:none;background:#e74c3c;color:var(--on-accent);font-family:var(--font-body);font-size:0.85rem;font-weight:700;cursor:pointer">Apply ' + loc.targets.length + ' change' + (loc.targets.length === 1 ? '' : 's') + ' + version 1.73</button>'
       : '<div style="color:var(--text-dim);font-size:0.82rem;margin-top:0.4rem">Nothing to apply.</div>';
     box.innerHTML = html;
   } catch (e) {
-    box.innerHTML = '<div style="color:#e74c3c;font-size:0.85rem">Could not read the master sheet: ' + rrEsc(String(e && e.message || e)) + '</div>';
+    box.innerHTML = '<div style="color:var(--t-danger);font-size:0.85rem">Could not read the master sheet: ' + rrEsc(String(e && e.message || e)) + '</div>';
   }
 }
 
@@ -2467,10 +2467,10 @@ async function rrMaster174Preview() {
       + '<span style="color:var(--text-dim)">Counted from the rows just read, not assumed. 455 keeps ' + all455.length + ' — left alone on purpose, decided separately.</span></div>';
     html += '<div style="padding:0.45rem 0.7rem;border:1px solid var(--border);border-radius:8px;margin-bottom:0.35rem;font-size:0.82rem;color:var(--text)"><strong>Master Version → 1.74 added on top</strong></div>';
     for (var p = 0; p < loc.problems.length; p++) {
-      html += '<div style="padding:0.45rem 0.7rem;border:1.5px solid #e74c3c;border-radius:8px;margin-bottom:0.35rem;font-size:0.82rem;color:#e74c3c">' + rrEsc(loc.problems[p]) + '</div>';
+      html += '<div style="padding:0.45rem 0.7rem;border:1.5px solid #e74c3c;border-radius:8px;margin-bottom:0.35rem;font-size:0.82rem;color:var(--t-danger)">' + rrEsc(loc.problems[p]) + '</div>';
     }
     if (after.length > 0) {
-      html += '<div style="padding:0.45rem 0.7rem;border:1.5px solid #e74c3c;border-radius:8px;margin-bottom:0.35rem;font-size:0.82rem;color:#e74c3c">'
+      html += '<div style="padding:0.45rem 0.7rem;border:1.5px solid #e74c3c;border-radius:8px;margin-bottom:0.35rem;font-size:0.82rem;color:var(--t-danger)">'
         + 'These steps would NOT clear 193/195 — ' + after.length + ' collision(s) would remain. Not applying. Tell Claude what the preview says.</div>';
     }
     var canApply = (loc.merge || loc.dels.length) && after.length === 0;
@@ -2479,7 +2479,7 @@ async function rrMaster174Preview() {
       : '<div style="color:var(--text-dim);font-size:0.82rem;margin-top:0.4rem">Nothing to apply.</div>';
     box.innerHTML = html;
   } catch (e) {
-    box.innerHTML = '<div style="color:#e74c3c;font-size:0.85rem">Could not read the master sheet: ' + rrEsc(String(e && e.message || e)) + '</div>';
+    box.innerHTML = '<div style="color:var(--t-danger);font-size:0.85rem">Could not read the master sheet: ' + rrEsc(String(e && e.message || e)) + '</div>';
   }
 }
 
@@ -2750,11 +2750,11 @@ async function rrMaster175Preview() {
     var before = _m75Shape(hdr, body, []);
     html += '<div style="padding:0.45rem 0.7rem;border:1px solid var(--border);border-radius:8px;margin-bottom:0.35rem;font-size:0.82rem;color:var(--text)">'
       + '<strong>455 now holds variations: ' + rrEsc(before.variations.join(', ') || '(blank)') + '</strong>'
-      + (before.dupes.length ? '<br><span style="color:#e74c3c">duplicated: ' + rrEsc(before.dupes.join(', ')) + '</span>' : '')
+      + (before.dupes.length ? '<br><span style="color:var(--t-danger)">duplicated: ' + rrEsc(before.dupes.join(', ')) + '</span>' : '')
       + '<br><span style="color:var(--text-dim)">After this runs it should hold 1, 2, 3, 4, 5, 6 — each once. Checked by reading the sheet back before this card is allowed to disappear.</span></div>';
     html += '<div style="padding:0.45rem 0.7rem;border:1px solid var(--border);border-radius:8px;margin-bottom:0.35rem;font-size:0.82rem;color:var(--text)"><strong>Master Version → 1.75 added on top</strong></div>';
     for (var p = 0; p < loc.problems.length; p++) {
-      html += '<div style="padding:0.45rem 0.7rem;border:1.5px solid #e74c3c;border-radius:8px;margin-bottom:0.35rem;font-size:0.82rem;color:#e74c3c">' + rrEsc(loc.problems[p]) + '</div>';
+      html += '<div style="padding:0.45rem 0.7rem;border:1.5px solid #e74c3c;border-radius:8px;margin-bottom:0.35rem;font-size:0.82rem;color:var(--t-danger)">' + rrEsc(loc.problems[p]) + '</div>';
     }
     var work = loc.keeps.length + loc.notes.length + loc.dels.length;
     html += work
@@ -2762,7 +2762,7 @@ async function rrMaster175Preview() {
       : '<div style="color:var(--text-dim);font-size:0.82rem;margin-top:0.4rem">Nothing to apply.</div>';
     box.innerHTML = html;
   } catch (e) {
-    box.innerHTML = '<div style="color:#e74c3c;font-size:0.85rem">Could not read the master sheet: ' + rrEsc(String(e && e.message || e)) + '</div>';
+    box.innerHTML = '<div style="color:var(--t-danger);font-size:0.85rem">Could not read the master sheet: ' + rrEsc(String(e && e.message || e)) + '</div>';
   }
 }
 

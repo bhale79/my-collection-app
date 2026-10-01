@@ -592,7 +592,7 @@ async function openSalesShareModal() {
           'Photo links on the list — each item’s photo becomes viewable by anyone with the link (end it anytime in Collection Tools › Shared Photos)' +
         '</label>' +
         '<div id="sell-link-row" style="display:flex;gap:0.4rem">' +
-          '<button onclick="_sellMakeLink()" id="sell-link-btn" style="flex:1;padding:0.5rem;border-radius:8px;border:1.5px solid #0891b2;background:var(--bg-card);background:color-mix(in srgb, rgb(8,145,178) 10%, var(--bg-card));color:#0891b2;font-family:var(--font-body);font-weight:600;font-size:0.85rem;cursor:pointer">Create / refresh live list</button>' +
+          '<button onclick="_sellMakeLink()" id="sell-link-btn" style="flex:1;padding:0.5rem;border-radius:8px;border:1.5px solid #0891b2;background:var(--bg-card);background:color-mix(in srgb, rgb(8,145,178) 10%, var(--bg-card));color:var(--t-teal);font-family:var(--font-body);font-weight:600;font-size:0.85rem;cursor:pointer">Create / refresh live list</button>' +
         '</div>' +
       '</div>' +
       // Customers section
@@ -603,7 +603,7 @@ async function openSalesShareModal() {
           '<input id="sell-c-name" placeholder="Name" style="padding:0.45rem 0.6rem;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.82rem">' +
           '<input id="sell-c-email" placeholder="Email" style="padding:0.45rem 0.6rem;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.82rem">' +
           '<input id="sell-c-phone" placeholder="Phone (optional)" style="padding:0.45rem 0.6rem;border:1px solid var(--border);border-radius:7px;background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.82rem">' +
-          '<button onclick="_sellAddCustomer()" style="padding:0.45rem;border-radius:7px;border:1.5px solid var(--accent);background:var(--bg-card);background:color-mix(in srgb, rgb(232,64,28) 10%, var(--bg-card));color:var(--accent);font-family:var(--font-body);font-weight:600;font-size:0.82rem;cursor:pointer">+ Add customer</button>' +
+          '<button onclick="_sellAddCustomer()" style="padding:0.45rem;border-radius:7px;border:1.5px solid var(--accent);background:var(--bg-card);background:color-mix(in srgb, rgb(232,64,28) 10%, var(--bg-card));color:var(--t-accent);font-family:var(--font-body);font-weight:600;font-size:0.82rem;cursor:pointer">+ Add customer</button>' +
         '</div>' +
       '</div>' +
       // PDF fallback
@@ -648,7 +648,7 @@ async function _sellMakeLink() {
     var id = await _sellSync(); _sellLiveLink = _sellSheetLink(id);
     var row = document.getElementById('sell-link-row');
     if (row) row.innerHTML = '<input readonly value="' + _sellEsc(_sellLiveLink) + '" style="flex:1;padding:0.5rem;border:1px solid var(--border);border-radius:8px;background:var(--surface2);color:var(--text);font-size:0.78rem" onclick="this.select()">' +
-      '<button onclick="navigator.clipboard.writeText(\'' + _sellLiveLink + '\').then(function(){showToast(\'Link copied\')}).catch(function(){showToast(\'Could not copy it \u2014 tap the box and copy it by hand\',4000,true)})" style="padding:0.5rem 0.7rem;border-radius:8px;border:1.5px solid #0891b2;background:var(--bg-card);background:color-mix(in srgb, rgb(8,145,178) 10%, var(--bg-card));color:#0891b2;font-weight:600;font-size:0.82rem;cursor:pointer">Copy</button>';
+      '<button onclick="navigator.clipboard.writeText(\'' + _sellLiveLink + '\').then(function(){showToast(\'Link copied\')}).catch(function(){showToast(\'Could not copy it \u2014 tap the box and copy it by hand\',4000,true)})" style="padding:0.5rem 0.7rem;border-radius:8px;border:1.5px solid #0891b2;background:var(--bg-card);background:color-mix(in srgb, rgb(8,145,178) 10%, var(--bg-card));color:var(--t-teal);font-weight:600;font-size:0.82rem;cursor:pointer">Copy</button>';
     _sellStatus('Live list updated. Customers with access always see the latest.');
   } catch (e) { console.error(e); _sellStatus('Could not build the list — try again.'); if (btn) { btn.disabled = false; btn.textContent = 'Create / refresh live list'; } }
 }

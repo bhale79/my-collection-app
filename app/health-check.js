@@ -164,13 +164,13 @@
   const fails  = results.filter(r => r.s === ERR).length;
   const warns  = results.filter(r => r.s === WARN).length;
 
-  console.group('%c My Collection App — Health Check Report', 'font-size:14px;font-weight:bold;color:#f05008');
+  console.group('%c My Collection App — Health Check Report', 'font-size:14px;font-weight:bold;color:var(--t-red)');
   console.log('%c ' + passes + ' passed  |  ' + fails + ' failed  |  ' + warns + ' warnings',
     'font-size:12px;color:' + (fails > 0 ? '#e74c3c' : warns > 0 ? '#d4a843' : '#2ecc71'));
   console.log('─'.repeat(60));
 
   results.forEach(r => {
-    const style = r.s === OK ? 'color:#2ecc71' : r.s === ERR ? 'color:#e74c3c;font-weight:bold' : 'color:#d4a843';
+    const style = r.s === OK ? 'color:var(--t-green)' : r.s === ERR ? 'color:var(--t-danger);font-weight:bold' : 'color:var(--t-gold)';
     if (r.d)
       console.log('%c' + r.s + ' ' + r.l, style, '\n    → ' + r.d);
     else
@@ -179,11 +179,11 @@
 
   console.log('─'.repeat(60));
   if (fails === 0 && warns === 0)
-    console.log('%c All systems go!', 'color:#2ecc71;font-size:13px;font-weight:bold');
+    console.log('%c All systems go!', 'color:var(--t-green);font-size:13px;font-weight:bold');
   else if (fails === 0)
-    console.log('%c Minor warnings only — app should work normally', 'color:#d4a843');
+    console.log('%c Minor warnings only — app should work normally', 'color:var(--t-gold)');
   else
-    console.log('%c ' + fails + ' critical issue(s) found — check ❌ items above', 'color:#e74c3c;font-weight:bold');
+    console.log('%c ' + fails + ' critical issue(s) found — check ❌ items above', 'color:var(--t-danger);font-weight:bold');
 
   console.groupEnd();
 })();

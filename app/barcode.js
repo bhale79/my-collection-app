@@ -2403,7 +2403,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
     ov.style.cssText = 'position:fixed;inset:0;z-index:100001;background:rgba(0,0,0,0.88);display:flex;align-items:center;justify-content:center;padding:1rem';
     ov.innerHTML =
       '<div class="rr-card" style="max-width:760px;color:var(--text);font-family:var(--font-body)">'
-      + '<div style="font-size:0.95rem;font-weight:700;margin-bottom:10px">Same item? <span style="font-family:var(--font-mono);color:var(--accent,#e8401c)">' + _bcEsc(info.itemNum || '') + '</span><span style="font-size:0.75rem;color:var(--text-dim,#999);font-weight:400"> — you decide, nothing is spent</span></div>'
+      + '<div style="font-size:0.95rem;font-weight:700;margin-bottom:10px">Same item? <span style="font-family:var(--font-mono);color:var(--t-accent)">' + _bcEsc(info.itemNum || '') + '</span><span style="font-size:0.75rem;color:var(--text-dim,#999);font-weight:400"> — you decide, nothing is spent</span></div>'
       + '<div style="display:flex;gap:10px;flex-wrap:wrap">'
       +   '<div style="flex:1;min-width:240px"><div style="font-size:0.7rem;letter-spacing:0.06em;text-transform:uppercase;color:var(--text-dim,#999);margin-bottom:4px">Your photo</div>'
       +     '<div style="border-radius:10px;overflow:hidden;background:#000">' + (mine ? '<img src="' + mine + '" style="width:100%;max-height:300px;object-fit:contain;display:block">' : '<div style="padding:2rem;color:#777">photo unavailable</div>') + '</div></div>'
@@ -2446,7 +2446,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
       var num = _bcEsc(info.itemNum || ''), mfr = _bcEsc(info.manufacturer || ''), desc = _bcEsc(info.description || '');
       d.innerHTML = '<div class="rr-card" style="color:var(--text);font-family:var(--font-body)">'
         + '<div style="font-size:0.78rem;color:var(--accent2,#c9922a);font-weight:600;margin-bottom:8px">' + (info.noItemNum ? 'No item number on the label \u2014 add with this description?' : (info.notInMaster ? 'Detected \u2014 not in your catalog' : 'Found it \u2014 use this?')) + '</div>'
-        + '<div style="font-family:var(--font-mono);font-size:1.15rem;font-weight:700;color:var(--accent,#e8401c)">' + num + (mfr ? ' <span style="font-size:0.72rem;color:var(--text-dim,#999);font-weight:400">' + mfr + '</span>' : '') + (info.eraTag ? ' <span style="font-size:0.72rem;color:#9ecbff;font-weight:400">' + _bcEsc(info.eraTag) + '</span>' : '') + '</div>'
+        + '<div style="font-family:var(--font-mono);font-size:1.15rem;font-weight:700;color:var(--t-accent)">' + num + (mfr ? ' <span style="font-size:0.72rem;color:var(--text-dim,#999);font-weight:400">' + mfr + '</span>' : '') + (info.eraTag ? ' <span style="font-size:0.72rem;color:#9ecbff;font-weight:400">' + _bcEsc(info.eraTag) + '</span>' : '') + '</div>'
         + (info.roadName ? '<div style="font-size:0.95rem;color:var(--text,#fff);font-weight:600;margin-top:5px">' + _bcEsc(info.roadName) + '</div>' : '')
         + (desc ? '<div style="font-size:0.9rem;color:var(--text-mid,#ccc);margin-top:6px;line-height:1.4">' + desc + '</div>' : '<div style="font-size:0.8rem;color:var(--text-dim,#999);margin-top:6px">No description read from the label.</div>')
         + (info.notInMaster && info.description ? '<div style="font-size:0.7rem;color:var(--text-dim,#999);margin-top:5px">read from the label \u2014 you can edit it in the next steps.</div>' : '')
@@ -3034,7 +3034,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
       var d = _biOverlay(
         '<div style="width:100%;max-width:560px">'
         + '<div style="color:var(--text,#fff);font-family:var(--font-head,sans-serif);font-size:1.02rem;margin:0.2rem 0 0.35rem">✂ Crop (optional)'
-        + (lockedBc ? ' <span style="font-size:0.72rem;background:rgba(46,204,113,0.15);border:1px solid #2ecc71;color:#2ecc71;border-radius:6px;padding:2px 7px;vertical-align:middle">Barcode ✓ locked</span>' : '')
+        + (lockedBc ? ' <span style="font-size:0.72rem;background:rgba(46,204,113,0.15);border:1px solid #2ecc71;color:var(--t-green);border-radius:6px;padding:2px 7px;vertical-align:middle">Barcode ✓ locked</span>' : '')
         + '</div>'
         + '<div style="color:#ffd27d;font-size:0.8rem;margin-bottom:0.45rem">Adjust the crop frame if you like (<b>less background = better results</b>) — leave it alone to use the whole photo. The barcode is always read from the full shot.</div>'
         // v0.9.1468 (Brad: "the crop buttons are hard to hit"): the eight
@@ -3077,7 +3077,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         // now says what actually happens — the old text read like a barcode
         // scanner, hiding that this button IS the metered photo ID service.
         + '<div style="margin-top:0.55rem;padding:0.5rem 0.65rem;border-radius:9px;background:rgba(255,255,255,0.04);border:1px solid var(--border,#333);font-size:0.74rem;line-height:1.5;color:var(--text-mid,#bbb)">'
-        + '<b style="color:var(--accent,#e8401c)">&bull; Photo ID</b> — <b>always free</b>: reads the barcode and the printed number. If they can\'t tell, nothing is spent — you choose what happens next.<br>'
+        + '<b style="color:var(--t-accent)">&bull; Photo ID</b> — <b>always free</b>: reads the barcode and the printed number. If they can\'t tell, nothing is spent — you choose what happens next.<br>'
         + '<b style="color:var(--gold,#d4a843)">&bull; Auto Read</b> — the closer look. Free readers run first; <b>one of your daily photo ID reads</b> is spent only if they can\'t tell. Best for unlettered or tricky items.<br>'
         + '<b style="color:#9ecbff">&bull; Google Lens</b> — free Google search by photo, better for <b>unmarked items</b>: buildings, promos, store brands, posters &amp; paper. Also the backup when Photo ID can\'t tell.'
         // v0.9.1474: the allowance count moved ONTO the Auto Read button
@@ -3152,7 +3152,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
       '<div style="width:100%;max-width:560px">'
       + '<div style="display:flex;align-items:center;justify-content:space-between;gap:0.5rem;margin:0.2rem 0 0.6rem">'
       + '<div style="color:var(--text,#fff);font-family:var(--font-head,sans-serif);font-size:1.02rem">🔎 Identifying…</div>'
-      + '<button id="bi-stop-btn" style="padding:0.35rem 0.85rem;border-radius:8px;border:1.5px solid #8b8e94;background:var(--bg-card);background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card));color:#f05008;font-family:var(--font-body,sans-serif);font-weight:700;font-size:0.8rem;cursor:pointer">Stop</button>'
+      + '<button id="bi-stop-btn" style="padding:0.35rem 0.85rem;border-radius:8px;border:1.5px solid #8b8e94;background:var(--bg-card);background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card));color:var(--t-red);font-family:var(--font-body,sans-serif);font-weight:700;font-size:0.8rem;cursor:pointer">Stop</button>'
       + '</div>'
       + '<style>@keyframes bispin{to{transform:rotate(360deg)}}.bi-spin{display:inline-block;animation:bispin 0.9s linear infinite}</style>'
       + '<div id="bi-stages" style="display:flex;flex-direction:column;gap:0.45rem;font-size:0.86rem;font-family:var(--font-body,sans-serif)"></div>'
@@ -3448,7 +3448,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
       act.innerHTML =
         '<div style="width:100%;color:#ffd27d;font-size:0.85rem;margin-bottom:0.3rem">' + (msg || 'I see more than one item number in this shot. Which one is the item you\'re adding?') + '</div>'
         + nums.slice(0, 6).map(function (n) { return _biBtn({ act: 'num:' + n, txt: n }); }).join('')
-        + _biBtn({ act: 'none', txt: 'None of these — identify the item itself' }, 'border:1.5px solid var(--accent,#e8401c);color:var(--accent,#e8401c)');
+        + _biBtn({ act: 'none', txt: 'None of these — identify the item itself' }, 'border:1.5px solid var(--accent,#e8401c);color:var(--t-accent)');
       act.onclick = function (e) {
         var b = e.target.closest && e.target.closest('[data-bi]');
         if (!b) return;

@@ -35,8 +35,8 @@
     var c = {
       primary: 'background:var(--accent,#e8401c);color:#fff;border:1px solid var(--accent,#e8401c)',
       gold:    'background:rgba(212,168,67,0.16);color:var(--gold,#d4a843);border:1px solid rgba(212,168,67,0.55)',
-      green:   'background:rgba(46,204,113,0.14);color:#2ecc71;border:1px solid rgba(46,204,113,0.5)',
-      blue:    'background:rgba(41,128,185,0.14);color:#2980b9;border:1px solid rgba(41,128,185,0.5)',
+      green:   'background:rgba(46,204,113,0.14);color:var(--t-green);border:1px solid rgba(46,204,113,0.5)',
+      blue:    'background:rgba(41,128,185,0.14);color:var(--t-link);border:1px solid rgba(41,128,185,0.5)',
       ghost:   'background:var(--surface2,#242440);color:var(--text,#eee);border:1px solid var(--border,#444)'
     }[kind || 'ghost'];
     return '<span style="display:inline-block;' + c + ';border-radius:7px;padding:0.1rem 0.5rem;'

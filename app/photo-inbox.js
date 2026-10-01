@@ -228,15 +228,15 @@
           // (v0.9.1340, Brad: "don't like the yellow color on the photo reader
           // buttons"). Add photos steps back to an outline beside it.
           '<button id="pin-identify-btn" class="btn-primary" onclick="_pinIdentifyItems()" style="display:none;padding:0.5rem 0.9rem;border-radius:8px;border:none;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Identify my items</button>' +
-          '<button id="pin-add-photos" onclick="_pinAddSource()" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:var(--bg-card);background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card));color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Add photos\u2026</button>' +
-          '<button id="pin-group-btn" onclick="_pinStartMode(\'group\')" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:var(--bg-card);background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card));color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Group photos</button>' +
-          '<button id="pin-tag-btn" onclick="_pinStartMode(\'tag\')" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:var(--bg-card);background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card));color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Tag maker/era/scale/type</button>' +
+          '<button id="pin-add-photos" onclick="_pinAddSource()" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:var(--bg-card);background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card));color:var(--t-link);font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Add photos\u2026</button>' +
+          '<button id="pin-group-btn" onclick="_pinStartMode(\'group\')" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:var(--bg-card);background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card));color:var(--t-link);font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Group photos</button>' +
+          '<button id="pin-tag-btn" onclick="_pinStartMode(\'tag\')" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:var(--bg-card);background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card));color:var(--t-link);font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Tag maker/era/scale/type</button>' +
           // The filter menu renders in here — one control that NAMES what is
           // active, in place of eight chips (v0.9.1051) that did not fit.
           '<span id="pin-filter-row" style="display:none"></span>' +
           '<button id="pin-apply-btn" onclick="_pinApplyTags()" style="display:none;padding:0.5rem 0.9rem;border-radius:8px;border:none;background:var(--accent);color:var(--on-accent);font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Apply</button>' +
           '<button id="pin-finish-btn" onclick="_pinFinishMode()" style="display:none;padding:0.5rem 0.9rem;border-radius:8px;border:none;background:var(--accent2);color:#1a1a1a;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">\u2713 Finished</button>' +
-          '<button id="pin-selall-btn" onclick="_pinSelectAll()" style="display:none;padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:var(--bg-card);background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card));color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Select all</button>' +
+          '<button id="pin-selall-btn" onclick="_pinSelectAll()" style="display:none;padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:var(--bg-card);background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card));color:var(--t-link);font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Select all</button>' +
           // v0.9.1297 (Brad): reads run when HE says so \u2014 crop, tag and group
           // first, then this button. v0.9.1340 moved the paid read onto the
           // standard outline so free and paid never look alike at a glance.
@@ -245,21 +245,21 @@
           // On desktop #pin-overflow is display:contents, so the button flows
           // into the row exactly as before and #pin-more-btn stays hidden \u2014
           // nothing about the desktop layout changes.
-          '<button id="pin-more-btn" onclick="_pinToggleMore(event)" aria-haspopup="true" aria-expanded="false" style="display:none;padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:var(--bg-card);background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card));color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">\u22ef More</button>' +
+          '<button id="pin-more-btn" onclick="_pinToggleMore(event)" aria-haspopup="true" aria-expanded="false" style="display:none;padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:var(--bg-card);background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card));color:var(--t-link);font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">\u22ef More</button>' +
           '<span id="pin-overflow">' +
-          '<button id="pin-idall-btn" onclick="_pinIdentifyAll()" style="display:none;padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:var(--bg-card);background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card));color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">\ud83d\udd0d Read the unread</button>' +
+          '<button id="pin-idall-btn" onclick="_pinIdentifyAll()" style="display:none;padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:var(--bg-card);background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card));color:var(--t-link);font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">\ud83d\udd0d Read the unread</button>' +
           '</span>' +
           '<span style="flex:1"></span>' +
           '<span id="pin-selinfo" style="font-size:0.78rem;color:var(--text-dim)"></span>' +
-          '<button id="pin-idsel-btn" onclick="_pinIdentifySelected()" style="display:none;padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:var(--bg-card);background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card));color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Read these</button>' +
-          '<button id="pin-assign-btn" onclick="_pinReview(null)" style="display:none;padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:var(--bg-card);background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card));color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Combine \u2192 one item\u2026</button>' +
-          '<button id="pin-discard-btn" onclick="_pinDiscard()" style="display:none;padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:var(--bg-card);background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card));color:#f05008;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Discard</button>' +
+          '<button id="pin-idsel-btn" onclick="_pinIdentifySelected()" style="display:none;padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:var(--bg-card);background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card));color:var(--t-link);font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Read these</button>' +
+          '<button id="pin-assign-btn" onclick="_pinReview(null)" style="display:none;padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:var(--bg-card);background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card));color:var(--t-link);font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Combine \u2192 one item\u2026</button>' +
+          '<button id="pin-discard-btn" onclick="_pinDiscard()" style="display:none;padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:var(--bg-card);background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card));color:var(--t-red);font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Discard</button>' +
           // v0.9.1352 (Brad): the Reader audit is gone, which left a \u22ef menu
           // holding one row. Refresh is now a plain button. FOUR status
           // messages tell the user to "hit Refresh" \u2014 a partial listing, a
           // failed discard, a failed filing, a failed load \u2014 so the control
           // they are being sent to should be visible, not one tap inside a menu.
-          '<button id="pin-refresh-btn" onclick="_pinRefresh()" title="Re-read the inbox folder from Google Drive" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:var(--bg-card);background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card));color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Refresh</button>' +
+          '<button id="pin-refresh-btn" onclick="_pinRefresh()" title="Re-read the inbox folder from Google Drive" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:var(--bg-card);background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card));color:var(--t-link);font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Refresh</button>' +
         '</div>' +
         '<div id="pin-skipnote" style="display:none;font-size:0.78rem;color:var(--text-dim);margin:0.5rem 0 0"></div>' +
         '<div id="pin-status" style="display:none;font-size:0.8rem;color:var(--text-dim);margin:0.5rem 0 0"></div>' +
@@ -335,7 +335,7 @@
       el.style.display = 'flex';
       el.style.alignItems = 'center';
       el.style.gap = '0.45rem';
-      el.style.color = '#2980b9';        // bright blue = "working"
+      el.style.color = 'var(--t-link)';        // bright blue = "working"
       el.style.fontWeight = '700';
       el.innerHTML = '<span style="display:inline-block;animation:spin 0.8s linear infinite;font-size:1rem;line-height:1">↻</span>' +
         '<span>' + String(msg).replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</span>';
@@ -2372,7 +2372,7 @@
     empty.style.display = _groups.length ? 'none' : 'block';
     if (_groups.length && !_vis.length) {
       grid.innerHTML = '<div style="grid-column:1/-1;padding:1.5rem 0;text-align:center;color:var(--text-dim);font-size:0.88rem">'
-        + 'No photos match that filter. <button onclick="_pinClearFilters()" style="background:none;border:none;color:var(--accent);text-decoration:underline;cursor:pointer;font-size:0.88rem">Show all</button></div>';
+        + 'No photos match that filter. <button onclick="_pinClearFilters()" style="background:none;border:none;color:var(--t-accent);text-decoration:underline;cursor:pointer;font-size:0.88rem">Show all</button></div>';
     }
     try { _pinRenderFilters(); } catch (eF) {}
     var cnt = document.getElementById('pin-count');
@@ -3848,7 +3848,7 @@
       html = '<div style="font-size:0.9rem;color:var(--text-dim)">No number picked up automatically — type it below if you can see it, or use Research.</div>'
         + (_fi ? _pinWhyHtml(_fi.raw, _fi.dbg, null) : '');
     } else if (lk.master && lk.mfrMismatch) {
-      html = '<div style="font-size:0.82rem;color:#d4a843;font-weight:700;line-height:1.5;margin-bottom:0.35rem">⚠ The photo says ' + String(lk.mfrMismatch).replace(/</g, '&lt;') + ' — but #' + String(lk.num).replace(/</g, '&lt;') + ' in the catalog is a ' + String(lk.maker || '?').replace(/</g, '&lt;') + ' item. Probably NOT the same thing.</div>'
+      html = '<div style="font-size:0.82rem;color:var(--t-gold);font-weight:700;line-height:1.5;margin-bottom:0.35rem">⚠ The photo says ' + String(lk.mfrMismatch).replace(/</g, '&lt;') + ' — but #' + String(lk.num).replace(/</g, '&lt;') + ' in the catalog is a ' + String(lk.maker || '?').replace(/</g, '&lt;') + ' item. Probably NOT the same thing.</div>'
         + row('Catalog has', (lk.maker || '—') + ': ' + String(lk.desc).replace(/</g, '&lt;'))
         + '<div style="font-size:0.78rem;color:var(--text-dim);margin-top:0.3rem">' + String(lk.mfrMismatch).replace(/</g, '&lt;') + ' isn\'t in the master catalog' + ((typeof state !== 'undefined' && state.masterData && state.masterData.some(function (it) { return _pinMfrAgree(lk.mfrMismatch, it.manufacturer || ''); })) ? ' under this number' : ' yet') + ' — Add will create a manual ' + String(lk.mfrMismatch).replace(/</g, '&lt;') + ' entry instead of the ' + String(lk.maker || '').replace(/</g, '&lt;') + ' item.</div>';
     } else if (lk.master) {
@@ -3868,7 +3868,7 @@
           var _cfAi = { roadName: _rvAiRec.road, description: _rvAiRec.desc, subType: _rvAiRec.subType };
           var _cf = _pinAiRowConflict(_cfAi, _rvAiRec.aiRaw || '', lk.master);
           if (_cf) {
-            html = '<div style="font-size:0.82rem;color:#d4a843;font-weight:700;line-height:1.5;margin-bottom:0.35rem">'
+            html = '<div style="font-size:0.82rem;color:var(--t-gold);font-weight:700;line-height:1.5;margin-bottom:0.35rem">'
               + '⚠ This number may be wrong — ' + rrEsc(_cf) + '. Probably NOT the same thing.</div>' + html;
             var _dm = null;
             try { _dm = _pinDescMatch(_rvAiRec.aiRaw || _rvAiRec.desc || '', _rvPrefer()); } catch (eDm) {}
@@ -3879,7 +3879,7 @@
                 + '<span style="font-size:0.76rem;color:var(--text-dim)">This catalog entry DOES match the photo:</span>'
                 + '<button onclick="_pinPickNum(\'' + rrEsc(String(_dm.row.itemNum)).replace(/'/g, '') + '\')" '
                 + 'style="padding:0.4rem 0.8rem;border-radius:999px;border:1.5px solid #2ecc71;'
-                + 'background:var(--bg-card);background:color-mix(in srgb, rgb(46,204,113) 12%, var(--bg-card));color:#2ecc71;'
+                + 'background:var(--bg-card);background:color-mix(in srgb, rgb(46,204,113) 12%, var(--bg-card));color:var(--t-green);'
                 + 'font-family:var(--font-body);font-weight:700;font-size:0.82rem;min-height:38px;cursor:pointer">'
                 + rrEsc(String(_dm.row.itemNum)) + ' — ' + rrEsc(_dmDesc) + '</button>'
                 + '</div>';
@@ -3902,7 +3902,7 @@
     // different-item warning stays — it has caught real prewar/postwar
     // collisions before (v0.9.1045, Brad's 213).
     if (lk.ownedPd && lk.ownedAgrees === false) {
-      html += '<div style="margin-top:0.45rem;font-size:0.8rem;color:#d4a843;font-weight:700;line-height:1.5">You own a '
+      html += '<div style="margin-top:0.45rem;font-size:0.8rem;color:var(--t-gold);font-weight:700;line-height:1.5">You own a '
         + rrEsc(lk.ownedLabel) + ' \u2014 same number, different item. This one is new to your collection.'
         + _pinSeeItLink(lk.ownedPd) + '</div>';
     }
@@ -3910,7 +3910,7 @@
     if (_ownAll.length && typeof _rrOwnedPanelHtml === 'function') {
       html += '<div style="margin-top:0.45rem">' + _rrOwnedPanelHtml(_ownAll, 'pin') + '</div>';
     } else if (lk.ownedPd && lk.ownedAgrees !== false) {
-      html += '<div style="margin-top:0.45rem;font-size:0.8rem;color:#2ecc71;font-weight:700">\u2713 You already own one — this will be added as a separate copy.'
+      html += '<div style="margin-top:0.45rem;font-size:0.8rem;color:var(--t-green);font-weight:700">\u2713 You already own one — this will be added as a separate copy.'
         + _pinSeeItLink(lk.ownedPd) + '</div>';
     }
     // v0.9.1444: the dashed family, whenever one exists — not only when the
@@ -4025,7 +4025,7 @@
       _vfSeen[key] = 1;
       _pinVerifyRun(lk, key, el);
     } else {
-      el.innerHTML = '<button onclick="_pinVerifyClick()" style="padding:0.4rem 0.7rem;border-radius:8px;border:1.5px solid #8b8e94;background:var(--bg-card);background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card));color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.78rem;cursor:pointer">📷 Double-check vs catalog photo</button>';
+      el.innerHTML = '<button onclick="_pinVerifyClick()" style="padding:0.4rem 0.7rem;border-radius:8px;border:1.5px solid #8b8e94;background:var(--bg-card);background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card));color:var(--t-link);font-family:var(--font-body);font-weight:700;font-size:0.78rem;cursor:pointer">📷 Double-check vs catalog photo</button>';
     }
   }
   window._pinVerifyClick = function () {
@@ -4113,11 +4113,11 @@
     }
     if (vr.match === 'yes') {
       _pinDemoteAdd(false);
-      el.innerHTML = '<div style="font-size:0.84rem;color:#2ecc71;font-weight:700">✓ Your photo matches the catalog listing' +
+      el.innerHTML = '<div style="font-size:0.84rem;color:var(--t-green);font-weight:700">✓ Your photo matches the catalog listing' +
         (vr.refItem ? ' <span style="font-weight:400;color:var(--text-dim)">(' + esc(vr.refItem) + ')</span>' : '') + '</div>';
     } else if (vr.match === 'no') {
       el.innerHTML =
-        '<div style="font-size:0.84rem;color:#f05008;font-weight:700;line-height:1.45">✗ Your photo does NOT match the catalog listing' +
+        '<div style="font-size:0.84rem;color:var(--t-red);font-weight:700;line-height:1.45">✗ Your photo does NOT match the catalog listing' +
         (vr.differences && vr.differences.toLowerCase() !== 'none' ? ' — ' + esc(vr.differences) : '') + '</div>' +
         (vr.refItem ? '<div style="font-size:0.76rem;color:var(--text-dim);margin-top:0.15rem">Catalog photo shows: ' + esc(vr.refItem) + '</div>' : '') +
         '<button onclick="_pinVerifyReident()" style="margin-top:0.4rem;padding:0.45rem 0.7rem;border-radius:8px;border:none;background:#f05008;color:#fff;font-family:var(--font-body);font-weight:700;font-size:0.78rem;cursor:pointer">Re-identify with this clue</button>';
@@ -4125,7 +4125,7 @@
       // as the orange default invites the tap that files it anyway.
       _pinDemoteAdd(true);
     } else {
-      el.innerHTML = '<div style="font-size:0.78rem;color:#d4a843">? Couldn\'t confirm against the catalog photo' +
+      el.innerHTML = '<div style="font-size:0.78rem;color:var(--t-gold)">? Couldn\'t confirm against the catalog photo' +
         (vr.differences && vr.differences.toLowerCase() !== 'none' ? ' — ' + esc(vr.differences) : '') + '</div>';
     }
   }
@@ -4934,19 +4934,19 @@
           '<button id="pin-rv-add" onclick="' + (_routeSet ? '_pinAddSetFromGroup()' : '_pinAddItem()') + '" class="btn-primary" style="width:100%;padding:0.72rem;border-radius:10px;border:none;font-family:var(--font-body);font-weight:700;font-size:0.93rem;cursor:pointer;margin-bottom:0.5rem">'
             + ((_routeSet && _setGuess) ? 'Add set ' + rrEsc(_setGuess.setNum) + ' to my collection'
                : (_isGrp ? 'Add group to my collection' : 'Add to my Collection')) + '</button>' +
-          '<button id="pin-rv-sell" onclick="_pinSendForSale()" style="width:100%;padding:0.68rem;border-radius:10px;border:1.5px solid #d4a843;background:var(--bg-card);background:color-mix(in srgb, rgb(212,168,67) 12%, var(--bg-card));color:#d4a843;font-family:var(--font-body);font-weight:700;font-size:0.9rem;cursor:pointer;margin-bottom:0.5rem">' + (_isGrp ? 'Add group to my sales list' : 'Add to Sales List') + '</button>' +
+          '<button id="pin-rv-sell" onclick="_pinSendForSale()" style="width:100%;padding:0.68rem;border-radius:10px;border:1.5px solid #d4a843;background:var(--bg-card);background:color-mix(in srgb, rgb(212,168,67) 12%, var(--bg-card));color:var(--t-gold);font-family:var(--font-body);font-weight:700;font-size:0.9rem;cursor:pointer;margin-bottom:0.5rem">' + (_isGrp ? 'Add group to my sales list' : 'Add to Sales List') + '</button>' +
           // v0.9.1498 (task #28, Brad): photos of an item he ALREADY owns get
           // a door to that copy -- the dormant v0.9.958 attach lane, revived
           // with a copy picker. Direct move, no wizard, no deferred note.
-          '<button id="pin-rv-attach" onclick="_pinAttachOwnedPick()" style="width:100%;padding:0.68rem;border-radius:10px;border:1.5px solid #2980b9;background:var(--bg-card);background:color-mix(in srgb, rgb(41,128,185) 12%, var(--bg-card));color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.9rem;cursor:pointer;margin-bottom:0.5rem">' + (_isGrp ? 'Add group to an item I already own' : 'Add to an existing item in my collection') + '</button>' +
-          '<button onclick="_pinReviewDiscard()" style="width:100%;padding:0.68rem;border-radius:10px;border:1.5px solid #8b8e94;background:var(--bg-card);background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card));color:#f05008;font-family:var(--font-body);font-weight:700;font-size:0.9rem;cursor:pointer">' + (_isGrp ? 'Discard group' : 'Discard Photo' + (n > 1 ? 's' : '')) + '</button>' +
+          '<button id="pin-rv-attach" onclick="_pinAttachOwnedPick()" style="width:100%;padding:0.68rem;border-radius:10px;border:1.5px solid #2980b9;background:var(--bg-card);background:color-mix(in srgb, rgb(41,128,185) 12%, var(--bg-card));color:var(--t-link);font-family:var(--font-body);font-weight:700;font-size:0.9rem;cursor:pointer;margin-bottom:0.5rem">' + (_isGrp ? 'Add group to an item I already own' : 'Add to an existing item in my collection') + '</button>' +
+          '<button onclick="_pinReviewDiscard()" style="width:100%;padding:0.68rem;border-radius:10px;border:1.5px solid #8b8e94;background:var(--bg-card);background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card));color:var(--t-red);font-family:var(--font-body);font-weight:700;font-size:0.9rem;cursor:pointer">' + (_isGrp ? 'Discard group' : 'Discard Photo' + (n > 1 ? 's' : '')) + '</button>' +
         '</div>' +
         '<div style="flex:1 1 240px;min-width:0">' +
           '<div style="' + _lbl + '">Not sure what it is?</div>' +
           '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem">' +
-            '<button id="pin-rv-rescan" onclick="_pinRescan()" title="Forget this read and scan the photo again at higher detail" style="' + _gBtn + 'border:1.5px solid #f05008;background:var(--bg-card);background:color-mix(in srgb, rgb(240,80,8) 10%, var(--bg-card));color:#f05008">This is wrong — re-scan</button>' +
-            '<button onclick="_pinReviewResearch()" style="' + _gBtn + 'border:1.5px solid #8b8e94;background:var(--bg-card);background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card));color:#2980b9">Research Number</button>' +
-            '<button id="pin-rv-lens" onclick="_pinReviewLens()" style="' + _gBtn + 'border:1.5px solid #8b8e94;background:var(--bg-card);background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card));color:#2980b9">Google Search</button>' +
+            '<button id="pin-rv-rescan" onclick="_pinRescan()" title="Forget this read and scan the photo again at higher detail" style="' + _gBtn + 'border:1.5px solid #f05008;background:var(--bg-card);background:color-mix(in srgb, rgb(240,80,8) 10%, var(--bg-card));color:var(--t-red)">This is wrong — re-scan</button>' +
+            '<button onclick="_pinReviewResearch()" style="' + _gBtn + 'border:1.5px solid #8b8e94;background:var(--bg-card);background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card));color:var(--t-link)">Research Number</button>' +
+            '<button id="pin-rv-lens" onclick="_pinReviewLens()" style="' + _gBtn + 'border:1.5px solid #8b8e94;background:var(--bg-card);background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card));color:var(--t-link)">Google Search</button>' +
             // v0.9.1163: don't quote a price the app will not charge. With reads
             // switched off this button still said "(1 token)" and then reported a
             // failure, which is how Brad ended up thinking it was broken.
@@ -5812,7 +5812,7 @@
           // Session 85: an <a> may not nest inside a <button> (invalid HTML;
           // screen readers announce one control containing another). Same
           // look, same behaviour, as a span that opens the link itself.
-          + (link ? '<span onclick="event.stopPropagation();window.open(\'' + esc(link) + '\',\'_blank\',\'noopener\')" style="flex-shrink:0;font-size:0.7rem;font-weight:700;color:#2980b9;cursor:pointer">view \u2197</span>' : '')
+          + (link ? '<span onclick="event.stopPropagation();window.open(\'' + esc(link) + '\',\'_blank\',\'noopener\')" style="flex-shrink:0;font-size:0.7rem;font-weight:700;color:var(--t-link);cursor:pointer">view \u2197</span>' : '')
           + '</button>';
       };
       var _numeric = function (a, b) { return String(a).localeCompare(String(b), undefined, { numeric: true }); };
@@ -5882,7 +5882,7 @@
         ? '<span class="pin-kin-fits-note" style="color:var(--green);font-weight:700">The first ' + (_fitN === 1 ? 'one fits' : _fitWord + ' fit') + ' what was read from the photo.</span> '
         : '';
       return '<div style="margin-top:0.5rem;padding:0.5rem 0.6rem;border:1px solid rgba(41,128,185,0.45);border-radius:10px;background:rgba(41,128,185,0.06)">'
-        + '<div style="font-size:0.76rem;font-weight:700;color:#2980b9;margin-bottom:0.1rem">' + head + '</div>'
+        + '<div style="font-size:0.76rem;font-weight:700;color:var(--t-link);margin-bottom:0.1rem">' + head + '</div>'
         + '<div style="font-size:0.68rem;color:var(--text-dim);margin-bottom:0.15rem">' + _fitNote + 'The sub-number is on the box, not the car \u2014 open a reference to compare.</div>'
         + html + '</div>';
     } catch (e) { return ''; }
@@ -7605,7 +7605,7 @@
       var btns = document.createElement('div');
       btns.style.cssText = 'display:flex;flex-wrap:wrap;gap:0.35rem';
       var done = document.createElement('div');
-      done.style.cssText = 'display:none;font-size:0.85rem;font-weight:700;color:#2ecc71;padding:0.3rem 0';
+      done.style.cssText = 'display:none;font-size:0.85rem;font-weight:700;color:var(--t-green);padding:0.3rem 0';
       function mk(label, key) {
         var b = document.createElement('button');
         b.textContent = label;
@@ -12190,7 +12190,7 @@
         '<div style="font-size:0.82rem;color:var(--text-dim);line-height:1.6;margin-bottom:0.8rem">' +
           'This one is on our side, not yours \u2014 nothing is wrong with your account or your collection. ' +
           'You can still add photos with <strong style="color:var(--text)">Upload</strong> or by taking one with the camera. ' +
-          'If it stays broken, let us know at <a href="mailto:support@therailroster.com" style="color:var(--accent)">support@therailroster.com</a>.' +
+          'If it stays broken, let us know at <a href="mailto:support@therailroster.com" style="color:var(--t-accent)">support@therailroster.com</a>.' +
         '</div>' +
         '<button onclick="document.getElementById(\'pin-gp-help\').remove()" class="btn-primary" style="width:100%;padding:0.6rem;border-radius:8px;border:none;background:var(--accent);color:var(--on-accent);font-weight:700;cursor:pointer">OK</button>' +
       '</div>';
@@ -12689,7 +12689,7 @@
     var counter = 'Item ' + _qc.group + (_qc.shots ? ' · ' + _qc.shots + ' photo' + (_qc.shots > 1 ? 's' : '') : '');
     var pend = '';
     if (_qc.pending > 0) pend += 'Uploading ' + _qc.pending + '… ';
-    if (_qc.failed.length) pend += '<span style="color:#f05008;font-weight:700">' + _qc.failed.length + ' failed</span> <button onclick="_qcRetry()" style="border:1px solid var(--border);background:var(--surface2);color:var(--text-mid);border-radius:6px;font-size:0.72rem;padding:0.15rem 0.5rem;cursor:pointer;font-family:var(--font-body)">Retry</button>';
+    if (_qc.failed.length) pend += '<span style="color:var(--t-red);font-weight:700">' + _qc.failed.length + ' failed</span> <button onclick="_qcRetry()" style="border:1px solid var(--border);background:var(--surface2);color:var(--text-mid);border-radius:6px;font-size:0.72rem;padding:0.15rem 0.5rem;cursor:pointer;font-family:var(--font-body)">Retry</button>';
     // Most-recent strip (newest first). Tap a shot to review / re-crop.
     var strip = '';
     if (_qc.recent.length) {

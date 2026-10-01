@@ -113,6 +113,24 @@
     --ink-light: #ffffff;
     --ink-on-accent: #ffffff;
     --worth:     #2ecc71;   /* on the navy surfaces outside the content area */
+    /* v0.9.1852: WORD colours. Outside the content area they are exactly the
+       colours words had before; the cream scopes (.main, light theme) set
+       deeper shades of the same hue so they read ≥ 5 on cream. Skin colours
+       used as words are darkened for the cream at run time (config.js
+       rrSyncReadableText); --t-accent is the accent as WORDS (fills keep
+       --accent, so the badges stay gold). */
+    --t-accent:  var(--accent);
+    --t-link:    #2980b9;
+    --t-red:     #f05008;
+    --t-danger:  #e74c3c;
+    --t-info:    #3498db;
+    --t-gold:    #d4a843;
+    --t-green:   #2ecc71;
+    --t-orange:  #e67e22;
+    --t-purple:  #8b5cf6;
+    --t-sea:     #16a085;
+    --t-teal:    #0891b2;
+    --t-nav:     #8fbcec;   /* the highlighted menu item on the navy sidebar (was #2980b9, 3.0) */
     /* v0.9.1178 — the dim behind a modal or a bottom sheet. Twenty-odd screens
        type this value out by hand; a scrim is a palette decision, so it belongs
        here. Same value the hand-typed ones already use, so nothing looks any
@@ -159,13 +177,24 @@
     --border-hi: #c0b090;
     --border-light: #d4c8a8;
     --text:      #2a2015;
-    --text-dim:  #8a7e68;
+    --text-dim:  #6b5f4a;   /* v0.9.1852 */
     --text-mid:  #5a4e38;
     --navy:      #2a2015;
     --cream:     #2a2015;
     --accent2:   #b8860b;
     --gold:      #b8860b;
     --worth:     #2a7a18;   /* v0.9.1851 */
+    --t-link:    #1f6391;   /* v0.9.1852 */
+    --t-red:     #a63a0a;
+    --t-danger:  #a3352a;
+    --t-info:    #1f6391;
+    --t-gold:    #7a5200;
+    --t-green:   #236614;
+    --t-orange:  #8a4805;
+    --t-purple:  #6236c9;
+    --t-sea:     #0e6b58;
+    --t-teal:    #0b6577;
+    --t-nav:     #1f6391;   /* the light sidebar is cream */
     background:  #f8e8c0;
   }
   html[data-theme="light"] body { background: #f8e8c0; }
@@ -196,6 +225,17 @@
     --cream:     #ffffff;
     --ink-dark:  #000000;   /* v0.9.1851 */
     --worth:     #00ff40;
+    --t-link:    #00eaff;   /* v0.9.1852 */
+    --t-red:     #ff6b6b;
+    --t-danger:  #ff6b6b;
+    --t-info:    #00eaff;
+    --t-gold:    #ffff00;
+    --t-green:   #00ff40;
+    --t-orange:  #ffb000;
+    --t-purple:  #d0a0ff;
+    --t-sea:     #00ffc0;
+    --t-teal:    #00eaff;
+    --t-nav:     #00eaff;
   }
   /* Reinforce borders so UI boundaries are clearer in HC mode */
   html[data-theme="high-contrast"] .nav-item,
@@ -222,6 +262,16 @@
     --text-dim:  #c0c0c0;
     --text-mid:  #e0e0e0;
     --worth:     #00ff40;   /* v0.9.1851 */
+    --t-link:    #00eaff;   /* v0.9.1852 */
+    --t-red:     #ff6b6b;
+    --t-danger:  #ff6b6b;
+    --t-info:    #00eaff;
+    --t-gold:    #ffff00;
+    --t-green:   #00ff40;
+    --t-orange:  #ffb000;
+    --t-purple:  #d0a0ff;
+    --t-sea:     #00ffc0;
+    --t-teal:    #00eaff;
     background:  #000000;
   }
 
@@ -239,11 +289,21 @@
     --border-hi: #c0b090;
     --border-light: #d4c8a8;
     --text:      #2a2015;
-    --text-dim:  #8a7e68;
+    --text-dim:  #6b5f4a;   /* v0.9.1852: was #8a7e68 (3.2–3.9 on cream); now 5.0–6.1 */
     --text-mid:  #5a4e38;
     --navy:      #2a2015;
     --cream:     #2a2015;
     --worth:     #2a7a18;   /* v0.9.1851: money green on cream (5.3:1); was gold 2.2:1 */
+    --t-link:    #1f6391;   /* v0.9.1852: deeper shades for words on cream */
+    --t-red:     #a63a0a;
+    --t-danger:  #a3352a;
+    --t-info:    #1f6391;
+    --t-gold:    #7a5200;
+    --t-green:   #236614;
+    --t-orange:  #8a4805;
+    --t-purple:  #6236c9;
+    --t-sea:     #0e6b58;
+    --t-teal:    #0b6577;
     background: #f8e8c0;
   }
   .main .stat-card { box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
@@ -254,17 +314,17 @@
   .main .item-table tr:hover td { background: #f5eed8; }
   .main .page-title { color: #2a2015; }
   .main .page-title span { color: inherit; }
-  .main .page-title span span { color: #8a7e68; }
+  .main .page-title span span { color: var(--text-dim); }
   .main .item-num { color: #c84406; }
   .main .tag { background: #f0e6cc; color: #5a4e38; border: 1px solid #d4c8a8; }
   .main .market-val { color: #2a7a18; }
-  .main .text-dim { color: #8a7e68; }
-  .main .empty-state { color: #8a7e68; }
+  .main .text-dim { color: var(--text-dim); }
+  .main .empty-state { color: var(--text-dim); }
   .main .panel { box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
   .main .owned-badge.yes { background: rgba(46,204,113,0.12); color: #2a7a18; border-color: rgba(46,204,113,0.3); }
-  .main .owned-badge.no { background: #f0e6cc; color: #8a7e68; }
-  .main .owned-badge.want { background: rgba(212,168,67,0.12); color: #b08820; border-color: rgba(212,168,67,0.3); }
-  .main .owned-badge.forsale { background: rgba(230,126,34,0.12); color: #c05a10; border-color: rgba(230,126,34,0.3); }
+  .main .owned-badge.no { background: #f0e6cc; color: var(--text-dim); }
+  .main .owned-badge.want { background: rgba(212,168,67,0.12); color: var(--t-gold); border-color: rgba(212,168,67,0.3); }
+  .main .owned-badge.forsale { background: rgba(230,126,34,0.12); color: var(--t-orange); border-color: rgba(230,126,34,0.3); }
   .main input[type="text"], .main input[type="search"], .main select {
     background: #fffcf5; color: #2a2015; border-color: #d4c8a8;
   }
@@ -569,7 +629,7 @@
   .user-avatar {
     width: 26px; height: 26px; border-radius: 50%; background: var(--accent);
     display: flex; align-items: center; justify-content: center;
-    font-size: 0.7rem; font-weight: 600; color: white; overflow: hidden;
+    font-size: 0.7rem; font-weight: 600; color: var(--ink-on-accent); overflow: hidden;
   }
   /* Account dropdown menu */
   .account-menu {
@@ -600,8 +660,8 @@
     cursor: pointer; text-align: left; transition: background 0.15s, color 0.15s;
   }
   .account-menu-item:hover { background: rgba(255,255,255,0.06); color: var(--text); }
-  .account-menu-signout { color: var(--accent); }
-  .account-menu-signout:hover { background: rgba(240,80,8,0.1); color: var(--accent); }
+  .account-menu-signout { color: var(--t-accent); }
+  .account-menu-signout:hover { background: rgba(240,80,8,0.1); color: var(--t-accent); }
 
   /* Body layout */
   .app-body { display: flex; flex: 1; overflow: hidden; }
@@ -623,7 +683,7 @@
     transition: all 0.15s; border: none; background: none; width: 100%; text-align: left;
   }
   .nav-item:hover { background: var(--surface2); color: var(--text); }
-  .nav-item.active { background: rgba(139,142,148,0.12); color: #2980b9; font-family: var(--font-body); font-weight: 500; }
+  .nav-item.active { background: rgba(139,142,148,0.12); color: var(--t-nav); font-family: var(--font-body); font-weight: 500; }
   .nav-item svg { flex-shrink: 0; opacity: 0.8; }
   .nav-badge {
     margin-left: auto; background: var(--accent); color: var(--ink-on-accent);   /* v0.9.1851: readable on any skin's accent */
@@ -836,7 +896,7 @@
     background: var(--surface); color: var(--text-mid); font-size: 0.85rem;
     font-family: var(--font-body); cursor: pointer; transition: all 0.15s;
   }
-  .filter-toggle.on { background: rgba(232,64,28,0.15); border-color: var(--accent); color: var(--accent); }
+  .filter-toggle.on { background: rgba(232,64,28,0.15); border-color: var(--accent); color: var(--t-accent); }
 
   /* Item table */
   .table-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow-x: auto; }
@@ -958,14 +1018,14 @@
   }
   .owned-badge.yes  { background: rgba(46,204,113,0.15); color: #4dc880; border: 1px solid rgba(46,204,113,0.3); font-family: var(--font-head); font-size: 0.62rem; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase; }
   .owned-badge.no   { background: var(--surface2); color: var(--text-dim); font-family: var(--font-head); font-size: 0.62rem; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase; }
-  .owned-badge.want { background: rgba(212,168,67,0.15); color: #e8c060; border: 1px solid rgba(212,168,67,0.3); font-family: var(--font-head); font-size: 0.62rem; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase; }
-  .owned-badge.forsale { background: rgba(230,126,34,0.15); color: #e67e22; border: 1px solid rgba(230,126,34,0.3); font-family: var(--font-head); font-size: 0.62rem; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase; }
+  .owned-badge.want { background: rgba(212,168,67,0.15); color: var(--t-gold); border: 1px solid rgba(212,168,67,0.3); font-family: var(--font-head); font-size: 0.62rem; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase; }
+  .owned-badge.forsale { background: rgba(230,126,34,0.15); color: var(--t-orange); border: 1px solid rgba(230,126,34,0.3); font-family: var(--font-head); font-size: 0.62rem; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase; }
 
   /* Set membership badge — teal, distinct from purple group badge */
   .badge-set {
     display: inline-flex; align-items: center; gap: 0.25rem;
     padding: 0.15rem 0.5rem; border-radius: 10px;
-    background: rgba(8,145,178,0.15); color: #0891b2;
+    background: rgba(8,145,178,0.15); color: var(--t-teal);
     border: 1px solid rgba(8,145,178,0.35);
     font-family: var(--font-head); font-size: 0.6rem; font-weight: 600;
     letter-spacing: 0.07em; text-transform: uppercase; white-space: nowrap;
@@ -1035,8 +1095,8 @@
     font-size: 0.8rem; font-family: var(--font-body); transition: all 0.15s;
     display: flex; align-items: center; justify-content: center;
   }
-  .page-btn:hover { border-color: var(--accent); color: var(--accent); }
-  .page-btn.active { background: var(--accent); border-color: var(--accent); color: white; }
+  .page-btn:hover { border-color: var(--accent); color: var(--t-accent); }
+  .page-btn.active { background: var(--accent); border-color: var(--accent); color: var(--ink-on-accent); }
   .page-btn:disabled { opacity: 0.3; cursor: default; }
 
   /* ── Item Detail Modal ─────────────────────────────────────── */
@@ -1137,7 +1197,7 @@
     display: flex; align-items: center; justify-content: center; flex-shrink: 0;
     font-size: 1rem; transition: all 0.15s;
   }
-  .btn-close:hover { border-color: var(--accent); color: var(--accent); }
+  .btn-close:hover { border-color: var(--accent); color: var(--t-accent); }
 
   .modal-body { padding: 1.25rem 1.5rem; display: flex; flex-direction: column; gap: 1.25rem; flex: 1; overflow-y: auto; }
 
@@ -1156,7 +1216,7 @@
   /* Form fields */
   .form-section-title {
     font-size: 0.68rem; letter-spacing: 0.12em; text-transform: uppercase;
-    color: var(--accent); font-weight: 600; padding-bottom: 0.5rem;
+    color: var(--t-accent); font-weight: 600; padding-bottom: 0.5rem;
     border-bottom: 1px solid rgba(232,64,28,0.2);
   }
   .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
@@ -1430,8 +1490,8 @@
   .rb-range input { flex:1;padding:0.38rem 0.55rem;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-family:var(--font-mono);font-size:0.85rem;outline:none;min-width:0; }
   .rb-range input:focus { border-color:var(--accent2); }
   .rb-sort-dir { padding:0.42rem 0.65rem;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text-mid);font-size:0.8rem;cursor:pointer;font-family:var(--font-body);white-space:nowrap;flex-shrink:0; }
-  .rb-sort-dir.asc  { border-color:#2ecc71;color:#2ecc71; }
-  .rb-sort-dir.desc { border-color:var(--accent);color:var(--accent); }
+  .rb-sort-dir.asc  { border-color:#2ecc71;color:var(--t-green); }
+  .rb-sort-dir.desc { border-color:var(--accent);color:var(--t-accent); }
 
   /* ── Preferences Page ──────────────────────────────────────── */
   .pref-page { max-width: 680px; }
@@ -1452,10 +1512,10 @@
   .pref-select:focus { border-color: var(--accent2); }
   .pref-btn { padding: 0.45rem 0.9rem; border-radius: 7px; border: 1px solid var(--border); background: var(--surface2); color: var(--text-mid); font-family: var(--font-body); font-size: 0.82rem; cursor: pointer; transition: all 0.15s; white-space: nowrap; }
   .pref-btn:hover { border-color: var(--accent2); color: var(--accent2); }
-  .pref-btn.danger { border-color: rgba(240,80,8,0.4); color: var(--accent); }
+  .pref-btn.danger { border-color: rgba(240,80,8,0.4); color: var(--t-accent); }
   .pref-btn.danger:hover { background: rgba(240,80,8,0.1); }
   .pref-account-card { display: flex; align-items: center; gap: 1rem; padding: 1rem 1.25rem; }
-  .pref-avatar { width: 48px; height: 48px; border-radius: 50%; background: var(--accent); color: white; display: flex; align-items: center; justify-content: center; font-family: var(--font-head); font-size: 1.4rem; font-weight: 700; flex-shrink: 0; overflow: hidden; }
+  .pref-avatar { width: 48px; height: 48px; border-radius: 50%; background: var(--accent); color: var(--ink-on-accent); display: flex; align-items: center; justify-content: center; font-family: var(--font-head); font-size: 1.4rem; font-weight: 700; flex-shrink: 0; overflow: hidden; }
   .pref-avatar img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
 
   /* ── Insurance Report ──────────────────────────────────────── */
@@ -1560,7 +1620,7 @@
     font-size: 0.72rem; border: none; background: none; font-family: var(--font-head); letter-spacing: 0.06em; text-transform: uppercase;
     transition: color 0.15s; border-radius: 8px; flex-shrink: 0;
   }
-  .mobile-nav-item.active { color: #2980b9; }
+  .mobile-nav-item.active { color: var(--t-nav); }
 
 
   @media (max-width: 640px) {
@@ -1605,7 +1665,7 @@
     }
     .browse-card:active { background: var(--surface2); }
     .browse-card-left { flex: 1; min-width: 0; }
-    .browse-card-num { font-family: var(--font-head); font-size: 1.1rem; color: var(--accent); }
+    .browse-card-num { font-family: var(--font-head); font-size: 1.1rem; color: var(--t-accent); }
     .browse-card-name { font-size: 0.85rem; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .browse-card-sub { font-size: 0.72rem; color: var(--text-dim); margin-top: 0.15rem; }
     .browse-card-right { display: flex; flex-direction: column; align-items: flex-end; gap: 0.25rem; flex-shrink: 0; }
@@ -1718,14 +1778,14 @@
     background: var(--surface2); color: var(--text-dim); cursor: pointer;
     font-family: var(--font-body); font-size: 0.82rem; transition: all 0.15s;
   }
-  .eph-tab.active { border-color: #e67e22; color: #e67e22; background: rgba(230,126,34,0.12); }
+  .eph-tab.active { border-color: #e67e22; color: var(--forsale); background: rgba(230,126,34,0.12); }
   .eph-row { display:flex;align-items:center;gap:0.75rem;padding:0.55rem 0;border-bottom:1px solid var(--border);cursor:pointer; }
   .eph-row:hover { background: var(--surface2); }
   .eph-title { font-size:0.9rem;font-weight:500;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap }
   .eph-year  { font-size:0.75rem;color:var(--text-dim);flex-shrink:0 }
   .eph-val   { font-size:0.78rem;color:var(--accent2);font-family:var(--font-mono);flex-shrink:0 }
   .text-dim { color: var(--text-dim); }
-  .text-accent { color: var(--accent); }
+  .text-accent { color: var(--t-accent); }
   .mt-sm { margin-top: 0.5rem; }
   .link-btn {
     background: none; border: none; color: var(--accent2); cursor: pointer;
@@ -1825,7 +1885,7 @@
     padding: 2px 7px; border-radius: 4px;
   }
   .identify-conf.high { background: rgba(46,204,113,0.2); color: #4dc880; }
-  .identify-conf.med  { background: rgba(212,168,67,0.2); color: #e8c060; }
+  .identify-conf.med  { background: rgba(212,168,67,0.2); color: var(--t-gold); }
   .identify-conf.low  { background: rgba(224,64,40,0.15); color: #f08070; }
   @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
   .gemini-setup {
@@ -2017,7 +2077,7 @@ body.compact-mode .qa-tr-actions .qa-tr-btn {
 /* by re-scoping the two shared text vars. Numbers use var(--text) and    */
 /* are unaffected. High-contrast theme re-overridden below (a11y).        */
 .main .stat-card,
-.main #dash-panels-host .section-title { --text-dim:#2980b9; --text-mid:var(--text); }
+.main #dash-panels-host .section-title { --text-dim:var(--t-link); --text-mid:var(--text); }
 .main .stat-label,
 .main #dash-panels-host .section-title { font-weight:700; }
 .main .stat-card::before { background:#2980b9; }
@@ -2034,8 +2094,12 @@ html[data-theme="high-contrast"] .main #dash-panels-host .section-title { --text
 .main button[style*="#2ecc71"], .main button[style*="#e67e22"],
 .main button[style*="#8b5cf6"], .main button[style*="#16a085"],
 .main button[style*="#3498db"], .main button[style*="#2980b9"],
-.main button[style*="var(--accent)"] {
-  border-color:#8b8e94 !important; color:#2980b9 !important;
+.main button[style*="var(--accent)"],
+.main button[style*="var(--t-link)"], .main button[style*="var(--t-info)"],
+.main button[style*="var(--t-green)"], .main button[style*="var(--t-orange)"],
+.main button[style*="var(--t-purple)"], .main button[style*="var(--t-sea)"],
+.main button[style*="var(--t-accent)"] {
+  border-color:#8b8e94 !important; color:var(--t-link) !important;   /* v0.9.1852: was #2980b9 (3.5–4.2 on cream) */
   /* v0.9.1274 (Brad: "still transparent"): this !important beat every one of
      the 139 opaque backgrounds v0.9.1273 wrote into the buttons — the sweep
      was right, and this line painted the 12% wash straight back over it. Same
@@ -2045,7 +2109,7 @@ html[data-theme="high-contrast"] .main #dash-panels-host .section-title { --text
   background:var(--bg-card) !important;
   background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card)) !important;
 }
-.main .btn-primary { background:#2980b9 !important; color:#fff !important; }
+.main .btn-primary { background:var(--t-link) !important; color:#fff !important; }   /* v0.9.1852: white on #2980b9 was 4.3 */
 .main .btn-primary:hover { background:#216f9e !important; }
 html[data-theme="high-contrast"] .main button[style*="#2ecc71"],
 html[data-theme="high-contrast"] .main button[style*="#e67e22"],
@@ -2053,20 +2117,27 @@ html[data-theme="high-contrast"] .main button[style*="#8b5cf6"],
 html[data-theme="high-contrast"] .main button[style*="#16a085"],
 html[data-theme="high-contrast"] .main button[style*="#3498db"],
 html[data-theme="high-contrast"] .main button[style*="#2980b9"],
-html[data-theme="high-contrast"] .main button[style*="var(--accent)"] {
+html[data-theme="high-contrast"] .main button[style*="var(--accent)"],
+html[data-theme="high-contrast"] .main button[style*="var(--t-link)"],
+html[data-theme="high-contrast"] .main button[style*="var(--t-info)"],
+html[data-theme="high-contrast"] .main button[style*="var(--t-green)"],
+html[data-theme="high-contrast"] .main button[style*="var(--t-orange)"],
+html[data-theme="high-contrast"] .main button[style*="var(--t-purple)"],
+html[data-theme="high-contrast"] .main button[style*="var(--t-sea)"],
+html[data-theme="high-contrast"] .main button[style*="var(--t-accent)"] {
   border-color:#ffffff !important; color:#ffb000 !important; background:#000000 !important;
 }
 html[data-theme="high-contrast"] .main .btn-primary { background:#ffb000 !important; color:#000 !important; }
 
 
 /* ── v0.9.870: destructive buttons — gray frame, bright orange text ── */
-button[style*="#e74c3c"] {
-  border-color:#8b8e94 !important; color:#f05008 !important;
+button[style*="#e74c3c"], button[style*="var(--t-danger)"] {
+  border-color:#8b8e94 !important; color:var(--t-red) !important;   /* v0.9.1852: #f05008 read 3.1 on cream */
   /* v0.9.1274: same fix as the v0.9.869 lever above — opaque, not a wash. */
   background:var(--bg-card) !important;
   background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card)) !important;
 }
-html[data-theme="high-contrast"] button[style*="#e74c3c"] {
+html[data-theme="high-contrast"] button[style*="#e74c3c"], html[data-theme="high-contrast"] button[style*="var(--t-danger)"] {
   border-color:#ffffff !important; color:#ffb000 !important; background:#000000 !important;
 }
 
@@ -2707,7 +2778,7 @@ html[data-theme="high-contrast"] button[style*="#e74c3c"] {
 .wiz-kin-btn:hover { border-color: var(--accent); }
 .wiz-kin-num {
   display: inline-block; font-family: var(--font-mono);
-  font-size: 0.8rem; font-weight: 700; color: var(--accent); margin-right: 0.4rem;
+  font-size: 0.8rem; font-weight: 700; color: var(--t-accent); margin-right: 0.4rem;
 }
 .wiz-kin-desc { font-size: 0.75rem; color: var(--text-mid); }
 .wiz-kin-more { font-size: 0.7rem; color: var(--text-dim); font-family: var(--font-body); }
@@ -2736,7 +2807,7 @@ html[data-theme="high-contrast"] button[style*="#e74c3c"] {
   color: var(--text) !important;
   font-weight: 600;
 }
-#page-browse .item-table th[data-col].rr-tag-col { color: var(--accent); }
+#page-browse .item-table th[data-col].rr-tag-col { color: var(--t-accent); }
 
 
 /* v0.9.1671 (Brad): EVERY maintenance screen (panel, Need-a-part popup,

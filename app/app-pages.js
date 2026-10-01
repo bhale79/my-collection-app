@@ -430,7 +430,7 @@ function _collectionRowHTML(it, emoji) {
     + '<span style="font-size:1.1rem;flex-shrink:0">' + emoji + '</span>'
     + '<div style="flex:1;min-width:0">'
     +   '<div style="display:flex;align-items:baseline;gap:0.6rem;min-width:0">'
-    +     '<span style="font-family:var(--font-mono);font-weight:600;color:var(--accent);font-size:0.95rem">' + (it.title || '—') + '</span>'
+    +     '<span style="font-family:var(--font-mono);font-weight:600;color:var(--t-accent);font-size:0.95rem">' + (it.title || '—') + '</span>'
     +     (it.subtitle ? '<span style="color:var(--text);font-size:0.82rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0">' + it.subtitle + '</span>' : '')
     +   '</div>'
     +   (extras ? '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.15rem">' + extras + '</div>' : '')
@@ -790,13 +790,13 @@ function openEphemeraDetail(tabId, rowKey) {
             <span style="font-size:0.78rem;color:var(--text-dim);flex-shrink:0;padding-right:1rem">${label}</span>
             <span style="font-size:0.85rem;color:var(--text);text-align:right">${val}</span>
           </div>` : '').join('')}
-        ${item.photoLink ? `<div style="margin-top:1rem"><a href="${item.photoLink}" target="_blank" style="color:#2980b9;font-size:0.82rem">📁 View Photos ↗</a></div>` : ''}
+        ${item.photoLink ? `<div style="margin-top:1rem"><a href="${item.photoLink}" target="_blank" style="color:var(--t-link);font-size:0.82rem">📁 View Photos ↗</a></div>` : ''}
       </div>
       <div style="padding:0.75rem 1.25rem;border-top:1px solid var(--border);display:flex;gap:0.5rem">
-        <button onclick="openEphemeraEdit('${tabId}',${rowKey})" style="flex:1;padding:0.6rem;border-radius:8px;border:1.5px solid #e67e22;color:#e67e22;background:var(--bg-card);background:color-mix(in srgb, rgb(230,126,34) 10%, var(--bg-card));cursor:pointer;font-family:var(--font-body);font-weight:600">Edit</button>
-        <button onclick="ephemeraAddPhotos('${tabId}',${rowKey})" style="flex:1;padding:0.6rem;border-radius:8px;border:1.5px solid #3498db;color:#3498db;background:var(--bg-card);background:color-mix(in srgb, rgb(52,152,219) 8%, var(--bg-card));cursor:pointer;font-family:var(--font-body);font-weight:600">📷 Add Photos</button>
-        <button onclick="ephemeraForSale('${tabId}',${rowKey});this.closest('.modal-overlay').remove()" style="flex:1;padding:0.6rem;border-radius:8px;border:1.5px solid #e67e22;color:#e67e22;background:var(--bg-card);background:color-mix(in srgb, rgb(230,126,34) 10%, var(--bg-card));cursor:pointer;font-family:var(--font-body);font-weight:600">🏷️ For Sale</button>
-        <button onclick="ephemeraSold('${tabId}',${rowKey});this.closest('.modal-overlay').remove()" style="flex:1;padding:0.6rem;border-radius:8px;border:1.5px solid #2ecc71;color:#2ecc71;background:var(--bg-card);background:color-mix(in srgb, rgb(46,204,113) 10%, var(--bg-card));cursor:pointer;font-family:var(--font-body);font-weight:600">💰 Sold</button>
+        <button onclick="openEphemeraEdit('${tabId}',${rowKey})" style="flex:1;padding:0.6rem;border-radius:8px;border:1.5px solid #e67e22;color:var(--t-orange);background:var(--bg-card);background:color-mix(in srgb, rgb(230,126,34) 10%, var(--bg-card));cursor:pointer;font-family:var(--font-body);font-weight:600">Edit</button>
+        <button onclick="ephemeraAddPhotos('${tabId}',${rowKey})" style="flex:1;padding:0.6rem;border-radius:8px;border:1.5px solid #3498db;color:var(--t-info);background:var(--bg-card);background:color-mix(in srgb, rgb(52,152,219) 8%, var(--bg-card));cursor:pointer;font-family:var(--font-body);font-weight:600">📷 Add Photos</button>
+        <button onclick="ephemeraForSale('${tabId}',${rowKey});this.closest('.modal-overlay').remove()" style="flex:1;padding:0.6rem;border-radius:8px;border:1.5px solid #e67e22;color:var(--t-orange);background:var(--bg-card);background:color-mix(in srgb, rgb(230,126,34) 10%, var(--bg-card));cursor:pointer;font-family:var(--font-body);font-weight:600">🏷️ For Sale</button>
+        <button onclick="ephemeraSold('${tabId}',${rowKey});this.closest('.modal-overlay').remove()" style="flex:1;padding:0.6rem;border-radius:8px;border:1.5px solid #2ecc71;color:var(--t-green);background:var(--bg-card);background:color-mix(in srgb, rgb(46,204,113) 10%, var(--bg-card));cursor:pointer;font-family:var(--font-body);font-weight:600">💰 Sold</button>
         <button onclick="ephemeraDelete('${tabId}',${rowKey});this.closest('.modal-overlay').remove()" style="padding:0.6rem 0.8rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);cursor:pointer;font-family:var(--font-body)" title="Delete">🗑</button>
         <button onclick="this.closest('.modal-overlay').remove()" style="padding:0.6rem 0.8rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);cursor:pointer;font-family:var(--font-body)">Close</button>
       </div>
@@ -1094,7 +1094,7 @@ function showWantDesc(idx) {
   box.appendChild(titleEl);
   if (d.varDesc) {
     const varEl = document.createElement('div');
-    varEl.style.cssText = 'font-size:0.85rem;color:var(--accent);font-weight:600;margin-bottom:0.5rem';
+    varEl.style.cssText = 'font-size:0.85rem;color:var(--t-accent);font-weight:600;margin-bottom:0.5rem';
     varEl.textContent = 'Variation: ' + d.varDesc;
     box.appendChild(varEl);
   }
@@ -1583,14 +1583,14 @@ function buildSoldPage() {
       return `<div onclick="showSoldDetailPage('${sd.key}')" style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:0.85rem 1rem;cursor:pointer">
         <div style="display:flex;justify-content:space-between;align-items:flex-start">
           <div>
-            <span style="font-family:var(--font-head);font-size:1.1rem;color:var(--accent)">${sd.itemNum || '—'}</span>
+            <span style="font-family:var(--font-head);font-size:1.1rem;color:var(--t-accent)">${sd.itemNum || '—'}</span>
             ${sd._wantMates ? `<span style="font-size:0.72rem;color:#9ecbff">🔗 ${sd._wantMates.join(' + ')}</span> <span style="font-size:0.6rem;font-weight:700;color:var(--accent3,#2ecc71);border:1px solid var(--accent3,#2ecc71);border-radius:4px;padding:0.05rem 0.3rem;vertical-align:middle">${sd._groupCfg || 'Set'}</span>` : ''}
             ${sd.variation ? `<span style="font-size:0.72rem;color:var(--text-dim);margin-left:0.4rem">${sd.variation}</span>` : ''}
             ${sd._roadName ? `<div style="font-size:0.82rem;color:var(--text);margin-top:0.1rem">${sd._roadName}</div>` : ''}
             <div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.15rem">${[sd._type, sd.condition ? 'Cond: '+sd.condition : '', _formatDate(sd.dateSold)].filter(Boolean).join(' · ')}</div>
           </div>
           <div style="text-align:right;flex-shrink:0">
-            ${sd.salePrice ? `<div style="font-family:var(--font-mono);color:#2ecc71;font-size:1.1rem;font-weight:600">$${parseFloat(sd.salePrice).toLocaleString()}</div>` : '<div style="color:var(--text-dim);font-size:0.8rem">No price</div>'}
+            ${sd.salePrice ? `<div style="font-family:var(--font-mono);color:var(--t-green);font-size:1.1rem;font-weight:600">$${parseFloat(sd.salePrice).toLocaleString()}</div>` : '<div style="color:var(--text-dim);font-size:0.8rem">No price</div>'}
           </div>
         </div>
       </div>`;
@@ -1668,21 +1668,21 @@ function showSoldDetailPage(key) {
             _sLabel = 'Back to Collection Tools';
             _sFn = 'delete window._detailReturn;showPage(&apos;tools&apos;);buildToolsPage()';
           }
-          return '<button onclick="' + _sFn + '" style="background:none;border:none;color:#2980b9;font-family:var(--font-body);font-size:1.1rem;font-weight:700;cursor:pointer;padding:0;margin-bottom:0.75rem;display:flex;align-items:center;gap:0.4rem">'
+          return '<button onclick="' + _sFn + '" style="background:none;border:none;color:var(--t-link);font-family:var(--font-body);font-size:1.1rem;font-weight:700;cursor:pointer;padding:0;margin-bottom:0.75rem;display:flex;align-items:center;gap:0.4rem">'
             + '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></svg> ' + _sLabel
             + '</button>';
         })()
     +   '<div style="display:flex;align-items:flex-start;gap:1rem;flex-wrap:wrap">'
     +     '<div style="flex:1;min-width:0">'
     +       '<div style="display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap;margin-bottom:0.25rem">'
-    +         '<span style="font-family:var(--font-head);font-size:1.6rem;color:var(--accent);letter-spacing:0.03em">' + titleNum + '</span>'
+    +         '<span style="font-family:var(--font-head);font-size:1.6rem;color:var(--t-accent);letter-spacing:0.03em">' + titleNum + '</span>'
     +         '<span class="tag">Sold</span>'
     +         (sd.dateSold ? '<span style="font-size:0.82rem;color:var(--text-dim)">' + fmtDate(sd.dateSold) + '</span>' : '')
     +       '</div>'
     +       ((roadName || desc) ? '<div style="font-size:1.05rem;color:var(--text);margin-bottom:0.2rem">' + (roadName || desc) + '</div>' : '')
     +     '</div>'
     +     '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:0.2rem;flex-shrink:0">'
-    +       (sd.salePrice ? '<span style="font-family:var(--font-mono);color:#2ecc71;font-size:1.3rem;font-weight:700">' + cur + parseFloat(sd.salePrice).toLocaleString() + '</span>' : '')
+    +       (sd.salePrice ? '<span style="font-family:var(--font-mono);color:var(--t-green);font-size:1.3rem;font-weight:700">' + cur + parseFloat(sd.salePrice).toLocaleString() + '</span>' : '')
     +       '<span style="font-size:0.72rem;color:var(--text-dim)">sold for</span>'
     +     '</div>'
     +   '</div>'
@@ -2109,7 +2109,7 @@ function buildForSalePage() {
             ${_fsInShare ? '<input type="checkbox" id="share-cb-' + _fsShareKey + '" ' + (_fsSelected ? 'checked' : '') + ' onclick="event.stopPropagation();toggleShareItem(\'' + _fsShareKey + '\')" style="width:1.1rem;height:1.1rem;accent-color:#2ecc71;flex-shrink:0;margin-top:0.2rem">' : ''}
             <div style="min-width:0">
               <div style="display:flex;align-items:baseline;gap:0.5rem;flex-wrap:wrap">
-                <span style="font-family:var(--font-head);font-size:1.1rem;color:var(--accent)">${_fsItemNumHTML(fs)}</span>
+                <span style="font-family:var(--font-head);font-size:1.1rem;color:var(--t-accent)">${_fsItemNumHTML(fs)}</span>
                 ${master.roadName ? `<span style="font-size:0.9rem;color:var(--text)">${master.roadName}</span>` : ''}
               </div>
               <div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.15rem">${[master.itemType, fs.condition ? 'Cond: '+fs.condition : '', fs.dateListed ? 'Listed: '+_formatDate(fs.dateListed) : ''].filter(Boolean).join(' · ')}</div>
@@ -2118,14 +2118,14 @@ function buildForSalePage() {
             </div>
           </div>
           <div style="text-align:right;flex-shrink:0;display:flex;flex-direction:column;align-items:flex-end;gap:0.4rem">
-            ${fs.askingPrice ? `<div style="font-family:var(--font-mono);color:#e67e22;font-size:1.1rem;font-weight:600;white-space:nowrap"><span style="font-family:var(--font-body);font-size:0.72rem;color:var(--text-dim);font-weight:400">Asking </span>$${parseFloat(fs.askingPrice).toLocaleString()}</div>` : '<div style="color:var(--text-dim);font-size:0.8rem">No price</div>'}
+            ${fs.askingPrice ? `<div style="font-family:var(--font-mono);color:var(--t-orange);font-size:1.1rem;font-weight:600;white-space:nowrap"><span style="font-family:var(--font-body);font-size:0.72rem;color:var(--text-dim);font-weight:400">Asking </span>$${parseFloat(fs.askingPrice).toLocaleString()}</div>` : '<div style="color:var(--text-dim);font-size:0.8rem">No price</div>'}
             ${(collPd && collPd.photoItem) ? `<div id="${_fsThumbId}" style="width:74px;height:56px;border-radius:8px;overflow:hidden;background:var(--surface2);flex-shrink:0"></div>` : ''}
           </div>
         </div>
         ${!_fsInShare ? `<div class="rr-fs-actions" style="display:flex;gap:0.4rem;margin-top:0.6rem;flex-wrap:wrap">
-          <button class="row-mark-sold" onclick="event.stopPropagation();markForSaleAsSold('${_fsEntryKey(fs)}','${fs.askingPrice||''}')" style="flex:1;padding:0.4rem;border-radius:7px;font-size:0.78rem;cursor:pointer;border:1.5px solid #2ecc71;background:var(--bg-card);background:color-mix(in srgb, rgb(46,204,113) 12%, var(--bg-card));color:#2ecc71;font-family:var(--font-body);font-weight:600">Mark as Sold</button>
-          <button onclick="event.stopPropagation();_fsShareOne('${_fsShareKey}')" style="flex:1;padding:0.4rem;border-radius:7px;font-size:0.78rem;cursor:pointer;border:1.5px solid #2980b9;background:var(--bg-card);background:color-mix(in srgb, rgb(41,128,185) 12%, var(--bg-card));color:#2980b9;font-family:var(--font-body);font-weight:600">Share</button>
-          <button onclick="event.stopPropagation();removeForSaleItem('${_fsEntryKey(fs)}')" style="flex:1;padding:0.4rem;border-radius:7px;font-size:0.78rem;cursor:pointer;border:1.5px solid #e74c3c;background:var(--bg-card);background:color-mix(in srgb, rgb(231,76,60) 10%, var(--bg-card));color:#e74c3c;font-family:var(--font-body)">Remove</button>
+          <button class="row-mark-sold" onclick="event.stopPropagation();markForSaleAsSold('${_fsEntryKey(fs)}','${fs.askingPrice||''}')" style="flex:1;padding:0.4rem;border-radius:7px;font-size:0.78rem;cursor:pointer;border:1.5px solid #2ecc71;background:var(--bg-card);background:color-mix(in srgb, rgb(46,204,113) 12%, var(--bg-card));color:var(--t-green);font-family:var(--font-body);font-weight:600">Mark as Sold</button>
+          <button onclick="event.stopPropagation();_fsShareOne('${_fsShareKey}')" style="flex:1;padding:0.4rem;border-radius:7px;font-size:0.78rem;cursor:pointer;border:1.5px solid #2980b9;background:var(--bg-card);background:color-mix(in srgb, rgb(41,128,185) 12%, var(--bg-card));color:var(--t-link);font-family:var(--font-body);font-weight:600">Share</button>
+          <button onclick="event.stopPropagation();removeForSaleItem('${_fsEntryKey(fs)}')" style="flex:1;padding:0.4rem;border-radius:7px;font-size:0.78rem;cursor:pointer;border:1.5px solid #e74c3c;background:var(--bg-card);background:color-mix(in srgb, rgb(231,76,60) 10%, var(--bg-card));color:var(--t-danger);font-family:var(--font-body)">Remove</button>
         </div>` : ''}
       </div>`;
     }).join('') : '<div style="text-align:center;padding:3rem 1rem;color:var(--text-dim)"><div style="font-size:2.5rem;margin-bottom:0.5rem">🏷️</div><p>No items listed for sale</p></div>';
@@ -2183,13 +2183,13 @@ function buildForSalePage() {
           var d = master.description || collPd.yourDescription || collPd.description || fs.notes || '—';
           return d.length > 110 ? d.substring(0, 108) + '…' : d; })()}</td>
         <td>${fs.condition || '—'}</td>
-        <td class="market-val" style="color:#e67e22">${fs.askingPrice ? _currencySymbol() + parseFloat(fs.askingPrice).toLocaleString() : '—'}</td>
+        <td class="market-val" style="color:var(--t-orange)">${fs.askingPrice ? _currencySymbol() + parseFloat(fs.askingPrice).toLocaleString() : '—'}</td>
         <td class="text-dim">${estWorth ? _currencySymbol() + parseFloat(estWorth).toLocaleString() : '—'}</td>
         <td class="text-dim">${_formatDate(fs.dateListed) || '—'}</td>
         <td style="white-space:normal">
-          ${!_fsDInShare ? `<button class="row-mark-sold" onclick="event.stopPropagation();markForSaleAsSold('${_fsEntryKey(fs)}','${fs.askingPrice||''}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #2ecc71;background:var(--bg-card);background:color-mix(in srgb, rgb(46,204,113) 12%, var(--bg-card));color:#2ecc71;font-family:var(--font-body);margin-right:0.3rem" title="Mark as sold">Sold</button>
+          ${!_fsDInShare ? `<button class="row-mark-sold" onclick="event.stopPropagation();markForSaleAsSold('${_fsEntryKey(fs)}','${fs.askingPrice||''}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #2ecc71;background:var(--bg-card);background:color-mix(in srgb, rgb(46,204,113) 12%, var(--bg-card));color:var(--t-green);font-family:var(--font-body);margin-right:0.3rem" title="Mark as sold">Sold</button>
           <button onclick="event.stopPropagation();removeForSaleItem('${_fsEntryKey(fs)}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body);margin-right:0.3rem" title="Take off sale, keep in collection">Unlist</button>
-          <button onclick="event.stopPropagation();removeForSaleAndCollection('${_fsEntryKey(fs)}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #e74c3c;background:var(--bg-card);background:color-mix(in srgb, rgb(231,76,60) 10%, var(--bg-card));color:#e74c3c;font-family:var(--font-body)">Remove</button>` : ''}
+          <button onclick="event.stopPropagation();removeForSaleAndCollection('${_fsEntryKey(fs)}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #e74c3c;background:var(--bg-card);background:color-mix(in srgb, rgb(231,76,60) 10%, var(--bg-card));color:var(--t-danger);font-family:var(--font-body)">Remove</button>` : ''}
         </td>
       </tr>`;
     // v0.9.1177: the empty row must span whatever _FS_COLS now is, plus Actions.
@@ -2776,8 +2776,8 @@ function buildSetsPage() {
     const alreadyWanted = !!state.wantData[s.setNum + '|'];
     const wantBtn = alreadyWanted
       ? '<span style="font-size:' + fs + ';color:var(--text-dim);padding:' + p + '">✓ On Want List</span>'
-      : '<button onclick="addSetToWantList(\'' + esc + '\',\'' + escName + '\')" style="padding:' + p + ';border-radius:5px;font-size:' + fs + ';cursor:pointer;border:1px solid #2ecc71;background:var(--bg-card);background:color-mix(in srgb, rgb(46,204,113) 12%, var(--bg-card));color:#2ecc71;font-family:var(--font-body);font-weight:600;margin-right:0.25rem">+ Want List</button>';
-    const browseBtn = '<button onclick="showSetDetail(\'' + esc + '\')" style="padding:' + p + ';border-radius:5px;font-size:' + fs + ';cursor:pointer;border:1px solid #2980b9;background:var(--bg-card);background:color-mix(in srgb, rgb(41,128,185) 12%, var(--bg-card));color:#2980b9;font-family:var(--font-body);margin-right:0.25rem">View Full Set</button>';
+      : '<button onclick="addSetToWantList(\'' + esc + '\',\'' + escName + '\')" style="padding:' + p + ';border-radius:5px;font-size:' + fs + ';cursor:pointer;border:1px solid #2ecc71;background:var(--bg-card);background:color-mix(in srgb, rgb(46,204,113) 12%, var(--bg-card));color:var(--t-green);font-family:var(--font-body);font-weight:600;margin-right:0.25rem">+ Want List</button>';
+    const browseBtn = '<button onclick="showSetDetail(\'' + esc + '\')" style="padding:' + p + ';border-radius:5px;font-size:' + fs + ';cursor:pointer;border:1px solid #2980b9;background:var(--bg-card);background:color-mix(in srgb, rgb(41,128,185) 12%, var(--bg-card));color:var(--t-link);font-family:var(--font-body);margin-right:0.25rem">View Full Set</button>';
     return wantBtn + browseBtn;
   }
 
@@ -2796,7 +2796,7 @@ function buildSetsPage() {
       return '<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:0.85rem 1rem">'
         + '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:0.5rem;margin-bottom:0.4rem">'
         + '<div>'
-        + '<span style="font-family:var(--font-head);font-size:1.1rem;color:#d35400">' + s.setNum + '</span>'
+        + '<span style="font-family:var(--font-head);font-size:1.1rem;color:var(--t-orange)">' + s.setNum + '</span>'
         + (s.year ? ' <span style="font-size:0.72rem;color:var(--text-dim)">' + s.year + '</span>' : '')
         + (label ? '<div style="font-size:0.82rem;color:var(--text);margin-top:0.1rem">' + label + '</div>' : '')
         + '</div></div>'
@@ -2810,7 +2810,7 @@ function buildSetsPage() {
     if (cardsEl)   cardsEl.style.display = 'none';
     tbody.innerHTML = entries.map(s => {
       return '<tr>'
-        + '<td><span style="font-family:var(--font-mono);font-weight:700;color:#d35400;font-size:0.92rem">' + s.setNum + '</span></td>'
+        + '<td><span style="font-family:var(--font-mono);font-weight:700;color:var(--t-orange);font-size:0.92rem">' + s.setNum + '</span></td>'
         + '<td>' + (s.setName || '<span class="text-dim">—</span>') + '</td>'
         + '<td>' + (s.year    || '<span class="text-dim">—</span>') + '</td>'
         + '<td>' + (s.gauge   || '<span class="text-dim">—</span>') + '</td>'
@@ -2928,7 +2928,7 @@ function showSetDetail(setNum) {
   hdr.style.cssText = 'margin-bottom:1rem;padding-right:2rem';
   hdr.innerHTML =
     '<div style="display:flex;align-items:baseline;gap:0.6rem;flex-wrap:wrap;margin-bottom:0.25rem">'
-    + '<span style="font-family:var(--font-head);font-size:1.4rem;color:#d35400">' + s.setNum + '</span>'
+    + '<span style="font-family:var(--font-head);font-size:1.4rem;color:var(--t-orange)">' + s.setNum + '</span>'
     + (s.setName ? '<span style="font-size:1rem;color:var(--text);font-weight:600">' + s.setName + '</span>' : '')
     + '</div>'
     + '<div style="display:flex;gap:0.75rem;flex-wrap:wrap;font-size:0.78rem;color:var(--text-dim)">'
@@ -2961,7 +2961,7 @@ function showSetDetail(setNum) {
     const chip = document.createElement('div');
     chip.style.cssText = 'display:flex;flex-direction:column;background:var(--surface2);border:1px solid var(--border);border-radius:7px;padding:0.3rem 0.55rem;cursor:default';
     chip.innerHTML =
-      '<span style="font-family:var(--font-mono);font-size:0.78rem;font-weight:700;color:#d35400">' + n + '</span>'
+      '<span style="font-family:var(--font-mono);font-size:0.78rem;font-weight:700;color:var(--t-orange)">' + n + '</span>'
       + (label ? '<span style="font-size:0.65rem;color:var(--text-dim);margin-top:1px">' + label + '</span>' : '');
     chipsWrap.appendChild(chip);
   });
@@ -3003,7 +3003,7 @@ function showSetDetail(setNum) {
   // Add to Collection button (always shown)
   const collBtn = document.createElement('button');
   collBtn.textContent = '+ Add to Collection';
-  collBtn.style.cssText = 'padding:0.45rem 0.9rem;border-radius:7px;border:1.5px solid var(--accent);background:rgba(240,80,8,0.1);color:var(--accent);font-family:var(--font-body);font-size:0.82rem;font-weight:600;cursor:pointer';
+  collBtn.style.cssText = 'padding:0.45rem 0.9rem;border-radius:7px;border:1.5px solid var(--accent);background:rgba(240,80,8,0.1);color:var(--t-accent);font-family:var(--font-body);font-size:0.82rem;font-weight:600;cursor:pointer';
   collBtn.onclick = () => { overlay.remove(); addSetToCollection(s.setNum, s.setName || ''); };
   footer.appendChild(collBtn);
 
@@ -3012,7 +3012,7 @@ function showSetDetail(setNum) {
   if (!alreadyWanted) {
     const wantBtn = document.createElement('button');
     wantBtn.textContent = '+ Want List';
-    wantBtn.style.cssText = 'padding:0.45rem 0.9rem;border-radius:7px;border:1.5px solid #2ecc71;background:rgba(46,204,113,0.12);color:#2ecc71;font-family:var(--font-body);font-size:0.82rem;font-weight:600;cursor:pointer';
+    wantBtn.style.cssText = 'padding:0.45rem 0.9rem;border-radius:7px;border:1.5px solid #2ecc71;background:rgba(46,204,113,0.12);color:var(--t-green);font-family:var(--font-body);font-size:0.82rem;font-weight:600;cursor:pointer';
     wantBtn.onclick = () => { overlay.remove(); addSetToWantList(s.setNum, s.setName || ''); };
     footer.appendChild(wantBtn);
   } else {
@@ -3058,7 +3058,7 @@ function _buildContactModal() {
   d.innerHTML =
     '<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;max-width:420px;width:100%;padding:1.75rem;position:relative">' +
       '<button onclick="document.getElementById(\'contact-modal\').style.display=\'none\';if(window.BackStack)BackStack.pop(\'contact-modal\')" style="position:absolute;top:0.75rem;right:0.75rem;background:none;border:none;color:var(--text-dim);font-size:1.1rem;cursor:pointer">&#x2715;</button>' +
-      '<div style="font-family:var(--font-head);font-size:1.2rem;color:var(--accent);margin-bottom:0.4rem">&#x1F4EC; Contact Us</div>' +
+      '<div style="font-family:var(--font-head);font-size:1.2rem;color:var(--t-accent);margin-bottom:0.4rem">&#x1F4EC; Contact Us</div>' +
       '<p style="font-size:0.88rem;color:var(--text);line-height:1.65;margin-bottom:1rem">' +
         'Found an error in the catalog or set list? Have a suggestion? We\'d love to hear from you.' +
       '</p>' +
@@ -3453,7 +3453,7 @@ function buildUpgradePage() {
           ${_wuInShare ? `<input type="checkbox" id="share-cb-${_wuMKey}" ${_wuMSel ? 'checked' : ''} onclick="event.stopPropagation();toggleShareItem('${_wuMKey}')" style="width:1.1rem;height:1.1rem;accent-color:#2ecc71;flex-shrink:0;margin-top:0.2rem">` : ''}
           <div style="flex:1;min-width:0">
             <div style="display:flex;align-items:center;gap:0.4rem;flex-wrap:wrap">
-              <span style="font-family:var(--font-head);font-size:1.1rem;color:var(--accent)">${_wuItemNumHTML(u)}</span>
+              <span style="font-family:var(--font-head);font-size:1.1rem;color:var(--t-accent)">${_wuItemNumHTML(u)}</span>
               ${u.variation ? `<span style="font-size:0.72rem;color:var(--text-dim)">${u.variation}</span>` : ''}
               ${!_isWant ? `<span style="font-size:0.6rem;font-weight:700;color:${_ltColor};background:${_ltBg};border-radius:4px;padding:0.1rem 0.4rem;text-transform:uppercase;letter-spacing:0.05em">${u.listType||'Want'}</span>` : ''}
               <span style="font-size:0.65rem;font-weight:600;color:${pColor};border:1px solid ${pColor};border-radius:4px;padding:0.1rem 0.4rem">${u.priority||'Medium'}</span>
@@ -3462,7 +3462,7 @@ function buildUpgradePage() {
             ${_varDescM ? `<div onclick="event.stopPropagation();showWantDesc('${_wuDescKeyM.replace(/'/g, "\\'")}')" style="font-size:0.74rem;color:var(--text-mid);margin-top:0.15rem;border-bottom:1px dashed var(--border);display:inline-block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${_varDescM.length > 46 ? _varDescM.substring(0, 46) + '…' : _varDescM}</div>` : ''}
             <div style="display:flex;align-items:center;gap:0.5rem;margin-top:0.25rem;flex-wrap:wrap">
               ${!_isWant && cond !== null ? `<span style="font-size:0.75rem"><span class="condition-pip ${condClass}"></span>Mine: ${cond}</span>` : ''}
-              ${u.targetCondition ? `<span style="font-size:0.75rem;color:#8b5cf6">→ Target: ${u.targetCondition}</span>` : ''}
+              ${u.targetCondition ? `<span style="font-size:0.75rem;color:var(--t-purple)">→ Target: ${u.targetCondition}</span>` : ''}
               ${_priceVal ? `<span style="font-size:0.75rem;color:var(--accent2);font-family:var(--font-mono)">${_priceLabel}$${parseFloat(_priceVal).toLocaleString()}</span>` : ''}
             </div>
             ${_wlStripGrp(u.notes) ? `<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.15rem">${_wlStripGrp(u.notes)}</div>` : ''}
@@ -3471,15 +3471,15 @@ function buildUpgradePage() {
         </div>
         ${!_isWant ? `<div id="${photoId}" style="display:none;margin-top:0.5rem"><img src="${pd && pd.photoItem ? pd.photoItem : ''}" style="max-width:100%;max-height:180px;border-radius:8px;object-fit:contain" onerror="this.parentElement.style.display='none'"></div>` : ''}
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.4rem;margin-top:0.6rem">
-          ${!_isWant ? `<button onclick="event.stopPropagation();_upgradeViewMine('${_ugEntryKey(u)}')" style="min-width:0;padding:0.45rem 0.3rem;border-radius:7px;font-size:0.72rem;cursor:pointer;border:1.5px solid #8b5cf6;background:var(--bg-card);background:color-mix(in srgb, rgb(139,92,246) 10%, var(--bg-card));color:#8b5cf6;font-family:var(--font-body);font-weight:600">View Mine</button>` : ''}
-          <button onclick="event.stopPropagation();wantFindOnEbay('${u.itemNum}','${_escName}','${escVar}')" style="min-width:0;padding:0.45rem 0.3rem;border-radius:7px;font-size:0.72rem;cursor:pointer;border:1.5px solid #e67e22;background:var(--bg-card);background:color-mix(in srgb, rgb(230,126,34) 12%, var(--bg-card));color:#e67e22;font-family:var(--font-body);font-weight:600">eBay</button>
-          <button onclick="event.stopPropagation();wantSearchOtherSites('${u.itemNum}','${_escName}','${escVar}')" style="min-width:0;padding:0.45rem 0.3rem;border-radius:7px;font-size:0.72rem;cursor:pointer;border:1.5px solid #2980b9;background:var(--bg-card);background:color-mix(in srgb, rgb(41,128,185) 12%, var(--bg-card));color:#2980b9;font-family:var(--font-body);font-weight:600">Search</button>
+          ${!_isWant ? `<button onclick="event.stopPropagation();_upgradeViewMine('${_ugEntryKey(u)}')" style="min-width:0;padding:0.45rem 0.3rem;border-radius:7px;font-size:0.72rem;cursor:pointer;border:1.5px solid #8b5cf6;background:var(--bg-card);background:color-mix(in srgb, rgb(139,92,246) 10%, var(--bg-card));color:var(--t-purple);font-family:var(--font-body);font-weight:600">View Mine</button>` : ''}
+          <button onclick="event.stopPropagation();wantFindOnEbay('${u.itemNum}','${_escName}','${escVar}')" style="min-width:0;padding:0.45rem 0.3rem;border-radius:7px;font-size:0.72rem;cursor:pointer;border:1.5px solid #e67e22;background:var(--bg-card);background:color-mix(in srgb, rgb(230,126,34) 12%, var(--bg-card));color:var(--t-orange);font-family:var(--font-body);font-weight:600">eBay</button>
+          <button onclick="event.stopPropagation();wantSearchOtherSites('${u.itemNum}','${_escName}','${escVar}')" style="min-width:0;padding:0.45rem 0.3rem;border-radius:7px;font-size:0.72rem;cursor:pointer;border:1.5px solid #2980b9;background:var(--bg-card);background:color-mix(in srgb, rgb(41,128,185) 12%, var(--bg-card));color:var(--t-link);font-family:var(--font-body);font-weight:600">Search</button>
           ${_isWant
-            ? `<button class="row-add-collection" onclick="event.stopPropagation();moveWantToCollection('${u.itemNum}','${escVar}')" style="min-width:0;padding:0.45rem 0.3rem;border-radius:7px;font-size:0.72rem;cursor:pointer;border:1.5px solid #2ecc71;background:var(--bg-card);background:color-mix(in srgb, rgb(46,204,113) 12%, var(--bg-card));color:#2ecc71;font-family:var(--font-body);font-weight:600">+ Collection</button>`
-            : `<button onclick="event.stopPropagation();upgradeGotIt('${_ugEntryKey(u)}')" style="min-width:0;padding:0.45rem 0.3rem;border-radius:7px;font-size:0.72rem;cursor:pointer;border:1.5px solid #2ecc71;background:var(--bg-card);background:color-mix(in srgb, rgb(46,204,113) 12%, var(--bg-card));color:#2ecc71;font-family:var(--font-body);font-weight:600">✓ Got It</button>`}
+            ? `<button class="row-add-collection" onclick="event.stopPropagation();moveWantToCollection('${u.itemNum}','${escVar}')" style="min-width:0;padding:0.45rem 0.3rem;border-radius:7px;font-size:0.72rem;cursor:pointer;border:1.5px solid #2ecc71;background:var(--bg-card);background:color-mix(in srgb, rgb(46,204,113) 12%, var(--bg-card));color:var(--t-green);font-family:var(--font-body);font-weight:600">+ Collection</button>`
+            : `<button onclick="event.stopPropagation();upgradeGotIt('${_ugEntryKey(u)}')" style="min-width:0;padding:0.45rem 0.3rem;border-radius:7px;font-size:0.72rem;cursor:pointer;border:1.5px solid #2ecc71;background:var(--bg-card);background:color-mix(in srgb, rgb(46,204,113) 12%, var(--bg-card));color:var(--t-green);font-family:var(--font-body);font-weight:600">✓ Got It</button>`}
           ${_isWant
-            ? `<button onclick="event.stopPropagation();removeWantItem('${u.itemNum}','${escVar}',${u.row})" style="min-width:0;padding:0.45rem 0.3rem;border-radius:7px;font-size:0.72rem;cursor:pointer;border:1.5px solid var(--border);background:var(--surface2);color:#f05008;font-family:var(--font-body)">Remove</button>`
-            : `<button onclick="event.stopPropagation();removeUpgradeItem('${_ugEntryKey(u)}')" style="min-width:0;padding:0.45rem 0.3rem;border-radius:7px;font-size:0.72rem;cursor:pointer;border:1.5px solid var(--border);background:var(--surface2);color:#f05008;font-family:var(--font-body)">Remove</button>`}
+            ? `<button onclick="event.stopPropagation();removeWantItem('${u.itemNum}','${escVar}',${u.row})" style="min-width:0;padding:0.45rem 0.3rem;border-radius:7px;font-size:0.72rem;cursor:pointer;border:1.5px solid var(--border);background:var(--surface2);color:var(--t-red);font-family:var(--font-body)">Remove</button>`
+            : `<button onclick="event.stopPropagation();removeUpgradeItem('${_ugEntryKey(u)}')" style="min-width:0;padding:0.45rem 0.3rem;border-radius:7px;font-size:0.72rem;cursor:pointer;border:1.5px solid var(--border);background:var(--surface2);color:var(--t-red);font-family:var(--font-body)">Remove</button>`}
         </div>
       </div>`;
     }).join('');
@@ -3561,21 +3561,21 @@ function buildUpgradePage() {
         <td style="white-space:nowrap">${u.variation || '<span class="text-dim">—</span>'}</td>
         <td style="max-width:230px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${(_varDesc||'').replace(/"/g,'&quot;')}">${_wuVarCell}</td>
         <td style="font-size:0.82rem;color:var(--text-mid)">${u.manufacturer || '<span class="text-dim">—</span>'}</td>
-        <td style="color:#8b5cf6;font-weight:600">${u.targetCondition || '<span class="text-dim">—</span>'}</td>
+        <td style="color:var(--t-purple);font-weight:600">${u.targetCondition || '<span class="text-dim">—</span>'}</td>
         <td><span style="color:${pColor};font-weight:500">${u.priority||'Medium'}</span></td>
         <td class="market-val">${_priceVal ? _currencySymbol() + parseFloat(_priceVal).toLocaleString() : '<span class="text-dim">—</span>'}</td>
         <td style="font-size:0.8rem;color:var(--text-dim);max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${_wlStripGrp(u.notes||'').replace(/"/g,'&quot;')}">${_wlStripGrp(u.notes) || '<span class="text-dim">—</span>'}</td>
         <td style="white-space:normal">
           ${!_isWant && hasPhoto ? `<button onclick="event.stopPropagation();_toggleUpgradePhoto('${photoId}','${(pd.photoItem||'').replace(/'/g,"\\'")}')" style="padding:0.25rem 0.4rem;border-radius:5px;font-size:0.72rem;cursor:pointer;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);margin-right:0.2rem" title="Toggle photo">📷</button>` : ''}
-          ${!_isWant ? `<button onclick="event.stopPropagation();_upgradeViewMine('${_ugEntryKey(u)}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #8b5cf6;background:var(--bg-card);background:color-mix(in srgb, rgb(139,92,246) 10%, var(--bg-card));color:#8b5cf6;font-family:var(--font-body);font-weight:600;margin-right:0.2rem">View Mine</button>` : ''}
-          <button onclick="event.stopPropagation();wantFindOnEbay('${u.itemNum}','${escName}','${escVar}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #e67e22;background:var(--bg-card);background:color-mix(in srgb, rgb(230,126,34) 12%, var(--bg-card));color:#e67e22;font-family:var(--font-body);margin-right:0.2rem">eBay</button>
-          <button onclick="event.stopPropagation();wantSearchOtherSites('${u.itemNum}','${escName}','${escVar}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #2980b9;background:var(--bg-card);background:color-mix(in srgb, rgb(41,128,185) 12%, var(--bg-card));color:#2980b9;font-family:var(--font-body);margin-right:0.2rem">Search</button>
+          ${!_isWant ? `<button onclick="event.stopPropagation();_upgradeViewMine('${_ugEntryKey(u)}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #8b5cf6;background:var(--bg-card);background:color-mix(in srgb, rgb(139,92,246) 10%, var(--bg-card));color:var(--t-purple);font-family:var(--font-body);font-weight:600;margin-right:0.2rem">View Mine</button>` : ''}
+          <button onclick="event.stopPropagation();wantFindOnEbay('${u.itemNum}','${escName}','${escVar}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #e67e22;background:var(--bg-card);background:color-mix(in srgb, rgb(230,126,34) 12%, var(--bg-card));color:var(--t-orange);font-family:var(--font-body);margin-right:0.2rem">eBay</button>
+          <button onclick="event.stopPropagation();wantSearchOtherSites('${u.itemNum}','${escName}','${escVar}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #2980b9;background:var(--bg-card);background:color-mix(in srgb, rgb(41,128,185) 12%, var(--bg-card));color:var(--t-link);font-family:var(--font-body);margin-right:0.2rem">Search</button>
           ${_isWant
-            ? `<button class="row-add-collection" onclick="event.stopPropagation();moveWantToCollection('${u.itemNum}','${escVar}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #2ecc71;background:var(--bg-card);background:color-mix(in srgb, rgb(46,204,113) 12%, var(--bg-card));color:#2ecc71;font-family:var(--font-body);font-weight:600;margin-right:0.2rem">+ Collection</button>`
-            : `<button onclick="event.stopPropagation();upgradeGotIt('${_ugEntryKey(u)}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #2ecc71;background:var(--bg-card);background:color-mix(in srgb, rgb(46,204,113) 12%, var(--bg-card));color:#2ecc71;font-family:var(--font-body);font-weight:600;margin-right:0.2rem">✓ Got It</button>`}
+            ? `<button class="row-add-collection" onclick="event.stopPropagation();moveWantToCollection('${u.itemNum}','${escVar}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #2ecc71;background:var(--bg-card);background:color-mix(in srgb, rgb(46,204,113) 12%, var(--bg-card));color:var(--t-green);font-family:var(--font-body);font-weight:600;margin-right:0.2rem">+ Collection</button>`
+            : `<button onclick="event.stopPropagation();upgradeGotIt('${_ugEntryKey(u)}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #2ecc71;background:var(--bg-card);background:color-mix(in srgb, rgb(46,204,113) 12%, var(--bg-card));color:var(--t-green);font-family:var(--font-body);font-weight:600;margin-right:0.2rem">✓ Got It</button>`}
           ${_isWant
-            ? `<button onclick="event.stopPropagation();removeWantItem('${u.itemNum}','${escVar}',${u.row})" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid var(--border);background:var(--surface2);color:#f05008;font-family:var(--font-body)">Remove</button>`
-            : `<button onclick="event.stopPropagation();removeUpgradeItem('${_ugEntryKey(u)}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid var(--border);background:var(--surface2);color:#f05008;font-family:var(--font-body)">Remove</button>`}
+            ? `<button onclick="event.stopPropagation();removeWantItem('${u.itemNum}','${escVar}',${u.row})" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid var(--border);background:var(--surface2);color:var(--t-red);font-family:var(--font-body)">Remove</button>`
+            : `<button onclick="event.stopPropagation();removeUpgradeItem('${_ugEntryKey(u)}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid var(--border);background:var(--surface2);color:var(--t-red);font-family:var(--font-body)">Remove</button>`}
         </td>
       </tr>
       ${!_isWant ? `<tr id="${photoId}-row" style="display:none"><td colspan="${_WU_COLS.length + 1}" style="padding:0.5rem 1rem;background:var(--surface2)"><img src="${pd && pd.photoItem ? pd.photoItem : ''}" style="max-height:160px;border-radius:6px;object-fit:contain" onerror="this.parentElement.parentElement.style.display='none'"></td></tr>` : ''}`;
@@ -3651,7 +3651,7 @@ window._upgPickApply = function () {
       + 'background:var(--surface2);border:1px solid var(--border);width:100%;cursor:pointer;'
       + 'font-family:var(--font-body);text-align:left;margin-bottom:0.35rem">'
       + '<div style="flex:1;min-width:0">'
-      +   '<div style="font-family:var(--font-mono);color:var(--accent);font-size:0.92rem;font-weight:600;display:flex;align-items:center;gap:0.4rem">'
+      +   '<div style="font-family:var(--font-mono);color:var(--t-accent);font-size:0.92rem;font-weight:600;display:flex;align-items:center;gap:0.4rem">'
       +     p.itemNum + (p.variation ? ' <span style="color:var(--text-dim);font-size:0.78rem">var ' + p.variation + '</span>' : '') + chip
       +   '</div>'
       +   (name ? '<div style="font-size:0.78rem;color:var(--text-mid);margin-top:0.15rem">' + name + '</div>' : '')
@@ -3761,8 +3761,8 @@ function showAddToUpgradeModal(itemNum, variation, pdRow, invId, groupMode) {
   var _escVarU = (variation||'').replace(/'/g, "\\'");
   var _invU = pd && pd.inventoryId ? pd.inventoryId : '';
   var _hdrNumHtml = _isAllUpg
-    ? '<div style="font-family:var(--font-mono);font-size:0.9rem;color:var(--accent);margin-bottom:0.1rem">Set: ' + _grpReal.map(function(p){ return p.itemNum; }).join(' + ') + '</div>'
-    : '<div style="font-family:var(--font-mono);font-size:0.9rem;color:var(--accent);margin-bottom:0.1rem">' + itemNum + (variation ? ' <span style="color:var(--text-dim);font-size:0.8rem">' + variation + '</span>' : '') + '</div>';
+    ? '<div style="font-family:var(--font-mono);font-size:0.9rem;color:var(--t-accent);margin-bottom:0.1rem">Set: ' + _grpReal.map(function(p){ return p.itemNum; }).join(' + ') + '</div>'
+    : '<div style="font-family:var(--font-mono);font-size:0.9rem;color:var(--t-accent);margin-bottom:0.1rem">' + itemNum + (variation ? ' <span style="color:var(--text-dim);font-size:0.8rem">' + variation + '</span>' : '') + '</div>';
   var _saveBtnHtml = _isAllUpg
     ? '<button onclick="saveUpgradeGroup()" style="padding:0.6rem;border-radius:8px;background:#8b5cf6;color:#fff;border:none;font-family:var(--font-body);font-size:0.9rem;font-weight:600;cursor:pointer;margin-top:0.25rem">+ Add set (' + _grpReal.length + ' items) to Upgrade List</button>'
     : '<button onclick="saveUpgradeItem(\'' + itemNum + '\',\'' + _escVarU + '\',' + (existing.row||0) + ',\'' + _invU + '\')" style="padding:0.6rem;border-radius:8px;background:#8b5cf6;color:#fff;border:none;font-family:var(--font-body);font-size:0.9rem;font-weight:600;cursor:pointer;margin-top:0.25rem">' + (existing.row ? 'Update Upgrade Entry' : '+ Add to Upgrade List') + '</button>';
@@ -4310,22 +4310,22 @@ function _renderPartsList() {
       + (p.partNum ? '<span style="font-family:var(--font-mono);color:var(--accent2)">Part #' + p.partNum + '</span>' : '')
       + (p.partNum && forLabel ? ' · ' : '')
       + (forLabel ? ('<' + (_pdFor ? 'a href="#" onclick="event.preventDefault();_partsOpenCard(\'' + esc(p.forInv) + '\',\'' + esc(p.forItem) + '\',\'' + esc(p.taskId) + '\')" title="Open this engine\'s Maintenance card"' : 'span')
-          + ' style="color:#8b5cf6;text-decoration:none">🔗 ' + forLabel + '</' + (_pdFor ? 'a' : 'span') + '>') : '')
+          + ' style="color:var(--t-purple);text-decoration:none">🔗 ' + forLabel + '</' + (_pdFor ? 'a' : 'span') + '>') : '')
       + (taskLabel ? ' · <span style="color:var(--text-dim)">' + _partsEsc(taskLabel) + '</span>' : '')
       + '</div>'
       + (noteShown ? '<div style="font-size:0.78rem;color:var(--text-dim);margin-top:0.2rem">' + noteShown + '</div>' : '')
       + '</div>'
       + '<div style="display:flex;gap:0.35rem;flex-wrap:wrap;align-items:center">'
       + (_lc ? ('<span style="padding:0.2rem 0.55rem;border-radius:99px;font-size:0.68rem;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;'
-          + ((p.status || 'wanted') === 'installed' ? 'background:var(--bg-card);background:color-mix(in srgb, rgb(46,204,113) 18%, var(--bg-card));color:#2ecc71'
-            : (p.status === 'bought' ? 'background:var(--bg-card);background:color-mix(in srgb, rgb(230,126,34) 18%, var(--bg-card));color:#e67e22'
+          + ((p.status || 'wanted') === 'installed' ? 'background:var(--bg-card);background:color-mix(in srgb, rgb(46,204,113) 18%, var(--bg-card));color:var(--t-green)'
+            : (p.status === 'bought' ? 'background:var(--bg-card);background:color-mix(in srgb, rgb(230,126,34) 18%, var(--bg-card));color:var(--t-orange)'
             : 'background:var(--surface2);color:var(--text-dim)'))
           + '">' + ((p.status || 'wanted') === 'installed' ? '\u2713 installed' + (p.dateInstalled ? ' ' + p.dateInstalled : '') : (p.status === 'bought' ? 'bought' + (p.dateBought ? ' ' + p.dateBought : '') + ' \u2014 in the drawer' : 'wanted')) + '</span>') : '')
-      + (_lc && (p.status || 'wanted') === 'wanted' ? '<button onclick="markPartBought(' + p.row + ')" style="padding:0.35rem 0.6rem;border-radius:7px;border:1.5px solid #e67e22;background:var(--bg-card);background:color-mix(in srgb, rgb(230,126,34) 10%, var(--bg-card));color:#e67e22;font-family:var(--font-body);font-size:0.75rem;cursor:pointer;font-weight:600">Bought it</button>' : '')
-      + ((p.forInv && state.personalData && state.personalData[p.forInv] && (p.status || 'wanted') !== 'installed') ? '<button onclick="markPartInstalled(' + p.row + ')" style="padding:0.35rem 0.6rem;border-radius:7px;border:1.5px solid #2ecc71;background:var(--bg-card);background:color-mix(in srgb, rgb(46,204,113) 12%, var(--bg-card));color:#2ecc71;font-family:var(--font-body);font-size:0.75rem;cursor:pointer;font-weight:600">\u2713 Installed</button>' : '')
-      + '<button onclick="googlePart(\'' + esc(p.partNum) + '\',\'' + esc(p.forItem) + '\',\'' + esc(p.description) + '\',\'' + esc(p.forInv || '') + '\')" style="padding:0.35rem 0.6rem;border-radius:7px;border:1.5px solid #2980b9;background:var(--bg-card);background:color-mix(in srgb, rgb(41,128,185) 10%, var(--bg-card));color:#2980b9;font-family:var(--font-body);font-size:0.75rem;cursor:pointer;font-weight:600">Google</button>'
+      + (_lc && (p.status || 'wanted') === 'wanted' ? '<button onclick="markPartBought(' + p.row + ')" style="padding:0.35rem 0.6rem;border-radius:7px;border:1.5px solid #e67e22;background:var(--bg-card);background:color-mix(in srgb, rgb(230,126,34) 10%, var(--bg-card));color:var(--t-orange);font-family:var(--font-body);font-size:0.75rem;cursor:pointer;font-weight:600">Bought it</button>' : '')
+      + ((p.forInv && state.personalData && state.personalData[p.forInv] && (p.status || 'wanted') !== 'installed') ? '<button onclick="markPartInstalled(' + p.row + ')" style="padding:0.35rem 0.6rem;border-radius:7px;border:1.5px solid #2ecc71;background:var(--bg-card);background:color-mix(in srgb, rgb(46,204,113) 12%, var(--bg-card));color:var(--t-green);font-family:var(--font-body);font-size:0.75rem;cursor:pointer;font-weight:600">\u2713 Installed</button>' : '')
+      + '<button onclick="googlePart(\'' + esc(p.partNum) + '\',\'' + esc(p.forItem) + '\',\'' + esc(p.description) + '\',\'' + esc(p.forInv || '') + '\')" style="padding:0.35rem 0.6rem;border-radius:7px;border:1.5px solid #2980b9;background:var(--bg-card);background:color-mix(in srgb, rgb(41,128,185) 10%, var(--bg-card));color:var(--t-link);font-family:var(--font-body);font-size:0.75rem;cursor:pointer;font-weight:600">Google</button>'
       + '<button onclick="showAddPartModal(\'' + p.id + '\')" style="padding:0.35rem 0.6rem;border-radius:7px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.75rem;cursor:pointer">Edit</button>'
-      + '<button onclick="removePart(' + p.row + ')" style="padding:0.35rem 0.6rem;border-radius:7px;border:1.5px solid #e74c3c;background:var(--bg-card);background:color-mix(in srgb, rgb(231,76,60) 10%, var(--bg-card));color:#e74c3c;font-family:var(--font-body);font-size:0.75rem;cursor:pointer">Remove</button>'
+      + '<button onclick="removePart(' + p.row + ')" style="padding:0.35rem 0.6rem;border-radius:7px;border:1.5px solid #e74c3c;background:var(--bg-card);background:color-mix(in srgb, rgb(231,76,60) 10%, var(--bg-card));color:var(--t-danger);font-family:var(--font-body);font-size:0.75rem;cursor:pointer">Remove</button>'
       + '</div></div></div>';
   }).join('');
   if (_lc && (_instCount || window._partsShowInstalled)) {

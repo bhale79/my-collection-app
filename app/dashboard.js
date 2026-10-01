@@ -903,7 +903,7 @@ function buildDashboard() {
       b.innerHTML = '\u270E Edit Dashboard';
       // v0.9.979 (Brad): button moved from beside the greeting to the far
       // right of the top row (margin-left:auto inside the flex row).
-      b.style.cssText = 'margin-left:auto;padding:0.25rem 0.7rem;border-radius:7px;border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:#2980b9;font-family:var(--font-body);font-size:0.72rem;font-weight:700;cursor:pointer;vertical-align:middle';
+      b.style.cssText = 'margin-left:auto;padding:0.25rem 0.7rem;border-radius:7px;border:1.5px solid #8b8e94;background:rgba(139,142,148,0.12);color:var(--t-link);font-family:var(--font-body);font-size:0.72rem;font-weight:700;cursor:pointer;vertical-align:middle';
       b.onclick = function() { openDashEditor(); };
       var _row = g.parentNode.parentNode;
       var _acts = _row ? _row.querySelector('.dash-desktop-actions') : null;
@@ -1011,7 +1011,7 @@ function buildDashboard() {
         +   '<div style="flex:1 1 300px;min-width:260px;border:1px solid var(--border);border-radius:10px;padding:0.9rem 1rem">'
         +     '<div style="font-weight:700;font-size:0.92rem;margin-bottom:0.3rem;color:var(--text)">Got a shelf to get through?</div>'
         +     '<div style="font-size:0.82rem;color:var(--text-dim);line-height:1.5;margin-bottom:0.75rem">Photograph everything \u2014 boxes, side lettering, whatever is readable. The photos land in one place and the numbers get read off them in the background, for free. You confirm what it got right later.</div>'
-        +     '<button onclick="window._pinGo && window._pinGo(document.getElementById(\'nav-photo-inbox\'))" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:var(--bg-card);background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card));color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Open the Photo Inbox</button>'
+        +     '<button onclick="window._pinGo && window._pinGo(document.getElementById(\'nav-photo-inbox\'))" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:var(--bg-card);background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card));color:var(--t-link);font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Open the Photo Inbox</button>'
         +   '</div>'
         // v0.9.1508 (Brad): the third way in — people arriving with a list they
         // already keep. Names the Google Sheets export path explicitly, since
@@ -1021,7 +1021,7 @@ function buildDashboard() {
         +       (typeof rrBetaBadge === 'function' ? rrBetaBadge('style="font-size:0.62rem;background:var(--accent);color:var(--on-accent);border-radius:4px;padding:0.1rem 0.35rem;vertical-align:middle"') : '')
         +     '</div>'
         +     '<div style="font-size:0.82rem;color:var(--text-dim);line-height:1.5;margin-bottom:0.75rem">Bring in a collection you already track in a spreadsheet \u2014 an Excel file (.xlsx) keeps your row colors and every tab. Keep a Google Sheet? File \u2192 Download \u2192 Microsoft Excel first. CSV works too. We check every column with you before anything is saved.</div>'
-        +     '<button onclick="if(typeof rrImportOpen===\'function\')rrImportOpen()" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:var(--bg-card);background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card));color:#2980b9;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Import a spreadsheet</button>'
+        +     '<button onclick="if(typeof rrImportOpen===\'function\')rrImportOpen()" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:var(--bg-card);background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card));color:var(--t-link);font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Import a spreadsheet</button>'
         +   '</div>'
         + '</div>'
         + '<div style="font-size:0.78rem;color:var(--text-dim);line-height:1.5;margin-top:1.1rem;padding-top:0.9rem;border-top:1px solid var(--border)">'
@@ -2297,7 +2297,7 @@ function _dashEdSpot(type, entry, i, total) {
     // v0.9.891 (Brad): × removes THIS tile directly — no hunting through the
     // library checkboxes. Same in-memory state; nothing persists until Save.
     + '<button onclick="event.stopPropagation();_dashEdRemove(\'' + type + '\',' + i + ')" title="Remove this card" '
-    + 'style="position:absolute;top:3px;right:5px;background:none;border:none;color:#f05008;font-size:0.95rem;font-weight:700;line-height:1;cursor:pointer;padding:2px 4px">×</button>'
+    + 'style="position:absolute;top:3px;right:5px;background:none;border:none;color:var(--t-red);font-size:0.95rem;font-weight:700;line-height:1;cursor:pointer;padding:2px 4px">×</button>'
     + '<strong style="font-size:0.7rem;line-height:1.25;padding:0 0.9rem">' + _dashEdLabel(type, entry.id) + '</strong>'
     // v0.9.1726 (Brad): "let the user choose in the edit card menu." The
     // Collection Value tile carries its own breakdown picker here, rather than
@@ -2395,13 +2395,13 @@ function _dashEdRender() {
             + c.label + '</label>';
         }).join('') + '</div>';
   }
-  var sec = 'font-size:0.72rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#2980b9;margin:0.9rem 0 0.45rem';
+  var sec = 'font-size:0.72rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--t-link);margin:0.9rem 0 0.45rem';
   box.innerHTML =
     '<div style="display:flex;align-items:center;justify-content:space-between">'
     + '<strong style="font-size:1.05rem;color:var(--text,#eee);font-family:var(--font-head,sans-serif);letter-spacing:0.04em">✎ EDIT DASHBOARD</strong>'
     + '<button onclick="_dashEdClose()" style="background:none;border:none;color:var(--text-dim,#888);font-size:1.3rem;cursor:pointer;line-height:1">×</button></div>'
     + '<div style="font-size:0.78rem;color:var(--text-dim,#888);margin-top:0.2rem">Check a card to add it, uncheck to remove. Drag tiles between spots (or use ◀ ▶) to arrange. Nothing changes until you Save.</div>'
-    + '<div id="dash-ed-warn" style="display:none;font-size:0.78rem;color:#f05008;font-weight:600;margin-top:0.4rem"></div>'
+    + '<div id="dash-ed-warn" style="display:none;font-size:0.78rem;color:var(--t-red);font-weight:600;margin-top:0.4rem"></div>'
     + '<div style="' + sec + '">Small cards — top row (' + _dEd.s.filter(Boolean).length + ' of ' + _dEd.s.length + ')</div>' + spots('s', _dEd.s)
     + '<div style="' + sec + '">Large panels — bottom row (' + _dEd.p.filter(Boolean).length + ' of ' + _dEd.p.length + ')</div>' + spots('p', _dEd.p)
     + '<div style="' + sec + '">Card library</div>'
@@ -2442,7 +2442,7 @@ function _catCovConfig(slotIdx) {
   ov.id = 'catcov-pop';
   ov.style.cssText = 'position:fixed;inset:0;z-index:99950;background:rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;padding:1rem';
   ov.innerHTML = '<div style="background:var(--surface,#161c34);border:1px solid var(--border,#2a3a5c);border-radius:14px;padding:1.1rem 1.2rem;max-width:320px;width:100%">'
-    + '<div style="font-size:0.72rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#2980b9;margin-bottom:0.6rem">Catalog Coverage — maker &amp; era</div>'
+    + '<div style="font-size:0.72rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--t-link);margin-bottom:0.6rem">Catalog Coverage — maker &amp; era</div>'
     + '<select id="catcov-sel" style="width:100%;padding:0.5rem 0.6rem;border-radius:8px;border:1px solid var(--border,#2a3a5c);background:var(--surface2,#222);color:var(--text,#eee);font-family:var(--font-body);font-size:0.86rem">' + opts + '</select>'
     + '<div style="display:flex;justify-content:flex-end;gap:0.5rem;margin-top:0.9rem">'
     + '<button onclick="document.getElementById(\'catcov-pop\').remove()" style="padding:0.4rem 0.9rem;border-radius:7px;border:1px solid var(--border,#2a3a5c);background:var(--surface2,#222);color:var(--text,#eee);font-family:var(--font-body);font-size:0.82rem;cursor:pointer">Cancel</button>'

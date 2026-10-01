@@ -282,10 +282,10 @@ function _filterCollPicker(q) {
         return '<div onclick="_selectCollItem(\'' + pdKey.replace(/'/g, "\\'") + '\')" style="display:flex;align-items:center;gap:0.6rem;padding:0.65rem 0.85rem;border-radius:8px;background:var(--surface2);border:1px solid var(--border);cursor:pointer;margin-bottom:0.35rem;">'
           + '<div style="flex:1;min-width:0">'
           + '<div style="display:flex;align-items:center;gap:0.4rem">'
-          + '<span style="font-family:var(--font-mono);font-size:0.92rem;color:var(--accent);font-weight:600">' + pd.itemNum + '</span>'
+          + '<span style="font-family:var(--font-mono);font-size:0.92rem;color:var(--t-accent);font-weight:600">' + pd.itemNum + '</span>'
           + (pd.variation ? '<span style="font-size:0.68rem;color:var(--text-dim)">V' + pd.variation + '</span>' : '')
           + _wpGroupChip(pd, entry._mates)
-          + (fs.askingPrice ? '<span style="font-size:0.68rem;color:#e67e22;font-weight:700;margin-left:auto">ASKING $' + parseFloat(fs.askingPrice).toLocaleString() + '</span>' : '')
+          + (fs.askingPrice ? '<span style="font-size:0.68rem;color:var(--t-orange);font-weight:700;margin-left:auto">ASKING $' + parseFloat(fs.askingPrice).toLocaleString() + '</span>' : '')
           + '</div>'
           + '<div style="font-size:0.78rem;color:var(--text-mid);margin-top:0.15rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'
           + (pd.roadName || master.roadName || master.itemType || pd.description || pd.itemType || '')
@@ -318,10 +318,10 @@ function _filterCollPicker(q) {
       + '" onmouseenter="this.style.background=\'var(--surface3)\'" onmouseleave="this.style.background=\'var(--surface2)\'">'
       + '<div style="flex:1;min-width:0">'
       + '<div style="display:flex;align-items:center;gap:0.4rem">'
-      + '<span style="font-family:var(--font-mono);font-size:0.92rem;color:var(--accent);font-weight:600">' + pd.itemNum + '</span>'
+      + '<span style="font-family:var(--font-mono);font-size:0.92rem;color:var(--t-accent);font-weight:600">' + pd.itemNum + '</span>'
       + (pd.variation ? '<span style="font-size:0.68rem;color:var(--text-dim)">V' + pd.variation + '</span>' : '')
       + _wpGroupChip(pd, entry._mates)
-      + (alreadyListed ? '<span style="font-size:0.6rem;color:#e67e22;font-weight:600;margin-left:auto">LISTED</span>' : '')
+      + (alreadyListed ? '<span style="font-size:0.6rem;color:var(--t-orange);font-weight:600;margin-left:auto">LISTED</span>' : '')
       + '</div>'
       + '<div style="font-size:0.78rem;color:var(--text-mid);margin-top:0.15rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'
       + (master.roadName || master.itemType || pd.description || pd.itemType || '')
@@ -438,7 +438,7 @@ function _renderFullPickList(q) {
       + '" onmouseenter="this.style.background=\'var(--surface3)\'" onmouseleave="this.style.background=\'var(--surface2)\'">'
       + '<div style="flex:1;min-width:0">'
       + '<div style="display:flex;align-items:center;gap:0.4rem">'
-      + '<span style="font-family:var(--font-mono);font-size:0.92rem;color:var(--accent);font-weight:600">' + pd.itemNum + '</span>'
+      + '<span style="font-family:var(--font-mono);font-size:0.92rem;color:var(--t-accent);font-weight:600">' + pd.itemNum + '</span>'
       + (pd.variation ? '<span style="font-size:0.7rem;color:var(--text-dim)">Var ' + pd.variation + '</span>' : '')
       + _wpGroupChip(pd, entry._mates)
       + '</div>'

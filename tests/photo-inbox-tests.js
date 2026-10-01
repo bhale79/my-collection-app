@@ -3039,7 +3039,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
     const wp7 = fs.readFileSync(require('path').join(__dirname, '..', 'app', 'wizard-pickers.js'), 'utf8');
     const ap7 = fs.readFileSync(require('path').join(__dirname, '..', 'app', 'app-pages.js'), 'utf8');
     ok('all three row titles are accent orange at the upgrade size',
-       (wp7.match(/font-family:var\(--font-mono\);font-size:0\.92rem;color:var\(--accent\);font-weight:600/g) || []).length === 3);
+       (wp7.match(/font-family:var\(--font-mono\);font-size:0\.92rem;color:var\(--t-accent\);font-weight:600/g) || []).length === 3);
     ok('none are gold any more',
        !/color:var\(--accent2\);font-weight:600/.test(wp7));
     // The row shell — surface2 card, 8px radius, bordered, spaced — must be
@@ -10144,7 +10144,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
     ok('.main is a stacking context, or the watermark would vanish entirely',
        /position: relative; z-index: 0;/.test(mainRule), mainRule.slice(0, 200));
     ok('…and .main still paints its own cream beneath it',
-       /\.main \{[\s\S]{0,700}background: #f8e8c0;/.test(css));
+       /\.main \{[\s\S]{0,1400}background: #f8e8c0;/.test(css));   // v0.9.1852: the .main palette grew by the word colours
 
     // Brad: "need something to say, If not listed, hit next to manually
     // enter your item."
@@ -19838,7 +19838,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
       ok('280 the free Identify button is the solid blue primary',
          /id="pin-identify-btn" class="btn-primary"/.test(pi));
       ok('280 the paid read wears the standard outline, so free and paid differ',
-         /id="pin-idall-btn"[^>]*border:1\.5px solid #8b8e94[\s\S]{0,200}?color:#2980b9/.test(pi));
+         /id="pin-idall-btn"[^>]*border:1\.5px solid #8b8e94[\s\S]{0,200}?color:var\(--t-link\)/.test(pi));
       ok('280 neither reader button still uses the gold accent',
          !/id="pin-identify-btn"[^>]*accent2/.test(pi) && !/id="pin-idall-btn"[^>]*accent2/.test(pi));
     })();

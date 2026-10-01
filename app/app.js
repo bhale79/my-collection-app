@@ -2942,19 +2942,19 @@ function _injectQuickActionsBar() {
   var svgShare = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>';
   var actionsHtml =
     '<span class="qa-add-dropdown-wrap">'
-    + '<button class="btn qa-tr-btn qa-add-btn" onclick="_qaToggleAddMenu(event)" style="display:flex;align-items:center;gap:0.35rem;font-size:0.78rem;padding:0.45rem 0.65rem;border:1.5px solid var(--accent);color:var(--accent);background:var(--bg-card);background:color-mix(in srgb, rgb(232,64,28) 12%, var(--bg-card));font-weight:600">'
+    + '<button class="btn qa-tr-btn qa-add-btn" onclick="_qaToggleAddMenu(event)" style="display:flex;align-items:center;gap:0.35rem;font-size:0.78rem;padding:0.45rem 0.65rem;border:1.5px solid var(--accent);color:var(--t-accent);background:var(--bg-card);background:color-mix(in srgb, rgb(232,64,28) 12%, var(--bg-card));font-weight:600">'
     +   svgPlus + 'Add' + svgChevron
     + '</button>'
     + '<div class="qa-add-dropdown-menu" style="display:none">'
-    +   '<button onclick="_qaCloseAdd();startWizardFor(\'collection\')"><span style="color:var(--accent);display:inline-flex">' + svgPlus + '</span>Add to My Collection</button>'
+    +   '<button onclick="_qaCloseAdd();startWizardFor(\'collection\')"><span style="color:var(--t-accent);display:inline-flex">' + svgPlus + '</span>Add to My Collection</button>'
     +   '<button onclick="_qaCloseAdd();_pinBatchStart()"><span style="display:inline-flex">📷</span>Add Photos to Inbox</button>'
-    +   '<button onclick="_qaCloseAdd();startWizardFor(\'want\')"><span style="color:#2980b9;display:inline-flex">' + svgHeart + '</span>Add to Want List</button>'
-    +   '<button onclick="_qaCloseAdd();pickItemForUpgrade()"><span style="color:#8b5cf6;display:inline-flex">' + svgUpgrade + '</span>Add Upgrade</button>'
-    +   '<button onclick="_qaCloseAdd();startWizardFor(\'forsale\')"><span style="color:#e67e22;display:inline-flex">' + svgTag + '</span>Add to For Sale List</button>'
+    +   '<button onclick="_qaCloseAdd();startWizardFor(\'want\')"><span style="color:var(--t-link);display:inline-flex">' + svgHeart + '</span>Add to Want List</button>'
+    +   '<button onclick="_qaCloseAdd();pickItemForUpgrade()"><span style="color:var(--t-purple);display:inline-flex">' + svgUpgrade + '</span>Add Upgrade</button>'
+    +   '<button onclick="_qaCloseAdd();startWizardFor(\'forsale\')"><span style="color:var(--t-orange);display:inline-flex">' + svgTag + '</span>Add to For Sale List</button>'
     +   '<div style="height:1px;background:var(--border);margin:0.25rem 0.4rem"></div>'
-    +   '<button onclick="_qaCloseAdd();startWizardFor(\'sold\')"><span style="color:#2ecc71;display:inline-flex">' + svgDollar + '</span>Record a Sale</button>'
-    +   '<button onclick="_qaCloseAdd();_qaShareCurrentPage()"><span style="color:#2ecc71;display:inline-flex">' + svgShare + '</span>Share This Page</button>'
-    +   '<button onclick="_qaCloseAdd();openResearch()"><span style="color:#16a085;display:inline-flex">\ud83d\udcf8</span>Research an Item</button>'
+    +   '<button onclick="_qaCloseAdd();startWizardFor(\'sold\')"><span style="color:var(--t-green);display:inline-flex">' + svgDollar + '</span>Record a Sale</button>'
+    +   '<button onclick="_qaCloseAdd();_qaShareCurrentPage()"><span style="color:var(--t-green);display:inline-flex">' + svgShare + '</span>Share This Page</button>'
+    +   '<button onclick="_qaCloseAdd();openResearch()"><span style="color:var(--t-sea);display:inline-flex">\ud83d\udcf8</span>Research an Item</button>'
     + '</div>'
     + '</span>';
 
@@ -3284,7 +3284,7 @@ function showLoading() {
     if (tb3 && tb3.innerHTML.indexOf('Loading The Rail Roster') !== -1) {
       tb3.innerHTML = '<tr><td colspan="10" style="padding:2rem;text-align:center;color:var(--text-dim);font-size:0.88rem">'
         + 'The catalog finished loading but the page didn\'t refresh. '
-        + '<button onclick="location.reload()" style="margin-left:0.5rem;padding:0.35rem 0.9rem;border-radius:7px;border:1.5px solid var(--accent);background:var(--bg-card);background:color-mix(in srgb, rgb(232,64,28) 10%, var(--bg-card));color:var(--accent);cursor:pointer;font-weight:600">Reload</button>'
+        + '<button onclick="location.reload()" style="margin-left:0.5rem;padding:0.35rem 0.9rem;border-radius:7px;border:1.5px solid var(--accent);background:var(--bg-card);background:color-mix(in srgb, rgb(232,64,28) 10%, var(--bg-card));color:var(--t-accent);cursor:pointer;font-weight:600">Reload</button>'
         + '</td></tr>';
     }
   }, 4000);
@@ -3747,7 +3747,7 @@ function showPage(name, clickedEl) {
       if (_pgEl) {
         var _bar = document.createElement('div');
         _bar.id = 'page-back-dash';
-        _bar.innerHTML = '<button onclick="showPage(\'dashboard\');if(typeof buildDashboard===\'function\')buildDashboard()" style="background:none;border:none;color:#2980b9;font-family:var(--font-body);font-size:0.95rem;font-weight:700;cursor:pointer;padding:0;display:flex;align-items:center;gap:0.4rem;margin-bottom:0.6rem"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></svg>Back to Dashboard</button>';
+        _bar.innerHTML = '<button onclick="showPage(\'dashboard\');if(typeof buildDashboard===\'function\')buildDashboard()" style="background:none;border:none;color:var(--t-link);font-family:var(--font-body);font-size:0.95rem;font-weight:700;cursor:pointer;padding:0;display:flex;align-items:center;gap:0.4rem;margin-bottom:0.6rem"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></svg>Back to Dashboard</button>';
         _pgEl.insertBefore(_bar, _pgEl.firstChild);
       }
     }

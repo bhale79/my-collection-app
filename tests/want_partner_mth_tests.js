@@ -150,7 +150,7 @@ const check = makeCheck(coll, W);
 function own(...nums) { state.personalData = {}; nums.forEach((n, i) => { state.personalData['inv' + i] = { owned: true, itemNum: n, variation: '' }; }); }
 function want(...nums) { state.wantData = {}; nums.forEach(n => { state.wantData[n + '|'] = { itemNum: n }; }); }
 function run(num, mfr) { built.length = 0; lookups.length = 0; check(num, '', 'Medium', '', '', mfr || 'MTH'); return built.length ? built[built.length - 1] : ''; }
-function listed(html) { return (html.match(/font-weight:600;color:var\(--accent\)">([^<]+)</g) || []).map(m => m.replace(/.*">/, '').replace('<', '')); }
+function listed(html) { return (html.match(/font-weight:600;color:var\(--t-accent\)">([^<]+)</g) || []).map(m => m.replace(/.*">/, '').replace('<', '')); }
 function labels(html) { return (html.match(/color:var\(--text-dim\)">([^<]+)</g) || []).map(m => m.replace(/.*">/, '').replace('<', '')); }
 
 own(); want();

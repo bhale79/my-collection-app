@@ -28,7 +28,7 @@ function _buildAuthScreen() {
   // screen and the Master Catalog page used to disagree (130,000+ vs 60,000+).
   var _cat = (typeof BRAND_CATALOG_COUNT === 'string') ? BRAND_CATALOG_COUNT : '160,000+';
   var _mark = (typeof BRAND_WORDMARK_HTML === 'string') ? BRAND_WORDMARK_HTML
-            : 'The <span style="color:var(--accent)">Rail</span> Roster';
+            : 'The <span style="color:var(--t-accent)">Rail</span> Roster';
   d.innerHTML =
     '<div class="auth-wrap">' +
     '<div class="auth-brand">' +
@@ -347,7 +347,7 @@ function showApp() {
   const hr = new Date().getHours();
   const _greet = hr < 12 ? 'Good Morning' : hr < 17 ? 'Good Afternoon' : 'Good Evening';
   const _name = (state.user?.name || '').split(' ')[0] || 'Collector';
-  document.getElementById('dash-greeting').innerHTML = _greet + ', <span style="color:var(--accent);font-size:138%;font-weight:700">' + _name + '</span>';
+  document.getElementById('dash-greeting').innerHTML = _greet + ', <span style="color:var(--t-accent);font-size:138%;font-weight:700">' + _name + '</span>';
 }
 
 

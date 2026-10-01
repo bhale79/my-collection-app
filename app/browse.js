@@ -504,7 +504,7 @@ function _renderCollectionHeader() {
         (locked ? '<span style="opacity:0.5">\uD83D\uDD12</span>' : '<span style="opacity:0.55;cursor:grab">\u2630</span>') +
         '<span>' + c.label + '</span>' +
         (locked ? '' : '<button type="button" title="Remove this column" onclick="event.stopPropagation();_collDropCol(\'' + c.col + '\')" ' +
-          'style="border:none;background:none;color:var(--accent);font-size:0.95rem;line-height:1;cursor:pointer;padding:0 0.1rem">\u00d7</button>') +
+          'style="border:none;background:none;color:var(--t-accent);font-size:0.95rem;line-height:1;cursor:pointer;padding:0 0.1rem">\u00d7</button>') +
         '</span></th>';
     }
     var align = (c.col === 'worth' || c.col === 'var' || c.col === 'added' || c.col === 'photo') ? 'text-align:center;' : '';   // v0.9.727 (Brad): centered
@@ -1607,7 +1607,7 @@ function _renderAllLoadingIndicator() {
     if (!rc) return;
     ind = document.createElement('span');
     ind.id = 'all-loading-indicator';
-    ind.style.cssText = 'margin-left:0.4rem;color:var(--accent);font-style:italic;'
+    ind.style.cssText = 'margin-left:0.4rem;color:var(--t-accent);font-style:italic;'
                      + 'font-size:0.78rem;display:inline-flex;align-items:center;gap:0.3rem';
     rc.appendChild(ind);
   }
@@ -2496,7 +2496,7 @@ function filterOwned(qe) {
     _shareBtn.id = 'share-btn-collection';
     _shareBtn.className = 'btn';
     _shareBtn.onclick = function() { if (typeof startShareMode === 'function') startShareMode('collection'); };
-    _shareBtn.style.cssText = 'display:flex;align-items:center;gap:0.4rem;border:1.5px solid #2ecc71;color:#2ecc71;background:rgba(46,204,113,0.1);font-weight:600;font-size:0.85rem;padding:0.5rem 0.9rem';
+    _shareBtn.style.cssText = 'display:flex;align-items:center;gap:0.4rem;border:1.5px solid #2ecc71;color:var(--t-green);background:rgba(46,204,113,0.1);font-weight:600;font-size:0.85rem;padding:0.5rem 0.9rem';
     _shareBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg> Share';
     _btnArea.appendChild(_shareBtn);
   }
@@ -2703,7 +2703,7 @@ function renderSetsTab() {
     ).join(' ') + (s.items.length > 6 ? `<span style="font-size:0.67rem;color:var(--text-dim)"> +${s.items.length - 6}</span>` : '');
     const ownedBadge = owned
       ? `<span style="color:var(--green);font-size:0.75rem;font-weight:700">✓ Owned</span>`
-        + (isQE ? ' <span style="color:#e67e22;font-size:0.68rem;font-weight:700" title="Quick Entry">⚡</span>' : '')
+        + (isQE ? ' <span style="color:var(--t-orange);font-size:0.68rem;font-weight:700" title="Quick Entry">⚡</span>' : '')
         + (worthStr ? `<div style="font-size:0.72rem;color:var(--text-mid);margin-top:2px">${worthStr}</div>` : '')
       : '<span style="color:var(--text-dim);font-size:0.75rem">—</span>';
     // Session 115: action buttons on owned set rows in collection view.
@@ -2767,7 +2767,7 @@ function renderCatalogsTab() {
   window._browseFilteredCats = cats;
   tbody.innerHTML = cats.map((c, ci) => {
     const _catOwned = ownedCatIds.has(c.id.toLowerCase());
-    const _catBadge = _catOwned ? '<span style="display:inline-block;font-size:0.6rem;font-weight:700;color:#2ecc71;border:1px solid #2ecc71;border-radius:3px;padding:0 3px;margin-left:4px;vertical-align:middle">✓</span>' : '';
+    const _catBadge = _catOwned ? '<span style="display:inline-block;font-size:0.6rem;font-weight:700;color:var(--t-green);border:1px solid #2ecc71;border-radius:3px;padding:0 3px;margin-left:4px;vertical-align:middle">✓</span>' : '';
     const _catBg = _catOwned ? 'background:rgba(46,204,113,0.04);' : '';
     let actionsHTML = '';
     let _rowClick = `showRefItemPopup(&apos;catalog&apos;,${ci})`;
@@ -2846,7 +2846,7 @@ function renderISTab() {
   const _ownedISNums = new Set(Object.values(state.isData || {}).map(is => (is.sheetNum||'').toLowerCase()));
   tbody.innerHTML = sheets.map((s, si) => {
     const _isOwned = _ownedISNums.has(s.id.toLowerCase());
-    const _isBadge = _isOwned ? '<span style="display:inline-block;font-size:0.6rem;font-weight:700;color:#2ecc71;border:1px solid #2ecc71;border-radius:3px;padding:0 3px;margin-left:4px;vertical-align:middle">✓</span>' : '';
+    const _isBadge = _isOwned ? '<span style="display:inline-block;font-size:0.6rem;font-weight:700;color:var(--t-green);border:1px solid #2ecc71;border-radius:3px;padding:0 3px;margin-left:4px;vertical-align:middle">✓</span>' : '';
     const _isBg = _isOwned ? 'background:rgba(46,204,113,0.04);' : '';
     return `<tr onclick="showRefItemPopup(&apos;is&apos;,${si})" style="cursor:pointer;${_isBg}">
     <td><span style="font-family:var(--font-mono);color:var(--accent2)">${s.id}</span>${_isBadge}</td>
@@ -2998,10 +2998,10 @@ function _collectionActionsHTML(type, key, entry) {
   const btnStyle = 'padding:0.25rem 0.5rem;border-radius:5px;font-size:0.7rem;cursor:pointer;font-family:var(--font-body);border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);margin-left:0.25rem';
   const keyArg = "'" + esc(key) + "'";
   const typeArg = "'" + esc(type) + "'";
-  const fsBtn = '<button onclick="event.stopPropagation();_collectionForSale(' + typeArg + ',' + keyArg + ')" style="' + btnStyle + ';border-color:#e67e22;color:#e67e22">Add to For Sale</button>';
-  const sdBtn = '<button onclick="event.stopPropagation();_collectionSold(' + typeArg + ',' + keyArg + ')" style="' + btnStyle + ';border-color:#2ecc71;color:#2ecc71">Add to Sold</button>';
-  const upBtn = '<button onclick="event.stopPropagation();_collectionUpgrade(' + typeArg + ',' + keyArg + ')" style="' + btnStyle + ';border-color:#8b5cf6;color:#8b5cf6">Add to Upgrade</button>';
-  const rmBtn = '<button onclick="event.stopPropagation();_collectionRemove(' + typeArg + ',' + keyArg + ')" style="' + btnStyle + ';color:#f05008">Remove</button>';
+  const fsBtn = '<button onclick="event.stopPropagation();_collectionForSale(' + typeArg + ',' + keyArg + ')" style="' + btnStyle + ';border-color:#e67e22;color:var(--t-orange)">Add to For Sale</button>';
+  const sdBtn = '<button onclick="event.stopPropagation();_collectionSold(' + typeArg + ',' + keyArg + ')" style="' + btnStyle + ';border-color:#2ecc71;color:var(--t-green)">Add to Sold</button>';
+  const upBtn = '<button onclick="event.stopPropagation();_collectionUpgrade(' + typeArg + ',' + keyArg + ')" style="' + btnStyle + ';border-color:#8b5cf6;color:var(--t-purple)">Add to Upgrade</button>';
+  const rmBtn = '<button onclick="event.stopPropagation();_collectionRemove(' + typeArg + ',' + keyArg + ')" style="' + btnStyle + ';color:var(--t-red)">Remove</button>';
   return fsBtn + sdBtn + upBtn + rmBtn;
 }
 
@@ -3151,7 +3151,7 @@ function _ncShowFsSoldModal(type, key, action) {
   ov.innerHTML =
       '<div style="background:var(--surface);border-radius:14px;padding:1.5rem;max-width:380px;width:100%;border:1px solid var(--border)">'
     +   '<div style="font-family:var(--font-head);font-size:1rem;font-weight:700;margin-bottom:0.2rem">' + heading + '</div>'
-    +   '<div style="font-family:var(--font-mono);color:var(--accent);font-size:0.88rem;margin-bottom:0.15rem">' + (ids.itemNum || '—') + '</div>'
+    +   '<div style="font-family:var(--font-mono);color:var(--t-accent);font-size:0.88rem;margin-bottom:0.15rem">' + (ids.itemNum || '—') + '</div>'
     +   '<div style="font-size:0.8rem;color:var(--text-dim);margin-bottom:1rem">' + title + '</div>'
     +   '<div style="margin-bottom:0.7rem">'
     +     '<div style="font-size:0.72rem;color:var(--text-dim);margin-bottom:0.2rem;text-transform:uppercase;letter-spacing:0.06em">' + (isSold ? 'Sale Price ($)' : 'Asking Price ($)') + '</div>'
@@ -3285,8 +3285,8 @@ function _ncShowUpgradeModal(type, key) {
   ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:10010;display:flex;align-items:center;justify-content:center;padding:1.5rem';
   ov.innerHTML =
       '<div class="rr-card">'
-    +   '<div style="font-family:var(--font-head);font-size:1rem;font-weight:700;color:#8b5cf6;margin-bottom:0.2rem">↑ Add to Upgrade List</div>'
-    +   '<div style="font-family:var(--font-mono);color:var(--accent);font-size:0.88rem;margin-bottom:0.15rem">' + (ids.itemNum || '—') + '</div>'
+    +   '<div style="font-family:var(--font-head);font-size:1rem;font-weight:700;color:var(--t-purple);margin-bottom:0.2rem">↑ Add to Upgrade List</div>'
+    +   '<div style="font-family:var(--font-mono);color:var(--t-accent);font-size:0.88rem;margin-bottom:0.15rem">' + (ids.itemNum || '—') + '</div>'
     +   '<div style="font-size:0.8rem;color:var(--text-dim);margin-bottom:1rem">' + title + '</div>'
     +   '<div style="margin-bottom:0.75rem">'
     +     '<div style="font-size:0.72rem;color:var(--text-dim);margin-bottom:0.2rem;text-transform:uppercase;letter-spacing:0.06em">Priority</div>'
@@ -3469,7 +3469,7 @@ function renderMasterSubTab(tabKey) {
       }).length;
     }
     var _ownBadge = _ownedCopies > 0
-      ? '<span style="display:inline-block;font-size:0.6rem;font-weight:700;color:#2ecc71;border:1px solid #2ecc71;border-radius:3px;padding:0 3px;margin-left:4px;vertical-align:middle">' + (_ownedCopies > 1 ? '✓' + _ownedCopies : '✓') + '</span>'
+      ? '<span style="display:inline-block;font-size:0.6rem;font-weight:700;color:var(--t-green);border:1px solid #2ecc71;border-radius:3px;padding:0 3px;margin-left:4px;vertical-align:middle">' + (_ownedCopies > 1 ? '✓' + _ownedCopies : '✓') + '</span>'
       : '';
     var _rowBg = _ownedCopies > 0 ? 'background:rgba(46,204,113,0.04);' : '';
     return '<tr onclick="browseRowClick(event, ' + r.globalIdx + ')" style="cursor:pointer;' + _rowBg + '">' +
@@ -3601,7 +3601,7 @@ function _rrBrowseCore(_co) {
     if (_gtbody) _gtbody.innerHTML = '<tr><td colspan="10"><div style="padding:2.5rem 1rem;text-align:center">'
       + '<div style="max-width:520px;margin:0 auto;background:rgba(41,128,185,0.10);border:1px solid #2980b9;border-radius:12px;padding:1.5rem 1.2rem">'
       + '<div style="font-size:2rem;margin-bottom:0.5rem">🔍</div>'
-      + '<p style="font-weight:700;font-size:1rem;margin-bottom:0.45rem;color:#2980b9">Please select a filter to start viewing the catalog.</p>'
+      + '<p style="font-weight:700;font-size:1rem;margin-bottom:0.45rem;color:var(--t-link)">Please select a filter to start viewing the catalog.</p>'
       + '<p style="font-size:0.85rem;color:var(--text-mid);line-height:1.5">Pick an era, manufacturer, or scale above — or type an item number, road name, or description to search all '
       + ((typeof BRAND_CATALOG_COUNT === 'string') ? BRAND_CATALOG_COUNT : '160,000+')
       + ' items across every era.</p>'
@@ -4569,9 +4569,9 @@ function _rrBrowseCore(_co) {
           return `<tr onclick="openISDetail(${_isKeyArg})" style="cursor:pointer">
             ${_collGutterSpacerTd()}
             <td style="text-align:center;font-size:1.05rem" title="Instruction Sheet">📋</td>
-            <td><span style="font-family:var(--font-mono);font-size:0.85rem;color:#16a085;font-weight:600">${it.sheetNum}</span></td>
+            <td><span style="font-family:var(--font-mono);font-size:0.85rem;color:var(--t-sea);font-weight:600">${it.sheetNum}</span></td>
             <td style="text-align:center"><span class="text-dim">—</span></td>
-            <td><span class="tag" style="border-color:#16a085;color:#16a085;background:#16a08518">Instr. Sheet</span></td>
+            <td><span class="tag" style="border-color:#16a085;color:var(--t-sea);background:#16a08518">Instr. Sheet</span></td>
             <td style="width:52px"></td>
             <td><span style="color:var(--text-mid);font-size:0.85rem">For #${it.linkedItem || '—'}</span></td>
             <td style="font-size:0.82rem;color:var(--gold);white-space:nowrap;text-align:center">${isFinite(_isWorthN) ? _cSymIS + _isWorthN.toLocaleString() : '<span style="color:var(--text-dim)">—</span>'}</td>
@@ -4585,8 +4585,8 @@ function _rrBrowseCore(_co) {
         const _isKeyM = "'" + String(it._key || _isKeyByEntry.get(it) || it.row).replace(/'/g, "\\'") + "'";
         return `<tr onclick="openISDetail(${_isKeyM})" style="cursor:pointer">
             ${_collGutterSpacerTd()}
-          <td><span style="font-family:var(--font-mono);font-size:0.85rem;color:#16a085;font-weight:600">${it.sheetNum}</span></td>
-          <td><span class="tag" style="border-color:#16a085;color:#16a085;background:#16a08518">Instr. Sheet</span></td>
+          <td><span style="font-family:var(--font-mono);font-size:0.85rem;color:var(--t-sea);font-weight:600">${it.sheetNum}</span></td>
+          <td><span class="tag" style="border-color:#16a085;color:var(--t-sea);background:#16a08518">Instr. Sheet</span></td>
           <td>For item #${it.linkedItem || '—'}</td>
           <td>${it.year || '—'}</td>
           <td></td><td></td>
@@ -4599,9 +4599,9 @@ function _rrBrowseCore(_co) {
       const _itmId = it.itemNum ? `<span style="font-family:var(--font-mono);font-size:0.78rem;color:${r.color};opacity:0.75;font-style:italic">${it.itemNum}</span>` : r.emoji;
       const _ephActions = state.filters.owned ? `
         <div style="display:flex;gap:0.35rem;margin-top:0.5rem;flex-wrap:wrap">
-          <button onclick="event.stopPropagation();ephemeraForSale('${r.tabId}',${it.row})" style="flex:1;min-width:0;padding:0.35rem 0.3rem;border-radius:7px;font-size:0.72rem;cursor:pointer;border:1.5px solid #e67e22;background:var(--bg-card);background:color-mix(in srgb, rgb(230,126,34) 12%, var(--bg-card));color:#e67e22;font-family:var(--font-body);font-weight:600">🏷️ For Sale</button>
-          <button onclick="event.stopPropagation();ephemeraSold('${r.tabId}',${it.row})" style="flex:1;min-width:0;padding:0.35rem 0.3rem;border-radius:7px;font-size:0.72rem;cursor:pointer;border:1.5px solid #2ecc71;background:var(--bg-card);background:color-mix(in srgb, rgb(46,204,113) 12%, var(--bg-card));color:#2ecc71;font-family:var(--font-body);font-weight:600">💰 Sold</button>
-          <button onclick="event.stopPropagation();ephemeraDelete('${r.tabId}',${it.row})" style="flex:0 0 auto;padding:0.35rem 0.5rem;border-radius:7px;font-size:0.72rem;cursor:pointer;border:1.5px solid var(--border);background:var(--surface2);color:var(--accent);font-family:var(--font-body)">Remove</button>
+          <button onclick="event.stopPropagation();ephemeraForSale('${r.tabId}',${it.row})" style="flex:1;min-width:0;padding:0.35rem 0.3rem;border-radius:7px;font-size:0.72rem;cursor:pointer;border:1.5px solid #e67e22;background:var(--bg-card);background:color-mix(in srgb, rgb(230,126,34) 12%, var(--bg-card));color:var(--t-orange);font-family:var(--font-body);font-weight:600">🏷️ For Sale</button>
+          <button onclick="event.stopPropagation();ephemeraSold('${r.tabId}',${it.row})" style="flex:1;min-width:0;padding:0.35rem 0.3rem;border-radius:7px;font-size:0.72rem;cursor:pointer;border:1.5px solid #2ecc71;background:var(--bg-card);background:color-mix(in srgb, rgb(46,204,113) 12%, var(--bg-card));color:var(--t-green);font-family:var(--font-body);font-weight:600">💰 Sold</button>
+          <button onclick="event.stopPropagation();ephemeraDelete('${r.tabId}',${it.row})" style="flex:0 0 auto;padding:0.35rem 0.5rem;border-radius:7px;font-size:0.72rem;cursor:pointer;border:1.5px solid var(--border);background:var(--surface2);color:var(--t-accent);font-family:var(--font-body)">Remove</button>
         </div>` : '';
 
       // ── My Collection view: 9 columns to match the header (v0.9.985:
@@ -4651,9 +4651,9 @@ function _rrBrowseCore(_co) {
           <td style="font-size:0.82rem;color:var(--gold);white-space:nowrap;text-align:center">${_ephWorth}</td>
           <td style="font-size:0.76rem;color:var(--text-dim);white-space:nowrap;width:80px;text-align:center">${_ephDate}</td>
           <td class="coll-actions-cell" data-col="actions" onclick="event.stopPropagation()" style="text-align:right;white-space:nowrap">
-            <button onclick="ephemeraForSale('${r.tabId}',${it.row})" style="${_ephBtn};border:1px solid #e67e22;background:var(--bg-card);background:color-mix(in srgb, rgb(230,126,34) 10%, var(--bg-card));color:#e67e22">For Sale</button>
-            <button onclick="ephemeraSold('${r.tabId}',${it.row})" style="${_ephBtn};border:1px solid #2ecc71;background:var(--bg-card);background:color-mix(in srgb, rgb(46,204,113) 10%, var(--bg-card));color:#2ecc71">Sold</button>
-            <button onclick="ephemeraDelete('${r.tabId}',${it.row})" style="${_ephBtn};margin-right:0;border:1px solid var(--border);background:var(--surface2);color:#f05008">Remove</button>
+            <button onclick="ephemeraForSale('${r.tabId}',${it.row})" style="${_ephBtn};border:1px solid #e67e22;background:var(--bg-card);background:color-mix(in srgb, rgb(230,126,34) 10%, var(--bg-card));color:var(--t-orange)">For Sale</button>
+            <button onclick="ephemeraSold('${r.tabId}',${it.row})" style="${_ephBtn};border:1px solid #2ecc71;background:var(--bg-card);background:color-mix(in srgb, rgb(46,204,113) 10%, var(--bg-card));color:var(--t-green)">Sold</button>
+            <button onclick="ephemeraDelete('${r.tabId}',${it.row})" style="${_ephBtn};margin-right:0;border:1px solid var(--border);background:var(--surface2);color:var(--t-red)">Remove</button>
           </td>
         </tr>`;
       }
@@ -4698,13 +4698,13 @@ function _rrBrowseCore(_co) {
         var _gidSafe = String(g.groupId).replace(/[^A-Za-z0-9_-]/g, '');
         return '<div style="margin:0 0 0.6rem;padding:0.7rem 0.9rem;border-radius:10px;border:1.5px solid #e67e22;background:rgba(230,126,34,0.1);display:flex;flex-wrap:wrap;gap:0.6rem;align-items:center;justify-content:space-between">'
           + '<div style="font-size:0.86rem;color:var(--text-mid);line-height:1.45">'
-          + '⚠️ <strong style="color:#e67e22">Unfinished set entry</strong> — '
+          + '⚠️ <strong style="color:var(--t-orange)">Unfinished set entry</strong> — '
           + g.items.length + ' item' + (g.items.length !== 1 ? 's' : '')
           + ' from a ' + (g.setNum || 'set') + ' walkthrough that never finished '
           + '(' + g.items.map(function (p) { return p.itemNum; }).join(', ') + '). '
           + 'They are counted in your collection but have no set behind them.'
           + '</div>'
-          + '<button onclick="_rrDropAbandonedSet(\'' + _gidSafe + '\')" style="padding:0.45rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:var(--bg-card);background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card));color:#f05008;font-family:var(--font-body);font-weight:700;font-size:0.8rem;cursor:pointer;white-space:nowrap">Remove them</button>'
+          + '<button onclick="_rrDropAbandonedSet(\'' + _gidSafe + '\')" style="padding:0.45rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:var(--bg-card);background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card));color:var(--t-red);font-family:var(--font-body);font-weight:700;font-size:0.8rem;cursor:pointer;white-space:nowrap">Remove them</button>'
           + '</div>';
       }).join('');
     } else if (_le) { _le.style.display = 'none'; _le.innerHTML = ''; }
@@ -4745,7 +4745,7 @@ function _rrBrowseCore(_co) {
       return `<tr onclick="_rrToggleSetFold('${String(item.groupId).replace(/[^A-Za-z0-9_-]/g, '')}')" style="cursor:pointer;background:rgba(168,85,247,0.07)">`
         + `<td colspan="12" style="padding:0.65rem 0.9rem;border-left:3px solid #a855f7">`
         + `<span style="font-size:0.95rem">${_fOpen ? '▾' : '▸'}</span> \u{1F682} `
-        + `<strong style="color:#a855f7">${item.itemNum || 'Set'}</strong>`
+        + `<strong style="color:var(--t-purple)">${item.itemNum || 'Set'}</strong>`
         + (_fName ? ` <span style="color:var(--text-mid)">— ${_fName}</span>` : '')
         + ` <span style="color:var(--text-dim);font-size:0.82rem">· ${item.members.length} piece${item.members.length !== 1 ? 's' : ''}${_fWTxt ? ' · ' + _fWTxt : ''} · ${_fOpen ? 'tap to fold' : 'tap to see the pieces'}</span>`
         + `</td></tr>`;
@@ -4803,7 +4803,7 @@ function _rrBrowseCore(_co) {
       const _isThisCopyFS = !!_fsEntryM;
       const _isThisCopyUG = !!_ugEntryM;
       const _statusIcons = (_isThisCopyFS ? '<span title="This copy is For Sale" style="font-size:0.8rem">🏷️</span>' : '')
-                         + (_isThisCopyUG ? '<span title="This copy on Upgrade list" style="font-size:0.8rem;color:#8b5cf6">↑</span>' : '')
+                         + (_isThisCopyUG ? '<span title="This copy on Upgrade list" style="font-size:0.8rem;color:var(--t-purple)">↑</span>' : '')
                          + (_isGrouped ? '<span title="Grouped item" style="font-size:0.8rem">🔗</span>' : '')
                          + (_isQE ? '<span title="Quick Entry — details incomplete" style="font-size:0.8rem">⚡</span>' : '')
                          + (_hasPhoto ? '<span title="Has photo" style="font-size:0.8rem" onclick="event.stopPropagation();openPhotoFolder(\''+_rrAttrArg(item.itemNum)+'\',\''+_rrAttrArg(_hasPhoto||'')+'\',\''+_rrAttrArg(_myInvIdM||'')+'\')">📷</span>' : '');
@@ -4870,7 +4870,7 @@ function _rrBrowseCore(_co) {
       // Status badges — render on a line UNDER the item number (Brad's
       // request) so they read clearly and don't drift under the Var column.
       const _statusBadges = (_isThisCopyFS ? '<span title="On the For Sale list" style="font-size:0.82rem;margin-left:3px;vertical-align:middle">🏷️</span>' : '')
-        + (_isThisCopyUG ? '<span title="On the Upgrade list" style="font-size:0.74rem;margin-left:3px;color:#8b5cf6;font-weight:700;vertical-align:middle">↑</span>' : '');
+        + (_isThisCopyUG ? '<span title="On the Upgrade list" style="font-size:0.74rem;margin-left:3px;color:var(--t-purple);font-weight:700;vertical-align:middle">↑</span>' : '');
       // v0.9.921 (chunk 2): per-copy share key by inventoryId, composite fallback.
       const _shareKeyD = _myInvId || (item.itemNum + '|' + (item.variation||'') + '|' + (pd && pd.row ? pd.row : 0));
       const _inShareModeD = typeof isShareMode === 'function' && isShareMode('collection');
@@ -4879,10 +4879,10 @@ function _rrBrowseCore(_co) {
       // Smart buttons based on per-copy list status
       const _fsBtn = _isThisCopyFS
         ? `<button onclick="event.stopPropagation();_removeForSaleFromCollection('${_myInvId}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #e67e22;background:#e67e22;color:#fff;font-family:var(--font-body);font-weight:600;margin-right:0.2rem" title="Remove from For Sale list">Unlist</button>`
-        : `<button onclick="event.stopPropagation();collectionActionForSale(${globalIdx},'${_dispNum}','${_escVar}',${pd && pd.row ? pd.row : 0},'${_myInvId}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #e67e22;background:var(--bg-card);background:color-mix(in srgb, rgb(230,126,34) 10%, var(--bg-card));color:#e67e22;font-family:var(--font-body);font-weight:600;margin-right:0.2rem" title="Add to For Sale list">For Sale</button>`;
+        : `<button onclick="event.stopPropagation();collectionActionForSale(${globalIdx},'${_dispNum}','${_escVar}',${pd && pd.row ? pd.row : 0},'${_myInvId}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #e67e22;background:var(--bg-card);background:color-mix(in srgb, rgb(230,126,34) 10%, var(--bg-card));color:var(--t-orange);font-family:var(--font-body);font-weight:600;margin-right:0.2rem" title="Add to For Sale list">For Sale</button>`;
       const _upgBtn = _isThisCopyUG
         ? `<button onclick="event.stopPropagation();_removeUpgradeFromCollection('${_myInvId}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #8b5cf6;background:#8b5cf6;color:#fff;font-family:var(--font-body);font-weight:600;margin-right:0.2rem" title="Remove from Upgrade list">Un-Upg.</button>`
-        : `<button onclick="event.stopPropagation();showAddToUpgradeModal('${_dispNum}','${_escVar}',${pd && pd.row ? pd.row : 0},'${_myInvId}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #8b5cf6;background:var(--bg-card);background:color-mix(in srgb, rgb(139,92,246) 10%, var(--bg-card));color:#8b5cf6;font-family:var(--font-body);font-weight:600;margin-right:0.2rem" title="Add to Upgrade list">Upgrade</button>`;
+        : `<button onclick="event.stopPropagation();showAddToUpgradeModal('${_dispNum}','${_escVar}',${pd && pd.row ? pd.row : 0},'${_myInvId}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #8b5cf6;background:var(--bg-card);background:color-mix(in srgb, rgb(139,92,246) 10%, var(--bg-card));color:var(--t-purple);font-family:var(--font-body);font-weight:600;margin-right:0.2rem" title="Add to Upgrade list">Upgrade</button>`;
       const _inTagModeD = typeof rrTagActive === 'function' && rrTagActive();
       // v0.9.1555: while tagging, a row click ticks it — the same gesture as
       // the checkbox, so nobody opens an item by accident mid-sweep.
@@ -4971,9 +4971,9 @@ function _rrBrowseCore(_co) {
         })()}
         <td class="coll-actions-cell" data-col="actions" style="text-align:right">
           ${!_inShareModeD ? `${_fsBtn}
-          <button onclick="event.stopPropagation();collectionActionSold(${globalIdx},'${_dispNum}','${_escVar}',${pd && pd.row ? pd.row : 0},'${_myInvId}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #2ecc71;background:var(--bg-card);background:color-mix(in srgb, rgb(46,204,113) 10%, var(--bg-card));color:#2ecc71;font-family:var(--font-body);font-weight:600;margin-right:0.2rem" title="Mark as sold / add to Sold list">Sold</button>
+          <button onclick="event.stopPropagation();collectionActionSold(${globalIdx},'${_dispNum}','${_escVar}',${pd && pd.row ? pd.row : 0},'${_myInvId}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #2ecc71;background:var(--bg-card);background:color-mix(in srgb, rgb(46,204,113) 10%, var(--bg-card));color:var(--t-green);font-family:var(--font-body);font-weight:600;margin-right:0.2rem" title="Mark as sold / add to Sold list">Sold</button>
           ${_upgBtn}
-          <button onclick="event.stopPropagation();removeCollectionItem('${_dispNum}','${_escVar}',${pd && pd.row ? pd.row : 0},'${_myInvId}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid var(--border);background:var(--surface2);color:#f05008;font-family:var(--font-body)">Remove</button>` : ''}
+          <button onclick="event.stopPropagation();removeCollectionItem('${_dispNum}','${_escVar}',${pd && pd.row ? pd.row : 0},'${_myInvId}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid var(--border);background:var(--surface2);color:var(--t-red);font-family:var(--font-body)">Remove</button>` : ''}
         </td>
       </tr>`;
     } else {
@@ -4991,7 +4991,7 @@ function _rrBrowseCore(_co) {
       return `<tr onclick="browseRowClick(event, ${globalIdx})" style="cursor:pointer${_isQuick ? ';opacity:0.78' : ''}" title="${_isErrCar ? '⚠ Error car: ' + (pd.errorDesc||'see notes') : _isQuick ? '⚡ Quick Entry — details not yet filled in' : ''}">
         ${_mfrBadge(item)}
         <td>
-          <span class="item-num">${_displayItemNum(item)}${_isErrCar ? '<sup style="color:var(--accent);font-size:0.65rem">*</sup>' : ''}${_isQuick ? '<span onclick="event.stopPropagation();completeQuickEntry(\''+_rrAttrArg(item.itemNum)+'\',\''+_rrAttrArg(item.variation||'')+'\','+globalIdx+',\''+(pd.inventoryId||'')+'\')" style="font-size:0.6rem;background:#2ecc71;color:#fff;border-radius:3px;padding:1px 4px;vertical-align:middle;font-weight:600;cursor:pointer" title="Complete this Quick Entry">⚡</span>' : ''}</span>${_noNumTag(item.itemNum)}${_eraBadgeHtml}${_lineBadgeHtml}
+          <span class="item-num">${_displayItemNum(item)}${_isErrCar ? '<sup style="color:var(--t-accent);font-size:0.65rem">*</sup>' : ''}${_isQuick ? '<span onclick="event.stopPropagation();completeQuickEntry(\''+_rrAttrArg(item.itemNum)+'\',\''+_rrAttrArg(item.variation||'')+'\','+globalIdx+',\''+(pd.inventoryId||'')+'\')" style="font-size:0.6rem;background:#2ecc71;color:#fff;border-radius:3px;padding:1px 4px;vertical-align:middle;font-weight:600;cursor:pointer" title="Complete this Quick Entry">⚡</span>' : ''}</span>${_noNumTag(item.itemNum)}${_eraBadgeHtml}${_lineBadgeHtml}
           ${_itemExternalLinkHTML(item)}
           <span id="cam-${_rrRowDomKey(item)}" style="margin-left:5px;font-size:0.85rem;cursor:pointer;display:none" onclick="event.stopPropagation();openPhotoFolder('${_rrAttrArg(item.itemNum)}','${_rrAttrArg(pd&&pd.photoItem?pd.photoItem:'')}')" title="Open photo folder">📷</span>
         </td>
@@ -5037,7 +5037,7 @@ function _rrBrowseCore(_co) {
   const _crossScopeBanner = _showCrossScope
     ? ('<div id="cross-scope-search-area" style="padding:2rem 1rem;text-align:center">'
       + '<div style="font-size:2rem;margin-bottom:0.5rem">🔍</div>'
-      + '<p style="font-weight:600;margin-bottom:0.4rem">No matches in ' + _ssEraLabel + ' for &ldquo;<span style="color:var(--accent)">' + _ssEsc + '</span>&rdquo;</p>'
+      + '<p style="font-weight:600;margin-bottom:0.4rem">No matches in ' + _ssEraLabel + ' for &ldquo;<span style="color:var(--t-accent)">' + _ssEsc + '</span>&rdquo;</p>'
       + '<p style="font-size:0.85rem;color:var(--text-dim);margin-bottom:0.9rem">Want to look across your other manufacturers and eras?</p>'
       + '<button onclick="_triggerCrossScopeSearch()" style="padding:0.55rem 1rem;border-radius:7px;border:1px solid var(--border);background:var(--accent);color:var(--on-accent);font-family:var(--font-body);font-size:0.9rem;font-weight:600;cursor:pointer">Search across all your eras</button>'
       + '</div>')

@@ -135,7 +135,7 @@
     var appendLabel = _fill(cfg.appendButton || 'Append', { destTab: p.destTab });
 
     return '' +
-      '<div style="font-size:0.82rem;color:var(--accent);font-weight:600;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:0.5rem">' + _esc(cfg.previewTitle || 'Preview') + '</div>' +
+      '<div style="font-size:0.82rem;color:var(--t-accent);font-weight:600;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:0.5rem">' + _esc(cfg.previewTitle || 'Preview') + '</div>' +
       '<div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:1rem;font-size:0.95rem;line-height:1.6;margin-bottom:0.8rem">' + _esc(previewText) + '</div>' +
       '<div style="font-size:0.9rem;color:var(--text-mid);line-height:1.55;margin-bottom:1rem">' + _esc(readyText) + '</div>' +
       '<div id="mig-err" style="display:none;margin-bottom:0.8rem;padding:0.7rem 0.9rem;background:rgba(240,80,8,0.12);border-left:3px solid var(--red);border-radius:6px;font-size:0.88rem;color:var(--text)"></div>' +
@@ -158,7 +158,7 @@
     var clearText = _fill(cfg.clearPromptText || '', { sourceTab: p.sourceTab });
 
     return '' +
-      '<div style="font-size:0.82rem;color:#2ecc71;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:0.5rem">Step 2 of 3 complete</div>' +
+      '<div style="font-size:0.82rem;color:var(--t-green);font-weight:600;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:0.5rem">Step 2 of 3 complete</div>' +
       '<div style="background:rgba(46,204,113,0.10);border:1px solid rgba(46,204,113,0.4);border-radius:10px;padding:1rem;font-size:0.95rem;line-height:1.6;margin-bottom:0.8rem">' + _esc(appendedText) + '</div>' +
       '<div style="font-size:0.95rem;color:var(--text);line-height:1.55;margin-bottom:1rem">' + _esc(clearText) + '</div>' +
       '<div id="mig-err" style="display:none;margin-bottom:0.8rem;padding:0.7rem 0.9rem;background:rgba(240,80,8,0.12);border-left:3px solid var(--red);border-radius:6px;font-size:0.88rem;color:var(--text)"></div>' +

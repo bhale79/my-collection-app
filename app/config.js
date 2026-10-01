@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.1851';
+const APP_VERSION = 'v0.9.1852';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -173,14 +173,63 @@ function rrSyncInkOnAccent() {
     if (root.style.getPropertyValue('--ink-on-accent').trim() !== want) root.style.setProperty('--ink-on-accent', want);
   } catch (e) {}
 }
+// ── v0.9.1852: WORDS THAT READ ON THE CREAM ─────────────────────────────
+// [stated] Brad: "are there other readability issues in the app?" → measured
+// every screen → preview → "yes". The skin's colours (gold, purple, blue,
+// green…) are chosen for the NAVY chrome; used as WORDS on the cream content
+// area they read at 1.2–4.2. The same rule as the badges, one level up: for
+// the content area (or the whole page on the light theme) each skin colour
+// that words use is darkened — same hue — until it reads at RR_READABLE_MIN on
+// the darkest cream there. Fills keep the skin's own --accent (the badges stay
+// gold); words that used var(--accent) use var(--t-accent).
+var RR_READABLE_MIN = 5;   // the target score (4.5 is the floor; a margin for small text)
+var RR_READABLE_VARS = ['--accent2', '--accent3', '--gold', '--forsale', '--want', '--green'];
+function rrDarkenFor(color, bg, target) {
+  var c = String(color || '').trim();
+  var m = c.match(/^#([0-9a-f]{6})$/i);
+  if (!m) { var r = c.match(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/i); if (!r) return c; m = [0, [r[1], r[2], r[3]].map(function (v) { return ('0' + (+v).toString(16)).slice(-2); }).join('')]; }
+  var rgb = [0, 2, 4].map(function (i) { return parseInt(m[1].substr(i, 2), 16); });
+  var hex = function (k) { return '#' + rgb.map(function (v) { return ('0' + Math.round(v * k).toString(16)).slice(-2); }).join(''); };
+  for (var k = 1; k > 0; k -= 0.02) { var x = hex(k); var cr = rrContrast(x, bg); if (cr != null && cr >= target) return x; }
+  return hex(0);
+}
+function rrSyncReadableText() {
+  try {
+    var light = document.documentElement.getAttribute('data-theme') === 'light';
+    var host = light ? document.body : document.querySelector('.main');
+    if (!host) return;
+    var hcs = getComputedStyle(host);
+    // the darkest cream words sit on in that area
+    var bgs = [hcs.getPropertyValue('--surface3'), hcs.getPropertyValue('--bg'), hcs.getPropertyValue('--surface2')]
+      .map(function (v) { return String(v || '').trim(); }).filter(function (v) { return rrLuminance(v) != null; });
+    if (!bgs.length) return;
+    var bg = bgs.sort(function (a, b) { return rrLuminance(a) - rrLuminance(b); })[0];
+    var css = '';
+    if (rrLuminance(bg) > 0.4) {   // a cream area (high contrast's black needs no darkening)
+      var root = getComputedStyle(document.documentElement);
+      RR_READABLE_VARS.concat(['--accent']).forEach(function (v) {
+        var val = String(root.getPropertyValue(v) || '').trim();
+        if (rrLuminance(val) == null) return;
+        css += (v === '--accent' ? '--t-accent' : v) + ':' + rrDarkenFor(val, bg, RR_READABLE_MIN) + ';';
+      });
+    }
+    var rule = css ? ((light ? 'body' : '.main') + '{' + css + '}') : '';
+    var el = document.getElementById('rr-readable-text');
+    if (!el) { el = document.createElement('style'); el.id = 'rr-readable-text'; document.head.appendChild(el); }
+    if (el.textContent !== rule) el.textContent = rule;
+  } catch (e) {}
+}
+function rrSyncInk() { rrSyncInkOnAccent(); rrSyncReadableText(); }
+
 if (typeof window !== 'undefined') {
   window.rrLuminance = rrLuminance; window.rrContrast = rrContrast; window.rrInkOn = rrInkOn; window.rrSyncInkOnAccent = rrSyncInkOnAccent;
+  window.rrDarkenFor = rrDarkenFor; window.rrSyncReadableText = rrSyncReadableText;
   try {
     // the skin is applied by writing --accent on <html> (appearance.js) and the
     // theme by data-theme — watching both is the one door every change passes
-    new MutationObserver(rrSyncInkOnAccent).observe(document.documentElement, { attributes: true, attributeFilter: ['style', 'data-theme', 'class'] });
-    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', rrSyncInkOnAccent);
-    rrSyncInkOnAccent();
+    new MutationObserver(rrSyncInk).observe(document.documentElement, { attributes: true, attributeFilter: ['style', 'data-theme', 'class'] });
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', rrSyncInk);
+    rrSyncInk();
   } catch (e) {}
 }
 
@@ -1028,7 +1077,7 @@ const BRAND_BLURB   = 'A web-based inventory tool for model train collectors. '
 // Wordmark: cream with the orange accent on "Rail" (matches the rest of the
 // app). Callers set their own font-size on the wrapper element.
 const BRAND_WORDMARK_HTML =
-  'The <span style="color:var(--accent)">Rail</span> Roster';
+  'The <span style="color:var(--t-accent)">Rail</span> Roster';
 if (typeof window !== 'undefined') {
   window.BRAND_TAGLINE = BRAND_TAGLINE;
   window.BRAND_BLURB = BRAND_BLURB;

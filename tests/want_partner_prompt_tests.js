@@ -71,7 +71,7 @@ const check = new Function(...Object.keys(world), fnSrc + '\nreturn _checkWantPa
 function own(...nums) { world.state.personalData = {}; nums.forEach((n, i) => { world.state.personalData['inv' + i] = { owned: true, itemNum: n, variation: '' }; }); }
 function want(...nums) { world.state.wantData = {}; nums.forEach(n => { world.state.wantData[n + '|'] = { itemNum: n }; }); }
 function run(num) { world.built.length = 0; check(num, '', 'Medium', '', ''); return world.built.length ? world.built[world.built.length - 1] : ''; }
-function listed(html) { return (html.match(/font-weight:600;color:var\(--accent\)">([^<]+)</g) || []).map(m => m.replace(/.*">/, '').replace('<', '')); }
+function listed(html) { return (html.match(/font-weight:600;color:var\(--t-accent\)">([^<]+)</g) || []).map(m => m.replace(/.*">/, '').replace('<', '')); }
 
 // ── BRAD'S CASE: engine added to match a tender he owns ──────────────────
 console.log('\n== The engine is being wanted BECAUSE of a tender already owned ==');

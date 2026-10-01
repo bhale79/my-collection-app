@@ -169,7 +169,7 @@
     ov.innerHTML =
       '<div class="rr-card">'
       + '<div style="font-size:1.05rem;font-weight:800;color:var(--text,#fff);margin-bottom:0.6rem">📸 Research Result</div>'
-      + '<div style="font-size:1.3rem;font-weight:800;color:var(--accent,#e8401c)">' + (_esc(itemNum) || 'No number found') + '</div>'
+      + '<div style="font-size:1.3rem;font-weight:800;color:var(--t-accent)">' + (_esc(itemNum) || 'No number found') + '</div>'
       + '<div style="font-size:0.9rem;color:var(--text,#eee);margin:0.25rem 0 0.15rem">'
       +   _esc([mfr, road].filter(Boolean).join(' — ')) + '</div>'
       + (desc ? '<div style="font-size:0.85rem;color:var(--text-mid,#aaa);line-height:1.45;margin-bottom:0.3rem">' + _esc(desc) + '</div>' : '')
@@ -194,11 +194,11 @@
       + '<div id="rs-market" style="margin-bottom:0.75rem;font-size:0.82rem;color:var(--text-mid,#aaa)">Checking community market value…</div>'
       // Actions
       + '<div style="display:flex;flex-direction:column;gap:0.5rem">'
-      +   '<button id="rs-google" style="padding:0.7rem;border-radius:9px;border:1.5px solid #2ecc71;background:var(--bg-card);background:color-mix(in srgb, rgb(46,204,113) 12%, var(--bg-card));color:#2ecc71;font-weight:700;font-size:0.9rem;cursor:pointer;font-family:var(--font-body,inherit)">🔍 Google Price Check</button>'
-      +   '<button id="rs-ebay-now" style="padding:0.7rem;border-radius:9px;border:1.5px solid #3498db;background:var(--bg-card);background:color-mix(in srgb, rgb(52,152,219) 12%, var(--bg-card));color:#3498db;font-weight:700;font-size:0.9rem;cursor:pointer;font-family:var(--font-body,inherit)">🛒 On eBay Now</button>'
-      +   '<button id="rs-ebay" style="padding:0.7rem;border-radius:9px;border:1.5px solid #e67e22;background:var(--bg-card);background:color-mix(in srgb, rgb(230,126,34) 12%, var(--bg-card));color:#e67e22;font-weight:700;font-size:0.9rem;cursor:pointer;font-family:var(--font-body,inherit)">💰 eBay Sold Prices</button>'
-      +   (itemNum && res.masterItem ? '<button id="rs-want" style="padding:0.7rem;border-radius:9px;border:1.5px solid #2ecc71;background:var(--bg-card);background:color-mix(in srgb, rgb(46,204,113) 12%, var(--bg-card));color:#2ecc71;font-weight:700;font-size:0.9rem;cursor:pointer;font-family:var(--font-body,inherit)">➕ Add to My Want List</button>' : '')
-      +   '<button id="rs-again" style="padding:0.7rem;border-radius:9px;border:1.5px solid var(--accent,#e8401c);background:var(--bg-card);background:color-mix(in srgb, rgb(232,64,28) 12%, var(--bg-card));color:var(--accent,#e8401c);font-weight:700;font-size:0.9rem;cursor:pointer;font-family:var(--font-body,inherit)">📸 Research Another</button>'
+      +   '<button id="rs-google" style="padding:0.7rem;border-radius:9px;border:1.5px solid #2ecc71;background:var(--bg-card);background:color-mix(in srgb, rgb(46,204,113) 12%, var(--bg-card));color:var(--t-green);font-weight:700;font-size:0.9rem;cursor:pointer;font-family:var(--font-body,inherit)">🔍 Google Price Check</button>'
+      +   '<button id="rs-ebay-now" style="padding:0.7rem;border-radius:9px;border:1.5px solid #3498db;background:var(--bg-card);background:color-mix(in srgb, rgb(52,152,219) 12%, var(--bg-card));color:var(--t-info);font-weight:700;font-size:0.9rem;cursor:pointer;font-family:var(--font-body,inherit)">🛒 On eBay Now</button>'
+      +   '<button id="rs-ebay" style="padding:0.7rem;border-radius:9px;border:1.5px solid #e67e22;background:var(--bg-card);background:color-mix(in srgb, rgb(230,126,34) 12%, var(--bg-card));color:var(--t-orange);font-weight:700;font-size:0.9rem;cursor:pointer;font-family:var(--font-body,inherit)">💰 eBay Sold Prices</button>'
+      +   (itemNum && res.masterItem ? '<button id="rs-want" style="padding:0.7rem;border-radius:9px;border:1.5px solid #2ecc71;background:var(--bg-card);background:color-mix(in srgb, rgb(46,204,113) 12%, var(--bg-card));color:var(--t-green);font-weight:700;font-size:0.9rem;cursor:pointer;font-family:var(--font-body,inherit)">➕ Add to My Want List</button>' : '')
+      +   '<button id="rs-again" style="padding:0.7rem;border-radius:9px;border:1.5px solid var(--accent,#e8401c);background:var(--bg-card);background:color-mix(in srgb, rgb(232,64,28) 12%, var(--bg-card));color:var(--t-accent);font-weight:700;font-size:0.9rem;cursor:pointer;font-family:var(--font-body,inherit)">📸 Research Another</button>'
       +   '<button id="rs-close" style="padding:0.6rem;border-radius:9px;border:1.5px solid var(--border,#333);background:var(--surface2,#26262e);color:var(--text-mid,#aaa);font-size:0.85rem;cursor:pointer;font-family:var(--font-body,inherit)">Close</button>'
       + '</div></div>';
     document.body.appendChild(ov);

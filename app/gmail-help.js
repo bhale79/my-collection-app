@@ -170,7 +170,7 @@
 
     var header =
       '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:0.75rem;margin-bottom:0.5rem">' +
-        '<button onclick="gmailBackToChooser()" style="background:none;border:none;color:var(--accent);font-size:' + s.body + ';cursor:pointer;padding:0.3rem 0.5rem 0.3rem 0;font-weight:600">' + _escape(cfg.backLabel || '\u2190 Back') + '</button>' +
+        '<button onclick="gmailBackToChooser()" style="background:none;border:none;color:var(--t-accent);font-size:' + s.body + ';cursor:pointer;padding:0.3rem 0.5rem 0.3rem 0;font-weight:600">' + _escape(cfg.backLabel || '\u2190 Back') + '</button>' +
         '<button onclick="gmailCloseHelp()" aria-label="Close" style="background:none;border:none;color:var(--text-mid);font-size:1.6rem;cursor:pointer;padding:0.2rem 0.4rem;line-height:1">\u00D7</button>' +
       '</div>' +
       '<div style="font-family:var(--font-head);font-size:' + s.head + ';font-weight:700;color:var(--text);line-height:1.2;margin-bottom:0.3rem">' +
@@ -187,7 +187,7 @@
       stepsHtml += '<ol style="padding-left:1.6rem;margin:0;font-size:' + s.body + ';color:var(--text);line-height:1.6">';
       (path.steps || []).forEach(function(step, i) {
         var linkHtml = step.link
-          ? ' <a href="' + _escape(step.link) + '" target="_blank" rel="noopener" style="color:var(--accent);font-weight:600">Open the page \u2197</a>'
+          ? ' <a href="' + _escape(step.link) + '" target="_blank" rel="noopener" style="color:var(--t-accent);font-weight:600">Open the page \u2197</a>'
           : '';
         var shotHtml = step.screenshot
           ? '<div style="margin-top:0.5rem"><img src="' + _escape(step.screenshot) + '" alt="Step ' + (i+1) + ' screenshot" style="max-width:100%;border-radius:8px;border:1px solid var(--border)"></div>'

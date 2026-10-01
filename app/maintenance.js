@@ -71,7 +71,7 @@
   function _attr(cls, style) { return 'class="' + cls + '"' + (style ? ' style="' + style + '"' : ''); }
   // in-body button; color is only a hint: 'red' = destructive text
   function _btn(color, size, extra) {
-    return _attr('maint-btn', _btnSize(size) + ';' + _QUIET + (color === 'red' ? ';color:#e74c3c' : '') + (extra ? ';' + extra : ''));
+    return _attr('maint-btn', _btnSize(size) + ';' + _QUIET + (color === 'red' ? ';color:var(--t-danger)' : '') + (extra ? ';' + extra : ''));
   }
   function _btnQuiet(size, extra) { return _btn('', size, extra); }
   // footer pair — the wizard's CANCEL / NEXT
@@ -2125,7 +2125,7 @@
         + (icon ? icon + ' ' : '') + '<b>' + _esc(l.dateDone || l.dateAdded) + '</b> — ' + _esc(l.text)
         + (l.partNum ? ' <span style="font-family:var(--font-mono);color:var(--accent2)">#' + _esc(l.partNum) + '</span>' : '')
         + (l.by && l.by !== 'self' ? ' <span style="color:var(--text-dim)">(' + _esc(l.by) + ')</span>' : '')
-        + (l.type === 'chore' && l.status === 'open' ? ' <span style="color:#e67e22">open</span>' : '')
+        + (l.type === 'chore' && l.status === 'open' ? ' <span style="color:var(--t-orange)">open</span>' : '')
         + (l.notes ? '<div style="font-size:0.76rem;color:var(--text-dim);margin-top:0.15rem">' + _esc(l.notes).slice(0, 140) + (l.notes.length > 140 ? '…' : '') + '</div>' : '')
         + '</div>'
         + '<button onclick="_maintRemoveEntry(\'' + rrJsArg(l.id) + '\')" ' + _btn('red', 'sm', 'flex-shrink:0') + '>Remove</button>'
@@ -2157,7 +2157,7 @@
       + '<div style="flex:1"><label style="' + LB + '">Serviced by</label><input id="ent-by" type="text" value="' + _esc(l.by) + '" placeholder="self / service station" style="' + IN + '"></div></div>'
       + (l.partNum ? '<label style="' + LB + '">Part number</label><input id="ent-part" type="text" value="' + _esc(l.partNum) + '" style="' + IN + ';font-family:var(--font-mono)">' : '')
       + '<label style="' + LB + '">Notes</label><textarea id="ent-notes" rows="4" style="' + IN + ';resize:vertical">' + _esc(l.notes || '') + '</textarea>'
-      + _cardFoot('<button onclick="_maintRemoveEntry(\'' + rrJsArg(l.id) + '\')" ' + _btnSecondary('margin-right:auto;color:#e74c3c') + '>Remove</button>'
+      + _cardFoot('<button onclick="_maintRemoveEntry(\'' + rrJsArg(l.id) + '\')" ' + _btnSecondary('margin-right:auto;color:var(--t-danger)') + '>Remove</button>'
       + '<button onclick="document.getElementById(\'wb-entry\').remove()" ' + _btnCancel() + '>Cancel</button>'
       + '<button id="ent-save" ' + _btnSave() + '>Save</button>')
       + '</div></div>';
@@ -2934,7 +2934,7 @@
     var rows = list.map(function (b) {
       var photo = b.photo ? ' <a href="' + _esc(b.photo) + '" target="_blank" rel="noopener" style="font-size:0.72rem;color:var(--accent2);text-decoration:none">Photo</a>' : '';
       return '<tr>'
-        + '<td><span style="font-family:var(--font-head);color:var(--accent)">' + _esc(b.partNum || '\u2014') + '</span>' + photo + '</td>'
+        + '<td><span style="font-family:var(--font-head);color:var(--t-accent)">' + _esc(b.partNum || '\u2014') + '</span>' + photo + '</td>'
         + '<td style="white-space:normal">' + _esc(b.desc || '') + (b.where ? '<div style="font-size:0.72rem;color:var(--text-dim)">from ' + _esc(b.where) + '</div>' : '') + '</td>'
         + '<td>' + b.qty + '</td>'
         + '<td class="market-val" style="color:var(--forsale)">' + money(b.asking) + '</td>'
@@ -3212,7 +3212,7 @@
     var bin = (state.partsBin || []).slice().sort(function (a, b) { return (b.date || '').localeCompare(a.date || ''); });
     var spoken = _binSpokenFor();
     var head = '<div style="display:flex;align-items:center;justify-content:space-between;gap:0.5rem;flex-wrap:wrap;margin-bottom:0.3rem"><span style="font-family:var(--font-head);font-size:1rem;font-weight:700;color:var(--text)">Parts Bin</span>'
-      + '<button onclick="_maintBinForm()" class="btn" style="border:1.5px solid var(--accent);color:var(--accent);background:var(--bg-card);background:color-mix(in srgb, var(--accent) 10%, var(--bg-card));font-weight:600;padding:0.45rem 0.9rem;border-radius:8px;font-size:0.85rem">+ Add a loose part</button></div>'
+      + '<button onclick="_maintBinForm()" class="btn" style="border:1.5px solid var(--accent);color:var(--t-accent);background:var(--bg-card);background:color-mix(in srgb, var(--accent) 10%, var(--bg-card));font-weight:600;padding:0.45rem 0.9rem;border-radius:8px;font-size:0.85rem">+ Add a loose part</button></div>'
       + '<div style="font-size:0.82rem;color:var(--text-dim);margin-bottom:0.85rem">Everything in the drawer — parts spoken for by a train, and loose spares with what they fit. Need-a-part checks here first.</div>';
     var H = function (t, n) { return '<div style="font-size:0.72rem;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--text-dim);margin:1rem 0 0.5rem">' + t + (n ? ' (' + n + ')' : '') + '</div>'; };
     if (!bin.length && !spoken.length) {
@@ -3408,7 +3408,7 @@
       + '<label style="' + LB + '">Covers (item numbers, comma-separated — blank = general)</label><input id="tbe-covers" type="text" value="' + _esc(d.covers) + '" style="' + IN + '">'
       + '<label style="' + LB + '">Topics (comma-separated)</label><input id="tbe-topics" type="text" value="' + _esc(d.topics) + '" style="' + IN + '">'
       + '<label style="' + LB + '">Notes</label><textarea id="tbe-notes" rows="3" style="' + IN + ';resize:vertical">' + _esc(d.notes || '') + '</textarea>'
-      + _cardFoot('<button onclick="_tbRemove(\'' + rrJsArg(d.id) + '\')" ' + _btnSecondary('margin-right:auto;color:#e74c3c') + '>Remove</button>'
+      + _cardFoot('<button onclick="_tbRemove(\'' + rrJsArg(d.id) + '\')" ' + _btnSecondary('margin-right:auto;color:var(--t-danger)') + '>Remove</button>'
       + '<button onclick="document.getElementById(\'tb-edit\').remove()" ' + _btnCancel() + '>Cancel</button>'
       + '<button id="tbe-save" ' + _btnSave() + '>Save</button>')
       + '</div></div>';
