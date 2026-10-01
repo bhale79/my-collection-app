@@ -61,7 +61,7 @@
       'title="' + _escape(fullLabel) + '" ' +
       'style="display:inline-block;padding:' + padY + ' ' + padX + ';' +
       'border-radius:4px;font-size:' + fontSize + ';font-weight:700;' +
-      'letter-spacing:0.05em;background:' + _escape(accent) + ';color:#fff;' +
+      'letter-spacing:0.05em;background:' + _escape(accent) + ';color:' + _escape(rrInkOn(accent)) + ';' +   // v0.9.1851
       'vertical-align:middle;margin-left:4px;line-height:1;white-space:nowrap">' +
       _escape(shortLabel) + '</span>';
   }

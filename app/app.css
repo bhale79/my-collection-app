@@ -104,6 +104,15 @@
     --warn:      #f0b429;   /* warnings */
     --info:      #3498db;   /* informational */
     --on-accent: #ffffff;   /* text placed on accent-colored fills */
+    /* v0.9.1851 ([stated] Brad: "This yellow is hard to see for older people" →
+       option A, "lets do a"). The two letter colors a colored BADGE may use;
+       rrInkOn (config.js) picks whichever reads better on the badge's fill.
+       --ink-on-accent is that pick for the theme's accent, kept current by
+       config.js whenever the theme or skin changes. --worth = a price. */
+    --ink-dark:  #132447;
+    --ink-light: #ffffff;
+    --ink-on-accent: #ffffff;
+    --worth:     #2ecc71;   /* on the navy surfaces outside the content area */
     /* v0.9.1178 — the dim behind a modal or a bottom sheet. Twenty-odd screens
        type this value out by hand; a scrim is a palette decision, so it belongs
        here. Same value the hand-typed ones already use, so nothing looks any
@@ -156,6 +165,7 @@
     --cream:     #2a2015;
     --accent2:   #b8860b;
     --gold:      #b8860b;
+    --worth:     #2a7a18;   /* v0.9.1851 */
     background:  #f8e8c0;
   }
   html[data-theme="light"] body { background: #f8e8c0; }
@@ -184,6 +194,8 @@
     --gold-light:#ffff80;
     --navy:      #000000;
     --cream:     #ffffff;
+    --ink-dark:  #000000;   /* v0.9.1851 */
+    --worth:     #00ff40;
   }
   /* Reinforce borders so UI boundaries are clearer in HC mode */
   html[data-theme="high-contrast"] .nav-item,
@@ -209,6 +221,7 @@
     --text:      #ffffff;
     --text-dim:  #c0c0c0;
     --text-mid:  #e0e0e0;
+    --worth:     #00ff40;   /* v0.9.1851 */
     background:  #000000;
   }
 
@@ -230,6 +243,7 @@
     --text-mid:  #5a4e38;
     --navy:      #2a2015;
     --cream:     #2a2015;
+    --worth:     #2a7a18;   /* v0.9.1851: money green on cream (5.3:1); was gold 2.2:1 */
     background: #f8e8c0;
   }
   .main .stat-card { box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
@@ -612,7 +626,7 @@
   .nav-item.active { background: rgba(139,142,148,0.12); color: #2980b9; font-family: var(--font-body); font-weight: 500; }
   .nav-item svg { flex-shrink: 0; opacity: 0.8; }
   .nav-badge {
-    margin-left: auto; background: var(--accent); color: white;
+    margin-left: auto; background: var(--accent); color: var(--ink-on-accent);   /* v0.9.1851: readable on any skin's accent */
     border-radius: 10px; padding: 0.1rem 0.45rem; font-size: 0.7rem; font-weight: 600;
   }
   .nav-badge.green { background: var(--green); }

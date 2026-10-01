@@ -346,7 +346,7 @@ function _dbInjectUI() {
     btn.innerHTML =
       '<img src="' + DISPATCH_CFG.iconSm + '" alt="" style="width:17px;height:17px;border-radius:50%;flex-shrink:0">'
       + 'Dispatch Board'
-      + '<span class="nav-badge" id="nav-dispatch-badge" style="display:none;background:var(--accent,#e04028);color:#fff">0</span>';
+      + '<span class="nav-badge" id="nav-dispatch-badge" style="display:none;background:var(--accent);color:var(--ink-on-accent)">0</span>';
     if (refreshBtn) homeSection.insertBefore(btn, refreshBtn);
     else homeSection.appendChild(btn);
   }

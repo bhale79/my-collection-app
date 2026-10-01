@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.1850';
+const APP_VERSION = 'v0.9.1851';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -117,6 +117,72 @@ window.rrBuildPage = function (name) {
   try { b(); } catch (e) { console.warn('[page builder]', name, e); }
   return true;
 };
+
+// ── v0.9.1851: LETTERS THAT READ ON ANY BADGE ─────────────────────────────
+// [stated] Brad: "This yellow is hard to see for older people" → shown three
+// options → "lets do a": keep every badge's color, darken the words. White
+// letters on the Alaska skin's gold read at 1.9:1 (4.5 is the standard).
+// ONE rule instead of color by color: a colored badge asks rrInkOn(fill) and
+// gets var(--ink-dark) or var(--ink-light) (app.css), whichever reads better —
+// every maker and era badge, every skin, and any badge added later.
+// A fill of var(--accent) answers var(--ink-on-accent), which this file keeps
+// current whenever the theme or skin changes (the observer below), so a badge
+// drawn once at start still reads after the skin is switched.
+function rrLuminance(c) {
+  var m = String(c || '').trim().match(/^#([0-9a-f]{3}|[0-9a-f]{6})$/i), rgb;
+  if (m) {
+    var h = m[1].length === 3 ? m[1].replace(/(.)/g, '$1$1') : m[1];
+    rgb = [0, 2, 4].map(function (i) { return parseInt(h.substr(i, 2), 16); });
+  } else {
+    var r = String(c || '').match(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/i);
+    if (!r) return null;
+    rgb = [+r[1], +r[2], +r[3]];
+  }
+  var f = function (v) { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); };
+  return 0.2126 * f(rgb[0]) + 0.7152 * f(rgb[1]) + 0.0722 * f(rgb[2]);
+}
+function rrContrast(a, b) {
+  var la = rrLuminance(a), lb = rrLuminance(b);
+  if (la == null || lb == null) return null;
+  return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
+}
+function _rrCssVar(name) {
+  try { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); } catch (e) { return ''; }
+}
+// resolve "var(--x)" / "var(--x, fallback)" to the color it currently means
+function _rrResolveColor(c) {
+  var s = String(c || '').trim();
+  var m = s.match(/^var\(\s*(--[\w-]+)\s*(?:,\s*([^)]+))?\)$/);
+  if (!m) return s;
+  return _rrCssVar(m[1]) || (m[2] || '').trim();
+}
+function rrInkOn(fill) {
+  var s = String(fill || '').trim();
+  if (/^var\(\s*--accent\s*[,)]/.test(s)) return 'var(--ink-on-accent)';
+  var bg = _rrResolveColor(s);
+  var cd = rrContrast(_rrCssVar('--ink-dark'), bg), cl = rrContrast(_rrCssVar('--ink-light'), bg);
+  if (cd == null || cl == null) return 'var(--ink-light)';
+  return cd > cl ? 'var(--ink-dark)' : 'var(--ink-light)';
+}
+function rrSyncInkOnAccent() {
+  try {
+    var acc = _rrCssVar('--accent');
+    var cd = rrContrast(_rrCssVar('--ink-dark'), acc), cl = rrContrast(_rrCssVar('--ink-light'), acc);
+    var want = (cd != null && cl != null && cd > cl) ? 'var(--ink-dark)' : 'var(--ink-light)';
+    var root = document.documentElement;
+    if (root.style.getPropertyValue('--ink-on-accent').trim() !== want) root.style.setProperty('--ink-on-accent', want);
+  } catch (e) {}
+}
+if (typeof window !== 'undefined') {
+  window.rrLuminance = rrLuminance; window.rrContrast = rrContrast; window.rrInkOn = rrInkOn; window.rrSyncInkOnAccent = rrSyncInkOnAccent;
+  try {
+    // the skin is applied by writing --accent on <html> (appearance.js) and the
+    // theme by data-theme — watching both is the one door every change passes
+    new MutationObserver(rrSyncInkOnAccent).observe(document.documentElement, { attributes: true, attributeFilter: ['style', 'data-theme', 'class'] });
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', rrSyncInkOnAccent);
+    rrSyncInkOnAccent();
+  } catch (e) {}
+}
 
 // ── v0.9.1791: THE BACKDROP DOES NOT CLOSE ANYTHING ──────────────────────
 // [stated] Brad: "never close if you pick outside", and then, for the

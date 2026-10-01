@@ -139,7 +139,7 @@ function _mfrBadge(item) {
     // full maker is still readable on hover (Brad: "CARARAMA" overran Item #).
     return '<td style="max-width:9rem;overflow:hidden"><span class="mfr-badge" title="'
          + String(lbl).replace(/"/g, '&quot;') + '" style="display:inline-block;padding:0.13rem 0.5rem;'
-         + 'border-radius:10px;background:' + col + ';color:#fff;'
+         + 'border-radius:10px;background:' + col + ';color:' + rrInkOn(col) + ';'   // v0.9.1851: readable letters on any fill
          + 'font-size:0.62rem;font-weight:700;letter-spacing:0.06em;'
          + 'text-transform:uppercase;white-space:nowrap;line-height:1.2">'
          + lbl + '</span></td>';
@@ -2224,7 +2224,7 @@ async function _triggerCrossScopeSearch() {
     var dShort = dEsc.length > 100 ? (dEsc.substring(0,100) + '\u2026') : dEsc;
     html += '<div onclick="_openInOtherEra(\'' + _jsArg(r.n) + '\', \'' + r.e + '\', \'' + _jsArg(r.v) + '\')" '
       + 'style="display:flex;align-items:center;gap:0.5rem;padding:0.55rem 0.65rem;border-radius:7px;border:1px solid var(--border);background:var(--surface);cursor:pointer">'
-      + '<span style="display:inline-block;padding:2px 7px;border-radius:4px;font-size:0.62rem;font-weight:700;letter-spacing:0.05em;color:#fff;background:' + accent + ';white-space:nowrap;flex-shrink:0">' + _esc(eraLabel) + '</span>'
+      + '<span style="display:inline-block;padding:2px 7px;border-radius:4px;font-size:0.62rem;font-weight:700;letter-spacing:0.05em;color:' + rrInkOn(accent) + ';background:' + accent + ';white-space:nowrap;flex-shrink:0">' + _esc(eraLabel) + '</span>'
       + '<span style="font-weight:600;font-size:0.9rem;flex-shrink:0">' + nEsc + (vEsc ? ' <span style="color:var(--text-dim);font-weight:400;font-size:0.78rem">' + vEsc + '</span>' : '') + '</span>'
       + (rEsc ? '<span style="color:var(--text-mid);font-size:0.82rem;white-space:nowrap">' + rEsc + '</span>' : '')
       + (dShort ? '<span style="color:var(--text-dim);font-size:0.78rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0">' + dShort + '</span>' : '')
@@ -4947,12 +4947,12 @@ function _rrBrowseCore(_co) {
           var _giW = (typeof _grpFoldInfo === 'function') ? _grpFoldInfo(pd) : null;
           if (_giW && _giW.lead === pd && _giW.worthN
               && (typeof _grpFoldActive !== 'function' || _grpFoldActive())) {
-            return '<td data-col="worth" style="font-size:0.82rem;color:var(--gold);white-space:nowrap;text-align:center" title="Sum of ' + _giW.worthN + ' of ' + _giW.count + ' pieces">'
+            return '<td data-col="worth" style="font-size:0.82rem;color:var(--worth);white-space:nowrap;text-align:center" title="Sum of ' + _giW.worthN + ' of ' + _giW.count + ' pieces">'
               + _currencySymbol() + _giW.worthSum.toLocaleString()
               + (_giW.worthN < _giW.count ? '<span style="color:var(--text-dim);font-size:0.68rem">*</span>' : '')
               + '</td>';
           }
-          return `<td data-col="worth" style="font-size:0.82rem;color:var(--gold);white-space:nowrap;text-align:center">${_estWorth}</td>`;
+          return `<td data-col="worth" style="font-size:0.82rem;color:var(--worth);white-space:nowrap;text-align:center">${_estWorth}</td>`;
         })();
         _cells.added = `<td data-col="added" style="font-size:0.76rem;color:var(--text-dim);white-space:nowrap;width:80px;text-align:center">${(function(){ var d = (typeof rrBestDate === 'function') ? rrBestDate(pd) : ((pd && (pd.dateAdded || pd.datePurchased)) || ''); if (d) return (typeof _formatDate === 'function') ? _formatDate(d) : d; if (pd && pd._savedAt) { try { return new Date(pd._savedAt).toLocaleDateString(); } catch(e){} } return '—'; })()}</td>`;
         // Extra columns: plain values straight off the personal row.
