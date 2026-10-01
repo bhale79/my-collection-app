@@ -1532,10 +1532,22 @@
             // ── the manufacturer row ──
             if (route === 'lcca') {
               // FUTURE SLOT: Brad's original Lionel parts diagrams go here, above LCCA.
+              // v0.9.1846 ([stated] Brad: "just remove the lcca button from the
+              // mobile app all together but keep it on the desktop"). The LCCA
+              // route is copy-the-link + paste it in the browser's address bar
+              // (LCCA's member cookie only rides on a typed/pasted address). A
+              // phone opens the link in Chrome's small in-app window, which has
+              // NO address bar — and Chrome refuses to hand an installed app's
+              // link to full Chrome (intent-to-self = navigate in place). So on
+              // a phone there is nowhere to paste: the button is not shown.
+              // Phone-ness = window.IS_MOBILE_UA, the ONE flag (config.js).
+              // Olsen's (free, no login) stays on every device.
+              if (!window.IS_MOBILE_UA) {
               h += '<button onclick="_maintLccaGo(\'' + rrJsArg(_docsUrl(route, item)) + '\')" ' + linkBtn + '>' + _esc(routeLabel) + ' →</button>'
                 + '<div id="maint-lcca-note" style="display:none;font-size:0.8rem;color:var(--text);background:var(--bg-card);background:color-mix(in srgb, rgb(41,128,185) 12%, var(--surface2));border:1px solid #2980b9;border-radius:8px;padding:0.55rem 0.7rem;margin-top:0.55rem"></div>'
-                + '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.45rem">' + (_pwsmHit ? 'Copies the link to this item\'s manual section and opens LCCA in a new tab — see the note above after you tap.' : 'No direct section mapped — the button copies the archive link; paste it in the LCCA tab.') + ' Requires LCCA membership.</div>'
-                + '<div style="margin-top:0.5rem"><button onclick="window.open(\'https://www.olsenstoy.com/searchcd1.htm\',\'_blank\')" ' + _btnQuiet() + '>Olsen\'s service library (free, no login) →</button></div>';
+                + '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.45rem">' + (_pwsmHit ? 'Copies the link to this item\'s manual section and opens LCCA in a new tab — see the note above after you tap.' : 'No direct section mapped — the button copies the archive link; paste it in the LCCA tab.') + ' Requires LCCA membership.</div>';
+              }
+              h += '<div' + (window.IS_MOBILE_UA ? '' : ' style="margin-top:0.5rem"') + '><button onclick="window.open(\'https://www.olsenstoy.com/searchcd1.htm\',\'_blank\')" ' + _btnQuiet() + '>Olsen\'s service library (free, no login) →</button></div>';
             } else if (route === 'atlas' && _atlasHit) {
               // v0.9.1744: the whole family — body, chassis, trucks — not just the first sheet
               var _atlasAll = _atlasMatchAll(item, eraKey) || [_atlasHit];
