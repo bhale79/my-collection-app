@@ -1,0 +1,1999 @@
+{
+ "what": "The master-list audit's \"check\" findings (run g, 2026-09-30) — fixed from named sources; sources read 2026-10-01",
+ "date": "2026-10-01",
+ "master_version": "1.90",
+ "counts": {
+  "cells": 106,
+  "rows_deleted": 3,
+  "rows_added": 3,
+  "left_as_is_audit_reads_them": 30,
+  "held_for_weaver_pass": 65
+ },
+ "cells_sha256": "fa50fd508f333a40ea62d75225d970e8302704507091103ad90a46b1c8d8eb22",
+ "cells": [
+  {
+   "tab": "Lionel PW - Items",
+   "item": "1013",
+   "variation": "1",
+   "column": "Year Produced",
+   "old": "Postwar era",
+   "new": "1945-1969",
+   "row_hint": 53,
+   "source": "Greenberg price guide (your reference-book photos), Postwar Raw Data p.62: \"1013 Curved Track (027), 45-69\"",
+   "why": "year was the words \"Postwar era\""
+  },
+  {
+   "tab": "Lionel PW - Items",
+   "item": "6035",
+   "variation": "3",
+   "column": "Description",
+   "old": "",
+   "new": "Undecorated Blue Single-Dome Tank Car",
+   "row_hint": 1759,
+   "source": "COTT tank-cars-small-single-dome-plastic, entry T0104: \"UNPAINTED AND UNDECORATED BLUE SINGLE DOME TANK CAR\", 1955",
+   "why": "blank description"
+  },
+  {
+   "tab": "Lionel PW - Items",
+   "item": "6176",
+   "variation": "1",
+   "column": "Description",
+   "old": "",
+   "new": "Lehigh Valley Hopper (1967 TTOS Convention Car)",
+   "row_hint": 1950,
+   "source": "COTT club-cars page: \"T.T.O.S. CONVENTION CARS … 1967 CONVENTION CAR No. 6176 HOPPER\"; the row's own road + notes",
+   "why": "blank description"
+  },
+  {
+   "tab": "Lionel MPC-Modern",
+   "item": "12863",
+   "variation": "",
+   "column": "Item Number",
+   "old": "12863",
+   "new": "12864",
+   "row_hint": 1919,
+   "source": "Greenberg price guide p.135 (your photo 20260402_184942.jpg, read 2026-10-01; the number column is printed half a line low — paired by lionel.com 6-12866 = 135-watt PowerHouse): \"12864 Little Caesars Tractor and Trailer, 94\"",
+   "why": "blank row with a number the book does not have"
+  },
+  {
+   "tab": "Lionel MPC-Modern",
+   "item": "12863",
+   "variation": "",
+   "column": "Item Type",
+   "old": "Accessory",
+   "new": "Intermodal",
+   "row_hint": 1919,
+   "source": "Greenberg price guide p.135 (your photo 20260402_184942.jpg, read 2026-10-01; the number column is printed half a line low — paired by lionel.com 6-12866 = 135-watt PowerHouse): \"12864 Little Caesars Tractor and Trailer, 94\"",
+   "why": "blank row with a number the book does not have"
+  },
+  {
+   "tab": "Lionel MPC-Modern",
+   "item": "12863",
+   "variation": "",
+   "column": "Sub-Type",
+   "old": "",
+   "new": "Tractor Trailer",
+   "row_hint": 1919,
+   "source": "Greenberg price guide p.135 (your photo 20260402_184942.jpg, read 2026-10-01; the number column is printed half a line low — paired by lionel.com 6-12866 = 135-watt PowerHouse): \"12864 Little Caesars Tractor and Trailer, 94\"",
+   "why": "blank row with a number the book does not have"
+  },
+  {
+   "tab": "Lionel MPC-Modern",
+   "item": "12863",
+   "variation": "",
+   "column": "Description",
+   "old": "",
+   "new": "Little Caesars Tractor and Trailer",
+   "row_hint": 1919,
+   "source": "Greenberg price guide p.135 (your photo 20260402_184942.jpg, read 2026-10-01; the number column is printed half a line low — paired by lionel.com 6-12866 = 135-watt PowerHouse): \"12864 Little Caesars Tractor and Trailer, 94\"",
+   "why": "blank row with a number the book does not have"
+  },
+  {
+   "tab": "Lionel MPC-Modern",
+   "item": "12863",
+   "variation": "",
+   "column": "Year Produced",
+   "old": "",
+   "new": "1994",
+   "row_hint": 1919,
+   "source": "Greenberg price guide p.135 (your photo 20260402_184942.jpg, read 2026-10-01; the number column is printed half a line low — paired by lionel.com 6-12866 = 135-watt PowerHouse): \"12864 Little Caesars Tractor and Trailer, 94\"",
+   "why": "blank row with a number the book does not have"
+  },
+  {
+   "tab": "Lionel MPC-Modern",
+   "item": "12863",
+   "variation": "",
+   "column": "Notes",
+   "old": "Description displaced in Greenberg transcription (neighbors were shifted one slot; this one was lost) — verify against the Greenberg book",
+   "new": "Was a blank row numbered 12863 — the book has no 12863; this slot is 12864 (corrected 2026-10-01 from the page photo, p.135)",
+   "row_hint": 1919,
+   "source": "Greenberg price guide p.135 (your photo 20260402_184942.jpg, read 2026-10-01; the number column is printed half a line low — paired by lionel.com 6-12866 = 135-watt PowerHouse): \"12864 Little Caesars Tractor and Trailer, 94\"",
+   "why": "blank row with a number the book does not have"
+  },
+  {
+   "tab": "Lionel PW - Boxes",
+   "item": "69",
+   "variation": "",
+   "column": "Original COTT Desc",
+   "old": "BOX: Yard Light, 11",
+   "new": "BOX: Maintenance Car",
+   "row_hint": 47,
+   "source": "Greenberg box pages (your photos 20260402_201548 p.486-487, _201846 p.506-507, _201907 p.508-509)",
+   "why": "still one row off from the old slide (it held the NEXT row's box)"
+  },
+  {
+   "tab": "Lionel PW - Boxes",
+   "item": "70",
+   "variation": "",
+   "column": "Original COTT Desc",
+   "old": "BOX: Lamp Post, 11",
+   "new": "BOX: Yard Light, 11",
+   "row_hint": 48,
+   "source": "Greenberg box pages (your photos 20260402_201548 p.486-487, _201846 p.506-507, _201907 p.508-509)",
+   "why": "still one row off from the old slide (it held the NEXT row's box)"
+  },
+  {
+   "tab": "Lionel PW - Boxes",
+   "item": "71",
+   "variation": "",
+   "column": "Original COTT Desc",
+   "old": "BOX: Goose Neck Lamps, 11",
+   "new": "BOX: Lamp Post, 11",
+   "row_hint": 49,
+   "source": "Greenberg box pages (your photos 20260402_201548 p.486-487, _201846 p.506-507, _201907 p.508-509)",
+   "why": "still one row off from the old slide (it held the NEXT row's box)"
+  },
+  {
+   "tab": "Lionel PW - Boxes",
+   "item": "75",
+   "variation": "",
+   "column": "Original COTT Desc",
+   "old": "BOX: Boulevard Street Lamps, 13",
+   "new": "BOX: Goose Neck Lamps, 11",
+   "row_hint": 50,
+   "source": "Greenberg box pages (your photos 20260402_201548 p.486-487, _201846 p.506-507, _201907 p.508-509)",
+   "why": "still one row off from the old slide (it held the NEXT row's box)"
+  },
+  {
+   "tab": "Lionel PW - Boxes",
+   "item": "76",
+   "variation": "A",
+   "column": "Original COTT Desc",
+   "old": "BOX: Boulevard Street Lamps (Hillside Checkerboard), 12",
+   "new": "BOX: Boulevard Street Lamps, 13",
+   "row_hint": 51,
+   "source": "Greenberg box pages (your photos 20260402_201548 p.486-487, _201846 p.506-507, _201907 p.508-509)",
+   "why": "still one row off from the old slide (it held the NEXT row's box)"
+  },
+  {
+   "tab": "Lionel PW - Boxes",
+   "item": "76",
+   "variation": "B",
+   "column": "Original COTT Desc",
+   "old": "BOX: Flagpole, 12",
+   "new": "BOX: Boulevard Street Lamps (Hillside Checkerboard), 12",
+   "row_hint": 52,
+   "source": "Greenberg box pages (your photos 20260402_201548 p.486-487, _201846 p.506-507, _201907 p.508-509)",
+   "why": "still one row off from the old slide (it held the NEXT row's box)"
+  },
+  {
+   "tab": "Lionel PW - Boxes",
+   "item": "89",
+   "variation": "",
+   "column": "Original COTT Desc",
+   "old": "BOX: Circuit Breaker, 11",
+   "new": "BOX: Flagpole, 12",
+   "row_hint": 53,
+   "source": "Greenberg box pages (your photos 20260402_201548 p.486-487, _201846 p.506-507, _201907 p.508-509)",
+   "why": "still one row off from the old slide (it held the NEXT row's box)"
+  },
+  {
+   "tab": "Lionel PW - Boxes",
+   "item": "91",
+   "variation": "",
+   "column": "Original COTT Desc",
+   "old": "BOX: Circuit Breaker",
+   "new": "BOX: Circuit Breaker, 11",
+   "row_hint": 54,
+   "source": "Greenberg box pages (your photos 20260402_201548 p.486-487, _201846 p.506-507, _201907 p.508-509)",
+   "why": "still one row off from the old slide (it held the NEXT row's box)"
+  },
+  {
+   "tab": "Lionel PW - Boxes",
+   "item": "92",
+   "variation": "",
+   "column": "Original COTT Desc",
+   "old": "BOX: Water Tower, 11",
+   "new": "BOX: Circuit Breaker",
+   "row_hint": 55,
+   "source": "Greenberg box pages (your photos 20260402_201548 p.486-487, _201846 p.506-507, _201907 p.508-509)",
+   "why": "still one row off from the old slide (it held the NEXT row's box)"
+  },
+  {
+   "tab": "Lionel PW - Boxes",
+   "item": "93",
+   "variation": "",
+   "column": "Original COTT Desc",
+   "old": "BOX: Coal Elevator, 17",
+   "new": "BOX: Water Tower, 11",
+   "row_hint": 56,
+   "source": "Greenberg box pages (your photos 20260402_201548 p.486-487, _201846 p.506-507, _201907 p.508-509)",
+   "why": "still one row off from the old slide (it held the NEXT row's box)"
+  },
+  {
+   "tab": "Lionel PW - Boxes",
+   "item": "97",
+   "variation": "",
+   "column": "Original COTT Desc",
+   "old": "BOX: Trestle Set (overstamped), 17",
+   "new": "BOX: Coal Elevator, 17",
+   "row_hint": 57,
+   "source": "Greenberg box pages (your photos 20260402_201548 p.486-487, _201846 p.506-507, _201907 p.508-509)",
+   "why": "still one row off from the old slide (it held the NEXT row's box)"
+  },
+  {
+   "tab": "Lionel PW - Boxes",
+   "item": "108",
+   "variation": "",
+   "column": "Original COTT Desc",
+   "old": "BOX: Graduated Trestle Set, 17",
+   "new": "BOX: Trestle Set (overstamped), 17",
+   "row_hint": 58,
+   "source": "Greenberg box pages (your photos 20260402_201548 p.486-487, _201846 p.506-507, _201907 p.508-509)",
+   "why": "still one row off from the old slide (it held the NEXT row's box)"
+  },
+  {
+   "tab": "Lionel PW - Boxes",
+   "item": "110",
+   "variation": "",
+   "column": "Original COTT Desc",
+   "old": "BOX: Elevated Trestle Set, 17",
+   "new": "BOX: Graduated Trestle Set, 17",
+   "row_hint": 59,
+   "source": "Greenberg box pages (your photos 20260402_201548 p.486-487, _201846 p.506-507, _201907 p.508-509)",
+   "why": "still one row off from the old slide (it held the NEXT row's box)"
+  },
+  {
+   "tab": "Lionel PW - Boxes",
+   "item": "6001T",
+   "variation": "",
+   "column": "Original COTT Desc",
+   "old": "BOX: NYC Gondola",
+   "new": "BOX: Tender, 12",
+   "row_hint": 965,
+   "source": "Greenberg box pages (your photos 20260402_201548 p.486-487, _201846 p.506-507, _201907 p.508-509)",
+   "why": "still one row off from the old slide (it held the NEXT row's box)"
+  },
+  {
+   "tab": "Lionel PW - Boxes",
+   "item": "6002",
+   "variation": "",
+   "column": "Original COTT Desc",
+   "old": "BOX: Baby Ruth PRR Boxcar",
+   "new": "BOX: NYC Gondola",
+   "row_hint": 966,
+   "source": "Greenberg box pages (your photos 20260402_201548 p.486-487, _201846 p.506-507, _201907 p.508-509)",
+   "why": "still one row off from the old slide (it held the NEXT row's box)"
+  },
+  {
+   "tab": "Lionel PW - Boxes",
+   "item": "6004",
+   "variation": "",
+   "column": "Original COTT Desc",
+   "old": "BOX: Lionel Lines SP-type Caboose",
+   "new": "BOX: Baby Ruth PRR Boxcar",
+   "row_hint": 967,
+   "source": "Greenberg box pages (your photos 20260402_201548 p.486-487, _201846 p.506-507, _201907 p.508-509)",
+   "why": "still one row off from the old slide (it held the NEXT row's box)"
+  },
+  {
+   "tab": "Lionel PW - Boxes",
+   "item": "6007",
+   "variation": "",
+   "column": "Original COTT Desc",
+   "old": "BOX: Remote Control Uncoupling Track, 2",
+   "new": "BOX: Lionel Lines SP-type Caboose",
+   "row_hint": 968,
+   "source": "Greenberg box pages (your photos 20260402_201548 p.486-487, _201846 p.506-507, _201907 p.508-509)",
+   "why": "still one row off from the old slide (it held the NEXT row's box)"
+  },
+  {
+   "tab": "Lionel PW - Boxes",
+   "item": "6009",
+   "variation": "",
+   "column": "Original COTT Desc",
+   "old": "BOX: Gondola",
+   "new": "BOX: Remote Control Uncoupling Track, 2",
+   "row_hint": 969,
+   "source": "Greenberg box pages (your photos 20260402_201548 p.486-487, _201846 p.506-507, _201907 p.508-509)",
+   "why": "still one row off from the old slide (it held the NEXT row's box)"
+  },
+  {
+   "tab": "Lionel PW - Boxes",
+   "item": "6342",
+   "variation": "",
+   "column": "Original COTT Desc",
+   "old": "BOX: Barrel Ramp Car, 18",
+   "new": "BOX: NYC Gondola, 18",
+   "row_hint": 1057,
+   "source": "Greenberg box pages (your photos 20260402_201548 p.486-487, _201846 p.506-507, _201907 p.508-509)",
+   "why": "still one row off from the old slide (it held the NEXT row's box)"
+  },
+  {
+   "tab": "Lionel PW - Boxes",
+   "item": "6343",
+   "variation": "",
+   "column": "Original COTT Desc",
+   "old": "BOX: Alcoa Quad Hopper, 18",
+   "new": "BOX: Barrel Ramp Car, 18",
+   "row_hint": 1058,
+   "source": "Greenberg box pages (your photos 20260402_201548 p.486-487, _201846 p.506-507, _201907 p.508-509)",
+   "why": "still one row off from the old slide (it held the NEXT row's box)"
+  },
+  {
+   "tab": "Lionel PW - Boxes",
+   "item": "6346",
+   "variation": "",
+   "column": "Original COTT Desc",
+   "old": "BOX: NYC Stock Car, 18",
+   "new": "BOX: Alcoa Quad Hopper, 18",
+   "row_hint": 1059,
+   "source": "Greenberg box pages (your photos 20260402_201548 p.486-487, _201846 p.506-507, _201907 p.508-509)",
+   "why": "still one row off from the old slide (it held the NEXT row's box)"
+  },
+  {
+   "tab": "Lionel PW - Boxes",
+   "item": "6356",
+   "variation": "",
+   "column": "Original COTT Desc",
+   "old": "BOX: SP-type Caboose (classic), 18",
+   "new": "BOX: NYC Stock Car, 18",
+   "row_hint": 1060,
+   "source": "Greenberg box pages (your photos 20260402_201548 p.486-487, _201846 p.506-507, _201907 p.508-509)",
+   "why": "still one row off from the old slide (it held the NEXT row's box)"
+  },
+  {
+   "tab": "MTH O",
+   "item": "22-20384-2",
+   "variation": "2",
+   "column": "Description",
+   "old": "",
+   "new": "AC4400cw Diesel Engine w/Proto-Sound 3.0 (Scale Wheels)",
+   "row_hint": 8051,
+   "source": "mthtrains.com/products/22-20384-2 — \"CSX AC4400cw Diesel Engine w/Proto-Sound 3.0 (Scale Wheels)\"",
+   "why": "blank description (MTH's own title, road name taken off)"
+  },
+  {
+   "tab": "MTH O",
+   "item": "22-20751-2",
+   "variation": "2",
+   "column": "Description",
+   "old": "",
+   "new": "SD70M-2 Diesel Engine w/Proto-Sound 3.0 (Scale Wheels)",
+   "row_hint": 8181,
+   "source": "mthtrains.com/products/22-20751-2 — \"Electro Motive Division O Scale Premier SD70M-2 Diesel Engine w/Proto-Sound 3.0 (Scale Wheels)\"",
+   "why": "blank description (MTH's own title, road name taken off)"
+  },
+  {
+   "tab": "MTH O",
+   "item": "22-20836-2",
+   "variation": "2",
+   "column": "Description",
+   "old": "",
+   "new": "GP-40 Diesel Engine w/Proto-Sound 3.0 (Scale Wheels)",
+   "row_hint": 8217,
+   "source": "mthtrains.com/products/22-20836-2 — \"NJ Transit O Scale Premier GP-40 Diesel Engine w/Proto-Sound 3.0 (Scale Wheels)\"",
+   "why": "blank description (MTH's own title, road name taken off)"
+  },
+  {
+   "tab": "MTH O",
+   "item": "22-20837-2",
+   "variation": "2",
+   "column": "Description",
+   "old": "",
+   "new": "GP-40 Diesel Engine w/Proto-Sound 3.0 (Scale Wheels)",
+   "row_hint": 8218,
+   "source": "mthtrains.com/products/22-20837-2 — \"NJ Transit O Scale Premier GP-40 Diesel Engine w/Proto-Sound 3.0 (Scale Wheels)\"",
+   "why": "blank description (MTH's own title, road name taken off)"
+  },
+  {
+   "tab": "MTH O",
+   "item": "22-21095-2",
+   "variation": "2",
+   "column": "Description",
+   "old": "",
+   "new": "GP-40 Diesel Engine w/Proto-Sound 3.0 (Scale Wheels)",
+   "row_hint": 8285,
+   "source": "mthtrains.com/products/22-21095-2 — \"Western Pacific O Scale Premier GP-40 Diesel Engine w/Proto-Sound 3.0 (Scale Wheels)\"",
+   "why": "blank description (MTH's own title, road name taken off)"
+  },
+  {
+   "tab": "MTH O",
+   "item": "22-21437-2",
+   "variation": "2",
+   "column": "Description",
+   "old": "",
+   "new": "SD-35 Diesel Engine w/Proto-Sound 3.0 (Scale Wheels)",
+   "row_hint": 8343,
+   "source": "mthtrains.com/products/22-21437-2 — \"Southern Pacific O Scale Premier SD-35 Diesel Engine w/Proto-Sound 3.0 (Scale Wheels)\"",
+   "why": "blank description (MTH's own title, road name taken off)"
+  },
+  {
+   "tab": "MTH O",
+   "item": "22-21460-2",
+   "variation": "2",
+   "column": "Description",
+   "old": "",
+   "new": "F-3 A Unit Diesel Engine w/Proto-Sound 3.0 (Scale Wheels)",
+   "row_hint": 8350,
+   "source": "mthtrains.com/products/22-21460-2 — \"Erie O Scale Premier F-3 A Unit Diesel Engine w/Proto-Sound 3.0 (Scale Wheels)\"",
+   "why": "blank description (MTH's own title, road name taken off)"
+  },
+  {
+   "tab": "MTH O",
+   "item": "22-21460-3",
+   "variation": "3",
+   "column": "Description",
+   "old": "",
+   "new": "F-3 B-Unit Diesel (Non-Powered Scale Wheels)",
+   "row_hint": 8351,
+   "source": "mthtrains.com/products/22-21460-3 — \"Erie O Scale Premier F-3 B-Unit Diesel (Non-Powered Scale Wheels)\"",
+   "why": "blank description (MTH's own title, road name taken off)"
+  },
+  {
+   "tab": "MTH O",
+   "item": "22-90933",
+   "variation": "",
+   "column": "Description",
+   "old": "",
+   "new": "6-Car European Modern Kesselwagen/Tank Car Set (Scale Wheels)",
+   "row_hint": 8396,
+   "source": "mthtrains.com/products/22-90933 — \"VTG 6-Car European Modern Kesselwagen/Tank Car Set (Scale Wheels)\"",
+   "why": "blank description (MTH's own title, road name taken off)"
+  },
+  {
+   "tab": "MTH O",
+   "item": "22-90933",
+   "variation": "",
+   "column": "Item Type",
+   "old": "Diesel Locomotive",
+   "new": "Tank Car",
+   "row_hint": 8396,
+   "source": "mthtrains.com/products/22-90933 — \"VTG 6-Car European Modern Kesselwagen/Tank Car Set (Scale Wheels)\", Product Type \"R-T-R/Speciality Set\"",
+   "why": "typed Diesel Locomotive — it is a 6-car tank car set (its two neighbours, the same set in other roads, are Tank Car)"
+  },
+  {
+   "tab": "MTH Tinplate",
+   "item": "10-99043",
+   "variation": "",
+   "column": "Description",
+   "old": "",
+   "new": "1/2 42\" Diam. Curve",
+   "row_hint": 191,
+   "source": "mthtrains.com/products/10-99043 — \"Std. Gauge Tinplate Std. Gauge Track w/Roadbed - 1/2 42&quot; Diam. Curve\"",
+   "why": "blank description (same form as its neighbour 10-99072 \"72” Diam. Curve\")"
+  },
+  {
+   "tab": "MTH Tinplate",
+   "item": "11-90065",
+   "variation": "",
+   "column": "Description",
+   "old": "",
+   "new": "Std. Gauge #89 Flag Pole & Base",
+   "row_hint": 945,
+   "source": "mthtrains.com/products/11-90065 — \"Cream &amp; Blue Std. Gauge #89 Flag Pole &amp; Base\"",
+   "why": "blank description (same words as its twin 11-90066)"
+  },
+  {
+   "tab": "MTH HO",
+   "item": "80-2247-0",
+   "variation": "0",
+   "column": "Description",
+   "old": "SD70ACe Diesel Engine (Comfort Cab), Cab No.",
+   "new": "SD70ACe Diesel Engine (Comfort Cab), Cab No. 1070",
+   "row_hint": 422,
+   "source": "the prototype: Norfolk Southern heritage SD70ACe #1070 Wabash (Wikipedia \"Heritage unit\"; Walthers lists \"Norfolk Southern #1073 (Penn Central Heritage Scheme)\"); its neighbours on the tab run the same series: 80-2246 → 1069, 80-2249 → 1072, 80-2269 → 1074. MTH's page shows no cab number.",
+   "why": "description cut off after \"Cab No.\""
+  },
+  {
+   "tab": "MTH HO",
+   "item": "80-2247-1",
+   "variation": "1",
+   "column": "Description",
+   "old": "SD70ACe Diesel Engine (Comfort Cab), Cab No.",
+   "new": "SD70ACe Diesel Engine (Comfort Cab), Cab No. 1070",
+   "row_hint": 423,
+   "source": "the prototype: Norfolk Southern heritage SD70ACe #1070 Wabash (Wikipedia \"Heritage unit\"; Walthers lists \"Norfolk Southern #1073 (Penn Central Heritage Scheme)\"); its neighbours on the tab run the same series: 80-2246 → 1069, 80-2249 → 1072, 80-2269 → 1074. MTH's page shows no cab number.",
+   "why": "description cut off after \"Cab No.\""
+  },
+  {
+   "tab": "MTH HO",
+   "item": "80-2247-5",
+   "variation": "5",
+   "column": "Description",
+   "old": "SD70ACe Diesel Engine (Comfort Cab), Cab No.",
+   "new": "SD70ACe Diesel Engine (Comfort Cab), Cab No. 1070",
+   "row_hint": 424,
+   "source": "the prototype: Norfolk Southern heritage SD70ACe #1070 Wabash (Wikipedia \"Heritage unit\"; Walthers lists \"Norfolk Southern #1073 (Penn Central Heritage Scheme)\"); its neighbours on the tab run the same series: 80-2246 → 1069, 80-2249 → 1072, 80-2269 → 1074. MTH's page shows no cab number.",
+   "why": "description cut off after \"Cab No.\""
+  },
+  {
+   "tab": "MTH HO",
+   "item": "80-2248-0",
+   "variation": "0",
+   "column": "Description",
+   "old": "SD70ACe Diesel Engine (Comfort Cab), Cab No.",
+   "new": "SD70ACe Diesel Engine (Comfort Cab), Cab No. 1071",
+   "row_hint": 425,
+   "source": "the prototype: Norfolk Southern heritage SD70ACe #1071 Jersey Central (Wikipedia \"Heritage unit\"; Walthers lists \"Norfolk Southern #1073 (Penn Central Heritage Scheme)\"); its neighbours on the tab run the same series: 80-2246 → 1069, 80-2249 → 1072, 80-2269 → 1074. MTH's page shows no cab number.",
+   "why": "description cut off after \"Cab No.\""
+  },
+  {
+   "tab": "MTH HO",
+   "item": "80-2248-1",
+   "variation": "1",
+   "column": "Description",
+   "old": "SD70ACe Diesel Engine (Comfort Cab), Cab No.",
+   "new": "SD70ACe Diesel Engine (Comfort Cab), Cab No. 1071",
+   "row_hint": 426,
+   "source": "the prototype: Norfolk Southern heritage SD70ACe #1071 Jersey Central (Wikipedia \"Heritage unit\"; Walthers lists \"Norfolk Southern #1073 (Penn Central Heritage Scheme)\"); its neighbours on the tab run the same series: 80-2246 → 1069, 80-2249 → 1072, 80-2269 → 1074. MTH's page shows no cab number.",
+   "why": "description cut off after \"Cab No.\""
+  },
+  {
+   "tab": "MTH HO",
+   "item": "80-2248-5",
+   "variation": "5",
+   "column": "Description",
+   "old": "SD70ACe Diesel Engine (Comfort Cab), Cab No.",
+   "new": "SD70ACe Diesel Engine (Comfort Cab), Cab No. 1071",
+   "row_hint": 427,
+   "source": "the prototype: Norfolk Southern heritage SD70ACe #1071 Jersey Central (Wikipedia \"Heritage unit\"; Walthers lists \"Norfolk Southern #1073 (Penn Central Heritage Scheme)\"); its neighbours on the tab run the same series: 80-2246 → 1069, 80-2249 → 1072, 80-2269 → 1074. MTH's page shows no cab number.",
+   "why": "description cut off after \"Cab No.\""
+  },
+  {
+   "tab": "MTH HO",
+   "item": "80-2268-0",
+   "variation": "0",
+   "column": "Description",
+   "old": "SD70ACe Diesel Engine (Comfort Cab), Cab No.",
+   "new": "SD70ACe Diesel Engine (Comfort Cab), Cab No. 1073",
+   "row_hint": 462,
+   "source": "the prototype: Norfolk Southern heritage SD70ACe #1073 Penn Central (Wikipedia \"Heritage unit\"; Walthers lists \"Norfolk Southern #1073 (Penn Central Heritage Scheme)\"); its neighbours on the tab run the same series: 80-2246 → 1069, 80-2249 → 1072, 80-2269 → 1074. MTH's page shows no cab number.",
+   "why": "description cut off after \"Cab No.\""
+  },
+  {
+   "tab": "MTH HO",
+   "item": "80-2268-1",
+   "variation": "1",
+   "column": "Description",
+   "old": "SD70ACe Diesel Engine (Comfort Cab), Cab No.",
+   "new": "SD70ACe Diesel Engine (Comfort Cab), Cab No. 1073",
+   "row_hint": 463,
+   "source": "the prototype: Norfolk Southern heritage SD70ACe #1073 Penn Central (Wikipedia \"Heritage unit\"; Walthers lists \"Norfolk Southern #1073 (Penn Central Heritage Scheme)\"); its neighbours on the tab run the same series: 80-2246 → 1069, 80-2249 → 1072, 80-2269 → 1074. MTH's page shows no cab number.",
+   "why": "description cut off after \"Cab No.\""
+  },
+  {
+   "tab": "MTH HO",
+   "item": "80-2268-5",
+   "variation": "5",
+   "column": "Description",
+   "old": "SD70ACe Diesel Engine (Comfort Cab), Cab No.",
+   "new": "SD70ACe Diesel Engine (Comfort Cab), Cab No. 1073",
+   "row_hint": 464,
+   "source": "the prototype: Norfolk Southern heritage SD70ACe #1073 Penn Central (Wikipedia \"Heritage unit\"; Walthers lists \"Norfolk Southern #1073 (Penn Central Heritage Scheme)\"); its neighbours on the tab run the same series: 80-2246 → 1069, 80-2249 → 1072, 80-2269 → 1074. MTH's page shows no cab number.",
+   "why": "description cut off after \"Cab No.\""
+  },
+  {
+   "tab": "Marklin H0",
+   "item": "360",
+   "variation": "",
+   "column": "Description",
+   "old": "Article No.",
+   "new": "Märklin signal book for the 7200 signals, 48 pages",
+   "row_hint": 66,
+   "source": "marklin.com/products/details/article/0360 — title \"Märklin-Signalbuch für Signale 7200\"",
+   "why": "description was the page label \"Article No.\" — the crawler read the label, not the name"
+  },
+  {
+   "tab": "Marklin H0",
+   "item": "360",
+   "variation": "",
+   "column": "Original Description",
+   "old": "",
+   "new": "Märklin-Signalbuch für Signale 7200",
+   "row_hint": 66,
+   "source": "marklin.com/products/details/article/0360 — title \"Märklin-Signalbuch für Signale 7200\"",
+   "why": "keep Märklin's own (German) name beside the English one"
+  },
+  {
+   "tab": "Marklin H0",
+   "item": "360",
+   "variation": "",
+   "column": "Item Type",
+   "old": "Accessory",
+   "new": "Paper",
+   "row_hint": 66,
+   "source": "marklin.com/products/details/article/0360 — title \"Märklin-Signalbuch für Signale 7200\"",
+   "why": "book / CD / calendar → Paper (the rule used for the 2026-09-30 type fill)"
+  },
+  {
+   "tab": "Marklin H0",
+   "item": "5111",
+   "variation": "",
+   "column": "Description",
+   "old": "Article No.",
+   "new": "M track straight feeder track, 180 mm",
+   "row_hint": 4560,
+   "source": "marklin.com/products/details/article/5111 — title \"Anschlussgleis gerade\"",
+   "why": "description was the page label \"Article No.\" — the crawler read the label, not the name"
+  },
+  {
+   "tab": "Marklin H0",
+   "item": "5111",
+   "variation": "",
+   "column": "Original Description",
+   "old": "",
+   "new": "Anschlussgleis gerade",
+   "row_hint": 4560,
+   "source": "marklin.com/products/details/article/5111 — title \"Anschlussgleis gerade\"",
+   "why": "keep Märklin's own (German) name beside the English one"
+  },
+  {
+   "tab": "Marklin H0",
+   "item": "5128",
+   "variation": "",
+   "column": "Description",
+   "old": "Article No.",
+   "new": "M track double slip switch, 30°, electric",
+   "row_hint": 4566,
+   "source": "marklin.com/products/details/article/5128 — title \"Doppelte Kreuzungsweiche\"",
+   "why": "description was the page label \"Article No.\" — the crawler read the label, not the name"
+  },
+  {
+   "tab": "Marklin H0",
+   "item": "5128",
+   "variation": "",
+   "column": "Original Description",
+   "old": "",
+   "new": "Doppelte Kreuzungsweiche",
+   "row_hint": 4566,
+   "source": "marklin.com/products/details/article/5128 — title \"Doppelte Kreuzungsweiche\"",
+   "why": "keep Märklin's own (German) name beside the English one"
+  },
+  {
+   "tab": "Marklin H0",
+   "item": "5128",
+   "variation": "",
+   "column": "Item Type",
+   "old": "Accessory",
+   "new": "Track",
+   "row_hint": 4566,
+   "source": "marklin.com/products/details/article/5128 — title \"Doppelte Kreuzungsweiche\"",
+   "why": "a switch / crossing / contact track is Track (its 5100-series neighbours are Track)"
+  },
+  {
+   "tab": "Marklin H0",
+   "item": "5138",
+   "variation": "",
+   "column": "Description",
+   "old": "Article No.",
+   "new": "M track left switch, 180 mm, electric",
+   "row_hint": 4569,
+   "source": "marklin.com/products/details/article/5138 — title \"Weiche links\"",
+   "why": "description was the page label \"Article No.\" — the crawler read the label, not the name"
+  },
+  {
+   "tab": "Marklin H0",
+   "item": "5138",
+   "variation": "",
+   "column": "Original Description",
+   "old": "",
+   "new": "Weiche links",
+   "row_hint": 4569,
+   "source": "marklin.com/products/details/article/5138 — title \"Weiche links\"",
+   "why": "keep Märklin's own (German) name beside the English one"
+  },
+  {
+   "tab": "Marklin H0",
+   "item": "5138",
+   "variation": "",
+   "column": "Item Type",
+   "old": "Accessory",
+   "new": "Track",
+   "row_hint": 4569,
+   "source": "marklin.com/products/details/article/5138 — title \"Weiche links\"",
+   "why": "a switch / crossing / contact track is Track (its 5100-series neighbours are Track)"
+  },
+  {
+   "tab": "Marklin H0",
+   "item": "5139",
+   "variation": "",
+   "column": "Description",
+   "old": "Article No.",
+   "new": "M track right switch, 180 mm, electric",
+   "row_hint": 4570,
+   "source": "marklin.com/products/details/article/5139 — title \"Weiche rechts\"",
+   "why": "description was the page label \"Article No.\" — the crawler read the label, not the name"
+  },
+  {
+   "tab": "Marklin H0",
+   "item": "5139",
+   "variation": "",
+   "column": "Original Description",
+   "old": "",
+   "new": "Weiche rechts",
+   "row_hint": 4570,
+   "source": "marklin.com/products/details/article/5139 — title \"Weiche rechts\"",
+   "why": "keep Märklin's own (German) name beside the English one"
+  },
+  {
+   "tab": "Marklin H0",
+   "item": "5139",
+   "variation": "",
+   "column": "Item Type",
+   "old": "Accessory",
+   "new": "Track",
+   "row_hint": 4570,
+   "source": "marklin.com/products/details/article/5139 — title \"Weiche rechts\"",
+   "why": "a switch / crossing / contact track is Track (its 5100-series neighbours are Track)"
+  },
+  {
+   "tab": "Marklin H0",
+   "item": "5141",
+   "variation": "",
+   "column": "Description",
+   "old": "Article No.",
+   "new": "M track left curved switch, electric",
+   "row_hint": 4571,
+   "source": "marklin.com/products/details/article/5141 — title \"Bogenweiche links\"",
+   "why": "description was the page label \"Article No.\" — the crawler read the label, not the name"
+  },
+  {
+   "tab": "Marklin H0",
+   "item": "5141",
+   "variation": "",
+   "column": "Original Description",
+   "old": "",
+   "new": "Bogenweiche links",
+   "row_hint": 4571,
+   "source": "marklin.com/products/details/article/5141 — title \"Bogenweiche links\"",
+   "why": "keep Märklin's own (German) name beside the English one"
+  },
+  {
+   "tab": "Marklin H0",
+   "item": "5141",
+   "variation": "",
+   "column": "Item Type",
+   "old": "Accessory",
+   "new": "Track",
+   "row_hint": 4571,
+   "source": "marklin.com/products/details/article/5141 — title \"Bogenweiche links\"",
+   "why": "a switch / crossing / contact track is Track (its 5100-series neighbours are Track)"
+  },
+  {
+   "tab": "Marklin H0",
+   "item": "5142",
+   "variation": "",
+   "column": "Description",
+   "old": "Article No.",
+   "new": "M track right curved switch, electric",
+   "row_hint": 4572,
+   "source": "marklin.com/products/details/article/5142 — title \"Bogenweiche rechts\"",
+   "why": "description was the page label \"Article No.\" — the crawler read the label, not the name"
+  },
+  {
+   "tab": "Marklin H0",
+   "item": "5142",
+   "variation": "",
+   "column": "Original Description",
+   "old": "",
+   "new": "Bogenweiche rechts",
+   "row_hint": 4572,
+   "source": "marklin.com/products/details/article/5142 — title \"Bogenweiche rechts\"",
+   "why": "keep Märklin's own (German) name beside the English one"
+  },
+  {
+   "tab": "Marklin H0",
+   "item": "5142",
+   "variation": "",
+   "column": "Item Type",
+   "old": "Accessory",
+   "new": "Track",
+   "row_hint": 4572,
+   "source": "marklin.com/products/details/article/5142 — title \"Bogenweiche rechts\"",
+   "why": "a switch / crossing / contact track is Track (its 5100-series neighbours are Track)"
+  },
+  {
+   "tab": "Marklin H0",
+   "item": "5145",
+   "variation": "",
+   "column": "Description",
+   "old": "Article No.",
+   "new": "M track straight contact track set, 2 x 90 mm",
+   "row_hint": 4573,
+   "source": "marklin.com/products/details/article/5145 — title \"Kontaktgleis-Satz gerade\"",
+   "why": "description was the page label \"Article No.\" — the crawler read the label, not the name"
+  },
+  {
+   "tab": "Marklin H0",
+   "item": "5145",
+   "variation": "",
+   "column": "Original Description",
+   "old": "",
+   "new": "Kontaktgleis-Satz gerade",
+   "row_hint": 4573,
+   "source": "marklin.com/products/details/article/5145 — title \"Kontaktgleis-Satz gerade\"",
+   "why": "keep Märklin's own (German) name beside the English one"
+  },
+  {
+   "tab": "Marklin H0",
+   "item": "5145",
+   "variation": "",
+   "column": "Item Type",
+   "old": "Accessory",
+   "new": "Track",
+   "row_hint": 4573,
+   "source": "marklin.com/products/details/article/5145 — title \"Kontaktgleis-Satz gerade\"",
+   "why": "a switch / crossing / contact track is Track (its 5100-series neighbours are Track)"
+  },
+  {
+   "tab": "Marklin H0",
+   "item": "5203",
+   "variation": "",
+   "column": "Description",
+   "old": "Article No.",
+   "new": "M track left switch, 24° 17', electric",
+   "row_hint": 4578,
+   "source": "marklin.com/products/details/article/5203 — title \"Weiche links\"",
+   "why": "description was the page label \"Article No.\" — the crawler read the label, not the name"
+  },
+  {
+   "tab": "Marklin H0",
+   "item": "5203",
+   "variation": "",
+   "column": "Original Description",
+   "old": "",
+   "new": "Weiche links",
+   "row_hint": 4578,
+   "source": "marklin.com/products/details/article/5203 — title \"Weiche links\"",
+   "why": "keep Märklin's own (German) name beside the English one"
+  },
+  {
+   "tab": "Marklin H0",
+   "item": "5203",
+   "variation": "",
+   "column": "Item Type",
+   "old": "Accessory",
+   "new": "Track",
+   "row_hint": 4578,
+   "source": "marklin.com/products/details/article/5203 — title \"Weiche links\"",
+   "why": "a switch / crossing / contact track is Track (its 5100-series neighbours are Track)"
+  },
+  {
+   "tab": "Marklin H0",
+   "item": "5204",
+   "variation": "",
+   "column": "Description",
+   "old": "Article No.",
+   "new": "M track right switch, 24° 17', electric",
+   "row_hint": 4579,
+   "source": "marklin.com/products/details/article/5204 — title \"Weiche rechts\"",
+   "why": "description was the page label \"Article No.\" — the crawler read the label, not the name"
+  },
+  {
+   "tab": "Marklin H0",
+   "item": "5204",
+   "variation": "",
+   "column": "Original Description",
+   "old": "",
+   "new": "Weiche rechts",
+   "row_hint": 4579,
+   "source": "marklin.com/products/details/article/5204 — title \"Weiche rechts\"",
+   "why": "keep Märklin's own (German) name beside the English one"
+  },
+  {
+   "tab": "Marklin H0",
+   "item": "5204",
+   "variation": "",
+   "column": "Item Type",
+   "old": "Accessory",
+   "new": "Track",
+   "row_hint": 4579,
+   "source": "marklin.com/products/details/article/5204 — title \"Weiche rechts\"",
+   "why": "a switch / crossing / contact track is Track (its 5100-series neighbours are Track)"
+  },
+  {
+   "tab": "Marklin H0",
+   "item": "5207",
+   "variation": "",
+   "column": "Description",
+   "old": "Article No.",
+   "new": "M track double slip switch, 24° 17', electric",
+   "row_hint": 4582,
+   "source": "marklin.com/products/details/article/5207 — title \"Doppelte Kreuzungsweiche\"",
+   "why": "description was the page label \"Article No.\" — the crawler read the label, not the name"
+  },
+  {
+   "tab": "Marklin H0",
+   "item": "5207",
+   "variation": "",
+   "column": "Original Description",
+   "old": "",
+   "new": "Doppelte Kreuzungsweiche",
+   "row_hint": 4582,
+   "source": "marklin.com/products/details/article/5207 — title \"Doppelte Kreuzungsweiche\"",
+   "why": "keep Märklin's own (German) name beside the English one"
+  },
+  {
+   "tab": "Marklin H0",
+   "item": "5207",
+   "variation": "",
+   "column": "Item Type",
+   "old": "Accessory",
+   "new": "Track",
+   "row_hint": 4582,
+   "source": "marklin.com/products/details/article/5207 — title \"Doppelte Kreuzungsweiche\"",
+   "why": "a switch / crossing / contact track is Track (its 5100-series neighbours are Track)"
+  },
+  {
+   "tab": "Marklin H0",
+   "item": "5214",
+   "variation": "",
+   "column": "Description",
+   "old": "Article No.",
+   "new": "M track symmetrical three-way switch, electric",
+   "row_hint": 4587,
+   "source": "marklin.com/products/details/article/5214 — title \"Symmetrische Dreiwegweiche\"",
+   "why": "description was the page label \"Article No.\" — the crawler read the label, not the name"
+  },
+  {
+   "tab": "Marklin H0",
+   "item": "5214",
+   "variation": "",
+   "column": "Original Description",
+   "old": "",
+   "new": "Symmetrische Dreiwegweiche",
+   "row_hint": 4587,
+   "source": "marklin.com/products/details/article/5214 — title \"Symmetrische Dreiwegweiche\"",
+   "why": "keep Märklin's own (German) name beside the English one"
+  },
+  {
+   "tab": "Marklin H0",
+   "item": "5214",
+   "variation": "",
+   "column": "Item Type",
+   "old": "Accessory",
+   "new": "Track",
+   "row_hint": 4587,
+   "source": "marklin.com/products/details/article/5214 — title \"Symmetrische Dreiwegweiche\"",
+   "why": "a switch / crossing / contact track is Track (its 5100-series neighbours are Track)"
+  },
+  {
+   "tab": "Marklin H0",
+   "item": "5215",
+   "variation": "",
+   "column": "Description",
+   "old": "Article No.",
+   "new": "M track crossing, 24° 17'",
+   "row_hint": 4588,
+   "source": "marklin.com/products/details/article/5215 — title \"Kreuzung\"",
+   "why": "description was the page label \"Article No.\" — the crawler read the label, not the name"
+  },
+  {
+   "tab": "Marklin H0",
+   "item": "5215",
+   "variation": "",
+   "column": "Original Description",
+   "old": "",
+   "new": "Kreuzung",
+   "row_hint": 4588,
+   "source": "marklin.com/products/details/article/5215 — title \"Kreuzung\"",
+   "why": "keep Märklin's own (German) name beside the English one"
+  },
+  {
+   "tab": "Marklin H0",
+   "item": "7390",
+   "variation": "",
+   "column": "Description",
+   "old": "Article No.",
+   "new": "Mechanical grade crossing with full gates",
+   "row_hint": 4892,
+   "source": "marklin.com/products/details/article/7390 — title \"Mechanisch betätigter Bahnübergang\"",
+   "why": "description was the page label \"Article No.\" — the crawler read the label, not the name"
+  },
+  {
+   "tab": "Marklin H0",
+   "item": "7390",
+   "variation": "",
+   "column": "Original Description",
+   "old": "",
+   "new": "Mechanisch betätigter Bahnübergang",
+   "row_hint": 4892,
+   "source": "marklin.com/products/details/article/7390 — title \"Mechanisch betätigter Bahnübergang\"",
+   "why": "keep Märklin's own (German) name beside the English one"
+  },
+  {
+   "tab": "Marklin Z",
+   "item": "170490",
+   "variation": "",
+   "column": "Description",
+   "old": "Article No.",
+   "new": "CD-ROM 'The Interactive World of mini-club'",
+   "row_hint": 13,
+   "source": "marklin.com/products/details/article/170490 — title \"CD-ROM ´Die interaktive Welt der mini-club´\"",
+   "why": "description was the page label \"Article No.\" — the crawler read the label, not the name"
+  },
+  {
+   "tab": "Marklin Z",
+   "item": "170490",
+   "variation": "",
+   "column": "Original Description",
+   "old": "",
+   "new": "CD-ROM ´Die interaktive Welt der mini-club´",
+   "row_hint": 13,
+   "source": "marklin.com/products/details/article/170490 — title \"CD-ROM ´Die interaktive Welt der mini-club´\"",
+   "why": "keep Märklin's own (German) name beside the English one"
+  },
+  {
+   "tab": "Marklin Z",
+   "item": "170490",
+   "variation": "",
+   "column": "Item Type",
+   "old": "Accessory",
+   "new": "Paper",
+   "row_hint": 13,
+   "source": "marklin.com/products/details/article/170490 — title \"CD-ROM ´Die interaktive Welt der mini-club´\"",
+   "why": "book / CD / calendar → Paper (the rule used for the 2026-09-30 type fill)"
+  },
+  {
+   "tab": "Marklin Z",
+   "item": "81098",
+   "variation": "",
+   "column": "Description",
+   "old": "Article No.",
+   "new": "Advent calendar 2000 (mini-club)",
+   "row_hint": 156,
+   "source": "marklin.com/products/details/article/81098 — title \"Adventskalender 2000\"",
+   "why": "description was the page label \"Article No.\" — the crawler read the label, not the name"
+  },
+  {
+   "tab": "Marklin Z",
+   "item": "81098",
+   "variation": "",
+   "column": "Original Description",
+   "old": "",
+   "new": "Adventskalender 2000",
+   "row_hint": 156,
+   "source": "marklin.com/products/details/article/81098 — title \"Adventskalender 2000\"",
+   "why": "keep Märklin's own (German) name beside the English one"
+  },
+  {
+   "tab": "Marklin Z",
+   "item": "81098",
+   "variation": "",
+   "column": "Item Type",
+   "old": "Accessory",
+   "new": "Paper",
+   "row_hint": 156,
+   "source": "marklin.com/products/details/article/81098 — title \"Adventskalender 2000\"",
+   "why": "book / CD / calendar → Paper (the rule used for the 2026-09-30 type fill)"
+  },
+  {
+   "tab": "USA Trains G",
+   "item": "R22240",
+   "variation": "1",
+   "column": "Description",
+   "old": "R22240 GP38-2 No",
+   "new": "R22240 G Patriotic Flag Red/Blue/Silver GP38 Diesel Locomotive",
+   "row_hint": 1915,
+   "source": "trainz.com product page (title \"USA Trains R22240 G Patriotic Flag Red/Blue/Sillver GP38 Diesel Locomo\", list $779.99) — the store's typo and cut-off fixed",
+   "why": "description cut off at \"GP38-2 No\" (same form as neighbour R22239)"
+  },
+  {
+   "tab": "USA Trains G",
+   "item": "R22240",
+   "variation": "1",
+   "column": "Road Name",
+   "old": "No",
+   "new": "Patriotic",
+   "row_hint": 1915,
+   "source": "trainz.com product page (title \"USA Trains R22240 G Patriotic Flag Red/Blue/Sillver GP38 Diesel Locomo\", list $779.99) — the store's typo and cut-off fixed; the row's own Variation Description \"Color: Patriotic\"",
+   "why": "road name was the cut-off word \"No\""
+  },
+  {
+   "tab": "USA Trains G",
+   "item": "R22240",
+   "variation": "1",
+   "column": "Reference Link",
+   "old": "",
+   "new": "https://www.trainz.com/products/usa-trains-r22240-g-patriotic-flag-red-blue-sillver-gp38-diesel-locomotive",
+   "row_hint": 1915,
+   "source": "trainz.com product page (title \"USA Trains R22240 G Patriotic Flag Red/Blue/Sillver GP38 Diesel Locomo\", list $779.99) — the store's typo and cut-off fixed",
+   "why": "neighbours carry their Trainz page; this one had none"
+  },
+  {
+   "tab": "USA Trains G",
+   "item": "R22240",
+   "variation": "1",
+   "column": "MSRP",
+   "old": "",
+   "new": "$779.99",
+   "row_hint": 1915,
+   "source": "trainz.com product page (title \"USA Trains R22240 G Patriotic Flag Red/Blue/Sillver GP38 Diesel Locomo\", list $779.99) — the store's typo and cut-off fixed",
+   "why": "neighbours carry the list price; this one had none"
+  },
+  {
+   "tab": "Marx O",
+   "item": "356",
+   "variation": "1",
+   "column": "Year Produced",
+   "old": "2026-1928",
+   "new": "1926-1928",
+   "row_hint": 227,
+   "source": "MARX_GREENBERG_PROPOSAL_2026-09-05.xlsx, RAW_TRANSCRIPTION (as read off your page photos): p.16 \"356 (A) Yellow roof, blue frame | 26–28\"",
+   "why": "the build turned \"26\" into 2026"
+  },
+  {
+   "tab": "Marx O",
+   "item": "93",
+   "variation": "1",
+   "column": "Year Produced",
+   "old": "50s",
+   "new": "1950s",
+   "row_hint": 184,
+   "source": "MARX_GREENBERG_PROPOSAL_2026-09-05.xlsx, RAW_TRANSCRIPTION (as read off your page photos): p.12 \"50s\"",
+   "why": "the book gives a decade; written out in full so the app can read the year"
+  },
+  {
+   "tab": "Marx O",
+   "item": "2552",
+   "variation": "1",
+   "column": "Year Produced",
+   "old": "50s-60s",
+   "new": "1950s-1960s",
+   "row_hint": 187,
+   "source": "MARX_GREENBERG_PROPOSAL_2026-09-05.xlsx, RAW_TRANSCRIPTION (as read off your page photos): p.12 \"50s–60s\"",
+   "why": "the book gives a decade; written out in full so the app can read the year"
+  },
+  {
+   "tab": "Marx O",
+   "item": "200",
+   "variation": "1",
+   "column": "Year Produced",
+   "old": "20s-30s",
+   "new": "1920s-1930s",
+   "row_hint": 1379,
+   "source": "MARX_GREENBERG_PROPOSAL_2026-09-05.xlsx, RAW_TRANSCRIPTION (as read off your page photos): p.13 \"20s–30s\"",
+   "why": "the book gives a decade; written out in full so the app can read the year"
+  },
+  {
+   "tab": "Marx O",
+   "item": "200",
+   "variation": "2",
+   "column": "Year Produced",
+   "old": "20s-30s",
+   "new": "1920s-1930s",
+   "row_hint": 1380,
+   "source": "MARX_GREENBERG_PROPOSAL_2026-09-05.xlsx, RAW_TRANSCRIPTION (as read off your page photos): p.13 \"20s–30s\"",
+   "why": "the book gives a decade; written out in full so the app can read the year"
+  }
+ ],
+ "rowops": [
+  {
+   "tab": "Lionel MPC-Modern",
+   "op": "insert",
+   "after_row": 1916,
+   "after_item": "12855",
+   "values": {
+    "Item Number": "12860",
+    "Item Type": "Intermodal",
+    "Sub-Type": "Tractor Trailer",
+    "Description": "Lionel Visitor's Center Tractor and Trailer",
+    "Year Produced": "1994",
+    "Source": "Greenberg Book",
+    "Notes": "Uncataloged (book: \"94 u\"). Lost in the Greenberg transcription; added 2026-10-01 from the page photo, p.135"
+   },
+   "source": "Greenberg price guide p.135 (your photo 20260402_184942.jpg, read 2026-10-01; the number column is printed half a line low — paired by lionel.com 6-12866 = 135-watt PowerHouse): \"12860 Lionel Visitor's Center Tractor and Trailer, 94 u\"",
+   "why": "in the book, missing from the tab (same slide that left 12863 blank)"
+  },
+  {
+   "tab": "Lionel PW - Boxes",
+   "op": "delete",
+   "row": 46,
+   "item": "68",
+   "variation": "B",
+   "source": "Greenberg box pages (your photos 20260402_201548 p.486-487, _201846 p.506-507, _201907 p.508-509): p.487 lists 68 once (Executive Inspection Car) — no 68 B",
+   "why": "phantom row from the old transcription slide; blank description"
+  },
+  {
+   "tab": "Lionel PW - Boxes",
+   "op": "delete",
+   "row": 964,
+   "item": "5459",
+   "variation": "B",
+   "source": "Greenberg box pages (your photos 20260402_201548 p.486-487, _201846 p.506-507, _201907 p.508-509): p.507 lists 5459 once (LL Coal Dump Car, electronic) — no 5459 B",
+   "why": "phantom row from the old transcription slide; blank description"
+  },
+  {
+   "tab": "Lionel PW - Boxes",
+   "op": "delete",
+   "row": 1056,
+   "item": "6315",
+   "variation": "C",
+   "source": "Greenberg box pages (your photos 20260402_201548 p.486-487, _201846 p.506-507, _201907 p.508-509): p.508-509 list 6315 twice (classic, Hagerstown) + 6315-60 — no 6315 C",
+   "why": "phantom row from the old transcription slide; blank description"
+  },
+  {
+   "tab": "Lionel PW - Boxes",
+   "op": "insert",
+   "after_row": 59,
+   "after_item": "110",
+   "values": {
+    "Item Number": "111",
+    "Item Type": "Paper / Box / Misc",
+    "Control": "Traditional",
+    "Description": "Elevated Trestle Set",
+    "Reference Link": "https://cornucopiaoftoytrains.com/postwar-accessories-no-100-thru-no-199/",
+    "Source": "Greenberg",
+    "Original COTT Desc": "BOX: Elevated Trestle Set",
+    "Notes": "Lost in the old transcription slide; added 2026-10-01 from the page photo, p.487"
+   },
+   "source": "Greenberg box pages (your photos 20260402_201548 p.486-487, _201846 p.506-507, _201907 p.508-509): p.487 \"111 Elevated Trestle Set\"",
+   "why": "in the book, missing from the tab"
+  },
+  {
+   "tab": "Lionel PW - Boxes",
+   "op": "insert",
+   "after_row": 1062,
+   "after_item": "6357",
+   "values": {
+    "Item Number": "6357",
+    "Item Type": "Paper / Box / Misc",
+    "Control": "Traditional",
+    "Description": "SP-type Caboose (classic)",
+    "Variation #": "C",
+    "Reference Link": "https://cornucopiaoftoytrains.com/cabooses-sp-type-page-2-a/#SP6357",
+    "Source": "Greenberg",
+    "Original COTT Desc": "BOX: SP-type Caboose (classic)",
+    "Notes": "Lost in the old transcription slide; added 2026-10-01 from the page photo, p.509 (lettered C so A and B keep their letters)"
+   },
+   "source": "Greenberg box pages (your photos 20260402_201548 p.486-487, _201846 p.506-507, _201907 p.508-509): p.509 \"6357 SP-type Caboose (classic)\" — the first of three 6357 boxes",
+   "why": "in the book, missing from the tab"
+  }
+ ],
+ "left_as_is": [
+  {
+   "tab": "Lionel Pre-War",
+   "row": 561,
+   "item": "150",
+   "value": "1923?",
+   "why": "COTT's own doubt mark (\"1923?\") — it is copied from COTT's variation text; removing it would claim a certainty the source does not have"
+  },
+  {
+   "tab": "Lionel Pre-War",
+   "row": 562,
+   "item": "150",
+   "value": "1926?",
+   "why": "COTT's own doubt mark (\"1923?\") — it is copied from COTT's variation text; removing it would claim a certainty the source does not have"
+  },
+  {
+   "tab": "Lionel Pre-War",
+   "row": 563,
+   "item": "150",
+   "value": "1927?",
+   "why": "COTT's own doubt mark (\"1923?\") — it is copied from COTT's variation text; removing it would claim a certainty the source does not have"
+  },
+  {
+   "tab": "Lionel Pre-War",
+   "row": 577,
+   "item": "152",
+   "value": "1926?",
+   "why": "COTT's own doubt mark (\"1923?\") — it is copied from COTT's variation text; removing it would claim a certainty the source does not have"
+  },
+  {
+   "tab": "Lionel Pre-War",
+   "row": 578,
+   "item": "152",
+   "value": "1926-1927?",
+   "why": "COTT's own doubt mark (\"1923?\") — it is copied from COTT's variation text; removing it would claim a certainty the source does not have"
+  },
+  {
+   "tab": "Lionel Pre-War",
+   "row": 588,
+   "item": "153",
+   "value": "1925?",
+   "why": "COTT's own doubt mark (\"1923?\") — it is copied from COTT's variation text; removing it would claim a certainty the source does not have"
+  },
+  {
+   "tab": "Lionel Pre-War",
+   "row": 589,
+   "item": "153",
+   "value": "1927?",
+   "why": "COTT's own doubt mark (\"1923?\") — it is copied from COTT's variation text; removing it would claim a certainty the source does not have"
+  },
+  {
+   "tab": "Lionel Pre-War",
+   "row": 596,
+   "item": "154",
+   "value": "1927?",
+   "why": "COTT's own doubt mark (\"1923?\") — it is copied from COTT's variation text; removing it would claim a certainty the source does not have"
+  },
+  {
+   "tab": "Lionel Pre-War",
+   "row": 625,
+   "item": "156X",
+   "value": "1927?",
+   "why": "COTT's own doubt mark (\"1923?\") — it is copied from COTT's variation text; removing it would claim a certainty the source does not have"
+  },
+  {
+   "tab": "Lionel Pre-War",
+   "row": 632,
+   "item": "158",
+   "value": "1925?",
+   "why": "COTT's own doubt mark (\"1923?\") — it is copied from COTT's variation text; removing it would claim a certainty the source does not have"
+  },
+  {
+   "tab": "Lionel Pre-War",
+   "row": 633,
+   "item": "158",
+   "value": "1926?",
+   "why": "COTT's own doubt mark (\"1923?\") — it is copied from COTT's variation text; removing it would claim a certainty the source does not have"
+  },
+  {
+   "tab": "Lionel Pre-War",
+   "row": 940,
+   "item": "253E",
+   "value": "1931-1932?",
+   "why": "COTT's own doubt mark (\"1923?\") — it is copied from COTT's variation text; removing it would claim a certainty the source does not have"
+  },
+  {
+   "tab": "Lionel Pre-War",
+   "row": 941,
+   "item": "253E",
+   "value": "1931-1932?",
+   "why": "COTT's own doubt mark (\"1923?\") — it is copied from COTT's variation text; removing it would claim a certainty the source does not have"
+  },
+  {
+   "tab": "Lionel Pre-War",
+   "row": 944,
+   "item": "253E",
+   "value": "1933-1934?",
+   "why": "COTT's own doubt mark (\"1923?\") — it is copied from COTT's variation text; removing it would claim a certainty the source does not have"
+  },
+  {
+   "tab": "Lionel Pre-War",
+   "row": 945,
+   "item": "253E",
+   "value": "1933-1934?",
+   "why": "COTT's own doubt mark (\"1923?\") — it is copied from COTT's variation text; removing it would claim a certainty the source does not have"
+  },
+  {
+   "tab": "Lionel Pre-War",
+   "row": 946,
+   "item": "253E",
+   "value": "1933-1936?",
+   "why": "COTT's own doubt mark (\"1923?\") — it is copied from COTT's variation text; removing it would claim a certainty the source does not have"
+  },
+  {
+   "tab": "Lionel Pre-War",
+   "row": 947,
+   "item": "253E",
+   "value": "1933-1936?",
+   "why": "COTT's own doubt mark (\"1923?\") — it is copied from COTT's variation text; removing it would claim a certainty the source does not have"
+  },
+  {
+   "tab": "Lionel Pre-War",
+   "row": 1278,
+   "item": "450",
+   "value": "1935-1936?",
+   "why": "COTT's own doubt mark (\"1923?\") — it is copied from COTT's variation text; removing it would claim a certainty the source does not have"
+  },
+  {
+   "tab": "Lionel MPC-Modern",
+   "row": 2743,
+   "item": "16108",
+   "value": "1989 and 1992",
+   "why": "two separate years (\"1985 and 1987\" — made in 1985 and again in 1987, not 1986); accurate as written"
+  },
+  {
+   "tab": "Lionel MPC-Modern",
+   "row": 12941,
+   "item": "7220",
+   "value": "1985 and 1987",
+   "why": "two separate years (\"1985 and 1987\" — made in 1985 and again in 1987, not 1986); accurate as written"
+  },
+  {
+   "tab": "Lionel MPC-Modern",
+   "row": 12942,
+   "item": "7221",
+   "value": "1985 and 1987",
+   "why": "two separate years (\"1985 and 1987\" — made in 1985 and again in 1987, not 1986); accurate as written"
+  },
+  {
+   "tab": "Lionel MPC-Modern",
+   "row": 12943,
+   "item": "7222",
+   "value": "1985 and 1987",
+   "why": "two separate years (\"1985 and 1987\" — made in 1985 and again in 1987, not 1986); accurate as written"
+  },
+  {
+   "tab": "Lionel MPC-Modern",
+   "row": 12944,
+   "item": "7223",
+   "value": "1985 and 1987",
+   "why": "two separate years (\"1985 and 1987\" — made in 1985 and again in 1987, not 1986); accurate as written"
+  },
+  {
+   "tab": "Lionel MPC-Modern",
+   "row": 12945,
+   "item": "7224",
+   "value": "1985 and 1987",
+   "why": "two separate years (\"1985 and 1987\" — made in 1985 and again in 1987, not 1986); accurate as written"
+  },
+  {
+   "tab": "Lionel MPC-Modern",
+   "row": 12946,
+   "item": "7225",
+   "value": "1985 and 1987",
+   "why": "two separate years (\"1985 and 1987\" — made in 1985 and again in 1987, not 1986); accurate as written"
+  },
+  {
+   "tab": "Lionel MPC-Modern",
+   "row": 15606,
+   "item": "8868",
+   "value": "1978 and 1980",
+   "why": "two separate years (\"1985 and 1987\" — made in 1985 and again in 1987, not 1986); accurate as written"
+  },
+  {
+   "tab": "Lionel MPC-Modern",
+   "row": 15607,
+   "item": "8869",
+   "value": "1978 and 1980",
+   "why": "two separate years (\"1985 and 1987\" — made in 1985 and again in 1987, not 1986); accurate as written"
+  },
+  {
+   "tab": "Lionel MPC-Modern",
+   "row": 15608,
+   "item": "8870",
+   "value": "1978 and 1980",
+   "why": "two separate years (\"1985 and 1987\" — made in 1985 and again in 1987, not 1986); accurate as written"
+  },
+  {
+   "tab": "Lionel MPC-Modern",
+   "row": 15609,
+   "item": "8871",
+   "value": "1978 and 1980",
+   "why": "two separate years (\"1985 and 1987\" — made in 1985 and again in 1987, not 1986); accurate as written"
+  },
+  {
+   "tab": "Lionel MPC-Modern",
+   "row": 15697,
+   "item": "9051",
+   "value": "1974-75 and 1978",
+   "why": "two separate years (\"1985 and 1987\" — made in 1985 and again in 1987, not 1986); accurate as written"
+  }
+ ],
+ "held_for_weaver_pass": [
+  {
+   "tab": "Weaver O",
+   "row": 506,
+   "item": "1340-L",
+   "variation": "3515, 3518, 3524",
+   "rule": "year-out-of-range",
+   "value": "3515"
+  },
+  {
+   "tab": "Weaver O",
+   "row": 507,
+   "item": "1340-LP",
+   "variation": "3515, 3518, 3524",
+   "rule": "year-out-of-range",
+   "value": "3515"
+  },
+  {
+   "tab": "Weaver O",
+   "row": 508,
+   "item": "1340-S",
+   "variation": "3515, 3518, 3524",
+   "rule": "year-out-of-range",
+   "value": "3515"
+  },
+  {
+   "tab": "Weaver O",
+   "row": 1070,
+   "item": "1ST &",
+   "variation": "",
+   "rule": "desc-missing",
+   "value": ""
+  },
+  {
+   "tab": "Weaver O",
+   "row": 1071,
+   "item": "1ST, 2ND,",
+   "variation": "",
+   "rule": "desc-missing",
+   "value": ""
+  },
+  {
+   "tab": "Weaver O",
+   "row": 1192,
+   "item": "CUSTOM RUN",
+   "variation": "SHPX",
+   "rule": "desc-missing",
+   "value": ""
+  },
+  {
+   "tab": "Weaver O",
+   "row": 1193,
+   "item": "CUSTOM RUN",
+   "variation": "98539",
+   "rule": "desc-missing",
+   "value": ""
+  },
+  {
+   "tab": "Weaver O",
+   "row": 1394,
+   "item": "CUSTOM RUN",
+   "variation": "BF",
+   "rule": "year-unreadable",
+   "value": "RERUN 1998"
+  },
+  {
+   "tab": "Weaver O",
+   "row": 1395,
+   "item": "CUSTOM RUN",
+   "variation": "1997",
+   "rule": "year-unreadable",
+   "value": "RERUN 1998"
+  },
+  {
+   "tab": "Weaver O",
+   "row": 2143,
+   "item": "CUSTOM RUN",
+   "variation": "1712",
+   "rule": "year-unreadable",
+   "value": "?"
+  },
+  {
+   "tab": "Weaver O",
+   "row": 2144,
+   "item": "CUSTOM RUN",
+   "variation": "1714",
+   "rule": "year-unreadable",
+   "value": "?"
+  },
+  {
+   "tab": "Weaver O",
+   "row": 2145,
+   "item": "CUSTOM RUN",
+   "variation": "1716",
+   "rule": "year-unreadable",
+   "value": "?"
+  },
+  {
+   "tab": "Weaver O",
+   "row": 2146,
+   "item": "CUSTOM RUN",
+   "variation": "1718",
+   "rule": "year-unreadable",
+   "value": "?"
+  },
+  {
+   "tab": "Weaver O",
+   "row": 2147,
+   "item": "CUSTOM RUN",
+   "variation": "1721",
+   "rule": "year-unreadable",
+   "value": "?"
+  },
+  {
+   "tab": "Weaver O",
+   "row": 2148,
+   "item": "CUSTOM RUN",
+   "variation": "1723",
+   "rule": "year-unreadable",
+   "value": "?"
+  },
+  {
+   "tab": "Weaver O",
+   "row": 2149,
+   "item": "CUSTOM RUN",
+   "variation": "1725",
+   "rule": "year-unreadable",
+   "value": "?"
+  },
+  {
+   "tab": "Weaver O",
+   "row": 2150,
+   "item": "CUSTOM RUN",
+   "variation": "1727",
+   "rule": "year-unreadable",
+   "value": "?"
+  },
+  {
+   "tab": "Weaver O",
+   "row": 2151,
+   "item": "CUSTOM RUN",
+   "variation": "1732",
+   "rule": "year-unreadable",
+   "value": "?"
+  },
+  {
+   "tab": "Weaver O",
+   "row": 2152,
+   "item": "CUSTOM RUN",
+   "variation": "1734",
+   "rule": "year-unreadable",
+   "value": "?"
+  },
+  {
+   "tab": "Weaver O",
+   "row": 2153,
+   "item": "CUSTOM RUN",
+   "variation": "1736",
+   "rule": "year-unreadable",
+   "value": "?"
+  },
+  {
+   "tab": "Weaver O",
+   "row": 2154,
+   "item": "CUSTOM RUN",
+   "variation": "1738",
+   "rule": "year-unreadable",
+   "value": "?"
+  },
+  {
+   "tab": "Weaver O",
+   "row": 2357,
+   "item": "CUSTOM RUN",
+   "variation": "320",
+   "rule": "year-unreadable",
+   "value": "?"
+  },
+  {
+   "tab": "Weaver O",
+   "row": 2358,
+   "item": "CUSTOM RUN",
+   "variation": "323",
+   "rule": "year-unreadable",
+   "value": "?"
+  },
+  {
+   "tab": "Weaver O",
+   "row": 2359,
+   "item": "CUSTOM RUN",
+   "variation": "312",
+   "rule": "year-unreadable",
+   "value": "?"
+  },
+  {
+   "tab": "Weaver O",
+   "row": 2650,
+   "item": "CUSTOM RUN",
+   "variation": "18127",
+   "rule": "desc-missing",
+   "value": ""
+  },
+  {
+   "tab": "Weaver O",
+   "row": 2651,
+   "item": "CUSTOM RUN",
+   "variation": "18130",
+   "rule": "desc-missing",
+   "value": ""
+  },
+  {
+   "tab": "Weaver O",
+   "row": 2652,
+   "item": "CUSTOM RUN",
+   "variation": "18134",
+   "rule": "desc-missing",
+   "value": ""
+  },
+  {
+   "tab": "Weaver O",
+   "row": 4032,
+   "item": "PACK5",
+   "variation": "95421",
+   "rule": "desc-missing",
+   "value": ""
+  },
+  {
+   "tab": "Weaver O",
+   "row": 4033,
+   "item": "PACK5",
+   "variation": "95427",
+   "rule": "desc-missing",
+   "value": ""
+  },
+  {
+   "tab": "Weaver O",
+   "row": 4551,
+   "item": "U1030",
+   "variation": "",
+   "rule": "desc-missing",
+   "value": ""
+  },
+  {
+   "tab": "Weaver O",
+   "row": 5069,
+   "item": "U1130",
+   "variation": "",
+   "rule": "desc-missing",
+   "value": ""
+  },
+  {
+   "tab": "Weaver O",
+   "row": 6861,
+   "item": "U1806",
+   "variation": "44325",
+   "rule": "year-unreadable",
+   "value": "19??"
+  },
+  {
+   "tab": "Weaver O",
+   "row": 6862,
+   "item": "U1806",
+   "variation": "44329",
+   "rule": "year-unreadable",
+   "value": "19??"
+  },
+  {
+   "tab": "Weaver O",
+   "row": 6863,
+   "item": "U1806",
+   "variation": "44320",
+   "rule": "year-unreadable",
+   "value": "19??"
+  },
+  {
+   "tab": "Weaver O",
+   "row": 7016,
+   "item": "U1906",
+   "variation": "44325",
+   "rule": "year-unreadable",
+   "value": "19??"
+  },
+  {
+   "tab": "Weaver O",
+   "row": 7017,
+   "item": "U1906",
+   "variation": "44329",
+   "rule": "year-unreadable",
+   "value": "19??"
+  },
+  {
+   "tab": "Weaver O",
+   "row": 7018,
+   "item": "U1906",
+   "variation": "44320",
+   "rule": "year-unreadable",
+   "value": "19??"
+  },
+  {
+   "tab": "Weaver O",
+   "row": 7494,
+   "item": "U2132",
+   "variation": "22380",
+   "rule": "year-out-of-range",
+   "value": "2202"
+  },
+  {
+   "tab": "Weaver O",
+   "row": 7495,
+   "item": "U2132",
+   "variation": "22383",
+   "rule": "year-out-of-range",
+   "value": "2202"
+  },
+  {
+   "tab": "Weaver O",
+   "row": 7496,
+   "item": "U2132",
+   "variation": "22385",
+   "rule": "year-out-of-range",
+   "value": "2202"
+  },
+  {
+   "tab": "Weaver O",
+   "row": 7497,
+   "item": "U2132",
+   "variation": "22388",
+   "rule": "year-out-of-range",
+   "value": "2202"
+  },
+  {
+   "tab": "Weaver O",
+   "row": 11965,
+   "item": "U5537LP",
+   "variation": "",
+   "rule": "desc-missing",
+   "value": ""
+  },
+  {
+   "tab": "Weaver O",
+   "row": 11970,
+   "item": "U5538LP",
+   "variation": "",
+   "rule": "desc-missing",
+   "value": ""
+  },
+  {
+   "tab": "Weaver O",
+   "row": 12066,
+   "item": "U6011",
+   "variation": "",
+   "rule": "desc-missing",
+   "value": ""
+  },
+  {
+   "tab": "Weaver O",
+   "row": 12080,
+   "item": "U6041",
+   "variation": "",
+   "rule": "desc-missing",
+   "value": ""
+  },
+  {
+   "tab": "Weaver O",
+   "row": 12090,
+   "item": "U6071",
+   "variation": "",
+   "rule": "desc-missing",
+   "value": ""
+  },
+  {
+   "tab": "Weaver O",
+   "row": 12103,
+   "item": "U6113",
+   "variation": "",
+   "rule": "desc-missing",
+   "value": ""
+  },
+  {
+   "tab": "Weaver O",
+   "row": 12114,
+   "item": "U6511",
+   "variation": "",
+   "rule": "desc-missing",
+   "value": ""
+  },
+  {
+   "tab": "Weaver O",
+   "row": 12115,
+   "item": "U6511LP",
+   "variation": "",
+   "rule": "desc-missing",
+   "value": ""
+  },
+  {
+   "tab": "Weaver O",
+   "row": 12130,
+   "item": "U6541",
+   "variation": "",
+   "rule": "desc-missing",
+   "value": ""
+  },
+  {
+   "tab": "Weaver O",
+   "row": 12131,
+   "item": "U6541LP",
+   "variation": "",
+   "rule": "desc-missing",
+   "value": ""
+  },
+  {
+   "tab": "Weaver O",
+   "row": 12142,
+   "item": "U6571",
+   "variation": "",
+   "rule": "desc-missing",
+   "value": ""
+  },
+  {
+   "tab": "Weaver O",
+   "row": 12143,
+   "item": "U6571LP",
+   "variation": "",
+   "rule": "desc-missing",
+   "value": ""
+  },
+  {
+   "tab": "Weaver O",
+   "row": 12159,
+   "item": "U6613",
+   "variation": "",
+   "rule": "desc-missing",
+   "value": ""
+  },
+  {
+   "tab": "Weaver O",
+   "row": 12160,
+   "item": "U6613LP",
+   "variation": "",
+   "rule": "desc-missing",
+   "value": ""
+  },
+  {
+   "tab": "Weaver O",
+   "row": 12415,
+   "item": "U7578LP",
+   "variation": "",
+   "rule": "desc-missing",
+   "value": ""
+  },
+  {
+   "tab": "Weaver O",
+   "row": 12420,
+   "item": "U7579LP",
+   "variation": "",
+   "rule": "desc-missing",
+   "value": ""
+  },
+  {
+   "tab": "Weaver O",
+   "row": 12505,
+   "item": "U8509LP",
+   "variation": "",
+   "rule": "desc-missing",
+   "value": ""
+  },
+  {
+   "tab": "Weaver O",
+   "row": 12510,
+   "item": "U8516",
+   "variation": "",
+   "rule": "desc-missing",
+   "value": ""
+  },
+  {
+   "tab": "Weaver O",
+   "row": 12563,
+   "item": "VERSION 1",
+   "variation": "",
+   "rule": "desc-missing",
+   "value": ""
+  },
+  {
+   "tab": "Weaver O",
+   "row": 12564,
+   "item": "VERSION 1 OF 2",
+   "variation": "",
+   "rule": "desc-missing",
+   "value": ""
+  },
+  {
+   "tab": "Weaver O",
+   "row": 12565,
+   "item": "VERSION 2",
+   "variation": "",
+   "rule": "desc-missing",
+   "value": ""
+  },
+  {
+   "tab": "Weaver O",
+   "row": 12566,
+   "item": "VERSION 2 OF 2",
+   "variation": "",
+   "rule": "desc-missing",
+   "value": ""
+  },
+  {
+   "tab": "Weaver O",
+   "row": 12567,
+   "item": "VERSION 3",
+   "variation": "",
+   "rule": "desc-missing",
+   "value": ""
+  },
+  {
+   "tab": "Weaver O",
+   "row": 12568,
+   "item": "VERSION 4",
+   "variation": "",
+   "rule": "desc-missing",
+   "value": ""
+  }
+ ],
+ "order": "cells first (rows as they stand), then per tab ONE spreadsheets.batchUpdate of the row ops bottom-up, then the values of the added rows"
+}

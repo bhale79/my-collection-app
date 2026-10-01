@@ -119,6 +119,15 @@ function writeFixture(dir, rows, header) {
     && JSON.stringify(audit.yearsOf('1955-1957, 1959')) === '[1955,1957,1959]' && JSON.stringify(audit.yearsOf('Fall 2022')) === '[2022]' && JSON.stringify(audit.yearsOf('c. 1950')) === '[1950]'
     && JSON.stringify(audit.yearsOf('2019–2020 (archive dates)')) === '[2019,2020]' && JSON.stringify(audit.yearsOf('94-95')) === '[1994,1995]'
     && audit.yearsOf('Postwar era') === null && audit.yearsOf('?') === null && JSON.stringify(audit.yearsOf('')) === '[]');
+  // B7 (2026-10-01): the ways the sources really write a year. "1923?" is COTT's own doubt mark (the year is
+  // still a year); "1985 and 1987" is two years, not a range; "1950s" is a decade the Marx guide prints as "50s".
+  // A '?' with no year in front of it stays unreadable — a blank-the-question-mark reader would hide the Weaver "?" cells.
+  const B7 = yo => JSON.stringify(yo('1923?')) === '[1923]' && JSON.stringify(yo('1926-1927?')) === '[1926,1927]'
+    && JSON.stringify(yo('1985 and 1987')) === '[1985,1987]' && JSON.stringify(yo('1974-75 and 1978')) === '[1974,1975,1978]'
+    && JSON.stringify(yo('1950s')) === '[1950,1959]' && JSON.stringify(yo('1950s-1960s')) === '[1950,1969]'
+    && yo('?') === null && yo('19??') === null && yo('50s') === null && yo('RERUN 1998') === null && yo('Postwar era') === null;
+  T('B7  years as the sources write them: a doubt mark, "and", a decade — and a bare "?" / "19??" still unreadable', B7(audit.yearsOf));
+  T('B7b (offender) a reader that simply drops every "?" fails B7', !B7(s => audit.yearsOf(String(s).replace(/\?/g, ''))));
   T('B3  the CSV reader keeps quoted commas, doubled quotes and a newline inside quotes',
     JSON.stringify(audit.parseCsv('"a,b","say ""hi""","two\nlines"\r\n1,2,3\n')) === JSON.stringify([['a,b', 'say "hi"', 'two\nlines'], ['1', '2', '3']]));
   // the sheet's public page, as it really reads (names are JS string literals; the page URL carries \x3d)

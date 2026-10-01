@@ -224,17 +224,23 @@ function yearSpanOf(A, era) {
   return { from: +m[1], to: /today/i.test(m[2]) ? YEAR_MAX : +m[2] };
 }
 // '1957' | '1957-1966' | '1957-66' | '1955-1957, 1959' | 'Fall 2022' | 'c. 1950'
+// | '1985 and 1987' | '1923?' (the source's own doubt mark) | '1950s' | '1950s-1960s'
 // → the years named; null when the cell cannot be read as years at all.
+// A '?' with no year in front of it ('?', '19??') is NOT a year — it stays unreadable.
 function yearsOf(raw) {
   const t = String(raw || '').trim();
   if (!t) return [];
   const out = [];
   const body = t.replace(/\s*\([^)]*\)\s*$/, '');   // "2019–2020 (archive dates)" — the note is not the year
   const two = y => (+y <= 30 ? 2000 : 1900) + +y;    // "94-95" → 1994-1995; "05" → 2005
-  for (let part of body.split(/[,;/]/)) {
+  for (let part of body.split(/[,;/]|\s+and\s+/i)) {
     part = part.trim().replace(/^(c\.|ca\.|circa|about|approx\.?)\s*/i, '').replace(/^(spring|summer|fall|autumn|winter|early|late|mid)[\s-]*/i, '');
     if (!part) continue;
-    let m = part.match(/^(\d{4})$/); if (m) { out.push(+m[1]); continue; }
+    const doubt = part.match(/^(.*\d)\s*\?$/);       // "1923?" — COTT's doubt mark; the year is still a year
+    if (doubt) part = doubt[1];
+    let m = part.match(/^(\d{3})0s$/); if (m) { out.push(+(m[1] + '0'), +(m[1] + '9')); continue; }                          // "1950s"
+    m = part.match(/^(\d{3})0s\s*[-–]\s*(\d{3})0s$/); if (m) { out.push(+(m[1] + '0'), +(m[2] + '9')); continue; }          // "1950s-1960s"
+    m = part.match(/^(\d{4})$/); if (m) { out.push(+m[1]); continue; }
     m = part.match(/^(\d{4})\s*[-–]\s*(\d{4})$/); if (m) { out.push(+m[1], +m[2]); continue; }
     m = part.match(/^(\d{4})\s*[-–]\s*(\d{2})$/); if (m) { out.push(+m[1], +(m[1].slice(0, 2) + m[2])); continue; }
     m = part.match(/^(\d{2})\s*[-–]\s*(\d{2})$/); if (m) { out.push(two(m[1]), two(m[2])); continue; }
