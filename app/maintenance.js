@@ -1392,12 +1392,13 @@
   // links clicked from another site, token or no token (Brad tested
   // every form). So the button copies the exact PDF link and opens
   // lionelcollectors.org; the user pastes in that tab's address bar.
-  window._maintLccaGo = function (url) {
+  window._maintLccaGo = function (url, noteId) {
     var done = function (ok) {
       // v0.9.1642: the new tab covers the app instantly, so a toast plays
       // to an empty room (Brad never saw it). The instruction lives IN
       // the panel now — still there when the user switches back.
-      var note = document.getElementById('maint-lcca-note');
+      // v0.9.1857: the note's id comes from the builder (the popup has its own).
+      var note = document.getElementById(noteId || 'maint-lcca-note');
       if (note) {
         note.style.display = 'block';
         note.innerHTML = ok
@@ -1486,6 +1487,139 @@
     return item || null;
   }
 
+  // ── v0.9.1857: THE ONE builder of the "Manuals & Parts Diagrams" links ──
+  // [stated] Brad, 2026-10-01 (item 5): "when i have the need a part page up,
+  // i should also be able to click on the parts diagram if i have it saved or
+  // be able to click the google link or the trainz link." Until now this block
+  // lived inside the Maintenance panel only. It is a function now, and the
+  // panel's docs section AND the Need-a-part popup both call it — so the two
+  // can never disagree (one more site would be a third copy; don't).
+  // `where` suffixes the LCCA note's id so a popup over the panel keeps its
+  // own note ('' = the panel, 'pop' = the Need-a-part popup).
+  function _maintDiagramLinksHtml(item, where) {
+    var eraKey = null;
+    try { eraKey = (typeof _itemEraKey === 'function') ? _itemEraKey(item) : (item._era || item.era || null); } catch (e) {}
+    var route = _docsRoute(eraKey);
+    var _pwsmHit = (route === 'lcca') ? _pwsmFile(String(item.itemNum || '')) : null;
+    var _atlasHit = (route === 'atlas') ? _atlasMatch(item, eraKey) : null;
+    var routeLabel = _maintRouteLabel(route, item, _pwsmHit, _atlasHit);
+    var linkBtn = _btn('blue');
+    var noteId = 'maint-lcca-note' + (where ? '-' + where : '');
+    // v0.9.1644 (Brad's spec): MANUFACTURER source first — direct
+    // PDF when we have it, honest "there isn't one" when we don't —
+    // then always: Google the parts diagram + Trainz parts diagrams.
+    // Postwar order once Brad's originals are uploaded: his Lionel
+    // parts diagrams FIRST, then LCCA. (Slot reserved below.)
+    var mk = _makerName(item, eraKey) || 'this maker';
+    var num = String(item.itemNum || '').trim();
+    var h = '';
+    // ── the manufacturer row ──
+    if (route === 'lcca') {
+      // FUTURE SLOT: Brad's original Lionel parts diagrams go here, above LCCA.
+      // v0.9.1846 ([stated] Brad: "just remove the lcca button from the
+      // mobile app all together but keep it on the desktop"). The LCCA
+      // route is copy-the-link + paste it in the browser's address bar
+      // (LCCA's member cookie only rides on a typed/pasted address). A
+      // phone opens the link in Chrome's small in-app window, which has
+      // NO address bar — and Chrome refuses to hand an installed app's
+      // link to full Chrome (intent-to-self = navigate in place). So on
+      // a phone there is nowhere to paste: the button is not shown.
+      // Phone-ness = window.IS_MOBILE_UA, the ONE flag (config.js).
+      // v0.9.1850 ([stated] Brad: "the olsenstoy.com button, we just need to
+      // remove it as it never works" → "both mobile and desktop"): gone
+      // everywhere. The Google + Trainz rows below follow on every device.
+      if (!window.IS_MOBILE_UA) {
+      h += '<button onclick="_maintLccaGo(\'' + rrJsArg(_docsUrl(route, item)) + '\',\'' + rrJsArg(noteId) + '\')" ' + linkBtn + '>' + _esc(routeLabel) + ' →</button>'
+        + '<div id="' + noteId + '" style="display:none;font-size:0.8rem;color:var(--text);background:var(--bg-card);background:color-mix(in srgb, rgb(41,128,185) 12%, var(--surface2));border:1px solid #2980b9;border-radius:8px;padding:0.55rem 0.7rem;margin-top:0.55rem"></div>'
+        + '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.45rem">' + (_pwsmHit ? 'Copies the link to this item\'s manual section and opens LCCA in a new tab — see the note above after you tap.' : 'No direct section mapped — the button copies the archive link; paste it in the LCCA tab.') + ' Requires LCCA membership.</div>';
+      }
+    } else if (route === 'atlas' && _atlasHit) {
+      // v0.9.1744: the whole family — body, chassis, trucks — not just the first sheet
+      var _atlasAll = _atlasMatchAll(item, eraKey) || [_atlasHit];
+      h += '<button onclick="window.open(\'' + rrJsArg(ATLAS_DL + _atlasHit.u) + '\',\'_blank\')" ' + linkBtn + '>Parts diagram: ' + _esc(_atlasHit.t) + ' →</button>';
+      if (_atlasAll.length > 1) {
+        h += '<div style="display:flex;flex-wrap:wrap;gap:0.4rem;margin-top:0.45rem">';
+        _atlasAll.slice(1).forEach(function (e) {
+          h += '<button onclick="window.open(\'' + rrJsArg(ATLAS_DL + e.u) + '\',\'_blank\')" ' + _btnQuiet() + '>' + _esc(e.t.replace(/^(HO|N|O|Z) /, '')) + ' →</button>';
+        });
+        h += '</div>';
+      }
+      h += '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.45rem">Atlas\'s own PDF for this family. <a href="' + ATLAS_PAGE + '" target="_blank" rel="noopener" style="color:var(--text-dim)">Their full list →</a></div>';
+    } else if (route === 'atlas') {
+      var _atlasFam = _atlasFamilies(_atlasScale(eraKey));
+      h += '<button onclick="window.open(\'' + ATLAS_PAGE + '\',\'_blank\')" ' + linkBtn + '>Atlas parts diagrams (browse) →</button>'
+        + '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.45rem">Atlas hasn\'t published a parts diagram for this model'
+        + (_atlasFam.length ? ' — their ' + _esc(_atlasScale(eraKey) || '') + ' list covers: ' + _esc(_atlasFam.join(', ')) + '.' : '.')
+        + ' The Google search below is the next best bet.</div>';
+    } else if (route === 'lionel') {
+      h += '<button onclick="window.open(\'' + rrJsArg(_docsUrl(route, item)) + '\',\'_blank\')" ' + linkBtn + '>Lionel Support: search ' + _esc(_lionelBoxNum(num)) + ' →</button>'
+        + '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.45rem">Owner\'s manuals and parts on lionelsupport.com.</div>';
+    } else if (route === 'mth') {
+      h += '<button onclick="window.open(\'' + rrJsArg(_docsUrl(route, item)) + '\',\'_blank\')" ' + linkBtn + '>MTH Parts &amp; Sales: search ' + _esc(num) + ' →</button>'
+        + '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.45rem">Lands on MTH\'s part lists for this item — pick Mechanical or Electronics. They add new lists monthly.</div>';
+    } else if (route === 'lgb') {
+      h += '<button onclick="window.open(\'' + rrJsArg(_docsUrl(route, item)) + '\',\'_blank\')" ' + linkBtn + '>LGB spare-parts search (official) →</button>'
+        + '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.45rem">Marklin\'s official LGB spare-parts search — it accepts old LGB article numbers like ' + _esc(num) + '.</div>';
+    } else if (route === 'usatrains') {
+      h += '<button onclick="window.open(\'' + rrJsArg(_docsUrl(route, item)) + '\',\'_blank\')" ' + linkBtn + '>USA Trains diagram archive (community) →</button>'
+        + '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.45rem">USA Trains publishes no diagrams — this is the community-run archive. Their own site sells ~30 per-model service parts.</div>';
+    } else if (route === 'bachmann') {
+      h += '<button onclick="window.open(\'' + rrJsArg(_docsUrl(route, item)) + '\',\'_blank\')" ' + linkBtn + '>Bachmann parts eStore: search ' + _esc(num) + ' →</button>'
+        + '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.45rem">Official Bachmann/Williams parts. Unlisted parts: parts@bachmanntrains.com.</div>';
+    } else if (route === 'thirdrail') {
+      h += '<button onclick="window.open(\'' + rrJsArg(_docsUrl(route, item)) + '\',\'_blank\')" ' + linkBtn + '>Get 3R Parts (official 3rd Rail/Sunset) →</button>'
+        + '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.45rem">50 years of Sunset/3rd Rail OEM parts, browse by project number. No diagrams exist.</div>';
+    } else if (route === 'weaver') {
+      h += '<div style="font-size:0.8rem;color:var(--text-dim);padding:0.4rem 0;border-bottom:1px dashed var(--border);margin-bottom:0.5rem">Weaver closed in 2015 — no official parts source. Try P&amp;D Hobby, eBay, or the searches below; some tooling went to Atlas O and Lionel.</div>';
+    } else if (route === 'aristocraft') {
+      h += '<button onclick="window.open(\'https://reindeerpass.com\',\'_blank\')" ' + linkBtn + '>Reindeer Pass (compatible motor blocks) →</button>'
+        + '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.45rem">Aristo-Craft closed in 2013 — no OEM parts. Reindeer Pass sells compatible motor blocks and trucks.</div>';
+    } else {
+      h += '<div style="font-size:0.8rem;color:var(--text-dim);padding:0.4rem 0;border-bottom:1px dashed var(--border);margin-bottom:0.5rem">' + _esc(mk) + ' does not publish a parts list for this one — use the searches below.</div>';
+    }
+    // ── v0.9.1690: Maerklin publishes BOTH for about half its
+    // catalogue — the exploded-diagram/manual sheet as a PDF on its
+    // own server, and a live parts list in its shop, both keyed by
+    // the same article number the catalog row already carries.
+    // Links only; the sheet and the parts stay on Maerklin's side.
+    var mkp = _marklinParts(item);
+    if (mkp) {
+      if (mkp.d) {
+        h += '<div style="margin-top:0.5rem"><button onclick="window.open(\'' + rrJsArg((window.MARKLIN_PARTS_PDF_BASE || '') + mkp.d) + '\',\'_blank\')" ' + linkBtn + '>Marklin exploded diagram (PDF)' + (mkp.t ? ': ' + _esc(mkp.t) : '') + ' \u2192</button></div>';
+      }
+      if (mkp.s) {
+        h += '<div style="margin-top:0.5rem"><button onclick="window.open(\'' + rrJsArg((window.MARKLIN_PARTS_SHOP || '') + encodeURIComponent(mkp.num)) + '\',\'_blank\')" ' + linkBtn + '>Marklin parts list for ' + _esc(mkp.num) + ' \u2192</button>'
+          + '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.45rem">Maerklin\'s own shop \u2014 every part they still stock for this model.</div></div>';
+      }
+    }
+    // ── Trainz exploded diagram, when their library has this item ──
+    var tzd = _tzDiagram(item);
+    if (tzd) {
+      h += '<div style="margin-top:0.5rem"><button onclick="window.open(\'https://www.trainz.com/pages/parts-diagram/' + _esc(tzd.h) + '\',\'_blank\')" ' + linkBtn + '>Trainz diagram: ' + _esc(tzd.t) + ' →</button></div>';
+    }
+    // ── always: Google (with MODEL words) + supplier dropdown ──
+    var mw = _modelWords(item);
+    // v0.9.1838 (N5): the number the way the catalogs spell it (rrSearchNumber:
+    // 6-84631, not 84631) — the same word _partsUrl already searches with.
+    var _gqNum = num;
+    try { if (typeof rrSearchNumber === 'function') _gqNum = rrSearchNumber(item) || num; } catch (eGN) {}
+    var gq = 'https://www.google.com/search?q=' + encodeURIComponent(('"' + mk + '" "' + _gqNum + '" ' + mw + ' parts diagram').replace(/\s+/g, ' '));
+    // v0.9.1662 (Brad): Parts Suppliers dropdown CUT from the docs
+    // section — the Google button covers it. (The dealer dropdown in
+    // Find-a-Part stays; _maintSupplierGo survives unused-by-docs.)
+    h += '<div style="display:flex;gap:0.4rem;margin-top:0.55rem;flex-wrap:wrap;align-items:center">'
+      +   '<button onclick="window.open(\'' + rrJsArg(gq) + '\',\'_blank\')" ' + _btnQuiet() + '>Google the parts diagram →</button>'
+      + '</div>';
+    return h;
+  }
+  function _maintRouteLabel(route, item, _pwsmHit, _atlasHit) {
+    return route === 'lcca' ? (_pwsmHit ? 'Service Manual pages for ' + _esc(String(item.itemNum || '')) + ' (LCCA members)' : 'LCCA Postwar Service Manual archive (members)')
+         : route === 'lionel' ? 'Lionel Support (manuals & parts diagrams)'
+         : route === 'mth' ? 'MTH Parts & Sales (diagrams & parts)'
+         : route === 'atlas' ? (_atlasHit ? 'Parts diagram: ' + _atlasHit.t : 'Atlas parts diagrams')
+         : 'Search the web for docs';
+  }
+
   window._maintOpenPanel = function (idx, itemNum, variation, invId) {
     // invId = Brad's OWNED copy (inventoryId — the per-unit identity that
     // phase 2's parts/history will key on). itemNum+variation = the CATALOG
@@ -1497,17 +1631,8 @@
     window._maintPanelInvId = String(invId == null ? '' : invId);   // phase 2 hook
     _wbTarget = null;   // v0.9.1751: the card's item is the target from here on
 
-    var eraKey = null;
-    try { eraKey = (typeof _itemEraKey === 'function') ? _itemEraKey(item) : (item._era || item.era || null); } catch (e) {}
-    var route = _docsRoute(eraKey);
-    var _pwsmHit = (route === 'lcca') ? _pwsmFile(String(item.itemNum || '')) : null;
-    var _atlasHit = (route === 'atlas') ? _atlasMatch(item, eraKey) : null;
-    var routeLabel = route === 'lcca' ? (_pwsmHit ? 'Service Manual pages for ' + _esc(String(item.itemNum || '')) + ' (LCCA members)' : 'LCCA Postwar Service Manual archive (members)')
-                   : route === 'lionel' ? 'Lionel Support (manuals & parts diagrams)'
-                   : route === 'mth' ? 'MTH Parts & Sales (diagrams & parts)'
-                   : route === 'atlas' ? (_atlasHit ? 'Parts diagram: ' + _atlasHit.t : 'Atlas parts diagrams')
-                   : 'Search the web for docs';
-
+    // (the route, the LCCA / Atlas hits and the label are worked out inside
+    // _maintDiagramLinksHtml since v0.9.1857 — the panel has no copy of them)
     var old = document.getElementById('maint-overlay');
     if (old) old.remove();
 
@@ -1550,116 +1675,8 @@
       +   '<div style="font-size:0.7rem;color:var(--text-dim);margin-top:0.45rem">Save a screenshot, a PDF/document, or a manual link — it shows here for every item it covers, and in your Toolbox.</div>'
       + '</div>'
 
-      // Docs
-      + sec('Manuals &amp; Parts Diagrams',
-          (function () {
-            // v0.9.1644 (Brad's spec): MANUFACTURER source first — direct
-            // PDF when we have it, honest "there isn't one" when we don't —
-            // then always: Google the parts diagram + Trainz parts diagrams.
-            // Postwar order once Brad's originals are uploaded: his Lionel
-            // parts diagrams FIRST, then LCCA. (Slot reserved below.)
-            var mk = _makerName(item, eraKey) || 'this maker';
-            var num = String(item.itemNum || '').trim();
-            var h = '';
-            // ── the manufacturer row ──
-            if (route === 'lcca') {
-              // FUTURE SLOT: Brad's original Lionel parts diagrams go here, above LCCA.
-              // v0.9.1846 ([stated] Brad: "just remove the lcca button from the
-              // mobile app all together but keep it on the desktop"). The LCCA
-              // route is copy-the-link + paste it in the browser's address bar
-              // (LCCA's member cookie only rides on a typed/pasted address). A
-              // phone opens the link in Chrome's small in-app window, which has
-              // NO address bar — and Chrome refuses to hand an installed app's
-              // link to full Chrome (intent-to-self = navigate in place). So on
-              // a phone there is nowhere to paste: the button is not shown.
-              // Phone-ness = window.IS_MOBILE_UA, the ONE flag (config.js).
-              // v0.9.1850 ([stated] Brad: "the olsenstoy.com button, we just need to
-              // remove it as it never works" → "both mobile and desktop"): gone
-              // everywhere. The Google + Trainz rows below follow on every device.
-              if (!window.IS_MOBILE_UA) {
-              h += '<button onclick="_maintLccaGo(\'' + rrJsArg(_docsUrl(route, item)) + '\')" ' + linkBtn + '>' + _esc(routeLabel) + ' →</button>'
-                + '<div id="maint-lcca-note" style="display:none;font-size:0.8rem;color:var(--text);background:var(--bg-card);background:color-mix(in srgb, rgb(41,128,185) 12%, var(--surface2));border:1px solid #2980b9;border-radius:8px;padding:0.55rem 0.7rem;margin-top:0.55rem"></div>'
-                + '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.45rem">' + (_pwsmHit ? 'Copies the link to this item\'s manual section and opens LCCA in a new tab — see the note above after you tap.' : 'No direct section mapped — the button copies the archive link; paste it in the LCCA tab.') + ' Requires LCCA membership.</div>';
-              }
-            } else if (route === 'atlas' && _atlasHit) {
-              // v0.9.1744: the whole family — body, chassis, trucks — not just the first sheet
-              var _atlasAll = _atlasMatchAll(item, eraKey) || [_atlasHit];
-              h += '<button onclick="window.open(\'' + rrJsArg(ATLAS_DL + _atlasHit.u) + '\',\'_blank\')" ' + linkBtn + '>Parts diagram: ' + _esc(_atlasHit.t) + ' →</button>';
-              if (_atlasAll.length > 1) {
-                h += '<div style="display:flex;flex-wrap:wrap;gap:0.4rem;margin-top:0.45rem">';
-                _atlasAll.slice(1).forEach(function (e) {
-                  h += '<button onclick="window.open(\'' + rrJsArg(ATLAS_DL + e.u) + '\',\'_blank\')" ' + _btnQuiet() + '>' + _esc(e.t.replace(/^(HO|N|O|Z) /, '')) + ' →</button>';
-                });
-                h += '</div>';
-              }
-              h += '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.45rem">Atlas\'s own PDF for this family. <a href="' + ATLAS_PAGE + '" target="_blank" rel="noopener" style="color:var(--text-dim)">Their full list →</a></div>';
-            } else if (route === 'atlas') {
-              var _atlasFam = _atlasFamilies(_atlasScale(eraKey));
-              h += '<button onclick="window.open(\'' + ATLAS_PAGE + '\',\'_blank\')" ' + linkBtn + '>Atlas parts diagrams (browse) →</button>'
-                + '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.45rem">Atlas hasn\'t published a parts diagram for this model'
-                + (_atlasFam.length ? ' — their ' + _esc(_atlasScale(eraKey) || '') + ' list covers: ' + _esc(_atlasFam.join(', ')) + '.' : '.')
-                + ' The Google search below is the next best bet.</div>';
-            } else if (route === 'lionel') {
-              h += '<button onclick="window.open(\'' + rrJsArg(_docsUrl(route, item)) + '\',\'_blank\')" ' + linkBtn + '>Lionel Support: search ' + _esc(_lionelBoxNum(num)) + ' →</button>'
-                + '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.45rem">Owner\'s manuals and parts on lionelsupport.com.</div>';
-            } else if (route === 'mth') {
-              h += '<button onclick="window.open(\'' + rrJsArg(_docsUrl(route, item)) + '\',\'_blank\')" ' + linkBtn + '>MTH Parts &amp; Sales: search ' + _esc(num) + ' →</button>'
-                + '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.45rem">Lands on MTH\'s part lists for this item — pick Mechanical or Electronics. They add new lists monthly.</div>';
-            } else if (route === 'lgb') {
-              h += '<button onclick="window.open(\'' + rrJsArg(_docsUrl(route, item)) + '\',\'_blank\')" ' + linkBtn + '>LGB spare-parts search (official) →</button>'
-                + '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.45rem">Marklin\'s official LGB spare-parts search — it accepts old LGB article numbers like ' + _esc(num) + '.</div>';
-            } else if (route === 'usatrains') {
-              h += '<button onclick="window.open(\'' + rrJsArg(_docsUrl(route, item)) + '\',\'_blank\')" ' + linkBtn + '>USA Trains diagram archive (community) →</button>'
-                + '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.45rem">USA Trains publishes no diagrams — this is the community-run archive. Their own site sells ~30 per-model service parts.</div>';
-            } else if (route === 'bachmann') {
-              h += '<button onclick="window.open(\'' + rrJsArg(_docsUrl(route, item)) + '\',\'_blank\')" ' + linkBtn + '>Bachmann parts eStore: search ' + _esc(num) + ' →</button>'
-                + '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.45rem">Official Bachmann/Williams parts. Unlisted parts: parts@bachmanntrains.com.</div>';
-            } else if (route === 'thirdrail') {
-              h += '<button onclick="window.open(\'' + rrJsArg(_docsUrl(route, item)) + '\',\'_blank\')" ' + linkBtn + '>Get 3R Parts (official 3rd Rail/Sunset) →</button>'
-                + '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.45rem">50 years of Sunset/3rd Rail OEM parts, browse by project number. No diagrams exist.</div>';
-            } else if (route === 'weaver') {
-              h += '<div style="font-size:0.8rem;color:var(--text-dim);padding:0.4rem 0;border-bottom:1px dashed var(--border);margin-bottom:0.5rem">Weaver closed in 2015 — no official parts source. Try P&amp;D Hobby, eBay, or the searches below; some tooling went to Atlas O and Lionel.</div>';
-            } else if (route === 'aristocraft') {
-              h += '<button onclick="window.open(\'https://reindeerpass.com\',\'_blank\')" ' + linkBtn + '>Reindeer Pass (compatible motor blocks) →</button>'
-                + '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.45rem">Aristo-Craft closed in 2013 — no OEM parts. Reindeer Pass sells compatible motor blocks and trucks.</div>';
-            } else {
-              h += '<div style="font-size:0.8rem;color:var(--text-dim);padding:0.4rem 0;border-bottom:1px dashed var(--border);margin-bottom:0.5rem">' + _esc(mk) + ' does not publish a parts list for this one — use the searches below.</div>';
-            }
-            // ── v0.9.1690: Maerklin publishes BOTH for about half its
-            // catalogue — the exploded-diagram/manual sheet as a PDF on its
-            // own server, and a live parts list in its shop, both keyed by
-            // the same article number the catalog row already carries.
-            // Links only; the sheet and the parts stay on Maerklin's side.
-            var mkp = _marklinParts(item);
-            if (mkp) {
-              if (mkp.d) {
-                h += '<div style="margin-top:0.5rem"><button onclick="window.open(\'' + rrJsArg((window.MARKLIN_PARTS_PDF_BASE || '') + mkp.d) + '\',\'_blank\')" ' + linkBtn + '>Marklin exploded diagram (PDF)' + (mkp.t ? ': ' + _esc(mkp.t) : '') + ' \u2192</button></div>';
-              }
-              if (mkp.s) {
-                h += '<div style="margin-top:0.5rem"><button onclick="window.open(\'' + rrJsArg((window.MARKLIN_PARTS_SHOP || '') + encodeURIComponent(mkp.num)) + '\',\'_blank\')" ' + linkBtn + '>Marklin parts list for ' + _esc(mkp.num) + ' \u2192</button>'
-                  + '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.45rem">Maerklin\'s own shop \u2014 every part they still stock for this model.</div></div>';
-              }
-            }
-            // ── Trainz exploded diagram, when their library has this item ──
-            var tzd = _tzDiagram(item);
-            if (tzd) {
-              h += '<div style="margin-top:0.5rem"><button onclick="window.open(\'https://www.trainz.com/pages/parts-diagram/' + _esc(tzd.h) + '\',\'_blank\')" ' + linkBtn + '>Trainz diagram: ' + _esc(tzd.t) + ' →</button></div>';
-            }
-            // ── always: Google (with MODEL words) + supplier dropdown ──
-            var mw = _modelWords(item);
-            // v0.9.1838 (N5): the number the way the catalogs spell it (rrSearchNumber:
-            // 6-84631, not 84631) — the same word _partsUrl already searches with.
-            var _gqNum = num;
-            try { if (typeof rrSearchNumber === 'function') _gqNum = rrSearchNumber(item) || num; } catch (eGN) {}
-            var gq = 'https://www.google.com/search?q=' + encodeURIComponent(('"' + mk + '" "' + _gqNum + '" ' + mw + ' parts diagram').replace(/\s+/g, ' '));
-            // v0.9.1662 (Brad): Parts Suppliers dropdown CUT from the docs
-            // section — the Google button covers it. (The dealer dropdown in
-            // Find-a-Part stays; _maintSupplierGo survives unused-by-docs.)
-            h += '<div style="display:flex;gap:0.4rem;margin-top:0.55rem;flex-wrap:wrap;align-items:center">'
-              +   '<button onclick="window.open(\'' + rrJsArg(gq) + '\',\'_blank\')" ' + _btnQuiet() + '>Google the parts diagram →</button>'
-              + '</div>';
-            return h;
-          })(), 'docs')
+      // Docs — v0.9.1857: built by _maintDiagramLinksHtml, shared with the Need-a-part popup
+      + sec('Manuals &amp; Parts Diagrams', _maintDiagramLinksHtml(item, ''), 'docs')
 
       // ── Workbench (phase 3): chores + service history ──
       + sec('Tasks for this item',
@@ -2685,7 +2702,9 @@
       + '<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:0.9rem 1rem">'
       +   '<div style="' + SECT + '">Parts diagram</div>'
       +   docHtml
-      +   (_wbTarget ? '' : '<div style="margin-top:0.5rem"><button onclick="document.getElementById(\'maint-parts-pop\').remove();_maintShowGrp(\'docs\')" ' + linkBtn + '>Find manuals &amp; diagrams →</button></div>')
+      // v0.9.1857 ([stated] Brad): the SAME manufacturer / Trainz / Google links
+      // the Maintenance page shows, right here — one builder, so the two match.
+      +   '<div style="margin-top:0.6rem">' + _maintDiagramLinksHtml(tg.item, 'pop') + '</div>'
       + '</div>'
       + '</div></div>';
     document.body.insertAdjacentHTML('beforeend', html);

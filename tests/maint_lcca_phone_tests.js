@@ -37,11 +37,13 @@ function section(t) { console.log('\n== ' + t + ' =='); }
 
 const maint = fs.readFileSync(path.join(__dirname, '..', 'app', 'maintenance.js'), 'utf8');
 
-// The panel's manufacturer row for the LCCA route, lifted as text.
-const START = "if (route === 'lcca') {\n              // FUTURE SLOT";
+// The manufacturer row for the LCCA route, lifted as text. Since v0.9.1857 it
+// lives in _maintDiagramLinksHtml (ONE builder for the panel AND the Need-a-
+// part popup), so the indentation is not pinned — the two markers are.
+const START_RX = /if \(route === 'lcca'\) \{\n\s*\/\/ FUTURE SLOT/;
 const END = "} else if (route === 'atlas' && _atlasHit) {";
 function liftBlock(src) {
-  const i = src.indexOf(START);
+  const i = src.search(START_RX);
   if (i < 0) return '';
   const j = src.indexOf(END, i);
   if (j < 0) return '';
@@ -52,7 +54,7 @@ function runBlock(block, isPhone, pwsmHit) {
   const win = { IS_MOBILE_UA: !!isPhone };
   const fn = new Function('window', 'route', 'item', 'routeLabel', '_pwsmHit', 'linkBtn',
     '_esc', 'rrJsArg', '_docsUrl', '_btnQuiet',
-    'var h = "";\n' + block + '\nreturn h;');
+    'var h = "", noteId = "maint-lcca-note";\n' + block + '\nreturn h;');
   return fn(win, 'lcca', { itemNum: '2343' },
     pwsmHit ? 'Service Manual pages for 2343 (LCCA members)' : 'LCCA Postwar Service Manual archive (members)',
     pwsmHit ? 'loco_2343' : null, 'class="b"',
@@ -104,6 +106,7 @@ section('C · planted offenders are caught');
 // C1 — the v1845 block: the button drawn on every device.
 const v1845 = real
   .replace(/if \(!window\.IS_MOBILE_UA\) \{\n/, '{\n');
+ok('(the guard is in the block, so the offender below differs from it)', v1845 !== real);
 const o1 = judge(runBlock(v1845, true, true));
 ok('C1 v1845 (button on every device) is caught on the phone', o1.lccaBtn && o1.lccaNote,
    'offender did not reproduce the old behaviour');
