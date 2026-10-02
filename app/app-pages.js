@@ -1775,16 +1775,29 @@ function clearPageSearch(name) {
 }
 
 // ── For Sale list: sortable headers + catalog pairing (Session 162+) ──
+// v0.9.1864: `field` names the sheet field each column shows, for the hover
+// help (rrFieldHelp); the For Sale table runs on the ONE column editor now
+// (table-columns.js) — ✎ / + Add / drag / × exactly like My Collection.
 var _FS_COLS = [
-  { col: 'mfr', label: 'Mfr.' }, { col: 'num', label: 'Item #' },
-  { col: 'type', label: 'Type' }, { col: 'road', label: 'Road Name' },
+  { col: 'mfr', label: 'Mfr.', field: 'manufacturer' }, { col: 'num', label: 'Item #', field: 'itemNum' },
+  { col: 'type', label: 'Type', field: 'itemType' }, { col: 'road', label: 'Road Name', field: 'roadName' },
   // v0.9.1177 (Brad): "need thumbnails for the list to the left of description
   // column." Same position the Collection table has used since v0.9.909.
-  { col: 'photo', label: 'Photo', noSort: true },
-  { col: 'desc', label: 'Description' },
-  { col: 'cond', label: 'Cond' }, { col: 'price', label: 'Asking Price' },
-  { col: 'worth', label: 'Est. Worth' }, { col: 'listed', label: 'Listed' }
+  { col: 'photo', label: 'Photo', field: 'photoItem', noSort: true },
+  { col: 'desc', label: 'Description', field: 'description' },
+  { col: 'cond', label: 'Cond', field: 'condition' }, { col: 'price', label: 'Asking Price', field: 'askingPrice' },
+  { col: 'worth', label: 'Est. Worth', field: 'userEstWorth' }, { col: 'listed', label: 'Listed', field: 'dateListed' }
 ];
+var _FS_LOCKED = ['mfr', 'num'];           // how a row is recognised — always first
+var _FS_COLS_PREF = 'lv_fs_columns_v1';    // the saved layout (travels — look-sync)
+// The For Sale table's extra columns are the personal row's (RR_ROW_EXTRA_COLS):
+// a sale row is a copy you own, so what it shows comes off that copy — except
+// Condition and Road Name, which this table already has columns for.
+var _FS_EXTRA_COLS = RR_ROW_EXTRA_COLS.filter(function (c) { return c.col !== 'cond' && c.col !== 'roadName'; });
+// The personal row a sale entry is linked to (by inventoryId), or {}.
+function _fsPd(fs) {
+  return (fs && fs.inventoryId && typeof state !== 'undefined' && state.personalData && state.personalData[fs.inventoryId]) || {};
+}
 function _fsMaster(fs) {
   // v0.9.1509: the For Sale row itself has no masterKey/era, so passing it
   // as `prefer` let the first catalog row sharing the number answer (Atlas
@@ -1805,23 +1818,12 @@ function _fsSortVal(fs, col) {
   if (col==='price') return parseFloat(fs.askingPrice)||0;
   if (col==='worth') { var c=(fs.inventoryId && state.personalData[fs.inventoryId])||{}; return parseFloat(fs.estWorth||c.userEstWorth)||0; }
   if (col==='listed') return fs.dateListed||'';
+  // v0.9.1864: an added column sorts by what its cell shows (the linked row's value)
+  var xc = _FS_EXTRA_COLS.filter(function (c) { return c.col === col; })[0];
+  if (xc) { var v = rrRowExtraValue(xc, _fsPd(fs)); return xc.money ? (parseFloat(String(v).replace(/[^0-9.\-]/g, '')) || 0) : String(v).toLowerCase(); }
   return '';
 }
-function _renderFsHeader() {
-  var thead = document.querySelector('#page-forsale .item-table thead tr');
-  if (!thead) return;
-  var cs = state._fsSort || {};
-  var html = _FS_COLS.map(function(c){
-    var arrow = (cs.col===c.col)?(cs.dir==='desc'?' \u25BC':' \u25B2'):'';
-    // v0.9.938 (Brad): Description expands like the My Collection table.
-    var _st = (c.col==='desc') ? 'cursor:pointer;white-space:normal;width:99%' : 'cursor:pointer;white-space:nowrap';
-    // v0.9.1177: a column with nothing to sort by does not pretend to be sortable.
-    if (c.noSort) return '<th style="white-space:nowrap">'+c.label+'</th>';
-    return '<th onclick="_fsSortBy(\''+c.col+'\')" style="'+_st+'" title="Sort by '+c.label+'">'+c.label+arrow+'</th>';
-  }).join('');
-  html += '<th style="white-space:nowrap">Actions</th>';
-  thead.innerHTML = html;
-}
+function _renderFsHeader() { rrTableRenderHeader('forsale'); }   // v0.9.1864: the ONE column editor
 function _fsSortBy(col) {
   var cs = state._fsSort;
   if (cs && cs.col===col) { cs.dir = (cs.dir==='asc')?'desc':'asc'; }
@@ -1839,6 +1841,33 @@ function _fsItemNumHTML(fs) {
   return num;
 }
 if (typeof window!=='undefined'){ window._fsSortBy=_fsSortBy; window._renderFsHeader=_renderFsHeader; }
+// ── v0.9.1864: For Sale on the ONE column editor (table-columns.js) ─────────
+// Brad: "probably need the edit column function on the for sale page as well."
+// What is this table's own: Description soaks up the spare width (v0.9.938);
+// a named custom column shows under its name; adding a column flips its
+// Preferences switch exactly as on My Collection (v1862 — the one rule); a
+// spare custom slot is named from My Collection (its + Custom column), so
+// the unnamed ones are not offered here.
+rrTableDefine({
+  id: 'forsale',
+  cols: _FS_COLS,
+  extras: _FS_EXTRA_COLS,
+  locked: _FS_LOCKED,
+  defaults: _FS_COLS.map(function (c) { return c.col; }),
+  storageKey: _FS_COLS_PREF,
+  theadSel: '#page-forsale .item-table thead tr',
+  editKey: '_fsColEdit',
+  sortState: function () { return (typeof state !== 'undefined' && state) ? state._fsSort : null; },
+  sortCall: '_fsSortBy',
+  repaint: function () { buildForSalePage(); },
+  label: function (col) {
+    var xc = _FS_EXTRA_COLS.filter(function (c) { return c.col === col; })[0];
+    return (xc && typeof _collColLabel === 'function') ? _collColLabel(col) : null;
+  },
+  thStyle: function (c) { return c.col === 'desc' ? 'white-space:normal;width:99%;' : ''; },
+  onAdd: function (col) { if (typeof _collSwitchOn === 'function') _collSwitchOn(col); },
+  menuFilter: function (c) { return !(c.userField && typeof rrTagCustomIsFree === 'function' && rrTagCustomIsFree(c.pdKey)); },
+});
 
 // ── v0.9.1541: prices, all in one pass ──────────────────────────────────
 // The import flags for-sale items without prices on purpose — Brad's call:
@@ -2051,7 +2080,7 @@ function buildForSalePage() {
   // Sort by header selection
   if (state._fsSort && state._fsSort.col) {
     var _fc = state._fsSort.col, _fd = (state._fsSort.dir==='desc')?-1:1;
-    var _fnum = (_fc==='num'||_fc==='cond'||_fc==='price'||_fc==='worth');
+    var _fnum = (_fc==='num'||_fc==='cond'||_fc==='price'||_fc==='worth'||_fc==='paid');
     fsEntries.sort(function(a,b){
       var va=_fsSortVal(a,_fc), vb=_fsSortVal(b,_fc), r;
       if (_fnum) r=va-vb; else r=String(va).localeCompare(String(vb),undefined,{numeric:true});
@@ -2167,34 +2196,40 @@ function buildForSalePage() {
       const _fsDClickAttr = _fsDInShare
         ? `onclick="toggleShareItem('${_fsDShareKey}')"`
         : (_fsDOpen ? `onclick="${_fsDOpen}"` : '');
-      return `<tr id="share-card-${_fsDShareKey}" ${_fsDClickAttr} style="cursor:${_fsDInShare || _fsDOpen ? 'pointer' : 'default'}${_fsDSelected ? ';outline:2px solid #2ecc71;background:rgba(46,204,113,0.06)' : ''}">
-        ${typeof _mfrBadge==='function' ? _mfrBadge({ manufacturer: fs.manufacturer || collPd.manufacturer || '' }) : '<td>—</td>'}
-        <td><span class="item-num">${_fsDInShare ? '<input type="checkbox" id="share-cb-' + _fsDShareKey + '" ' + (_fsDSelected ? 'checked' : '') + ' onclick="event.stopPropagation();toggleShareItem(\'' + _fsDShareKey + '\')" style="width:1rem;height:1rem;accent-color:#2ecc71;margin-right:5px;vertical-align:middle">' : ''}${_fsItemNumHTML(fs)}</span></td>
-        <td><span class="tag">${master.itemType || collPd.itemType || '—'}</span></td>
-        <td>${master.roadName || collPd.roadName || '—'}</td>
-        ${(function(){
+      // v0.9.1864: every cell is built into a MAP and emitted in the user's
+      // chosen order (rrTableVisible), exactly as My Collection does — the
+      // header and the rows read the same list, so they cannot disagree.
+      const _c = {};
+      _c.mfr = (typeof _mfrBadge==='function' ? _mfrBadge({ manufacturer: fs.manufacturer || collPd.manufacturer || '' }) : '<td>—</td>').replace('<td', '<td data-col="mfr"');
+      _c.num = `<td data-col="num"><span class="item-num">${_fsDInShare ? '<input type="checkbox" id="share-cb-' + _fsDShareKey + '" ' + (_fsDSelected ? 'checked' : '') + ' onclick="event.stopPropagation();toggleShareItem(\'' + _fsDShareKey + '\')" style="width:1rem;height:1rem;accent-color:#2ecc71;margin-right:5px;vertical-align:middle">' : ''}${_fsItemNumHTML(fs)}</span></td>`;
+      _c.type = `<td data-col="type"><span class="tag">${master.itemType || collPd.itemType || '—'}</span></td>`;
+      _c.road = `<td data-col="road">${master.roadName || collPd.roadName || '—'}</td>`;
+      _c.photo = (function(){
           const _hostId = 'fs-thumb-' + _fsI;
           _fsThumbJobs.push({ host: _hostId, link: collPd.photoItem || '', num: _fsx.itemNum || '' });
-          return typeof rrThumbCellHTML === 'function' ? rrThumbCellHTML(_hostId) : '<td></td>';
-        })()}
-        <td>${(function(){
+          return (typeof rrThumbCellHTML === 'function' ? rrThumbCellHTML(_hostId) : '<td></td>').replace('<td', '<td data-col="photo"');
+        })();
+      _c.desc = `<td data-col="desc">${(function(){
           // v0.9.1509: manual/imported items have no catalog description —
           // fall back to the owner's own words instead of a dash.
           var d = master.description || collPd.yourDescription || collPd.description || fs.notes || '—';
-          return d.length > 110 ? d.substring(0, 108) + '…' : d; })()}</td>
-        <td>${fs.condition || '—'}</td>
-        <td class="market-val" style="color:var(--t-orange)">${fs.askingPrice ? _currencySymbol() + parseFloat(fs.askingPrice).toLocaleString() : '—'}</td>
-        <td class="text-dim">${estWorth ? _currencySymbol() + parseFloat(estWorth).toLocaleString() : '—'}</td>
-        <td class="text-dim">${_formatDate(fs.dateListed) || '—'}</td>
-        <td style="white-space:normal">
+          return d.length > 110 ? d.substring(0, 108) + '…' : d; })()}</td>`;
+      _c.cond = `<td data-col="cond">${fs.condition || '—'}</td>`;
+      _c.price = `<td data-col="price" class="market-val" style="color:var(--t-orange)">${fs.askingPrice ? _currencySymbol() + parseFloat(fs.askingPrice).toLocaleString() : '—'}</td>`;
+      _c.worth = `<td data-col="worth" class="text-dim">${estWorth ? _currencySymbol() + parseFloat(estWorth).toLocaleString() : '—'}</td>`;
+      _c.listed = `<td data-col="listed" class="text-dim">${_formatDate(fs.dateListed) || '—'}</td>`;
+      _FS_EXTRA_COLS.forEach(function (xc) { _c[xc.col] = rrRowExtraCellHtml(xc, collPd); });   // the linked row's own values
+      return `<tr id="share-card-${_fsDShareKey}" ${_fsDClickAttr} style="cursor:${_fsDInShare || _fsDOpen ? 'pointer' : 'default'}${_fsDSelected ? ';outline:2px solid #2ecc71;background:rgba(46,204,113,0.06)' : ''}">
+        ${rrTableVisible('forsale').map(function (id) { return _c[id] || '<td data-col="' + id + '"><span style="color:var(--text-dim)">—</span></td>'; }).join('')}
+        <td data-col="actions" style="white-space:normal">
           ${!_fsDInShare ? `<button class="row-mark-sold" onclick="event.stopPropagation();markForSaleAsSold('${_fsEntryKey(fs)}','${fs.askingPrice||''}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #2ecc71;background:var(--bg-card);background:color-mix(in srgb, rgb(46,204,113) 12%, var(--bg-card));color:var(--t-green);font-family:var(--font-body);margin-right:0.3rem" title="Mark as sold">Sold</button>
           <button onclick="event.stopPropagation();removeForSaleItem('${_fsEntryKey(fs)}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body);margin-right:0.3rem" title="Take off sale, keep in collection">Unlist</button>
           <button onclick="event.stopPropagation();removeForSaleAndCollection('${_fsEntryKey(fs)}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #e74c3c;background:var(--bg-card);background:color-mix(in srgb, rgb(231,76,60) 10%, var(--bg-card));color:var(--t-danger);font-family:var(--font-body)">Remove</button>` : ''}
         </td>
       </tr>`;
-    // v0.9.1177: the empty row must span whatever _FS_COLS now is, plus Actions.
+    // v0.9.1177: the empty row must span whatever the chosen columns are, plus Actions.
     // A typed number here is how a new column leaves a ragged empty state behind.
-    }).join('') : '<tr><td colspan="' + (_FS_COLS.length + 1) + '"><div class="empty-state"><div class="empty-icon">🏷️</div><p>No items listed for sale</p></div></td></tr>';
+    }).join('') : '<tr><td colspan="' + rrTableColSpan('forsale') + '"><div class="empty-state"><div class="empty-icon">🏷️</div><p>No items listed for sale</p></div></td></tr>';
     if (tbody && _fsThumbJobs.length && typeof rrThumbFill === 'function') {
       _fsThumbJobs.forEach(function (j) { rrThumbFill(j.host, j.link, j.num); });
     }

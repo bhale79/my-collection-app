@@ -103,7 +103,7 @@ const READ = () => {
       document.querySelector('#page-browse thead th[data-col="actions"] button').click();
                                                out.editOn = read();         // ✎
       document.querySelector('#page-browse thead th[data-col="actions"] button').click();   // + Add
-      document.querySelector('#coll-addcol .coll-addcol-item[onclick*="roadName"]').click();
+      document.querySelector('#rr-addcol .rr-addcol-item[onclick*="roadName"]').click();
                                                out.add = read();
       _collAddCol('notes');                    out.addInEdit = read();
       _collSetOrder(['notes', 'roadName', 'var', 'type', 'photo', 'desc', 'worth', 'added']);
@@ -169,6 +169,7 @@ const READ = () => {
       out.rev0 = _collVisibleCols().indexOf('location');
       _prefSet('lv_location_enabled', 'true'); _onPrefChange('location', true);     // what the Preferences toggle runs
       out.rev1 = _collVisibleCols().indexOf('location') > 0;
+      out.rev1again = _collVisibleCols().indexOf('location') > 0;   // v1864: and on the NEXT read (it used to vanish with no saved layout)
       _collDropCol('location');
       out.rev2 = _collVisibleCols().indexOf('location');                             // stays hidden: the offer was made once
       out.rev2on = on('lv_location_enabled');
@@ -188,7 +189,7 @@ const READ = () => {
     T('B: + Add Location turns Track Storage Location ON through _prefSet (stamped) and the live flag', [r.afterLocation.location, r.afterLocation.at, r.afterLocation.locFlag], [true, true, true]);
     T('B: × leaves both switches alone', [r.afterDrop.locdetail, r.afterDrop.location, r.afterDrop.cols.indexOf('location')], [true, true, -1]);
     T('B: a column with no switch (Road Name) touches no switch', r.noSwitch, true);
-    T('B: Preferences → Track Storage Location ON puts the Location column on the table', [r.rev0, r.rev1], [-1, true]);
+    T('B: Preferences → Track Storage Location ON puts the Location column on the table — and it is still there on the next read', [r.rev0, r.rev1, r.rev1again], [-1, true, true]);
     T('B: …once — hiding it afterwards is remembered, and the switch stays on', [r.rev2, r.rev2on], [-1, true]);
     T('B: the old pop-up’s ticks flip the switch too', r.modalSwitch, true);
     await pg.close();
@@ -196,8 +197,8 @@ const READ = () => {
 
   // ── B, PLANTED: a + Add that forgets the switch ───────────────────────────
   {
-    const anchor = "  _collSwitchOn(id);   // v0.9.1862: the column's Preferences switch comes on with it\n";
-    T('PLANTED B: + Add calls the switch rule exactly once', browseSrc.split(anchor).length - 1, 1);
+    const anchor = "  onAdd: _collSwitchOn,                                    // v1862: the column's Preferences switch comes on with it\n";
+    T('PLANTED B: + Add calls the switch rule exactly once (the table registers it)', browseSrc.split(anchor).length - 1, 1);
     const { pg } = await open(browser, { 'browse.js': browseSrc.replace(anchor, '') });
     const r = await pg.evaluate(() => { _collAddCol('locationDetail'); return { on: localStorage.getItem('lv_locdetail_enabled') === 'true', asked: /wiz-uf-locationDetail/.test(_wizUserFieldsHtml({})) }; });
     T('PLANTED B: a + Add that forgets the switch is caught (column shown, never asked)', r, { on: false, asked: false });
@@ -214,15 +215,15 @@ const READ = () => {
       // the + Add menu (desktop): hover title = the words; no line under the name
       window.IS_MOBILE_UA = false;
       _collAddColMenu();
-      let items = Array.from(document.querySelectorAll('#coll-addcol .coll-addcol-item'));
-      out.menuDesk = items.map(b => ({ name: b.firstChild.textContent.trim(), title: b.title, line: !!b.querySelector('.coll-addcol-help') }));
-      document.getElementById('coll-addcol').remove();
+      let items = Array.from(document.querySelectorAll('#rr-addcol .rr-addcol-item'));
+      out.menuDesk = items.map(b => ({ name: b.firstChild.textContent.trim(), title: b.title, line: !!b.querySelector('.rr-addcol-help') }));
+      document.getElementById('rr-addcol').remove();
       // the + Add menu (phone): the same words as a line under the name
       window.IS_MOBILE_UA = true;
       _collAddColMenu();
-      items = Array.from(document.querySelectorAll('#coll-addcol .coll-addcol-item'));
-      out.menuPhone = items.map(b => ({ title: b.title, line: (b.querySelector('.coll-addcol-help') || {}).textContent || '' }));
-      document.getElementById('coll-addcol').remove();
+      items = Array.from(document.querySelectorAll('#rr-addcol .rr-addcol-item'));
+      out.menuPhone = items.map(b => ({ title: b.title, line: (b.querySelector('.rr-addcol-help') || {}).textContent || '' }));
+      document.getElementById('rr-addcol').remove();
       window.IS_MOBILE_UA = false;
       // the headings
       _renderCollectionHeader();
@@ -238,14 +239,14 @@ const READ = () => {
       out.words = { subCollection: rrFieldHelp('subCollection'), locationDetail: rrFieldHelp('locationDetail'), spare: rrFieldHelp('custom1'), subType: rrFieldHelp('subType') };
       // E: spare slots fold into one entry; a named one shows under its name
       _collAddColMenu();
-      const names = () => Array.from(document.querySelectorAll('#coll-addcol .coll-addcol-item')).map(b => b.firstChild.textContent.trim());
+      const names = () => Array.from(document.querySelectorAll('#rr-addcol .rr-addcol-item')).map(b => b.firstChild.textContent.trim());
       out.spare1 = names();
-      document.getElementById('coll-addcol').remove();
+      document.getElementById('rr-addcol').remove();
       rrTagClaimCustom('custom2', 'Owner');            // what "+ Custom column" does
       out.namedJoined = _collVisibleCols().indexOf('custom2') > 0;   // v1585: a named slot joins the table by itself
       _collDropCol('custom2');                         // take it off so the menu can offer it back
       state.personalData.b.custom4 = 'x';              // a slot holding data is not spare
-      _collAddColMenu(); out.spare2 = names(); document.getElementById('coll-addcol').remove();
+      _collAddColMenu(); out.spare2 = names(); document.getElementById('rr-addcol').remove();
       out.namedHelp = rrFieldHelp('custom2');
       // the import panel reads the same words
       out.imp = { detail: _impFieldHelp('locationDetail') === rrFieldHelp('locationDetail'), yourDesc: _impFieldHelp('yourDesc') === rrFieldHelp('yourDescription'), grade: _impFieldHelp('rawGrade') === rrFieldHelp('yourGrade'), photo: /photo file/i.test(_impFieldHelp('photoFile')), keys: _impHelpKeys() };

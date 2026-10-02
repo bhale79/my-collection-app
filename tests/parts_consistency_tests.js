@@ -179,7 +179,11 @@ const ver = (cfg.match(/APP_VERSION = 'v0\.9\.(\d+)'/) || [])[1];
 const cache = (sw.match(/CACHE_NAME = 'mca-v(\d+)'/) || [])[1];
 ok('config.js carries a version', !!ver, ver);
 ok('sw.js CACHE_NAME is the app version + 10 (the house convention)', ver && cache && (+cache === +ver + 10), ver + ' / ' + cache);
-ok('index.html: every ?v= reads the app version (80 of them since v0.9.1802 + atlas-diagrams-config.js) and nothing older', ver && (idx.match(new RegExp('\\?v=' + ver, 'g')) || []).length === 80 && (idx.match(/\?v=\d+/g) || []).every(function (s) { return s === '?v=' + ver; }));
+// v0.9.1864: the stamp COUNT is no longer typed here (80 → 81 when a script is
+// added is the version-pin tax of v0.9.1784 in another costume). The RULE —
+// every stamp equals the version, every local script carries one, on a real
+// number of assets — is checked by the one shared checker.
+require('./lib/version-trio').checkTrio(ok, { cfg: cfg, sw: sw, ix: idx });
 ok('this release is v0.9.1753 or later', ver && +ver >= 1753, ver);
 
 console.log('\n' + pass + ' passed, ' + fail + ' failed');

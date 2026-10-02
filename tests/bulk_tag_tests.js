@@ -33,8 +33,12 @@ function ok(name, cond, detail) {
 // ── the flow, in his order ─────────────────────────────────────
 // v0.9.1558 (Brad): "move the fill column button to between add and done
 // when edit is selected, change its text to +custom column."
+// v0.9.1864: the header is drawn by the ONE column editor (table-columns.js);
+// My Collection hands it the button as its editExtras, which the engine puts
+// between + Add and Done.
 ok('the way in sits between + Add and Done, in edit mode',
-   /\+ Add<\/button>'[\s\S]{0,700}\+ Custom column<\/button>'[\s\S]{0,400}Done<\/button>'/.test(browse));
+   /editExtras: _collEditExtras,/.test(browse) && /function _collEditExtras\(\)[\s\S]{0,400}\+ Custom column<\/button>'/.test(browse)
+   && /\+ Add<\/button>' \+ extras \+[\s\S]{0,300}Done<\/button>'/.test(require('fs').readFileSync(require('path').join(__dirname, '..', 'app', 'table-columns.js'), 'utf8')));
 ok('...and it opens straight on naming a new column', /rrTagOpen\(\\'__new\\'\)/.test(browse));
 ok('the loose chip on the Show row is gone', !/Fill a column<\/button>/.test(browse));
 ok('arriving that way preselects the new-column option',

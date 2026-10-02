@@ -29,8 +29,11 @@ ok('A: an enabled user field auto-joins the visible columns (roster pattern)',
    && /rrEnabledUserFields === 'function' \? rrEnabledUserFields\(\) : \[\]/.test(browse.slice(browse.indexOf('_collAutoNewCols'))));
 ok('A: …the offer is made ONCE — hiding it afterwards is remembered',
    /seen\.indexOf\(col\.col\) >= 0\) return/.test(browse));
+// v0.9.1864: both paths (default layout AND a saved layout) run through the
+// ONE column editor's visibleHook, registered once.
 ok('A: …both paths route through it (default layout AND a saved layout)',
-   (browse.match(/return _collAutoNewCols\(/g) || []).length === 2);
+   /visibleHook: _collAutoNewCols,/.test(browse)
+   && /if \(typeof t\.visibleHook === 'function'\) \{ var h = t\.visibleHook\(out, hasSaved\);/.test(src('table-columns.js')));
 
 // ── B: the setup travels between devices ─────────────────────────
 ok('B: the sync file now carries the custom labels, enables, and layout',
@@ -42,7 +45,7 @@ ok('B: every importer write of a label stamps the sync clock',
 ok('B: the prefs label editor stamps it too',
    /lv_label_' \+ key, v\); localStorage\.setItem\(f\.pref, 'true'\); \}\s*\n\s*if \(typeof rrLookTouch/.test(prefs));
 ok('B: saving a column layout stamps it',
-   /_COLL_COLS_PREF, JSON\.stringify\(list\)\); \} catch \(e\) \{\}\s*\n\s*if \(typeof rrLookTouch/.test(browse));
+   /t\.storageKey, JSON\.stringify\(clean\)\); \} catch \(e\) \{\}\s*\n\s*if \(typeof rrLookTouch/.test(src('table-columns.js')));
 
 // ── C: instruction sheets tell the truth ─────────────────────────
 ok('C: an EXISTING -IS row answers hasIS before any preference default',
@@ -58,7 +61,8 @@ ok('C: the internal derived flag never becomes a review row',
    /'_hasISExisting'\]\)/.test(wiz));
 
 console.log('\n' + pass + ' passed, ' + fail + ' failed');
-if (fail) { console.log('USER-FIELDS PARITY TESTS FAILING'); process.exit(1); }
+// v0.9.1864: the exit used to sit HERE, so every check added below it (v1588)
+// could fail without failing the suite — one did, for months. It is at the end now.
 
 // ── v0.9.1587: Safari keyboard flow through the wizard ──────────
 // Scott (Safari/iPad): "you type and hit tab to next. but you get stuck
@@ -83,12 +87,15 @@ ok('…without stomping controls that manage their own tabindex',
 ok('ONE shared renderer serves the user fields (no second copy to drift)',
    /function _wizUserFieldsHtml\(d\)/.test(wiz)
    && (wiz.match(/_wizUserFieldsHtml\(/g) || []).length >= 3);
+// v0.9.1864: compare against THAT step's own Notes label (the box-purchase
+// view's "Notes (optional)" sits earlier in the file and is not this step).
 ok('…the catalog Purchase & Value step renders them (before Notes)',
    /_pvHtml \+= _wizUserFieldsHtml\(_pvD\);/.test(wiz)
-   && wiz.indexOf('_pvHtml += _wizUserFieldsHtml(_pvD);') < wiz.indexOf("Notes (optional)</div>'"));
+   && wiz.indexOf('_pvHtml += _wizUserFieldsHtml(_pvD);') < wiz.indexOf("_pvHtml += '<div style=\"margin-bottom:0.75rem\"><div style=\"font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.3rem\">Notes (optional)</div>'"));
 ok('…the manual flow now calls the same shared renderer',
    /v1588 SHARED renderer/.test(wiz) && /_wizUserFieldsHtml\(d\) \+/.test(wiz));
 ok('…location-scoped suggestions still ride along',
    /function _wizUserFieldsHtml[\s\S]{0,600}scopedTo === 'location'/.test(wiz));
 
+if (fail) { console.log('USER-FIELDS PARITY TESTS FAILING (' + fail + ' of ' + (pass + fail) + ')'); process.exit(1); }
 console.log('ALL USER-FIELDS PARITY TESTS GREEN (' + pass + ')');

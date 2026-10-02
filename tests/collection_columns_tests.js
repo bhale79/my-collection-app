@@ -13,6 +13,8 @@
 const fs = require('fs'), path = require('path');
 const css = fs.readFileSync(path.join(__dirname, '..', 'app', 'app.css'), 'utf8');
 const js = fs.readFileSync(path.join(__dirname, '..', 'app', 'browse.js'), 'utf8');
+// v0.9.1864: the editor itself is table-columns.js (ONE column editor, My Collection + For Sale)
+const eng = fs.readFileSync(path.join(__dirname, '..', 'app', 'table-columns.js'), 'utf8');
 
 let pass = 0, fail = 0;
 function ok(name, cond, detail) {
@@ -39,7 +41,8 @@ ok('the phone rule also stopped counting columns',
 ['mfr', 'num', 'var', 'type', 'photo', 'desc', 'worth', 'added', 'actions'].forEach(function (id) {
   ok('the ' + id + ' cell is tagged with its column', js.indexOf('data-col="' + id + '"') > 0);
 });
-ok('user-chosen columns are tagged too', /_cells\[xc\.col\] = '<td data-col="' \+ xc\.col/.test(js));
+ok('user-chosen columns are tagged too (the ONE cell builder, table-columns.js)',
+   /_cells\[xc\.col\] = rrRowExtraCellHtml\(xc, pd/.test(js) && /'<td data-col="' \+ xc\.col \+ '"'/.test(eng));
 
 // ── the scrollbar Brad asked to be able to see ─────────────────
 // v0.9.1544 moved these onto the PINNED bar — the wrap's own bar is hidden,
@@ -51,12 +54,12 @@ ok('...and coloured so it can be found',
 ok('...including on Firefox', /#rr-hscroll \{[\s\S]{0,260}scrollbar-color: var\(--accent\)/.test(css));
 
 // ── edit mode on the header itself ─────────────────────────────
-ok('the header has an edit mode', /function _collColEdit/.test(js));
-ok('a heading can be removed from the header', /function _collDropCol/.test(js));
-ok('headings can be dragged to reorder', /function _collWireHeaderDrag/.test(js));
-ok('...and dropping one saves the new order', /_collSetOrder\(order\);/.test(js));
-ok('there is an Add menu for columns not on the table', /function _collAddColMenu/.test(js));
-ok('...listing only what is missing', /if \(vis\.indexOf\(c\.col\) >= 0 \|\| _COLL_LOCKED\.indexOf\(c\.col\) >= 0\) return false;/.test(js));   // v0.9.1862 spelling
+ok('the header has an edit mode', /function _collColEdit/.test(js) && /function rrTableEdit\(id, on\)/.test(eng));
+ok('a heading can be removed from the header', /function _collDropCol/.test(js) && /function rrTableDrop\(id, col\)/.test(eng));
+ok('headings can be dragged to reorder', /function rrTableWireDrag\(id, thead\)/.test(eng));
+ok('...and dropping one saves the new order', /rrTableSetOrder\(id, order\);/.test(eng));
+ok('there is an Add menu for columns not on the table', /function _collAddColMenu/.test(js) && /function rrTableAddMenu\(id, ev\)/.test(eng));
+ok('...listing only what is missing', /if \(vis\.indexOf\(c\.col\) >= 0 \|\| t\.locked\.indexOf\(c\.col\) >= 0\) return false;/.test(eng));   // v0.9.1864 spelling
 // v0.9.1862 — the real-button proof of the menu, the switch rule and the
 // words lives in column_switch_tests.js (real Chromium); here, the source
 // rules that keep it honest.
@@ -73,7 +76,7 @@ ok('the chosen columns are part of the list’s "did anything change?" check',
    /\(typeof _collVisibleCols === 'function' \? _collVisibleCols\(\)\.join\(','\) : ''\)\s*\n\s*\]\.join\('~'\)/.test(js),
    'without this, + Add / × / drag / Done rewrote the headings and the rows kept their old cells (v1861 and before)');
 ok('Maker and Item # cannot be dragged or removed',
-   /th\.coll-th-edit:not\(\.locked\)/.test(js) && /locked \? 'false' : 'true'/.test(js));
+   /th\.rr-th-edit:not\(\.locked\)/.test(eng) && /locked \? 'false' : 'true'/.test(eng) && /locked: _COLL_LOCKED,/.test(js));
 // v0.9.1589 RE-PIN: the old top-right Columns button's code was a branch
 // wired permanently shut (`if (false && …)`) since the v1543/1545 rework
 // moved the way in onto the header bar itself. Session 87 deleted the dead
@@ -108,10 +111,10 @@ ok('...and after the list re-renders', /setTimeout\(rrStickyHScroll, 40\)/.test(
 ok('the Edit Headers chip is gone from the Show row',
    !/\\u270E Edit Headers/.test(js));
 ok('the pencil on the Actions heading still opens edit mode',
-   /title="Edit columns[\s\S]{0,120}_collColEdit\(true\)/.test(js));
+   /title="Edit columns[\s\S]{0,160}rrTableEdit\(\\'' \+ id \+ '\\',true\)/.test(eng));
 ok('...and is a real button, not a faint glyph',
-   /_collColEdit\(true\)[\s\S]{0,200}border:1px solid var\(--border\)/.test(js));
-ok('edit mode still offers Done', /_collColEdit\(false\)[\s\S]{0,220}Done<\/button>/.test(js));
+   /rrTableEdit\(\\'' \+ id \+ '\\',true\)[\s\S]{0,200}border:1px solid var\(--border\)/.test(eng));
+ok('edit mode still offers Done', /rrTableEdit\(\\'' \+ id \+ '\\',false\)[\s\S]{0,220}Done<\/button>/.test(eng));
 // v0.9.1711: this used to pin the LINE that removed a stray old button —
 // but nothing has built #cols-btn-collection since 1545, so that line was a
 // guarded no-op and went in the sweep. What matters is that nothing BUILDS
@@ -129,7 +132,7 @@ ok('...and the Show chips simply sit it out', /var _showChips = sections\.length
 ok('a column is no longer unsortable just for being addable',
    !/\n\s*c = \{[^}]*noSort: c\.noSort \|\| !!c\.pdKey/.test(js),
    'having a pdKey is what makes a column addable — it cannot also mean unsortable');
-ok('only Photo has nothing to sort by', /noSort: c\.col === 'photo'/.test(js));
+ok('only Photo has nothing to sort by', /noSort: function \(c\) \{ return c\.col === 'photo'; \}/.test(js));
 ok('every extra column gets a sort key', /_COLL_EXTRA_COLS\.forEach\(function \(xc\) \{[\s\S]{0,300}_row\[xc\.col\] = raw;/.test(js));
 ok('money columns sort by value, not by their text',
    /if \(xc\.col === _col && xc\.money\) _numeric = true;/.test(js));

@@ -4,7 +4,7 @@
 // fetches fresh copies in the background for next load.
 // NEVER caches Google API, OAuth, or Sheets calls.
 
-const CACHE_NAME = 'mca-v1873';
+const CACHE_NAME = 'mca-v1874';
 
 // ── v0.9.1214: the version stamp has to survive as far as the cache ──
 // Brad, on v1213: "im reset twice and it still looks the same." He was
@@ -53,6 +53,7 @@ const SHELL_FILES = [
   './write-outbox.js',
   './sheets.js',
   './drive.js',
+  './table-columns.js',   // v0.9.1864: the ONE column editor (My Collection + For Sale)
   './browse.js',
   // Session 85 (v0.9.1577): three scripts index.html loads that were never
   // precached — the offline app silently lacked the importer (v1469-era

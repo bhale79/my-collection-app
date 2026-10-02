@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.1863';
+const APP_VERSION = 'v0.9.1864';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -1861,6 +1861,8 @@ window.RR_FIELD_HELP = {
   photoItem:       'The first photo you took of it.',
   description:     'The catalogue’s description of this item.',
   userEstWorth:    'What you think it’s worth now.',
+  askingPrice:     'The price you are asking for it.',
+  dateListed:      'The day you put it up for sale.',
   dateAdded:       'The day you added it to The Rail Roster.',
   location:        'The big place it lives: Basement, Storage Unit 206, Room 107.',
   locationDetail:  'The spot inside that place: Tote 12, Rack 1 Shelf 3. Splitting them lets you ask “what’s in Tote 12?”',

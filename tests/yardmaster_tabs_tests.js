@@ -122,7 +122,8 @@ const idx = fs.readFileSync(path.join(APP, 'index.html'), 'utf8');
 const ver = (cfg.match(/APP_VERSION = 'v0\.9\.(\d+)'/) || [])[1];
 const cache = (sw.match(/CACHE_NAME = 'mca-v(\d+)'/) || [])[1];
 ok('sw.js CACHE_NAME is the app version + 10', ver && cache && +cache === +ver + 10, ver + ' / ' + cache);
-ok('index.html: every ?v= reads the app version (80 of them since v0.9.1802 + atlas-diagrams-config.js) and nothing older', ver && (idx.match(new RegExp('\\?v=' + ver, 'g')) || []).length === 80 && (idx.match(/\?v=\d+/g) || []).every(s => s === '?v=' + ver));
+// v0.9.1864: the stamp count is the shared checker's business (see parts_consistency_tests).
+require('./lib/version-trio').checkTrio(ok, { cfg: cfg, sw: sw, ix: idx });
 ok('this release is v0.9.1754 or later', ver && +ver >= 1754, ver);
 
 console.log('\n' + pass + ' passed, ' + fail + ' failed');

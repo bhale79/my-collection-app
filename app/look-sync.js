@@ -57,6 +57,7 @@
     'lv_custom4_enabled', 'lv_custom5_enabled',
     'lv_locdetail_enabled', 'lv_shipper_enabled', 'lv_subcoll_enabled',
     'lv_coll_columns_v1',      // the chosen column layout
+    'lv_fs_columns_v1',        // v0.9.1864: the For Sale table's layout travels the same way
     'lv_coll_columns_seen_v1'  // which auto-offers were already made
   ];
 

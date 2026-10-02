@@ -5788,22 +5788,26 @@ META_WRITES.length = 0; TOASTS.length = 0;
     ok('...and it does not pretend to be sortable, because there is nothing to sort',
        iPhoto >= 0 && FS_COLS[iPhoto].noSort === true);
 
-    // The header builder, run for real over those columns.
-    const hA = pgs.indexOf('function _renderFsHeader()');
-    const hB = pgs.indexOf('function _fsSortBy(col)');
-    if (hA < 0 || hB < 0) throw new Error('§147 marker moved: _renderFsHeader');
-    const theadEl = { _html: '', set innerHTML(v) { this._html = String(v); }, get innerHTML() { return this._html; } };
-    new Function('document', 'state', '_FS_COLS',
-      pgs.slice(hA, hB) + '\n_renderFsHeader();')(
-      { querySelector: () => theadEl }, { _fsSort: {} }, FS_COLS);
-    ok('the drawn header includes Photo',
-       theadEl.innerHTML.indexOf('>Photo<') >= 0, theadEl.innerHTML);
+    // The header builder, run for real over those columns. v0.9.1864: the
+    // header is drawn by the ONE column editor (table-columns.js); the For
+    // Sale table registers itself with it — so the REAL engine runs here over
+    // the REAL registration lifted from app-pages.js.
+    const engSrc = fs.readFileSync(APP_FILE('table-columns.js'), 'utf8');
+    const rA = pgs.indexOf("rrTableDefine({\n  id: 'forsale',");
+    const rB = pgs.indexOf('});', rA);
+    const fA = pgs.indexOf('var _FS_LOCKED = ');
+    const fB = pgs.indexOf('function _fsPd(fs)');
+    if (rA < 0 || rB < 0 || fA < 0 || fB < 0) throw new Error('§147 marker moved: the forsale registration');
+    const drawn = new Function('state', 'localStorage', '_FS_COLS',
+      engSrc + '\n' + pgs.slice(fA, fB) + '\n' + pgs.slice(rA, rB + 3) + "\nreturn rrTableHeaderHtml('forsale');")(
+      { _fsSort: {} }, { getItem: () => null, setItem: () => {}, removeItem: () => {} }, FS_COLS);
+    ok('the drawn header includes Photo', drawn.indexOf('>Photo<') >= 0, drawn);
     ok('...with no sort handler on it, unlike every other header',
-       !/_fsSortBy\('photo'\)/.test(theadEl.innerHTML) && /_fsSortBy\('desc'\)/.test(theadEl.innerHTML));
+       !/_fsSortBy\('photo'\)/.test(drawn) && /_fsSortBy\('desc'\)/.test(drawn));
 
     // The empty state has to span the new width, or it draws ragged.
     ok('the "nothing for sale" row spans the columns by COUNT, never a typed number',
-       /colspan="' \+ \(_FS_COLS\.length \+ 1\) \+ '"/.test(pgs) && !/colspan="10"/.test(pgs));
+       /colspan="' \+ rrTableColSpan\('forsale'\) \+ '"/.test(pgs) && !/colspan="10"/.test(pgs));
   })();
 
   section('148. Where do you want to look? (v0.9.1178)');
@@ -10873,10 +10877,10 @@ META_WRITES.length = 0; TOASTS.length = 0;
       // (error-report), S85 70→74 (import-core/-ui, help-guides,
       // logo-cards), v1580 74→75 (yardmaster — the owner-only Office).
       // v1682 77→78 (stock-photos.js — stock photos by link, owner + beta).
-      // v1802 79→80 (atlas-diagrams-config.js — Atlas diagrams + matcher,
-      // shared by Maintenance and the parts lookup).
-      ok('every ?v= mark in app/index.html matches it — all 80, none stale',
-         stamps.length === 80 && stamps.every(t => t === '?v=' + build),
+      // v1802 79→80 (atlas-diagrams-config.js — Atlas diagrams + matcher).
+      // v1864 80→81 (table-columns.js — the ONE column editor).
+      ok('every ?v= mark in app/index.html matches it — all 81, none stale',
+         stamps.length === 81 && stamps.every(t => t === '?v=' + build),
          stamps.length + ' stamps; strays: ' + stamps.filter(t => t !== '?v=' + build).slice(0, 3).join(','));
       ok('the service worker cache name moved too (build + 10, the fixed offset)',
          new RegExp("const CACHE_NAME = 'mca-v" + (build + 10) + "';").test(rd('app/sw.js')),

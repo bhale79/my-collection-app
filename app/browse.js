@@ -187,27 +187,10 @@ var _COLL_COLS = [
 // Everything else can be shown, hidden and reordered; the choice is per
 // user (localStorage) and applies to the My Collection table only.
 var _COLL_LOCKED = ['mfr', 'num'];
-var _COLL_EXTRA_COLS = [
-  { col: 'location',      label: 'Location',      pdKey: 'location' },
-  { col: 'locationDetail',label: 'Location Detail', pdKey: 'locationDetail' },
-  { col: 'cond',          label: 'Condition',     pdKey: 'condition' },
-  { col: 'yourGrade',     label: 'Your Grade',    pdKey: 'yourGrade' },
-  { col: 'yourDesc',      label: 'Your Description', pdKey: 'yourDescription' },
-  { col: 'paid',          label: 'Price Paid',    pdKey: 'priceItem', money: true },
-  { col: 'roadName',      label: 'Road Name',     pdKey: 'roadName' },
-  { col: 'roadNumber',    label: 'Road Number',   pdKey: 'roadNumber' },
-  { col: 'yearMade',      label: 'Year Made',     pdKey: 'yearMade' },
-  { col: 'hasBox',        label: 'Has Box',       pdKey: 'hasBox' },
-  { col: 'notes',         label: 'Notes',         pdKey: 'notes' },
-  { col: 'subType',       label: 'Sub Type',      pdKey: 'subType' },
-  { col: 'shipper',       label: 'Shipper',       pdKey: 'shipper' },
-  { col: 'subCollection', label: 'Sub-collection', pdKey: 'subCollection' },
-  { col: 'custom1',       label: 'Custom 1',      pdKey: 'custom1', userField: true },
-  { col: 'custom2',       label: 'Custom 2',      pdKey: 'custom2', userField: true },
-  { col: 'custom3',       label: 'Custom 3',      pdKey: 'custom3', userField: true },
-  { col: 'custom4',       label: 'Custom 4',      pdKey: 'custom4', userField: true },
-  { col: 'custom5',       label: 'Custom 5',      pdKey: 'custom5', userField: true },
-];
+// v0.9.1864: the list moved to table-columns.js (RR_ROW_EXTRA_COLS) — the
+// For Sale table offers the same personal-row columns. This name stays for
+// every reader in this file.
+var _COLL_EXTRA_COLS = RR_ROW_EXTRA_COLS;
 var _COLL_COLS_PREF = 'lv_coll_columns_v1';
 function _collAllCols() {
   return _COLL_COLS.concat(_COLL_EXTRA_COLS);
@@ -236,13 +219,8 @@ function _collColLabel(id) {
 // personal-sheet field; a column names its field (`pdKey` for the extra
 // columns, `field` for the standard ones). Shown on the + Add menu, the
 // headings, Preferences → Extra Columns and the import — one copy.
-function _collColField(id) {
-  var c = _collAllCols().filter(function (x) { return x.col === id; })[0];
-  return c ? (c.pdKey || c.field || '') : '';
-}
-function _collColHelp(id) {
-  return (typeof rrFieldHelp === 'function') ? rrFieldHelp(_collColField(id)) : '';
-}
+function _collColField(id) { return rrTableField('collection', id); }   // v0.9.1864: the engine's
+function _collColHelp(id) { return rrTableHelp('collection', id); }
 // ── v0.9.1862: A COLUMN AND ITS PREFERENCES SWITCH ARE ONE DECISION ──────
 // Brad, 2026-10-02: "if i add location and location detail here, it needs to
 // update my preferences" and "when i add existing columns or add custom
@@ -325,33 +303,20 @@ function _collAutoNewCols(current) {
     }
     if (fresh.length) {
       localStorage.setItem(_COLL_COLS_SEEN, JSON.stringify(seen.concat(fresh)));
-      // if the user had a saved layout, persist the auto-added columns into it
-      var raw2 = localStorage.getItem(_COLL_COLS_PREF);
-      if (raw2) _collSaveCols(out.filter(function (id) { return _COLL_LOCKED.indexOf(id) < 0; }));
+      // v0.9.1864: persist the layout the user now sees — ALWAYS. This used
+      // to save only when a layout was already saved, so for a user on the
+      // default layout the offered column appeared for exactly one read and
+      // vanished on the next (seen, never stored). Found by the engine test
+      // reading the list twice.
+      _collSaveCols(out.filter(function (id) { return _COLL_LOCKED.indexOf(id) < 0; }));
     }
   } catch (e) {}
   return out;
 }
-function _collVisibleCols() {
-  var def = _COLL_COLS.map(function (c) { return c.col; });
-  var chosen = null;
-  try {
-    var raw = localStorage.getItem(_COLL_COLS_PREF);
-    if (raw) chosen = JSON.parse(raw);
-  } catch (e) {}
-  if (!Array.isArray(chosen) || !chosen.length) return _collAutoNewCols(def);
-  var known = {};
-  _collAllCols().forEach(function (c) { known[c.col] = 1; });
-  var out = _COLL_LOCKED.slice();
-  chosen.forEach(function (id) {
-    if (known[id] && _COLL_LOCKED.indexOf(id) < 0 && out.indexOf(id) < 0) out.push(id);
-  });
-  return _collAutoNewCols(out);
-}
-function _collSaveCols(list) {
-  try { localStorage.setItem(_COLL_COLS_PREF, JSON.stringify(list)); } catch (e) {}
-  if (typeof rrLookTouch === 'function') rrLookTouch();   // v1585: the layout travels
-}
+// v0.9.1864: the layout machinery is table-columns.js (ONE column editor for
+// any table — For Sale has it too). These names stay for every reader.
+function _collVisibleCols() { return rrTableVisible('collection'); }
+function _collSaveCols(list) { rrTableSave('collection', list); }
 // ── Column picker modal (v0.9.1517, Task #34) ───────────────────────────
 // Drag to reorder, tick to show. Mfr and Item # are pinned and cannot be
 // moved or hidden — they are how a row is recognised.
@@ -433,11 +398,9 @@ function _collApplyCols() {
   if (typeof showToast === 'function') showToast('Columns updated', 2000);
 }
 function _collResetCols() {
-  try { localStorage.removeItem(_COLL_COLS_PREF); } catch (e) {}
   var ov = document.getElementById('cc-overlay');
   if (ov) ov.remove();
-  if (typeof _renderCollectionHeader === 'function') _renderCollectionHeader();
-  if (typeof renderBrowse === 'function') renderBrowse();
+  rrTableReset('collection');   // v0.9.1864: the engine clears the layout and repaints
   if (typeof showToast === 'function') showToast('Columns reset', 2000);
 }
 if (typeof window !== 'undefined') {
@@ -553,192 +516,81 @@ function rrStickyHScroll() {
 }
 if (typeof window !== 'undefined') window.rrStickyHScroll = rrStickyHScroll;
 
-function _renderCollectionHeader() {
-  var thead = document.querySelector('#page-browse .item-table thead tr');
-  if (!thead) return;
-  var cs = state._collSort || {};
-  var _visIds = _collVisibleCols();
-  var _byId = {};
-  _collAllCols().forEach(function (c) { _byId[c.col] = c; });
-  var _edit = !!state._collColEdit;
-  var html = _visIds.map(function (id) {
-    var c = _byId[id] || { col: id, label: id, noSort: true };
-    // v0.9.1547 (Brad): this used to read `noSort: c.noSort || !!c.pdKey` —
-    // which made EVERY column a user can add unsortable, by definition,
-    // because having a pdKey is what makes it addable. Photo is the only one
-    // with nothing to sort by.
-    c = { col: c.col, label: _collColLabel(c.col), noSort: c.col === 'photo' };
-    // v0.9.1543 (Brad): "i hit an edit button... the existing headers get an x
-    // on them that will remove them, and then i can drag them left and right
-    // to rearrange them." The header IS the control. No modal, no list of
-    // names to map back onto a table you cannot see while you are choosing.
-    // v0.9.1862: every heading says what its column is on hover (one copy of
-    // the words — rrFieldHelp); the sortable ones add how to sort.
-    var _help = _collColHelp(c.col);
-    var _helpAttr = function (extra) {
-      var t = [_help, extra].filter(Boolean).join(' ');
-      return t ? ' title="' + t.replace(/"/g, '&quot;') + '"' : '';
-    };
-    if (_edit) {
-      var locked = _COLL_LOCKED.indexOf(c.col) >= 0;
-      return '<th data-col="' + c.col + '" draggable="' + (locked ? 'false' : 'true') + '" ' +
-        'class="coll-th-edit' + (locked ? ' locked' : '') + '"' + _helpAttr(locked ? '' : 'Drag to move it; × removes it.') + ' ' +
-        'style="white-space:nowrap;' + (locked ? '' : 'cursor:grab;') + '">' +
-        '<span style="display:inline-flex;align-items:center;gap:0.3rem">' +
-        (locked ? '<span style="opacity:0.5">\uD83D\uDD12</span>' : '<span style="opacity:0.55;cursor:grab">\u2630</span>') +
-        '<span>' + c.label + '</span>' +
-        (locked ? '' : '<button type="button" title="Remove this column" onclick="event.stopPropagation();_collDropCol(\'' + c.col + '\')" ' +
-          'style="border:none;background:none;color:var(--t-accent);font-size:0.95rem;line-height:1;cursor:pointer;padding:0 0.1rem">\u00d7</button>') +
-        '</span></th>';
-    }
-    var align = (c.col === 'worth' || c.col === 'var' || c.col === 'added' || c.col === 'photo') ? 'text-align:center;' : '';   // v0.9.727 (Brad): centered
-    if (c.col === 'photo') { return '<th data-col="photo"' + _helpAttr('') + ' style="white-space:nowrap;' + align + '">' + c.label + '</th>'; }   // v0.9.909 (Brad, item [4])
-    if (c.noSort) { return '<th data-col="' + c.col + '"' + _helpAttr('') + ' style="white-space:nowrap;' + align + '">' + c.label + '</th>'; }
-    var arrow = (cs.col === c.col) ? (cs.dir === 'desc' ? ' \u25BC' : ' \u25B2') : '';
-    var _wsp = (c.col === 'worth') ? 'white-space:normal;' : 'white-space:nowrap;';
-    if (c.col === 'added') _wsp += 'width:80px;';   // v0.9.725/726: fitted column
-    // v0.9.938 (Brad): Description soaks up all spare width; Item # is locked
-    // at a fixed width so it never shifts; every other column fits its value.
-    if (c.col === 'desc') _wsp = 'white-space:normal;';
-    if (c.col === 'num')  _wsp += 'width:110px;min-width:110px;';
-    return '<th data-col="' + c.col + '" onclick="_collSortBy(\'' + c.col + '\')" style="cursor:pointer;' + _wsp + align + '"' + _helpAttr('Click to sort by ' + c.label + '.') + '>' + c.label + arrow + '</th>';
-  }).join('');
-  // The edit control lives on the header bar itself, in the Actions cell.
-  html += '<th data-col="actions" style="text-align:right;white-space:nowrap">' +
-    (_edit
-      ? '<button type="button" onclick="_collAddColMenu(event)" style="border:1px solid var(--border);background:var(--surface2);color:var(--text);border-radius:7px;padding:0.15rem 0.5rem;font-size:0.7rem;font-family:var(--font-body);cursor:pointer;margin-right:0.3rem">+ Add</button>' +
-        // v0.9.1558 (Brad): "+ custom column", sitting between Add and Done.
-        // + Add brings back a column you already have; this one MAKES one,
-        // names it, and walks you into filling it in.
-        '<button type="button" onclick="event.stopPropagation();rrTagOpen(\'__new\')" title="Make a column of your own and fill it in" ' +
-        'style="border:1px solid var(--border);background:var(--surface2);color:var(--text);border-radius:7px;' +
-        'padding:0.15rem 0.5rem;font-size:0.7rem;font-family:var(--font-body);cursor:pointer;margin-right:0.3rem">+ Custom column</button>' +
-        '<button type="button" onclick="_collColEdit(false)" style="border:none;background:var(--accent);color:var(--on-accent);border-radius:7px;padding:0.15rem 0.6rem;font-size:0.7rem;font-family:var(--font-body);font-weight:700;cursor:pointer">Done</button>'
-      : 'Actions <button type="button" title="Edit columns — add, remove, drag to reorder" ' +
-        'onclick="event.stopPropagation();_collColEdit(true)" ' +
-        'style="border:1px solid var(--border);background:var(--surface2);color:var(--text-mid);' +
-        'border-radius:6px;font-size:0.8rem;line-height:1;cursor:pointer;padding:0.15rem 0.35rem;margin-left:0.25rem">\u270E</button>') +
-    '</th>';
-  thead.innerHTML = _collGutterTh() + html;   // v0.9.1007: selection gutter
-  if (_edit) _collWireHeaderDrag(thead);
-  setTimeout(rrStickyHScroll, 30);           // v0.9.1544: column set changed → bar width changed
+// ── v0.9.1864: My Collection on the ONE column editor (table-columns.js) ──
+// Everything a table shares — the header in both modes, drag, ×, + Add, the
+// hover help — lives there. What is My Collection's OWN is registered here:
+// its column widths, the share/tag gutter, the sticky scrollbar, the v1585
+// auto-join, the v1862 Preferences-switch rule, and the spare custom slot.
+function _renderCollectionHeader() { rrTableRenderHeader('collection'); }
+function _collColEdit(on) { rrTableEdit('collection', on); }
+function _collDropCol(id) { rrTableDrop('collection', id); }
+function _collSetOrder(ids) { rrTableSetOrder('collection', ids); }
+function _collAddColMenu(ev) { rrTableAddMenu('collection', ev); }
+function _collAddCol(id) { rrTableAdd('collection', id); }
+// The heading widths and alignments that are this table's own (v0.9.727,
+// 725/726, 938): Est. Worth / Var. / Date Added / Photo centred; Description
+// soaks up the spare width; Item # is locked at a fixed width; Date Added
+// fitted.
+function _collThStyle(c) {
+  var st = '';
+  if (c.col === 'worth' || c.col === 'var' || c.col === 'added' || c.col === 'photo') st += 'text-align:center;';
+  if (c.col === 'worth' || c.col === 'desc') st += 'white-space:normal;';
+  if (c.col === 'added') st += 'width:80px;';
+  if (c.col === 'num') st += 'width:110px;min-width:110px;';
+  return st;
 }
-
-// ── v0.9.1543: header edit mode ─────────────────────────────────────────
-function _collColEdit(on) {
-  state._collColEdit = !!on;
-  _renderCollectionHeader();
-  // v0.9.1545: repaint the Show: row so the button reads Done while editing.
-  if (typeof renderBrowse === 'function') renderBrowse();
-  if (on && typeof showToast === 'function') {
-    showToast('Drag a heading to move it · \u00d7 removes it · + Add brings one back', 4500);
-  }
+// v0.9.1862 (Brad: "what are [Custom 1, 2, 3] and why do we need them if we
+// have add custom column button"). The five custom slots already exist on
+// every sheet; "+ Custom column" only NAMES the next free one. So the menu
+// does not list five mystery "Custom N" lines: a slot that is unnamed and
+// unused is folded into ONE "Spare column — name it…" entry that opens the
+// same naming step; a named slot shows under its name.
+function _collMenuFilter(c) {
+  return !(c.userField && typeof rrTagCustomIsFree === 'function' && rrTagCustomIsFree(c.pdKey));
 }
-function _collDropCol(id) {
-  var vis = _collVisibleCols().filter(function (c) { return c !== id && _COLL_LOCKED.indexOf(c) < 0; });
-  _collSaveCols(vis);
-  _renderCollectionHeader();
-  if (typeof renderBrowse === 'function') renderBrowse();
-}
-function _collSetOrder(ids) {
-  _collSaveCols(ids.filter(function (c) { return _COLL_LOCKED.indexOf(c) < 0; }));
-  _renderCollectionHeader();
-  if (typeof renderBrowse === 'function') renderBrowse();
-}
-// Drag a heading left or right. The locked pair (Maker, Item #) stay put —
-// they are how a row is recognised.
-function _collWireHeaderDrag(thead) {
-  var ths = Array.prototype.slice.call(thead.querySelectorAll('th.coll-th-edit:not(.locked)'));
-  ths.forEach(function (th) {
-    th.addEventListener('dragstart', function (e) {
-      window._collDragCol = th.getAttribute('data-col');
-      th.style.opacity = '0.45';
-      try { e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', window._collDragCol); } catch (er) {}
-    });
-    th.addEventListener('dragend', function () { th.style.opacity = ''; window._collDragCol = null; });
-    th.addEventListener('dragover', function (e) { e.preventDefault(); th.style.borderLeft = '3px solid var(--accent)'; });
-    th.addEventListener('dragleave', function () { th.style.borderLeft = ''; });
-    th.addEventListener('drop', function (e) {
-      e.preventDefault();
-      th.style.borderLeft = '';
-      var from = window._collDragCol, to = th.getAttribute('data-col');
-      if (!from || from === to) return;
-      var order = _collVisibleCols().filter(function (c) { return _COLL_LOCKED.indexOf(c) < 0; });
-      var fi = order.indexOf(from); if (fi >= 0) order.splice(fi, 1);
-      var ti = order.indexOf(to);
-      order.splice(ti < 0 ? order.length : ti, 0, from);
-      _collSetOrder(order);
-    });
+function _collMenuExtra() {
+  var spare = 0, spareKey = '';
+  _COLL_EXTRA_COLS.forEach(function (c) {
+    if (c.userField && typeof rrTagCustomIsFree === 'function' && rrTagCustomIsFree(c.pdKey)) { spare++; if (!spareKey) spareKey = c.pdKey; }
   });
+  if (!spare) return '';
+  return rrTableMenuEntry('event.stopPropagation();document.getElementById(\'rr-addcol\').remove();rrTagOpen(\'__new\')',
+    '\uFF0B Spare column \u2014 name it\u2026' + (spare > 1 ? ' (' + spare + ' left)' : ' (last one)'),
+    (typeof rrFieldHelp === 'function') ? rrFieldHelp(spareKey) : '');
 }
-// The + Add menu: only what is not already on the table.
-function _collAddColMenu(ev) {
-  if (ev) ev.stopPropagation();
-  var old = document.getElementById('coll-addcol'); if (old) old.remove();
-  var vis = _collVisibleCols();
-  // v0.9.1862 (Brad: "what are [Custom 1, 2, 3] and why do we need them if
-  // we have add custom column button"). The five custom slots already exist
-  // on every sheet; "+ Custom column" only NAMES the next free one. So the
-  // menu no longer lists five mystery "Custom N" lines: a slot that is
-  // unnamed and unused is folded into ONE "Spare column — name it…" entry
-  // that opens the same naming step; a named slot shows under its name.
-  var _spare = 0, _spareKey = '';
-  var avail = _collAllCols().filter(function (c) {
-    if (vis.indexOf(c.col) >= 0 || _COLL_LOCKED.indexOf(c.col) >= 0) return false;
-    if (c.userField && typeof rrTagCustomIsFree === 'function' && rrTagCustomIsFree(c.pdKey)) {
-      _spare++; if (!_spareKey) _spareKey = c.pdKey; return false;
-    }
-    return true;
-  });
-  var box = document.createElement('div');
-  box.id = 'coll-addcol';
-  box.style.cssText = 'position:fixed;z-index:9700;background:var(--surface);border:1px solid var(--border);' +
-    'border-radius:10px;box-shadow:0 8px 28px rgba(0,0,0,0.45);padding:0.4rem;max-height:60vh;overflow:auto;min-width:190px;max-width:330px';
-  // Hover shows what a column is (Brad: "a pop up when you hover over these
-  // with a short description"); a phone has no hover, so there the same
-  // line sits under the name.
-  var _phone = !!window.IS_MOBILE_UA;
-  var _esc = function (s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;'); };
-  var _entry = function (onclick, name, help) {
-    return '<button type="button" class="coll-addcol-item" onclick="' + onclick + '" title="' + _esc(help) + '" style="display:block;width:100%;text-align:left;' +
-      'background:none;border:none;color:var(--text);font-family:var(--font-body);font-size:0.85rem;' +
-      'padding:0.4rem 0.6rem;border-radius:7px;cursor:pointer">' + _esc(name) +
-      (_phone && help ? '<span class="coll-addcol-help" style="display:block;font-size:0.72rem;color:var(--text-dim);line-height:1.35;margin-top:1px;white-space:normal">' + _esc(help) + '</span>' : '') +
-      '</button>';
-  };
-  if (!avail.length && !_spare) {
-    box.innerHTML = '<div style="padding:0.5rem 0.6rem;font-size:0.82rem;color:var(--text-dim)">Every column is already on the table.</div>';
-  } else {
-    box.innerHTML = '<div style="padding:0.3rem 0.6rem;font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.08em">Add a column</div>' +
-      avail.map(function (c) {
-        return _entry('_collAddCol(\'' + c.col + '\')', _collColLabel(c.col), _collColHelp(c.col));
-      }).join('') +
-      (_spare ? _entry('event.stopPropagation();document.getElementById(\'coll-addcol\').remove();rrTagOpen(\'__new\')',
-                       '＋ Spare column — name it…' + (_spare > 1 ? ' (' + _spare + ' left)' : ' (last one)'),
-                       (typeof rrFieldHelp === 'function') ? rrFieldHelp(_spareKey) : '') : '');
-  }
-  document.body.appendChild(box);
-  try {
-    var r = ev && ev.target ? ev.target.getBoundingClientRect() : { bottom: 90, right: window.innerWidth - 20 };
-    box.style.top = Math.min(window.innerHeight - box.offsetHeight - 12, r.bottom + 6) + 'px';
-    box.style.left = Math.max(8, r.right - box.offsetWidth) + 'px';
-  } catch (e) {}
-  setTimeout(function () {
-    document.addEventListener('click', function _close(e2) {
-      if (box.contains(e2.target)) return;
-      box.remove(); document.removeEventListener('click', _close, true);
-    }, true);
-  }, 0);
+// v0.9.1558 (Brad): "+ custom column", sitting between Add and Done. + Add
+// brings back a column you already have; this one MAKES one, names it, and
+// walks you into filling it in.
+function _collEditExtras() {
+  return '<button type="button" onclick="event.stopPropagation();rrTagOpen(\'__new\')" title="Make a column of your own and fill it in" ' +
+    'style="border:1px solid var(--border);background:var(--surface2);color:var(--text);border-radius:7px;' +
+    'padding:0.15rem 0.5rem;font-size:0.7rem;font-family:var(--font-body);cursor:pointer;margin-right:0.3rem">+ Custom column</button>';
 }
-function _collAddCol(id) {
-  var box = document.getElementById('coll-addcol'); if (box) box.remove();
-  var vis = _collVisibleCols().filter(function (c) { return _COLL_LOCKED.indexOf(c) < 0; });
-  if (vis.indexOf(id) < 0) vis.push(id);
-  _collSaveCols(vis);
-  _collSwitchOn(id);   // v0.9.1862: the column's Preferences switch comes on with it
-  _renderCollectionHeader();
-  if (typeof renderBrowse === 'function') renderBrowse();
-}
+rrTableDefine({
+  id: 'collection',
+  cols: _COLL_COLS,
+  extras: _COLL_EXTRA_COLS,
+  locked: _COLL_LOCKED,
+  defaults: _COLL_COLS.map(function (c) { return c.col; }),
+  storageKey: _COLL_COLS_PREF,
+  theadSel: '#page-browse .item-table thead tr',
+  editKey: '_collColEdit',
+  sortState: function () { return (typeof state !== 'undefined' && state) ? state._collSort : null; },
+  sortCall: '_collSortBy',
+  repaint: function () { _renderCollectionHeader(); if (typeof renderBrowse === 'function') renderBrowse(); },
+  label: _collColLabel,
+  // v0.9.1547 (Brad): every column a user can add IS sortable; Photo is the
+  // only one with nothing to sort by.
+  noSort: function (c) { return c.col === 'photo'; },
+  thStyle: _collThStyle,
+  leadTh: _collGutterTh,                                   // v0.9.1007: the selection gutter
+  afterHeader: function () { setTimeout(rrStickyHScroll, 30); },   // v0.9.1544: column set changed → bar width changed
+  visibleHook: _collAutoNewCols,                           // v1585 / v1862: a switched-on field joins once
+  onAdd: _collSwitchOn,                                    // v1862: the column's Preferences switch comes on with it
+  menuFilter: _collMenuFilter,
+  menuExtra: _collMenuExtra,
+  editExtras: _collEditExtras,
+});
 function _collSortBy(col) {
   var cs = state._collSort;
   if (cs && cs.col === col) { cs.dir = (cs.dir === 'asc') ? 'desc' : 'asc'; }
@@ -5074,15 +4926,13 @@ function _rrBrowseCore(_co) {
         _cells.added = `<td data-col="added" style="font-size:0.76rem;color:var(--text-dim);white-space:nowrap;width:80px;text-align:center">${(function(){ var d = (typeof rrBestDate === 'function') ? rrBestDate(pd) : ((pd && (pd.dateAdded || pd.datePurchased)) || ''); if (d) return (typeof _formatDate === 'function') ? _formatDate(d) : d; if (pd && pd._savedAt) { try { return new Date(pd._savedAt).toLocaleDateString(); } catch(e){} } return '—'; })()}</td>`;
         // Extra columns: plain values straight off the personal row.
         _COLL_EXTRA_COLS.forEach(function (xc) {
-          var v = (pd && pd[xc.pdKey] != null) ? String(pd[xc.pdKey]).trim() : '';
-          if (xc.money && v) { var n = parseFloat(String(v).replace(/[^0-9.\-]/g, '')); if (!isNaN(n)) v = (typeof _currencySymbol === 'function' ? _currencySymbol() : '$') + n.toLocaleString(); }
-          var esc = v.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
           // v0.9.1555 (Brad: "let the user see if an item has a pre existing
           // sub collection text"). While tagging, the column being filled is
           // tinted and any value already there is shown in full strength —
           // seen BEFORE ticking, not counted afterwards.
           var _tagCol = (typeof rrTagActive === 'function' && rrTagActive() && rrTagField() === xc.col);
-          _cells[xc.col] = '<td data-col="' + xc.col + '"' + (_tagCol ? ' data-tagcol="1"' : '') + ' style="font-size:0.78rem;color:var(--text-mid);max-width:190px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + esc + '">' + (esc || '<span style="color:var(--text-dim)">—</span>') + '</td>';
+          // v0.9.1864: ONE cell builder for every personal-row column (table-columns.js) — For Sale uses it too.
+          _cells[xc.col] = rrRowExtraCellHtml(xc, pd, _tagCol ? ' data-tagcol="1"' : '');
         });
         return _collVisibleCols().map(function (id) { return _cells[id] || '<td><span style="color:var(--text-dim)">—</span></td>'; }).join('');
         })()}
