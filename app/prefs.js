@@ -132,12 +132,27 @@ function buildPrefsPage() {
   const cacheDateStr = cacheTs ? new Date(cacheTs).toLocaleString() : 'Not cached';
   const cacheSize = (() => { try { return (JSON.stringify(JSON.parse(localStorage.getItem('lv_personal_cache')||'{}')).length / 1024).toFixed(1) + ' KB'; } catch(e) { return '—'; } })();
 
-  const toggle = (id, key, def='false') => `
+  // v0.9.1865: opts.disabled greys the switch out (it cannot be clicked);
+  // opts.checked overrides what the stored value says — for a switch that
+  // only counts while another one is on (Track Location Detail).
+  const toggle = (id, key, def='false', opts) => {
+    const _o = opts || {};
+    const _on = (typeof _o.checked === 'boolean') ? _o.checked : (_prefGet(key, def) === 'true');
+    return `
     <label class="pref-toggle" title="${id}">
-      <input type="checkbox" id="ptog-${id}" ${_prefGet(key, def) === 'true' ? 'checked' : ''}
+      <input type="checkbox" id="ptog-${id}" ${_on ? 'checked' : ''}${_o.disabled ? ' disabled' : ''}
         onchange="_prefSet('${key}', this.checked?'true':'false'); _onPrefChange('${id}', this.checked)">
       <div class="pref-toggle-track"></div>
     </label>`;
+  };
+  // v0.9.1865 (Brad: "location and location details should be managed
+  // together"): Location Detail's switch sits right under Track Storage
+  // Location and only works while that one is on. The field itself is the
+  // locationDetail entry in RR_USER_FIELDS (config.js); this row IS its
+  // switch, so Extra Columns does not list it any more.
+  const _locOn = _prefGet('lv_location_enabled', 'false') === 'true';
+  const _locDetField = (window.RR_USER_FIELDS || []).filter(f => f.key === 'locationDetail')[0];
+  const _locDetOn = _locDetField && typeof rrFieldEnabled === 'function' ? rrFieldEnabled(_locDetField) : false;
 
   const avatarHtml = u.picture
     ? `<div class="pref-avatar"><img src="${u.picture}" alt="${u.name||''}"></div>`
@@ -208,8 +223,16 @@ function buildPrefsPage() {
         <div class="pref-row-label"><strong>Track Storage Location</strong><span>Turn this on if your trains have set spots — like “Storage Unit 1” or “Tote A” — and you want to record where each item lives. You’ll be asked for a location as you add items.</span></div>
         ${toggle('location', 'lv_location_enabled', 'false')}
       </div>
+      <!-- v0.9.1865 (Brad): Location Detail is managed WITH Location — its
+           switch lives here, greyed out until Track Storage Location is on,
+           and goes off with it. One Storage Locations → Manage below serves
+           both levels (a place, and the totes/shelves inside it). -->
+      <div class="pref-row" id="pref-row-locdetail" style="${_locOn ? '' : 'opacity:0.5'}">
+        <div class="pref-row-label"><strong>Track Location Detail</strong><span>The spot inside that place — Tote 12, Rack 1 Shelf 3. Needs Track Storage Location on. You’ll be asked for it right after the location as you add items; it shows on the item page, in the edit screen and as a column.</span></div>
+        ${toggle('locdetail', 'lv_locdetail_enabled', 'false', { disabled: !_locOn, checked: _locDetOn })}
+      </div>
       <div class="pref-row">
-        <div class="pref-row-label"><strong>Storage Locations</strong><span>Set up your totes, shelves, rooms, etc. so you can tap one when adding items</span></div>
+        <div class="pref-row-label"><strong>Storage Locations</strong><span>Set up your totes, shelves, rooms, etc. so you can tap one when adding items — and the spots inside each one</span></div>
         <button class="pref-btn" onclick="_openLocationsModal()">Manage</button>
       </div>
       <!-- v0.9.1863 (Brad): Sub Types, set up like Storage Locations — a switch
@@ -227,7 +250,7 @@ function buildPrefsPage() {
       <!-- v0.9.1514 (Phase 2, Session 81): extra columns. Off by default;
            an import that maps into one switches it on automatically. -->
       <div class="pref-row">
-        <div class="pref-row-label"><strong>Extra Columns</strong><span>Location Detail, Shipper, Sub-collection, and up to 5 columns you name yourself</span></div>
+        <div class="pref-row-label"><strong>Extra Columns</strong><span>Shipper, Sub-collection, and up to 5 columns you name yourself</span></div>
         <button class="pref-btn" onclick="_openUserFieldsModal()">Manage</button>
       </div>
       <div class="pref-row">
@@ -623,10 +646,35 @@ function _onDashCardToggle(id, checked) {
 }
 
 function _onPrefChange(id, val) {
+  // v0.9.1865: whichever door threw the switch (this page, the wizard's own
+  // tick, a table's + Add), the switch on this page shows it.
+  try { var _self = document.getElementById('ptog-' + id); if (_self) _self.checked = !!val; } catch (e) {}
   if (id === 'location') {
     // Apply live so the wizard shows the location field without a reload
     if (typeof _prefLocEnabled !== 'undefined') _prefLocEnabled = !!val;
   }
+  // v0.9.1865 (Brad: "location and location details should be managed
+  // together"): a field that REQUIRES this switch (config.js `requires` —
+  // Location Detail needs Track Storage Location) only counts while it is on.
+  // Off → that field goes off with it, through the same door (_prefSet, so
+  // the account hears it), and its switch greys out. On → its switch wakes up
+  // showing what it was last set to. The wizard's own "Ask for storage
+  // location" tick and My Collection's + Add come through here too, so the
+  // rule holds wherever the switch is thrown. The pairing is declared ONCE,
+  // on the field, never here.
+  try {
+    (window.RR_USER_FIELDS || []).forEach(function (f) {
+      if (!f.requires || f.requires.toggle !== id) return;
+      if (!val && _prefGet(f.pref, 'false') === 'true') {
+        _prefSet(f.pref, 'false');
+        if (typeof showToast === 'function') showToast(f.label + ' turned off too — nothing was deleted', 3000);
+      }
+      var _cb = document.getElementById('ptog-' + f.prefToggle);
+      if (_cb) { _cb.disabled = !val; _cb.checked = !!val && _prefGet(f.pref, 'false') === 'true'; }
+      var _row = document.getElementById('pref-row-' + f.prefToggle);
+      if (_row) _row.style.opacity = val ? '' : '0.5';
+    });
+  } catch (e) {}
   if (id === 'disclaimer') {
     _applyDisclaimerPref();
   }
@@ -1014,6 +1062,14 @@ function _ufToggle(key, on, opts) {
     // written the way that row writes it — _prefSet, so it follows the account
     // like Location's switch — never raw, and never through look-sync as well
     // (one route per key).
+    // v0.9.1865: a field that needs another switch (Location Detail needs
+    // Track Storage Location) turns that one on FIRST, through its own door
+    // (_prefSet + _onPrefChange), so the wizard asks for both and the row's
+    // switch wakes up before this one is set. Turning off touches only this one.
+    if (on && f.requires && typeof _prefGet === 'function' && _prefGet(f.requires.pref, 'false') !== 'true') {
+      _prefSet(f.requires.pref, 'true');
+      if (typeof _onPrefChange === 'function') _onPrefChange(f.requires.toggle, true);
+    }
     if (typeof _prefSet === 'function') _prefSet(f.pref, on ? 'true' : 'false');
     else { try { localStorage.setItem(f.pref, on ? 'true' : 'false'); } catch (e) {} }
     var _cb = document.getElementById('ptog-' + f.prefToggle);

@@ -138,7 +138,8 @@ const READ = () => {
     const r = await pg.evaluate(() => {
       const out = {};
       rrTableAdd('forsale', 'locationDetail');
-      out.fs = { sw: localStorage.getItem('lv_locdetail_enabled'), asked: /wiz-uf-locationDetail/.test(_wizUserFieldsHtml({})) };
+      // v0.9.1865: Location Detail's switch needs Track Storage Location, so + Add brings that on too
+      out.fs = { sw: localStorage.getItem('lv_locdetail_enabled'), loc: localStorage.getItem('lv_location_enabled'), asked: /wiz-uf-locationDetail/.test(_wizUserFieldsHtml({})) };
       rrTableDrop('forsale', 'locationDetail');
       out.afterDrop = localStorage.getItem('lv_locdetail_enabled');
       // the two tables are two registrations of the one engine
@@ -149,7 +150,7 @@ const READ = () => {
       return out;
     });
     T('B: no page errors', errs.join(' | '), '');
-    T('B: + Add Location Detail on For Sale turns its Extra Columns switch on, and the wizard asks', r.fs, { sw: 'true', asked: true });
+    T('B: + Add Location Detail on For Sale turns its Preferences switch on (and Track Storage Location with it — v1865), and the wizard asks', r.fs, { sw: 'true', loc: 'true', asked: true });
     T('B: × leaves the switch alone', r.afterDrop, 'true');
     T('B: My Collection and For Sale are two registrations of the ONE engine, each with Maker + Item # locked', r.engine, { coll: true, ids: ['collection', 'forsale'], fsLocked: ['mfr', 'num'], collLocked: ['mfr', 'num'] });
     T('B: each table keeps its own layout', r.separate, { fs: true, coll: -1 });

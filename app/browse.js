@@ -227,10 +227,11 @@ function _collColHelp(id) { return rrTableHelp('collection', id); }
 // columns, we need to make sure we then add those to the add item questions
 // so that we can fill them out in the future."
 //
-// Two switches in Preferences → Collection decide whether a field is ASKED:
-// "Track Storage Location" (lv_location_enabled) for Location, and the Extra
-// Columns switches (RR_USER_FIELDS, config.js) for Location Detail, Shipper,
-// Sub-collection and the five custom slots. Those switches are what wire a
+// The switches in Preferences → Collection decide whether a field is ASKED:
+// "Track Storage Location" (lv_location_enabled) for Location, its own row
+// for a field with prefToggle (Track Location Detail, Track Sub Types — v1865
+// / v1863), and the Extra Columns switches (RR_USER_FIELDS, config.js) for
+// Shipper, Sub-collection and the five custom slots. Those switches are what wire a
 // field into the add wizard, the item page, the edit panel and the import
 // (the Session 81 parity rule); the table layout is only where it SHOWS. So
 // adding the column here flips its switch on, through the very door
@@ -263,11 +264,17 @@ function _collSwitchOn(id) {
     if (typeof showToast === 'function') showToast('Track Storage Location is on — new items will ask where they live', 3500);
     return true;
   }
+  // v0.9.1865: a field that needs another switch (Location Detail needs Track
+  // Storage Location) brings that one on with it — _ufToggle does the turning;
+  // this only says so.
+  var _parentWasOff = !!(sw.field.requires && typeof _prefGet === 'function' && _prefGet(sw.field.requires.pref, 'false') !== 'true');
   if (typeof _ufToggle === 'function') _ufToggle(sw.field.key, true, { quiet: true });
   else { try { localStorage.setItem(sw.pref, 'true'); } catch (e) {} }
   if (typeof showToast === 'function') {
     var _nm = (typeof rrFieldLabel === 'function') ? rrFieldLabel(sw.field) : sw.field.label;
-    showToast(_nm + ' is on in Preferences — new items will ask for it', 3500);
+    showToast(_parentWasOff
+      ? _nm + ' and ' + sw.field.requires.label + ' are on in Preferences — new items will ask for both'
+      : _nm + ' is on in Preferences — new items will ask for it', 3500);
   }
   return true;
 }

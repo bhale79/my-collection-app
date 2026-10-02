@@ -55,7 +55,11 @@
     'lv_label_custom4', 'lv_label_custom5',
     'lv_custom1_enabled', 'lv_custom2_enabled', 'lv_custom3_enabled',
     'lv_custom4_enabled', 'lv_custom5_enabled',
-    'lv_locdetail_enabled', 'lv_shipper_enabled', 'lv_subcoll_enabled',
+    // v0.9.1865: lv_locdetail_enabled LEFT this list — Location Detail's switch
+    // is a Preferences row of its own now (prefToggle), written through _prefSet
+    // and carried by the account prefs file, one route per key. A copy still
+    // sitting in an old look file is ignored: only keys named here are applied.
+    'lv_shipper_enabled', 'lv_subcoll_enabled',
     'lv_coll_columns_v1',      // the chosen column layout
     'lv_fs_columns_v1',        // v0.9.1864: the For Sale table's layout travels the same way
     'lv_coll_columns_seen_v1'  // which auto-offers were already made

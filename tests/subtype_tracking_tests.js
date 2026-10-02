@@ -115,10 +115,10 @@ async function open(browser, planted) {
     });
     T('A: no page errors', errs.join(' | '), '');
     T('A: Preferences → Collection has the Track Sub Types switch and the Sub Types — Manage button', [r.hasToggle, r.hasManage], [true, true]);
-    T('A: …beside Storage Locations, in that order', r.rowOrder, ['Track Storage Location', 'Storage Locations', 'Track Sub Types', 'Sub Types']);
+    T('A: …beside Storage Locations, in that order (v1865: Track Location Detail sits between Location and its Manage)', r.rowOrder, ['Track Storage Location', 'Track Location Detail', 'Storage Locations', 'Track Sub Types', 'Sub Types']);
     T('A: Sub Type is a user field whose switch is that toggle', r.field, { pref: 'lv_subtype_enabled', choices: 'subtypes', prefToggle: 'subtype' });
     T('A: the switch ON — written through _prefSet (stamped), the field is enabled and listed', r.on, { v: 'true', at: true, enabled: true, listed: ['subType'] });
-    T('A: Extra Columns does not list it a second time (one control per switch); the eight others still there', [r.extraCols, r.extraRows], [0, 8]);
+    T('A: Extra Columns does not list it a second time (one control per switch); the seven others still there (v1865: Location Detail has its own row too)', [r.extraCols, r.extraRows], [0, 7]);
     T('A: the switch OFF', r.off, { v: 'false', listed: [] });
     T('A: the manager starts empty', r.empty, true);
     T('A: Add (button) and Enter both add; trimmed; stored through _prefSet (stamped); the box clears', r.added, { names: ['Operating car', 'Repaint'], saved: ['Operating car', 'Repaint'], at: true, boxCleared: '' });

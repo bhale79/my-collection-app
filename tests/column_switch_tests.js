@@ -154,10 +154,16 @@ const READ = () => {
       // what the add wizard's details step would ask right now — the REAL renderer
       const asked = () => Array.from(new DOMParser().parseFromString(_wizUserFieldsHtml({}), 'text/html').querySelectorAll('input[id^="wiz-uf-"]')).map(i => i.id.replace('wiz-uf-', ''));
       out.before = { locdetail: on('lv_locdetail_enabled'), location: on('lv_location_enabled'), asked: asked(), locFlag: !!_prefLocEnabled };
-      _collAddCol('locationDetail');
-      out.afterDetail = { locdetail: on('lv_locdetail_enabled'), asked: asked(), enabled: rrEnabledUserFields().map(f => f.key), stamp: !!localStorage.getItem('rr_look_stamp') };
       _collAddCol('location');
-      out.afterLocation = { location: on('lv_location_enabled'), at: !!localStorage.getItem('lv_location_enabled__at'), locFlag: !!_prefLocEnabled };
+      out.afterLocation = { location: on('lv_location_enabled'), at: !!localStorage.getItem('lv_location_enabled__at'), locFlag: !!_prefLocEnabled, locdetail: on('lv_locdetail_enabled') };
+      // v0.9.1865: Location Detail's switch is its own Preferences row now, under
+      // Track Storage Location and needing it — so from a fresh start + Add
+      // Location Detail turns BOTH on (location_detail_switch_tests has the
+      // whole story; this pins the door My Collection uses).
+      _collDropCol('location');
+      ['lv_location_enabled', 'lv_location_enabled__at', 'lv_coll_columns_seen_v1'].forEach(k => localStorage.removeItem(k)); _prefLocEnabled = false;
+      _collAddCol('locationDetail');
+      out.afterDetail = { locdetail: on('lv_locdetail_enabled'), location: on('lv_location_enabled'), asked: asked(), enabled: rrEnabledUserFields().map(f => f.key), stamp: !!localStorage.getItem('lv_locdetail_enabled__at'), locFlag: !!_prefLocEnabled };
       _collDropCol('locationDetail'); _collDropCol('location');
       out.afterDrop = { locdetail: on('lv_locdetail_enabled'), location: on('lv_location_enabled'), cols: _collVisibleCols() };
       // a column with no switch touches nothing
@@ -183,10 +189,10 @@ const READ = () => {
     });
     T('B: no page errors', errs.join(' | '), '');
     T('B: fresh start — nothing on, nothing asked', [r.before.locdetail, r.before.location, r.before.asked, r.before.locFlag], [false, false, [], false]);
-    T('B: + Add Location Detail turns its Extra Columns switch ON', r.afterDetail.locdetail, true);
+    T('B: + Add Location turns Track Storage Location ON through _prefSet (stamped) and the live flag — and Location alone leaves Detail off', [r.afterLocation.location, r.afterLocation.at, r.afterLocation.locFlag, r.afterLocation.locdetail], [true, true, true, false]);
+    T('B: + Add Location Detail turns its Preferences switch ON — and Track Storage Location with it (v1865: it needs it)', [r.afterDetail.locdetail, r.afterDetail.location, r.afterDetail.locFlag], [true, true, true]);
     T('C: …and the add wizard now asks for it (the real renderer)', r.afterDetail.asked, ['locationDetail']);
-    T('B: …through the Preferences door: it is an enabled field and the sync clock was stamped', [r.afterDetail.enabled, r.afterDetail.stamp], [['locationDetail'], true]);
-    T('B: + Add Location turns Track Storage Location ON through _prefSet (stamped) and the live flag', [r.afterLocation.location, r.afterLocation.at, r.afterLocation.locFlag], [true, true, true]);
+    T('B: …through the Preferences door: it is an enabled field, stamped for the account (v1865; the look clock is a layout matter here — location_detail_switch_tests pins "not the look")', [r.afterDetail.enabled, r.afterDetail.stamp], [['locationDetail'], true]);
     T('B: × leaves both switches alone', [r.afterDrop.locdetail, r.afterDrop.location, r.afterDrop.cols.indexOf('location')], [true, true, -1]);
     T('B: a column with no switch (Road Name) touches no switch', r.noSwitch, true);
     T('B: Preferences → Track Storage Location ON puts the Location column on the table — and it is still there on the next read', [r.rev0, r.rev1, r.rev1again], [-1, true, true]);
@@ -236,7 +242,7 @@ const READ = () => {
       out.prefsRows = document.querySelectorAll('#uf-modal-overlay .uf-help').length;
       document.getElementById('uf-modal-overlay').remove();
       // the words themselves
-      out.words = { subCollection: rrFieldHelp('subCollection'), locationDetail: rrFieldHelp('locationDetail'), spare: rrFieldHelp('custom1'), subType: rrFieldHelp('subType') };
+      out.words = { subCollection: rrFieldHelp('subCollection'), locationDetail: rrFieldHelp('locationDetail'), shipper: rrFieldHelp('shipper'), spare: rrFieldHelp('custom1'), subType: rrFieldHelp('subType') };
       // E: spare slots fold into one entry; a named one shows under its name
       _collAddColMenu();
       const names = () => Array.from(document.querySelectorAll('#rr-addcol .rr-addcol-item')).map(b => b.firstChild.textContent.trim());
@@ -264,7 +270,7 @@ const READ = () => {
     T('D: a heading that does not sort just says what it is', r.thPhoto, rrWords('photoItem'));
     T('D: the locked Maker heading too', r.thMfr.indexOf(rrWords('manufacturer')) === 0, true);
     T('D: in edit mode the sentence stays and says how to move it', [r.thEditDesc.indexOf(rrWords('description')) === 0, /Drag to move it/.test(r.thEditDesc), /Drag/.test(r.thEditNum)], [true, true, false]);
-    T('D: Preferences → Extra Columns shows the same sentence (first row is Location Detail)', [r.prefsDetail, r.prefsRows], [r.words.locationDetail, 8]);
+    T('D: Preferences → Extra Columns shows the same sentence (first row is Shipper — v1865 moved Location Detail to its own row; 7 rows)', [r.prefsDetail, r.prefsRows], [r.words.shipper, 7]);
     T('D: the words answer Brad’s questions', [/own groups/.test(r.words.subCollection), /spot inside/.test(r.words.locationDetail), /spare column/i.test(r.words.spare), /finer sort/.test(r.words.subType)], [true, true, true, true]);
     T('D: the import reads the same words (aliases included) and keeps its photo-file line', [r.imp.detail, r.imp.yourDesc, r.imp.grade, r.imp.photo, r.imp.keys.indexOf('custom1') > 0, r.imp.keys.indexOf('custom2')], [true, true, true, true, true, -1]);
     T('D: no sentence says "AI"', r.ai, []);

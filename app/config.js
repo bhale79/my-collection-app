@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.1864';
+const APP_VERSION = 'v0.9.1865';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -1793,10 +1793,24 @@ var SEARCH_ALIASES = {};
 //   pref     — localStorage flag that turns it on (optional fields only)
 //   custom   — true for the five user-named columns
 //   scopedTo — 'location' means its suggestions are filtered by that field
+//   prefToggle — its switch is a row of its own in Preferences → Collection
+//              (toggle id), written through _prefSet so it follows the
+//              account; Extra Columns then does not list it (v1863)
+//   requires — another switch that must be on for this field to count at
+//              all: { pref, toggle, label }. rrFieldEnabled says no while
+//              that one is off; turning this on turns that one on first;
+//              turning that one off turns this one off too (v1865)
 // ═══════════════════════════════════════════════════════════════
 window.RR_USER_FIELDS = [
+  // v0.9.1865 (Brad: "location and location details should be managed
+  // together. location details is under extra columns"). Location Detail's
+  // switch is now the "Track Location Detail" row directly under "Track
+  // Storage Location" in Preferences → Collection, greyed out until that one
+  // is on — a tote with no room is not an address. One Storage Locations →
+  // Manage serves both levels, as it always did.
   { key: 'locationDetail', label: 'Location Detail', hint: 'e.g. Tote 12, Shelf 3',
-    pref: 'lv_locdetail_enabled', scopedTo: 'location' },
+    pref: 'lv_locdetail_enabled', scopedTo: 'location', prefToggle: 'locdetail',
+    requires: { pref: 'lv_location_enabled', toggle: 'location', label: 'Track Storage Location' } },
   { key: 'shipper', label: 'Shipper', hint: 'Outer shipping carton — not the item box',
     pref: 'lv_shipper_enabled' },
   { key: 'subCollection', label: 'Sub-collection', hint: 'e.g. 6464, Disney, Monopoly',
@@ -1830,9 +1844,20 @@ window.rrFieldLabel = function (f) {
   return f.label;
 };
 // Enabled = the user switched it on, OR an import already put data in it.
+// v0.9.1865: a field with its own Preferences row (prefToggle) follows the
+// ACCOUNT, so it is read through the one reader (_prefGet, v1825) — a value
+// written before its key went through _prefSet is stamped and pushed on its
+// first read here, not only when Preferences is opened. And a field that
+// needs another switch (requires) is OFF while that one is off, whatever its
+// own flag says: Location Detail without Location is a tote with no room.
 window.rrFieldEnabled = function (f) {
   try {
-    if (localStorage.getItem(f.pref) === 'true') return true;
+    var rd = function (k) {
+      return (f.prefToggle && typeof _prefGet === 'function') ? _prefGet(k, '') : localStorage.getItem(k);
+    };
+    var own = rd(f.pref);   // read first, so the heal happens even while the gate below says no
+    if (f.requires && rd(f.requires.pref) !== 'true') return false;
+    if (own === 'true') return true;
     if (f.custom && localStorage.getItem('lv_label_' + f.key)) return true;
   } catch (e) {}
   return false;

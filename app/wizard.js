@@ -5120,7 +5120,7 @@ function renderWizardStep() {
         <label style="display:flex;align-items:center;gap:0.5rem;margin-top:0.75rem;padding:0.6rem 0.75rem;
           background:var(--surface2);border-radius:8px;border:1px solid var(--border);cursor:pointer;font-size:0.82rem;color:var(--text-mid)">
           <input type="checkbox" id="wiz-loc-toggle" ${_prefLocEnabled ? 'checked' : ''}
-            onchange="_prefLocEnabled = this.checked; _prefSet('lv_location_enabled', this.checked ? 'true' : 'false')"
+            onchange="_prefSet('lv_location_enabled', this.checked ? 'true' : 'false'); if (typeof _onPrefChange === 'function') _onPrefChange('location', this.checked); else _prefLocEnabled = this.checked;"
             style="width:18px;height:18px;accent-color:var(--accent);cursor:pointer">
           Ask for storage location on future items
         </label>

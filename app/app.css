@@ -1512,6 +1512,7 @@
   .pref-toggle input:checked + .pref-toggle-track { background: var(--accent2); border-color: var(--accent2); }
   .pref-toggle-track::after { content: ''; position: absolute; left: 3px; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; border-radius: 50%; background: white; transition: left 0.2s; box-shadow: 0 1px 3px rgba(0,0,0,0.3); }
   .pref-toggle input:checked + .pref-toggle-track::after { left: 21px; }
+  .pref-toggle input:disabled + .pref-toggle-track { cursor: not-allowed; }   /* v0.9.1865: a switch that needs another one on first */
   .pref-select { padding: 0.38rem 0.6rem; border-radius: 7px; border: 1px solid var(--border); background: var(--surface2); color: var(--text); font-family: var(--font-body); font-size: 0.85rem; outline: none; cursor: pointer; }
   .pref-select:focus { border-color: var(--accent2); }
   .pref-btn { padding: 0.45rem 0.9rem; border-radius: 7px; border: 1px solid var(--border); background: var(--surface2); color: var(--text-mid); font-family: var(--font-body); font-size: 0.82rem; cursor: pointer; transition: all 0.15s; white-space: nowrap; }

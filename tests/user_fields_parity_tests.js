@@ -39,7 +39,13 @@ ok('A: …both paths route through it (default layout AND a saved layout)',
 ok('B: the sync file now carries the custom labels, enables, and layout',
    /lv_label_custom1/.test(look) && /lv_custom5_enabled/.test(look)
    && /lv_coll_columns_v1/.test(look) && /lv_coll_columns_seen_v1/.test(look)
-   && /lv_locdetail_enabled/.test(look) && /lv_shipper_enabled/.test(look) && /lv_subcoll_enabled/.test(look));
+   && /lv_shipper_enabled/.test(look) && /lv_subcoll_enabled/.test(look));
+// v0.9.1865: a field whose switch is a Preferences row of its own (prefToggle)
+// follows the ACCOUNT through _prefSet — one route per key, so it is NOT in
+// the look file as well. Location Detail joined Sub Type there.
+ok('B: …but not a prefToggle field\'s switch — those follow the account, not the look (Location Detail, Sub Type)',
+   !/lv_locdetail_enabled/.test(look.replace(/^\s*\/\/.*$/gm, '')) && !/lv_subtype_enabled/.test(look.replace(/^\s*\/\/.*$/gm, ''))
+   && /key: 'locationDetail'[\s\S]{0,200}prefToggle: 'locdetail'/.test(src('config.js')));
 ok('B: every importer write of a label stamps the sync clock',
    (impui.match(/rrLookTouch === 'function'\) rrLookTouch\(\)/g) || []).length >= 4);
 ok('B: the prefs label editor stamps it too',
