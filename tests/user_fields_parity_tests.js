@@ -36,22 +36,28 @@ ok('A: …both paths route through it (default layout AND a saved layout)',
    && /if \(typeof t\.visibleHook === 'function'\) \{ var h = t\.visibleHook\(out, hasSaved\);/.test(src('table-columns.js')));
 
 // ── B: the setup travels between devices ─────────────────────────
-ok('B: the sync file now carries the custom labels, enables, and layout',
+// v0.9.1867: the setup travels by the ACCOUNT prefs file (newest per setting),
+// not by look-sync's all-or-nothing file — which, it turned out, had never
+// synced at all. look-sync.js names the keys that left it; look_sync_tests
+// proves every writer stamps them.
+ok('B: the custom labels, enables, layouts and roster LEFT the look file for the account (named in look-sync.js, not in LOOK_KEYS)',
    /lv_label_custom1/.test(look) && /lv_custom5_enabled/.test(look)
    && /lv_coll_columns_v1/.test(look) && /lv_coll_columns_seen_v1/.test(look)
-   && /lv_shipper_enabled/.test(look) && /lv_subcoll_enabled/.test(look));
+   && /lv_shipper_enabled/.test(look) && /lv_subcoll_enabled/.test(look)
+   && !/'lv_label_custom1'/.test(look.slice(look.indexOf('var LOOK_KEYS'), look.indexOf('var MOVED_TO_PREFS'))));
 // v0.9.1865: a field whose switch is a Preferences row of its own (prefToggle)
 // follows the ACCOUNT through _prefSet — one route per key, so it is NOT in
 // the look file as well. Location Detail joined Sub Type there.
 ok('B: …but not a prefToggle field\'s switch — those follow the account, not the look (Location Detail, Sub Type)',
    !/lv_locdetail_enabled/.test(look.replace(/^\s*\/\/.*$/gm, '')) && !/lv_subtype_enabled/.test(look.replace(/^\s*\/\/.*$/gm, ''))
    && /key: 'locationDetail'[\s\S]{0,200}prefToggle: 'locdetail'/.test(src('config.js')));
-ok('B: every importer write of a label stamps the sync clock',
-   (impui.match(/rrLookTouch === 'function'\) rrLookTouch\(\)/g) || []).length >= 4);
-ok('B: the prefs label editor stamps it too',
-   /lv_label_' \+ key, v\); localStorage\.setItem\(f\.pref, 'true'\); \}\s*\n\s*if \(typeof rrLookTouch/.test(prefs));
-ok('B: saving a column layout stamps it',
-   /t\.storageKey, JSON\.stringify\(clean\)\); \} catch \(e\) \{\}\s*\n\s*if \(typeof rrLookTouch/.test(src('table-columns.js')));
+ok('B: every importer write of a label goes through the ONE claim writer (config.js, account door)',
+   (impui.match(/rrFieldClaimCustom\(/g) || []).length === 4 && !/rrLookTouch/.test(impui.replace(/^\s*\/\/.*$/gm, '')));
+ok('B: the prefs label editor goes through it too',
+   /rrFieldClaimCustom\(key, v\)/.test(prefs) && !/rrLookTouch/.test(prefs.replace(/^\s*\/\/.*$/gm, '')));
+ok('B: saving a column layout writes through the account door',
+   /_rrTableWrite\(t\.storageKey, JSON\.stringify\(clean\)\)/.test(src('table-columns.js'))
+   && /function _rrTableWrite\(k, v\) \{\s*\n\s*if \(typeof rrPrefWrite === 'function'\) rrPrefWrite\(k, v\)/.test(src('table-columns.js')));
 
 // ── C: instruction sheets tell the truth ─────────────────────────
 ok('C: an EXISTING -IS row answers hasIS before any preference default',

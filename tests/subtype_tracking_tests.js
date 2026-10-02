@@ -213,9 +213,12 @@ async function open(browser, planted) {
   // ── PLANTED: a _ufToggle that writes this switch raw is caught ───────────
   {
     const src = rd('prefs.js');
-    const i = src.indexOf('  if (f.prefToggle) {'), j = src.indexOf('  try { localStorage.setItem(f.pref, on ? \'true\' : \'false\'); } catch (e) {}', i);
+    // v0.9.1867: the plain branch writes through rrPrefWrite too; the planted
+    // offender still cuts the whole prefToggle branch (its parent-switch rule
+    // and its own stamped write) so the switch lands raw and unstamped.
+    const i = src.indexOf('  if (f.prefToggle) {'), j = src.indexOf('  rrPrefWrite(f.pref, on ? \'true\' : \'false\');\n  if (opts && opts.quiet) return;', i);
     T('PLANTED: the account-door branch of _ufToggle is where expected', i > 0 && j > i, true);
-    const old = src.slice(0, i) + src.slice(j);
+    const old = src.slice(0, i) + "  try { localStorage.setItem(f.pref, on ? 'true' : 'false'); } catch (e) {}\n" + src.slice(j + "  rrPrefWrite(f.pref, on ? 'true' : 'false');\n".length);
     const { pg } = await open(browser, { 'prefs.js': old });
     const r = await pg.evaluate(() => { _ufToggle('subType', true); return { v: localStorage.getItem('lv_subtype_enabled'), at: !!localStorage.getItem('lv_subtype_enabled__at') }; });
     T('PLANTED: without that branch the switch is on but unstamped — it would never reach the account', r, { v: 'true', at: false });

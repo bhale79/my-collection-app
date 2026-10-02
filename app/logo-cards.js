@@ -69,8 +69,12 @@
     return null;
   }
   function _saveCards(list) {
-    try { localStorage.setItem(CARDS_KEY, JSON.stringify(list.slice(0, MAX_LIBRARY))); return true; }
+    try { localStorage.setItem(CARDS_KEY, JSON.stringify(list.slice(0, MAX_LIBRARY))); }
     catch (e) { return false; }
+    // v0.9.1867: the library is one of the two big pictures look-sync carries
+    // (rr_logo_cards); a save was never dated before, so it never travelled.
+    try { if (typeof window.rrLookTouch === 'function') window.rrLookTouch(); } catch (e2) {}
+    return true;
   }
   // Ids are derived from the library, never from a clock or a random number —
   // both of those are unavailable in the test harness, and a counter is

@@ -127,7 +127,7 @@ const READ = () => {
     T('A: Done leaves them agreeing and edit mode off', [r.done.same, r.done.flag], [true, false]);
     T('A: sorting by Asking Price still works (arrow shown, cheapest first)', r.sortPrice, { sort: { col: 'price', dir: 'asc' }, first: '6457', arrow: true });
     T('A: …and by the added Price Paid column, as a number (desc → $120 first)', r.sortPaid, { sort: { col: 'paid', dir: 'desc' }, first: '6464' });
-    T('A: Reset to default', [r.reset.same, r.reset.tds.length, r.reset.saved], [true, 11, null]);
+    T('A: Reset to default (v1867: the layout is an account setting, so "none" is written as \'\' — a removal cannot travel)', [r.reset.same, r.reset.tds.length, r.reset.saved], [true, 11, '']);
     T('A: the empty state spans the chosen columns', r.empty.colspan, r.empty.want);
     await pg.close();
   }

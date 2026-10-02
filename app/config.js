@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.1866';
+const APP_VERSION = 'v0.9.1867';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -1832,33 +1832,63 @@ window.RR_USER_FIELDS = [
   { key: 'custom4', label: 'Custom 4', hint: '', pref: 'lv_custom4_enabled', custom: true },
   { key: 'custom5', label: 'Custom 5', hint: '', pref: 'lv_custom5_enabled', custom: true },
 ];
+// ── v0.9.1867: EVERY user-field setting follows the ACCOUNT ─────────
+// A custom column's name (lv_label_customN) and every field's on/off flag
+// (lv_*_enabled) are account settings now: written through _prefSet, read
+// through _prefGet (the one reader, v1825 — a value written before its key
+// went through _prefSet is stamped and pushed on its first read), carried by
+// the account prefs file newest-per-setting. They used to ride look-sync's
+// all-or-nothing file, which turned out never to have synced at all (its
+// readiness check looked for driveCache on window; it is a const). ONE
+// reader for the raw value, so Node tests without app.js still work.
+window.rrPrefRead = function (k) {
+  try { return (typeof _prefGet === 'function') ? _prefGet(k, null) : localStorage.getItem(k); }
+  catch (e) { return null; }
+};
+// …and ONE guarded door to the ONE write path (_prefSet, app.js). The guard
+// is for load order and Node tests only; in the app this IS _prefSet. A
+// setting that is "removed" is written as '' — the account merge can add or
+// update a key, never forget one, and every reader treats '' as unset.
+window.rrPrefWrite = function (k, v) {
+  try {
+    if (typeof _prefSet === 'function') _prefSet(k, v);
+    else localStorage.setItem(k, v);
+  } catch (e) {}
+};
+// Name a spare custom column and switch it on — ONE writer (v0.9.1867). The
+// Fill-a-column flow (rrTagClaimCustom), the import's mapping screen (its
+// three doors), the import's write step and Preferences → Extra Columns all
+// come through here; it used to be written in four places. A blank name
+// un-names the slot ('' — see rrPrefWrite) and leaves its switch alone.
+window.rrFieldClaimCustom = function (key, label) {
+  var f = (window.RR_USER_FIELDS || []).filter(function (x) { return x.key === key; })[0];
+  if (!f || !f.custom) return '';
+  var v = String(label || '').trim();
+  rrPrefWrite('lv_label_' + key, v);
+  if (v) rrPrefWrite(f.pref, 'true');
+  return v;
+};
 // A user-named custom column's label lives in prefs; optional fields keep
 // their fixed label. ONE reader so every surface shows the same words.
 window.rrFieldLabel = function (f) {
   try {
     if (f.custom) {
-      var v = localStorage.getItem('lv_label_' + f.key);
+      var v = rrPrefRead('lv_label_' + f.key);
       if (v && v.trim()) return v.trim();
     }
   } catch (e) {}
   return f.label;
 };
 // Enabled = the user switched it on, OR an import already put data in it.
-// v0.9.1865: a field with its own Preferences row (prefToggle) follows the
-// ACCOUNT, so it is read through the one reader (_prefGet, v1825) — a value
-// written before its key went through _prefSet is stamped and pushed on its
-// first read here, not only when Preferences is opened. And a field that
-// needs another switch (requires) is OFF while that one is off, whatever its
-// own flag says: Location Detail without Location is a tote with no room.
+// v0.9.1865: a field that needs another switch (requires) is OFF while that
+// one is off, whatever its own flag says: Location Detail without Location
+// is a tote with no room. (v1867: every flag is read through rrPrefRead.)
 window.rrFieldEnabled = function (f) {
   try {
-    var rd = function (k) {
-      return (f.prefToggle && typeof _prefGet === 'function') ? _prefGet(k, '') : localStorage.getItem(k);
-    };
-    var own = rd(f.pref);   // read first, so the heal happens even while the gate below says no
-    if (f.requires && rd(f.requires.pref) !== 'true') return false;
+    var own = rrPrefRead(f.pref);   // read first, so the heal happens even while the gate below says no
+    if (f.requires && rrPrefRead(f.requires.pref) !== 'true') return false;
     if (own === 'true') return true;
-    if (f.custom && localStorage.getItem('lv_label_' + f.key)) return true;
+    if (f.custom && rrPrefRead('lv_label_' + f.key)) return true;
   } catch (e) {}
   return false;
 };

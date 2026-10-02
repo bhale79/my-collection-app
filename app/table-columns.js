@@ -137,7 +137,9 @@ function rrTableLocked(id, col) { return rrTable(id).locked.indexOf(col) >= 0; }
 function rrTableVisible(id) {
   var t = rrTable(id);
   var chosen = null;
-  try { var raw = localStorage.getItem(t.storageKey); if (raw) chosen = JSON.parse(raw); } catch (e) {}
+  // v0.9.1867: the layout is an ACCOUNT setting (rrPrefRead → _prefGet, so a
+  // layout saved before this release is stamped and pushed on its first read).
+  try { var raw = (typeof rrPrefRead === 'function') ? rrPrefRead(t.storageKey) : localStorage.getItem(t.storageKey); if (raw) chosen = JSON.parse(raw); } catch (e) {}
   var hasSaved = Array.isArray(chosen) && chosen.length > 0;
   var out;
   if (!hasSaved) {
@@ -152,12 +154,18 @@ function rrTableVisible(id) {
   return out;
 }
 // THE writer of a layout. The locked columns are never stored (they are
-// always first); the layout travels between devices (look-sync, v1585).
+// always first); the layout follows the ACCOUNT (v0.9.1867: through _prefSet
+// — newest per setting, so a layout changed on the phone never drags the
+// desktop's colours along; it rode look-sync's all-or-nothing file before,
+// which had never actually synced).
 function rrTableSave(id, list) {
   var t = rrTable(id);
   var clean = (list || []).filter(function (c) { return t.locked.indexOf(c) < 0; });
-  try { localStorage.setItem(t.storageKey, JSON.stringify(clean)); } catch (e) {}
-  if (typeof rrLookTouch === 'function') rrLookTouch();
+  _rrTableWrite(t.storageKey, JSON.stringify(clean));
+}
+function _rrTableWrite(k, v) {
+  if (typeof rrPrefWrite === 'function') rrPrefWrite(k, v);
+  else { try { localStorage.setItem(k, v); } catch (e) {} }
 }
 function rrTableRepaint(id) {
   var t = rrTable(id);
@@ -182,7 +190,9 @@ function rrTableSetOrder(id, ids) {
   rrTableRepaint(id);
 }
 function rrTableReset(id) {
-  try { localStorage.removeItem(rrTable(id).storageKey); } catch (e) {}
+  // v0.9.1867: "no saved layout" is written as '' — a removal cannot travel
+  // to the other devices, an empty value can (rrTableVisible treats it as unset).
+  _rrTableWrite(rrTable(id).storageKey, '');
   rrTableRepaint(id);
 }
 // Edit mode: the header IS the control (v1543 — Brad: "i hit an edit

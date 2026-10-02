@@ -243,10 +243,13 @@
       Object.keys(d).forEach(function (k) { _set(k, d[k], true); });
     }
   }
+  // v0.9.1867: the saved looks follow the account too (read through the one
+  // reader so a list saved before this release is stamped and pushed).
   function _userPresets() {
-    try { return JSON.parse(localStorage.getItem(USER_PRESETS_KEY) || '{}') || {}; }
+    try { return JSON.parse((typeof rrPrefRead === 'function' ? rrPrefRead(USER_PRESETS_KEY) : localStorage.getItem(USER_PRESETS_KEY)) || '{}') || {}; }
     catch (e) { return {}; }
   }
+  function _saveUserPresets(up) { rrPrefWrite(USER_PRESETS_KEY, JSON.stringify(up)); }
 
 
   // ── the two approved scenes; replicas use the app's real variables ──
@@ -555,7 +558,7 @@
         var nm = pill.dataset.preset;
         var drop = function () {
           var up = _userPresets(); delete up[nm];
-          try { localStorage.setItem(USER_PRESETS_KEY, JSON.stringify(up)); } catch (e2) {}
+          _saveUserPresets(up);
           if (_activePreset === nm) _activePreset = '';
           _refreshPresets();
           if (typeof showToast === 'function') showToast('“' + nm + '” deleted', 2600);
@@ -2059,7 +2062,7 @@
     EDIT_VARS.forEach(function (e) { map[e[0]] = _cur(e[0]); });
     DERIVED_VARS.forEach(function (v) { var c = _cur(v); if (c) map[v] = c; });
     up[name] = map;
-    try { localStorage.setItem(USER_PRESETS_KEY, JSON.stringify(up)); } catch (e2) {}
+    _saveUserPresets(up);
     _activePreset = name;
     _refreshPresets();
     return name;
@@ -2215,11 +2218,13 @@
     applyBranding();          // back to the SAVED marks, whatever they now are
   }
 
+  // v0.9.1867: the colours and the theme choice are ACCOUNT settings —
+  // written through _prefSet (rrPrefWrite), carried by the account prefs file
+  // newest-per-setting, replayed by applyTheme() on every device. They rode
+  // look-sync's all-or-nothing file before, which had never actually synced.
   function _persist(map) {
-    try {
-      localStorage.setItem((window.A11Y && A11Y.theme && A11Y.theme.customStorageKey) || 'lv_skin_custom', JSON.stringify(map));
-      localStorage.setItem((window.A11Y && A11Y.theme && A11Y.theme.storageKey) || 'lv_theme', 'custom');
-    } catch (e2) {}
+    rrPrefWrite((window.A11Y && A11Y.theme && A11Y.theme.customStorageKey) || 'lv_skin_custom', JSON.stringify(map));
+    rrPrefWrite((window.A11Y && A11Y.theme && A11Y.theme.storageKey) || 'lv_theme', 'custom');
   }
 
   // Apply is the ONE place a candidate becomes real — colours AND logo. Keep

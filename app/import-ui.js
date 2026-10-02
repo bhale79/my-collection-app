@@ -557,13 +557,8 @@ function _impStepMapping() {
         // here — prefilled with the sheet's own header.
         if (/^custom[1-5]$/.test(String(cur))) {
           if (!_impCustomNameOf(cur)) {
-            try {
-              var _auto = String(h).trim();
-              localStorage.setItem('lv_label_' + cur, _auto.charAt(0).toUpperCase() + _auto.slice(1));
-              if (typeof rrLookTouch === 'function') rrLookTouch(); // v1585: setup travels
-              var _d = (window.RR_USER_FIELDS || []).filter(function (x) { return x.key === cur; })[0];
-              if (_d) localStorage.setItem(_d.pref, 'true');
-            } catch (eA) {}
+            // v0.9.1867: the ONE claim writer (config.js) — name + switch, through the account
+            try { var _auto = String(h).trim(); rrFieldClaimCustom(cur, _auto.charAt(0).toUpperCase() + _auto.slice(1)); } catch (eA) {}
           }
           var _curName = _impCustomNameOf(cur) || (h.charAt(0).toUpperCase() + h.slice(1));
           html += '<input class="imp-sel" style="max-width:9rem;margin-left:0.35rem" value="' +
@@ -601,18 +596,13 @@ function _impStepMapping() {
 
 // v0.9.1515 helpers: which custom slots exist / are already named.
 function _impCustomNameOf(key) {
-  try { return localStorage.getItem('lv_label_' + key) || ''; } catch (e) { return ''; }
+  try { return (typeof rrPrefRead === 'function' ? rrPrefRead('lv_label_' + key) : localStorage.getItem('lv_label_' + key)) || ''; } catch (e) { return ''; }   // v1867: an account setting
 }
 // v0.9.1519: rename a custom column from the mapping screen.
 function _impRenameCustom(key, val) {
   var v = String(val || '').trim();
   if (!v) return;
-  try {
-    localStorage.setItem('lv_label_' + key, v);
-    if (typeof rrLookTouch === 'function') rrLookTouch(); // v1585: setup travels
-    var def = (window.RR_USER_FIELDS || []).filter(function (x) { return x.key === key; })[0];
-    if (def) localStorage.setItem(def.pref, 'true');
-  } catch (e) {}
+  rrFieldClaimCustom(key, v);   // v0.9.1867: the ONE claim writer (config.js)
   showToast('Column renamed to “' + v + '”', 2200);
   _impRender();
 }
@@ -716,12 +706,7 @@ function _impSetMap(gi, headerNorm, field, sel) {
     }
     var raw = String(headerNorm || 'Column').trim();
     var nice = raw.charAt(0).toUpperCase() + raw.slice(1);
-    try {
-      localStorage.setItem('lv_label_' + slot, nice);
-              if (typeof rrLookTouch === 'function') rrLookTouch(); // v1585: setup travels
-      var def = (window.RR_USER_FIELDS || []).filter(function (x) { return x.key === slot; })[0];
-      if (def) localStorage.setItem(def.pref, 'true');
-    } catch (e) {}
+    rrFieldClaimCustom(slot, nice);   // v0.9.1867: the ONE claim writer (config.js)
     field = slot;
     showToast('New column “' + nice + '” created — you can rename it in Preferences', 3500);
     var g0 = _imp.groups[gi];
@@ -2349,12 +2334,11 @@ function _impAutoEnableFields(mappings) {
   (window.RR_USER_FIELDS || []).forEach(function (f) {
     if (!used[f.key]) return;
     if (typeof _ufToggle === 'function') _ufToggle(f.key, true, { quiet: true });
-    else localStorage.setItem(f.pref, 'true');
+    else rrPrefWrite(f.pref, 'true');
     out.fields.push(f.key);
-    if (f.custom && !localStorage.getItem('lv_label_' + f.key)) {
+    if (f.custom && !_impCustomNameOf(f.key)) {
       var h = String(used[f.key] || '').trim();
-      if (h) localStorage.setItem('lv_label_' + f.key, h.charAt(0).toUpperCase() + h.slice(1));
-      if (typeof rrLookTouch === 'function') rrLookTouch(); // v1585: setup travels
+      if (h) rrFieldClaimCustom(f.key, h.charAt(0).toUpperCase() + h.slice(1));   // v0.9.1867: the ONE claim writer
     }
   });
   if (used.location && typeof _prefGet === 'function' && _prefGet('lv_location_enabled', 'false') !== 'true') {

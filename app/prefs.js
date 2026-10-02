@@ -1070,18 +1070,17 @@ function _ufToggle(key, on, opts) {
       _prefSet(f.requires.pref, 'true');
       if (typeof _onPrefChange === 'function') _onPrefChange(f.requires.toggle, true);
     }
-    if (typeof _prefSet === 'function') _prefSet(f.pref, on ? 'true' : 'false');
-    else { try { localStorage.setItem(f.pref, on ? 'true' : 'false'); } catch (e) {} }
+    rrPrefWrite(f.pref, on ? 'true' : 'false');
     var _cb = document.getElementById('ptog-' + f.prefToggle);
     if (_cb) _cb.checked = !!on;
     if (opts && opts.quiet) return;
     if (typeof showToast === 'function') showToast(on ? 'Column turned on' : 'Column hidden — nothing was deleted', 2500);
     return;
   }
-  try { localStorage.setItem(f.pref, on ? 'true' : 'false'); } catch (e) {}
-  // v0.9.1814: the on/off travels to the other devices exactly as the rename
-  // below does — look-sync carries lv_*_enabled, but only when touched.
-  if (typeof rrLookTouch === 'function') rrLookTouch();
+  // v0.9.1867: every field's on/off is an ACCOUNT setting — _prefSet, newest
+  // per setting (it rode look-sync's all-or-nothing file before, v1814, which
+  // had never actually synced). One route per key: no look-sync touch as well.
+  rrPrefWrite(f.pref, on ? 'true' : 'false');
   if (opts && opts.quiet) return;
   if (typeof showToast === 'function') showToast(on ? 'Column turned on' : 'Column hidden — nothing was deleted', 2500);
 }
@@ -1089,11 +1088,10 @@ function _ufRename(key, val) {
   var f = (window.RR_USER_FIELDS || []).filter(function (x) { return x.key === key; })[0];
   if (!f || !f.custom) return;
   var v = String(val || '').trim();
-  try {
-    if (v) { localStorage.setItem('lv_label_' + key, v); localStorage.setItem(f.pref, 'true'); }
-    if (typeof rrLookTouch === 'function') rrLookTouch();   // v1585: setup travels
-    else localStorage.removeItem('lv_label_' + key);
-  } catch (e) {}
+  // v0.9.1867: the name follows the account too. A blanked name is written as
+  // '' (a removal cannot travel; an empty value can — every reader treats it
+  // as unnamed). The old code only ever removed it when look-sync was absent.
+  rrFieldClaimCustom(key, v);
   var cb = document.getElementById('uf-on-' + key);
   if (cb && v) cb.checked = true;
 }

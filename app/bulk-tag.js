@@ -66,7 +66,7 @@ function rrTagFields() {
 function rrTagCustomIsFree(key) {
   if (!/^custom[1-5]$/.test(String(key || ''))) return false;
   var named = '';
-  try { named = localStorage.getItem('lv_label_' + key) || ''; } catch (e) {}
+  try { named = (typeof rrPrefRead === 'function' ? rrPrefRead('lv_label_' + key) : localStorage.getItem('lv_label_' + key)) || ''; } catch (e) {}   // v1867: an account setting
   if (named.trim()) return false;
   var used = false;
   try {
@@ -85,11 +85,11 @@ function rrTagFreeCustomSlot() {
 // Name it, switch it on, and it behaves like every other column from then
 // on — detail page, edit panel, import targets, the column picker.
 function rrTagClaimCustom(key, label) {
-  try {
-    localStorage.setItem('lv_label_' + key, label);
-    localStorage.setItem('lv_' + key + '_enabled', 'true');
-  } catch (e) {}
-  return label;
+  // v0.9.1867: ONE writer for "name it and switch it on" (rrFieldClaimCustom,
+  // config.js — through the account door, so the name and the switch follow
+  // you to the other devices, newest per setting). This module is removable;
+  // the writer is not, so it lives there.
+  return rrFieldClaimCustom(key, label);
 }
 
 function rrTagActive() { return !!_rrTag; }

@@ -229,7 +229,7 @@ const SNAP = () => {
       return { inList: RR_LOOK_KEYS.indexOf('lv_locdetail_enabled'), snapHas: keys.indexOf('lv_locdetail_enabled'), shipperStill: keys.indexOf('lv_shipper_enabled') >= 0 };
     });
     T('D: no page errors', errs.join(' | '), '');
-    T('D: lv_locdetail_enabled left look-sync (the account prefs file carries it now); Shipper still travels by look', r, { inList: -1, snapHas: -1, shipperStill: true });
+    T('D: lv_locdetail_enabled left look-sync (the account prefs file carries it now) — and since v1867 so did Shipper and every other small setting', r, { inList: -1, snapHas: -1, shipperStill: false });
     const prefs = code(rd('prefs.js')), wiz = code(rd('wizard.js')), browse = code(rd('browse.js'));
     T('D: nothing writes lv_locdetail_enabled raw any more', ['prefs.js', 'browse.js', 'wizard.js', 'import-ui.js', 'bulk-tag.js', 'look-sync.js'].filter(f => /localStorage\.setItem\('lv_locdetail_enabled'/.test(code(rd(f)))), []);
     T('D: the wizard\'s own "Ask for storage location" tick runs the same handler as the Preferences switch (so the cascade holds there too)',
@@ -308,7 +308,7 @@ const SNAP = () => {
   // ── PLANTED 2: a reader that ignores what the field requires ─────────────
   {
     const src = rd('config.js');
-    const anchor = "    if (f.requires && rd(f.requires.pref) !== 'true') return false;\n";
+    const anchor = "    if (f.requires && rrPrefRead(f.requires.pref) !== 'true') return false;\n";
     T('PLANTED 2: the requires gate is in rrFieldEnabled exactly once', src.split(anchor).length - 1, 1);
     const { pg } = await open(browser, { 'config.js': src.replace(anchor, '') });
     const r = await pg.evaluate(() => {

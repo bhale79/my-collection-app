@@ -286,7 +286,7 @@ const READ = () => {
   T('SRC: the import reads rrFieldHelp', /rrFieldHelp\(key\)/.test(impSrc), true);
   T('SRC: Preferences → Extra Columns reads rrFieldHelp', /rrFieldHelp\(f\.key\)/.test(prefsSrc), true);
   T('SRC: the words live in config.js, once', configSrc.split('window.RR_FIELD_HELP = {').length - 1, 1);
-  T('SRC: "is this custom slot free" has ONE rule (bulk-tag.js), and + Add asks it', [/rrTagCustomIsFree\(c\.pdKey\)/.test(browseSrc), (fs.readFileSync(path.join(APP, 'bulk-tag.js'), 'utf8').match(/lv_label_' \+ key\) \|\| ''/g) || []).length], [true, 1]);
+  T('SRC: "is this custom slot free" has ONE rule (bulk-tag.js), and + Add asks it (v1867: the name is read through the account reader)', [/rrTagCustomIsFree\(c\.pdKey\)/.test(browseSrc), (fs.readFileSync(path.join(APP, 'bulk-tag.js'), 'utf8').match(/rrPrefRead\('lv_label_' \+ key\)/g) || []).length], [true, 1]);
   T('SRC: the Extra Columns door is the one My Collection uses', /_ufToggle\(sw\.field\.key, true, \{ quiet: true \}\)/.test(browseSrc) && /function _ufToggle\(key, on, opts\)/.test(prefsSrc), true);
   T('SRC: Location goes through _prefSet + _onPrefChange, never a raw write', /_prefSet\(sw\.pref, 'true'\)/.test(browseSrc) && /_onPrefChange\('location', true\)/.test(browseSrc), true);
 

@@ -206,11 +206,14 @@ const code = s => s.split('\n').filter(l => !/^\s*\/\//.test(l)).join('\n');
   const uf = code(rd('prefs.js'));
   const ufToggle = uf.slice(uf.indexOf('function _ufToggle('), uf.indexOf('function _ufRename('));
   T('C1b lv_subtype_enabled is never written raw (v0.9.1863: _ufToggle routes a prefToggle field through _prefSet)',
-    rawWrites('lv_subtype_enabled').length === 0 && /if \(f\.prefToggle\) \{[\s\S]{0,400}_prefSet\(f\.pref, on \? 'true' : 'false'\)/.test(ufToggle), rawWrites('lv_subtype_enabled'));
+    rawWrites('lv_subtype_enabled').length === 0 && /if \(f\.prefToggle\) \{[\s\S]{0,900}rrPrefWrite\(f\.pref, on \? 'true' : 'false'\)/.test(ufToggle), rawWrites('lv_subtype_enabled'));
   T('C1c lv_locdetail_enabled is never written raw (v0.9.1865: its own Preferences row, through _prefSet; left look-sync)',
     rawWrites('lv_locdetail_enabled').length === 0 && !/lv_locdetail_enabled/.test(code(rd('look-sync.js'))), rawWrites('lv_locdetail_enabled'));
-  T('C2  a custom column\'s on/off travels: _ufToggle touches the sync file like _ufRename does',
-    /rrLookTouch\(\)/.test(ufToggle), 'no rrLookTouch in _ufToggle');
+  // v0.9.1867: every field's on/off follows the ACCOUNT (rrPrefWrite → _prefSet,
+  // newest per setting); look-sync's all-or-nothing file carries only the big
+  // pictures now — so _ufToggle must NOT touch its clock any more.
+  T('C2  a custom column\'s on/off travels by the account: _ufToggle writes through rrPrefWrite and never touches the look clock',
+    (ufToggle.match(/rrPrefWrite\(f\.pref, on \? 'true' : 'false'\)/g) || []).length === 2 && !/rrLookTouch\(\)/.test(ufToggle), ufToggle.slice(0, 200));
   T('C3  lv_theme is never written raw', rawWrites('lv_theme').length === 0, rawWrites('lv_theme'));
 
   T('E1  no page errors', errs.length === 0, errs);

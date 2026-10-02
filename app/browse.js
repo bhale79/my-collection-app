@@ -291,7 +291,7 @@ function _collAutoNewCols(current) {
   var out = current.slice();
   try {
     var seen = [];
-    try { seen = JSON.parse(localStorage.getItem(_COLL_COLS_SEEN) || '[]') || []; } catch (e) {}
+    try { seen = JSON.parse(rrPrefRead(_COLL_COLS_SEEN) || '[]') || []; } catch (e) {}   // v1867: an account setting
     if (!Array.isArray(seen)) seen = [];
     var fresh = [];
     (typeof rrEnabledUserFields === 'function' ? rrEnabledUserFields() : []).forEach(function (f) {
@@ -309,7 +309,7 @@ function _collAutoNewCols(current) {
       if (out.indexOf('location') < 0) out.push('location');
     }
     if (fresh.length) {
-      localStorage.setItem(_COLL_COLS_SEEN, JSON.stringify(seen.concat(fresh)));
+      rrPrefWrite(_COLL_COLS_SEEN, JSON.stringify(seen.concat(fresh)));   // v1867: the roster follows the account
       // v0.9.1864: persist the layout the user now sees — ALWAYS. This used
       // to save only when a layout was already saved, so for a user on the
       // default layout the offered column appeared for exactly one read and

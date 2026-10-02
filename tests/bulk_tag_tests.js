@@ -105,7 +105,11 @@ ok('...only one that is unnamed AND unused',
    /function rrTagCustomIsFree[\s\S]{0,400}if \(named\.trim\(\)\) return false;[\s\S]{0,320}String\(pd\[key\] \|\| ''\)\.trim\(\)/.test(tag)
    && /if \(rrTagCustomIsFree\('custom' \+ i\)\) return 'custom' \+ i;/.test(tag),
    'a column someone filled last year must never be quietly repurposed');
-ok('naming it switches it on everywhere', /localStorage\.setItem\('lv_' \+ key \+ '_enabled', 'true'\)/.test(tag));
+// v0.9.1867: ONE writer for "name it and switch it on" lives in config.js
+// (rrFieldClaimCustom — through the account door, so it follows you to the
+// other devices); this module only calls it.
+ok('naming it switches it on everywhere — through the ONE claim writer', /return rrFieldClaimCustom\(key, label\)/.test(tag)
+   && /window\.rrFieldClaimCustom = function[\s\S]{0,400}rrPrefWrite\(f\.pref, 'true'\)/.test(P('config.js')));
 ok('a blank name is refused', /Give the column a name first/.test(tag));
 ok('running out of slots is said plainly, with the way out',
    /All five spare columns are in use[\s\S]{0,80}Preferences/.test(tag));

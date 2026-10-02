@@ -8193,9 +8193,13 @@ META_WRITES.length = 0; TOASTS.length = 0;
     ok('…and applying without saving is still allowed, and says so',
        />Apply without saving</.test(ap) &&
        /if \(!r \|\| r\.skip\) \{ finish\(' — not saved to the row above'\); return; \}/.test(ap));
+    // v0.9.1867: the saved looks follow the ACCOUNT — one writer
+    // (_saveUserPresets → rrPrefWrite → _prefSet), two callers (store, delete).
     ok('one writer files a saved look, so Save current and Apply cannot drift',
        (ap.match(/_storePreset\(/g) || []).length === 4 &&
-       (ap.match(/localStorage\.setItem\(USER_PRESETS_KEY/g) || []).length === 2);
+       (ap.match(/\n\s*_saveUserPresets\(up\);/g) || []).length === 2 &&
+       (ap.match(/function _saveUserPresets\(up\) \{ rrPrefWrite\(USER_PRESETS_KEY/g) || []).length === 1 &&
+       !/localStorage\.setItem\(USER_PRESETS_KEY/.test(ap));
     ok('a saved look carries the derived shades too, or it reloads wrong',
        /function _storePreset[\s\S]{0,1100}DERIVED_VARS\.forEach/.test(ap));
     ok('one place redraws the row of looks',
