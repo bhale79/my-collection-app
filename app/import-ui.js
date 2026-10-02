@@ -2327,6 +2327,44 @@ function _impStepPhotos() {
 
 function _impStepWriting() { /* _impWrite owns this screen */ }
 
+// ── What the import switches ON after it writes ─────────────────
+// v0.9.1514 (Brad's spec: "import auto-enables toggles it maps into"): a
+// column the import actually wrote turns itself on, so the data is visible
+// everywhere at once. A custom slot also takes the sheet's own header as its
+// name, so "Owner" is called Owner rather than "Custom column 1". Every
+// switch is thrown through its own door: a user field through _ufToggle
+// (v1863 — stamped for the account when it follows the account; Location
+// Detail brings Track Storage Location on with it, v1865); and — v0.9.1866
+// ([stated] Brad: "yes on import") — a mapped Location column turns Track
+// Storage Location on the way the Preferences switch does (_prefSet +
+// _onPrefChange), so new items are asked where they live. Returns what it
+// turned on, for the tests and the live check.
+function _impAutoEnableFields(mappings) {
+  var out = { fields: [], location: false };
+  var used = {};
+  Object.keys(mappings || {}).forEach(function (tab) {
+    var m = mappings[tab] || {};
+    Object.keys(m).forEach(function (hdr) { if (m[hdr]) used[m[hdr]] = hdr; });
+  });
+  (window.RR_USER_FIELDS || []).forEach(function (f) {
+    if (!used[f.key]) return;
+    if (typeof _ufToggle === 'function') _ufToggle(f.key, true, { quiet: true });
+    else localStorage.setItem(f.pref, 'true');
+    out.fields.push(f.key);
+    if (f.custom && !localStorage.getItem('lv_label_' + f.key)) {
+      var h = String(used[f.key] || '').trim();
+      if (h) localStorage.setItem('lv_label_' + f.key, h.charAt(0).toUpperCase() + h.slice(1));
+      if (typeof rrLookTouch === 'function') rrLookTouch(); // v1585: setup travels
+    }
+  });
+  if (used.location && typeof _prefGet === 'function' && _prefGet('lv_location_enabled', 'false') !== 'true') {
+    _prefSet('lv_location_enabled', 'true');
+    if (typeof _onPrefChange === 'function') _onPrefChange('location', true);
+    out.location = true;
+  }
+  return out;
+}
+
 // ── Step: WRITE (chunked, guarded, undoable) ────────────────────
 async function _impWrite() {
   if (_impWriteDone) return;          // double-fire guard
@@ -2470,27 +2508,10 @@ async function _impWrite() {
 
     // v0.9.1514: a column the import actually WROTE turns itself on, so the
     // data is visible everywhere immediately (Brad's spec: "import auto-enables
-    // toggles it maps into"). Custom slots also take the sheet's own header as
-    // their name, so "Owner" is called Owner rather than "Custom column 1".
-    try {
-      var _usedKeys = {};
-      Object.keys(_imp.mappings).forEach(function (tab) {
-        var m = _imp.mappings[tab] || {};
-        Object.keys(m).forEach(function (hdr) { if (m[hdr]) _usedKeys[m[hdr]] = hdr; });
-      });
-      (window.RR_USER_FIELDS || []).forEach(function (f) {
-        if (!_usedKeys[f.key]) return;
-        // v0.9.1863: through the one door, so a switch that follows the
-        // account (Sub Type's) is stamped and pushed, not written raw.
-        if (typeof _ufToggle === 'function') _ufToggle(f.key, true, { quiet: true });
-        else localStorage.setItem(f.pref, 'true');
-        if (f.custom && !localStorage.getItem('lv_label_' + f.key)) {
-          var h = String(_usedKeys[f.key] || '').trim();
-          if (h) localStorage.setItem('lv_label_' + f.key, h.charAt(0).toUpperCase() + h.slice(1));
-          if (typeof rrLookTouch === 'function') rrLookTouch(); // v1585: setup travels
-        }
-      });
-    } catch (eEnable) {}
+    // toggles it maps into"). v0.9.1866: the rule is its own function below
+    // (_impAutoEnableFields) so it can be tested for real, and it now turns
+    // Track Storage Location on for a mapped Location column too.
+    try { _impAutoEnableFields(_imp.mappings); } catch (eEnable) {}
 
     // Batch record — undo + Phase 2 (stored answers) live here. Created
     // before the write (Session 85); this finalises it.

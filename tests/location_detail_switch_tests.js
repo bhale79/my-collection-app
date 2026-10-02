@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // ═══════════════════════════════════════════════════════════════════════════
-// LOCATION DETAIL SWITCH — v0.9.1865   (real Chromium, the REAL app, no stubs)
+// LOCATION DETAIL SWITCH — v0.9.1865 + the import door v0.9.1866   (real Chromium, the REAL app, no stubs)
 //
 // Brad, 2026-10-02: "location and location details should be managed
 // together. location details is under extra columns."
@@ -237,6 +237,51 @@ const SNAP = () => {
     T('D: the pairing is declared on the field (config.js) and read there — _onPrefChange and _ufToggle name no key of their own',
       [/f\.requires\.toggle !== id/.test(prefs), /_prefGet\(f\.requires\.pref, 'false'\) !== 'true'/.test(prefs), /lv_locdetail_enabled/.test(prefs.slice(prefs.indexOf('function _onPrefChange('))), /sw\.field\.requires\.label/.test(browse)],
       [true, true, false, true]);
+    await pg.close();
+  }
+
+  // ── E: the import's door (v0.9.1866 — [stated] Brad: "yes on import") ─────
+  {
+    const { pg, errs } = await open(browser);
+    const r = await pg.evaluate((SNAP) => {
+      const snap = eval('(' + SNAP + ')');
+      const out = {};
+      document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+      document.getElementById('page-prefs').classList.add('active');
+      buildPrefsPage();
+      // a mapped Shipper column touches Shipper only
+      out.shipper = Object.assign({ ret: _impAutoEnableFields({ Items: { 'Carton': 'shipper' } }) }, snap(), { shipperOn: localStorage.getItem('lv_shipper_enabled') });
+      // a mapped Location column turns Track Storage Location on, through the Preferences door
+      out.loc = Object.assign({ ret: _impAutoEnableFields({ Items: { 'Where': 'location', 'Item #': 'itemNum' } }) }, snap());
+      // already on → nothing to do, and it says so
+      out.locAgain = Object.assign({ ret: _impAutoEnableFields({ Items: { 'Where': 'location' } }) }, snap());
+      // reset; a mapped Location Detail column turns BOTH on (through _ufToggle's requires rule)
+      ['lv_location_enabled', 'lv_location_enabled__at', 'lv_locdetail_enabled', 'lv_locdetail_enabled__at', 'lv_shipper_enabled'].forEach(k => localStorage.removeItem(k));
+      _prefLocEnabled = false; buildPrefsPage();
+      out.det = Object.assign({ ret: _impAutoEnableFields({ Items: { 'Tote': 'locationDetail' } }) }, snap());
+      // the write step calls it, once, with the import's mappings
+      return out;
+    }, SNAP.toString());
+    T('E: no page errors', errs.join(' | '), '');
+    T('E: a mapped Shipper column turns Shipper on and leaves Location alone', [r.shipper.ret, r.shipper.shipperOn, r.shipper.stored.location], [{ fields: ['shipper'], location: false }, 'true', null]);
+    T('E: a mapped Location column turns Track Storage Location ON — stamped for the account, the live flag set, the switch on screen ticked, the Detail switch awake',
+      [r.loc.ret, r.loc.stored, r.loc.stamped.location, r.loc.locFlag, r.loc.loc.checked, r.loc.det.disabled], [{ fields: [], location: true }, { location: 'true', detail: null }, true, true, true, false]);
+    T('E: with Location already on, a mapped Location column changes nothing', [r.locAgain.ret, r.locAgain.stored], [{ fields: [], location: false }, { location: 'true', detail: null }]);
+    T('E: a mapped Location Detail column turns BOTH on (Detail needs Location)', [r.det.ret, r.det.stored, r.det.asked], [{ fields: ['locationDetail'], location: false }, { location: 'true', detail: 'true' }, ['locationDetail']]);
+    const imp = code(rd('import-ui.js'));
+    T('E: the write step calls the one rule, once, with the import\'s mappings', (imp.match(/_impAutoEnableFields\(_imp\.mappings\)/g) || []).length, 1);
+    T('E: the rule throws the Location switch through _prefSet + _onPrefChange, never raw', /_prefSet\('lv_location_enabled', 'true'\);\s*\n\s*if \(typeof _onPrefChange === 'function'\) _onPrefChange\('location', true\);/.test(imp) && !/localStorage\.setItem\('lv_location_enabled'/.test(imp), true);
+    await pg.close();
+  }
+
+  // ── PLANTED 3: an import that forgets the Location switch ─────────────────
+  {
+    const src = rd('import-ui.js');
+    const anchor = "  if (used.location && typeof _prefGet === 'function' && _prefGet('lv_location_enabled', 'false') !== 'true') {\n";
+    T('PLANTED 3: the import\'s Location rule is in _impAutoEnableFields exactly once', src.split(anchor).length - 1, 1);
+    const { pg } = await open(browser, { 'import-ui.js': src.replace(anchor, "  if (false) {\n") });
+    const r = await pg.evaluate(() => { _impAutoEnableFields({ Items: { 'Where': 'location' } }); return { location: localStorage.getItem('lv_location_enabled') }; });
+    T('PLANTED 3: a mapped Location column that leaves the switch off is caught', r, { location: null });
     await pg.close();
   }
 
