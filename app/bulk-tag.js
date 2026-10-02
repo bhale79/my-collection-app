@@ -60,19 +60,25 @@ function rrTagFields() {
 // Preferences first and coming back. This finds the next unclaimed slot —
 // unnamed AND unused by any row, so a column someone filled last year is
 // never quietly repurposed.
+// v0.9.1862: the "is this slot free?" rule is its own function, because My
+// Collection's + Add menu asks the same question (it folds the free slots
+// into one "Spare column — name it…" entry). One rule, two askers.
+function rrTagCustomIsFree(key) {
+  if (!/^custom[1-5]$/.test(String(key || ''))) return false;
+  var named = '';
+  try { named = localStorage.getItem('lv_label_' + key) || ''; } catch (e) {}
+  if (named.trim()) return false;
+  var used = false;
+  try {
+    used = Object.values((typeof state !== 'undefined' && state.personalData) || {}).some(function (pd) {
+      return pd && String(pd[key] || '').trim();
+    });
+  } catch (e) {}
+  return !used;
+}
 function rrTagFreeCustomSlot() {
   for (var i = 1; i <= 5; i++) {
-    var key = 'custom' + i;
-    var named = '';
-    try { named = localStorage.getItem('lv_label_' + key) || ''; } catch (e) {}
-    if (named.trim()) continue;
-    var used = false;
-    try {
-      used = Object.values(state.personalData || {}).some(function (pd) {
-        return pd && String(pd[key] || '').trim();
-      });
-    } catch (e) {}
-    if (!used) return key;
+    if (rrTagCustomIsFree('custom' + i)) return 'custom' + i;
   }
   return '';
 }
@@ -620,5 +626,6 @@ if (typeof window !== 'undefined') {
   window.rrTagUndoListHtml = rrTagUndoListHtml;
   window.rrTagFields = rrTagFields;
   window.rrTagFreeCustomSlot = rrTagFreeCustomSlot;
+  window.rrTagCustomIsFree = rrTagCustomIsFree;   // v0.9.1862
   window.rrTagClaimCustom = rrTagClaimCustom;
 }

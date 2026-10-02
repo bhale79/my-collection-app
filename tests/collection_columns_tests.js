@@ -56,7 +56,22 @@ ok('a heading can be removed from the header', /function _collDropCol/.test(js))
 ok('headings can be dragged to reorder', /function _collWireHeaderDrag/.test(js));
 ok('...and dropping one saves the new order', /_collSetOrder\(order\);/.test(js));
 ok('there is an Add menu for columns not on the table', /function _collAddColMenu/.test(js));
-ok('...listing only what is missing', /vis\.indexOf\(c\.col\) < 0 && _COLL_LOCKED\.indexOf\(c\.col\) < 0/.test(js));
+ok('...listing only what is missing', /if \(vis\.indexOf\(c\.col\) >= 0 \|\| _COLL_LOCKED\.indexOf\(c\.col\) >= 0\) return false;/.test(js));   // v0.9.1862 spelling
+// v0.9.1862 — the real-button proof of the menu, the switch rule and the
+// words lives in column_switch_tests.js (real Chromium); here, the source
+// rules that keep it honest.
+ok('every standard column names the sheet field it shows, so it can be described',
+   _COLL_COLS_FIELDS_OK(),
+   'rrFieldHelp is keyed by the personal-sheet field');
+function _COLL_COLS_FIELDS_OK() {
+  var m = js.match(/var _COLL_COLS = \[([\s\S]*?)\];/);
+  if (!m) return false;
+  var rows = m[1].split('\n').filter(function (l) { return /\{ col:/.test(l); });
+  return rows.length === 8 && rows.every(function (l) { return /field: '[A-Za-z]+'/.test(l); });
+}
+ok('the chosen columns are part of the list’s "did anything change?" check',
+   /\(typeof _collVisibleCols === 'function' \? _collVisibleCols\(\)\.join\(','\) : ''\)\s*\n\s*\]\.join\('~'\)/.test(js),
+   'without this, + Add / × / drag / Done rewrote the headings and the rows kept their old cells (v1861 and before)');
 ok('Maker and Item # cannot be dragged or removed',
    /th\.coll-th-edit:not\(\.locked\)/.test(js) && /locked \? 'false' : 'true'/.test(js));
 // v0.9.1589 RE-PIN: the old top-right Columns button's code was a branch

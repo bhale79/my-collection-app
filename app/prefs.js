@@ -971,7 +971,13 @@ function _openUserFieldsModal() {
           ? '<input type="text" id="uf-lbl-' + f.key + '" value="' + String(lbl).replace(/"/g, '&quot;') + '" placeholder="Name this column (e.g. Owner)" ' +
             'onchange="_ufRename(\'' + f.key + '\',this.value)" style="width:100%;max-width:15rem;background:var(--bg);border:1px solid var(--border);border-radius:7px;padding:0.35rem 0.5rem;color:var(--text);font-family:var(--font-body);font-size:0.86rem">'
           : '<strong style="font-size:0.88rem;color:var(--text)">' + lbl + '</strong>') +
-        (f.hint ? '<div style="font-size:0.75rem;color:var(--text-dim);margin-top:0.15rem">' + f.hint + '</div>' : '') +
+        // v0.9.1862: the same one-line description the + Add menu and the
+        // headings show (rrFieldHelp, config.js) — one copy of the words.
+        // The short hint stays as the typing box's placeholder in the wizard.
+        (function () {
+          var _h = (typeof rrFieldHelp === 'function') ? rrFieldHelp(f.key) : (f.hint || '');
+          return _h ? '<div class="uf-help" style="font-size:0.75rem;color:var(--text-dim);margin-top:0.15rem;line-height:1.4">' + String(_h).replace(/</g, '&lt;') + '</div>' : '';
+        })() +
       '</div>' +
       (used ? '<span style="font-size:0.72rem;color:var(--text-dim);white-space:nowrap">' + used.toLocaleString() + ' items</span>' : '') +
     '</div>';
@@ -983,13 +989,17 @@ function _openUserFieldsModal() {
   document.body.appendChild(ov);
   // v0.9.1786: BackStack is wired by rrDismissGuard above — one place, not two.
 }
-function _ufToggle(key, on) {
+// v0.9.1862: THE door for an Extra Columns switch. My Collection's + Add
+// menu comes through it too (browse.js _collSwitchOn) with {quiet:true},
+// because it says its own words about what just happened.
+function _ufToggle(key, on, opts) {
   var f = (window.RR_USER_FIELDS || []).filter(function (x) { return x.key === key; })[0];
   if (!f) return;
   try { localStorage.setItem(f.pref, on ? 'true' : 'false'); } catch (e) {}
   // v0.9.1814: the on/off travels to the other devices exactly as the rename
   // below does — look-sync carries lv_*_enabled, but only when touched.
   if (typeof rrLookTouch === 'function') rrLookTouch();
+  if (opts && opts.quiet) return;
   if (typeof showToast === 'function') showToast(on ? 'Column turned on' : 'Column hidden — nothing was deleted', 2500);
 }
 function _ufRename(key, val) {

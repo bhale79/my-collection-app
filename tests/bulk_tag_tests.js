@@ -95,8 +95,11 @@ ok('writes go in batches, not one request per row', /i \+= 500/.test(tag));
 ok('a new column can be named here', /New column/.test(tag) && /id="rr-tag-newname"/.test(tag));
 ok('...and the suggested ones stayed', /key: 'subCollection'/.test(tag) && /key: 'subType'/.test(tag));
 ok('it claims a spare column slot', /function rrTagFreeCustomSlot/.test(tag));
+// v0.9.1862: the rule is its own function (rrTagCustomIsFree) so My
+// Collection's + Add menu can ask it too — one copy of "free".
 ok('...only one that is unnamed AND unused',
-   /if \(named\.trim\(\)\) continue;[\s\S]{0,320}String\(pd\[key\] \|\| ''\)\.trim\(\)/.test(tag),
+   /function rrTagCustomIsFree[\s\S]{0,400}if \(named\.trim\(\)\) return false;[\s\S]{0,320}String\(pd\[key\] \|\| ''\)\.trim\(\)/.test(tag)
+   && /if \(rrTagCustomIsFree\('custom' \+ i\)\) return 'custom' \+ i;/.test(tag),
    'a column someone filled last year must never be quietly repurposed');
 ok('naming it switches it on everywhere', /localStorage\.setItem\('lv_' \+ key \+ '_enabled', 'true'\)/.test(tag));
 ok('a blank name is refused', /Give the column a name first/.test(tag));

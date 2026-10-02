@@ -464,34 +464,29 @@ var _IMP_FIELD_LABELS = {
 // What each destination column actually means, in plain English. Shown
 // under the dropdown for whatever is selected, and in the "What do these
 // mean?" panel. Brad, testing live: "I had no idea."
-var _IMP_FIELD_HELP = {
-  itemNum: 'The manufacturer’s catalogue number — 6464-25, 30-4021. Not the number painted on the model.',
-  manufacturer: 'Who made it: Lionel, MTH, K-Line, Micro-Trains…',
-  gauge: 'The size: O, O-27, HO, N, S, Standard.',
-  yourDesc: 'Your own words for the item. Kept exactly as you wrote them, and searchable.',
-  rawGrade: 'Your condition/grade written your way (C9/P8, Ex, Mint). Kept as-is; we add our 1–10 beside it.',
-  location: 'The big place it lives: Basement, Storage Unit 206, Room 107.',
-  locationDetail: 'The spot inside that place: Tote 12, Rack 1 Shelf 3. Splitting them lets you ask “what’s in Tote 12?”',
-  shipper: 'The outer carton you’d ship it in — NOT the item’s own box. You can have both.',
+// v0.9.1862: the words moved to config.js (RR_FIELD_HELP / rrFieldHelp) so
+// My Collection's + Add menu, the headings and Preferences → Extra Columns
+// say the same thing — ONE copy. The import keeps only what is its own: two
+// field ids spelled differently here (yourDesc / rawGrade) and the two
+// destinations that exist only in an import (the photo file, "skip").
+var _IMP_HELP_ALIAS = { yourDesc: 'yourDescription', rawGrade: 'yourGrade' };
+var _IMP_ONLY_HELP = {
   photoFile: 'The photo file for this item (ZW250.JPG). Map it and the import asks for the folder those files live in — every matched photo uploads to your Drive and attaches to its item, all in the same import.',
-  subCollection: 'Your own groups for quick look-ups — “all my Disney cars”, “all my mint cars”, 6464 series. One item, one group.',
-  priceItem: 'What YOU paid for it.',
-  userEstWorth: 'What you think it’s worth now.',
-  yearMade: 'The year the item was made. (Not the year of the real thing it models.)',
-  notes: 'Anything else you want to remember about this piece.',
-  roadName: 'The railroad it’s lettered for: Santa Fe, Pennsylvania, Great Northern.',
-  roadNumber: 'The number painted on the model — the cab or car number.',
-  hasBox: 'Whether you have its original box (Yes/No).',
-  datePurchased: 'When you bought it.',
-  purchasedFrom: 'Who you bought it from — a shop, a show, a person.',
-  quantity: 'How many copies this row stands for.',
-  custom1: 'A column of your own — named after your heading.',
-  custom2: 'A column of your own — named after your heading.',
-  custom3: 'A column of your own — named after your heading.',
-  custom4: 'A column of your own — named after your heading.',
-  custom5: 'A column of your own — named after your heading.',
   ignore: 'Skip this column — nothing from it is saved.',
 };
+function _impFieldHelp(k) {
+  if (_IMP_ONLY_HELP[k]) return _IMP_ONLY_HELP[k];
+  var key = _IMP_HELP_ALIAS[k] || k;
+  return (typeof rrFieldHelp === 'function') ? rrFieldHelp(key) : '';
+}
+// The destinations the "What these mean" panel lists, in dropdown order:
+// every labelled field that has a sentence, except "skip" and the four
+// spare custom slots after the first (they would all say the same thing).
+function _impHelpKeys() {
+  return Object.keys(_IMP_FIELD_LABELS).filter(function (k) {
+    return k && k !== 'ignore' && !/^custom[2-5]$/.test(k) && !!_impFieldHelp(k);
+  });
+}
 
 // Custom slots carry the user's own label when they have named one.
 function _impFieldLabel(f) {
@@ -584,10 +579,10 @@ function _impStepMapping() {
   html += '</div>' +   // /imp-2col-main
     '<aside class="imp-2col-aside"><div class="imp-card" style="margin:0">' +
       '<div style="font-weight:600;margin-bottom:0.4rem;font-size:0.86rem">What these mean</div>' +
-      Object.keys(_IMP_FIELD_HELP).filter(function (k) { return k !== 'ignore' && !/^custom[2-5]$/.test(k); }).map(function (k) {
+      _impHelpKeys().map(function (k) {
         return '<div id="imp-help-' + k + '" style="margin:0.3rem 0;padding:0.25rem 0.35rem;border-radius:6px;font-size:0.76rem;line-height:1.45">' +
           '<strong>' + _impEsc(_impFieldLabel(k) || k) + '</strong><br>' +
-          '<span class="imp-muted">' + _impEsc(_IMP_FIELD_HELP[k]) + '</span></div>';
+          '<span class="imp-muted">' + _impEsc(_impFieldHelp(k)) + '</span></div>';
       }).join('') +
     '</div></aside>' +
     '</div>';   // /imp-2col

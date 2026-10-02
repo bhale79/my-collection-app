@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.1861';
+const APP_VERSION = 'v0.9.1862';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -1825,6 +1825,63 @@ window.rrFieldEnabled = function (f) {
     if (f.custom && localStorage.getItem('lv_label_' + f.key)) return true;
   } catch (e) {}
   return false;
+};
+// ═══════════════════════════════════════════════════════════════
+// WHAT EACH COLUMN IS — v0.9.1862: ONE sentence per column, written once.
+// Brad, 2026-10-02, looking at My Collection's "+ Add a column" menu: "what
+// is sub collection?" … "what are [Custom 1, 2, 3]?" … "we need a pop up
+// when you hover over these with a short description of what they are."
+// The import screen has had these words since v0.9.1514 (Brad, testing it
+// live: "I had no idea") — as its own private list, so the table, the
+// headings and Preferences → Extra Columns had none. Now they live here,
+// keyed by the PERSONAL sheet field name (PERSONAL_SCHEMA), and everything
+// reads them through rrFieldHelp: the + Add menu and the column headings
+// (browse.js), Preferences → Extra Columns (prefs.js), the import's
+// "What these mean" panel (import-ui.js, which adds only its own two
+// import-only destinations). A table column with no line here fails
+// collection_columns_tests. Plain words; no sentence says "AI".
+// ═══════════════════════════════════════════════════════════════
+window.RR_FIELD_HELP = {
+  itemNum:         'The maker’s catalogue number — 6464-25, 30-4021. Not the number painted on the model.',
+  manufacturer:    'Who made it: Lionel, MTH, K-Line, Atlas…',
+  gauge:           'The size: O, O-27, HO, N, S, Standard.',
+  variation:       'Which version of this catalogue number — makers changed colours, lettering and trucks over a run, and each version has its own number.',
+  itemType:        'What kind of item it is: Diesel, Boxcar, Caboose, Accessory, Catalog…',
+  photoItem:       'The first photo you took of it.',
+  description:     'The catalogue’s description of this item.',
+  userEstWorth:    'What you think it’s worth now.',
+  dateAdded:       'The day you added it to The Rail Roster.',
+  location:        'The big place it lives: Basement, Storage Unit 206, Room 107.',
+  locationDetail:  'The spot inside that place: Tote 12, Rack 1 Shelf 3. Splitting them lets you ask “what’s in Tote 12?”',
+  condition:       'Your 1–10 condition rating, 10 being mint.',
+  yourGrade:       'Your condition/grade written your way (C9/P8, Ex, Mint). Kept as-is; we add our 1–10 beside it.',
+  yourDescription: 'Your own words for the item. Kept exactly as you wrote them, and searchable.',
+  priceItem:       'What YOU paid for it.',
+  roadName:        'The railroad it’s lettered for: Santa Fe, Pennsylvania, Great Northern.',
+  roadNumber:      'The number painted on the model — the cab or car number.',
+  yearMade:        'The year the item was made. (Not the year of the real thing it models.)',
+  hasBox:          'Whether you have its original box (Yes/No).',
+  notes:           'Anything else you want to remember about this piece.',
+  subType:         'A finer sort under the Type. For paper items the app fills it in (Consumer Postwar catalog, Price List…); for an off-catalog item you can write your own.',
+  shipper:         'The outer carton you’d ship it in — NOT the item’s own box. You can have both.',
+  subCollection:   'Your own groups for quick look-ups — “all my Disney cars”, “all my mint cars”, 6464 series. One item, one group.',
+  datePurchased:   'When you bought it.',
+  purchasedFrom:   'Who you bought it from — a shop, a show, a person.',
+  quantity:        'How many copies this row stands for.',
+};
+// The sentence for a field, or '' when there is none. The five custom slots
+// are the only ones whose words depend on the user: a named slot is "your
+// own column, <name>"; an unnamed one is a spare waiting for a name.
+window.rrFieldHelp = function (key) {
+  var k = String(key || '');
+  if (/^custom[1-5]$/.test(k)) {
+    var nm = '';
+    try { nm = (localStorage.getItem('lv_label_' + k) || '').trim(); } catch (e) {}
+    return nm
+      ? 'Your own column, “' + nm + '” — whatever you want to track.'
+      : 'A spare column of your own. Name it and it behaves like every other column: asked when you add an item, shown on the item page, filled by an import.';
+  }
+  return window.RR_FIELD_HELP[k] || '';
 };
 // ═══════════════════════════════════════════════════════════════
 // THE NON-TRAIN SECTIONS — v0.9.1843 (Brad, roadmap 4.27: "Memorabilia")

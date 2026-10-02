@@ -103,7 +103,9 @@ function ok(name, cond, detail) {
 
 // ── 6. UI wiring (source-level, the house pattern) ──────────────
 ok('the mapping dropdown has a label for photoFile', /photoFile:\s*'Photo filename/i.test(uiSrc));
-ok('…and plain-English help', /_IMP_FIELD_HELP[\s\S]{0,2000}photoFile:/.test(uiSrc));
+// v0.9.1862: the shared words live in config.js (rrFieldHelp); the photo
+// file is one of the two import-only destinations that keep their line here.
+ok('…and plain-English help', /_IMP_ONLY_HELP = \{[\s\S]{0,400}photoFile: 'The photo file for this item/.test(uiSrc));
 ok('preview no longer jumps straight to write — the photos step gates it',
    /onclick="_impToPhotosOrWrite\(\)">Import ' \+ ws\.length/.test(uiSrc) &&
    !/onclick="_impWrite\(\)">Import ' \+ ws\.length/.test(uiSrc));
