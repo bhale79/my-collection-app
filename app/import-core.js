@@ -273,6 +273,7 @@ var RR_IMP_HEADER_SYNONYMS = [
   { field: 'locationDetail', re: /^(location\s*detail|sub\s*location|tote|shelf|bin|spot)$/ },
   { field: 'shipper',        re: /^(shipper|shipping\s*box|outer\s*box|carton)$/ },
   { field: 'subCollection',  re: /^(sub[-\s]*collection|collection|series|grouping|set\s*name)$/ },
+  { field: 'subType',        re: /^(sub[-\s]*type|subtype)$/ },   // v0.9.1863: a user field now
 ];
 
 // headers: raw header strings → { map: { headerNorm: field }, unmapped: [names] }
@@ -1043,7 +1044,7 @@ function rrImpBuildAiPayload(tabs, fillGroups, appFields) {
       // left it unnamed). Custom slots are NEVER offered to the model — a
       // custom column is created by the USER, named from their own header.
       'itemNum', 'manufacturer', 'gauge', 'yourDesc', 'rawGrade', 'location',
-      'locationDetail', 'shipper', 'subCollection',
+      'locationDetail', 'shipper', 'subCollection', 'subType',
       'priceItem', 'userEstWorth', 'yearMade', 'notes', 'roadName',
       'roadNumber', 'hasBox', 'datePurchased', 'purchasedFrom', 'quantity',
       'photoFile', 'ignore',

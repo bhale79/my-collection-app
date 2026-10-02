@@ -3717,6 +3717,15 @@ async function _deleteCollectionPhoto(fileId, fileName, wrapEl) {
   }
 }
 
+// v0.9.1863: is Sub Type being drawn by the user-field loop (Track Sub Types
+// on)? The one question both the edit panel's manual-only Sub Type box and
+// its user-field loop ask, so the field is never shown twice.
+function _rrSubTypeIsUserField() {
+  try {
+    return (typeof rrEnabledUserFields === 'function') && rrEnabledUserFields().some(function (f) { return f.key === 'subType'; });
+  } catch (e) { return false; }
+}
+
 function showItemPanel(idx, pdKey, mode) {
   const pd = state.personalData[pdKey] || {};
   const item = state.masterData[idx] || {
@@ -3833,7 +3842,10 @@ function showItemPanel(idx, pdKey, mode) {
       })() }] : []),
     // v0.9.989 (unified inventory Phase 1): optional detail under Type —
     // e.g. 'Drawing' under Paper, 'Advance' under Catalog.
-    ...((idx < 0 || pd.era === 'Manual') ? [{ label: 'Sub Type', key: 'subType', val: pd.subType || '—', type: 'text' }] : []),
+    // v0.9.1863: when Track Sub Types is on, Sub Type is a user field and the
+    // user-field loop below draws it (with the saved list as suggestions) —
+    // this manual-only box steps aside so it is never shown twice.
+    ...((idx < 0 || pd.era === 'Manual') && !_rrSubTypeIsUserField() ? [{ label: 'Sub Type', key: 'subType', val: pd.subType || '—', type: 'text' }] : []),
     { label: 'Condition',     key: 'condition',     val: pd.condition || '—',     type: 'number', min:1, max:10 },
     { label: 'All Original',  key: 'allOriginal',   val: pd.allOriginal || '—',   type: 'select', options: ['Yes','No','Unknown'] },
     { label: 'Has Box',       key: 'hasBox',        val: pd.hasBox || '—',        type: 'select', options: ['Yes','No'] },
@@ -3859,7 +3871,8 @@ function showItemPanel(idx, pdKey, mode) {
                key: f.key, val: pd[f.key] || '—', type: 'text',
                // v0.9.1531b: Location Detail offers what is inside THIS item's
                // location — the same list the wizard shows, from one config.
-               suggest: (f.scopedTo === 'location') ? 'locationDetails' : '' };
+               // v0.9.1863: a field with a saved list (Sub Type) offers that list.
+               suggest: (f.scopedTo === 'location') ? 'locationDetails' : (f.choices === 'subtypes' ? 'subtypes' : '') };
     })),
     // v0.9.1425 (Brad): "it doesn't give me a way to say what era its in".
     // Normally the year decides and this stays blank — set it only when the
@@ -4062,6 +4075,8 @@ function showItemPanel(idx, pdKey, mode) {
               _sVals = rrSavedLocations().map(function (l) { return l.name; });
             } else if (f.suggest === 'locationDetails' && typeof rrLocationDetails === 'function') {
               _sVals = rrLocationDetails(pd.location || '');
+            } else if (f.suggest === 'subtypes' && typeof rrSavedSubTypes === 'function') {
+              _sVals = rrSavedSubTypes();   // v0.9.1863: the same list the wizard's chips show
             }
             if (_sVals && _sVals.length) {
               var _dlId = 'panel-dl-' + f.key;

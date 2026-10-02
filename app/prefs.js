@@ -212,6 +212,18 @@ function buildPrefsPage() {
         <div class="pref-row-label"><strong>Storage Locations</strong><span>Set up your totes, shelves, rooms, etc. so you can tap one when adding items</span></div>
         <button class="pref-btn" onclick="_openLocationsModal()">Manage</button>
       </div>
+      <!-- v0.9.1863 (Brad): Sub Types, set up like Storage Locations — a switch
+           that makes the wizard ask, and a list you manage. The field itself is
+           the subType entry in RR_USER_FIELDS (config.js); this toggle IS its
+           switch, so Extra Columns does not list it a second time. -->
+      <div class="pref-row">
+        <div class="pref-row-label"><strong>Track Sub Types</strong><span>Your own finer sort under the Type — Operating car, Repaint, Factory error. Turn this on and you’ll be asked for one as you add items; it shows on the item page, in the edit screen and as a column on My Collection.</span></div>
+        ${toggle('subtype', 'lv_subtype_enabled', 'false')}
+      </div>
+      <div class="pref-row">
+        <div class="pref-row-label"><strong>Sub Types</strong><span>Set up the sub types you use so you can tap one when adding items</span></div>
+        <button class="pref-btn" onclick="_openSubTypesModal()">Manage</button>
+      </div>
       <!-- v0.9.1514 (Phase 2, Session 81): extra columns. Off by default;
            an import that maps into one switches it on automatically. -->
       <div class="pref-row">
@@ -959,6 +971,7 @@ function _openUserFieldsModal() {
     '<div style="font-size:0.82rem;color:var(--text-dim);line-height:1.5;margin-bottom:0.9rem">' +
     'Switch on only what you use. Anything you turn on appears when adding an item, on the item page, and in the edit screen \u2014 and can be filled in by a spreadsheet import. Turning one off hides it; nothing you have already written is deleted.</div>';
   (window.RR_USER_FIELDS || []).forEach(function (f) {
+    if (f.prefToggle) return;   // v0.9.1863: its switch is its own row in Preferences → Collection — one control per switch
     var on = (typeof rrFieldEnabled === 'function') ? rrFieldEnabled(f) : false;
     var lbl = (typeof rrFieldLabel === 'function') ? rrFieldLabel(f) : f.label;
     var used = 0;
@@ -995,6 +1008,20 @@ function _openUserFieldsModal() {
 function _ufToggle(key, on, opts) {
   var f = (window.RR_USER_FIELDS || []).filter(function (x) { return x.key === key; })[0];
   if (!f) return;
+  if (f.prefToggle) {
+    // v0.9.1863: a field whose switch is a row of its own in Preferences →
+    // Collection (Sub Type's "Track Sub Types", toggle #ptog-<prefToggle>) is
+    // written the way that row writes it — _prefSet, so it follows the account
+    // like Location's switch — never raw, and never through look-sync as well
+    // (one route per key).
+    if (typeof _prefSet === 'function') _prefSet(f.pref, on ? 'true' : 'false');
+    else { try { localStorage.setItem(f.pref, on ? 'true' : 'false'); } catch (e) {} }
+    var _cb = document.getElementById('ptog-' + f.prefToggle);
+    if (_cb) _cb.checked = !!on;
+    if (opts && opts.quiet) return;
+    if (typeof showToast === 'function') showToast(on ? 'Column turned on' : 'Column hidden — nothing was deleted', 2500);
+    return;
+  }
   try { localStorage.setItem(f.pref, on ? 'true' : 'false'); } catch (e) {}
   // v0.9.1814: the on/off travels to the other devices exactly as the rename
   // below does — look-sync carries lv_*_enabled, but only when touched.
@@ -1214,6 +1241,99 @@ function _openLocationsModal(){
   if (nm) nm.addEventListener('keydown', function(e){ if (e.key === 'Enter') _addSavedLocation(); });
   _renderLocList();
 }
+
+// ── Sub Types (managed flat list) — v0.9.1863 ─────────────────────
+// Brad: "sub type probably need to be set up like location where you can
+// create different types." Same shape as Storage Locations, one level: add,
+// remove, "Put items here" (the fill-a-column flow with the answer already
+// given), and "+ Add from items I already entered" — which reads the Sub
+// Type off the TRAIN rows only (a paper item's sub type is the app's own
+// word, "Consumer Postwar", not one of the user's). The list itself lives in
+// config.js (rrSavedSubTypes / rrSaveSubTypes) and follows the account.
+function _addSavedSubType(){
+  var el = document.getElementById('st-new-name'); if (!el) return;
+  var name = (el.value || '').trim(); if (!name){ el.focus(); return; }
+  if (typeof rrRememberSubType !== 'function') return;
+  if (!rrRememberSubType(name)) { showToast('That sub type already exists'); }
+  el.value = ''; el.focus();
+  _renderSubTypeList();
+}
+function _deleteSavedSubType(i){
+  var list = rrSavedSubTypes(); if (i < 0 || i >= list.length) return;
+  list.splice(i, 1); rrSaveSubTypes(list); _renderSubTypeList();
+}
+function _seedSubTypesFromItems(){
+  var list = rrSavedSubTypes(); var have = {};
+  list.forEach(function(s){ have[s.toLowerCase()] = true; });
+  var added = 0;
+  Object.values((typeof state !== 'undefined' && state.personalData) ? state.personalData : {}).forEach(function(pd){
+    if (!pd || !pd.owned) return;
+    var v = String(pd.subType || '').trim(); if (!v) return;
+    // a paper section's sub type is the app's own word — not the user's
+    if (typeof ephSectionOfType === 'function' && ephSectionOfType(pd.itemType)) return;
+    if (/-IS$/i.test(String(pd.itemNum || ''))) return;
+    if (have[v.toLowerCase()]) return;
+    have[v.toLowerCase()] = true; list.push(v); added++;
+  });
+  rrSaveSubTypes(list); _renderSubTypeList();
+  showToast(added ? ('Added ' + added + ' sub type' + (added > 1 ? 's' : '')) : 'No new sub types found');
+}
+function _renderSubTypeList(){
+  var el = document.getElementById('st-list'); if (!el) return;
+  var list = rrSavedSubTypes();
+  if (!list.length){ el.innerHTML = '<div style="color:var(--text-dim);font-size:0.82rem;font-style:italic;padding:0.5rem 0">No sub types yet — add your first above.</div>'; return; }
+  el.innerHTML = list.map(function(name, i){
+    return '<div style="display:flex;align-items:center;justify-content:space-between;gap:0.5rem;padding:0.45rem 0.65rem;border:1px solid var(--border);border-radius:8px;margin-bottom:0.35rem;background:var(--surface2)">'
+      + '<strong style="font-size:0.88rem;color:var(--text);flex:1">' + _locEsc(name) + '</strong>'
+      + '<button data-st-fill="' + i + '" title="Put items under this sub type" style="background:none;border:1px solid var(--border);'
+      +   'color:var(--text-mid);border-radius:7px;font-size:0.7rem;cursor:pointer;padding:0.15rem 0.5rem;margin-right:0.35rem">Put items here</button>'
+      + '<button data-st-del="' + i + '" title="Remove" style="background:none;border:none;color:var(--text-dim);font-size:1.2rem;cursor:pointer;line-height:1;padding:0 0.25rem">&times;</button>'
+      + '</div>';
+  }).join('');
+  el.querySelectorAll('[data-st-del]').forEach(function(btn){
+    btn.addEventListener('click', function(){ _deleteSavedSubType(parseInt(btn.getAttribute('data-st-del'), 10)); });
+  });
+  el.querySelectorAll('[data-st-fill]').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var name = rrSavedSubTypes()[parseInt(btn.getAttribute('data-st-fill'), 10)];
+      if (!name || typeof rrTagOpen !== 'function') return;
+      var modal = document.getElementById('st-setup-modal'); if (modal) modal.remove();
+      rrTagOpen('subType', name, '');
+    });
+  });
+}
+function _openSubTypesModal(){
+  var old = document.getElementById('st-setup-modal'); if (old) old.remove();
+  var modal = document.createElement('div');
+  modal.id = 'st-setup-modal';
+  // the backdrop and the shadow point at the palette's scrim (the colour ratchet rule)
+  modal.style.cssText = 'position:fixed;inset:0;background:var(--scrim);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem';
+  modal.innerHTML =
+    '<div style="background:var(--surface);border-radius:14px;max-width:480px;width:100%;max-height:85vh;display:flex;flex-direction:column;box-shadow:0 12px 40px var(--scrim);font-family:var(--font-body)">'
+    + '<div style="padding:1rem 1.25rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">'
+    +   '<strong style="font-size:1.05rem;color:var(--text)">Sub Types</strong>'
+    +   '<button id="st-close" style="background:none;border:none;color:var(--text);font-size:1.5rem;cursor:pointer;line-height:1">&times;</button>'
+    + '</div>'
+    + '<div style="padding:1rem 1.25rem;overflow:auto;flex:1">'
+    +   '<div style="font-size:0.82rem;color:var(--text-dim);line-height:1.5;margin-bottom:0.85rem">' + ((typeof rrFieldHelp === 'function') ? rrFieldHelp('subType') : '') + ' They are offered as tap-chips when you add an item, so you stop typing them.</div>'
+    +   '<div style="display:flex;gap:0.4rem;flex-wrap:wrap;align-items:center">'
+    +     '<input id="st-new-name" type="text" placeholder="e.g. Operating car" style="flex:1;min-width:140px;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.55rem 0.7rem;color:var(--text);font-family:var(--font-body);font-size:0.9rem;box-sizing:border-box">'
+    +     '<button id="st-add-btn" class="pref-btn">Add</button>'
+    +   '</div>'
+    +   '<div id="st-list" style="margin-top:0.85rem"></div>'
+    +   '<button id="st-seed-btn" class="pref-btn" style="margin-top:0.85rem;font-size:0.8rem">+ Add from items I already entered</button>'
+    + '</div>'
+    + '</div>';
+  document.body.appendChild(modal);
+  rrDismissGuard(modal);
+  document.getElementById('st-close').addEventListener('click', function(){ modal.remove(); });
+  document.getElementById('st-add-btn').addEventListener('click', _addSavedSubType);
+  document.getElementById('st-seed-btn').addEventListener('click', _seedSubTypesFromItems);
+  var nm = document.getElementById('st-new-name');
+  if (nm) nm.addEventListener('keydown', function(e){ if (e.key === 'Enter') _addSavedSubType(); });
+  _renderSubTypeList();
+}
+if (typeof window !== 'undefined') { window._openSubTypesModal = _openSubTypesModal; }
 
 // v0.9.932 (Brad): section open/closed state survives the page rebuilds that
 // every checkbox toggle triggers. _prefsSectionState maps section title ->

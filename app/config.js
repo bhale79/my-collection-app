@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.1862';
+const APP_VERSION = 'v0.9.1863';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -1801,6 +1801,17 @@ window.RR_USER_FIELDS = [
     pref: 'lv_shipper_enabled' },
   { key: 'subCollection', label: 'Sub-collection', hint: 'e.g. 6464, Disney, Monopoly',
     pref: 'lv_subcoll_enabled' },
+  // v0.9.1863 (Brad: "sub type probably need to be set up like location where
+  // you can create different types"). Sub Type is a USER FIELD now, so every
+  // surface follows this one line — asked when adding (chips from the saved
+  // list + free text), on the item page, in the edit panel, a column, the
+  // import. Its switch is the "Track Sub Types" row in Preferences →
+  // Collection (prefToggle = that row's toggle id), written through _prefSet
+  // like Location's, so it follows the ACCOUNT; the saved list is
+  // rrSavedSubTypes below. The paper sections keep writing their own
+  // built-in sub types untouched.
+  { key: 'subType', label: 'Sub Type', hint: 'e.g. Operating car, Repaint, Factory error',
+    pref: 'lv_subtype_enabled', choices: 'subtypes', prefToggle: 'subtype' },
   { key: 'custom1', label: 'Custom 1', hint: '', pref: 'lv_custom1_enabled', custom: true },
   { key: 'custom2', label: 'Custom 2', hint: '', pref: 'lv_custom2_enabled', custom: true },
   { key: 'custom3', label: 'Custom 3', hint: '', pref: 'lv_custom3_enabled', custom: true },
@@ -1862,7 +1873,7 @@ window.RR_FIELD_HELP = {
   yearMade:        'The year the item was made. (Not the year of the real thing it models.)',
   hasBox:          'Whether you have its original box (Yes/No).',
   notes:           'Anything else you want to remember about this piece.',
-  subType:         'A finer sort under the Type. For paper items the app fills it in (Consumer Postwar catalog, Price List…); for an off-catalog item you can write your own.',
+  subType:         'A finer sort under the Type, in your own words: Operating car, Repaint, Factory error. Set your list up under Preferences → Sub Types. (Paper items get theirs filled in automatically.)',
   shipper:         'The outer carton you’d ship it in — NOT the item’s own box. You can have both.',
   subCollection:   'Your own groups for quick look-ups — “all my Disney cars”, “all my mint cars”, 6464 series. One item, one group.',
   datePurchased:   'When you bought it.',
@@ -2003,6 +2014,49 @@ window.rrLocationDetails = function (locationName) {
     });
   });
   return all;
+};
+// ── Saved sub types — v0.9.1863 ─────────────────────────────────
+// Brad: "sub type probably need to be set up like location where you can
+// create different types." A flat list of the user's own words (Operating
+// car, Repaint, Factory error…), kept in ONE place and read by the wizard's
+// chips, the edit panel's suggestions and Preferences → Sub Types. Stored
+// through _prefSet so it follows the ACCOUNT (the "what syncs" rule in
+// drive.js: exactly the keys written through _prefSet) — unlike
+// lv_saved_locations, which is still written raw and stays on one device.
+// Reads go through _prefGet (the one reader) when the app has loaded it.
+var RR_SUBTYPES_KEY = 'lv_saved_subtypes';
+window.rrSavedSubTypes = function () {
+  try {
+    var raw = (typeof _prefGet === 'function') ? _prefGet(RR_SUBTYPES_KEY, '[]') : localStorage.getItem(RR_SUBTYPES_KEY);
+    var a = JSON.parse(raw || '[]');
+    if (!Array.isArray(a)) return [];
+    return a.map(function (s) { return String(s == null ? '' : s).trim(); }).filter(Boolean);
+  } catch (e) { return []; }
+};
+// THE writer. Trims, drops blanks and case-insensitive duplicates, keeps the
+// order given. Returns the list as stored.
+window.rrSaveSubTypes = function (arr) {
+  var out = [], seen = {};
+  (Array.isArray(arr) ? arr : []).forEach(function (s) {
+    var v = String(s == null ? '' : s).trim();
+    if (!v || seen[v.toLowerCase()]) return;
+    seen[v.toLowerCase()] = 1; out.push(v);
+  });
+  try {
+    if (typeof _prefSet === 'function') _prefSet(RR_SUBTYPES_KEY, JSON.stringify(out));
+    else localStorage.setItem(RR_SUBTYPES_KEY, JSON.stringify(out));
+  } catch (e) {}
+  return out;
+};
+// Add one if it is new (case-insensitive). Returns true when it was added.
+window.rrRememberSubType = function (name) {
+  var v = String(name == null ? '' : name).trim();
+  if (!v) return false;
+  var list = window.rrSavedSubTypes();
+  if (list.some(function (s) { return s.toLowerCase() === v.toLowerCase(); })) return false;
+  list.push(v);
+  window.rrSaveSubTypes(list);
+  return true;
 };
 // One <datalist> + the attribute that points at it. Suggestions only: the
 // input stays free text, which is the rule everywhere else in this app.

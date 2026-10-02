@@ -2326,14 +2326,69 @@ function _wizUserFieldsHtml(d) {
     if (f.scopedTo === 'location' && typeof rrDatalistFor === 'function' && typeof rrLocationDetails === 'function') {
       _dl2 = rrDatalistFor('wiz-' + f.key + '-list', rrLocationDetails(d.location || ''));
     }
+    // v0.9.1863 (Brad: "set up like location where you can create different
+    // types"): a field with a saved list (Sub Type) shows that list as
+    // tap-chips above the box — tap one and it is the answer; type your own
+    // and it is remembered for next time (the list is pruned in Preferences
+    // → Sub Types). The box stays free text, like every other field here.
+    var _chips = '';
+    if (f.choices === 'subtypes' && typeof rrSavedSubTypes === 'function') {
+      var _cur = String(d[f.key] || '').trim().toLowerCase();
+      _chips = _wizChoiceChipsHtml(f.key, rrSavedSubTypes(), _cur);
+    }
+    var _remember = (f.choices === 'subtypes') ? ' onchange="_wizChoiceTyped(\'' + f.key + '\', this.value)"' : '';
     return '<div style="margin-bottom:0.75rem">' +
       '<label style="font-size:0.82rem;color:var(--text-mid);display:block;margin-bottom:0.25rem">' + _lbl + '</label>' +
+      _chips +
       '<input type="text" id="wiz-uf-' + f.key + '" value="' + String(d[f.key] || '').replace(/"/g, '&quot;') + '"' +
-        ' oninput="wizard.data[\'' + f.key + '\']=this.value" placeholder="' + (f.hint || '') + '"' + _dl2.attr +
+        ' oninput="wizard.data[\'' + f.key + '\']=this.value;_wizChoiceSync(\'' + f.key + '\', this.value)"' + _remember + ' placeholder="' + (f.hint || '') + '"' + _dl2.attr +
         ' style="width:100%;padding:0.55rem 0.7rem;border-radius:8px;background:var(--bg);border:1px solid var(--border);color:var(--text);font-family:var(--font-body);font-size:0.88rem;box-sizing:border-box">' +
       _dl2.html +
     '</div>';
   }).join(''));
+}
+// The chip row for a user field with a saved list. One chip per saved
+// value; the one matching the current answer is lit. Tapping writes the
+// answer into wizard.data AND the box beneath, so the two never disagree.
+function _wizChoiceChipsHtml(key, values, curLower) {
+  if (!values || !values.length) return '';
+  var esc = function (s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;'); };
+  return '<div id="wiz-chips-' + key + '" style="display:flex;flex-wrap:wrap;gap:0.35rem;margin-bottom:0.4rem">' +
+    values.map(function (v) {
+      var on = String(v).toLowerCase() === curLower;
+      return '<button type="button" class="loc-chip wiz-choice-chip" data-val="' + esc(v) + '"' +
+        ' onclick="_wizChoicePick(\'' + key + '\', this)"' +
+        ' style="padding:0.3rem 0.65rem;border-radius:999px;border:1px solid ' + (on ? 'var(--accent)' : 'var(--border)') + ';background:' + (on ? 'var(--accent)' : 'var(--surface2)') + ';color:' + (on ? 'var(--on-accent)' : 'var(--text)') + ';font-family:var(--font-body);font-size:0.8rem;cursor:pointer">' + esc(v) + '</button>';
+    }).join('') + '</div>';
+}
+function _wizChoicePick(key, btn) {
+  var v = btn ? (btn.getAttribute('data-val') || '') : '';
+  if (typeof wizard !== 'undefined' && wizard && wizard.data) wizard.data[key] = v;
+  var inp = document.getElementById('wiz-uf-' + key); if (inp) inp.value = v;
+  _wizChoiceSync(key, v);
+}
+// Light the chip that matches what is in the box (typed or tapped).
+function _wizChoiceSync(key, val) {
+  var row = document.getElementById('wiz-chips-' + key); if (!row) return;
+  var cur = String(val || '').trim().toLowerCase();
+  Array.prototype.forEach.call(row.querySelectorAll('.wiz-choice-chip'), function (b) {
+    var on = String(b.getAttribute('data-val') || '').toLowerCase() === cur;
+    b.style.borderColor = on ? 'var(--accent)' : 'var(--border)';
+    b.style.background = on ? 'var(--accent)' : 'var(--surface2)';
+    b.style.color = on ? 'var(--on-accent)' : 'var(--text)';
+  });
+}
+// A sub type typed in full (the box loses focus, or Enter) that the saved
+// list does not have yet is remembered, and its chip appears at once.
+function _wizChoiceTyped(key, val) {
+  var v = String(val || '').trim();
+  if (!v || typeof rrRememberSubType !== 'function') return;
+  if (!rrRememberSubType(v)) return;
+  var row = document.getElementById('wiz-chips-' + key);
+  var fresh = _wizChoiceChipsHtml(key, rrSavedSubTypes(), v.toLowerCase());
+  if (row) { row.outerHTML = fresh; }
+  else { var inp = document.getElementById('wiz-uf-' + key); if (inp) inp.insertAdjacentHTML('beforebegin', fresh); }
+  if (typeof showToast === 'function') showToast('“' + v + '” added to your sub types', 2500);
 }
 
 function _wizTabOrder() {

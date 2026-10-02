@@ -458,7 +458,8 @@ var _IMP_FIELD_LABELS = {
   // v0.9.1514 (Phase 2): Scott's Shipper / Collection / Owner columns finally
   // have real homes. Custom slots show the user's own name once they name one.
   locationDetail: 'Location Detail (Tote 12…)', shipper: 'Shipper (outer carton)',
-  subCollection: 'Sub-collection', custom1: 'Custom column 1', custom2: 'Custom column 2',
+  subCollection: 'Sub-collection', subType: 'Sub Type',   // v0.9.1863: a user field now
+  custom1: 'Custom column 1', custom2: 'Custom column 2',
   custom3: 'Custom column 3', custom4: 'Custom column 4', custom5: 'Custom column 5',
 };
 // What each destination column actually means, in plain English. Shown
@@ -2401,7 +2402,9 @@ async function _impWrite() {
       }
       if (it.yearMade) fields.yearMade = it.yearMade;
       // v0.9.1514 (Phase 2): user columns the mapping filled.
-      ['locationDetail', 'shipper', 'subCollection', 'custom1', 'custom2', 'custom3', 'custom4', 'custom5']
+      // v0.9.1863: read off the ONE definition, so a new user field (Sub
+      // Type) is written without anyone remembering this list.
+      (window.RR_USER_FIELDS || []).map(function (f) { return f.key; })
         .forEach(function (k) { if (it[k]) fields[k] = String(it[k]).trim(); });
       if (String(it.hasBox || '').trim()) {
         fields.hasBox = /^(y|yes|true|x|1|✓)/i.test(String(it.hasBox).trim()) ? 'Yes' : String(it.hasBox);
@@ -2477,7 +2480,10 @@ async function _impWrite() {
       });
       (window.RR_USER_FIELDS || []).forEach(function (f) {
         if (!_usedKeys[f.key]) return;
-        localStorage.setItem(f.pref, 'true');
+        // v0.9.1863: through the one door, so a switch that follows the
+        // account (Sub Type's) is stamped and pushed, not written raw.
+        if (typeof _ufToggle === 'function') _ufToggle(f.key, true, { quiet: true });
+        else localStorage.setItem(f.pref, 'true');
         if (f.custom && !localStorage.getItem('lv_label_' + f.key)) {
           var h = String(_usedKeys[f.key] || '').trim();
           if (h) localStorage.setItem('lv_label_' + f.key, h.charAt(0).toUpperCase() + h.slice(1));

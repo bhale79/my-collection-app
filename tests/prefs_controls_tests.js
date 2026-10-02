@@ -91,6 +91,13 @@ const code = s => s.split('\n').filter(l => !/^\s*\/\//.test(l)).join('\n');
     loc.checked = false; fire(loc); const lOff = !!window._prefLocEnabled;
     res.location = { has: !!loc, on: lOn, off: lOff };
 
+    // 5b Track Sub Types (v0.9.1863) — the wizard's real renderer asks, or not
+    const st = document.getElementById('ptog-subtype');
+    st.checked = true; fire(st); const sOn = /wiz-uf-subType/.test(_wizUserFieldsHtml({}));
+    const sAt = !!localStorage.getItem('lv_subtype_enabled__at');
+    st.checked = false; fire(st); const sOff = /wiz-uf-subType/.test(_wizUserFieldsHtml({}));
+    res.subtype = { has: !!st, on: sOn, off: sOff, stamped: sAt, manage: !!ctl('button[onclick*="_openSubTypesModal"]') };
+
     // 6 page size — rows the collection list draws
     const ps = ctl('select[onchange*="lv_page_size"]');
     const rowsDrawn = () => { show('page-browse'); filterOwned(); window._rrBrowseSig = null; renderBrowse(); return document.querySelectorAll('#browse-tbody tr, .rr-coll-row').length; };
@@ -143,6 +150,7 @@ const code = s => s.split('\n').filter(l => !/^\s*\/\//.test(l)).join('\n');
   T('A3  Compact mode: on adds body.compact-mode, off removes it', out.compact.has && out.compact.on && !out.compact.off, out.compact);
   T('A4  Accuracy disclaimer: off hides the catalog banner, on shows it', out.disclaimer.has && out.disclaimer.works, out.disclaimer);
   T('A5  Location field: on/off reaches the wizard\'s flag', out.location.has && out.location.on && !out.location.off, out.location);
+  T('A5b Track Sub Types: on → the wizard asks (real renderer), off → it stops; stamped for the account; Manage beside it', out.subtype.has && out.subtype.on && !out.subtype.off && out.subtype.stamped && out.subtype.manage, out.subtype);
   T('A6  Items per page: 25 draws ≤25 rows, 50 draws more', out.pageSize.has && out.pageSize.works, out.pageSize);
   T('A7  Clear cache: the personal cache is gone afterwards', out.clearCache.has && out.clearCache.gone, out.clearCache);
   T('A7b Upgrade threshold: at 7 the card FLAGS the condition-6 items (capped at the row limit); at 5 it flags none and says so', out.upgradeThresh.has && out.upgradeThresh.works, out.upgradeThresh);
@@ -153,7 +161,7 @@ const code = s => s.split('\n').filter(l => !/^\s*\/\//.test(l)).join('\n');
   const files = fs.readdirSync(APP).filter(f => /\.js$/.test(f) && f !== 'prefs.js' && f !== 'tests-onboarding.js');
   const all = files.map(f => [f, code(rd(f))]);
   const readers = k => all.filter(([f, s]) => s.indexOf(k) >= 0).map(([f]) => f);
-  const CONTROL_KEYS = ['lv_theme', 'lv_font_scale', 'lv_compact_mode', 'lv_show_disclaimer', 'lv_location_enabled', 'lv_page_size',
+  const CONTROL_KEYS = ['lv_theme', 'lv_font_scale', 'lv_compact_mode', 'lv_show_disclaimer', 'lv_location_enabled', 'lv_subtype_enabled', 'lv_page_size',
     'lv_default_cond', 'lv_upgrade_thresh', 'lv_def_hasBox', 'lv_def_hasIS', 'lv_def_isError', 'lv_def_allOriginal', 'lv_def_masterBox'];
   CONTROL_KEYS.forEach(k => T('B  ' + k + ' has a reader outside prefs.js', readers(k).length > 0, readers(k)));
   // the value must be USED, not just read into a variable: the variable named
@@ -180,6 +188,8 @@ const code = s => s.split('\n').filter(l => !/^\s*\/\//.test(l)).join('\n');
     rawWrites('lv_location_enabled').length === 0, rawWrites('lv_location_enabled'));
   const uf = code(rd('prefs.js'));
   const ufToggle = uf.slice(uf.indexOf('function _ufToggle('), uf.indexOf('function _ufRename('));
+  T('C1b lv_subtype_enabled is never written raw (v0.9.1863: _ufToggle routes a prefToggle field through _prefSet)',
+    rawWrites('lv_subtype_enabled').length === 0 && /if \(f\.prefToggle\) \{[\s\S]{0,400}_prefSet\(f\.pref, on \? 'true' : 'false'\)/.test(ufToggle), rawWrites('lv_subtype_enabled'));
   T('C2  a custom column\'s on/off travels: _ufToggle touches the sync file like _ufRename does',
     /rrLookTouch\(\)/.test(ufToggle), 'no rrLookTouch in _ufToggle');
   T('C3  lv_theme is never written raw', rawWrites('lv_theme').length === 0, rawWrites('lv_theme'));
