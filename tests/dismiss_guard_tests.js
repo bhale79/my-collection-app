@@ -227,7 +227,8 @@ ok('every guarded overlay offers Cancel / Done / Close / ✕', trapped.length ==
 // overlays too, so there is now ONE rule with no exceptions in it.
 // v0.9.1813: 41 — the Help Center's "Using more than one device" card (tutorial.js).
 // v0.9.1821: 40 — the dead _upgradeGotItOldStart (no caller) and its overlay are gone.
-ok('40 guarded call sites, and ONE helper behind them', sites === 40, String(sites));
+// v0.9.1858: 41 — the Maintenance card's Add-task pop-up (maint-addtask-pop, maintenance.js).
+ok('41 guarded call sites, and ONE helper behind them', sites === 41, String(sites));
 
 // nobody double-wires BackStack any more — the guard does it, once
 let dbl = 0;

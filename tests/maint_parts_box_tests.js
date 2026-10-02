@@ -42,15 +42,23 @@ function grabFrom(src, sig) {
 }
 
 // ── A · the real _choreFormHtml, run ───────────────────────────────────────
-section('A · the picker: a checkbox beside the new name, a − beside the list');
-const formSrc = grabFrom(maint, 'function _choreFormHtml(addJs)');
+// v0.9.1858: the picker is the Add-task pop-up's body now (tappable service
+// lines, a × on each custom one) — the v1766 rules still hold on it.
+section('A · the picker: a checkbox beside the new name, a × beside each custom line');
+const formSrc = grabFrom(maint, 'function _choreFormHtml(addJs)') + '\n' + grabFrom(maint, 'function _choreLinesHtml()');
 ok('_choreFormHtml lifted', !!formSrc);
-const formHtml = new Function('_allChores', '_esc', '_btnPrimary', '_btnQuiet',
+const formHtml = new Function('_allChores', '_esc', '_btnPrimary', '_btnQuiet', '_btn', 'rrJsArg', 'CHORES', 'SECT', '_target', '_maintPickerParts',
   formSrc + '\nreturn _choreFormHtml("_maintAddChore()");')(
   () => ['Oil / lubricate', 'Replace traction tire', 'My one-off'],
   s => String(s),
   () => 'class="p"',
-  () => 'class="q"'
+  () => 'class="q"',
+  () => 'class="b"',
+  s => String(s),
+  ['Oil / lubricate', 'Replace traction tire'],
+  'sect',
+  () => ({ item: { itemNum: '2338' }, invId: '190' }),
+  () => ({ onHand: [], wanted: [] })
 );
 ok('the checkbox is there', /id="maint-chore-custom-keep"/.test(formHtml));
 ok('…and is NOT ticked by default',
@@ -58,7 +66,8 @@ ok('…and is NOT ticked by default',
 ok('it says what ticking it does', /Add it to my list for next time/.test(formHtml));
 ok('the placeholder no longer promises to remember it',
    /placeholder="Name the new task"/.test(formHtml) && !/joins the list/.test(formHtml));
-ok('a − button calls _maintDelChore', /_maintDelChore\(\)/.test(formHtml));
+ok('a × on the custom line calls _maintDelChore with its name — and only on the custom line',
+   /_maintDelChore\('My one-off'\)/.test(formHtml) && !/_maintDelChore\('Oil/.test(formHtml));
 ok('the custom name box and the checkbox hide together (one wrapper)',
    formHtml.indexOf('id="maint-chore-custom"') < formHtml.indexOf('id="maint-chore-custom-keep"'));
 
@@ -141,42 +150,39 @@ async function runAdd(opts) {
 section('C · a custom task can be taken back off the list; built-ins cannot');
 const delSrc = grabFrom(maint, 'window._maintDelChore = function');
 ok('_maintDelChore lifted', !!delSrc);
+// v0.9.1858: called with the NAME (from the × on a custom line); the list is redrawn in place
 function runDel(value, favs) {
-  const calls = { saved: null, removedIndex: -1, toasts: [] };
+  const calls = { saved: null, refreshed: 0, toasts: [] };
   let cur = favs.slice();
-  const sel = {
-    value: value, selectedIndex: 3,
-    remove(i) { calls.removedIndex = i; },
-  };
-  const win = {};
+  const win = { _maintChoreListRefresh: () => { calls.refreshed++; } };
   new Function('window', 'document', '_favs', '_saveFavs', 'MAINT', 'CHORES', 'showToast',
     delSrc + '\nreturn window._maintDelChore;'
   )(
     win,
-    { getElementById: id => (id === 'maint-chore-pick' ? sel : null) },
+    { getElementById: () => null },
     () => cur,
     (k, arr) => { calls.saved = arr.slice(); cur = arr.slice(); },
     { PREF_CHORES: 'maint_custom_chores' },
     CHORES_FIX,
     (m) => calls.toasts.push(String(m))
-  )();
+  )(value);
   return calls;
 }
 {
   const r = runDel('My one-off', ['My one-off', 'Another']);
   ok('a custom one is removed from the list', Array.isArray(r.saved) && r.saved.indexOf('My one-off') < 0);
   ok('…the others stay', r.saved.indexOf('Another') >= 0);
-  ok('…and it leaves the dropdown', r.removedIndex === 3);
+  ok('…and the lines are redrawn', r.refreshed === 1);
 }
 {
   const r = runDel('Oil / lubricate', ['My one-off']);
   ok('a built-in is refused', r.saved === null);
   ok('…and says why', r.toasts.some(t => /built in/i.test(t)));
-  ok('…and nothing leaves the dropdown', r.removedIndex === -1);
+  ok('…and nothing is redrawn', r.refreshed === 0);
 }
 {
   const r = runDel('__custom', ['My one-off']);
-  ok('"Something else…" itself is not removable', r.saved === null && r.removedIndex === -1);
+  ok('"Something else…" itself is not removable', r.saved === null && r.refreshed === 0);
 }
 
 // ── D · the parts box, in the shipped panel + renderer ─────────────────────

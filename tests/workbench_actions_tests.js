@@ -89,14 +89,15 @@ ok('only OWNED copies with an inventoryId, boxes left out', owned.map(o => o.inv
 ok('each carries the road name for the list, and is keyed by the unit', owned[1].road === 'Union Pacific' && owned[0].variation === '2');
 
 section('One save path — the Workbench cards drive the card\'s own writers');
-const addChore = fnBody('window._maintAddChore = async function ()');
+const addChore = fnBody('window._maintAddChore = async function (andPart)');   // v0.9.1858: andPart = "+ Add a part for it"
 const popup = fnBody('window._maintPartsPopup = function (taskId, taskName)');
 const addWanted = fnBody('window._maintPopAddWanted = async function (taskId)');
 const binUse = fnBody('window._maintBinUse = async function (binId, taskId)');
 const popSearch = fnBody('window._maintPopSearch = function ()');
 ok('_target() = the Workbench pick when set, else the Maintenance card\'s item', /function _target\(\) \{\s*if \(_wbTarget && _wbTarget\.item\) return _wbTarget;\s*return \{ item: _panelItem, invId: String\(window\._maintPanelInvId \|\| ''\) \};/.test(src));
 ok('_maintAddChore writes the task for _target(), not _panelItem', /var tg = _target\(\);/.test(addChore) && !/_panelItem/.test(addChore) && /_t\(tg\.invId \|\| ''\), _t\(String\(tg\.item\.itemNum \|\| ''\)\)/.test(addChore));
-ok('…and closes the Workbench card when it came from there', /if \(_wbTarget\) _wbCloseCard\(\);/.test(addChore));
+ok('…and closes the Workbench card when it came from there (v1858: with "+ Add a part for it" the card goes but the target stays for the Need-a-part that follows)',
+   /if \(_wbTarget\) \{ if \(andPart\) \{[^}]*\.remove\(\); _wbBuild\(\); \} else _wbCloseCard\(\); \}/.test(addChore));
 ok('_maintPartsPopup, _maintPopAddWanted, _maintBinUse and _maintPopSearch all go through _target()', [popup, addWanted, binUse, popSearch].every(b => /var tg = _target\(\);/.test(b) && !/_panelItem/.test(b)));
 ok('a part added with no task is filed for the UNIT (blank task id, "from the Workbench")', /taskId \? 'for Workbench task' : 'from the Workbench'/.test(addWanted) && /taskId: taskId \|\| ''/.test(addWanted) && /_maintPopSaveWanted\(fields, taskId/.test(addWanted) && /_partsAppendRow\(fields\)/.test(fnBody('async function _maintPopSaveWanted(fields, taskId, retry)'))   /* v0.9.1753: the row goes through the one builder/appender; v0.9.1756: via the popup's ONE save path */);
 ok('the chore picker is ONE helper, used by the card and by the Workbench card', (src.match(/_choreFormHtml\('_maintAddChore\(\)'\)/g) || []).length === 2 && /function _choreFormHtml\(addJs\)/.test(src));

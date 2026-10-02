@@ -1680,7 +1680,8 @@
 
       // ── Workbench (phase 3): chores + service history ──
       + sec('Tasks for this item',
-          _choreFormHtml('_maintAddChore()')   // v0.9.1751: one picker, shared with the Workbench's + Add task card
+          // v0.9.1858 ([stated] Brad): just the tasks, and the button — the picker is a pop-up now
+          '<button onclick="_maintAddTaskPopup()" ' + _btnPrimary('padding:0.5rem 0.9rem;font-size:0.78rem') + '>+ Add task</button>'
           + '<div id="maint-tasks" style="margin-top:0.6rem"></div>'
           + '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.45rem">Each task is a card: notes, a part if it needs one, videos for the job, Done when it\'s done.</div>', 'work')
 
@@ -2009,10 +2010,40 @@
     if (b) { var n = _openNeeds().length; b.textContent = n ? n : ''; b.style.display = n ? '' : 'none'; }
   }
 
-  window._maintChorePickChange = function (sel) {
+  // v0.9.1858 ([stated] Brad, item 2 of his Workbench list): "the tasks for
+  // this item box should just show the tasks to do, keep the add task button.
+  // when i hit add task, that should bring up a pop that shows the services i
+  // can do line with the custom add. also the add a part button should show
+  // up here as well. also, i should see the parts for this item i have again
+  // so that i can click on that part if its part of the service i want to do."
+  //
+  // So the dropdown + its − button are gone. _choreFormHtml is now the BODY of
+  // the Add-task pop-up (the Maintenance card's and the Workbench's step 2 —
+  // the same body, one builder): the services as tappable lines (the custom
+  // ones with a × to take them off the list — the v1766 rule), "Something
+  // else…" with its name box and the keep-it checkbox (v1766), the parts this
+  // item already has — tick one to put it on the new task — and two buttons:
+  // "+ Add task", and "+ Add a part for it" (saves the task, then opens Need
+  // a part FOR that task, so the part is tied to a job that exists).
+  // The chosen service rides in the hidden #maint-chore-pick ('__custom' for
+  // a typed one) — the same contract _maintAddChore always read.
+  window._maintChoreChoose = function (el) {
+    var pick = document.getElementById('maint-chore-pick');
+    var v = el && el.getAttribute ? String(el.getAttribute('data-chore') || '') : '';
+    if (pick) pick.value = v;
+    var list = document.getElementById('maint-chore-list');
+    if (list) {
+      Array.prototype.forEach.call(list.querySelectorAll('[data-chore]'), function (b) {
+        var on = b.getAttribute('data-chore') === v;
+        b.setAttribute('data-on', on ? '1' : '0');
+        b.style.borderColor = on ? 'var(--accent)' : 'var(--border)';
+        b.style.background = on ? 'color-mix(in srgb, var(--accent) 14%, var(--surface2))' : 'var(--surface2)';
+        b.style.fontWeight = on ? '700' : '500';
+      });
+    }
     var box = document.getElementById('maint-chore-custom');
-    if (box) box.style.display = (sel && sel.value === '__custom') ? '' : 'none';
-    if (box && sel && sel.value === '__custom') { var i = box.querySelector('input'); if (i) i.focus(); }
+    if (box) box.style.display = (v === '__custom') ? '' : 'none';
+    if (box && v === '__custom') { var i = box.querySelector('input'); if (i) i.focus(); }
   };
   // v0.9.1751: WHO the task/part is for. Normally the Maintenance card's
   // item (_panelItem + its inventoryId). The Workbench's own "+ Add task" /
@@ -2024,53 +2055,101 @@
     if (_wbTarget && _wbTarget.item) return _wbTarget;
     return { item: _panelItem, invId: String(window._maintPanelInvId || '') };
   }
-  // the chore picker: the same select on the card and on the Workbench card
-  // v0.9.1766 (Brad): typing a one-off task used to add it to the dropdown
-  // FOREVER, silently — "when we add a task, and the user hits something else,
-  // don't automatically add that to the drop down. have a check button next to
-  // it that the user can check if they want it added". So: the box is
-  // unticked by default, and a "−" beside the list takes one back out again
-  // (the same affordance the favourites rows already use). Removing a name
-  // from the list never touches tasks already made with it.
+  // the service lines — the built-ins, then the custom ones (each with a ×),
+  // then "Something else…". Rebuilt in place after a × (_maintChoreListRefresh).
+  function _choreLinesHtml() {
+    var LINE = 'display:flex;align-items:center;justify-content:space-between;gap:0.5rem;width:100%;box-sizing:border-box;text-align:left;padding:0.5rem 0.7rem;border-radius:8px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.85rem;font-weight:500;cursor:pointer';
+    var h = '';
+    _allChores().forEach(function (ch) {
+      var custom = CHORES.indexOf(ch) < 0;
+      h += '<button type="button" data-chore="' + _esc(ch) + '" data-on="0" onclick="_maintChoreChoose(this)" style="' + LINE + '">'
+        +   '<span>' + _esc(ch) + '</span>'
+        +   (custom ? '<span onclick="event.stopPropagation();_maintDelChore(\'' + rrJsArg(ch) + '\')" title="Take this one off the list" style="color:var(--text-dim);font-size:0.8rem;padding:0 0.2rem">&#x2715;</span>' : '')
+        + '</button>';
+    });
+    h += '<button type="button" data-chore="__custom" data-on="0" onclick="_maintChoreChoose(this)" style="' + LINE + '"><span>Something else…</span></button>';
+    return h;
+  }
+  window._maintChoreListRefresh = function () {
+    var list = document.getElementById('maint-chore-list');
+    if (list) list.innerHTML = _choreLinesHtml();
+    var pick = document.getElementById('maint-chore-pick'); if (pick) pick.value = '';
+    var box = document.getElementById('maint-chore-custom'); if (box) box.style.display = 'none';
+  };
   function _choreFormHtml(addJs) {
-    var IN = 'flex:1;min-width:150px;padding:0.45rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.82rem';
-    return '<div style="display:flex;gap:0.4rem;flex-wrap:wrap;align-items:center">'
-      + '<select id="maint-chore-pick" onchange="_maintChorePickChange(this)" style="' + IN + '">'
-      + _allChores().map(function (ch) { return '<option value="' + _esc(ch) + '">' + _esc(ch) + '</option>'; }).join('')
-      + '<option value="__custom">Something else…</option>'
-      + '</select>'
-      + '<button onclick="_maintDelChore()" title="Take the selected task off this list (the built-in ones stay)" ' + _btnQuiet() + '>&minus;</button>'
-      + '<button onclick="' + addJs + '" ' + _btnPrimary('padding:0.5rem 0.9rem;font-size:0.78rem') + '>+ Add task</button>'
-      + '</div>'
-      + '<div id="maint-chore-custom" style="display:none;margin-top:0.4rem">'
+    var tg = (typeof _target === 'function') ? _target() : { item: null, invId: '' };
+    // the parts this item already has (in the drawer, or on the Parts Needed
+    // list) — tick one and it goes on the new task when it is saved. A part
+    // already on another open job is offered too, and says which job it is on.
+    var pk = (tg.item && typeof _maintPickerParts === 'function') ? _maintPickerParts(tg, '') : { onHand: [], wanted: [] };
+    var partLine = function (e, where) {
+      var p = e.part;
+      return '<label style="display:flex;align-items:center;gap:0.5rem;padding:0.35rem 0;border-bottom:1px solid var(--border);font-size:0.82rem;color:var(--text);cursor:pointer">'
+        + '<input type="checkbox" name="maint-chore-part" value="' + _esc(String(p.row)) + '" style="width:1.05rem;height:1.05rem;flex-shrink:0">'
+        + '<span><b>' + _esc(p.description || p.partNum || 'part') + '</b>'
+        + (p.partNum && p.description ? ' <span style="font-family:var(--font-mono);color:var(--t-accent)">#' + _esc(p.partNum) + '</span>' : '')
+        + ' <span style="color:var(--text-dim);font-size:0.72rem">(' + where + (e.onTask ? ' — now on: ' + _esc(e.onTask) : '') + ')</span></span>'
+        + '</label>';
+    };
+    var parts = pk.onHand.map(function (e) { return partLine(e, 'in your drawer'); }).join('')
+      + pk.wanted.map(function (e) { return partLine(e, 'on your Parts Needed list'); }).join('');
+    return '<div style="' + SECT + '">What needs doing?</div>'
+      + '<input type="hidden" id="maint-chore-pick" value="">'
+      + '<div id="maint-chore-list" style="display:flex;flex-direction:column;gap:0.4rem">' + _choreLinesHtml() + '</div>'
+      + '<div id="maint-chore-custom" style="display:none;margin-top:0.5rem">'
       +   '<input id="maint-chore-custom-in" placeholder="Name the new task" onkeydown="if(event.key===\'Enter\')' + addJs + '" style="width:100%;box-sizing:border-box;padding:0.45rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.82rem">'
       +   '<label style="display:flex;align-items:center;gap:0.4rem;margin-top:0.4rem;font-size:0.76rem;color:var(--text-dim);cursor:pointer"><input type="checkbox" id="maint-chore-custom-keep" style="cursor:pointer">Add it to my list for next time</label>'
-      + '</div>';
+      + '</div>'
+      + (parts
+          ? '<div style="' + SECT + ';margin-top:0.9rem">Parts you have for this item</div>'
+            + '<div style="font-size:0.72rem;color:var(--text-dim);margin-bottom:0.3rem">Tick a part to put it on this task.</div>'
+            + '<div id="maint-chore-parts">' + parts + '</div>'
+          : '')
+      + '<div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-top:0.9rem">'
+      +   '<button onclick="' + addJs + '" ' + _btnPrimary('padding:0.55rem 1rem;font-size:0.82rem') + '>+ Add task</button>'
+      +   '<button onclick="' + addJs.replace(/\(\)$/, '(true)') + '" ' + _btn('blue') + '>+ Add a part for it</button>'
+      + '</div>'
+      + '<div style="font-size:0.7rem;color:var(--text-dim);margin-top:0.45rem">“+ Add a part for it” saves the task, then opens Need a part for that job.</div>';
   }
+  // v0.9.1858: the Maintenance card's "+ Add task" opens this pop-up; the
+  // Workbench's step 2 shows the same body inside its own card.
+  window._maintAddTaskPopup = function () {
+    var tg = _target();
+    if (!tg.item) return;
+    var old = document.getElementById('maint-addtask-pop'); if (old) old.remove();
+    var html = '<div id="maint-addtask-pop" style="position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:100025;display:flex;align-items:flex-start;justify-content:center;overflow-y:auto;padding:2rem 1rem">'
+      + _cardOpen(520)
+      + _cardHead('No. ' + _esc(String(tg.item.itemNum || '')) + (tg.item.roadName ? ' · ' + _esc(tg.item.roadName) : ''), 'Add a task', "document.getElementById('maint-addtask-pop').remove()")
+      + _choreFormHtml('_maintAddChore()')
+      + '</div></div>';
+    document.body.insertAdjacentHTML('beforeend', html);
+    try { if (window.rrDismissGuard) window.rrDismissGuard(document.getElementById('maint-addtask-pop')); } catch (eG) {}
+  };
   // v0.9.1766: take a custom task back off the list. The five built-ins stay.
-  window._maintDelChore = function () {
-    var sel = document.getElementById('maint-chore-pick');
-    if (!sel || !sel.value || sel.value === '__custom') return;
-    if (CHORES.indexOf(sel.value) >= 0) {
+  // v0.9.1858: called with the NAME, from the × on a custom line.
+  window._maintDelChore = function (name) {
+    var gone = String(name || '').trim();
+    if (!gone || gone === '__custom') return;
+    if (CHORES.indexOf(gone) >= 0) {
       if (typeof showToast === 'function') showToast('That one is built in — it stays on the list.', 2500);
       return;
     }
-    var gone = sel.value;
     _saveFavs(MAINT.PREF_CHORES, _favs(MAINT.PREF_CHORES).filter(function (c) { return c !== gone; }));
-    sel.remove(sel.selectedIndex);
-    sel.value = CHORES[0];
-    if (typeof window._maintChorePickChange === 'function') window._maintChorePickChange(sel);
+    if (typeof window._maintChoreListRefresh === 'function') window._maintChoreListRefresh();
     // Tasks already created with this name are untouched — this is the list of
     // suggestions, not the tasks themselves.
     if (typeof showToast === 'function') showToast('Took \u201c' + gone + '\u201d off the list');
   };
-  window._maintAddChore = async function () {
+  window._maintAddChore = async function (andPart) {
     var tg = _target();
     if (!_isOwner() || !tg.item) return;
     var sel = document.getElementById('maint-chore-pick');
     var customIn = document.getElementById('maint-chore-custom-in');
     var chore = sel && sel.value === '__custom' ? (customIn ? String(customIn.value || '').trim() : '') : (sel ? sel.value : '');
-    if (!chore) { if (typeof showToast === 'function') showToast('Type the new task first.', 2500, true); return; }
+    if (!chore) { if (typeof showToast === 'function') showToast(sel && sel.value === '__custom' ? 'Type the new task first.' : 'Pick what needs doing first.', 2500, true); return; }
+    // v0.9.1858: the parts ticked in the pop-up go on the new task once it exists
+    var picked = [];
+    try { picked = Array.prototype.map.call(document.querySelectorAll ? document.querySelectorAll('input[name="maint-chore-part"]:checked') : [], function (c) { return parseInt(c.value, 10); }).filter(function (n) { return n > 0; }); } catch (eP) { picked = []; }
     // v0.9.1766 (Brad): only joins the dropdown if he ticked the box.
     if (sel && sel.value === '__custom') {
       var keep = document.getElementById('maint-chore-custom-keep');
@@ -2082,13 +2161,24 @@
     try {
       if (!(await _ensureLogTab())) throw new Error('log tab unavailable');
       var _t = function (v) { v = String(v || ''); return v && v.charAt(0) !== "'" ? "'" + v : v; };
-      var row = [_t('log-' + Date.now()), _t(tg.invId || ''), _t(String(tg.item.itemNum || '')),
+      var logId = 'log-' + Date.now();
+      var row = [_t(logId), _t(tg.invId || ''), _t(String(tg.item.itemNum || '')),
                  'chore', chore, '', '', _t(new Date().toISOString().split('T')[0]), '', 'open'];
       await sheetsAppend(state.personalSheetId, LOG_TAB + '!A:J', [row]);
       await _loadLog(); _wbBadge(); _maintRenderTasks();
       if (customIn) customIn.value = '';
-      if (_wbTarget) _wbCloseCard();   // came in through the Workbench card → close it, redraw the bench
-      if (typeof showToast === 'function') showToast('✓ On the Workbench: ' + chore);
+      var pop = (document.getElementById ? document.getElementById('maint-addtask-pop') : null); if (pop) pop.remove();
+      // came in through the Workbench card → close it, redraw the bench. With
+      // "+ Add a part for it" the card goes but the TARGET stays, so the Need-a-
+      // part pop-up that follows is for this item (the _wbPartFor way).
+      if (_wbTarget) { if (andPart) { var _wc = document.getElementById('wb-card'); if (_wc) _wc.remove(); _wbBuild(); } else _wbCloseCard(); }
+      // v0.9.1858: the ticked parts, one column-M write each (the ONE writer)
+      for (var pi = 0; pi < picked.length; pi++) {
+        try { if (typeof _maintPartSetTask === 'function') await _maintPartSetTask(picked[pi], logId); } catch (ePS) {}
+      }
+      if (typeof showToast === 'function') showToast('✓ On the Workbench: ' + chore + (picked.length ? ' (' + picked.length + ' part' + (picked.length === 1 ? '' : 's') + ' on it)' : ''));
+      // v0.9.1858: "+ Add a part for it" — the task exists now, so Need a part opens FOR it
+      if (andPart && typeof window._maintPartsPopup === 'function') window._maintPartsPopup(logId, 'No. ' + String(tg.item.itemNum || '') + ' \u00b7 ' + chore);
     } catch (e) { if (typeof showToast === 'function') showToast(rrSaveError(e, 'the chore'), 4000, true); }
   };
 
@@ -3699,7 +3789,6 @@
       _wbOverlay(_cardHead(ctx + ' · Step 2 of 2', 'Add a task', '_wbCloseCard()')
         + _choreFormHtml('_maintAddChore()')
         + '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.6rem">It lands on the bench and on the item’s Maintenance card.</div>');
-      var sel = document.getElementById('maint-chore-pick'); if (sel) sel.focus();
       return;
     }
     // a part: tie it to one of the unit's open tasks, or to the unit itself
