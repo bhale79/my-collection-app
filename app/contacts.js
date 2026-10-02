@@ -16,7 +16,7 @@
 (function () {
   'use strict';
 
-  var TAB = 'Contacts';
+  var TAB = (typeof rrFeatureTab === 'function' ? rrFeatureTab : String)('Contacts');   // v0.9.1861: registered where it is born (config.js RR_FEATURE_TABS); String when config.js is not loaded (a test sandbox)
   // v0.9.764 (Brad): + Mailing Address, Website. Columns K/L appended (tab is
   // created on first save, so widening now costs nothing). "Store name" = the
   // Business column (label reads Store / Business). Phase 2 (Brad-confirmed):

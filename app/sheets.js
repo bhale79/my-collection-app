@@ -607,7 +607,7 @@ if (typeof window !== 'undefined') window.rrRemoveRowConfirmed = rrRemoveRowConf
 // **If the copy cannot be made, the removal does not happen.** That is the
 // whole point — an unrecoverable removal is the thing being prevented. The
 // failure is always announced, never silent.
-const RR_TRASH_TAB = 'Deleted Rows';
+const RR_TRASH_TAB = (typeof rrFeatureTab === 'function' ? rrFeatureTab : String)('Deleted Rows');   // v0.9.1861: registered where it is born (config.js RR_FEATURE_TABS); String when config.js is not loaded (a test sandbox)
 let _rrTrashReady = false;          // the tab is checked once per session, not per row
 
 function _rrTrashSkip(spreadsheetId, sheetName) {

@@ -4076,6 +4076,8 @@ async function _upgradeGotItFinish(ugKey, action) {
 // Columns A-H: Part ID, Description, Part Number, For Item, For Inventory ID,
 // Photo Link, Notes, Date Added.
 // ════════════════════════════════════════════════════════════════════
+// v0.9.1861: the tab is registered as a feature tab where it is born (config.js RR_FEATURE_TABS)
+if (typeof rrFeatureTab === 'function') rrFeatureTab('Parts Needed');
 async function _ensurePartsTab() {
   if (!state.personalSheetId || typeof accessToken === 'undefined' || !accessToken) return false;
   try {

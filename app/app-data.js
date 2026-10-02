@@ -2541,7 +2541,13 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
   // tab. Belt and braces with the canonical set in syncUserDefinedTabsFromSheet:
   // this one stops it LOADING even if a stale cached userDefinedTabs entry
   // survives, which is exactly how it kept its Show chip.
-  const _RESERVED_TABS = { 'Parts Needed': 1, 'Contacts': 1, 'Barcode Map': 1, 'Maintenance Log': 1, 'My Manuals': 1, 'Parts Bin': 1 };   // v0.9.1667: Parts Bin reserved in the SAME commit that creates it   // v0.9.794 Contacts; v0.9.1658: the Workbench tabs leaked into My Collection as sellable phantom items (Brad's screenshot — log rows with For Sale buttons)
+  // v0.9.1861: read from the ONE registry (config.js RR_FEATURE_TABS) — a
+  // feature registers its tab where the name is born, so this guard can no
+  // longer be missing one. (History: v0.9.794 Contacts; v0.9.1658 the
+  // Workbench tabs leaked in as sellable phantom items; v0.9.1667 Parts Bin;
+  // v0.9.1861 Deleted Rows — the fourth tab left off a hand-typed list.)
+  const _RESERVED_TABS = {};
+  (typeof RR_FEATURE_TABS !== 'undefined' ? RR_FEATURE_TABS : []).forEach(n => { _RESERVED_TABS[n] = 1; });
   const _utPromises = (state.userDefinedTabs||[]).filter(ut => ut && !_RESERVED_TABS[ut.label]).map(ut =>
     sheetsGet(sheetId, ut.label + '!A3:J').catch((e) => { console.warn('[Custom tab ' + ut.label + ' load failed]', e && e.message); return {values:[], _failed:true}; })
       .then(utRes => parseEphemeraRows(utRes.values, newEphemera[ut.id]))

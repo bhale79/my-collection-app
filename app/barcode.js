@@ -1142,6 +1142,8 @@ window.eraSupportsBarcode = eraSupportsBarcode;
   // barcode saves its pairing; every decode consults the map first. Lives in
   // a 'Barcode Map' tab on the personal sheet (visible, durable, exportable
   // into the master later) with a local cache so lookups are instant.
+  // v0.9.1861: the tab is registered as a feature tab where it is born (config.js RR_FEATURE_TABS)
+  if (typeof rrFeatureTab === 'function') rrFeatureTab('Barcode Map');
   var _bcMapMem = null;
   function _bcMapNorm(raw) {
     var v = String(raw || '').trim();

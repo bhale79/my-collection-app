@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.1860';
+const APP_VERSION = 'v0.9.1861';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -1883,6 +1883,33 @@ function ephCanonType(itemType) {
   return id ? ephTab(id).type : itemType;
 }
 if (typeof window !== 'undefined') { window.EPHEMERA_TABS = EPHEMERA_TABS; window.ephTab = ephTab; window.ephSectionOfType = ephSectionOfType; window.ephCanonType = ephCanonType; }
+// ═══════════════════════════════════════════════════════════════
+// FEATURE TABS — the ONE registry (v0.9.1861)
+// Brad, 2026-10-02, a "Deleted Rowss" chip in My Collection listing two
+// cleared service-history rows as garbled items: "so lets get rid of that.
+// it will confuse a user."
+//
+// A feature that writes its own tab on the user's sheet (Parts Needed,
+// Contacts, Barcode Map, the three Workbench tabs, the Deleted Rows safety
+// copy) is machine plumbing, never one of the user's collection sections.
+// The app tells them apart with TWO hand-kept lists — the canonical set in
+// syncUserDefinedTabsFromSheet (app-setup.js, gives a tab its Show chip) and
+// _RESERVED_TABS in loadPersonalData (app-data.js, stops its rows loading as
+// items) — and FOUR times now a new tab was left off one of them: Parts
+// Needed, Contacts (v794, "Contactss"), Barcode Map (v1426), Deleted Rows
+// (v1861). Remembering is the part that keeps failing, so there is nothing
+// left to remember: a feature registers its tab name where the name is
+// born —
+//     var LOG_TAB = rrFeatureTab('Maintenance Log');
+// — and both guards read this list. tests/barcode-map-tests.js walks every
+// addSheet in the app and fails on a tab that is created but not registered.
+var RR_FEATURE_TABS = [];
+function rrFeatureTab(name) {
+  name = String(name || '');
+  if (name && RR_FEATURE_TABS.indexOf(name) < 0) RR_FEATURE_TABS.push(name);
+  return name;
+}
+if (typeof window !== 'undefined') { window.RR_FEATURE_TABS = RR_FEATURE_TABS; window.rrFeatureTab = rrFeatureTab; }
 // ── Saved storage locations, two levels (v0.9.1531b) ────────────
 // Brad: "manage the totes INSIDE each location, and the wizard should then
 // suggest only the details belonging to the location you chose."

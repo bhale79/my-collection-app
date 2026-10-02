@@ -1819,7 +1819,7 @@
   //  Topics, Notes, Date Added. covers = item numbers (fitment for
   //  documents); topics feed the future Toolbox filter.
   // ════════════════════════════════════════════════════════════════
-  var DOCS_TAB = 'My Manuals';
+  var DOCS_TAB = (typeof rrFeatureTab === 'function' ? rrFeatureTab : String)('My Manuals');   // v0.9.1861: registered where it is born (config.js RR_FEATURE_TABS); String when config.js is not loaded (a test sandbox)
   async function _ensureDocsTab() {
     try {
       var meta = await (await fetch('https://sheets.googleapis.com/v4/spreadsheets/' + state.personalSheetId + '?fields=sheets.properties',
@@ -2002,7 +2002,7 @@
   //  Data: 'Maintenance Log' personal-sheet tab (append-mostly) +
   //  the phase-2 parts lifecycle already in state.partsData.
   // ════════════════════════════════════════════════════════════════
-  var LOG_TAB = 'Maintenance Log';
+  var LOG_TAB = (typeof rrFeatureTab === 'function' ? rrFeatureTab : String)('Maintenance Log');   // v0.9.1861: registered where it is born (config.js RR_FEATURE_TABS); String when config.js is not loaded (a test sandbox)
   // v0.9.1661 (Brad): Find-a-part and Test-run cut (didn't make sense as
   // chores), Change battery added, and CUSTOM chores are REMEMBERED —
   // type one once via "Something else…" and it joins the dropdown.
@@ -2975,7 +2975,7 @@
   //  BOUGHT state linked to the task — the phase-2 lifecycle takes it
   //  from there.
   // ════════════════════════════════════════════════════════════════
-  var BIN_TAB = 'Parts Bin';
+  var BIN_TAB = (typeof rrFeatureTab === 'function' ? rrFeatureTab : String)('Parts Bin');   // v0.9.1861: registered where it is born (config.js RR_FEATURE_TABS); String when config.js is not loaded (a test sandbox)
   async function _ensureBinTab() {
     try {
       var meta = await (await fetch('https://sheets.googleapis.com/v4/spreadsheets/' + state.personalSheetId + '?fields=sheets.properties',

@@ -759,35 +759,32 @@ async function syncUserDefinedTabsFromSheet(sheetId) {
       ...EPHEMERA_TABS.map(t => t.sheetTab),
       'Instruction Sheets', 'Science Sets', 'Construction Sets', 'My Sets',
       'Dashboard',
-      // Standalone feature tabs that are NOT collection/ephemera tabs:
-      'Parts Needed',
-      'Contacts',   // v0.9.794: the rolodex leaked into My Collection as "Contactss"
-      // v0.9.1426 (Brad: "the barcode map should not be seen by any user
-      // period") — THE THIRD TIME this list has been the bug. The Barcode Map
-      // tab is machine plumbing written by the scanner (v0.9.1112): UPC → item
-      // number, so a box scanned once is recognised forever, and shared to the
-      // community pool. It is not something anyone owns. Missing from this set,
-      // it was filed as one of the user's OWN collection tabs, which gave it a
-      // Show chip beside Trains/Catalogs and — worse — ran it through
-      // parseEphemeraRows, a paper-item parser. Every column landed in the
-      // wrong field: the UPC as title, the item number as description, the
-      // maker as year, and the learned-on DATE SERIAL (46242) as
-      // manufacturer. Any tab a FEATURE creates belongs here the day it
-      // is created; see tests/barcode-map-tests.js, which now fails if a known
-      // feature tab is missing from this set.
-      'Barcode Map',
+      // Standalone feature tabs that are NOT collection/ephemera tabs —
+      // Parts Needed, Contacts, Barcode Map, the Workbench's three, the
+      // Deleted Rows safety copy. Until v0.9.1861 they were typed here by
+      // hand, and FOUR times a new one was forgotten: Parts Needed, Contacts
+      // (v794, a "Contactss" chip), Barcode Map (v1426, UPCs parsed as paper
+      // items), Deleted Rows (v1861, cleared service-history rows shown as
+      // items with every column in the wrong field). Now each feature
+      // registers its tab where the name is born — rrFeatureTab() in
+      // config.js — and this set reads the registry. Nothing to remember.
+      // tests/barcode-map-tests.js walks every addSheet in the app and fails
+      // on a tab that is created but never registered.
+      ...(typeof RR_FEATURE_TABS !== 'undefined' ? RR_FEATURE_TABS : []),
     ]);
     // Prune any reserved tab that was wrongly captured as user-defined before
-    // it was added to the canonical set above (e.g. 'Parts Needed').
+    // it was registered (a chip saved on this device by an older release).
     if (state.userDefinedTabs && state.userDefinedTabs.length) {
-      const _before = state.userDefinedTabs.length;
-      state.userDefinedTabs = state.userDefinedTabs.filter(t => !canonical.has(t.label));
-      if (state.userDefinedTabs.length !== _before) {
+      const _wrong = state.userDefinedTabs.filter(t => t && canonical.has(t.label));
+      if (_wrong.length) {
+        state.userDefinedTabs = state.userDefinedTabs.filter(t => !(t && canonical.has(t.label)));
         saveUserDefinedTabs();
         // v0.9.1426: the bucket must go too, or the chip survives the fix —
         // the tab is pruned from userDefinedTabs but its already-loaded
-        // ephemeraData entry keeps rendering the section.
-        if (state.ephemeraData) { delete state.ephemeraData.parts_needed; delete state.ephemeraData.contacts; delete state.ephemeraData.barcode_map; }
+        // ephemeraData entry keeps rendering the section. v0.9.1861: the
+        // pruned tab's OWN bucket, whichever tab it is — not a hand list.
+        if (state.ephemeraData) _wrong.forEach(t => { try { delete state.ephemeraData[t.id]; } catch (e) {} });
+        console.log('[UserTabs] pruned', _wrong.length, 'feature tab(s) wrongly saved as the user\'s own:', _wrong.map(t => t.label).join(', '));
       }
     }
     // v0.9.1204 (structural audit #10): this function ADDED unknown tabs but
