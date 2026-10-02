@@ -112,7 +112,8 @@ FILES.forEach(function (f) {
 // assert exactly that, and name the constants. Adding an armed handler now
 // needs no edit here at all; adding an UNARMED one fails and prints its own
 // name, which is far more useful than "expected 64, got 65".
-const KNOWN_CONSTANTS = ['ATLAS_PAGE', 'f', 'ke', 'prefKey', 'selectId', 'st', 'x[0]'];
+// v0.9.1860: prefKey and selectId left this list — the favourites row arms them through rrJsArg now.
+const KNOWN_CONSTANTS = ['ATLAS_PAGE', 'f', 'ke', 'st', 'x[0]'];
 ok('every handler argument that carries text goes through rrJsArg',
    unarmed.every(u => KNOWN_CONSTANTS.indexOf(u.expr) >= 0),
    unarmed.filter(u => KNOWN_CONSTANTS.indexOf(u.expr) < 0).map(u => u.file + ':' + u.expr).join(', '));

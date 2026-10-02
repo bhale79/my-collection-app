@@ -57,6 +57,8 @@ const SRC = [
   'function _catalogPartLinkHtml(r, item)',
   'function _partLinkA(href, word)',
   'function _favRow(prefKey, selectId, label)',
+  'function _favKind(prefKey)',          // v0.9.1860: the list panel behind the row
+  'function _favPanelHtml(prefKey, selectId, label, pick)',
   'function _maintCatalogLaneHtml(rows, q, taskId, item)',
 ].map(grab);
 // v0.9.1770: the part line now offers the MAKER'S page as well as the store's,
@@ -94,10 +96,10 @@ function room(opts) {
     getElementById: id => (id === 'maint-pop-dealer' ? sel : (id === 'maint-pop-catalog' && opts.lane ? opts.lane : null)),
   };
   const rrJsArg = v => esc(String(v == null ? '' : v).replace(/\\/g, '\\\\').replace(/'/g, "\\'"));
-  const api = new Function('MAINT', 'ERAS', '_esc', 'rrJsArg', '_btn', '_btnQuiet', '_makerName', '_favs', '_prefGet', '_prefSet', 'document', 'window', '_maintCatalogLaneRender', 'state', '_partsMakerOf',
+  const api = new Function('MAINT', 'ERAS', '_esc', 'rrJsArg', '_btn', '_btnQuiet', '_btnPrimary', '_makerName', '_favs', '_prefGet', '_prefSet', 'document', 'window', '_maintCatalogLaneRender', 'state', '_partsMakerOf',
     'var _plIdx = null, _plIdxRows = null, _plIdxLen = -1;\n' + dataSrc.join('\n') + '\n'
-    + SRC.join('\n') + '\n' + picked + ';\nreturn { url: _partsUrl, site: _dealerSite, words: _plainWords, phrase: _partPhrase, pick: _dealerPick, link: _catalogPartLinkHtml, favRow: _favRow, lane: _maintCatalogLaneHtml, picked: window._maintDealerPicked };'
-  )(MAINT, ERAS, esc, rrJsArg, () => 'class="btn"', () => 'class="quiet"', (item) => (item && item.manufacturer) || 'Lionel',
+    + SRC.join('\n') + '\n' + picked + ';\nreturn { url: _partsUrl, site: _dealerSite, words: _plainWords, phrase: _partPhrase, pick: _dealerPick, link: _catalogPartLinkHtml, favRow: _favRow, panel: _favPanelHtml, lane: _maintCatalogLaneHtml, picked: window._maintDealerPicked };'
+  )(MAINT, ERAS, esc, rrJsArg, () => 'class="btn"', () => 'class="quiet"', () => 'class="p"', (item) => (item && item.manufacturer) || 'Lionel',
     (key) => (key === MAINT.PREF_DEALERS ? favs.slice() : []), (k, d) => (k in prefs ? prefs[k] : d), (k, v) => { prefs[k] = v; },
     document, {}, (t) => spy.renders.push(t),
     // real parts rows carry itemType "Part"; the link index only indexes those
@@ -254,18 +256,24 @@ ok('_favs seeds NOTHING — no Trainz, no Train Tender, no Henning\'s in the cod
 ok('…it returns only what was saved, and an unreadable value is an empty list, never a default',
    /return a;/.test(favSrc) && /catch \(e\) \{ return \[\]; \}/.test(favSrc));
 const emptyRoom = room({ favs: [] });
-ok('an untouched dealer dropdown offers only Any dealer and the maker\'s own store',
-   (emptyRoom.api.favRow('maint_parts_dealers', 'maint-pop-dealer', 'Any dealer').match(/<option/g) || []).length === 2);
+// v0.9.1860: the row is a button + a list panel (no <select>); the choices are the panel's lines
+ok('an untouched dealer list offers only Any dealer and the maker\'s own store',
+   (emptyRoom.api.panel('maint_parts_dealers', 'maint-pop-dealer', 'Any dealer', '').match(/data-fav="/g) || []).length === 2);
 
 section('The dropdown: the favorite-store list, one built-in choice, remembers its pick');
 R = room({ favs: ['trainz.com', 'Olsen\'s'], prefs: { maint_parts_dealer_pick: 'Olsen\'s' } });
 h = R.api.favRow('maint_parts_dealers', 'maint-pop-dealer', 'Any dealer');
-ok('Any dealer first, then "The maker\'s own store", then the user\'s favorites, in that order',
-   h.indexOf('>Any dealer<') < h.indexOf('value="__maker">The maker&#39;s own store<') && h.indexOf('__maker') < h.indexOf('>trainz.com<') && h.indexOf('>trainz.com<') < h.indexOf('>Olsen&#39;s<'));
-ok('the remembered pick is selected', /value="Olsen&#39;s" selected>/.test(h) && (h.match(/ selected>/g) || []).length === 1);
-ok('picking calls the handler; + Add and − are still there', /onchange="_maintDealerPicked\(this\)"/.test(h) && /_maintAddFav\('maint_parts_dealers','maint-pop-dealer'\)/.test(h) && /_maintDelFav\('maint_parts_dealers','maint-pop-dealer'\)/.test(h));
+ok('the row: a hidden field with the ORIGINAL id carrying the remembered pick, and a button showing it (v1860)',
+   /<input type="hidden" id="maint-pop-dealer" value="Olsen&#39;s">/.test(h) && /id="maint-pop-dealer-txt">Olsen&#39;s</.test(h) && !/<select/.test(h) && !/\+ Add</.test(h) && !/&minus;/.test(h));
+let ph = R.api.panel('maint_parts_dealers', 'maint-pop-dealer', 'Any dealer', "Olsen's");
+ok('the panel: Any dealer first, then "The maker\'s own store", then the user\'s favorites, in that order',
+   ph.indexOf('>Any dealer<') < ph.indexOf("The maker&#39;s own store") && ph.indexOf('__maker') < ph.indexOf('>trainz.com<') && ph.indexOf('>trainz.com<') < ph.indexOf('Olsen&#39;s<'));
+ok('the remembered pick is marked, once', /\u2713 Olsen&#39;s</.test(ph) && (ph.match(/\u2713 /g) || []).length === 1);
+ok('a favourite has a × (_maintDelFav with its name); the built-ins have none', /_maintDelFav\('maint_parts_dealers','maint-pop-dealer','Olsen\\&#39;s'\)/.test(ph) && !/data-fav="__maker"[^]*?_maintDelFav[^]*?data-fav="trainz/.test(ph.slice(0, ph.indexOf('data-fav="trainz'))));
+ok('"+ Add a store…" and its name box are in the panel; picking goes through _favPick', /\+ Add a store\u2026/.test(ph) && /id="maint-pop-dealer-new"/.test(ph) && /_favPick\('maint_parts_dealers','maint-pop-dealer','__maker'\)/.test(ph));
 h = R.api.favRow('maint_yt_channels', 'maint-yt-channel', 'All of YouTube');
-ok('the YouTube channel row is untouched: no maker choice, no handler', !/__maker/.test(h) && !/onchange/.test(h));
+ph = R.api.panel('maint_yt_channels', 'maint-yt-channel', 'All of YouTube', '');
+ok('the YouTube channel row: no maker choice; "+ Add a channel…"', !/__maker/.test(ph) && /\+ Add a channel\u2026/.test(ph) && !/<select/.test(h));
 
 section('Source pins: the two places draw with the same rule; nothing writes price or link');
 const drawer = grab('function _binFitsHtml(b)'), fits = grab('function _binFits(b)');
@@ -278,8 +286,8 @@ const popSearch = grab('window._maintPopSearch = function ()');
 ok('the typed box\'s Search → goes through the same builder', /_partsUrl\(dealer, tg\.item, part\.trim\(\)\)/.test(popSearch));
 ok('the lane is redrawn with the card\'s item', /_maintCatalogLaneHtml\(_maintPickerParts\(tg, taskId\)\.catalog, q, taskId, tg\.item\)/.test(grab('function _maintCatalogLaneRender(taskId)')));
 ok('the lane\'s container remembers its task so a new pick can redraw it', /id="maint-pop-catalog" data-task="' \+ _esc\(taskId \|\| ''\) \+ '"/.test(grab('window._maintPartsPopup = function (taskId, taskName)')));
-ok('− cannot remove the built-in choice, and a removal goes back to Any dealer', /if \(sel\.value === MAINT\.MAKER_STORE\) return;/.test(grab('window._maintDelFav = function (prefKey, selectId)')) && /window\._maintDealerPicked\(sel\)/.test(grab('window._maintDelFav = function (prefKey, selectId)')));
-ok('adding a store makes it the pick', /if \(prefKey === MAINT\.PREF_DEALERS\) window\._maintDealerPicked\(sel\);/.test(grab('window._maintAddFav = async function (prefKey, selectId)')));
+ok('× cannot remove the built-in choice, and removing the current pick goes back to Any dealer', /if \(gone === MAINT\.MAKER_STORE\) return;/.test(grab('window._maintDelFav = function (prefKey, selectId, name)')) && /window\._maintDealerPicked\(hid\)/.test(grab('window._maintDelFav = function (prefKey, selectId, name)')));
+ok('adding a store makes it the pick (through _favPick, which tells the lane)', /window\._favPick\(prefKey, selectId, name\);/.test(grab('window._maintAddFav = async function (prefKey, selectId)')) && /if \(prefKey === MAINT\.PREF_DEALERS\) window\._maintDealerPicked\(hid\);/.test(grab('window._favPick = function (prefKey, selectId, value)')));
 ok('the lane never reads a price or a stock note any more', !/msrp|In stock|Out of stock/.test(grab('function _maintCatalogLaneHtml(rows, q, taskId, item)')));
 // v0.9.1770: the anchor itself moved into _partLinkA, because there are two of
 // them now. Still exactly ONE place that writes a catalog row's link.

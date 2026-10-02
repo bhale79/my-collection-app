@@ -1337,53 +1337,121 @@
   window._catalogPartLinkHtml = _catalogPartLinkHtml;
 
   // ── favorites row (shared by Videos + Parts sections) ────────
+  // v0.9.1860 ([stated] Brad, 2026-10-02, brainstorm → "lets do that. go"):
+  // "brainstorm how to add the add and subtract buttons to the dropdown menu
+  // so that you get a list of youtubers and can add and subtract there. they
+  // don't need to be on this page at all." A plain <select> can hold words
+  // only, so the box is a BUTTON that opens a list panel in the flow beneath
+  // it: the built-in choice(s) first, then each favourite with a × to take
+  // it off, then "+ Add a channel… / + Add a store…" which reveals a name box
+  // right there. The pick rides in a hidden input with the row's ORIGINAL id
+  // and value, so every reader (_maintSearchYt, _maintPopSearch, _dealerPick)
+  // is unchanged. ONE builder for the YouTube channels and the parts dealers.
+  function _favKind(prefKey) {
+    var isDealer = prefKey === MAINT.PREF_DEALERS, isChannel = prefKey === MAINT.PREF_CHANNELS;
+    return { isDealer: isDealer,
+             addLine: isChannel ? '+ Add a channel…' : isDealer ? '+ Add a store…' : '+ Add a favorite…',
+             ph: isChannel ? '@handle or channel name (e.g. @TrainRepairGuy)' : isDealer ? "Store name (e.g. Joe's Train Shop)" : 'Name' };
+  }
+  function _favPanelHtml(prefKey, selectId, label, pick) {
+    var k = _favKind(prefKey), favs = _favs(prefKey);
+    var LINE = 'display:flex;align-items:center;justify-content:space-between;gap:0.5rem;width:100%;box-sizing:border-box;text-align:left;padding:0.45rem 0.7rem;border-radius:8px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.82rem;font-weight:500;cursor:pointer';
+    var line = function (v, t, removable) {
+      var on = String(v) === String(pick || '');
+      return '<button type="button" data-fav="' + _esc(v) + '" onclick="_favPick(\'' + rrJsArg(prefKey) + '\',\'' + rrJsArg(selectId) + '\',\'' + rrJsArg(v) + '\')" style="' + LINE + (on ? ';border-color:var(--accent);font-weight:700' : '') + '">'
+        + '<span>' + (on ? '✓ ' : '') + _esc(t) + '</span>'
+        + (removable ? '<span onclick="event.stopPropagation();_maintDelFav(\'' + rrJsArg(prefKey) + '\',\'' + rrJsArg(selectId) + '\',\'' + rrJsArg(v) + '\')" title="Take this one off the list" style="color:var(--text-dim);font-size:0.8rem;padding:0 0.2rem">&#x2715;</span>' : '')
+        + '</button>';
+    };
+    return '<div style="display:flex;flex-direction:column;gap:0.35rem">'
+      + line('', label, false)
+      + (k.isDealer ? line(MAINT.MAKER_STORE, "The maker's own store", false) : '')
+      + favs.map(function (f) { return line(f, f, true); }).join('')
+      + '<button type="button" onclick="_favAddShow(\'' + rrJsArg(selectId) + '\')" style="' + LINE + ';color:var(--t-link)">' + _esc(k.addLine) + '</button>'
+      + '<div id="' + selectId + '-addrow" style="display:none;gap:0.4rem;margin-top:0.2rem">'
+      +   '<input id="' + selectId + '-new" placeholder="' + _esc(k.ph) + '" onkeydown="if(event.key===\'Enter\')_maintAddFav(\'' + rrJsArg(prefKey) + '\',\'' + rrJsArg(selectId) + '\')" style="flex:1;min-width:120px;padding:0.45rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.82rem">'
+      +   '<button onclick="_maintAddFav(\'' + rrJsArg(prefKey) + '\',\'' + rrJsArg(selectId) + '\')" ' + _btnPrimary('padding:0.45rem 0.8rem;font-size:0.78rem') + '>Add</button>'
+      + '</div>'
+      + '</div>';
+  }
   function _favRow(prefKey, selectId, label) {
-    var favs = _favs(prefKey);
     // v0.9.1759: the dealer row remembers its pick and carries ONE built-in
     // choice, "The maker's own store" (MAINT.MAKER_STORE); the other rows are as before
     var isDealer = prefKey === MAINT.PREF_DEALERS, pick = isDealer ? _dealerPick() : '';
-    var opt = function (v, t) { return '<option value="' + _esc(v) + '"' + (isDealer && v === pick ? ' selected' : '') + '>' + _esc(t) + '</option>'; };
-    var opts = opt('', label) + (isDealer ? opt(MAINT.MAKER_STORE, "The maker's own store") : '')
-      + favs.map(function (f) { return opt(f, f); }).join('');
-    return '<div style="display:flex;gap:0.4rem;align-items:center;flex-wrap:wrap">'
-      + '<select id="' + selectId + '"' + (isDealer ? ' onchange="_maintDealerPicked(this)"' : '') + ' style="flex:1;min-width:130px;padding:0.45rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.82rem">' + opts + '</select>'
-      + '<button onclick="_maintAddFav(\'' + prefKey + '\',\'' + selectId + '\')" title="Add a favorite" ' + _btnQuiet() + '>+ Add</button>'
-      + '<button onclick="_maintDelFav(\'' + prefKey + '\',\'' + selectId + '\')" title="Remove the selected favorite" ' + _btnQuiet() + '>&minus;</button>'
+    var shown = pick === MAINT.MAKER_STORE ? "The maker's own store" : (pick || label);
+    return '<div id="' + selectId + '-wrap" data-pref="' + _esc(prefKey) + '" data-label="' + _esc(label) + '">'
+      + '<input type="hidden" id="' + selectId + '" value="' + _esc(pick) + '">'
+      + '<button type="button" id="' + selectId + '-btn" onclick="_favPanelToggle(\'' + rrJsArg(prefKey) + '\',\'' + rrJsArg(selectId) + '\')" aria-haspopup="listbox" style="display:flex;justify-content:space-between;align-items:center;gap:0.5rem;width:100%;box-sizing:border-box;text-align:left;padding:0.5rem 0.7rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.85rem;cursor:pointer">'
+      +   '<span id="' + selectId + '-txt">' + _esc(shown) + '</span><span aria-hidden="true" style="color:var(--text-dim)">▾</span>'
+      + '</button>'
+      + '<div id="' + selectId + '-panel" style="display:none;margin-top:0.4rem;padding:0.5rem;border-radius:10px;border:1px solid var(--border);background:var(--surface)"></div>'
       + '</div>';
   }
+  function _favPanelRedraw(prefKey, selectId) {
+    var panel = document.getElementById(selectId + '-panel'), wrap = document.getElementById(selectId + '-wrap'), hid = document.getElementById(selectId);
+    if (!panel || !hid) return;
+    panel.innerHTML = _favPanelHtml(prefKey, selectId, wrap ? wrap.getAttribute('data-label') || '' : '', hid.value);
+  }
+  window._favPanelToggle = function (prefKey, selectId) {
+    var panel = document.getElementById(selectId + '-panel');
+    if (!panel) return;
+    var open = panel.style.display !== 'none';
+    if (open) { panel.style.display = 'none'; return; }
+    _favPanelRedraw(prefKey, selectId);
+    panel.style.display = '';
+  };
+  window._favPick = function (prefKey, selectId, value) {
+    var hid = document.getElementById(selectId), txt = document.getElementById(selectId + '-txt'), wrap = document.getElementById(selectId + '-wrap'), panel = document.getElementById(selectId + '-panel');
+    if (!hid) return;
+    hid.value = String(value || '');
+    if (txt) txt.textContent = hid.value === MAINT.MAKER_STORE ? "The maker's own store" : (hid.value || (wrap ? wrap.getAttribute('data-label') : '') || '');
+    if (panel) panel.style.display = 'none';
+    if (prefKey === MAINT.PREF_DEALERS) window._maintDealerPicked(hid);   // v0.9.1759: the pick is remembered, the lane follows it
+  };
+  window._favAddShow = function (selectId) {
+    var row = document.getElementById(selectId + '-addrow');
+    if (!row) return;
+    row.style.display = 'flex';
+    var inp = document.getElementById(selectId + '-new'); if (inp) inp.focus();
+  };
   window._maintAddFav = async function (prefKey, selectId) {
-    var name = await appPrompt(prefKey === MAINT.PREF_CHANNELS
-      ? 'YouTube channel name or @handle (e.g. @TrainRepairGuy).'
-      : prefKey === MAINT.PREF_SUPPLIERS
-      ? 'Parts supplier name (e.g. Trainz, Olsen\'s).'
-      : 'Parts dealer name (e.g. Joe\'s Train Shop).', '', { title: 'Add a favorite', ok: 'Add' });
-    if (!name || !String(name).trim()) return;
-    name = String(name).trim();
+    var inp = document.getElementById(selectId + '-new');
+    var name = inp ? String(inp.value || '').trim() : '';
+    if (!name) {
+      // no name box on screen (an old caller) → ask in the app's own box
+      if (inp) { window._favAddShow(selectId); return; }
+      name = await appPrompt(prefKey === MAINT.PREF_CHANNELS
+        ? 'YouTube channel name or @handle (e.g. @TrainRepairGuy).'
+        : 'Parts dealer name (e.g. Joe\'s Train Shop).', '', { title: 'Add a favorite', ok: 'Add' });
+      if (!name || !String(name).trim()) return;
+      name = String(name).trim();
+    }
     var favs = _favs(prefKey);
     if (favs.indexOf(name) < 0) { favs.push(name); _saveFavs(prefKey, favs); }
     try { if (typeof _prefSet === 'function') _prefSet(prefKey + '_touched', '1'); } catch (e2) {}
-    var sel = document.getElementById(selectId);
-    if (sel) {
-      var o = document.createElement('option');
-      o.value = name; o.textContent = name; sel.appendChild(o); sel.value = name;
-      if (prefKey === MAINT.PREF_DEALERS) window._maintDealerPicked(sel);   // v0.9.1759: a new store is the pick
-    }
+    window._favPick(prefKey, selectId, name);   // v0.9.1759: a new store is the pick (and the panel closes)
   };
   // v0.9.1647 (phase 2): create a Parts Needed entry pre-linked to THIS
   // owned copy (the _maintPanelInvId hook from v1637, cashed in).
   // window._maintAddPartWanted removed in v0.9.1670 (its section went away).
   // v0.9.1662: _maintSupplierGo removed with the docs suppliers dropdown (check 273 flagged it unreachable).
 
-  window._maintDelFav = function (prefKey, selectId) {
-    var sel = document.getElementById(selectId);
-    if (!sel || !sel.value) return;
-    if (sel.value === MAINT.MAKER_STORE) return;   // v0.9.1759: the built-in choice is not a favorite
-    var favs = _favs(prefKey).filter(function (f) { return f !== sel.value; });
+  // v0.9.1860: called with the NAME, from the × on a favourite's line
+  window._maintDelFav = function (prefKey, selectId, name) {
+    var gone = String(name || '').trim();
+    if (!gone) return;
+    if (gone === MAINT.MAKER_STORE) return;   // v0.9.1759: the built-in choice is not a favorite
+    var favs = _favs(prefKey).filter(function (f) { return f !== gone; });
     _saveFavs(prefKey, favs);
     try { if (typeof _prefSet === 'function') _prefSet(prefKey + '_touched', '1'); } catch (e2) {}
-    sel.remove(sel.selectedIndex);
-    sel.value = '';
-    if (prefKey === MAINT.PREF_DEALERS) window._maintDealerPicked(sel);   // v0.9.1759: back to Any dealer
+    var hid = document.getElementById(selectId);
+    if (hid && hid.value === gone) {
+      hid.value = '';
+      var txt = document.getElementById(selectId + '-txt'), wrap = document.getElementById(selectId + '-wrap');
+      if (txt) txt.textContent = (wrap ? wrap.getAttribute('data-label') : '') || '';
+      if (prefKey === MAINT.PREF_DEALERS) window._maintDealerPicked(hid);   // v0.9.1759: back to Any dealer
+    }
+    _favPanelRedraw(prefKey, selectId);   // the list stays open, one line shorter
   };
 
   // ── v0.9.1641: the LCCA two-step (copy link + open site) ─────
