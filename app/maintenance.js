@@ -1712,7 +1712,13 @@
           +   '<button onclick="_maintSearchYt()" ' + linkBtn + '>Search →</button>'
           +   '<button onclick="_maintSaveVideo()" ' + linkBtn + '>Save a video</button>'
           + '</div>'
-          + '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.45rem">Found a good one? Paste its link with Save a video — it joins My Manuals and your Toolbox, tagged with the part you typed.</div>', 'work')
+          + '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.45rem">Found a good one? Paste its link with Save a video — it joins My Manuals and your Toolbox, tagged with the part you typed.</div>'
+          // v0.9.1859 ([stated] Brad: "when we save a youtube video, we should show the
+          // list of videos here as well. it should be underneath the part/repair/search
+          // buttons"): this item's saved videos, drawn by _maintRenderMyDocs (the one
+          // reader of My Manuals), so a video saved above appears here at once.
+          + '<div style="' + SECT + ';margin-top:0.8rem">Saved videos for this item</div>'
+          + '<div id="maint-videos" style="font-size:0.82rem;color:var(--text-dim)">Loading…</div>', 'work')
 
       // v0.9.1670 (Brad): standalone Find-a-Part section REMOVED — Need a part on the task card covers it.
 
@@ -1726,7 +1732,7 @@
       var l = document.getElementById('maint-launcher'); if (l) l.style.display = g ? 'none' : 'flex';
       var b = document.getElementById('maint-back'); if (b) b.style.display = g ? '' : 'none';
       if (g === 'docs') _maintRenderMyDocs();
-      if (g === 'work') _maintRenderTasks();
+      if (g === 'work') { _maintRenderTasks(); _maintRenderMyDocs(); }   // v0.9.1859: the saved videos list lives in 'work'
     };
   };
 
@@ -1790,9 +1796,22 @@
   }
   function _maintRenderMyDocs() {
     var el = document.getElementById('maint-mydocs');
-    if (!el || !_panelItem) return;
+    var vel = document.getElementById('maint-videos');   // v0.9.1859: the videos list under the YouTube row
+    if ((!el && !vel) || !_panelItem) return;
     var render = function () {
       var docs = _docCovers(_panelItem);
+      if (vel) {
+        var vids = docs.filter(function (d) { return String(d.type || '') === 'video'; });
+        vel.innerHTML = vids.length
+          ? vids.map(function (d) {
+              return '<div style="padding:0.35rem 0;border-bottom:1px solid var(--border)">'
+                + '<a href="' + _esc(d.url) + '" target="_blank" rel="noopener" style="color:var(--t-link);font-weight:600;text-decoration:none">\u25b6 ' + _esc(d.title || 'untitled') + '</a>'
+                + (d.topics ? ' <span style="color:var(--text-dim);font-size:0.72rem">[' + _esc(d.topics) + ']</span>' : '')
+                + '</div>';
+            }).join('')
+          : 'No videos saved for this one yet.';
+      }
+      if (!el) return;
       if (!docs.length) { el.innerHTML = 'Nothing saved for this item yet.'; return; }
       el.innerHTML = docs.map(function (d) {
         return '<div style="padding:0.35rem 0;border-bottom:1px solid var(--border)">'
@@ -2082,13 +2101,20 @@
     // list) — tick one and it goes on the new task when it is saved. A part
     // already on another open job is offered too, and says which job it is on.
     var pk = (tg.item && typeof _maintPickerParts === 'function') ? _maintPickerParts(tg, '') : { onHand: [], wanted: [] };
+    // v0.9.1859 ([stated] Brad: "if a part is on another task already, don't
+    // let it be available to be checked"): a part on another open job is shown
+    // greyed with no tick box and which job it is on — it can be moved from
+    // that job's card (the Move… select), never claimed from here.
     var partLine = function (e, where) {
       var p = e.part;
-      return '<label style="display:flex;align-items:center;gap:0.5rem;padding:0.35rem 0;border-bottom:1px solid var(--border);font-size:0.82rem;color:var(--text);cursor:pointer">'
-        + '<input type="checkbox" name="maint-chore-part" value="' + _esc(String(p.row)) + '" style="width:1.05rem;height:1.05rem;flex-shrink:0">'
+      var taken = !!e.onTask;
+      return '<label style="display:flex;align-items:center;gap:0.5rem;padding:0.35rem 0;border-bottom:1px solid var(--border);font-size:0.82rem;color:' + (taken ? 'var(--text-dim)' : 'var(--text)') + ';cursor:' + (taken ? 'default' : 'pointer') + '">'
+        + (taken
+            ? '<span aria-hidden="true" style="display:inline-block;width:1.05rem;height:1.05rem;flex-shrink:0;border:1.5px dashed var(--border);border-radius:3px;box-sizing:border-box"></span>'
+            : '<input type="checkbox" name="maint-chore-part" value="' + _esc(String(p.row)) + '" style="width:1.05rem;height:1.05rem;flex-shrink:0">')
         + '<span><b>' + _esc(p.description || p.partNum || 'part') + '</b>'
-        + (p.partNum && p.description ? ' <span style="font-family:var(--font-mono);color:var(--t-accent)">#' + _esc(p.partNum) + '</span>' : '')
-        + ' <span style="color:var(--text-dim);font-size:0.72rem">(' + where + (e.onTask ? ' — now on: ' + _esc(e.onTask) : '') + ')</span></span>'
+        + (p.partNum && p.description ? ' <span style="font-family:var(--font-mono);color:' + (taken ? 'var(--text-dim)' : 'var(--t-accent)') + '">#' + _esc(p.partNum) + '</span>' : '')
+        + ' <span style="color:var(--text-dim);font-size:0.72rem">(' + (taken ? 'already on: ' + _esc(e.onTask) : where) + ')</span></span>'
         + '</label>';
     };
     var parts = pk.onHand.map(function (e) { return partLine(e, 'in your drawer'); }).join('')
@@ -2102,7 +2128,7 @@
       + '</div>'
       + (parts
           ? '<div style="' + SECT + ';margin-top:0.9rem">Parts you have for this item</div>'
-            + '<div style="font-size:0.72rem;color:var(--text-dim);margin-bottom:0.3rem">Tick a part to put it on this task.</div>'
+            + '<div style="font-size:0.72rem;color:var(--text-dim);margin-bottom:0.3rem">Tick a part to put it on this task. A part already on another job stays there.</div>'
             + '<div id="maint-chore-parts">' + parts + '</div>'
           : '')
       + '<div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-top:0.9rem">'
@@ -2773,6 +2799,16 @@
     var html = '<div id="maint-parts-pop" style="position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:100030;display:flex;align-items:flex-start;justify-content:center;overflow-y:auto;padding:2rem 1rem">'
       + _cardOpen(520)
       + _cardHead(_esc(taskName), _wbTarget ? 'Add a part' : 'Need a part', closeJs)
+      // v0.9.1859 ([stated] Brad: "on this page, would like to be able to click
+      // the parts diagram for it so we need that button here as well"): the
+      // Parts diagram box sits FIRST — under a 214-line catalog it was never
+      // seen. v0.9.1857: the SAME manufacturer / Trainz / Google links the
+      // Maintenance page shows — one builder, so the two match.
+      + '<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:0.9rem 1rem;margin-bottom:0.8rem">'
+      +   '<div style="' + SECT + '">Parts diagram</div>'
+      +   docHtml
+      +   '<div style="margin-top:0.6rem">' + _maintDiagramLinksHtml(tg.item, 'pop') + '</div>'
+      + '</div>'
       + _maintPickerHtml(tg, taskId)   // v0.9.1752: pick before you type
       + '<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:0.9rem 1rem;margin-bottom:0.8rem">'
       +   '<div style="' + SECT + '">' + (taskId ? 'Something else? Find the part' : 'Find your part') + '</div>'
@@ -2788,13 +2824,6 @@
       +     '<button onclick="_maintPopAddWanted(\'' + rrJsArg(taskId) + '\')" ' + _btnPrimary('padding:0.5rem 0.9rem;font-size:0.78rem') + '>+ Add to Parts Wanted</button>'
       +   '</div>'
       +   '<div style="font-size:0.7rem;color:var(--text-dim);margin-top:0.4rem">' + (taskId ? 'Added parts link to THIS task — the card shows when it\'s in the drawer.' : 'The part is wanted for this item — it shows on the bench, and on the item\'s card.') + '</div>'
-      + '</div>'
-      + '<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:0.9rem 1rem">'
-      +   '<div style="' + SECT + '">Parts diagram</div>'
-      +   docHtml
-      // v0.9.1857 ([stated] Brad): the SAME manufacturer / Trainz / Google links
-      // the Maintenance page shows, right here — one builder, so the two match.
-      +   '<div style="margin-top:0.6rem">' + _maintDiagramLinksHtml(tg.item, 'pop') + '</div>'
       + '</div>'
       + '</div></div>';
     document.body.insertAdjacentHTML('beforeend', html);

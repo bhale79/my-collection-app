@@ -73,6 +73,9 @@ ok('_maintDiagramLinksHtml exists and takes (item, where)', /function _maintDiag
 ok('the panel\'s docs section is built by it (where = \'\')', /sec\('Manuals &amp; Parts Diagrams', _maintDiagramLinksHtml\(item, ''\), 'docs'\)/.test(maint));
 ok('the Need-a-part popup\'s Parts diagram box is built by it (where = \'pop\'), after the saved docs',
    /'">Parts diagram<\/div>'\s*\n\s*\+\s*docHtml\s*\n[\s\S]{0,300}?_maintDiagramLinksHtml\(tg\.item, 'pop'\)/.test(maint));
+// v0.9.1859 ([stated] Brad: "on this page, would like to be able to click the parts diagram…"): the box is FIRST, above the drawer / catalog lanes
+ok('the Parts diagram box comes right after the pop-up\'s header, before the picker and the catalog',
+   (() => { const pop = maint.slice(maint.indexOf('window._maintPartsPopup = function'), maint.indexOf('window._maintPopSearch = function')); const a = pop.indexOf('>Parts diagram</div>'), b = pop.indexOf('_maintPickerHtml(tg, taskId)'), c = pop.indexOf('Find the part'); return a > 0 && a < b && b < c; })());
 ok('the popup no longer sends the user away (its "Find manuals & diagrams →" walk-away button is gone; the launcher\'s own button stays)', !/Find manuals &amp; diagrams \u2192<\/button>/.test(maint) && /_maintShowGrp\(\\'docs\\'\)" ' \+ bigBtn \+ '>Find manuals &amp; diagrams</.test(maint));
 const once = (re) => (maint.match(re) || []).length === 1;
 ok('the Google button is written ONCE in the file', once(/>Google the parts diagram \u2192<\/button>/g));
@@ -102,6 +105,7 @@ const other = build(maint, { itemNum: '123' }, { route: 'other', maker: 'Weaver'
 ok('a maker with no parts list: the honest line, then Google', /does not publish a parts list/.test(other) && /Google the parts diagram/.test(other));
 
 section('D · planted offenders are caught');
+ok('D0 the box moved back under the catalog is caught', (() => { const pop = "window._maintPartsPopup = function () { x = _maintPickerHtml(tg, taskId) + 'Find the part' + '>Parts diagram</div>'; }; window._maintPopSearch = function () {}"; const a = pop.indexOf('>Parts diagram</div>'), b = pop.indexOf('_maintPickerHtml(tg, taskId)'); return !(a > 0 && a < b); })());
 ok('D1 the popup going back to the walk-away button is caught', /Find manuals &amp; diagrams \u2192<\/button>/.test(maint.replace("_maintDiagramLinksHtml(tg.item, 'pop')", "'<button>Find manuals &amp; diagrams \u2192</button>'")));
 ok('D2 a second Google button pasted into the popup is caught', !(() => { const o = maint + "\n// x\n'>Google the parts diagram \u2192</button>'"; return (o.match(/>Google the parts diagram \u2192<\/button>/g) || []).length === 1; })());
 ok('D3 the popup calling the builder WITHOUT its own where (two notes, one id) is caught',

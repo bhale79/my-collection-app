@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════
-// maint_add_task_popup_tests.js — v0.9.1858.
+// maint_add_task_popup_tests.js — v0.9.1858, v0.9.1859 (a part on another job cannot be ticked).
 //
 // [stated] Brad, 2026-10-01, item 2 of his Workbench list: "the tasks for this
 // item box should just show the tasks to do, keep the add task button. when i
@@ -71,9 +71,13 @@ ok('a custom service carries a × that takes it off the list; built-ins do not',
 ok('"Something else…" is a line too, and its name box + keep-it checkbox are there, hidden until chosen',
    /data-chore="__custom"/.test(html) && /id="maint-chore-custom" style="display:none/.test(html) && /id="maint-chore-custom-in"/.test(html) && /id="maint-chore-custom-keep"/.test(html));
 ok('the chosen service rides in the hidden #maint-chore-pick', /<input type="hidden" id="maint-chore-pick" value="">/.test(html));
-ok('the parts this item has are listed — the drum (in the drawer) and the wire (on the list, now on Fix railing)',
-   /name="maint-chore-part" value="7"/.test(html) && /Lionel Light Blue E-Unit Drum/.test(html) && /#259E-1/.test(html) && /in your drawer/.test(html)
-   && /name="maint-chore-part" value="9"/.test(html) && /on your Parts Needed list — now on: Fix railing/.test(html));
+ok('the parts this item has are listed — the drum (in the drawer) with a tick box',
+   /name="maint-chore-part" value="7"/.test(html) && /Lionel Light Blue E-Unit Drum/.test(html) && /#259E-1/.test(html) && /in your drawer/.test(html));
+// v0.9.1859 ([stated] Brad): "if a part is on another task already, don't let it be available to be checked."
+ok('…the wire, already on Fix railing, is shown greyed with NO tick box and names its job',
+   !/name="maint-chore-part" value="9"/.test(html) && /E-Unit Finger Wire/.test(html) && /already on: Fix railing/.test(html)
+   && /<label style="[^"]*color:var\(--text-dim\)[^"]*"><span aria-hidden="true"[^>]*><\/span><span><b>E-Unit Finger Wire/.test(html));
+ok('…and the help line says so', /A part already on another job stays there/.test(html));
 ok('it says what ticking a part does', /Tick a part to put it on this task/.test(html));
 ok('"+ Add task" and "+ Add a part for it" are both there, and the second passes true', /onclick="_maintAddChore\(\)" class="p">\+ Add task</.test(html) && /onclick="_maintAddChore\(true\)" class="b">\+ Add a part for it</.test(html));
 ok('…and the help line says what the second one does', /saves the task, then opens Need a part for that job/.test(html));
@@ -156,6 +160,7 @@ section('D · the real _maintAddChore: the task, then the ticked parts, then Nee
     const addO = grabFrom(o, 'window._maintAddChore = async function');
     ok('E4 the parts put on a BLANK task id (not the new task) is caught', /_maintPartSetTask\(picked\[pi\], ''\)/.test(addO) && !/_maintPartSetTask\(picked\[pi\], logId\)/.test(addO));
   }
+  ok('E6 a tick box on a part that is on another job is caught', /name="maint-chore-part" value="9"/.test(buildForm(maint.replace("var taken = !!e.onTask;", "var taken = false;"), { onHand: [], wanted: [WIRE] })));
   ok('E5 "+ Add a part for it" wired to a plain add (no true) is caught', !/_maintAddChore\(true\)/.test(buildForm(maint.replace("addJs.replace(/\\(\\)$/, '(true)')", "addJs"), null)));
 
   console.log('\n' + pass + ' passed, ' + fail + ' failed');
