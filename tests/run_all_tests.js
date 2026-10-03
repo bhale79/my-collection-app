@@ -52,6 +52,98 @@ ok('the browser tier runs one Chromium at a time (four abreast starved each othe
    /runPool\(browserItems, 1\)/.test(runnerSrc) && /browser: 1800000/.test(runnerSrc), '');
 ok('the runner is importable without running (this file imports it)', /if \(require\.main === module\) main\(\);/.test(runnerSrc), '');
 
+// ── a crashed suite is readable from the board (2026-10-03) ───────────────
+// crop_preview_tests died once under four-abreast load with no FAIL line; the
+// board showed "Node.js v22.22.0" and nothing else. The runner now keeps the
+// five lines before the verdict (stack frames dropped, repo root trimmed) for
+// a red suite with no FAIL line. Proved here against a REAL copy of the runner
+// driving planted suites in a scratch folder: a throw, an unhandled rejection,
+// a hang (the copy's quick timeout is cut to 1.5 s), a FAIL, and a green.
+section('run-all.js — a red suite with no FAIL line shows the lines before its verdict');
+ok('the runner keeps a tail: the lines before the verdict, frames dropped',
+   /const tail = lines\.slice\(0, -1\)\.filter\(l => !\/\^\\s\+at\\s\/\.test\(l\)\)\.slice\(-5\)/.test(runnerSrc) && /fails, tail, out \}\)/.test(runnerSrc), '');
+ok('…printed only when the suite is red AND has no FAIL line (FAIL lines keep their place)',
+   /if \(r\.fails\.length\) r\.fails\.forEach/.test(runnerSrc) && /else if \(r\.tail\.length\)/.test(runnerSrc) && /no FAIL line — the last lines before the verdict:/.test(runnerSrc), '');
+const os = require('os');
+function plantedBattery(mutateRunner) {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'rr-runall-'));
+  const dir = path.join(tmp, 'tests');
+  fs.mkdirSync(dir);
+  let src = runnerSrc.replace('const TIMEOUT_MS = { quick: 180000, browser: 1800000 };', 'const TIMEOUT_MS = { quick: 1500, browser: 1800000 };');
+  if (src === runnerSrc) throw new Error('TIMEOUT_MS anchor not found in run-all.js');
+  if (mutateRunner) src = mutateRunner(src);
+  fs.writeFileSync(path.join(dir, 'run-all.js'), src);
+  fs.writeFileSync(path.join(dir, 'planted_crash_tests.js'),
+    "for (let i = 1; i <= 7; i++) console.log('  PASS  progress pin ' + i);\nthrow new Error('planted crash: the thing that went wrong');\n");
+  fs.writeFileSync(path.join(dir, 'planted_reject_tests.js'),
+    "console.log('  PASS  starting');\nPromise.reject(new TypeError('planted rejection: browser has been closed'));\nsetTimeout(function () {}, 50);\n");
+  fs.writeFileSync(path.join(dir, 'planted_hang_tests.js'),
+    "console.log('  PASS  before the hang 1');\nconsole.log('  PASS  before the hang 2');\nconsole.log('  PASS  before the hang 3');\nsetInterval(function () {}, 1000);\n");
+  fs.writeFileSync(path.join(dir, 'planted_fail_tests.js'),
+    "console.log('  PASS  one');\nconsole.log('  FAIL  two  -> planted failure');\nconsole.log('\\n  1 passed, 1 failed');\nprocess.exit(1);\n");
+  fs.writeFileSync(path.join(dir, 'planted_green_tests.js'),
+    "console.log('  PASS  one');\nconsole.log('\\n  1 passed, 0 failed');\n");
+  return { tmp, runner: path.join(dir, 'run-all.js') };
+}
+// Split a scoreboard into rows: { name: { row, under: [lines printed beneath it] } }.
+function board(out) {
+  const rows = {};
+  let cur = null;
+  out.split('\n').forEach(l => {
+    const m = l.match(/^  (RED | ok ) (\S+\.js)/);
+    if (m) { cur = m[2]; rows[cur] = { row: l, under: [] }; }
+    else if (cur && /^        /.test(l)) rows[cur].under.push(l);
+    else cur = null;
+  });
+  return rows;
+}
+let battery = null;
+try {
+  battery = plantedBattery(null);
+  const run = spawnSync(process.execPath, [battery.runner, '--serial'], { encoding: 'utf8', timeout: 60000 });
+  const b = board(run.stdout || '');
+  const crash = b['planted_crash_tests.js'] || { row: '', under: [] };
+  ok('the whole planted battery ran and exited red (5 suites, 1 green, 4 red)', run.status === 1 && /5 suites: 1 green, 4 red/.test(run.stdout || ''), ((run.stdout || '').trim().split('\n').slice(-2).join(' | ')).slice(0, 120));
+  ok('a throw: the row is RED and its verdict is still Node\'s version line (that is all the board used to show)', /^  RED /.test(crash.row) && /Node\.js v\d/.test(crash.row), crash.row);
+  ok('…and beneath it, the header and the Error line — the crash is readable from the board',
+     crash.under.some(l => /no FAIL line — the last lines before the verdict:/.test(l)) && crash.under.some(l => /\| Error: planted crash: the thing that went wrong/.test(l)), crash.under.join(' / ').slice(0, 200));
+  ok('…five lines at most, the last progress pin among them, no stack frames',
+     crash.under.length === 6 && crash.under.some(l => /\|   PASS  progress pin 7/.test(l)) && !crash.under.some(l => /^\s+\|\s+at /.test(l)), String(crash.under.length));
+  ok('…and the scratch root is trimmed off the path, so the line reads tests/<file>:<line>',
+     crash.under.some(l => /\| tests\/planted_crash_tests\.js:2$/.test(l) || /\| tests\\planted_crash_tests\.js:2$/.test(l)) && !crash.under.some(l => l.includes(battery.tmp)), crash.under.join(' / ').slice(0, 200));
+  const rej = b['planted_reject_tests.js'] || { row: '', under: [] };
+  ok('an unhandled rejection: RED, and the TypeError line is on the board', /^  RED /.test(rej.row) && rej.under.some(l => /\| TypeError: planted rejection: browser has been closed/.test(l)), rej.under.join(' / ').slice(0, 200));
+  const hang = b['planted_hang_tests.js'] || { row: '', under: [] };
+  ok('a hang: killed at the (shortened) timeout, verdict says so', /^  RED /.test(hang.row) && /run-all: killed after 1\.5s/.test(hang.row), hang.row);
+  ok('…and the three lines it printed before hanging are on the board — what it was doing when it died',
+     hang.under.length === 4 && [1, 2, 3].every(n => hang.under.some(l => l.includes('|   PASS  before the hang ' + n))), hang.under.join(' / ').slice(0, 200));
+  const failRow = b['planted_fail_tests.js'] || { row: '', under: [] };
+  ok('a suite with FAIL lines keeps them, and gets NO tail (the FAIL lines are the diagnosis)',
+     /^  RED /.test(failRow.row) && failRow.under.length === 1 && /FAIL  two  -> planted failure/.test(failRow.under[0]), failRow.under.join(' / ').slice(0, 200));
+  const green = b['planted_green_tests.js'] || { row: '', under: [] };
+  ok('a green suite shows nothing beneath its row', /^   ok  planted_green_tests\.js/.test(green.row) && green.under.length === 0, green.row + ' / ' + green.under.length);
+} catch (e) {
+  ok('planted battery ran', false, String(e && e.message || e));
+} finally {
+  if (battery) fs.rmSync(battery.tmp, { recursive: true, force: true });
+}
+// PLANTED: the runner WITHOUT the tail print → the Error line is gone from the board (the pins above can fail).
+let planted = null;
+try {
+  planted = plantedBattery(src => {
+    const cut = src.replace(/else if \(r\.tail\.length\) \{[\s\S]*?\n        \}\n/, '');
+    if (cut === src) throw new Error('tail-print anchor not found in run-all.js');
+    return cut;
+  });
+  const run = spawnSync(process.execPath, [planted.runner, '--serial', '--only', 'planted_crash'], { encoding: 'utf8', timeout: 60000 });
+  const crash = board(run.stdout || '')['planted_crash_tests.js'] || { row: '', under: [] };
+  ok('PLANTED: the old runner shows "Node.js v…" and nothing else for the same crash (caught)', /Node\.js v\d/.test(crash.row) && crash.under.length === 0, crash.under.join(' / ').slice(0, 120));
+} catch (e) {
+  ok('PLANTED: battery ran', false, String(e && e.message || e));
+} finally {
+  if (planted) fs.rmSync(planted.tmp, { recursive: true, force: true });
+}
+
 section('npm test is the runner');
 const pkg = JSON.parse(rd('package.json'));
 ok('`npm test` runs tests/run-all.js — not a hand-written chain that forgets suites', pkg.scripts.test === 'node tests/run-all.js', pkg.scripts.test);

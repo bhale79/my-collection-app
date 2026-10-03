@@ -20,7 +20,12 @@ that runs nowhere is exactly how `filter_bar_tests.js` sat red for five days
 15 suites of 57 and that was not one of them).
 
 A suite is green when it exits 0; its last line of output is its verdict on
-the scoreboard. A verdict that says `N SKIPPED` is shown, not hidden:
+the scoreboard. A red suite shows its `FAIL` lines beneath its row; a red
+suite with no `FAIL` line (an uncaught throw, a timeout kill) shows the five
+lines before its verdict instead, stack frames dropped — a crash's verdict
+is just `Node.js v22…`, which says nothing on its own (`run_all_tests.js`
+proves this against planted suites). A verdict that says `N SKIPPED` is
+shown, not hidden:
 `import_core_tests.js` skips its 18 fixture pins when Scott's workbook is
 not on the machine. That workbook is Scott's real inventory and is
 deliberately NOT in the repo; it lives at

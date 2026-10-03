@@ -34,6 +34,13 @@
 // is shown on the scoreboard; a verdict containing "N SKIPPED" is counted so a
 // skipped section is visible, not silent (import_core_tests.js skips its 18
 // fixture pins when Scott's workbook is not on the machine).
+//
+// A red suite shows its FAIL lines under its row. A red suite with NO FAIL line
+// — an uncaught throw, a timeout kill — used to show only its verdict, and a
+// crash's verdict is "Node.js v22.22.0", which says nothing (2026-10-03:
+// crop_preview_tests died once under four-abreast load and that was the whole
+// record). Such a suite now shows the five lines before its verdict, stack
+// frames dropped, so the crash reads from the scoreboard.
 'use strict';
 const fs = require('fs');
 const path = require('path');
@@ -85,7 +92,13 @@ function runOne(name, tier) {
       const verdict = lines.length ? lines[lines.length - 1] : '(no output)';
       const skipM = verdict.match(/(\d+) SKIPPED/);
       const fails = lines.filter(l => /^\s*FAIL\b/.test(l)).slice(0, 12);
-      resolve({ name, tier, code, ms: Date.now() - started, verdict, skipped: skipM ? +skipM[1] : 0, fails, out });
+      // The five lines before the verdict, stack frames ("    at …") dropped and
+      // the repo root trimmed off paths — shown for a red suite that has no FAIL
+      // line, so a crash or a kill is readable from the board instead of
+      // leaving "Node.js v22.22.0" behind.
+      const root = path.join(TESTS, '..') + path.sep;
+      const tail = lines.slice(0, -1).filter(l => !/^\s+at\s/.test(l)).slice(-5).map(l => l.split(root).join(''));
+      resolve({ name, tier, code, ms: Date.now() - started, verdict, skipped: skipM ? +skipM[1] : 0, fails, tail, out });
     });
   });
 }
@@ -101,7 +114,13 @@ async function runPool(items, width) {
       const mark = r.code === 0 ? ' ok ' : 'RED ';
       const secs = (r.ms / 1000).toFixed(1).padStart(6) + 's';
       console.log('  ' + mark + ' ' + r.name.padEnd(34) + secs + '  ' + r.verdict.slice(0, 96));
-      if (r.code !== 0) r.fails.forEach(f => console.log('        ' + f.slice(0, 110)));
+      if (r.code !== 0) {
+        if (r.fails.length) r.fails.forEach(f => console.log('        ' + f.slice(0, 110)));
+        else if (r.tail.length) {
+          console.log('        no FAIL line — the last lines before the verdict:');
+          r.tail.forEach(l => console.log('        | ' + l.slice(0, 110)));
+        }
+      }
     }
   }
   await Promise.all(Array.from({ length: Math.min(width, items.length) }, worker));
