@@ -1835,6 +1835,12 @@ function _guidedTour(steps) {
         var _roomBeside = Math.max(window.innerWidth - _rr.right, _rr.left) - 72 - 14 - 8;   // the mascot's 72, the gap, the margin
         _gtWidthCap = Math.max(330, Math.min(600, Math.floor(_roomBeside)));
         _placeOnce(el);
+        // v0.9.1870 (walked in Brad's Chrome on a 706px-tall window): a list
+        // taller than the window — Parts, Tools, the Photo Inbox, Contacts —
+        // has no room beside it either, so the narrower card STILL sat on the
+        // ring, now small as well. Shrinking bought nothing; the card goes
+        // back to full size and takes the bottom-of-screen fallback as it is.
+        if (_gtOnRing(el)) { _gtWidthCap = 0; _placeOnce(el); }
       }
       var _hMax = window.innerHeight - 16;
       if (callout.offsetHeight > _hMax) { _gtCapTo(_hMax); _placeOnce(el); }

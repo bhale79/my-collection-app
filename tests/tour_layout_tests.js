@@ -53,8 +53,9 @@ function planted(name, from, to) {
   await pg.close();
   T('A1  the tour runs to the end and closes', ended && full.length >= 20, { n: full.length, last: full[full.length - 1] && full[full.length - 1].title });
   T('A2  every card is a reading card (no tour step waits for the user)', full.every(c => c.mode === 'reading'), full.filter(c => c.mode !== 'reading').map(c => c.title));
-  const bigEnough = c => c.card[2] >= 560 || (c.hole && c.hole[3] > c.vh * 0.5 && c.card[2] >= 440);   // beside a ring taller than half the window the card takes the width that fits, never under 440 here
-  T('A3  every card is the big size — at least 560px wide (was 330); beside a box taller than half the window it takes the width that fits, at least 440', full.every(bigEnough), full.filter(c => !bigEnough(c)).map(c => [c.title, c.card, c.hole]));
+  // Beside a ring taller than half the window the card takes the width that fits (never under the old 330) — but only when it really stands BESIDE it, clear of the ring.
+  const bigEnough = c => c.card[2] >= 560 || (c.hole && c.hole[3] > c.vh * 0.5 && !overlaps(c.card, c.hole, 2) && c.card[2] >= 330);
+  T('A3  every card is the big size — at least 560px wide (was 330); beside a box taller than half the window it may take the width that fits, never less than 330, and only when it is clear of the ring', full.every(bigEnough), full.filter(c => !bigEnough(c)).map(c => [c.title, c.card, c.hole]));
   T('A4  …set in reading type: 16px words, 18px title', full.every(c => near(c.bodyPx, 16, 0.6) && near(c.titlePx, 18.4, 0.8)), full.slice(0, 3).map(c => [c.bodyPx, c.titlePx]));
   const ringed = full.filter(c => c.hole);
   T('A5  no ringed card sits on its ring', ringed.every(c => !overlaps(c.card, c.hole, 2)), ringed.filter(c => overlaps(c.card, c.hole, 2)).map(c => [c.title, c.card, c.hole]));
@@ -70,6 +71,23 @@ function planted(name, from, to) {
   T('A10 the My Collection card sits UNDER the ringed search bar, left-aligned with it', coll && coll.hole && coll.card[1] >= coll.hole[1] + coll.hole[3] - 2 && coll.card[1] <= coll.hole[1] + coll.hole[3] + 30 && near(coll.card[0], coll.hole[0], 40), coll && [coll.card, coll.hole]);
   const tools = full.find(c => c.title === 'Collection Tools');
   T('A11 the Collection Tools ring covers the whole tools area, both rows (taller than 400px)', tools && tools.hole && tools.hole[3] >= 400, tools && tools.hole);
+  // v0.9.1870 — walked in Brad's Chrome on a 706px-tall window: a list taller than the
+  // window has no room beside it, so the card must sit ON the ring; it stays FULL size
+  // there (v1869 shrank it to the old 330 for nothing).
+  ({ pg, errs } = await openApp(browser, { w: 1568, h: 706, withData: true }));
+  const shortWalk = await walkTour(pg, 'Collection Tools');
+  await pg.close();
+  const toolsShort = shortWalk[shortWalk.length - 1];
+  T('A12 on a short window (1568x706) the Collection Tools ring leaves no clean room, the card has to sit on it — and it stays full size (≥560) rather than shrinking',
+    toolsShort && toolsShort.title === 'Collection Tools' && toolsShort.hole && overlaps(toolsShort.card, toolsShort.hole, 2) && toolsShort.card[2] >= 560, toolsShort && [toolsShort.card, toolsShort.hole, toolsShort.vh]);
+  const srcA12 = planted('A12', "if (_gtOnRing(el)) { _gtWidthCap = 0; _placeOnce(el); }", '');
+  if (srcA12) {
+    ({ pg, errs } = await openApp(browser, { w: 1568, h: 706, withData: true, tutorial: srcA12 }));
+    const oldShort = await walkTour(pg, 'Collection Tools');
+    await pg.close();
+    const t2 = oldShort[oldShort.length - 1];
+    T('PLANTED A12: v1869\'s engine shrank that card to the old size on the short window (caught)', t2 && t2.card[2] < 400, t2 && t2.card);
+  }
 
   // ═══ B · THE SECOND RING on the page's tab ═══════════════════════════════
   console.log('\n== B · every page card rings its own tab in the menu (that the tab is LIT is measured in tour_count_tests) ==');
