@@ -140,14 +140,15 @@ const norm = s => String(s || '').replace(/[…–—]/g, ' ')
           // engine skips it, so it never renders, so it never tells anyone to
           // press anything. On an empty For Sale list there is no row and so no
           // "Mark as Sold" — that step retires itself rather than lying.
-          if (st.optional && st.selector && typeof st.awaitUser !== 'function') {
-            var cands = document.querySelectorAll(st.selector), seen = false;
+          var selNow = (typeof _gtStepSel === 'function') ? _gtStepSel(st) : st.selector;   // v0.9.1869
+          if (st.optional && selNow && typeof st.awaitUser !== 'function') {
+            var cands = document.querySelectorAll(selNow), seen = false;
             for (var c2 = 0; c2 < cands.length; c2++) if (cands[c2].offsetParent !== null) { seen = true; break; }
             if (!seen) { skipped.push({ step: i + 1, why: 'optional-absent' }); return; }
           }
-          const body = String(st.body || '');
+          const body = (typeof _gtStepText === 'function') ? String(_gtStepText(st.body)) : String(st.body || '');   // v0.9.1869: a body may be a function
           let m;
-          while ((m = re.exec(body))) out.push({ step: i + 1, title: st.title || '', phrase: m[1] });
+          while ((m = re.exec(body))) out.push({ step: i + 1, title: (typeof _gtStepText === 'function' ? _gtStepText(st.title) : st.title) || '', phrase: m[1] });
         });
         return { visible: vis, claims: out, skipped: skipped };
       }, { gid, VERB });
@@ -208,8 +209,8 @@ const norm = s => String(s || '').replace(/[…–—]/g, ' ')
       // gets its own opening card. Find it by what it points at rather than by
       // position, so this assertion cannot quietly start measuring the wrong
       // step the next time the tour gains one.
-      const st = GUIDES.tour.steps.find(s => s.selector === '#stats-grid') || GUIDES.tour.steps[0];
-      const body = String(st.body || '');
+      const st = GUIDES.tour.steps.find(s => (typeof _gtStepSel === 'function' ? _gtStepSel(s) : s.selector) === '#stats-grid') || GUIDES.tour.steps[0];   // v0.9.1869: one card, two states — ask it what it points at now
+      const body = (typeof _gtStepText === 'function') ? String(_gtStepText(st.body)) : String(st.body || '');
       const saysTap = /\b(tap|click|press)\b[^.]{0,30}\bcard\b/i.test(body.replace(/<[^>]+>/g, ''));
       const card = document.getElementById('dash-card-0');
       const tappable = !!(card && (card.getAttribute('onclick') || typeof card.onclick === 'function' ||
@@ -272,7 +273,7 @@ const norm = s => String(s || '').replace(/[…–—]/g, ' ')
           } catch (e) {}
         }
         g.steps.forEach(function (st, i) {
-          const body = String(st.body || '') + ' ' + String(st.awaitMsg || '');
+          const body = ((typeof _gtStepText === 'function') ? String(_gtStepText(st.body)) : String(st.body || '')) + ' ' + String(st.awaitMsg || '');
           let m;
           re.lastIndex = 0;
           while ((m = re.exec(body))) {

@@ -96,6 +96,18 @@ window._coverProbe = async function (step) {
   // If a card has no height it rendered nothing and measures nothing — say so
   // rather than reporting a clear result for a step that was never drawn.
   if (c.height < 20) return { err: 'card drew empty (' + Math.round(c.height) + 'px tall)', swallowed: [] };
+  // v0.9.1869 — A READING CARD MAY SIT ON WHAT NOBODY CAN PRESS. On a step
+  // that does not wait for the user the engine's click blocker covers the whole
+  // page except the ring, so every control outside the ring is unreachable
+  // whether or not the card is on it — and the engine now deliberately places
+  // such a card against its ring, over blocked rows, at reading size (Brad:
+  // "twice this size", "under the highlighted section"). What still matters on
+  // those steps is the ONE control the step is about: anything inside the ring
+  // is reachable through the blocker's hole and must stay so. On a step that
+  // WAITS, every control counts, exactly as before — that is Engine + Tender.
+  var waiting = (typeof step.awaitUser === 'function');
+  var holeEl = document.getElementById('gt-hole');
+  var hr = (holeEl && holeEl.style.opacity !== '0') ? holeEl.getBoundingClientRect() : null;
   var nodes = document.querySelectorAll(
     'button, a[href], input, select, textarea, [role="button"], [onclick]');
   var swallowed = [];
@@ -142,6 +154,10 @@ window._coverProbe = async function (step) {
     if (b.right <= 0 || b.bottom <= 0) continue;
     if (b.left >= window.innerWidth || b.top >= window.innerHeight) continue;
     var x = b.left + b.width / 2, y = b.top + b.height / 2;
+    if (!waiting) {
+      if (!hr) continue;
+      if (!(x >= hr.left && x <= hr.right && y >= hr.top && y <= hr.bottom)) continue;
+    }
     // The measurement that matches a finger. Not "do the rectangles overlap" —
     // an edge clipped by a few pixels is survivable and would make this gate
     // noisy enough to be switched off.
@@ -279,8 +295,9 @@ window._coverProbe = async function (step) {
           // page, burying two buttons in a situation no user is ever in.
           let applies = true;
           if (typeof step.needs === 'function') { try { applies = !!step.needs(); } catch (e) {} }
-          if (applies && step.optional && step.selector && typeof step.awaitUser !== 'function') {
-            const cands = document.querySelectorAll(step.selector);
+          const selNow = (typeof _gtStepSel === 'function') ? _gtStepSel(step) : step.selector;   // v0.9.1869: a selector may be a function of the screen
+          if (applies && step.optional && selNow && typeof step.awaitUser !== 'function') {
+            const cands = document.querySelectorAll(selNow);
             applies = false;
             for (let z = 0; z < cands.length; z++) if (cands[z].offsetParent !== null) { applies = true; break; }
           }
@@ -318,8 +335,8 @@ window._coverProbe = async function (step) {
             } catch (e) {}
           }
           const r = await window._coverProbe(step);
-          out.push({ n: i + 1, title: step.title || '(no title)',
-                     selector: step.selector || null, optional: !!step.optional, r });
+          out.push({ n: i + 1, title: (typeof _gtStepText === 'function' ? _gtStepText(step.title) : step.title) || '(no title)',
+                     selector: selNow || null, optional: !!step.optional, r });
         }
         try { if (typeof _gtEnd === 'function') _gtEnd(); } catch (e) {}
         try { if (typeof _doCloseWizard === 'function') _doCloseWizard(); } catch (e) {}

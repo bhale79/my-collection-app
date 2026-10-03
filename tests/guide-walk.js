@@ -151,7 +151,8 @@ const { SEED, RESOLVE, SHAPE } = require('./lib/guide-fixture');
             } catch (e) {}
           }
           const r = window._walkResolve(step);
-          out.push({ n: i + 1, title: step.title || '(no title)', selector: step.selector || null,
+          out.push({ n: i + 1, title: (typeof _gtStepText === 'function' ? _gtStepText(step.title) : step.title) || '(no title)',
+                     selector: (typeof _gtStepSel === 'function' ? _gtStepSel(step) : step.selector) || null,
                      optional: !!step.optional, awaits: typeof step.awaitUser === 'function', r });
         }
         // Leave nothing behind for the next guide.

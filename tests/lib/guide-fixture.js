@@ -104,8 +104,10 @@ const SEED = `
 // resolve() line for line rather than approximating it.
 const RESOLVE = `
 window._walkResolve = function (step) {
-  if (!step.selector) return { kind: 'narration' };
-  var cands = document.querySelectorAll(step.selector), el = null;
+  // v0.9.1869: a selector may be a function of the screen — ask the engine's own reader
+  var sel = (typeof _gtStepSel === 'function') ? _gtStepSel(step) : step.selector;
+  if (!sel) return { kind: 'narration' };
+  var cands = document.querySelectorAll(sel), el = null;
   for (var c = 0; c < cands.length; c++) { if (cands[c].offsetParent !== null) { el = cands[c]; break; } }
   if (el && step.wrap) el = el.closest(step.wrap) || el;
   if (!el) return { kind: 'MISS', matched: cands.length };
@@ -136,8 +138,9 @@ window._clearOverlays = function () {
   }
 };
 window._drvResolve = function (step) {
-  if (!step.selector) return null;
-  var cands = document.querySelectorAll(step.selector), el = null;
+  var sel = (typeof _gtStepSel === 'function') ? _gtStepSel(step) : step.selector;   // v0.9.1869
+  if (!sel) return null;
+  var cands = document.querySelectorAll(sel), el = null;
   for (var c = 0; c < cands.length; c++) { if (cands[c].offsetParent !== null) { el = cands[c]; break; } }
   if (el && step.wrap) el = el.closest(step.wrap) || el;
   return el;
@@ -147,7 +150,10 @@ window._drvCard = function () {
   if (!c) return null;
   var t = (c.innerText || '');
   var m = t.match(/Step (\\d+) of (\\d+)/);
-  return { title: t.split('\\n')[0].trim(), step: m ? +m[1] : null, of: m ? +m[2] : null };
+  // v0.9.1869: the counter counts only the cards this user sees, so the label's
+  // number is not the step's index; the card carries the index itself.
+  var idx = (c.dataset && c.dataset.gtIndex != null && c.dataset.gtIndex !== '') ? (+c.dataset.gtIndex + 1) : null;
+  return { title: t.split('\\n')[0].trim(), step: idx != null ? idx : (m ? +m[1] : null), of: m ? +m[2] : null, shown: m ? +m[1] : null };
 };
 window._drvWizard = function () {
   var w = document.querySelector('#wizard-modal.open');
@@ -180,8 +186,9 @@ window._drvStranded = function (gid) {
     try { okNeeds = !!st.needs(); } catch (e) { okNeeds = true; }
     if (!okNeeds) return { step: card.step, title: card.title, selector: st.selector || '(narration)', why: 'needs' };
   }
-  if (!st.selector) return null;                  // narration is never stranded
-  return window._drvResolve(st) ? null : { step: card.step, title: card.title, selector: st.selector, why: 'selector' };
+  var selStr = (typeof _gtStepSel === 'function') ? _gtStepSel(st) : st.selector;
+  if (!selStr) return null;                       // narration is never stranded
+  return window._drvResolve(st) ? null : { step: card.step, title: card.title, selector: selStr, why: 'selector' };
 };
 // Do what the card says, on the real control.
 window._drvAct = async function (gid) {

@@ -78,12 +78,13 @@ async function walk(browser, withData) {
   await browser.close();
 
   console.log('== A · the tour walks every page and ends, for a new collector and for one with items ==');
-  T('A1  the tour has more than a dozen cards', empty.tourSteps >= 14, empty.tourSteps);
+  T('A1  the tour has more than a dozen cards (24 since v0.9.1869: the dashboard in six, every page in menu order, the four help doors, the name menu)', empty.tourSteps >= 24, empty.tourSteps);
   T('A2  a brand-new collector (empty) can press Next to the end with no card pointing at nothing', empty.ended && empty.misses.length === 0, { misses: empty.misses, cards: empty.cards.map(c => c.title) });
   T('A3  a collector with items can too', full.ended && full.misses.length === 0, { misses: full.misses, cards: full.cards.map(c => c.title) });
   const pagesSeen = new Set(full.cards.map(c => c.page));
-  T('A4  the walk really changes pages (browse, upgrade, forsale, sold, parts, tools, reports, prefs)',
-     ['page-browse', 'page-upgrade', 'page-forsale', 'page-sold', 'page-parts', 'page-tools', 'page-reports', 'page-prefs'].every(p => pagesSeen.has(p)), Array.from(pagesSeen));
+  // v0.9.1869 (Brad: "we don't actually show the photo inbox page" / the Dispatch Board / "contacts is a big feature"): three more pages the walk must really open
+  T('A4  the walk really changes pages (browse, upgrade, forsale, sold, parts, tools, reports, prefs, photo inbox, dispatch, contacts)',
+     ['page-browse', 'page-upgrade', 'page-forsale', 'page-sold', 'page-parts', 'page-tools', 'page-reports', 'page-prefs', 'page-photo-inbox', 'page-dispatch', 'page-contacts'].every(p => pagesSeen.has(p)), Array.from(pagesSeen));
   T('A5  …and ends back on the Dashboard', full.cards.length && full.cards[full.cards.length - 1].page === 'page-dashboard', full.cards[full.cards.length - 1]);
   T('A6  the Master Catalog card states the count from config, not a typed number', full.cards.some(c => /Master Catalog/.test(c.title)) && full.cards.find(c => /Master Catalog/.test(c.title)).body.indexOf(full.catalogCount) >= 0, full.cards.find(c => /Master Catalog/.test(c.title)));
 

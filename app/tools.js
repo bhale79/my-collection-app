@@ -315,7 +315,10 @@ function buildToolsPage() {
       '<div id="master-175-results" style="margin-top:1rem;color:var(--text)"></div>' +
     '</div>';
 
-  var html = '<div class="page-title" style="margin-bottom:0.5rem">Collection Tools</div>';
+  // v0.9.1869: #tools-all wraps every section so the tour can ring ALL the tool
+  // boxes at once (Brad: "need to highlight all the boxes") — #page-tools itself
+  // is display:contents and has no box.
+  var html = '<div class="page-title" style="margin-bottom:0.5rem">Collection Tools</div><div id="tools-all">';
   // Universal = works across every manufacturer.
   html += SECTION_HEADER('universal', 'Universal Tools', 'Work across all manufacturers');
   html += '<div id="universal-body">' + CARD_DUPLICATE_CHECKER + CARD_STOCK_PHOTOS + CARD_VAULT_CLEANUP + CARD_MASTER_FIXUP + CARD_VERSION_TIDY + CARD_MASTER_173 + CARD_MASTER_174 + CARD_MASTER_175 + CARD_SHARED_PHOTOS + '</div>';
@@ -327,6 +330,7 @@ function buildToolsPage() {
     html += '<div id="lionel-body">' + CARD_GROUP_FINDER + CARD_SET_BUILDER + CARD_COMPANION_SUGGESTER + '</div>';
   }
 
+  html += '</div>';   // v0.9.1869: closes #tools-all
   container.innerHTML = html;
 
   // v0.9.1310 (Brad): "when you hit details, and hit back, it goes to

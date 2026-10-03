@@ -137,86 +137,217 @@ function _gtMatchPicked() {
 }
 if (typeof window !== 'undefined') window._gtMatchPicked = _gtMatchPicked;
 
+// ══ v0.9.1869 — the tour's own helpers ══════════════════════════════════════
+// The page tabs the tour lights with its second ring (see _gtRing2). Desktop
+// sidebar item first, phone bottom-bar item second; the engine takes the first
+// one that is on screen and skips the ring when neither is. Written out in
+// full rather than through _gNav() on purpose: photo-inbox-tests §289 lifts
+// everything from _gtMatchAccepted to GUIDES into a bare sandbox, where a call
+// made at load time has nothing to call.
+var _TOUR_TAB = {
+  dashboard:  '.nav-item[onclick*="showPage(\'dashboard\'"], #mnav-dashboard',
+  collection: '.nav-item[onclick*="filterOwned"], #mnav-collection',
+  want:       '.nav-item[onclick*="buildUpgradePage"], #mnav-want',
+  forsale:    '.nav-item[onclick*="buildForSalePage"], #mnav-forsale',
+  parts:      '.nav-item[onclick*="buildPartsPage"], #mnav-parts',
+  catalog:    '.nav-item[onclick*="resetFilters"], #mnav-browse',
+  tools:      '.nav-item[onclick*="showPage(\'tools\'"]',
+  reports:    '.nav-item[onclick*="showPage(\'reports\'"], #mnav-reports',
+  sold:       '.nav-item[onclick*="showPage(\'sold\'"], #mnav-sold',
+  inbox:      '#nav-photo-inbox, #mnav-photo-inbox',
+  prefs:      '.nav-item[onclick*="showPage(\'prefs\'"], #mnav-prefs',
+  dispatch:   '#nav-dispatch-btn',
+  contact:    '.sidebar button[onclick*="showContactModal"]',
+  help:       '#tut-help-widget, #menu-help-btn',
+  report:     '#nav-errreport-btn, #mnav-errreport',
+  contacts:   '#mnav-contacts'
+};
+// What each large panel shows, by its PANEL_CATALOG id — the tour reads which
+// panel is really in the first slot and says so (Brad: "this one happens to be
+// the recent additions card"). The label itself is read from the live header.
+var _TOUR_PANEL_WHAT = {
+  recent:     'the items you added most recently',
+  wants:      'the top of your want list',
+  showcase:   'a shuffling showcase of your own photos',
+  parts:      'the parts you’re hunting for',
+  forsale:    'what you have up for sale',
+  value:      'your highest-value items',
+  upgrades:   'the items you’d like a better copy of',
+  photoInbox: 'the photos waiting in your Photo Inbox'
+};
+// The name menu, read from the menu itself so it stays true for every user and
+// every future entry. Yardmaster's Office is Brad's alone and is left out by
+// name; "Install on this device" only shows when the browser offers it.
+var _TOUR_MENU_WHAT = {
+  'Dispatch Board':         'news from us — the board you just saw',
+  'Contacts':               'the people you buy from and sell to — next card',
+  'Preferences':            'the same Preferences page as the side menu',
+  'Help':                   'the Help Center',
+  'Report a problem':       'the box you just saw',
+  'Install on this device': 'puts the app on your home screen',
+  'Sign Out':               'signs you out of the app on this device'
+};
+function _tourAccountLines() {
+  var out = [];
+  try {
+    var items = document.querySelectorAll('#account-menu .account-menu-item');
+    for (var k = 0; k < items.length; k++) {
+      var b = items[k];
+      if (b.offsetParent === null) continue;
+      var label = '';
+      for (var c = 0; c < b.childNodes.length; c++) if (b.childNodes[c].nodeType === 3) label += b.childNodes[c].textContent;
+      label = label.replace(/\s+/g, ' ').trim();
+      if (!label || /yardmaster/i.test(label)) continue;
+      out.push('<strong>' + label + '</strong>' + (_TOUR_MENU_WHAT[label] ? ' — ' + _TOUR_MENU_WHAT[label] : ''));
+    }
+  } catch (e) {}
+  return out.length ? out.join('<br>') : 'Contacts, Preferences, Help, Report a problem and Sign Out.';
+}
+function _tourOpenAccountMenu() {
+  try {
+    var menu = document.getElementById('account-menu');
+    if (!menu) return;
+    if (menu.style.display === 'none' && typeof toggleAccountMenu === 'function') toggleAccountMenu();
+    // The menu closes itself on any click outside the name chip — and the
+    // tour's own Next button is outside the name chip. While the card is up the
+    // menu stays open; the tour closes it on the way out (_tourClose).
+    if (typeof _accountMenuOutsideClick === 'function') document.removeEventListener('click', _accountMenuOutsideClick);
+  } catch (e) {}
+}
+// Close everything the tour may have opened. Idempotent; called by the step
+// that follows each of them and by the engine when the tour ends any way at all.
+function _tourClose() {
+  try { var h = document.getElementById('help-hub-modal'); if (h) h.remove(); } catch (e) {}
+  try { var m = document.getElementById('account-menu'); if (m && m.style.display !== 'none' && typeof toggleAccountMenu === 'function') toggleAccountMenu(); } catch (e) {}
+  try { var c = document.getElementById('contact-modal'); if (c && c.style.display !== 'none') { c.style.display = 'none'; if (window.BackStack) BackStack.pop('contact-modal'); } } catch (e) {}
+  try { if (document.getElementById('err-report-modal') && typeof errReportClose === 'function') errReportClose(); } catch (e) {}
+}
+if (typeof window !== 'undefined') { window._tourClose = _tourClose; window._tourAccountLines = _tourAccountLines; }
+
 const GUIDES = {
 
   'tour': {
     icon: '🗺️', label: 'Take the tour', desc: 'Every page of the app, one card each',
-    open: function () { showPage('dashboard'); },
+    open: function () { _tourClose(); showPage('dashboard'); },
+    // v0.9.1869 — the tour opens real things (the Help Center, the name menu,
+    // the Contact and Report boxes); the engine calls this however the tour
+    // ends, so none of them is left open behind a cancelled tour.
+    close: function () { _tourClose(); },
+    // ══ v0.9.1869 — THE TOUR, REWRITTEN FROM BRAD'S WALK OF IT ════════════
+    //
+    // Brad walked all eighteen cards with screenshots (2026-10-03) and gave 23
+    // findings. The placement ones are fixed in the engine (reading cards, the
+    // second ring on the page's tab). The rest are in these cards:
+    //   · "first box says step 2 … step one should say lets go through your
+    //     dashboard" — a centred opener, and ONE data-cards card that reads the
+    //     dashboard instead of two that take turns skipping;
+    //   · "the recent additions is a card, not always on top … say this one
+    //     happens to be the recent additions card" — the large-panel card reads
+    //     the panel that is really there and says how to change it (Edit
+    //     Dashboard — a header tap OPENS the page; the old card said it switched
+    //     the list, which it never did);
+    //   · "[your main areas] should be card number 2 … next to the panel";
+    //   · "we don't actually show the photo inbox page" / the Dispatch Board /
+    //     "should show the help menu" — those cards open the real thing now;
+    //   · "explain how to report a problem, the contact button, also show what
+    //     each line is under your name … contacts is a big feature … yard
+    //     master is mine only so dont show it" — four new cards; the name menu
+    //     lists what is really in it, Yardmaster's Office left out by name;
+    //   · "the end of tour should be in the middle".
+    // The walk goes in MENU ORDER so the second ring moves down the menu as the
+    // tour goes. Every name here is held to the live labels by
+    // tests/tour_copy_tests.js; the placement is held by tests/tour_layout_tests.js.
     steps: [
-      // v0.9.1400 — THE FIRST CARD A NEW USER EVER READS.
-      // Running the guides against an empty collection showed the tour opening
-      // with "Your data cards — these show key numbers about your collection",
-      // pointing at a dashboard that has no cards on it, followed by a Recent
-      // Additions card pointing at nothing at all. Every beta tester starts
-      // there. The tour now has something true to say in both states, and each
-      // of the two retires itself when it does not apply.
-      { selector: '#dash-welcome-empty', optional: true,
-        needs: function () { return !document.getElementById('dash-card-0'); },
-        title: 'Nothing here yet — which is where everyone starts',
-        body: 'Your dashboard fills itself in as you add things. Until then it offers the two ways in: <strong>Add your first item</strong> if you know the number, or <strong>Open the Photo Inbox</strong> to photograph a shelf now and do the typing another day.' },
-      { selector: '#stats-grid', optional: true,
-        needs: function () { return !!document.getElementById('dash-card-0'); },
-        title: 'Your data cards',
-        body: 'These show key numbers about your collection. Use <strong>Edit Dashboard</strong> to change which stats appear, or <strong>Add a stat card</strong> for another one — collection value, counts by type, and more. You can show up to 6.' },
-      // v0.9.1394 (walked in Brad's browser): this said "Tap any card to swap it".
-      // Measured on #dash-card-0 — no onclick attribute, no onclick property,
-      // cursor:auto. dashboard.js says so outright on the line that wires the
-      // click: "Catalog keeps its picker; others stay inert." It was the FIRST
-      // sentence a new user reads, and it asked them to do something that does
-      // nothing. The two controls named here are both real and both on screen.
-      // "up to 5" was wrong too — v0.9.754 raised MAX_CARDS to 6 at Brad's own
-      // request and the copy never followed.
-      { selector: '#dash-panel-header-0', wrap: '.panel', optional: true, title: 'Recent Additions',
-        body: 'The items you added most recently. <strong>Tap the panel\'s header</strong> to switch it to a different list.' },
-      // v0.9.1824 (M7, Brad: "the tour doesn't show very much"): the menu card
-      // names what the menu actually says (checked against the live sidebar —
-      // it had "Your Collection", "Sold", "the catalog", and left out Parts
-      // Needed and the Dispatch Board); the buttons card names all six; and the
-      // tour then WALKS every page, one card each, pointing at the real thing on
-      // it. Every name in these cards is held to the live labels by
-      // tests/tour_copy_tests.js.
+      // 1 ─ opener, centred, no ring
+      { title: 'Let’s go through your dashboard',
+        body: 'This is your home page, and the tour starts here. I’ll point out each part of it, then open every page in the menu, one card each. Nothing you see during the tour changes anything. <strong>Next</strong> moves along, <strong>Back</strong> re-reads a card, <strong>Cancel</strong> stops.' },
+      // 2 ─ the menu (card number 2, beside it)
       { selector: '.sidebar, .mobile-nav', title: 'Your main areas',
-        body: 'Everything lives in this menu \u2014 My Collection, Want / Upgrade, For Sale, Parts Needed, the Master Catalog, Collection Tools, Reports, Sold Items, the Photo Inbox and Preferences. The Dispatch Board is where news from us arrives.' },
-      { selector: '.dash-desktop-actions, .dash-mobile-actions', title: 'Add things fast',
-        body: 'Six buttons, one for each thing you\'ll do most: add an item, put one on your want list, note an upgrade you\'re after, list one for sale, record a sale, or research an item before you buy.' },
-      // ── the walk: each card opens its page first, then points at what is there ──
+        body: 'Everything lives in this menu — My Collection, Want / Upgrade, For Sale, Parts Needed, the Master Catalog, Collection Tools, Reports, Sold Items, the Photo Inbox and Preferences. The Dispatch Board is where news from us arrives. We’ll visit each one in turn.' },
+      // 3 ─ the six buttons
+      { selector: '.dash-desktop-actions, .dash-mobile-actions', tab: _TOUR_TAB.dashboard, title: 'Add things fast',
+        body: 'Six buttons, one for each thing you’ll do most: add an item, put one on your want list, note an upgrade you’re after, list one for sale, record a sale, or research an item before you buy.' },
+      // 4 ─ the data cards: ONE card, true in both states (v0.9.1400 had two
+      //     that took turns skipping, which is why Brad's first card said "2")
+      { selector: function () { return document.getElementById('dash-card-0') ? '#stats-grid' : '#dash-welcome-empty'; },
+        tab: _TOUR_TAB.dashboard,
+        title: function () { return document.getElementById('dash-card-0') ? 'Your data cards' : 'Nothing here yet — which is where everyone starts'; },
+        body: function () {
+          if (document.getElementById('dash-card-0')) {
+            // "up to 6": MAX_CARDS was raised to 6 in v0.9.754 at Brad's own request.
+            return 'These show key numbers about your collection. Use <strong>Edit Dashboard</strong> to change which stats appear, or <strong>Add a stat card</strong> for another one — collection value, counts by type, and more. You can show up to 6.';
+          }
+          return 'Your dashboard fills itself in as you add things. Until then it offers the two ways in: <strong>Add your first item</strong> if you know the number, or <strong>Open the Photo Inbox</strong> to photograph a shelf now and do the typing another day.';
+        } },
+      // 5 ─ the photo strip (an Edit Dashboard extra, computer screens only)
+      { selector: '#dash-ticker-host .panel', optional: true, tab: _TOUR_TAB.dashboard, title: 'Your photos, passing by',
+        body: 'A strip of your own photos drifting across the screen. Hover to pause it, tap a photo to open its item, and the arrows under it set the speed. It’s an extra — <strong>Edit Dashboard</strong> turns it on or off (computer screens only).' },
+      // 6 ─ the large panels: the first one, named for what it really is
+      { selector: '#dash-panel-header-0', wrap: '.panel', optional: true, tab: _TOUR_TAB.dashboard, title: 'The large panels',
+        body: function () {
+          var h = document.getElementById('dash-panel-header-0');
+          var label = h ? (h.textContent || '').replace(/[›·].*$/, '').replace(/\s+/g, ' ').trim() : '';
+          var id = '';
+          try { var ps = (typeof _getPanels === 'function') ? _getPanels() : null; id = (ps && ps[0] && ps[0].id) || ''; } catch (e) {}
+          var what = _TOUR_PANEL_WHAT[id] || 'one of the lists you can keep an eye on from here';
+          return 'The bottom row holds up to three large panels. This one happens to be ' + (label ? '<strong>' + label + '</strong>' : 'a panel') + ' — ' + what + '. Use <strong>Edit Dashboard</strong> (top right) to choose which panels sit here and in what order; tapping a panel’s header opens the page it comes from.';
+        } },
+      // ── the walk, in menu order: each card opens its page, rings what is there, and lights the page's tab ──
       { before: function () { showPage('browse'); if (typeof filterOwned === 'function') filterOwned(); return 900; },
-        selector: '#hierarchy-chip-row, #browse-items-panel, #page-browse', title: 'My Collection',
+        selector: '#hierarchy-chip-row, #browse-items-panel, #page-browse', tab: _TOUR_TAB.collection, title: 'My Collection',
         body: 'Everything you own, in one list. The chips along the top narrow it by maker, scale, era or type, and the search box finds a number or a road name in a moment. Tap any row to open the item.' },
-      { before: function () { showPage('browse'); if (typeof resetFilters === 'function') resetFilters(); if (typeof renderBrowse === 'function') renderBrowse(); return 900; },
-        selector: '#browse-search-wrap, #hierarchy-chip-row, #page-browse', title: 'The Master Catalog',
-        body: function () { var n = (typeof BRAND_CATALOG_COUNT === 'string') ? BRAND_CATALOG_COUNT : 'over 160,000'; return 'The same list, opened to the whole catalogue \u2014 ' + n + ' items across every maker and era. Look anything up here, whether you own it or not, and add it to your collection or your want list from its page.'; } },
       { before: function () { showPage('upgrade'); if (typeof buildUpgradePage === 'function') buildUpgradePage(); return 900; },
-        selector: '#upgrade-table, #upgrade-tbody, #page-upgrade', title: 'Want / Upgrade',
-        body: 'What you\'re hunting for: items you want, and items you own but would like a better copy of. Bring this list to a show. When you find one, it moves into your collection with two taps.' },
+        selector: '#upgrade-table, #upgrade-tbody, #upgrade-cards, #page-upgrade', tab: _TOUR_TAB.want, title: 'Want / Upgrade',
+        body: 'What you’re hunting for: items you want, and items you own but would like a better copy of. Bring this list to a show. When you find one, it moves into your collection with two taps.' },
       { before: function () { showPage('forsale'); if (typeof buildForSalePage === 'function') buildForSalePage(); return 900; },
-        selector: '#forsale-table-wrap, #page-forsale', title: 'For Sale',
-        body: 'Items you\'ve put up for sale, with the asking price. You can share the list as a page or a PDF, and when something sells, one tap records the sale.' },
-      { before: function () { showPage('sold'); return 900; },
-        selector: '#sold-table-wrap, #page-sold', title: 'Sold Items',
-        body: 'Your sales history \u2014 what went, when, and for how much \u2014 kept as a snapshot even after the item leaves your collection.' },
+        selector: '#forsale-table-wrap, #forsale-cards, #page-forsale', tab: _TOUR_TAB.forsale, title: 'For Sale',
+        body: 'Items you’ve put up for sale, with the asking price. You can share the list as a page or a PDF, and when something sells, one tap records the sale.' },
       { before: function () { showPage('parts'); if (typeof buildPartsPage === 'function') buildPartsPage(); return 900; },
-        selector: '#parts-list, #page-parts', title: 'Parts Needed',
-        body: 'The parts you\'re tracking down, each tied to the item it\'s for. Mark one bought, then installed, and it lands in that item\'s service history on the Workbench.' },
+        selector: '#parts-list, #page-parts', tab: _TOUR_TAB.parts, title: 'Parts Needed',
+        body: 'The parts you’re tracking down, each tied to the item it’s for. Mark one bought, then installed, and it lands in that item’s service history on the Workbench.' },
+      { before: function () { showPage('browse'); if (typeof resetFilters === 'function') resetFilters(); if (typeof renderBrowse === 'function') renderBrowse(); return 900; },
+        selector: '#browse-search-wrap, #hierarchy-chip-row, #browse-items-panel, #page-browse', tab: _TOUR_TAB.catalog, title: 'The Master Catalog',
+        body: function () { var n = (typeof BRAND_CATALOG_COUNT === 'string') ? BRAND_CATALOG_COUNT : 'over 160,000'; return 'The same list, opened to the whole catalogue — ' + n + ' items across every maker and era. Look anything up here, whether you own it or not, and add it to your collection or your want list from its page.'; } },
       { before: function () { showPage('tools'); return 900; },
-        selector: '#universal-body, #page-tools', title: 'Collection Tools',
-        body: 'Helpers that look across your whole collection \u2014 group items that belong together, spot the sets you could complete, and tidy things in bulk.' },
+        selector: '#tools-all, #universal-body, #page-tools', tab: _TOUR_TAB.tools, title: 'Collection Tools',
+        body: 'Helpers that look across your whole collection — group items that belong together, spot the sets you could complete, and tidy things in bulk. Each box is one tool, with its own button.' },
       { before: function () { showPage('reports'); return 900; },
-        selector: '#report-library, #page-reports', title: 'Reports',
-        body: 'An insurance report with photos, a full collection listing, your want and upgrade lists \u2014 or build your own. Each one previews on screen and exports as a PDF or a Google Doc.' },
-      { before: function () { showPage('dashboard'); return 700; },
-        selector: '#nav-photo-inbox, #mnav-photo-inbox', title: 'The Photo Inbox',
-        body: 'Photograph a whole shelf now and do the typing later. Photos wait here until you file them onto items; the app reads numbers off boxes and labels to help.' },
-      { selector: '#nav-dispatch-btn', optional: true, title: 'The Dispatch Board',
-        body: 'News from us \u2014 what changed in the app and what\'s coming. New notes are marked until you\'ve read them.' },
+        selector: '#report-library, #page-reports', tab: _TOUR_TAB.reports, title: 'Reports',
+        body: 'An insurance report with photos, a full collection listing, your want and upgrade lists — or build your own. Each one previews on screen and exports as a PDF or a Google Doc.' },
+      { before: function () { showPage('sold'); return 900; },
+        selector: '#sold-table-wrap, #sold-cards, #page-sold', tab: _TOUR_TAB.sold, title: 'Sold Items',
+        body: 'Your sales history — what went, when, and for how much — kept as a snapshot even after the item leaves your collection.' },
+      { before: function () { try { if (typeof _pinGo === 'function') _pinGo(document.getElementById('nav-photo-inbox')); else showPage('photo-inbox'); } catch (e) { showPage('photo-inbox'); } return 900; },
+        selector: '#pin-drop, #pin-grid, #page-photo-inbox', tab: _TOUR_TAB.inbox, title: 'The Photo Inbox',
+        body: 'Photograph a whole shelf now and do the typing later. Photos wait here until you file them onto items; the app reads numbers off boxes and labels to help. <strong>Add photos…</strong> starts a batch.' },
       { before: function () { showPage('prefs'); if (typeof buildPrefsPage === 'function') buildPrefsPage(); return 900; },
-        selector: '#prefs-content, #page-prefs', title: 'Preferences',
-        body: '<strong>What I Collect</strong> lives here \u2014 tick the makers, scales and eras you care about and the catalogue keeps to them. Your Google Sheet and photo folder open from <strong>Account</strong>, and your settings follow you to every device.' },
+        selector: '#prefs-content, #page-prefs', tab: _TOUR_TAB.prefs, title: 'Preferences',
+        body: '<strong>What I Collect</strong> lives here — tick the makers, scales and eras you care about and the catalogue keeps to them. Your Google Sheet and photo folder open from <strong>Account</strong>, and your settings follow you to every device.' },
+      { before: function () { showPage('dispatch', document.getElementById('nav-dispatch-btn')); return 900; },
+        selector: '#db-board, #page-dispatch', tab: _TOUR_TAB.dispatch, title: 'The Dispatch Board',
+        body: 'News from us — what changed in the app and what’s coming. New notes are marked until you’ve read them. It’s here in the side menu, and under your name at the top right as well.' },
       { before: function () { showPage('dashboard'); return 700; },
-        selector: '#tut-help-widget, #menu-help-btn', title: 'Help',
-        body: 'Every page you just saw has its own guide here \u2014 adding an item, the Photo Inbox, selling, reports \u2014 and each one opens the real screens and points at the real buttons, like this tour did.' },
-      { title: 'That\'s the tour',
-        body: 'You\'re back on the Dashboard. The quickest first step: <strong>Add to My Collection</strong> with an item number you know. Everything else can wait until you need it.' }
+        selector: '#refresh-btn', optional: true, judgeAtStart: true, title: 'Sync from Sheet',
+        body: 'Your collection lives in your own Google Sheet, and the app keeps itself in step with it. If you’ve changed the sheet directly — or something looks out of date — this reloads everything straight from the sheet.' },
+      { before: function () { _tourClose(); try { if (typeof showContactModal === 'function') showContactModal(); } catch (e) {} return 400; },
+        selector: '#contact-modal > div', tab: _TOUR_TAB.contact, title: 'Contact',
+        body: 'Found a mistake in the catalog, or have a suggestion? <strong>Contact</strong> opens this box, and <strong>Send an Email</strong> starts a message to us in your own mail app.' },
+      { before: function () { _tourClose(); try { if (typeof openHelpHub === 'function') openHelpHub({ underGuide: true }); } catch (e) {} return 400; },
+        selector: '#help-hub-panel', tab: _TOUR_TAB.help, title: 'Need Help?',
+        body: '<strong>Need Help?</strong> opens the Help Center. Every page you just saw has its own guide here — adding an item, the Photo Inbox, selling, reports — and each one opens the real screens and points at the real buttons, like this tour. The tips further down cover undoing a mistake and using more than one device.' },
+      { before: function () { _tourClose(); try { if (typeof errReportOpen === 'function') errReportOpen(); } catch (e) {} return 400; },
+        selector: '#err-report-modal [data-err-panel]', tab: _TOUR_TAB.report, title: 'Report a problem',
+        body: 'If something goes wrong, <strong>Report a problem</strong> opens this box. Three plain questions — what you were doing, what you saw, what you think went wrong — and the app gathers the technical details itself; what you typed is never recorded. <strong>Send</strong> delivers it straight to us, no email app needed.' },
+      { before: function () { _tourClose(); _tourOpenAccountMenu(); return 350; },
+        selector: '#account-menu', tab: '#user-chip', title: 'Under your name',
+        body: function () { return 'Tap your name at the top right and this menu drops down:<br>' + _tourAccountLines(); } },
+      { before: function () { _tourClose(); showPage('contacts'); return 900; },
+        selector: '#ct-list, #page-contacts', tab: _TOUR_TAB.contacts, title: 'Contacts',
+        body: 'Your dealers, fellow collectors and shops — names, phone, email, what they specialise in. <strong>+ Add Contact</strong> adds a person, the search box finds one by name or specialty, and when you add an item you can pick who you bought it from, so the item remembers where it came from. The Contacts report prints the whole book.' },
+      // 24 ─ closer, centred, no ring
+      { before: function () { _tourClose(); showPage('dashboard'); return 700; },
+        title: 'That’s the tour',
+        body: 'You’re back on the Dashboard. The quickest first step: <strong>Add to My Collection</strong> with an item number you know. Everything else can wait until you need it.' }
     ]
   },
 
@@ -775,7 +906,7 @@ function tutCheckAutoLaunch() {
 // HELP CENTER (Phase 1) — one hub, opened from the floating Help
 // button AND Preferences -> Help & Tips. Reuses existing actions.
 // ═══════════════════════════════════════════════════════════════
-function openHelpHub() {
+function openHelpHub(opts) {
   var ex = document.getElementById('help-hub-modal'); if (ex) ex.remove();
   var X = "document.getElementById('help-hub-modal').remove();";
   var fb = (typeof ADMIN_EMAIL !== 'undefined') ? ADMIN_EMAIL : '';
@@ -790,8 +921,15 @@ function openHelpHub() {
   var modal = document.createElement('div');
   modal.id = 'help-hub-modal';
   modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:99999;display:flex;align-items:flex-start;justify-content:center;padding:1.25rem;overflow-y:auto';
+  // v0.9.1869 — opened BY the tour itself ({ underGuide: true } from its Help
+  // card, which shows the real Help Center): sit under the tour's layers so its
+  // ring and card stay on top, and leave the dimming to the tour. Opened by the
+  // USER while a guide waits for them (the Need Help? button is reachable on a
+  // waiting step), it stays on top as always — tests/help-hub.js §7 holds that:
+  // a second guide can be started from it and exactly one tour survives.
+  if (opts && opts.underGuide === true && document.getElementById('gt-callout')) { modal.style.zIndex = '99989'; modal.style.background = 'transparent'; }
   modal.innerHTML =
-    '<div style="background:var(--surface);border-radius:16px;max-width:460px;width:100%;margin:auto;box-shadow:0 12px 40px rgba(0,0,0,0.5);font-family:var(--font-body)">'
+    '<div id="help-hub-panel" style="background:var(--surface);border-radius:16px;max-width:460px;width:100%;margin:auto;box-shadow:0 12px 40px rgba(0,0,0,0.5);font-family:var(--font-body)">'
     + '<div style="padding:1rem 1.25rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">'
     +   '<strong style="font-size:1.1rem;color:var(--text)">📖 Help Center</strong>'
     +   '<button type="button" onclick="' + X + '" style="background:none;border:none;color:var(--text);font-size:1.5rem;cursor:pointer;line-height:1;padding:0 0.25rem">×</button>'
@@ -1098,11 +1236,32 @@ window._rrGuidePhotos = _rrGuidePhotos;
 // Dims the page, highlights one live element at a time, explains it,
 // Back/Next/Exit. Reusable: pass [{selector, wrap?, title, body}].
 // ═══════════════════════════════════════════════════════════════
+// ══ v0.9.1869 — WHAT A STEP POINTS AT, AND WHAT IT SAYS, in one place ═══════
+// A step's selector, title and body may each be a FUNCTION of the screen (the
+// tour's data-cards card is one card true in two states). Everything that reads
+// a step — the engine below, and the browser gates in tests/lib/guide-fixture.js
+// — asks these two, so the audits can never read a function as if it were text.
+function _gtStepSel(step) {
+  try { return (step && typeof step.selector === 'function') ? step.selector() : (step ? step.selector : null); } catch (e) { return null; }
+}
+function _gtStepText(v) {
+  try { return (typeof v === 'function') ? (v() || '') : (v || ''); } catch (e) { return ''; }
+}
+if (typeof window !== 'undefined') { window._gtStepSel = _gtStepSel; window._gtStepText = _gtStepText; }
+
 function _gtEnd() {
-  ['gt-blocker','gt-hole','gt-callout'].forEach(function(id){
+  ['gt-blocker','gt-hole','gt-hole2','gt-callout'].forEach(function(id){
     var e = document.getElementById(id); if (e && e.parentNode) e.parentNode.removeChild(e);
   });
   if (typeof window._gtCleanup === 'function') { try { window._gtCleanup(); } catch(e){} window._gtCleanup = null; }
+  // v0.9.1869 — a guide that OPENS things (the tour opens the Help Center, the
+  // name menu, the Contact and Report boxes) closes them however it ends: Done,
+  // Cancel, ×, Escape, or the page-watch stepping it out of the way. The guide
+  // says how in its own `close`; the engine only promises to call it.
+  try {
+    var _g = (typeof GUIDES !== 'undefined' && GUIDES) ? GUIDES[window._gtGuideId] : null;
+    if (_g && typeof _g.close === 'function') _g.close();
+  } catch (e) {}
 }
 // ══ v0.9.1384 — THE HELP CARD MUST NOT SIT ON A CONTROL ═══════════════════
 //
@@ -1415,6 +1574,21 @@ function _guidedTour(steps) {
   var _still = _gtStill();
   hole.style.cssText = 'position:fixed;top:0;left:0;width:0;height:0;z-index:99991;border-radius:12px;box-shadow:inset 0 0 0 1px rgba(0,0,0,0.55),0 0 0 1px rgba(255,255,255,0.8),0 0 0 9999px rgba(0,0,0,0.62);border:2px solid var(--accent,#f05008);pointer-events:none;transition:' +
     (_still ? 'none' : 'top 0.25s ease,left 0.25s ease,width 0.25s ease,height 0.25s ease,opacity 0.2s ease');
+  // ══ v0.9.1869 — THE SECOND RING: the page's own tab in the menu ═══════════
+  //
+  // Brad, walking the tour page by page: "we should highlight the tab button
+  // we are showing" — eight times, once per page. A step may now name a `tab`
+  // (the menu item for the page it is on) and it gets this second, smaller
+  // ring. The dark shade is the big box-shadow on #gt-hole above, which can
+  // only cut ONE window; so this ring lifts its own patch back up with a
+  // backdrop brightness instead — the shade is 62% black, which leaves 38% of
+  // every colour, and 1 ÷ 0.38 = 2.63 puts it back exactly. The tab is lit and
+  // ringed; it is NOT pressable (the click blocker is untouched), because a
+  // tour that lets you change page under it is the v0.9.1399 bug again.
+  var hole2 = document.createElement('div');
+  hole2.id = 'gt-hole2';
+  hole2.style.cssText = 'position:fixed;top:0;left:0;width:0;height:0;z-index:99991;border-radius:10px;border:2px solid var(--accent,#f05008);box-shadow:0 0 0 1px rgba(255,255,255,0.8);pointer-events:none;opacity:0;backdrop-filter:brightness(2.63);-webkit-backdrop-filter:brightness(2.63);transition:' +
+    (_still ? 'none' : 'top 0.25s ease,left 0.25s ease,width 0.25s ease,height 0.25s ease,opacity 0.2s ease');
   var callout = document.createElement('div');
   callout.id = 'gt-callout';
   // ── v0.9.1404 — THE CARD HAS TO EXIST FOR SOMEONE NOT USING A MOUSE ────
@@ -1434,7 +1608,37 @@ function _guidedTour(steps) {
   callout.style.cssText = 'position:fixed;top:50%;left:50%;z-index:99992;max-width:330px;width:calc(100vw - 2rem);background:var(--surface,#1a1a2e);color:var(--text,#eee);border:1px solid var(--border,#333);border-radius:12px;box-shadow:0 10px 36px rgba(0,0,0,0.5);font-family:var(--font-body,sans-serif);transition:' + (_still ? 'none' : 'top 0.25s ease,left 0.25s ease');
   document.body.appendChild(blocker);
   document.body.appendChild(hole);
+  document.body.appendChild(hole2);   // after the hole, so its brightness sees the shade
   document.body.appendChild(callout);
+
+  // ══ v0.9.1869 — TWO KINDS OF CARD ════════════════════════════════════════
+  //
+  // Brad, with eleven screenshots of the tour: the box "should be twice this
+  // size", "should be under the highlighted section", "should be next to the
+  // panel on the left", "should be in the middle" — and every one of those
+  // boxes had been pushed into a corner by a rule written for a different
+  // job. Every placement rule below this point was built for the Add-item
+  // guide, where the user must PRESS things while the card is up, so the card
+  // must never sit on a control. But a card that is only TELLING you something
+  // has the click blocker up: nothing behind it can be pressed anyway, so
+  // dodging buttons there only drags the card away from the thing it is about,
+  // and shrinking it to fit a clean gap only makes it harder to read.
+  //
+  // So a step that WAITS (awaitUser) is a WORKING card — compact, parks in a
+  // corner, dodges every control, exactly as before. A step that does not is a
+  // READING card — twice the size, sits against its ring, never dodges. Inside
+  // an open box (the wizard) a reading card keeps the compact size and Brad's
+  // bottom-left pin, because there the card is sharing the box with the thing
+  // you are reading.
+  function _gtWaits() { return !!(steps[i] && typeof steps[i].awaitUser === 'function'); }
+  function _gtBoxOpen() {
+    try {
+      var b = document.querySelector('#wizard-modal.open, .modal.open');
+      var br = b ? b.getBoundingClientRect() : null;
+      return !!(br && br.width > 40 && br.height > 40);
+    } catch (e) { return false; }
+  }
+  function _gtBig() { return !_gtWaits() && !_gtBoxOpen(); }
 
   function setMascot(rightSide, cardLeft, cardWidth) {
     var m = document.getElementById('gt-mascot'); if (!m) return;
@@ -1611,6 +1815,31 @@ function _guidedTour(steps) {
   // little more wrapping; covering a button costs the user the step.
   var _gtWidthCap = 0;
   function place(el) {
+    // v0.9.1869 — a READING card is placed once, at full size, against its
+    // ring. None of the escalation below applies: it exists to keep a card
+    // off controls, and nothing behind a reading card can be pressed. The one
+    // thing that may still give is height — on a short window the words
+    // scroll so Cancel / Back / Next stay on screen.
+    if (_gtBig()) {
+      _gtWidthCap = 0;
+      _gtUncap();
+      _gtFold(false);
+      _placeOnce(el);
+      // A ring taller than the room beside it (Preferences on a 1400px window,
+      // the Help Center, the Report box) can leave a full-width card nowhere to
+      // stand but ON the ring. Then the card takes the width that DOES fit
+      // beside the ring — never less than the old compact size — before the
+      // bottom-of-screen fallback is accepted.
+      if (el && _gtOnRing(el)) {
+        var _rr = el.getBoundingClientRect();
+        var _roomBeside = Math.max(window.innerWidth - _rr.right, _rr.left) - 72 - 14 - 8;   // the mascot's 72, the gap, the margin
+        _gtWidthCap = Math.max(330, Math.min(600, Math.floor(_roomBeside)));
+        _placeOnce(el);
+      }
+      var _hMax = window.innerHeight - 16;
+      if (callout.offsetHeight > _hMax) { _gtCapTo(_hMax); _placeOnce(el); }
+      return;
+    }
     // The escalation, in order of how much it costs the user:
     //   whole card → shorter (text scrolls) → narrower → folded to a strip.
     // It stops at the FIRST arrangement that is clear of every control, so on
@@ -1689,10 +1918,66 @@ function _guidedTour(steps) {
     }
     try { window._gtNoCleanSpot = (window._gtNoCleanSpot || 0) + 1; } catch (e) {}
   }
+  // The second ring's target, resolved fresh on every placement — a tab is
+  // part of the chrome, so it is cheap to find and never recorded as a miss.
+  function _gtTabEl(step) {
+    if (!step || !step.tab) return null;
+    try {
+      var c = document.querySelectorAll(step.tab);
+      for (var k = 0; k < c.length; k++) if (_gtShown(c[k])) return c[k];
+    } catch (e) {}
+    return null;
+  }
+  function _gtRing2(el, primary) {
+    var t = el ? _gtTabEl(steps[i]) : null;
+    if (!t) { hole2.style.opacity = '0'; return; }
+    var r = t.getBoundingClientRect(), pad = 4;
+    if (!(r.width > 0 && r.height > 0)) { hole2.style.opacity = '0'; return; }
+    // The phone's bottom bar scrolls sideways and the tab may be off its end;
+    // bring it into the bar's view (nearest edge, nothing else moves), then
+    // measure again. A tab still mostly off-screen gets no ring at all rather
+    // than a sliver at the window's edge.
+    if (r.right > window.innerWidth || r.left < 0 || r.bottom > window.innerHeight || r.top < 0) {
+      try { t.scrollIntoView({ block: 'nearest', inline: 'nearest' }); } catch (e) {}
+      r = t.getBoundingClientRect();
+    }
+    var _visW = Math.min(r.right, window.innerWidth) - Math.max(r.left, 0);
+    var _visH = Math.min(r.bottom, window.innerHeight) - Math.max(r.top, 0);
+    if (_visW < Math.min(24, r.width * 0.6) || _visH < Math.min(16, r.height * 0.6)) { hole2.style.opacity = '0'; return; }
+    // Two rings that overlap would fight over the same pixels; the page ring
+    // already lights that patch, so the tab ring stands down. Measured on the
+    // raw boxes: the name menu hangs 8px under the name chip, and padding both
+    // rings first made that an "overlap" and lost the chip its ring.
+    if (primary && !(r.right <= primary.left + 2 || r.left >= primary.right - 2 ||
+                     r.bottom <= primary.top + 2 || r.top >= primary.bottom - 2)) { hole2.style.opacity = '0'; return; }
+    var _vw = window.innerWidth, _vh = window.innerHeight, _e = 4;
+    var x1 = Math.max(_e, r.left - pad), y1 = Math.max(_e, r.top - pad);
+    var x2 = Math.min(_vw - _e, r.right + pad), y2 = Math.min(_vh - _e, r.bottom + pad);
+    hole2.style.left = x1 + 'px'; hole2.style.top = y1 + 'px';
+    hole2.style.width = Math.max(0, x2 - x1) + 'px'; hole2.style.height = Math.max(0, y2 - y1) + 'px';
+    hole2.style.opacity = '1';
+  }
+  // Does the card, where its style says it is going, sit on the ring? Style
+  // values, not getBoundingClientRect — the card is mid-transition (see
+  // _gtCoverCount).
+  function _gtOnRing(el) {
+    try {
+      var L = parseFloat(callout.style.left), T = parseFloat(callout.style.top);
+      var w = callout.offsetWidth, h = callout.offsetHeight, r = el.getBoundingClientRect();
+      if (!isFinite(L) || !isFinite(T)) return false;
+      return !(L + w <= r.left + 2 || L >= r.right - 2 || T + h <= r.top + 2 || T >= r.bottom - 2);
+    } catch (e) { return false; }
+  }
   function _placeOnce(el) {
-    callout.style.maxWidth = Math.min(_gtWidthCap || 340, window.innerWidth - 100) + 'px';
+    // v0.9.1869: a reading card is twice the old width (and on a phone, where
+    // the conductor stands down, it may use the width he would have taken); a
+    // working card, and any card inside an open box, keeps the compact size and
+    // its shrink tiers.
+    var _vwRoom = window.innerWidth - ((_gtBig() && window.innerWidth < 480) ? 32 : 100);
+    callout.style.maxWidth = Math.min(_gtBig() ? (_gtWidthCap || 600) : (_gtWidthCap || 340), _vwRoom) + 'px';
     if (!el) {
       hole.style.opacity = '0';
+      hole2.style.opacity = '0';
       blocker.style.clipPath = 'none';   // v0.9.1383 — nothing to punch through
       var cw0 = callout.offsetWidth || 300, ch0 = callout.offsetHeight || 160;
       var L = Math.max(72, (window.innerWidth - cw0) / 2);
@@ -1715,8 +2000,14 @@ function _guidedTour(steps) {
         }
       }
       // v0.9.1384 — last word: whatever the above chose, do not sit on a control.
-      var d0 = _gtDodge(L, T, cw0, ch0, null, 8);
-      L = d0[0]; T = d0[1];
+      // v0.9.1869 — unless this is a reading card: an opener or a closer sits
+      // dead centre. (The dodge is what had "That's the tour" in a corner — the
+      // centre of the Dashboard is all pressable rows, none of them pressable
+      // while the card is up.)
+      if (_gtWaits() || m) {
+        var d0 = _gtDodge(L, T, cw0, ch0, null, 8);
+        L = d0[0]; T = d0[1];
+      }
       callout.style.left = L + 'px';
       callout.style.top  = T + 'px';
       setMascot(L > window.innerWidth / 2, L, cw0);
@@ -1760,6 +2051,7 @@ function _guidedTour(steps) {
       'polygon(0 0, 100% 0, 100% 100%, 0 100%, 0 ' + hy1 + 'px, ' +
       hx1 + 'px ' + hy1 + 'px, ' + hx1 + 'px ' + hy2 + 'px, ' +
       hx2 + 'px ' + hy2 + 'px, ' + hx2 + 'px ' + hy1 + 'px, 0 ' + hy1 + 'px)';
+    _gtRing2(el, r);   // v0.9.1869: the page's tab (compared against the target's own box)
     var cw = callout.offsetWidth || 300, ch = callout.offsetHeight || 160;
     var W = window.innerWidth, H = window.innerHeight, gap = 14, over = 72, m = 8;
 
@@ -1875,6 +2167,14 @@ function _guidedTour(steps) {
     var side;
     if (tall) side = fitsRight ? 'right' : (fitsLeft ? 'left' : (fitsBelow ? 'below' : 'above'));
     else side = fitsBelow ? 'below' : (fitsRight ? 'right' : (fitsAbove ? 'above' : (fitsLeft ? 'left' : 'below')));
+    // v0.9.1869 — a reading card beside a NARROW target that hugs one side of
+    // the window (a menu button, the name menu) sits to its side, not under it:
+    // "below" lays the card across the menu column instead of next to it.
+    if (_gtBig() && !tall && r.width < W * 0.4) {
+      var _cx = r.left + r.width / 2;
+      if (_cx < W / 2 && fitsRight) side = 'right';
+      else if (_cx >= W / 2 && fitsLeft) side = 'left';
+    }
     var left, top;
     // v0.9.1394 — these used to call setMascot() here, BEFORE the card had
     // actually moved. setMascot now measures the card to decide which side keeps
@@ -1922,9 +2222,14 @@ function _guidedTour(steps) {
     // perfectly and landed on Engine Only / Engine + Tender instead. This pass
     // re-scores the chosen spot against every button, link and input on the
     // page and moves the card if something better exists.
-    var d = _gtDodge(left, top, cw, ch, r, m);
-    left = d[0]; top = d[1];
-    if (left !== d[0] || true) _mascotRight = left > r.left;   // the dodge may have moved it
+    // v0.9.1869 — working cards only. A reading card stays where the side
+    // picker put it, against its ring: the controls it would be dodging are
+    // behind the click blocker and cannot be pressed.
+    if (!_gtBig()) {
+      var d = _gtDodge(left, top, cw, ch, r, m);
+      left = d[0]; top = d[1];
+    }
+    _mascotRight = left > r.left;   // the dodge may have moved it
 
     callout.style.left = left + 'px';
     callout.style.top = top + 'px';
@@ -1942,16 +2247,37 @@ function _guidedTour(steps) {
   // nothing instead of a human having to spot a missing orange box. Steps
   // marked `optional: true` are expected to miss sometimes (a grouping row
   // only exists for engines) and are flagged as such rather than as faults.
+  // v0.9.1869 — a step's selector, title and body may each be a FUNCTION of
+  // the screen, so one card can be true in two states ("Your data cards" on a
+  // dashboard that has cards, "Nothing here yet" on one that does not) instead
+  // of two cards that take turns skipping — which is what made the first card
+  // a new user saw say "Step 2".
+  function _gtSel(step) { return _gtStepSel(step); }
+  function _gtText(v) { return _gtStepText(v); }
+  // v0.9.1869 — "is it on screen?" The phone's bottom bar is position:fixed,
+  // and a fixed element has no offsetParent even when it is right there, so
+  // the tour's menu card pointed at nothing on every phone. A fixed element
+  // counts when it has a box.
+  function _gtShown(el) {
+    if (!el) return false;
+    if (el.offsetParent !== null) return true;
+    try {
+      if (getComputedStyle(el).position !== 'fixed') return false;
+      var b = el.getBoundingClientRect();
+      return b.width > 0 && b.height > 0;
+    } catch (e) { return false; }
+  }
   function resolve(step) {
-    if (!step.selector) return null;
-    var cands = document.querySelectorAll(step.selector), el = null;
-    for (var c = 0; c < cands.length; c++) { if (cands[c].offsetParent !== null) { el = cands[c]; break; } }
+    var sel = _gtSel(step);
+    if (!sel) return null;
+    var cands = document.querySelectorAll(sel), el = null;
+    for (var c = 0; c < cands.length; c++) { if (_gtShown(cands[c])) { el = cands[c]; break; } }
     if (el && step.wrap) el = el.closest(step.wrap) || el;
     if (!el) {
       try {
         window._gtMisses = window._gtMisses || [];
-        window._gtMisses.push({ guide: window._gtGuideId || '?', step: i + 1, title: step.title || '', selector: step.selector, optional: !!step.optional });
-        if (!step.optional) console.warn('[guide] step ' + (i + 1) + ' "' + (step.title || '') + '" points at nothing: ' + step.selector);
+        window._gtMisses.push({ guide: window._gtGuideId || '?', step: i + 1, title: _gtText(step.title), selector: sel, optional: !!step.optional });
+        if (!step.optional) console.warn('[guide] step ' + (i + 1) + ' "' + _gtText(step.title) + '" points at nothing: ' + sel);
       } catch (e) {}
     }
     return el;
@@ -1970,11 +2296,40 @@ function _guidedTour(steps) {
     if (typeof step.needs === 'function') {
       try { if (!step.needs()) return false; } catch (e) {}
     }
-    if (!step.selector) return true;
-    var cands = document.querySelectorAll(step.selector);
-    for (var c = 0; c < cands.length; c++) if (cands[c].offsetParent !== null) return true;
+    var sel = _gtSel(step);
+    if (!sel) return true;
+    var cands = document.querySelectorAll(sel);
+    for (var c = 0; c < cands.length; c++) if (_gtShown(cands[c])) return true;
     return false;
   }
+  // ══ v0.9.1869 — AN HONEST STEP COUNT ═════════════════════════════════════
+  //
+  // Brad: "first box says step 2". The tour's first card was written for an
+  // empty dashboard and retired itself on his; the counter kept counting it.
+  // A card that will never be shown is not a step. The steps that can be
+  // judged before the guide starts are the ones on the page it opens on —
+  // every step before the first `before` hook changes the page — so those are
+  // judged once, here, and counted out. Later optional steps cannot be judged
+  // until their page is up and stay counted in; the tour has none.
+  // A step may also say `judgeAtStart: true` — "whether I apply does not
+  // depend on which page is open" (the tour's Sync from Sheet card points at a
+  // sidebar button a phone never shows) — and is then judged here too.
+  var _gtOut = {}, _gtOutN = 0;
+  (function () {
+    var seenBefore = false;
+    for (var k = 0; k < steps.length; k++) {
+      if (typeof steps[k].before === 'function') seenBefore = true;
+      if (seenBefore && steps[k].judgeAtStart !== true) continue;
+      if (!(steps[k].optional || typeof steps[k].needs === 'function')) continue;
+      if (!_gtApplies(steps[k])) { _gtOut[k] = true; _gtOutN++; }
+    }
+  })();
+  function _gtStepNo(k) {
+    var before = 0;
+    for (var j = 0; j < k; j++) if (_gtOut[j]) before++;
+    return Math.max(1, Math.min(k + 1 - before, steps.length - _gtOutN));
+  }
+  function _gtStepTotal() { return Math.max(1, steps.length - _gtOutN); }
   // v0.9.1355 — a step may need the app to DO something before it can point at
   // anything: open the Add wizard, switch a mode, close what the last step
   // opened. Without this a guide can only ever narrate the parts of the app
@@ -2058,10 +2413,12 @@ function _guidedTour(steps) {
     // again — the guide walks back INTO the wizard rather than back into a
     // description of one.
     if (_gtDir === -1 && !_gtApplies(step) && i > 0) { i = i - 1; render(); return; }
+    var _title = _gtText(step.title);
+    var _stepNo = _gtStepNo(i), _stepTotal = _gtStepTotal();
     // The name read out should say WHICH card this is, and change with it.
     try {
       callout.setAttribute('aria-label',
-        'Help, step ' + (i + 1) + ' of ' + total + ': ' + (step.title || ''));
+        'Help, step ' + _stepNo + ' of ' + _stepTotal + ': ' + _title);
       // aria-modal mirrors the rule the mouse already follows: an ordinary
       // step owns the screen, a step that WAITS must leave the app reachable.
       if (typeof step.awaitUser === 'function') callout.removeAttribute('aria-modal');
@@ -2073,28 +2430,40 @@ function _guidedTour(steps) {
     callout.dataset.gtFolded = '';
     var mascotSrc = (i === total - 1) ? './img/conductor-lantern-lg.gif' : './img/conductor-pointing.png';
     var mascotFixed = (i === total - 1) ? ' data-fixed="1"' : '';
+    // v0.9.1869 — a READING card (see _gtBig) is set in reading type: 16px
+    // words, 18px title, roomier padding and buttons. A working card, and any
+    // card inside an open box, keeps the compact type it has always had.
+    var _big = _gtBig();
+    callout.dataset.gtMode = _big ? 'reading' : 'working';
+    // The step's index in the guide — the counter below counts only the cards
+    // this user sees, so "Step 5" is not always steps[4]; the drivers in
+    // tests/lib/guide-fixture.js read this instead.
+    callout.dataset.gtIndex = String(i);
+    var _fsTitle = _big ? '1.15rem' : '0.98rem', _fsBody = _big ? '1rem' : '0.84rem', _fsBtn = _big ? '0.9rem' : '0.8rem',
+        _fsFoot = _big ? '0.82rem' : '0.72rem', _padHead = _big ? '1rem 1.15rem 0.85rem' : '0.85rem 0.95rem 0.7rem',
+        _padFoot = _big ? '0.7rem 1.1rem' : '0.55rem 0.9rem', _padBtn = _big ? '0.5rem 0.9rem' : '0.4rem 0.7rem';
     callout.innerHTML =
       '<img id="gt-mascot" src="' + mascotSrc + '"' + mascotFixed + ' alt="" style="position:absolute;left:-66px;bottom:-6px;width:84px;height:auto;pointer-events:none;filter:drop-shadow(0 3px 6px rgba(0,0,0,0.45))" onerror="this.style.display=\'none\'">'
-      + '<div id="gt-head" style="padding:0.85rem 0.95rem 0.7rem">'
+      + '<div id="gt-head" style="padding:' + _padHead + '">'
       + '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:0.5rem">'
-      +   '<strong id="gt-title" style="font-size:0.98rem;color:var(--text,#eee);line-height:1.3">' + (step.title || '') + '</strong>'
+      +   '<strong id="gt-title" style="font-size:' + _fsTitle + ';color:var(--text,#eee);line-height:1.3">' + _title + '</strong>'
       +   '<button type="button" id="gt-exit" title="Exit" style="background:none;border:none;color:var(--text-dim,#888);font-size:1.25rem;line-height:1;cursor:pointer;padding:0 0.1rem">×</button>'
       + '</div>'
-      + '<div id="gt-body" style="font-size:0.84rem;color:var(--text-mid,#bbb);line-height:1.5;margin-top:0.35rem">' + ((typeof step.body === 'function' ? step.body() : step.body) || '') + '</div>'   // v0.9.1824: a body may be a function (the catalogue count is read from config)
+      + '<div id="gt-body" style="font-size:' + _fsBody + ';color:var(--text-mid,#bbb);line-height:1.5;margin-top:0.4rem">' + _gtText(step.body) + '</div>'   // v0.9.1824: a body may be a function (the catalogue count is read from config)
       + '<button type="button" id="gt-more" style="display:none;margin-top:0.3rem;padding:0.25rem 0.5rem;border-radius:7px;border:1px solid var(--border,#333);background:var(--surface2,#222);color:var(--text,#eee);font-family:inherit;font-size:0.82rem;cursor:pointer">Read the step \u25be</button>'
       + '</div>'
       // v0.9.1362 (Brad): a step that needs something typed says so HERE when
       // Next is pressed, rather than Next simply not working. A dead button
       // teaches nothing; "Please enter an item number — try 773" does.
       + '<div id="gt-gate-msg" style="display:none;margin:0 0.95rem 0.5rem;padding:0.45rem 0.6rem;border-radius:8px;background:var(--bg-card);background:color-mix(in srgb, rgb(240,80,8) 14%, var(--bg-card));border:1px solid var(--accent,#f05008);color:var(--text,#eee);font-size:0.79rem;line-height:1.4"></div>'
-      + '<div id="gt-foot" style="display:flex;align-items:center;justify-content:space-between;padding:0.55rem 0.9rem;border-top:1px solid var(--border,#333)">'
-      +   '<span style="font-size:0.72rem;color:var(--text-dim,#888)">Step ' + (i + 1) + ' of ' + total + '</span>'
+      + '<div id="gt-foot" style="display:flex;align-items:center;justify-content:space-between;padding:' + _padFoot + ';border-top:1px solid var(--border,#333)">'
+      +   '<span id="gt-step" style="font-size:' + _fsFoot + ';color:var(--text-dim,#888)">Step ' + _stepNo + ' of ' + _stepTotal + '</span>'
       +   '<div style="display:flex;gap:0.4rem">'
       // Brad: "add a cancel button so the user can get out of the help menu."
       // The × in the corner was the only way out and does not read as one.
-      +     '<button type="button" id="gt-cancel" style="padding:0.4rem 0.7rem;border-radius:7px;border:1px solid var(--border,#333);background:none;color:var(--text-dim,#888);font-family:inherit;font-size:0.8rem;cursor:pointer">Cancel</button>'
-      +     (i > 0 ? '<button type="button" id="gt-back" style="padding:0.4rem 0.7rem;border-radius:7px;border:1px solid var(--border,#333);background:var(--surface2,#222);color:var(--text,#eee);font-family:inherit;font-size:0.8rem;cursor:pointer">Back</button>' : '')
-      +     '<button type="button" id="gt-next" style="padding:0.4rem 0.85rem;border-radius:7px;border:none;background:var(--accent,#f05008);color:#fff;font-family:inherit;font-size:0.8rem;font-weight:700;cursor:pointer">' + (i === total - 1 ? 'Done' : 'Next →') + '</button>'
+      +     '<button type="button" id="gt-cancel" style="padding:' + _padBtn + ';border-radius:7px;border:1px solid var(--border,#333);background:none;color:var(--text-dim,#888);font-family:inherit;font-size:' + _fsBtn + ';cursor:pointer">Cancel</button>'
+      +     (i > 0 ? '<button type="button" id="gt-back" style="padding:' + _padBtn + ';border-radius:7px;border:1px solid var(--border,#333);background:var(--surface2,#222);color:var(--text,#eee);font-family:inherit;font-size:' + _fsBtn + ';cursor:pointer">Back</button>' : '')
+      +     '<button type="button" id="gt-next" style="padding:' + (_big ? '0.5rem 1.05rem' : '0.4rem 0.85rem') + ';border-radius:7px;border:none;background:var(--accent,#f05008);color:#fff;font-family:inherit;font-size:' + _fsBtn + ';font-weight:700;cursor:pointer">' + (i === total - 1 ? 'Done' : 'Next →') + '</button>'
       +   '</div>'
       + '</div>';
     if (curEl) { try { curEl.scrollIntoView({ block: 'center', inline: 'nearest' }); } catch(e){} }

@@ -312,9 +312,11 @@ function dbBuildPage() {
   // Full-page backdrop: the board artwork as a big centered watermark
   // behind the cards (absolute layer, pointer-events off, content above).
   page.style.position = 'relative';
+  // v0.9.1869: #db-board names the box the tour rings — #page-dispatch itself is
+  // display:contents and has no box of its own.
   page.innerHTML =
     '<div style="position:absolute;inset:0;background:url(' + DISPATCH_CFG.iconBg + ') center center / min(92%, 640px) no-repeat;pointer-events:none"></div>'
-    + '<div style="position:relative">' + html + '</div>';
+    + '<div id="db-board" style="position:relative">' + html + '</div>';
 }
 
 // v0.9.1847: the Dispatch Board's builder on THE ONE LIST (config.js).
