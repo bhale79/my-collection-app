@@ -908,7 +908,18 @@
   // moment --text moves they have to move with it or half the writing keeps
   // the old skin. 35% and 65% of the way to the background reproduces the
   // built-in themes' own values closely.
+  // v0.9.1868: ONE recipe for the two text shades — rrDeriveTextShades
+  // (config.js), shared with the live correction (rrSyncDimText). The old
+  // fixed blend here produced a dim shade that read 3.0–3.7:1 on a dark
+  // skin's panels (Alaska, and worse on Santa Fe's red); the recipe now aims
+  // for a contrast score on the skin's LIGHTEST panel, so any look — built-in
+  // or custom — gets a quiet voice that still reads.
   function _rrDeriveText(textHex, bgHex) {
+    if (typeof rrDeriveTextShades === 'function') {
+      var panels = (typeof _cur === 'function') ? [_cur('--surface'), _cur('--surface2'), _cur('--surface3')] : [];
+      var d = rrDeriveTextShades(textHex, bgHex, panels);
+      if (d && d['--text-dim']) return d;
+    }
     var t = _rrHexToHsl(textHex), b = _rrHexToHsl(bgHex);
     var mix = function (f) {
       return _hsl2hex(t[0], t[1] * (1 - f * 0.5), t[2] + (b[2] - t[2]) * f);
@@ -1556,7 +1567,9 @@
     _explicitRoles[v] = 1;
     if (v === '--bg') {
       var d = _rrDeriveFromBg(hex);
-      Object.keys(d).forEach(function (k) {
+      // v1868: the panels first, --bg last — the text shades are derived when
+      // --bg lands (_set) and must see the panels they will sit on.
+      Object.keys(d).sort(function (a, b) { return (a === '--bg') - (b === '--bg'); }).forEach(function (k) {
         // v0.9.1586: deriving panel/header shades from the background is
         // the DEFAULT for roles the user never touched — never an
         // overwrite of one they hand-picked this session (Brad's repro:
@@ -2299,9 +2312,15 @@
     else window.openAppearance();
   };
   window._rrapCancel = function () {
-    _live = {};
+    // v0.9.1868: take the previewed colours OFF <html> before forgetting them.
+    // _endPreview removes exactly the keys in _live; clearing _live first
+    // left every previewed variable painted on the page until the next
+    // reload — "Cancel leaves no trace" (rule 3 above) was not true from the
+    // Preview bar. Found by dim_text_dark_tests watching the quiet voice stay
+    // lifted for a red look that had been cancelled.
+    _endPreview();         // put the app back on what is SAVED…
+    _live = {};            // …then drop the candidate
     _dropDraft();          // the pasted logo goes with everything else
-    _endPreview();         // …then put the app back on what is SAVED
     _teardown();
   };
 
@@ -2321,9 +2340,9 @@
 
   window._rrapClose = function (save) {
     if (save) { window._rrapApply(); return; }
+    if (_preview) _endPreview();   // v1868: before _live is cleared (see _rrapCancel)
     _live = {};
     _dropDraft();
-    if (_preview) _endPreview();
     if (typeof applyTheme === 'function') applyTheme();
     applyBranding();
     _teardown();

@@ -227,7 +227,7 @@ ok('rrDarkenFor keeps the hue (Alaska gold stays a gold: R > G > B)', (() => {
   const v = W.rrDarkenFor('#f2b428', '#ede2cc', 5); const r = parseInt(v.substr(1, 2), 16), g = parseInt(v.substr(3, 2), 16), b = parseInt(v.substr(5, 2), 16);
   return r > g && g > b;
 })());
-ok('the sync is wired to the one door (the <html> observer and page load)', /new MutationObserver\(rrSyncInk\)/.test(cfg) && /function rrSyncInk\(\) \{ rrSyncInkOnAccent\(\); rrSyncReadableText\(\); \}/.test(cfg));
+ok('the sync is wired to the one door (the <html> observer and page load) — v1868 added the dark chrome\'s dim-text correction to the same door', /new MutationObserver\(rrSyncInk\)/.test(cfg) && /function rrSyncInk\(\) \{ rrSyncInkOnAccent\(\); rrSyncReadableText\(\); rrSyncDimText\(\); \}/.test(cfg));
 
 // ── E · MTH's badge ───────────────────────────────────────────────────────
 section('E · MTH red');

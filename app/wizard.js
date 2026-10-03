@@ -3203,14 +3203,14 @@ function renderWizardStep() {
       _bcdHtml += _bcdSlider('tenderBoxCond', 'Tender Box Condition', '#8b5cf6');
     } else if (_bcdGrp === 'aa') {
       _bcdHtml += _bcdSlider('boxCond', 'A Powered Box Condition', '#d4a843');
-      _bcdHtml += _bcdSlider('unit2BoxCond', 'A Dummy Box Condition', '#6a5e48');
+      _bcdHtml += _bcdSlider('unit2BoxCond', 'A Dummy Box Condition', 'var(--text-dim)');   // v1868: the dim voice, not its old brown
     } else if (_bcdGrp === 'ab') {
       _bcdHtml += _bcdSlider('boxCond', 'A Powered Box Condition', '#d4a843');
       _bcdHtml += _bcdSlider('unit2BoxCond', 'B Unit Box Condition', '#8b5cf6');
     } else if (_bcdGrp === 'aba') {
       _bcdHtml += _bcdSlider('boxCond', 'A Powered Box Condition', '#d4a843');
       _bcdHtml += _bcdSlider('unit2BoxCond', 'B Unit Box Condition', '#8b5cf6');
-      _bcdHtml += _bcdSlider('unit3BoxCond', 'A Dummy Box Condition', '#6a5e48');
+      _bcdHtml += _bcdSlider('unit3BoxCond', 'A Dummy Box Condition', 'var(--text-dim)');   // v1868: the dim voice, not its old brown
     } else {
       _bcdHtml += _bcdSlider('boxCond', 'Box Condition', '#d4a843');
     }

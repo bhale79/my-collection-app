@@ -86,7 +86,13 @@
     --accent2:   #d4a843;
     --accent3:   #8b5cf6;
     --text:      #f8e8c0;
-    --text-dim:  #6a5e48;
+    --text-dim:  #aca084;   /* v0.9.1868: the quiet voice on the DARK chrome — helper sentences, placeholders,
+                               small panel headings. Was #6a5e48, which read 2.1–2.8:1 on the navy panels (the
+                               cream area got its own deep brown in v1852; the dark side never did). #aca084
+                               reads 5.1–6.8:1 on every dark surface of the official look and the Alaska skin
+                               (RR_READABLE_MIN, the same floor the cream words meet), and stays under
+                               --text-mid (6.7–8.5) and --text (11+). rrSyncDimText (config.js) lifts it
+                               further only for a skin whose panels are lighter (Santa Fe's red). */
     --text-mid:  #c8b88a;
     --green:     #2ecc71;
     --green-light:#4dc880;

@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.1867';
+const APP_VERSION = 'v0.9.1868';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -219,11 +219,83 @@ function rrSyncReadableText() {
     if (el.textContent !== rule) el.textContent = rule;
   } catch (e) {}
 }
-function rrSyncInk() { rrSyncInkOnAccent(); rrSyncReadableText(); }
+// ── v0.9.1868: THE QUIET VOICE READS ON THE DARK CHROME TOO ─────────────
+// [stated] Brad, on the Maintenance card: "the text here and in other places
+// that use this style of text is hard to see … how can we make this easier to
+// see but still not be overpowering." That text is --text-dim — helper
+// sentences, placeholders, small panel headings, ~1,100 places. The cream
+// area got its deep brown in v1852; the navy panels were still wearing
+// #6a5e48, which read 2.1–2.8:1 there. app.css now ships #a89c80 for the dark
+// chrome (4.8–6.2:1 on every official and Alaska panel; under --text-mid and
+// --text, so the three voices stay in order). This is the SKIN half, the same
+// rule as rrSyncReadableText one level up: a look whose panels are lighter
+// (Santa Fe's red), or a saved look carrying a shade from the old recipe, has
+// its dim and mid shades moved toward --text until they read on the LIGHTEST
+// panel of the dark chrome. ONE recipe (rrDeriveTextShades) serves the
+// Appearance editor making a new look and this live correction of a painted
+// one. The rule is written with !important because a custom skin paints its
+// shades inline on <html>, which a plain rule cannot beat — and only while the
+// chrome is dark, so the light theme keeps its own values untouched.
+var RR_MID_MARGIN = 1.5;   // --text-mid sits this much above --text-dim's floor, so a lifted dim never catches it
+function rrMixToward(color, toward, k) {
+  var a = String(color || '').trim().match(/^#([0-9a-f]{6})$/i), b = String(toward || '').trim().match(/^#([0-9a-f]{6})$/i);
+  if (!a || !b) return color;
+  var ch = function (h, i) { return parseInt(h.substr(i, 2), 16); };
+  return '#' + [0, 2, 4].map(function (i) {
+    var v = Math.round(ch(a[1], i) + (ch(b[1], i) - ch(a[1], i)) * k);
+    return ('0' + Math.max(0, Math.min(255, v)).toString(16)).slice(-2);
+  }).join('');
+}
+// Lift `color` toward `toward` (normally --text) until it reads at `target` on bg.
+function rrLiftFor(color, toward, bg, target) {
+  for (var k = 0; k <= 1.0001; k += 0.02) { var x = rrMixToward(color, toward, k); var cr = rrContrast(x, bg); if (cr != null && cr >= target) return x; }
+  return toward;
+}
+// The two text shades a look should wear with its text and panels. Dark
+// panels: quieter = toward the background, then lifted until it reads on the
+// lightest panel. Light panels: the same, darkened instead (rrDarkenFor).
+function rrDeriveTextShades(text, bg, panels) {
+  var tl = rrLuminance(text), bl = rrLuminance(bg);
+  if (tl == null || bl == null) return {};
+  var all = [bg].concat(panels || []).filter(function (v) { return rrLuminance(v) != null; })
+    .sort(function (a, b) { return rrLuminance(a) - rrLuminance(b); });
+  var dark = bl <= 0.4;
+  var hardest = dark ? all[all.length - 1] : all[0];
+  var mid = rrMixToward(text, bg, 0.35), dim = rrMixToward(text, bg, 0.65);
+  if (dark) { mid = rrLiftFor(mid, text, hardest, RR_READABLE_MIN + RR_MID_MARGIN); dim = rrLiftFor(dim, text, hardest, RR_READABLE_MIN); }
+  else { mid = rrDarkenFor(mid, hardest, RR_READABLE_MIN + RR_MID_MARGIN); dim = rrDarkenFor(dim, hardest, RR_READABLE_MIN); }
+  return { '--text-mid': mid, '--text-dim': dim };
+}
+function rrSyncDimText() {
+  try {
+    var el = document.getElementById('rr-dim-text');
+    if (!el) { el = document.createElement('style'); el.id = 'rr-dim-text'; document.head.appendChild(el); }
+    el.disabled = true;   // read what the skin / stylesheet painted, not this rule's own correction
+    var root = getComputedStyle(document.documentElement);
+    var get = function (v) { return String(root.getPropertyValue(v) || '').trim(); };
+    var bg = get('--bg'), text = get('--text'), rule = '';
+    if (rrLuminance(bg) != null && rrLuminance(bg) <= 0.4 && rrLuminance(text) != null) {   // the dark chrome only
+      var lightest = ['--surface', '--surface2', '--surface3'].map(get).concat([bg])
+        .filter(function (v) { return rrLuminance(v) != null; })
+        .sort(function (a, b) { return rrLuminance(b) - rrLuminance(a); })[0];
+      var css = '';
+      [['--text-dim', RR_READABLE_MIN], ['--text-mid', RR_READABLE_MIN + RR_MID_MARGIN]].forEach(function (p) {
+        var cur = get(p[0]), cr = rrContrast(cur, lightest);
+        if (cr == null || cr >= p[1]) return;
+        css += p[0] + ':' + rrLiftFor(cur, text, lightest, p[1]) + ' !important;';
+      });
+      if (css) rule = ':root{' + css + '}';
+    }
+    el.disabled = false;
+    if (el.textContent !== rule) el.textContent = rule;
+  } catch (e) {}
+}
+function rrSyncInk() { rrSyncInkOnAccent(); rrSyncReadableText(); rrSyncDimText(); }
 
 if (typeof window !== 'undefined') {
   window.rrLuminance = rrLuminance; window.rrContrast = rrContrast; window.rrInkOn = rrInkOn; window.rrSyncInkOnAccent = rrSyncInkOnAccent;
   window.rrDarkenFor = rrDarkenFor; window.rrSyncReadableText = rrSyncReadableText;
+  window.rrMixToward = rrMixToward; window.rrLiftFor = rrLiftFor; window.rrDeriveTextShades = rrDeriveTextShades; window.rrSyncDimText = rrSyncDimText;
   try {
     // the skin is applied by writing --accent on <html> (appearance.js) and the
     // theme by data-theme — watching both is the one door every change passes

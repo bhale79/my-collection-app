@@ -7706,10 +7706,15 @@ META_WRITES.length = 0; TOASTS.length = 0;
     const s = apA.indexOf('function _rgb2hsl');
     const e = apA.indexOf('// ── end logo image prep');
     ok('the logo image-prep block is findable and self-contained', s > 0 && e > s);
-    const M = new Function('"use strict";' + apA.slice(s, e) +
+    // v0.9.1868: the text-shade recipe lives in config.js now (rrDeriveTextShades,
+    // shared with the live correction) — lift THAT region too, so derText below
+    // runs the real recipe and not appearance.js's fallback for a page without it.
+    const cfgA = fs.readFileSync(pathA.join(__dirname, '..', 'app', 'config.js'), 'utf8');
+    const cfgRegion = cfgA.slice(cfgA.indexOf('function rrLuminance'), cfgA.indexOf('function rrSyncInk()'));
+    const M = new Function('"use strict";' + cfgRegion + apA.slice(s, e) +
       '; return { fit: _rrFitDims, trim: _rrTrimBox, cls: _rrClassifyPixels, alpha: _rrHasAlpha,' +
       ' note: _rrLogoNote, lum: _rrLum, contrast: _rrContrast, readable: _rrReadableText,' +
-      ' pick: _rrPickSwatches, derive: _rrDeriveFromBg, derText: _rrDeriveText, hsl: _rrHexToHsl };')();
+      ' pick: _rrPickSwatches, derive: _rrDeriveFromBg, derText: _rrDeriveText, hsl: _rrHexToHsl, shades: rrDeriveTextShades, cr: rrContrast };')();
 
     // The block must stay pure — the moment it reaches for a canvas, the
     // thing the tests prove stops being the thing that ships.
@@ -7896,9 +7901,15 @@ META_WRITES.length = 0; TOASTS.length = 0;
        M.hsl(shades['--text-mid'])[2] < M.hsl('#f8e8c0')[2] &&
        M.hsl(shades['--text-dim'])[2] < M.hsl(shades['--text-mid'])[2] &&
        M.hsl(shades['--text-dim'])[2] > M.hsl('#0f1220')[2]);
-    ok('…and close to what the built-in dark theme uses',
-       Math.abs(M.hsl(shades['--text-mid'])[2] - M.hsl('#c8b88a')[2]) < 0.12 &&
-       Math.abs(M.hsl(shades['--text-dim'])[2] - M.hsl('#6a5e48')[2]) < 0.12);
+    // v0.9.1868: the recipe aims for a contrast score on the skin's lightest
+    // panel (the old fixed blend read 3.0–3.7:1 on a dark skin's panels). With
+    // the official look's own panels it lands next to what app.css ships.
+    const withPanels = M.shades('#f8e8c0', '#0f1220', ['#161c34', '#1c2544', '#222e58']);
+    ok('…and close to what the built-in dark theme uses — and each reads on the lightest panel (dim ≥ 5, mid ≥ 6.5)',
+       Math.abs(M.hsl(withPanels['--text-mid'])[2] - M.hsl('#c8b88a')[2]) < 0.12 &&
+       Math.abs(M.hsl(withPanels['--text-dim'])[2] - M.hsl('#aca084')[2]) < 0.12 &&
+       M.cr(withPanels['--text-dim'], '#222e58') >= 5 && M.cr(withPanels['--text-mid'], '#222e58') >= 6.5 &&
+       M.cr(shades['--text-dim'], '#0f1220') >= 5);
     const lightShades = M.derText('#2a2015', '#f8e8c0');
     ok('…and it works the other way up, on a light skin',
        M.hsl(lightShades['--text-mid'])[2] > M.hsl('#2a2015')[2] &&
