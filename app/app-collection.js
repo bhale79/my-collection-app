@@ -687,19 +687,19 @@ function _nonItemDetailPhotos(type, key) {
     // full photo. Same flow as the wizard and contact cards.
     fi.addEventListener('change', function () {
       if (!fi.files || !fi.files.length) return;
-      if (typeof window._openCropper !== 'function' || typeof DataTransfer === 'undefined') return;
+      if (typeof window._cropFirst !== 'function' || typeof DataTransfer === 'undefined') return;
       var orig = fi.files[0];
-      var url = URL.createObjectURL(orig);
-      window._openCropper(url, function (blob) {
-        try { URL.revokeObjectURL(url); } catch (e) {}
+      // v0.9.1872: through the ONE crop-first helper, like every other photo
+      // pick — so the cropped File carries its original and the upload keeps
+      // it (drive.js). Cancel hands the full photo back, as picked.
+      window._cropFirst(orig, function (f) {
+        if (!f || f === orig) return;
         try {
-          var f = new File([blob], String(orig.name || 'photo').replace(/\.[^.]+$/, '') + '_crop.jpg', { type: 'image/jpeg' });
           var dt = new DataTransfer(); dt.items.add(f);
           fi.files = dt.files;   // programmatic set — does NOT re-fire change
+          // DataTransfer re-wraps the File: carry the original across by hand.
+          try { if (f._rrOriginal && fi.files[0]) { fi.files[0]._rrOriginal = f._rrOriginal; fi.files[0]._rrCropBox = f._rrCropBox || null; } } catch (eK) {}
         } catch (e) { console.warn('[ni-photos crop]', e); }
-      }, function () {
-        try { URL.revokeObjectURL(url); } catch (e) {}
-        // Cancel = keep the full photo as picked
       });
     });
 
@@ -1840,7 +1840,7 @@ async function _removeFromCollectionDetail(idx, itemNum, variation) {
 // v0.9.837 (Brad): rotate/crop a photo from the item detail page. Fetches
 // the full-size image as an authorized blob (avoids canvas tainting), opens
 // the shared cropper (which now has Rotate), and on Apply REPLACES the Drive
-// file in place via _cropReplaceDrivePhoto — no duplicates, thumbnail updates.
+// file in place via the ONE writer in photo-crop.js — no duplicates, thumbnail updates.
 // ── v0.9.937 (Brad): hero + thumbnail-rail photo gallery ─────────────────
 // RSV (first photo) shows natural-size as the hero; the other views are
 // clickable thumbnails in a rail beside it (below it on phones). Clicking a
@@ -2048,44 +2048,36 @@ function _buildPhotoGallery(el, photos, opts) {
 if (typeof window !== 'undefined') window._buildPhotoGallery = _buildPhotoGallery;
 
 async function _detailPhotoEdit(fileId, fileName, folderLink, imgId) {
-  if (typeof _openCropper !== 'function') return;
+  if (typeof _openCropper !== 'function' || typeof _cropOpenDriveFile !== 'function') return;
   if (window._offlineMode) { if (typeof showToast === 'function') showToast("You're offline — editing photos needs a connection", 3500, true); return; }
-  var url = null;
-  try {
-    var r = await fetch('https://www.googleapis.com/drive/v3/files/' + fileId + '?alt=media', { headers: { Authorization: 'Bearer ' + accessToken } });
-    if (!r.ok) throw new Error('HTTP ' + r.status);
-    url = URL.createObjectURL(await r.blob());
-  } catch (e) {
-    console.warn('[detail photo edit]', e);
-    if (typeof showToast === 'function') showToast('Could not open the photo — try again', 3500, true);
-    return;
-  }
-  _openCropper(url, async function (blob) {
-    try { URL.revokeObjectURL(url); } catch (e) {}
-    // v0.9.1238: this function is HANDED the file id and used to discard it,
-    // passing a folder and a name to be searched instead. The id is the answer.
-    var ok = false;
-    try {
-      ok = fileId ? await _cropReplaceDriveFile(fileId, blob)
-                  : await _cropReplaceDrivePhoto(folderLink, fileName, blob);
-    } catch (e) { console.warn('[detail photo replace]', e); }
-    if (ok) {
-      if (typeof showToast === 'function') showToast('\u2713 Photo updated');
-      var img = (imgId && document.getElementById(imgId)) || document.getElementById('idp-' + fileId) || document.getElementById('nip-' + fileId);
-      if (img) img.src = URL.createObjectURL(blob);
-      // v0.9.1631 (Brad's hero): the id lookup above misses some galleries —
-      // re-render the page so EVERY rendering of this photo shows the crop
-      // (the healed caches serve the fresh bytes).
-      try {
-        var _dpg = document.getElementById('page-itemdetail');
-        // v0.9.1765: THIS is the line that drew 84511 over Brad's item after a
-        // crop. Repaint by identity; the position is worked out fresh.
-        if (_dpg && _dpg.classList.contains('active')) rrDetailRepaint(250);
-      } catch (eRR) {}
-    } else if (typeof showToast === 'function') {
-      showToast('Could not save the edited photo — try again', 3500, true);
-    }
-  }, function () { try { URL.revokeObjectURL(url); } catch (e) {} });
+  // v0.9.1238: this function is HANDED the file id and used to discard it,
+  // passing a folder and a name to be searched instead. The id is the answer.
+  // v0.9.1872: and it is resolved FIRST — the name only when there is no id —
+  // because the screen that opens is the Drive-aware one: it shows the
+  // ORIGINAL with the current crop drawn on it when the photo was cropped
+  // before, and offers Restore original. (photo-crop.js _cropOpenDriveFile)
+  var id = fileId || await _cropResolveId(folderLink, fileName);
+  if (!id) { if (typeof showToast === 'function') showToast('Could not find this photo in Drive — try again', 3500, true); return; }
+  await _cropOpenDriveFile(id, {
+    onDone: function (ok, blob) {
+      if (ok) {
+        if (typeof showToast === 'function') showToast('\u2713 Photo updated');
+        var img = (imgId && document.getElementById(imgId)) || document.getElementById('idp-' + id) || document.getElementById('nip-' + id);
+        if (img && blob) img.src = URL.createObjectURL(blob);
+        // v0.9.1631 (Brad's hero): the id lookup above misses some galleries —
+        // re-render the page so EVERY rendering of this photo shows the crop
+        // (the healed caches serve the fresh bytes).
+        try {
+          var _dpg = document.getElementById('page-itemdetail');
+          // v0.9.1765: THIS is the line that drew 84511 over Brad's item after a
+          // crop. Repaint by identity; the position is worked out fresh.
+          if (_dpg && _dpg.classList.contains('active')) rrDetailRepaint(250);
+        } catch (eRR) {}
+      } else if (typeof showToast === 'function') {
+        showToast('Could not save the edited photo — the photo in Drive is unchanged. Try again.', 3500, true);
+      }
+    },
+  });
 }
 if (typeof window !== 'undefined') window._detailPhotoEdit = _detailPhotoEdit;
 

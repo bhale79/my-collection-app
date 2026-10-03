@@ -138,15 +138,20 @@ const CHECKS = {
   stageCannotExceedItsSpace: s =>
     s.indexOf('id="_rrCropStage" style="flex:1;min-height:0;max-height:100%') > -1,
   revealedBeforeMeasuring: s => {
+    // v0.9.1872: the reveal is now conditional on the photo's own box
+    // (`if (!opts.box && !opts.original && _rrSavedBoxFits(img))`) — the rule
+    // is unchanged: the question is asked BEFORE _freezeStage measures.
     const b = fnBody(s, '_build');
-    const reveal = b.indexOf('if (_rrSavedBoxFits(img))');
+    const reveal = b.indexOf('_rrSavedBoxFits(img)');
     const freeze = b.indexOf('_freezeStage()');
     return reveal > -1 && freeze > -1 && reveal < freeze;
   },
   pinchOff: s => /zoomOnTouch:\s*false/.test(cropperOptions(s)),
   hintDoesNotPromisePinch: s => {
-    const m = s.match(/opts\.hint \|\| '([^']*)'/);
-    return !!m && !/pinch/i.test(m[1]);
+    // v0.9.1872: the default hint is an expression (the original-photo
+    // wording joined it), so the whole hint line is read, not one literal.
+    const line = s.split('\n').find(l => l.indexOf('id="_rrCropHint"') > -1 && /opts\.hint \|\|/.test(l));
+    return !!line && !/pinch/i.test(line);
   }
 };
 
@@ -227,7 +232,8 @@ console.log('\n== F. THE OFFENDERS: break each one, require red ==');
       'stageCannotExceedItsSpace'],
     ['"Whole photo" goes back to being revealed after the measurement',
       s => { const b = fnBody(s, '_build');
-             const i = b.indexOf('    try {\n      if (_rrSavedBoxFits(img)) {');
+             const r = b.indexOf('_rrSavedBoxFits(img)');
+             const i = r < 0 ? -1 : b.lastIndexOf('    try {', r);
              const j = b.indexOf('    _freezeStage();');
              if (i < 0 || j < 0) return s;
              return s.replace(b, b.slice(0, i) + b.slice(j)); },
@@ -236,8 +242,8 @@ console.log('\n== F. THE OFFENDERS: break each one, require red ==');
       s => s.replace('zoomOnTouch: false,', ''),
       'pinchOff'],
     ['the hint promises pinch again',
-      s => s.replace("opts.hint || 'Drag the box \u00b7 zoom with the buttons'",
-                     "opts.hint || 'Drag the box \u00b7 pinch or scroll to zoom'"),
+      s => s.replace("'Drag the box \u00b7 zoom with the buttons'))",
+                     "'Drag the box \u00b7 pinch or scroll to zoom'))"),
       'hintDoesNotPromisePinch']
   ];
   offenders.forEach(function (o) {

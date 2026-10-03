@@ -196,10 +196,90 @@ function _rrLoadBox(cropper) {
 // tests/crop_flash_recorder_tests.js now proves they STAY gone. If the flash
 // ever comes back, the diary above is the shape to rebuild — measure first.
 
+// ══ v0.9.1872 — THE ORIGINAL IS KEPT ═══════════════════════════════════════
+// [stated] Brad, 2026-10-03: "i would like to be able to crop a picture and be
+// able to undo or reset back to original, even be able to go back later and
+// reset back to original. sometimes i crop too close and i can't fix it." —
+// and, on re-cropping: "the new crop pic would replace the old crop pic".
+//
+// HOW. Drive keeps every replaced version of a file for 30 days and then
+// throws it away — unless that version is marked keepForever. So the ONE
+// writer (_cropReplaceDriveFile, below) marks the FIRST version of the file —
+// the original, as uploaded — keepForever BEFORE it overwrites anything, and
+// REFUSES the crop if it cannot. The crop goes on top as the current version,
+// which is what every thumbnail, gallery, report and share shows, exactly as
+// before. A re-crop replaces that crop; Drive purges the superseded crop by
+// itself in 30 days, so nothing here ever calls DELETE. One file per photo, as
+// always — the original lives in that file's own version history.
+//
+// The crop box is stored ON the photo (appProperties rrBox: x,y,w,h in the
+// original's pixels, the rotation, and the original's width) so that the next ✂ on
+// a cropped photo can show the ORIGINAL with the current crop drawn on it —
+// widen the box, Apply, done — and "Restore original" (or Whole photo + Apply)
+// puts the original's exact bytes back, not a re-encoded copy.
+//
+// Photos cropped at the moment they are taken (_cropFirst) never used to
+// upload the original at all. Now the cropped File carries its original
+// (_rrOriginal) and its box (_rrCropBox); drive.js's two creators upload the
+// ORIGINAL as the file and apply the crop on top through the same ONE writer.
+//
+// A photo cropped before this shipped still has its original in Drive only if
+// the crop is less than 30 days old. Older ones are gone; the screen simply
+// behaves as it did.
+var _RR_BOX_PROP = 'rrBox';
+
+// What Apply records: the crop as Cropper reports it — whole natural pixels of
+// the loaded picture, in the rotated frame (Cropper 1.6.1 getData/setData agree
+// on that frame) — together with that picture's natural width, so the same box
+// lands exactly on the same picture and scales onto its screen-sized copy
+// (_rrCropPreview: same aspect, one scale). Whole pixels on purpose: a box kept
+// as fractions came back a pixel short (799 of 800) after the round trip.
+// `whole` is true when nothing was cropped or turned.
+function _rrCropBoxOf(cropper) {
+  try {
+    var d = cropper.getData(true), im = cropper.getImageData();
+    var W = im && im.naturalWidth, H = im && im.naturalHeight;
+    if (!d || !W || !H) return null;
+    var r = d.rotate || 0;
+    while (r > 180) r -= 360;
+    while (r <= -180) r += 360;
+    r = Math.round(r * 10) / 10;
+    var box = { x: d.x, y: d.y, w: d.width, h: d.height, r: r, W: W };
+    box.whole = r === 0 && d.x <= 1 && d.y <= 1 && d.width >= W - 2 && d.height >= H - 2;
+    return box;
+  } catch (e) { return null; }
+}
+// "x,y,w,h,r,W" — under 124 bytes, the appProperties limit, by a long way.
+function _rrBoxStr(box) {
+  return [box.x, box.y, box.w, box.h].map(function (v) { return String(Math.round(Number(v) || 0)); }).join(',') + ',' + (Number(box.r) || 0).toFixed(1) + ',' + String(Math.round(Number(box.W) || 0));
+}
+function _rrBoxParse(s) {
+  var p = String(s || '').split(',').map(parseFloat);
+  if (p.length !== 6 || p.some(function (v) { return isNaN(v); }) || p[2] <= 0 || p[3] <= 0 || p[5] <= 0) return null;
+  return { x: p[0], y: p[1], w: p[2], h: p[3], r: p[4], W: p[5] };
+}
+// Draw a stored box on the picture now in the cropper (rotation is set by the
+// caller through the screen's own controls first, so the readout agrees). The
+// picture may be the original or its screen-sized copy: one scale, by width.
+function _rrBoxApply(cropper, box) {
+  try {
+    var im = cropper.getImageData(), W2 = im && im.naturalWidth;
+    if (!W2 || !box) return false;
+    var k = (box.W > 0) ? (W2 / box.W) : 1;
+    cropper.setData({ x: box.x * k, y: box.y * k, width: box.w * k, height: box.h * k });
+    return true;
+  } catch (e) { return false; }
+}
+if (typeof window !== 'undefined') { window._rrCropBoxOf = _rrCropBoxOf; window._rrBoxStr = _rrBoxStr; window._rrBoxParse = _rrBoxParse; }
+
 function _openCropper(src, onResult, onCancel, opts) {   // v0.9.787: onCancel = proceed without cropping
   // v0.9.1052: opts lets a caller reword the screen — the crop-before-a-paid-read
   // flow needs its Cancel to read "Use whole photo", because there it is a real
   // choice with a cost, not an escape hatch.
+  // v0.9.1872: opts.original (the screen is showing a cropped photo's ORIGINAL),
+  // opts.box (that photo's current crop, drawn as the starting box) and
+  // opts.restore (a function → the "Restore original" button). onResult gets a
+  // second argument, the box the crop was taken from (_rrCropBoxOf).
   opts = opts || {};
   if (typeof Cropper === 'undefined') { if (typeof showToast === 'function') showToast('Crop tool still loading — try again in a moment'); return; }
   var ov = document.createElement('div');
@@ -217,8 +297,16 @@ function _openCropper(src, onResult, onCancel, opts) {   // v0.9.787: onCancel =
   ov.innerHTML =
     '<div style="flex:0 0 auto;padding:0.75rem 1rem;display:flex;justify-content:space-between;align-items:center;color:#fff;gap:1rem;flex-wrap:wrap">' +
       '<strong style="font-size:1rem">' + (opts.title || 'Crop photo') + '</strong>' +
-      '<span id="_rrCropHint" style="font-size:0.78rem;opacity:0.75">' + (opts.hint || 'Drag the box · zoom with the buttons') + '</span>' +
-      '<button id="_rrCropWhole" style="display:none;padding:0.4rem 0.7rem;min-height:38px;border-radius:8px;border:1px solid #555;background:#2a2a2a;color:#eee;font-size:0.78rem;cursor:pointer">Whole photo</button>' +
+      // v0.9.1872: when the screen shows a cropped photo's ORIGINAL it says so,
+      // and the box drawn on it is the crop as it stands.
+      '<span id="_rrCropHint" style="font-size:0.78rem;opacity:0.75">' + (opts.hint || (opts.original ? (opts.box ? 'Showing the original photo · the box is your current crop' : 'Showing the original photo') : 'Drag the box · zoom with the buttons')) + '</span>' +
+      // v0.9.1872: both buttons are decided BEFORE the picture area is measured
+      // (_freezeStage) — the v0.9.1774 rule: a button revealed late grows the
+      // header under a picture that was already pinned.
+      '<button id="_rrCropWhole" style="display:' + (opts.box ? '' : 'none') + ';padding:0.4rem 0.7rem;min-height:38px;border-radius:8px;border:1px solid #555;background:#2a2a2a;color:#eee;font-size:0.78rem;cursor:pointer">Whole photo</button>' +
+      (typeof opts.restore === 'function'
+        ? '<button id="_rrCropRestore" title="Put the original photo back, exactly as it was taken" style="' + btn + ';padding:0.4rem 0.7rem;min-height:38px;font-size:0.78rem">\u21a9 Restore original</button>'
+        : '') +
     '</div>' +
     // v0.9.1031 (Brad): the crop box used to sit 16px too far RIGHT, so both
     // right-hand grab squares fell off a phone screen. Cropper measures its
@@ -401,7 +489,9 @@ function _openCropper(src, onResult, onCancel, opts) {   // v0.9.787: onCancel =
     // v0.9.1774: reveal "Whole photo" BEFORE measuring, not after. See
     // _rrSavedBoxFits. The ready callback still sets both, harmlessly.
     try {
-      if (_rrSavedBoxFits(img)) {
+      // v0.9.1872: a photo's OWN box (opts.box) or its original on screen
+      // (opts.original) means the batch box of v0.9.1049 does not apply.
+      if (!opts.box && !opts.original && _rrSavedBoxFits(img)) {
         var _rbEarly = ov.querySelector('#_rrCropWhole');
         if (_rbEarly) _rbEarly.style.display = '';
         var _hEarly = ov.querySelector('#_rrCropHint');
@@ -436,6 +526,21 @@ function _openCropper(src, onResult, onCancel, opts) {   // v0.9.787: onCancel =
         // silently had no effect.
         ready: function () {
           try { _seedRot(); } catch (eS) {}
+          // v0.9.1872: this photo's own crop, drawn on its original. The
+          // rotation goes through the screen's own controls so the degree
+          // readout agrees with the picture; then the box, in that frame.
+          if (opts.box) {
+            try {
+              var _r = Number(opts.box.r) || 0;
+              _quarters = ((Math.round(_r / 90) % 4) + 4) % 4;
+              _fine = Math.round((_r - (Math.round(_r / 90) * 90)) * 2) / 2;
+              if (_fine > 15 || _fine < -15) { _fine = 0; }
+              _applyRot();
+              _rrBoxApply(cropper, opts.box);
+            } catch (eB2) {}
+            return;
+          }
+          if (opts.original) return;   // the original, whole — no batch box on top of it
           try {
             var _lastBox = _rrLoadBox(cropper);
             if (_lastBox) {
@@ -606,19 +711,27 @@ function _openCropper(src, onResult, onCancel, opts) {   // v0.9.787: onCancel =
   if (_wholeBtn) _wholeBtn.onclick = function () {
     try {
       localStorage.removeItem(_RR_BOX_KEY);
-      if (cropper) cropper.reset();
+      if (cropper) { cropper.reset(); _quarters = 0; _fine = 0; _applyRot(); }   // v0.9.1872: the stored box came with a rotation; "whole" means level too
       var _h = ov.querySelector('#_rrCropHint');
-      if (_h) _h.textContent = 'Drag the box \u00b7 zoom with the buttons';
+      if (_h) _h.textContent = opts.original ? 'Showing the original photo \u00b7 Apply keeps it whole' : 'Drag the box \u00b7 zoom with the buttons';
       _wholeBtn.style.display = 'none';
     } catch (e) {}
+  };
+  // v0.9.1872: one tap puts the original back. The caller owns the bytes and
+  // the write; this screen only closes and hands over.
+  var _restoreBtn = ov.querySelector('#_rrCropRestore');
+  if (_restoreBtn) _restoreBtn.onclick = function () {
+    done();
+    try { opts.restore(); } catch (e) { console.warn('[crop] restore', e); }
   };
   ov.querySelector('#_rrCropCancel').onclick = function () { done(); if (onCancel) try { onCancel(); } catch (e) {} };
   ov.querySelector('#_rrCropApply').onclick = function () {
     if (!cropper) { done(); if (onCancel) try { onCancel(); } catch (e) {} return; }
     try { _rrSaveBox(cropper); } catch (eS) {}   // v0.9.1049: offer this box on the next photo
+    var _box = _rrCropBoxOf(cropper);            // v0.9.1872: the box this crop is taken from, for the photo's record
     var canvas = cropper.getCroppedCanvas({ maxWidth: _RR_CROP_MAX, maxHeight: _RR_CROP_MAX, imageSmoothingQuality: 'high' });   // v0.9.1827: the ONE cap, shared with the preview
     if (!canvas) { done(); if (onCancel) try { onCancel(); } catch (e) {} return; }
-    canvas.toBlob(function (blob) { done(); if (blob) onResult(blob); }, 'image/jpeg', 0.9);
+    canvas.toBlob(function (blob) { done(); if (blob) onResult(blob, _box); }, 'image/jpeg', 0.9);
   };
 }
 
@@ -629,10 +742,17 @@ function _openCropper(src, onResult, onCancel, opts) {   // v0.9.787: onCancel =
 function _cropFirst(file, onDone) {
   if (!file || typeof _openCropper !== 'function') { onDone(file); return; }
   var url = URL.createObjectURL(file);
-  _openCropper(url, function (blob) {
+  _openCropper(url, function (blob, box) {
     try { URL.revokeObjectURL(url); } catch (e) {}
     try {
-      onDone(new File([blob], String(file.name || 'photo').replace(/\.[^.]+$/, '') + '_crop.jpg', { type: 'image/jpeg' }));
+      var cropped = new File([blob], String(file.name || 'photo').replace(/\.[^.]+$/, '') + '_crop.jpg', { type: 'image/jpeg' });
+      // v0.9.1872: the cropped File carries its ORIGINAL and the box it was cut
+      // from. drive.js's creators upload the original as the file and put the
+      // crop on top through the ONE writer, so the original is never lost.
+      // JPEG originals only: the crop is a JPEG, and a file whose first version
+      // is one kind of picture and second another is a file nothing can trust.
+      if (_rrCropKeepsOriginal(file)) { cropped._rrOriginal = file; cropped._rrCropBox = box || null; }
+      onDone(cropped);
     } catch (e) { onDone(file); }
   }, function () {
     try { URL.revokeObjectURL(url); } catch (e) {}
@@ -664,18 +784,196 @@ if (typeof window !== 'undefined') window._cropFirst = _cropFirst;
 //
 // There is no fallback to "the first one". There never should have been.
 
+// ── v0.9.1872: a photo's versions in Drive ─────────────────────────────────
+// Three calls, all on the file's own revisions (Drive API v3, drive.file scope
+// covers files the app made). Oldest first: Drive lists them that way and the
+// sort makes it a promise, not a habit.
+async function _cropRevisions(fileId) {
+  var out = await driveRequest('GET', '/files/' + fileId + '/revisions?pageSize=200&fields=revisions(id,modifiedTime,keepForever,size,mimeType)');
+  var revs = (out && out.revisions) || [];
+  revs.sort(function (a, b) { return String(a.modifiedTime || '').localeCompare(String(b.modifiedTime || '')); });
+  return revs;
+}
+// Mark the FIRST version — the original — keepForever. Returns its revision
+// id, or null when that could not be done (no list, a refused update). A
+// throw is a null too: the writer below treats null as "do not overwrite".
+async function _cropProtectOriginal(fileId) {
+  try {
+    var revs = await _cropRevisions(fileId);
+    // A file made a moment ago (a crop at capture) may list no versions for
+    // an instant. One short second look, then the honest answer.
+    if (!revs.length) { await new Promise(function (res) { setTimeout(res, 800); }); revs = await _cropRevisions(fileId); }
+    if (!revs.length || !revs[0].id) return null;
+    if (!revs[0].keepForever) {
+      var upd = await driveRequest('PATCH', '/files/' + fileId + '/revisions/' + revs[0].id + '?fields=id,keepForever', { keepForever: true });
+      if (!upd || upd.keepForever !== true) return null;   // Drive answers with the revision as saved
+    }
+    return revs[0].id;
+  } catch (e) { console.warn('[crop] could not protect the original of', fileId, e && e.message); return null; }
+}
+// The original's bytes, when the photo has been cropped at least once (two or
+// more versions). { state: 'single' } means the current bytes ARE the original;
+// 'got' carries the blob (and the stored box, when there is one); 'failed'
+// means Drive could not be asked — the caller crops what it has, as before.
+async function _cropOriginalFetch(fileId) {
+  try {
+    var revs = await _cropRevisions(fileId);
+    if (revs.length < 2) return { state: 'single' };
+    var r = await fetch('https://www.googleapis.com/drive/v3/files/' + fileId + '/revisions/' + revs[0].id + '?alt=media', { headers: { Authorization: 'Bearer ' + accessToken } });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    var blob = await r.blob();
+    if (!blob || !blob.size) throw new Error('empty');
+    var box = null;
+    try { box = await _cropBoxRead(fileId); } catch (eB) {}
+    return { state: 'got', blob: blob, revId: revs[0].id, box: box };
+  } catch (e) { console.warn('[crop] original not fetched for', fileId, e && e.message); return { state: 'failed' }; }
+}
+// The crop box, kept on the photo itself (appProperties) so every device sees
+// the same one. null clears it. Never fatal — a missing box only means the next
+// re-crop starts from the whole original.
+async function _cropBoxSave(fileId, box) {
+  var props = {}; props[_RR_BOX_PROP] = box ? _rrBoxStr(box) : null;
+  await driveRequest('PATCH', '/files/' + fileId + '?fields=id', { appProperties: props });
+}
+async function _cropBoxRead(fileId) {
+  var meta = await driveRequest('GET', '/files/' + fileId + '?fields=appProperties');
+  return _rrBoxParse(meta && meta.appProperties && meta.appProperties[_RR_BOX_PROP]);
+}
+// This session's memory of originals already in hand — a photo taken a minute
+// ago, or one whose original was just fetched — so the next ✂ on it needs no
+// download. A few at a time: these are whole phone photos.
+var _rrOrigMem = {}, _rrOrigMemOrder = [], _RR_ORIG_MEM_MAX = 6;
+function _cropRemember(fileId, blob, box) {
+  if (!fileId || !blob) return;
+  if (!_rrOrigMem[fileId]) { _rrOrigMemOrder.push(fileId); }
+  _rrOrigMem[fileId] = { blob: blob, box: box || null };
+  while (_rrOrigMemOrder.length > _RR_ORIG_MEM_MAX) { delete _rrOrigMem[_rrOrigMemOrder.shift()]; }
+}
+
 // The ONE writer. Everything below resolves an id and calls this.
-async function _cropReplaceDriveFile(fileId, blob) {
+// v0.9.1872: the original is protected FIRST, and a crop that cannot protect it
+// is refused — losing a crop is an annoyance, losing the original is not
+// recoverable (the same sentence v0.9.1238 wrote about the wrong photo). `box`
+// is the crop these bytes were cut from (stored on the photo), or null/absent
+// to clear it — a restore, or a crop whose frame is not the original's.
+async function _cropReplaceDriveFile(fileId, blob, box) {
   try {
     if (!fileId || typeof accessToken === 'undefined' || !accessToken) return false;
+    var origRev = await _cropProtectOriginal(fileId);
+    if (!origRev) { console.warn('[crop] original not protected — refusing to overwrite', fileId); return false; }
     var r = await fetch('https://www.googleapis.com/upload/drive/v3/files/' + fileId + '?uploadType=media', {
-      method: 'PATCH', headers: { Authorization: 'Bearer ' + accessToken, 'Content-Type': 'image/jpeg' }, body: blob
+      method: 'PATCH', headers: { Authorization: 'Bearer ' + accessToken, 'Content-Type': (blob && blob.type) || 'image/jpeg' }, body: blob
     });
     // v0.9.1631: the bytes changed — heal every cache in one motion, so no
     // renderer anywhere can keep showing the pre-crop picture.
-    if (r.ok) { try { if (window.rrPhotoBytesChanged) window.rrPhotoBytesChanged(fileId, blob); } catch (eB) {} }
+    if (r.ok) {
+      try { if (window.rrPhotoBytesChanged) window.rrPhotoBytesChanged(fileId, blob); } catch (eB) {}
+      try { await _cropBoxSave(fileId, (box && typeof box === 'object') ? box : null); } catch (eX) { console.warn('[crop] box not saved', eX && eX.message); }
+    }
     return r.ok;
   } catch (e) { console.warn('[crop] replace by id', e); return false; }
+}
+
+// Put the original back — its exact bytes, not a re-encoded copy. The writer
+// protects the original revision first (it already is) and the original bytes
+// become the current version; the old protected copy is then released, so Drive
+// tidies the duplicate away in 30 days while the current version — the same
+// bytes — stays for good. The box is cleared: nothing is cropped any more.
+async function _cropRestoreOriginal(fileId, originalBlob) {
+  var ok = await _cropReplaceDriveFile(fileId, originalBlob, null);
+  if (!ok) return false;
+  try {
+    var revs = await _cropRevisions(fileId);
+    if (revs.length > 1 && revs[0].keepForever) await driveRequest('PATCH', '/files/' + fileId + '/revisions/' + revs[0].id, { keepForever: false });
+  } catch (e) { /* a duplicate kept a little longer costs storage, not a photo */ }
+  _cropRemember(fileId, originalBlob, null);
+  return true;
+}
+
+// A photo cropped at capture, now in Drive as its original: the crop goes on top.
+// drive.js's creators call this right after the file exists. A failure leaves
+// the photo in Drive uncropped — which is also the truth the toast tells.
+async function _cropApplyCaptured(fileId, croppedFile) {
+  var box = (croppedFile && croppedFile._rrCropBox) || null;
+  var ok = await _cropReplaceDriveFile(fileId, croppedFile, box);
+  if (ok) _cropRemember(fileId, croppedFile._rrOriginal, box);
+  else if (typeof showToast === 'function') showToast('Could not save the crop — the photo is saved uncropped. You can crop it again any time.', 4500, true);
+  return ok;
+}
+// Which picked files carry their original: JPEGs. (See _cropFirst.)
+function _rrCropKeepsOriginal(file) {
+  return !!(file && /^image\/jpe?g$/i.test(String(file.type || '')));
+}
+
+// ══ Open the crop screen on a photo that lives in Drive ═════════════════════
+// Every ✂ on an uploaded photo comes through here. If the photo has an earlier
+// version, the screen shows THAT — the original — with the current crop drawn
+// on it, and offers Restore original; Apply replaces the current crop. A photo
+// never cropped shows as it is (its current bytes ARE the original). When Drive
+// cannot be asked, the screen shows the current bytes, exactly as before, and
+// the box is cleared on Apply because a crop of a crop is not in the original's
+// frame.
+//   o.src       the current picture: a URL, or a function returning a Promise
+//               of one (fetched only when needed — the inbox has its own
+//               careful downloader); without it the current bytes are fetched
+//   o.mem       { original: Blob|File, box, single } — an original already in
+//               hand (the wizard still holds the File it uploaded)
+//   o.onDone(ok, blob, kind)   after the write (ok false = refused/failed); the
+//               blob is what Drive now holds; kind is 'crop' or 'restore'
+//   o.onCancel  the screen was closed without writing
+//   o.opts      wording for _openCropper
+async function _cropOpenDriveFile(fileId, o) {
+  o = o || {};
+  if (!fileId) { if (o.onCancel) try { o.onCancel(); } catch (e0) {} return; }
+  var orig = null, state = 'single';
+  if (_rrOrigMem[fileId]) { orig = _rrOrigMem[fileId]; state = 'got'; }
+  else if (o.mem && o.mem.original) { orig = { blob: o.mem.original, box: o.mem.box || null }; state = o.mem.single ? 'single' : 'got'; }
+  else {
+    var slow = setTimeout(function () { try { if (typeof showToast === 'function') showToast('Loading the original photo…', 2500); } catch (e) {} }, 700);
+    var f = await _cropOriginalFetch(fileId);
+    clearTimeout(slow);
+    state = f.state;
+    if (f.state === 'got') orig = { blob: f.blob, box: f.box || null };
+  }
+  var showingOriginal = state === 'got' && !!orig;
+  var madeUrl = null, src = null;
+  try {
+    if (orig) { madeUrl = URL.createObjectURL(orig.blob); src = madeUrl; }
+    else if (typeof o.src === 'function') { src = await o.src(); }
+    else if (o.src) { src = o.src; }
+    else {
+      var rh = await fetch('https://www.googleapis.com/drive/v3/files/' + fileId + '?alt=media', { headers: { Authorization: 'Bearer ' + accessToken } });
+      if (!rh.ok) throw new Error('HTTP ' + rh.status);
+      madeUrl = URL.createObjectURL(await rh.blob()); src = madeUrl;
+    }
+  } catch (e) {
+    console.warn('[crop] could not open', fileId, e && e.message);
+    if (typeof showToast === 'function' && !(e && e.rrSaid)) showToast('Could not open the photo — try again', 3500, true);   // rrSaid: the caller's src() already explained
+    if (o.onCancel) try { o.onCancel(); } catch (e1) {}
+    return;
+  }
+  if (!src) { if (o.onCancel) try { o.onCancel(); } catch (e2) {} return; }
+  var cleanup = function () { if (madeUrl) { try { URL.revokeObjectURL(madeUrl); } catch (e) {} madeUrl = null; } };
+  var restore = async function () {
+    cleanup();
+    var okR = await _cropRestoreOriginal(fileId, orig.blob);
+    if (o.onDone) try { o.onDone(okR, orig.blob, 'restore'); } catch (e) {}
+  };
+  _openCropper(src, async function (blob, box) {
+    cleanup();
+    if (showingOriginal && box && box.whole) { await restore(); return; }   // whole + level = the original itself, exact bytes
+    var keepBox = (showingOriginal || state === 'single') ? box : null;    // a crop of a crop is not in the original's frame
+    var ok = await _cropReplaceDriveFile(fileId, blob, keepBox);
+    if (ok && (orig || state === 'single')) _cropRemember(fileId, orig ? orig.blob : null, keepBox);
+    if (o.onDone) try { o.onDone(ok, blob, 'crop'); } catch (e) {}
+  }, function () {
+    cleanup();
+    if (o.onCancel) try { o.onCancel(); } catch (e) {}
+  }, Object.assign({}, o.opts || {}, {
+    original: showingOriginal,
+    box: showingOriginal ? (orig.box || null) : null,
+    restore: showingOriginal ? restore : null,
+  }));
 }
 
 // Resolve a photo by name — EXACTLY one match, or nothing. Exported so the
@@ -694,20 +992,26 @@ function _cropPickByName(photos, fileName) {
   });
   return tail.length === 1 ? tail[0] : null;
 }
-
-async function _cropReplaceDrivePhoto(folderLink, fileName, blob) {
+// The name → id half, for photos uploaded before ids were recorded: sure, or
+// nothing (v0.9.1238). Returns the file id or ''.
+async function _cropResolveId(folderLink, fileName) {
   try {
-    if (typeof driveGetFolderPhotos !== 'function' || typeof accessToken === 'undefined' || !accessToken) return false;
+    if (!folderLink || typeof driveGetFolderPhotos !== 'function' || typeof accessToken === 'undefined' || !accessToken) return '';
     var photos = await driveGetFolderPhotos(folderLink);
     var hit = _cropPickByName(photos, fileName);
-    if (!hit) { console.warn('[crop] no unambiguous match for', fileName, '- refusing to overwrite'); return false; }
-    return await _cropReplaceDriveFile(hit.id, blob);
-  } catch (e) { console.warn('[crop] replace', e); return false; }
+    if (!hit) { console.warn('[crop] no unambiguous match for', fileName, '- refusing to overwrite'); return ''; }
+    return hit.id || '';
+  } catch (e) { console.warn('[crop] resolve', e); return ''; }
 }
 
-// Entry point from the ✂ button on a photo thumbnail.
+// Entry point from the ✂ button on a wizard photo thumbnail.
+// v0.9.1872: the id is resolved FIRST (ids map, else the one name builder and an
+// unambiguous match — v0.9.1238's two rules), then the Drive-aware screen opens:
+// on the original with the current crop drawn when the photo was cropped
+// already, on the photo itself when not. The wizard still holds the very File
+// it uploaded, so no download is needed for a photo from this session.
 function _photoCropStart(file, stepId, viewKey, itemNum, srcUrl) {
-  _openCropper(srcUrl, async function (blob) {
+  (async function () {
     try {
       if (typeof _awaitPhotoUploads === 'function') await _awaitPhotoUploads(10000); // ensure the original landed
       var ext = (String(file && file.name || '').split('.').pop() || 'jpg').toLowerCase();
@@ -717,31 +1021,50 @@ function _photoCropStart(file, stepId, viewKey, itemNum, srcUrl) {
       // everything else here is the fallback for a photo that predates it.
       var fileId = (wd._photoFileIds || {})[stepId + '|' + viewKey] || '';
       var folderLink = (wd[stepId] && wd[stepId][viewKey]) || '';
-      var ok = false;
-      if (fileId) {
-        ok = await _cropReplaceDriveFile(fileId, blob);
-      } else if (folderLink) {
+      if (!fileId && folderLink) {
         // No id: name-match, and only if it is unambiguous. The name is built
         // by the ONE builder that names uploads, not guessed at.
         var fileName = ((typeof window !== 'undefined' && typeof window._photoFileName === 'function')
           ? window._photoFileName(itemNum, viewKey, wd._invIdForPhotos, wd._fileLabelForPhotos)
           : (itemNum + ' ' + viewKey)) + '.' + ext;
-        ok = await _cropReplaceDrivePhoto(folderLink, fileName, blob);
+        fileId = await _cropResolveId(folderLink, fileName);
       }
-      var zone = document.querySelector('.photo-drop-zone[data-view="' + viewKey + '"][data-sid="' + stepId + '"]');
-      if (zone) { var im = zone.querySelector('img'); if (im) im.src = URL.createObjectURL(blob); }
-      // v0.9.1238: "will save once the upload finishes" was never true — there
-      // was no retry. Say what actually happened.
-      if (typeof showToast === 'function') {
-        showToast(ok ? 'Photo cropped'
-                     : 'Could not save the crop — the photo on screen is cropped, the one in Drive is not', 4500, !ok);
+      if (!fileId) {
+        if (typeof showToast === 'function') showToast('Could not find this photo in Drive yet — try the crop again in a moment', 4000, true);
+        return;
       }
+      // The File in hand: cropped at capture (it carries its original and box),
+      // or the photo exactly as uploaded (then it IS the original).
+      var mem = (file && file._rrOriginal) ? { original: file._rrOriginal, box: file._rrCropBox || null }
+              : (file ? { original: file, box: null, single: true } : null);
+      await _cropOpenDriveFile(fileId, {
+        src: srcUrl, mem: mem,
+        onDone: function (ok, blob) {
+          var zone = document.querySelector('.photo-drop-zone[data-view="' + viewKey + '"][data-sid="' + stepId + '"]');
+          if (zone && ok) { var im = zone.querySelector('img'); if (im && blob) im.src = URL.createObjectURL(blob); }
+          // v0.9.1238: "will save once the upload finishes" was never true — there
+          // was no retry. Say what actually happened.
+          if (typeof showToast === 'function') {
+            showToast(ok ? 'Photo updated'
+                         : 'Could not save the crop — the photo in Drive is unchanged. Try again.', 4500, !ok);
+          }
+        },
+      });
     } catch (e) { console.warn('[crop] apply', e); if (typeof showToast === 'function') showToast(rrSaveError(e, 'the crop'), 5000, true); }
-  });
+  })();
 }
 if (typeof window !== 'undefined') {
   window._photoCropStart = _photoCropStart;
   window._openCropper = _openCropper;
   window._cropReplaceDriveFile = _cropReplaceDriveFile;
   window._cropPickByName = _cropPickByName;
+  // v0.9.1872
+  window._cropOpenDriveFile = _cropOpenDriveFile;
+  window._cropRestoreOriginal = _cropRestoreOriginal;
+  window._cropApplyCaptured = _cropApplyCaptured;
+  window._cropProtectOriginal = _cropProtectOriginal;
+  window._cropOriginalFetch = _cropOriginalFetch;
+  window._cropResolveId = _cropResolveId;
+  window._cropRemember = _cropRemember;
+  window._rrCropKeepsOriginal = _rrCropKeepsOriginal;
 }

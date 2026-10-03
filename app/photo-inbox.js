@@ -2978,10 +2978,20 @@
     var rec = {
       id: 'stg' + Date.now() + '.' + Math.random().toString(36).slice(2, 8),
       name: name, type: (file && file.type) || 'image/jpeg', blob: file,
-      era: era || '', view: view || '', at: Date.now(), tries: 0, lastErr: ''
+      era: era || '', view: view || '', at: Date.now(), tries: 0, lastErr: '',
+      // v0.9.1872: a shot cropped at capture carries its ORIGINAL and box
+      // (photo-crop.js _cropFirst). They ride the staged record — IndexedDB
+      // keeps the bytes but not properties hung on a File — and
+      // _stageReattach puts them back on the way out, so the upload keeps
+      // the original exactly as an online shot would.
+      orig: (file && file._rrOriginal) || null, box: (file && file._rrCropBox) || null
     };
     await _stagePut(rec);
     return rec.id;
+  }
+  function _stageReattach(r, f) {
+    try { if (r && r.orig && f) { f._rrOriginal = r.orig; f._rrCropBox = r.box || null; } } catch (e) {}
+    return f;
   }
 
   // The drop/picker batch, with _upload's exact era semantics: a one-shot era
@@ -3151,6 +3161,7 @@
     if (!r.upLink) {
       var f = r.blob;
       try { if (!f.name) f = new File([r.blob], 'photo.jpg', { type: r.type || 'image/jpeg' }); } catch (eF) {}
+      _stageReattach(r, f);   // v0.9.1872: the original rides along
       var link = await driveUploadItemPhoto(f, r.itemNum, r.view || 'RSV', r.invId || undefined);
       if (!link) throw new Error('no link back from Drive');
       r.upLink = link;
@@ -3202,7 +3213,7 @@
             ok++; _filed++;
             continue;
           }
-          var up = await driveUploadFile(r.blob, r.name, fid);
+          var up = await driveUploadFile(_stageReattach(r, r.blob), r.name, fid);   // v0.9.1872: the original rides along
           if (!up || !up.id) throw new Error('no id back from Drive');
           var meta = {};
           if (r.era) { meta.era = r.era; meta.stat = 'stamped'; }
@@ -11413,77 +11424,84 @@
   // cropping to the item gives the AI the same edge the wizard's crop
   // step gives it.
   window._pinCropPhoto = async function (fid) {
-    if (typeof window._openCropper !== 'function' || typeof Cropper === 'undefined') { showToast('Crop tool still loading — try again in a moment', 2500, true); return; }
+    if (typeof window._openCropper !== 'function' || typeof Cropper === 'undefined' || typeof window._cropOpenDriveFile !== 'function') { showToast('Crop tool still loading — try again in a moment', 2500, true); return; }
     if (!_qcToken()) { showToast('Please sign in first', 3000, true); return; }
-    var srcUrl = null;
-    try {
-      var blob0 = await _pinBytes(fid);
-      srcUrl = URL.createObjectURL(blob0);
-    } catch (e) {
-      // v0.9.1443: this step READS the photo — nothing is written until the
-      // crop is applied, so "could not save" described a save that never
-      // happened and left Brad wondering if the picture was damaged. Say what
-      // actually failed, say the photo is untouched, and give advice that works.
-      var _m = String((e && e.message) || e || '');
-      // v0.9.1738: three honest answers instead of one wrong one. A rate limit
-      // has already been retried three times by _pinBytes before it gets here;
-      // "sign-in expired" is now said only when the token really has lapsed.
-      var _say;
-      if (/SESSION_EXPIRED/.test(_m)) {
-        _say = 'Your sign-in expired — refresh the page, then crop again. Your photo is untouched.';
-      } else if (/rate limit/i.test(_m)) {
-        _say = 'Google Drive is asking us to slow down — wait a moment, then crop again. Your photo is untouched.';
-      } else if (/drive 403/i.test(_m)) {
-        _say = 'Drive would not hand over that photo (' + _m.replace(/^drive 403 /, '').split(':')[0] + '). Your photo is untouched — check the folder is still shared with this account.';
-      } else {
-        _say = 'Could not open that photo for cropping. Your photo is untouched — try again.';
-      }
-      showToast(_say, 4800, true);
-      return;
-    }
-    window._openCropper(srcUrl, async function (blob) {
-      try { URL.revokeObjectURL(srcUrl); } catch (e1) {}
-      try {
-        var resp = await fetch('https://www.googleapis.com/upload/drive/v3/files/' + fid + '?uploadType=media', {
-          method: 'PATCH', headers: { Authorization: 'Bearer ' + window.accessToken, 'Content-Type': 'image/jpeg' }, body: blob
-        });
-        if (!resp.ok) { showToast('Could not save the crop (HTTP ' + resp.status + ') — the original is untouched', 3500, true); return; }
-        // Bust the shared thumbnail cache so every view shows the new bytes.
-        var fresh = URL.createObjectURL(blob);
+    // v0.9.1872: through the ONE Drive-aware crop screen (photo-crop.js
+    // _cropOpenDriveFile) instead of a private copy of the Drive write. The
+    // original is protected before anything is overwritten, a photo cropped
+    // before opens on its ORIGINAL with the crop drawn, and Restore original is
+    // offered. The current bytes are fetched only when they are needed — by
+    // _pinBytes, whose failure wording (v0.9.1738) stays exactly as it was.
+    await window._cropOpenDriveFile(fid, {
+      src: async function () {
         try {
-          if (typeof _blobCache !== 'undefined') {
-            if (_blobCache[fid]) { try { URL.revokeObjectURL(_blobCache[fid]); } catch (e2) {} }
-            _blobCache[fid] = fresh;
+          var blob0 = await _pinBytes(fid);
+          return URL.createObjectURL(blob0);
+        } catch (e) {
+          // v0.9.1443: this step READS the photo — nothing is written until the
+          // crop is applied, so "could not save" described a save that never
+          // happened and left Brad wondering if the picture was damaged. Say what
+          // actually failed, say the photo is untouched, and give advice that works.
+          var _m = String((e && e.message) || e || '');
+          // v0.9.1738: three honest answers instead of one wrong one. A rate limit
+          // has already been retried three times by _pinBytes before it gets here;
+          // "sign-in expired" is now said only when the token really has lapsed.
+          var _say;
+          if (/SESSION_EXPIRED/.test(_m)) {
+            _say = 'Your sign-in expired — refresh the page, then crop again. Your photo is untouched.';
+          } else if (/rate limit/i.test(_m)) {
+            _say = 'Google Drive is asking us to slow down — wait a moment, then crop again. Your photo is untouched.';
+          } else if (/drive 403/i.test(_m)) {
+            _say = 'Drive would not hand over that photo (' + _m.replace(/^drive 403 /, '').split(':')[0] + '). Your photo is untouched — check the folder is still shared with this account.';
+          } else {
+            _say = 'Could not open that photo for cropping. Your photo is untouched — try again.';
           }
-        } catch (e3) {}
-        // v0.9.961 (Brad): remember this file is cropped so future visits load
-        // its real bytes, not Drive's stale preview; drop any cached stale link.
-        _markCropped(fid);
-        try { if (typeof _thumbLinkCache !== 'undefined') delete _thumbLinkCache[fid]; } catch (eTL) {}
-        // Update every on-screen copy incl. the review modal's main image (data-rvbig).
-        document.querySelectorAll('img[data-rvfid="' + fid + '"], img[data-fid="' + fid + '"], img[data-ppfid="' + fid + '"], img[data-rvbig="' + fid + '"]').forEach(function (im) { im.src = fresh; });
-        // v0.9.1297 (Brad): the crop CLEARS the old read (a number lifted off
-        // the uncropped frame is exactly the read to replace) but no longer
-        // re-reads on the spot — reads run when he hits Identify my items,
-        // after all the cropping, tagging and grouping is done. The cleared
-        // read makes this photo count as unread, so the button picks it up.
-        try { var mm = _ids(); if (mm[fid]) { delete mm[fid]; _idsSave(mm); } } catch (eA) {}
-        // v0.9.1771 — and clear it on the PHOTO, or the next load pulls the old
-        // number straight back down: this device would have no read, Drive would
-        // still hold one, and the sync would helpfully re-seed exactly the answer
-        // the crop was meant to throw away.
-        try { _pinMetaSet(fid, { num: null, conf: null, rt: String(Date.now()) }); } catch (eN) {}
-        try { var ff = _freeTried(); if (ff[fid]) { delete ff[fid]; _freeTriedSave(ff); } } catch (eB) {}
-        // v0.9.1705 (Brad: "what is the 'it will be read fresh' comment that
-        // flashes up. i don't think that is needed"): just the confirmation.
-        // The rule behind the old wording still holds — the crop CLEARS the
-        // old read (two lines up) and does NOT read on the spot; Identify my
-        // items picks the photo up as unread.
-        showToast('Cropped \u2713', 2000);
-        try { _render(); } catch (eC) {}
-        try { _updateIdentifyBtn(); } catch (eD) {}
-      } catch (e4) { showToast('Could not save the crop — the original is untouched', 3000, true); }
-    }, function () { try { URL.revokeObjectURL(srcUrl); } catch (e5) {} });
+          showToast(_say, 4800, true);
+          var _said = (e && typeof e === 'object') ? e : new Error(_m);
+          try { _said.rrSaid = true; } catch (eF) {}
+          throw _said;
+        }
+      },
+      onDone: function (ok, blob, kind) {
+        if (!ok) { showToast('Could not save the crop — the original is untouched', 3500, true); return; }
+        try {
+          // Bust the shared thumbnail cache so every view shows the new bytes.
+          // (The writer healed drive.js's caches already — rrPhotoBytesChanged —
+          // and marked the photo cropped; these are the inbox's own copies.)
+          var fresh = URL.createObjectURL(blob);
+          try {
+            if (typeof _blobCache !== 'undefined') {
+              if (_blobCache[fid]) { try { URL.revokeObjectURL(_blobCache[fid]); } catch (e2) {} }
+              _blobCache[fid] = fresh;
+            }
+          } catch (e3) {}
+          try { if (typeof _thumbLinkCache !== 'undefined') delete _thumbLinkCache[fid]; } catch (eTL) {}
+          // Update every on-screen copy incl. the review modal's main image (data-rvbig).
+          document.querySelectorAll('img[data-rvfid="' + fid + '"], img[data-fid="' + fid + '"], img[data-ppfid="' + fid + '"], img[data-rvbig="' + fid + '"]').forEach(function (im) { im.src = fresh; });
+          // v0.9.1297 (Brad): the crop CLEARS the old read (a number lifted off
+          // the uncropped frame is exactly the read to replace) but no longer
+          // re-reads on the spot — reads run when he hits Identify my items,
+          // after all the cropping, tagging and grouping is done. The cleared
+          // read makes this photo count as unread, so the button picks it up.
+          try { var mm = _ids(); if (mm[fid]) { delete mm[fid]; _idsSave(mm); } } catch (eA) {}
+          // v0.9.1771 — and clear it on the PHOTO, or the next load pulls the old
+          // number straight back down: this device would have no read, Drive would
+          // still hold one, and the sync would helpfully re-seed exactly the answer
+          // the crop was meant to throw away.
+          try { _pinMetaSet(fid, { num: null, conf: null, rt: String(Date.now()) }); } catch (eN) {}
+          try { var ff = _freeTried(); if (ff[fid]) { delete ff[fid]; _freeTriedSave(ff); } } catch (eB) {}
+          // v0.9.1705 (Brad: "what is the 'it will be read fresh' comment that
+          // flashes up. i don't think that is needed"): just the confirmation.
+          // The rule behind the old wording still holds — the crop CLEARS the
+          // old read (two lines up) and does NOT read on the spot; Identify my
+          // items picks the photo up as unread.
+          if (kind === 'restore') showToast('Original restored \u2713', 2000);
+          else showToast('Cropped \u2713', 2000);
+          try { _render(); } catch (eC) {}
+          try { _updateIdentifyBtn(); } catch (eD) {}
+        } catch (e4) { showToast('Could not refresh the photo on screen — reopen the inbox to see the change', 3000, true); }
+      },
+    });
   };
 
   // v0.9.1297 (Brad): the "Re-read cropped" button and its machinery
@@ -12965,23 +12983,23 @@
   window._qcRecrop = function (idx) {
     var r = _qc && _qc.recent[idx];
     if (!r) return;
-    if (typeof window._openCropper !== 'function') { showToast('Crop tool still loading — try again in a moment', 2500, true); return; }
+    if (typeof window._openCropper !== 'function' || typeof window._cropOpenDriveFile !== 'function') { showToast('Crop tool still loading — try again in a moment', 2500, true); return; }
     var rv = document.getElementById('qc-review-ov'); if (rv) rv.remove();
-    window._openCropper(r.url, async function (blob) {
-      try { URL.revokeObjectURL(r.url); } catch (e) {}
-      r.url = URL.createObjectURL(blob);
-      _qcRender();
-      // Replace the uploaded Drive file's bytes in place (photo-crop.js pattern).
-      if (r.driveId && _qcToken()) {
-        try {
-          var resp = await fetch('https://www.googleapis.com/upload/drive/v3/files/' + r.driveId + '?uploadType=media', {
-            method: 'PATCH', headers: { Authorization: 'Bearer ' + window.accessToken, 'Content-Type': 'image/jpeg' }, body: blob
-          });
-          showToast(resp.ok ? 'Photo updated' : 'Crop saved locally — inbox copy may be the original', 2500);
-        } catch (e) { console.warn('[QuickCapture] recrop replace:', e); showToast('Could not update the uploaded copy', 2500, true); }
-      } else {
-        showToast('Photo is still uploading — crop it again in a few seconds if it looks wrong in the inbox', 3000);
-      }
+    // v0.9.1872: the crop screen works on the photo IN DRIVE, through the ONE
+    // Drive-aware screen (photo-crop.js) — the original protected, the current
+    // crop drawn on it, Restore original offered — and the strip shows what
+    // Drive now holds. A shot still in the air has nothing to crop yet; the
+    // old "crop saved locally — inbox copy may be the original" split is gone.
+    if (!r.driveId || !_qcToken()) { showToast('Photo is still uploading — try the crop again in a few seconds', 3000); return; }
+    window._cropOpenDriveFile(r.driveId, {
+      src: r.url,
+      onDone: function (ok, blob, kind) {
+        if (!ok) { showToast('Could not update the uploaded copy — try again', 2500, true); return; }
+        try { URL.revokeObjectURL(r.url); } catch (e) {}
+        r.url = URL.createObjectURL(blob);
+        _qcRender();
+        showToast(kind === 'restore' ? 'Original restored' : 'Photo updated', 2500);
+      },
     });
   };
 

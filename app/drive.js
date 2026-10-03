@@ -192,9 +192,27 @@ async function driveRequest(method, endpoint, body) {
   return text ? JSON.parse(text) : {};
 }
 
+// ══ v0.9.1872 — A PHOTO CROPPED AT CAPTURE KEEPS ITS ORIGINAL ═══════════════
+// photo-crop.js's _cropFirst hands back a cropped File that carries the
+// ORIGINAL it was cut from (_rrOriginal) and the box (_rrCropBox). Both
+// creators below upload the ORIGINAL as the file — that is the first version,
+// the one the writer protects — and then put the crop on top through the ONE
+// writer (_cropApplyCaptured → _cropReplaceDriveFile). Every caller still gets
+// the file it asked for, holding the crop. A File with no original attached
+// uploads exactly as before; nothing but photos ever carries one.
+async function _rrUploadKeepingOriginal(file, create) {
+  var made = await create(file._rrOriginal);
+  if (made && made.id && typeof window !== 'undefined' && typeof window._cropApplyCaptured === 'function') {
+    try { await window._cropApplyCaptured(made.id, file); }
+    catch (e) { console.warn('[Drive] crop on top of the original failed — the photo is in Drive uncropped', e); }
+  }
+  return made;
+}
+
 // v0.9.1835: an optional fourth argument merges extra metadata into the upload
 // (Lens staging sends its cleanup stamp this way — one request, not two).
 async function driveUploadFile(file, name, folderId, extraMeta) {
+  if (file && file._rrOriginal) return _rrUploadKeepingOriginal(file, function (orig) { return driveUploadFile(orig, name, folderId, extraMeta); });   // v0.9.1872
   if (!folderId) throw new Error('Missing folderId for upload: ' + name);
   if (!accessToken) {
     var _s = localStorage.getItem('lv_token');
@@ -253,6 +271,7 @@ async function _driveFindOrCreateFolderNow(name, parentId) {
 }
 
 async function driveUploadPhoto(file, fileName, folderId) {
+  if (file && file._rrOriginal) return _rrUploadKeepingOriginal(file, function (orig) { return driveUploadPhoto(orig, fileName, folderId); });   // v0.9.1872
   const meta = JSON.stringify({ name: fileName, parents: [folderId] });
   const form = new FormData();
   form.append('metadata', new Blob([meta], { type: 'application/json' }));

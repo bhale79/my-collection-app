@@ -9889,15 +9889,17 @@ META_WRITES.length = 0; TOASTS.length = 0;
        /\|\| photos\[0\]/.test(pc));
     ok('the crop no longer guesses the file name from the item number',
        !/var fileName = itemNum \+ ' ' \+ viewKey/.test(pcCode));
+    // v0.9.1872: the writer grew a third argument (the crop box it stores on
+    // the photo) and protects the original BEFORE the PATCH — still ONE writer.
     ok('there is exactly one function that overwrites bytes in Drive',
        (pc.match(/uploadType=media'/g) || []).length === 1 &&
-       /async function _cropReplaceDriveFile\(fileId, blob\)/.test(pc));
+       /async function _cropReplaceDriveFile\(fileId, blob, box\)/.test(pc));
     ok('…and it takes a file id, not a folder and a hope',
-       /_cropReplaceDriveFile\(fileId, blob\)[\s\S]{0,400}files\/' \+ fileId/.test(pc));
+       /_cropReplaceDriveFile\(fileId, blob, box\)[\s\S]{0,900}files\/' \+ fileId \+ '\?uploadType=media'/.test(pc));
 
     // ── RUN the matcher: sure, or nothing ───────────────────────────────
     const src = pc.slice(pc.indexOf('function _cropPickByName(photos, fileName)'),
-                         pc.indexOf('async function _cropReplaceDrivePhoto'));
+                         pc.indexOf('async function _cropResolveId'));   // v0.9.1872: the name→id half is _cropResolveId now
     const pick = (photos, name) =>
       new Function('photos', 'fileName', '"use strict";' + src + '; return _cropPickByName(photos, fileName);')(photos, name);
 
@@ -9933,11 +9935,13 @@ META_WRITES.length = 0; TOASTS.length = 0;
        /return driveFolderLink\(folderId\);/.test(dv));
     ok('the wizard remembers which file each thumbnail is',
        /wizard\.data\._photoFileIds\[stepId \+ '\|' \+ viewKey\] = up\.id/.test(wp));
+    // v0.9.1872: the id is resolved FIRST and the Drive-aware screen opens on
+    // it (_cropOpenDriveFile → the ONE writer); the name only when there is none.
     ok('…and the crop button uses it',
        /var fileId = \(wd\._photoFileIds \|\| \{\}\)\[stepId \+ '\|' \+ viewKey\] \|\| '';/.test(pc) &&
-       /if \(fileId\) \{\s*\n\s*ok = await _cropReplaceDriveFile\(fileId, blob\);/.test(pc));
+       /await _cropOpenDriveFile\(fileId, \{/.test(pc));
     ok('…falling back to the name only when there is no id',
-       /\} else if \(folderLink\) \{/.test(pc));
+       /if \(!fileId && folderLink\) \{/.test(pc) && /fileId = await _cropResolveId\(folderLink, fileName\);/.test(pc));
     ok('…and building that name with the ONE builder that names uploads',
        /window\._photoFileName\(itemNum, viewKey/.test(pc));
 
@@ -9945,9 +9949,9 @@ META_WRITES.length = 0; TOASTS.length = 0;
     const dpe = ac.slice(ac.indexOf('async function _detailPhotoEdit(fileId'),
                          ac.indexOf('async function _detailPhotoEdit(fileId') + 2200);
     ok('the detail page edit uses the id it was given',
-       /ok = fileId \? await _cropReplaceDriveFile\(fileId, blob\)/.test(dpe));
+       /var id = fileId \|\| await _cropResolveId\(folderLink, fileName\);/.test(dpe) && /await _cropOpenDriveFile\(id, \{/.test(dpe));
     ok('…and only searches by name when it somehow has none',
-       /: await _cropReplaceDrivePhoto\(folderLink, fileName, blob\)/.test(dpe));
+       /fileId \|\| await _cropResolveId\(folderLink, fileName\)/.test(dpe) && !/_cropReplaceDrivePhoto\(/.test(dpe));
 
     // ── and it must not claim it saved when it did not ──────────────────
     ok('a crop that could not be saved says so',
