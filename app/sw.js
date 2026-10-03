@@ -4,7 +4,7 @@
 // fetches fresh copies in the background for next load.
 // NEVER caches Google API, OAuth, or Sheets calls.
 
-const CACHE_NAME = 'mca-v1880';
+const CACHE_NAME = 'mca-v1881';
 
 // ── v0.9.1214: the version stamp has to survive as far as the cache ──
 // Brad, on v1213: "im reset twice and it still looks the same." He was
@@ -137,6 +137,11 @@ const SHELL_FILES = [
   './help-img/chessie.jpg',
   './help-img/unmarked.jpg',
   './help-img/strongman.jpg',
+  // v0.9.1871: the tour's three sample photos (config.js RR_TOUR_SAMPLES) — the
+  // tour must show them offline as well as on.
+  './img/sample-2343.jpg',
+  './img/sample-6464-1.jpg',
+  './img/sample-6457.jpg',
   './dispatch-board.js',
   './yardmaster.js',   // v0.9.1580: the owner-only Office (the S85 precache lesson)
   './maintenance.js',   // v0.9.1672: Maintenance panel (owner-only preview, Session 90)

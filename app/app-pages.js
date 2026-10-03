@@ -1571,6 +1571,10 @@ function buildSoldPage() {
     }
   } catch(e) {}
 
+  // v0.9.1871 — the tour's sample rows (config.js rrSampleRows): only on an empty
+  // list, only from here on — every count above is the collector's own — drawn by
+  // the row code below, tagged and inert.
+  if (!Object.keys(state.soldData || {}).length && typeof rrSampleRows === 'function') { const _sdSmp = rrSampleRows('sold', 0); if (_sdSmp.length) soldEntries = _sdSmp; }
   const isMobileSold = window.innerWidth <= 640;
   const soldCardsEl = document.getElementById('sold-cards');
   const soldTableWrap = document.getElementById('sold-table-wrap');
@@ -1580,10 +1584,10 @@ function buildSoldPage() {
     if (soldCardsEl) soldCardsEl.style.display = 'flex';
     if (soldTableWrap) soldTableWrap.style.display = 'none';
     if (soldCardsEl) soldCardsEl.innerHTML = soldEntries.length ? soldEntries.map(sd => {
-      return `<div onclick="showSoldDetailPage('${sd.key}')" style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:0.85rem 1rem;cursor:pointer">
+      return `<div${rrSampleAttrs(sd)} onclick="showSoldDetailPage('${sd.key}')" style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:0.85rem 1rem;cursor:pointer">
         <div style="display:flex;justify-content:space-between;align-items:flex-start">
           <div>
-            <span style="font-family:var(--font-head);font-size:1.1rem;color:var(--t-accent)">${sd.itemNum || '—'}</span>
+            <span style="font-family:var(--font-head);font-size:1.1rem;color:var(--t-accent)">${sd.itemNum || '—'}</span>${rrSampleTag(sd)}
             ${sd._wantMates ? `<span style="font-size:0.72rem;color:#9ecbff">🔗 ${sd._wantMates.join(' + ')}</span> <span style="font-size:0.6rem;font-weight:700;color:var(--accent3,#2ecc71);border:1px solid var(--accent3,#2ecc71);border-radius:4px;padding:0.05rem 0.3rem;vertical-align:middle">${sd._groupCfg || 'Set'}</span>` : ''}
             ${sd.variation ? `<span style="font-size:0.72rem;color:var(--text-dim);margin-left:0.4rem">${sd.variation}</span>` : ''}
             ${sd._roadName ? `<div style="font-size:0.82rem;color:var(--text);margin-top:0.1rem">${sd._roadName}</div>` : ''}
@@ -1599,9 +1603,9 @@ function buildSoldPage() {
     if (soldCardsEl) soldCardsEl.style.display = 'none';
     if (soldTableWrap) soldTableWrap.style.display = '';
     tbody.innerHTML = soldEntries.length ? soldEntries.map(sd => {
-      return `<tr onclick="showSoldDetailPage('${sd.key}')" style="cursor:pointer">
+      return `<tr${rrSampleAttrs(sd)} onclick="showSoldDetailPage('${sd.key}')" style="cursor:pointer">
         ${typeof _mfrBadge==='function' ? _mfrBadge({ manufacturer: sd.manufacturer || '' }) : '<td>—</td>'}
-        <td><span class="item-num">${sd.itemNum || '—'}</span>${sd._wantMates ? ' <span style="font-size:0.7rem;color:#9ecbff">🔗 ' + sd._wantMates.join(' + ') + '</span> <span style="font-size:0.6rem;font-weight:700;color:var(--accent3,#2ecc71);border:1px solid var(--accent3,#2ecc71);border-radius:4px;padding:0.05rem 0.3rem">' + (sd._groupCfg || 'Set') + '</span>' : ''}</td>
+        <td><span class="item-num">${sd.itemNum || '—'}</span>${rrSampleTag(sd)}${sd._wantMates ? ' <span style="font-size:0.7rem;color:#9ecbff">🔗 ' + sd._wantMates.join(' + ') + '</span> <span style="font-size:0.6rem;font-weight:700;color:var(--accent3,#2ecc71);border:1px solid var(--accent3,#2ecc71);border-radius:4px;padding:0.05rem 0.3rem">' + (sd._groupCfg || 'Set') + '</span>' : ''}</td>
         <td><span class="tag">${sd._type || '—'}</span></td>
         <td>${sd._roadName || '—'}</td>
         <td>${sd.variation || '—'}</td>
@@ -2103,6 +2107,11 @@ function buildForSalePage() {
     if (Object.keys(absorbed).length) fsEntries=fsEntries.filter(function(e){ return !absorbed[e.itemNum]; });
   })();
   if (typeof _renderFsHeader==='function') _renderFsHeader();
+  // v0.9.1871 — the tour's sample rows (config.js rrSampleRows): only on an empty
+  // list, only from here on — the stats above and the menu badge below are the
+  // collector's own — drawn by the row code below, tagged and inert.
+  const _fsOwnN = fsEntries.length;
+  if (!Object.keys(state.forSaleData || {}).length && typeof rrSampleRows === 'function') { const _fsSmp = rrSampleRows('forsale', 0); if (_fsSmp.length) fsEntries = _fsSmp; }
   const isMobileFs = window.innerWidth <= 640;
   const fsCardsEl = document.getElementById('forsale-cards');
   const fsTableWrap = document.getElementById('forsale-table-wrap');
@@ -2113,7 +2122,7 @@ function buildForSalePage() {
     if (fsTableWrap) fsTableWrap.style.display = 'none';
     var _fsThumbJobs = [];   // v0.9.1022: card thumbnails, filled during render
     if (fsCardsEl) fsCardsEl.innerHTML = fsEntries.length ? fsEntries.map(fs => {
-      const _fsx = _fsEff(fs); const master = findMaster(_fsx.itemNum, _fsx.variation, _fsx) || {};   // v0.9.1821: the sale record names its catalog
+      const _fsx = _fsEff(fs); const master = fs._master || findMaster(_fsx.itemNum, _fsx.variation, _fsx) || {};   // v0.9.1821: the sale record names its catalog; v0.9.1871: a tour sample carries its row
       const collPd = (fs.inventoryId && state.personalData[fs.inventoryId]) || {};
       const estWorth = fs.estWorth || collPd.userEstWorth || '';
       // v0.9.921 (chunk 2): for-sale entries carry inventoryId (per-copy stable).
@@ -2132,13 +2141,13 @@ function buildForSalePage() {
       // on the right; buttons are Mark as Sold / Share / Remove.
       const _fsThumbId = 'fs-thumb-' + String(_fsShareKey).replace(/[^A-Za-z0-9_-]/g, '');
       if (collPd && collPd.photoItem) _fsThumbJobs.push({ id: _fsThumbId, pd: collPd });
-      return `<div id="share-card-${_fsShareKey}" style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:0.85rem 1rem;cursor:${_fsCardCursor}${_fsSelected ? ';outline:2px solid #2ecc71' : ''}" ${_fsCardClick}>
+      return `<div id="share-card-${_fsShareKey}"${rrSampleAttrs(fs)} style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:0.85rem 1rem;cursor:${_fsCardCursor}${_fsSelected ? ';outline:2px solid #2ecc71' : ''}" ${_fsCardClick}>
         <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:0.6rem">
           <div style="display:flex;align-items:flex-start;gap:0.5rem;min-width:0">
             ${_fsInShare ? '<input type="checkbox" id="share-cb-' + _fsShareKey + '" ' + (_fsSelected ? 'checked' : '') + ' onclick="event.stopPropagation();toggleShareItem(\'' + _fsShareKey + '\')" style="width:1.1rem;height:1.1rem;accent-color:#2ecc71;flex-shrink:0;margin-top:0.2rem">' : ''}
             <div style="min-width:0">
               <div style="display:flex;align-items:baseline;gap:0.5rem;flex-wrap:wrap">
-                <span style="font-family:var(--font-head);font-size:1.1rem;color:var(--t-accent)">${_fsItemNumHTML(fs)}</span>
+                <span style="font-family:var(--font-head);font-size:1.1rem;color:var(--t-accent)">${_fsItemNumHTML(fs)}</span>${rrSampleTag(fs)}
                 ${master.roadName ? `<span style="font-size:0.9rem;color:var(--text)">${master.roadName}</span>` : ''}
               </div>
               <div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.15rem">${[master.itemType, fs.condition ? 'Cond: '+fs.condition : '', fs.dateListed ? 'Listed: '+_formatDate(fs.dateListed) : ''].filter(Boolean).join(' · ')}</div>
@@ -2181,7 +2190,7 @@ function buildForSalePage() {
     // here so the fill pass never re-derives which row wanted which folder.
     const _fsThumbJobs = [];
     if (tbody) tbody.innerHTML = fsEntries.length ? fsEntries.map((fs, _fsI) => {
-      const _fsx = _fsEff(fs); const master = findMaster(_fsx.itemNum, _fsx.variation, _fsx) || {};   // v0.9.1821: the sale record names its catalog
+      const _fsx = _fsEff(fs); const master = fs._master || findMaster(_fsx.itemNum, _fsx.variation, _fsx) || {};   // v0.9.1821: the sale record names its catalog; v0.9.1871: a tour sample carries its row
       const collPd = (fs.inventoryId && state.personalData[fs.inventoryId]) || {};
       const estWorth = fs.estWorth || collPd.userEstWorth || '';
       // v0.9.921 (chunk 2): inventoryId when present, composite fallback.
@@ -2201,12 +2210,12 @@ function buildForSalePage() {
       // header and the rows read the same list, so they cannot disagree.
       const _c = {};
       _c.mfr = (typeof _mfrBadge==='function' ? _mfrBadge({ manufacturer: fs.manufacturer || collPd.manufacturer || '' }) : '<td>—</td>').replace('<td', '<td data-col="mfr"');
-      _c.num = `<td data-col="num"><span class="item-num">${_fsDInShare ? '<input type="checkbox" id="share-cb-' + _fsDShareKey + '" ' + (_fsDSelected ? 'checked' : '') + ' onclick="event.stopPropagation();toggleShareItem(\'' + _fsDShareKey + '\')" style="width:1rem;height:1rem;accent-color:#2ecc71;margin-right:5px;vertical-align:middle">' : ''}${_fsItemNumHTML(fs)}</span></td>`;
+      _c.num = `<td data-col="num"><span class="item-num">${_fsDInShare ? '<input type="checkbox" id="share-cb-' + _fsDShareKey + '" ' + (_fsDSelected ? 'checked' : '') + ' onclick="event.stopPropagation();toggleShareItem(\'' + _fsDShareKey + '\')" style="width:1rem;height:1rem;accent-color:#2ecc71;margin-right:5px;vertical-align:middle">' : ''}${_fsItemNumHTML(fs)}</span>${rrSampleTag(fs)}</td>`;
       _c.type = `<td data-col="type"><span class="tag">${master.itemType || collPd.itemType || '—'}</span></td>`;
       _c.road = `<td data-col="road">${master.roadName || collPd.roadName || '—'}</td>`;
       _c.photo = (function(){
           const _hostId = 'fs-thumb-' + _fsI;
-          _fsThumbJobs.push({ host: _hostId, link: collPd.photoItem || '', num: _fsx.itemNum || '' });
+          if (!rrIsSample(fs)) _fsThumbJobs.push({ host: _hostId, link: collPd.photoItem || '', num: _fsx.itemNum || '' });   // v0.9.1871: a sample never looks for a photo folder by its number
           return (typeof rrThumbCellHTML === 'function' ? rrThumbCellHTML(_hostId) : '<td></td>').replace('<td', '<td data-col="photo"');
         })();
       _c.desc = `<td data-col="desc">${(function(){
@@ -2219,7 +2228,7 @@ function buildForSalePage() {
       _c.worth = `<td data-col="worth" class="text-dim">${estWorth ? _currencySymbol() + parseFloat(estWorth).toLocaleString() : '—'}</td>`;
       _c.listed = `<td data-col="listed" class="text-dim">${_formatDate(fs.dateListed) || '—'}</td>`;
       _FS_EXTRA_COLS.forEach(function (xc) { _c[xc.col] = rrRowExtraCellHtml(xc, collPd); });   // the linked row's own values
-      return `<tr id="share-card-${_fsDShareKey}" ${_fsDClickAttr} style="cursor:${_fsDInShare || _fsDOpen ? 'pointer' : 'default'}${_fsDSelected ? ';outline:2px solid #2ecc71;background:rgba(46,204,113,0.06)' : ''}">
+      return `<tr id="share-card-${_fsDShareKey}"${rrSampleAttrs(fs)} ${_fsDClickAttr} style="cursor:${_fsDInShare || _fsDOpen ? 'pointer' : 'default'}${_fsDSelected ? ';outline:2px solid #2ecc71;background:rgba(46,204,113,0.06)' : ''}">
         ${rrTableVisible('forsale').map(function (id) { return _c[id] || '<td data-col="' + id + '"><span style="color:var(--text-dim)">—</span></td>'; }).join('')}
         <td data-col="actions" style="white-space:normal">
           ${!_fsDInShare ? `<button class="row-mark-sold" onclick="event.stopPropagation();markForSaleAsSold('${_fsEntryKey(fs)}','${fs.askingPrice||''}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid #2ecc71;background:var(--bg-card);background:color-mix(in srgb, rgb(46,204,113) 12%, var(--bg-card));color:var(--t-green);font-family:var(--font-body);margin-right:0.3rem" title="Mark as sold">Sold</button>
@@ -2236,7 +2245,7 @@ function buildForSalePage() {
   }
 
   const navBadge = document.getElementById('nav-forsale');
-  if (navBadge) navBadge.textContent = fsEntries.length;
+  if (navBadge) navBadge.textContent = _fsOwnN;   // v0.9.1871: the collector's own entries — never a sample
   // v0.9.1691: the Parts Bin's for-sale parts, as their own section (maintenance.js)
   if (typeof window._maintRenderFsParts === 'function') window._maintRenderFsParts();
 }
@@ -3208,6 +3217,7 @@ function _wuVarMaster(u) {
   // would return the first row that happens to share the number — the exact
   // class behind "research opened Atlas instead of Lionel". Pass the
   // variation AND the entry so findMaster can disambiguate era/maker.
+  if (u && u._master) return u._master;   // v0.9.1871: an entry that carries its catalog row (a tour sample) is drawn from it — never looked up by number
   return (typeof findMaster === 'function') ? findMaster(u.itemNum, u.variation || '', u) : null;
 }
 function _wuVarDesc(u, m) {
@@ -3410,6 +3420,11 @@ function buildUpgradePage() {
 
   const priorityColor = { High: 'var(--t-accent)', Medium: 'var(--accent2)', Low: 'var(--text-dim)' };
 
+  // v0.9.1871 — the tour's sample rows (config.js rrSampleRows): only on an empty
+  // list, only from here on — the badge and the count above are the collector's own —
+  // and drawn by the row code below, tagged and inert.
+  if (!totalCount && typeof rrSampleRows === 'function') { const _wuSmp = rrSampleRows('want', 0); if (_wuSmp.length) entries = _wuSmp; }
+
   if (entries.length === 0) {
     // v0.9.1348 — _ue and _ut belong in this test. Without them, filtering by
     // era or type down to nothing told the user "Your want/upgrade list is
@@ -3440,7 +3455,7 @@ function buildUpgradePage() {
     if (cardsEl) cardsEl.style.display = 'flex';
     cardsEl.innerHTML = entries.map(u => {
       const pd = Object.values(state.personalData).find(p => p.owned && rrSameNum(p.itemNum, u.itemNum) && rrSameVar(p.variation, u.variation));
-      const master = findMaster(u.itemNum, '', u);
+      const master = u._master || findMaster(u.itemNum, '', u);   // v0.9.1871: a tour sample carries its catalog row
       const name = master ? (master.roadName || '') : '';  // Road Name column shows ONLY roadName — itemType fallback removed (was lying about road name)
       // v0.9.1348 — the variation description on phones too. Same four
       // resolvers as the table branch, so the two cannot drift apart; the
@@ -3483,12 +3498,12 @@ function buildUpgradePage() {
           pd: pd || {},
         };
       }
-      return `<div ${_wuInShare ? `id="share-card-${_wuMKey}" onclick="toggleShareItem('${_wuMKey}')"` : `onclick="_wantViewDetail('${u.itemNum}','${escVar}')"`} style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:0.85rem 1rem;cursor:pointer${_wuMSel ? ';outline:2px solid #2ecc71;background:rgba(46,204,113,0.08)' : ''}">
+      return `<div${rrSampleAttrs(u)} ${_wuInShare ? `id="share-card-${_wuMKey}" onclick="toggleShareItem('${_wuMKey}')"` : `onclick="_wantViewDetail('${u.itemNum}','${escVar}')"`} style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:0.85rem 1rem;cursor:pointer${_wuMSel ? ';outline:2px solid #2ecc71;background:rgba(46,204,113,0.08)' : ''}">
         <div style="display:flex;align-items:flex-start;gap:0.5rem">
           ${_wuInShare ? `<input type="checkbox" id="share-cb-${_wuMKey}" ${_wuMSel ? 'checked' : ''} onclick="event.stopPropagation();toggleShareItem('${_wuMKey}')" style="width:1.1rem;height:1.1rem;accent-color:#2ecc71;flex-shrink:0;margin-top:0.2rem">` : ''}
           <div style="flex:1;min-width:0">
             <div style="display:flex;align-items:center;gap:0.4rem;flex-wrap:wrap">
-              <span style="font-family:var(--font-head);font-size:1.1rem;color:var(--t-accent)">${_wuItemNumHTML(u)}</span>
+              <span style="font-family:var(--font-head);font-size:1.1rem;color:var(--t-accent)">${_wuItemNumHTML(u)}</span>${rrSampleTag(u)}
               ${u.variation ? `<span style="font-size:0.72rem;color:var(--text-dim)">${u.variation}</span>` : ''}
               ${!_isWant ? `<span style="font-size:0.6rem;font-weight:700;color:${_ltColor};background:${_ltBg};border-radius:4px;padding:0.1rem 0.4rem;text-transform:uppercase;letter-spacing:0.05em">${u.listType||'Want'}</span>` : ''}
               <span style="font-size:0.65rem;font-weight:600;color:${pColor};border:1px solid ${pColor};border-radius:4px;padding:0.1rem 0.4rem">${u.priority||'Medium'}</span>
@@ -3524,7 +3539,7 @@ function buildUpgradePage() {
     tbody.innerHTML = entries.map((u, idx) => {
       const _isWant = u.listType === 'Want';
       const pd = _isWant ? null : Object.values(state.personalData).find(p => p.owned && rrSameNum(p.itemNum, u.itemNum) && rrSameVar(p.variation, u.variation));
-      const master = findMaster(u.itemNum, '', u);
+      const master = u._master || findMaster(u.itemNum, '', u);   // v0.9.1871: a tour sample carries its catalog row
       const name = master ? (master.roadName || '') : '';  // Road Name column shows ONLY roadName — itemType fallback removed (was lying about road name)
       // v0.9.1348 — Variation + Variation Description, carried over from the
       // retired Want List page. NOTE the second lookup: `master` above is
@@ -3587,9 +3602,9 @@ function buildUpgradePage() {
         var _escVarAttr = (u.variation||'').replace(/'/g,"\\'");
         _wuTrAttrs = ' onclick="_wantViewDetail(\'' + u.itemNum + '\',\'' + _escVarAttr + '\')" style="cursor:pointer" onmouseover="this.style.background=\'var(--surface2)\'" onmouseout="this.style.background=\'\'"';
       }
-      return `<tr${_wuTrAttrs}>
+      return `<tr${_wuTrAttrs}${rrSampleAttrs(u)}>
         <td>
-          ${_wuCheckbox}<span class="item-num">${_wuItemNumHTML(u)}</span>
+          ${_wuCheckbox}<span class="item-num">${_wuItemNumHTML(u)}</span>${rrSampleTag(u)}
           ${!_isWant ? `<span style="display:inline-block;margin-left:0.4rem;font-size:0.6rem;font-weight:700;color:${_ltColor};background:${_ltBg};border-radius:4px;padding:0.1rem 0.4rem;text-transform:uppercase;letter-spacing:0.05em;vertical-align:middle">${u.listType||'Want'}</span>` : ''}
         </td>
         <td style="color:var(--text-mid)">${name || '<span class="text-dim">—</span>'}</td>
@@ -3613,7 +3628,7 @@ function buildUpgradePage() {
             : `<button onclick="event.stopPropagation();removeUpgradeItem('${_ugEntryKey(u)}')" style="padding:0.2rem 0.45rem;border-radius:5px;font-size:0.7rem;cursor:pointer;border:1px solid var(--border);background:var(--surface2);color:var(--t-red);font-family:var(--font-body)">Remove</button>`}
         </td>
       </tr>
-      ${!_isWant ? `<tr id="${photoId}-row" style="display:none"><td colspan="${_WU_COLS.length + 1}" style="padding:0.5rem 1rem;background:var(--surface2)"><img src="${pd && pd.photoItem ? pd.photoItem : ''}" style="max-height:160px;border-radius:6px;object-fit:contain" onerror="this.parentElement.parentElement.style.display='none'"></td></tr>` : ''}`;
+      ${!_isWant ? `<tr id="${photoId}-row"${rrSampleAttrs(u)} style="display:none"><td colspan="${_WU_COLS.length + 1}" style="padding:0.5rem 1rem;background:var(--surface2)"><img src="${pd && pd.photoItem ? pd.photoItem : ''}" style="max-height:160px;border-radius:6px;object-fit:contain" onerror="this.parentElement.parentElement.style.display='none'"></td></tr>` : ''}`;
     }).join('') || '<tr><td colspan="' + (_WU_COLS.length + 1) + '" class="ui-empty">No items on want/upgrade list</td></tr>';
   }
 }
@@ -4310,7 +4325,11 @@ async function buildPartsPage() {
   var listEl = document.getElementById('parts-list');
   if (!listEl) return;
   // v0.9.827 (TODO-003): offline — render straight from the phone snapshot.
-  if (window._offlineMode) { _renderPartsList(); return; }
+  // v0.9.1871: and while a help guide is on screen — the parts loaded at sign-in
+  // are what it shows. The fetch below creates the "Parts Needed" tab on a new
+  // account's sheet, and the tour promises that nothing it shows changes anything.
+  // (Adding a part still creates the tab when it is needed: _partsAppendRow.)
+  if (window._offlineMode || (typeof rrGuideOnScreen === 'function' && rrGuideOnScreen())) { _renderPartsList(); return; }
   listEl.innerHTML = '<div style="padding:2rem;text-align:center;color:var(--text-dim)">Loading parts…</div>';
   try {
     await _ensurePartsTab();
@@ -4346,6 +4365,10 @@ function _renderPartsList() {
   var cnt = document.getElementById('parts-count');
   if (cnt) cnt.textContent = parts.length ? (' ' + parts.length + ' part' + (parts.length !== 1 ? 's' : '')) : '';
   var _instCount = _lc ? Object.values(state.partsData || {}).filter(function (p) { return (p.status || 'wanted') === 'installed'; }).length : 0;
+  // v0.9.1871 — the tour's sample rows (config.js rrSampleRows): only on an empty
+  // list, after the count above and the badge — drawn by the row code below,
+  // tagged and inert.
+  if (!Object.keys(state.partsData || {}).length && typeof rrSampleRows === 'function') { var _ptSmp = rrSampleRows('parts', 0); if (_ptSmp.length) parts = _ptSmp; }
   if (!parts.length) {
     listEl.innerHTML = '<div style="text-align:center;padding:3rem 1rem;color:var(--text-dim)">'
       + '<div style="font-size:2.5rem;margin-bottom:0.5rem">🔧</div>'
@@ -4361,7 +4384,7 @@ function _renderPartsList() {
     var _pdFor = _partsOwnedRow(p.forInv);   // v0.9.1753: the owned copy, when there is one
     if (p.forItem) {
       // v0.9.1753: resolve through the owned row when there is one (era-aware — the number-only first-find trap), else by number
-      var m = (typeof findMaster === 'function') ? (_pdFor ? findMaster(_pdFor.itemNum, _pdFor.variation, _pdFor) : findMaster(p.forItem)) : null;
+      var m = p._master || ((typeof findMaster === 'function') ? (_pdFor ? findMaster(_pdFor.itemNum, _pdFor.variation, _pdFor) : findMaster(p.forItem)) : null);   // v0.9.1871: a tour sample carries its catalog row
       forLabel = 'For ' + p.forItem + (m && m.roadName ? ' (' + m.roadName + ')' : '');
     }
     var taskLabel = _partsTaskLabel(p);   // v0.9.1753: the LIVE task link (column M), not the note
@@ -4373,11 +4396,11 @@ function _renderPartsList() {
       if (_fid) { var _imgId = 'partthumb-' + p.row; _thumbs.push({ fid: _fid, id: _imgId });
         thumb = '<a href="' + p.photo + '" target="_blank" rel="noopener" onclick="event.stopPropagation()" onmousedown="event.preventDefault()" style="flex-shrink:0"><div style="width:48px;height:48px;border-radius:8px;overflow:hidden;background:var(--surface2)"><img id="' + _imgId + '" style="width:100%;height:100%;object-fit:cover"></div></a>'; }
     }
-    return '<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:0.85rem 1rem;margin-bottom:0.6rem">'
+    return '<div' + rrSampleAttrs(p) + ' style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:0.85rem 1rem;margin-bottom:0.6rem">'
       + '<div style="display:flex;align-items:flex-start;gap:0.6rem;flex-wrap:wrap">'
       + thumb
       + '<div style="flex:1;min-width:0">'
-      + '<div style="font-weight:600;font-size:0.95rem;color:var(--text)">' + (p.description || '—') + '</div>'
+      + '<div style="font-weight:600;font-size:0.95rem;color:var(--text)">' + (p.description || '—') + rrSampleTag(p) + '</div>'
       + '<div style="font-size:0.8rem;color:var(--text-dim);margin-top:0.2rem">'
       + (p.partNum ? '<span style="font-family:var(--font-mono);color:var(--accent2)">Part #' + p.partNum + '</span>' : '')
       + (p.partNum && forLabel ? ' · ' : '')

@@ -53,6 +53,7 @@
   var CROPPED_KEY = 'rr_inbox_cropped';   // v0.9.961: { fileId: 1 } cropped -> load real bytes, not Drive's stale preview
   var _fid = null, _fidChecked = false;
   var _groups = [];          // [{ key, files:[{id,name,createdTime}] }]
+  var _pinHaveListing = false; // v0.9.1871: a listing (online, or the saved one offline) has come back this session — only then is an empty _groups a KNOWN-empty inbox
   var _sel = {};             // groupKey -> true
   var _thumbLink = {};       // v0.9.1326: fileId -> thumbnailLink, from the listing
   var _selectMode = false;   // true while EITHER selection mode is running
@@ -352,6 +353,19 @@
     } else {
       el.style.display = 'none';
     }
+  }
+
+  // v0.9.1871 — when the tour's samples go away (config.js rrSamplesOn) the inbox,
+  // which is not on the page-builder list, draws itself again from its own listing;
+  // and the tour card asks whether this inbox is known (or, before the listing has
+  // landed, counted at start-up) to be empty — the samples' cue.
+  if (typeof window !== 'undefined') {
+    if (window.RR_SAMPLE_REDRAW) window.RR_SAMPLE_REDRAW['photo-inbox'] = function () { if (_pinHaveListing) _render(); };
+    window._pinKnownEmpty = function () {
+      if (_groups.length) return false;
+      if (_pinHaveListing) return true;
+      try { return localStorage.getItem(COUNT_KEY) === '0'; } catch (e) { return false; }
+    };
   }
 
   // ── Open the page ────────────────────────────────────────────
@@ -723,6 +737,10 @@
     if (t) t.style.display = open ? '' : 'none';
     if (b) b.textContent = open ? '\u00d7 Hide this' : '? How this works';
   }
+  // v0.9.1871: the tour folds the instructions while its own card explains the page
+  // (on a phone they fill half the screen and hide the photos the card is about) and
+  // puts back the remembered state as it moves on. Display only — nothing remembered.
+  window._pinHelpShow = function (open) { _pinApplyHelpState(open == null ? _pinHelpOpenState() : !!open); };
   window._pinToggleHelp = function () {
     var t = document.getElementById('pin-help-text');
     if (!t) return;
@@ -1916,6 +1934,7 @@
         return;
       }
       _pinBuildGroups(_cached.files);
+      _pinHaveListing = true;   // v0.9.1871
       _render();
       var _when = '';
       try { _when = new Date(_cached.at).toLocaleString(); } catch (eW) {}
@@ -2021,6 +2040,7 @@
           if (ch2) _freeTriedSave(ft);
         } catch (eFT) {}
       })();
+      _pinHaveListing = true;   // v0.9.1871: the inbox is now KNOWN — empty or not
       _render();
       // v0.9.1275 (R15): a partial listing is drawn, but never passed off as
       // the whole inbox.
@@ -2273,6 +2293,11 @@
     var _noteMap = _pinNoteFileMap();
     // v0.9.1051: draw what passes the filters, but keep counting the whole inbox.
     var _vis = _pinVisibleGroups();
+    // v0.9.1871 — the tour's three sample photos (config.js rrSampleRows): only on
+    // an inbox KNOWN to be empty, and only in the DRAWN list. `total` below — the
+    // menu badge, the remembered count, the Identify buttons — stays the collector's own.
+    var _pinSmp = (_pinHaveListing && !_groups.length && typeof rrSampleRows === 'function') ? rrSampleRows('inbox', 0) : [];
+    if (_pinSmp.length) _vis = _pinSmp;
     // v0.9.1609 (Brad: "can we not gray out the picture and push it to the
     // bottom of the list?"): claimed groups — photos an add in progress has
     // spoken for — SINK below the open ones. A stable partition, not a
@@ -2356,12 +2381,13 @@
       // of select mode.
       var _ungroup = (_selectMode || g.files.length < 2) ? ''
         : '<div onclick="event.stopPropagation();_pinConfirmUngroup(\'' + g.key + '\')" title="Split this group apart" style="position:absolute;left:6px;bottom:26px;width:24px;height:24px;border-radius:7px;background:rgba(0,0,0,0.55);color:#fff;display:flex;align-items:center;justify-content:center;font-size:0.9rem;cursor:pointer">⊟</div>';
-      return '<div class="pin-tile" data-key="' + g.key + '" onclick="' + _tileClick + '(\'' + g.key + '\')" style="position:relative;border-radius:10px;overflow:hidden;cursor:pointer;background:var(--surface2,#26262e);aspect-ratio:var(--rr-photo-tile-ratio);border:3px solid ' + (isSel ? '#2980b9' : 'transparent') + '">' +
-        '<img loading="lazy" data-fid="' + _pinCoverFid(g) + '" class="rr-fit" style="width:100%;height:100%;object-position:center;display:block'
+      return '<div class="pin-tile" data-key="' + g.key + '"' + rrSampleAttrs(g) + ' onclick="' + _tileClick + '(\'' + g.key + '\')" style="position:relative;border-radius:10px;overflow:hidden;cursor:pointer;background:var(--surface2,#26262e);aspect-ratio:var(--rr-photo-tile-ratio);border:3px solid ' + (isSel ? '#2980b9' : 'transparent') + '">' +
+        // v0.9.1871: a sample's picture is built into the app, not on Drive — src, and no data-fid for the Drive loader below
+        '<img loading="lazy" ' + (rrIsSample(g) ? 'src="' + rrEsc(g._rrSample.photo) + '" title="' + rrEsc(g._rrSample.alt) + '"' : 'data-fid="' + _pinCoverFid(g) + '"') + ' class="rr-fit" style="width:100%;height:100%;object-position:center;display:block'
           // v0.9.1609: the filter rides the IMG, not the tile, so the amber
           // claim badge above it stays readable at full colour.
           + (_claimedBy ? ';filter:grayscale(85%);opacity:0.55' : '') + '" alt="">' +
-        chip + claimBadge +
+        chip + claimBadge + rrSampleTag(g, 'rr-sample-tag-onphoto') +
         _circle +
         _crop +
         _copy +
@@ -2369,7 +2395,7 @@
         '<div style="position:absolute;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);color:#ddd;font-size:0.6rem;padding:0.1rem 0.35rem">' + when + '</div>' +
         '</div>';
     }).join('');
-    empty.style.display = _groups.length ? 'none' : 'block';
+    empty.style.display = (_groups.length || _pinSmp.length) ? 'none' : 'block';   // v0.9.1871: three sample photos are not an empty inbox
     if (_groups.length && !_vis.length) {
       grid.innerHTML = '<div style="grid-column:1/-1;padding:1.5rem 0;text-align:center;color:var(--text-dim);font-size:0.88rem">'
         + 'No photos match that filter. <button onclick="_pinClearFilters()" style="background:none;border:none;color:var(--t-accent);text-decoration:underline;cursor:pointer;font-size:0.88rem">Show all</button></div>';

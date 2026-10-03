@@ -221,8 +221,22 @@ function _tourClose() {
   try { var m = document.getElementById('account-menu'); if (m && m.style.display !== 'none' && typeof toggleAccountMenu === 'function') toggleAccountMenu(); } catch (e) {}
   try { var c = document.getElementById('contact-modal'); if (c && c.style.display !== 'none') { c.style.display = 'none'; if (window.BackStack) BackStack.pop('contact-modal'); } } catch (e) {}
   try { if (document.getElementById('err-report-modal') && typeof errReportClose === 'function') errReportClose(); } catch (e) {}
+  try { if (document.getElementById('pin-help-text') && typeof window._pinHelpShow === 'function') window._pinHelpShow(null); } catch (e) {}   // v0.9.1871: the inbox's instructions back as they were
 }
 if (typeof window !== 'undefined') { window._tourClose = _tourClose; window._tourAccountLines = _tourAccountLines; }
+// v0.9.1871 — the sentence a page card adds when that page is showing the tour's
+// sample rows (config.js RR_TOUR_SAMPLES; Brad's tour item 11). Asked of the page
+// itself — a sample row is on it — so the card never promises rows that are not
+// there. The Photo Inbox fills from a Drive listing that can land a moment after
+// the card is drawn, so it may also answer "an empty inbox, samples on their way".
+function _tourSampleNote(page, kind) {
+  try {
+    if (typeof RR_TOUR_SAMPLES === 'undefined' || typeof rrSamplesShowing !== 'function' || !rrSamplesShowing()) return '';
+    var on = !!document.querySelector('#page-' + page + ' [data-rr-sample]');
+    if (!on && page === 'photo-inbox' && typeof window._pinKnownEmpty === 'function') on = window._pinKnownEmpty();
+    return on ? ' ' + RR_TOUR_SAMPLES.note[kind || 'rows'] : '';
+  } catch (e) { return ''; }
+}
 
 const GUIDES = {
 
@@ -233,6 +247,11 @@ const GUIDES = {
     // the Contact and Report boxes); the engine calls this however the tour
     // ends, so none of them is left open behind a cancelled tour.
     close: function () { _tourClose(); },
+    // v0.9.1871 (Brad's tour item 11): a brand-new collector's pages are empty, so
+    // while the tour runs every EMPTY list page draws three sample rows — the same
+    // three famous pieces — with its own row code, tagged SAMPLE, never saved, gone
+    // when the tour ends (config.js RR_TOUR_SAMPLES; the engine throws the switch).
+    samples: true,
     // ══ v0.9.1869 — THE TOUR, REWRITTEN FROM BRAD'S WALK OF IT ════════════
     //
     // Brad walked all eighteen cards with screenshots (2026-10-03) and gave 23
@@ -294,17 +313,20 @@ const GUIDES = {
         } },
       // ── the walk, in menu order: each card opens its page, rings what is there, and lights the page's tab ──
       { before: function () { showPage('browse'); if (typeof filterOwned === 'function') filterOwned(); return 900; },
-        selector: '#hierarchy-chip-row, #browse-items-panel, #page-browse', tab: _TOUR_TAB.collection, title: 'My Collection',
-        body: 'Everything you own, in one list. The chips along the top narrow it by maker, scale, era or type, and the search box finds a number or a road name in a moment. Tap any row to open the item.' },
+        // v0.9.1871: when the page is showing the tour's sample rows, ring the LIST — the
+        // card then stands below it and the rows can be seen; otherwise the search bar, as before
+        selector: function () { return document.querySelector('#page-browse [data-rr-sample]') ? '#browse-items-panel' : '#hierarchy-chip-row, #browse-items-panel, #page-browse'; },
+        tab: _TOUR_TAB.collection, title: 'My Collection',
+        body: function () { return 'Everything you own, in one list. The chips along the top narrow it by maker, scale, era or type, and the search box finds a number or a road name in a moment. Tap any row to open the item.' + _tourSampleNote('browse'); } },
       { before: function () { showPage('upgrade'); if (typeof buildUpgradePage === 'function') buildUpgradePage(); return 900; },
         selector: '#upgrade-table, #upgrade-tbody, #upgrade-cards, #page-upgrade', tab: _TOUR_TAB.want, title: 'Want / Upgrade',
-        body: 'What you’re hunting for: items you want, and items you own but would like a better copy of. Bring this list to a show. When you find one, it moves into your collection with two taps.' },
+        body: function () { return 'What you’re hunting for: items you want, and items you own but would like a better copy of. Bring this list to a show. When you find one, it moves into your collection with two taps.' + _tourSampleNote('upgrade'); } },
       { before: function () { showPage('forsale'); if (typeof buildForSalePage === 'function') buildForSalePage(); return 900; },
         selector: '#forsale-table-wrap, #forsale-cards, #page-forsale', tab: _TOUR_TAB.forsale, title: 'For Sale',
-        body: 'Items you’ve put up for sale, with the asking price. You can share the list as a page or a PDF, and when something sells, one tap records the sale.' },
-      { before: function () { showPage('parts'); if (typeof buildPartsPage === 'function') buildPartsPage(); return 900; },
+        body: function () { return 'Items you’ve put up for sale, with the asking price. You can share the list as a page or a PDF, and when something sells, one tap records the sale.' + _tourSampleNote('forsale'); } },
+      { before: function () { showPage('parts'); return 900; },   // v0.9.1871: showPage's builder draws the parts already loaded while a guide is up — the tour no longer makes a new account's "Parts Needed" tab
         selector: '#parts-list, #page-parts', tab: _TOUR_TAB.parts, title: 'Parts Needed',
-        body: 'The parts you’re tracking down, each tied to the item it’s for. Mark one bought, then installed, and it lands in that item’s service history on the Workbench.' },
+        body: function () { return 'The parts you’re tracking down, each tied to the item it’s for. Mark one bought, then installed, and it lands in that item’s service history on the Workbench.' + _tourSampleNote('parts'); } },
       { before: function () { showPage('browse'); if (typeof resetFilters === 'function') resetFilters(); if (typeof renderBrowse === 'function') renderBrowse(); return 900; },
         selector: '#browse-search-wrap, #hierarchy-chip-row, #browse-items-panel, #page-browse', tab: _TOUR_TAB.catalog, title: 'The Master Catalog',
         body: function () { var n = (typeof BRAND_CATALOG_COUNT === 'string') ? BRAND_CATALOG_COUNT : 'over 160,000'; return 'The same list, opened to the whole catalogue — ' + n + ' items across every maker and era. Look anything up here, whether you own it or not, and add it to your collection or your want list from its page.'; } },
@@ -316,10 +338,18 @@ const GUIDES = {
         body: 'An insurance report with photos, a full collection listing, your want and upgrade lists — or build your own. Each one previews on screen and exports as a PDF or a Google Doc.' },
       { before: function () { showPage('sold'); return 900; },
         selector: '#sold-table-wrap, #sold-cards, #page-sold', tab: _TOUR_TAB.sold, title: 'Sold Items',
-        body: 'Your sales history — what went, when, and for how much — kept as a snapshot even after the item leaves your collection.' },
-      { before: function () { try { if (typeof _pinGo === 'function') _pinGo(document.getElementById('nav-photo-inbox')); else showPage('photo-inbox'); } catch (e) { showPage('photo-inbox'); } return 900; },
-        selector: '#pin-drop, #pin-grid, #page-photo-inbox', tab: _TOUR_TAB.inbox, title: 'The Photo Inbox',
-        body: 'Photograph a whole shelf now and do the typing later. Photos wait here until you file them onto items; the app reads numbers off boxes and labels to help. <strong>Add photos…</strong> starts a batch.' },
+        body: function () { return 'Your sales history — what went, when, and for how much — kept as a snapshot even after the item leaves your collection.' + _tourSampleNote('sold'); } },
+      { before: function () {
+          try { if (typeof _pinGo === 'function') _pinGo(document.getElementById('nav-photo-inbox')); else showPage('photo-inbox'); } catch (e) { showPage('photo-inbox'); }
+          // v0.9.1871: this card explains the page, so the page's own instructions fold
+          // while it is up — on a phone they hid the photos (the next card puts them back)
+          try { if (typeof window._pinHelpShow === 'function') window._pinHelpShow(false); } catch (e) {}
+          return 900; },
+        // v0.9.1871: when the inbox is showing the tour's sample photos, ring the photos
+        // themselves so the card stands clear of them; otherwise the drop area, as before
+        selector: function () { return document.querySelector('#page-photo-inbox [data-rr-sample]') ? '#pin-grid' : '#pin-drop, #pin-grid, #page-photo-inbox'; },
+        tab: _TOUR_TAB.inbox, title: 'The Photo Inbox',
+        body: function () { return 'Photograph a whole shelf now and do the typing later. Photos wait here until you file them onto items; the app reads numbers off boxes and labels to help. <strong>Add photos…</strong> starts a batch.' + _tourSampleNote('photo-inbox', 'photos'); } },
       { before: function () { showPage('prefs'); if (typeof buildPrefsPage === 'function') buildPrefsPage(); return 900; },
         selector: '#prefs-content, #page-prefs', tab: _TOUR_TAB.prefs, title: 'Preferences',
         body: '<strong>What I Collect</strong> lives here — tick the makers, scales and eras you care about and the catalogue keeps to them. Your Google Sheet and photo folder open from <strong>Account</strong>, and your settings follow you to every device.' },
@@ -1262,6 +1292,9 @@ function _gtEnd() {
     var _g = (typeof GUIDES !== 'undefined' && GUIDES) ? GUIDES[window._gtGuideId] : null;
     if (_g && typeof _g.close === 'function') _g.close();
   } catch (e) {}
+  // v0.9.1871 — the tour's sample rows leave with it, however it ended: every one
+  // is taken off the page and the page on screen draws itself again (config.js).
+  try { if (typeof rrSamplesOn === 'function') rrSamplesOn(false); } catch (e) {}
 }
 // ══ v0.9.1384 — THE HELP CARD MUST NOT SIT ON A CONTROL ═══════════════════
 //
@@ -1550,6 +1583,14 @@ function _guidedTour(steps) {
   if (!steps || !steps.length) return;
   _gtEnd();
   _gtResetCorner();   // v0.9.1385 — each tour picks its own corner from scratch
+  // v0.9.1871 — a guide that declares `samples: true` (the tour) shows sample rows
+  // on every empty list page while it runs (config.js rrSamplesOn). Thrown HERE,
+  // after the _gtEnd above has cleared any guide before it; _gtEnd turns it off
+  // again however this guide ends.
+  try {
+    var _gSm = (typeof GUIDES !== 'undefined' && GUIDES) ? GUIDES[window._gtGuideId] : null;
+    if (_gSm && _gSm.samples && typeof rrSamplesOn === 'function') rrSamplesOn(true);
+  } catch (e) {}
   var i = 0, curEl = null, _gtPoll = null, _gtAdv = null, _gtWatch = null, _gtDir = 1;
   var _gtSettle = [], _gtRO = null;
   var blocker = document.createElement('div');

@@ -5,11 +5,13 @@
 // counter on three screens, and the pixel read that proves the tab is LIT).
 // One harness so the two suites cannot drift apart on how the app is stood up.
 //
-//   openApp(browser, { w, h, withData, tutorial })
+//   openApp(browser, { w, h, withData, tutorial, files })
 //       a page with the real app loaded from file://, the auth screen stood
 //       down, a tiny catalogue + (optionally) one owned item injected, the
 //       Dashboard built. `tutorial` serves THAT source in place of app/tutorial.js
 //       — how a PLANTED offender (the engine with one rule cut out) is run.
+//       `files` ({ 'config.js': source, … }, v0.9.1871) does the same for any
+//       other app file — a planted offender anywhere in the app.
 //   walkTour(pg, stopAtTitle, fast)
 //       starts the tour and presses Next to the end (or to the named card),
 //       returning one SNAP per card. A measured walk waits for each card to
@@ -31,6 +33,10 @@ async function openApp(browser, opts) {
     if (!u.startsWith('file://')) return r.abort();
     // index.html loads every script as name.js?v=NNNN — match on the path alone
     if (opts.tutorial && u.split('?')[0] === tutUrl) return r.fulfill({ body: opts.tutorial, contentType: 'application/javascript' });
+    if (opts.files) {
+      const name = u.split('?')[0].slice(('file://' + APP + '/').length);
+      if (Object.prototype.hasOwnProperty.call(opts.files, name)) return r.fulfill({ body: opts.files[name], contentType: /\.css$/.test(name) ? 'text/css' : 'application/javascript' });
+    }
     return r.continue();
   });
   await pg.goto('file://' + path.join(APP, 'index.html'), { waitUntil: 'domcontentloaded' });

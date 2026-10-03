@@ -3487,6 +3487,9 @@ function _rrBrowseCore(_co) {
       (typeof _rrDataFingerprint === 'function' ? _rrDataFingerprint() : ''),
       (typeof shareSigToken === 'function' ? shareSigToken() : ''),   // v0.9.1006
       Math.floor(window.innerWidth / 320),
+      // v0.9.1871: the tour's sample rows are something this page is drawn from —
+      // without this term the page could keep them on screen after the tour ends.
+      (typeof rrSamplesRev === 'function' ? rrSamplesRev() : 0),
       // v0.9.1862 (Brad: "when you add or subtract columns, the columns
       // themselves don't update correctly … only when you click on something
       // else does it refresh"). The rows are drawn in the chosen column order,
@@ -4387,7 +4390,19 @@ function _rrBrowseCore(_co) {
   // place the page count is known, rather than at each caller.
   if (state.currentPage > pages) state.currentPage = pages > 0 ? pages : 1;
   const start = (state.currentPage - 1) * state.pageSize;
-  const pageData = state.filteredData.slice(start, start + state.pageSize);
+  let pageData = state.filteredData.slice(start, start + state.pageSize);
+  let _collSamples = false;   // v0.9.1871: the rows drawn below are the tour's samples
+  // v0.9.1871 — the tour's sample rows (config.js rrSampleRows): My Collection
+  // only, an EMPTY collection only (nothing owned, no paper or catalogs either),
+  // and only here, at the drawing step — never into state.filteredData, the title
+  // count or anything else the page keeps. Drawn by the row code below.
+  if (owned && typeof rrSampleRows === 'function'
+      && !Object.values(state.personalData || {}).some(function (p) { return p && p.owned; })
+      && !Object.keys(state.isData || {}).length
+      && !Object.keys(state.ephemeraData || {}).some(function (k) { return Object.keys((state.ephemeraData || {})[k] || {}).length > 0; })) {
+    const _cSmp = rrSampleRows('collection', 0);
+    if (_cSmp.length) { pageData = _cSmp; _collSamples = true; }
+  }
 
   // Ephemera items — shown when owned filter is on OR search has text OR type filter matches an ephemera category
   const _ephemeraRows = [];
@@ -4514,7 +4529,10 @@ function _rrBrowseCore(_co) {
   } else {
     _pageInfo = `Showing ${start+1}–${Math.min(start+state.pageSize, total)} of ${total.toLocaleString()} train${total !== 1 ? 's' : ''}${ephTotal ? ' + ' + ephTotal + ' other' : ''}`;
   }
-  document.getElementById('page-info').textContent = _pageInfo;
+  // v0.9.1871: under the tour's sample rows the footer says nothing — "No items"
+  // beneath three rows reads as the page contradicting itself. The counts above
+  // stay the collector's own (0) — the rows are tagged SAMPLE.
+  document.getElementById('page-info').textContent = _collSamples ? '' : _pageInfo;
 
   // Rows
   const tbody = document.getElementById('browse-tbody');
@@ -4790,12 +4808,12 @@ function _rrBrowseCore(_co) {
       const _inShareMode = typeof isShareMode === 'function' && isShareMode('collection');
       const _isShareSelected = _inShareMode && window._shareItems && window._shareItems[_shareKey];
       if (_inShareMode) { if (!window._shareDataMap) window._shareDataMap = {}; window._shareDataMap[_shareKey] = { itemNum: item.itemNum, variation: item.variation||'', pd: pd, master: item }; }
-      return `<div class="browse-card" id="share-card-${_shareKey}" onclick="${_inShareMode ? 'toggleShareItem(\'' + _shareKey + '\')' : 'showItemDetailPage(' + globalIdx + ", '" + _copyInv + "')"}" style="cursor:pointer${_isShareSelected ? ';outline:2px solid #2ecc71;background:rgba(46,204,113,0.08)' : ''}">
+      return `<div class="browse-card"${rrSampleAttrs(item)} id="share-card-${_shareKey}" onclick="${_inShareMode ? 'toggleShareItem(\'' + _shareKey + '\')' : 'showItemDetailPage(' + globalIdx + ", '" + _copyInv + "')"}" style="cursor:pointer${_isShareSelected ? ';outline:2px solid #2ecc71;background:rgba(46,204,113,0.08)' : ''}">
         <div style="display:flex;align-items:center;gap:0.5rem;width:100%;min-width:0">
           ${_inShareMode ? '<input type="checkbox" id="share-cb-' + _shareKey + '" ' + (_isShareSelected ? 'checked' : '') + ' onclick="event.stopPropagation();toggleShareItem(\'' + _shareKey + '\')" style="width:1.1rem;height:1.1rem;accent-color:#2ecc71;flex-shrink:0">' : ''}
           <div style="flex:1;min-width:0">
             <div style="display:flex;align-items:center;gap:0.4rem;flex-wrap:nowrap">
-              <span class="browse-card-num" style="white-space:nowrap">${_displayItemNum(item)}${item.variation ? ' <span style="font-size:0.72rem;color:var(--text-dim)">' + item.variation + '</span>' : ''}</span>${_noNumTag(item.itemNum)}${(typeof eraBadgeHTML === 'function' && window.ERA_BADGES && window.ERA_BADGES.showInBrowse) ? eraBadgeHTML(item._tab) : ''}${(typeof lineBadgeHTML === 'function') ? lineBadgeHTML(item) : ''}
+              <span class="browse-card-num" style="white-space:nowrap">${_displayItemNum(item)}${item.variation ? ' <span style="font-size:0.72rem;color:var(--text-dim)">' + item.variation + '</span>' : ''}</span>${rrSampleTag(item)}${_noNumTag(item.itemNum)}${(typeof eraBadgeHTML === 'function' && window.ERA_BADGES && window.ERA_BADGES.showInBrowse) ? eraBadgeHTML(item._tab) : ''}${(typeof lineBadgeHTML === 'function') ? lineBadgeHTML(item) : ''}
               <span style="display:flex;gap:0.2rem;align-items:center">${_statusIcons}</span>
             </div>
             ${item.roadName ? `<div class="browse-card-name" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${item.roadName}</div>` : ''}
@@ -4866,7 +4884,7 @@ function _rrBrowseCore(_co) {
         ? "rrTagToggle('" + _shareKeyD + "')"
         : (_inShareModeD ? "toggleShareItem('" + _shareKeyD + "')"
                          : 'showItemDetailPage(' + globalIdx + ", '" + _copyInv + "')");
-      return `<tr id="share-card-${_shareKeyD}" onclick="${_rowClickD}" style="cursor:pointer${_isQuick ? ';opacity:0.82' : ''}${_inTagModeD ? (rrTagIsSelected(_shareKeyD) ? ';outline:2px solid var(--accent);background:color-mix(in srgb, var(--accent) 8%, transparent)' : '') : (_isShareSelectedD ? ';outline:2px solid #2ecc71;background:rgba(46,204,113,0.06)' : '')}" data-group="${_groupId}" data-item="${item.itemNum}">
+      return `<tr id="share-card-${_shareKeyD}" onclick="${_rowClickD}" style="cursor:pointer${_isQuick ? ';opacity:0.82' : ''}${_inTagModeD ? (rrTagIsSelected(_shareKeyD) ? ';outline:2px solid var(--accent);background:color-mix(in srgb, var(--accent) 8%, transparent)' : '') : (_isShareSelectedD ? ';outline:2px solid #2ecc71;background:rgba(46,204,113,0.06)' : '')}" data-group="${_groupId}" data-item="${item.itemNum}"${rrSampleAttrs(item)}>
         ${_collGutterTd(_shareKeyD, _isShareSelectedD)}
         ${(function(){
         // v0.9.1517 (Task #34): every cell is built into a MAP and emitted in
@@ -4888,7 +4906,7 @@ function _rrBrowseCore(_co) {
           return _out.replace('<td', '<td data-col="mfr"');
         })();
         _cells.num = `<td data-col="num" style="max-width:170px;overflow:hidden">
-          <span class="item-num" style="display:inline-block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:bottom" title="${String(_displayItemNum(item)).replace(/"/g,'&quot;')}">${_displayItemNum(item)}</span>${_noNumTag(item.itemNum)}
+          <span class="item-num" style="display:inline-block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:bottom" title="${String(_displayItemNum(item)).replace(/"/g,'&quot;')}">${_displayItemNum(item)}</span>${rrSampleTag(item)}${_noNumTag(item.itemNum)}
           <div style="margin-top:1px;line-height:1.1;white-space:nowrap">
             ${(typeof eraBadgeHTML === 'function' && window.ERA_BADGES && window.ERA_BADGES.showInBrowse) ? eraBadgeHTML(item._tab) : ''}${(typeof lineBadgeHTML === 'function') ? lineBadgeHTML(item) : ''}
             ${(function(){
@@ -5070,6 +5088,7 @@ function _rrBrowseCore(_co) {
       // saved with a blank one — so every adopted row (v0.9.1120) resolved to
       // nothing and silently skipped its picture. Same resolver as the filter,
       // the sorter and the renderer now.
+      if (rrIsSample(item)) return;                    // v0.9.1871: a tour sample has no photos — never look one up by its number
       const pd2 = _rrPdForRow(item);
       if (!pd2 || !pd2.owned) return;
       const thumbEl = document.getElementById('thumb-' + _rrRowDomKey(item));
@@ -5192,6 +5211,7 @@ function _rrBrowseCore(_co) {
       // strict findPD against the catalog row's variation, and a hard bail on
       // a blank photo-link cell. Same resolver, same find-only fallback (the
       // folder id is cached by the thumbnail pass, so this costs nothing new).
+      if (rrIsSample(item)) return;                    // v0.9.1871: same — a sample never looks for a folder
       const pd2 = _rrPdForRow(item);
       if (!pd2 || !pd2.owned) return;
       const camEl = document.getElementById('cam-' + _rrRowDomKey(item));

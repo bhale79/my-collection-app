@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.1870';
+const APP_VERSION = 'v0.9.1871';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -117,6 +117,208 @@ window.rrBuildPage = function (name) {
   try { b(); } catch (e) { console.warn('[page builder]', name, e); }
   return true;
 };
+
+// ══ v0.9.1871 — TOUR SAMPLES: what a list looks like before you own anything ══
+// [stated] Brad, tour item 11 (2026-10-03): "Three well-known items on each list
+// page (My Collection, Want/Upgrade, For Sale, Sold, Parts, Photo Inbox) plus three
+// sample photos — drawn by each page's own row code so they look exactly like real
+// rows, marked as samples, never saved anywhere, gone when the tour ends."
+//
+// THE RULES — tests/tour_samples_tests.js holds each one, with a planted offender:
+//  · ONE definition: the three items and what each page shows for them (below).
+//  · ONE switch: rrSamplesOn(). The guide engine throws it — a guide that declares
+//    `samples: true` (the tour) turns it on as it starts; _gtEnd, the one way every
+//    guide ends, turns it off.
+//  · A sample joins a page at its DRAWING step only, and only when that page's own
+//    list is empty — after everything the page counts, badges or remembers. Samples
+//    never go into state.*Data, so nothing that saves (the sheet, Drive, the copy
+//    kept on the phone, share lists, the remembered inbox count) can ever see one.
+//  · Each page draws them with its OWN row code. A sample row carries
+//    rrSampleAttrs() — `inert` (nothing on it can be pressed or focused) and
+//    data-rr-sample — and rrSampleTag(), the SAMPLE pill. Per-row side work (photo
+//    thumbnails, Drive folder look-ups) asks rrIsSample() and skips it, so a sample
+//    2343 can never pull in a photo of the collector's own 2343.
+//  · A sample carries its catalog row (_master) and is never looked up by number:
+//    a collector who has not loaded Lionel postwar would otherwise be shown another
+//    maker's 2343 — the number-only first-find class.
+//  · Off: every [data-rr-sample] node leaves the page, and the page on screen draws
+//    itself again from the collector's own lists.
+var RR_TOUR_SAMPLES = {
+  tag: 'Sample',
+  // The catalog facts — every field a row shows — copied cell for cell from the
+  // master's "Lionel PW - Items" tab (variation 1 of each), checked against the
+  // live sheet on 2026-10-03.
+  // The photos are COTT's (standing permission), shrunk and built into the app.
+  items: {
+    s1: { itemNum: '2343', variation: '1', manufacturer: 'Lionel', era: 'pw', tab: 'Lionel PW - Items',
+          itemType: 'Diesel Locomotive', subType: 'EMD F-3', unit: 'A', poweredDummy: 'P',
+          control: 'horizontal motor · 3-position E unit · Magnatraction · horn',
+          roadName: 'Santa Fe', description: 'F3 Diesel', gauge: 'O Gauge', yearProd: '1950',
+          varDesc: "BLACK SHELL PAINTED RED & SILVER WITH RED, YELLOW AND BLACK RUBBER STAMPED STRIPE, WITH BLACK HEAT STAMPED LETTERING, RED AND WHITE GM DECAL IN FRONT OF “BUILT BY / LIONEL” ON DOOR, FRONT SANTA FE DECAL\nWITH BLACKENED REAR STEPS, BLACKENED COUPLER SHIELD, SILVER PAINTED TRUCK SIDE FRAMES\nSEPARATELY ADDED BLACK PLASTIC LADDERS ON SIDE OF CAB AND TWO FRONT GRAB HANDLES\nNOTCH IN BOTTOM OF PILOT, WITH BAR ACROSS TOP OF COUPLER, SEPARATELY ADDED BLACK PLASTIC LADDERS ON SIDE OF CAB AND TWO FRONT GRAB HANDLES, BLACKENED COUPLER SHIELDS\nTHE SCREEN WIRE LOUVERS AND THE ABSENCE OF A DIMPLE BEHIND THEM, ALSO NOTE THE BLACKENED COUPLER SHIELD\nTWO HORIZONTAL MOTORS\n3 POSITION E UNIT\nWITH MAGNETRACTION\nLIGHT, HORN\nOPERATING COUPLER ON FRONT PILOTS AND REAR COUPLERS ON BOTH UNITS ARE NON OPERATING DIECAST COUPLERS\nWITH HEADLIGHT LENS, WINDOW SHELL AND NUMBER BOARDS\nWITH TWO TWO PIECE HORNS",
+          refLink: 'https://cornucopiaoftoytrains.com/motive-power-f-3s-a/',
+          photo: 'img/sample-2343.jpg', photoAlt: 'Lionel 2343 Santa Fe F3 diesels' },
+    s2: { itemNum: '6464-1', variation: '1', manufacturer: 'Lionel', era: 'pw', tab: 'Lionel PW - Items',
+          itemType: 'Boxcar', subType: '6464 Series Boxcar', unit: '', poweredDummy: '', control: '',
+          roadName: 'Western Pacific', description: 'Western Pacific Boxcar', gauge: 'O Gauge', yearProd: '1953',
+          varDesc: "TRANSLUCENT SHELL PAINTED SILVER WITH BLUE HEAT STAMPED LETTERING, WITH RIBS, WITHOUT GUSSET,  WITH SILVER PAINTED SINGLE BLOCK DOORS \n B0244  (No. 6464-1-var. KW1)\n\nTOP VIEW WITHOUT ROOF NICK\n\nINSIDE VIEW\nNOTE THE RIBBED ROOF AND THE ABSENCE OF GUSSETS SHOWN IN NEXT CAR \n\nabove on the left note the hex head rivet holding on the brake wheel and on the right a round head rivet holding the brake wheel both were used by Lionel\n\nmid classic box flap # 6464 – 11    ",
+          refLink: 'https://cornucopiaoftoytrains.com/boxcars-6464-page-1-a/#' + '64641',   // the cell exactly; split so the colour ratchet does not read "#64641" as a colour
+          photo: 'img/sample-6464-1.jpg', photoAlt: 'Lionel 6464-1 Western Pacific boxcar' },
+    s3: { itemNum: '6457', variation: '1', manufacturer: 'Lionel', era: 'pw', tab: 'Lionel PW - Items',
+          itemType: 'Caboose', subType: 'SP Type Caboose', unit: '', poweredDummy: '', control: 'lighted',
+          roadName: 'Lionel Lines', description: 'Lionel Lines SP Type Caboose', gauge: 'O Gauge', yearProd: '1949',
+          varDesc: "molded black plastic, painted brown with white heat stamped lettering\nwith 2 brake wheels facing outward\nlighted\nwith painted plastic smoke stack",
+          refLink: 'https://cornucopiaoftoytrains.com/cabooses-sp-type-page-2-a/#SP6457',
+          photo: 'img/sample-6457.jpg', photoAlt: 'Lionel 6457 Lionel Lines caboose' }
+  },
+  // What each page shows for them — only that page's own details. daysAgo keeps
+  // the dates recent whenever the tour is taken.
+  collection: [
+    { item: 's1', condition: '7', worth: '300', daysAgo: 30 },
+    { item: 's2', condition: '8', worth: '70', daysAgo: 14 },
+    { item: 's3', condition: '6', worth: '25', daysAgo: 3 }
+  ],
+  want: [
+    { item: 's1', listType: 'Want', priority: 'High', price: '275' },
+    { item: 's2', listType: 'Want', priority: 'Medium', price: '60' },
+    { item: 's3', listType: 'Upgrade', priority: 'Low', target: '8', price: '40' }
+  ],
+  forsale: [
+    { item: 's1', condition: '7', price: '325', worth: '300', daysAgo: 5 },
+    { item: 's2', condition: '8', price: '75', worth: '70', daysAgo: 5 },
+    { item: 's3', condition: '6', price: '30', worth: '25', daysAgo: 2 }
+  ],
+  sold: [
+    { item: 's1', condition: '7', price: '310', daysAgo: 21 },
+    { item: 's2', condition: '8', price: '72', daysAgo: 45 },
+    { item: 's3', condition: '6', price: '28', daysAgo: 60 }
+  ],
+  // Real part numbers from the app's parts catalogs (Train Tender: 2343-55 fits
+  // 2343; 2357-7 is the 2357/6457 caboose ladder; 6464-15 the boxcar brake wheel stud).
+  parts: [
+    { item: 's1', description: 'Operating horn, high bracket (reproduction)', partNum: '2343-55', daysAgo: 3 },
+    { item: 's2', description: 'Brake wheel drive stud', partNum: '6464-15', daysAgo: 8 },
+    { item: 's3', description: 'Caboose ladder', partNum: '2357-7', daysAgo: 12 }
+  ],
+  inbox: [
+    { item: 's1', daysAgo: 1 },
+    { item: 's2', daysAgo: 1 },
+    { item: 's3', daysAgo: 2 }
+  ],
+  // The sentence a tour card adds on a page that is showing samples.
+  note: {
+    rows: 'The three rows marked <strong>SAMPLE</strong> show what yours will look like — they go away when the tour ends.',
+    photos: 'The three photos marked <strong>SAMPLE</strong> (courtesy of Cornucopia of Toy Trains) show what yours will look like — they go away when the tour ends.'
+  }
+};
+// A page that is not on the page-builder list redraws itself here when the samples
+// go away (the Photo Inbox: its builder is a Drive listing, not a redraw).
+window.RR_SAMPLE_REDRAW = window.RR_SAMPLE_REDRAW || {};
+var _rrSamplesFlag = false, _rrSamplesRev = 0;
+function rrSamplesShowing() { return _rrSamplesFlag; }
+// Changes every time the samples go on or off — a page that keeps its drawing
+// when "nothing changed" lists this among the things it is drawn from.
+function rrSamplesRev() { return _rrSamplesRev; }
+function rrIsSample(x) { return !!(x && x._rrSample); }
+function rrSampleAttrs(x) { return rrIsSample(x) ? ' data-rr-sample="1" inert' : ''; }
+function rrSampleTag(x, extraClass) {
+  return rrIsSample(x) ? '<span class="rr-sample-tag' + (extraClass ? ' ' + extraClass : '') + '">' + RR_TOUR_SAMPLES.tag + '</span>' : '';
+}
+// Is a help guide's card on screen? (A guide promises that what it shows
+// changes nothing — the Parts page draws what is already loaded while one is.)
+function rrGuideOnScreen() {
+  try { return !!(typeof document !== 'undefined' && document.getElementById && document.getElementById('gt-callout')); } catch (e) { return false; }
+}
+function _rrSampleDate(daysAgo) {
+  var d = new Date(Date.now() - (daysAgo || 0) * 86400000);
+  var p = function (n) { return (n < 10 ? '0' : '') + n; };
+  return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate());
+}
+// The catalog row a sample stands for, in the shape parseMasterRow gives every row.
+function _rrSampleMaster(it) {
+  return { itemNum: it.itemNum, itemType: it.itemType, subType: it.subType, unit: it.unit, poweredDummy: it.poweredDummy,
+           control: it.control, roadName: it.roadName, description: it.description, gauge: it.gauge, yearProd: it.yearProd,
+           variation: it.variation, varDesc: it.varDesc, refLink: it.refLink, notes: '', marketVal: '', source: 'COTT',
+           manufacturer: it.manufacturer, _yearRaw: it.yearProd, _tab: it.tab, _era: it.era };
+}
+// THE source of sample records: fresh objects every call, in the shape the named
+// page's row code draws. Empty unless the samples are on AND the page's own list
+// is empty (realCount 0) AND the page is not in a share or tag sweep.
+function rrSampleRows(page, realCount) {
+  if (!_rrSamplesFlag || realCount > 0) return [];
+  try {
+    if (window._shareMode) return [];
+    if (typeof rrTagActive === 'function' && rrTagActive()) return [];
+  } catch (e) {}
+  var S = RR_TOUR_SAMPLES, list = S[page], out = [];
+  if (!Array.isArray(list)) return out;
+  list.forEach(function (d, k) {
+    var it = S.items[d.item];
+    if (!it) return;
+    var id = 'rr-sample-' + page + '-' + (k + 1);
+    var mk = { item: d.item, page: page, photo: it.photo, alt: it.photoAlt };
+    var master = _rrSampleMaster(it);
+    var r = null;
+    if (page === 'collection') {
+      // a catalog row with its owned copy riding along (_copyPd — what My
+      // Collection's resolver reads first), exactly as a real owned row is drawn
+      var pd = { owned: true, itemNum: it.itemNum, variation: it.variation, manufacturer: it.manufacturer, era: it.era,
+                 gauge: it.gauge, itemType: it.itemType, roadName: it.roadName, condition: d.condition,
+                 userEstWorth: d.worth, dateAdded: _rrSampleDate(d.daysAgo), inventoryId: id, row: 0, _rrSample: mk };
+      r = Object.assign({}, master, { _copyPd: pd, _rrSample: mk });
+    } else if (page === 'want') {
+      r = { itemNum: it.itemNum, variation: it.variation, manufacturer: it.manufacturer, listType: d.listType,
+            priority: d.priority, targetCondition: d.target || '', notes: '', row: 0,
+            inventoryId: d.listType === 'Upgrade' ? id : '', _master: master, _rrSample: mk };
+      if (d.listType === 'Upgrade') r.maxPrice = d.price; else r.expectedPrice = d.price;
+    } else if (page === 'forsale') {
+      r = { itemNum: it.itemNum, variation: it.variation, manufacturer: it.manufacturer, condition: d.condition,
+            askingPrice: d.price, estWorth: d.worth, dateListed: _rrSampleDate(d.daysAgo), notes: '',
+            inventoryId: id, row: 0, _master: master, _rrSample: mk };
+    } else if (page === 'sold') {
+      r = { key: id, itemNum: it.itemNum, variation: it.variation, manufacturer: it.manufacturer, condition: d.condition,
+            salePrice: d.price, dateSold: _rrSampleDate(d.daysAgo), notes: '', roadName: it.roadName,
+            _type: it.itemType, _roadName: it.roadName, _mfr: it.manufacturer, _master: master, _rrSample: mk };
+    } else if (page === 'parts') {
+      r = { id: id, row: 0, description: d.description, partNum: d.partNum, forItem: it.itemNum, forInv: '', photo: '',
+            notes: '', dateAdded: _rrSampleDate(d.daysAgo), status: 'wanted', dateBought: '', dateInstalled: '',
+            pricePaid: '', taskId: '', _master: master, _rrSample: mk };
+    } else if (page === 'inbox') {
+      var when = new Date(Date.now() - (d.daysAgo || 0) * 86400000).toISOString();
+      r = { key: id, files: [{ id: id, name: it.photo.split('/').pop(), createdTime: when, _meta: {} }], _rrSample: mk };
+    }
+    if (r) out.push(r);
+  });
+  return out;
+}
+// THE switch. On: pages that are empty draw the samples the next time they draw.
+// Off: every sample leaves the page, and the page on screen draws itself again.
+function rrSamplesOn(on) {
+  on = !!on;
+  if (on === _rrSamplesFlag) return;
+  _rrSamplesFlag = on;
+  _rrSamplesRev++;
+  if (on) return;
+  try {
+    var nodes = document.querySelectorAll('[data-rr-sample]');
+    for (var i = 0; i < nodes.length; i++) if (nodes[i].parentNode) nodes[i].parentNode.removeChild(nodes[i]);
+  } catch (e) {}
+  try {
+    var act = document.querySelector('.page.active');
+    var name = (act && act.id) ? act.id.replace(/^page-/, '') : '';
+    if (!name) return;
+    if (typeof window.RR_SAMPLE_REDRAW[name] === 'function') window.RR_SAMPLE_REDRAW[name]();
+    else rrBuildPage(name);
+  } catch (e) { console.warn('[samples] redraw', e); }
+}
+// On window by name as well, so a test sandbox that lifts this block (photo-inbox-
+// tests) gets the REAL functions rather than an imitation of them.
+if (typeof window !== 'undefined') {
+  window.RR_TOUR_SAMPLES = RR_TOUR_SAMPLES;
+  window.rrSamplesShowing = rrSamplesShowing; window.rrSamplesRev = rrSamplesRev; window.rrIsSample = rrIsSample;
+  window.rrSampleAttrs = rrSampleAttrs; window.rrSampleTag = rrSampleTag; window.rrGuideOnScreen = rrGuideOnScreen;
+  window.rrSampleRows = rrSampleRows; window.rrSamplesOn = rrSamplesOn;
+}
+// ── end of TOUR SAMPLES ──
 
 // ── v0.9.1851: LETTERS THAT READ ON ANY BADGE ─────────────────────────────
 // [stated] Brad: "This yellow is hard to see for older people" → shown three

@@ -196,6 +196,17 @@ global.ERA_SCALE = { pw: 'O', prw: 'O', mod: 'O', mth_ho: 'HO' };
   if (a < 0 || b < 0) throw new Error('harness: the config.js filter block moved');
   new Function(cfgAll.slice(a, b)).call(global);
 })();
+// v0.9.1871: the inbox tile code asks config.js about the tour's sample photos
+// (rrSampleRows / rrIsSample / rrSampleAttrs / rrSampleTag). Same rule as the
+// block above: the REAL block is lifted, never imitated (the samples stay off
+// here — nothing in this suite runs the tour — so every tile is a real one).
+(function () {
+  const cfgAll = fs.readFileSync(require('path').join(__dirname, '..', 'app', 'config.js'), 'utf8');
+  const a = cfgAll.indexOf('// ══ v0.9.1871 — TOUR SAMPLES');
+  const b = cfgAll.indexOf('// ── end of TOUR SAMPLES ──');
+  if (a < 0 || b < 0) throw new Error('harness: the config.js tour-samples block moved');
+  new Function(cfgAll.slice(a, b)).call(global);
+})();
 global.driveRequest = async () => ({});
 global.driveEnsureSetup = async () => {};
 global.driveFindOrCreateFolder = async () => 'fid';
@@ -22369,7 +22380,11 @@ META_WRITES.length = 0; TOASTS.length = 0;
          /cancel: 'Never mind', danger: true \}\)\)\) \{\s*return;/.test(raSeg), '');
 
       // ── v0.9.1609 (Brad: "gray out the picture and push it to the bottom") ──
-      const rSeg = pi13.slice(pi13.indexOf('function _render()'), pi13.indexOf('function _render()') + 9000);   // wide: the v1609 partition sits between the head and the img line
+      // v0.9.1871: the WHOLE of _render, to the next function beside it — a fixed
+      // 9,000-character window lost the img line the day _render grew (the tour's
+      // sample photos), the rules_testing "a long comment pushes it out of view" trap.
+      const _rS0 = pi13.indexOf('function _render()');
+      const rSeg = pi13.slice(_rS0, pi13.indexOf('\n  function ', _rS0 + 20));
       ok('313/1609 claimed groups sink below open ones — a STABLE partition, not a sort',
          /_visOpen9\.concat\(_visClaimed9\)/.test(rSeg)
          && /\(claimed \? _visClaimed9 : _visOpen9\)\.push\(g\)/.test(rSeg), '');

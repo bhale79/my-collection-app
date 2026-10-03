@@ -2899,3 +2899,15 @@ html[data-theme="high-contrast"] button[style*="#e74c3c"], html[data-theme="high
   #dash-panels-host .panel > [id^="dash-panel-body-"] { flex: 1 1 auto; min-height: 0; overflow: hidden; }
 }
 #dash-panels-host .rr-dash-overflow { display: none !important; }
+
+/* v0.9.1871 — the tour's SAMPLE pill (config.js rrSampleTag). Every sample row, card
+   and photo wears it; the rows themselves are drawn by each page's own row code and
+   are inert (rrSampleAttrs). Theme words only — no colour of its own. */
+.rr-sample-tag {
+  display: inline-block; margin-left: 0.4rem; padding: 0.05rem 0.4rem; border-radius: 4px;
+  border: 1px solid var(--border); background: var(--surface2); color: var(--text-mid);
+  font-family: var(--font-body); font-size: 0.62rem; font-weight: 700; letter-spacing: 0.06em;
+  text-transform: uppercase; line-height: 1.4; vertical-align: middle; white-space: nowrap;
+}
+/* on a Photo Inbox tile it sits in the top-left corner, over the picture */
+.rr-sample-tag.rr-sample-tag-onphoto { position: absolute; top: 6px; left: 6px; margin-left: 0; background: var(--surface); color: var(--text); }
