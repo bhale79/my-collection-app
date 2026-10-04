@@ -87,7 +87,7 @@ const CAMERA = `(() => {
       const u = cu * 100 + 55, v = cv * 100 + 55;
       const exp = __flat(u, v), got = at(Math.round(u / 1200 * c.width), Math.round(v / 900 * c.height));
       const diff = Math.max(Math.abs(got[0] - exp[0]), Math.abs(got[1] - exp[1]), Math.abs(got[2] - exp[2]));
-      worst = Math.max(worst, diff); if (diff < 40) ok++; else bad++;
+      worst = Math.max(worst, diff); if (diff < 48) ok++; else bad++;   // JPEG noise at a cell edge reached 40 once on the live site; a wrong colour is 100+ away
     }
     const red = p => p[0] > 170 && p[1] < 90 && p[2] < 90;
     const border = { top: 0, bottom: 0, left: 0, right: 0, n: 0 };
@@ -179,7 +179,7 @@ async function dragDots(pg, pts, srcW) {
   await pg.evaluate(() => __press('_rrCropApply'));   // reads "Straighten"
   await pg.evaluate(() => __settled());
   const A3 = await pg.evaluate(async () => Object.assign(await __judge(), __labels(), { scr: await __screen() }));
-  T('A5  the card came out flat: all 108 cells the right colour (worst channel error under 40)', A3.cells.ok === 108 && A3.cells.bad === 0, A3.cells);
+  T('A5  the card came out flat: all 108 cells the right colour (worst channel error under 48)', A3.cells.ok === 108 && A3.cells.bad === 0, A3.cells);
   T('A6  …every border straight along its whole length', A3.border.top === A3.border.n && A3.border.bottom === A3.border.n && A3.border.left === A3.border.n && A3.border.right === A3.border.n, A3.border);
   T('A7  …in its true shape: 4:3 within 3 %, not the foreshortened trapezoid\'s average', near(A3.ratio, 4 / 3, 0.04), { w: A3.w, h: A3.h, ratio: A3.ratio });
   T('A8  back in the crop screen on the straightened picture: level reads 0.0°, the button says Undo straighten, the hint says so', A3.scr.rot === '0.0°' && A3.str === 'Undo straighten' && /Straightened/.test(A3.hint) && A3.cropperShown && !A3.layer && A3.cancel === 'Cancel' && A3.apply === 'Apply crop', A3);
