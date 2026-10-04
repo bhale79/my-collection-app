@@ -1,0 +1,262 @@
+{
+"what": "Master Version 2.12 — 23 MTH Tinplate rows from the Greenberg guide carried impossible 1979-1995 years; each takes the year of the same MTH product",
+"date": "2026-10-04",
+"source": "[stated] Brad 2026-10-04: \"can you google them?\" → findings (MTH: first-ever Big Brute 2009, first Super 381 2011; every row matches MTH's own 2009-2016 product under the same number) → GREENBERG_YEARS_PLAN_2026-10-04.xlsx → \"yes\"; plan from a fresh read of MTH Tinplate after 2.11",
+"cells": [
+{
+"tab": "MTH Tinplate",
+"row": 1967,
+"item": "11-2024",
+"column": "Year Produced",
+"col_index": 9,
+"old": "1995",
+"new": "2011-2012",
+"kind": "Greenberg row: wrong year",
+"why": "Googled: no early run exists with this year (MTH itself says the first-ever Big Brute was made in 2009 and the first Super 381 in 2011). The row is MTH's own product under this number — \"Green & Cream Std. Gauge Lionel Corporation Tinplate No. 8 Pay-As-You-Enter Trolley (Traditional)\" — so the 1979-1995 year from the guide is wrong. New year: the same product's own rows on this tab (11-2024-0 2011-2012, 11-2024-1 2011-2012) give 2011-2012."
+},
+{
+"tab": "MTH Tinplate",
+"row": 1968,
+"item": "11-2025",
+"column": "Year Produced",
+"col_index": 9,
+"old": "1992",
+"new": "2011-2013",
+"kind": "Greenberg row: wrong year",
+"why": "Googled: no early run exists with this year (MTH itself says the first-ever Big Brute was made in 2009 and the first Super 381 in 2011). The row is MTH's own product under this number — \"Orange & Cream Std. Gauge Lionel Corporation Tinplate No. 9 Pay-As-You-Enter Trolley (Traditional)\" — so the 1979-1995 year from the guide is wrong. New year: the same product's own rows on this tab (11-2025-0 2011-2013, 11-2025-1 2011) give 2011-2013."
+},
+{
+"tab": "MTH Tinplate",
+"row": 1969,
+"item": "11-2026",
+"column": "Year Produced",
+"col_index": 9,
+"old": "1981",
+"new": "2012-2014",
+"kind": "Greenberg row: wrong year",
+"why": "Googled: no early run exists with this year (MTH itself says the first-ever Big Brute was made in 2009 and the first Super 381 in 2011). The row is MTH's own product under this number — \"Christmas Std. Gauge Lionel Corporation Tinplate No. 8 Pay-As-You-Enter Trolley w/Proto-Sound 2.0\" — so the 1979-1995 year from the guide is wrong. New year: the same product's own rows on this tab (11-2026-1 2012-2014) give 2012-2014."
+},
+{
+"tab": "MTH Tinplate",
+"row": 1970,
+"item": "11-2027",
+"column": "Year Produced",
+"col_index": 9,
+"old": "1981",
+"new": "2013",
+"kind": "Greenberg row: wrong year",
+"why": "Googled: no early run exists with this year (MTH itself says the first-ever Big Brute was made in 2009 and the first Super 381 in 2011). The row is MTH's own product under this number — \"Two Tone Blue Std. Gauge Lionel Corporation Tinplate 381E Locomotive (Traditional)\" — so the 1979-1995 year from the guide is wrong. New year: the same product's own rows on this tab (11-2027-0 2013, 11-2027-1 2013) give 2013."
+},
+{
+"tab": "MTH Tinplate",
+"row": 1971,
+"item": "11-2028",
+"column": "Year Produced",
+"col_index": 9,
+"old": "1982",
+"new": "2012",
+"kind": "Greenberg row: wrong year",
+"why": "Googled: no early run exists with this year (MTH itself says the first-ever Big Brute was made in 2009 and the first Super 381 in 2011). The row is MTH's own product under this number — \"Two Tone Brown Std. Gauge Lionel Corporation Tinplate 381E Locomotive (Traditional)\" — so the 1979-1995 year from the guide is wrong. New year: the same product's own rows on this tab (11-2028-0 2012, 11-2028-1 2012) give 2012."
+},
+{
+"tab": "MTH Tinplate",
+"row": 1972,
+"item": "11-2029",
+"column": "Year Produced",
+"col_index": 9,
+"old": "1995",
+"new": "2012-2013",
+"kind": "Greenberg row: wrong year",
+"why": "Googled: no early run exists with this year (MTH itself says the first-ever Big Brute was made in 2009 and the first Super 381 in 2011). The row is MTH's own product under this number — \"Great Northern Std. Gauge Lionel Corporation Tinplate 381E Locomotive (Traditional)\" — so the 1979-1995 year from the guide is wrong. New year: the same product's own rows on this tab (11-2029-0 2012-2013, 11-2029-1 2012-2013) give 2012-2013."
+},
+{
+"tab": "MTH Tinplate",
+"row": 1973,
+"item": "11-2031",
+"column": "Year Produced",
+"col_index": 9,
+"old": "1990-1992",
+"new": "2012",
+"kind": "Greenberg row: wrong year",
+"why": "Googled: no early run exists with this year (MTH itself says the first-ever Big Brute was made in 2009 and the first Super 381 in 2011). The row is MTH's own product under this number — \"Red Std. Gauge Lionel Corporation Tinplate No. 4689 Std. Gauge Red President's Locomotive (Traditional)\" — so the 1979-1995 year from the guide is wrong. New year: the same product's own rows on this tab (11-2031-0 2012, 11-2031-1 2012) give 2012."
+},
+{
+"tab": "MTH Tinplate",
+"row": 1974,
+"item": "11-2033",
+"column": "Year Produced",
+"col_index": 9,
+"old": "1979-1980",
+"new": "2013-2014",
+"kind": "Greenberg row: wrong year",
+"why": "Googled: no early run exists with this year (MTH itself says the first-ever Big Brute was made in 2009 and the first Super 381 in 2011). The row is MTH's own product under this number — \"Two-Tone Brown Std. Gauge Lionel Corporation Tinplate Std. Gauge Big Brute Electric Engine w/Proto-Sound 3.0\" — so the 1979-1995 year from the guide is wrong. New year: the same product's own rows on this tab (11-2033-1 2013-2014) give 2013-2014."
+},
+{
+"tab": "MTH Tinplate",
+"row": 1975,
+"item": "11-2034",
+"column": "Year Produced",
+"col_index": 9,
+"old": "1979",
+"new": "2013",
+"kind": "Greenberg row: wrong year",
+"why": "Googled: no early run exists with this year (MTH itself says the first-ever Big Brute was made in 2009 and the first Super 381 in 2011). The row is MTH's own product under this number — \"Lionel Lines Std. Gauge Lionel Corporation Tinplate Std. Gauge Big Brute Electric Engine w/Proto-Sound 3.0\" — so the 1979-1995 year from the guide is wrong. New year: the same product's own rows on this tab (11-2034-1 2013) give 2013."
+},
+{
+"tab": "MTH Tinplate",
+"row": 1976,
+"item": "11-2038",
+"column": "Year Produced",
+"col_index": 9,
+"old": "1980",
+"new": "2016",
+"kind": "Greenberg row: wrong year",
+"why": "Googled: no early run exists with this year (MTH itself says the first-ever Big Brute was made in 2009 and the first Super 381 in 2011). The row is MTH's own product under this number — \"Milwaukee Road Std. Gauge Lionel Corporation Tinplate Std. Gauge Super 381 Electric Engine w/Proto-Sound 3.0\" — so the 1979-1995 year from the guide is wrong. New year: no row of its own here; MTH's page: 11-2038-1 \"Delivered Nov. 2016\"."
+},
+{
+"tab": "MTH Tinplate",
+"row": 1977,
+"item": "11-2039",
+"column": "Year Produced",
+"col_index": 9,
+"old": "1981",
+"new": "2015-2018",
+"kind": "Greenberg row: wrong year",
+"why": "Googled: no early run exists with this year (MTH itself says the first-ever Big Brute was made in 2009 and the first Super 381 in 2011). The row is MTH's own product under this number — \"Pennsylvania Std. Gauge Lionel Corporation Tinplate Std. Gauge Super 381 Electric Engine w/Proto-Sound 3.0\" — so the 1979-1995 year from the guide is wrong. New year: the same product's own rows on this tab (11-2039-1 2015-2018) give 2015-2018."
+},
+{
+"tab": "MTH Tinplate",
+"row": 1978,
+"item": "11-2040",
+"column": "Year Produced",
+"col_index": 9,
+"old": "1983",
+"new": "2015-2016",
+"kind": "Greenberg row: wrong year",
+"why": "Googled: no early run exists with this year (MTH itself says the first-ever Big Brute was made in 2009 and the first Super 381 in 2011). The row is MTH's own product under this number — \"Two-Tone Brown Std. Gauge Lionel Corporation Tinplate Std. Gauge Super 381 Electric Engine w/Proto-Sound 3.0\" — so the 1979-1995 year from the guide is wrong. New year: the same product's own rows on this tab (11-2040-1 2015-2016) give 2015-2016."
+},
+{
+"tab": "MTH Tinplate",
+"row": 1979,
+"item": "11-2041",
+"column": "Year Produced",
+"col_index": 9,
+"old": "1984-1985",
+"new": "2016",
+"kind": "Greenberg row: wrong year",
+"why": "Googled: no early run exists with this year (MTH itself says the first-ever Big Brute was made in 2009 and the first Super 381 in 2011). The row is MTH's own product under this number — \"New Haven Std. Gauge Lionel Corporation Tinplate Std. Gauge Super 381 Electric Engine w/Proto-Sound 3.0\" — so the 1979-1995 year from the guide is wrong. New year: no row of its own here; MTH's page: 11-2041-1 \"Delivered Nov. 2016\"."
+},
+{
+"tab": "MTH Tinplate",
+"row": 1980,
+"item": "11-5002",
+"column": "Year Produced",
+"col_index": 9,
+"old": "1987-1990",
+"new": "2009-2010",
+"kind": "Greenberg row: wrong year",
+"why": "Googled: no early run exists with this year (MTH itself says the first-ever Big Brute was made in 2009 and the first Super 381 in 2011). The row is MTH's own product under this number — \"Christmas Std. Gauge Lionel Corporation Tinplate No. 384 Std. Gauge Steam R-T-R Freight Set w/Proto-Sound 2.0\" — so the 1979-1995 year from the guide is wrong. New year: the same product's own rows on this tab (11-5002-1 2009-2010) give 2009-2010."
+},
+{
+"tab": "MTH Tinplate",
+"row": 1981,
+"item": "11-5003",
+"column": "Year Produced",
+"col_index": 9,
+"old": "1995",
+"new": "2009",
+"kind": "Greenberg row: wrong year",
+"why": "Googled: no early run exists with this year (MTH itself says the first-ever Big Brute was made in 2009 and the first Super 381 in 2011). The row is MTH's own product under this number — \"Lehigh Valley Std. Gauge Lionel Corporation Tinplate No. 384 Std. Gauge Steam Passenger Set w/Proto-Sound 2.0\" — so the 1979-1995 year from the guide is wrong. New year: the same product's own rows on this tab (11-5003-1 2009-01-01 00:00:00) give 2009."
+},
+{
+"tab": "MTH Tinplate",
+"row": 1982,
+"item": "11-5007",
+"column": "Year Produced",
+"col_index": 9,
+"old": "1983-1984",
+"new": "2011",
+"kind": "Greenberg row: wrong year",
+"why": "Googled: no early run exists with this year (MTH itself says the first-ever Big Brute was made in 2009 and the first Super 381 in 2011). The row is MTH's own product under this number — \"Std. Gauge Lionel Corporation Tinplate No. 386 Outfit Freight Set w/Proto-Sound 2.0\" — so the 1979-1995 year from the guide is wrong. New year: the same product's own rows on this tab (11-5007-1 2011) give 2011."
+},
+{
+"tab": "MTH Tinplate",
+"row": 1983,
+"item": "11-5008",
+"column": "Year Produced",
+"col_index": 9,
+"old": "1979",
+"new": "2011-2012",
+"kind": "Greenberg row: wrong year",
+"why": "Googled: no early run exists with this year (MTH itself says the first-ever Big Brute was made in 2009 and the first Super 381 in 2011). The row is MTH's own product under this number — \"Std. Gauge Lionel Corporation Tinplate No. 340E Coal Train Freight Set w/Proto-Sound 2.0\" — so the 1979-1995 year from the guide is wrong. New year: the same product's own rows on this tab (11-5008-1 2011-2012) give 2011-2012."
+},
+{
+"tab": "MTH Tinplate",
+"row": 1984,
+"item": "11-5009",
+"column": "Year Produced",
+"col_index": 9,
+"old": "1979",
+"new": "2011-2013",
+"kind": "Greenberg row: wrong year",
+"why": "Googled: no early run exists with this year (MTH itself says the first-ever Big Brute was made in 2009 and the first Super 381 in 2011). The row is MTH's own product under this number — \"Baby State Set Std. Gauge Lionel Corporation No. 342E Outfit Std. Gauge Passenger Set w/Proto-Sound 2.0\" — so the 1979-1995 year from the guide is wrong. New year: the same product's own rows on this tab (11-5009-1 2011-2013) give 2011-2013."
+},
+{
+"tab": "MTH Tinplate",
+"row": 1985,
+"item": "11-5010",
+"column": "Year Produced",
+"col_index": 9,
+"old": "1991",
+"new": "2012-2013",
+"kind": "Greenberg row: wrong year",
+"why": "Googled: no early run exists with this year (MTH itself says the first-ever Big Brute was made in 2009 and the first Super 381 in 2011). The row is MTH's own product under this number — \"Jersey Central Std. Gauge Lionel Corporation Tinplate No. 384E Steam Passenger Train Set w/Proto-Sound 3.0\" — so the 1979-1995 year from the guide is wrong. New year: the same product's own rows on this tab (11-5010-1 2012-2013) give 2012-2013."
+},
+{
+"tab": "MTH Tinplate",
+"row": 1986,
+"item": "11-5011",
+"column": "Year Produced",
+"col_index": 9,
+"old": "1991",
+"new": "2012-2013",
+"kind": "Greenberg row: wrong year",
+"why": "Googled: no early run exists with this year (MTH itself says the first-ever Big Brute was made in 2009 and the first Super 381 in 2011). The row is MTH's own product under this number — \"Christmas Std. Gauge Lionel Corporation Tinplate No. 386 Outfit Freight Set w/Proto-Sound 3.0\" — so the 1979-1995 year from the guide is wrong. New year: the same product's own rows on this tab (11-5011-1 2012-2013) give 2012-2013."
+},
+{
+"tab": "MTH Tinplate",
+"row": 1987,
+"item": "11-5012",
+"column": "Year Produced",
+"col_index": 9,
+"old": "1992",
+"new": "2013-2016",
+"kind": "Greenberg row: wrong year",
+"why": "Googled: no early run exists with this year (MTH itself says the first-ever Big Brute was made in 2009 and the first Super 381 in 2011). The row is MTH's own product under this number — \"Lionel Lines Lionel Corporation Tinplate No. 342E Outfit Std. Gauge Passenger Set w/Proto-Sound 3.0\" — so the 1979-1995 year from the guide is wrong. New year: the same product's own rows on this tab (11-5012-1 2013-2016) give 2013-2016."
+},
+{
+"tab": "MTH Tinplate",
+"row": 1988,
+"item": "11-5013",
+"column": "Year Produced",
+"col_index": 9,
+"old": "1993",
+"new": "2013-2015",
+"kind": "Greenberg row: wrong year",
+"why": "Googled: no early run exists with this year (MTH itself says the first-ever Big Brute was made in 2009 and the first Super 381 in 2011). The row is MTH's own product under this number — \"Christmas Std. Gauge Lionel Corporation Tinplate No. 318E Freight Set w/Proto-Sound 3.0\" — so the 1979-1995 year from the guide is wrong. New year: the same product's own rows on this tab (11-5013-1 2013-2015) give 2013-2015."
+},
+{
+"tab": "MTH Tinplate",
+"row": 1989,
+"item": "11-5014",
+"column": "Year Produced",
+"col_index": 9,
+"old": "1995",
+"new": "2013-2014",
+"kind": "Greenberg row: wrong year",
+"why": "Googled: no early run exists with this year (MTH itself says the first-ever Big Brute was made in 2009 and the first Super 381 in 2011). The row is MTH's own product under this number — \"Pennsylvania Std. Gauge Lionel Corporation Tinplate No. 384E Steam Passenger Train Set w/Proto-Sound 3.0\" — so the 1979-1995 year from the guide is wrong. New year: the same product's own rows on this tab (11-5014-1 2013-2014) give 2013-2014."
+}
+],
+"held": [],
+"cells_sha256": "71110778aafef4cf8ad3a902c3d23073c84196a96b516620b12cafe914efd6ed"
+}
