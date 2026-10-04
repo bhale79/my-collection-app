@@ -1,0 +1,218 @@
+{
+"what": "Lionel MPC-Modern coil cars typed Flatcar (Master Version 2.00)",
+"date": "2026-10-04",
+"source": "the row's own description; how the master types coil cars elsewhere (MTH O 42, Bachmann HO 10, Bachmann N 6 = Flatcar)",
+"cells": [
+{
+"tab": "Lionel MPC-Modern",
+"row": 7768,
+"item": "2226451",
+"column": "Item Type",
+"col_index": 1,
+"old": "Tank Car",
+"new": "Flatcar",
+"kind": "K: coil car typed Tank Car",
+"why": "\"Bethlehem Steel Coil Car \"216451\"\" is a coil car; the master types coil cars Flatcar everywhere else (MTH O 42, Bachmann HO 10, Bachmann N 6)"
+},
+{
+"tab": "Lionel MPC-Modern",
+"row": 7769,
+"item": "2226452",
+"column": "Item Type",
+"col_index": 1,
+"old": "Tank Car",
+"new": "Flatcar",
+"kind": "K: coil car typed Tank Car",
+"why": "\"Bethlehem Steel Coil Car \"216489\"\" is a coil car; the master types coil cars Flatcar everywhere else (MTH O 42, Bachmann HO 10, Bachmann N 6)"
+},
+{
+"tab": "Lionel MPC-Modern",
+"row": 7770,
+"item": "2226461",
+"column": "Item Type",
+"col_index": 1,
+"old": "Tank Car",
+"new": "Flatcar",
+"kind": "K: coil car typed Tank Car",
+"why": "\"BNSF Coil Car \"534321\"\" is a coil car; the master types coil cars Flatcar everywhere else (MTH O 42, Bachmann HO 10, Bachmann N 6)"
+},
+{
+"tab": "Lionel MPC-Modern",
+"row": 7771,
+"item": "2226462",
+"column": "Item Type",
+"col_index": 1,
+"old": "Tank Car",
+"new": "Flatcar",
+"kind": "K: coil car typed Tank Car",
+"why": "\"BNSF Coil Car \"534354\"\" is a coil car; the master types coil cars Flatcar everywhere else (MTH O 42, Bachmann HO 10, Bachmann N 6)"
+},
+{
+"tab": "Lionel MPC-Modern",
+"row": 7772,
+"item": "2226471",
+"column": "Item Type",
+"col_index": 1,
+"old": "Tank Car",
+"new": "Flatcar",
+"kind": "K: coil car typed Tank Car",
+"why": "\"Conrail Coil Car \"623603\"\" is a coil car; the master types coil cars Flatcar everywhere else (MTH O 42, Bachmann HO 10, Bachmann N 6)"
+},
+{
+"tab": "Lionel MPC-Modern",
+"row": 7773,
+"item": "2226472",
+"column": "Item Type",
+"col_index": 1,
+"old": "Tank Car",
+"new": "Flatcar",
+"kind": "K: coil car typed Tank Car",
+"why": "\"Conrail Coil Car \"623624\"\" is a coil car; the master types coil cars Flatcar everywhere else (MTH O 42, Bachmann HO 10, Bachmann N 6)"
+},
+{
+"tab": "Lionel MPC-Modern",
+"row": 7774,
+"item": "2226481",
+"column": "Item Type",
+"col_index": 1,
+"old": "Tank Car",
+"new": "Flatcar",
+"kind": "K: coil car typed Tank Car",
+"why": "\"Ferromex Coil Car \"918040\"\" is a coil car; the master types coil cars Flatcar everywhere else (MTH O 42, Bachmann HO 10, Bachmann N 6)"
+},
+{
+"tab": "Lionel MPC-Modern",
+"row": 7775,
+"item": "2226482",
+"column": "Item Type",
+"col_index": 1,
+"old": "Tank Car",
+"new": "Flatcar",
+"kind": "K: coil car typed Tank Car",
+"why": "\"Ferromex Coil Car \"918046\"\" is a coil car; the master types coil cars Flatcar everywhere else (MTH O 42, Bachmann HO 10, Bachmann N 6)"
+},
+{
+"tab": "Lionel MPC-Modern",
+"row": 7776,
+"item": "2226491",
+"column": "Item Type",
+"col_index": 1,
+"old": "Tank Car",
+"new": "Flatcar",
+"kind": "K: coil car typed Tank Car",
+"why": "\"Reading Coil Car \"99502\"\" is a coil car; the master types coil cars Flatcar everywhere else (MTH O 42, Bachmann HO 10, Bachmann N 6)"
+},
+{
+"tab": "Lionel MPC-Modern",
+"row": 7777,
+"item": "2226492",
+"column": "Item Type",
+"col_index": 1,
+"old": "Tank Car",
+"new": "Flatcar",
+"kind": "K: coil car typed Tank Car",
+"why": "\"Reading Coil Car \"99561\"\" is a coil car; the master types coil cars Flatcar everywhere else (MTH O 42, Bachmann HO 10, Bachmann N 6)"
+},
+{
+"tab": "Lionel MPC-Modern",
+"row": 7778,
+"item": "2226501",
+"column": "Item Type",
+"col_index": 1,
+"old": "Tank Car",
+"new": "Flatcar",
+"kind": "K: coil car typed Tank Car",
+"why": "\"UP Coil Car \"242081\"\" is a coil car; the master types coil cars Flatcar everywhere else (MTH O 42, Bachmann HO 10, Bachmann N 6)"
+},
+{
+"tab": "Lionel MPC-Modern",
+"row": 7779,
+"item": "2226502",
+"column": "Item Type",
+"col_index": 1,
+"old": "Tank Car",
+"new": "Flatcar",
+"kind": "K: coil car typed Tank Car",
+"why": "\"UP Coil Car \"242118\"\" is a coil car; the master types coil cars Flatcar everywhere else (MTH O 42, Bachmann HO 10, Bachmann N 6)"
+},
+{
+"tab": "Lionel MPC-Modern",
+"row": 7780,
+"item": "2226510",
+"column": "Item Type",
+"col_index": 1,
+"old": "Tank Car",
+"new": "Flatcar",
+"kind": "K: coil car typed Tank Car",
+"why": "\"Bethlehem Steel Coil Car w/Graffiti \"216469\"\" is a coil car; the master types coil cars Flatcar everywhere else (MTH O 42, Bachmann HO 10, Bachmann N 6)"
+},
+{
+"tab": "Lionel MPC-Modern",
+"row": 7781,
+"item": "2226520",
+"column": "Item Type",
+"col_index": 1,
+"old": "Tank Car",
+"new": "Flatcar",
+"kind": "K: coil car typed Tank Car",
+"why": "\"BNSF Coil Car w/Graffiti \"534370\"\" is a coil car; the master types coil cars Flatcar everywhere else (MTH O 42, Bachmann HO 10, Bachmann N 6)"
+},
+{
+"tab": "Lionel MPC-Modern",
+"row": 7782,
+"item": "2226530",
+"column": "Item Type",
+"col_index": 1,
+"old": "Tank Car",
+"new": "Flatcar",
+"kind": "K: coil car typed Tank Car",
+"why": "\"Conrail (NYC) Coil Car w/Graffiti \"623684\"\" is a coil car; the master types coil cars Flatcar everywhere else (MTH O 42, Bachmann HO 10, Bachmann N 6)"
+},
+{
+"tab": "Lionel MPC-Modern",
+"row": 7783,
+"item": "2226540",
+"column": "Item Type",
+"col_index": 1,
+"old": "Tank Car",
+"new": "Flatcar",
+"kind": "K: coil car typed Tank Car",
+"why": "\"Ferromex Coil Car w/Graffiti \"918032\"\" is a coil car; the master types coil cars Flatcar everywhere else (MTH O 42, Bachmann HO 10, Bachmann N 6)"
+},
+{
+"tab": "Lionel MPC-Modern",
+"row": 7784,
+"item": "2226550",
+"column": "Item Type",
+"col_index": 1,
+"old": "Tank Car",
+"new": "Flatcar",
+"kind": "K: coil car typed Tank Car",
+"why": "\"NS Coil Car w/Graffiti \"167024\"\" is a coil car; the master types coil cars Flatcar everywhere else (MTH O 42, Bachmann HO 10, Bachmann N 6)"
+},
+{
+"tab": "Lionel MPC-Modern",
+"row": 19061,
+"item": "6-22300",
+"column": "Item Type",
+"col_index": 1,
+"old": "Coil Car",
+"new": "Flatcar",
+"kind": "K: coil car typed a word outside the types",
+"why": "\"Detroit, Toledo & Ironton Coil Car\" is a coil car; the master types coil cars Flatcar everywhere else (MTH O 42, Bachmann HO 10, Bachmann N 6)"
+},
+{
+"tab": "Lionel MPC-Modern",
+"row": 19158,
+"item": "6-22524",
+"column": "Item Type",
+"col_index": 1,
+"old": "Other Cars",
+"new": "Flatcar",
+"kind": "K: coil car typed a word outside the types",
+"why": "\"Ford&trade; Scale Coil Car\" is a coil car; the master types coil cars Flatcar everywhere else (MTH O 42, Bachmann HO 10, Bachmann N 6)"
+}
+],
+"held": [],
+"cells_sha256": "f19e220749bed0ca3a25ca0624d0f3d8e02494e43ada8958bfe3911405853cce"
+}
