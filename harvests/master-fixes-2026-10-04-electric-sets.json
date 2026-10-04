@@ -1,0 +1,321 @@
+{
+"what": "Electric unit sets typed \"Electric Set\" + MTH EF / EF-2 / B+B rows from MTH's page (Master Version 2.03)",
+"date": "2026-10-04",
+"source": "[stated] Brad 2026-10-04: electric unit sets are treated like the diesel sets; mthtrains.com product pages (status.jsonl); app v0.9.1875 files \"Electric Set\" under Set",
+"cells": [
+{
+"tab": "MTH O",
+"row": 1767,
+"item": "20-5569-1",
+"column": "Description",
+"col_index": 7,
+"old": "EF-2 Electric Engine Set",
+"new": "EF-2 Electric with Proto-Sound 2.0",
+"kind": "U: one engine/unit described as a set",
+"why": "MTH's page names ONE engine / unit, not a set: \"Chicago, Milwaukee, St. Paul and Pacific O Scale Premier EF-2 Electric with Proto-Sound 2.\""
+},
+{
+"tab": "MTH O",
+"row": 1767,
+"item": "20-5569-1",
+"column": "Item Type",
+"col_index": 1,
+"old": "Set",
+"new": "Electric Locomotive",
+"kind": "U: one engine/unit typed as a set",
+"why": "a single electric engine / unit"
+},
+{
+"tab": "MTH O",
+"row": 1769,
+"item": "20-5570-1",
+"column": "Description",
+"col_index": 7,
+"old": "EF-2 Electric Engine Set",
+"new": "EF-2 Electric with Proto-Sound 2.0",
+"kind": "U: one engine/unit described as a set",
+"why": "MTH's page names ONE engine / unit, not a set: \"Milwaukee Road O Scale Premier EF-2 Electric with Proto-Sound 2.0\""
+},
+{
+"tab": "MTH O",
+"row": 1769,
+"item": "20-5570-1",
+"column": "Item Type",
+"col_index": 1,
+"old": "Set",
+"new": "Electric Locomotive",
+"kind": "U: one engine/unit typed as a set",
+"why": "a single electric engine / unit"
+},
+{
+"tab": "MTH O",
+"row": 1771,
+"item": "20-5571-1",
+"column": "Description",
+"col_index": 7,
+"old": "EF Electric Engine Set",
+"new": "EF Electric with Proto-Sound 2.0",
+"kind": "U: one engine/unit described as a set",
+"why": "MTH's page names ONE engine / unit, not a set: \"Great Northern O Scale Premier EF Electric with Proto-Sound 2.0\""
+},
+{
+"tab": "MTH O",
+"row": 1771,
+"item": "20-5571-1",
+"column": "Item Type",
+"col_index": 1,
+"old": "Set",
+"new": "Electric Locomotive",
+"kind": "U: one engine/unit typed as a set",
+"why": "a single electric engine / unit"
+},
+{
+"tab": "MTH O",
+"row": 1773,
+"item": "20-5572-1",
+"column": "Description",
+"col_index": 7,
+"old": "EF Electric Engine Set",
+"new": "EF Electric with Proto-Sound 2.0",
+"kind": "U: one engine/unit described as a set",
+"why": "MTH's page names ONE engine / unit, not a set: \"New Haven O Scale Premier EF Electric with Proto-Sound 2.0\""
+},
+{
+"tab": "MTH O",
+"row": 1773,
+"item": "20-5572-1",
+"column": "Item Type",
+"col_index": 1,
+"old": "Set",
+"new": "Electric Locomotive",
+"kind": "U: one engine/unit typed as a set",
+"why": "a single electric engine / unit"
+},
+{
+"tab": "MTH O",
+"row": 1790,
+"item": "20-5596-1",
+"column": "Item Type",
+"col_index": 1,
+"old": "Electric Locomotive",
+"new": "Electric Set",
+"kind": "E: electric unit set",
+"why": "[stated] Brad: electric unit sets are treated like diesel sets (listed under Set). \"EL-3A Jack Shaft Electric Set\""
+},
+{
+"tab": "MTH O",
+"row": 1791,
+"item": "20-5597-1",
+"column": "Item Type",
+"col_index": 1,
+"old": "Electric Locomotive",
+"new": "Electric Set",
+"kind": "E: electric unit set",
+"why": "[stated] Brad: electric unit sets are treated like diesel sets (listed under Set). \"EL-3A Jack Shaft Electric Set\""
+},
+{
+"tab": "MTH O",
+"row": 1792,
+"item": "20-5598-1",
+"column": "Item Type",
+"col_index": 1,
+"old": "Electric Locomotive",
+"new": "Electric Set",
+"kind": "E: electric unit set",
+"why": "[stated] Brad: electric unit sets are treated like diesel sets (listed under Set). \"EL-3A Jack Shaft Electric Set\""
+},
+{
+"tab": "MTH O",
+"row": 1793,
+"item": "20-5599-1",
+"column": "Item Type",
+"col_index": 1,
+"old": "Electric Locomotive",
+"new": "Electric Set",
+"kind": "E: electric unit set",
+"why": "[stated] Brad: electric unit sets are treated like diesel sets (listed under Set). \"EL-3A Jack Shaft Electric Set\""
+},
+{
+"tab": "MTH O",
+"row": 1925,
+"item": "20-5696-1",
+"column": "Item Type",
+"col_index": 1,
+"old": "Electric Locomotive",
+"new": "Electric Set",
+"kind": "E: electric unit set",
+"why": "[stated] Brad: electric unit sets are treated like diesel sets (listed under Set). \"EF-3 A-B-A Electric\""
+},
+{
+"tab": "MTH O",
+"row": 1926,
+"item": "20-5697-1",
+"column": "Item Type",
+"col_index": 1,
+"old": "Electric Locomotive",
+"new": "Electric Set",
+"kind": "E: electric unit set",
+"why": "[stated] Brad: electric unit sets are treated like diesel sets (listed under Set). \"EF-3 A-B-A Electric\""
+},
+{
+"tab": "MTH O",
+"row": 1928,
+"item": "20-5698-1",
+"column": "Item Type",
+"col_index": 1,
+"old": "Electric Locomotive",
+"new": "Electric Set",
+"kind": "E: electric unit set",
+"why": "[stated] Brad: electric unit sets are treated like diesel sets (listed under Set). \"EF-3 A-B-A Electric\""
+},
+{
+"tab": "MTH O",
+"row": 1930,
+"item": "20-5699-1",
+"column": "Item Type",
+"col_index": 1,
+"old": "Electric Locomotive",
+"new": "Electric Set",
+"kind": "E: electric unit set",
+"why": "[stated] Brad: electric unit sets are treated like diesel sets (listed under Set). \"EF-3 A-B-A Electric\""
+},
+{
+"tab": "Marklin H0",
+"row": 649,
+"item": "30501",
+"column": "Item Type",
+"col_index": 1,
+"old": "Electric Locomotive",
+"new": "Electric Set",
+"kind": "E: electric unit set",
+"why": "[stated] Brad: electric unit sets are treated like diesel sets (listed under Set). \"Ae 6/6, SBB — Double Electric Locomotive Set\""
+},
+{
+"tab": "Marklin H0",
+"row": 660,
+"item": "31016",
+"column": "Item Type",
+"col_index": 1,
+"old": "Set",
+"new": "Electric Set",
+"kind": "E: electric unit set",
+"why": "[stated] Brad: electric unit sets are treated like diesel sets (listed under Set). \"Serie 460, Serie Re 4/4 II — Class 460 and Re 4/4 II Electric Locomotive Double \""
+},
+{
+"tab": "Marklin H0",
+"row": 663,
+"item": "31100",
+"column": "Item Type",
+"col_index": 1,
+"old": "Set",
+"new": "Electric Set",
+"kind": "E: electric unit set",
+"why": "[stated] Brad: electric unit sets are treated like diesel sets (listed under Set). \"Reihe Da, Serie Ce 6/8 III — Electric Locomotive Double Set\""
+},
+{
+"tab": "Marklin H0",
+"row": 1143,
+"item": "37225",
+"column": "Item Type",
+"col_index": 1,
+"old": "Electric Locomotive",
+"new": "Electric Set",
+"kind": "E: electric unit set",
+"why": "[stated] Brad: electric unit sets are treated like diesel sets (listed under Set). \"BR E 94 + BR 194, DB — Electric Locomotive Double Set.\""
+},
+{
+"tab": "Marklin H0",
+"row": 1156,
+"item": "37243",
+"column": "Item Type",
+"col_index": 1,
+"old": "Electric Locomotive",
+"new": "Electric Set",
+"kind": "E: electric unit set",
+"why": "[stated] Brad: electric unit sets are treated like diesel sets (listed under Set). \"Serie 1100, NS — Double Electric Locomotive Set.\""
+},
+{
+"tab": "Marklin H0",
+"row": 1197,
+"item": "37300",
+"column": "Item Type",
+"col_index": 1,
+"old": "Set",
+"new": "Electric Set",
+"kind": "E: electric unit set",
+"why": "[stated] Brad: electric unit sets are treated like diesel sets (listed under Set). \"Class Re 421 Double Electric Locomotive Set\""
+},
+{
+"tab": "Marklin H0",
+"row": 1213,
+"item": "37323",
+"column": "Item Type",
+"col_index": 1,
+"old": "Electric Locomotive",
+"new": "Electric Set",
+"kind": "E: electric unit set",
+"why": "[stated] Brad: electric unit sets are treated like diesel sets (listed under Set). \"Re 6/6, Re 4/4 II, SBB — Weathered \"Re 10/10\" Double Electric Locomotive Set.\""
+},
+{
+"tab": "Marklin H0",
+"row": 1242,
+"item": "37362",
+"column": "Item Type",
+"col_index": 1,
+"old": "Electric Locomotive",
+"new": "Electric Set",
+"kind": "E: electric unit set",
+"why": "[stated] Brad: electric unit sets are treated like diesel sets (listed under Set). \"Ae 6/6 (SBB) — Electric Locomotives - Double Set \"50th Anniversary of the Ae 6/6\""
+},
+{
+"tab": "Marklin H0",
+"row": 1342,
+"item": "37512",
+"column": "Item Type",
+"col_index": 1,
+"old": "Electric Locomotive",
+"new": "Electric Set",
+"kind": "E: electric unit set",
+"why": "[stated] Brad: electric unit sets are treated like diesel sets (listed under Set). \"Serie Ae 3/6 II (SBB/CFF/FFS) — Double Electric Locomotive Set.\""
+},
+{
+"tab": "Marklin H0",
+"row": 1355,
+"item": "37525",
+"column": "Item Type",
+"col_index": 1,
+"old": "Electric Locomotive",
+"new": "Electric Set",
+"kind": "E: electric unit set",
+"why": "[stated] Brad: electric unit sets are treated like diesel sets (listed under Set). \"BR EP 5 + BR E 52, DRG/DB — Electric Locomotive Double Set.\""
+}
+],
+"held": [
+{
+"tab": "MTH O",
+"row": 16401,
+"item": "20-2197-1",
+"type": "Electric Locomotive",
+"desc": "EP-5 Electric Engine Boxed Set",
+"why": "MTH sells it as a 'Boxed Set' (R-T-R/Speciality) of one EP-5 — not a set of units; left as Electric Locomotive"
+}
+],
+"cells_sha256": "3bacf625e756512d2e9838784a438c36d50c43500d2d88c98f137e65dbe63c7a",
+"already_done_by_2_02": [
+{
+"tab": "MTH O",
+"item": "20-5569-3",
+"note": "Description and Item Type already carry the planned values: Master Version 2.02 (record master-fixes-2026-10-04-diesel-sets-2.json) wrote them. Found on a fresh read of the sheet before writing; dropped from 2.03."
+},
+{
+"tab": "MTH O",
+"item": "20-5570-3",
+"note": "Description and Item Type already carry the planned values: Master Version 2.02 (record master-fixes-2026-10-04-diesel-sets-2.json) wrote them. Found on a fresh read of the sheet before writing; dropped from 2.03."
+},
+{
+"tab": "MTH O",
+"item": "20-5571-3",
+"note": "Description and Item Type already carry the planned values: Master Version 2.02 (record master-fixes-2026-10-04-diesel-sets-2.json) wrote them. Found on a fresh read of the sheet before writing; dropped from 2.03."
+}
+]
+}
