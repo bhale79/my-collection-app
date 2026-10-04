@@ -75,7 +75,7 @@ const RULES = {
     return ok(inbox) && ok(qc) && ok(detail) && ok(wiz) ? true : { inbox: ok(inbox), qc: ok(qc), detail: ok(detail), wiz: ok(wiz) };
   },
   // the crop screen hands the box back, and shows Restore only when it has one
-  screen: pc => /onResult\(blob, _box\)/.test(pc) && /typeof opts\.restore === 'function'\s*\n?\s*\? '<button id="_rrCropRestore"/.test(pc) && /id="_rrCropWhole" style="display:' \+ \(opts\.box \? '' : 'none'\)/.test(pc),
+  screen: pc => /onResult\(blob, _box\)/.test(pc) && /typeof opts\.restore === 'function'\s*\n?\s*\? '<button id="_rrCropRestore"/.test(pc) && /id="_rrCropWhole" style="' \+ btn \+ ';display:' \+ \(opts\.box \? '' : 'none'\)/.test(pc),   // v0.9.1876: built from the shared btn style
   // whole pixels of the original and its width — not fractions
   boxIsPixels: pc => /function _rrBoxStr\(box\)[\s\S]{0,400}String\(Math\.round\(Number\(v\) \|\| 0\)\)/.test(pc) && /p\.length !== 6/.test(pc) && /box\.W > 0\) \? \(W2 \/ box\.W\) : 1/.test(pc),
   // the audience is older collectors: nothing here says "AI"

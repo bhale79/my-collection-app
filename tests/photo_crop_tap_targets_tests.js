@@ -86,14 +86,15 @@ console.log('\n== A. THE RULE: .rr-tap is for one-glyph labels only ==');
 console.log('\n== B. The four Level buttons moved, the two Zoom buttons did not ==');
 {
   const wide = scan(CROP, 'rr-tap-wide').map(function (b) { return b.id; });
-  ['_rrCropRotQtrL', '_rrCropRotMinus', '_rrCropRotPlus', '_rrCropRotQtrR'].forEach(function (id) {
+  // v0.9.1876: the Straighten button joined the Zoom row — a worded label, so .rr-tap-wide.
+  ['_rrCropRotQtrL', '_rrCropRotMinus', '_rrCropRotPlus', '_rrCropRotQtrR', '_rrCropStraighten'].forEach(function (id) {
     ok(id + ' carries a label, so it is .rr-tap-wide', wide.indexOf(id) >= 0, wide.join(','));
   });
   const sq = scan(CROP, 'rr-tap').map(function (b) { return b.id; });
   ['_rrCropZoomOut', '_rrCropZoomIn'].forEach(function (id) {
     ok(id + ' is a single glyph, so it KEEPS the 44px square', sq.indexOf(id) >= 0, sq.join(','));
   });
-  ok('…and nothing else on the crop screen changed class', sq.length === 2 && wide.length === 4,
+  ok('…and nothing else on the crop screen changed class', sq.length === 2 && wide.length === 5,
      'square=' + sq.length + ' wide=' + wide.length);
 }
 

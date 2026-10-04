@@ -13,7 +13,10 @@
     if (document.getElementById('rr-crop-css')) return;
     var stl = document.createElement('style');
     stl.id = 'rr-crop-css';
-    stl.textContent = '.cropper-point{width:16px!important;height:16px!important;opacity:0.9!important;background-color:#39f}'
+    // v0.9.1876: the grip blue is ONE variable — the straighten dots and their
+    // outline wear it too (no second literal; the colour ratchet holds at 12).
+    stl.textContent = ':root{--rr-grip:#39f;--rr-dim:rgba(0,0,0,0.55)}'
+      + '.cropper-point{width:16px!important;height:16px!important;opacity:0.9!important;background-color:var(--rr-grip)}'
       + '.cropper-point.point-e{right:-8px;margin-top:-8px}'
       + '.cropper-point.point-n{top:-8px;margin-left:-8px}'
       + '.cropper-point.point-w{left:-8px;margin-top:-8px}'
@@ -32,7 +35,11 @@
       // 64px, so 44 would make opposite corners' targets overlap and you would
       // grab the wrong one.
       + '.cropper-point:after{content:"";position:absolute;left:50%;top:50%;'
-      +   'width:34px;height:34px;transform:translate(-50%,-50%)}';
+      +   'width:34px;height:34px;transform:translate(-50%,-50%)}'
+      // v0.9.1876: the straighten dots — an 18px dot inside a 34px target.
+      + '.rr-str-dot{position:absolute;width:34px;height:34px;margin:-17px 0 0 -17px;border-radius:50%;cursor:grab;touch-action:none;display:flex;align-items:center;justify-content:center}'
+      + '.rr-str-dot span{width:18px;height:18px;border-radius:50%;background:var(--rr-grip);border:2px solid #fff;display:block}'
+      + '.rr-str-poly{fill:var(--rr-grip);fill-opacity:0.12;stroke:var(--rr-grip);stroke-width:2}';
     document.head.appendChild(stl);
   } catch (e) {}
 })();
@@ -272,6 +279,193 @@ function _rrBoxApply(cropper, box) {
 }
 if (typeof window !== 'undefined') { window._rrCropBoxOf = _rrCropBoxOf; window._rrBoxStr = _rrBoxStr; window._rrBoxParse = _rrBoxParse; }
 
+// ══ v0.9.1876 — STRAIGHTEN (keystone) ═══════════════════════════════════════
+// [stated] Brad, 2026-10-03: "how hard to fix keystoning?" → the plan → "ok".
+// A box photographed from an angle comes out as a trapezoid. The collector
+// drags four dots onto its corners and that four-sided patch is redrawn as a
+// true rectangle, straight-on, inside the crop screen; level, zoom and the crop
+// box then work on the straightened picture as usual.
+//
+// HOW. The map from a flat rectangle to a photographed one is a plane
+// projection (a homography): eight numbers, fixed by the four corner pairs.
+// _rrHomography solves them; _rrWarpQuad traces every output pixel back into
+// the photo and reads it with bilinear weights — pure JS, no add-on, in row
+// chunks with a yield between them so a phone keeps painting. The output size
+// comes from the dots (top/bottom averaged for width, left/right for height),
+// capped at _RR_CROP_MAX like every crop. A turn already applied (90° or a
+// levelling step) is baked into the picture the dots sit on
+// (_rrRotatedCanvas), in exactly Cropper's frame — the rotated bounding box —
+// so the crop box's corners are the dots' natural starting place.
+//
+// RECORD. The dots ride the photo beside the crop box (appProperties rrQuad =
+// "r|W|H|x1,y1,…,x4,y4": the turn, the size of the picture the dots were set
+// on, the four corners in its pixels) so ✂ on a straightened photo puts the
+// dots back where they were (scaled by one number when the picture that comes
+// back is the original rather than its screen-sized copy) and shows the
+// straightened result with the crop box drawn. A straightened result is never
+// "the original, whole": Apply on it is a crop, never a restore.
+//
+// LIMITS, told to Brad: the far side of a keystoned shot is stretched, so its
+// lettering comes out softer; nothing is invented. Four dots, one plane: a
+// box with a crushed or hidden corner needs a best guess.
+
+// The 3×3 projective map taking the four `from` points onto the four `to`
+// points (same corner order). Gaussian elimination with partial pivoting on
+// the 8×8 system; h[8] is 1. null when the four points cannot be mapped (three
+// in a line, two the same).
+function _rrHomography(from, to) {
+  var A = [], b = [], i, k, r;
+  for (i = 0; i < 4; i++) {
+    var x = from[i][0], y = from[i][1], X = to[i][0], Y = to[i][1];
+    A.push([x, y, 1, 0, 0, 0, -X * x, -X * y]); b.push(X);
+    A.push([0, 0, 0, x, y, 1, -Y * x, -Y * y]); b.push(Y);
+  }
+  for (var c = 0; c < 8; c++) {
+    var p = c;
+    for (r = c + 1; r < 8; r++) if (Math.abs(A[r][c]) > Math.abs(A[p][c])) p = r;
+    if (Math.abs(A[p][c]) < 1e-9) return null;
+    if (p !== c) { var tA = A[p]; A[p] = A[c]; A[c] = tA; var tb = b[p]; b[p] = b[c]; b[c] = tb; }
+    for (r = c + 1; r < 8; r++) {
+      var f = A[r][c] / A[c][c];
+      if (!f) continue;
+      for (k = c; k < 8; k++) A[r][k] -= f * A[c][k];
+      b[r] -= f * b[c];
+    }
+  }
+  var h = new Array(9);
+  for (i = 7; i >= 0; i--) {
+    var s = b[i];
+    for (k = i + 1; k < 8; k++) s -= A[i][k] * h[k];
+    h[i] = s / A[i][i];
+  }
+  h[8] = 1;
+  return h;
+}
+function _rrProject(h, x, y) {
+  var w = h[6] * x + h[7] * y + h[8];
+  return [(h[0] * x + h[1] * y + h[2]) / w, (h[3] * x + h[4] * y + h[5]) / w];
+}
+// What shape was the thing REALLY? The photographed quad of a flat rectangle
+// also says how wide it is for its height, if the camera is assumed to look
+// through the picture's centre (Zhang & He, "Whiteboard scanning", 2004 — the
+// same sums every scanning app does). The sums also yield the camera's focal
+// length — but only when BOTH pairs of edges converge; a pure keystone (one
+// pair parallel) leaves it undefined and, numerically, garbage. So the focal
+// length is used only when it is one a phone could have (half to twice the
+// picture's width); otherwise a phone's usual lens is assumed (0.75 × width —
+// a 26–28 mm equivalent), which is within a few percent for tilts up to 30°
+// where plain edge-averaging is off by 15–50 %. Returns width ÷ height, or
+// null when the answer is outside anything a box photo can mean. Corners are
+// [tl, tr, br, bl] in picture pixels; cx, cy the picture's centre; W its width.
+function _rrQuadAspect(q, cx, cy, W) {
+  try {
+    var m1 = [q[0][0] - cx, q[0][1] - cy, 1], m2 = [q[1][0] - cx, q[1][1] - cy, 1], m3 = [q[3][0] - cx, q[3][1] - cy, 1], m4 = [q[2][0] - cx, q[2][1] - cy, 1];
+    var cross = function (a, b) { return [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]]; };
+    var dot = function (a, b) { return a[0] * b[0] + a[1] * b[1] + a[2] * b[2]; };
+    var k2 = dot(cross(m1, m4), m3) / dot(cross(m2, m4), m3);
+    var k3 = dot(cross(m1, m4), m2) / dot(cross(m3, m4), m2);
+    var n2 = [k2 * m2[0] - m1[0], k2 * m2[1] - m1[1], k2 * m2[2] - m1[2]];
+    var n3 = [k3 * m3[0] - m1[0], k3 * m3[1] - m1[1], k3 * m3[2] - m1[2]];
+    var f2 = -(n2[0] * n3[0] + n2[1] * n3[1]) / (n2[2] * n3[2]);
+    var fa = 0.75 * (W > 0 ? W : (2 * Math.max(Math.abs(cx), 1)));
+    if (!(f2 > 0) || !isFinite(f2) || Math.sqrt(f2) < 0.5 * fa / 0.75 || Math.sqrt(f2) > 2 * fa / 0.75) f2 = fa * fa;   // not a lens a phone has: assume one
+    var ratio = Math.sqrt((n2[0] * n2[0] + n2[1] * n2[1] + f2 * n2[2] * n2[2]) / (n3[0] * n3[0] + n3[1] * n3[1] + f2 * n3[2] * n3[2]));
+    if (!isFinite(ratio) || ratio < 0.2 || ratio > 5) return null;
+    return ratio;
+  } catch (e) { return null; }
+}
+// The straightened size for a quad [tl, tr, br, bl]: the edges averaged for a
+// first size, then — when the picture says what shape the thing really was —
+// the shorter side re-derived from the longer one and that shape, so a box face
+// comes out in its true proportions instead of foreshortened. The long side is
+// capped at `cap`, never under 64 (the crop box floor). cx, cy: the centre of
+// the picture the corners were placed on.
+function _rrQuadSize(q, cap, cx, cy) {
+  var d = function (a, b) { return Math.hypot(a[0] - b[0], a[1] - b[1]); };
+  var w = (d(q[0], q[1]) + d(q[3], q[2])) / 2, h = (d(q[0], q[3]) + d(q[1], q[2])) / 2;
+  var ratio = (cx != null && cy != null) ? _rrQuadAspect(q, cx, cy, cx * 2) : null;
+  if (ratio && w > 0 && h > 0) {
+    var measured = w / h;
+    // trust it within reason: the averaged shape is never off by more than half
+    if (ratio / measured > 0.5 && ratio / measured < 2) { if (w >= h) h = w / ratio; else w = h * ratio; }
+  }
+  var s = Math.min(1, cap / Math.max(w, h, 1));
+  return { w: Math.max(64, Math.round(w * s)), h: Math.max(64, Math.round(h * s)) };
+}
+// Redraw the quad `q` of the canvas `src` as a w×h rectangle. cb(canvas), or
+// cb(null) when the corners cannot be mapped. Rows in chunks of 96 with a
+// setTimeout between — a 2400-pixel picture takes well under a second on a
+// phone and the "Straightening…" notice stays painted.
+function _rrWarpQuad(src, q, w, h, cb) {
+  var H = _rrHomography([[0, 0], [w, 0], [w, h], [0, h]], q);   // output → source
+  if (!H) { cb(null); return; }
+  var sw = src.width, sh = src.height;
+  var sd = src.getContext('2d').getImageData(0, 0, sw, sh).data;
+  var out = document.createElement('canvas'); out.width = w; out.height = h;
+  var octx = out.getContext('2d'), od = octx.createImageData(w, h), o = od.data;
+  var y = 0;
+  function chunk() {
+    var yEnd = Math.min(h, y + 96);
+    for (; y < yEnd; y++) {
+      var Y = y + 0.5;
+      for (var x = 0; x < w; x++) {
+        var X = x + 0.5;
+        var den = H[6] * X + H[7] * Y + H[8];
+        var u = (H[0] * X + H[1] * Y + H[2]) / den - 0.5, v = (H[3] * X + H[4] * Y + H[5]) / den - 0.5;
+        var oi = (y * w + x) * 4;
+        if (u < -1 || v < -1 || u > sw || v > sh) { o[oi] = 0; o[oi + 1] = 0; o[oi + 2] = 0; o[oi + 3] = 255; continue; }   // past the photo's edge: black
+        var x0 = Math.floor(u), y0 = Math.floor(v), fx = u - x0, fy = v - y0, x1 = x0 + 1, y1 = y0 + 1;
+        if (x0 < 0) x0 = 0; if (y0 < 0) y0 = 0; if (x1 < 0) x1 = 0; if (y1 < 0) y1 = 0;
+        if (x0 >= sw) x0 = sw - 1; if (y0 >= sh) y0 = sh - 1; if (x1 >= sw) x1 = sw - 1; if (y1 >= sh) y1 = sh - 1;
+        var i00 = (y0 * sw + x0) * 4, i10 = (y0 * sw + x1) * 4, i01 = (y1 * sw + x0) * 4, i11 = (y1 * sw + x1) * 4;
+        var w00 = (1 - fx) * (1 - fy), w10 = fx * (1 - fy), w01 = (1 - fx) * fy, w11 = fx * fy;
+        o[oi]     = sd[i00] * w00 + sd[i10] * w10 + sd[i01] * w01 + sd[i11] * w11;
+        o[oi + 1] = sd[i00 + 1] * w00 + sd[i10 + 1] * w10 + sd[i01 + 1] * w01 + sd[i11 + 1] * w11;
+        o[oi + 2] = sd[i00 + 2] * w00 + sd[i10 + 2] * w10 + sd[i01 + 2] * w01 + sd[i11 + 2] * w11;
+        o[oi + 3] = 255;
+      }
+    }
+    if (y < h) { setTimeout(chunk, 0); return; }
+    octx.putImageData(od, 0, 0);
+    cb(out);
+  }
+  chunk();
+}
+// The picture turned by `deg` (clockwise, Cropper's and the canvas's shared
+// convention) into a canvas the size of its rotated bounding box — the frame
+// Cropper's getData / setData speak in for a turned picture.
+function _rrRotatedCanvas(img, deg) {
+  try {
+    var w = img.naturalWidth, h = img.naturalHeight;
+    if (!w || !h) return null;
+    var rad = (Number(deg) || 0) * Math.PI / 180, c = Math.abs(Math.cos(rad)), s = Math.abs(Math.sin(rad));
+    var cw = Math.max(1, Math.round(w * c + h * s)), ch = Math.max(1, Math.round(w * s + h * c));
+    var cv = document.createElement('canvas'); cv.width = cw; cv.height = ch;
+    var ctx = cv.getContext('2d');
+    ctx.translate(cw / 2, ch / 2); ctx.rotate(rad); ctx.drawImage(img, -w / 2, -h / 2);
+    return cv;
+  } catch (e) { return null; }
+}
+// "r|W|H|x1,y1,x2,y2,x3,y3,x4,y4" — whole pixels, under the appProperties limit.
+var _RR_QUAD_PROP = 'rrQuad';
+function _rrQuadStr(q) {
+  return [(Math.round((Number(q.r) || 0) * 10) / 10).toFixed(1), Math.round(q.W), Math.round(q.H)].join('|') + '|' +
+    q.pts.map(function (p) { return Math.round(p[0]) + ',' + Math.round(p[1]); }).join(',');
+}
+function _rrQuadParse(s) {
+  var parts = String(s || '').split('|');
+  if (parts.length !== 4) return null;
+  var r = parseFloat(parts[0]), W = parseFloat(parts[1]), H = parseFloat(parts[2]);
+  var n = parts[3].split(',').map(parseFloat);
+  if (n.length !== 8 || n.some(function (v) { return isNaN(v); }) || isNaN(r) || !(W > 0) || !(H > 0)) return null;
+  var pts = []; for (var i = 0; i < 8; i += 2) pts.push([n[i], n[i + 1]]);
+  return { r: r, W: W, H: H, pts: pts };
+}
+if (typeof window !== 'undefined') {
+  window._rrHomography = _rrHomography; window._rrProject = _rrProject; window._rrQuadSize = _rrQuadSize; window._rrQuadAspect = _rrQuadAspect;
+  window._rrWarpQuad = _rrWarpQuad; window._rrRotatedCanvas = _rrRotatedCanvas; window._rrQuadStr = _rrQuadStr; window._rrQuadParse = _rrQuadParse;
+}
+
 function _openCropper(src, onResult, onCancel, opts) {   // v0.9.787: onCancel = proceed without cropping
   // v0.9.1052: opts lets a caller reword the screen — the crop-before-a-paid-read
   // flow needs its Cancel to read "Use whole photo", because there it is a real
@@ -294,6 +488,7 @@ function _openCropper(src, onResult, onCancel, opts) {   // v0.9.787: onCancel =
   // this row introduces no colour of its own. The two hand-written copies the
   // old −/+ buttons carried are gone with the slider.
   var stepBtn = btn + ';padding:0.45rem 0.6rem;min-width:46px;min-height:40px;font-size:0.86rem;line-height:1;white-space:nowrap';
+  var waitCss = 'position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#aaa;font-size:0.85rem';   // v0.9.1876: one notice style (Loading photo… / Straightening…)
   ov.innerHTML =
     '<div style="flex:0 0 auto;padding:0.75rem 1rem;display:flex;justify-content:space-between;align-items:center;color:#fff;gap:1rem;flex-wrap:wrap">' +
       '<strong style="font-size:1rem">' + (opts.title || 'Crop photo') + '</strong>' +
@@ -303,7 +498,7 @@ function _openCropper(src, onResult, onCancel, opts) {   // v0.9.787: onCancel =
       // v0.9.1872: both buttons are decided BEFORE the picture area is measured
       // (_freezeStage) — the v0.9.1774 rule: a button revealed late grows the
       // header under a picture that was already pinned.
-      '<button id="_rrCropWhole" style="display:' + (opts.box ? '' : 'none') + ';padding:0.4rem 0.7rem;min-height:38px;border-radius:8px;border:1px solid #555;background:#2a2a2a;color:#eee;font-size:0.78rem;cursor:pointer">Whole photo</button>' +
+      '<button id="_rrCropWhole" style="' + btn + ';display:' + (opts.box ? '' : 'none') + ';padding:0.4rem 0.7rem;min-height:38px;font-size:0.78rem">Whole photo</button>' +
       (typeof opts.restore === 'function'
         ? '<button id="_rrCropRestore" title="Put the original photo back, exactly as it was taken" style="' + btn + ';padding:0.4rem 0.7rem;min-height:38px;font-size:0.78rem">\u21a9 Restore original</button>'
         : '') +
@@ -342,7 +537,7 @@ function _openCropper(src, onResult, onCancel, opts) {   // v0.9.787: onCancel =
         // over. It used to paint at full size first and then get swapped for
         // Cropper's own rendering — one of the blinks Brad was seeing.
         '<img id="_rrCropImg" style="max-width:100%;max-height:100%;display:block;margin:0 auto;visibility:hidden">' +
-        '<div id="_rrCropWait" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#aaa;font-size:0.85rem">Loading photo…</div>' +
+        '<div id="_rrCropWait" style="' + waitCss + '">Loading photo…</div>' +
       '</div>' +
     '</div>' +
     // v0.9.904 (Brad, item [3]): fine-rotation slider restored \u2014 same control
@@ -406,6 +601,9 @@ function _openCropper(src, onResult, onCancel, opts) {   // v0.9.787: onCancel =
         '<span style="color:#ccc;font-size:0.78rem;white-space:nowrap">Zoom</span>' +
         '<button id="_rrCropZoomOut" class="rr-tap" title="Zoom out" style="' + stepBtn + '">\u2212</button>' +
         '<button id="_rrCropZoomIn" class="rr-tap" title="Zoom in" style="' + stepBtn + '">+</button>' +
+        // v0.9.1876: the keystone fix. Sealed in this row with Zoom; ~95px, which
+        // the narrowest phone Brad has still fits beside "Zoom − +".
+        '<button id="_rrCropStraighten" class="rr-tap-wide" title="Fix a photo taken at an angle: drag four dots onto the corners of the box" style="' + stepBtn + ';min-width:0;padding:0.45rem 0.75rem;margin-left:0.35rem">Straighten</button>' +
       '</div>' +
     '</div>' +
     '<div style="flex:0 0 auto;padding:0.85rem 1rem;display:flex;gap:0.6rem;justify-content:flex-end">' +
@@ -499,38 +697,22 @@ function _openCropper(src, onResult, onCancel, opts) {   // v0.9.787: onCancel =
       }
     } catch (eRB) {}
     _freezeStage();
+    _autoOrients = autoOriented;
     // v0.9.904 (Brad, item [3]): viewMode 0 (was 1) so a rotated photo isn't
     // clamped/zoomed to fill the frame — matches the box-scanner cropper, which
     // is what makes the fine-rotation slider behave.
+    // v0.9.1876: the options are built by _cropperOpts, ONE set, because the
+    // straighten step rebuilds Cropper on the redrawn picture with the same.
     try {
-      cropper = new Cropper(img, {
-        viewMode: 0, autoCropArea: 1, background: false, movable: true, zoomable: true,
-        // v0.9.1774 (Brad): "now you can pinch zoom which is not good when
-        // you're trying to crop." Pinch predates this release — it was never
-        // added, it was simply always there — but v0.9.1736 gave the screen real
-        // + and - buttons, so pinch became a second way to do a thing that
-        // already has a better one, and it fires while you are trying to drag a
-        // corner. Wheel zoom stays: a mouse has no competing gesture.
-        zoomOnTouch: false,
-        responsive: !_phone, checkOrientation: !autoOriented,
-        // v0.9.1773 (Brad: "half the time it colapses into a tiny box that i
-        // have to stretch back out"). There was no floor at all, so one clumsy
-        // drag could take the box to nearly zero. A fingertip is the floor.
-        // viewMode stays 0 on purpose — v0.9.904 chose it so a rotated photo is
-        // not clamped and zoomed to fill the frame, which is what makes the
-        // half-degree levelling behave. Do not "fix" that to 1.
-        minCropBoxWidth: 64, minCropBoxHeight: 64,
-        // v0.9.1049: seeding the rotation and restoring the remembered box BOTH
-        // need the cropper to be ready — setData and getImageData do nothing
-        // before that, which is why doing it straight after the constructor
-        // silently had no effect.
-        ready: function () {
+      cropper = new Cropper(img, _cropperOpts(function () {
           try { _seedRot(); } catch (eS) {}
           // v0.9.1872: this photo's own crop, drawn on its original. The
           // rotation goes through the screen's own controls so the degree
           // readout agrees with the picture; then the box, in that frame.
+          // v0.9.1876: a straightened photo replays its dots first (_strReplay).
           if (opts.box) {
             try {
+              if (opts.box.quad) { _strReplay(opts.box); return; }
               var _r = Number(opts.box.r) || 0;
               _quarters = ((Math.round(_r / 90) % 4) + 4) % 4;
               _fine = Math.round((_r - (Math.round(_r / 90) * 90)) * 2) / 2;
@@ -551,14 +733,28 @@ function _openCropper(src, onResult, onCancel, opts) {   // v0.9.787: onCancel =
               if (_rb) _rb.style.display = '';
             }
           } catch (eB) {}
-        },
-      });
+      }));
     } catch (e) {
       console.warn('[crop] init', e);
       img.style.visibility = '';   // show the plain photo rather than nothing
     }
     var w = ov.querySelector('#_rrCropWait');
     if (w) w.remove();
+  }
+  var _autoOrients = true;
+  // The one Cropper option set (v0.9.1876: shared by the first build and the
+  // straighten rebuilds). Comments for each choice stayed in _build's history:
+  // zoomOnTouch false (v1774), responsive only off phones (v1031),
+  // checkOrientation only for a browser that does not apply EXIF itself
+  // (v1032), a 64px floor under the box (v1773), viewMode 0 (v904).
+  function _cropperOpts(onReady) {
+    return {
+      viewMode: 0, autoCropArea: 1, background: false, movable: true, zoomable: true,
+      zoomOnTouch: false,
+      responsive: !_phone, checkOrientation: !_autoOrients,
+      minCropBoxWidth: 64, minCropBoxHeight: 64,
+      ready: onReady,
+    };
   }
   // v0.9.1031: build ONCE, and only after the photo has actually decoded and
   // the overlay has been laid out — the old code raced the decode, so the
@@ -644,11 +840,18 @@ function _openCropper(src, onResult, onCancel, opts) {   // v0.9.787: onCancel =
     try { window.removeEventListener('orientationchange', _onOrient); } catch (e) {}
     try { if (cropper) cropper.destroy(); } catch (e) {}
     try { if (_previewUrl) { URL.revokeObjectURL(_previewUrl); _previewUrl = null; } } catch (e) {}   // v0.9.1827
+    try { if (_str && _str.warpUrl) { URL.revokeObjectURL(_str.warpUrl); _str.warpUrl = null; } } catch (e) {}   // v0.9.1876
     ov.remove();
     if (window.BackStack) BackStack.pop('_rr-cropper');
   }
   // v0.9.808 (TODO-012): device Back = Cancel (keep the full photo).
-  if (window.BackStack) BackStack.push('_rr-cropper', function () { done(); if (onCancel) try { onCancel(); } catch (e) {} });
+  // v0.9.1876: while the four dots are up, Back only puts them away (and
+  // stays armed for the next press); the screen itself closes on the one after.
+  function _onDeviceBack() {
+    if (_str && _str.on) { _strExit(); if (window.BackStack) BackStack.push('_rr-cropper', _onDeviceBack); return; }
+    done(); if (onCancel) try { onCancel(); } catch (e) {}
+  }
+  if (window.BackStack) BackStack.push('_rr-cropper', _onDeviceBack);
   // v0.9.904 (Brad, item [3]): fine-rotation slider (any angle) + the ↻ button
   // for quick 90° flips, kept in sync with the slider.
   var rotEl = ov.querySelector('#_rrCropRot'), rotV = ov.querySelector('#_rrCropRotV');
@@ -708,27 +911,231 @@ function _openCropper(src, onResult, onCancel, opts) {   // v0.9.787: onCancel =
   // v0.9.1737: the footer Rotate button is gone; _turn is reached from the two
   // 90° buttons in the row above.
   var _wholeBtn = ov.querySelector('#_rrCropWhole');
+  var _restoreBtn = ov.querySelector('#_rrCropRestore');
+  // ══ v0.9.1876 — STRAIGHTEN: the dots, the warp, undo, replay ══════════════
+  // (see the helpers above _openCropper for the map itself)
+  var _str = { on: false, layer: null, src: null, rot: 0, pts: null, k: 1, ox: 0, oy: 0,
+               applied: null, prevSrc: null, prevRot: 0, warpUrl: null, lastPts: null, lastW: 0, lastH: 0,
+               busy: false, hintBefore: null, onApplied: null };
+  var _strBtn = ov.querySelector('#_rrCropStraighten');
+  var _cancelBtn = ov.querySelector('#_rrCropCancel'), _applyBtn = ov.querySelector('#_rrCropApply');
+  var _rowLevel = ov.querySelector('#_rrCropRowLevel');
+  function _totalRot() { var t = (_quarters * 90) + _fine; while (t > 180) t -= 360; while (t <= -180) t += 360; return t; }
+  function _setRotParts(deg) {
+    _quarters = ((Math.round(deg / 90) % 4) + 4) % 4;
+    _fine = Math.round((deg - (Math.round(deg / 90) * 90)) * 2) / 2;
+    if (_fine > 15 || _fine < -15) _fine = 0;
+  }
+  var _cropperOptsBase = null;   // set by _build: the one option set, reused when the picture is swapped
+  // What the controls say and do in each state: placing dots / straightened / plain.
+  function _strSetControls(dots) {
+    var dim = function (el) { if (!el) return; el.style.opacity = dots ? '0.35' : ''; el.style.pointerEvents = dots ? 'none' : ''; };
+    [_rowLevel, _zOut, _zIn, _wholeBtn, _restoreBtn].forEach(dim);
+    if (_cancelBtn) _cancelBtn.textContent = dots ? 'Back' : (opts.cancelLabel || 'Cancel');
+    if (_applyBtn) _applyBtn.textContent = dots ? 'Straighten' : (opts.applyLabel || 'Apply crop');
+    if (_strBtn) { _strBtn.textContent = dots ? 'Placing dots…' : (_str.applied ? 'Undo straighten' : 'Straighten'); _strBtn.style.opacity = dots ? '0.6' : ''; }
+    var h = ov.querySelector('#_rrCropHint');
+    if (!h) return;
+    if (dots) h.textContent = 'Drag the four dots onto the corners of the box';
+    else if (_str.applied) h.textContent = (opts.original ? 'Showing your straightened photo' : 'Straightened') + ' · the box is your crop';   // one line on a phone; the button says the rest
+    else if (_str.hintBefore != null) h.textContent = _str.hintBefore;
+  }
+  // Enter: the picture as it stands (turn baked in) under four dots.
+  function _strEnter() {
+    if (!cropper || _str.on || _str.busy || _str.applied) return;
+    var deg = _totalRot();
+    var srcC = _rrRotatedCanvas(img, deg);
+    if (!srcC) return;
+    _str.src = srcC; _str.rot = deg;
+    // Starting corners: the dots as last placed on this very picture, else the
+    // crop box (a box that is the whole picture gives an inset square instead —
+    // dots on the picture's own corners have nowhere to be dragged from).
+    var pts = null;
+    if (_str.lastPts && _str.lastW === srcC.width && _str.lastH === srcC.height) pts = _str.lastPts.map(function (p) { return p.slice(); });
+    if (!pts) {
+      try {
+        var d = cropper.getData();
+        if (d && d.width > 0 && d.height > 0 && (d.width < srcC.width * 0.95 || d.height < srcC.height * 0.95)) pts = [[d.x, d.y], [d.x + d.width, d.y], [d.x + d.width, d.y + d.height], [d.x, d.y + d.height]];
+      } catch (e) {}
+    }
+    if (!pts) { var W0 = srcC.width, H0 = srcC.height; pts = [[W0 * 0.1, H0 * 0.1], [W0 * 0.9, H0 * 0.1], [W0 * 0.9, H0 * 0.9], [W0 * 0.1, H0 * 0.9]]; }
+    _str.pts = pts.map(function (p) { return [Math.max(0, Math.min(srcC.width, p[0])), Math.max(0, Math.min(srcC.height, p[1]))]; });
+    _str.hintBefore = (ov.querySelector('#_rrCropHint') || {}).textContent;
+    var cc = ov.querySelector('.cropper-container'); if (cc) cc.style.display = 'none';
+    var layer = document.createElement('div'); layer.id = '_rrStrLayer';
+    layer.style.cssText = 'position:absolute;inset:0;touch-action:none;user-select:none;-webkit-user-select:none';
+    // The picture sits 20px in from the stage's edges so a dot on the
+    // picture's very corner is still whole and grabbable (the stage clips).
+    var sw = stage.clientWidth, sh = stage.clientHeight, pad = 20;
+    var k = Math.min(Math.max(1, sw - pad * 2) / srcC.width, Math.max(1, sh - pad * 2) / srcC.height);
+    var dw = Math.max(1, Math.round(srcC.width * k)), dh = Math.max(1, Math.round(srcC.height * k));
+    var ox = Math.round((sw - dw) / 2), oy = Math.round((sh - dh) / 2);
+    _str.k = k; _str.ox = ox; _str.oy = oy;
+    var pic = document.createElement('canvas'); pic.id = '_rrStrPic'; pic.width = dw; pic.height = dh;
+    pic.style.cssText = 'position:absolute;left:' + ox + 'px;top:' + oy + 'px;width:' + dw + 'px;height:' + dh + 'px';
+    try { pic.getContext('2d').drawImage(srcC, 0, 0, dw, dh); } catch (eP) {}
+    layer.appendChild(pic);
+    var svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); svg.id = '_rrStrShape';
+    svg.setAttribute('width', String(sw)); svg.setAttribute('height', String(sh));
+    svg.style.cssText = 'position:absolute;left:0;top:0;pointer-events:none';
+    var poly = document.createElementNS('http://www.w3.org/2000/svg', 'polygon'); poly.id = '_rrStrPoly';
+    poly.setAttribute('class', 'rr-str-poly');
+    svg.appendChild(poly); layer.appendChild(svg);
+    for (var i = 0; i < 4; i++) {
+      // a 34px target around an 18px dot — the v1773 grip lesson, by the numbers
+      var dot = document.createElement('div'); dot.id = '_rrStrDot' + i; dot.setAttribute('data-dot', String(i)); dot.className = 'rr-str-dot';
+      dot.innerHTML = '<span></span>';
+      dot.addEventListener('pointerdown', _strDown);
+      layer.appendChild(dot);
+    }
+    stage.appendChild(layer);
+    _str.layer = layer; _str.on = true;
+    _strDraw();
+    _strSetControls(true);
+  }
+  function _strDraw() {
+    if (!_str.on || !_str.layer) return;
+    var k = _str.k, ox = _str.ox, oy = _str.oy;
+    var scr = _str.pts.map(function (p) { return [ox + p[0] * k, oy + p[1] * k]; });
+    var poly = _str.layer.querySelector('#_rrStrPoly');
+    if (poly) poly.setAttribute('points', scr.map(function (p) { return p[0].toFixed(1) + ',' + p[1].toFixed(1); }).join(' '));
+    for (var i = 0; i < 4; i++) { var dot = _str.layer.querySelector('#_rrStrDot' + i); if (dot) { dot.style.left = scr[i][0] + 'px'; dot.style.top = scr[i][1] + 'px'; } }
+  }
+  var _strDrag = null;
+  function _strDown(e) {
+    if (!_str.on) return;
+    var i = parseInt(e.currentTarget.getAttribute('data-dot'), 10);
+    _strDrag = { i: i };
+    try { e.currentTarget.setPointerCapture(e.pointerId); } catch (eC) {}
+    e.currentTarget.addEventListener('pointermove', _strMove);
+    e.currentTarget.addEventListener('pointerup', _strUp);
+    e.currentTarget.addEventListener('pointercancel', _strUp);
+    e.preventDefault();
+  }
+  function _strMove(e) {
+    if (!_strDrag || !_str.on) return;
+    var r = _str.layer.getBoundingClientRect();
+    var x = (e.clientX - r.left - _str.ox) / _str.k, y = (e.clientY - r.top - _str.oy) / _str.k;
+    x = Math.max(0, Math.min(_str.src.width, x)); y = Math.max(0, Math.min(_str.src.height, y));
+    _str.pts[_strDrag.i] = [x, y];
+    _strDraw();
+  }
+  function _strUp(e) {
+    var t = e.currentTarget;
+    t.removeEventListener('pointermove', _strMove); t.removeEventListener('pointerup', _strUp); t.removeEventListener('pointercancel', _strUp);
+    _strDrag = null;
+  }
+  // Back: the dots go away, nothing changed; they come back where they were.
+  function _strExit() {
+    if (!_str.on) return;
+    _str.lastPts = _str.pts.map(function (p) { return p.slice(); }); _str.lastW = _str.src.width; _str.lastH = _str.src.height;
+    if (_str.layer) { try { _str.layer.remove(); } catch (e) {} _str.layer = null; }
+    var cc = ov.querySelector('.cropper-container'); if (cc) cc.style.display = '';
+    _str.on = false;
+    _strSetControls(false);
+  }
+  // Swap the picture under Cropper (destroy, load, rebuild) and set the turn.
+  function _strSwap(url, rotAfter, then) {
+    try { if (cropper) { cropper.destroy(); } } catch (e) {}
+    cropper = null;
+    img.style.visibility = 'hidden';
+    img.onload = function () {
+      img.onload = null;
+      try {
+        cropper = new Cropper(img, _cropperOpts(function () {
+          _setRotParts(rotAfter); _applyRot();
+          if (then) then();
+        }));
+      } catch (e) { console.warn('[crop] rebuild', e); img.style.visibility = ''; if (then) then(); }
+    };
+    img.src = url;
+  }
+  // Straighten: warp the quad, put the result under Cropper, remember the dots.
+  function _strApply() {
+    if (!_str.on || _str.busy) return;
+    var pts = _str.pts.map(function (p) { return p.slice(); });
+    var size = _rrQuadSize(pts, _RR_CROP_MAX, _str.src.width / 2, _str.src.height / 2);
+    if (!_rrHomography([[0, 0], [size.w, 0], [size.w, size.h], [0, size.h]], pts)) {
+      if (typeof showToast === 'function') showToast('Move the dots so they make a four-sided shape', 3000, true);
+      return;
+    }
+    _str.busy = true;
+    var wait = document.createElement('div'); wait.id = '_rrStrWait';
+    wait.style.cssText = waitCss + ';background:var(--rr-dim);z-index:3';
+    wait.textContent = 'Straightening…';
+    stage.appendChild(wait);
+    var srcC = _str.src, rot = _str.rot;
+    var finish = function () { _str.busy = false; try { wait.remove(); } catch (e) {} };
+    setTimeout(function () {
+      _rrWarpQuad(srcC, pts, size.w, size.h, function (out) {
+        if (!out || !document.body.contains(ov)) { finish(); return; }
+        out.toBlob(function (blob) {
+          if (!blob || !document.body.contains(ov)) { finish(); return; }
+          var url = URL.createObjectURL(blob);
+          var prevSrc = img.src;
+          _strExit();
+          _strSwap(url, 0, function () {
+            if (!_str.applied) { _str.prevSrc = prevSrc; _str.prevRot = rot; }
+            if (_str.warpUrl) { try { URL.revokeObjectURL(_str.warpUrl); } catch (e) {} }
+            _str.warpUrl = url;
+            _str.applied = { r: rot, W: srcC.width, H: srcC.height, pts: pts };
+            finish();
+            _strSetControls(false);
+            if (typeof _str.onApplied === 'function') { var f = _str.onApplied; _str.onApplied = null; try { f(); } catch (e) {} }
+          });
+        }, 'image/jpeg', 0.92);
+      });
+    }, 30);
+  }
+  // Undo straighten: the picture from before, its turn as it was; the dots are kept.
+  function _strUndo() {
+    if (!_str.applied || _str.busy || _str.on) return;
+    _str.busy = true;
+    var back = _str.prevSrc, rot = _str.prevRot;
+    _strSwap(back, rot, function () {
+      _str.applied = null; _str.busy = false;
+      if (_str.warpUrl) { try { URL.revokeObjectURL(_str.warpUrl); } catch (e) {} _str.warpUrl = null; }
+      _strSetControls(false);
+    });
+  }
+  // ✂ on a straightened photo: the dots back where they were (one scale — the
+  // picture may be the original or its copy), the warp applied, then the box.
+  function _strReplay(box) {
+    var q = box.quad;
+    _setRotParts(Number(q.r) || 0); _applyRot();
+    _strEnter();
+    if (!_str.on) { try { _rrBoxApply(cropper, box); } catch (e) {} return; }
+    var k = _str.src.width / q.W;
+    _str.pts = q.pts.map(function (p) { return [Math.max(0, Math.min(_str.src.width, p[0] * k)), Math.max(0, Math.min(_str.src.height, p[1] * k))]; });
+    _strDraw();
+    // after the warp: any levelling done on the straightened picture (the box's own turn), then the box
+    _str.onApplied = function () { try { _setRotParts(Number(box.r) || 0); _applyRot(); _rrBoxApply(cropper, box); } catch (e) {} };
+    _strApply();
+  }
+  if (_strBtn) _strBtn.onclick = function () { if (_str.on || _str.busy) return; if (_str.applied) _strUndo(); else _strEnter(); };
   if (_wholeBtn) _wholeBtn.onclick = function () {
     try {
       localStorage.removeItem(_RR_BOX_KEY);
       if (cropper) { cropper.reset(); _quarters = 0; _fine = 0; _applyRot(); }   // v0.9.1872: the stored box came with a rotation; "whole" means level too
       var _h = ov.querySelector('#_rrCropHint');
-      if (_h) _h.textContent = opts.original ? 'Showing the original photo \u00b7 Apply keeps it whole' : 'Drag the box \u00b7 zoom with the buttons';
+      if (_h) _h.textContent = _str.applied ? 'Straightened \u00b7 the whole straightened photo' : (opts.original ? 'Showing the original photo \u00b7 Apply keeps it whole' : 'Drag the box \u00b7 zoom with the buttons');
       _wholeBtn.style.display = 'none';
     } catch (e) {}
   };
   // v0.9.1872: one tap puts the original back. The caller owns the bytes and
   // the write; this screen only closes and hands over.
-  var _restoreBtn = ov.querySelector('#_rrCropRestore');
   if (_restoreBtn) _restoreBtn.onclick = function () {
     done();
     try { opts.restore(); } catch (e) { console.warn('[crop] restore', e); }
   };
-  ov.querySelector('#_rrCropCancel').onclick = function () { done(); if (onCancel) try { onCancel(); } catch (e) {} };
+  ov.querySelector('#_rrCropCancel').onclick = function () { if (_str.on) { _strExit(); return; } done(); if (onCancel) try { onCancel(); } catch (e) {} };   // v0.9.1876: in dot mode this is Back
   ov.querySelector('#_rrCropApply').onclick = function () {
+    if (_str.on) { _strApply(); return; }        // v0.9.1876: in dot mode this is Straighten
+    if (_str.busy) return;
     if (!cropper) { done(); if (onCancel) try { onCancel(); } catch (e) {} return; }
     try { _rrSaveBox(cropper); } catch (eS) {}   // v0.9.1049: offer this box on the next photo
     var _box = _rrCropBoxOf(cropper);            // v0.9.1872: the box this crop is taken from, for the photo's record
+    if (_box && _str.applied) { _box.quad = _str.applied; _box.whole = false; }   // v0.9.1876: the dots ride along; a straightened result is never "the original, whole"
     var canvas = cropper.getCroppedCanvas({ maxWidth: _RR_CROP_MAX, maxHeight: _RR_CROP_MAX, imageSmoothingQuality: 'high' });   // v0.9.1827: the ONE cap, shared with the preview
     if (!canvas) { done(); if (onCancel) try { onCancel(); } catch (e) {} return; }
     canvas.toBlob(function (blob) { done(); if (blob) onResult(blob, _box); }, 'image/jpeg', 0.9);
@@ -833,11 +1240,16 @@ async function _cropOriginalFetch(fileId) {
 // re-crop starts from the whole original.
 async function _cropBoxSave(fileId, box) {
   var props = {}; props[_RR_BOX_PROP] = box ? _rrBoxStr(box) : null;
+  props[_RR_QUAD_PROP] = (box && box.quad) ? _rrQuadStr(box.quad) : null;   // v0.9.1876: the straighten dots, or cleared
   await driveRequest('PATCH', '/files/' + fileId + '?fields=id', { appProperties: props });
 }
 async function _cropBoxRead(fileId) {
   var meta = await driveRequest('GET', '/files/' + fileId + '?fields=appProperties');
-  return _rrBoxParse(meta && meta.appProperties && meta.appProperties[_RR_BOX_PROP]);
+  var ap = (meta && meta.appProperties) || {};
+  var box = _rrBoxParse(ap[_RR_BOX_PROP]);
+  var quad = _rrQuadParse(ap[_RR_QUAD_PROP]);   // v0.9.1876
+  if (box && quad) box.quad = quad;
+  return box;
 }
 // This session's memory of originals already in hand — a photo taken a minute
 // ago, or one whose original was just fetched — so the next ✂ on it needs no

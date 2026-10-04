@@ -52,8 +52,12 @@ function ok(name, cond, detail) {
 // Deliberately NOT a comment-stripping regex: this file is mostly comments and
 // a regex that tried to remove them would eat the code (v0.9.1772's lesson).
 function cropperOptions(src) {
-  const i = src.indexOf('new Cropper(');
+  // v0.9.1876: the option set lives in _cropperOpts (one set, reused when the
+  // straighten step rebuilds Cropper); fall back to the constructor literal.
+  let i = src.indexOf('function _cropperOpts(');
+  if (i < 0) i = src.indexOf('new Cropper(');
   if (i < 0) return '';
+  if (/function _cropperOpts\(/.test(src.slice(i, i + 30))) i = src.indexOf('return {', i);
   let d = 0; const s0 = src.indexOf('{', i);
   for (let k = s0; k < src.length; k++) {
     if (src[k] === '{') d++;
