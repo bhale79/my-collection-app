@@ -1,0 +1,47 @@
+{
+"what": "MTH Tinplate: three No. 4689 descriptions cut by the import, completed from MTH's titles (Master Version 2.05)",
+"date": "2026-10-04",
+"source": "[stated] Brad 2026-10-04: \"yes\" to plan, \"yes\" to write. mthtrains.com titles for 11-2007-0, 11-2007-1, 11-2008-1, less the road and MTH's product-line words (the Master Version 1.96 rule); plan workbook NO4689_DESCRIPTIONS_PLAN_2026-10-04.xlsx built from a fresh read of the tab",
+"cells": [
+{
+"tab": "MTH Tinplate",
+"row": 298,
+"item": "11-2007-0",
+"column": "Description",
+"col_index": 7,
+"old": "Locomotive with Passenger Cars",
+"new": "No. 4689 Std. Gauge President's Special - Traditional",
+"kind": "Description cut by the import",
+"why": "[stated] Brad 2026-10-04 \"yes\": complete the cut descriptions from MTH's own pages. MTH's title: \"Two-Tone Blue Std. Gauge Lionel Corporation Tinplate No. 4689 Std. Gauge President's Special - Traditional\" — less the road (Two-Tone Blue, already in Road Name) and MTH's product-line words (the 1.96 rule)."
+},
+{
+"tab": "MTH Tinplate",
+"row": 299,
+"item": "11-2007-1",
+"column": "Description",
+"col_index": 7,
+"old": "Locomotive with Passenger Cars",
+"new": "No. 4689 Std. Gauge President's Special Pass.Set w/Proto-Sound 2.0",
+"kind": "Description cut by the import",
+"why": "[stated] Brad 2026-10-04 \"yes\": complete the cut descriptions from MTH's own pages. MTH's title: \"Two-Tone Blue Std. Gauge Lionel Corporation Tinplate No. 4689 Std. Gauge President's Special Pass.Set w/Proto-Sound 2.0\" — less the road (Two-Tone Blue, already in Road Name) and MTH's product-line words (the 1.96 rule)."
+},
+{
+"tab": "MTH Tinplate",
+"row": 300,
+"item": "11-2008-1",
+"column": "Description",
+"col_index": 7,
+"old": "Locomotive",
+"new": "No. 4689 Std. Gauge Presidential Locomotive w/Proto-Sound 2.0",
+"kind": "Description cut by the import",
+"why": "[stated] Brad 2026-10-04 \"yes\": complete the cut descriptions from MTH's own pages. MTH's title: \"Two-Tone Blue Std. Gauge Lionel Corporation Tinplate No. 4689 Std. Gauge Presidential Locomotive w/Proto-Sound 2.0\" — less the road (Two-Tone Blue, already in Road Name) and MTH's product-line words (the 1.96 rule)."
+}
+],
+"held": [
+{
+"item": "11-2031",
+"why": "Year Produced \"1990-1992\" is one of 23 Greenberg rows (11-2024 … 11-5014) whose years (1979-1995) predate MTH's 11- numbers; needs a source for the whole group, not a one-row fix"
+}
+],
+"cells_sha256": "71ff1257485d4aa207e9cc53854347c79c8717a44b91d4d994f6553a845e039f"
+}
