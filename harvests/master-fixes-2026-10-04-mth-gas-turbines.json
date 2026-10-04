@@ -1,0 +1,262 @@
+{
+"what": "MTH gas turbines typed Diesel (Master Version 1.99)",
+"date": "2026-10-04",
+"source": "[stated] Brad 2026-10-04: \"diesel\"; mthtrains.com product pages (status.jsonl)",
+"cells": [
+{
+"tab": "MTH HO",
+"row": 202,
+"item": "80-2130-0",
+"column": "Item Type",
+"col_index": 1,
+"old": "Tender",
+"new": "Diesel Locomotive",
+"kind": "T: gas turbine",
+"why": "[stated] Brad 2026-10-04: gas turbines are typed Diesel. MTH lists it as a Diesel/Electric Locomotive (\"Union Pacific HO Scale MTH HO 4500hp Gas Turbine & Tender Set (DCC Ready)\")"
+},
+{
+"tab": "MTH HO",
+"row": 203,
+"item": "80-2130-1",
+"column": "Item Type",
+"col_index": 1,
+"old": "Tender",
+"new": "Diesel Locomotive",
+"kind": "T: gas turbine",
+"why": "[stated] Brad 2026-10-04: gas turbines are typed Diesel. MTH lists it as a Diesel/Electric Locomotive (\"Union Pacific HO Scale MTH HO 4500hp Gas Turbine & Tender Set With Proto-Sound 3\")"
+},
+{
+"tab": "MTH HO",
+"row": 204,
+"item": "80-2131-0",
+"column": "Item Type",
+"col_index": 1,
+"old": "Tender",
+"new": "Diesel Locomotive",
+"kind": "T: gas turbine",
+"why": "[stated] Brad 2026-10-04: gas turbines are typed Diesel. MTH lists it as a Diesel/Electric Locomotive (\"Union Pacific HO Scale MTH HO 4500hp Gas Turbine & Tender Set (DCC Ready)\")"
+},
+{
+"tab": "MTH HO",
+"row": 205,
+"item": "80-2131-1",
+"column": "Item Type",
+"col_index": 1,
+"old": "Tender",
+"new": "Diesel Locomotive",
+"kind": "T: gas turbine",
+"why": "[stated] Brad 2026-10-04: gas turbines are typed Diesel. MTH lists it as a Diesel/Electric Locomotive (\"Union Pacific HO Scale MTH HO 4500hp Gas Turbine & Tender Set With Proto-Sound 3\")"
+},
+{
+"tab": "MTH HO",
+"row": 206,
+"item": "80-2132-1",
+"column": "Item Type",
+"col_index": 1,
+"old": "Tender",
+"new": "Diesel Locomotive",
+"kind": "T: gas turbine",
+"why": "[stated] Brad 2026-10-04: gas turbines are typed Diesel. MTH lists it as a Diesel/Electric Locomotive (\"Union Pacific HO Scale MTH HO 4500hp Gas Turbine & Tender Set With Proto-Sound 3\")"
+},
+{
+"tab": "MTH HO",
+"row": 207,
+"item": "80-2133-1",
+"column": "Item Type",
+"col_index": 1,
+"old": "Tender",
+"new": "Diesel Locomotive",
+"kind": "T: gas turbine",
+"why": "[stated] Brad 2026-10-04: gas turbines are typed Diesel. MTH lists it as a Diesel/Electric Locomotive (\"Union Pacific HO Scale MTH HO 4500hp Gas Turbine & Tender Set With Proto-Sound 3\")"
+},
+{
+"tab": "MTH HO",
+"row": 243,
+"item": "80-2156-1",
+"column": "Item Type",
+"col_index": 1,
+"old": "Tender",
+"new": "Diesel Locomotive",
+"kind": "T: gas turbine",
+"why": "[stated] Brad 2026-10-04: gas turbines are typed Diesel. MTH lists it as a Diesel/Electric Locomotive (\"Union Pacific HO Scale MTH HO Signature Series 4500hp Gas Turbine & Tender Set W\")"
+},
+{
+"tab": "MTH HO",
+"row": 1729,
+"item": "80-2057-1",
+"column": "Item Type",
+"col_index": 1,
+"old": "Steam Locomotive",
+"new": "Diesel Locomotive",
+"kind": "T: gas turbine",
+"why": "[stated] Brad 2026-10-04: gas turbines are typed Diesel. MTH lists it as a Diesel/Electric Locomotive (\"Union Pacific HO Scale MTH HO Veranda Turbine With Proto-Sound 3.0\")"
+},
+{
+"tab": "MTH HO",
+"row": 1730,
+"item": "80-2058-1",
+"column": "Item Type",
+"col_index": 1,
+"old": "Steam Locomotive",
+"new": "Diesel Locomotive",
+"kind": "T: gas turbine",
+"why": "[stated] Brad 2026-10-04: gas turbines are typed Diesel. MTH lists it as a Diesel/Electric Locomotive (\"Union Pacific HO Scale MTH HO Veranda Turbine With Proto-Sound 3.0\")"
+},
+{
+"tab": "MTH HO",
+"row": 1731,
+"item": "80-2059-1",
+"column": "Item Type",
+"col_index": 1,
+"old": "Steam Locomotive",
+"new": "Diesel Locomotive",
+"kind": "T: gas turbine",
+"why": "[stated] Brad 2026-10-04: gas turbines are typed Diesel. MTH lists it as a Diesel/Electric Locomotive (\"Union Pacific HO Scale MTH HO Veranda Turbine With Proto-Sound 3.0\")"
+},
+{
+"tab": "MTH HO",
+"row": 1739,
+"item": "80-2132-0",
+"column": "Item Type",
+"col_index": 1,
+"old": "Steam Locomotive",
+"new": "Diesel Locomotive",
+"kind": "T: gas turbine",
+"why": "[stated] Brad 2026-10-04: gas turbines are typed Diesel. MTH lists it as a Diesel/Electric Locomotive (\"Union Pacific HO Scale MTH HO 4500hp Gas Turbine & Tender Set (DCC Ready)\")"
+},
+{
+"tab": "MTH HO",
+"row": 1740,
+"item": "80-2133-0",
+"column": "Item Type",
+"col_index": 1,
+"old": "Steam Locomotive",
+"new": "Diesel Locomotive",
+"kind": "T: gas turbine",
+"why": "[stated] Brad 2026-10-04: gas turbines are typed Diesel. MTH lists it as a Diesel/Electric Locomotive (\"Union Pacific HO Scale MTH HO 4500hp Gas Turbine & Tender Set (DCC Ready)\")"
+},
+{
+"tab": "MTH HO",
+"row": 1747,
+"item": "80-2182-1",
+"column": "Item Type",
+"col_index": 1,
+"old": "Steam Locomotive",
+"new": "Diesel Locomotive",
+"kind": "T: gas turbine",
+"why": "[stated] Brad 2026-10-04: gas turbines are typed Diesel. MTH lists it as a Diesel/Electric Locomotive (\"Union Pacific HO Scale MTH HO Signature Series 4500hp Gas Turbine With Proto-Sou\")"
+},
+{
+"tab": "MTH O",
+"row": 2280,
+"item": "20-20165-1",
+"column": "Item Type",
+"col_index": 1,
+"old": "Tender",
+"new": "Diesel Locomotive",
+"kind": "T: gas turbine",
+"why": "[stated] Brad 2026-10-04: gas turbines are typed Diesel. MTH lists it as a Diesel/Electric Locomotive (\"Union Pacific O Scale Premier Veranda Turbine & Tender Set With Proto-Sound 3.0\")"
+},
+{
+"tab": "MTH O",
+"row": 16388,
+"item": "20-2185-1",
+"column": "Item Type",
+"col_index": 1,
+"old": "Steam Locomotive",
+"new": "Diesel Locomotive",
+"kind": "T: gas turbine",
+"why": "[stated] Brad 2026-10-04: gas turbines are typed Diesel. MTH lists it as a Diesel/Electric Locomotive (\"Union Pacific O Scale Premier U.P. Veranda Turbine - 3 Rail\")"
+},
+{
+"tab": "MTH O",
+"row": 16389,
+"item": "20-2185-2",
+"column": "Item Type",
+"col_index": 1,
+"old": "Steam Locomotive",
+"new": "Diesel Locomotive",
+"kind": "T: gas turbine",
+"why": "[stated] Brad 2026-10-04: gas turbines are typed Diesel. MTH lists it as a Diesel/Electric Locomotive (\"Union Pacific O Scale Premier U.P. Veranda Turbine - 2 Rail\")"
+},
+{
+"tab": "MTH O",
+"row": 16419,
+"item": "20-2214-1",
+"column": "Item Type",
+"col_index": 1,
+"old": "Steam Locomotive",
+"new": "Diesel Locomotive",
+"kind": "T: gas turbine",
+"why": "[stated] Brad 2026-10-04: gas turbines are typed Diesel. MTH lists it as a Diesel/Electric Locomotive (\"Union Pacific O Scale Premier #80 Coal Turbine Locomotive w/Proto-Sound\")"
+},
+{
+"tab": "MTH O",
+"row": 16420,
+"item": "20-2214-2",
+"column": "Item Type",
+"col_index": 1,
+"old": "Steam Locomotive",
+"new": "Diesel Locomotive",
+"kind": "T: gas turbine",
+"why": "[stated] Brad 2026-10-04: gas turbines are typed Diesel. MTH lists it as a Diesel/Electric Locomotive (\"Union Pacific O Scale Premier #80 Coal Turbine Locomotive - 2-Rail\")"
+},
+{
+"tab": "MTH O",
+"row": 16462,
+"item": "20-2261-1",
+"column": "Item Type",
+"col_index": 1,
+"old": "Steam Locomotive",
+"new": "Diesel Locomotive",
+"kind": "T: gas turbine",
+"why": "[stated] Brad 2026-10-04: gas turbines are typed Diesel. MTH lists it as a Diesel/Electric Locomotive (\"Union Pacific O Scale Premier Propane Turbine Locomotive Set w/Proto-Sound 2.0\")"
+},
+{
+"tab": "MTH O",
+"row": 17929,
+"item": "20-20164-1",
+"column": "Item Type",
+"col_index": 1,
+"old": "Steam Locomotive",
+"new": "Diesel Locomotive",
+"kind": "T: gas turbine",
+"why": "[stated] Brad 2026-10-04: gas turbines are typed Diesel. MTH lists it as a Diesel/Electric Locomotive (\"Union Pacific O Scale Premier Veranda Turbine & Tender Set With Proto-Sound 3.0\")"
+},
+{
+"tab": "MTH O",
+"row": 24630,
+"item": "30-2009-0",
+"column": "Item Type",
+"col_index": 1,
+"old": "Steam Locomotive",
+"new": "Diesel Locomotive",
+"kind": "T: gas turbine",
+"why": "[stated] Brad 2026-10-04: gas turbines are typed Diesel. MTH lists it as a Diesel/Electric Locomotive (\"Union Pacific Gas Turbine Engine - 3-Rail\")"
+},
+{
+"tab": "MTH O",
+"row": 24631,
+"item": "30-2009-1",
+"column": "Item Type",
+"col_index": 1,
+"old": "Steam Locomotive",
+"new": "Diesel Locomotive",
+"kind": "T: gas turbine",
+"why": "[stated] Brad 2026-10-04: gas turbines are typed Diesel. MTH lists it as a Diesel/Electric Locomotive (\"Union Pacific Gas Turbine Engine - With Proto\")"
+},
+{
+"tab": "MTH O",
+"row": 18467,
+"item": "20-21378-1",
+"column": "Item Type",
+"col_index": 1,
+"old": "Steam Locomotive",
+"new": "Diesel Locomotive",
+"kind": "T: gas turbine",
+"why": "[stated] Brad 2026-10-04: gas turbines are typed Diesel. MTH sells it as a set (\"Union Pacific O Scale Premier Propane Turbine Locomotive Set w/Proto-Sound 3.0\"); its twin 20-20359-1 is already typed Diesel Locomotive"
+}
+],
+"held": [],
+"cells_sha256": "0b8a4e54ebd4104b77df91f369a32d7e5d4139d0339497a4c634896ef1ca9dc0"
+}
