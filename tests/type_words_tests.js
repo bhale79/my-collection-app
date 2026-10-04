@@ -107,6 +107,12 @@ T('D2  …and A2 goes red on it while A3 (Hopper) still passes', bucketer(tgNoHO
 const tgNoSyn = tg.replace("'car set': 'Set', 'train set': 'Set',", '');
 T('D3  offender "drop two synonyms" changed the source', tgNoSyn !== tg);
 T('D3  …and A8 goes red on it', bucketer(tgNoSyn).getTypeBucketLabel({ itemType: 'Car Set' }) !== 'Set');
+// v0.9.1875 ([stated] Brad: electric unit sets are treated like the diesel sets): "Diesel Set" and "Electric Set" — the
+// words the master writes for a set of locomotive units — are both filed under Set, and the word is known (no type-unknown).
+T('A21 "Diesel Set" and "Electric Set" are filed under Set (Master Versions 2.01 / 2.03)', L('Diesel Set', 'F-3 A-A') === 'Set' && L('Electric Set', 'EF-3 A-B-A Electric') === 'Set' && L('Electric Set', 'Double Electric Locomotive Set') === 'Set');
+const tgNoESet = tg.replace(" || it === 'Electric Set') return 'Set';", ") return 'Set';").replace("'Diesel Set', 'Electric Set', 'Track',", "'Diesel Set', 'Track',");
+T('D6  offender "the app before v1875" changed the source', tgNoESet !== tg);
+T('D6  …and A21 goes red on it', bucketer(tgNoESet).getTypeBucketLabel({ itemType: 'Electric Set', description: 'EF-3 A-B-A Electric' }) !== 'Set');
 const appOld = app.replace("if (g === 'standard o' || g === 'super o' || g === 'super o gauge' || g === '027 gauge' || g === 'o27 gauge' || g === 'o-27 gauge') return ['o'];", '');
 T('D4  offender "the gauge reader before v1844" changed the source', appOld !== app);
 T('D4  …and B2 goes red on it', gaugeReader(appOld)('Standard O').length === 0);

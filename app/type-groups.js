@@ -205,7 +205,7 @@
     if (it === 'Passenger Car') return 'Passenger Car';
     if (it === 'Caboose') return 'Caboose';
     if (it === 'Science Set') return 'Science Set';
-    if (it === 'Set' || it === 'Set Box' || it === 'Construction Set' || it === 'Test Set' || it === 'Diesel Set') return 'Set';
+    if (it === 'Set' || it === 'Set Box' || it === 'Construction Set' || it === 'Test Set' || it === 'Diesel Set' || it === 'Electric Set') return 'Set';   // v0.9.1875 ([stated] Brad: electric unit sets are treated like the diesel sets — listed under Set)
     if (it === 'Track' || it === 'Switches' || it === 'Crossing') return 'Track';
     if (it === 'Transformer' || it === 'Transformer/Power') return 'Transformer/Power';
     if (it === 'Service Station Tool' || it === 'Service Tool') return 'Service Station Tool';
@@ -297,7 +297,7 @@
   var _TYPE_CANON_WORDS = ['Steam Locomotive', 'Diesel Locomotive', 'Electric Locomotive', 'Steam Engine', 'Diesel Engine',
     'Electric Engine', 'Diesel', 'Steam', 'Electric', 'Motorized Unit', 'Tender', 'Engine', 'Loco', 'Locomotive',
     'Engine/Locomotive', 'Operating Car', 'Crane Car', 'Auto Carrier', 'Slag Car', 'Passenger Car', 'Caboose',
-    'Science Set', 'Set', 'Set Box', 'Construction Set', 'Test Set', 'Diesel Set', 'Track', 'Switches', 'Crossing',
+    'Science Set', 'Set', 'Set Box', 'Construction Set', 'Test Set', 'Diesel Set', 'Electric Set', 'Track', 'Switches', 'Crossing',
     'Transformer', 'Transformer/Power', 'Service Station Tool', 'Service Tool', 'Trolley', 'Interurban', 'Subway Car',
     'Accessory', 'Billboard', 'Electronics', 'Parts/Supplies', 'Dealer Layout', 'Box', 'Box Reference', 'Form',
     'Magazine', 'Salesman Brochure', 'Catalog', 'Service Manual', 'Newsletter', 'Stock Certificate', 'Inspection Tag',
