@@ -64,8 +64,9 @@ T('A14 accessories: Bridge, Water Tower, Tower, Platform, Tunnel, Signal, Catena
 T('A15 track: Switch, Crossover, Lock-On, Bumpers, Mega Track, SuperStreets (both spellings)', ['Switch', 'Crossover', 'Lock-On', 'Bumpers', 'Mega Track', 'SuperStreets', 'Superstreets', 'HO Track'].every(t => L(t) === 'Track'));
 T('A16 power: Controller, Control, Command Control', ['Controller', 'Control', 'Command Control'].every(t => L(t) === 'Power'));
 T('A17 paper: Packet, Manual, Record, Sales Material, Ephemera, Instruction Sheet, Certificate, Book', ['Packet', 'Manual', 'Record', 'Sales Material', 'Ephemera', 'Instruction Sheet', 'Certificate', 'Book', 'Note Cards', 'Misc Lionel'].every(t => L(t) === 'Paper'));
-T('A18 LEFT AS THEIR OWN WORD on purpose: Part, Auto Rack, Premiums, T-Shirt, Separate Sale, Vat Car, MOW Car',
-  ['Part', 'Auto Rack', 'Premiums', 'T-Shirt', 'Separate Sale', 'Vat Car', 'MOW Car'].every(t => L(t) === t));
+// v0.9.1877: "Auto Rack" left this list ([stated] Brad: filed with Intermodal like "Auto Carrier" — A22 below).
+T('A18 LEFT AS THEIR OWN WORD on purpose: Part, Premiums, T-Shirt, Separate Sale, Vat Car, MOW Car',
+  ['Part', 'Premiums', 'T-Shirt', 'Separate Sale', 'Vat Car', 'MOW Car'].every(t => L(t) === t));
 T('A19 what worked before still works: packs, the dash form, the catalog\'s own words, the by-words loco kind',
   L('Boxcar 2-Pack') === 'Boxcar' && L('Flatcar - PS-4 Flatcar') === 'Flatcar' && L('Reefer') === 'Boxcar' && L('Steam Locomotive', 'Hudson') === 'Steam' && L('Steam Locomotive', 'GP-9 diesel') === 'Diesel' && L('Freight Car', 'gondola with canisters') === 'Gondola');
 T('A20 a user\'s own word is still the user\'s', W.getTypeBucket({ itemType: 'Wings of Texaco', _personalOnly: true }) === 'Wings of Texaco');
@@ -113,6 +114,14 @@ T('A21 "Diesel Set" and "Electric Set" are filed under Set (Master Versions 2.01
 const tgNoESet = tg.replace(" || it === 'Electric Set') return 'Set';", ") return 'Set';").replace("'Diesel Set', 'Electric Set', 'Track',", "'Diesel Set', 'Track',");
 T('D6  offender "the app before v1875" changed the source', tgNoESet !== tg);
 T('D6  …and A21 goes red on it', bucketer(tgNoESet).getTypeBucketLabel({ itemType: 'Electric Set', description: 'EF-3 A-B-A Electric' }) !== 'Set');
+// v0.9.1877 ([stated] Brad: "yes" — teach the app that "Auto Rack" means Intermodal, like "Auto Carrier"): Atlas's own
+// word for its auto carriers, on 310 master rows (Atlas HO 172 / N 79 / Z 18, MTH O 41), was the one freight word the
+// bucketer could not file — the rows sat in no group and the audit counted them type-unknown. The sheet keeps the word.
+T('A22 "Auto Rack" is filed under Intermodal, like "Auto Carrier" (any case, any description)', L('Auto Rack', 'Bi-Level Auto Rack') === 'Intermodal' && L('Auto Rack') === 'Intermodal' && L('auto rack', 'Tri-Level Enclosed Auto Rack') === 'Intermodal' && L('Auto Carrier') === 'Intermodal');
+T('A22 …and a word that merely contains it is not swept in ("Auto Rack Load" stays its own word)', L('Auto Rack Load') === 'Auto Rack Load');
+const tgNoRack = tg.replace("'auto carrier': 'Intermodal', 'auto rack': 'Intermodal',", "'auto carrier': 'Intermodal',");
+T('D7  offender "the app before v1877" changed the source', tgNoRack !== tg);
+T('D7  …and A22 goes red on it', bucketer(tgNoRack).getTypeBucketLabel({ itemType: 'Auto Rack', description: 'Bi-Level Auto Rack' }) !== 'Intermodal');
 const appOld = app.replace("if (g === 'standard o' || g === 'super o' || g === 'super o gauge' || g === '027 gauge' || g === 'o27 gauge' || g === 'o-27 gauge') return ['o'];", '');
 T('D4  offender "the gauge reader before v1844" changed the source', appOld !== app);
 T('D4  …and B2 goes red on it', gaugeReader(appOld)('Standard O').length === 0);

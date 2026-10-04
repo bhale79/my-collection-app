@@ -291,9 +291,11 @@
   //      (MTH), "Switcher", "Diesel Superbass", "F3 Unit" — sent through the
   //      same words-decide rule as plain "Locomotive"; "Live steam" is Steam.
   // The plain synonyms are in _TYPE_SYNONYMS below. Left as their own word on
-  // purpose: "Part" (parts on item tabs), "Auto Rack" (no bucket fits it),
-  // "Premiums" and merchandise, "Separate Sale", "Vat Car", "MOW Car" — the
-  // app shows the word itself, which is honest.
+  // purpose: "Part" (parts on item tabs), "Premiums" and merchandise,
+  // "Separate Sale", "Vat Car", "MOW Car" — the app shows the word itself,
+  // which is honest. (v0.9.1877: "Auto Rack" left this list — [stated] Brad:
+  // "yes", an auto rack is filed with Intermodal like an auto carrier; 310
+  // master rows carry the word — Atlas HO / N / Z and MTH O.)
   var _TYPE_CANON_WORDS = ['Steam Locomotive', 'Diesel Locomotive', 'Electric Locomotive', 'Steam Engine', 'Diesel Engine',
     'Electric Engine', 'Diesel', 'Steam', 'Electric', 'Motorized Unit', 'Tender', 'Engine', 'Loco', 'Locomotive',
     'Engine/Locomotive', 'Operating Car', 'Crane Car', 'Auto Carrier', 'Slag Car', 'Passenger Car', 'Caboose',
@@ -325,7 +327,7 @@
     // freight bodies the catalog names in its own words
     'reefer': 'Boxcar', 'refrigerator car': 'Boxcar', 'mint car': 'Boxcar',
     'ice car': 'Boxcar', 'bunk car': 'Boxcar', 'milk car': 'Operating Freight',
-    'poultry car': 'Stock Car', 'auto carrier': 'Intermodal', 'tank train': 'Tank Car',
+    'poultry car': 'Stock Car', 'auto carrier': 'Intermodal', 'auto rack': 'Intermodal', 'tank train': 'Tank Car',
     // work / operating cars
     'crane': 'Operating Freight', 'crane car': 'Operating Freight', 'boom car': 'Operating Freight',
     'derrick car': 'Operating Freight', 'dump car': 'Operating Freight', 'culvert car': 'Operating Freight',
