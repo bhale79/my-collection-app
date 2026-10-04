@@ -1514,6 +1514,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
           +   (_off ? '<div style="font-size:0.72rem;color:#e8a020;margin-top:0.1rem">in ' + _bcEsc(m._offEraLabel || m._offEra) + ' &mdash; choosing this switches era</div>' : '')
           +   (meta ? '<div style="font-size:0.8rem;color:#aaa;margin-top:0.1rem">' + meta + '</div>' : '')
           +   (vari ? '<div style="font-size:0.78rem;color:#ffd27d;margin-top:0.15rem">' + _bcEsc(vari) + '</div>' : '')
+          +   ((typeof rrCatalogStatusChip === 'function') ? rrCatalogStatusChip(m, { block: true, onDark: true }) : '')   // v0.9.1873
           +   (desc ? '<div style="font-size:0.78rem;color:#888;margin-top:0.1rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + desc + '</div>' : '')
           +   (m._descMatch ? '<div style="font-size:0.72rem;color:#e8a020;margin-top:0.1rem">matched in the description — possible reissue</div>' : '')
           +   (m._labelRead ? '<div style="font-size:0.72rem;color:#a6e87e;margin-top:0.1rem">read from the printed label — most likely match</div>' : '')
@@ -2452,6 +2453,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         + (info.roadName ? '<div style="font-size:0.95rem;color:var(--text,#fff);font-weight:600;margin-top:5px">' + _bcEsc(info.roadName) + '</div>' : '')
         + (desc ? '<div style="font-size:0.9rem;color:var(--text-mid,#ccc);margin-top:6px;line-height:1.4">' + desc + '</div>' : '<div style="font-size:0.8rem;color:var(--text-dim,#999);margin-top:6px">No description read from the label.</div>')
         + (info.notInMaster && info.description ? '<div style="font-size:0.7rem;color:var(--text-dim,#999);margin-top:5px">read from the label \u2014 you can edit it in the next steps.</div>' : '')
+        + ((info.masterItem && typeof rrCatalogStatusChip === 'function') ? rrCatalogStatusChip(info.masterItem, { block: true }) : '')   // v0.9.1873: a cancelled item says so before "Use this"
         + (info.cautionNote ? '<div style="font-size:0.78rem;margin-top:8px;color:#ffb27d">&#9888; ' + _bcEsc(info.cautionNote) + '</div>' : '')
         // v0.9.1467 (Brad, on the 30-11012 "Set w/Sound" card): the reference
         // link was one screen too late — put it ON the confirm card, so what

@@ -176,6 +176,8 @@ function boot(v, opts) {
     // v0.9.1847: yardmaster.js registers its page builder on config.js's ONE
     // list at load; config.js is not loaded here, so the room supplies the door.
     rrRegisterPage: () => {},
+    // v0.9.1873: the last master column read is config.js's ONE setting — taken from config.js itself
+    MASTER_READ_LAST_COL: (fs.readFileSync(path.join(__dirname, '..', 'app', 'config.js'), 'utf8').match(/const MASTER_READ_LAST_COL = '([A-Z]+)'/) || [])[1],
     rrJsArg: function (x) { return this.rrEsc(String(x == null ? '' : x).replace(/\\/g, '\\\\').replace(/'/g, "\\'")); }
   };
   sandbox.rrJsArg = sandbox.rrJsArg.bind(sandbox);
@@ -388,7 +390,7 @@ const idsIn = (tab) => tab.slice(1).map(r => r[1]).filter(Boolean);
     let armed = false;
     ctx.sandbox.fetch = async (url, init) => {
       const r = await realFetch(url, init);
-      if (!armed && /Marx%20O'?!A1%3AAD|Marx O'!A1:AD/.test(decodeURIComponent(url))) { armed = true; v.tabs['Marx O'].splice(1, 0, ['N0','Boxcar','zero','']); }
+      if (!armed && new RegExp("Marx O'!A1:" + ctx.sandbox.MASTER_READ_LAST_COL + '$').test(decodeURIComponent(url).split('?')[0])) { armed = true; v.tabs['Marx O'].splice(1, 0, ['N0','Boxcar','zero','']); }
       return r;
     };
     await ctx.sandbox._ymCommit(); await tick(200);

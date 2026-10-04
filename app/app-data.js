@@ -254,24 +254,7 @@ async function loadMasterData() {
   // master data sticks around independently. This is what makes
   // 'all' mode fast on warm load — every era hydrates from its
   // own IDB cache rather than re-fetching from Sheets.
-  const _CACHE_VER = (typeof CATALOG_CACHE_VER !== 'undefined' ? CATALOG_CACHE_VER : '125');
-  if (localStorage.getItem('lv_cache_ver') !== _CACHE_VER) {
-    // Wipe legacy single-key caches from prior versions; per-era keys
-    // take their place.
-    idbRemove('lv_master_cache');
-    localStorage.removeItem('lv_master_cache');
-    localStorage.removeItem('lv_master_cache_ts');
-    localStorage.removeItem('lv_personal_cache');
-    localStorage.removeItem('lv_catalog_ref_cache');
-    localStorage.removeItem('lv_catalog_ref_ts');
-    localStorage.removeItem('lv_is_ref_cache');
-    localStorage.removeItem('lv_is_ref_ts');
-    localStorage.removeItem('lv_set_cache');
-    localStorage.removeItem('lv_set_cache_ts');
-    localStorage.removeItem('lv_companion_cache');
-    localStorage.removeItem('lv_companion_cache_ts');
-    localStorage.setItem('lv_cache_ver', _CACHE_VER);
-  }
+  _rrCatalogShapeCheck();   // v0.9.1873: one rule, also run by loadAllErasMode
 
   // 'all' meta-era is handled by loadAllErasMode in app.js — it
   // orchestrates per-era loads and merges results. Loaders never
@@ -381,7 +364,7 @@ async function _fetchMasterTabs(era) {
     // v0.9.1133: A1 (not A2) so row 1 arrives and can be read as the header,
     // and out to AD so appended columns are actually fetched. The old A2:U cut
     // off at MSRP, which is why Body Color and UPC / Barcode never loaded.
-    const ranges = _mt.map(t => `${t}!A1:AD`);
+    const ranges = _mt.map(t => `${t}!A1:${MASTER_READ_LAST_COL}`);   // v0.9.1873: the width lives in config.js
     const res = await sheetsBatchGet(state.masterSheetId, ranges);
     const allRows = [];
     (res.valueRanges || []).forEach((vr, i) => {
@@ -502,6 +485,49 @@ function _mvPickLatest(rows) {
 }
 if (typeof window !== 'undefined') { window._mvCompare = _mvCompare; window._mvDateKey = _mvDateKey; window._mvPickLatest = _mvPickLatest; }
 
+// ══ v0.9.1873 — "every catalog this device saved is out of date", said ONCE ══
+// Two things make a saved catalog stale: the SHEET changed (a new Master
+// Version — v1801) or the app now reads MORE from each row than the saved rows
+// carry (CATALOG_CACHE_VER bumped — a new column such as Delivery Status).
+// Both clear every catalog's freshness stamp so the loaders and the lookup
+// index fetch them again. Never deletes a saved catalog: a failed fetch still
+// leaves the old rows, offline included.
+function _rrMarkCatalogsStale(why) {
+  try {
+    var eras = (typeof REAL_ERA_IDS !== 'undefined' && Array.isArray(REAL_ERA_IDS)) ? REAL_ERA_IDS : [];
+    eras.forEach(function (e) { localStorage.setItem('lv_master_cache_ts_' + e, '0'); });
+  } catch (e) { return false; }
+  console.log('[catalog] ' + (why || 'out of date') + ': catalogs marked out of date');
+  if (typeof _scheduleLookupIndex === 'function') _scheduleLookupIndex(8000, true);
+  return true;
+}
+if (typeof window !== 'undefined') window._rrMarkCatalogsStale = _rrMarkCatalogsStale;
+
+// The catalog-shape stamp. Before v1873 a bump only wiped the pre-Session-116
+// single-key caches, so the per-maker catalogs every device actually uses kept
+// the OLD row shape until they aged out (a week) — the comment in config.js
+// said "bump it" and the bump did nothing to them. Now a bump marks every
+// catalog stale too. Run by both loaders (single-era and all-eras); the
+// second call in a start finds the stamp current and does nothing.
+function _rrCatalogShapeCheck() {
+  var want = (typeof CATALOG_CACHE_VER !== 'undefined') ? String(CATALOG_CACHE_VER) : '125';
+  var seen = null;
+  try { seen = localStorage.getItem('lv_cache_ver'); } catch (e) { return false; }
+  if (seen === want) return false;
+  // Wipe legacy single-key caches from prior versions; per-era keys
+  // take their place.
+  try { if (typeof idbRemove === 'function') idbRemove('lv_master_cache'); } catch (eI) {}
+  try {
+    ['lv_master_cache', 'lv_master_cache_ts', 'lv_personal_cache', 'lv_catalog_ref_cache', 'lv_catalog_ref_ts',
+     'lv_is_ref_cache', 'lv_is_ref_ts', 'lv_set_cache', 'lv_set_cache_ts', 'lv_companion_cache', 'lv_companion_cache_ts']
+      .forEach(function (k) { localStorage.removeItem(k); });
+  } catch (eL) {}
+  _rrMarkCatalogsStale('catalog shape ' + (seen || 'none') + ' \u2192 ' + want);
+  try { localStorage.setItem('lv_cache_ver', want); } catch (eS) {}
+  return true;
+}
+if (typeof window !== 'undefined') window._rrCatalogShapeCheck = _rrCatalogShapeCheck;
+
 // v0.9.1801: the sheet changed → every catalog this device saved is out of date.
 // Remembers the last Master Version seen HERE; when the tab shows a different
 // one, clears every catalog's freshness stamp so the loaders and the lookup
@@ -515,13 +541,8 @@ function _rrMasterVersionCheck(v) {
   var seen = null;
   try { seen = localStorage.getItem(_MV_SEEN_KEY); } catch (e) { return false; }
   if (seen === v) return false;
-  try {
-    var eras = (typeof REAL_ERA_IDS !== 'undefined' && Array.isArray(REAL_ERA_IDS)) ? REAL_ERA_IDS : [];
-    eras.forEach(function (e) { localStorage.setItem('lv_master_cache_ts_' + e, '0'); });
-    localStorage.setItem(_MV_SEEN_KEY, v);
-  } catch (e) { return false; }
-  console.log('[master-version] ' + (seen || 'none') + ' → ' + v + ': catalogs marked out of date');
-  if (typeof _scheduleLookupIndex === 'function') _scheduleLookupIndex(8000, true);
+  if (!_rrMarkCatalogsStale('[master-version] ' + (seen || 'none') + ' → ' + v)) return false;
+  try { localStorage.setItem(_MV_SEEN_KEY, v); } catch (e) { return false; }
   return true;
 }
 if (typeof window !== 'undefined') window._rrMasterVersionCheck = _rrMasterVersionCheck;
@@ -624,6 +645,11 @@ const MASTER_COL_SPEC = [
   // prints this same number for another part … confirm with Atlas when
   // ordering"). Shown under the part as written — see _checkNoteHtml.
   ['checkNote',      null, ['checknote']],
+  // v0.9.1873: the maker's own delivery word for the item, read off its page
+  // ("Delivered MAR. 2021", "Cancelled", an expected month) — MTH tabs since
+  // Master Version 1.95. What it MEANS is decided in one place only:
+  // rrCatalogStatus (catalog-display-config.js).
+  ['deliveryStatus', null, ['deliverystatus']],
 ];
 
 // Build a field -> column-index map from a sheet's header row.

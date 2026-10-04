@@ -1094,6 +1094,10 @@ function showItemDetailPage(idx, copyInvId, opts) {
     marketVal: _baseItem ? _baseItem.marketVal : '',
     varDesc: _baseItem ? _baseItem.varDesc : '',
     refLink: _baseItem ? _baseItem.refLink : '',
+    // v0.9.1873: what rrCatalogStatus reads — the catalog row's status rides along
+    deliveryStatus: _baseItem ? (_baseItem.deliveryStatus || '') : '',
+    _era: _baseItem ? (_baseItem._era || '') : '',
+    _tab: _baseItem ? (_baseItem._tab || '') : '',
   };
 
   // Show page
@@ -1234,6 +1238,7 @@ function showItemDetailPage(idx, copyInvId, opts) {
           ${it.variation ? `<span style="font-size:0.9rem;color:var(--text-dim);background:var(--surface2);border-radius:6px;padding:0.15rem 0.6rem">Var. ${it.variation}</span>` : ''}
           ${it.itemType ? `<span class="tag">${it.itemType}</span>` : ''}
           ${it.yearProd ? `<span style="font-size:0.82rem;color:var(--text-dim)">${it.yearProd}</span>` : ''}
+          ${(typeof rrCatalogStatusChip === 'function') ? rrCatalogStatusChip(it) : ''}
         </div>
         <div style="font-size:1.05rem;color:var(--text);margin-bottom:0.2rem">${it.roadName || ''}</div>
         ${_isPhoneDetail ? '' : _descBlock + _maintSlot}
@@ -3751,6 +3756,7 @@ function showItemPanel(idx, pdKey, mode) {
     + '<div>'
     + '<div style="font-family:var(--font-head);font-size:1rem;color:var(--t-link)">No. ' + item.itemNum + (item.variation ? ' <span style="color:var(--text-dim);font-size:0.75rem">Var. ' + item.variation + '</span>' : '') + '</div>'
     + '<div style="font-size:0.82rem;color:var(--text-mid);margin-top:2px">' + (item.roadName || item.itemType || '') + (item.yearProd ? ' · ' + item.yearProd : '') + '</div>'
+    + ((typeof rrCatalogStatusChip === 'function') ? rrCatalogStatusChip(item, { block: true }) : '')   // v0.9.1873
     + '</div>'
     + '<button id="item-panel-close-btn" style="background:none;border:none;color:var(--text-dim);font-size:1.1rem;cursor:pointer;flex-shrink:0">✕</button>'
     + '</div>';
@@ -4429,6 +4435,11 @@ function browseRowClick(event, idx) {
   sub.style.cssText = 'font-size:0.85rem;color:var(--text-mid);margin-bottom:0.25rem';
   sub.textContent = item.roadName || item.itemType || '';
   box.appendChild(sub);
+  // v0.9.1873: a cancelled item says so before "Do you own this item?"
+  if (typeof rrCatalogStatusChip === 'function') {
+    const _st = rrCatalogStatusChip(item, { block: true });
+    if (_st) { const stEl = document.createElement('div'); stEl.style.marginBottom = '0.35rem'; stEl.innerHTML = _st; box.appendChild(stEl); }
+  }
   if (item.yearProd) {
     const yr = document.createElement('div');
     yr.style.cssText = 'font-size:0.75rem;color:var(--text-dim);margin-bottom:1.25rem';
@@ -4467,6 +4478,11 @@ function browseRowClick(event, idx) {
     closeBtn.style.cssText = 'position:absolute;top:0.75rem;right:0.75rem;background:none;border:none;color:var(--text-dim);font-size:1.1rem;cursor:pointer';
     closeBtn.onclick = function() { vdOverlay.remove(); };
     vdBox.appendChild(closeBtn);
+    // v0.9.1873: the tag leads the details; the Delivery Status row below says MTH's own word
+    if (typeof rrCatalogStatusChip === 'function') {
+      const _vst = rrCatalogStatusChip(item);
+      if (_vst) { const vstEl = document.createElement('div'); vstEl.style.cssText = 'margin:0 1.5rem 0.75rem 0'; vstEl.innerHTML = _vst; vdBox.appendChild(vstEl); }
+    }
     const rows = [
       ['Item #', item.itemNum + (item.variation ? ' — Var. ' + item.variation : '')],
       ['Type', item.itemType || '—'],

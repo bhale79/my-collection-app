@@ -2008,6 +2008,7 @@ function _identifyShowMasterChooser(candidates, meta, fullText) {
       +    '<span style="font-family:var(--font-mono);font-weight:700;color:var(--accent2)">' + lblNum + '</span>'
       +    '<span style="font-size:0.78rem;color:var(--text-mid);line-height:1.4">' + lblDesc + '</span>'
       +    '<span style="font-size:0.7rem;color:var(--text-dim)">score ' + c.score + lblYear + lblTab + '</span>'
+      +    ((typeof rrCatalogStatusChip === 'function') ? rrCatalogStatusChip(r) : '')   // v0.9.1873
       + '</button>';
   }
   html += '</div>'

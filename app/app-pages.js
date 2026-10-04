@@ -3509,6 +3509,7 @@ function buildUpgradePage() {
               <span style="font-size:0.65rem;font-weight:600;color:${pColor};border:1px solid ${pColor};border-radius:4px;padding:0.1rem 0.4rem">${u.priority||'Medium'}</span>
             </div>
             ${name ? `<div style="font-size:0.82rem;color:var(--text);margin-top:0.1rem">${name}</div>` : ''}
+            ${(typeof rrCatalogStatusChip === 'function') ? rrCatalogStatusChip(_vMasterM || master, { block: true }) : ''}
             ${_varDescM ? `<div onclick="event.stopPropagation();showWantDesc('${_wuDescKeyM.replace(/'/g, "\\'")}')" style="font-size:0.74rem;color:var(--text-mid);margin-top:0.15rem;border-bottom:1px dashed var(--border);display:inline-block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${_varDescM.length > 46 ? _varDescM.substring(0, 46) + '…' : _varDescM}</div>` : ''}
             <div style="display:flex;align-items:center;gap:0.5rem;margin-top:0.25rem;flex-wrap:wrap">
               ${!_isWant && cond !== null ? `<span style="font-size:0.75rem"><span class="condition-pip ${condClass}"></span>Mine: ${cond}</span>` : ''}
@@ -3607,7 +3608,7 @@ function buildUpgradePage() {
           ${_wuCheckbox}<span class="item-num">${_wuItemNumHTML(u)}</span>${rrSampleTag(u)}
           ${!_isWant ? `<span style="display:inline-block;margin-left:0.4rem;font-size:0.6rem;font-weight:700;color:${_ltColor};background:${_ltBg};border-radius:4px;padding:0.1rem 0.4rem;text-transform:uppercase;letter-spacing:0.05em;vertical-align:middle">${u.listType||'Want'}</span>` : ''}
         </td>
-        <td style="color:var(--text-mid)">${name || '<span class="text-dim">—</span>'}</td>
+        <td style="color:var(--text-mid)">${name || '<span class="text-dim">—</span>'}${(typeof rrCatalogStatusChip === 'function') ? rrCatalogStatusChip(_vMaster || master, { block: true }) : ''}</td>
         <td style="white-space:nowrap">${u.variation || '<span class="text-dim">—</span>'}</td>
         <td style="max-width:230px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${(_varDesc||'').replace(/"/g,'&quot;')}">${_wuVarCell}</td>
         <td style="font-size:0.82rem;color:var(--text-mid)">${u.manufacturer || '<span class="text-dim">—</span>'}</td>

@@ -229,7 +229,7 @@ ok('1633 the router no longer hardcodes the Menards pair',
 ok('1633 the Edit dropdown is built FROM the derived list, never typed twice',
    /_ymMasterTabs\(\)\.map/.test(ym33) && !/<option value="Menards O"/.test(ym33));
 ok('1633 dedupe + verify reads are UNBOUNDED — a 21,000-row tab cannot blind the dedupe',
-   !/A1:V5000/.test(ym33) && !/A1:A5000/.test(ym33) && !/A1:AD\d/.test(ym33) && ym33.indexOf('\'!A1:AD"') >= 0 && ym33.indexOf('\'!A1:A"') >= 0);   // v1683: A1:V → A1:AD (Image URL lands past W)
+   !/A1:V5000/.test(ym33) && !/A1:A5000/.test(ym33) && !/A1:AD\d/.test(ym33) && (ym33.match(/'!A1:" \+ MASTER_READ_LAST_COL\)/g) || []).length === 2 && ym33.indexOf('\'!A1:A"') >= 0);   // v1683: A1:V → A1:AD; v1873: the width is config.js's MASTER_READ_LAST_COL
 ok('1633 the Vault delta read holds a sweep-sized queue (12,000 since v1687; UNBOUNDED since v1746 — the tab reached 12,227)',
    /'crawl_deltas!A1:X'/.test(ym33) && !/crawl_deltas!A1:X\d/.test(ym33) && !/crawl_batches!A1:G\d/.test(ym33));
 ok('1633 the confirm line reports per-tab append counts',

@@ -2778,13 +2778,15 @@ function renderWizardStep() {
         <div style="font-size:0.75rem;color:var(--text-dim);margin-top:0.5rem">Optional — press Next to skip</div>
         ${(() => {
           const singleItem = findMaster(itemNum, '', (typeof _wizMasterPrefer === 'function') ? _wizMasterPrefer() : null);   // v0.9.1483: hints
-          if (!singleItem || !singleItem.refLink) return '';
+          // v0.9.1873: a cancelled item says so here too (before the reference link)
+          const _siStatus = (singleItem && typeof rrCatalogStatusChip === 'function') ? rrCatalogStatusChip(singleItem, { block: true }) : '';
+          if (!singleItem || !singleItem.refLink) return _siStatus;
           // Verbose label (e.g. "View on Atlas ↗") resolves per URL from
           // item-search-filters-config.js — previously hardcoded to COTT.
           const _label = (typeof window.resolveRefLabel === 'function')
             ? window.resolveRefLabel(singleItem.refLink, { verbose: true })
             : 'View reference \u2197';
-          return '<a href="' + ((typeof window.cottAnchorUrl==='function') ? window.cottAnchorUrl(singleItem.refLink, itemNum, window.cottRowWords ? window.cottRowWords(singleItem) : '', singleItem.variation || '') : singleItem.refLink) + '" target="_blank" rel="noopener" onmousedown="event.preventDefault()" style="display:inline-flex;align-items:center;gap:0.4rem;margin-top:0.75rem;font-size:0.82rem;color:var(--accent2);text-decoration:none;padding:0.4rem 0.75rem;border:1px solid rgba(201,146,42,0.3);border-radius:6px;background:var(--bg-card);background:color-mix(in srgb, rgb(201,146,42) 8%, var(--bg-card));min-height:34px;box-sizing:border-box">' + _label + '</a>';
+          return _siStatus + '<a href="' + ((typeof window.cottAnchorUrl==='function') ? window.cottAnchorUrl(singleItem.refLink, itemNum, window.cottRowWords ? window.cottRowWords(singleItem) : '', singleItem.variation || '') : singleItem.refLink) + '" target="_blank" rel="noopener" onmousedown="event.preventDefault()" style="display:inline-flex;align-items:center;gap:0.4rem;margin-top:0.75rem;font-size:0.82rem;color:var(--accent2);text-decoration:none;padding:0.4rem 0.75rem;border:1px solid rgba(201,146,42,0.3);border-radius:6px;background:var(--bg-card);background:color-mix(in srgb, rgb(201,146,42) 8%, var(--bg-card));min-height:34px;box-sizing:border-box">' + _label + '</a>';
         })()}
 
         </div>`;
@@ -2905,6 +2907,7 @@ function renderWizardStep() {
                   <span style="flex:1;min-width:0"></span>
                   ${cottLink}
                 </div>
+                ${(typeof rrCatalogStatusChip === 'function') ? rrCatalogStatusChip(v, { block: true }) : ''}
                 ${_vDescHtml(v)}
               </div>`;
             }).join('')}
@@ -5706,6 +5709,8 @@ function renderWizardStep() {
       }
       html += '<div style="font-weight:700;font-size:0.82rem;color:var(--accent2);padding-bottom:0.2rem">' + col.label + (col.sublabel ? ' <span style=\"font-weight:400;color:var(--text-dim);font-size:0.75rem\">(' + col.sublabel + ')</span>' : '') + '</div>'
         + (col.description ? '<div style="font-size:0.78rem;color:var(--text-mid);font-style:italic;margin-bottom:0.35rem;line-height:1.35">' + String(col.description).replace(/</g,'&lt;') + '</div>' : '')
+        // v0.9.1873: a cancelled item says so on the step that describes it
+        + ((col.id === 'main' && _cdMaster && typeof rrCatalogStatusChip === 'function') ? rrCatalogStatusChip(_cdMaster, { block: true }) : '')
         // v0.9.1237: what used to be the Atlas "Track configuration" and MTH
         // "MTH product line" steps. Catalog facts, so they sit with the
         // description — above the questions, never among them.
@@ -6438,7 +6443,8 @@ function renderWizardStep() {
       confirmHtml += '<div style="background:var(--surface2);border-radius:8px;padding:0.85rem;margin-bottom:1rem">'
         + '<div style="font-family:var(--font-mono);color:var(--accent2);font-size:0.8rem">No. ' + item.itemNum + (item.variation ? ' — Var ' + item.variation : '') + '</div>'
         + '<div style="font-weight:600;margin-top:0.2rem">' + _cfDesc + '</div>'
-        + (_cfMeta ? '<div style="font-size:0.8rem;color:var(--text-dim);margin-top:0.1rem">' + _cfMeta + '</div>' : '') + '</div>';
+        + (_cfMeta ? '<div style="font-size:0.8rem;color:var(--text-dim);margin-top:0.1rem">' + _cfMeta + '</div>' : '')
+        + ((typeof rrCatalogStatusChip === 'function') ? rrCatalogStatusChip(item, { block: true }) : '') + '</div>';   // v0.9.1873
     } else if (!_isEph) {
       confirmHtml += '<div style="background:var(--surface2);border-radius:8px;padding:0.85rem;margin-bottom:1rem">'
         + '<div style="font-family:var(--font-mono);color:var(--accent2)">' + (wizard.data.itemCategory === 'set' ? 'Set ' : 'Item ') + (wizard.data.itemNum || wizard.data.set_num || '?') + (wizard.data.variation ? ' Var ' + wizard.data.variation : '') + '</div>'

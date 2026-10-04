@@ -1286,7 +1286,7 @@
       var tabs = Object.keys(byTab), plan = {}, heldDup = [];
       for (var ti = 0; ti < tabs.length; ti++) {
         var t2 = tabs[ti];
-        var gotRes = await fetch('https://sheets.googleapis.com/v4/spreadsheets/' + MID + '/values/' + encodeURIComponent("'" + t2 + "'!A1:AD"), { headers: H });   // v0.9.1683: was A1:V — MTH tabs run to W, and Image URL lands after that
+        var gotRes = await fetch('https://sheets.googleapis.com/v4/spreadsheets/' + MID + '/values/' + encodeURIComponent("'" + t2 + "'!A1:" + MASTER_READ_LAST_COL), { headers: H });   // v0.9.1683: was A1:V — MTH tabs run to W, and Image URL lands after that
         if (!gotRes.ok) throw new Error('could not read ' + t2 + ' (HTTP ' + gotRes.status + ') \u2014 commit stopped before any write');
         var got = await gotRes.json();
         var vals = got.values || [];
@@ -1431,7 +1431,7 @@
       var tabs = Object.keys(byTab), plan = {}, heldNotFound = [], heldDifferent = [], writes = 0, same = 0;
       for (var ti = 0; ti < tabs.length; ti++) {
         var t = tabs[ti];
-        var gotRes = await fetch('https://sheets.googleapis.com/v4/spreadsheets/' + MID + '/values/' + encodeURIComponent("'" + t + "'!A1:AD"), { headers: H });
+        var gotRes = await fetch('https://sheets.googleapis.com/v4/spreadsheets/' + MID + '/values/' + encodeURIComponent("'" + t + "'!A1:" + MASTER_READ_LAST_COL), { headers: H });
         if (!gotRes.ok) throw new Error('could not read ' + t + ' (HTTP ' + gotRes.status + ') \u2014 stopped before any write');
         var vals = (await gotRes.json()).values || [], heads = (vals[0] || []).map(String);
         var numIdx = heads.indexOf('Item Number'), upcIdx = heads.indexOf('UPC / Barcode');

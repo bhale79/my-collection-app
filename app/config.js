@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.1872';
+const APP_VERSION = 'v0.9.1873';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -594,10 +594,18 @@ function varShortLabel(text, max) {
 //     catalog on each deploy.
 //   • CATALOG_CACHE_VER  -> master / catalog / sets / companions
 //   • PERSONAL_CACHE_VER -> personal "My Collection" cache
-// (Referenced in app-data.js as _CACHE_VER / _PERSONAL_CACHE_VER.)
+// (Read in app-data.js by _rrCatalogShapeCheck / _PERSONAL_CACHE_VER.)
 // ═══════════════════════════════════════════════════════════════
-const CATALOG_CACHE_VER  = '127';   // v0.9.1421: 111xx master window repaired
+const CATALOG_CACHE_VER  = '128';   // v0.9.1873: rows now carry Delivery Status (MTH) — and since v1873 a bump marks every saved catalog stale (_rrCatalogShapeCheck)
 const PERSONAL_CACHE_VER = 'pf2';   // v0.9.1843: section Types read through ephCanonType ("Other Lionel" → Memorabilia) — re-parse once
+
+// v0.9.1873: the LAST master column the app reads, in ONE place (app-data.js's
+// catalog read and Yardmaster's two whole-tab reads all use it). It was "AD"
+// typed three times; Delivery Status landed IN column AD on the MTH G and S
+// tabs, so the next column added there would have been silently dropped.
+// Sheets returns only the columns that hold something, so reading wider costs
+// nothing. Columns are read by their HEADER name, never by position.
+const MASTER_READ_LAST_COL = 'AZ';
 
 // ═══════════════════════════════════════════════════════════════
 // SIGN-OUT — what survives, and nothing else

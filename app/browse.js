@@ -4818,6 +4818,7 @@ function _rrBrowseCore(_co) {
             </div>
             ${item.roadName ? `<div class="browse-card-name" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${item.roadName}</div>` : ''}
             <div class="browse-card-sub" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${[(typeof getTypeBucketLabel === 'function' ? getTypeBucketLabel(item) : item.itemType), item.yearProd].filter(Boolean).join(' · ')}</div>
+            ${(typeof rrCatalogStatusChip === 'function') ? rrCatalogStatusChip(item, { block: true }) : ''}
           </div>
           ${marketVal ? `<div style="display:flex;flex-direction:column;align-items:flex-end;gap:0.25rem;flex-shrink:0">
             <span class="market-val" style="font-size:0.72rem">${marketVal}</span>
@@ -4933,7 +4934,7 @@ function _rrBrowseCore(_co) {
         _cells['var'] = `<td data-col="var" style="white-space:nowrap;text-align:center">${item.variation ? '<span style="font-size:0.78rem;color:var(--text-mid)">' + item.variation + '</span>' : '<span style="color:var(--text-dim)">—</span>'}</td>`;
         _cells.type = `<td data-col="type" style="font-size:0.78rem;color:var(--text-dim)">${_typeText}${(pd && pd.subType) ? '<div style="font-size:0.66rem;opacity:0.8;margin-top:1px">' + pd.subType + '</div>' : ''}</td>`;
         _cells.photo = `<td data-col="photo" style="text-align:center;padding:2px 4px"><div id="thumb-${_rrRowDomKey(item)}" class="rr-row-thumb"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.3"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg></div></td>`;
-        _cells.desc = `<td data-col="desc" style="color:var(--text-mid);font-size:0.85rem" title="${(_descFull||'').replace(/"/g,'&quot;')}">${_descFull}</td>`;
+        _cells.desc = `<td data-col="desc" style="color:var(--text-mid);font-size:0.85rem" title="${(_descFull||'').replace(/"/g,'&quot;')}">${_descFull}${(typeof rrCatalogStatusChip === 'function') ? rrCatalogStatusChip(item, { block: true }) : ''}</td>`;
         _cells.worth = (function(){
           // v0.9.1569 (Brad's decision, 2026-08-23): the folded group row's
           // Worth is the SUM of the pieces' Est. Worth — and the cell says
@@ -4980,6 +4981,7 @@ function _rrBrowseCore(_co) {
       const _isQuick = pd && pd.quickEntry;
       const _eraBadgeHtml = (typeof eraBadgeHTML === 'function' && window.ERA_BADGES && window.ERA_BADGES.showInBrowse) ? eraBadgeHTML(item._tab) : '';
       const _lineBadgeHtml = (typeof lineBadgeHTML === 'function') ? lineBadgeHTML(item) : '';
+      const _statusHtml = (typeof rrCatalogStatusChip === 'function') ? rrCatalogStatusChip(item, { block: true }) : '';   // v0.9.1873: under the description, every layout
       return `<tr onclick="browseRowClick(event, ${globalIdx})" style="cursor:pointer${_isQuick ? ';opacity:0.78' : ''}" title="${_isErrCar ? '⚠ Error car: ' + (pd.errorDesc||'see notes') : _isQuick ? '⚡ Quick Entry — details not yet filled in' : ''}">
         ${_mfrBadge(item)}
         <td>
@@ -4990,23 +4992,23 @@ function _rrBrowseCore(_co) {
         <td><span class="tag">${(typeof getTypeBucketLabel === 'function' ? getTypeBucketLabel(item) : item.itemType) || '—'}</span></td>
         ${((_currentEra === 'atlas') || (item && item._tab === 'Atlas O')) ? (
         _currentEra === 'all' ? `
-        <td>${item.description || '<span class="text-dim">—</span>'}</td>
+        <td>${item.description || '<span class="text-dim">—</span>'}${_statusHtml}</td>
         <td>${item.subType || '<span class="text-dim">—</span>'}</td>
         <td>${item.trackPower || '<span class="text-dim">—</span>'}</td>
         <td class="text-dim">${item.msrp ? _currencySymbol() + parseFloat(String(item.msrp).replace(/[^0-9.]/g,'')).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}) : '—'}</td>
         ` : `
         <td>${item.subType || '<span class="text-dim">—</span>'}</td>
-        <td>${item.description || '<span class="text-dim">—</span>'}</td>
+        <td>${item.description || '<span class="text-dim">—</span>'}${_statusHtml}</td>
         <td>${item.trackPower || '<span class="text-dim">—</span>'}</td>
         <td class="text-dim">${item.msrp ? _currencySymbol() + parseFloat(String(item.msrp).replace(/[^0-9.]/g,'')).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}) : '—'}</td>
         `) : (((_currentEra && _currentEra.indexOf('mth_') === 0) || (item && item._tab && item._tab.indexOf('MTH ') === 0)) ? `
         <td>${item.roadName || '<span class="text-dim">—</span>'}</td>
-        <td>${item.description || '<span class="text-dim">—</span>'}</td>
+        <td>${item.description || '<span class="text-dim">—</span>'}${_statusHtml}</td>
         <td>${item.category || '<span class="text-dim">—</span>'}</td>
         <td>${item.trackPower || '<span class="text-dim">—</span>'}</td>
         ` : `
         <td>${item.roadName || '<span class="text-dim">—</span>'}</td>
-        <td>${item.description || '<span class="text-dim">—</span>'}</td>
+        <td>${item.description || '<span class="text-dim">—</span>'}${_statusHtml}</td>
         <td>${item.variation || '<span class="text-dim">—</span>'}</td>
         <td>${vdCell}</td>
         `)}

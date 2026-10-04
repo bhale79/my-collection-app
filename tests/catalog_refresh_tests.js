@@ -29,7 +29,8 @@ function grab(src, sig) { const i = src.indexOf(sig); if (i < 0) return ''; let 
 function fakeLS(init) { const m = Object.assign({}, init || {}); return { m, getItem: k => (k in m ? m[k] : null), setItem: (k, v) => { m[k] = String(v); } }; }
 
 function buildCheck(src) {
-  const body = "var _MV_SEEN_KEY = 'lv_master_ver_seen';\n" + grab(src, 'function _rrMasterVersionCheck(v)') + '\nreturn _rrMasterVersionCheck;';
+  // v0.9.1873: the stamp-clearing is the shared _rrMarkCatalogsStale now — lift both
+  const body = "var _MV_SEEN_KEY = 'lv_master_ver_seen';\n" + grab(src, 'function _rrMarkCatalogsStale(why)') + '\n' + grab(src, 'function _rrMasterVersionCheck(v)') + '\nreturn _rrMasterVersionCheck;';
   // Returns (localStorage, eras, scheduler, version) => the function's own result.
   return (ls, eras, sched, v) => new Function('localStorage', 'REAL_ERA_IDS', '_scheduleLookupIndex', 'console', body)(ls, eras, sched, { log() {} })(v === undefined ? '1.76' : v);
 }

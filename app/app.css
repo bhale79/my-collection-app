@@ -2911,3 +2911,20 @@ html[data-theme="high-contrast"] button[style*="#e74c3c"], html[data-theme="high
 }
 /* on a Photo Inbox tile it sits in the top-left corner, over the picture */
 .rr-sample-tag.rr-sample-tag-onphoto { position: absolute; top: 6px; left: 6px; margin-left: 0; background: var(--surface); color: var(--text); }
+
+/* ── v0.9.1873 — a catalog row's STATUS tag ("Cancelled by MTH — never made").
+   ONE look for every screen; the words and the rule live in
+   catalog-display-config.js (rrCatalogStatus / rrCatalogStatusChip). Outlined,
+   never filled, so it needs no ink-on-fill choice; the colour is the theme's
+   own --t-orange, which every skin defines for its panels. The --dark variant
+   is only for the photo reader's overlay, which is dark in every theme. */
+.rr-cat-status {
+  display: inline-block; vertical-align: middle; white-space: nowrap;
+  font-family: var(--font-body); font-size: 0.7rem; font-weight: 700; line-height: 1.35;
+  letter-spacing: 0.02em; color: var(--t-orange); background: transparent;
+  border: 1px solid currentColor; border-radius: 4px; padding: 0.06rem 0.4rem;
+}
+.rr-cat-status--dark { color: #ffb27d; }
+.rr-cat-status-line { margin-top: 0.2rem; line-height: 1.2; }
+/* on its own line it may wrap rather than run past a narrow card */
+.rr-cat-status-line .rr-cat-status { white-space: normal; }

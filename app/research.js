@@ -173,6 +173,7 @@
       + '<div style="font-size:0.9rem;color:var(--text,#eee);margin:0.25rem 0 0.15rem">'
       +   _esc([mfr, road].filter(Boolean).join(' — ')) + '</div>'
       + (desc ? '<div style="font-size:0.85rem;color:var(--text-mid,#aaa);line-height:1.45;margin-bottom:0.3rem">' + _esc(desc) + '</div>' : '')
+      + ((m && typeof rrCatalogStatusChip === 'function') ? rrCatalogStatusChip(m, { block: true }) : '')   // v0.9.1873
       + '<div style="font-size:0.8rem;color:var(--text-mid,#aaa)">'
       +   (year ? 'Year: <strong style="color:var(--text,#eee)">' + _esc(year) + '</strong>&nbsp;&nbsp;' : '')
       +   (gauge ? 'Scale: <strong style="color:var(--text,#eee)">' + _esc(gauge) + '</strong>' : '')

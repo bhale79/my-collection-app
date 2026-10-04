@@ -2654,7 +2654,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
   const a9 = fs.readFileSync(require('path').join(__dirname, '..', 'app', 'app-data.js'), 'utf8');
   const cfg9 = fs.readFileSync(require('path').join(__dirname, '..', 'app', 'config.js'), 'utf8');
   ok('the multi-tab range starts at A1 so the header row arrives',
-     /_mt\.map\(t => `\$\{t\}!A1:AD`\)/.test(a9));
+     /_mt\.map\(t => `\$\{t\}!A1:\$\{MASTER_READ_LAST_COL\}`\)/.test(a9) && /const MASTER_READ_LAST_COL = '[A-Z]{2}';/.test(cfg9));   // v1873: the width lives in config.js
   ok('and no master-tab fetch stops at column U any more',
      !/_mt\.map\(t => `\$\{t\}!A2:U`\)/.test(a9));
   ok('the header row is consumed as a header, not parsed as an item',
@@ -12326,14 +12326,15 @@ META_WRITES.length = 0; TOASTS.length = 0;
                               adSrc.indexOf('// v0.9.658 — Atlas'));
       return new Function(
         'state', 'SHEET_TABS', 'ERA_TABS', 'MASTER_TAB_KEYS', '_getMasterTabs',
-        'sheetsBatchGet', 'sheetsGet', 'buildMasterColMap', 'parseMasterRow', 'console',
+        'sheetsBatchGet', 'sheetsGet', 'buildMasterColMap', 'parseMasterRow', 'console', 'MASTER_READ_LAST_COL',
         cut + '\n; return _fetchMasterTabs;'
       )({ masterSheetId: 'MS' }, { items: 'Items' }, {}, ['items'],
         function () { return ['Items']; },
         batchGet, legacyGet,
         function () { return {}; },
         function (r) { return { itemNum: r[0] }; },
-        { warn: function () {}, error: function () {}, log: function () {} });
+        { warn: function () {}, error: function () {}, log: function () {} },
+        'AZ');   // v0.9.1873: config.js's MASTER_READ_LAST_COL (config.js is not loaded in this rig)
     }
 
     const ftOK = await fetchTabsRig(
@@ -12361,7 +12362,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
       const st = { masterData: [{ itemNum: 'GOOD' }] };
       const fn = new Function(
         'state', '_currentEra', 'idbGet', 'idbSet', 'idbRemove', 'localStorage', 'navigator', 'window',
-        '_fetchMasterTabs', '_deduplicateMaster', '_rebuildMasterIndex', 'ERAS', 'console',
+        '_fetchMasterTabs', '_deduplicateMaster', '_rebuildMasterIndex', 'ERAS', 'console', '_rrCatalogShapeCheck',
         cut + '\n; return loadMasterData;'
       )(st, 'pw',
         async function () { return null; },                       // no cache: this is the COLD path
@@ -12375,7 +12376,8 @@ META_WRITES.length = 0; TOASTS.length = 0;
         function (r) { return r; },
         function () {},
         { pw: { label: 'Lionel Postwar' } },
-        { warn: function () {}, error: function () {}, log: function () {} });
+        { warn: function () {}, error: function () {}, log: function () {} },
+        function () { return false; });   // v0.9.1873: the shape check — catalog_status_tests runs the real one
       return { fn: fn, idbWrites: idbWrites, stamps: stamps, state: st };
     }
 

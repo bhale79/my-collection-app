@@ -5579,7 +5579,8 @@
       var row = n ? _pinCardRowFor(n) : null;
       out.push({ label: String(a), n: n, hot: !!(n && primary && n === primary),
                  desc: row ? String(row.description || row.roadName || '') : '',
-                 link: row ? String(row.refLink || '') : '' });
+                 link: row ? String(row.refLink || '') : '',
+                 row: row || null });   // v0.9.1873: the row itself, so its status tag can be drawn
     });
     return out;
   }
@@ -5595,7 +5596,8 @@
       // the app's action blue is the palette's --want (typed as #2980b9
       // elsewhere in this file) — no new colour literal
       var link = c.link ? '<button type="button" class="pin-alt-view" onclick="window.open(\'' + esc(c.link) + '\',\'_blank\',\'noopener\')" style="border:none;background:none;padding:0.2rem 0;min-height:30px;color:var(--want);font-family:var(--font-body);font-size:0.74rem;font-weight:700;cursor:pointer;text-align:left">view ↗</button>' : '';
-      return '<div class="pin-alt" style="display:flex;flex-direction:column;align-items:flex-start;gap:0.1rem;max-width:12em">' + num + desc + link + '</div>';
+      var stat = (c.row && typeof rrCatalogStatusChip === 'function') ? rrCatalogStatusChip(c.row, { block: true }) : '';   // v0.9.1873
+      return '<div class="pin-alt" style="display:flex;flex-direction:column;align-items:flex-start;gap:0.1rem;max-width:12em">' + num + desc + stat + link + '</div>';
     }).join('');
     return '<div style="margin-bottom:0.6rem">' +
       '<div style="font-size:0.72rem;color:var(--text-dim);margin-bottom:0.3rem">Could be one of these — view each to compare, then tap the one you have' + (anyHot ? ' (★ = best guess)' : '') + ':</div>' +
@@ -5859,6 +5861,7 @@
         var r0 = _pinCardRowFor(k);   // v0.9.1833: the same row the pick chips describe
         if (!r0) return false;
         html += line(k, r0.description || '', r0.refLink || '', false, '', fits);
+        if (typeof rrCatalogStatusChip === 'function') html += rrCatalogStatusChip(r0, { block: true });   // v0.9.1873
         return true;
       };
       // The base first — but only when a real item row carries it.

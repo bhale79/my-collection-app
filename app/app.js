@@ -2462,6 +2462,10 @@ function _rrCatalogsToRefresh(eras, hydratedEras, now) {
 if (typeof window !== 'undefined') window._rrCatalogsToRefresh = _rrCatalogsToRefresh;
 
 async function loadAllErasMode() {
+  // v0.9.1873: a catalog-shape bump marks the saved catalogs stale BEFORE
+  // _rrCatalogsToRefresh reads their stamps below (the single-era loader runs
+  // the same rule; whichever runs first does it, the other finds it done).
+  if (typeof _rrCatalogShapeCheck === 'function') { try { _rrCatalogShapeCheck(); } catch (eSC) {} }
   _currentEra = 'all';
   localStorage.setItem('lv_era', 'all');
   if (typeof _catalogLoadingBegin === 'function') _catalogLoadingBegin();

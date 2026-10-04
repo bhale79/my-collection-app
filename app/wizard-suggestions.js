@@ -412,6 +412,10 @@ function updateItemSuggestions(query) {
           // so the suggestion row shows "MTH \u2197" / "Lionel \u2197".
           refLink:     m.refLink || ((typeof window._itemExternalLinkURL === 'function') ? window._itemExternalLinkURL(m) : ''),
           label:       m.itemNum,
+          // v0.9.1873: what rrCatalogStatus reads (a cancelled MTH item says so)
+          deliveryStatus: m.deliveryStatus || '',
+          _era:        m._era || '',
+          _tab:        m._tab || '',
         });
       }
       });
@@ -666,6 +670,11 @@ function updateItemSuggestions(query) {
         + 'width:100%';
       line2.textContent = _details;
       row.appendChild(line2);
+    }
+    // v0.9.1873: a cancelled item says so, on its own line under the details
+    if (typeof rrCatalogStatusChip === 'function') {
+      var _stChip = rrCatalogStatusChip(c, { block: true });
+      if (_stChip) row.insertAdjacentHTML('beforeend', _stChip);
     }
 
     el.appendChild(row);
@@ -1032,7 +1041,7 @@ function lookupItem(num) {
     } else {
       if (match) {
         el.innerHTML = `<div style="background:rgba(201,146,42,0.1);border:1px solid var(--accent2);border-radius:8px;padding:0.65rem 0.85rem;font-size:0.82rem">
-          <span style="color:var(--accent2)">Not in your collection</span> · ${match.roadName || (typeof getTypeBucketLabel === 'function' ? getTypeBucketLabel(match) : match.itemType) || ''} · ${match.yearProd || ''}<br>
+          <span style="color:var(--accent2)">Not in your collection</span> · ${match.roadName || (typeof getTypeBucketLabel === 'function' ? getTypeBucketLabel(match) : match.itemType) || ''} · ${match.yearProd || ''}${((typeof rrCatalogStatusChip === 'function') && rrCatalogStatusChip(match, { block: true })) || '<br>'}
           <span style="color:var(--text-dim)">You can still enter details manually</span>
         </div>`;
       } else {
@@ -1050,7 +1059,7 @@ function lookupItem(num) {
     if (match) {
       el.innerHTML = `<div style="border-radius:8px;padding:0.65rem 0.85rem;font-size:0.82rem;
         background:rgba(46,204,113,0.1);border:1px solid var(--green)">
-        <div><span style="color:var(--green)">✓ Found in catalog:</span> ${match.roadName || (typeof getTypeBucketLabel === 'function' ? getTypeBucketLabel(match) : match.itemType) || ''} · ${match.yearProd || ''}</div>
+        <div><span style="color:var(--green)">✓ Found in catalog:</span> ${match.roadName || (typeof getTypeBucketLabel === 'function' ? getTypeBucketLabel(match) : match.itemType) || ''} · ${match.yearProd || ''}</div>${(typeof rrCatalogStatusChip === 'function') ? rrCatalogStatusChip(match, { block: true }) : ''}
         <div style="margin-top:0.4rem;padding-top:0.4rem;border-top:1px solid rgba(255,255,255,0.08)">
           ${inCollection
             ? `<span style="color:var(--green)">✓ In your collection</span> · Condition: ${pd.condition || '?'} · Has box: ${pd.hasBox || 'No'}`
@@ -1081,7 +1090,7 @@ function lookupItem(num) {
       if (match.itemType && match.itemType !== match.roadName) _mInfoParts.push((typeof getTypeBucketLabel === 'function') ? getTypeBucketLabel(match) : match.itemType);
       var _mInfo = _mInfoParts.join(' \u00B7 ') || '(no details)';
       el.innerHTML = `<div style="background:rgba(46,204,113,0.1);border:1px solid var(--green);border-radius:8px;padding:0.65rem 0.85rem;font-size:0.82rem">
-        <span style="color:var(--green)">✓ Found:</span> ${_mInfo}
+        <span style="color:var(--green)">✓ Found:</span> ${_mInfo}${(typeof rrCatalogStatusChip === 'function') ? rrCatalogStatusChip(match, { block: true }) : ''}
         ${match.variation ? '<br><span style="color:var(--text-dim)">Note: multiple variations exist — select on next step</span>' : ''}
         ${hasBoxOnlyRow ? `<div style="margin-top:0.5rem;padding-top:0.5rem;border-top:1px solid rgba(255,255,255,0.08)">
           <span style="color:var(--accent2)">📦 A box for this item is already in your collection.</span>
