@@ -217,7 +217,7 @@ async function cancelCase(browser) {
   T('B3 the cards list EVERY entry under the number — the motor car (current), the O-gauge boxcar, the two variation-C products; the A unit is not among them',
     JSON.stringify(p.cards) === JSON.stringify(['MMMMMMMMMM*', 'BBBBBBBBBB', 'CCCCCCCCCC', 'C2C2C2C2C2']), p.cards);
   T('B4 a card shows the era, the variation, type · road · year, the full description and a see-it link', p.cardText.some(t => /Var C/.test(t) && /orange body/.test(t)) && p.cardText.some(t => /Lionel Lines/.test(t)) && p.cottLink, p.cardText);
-  T('B5 picking the boxcar stages it (the field now names the boxcar; nothing written yet)', /Boxcar/.test(p.staged) && p.stagedOnRecord === 'BBBBBBBBBB', p.staged);
+  T('B5 picking the boxcar stages it (the field now names the boxcar; nothing written yet — and NOT on the live record: v0.9.1883 edits a copy)', /Boxcar/.test(p.staged) && p.stagedOnRecord === '', p.staged);
   T('B6 Save writes the full row with THAT entry\'s Row ID and key — identity-checked (one PUT to the item\'s own row)',
     p.written && p.written.id === 'BBBBBBBBBB' && p.written.key === 'prewar|800|' && /!A3:AY3$/.test(p.putRange), p);
   T('B7 ...and the entry\'s type, road, descriptions, era and maker ride along; the number keeps its text-guard quote, the variation is the entry\'s',
@@ -226,7 +226,7 @@ async function cancelCase(browser) {
   const pv = await panel(browser, null, 'CCCCCCCCCC');
   T('B9 picking variation C: the item\'s variation becomes C and the variation description follows', pv.out.written && pv.out.written.id === 'CCCCCCCCCC' && pv.out.written.variation === 'C' && pv.out.written.varDesc === 'orange body', pv.out.written);
   const cc = await cancelCase(browser);
-  T('B10 Cancel forgets a staged pick — nothing written, nothing left on the record', cc.out.stagedBefore && !cc.out.stagedAfter && cc.out.puts === 0 && cc.out.closed, cc.out);
+  T('B10 Cancel forgets a staged pick — nothing written, nothing on the live record before or after (v0.9.1883: the panel edits a copy)', !cc.out.stagedBefore && !cc.out.stagedAfter && cc.out.puts === 0 && cc.out.closed, cc.out);
   const p2 = await panel(browser, null, 'C2C2C2C2C2');
   T('B10b the SECOND product under 800 var C can be picked — its own Row ID is written, not the first C row\'s', p2.out.written && p2.out.written.id === 'C2C2C2C2C2' && p2.out.written.varDesc === 'brown body', p2.out.written);
   const pp = await panel(browser, { panel: plantedPanel() }, 'C2C2C2C2C2');

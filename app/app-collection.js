@@ -3724,7 +3724,14 @@ function _rrSubTypeIsUserField() {
 }
 
 function showItemPanel(idx, pdKey, mode) {
-  const pd = state.personalData[pdKey] || {};
+  // v0.9.1883 ([stated] Brad: "yes"): the panel edits a COPY of the record. It
+  // used to edit the live record in place as you typed, so a change followed
+  // by Cancel (or ✕, or the device Back key) stayed in memory and rode along
+  // on the next save of that item — the shape v0.9.1882 fixed for the entry
+  // pick alone. Save copies the edited values back INTO the live record (not a
+  // new object: the owned-by-inventory maps and drawn rows hold the live one).
+  const _live = state.personalData[pdKey] || {};
+  const pd = Object.assign({}, _live);
   const item = state.masterData[idx] || {
     itemNum: pd.itemNum, variation: pd.variation || '',
     roadName: pd.roadName || '', itemType: pd.itemType || '',
@@ -3763,7 +3770,7 @@ function showItemPanel(idx, pdKey, mode) {
   box.appendChild(header);
   // Wire close btn now that header is in memory
   const _hdrClose = header.querySelector('#item-panel-close-btn');
-  if (_hdrClose) _hdrClose.onclick = function() { delete pd._newEntry; overlay.remove(); };   // v0.9.1882: a staged entry pick dies with the panel
+  if (_hdrClose) _hdrClose.onclick = function() { overlay.remove(); };   // v0.9.1883: every staged edit dies with the panel (pd is a copy)
 
   // Scrollable content — split into photos (permanent) + fields (re-rendered)
   const body = document.createElement('div');
@@ -3934,7 +3941,7 @@ function showItemPanel(idx, pdKey, mode) {
   addPhotoBtn.onclick = function() {
     // Close this panel and open photo wizard for this item
     document.getElementById('item-panel-overlay').remove();
-    openPhotoWizard(item.itemNum, pd.variation || item.variation || '', pdKey);
+    openPhotoWizard(item.itemNum, _live.variation || item.variation || '', pdKey);   // v0.9.1883: the SAVED variation, not a staged edit
   };
   photoHdr.appendChild(addPhotoBtn);
   photoSection.appendChild(photoHdr);
@@ -4403,7 +4410,8 @@ function showItemPanel(idx, pdKey, mode) {
           saveBtn.textContent = '💾 Save All Changes'; saveBtn.disabled = false;
           return;
         }
-        state.personalData[pdKey] = Object.assign({}, pd, { priceComplete: calc > 0 ? calc.toFixed(2) : '' });
+        // v0.9.1883: the edits land on the live record only now, on a save that landed
+        state.personalData[pdKey] = Object.assign(_live, pd, { priceComplete: calc > 0 ? calc.toFixed(2) : '' });
         // v0.9.1315: a For Sale listing of THIS copy carries the variation
         // too — update it in the same save so the two can never disagree.
         if (_varChanged && pd.inventoryId && state.forSaleData && state.forSaleData[pd.inventoryId]) {
@@ -4444,7 +4452,7 @@ function showItemPanel(idx, pdKey, mode) {
     const cancelBtn = document.createElement('button');
     cancelBtn.className = 'btn btn-secondary';
     cancelBtn.textContent = 'Cancel';
-    cancelBtn.onclick = function() { delete pd._newEntry; overlay.remove(); };   // v0.9.1882
+    cancelBtn.onclick = function() { overlay.remove(); };   // v0.9.1883: pd is a copy — nothing to undo
 
     footer.innerHTML = '';
     footer.appendChild(saveBtn);
