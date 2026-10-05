@@ -1,0 +1,266 @@
+{
+ "what": "Master Version 2.21 — Lionel's 2-7/8\" gauge motor cars and their trailers → Motorized Unit (the No. 200 rule); Gauge O → 2-7/8 on three of them; six No. 600 Pullman cars Flatcar → Passenger Car",
+ "stated": "Brad: \"yes\" to build the review (2026-10-04, PREWAR_2_7_8_PLAN_2026-10-04.xlsx), held for the Row ID plan, \"yes\" to write it (2026-10-05)",
+ "masterVersion": "2.21",
+ "date": "2026-10-05",
+ "planReadAt": "2026-10-05T15:52:50.957Z",
+ "cellFormat": "[tab, item number (column A), column header, old, new, sheet row as a hint, Row ID of the row]",
+ "cells": [
+  [
+   "Lionel Pre-War",
+   "500",
+   "Item Type",
+   "Operating Freight",
+   "Motorized Unit",
+   1280,
+   "YE4ZBTMDE6"
+  ],
+  [
+   "Lionel Pre-War",
+   "800",
+   "Item Type",
+   "Boxcar",
+   "Motorized Unit",
+   1771,
+   "6RECKHCQDD"
+  ],
+  [
+   "Lionel Pre-War",
+   "1000",
+   "Item Type",
+   "Passenger Car",
+   "Motorized Unit",
+   2067,
+   "RNMEQR9CD8"
+  ],
+  [
+   "Lionel Pre-War",
+   "400",
+   "Item Type",
+   "Boxcar",
+   "Motorized Unit",
+   1190,
+   "3BQ7TNX7MN"
+  ],
+  [
+   "Lionel Pre-War",
+   "600",
+   "Item Type",
+   "Flatcar",
+   "Motorized Unit",
+   1350,
+   "RY3H4J97CC"
+  ],
+  [
+   "Lionel Pre-War",
+   "900",
+   "Item Type",
+   "Boxcar",
+   "Motorized Unit",
+   2028,
+   "K2DNAFY3FJ"
+  ],
+  [
+   "Lionel Pre-War",
+   "1050",
+   "Item Type",
+   "Passenger Car",
+   "Motorized Unit",
+   2094,
+   "TY5TRN4HBR"
+  ],
+  [
+   "Lionel Pre-War",
+   "600",
+   "Gauge",
+   "O",
+   "2-7/8",
+   1350,
+   "RY3H4J97CC"
+  ],
+  [
+   "Lionel Pre-War",
+   "800",
+   "Gauge",
+   "O",
+   "2-7/8",
+   1771,
+   "6RECKHCQDD"
+  ],
+  [
+   "Lionel Pre-War",
+   "900",
+   "Gauge",
+   "O",
+   "2-7/8",
+   2028,
+   "K2DNAFY3FJ"
+  ],
+  [
+   "Lionel Pre-War",
+   "600",
+   "Item Type",
+   "Flatcar",
+   "Passenger Car",
+   1351,
+   "AU248H6MXF"
+  ],
+  [
+   "Lionel Pre-War",
+   "600",
+   "Item Type",
+   "Flatcar",
+   "Passenger Car",
+   1352,
+   "EFVSKZGP8H"
+  ],
+  [
+   "Lionel Pre-War",
+   "600",
+   "Item Type",
+   "Flatcar",
+   "Passenger Car",
+   1353,
+   "5SAF93TF8K"
+  ],
+  [
+   "Lionel Pre-War",
+   "600",
+   "Item Type",
+   "Flatcar",
+   "Passenger Car",
+   1354,
+   "K7RS3WDRNB"
+  ],
+  [
+   "Lionel Pre-War",
+   "600",
+   "Item Type",
+   "Flatcar",
+   "Passenger Car",
+   1355,
+   "KP4FKC749E"
+  ],
+  [
+   "Lionel Pre-War",
+   "600",
+   "Item Type",
+   "Flatcar",
+   "Passenger Car",
+   1356,
+   "VUEMHCU5ZZ"
+  ]
+ ],
+ "why": [
+  {
+   "item": "500",
+   "row": 1280,
+   "kind": "A: motor car → Motorized Unit",
+   "why": "self-propelled derrick car with its own motor — your No. 200 rule (JLM Trains, maker of 2-7/8\" reproductions: motorized cars 100/200/300/500/800/1000; unpowered trailers 309/400/600/900/1050)"
+  },
+  {
+   "item": "800",
+   "row": 1771,
+   "kind": "A: motor car → Motorized Unit",
+   "why": "the Electric Box Car — a boxcar with its own motor; your No. 200 rule (JLM Trains, maker of 2-7/8\" reproductions: motorized cars 100/200/300/500/800/1000; unpowered trailers 309/400/600/900/1050)"
+  },
+  {
+   "item": "1000",
+   "row": 2067,
+   "kind": "A: motor car → Motorized Unit",
+   "why": "a passenger car with its own motor; your No. 200 rule (JLM Trains, maker of 2-7/8\" reproductions: motorized cars 100/200/300/500/800/1000; unpowered trailers 309/400/600/900/1050)"
+  },
+  {
+   "item": "400",
+   "row": 1190,
+   "kind": "B: its trailer → Motorized Unit",
+   "why": "the No. 200 Electric Express's unpowered trailer — typed like its motor car, the way trolley trailers are typed Trolley (JLM Trains, maker of 2-7/8\" reproductions: motorized cars 100/200/300/500/800/1000; unpowered trailers 309/400/600/900/1050)"
+  },
+  {
+   "item": "600",
+   "row": 1350,
+   "kind": "B: its trailer → Motorized Unit",
+   "why": "the No. 500 derrick car's unpowered trailer (JLM Trains, maker of 2-7/8\" reproductions: motorized cars 100/200/300/500/800/1000; unpowered trailers 309/400/600/900/1050)"
+  },
+  {
+   "item": "900",
+   "row": 2028,
+   "kind": "B: its trailer → Motorized Unit",
+   "why": "the No. 800 Electric Box Car's unpowered trailer (JLM Trains, maker of 2-7/8\" reproductions: motorized cars 100/200/300/500/800/1000; unpowered trailers 309/400/600/900/1050)"
+  },
+  {
+   "item": "1050",
+   "row": 2094,
+   "kind": "B: its trailer → Motorized Unit",
+   "why": "the No. 1000 passenger car's unpowered trailer (JLM Trains, maker of 2-7/8\" reproductions: motorized cars 100/200/300/500/800/1000; unpowered trailers 309/400/600/900/1050)"
+  },
+  {
+   "item": "600",
+   "row": 1350,
+   "kind": "C: Gauge said O on a 2-7/8\" row",
+   "why": "its own description says 2 7/8\"; the tab's other 2-7/8\" rows say 2-7/8"
+  },
+  {
+   "item": "800",
+   "row": 1771,
+   "kind": "C: Gauge said O on a 2-7/8\" row",
+   "why": "its own description says 2 7/8\"; the tab's other 2-7/8\" rows say 2-7/8"
+  },
+  {
+   "item": "900",
+   "row": 2028,
+   "kind": "C: Gauge said O on a 2-7/8\" row",
+   "why": "its own description says 2 7/8\"; the tab's other 2-7/8\" rows say 2-7/8"
+  },
+  {
+   "item": "600",
+   "row": 1351,
+   "kind": "D: Pullman cars typed Flatcar",
+   "why": "a Pullman passenger car (O gauge) — like the No. 600 passenger cars below it (Passenger Car)"
+  },
+  {
+   "item": "600",
+   "row": 1352,
+   "kind": "D: Pullman cars typed Flatcar",
+   "why": "a Pullman passenger car (O gauge) — like the No. 600 passenger cars below it (Passenger Car)"
+  },
+  {
+   "item": "600",
+   "row": 1353,
+   "kind": "D: Pullman cars typed Flatcar",
+   "why": "a Pullman passenger car (O gauge) — like the No. 600 passenger cars below it (Passenger Car)"
+  },
+  {
+   "item": "600",
+   "row": 1354,
+   "kind": "D: Pullman cars typed Flatcar",
+   "why": "a Pullman passenger car (O gauge) — like the No. 600 passenger cars below it (Passenger Car)"
+  },
+  {
+   "item": "600",
+   "row": 1355,
+   "kind": "D: Pullman cars typed Flatcar",
+   "why": "a Pullman passenger car (O gauge) — like the No. 600 passenger cars below it (Passenger Car)"
+  },
+  {
+   "item": "600",
+   "row": 1356,
+   "kind": "D: Pullman cars typed Flatcar",
+   "why": "a Pullman passenger car (O gauge) — like the No. 600 passenger cars below it (Passenger Car)"
+  }
+ ],
+ "unchanged": [
+  {
+   "tab": "Lionel Pre-War",
+   "item": "100 (row 445)",
+   "what": "Wooden Gondola (2 7/8\"), 1901, typed Gondola",
+   "why": "Sources disagree on whether Lionel's 1901 Electric Express was numbered 100 or 200 (JLM lists the 1901 Electric Express as No. 200). Not guessed — left as it is."
+  },
+  {
+   "tab": "Lionel Pre-War",
+   "item": "200, 300, 309",
+   "what": "No. 200 Motorized Unit; No. 300 trolley and No. 309 trolley trailer typed Trolley",
+   "why": "Already right (2.11 / 2.06)."
+  }
+ ]
+}
