@@ -659,18 +659,9 @@ function _sheetCardModel(card, state) {
         return out;
       }
       case 'collectionByType': {
-        var eS = _ownedTypeNumSet(state, _ENGINE_BUCKETS), tS = _ownedTypeNumSet(state, _TENDER_BUCKETS), cS = _ownedTypeNumSet(state, _CABOOSE_BUCKETS),
-            pS = _ownedTypeNumSet(state, _PASSENGER_BUCKETS), fS = _ownedTypeNumSet(state, _FREIGHT_BUCKETS), aS = _ownedTypeNumSet(state, _ACCESSORY_BUCKETS);
-        var types = { Engines: 0, Tenders: 0, Freight: 0, Passenger: 0, Cabooses: 0, Accessories: 0, Other: 0 };
-        _ownedNonBox(state).forEach(function (pd) {
-          if (_pdMatchSet(pd, eS)) types.Engines++;
-          else if (_pdMatchSet(pd, tS)) types.Tenders++;
-          else if (_pdMatchSet(pd, cS)) types.Cabooses++;
-          else if (_pdMatchSet(pd, pS)) types.Passenger++;
-          else if (_pdMatchSet(pd, fS)) types.Freight++;
-          else if (_pdMatchSet(pd, aS)) types.Accessories++;
-          else types.Other++;
-        });
+        // v0.9.1879: the SAME numbers the card shows — one decider in dashboard.js
+        // (_ownedTypeBreakdown: each owned item by its own catalog entry).
+        var types = _ownedTypeBreakdown(state);
         var rows3 = []; Object.entries(types).forEach(function (e) { if (e[1] > 0) rows3.push([e[0], e[1]]); });
         out.rows = rows3; return out;
       }

@@ -16,10 +16,6 @@
 // HELPERS
 // ══════════════════════════════════════════════════════════════════
 // Session 118 Phase D: bucket-aware category mapping for dashboard counts.
-function _bucketIs(item, allowed) {
-  if (typeof getTypeBucket !== 'function') return false;
-  return allowed.indexOf(getTypeBucket(item)) !== -1;
-}
 var _ENGINE_BUCKETS = ['Steam Locomotive','Diesel Locomotive','Electric Locomotive','Motorized Unit'];
 var _TENDER_BUCKETS = ['Tender'];
 var _FREIGHT_BUCKETS = ['Boxcar','Hopper','Tank Car','Flatcar','Gondola','Stock Car','Intermodal','Operating Freight'];
@@ -28,28 +24,52 @@ var _CABOOSE_BUCKETS = ['Caboose'];
 var _ACCESSORY_BUCKETS = ['Accessory','Track','Transformer/Power','Service Station Tool'];
 var _SET_BUCKETS = ['Set'];
 
-function _ownedTypeNumSet(state, buckets) {
-  // Set of normalized item numbers that are of the given type, per master.
-  var nums = new Set();
-  (state.masterData || []).forEach(function(m) { if (_bucketIs(m, buckets)) nums.add(normalizeItemNum(m.itemNum)); });
-  return nums;
+// ══ v0.9.1879 — WHAT KIND OF ITEM IS THIS, for every count on the dashboard ══
+// [stated] Brad: "yes" — plan CATALOG_ROW_ID_PLAN_2026-10-04, Step 1.
+//
+// The counts used to ask "is ANY catalog row with this number an engine?" —
+// every maker, every era, 164,777 rows — and count the owned item by that.
+// Measured on Brad's collection: his 6119 and 6120 work cabooses, three
+// flatcars, a station and a dwarf signal counted as engines (another maker's
+// row with the same number is one); Total Freight Cars said 118 for 67 and
+// Total Accessories 51 for 18, because each Total card checked every catalog
+// on its own and an item could land on several. And it was slow: the walk
+// cost ~0.5 s per Total card and 3.6 s for Collection by Type, on every
+// dashboard redraw.
+//
+// Now each owned item counts ONCE, by ITS OWN catalog entry — the row
+// findMaster gives for the owned row itself (its saved link first, then its
+// era and maker): the same row My Collection shows for it. An item with no
+// catalog entry (a manual one) counts by the Item Type on its own row.
+// ONE decider (_ownedBucketOf), used by every count here AND by the
+// Dashboard tab the app writes into the user's sheet (sheet-builder.js).
+// Never count an owned item by matching its NUMBER against catalog rows —
+// tests/dashboard_counts_tests.js scans for it and plants the old code.
+var _DASH_GROUPS = [
+  ['Engines', _ENGINE_BUCKETS], ['Tenders', _TENDER_BUCKETS], ['Cabooses', _CABOOSE_BUCKETS],
+  ['Passenger', _PASSENGER_BUCKETS], ['Freight', _FREIGHT_BUCKETS], ['Accessories', _ACCESSORY_BUCKETS]
+];
+function _ownedBucketOf(pd) {
+  if (!pd || typeof getTypeBucket !== 'function') return '';
+  var m = _valueMasterOf(pd);                       // findMaster(num, variation, the owned row) — a manual row gets null
+  if (m) return getTypeBucket(m) || '';
+  var t = String(pd.itemType || '').trim();
+  return t ? (getTypeBucket({ itemType: t }) || '') : '';
 }
-// Match an owned item to a type-set, trying its base number too — so powered/
-// dummy/B-unit variants (205-P, 218-D, 2343-C) match the catalog's base entry (205).
-function _pdMatchSet(pd, nums) {
-  if (nums.has(normalizeItemNum(pd.itemNum))) return true;
-  if (typeof baseItemNum === 'function') {
-    var b = baseItemNum(pd.itemNum);
-    if (b && nums.has(normalizeItemNum(b))) return true;
-  }
-  return false;
+function _ownedGroupOf(pd) {
+  var b = _ownedBucketOf(pd);
+  for (var i = 0; i < _DASH_GROUPS.length; i++) if (_DASH_GROUPS[i][1].indexOf(b) !== -1) return _DASH_GROUPS[i][0];
+  return 'Other';
 }
 function _ownedTypeCount(state, buckets) {
-  // Count OWNED items of a type, not master rows. One owned number matches
-  // many master variation rows, so the old "filter masterData by owned"
-  // massively over-counted (e.g. 122 cabooses for 62 items).
-  var nums = _ownedTypeNumSet(state, buckets);
-  return _ownedNonBox(state).filter(function(pd) { return _pdMatchSet(pd, nums); }).length;
+  // Count OWNED items of a type, not master rows (one owned item = one count).
+  return _ownedNonBox(state).filter(function (pd) { return buckets.indexOf(_ownedBucketOf(pd)) !== -1; }).length;
+}
+// Collection by Type, as numbers — the card draws it, the sheet's Dashboard tab writes it.
+function _ownedTypeBreakdown(state, ownedList) {
+  var types = { 'Engines': 0, 'Tenders': 0, 'Freight': 0, 'Passenger': 0, 'Cabooses': 0, 'Accessories': 0, 'Other': 0 };
+  (ownedList || _ownedNonBox(state)).forEach(function (pd) { types[_ownedGroupOf(pd)]++; });
+  return types;
 }
 function _ownedNonBox(state) {
   // Returns array of owned personalData entries, excluding pure box-only rows.
@@ -630,8 +650,6 @@ var CARD_CATALOG = [
     id: 'collectionByType', label: 'Collection by Type', color: '#e74c3c',
     compute: function(state) {
       // Session 121: respect Preferences "What I Collect" in 'all' mode.
-      var _eS=_ownedTypeNumSet(state,_ENGINE_BUCKETS), _tS=_ownedTypeNumSet(state,_TENDER_BUCKETS), _cS=_ownedTypeNumSet(state,_CABOOSE_BUCKETS), _pS=_ownedTypeNumSet(state,_PASSENGER_BUCKETS), _fS=_ownedTypeNumSet(state,_FREIGHT_BUCKETS), _aS=_ownedTypeNumSet(state,_ACCESSORY_BUCKETS);
-      var types = { 'Engines':0, 'Tenders':0, 'Freight':0, 'Passenger':0, 'Cabooses':0, 'Accessories':0, 'Other':0 };
       var _ownedList = _ownedNonBox(state);
       // Catalog not loaded yet — can't classify; show loading rather than a wrong/empty breakdown.
       if ((!state.masterData || state.masterData.length === 0) && _ownedList.length > 0) {
@@ -640,15 +658,7 @@ var CARD_CATALOG = [
         var _cbMsg = (window._offlineMode || navigator.onLine === false) ? '\ud83d\udce1 Will show when you\u2019re back online' : 'Loading catalog\u2026';
         return { html: '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:4px">' + _cbMsg + '</div>' };
       }
-      _ownedList.forEach(function(pd) {
-        if (_pdMatchSet(pd, _eS)) types['Engines']++;
-        else if (_pdMatchSet(pd, _tS)) types['Tenders']++;
-        else if (_pdMatchSet(pd, _cS)) types['Cabooses']++;
-        else if (_pdMatchSet(pd, _pS)) types['Passenger']++;
-        else if (_pdMatchSet(pd, _fS)) types['Freight']++;
-        else if (_pdMatchSet(pd, _aS)) types['Accessories']++;
-        else types['Other']++;
-      });
+      var types = _ownedTypeBreakdown(state, _ownedList);   // v0.9.1879: each item by its own catalog entry
       var html = '';
       Object.entries(types).forEach(function(e) {
         if (e[1] > 0) {
@@ -699,8 +709,9 @@ var CARD_CATALOG = [
   {
     id: 'sets', label: 'Total Sets', color: '#d35400',
     compute: function(state) {
-      var owned = new Set(Object.values(state.personalData).filter(function(pd){return pd.owned;}).map(function(pd){return normalizeItemNum(pd.itemNum);}));
-      var count = state.masterData.filter(function(m) { return _bucketIs(m, _SET_BUCKETS) && owned.has(normalizeItemNum(m.itemNum)); }).length;
+      // v0.9.1879: owned items whose own catalog entry is a set — it used to
+      // count CATALOG rows typed Set whose number the user owned (any maker).
+      var count = _ownedTypeCount(state, _SET_BUCKETS);
       return { value: count.toLocaleString(), sub: 'sets in collection' };
     }
   },
