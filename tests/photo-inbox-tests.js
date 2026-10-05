@@ -7198,9 +7198,11 @@ META_WRITES.length = 0; TOASTS.length = 0;
     // masterKey is exactly that known set, in order, ending the schema.
     // v1682: stockPhotoLink appended after the user columns (custom1-5 carry
     // digits and are invisible to the [A-Za-z]+ capture above).
+    // v1880: masterRowId (Master Row ID — the catalog row's permanent ID)
+    // appended after stockPhotoLink (CATALOG_ROW_ID_PLAN Step 2).
     ok('...appended at the END, never mid-schema',
        fields.slice(fields.indexOf('masterKey') + 1).join(',') ===
-         'eraPeriod,importBatch,yourGrade,yourDescription,locationDetail,shipper,subCollection,stockPhotoLink',
+         'eraPeriod,importBatch,yourGrade,yourDescription,locationDetail,shipper,subCollection,stockPhotoLink,masterRowId',
        fields.slice(fields.indexOf('masterKey') + 1).join(','));
 
     // The wizard passes the CONFIRMED match; buildPersonalRow has the fallback.

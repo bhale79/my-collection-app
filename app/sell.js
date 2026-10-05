@@ -409,7 +409,7 @@ async function _sellSync() {
     var pd = (e.inventoryId && state.personalData[e.inventoryId]) || {};
     var num = pd.itemNum || e.itemNum || '';
     var vr = pd.itemNum ? (pd.variation || '') : (e.variation || '');
-    var m = findMaster(num, vr, { era: pd.era || '', manufacturer: pd.manufacturer || e.manufacturer || '', masterKey: pd.masterKey || '' }) || {};
+    var m = findMaster(num, vr, { era: pd.era || '', manufacturer: pd.manufacturer || e.manufacturer || '', masterKey: pd.masterKey || '', masterRowId: pd.masterRowId || '' }) || {};   // v0.9.1880: + Row ID
     var eraLabel = (typeof ERAS !== 'undefined' && pd.era && ERAS[pd.era]) ? ERAS[pd.era].label
       : (pd.manufacturer || e.manufacturer || '');
     var descBits = [];

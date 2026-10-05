@@ -269,6 +269,28 @@ T('3464 with NO hint at all -> unchanged, the plain row', (fmX('3464', null, nul
 // gate only loosens for paper, never for items.
 T('6456 untouched: plain row is a real item', (fmX('6456', null, LIVE) || {}).itemNum, '6456');
 
+// ── CANARY 6 (v0.9.1880): the saved ROW ID — the link two products never share ──
+// Lionel Pre-War No. 800, no variation, is the 1904 2-7/8" motor car AND the
+// 1915 O-gauge boxcar; the old link (era|number|variation) opened the first.
+// The REAL findMaster, lifted with its Row ID helpers. Full coverage:
+// tests/row_id_tests.js (D) and tests/row_id_collection_tests.js.
+{
+  const parts = ['function rrMasterKeyOf(', 'function rrMasterByKey(', 'function rrMasterRowIdOf(', 'function _rrIndexByRowId(',
+    'function rrMasterByRowId(', 'function _rrRowIdFits(', 'function findMaster(', 'function _preferEraOf('].map(n => grab(dat, n.replace(/^function /, '').replace(/\($/, '')));
+  const motor = { itemNum: '800', variation: '', _era: 'prewar', _tab: 'Lionel Pre-War', itemType: 'Motorized Unit', rowId: 'MMMMMMMMMM' };
+  const boxO  = { itemNum: '800', variation: '', _era: 'prewar', _tab: 'Lionel Pre-War', itemType: 'Boxcar', rowId: 'BBBBBBBBBB' };
+  const st6 = { masterByItem: new Map([['800', [motor, boxO]]]), masterByItemAll: null };
+  const fm6 = new Function('state', 'ERA_TABS', 'baseItemNum', '_findMasterCore', parts.join('\n')
+    + '\nstate.masterByRowId = _rrIndexByRowId([motor, boxO]); return findMaster;'.replace('[motor, boxO]', 'Array.from(state.masterByItem.get("800"))'))
+    (st6, { prewar: { items: 'Lionel Pre-War' } }, baseItemNum, (idx, n) => ((idx && idx.get(String(n))) || [])[0] || null);
+  T('Row ID: the boxcar collector gets the BOXCAR, not the first 800',
+    (fm6('800', '', { masterKey: 'prewar|800|', masterRowId: 'BBBBBBBBBB', era: 'prewar' }) || {}).itemType, 'Boxcar');
+  T('Row ID: the key alone still opens the first row (unchanged)',
+    (fm6('800', '', { masterKey: 'prewar|800|', era: 'prewar' }) || {}).itemType, 'Motorized Unit');
+  T('Row ID: an ID that resolves to nothing falls back, never guesses past the key',
+    (fm6('800', '', { masterKey: 'prewar|800|', masterRowId: 'ZZZZZZZZZZ', era: 'prewar' }) || {}).itemType, 'Motorized Unit');
+}
+
 // ── the earlier canaries must be unchanged by all of the above ──────────
 T('regression: 238 period hint still 1963',
   _findMasterCore(state.masterByItem, '238', null, { period: 'postwar' }).yearProd, '1963-64');

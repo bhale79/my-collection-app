@@ -650,6 +650,10 @@ const MASTER_COL_SPEC = [
   // Master Version 1.95. What it MEANS is decided in one place only:
   // rrCatalogStatus (catalog-display-config.js).
   ['deliveryStatus', null, ['deliverystatus']],
+  // v0.9.1880: the row's PERMANENT ID ("Row ID", last column on every item
+  // tab from Master Version 2.20) — what an owned item saves as Master Row ID.
+  // Format and minting: RR_ROW_ID_* / rrNewRowId (config.js). Blank until then.
+  ['rowId',          null, ['rowid']],
 ];
 
 // Build a field -> column-index map from a sheet's header row.
@@ -700,7 +704,7 @@ function parseMasterRow(r, tabName, cm) {
 }
 
 function _deduplicateMaster(rows) {
-  const seen = new Set();
+  const seen = new Map();   // v0.9.1880: key -> the row kept (was a Set)
   return rows.filter(m => {
     if (!m.itemNum) return false;
     // trackPower included so Atlas rail variants (3-Rail TMCC vs 2-Rail DC, etc.)
@@ -710,8 +714,14 @@ function _deduplicateMaster(rows) {
     // matters) are real distinct products and must not be dropped. _yearRaw keeps
     // the full date; the display-formatted yearProd would re-collapse same-year waves.
     const key = m.itemNum + '|' + (m.roadName || '') + '|' + m.variation + '|' + (m.poweredDummy || '') + '|' + (m.description || '') + '|' + (m.trackPower || '') + '|' + (m.subType || '') + '|' + (m._yearRaw || '');
-    if (seen.has(key)) return false;
-    seen.add(key);
+    const kept = seen.get(key);
+    if (kept) {
+      // v0.9.1880: the twin the app folds away keeps answering to its own
+      // Row ID — an owned item may have been saved against it.
+      if (m.rowId && m.rowId !== kept.rowId) (kept._altRowIds || (kept._altRowIds = [])).push(m.rowId);
+      return false;
+    }
+    seen.set(key, m);
     return true;
   });
 }
@@ -752,6 +762,7 @@ function _rebuildMasterIndex() {
     bucket.push(r);
   }
   state.masterByItem = m;
+  state.masterByRowId = _rrIndexByRowId(rows);   // v0.9.1880
   state._masterIdxMap = im;              // v0.9.985: see _masterIdxOf below
   state._boxVarCache = new Map();        // bust box-variation cache on reindex
   // v0.9.985: master data changed — invalidate cached page renders.
@@ -869,6 +880,45 @@ function rrMasterByKey(key) {
   return _scan(state.masterByItem) || _scan(state.masterByItemAll) || null;
 }
 if (typeof window !== 'undefined') { window.rrMasterKeyOf = rrMasterKeyOf; window.rrMasterByKey = rrMasterByKey; }
+// ── v0.9.1880: the PERMANENT link — a catalog row's Row ID ──────────────────
+// [stated] Brad: "yes" — CATALOG_ROW_ID_PLAN_2026-10-04, Step 2. era|number|
+// variation is shared by different products on 655 links; a Row ID never is.
+// An owned item saves it as Master Row ID (its own column, beside Master Key,
+// which is still written so an older copy of the app finds every item).
+function rrMasterRowIdOf(m) { return (m && m.rowId) ? String(m.rowId).trim() : ''; }
+// Row ID -> row, in both indexes (the loaded catalogs, then the whole-catalog
+// lookup index). A row folded away as a duplicate answers through its twin.
+function _rrIndexByRowId(rows) {
+  var ids = new Map();
+  (rows || []).forEach(function (r) {
+    if (!r) return;
+    var id = r.rowId ? String(r.rowId).trim() : '';
+    if (id && !ids.has(id)) ids.set(id, r);
+    if (r._altRowIds) r._altRowIds.forEach(function (a) { if (a && !ids.has(a)) ids.set(a, r); });
+  });
+  return ids;
+}
+function rrMasterByRowId(id) {
+  id = String(id == null ? '' : id).trim();
+  if (!id) return null;
+  return (state.masterByRowId && state.masterByRowId.get(id))
+      || (state.masterByRowIdAll && state.masterByRowIdAll.get(id)) || null;
+}
+// A saved Row ID is trusted only when its row carries the item's own number
+// (or base number, 520-P -> 520) and, when the copy names a variation, that
+// variation: an older copy of the app that changed the variation rewrote
+// Master Key but never this column, and a stale ID must not win then.
+function _rrRowIdFits(row, itemNum, variation) {
+  if (!row) return false;
+  var _kn = String(row.itemNum).trim(), _in = String(itemNum == null ? '' : itemNum).trim();
+  if (!(_kn === _in || (typeof baseItemNum === 'function' && baseItemNum(_in) === _kn))) return false;
+  var v = String(variation == null ? '' : variation).trim();
+  if (!v) return true;
+  var rv = String(row.variation == null ? '' : row.variation).trim();
+  if (typeof rrSameVar === 'function') return rrSameVar(v, rv);
+  return v.toUpperCase() === rv.toUpperCase();
+}
+if (typeof window !== 'undefined') { window.rrMasterRowIdOf = rrMasterRowIdOf; window.rrMasterByRowId = rrMasterByRowId; }
 
 function findMaster(itemNum, variation, prefer) {
   if (!itemNum) return null;
@@ -876,6 +926,13 @@ function findMaster(itemNum, variation, prefer) {
   // `prefer` and that row is a MANUAL entry, there is no catalog identity —
   // ever. One guard here covers every display/lookup path at once.
   if (prefer && String(prefer.era || '') === 'Manual') return null;
+  // v0.9.1880: a saved ROW ID answers first and exactly — the one link two
+  // products can never share. Checked against the item's own number and
+  // variation (_rrRowIdFits); otherwise the stored key / scoring below.
+  if (prefer && prefer.masterRowId) {
+    var _byId = rrMasterByRowId(prefer.masterRowId);
+    if (_byId && _rrRowIdFits(_byId, itemNum, variation)) return _byId;
+  }
   // v0.9.1198: a STORED key answers outright — no scoring, no guessing. Many
   // call sites already pass the personal row as `prefer`; rows saved from
   // v0.9.1198 on carry pd.masterKey, so those joins upgrade to lookups
@@ -924,6 +981,8 @@ function findMaster(itemNum, variation, prefer) {
 function _preferEraOf(prefer) {
   if (!prefer) return '';
   try {
+    var mr = String(prefer.masterRowId || '');   // v0.9.1880: the saved row, exactly
+    if (mr) { var rr0 = rrMasterByRowId(mr); if (rr0 && rr0._era && typeof ERA_TABS !== 'undefined' && ERA_TABS[rr0._era]) return rr0._era; }
     var mk = String(prefer.masterKey || '');
     if (mk.indexOf('|') > 0) { var e1 = mk.split('|')[0]; if (typeof ERA_TABS !== 'undefined' && ERA_TABS[e1]) return e1; }
     var e2 = String(prefer.era || '').trim();
@@ -1461,7 +1520,11 @@ async function _buildAllErasLookupIndex(force) {
         for (var i = 0; i < rows.length; i++) {
           var r = rows[i]; if (!r) continue;
           var k = String(r.itemNum || '').trim(); if (!k) continue;
-          var sig = k + '|' + String(r.variation || '') + '|' + String(r._tab || '') + '|' + String(r._era || era || '');
+          // v0.9.1880: a Row ID is the row's identity; without one, the old
+          // signature (which also merged two products sharing number +
+          // variation + tab — the very thing a Row ID tells apart).
+          var sig = r.rowId ? ('#' + String(r.rowId).trim())
+            : (k + '|' + String(r.variation || '') + '|' + String(r._tab || '') + '|' + String(r._era || era || ''));
           if (seen[sig]) continue; seen[sig] = 1;
           if (!r._era && era) r._era = era;
           var b = map.get(k); if (!b) { b = []; map.set(k, b); } b.push(r);
@@ -1472,6 +1535,7 @@ async function _buildAllErasLookupIndex(force) {
       eras.forEach(function (e) { if (eraRows[e]) add(eraRows[e], e); });
       state.masterByItemAll = map;
       state.masterAllRows = rowsAll;
+      state.masterByRowIdAll = _rrIndexByRowId(rowsAll);   // v0.9.1880
       _allIdxBuiltAt = Date.now();
       return map;
     }

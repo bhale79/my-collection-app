@@ -3771,8 +3771,14 @@ function _rrBrowseCore(_co) {
   // v0.9.1119 promo/paper demotion rule (aligned with the item's own type,
   // so a deliberately-saved paper item still lands on a paper row).
   var _bvAdopt = null;
+  // v0.9.1880 (CATALOG_ROW_ID_PLAN Step 2): a copy saved with a Row ID sits on
+  // EXACTLY that row — keyed by the row's ID, so two products that share number
+  // and variation (Pre-War 800: the 1904 motor car and the 1915 boxcar) each
+  // keep their own copy, which one number+variation seat never could.
+  var _bvById = null, _bvByIdPds = null;
   if (state.filters.owned) {
     _bvAdopt = new Map();
+    _bvById = new Map(); _bvByIdPds = new Set();
     // v0.9.1817 (S4, measured: 488,154 _displayItemNum calls per My Collection
     // draw = three full walks of 162k rows for 233 items). This map is one of
     // them, and it only changes when the catalog does — cached on the same
@@ -3806,6 +3812,18 @@ function _rrBrowseCore(_co) {
       // a unique strict match stays on today's path untouched.
       var _pv = String(p.variation || '').trim().toUpperCase();  // same normalization as _pdLookupKey
       if (String(p.era || '') === 'Manual') return;             // a manual entry's identity is its own
+      // v0.9.1880: a saved ROW ID settles it before anything else — the one
+      // link no two rows share. Same number guard as the stored key below.
+      if (p.masterRowId && typeof rrMasterByRowId === 'function') {
+        var _idRow = rrMasterByRowId(p.masterRowId);
+        if (_idRow && _idRow.rowId && String(_idRow.itemNum).trim() === String(p.itemNum).trim()
+            && (typeof _rrRowIdFits !== 'function' || _rrRowIdFits(_idRow, p.itemNum, p.variation))) {
+          _bvById.set(String(_idRow.rowId).trim(), p);
+          _bvByIdPds.add(p);
+          _bvAdopt.set(_pv ? (p.itemNum + '|v|' + _pv) : p.itemNum, { pd: p, row: _idRow });
+          return;
+        }
+      }
       // v0.9.1198: a STORED master key settles it outright — the user
       // confirmed this exact catalog row at save time. No scoring, no
       // guessing; lookalikes never even get a vote. Guarded by item number so
@@ -3857,6 +3875,10 @@ function _rrBrowseCore(_co) {
   function _rrPdForRow(item) {
     if (item._copyPd) return item._copyPd;
     if (item._personalOnly) return item._pd || item;   // v0.9.1820: the real record, not the hand-copied subset
+    if (_bvById && item.rowId) {                       // v0.9.1880: the copy saved against THIS row, exactly
+      var _byIdPd = _bvById.get(String(item.rowId).trim());
+      if (_byIdPd) return _byIdPd;
+    }
     var _dn = _displayItemNum(item);
     if (!_pdNumsExact.has(_dn)) {
       if (!_bvAdopt) return null;
@@ -3866,6 +3888,14 @@ function _rrBrowseCore(_co) {
     var _p = findPD(_dn, item.variation);
     if (_p && _p.itemNum !== _dn) _p = null;                     // no -P/-D bleed
     if (_p && String(_p.era || '') === 'Manual') _p = null;      // v0.9.718
+    // v0.9.1880: a found copy whose saved Row ID names a DIFFERENT row is not
+    // this row's copy (a folded twin's ID still counts as this row's). An ID
+    // that resolves to no row, or no longer fits the copy, decides nothing.
+    if (_p && _p.masterRowId && item.rowId && typeof rrMasterByRowId === 'function') {
+      var _pr = rrMasterByRowId(_p.masterRowId), _pid = String(_p.masterRowId).trim();
+      if (_pr && _pr !== item && (typeof _rrRowIdFits !== 'function' || _rrRowIdFits(_pr, _p.itemNum, _p.variation))
+          && _pid !== String(item.rowId).trim() && (item._altRowIds || []).indexOf(_pid) < 0) _p = null;
+    }
     // v0.9.1202: a found copy whose STORED key names a different catalog row
     // is not this row's copy — release it. (The 3545 paper row was lighting
     // up with a flatcar copy findPD happened to return, because two copies
@@ -3892,6 +3922,7 @@ function _rrBrowseCore(_co) {
     .filter(pd => pd.owned && (String(pd.era || '') === 'Manual' || !masterNums.has(pd.itemNum + '|' + (pd.variation||''))))   // v0.9.718: manual rows never merge into catalog rows
     .filter(pd => {   // v0.9.1120: adopted items display on their catalog row instead (v0.9.1193: variation-keyed entries too)
       if (!_bvAdopt) return true;
+      if (_bvByIdPds && _bvByIdPds.has(pd)) return false;   // v0.9.1880: seated on its row by Row ID
       var _adN = _bvAdopt.get(pd.itemNum);
       if (_adN && _adN.pd === pd) return false;
       var _adV = _bvAdopt.get(pd.itemNum + '|v|' + String(pd.variation == null ? '' : pd.variation).trim().toUpperCase());
@@ -4079,6 +4110,16 @@ function _rrBrowseCore(_co) {
     }
     var _itKey = (typeof rrMasterKeyOf === 'function') ? rrMasterKeyOf(it) : '';
     return (_copiesByNum.get(_displayItemNum(it)) || []).filter(function (p) {
+      // v0.9.1880: a saved Row ID names exactly one row — it decides first
+      // (a folded twin's ID counts as this row's). An ID that resolves to no
+      // row, or no longer fits the copy, decides nothing. Without IDs: unchanged.
+      if (p.masterRowId && it.rowId) {
+        var _idR = (typeof rrMasterByRowId === 'function') ? rrMasterByRowId(p.masterRowId) : null;
+        if (_idR && (typeof _rrRowIdFits !== 'function' || _rrRowIdFits(_idR, p.itemNum, p.variation))) {
+          var _pid2 = String(p.masterRowId).trim();
+          return _idR === it || _pid2 === String(it.rowId).trim() || (it._altRowIds || []).indexOf(_pid2) >= 0;
+        }
+      }
       if (p.masterKey && _itKey) return p.masterKey === _itKey;
       return rrSameVar(p.variation, it.variation);
     });

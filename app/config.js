@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.1879';
+const APP_VERSION = 'v0.9.1880';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -606,6 +606,50 @@ const PERSONAL_CACHE_VER = 'pf2';   // v0.9.1843: section Types read through eph
 // Sheets returns only the columns that hold something, so reading wider costs
 // nothing. Columns are read by their HEADER name, never by position.
 const MASTER_READ_LAST_COL = 'AZ';
+
+// ══ v0.9.1880 — A CATALOG ROW'S PERMANENT ID ═══════════════════════════════
+// [stated] Brad: "yes" — CATALOG_ROW_ID_PLAN_2026-10-04, Step 2.
+// The app used to remember which catalog row an owned item is by era + item
+// number + variation (Master Key). On 655 links two or more DIFFERENT products
+// share that (1,738 rows across the master — Pre-War No. 800 is both the
+// 1904 2-7/8" motor car and the 1915 O-gauge boxcar, same blank variation),
+// and the app always opened the first. A Row ID names ONE row, for good:
+// the "Row ID" column, last on every item tab (Master Version 2.20); an owned
+// item saves it as "Master Row ID" beside its Master Key.
+//   • 10 characters from an alphabet with no look-alikes (no 0/O, no 1/I/L)
+//   • random — no counter to keep, nothing positional; a row moved to another
+//     tab keeps its ID; an ID is never given out twice
+//   • unique across the WHOLE master — the master-list check flags a row with
+//     none and any two alike (tools/master-audit/audit.js, rule row-id-*)
+// Minted here and only here: the Office (yardmaster.js) for a row it files,
+// the master edits (which lift this function) for the rows they write.
+const RR_ROW_ID_ALPHABET = '23456789ABCDEFGHJKMNPQRSTUVWXYZ';
+const RR_ROW_ID_LENGTH = 10;
+function rrIsRowId(s) {
+  s = String(s == null ? '' : s);
+  if (s.length !== RR_ROW_ID_LENGTH) return false;
+  for (var i = 0; i < s.length; i++) if (RR_ROW_ID_ALPHABET.indexOf(s.charAt(i)) < 0) return false;
+  return true;
+}
+// `taken` (optional): a Set of IDs already in use — a clash draws again.
+function rrNewRowId(taken) {
+  var n = RR_ROW_ID_ALPHABET.length;
+  for (var tries = 0; tries < 100; tries++) {
+    var bytes = null;
+    try {
+      var c = (typeof crypto !== 'undefined' && crypto && crypto.getRandomValues) ? crypto : null;
+      if (c) { bytes = new Uint8Array(RR_ROW_ID_LENGTH * 2); c.getRandomValues(bytes); }
+    } catch (e) { bytes = null; }
+    var id = '';
+    for (var i = 0; i < RR_ROW_ID_LENGTH; i++) {
+      var r = bytes ? ((bytes[2 * i] << 8) | bytes[2 * i + 1]) : Math.floor(Math.random() * 65536);
+      id += RR_ROW_ID_ALPHABET.charAt(r % n);
+    }
+    if (!taken || !taken.has(id)) return id;
+  }
+  throw new Error('rrNewRowId: could not draw a free ID');
+}
+if (typeof window !== 'undefined') { window.rrIsRowId = rrIsRowId; window.rrNewRowId = rrNewRowId; }
 
 // ═══════════════════════════════════════════════════════════════
 // SIGN-OUT — what survives, and nothing else

@@ -112,7 +112,10 @@ ok('the Edit dropdown still lists _ymMasterTabs() (one source of truth, no hard-
 ok('the commit resolves each tab\'s shape and number column, and compares the field that fills it', /_ymTabShape\(t2\)/.test(commit) && /_ymNumberCol\(heads, shape2\)/.test(commit) && /existing\[String\(dd\[numCol\.field\] \|\| ''\)\.trim\(\)\]/.test(commit));
 ok('a tab with no number column stops the commit before any write', /if \(numIdx < 0\) throw new Error\('could not find the ' \+ numCol\.header \+ ' column on ' \+ t2/.test(commit));
 ok('the Image URL column is only ever added to an items-layout tab', /var _hasImg = !plan\[t4\]\.shape && /.test(commit));
-ok('rows are written through _ymMasterCell with the tab\'s shape', /_ymMasterCell\(h, dd, today, plan\[t4\]\.shape\)/.test(commit));
+// v0.9.1880: the row building moved into _ymRowsFor (so the Row ID minting can be run in a test) —
+// the rule this pins is unchanged: the commit's rows go through _ymMasterCell with the tab's shape.
+ok('rows are written through _ymMasterCell with the tab\'s shape', /var rows = _ymRowsFor\(plan\[t4\], today\);/.test(commit)
+   && /_ymMasterCell\(h, dd, today, p\.shape\)/.test(grab(ym, 'function _ymRowsFor(')));
 ok('the maker of a row filed on any tab of an era resolves (not only its items tab)', /Object\.keys\(ERA_TABS\[id\]\)\.some\(function \(k\) \{ return ERA_TABS\[id\]\[k\] === dd\.tab; \}\)/.test(grab(ym, 'function _ymDeltaMaker(dd)')));
 ok('the held rules are untouched: a blank number is still held, a tab outside the list is still held', /heldNoNum\.push\(dd\)/.test(commit) && /heldNoTab\.push\(dd\)/.test(commit) && /var validTabs = _ymMasterTabs\(\);/.test(commit));
 

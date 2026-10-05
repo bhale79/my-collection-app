@@ -1456,6 +1456,9 @@ async function saveWizardItem() {
           // one moment the match is certain. Store it; never re-guess it.
           masterKey: (typeof wizard !== 'undefined' && wizard && wizard.matchedItem && typeof rrMasterKeyOf === 'function')
             ? rrMasterKeyOf(wizard.matchedItem) : undefined,
+          // v0.9.1880: and the row's permanent Row ID — the exact row the user confirmed
+          masterRowId: (typeof wizard !== 'undefined' && wizard && wizard.matchedItem && typeof rrMasterRowIdOf === 'function')
+            ? rrMasterRowIdOf(wizard.matchedItem) : undefined,
           itemNum: itemNum,
           variation: variation,
           condition: d.condition || '',

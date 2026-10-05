@@ -923,6 +923,7 @@ const LOCK_CONFIG = {
     'groupId',
     'masterKey',     // v0.9.1198 — WHICH catalog row this is. Same kind of thing
                      // as inventoryId, and just as damaging to retype.
+    'masterRowId',   // v0.9.1880 — the same, by the row's permanent Row ID.
   ],
 };
 

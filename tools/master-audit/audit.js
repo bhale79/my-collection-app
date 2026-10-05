@@ -92,6 +92,8 @@ function loadApp() {
     constLine(cfg, 'LOOKUP_ONLY_ERAS') +
     constBlock(cfg, 'ERA_TABS') +
     constLine(cfg, 'MASTER_TAB_KEYS') +
+    constLine(cfg, 'RR_ROW_ID_ALPHABET') + constLine(cfg, 'RR_ROW_ID_LENGTH') +   // v0.9.1880: the Row ID's one definition
+    grab(cfg, 'rrIsRowId') + '\n' + grab(cfg, 'rrNewRowId') + '\n' +
     constBlock(ad, 'MASTER_COL_SPEC') +
     grab(ad, '_normHdr') + '\n' + grab(ad, 'buildMasterColMap') + '\n' + grab(ad, '_mcell') + '\n' +
     grab(ad, '_fmtYearProd') + '\n' + grab(ad, 'parseMasterRow') + '\n' +
@@ -99,7 +101,7 @@ function loadApp() {
     grab(app, '_scalesOfGauge') + '\n' +
     dedupeKeyFn(ad) + '\n' +
     'return { MASTER_SHEET_ID, ERAS, REAL_ERA_IDS, LOOKUP_ONLY_ERAS, ERA_TABS, MASTER_TAB_KEYS, ' +
-    'buildMasterColMap, parseMasterRow, _mvPickLatest, _scalesOfGauge, masterDedupeKey };'
+    'buildMasterColMap, parseMasterRow, _mvPickLatest, _scalesOfGauge, masterDedupeKey, rrIsRowId, rrNewRowId, RR_ROW_ID_ALPHABET, RR_ROW_ID_LENGTH };'
   )();
   lifted.getTypeBucket = w.getTypeBucket;
   lifted.TYPE_BUCKETS = w.TYPE_BUCKETS;
@@ -336,6 +338,10 @@ function tabRules(rows, A) {
 const TAB_RULES = [
   { id: 'dup-exact', sev: 'check', field: 'itemNum', title: 'identical rows by the app\'s own dedupe key (the app keeps one, drops the rest) — the S154 duplicates' },
   { id: 'dup-key', sev: 'look', field: 'itemNum', title: 'one product (number, variation, unit, rail, sub type, date) with two different roads or descriptions' },
+  // v0.9.1880 (CATALOG_ROW_ID_PLAN): the Row ID — checked only on a tab that HAS the column (Master Version 2.20 adds it)
+  { id: 'row-id-missing', sev: 'check', field: 'rowId', title: 'a row with no Row ID (every row on an item tab gets one — the Office and the master edits mint them)' },
+  { id: 'row-id-bad', sev: 'check', field: 'rowId', title: 'a Row ID that is not one (10 characters from the Row ID alphabet, config.js)' },
+  { id: 'row-id-dup', sev: 'check', field: 'rowId', title: 'the same Row ID on two rows — anywhere in the master; an ID must name ONE row' },
 ];
 const ALL_RULES = RULES.concat(TAB_RULES);
 
@@ -376,7 +382,36 @@ function checkTab(A, t, csvRows) {
     });
   });
   tabRules(parsed, A).forEach(f => { const m = parsed[f.i]; res.flags.push({ tab: t.tab, row: m._sheetRow, itemNum: m.itemNum, variation: m.variation, rule: f.id, field: f.field, value: m.itemNum, note: f.note }); });
+  // v0.9.1880: Row IDs — only where the tab has the column. Duplicates are
+  // judged across the WHOLE master afterwards (rowIdDuplicates), so this keeps
+  // every ID it saw.
+  if (cm.rowId !== undefined) {
+    res.rowIds = [];
+    parsed.forEach(m => {
+      if (!m.itemNum.trim()) return;
+      const id = String(m.rowId || '').trim();
+      const f = { tab: t.tab, row: m._sheetRow, itemNum: m.itemNum, variation: m.variation, field: 'rowId', value: id };
+      if (!id) { res.flags.push(Object.assign({ rule: 'row-id-missing', note: 'no Row ID' }, f)); return; }
+      if (!A.rrIsRowId(id)) res.flags.push(Object.assign({ rule: 'row-id-bad', note: '"' + id + '" is not a Row ID' }, f));
+      res.rowIds.push({ id, tab: t.tab, row: m._sheetRow, itemNum: m.itemNum, variation: m.variation });
+    });
+  }
   return res;
+}
+// The same Row ID twice — within a tab or across tabs — is one flag per row
+// that carries it, each naming where else the ID sits.
+function rowIdDuplicates(results) {
+  const by = {};
+  results.forEach(r => (r.rowIds || []).forEach(x => { (by[x.id] = by[x.id] || []).push(x); }));
+  const out = [];
+  Object.keys(by).forEach(id => {
+    const g = by[id]; if (g.length < 2) return;
+    g.forEach(x => {
+      const others = g.filter(y => y !== x).map(y => y.tab + ' row ' + y.row).join(', ');
+      out.push({ tab: x.tab, row: x.row, itemNum: x.itemNum, variation: x.variation, rule: 'row-id-dup', field: 'rowId', value: id, note: 'Row ID ' + id + ' is also on ' + others });
+    });
+  });
+  return out;
 }
 const flagKey = f => [f.tab, f.itemNum.trim(), f.variation.trim(), f.rule, f.field].join('|');
 
@@ -488,6 +523,9 @@ async function run(opts) {
     results.push(checkTab(A, t, rows));
     if (opts.log) opts.log(t.tab + ': ' + results[results.length - 1].rowsChecked + ' rows, ' + results[results.length - 1].flags.length + ' flags');
   }
+  // v0.9.1880: one Row ID, one row — across every tab read this run
+  const _dups = rowIdDuplicates(results);
+  if (_dups.length) _dups.forEach(f => { const r = results.find(x => x.tab === f.tab); if (r) r.flags.push(f); });
   const prev = opts.prev ? JSON.parse(fs.readFileSync(opts.prev, 'utf8')) : null;
   const date = opts.date || new Date().toISOString().slice(0, 10);
   const meta = { date, masterVersion, prevDate: prev ? prev.date : '', skippedParts: A.LOOKUP_ONLY_ERAS.map(e => (A.ERA_TABS[e] || {}).items).filter(Boolean) };
@@ -512,4 +550,4 @@ if (require.main === module) {
   }).catch(e => { console.error('FAILED: ' + (e && e.stack || e)); process.exit(1); });
 }
 
-module.exports = { loadApp, auditTabs, parseCsv, checkTab, summarize, md, flagsCsv, flagKey, run, RULES, TAB_RULES, ALL_RULES, yearsOf, looksLikeDate, readTab, loadGids, gidMapFromHtml, exportUrl, htmlviewUrl, jsUnescape };
+module.exports = { loadApp, auditTabs, parseCsv, checkTab, rowIdDuplicates, summarize, md, flagsCsv, flagKey, run, RULES, TAB_RULES, ALL_RULES, yearsOf, looksLikeDate, readTab, loadGids, gidMapFromHtml, exportUrl, htmlviewUrl, jsUnescape };

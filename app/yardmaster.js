@@ -1251,6 +1251,23 @@
       default: return '';
     }
   }
+  // v0.9.1880 (CATALOG_ROW_ID_PLAN Step 2): the rows one commit appends to one
+  // tab — every cell by HEADER NAME through _ymMasterCell; an item tab's
+  // "Row ID" gets a freshly minted permanent ID (rrNewRowId, config.js — the
+  // one definition), never one already on the tab or earlier in this batch.
+  // A Sets / Catalogs tab (a shape) has no Row ID. Named so tests can run it.
+  function _ymRowsFor(p, today) {
+    var ridIdx = p.shape ? -1 : (p.heads || []).map(String).indexOf('Row ID'), taken = new Set();
+    if (ridIdx >= 0) (p.allVals || []).slice(1).forEach(function (r) { var v = String((r && r[ridIdx]) || '').trim(); if (v) taken.add(v); });
+    return p.fresh.map(function (dd) {
+      var rid = (ridIdx >= 0 && typeof rrNewRowId === 'function') ? rrNewRowId(taken) : '';
+      if (rid) taken.add(rid);
+      return p.heads.map(function (h) {
+        if (rid && String(h) === 'Row ID') return rid;
+        return _ymMasterCell(h, dd, today, p.shape);   // v0.9.1754
+      });
+    });
+  }
   window._ymCommit = async function () {
     if (!_isOwner() || !_ymData) return;
     var b = null;
@@ -1358,9 +1375,7 @@
           await sheetsUpdate(MID, "'" + t4 + "'!" + _colL + '1', [['Image URL']]);
           plan[t4].heads = plan[t4].heads.concat(['Image URL']);
         }
-        var rows = plan[t4].fresh.map(function (dd) {
-          return plan[t4].heads.map(function (h) { return _ymMasterCell(h, dd, today, plan[t4].shape); });   // v0.9.1754
-        });
+        var rows = _ymRowsFor(plan[t4], today);   // v0.9.1880: by header name, Row IDs minted (_ymRowsFor)
         // §224's census is right: raw :append belongs in sheets.js alone.
         // The guarded sheetsAppend does the write — same chokepoint, same
         // outbox protection, as every other append in the app.

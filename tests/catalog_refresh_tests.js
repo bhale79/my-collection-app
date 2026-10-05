@@ -35,7 +35,9 @@ function buildCheck(src) {
   return (ls, eras, sched, v) => new Function('localStorage', 'REAL_ERA_IDS', '_scheduleLookupIndex', 'console', body)(ls, eras, sched, { log() {} })(v === undefined ? '1.76' : v);
 }
 function buildIndex(src) {
+  // v0.9.1880: the index also builds Row ID -> row (the real helper, lifted too)
   const body = 'var _allIdxBuiltAt = 0, _allIdxBuilding = false, _allIdxComplete = false, _allIdxRerun = false;\n'
+    + grab(src, 'function _rrIndexByRowId(rows)') + '\n'
     + grab(src, 'async function _buildAllErasLookupIndex(force)') + '\nreturn _buildAllErasLookupIndex;';
   return (env) => new Function('state', 'REAL_ERA_IDS', 'idbGet', 'idbSet', 'localStorage', '_fetchMasterTabs', '_deduplicateMaster', '_scheduleLookupIndex', 'console',
     body)(env.state, env.eras, env.idbGet, env.idbSet, env.ls, env.fetch, x => x, env.sched || (() => {}), { log() {}, warn() {} });
@@ -141,6 +143,38 @@ async function main() {
   ok('OFFENDER: a new version that clears nothing → catalogs stay stale', r === true, String(r));
   r = await offends("if (seen === v) return false;", "", async src => { const ls = fakeLS({ lv_master_ver_seen: '1.76', lv_master_cache_ts_pw: '5' }); buildCheck(src)(ls, ['pw'], () => {}); return ls.m.lv_master_cache_ts_pw === '0'; });
   ok('OFFENDER: no same-version guard → every start re-downloads everything', r === true, String(r));
+
+  // v0.9.1880 (CATALOG_ROW_ID_PLAN Step 2): with Row IDs on the master, the
+  // whole-catalog index tells apart two products that share number, variation,
+  // tab and era (Pre-War 800: the 1904 motor car and the 1915 boxcar) — the old
+  // signature kept only the first — and answers every Row ID, a folded twin's too.
+  section('F — Row IDs in the whole-catalog index');
+  async function idScenario(src) {
+    const loaded = [{ itemNum: '700', variation: '', _tab: 'Items', _era: 'prewar', rowId: 'AAAAAAAA22', _altRowIds: ['AAAAAAAA33'] }];
+    const env = {
+      state: { masterData: loaded },
+      eras: ['prewar', 'pw'],
+      idbGet: async k => (k === 'lv_master_cache_pw' ? [
+        { itemNum: '800', variation: '', _tab: 'Items', _era: 'pw', rowId: 'BBBBBBBB22', description: '1904 motor car' },
+        { itemNum: '800', variation: '', _tab: 'Items', _era: 'pw', rowId: 'BBBBBBBB33', description: '1915 boxcar' },
+        { itemNum: '900', variation: '', _tab: 'Items', _era: 'pw', description: 'no Row ID yet' },
+        { itemNum: '900', variation: '', _tab: 'Items', _era: 'pw', description: 'no Row ID yet, same signature' },
+      ] : null),
+      idbSet: () => {}, ls: fakeLS({ lv_master_cache_ts_pw: String(Date.now()) }), fetch: async () => [],
+    };
+    await buildIndex(src)(env)(true);
+    return env.state;
+  }
+  {
+    const st = await idScenario(AD);
+    const n800 = st.masterAllRows.filter(x => x.itemNum === '800');
+    ok('two products sharing number + variation + tab + era are BOTH in the index when they carry Row IDs', n800.length === 2, String(n800.length));
+    ok('each Row ID answers its own row', st.masterByRowIdAll && st.masterByRowIdAll.get('BBBBBBBB22') === n800[0] && st.masterByRowIdAll.get('BBBBBBBB33') === n800[1]);
+    ok('a folded twin\'s Row ID answers through the row kept', st.masterByRowIdAll.get('AAAAAAAA33') === st.masterAllRows.find(x => x.itemNum === '700'));
+    ok('rows without Row IDs are merged as before (old signature, unchanged)', st.masterAllRows.filter(x => x.itemNum === '900').length === 1);
+    r = await offends("var sig = r.rowId ? ('#' + String(r.rowId).trim())", "var sig = false ? ''", async src => { const s = await idScenario(src); return s.masterAllRows.filter(x => x.itemNum === '800').length === 1; });
+    ok('OFFENDER: the old signature for every row → the 1915 boxcar disappears from the index', r === true, String(r));
+  }
 
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');
   process.exit(fail ? 1 : 0);

@@ -121,6 +121,13 @@ const PERSONAL_SCHEMA = [
   // read only by the item page and the My Collection thumbnails, which draw
   // it under a STOCK PHOTO banner. Appended at END (column rule).
   { field: 'stockPhotoLink',       header: 'Stock Photo Link' },
+  // v0.9.1880 (CATALOG_ROW_ID_PLAN Step 2): WHICH catalog row this item is, by
+  // the row's permanent Row ID — the link no two products share (Master Key's
+  // era|number|variation is shared on 655 links). Master Key is still written
+  // beside it, so an older copy of the app keeps finding every item; it would
+  // HIDE an item if Master Key changed shape, which is why this is its own
+  // column. Appended at END (column rule).
+  { field: 'masterRowId',          header: 'Master Row ID' },
 ];
 const PERSONAL_HEADERS = PERSONAL_SCHEMA.map(s => s.header);
 const PERSONAL_FIELD_INDEX = {};
@@ -281,7 +288,7 @@ function buildPersonalRow(fields) {
   // v0.9.1313: both lookups carry the copy's full identity — variation plus
   // era/maker/masterKey — so the description belongs to THIS row, not to the
   // first row that shares its number.
-  const _descPrefer = { era: fields.era || '', manufacturer: fields.manufacturer || '', masterKey: fields.masterKey || '' };
+  const _descPrefer = { era: fields.era || '', manufacturer: fields.manufacturer || '', masterKey: fields.masterKey || '', masterRowId: fields.masterRowId || '' };   // v0.9.1880: + the Row ID
   if (!_rowIsManual && mdi !== undefined && (fields.masterDescription === undefined || fields.masterDescription === '')) {
     row[mdi] = _lookupMasterDesc(inum, vari, _descPrefer);
   }
@@ -304,6 +311,24 @@ function buildPersonalRow(fields) {
     if (_mki !== undefined && (fields.masterKey === undefined || fields.masterKey === '') && _mm
         && typeof rrMasterKeyOf === 'function') {
       row[_mki] = rrMasterKeyOf(_mm);
+    }
+    // v0.9.1880: and the row's permanent Row ID (Master Row ID). The wizard,
+    // the import and the edit panel pass the row they KNOW; otherwise the row
+    // the stored key names (the row the app shows today), else this save's
+    // own match. Never a guess over a stored key that resolves to nothing.
+    // Blank until the master carries Row IDs (Master Version 2.20).
+    const _mri = PERSONAL_FIELD_INDEX.masterRowId;
+    if (_mri !== undefined && (fields.masterRowId === undefined || fields.masterRowId === '')
+        && typeof rrMasterRowIdOf === 'function') {
+      let _idRow = null;
+      if (fields.masterKey) {
+        const _kr = (typeof rrMasterByKey === 'function') ? rrMasterByKey(fields.masterKey) : null;
+        if (_kr && (String(_kr.itemNum).trim() === String(inum).trim()
+            || (typeof baseItemNum === 'function' && baseItemNum(String(inum).trim()) === String(_kr.itemNum).trim()))) _idRow = _kr;
+      } else {
+        _idRow = _mm;
+      }
+      if (_idRow) row[_mri] = rrMasterRowIdOf(_idRow);
     }
     if (_mm) {
       [['itemType','itemType'],['roadName','roadName'],['roadNumber','roadNum']].forEach(function(pair){

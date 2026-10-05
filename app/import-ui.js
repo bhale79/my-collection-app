@@ -23,7 +23,7 @@
 
 /* global state, PERSONAL_TAB, PERSONAL_SCHEMA, buildPersonalRow, sheetsAppend,
    sheetsGet, nextInventoryId, showToast, vaultPost, vaultGetToken, baseItemNum,
-   rrMasterKeyOf, forceRefreshData, _prefGet, _prefSet, accessToken,
+   rrMasterKeyOf, rrMasterRowIdOf, forceRefreshData, _prefGet, _prefSet, accessToken,
    _withTokenRetry, rrImpNormCell, rrImpDetectHeaderRow, rrImpNormHeader,
    rrImpGroupLayouts, rrImpPaletteFromStylesXml, rrImpResolveFillRgb,
    rrImpFillSig, rrImpFillGroups, rrImpHeuristicMap, rrImpApplyMapping,
@@ -2400,6 +2400,7 @@ async function _impWrite() {
       if (m) {
         fields.era = m._era || '';
         if (typeof rrMasterKeyOf === 'function') fields.masterKey = rrMasterKeyOf(m);
+        if (typeof rrMasterRowIdOf === 'function') fields.masterRowId = rrMasterRowIdOf(m);   // v0.9.1880
       } else {
         fields.era = 'Manual';
         // v0.9.1509: tab answer fills maker BLANKS only (their Brand cell wins).

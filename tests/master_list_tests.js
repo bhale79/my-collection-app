@@ -83,9 +83,16 @@ const RAIL_PAIR = [
   row({ itemNum: '9017', itemType: 'Boxcar', roadName: 'Erie', description: 'two rails or three', yearProd: '2010' }).concat(['Master', '2-Rail', '79.95']),
 ];
 function csvLine(cells) { return cells.map(c => '"' + String(c).replace(/"/g, '""') + '"').join(','); }
+// v0.9.1880: the Pre-War fixture tab carries a "Row ID" column (Master Version
+// 2.20 puts one on every item tab) — the PW tab above has none, so the three
+// row-id rules must stay quiet there (they are gated on the column).
+const PREWAR_IDS = ['ABCDEFGH23', '', 'not-an-id', 'JKMNPQRS45', 'JKMNPQRS45'];
 const PREWAR = [
   row({ itemNum: '400E', itemType: 'Steam Locomotive', roadName: 'Lionel Lines', description: 'Standard gauge 4-4-4', gauge: 'Standard', yearProd: '1931-1939' }),
-  row({ itemNum: '9020', itemType: 'Boxcar', roadName: 'Lionel Lines', description: 'a pre-war row with no gauge', gauge: '', yearProd: '1935' }),   // gauge-missing-prewar
+  row({ itemNum: '9020', itemType: 'Boxcar', roadName: 'Lionel Lines', description: 'a pre-war row with no gauge', gauge: '', yearProd: '1935' }),   // gauge-missing-prewar + row-id-missing
+  row({ itemNum: '9021', itemType: 'Boxcar', roadName: 'Lionel Lines', description: 'a pre-war boxcar whose Row ID is not one', gauge: 'O', yearProd: '1935' }),   // row-id-bad
+  row({ itemNum: '9022', itemType: 'Boxcar', roadName: 'Lionel Lines', description: 'one Row ID on two rows, the first', gauge: 'O', yearProd: '1935' }),         // row-id-dup
+  row({ itemNum: '9023', itemType: 'Boxcar', roadName: 'Lionel Lines', description: 'one Row ID on two rows, the second', gauge: 'O', yearProd: '1936' }),        // row-id-dup
 ];
 function writeFixture(dir, rows, header) {
   fs.mkdirSync(dir, { recursive: true });
@@ -93,7 +100,8 @@ function writeFixture(dir, rows, header) {
   const pad = r => r.concat(Array(Math.max(0, H.length - r.length)).fill(''));
   // row 2 is blank, like the real tabs — a blank row is skipped but keeps its row number (the export keeps blank rows)
   fs.writeFileSync(path.join(dir, 'Lionel PW - Items.csv'), [csvLine(H), csvLine(pad([]))].concat(rows.map(r => csvLine(pad(r)))).join('\n') + '\n');
-  fs.writeFileSync(path.join(dir, 'Lionel Pre-War.csv'), [csvLine(H)].concat(PREWAR.map(r => csvLine(pad(r)))).join('\n') + '\n');
+  const HP = H.concat(['Row ID']);
+  fs.writeFileSync(path.join(dir, 'Lionel Pre-War.csv'), [csvLine(HP)].concat(PREWAR.map((r, i) => csvLine(pad(r).concat([PREWAR_IDS[i]])))).join('\n') + '\n');
   fs.writeFileSync(path.join(dir, 'Master Version.csv'), csvLine(['Version', 'Date', 'Notes']) + '\n' + csvLine(['1.86', '2026-09-27', 'test']) + '\n' + csvLine(['1.85', '2026-09-27', 'older']) + '\n');
 }
 
@@ -152,6 +160,11 @@ function writeFixture(dir, rows, header) {
   const byNum = {}; S1.flags.forEach(f => { (byNum[f.itemNum.trim() + '|' + f.rule] = byNum[f.itemNum.trim() + '|' + f.rule] || []).push(f); });
   const has = (num, rule) => !!byNum[num + '|' + rule];
   T('C19b gauge-missing-prewar fires on the Pre-War tab only', has('9020', 'gauge-missing-prewar') && !has('9001', 'gauge-missing-prewar') && !has('400E', 'gauge-missing-prewar'));
+  T('C29 Row IDs (v0.9.1880): missing on 9020, not one on 9021, one ID on 9022 AND 9023 — nothing on 400E',
+    has('9020', 'row-id-missing') && has('9021', 'row-id-bad') && has('9022', 'row-id-dup') && has('9023', 'row-id-dup')
+    && !S1.flags.some(f => f.itemNum === '400E' && /^row-id/.test(f.rule)));
+  T('C30 …and a tab with NO Row ID column raises none of them (the rules are gated on the column)',
+    !S1.flags.some(f => f.tab === 'Lionel PW - Items' && /^row-id/.test(f.rule)));
   const goodNums = GOOD.map(r => r[0]).concat(['400E']);
   const goodFlags = S1.flags.filter(f => goodNums.indexOf(f.itemNum) >= 0);
   T('C3  the good rows raise nothing — undecorated flatcar, track, the dashed number, the season year, the year list', goodFlags.length === 0, goodFlags.map(f => f.itemNum + ':' + f.rule + ':' + f.note));

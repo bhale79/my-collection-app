@@ -4249,6 +4249,7 @@ function showItemPanel(idx, pdKey, mode) {
           ? findMaster(pd.itemNum || item.itemNum, _newVariation, { era: pd.era || '', manufacturer: pd.manufacturer || '' })
           : null;
         pd.masterKey = (_nm && typeof rrMasterKeyOf === 'function') ? rrMasterKeyOf(_nm) : '';
+        pd.masterRowId = (_nm && typeof rrMasterRowIdOf === 'function') ? rrMasterRowIdOf(_nm) : '';   // v0.9.1880
         pd.masterDescription = (_nm && _nm.description) ? String(_nm.description) : '';
         pd.variationDescription = (_nm && _nm.varDesc) ? String(_nm.varDesc) : '';
       }
@@ -4285,6 +4286,10 @@ function showItemPanel(idx, pdKey, mode) {
         roadNumber: pd.roadNumber || '',
         description: pd.description || '',
         customName: pd.customName || '',
+        // v0.9.1880: a full-row update must CARRY the saved Row ID or it is wiped
+        // (the v0.9.989 subType lesson) — re-guessing it here could re-point the
+        // item at a different product that shares its number and variation.
+        masterRowId: pd.masterRowId || '',
       });
       try {
         if (typeof _healPdRow === 'function') await _healPdRow(pd);
