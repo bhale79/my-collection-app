@@ -50,6 +50,11 @@ function T(n, got, want) { const ok = got === want; console.log((ok ? 'PASS' : '
       f: pd('8359', '', 'mpc', 'Lionel'), g: pd('9700', '', 'mpc', 'Lionel'),
       h: pd('0326', '', 'atlas', 'Atlas', { subCollection: 'Cabooses I run' }),
       i: pd('Ertl 1:64 truck', '', 'Manual', 'Ertl', { itemType: 'Vehicle', yearMade: '1995' }),   // own maker + own type
+      // v0.9.1878: paper, a catalog and memorabilia — this audit never had any,
+      // which is how the section options' missing numbers went unseen.
+      j: pd('DWG-1973-446', '', 'Manual', 'Lionel', { itemType: 'Paper', yearMade: '1973', description: 'Alaska Hopper drawing' }),
+      k: pd('CAT-1957', '', 'Manual', 'Lionel', { itemType: 'Catalog', yearMade: '1957', description: 'Consumer catalog' }),
+      l: pd('SIGN-1', '', 'Manual', 'Lionel', { itemType: 'Memorabilia', yearMade: '1960', description: 'Dealer sign' }),
     };
     state.mySetsData = { s1: { setNum: '1500', groupId: 'SET-1500-1', year: '1953' } };
     _currentEra = 'all';
@@ -58,6 +63,7 @@ function T(n, got, want) { const ok = got === want; console.log((ok ? 'PASS' : '
     document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
     document.getElementById('page-browse').classList.add('active');
     filterOwned();
+    populateFilters();   // v0.9.1878: as the app does after every load — the section options come from the owned rows
 
     const shown = () => { window._rrBrowseSig = null; renderBrowse(); return (state.filteredData || []).length; };
     const reset = () => {
@@ -96,17 +102,21 @@ function T(n, got, want) { const ok = got === want; console.log((ok ? 'PASS' : '
     // v0.9.1799: the "More" chip's two lists, bare and under other chips
     ['subCollection', 'subType'].forEach(l => { all.push(...audit(l, [])); all.push(...audit(l, [['manufacturer', 'lionel']])); all.push(...audit(l, [['type', 'Caboose']])); });
     all.push(...audit('type', [['subCollection', 'Cabooses I run']]));
+    // v0.9.1878: a Type that would show nothing under the Group is no longer OFFERED, so the
+    // keep-the-Group check picks it through the app's own choice instead of the picker.
+    apply([['subCollection', 'Cabooses I run']]); _setHierarchyChoice('type', 'Boxcar');
+    const groupKept = { group: state.filters.subCollection, rows: shown() };
     // state must be untouched by ASKING for counts
     apply([['manufacturer', 'lionel']]); const before = shown(); const fdRef = state.filteredData;
     const sig = JSON.stringify([state.filters, localStorage.getItem('lv_browse_filter_state'), state._collSection]);
     _openLevelPicker('type'); document.getElementById('ph-picker-overlay').remove();
     const untouched = (state.filteredData === fdRef) && sig === JSON.stringify([state.filters, localStorage.getItem('lv_browse_filter_state'), state._collSection]);
     reset();
-    return { all, before, untouched, total: Object.keys(state.personalData).length };
+    return { all, before, untouched, groupKept, total: Object.keys(state.personalData).length };
   });
 
   T('no page errors while auditing', errs.join(' | '), '');
-  T('the audit covered every level, bare and with other chips set', out.all.length > 80, true);
+  T('the audit covered every level, bare and with other chips set (' + out.all.length + ' picks)', out.all.length > 50, true);
   const bad = out.all.filter(r => r.said !== r.got);
   bad.slice(0, 12).forEach(r => console.log('   MISMATCH  ' + r.level + ' ' + r.pre + '  "' + r.label + '"  said ' + r.said + ', picking it showed ' + r.got));
   T('EVERY number equals the rows shown after picking it', bad.length, 0);
@@ -118,10 +128,12 @@ function T(n, got, want) { const ok = got === want; console.log((ok ? 'PASS' : '
   // group (a list quirk, OPEN_LIST #11) and the number must match the list, quirk and all.
   T('Group "Cabooses I run": the Lionel chip takes exactly the Atlas one away',
     find('subCollection', [], 'Cabooses I run').said - find('subCollection', [['manufacturer', 'lionel']], 'Cabooses I run').said, 1);
-  T('picking a Type KEEPS the Group you chose (it used to wipe it)', find('type', [['subCollection', 'Cabooses I run']], 'Boxcar').got, 0);
+  T('picking a Type KEEPS the Group you chose (it used to wipe it)', out.groupKept.group === 'Cabooses I run' && out.groupKept.rows === 0, true);
   T('Sub Type "SP Type": 2 (both copies)', find('subType', [], 'SP Type').said, 2);
   T('an own maker (Ertl) gets a real number', find('manufacturer', [], 'Ertl').said, 1);
-  T('an option that would show nothing carries NO number', find('manufacturer', [], 'MTH').label, 'MTH');
+  T('an option that would show nothing is not offered in My Collection (v0.9.1878 — MTH, nothing owned)', out.all.some(r => r.level === 'manufacturer' && r.pre === '[]' && /^MTH/.test(r.label)), false);
+  T('the section options carry real numbers: "📄 Paper Items (1)", "📒 Catalogs (all) (1)", "📦 Memorabilia (1)"',
+    ['📄 Paper Items (1)', '📒 Catalogs (all) (1)', '📦 Memorabilia (1)'].every(l => out.all.some(r => r.level === 'type' && r.pre === '[]' && r.label === l)), true);
   T('asking for counts changes no state and repaints nothing', out.untouched, true);
   // PROVE THE COMPARISON CAN FAIL: the old collection-wide figure, under a chip.
   const planted = out.all.map(r => (r.level === 'type' && r.pre !== '[]' && /^Caboose/.test(r.label)) ? Object.assign({}, r, { said: 4 }) : r);

@@ -106,10 +106,94 @@ window._collJumpTop = function() {
   var wrap = document.querySelector('.browse-table-wrap');
   if (wrap) wrap.scrollTo({ top: 0, behavior: 'smooth' });
 };
+// ── v0.9.1878 (Brad: "paper filter doesn't show paper items. audit all filters
+// to make sure they do.") — THE SHOW ROW FOLLOWS WHAT YOU ASK FOR ──────────
+// Measured in a real browser: the Show row (Trains / Catalogs / Paper Items /
+// All) was a gate in FRONT of every other filter and it starts on Trains, so
+// Type → Paper, Type → Paper Items, Type → Catalogs (all) and a search for a
+// paper item all came back empty on a desktop while Trains was lit — the rows
+// were thrown out before the Type or the search ever saw them (the phone has
+// no Show row, so the same pick worked there). The Show chips and the Type
+// pill are two handles on ONE list, so the lit chip is now DERIVED, in one
+// place, from the chip the user chose and the Type the user picked:
+//   * no Type: the chip as chosen (Trains by default);
+//   * All chosen: All — it hides nothing, so nothing moves;
+//   * a Type picked: the section that Type lives in — a section option
+//     ("📄 Paper Items") lights its section, a train bucket lights Trains, the
+//     catalog's Paper / Box / Misc bucket spans sections and lights All.
+// Clear the Type pill and the row is back where it was, because nothing was
+// written. A chip click clears the Type pill only when that chip would hide
+// what the pill names (Paper Items clears "Boxcar"; Trains and All keep it).
+// A search is the one WRITTEN move: typing takes the chip to All so the search
+// covers every section, clearing it puts the chip back, and a chip clicked
+// meanwhile is where you stay (rrCollSearchSection).
+// The picker's numbers are made the same way — each Type option is counted
+// where picking it would take the row (the count request in _rrBrowseCore).
+var _RR_PAPER_BUCKET = 'Paper';   // the short label of the catalog's 'Paper / Box / Misc' bucket (type-groups.js)
+var _RR_IS_CHIP = { label: '\ud83d\udccb Instruction Sheets', color: '#16a085' };   // the one place the sheets' chip is spelled and coloured
+// Where a Type-filter value lives: a section id, 'trains', 'all' (spans
+// sections), or '' for no Type.
+function _rrTypeHome(tv) {
+  var t = String(tv == null ? '' : tv).trim();
+  if (!t) return '';
+  var tl = t.toLowerCase();
+  var tabs = (typeof EPHEMERA_TABS !== 'undefined') ? EPHEMERA_TABS : [];
+  for (var i = 0; i < tabs.length; i++) if (String(tabs[i].single).toLowerCase() === tl) return tabs[i].id;   // a section option
+  if (tl === 'instruction sheet') return 'is';
+  try {
+    var ut = (state.userDefinedTabs || []).filter(function (x) { return String(x.label || '').toLowerCase() === tl; })[0];
+    if (ut) return ut.id;
+    if (Object.values((state.ephemeraData || {}).catalogs || {}).some(function (it) { return String(it.catType || '').toLowerCase() === tl; })) return 'catalogs';
+  } catch (e) {}
+  if (t === _RR_PAPER_BUCKET) return 'all';   // paper, catalogs, boxes, magazines… — every section
+  return 'trains';                            // every other bucket, and a user's own type word
+}
+// The lit Show chip = the section the list is drawn from. `sec` is the chip
+// the user chose (state._collSection), `tv` the Type filter in force.
+function rrCollShowSection(sec, tv) {
+  var chosen = sec || 'trains';
+  if (chosen === 'all') return 'all';
+  return _rrTypeHome(tv) || chosen;
+}
+// A search in My Collection covers every section: the chip goes to All when a
+// search begins and comes back when it is cleared. Called with the search
+// text before and after each change (onPageSearch, app.js).
+function rrCollSearchSection(prevQ, nextQ) {
+  var had = !!String(prevQ || '').trim(), has = !!String(nextQ || '').trim();
+  if (!had && has) { state._collSecBeforeSearch = state._collSection || 'trains'; state._collSection = 'all'; }
+  else if (had && !has) { if (state._collSecBeforeSearch) state._collSection = state._collSecBeforeSearch; state._collSecBeforeSearch = null; }
+}
+// The instruction sheets (state.isData) the list draws for a Type filter `tf`
+// and a search `sq` (both lower-case): every sheet with no Type or the
+// Instruction Sheets option; otherwise only a sheet whose number or linked
+// item carries the Type's text. Used by the drawing step AND the count request.
+function _rrIsRowsShown(tf, sq) {
+  tf = String(tf || '').toLowerCase(); sq = String(sq || '').toLowerCase();
+  return Object.values(state.isData || {}).filter(function (it) {
+    if (!it) return false;
+    if (sq && (String(it.sheetNum || '') + ' ' + String(it.linkedItem || '') + ' ' + String(it.year || '') + ' ' + String(it.notes || '')).toLowerCase().indexOf(sq) < 0) return false;
+    if (tf && tf !== 'instruction sheet') {
+      if (String(it.linkedItem || '').toLowerCase().indexOf(tf) < 0 && String(it.sheetNum || '').toLowerCase().indexOf(tf) < 0) return false;
+    }
+    return true;
+  });
+}
+if (typeof window !== 'undefined') { window._rrTypeHome = _rrTypeHome; window.rrCollShowSection = rrCollShowSection; window.rrCollSearchSection = rrCollSearchSection; window._rrIsRowsShown = _rrIsRowsShown; }
 // v0.9.985 (Brad): the Jump To bar is now a section FILTER — "Trains" shows
 // only train rows, "Catalogs" only catalogs, and so on ('all' = combined view).
 window._collSectionSet = function(key) {
   state._collSection = key;
+  state._collSecBeforeSearch = null;   // v0.9.1878: a chip clicked during a search is where you stay
+  // v0.9.1878: a chip that would hide what the Type pill names clears the pill
+  // (Paper Items clears "Boxcar"); a chip that can show it keeps it (Trains, All).
+  try {
+    var _tvNow = state.filters.type || '';
+    if (_tvNow && key !== 'all' && _rrTypeHome(_tvNow) !== key) {
+      state.filters.type = '';
+      var _selT = document.getElementById('filter-type'); if (_selT) _selT.value = '';
+      if (typeof _renderHierarchyChips === 'function') _renderHierarchyChips();
+    }
+  } catch (eT) {}
   state.currentPage = 1;
   var wrap = document.querySelector('.browse-table-wrap');
   if (wrap) wrap.scrollTo({ top: 0 });
@@ -1006,7 +1090,11 @@ function _renderHierarchyChips() {
   if (st2.section === 'items' || _phOwned) {
     var _ftSel2 = document.getElementById('filter-type');
     var _tVal2 = _ftSel2 ? _ftSel2.value : '';
-    if (_tVal2) { onCount++; html += _pillOn(_tVal2, "_phClearOne('type')", "_openLevelPicker('type')"); }
+    // v0.9.1878: the pill wears the option's own words ("📄 Paper Items",
+    // "Paper / Box / Misc"), not the value behind it ("Paper Item", "Paper").
+    var _tTxt2 = _tVal2;
+    try { var _oSel = _ftSel2 && _ftSel2.options[_ftSel2.selectedIndex]; if (_oSel && _oSel.value === _tVal2 && (_oSel.textContent || '').trim()) _tTxt2 = _oSel.textContent.trim(); } catch (eTx) {}
+    if (_tVal2) { onCount++; html += _pillOn(_tTxt2, "_phClearOne('type')", "_openLevelPicker('type')"); }
     else html += _pillIdle('Type', "_openLevelPicker('type')");
   }
 
@@ -1109,20 +1197,25 @@ function _phMoreMenu(ev, includeMain) {
   var hasImported = false, ndCount = 0;
   try {
     Object.values(state.personalData || {}).forEach(function (p) {
-      if (!p) return;
+      if (!p || !p.owned) return;
       if (p.importBatch) hasImported = true;
       if (!p.manufacturer || !p.itemType || (String(p.era || '') === 'Manual' && !p.yearMade)) ndCount++;
     });
   } catch (e) {}
-  if (hasImported) {
-    html += '<button type="button" style="' + rowCss + '" onclick="_phToggleFlag(\'imported\')">' +
-      'Imported only <span>' + (state.filters.imported === 'imported' ? '\u2713' : '') + '</span></button>';
-  }
-  if (ndCount) {
-    html += '<button type="button" style="' + rowCss + '" onclick="_phToggleFlag(\'needsDetails\')">' +
-      'Needs details <span style="color:var(--text-dim)">' + ndCount.toLocaleString() +
-      (state.filters.needsDetails === 'needs' ? ' \u2713' : '') + '</span></button>';
-  }
+  // v0.9.1878 (the filter audit): the number beside Needs details counted the
+  // whole sheet; it is now what the list shows when the flag is turned on,
+  // under the chips in force — asked of the list-builder like every other
+  // picker number (v0.9.1798). Imported only gets the same number. A flag
+  // that would show nothing here is dimmed, not a dead click.
+  var _fc = (typeof _phFlagCounts === 'function') ? _phFlagCounts() : null;
+  var _flagRow = function (key, word, on, n) {
+    var dead = (_fc && !on && !n);
+    var num = (_fc && !on) ? '<span style="color:var(--text-dim)">' + Number(n || 0).toLocaleString() + '</span>' : '<span>' + (on ? '\u2713' : '') + '</span>';
+    return '<button type="button" style="' + rowCss + (dead ? ';opacity:0.45;cursor:default' : '') + '"' +
+      (dead ? ' disabled title="Nothing under the filters in force"' : ' onclick="_phToggleFlag(\'' + key + '\')"') + '>' + word + ' ' + num + '</button>';
+  };
+  if (hasImported) html += _flagRow('imported', 'Imported only', state.filters.imported === 'imported', _fc ? _fc.imported : 0);
+  if (ndCount) html += _flagRow('needsDetails', 'Needs details', state.filters.needsDetails === 'needs', _fc ? _fc.needs : ndCount);
   if (!html) html = '<div style="padding:0.5rem 0.6rem;font-size:0.82rem;color:var(--text-dim)">Nothing else to filter by yet.</div>';
   box.innerHTML = html;
   document.body.appendChild(box);
@@ -1137,6 +1230,23 @@ function _phMoreMenu(ev, includeMain) {
       box.remove(); document.removeEventListener('click', _c, true);
     }, true);
   }, 0);
+}
+// v0.9.1878: the two More flags, counted where the list is — the same count
+// request every picker uses. { imported, needs } or null when it cannot ask.
+function _phFlagCounts() {
+  try {
+    if (!state.filters.owned || typeof _rrBrowseCore !== 'function') return null;
+    var cur = _phState(), om = state.filters.ownMaker || '';
+    var out = _rrBrowseCore({
+      level: 'flags', clearType: state.filters.type || '', clearOwnMaker: om, clearChips: cur,
+      clearF: { imported: '', needsDetails: '' },
+      variants: [
+        { id: 'imported', chips: cur, ownMaker: om, f: { imported: 'imported', needsDetails: state.filters.needsDetails || '' } },
+        { id: 'needs',    chips: cur, ownMaker: om, f: { needsDetails: 'needs', imported: state.filters.imported || '' } },
+      ],
+    });
+    return out ? { imported: out.imported || 0, needs: out.needs || 0 } : null;
+  } catch (e) { console.warn('[flag counts]', e); return null; }
 }
 function _phToggleFlag(which) {
   var on = which === 'imported' ? (state.filters.imported === 'imported') : (state.filters.needsDetails === 'needs');
@@ -1364,7 +1474,11 @@ function _openLevelPicker(level) {
     if (_ftSel) {
       for (var oi = 0; oi < _ftSel.options.length; oi++) {
         var o = _ftSel.options[oi];
-        var lblText = o.textContent || o.value || '';
+        var lblText = (o.textContent || o.value || '').trim();
+        // v0.9.1878: the select's disabled "── My Collection ──" separator used
+        // to arrive here as a pickable button that set a nonsense Type and
+        // emptied the list. It is a heading, like the own-types divider below.
+        if (o.disabled) { options.push({ id: '__divider', label: lblText.replace(/^[\s─—–-]+|[\s─—–-]+$/g, ''), divider: true }); continue; }
         _seenTypes[String(o.value).toLowerCase()] = 1;
         options.push({ id: o.value, label: lblText });
       }
@@ -1395,6 +1509,23 @@ function _openLevelPicker(level) {
   // the picker must still be able to reach it. A divider with nothing after
   // it goes too.
   var _inColl = !!(state.filters && state.filters.owned);
+  // v0.9.1878 (the filter audit: Power, Science, Track, 22 makers, every
+  // scale… offered in My Collection with nothing behind them, each ending in
+  // "No items match your filters"): in MY COLLECTION a picker offers only what
+  // would show at least one row — plus "Any"/"All", and whatever is picked
+  // already, so the way back is always on the list. The Master Catalog keeps
+  // the preference rule below. Fails OPEN: no numbers, nothing hidden.
+  if (_inColl && _pc) {
+    var _curPick = (level === 'type') ? (state.filters.type || '')
+      : (level === 'subCollection' || level === 'subType') ? (state.filters[level] || '')
+      : (level === 'manufacturer' && state.filters.ownMaker) ? ('own:' + state.filters.ownMaker)
+      : (st[level] || '');
+    options = options.filter(function (o) {
+      if (!o || o.divider) return true;
+      if (o.id === '' || o.id === 'any' || o.id === _curPick) return true;
+      return _pc[o.id] > 0;
+    });
+  }
   options = options.filter(function (o) {
     if (!o || o.divider) return true;
     if (_phPrefAllows(level, o.id)) return true;
@@ -2314,7 +2445,11 @@ function populateFilters() {
   const types = (typeof _bucketsInCurrentEra === 'function')
     ? _bucketsInCurrentEra()
     : (window.TYPE_BUCKETS || []).map(function(b){ return b.label; });
-  types.forEach(t => { const o = document.createElement('option'); o.value = t; o.textContent = t; typeEl.appendChild(o); });
+  // v0.9.1878: the catalog's "Paper" bucket is paper AND boxes, magazines,
+  // forms, catalogs… (its id, type-groups.js). Shown under its full name so it
+  // cannot be mistaken for the collector's own "📄 Paper Items" section below;
+  // the VALUE stays the bucket label the row test compares against.
+  types.forEach(t => { const o = document.createElement('option'); o.value = t; o.textContent = (t === _RR_PAPER_BUCKET) ? 'Paper / Box / Misc' : t; typeEl.appendChild(o); });
 
   // Add the non-train sections as a group (EPHEMERA_TABS, config.js — v0.9.1843)
   // Also add catalog sub-types actually present in data
@@ -3520,27 +3655,32 @@ function _rrBrowseCore(_co) {
   // leaves the Trains view. Computed up here so the main filter below can
   // route train-store rows; 'all' (and mobile, which has no chip bar) keeps
   // the combined view. Falls back to Trains if the chosen section is empty.
-  let _collSec = (owned && window.innerWidth > 640) ? (state._collSection || 'trains') : 'all';
+  // v0.9.1878: the chip the user CHOSE is guarded below; the chip that is LIT
+  // (and the section the rows come from) is derived from it and the Type in
+  // force by rrCollShowSection — the one decider, shared with the chip bar.
+  const _secDesk = !!(owned && window.innerWidth > 640);
+  let _secStored = _secDesk ? (state._collSection || 'trains') : 'all';
   // v0.9.990: typed-row section keys and their itemType matches (one source
   // of truth for the availability guard, the filter, and the chips below).
   // v0.9.1843: built from the ONE definition (config.js) — every spelling a
   // section is read under, the old ones included.
   const _SEC_TYPES = {};
   EPHEMERA_TABS.forEach(function (t) { _SEC_TYPES[t.id] = t.reads; });
-  if (_collSec !== 'trains' && _collSec !== 'all') {
+  if (_secStored !== 'trains' && _secStored !== 'all') {
     let _secAvail = true;
     try {
-      if (_collSec === 'is') _secAvail = Object.keys(state.isData || {}).length > 0;
-      else _secAvail = Object.keys((state.ephemeraData || {})[_collSec] || {}).length > 0;
-      if (!_secAvail && _SEC_TYPES[_collSec]) {
-        const _wantT = _SEC_TYPES[_collSec];
+      if (_secStored === 'is') _secAvail = Object.keys(state.isData || {}).length > 0;
+      else _secAvail = Object.keys((state.ephemeraData || {})[_secStored] || {}).length > 0;
+      if (!_secAvail && _SEC_TYPES[_secStored]) {
+        const _wantT = _SEC_TYPES[_secStored];
         _secAvail = Object.values(state.personalData || {}).some(function(p) {
           return p && p.owned && _wantT.indexOf(String(p.itemType || '').toLowerCase()) >= 0;
         });
       }
     } catch (eAv) { _secAvail = true; }
-    if (!_secAvail) { _collSec = 'trains'; if (!_co) state._collSection = 'trains'; }
+    if (!_secAvail) { _secStored = 'trains'; if (!_co) state._collSection = 'trains'; }
   }
+  let _collSec = _secDesk ? rrCollShowSection(_secStored, type) : 'all';
   const _collSecFiltered = (_collSec !== 'all' && _collSec !== 'trains');
   // Which section does a train-store row belong to by TYPE? '' = a train.
   // v0.9.990 (Phase 3): Mock-Up and the fourth section (Memorabilia) route
@@ -4045,14 +4185,18 @@ function _rrBrowseCore(_co) {
       // OWN gauge cell outranks any derived scale. Normalize the common
       // spellings; an O-27 item still counts as O.
       // v0.9.1805: read through _scalesOfGauge (app.js), the ONE gauge reader.
-      // The table that stood here turned 'Standard' into 'std', a word no scale
-      // chip uses, so a personal Standard row was hidden under Standard; and a
-      // "Standard & O" row belongs under BOTH chips. A spelling it can't read
-      // no longer hides the row here — the catalog check below still decides.
-      if (_stp3b.scale && _stp3b.scale !== 'any' && pd && pd.gauge) {
-        var _gList = (typeof _scalesOfGauge === 'function') ? _scalesOfGauge(pd.gauge) : [];
+      // v0.9.1878 (the filter audit): THE ONE scale rule for My Collection, here.
+      // v1511 only ever VETOED — the catalog check further down still ran, so
+      // his N-gauge 3474 on an O catalog row showed under neither chip; and a
+      // row with no gauge anywhere showed under EVERY chip ("N Scale" listing
+      // his paper items and a dealer sign). Now: the row's own gauge decides
+      // when it has one, else the catalog's; no scale at all → only under Any
+      // Scale — strict, like Maker and Era have been since v1509.
+      if (_stp3b.scale && _stp3b.scale !== 'any') {
+        var _ownG = (pd && pd.gauge && typeof _scalesOfGauge === 'function') ? _scalesOfGauge(pd.gauge) : [];
+        var _rowScales = _ownG.length ? _ownG : ((typeof _scalesOfItem === 'function') ? _scalesOfItem(item) : []);
         var _cNorm = String(_stp3b.scale).trim().toLowerCase();
-        if (_gList.length && _cNorm && _gList.indexOf(_cNorm) < 0) return false;
+        if (_rowScales.map(function (s) { return String(s).toLowerCase(); }).indexOf(_cNorm) < 0) return false;
       }
     }
     // v0.9.1509: "Needs details" filter — items missing maker, type, or (for
@@ -4098,17 +4242,16 @@ function _rrBrowseCore(_co) {
         }
         if (_itmMfr !== _stp3b.manufacturer) return false;
       }
-      if (_stp3b.scale && _stp3b.scale !== 'any') {
+      if (_stp3b.scale && _stp3b.scale !== 'any' && !state.filters.owned) {
         // v0.9.1805: a "Standard & O" item carries TWO scales and matches either.
         var _itmScales = (typeof _scalesOfItem === 'function') ? _scalesOfItem(item) : [];
-        var _itmScale = _itmScales.length ? String(_itmScales[0]).toLowerCase() : '';
         // Session 154: exclude items that don't DEFINITIVELY match the chosen
         // scale — including items of unknown scale (e.g. pre-war rows with a
         // blank gauge field). Previously `_itmScale && ...` let those leak into
         // every scale filter (pre-war items appearing under "HO Scale").
-        // My Collection: never hide an owned item just because its scale is
-        // unknown (its catalog may not be loaded). Catalog browse stays strict.
-        if (_itmScales.indexOf(_stp3b.scale) < 0 && !(state.filters.owned && !_itmScale)) return false;
+        // v0.9.1878: catalog browse only — My Collection's rule (own gauge
+        // first, else the catalog's, unknown only under Any) lives above.
+        if (_itmScales.indexOf(_stp3b.scale) < 0) return false;
       }
       if (_stp3b.era && _stp3b.era !== 'any') {
         // S151: chip era is a time period (prewar/postwar/modern).
@@ -4136,6 +4279,20 @@ function _rrBrowseCore(_co) {
     }
     return true;
   };
+  // ── v0.9.1878: the instruction sheets drawn beneath the rows ─────────────
+  // A sheet (state.isData) has no maker, scale, period or group, so any chip
+  // or More filter in force hides the sheets; they are drawn in the combined
+  // view (All, the phone) and under their own section or Type option. ONE
+  // rule for the drawing step and the count request — before this the sheets
+  // were drawn under every scale chip and left out of "N items".
+  var _isRowsNow = function (tv, sec) {
+    if (!(sec === 'all' || sec === 'is')) return [];
+    var ch = _stp3b || {};
+    if ((ch.manufacturer && ch.manufacturer !== 'any') || (ch.scale && ch.scale !== 'any') || (ch.era && ch.era !== 'any')) return [];
+    if (state.filters.ownMaker || state.filters.subCollection || state.filters.subType || state.filters.imported === 'imported'
+        || state.filters.needsDetails === 'needs' || boxed || state.filters.wantList) return [];
+    return _rrIsRowsShown(tv, search);
+  };
   // ── v0.9.1798: THE COUNT REQUEST ──────────────────────────────────────────
   // Everything above is set up; nothing has been painted or stored. Answer
   // with the same three steps the screen uses — _rowPasses, _expandCopies,
@@ -4143,31 +4300,62 @@ function _rrBrowseCore(_co) {
   // cleared; every variant can only NARROW it (the row test is a chain of
   // ANDs), so each variant is tested against a few hundred rows, not 150,000.
   if (_co) {
-    var _coOut = {}, _savedOM = state.filters.ownMaker, _savedType = type, _savedChips = _stp3b;
+    var _coOut = {}, _savedOM = state.filters.ownMaker, _savedType = type, _savedChips = _stp3b, _savedSec = _collSec;
     // v0.9.1799: Groups / Sub Types live on state.filters and the row test
     // reads them there, so a variant may carry filter overrides too.
-    var _savedSC = state.filters.subCollection, _savedST = state.filters.subType;
-    var _setF = function (f) { if (!f) return; if ('subCollection' in f) state.filters.subCollection = f.subCollection; if ('subType' in f) state.filters.subType = f.subType; };
+    // v0.9.1878: so do the two More flags (Imported only, Needs details).
+    var _savedSC = state.filters.subCollection, _savedST = state.filters.subType, _savedIm = state.filters.imported, _savedND = state.filters.needsDetails;
+    var _setF = function (f) {
+      if (!f) return;
+      if ('subCollection' in f) state.filters.subCollection = f.subCollection;
+      if ('subType' in f) state.filters.subType = f.subType;
+      if ('imported' in f) state.filters.imported = f.imported;
+      if ('needsDetails' in f) state.filters.needsDetails = f.needsDetails;
+    };
     try {
       _stp3b = _co.clearChips; type = _co.clearType; state.filters.ownMaker = _co.clearOwnMaker || '';
       _setF(_co.clearF);
+      // v0.9.1878: a count variant that changes the Type changes the lit chip too
+      // (rrCollShowSection) — the rows are drawn from where the pick would go.
+      _collSec = _secDesk ? rrCollShowSection(_secStored, type) : 'all';
       var _pre = baseList.filter(_rowPasses);
+      // The instruction sheets the combined view draws beneath the rows — part
+      // of "N items", so part of the number — for a Type value under a section.
+      var _isN = function (tv, sec) { return _isRowsNow(tv, sec).length; };
       if (_co.level === 'type') {
-        // The type test is `bucket label === type`, so one pass buckets them all.
-        var _byLbl = {};
-        _expandCopies(_pre).forEach(function (r) {
+        // "All Types" clears the Type: the chip as chosen, nothing else moved.
+        _coOut[''] = _foldSets(_expandCopies(_pre)).length + _isN('', _collSec);
+        // Every other option is counted under All — a train bucket's rows all
+        // sit in Trains, so the two agree; the Paper / Box / Misc bucket spans
+        // sections and is counted across them, where picking it goes. A
+        // SECTION option ("📄 Paper Items") is counted by its SECTION, exactly
+        // as the row test routes it — it used to be counted by bucket label,
+        // which is why "Paper Items" never carried a number.
+        var _preAll = (_collSec === 'all') ? _pre : (function () { _collSec = 'all'; return baseList.filter(_rowPasses); })();
+        var _byLbl = {}, _bySec = {};
+        _expandCopies(_preAll).forEach(function (r) {
           var l = (typeof getTypeBucketLabel === 'function' ? getTypeBucketLabel(r) : r.itemType) || '';
           (_byLbl[l] = _byLbl[l] || []).push(r);
+          var s = _typeSection(r);
+          if (s) (_bySec[s] = _bySec[s] || []).push(r);
         });
-        Object.keys(_byLbl).forEach(function (l) { _coOut[l] = _foldSets(_byLbl[l]).length; });
-        _coOut[''] = _foldSets(_expandCopies(_pre)).length;   // "All Types" is an option too
+        // Each option lands where rrCollShowSection would take the row for it.
+        var _secOf = function (tv) { return _secDesk ? rrCollShowSection(_secStored, tv) : 'all'; };
+        Object.keys(_byLbl).forEach(function (l) { _coOut[l] = _foldSets(_byLbl[l]).length + _isN(l, _secOf(l)); });
+        EPHEMERA_TABS.forEach(function (t) { _coOut[t.single] = (_bySec[t.id] ? _foldSets(_bySec[t.id]).length : 0) + _isN(t.single, _secOf(t.single)); });
+        // Instruction Sheets are their own rows (state.isData): under their
+        // option every train-store row is hidden and the sheets are drawn.
+        _coOut['Instruction Sheet'] = _isN('Instruction Sheet', 'is');
       } else {
         (_co.variants || []).forEach(function (v) {
           _stp3b = v.chips; state.filters.ownMaker = v.ownMaker || ''; _setF(v.f);
-          _coOut[v.id] = _foldSets(_expandCopies(_pre.filter(_rowPasses))).length;
+          _coOut[v.id] = _foldSets(_expandCopies(_pre.filter(_rowPasses))).length + _isN(type, _collSec);
         });
       }
-    } finally { state.filters.ownMaker = _savedOM; type = _savedType; _stp3b = _savedChips; state.filters.subCollection = _savedSC; state.filters.subType = _savedST; }
+    } finally {
+      state.filters.ownMaker = _savedOM; type = _savedType; _stp3b = _savedChips; _collSec = _savedSec;
+      state.filters.subCollection = _savedSC; state.filters.subType = _savedST; state.filters.imported = _savedIm; state.filters.needsDetails = _savedND;
+    }
     return _coOut;
   }
   state.filteredData = baseList.filter(_rowPasses);
@@ -4421,19 +4609,16 @@ function _rrBrowseCore(_co) {
   const _isKeyByEntry = new Map();
   Object.keys(state.isData || {}).forEach(function(k) { _isKeyByEntry.set(state.isData[k], k); });
   if (_showEph || tf === 'instruction sheet') {
-    const isItems = Object.values(state.isData || {});
-    const isFiltered = isItems.filter(it => {
-      if (sq && !`${it.sheetNum||''} ${it.linkedItem||''} ${it.year||''} ${it.notes||''}`.toLowerCase().includes(sq)) return false;
-      if (tf && tf !== 'instruction sheet' && tf !== 'catalog') {
-        // Check linked item match
-        if (!(it.linkedItem||'').toLowerCase().includes(tf) && !(it.sheetNum||'').toLowerCase().includes(tf)) return false;
-      }
-      return true;
-    });
+    // v0.9.1878: the ONE answer to "which instruction sheets are drawn" —
+    // _rrIsRowsShown — shared with the picker's count request, so the number
+    // beside an option includes the sheets the combined view draws under it.
+    // (The old exemption that showed every sheet under the "Catalogs (all)"
+    // option is gone: a sheet is not a catalog.)
+    const isFiltered = _isRowsNow(tf, _collSec);
     if (isFiltered.length) {
-      _ephemeraRows.push({ _divider: true, secKey: 'is', label: '📋 Instruction Sheets', color: '#16a085' });
+      _ephemeraRows.push({ _divider: true, secKey: 'is', label: _RR_IS_CHIP.label, color: _RR_IS_CHIP.color });
       isFiltered.sort((a,b)=>(a.linkedItem||'').localeCompare(b.linkedItem||'')).forEach(it => {
-        _ephemeraRows.push({ _is: true, item: it, label:'Instruction Sheet', emoji:'📋', color:'#16a085' });
+        _ephemeraRows.push({ _is: true, item: it, label:'Instruction Sheet', emoji:'📋', color: _RR_IS_CHIP.color });
       });
     }
   }
@@ -4494,6 +4679,12 @@ function _rrBrowseCore(_co) {
           _collAllSections.push({ key: k, label: _chipMeta[k].label, color: _chipMeta[k].color });
         }
       });
+      // v0.9.1878: the Instruction Sheets chip comes from the sheets EXISTING,
+      // not from their rows being drawn — the sheets are not drawn under
+      // Trains (or under a chip), and the chip has to stay clickable from there.
+      if (Object.keys(state.isData || {}).length && !_collAllSections.some(function(s) { return s.key === 'is'; })) {
+        _collAllSections.push({ key: 'is', label: _RR_IS_CHIP.label, color: _RR_IS_CHIP.color });
+      }
     } catch (eChip) {}
   }
   if (_collSec === 'trains') {
@@ -4508,7 +4699,10 @@ function _rrBrowseCore(_co) {
     _ephemeraRows.length = 0;
     Array.prototype.push.apply(_ephemeraRows, _secKeep);
   }
-  const ephTotal = _ephemeraRows.filter(r=>r._eph).length;
+  // v0.9.1878: instruction sheets count in the combined view too — they were
+  // drawn under All (and on the phone) but left out of "N items", so a Type
+  // pick of Instruction Sheets said "1" and the line read "0 items".
+  const ephTotal = _ephemeraRows.filter(r=>r._eph || r._is).length;
   const _secRowCount = _ephemeraRows.filter(r=>r._eph || r._is).length;   // v0.9.985: incl. instruction sheets
   const displayTotal = _collSecFiltered ? total + _secRowCount : total + ephTotal;
   document.getElementById('result-count').textContent = `${displayTotal.toLocaleString()} items`;
@@ -5151,7 +5345,10 @@ function _rrBrowseCore(_co) {
     // above the table it edits, shaped like the chips beside it. It used to
     // sit top-right beside Share, three feet from the headings it changes.
     bar.style.cssText = 'display:flex;flex-wrap:wrap;gap:0.4rem;align-items:center;margin:0 0 0.5rem';
-    var _active = state._collSection || 'trains';
+    // v0.9.1878: the lit chip is the section the rows above came from — the
+    // chosen chip, moved by the Type pill when the pill names another section
+    // (rrCollShowSection, the one decider the list-builder used).
+    var _active = rrCollShowSection(state._collSection || 'trains', state.filters.type);
     function _chip(key, label, color) {
       var on = (_active === key);
       return '<button onclick="_collSectionSet(\'' + key + '\')" style="'

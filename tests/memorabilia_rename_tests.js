@@ -325,7 +325,10 @@ const LIVE = ['Instruction Sheets', 'Science Sets', 'Construction Sets', 'My Set
     T('E9  …"Paper Items" shows the paper rows, both spellings', L.allPaper.rows.join() === 'PAP-1,PAP-2', L.allPaper.rows);
     T('E10 …"Mock-Ups" shows the mock-up', L.allMock.rows.join() === 'MOC-1', L.allMock.rows);
     T('E11 a bucket word still works as before ("Boxcar" → the boxcar)', L.allBoxcar.rows.join() === '6464-425', L.allBoxcar.rows);
-    T('E12 the filters still AND: the Trains chip with the Memorabilia option shows nothing (a chip is not overruled)', L.trainsMem.rows.length === 0, L.trainsMem.rows);
+    // v0.9.1878 (Brad: "paper filter doesn't show paper items"): the Show row FOLLOWS the Type —
+    // a section option picked under Trains lights its own section and shows its rows.
+    // (Until v1877 this pinned the opposite: Trains + Memorabilia → nothing.)
+    T('E12 the Show row follows the Type: the Trains chip with the Memorabilia option shows the Memorabilia rows (v0.9.1878)', L.trainsMem.rows.join() === 'MEM-1,MEM-2', L.trainsMem.rows);
     T('E13 a user\'s own Memorabilia row is filed as Memorabilia in the Type column — the old spelling too',
       L.bucketOwnMem === 'Memorabilia' && L.bucketOwnOld === 'Memorabilia', [L.bucketOwnMem, L.bucketOwnOld]);
     T('E14 …while the master catalog\'s own Memorabilia rows stay under Paper / Box / Misc (untouched)', L.bucketMasterMem === 'Paper', L.bucketMasterMem);

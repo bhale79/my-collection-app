@@ -3389,6 +3389,10 @@ function onPageSearch(val, page) {
     // else that renders meanwhile sees the current query); only the render
     // waits for a 250ms typing pause, so a burst of keystrokes costs ONE
     // pass instead of five.
+    // v0.9.1878: in My Collection a search covers every section — the Show
+    // row goes to All while there is a search and comes back when it is
+    // cleared (rrCollSearchSection, browse.js — the one place that moves it).
+    if (state.filters.owned && typeof rrCollSearchSection === 'function') rrCollSearchSection(state.filters.search, q);
     state.filters.search = q;
     state.currentPage = 1;
     clearTimeout(window._rrBrowseSearchT);
