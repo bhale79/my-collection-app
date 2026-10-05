@@ -1954,6 +1954,18 @@ async function loadPersonalData() {
         console.log('[Cache] offline mode — snapshot only, no refresh');
       } else if (!window._pdColdRefreshed || (Date.now() - _ptime) > _BG_REFRESH) {
         window._pdColdRefreshed = true;
+        // v0.9.1881: a cached start never ran the header / grid check (it sits
+        // on the cold path below), so a schema that grew a column left every
+        // existing sheet one column short — and every full-row save failing
+        // with "exceeds grid limits" (v0.9.1880, Brad's sheet). Run it once
+        // per device per schema width, in the background; it widens the
+        // sheet and repairs the header row before the first save needs them.
+        try {
+          if (typeof ensurePersonalHeaders === 'function' && typeof PERSONAL_HEADERS !== 'undefined'
+              && localStorage.getItem('lv_pd_schema_ok') !== String(PERSONAL_HEADERS.length)) {
+            ensurePersonalHeaders(state.personalSheetId).catch(function () {});
+          }
+        } catch (eH) {}
         _loadPersonalFromSheets(state.personalSheetId).then(() => {
           _cachePersonalData();
           buildDashboard();

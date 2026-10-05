@@ -189,6 +189,30 @@ function _rrWriteFailed(kind, args, err) {
   return err;
 }
 
+// ── v0.9.1881: a write past the collection sheet's last column heals itself ──
+// Google answers a value write that reaches beyond the grid with a 400 —
+// "exceeds grid limits" for a range past the edge, "tried writing to column"
+// for values wider than the range/grid — and a value write never widens a
+// sheet. When that happens on My Collection (the one tab whose width the
+// schema decides), widen it to the schema through the ONE helper
+// (rrEnsurePersonalGrid, app-setup.js) and let the caller try once more.
+// True = widened, try again. Anything else = not ours to heal; the caller
+// throws as before. Never loops: the caller retries exactly once.
+async function _rrGridHeal(spreadsheetId, range, json) {
+  try {
+    var msg = String((json && json.error && json.error.message) || '');
+    if (!/exceeds grid limits|tried writing to column/i.test(msg)) return false;
+    if (typeof state === 'undefined' || !state || spreadsheetId !== state.personalSheetId) return false;
+    var tab = String(range || '').split('!')[0].replace(/^'+|'+$/g, '');
+    if (typeof PERSONAL_TAB === 'undefined' || tab !== PERSONAL_TAB) return false;
+    if (typeof rrEnsurePersonalGrid !== 'function') return false;
+    var ok = await rrEnsurePersonalGrid(spreadsheetId, true);
+    if (ok) console.warn('[Sheets] My Collection was narrower than the schema — widened, retrying the write');
+    return !!ok;
+  } catch (e) { console.warn('[Sheets] grid heal failed:', e && e.message); return false; }
+}
+if (typeof window !== 'undefined') window._rrGridHeal = _rrGridHeal;
+
 // v0.9.1253 (row-identity audit, findings 3, 4, 12): verify before writing to
 // a row you did not just read.
 //
@@ -375,12 +399,16 @@ async function sheetsUpdate(spreadsheetId, range, values) {
   const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${_encodeRange(range)}?valueInputOption=USER_ENTERED`;
   const body = JSON.stringify({ range, majorDimension: 'ROWS', values });
   try {
-    const res = await _withTokenRetry(() => fetch(url, {
+    const _go = () => _withTokenRetry(() => fetch(url, {
       method: 'PUT',
       headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
       body,
     }));
-    const json = await res.json();
+    let res = await _go();
+    let json = await res.json();
+    // v0.9.1881: a My Collection write past the sheet's last column — widen
+    // the sheet to the schema and try ONCE more (see _rrGridHeal).
+    if (json.error && typeof _rrGridHeal === 'function' && await _rrGridHeal(spreadsheetId, range, json)) { res = await _go(); json = await res.json(); }
     if (json.error) {
       console.error('sheetsUpdate error:', JSON.stringify(json.error));
       throw new Error('Sheets update failed: ' + (json.error.message || JSON.stringify(json.error)));
@@ -442,11 +470,14 @@ async function sheetsAppend(spreadsheetId, range, values) {
   const body = JSON.stringify({ majorDimension: 'ROWS', values: values });
   const appendRange = `${tabName}!A3:A`;   // anchor the table below the two header rows
   try {
-    const res = await _withTokenRetry(() => fetch(
+    const _go = () => _withTokenRetry(() => fetch(
       `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${_encodeRange(appendRange)}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`,
       { method: 'POST', headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' }, body }
     ));
-    const json = await res.json();
+    let res = await _go();
+    let json = await res.json();
+    // v0.9.1881: a row wider than My Collection's grid — widen, try once more.
+    if (json.error && typeof _rrGridHeal === 'function' && await _rrGridHeal(spreadsheetId, range, json)) { res = await _go(); json = await res.json(); }
     if (json.error) {
       console.error('sheetsAppend error:', JSON.stringify(json.error));
       throw new Error('Sheets write failed: ' + (json.error.message || JSON.stringify(json.error)));

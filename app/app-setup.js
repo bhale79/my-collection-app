@@ -372,36 +372,64 @@ function updateUserUI() {
 // broke new-user setup with a 400 "tried writing to column AG".
 function _pdColLetter(n){ var s=''; while(n>0){ n--; s=String.fromCharCode(65+(n%26))+s; n=Math.floor(n/26); } return s; }
 
+// ══ v0.9.1881 — THE COLLECTION SHEET IS AS WIDE AS THE SCHEMA, in ONE place ══
+// v0.9.1506 widened the grid before the header write in initPersonalSheet —
+// which only a BRAND-NEW sheet ever runs. Every existing sheet goes through
+// ensurePersonalHeaders instead, and that one never widened: when v0.9.1880
+// appended the 51st column (Master Row ID) to the schema, Brad's 50-column
+// sheet refused the header row AND every full-row save ("exceeds grid
+// limits", 400) — the saves sat in the write-outbox. Measured on his sheet
+// (grid 50, header 50, schema 51) the same night. A value write never expands
+// a sheet's columns; only appendDimension does, so the schema's width must be
+// made true on the sheet BEFORE anything is written across it.
+//   • one metadata read, appendDimension only when short, remembered per
+//     sheet for the session (a second call costs nothing)
+//   • called by initPersonalSheet (new sheet), ensurePersonalHeaders (every
+//     start, before the header row), and the write heal in sheets.js (a
+//     write that still hits the wall widens and tries once more)
+//   • `force` re-reads the metadata — the heal passes it, because the memo
+//     says "checked", not "true right now" (the sheet can be edited by hand)
+var _rrGridChecked = {};
+async function rrEnsurePersonalGrid(sheetId, force) {
+  var want = PERSONAL_HEADERS.length;
+  if (!sheetId || !accessToken) return false;
+  if (!force && _rrGridChecked[sheetId] === want) return true;
+  var _gRes = await fetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}?fields=sheets.properties`,
+    { headers: { Authorization: `Bearer ${accessToken}` } }
+  );
+  if (!_gRes.ok) throw new Error('could not read the sheet\'s size (HTTP ' + _gRes.status + ')');
+  var _gMeta = await _gRes.json();
+  var _pc = (_gMeta.sheets || []).find(s => s.properties.title === PERSONAL_TAB);
+  if (!_pc) return false;
+  var _cols = (_pc.properties.gridProperties && _pc.properties.gridProperties.columnCount) || 0;
+  if (_cols > 0 && _cols < want) {
+    var _wRes = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}:batchUpdate`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ requests: [{ appendDimension: {
+        sheetId: _pc.properties.sheetId, dimension: 'COLUMNS',
+        length: want - _cols,
+      } }] }),
+    });
+    if (!_wRes.ok) throw new Error('could not widen My Collection (HTTP ' + _wRes.status + ')');
+    console.log('[Setup] My Collection widened from ' + _cols + ' to ' + want + ' columns');
+  }
+  _rrGridChecked[sheetId] = want;
+  return true;
+}
+if (typeof window !== 'undefined') window.rrEnsurePersonalGrid = rrEnsurePersonalGrid;
+
 async function initPersonalSheet(sheetId) {
   // Write My Collection title + headers if empty
   // Read the full header range (schema-length driven) so we can detect drift.
   const _pdEnd = _pdColLetter(PERSONAL_HEADERS.length);
-  // v0.9.1506 (Session 81): WIDEN THE GRID BEFORE ANY HEADER WRITE. The schema
-  // crossed 40 columns this release (Import Batch / Your Grade / Your
-  // Description, Task #25) and values.update does NOT expand a sheet's grid —
-  // a user sheet created narrower than the schema would 400 on the header
-  // repair below and break boot. One metadata read; appendDimension only when
-  // actually short; harmless no-op for everyone else. Guarded: a failure here
-  // must never block boot — the repair below then behaves exactly as before.
-  try {
-    const _gRes = await fetch(
-      `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}?fields=sheets.properties`,
-      { headers: { Authorization: `Bearer ${accessToken}` } }
-    );
-    const _gMeta = await _gRes.json();
-    const _pc = (_gMeta.sheets || []).find(s => s.properties.title === PERSONAL_TAB);
-    const _cols = _pc && _pc.properties.gridProperties ? (_pc.properties.gridProperties.columnCount || 0) : 0;
-    if (_pc && _cols > 0 && _cols < PERSONAL_HEADERS.length) {
-      await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}:batchUpdate`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ requests: [{ appendDimension: {
-          sheetId: _pc.properties.sheetId, dimension: 'COLUMNS',
-          length: PERSONAL_HEADERS.length - _cols,
-        } }] }),
-      });
-    }
-  } catch (eGrid) { console.warn('[setup] grid-width check skipped:', eGrid && eGrid.message); }
+  // v0.9.1506 (Session 81): WIDEN THE GRID BEFORE ANY HEADER WRITE — values.update
+  // does NOT expand a sheet's grid. v0.9.1881: through the one helper above.
+  // Guarded: a failure here must never block boot — the repair below then
+  // behaves exactly as before.
+  try { await rrEnsurePersonalGrid(sheetId, true); }
+  catch (eGrid) { console.warn('[setup] grid-width check skipped:', eGrid && eGrid.message); }
   const res = await fetch(
     `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/My%20Collection!A1:${_pdEnd}2`,
     { headers: { Authorization: `Bearer ${accessToken}` } }
@@ -538,9 +566,17 @@ async function ensurePersonalHeaders(sheetId) {
     // Check each expected header — write the full row if anything is missing or wrong
     const needsUpdate = PERSONAL_HEADERS.some((h, i) => current[i] !== h);
     if (needsUpdate) {
+      // v0.9.1881: the grid first — a header row wider than the sheet is the
+      // 400 that made this repair fail silently on every start since the
+      // schema outgrew the sheet (Brad's 50-column sheet, 51-column schema).
+      await rrEnsurePersonalGrid(sheetId);
       await sheetsUpdate(sheetId, PERSONAL_TAB + '!A2:' + _pdEndHdr + '2', [PERSONAL_HEADERS]);
       console.log('[Headers] My Collection headers repaired');
     }
+    // v0.9.1881: this device has seen the sheet carry the current schema —
+    // the cached start (app-data.js) skips its extra check until the schema
+    // changes again. A memo of a check, not a setting; device-local on purpose.
+    try { localStorage.setItem('lv_pd_schema_ok', String(PERSONAL_HEADERS.length)); } catch (eM) {}
 
     // Also ensure row 1 title
     const title = _hdrVals[_R_TITLE][0] || '';
