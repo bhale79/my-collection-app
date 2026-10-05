@@ -1417,6 +1417,29 @@ function rrDashedKin(num) {
   var bare = n.indexOf('-') < 0 && n.indexOf('–') < 0;
   try {
     var rows = (typeof state !== 'undefined' && state && state.masterData) || [];
+    // v0.9.1885 — 6014 -> X6014 : THE LETTER STAMPED ON THE CAR. Brad's Baby
+    // Ruth boxcar (2026-10-05) is lettered X6014; the reader offered 6014
+    // (Chun King, Frisco, Wix Filters) and the "pick the one you have" list
+    // never mentioned X6014, because a plain 6014 EXISTS, so the v1730 bridge
+    // in findMaster (which only ever fills a blank) was never consulted.
+    //
+    // A letter before the same digits is a relative the way a dash after them
+    // is — WHEN THE SAME CATALOGUE spells the number both ways. Measured on
+    // the whole master (2026-10-05): Lionel's stamp letter is X and only X
+    // (X237, X628, X2954, X6014, X9259 … beside their plain numbers); every
+    // other single letter is another maker's product code — Weaver's U1001,
+    // K-Line's K102, USA Trains' R12000, the L-series lamps — and 1,011 of
+    // Weaver's alone sit on digits Lionel also uses. So the letter counts
+    // only in a catalogue (era) that also holds the plain number; no list of
+    // letters, no reach across makers. One letter, the digits exactly: 601
+    // never reaches X6014, nor 6014 X60140.
+    var plainEras = {}, anyPlain = false;
+    if (bare && /^\d+$/.test(n)) {
+      for (var p = 0; p < rows.length; p++) {
+        var rp = rows[p];
+        if (rp && String(rp.itemNum || '').replace(/\s+/g, '') === n) { plainEras[String(rp._era || '')] = 1; anyPlain = true; }
+      }
+    }
     for (var i = 0; i < rows.length; i++) {
       var raw = rows[i] && rows[i].itemNum;
       if (!raw) continue;
@@ -1427,6 +1450,10 @@ function rrDashedKin(num) {
         if (s.length > n.length && s.slice(0, n.length) === n) {
           var c = s.charAt(n.length);
           if (c === '-' || c === '–') { seen[String(raw)] = 1; out.push(String(raw)); }
+        }
+        else if (anyPlain && s.length === n.length + 1 && s.slice(1) === n && /^[A-Za-z]$/.test(s.charAt(0))
+                 && plainEras[String(rows[i]._era || '')]) {
+          seen[String(raw)] = 1; out.push(String(raw));
         }
       } else {
         // 3376-160 -> 3376 : the reverse, so a dashed number names its parent.

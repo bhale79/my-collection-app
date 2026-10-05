@@ -976,16 +976,27 @@ function rrCatalogCandidates(itemNum) {
   var b = (typeof baseItemNum === 'function') ? String(baseItemNum(n) || '').trim() : '';
   if (b && b !== n) keys.push(b);
   var out = [], seen = {};
+  var take = function (r) {
+    if (!r) return;
+    var sig = r.rowId ? ('#' + String(r.rowId).trim())
+      : (String(r.itemNum) + '|' + String(r.variation || '') + '|' + String(r._tab || '') + '|' + String(r._era || '') + '|' + String(r.description || ''));
+    if (seen[sig]) return;
+    seen[sig] = 1; out.push(r);
+  };
   [state.masterByItem, state.masterByItemAll].forEach(function (idx) {
     if (!idx || typeof idx.get !== 'function') return;
     keys.forEach(function (k) {
-      (idx.get(k) || []).forEach(function (r) {
-        if (!r) return;
-        var sig = r.rowId ? ('#' + String(r.rowId).trim())
-          : (String(r.itemNum) + '|' + String(r.variation || '') + '|' + String(r._tab || '') + '|' + String(r._era || '') + '|' + String(r.description || ''));
-        if (seen[sig]) return;
-        seen[sig] = 1; out.push(r);
-      });
+      var plain = idx.get(k) || [];
+      plain.forEach(take);
+      // v0.9.1885: the letter stamped on the car (6014 → X6014 Baby Ruth) is
+      // a candidate too — the same rule rrDashedKin gives the Photo Inbox:
+      // only from a catalogue (era) that also holds the plain number (Lionel
+      // spells it both ways; Weaver's U1001 is not a Lionel 1001), from the
+      // catalogue's own spellings (_letterKinRows), never a list of letters.
+      if (plain.length && typeof _letterKinRows === 'function') {
+        var eras = {}; plain.forEach(function (r) { if (r) eras[String(r._era || '')] = 1; });
+        _letterKinRows(idx, k).forEach(function (r) { if (r && eras[String(r._era || '')]) take(r); });
+      }
     });
   });
   return out;
