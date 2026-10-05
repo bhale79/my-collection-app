@@ -747,10 +747,54 @@ function parseMasterRows(rows) {
 state.masterByItem = new Map();          // itemNum -> [master rows]
 state._boxVarCache = new Map();          // itemNum -> cached getBoxVariations result
 
+// ══ v0.9.1884 — A CATALOG CAN NEVER SIT IN THE LOADED LIST TWICE ═══════════
+// On the first start after Master Version 2.20 (2026-10-04, app v1880) ten
+// makers' rows were in state.masterData TWICE — 197,175 rows, 10,245 Row IDs
+// doubled (MTH Tinplate / G, the three Märklin, Kato HO / Parts, T-Repro,
+// Micro-Trains N, Weaver). The next start was clean. Every path that adds
+// catalog rows was read — the hydrate in loadAllErasMode, the holding pen
+// (_applyPendingEras drops the maker before it adds), the on-demand load
+// (_ensureEraLoaded checks twice) and the sequential fallback — and each
+// guards on its own; a rebuilt version-change start on Brad's PC (44 makers
+// re-downloaded, a tripwire on every assignment) and a test copy under slow
+// and failing reads with two loads racing all came back clean. Until the
+// cause is caught in the act, the loaded list is checked HERE, at the one
+// place every change passes through: a Row ID seen twice keeps its LAST copy
+// (the freshest — new rows are appended) and the doubles are counted per
+// maker and written to the console with the moment, so the next time leaves
+// evidence (window._rrCatalogDoubles). Rows with no Row ID are left alone —
+// a Row ID is the only identity the app trusts (v1880).
+function rrDropDoubledCatalogRows(rows) {
+  rows = rows || [];
+  var seen = new Set(), kept = [], doubled = {}, n = 0;
+  for (var i = rows.length - 1; i >= 0; i--) {
+    var r = rows[i];
+    var id = (r && r.rowId) ? String(r.rowId).trim() : '';
+    if (id) {
+      if (seen.has(id)) { var e = String((r && r._era) || '?'); doubled[e] = (doubled[e] || 0) + 1; n++; continue; }
+      seen.add(id);
+    }
+    kept.push(r);
+  }
+  if (!n) return rows;
+  kept.reverse();
+  var at = Date.now(), secs = '';
+  try { secs = ' at ' + (performance.now() / 1000).toFixed(1) + ' s'; } catch (eP) {}
+  Object.keys(doubled).sort().forEach(function (e) {
+    try { window._rrCatalogDoubles.push({ era: e, rows: doubled[e], at: at }); } catch (eW) {}
+    console.warn('[catalog] ' + e + ': ' + doubled[e] + ' rows were loaded twice' + secs + ' — the extra copy dropped');
+  });
+  return kept;
+}
+if (typeof window !== 'undefined') { window._rrCatalogDoubles = window._rrCatalogDoubles || []; window.rrDropDoubledCatalogRows = rrDropDoubledCatalogRows; }
+
 function _rebuildMasterIndex() {
   const m = new Map();
   const im = new Map();                  // v0.9.985 (perf): master row -> its index
-  const rows = state.masterData || [];
+  // v0.9.1884: the one check that a maker is never in the list twice.
+  const rows0 = state.masterData || [];
+  const rows = rrDropDoubledCatalogRows(rows0);
+  if (rows !== rows0) state.masterData = rows;
   for (let i = 0; i < rows.length; i++) {
     const r = rows[i];
     if (!r) continue;
