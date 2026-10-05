@@ -5265,6 +5265,7 @@
     if (eraName) out.push('Searching ' + eraName);
     var cand = (dbg.cand || []).concat(dbg.shortCand || []);
     if (cand.length) out.push('Numbers seen: ' + cand.slice(0, 4).join(', '));
+    if ((dbg.lettered || []).length) out.push('Kept the letter stamped before the number: ' + dbg.lettered.join(', '));   // v0.9.1886
     if (dbg.joined) out.push('Pieced ' + dbg.joined + ' together from split digits');
     // v0.9.1732 — say it on the CARD, not only behind the disclosure triangle.
     // "Pieced X together" above reads like a success; this is the line that
@@ -9245,6 +9246,39 @@
       if (!_inEraSet.length) return true;           // genuinely unfiltered — old behaviour
       return !!(row && _inEraSet.indexOf(row._era) >= 0);
     };
+    // ══ v0.9.1886 — THE LETTER STAMPED ON THE CAR, READ AS STAMPED ══════════
+    // Brad's Baby Ruth boxcar is lettered X6014 BUILT BY LIONEL. The token
+    // scan above starts every token at a DIGIT, so the X was dropped before
+    // the catalogue was asked, and 6014 (Chun King) answered. v1885 made X6014
+    // a relative in the pick list; this keeps the letter in the READ itself.
+    // The rule is the same one, so the two can never disagree: a single letter
+    // glued to the digits counts only when the catalogue spells the number
+    // that way (measured 2026-10-05: for Lionel that letter is X and only X;
+    // other makers' letters are product codes), and only in the stamped
+    // catalogue. Never a list of letters to try. "NO6014" or "BOX6014" is not
+    // a letter prefix: the letter must stand alone before the digits.
+    var _lettered = [];
+    (function () {
+      if (!fmAny) return;
+      var reL = /(?:^|[^A-Z0-9])([A-Z])(\d{2,6})(?![\dA-Z-])/g, mm;
+      while ((mm = reL.exec(UP))) {
+        var d = mm[2], spelled = mm[1] + d;
+        if (uniq.indexOf(d) < 0 || uniq.indexOf(spelled) >= 0) continue;
+        var rL = fmAny(spelled);
+        if (!rL || String(rL.itemNum || '').toUpperCase() !== spelled) continue;   // only a spelling the catalogue has
+        if (!inEra(rL)) continue;                                                   // and only in the stamped catalogue
+        // …and only where that SAME catalogue holds the plain number too (the
+        // v1885 rule): Weaver's U1001 is not a Lionel 1001. A letter spelling
+        // with NO plain twin (X6454) is findMaster's own v1730 bridge, not this.
+        var plainEras = {};
+        try { (typeof _pinKinRowsFor === 'function' ? _pinKinRowsFor(d) : []).forEach(function (rK) { if (rK) plainEras[String(rK._era || '')] = 1; }); } catch (eK) {}
+        var rP = fmAny(d); if (rP) plainEras[String(rP._era || '')] = 1;
+        if (!plainEras[String(rL._era || '')]) continue;
+        uniq.splice(uniq.indexOf(d), 0, spelled);                                   // the letter spelling leads its digits
+        if (namedByMaker[d]) namedByMaker[spelled] = 1;                             // "X6014 BUILT BY LIONEL" names both
+        _lettered.push(spelled);
+      }
+    })();
     // v0.9.1167 — THE CAP FOLLOWS THE CANDIDATE'S ERA, not the filter's.
     // Brad's A.T.&S.F. gondola is stamped CAPY 100000 / LD LMT 120000 / LT WT
     // 40200, and it came back "40200 — Atlas N UNDECORATED (ADM/MCP)". The rule
@@ -9369,6 +9403,7 @@
       // what the user has excluded, because a silent exclusion of the RIGHT
       // answer reads exactly like a wrong reader.
       rejectedList: ((prefer && prefer.reject) || []).slice(0, 6),
+      lettered: _lettered.slice(0, 3),   // v0.9.1886: the letter kept as stamped (X6014)
     };
     uniq.slice(0, 8).forEach(function (c) {
       var any = fmAny ? fmAny(c) : null;
