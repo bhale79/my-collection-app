@@ -172,7 +172,7 @@ async function main() {
     ok('each Row ID answers its own row', st.masterByRowIdAll && st.masterByRowIdAll.get('BBBBBBBB22') === n800[0] && st.masterByRowIdAll.get('BBBBBBBB33') === n800[1]);
     ok('a folded twin\'s Row ID answers through the row kept', st.masterByRowIdAll.get('AAAAAAAA33') === st.masterAllRows.find(x => x.itemNum === '700'));
     ok('rows without Row IDs are merged as before (old signature, unchanged)', st.masterAllRows.filter(x => x.itemNum === '900').length === 1);
-    r = await offends("var sig = r.rowId ? ('#' + String(r.rowId).trim())", "var sig = false ? ''", async src => { const s = await idScenario(src); return s.masterAllRows.filter(x => x.itemNum === '800').length === 1; });
+    r = await offends("var sig = r.rowId ? ('#' + String(r.rowId).trim())\n            : (k + '|'", "var sig = false ? ''\n            : (k + '|'", async src => { const s = await idScenario(src); return s.masterAllRows.filter(x => x.itemNum === '800').length === 1; });
     ok('OFFENDER: the old signature for every row → the 1915 boxcar disappears from the index', r === true, String(r));
   }
 

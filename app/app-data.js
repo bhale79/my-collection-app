@@ -919,6 +919,34 @@ function _rrRowIdFits(row, itemNum, variation) {
   return v.toUpperCase() === rv.toUpperCase();
 }
 if (typeof window !== 'undefined') { window.rrMasterRowIdOf = rrMasterRowIdOf; window.rrMasterByRowId = rrMasterByRowId; }
+// ── v0.9.1882 (Step 4): every catalog row an owned copy COULD be ────────────
+// The rows under the copy's number and under its base number (2343-P → 2343),
+// every maker and era, from the whole-catalog index when it is up and the
+// loaded catalogs otherwise. Loaded rows first (they carry live edits); a row
+// counts once (by Row ID, else by its old signature). This is the list "Change
+// catalog entry" offers — the one place that decides what an item may become.
+function rrCatalogCandidates(itemNum) {
+  var n = String(itemNum == null ? '' : itemNum).trim();
+  if (!n) return [];
+  var keys = [n];
+  var b = (typeof baseItemNum === 'function') ? String(baseItemNum(n) || '').trim() : '';
+  if (b && b !== n) keys.push(b);
+  var out = [], seen = {};
+  [state.masterByItem, state.masterByItemAll].forEach(function (idx) {
+    if (!idx || typeof idx.get !== 'function') return;
+    keys.forEach(function (k) {
+      (idx.get(k) || []).forEach(function (r) {
+        if (!r) return;
+        var sig = r.rowId ? ('#' + String(r.rowId).trim())
+          : (String(r.itemNum) + '|' + String(r.variation || '') + '|' + String(r._tab || '') + '|' + String(r._era || '') + '|' + String(r.description || ''));
+        if (seen[sig]) return;
+        seen[sig] = 1; out.push(r);
+      });
+    });
+  });
+  return out;
+}
+if (typeof window !== 'undefined') window.rrCatalogCandidates = rrCatalogCandidates;
 
 function findMaster(itemNum, variation, prefer) {
   if (!itemNum) return null;

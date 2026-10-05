@@ -343,7 +343,8 @@ function buildPersonalRow(fields) {
   // master decides the manufacturer (not the filter). Manual items keep theirs.
   var _mfi = PERSONAL_FIELD_INDEX.manufacturer;
   if (!_rowIsManual && _mfi !== undefined) {   // v0.9.724: manual rows keep the maker the user chose
-    var _mb = (typeof _brandOfItem === 'function') ? _brandOfItem(inum, vari) : '';
+    // v0.9.1882: the brand follows THIS copy's row (its Row ID / key / era), never the first row under the number
+    var _mb = (typeof _brandOfItem === 'function') ? _brandOfItem(inum, vari, _descPrefer) : '';
     if (_mb) row[_mfi] = _mb;
   }
   // Force identifier columns to TEXT so Google's USER_ENTERED doesn't

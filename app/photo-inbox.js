@@ -8316,6 +8316,83 @@
   }
   if (typeof window !== 'undefined') window._rrBackfillMasterKeys = _backfillMasterKeys;
 
+  // ── v0.9.1882 (CATALOG_ROW_ID_PLAN Step 4): every saved item gets its Row ID ──
+  // [stated] Brad: "yes". Master Version 2.20 put a permanent Row ID on every
+  // catalog row; v0.9.1880 taught the app to read and save it. Rows saved
+  // before that carry only the old link (Master Key). This writes each one's
+  // Master Row ID = the ID of the entry the app SHOWS TODAY — findMaster with
+  // the owned row as the hint, the very answer every screen already trusts
+  // (a stored key that resolves; else era + maker, e.g. 6-49807 whose key
+  // names a row that moved tabs). So nothing on screen changes; the link
+  // simply becomes one no two products can share.
+  //   • ONE read + ONE write for the whole batch, not a write per row: column
+  //     A and the Inventory ID column are read once, every row is checked the
+  //     way rrRowStillIs checks it (the id when both sides have one, else the
+  //     number), and the IDs go up in one values:batchUpdate, RAW.
+  //   • a row that fails the check is skipped this pass (not marked done);
+  //     a row with no catalog entry is done (nothing to store)
+  //   • the header cell must read "Master Row ID" first — the column exists
+  //     only after the v0.9.1881 widen; if it does not, this waits
+  //   • a flag guards against running twice (stability rule 4)
+  var _mriDone = {}, _mriBusy = false;
+  async function _backfillMasterRowIds() {
+    if (_mriBusy) return;
+    if (!window.state || !state.personalData || !state.personalSheetId) return;
+    if (typeof findMaster !== 'function' || typeof rrMasterRowIdOf !== 'function'
+        || typeof personalColLetter !== 'function' || typeof sheetsBatchGet !== 'function') return;
+    if (typeof rrCatalogIndexStatus === 'function' && !rrCatalogIndexStatus().complete) return;   // v0.9.1527 rule: never resolve in bulk against a half-built catalog
+    var todo = [];
+    Object.entries(state.personalData).forEach(function (ent) {
+      var p = ent[1];
+      if (!p || !p.owned || !p.itemNum || p.masterRowId) return;
+      if (String(p.era || '') === 'Manual') return;
+      if (!p.row || Number(p.row) === 99999) return;
+      var k = String(p.inventoryId || ent[0]);
+      if (_mriDone[k]) return;
+      var m = null;
+      try { m = findMaster(p.itemNum, p.variation || '', p); } catch (e) {}
+      var id = m ? rrMasterRowIdOf(m) : '';
+      if (!id) { if (m) _mriDone[k] = true; return; }       // no entry, or an entry with no ID yet — nothing to store
+      todo.push({ k: k, p: p, id: id });
+    });
+    if (!todo.length) return;
+    _mriBusy = true;
+    try {
+      var mriCol = personalColLetter('masterRowId'), invCol = personalColLetter('inventoryId');
+      if (!mriCol || !invCol) return;
+      var tab = PERSONAL_TAB;
+      var got = await sheetsBatchGet(state.personalSheetId, [tab + '!' + mriCol + '2', tab + '!A3:A', tab + '!' + invCol + '3:' + invCol]);
+      var vrs = (got && got.valueRanges) || [];
+      var hdr = String((((vrs[0] || {}).values || [[]])[0] || [])[0] || '').trim();
+      if (hdr !== 'Master Row ID') { console.log('[RowId] column not on the sheet yet — waiting for the next start'); return; }
+      var nums = ((vrs[1] || {}).values || []).map(function (r) { return String(r && r[0] != null ? r[0] : '').trim(); });
+      var ids = ((vrs[2] || {}).values || []).map(function (r) { return String(r && r[0] != null ? r[0] : '').trim(); });
+      var data = [], written = [];
+      todo.forEach(function (t) {
+        var i = Number(t.p.row) - 3, gotNum = nums[i] || '', gotId = ids[i] || '';
+        var wantNum = String(t.p.itemNum).trim(), wantId = String(t.p.inventoryId || '').trim();
+        var ok = (wantId && gotId) ? gotId === wantId : gotNum === wantNum;
+        if (!ok) { console.warn('[RowId] row ' + t.p.row + ' is not ' + wantNum + ' any more — skipped this pass'); return; }
+        data.push({ range: tab + '!' + mriCol + t.p.row, values: [[t.id]] });
+        written.push(t);
+      });
+      if (!data.length) return;
+      var res = await _withTokenRetry(function () {
+        return fetch('https://sheets.googleapis.com/v4/spreadsheets/' + state.personalSheetId + '/values:batchUpdate', {
+          method: 'POST',
+          headers: { Authorization: 'Bearer ' + accessToken, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ valueInputOption: 'RAW', data: data }),
+        });
+      });
+      if (!res.ok) { console.warn('[RowId] backfill deferred: HTTP ' + res.status); return; }
+      written.forEach(function (t) { t.p.masterRowId = t.id; _mriDone[t.k] = true; });
+      try { if (typeof _cachePersonalData === 'function') _cachePersonalData(); } catch (eC) {}
+      console.log('[RowId] ' + written.length + ' item(s) now carry their catalog entry\'s Row ID');
+    } catch (e) { console.warn('[RowId] backfill deferred:', e && e.message); }
+    finally { _mriBusy = false; }
+  }
+  if (typeof window !== 'undefined') window._rrBackfillMasterRowIds = _backfillMasterRowIds;
+
   // ══ v0.9.1561 — RESCUE STRANDED SET PHOTOS (one-time repair) ═════════════
   // Before v0.9.1560, a grouped save never armed its staged inbox photos:
   // the handoff matched "2344" (the number read off the photo) against
@@ -13081,6 +13158,7 @@
         try {
           _pinPanelDrawLast();   // v0.9.1834: the inbox card's pictures are back before the browser paints
           _injectNav(); _flushPending(); _repairMissingPhotoLinks(); _backfillMasterKeys();
+          _backfillMasterRowIds();   // v0.9.1882: runs once the full catalog index is complete (its completion rebuilds the dashboard)
           window._pinFlushPendingNow = _flushPending;   // v0.9.1602: reconnect + drain-chain kick
           if (!_startupCounted) { _startupCounted = true; setTimeout(function () { _pinCountRefresh(); }, 1500); }
         } catch (e) {}

@@ -3763,7 +3763,7 @@ function showItemPanel(idx, pdKey, mode) {
   box.appendChild(header);
   // Wire close btn now that header is in memory
   const _hdrClose = header.querySelector('#item-panel-close-btn');
-  if (_hdrClose) _hdrClose.onclick = function() { overlay.remove(); };
+  if (_hdrClose) _hdrClose.onclick = function() { delete pd._newEntry; overlay.remove(); };   // v0.9.1882: a staged entry pick dies with the panel
 
   // Scrollable content — split into photos (permanent) + fields (re-rendered)
   const body = document.createElement('div');
@@ -3801,6 +3801,34 @@ function showItemPanel(idx, pdKey, mode) {
   }
   if (pd.variation === undefined || pd.variation === '') pd.variation = _origVariation;
 
+  // v0.9.1882 (CATALOG_ROW_ID_PLAN Step 4 — [stated] Brad: "yes"): WHICH catalog
+  // entry this item is, shown on every catalog item and CHANGEABLE in Edit.
+  // Before this the only way to re-point an item linked to the wrong product
+  // (two products share a number — Pre-War 800) was to delete it and add it
+  // again. The list is rrCatalogCandidates (app-data.js): every row under the
+  // item's number and base number, every maker. A pick is STAGED (pd._newEntry)
+  // like every other edit; Save adopts the row — Row ID, Master Key, era,
+  // variation, maker, type, road, both descriptions — the identity a fresh save
+  // of that row would have written.
+  function _panelCurrentRow() {
+    if (pd._newEntry) return pd._newEntry;
+    return (typeof findMaster === 'function') ? findMaster(pd.itemNum || item.itemNum, pd.variation || '', pd) : null;
+  }
+  function _panelEntryLabel(r) {
+    if (!r) return 'No catalog entry';
+    var era = (typeof ERAS !== 'undefined' && r._era && ERAS[r._era]) ? ERAS[r._era].label : String(r._era || r._tab || '');
+    return [era, r.variation ? 'Var ' + r.variation : '', [r.itemType, r.roadName].filter(Boolean).join(' · '), r.yearProd]
+      .filter(Boolean).join(' · ');
+  }
+  function _panelEntryRefUrl(r) {
+    var rl = (r && r.refLink) || '';
+    if (!rl) return null;
+    if (typeof window.cottAnchorUrl === 'function') {
+      return window.cottAnchorUrl(rl, String(r.itemNum || '').trim().toUpperCase(), (typeof window.cottRowWords === 'function') ? window.cottRowWords(r) : '', String(r.variation == null ? '' : r.variation));
+    }
+    return rl;
+  }
+
   const fields = [
     // v0.9.701 (Brad): a no-number item's TITLE is its identity — editable.
     ...((idx < 0 || pd.era === 'Manual') ? [{ label: 'Title / Name', key: 'itemNum', val: pd.itemNum || '—', type: 'textarea' }] : []),
@@ -3826,6 +3854,9 @@ function showItemPanel(idx, pdKey, mode) {
       if (_vOpts.length < 2) return [];   // one variation = nothing to change
       return [{ label: 'Variation', key: 'variation', val: 'Var ' + (pd.variation || '—'), type: 'select', options: _vOpts }];
     })() : []),
+    // v0.9.1882: the catalog entry — every catalog item, changeable in Edit (cards)
+    ...((pd.era !== 'Manual' && (pd.itemNum || item.itemNum) && typeof rrCatalogCandidates === 'function')
+      ? [{ label: 'Catalog entry', key: 'catalogEntry', val: _panelEntryLabel(_panelCurrentRow()), type: 'catalog' }] : []),
     // v0.9.987 (Brad): TYPE is editable on manual/off-catalog items — it
     // decides which Show chip the item appears under (Trains/Catalogs/
     // Paper Items). Catalog-matched items keep the catalog's type
@@ -3998,6 +4029,58 @@ function showItemPanel(idx, pdKey, mode) {
       // right at the moment of choosing. Each card carries the FULL wrapped
       // text and its own see-on-COTT link (the v0.9.1318 re-aim, one per
       // card now); tapping a card stages the pick like the ✓ did.
+      // v0.9.1882: the catalog-entry picker — cards, one per candidate row, every
+      // maker; the current entry marked; a pick is staged on pd._newEntry.
+      if (f.type === 'catalog' && mode === 'edit' && activeKey === f.key) {
+        row.style.flexDirection = 'column';
+        row.style.alignItems = 'stretch';
+        lbl.style.width = 'auto';
+        const cur = _panelCurrentRow();
+        const curId = cur && cur.rowId ? String(cur.rowId).trim() : '';
+        const cands = rrCatalogCandidates(pd.itemNum || item.itemNum);
+        const cList = document.createElement('div');
+        cList.style.cssText = 'display:flex;flex-direction:column;gap:0.45rem;width:100%;max-height:45vh;overflow-y:auto;padding-right:0.2rem';
+        if (!cands.length) {
+          const none = document.createElement('div');
+          none.style.cssText = 'font-size:0.8rem;color:var(--text-dim);padding:0.4rem 0';
+          none.textContent = 'No catalog entry carries this number.';
+          cList.appendChild(none);
+        }
+        cands.forEach(function (r) {
+          const isCur = cur && (r === cur || (curId && String(r.rowId || '').trim() === curId));
+          const card = document.createElement('div');
+          card.setAttribute('data-rr-entry', String(r.rowId || ''));
+          card.style.cssText = 'border:1.5px solid ' + (isCur ? 'var(--accent)' : 'var(--border)') + ';border-radius:9px;padding:0.55rem 0.7rem;cursor:pointer;background:var(--surface2)';
+          const era = (typeof ERAS !== 'undefined' && r._era && ERAS[r._era]) ? ERAS[r._era].label : String(r._era || r._tab || '');
+          card.innerHTML =
+            '<div style="font-size:0.8rem;font-weight:700;color:' + (isCur ? 'var(--t-accent)' : 'var(--text)') + ';margin-bottom:0.2rem">' + rrEsc(era) + (r.variation ? ' · Var ' + rrEsc(String(r.variation)) : '') + (isCur ? ' — current' : '') + '</div>' +
+            '<div style="font-size:0.78rem;color:var(--text-mid);line-height:1.5;white-space:normal">' + rrEsc([r.itemType, r.roadName, r.yearProd].filter(Boolean).join(' · ')) + '</div>' +
+            '<div style="font-size:0.78rem;color:var(--text-mid);line-height:1.5;white-space:normal">' + rrEsc(String(r.description || '')) + (r.varDesc ? ' — ' + rrEsc(String(r.varDesc)) : '') + '</div>';
+          const u = _panelEntryRefUrl(r);
+          if (u) {
+            card.innerHTML += '<a href="' + u + '" target="_blank" rel="noopener" onclick="event.stopPropagation()" onmousedown="event.preventDefault()" style="display:inline-flex;margin-top:0.35rem;font-size:0.75rem;color:var(--accent2);text-decoration:none">' +
+              (/cornucopiaoftoytrains/i.test(u) ? 'See this entry on COTT ↗' : 'See this entry ↗') + '</a>';
+          }
+          card.onclick = function () {
+            if (isCur) { delete pd._newEntry; } else { pd._newEntry = r; }
+            f.val = _panelEntryLabel(_panelCurrentRow());
+            editingKey = null;
+            renderFields(null);
+          };
+          cList.appendChild(card);
+        });
+        const closeRow = document.createElement('button');
+        closeRow.textContent = '✕ Keep current entry';
+        closeRow.style.cssText = 'margin-top:0.45rem;padding:0.45rem;border-radius:8px;border:1px solid var(--border);background:none;color:var(--text-dim);cursor:pointer;font-size:0.8rem;font-family:var(--font-body)';
+        closeRow.onclick = function () { editingKey = null; renderFields(null); };
+        valWrap.appendChild(cList);
+        valWrap.appendChild(closeRow);
+        row.appendChild(lbl);
+        row.appendChild(valWrap);
+        fieldsContainer.appendChild(row);
+        return;
+      }
+
       if (mode === 'edit' && f.key === 'variation' && activeKey === f.key) {
         row.style.flexDirection = 'column';
         row.style.alignItems = 'stretch';
@@ -4163,8 +4246,8 @@ function showItemPanel(idx, pdKey, mode) {
 
         if (mode === 'edit') {
           const editBtn = document.createElement('button');
-          editBtn.textContent = '✏️';
-          editBtn.title = 'Edit';
+          editBtn.textContent = (f.type === 'catalog') ? 'Change catalog entry' : '✏️';   // v0.9.1882
+          editBtn.title = (f.type === 'catalog') ? 'Pick the catalog entry this item is' : 'Edit';
           editBtn.style.cssText = 'margin-left:0.5rem;padding:0.15rem 0.4rem;border-radius:5px;border:1px solid var(--border);background:none;cursor:pointer;font-size:0.75rem;color:var(--text-dim)';
           editBtn.onclick = function() { editingKey = f.key; renderFields(f.key); };
           valWrap.appendChild(editBtn);
@@ -4242,9 +4325,26 @@ function showItemPanel(idx, pdKey, mode) {
       // page happened to open on. When it changed, the copy's stored identity
       // re-derives — masterKey re-points and both auto-descriptions refresh
       // (buildPersonalRow does the sheet side; state is updated below).
+      // v0.9.1882: a picked catalog entry IS the identity — everything the entry
+      // decides follows it, the way a fresh save of that row would write it.
+      // The variation re-derivation below is skipped then: the entry answers.
+      const _entry = pd._newEntry || null;
+      if (_entry) {
+        pd.masterRowId = (typeof rrMasterRowIdOf === 'function') ? rrMasterRowIdOf(_entry) : '';
+        pd.masterKey = (typeof rrMasterKeyOf === 'function') ? rrMasterKeyOf(_entry) : '';
+        pd.era = _entry._era || pd.era || '';
+        pd.variation = String(_entry.variation == null ? '' : _entry.variation);
+        pd.masterDescription = String(_entry.description || '');
+        pd.variationDescription = String(_entry.varDesc || '');
+        pd.manufacturer = (typeof _brandOfItem === 'function' && _brandOfItem(_entry)) || pd.manufacturer || '';
+        if (_entry.itemType) pd.itemType = String(_entry.itemType);
+        pd.roadName = String(_entry.roadName || '');
+        pd.roadNumber = String(_entry.roadNum || '');
+        delete pd._newEntry;
+      }
       const _newVariation = String(pd.variation || item.variation || '');
       const _varChanged = _newVariation !== _origVariation;
-      if (_varChanged) {
+      if (_varChanged && !_entry) {
         const _nm = (typeof findMaster === 'function')
           ? findMaster(pd.itemNum || item.itemNum, _newVariation, { era: pd.era || '', manufacturer: pd.manufacturer || '' })
           : null;
@@ -4290,6 +4390,7 @@ function showItemPanel(idx, pdKey, mode) {
         // (the v0.9.989 subType lesson) — re-guessing it here could re-point the
         // item at a different product that shares its number and variation.
         masterRowId: pd.masterRowId || '',
+        masterKey: pd.masterKey || '',   // v0.9.1882: the stored key rides along too — never re-guessed on a panel save
       });
       try {
         if (typeof _healPdRow === 'function') await _healPdRow(pd);
@@ -4324,12 +4425,12 @@ function showItemPanel(idx, pdKey, mode) {
         // to pre-edit values on the next app load (cache had the old row).
         if (typeof _cachePersonalData === 'function') _cachePersonalData();
         overlay.remove();
-        showToast(_varChanged ? ('✓ Updated — now Var ' + _newVariation) : '✓ Item updated!');
+        showToast(_entry ? '✓ Updated — now ' + _panelEntryLabel(_entry) : (_varChanged ? ('✓ Updated — now Var ' + _newVariation) : '✓ Item updated!'));
         buildDashboard();
         // Re-render the detail page so edited fields + photos show immediately.
         // v0.9.1315: after a variation change the page must re-resolve to the
         // NEW variation's catalog row — the stored index points at the old one.
-        if (_varChanged && pd.inventoryId && typeof _openOwnedByInvId === 'function') {
+        if ((_varChanged || _entry) && pd.inventoryId && typeof _openOwnedByInvId === 'function') {   // v0.9.1882: an entry change re-resolves the page too
           _openOwnedByInvId(pd.inventoryId);
         } else {
           rrDetailRepaint(0);   // v0.9.1765: by identity, not by remembered position
@@ -4343,7 +4444,7 @@ function showItemPanel(idx, pdKey, mode) {
     const cancelBtn = document.createElement('button');
     cancelBtn.className = 'btn btn-secondary';
     cancelBtn.textContent = 'Cancel';
-    cancelBtn.onclick = function() { overlay.remove(); };
+    cancelBtn.onclick = function() { delete pd._newEntry; overlay.remove(); };   // v0.9.1882
 
     footer.innerHTML = '';
     footer.appendChild(saveBtn);

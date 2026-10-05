@@ -18030,7 +18030,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
          /\{ num: _fs\.itemNum \|\| '', invId: _fs\.inventoryId \|\| '' \}, 'For Sale list'\)\)/.test(ac62) &&
          /_fs\.variation = _newVariation;/.test(ac62));
       ok('262 after a change the page reopens on the NEW variation via the copy\'s id',
-         /if \(_varChanged && pd\.inventoryId && typeof _openOwnedByInvId === 'function'\) \{\s*\n\s*_openOwnedByInvId\(pd\.inventoryId\);/.test(ac62) &&
+         /if \(\(_varChanged \|\| _entry\) && pd\.inventoryId && typeof _openOwnedByInvId === 'function'\) \{.*\n\s*_openOwnedByInvId\(pd\.inventoryId\);/.test(ac62) &&   // v0.9.1882: an entry change re-resolves too
          /'✓ Updated — now Var ' \+ _newVariation/.test(ac62));
       // The For Sale row rebuild must match the parser's column order exactly
       // (A–J: itemNum, variation, condition, askingPrice, dateListed, notes,
@@ -18980,8 +18980,9 @@ META_WRITES.length = 0; TOASTS.length = 0;
       });
       ok('276 every stopPropagation\'d picker link also refuses focus-on-press (none left bare)',
          stopOnly === 0, stopOnly + ' unguarded');
-      ok('276 the guarded set is the known five (4 stop+guard pairs, plus the single-item link)',
-         both === 4 && guards === 5, JSON.stringify({ both, guards }));
+      // v0.9.1882: + the catalog-entry card's see-it link (app-collection.js) — six
+      ok('276 the guarded set is the known six (5 stop+guard pairs, plus the single-item link)',
+         both === 5 && guards === 6, JSON.stringify({ both, guards }));
       // The wizard card link carries BOTH handlers — they stop DIFFERENT
       // failure modes (v1189 hit-area theft; v1335 focus-scroll theft).
       const wz = fs.readFileSync(p76.join(__dirname, '..', 'app', 'wizard.js'), 'utf8');
