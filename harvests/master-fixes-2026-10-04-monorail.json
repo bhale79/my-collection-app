@@ -1,0 +1,49 @@
+{
+"what": "Master Version 2.19 — Detroit Monorail: sets stay Set (Brad's call); 10-3055-0/-1 Steam Locomotive → Set; 10-4077 expansion set (track only) → Accessory",
+"date": "2026-10-04",
+"cells": [
+{
+"tab": "MTH O",
+"row": 15676,
+"item": "10-3055-0",
+"column": "Item Type",
+"col_index": 1,
+"old": "Steam Locomotive",
+"new": "Set",
+"kind": "A: monorail set typed Steam Locomotive",
+"why": "a Detroit Monorail set (monorail + its track) like the other 34; MTH's page: \"Southern Pacific O Gauge Tinplate Detroit Monorail Set\", Product Type R-T-R/Speciality Set"
+},
+{
+"tab": "MTH O",
+"row": 15677,
+"item": "10-3055-1",
+"column": "Item Type",
+"col_index": 1,
+"old": "Steam Locomotive",
+"new": "Set",
+"kind": "A: monorail set typed Steam Locomotive",
+"why": "a Detroit Monorail set (monorail + its track) like the other 34; MTH's page: \"Southern Pacific O Gauge Tinplate Detroit Monorail Set\", Product Type R-T-R/Speciality Set"
+},
+{
+"tab": "MTH Tinplate",
+"row": 1555,
+"item": "10-4077",
+"column": "Item Type",
+"col_index": 1,
+"old": "Set",
+"new": "Accessory",
+"kind": "B: monorail track only",
+"why": "monorail track and risers with no monorail car — like the monorail rail packs 10-4066/67/68 (Accessory); MTH's page: Product Type Accessory"
+}
+],
+"unchanged": [
+{
+"tab": "MTH O + MTH Tinplate",
+"item": "34 Detroit Monorail sets",
+"what": "typed Set",
+"why": "Each comes with its own monorail track — the trolley rule (a set with track is a Set). Brad: \"yes\", leave as Set."
+}
+],
+"cells_sha256": "ad41ee0f96098e3f477faa20404112aa862e35b0354d26810e1caaee893039b6",
+"source": "[stated] Brad 2026-10-04: \"yes\" — leave the Detroit Monorail sets as Set (each comes with its own track; the trolley rule) and fix the three rows that do not fit; MTH's own pages: 10-3055-0/-1 \"Southern Pacific O Gauge Tinplate Detroit Monorail Set\" (R-T-R/Speciality Set), 10-4077 Product Type Accessory; plan from fresh reads after Master Version 2.18"
+}
