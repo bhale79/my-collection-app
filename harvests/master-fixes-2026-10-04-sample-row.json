@@ -1,0 +1,55 @@
+{
+"what": "Master Version 2.16 — one row removed from Lionel MPC-Modern: 6-12345 \"Sample Union Pacific Locomotive #987\", a sample page on Lionel's website, not a product",
+"date": "2026-10-04",
+"source": "[stated] Brad 2026-10-04: \"yes\" to plan removing it; Lionel's own site (Task38 crawl 2026-09-09) lists it as an ARCHIVED page \"Sample Union Pacific Locomotive #987\", number 6-12345, no type, Notes \"MSRP $None\"; nothing else on the master list refers to it; Brad does not own or want it",
+"deletes": [
+{
+"tab": "Lionel MPC-Modern",
+"row": 18490,
+"item": "6-12345",
+"header": [
+"Item Number",
+"Item Type",
+"Sub-Type",
+"Unit",
+"Powered/Dummy",
+"Control",
+"Road Name",
+"Description",
+"Gauge",
+"Year Produced",
+"Variation #",
+"Variation Details",
+"Reference Link",
+"Notes",
+"Est. Market Value",
+"Source",
+"COTT Code",
+"Original COTT Desc",
+"Stamped Markings"
+],
+"values": [
+"6-12345",
+"",
+"",
+"",
+"",
+"",
+"",
+"Sample Union Pacific Locomotive #987",
+"",
+"",
+"",
+"",
+"https://www.lionel.com/products/sample-union-pacific-locomotive-987-6-12345/",
+"MSRP $None",
+"",
+"lionel.com feed 2026-07-18",
+"",
+"",
+""
+]
+}
+],
+"content_sha256": "046f62382b62cd92dc31a25bca31d72576f2ac69319126fad9b5727576f12c67"
+}
