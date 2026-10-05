@@ -1,0 +1,20 @@
+{
+"what": "Master Version 2.18 — 2638220 Conrail 50th Anniversary typed Boxcar (Lionel MPC-Modern)",
+"date": "2026-10-04",
+"source": "[stated] Brad 2026-10-04: \"yes\" to type it Boxcar as Master Version 2.18; Train World lists it as an O-gauge Conrail 50th Anniversary boxcar; plan from a fresh read after Master Version 2.17",
+"cells": [
+{
+"tab": "Lionel MPC-Modern",
+"row": 18174,
+"item": "2638220",
+"column": "Item Type",
+"col_index": 1,
+"old": "",
+"new": "Boxcar",
+"kind": "A: type from a dealer's listing",
+"why": "Train World sells Lionel 2638220 as \"O Conrail 50th Anniversary Boxcar\"; Lionel's own name is \"Conrail 50th Anniversary\" (O Gauge, no category)"
+}
+],
+"unchanged": [],
+"cells_sha256": "e1af156265ddcfaeb594fe5c0a4703428815cffa94be424a23848bb7137e5687"
+}
