@@ -1,0 +1,153 @@
+{
+"what": "Master Version 2.17 — two S-gauge items moved from Lionel MPC-Modern to Lionel Modern S - Items, typed: 6-47948 Norfolk Southern SD70ACe (Diesel Locomotive), 2519020 American Flyer 125th Lionel Anniversary (Boxcar)",
+"date": "2026-10-04",
+"source": "[stated] Brad 2026-10-04: \"yes\" to plan moving them (Lionel lists both as S gauge / American Flyer; the S tab had neither) → plan → \"yes\" to write; Brad does not own or want either (checked in the app page)",
+"header": [
+"Item Number",
+"Item Type",
+"Sub-Type",
+"Unit",
+"Powered/Dummy",
+"Control",
+"Road Name",
+"Description",
+"Gauge",
+"Year Produced",
+"Variation #",
+"Variation Details",
+"Reference Link",
+"Notes",
+"Est. Market Value",
+"Source",
+"COTT Code",
+"Original COTT Desc",
+"Stamped Markings"
+],
+"moves": [
+{
+"item": "2519020",
+"from_tab": "Lionel MPC-Modern",
+"from_row": 17522,
+"values": [
+"2519020",
+"",
+"",
+"",
+"",
+"",
+"",
+"American Flyer 125th Lionel Anniversary",
+"",
+"",
+"",
+"",
+"https://www.lionel.com/products/american-flyer-125th-lionel-anniversary-2519020/",
+"MSRP $80.99; Current Lionel product",
+"",
+"lionel.com feed 2026-07-18",
+"",
+"",
+""
+],
+"to_tab": "Lionel Modern S - Items",
+"to_row": 496,
+"new_values": [
+"2519020",
+"Boxcar",
+"",
+"",
+"",
+"",
+"",
+"American Flyer 125th Lionel Anniversary",
+"S",
+"",
+"",
+"",
+"https://www.lionel.com/products/american-flyer-125th-lionel-anniversary-2519020/",
+"MSRP $80.99; Current Lionel product",
+"",
+"lionel.com feed 2026-07-18",
+"",
+"",
+""
+],
+"changed": {
+"Item Type": [
+"",
+"Boxcar"
+],
+"Gauge": [
+"",
+"S"
+]
+},
+"why": "Lionel's store: a commemorative S-gauge boxcar (\"125 years of your favorite trains\"), die-cast trucks, opening doors, 8 3/8\"."
+},
+{
+"item": "6-47948",
+"from_tab": "Lionel MPC-Modern",
+"from_row": 21648,
+"values": [
+"6-47948",
+"",
+"",
+"",
+"",
+"",
+"",
+"Norfolk SouthernSD70ACe",
+"",
+"",
+"",
+"",
+"https://www.lionel.com/products/norfolk-southernsd70ace-6-47948/",
+"MSRP $599.99; Current Lionel product",
+"",
+"lionel.com feed 2026-07-18",
+"",
+"",
+""
+],
+"to_tab": "Lionel Modern S - Items",
+"to_row": 497,
+"new_values": [
+"6-47948",
+"Diesel Locomotive",
+"",
+"",
+"",
+"",
+"",
+"Norfolk Southern SD70ACe",
+"S",
+"",
+"",
+"",
+"https://www.lionel.com/products/norfolk-southernsd70ace-6-47948/",
+"MSRP $599.99; Current Lionel product",
+"",
+"lionel.com feed 2026-07-18",
+"",
+"",
+""
+],
+"changed": {
+"Item Type": [
+"",
+"Diesel Locomotive"
+],
+"Gauge": [
+"",
+"S"
+],
+"Description": [
+"Norfolk SouthernSD70ACe",
+"Norfolk Southern SD70ACe"
+]
+},
+"why": "Lionel files it under Locomotives; American Flyer, S Gauge (its own website, crawl 2026-09-09); MSRP $599.99. Description: the missing space restored (\"Norfolk SouthernSD70ACe\")."
+}
+],
+"content_sha256": "864e6f2f7da8a6e836080e92a2e70ff011c168058613a09379b5f7b591344d7c"
+}
