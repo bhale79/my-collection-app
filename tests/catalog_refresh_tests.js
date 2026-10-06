@@ -36,9 +36,9 @@ function buildCheck(src) {
 }
 function buildIndex(src) {
   // v0.9.1880: the index also builds Row ID -> row (the real helper, lifted too)
-  const body = 'var _allIdxBuiltAt = 0, _allIdxBuilding = false, _allIdxComplete = false, _allIdxRerun = false;\n'
+  const body = 'var _allIdxBuiltAt = 0, _allIdxBuilding = false, _allIdxComplete = false, _allIdxRerun = false, _allIdxStartedAt = 0;\n'   // v0.9.1890: + _allIdxStartedAt
     + grab(src, 'function _rrIndexByRowId(rows)') + '\n'
-    + grab(src, 'async function _buildAllErasLookupIndex(force)') + '\nreturn _buildAllErasLookupIndex;';
+    + grab(src, 'async function _buildAllErasLookupIndex(force, dirtyAt)') + '\nreturn _buildAllErasLookupIndex;';
   return (env) => new Function('state', 'REAL_ERA_IDS', 'idbGet', 'idbSet', 'localStorage', '_fetchMasterTabs', '_deduplicateMaster', '_scheduleLookupIndex', 'console',
     body)(env.state, env.eras, env.idbGet, env.idbSet, env.ls, env.fetch, x => x, env.sched || (() => {}), { log() {}, warn() {} });
 }

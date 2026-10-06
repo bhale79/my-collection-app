@@ -1586,10 +1586,30 @@ var _allIdxComplete = false;
 // Catalogs the app loads for display are skipped here: their own loader
 // refreshes them, and fetching them twice is waste.
 var _allIdxRerun = false;
-async function _buildAllErasLookupIndex(force) {
-  if (_allIdxBuilding) { if (force) _allIdxRerun = true; return; }
+// ══ v0.9.1890 (open-list item 7, [stated] Brad "yes") — THE INDEX IS BUILT ONCE PER CHANGE ══
+// A version-change start used to build this index TWICE: _rrMarkCatalogsStale
+// schedules a FORCED build 8 s after the Master Version check, and the boot
+// schedules a plain one 6 s after loadAllErasMode returns. Whichever fired
+// first built; when the plain one went first, the forced request arrived
+// mid-build, set _allIdxRerun, and the whole 165,000-row assembly ran again
+// (6 s + 8 s on Brad's PC, v1884) — for nothing, because the first build had
+// already read the cleared stamps. It was a race: today's rebuilt start on his
+// PC built once (the forced timer won), v1884's built twice.
+// Now a forced request carries the MOMENT the world changed (`dirtyAt`, stamped
+// by _scheduleLookupIndex when the change is scheduled). A build that STARTED
+// at or after that moment has already seen the change, so the request is
+// satisfied: while that build runs, no rerun; after it, no second build. A
+// change that lands AFTER a build started (dirtyAt > _allIdxStartedAt) still
+// forces a rerun — nothing is ever missed. A direct forced call with no
+// dirtyAt (the spreadsheet import) behaves as before: it always builds.
+var _allIdxStartedAt = 0;
+async function _buildAllErasLookupIndex(force, dirtyAt) {
+  var _seen = (dirtyAt > 0 && _allIdxStartedAt > 0 && dirtyAt <= _allIdxStartedAt);   // the newest build already saw this change
+  if (_allIdxBuilding) { if (force && !_seen) _allIdxRerun = true; return; }
   if (!force && _allIdxBuiltAt && (Date.now() - _allIdxBuiltAt) < 10 * 60 * 1000) return;
+  if (force && _seen && _allIdxBuiltAt) { console.log('[lookup-index] already rebuilt since that change \u2014 not built again'); return; }
   _allIdxBuilding = true;
+  _allIdxStartedAt = Date.now();
   _allIdxComplete = false;
   try {
     var eras = (typeof REAL_ERA_IDS !== 'undefined' && Array.isArray(REAL_ERA_IDS))
@@ -1667,9 +1687,10 @@ async function _buildAllErasLookupIndex(force) {
   }
 }
 function _scheduleLookupIndex(delayMs, force) {
+  var dirtyAt = force ? Date.now() : 0;   // v0.9.1890: a forced request remembers when the change happened
   try {
     setTimeout(function () {
-      _buildAllErasLookupIndex(force).catch(function (e) { console.warn('[lookup-index]', e); });
+      _buildAllErasLookupIndex(force, dirtyAt).catch(function (e) { console.warn('[lookup-index]', e); });
     }, delayMs || 4000);
   } catch (e) {}
 }
