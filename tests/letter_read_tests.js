@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // ═══════════════════════════════════════════════════════════════════════════
-// LETTER READ — v0.9.1886
+// LETTER READ — v0.9.1886 / v0.9.1887
 //
 // [stated] Brad: "yes" — the reader read "6014" off a car lettered X6014 (his
 // Baby Ruth boxcar; the token scan starts every token at a digit) and v1885
@@ -39,6 +39,7 @@ const CATALOG = {
   'X6014':  row('X6014', 'pw', 'Baby Ruth', 'Baby Ruth Boxcar', PWT),
   '6014-1': row('6014-1', 'pw', 'Bosco', 'Bosco Boxcar', PWT),
   '1001':   row('1001', 'pw', '', 'Scout Locomotive', PWT),
+  '153':    row('153', 'pw', '', 'Block Signal', PWT),     // what Brad's re-scan answered with
   'U1001':  row('U1001', 'weaver', 'Weaver', 'Weaver U-series car', 'Weaver O'),
   '6454':   row('6454', 'atlas', 'Atlas', 'Atlas 6454', 'Atlas O'),
   'X6454':  row('X6454', 'pw', 'Erie', 'Erie Boxcar', PWT),
@@ -58,10 +59,14 @@ function build(opts) {
     _pinIsSetRow: () => false, _pinDemotedRow: () => false, _photoIsPaper: false,
     MAX_PLAIN_DIGITS: { prewar: 4, pw: 4 },
     _pinKinRowsFor: (n) => CATALOG[n] ? [CATALOG[n]] : [],
-    state: { masterData: Object.values(CATALOG) },
+    state: { masterData: Object.values(CATALOG), masterByItem: new Map(Object.keys(CATALOG).map(k => [k, [CATALOG[k]]])) },
+    WeakMap,
   };
+  sb.window.state = sb.state;
   vm.createContext(sb);
   vm.runInContext(grab(APP, 'function rrDashedKin(num)'), sb);
+  const AD = fs.readFileSync(path.join(__dirname, '..', 'app', 'app-data.js'), 'utf8');
+  vm.runInContext('var _lkCache = new WeakMap();\n' + grab(AD, 'function _letterKinRows(idx, bare)'), sb);
   const reader = opts.readerSource || grab(SRC, 'function _numberFromText(text, prefer)');
   vm.runInContext(grabVar('_FAM_STOPWORDS') + '\n' + grab(SRC, 'function _pinFamilyPick(c, prefer, srcText)') + '\n'
     + grab(SRC, 'function _pinReadFamily(uniq, prefer, UP, dbg)') + '\n' + reader + '\nthis.run = _numberFromText;', sb);
@@ -80,6 +85,26 @@ section('A. Brad\'s Baby Ruth: X6014 read as stamped');
   ok('A3  the letter spelling leads its digits among the numbers seen', r && r.dbg && r.dbg.cand.indexOf('X6014') >= 0 && r.dbg.cand.indexOf('X6014') < r.dbg.cand.indexOf('6014'), r && r.dbg && r.dbg.cand);
   ok('A4  "X6014 BUILT BY LIONEL" names the maker beside the lettered number too (the maker rule still ranks it first)', r && r.dbg && r.dbg.viaMaker === 'X6014', r && r.dbg && r.dbg.viaMaker);
   ok('A5  the plain 6014 is still a candidate behind it (nothing hidden)', r && r.dbg && r.dbg.cand.indexOf('6014') >= 0, r && r.dbg && r.dbg.cand);
+}
+
+section('A2. Brad\'s EXACT re-scan (2026-10-05): the X came back as a digit, and 6014 was marked wrong');
+{
+  // The disclosure on his card, word for word: the full-alphabet passes and the digits-only pass.
+  const FULL = 'I - S 1 1 A NE HT 5 Y TE 4 CURTISS 1 53 E 51 1 1 3 EH 13-0 - RE 1 X SIL 40-6 EE - - B R CL EE 0 C EL TT H 3 MEE TT 1 I CANDY J - 1 X EE 1 FT 4 - BUILT BY - LV 1 1 1 CL RD S NR A S';
+  const DIG = '9-1 40-6 9-2 383 16014 78 9-11 13-0 40-6- - 9-2- - 10-8- - -13088 - 1 10-8 - 3838 10 8- - 5 - 2 1 - - 3 2 - 3 1-0 3 2 3 - - - 4 - - - 9-1 13';
+  const REJ = { era: 'pw', manufacturer: 'lionel', scale: 'o', reject: ['6014'] };
+  const r = build()(FULL + '\n' + DIG, REJ);
+  ok('A2a the answer is X6014 — read as "16014" by the digits-only pass (a letter cannot come out of that pass), not the block signal 153', r && String(r.num) === 'X6014' && r.matched === true, r && JSON.stringify({ num: r.num, matched: r.matched, cand: r.dbg && r.dbg.cand }));
+  ok('A2b the lettered spelling outranks the plain 153 read once elsewhere (dbg.viaLetter)', r && r.dbg && r.dbg.viaLetter === 'X6014', r && r.dbg && r.dbg.viaLetter);
+  ok('A2c marking the plain 6014 wrong did not hide its lettered twin', r && r.dbg && r.dbg.lettered.join(',') === 'X6014' && (r.dbg.rejectedList || []).indexOf('6014') >= 0, r && r.dbg && JSON.stringify({ lettered: r.dbg.lettered, rej: r.dbg.rejectedList }));
+  const r2 = build()(FULL + '\n' + DIG, PW);
+  ok('A2d …and without the mark, the same answer', r2 && String(r2.num) === 'X6014', r2 && JSON.stringify({ num: r2.num }));
+  const r3 = build()('LIONEL 16014 CANDY', PW);
+  ok('A2e "16014" alone on a Postwar-stamped photo → X6014 (one digit longer than the era allows; the catalogue has exactly one letter spelling of 6014)', r3 && String(r3.num) === 'X6014' && r3.dbg.lettered.join(',') === 'X6014', r3 && JSON.stringify({ num: r3.num, lettered: r3.dbg.lettered }));
+  const r4 = build()('LIONEL 16014 CANDY', NONE);
+  ok('A2f with NO era filter there is no digit cap, so "16014" is not reshaped into a letter (nothing invented)', r4 && r4.dbg.lettered.length === 0, r4 && JSON.stringify({ num: r4.num, lettered: r4.dbg.lettered }));
+  const r5 = build()('LIONEL 11001 CANDY', PW);
+  ok('A2g "11001" → nothing: the catalogue spells 1001 with no letter in Postwar (Weaver\'s U1001 is another catalogue)', r5 && r5.dbg.lettered.length === 0, r5 && JSON.stringify({ num: r5.num, lettered: r5.dbg.lettered }));
 }
 
 section('B. No letter invented, no letter from a word');
@@ -121,6 +146,15 @@ section('E. THE OFFENDER: the old reader, require red');
   const old = src.slice(0, i) + '    var _lettered = [];\n' + src.slice(j + '    })();'.length);
   const r = build({ readerSource: old })(BABY, PW);
   ok('E1  PLANTED: without the step, Brad\'s car comes back as the Chun King 6014 — A1 would go red', r && String(r.num) === '6014', r && JSON.stringify({ num: r.num }));
+  const noRank = src.replace("else if (letteredHit.length) { letteredHit.sort(dashRank); direct = letteredHit[0]; dbg.viaLetter = direct; }", '');
+  if (noRank === src) throw new Error('planted ranking: the line moved; update this test');
+  const FULL = 'I - S 1 1 A NE HT 5 Y TE 4 CURTISS 1 53 E 51 1 1 3 EH 13-0 - RE 1 X SIL 40-6 EE - - B R CL EE 0 C EL TT H 3 MEE TT 1 I CANDY J - 1 X EE 1 FT 4 - BUILT BY - LV 1 1 1 CL RD S NR A S';
+  const DIG = '9-1 40-6 9-2 383 16014 78 9-11 13-0 40-6- - 9-2- - 10-8- - -13088 - 1 10-8 - 3838 10 8- - 5 - 2 1 - - 3 2 - 3 1-0 3 2 3 - - - 4 - - - 9-1 13';
+  const TWICE = 'CURTISS 153 CANDY 153 X SIL 40-6 16014 BUILT BY';   // a stray 153 read twice, the stamp once
+  const rOK = build()(TWICE, PW);
+  ok('E2a the real code: a stray number read twice does not outrank the catalogue\'s spelling of the stamp', rOK && String(rOK.num) === 'X6014' && rOK.dbg.viaLetter === 'X6014', rOK && JSON.stringify({ num: rOK.num }));
+  const r2 = build({ readerSource: noRank })(TWICE, PW);
+  ok('E2  PLANTED: without the ranking, the count picks 153 (read twice) over X6014 — E2a would go red', r2 && String(r2.num) === '153', r2 && JSON.stringify({ num: r2.num }));
 }
 
 console.log('\n' + pass + ' passed, ' + fail + ' failed');

@@ -5266,6 +5266,7 @@
     var cand = (dbg.cand || []).concat(dbg.shortCand || []);
     if (cand.length) out.push('Numbers seen: ' + cand.slice(0, 4).join(', '));
     if ((dbg.lettered || []).length) out.push('Kept the letter stamped before the number: ' + dbg.lettered.join(', '));   // v0.9.1886
+    if (dbg.viaLetter) out.push(dbg.viaLetter + ' is how the catalogue spells this car \u2014 kept over a plain number read elsewhere in the photo');   // v0.9.1887
     if (dbg.joined) out.push('Pieced ' + dbg.joined + ' together from split digits');
     // v0.9.1732 — say it on the CARD, not only behind the disclosure triangle.
     // "Pieced X together" above reads like a success; this is the line that
@@ -9246,38 +9247,74 @@
       if (!_inEraSet.length) return true;           // genuinely unfiltered — old behaviour
       return !!(row && _inEraSet.indexOf(row._era) >= 0);
     };
-    // ══ v0.9.1886 — THE LETTER STAMPED ON THE CAR, READ AS STAMPED ══════════
+    // ══ v0.9.1886 / v0.9.1887 — THE LETTER STAMPED ON THE CAR, READ AS STAMPED ══
     // Brad's Baby Ruth boxcar is lettered X6014 BUILT BY LIONEL. The token
     // scan above starts every token at a DIGIT, so the X was dropped before
     // the catalogue was asked, and 6014 (Chun King) answered. v1885 made X6014
     // a relative in the pick list; this keeps the letter in the READ itself.
-    // The rule is the same one, so the two can never disagree: a single letter
-    // glued to the digits counts only when the catalogue spells the number
-    // that way (measured 2026-10-05: for Lionel that letter is X and only X;
-    // other makers' letters are product codes), and only in the stamped
-    // catalogue. Never a list of letters to try. "NO6014" or "BOX6014" is not
-    // a letter prefix: the letter must stand alone before the digits.
+    // The rule is the same one, so the two can never disagree: the letter
+    // counts only when the catalogue spells the number that way (measured
+    // 2026-10-05: for Lionel that letter is X and only X; other makers'
+    // letters are product codes), only in the stamped catalogue, and only
+    // where that SAME catalogue holds the plain number too (Weaver's U1001 is
+    // not a Lionel 1001; X6454 with no plain Lionel 6454 is findMaster's own
+    // v1730 bridge). Never a list of letters to try.
+    //
+    // Two ways the letter arrives (v1887, from the disclosure on Brad's own
+    // re-scan): GLUED — "X6014" in a full-alphabet pass (a letter standing
+    // alone before the digits; "NO6014" and "BOX6014" do not count); and AS A
+    // DIGIT — the digits-only passes cannot output a letter, so the X came
+    // back as "16014": one digit longer than the stamped era allows, whose
+    // tail the catalogue spells with a letter. Only the catalogue's own
+    // spelling is used for that, and only when it has exactly one.
+    //
+    // A plain number the user has marked wrong ("not the Chun King 6014") is
+    // still a lead to its lettered twin — the mark was on that product, and
+    // X6014 is another. The spelling is placed before its digits.
     var _lettered = [];
     (function () {
       if (!fmAny) return;
+      var leads = [], seenL = {};
       var reL = /(?:^|[^A-Z0-9])([A-Z])(\d{2,6})(?![\dA-Z-])/g, mm;
-      while ((mm = reL.exec(UP))) {
-        var d = mm[2], spelled = mm[1] + d;
-        if (uniq.indexOf(d) < 0 || uniq.indexOf(spelled) >= 0) continue;
-        var rL = fmAny(spelled);
-        if (!rL || String(rL.itemNum || '').toUpperCase() !== spelled) continue;   // only a spelling the catalogue has
-        if (!inEra(rL)) continue;                                                   // and only in the stamped catalogue
-        // …and only where that SAME catalogue holds the plain number too (the
-        // v1885 rule): Weaver's U1001 is not a Lionel 1001. A letter spelling
-        // with NO plain twin (X6454) is findMaster's own v1730 bridge, not this.
-        var plainEras = {};
-        try { (typeof _pinKinRowsFor === 'function' ? _pinKinRowsFor(d) : []).forEach(function (rK) { if (rK) plainEras[String(rK._era || '')] = 1; }); } catch (eK) {}
-        var rP = fmAny(d); if (rP) plainEras[String(rP._era || '')] = 1;
-        if (!plainEras[String(rL._era || '')]) continue;
-        uniq.splice(uniq.indexOf(d), 0, spelled);                                   // the letter spelling leads its digits
-        if (namedByMaker[d]) namedByMaker[spelled] = 1;                             // "X6014 BUILT BY LIONEL" names both
-        _lettered.push(spelled);
+      while ((mm = reL.exec(UP))) leads.push({ d: mm[2], spelled: mm[1] + mm[2], how: 'read' });
+      if (digitCap) {
+        var reD = new RegExp('(?:^|[^A-Z0-9])\\d(\\d{' + digitCap + '})(?![\\dA-Z-])', 'g');
+        while ((mm = reD.exec(UP))) leads.push({ d: mm[1], spelled: '', how: 'digit' });
       }
+      leads.forEach(function (L) {
+        var d = L.d;
+        var known = uniq.indexOf(d) >= 0 || _rejSeen.indexOf(d) >= 0 || L.how === 'digit';
+        if (!known) return;
+        // the catalogue (era) that holds the plain number — never reject-gated
+        var plainRows = [];
+        try { plainRows = (typeof _pinKinRowsFor === 'function') ? (_pinKinRowsFor(d) || []) : []; } catch (eK) { plainRows = []; }
+        var rP = null; try { rP = findMaster(d, null, prefer || null); } catch (eF) {}
+        if (rP) plainRows = plainRows.concat([rP]);
+        var plainEras = {};
+        plainRows.forEach(function (rK) { if (rK && inEra(rK)) plainEras[String(rK._era || '')] = 1; });
+        if (!Object.keys(plainEras).length) return;
+        var spellings = L.spelled ? [L.spelled] : [];
+        if (!L.spelled && typeof _letterKinRows === 'function') {
+          try {
+            var seenS = {};
+            _letterKinRows((window.state && state.masterByItem) || null, d).forEach(function (rK) {
+              if (rK && plainEras[String(rK._era || '')] && !seenS[String(rK.itemNum)]) { seenS[String(rK.itemNum)] = 1; spellings.push(String(rK.itemNum).toUpperCase()); }
+            });
+          } catch (eS) {}
+          if (spellings.length !== 1) return;   // the catalogue must be unambiguous when the letter was not read
+        }
+        spellings.forEach(function (spelled) {
+          if (seenL[spelled] || uniq.indexOf(spelled) >= 0) return;
+          var rL = fmAny(spelled);
+          if (!rL || String(rL.itemNum || '').toUpperCase() !== spelled) return;   // only a spelling the catalogue has
+          if (!inEra(rL) || !plainEras[String(rL._era || '')]) return;              // in the stamped catalogue, beside its plain twin
+          seenL[spelled] = 1;
+          var at = uniq.indexOf(d);
+          if (at >= 0) uniq.splice(at, 0, spelled); else uniq.unshift(spelled);     // the letter spelling leads its digits
+          if (namedByMaker[d]) namedByMaker[spelled] = 1;                            // "X6014 BUILT BY LIONEL" names both
+          _lettered.push(spelled);
+        });
+      });
     })();
     // v0.9.1167 — THE CAP FOLLOWS THE CANDIDATE'S ERA, not the filter's.
     // Brad's A.T.&S.F. gondola is stamped CAPY 100000 / LD LMT 120000 / LT WT
@@ -9468,7 +9505,15 @@
       // and length is meaningless between two unrelated numbers — it picked the
       // road number 25000 over the catalog number 6176 purely for being longer.
       var named = matched.filter(function (c) { return namedByMaker[c]; });
+      // v0.9.1887: the letter stamped on the car is the same kind of evidence
+      // as the maker's name beside the number — a spelling only that product
+      // carries, confirmed by the catalogue. It outranks a plain number read
+      // more often (Brad's Baby Ruth: "153" off a dimension line read once,
+      // X6014 from "16014" in the digits pass — the count would have picked
+      // the block signal).
+      var letteredHit = matched.filter(function (c) { return _lettered.indexOf(c) >= 0; });
       if (named.length) { named.sort(dashRank); direct = named[0]; dbg.viaMaker = direct; }
+      else if (letteredHit.length) { letteredHit.sort(dashRank); direct = letteredHit[0]; dbg.viaLetter = direct; }
       else {
         matched.sort(dashRank);
         // v0.9.1104 (Brad's 6816 asserted as "1043 — Transformer"): BOTH were
