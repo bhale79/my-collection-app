@@ -65,8 +65,10 @@ T('A15 track: Switch, Crossover, Lock-On, Bumpers, Mega Track, SuperStreets (bot
 T('A16 power: Controller, Control, Command Control', ['Controller', 'Control', 'Command Control'].every(t => L(t) === 'Power'));
 T('A17 paper: Packet, Manual, Record, Sales Material, Ephemera, Instruction Sheet, Certificate, Book', ['Packet', 'Manual', 'Record', 'Sales Material', 'Ephemera', 'Instruction Sheet', 'Certificate', 'Book', 'Note Cards', 'Misc Lionel'].every(t => L(t) === 'Paper'));
 // v0.9.1877: "Auto Rack" left this list ([stated] Brad: filed with Intermodal like "Auto Carrier" — A22 below).
-T('A18 LEFT AS THEIR OWN WORD on purpose: Part, Premiums, T-Shirt, Separate Sale, Vat Car, MOW Car',
-  ['Part', 'Premiums', 'T-Shirt', 'Separate Sale', 'Vat Car', 'MOW Car'].every(t => L(t) === t));
+// v0.9.1888: "Vat Car" left it too ([stated] Brad: "vat cars should be their own type" — a bucket, label "Vat"; tests/vat_car_tests.js).
+T('A18 LEFT AS THEIR OWN WORD on purpose: Part, Premiums, T-Shirt, Separate Sale, MOW Car',
+  ['Part', 'Premiums', 'T-Shirt', 'Separate Sale', 'MOW Car'].every(t => L(t) === t));
+T('A18b Vat Car is a bucket now, label "Vat" (v0.9.1888)', L('Vat Car') === 'Vat');
 T('A19 what worked before still works: packs, the dash form, the catalog\'s own words, the by-words loco kind',
   L('Boxcar 2-Pack') === 'Boxcar' && L('Flatcar - PS-4 Flatcar') === 'Flatcar' && L('Reefer') === 'Boxcar' && L('Steam Locomotive', 'Hudson') === 'Steam' && L('Steam Locomotive', 'GP-9 diesel') === 'Diesel' && L('Freight Car', 'gondola with canisters') === 'Gondola');
 T('A20 a user\'s own word is still the user\'s', W.getTypeBucket({ itemType: 'Wings of Texaco', _personalOnly: true }) === 'Wings of Texaco');

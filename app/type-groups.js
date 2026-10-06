@@ -1,6 +1,6 @@
 // type-groups.js
 // Centralized type bucket configuration for The Rail Roster.
-// Single source of truth for the 23 tier-1 type buckets. (Trolley added Session 123.)
+// Single source of truth for the 24 tier-1 type buckets. (Trolley added Session 123; Vat Car v0.9.1888.)
 // Built and verified in Session 118 (2026-05-04) — 100% coverage of 32,571 master items.
 //
 // USAGE:
@@ -16,7 +16,18 @@
 (function () {
   'use strict';
 
-  // ── 23 TIER-1 BUCKETS (alphabetical by short label) — Trolley added Session 123 ──
+  // ── 24 TIER-1 BUCKETS (alphabetical by short label) — Trolley added Session 123 ──
+  // v0.9.1888 ([stated] Brad: "vat cars should be their own type"): Vat Car.
+  // A vat car — a flatcar deck carrying wooden vats (Lionel's 6475 Pickles,
+  // Heinz, Libby's, the Modern-era brand cars) — had been read as a Tank Car
+  // by every word-reader, and the 17 master rows typed "Vat Car" showed the
+  // bare word with no bucket (no filter line, no dashboard count). Measured
+  // on the live master 2026-10-06: 17 rows typed Vat Car (Postwar ×5, Lionel
+  // Modern ×11, K-Line ×1), 34 Lionel Modern vat cars typed Tank Car on the
+  // sheet (Master Version 2.23 moves them), 8 K-Line typed Rolling Stock
+  // (their words file them here). Every screen reads THIS list; the only
+  // other seats are the dashboard's freight roll-up (dashboard.js) and the
+  // icon map below.
   var TYPE_BUCKETS = [
     { id: 'Accessory',            label: 'Accessory'    },
     { id: 'Boxcar',               label: 'Boxcar'       },
@@ -40,7 +51,8 @@
     { id: 'Tank Car',             label: 'Tank'         },
     { id: 'Tender',               label: 'Tender'       },
     { id: 'Track',                label: 'Track'        },
-    { id: 'Trolley',              label: 'Trolley'      }
+    { id: 'Trolley',              label: 'Trolley'      },
+    { id: 'Vat Car',              label: 'Vat'          }
   ];
 
   // ── v0.9.1845: the by-number override table is RETIRED ──────────────────
@@ -129,7 +141,7 @@
     return null;
   }
 
-  // ── MAIN: getTypeBucket(item) returns one of the 23 canonical bucket IDs ──
+  // ── MAIN: getTypeBucket(item) returns one of the 24 canonical bucket IDs ──
   // (v0.9.1275, R20: this said 22 since before Trolley was added in Session
   // 123; line 3 of this file had it right the whole time.)
   function getTypeBucket(item) {
@@ -243,7 +255,11 @@
       }
       if (/stock car|elephant car|horse car|reindeer car|vision.*horse/i.test(hay)) return 'Stock Car';
       if (/well car|twin[- ]stack|maxi[- ]?iv|maxi[- ]?stack|auto carrier|articulated auto|tractor trailer|container car|\bcontainers?\b|intermodal|piggy[- ]?back|tofc|cofc|front runner|trailer train|45ft pines|nw heritage|with .*trailers|with two trailers|husky stack|husky double|double[- ]stack|enclosed auto rack|auto rack|roadrailer|auto transport|with sears trailer|with fedex trailer|with red wing.*trailer|with armstrong.*trailer|with grumman trailer|with new holland trailer|with campbell.*trailer|with navajo trailer|45th anniversary trailer|115th anniversary trailer|ford new holland trailer|with .*trailer.*1\/48|trailer.*lcca/i.test(hay)) return 'Intermodal';
-      if (/tank car|tankcar|single[ -]?dome|triple[ -]?dome|double[ -]?dome|three[ -]?dome|two[ -]?dome|four[ -]?dome|vat car|\boil car|liquefied gas|heat exchanger|helium tank load|chemical tank|ammonia|liquid oxygen|tank train car|water tank car|tanktrain|tank train intermediate|three-dome|two-dome|utlx/i.test(hay)) return 'Tank Car';
+      // v0.9.1888: a vat car is its own bucket (Brad), read BEFORE the tank
+      // rule that used to swallow it. The word is "vat car" — never "vat"
+      // alone (Märklin's "VAT Logistics" container car is intermodal).
+      if (/\bvat car\b/i.test(hay)) return 'Vat Car';
+      if (/tank car|tankcar|single[ -]?dome|triple[ -]?dome|double[ -]?dome|three[ -]?dome|two[ -]?dome|four[ -]?dome|\boil car|liquefied gas|heat exchanger|helium tank load|chemical tank|ammonia|liquid oxygen|tank train car|water tank car|tanktrain|tank train intermediate|three-dome|two-dome|utlx/i.test(hay)) return 'Tank Car';
       if (/coalveyor/i.test(hay)) return 'Gondola';
       if (/hopper|ore car|coalporter|sand car|coal car|ballast car|icebreaker|ice breaker|\bslag\b|with coal load|coal load|rapid discharge/i.test(hay)) return 'Hopper';
       if (/gondola|gon car|low side car/i.test(hay)) return 'Gondola';
@@ -272,7 +288,7 @@
     // collection showed 80 different type strings: the catalog itself carries
     // compounds ("Flatcar - PS-4 Flatcar", "Caboose - Work Caboose"), pack
     // names ("Boxcar 2-Pack") and one-off body names ("Boom Car", "Reefer").
-    // Each became its own line in the filter. Now they are folded into the 23
+    // Each became its own line in the filter. Now they are folded into the 24
     // buckets; anything genuinely outside them — a user's own "Wings of
     // Texaco" — still passes through untouched, which is the point.
     return _normalizeToBucket(it) || 'Other';
@@ -292,7 +308,8 @@
   //      same words-decide rule as plain "Locomotive"; "Live steam" is Steam.
   // The plain synonyms are in _TYPE_SYNONYMS below. Left as their own word on
   // purpose: "Part" (parts on item tabs), "Premiums" and merchandise,
-  // "Separate Sale", "Vat Car", "MOW Car" — the app shows the word itself,
+  // "Separate Sale", "MOW Car" — the app shows the word itself, ("Vat Car" left
+  // this list in v0.9.1888: it is a bucket now.)
   // which is honest. (v0.9.1877: "Auto Rack" left this list — [stated] Brad:
   // "yes", an auto rack is filed with Intermodal like an auto carrier; 310
   // master rows carry the word — Atlas HO / N / Z and MTH O.)
@@ -319,7 +336,7 @@
     return _TYPE_CANON[low] || t;
   }
 
-  // Fold a loose type string into one of the 23 buckets. Returns the string
+  // Fold a loose type string into one of the 24 buckets. Returns the string
   // unchanged when it belongs to nobody (custom user types).
   var _BUCKET_IDS = {};
   TYPE_BUCKETS.forEach(function (b) { _BUCKET_IDS[b.id.toLowerCase()] = b.id; });
@@ -442,6 +459,7 @@
     'Passenger':  'freight',
     'Stock':      'freight',
     'Tank':       'freight',
+    'Vat':        'freight',
     'Trolley':    'freight',
   };
 

@@ -370,13 +370,14 @@ var RR_IMP_TYPE_RULES = [
   // nothing. Combo/combine is a PASSENGER car, so it sits with those.
   [/\bauto ?(carrier|rack)\b|\bcar carrier\b|\bTV car\b|\banimal car\b|\bcircus car\b|\bhorse car\b|\bcoal dump\b/i, 'Freight Car'],
   [/\bgondola\b|\bgon\b/i, 'Gondola'],
+  [/\bvat car\b/i, 'Vat Car'],   // v0.9.1888: its own bucket (Brad); was a generic 'Freight Car' in rule 7
   [/\btank ?car\b|\btanker\b/i, 'Tank Car'],
   [/\bhopper\b|covered hop|\bore car\b|\bquad hop\b|\bcoal car\b|\bballast car\b/i, 'Hopper'],
   [/\bpassenger\b|\bcoach\b|\bpullman\b|\bobservation\b|\bcombine\b|vista ?dome|\bbaggage\b|\bdiner\b|\bRPO\b|streamliner|\bmadison\b|\bheavyweight\b|\baluminum car\b|\bcombo car\b|\bfull vista\b/i, 'Passenger Car'],
   // 6. engines — after the cars, so "Mint Car w/ diesel sound" stays a car
   [/\blocomotive\b|\bloco\b|\bengine\b|\bdiesel\b|\bsteam\b|\bGP-?\d|\bF-?[37]\b|\bSD-?\d|\bALCO\b|\bswitcher\b|\bNW-?2\b|\bGG-?1\b|\bberkshire\b|\bhudson\b|\bpacific\b|\bmikado\b|\bnorthern\b|\bRS-?\d|\bU\d\dB?\b|\bC-?4\d\d\b|\bdocksider\b|\btrainmaster\b|\bFA-?\d|\bPA-?\d|\bbig boy\b|\bchallenger\b|\bshay\b|\btrolley\b|\bmotorized unit\b|\b\d-[468]-\d\b|\bpowered\b|\bunpowered\b|\bdummy\b|\bA-?B-?A\b|\bAA set\b|\b[AB] ?unit\b|\bcab unit\b|\brail ?sounds?\b/i, 'Engine'],
   // 7. work / operating freight with no body word of its own
-  [/\bcrane\b|\bwork car\b|\bsearchlight\b|\bderrick\b|\bdump car\b|\blog car\b|\bmilk car\b|\bvat car\b|\bhelper\b|\bsnow plow\b|\bpoultry\b|\bsubmarine car\b|\bmissile\b|\bexploding\b|\baquarium\b|\bgiraffe\b/i, 'Freight Car'],
+  [/\bcrane\b|\bwork car\b|\bsearchlight\b|\bderrick\b|\bdump car\b|\blog car\b|\bmilk car\b|\bhelper\b|\bsnow plow\b|\bpoultry\b|\bsubmarine car\b|\bmissile\b|\bexploding\b|\baquarium\b|\bgiraffe\b/i, 'Freight Car'],
   // 8. accessories LAST — "log loader", "coal ramp", "water tower"
   [/\bstation\b|\btower\b|\bbridge\b|\btrestle\b|water tank|water tower|coal (loader|ramp|bin|tipple)|\bbuilding\b|\bhouse\b|\bbarn\b|\bplatform\b|\bcrossing\b|\bbillboard\b|street ?light|\blamp\b|\bfigure|\bpeople\b|\btree|\bscenery\b|accessor|\bsign(al)?\b|\bshed\b|\bdepot\b|\bmill\b|\bfactory\b|\bgateman\b|\bwatchman\b|\bloader\b|\bunloader\b|\bicing\b|\bsawmill\b|\bdiner\b|\bfreight shed\b|\byard light\b|\bfloodlight\b|\bsemaphore\b|\bcorral\b|\btractor\b|\btrailer\b|\bvehicle\b|\bfire car\b|\bshop\b|\bstore\b|\bstand\b|\bhotel\b|\bmotel\b|\brink\b|\bgolf\b|\bswings\b|\bbeacon\b|\bdock\b|\bflag ?pole\b|\bfence\b|\bsilo\b|\belevator\b|\bwindmill\b|\bchurch\b|\bschool\b|\bbank\b|\bcafe\b|\bcafé\b|\brestaurant\b|\bbakery\b|\bmarket\b|\bgarage\b|\bfirehouse\b|\bhospital\b|\boil tank\b|\bgas station\b|\bpump\b|\bcrossing gate\b|\blights?\b|\bpylon\b|\bbillboard\b/i, 'Accessory'],
 ];
@@ -457,7 +458,7 @@ function rrImpTabIsNonCatalog(items) {
 // on more categories than every other, and only with at least two — one
 // shared word is a coincidence, two independent ones is a match.
 var _RR_COLORS = ['black','blue','brown','cream','green','grey','gray','maroon','orange','red','silver','tuscan','white','yellow','gold','copper','bronze'];
-var _RR_BODIES = ['boxcar','flatcar','gondola','hopper','caboose','reefer','tank car','stock car','tender','locomotive','loco','engine','coach','observation','baggage','crane','dump car'];
+var _RR_BODIES = ['boxcar','flatcar','gondola','hopper','caboose','reefer','tank car','vat car','stock car','tender','locomotive','loco','engine','coach','observation','baggage','crane','dump car'];
 
 function _rrImpWords(s) { return rrImpNormCell(s).toLowerCase(); }
 // Numbers a human would quote to identify a model — 3+ digits, so a road

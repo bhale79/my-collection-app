@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.1887';
+const APP_VERSION = 'v0.9.1888';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -913,7 +913,7 @@ const RR_MAKER_ALIASES = {                // spelling on the submission → the 
 };
 // Words are matched whole (word boundaries), case-insensitive. Keep them lowercase.
 const RR_PRESORT_WORDS = {
-  train: [ 'boxcar', 'box car', 'flatcar', 'flat car', 'reefer', 'hopper', 'gondola', 'caboose', 'tank car', 'tanker',
+  train: [ 'boxcar', 'box car', 'flatcar', 'flat car', 'reefer', 'hopper', 'gondola', 'caboose', 'tank car', 'tanker', 'vat car',
            'coach', 'passenger', 'observation', 'dome', 'baggage', 'rpo', 'pullman', 'sleeper', 'diner', 'dining car',
            'locomotive', 'loco', 'engine', 'diesel', 'steam', 'electric', 'switcher', 'f3', 'f7', 'e7', 'e8', 'fa', 'fb',
            'pa', 'pb', 'gp7', 'gp9', 'gp20', 'gp30', 'gp35', 'gp38', 'gp40', 'sd40', 'sd45', 'sd70', 'rs1', 'rs-1', 'rs3',
@@ -990,7 +990,7 @@ function rrPreSortReasons(o) {
 // LOAD or the parent set: "Flatcar with Combine Load" is a flatcar, and
 // "6464-125 From #2293 … F3 Freight Set" is not a locomotive.
 //
-// Every id it can return is one of the 23 TYPE_BUCKETS — that list stays the
+// Every id it can return is one of the 24 TYPE_BUCKETS — that list stays the
 // single source of truth for the vocabulary. When nothing matches it returns
 // '' and the row keeps its blank type: a wrong type is worse than none.
 // THIS is the list to edit when a body style is being read wrong.
@@ -1003,7 +1003,8 @@ const RR_TYPE_WORDS = [
   ['Caboose', /\b(?:caboose|cabin car|bay window|cupola)\b/i],
   ['Tender', /\btender\b/i],
   ['Intermodal', /\b(?:container|well car|maxi-?\s?(?:i|iv|stack)|stack car|auto\s?(?:carrier|rack)|piggy-?back|tofc|cofc|front runner|husky stack|double-?stack)\b/i],
-  ['Tank Car', /\b(?:tank\s?car|tanker|(?:single|double|triple|two|three|four)[-\s]?dome|vat car|oil car)\b/i],
+  ['Vat Car', /\bvat car\b/i],   // v0.9.1888: its own bucket (Brad) — before Tank Car, which used to swallow it
+  ['Tank Car', /\b(?:tank\s?car|tanker|(?:single|double|triple|two|three|four)[-\s]?dome|oil car)\b/i],
   ['Hopper', /\b(?:hopper|ore car|coal car|ballast car|coalporter)\b/i],
   ['Gondola', /\b(?:gondola|gon car)\b/i],
   ['Stock Car', /\b(?:stock car|cattle car|horse car|elephant car|poultry car)\b/i],

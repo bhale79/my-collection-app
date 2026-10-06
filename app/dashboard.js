@@ -18,7 +18,7 @@
 // Session 118 Phase D: bucket-aware category mapping for dashboard counts.
 var _ENGINE_BUCKETS = ['Steam Locomotive','Diesel Locomotive','Electric Locomotive','Motorized Unit'];
 var _TENDER_BUCKETS = ['Tender'];
-var _FREIGHT_BUCKETS = ['Boxcar','Hopper','Tank Car','Flatcar','Gondola','Stock Car','Intermodal','Operating Freight'];
+var _FREIGHT_BUCKETS = ['Boxcar','Hopper','Tank Car','Vat Car','Flatcar','Gondola','Stock Car','Intermodal','Operating Freight'];   // v0.9.1888: Vat Car
 var _PASSENGER_BUCKETS = ['Passenger Car','Trolley'];  // Session 123: Trolley counts as passenger for dashboard rollups
 var _CABOOSE_BUCKETS = ['Caboose'];
 var _ACCESSORY_BUCKETS = ['Accessory','Track','Transformer/Power','Service Station Tool'];

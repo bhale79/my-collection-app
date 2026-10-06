@@ -2119,7 +2119,7 @@ function _mapSubTypeToManualType(subType) {
   // Diesel locomotive classes.
   if (/(?:gp[-\s]?\d|sd[-\s]?\d|^f\d|^fa[-\s]?\d|^fb[-\s]?\d|^e[789]|nw[-\s]?\d|rs[-\s]?\d|u\d{2}[bc]|pa[-\s]?\d|geep|switcher|trainmaster)/i.test(s)) return 'Diesel Engine';
   // Body styles for rolling stock.
-  if (/(?:boxcar|reefer|hopper|gondola|flatcar|tank car|stock car)/i.test(s)) return 'Freight Car';
+  if (/(?:boxcar|reefer|hopper|gondola|flatcar|tank car|vat car|stock car)/i.test(s)) return 'Freight Car';
   if (/caboose/i.test(s)) return 'Caboose';
   if (/(?:coach|pullman|vista dome|diner|baggage|passenger)/i.test(s)) return 'Passenger Car';
   if (/(?:poster|catalog|brochure|flyer|pamphlet|instruction|manual|advertis|reprint|paperwork|paper item|paper\b)/i.test(s)) return 'Paper';
