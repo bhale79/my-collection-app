@@ -101,6 +101,33 @@
     while (i > 0) { var m = (i - 1) % 26; s = String.fromCharCode(65 + m) + s; i = Math.floor((i - 1) / 26); }
     return s;
   }
+  // ── v0.9.1889: a NEW header column on a master tab, in ONE place ──────
+  // Both column adds (Image URL on an approved crawl row, UPC / Barcode on a
+  // barcode commit) wrote the header cell with a plain value write. A value
+  // write never widens a sheet, and after Master Version 2.20 (Row ID in the
+  // last column) 27 master tabs are exactly as wide as their header row — so
+  // the write would have been refused ("exceeds grid limits", 400) and the
+  // commit stopped half-way. Now: the tab is made wide enough FIRST
+  // (rrEnsureGridColumns, app-setup.js — the one grid widener for every tab),
+  // the header cell is written, and the header row is read back: the new
+  // cell must hold the header and nothing else may have moved. Returns the
+  // new header list. Throws before any row is written when anything is off.
+  async function _ymAddHeaderColumn(MID, H, tab, heads, header) {
+    var idx = heads.length;                      // 0-based index of the new last column
+    if (typeof rrEnsureGridColumns !== 'function') throw new Error('rrEnsureGridColumns unavailable \u2014 reload the app');
+    if (typeof sheetsUpdate !== 'function') throw new Error('sheetsUpdate unavailable \u2014 reload the app');
+    var g = await rrEnsureGridColumns(MID, tab, idx + 1);
+    if (!g) throw new Error(tab + ' is not on the master sheet \u2014 stopped before any write');
+    await sheetsUpdate(MID, "'" + tab + "'!" + _ymColLetter(idx) + '1', [[header]]);
+    var back = await fetch('https://sheets.googleapis.com/v4/spreadsheets/' + MID + '/values/' + encodeURIComponent("'" + tab + "'!1:1"), { headers: H });
+    if (!back.ok) throw new Error('could not read the header row of ' + tab + ' back (HTTP ' + back.status + ')');
+    var row = ((await back.json()).values || [[]])[0].map(String);
+    var want = heads.map(String).concat([header]);
+    var same = row.length === want.length && row.every(function (h, i) { return h === want[i]; });
+    if (!same) throw new Error(tab + ': the header row did not come back as written (' + row.length + ' columns, wanted ' + want.length + ') \u2014 stopped before any row');
+    if (g.widened) console.log('[Office] ' + tab + ': widened by ' + g.widened + ' for "' + header + '"');
+    return want;
+  }
 
   // ── Vault reads: one batchGet, owner token ─────────────────────
   function _fetchVault() {
@@ -1369,11 +1396,8 @@
         // approved crawl row. Header write first, so the row below lines up.
         var _hasImg = !plan[t4].shape && plan[t4].fresh.some(function (dd) { return !!(dd.imageUrl && String(dd.imageUrl).trim()); });   // v0.9.1754: items-layout tabs only
         if (_hasImg && plan[t4].heads.map(String).indexOf('Image URL') < 0) {
-          var _newIdx = plan[t4].heads.length;   // 0-based index of the new last column
-          var _colL = _ymColLetter(_newIdx);   // v0.9.1689: one letter helper for the whole file
-          if (typeof sheetsUpdate !== 'function') throw new Error('sheetsUpdate unavailable \u2014 reload the app');
-          await sheetsUpdate(MID, "'" + t4 + "'!" + _colL + '1', [['Image URL']]);
-          plan[t4].heads = plan[t4].heads.concat(['Image URL']);
+          // v0.9.1889: through the one header-column helper (widens the tab first)
+          plan[t4].heads = await _ymAddHeaderColumn(MID, H, t4, plan[t4].heads, 'Image URL');
         }
         var rows = _ymRowsFor(plan[t4], today);   // v0.9.1880: by header name, Row IDs minted (_ymRowsFor)
         // §224's census is right: raw :append belongs in sheets.js alone.
@@ -1499,9 +1523,8 @@
         var t4 = tabs[wi], p = plan[t4]; if (!p.todo.length) continue;
         // the column, at the END, if the tab never had one (header cell only)
         if (p.upcIdx < 0) {
-          if (typeof sheetsUpdate !== 'function') throw new Error('sheetsUpdate unavailable \u2014 reload the app');
-          await sheetsUpdate(MID, "'" + t4 + "'!" + _ymColLetter(p.heads.length) + '1', [['UPC / Barcode']]);
-          p.upcIdx = p.heads.length; p.heads = p.heads.concat(['UPC / Barcode']);
+          // v0.9.1889: through the one header-column helper (widens the tab first)
+          p.upcIdx = p.heads.length; p.heads = await _ymAddHeaderColumn(MID, H, t4, p.heads, 'UPC / Barcode');
         }
         // VERIFY: re-read the Item Number cell of every target row, right now
         var numCol = _ymColLetter(p.numIdx), upcCol = _ymColLetter(p.upcIdx);

@@ -389,32 +389,55 @@ function _pdColLetter(n){ var s=''; while(n>0){ n--; s=String.fromCharCode(65+(n
 //     write that still hits the wall widens and tries once more)
 //   • `force` re-reads the metadata — the heal passes it, because the memo
 //     says "checked", not "true right now" (the sheet can be edited by hand)
+// ══ v0.9.1889 — ANY tab, on ANY sheet, made at least N columns wide: ONE place ══
+// The v1881 helper below knew only My Collection. The Office (yardmaster.js)
+// adds "Image URL" / "UPC / Barcode" headers at the END of a master tab with a
+// plain value write — and Google refuses a value write past the grid ("exceeds
+// grid limits", 400). After Master Version 2.20 put Row ID in the last column,
+// 27 master tabs are exactly as wide as their header row again, so the next
+// crawl row with a photo link, or the next barcode commit on such a tab, would
+// have failed the way Brad's collection sheet did in v1880. One metadata
+// read; appendDimension only when short; nothing when wide enough.
+// Returns { cols: the width before, widened: columns added } or null when the
+// tab is not on the sheet. Throws on an HTTP failure — the caller must not
+// write past the edge.
+async function rrEnsureGridColumns(spreadsheetId, tabTitle, wantCols) {
+  if (!spreadsheetId || !accessToken) return null;
+  var _gRes = await fetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}?fields=sheets.properties`,
+    { headers: { Authorization: `Bearer ${accessToken}` } }
+  );
+  if (!_gRes.ok) throw new Error('could not read the sheet\'s size (HTTP ' + _gRes.status + ')');
+  var _gMeta = await _gRes.json();
+  var _tab = (_gMeta.sheets || []).find(s => s.properties.title === tabTitle);
+  if (!_tab) return null;
+  var _cols = (_tab.properties.gridProperties && _tab.properties.gridProperties.columnCount) || 0;
+  var _add = (_cols > 0 && _cols < wantCols) ? wantCols - _cols : 0;
+  if (_add > 0) {
+    var _wRes = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}:batchUpdate`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ requests: [{ appendDimension: {
+        sheetId: _tab.properties.sheetId, dimension: 'COLUMNS',
+        length: _add,
+      } }] }),
+    });
+    if (!_wRes.ok) throw new Error('could not widen ' + tabTitle + ' (HTTP ' + _wRes.status + ')');
+    console.log('[Setup] ' + tabTitle + ' widened from ' + _cols + ' to ' + wantCols + ' columns');
+  }
+  return { cols: _cols, widened: _add };
+}
+if (typeof window !== 'undefined') window.rrEnsureGridColumns = rrEnsureGridColumns;
+
 var _rrGridChecked = {};
 async function rrEnsurePersonalGrid(sheetId, force) {
   var want = PERSONAL_HEADERS.length;
   if (!sheetId || !accessToken) return false;
   if (!force && _rrGridChecked[sheetId] === want) return true;
-  var _gRes = await fetch(
-    `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}?fields=sheets.properties`,
-    { headers: { Authorization: `Bearer ${accessToken}` } }
-  );
-  if (!_gRes.ok) throw new Error('could not read the sheet\'s size (HTTP ' + _gRes.status + ')');
-  var _gMeta = await _gRes.json();
-  var _pc = (_gMeta.sheets || []).find(s => s.properties.title === PERSONAL_TAB);
-  if (!_pc) return false;
-  var _cols = (_pc.properties.gridProperties && _pc.properties.gridProperties.columnCount) || 0;
-  if (_cols > 0 && _cols < want) {
-    var _wRes = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}:batchUpdate`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ requests: [{ appendDimension: {
-        sheetId: _pc.properties.sheetId, dimension: 'COLUMNS',
-        length: want - _cols,
-      } }] }),
-    });
-    if (!_wRes.ok) throw new Error('could not widen My Collection (HTTP ' + _wRes.status + ')');
-    console.log('[Setup] My Collection widened from ' + _cols + ' to ' + want + ' columns');
-  }
+  // v0.9.1889: the widening itself lives in rrEnsureGridColumns (one place for
+  // every tab); this keeps My Collection's schema width and the per-session memo.
+  var _g = await rrEnsureGridColumns(sheetId, PERSONAL_TAB, want);
+  if (!_g) return false;
   _rrGridChecked[sheetId] = want;
   return true;
 }

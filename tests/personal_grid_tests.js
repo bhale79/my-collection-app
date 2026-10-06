@@ -89,8 +89,8 @@ function setupWorld(S, setupSrc, sheetsSrc) {
   const body = 'var _rrGridChecked = {}; var accessToken = "tok"; var window = { _rrDataRev: 0 }; var localStorage = { m: {}, getItem(k) { return k in this.m ? this.m[k] : null; }, setItem(k, v) { this.m[k] = String(v); } };\n'
     + 'const PERSONAL_TAB = "My Collection"; const PERSONAL_HEADERS = HEADERS; const SOLD_HEADERS = ["Sold A"]; const FOR_SALE_HEADERS = ["FS A"]; const WISHLIST_HEADERS = ["WU A"];\n'
     + 'function _rrWriteFailed(k, a, e) { return e; } async function _withTokenRetry(f) { return f(); } function _encodeRange(r) { return encodeURIComponent(r); } const console = { log() {}, warn(m) { warns.push(String(m)); }, error() {} };\n'
-    + grab(setupSrc, 'function _pdColLetter(n)') + '\n' + grab(setupSrc, 'async function rrEnsurePersonalGrid(sheetId, force)') + '\n' + grab(setupSrc, 'async function ensurePersonalHeaders(sheetId)') + '\n'
-    + sheetsLifted + '\n' + batchGet + '\nreturn { rrEnsurePersonalGrid, ensurePersonalHeaders, sheetsUpdate, localStorage, state: null, setState(s) { state = s; } };';
+    + grab(setupSrc, 'function _pdColLetter(n)') + '\n' + grab(setupSrc, 'async function rrEnsureGridColumns(spreadsheetId, tabTitle, wantCols)') + '\n' + grab(setupSrc, 'async function rrEnsurePersonalGrid(sheetId, force)') + '\n' + grab(setupSrc, 'async function ensurePersonalHeaders(sheetId)') + '\n'   // v0.9.1889: the widening moved into rrEnsureGridColumns — lifted too
+    + sheetsLifted + '\n' + batchGet + '\nreturn { rrEnsureGridColumns, rrEnsurePersonalGrid, ensurePersonalHeaders, sheetsUpdate, localStorage, state: null, setState(s) { state = s; } };';
   const warns = [];
   const W = new Function('fetch', 'HEADERS', 'warns', 'state', body)(S.fetch, HEADERS, warns, { personalSheetId: 'SID' });
   W.warns = warns; return W;
@@ -162,7 +162,7 @@ function setupWorld(S, setupSrc, sheetsSrc) {
     const S6 = fakeSheets(WANT - 1, HEADERS.slice(0, WANT - 1));
     const W6 = new Function('fetch', 'HEADERS', 'warns', 'state',
       'var _rrGridChecked = {}; var accessToken = "tok"; var window = {}; const PERSONAL_TAB = "My Collection"; const PERSONAL_HEADERS = HEADERS; function _rrWriteFailed(k, a, e) { return e; } async function _withTokenRetry(f) { return f(); } function _encodeRange(r) { return encodeURIComponent(r); } const console = { log() {}, warn(m) { warns.push(String(m)); }, error() {} };\n'
-      + grab(SETUP, 'async function rrEnsurePersonalGrid(sheetId, force)') + '\n' + grab(SHEETS, 'function _rrOfflineNow()') + '\n' + grab(SHEETS, 'async function sheetsAppend(spreadsheetId, range, values)') + '\n' + grab(SHEETS, 'async function _rrGridHeal(') + '\nreturn { sheetsAppend };')(S6.fetch, HEADERS, [], { personalSheetId: 'SID' });
+      + grab(SETUP, 'async function rrEnsureGridColumns(spreadsheetId, tabTitle, wantCols)') + '\n' + grab(SETUP, 'async function rrEnsurePersonalGrid(sheetId, force)') + '\n' + grab(SHEETS, 'function _rrOfflineNow()') + '\n' + grab(SHEETS, 'async function sheetsAppend(spreadsheetId, range, values)') + '\n' + grab(SHEETS, 'async function _rrGridHeal(') + '\nreturn { sheetsAppend };')(S6.fetch, HEADERS, [], { personalSheetId: 'SID' });
     const rowNo = await W6.sheetsAppend('SID', 'My Collection!A:A', [row]);
     T('C7 a new item (append) wider than the sheet: widened, retried, landed at a real row', rowNo === 5 && S6.cols === WANT && S6.appends.length === 1);
     // PLANTED: the heal cut out of sheetsUpdate
@@ -170,7 +170,7 @@ function setupWorld(S, setupSrc, sheetsSrc) {
     T('C8 (planted offender is a real edit)', plantedSheets !== SHEETS);
     const S7 = fakeSheets(WANT - 1, HEADERS.slice(0, WANT - 1));
     const W7 = new Function('fetch', 'HEADERS', 'state', 'var _rrGridChecked = {}; var accessToken = "tok"; var window = {}; const PERSONAL_TAB = "My Collection"; const PERSONAL_HEADERS = HEADERS; function _rrWriteFailed(k, a, e) { return e; } async function _withTokenRetry(f) { return f(); } function _encodeRange(r) { return encodeURIComponent(r); } const console = { log() {}, warn() {}, error() {} };\n'
-      + grab(SETUP, 'async function rrEnsurePersonalGrid(sheetId, force)') + '\n' + grab(plantedSheets, 'function _rrOfflineNow()') + '\n' + grab(plantedSheets, 'async function sheetsUpdate(spreadsheetId, range, values)') + '\n' + grab(plantedSheets, 'async function _rrGridHeal(') + '\nreturn { sheetsUpdate };')(S7.fetch, HEADERS, { personalSheetId: 'SID' });
+      + grab(SETUP, 'async function rrEnsureGridColumns(spreadsheetId, tabTitle, wantCols)') + '\n' + grab(SETUP, 'async function rrEnsurePersonalGrid(sheetId, force)') + '\n' + grab(plantedSheets, 'function _rrOfflineNow()') + '\n' + grab(plantedSheets, 'async function sheetsUpdate(spreadsheetId, range, values)') + '\n' + grab(plantedSheets, 'async function _rrGridHeal(') + '\nreturn { sheetsUpdate };')(S7.fetch, HEADERS, { personalSheetId: 'SID' });
     let e7 = ''; try { await W7.sheetsUpdate('SID', "My Collection!A7:" + colL(WANT) + "7", [row]); } catch (e) { e7 = e.message; }
     T('C9 PLANTED: the old sheetsUpdate — the save FAILS on the short sheet (what v0.9.1880 did)', /exceeds grid limits/.test(e7) && S7.cols === WANT - 1);
   }
