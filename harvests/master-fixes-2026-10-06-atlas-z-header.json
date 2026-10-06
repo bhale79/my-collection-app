@@ -1,0 +1,123 @@
+{
+ "version": "2.22",
+ "date": "2026-10-06",
+ "tab": "Atlas Z",
+ "why": "[stated] Brad: yes (2026-10-06) — column W holds 18 Atlas photo links under a BLANK header, so the app (which reads master columns by header name) never sees them; the sister tabs Atlas O / HO / N call that column Image URL.",
+ "built_on": "a fresh public export of Atlas Z, 2026-10-06, after Master Version 2.21",
+ "cells": [
+  {
+   "range": "'Atlas Z'!W1",
+   "column": "W",
+   "row": 1,
+   "old": "",
+   "new": "Image URL",
+   "what": "the header of the photo-link column"
+  }
+ ],
+ "links_under_it": [
+  {
+   "row": 2,
+   "url": "https://archive.atlasrr.com/Images/ZRS/Z53Evans/1124/75000015TQ.jpg"
+  },
+  {
+   "row": 4,
+   "url": "https://archive.atlasrr.com/Images/ZRS/Z53Evans/1124/75000017TQ.jpg"
+  },
+  {
+   "row": 7,
+   "url": "https://archive.atlasrr.com/Images/ZRS/Z53Evans/1124/75000020TQ.jpg"
+  },
+  {
+   "row": 8,
+   "url": "https://archive.atlasrr.com/Images/ZRS/Z53Evans/1124/75000021TQ.jpg"
+  },
+  {
+   "row": 10,
+   "url": "https://archive.atlasrr.com/Images/ZRS/Z53Evans/1124/75000023TQ.jpg"
+  },
+  {
+   "row": 12,
+   "url": "https://archive.atlasrr.com/Images/ZRS/Z53Evans/1124/75000025TQ.jpg"
+  },
+  {
+   "row": 14,
+   "url": "https://archive.atlasrr.com/Images/ZRS/Z53Evans/75000000TQ.jpg"
+  },
+  {
+   "row": 16,
+   "url": "https://archive.atlasrr.com/Images/ZRS/Z53Evans/75000002TQ.jpg"
+  },
+  {
+   "row": 18,
+   "url": "https://archive.atlasrr.com/Images/ZRS/Z53Evans/75000004TQ.jpg"
+  },
+  {
+   "row": 20,
+   "url": "https://archive.atlasrr.com/Images/ZRS/Z53Evans/75000006TQ.jpg"
+  },
+  {
+   "row": 23,
+   "url": "https://archive.atlasrr.com/Images/ZRS/Z53Evans/75000009TQ.jpg"
+  },
+  {
+   "row": 24,
+   "url": "https://archive.atlasrr.com/Images/ZRS/Z53Evans/75000010TQ.jpg"
+  },
+  {
+   "row": 26,
+   "url": "https://archive.atlasrr.com/Images/ZRS/Zmultimax/z75000027.jpg"
+  },
+  {
+   "row": 29,
+   "url": "https://archive.atlasrr.com/Images/ZRS/Zmultimax/z75000030.jpg"
+  },
+  {
+   "row": 32,
+   "url": "https://archive.atlasrr.com/Images/ZRS/Zmultimax/z75000033.jpg"
+  },
+  {
+   "row": 35,
+   "url": "https://archive.atlasrr.com/Images/ZRS/Zmultimax/z75000036.jpg"
+  },
+  {
+   "row": 38,
+   "url": "https://archive.atlasrr.com/Images/ZRS/Zmultimax/z75000039.jpg"
+  },
+  {
+   "row": 41,
+   "url": "https://archive.atlasrr.com/Images/ZRS/Zmultimax/z75000042.jpg"
+  }
+ ],
+ "checks": {
+  "rows_with_item_number": 42,
+  "header_before": [
+   "Item #",
+   "Item Type",
+   "Sub Type",
+   "Unit",
+   "Powered/Dummy",
+   "Control",
+   "Road Name",
+   "Item Description",
+   "Gauge",
+   "Year Produced",
+   "Variation",
+   "Variation Description",
+   "Reference Link",
+   "Notes",
+   "Market Value",
+   "Source",
+   "COTT Code",
+   "Original Description",
+   "Category",
+   "Track/Power",
+   "MSRP",
+   "Stamped Markings",
+   "",
+   "Row ID",
+   "",
+   ""
+  ],
+  "other_cells": "read back whole after the write; 0 may change"
+ }
+}
