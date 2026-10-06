@@ -1,0 +1,668 @@
+{
+ "what": "Master Version 2.23 — the vat cars the sheet typed Tank Car (Lionel MPC-Modern) or Rolling Stock (K-Line O) → Vat Car, the app's own type since v0.9.1888",
+ "stated": "Brad (2026-10-06): \"vat cars should be their own type\"; \"yes\" to the two-step plan (the app first — v0.9.1888 — then the sheet); \"yes\" to write 2.23",
+ "masterVersion": "2.23",
+ "date": "2026-10-06",
+ "planReadAt": "2026-10-06T13:08:08.294736Z",
+ "cellFormat": "[tab, item number (column A), column header, old, new, sheet row as a hint, Row ID of the row]",
+ "cells": [
+  [
+   "Lionel MPC-Modern",
+   "16225",
+   "Item Type",
+   "Tank Car",
+   "Vat Car",
+   2843,
+   "CUE2VGF76M"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "19420",
+   "Item Type",
+   "Tank Car",
+   "Vat Car",
+   5893,
+   "6K775G677W"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "19421",
+   "Item Type",
+   "Tank Car",
+   "Vat Car",
+   5894,
+   "PQVD9293WE"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "19441",
+   "Item Type",
+   "Tank Car",
+   "Vat Car",
+   5911,
+   "JPYVUG99CE"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "19446",
+   "Item Type",
+   "Tank Car",
+   "Vat Car",
+   5915,
+   "XCKWBG6Q8P"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "19447",
+   "Item Type",
+   "Tank Car",
+   "Vat Car",
+   5916,
+   "2EMNMWBBVN"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "19480",
+   "Item Type",
+   "Tank Car",
+   "Vat Car",
+   5933,
+   "23VVGPDT9P"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "19481",
+   "Item Type",
+   "Tank Car",
+   "Vat Car",
+   5934,
+   "M73AXTHPNM"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "19772",
+   "Item Type",
+   "Tank Car",
+   "Vat Car",
+   6084,
+   "BWGQVA2YR2"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "19940",
+   "Item Type",
+   "Tank Car",
+   "Vat Car",
+   6213,
+   "4KNK74U7JK"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "39473",
+   "Item Type",
+   "Tank Car",
+   "Vat Car",
+   11675,
+   "862FUYEVKT"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "39478",
+   "Item Type",
+   "Tank Car",
+   "Vat Car",
+   11679,
+   "3X8PFXWQRP"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "39484",
+   "Item Type",
+   "Tank Car",
+   "Vat Car",
+   11684,
+   "Z6U5XN2P5M"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "39488",
+   "Item Type",
+   "Tank Car",
+   "Vat Car",
+   11687,
+   "AFHFVHDKP7"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "39496",
+   "Item Type",
+   "Tank Car",
+   "Vat Car",
+   11689,
+   "C5W2MM5DQY"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "52044",
+   "Item Type",
+   "Tank Car",
+   "Vat Car",
+   11957,
+   "FP3DNAMS5H"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "52061",
+   "Item Type",
+   "Tank Car",
+   "Vat Car",
+   11976,
+   "7T7XCK8TGH"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "52283",
+   "Item Type",
+   "Tank Car",
+   "Vat Car",
+   12209,
+   "9NRFG68M3A"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "52555",
+   "Item Type",
+   "Tank Car",
+   "Vat Car",
+   12402,
+   "DBFS3F3A3X"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "58520",
+   "Item Type",
+   "Tank Car",
+   "Vat Car",
+   12628,
+   "JW6Z2FA7ZT"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "81018",
+   "Item Type",
+   "Tank Car",
+   "Vat Car",
+   13165,
+   "M4SXM8MCNU"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "81437",
+   "Item Type",
+   "Tank Car",
+   "Vat Car",
+   13348,
+   "4Q4HEPQGJ8"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "82742",
+   "Item Type",
+   "Tank Car",
+   "Vat Car",
+   14023,
+   "P8W294VZ4J"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "83312",
+   "Item Type",
+   "Tank Car",
+   "Vat Car",
+   14311,
+   "YZJX7XV6CY"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "84483",
+   "Item Type",
+   "Tank Car",
+   "Vat Car",
+   14847,
+   "NW4XUTYZWK"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "9106",
+   "Item Type",
+   "Tank Car",
+   "Vat Car",
+   15740,
+   "8GSGNGTMNV"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "9107",
+   "Item Type",
+   "Tank Car",
+   "Vat Car",
+   15741,
+   "V2TVMHG8X8"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "9128",
+   "Item Type",
+   "Tank Car",
+   "Vat Car",
+   15770,
+   "N9VRPTVW83"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "9132",
+   "Item Type",
+   "Tank Car",
+   "Vat Car",
+   15774,
+   "5KQQJ7SFYE"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "9146",
+   "Item Type",
+   "Tank Car",
+   "Vat Car",
+   15789,
+   "VEAM8DDZZJ"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "9193",
+   "Item Type",
+   "Tank Car",
+   "Vat Car",
+   15841,
+   "X5JDVQ6952"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "9193",
+   "Item Type",
+   "Tank Car",
+   "Vat Car",
+   15842,
+   "8JWXZH29Q6"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "9193",
+   "Item Type",
+   "Tank Car",
+   "Vat Car",
+   15843,
+   "9GVMT26JER"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "9193",
+   "Item Type",
+   "Tank Car",
+   "Vat Car",
+   15844,
+   "5XCW6F6BSY"
+  ],
+  [
+   "K-Line O",
+   "K-90012",
+   "Item Type",
+   "Rolling Stock",
+   "Vat Car",
+   663,
+   "YQGEEW9MA4"
+  ],
+  [
+   "K-Line O",
+   "K675-7401",
+   "Item Type",
+   "Rolling Stock",
+   "Vat Car",
+   1535,
+   "PF88P78JN5"
+  ],
+  [
+   "K-Line O",
+   "K1996TF",
+   "Item Type",
+   "Rolling Stock",
+   "Vat Car",
+   1788,
+   "WVZG3QG3XF"
+  ],
+  [
+   "K-Line O",
+   "K675-8012",
+   "Item Type",
+   "Rolling Stock",
+   "Vat Car",
+   1841,
+   "22UGFESF2U"
+  ],
+  [
+   "K-Line O",
+   "K675-8013",
+   "Item Type",
+   "Rolling Stock",
+   "Vat Car",
+   1842,
+   "DSQN87NJEN"
+  ],
+  [
+   "K-Line O",
+   "K675401",
+   "Item Type",
+   "Rolling Stock",
+   "Vat Car",
+   2291,
+   "SAUUJM6EUF"
+  ],
+  [
+   "K-Line O",
+   "K-675601",
+   "Item Type",
+   "Rolling Stock",
+   "Vat Car",
+   2298,
+   "3FRVRW4EEP"
+  ],
+  [
+   "K-Line O",
+   "K675201",
+   "Item Type",
+   "Rolling Stock",
+   "Vat Car",
+   2625,
+   "332WFHXAAW"
+  ]
+ ],
+ "why": [
+  {
+   "item": "16225",
+   "row": 2843,
+   "kind": "Lionel Modern vat car typed Tank Car",
+   "why": "the row's own description: uncataloged vat car | Budweiser"
+  },
+  {
+   "item": "19420",
+   "row": 5893,
+   "kind": "Lionel Modern vat car typed Tank Car",
+   "why": "the row's own description: vat car | Lionel Lines"
+  },
+  {
+   "item": "19421",
+   "row": 5894,
+   "kind": "Lionel Modern vat car typed Tank Car",
+   "why": "the row's own description: vat car | Hirsch Brothers"
+  },
+  {
+   "item": "19441",
+   "row": 5911,
+   "kind": "Lionel Modern vat car typed Tank Car",
+   "why": "the row's own description: lobster vat car | Lobster"
+  },
+  {
+   "item": "19446",
+   "row": 5915,
+   "kind": "Lionel Modern vat car typed Tank Car",
+   "why": "the row's own description: vat car | Pittsburgh Paint"
+  },
+  {
+   "item": "19447",
+   "row": 5916,
+   "kind": "Lionel Modern vat car typed Tank Car",
+   "why": "the row's own description: vat car | Mama's Baked Beans"
+  },
+  {
+   "item": "19480",
+   "row": 5933,
+   "kind": "Lionel Modern vat car typed Tank Car",
+   "why": "the row's own description: vat car numbered 6475 | Valentine's"
+  },
+  {
+   "item": "19481",
+   "row": 5934,
+   "kind": "Lionel Modern vat car typed Tank Car",
+   "why": "the row's own description: vat car numbered 2000 | Easter"
+  },
+  {
+   "item": "19772",
+   "row": 6084,
+   "kind": "Lionel Modern vat car typed Tank Car",
+   "why": "the row's own description: uncataloged vat car | Lionel Visitor's Center"
+  },
+  {
+   "item": "19940",
+   "row": 6213,
+   "kind": "Lionel Modern vat car typed Tank Car",
+   "why": "the row's own description: uncataloged vat car | Lionel Railroad"
+  },
+  {
+   "item": "39473",
+   "row": 11675,
+   "kind": "Lionel Modern vat car typed Tank Car",
+   "why": "the row's own description: Play-Doh Vat Car"
+  },
+  {
+   "item": "39478",
+   "row": 11679,
+   "kind": "Lionel Modern vat car typed Tank Car",
+   "why": "the row's own description: Postwar \"6475\" Pickles Vat Car"
+  },
+  {
+   "item": "39484",
+   "row": 11684,
+   "kind": "Lionel Modern vat car typed Tank Car",
+   "why": "the row's own description: Cocoa Marsh Vat Car"
+  },
+  {
+   "item": "39488",
+   "row": 11687,
+   "kind": "Lionel Modern vat car typed Tank Car",
+   "why": "the row's own description: Reese's Vat Car"
+  },
+  {
+   "item": "39496",
+   "row": 11689,
+   "kind": "Lionel Modern vat car typed Tank Car",
+   "why": "the row's own description: \"6475\" 50th Anniversary Vat Car"
+  },
+  {
+   "item": "52044",
+   "row": 11957,
+   "kind": "Lionel Modern vat car typed Tank Car",
+   "why": "the row's own description: uncataloged vat car | Eastwood"
+  },
+  {
+   "item": "52061",
+   "row": 11976,
+   "kind": "Lionel Modern vat car typed Tank Car",
+   "why": "the row's own description: uncataloged NLOE Long Island vat car numbered 8395 | Stern's Pickle Products"
+  },
+  {
+   "item": "52283",
+   "row": 12209,
+   "kind": "Lionel Modern vat car typed Tank Car",
+   "why": "the row's own description: Paint Vat Car"
+  },
+  {
+   "item": "52555",
+   "row": 12402,
+   "kind": "Lionel Modern vat car typed Tank Car",
+   "why": "the row's own description: Martha Clara Vineyards Vat Car"
+  },
+  {
+   "item": "58520",
+   "row": 12628,
+   "kind": "Lionel Modern vat car typed Tank Car",
+   "why": "the row's own description: Entenmann's Vat Car"
+  },
+  {
+   "item": "81018",
+   "row": 13165,
+   "kind": "Lionel Modern vat car typed Tank Car",
+   "why": "the row's own description: Shell Vat Car"
+  },
+  {
+   "item": "81437",
+   "row": 13348,
+   "kind": "Lionel Modern vat car typed Tank Car",
+   "why": "the row's own description: York Peppermint Patty Vat Car"
+  },
+  {
+   "item": "82742",
+   "row": 14023,
+   "kind": "Lionel Modern vat car typed Tank Car",
+   "why": "the row's own description: Christmas Tinsel Vat Car"
+  },
+  {
+   "item": "83312",
+   "row": 14311,
+   "kind": "Lionel Modern vat car typed Tank Car",
+   "why": "the row's own description: Santa's Cookies Vat Car"
+  },
+  {
+   "item": "84483",
+   "row": 14847,
+   "kind": "Lionel Modern vat car typed Tank Car",
+   "why": "the row's own description: John Deere Grain Vat Car"
+  },
+  {
+   "item": "9106",
+   "row": 15740,
+   "kind": "Lionel Modern vat car typed Tank Car",
+   "why": "the row's own description: vat car | Miller"
+  },
+  {
+   "item": "9107",
+   "row": 15741,
+   "kind": "Lionel Modern vat car typed Tank Car",
+   "why": "the row's own description: vat car | Dr Pepper"
+  },
+  {
+   "item": "9128",
+   "row": 15770,
+   "kind": "Lionel Modern vat car typed Tank Car",
+   "why": "the row's own description: vat car | Heinz"
+  },
+  {
+   "item": "9132",
+   "row": 15774,
+   "kind": "Lionel Modern vat car typed Tank Car",
+   "why": "the row's own description: vat car, Service Station Special item | Libby's"
+  },
+  {
+   "item": "9146",
+   "row": 15789,
+   "kind": "Lionel Modern vat car typed Tank Car",
+   "why": "the row's own description: vat car | Mogen David"
+  },
+  {
+   "item": "9193",
+   "row": 15841,
+   "kind": "Lionel Modern vat car typed Tank Car",
+   "why": "the row's own description: Type I, vat car | Budweiser"
+  },
+  {
+   "item": "9193",
+   "row": 15842,
+   "kind": "Lionel Modern vat car typed Tank Car",
+   "why": "the row's own description: Type II, uncataloged Atlantic TCA vat car | Budweiser"
+  },
+  {
+   "item": "9193",
+   "row": 15843,
+   "kind": "Lionel Modern vat car typed Tank Car",
+   "why": "the row's own description: uncataloged vat car | Garden Country"
+  },
+  {
+   "item": "9193",
+   "row": 15844,
+   "kind": "Lionel Modern vat car typed Tank Car",
+   "why": "the row's own description: uncataloged vat car | Nabisco Easy Cheese"
+  },
+  {
+   "item": "K-90012",
+   "row": 663,
+   "kind": "K-Line vat car typed Rolling Stock (the app already read it as Vat Car by its words; the sheet now says so)",
+   "why": "the row's own description: K-90012 O Gauge KCC Exclusive Keokuk Canning Company Vat Car"
+  },
+  {
+   "item": "K675-7401",
+   "row": 1535,
+   "kind": "K-Line vat car typed Rolling Stock (the app already read it as Vat Car by its words; the sheet now says so)",
+   "why": "the row's own description: K675-7401 O Gauge Toy Fair Keokuk Vat Car | Toy"
+  },
+  {
+   "item": "K1996TF",
+   "row": 1788,
+   "kind": "K-Line vat car typed Rolling Stock (the app already read it as Vat Car by its words; the sheet now says so)",
+   "why": "the row's own description: K1996TF 1996 Toy Fair Vat Car LN/Box | Toy"
+  },
+  {
+   "item": "K675-8012",
+   "row": 1841,
+   "kind": "K-Line vat car typed Rolling Stock (the app already read it as Vat Car by its words; the sheet now says so)",
+   "why": "the row's own description: K675-8012 George Washington's Vat Car NIB"
+  },
+  {
+   "item": "K675-8013",
+   "row": 1842,
+   "kind": "K-Line vat car typed Rolling Stock (the app already read it as Vat Car by its words; the sheet now says so)",
+   "why": "the row's own description: K675-8013 Honest Abe's Log Cabin Vat Car 186165 LN/Box"
+  },
+  {
+   "item": "K675401",
+   "row": 2291,
+   "kind": "K-Line vat car typed Rolling Stock (the app already read it as Vat Car by its words; the sheet now says so)",
+   "why": "the row's own description: K675401 O Gauge Campbell's Soup Vat Car EX/Box"
+  },
+  {
+   "item": "K-675601",
+   "row": 2298,
+   "kind": "K-Line vat car typed Rolling Stock (the app already read it as Vat Car by its words; the sheet now says so)",
+   "why": "the row's own description: K-675601 O Gauge Anheuser-Busch Vat Car LN/Box | Anheuser"
+  },
+  {
+   "item": "K675201",
+   "row": 2625,
+   "kind": "K-Line vat car typed Rolling Stock (the app already read it as Vat Car by its words; the sheet now says so)",
+   "why": "the row's own description: K675201 O Gauge Heinz Co. Vat Car EX/Box | Heinz"
+  }
+ ],
+ "unchanged": [
+  {
+   "tab": "Lionel MPC-Modern",
+   "item": "6-26496 (row 19574)",
+   "what": "Lionelville Aquarium Co. Fish Food Vat Car, typed Aquarium Car",
+   "why": "an aquarium car (Operating Freight) — the word 'vat' names the load, not the car"
+  },
+  {
+   "tab": "Lionel PW - Boxes",
+   "item": "6475 (row 1204)",
+   "what": "Pickles Vat Car (orange picture), typed Paper / Box / Misc",
+   "why": "a box row, not the car"
+  },
+  {
+   "tab": "Marklin H0",
+   "item": "47084 (row 3841)",
+   "what": "Sgns — VAT Logistics Container Car Set, typed Freight Car",
+   "why": "'VAT' is a shipper's name; the car is intermodal. The app's word is 'vat car', never 'vat' alone"
+  },
+  {
+   "tab": "(17 rows)",
+   "item": "6475 ×5, 2628390, 6-19490, 6-19491, 6-25958, 6-26660, 6-26676, 6-26686, 6-29411, 6-29412, 6-29429, 6-29464, K675203",
+   "what": "already typed Vat Car",
+   "why": "nothing to change"
+  }
+ ]
+}
