@@ -129,7 +129,11 @@ async function loadAllData() {
   showLoading();
   // v0.9.840 (Phase C): subscription/trial check rides behind every full
   // load — non-blocking, fail-open, dark until the backend enforce flag.
-  setTimeout(function () { try { if (typeof subCheck === 'function') subCheck(); } catch (e) {} }, 2500);
+  // v0.9.1892: 2500 → 600 ms. From launch this answer decides whether a new
+  // or lapsed account sees the welcome / lock screen, so it should not sit
+  // behind the app for seconds. It is a separate request, so loading is not
+  // slowed by it.
+  setTimeout(function () { try { if (typeof subCheck === 'function') subCheck(); } catch (e) {} }, 600);
   try {
     loadUserDefinedTabs();
     // Audit NEW #9: also sync from sheet metadata so custom tabs survive

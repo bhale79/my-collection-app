@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.1891';
+const APP_VERSION = 'v0.9.1892';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -101,6 +101,22 @@ if (typeof window !== 'undefined') {
   window.rrFeatureOn = rrFeatureOn;
   window.rrFeatureList = rrFeatureList;
   window.rrFeaturesRemember = rrFeaturesRemember;
+}
+
+// ── THE INVITE SCREEN — ONE switch (v0.9.1892, launch build) ─────────────
+// true  = new visitors type the beta code before they can sign in (today)
+// false = no invite screen: a new visitor goes straight to "Continue with
+//         Google", and the backend's answer decides the rest (welcome screen
+//         → 3-week trial checkout, or the lock screen for a lapsed account).
+// LAUNCH DAY (Fri 2026-10-16) flips this to false in the same release that
+// turns the sales page on. Read it through rrInviteGateOn(), never directly.
+const RR_INVITE_GATE_ON = true;
+function rrInviteGateOn() {
+  try { return typeof RR_INVITE_GATE_ON === 'undefined' ? false : !!RR_INVITE_GATE_ON; } catch (e) { return false; }
+}
+if (typeof window !== 'undefined') {
+  window.RR_INVITE_GATE_ON = RR_INVITE_GATE_ON;
+  window.rrInviteGateOn = rrInviteGateOn;
 }
 
 // ── PRICE WORDING — ONE place (Brad 2026-10-06: "75 plus tax") ─────────────

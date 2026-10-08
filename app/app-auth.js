@@ -346,8 +346,10 @@ function _rrShowFirstScreen() {
     showLoading();
     return 'app';
   }
-  if (_isBetaVerified()) {
-    // Beta code already entered — show auth screen
+  // v0.9.1892: with the invite screen switched off (config.js, launch day)
+  // every new visitor goes straight to sign-in — exactly the branch below.
+  if (_isBetaVerified() || (typeof rrInviteGateOn === 'function' && !rrInviteGateOn())) {
+    // Beta code already entered (or no invite screen any more) — show auth screen
     if (gate) gate.style.display = 'none';
     // Bugfix 2026-04-14: if we're in the middle of an OAuth sign-in flow,
     // don't flash the auth screen behind the overlay. The overlay is already

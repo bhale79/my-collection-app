@@ -925,6 +925,29 @@ async function vaultInit() {
 // ============================================================
 window._subState = null;
 
+// ── v0.9.1892: back from Stripe (…/app/?checkout=done) ─────────────────────
+// Remember it for this tab, then take the word out of the address bar so a
+// refresh or a bookmark never replays it. The next check asks the backend to
+// skip its cache (fresh:1), and if Stripe has not caught up yet the app waits
+// on a "Setting up your subscription…" screen instead of asking them to pay
+// a second time.
+const SUB_CHECKOUT_KEY = 'rr_checkout_done';
+const SUB_RETRY_MAX = 6, SUB_RETRY_MS = 4000;
+(function _subCheckoutReturn() {
+  try {
+    var q = new URLSearchParams(location.search);
+    if (q.get('checkout') !== 'done') return;
+    sessionStorage.setItem(SUB_CHECKOUT_KEY, String(Date.now()));
+    q.delete('checkout');
+    var rest = q.toString();
+    history.replaceState(null, '', location.pathname + (rest ? '?' + rest : '') + location.hash);
+  } catch (e) {}
+})();
+function _subCheckoutPending() {
+  try { return !!sessionStorage.getItem(SUB_CHECKOUT_KEY); } catch (e) { return false; }
+}
+var _subRetries = 0;
+
 async function subCheck() {
   try {
     if (window._offlineMode) return;                       // offline = view-only anyway
@@ -940,11 +963,14 @@ async function subCheck() {
     // ledger — on the tester's own row in beta_testers, and ONLY there:
     // Brad, "this is just for Beta people … only for the beta people after
     // launch." Anyone not in that tab is recorded nowhere, as before.
+    // v0.9.1892: fresh:1 right after a checkout — relay v4.1 then asks Stripe
+    // instead of answering from its 10-minute memory.
     const r = await vaultPost({ action: 'sub_check', email: state.user.email,
       name: String(state.user.name || '').slice(0, 80),
       betaCode: (typeof _isBetaVerified === 'function' && _isBetaVerified()
                  && typeof _BETA_CODE !== 'undefined') ? _BETA_CODE : '',
-      appVersion: (typeof APP_VERSION !== 'undefined') ? APP_VERSION : '' });
+      appVersion: (typeof APP_VERSION !== 'undefined') ? APP_VERSION : '',
+      fresh: _subCheckoutPending() ? 1 : 0 });
     if (!r || r.status !== 200 || !r.sub) return;          // fail-open
     window._subState = r;
     // v0.9.1891: keep this account's feature list for the next load, and tell
@@ -955,37 +981,169 @@ async function subCheck() {
   } catch (e) { console.warn('[sub] check failed — fail-open', e && e.message); }
 }
 
+// ── v0.9.1892: WHAT EACH ANSWER SHOWS (Brad, 2026-10-06 launch plan) ───────
+//   enforce off (until launch day)   → nothing, for anyone
+//   owner (RR_OWNER_EMAILS)          → nothing, ever — never asked to pay
+//   beta / active                    → nothing
+//   trial                            → last 7 days: a bar they can close,
+//                                      "ends <date> — card charged <price>"
+//   none (never subscribed)          → the WELCOME screen: start the trial
+//                                      (the York checkout during show dates)
+//   expired (lapsed / cancelled and
+//            run out / failed card)  → the LOCK screen: Renew, plus links to
+//                                      their own sheet and photos
+// Both screens cover the app and the app is read-only behind them. Every
+// checkout link carries the signed-in Google email, LOCKED, so a payment can
+// never land under a different address ("we need to make sure no one can get
+// locked out"). Wording reads RR_PRICE_TEXT / RR_SHOW_PRICE_TEXT (config.js).
 function _subApply(r) {
   var old = document.getElementById('sub-banner');
   if (old) old.remove();
+  _subScreenClose();
   window._readOnlyMode = false;
-  if (!r.enforce) return;                                  // dark until launch
+  if (!r || !r.enforce) return;                            // dark until launch
+  try { if (typeof rrIsRealOwner === 'function' && rrIsRealOwner()) return; } catch (e) {}
+  var paid = (r.sub === 'active' || r.sub === 'trial');
+  if (paid || r.sub === 'beta') {
+    if (_subCheckoutPending()) {
+      try { sessionStorage.removeItem(SUB_CHECKOUT_KEY); } catch (e) {}
+      _subRetries = 0;
+      try { showToast('Welcome aboard — your subscription is active.', 4000); } catch (e) {}
+    }
+  }
   if (r.sub === 'active' || r.sub === 'beta') return;
   if (r.sub === 'trial') {
-    if (r.daysLeft <= 7) {
-      _subBanner('\u23f3 ' + r.daysLeft + ' day' + (r.daysLeft === 1 ? '' : 's') + ' left in your free trial.', r.payLink, 'Subscribe — $75/yr');
-    }
+    if (r.daysLeft <= 7 && !_subTrialBarClosed()) _subTrialBar(r);
     return;
   }
-  // expired / anything else the backend calls not-entitled
+  // none / expired: the app stays behind a screen and does not write.
   window._readOnlyMode = true;
-  _subBanner('Your free trial has ended — your collection is safe and view-only. Subscribe to keep building it.', r.payLink, 'Subscribe — $75/yr');
+  if (r.sub === 'none' && _subCheckoutPending()) {
+    // Back from Stripe but the backend has not seen it yet — wait, don't re-sell.
+    if (_subRetries < SUB_RETRY_MAX) {
+      _subRetries++;
+      _subScreen('wait', r);
+      setTimeout(function () { try { subCheck(); } catch (e) {} }, SUB_RETRY_MS);
+      return;
+    }
+    _subScreen('stuck', r);
+    return;
+  }
+  _subScreen(r.sub === 'expired' ? 'lock' : 'welcome', r);
 }
 
-function _subBanner(msg, payLink, btnLabel) {
+function _subEsc(v) {
+  return String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+function _subDate(iso) {
+  return iso ? (typeof _formatDate === 'function' ? _formatDate(iso) : iso) : '';
+}
+// The checkout link, with the signed-in email filled in AND locked.
+function _subCheckoutUrl(base) {
+  if (!base) return '';
+  var em = String((state.user && state.user.email) || '');
+  return base + (base.indexOf('?') < 0 ? '?' : '&') + 'locked_prefilled_email=' + encodeURIComponent(em);
+}
+
+// ── the trial bar (last 7 days; closed = closed for this tab) ─────────────
+const SUB_TRIALBAR_KEY = 'rr_trialbar_closed';
+function _subTrialBarClosed() { try { return sessionStorage.getItem(SUB_TRIALBAR_KEY) === '1'; } catch (e) { return false; } }
+function _subTrialBar(r) {
+  var price = (typeof RR_PRICE_TEXT !== 'undefined') ? RR_PRICE_TEXT : '';
+  var when = r.trialEnds ? _subDate(r.trialEnds) : (r.daysLeft + ' day' + (r.daysLeft === 1 ? '' : 's'));
+  var msg = r.cancelAtPeriodEnd
+    ? 'Your free trial ends ' + when + '. You cancelled, so you will not be charged.'
+    : 'Your free trial ends ' + when + ' — then your card is charged ' + price + '.';
   var b = document.createElement('div');
   b.id = 'sub-banner';
-  b.style.cssText = 'position:fixed;bottom:0;left:0;right:0;z-index:9997;background:var(--surface);border-top:2px solid var(--accent);padding:0.6rem 1rem;display:flex;align-items:center;justify-content:center;gap:0.9rem;flex-wrap:wrap;font-family:var(--font-body);font-size:0.85rem;color:var(--text);box-shadow:0 -2px 12px rgba(0,0,0,0.35)';
+  b.style.cssText = 'position:fixed;bottom:0;left:0;right:0;z-index:9997;background:var(--surface);border-top:2px solid var(--accent);padding:0.6rem 1rem;display:flex;align-items:center;justify-content:center;gap:0.9rem;flex-wrap:wrap;font-family:var(--font-body);font-size:0.9rem;color:var(--text);box-shadow:0 -2px 12px rgba(0,0,0,0.35)';
   var txt = document.createElement('span');
   txt.textContent = msg;
   b.appendChild(txt);
-  if (payLink) {
+  if (r.portalLink) {
     var a = document.createElement('a');
-    a.href = payLink; a.target = '_blank'; a.rel = 'noopener';
-    a.textContent = btnLabel || 'Subscribe';
-    a.style.cssText = 'background:var(--accent);color:var(--on-accent);font-weight:700;text-decoration:none;padding:0.45rem 1.1rem;border-radius:8px;font-family:var(--font-head);letter-spacing:0.04em;text-transform:uppercase;font-size:0.78rem';
+    var em = String((state.user && state.user.email) || '');
+    a.href = r.portalLink + (r.portalLink.indexOf('?') < 0 ? '?' : '&') + 'prefilled_email=' + encodeURIComponent(em);
+    a.target = '_blank'; a.rel = 'noopener';
+    a.textContent = 'Manage';
+    a.style.cssText = 'color:var(--accent2);font-weight:700;text-decoration:none';
     b.appendChild(a);
   }
+  var x = document.createElement('button');
+  x.textContent = 'Close';
+  x.setAttribute('aria-label', 'Close this reminder');
+  x.style.cssText = 'background:transparent;border:1px solid var(--border);color:var(--text-mid);border-radius:8px;padding:0.35rem 0.9rem;font-size:0.85rem;cursor:pointer';
+  x.onclick = function () { try { sessionStorage.setItem(SUB_TRIALBAR_KEY, '1'); } catch (e) {} b.remove(); };
+  b.appendChild(x);
   document.body.appendChild(b);
+}
+
+// ── the full screens: welcome / lock / wait / stuck ───────────────────────
+// Deliberately NOT dismissible (no backdrop close, no ✕, no Back entry): the
+// way out is to subscribe, renew, or sign out. Sized for older eyes from
+// ONBOARD_UI (onboarding-config.js), the same numbers the welcome tour uses.
+function _subScreenClose() {
+  var el = document.getElementById('sub-screen');
+  if (el) el.remove();
+}
+function _subScreen(kind, r) {
+  _subScreenClose();
+  var u = window.ONBOARD_UI || {};
+  var body = (u.bodyFontPx || 18) + 'px', head = (u.headingFontPx || 28) + 'px';
+  var btnH = (u.buttonMinHeightPx || 52) + 'px', btnR = (u.buttonRadiusPx || 12) + 'px';
+  var price = (typeof RR_PRICE_TEXT !== 'undefined') ? RR_PRICE_TEXT : '';
+  var showPrice = (typeof RR_SHOW_PRICE_TEXT !== 'undefined') ? RR_SHOW_PRICE_TEXT : '';
+  var email = String((state.user && state.user.email) || '');
+  var big = 'display:block;width:100%;min-height:' + btnH + ';border-radius:' + btnR + ';border:none;background:var(--accent);color:var(--on-accent);font-size:' + body + ';font-weight:700;text-align:center;text-decoration:none;line-height:' + btnH + ';cursor:pointer;margin:1.1rem 0 0.4rem';
+  var quiet = 'display:block;width:100%;min-height:44px;border-radius:' + btnR + ';border:1px solid var(--border);background:transparent;color:var(--text-mid);font-size:' + (u.linkFontPx || 16) + 'px;cursor:pointer;margin-top:0.6rem';
+  var p = 'font-size:' + body + ';line-height:1.55;color:var(--text-mid);margin:0.7rem 0 0';
+  var h = '';
+  if (kind === 'welcome') {
+    var trialEnd = new Date(Date.now() + 21 * 864e5);
+    var trialIso = trialEnd.getFullYear() + '-' + String(trialEnd.getMonth() + 1).padStart(2, '0') + '-' + String(trialEnd.getDate()).padStart(2, '0');
+    if (r.showMode) {
+      h = '<h1 style="font-size:' + head + ';margin:0;color:var(--text)">Welcome to The Rail Roster</h1>' +
+          '<p style="' + p + '">York show special: <strong style="color:var(--text)">' + _subEsc(showPrice) + '</strong>, then ' + _subEsc(price) + '. No free trial with the show price, but you have 7 days to change your mind.</p>' +
+          '<a id="sub-go" href="' + _subEsc(_subCheckoutUrl(r.payLink)) + '" style="' + big + '">Join for the show price</a>';
+    } else {
+      h = '<h1 style="font-size:' + head + ';margin:0;color:var(--text)">Welcome to The Rail Roster</h1>' +
+          '<p style="' + p + '">Try everything free for 3 weeks. Your card is not charged until <strong style="color:var(--text)">' + _subEsc(_subDate(trialIso)) + '</strong>, then ' + _subEsc(price) + '. Cancel any time before then and you pay nothing.</p>' +
+          '<a id="sub-go" href="' + _subEsc(_subCheckoutUrl(r.payLink)) + '" style="' + big + '">Start your 3-week free trial</a>';
+    }
+    h += '<p style="font-size:' + (u.smallFontPx || 15) + 'px;color:var(--text-dim);margin:0.3rem 0 0">Checkout is handled by Stripe. Your Google email (' + _subEsc(email) + ') is filled in for you.</p>';
+  } else if (kind === 'lock') {
+    h = '<h1 style="font-size:' + head + ';margin:0;color:var(--text)">Your subscription has ended</h1>' +
+        '<p style="' + p + '">Renew to keep building your collection — ' + _subEsc(price) + '.</p>' +
+        '<a id="sub-go" href="' + _subEsc(_subCheckoutUrl(r.renewLink || r.payLink)) + '" style="' + big + '">Renew</a>' +
+        '<div style="margin-top:1.4rem;padding-top:1.1rem;border-top:1px solid var(--border)">' +
+          '<div style="font-size:' + body + ';font-weight:700;color:var(--text)">Your collection is still yours</div>' +
+          '<p style="' + p + '">Everything you entered is in your own Google Sheet, and your photos are in your own Google Drive.</p>' +
+          (state.personalSheetId ? '<a href="https://docs.google.com/spreadsheets/d/' + _subEsc(state.personalSheetId) + '" target="_blank" rel="noopener" style="' + quiet + ';text-align:center;text-decoration:none;line-height:44px">Open my collection sheet ↗</a>' : '') +
+          '<button onclick="_prefsOpenPhotosFolder()" style="' + quiet + '">Open my photos folder ↗</button>' +
+        '</div>';
+  } else if (kind === 'wait') {
+    h = '<h1 style="font-size:' + head + ';margin:0;color:var(--text)">Setting up your subscription…</h1>' +
+        '<p style="' + p + '">Thanks! Stripe is letting us know — this usually takes a few seconds.</p>';
+  } else {   // stuck
+    h = '<h1 style="font-size:' + head + ';margin:0;color:var(--text)">Still waiting to hear from Stripe</h1>' +
+        '<p style="' + p + '">If you finished checkout, give it a minute and tap Check again. Nothing will be charged twice.</p>' +
+        '<button id="sub-go" onclick="_subRetries=0;subCheck()" style="' + big + '">Check again</button>' +
+        '<p style="' + p + '">Still stuck? Email <a href="mailto:' + _subEsc(typeof ADMIN_EMAIL !== 'undefined' ? ADMIN_EMAIL : '') + '" style="color:var(--accent2)">' + _subEsc(typeof ADMIN_EMAIL !== 'undefined' ? ADMIN_EMAIL : '') + '</a>.</p>';
+  }
+  if (kind !== 'wait') {
+    h += '<button onclick="handleSignOut()" style="' + quiet + '">Sign out — use a different Google account</button>';
+  }
+  var ov = document.createElement('div');
+  ov.id = 'sub-screen';
+  ov.setAttribute('role', 'dialog');
+  ov.setAttribute('aria-modal', 'true');
+  ov.style.cssText = 'position:fixed;inset:0;z-index:9980;background:var(--bg);display:flex;align-items:flex-start;justify-content:center;overflow-y:auto;padding:2rem 1rem;font-family:var(--font-body)';
+  ov.innerHTML = '<div style="max-width:520px;width:100%;background:var(--surface);border:1px solid var(--border);border-radius:' + ((u.cardRadiusPx || 14) + 'px') + ';padding:1.6rem 1.4rem">' + h + '</div>';
+  document.body.appendChild(ov);
+}
+if (typeof window !== 'undefined') {
+  window._subScreen = _subScreen;
+  window._subCheckoutUrl = _subCheckoutUrl;
 }
 if (typeof window !== 'undefined') { window.subCheck = subCheck; window._subApply = _subApply; }

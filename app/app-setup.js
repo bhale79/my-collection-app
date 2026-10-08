@@ -73,6 +73,13 @@ function _buildAuthScreen() {
         '</svg>' +
         'Continue with Google' +
       '</button>' +
+      // v0.9.1892 (Brad): "add the how to get a gmail account help function
+      // to show you how to get a free gmail email" — straight to the
+      // create-an-account steps (GMAIL_HELP 'create', onboarding-config.js).
+      '<button class="auth-gmail-free" onclick="if(typeof gmailShowPath===\'function\')gmailShowPath(\'create\');" ' +
+        'style="display:block;width:100%;margin-top:0.75rem;background:transparent;border:none;color:var(--accent2);font-size:1rem;font-weight:600;cursor:pointer;text-decoration:underline;text-underline-offset:3px;padding:0.4rem">' +
+        'No Gmail? Get one free \u2014 we\'ll show you how' +
+      '</button>' +
       // v0.9.999: the old 4-line permissions paragraph said the same thing as
       // the amber block three lines above it - two warnings about one
       // permission dilute each other. One line now; the alert carries it.
