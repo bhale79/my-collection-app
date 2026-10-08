@@ -40,7 +40,9 @@ const maint = fs.readFileSync(path.join(__dirname, '..', 'app', 'maintenance.js'
 // The manufacturer row for the LCCA route, lifted as text. Since v0.9.1857 it
 // lives in _maintDiagramLinksHtml (ONE builder for the panel AND the Need-a-
 // part popup), so the indentation is not pinned — the two markers are.
-const START_RX = /if \(route === 'lcca'\) \{\n\s*\/\/ FUTURE SLOT/;
+// v0.9.1896: the old "FUTURE SLOT" comment is now our service-manual scans
+// (service_manual_links_tests.js) — the start marker is that comment.
+const START_RX = /if \(route === 'lcca'\) \{\n\s*\/\/ v0\.9\.1896: Brad's scans of Lionel's own service manual/;
 const END = "} else if (route === 'atlas' && _atlasHit) {";
 function liftBlock(src) {
   const i = src.search(START_RX);
@@ -53,14 +55,14 @@ function liftBlock(src) {
 function runBlock(block, isPhone, pwsmHit) {
   const win = { IS_MOBILE_UA: !!isPhone };
   const fn = new Function('window', 'route', 'item', 'routeLabel', '_pwsmHit', 'linkBtn',
-    '_esc', 'rrJsArg', '_docsUrl', '_btnQuiet',
+    '_esc', 'rrJsArg', '_docsUrl', '_btnQuiet', 'eraKey', '_smSlotHtml', 'where',
     'var h = "", noteId = "maint-lcca-note";\n' + block + '\nreturn h;');
   return fn(win, 'lcca', { itemNum: '2343' },
     pwsmHit ? 'Service Manual pages for 2343 (LCCA members)' : 'LCCA Postwar Service Manual archive (members)',
     pwsmHit ? 'loco_2343' : null, 'class="b"',
     s => String(s), s => String(s),
     () => 'https://www.lionelcollectors.org/docs/default-source/x/loco_2343.pdf?sfvrsn=1',
-    () => 'class="q"');
+    () => 'class="q"', 'pw', () => '', '');   // our scans stubbed empty — this suite judges the LCCA row
 }
 function judge(html) {
   return {

@@ -61,6 +61,7 @@ function build(src, item, opts) {
     _modelWords: () => 'GP-7 diesel',
     rrSearchNumber: () => item.itemNum,
     _lionelBoxNum: n => n,
+    _smSlotHtml: () => '<!--SM-SLOT-->',   // v0.9.1896: our service-manual scans (own suite: service_manual_links_tests.js)
   };
   const names = Object.keys(env);
   const fn = new Function(...names, grab(src, '_maintDiagramLinksHtml') + '\n' + grab(src, '_maintRouteLabel') + '\nreturn _maintDiagramLinksHtml;');
@@ -99,6 +100,10 @@ const pop = build(maint, GP7, { where: 'pop' });
 ok('where = \'pop\': the note carries the popup\'s own id, and the button names it', /id="maint-lcca-note-pop"/.test(pop) && /_maintLccaGo\([^)]*maint-lcca-note-pop/.test(pop) && !/id="maint-lcca-note"/.test(pop));
 const phone = build(maint, GP7, { phone: true });
 ok('on a phone: no LCCA button (v1846), Trainz + Google still there', !/_maintLccaGo\(/.test(phone) && /trainz\.com\/pages\/parts-diagram/.test(phone) && /Google the parts diagram/.test(phone));
+// v0.9.1896: our service-manual scans sit ABOVE the LCCA button, on phones too, postwar only
+ok('postwar: our service-manual slot comes before the LCCA button', desk.indexOf('<!--SM-SLOT-->') >= 0 && desk.indexOf('<!--SM-SLOT-->') < desk.indexOf('_maintLccaGo('));
+ok('…and stays on a phone (Drive opens anywhere)', phone.indexOf('<!--SM-SLOT-->') >= 0);
+ok('prewar (same LCCA route) gets no service-manual slot', build(maint, GP7, { era: 'prewar' }).indexOf('<!--SM-SLOT-->') < 0);
 const noTz = build(maint, GP7, { tz: null });
 ok('no Trainz diagram for this item: no Trainz button, Google still there', !/trainz\.com/.test(noTz) && /Google the parts diagram/.test(noTz));
 const other = build(maint, { itemNum: '123' }, { route: 'other', maker: 'Weaver', tz: null });

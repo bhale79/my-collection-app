@@ -1040,6 +1040,225 @@
     return null;
   }
 
+  // ══ v0.9.1896: Lionel's postwar service manual — OUR scans ═════════════
+  // [stated] Brad, 2026-10-08: "our new lionel maintenance sheets should show
+  // up under the manuals and parts diagrams section. it should auto show the
+  // sheet from our list. this should be above the lcca members button" and
+  // "if our item is lionel postwar, it should already know its diagram."
+  // The list is the master's service-manual tab (SERVICE_MANUAL_TAB, config.js
+  // — the ONE place the name lives): one row per sheet, "Covers items" = the
+  // catalog numbers the sheet serves (from the page itself, Lionel's 1961
+  // cross-index and the LCCA index), "Covers (closest similar)" = Lionel's own
+  // "closest similar item" pointers, "Scan link" / "Back scan link" = our scan
+  // on the master's Drive. Read ONLY when a Lionel postwar item's Maintenance
+  // opens; kept for the session, and on this device until the Master Version
+  // changes or CATALOG_REFRESH_MAX_AGE_DAYS pass. Columns are read BY HEADER
+  // NAME. Only sheets we have a scan of are kept — nothing to show otherwise.
+  var _SM_CACHE_KEY = 'rr_sm_cache_v1';
+  var _smRows = null, _smLoading = null;
+  var _SM_HDR = { id: 'sheetid', sec: 'section', pg: 'page', dt: 'dateprinted', ty: 'pagetype',
+                  cov: 'coversitems', sim: 'coversclosestsimilar', u: 'scanlink', b: 'backscanlink' };
+  // a scan link is only ever our Drive — anything else on the sheet is ignored
+  function _smSafeUrl(u) {
+    u = String(u == null ? '' : u).trim();
+    return /^https:\/\/drive\.google\.com\/[A-Za-z0-9_\-\/?=&.]+$/.test(u) ? u : '';
+  }
+  // the sheet's values (header row first) → the scanned sheets, compact
+  function _smParse(values) {
+    if (!values || !values.length) return [];
+    var hdr = values[0].map(function (h) { return String(h == null ? '' : h).toLowerCase().replace(/[^a-z0-9]/g, ''); });
+    var col = {};
+    Object.keys(_SM_HDR).forEach(function (k) { col[k] = hdr.indexOf(_SM_HDR[k]); });
+    if (col.sec < 0 || col.cov < 0 || col.u < 0) {
+      console.warn('[service-manual] tab header missing Section / Covers items / Scan link — nothing shown');
+      return [];
+    }
+    var out = [];
+    for (var i = 1; i < values.length; i++) {
+      var r = values[i] || [];
+      var cell = function (k) { return col[k] < 0 ? '' : String(r[col[k]] == null ? '' : r[col[k]]).trim(); };
+      var u = _smSafeUrl(cell('u'));
+      if (!u) continue;
+      out.push({ id: cell('id'), sec: cell('sec'), pg: cell('pg'), dt: cell('dt'), ty: cell('ty'),
+                 cov: cell('cov'), sim: cell('sim'), u: u, b: _smSafeUrl(cell('b')), o: i });
+    }
+    return out;
+  }
+  // one catalog number, the way both sides are compared: capitals, no spaces,
+  // the Lionel unit letter joined (2343-P → 2343P; 6464-100 keeps its dash),
+  // and a year in brackets set aside — 2245C(54) → { k: '2245C', y: '54' }
+  function _smTok(s) {
+    s = String(s == null ? '' : s).toUpperCase().replace(/\s+/g, '');
+    var y = '';
+    var m = s.match(/\((\d{2,4})\)$/);
+    if (m) { y = m[1].slice(-2); s = s.slice(0, m.index); }
+    return { k: s.replace(/-(?=[PTCD]$)/, ''), y: y };
+  }
+  // which sheets serve this number? Same ladder as _pwsmFile (the LCCA index):
+  // exact first; a plain number also asks for its P (the catalog writes the
+  // powered A-unit 2343, Lionel's index 2343P); then the -NN variation
+  // dropped (2026-58 → 2026); then trailing letters dropped (2046W → 2046) —
+  // each step ONLY when the one before found nothing. "Closest similar" rows
+  // are Lionel's own pointer and are kept apart, never mixed in.
+  function _smMatch(rows, itemNum) {
+    var res = { direct: [], similar: [] };
+    var n = _smTok(String(itemNum == null ? '' : itemNum).replace(/^X(?=\d)/, '')).k;
+    if (!n || !rows || !rows.length) return res;
+    var noSub = n.replace(/-\d+$/, '');
+    var noSuf = noSub.replace(/[A-Z]+$/, '');
+    var steps = [[n]];
+    if (/^\d+$/.test(n)) steps[0].push(n + 'P');
+    if (noSub !== n) steps.push(/^\d+$/.test(noSub) ? [noSub, noSub + 'P'] : [noSub]);
+    if (noSuf && noSuf !== noSub) steps.push([noSuf, noSuf + 'P']);
+    function find(field) {
+      for (var s = 0; s < steps.length; s++) {
+        var hits = [];
+        rows.forEach(function (r) {
+          // a year tag only when every matching entry on the sheet names the
+          // SAME year — "2245C(54), 2245C(55)" is both versions, no tag
+          var toks = String(r[field] || '').split(/[,;]/), ys = [], any = false, plain = false;
+          for (var t = 0; t < toks.length; t++) {
+            var tk = _smTok(toks[t]);
+            if (!tk.k || steps[s].indexOf(tk.k) < 0) continue;
+            any = true;
+            if (!tk.y) plain = true; else if (ys.indexOf(tk.y) < 0) ys.push(tk.y);
+          }
+          if (any) hits.push({ r: r, y: (!plain && ys.length === 1) ? ys[0] : '' });
+        });
+        if (hits.length) return hits;
+      }
+      return [];
+    }
+    res.direct = find('cov');
+    var seen = {};
+    res.direct.forEach(function (h) { seen[h.r.o] = 1; });
+    res.similar = find('sim').filter(function (h) { return !seen[h.r.o]; });
+    return res;
+  }
+  // printing date → a number to sort by (10-59 → 5910; "no date" → -1)
+  function _smDateNum(d) {
+    d = String(d || '');
+    var m = d.match(/(\d{1,2})-(\d{2})\s*$/);
+    if (m) return +m[2] * 100 + +m[1];
+    m = d.match(/19(\d{2})/);
+    return m ? +m[1] * 100 : -1;
+  }
+  function _smPageNum(p) {
+    p = String(p || '').toLowerCase();
+    var m = p.match(/(\d+)/);
+    var pl = /\bpl\b|parts list|prelim/.test(p);   // parts lists after the numbered pages
+    if (!p || p === 'no number') return 0;
+    return (pl ? 1000 : 0) + (m ? +m[1] : (pl ? 0 : 999));
+  }
+  // newest printing of each section + page first (in manual order), the
+  // older printings of the same page after, quieter
+  function _smOrder(hits) {
+    var secOrder = {};
+    hits.forEach(function (h) { var s = h.r.sec; if (secOrder[s] == null || h.r.o < secOrder[s]) secOrder[s] = h.r.o; });
+    var sorted = hits.slice().sort(function (a, b) {
+      return (secOrder[a.r.sec] - secOrder[b.r.sec])
+          || (_smPageNum(a.r.pg) - _smPageNum(b.r.pg))
+          || String(a.r.pg).localeCompare(String(b.r.pg))
+          || (_smDateNum(b.r.dt) - _smDateNum(a.r.dt))
+          || (a.r.o - b.r.o);
+    });
+    var newest = [], older = [], had = {};
+    sorted.forEach(function (h) {
+      var k = h.r.sec + '|' + String(h.r.pg).toLowerCase();
+      if (had[k]) older.push(h); else { had[k] = 1; newest.push(h); }
+    });
+    return { newest: newest, older: older };
+  }
+  function _smLabel(h) {
+    var r = h.r, parts = [r.sec, r.ty || 'Sheet'];
+    var pg = String(r.pg || '').trim();
+    if (pg && !/^(pl|no number)$/i.test(pg)) parts.push(pg);
+    if (r.dt && !/^no date$/i.test(r.dt)) parts.push(r.dt);
+    if (h.y) parts.push('’' + h.y + ' version');
+    return parts.join(' · ');
+  }
+  function _smOpenBtn(url, label, attr) {
+    return '<button onclick="window.open(\'' + rrJsArg(url) + '\',\'_blank\')" ' + attr + '>' + _esc(label) + ' →</button>';
+  }
+  function _smRowHtml(h, attr) {
+    var s = '<div style="display:flex;gap:0.4rem;flex-wrap:wrap;align-items:center">' + _smOpenBtn(h.r.u, _smLabel(h), attr);
+    if (h.r.b) s += _smOpenBtn(h.r.b, 'Back of sheet', _btnQuiet('sm'));
+    return s + '</div>';
+  }
+  // the block that sits above the LCCA button — '' when we have no scan
+  function _smBlockHtml(match) {
+    if (!match || (!match.direct.length && !match.similar.length)) return '';
+    var h = '<div style="font-size:0.78rem;font-weight:700;color:var(--text);margin-bottom:0.4rem">Lionel Service Manual — our scans</div>'
+      + '<div style="display:flex;flex-direction:column;gap:0.4rem">';
+    var d = _smOrder(match.direct);
+    d.newest.forEach(function (x) { h += _smRowHtml(x, _btn('blue')); });
+    h += '</div>';
+    if (d.older.length) {
+      h += '<div style="font-size:0.72rem;color:var(--text-dim);margin:0.55rem 0 0.3rem">Older printings</div>'
+        + '<div style="display:flex;flex-direction:column;gap:0.35rem">';
+      d.older.forEach(function (x) { h += _smRowHtml(x, _btnQuiet('sm')); });
+      h += '</div>';
+    }
+    if (match.similar.length) {
+      var s = _smOrder(match.similar);
+      h += '<div style="font-size:0.72rem;color:var(--text-dim);margin:0.55rem 0 0.3rem">Lionel\'s closest similar item</div>'
+        + '<div style="display:flex;flex-direction:column;gap:0.35rem">';
+      s.newest.concat(s.older).forEach(function (x) { h += _smRowHtml(x, _btnQuiet('sm')); });
+      h += '</div>';
+    }
+    return h + '<div style="font-size:0.72rem;color:var(--text-dim);margin:0.45rem 0 0.7rem">Lionel\'s own service-manual sheets for this item, from The Rail Roster\'s scans. Opens in Google Drive.</div>';
+  }
+  // the scanned sheets: memory → this device's copy → the master tab
+  function _smCacheGet() {
+    try {
+      var c = JSON.parse(localStorage.getItem(_SM_CACHE_KEY) || 'null');
+      if (!c || !Array.isArray(c.rows)) return null;
+      var mv = (typeof state !== 'undefined' && state.masterVersion && state.masterVersion.v) || '';
+      if (mv && c.mv !== mv) return null;
+      var days = (typeof CATALOG_REFRESH_MAX_AGE_DAYS === 'number') ? CATALOG_REFRESH_MAX_AGE_DAYS : 7;
+      if (!(Date.now() - (c.at || 0) < days * 86400000)) return null;
+      return c.rows;
+    } catch (e) { return null; }
+  }
+  function _smLoad() {
+    if (_smRows) return Promise.resolve(_smRows);
+    var cached = _smCacheGet();
+    if (cached) { _smRows = cached; return Promise.resolve(_smRows); }
+    if (_smLoading) return _smLoading;
+    var sid = (typeof state !== 'undefined' && state.masterSheetId) || (typeof MASTER_SHEET_ID !== 'undefined' ? MASTER_SHEET_ID : '');
+    if (!sid || typeof sheetsGet !== 'function' || typeof SERVICE_MANUAL_TAB === 'undefined') return Promise.resolve([]);
+    _smLoading = sheetsGet(sid, "'" + SERVICE_MANUAL_TAB + "'!A1:Z").then(function (resp) {
+      _smRows = _smParse(resp && resp.values);
+      if (_smRows.length) try {
+        var mv = (typeof state !== 'undefined' && state.masterVersion && state.masterVersion.v) || '';
+        localStorage.setItem(_SM_CACHE_KEY, JSON.stringify({ mv: mv, at: Date.now(), rows: _smRows }));
+      } catch (e) {}
+      return _smRows;
+    }).catch(function (e) {
+      console.warn('[service-manual] could not read the tab:', e && e.message);
+      return [];   // not remembered — the next open tries again
+    }).then(function (rows) { _smLoading = null; return rows; });
+    return _smLoading;
+  }
+  // called by _maintDiagramLinksHtml for Lionel POSTWAR items only. Loaded
+  // already → the buttons now; not yet → an empty slot filled when the list
+  // arrives (only if the slot still belongs to the same item — the user may
+  // have moved on).
+  function _smSlotHtml(item, where) {
+    var num = String(item && item.itemNum || '').trim();
+    if (!num) return '';
+    if (_smRows) return _smBlockHtml(_smMatch(_smRows, num));
+    var id = 'maint-sm' + (where ? '-' + where : '');
+    setTimeout(function () {
+      _smLoad().then(function (rows) {
+        var el = document.getElementById(id);
+        if (!el || el.getAttribute('data-sm-num') !== num) return;
+        el.innerHTML = _smBlockHtml(_smMatch(rows, num));
+      });
+    }, 0);
+    return '<div id="' + id + '" data-sm-num="' + _esc(num) + '"></div>';
+  }
+
   // ── which maker's docs? (era key → docs route) ───────────────
   // Era stamps are facts (see _itemEraKey); numbers are not identities.
   function _docsRoute(eraKey) {
@@ -1587,7 +1806,11 @@
     var h = '';
     // ── the manufacturer row ──
     if (route === 'lcca') {
-      // FUTURE SLOT: Brad's original Lionel parts diagrams go here, above LCCA.
+      // v0.9.1896: Brad's scans of Lionel's own service manual FIRST, above
+      // LCCA, on every device (Drive opens anywhere) — Lionel POSTWAR only;
+      // the sheets are postwar, a prewar item never borrows one. The LCCA
+      // button below goes when the set is complete ([stated] Brad).
+      if (String(eraKey || '').toLowerCase() === 'pw') h += _smSlotHtml(item, where);
       // v0.9.1846 ([stated] Brad: "just remove the lcca button from the
       // mobile app all together but keep it on the desktop"). The LCCA
       // route is copy-the-link + paste it in the browser's address bar

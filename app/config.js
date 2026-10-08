@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.1895';
+const APP_VERSION = 'v0.9.1896';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -862,6 +862,12 @@ const MASTER_SHEET_ID = '1Y9-cg8C1CkIqy0RQ66DfP7fmGrE3IGBpyJbtdfYx8q0';
 // Before this, every start re-downloaded all 44 catalogs (28 requests, ~12 s,
 // seven reindex+repaint freezes) whether anything had changed or not.
 const CATALOG_REFRESH_MAX_AGE_DAYS = 7;
+// v0.9.1896: the master tab listing every sheet of Lionel's postwar service
+// manual (one row per sheet; Scan link = our scan on the master's Drive).
+// Maintenance reads it on demand for Lionel postwar items. The name lives HERE
+// only — maintenance.js and the tests read this constant.
+const SERVICE_MANUAL_TAB = 'Lionel PW - Service Manual';
+if (typeof window !== 'undefined') window.SERVICE_MANUAL_TAB = SERVICE_MANUAL_TAB;
 
 // ── Admin config ──
 // The address every "contact us" path hands to a user: Send Feedback in
