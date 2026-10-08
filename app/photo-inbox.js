@@ -7299,7 +7299,8 @@
     q = String(q || '').trim().toLowerCase();
     var el = document.getElementById('pin-attach-list');
     if (!el) return;
-    if (q.length < 2) { _pinAttachDefault(el); return; }
+    // v0.9.1895: a one-digit number (your No. 4) is a real search.
+    if (q.length < 2 && !/^\d$/.test(q)) { _pinAttachDefault(el); return; }
     var pdMap = (window.state || {}).personalData || {};
     var hits = [];
     Object.keys(pdMap).forEach(function (k) {
@@ -7309,7 +7310,10 @@
         + String(pd.customName || '') + ' ' + String(pd.roadName || '')).toLowerCase();
       if (hay.indexOf(q) >= 0) hits.push({ key: k, pd: pd });
     });
-    hits.sort(function (a, b) { return String(a.pd.itemNum || '').localeCompare(String(b.pd.itemNum || ''), undefined, { numeric: true }); });
+    // v0.9.1895: the item whose number IS what was typed comes first ("4" puts
+    // your No. 4 above every item that merely has a 4 in its words).
+    var _isExact = function (h) { return String(h.pd.itemNum || '').toLowerCase() === q ? 0 : 1; };
+    hits.sort(function (a, b) { return (_isExact(a) - _isExact(b)) || String(a.pd.itemNum || '').localeCompare(String(b.pd.itemNum || ''), undefined, { numeric: true }); });
     var total = hits.length;
     if (hits.length > 30) hits = hits.slice(0, 30);
     _pinAttachRows(el, total > 30 ? 'First 30 of ' + total + ' matches' : (total + ' match' + (total === 1 ? '' : 'es')), hits);

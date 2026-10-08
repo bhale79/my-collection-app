@@ -435,16 +435,27 @@ window.eraSupportsBarcode = eraSupportsBarcode;
   // v0.9.742 (Brad): "i maybe wanting an atlas boxcar that has l&n on it" —
   // the research lookup accepts WORDS, not just numbers. Every-token-must-
   // match scan over itemNum+roadName+description+itemType, across all eras.
+  // v0.9.1895 (Brad: "4 trolley" — the 4 was thrown away): a ONE-digit word
+  // is kept now (a one-letter word still is not), and a row whose item number
+  // IS one of the typed numbers comes first, so "4 trolley" opens on the No. 4
+  // instead of whichever 40 trolleys happened to load first. With a typed
+  // number the scan reads every row (only the extras stop at the limit) —
+  // an early stop could end before the exact number was reached.
   async function _masterTextSearchAllEras(query, limit) {
     limit = limit || 40;
-    var toks = String(query || '').toLowerCase().split(/\s+/).filter(function (t) { return t.length >= 2; });
+    var toks = String(query || '').toLowerCase().split(/\s+/).filter(function (t) { return t.length >= 2 || /^\d$/.test(t); });
     if (!toks.length) return [];
-    var out = [], seen = {};
+    var numToks = toks.filter(function (t) { return /^\d/.test(t); });
+    var front = [], out = [], seen = {};
+    function full() { return numToks.length ? front.length >= limit : out.length >= limit; }
     function scan(arr, era) {
       if (!arr) return;
-      for (var i = 0; i < arr.length && out.length < limit; i++) {
+      for (var i = 0; i < arr.length && !full(); i++) {
         var m = arr[i];
-        var hay = ((m.itemNum || '') + ' ' + (m.roadName || '') + ' ' + (m.description || '') + ' ' + (m.itemType || '')).toLowerCase();
+        var num = String(m.itemNum || '').toLowerCase();
+        var exact = numToks.indexOf(num) >= 0;
+        if (!exact && out.length >= limit) continue;
+        var hay = (num + ' ' + (m.roadName || '') + ' ' + (m.description || '') + ' ' + (m.itemType || '')).toLowerCase();
         var ok = true;
         for (var t = 0; t < toks.length; t++) { if (hay.indexOf(toks[t]) < 0) { ok = false; break; } }
         if (!ok) continue;
@@ -453,24 +464,24 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         if (seen[key]) continue;
         seen[key] = 1;
         if (!m._era) m._era = era;
-        out.push(m);
+        (exact ? front : out).push(m);
       }
     }
     var curEra = (typeof _currentEra !== 'undefined') ? _currentEra : '';
     // v0.9.971: shared full-catalog rows — one pass over everything.
     if (typeof state !== 'undefined' && Array.isArray(state.masterAllRows) && state.masterAllRows.length) {
       scan(state.masterAllRows, '');
-      return out;
+      return front.concat(out).slice(0, limit);
     }
     if (typeof state !== 'undefined' && state.masterData) scan(state.masterData, curEra);
     if (typeof REAL_ERA_IDS !== 'undefined' && Array.isArray(REAL_ERA_IDS) && typeof idbGet === 'function') {
-      for (var i = 0; i < REAL_ERA_IDS.length && out.length < limit; i++) {
+      for (var i = 0; i < REAL_ERA_IDS.length && !full(); i++) {
         var era = REAL_ERA_IDS[i];
         if (era === curEra) continue;
         try { scan(await idbGet('lv_master_cache_' + era), era); } catch (e) {}
       }
     }
-    return out;
+    return front.concat(out).slice(0, limit);
   }
   window._masterTextSearchAllEras = _masterTextSearchAllEras;
 
@@ -2866,7 +2877,8 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         var inp = dd.querySelector('#bi-quick'), box = dd.querySelector('#bi-quick-sug');
         if (!inp || !box) return;
         var q = inp.value.trim();
-        if (q.length < 2) { box.innerHTML = ''; return; }
+        // v0.9.1895: a one-digit number (4, 8) is a real item number — suggest for it.
+        if (q.length < 2 && !/^\d$/.test(q)) { box.innerHTML = ''; return; }
         var o = {
           era: (dd.querySelector('#bi-quick-era') || {}).value || '',
           mfr: (dd.querySelector('#bi-quick-mfr') || {}).value || '',

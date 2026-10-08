@@ -194,6 +194,11 @@ function handleUnitNumKey(e, field) {
   }
 }
 
+// A steam wheel arrangement (0-6-0, 4-6-4, 4-6-6-4): 3+ groups of 1-2
+// digits. ONE definition — the number picker and the number-vs-words
+// decision in updateItemSuggestions both ask it.
+function _rrIsWheelArrangement(t) { return /^\d{1,2}(?:-\d{1,2}){2,}$/.test(String(t || '')); }
+
 // Bug 9 (Session 154): pull the item-number token out of a longer query
 // like "MTH Premier 20-93699" or "Lionel 736 berkshire" so the lookup
 // matches on the number, not the whole descriptive string. Returns the
@@ -209,10 +214,9 @@ function _extractSearchItemNum(query) {
   // digits) so they fall through to description matching instead. Real
   // item numbers (2343, 736, MTH "20-3132-1") are unaffected — 20-3132-1
   // has a 4-digit group so it is not a wheel arrangement.
-  var _WHEEL = /^\d{1,2}(?:-\d{1,2}){2,}$/;
   for (var i = 0; i < toks.length; i++) {
     var t = toks[i];
-    if (_WHEEL.test(t)) continue;
+    if (_rrIsWheelArrangement(t)) continue;
     // Strip a single-digit MPC/modern Lionel product-line prefix ("6-8359" ->
     // "8359", "7-11193" -> "11193") so it matches the bare master number.
     // MTH "20-3132-1" (two-digit prefix) and postwar "6464-1" are unaffected.
@@ -269,7 +273,13 @@ function updateItemSuggestions(query) {
     // the query (handles "MTH Premier 20-93699"), and treat manufacturer/
     // line words as non-filtering context.
     const _searchNum = _extractSearchItemNum(q);
-    const startsWithDigit = /\d{2,}/.test(_searchNum) || /\d-\d/.test(_searchNum);
+    // v0.9.1895 (Brad: "want to add a 4 trolley. it doesn't show up"):
+    // a ONE-digit number (4, 8, 8E) was treated as TEXT, so "4" matched any
+    // description containing a 4 ("0-4-0") and the No. 4 Trolley — whose
+    // words hold no 4 — never showed. A token that STARTS with a digit is a
+    // number, unless it is a wheel arrangement (4-6-4), which is words.
+    const startsWithDigit = !_rrIsWheelArrangement(_searchNum)
+      && (/^\d/.test(_searchNum) || /\d{2,}/.test(_searchNum) || /\d-\d/.test(_searchNum));
     const qParts = q.split(/\s+/);
     const numPart = _searchNum;
     const _stopWords = new Set((window.ITEM_SEARCH_FILTERS && window.ITEM_SEARCH_FILTERS.searchStopWords) || []);
