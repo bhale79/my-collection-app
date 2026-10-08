@@ -24,6 +24,13 @@
 //   G. The loader: one read of the tab even when two callers ask at once; kept
 //      on this device; a different Master Version throws the copy away; a
 //      failed read is not remembered.
+//   I. v0.9.1897 ([stated] Brad: "pages 1-4 should be together as one link with
+//      the parts so a user can scroll up and down. also include the older
+//      printings"): ONE button per section; it opens ONE scrolling viewer with
+//      every sheet of that section — newest printing of each page in page
+//      order, a back right after its front, then "Older printings". The
+//      viewer is worked out again from the loaded list (never another item's
+//      sheets), is guarded (rrDismissGuard) and has a Close / ✕.
 // Every rule is proven able to fail on a planted offender.
 // Run:  node tests/service_manual_links_tests.js
 // ═══════════════════════════════════════════════════════════════
@@ -66,8 +73,12 @@ function load(src, env) {
     setTimeout: env.setTimeout || (f => f()),
     console: { warn: () => {}, log: () => {} },
     _esc: s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;'),
-    rrJsArg: s => String(s).replace(/\\/g, '\\\\').replace(/'/g, "\\'"),
-    _btn: () => 'class="b"', _btnQuiet: () => 'class="q"',
+    // the real rrJsArg (app.js): quotes for the JS string, THEN rrEsc for the attribute
+    rrJsArg: s => String(s).replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;'),
+    _btn: () => 'class="b"', _btnQuiet: () => 'class="q"', _btnSecondary: () => 'class="s"',
+    SECT: 'x', _cardOpen: () => '<div class="card">', _cardFoot: i => '<div class="foot">' + i + '</div>',
+    _cardHead: (c, t, close) => '<div class="head">' + c + '|' + t + '<button onclick="' + close + '">&#x2715;</button></div>',
+    window: env.window || {},
   };
   const names = Object.keys(g);
   const api = '_smParse,_smMatch,_smOrder,_smLabel,_smBlockHtml,_smLoad,_smSlotHtml,_smTok';
@@ -156,14 +167,17 @@ ok('label: section · type · page · date', M._smLabel(o.newest[0]) === 'LOC 23
 ok('label: a "PL" page does not repeat itself', M._smLabel(o.newest[2]) === 'LOC 2328 · Parts list · 10-59');
 
 section('F · the block');
-const html = M._smBlockHtml(M._smMatch(ROWS, '2338'));
-ok('heading + one button per newest page, each opening our Drive scan', /Lionel Service Manual/.test(html) && html.indexOf(D('b2')) > 0 && html.indexOf(D('b1')) > 0 && html.indexOf(D('b3')) > 0);
-ok('"Older printings" below them', html.indexOf('Older printings') > html.indexOf(D('b3')) && html.indexOf(D('b0')) > html.indexOf('Older printings'));
-ok('back-of-sheet button when there is a back scan', /Back of sheet/.test(M._smBlockHtml(M._smMatch(ROWS, '2240'))) && M._smBlockHtml(M._smMatch(ROWS, '2240')).indexOf(D('a3b')) > 0);
-ok('"closest similar" has its own heading', /closest similar item/.test(M._smBlockHtml(sim)));
+const html = M._smBlockHtml(M._smMatch(ROWS, '2338'), '2338');
+const btns = html.match(/<button[^>]*>[^<]*<\/button>/g) || [];
+ok('2338: ONE button for the whole LOC 2328 section (all 4 sheets, older printing included)', btns.length === 1 && /LOC 2328 \u2014 4 sheets/.test(btns[0]), btns.join(' | '));
+ok('…it opens the viewer for that number + section, not a single Drive page', /_smOpenViewer\('2338','LOC 2328','d'\)/.test(btns[0]) && html.indexOf('drive.google.com') < 0);
+ok('…and says what is inside: the page types and the older printing', /Parts diagram, parts list \u00b7 1 older printing/.test(html), html.replace(/<[^>]+>/g, ' '));
+const h2245 = M._smBlockHtml(M._smMatch(ROWS, '2245C'), '2245C');
+ok('two sections → two buttons, in the manual\'s order (LOC 2200 before LOC 2245C)', (h2245.match(/<button/g) || []).length === 2 && h2245.indexOf('LOC 2200 \u2014') < h2245.indexOf('LOC 2245C (1954) \u2014'));
+ok('"closest similar" has its own heading and its own kind (s)', /closest similar item/.test(M._smBlockHtml(sim, '6476')) && /_smOpenViewer\('6476','NOC 6446','s'\)/.test(M._smBlockHtml(sim, '6476')));
 ok('nothing scanned → empty string (no lonely heading)', M._smBlockHtml(M._smMatch(ROWS, '9999')) === '' && M._smBlockHtml(null) === '');
 const evil = M._smParse([HDR, row({ Section: '<img src=x onerror=alert(1)>', 'Covers items': '1', 'Scan link': D('z') })]);
-ok('sheet text is escaped in the button', !/<img/.test(M._smBlockHtml(M._smMatch(evil, '1'))));
+ok('sheet text is escaped in the button', !/<img/.test(M._smBlockHtml(M._smMatch(evil, '1'), '1')));
 
 section('G · the loader');
 (async () => {
@@ -198,6 +212,30 @@ section('G · the loader');
   ok('…but never into a slot that now belongs to another item', el2.innerHTML === '');
   ok('loaded → the buttons straight away, no placeholder', /LOC 2328/.test(L5._smSlotHtml({ itemNum: '2338' }, '')) && !/data-sm-num/.test(L5._smSlotHtml({ itemNum: '2338' }, '')));
 
+  section('I · the one-page viewer');
+  function viewer(src, num, sec, kind) {
+    let out = null, guarded = 0;
+    const win = { rrDismissGuard: () => { guarded++; } };
+    const L = load(src, { window: win, sheetsGet: () => Promise.resolve({ values: VALUES }),
+      document: { getElementById: () => null, body: { insertAdjacentHTML: (w, h) => { out = h; } } } });
+    return L._smLoad().then(() => { win._smOpenViewer(num, sec, kind); return { html: out, guarded }; });
+  }
+  const V = await viewer(maint, '2338', 'LOC 2328', 'd');
+  const vh = V.html || '';
+  const at = id => vh.indexOf('thumbnail?id=' + id + '&');
+  ok('the viewer opens with every LOC 2328 sheet as a picture on one page', ['b0', 'b1', 'b2', 'b3'].every(id => at(id) > 0));
+  ok('…newest printing in page order: page 2, page 3 (1-59), parts list', at('b2') < at('b1') && at('b1') < at('b3'));
+  ok('…then "Older printings", then the 4-57 page 3', vh.indexOf('Older printings') > at('b3') && at('b0') > vh.indexOf('Older printings'));
+  ok('…each page opens its full scan in Drive', ['b0', 'b1', 'b2', 'b3'].every(id => vh.indexOf("window.open('" + D(id) + "'") > 0));
+  ok('…pictures load lazily and a broken one says so (no blank gap)', /loading="lazy"/.test(vh) && /onerror=/.test(vh) && /did not load here/.test(vh));
+  ok('…titled with the number and section, with a ✕ and a Close (a way out)', /No\. 2338 \u00b7 Lionel Service Manual\|LOC 2328 \u2014 4 sheets/.test(vh) && /&#x2715;/.test(vh) && />Close<\/button>/.test(vh));
+  ok('…guarded once: a stray tap outside never closes it, device Back does', V.guarded === 1);
+  const V2 = await viewer(maint, '2240', 'LOC 2200', 'd');
+  const v2 = V2.html || '';
+  ok('a sheet\'s back comes right after its front', v2.indexOf('thumbnail?id=a3&') > 0 && v2.indexOf('thumbnail?id=a3b&') > v2.indexOf('thumbnail?id=a3&') && /back of sheet/.test(v2));
+  ok('the viewer never shows a section the number is not on (2240 asking for LOC 2328 → nothing)', (await viewer(maint, '2240', 'LOC 2328', 'd')).html === null);
+  ok('closest-similar viewer only from the similar list', (await viewer(maint, '6476', 'NOC 6446', 's')).html !== null && (await viewer(maint, '6476', 'NOC 6446', 'd')).html === null);
+
   section('H · planted offenders are caught');
   ok('H1 the tab name typed into maintenance.js is caught', nameTypedElsewhere(APP_FILES.map(([f, t]) => [f, f === 'maintenance.js' ? t + "\nvar T = 'Lionel PW - Service Manual';" : t])).indexOf('maintenance.js') >= 0);
   ok('H2 the slot moved under the LCCA button is caught', (() => {
@@ -230,6 +268,17 @@ section('G · the loader');
   ok('H12 the empty-block rule broken (a lonely heading) is caught', (() => {
     const m9 = maint.replace("if (!match || (!match.direct.length && !match.similar.length)) return '';", 'if (!match) return \'\';');
     return m9 !== maint && load(m9)._smBlockHtml({ direct: [], similar: [] }) !== ''; })());
+
+  const m10 = maint.replace("var hits = (kind === 's' ? m.similar : m.direct).filter(function (h) { return h.r.sec === secName; });", "var hits = m.direct.concat(m.similar);");
+  ok('H13 a viewer that ignores the section (shows another section\'s sheets) is caught', m10 !== maint && (await viewer(m10, '2240', 'LOC 2328', 'd')).html !== null);
+  const m11 = maint.replace("      if (x.r.b) h += _smPageHtml(x.r.b,", "      if (false) h += _smPageHtml(x.r.b,");
+  ok('H14 the back of a sheet left out of the viewer is caught', m11 !== maint && !/thumbnail\?id=a3b&/.test((await viewer(m11, '2240', 'LOC 2200', 'd')).html || ''));
+  const m12 = maint.replace("    if (o.older.length) {\n      h += '<div style=\"' + SECT + ';margin-top:0.6rem", "    if (false) {\n      h += '<div style=\"' + SECT + ';margin-top:0.6rem");
+  ok('H15 the older printings dropped from the viewer are caught', m12 !== maint && !/thumbnail\?id=b0&/.test((await viewer(m12, '2338', 'LOC 2328', 'd')).html || ''));
+  const m13 = maint.replace("    try { if (window.rrDismissGuard) window.rrDismissGuard(document.getElementById('maint-sm-viewer')); } catch (eG) {}\n", '');
+  ok('H16 the viewer left unguarded is caught', m13 !== maint && (await viewer(m13, '2338', 'LOC 2328', 'd')).guarded === 0);
+  const m14 = maint.replace("_smSections(match.direct).forEach(function (sec) {", "match.direct.map(function (x) { return { sec: x.r.sec + ' ' + x.r.pg, hits: [x] }; }).forEach(function (sec) {");
+  ok('H17 one button per PAGE again (the v1896 layout) is caught', m14 !== maint && (load(m14)._smBlockHtml(load(m14)._smMatch(P(m14), '2338'), '2338').match(/<button/g) || []).length !== 1);
 
   console.log('\n' + pass + ' passed, ' + fail + ' failed');
   process.exit(fail ? 1 : 0);

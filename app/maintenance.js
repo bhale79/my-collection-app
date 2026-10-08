@@ -1177,37 +1177,108 @@
     if (h.y) parts.push('’' + h.y + ' version');
     return parts.join(' · ');
   }
-  function _smOpenBtn(url, label, attr) {
-    return '<button onclick="window.open(\'' + rrJsArg(url) + '\',\'_blank\')" ' + attr + '>' + _esc(label) + ' →</button>';
+  // v0.9.1897 ([stated] Brad: "pages 1-4 should be together as one link with
+  // the parts so a user can scroll up and down. also include the older
+  // printings"): ONE button per manual section. It opens the viewer below —
+  // every sheet of that section on one scrolling page: the newest printing
+  // of each page in page order (parts lists last), a sheet's back right
+  // after its front, then the older printings under their own label.
+  // Sections keep the manual's order (the tab's row order).
+  function _smSections(hits) {
+    var by = {}, order = [];
+    hits.forEach(function (h) {
+      if (!by[h.r.sec]) { by[h.r.sec] = []; order.push(h.r.sec); }
+      by[h.r.sec].push(h);
+    });
+    order.sort(function (a, b) {
+      return Math.min.apply(null, by[a].map(function (h) { return h.r.o; }))
+           - Math.min.apply(null, by[b].map(function (h) { return h.r.o; }));
+    });
+    return order.map(function (s) { return { sec: s, hits: by[s] }; });
   }
-  function _smRowHtml(h, attr) {
-    var s = '<div style="display:flex;gap:0.4rem;flex-wrap:wrap;align-items:center">' + _smOpenBtn(h.r.u, _smLabel(h), attr);
-    if (h.r.b) s += _smOpenBtn(h.r.b, 'Back of sheet', _btnQuiet('sm'));
-    return s + '</div>';
+  // our scan's Drive file → the picture Drive serves of it (works signed-out)
+  function _smThumb(u) {
+    var m = String(u || '').match(/\/file\/d\/([A-Za-z0-9_-]+)/) || String(u || '').match(/[?&]id=([A-Za-z0-9_-]+)/);
+    return m ? 'https://drive.google.com/thumbnail?id=' + m[1] + '&sz=w2000' : '';
+  }
+  function _smSheetCount(hits) { return hits.length + ' sheet' + (hits.length === 1 ? '' : 's'); }
+  function _smSectionBtn(num, sec, kind, attr) {
+    return '<button onclick="_smOpenViewer(\'' + rrJsArg(num) + '\',\'' + rrJsArg(sec.sec) + '\',\'' + rrJsArg(kind) + '\')" ' + attr + '>'
+      + _esc(sec.sec) + ' — ' + _smSheetCount(sec.hits) + ' →</button>';
+  }
+  function _smSectionNote(sec) {
+    var o = _smOrder(sec.hits), types = [];
+    o.newest.forEach(function (h) { var t = String(h.r.ty || 'Sheet').toLowerCase(); if (types.indexOf(t) < 0) types.push(t); });
+    var s = types.join(', ');
+    if (o.older.length) s += ' · ' + o.older.length + ' older printing' + (o.older.length === 1 ? '' : 's');
+    return '<div style="font-size:0.72rem;color:var(--text-dim);margin:0.2rem 0 0 0.2rem">' + _esc(s.charAt(0).toUpperCase() + s.slice(1)) + '</div>';
   }
   // the block that sits above the LCCA button — '' when we have no scan
-  function _smBlockHtml(match) {
+  function _smBlockHtml(match, num) {
     if (!match || (!match.direct.length && !match.similar.length)) return '';
+    num = String(num == null ? '' : num);
     var h = '<div style="font-size:0.78rem;font-weight:700;color:var(--text);margin-bottom:0.4rem">Lionel Service Manual — our scans</div>'
-      + '<div style="display:flex;flex-direction:column;gap:0.4rem">';
-    var d = _smOrder(match.direct);
-    d.newest.forEach(function (x) { h += _smRowHtml(x, _btn('blue')); });
+      + '<div style="display:flex;flex-direction:column;gap:0.55rem">';
+    _smSections(match.direct).forEach(function (sec) { h += '<div>' + _smSectionBtn(num, sec, 'd', _btn('blue')) + _smSectionNote(sec) + '</div>'; });
     h += '</div>';
-    if (d.older.length) {
-      h += '<div style="font-size:0.72rem;color:var(--text-dim);margin:0.55rem 0 0.3rem">Older printings</div>'
-        + '<div style="display:flex;flex-direction:column;gap:0.35rem">';
-      d.older.forEach(function (x) { h += _smRowHtml(x, _btnQuiet('sm')); });
-      h += '</div>';
-    }
     if (match.similar.length) {
-      var s = _smOrder(match.similar);
-      h += '<div style="font-size:0.72rem;color:var(--text-dim);margin:0.55rem 0 0.3rem">Lionel\'s closest similar item</div>'
-        + '<div style="display:flex;flex-direction:column;gap:0.35rem">';
-      s.newest.concat(s.older).forEach(function (x) { h += _smRowHtml(x, _btnQuiet('sm')); });
+      h += '<div style="font-size:0.72rem;color:var(--text-dim);margin:0.6rem 0 0.3rem">Lionel\'s closest similar item</div>'
+        + '<div style="display:flex;flex-direction:column;gap:0.45rem">';
+      _smSections(match.similar).forEach(function (sec) { h += '<div>' + _smSectionBtn(num, sec, 's', _btnQuiet('sm')) + _smSectionNote(sec) + '</div>'; });
       h += '</div>';
     }
-    return h + '<div style="font-size:0.72rem;color:var(--text-dim);margin:0.45rem 0 0.7rem">Lionel\'s own service-manual sheets for this item, from The Rail Roster\'s scans. Opens in Google Drive.</div>';
+    return h + '<div style="font-size:0.72rem;color:var(--text-dim);margin:0.45rem 0 0.7rem">Lionel\'s own service-manual sheets for this item, from The Rail Roster\'s scans. Each button opens every sheet of that section on one page.</div>';
   }
+  // one sheet in the viewer: its caption, the picture, a tap opens the full
+  // scan in Google Drive (zoom there). A picture that will not load says so
+  // and keeps the Drive link — never a blank gap.
+  function _smPageHtml(u, caption) {
+    var t = _smThumb(u);
+    var open = 'window.open(\'' + rrJsArg(u) + '\',\'_blank\')';
+    return '<div style="margin:0 0 1.1rem">'
+      + '<div style="display:flex;justify-content:space-between;align-items:center;gap:0.5rem;margin-bottom:0.35rem">'
+      +   '<div style="font-size:0.85rem;font-weight:700;color:var(--text)">' + _esc(caption) + '</div>'
+      +   '<button onclick="' + open + '" ' + _btnQuiet('sm') + '>Open full scan →</button>'
+      + '</div>'
+      + (t ? '<img src="' + _esc(t) + '" alt="' + _esc(caption) + '" loading="lazy" onclick="' + open + '" '
+           + 'onerror="this.outerHTML=\'<div style=&quot;font-size:0.8rem;color:var(--text-dim);padding:1rem;border:1px dashed var(--border);border-radius:8px&quot;>This page did not load here — use Open full scan.</div>\'" '
+           + 'style="display:block;width:100%;height:auto;border-radius:6px;background:#fff;cursor:zoom-in;border:1px solid var(--border)">'
+         : '')
+      + '</div>';
+  }
+  function _smViewerBody(sec) {
+    var o = _smOrder(sec.hits), h = '';
+    function one(x) {
+      h += _smPageHtml(x.r.u, _smLabel(x).replace(sec.sec + ' · ', ''));
+      if (x.r.b) h += _smPageHtml(x.r.b, _smLabel(x).replace(sec.sec + ' · ', '') + ' · back of sheet');
+    }
+    o.newest.forEach(one);
+    if (o.older.length) {
+      h += '<div style="' + SECT + ';margin-top:0.6rem;padding-top:0.8rem;border-top:1px solid var(--border)">Older printings</div>';
+      o.older.forEach(one);
+    }
+    return h;
+  }
+  // num + section + kind ('d' direct / 's' closest similar) → the viewer.
+  // Worked out again from the loaded list, not from anything remembered
+  // about the button, so it can never show another item's sheets.
+  window._smOpenViewer = function (num, secName, kind) {
+    if (!_smRows) return;
+    var m = _smMatch(_smRows, num);
+    var hits = (kind === 's' ? m.similar : m.direct).filter(function (h) { return h.r.sec === secName; });
+    if (!hits.length) return;
+    var old = document.getElementById('maint-sm-viewer'); if (old) old.remove();
+    var close = "document.getElementById('maint-sm-viewer').remove()";
+    var html = '<div id="maint-sm-viewer" style="position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:100040;display:flex;align-items:flex-start;justify-content:center;overflow-y:auto;padding:2rem 1rem">'
+      + _cardOpen(900)
+      + _cardHead('No. ' + _esc(num) + ' · Lionel Service Manual' + (kind === 's' ? ' · closest similar item' : ''), _esc(secName) + ' — ' + _smSheetCount(hits), close)
+      + '<div style="font-size:0.75rem;color:var(--text-dim);margin:-0.4rem 0 0.9rem">Scroll for every sheet. Tap a page to open the full scan in Google Drive and zoom in.</div>'
+      + _smViewerBody({ sec: secName, hits: hits })
+      + _cardFoot('<button onclick="' + close + '" ' + _btnSecondary() + '>Close</button>')
+      + '</div></div>';
+    document.body.insertAdjacentHTML('beforeend', html);
+    try { if (window.rrDismissGuard) window.rrDismissGuard(document.getElementById('maint-sm-viewer')); } catch (eG) {}
+  };
   // the scanned sheets: memory → this device's copy → the master tab
   function _smCacheGet() {
     try {
@@ -1247,13 +1318,13 @@
   function _smSlotHtml(item, where) {
     var num = String(item && item.itemNum || '').trim();
     if (!num) return '';
-    if (_smRows) return _smBlockHtml(_smMatch(_smRows, num));
+    if (_smRows) return _smBlockHtml(_smMatch(_smRows, num), num);
     var id = 'maint-sm' + (where ? '-' + where : '');
     setTimeout(function () {
       _smLoad().then(function (rows) {
         var el = document.getElementById(id);
         if (!el || el.getAttribute('data-sm-num') !== num) return;
-        el.innerHTML = _smBlockHtml(_smMatch(rows, num));
+        el.innerHTML = _smBlockHtml(_smMatch(rows, num), num);
       });
     }, 0);
     return '<div id="' + id + '" data-sm-num="' + _esc(num) + '"></div>';
