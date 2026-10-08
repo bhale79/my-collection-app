@@ -60,6 +60,22 @@ const VAULT = {
   // How often to re-submit data (milliseconds) — default 7 days
   SUBMIT_INTERVAL_MS: 7 * 24 * 60 * 60 * 1000,
 
+  // ── v0.9.1894 (security review #2 + #3): WHO-ARE-YOU, ONE LIST ─────────
+  // Every relay call is in exactly ONE of these two lists, and vaultPost
+  // decides from them alone (tests/relay_proof_tests.js fails on any call
+  // that is in neither). IDENTITY calls carry the Google sign-in proof
+  // (gtoken) — relay v4.4 asks Google whose it is and uses THAT email, so
+  // nobody can ask about, or spend reads as, somebody else. ANONYMOUS calls
+  // never carry it: the Privacy page promises the daily ping, Collector's
+  // Market contributions and barcode suggestions are not tied to you.
+  IDENTITY_ACTIONS: ['sub_check', 'ai_identify', 'ai_identify2', 'ai_verify_photo',
+                     'ref_photo', 'ai_card', 'ai_quota', 'import_map'],
+  ANONYMOUS_ACTIONS: ['heartbeat', 'submit', 'get_market', 'get_counts',
+                      'delete_token', 'barcode_pair', 'image_wanted'],
+  // How long to wait for Google to renew the proof when the relay says it
+  // has expired, before trying ONCE more.
+  PROOF_RENEW_WAIT_MS: 7000,
+
 };
 
 
@@ -136,14 +152,53 @@ window.rrVaultTokenChanged = async function (oldToken, newToken) {
 //  API CALLS
 // ============================================================
 
+// v0.9.1894: does this call carry the sign-in proof? From the ONE list above.
+function _vaultNeedsProof(action) {
+  var a = String(action || '');
+  if (VAULT.IDENTITY_ACTIONS.indexOf(a) >= 0) return true;
+  if (VAULT.ANONYMOUS_ACTIONS.indexOf(a) < 0) console.warn('[Vault] action in neither list:', a);
+  return false;
+}
+// The current Google sign-in (access token) — '' when there is none.
+function _vaultProof() {
+  try { return (typeof accessToken !== 'undefined' && accessToken) ? String(accessToken) : ''; } catch (e) { return ''; }
+}
+// The relay said the proof is no good (expired / revoked): ask Google for a
+// fresh one through the app's ONE renewal path, wait for it to arrive, and
+// hand it back — or '' if none came.
+async function _vaultFreshProof(old) {
+  try { if (typeof rrEnsureFreshToken === 'function') rrEnsureFreshToken('relay'); } catch (e) {}
+  var waited = 0;
+  while (waited < VAULT.PROOF_RENEW_WAIT_MS) {
+    var now = _vaultProof();
+    if (now && now !== old) return now;
+    await new Promise(function (r) { setTimeout(r, 300); });
+    waited += 300;
+  }
+  return '';
+}
+
 async function vaultPost(payload) {
   try {
-    const res = await fetch(VAULT.ENDPOINT, {
-      method: 'POST',
-      body: JSON.stringify(payload),
-      headers: { 'Content-Type': 'text/plain' },  // text/plain avoids CORS preflight
-    });
-    return await res.json();
+    const body = Object.assign({}, payload);
+    delete body.gtoken;                                  // anonymous stays anonymous, whatever a caller passed
+    const needsProof = _vaultNeedsProof(body.action);
+    if (needsProof) body.gtoken = _vaultProof();
+    const send = async function () {
+      const res = await fetch(VAULT.ENDPOINT, {
+        method: 'POST',
+        body: JSON.stringify(body),
+        headers: { 'Content-Type': 'text/plain' },  // text/plain avoids CORS preflight
+      });
+      return await res.json();
+    };
+    let out = await send();
+    // v0.9.1894: an expired sign-in is renewed once, then the call is retried once.
+    if (needsProof && out && out.status === 401 && out.message === 'proof') {
+      const fresh = await _vaultFreshProof(body.gtoken);
+      if (fresh) { body.gtoken = fresh; out = await send(); }
+    }
+    return out;
   } catch(err) {
     console.warn('[Vault] API call failed:', err.message);
     return null;

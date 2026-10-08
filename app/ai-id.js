@@ -237,6 +237,7 @@ async function aiIdentifyImage(source, hints) {
       break;
     }
     if (!res) return { ok: false, reason: 'offline' };          // network / relay down
+    if (res && res.status === 429 && res.busy) return { ok: false, reason: 'busy' };   // v0.9.1894: the overall daily ceiling, not this account's reads
     if (res.status === 429) return { ok: false, reason: 'quota' };
     if (res.status === 503) return { ok: false, reason: 'busy' };
     if (res.status !== 200 || !res.text) {
@@ -532,6 +533,7 @@ async function aiIdentifyImage2(sources, hints) {
       if (res && res.status === 503) continue;   // overloaded — back off and retry
       break;
     }
+    if (res && res.status === 429 && res.busy) return { ok: false, reason: 'busy' };   // v0.9.1894: the overall daily ceiling, not this account's reads
     if (res && res.status === 429) return { ok: false, reason: 'quota' };
     if (res && res.status === 200 && res.text) {
       return { ok: true, text: String(res.text), remaining: rrNoteAiRemaining(res.remaining), cached: !!res.cached, v2: true };
@@ -608,6 +610,7 @@ async function aiVerifyPhoto(source, refUrl) {
       break;
     }
     if (!res) return { ok: false, reason: 'offline' };
+    if (res && res.status === 429 && res.busy) return { ok: false, reason: 'busy' };   // v0.9.1894: the overall daily ceiling, not this account's reads
     if (res.status === 429) return { ok: false, reason: 'quota' };
     if (res.status === 503) return { ok: false, reason: 'busy' };
     if (res.status === 422) return { ok: false, reason: 'noref' };   // page had no usable photo
