@@ -230,7 +230,8 @@ ok('every guarded overlay offers Cancel / Done / Close / ✕', trapped.length ==
 // v0.9.1858: 41 — the Maintenance card's Add-task pop-up (maint-addtask-pop, maintenance.js).
 // v0.9.1863: 42 — Preferences → Sub Types (st-setup-modal, prefs.js).
 // v0.9.1897: 43 — the Lionel Service Manual viewer (maint-sm-viewer, maintenance.js).
-ok('43 guarded call sites, and ONE helper behind them', sites === 43, String(sites));
+// v0.9.1898: 44 — the Parts diagrams pop-up beside Need-a-part (maint-diagrams-pop, maintenance.js).
+ok('44 guarded call sites, and ONE helper behind them', sites === 44, String(sites));
 
 // nobody double-wires BackStack any more — the guard does it, once
 let dbl = 0;

@@ -1202,8 +1202,8 @@
     return m ? 'https://drive.google.com/thumbnail?id=' + m[1] + '&sz=w2000' : '';
   }
   function _smSheetCount(hits) { return hits.length + ' sheet' + (hits.length === 1 ? '' : 's'); }
-  function _smSectionBtn(num, sec, kind, attr) {
-    return '<button onclick="_smOpenViewer(\'' + rrJsArg(num) + '\',\'' + rrJsArg(sec.sec) + '\',\'' + rrJsArg(kind) + '\')" ' + attr + '>'
+  function _smSectionBtn(num, sec, kind, attr, where) {
+    return '<button onclick="_smOpenViewer(\'' + rrJsArg(num) + '\',\'' + rrJsArg(sec.sec) + '\',\'' + rrJsArg(kind) + '\',\'' + rrJsArg(where || '') + '\')" ' + attr + '>'
       + _esc(sec.sec) + ' — ' + _smSheetCount(sec.hits) + ' →</button>';
   }
   function _smSectionNote(sec) {
@@ -1214,20 +1214,23 @@
     return '<div style="font-size:0.72rem;color:var(--text-dim);margin:0.2rem 0 0 0.2rem">' + _esc(s.charAt(0).toUpperCase() + s.slice(1)) + '</div>';
   }
   // the block that sits above the LCCA button — '' when we have no scan
-  function _smBlockHtml(match, num) {
+  function _smBlockHtml(match, num, where) {
     if (!match || (!match.direct.length && !match.similar.length)) return '';
     num = String(num == null ? '' : num);
-    var h = '<div style="font-size:0.78rem;font-weight:700;color:var(--text);margin-bottom:0.4rem">Lionel Service Manual — our scans</div>'
+    // v0.9.1898 ([stated] Brad: "get rid of the '-our scans' and Lionel's own
+    // service-manual sheets for this item…"): the heading is the manual's
+    // name only, and the explaining line under the buttons is gone.
+    var h = '<div style="font-size:0.78rem;font-weight:700;color:var(--text);margin-bottom:0.4rem">Lionel Service Manual</div>'
       + '<div style="display:flex;flex-direction:column;gap:0.55rem">';
-    _smSections(match.direct).forEach(function (sec) { h += '<div>' + _smSectionBtn(num, sec, 'd', _btn('blue')) + _smSectionNote(sec) + '</div>'; });
+    _smSections(match.direct).forEach(function (sec) { h += '<div>' + _smSectionBtn(num, sec, 'd', _btn('blue'), where) + _smSectionNote(sec) + '</div>'; });
     h += '</div>';
     if (match.similar.length) {
       h += '<div style="font-size:0.72rem;color:var(--text-dim);margin:0.6rem 0 0.3rem">Lionel\'s closest similar item</div>'
         + '<div style="display:flex;flex-direction:column;gap:0.45rem">';
-      _smSections(match.similar).forEach(function (sec) { h += '<div>' + _smSectionBtn(num, sec, 's', _btnQuiet('sm')) + _smSectionNote(sec) + '</div>'; });
+      _smSections(match.similar).forEach(function (sec) { h += '<div>' + _smSectionBtn(num, sec, 's', _btnQuiet('sm'), where) + _smSectionNote(sec) + '</div>'; });
       h += '</div>';
     }
-    return h + '<div style="font-size:0.72rem;color:var(--text-dim);margin:0.45rem 0 0.7rem">Lionel\'s own service-manual sheets for this item, from The Rail Roster\'s scans. Each button opens every sheet of that section on one page.</div>';
+    return h + '<div style="height:0.8rem"></div>';
   }
   // one sheet in the viewer: its caption, the picture, a tap opens the full
   // scan in Google Drive (zoom there). A picture that will not load says so
@@ -1262,11 +1265,14 @@
   // num + section + kind ('d' direct / 's' closest similar) → the viewer.
   // Worked out again from the loaded list, not from anything remembered
   // about the button, so it can never show another item's sheets.
-  window._smOpenViewer = function (num, secName, kind) {
+  window._smOpenViewer = function (num, secName, kind, where) {
     if (!_smRows) return;
     var m = _smMatch(_smRows, num);
     var hits = (kind === 's' ? m.similar : m.direct).filter(function (h) { return h.r.sec === secName; });
     if (!hits.length) return;
+    // v0.9.1898: asked from the Parts diagrams pop-up → the sheets scroll
+    // INSIDE it, so the Find your part screen beside it stays in view
+    if (where === 'pop' && _dgShowSection(num, secName, kind, hits)) return;
     var old = document.getElementById('maint-sm-viewer'); if (old) old.remove();
     var close = "document.getElementById('maint-sm-viewer').remove()";
     var html = '<div id="maint-sm-viewer" style="position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:100040;display:flex;align-items:flex-start;justify-content:center;overflow-y:auto;padding:2rem 1rem">'
@@ -1318,13 +1324,13 @@
   function _smSlotHtml(item, where) {
     var num = String(item && item.itemNum || '').trim();
     if (!num) return '';
-    if (_smRows) return _smBlockHtml(_smMatch(_smRows, num), num);
+    if (_smRows) return _smBlockHtml(_smMatch(_smRows, num), num, where);
     var id = 'maint-sm' + (where ? '-' + where : '');
     setTimeout(function () {
       _smLoad().then(function (rows) {
         var el = document.getElementById(id);
         if (!el || el.getAttribute('data-sm-num') !== num) return;
-        el.innerHTML = _smBlockHtml(_smMatch(rows, num), num);
+        el.innerHTML = _smBlockHtml(_smMatch(rows, num), num, where);
       });
     }, 0);
     return '<div id="' + id + '" data-sm-num="' + _esc(num) + '"></div>';
@@ -3148,16 +3154,10 @@
     var old = document.getElementById('maint-parts-pop'); if (old) old.remove();
     var IN = 'flex:1;min-width:150px;padding:0.45rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:0.82rem';
     var linkBtn = _btn('blue');
-    var docs = _docCovers(tg.item);
     // v0.9.1751: from the Workbench's + Add part card there may be no task
     // yet — the part is wanted for the UNIT (the bench folds it onto the
     // unit's one open task, or shows it as its own "Part wanted" row).
     var closeJs = _wbTarget ? '_wbCloseCard()' : "document.getElementById('maint-parts-pop').remove()";
-    var docHtml = docs.length
-      ? docs.map(function (d) {
-          return '<div style="padding:0.3rem 0;border-bottom:1px solid var(--border)"><a href="' + _esc(d.url) + '" target="_blank" rel="noopener" style="color:var(--accent2);font-weight:600;text-decoration:none">' + _esc(d.title || 'untitled') + '</a></div>';
-        }).join('')
-      : '<div style="font-size:0.8rem;color:var(--text-dim);margin-bottom:0.4rem">No diagram saved for this item yet.</div>';
     // v0.9.1855 (Brad: "it brought up the need a part page but it was behind
     // the service page"): the task card sits at 100020; this popup sat at 9650,
     // UNDER it. One layer above the card, and the chooser it can open sits
@@ -3167,34 +3167,154 @@
       + _cardHead(_esc(taskName), _wbTarget ? 'Add a part' : 'Need a part', closeJs)
       // v0.9.1859 ([stated] Brad: "on this page, would like to be able to click
       // the parts diagram for it so we need that button here as well"): the
-      // Parts diagram box sits FIRST — under a 214-line catalog it was never
-      // seen. v0.9.1857: the SAME manufacturer / Trainz / Google links the
-      // Maintenance page shows — one builder, so the two match.
-      + '<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:0.9rem 1rem;margin-bottom:0.8rem">'
-      +   '<div style="' + SECT + '">Parts diagram</div>'
-      +   docHtml
-      +   '<div style="margin-top:0.6rem">' + _maintDiagramLinksHtml(tg.item, 'pop') + '</div>'
-      + '</div>'
+      // diagrams sit FIRST — under a 214-line catalog they were never seen.
+      // v0.9.1898 ([stated] Brad: "the service manuals and parts diagrams need
+      // to be a button that says parts diagrams, that pops up the service
+      // manuals, the trainz diagram, and google search on a movable pop up"):
+      // the box is ONE button now; the pop-up (_maintDiagramsOpen, below)
+      // holds what the box held, beside this screen rather than inside it.
+      + '<div style="margin-bottom:0.8rem"><button id="maint-dg-btn" onclick="_maintDiagramsOpen()" ' + _btn('blue', '', 'width:100%;font-weight:700') + '>Parts diagrams \u2192</button></div>'
       + _maintPickerHtml(tg, taskId)   // v0.9.1752: pick before you type
       + '<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:0.9rem 1rem;margin-bottom:0.8rem">'
       +   '<div style="' + SECT + '">' + (taskId ? 'Something else? Find the part' : 'Find your part') + '</div>'
-      +   '<div style="display:flex;gap:0.4rem;flex-wrap:wrap">'
-      +     '<input id="maint-pop-part" placeholder="part number / description" oninput="_maintBinCheck(\'' + rrJsArg(taskId) + '\')" style="' + IN + '">'
-      +   '</div>'
-      +   '<div id="maint-pop-bin" style="font-size:0.8rem;color:var(--text);margin:0.5rem 0 0.6rem;padding:0.45rem 0.6rem;background:var(--bg-card);border:1px dashed var(--border);border-radius:8px"><span style="color:var(--text-dim)">Checking your bin…</span></div>'
-      +   '<div id="maint-pop-catalog" data-task="' + _esc(taskId || '') + '" style="font-size:0.8rem;color:var(--text);margin:0 0 0.6rem"></div>'   // v0.9.1756: the fourth lane — what the parts catalogs say fits this item (v0.9.1759: data-task lets the dealer pick redraw it)
+      // v0.9.1898 ([stated] Brad: "the bar with trainz and other hobby stores,
+      // the search and +add button should be at the top of the screen above
+      // the seach function"): the order row comes FIRST, above the typing box.
       +   '<div style="font-size:0.72rem;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-dim);margin-bottom:0.35rem">Not in the bin? Order one</div>'
       +   _favRow(MAINT.PREF_DEALERS, 'maint-pop-dealer', 'Any dealer')
       +   '<div style="display:flex;gap:0.4rem;margin-top:0.5rem;flex-wrap:wrap">'
       +     '<button onclick="_maintPopSearch()" ' + linkBtn + '>Search →</button>'
       +     '<button onclick="_maintPopAddWanted(\'' + rrJsArg(taskId) + '\')" ' + _btnPrimary('padding:0.5rem 0.9rem;font-size:0.78rem') + '>+ Add to Parts Wanted</button>'
       +   '</div>'
-      +   '<div style="font-size:0.7rem;color:var(--text-dim);margin-top:0.4rem">' + (taskId ? 'Added parts link to THIS task — the card shows when it\'s in the drawer.' : 'The part is wanted for this item — it shows on the bench, and on the item\'s card.') + '</div>'
+      +   '<div style="font-size:0.7rem;color:var(--text-dim);margin:0.4rem 0 0.8rem">' + (taskId ? 'Added parts link to THIS task — the card shows when it\'s in the drawer.' : 'The part is wanted for this item — it shows on the bench, and on the item\'s card.') + '</div>'
+      +   '<div style="display:flex;gap:0.4rem;flex-wrap:wrap">'
+      +     '<input id="maint-pop-part" placeholder="part number / description" oninput="_maintBinCheck(\'' + rrJsArg(taskId) + '\')" style="' + IN + '">'
+      +   '</div>'
+      +   '<div id="maint-pop-bin" style="font-size:0.8rem;color:var(--text);margin:0.5rem 0 0.6rem;padding:0.45rem 0.6rem;background:var(--bg-card);border:1px dashed var(--border);border-radius:8px"><span style="color:var(--text-dim)">Checking your bin…</span></div>'
+      +   '<div id="maint-pop-catalog" data-task="' + _esc(taskId || '') + '" style="font-size:0.8rem;color:var(--text);margin:0 0 0.6rem"></div>'   // v0.9.1756: the fourth lane — what the parts catalogs say fits this item (v0.9.1759: data-task lets the dealer pick redraw it)
       + '</div>'
       + '</div></div>';
     document.body.insertAdjacentHTML('beforeend', html);
     window._maintBinCheck(taskId);   // v0.9.1752: the bin's loose spares show at once; typing narrows them
     var pi = document.getElementById('maint-pop-part'); if (pi) pi.focus();
+  };
+  // ══ v0.9.1898: the Parts diagrams pop-up ══════════════════════════════════
+  // [stated] Brad, 2026-10-08: "the service manuals and parts diagrams need to
+  // be a button that says parts diagrams, that pops up the service manuals,
+  // the trainz diagram, and google search on a movable pop up so you can
+  // scroll up and down while still looking at the find your part screen. if
+  // you hit the button, the manual pop up should go to the right screen side
+  // and the find your part screen should move to the left side." Saved videos
+  // stay out ("that stays only on the repair video section"). Approved with
+  // it: a manual section's sheets scroll INSIDE this pop-up ("← All
+  // diagrams" goes back), and a phone — too narrow for two side by side —
+  // gets it full screen with "← Back to Find your part".
+  // What it lists is _maintDiagramLinksHtml (the ONE builder the Maintenance
+  // panel uses too), plus the saved diagrams that are not videos.
+  var DG_ID = 'maint-diagrams-pop';
+  var DG_SIDE_MIN_W = 900;   // narrower than this: full screen, not side by side
+  var _dgObs = null;
+  function _dgSideBySide() { return !window.IS_MOBILE_UA && (window.innerWidth || 0) >= DG_SIDE_MIN_W; }
+  // the Need-a-part card back in the middle (side = false) or on the left half
+  function _dgShiftPop(side) {
+    var pop = document.getElementById('maint-parts-pop');
+    if (pop) pop.style.right = side ? '50vw' : '0';
+  }
+  function _dgSavedHtml(item) {
+    var docs = _docCovers(item).filter(function (d) { return String(d.type || '') !== 'video'; });
+    if (!docs.length) return '';
+    return '<div style="' + SECT + '">My saved diagrams</div>'
+      + docs.map(function (d) {
+          return '<div style="padding:0.3rem 0;border-bottom:1px solid var(--border)"><a href="' + _esc(d.url) + '" target="_blank" rel="noopener" style="color:var(--accent2);font-weight:600;text-decoration:none">' + _esc(d.title || 'untitled') + '</a></div>';
+        }).join('')
+      + '<div style="height:0.9rem"></div>';
+  }
+  function _dgListHtml(item) {
+    return (_dgSideBySide() ? '' : '<div style="margin-bottom:0.8rem"><button onclick="_maintDiagramsClose()" ' + _btnSecondary() + '>← Back to Find your part</button></div>')
+      + _dgSavedHtml(item) + _maintDiagramLinksHtml(item, 'pop');
+  }
+  window._maintDiagramsClose = function () {
+    var el = document.getElementById(DG_ID);
+    if (el && el.parentNode) el.parentNode.removeChild(el);
+    _dgShiftPop(false);
+    if (_dgObs) { try { _dgObs.disconnect(); } catch (e) {} _dgObs = null; }
+  };
+  // back to the list from a section's sheets
+  window._maintDiagramsList = function () {
+    var body = document.getElementById('maint-dg-body'); var tg = _target();
+    if (!body || !tg.item) return;
+    body.innerHTML = _dgListHtml(tg.item);
+    body.scrollTop = 0;
+  };
+  // a manual section's sheets, inside the pop-up (called by _smOpenViewer)
+  function _dgShowSection(num, secName, kind, hits) {
+    var body = document.getElementById('maint-dg-body');
+    if (!body) return false;
+    body.innerHTML = '<div style="margin-bottom:0.7rem"><button onclick="_maintDiagramsList()" ' + _btnSecondary() + '>← All diagrams</button></div>'
+      + '<div class="rr-card-title" style="margin-bottom:0.2rem">' + _esc(secName) + ' — ' + _smSheetCount(hits) + '</div>'
+      + (kind === 's' ? '<div style="font-size:0.75rem;color:var(--text-dim)">Lionel\'s closest similar item</div>' : '')
+      + '<div style="font-size:0.75rem;color:var(--text-dim);margin:0.2rem 0 0.9rem">Scroll for every sheet. Tap a page to open the full scan in Google Drive and zoom in.</div>'
+      + _smViewerBody({ sec: secName, hits: hits });
+    body.scrollTop = 0;
+    return true;
+  }
+  // drag the pop-up by its title bar (computer only; a phone's is full screen)
+  function _dgDraggable(el, handle) {
+    var sx = 0, sy = 0, ox = 0, oy = 0, on = false;
+    handle.addEventListener('pointerdown', function (e) {
+      if (e.button !== 0 || (e.target.closest && e.target.closest('button'))) return;
+      on = true; sx = e.clientX; sy = e.clientY;
+      var m = /translate\((-?[\d.]+)px,\s*(-?[\d.]+)px\)/.exec(el.style.transform || '');
+      ox = m ? +m[1] : 0; oy = m ? +m[2] : 0;
+      try { handle.setPointerCapture(e.pointerId); } catch (eC) {}
+      e.preventDefault();
+    });
+    handle.addEventListener('pointermove', function (e) {
+      if (!on) return;
+      var w = window.innerWidth || 0, h = window.innerHeight || 0;
+      // the wrapper is the right half of the window: it may go as far as the
+      // left edge, and never so far that its title bar leaves the screen
+      var dx = Math.max(-w * 0.5, Math.min(w * 0.4, ox + e.clientX - sx));
+      var dy = Math.max(-h * 0.05, Math.min(h * 0.8, oy + e.clientY - sy));
+      el.style.transform = 'translate(' + Math.round(dx) + 'px,' + Math.round(dy) + 'px)';
+    });
+    var stop = function () { on = false; };
+    handle.addEventListener('pointerup', stop);
+    handle.addEventListener('pointercancel', stop);
+  }
+  window._maintDiagramsOpen = function () {
+    var tg = _target();
+    if (!tg.item || !document.getElementById('maint-parts-pop')) return;
+    window._maintDiagramsClose();
+    var side = _dgSideBySide();
+    var el = document.createElement('div');
+    el.id = DG_ID;
+    // above the Need-a-part card (100030), under the parts chooser (100035)
+    // and the app's confirm boxes — tests/maint_layers_tests.js holds the order
+    el.style.cssText = 'position:fixed;top:0;bottom:0;right:0;z-index:100032;display:flex;align-items:flex-start;justify-content:center;padding:2rem 1rem;'
+      + (side ? 'width:50vw;pointer-events:none' : 'left:0;background:rgba(0,0,0,0.6)');
+    el.innerHTML = _cardOpen(600).replace('class="rr-card maint-card"', 'class="rr-card rr-card-flex maint-card" id="maint-dg-card"').replace('margin-bottom:2rem', 'margin-bottom:0;pointer-events:auto')
+      + '<div id="maint-dg-head" style="' + (side ? 'cursor:move;touch-action:none;' : '') + '">'
+      +   _cardHead('No. ' + _esc(String(tg.item.itemNum || '')), 'Parts diagrams', '_maintDiagramsClose()')
+      + '</div>'
+      + '<div id="maint-dg-body" style="flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-right:0.25rem">' + _dgListHtml(tg.item) + '</div>'
+      + '</div>';
+    document.body.appendChild(el);
+    // the WRAPPER moves (it carries no zoom), so the card follows the pointer 1:1
+    if (side) _dgDraggable(el, document.getElementById('maint-dg-head'));
+    _dgShiftPop(side);
+    // a stray tap never closes it; device Back does, through the SAME close as the ✕
+    try { if (window.rrDismissGuard) window.rrDismissGuard(el, window._maintDiagramsClose); } catch (eG) {}
+    // the two leave together: Need-a-part gone (✕, a part added…) → this goes;
+    // this gone by any route → Need-a-part comes back to the middle
+    try {
+      _dgObs = new MutationObserver(function () {
+        var mine = document.getElementById(DG_ID), pop = document.getElementById('maint-parts-pop');
+        if (!pop && mine) { window._maintDiagramsClose(); return; }
+        if (!mine) { _dgShiftPop(false); if (_dgObs) { try { _dgObs.disconnect(); } catch (e) {} _dgObs = null; } }
+      });
+      _dgObs.observe(document.body, { childList: true });
+    } catch (eO) {}
   };
   window._maintPopSearch = function () {
     var tg = _target();

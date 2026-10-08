@@ -41,6 +41,7 @@ function layers(m, p, u) {
     task: zOf(m, "ov.id = 'maint-task-ov'"),
     addtask: zOf(m, 'id="maint-addtask-pop"'),
     pop: zOf(m, 'id="maint-parts-pop"'),
+    dg: zOf(m, 'el.id = DG_ID;'),   // v0.9.1898: the Parts diagrams pop-up beside Need-a-part
     chooser: zOf(p, "ov.id = '_parts-chooser'"),
     confirm: zOf(u, "function appConfirm"),
     prompt: zOf(u, "function appPrompt"),
@@ -48,13 +49,15 @@ function layers(m, p, u) {
 }
 function judge(L) {
   const bad = [];
-  if (!(L.card != null && L.task != null && L.addtask != null && L.pop != null && L.chooser != null && L.confirm != null && L.prompt != null)) bad.push('a layer could not be read: ' + JSON.stringify(L));
+  if (!(L.card != null && L.task != null && L.addtask != null && L.pop != null && L.dg != null && L.chooser != null && L.confirm != null && L.prompt != null)) bad.push('a layer could not be read: ' + JSON.stringify(L));
   else {
     if (!(L.task > L.card)) bad.push('task card not above the Maintenance card');
     if (!(L.addtask > L.task)) bad.push('Add-task popup not above the task card (' + L.addtask + ' vs ' + L.task + ')');
     if (!(L.pop > L.addtask)) bad.push('Need-a-part popup not above the Add-task popup (' + L.pop + ' vs ' + L.addtask + ')');
     if (!(L.pop > L.task)) bad.push('Need-a-part popup not above the task card (' + L.pop + ' vs ' + L.task + ')');
     if (!(L.chooser > L.pop)) bad.push('the chooser not above the popup (' + L.chooser + ' vs ' + L.pop + ')');
+    if (!(L.dg > L.pop)) bad.push('the Parts diagrams pop-up not above Need-a-part (' + L.dg + ' vs ' + L.pop + ')');
+    if (!(L.chooser > L.dg)) bad.push('the chooser not above the Parts diagrams pop-up (' + L.chooser + ' vs ' + L.dg + ')');
     if (!(L.confirm > L.chooser && L.prompt > L.chooser)) bad.push('appConfirm/appPrompt not above the chooser');
   }
   return bad;
@@ -64,7 +67,7 @@ section('A · the real stacking order');
 const L = layers(maint, pages, utils);
 ok('every layer read off the source', Object.values(L).every(v => v != null), JSON.stringify(L));
 const bad = judge(L);
-ok('Maintenance card < task card < Add-task popup < Need-a-part popup < chooser < appConfirm/appPrompt', bad.length === 0, bad.join('; '));
+ok('Maintenance card < task card < Add-task popup < Need-a-part popup < Parts diagrams pop-up < chooser < appConfirm/appPrompt', bad.length === 0, bad.join('; '));
 ok('the task card still opens the popup with the task\'s id (the "Need a part" button)', /_maintPartsPopup\(\\'' \+ rrJsArg\(t\.id\)/.test(maint));
 
 section('B · planted offenders are caught');
@@ -76,6 +79,8 @@ ok('B3 a task card raised above the popup is caught',
    judge(layers(maint.replace("ov.id = 'maint-task-ov';\n          ov.style.cssText = 'position:fixed;inset:0;z-index:100020", "ov.id = 'maint-task-ov';\n          ov.style.cssText = 'position:fixed;inset:0;z-index:100040"), pages, utils)).length > 0);
 ok('B5 an Add-task popup drawn above Need-a-part (the part pop-up it opens would hide) is caught',
    judge(layers(maint.replace('id="maint-addtask-pop" style="position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:100025', 'id="maint-addtask-pop" style="position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:100031'), pages, utils)).length > 0);
+ok('B6 a Parts diagrams pop-up drawn under Need-a-part (or over the chooser) is caught',
+   judge(layers(maint.replace("z-index:100032;", "z-index:100029;"), pages, utils)).length > 0 && judge(layers(maint.replace("z-index:100032;", "z-index:100036;"), pages, utils)).length > 0);
 ok('B4 a layer that cannot be read is a failure, not a pass',
    judge(layers(maint.replace('id="maint-parts-pop"', 'id="maint-parts-popX"'), pages, utils)).length > 0);
 

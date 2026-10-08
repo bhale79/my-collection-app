@@ -142,7 +142,9 @@ ok('typing narrows by description word (6 of 12) and counts it', (html.match(/\+
 ok('typing a part number narrows too (P-11 → one line; single characters are ignored, as in the bin search)', (lane(many, 'P-11', 't').match(/\+ Want it/g) || []).length === 1 && (lane(many, 'p', 't').match(/\+ Want it/g) || []).length === 12);
 ok('no match says so without a throw; no rows → no lane at all', /None of the 12 catalog parts match/.test(lane(many, 'zzz', 't')) && lane([], '', 't') === '');
 const popup = grab('window._maintPartsPopup = function (taskId, taskName)');
-ok('the popup has the lane\'s container between the bin and "Order one"', popup.indexOf('id="maint-pop-bin"') < popup.indexOf('id="maint-pop-catalog"') && popup.indexOf('id="maint-pop-catalog"') < popup.indexOf('Not in the bin? Order one'));
+// v0.9.1898 ([stated] Brad: the store bar, Search and + Add "should be at the top of the screen above the seach function"):
+// "Order one" moved ABOVE the typing box; the lane still sits under the bin.
+ok('the popup has "Order one" above the typing box, and the lane\'s container under the bin', popup.indexOf('Not in the bin? Order one') > 0 && popup.indexOf('Not in the bin? Order one') < popup.indexOf('id="maint-pop-part"') && popup.indexOf('id="maint-pop-part"') < popup.indexOf('id="maint-pop-bin"') && popup.indexOf('id="maint-pop-bin"') < popup.indexOf('id="maint-pop-catalog"'));
 ok('typing redraws the lane (from _maintBinCheck), which reads the picker for the card\'s item and hands the lane that item (v0.9.1759)', /_maintCatalogLaneRender\(taskId\);/.test(grab('window._maintBinCheck = function (taskId)')) && /_maintCatalogLaneHtml\(_maintPickerParts\(tg, taskId\)\.catalog, q, taskId, tg\.item\)/.test(grab('function _maintCatalogLaneRender(taskId)')));
 
 section('ONE save path: the typed box and "+ Want it" both go through _maintPopSaveWanted');
