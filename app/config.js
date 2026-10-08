@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.1890';
+const APP_VERSION = 'v0.9.1891';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -53,6 +53,66 @@ if (typeof window !== 'undefined') {
   window.APPEARANCE_ENABLED = APPEARANCE_ENABLED;
   window.rrAppearanceOn = rrAppearanceOn;
 }
+// ── FEATURE RINGS (v0.9.1891, launch build) ────────────────────────────────
+// Brad, 2026-10-06: beta levels are TEST RINGS, not perks — a new feature goes
+// to Beta A first, then Beta B, then everyone. WHO gets WHAT lives in ONE
+// place: the `features` tab of the Vault sheet (feature | ring | note, ring =
+// A, B, everyone or off), read by the backend (relay v4.1), which hands each
+// signed-in person the list switched on for them in the sub_check answer.
+// Moving a feature to the next ring = edit one cell in that tab. No release.
+//
+// rrFeatureOn('name') is the ONE reader. Never test a feature any other way.
+//   • recording mode hides it (same veto as every owner-only tool);
+//   • the two owner addresses always see everything;
+//   • otherwise the backend's list — or, before that answer arrives (or when
+//     the backend cannot be reached), THIS account's last answer on this
+//     device, so a Beta A tester's button does not blink in and out on every
+//     load. The remembered list is a cache only; the backend's answer always
+//     replaces it. It is tied to the email, so a different person signing in
+//     on this browser never inherits it.
+const RR_FEATURES_CACHE_KEY = 'rr_features_v1';
+function rrFeatureList() {
+  try {
+    var s = (typeof window !== 'undefined') && window._subState;
+    if (s && Array.isArray(s.features)) return s.features;
+    var em = String((window.state && window.state.user && window.state.user.email) || '').toLowerCase();
+    var c = JSON.parse(localStorage.getItem(RR_FEATURES_CACHE_KEY) || 'null');
+    if (c && em && c.email === em && Array.isArray(c.features)) return c.features;
+  } catch (e) {}
+  return [];
+}
+function rrFeatureOn(name) {
+  try {
+    if (typeof rrRecordingMode === 'function' && rrRecordingMode()) return false;
+    if (rrIsRealOwner()) return true;
+    return rrFeatureList().indexOf(String(name)) >= 0;
+  } catch (e) { return false; }
+}
+// Called by subCheck (vault.js) with each fresh backend answer.
+function rrFeaturesRemember(r) {
+  try {
+    if (!r || !Array.isArray(r.features)) return;
+    var em = String((window.state && window.state.user && window.state.user.email) || '').toLowerCase();
+    if (!em) return;
+    localStorage.setItem(RR_FEATURES_CACHE_KEY, JSON.stringify({ email: em, features: r.features, at: Date.now() }));
+  } catch (e) {}
+}
+if (typeof window !== 'undefined') {
+  window.rrFeatureOn = rrFeatureOn;
+  window.rrFeatureList = rrFeatureList;
+  window.rrFeaturesRemember = rrFeaturesRemember;
+}
+
+// ── PRICE WORDING — ONE place (Brad 2026-10-06: "75 plus tax") ─────────────
+// Every user-facing mention of the price reads these. The checkout links
+// themselves live in the backend's config tab (relay v4.1), not here.
+const RR_PRICE_TEXT      = '$75/year plus tax';
+const RR_SHOW_PRICE_TEXT = '$60 first year plus tax';
+if (typeof window !== 'undefined') {
+  window.RR_PRICE_TEXT = RR_PRICE_TEXT;
+  window.RR_SHOW_PRICE_TEXT = RR_SHOW_PRICE_TEXT;
+}
+
 // v0.9.1300 (Brad): "keep collecting the data, just hide the page and the
 // collectors market button." The market UI is off until a future release —
 // flip this to bring it back. Anonymous contribution keeps running; ONLY the

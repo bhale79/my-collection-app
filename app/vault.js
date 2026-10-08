@@ -947,7 +947,11 @@ async function subCheck() {
       appVersion: (typeof APP_VERSION !== 'undefined') ? APP_VERSION : '' });
     if (!r || r.status !== 200 || !r.sub) return;          // fail-open
     window._subState = r;
+    // v0.9.1891: keep this account's feature list for the next load, and tell
+    // whoever is listening (Maintenance, Preferences) that the answer is in.
+    try { if (typeof rrFeaturesRemember === 'function') rrFeaturesRemember(r); } catch (e) {}
     _subApply(r);
+    try { window.dispatchEvent(new CustomEvent('rr:substate', { detail: r })); } catch (e) {}
   } catch (e) { console.warn('[sub] check failed — fail-open', e && e.message); }
 }
 

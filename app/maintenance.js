@@ -22,10 +22,12 @@
     // case where config.js has not loaded yet — edit config.js, not this.
     OWNER_EMAILS: (typeof RR_OWNER_EMAILS !== 'undefined' && RR_OWNER_EMAILS)
                   || ['bhale@ipd-llc.com', 'support@therailroster.com'],
-    // v0.9.1664 (Brad): beta testers — they get the whole maintenance suite
-    // (button, Workbench, parts lifecycle, My Manuals). NOT the Yardmaster's
-    // Office; that list lives in yardmaster.js and stays owner-only.
-    BETA_EMAILS: ['browntailflyer@gmail.com'],
+    // v0.9.1891: the typed tester list (BETA_EMAILS: browntailflyer) is GONE.
+    // Who besides the owners gets the maintenance suite (button, Workbench,
+    // parts lifecycle, My Manuals, stock photos) is now the `maintenance` row
+    // of the Vault's features tab — Beta A first (Brad, 2026-10-06) — read
+    // through rrFeatureOn (config.js). NOT the Yardmaster's Office; that stays
+    // owner-only in yardmaster.js.
     PREF_CHANNELS: 'maint_yt_channels',   // JSON array of channel names
     PREF_DEALERS:  'maint_parts_dealers', // JSON array of dealer names
     // v0.9.1759: the dealer dropdown remembers its pick ('' = Any dealer, a
@@ -46,7 +48,9 @@
       // never turns it on is unaffected.
       if (typeof window.rrRecordingMode === 'function' && window.rrRecordingMode()) return false;
       var em = window.state && state.user && String(state.user.email || '').toLowerCase();
-      return !!em && (MAINT.OWNER_EMAILS.indexOf(em) >= 0 || MAINT.BETA_EMAILS.indexOf(em) >= 0);
+      if (!em) return false;
+      if (MAINT.OWNER_EMAILS.indexOf(em) >= 0) return true;
+      return typeof window.rrFeatureOn === 'function' && window.rrFeatureOn('maintenance');
     } catch (e) { return false; }
   }
   window._maintIsOwner = _isOwner;   // app-collection.js gates the button on this
@@ -4068,9 +4072,21 @@
       if (tries > 240) { clearInterval(t); return; }
       var appEl = document.getElementById('app');
       if (!appEl || !appEl.classList.contains('active') || !window.state || !state.user || !state.user.email) return;
-      if (!_isOwner()) { clearInterval(t); return; }
+      // v0.9.1891: a tester's feature list arrives with the backend's answer a
+      // few seconds after load — keep waiting for it rather than giving up on
+      // the first look. Stand down only once the answer is in and says no.
+      if (!_isOwner()) { if (window._subState) clearInterval(t); return; }
       if (_wbInjectUI()) clearInterval(t);
     }, 500);
   })();
+  // v0.9.1891: the backend's answer can switch the suite on (a tester moved
+  // into the ring) or off (moved out) while the app is open.
+  try {
+    window.addEventListener('rr:substate', function () {
+      if (_isOwner()) { _wbInjectUI(); return; }
+      var b = document.getElementById('nav-workbench-btn');
+      if (b) b.remove();
+    });
+  } catch (e) {}
 
 })();

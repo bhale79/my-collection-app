@@ -58,6 +58,59 @@ async function _prefsOpenPhotosFolder() {
 }
 if (typeof window !== 'undefined') window._prefsOpenPhotosFolder = _prefsOpenPhotosFolder;
 
+// ── v0.9.1891: MY SUBSCRIPTION row (Account section) ─────────────────────
+// Reads the backend's answer (window._subState, vault.js subCheck — relay
+// v4.1 asks Stripe directly). Shows where the person stands in plain words
+// and, for anyone with a Stripe subscription, a "Manage" button to Stripe's
+// own customer page (update the card, see receipts, cancel) — the Terms page
+// promises that link "in the app". Beta testers see their free-until date
+// and no button (they have no Stripe subscription). Nothing is shown until
+// the answer is in; the row fills in when it arrives (rr:substate).
+// Price wording comes from RR_PRICE_TEXT (config.js) — never typed here.
+function _prefsSubRowHtml() {
+  try {
+    var s = window._subState;
+    if (!s || !s.sub) return '';
+    var esc = function (v) { return String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); };
+    var d = function (iso) { return iso ? (typeof _formatDate === 'function' ? _formatDate(iso) : iso) : ''; };
+    var price = (typeof RR_PRICE_TEXT !== 'undefined') ? RR_PRICE_TEXT : '';
+    var line = '', btn = '';
+    var email = String((state.user && state.user.email) || '');
+    var portal = s.portalLink ? s.portalLink + (s.portalLink.indexOf('?') < 0 ? '?' : '&') + 'prefilled_email=' + encodeURIComponent(email) : '';
+    if (s.sub === 'beta') {
+      line = s.freeUntil ? 'Beta tester \u2014 free until ' + d(s.freeUntil) : 'Beta tester \u2014 free';
+    } else if (s.sub === 'trial') {
+      line = 'Free trial' + (s.trialEnds ? ' \u2014 ends ' + d(s.trialEnds) : '') + '. Then ' + price + '.';
+      if (s.cancelAtPeriodEnd) line = 'Free trial' + (s.trialEnds ? ' \u2014 ends ' + d(s.trialEnds) : '') + '. You cancelled, so you will not be charged.';
+    } else if (s.sub === 'active') {
+      line = s.cancelAtPeriodEnd
+        ? 'Paid through ' + d(s.paidThrough) + '. You cancelled, so it will not renew.'
+        : 'Renews ' + d(s.paidThrough) + ' \u2014 ' + price + '.';
+    } else if (s.sub === 'expired') {
+      line = 'Your subscription has ended.';
+    } else {
+      return '';
+    }
+    if (portal && s.sub !== 'beta') {
+      btn = '<a class="pref-btn" href="' + esc(portal) + '" target="_blank" rel="noopener" style="text-decoration:none">Manage \u2197</a>';
+    }
+    return '<div class="pref-row-label"><strong>My Subscription</strong><span>' + esc(line) + '</span></div>' +
+           (btn ? '<div style="display:flex;gap:0.5rem;align-items:center;flex-shrink:0">' + btn + '</div>' : '');
+  } catch (e) { return ''; }
+}
+if (typeof window !== 'undefined') {
+  window._prefsSubRowHtml = _prefsSubRowHtml;
+  try {
+    window.addEventListener('rr:substate', function () {
+      var row = document.getElementById('pref-sub-row');
+      if (!row) return;
+      var h = _prefsSubRowHtml();
+      row.innerHTML = h;
+      row.style.display = h ? '' : 'none';
+    });
+  } catch (e) {}
+}
+
 // ── Owner tools — Recording mode (v0.9.1697, Session 93) ──────────────────
 // Brad records the help-menu videos on his own account, which is an owner
 // account, so the app shows him tools no ordinary user has. Recording mode makes
@@ -172,6 +225,7 @@ function buildPrefsPage() {
         </div>
         <button class="pref-btn danger" onclick="handleSignOut()">Sign Out</button>
       </div>
+      <div class="pref-row" id="pref-sub-row" style="${_prefsSubRowHtml() ? '' : 'display:none'}">${_prefsSubRowHtml()}</div>
       <div class="pref-row">
         <div class="pref-row-label">
           <strong>My Collection Sheet</strong>
