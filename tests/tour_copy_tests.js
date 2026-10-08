@@ -3,8 +3,9 @@
 // TOUR COPY — v0.9.1824   (real Chromium, the REAL app, no stubs)
 //
 // Release readiness M7 (Open List #3, Brad: "these probably need to get
-// updated" … "the tour doesn't show very much"). The welcome card and the
-// tour are the first things a new collector reads, and they had drifted:
+// updated" … "the tour doesn't show very much"). The tour is the first thing a
+// new collector reads (v0.9.1893: it starts by itself after setup; the welcome
+// card that used to come first is gone), and they had drifted:
 // menu items named that the menu does not have, four of six buttons, a help
 // path that no longer exists. Now the tour walks EVERY page.
 //
@@ -44,11 +45,10 @@ async function walk(browser, withData) {
     // the live labels the copy must agree with
     const menu = Array.from(document.querySelectorAll('.sidebar .nav-item')).map(txt).map(t => t.replace(/[\d—]+$/, '').trim());
     const buttons = Array.from(document.querySelectorAll('.dash-desktop-actions button, .dash-desktop-actions a')).map(txt);
-    // the welcome card
-    showWelcomeCard(true); await new Promise(r => setTimeout(r, 200));
-    const wc = document.getElementById('rr-welcome-card');
-    const welcome = wc ? wc.innerText.replace(/\s+/g, ' ') : '';
-    if (wc) wc.remove();
+    // v0.9.1893: the welcome card is GONE (Brad: "more clutter than help") —
+    // a new account goes from setup straight into this tour. What the card
+    // used to say must not survive anywhere on the page.
+    const welcome = (typeof window.showWelcomeCard === 'function') ? 'STILL DEFINED' : '';
     // walk the tour, Next until it ends, recording each card and whether it pointed at something
     window._gtMisses = [];
     const cards = [];
@@ -97,12 +97,10 @@ async function walk(browser, withData) {
   const liveMenu = full.menu.concat(['Photo Inbox', 'Dispatch Board']);   // the two are added by their own modules at sign-in
   T('B2  …and every name it uses is a real menu label (read from the live sidebar)', named.every(n => liveMenu.some(m => m === n || m.indexOf(n) === 0)), { liveMenu: full.menu });
   T('B3  "Add things fast" says six, and the dashboard has six buttons', /Six buttons/.test(tourSrc) && full.buttons.length === 6, full.buttons);
-  const wc = full.welcome;
-  T('B4  the welcome card names the button as it reads on the Dashboard ("Add to My Collection")', wc.indexOf('Add to My Collection') >= 0 && full.buttons.indexOf('Add to My Collection') >= 0);
-  const wcList = ['My Collection', 'Want / Upgrade', 'For Sale', 'Parts Needed', 'Sold Items'];
-  T('B5  the welcome card\'s list of side-menu lists matches the side menu', wcList.every(n => wc.indexOf(n) >= 0 && full.menu.some(m => m.indexOf(n) === 0)), wcList.filter(n => wc.indexOf(n) < 0));
-  T('B6  the welcome card points at Help in the side menu, not a Preferences path', /Help \(in the side menu\)/.test(wc) && !/Help & Tips → Help Center/.test(wc));
-  T('B7  no card says "AI"', !/\bAI\b/.test(tourSrc.replace(/\/\/[^\n]*/g, '')) && !/\bAI\b/.test(wc));
+  // v0.9.1893: B4–B6 read the welcome card, which is gone. B4 now pins that
+  // it stays gone — the tour is the one first-run walkthrough.
+  T('B4  there is no welcome card any more — the tour is the first-run walkthrough', full.welcome === '' && empty.welcome === '', full.welcome);
+  T('B7  no card says "AI"', !/\bAI\b/.test(tourSrc.replace(/\/\/[^\n]*/g, '')));
   T('E1  no page errors on either walk', empty.errs.length === 0 && full.errs.length === 0, empty.errs.concat(full.errs));
 
   console.log('\n== C · planted offenders ==');

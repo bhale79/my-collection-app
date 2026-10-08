@@ -215,7 +215,11 @@ function _dbMaybePopup() {
   var unseen = _dbUnseen();
   if (!unseen.length) return;
   // Don't fight the welcome card / onboarding for attention.
-  if (document.getElementById('rr-welcome-card') ||
+  // v0.9.1893: + the guided tour (it now starts by itself after first-run
+  // setup), the scanning / photo ID card and the subscription screen.
+  if (document.getElementById('rr-ai-usage-card') ||
+      document.getElementById('gt-callout') ||
+      document.getElementById('sub-screen') ||
       document.getElementById('onboarding-overlay') ||
       document.getElementById('onboarding-map-overlay')) {
     setTimeout(_dbMaybePopup, 15000);

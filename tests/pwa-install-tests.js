@@ -214,7 +214,10 @@ section('_pwaInstall called from outside the menu (onboarding)');
   ok('open account menu still closes on install', m2.style.display === 'none');
 })();
 
-// ── 5. Onboarding screen 4 ────────────────────────────────────────────────
+// ── 5. Onboarding — the install step ──────────────────────────────────────
+// v0.9.1893 (Brad): setup is now community (1) → what do you collect (2) →
+// install (3, only when not installed), then the guided tour. No card-list
+// welcome screen, no "You're all set" screen — finishing closes the overlay.
 section('Onboarding — the install step');
 
 function onboardWorld(opts) {
@@ -223,49 +226,44 @@ function onboardWorld(opts) {
   win.ONBOARD_UI = { progressTemplate: 'Step {n} of {total}' };
   win.COMMUNITY_OPTIN = {};
   win.WHAT_I_COLLECT = {};
-  win.FEATURE_MAP = [];
   win.TUTORIAL_GIFS = {};
   win.ERAS = { PW: 1 };
   win.state = { user: { name: 'Brad Hale' } };
-  win.rrReadyDemos = function () { return []; };
   win._pwaIsInstalled = function () { return !!opts.installed; };
   win._pwaPrompt = opts.canPrompt ? { prompt: function () {}, userChoice: Promise.resolve({}) } : null;
   win.localStorage.clear();
   win.eval(fs.readFileSync(APP('onboarding.js'), 'utf8'));
   return win;
 }
+const overlayUp = win => !!win.document.getElementById('onboarding-map-overlay');
 
 (function () {
   const win = onboardWorld({ canPrompt: true });
   win.showFeatureMap();
   win.onboardNext();   // 1 -> 2
+  const t2 = win.document.body.textContent;
+  ok('counter promises 3 steps when install is on offer', /Step 2 of 3/.test(t2), t2.slice(0, 80));
   win.onboardNext();   // 2 -> 3
-  const panelText3 = win.document.body.textContent;
-  ok('counter promises 4 steps when install is on offer', /Step 3 of 4/.test(panelText3),
-     panelText3.slice(0, 80));
-  win.onboardNext();   // 3 -> 4
-  const t4 = win.document.body.textContent;
-  ok('screen 4 renders the install offer', /Put it on this device/.test(t4) && /Install now/.test(t4));
-  ok('screen 4 offers a way past it', /Not right now/.test(t4));
-  win.onboardNext();   // 4 -> done
-  ok('finishing screen 4 reaches the done screen', /all set/i.test(win.document.body.textContent));
+  const t3 = win.document.body.textContent;
+  ok('screen 3 renders the install offer', /Put it on this device/.test(t3) && /Install now/.test(t3));
+  ok('screen 3 offers a way past it', /Not right now/.test(t3));
+  win.onboardNext();   // 3 -> finished
+  ok('finishing the install screen closes setup (the tour takes over)', !overlayUp(win));
 })();
 
 (function () {
   const win = onboardWorld({ installed: true });
   win.showFeatureMap();
-  win.onboardNext(); win.onboardNext();
-  ok('counter says 3 steps when already installed', /Step 3 of 3/.test(win.document.body.textContent));
-  win.onboardNext();   // 3 -> done, screen 4 skipped entirely
-  const t = win.document.body.textContent;
-  ok('install step is skipped when already installed',
-     /all set/i.test(t) && !/Put it on this device/.test(t));
+  win.onboardNext();
+  ok('counter says 2 steps when already installed', /Step 2 of 2/.test(win.document.body.textContent));
+  win.onboardNext();   // 2 -> finished, install screen skipped entirely
+  ok('install step is skipped when already installed', !overlayUp(win) && !/Put it on this device/.test(win.document.body.textContent));
 })();
 
 (function () {
   const win = onboardWorld({ ua: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) Safari/605.1' });
   win.showFeatureMap();
-  win.onboardNext(); win.onboardNext(); win.onboardNext();
+  win.onboardNext(); win.onboardNext();
   const t = win.document.body.textContent;
   ok('iPhone gets the Safari steps inline, not a dead button',
      /Add to Home Screen/.test(t) && !/Install now/.test(t));
@@ -276,26 +274,26 @@ function onboardWorld(opts) {
 (function () {
   const win = onboardWorld({ ua: 'Mozilla/5.0 (X11; Linux) Firefox/128.0' });
   win.showFeatureMap();
-  win.onboardNext(); win.onboardNext(); win.onboardNext();
+  win.onboardNext(); win.onboardNext();
   const t = win.document.body.textContent;
   ok('a browser with no install route says so honestly',
      /doesn’t support installing|Add to Home screen/.test(t) && !/Install now/.test(t));
 })();
 
 (function () {
-  // Back out of screen 4 and the tour must still work.
+  // Back out of the install screen and setup must still work.
   const win = onboardWorld({ canPrompt: true });
   win.showFeatureMap();
-  win.onboardNext(); win.onboardNext(); win.onboardNext();
+  win.onboardNext(); win.onboardNext();
   win.onboardBack();
-  ok('Back from screen 4 lands on screen 3', /Step 3 of 4/.test(win.document.body.textContent));
+  ok('Back from the install screen lands on step 2', /Step 2 of 3/.test(win.document.body.textContent));
 })();
 
 (function () {
   // Tapping Install swaps the row for a single Continue.
   const win = onboardWorld({ canPrompt: true });
   win.showFeatureMap();
-  win.onboardNext(); win.onboardNext(); win.onboardNext();
+  win.onboardNext(); win.onboardNext();
   win.onboardInstallNow();
   const row = win.document.getElementById('onboard-install-actions');
   ok('after Install, one Continue button remains', !!row && /Continue/.test(row.textContent) && !/Install now/.test(row.textContent));

@@ -120,7 +120,7 @@ const PAGES = [
 const OVERLAYS = [
   { id: 'wizard-step1', base: 'dashboard', open: "startWizardFor('collection');" },
   { id: 'onboarding-1', base: 'dashboard', open: "showFeatureMap();" },
-  { id: 'onboarding-4', base: 'dashboard', open: "showFeatureMap(); onboardNext(); onboardNext(); onboardNext();" },
+  { id: 'onboarding-4', base: 'dashboard', open: "showFeatureMap(); onboardNext(); onboardNext();" }   /* v0.9.1893: install is step 3 now */,
   { id: 'report-form',  base: 'dashboard', open: "if (typeof errReportOpen==='function') errReportOpen();" },
   { id: 'inbox-sources', base: 'photo-inbox', open: "window._pinAddSource && window._pinAddSource();" },
   { id: 'help-hub',     base: 'dashboard', open: "if (typeof openHelpHub==='function') openHelpHub();" },

@@ -73,13 +73,12 @@ function _buildAuthScreen() {
         '</svg>' +
         'Continue with Google' +
       '</button>' +
-      // v0.9.1892 (Brad): "add the how to get a gmail account help function
-      // to show you how to get a free gmail email" — straight to the
-      // create-an-account steps (GMAIL_HELP 'create', onboarding-config.js).
-      '<button class="auth-gmail-free" onclick="if(typeof gmailShowPath===\'function\')gmailShowPath(\'create\');" ' +
-        'style="display:block;width:100%;margin-top:0.75rem;background:transparent;border:none;color:var(--accent2);font-size:1rem;font-weight:600;cursor:pointer;text-decoration:underline;text-underline-offset:3px;padding:0.4rem">' +
-        'No Gmail? Get one free \u2014 we\'ll show you how' +
-      '</button>' +
+      // v0.9.1893 (Brad, 2026-10-08): NO Gmail help on the app's sign-in
+      // screen. "the users i have now already have their gmail account. New
+      // ones will be using the website, so just remove it all together."
+      // The help lives on the website (sales page / FAQ) instead. The guide's
+      // code and words stay (gmail-help.js, GMAIL_HELP in onboarding-config.js)
+      // for the website to reuse; only the two buttons here are gone.
       // v0.9.999: the old 4-line permissions paragraph said the same thing as
       // the amber block three lines above it - two warnings about one
       // permission dilute each other. One line now; the alert carries it.
@@ -95,14 +94,6 @@ function _buildAuthScreen() {
       '<div class="auth-help-title">Questions before you sign in?</div>' +
       '<div class="auth-help-q">Why Google sign-in?</div>' +
       '<p class="auth-help-a">Your collection lives in <strong style="color:var(--text)">your own Google Sheet</strong> and your photos in <strong style="color:var(--text)">your own Google Drive</strong> — nothing is kept on our servers.</p>' +
-      // Session 112: Gmail help - chooser modal (gmail-help.js). Copy lives
-      // in onboarding-config.js.
-      '<button class="auth-help-btn" onclick="if(typeof gmailShowHelp===\'function\')gmailShowHelp();">' +
-        'Need help with Gmail?' +
-        '<div style="font-size:0.78rem;color:var(--text-mid);font-weight:400;margin-top:0.25rem">' +
-          'Step-by-step help for signing in, password reset, or creating an account.' +
-        '</div>' +
-      '</button>' +
     '</div>' +
     '</div>';
 }
@@ -293,11 +284,8 @@ function _buildAppShell() {
 
 // ── OAuth + sign-in helpers moved to app-auth.js (Session 110, Round 2 Chunk 11) ──
 // ══════════════════════════════════════════════════════════════
-// Welcome card (Option C) + contextual hints (Option D)
-// Built 2026-04-14. Replaces the auto-launching tutorial tour.
-//
-// showWelcomeCard(force) — single-page intro modal. Auto-shows once for
-//   brand-new users, replayable from Preferences → Help & Tips → Show.
+// Contextual hints (Option D). (The 2026-04-14 welcome card is gone since
+// v0.9.1893 — first run is showOnboarding() below, then the guided tour.)
 //
 // maybeShowContextualHint(spotId, message, anchorEl) — shows a small
 //   dismissable hint banner once per spotId. Persists dismissal in
@@ -314,17 +302,47 @@ function _buildAppShell() {
 // overlay; the surprise-popup behavior is gone — no more auto-fired modal.
 function closeOnboarding() { var o = document.getElementById("onboarding-overlay"); if (o) o.remove(); }
 
+// Runs go() once the subscription answer (vault.js subCheck → rr:substate)
+// says the app is open to this account — trial, paid, beta, owner, or
+// enforcement still off. While the welcome / lock screen is up it keeps
+// waiting (after checkout the answer arrives a second time). If no answer
+// ever comes (offline, backend down) it goes ahead after 8 s — fail-open,
+// the same rule as the subscription check itself.
+function _rrWhenAppIsOpenToThem(go) {
+  var done = false, timer = null;
+  function finish() {
+    if (done) return;
+    done = true;
+    try { window.removeEventListener('rr:substate', onAnswer); } catch (e) {}
+    if (timer) clearTimeout(timer);
+    try { go(); } catch (e) { console.warn('[onboarding] start failed', e); }
+  }
+  function decide(r) {
+    if (r && typeof rrSubBlocks === 'function' && rrSubBlocks(r)) return;   // screen is up — keep waiting
+    finish();
+  }
+  function onAnswer(e) { decide((e && e.detail) || window._subState); }
+  if (window._subState) { decide(window._subState); if (done) return; }
+  try { window.addEventListener('rr:substate', onAnswer); } catch (e) {}
+  timer = setTimeout(function () { if (!window._subState) finish(); }, 8000);
+}
+if (typeof window !== 'undefined') window._rrWhenAppIsOpenToThem = _rrWhenAppIsOpenToThem;
+
 function showOnboarding() {
   // v0.9.1793: "has THIS ACCOUNT seen it", not "has this device seen it".
   // Same person back -> straight to the dashboard. A different account on the
   // same machine -> the full sequence, which is the friend's-house case.
   if (rrOnboardingSeenByCurrentAccount()) return;
-  // Session 112: new feature-map onboarding (onboarding.js) replaces the
-  // old 3-bullet welcome modal. lv_onboarded is now set by onboardFinish /
-  // onboardSkipTour so we don't persist until the user actually completes
-  // or skips the tour — gives them a second chance if they close the tab.
+  // Session 112: onboarding.js runs the setup. lv_onboarded is set only when
+  // the person actually finishes it — a closed tab gets a second chance.
+  // v0.9.1893 (Brad's phone test): the setup used to open at once, on top of
+  // the "Start your 3-week free trial" screen, so a brand-new person answered
+  // every setup question before ever seeing the price. It now waits for the
+  // subscription answer and only starts once the app is open to them.
   if (typeof showFeatureMap === 'function') {
-    showFeatureMap();
+    _rrWhenAppIsOpenToThem(function () {
+      if (!rrOnboardingSeenByCurrentAccount() && !document.getElementById('onboarding-map-overlay')) showFeatureMap();
+    });
     return;
   }
   // Fallback (onboarding.js not loaded for any reason): minimal safe welcome.

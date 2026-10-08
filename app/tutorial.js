@@ -839,6 +839,8 @@ function tutShowHelpBtn() {
 function tutCheckAutoLaunch() {
   // v0.9.1204: the auto-start is GONE. app.js has said since 2026-04-14 that
   // "Tutorial is NOT auto-launched. Replaced with showWelcomeCard" — but this
+  // (v0.9.1893: the dashboard tour IS started once now — by onboarding.js when
+  // a new account finishes the two setup questions; never on an ordinary load.)
   // line kept launching the interactive add-item tour on EVERY load for any
   // browser whose lv_tut_seen was never set (skip it once without finishing
   // and it greets you forever). Its panel overlays the sidebar, so the FIRST
@@ -972,7 +974,9 @@ function openHelpHub(opts) {
           return row(X + "startGuide('" + gid + "');", g.icon, g.label, g.desc);
         }).join('')
     +   hdr('Getting Started')
-    +   row(X + "if(typeof showWelcomeCard==='function')showWelcomeCard(true);", '👋', 'Show the welcome card again', 'The first-run overview of what the app does')
+    // v0.9.1893: the welcome card is gone; its row now reopens the scanning /
+    // photo ID explainer that the first Add an Item shows once.
+    +   row(X + "if(typeof showAiUsageCard==='function')showAiUsageCard(true);", '📷', 'Scanning and photo ID', 'What is free and unlimited, and the daily photo ID allowance')
     +   hdr('Tips & Recovery')
     +   row(X + "if(typeof _uiShowVersionHistoryHelp==='function')_uiShowVersionHistoryHelp();", '↩️', 'How to undo a mistake', 'Restore an earlier version of your data')
     +   row(X + "if(typeof _rrTwoDevicesHelp==='function')_rrTwoDevicesHelp();", '\ud83d\udcf1', 'Using more than one device', 'Phone and computer both work \u2014 here is the one thing to know')
@@ -1582,6 +1586,11 @@ if (typeof window !== 'undefined') window._gtStill = _gtStill;
 function _guidedTour(steps) {
   if (!steps || !steps.length) return;
   _gtEnd();
+  // v0.9.1893: the "Scanning and photo ID" card now pops up the first time Add
+  // an Item opens. A guide the person starts takes the screen: the card steps
+  // aside UNREAD (not marked seen), so it comes back on their next add. Shown
+  // AFTER a guide starts (Help → Scanning and photo ID), it stays in front.
+  try { var _aic = document.getElementById('rr-ai-usage-card'); if (_aic) _aic.remove(); } catch (e) {}
   _gtResetCorner();   // v0.9.1385 — each tour picks its own corner from scratch
   // v0.9.1871 — a guide that declares `samples: true` (the tour) shows sample rows
   // on every empty list page while it runs (config.js rrSamplesOn). Thrown HERE,
@@ -2853,6 +2862,6 @@ window._guidedTour = _guidedTour;
 window._gtEnd = _gtEnd;
 
 // The Dashboard tour is now GUIDES['tour'] like everything else. This wrapper
-// stays because the welcome card and onboarding call it by name.
+// stays because onboarding.js calls it by name when a new account finishes setup.
 function startDashboardTour() { startGuide('tour'); }
 window.startDashboardTour = startDashboardTour;

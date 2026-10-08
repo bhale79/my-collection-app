@@ -3151,11 +3151,10 @@ function buildApp() {
   // (v0.9.1711: the hidden #pref-location-toggle is born nowhere; Preferences
   // uses #ptog-location and _prefLocEnabled directly.)
   // Browse, Sold, For Sale, Want, Reports built lazily on first nav via showPage()
-  // Tutorial is NOT auto-launched. Replaced 2026-04-14 with showWelcomeCard
-  // (Option C: single-page welcome) + maybeShowContextualHint (Option D:
-  // dismissable hints on empty pages). Welcome card shows once for brand-new
-  // users. Replayable from Preferences → Help & Tips.
-  if (typeof showWelcomeCard === 'function') showWelcomeCard(false);
+  // v0.9.1893: no welcome card at startup any more (Brad: "more clutter than
+  // help"). A new account's first run is the two setup questions, then the
+  // guided tour (onboarding.js → startDashboardTour); an existing account
+  // goes straight to the dashboard.
   // Initialize back-button interception after app is ready
   _initBackButton();
   // v0.9.709 (Brad's mobile-vs-desktop mismatch): a resumed PWA never re-runs
@@ -3555,6 +3554,30 @@ function _money(v) {
   return isFinite(n) ? n : 0;
 }
 if (typeof window !== 'undefined') window._money = _money;
+
+// v0.9.1893: the same date in WORDS — "October 29, 2026" — for the money
+// screens (trial start, renewals, the subscription row), where a stranger
+// reads it once and must not have to decode 2026-10-29 (Brad's phone test).
+// Everywhere else keeps the user's own date format through _formatDate.
+// Timezone-safe: a YYYY-MM-DD string is read as that calendar day, never
+// through new Date('YYYY-MM-DD') (which is UTC midnight = the day before in
+// the US — feedback_timezone_iso_dates).
+function _formatDateLong(input) {
+  if (input === null || input === undefined || input === '') return '';
+  var y, m, d;
+  var iso = (typeof input === 'string') ? input.match(/^(\d{4})-(\d{2})-(\d{2})/) : null;
+  if (iso) { y = +iso[1]; m = +iso[2]; d = +iso[3]; }
+  else {
+    var dt = (input instanceof Date) ? input : new Date(input);
+    if (isNaN(dt.getTime())) return String(input);
+    y = dt.getFullYear(); m = dt.getMonth() + 1; d = dt.getDate();
+  }
+  var MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July',
+                'August', 'September', 'October', 'November', 'December'];
+  if (m < 1 || m > 12) return String(input);
+  return MONTHS[m - 1] + ' ' + d + ', ' + y;
+}
+if (typeof window !== 'undefined') window._formatDateLong = _formatDateLong;
 
 function _formatDate(input) {
   if (input === null || input === undefined || input === '') return '';

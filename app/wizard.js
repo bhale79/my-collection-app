@@ -1223,9 +1223,10 @@ async function openWizard(tab) {
   if (window._offlineMode && typeof showToast === 'function') {
     showToast('You\u2019re offline \u2014 items save on this device and go up when you reconnect.', 3200);
   }
-  // v0.9.840 (Phase C): lapsed = view-only; the bottom banner has the button.
+  // v0.9.840 (Phase C): no subscription = read-only. v0.9.1893: the welcome /
+  // lock screen (vault.js) covers the app then, so this is only a backstop.
   if (window._readOnlyMode) {
-    if (typeof showToast === 'function') showToast('Your trial has ended — subscribe to keep adding items (button below)', 4000, true);
+    if (typeof showToast === 'function') showToast('Start or renew your subscription to keep adding items.', 4000, true);
     return;
   }
   // Session 154: Want lookups span the whole catalog — load every era first
@@ -1291,6 +1292,9 @@ async function openWizard(tab) {
   if (tab === 'collection') {
     try { localStorage.removeItem('lv_add_kind'); } catch (e) {}
   }
+  // v0.9.1893 (Brad): "the first time they go to add an item we need a pop up
+  // to explain scanning and photo id" — once per account (app-misc.js).
+  try { if (typeof rrMaybeShowAddHelp === 'function') rrMaybeShowAddHelp(); } catch (e) {}
 }
 
 function closeWizard() {

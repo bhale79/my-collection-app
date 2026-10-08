@@ -14,22 +14,18 @@ const ONBOARD_UI = {
   bodyFontPx:        18,
   headingFontPx:     28,
   smallFontPx:       15,      // used only for footnotes
-  linkFontPx:        16,      // text-link buttons ("See it in the app", "Skip tour")
+  linkFontPx:        16,      // text-link buttons (Select all / Clear all)
   buttonMinHeightPx: 52,      // tap-target; 48 is minimum, 52 gives some margin
   buttonRadiusPx:    12,
   cardRadiusPx:      14,
   overlayZIndex:     9990,
 
-  // Welcome copy on feature map. Keeps the tone warm + personal.
-  welcomeTitle:      'Welcome to The Rail Roster',
-  welcomeSubtitle:   'Your personal train collection, organized.',
-  welcomeIntro:      'Here\'s a quick look at what you can do. Tap "See it in the app" on any card to try it right now.',
-  getStartedLabel:   'Get Started',
+  // v0.9.1893 (Brad, 2026-10-08): the welcome card-list screen, "See it in
+  // the app" and "Skip tour" are GONE — "this seems more clutter than help…
+  // if we do this, we don't need the skip tour option at the top either."
+  // Setup is now two short questions, then the real guided tour starts.
   nextLabel:         'Next \u2192',
   backLabel:         '\u2190 Back',
-  skipTourLabel:     'Skip tour',
-  tourBackBarLabel:  '\u2190 Back to the tour',
-  tourReopenLabel:   'Take the tour again',
 
   // Progress indicator (1 of 3 etc.)
   progressTemplate:  'Step {n} of {total}',
@@ -43,6 +39,25 @@ const ONBOARD_UI = {
 const WHAT_I_COLLECT = {
   title:       'What do you collect?',
   subtitle:    'Pick the eras you\'re interested in. You can change this anytime in Preferences.',
+  // v0.9.1893 (Brad, 2026-10-08): "on the collect page, we should have scale
+  // at the top, so a user can click all o scale or what ever scale it is it
+  // selects all the manufactures that have o scale." One tap per scale ticks
+  // every maker's line in it; tap again to untick them. Which era is which
+  // scale comes from ERA_SCALE / ERA_SCALES_MULTI (config.js) — never typed
+  // here. A scale with no era on the list never shows a button.
+  scaleChipsTitle: 'Quick pick by scale \u2014 one tap selects every maker\'s line in it:',
+  scaleChips:  [
+    { id: 'O',        label: 'O' },
+    { id: 'S',        label: 'S' },
+    { id: 'Standard', label: 'Standard' },
+    { id: 'HO',       label: 'HO' },
+    { id: 'N',        label: 'N' },
+    { id: 'Z',        label: 'Z' },
+    { id: 'G',        label: 'G' },
+    { id: 'On30',     label: 'On30' },
+    { id: 'HOn30',    label: 'HOn30' },
+  ],
+  makersTitle: 'Or pick maker by maker:',
   helperNote:  'Pick just what you collect and the app stays uncluttered \u2014 you can change it anytime in Preferences. Collect nearly everything? Use Select all, then untick the few you don\'t.',
   saveLabel:   'Save and continue \u2192',
   skipLabel:   'Skip (keep all eras)',
@@ -306,14 +321,19 @@ const WHAT_I_COLLECT = {
 // from vault.js. We just render a friendlier first-run UI for the same
 // decision. The existing Preferences-screen modal stays reachable later.
 // ──────────────────────────────────────────────────────────────
+// v0.9.1893 (Brad, 2026-10-08): "make sure we don't claim something we don't
+// want to yet. we may want to remove the values and rarity mentions as this
+// may not happen and don't want people waiting on it to happen when it may
+// not." Every promise of market values / rarity scores is gone. This is the
+// ONE copy of the opt-in words: the first-run step AND the Preferences row and
+// its "Learn more" window (vault.js) all read it.
 const COMMUNITY_OPTIN = {
-  title:       'Help build the Collector\'s Market Est.',
-  subtitle:    'Crowd-Sourced Market Values & Rarity Scores',
+  title:       'Help the catalog grow',
+  subtitle:    '',
 
   paragraphs: [
-    'We\'re building something that doesn\'t exist anywhere else — real market values and rarity scores based on actual collector data, not guesswork.',
-    'If you contribute, your item numbers, variation, condition, your estimated worth, sold prices, and the catalog details that go with them (maker, description, road name and number, and any barcode you have paired) are submitted anonymously. A random code ties your submissions together — your name, email, and identity are never attached.',
-    'Contributors unlock market values and rarity scores once enough collections have been contributed. You can opt out and have your data deleted any time.',
+    'Share your item details anonymously and help us make the catalog better for every collector \u2014 fill gaps, catch missing items, and improve the app over time.',
+    'If you contribute, your item numbers, variation, condition, your estimated worth, sold prices, and the catalog details that go with them (maker, description, road name and number, and any barcode you have paired) are submitted anonymously. A random code ties your submissions together — your name, email, and identity are never attached. You can opt out and have your data deleted any time.',
     'One more privacy note, separate from the above: when the app reads a photo for you — a box label, a tough-to-identify item, or a business card — that single photo is sent through The Rail Roster to a secure automated photo-reading service (Google\'s), read, and that\'s the end of it. Nothing about you or your collection travels with it, and there\'s a sensible daily limit.',
   ],
 
@@ -329,75 +349,12 @@ const COMMUNITY_OPTIN = {
 
   yesLabel:     'Yes, I\'ll contribute',
   noLabel:      'Not right now',
-  finishLabel:  'Finish \u2713',
-  doneMessage:  'Thanks! You\'re all set. Tap Finish to start adding items.',
-  doneOptedOut: 'No problem — you can opt in anytime from Preferences. Tap Finish to begin.',
-};
 
-// ──────────────────────────────────────────────────────────────
-// FEATURE_MAP — the 6 feature cards shown on the welcome screen.
-//
-// To add a 7th feature: add an entry. To change wording: edit one line.
-// To use a screenshot instead of live-nav: fill in the `screenshot` field
-// with a path like './images/feature-dashboard.png' and the renderer will
-// switch from live-nav preview to image preview automatically.
-// ──────────────────────────────────────────────────────────────
-const FEATURE_MAP = [
-  {
-    id:          'dashboard',
-    title:       'Dashboard',
-    description: 'See your whole collection at a glance — totals, counts, recent items.',
-    icon:        '\uD83D\uDCCA',                // chart icon
-    accentColor: 'var(--accent)',
-    targetPage:  'dashboard',
-    screenshot:  '',                             // empty = use live-nav preview
-  },
-  {
-    id:          'collection',
-    title:       'My Collection',
-    description: 'Every item you own — searchable, sortable, with photos and condition.',
-    icon:        '\uD83D\uDCE6',                // package icon
-    accentColor: '#2980b9',                     // blue
-    targetPage:  'browse',
-    screenshot:  '',
-  },
-  {
-    id:          'add-item',
-    title:       'Add an Item',
-    description: 'Type an item number and the app fills in the rest. Add a photo and price paid, you\'re done.',
-    icon:        '\u2795',                      // plus sign
-    accentColor: '#e67e22',                     // orange
-    targetPage:  'dashboard',                   // "add" lives off the dashboard
-    screenshot:  '',
-  },
-  {
-    id:          'want',
-    title:       'Want List',
-    description: 'Items you\'re hunting for, with target prices. Turn a want into a purchase in one tap.',
-    icon:        '\u2B50',                      // star
-    accentColor: '#f1c40f',                     // yellow
-    targetPage:  'want',
-    screenshot:  '',
-  },
-  {
-    id:          'for-sale',
-    title:       'For Sale / Sold',
-    description: 'Track what you\'re selling and keep a history of what you\'ve sold — and for how much.',
-    icon:        '\uD83D\uDCB0',                // money bag
-    accentColor: '#2ecc71',                     // green
-    targetPage:  'forsale',
-    screenshot:  '',
-  },
-  {
-    id:          'reports',
-    title:       'Reports',
-    description: 'Print-ready insurance reports and want-list printouts — perfect for train shows.',
-    icon:        '\uD83D\uDCDD',                // document
-    accentColor: '#b48c3c',                     // gold
-    targetPage:  'reports',
-    screenshot:  '',
-  },
-];
+  // Preferences → the opt-in row (vault.js vaultRenderPrefsRow).
+  prefsTitle:      'Share anonymously',
+  prefsBlurbIn:    'You are contributing anonymously. Thank you \u2014 it helps the catalog grow for every collector.',
+  prefsBlurbOut:   'Share your item details anonymously to help the catalog grow.',
+};
 
 // ──────────────────────────────────────────────────────────────
 // GMAIL_HELP — content for the 4 Gmail-help paths.
@@ -470,7 +427,6 @@ const GMAIL_HELP = {
 
 // Expose globals for use in gmail-help.js + onboarding.js
 window.ONBOARD_UI      = ONBOARD_UI;
-window.FEATURE_MAP     = FEATURE_MAP;
 // v0.9.1719: Micro-Trains takes the Atlas blue BY REFERENCE. Atlas has owned
 // the brand since 2023, so it belongs to that colour family — and pointing at
 // the existing value keeps the colour ratchet honest instead of writing a

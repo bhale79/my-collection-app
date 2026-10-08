@@ -119,8 +119,11 @@ console.log('\n== v1793: planted offenders ==');
   const APP = fs.readFileSync(path.join(__dirname, '..', 'app', 'app.js'), 'utf8');
   const SETUP = fs.readFileSync(path.join(__dirname, '..', 'app', 'app-setup.js'), 'utf8');
   const CFG = fs.readFileSync(path.join(__dirname, '..', 'app', 'config.js'), 'utf8');
+  // v0.9.1893: the setup now also re-checks the account inside its wait
+  // (app-setup.js _rrWhenAppIsOpenToThem), so the planted file is judged by
+  // the same GATE LINE the check above reads, not by any mention at all.
   ok('going back to the device-wide gate is caught',
-     !/rrOnboardingSeenByCurrentAccount/.test(
+     !/if \(rrOnboardingSeenByCurrentAccount\(\)\) return;/.test(
        SETUP.replace('if (rrOnboardingSeenByCurrentAccount()) return;',
                      "if (localStorage.getItem('lv_onboarded')) return;")));
   ok('storing the EMAIL instead of a fingerprint is caught',

@@ -75,7 +75,7 @@ window._ifState = function () {
 };
 window._ifReset = async function () {
   await window._drvReset();
-  var w = document.getElementById('rr-welcome-card'); if (w) w.remove();
+  var w = document.getElementById('rr-ai-usage-card'); if (w) w.remove();   // v0.9.1893: was the welcome card
   var h = document.getElementById('help-hub-modal'); if (h) h.remove();
   await new Promise(r => setTimeout(r, 250));
 };
@@ -242,20 +242,21 @@ window._ifReset = async function () {
     ok('…and never leaves a card describing a screen that is gone',
        !deviceBack.stranded, JSON.stringify(deviceBack));
 
-    // ── 7. THE WELCOME CARD ARRIVING OVER A RUNNING GUIDE ───────────────────
-    // Reachable for real: Help Centre -> "Show the welcome card again", which a
-    // user can press while a tour is up. Whichever ends up on top, the one in
-    // front has to be the one you can press.
+    // ── 7. THE SCANNING CARD ARRIVING OVER A RUNNING GUIDE ──────────────────
+    // v0.9.1893: the welcome card is gone; its Help row now opens the scanning
+    // / photo ID card. Reachable for real: Help Centre -> "Scanning and photo
+    // ID", which a user can press while a tour is up. Whichever ends up on
+    // top, the one in front has to be the one you can press.
     const welcome = await page.evaluate(async () => {
       await window._ifReset();
       startGuide('tour');
       await new Promise(r => setTimeout(r, 1500));
-      if (typeof showWelcomeCard === 'function') showWelcomeCard(true);
+      if (typeof showAiUsageCard === 'function') showAiUsageCard(true);
       await new Promise(r => setTimeout(r, 900));
-      const w = document.getElementById('rr-welcome-card');
+      const w = document.getElementById('rr-ai-usage-card');
       let goReachable = null;
       if (w) {
-        const go = w.querySelector('#rr-welcome-go');
+        const go = w.querySelector('#rr-ai-usage-go');
         if (go) {
           const r = go.getBoundingClientRect();
           const top = document.elementFromPoint(Math.round(r.left + r.width / 2), Math.round(r.top + r.height / 2));
@@ -267,7 +268,7 @@ window._ifReset = async function () {
       await window._ifReset();
       return out;
     });
-    ok('the welcome card can be shown while a guide is running', welcome.shown, JSON.stringify(welcome));
+    ok('the scanning card can be shown while a guide is running', welcome.shown, JSON.stringify(welcome));
     ok('…and its own button is pressable rather than trapped under the tour',
        welcome.goReachable === true, JSON.stringify(welcome));
 

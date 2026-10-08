@@ -242,6 +242,16 @@ async function vaultLoadContributorCount() {
 //  Also accessible from Preferences page.
 // ============================================================
 
+// v0.9.1893: the opt-in words have ONE home — COMMUNITY_OPTIN in
+// onboarding-config.js — read by the first-run step AND this window and the
+// Preferences row. (This window used to carry its own copy, still promising
+// market values and rarity scores after the first-run copy dropped them.)
+function _vaultOptCopy() { return (typeof window !== 'undefined' && window.COMMUNITY_OPTIN) || {}; }
+function _vaultEsc(v) {
+  return String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
 function vaultShowOptInModal(fromPrefs) {
   const existing = document.getElementById('vault-optin-modal');
   if (existing) existing.remove();
@@ -268,32 +278,15 @@ function vaultShowOptInModal(fromPrefs) {
       max-height:calc(100vh - 40px);overflow-y:auto;
       -webkit-overflow-scrolling:touch;margin:auto 0;
     ">
-      <div style="font-family:var(--font-head);font-size:1.3rem;color:var(--text);margin-bottom:6px;letter-spacing:0.04em">
-        Collector's Market Est.
+      <div style="font-family:var(--font-head);font-size:1.3rem;color:var(--text);margin-bottom:16px;letter-spacing:0.04em">
+        ${_vaultEsc(_vaultOptCopy().title || '')}
       </div>
-      <div style="font-size:0.78rem;color:var(--t-accent);font-family:var(--font-head);letter-spacing:0.12em;text-transform:uppercase;margin-bottom:20px">
-        Crowd-Sourced Market Values &amp; Rarity Scores
-      </div>
-
-      <p style="color:var(--text-mid);font-size:0.88rem;line-height:1.7;margin-bottom:16px">
-        We're building something that doesn't exist anywhere else — real market values and rarity scores based on actual collector data, not guesswork.
-      </p>
-      <p style="color:var(--text-mid);font-size:0.88rem;line-height:1.7;margin-bottom:16px">
-        If you choose to contribute, your collection's condition and estimated worth data is submitted anonymously in the background. <strong style="color:var(--text)">Your name, email, and identity are never attached to this data — ever.</strong> Only a random anonymous code ties your submissions together.
-      </p>
-      <p style="color:var(--text-mid);font-size:0.88rem;line-height:1.7;margin-bottom:24px">
-        Contributors who help build the database unlock market values and rarity scores once enough collections have been contributed — the Collector's Market page shows the live count and the target. You can opt out and have your data permanently deleted at any time.
-      </p>
+      ${(_vaultOptCopy().paragraphs || []).map(function (t) { return '<p style="color:var(--text-mid);font-size:0.88rem;line-height:1.7;margin-bottom:16px">' + _vaultEsc(t) + '</p>'; }).join('')}
 
       <div style="background:var(--bg-card);background:color-mix(in srgb, rgb(255,255,255) 5%, var(--bg-card));border-radius:8px;padding:14px 16px;margin-bottom:24px;border:1px solid var(--border)">
-        <div style="font-size:0.8rem;color:var(--text-dim);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.1em;font-family:var(--font-head)">What gets submitted</div>
+        <div style="font-size:0.8rem;color:var(--text-dim);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.1em;font-family:var(--font-head)">${_vaultEsc(_vaultOptCopy().submittedTitle || 'What gets submitted')}</div>
         <div style="font-size:0.84rem;color:var(--text-mid);line-height:1.8">
-          ✓ &nbsp;Item number and variation<br>
-          ✓ &nbsp;Condition grade<br>
-          ✓ &nbsp;Your estimated worth<br>
-          ✓ &nbsp;Sold price (if recorded)<br>
-          ✓ &nbsp;Item numbers not in our catalog yet — so the catalog can keep growing for all collectors<br>
-          ✗ &nbsp;<span style="color:var(--text)">Your name, email, or any identifying information — never</span>
+          ${(_vaultOptCopy().submittedList || []).map(function (it) { return (it.ok ? '✓' : '✗') + ' &nbsp;' + (it.ok ? _vaultEsc(it.text) : '<span style="color:var(--text)">' + _vaultEsc(it.text) + '</span>'); }).join('<br>')}
         </div>
       </div>
 
@@ -705,12 +698,10 @@ function vaultRenderPrefsRow(containerEl) {
     <div class="vault-prefs-row">
       <div>
         <div style="color:var(--text);font-size:0.9rem;font-weight:600;margin-bottom:3px">
-          Collector's Market Est.
+          ${_vaultEsc(_vaultOptCopy().prefsTitle || '')}
         </div>
         <div style="color:var(--text-mid);font-size:0.82rem;line-height:1.5">
-          ${isIn
-            ? 'You are contributing anonymously. Thank you — your data helps the whole community.'
-            : 'Contribute your collection data anonymously to unlock crowd-sourced market values and rarity scores.'}
+          ${_vaultEsc(isIn ? (_vaultOptCopy().prefsBlurbIn || '') : (_vaultOptCopy().prefsBlurbOut || ''))}
         </div>
       </div>
       <button onclick="vaultShowOptInModal(true)" style="
@@ -996,6 +987,16 @@ async function subCheck() {
 // checkout link carries the signed-in Google email, LOCKED, so a payment can
 // never land under a different address ("we need to make sure no one can get
 // locked out"). Wording reads RR_PRICE_TEXT / RR_SHOW_PRICE_TEXT (config.js).
+// v0.9.1893: ONE answer to "does this answer put a screen over the app?" —
+// _subApply below and the first-run setup (app-setup.js, which waits until
+// the app is open to them) both ask it, so they can never disagree.
+function rrSubBlocks(r) {
+  if (!r || !r.enforce) return false;
+  try { if (typeof rrIsRealOwner === 'function' && rrIsRealOwner()) return false; } catch (e) {}
+  return r.sub === 'none' || r.sub === 'expired';
+}
+if (typeof window !== 'undefined') window.rrSubBlocks = rrSubBlocks;
+
 function _subApply(r) {
   var old = document.getElementById('sub-banner');
   if (old) old.remove();
@@ -1017,6 +1018,7 @@ function _subApply(r) {
     return;
   }
   // none / expired: the app stays behind a screen and does not write.
+  if (!rrSubBlocks(r)) return;
   window._readOnlyMode = true;
   if (r.sub === 'none' && _subCheckoutPending()) {
     // Back from Stripe but the backend has not seen it yet — wait, don't re-sell.
@@ -1036,8 +1038,10 @@ function _subEsc(v) {
   return String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;')
     .replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
+// v0.9.1893: money dates in words — "October 29, 2026" (Brad's phone test
+// showed 2026-10-29). _formatDateLong lives with the other format helpers.
 function _subDate(iso) {
-  return iso ? (typeof _formatDate === 'function' ? _formatDate(iso) : iso) : '';
+  return iso ? (typeof _formatDateLong === 'function' ? _formatDateLong(iso) : iso) : '';
 }
 // The checkout link, with the signed-in email filled in AND locked.
 function _subCheckoutUrl(base) {
@@ -1138,7 +1142,8 @@ function _subScreen(kind, r) {
   ov.id = 'sub-screen';
   ov.setAttribute('role', 'dialog');
   ov.setAttribute('aria-modal', 'true');
-  ov.style.cssText = 'position:fixed;inset:0;z-index:9980;background:var(--bg);display:flex;align-items:flex-start;justify-content:center;overflow-y:auto;padding:2rem 1rem;font-family:var(--font-body)';
+  // v0.9.1893: above everything (was 9980, under the setup screens at 9990).
+  ov.style.cssText = 'position:fixed;inset:0;z-index:99999;background:var(--bg);display:flex;align-items:flex-start;justify-content:center;overflow-y:auto;padding:2rem 1rem;font-family:var(--font-body)';
   ov.innerHTML = '<div style="max-width:520px;width:100%;background:var(--surface);border:1px solid var(--border);border-radius:' + ((u.cardRadiusPx || 14) + 'px') + ';padding:1.6rem 1.4rem">' + h + '</div>';
   document.body.appendChild(ov);
 }

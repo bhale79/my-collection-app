@@ -57,7 +57,7 @@ function page(opts) {
     RR_PRICE_TEXT: '$75/year plus tax', RR_SHOW_PRICE_TEXT: '$60 first year plus tax', ADMIN_EMAIL: 'support@therailroster.com',
     ONBOARD_UI: { bodyFontPx: 18, headingFontPx: 28, buttonMinHeightPx: 52 },
     APP_VERSION: 'v0.9.1892',
-    _formatDate: iso => 'D(' + iso + ')',
+    _formatDate: iso => 'D(' + iso + ')', _formatDateLong: iso => 'D(' + iso + ')',
     rrIsRealOwner: () => !!opts.owner,
     vaultPost: async (p) => { posts.push(p); return opts.answer || { status: 200, sub: 'beta' }; },
     CustomEvent: function (n, d) { this.type = n; this.detail = d && d.detail; },
@@ -164,12 +164,14 @@ console.log('5. checkout return');
 
 // ── 6. sign-in screen, the switch, timing ─────────────────────────────────
 console.log('6. sign-in screen');
-ok('sign-in card has "No Gmail? Get one free" opening the create-an-account steps',
-   /No Gmail\? Get one free/.test(setup) && /gmailShowPath\(\\'create\\'\)/.test(setup));
-ok('…the "create" steps exist in GMAIL_HELP', /id:\s*'create'/.test(onb) && /accounts\.google\.com\/signup/.test(onb));
-ok('…and it sits right under the Continue with Google button',
-   setup.indexOf('No Gmail? Get one free') > setup.indexOf("'Continue with Google'") &&
-   setup.indexOf('No Gmail? Get one free') - setup.indexOf("'Continue with Google'") < 800);
+// v0.9.1893 (Brad, 2026-10-08): "just remove it all together" — no Gmail
+// help on the app's sign-in screen; it lives on the website.
+const gmailOnSignIn = s => /gmailShowPath\(|gmailShowHelp\(|No Gmail\?|Need help with Gmail\?/.test(s.replace(/\/\/.*$/gm, ''));
+ok('the sign-in screen has NO Gmail help (no "No Gmail?", no "Need help with Gmail?")', !gmailOnSignIn(setup));
+ok('PLANTED: a Gmail help button on the sign-in screen is caught', gmailOnSignIn("'<button onclick=\"gmailShowHelp();\">Need help with Gmail?</button>' +"));
+ok('…the guide itself is kept for the website (GMAIL_HELP create steps still in onboarding-config.js)',
+   /id:\s*'create'/.test(onb) && /accounts\.google\.com\/signup/.test(onb));
+ok('…the "Why Google sign-in?" reassurance stays', /Why Google sign-in\?/.test(setup));
 ok('config.js holds ONE invite-screen switch, ON until launch day', /const RR_INVITE_GATE_ON = true;/.test(cfg) && /function rrInviteGateOn\(\)/.test(cfg));
 ok('_rrShowFirstScreen goes straight to sign-in when the switch is off',
    /if \(_isBetaVerified\(\) \|\| \(typeof rrInviteGateOn === 'function' && !rrInviteGateOn\(\)\)\)/.test(auth));

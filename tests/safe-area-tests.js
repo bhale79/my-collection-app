@@ -47,8 +47,12 @@ ok('nothing else positions off a bare var(--header-h)',
 console.log('\n== The edge-pinned bars ==');
 ok('the offline banner pads under the status bar',
    /'top:0',\n[\s\S]{0,140}'padding-top:env\(safe-area-inset-top, 0px\)',/.test(MISC));
-ok('the onboarding return bar clears the status bar',
-   /padding:max\(0\.75rem, env\(safe-area-inset-top, 0px\)\) 1rem 0\.75rem;/.test(ONB));
+// v0.9.1893: the onboarding "Back to the tour" bar is gone with the card-list
+// welcome screen it served (Brad: "more clutter than help"). Nothing in
+// onboarding.js pins itself to the top edge any more — pinned to stay that way,
+// so a bar that comes back has to come back with its safe-area padding.
+ok('onboarding.js pins no bar to the top edge (the return bar is gone)',
+   !/position:fixed;top:0/.test(ONB) && !/onboarding-return-bar/.test(ONB));
 ok('the report-draft restore bar clears the home indicator',
    /bottom:0;padding:0\.85rem 1rem max\(0\.85rem, env\(safe-area-inset-bottom, 0px\)\);/.test(ERR));
 ok('the bottom nav still has its v0.9.1053 inset (regression pin)',

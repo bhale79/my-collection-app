@@ -3282,17 +3282,21 @@ META_WRITES.length = 0; TOASTS.length = 0;
          /were for a different item, so they were cleared/.test(rs));
     })();
 
-    // ── 6.3 welcome card was unreachable ──
-    ok('6.3 the Help Center can replay the welcome card (force flag finally has a caller)',
-       /showWelcomeCard\(true\)/.test(tu));
+    // ── 6.3 (v0.9.1893) the welcome card is GONE (Brad: "more clutter than
+    //    help"); its Help row now replays the scanning / photo ID card, which
+    //    the first Add an Item shows once per account. ──
+    ok('6.3 no welcome card any more — nothing defines or calls showWelcomeCard',
+       !/function showWelcomeCard\(/.test(am) && !/showWelcomeCard\(/.test(strip(tu)));
+    ok('6.3 the Help Center can replay the scanning / photo ID card (force flag has a caller)',
+       /showAiUsageCard\(true\)/.test(tu));
     ok('6.3 …and the force flag still does what the caller needs',
-       /function showWelcomeCard\(force\)/.test(am) && /!force && localStorage\.getItem\(WELCOME_SEEN_KEY\)/.test(amc));
+       /function showAiUsageCard\(force\)/.test(am) && /if \(!force && _aiUsageSeenByThisAccount\(\)\) return;/.test(amc));
 
     // ── §7 entry-point copy over-promised the reader ──
-    ok('§7 the welcome card no longer promises the app identifies photos for you',
+    ok('§7 the scanning card does not promise the app identifies photos for you',
        !/snap a photo and let the app identify it/.test(amc));
-    ok('§7 …it leads with the reliable path and calls the reader a helper',
-       /type the item number/.test(amc) && /the photo reader is a helper/.test(amc));
+    ok('§7 …it calls photo ID what it is: a daily allowance, scanning free',
+       /Scanning is free and unlimited/.test(amc) && /a daily allowance/.test(amc));
 
     // ── 5.1 link previews ──
     ['index.html (landing)', 'app/index.html (app)'].forEach(function (label, i) {
@@ -10833,10 +10837,11 @@ META_WRITES.length = 0; TOASTS.length = 0;
        /rrReadyDemos\(\)\.forEach\(function\(d\)/.test(gifs));
     ok('...and skips the whole section when none are ready',
        /if \(!rrReadyDemos\(\)\.length\) return true;/.test(gifs));
-    ok('the first-run tour button asks the same reader',
-       /if \(typeof rrReadyDemos === 'function' && rrReadyDemos\(\)\.length\)/.test(onb));
-    ok('the preview modal lists only ready demos',
-       /var list = rrReadyDemos\(\)\.map\(function\(d\)/.test(onb));
+    // v0.9.1893: the first-run card screen that offered "Watch how-to demos"
+    // is gone (Brad: "more clutter than help"); onboarding.js has no demo
+    // button at all now, so it cannot offer a demo that does not exist.
+    ok('the first-run setup no longer offers demos at all',
+       !/rrReadyDemos|onboardShowGifsPreview/.test(onb));
     ok('nobody counts cfg.demos directly any more',
        !/\(cfg\.demos \|\| \[\]\)\.(forEach|map)/.test(strip(gifs) + strip(onb)) &&
        !/TUTORIAL_GIFS\.demos \|\| \[\]\)\.length/.test(strip(onb)));
@@ -19338,12 +19343,13 @@ META_WRITES.length = 0; TOASTS.length = 0;
          /id="id-ai-left"/.test(wiz) && /rrAiRemainingLabel === 'function'/.test(wiz));
       ok('272 the For Sale flow no longer shows two buttons for one action on a phone',
          /s\.id === 'itemNum' && wizard\.tab !== 'sold' && !window\.IS_MOBILE_UA \?/.test(wiz));
-      // v0.9.1824 (M7): the card now points at Help in the side menu → "Show the
-      // welcome card again", which is a real row of the Help Center (tutorial.js).
-      ok('272 the welcome card points at a Help row that exists',
-         !/Show Welcome Tour/.test(mis) && /Help<\/strong> \(in the side menu\) → Show the welcome card again/.test(mis));
+      // v0.9.1824 (M7) / v0.9.1893: the scanning card points at Help in the
+      // side menu → "Scanning and photo ID", a real row of the Help Center.
+      ok('272 the scanning card points at a Help row that exists',
+         !/Show Welcome Tour/.test(mis) && /Help<\/strong> \(in the side menu\) \\u2192 Scanning and photo ID/.test(mis)
+         && !/Preferences → Help &amp; Tips/.test(mis));
       ok('272 …and that row really is what Help offers',
-         /'Show the welcome card again'/.test(strip(rd72('tutorial.js'))));
+         /'Scanning and photo ID'/.test(strip(rd72('tutorial.js'))));
 
       // ── Back honours where you came from, on every detail page ──
       ok('272 the Sold detail page reads _detailReturn instead of hardcoding Sold',

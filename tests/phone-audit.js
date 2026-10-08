@@ -80,9 +80,9 @@ const OVERLAYS = [
   { id: 'wizard-step1', base: 'dashboard',
     open: "startWizardFor('collection');", waitFor: '#wiz-input' },
   { id: 'onboarding-1', base: 'dashboard', open: "showFeatureMap();" },
-  { id: 'onboarding-2', base: 'dashboard', open: "showFeatureMap(); onboardNext();" },
+  { id: 'onboarding-2', base: 'dashboard', open: "showFeatureMap(); onboardNext();" },   // v0.9.1893: 1 = community, 2 = collect
   { id: 'onboarding-4', base: 'dashboard',
-    open: "showFeatureMap(); onboardNext(); onboardNext(); onboardNext();" },
+    open: "showFeatureMap(); onboardNext(); onboardNext();" }   /* v0.9.1893: install is step 3 now */,
   { id: 'report-form',  base: 'dashboard',
     open: "if (typeof errReportOpen==='function') errReportOpen();" },
   { id: 'inbox-sources', base: 'photo-inbox',

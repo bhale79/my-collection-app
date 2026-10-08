@@ -213,7 +213,9 @@ ok('BRAD\'S CLAIM: and removal clears the row rather than deleting it',
           showFeatureMap();
           await new Promise(r => setTimeout(r, 700));
           linkShown = /Watch how-to demos/.test(document.body.innerText || '');
-          if (typeof onboardSkipTour === 'function') onboardSkipTour();
+          // v0.9.1893: there is no "Skip tour" any more — take the overlay
+          // down directly (this check only reads what it offered).
+          var _ov = document.getElementById('onboarding-map-overlay'); if (_ov) _ov.remove();
           await new Promise(r => setTimeout(r, 300));
         }
       } catch (e) {}

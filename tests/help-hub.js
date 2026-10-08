@@ -7,7 +7,7 @@
 // built from a string of HTML with inline onclick attributes, and four of its
 // rows are not guides at all:
 //
-//   · Show the welcome card again      -> showWelcomeCard(true)
+//   · Scanning and photo ID            -> showAiUsageCard(true)   (v0.9.1893; was the welcome card)
 //   · How to undo a mistake            -> _uiShowVersionHistoryHelp()
 //   · Reset tips                       -> resetContextualHints()
 //   · Send feedback                    -> mailto:ADMIN_EMAIL
@@ -25,7 +25,7 @@
 // and looks like the app losing your feedback.
 //
 // WHAT IT CANNOT SEE, so nobody trusts it too far:
-//   · whether the welcome card's WORDS are right — only that it appears
+//   · whether the scanning card's WORDS are right — only that it appears
 //   · whether a real mail client is installed
 'use strict';
 
@@ -205,7 +205,7 @@ window._hubSnapshot = function () {
     // rename leaves a row that looks alive, closes the Help Centre, and does
     // nothing whatever.
     const NONGUIDE = [
-      { label: 'Show the welcome card again', fn: 'showWelcomeCard' },
+      { label: 'Scanning and photo ID',       fn: 'showAiUsageCard' },   // v0.9.1893: the welcome card is gone
       { label: 'How to undo a mistake',       fn: '_uiShowVersionHistoryHelp' },
       { label: 'Reset tips',                  fn: 'resetContextualHints' }
     ];

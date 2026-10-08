@@ -1,111 +1,65 @@
 // ═══════════════════════════════════════════════════════════════
-// onboarding.js — 3-screen onboarding flow.
+// onboarding.js — first-run setup: two short questions, then the tour.
 //
-// Screen 1: Feature Map (Phase A)
-// Screen 2: What I Collect preferences (Phase B)
-// Screen 3: Community opt-in (Phase C — relocated from surprise popup)
-// Screen 4 (done): brief "all set" confirmation + Finish.
+// v0.9.1893 (Brad, 2026-10-08, after walking it on his phone as a brand-new
+// account): "I don't think we need … all the welcome to the rail roster
+// scrolling pages. I think we need the app to open up and start the tour …
+// I think the community page should be first, then the what do you collect …
+// if we do this, we don't need the skip tour option at the top either."
 //
-// All screens share the same overlay, same styling, same Back/Next/Skip
-// chrome. Copy and feature list come from onboarding-config.js.
+// Screen 1: Community opt-in      (_buildCommunity)
+// Screen 2: What do you collect?  (_buildPrefs — scale buttons on top)
+// Screen 3: Put it on this device (_buildInstall — only when not installed)
+// Then the overlay closes and the real guided tour starts on the dashboard
+// (startDashboardTour, tutorial.js).
+//
+// Gone: the feature-card welcome screen, "See it in the app" and its
+// "Back to the tour" bar, "Skip tour", and the "You're all set" screen.
+// Every screen has its own buttons; nothing here is skippable by accident.
+// Copy comes from onboarding-config.js.
 // ═══════════════════════════════════════════════════════════════
 
 (function() {
   // v0.9.1416 (Brad: "on start up, we should ask that as a start up question")
-  // Screen 4 offers to put the app on the device. It is skipped entirely when
-  // the app is ALREADY running installed — there is nothing to offer then, and
-  // a dead step at the end of the tour is worse than no step. _totalScreens()
-  // is therefore asked fresh each time rather than being a fixed constant, so
-  // the "Step n of N" counter never promises a screen we won't show.
-  var TOTAL_SCREENS = 3;                    // screens before the install offer
+  // The install screen is skipped entirely when the app is ALREADY running
+  // installed — there is nothing to offer then. _totalScreens() is asked
+  // fresh each time so the "Step n of N" counter never promises a screen we
+  // won't show.
+  var TOTAL_SCREENS = 2;                    // screens before the install offer
+  var SCREEN_COMMUNITY = 1, SCREEN_COLLECT = 2, SCREEN_INSTALL = 3;
   function _installOffered() {
     try { if (typeof window._pwaIsInstalled === 'function' && window._pwaIsInstalled()) return false; } catch (e) {}
     return true;
   }
   function _totalScreens() { return TOTAL_SCREENS + (_installOffered() ? 1 : 0); }
   var _screen = 1;
-  var _inTourPreview = false;
-  var _lastCardId    = null;
 
   // ─── Public entry points ───
 
   function showFeatureMap() {
     _screen = 1;
-    _inTourPreview = false;
-    _lastCardId = null;
-    _hideReturnBar();
     _removeOverlay();
     _mountOverlay();
     _renderScreen();
-    // Device back = skip the tour (same as the in-modal "Skip tour" button).
-    // In-tour Next/Back handle cross-screen navigation separately.
-    if (window.BackStack) window.BackStack.push('onboarding-tour', _completeSilently);
+    _pushBack();
   }
-  window.showFeatureMap = showFeatureMap;
+  window.showFeatureMap = showFeatureMap;   // name kept: app-setup.js showOnboarding() calls it
 
-  function onboardReopenTour() { showFeatureMap(); }
-  window.onboardReopenTour = onboardReopenTour;
-
-  // Session 112: open a small standalone modal showing the GIF demo list.
-  // Placeholders today; once TUTORIAL_GIFS.demos have gifUrl populated the
-  // buttons become launchers (same _openGifModal used by the Help menu).
-  function _closeGifsPreviewSilently() {
-    var el = document.getElementById('onboard-gifs-preview');
-    if (el) el.remove();
+  // Device Back steps back one screen — it never skips the setup (there is no
+  // skip any more). On the first screen it simply stays put.
+  function _pushBack() {
+    if (window.BackStack) window.BackStack.push('onboarding-tour', _onDeviceBack);
   }
-  function onboardCloseGifsPreview() {
-    _closeGifsPreviewSilently();
-    if (window.BackStack) window.BackStack.pop('onboard-gifs-preview');
+  function _onDeviceBack() {
+    if (!document.getElementById('onboarding-map-overlay')) return;   // already finished
+    if (_screen > 1) { _screen = _screen - 1; _renderScreen(); }
+    _pushBack();
   }
-  window.onboardCloseGifsPreview = onboardCloseGifsPreview;
-
-  function onboardShowGifsPreview() {
-    var cfg = window.TUTORIAL_GIFS || {};
-    var existing = document.getElementById('onboard-gifs-preview');
-    if (existing) existing.remove();
-    var ov = document.createElement('div');
-    ov.id = 'onboard-gifs-preview';
-    var s = _styles();
-    ov.style.cssText =
-      'position:fixed;inset:0;background:rgba(10,14,20,0.90);z-index:' + (s.z + 5) + ';' +
-      'display:flex;align-items:flex-start;justify-content:center;padding:1.5rem;overflow-y:auto';
-    var list = rrReadyDemos().map(function(d) {
-      // v0.9.1285: rrReadyDemos() filters on gifUrl, so every demo here IS
-      // ready — the Coming-soon branch could never run and read as if empty
-      // demos still rendered. One badge, the true one.
-      var badge = '<span style="font-size:' + s.small + ';color:var(--t-green);font-weight:600">Ready</span>';
-      return '<div style="display:flex;align-items:center;gap:0.75rem;padding:0.9rem 0;border-bottom:1px solid var(--border)">' +
-        '<div style="font-size:1.5rem">\uD83C\uDFAC</div>' +
-        '<div style="flex:1">' +
-          '<div style="font-weight:600;font-size:' + s.body + ';color:var(--text)">' + _escape(d.title || '') + '</div>' +
-          (d.description ? '<div style="font-size:' + s.small + ';color:var(--text-mid);margin-top:0.15rem">' + _escape(d.description) + '</div>' : '') +
-        '</div>' +
-        badge +
-      '</div>';
-    }).join('');
-    ov.innerHTML =
-      '<div style="background:var(--surface);border-radius:14px;max-width:560px;width:100%;padding:1.4rem;box-shadow:0 20px 60px rgba(0,0,0,0.5);margin:auto 0">' +
-        '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:0.8rem">' +
-          '<div style="font-family:var(--font-head);font-size:1.3rem;font-weight:700;color:var(--text)">' + _escape(cfg.sectionTitle || 'Watch how it works') + '</div>' +
-          '<button onclick="onboardCloseGifsPreview()" aria-label="Close" style="background:none;border:none;color:var(--text-mid);font-size:1.6rem;cursor:pointer;padding:0.2rem 0.5rem;line-height:1">\u00D7</button>' +
-        '</div>' +
-        (cfg.sectionNote ? '<div style="font-size:' + s.small + ';color:var(--text-dim);margin-bottom:0.8rem;font-style:italic">' + _escape(cfg.sectionNote) + '</div>' : '') +
-        '<div>' + list + '</div>' +
-        '<div style="font-size:' + s.small + ';color:var(--text-dim);margin-top:1.2rem;padding-top:0.8rem;border-top:1px solid var(--border);text-align:center">You can also find these in the <strong>Help menu</strong> any time.</div>' +
-        '<div style="text-align:center;margin-top:1rem">' +
-          '<button onclick="onboardCloseGifsPreview()" style="padding:0.8rem 1.6rem;background:var(--accent);border:none;border-radius:8px;color:#fff;font-size:' + s.body + ';font-weight:700;cursor:pointer;min-height:' + s.btnH + '">Back to tour</button>' +
-        '</div>' +
-      '</div>';
-    // v0.9.1791: the backdrop close is gone — Back is already wired for this one.
-    document.body.appendChild(ov);
-    if (window.BackStack) window.BackStack.push('onboard-gifs-preview', _closeGifsPreviewSilently);
-  }
-  window.onboardShowGifsPreview = onboardShowGifsPreview;
 
   function onboardNext() {
-    if (_screen === 2) _savePrefsFromForm();   // save whatever was ticked
-    _screen = Math.min(_totalScreens() + 1, _screen + 1);
-    if (_screen > _totalScreens()) { _renderDone(); return; }
+    if (_screen === SCREEN_COLLECT) _savePrefsFromForm();   // save whatever was ticked
+    _screen = _screen + 1;
+    if (_screen > _totalScreens()) { _complete(); return; }
     _renderScreen();
   }
   window.onboardNext = onboardNext;
@@ -116,15 +70,15 @@
   }
   window.onboardBack = onboardBack;
 
-  function onboardSkipTour() { _complete(); }
-  window.onboardSkipTour = onboardSkipTour;
-
   function onboardSkipPrefs() {
     // "Skip (keep all eras)" — reset to default (all)
     if (typeof _setEnabledEras === 'function' && typeof ERAS !== 'undefined') {
       try { _setEnabledEras(Object.keys(ERAS)); } catch(e){}
     }
-    onboardNext();
+    _screen = SCREEN_COLLECT;   // onboardNext must not read the (empty) form
+    _screen = _screen + 1;
+    if (_screen > _totalScreens()) { _complete(); return; }
+    _renderScreen();
   }
   window.onboardSkipPrefs = onboardSkipPrefs;
 
@@ -139,32 +93,6 @@
     onboardNext();
   }
   window.onboardOptInNo = onboardOptInNo;
-
-  function onboardFinish() { _complete(); }
-  window.onboardFinish = onboardFinish;
-
-  // Preview a feature in-place (Screen 1 action only).
-  function onboardPreviewFeature(cardId) {
-    var f = (window.FEATURE_MAP || []).find(function(c) { return c.id === cardId; });
-    if (!f) return;
-    _lastCardId = cardId;
-    _inTourPreview = true;
-    var ov = document.getElementById('onboarding-map-overlay');
-    if (ov) ov.style.display = 'none';
-    try {
-      if (typeof showPage === 'function' && f.targetPage) showPage(f.targetPage);
-    } catch(e) { console.warn('[Onboarding] preview navigation failed:', e); }
-    _showReturnBar(f);
-  }
-  window.onboardPreviewFeature = onboardPreviewFeature;
-
-  function onboardResumeMap() {
-    _inTourPreview = false;
-    _hideReturnBar();
-    var ov = document.getElementById('onboarding-map-overlay');
-    if (ov) { ov.style.display = 'flex'; } else { showFeatureMap(); }
-  }
-  window.onboardResumeMap = onboardResumeMap;
 
   // ─── Overlay mount / teardown ───
 
@@ -201,39 +129,12 @@
     if (!p) { _mountOverlay(); p = _panel(); }
     p.innerHTML = '';
     p.appendChild(_buildHeader());
-    if (_screen === 1) p.appendChild(_buildFeatureMap());
-    if (_screen === 2) p.appendChild(_buildPrefs());
-    if (_screen === 3) p.appendChild(_buildCommunity());
-    if (_screen === 4) p.appendChild(_buildInstall());
-    p.appendChild(_buildFooter());
+    if (_screen === SCREEN_COMMUNITY) p.appendChild(_buildCommunity());
+    if (_screen === SCREEN_COLLECT)   p.appendChild(_buildPrefs());
+    if (_screen === SCREEN_INSTALL)   p.appendChild(_buildInstall());
     // Scroll to top so long content begins fresh
     var ov = document.getElementById('onboarding-map-overlay');
     if (ov) ov.scrollTop = 0;
-  }
-
-  function _renderDone() {
-    var p = _panel();
-    if (!p) return;
-    var s = _styles();
-    var u = window.ONBOARD_UI || {};
-    var c = window.COMMUNITY_OPTIN || {};
-    var optedIn = false;
-    try { optedIn = localStorage.getItem('lv_vault_optin') === 'true'; } catch(e){}
-    p.innerHTML =
-      '<div style="text-align:center;padding:2rem 1rem">' +
-        '<div style="font-size:3rem;margin-bottom:0.5rem">\uD83C\uDF89</div>' +
-        '<div style="font-family:var(--font-head);font-size:' + s.head + ';font-weight:700;color:var(--text);margin-bottom:0.8rem">You\'re all set!</div>' +
-        '<div style="font-size:' + s.body + ';color:var(--text-mid);line-height:1.55;margin-bottom:1.5rem">' +
-          _escape(optedIn ? (c.doneMessage || 'Thanks! Tap Finish to start adding items.')
-                          : (c.doneOptedOut || 'Tap Finish to begin.')) +
-        '</div>' +
-        '<button onclick="onboardFinish()" style="' +
-          'padding:1rem 3rem;background:var(--accent);border:none;border-radius:' + s.btnR + ';' +
-          'color:#fff;font-family:var(--font-body);font-size:' + s.body + ';font-weight:700;' +
-          'cursor:pointer;min-height:' + s.btnH + '">' +
-          _escape(c.finishLabel || 'Finish') +
-        '</button>' +
-      '</div>';
   }
 
   // ─── Screen builders (content only, header+footer added by dispatcher) ───
@@ -241,17 +142,12 @@
   function _buildHeader() {
     var u = window.ONBOARD_UI || {};
     var s = _styles();
-    // Title is context-sensitive per screen
     var title;
-    if (_screen === 1) {
-      var firstName = '';
-      try { firstName = (state && state.user && state.user.name || '').split(' ')[0] || ''; } catch(e){}
-      title = (u.welcomeTitle || 'Welcome') + (firstName ? (', ' + firstName) : '');
-    } else if (_screen === 2) {
-      title = (window.WHAT_I_COLLECT || {}).title || 'What do you collect?';
-    } else if (_screen === 3) {
+    if (_screen === SCREEN_COMMUNITY) {
       title = (window.COMMUNITY_OPTIN || {}).title || 'Community';
-    } else if (_screen === 4) {
+    } else if (_screen === SCREEN_COLLECT) {
+      title = (window.WHAT_I_COLLECT || {}).title || 'What do you collect?';
+    } else if (_screen === SCREEN_INSTALL) {
       title = 'Put it on this device';
     } else {
       title = '';
@@ -260,17 +156,8 @@
       .replace('{n}', String(_screen)).replace('{total}', String(_totalScreens()));
     var el = document.createElement('div');
     el.innerHTML =
-      '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:0.5rem;margin-bottom:0.4rem">' +
-        '<div style="font-size:' + s.small + ';color:var(--text-dim);font-weight:600;letter-spacing:0.1em;text-transform:uppercase">' +
-          _escape(progress) +
-        '</div>' +
-        '<button onclick="onboardSkipTour()" style="' +
-          'background:none;border:none;color:var(--text-mid);' +
-          'font-size:' + s.linkBtn + ';cursor:pointer;padding:0.85rem 1rem;' +
-          'min-height:' + s.btnH + ';min-width:88px;font-family:var(--font-body);' +
-          'text-decoration:underline">' +
-          _escape(u.skipTourLabel || 'Skip tour') +
-        '</button>' +
+      '<div style="font-size:' + s.small + ';color:var(--text-dim);font-weight:600;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:0.4rem">' +
+        _escape(progress) +
       '</div>' +
       '<div style="font-family:var(--font-head);font-size:' + s.head + ';font-weight:700;line-height:1.2;margin-bottom:0.8rem">' +
         _escape(title) +
@@ -278,106 +165,7 @@
     return el;
   }
 
-  function _buildFooter() {
-    var u = window.ONBOARD_UI || {};
-    var s = _styles();
-    var isFirst = _screen === 1;
-    var isLast  = _screen === _totalScreens();
-
-    // Screen 2 has its own footer (Save vs Skip). Screen 3 uses Yes/No buttons
-    // and Screen 4 its own Install/Not-now pair, both rendered in the content.
-    // Only Screen 1 uses this shared Next/Back footer.
-    if (_screen !== 1) return document.createElement('div');
-
-    var el = document.createElement('div');
-    el.style.cssText = 'display:flex;justify-content:space-between;align-items:center;gap:0.5rem;margin-top:0.5rem;flex-wrap:wrap';
-    el.innerHTML =
-      (isFirst ? '<span></span>' :
-        '<button onclick="onboardBack()" style="' +
-          'padding:0.9rem 1.2rem;background:none;border:1px solid var(--border);' +
-          'border-radius:' + s.btnR + ';color:var(--text);font-family:var(--font-body);' +
-          'font-size:' + s.body + ';font-weight:600;cursor:pointer;min-height:' + s.btnH + '">' +
-          _escape(u.backLabel || '\u2190 Back') + '</button>') +
-      '<button onclick="onboardNext()" style="' +
-        'padding:0.95rem 2rem;background:var(--accent);border:none;' +
-        'border-radius:' + s.btnR + ';color:#fff;font-family:var(--font-body);' +
-        'font-size:' + s.body + ';font-weight:700;cursor:pointer;min-height:' + s.btnH + '">' +
-        _escape(u.nextLabel || 'Next \u2192') +
-      '</button>';
-    return el;
-  }
-
-  // Screen 1 — Feature Map body
-  function _buildFeatureMap() {
-    var u = window.ONBOARD_UI || {};
-    var s = _styles();
-    var wrap = document.createElement('div');
-    var intro =
-      '<div style="font-size:' + s.body + ';color:var(--text-mid);line-height:1.55;margin-bottom:1.2rem">' +
-        (u.welcomeSubtitle ? '<div style="color:var(--t-accent);font-weight:600;margin-bottom:0.35rem">' + _escape(u.welcomeSubtitle) + '</div>' : '') +
-        _escape(u.welcomeIntro || '') +
-      '</div>';
-    var cards = '<div id="onboarding-map-grid" style="' +
-      'display:grid;gap:0.85rem;grid-template-columns:repeat(auto-fit, minmax(240px, 1fr));' +
-      'margin-bottom:1.3rem">';
-    (window.FEATURE_MAP || []).forEach(function(f) { cards += _buildCardHtml(f); });
-    cards += '</div>';
-    // Session 112: link to GIFs section of Help menu (closes onboarding
-    // arc from earlier user ask: "mentioned or ability to click on it").
-    var gifsLink = '';
-    if (typeof rrReadyDemos === 'function' && rrReadyDemos().length) {
-      gifsLink =
-        '<div style="text-align:center;margin:0.3rem 0 1rem">' +
-          '<button onclick="onboardShowGifsPreview()" style="' +
-            'background:none;border:1px dashed var(--border);border-radius:10px;' +
-            'padding:0.8rem 1.2rem;color:var(--t-accent);font-family:var(--font-body);' +
-            'font-size:' + s.linkBtn + ';cursor:pointer;min-height:' + s.btnH + ';font-weight:600">' +
-            '\uD83C\uDFAC  Watch how-to demos \u2192' +
-          '</button>' +
-        '</div>';
-    }
-    wrap.innerHTML = intro + cards + gifsLink;
-    // Restore scroll position if returning from a preview
-    setTimeout(function() {
-      if (_lastCardId) {
-        var el = document.getElementById('onboarding-card-' + _lastCardId);
-        if (el && typeof el.scrollIntoView === 'function') {
-          try { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch(e){}
-        }
-      }
-    }, 0);
-    return wrap;
-  }
-
-  function _buildCardHtml(f) {
-    var s = _styles();
-    var hasShot = !!(f.screenshot && f.screenshot.length);
-    var previewLabel = hasShot ? 'See what it looks like \u2192' : 'See it in the app \u2192';
-    return '<div id="onboarding-card-' + _escape(f.id) + '" style="' +
-      'background:var(--surface2);border:1px solid var(--border);' +
-      'border-radius:' + s.cardR + ';padding:1.1rem 1rem;position:relative;' +
-      'border-top:3px solid ' + _escape(f.accentColor || 'var(--accent)') + ';' +
-      'display:flex;flex-direction:column;gap:0.5rem;min-height:150px">' +
-      '<div style="font-size:2.3rem;line-height:1">' + (f.icon || '') + '</div>' +
-      '<div style="font-family:var(--font-head);font-size:' + s.cardTitle + ';' +
-        'font-weight:700;color:var(--text);letter-spacing:0.02em">' +
-        _escape(f.title || '') +
-      '</div>' +
-      '<div style="font-size:' + s.body + ';color:var(--text-mid);line-height:1.5;flex:1">' +
-        _escape(f.description || '') +
-      '</div>' +
-      '<button onclick="onboardPreviewFeature(\'' + _escape(f.id) + '\')" style="' +
-        'align-self:stretch;background:none;border:none;' +
-        'padding:0.9rem 0.4rem;margin:0.3rem -0.4rem -0.3rem;' +
-        'color:' + _escape(f.accentColor || 'var(--t-accent)') + ';font-weight:600;' +
-        'font-size:' + s.linkBtn + ';cursor:pointer;font-family:var(--font-body);' +
-        'text-decoration:underline;text-align:left;min-height:' + s.btnH + '">' +
-        previewLabel +
-      '</button>' +
-      '</div>';
-  }
-
-  // Screen 2 — What I Collect preferences
+  // Screen 2 — What I Collect preferences (scale buttons on top, v0.9.1893)
   function _buildPrefs() {
     var cfg = window.WHAT_I_COLLECT || {};
     var u = window.ONBOARD_UI || {};
@@ -450,6 +238,26 @@
         '<span id="onboarding-era-count" style="align-self:center;font-size:' + s.small + ';color:var(--text-dim)"></span>' +
       '</div>';
 
+    // v0.9.1893: one button per scale that has at least one era on this list.
+    _pressedScales = {};
+    var chipsHtml = '';
+    var _chips = (cfg.scaleChips || []).filter(function (c) {
+      return _allEraKeys.some(function (k) { return _eraHasScale(k, c.id); });
+    });
+    if (_chips.length) {
+      chipsHtml =
+        '<div style="font-size:' + s.small + ';color:var(--text-mid);margin:0.9rem 0 0.5rem">' + _escape(cfg.scaleChipsTitle || '') + '</div>' +
+        '<div id="onboarding-scale-chips" style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:0.4rem">' +
+        _chips.map(function (c) {
+          return '<button type="button" data-scale="' + _escape(c.id) + '" aria-pressed="false" onclick="onboardScaleToggle(\'' + _escape(c.id) + '\')" style="' +
+            'min-width:64px;min-height:' + s.btnH + ';padding:0.55rem 1rem;background:none;border:2px solid var(--border);' +
+            'border-radius:' + s.btnR + ';color:var(--text);font-family:var(--font-head);font-size:' + s.body + ';font-weight:700;cursor:pointer">' +
+            _escape(c.label || c.id) + '</button>';
+        }).join('') +
+        '</div>' +
+        '<div style="font-size:' + s.small + ';color:var(--text-mid);margin:0.9rem 0 0">' + _escape(cfg.makersTitle || '') + '</div>';
+    }
+
     var rowsHtml = '<div id="onboarding-era-rows" style="' + _grid + ';margin:0.8rem 0 1.2rem">';
     _allEraKeys.forEach(function(eraKey) {
       var era = eras[eraKey];
@@ -511,6 +319,7 @@
       '<div style="font-size:' + s.body + ';color:var(--text-mid);line-height:1.55;margin-bottom:0.4rem">' +
         _escape(cfg.subtitle || '') +
       '</div>' +
+      chipsHtml +
       bulkHtml +
       rowsHtml +
       (cfg.helperNote ? '<div style="font-size:' + s.small + ';color:var(--text-dim);line-height:1.5;margin-bottom:0.5rem;font-style:italic">' + _escape(cfg.helperNote) + '</div>' : '') +
@@ -546,9 +355,64 @@
       }
       var lbl = document.getElementById('onboarding-era-count');
       if (lbl) lbl.textContent = n ? (n + ' of ' + boxes.length + ' chosen') : 'none chosen yet';
+      _syncScaleChips(boxes);
     } catch (e) {}
   }
   window.onboardEraSync = onboardEraSync;
+
+  // ── v0.9.1893: the scale buttons ───────────────────────────────────────
+  // An era's scales: ERA_SCALES_MULTI first (Pre-War and MTH Tinplate are
+  // both O and Standard), else its one ERA_SCALE. Compared without case —
+  // ERA_SCALE writes G scale as 'g' for some makers and 'G' for others.
+  function _eraHasScale(eraKey, scaleId) {
+    var want = String(scaleId || '').toLowerCase();
+    var list = (typeof ERA_SCALES_MULTI !== 'undefined' && ERA_SCALES_MULTI[eraKey])
+      || [(typeof ERA_SCALE !== 'undefined' && ERA_SCALE[eraKey]) || ''];
+    return list.some(function (x) { return String(x || '').toLowerCase() === want && want !== ''; });
+  }
+  // A button is "on" only when the person TAPPED it (and has not since
+  // unticked one of its lines by hand). Judging "on" by "every line of that
+  // scale is ticked" lit Standard whenever O was tapped, because Pre-War and
+  // MTH Tinplate are both — the screenshot check caught it. Tapping an "on"
+  // button unticks its lines, except any line another "on" button still wants.
+  var _pressedScales = {};
+  function _scaleBoxes(boxes, scaleId) {
+    return boxes.filter(function (b) { return _eraHasScale(b.getAttribute('data-era'), scaleId); });
+  }
+  function _syncScaleChips(boxes) {
+    Object.keys(_pressedScales).forEach(function (id) {
+      var mine = _scaleBoxes(boxes, id);
+      if (!mine.length || !mine.every(function (b) { return b.checked; })) delete _pressedScales[id];
+    });
+    var chips = document.querySelectorAll('#onboarding-scale-chips button[data-scale]');
+    Array.prototype.forEach.call(chips, function (chip) {
+      var on = !!_pressedScales[chip.getAttribute('data-scale')];
+      chip.setAttribute('aria-pressed', on ? 'true' : 'false');
+      chip.style.background = on ? 'var(--accent)' : 'none';
+      chip.style.borderColor = on ? 'var(--accent)' : 'var(--border)';
+      chip.style.color = on ? 'var(--on-accent)' : 'var(--text)';
+    });
+  }
+  function onboardScaleToggle(scaleId) {
+    try {
+      var boxes = _eraBoxes();
+      var mine = _scaleBoxes(boxes, scaleId);
+      if (!mine.length) return;
+      if (_pressedScales[scaleId]) {
+        delete _pressedScales[scaleId];
+        mine.forEach(function (b) {
+          var era = b.getAttribute('data-era');
+          var wanted = Object.keys(_pressedScales).some(function (id) { return _eraHasScale(era, id); });
+          if (!wanted) b.checked = false;
+        });
+      } else {
+        _pressedScales[scaleId] = true;
+        mine.forEach(function (b) { b.checked = true; });
+      }
+      onboardEraSync();
+    } catch (e) {}
+  }
+  window.onboardScaleToggle = onboardScaleToggle;
 
   function onboardEraSelectAll(on) {
     try {
@@ -601,14 +465,9 @@
         listRows +
       '</div>';
 
+    // v0.9.1893: this is the FIRST screen now — nothing to go back to.
     var actions =
-      '<div style="display:flex;justify-content:space-between;align-items:center;gap:0.5rem;flex-wrap:wrap;margin-top:0.5rem">' +
-        '<button onclick="onboardBack()" style="' +
-          'padding:0.9rem 1.2rem;background:none;border:1px solid var(--border);' +
-          'border-radius:' + s.btnR + ';color:var(--text);font-family:var(--font-body);' +
-          'font-size:' + s.body + ';font-weight:600;cursor:pointer;min-height:' + s.btnH + '">' +
-          _escape(u.backLabel || '\u2190 Back') +
-        '</button>' +
+      '<div style="display:flex;justify-content:flex-end;align-items:center;gap:0.5rem;flex-wrap:wrap;margin-top:0.5rem">' +
         '<div style="display:flex;gap:0.5rem;flex-wrap:wrap">' +
           '<button onclick="onboardOptInNo()" style="' +
             'padding:0.9rem 1.4rem;background:none;border:1px solid var(--border);' +
@@ -627,9 +486,9 @@
 
     var wrap = document.createElement('div');
     wrap.innerHTML =
-      '<div style="font-size:' + s.small + ';color:var(--t-accent);font-family:var(--font-head);font-weight:600;letter-spacing:0.12em;text-transform:uppercase;margin-bottom:0.6rem">' +
-        _escape(cfg.subtitle || '') +
-      '</div>' +
+      (cfg.subtitle ? '<div style="font-size:' + s.small + ';color:var(--t-accent);font-family:var(--font-head);font-weight:600;letter-spacing:0.12em;text-transform:uppercase;margin-bottom:0.6rem">' +
+        _escape(cfg.subtitle) +
+      '</div>' : '') +
       paraHtml +
       submittedBox +
       actions;
@@ -758,41 +617,6 @@
   }
   window.onboardInstallNow = onboardInstallNow;
 
-  // ─── Preview-nav "back to the tour" bar (Screen 1 only) ───
-
-  function _showReturnBar(feature) {
-    _hideReturnBar();
-    var u = window.ONBOARD_UI || {};
-    var s = _styles();
-    var bar = document.createElement('div');
-    bar.id = 'onboarding-return-bar';
-    bar.style.cssText =
-      'position:fixed;top:0;left:0;right:0;z-index:' + (s.z + 2) + ';' +
-      // v0.9.1420: clear the installed-iPhone status bar
-      'background:var(--accent);color:var(--on-accent);padding:max(0.75rem, env(safe-area-inset-top, 0px)) 1rem 0.75rem;' +
-      'font-family:var(--font-body);font-size:' + s.body + ';font-weight:600;' +
-      'display:flex;justify-content:space-between;align-items:center;gap:0.5rem;' +
-      'box-shadow:0 2px 8px rgba(0,0,0,0.25);cursor:pointer';
-    bar.innerHTML =
-      '<span>' + _escape(u.tourBackBarLabel || '\u2190 Back to the tour') +
-        (feature && feature.title ? '<span style="opacity:0.8;margin-left:0.5rem;font-weight:400"> \u00B7 viewing: ' + _escape(feature.title) + '</span>' : '') +
-      '</span>' +
-      '<button onclick="event.stopPropagation();onboardSkipTour()" style="' +
-        'background:rgba(0,0,0,0.15);border:none;color:#fff;padding:0.4rem 0.7rem;' +
-        'border-radius:8px;font-size:' + s.small + ';font-weight:600;cursor:pointer;' +
-        'font-family:var(--font-body)">Exit tour</button>';
-    bar.onclick = function(e) {
-      if (e.target && e.target.tagName === 'BUTTON') return;
-      onboardResumeMap();
-    };
-    document.body.appendChild(bar);
-  }
-
-  function _hideReturnBar() {
-    var b = document.getElementById('onboarding-return-bar');
-    if (b) b.remove();
-  }
-
   // ─── Completion / persistence ───
 
   function _persistSeen() {
@@ -801,19 +625,23 @@
     try { rrMarkOnboardingSeen(); } catch(e){}
   }
 
+  // Finished the last screen: remember it for this account, close, and start
+  // the real guided tour on the dashboard (Brad: "the app to open up and start
+  // the tour"). The tour has its own Cancel on every card.
   function _complete() {
-    _completeSilently();
-    if (window.BackStack) window.BackStack.pop('onboarding-tour');
-  }
-
-  // Same teardown without touching BackStack — used when BackStack itself
-  // triggered the close (device-back press already popped its own entry).
-  function _completeSilently() {
     _persistSeen();
     _removeOverlay();
-    _hideReturnBar();
     _screen = 1;
+    if (window.BackStack) window.BackStack.pop('onboarding-tour');
+    setTimeout(function () {
+      try {
+        if (typeof rrRecordingMode === 'function' && rrRecordingMode()) return;
+        if (typeof showPage === 'function') showPage('dashboard');
+        if (typeof startDashboardTour === 'function') startDashboardTour();
+      } catch (e) { console.warn('[Onboarding] tour start failed:', e); }
+    }, 450);
   }
+  window.onboardFinish = _complete;
 
   // ─── Shared style tokens (derived from ONBOARD_UI each render) ───
 

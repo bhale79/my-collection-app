@@ -72,7 +72,7 @@ function _prefsSubRowHtml() {
     var s = window._subState;
     if (!s || !s.sub) return '';
     var esc = function (v) { return String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); };
-    var d = function (iso) { return iso ? (typeof _formatDate === 'function' ? _formatDate(iso) : iso) : ''; };
+    var d = function (iso) { return iso ? (typeof _formatDateLong === 'function' ? _formatDateLong(iso) : iso) : ''; };   // v0.9.1893: money dates in words
     var price = (typeof RR_PRICE_TEXT !== 'undefined') ? RR_PRICE_TEXT : '';
     var line = '', btn = '';
     var email = String((state.user && state.user.email) || '');

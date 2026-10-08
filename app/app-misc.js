@@ -14,8 +14,9 @@
 // the first thing to look at.
 //
 // Includes:
-//   - showWelcomeCard / maybeShowContextualHint / resetContextualHints
-//     — first-run welcome card and tap-target tips
+//   - showAiUsageCard / rrMaybeShowAddHelp — the "Scanning and photo ID"
+//     card, shown once per account the first time Add an Item opens
+//   - maybeShowContextualHint / resetContextualHints — tap-target tips
 //   - _showIOSInstallHint — iOS-specific "Add to Home Screen" prompt
 //   - _showOfflineBanner / _hideOfflineBanner — offline status banner
 //   - bottom of file: window listeners for online/offline + delayed
@@ -25,60 +26,10 @@
 //   - state, showToast, _prefGet (app.js / wizard-utils.js)
 // ═══════════════════════════════════════════════════════════════
 
-const WELCOME_SEEN_KEY = 'lv_welcome_seen';
+// v0.9.1893 (Brad, 2026-10-08): the first-run welcome card ("Three things to
+// know") is GONE — "this seems more clutter than help". New accounts go from
+// the two setup questions straight into the guided tour (onboarding.js).
 const HINT_PREFIX = 'lv_hint_';
-
-function showWelcomeCard(force) {
-  if (!force && localStorage.getItem(WELCOME_SEEN_KEY) === '1') return;
-  const existing = document.getElementById('rr-welcome-card');
-  if (existing) existing.remove();
-  const ov = document.createElement('div');
-  ov.id = 'rr-welcome-card';
-  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.78);z-index:99998;display:flex;align-items:flex-start;justify-content:center;padding:18px;overflow-y:auto';
-  ov.innerHTML =
-    '<div style="background:var(--surface,#1a1a2e);border:1px solid var(--border,#333);border-radius:16px;max-width:480px;width:100%;padding:20px 22px 18px;color:var(--text,#eee);font-family:var(--font-body,sans-serif);max-height:calc(100vh - 36px);overflow-y:auto;-webkit-overflow-scrolling:touch;margin:auto 0;box-shadow:0 12px 40px rgba(0,0,0,0.5)">'
-    + '<div style="font-family:var(--font-head,sans-serif);font-size:1.35rem;text-align:center;font-weight:700;margin-bottom:4px">Welcome to <span style="color:var(--t-accent)">The Rail Roster</span></div>'
-    + '<div style="text-align:center;font-size:0.8rem;color:var(--text-dim,#888);margin-bottom:14px;letter-spacing:0.04em">Your model train collection, organized.</div>'
-    + '<div style="font-size:0.88rem;color:var(--text-mid,#bbb);line-height:1.55;margin-bottom:14px">Three things to know:</div>'
-
-    + '<div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:12px;padding:10px 12px;background:var(--surface2,#222);border-radius:9px;border:1px solid var(--border,#333)">'
-    +   '<div style="font-size:1.5rem;flex-shrink:0">📷</div>'
-    // v0.9.1150 (beta punch list §7): this promised "snap a photo and let the
-    // app identify it. The catalog fills in the rest." The in-flow wording is
-    // already careful and honest about the reader being a helper that often
-    // needs correcting — it was the ENTRY POINTS that set testers up to expect
-    // magic and then feel let down. Typing the number is the reliable path and
-    // is named first now; the photo reader is offered as the helper it is.
-    +   '<div style="font-size:0.86rem;line-height:1.5"><strong style="color:var(--text,#eee)">Add fast.</strong> Tap <em>Add to My Collection</em> and type the item number — the catalog fills in the rest. No number handy? Scan the box barcode (modern items only), or <strong style="color:var(--text,#eee)">let a photo suggest one</strong> — the photo reader is a helper, so check what it finds before you save.</div>'
-    + '</div>'
-
-    + '<div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:12px;padding:10px 12px;background:var(--surface2,#222);border-radius:9px;border:1px solid var(--border,#333)">'
-    +   '<div style="font-size:1.5rem;flex-shrink:0">📋</div>'
-    +   '<div style="font-size:0.86rem;line-height:1.5"><strong style="color:var(--text,#eee)">Organize.</strong> Use the lists in the side menu — My Collection, Want / Upgrade, For Sale, Parts Needed, Sold Items — to follow every item from wanted, to owned, to sold.</div>'
-    + '</div>'
-
-    + '<div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:18px;padding:10px 12px;background:var(--surface2,#222);border-radius:9px;border:1px solid var(--border,#333)">'
-    +   '<div style="font-size:1.5rem;flex-shrink:0">💾</div>'
-    +   '<div style="font-size:0.86rem;line-height:1.5"><strong style="color:var(--text,#eee)">Your data, your control.</strong> Everything saves to your own Google Sheet &amp; Drive. Open them anytime from Preferences → Account.</div>'
-    + '</div>'
-
-    + '<div style="font-size:0.78rem;color:var(--text-dim,#888);line-height:1.5;margin-bottom:14px;text-align:center">Need this again? <strong>Help</strong> (in the side menu) → Show the welcome card again.</div>'
-
-    + '<div style="display:flex;justify-content:center">'
-    +   '<button id="rr-welcome-go" style="padding:0.7rem 1.6rem;border-radius:9px;border:none;background:var(--accent,#e04028);color:#fff;font-weight:600;font-family:inherit;font-size:0.95rem;cursor:pointer">Got it — let\'s go</button>'
-    + '</div>'
-    + '</div>';
-  document.body.appendChild(ov);
-  ov.querySelector('#rr-welcome-go').onclick = function() {
-    localStorage.setItem(WELCOME_SEEN_KEY, '1');
-    ov.remove();
-    // v0.9.1000 (Brad): hand straight off to the photo-identification usage
-    // card. Shown once, right after the welcome card, so the one part of the
-    // app with a limit is explained before anyone bumps into it.
-    try { if (typeof showAiUsageCard === 'function') showAiUsageCard(force); } catch (e) {}
-  };
-}
-window.showWelcomeCard = showWelcomeCard;
 
 // ── Photo-identification usage card (v0.9.1000, Brad) ────────────────────
 // Numbers come from the relay (Code_v2.7): AI_DAILY_CAP_DEFAULT = 20 per
@@ -86,10 +37,50 @@ window.showWelcomeCard = showWelcomeCard;
 // midnight America/New_York. Premium devices get 100/day via the relay's
 // `ai_premium_tokens` config — that's the "higher allowance" referred to
 // below. If those relay values change, change this copy with them.
+//
+// v0.9.1893 (Brad, 2026-10-08): no longer shown at startup — "I think the
+// first time they go to add an item we need a pop up to explain scanning and
+// photo id." rrMaybeShowAddHelp() (called by openWizard, wizard.js) shows it
+// once per ACCOUNT: the seen-flag holds the account fingerprint (same scheme
+// as lv_onboarded), and it is on the sign-out keep list, so signing out and
+// back in does not bring it back, but a different person on this browser
+// still gets it once. Help Center → "Scanning and photo ID" shows it again.
 const AI_USAGE_SEEN_KEY = 'lv_ai_usage_seen';
 
+function _aiUsageSeenByThisAccount() {
+  try {
+    var v = localStorage.getItem(AI_USAGE_SEEN_KEY);
+    if (!v) return false;
+    var em = (window.state && state.user && state.user.email) || '';
+    var fp = (typeof rrAccountFingerprint === 'function') ? rrAccountFingerprint(em) : '';
+    return fp ? v === fp : v === '1';
+  } catch (e) { return false; }
+}
+function _aiUsageMarkSeen() {
+  try {
+    var em = (window.state && state.user && state.user.email) || '';
+    var fp = (typeof rrAccountFingerprint === 'function') ? rrAccountFingerprint(em) : '';
+    localStorage.setItem(AI_USAGE_SEEN_KEY, fp || '1');
+  } catch (e) {}
+}
+
+// Called by openWizard. Waits a moment so the Add screen is drawn first, and
+// stays out of the way of a guided walkthrough (which drives the same screen).
+function rrMaybeShowAddHelp() {
+  if (_aiUsageSeenByThisAccount()) return;
+  setTimeout(function () {
+    try {
+      if (_aiUsageSeenByThisAccount()) return;
+      if (document.getElementById('gt-callout')) return;               // a guided walkthrough is running
+      if (typeof rrRecordingMode === 'function' && rrRecordingMode()) return;
+      showAiUsageCard(false);
+    } catch (e) {}
+  }, 350);
+}
+window.rrMaybeShowAddHelp = rrMaybeShowAddHelp;
+
 function showAiUsageCard(force) {
-  if (!force && localStorage.getItem(AI_USAGE_SEEN_KEY) === '1') return;
+  if (!force && _aiUsageSeenByThisAccount()) return;
   const existing = document.getElementById('rr-ai-usage-card');
   if (existing) existing.remove();
   const ov = document.createElement('div');
@@ -115,7 +106,7 @@ function showAiUsageCard(force) {
     +   '<div style="font-size:0.86rem;line-height:1.5"><strong style="color:var(--text,#eee)">Need more?</strong> Email <a href="mailto:' + admin + '" style="color:var(--accent2,#d4a843);text-decoration:none">' + admin + '</a> and we\'ll sort you out.</div>'
     + '</div>'
 
-    + '<div style="font-size:0.78rem;color:var(--text-dim,#888);line-height:1.5;margin-bottom:14px;text-align:center">Need this again? Preferences → Help &amp; Tips.</div>'
+    + '<div style="font-size:0.78rem;color:var(--text-dim,#888);line-height:1.5;margin-bottom:14px;text-align:center">Need this again? <strong>Help</strong> (in the side menu) \u2192 Scanning and photo ID.</div>'
 
     + '<div style="display:flex;justify-content:center">'
     +   '<button id="rr-ai-usage-go" style="padding:0.7rem 1.6rem;border-radius:9px;border:none;background:var(--accent,#e04028);color:#fff;font-weight:600;font-family:inherit;font-size:0.95rem;cursor:pointer">Got it</button>'
@@ -123,7 +114,7 @@ function showAiUsageCard(force) {
     + '</div>';
   document.body.appendChild(ov);
   ov.querySelector('#rr-ai-usage-go').onclick = function () {
-    localStorage.setItem(AI_USAGE_SEEN_KEY, '1');
+    _aiUsageMarkSeen();
     ov.remove();
   };
 }

@@ -118,7 +118,7 @@ console.log('4. Preferences — My Subscription');
 const rowSrc = sliceFn(prefs, '_prefsSubRowHtml');
 function row(s) {
   const ctx = { window: { _subState: s }, state: { user: { email: 'Pat.Doe@gmail.com' } }, String, encodeURIComponent,
-                RR_PRICE_TEXT: '$75/year plus tax', _formatDate: iso => 'D(' + iso + ')' };
+                RR_PRICE_TEXT: '$75/year plus tax', _formatDate: iso => 'D(' + iso + ')', _formatDateLong: iso => 'D(' + iso + ')' };
   vm.createContext(ctx);
   vm.runInContext(rowSrc + '\nwindow.f = _prefsSubRowHtml;', ctx);
   return ctx.window.f();
