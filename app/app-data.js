@@ -1684,6 +1684,8 @@ async function _buildAllErasLookupIndex(force, dirtyAt) {
     // Layer 1 alone. Draw them again now that the named catalogs can answer.
     try { if (typeof buildDashboard === 'function') buildDashboard(); } catch (eBD) {}
     try { if (typeof renderBrowse === 'function') renderBrowse(); } catch (eRC) {}
+    // v0.9.1899: and an open Need-a-part's catalog-parts list (maintenance.js)
+    try { if (typeof window._maintCatalogLaneRefresh === 'function') window._maintCatalogLaneRefresh(); } catch (eML) {}
     console.log('[lookup-index] full catalog ready: ' + map.size + ' numbers / ' + state.masterAllRows.length + ' rows (' + stale.length + ' refreshed, ' + missing.length + ' new)');
   } finally {
     _allIdxBuilding = false;

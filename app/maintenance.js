@@ -3119,6 +3119,15 @@
     var q = (document.getElementById('maint-pop-part') || {}).value || '';
     el.innerHTML = _maintCatalogLaneHtml(_maintPickerParts(tg, taskId).catalog, q, taskId, tg.item);
   }
+  // v0.9.1899 (found in the v1898 live check; Brad "yes" to fixing it): a
+  // Need-a-part opened before the parts catalogs finished loading drew an
+  // empty lane and stayed empty until the user typed. The lookup index calls
+  // this when the full catalog is ready (_buildAllErasLookupIndex, app-data.js)
+  // — the lane redraws itself, keeping whatever is typed in the box.
+  window._maintCatalogLaneRefresh = function () {
+    var el = document.getElementById('maint-pop-catalog');
+    if (el) _maintCatalogLaneRender(el.getAttribute('data-task') || '');
+  };
   // "Attach to this job" / "Use it for this job": the SAME column-M writer
   window._maintPopAttach = async function (partRow, taskId) {
     var ok = await _maintPartSetTask(partRow, taskId);
@@ -3663,8 +3672,8 @@
       // could use right now, up to 8); typing narrows it as before.
       var all = (state.partsBin || []).filter(function (b) { return b.qty > 0; });
       var hits = q.trim() ? _binSearch(q) : all.slice(0, 8);
-      if (!q.trim() && !all.length) { el.innerHTML = '<span style="color:var(--text-dim)">Your Parts Bin is empty — type a part number or description to add one to the wanted list, or order one below.</span>'; return; }
-      if (!hits.length) { el.innerHTML = '<span style="color:var(--text-dim)">Nothing matching in your bin — order one below.</span>'; return; }
+      if (!q.trim() && !all.length) { el.innerHTML = '<span style="color:var(--text-dim)">Your Parts Bin is empty — type a part number or description to add one to the wanted list, or order one above.</span>'; return; }
+      if (!hits.length) { el.innerHTML = '<span style="color:var(--text-dim)">Nothing matching in your bin — order one above.</span>'; return; }
       el.innerHTML = (q.trim() ? '' : '<div style="font-size:0.7rem;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-dim);margin-bottom:0.25rem">Loose spares in your bin' + (all.length > 8 ? ' (first 8 — type to narrow)' : '') + '</div>')
         + hits.map(function (b) {
         return '<div style="display:flex;justify-content:space-between;align-items:center;gap:0.5rem;padding:0.3rem 0;border-bottom:1px solid var(--border)">'
