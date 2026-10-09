@@ -1,10 +1,9 @@
 // ════════════════════════════════════════════════════════════════════════
 // csp_tests.js — v0.9.1906 (security review #7, [stated] Brad "yes" 2026-10-09)
 //
-// THE CONTENT-SECURITY-POLICY. One copy, in index.html's <script id="rr-csp">.
-// Step 1 (v0.9.1906): applied only in a tab opened with ?csp=test, with a
-// recorder, so it can be walked through in a real browser before anyone else
-// gets it. Step 2: on for everyone.
+// THE CONTENT-SECURITY-POLICY. One copy, index.html's <meta id="rr-csp">.
+// v0.9.1906-1907 applied it to ?csp=test tabs only, for the walk-through in a
+// real signed-in Chrome; v0.9.1908 switched it on for everyone.
 //
 //   A. the policy keeps its locks (no plugins, no <base> hijack, no eval, no
 //      bare wildcard, frames only from Google sign-in).
@@ -12,8 +11,8 @@
 //      by the policy or on LINK_ONLY (pages the user is sent to — the policy
 //      does not govern those). A new address fails here until it is placed.
 //      Script loads are held tighter: their host must be in script-src.
-//   C. the mode switch, run for real: no flag → nothing changes; ?csp=test →
-//      the policy goes on for that tab; ?csp=off → off again.
+//   C. it is ON for everyone: a fixed meta tag, no test-mode switch left,
+//      the recorder in place.
 //   D. the guards can fail: a planted new address and a planted script load
 //      from an unlisted site both go red.
 // ════════════════════════════════════════════════════════════════════════
@@ -32,16 +31,8 @@ function ok(name, cond, detail) {
 function section(t) { console.log('\n== ' + t + ' =='); }
 
 // ── the one copy ────────────────────────────────────────────────────────
-const blockM = HTML.match(/<script id="rr-csp">([\s\S]*?)<\/script>/);
-const BLOCK = blockM ? blockM[1] : '';
-function policyOf(block) {
-  const box = { window: {}, location: { search: '' }, sessionStorage: { getItem: () => null, setItem() {}, removeItem() {} }, document: { head: { appendChild() {} }, createElement: () => ({}), addEventListener() {} }, console: { info() {}, warn() {} } };
-  box.window = box;
-  vm.createContext(box);
-  vm.runInContext(block, box);
-  return box.RR_CSP || '';
-}
-const POLICY = BLOCK ? policyOf(BLOCK) : '';
+const metaM = HTML.match(/<meta http-equiv="Content-Security-Policy" id="rr-csp" content="([^"]+)">/);
+const POLICY = metaM ? metaM[1] : '';
 function directives(p) {
   const d = {};
   p.split(';').map(s => s.trim()).filter(Boolean).forEach(s => { const parts = s.split(/\s+/); d[parts[0]] = parts.slice(1); });
@@ -59,8 +50,8 @@ function allows(list, host) {
 }
 
 section('A. one policy, and it keeps its locks');
-ok('the policy block is in index.html', !!BLOCK && POLICY.length > 100, POLICY.slice(0, 80));
-ok('it is the FIRST thing in <head> after the charset (so it governs everything after it)', /<meta charset="UTF-8">\s*<!--[\s\S]*?-->\s*<script id="rr-csp">/.test(HTML.slice(0, 4000)));
+ok('the policy tag is in index.html', POLICY.length > 100, POLICY.slice(0, 80));
+ok('it is the FIRST thing in <head> after the charset (so it governs everything after it)', /<meta charset="UTF-8">\s*<!--[\s\S]*?-->\s*<meta http-equiv="Content-Security-Policy" id="rr-csp"/.test(HTML.slice(0, 4000)));
 const copies = fs.readdirSync(APPDIR).filter(f => /\.(js|html)$/.test(f)).reduce((n, f) => n + (fs.readFileSync(path.join(APPDIR, f), 'utf8').match(/object-src 'none'/g) || []).length, 0);
 ok('there is ONE copy of the policy in app/', copies === 1, copies);
 ok("default-src 'self'", (D['default-src'] || []).join(' ') === "'self'", D['default-src']);
@@ -92,7 +83,7 @@ function hostsIn(files) {
   files.forEach(f => {
     let src = typeof f === 'string' ? fs.readFileSync(path.join(APPDIR, f), 'utf8') : f.src;
     const name = typeof f === 'string' ? f : f.name;
-    if (name === 'index.html') src = src.replace(/<script id="rr-csp">[\s\S]*?<\/script>/, '');
+    if (name === 'index.html') src = src.replace(/<meta http-equiv="Content-Security-Policy" id="rr-csp"[^>]*>/, '');
     const re = /https:\/\/([a-zA-Z0-9.-]+\.[a-z]{2,})/g;
     let m;
     while ((m = re.exec(src))) (out[m[1]] = out[m[1]] || new Set()).add(name);
@@ -127,33 +118,18 @@ ok('the photo reader\'s OCR data host is allowed to be fetched', allows(D['conne
 ok('the Vault relay and its answer host are allowed', allows(D['connect-src'], 'script.google.com') && allows(D['connect-src'], 'script.googleusercontent.com'));
 ok('the Google APIs (Sheets, Drive, Photos picker) are allowed', ['sheets.googleapis.com', 'www.googleapis.com', 'photospicker.googleapis.com'].every(h => allows(D['connect-src'], h)));
 
-// ── C. the mode switch, for real ────────────────────────────────────────
-section('C. the mode switch (step 1: test tabs only)');
-function tab(search, stored) {
-  const ss = { o: Object.assign({}, stored || {}), getItem(k) { return k in this.o ? this.o[k] : null; }, setItem(k, v) { this.o[k] = String(v); }, removeItem(k) { delete this.o[k]; } };
-  const added = [], listeners = {};
-  const box = {
-    location: { search }, sessionStorage: ss, console: { info() {}, warn() {} },
-    document: { head: { appendChild: el => added.push(el) }, createElement: t => ({ tag: t }), addEventListener: (k, f) => { listeners[k] = f; } },
-  };
-  box.window = box;
-  vm.createContext(box);
-  vm.runInContext(BLOCK, box);
-  return { box, added, listeners, ss };
-}
+// ── C. on for everyone ─────────────────────────────────────────────────
+section('C. on for everyone (step 2, v0.9.1908)');
+ok('the policy is a fixed meta tag — no visit can skip it', /<meta http-equiv="Content-Security-Policy" id="rr-csp" content=/.test(HTML));
+ok('no test-mode switch is left (no ?csp=test, no RR_CSP_ON)', !/csp=test|RR_CSP_ON|rr_csp_test/.test(HTML));
+ok('exactly one CSP meta tag', (HTML.match(/http-equiv="Content-Security-Policy"/g) || []).length === 1);
 {
-  const t = tab('');
-  ok('an ordinary visit: no policy, no recorder (exactly as before)', t.added.length === 0 && !t.listeners.securitypolicyviolation && t.box.RR_CSP_ON === false);
-  const t2 = tab('?csp=test');
-  ok('?csp=test: the policy goes on, as a CSP meta tag holding exactly the one policy', t2.added.length === 1 && t2.added[0].httpEquiv === 'Content-Security-Policy' && t2.added[0].content === POLICY);
-  ok('…the recorder listens', typeof t2.listeners.securitypolicyviolation === 'function');
-  t2.listeners.securitypolicyviolation({ effectiveDirective: 'connect-src', blockedURI: 'https://evil.example/x', sourceFile: 'app.js', lineNumber: 9 });
-  ok('…and a blocked request lands in window._rrCspLog', (t2.box._rrCspLog || []).length === 1 && t2.box._rrCspLog[0].directive === 'connect-src');
-  const t3 = tab('', t2.ss.o);
-  ok('a reload in that tab keeps the policy on (remembered for the tab)', t3.added.length === 1);
-  const t4 = tab('?csp=off', t2.ss.o);
-  ok('?csp=off: off again', t4.added.length === 0 && t4.box.RR_CSP_ON === false);
-  ok('a flag that is merely similar does nothing (?csp=tested)', tab('?csp=tested').added.length === 0);
+  const rec = (HTML.match(/<meta http-equiv="Content-Security-Policy"[^>]*>\s*<script>([\s\S]*?)<\/script>/) || [])[1] || '';
+  const listeners = {}, box = { console: { warn() {} }, document: { addEventListener: (k, f) => { listeners[k] = f; } } };
+  box.window = box; vm.createContext(box); vm.runInContext(rec, box);
+  ok('the recorder sits right after the policy and listens', typeof listeners.securitypolicyviolation === 'function');
+  for (let i = 0; i < 60; i++) listeners.securitypolicyviolation({ effectiveDirective: 'connect-src', blockedURI: 'https://evil.example/' + i });
+  ok('…a block lands in window._rrCspLog, capped at 50 so it can never grow without end', box._rrCspLog.length === 50 && box._rrCspLog[0].directive === 'connect-src');
 }
 
 // ── E. no code built from text (the policy has no 'unsafe-eval') ────────
