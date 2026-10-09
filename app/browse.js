@@ -4404,25 +4404,24 @@ function _rrBrowseCore(_co) {
   // Sort My Collection: by item number, with grouped items together
   // (default). Skipped when the user has clicked a column header to sort.
   if (state.filters.owned && !(state._collSort && state._collSort.col)) {
-    state.filteredData.sort((a, b) => {
-      const pdA = _rrPdForRow(a) || {};   // v0.9.1120: adoption-aware, so set members still cluster
-      const pdB = _rrPdForRow(b) || {};
-      const gA = pdA.groupId || '';
-      const gB = pdB.groupId || '';
-      // If same group, sort by item number within group
-      if (gA && gA === gB) {
-        const numA = (a.itemNum||'').replace(/[^0-9]/g,'');
-        const numB = (b.itemNum||'').replace(/[^0-9]/g,'');
-        return (parseInt(numA)||0) - (parseInt(numB)||0) || (a.itemNum||'').localeCompare(b.itemNum||'');
-      }
-      // Otherwise sort by the group's lead item number (extract from GRP-XXXX-timestamp)
-      const leadA = gA ? gA.split('-').slice(1,-1).join('-') : a.itemNum;
-      const leadB = gB ? gB.split('-').slice(1,-1).join('-') : b.itemNum;
-      const numA = (leadA||'').replace(/[^0-9]/g,'');
-      const numB = (leadB||'').replace(/[^0-9]/g,'');
-      if (numA !== numB) return (parseInt(numA)||0) - (parseInt(numB)||0);
-      return (leadA||'').localeCompare(leadB||'') || (a.itemNum||'').localeCompare(b.itemNum||'');
+    // v0.9.1902 ([stated] Brad "yes"): the SAME number order as the Master
+    // Catalog (rrCompareCatalogKeys, app.js) — the old key stripped every
+    // non-digit, so 6-8359 sorted as 68359 and 004 and 4 were not told apart.
+    // A set's pieces stay together under the set's lead number (from its
+    // GRP-<lead>-<time> id); two sets with the same lead stay apart by group.
+    var _gk = state.filteredData.map(function (it, i) {
+      var pd = _rrPdForRow(it) || {};   // v0.9.1120: adoption-aware, so set members still cluster
+      var g = pd.groupId || '';
+      var lead = g ? g.split('-').slice(1, -1).join('-') : it.itemNum;
+      return { it: it, i: i, g: g, lk: rrCatalogNumberKey(lead), nk: rrCatalogNumberKey(it.itemNum) };
     });
+    _gk.sort(function (a, b) {
+      if (a.g && a.g === b.g) return rrCompareCatalogKeys(a.nk, b.nk) || (a.i - b.i);
+      return rrCompareCatalogKeys(a.lk, b.lk)
+        || (a.g === b.g ? 0 : (a.g < b.g ? -1 : 1))
+        || rrCompareCatalogKeys(a.nk, b.nk) || (a.i - b.i);
+    });
+    state.filteredData = _gk.map(function (x) { return x.it; });
   }
   // My Collection: user-selected column sort (header click).
   if (state.filters.owned && state._collSort && state._collSort.col) {
@@ -4455,6 +4454,7 @@ function _rrBrowseCore(_co) {
         it: it,
         mfr: (typeof _manufacturerOfItem === 'function' ? (_manufacturerOfItem(it) || '') : ''),
         num: parseInt(String(_displayItemNum(it)).replace(/[^0-9]/g, '')) || 0,
+        numKey: rrCatalogNumberKey(_displayItemNum(it)),
         var: (it.variation || ''),
         type: (typeof getTypeBucketLabel === 'function' ? (getTypeBucketLabel(it) || '') : (it.itemType || '')),
         desc: _rt,
@@ -4487,7 +4487,8 @@ function _rrBrowseCore(_co) {
         var ea = !String(a[_col] || '').trim(), eb = !String(b[_col] || '').trim();
         if (ea !== eb) return ea ? 1 : -1;
       }
-      if (_numeric) { r = a[_col] - b[_col]; }
+      if (_col === 'num') { r = rrCompareCatalogKeys(a.numKey, b.numKey); }   // v0.9.1902: the one number order
+      else if (_numeric) { r = a[_col] - b[_col]; }
       else { r = String(a[_col]).localeCompare(String(b[_col]), undefined, { numeric: true, sensitivity: 'base' }); }
       if (r === 0) r = (a.it.itemNum || '').localeCompare(b.it.itemNum || '', undefined, { numeric: true });
       return r * _dir;

@@ -120,5 +120,68 @@ function runBlock(src, opts) {
   const ms = Date.now() - t;
   T('E1 165,000 numbers sort in under 2.5 s (measured ' + ms + ' ms)', ms < 2500, ms + ' ms');
 }
+// ── F. My Collection uses the same order (v0.9.1902, [stated] Brad "yes") ──
+// The default sort (sets kept together under their lead number) and the
+// Item # column header both used a digits-only key. F lifts both blocks out
+// of browse.js and runs them; G puts the old default sort back.
+const OWNED = [
+  { itemNum: '1008', g: '' }, { itemNum: '6-8359', g: '' }, { itemNum: '4', g: '' },
+  { itemNum: '2343T', g: 'GRP-2343-111' }, { itemNum: '8359', g: '' }, { itemNum: '2343', g: 'GRP-2343-111' },
+  { itemNum: '2343', g: 'GRP-2343-222' }, { itemNum: '004', g: '' }, { itemNum: '2343C', g: 'GRP-2343-111' },
+  { itemNum: '2343C', g: 'GRP-2343-222' }, { itemNum: '50', g: '' },
+];
+const OWNED_WANT = ['004', '4', '50', '1008', '2343', '2343C', '2343T', '2343', '2343C', '8359', '6-8359'];
+const OWNED_GROUPS = ['', '', '', '', 'GRP-2343-111', 'GRP-2343-111', 'GRP-2343-111', 'GRP-2343-222', 'GRP-2343-222', '', ''];
+const DEF_START = '  // Sort My Collection: by item number, with grouped items together';
+const DEF_END = '  // My Collection: user-selected column sort (header click).';
+function runCollDefault(src) {
+  const c = {
+    state: { filters: { owned: true }, _collSort: null, filteredData: OWNED.map(r => Object.assign({}, r)) },
+    _rrPdForRow: it => ({ groupId: it.g }), rrCatalogNumberKey: ctx.K, rrCompareCatalogKeys: ctx.CK,
+  };
+  vm.createContext(c);
+  vm.runInContext(lift(src, DEF_START, DEF_END), c);
+  return c.state.filteredData;
+}
+function runCollHeader(src, dir) {
+  const start = '  // My Collection: user-selected column sort (header click).';
+  const c = {
+    state: { filters: { owned: true }, _collSort: { col: 'num', dir: dir }, filteredData: OWNED.map(r => Object.assign({}, r)) },
+    findPD: () => ({}), _displayItemNum: it => it.itemNum, _COLL_EXTRA_COLS: [],
+    rrDateTs: () => 0, rrCatalogNumberKey: ctx.K, rrCompareCatalogKeys: ctx.CK,
+  };
+  vm.createContext(c);
+  vm.runInContext(lift(src, start, START), c);
+  return c.state.filteredData.map(r => r.itemNum);
+}
+{
+  const d = runCollDefault(BROWSE);
+  T('F1 My Collection default: catalog number order, 004 then 4, 6-8359 beside 8359', JSON.stringify(d.map(r => r.itemNum)) === JSON.stringify(OWNED_WANT), d.map(r => r.itemNum).join(' '));
+  T('F2 a set\'s pieces stay together, and two sets with the same lead stay apart', JSON.stringify(d.map(r => r.g)) === JSON.stringify(OWNED_GROUPS), d.map(r => r.g || '-').join(' '));
+  const up = runCollHeader(BROWSE, 'asc');
+  T('F3 Item # header (ascending) uses the same order', up.indexOf('004') < up.indexOf('4') && up.indexOf('8359') + 1 === up.indexOf('6-8359') && up.indexOf('4') < up.indexOf('1008'), up.join(' '));
+  const down = runCollHeader(BROWSE, 'desc');
+  T('F4 Item # header (descending) is the exact reverse order of numbers', down[0] === '6-8359' && down[down.length - 1] === '004', down.join(' '));
+}
+{
+  const old = BROWSE.slice(0, BROWSE.indexOf(DEF_START)) + DEF_START + `
+  if (state.filters.owned && !(state._collSort && state._collSort.col)) {
+    state.filteredData.sort((a, b) => {
+      const gA = (_rrPdForRow(a) || {}).groupId || '', gB = (_rrPdForRow(b) || {}).groupId || '';
+      if (gA && gA === gB) return (parseInt((a.itemNum||'').replace(/[^0-9]/g,''))||0) - (parseInt((b.itemNum||'').replace(/[^0-9]/g,''))||0) || (a.itemNum||'').localeCompare(b.itemNum||'');
+      const leadA = gA ? gA.split('-').slice(1,-1).join('-') : a.itemNum, leadB = gB ? gB.split('-').slice(1,-1).join('-') : b.itemNum;
+      const numA = (leadA||'').replace(/[^0-9]/g,''), numB = (leadB||'').replace(/[^0-9]/g,'');
+      if (numA !== numB) return (parseInt(numA)||0) - (parseInt(numB)||0);
+      return (leadA||'').localeCompare(leadB||'') || (a.itemNum||'').localeCompare(b.itemNum||'');
+    });
+  }
+` + BROWSE.slice(BROWSE.indexOf(DEF_END));
+  const d = runCollDefault(old).map(r => r.itemNum);
+  T('G1 PLANTED old default sort: 6-8359 is not beside 8359 (F1 can fail)', JSON.stringify(d) !== JSON.stringify(OWNED_WANT), d.join(' '));
+  const oldHdr = BROWSE.replace("      if (_col === 'num') { r = rrCompareCatalogKeys(a.numKey, b.numKey); }   // v0.9.1902: the one number order\n      else if (_numeric)", '      if (_numeric)');
+  if (oldHdr === BROWSE) throw new Error('planted offender G2 no longer matches browse.js — update the test');
+  const up = runCollHeader(oldHdr, 'asc');
+  T('G2 PLANTED old header key: 4 and 004 are not told apart — 4 lands first (F3 can fail)', up.indexOf('4') < up.indexOf('004'), up.join(' '));
+}
 console.log('\ncatalog_order_tests: ' + pass + ' passed, ' + fail + ' failed');
 process.exit(fail ? 1 : 0);
