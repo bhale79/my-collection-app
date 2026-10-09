@@ -95,13 +95,16 @@ function T(n, cond, detail) { console.log((cond ? 'PASS' : 'FAIL') + '  ' + n + 
     localStorage.removeItem('lv_collect_mfrs'); localStorage.removeItem('lv_collect_mfrs_roster');
     localStorage.removeItem('lv_collect_scales'); localStorage.removeItem('lv_collect_scales_roster');
     localStorage.removeItem('lv_collect_eras'); localStorage.removeItem('lv_collect_eras_roster');
+    localStorage.removeItem('lv_collect_lines'); localStorage.removeItem('lv_collect_lines_roster');
     resetFilters();
     res.cat_all = { mfr: ids('manufacturer').got, scale: ids('scale').got, era: ids('era').got };
 
     // ── tick only Lionel + MTH, only O, only Postwar + Modern ─────────────
-    _setEnabledManufacturers(['lionel', 'mth']);
-    _setEnabledScales(['o']);
-    _setEnabledEras(['pw', 'modern']);
+    // v0.9.1909: "What I collect" is ONE choice — the lines. Lionel Postwar,
+    // Lionel MPC/Modern and MTH O are exactly "Lionel + MTH, O, Postwar +
+    // Modern", and the pickers' maker / scale / period lists are answered
+    // from those lines.
+    _setEnabledEras(['pw', 'mpc', 'mth_o']);
     res.enabledMfr = _getEnabledManufacturers();
     resetFilters();                       // Master Catalog view
     res.cat = { mfr: ids('manufacturer').got, scale: ids('scale').got, era: ids('era').got };

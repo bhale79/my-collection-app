@@ -4260,15 +4260,26 @@ META_WRITES.length = 0; TOASTS.length = 0;
     // the fourth time this sandbox had to gain an app.js global. Lift the real one.
     const _pgI = appS.indexOf('var _prefSeen = {};');
     const PREF_GET = new Function('localStorage', 'window', appS.slice(_pgI, appS.indexOf('\n}\n', _pgI) + 3) + '; return _prefGet;')(LS, {});
+    // v0.9.1909: "What I collect" is ONE stored value now — the lines
+    // (rrSetCollectedLines / rrCollectedLines). The maker and scale lists this
+    // section was written for are no longer written; they are READ, through
+    // the same roster mechanism, only to convert a save made before v1909 —
+    // so the mechanism below is now proven on _legacyEnabled*, the readers
+    // that conversion uses, and the save checks are on the lines.
     const api = new Function('localStorage', 'WHAT_I_COLLECT', 'ERAS', '_prefSet', '_prefGet',
-        slice(appS, 'function _prefEnabled', '// ── Era preferences')
-      + slice(appS, 'function _getEnabledEras', '// v0.9.934 ─ Time-period helpers')
-      + slice(appS, 'function _allScaleIds', 'function _scaleOfEra')
-      + slice(appS, 'function _allManufacturerIds', 'function _manufacturerOfEra')
-      + 'return { pref:_prefEnabled, mfrs:_getEnabledManufacturers,'
-      + ' setMfrs:_setEnabledManufacturers, mfrOn:_isManufacturerEnabled,'
-      + ' scales:_getEnabledScales, setScales:_setEnabledScales, scaleOn:_isScaleEnabled,'
-      + ' eras:_getEnabledEras, setEras:_setEnabledEras };')(LS, WIC, ERAS_STUB, PREF_SET, PREF_GET);
+        slice(appS, 'function _prefEnabled', '// ══ v0.9.1909 — WHAT I COLLECT')
+      + slice(appS, 'var RR_COLLECT_KEY', '// v0.9.934 ─ Time-period helpers')
+      + slice(appS, 'function _eraPeriod', '// v0.9.1909: ANSWERED FROM THE LINES — a period')
+      + slice(appS, 'function _allScaleIds', '// v0.9.1909: ANSWERED FROM THE LINES — a scale')
+      + slice(appS, 'function _scaleOfEra', '// ══ v0.9.1805')
+      + slice(appS, 'function _allManufacturerIds', '// v0.9.1909: ANSWERED FROM THE LINES — a maker')
+      + slice(appS, 'function _manufacturerOfEra', '// Item -> manufacturer id')
+      + 'return { pref:_prefEnabled, mfrs:_legacyEnabledManufacturers,'
+      + ' mfrOn:function (m) { return _legacyEnabledManufacturers().indexOf(m) >= 0; },'
+      + ' scales:_legacyEnabledScales,'
+      + ' scaleOn:function (s) { return _legacyEnabledScales().indexOf(s) >= 0; },'
+      + ' eras:function () { return _prefEnabled("lv_collect_eras", "lv_collect_eras_roster", Object.keys(ERAS), _prefBaseline("eras")); },'
+      + ' setLines:rrSetCollectedLines, lines:rrCollectedLines, lineIds:rrCollectLineIds };')(LS, WIC, ERAS_STUB, PREF_SET, PREF_GET);
 
     const ALL_M = Object.keys(WIC.MANUFACTURERS);
     const NEW_M = ['k-line', 'williams', 'marx'];
@@ -4305,22 +4316,27 @@ META_WRITES.length = 0; TOASTS.length = 0;
        api.mfrOn('lionel') === true);
 
     // Saving records what the user was shown, so the NEXT addition works too.
+    // v0.9.1909: the one save is the LINES; lv_collect_eras is written beside it
+    // (same lines) for an older copy of the app; makers and scales never.
     Object.keys(store).forEach(k => delete store[k]);
-    api.setMfrs(['lionel', 'mth']);
-    ok('saving writes the roster alongside the choice',
-       JSON.parse(store['lv_collect_mfrs_roster']).length === ALL_M.length &&
-       JSON.parse(store['lv_collect_mfrs']).join() === 'lionel,mth');
-    api.setScales(['o']);
-    ok('…and the same for scales',
-       JSON.parse(store['lv_collect_scales_roster']).join() === Object.keys(WIC.SCALES).join());
-    api.setEras(['pw']);
-    ok('…and for eras',
+    queued.length = 0;
+    api.setLines(['pw', 'nonsense']);
+    ok('saving writes the lines, and only real ones',
+       JSON.parse(store['lv_collect_lines']).join() === 'pw');
+    ok('…with the roster of lines the member was shown',
+       JSON.parse(store['lv_collect_lines_roster']).join() === api.lineIds().join());
+    ok('…and lv_collect_eras says the same lines, for an older copy of the app',
+       JSON.parse(store['lv_collect_eras']).join() === 'pw' &&
        JSON.parse(store['lv_collect_eras_roster']).join() === Object.keys(ERAS_STUB).join());
-    // v0.9.1793 — [stated] Brad: "it starts me completely over." These three
-    // were written raw, so they never followed the account: signing out lost
-    // them, the welcome tour asked again with "none chosen yet", and a phone
-    // and a desktop never agreed. Every one of them must now be QUEUED.
-    ['lv_collect_mfrs', 'lv_collect_scales', 'lv_collect_eras'].forEach(function (k) {
+    ok('…and the retired maker / scale lists are NOT written',
+       !('lv_collect_mfrs' in store) && !('lv_collect_scales' in store));
+    ok('reading back gives exactly the line saved',
+       api.lines().join() === 'pw');
+    // v0.9.1793 — [stated] Brad: "it starts me completely over." These were
+    // written raw, so they never followed the account: signing out lost them,
+    // the welcome tour asked again with "none chosen yet", and a phone and a
+    // desktop never agreed. Every one of them must now be QUEUED.
+    ['lv_collect_lines', 'lv_collect_eras'].forEach(function (k) {
       ok('what you collect follows the ACCOUNT: ' + k + ' is queued for sync',
          queued.indexOf(k) >= 0, queued.join(', '));
       ok('…and so is its roster', queued.indexOf(k + '_roster') >= 0, queued.join(', '));

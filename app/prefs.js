@@ -378,58 +378,16 @@ function buildPrefsPage() {
         <div id="pref-ai-left" style="font-size:0.78rem;color:var(--accent2);font-weight:600">${(typeof rrAiRemainingLabel === 'function' && rrAiRemainingLabel()) || ((typeof rrAiOptedOut === 'function' && rrAiOptedOut()) ? 'Off — free readers only' : 'checking reads left…')}</div>
       </div>
 
-      <div style="font-size:0.78rem;font-weight:600;color:var(--text-mid);padding:0.75rem 0.2rem 0.35rem;letter-spacing:0.03em;text-transform:uppercase">Scales I Collect</div>
-      <div class="pref-row" style="flex-direction:column;align-items:flex-start;gap:0.4rem">
-        <div style="font-size:0.78rem;color:var(--text-dim);line-height:1.5">Uncheck scales you don't collect — every era of every manufacturer in that scale gets hidden.</div>
-        <div style="display:flex;flex-wrap:wrap;gap:0.55rem;width:100%">
-          ${Object.keys((window.WHAT_I_COLLECT && window.WHAT_I_COLLECT.SCALES) || {}).map(function(k) {
-            var sc = window.WHAT_I_COLLECT.SCALES[k];
-            var enabled = _getEnabledScales().indexOf(k) >= 0;
-            return '<label style="display:flex;align-items:center;gap:0.45rem;padding:0.45rem 0.7rem;border:1px solid var(--border);border-radius:8px;cursor:pointer;background:var(--surface);font-size:0.8rem;color:var(--t-accent);font-weight:600">'
-              + '<input type="checkbox" ' + (enabled ? 'checked' : '') + ' onchange="_togglePrefScale(\'' + k + '\', this.checked)" style="accent-color:var(--accent);width:1rem;height:1rem;cursor:pointer"> '
-              + sc.label
-              + '</label>';
-          }).join('')}
-        </div>
-      </div>
-
-      <div style="font-size:0.78rem;font-weight:600;color:var(--text-mid);padding:0.75rem 0.2rem 0.35rem;letter-spacing:0.03em;text-transform:uppercase">Manufacturers I Collect</div>
-      <div class="pref-row" style="flex-direction:column;align-items:flex-start;gap:0.4rem">
-        <div style="font-size:0.78rem;color:var(--text-dim);line-height:1.5">Uncheck manufacturers you don't collect — every era of that manufacturer gets hidden.</div>
-        <div style="display:flex;flex-wrap:wrap;gap:0.55rem;width:100%">
-          ${Object.keys((window.WHAT_I_COLLECT && window.WHAT_I_COLLECT.MANUFACTURERS) || {}).map(function(k) {
-            var mfr = window.WHAT_I_COLLECT.MANUFACTURERS[k];
-            var enabled = _getEnabledManufacturers().indexOf(k) >= 0;
-            return '<label style="display:flex;align-items:center;gap:0.45rem;padding:0.45rem 0.7rem;border:1px solid var(--border);border-radius:8px;cursor:pointer;background:var(--surface);font-size:0.8rem;color:var(--t-accent);font-weight:600">'
-              + '<input type="checkbox" ' + (enabled ? 'checked' : '') + ' onchange="_togglePrefMfr(\'' + k + '\', this.checked)" style="accent-color:var(--accent);width:1rem;height:1rem;cursor:pointer"> '
-              + mfr.label
-              + '</label>';
-          }).join('')}
-        </div>
-      </div>
-
-      <div style="font-size:0.78rem;font-weight:600;color:var(--text-mid);padding:0.75rem 0.2rem 0.35rem;letter-spacing:0.03em;text-transform:uppercase">Eras I Collect</div>
-      <div class="pref-row" style="flex-direction:column;align-items:flex-start;gap:0.4rem">
-        <div style="font-size:0.78rem;color:var(--text-dim);line-height:1.5">The three time periods — uncheck any you don't collect. Every manufacturer except Lionel is Modern era, so picking a modern manufacturer turns Modern on automatically.</div>
-        <div style="display:flex;flex-wrap:wrap;gap:0.55rem;width:100%">
-          ${(function() {
-            // v0.9.934 (Brad): eras are the three TIME PERIODS, always shown
-            // regardless of manufacturer/scale selections.
-            var PERIODS = [
-              { id: 'prewar', label: 'Pre-War',      years: '1901-1942' },
-              { id: 'pw',     label: 'Postwar',      years: '1945-1969' },
-              { id: 'modern', label: 'MPC / Modern', years: '1970-Today' },
-            ];
-            return PERIODS.map(function(p) {
-              var enabled = (typeof _isPeriodEnabled === 'function') ? _isPeriodEnabled(p.id) : true;
-              var lbl = p.label + ' <span style="color:var(--text-dim);font-weight:400">(' + p.years + ')</span>';
-              return '<label style="display:flex;align-items:center;gap:0.45rem;padding:0.45rem 0.7rem;border:1px solid var(--border);border-radius:8px;cursor:pointer;background:var(--surface);font-size:0.8rem;color:var(--t-accent);font-weight:600">'
-                + '<input type="checkbox" ' + (enabled ? 'checked' : '') + ' onchange="_togglePrefEra(\'' + p.id + '\', this.checked)" style="accent-color:var(--accent);width:1rem;height:1rem;cursor:pointer"> '
-                + lbl
-                + '</label>';
-            }).join('');
-          })()}
-        </div>
+      <!-- v0.9.1909 (Brad, 2026-10-09): ONE "What I collect" choice — the exact
+           lines a member collects. It used to be three separate lists here
+           (scales, makers, time periods) that the setup screen never wrote,
+           so the two screens disagreed and one tick on setup turned on a
+           whole period. The Change button opens the SAME picker setup uses. -->
+      <div style="font-size:0.78rem;font-weight:600;color:var(--text-mid);padding:0.75rem 0.2rem 0.35rem;letter-spacing:0.03em;text-transform:uppercase">What I Collect</div>
+      <div class="pref-row" id="pref-collect-row" style="flex-direction:column;align-items:flex-start;gap:0.5rem">
+        <div id="pref-collect-summary" style="font-size:0.85rem;color:var(--text);line-height:1.5">${_prefCollectSummaryHtml()}</div>
+        <div style="font-size:0.78rem;color:var(--text-dim);line-height:1.5">The catalog shows only these lines. Anything you already own always shows, whatever is ticked here.</div>
+        <button type="button" id="pref-collect-change" class="pref-btn" onclick="rrOpenCollectPicker()" style="padding:0.55rem 1rem;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-size:0.85rem;font-weight:600;cursor:pointer">Change what I collect</button>
       </div>
 
       </div>
@@ -932,28 +890,22 @@ async function _rebuildDashboardTab() {
 // Wizard Category Preferences
 // ═══════════════════════════════════════════════════════════════
 
-// ── "What I Collect" era toggle handler ──
-// Adds/removes an era from the user's enabled-eras pref. Updates the era
-// dropdown visibility immediately. Refuses to disable the LAST remaining era
-// (must keep at least one selected) unless user is admin.
-function _togglePrefEra(eraId, on) {
-  // v0.9.934: eraId is a PERIOD key (prewar / pw / modern). Normalize whatever
-  // is stored (legacy era keys or periods) to periods, then add/remove.
-  var enabled = (typeof _getEnabledPeriods === 'function') ? _getEnabledPeriods().slice() : _getEnabledEras();
-  if (on) {
-    if (enabled.indexOf(eraId) < 0) enabled.push(eraId);
-  } else {
-    if (enabled.length <= 1) {
-      showToast('Keep at least one era selected.');
-      // Re-tick the box visually
-      _rebuildPrefsKeepScroll();
-      return;
-    }
-    enabled = enabled.filter(function(e) { return e !== eraId; });
-  }
-  _setEnabledEras(enabled);
-  if (on && typeof _ensureEnabledErasLoaded === 'function') _ensureEnabledErasLoaded();
+// ── v0.9.1909: the "What I collect" summary on Preferences ──
+// Reads the ONE owner (rrCollectedLines, app.js). The old per-scale, per-maker
+// and per-period toggles (_togglePrefScale / _togglePrefMfr / _togglePrefEra)
+// are gone: they edited three filters the setup screen never wrote.
+function _prefCollectSummaryHtml() {
+  try {
+    var all = (typeof rrCollectLineIds === 'function') ? rrCollectLineIds() : [];
+    var mine = (typeof rrCollectedLines === 'function') ? rrCollectedLines() : all;
+    var esc = function (v) { return String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); };
+    if (!all.length) return '';
+    if (mine.length >= all.length) return '<strong>Everything</strong> \u2014 all ' + all.length + ' lines';
+    var names = mine.map(function (k) { return (typeof ERAS !== 'undefined' && ERAS[k] && ERAS[k].label) || k; });
+    return '<strong>' + mine.length + ' of ' + all.length + ' lines:</strong> ' + esc(names.join(', '));
+  } catch (e) { return ''; }
 }
+if (typeof window !== 'undefined') window._prefCollectSummaryHtml = _prefCollectSummaryHtml;
 
 // v0.9.1163: the Photo ID spending switch, from Preferences. Writes through the
 // SAME rrAiSetOptOut the crop-screen checkbox uses — one stored flag, two places
@@ -995,65 +947,6 @@ function _togglePrefPhotoReads(on) {
   }
 }
 if (typeof window !== 'undefined') window._togglePrefPhotoReads = _togglePrefPhotoReads;
-
-// Session 136: scale toggle handler — parallel to _togglePrefEra. When user
-// disables a scale, every era of every manufacturer in that scale becomes
-// hidden via _isEraEnabled. Keep at least one scale selected for non-admins.
-function _togglePrefScale(scaleId, on) {
-  var enabled = _getEnabledScales();
-  if (on) {
-    if (enabled.indexOf(scaleId) < 0) enabled.push(scaleId);
-  } else {
-    var nonAdminCount = enabled.filter(function(s) { return s !== scaleId; }).length;
-    if (nonAdminCount === 0) {
-      showToast('Keep at least one scale selected.');
-      _rebuildPrefsKeepScroll();
-      return;
-    }
-    enabled = enabled.filter(function(s) { return s !== scaleId; });
-  }
-  _setEnabledScales(enabled);
-  if (on && typeof _ensureEnabledErasLoaded === 'function') _ensureEnabledErasLoaded();
-  var _restoreScroll = _prefsScrollSnapshot();   // v0.9.653: capture BEFORE the re-renders
-  if (typeof buildDashboard === 'function') buildDashboard();
-  if (typeof renderBrowse === 'function') renderBrowse();
-  // Session 138: re-render so the Eras list filter updates
-  buildPrefsPage();
-  _restoreScroll();
-}
-
-// Session 137: manufacturer toggle handler — parallel to scale + era. When
-// user disables a manufacturer, every era of that manufacturer becomes hidden.
-function _togglePrefMfr(mfrId, on) {
-  var enabled = _getEnabledManufacturers();
-  if (on) {
-    if (enabled.indexOf(mfrId) < 0) enabled.push(mfrId);
-  } else {
-    var nonAdminCount = enabled.filter(function(m) { return m !== mfrId; }).length;
-    if (nonAdminCount === 0) {
-      showToast('Keep at least one manufacturer selected.');
-      _rebuildPrefsKeepScroll();
-      return;
-    }
-    enabled = enabled.filter(function(m) { return m !== mfrId; });
-  }
-  _setEnabledManufacturers(enabled);
-  // v0.9.934 (Brad): a manufacturer needs its time period on, or its items
-  // stay hidden. Everyone except Lionel is Modern — auto-enable it.
-  if (on && mfrId !== 'lionel' && typeof _isPeriodEnabled === 'function' && !_isPeriodEnabled('modern')) {
-    var _pp = _getEnabledPeriods().slice(); _pp.push('modern');
-    _setEnabledEras(_pp);
-    var _mLbl = (window.WHAT_I_COLLECT && WHAT_I_COLLECT.MANUFACTURERS[mfrId] && WHAT_I_COLLECT.MANUFACTURERS[mfrId].label) || mfrId;
-    showToast('Modern era turned on for ' + _mLbl);
-  }
-  if (on && typeof _ensureEnabledErasLoaded === 'function') _ensureEnabledErasLoaded();
-  var _restoreScroll = _prefsScrollSnapshot();   // v0.9.653: capture BEFORE the re-renders
-  if (typeof buildDashboard === 'function') buildDashboard();
-  if (typeof renderBrowse === 'function') renderBrowse();
-  // Session 138: re-render so the Eras list filter updates
-  buildPrefsPage();
-  _restoreScroll();
-}
 
 // ── Extra Columns (v0.9.1514, Phase 2) ────────────────────────
 // One screen for every optional + custom column. Everything it writes is

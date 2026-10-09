@@ -11,7 +11,7 @@ function buildToolsPage() {
   // ── Session 141 (Tier 3.17) ──
   // Tools split into Universal (any manufacturer) and Lionel-Specific.
   // The Lionel section hides entirely if the user has disabled Lionel in
-  // Preferences > Manufacturers I Collect. Future tools per the brainstorm
+  // Preferences > What I Collect (v0.9.1909: answered from the lines collected). Future tools per the brainstorm
   // (MTH ABA detection, Atlas track-power tools, etc.) get their own
   // sections when they ship.
 

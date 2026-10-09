@@ -61,6 +61,11 @@ const WHAT_I_COLLECT = {
   helperNote:  'Pick just what you collect and the app stays uncluttered \u2014 you can change it anytime in Preferences. Collect nearly everything? Use Select all, then untick the few you don\'t.',
   saveLabel:   'Save and continue \u2192',
   skipLabel:   'Skip (keep all eras)',
+  // v0.9.1909: the same screen opened from Preferences (Change what I collect)
+  editTitle:     'What I collect',
+  editSubtitle:  'Tick the lines you collect. The catalog shows only these \u2014 anything you already own always shows.',
+  editSaveLabel: 'Save',
+  cancelLabel:   'Cancel',
 
   // Preferred DISPLAY ORDER only — no longer the gate on what appears.
   // v0.9.1000: the picker renders every era in REAL_ERA_IDS and uses this

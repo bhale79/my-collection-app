@@ -45,6 +45,40 @@
   }
   window.showFeatureMap = showFeatureMap;   // name kept: app-setup.js showOnboarding() calls it
 
+  // ── v0.9.1909: the SAME "What do you collect" screen, from Preferences ──
+  // Brad: one choice, everywhere — so Preferences does not get a second
+  // picker that could drift; it opens this one, with Cancel and Save.
+  var _editMode = false;
+  function rrOpenCollectPicker() {
+    _editMode = true;
+    _screen = SCREEN_COLLECT;
+    _removeOverlay();
+    _mountOverlay();
+    _renderScreen();
+    if (window.BackStack) window.BackStack.push('collect-picker', rrCollectPickerCancel);
+  }
+  function _closeCollectPicker() {
+    _editMode = false;
+    _screen = 1;
+    _removeOverlay();
+    if (window.BackStack) { try { window.BackStack.pop('collect-picker'); } catch (e) {} }
+  }
+  function rrCollectPickerCancel() {
+    if (!_editMode) return;
+    _closeCollectPicker();
+  }
+  function rrCollectPickerSave() {
+    if (!_editMode) return;
+    var n = _eraBoxes().filter(function (b) { return b.checked; }).length;
+    if (!n) return;                              // the Save button is disabled at zero anyway
+    _savePrefsFromForm();
+    _closeCollectPicker();
+    try { if (typeof rrCollectChanged === 'function') rrCollectChanged(); } catch (e) {}
+  }
+  window.rrOpenCollectPicker = rrOpenCollectPicker;
+  window.rrCollectPickerCancel = rrCollectPickerCancel;
+  window.rrCollectPickerSave = rrCollectPickerSave;
+
   // Device Back steps back one screen — it never skips the setup (there is no
   // skip any more). On the first screen it simply stays put.
   function _pushBack() {
@@ -154,11 +188,15 @@
     }
     var progress = (u.progressTemplate || 'Step {n} of {total}')
       .replace('{n}', String(_screen)).replace('{total}', String(_totalScreens()));
+    if (_editMode) {   // v0.9.1909: opened from Preferences — not a step of anything
+      progress = '';
+      title = (window.WHAT_I_COLLECT || {}).editTitle || title;
+    }
     var el = document.createElement('div');
     el.innerHTML =
-      '<div style="font-size:' + s.small + ';color:var(--text-dim);font-weight:600;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:0.4rem">' +
+      (progress ? '<div style="font-size:' + s.small + ';color:var(--text-dim);font-weight:600;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:0.4rem">' +
         _escape(progress) +
-      '</div>' +
+      '</div>' : '') +
       '<div style="font-family:var(--font-head);font-size:' + s.head + ';font-weight:700;line-height:1.2;margin-bottom:0.8rem">' +
         _escape(title) +
       '</div>';
@@ -184,11 +222,13 @@
     // been here before => show exactly what they picked, because silently
     // wiping someone's saved choices for opening a settings screen would be a
     // worse bug than the one this fixes.
+    // v0.9.1909: both questions go to the ONE owner of "what I collect"
+    // (app.js) — the saved LINES, or what an older save converts to.
     var _everChosen = false;
-    try { _everChosen = !!_prefGet('lv_collect_eras', null); } catch (e) {}   // v0.9.1825: through the one reader
+    try { _everChosen = (typeof rrCollectEverChosen === 'function') ? rrCollectEverChosen() : !!_prefGet('lv_collect_eras', null); } catch (e) {}
     var currentEnabled = [];
     if (_everChosen) {
-      try { currentEnabled = (typeof _getEnabledEras === 'function') ? _getEnabledEras() : Object.keys(eras); }
+      try { currentEnabled = (typeof rrCollectedLines === 'function') ? rrCollectedLines() : _getEnabledEras(); }
       catch(e) { currentEnabled = Object.keys(eras); }
     }
     var enabledSet = {};
@@ -202,12 +242,11 @@
     // it doesn't mention still renders, at the end. A new era can no longer
     // go missing from this screen.
     var _order = cfg.eraOrder || [];
-    var _allEraKeys = (typeof REAL_ERA_IDS !== 'undefined' && REAL_ERA_IDS.length)
-      ? REAL_ERA_IDS.slice()
-      : Object.keys(eras).filter(function (k) { return k !== 'all' && k !== 'placeholder'; });
-    _allEraKeys = _allEraKeys.filter(function (k) { return !!eras[k]; });
-    // v0.9.1749: a lookup-only era (the parts catalog) is not a thing to collect — never a card here.
-    if (typeof LOOKUP_ONLY_ERAS !== 'undefined') _allEraKeys = _allEraKeys.filter(function (k) { return LOOKUP_ONLY_ERAS.indexOf(k) < 0; });
+    // v0.9.1909: the SAME list the filter uses (rrCollectLineIds, app.js) — a
+    // line can never be on this screen and not in the filter, or the reverse.
+    // (v0.9.1749: lookup-only catalogs are left out there.)
+    var _allEraKeys = (typeof rrCollectLineIds === 'function') ? rrCollectLineIds()
+      : Object.keys(eras).filter(function (k) { return k !== 'all' && k !== 'placeholder' && !!eras[k]; });
     _allEraKeys.sort(function (x, y) {
       var ix = _order.indexOf(x), iy = _order.indexOf(y);
       if (ix === -1) ix = 999;
@@ -290,7 +329,23 @@
     });
     rowsHtml += '</div>';
 
-    var actions =
+    var actions = _editMode ?
+      // v0.9.1909: opened from Preferences — Cancel or Save, nothing else.
+      '<div style="display:flex;justify-content:space-between;align-items:center;gap:0.5rem;flex-wrap:wrap;margin-top:0.5rem">' +
+        '<button onclick="rrCollectPickerCancel()" style="' +
+          'padding:0.9rem 1.2rem;background:none;border:1px solid var(--border);' +
+          'border-radius:' + s.btnR + ';color:var(--text);font-family:var(--font-body);' +
+          'font-size:' + s.body + ';font-weight:600;cursor:pointer;min-height:' + s.btnH + '">' +
+          _escape(cfg.cancelLabel || 'Cancel') +
+        '</button>' +
+        '<button id="onboarding-era-save" onclick="rrCollectPickerSave()" style="' +
+          'padding:0.95rem 1.8rem;background:var(--accent);border:none;' +
+          'border-radius:' + s.btnR + ';color:#fff;font-family:var(--font-body);' +
+          'font-size:' + s.body + ';font-weight:700;cursor:pointer;min-height:' + s.btnH + '">' +
+          _escape(cfg.editSaveLabel || 'Save') +
+        '</button>' +
+      '</div>'
+      :
       '<div style="display:flex;justify-content:space-between;align-items:center;gap:0.5rem;flex-wrap:wrap;margin-top:0.5rem">' +
         '<button onclick="onboardBack()" style="' +
           'padding:0.9rem 1.2rem;background:none;border:1px solid var(--border);' +
@@ -317,12 +372,13 @@
     var wrap = document.createElement('div');
     wrap.innerHTML =
       '<div style="font-size:' + s.body + ';color:var(--text-mid);line-height:1.55;margin-bottom:0.4rem">' +
-        _escape(cfg.subtitle || '') +
+        _escape((_editMode && cfg.editSubtitle) || cfg.subtitle || '') +
       '</div>' +
       chipsHtml +
       bulkHtml +
       rowsHtml +
-      (cfg.helperNote ? '<div style="font-size:' + s.small + ';color:var(--text-dim);line-height:1.5;margin-bottom:0.5rem;font-style:italic">' + _escape(cfg.helperNote) + '</div>' : '') +
+      // v0.9.1909: from Preferences, "you can change this in Preferences" is beside the point
+      (cfg.helperNote && !_editMode ? '<div style="font-size:' + s.small + ';color:var(--text-dim);line-height:1.5;margin-bottom:0.5rem;font-style:italic">' + _escape(cfg.helperNote) + '</div>' : '') +
       actions;
     // Set the gate once this screen is actually on the page (wrap is still
     // detached here, so the elements cannot be found yet).
@@ -351,7 +407,7 @@
         save.disabled = off;
         save.style.opacity = off ? '0.45' : '';
         save.style.cursor = off ? 'not-allowed' : 'pointer';
-        save.title = off ? 'Pick at least one, or use Skip to keep them all' : '';
+        save.title = off ? (_editMode ? 'Pick at least one' : 'Pick at least one, or use Skip to keep them all') : '';
       }
       var lbl = document.getElementById('onboarding-era-count');
       if (lbl) lbl.textContent = n ? (n + ' of ' + boxes.length + ' chosen') : 'none chosen yet';
@@ -364,11 +420,15 @@
   // An era's scales: ERA_SCALES_MULTI first (Pre-War and MTH Tinplate are
   // both O and Standard), else its one ERA_SCALE. Compared without case —
   // ERA_SCALE writes G scale as 'g' for some makers and 'G' for others.
+  // v0.9.1909: asked of rrLineScales (app.js) — the same answer the Master
+  // Catalog's scale picker gets, so a button and the picker always agree.
   function _eraHasScale(eraKey, scaleId) {
     var want = String(scaleId || '').toLowerCase();
-    var list = (typeof ERA_SCALES_MULTI !== 'undefined' && ERA_SCALES_MULTI[eraKey])
-      || [(typeof ERA_SCALE !== 'undefined' && ERA_SCALE[eraKey]) || ''];
-    return list.some(function (x) { return String(x || '').toLowerCase() === want && want !== ''; });
+    if (!want) return false;
+    var list = (typeof rrLineScales === 'function') ? rrLineScales(eraKey)
+      : ((typeof ERA_SCALES_MULTI !== 'undefined' && ERA_SCALES_MULTI[eraKey])
+         || [(typeof ERA_SCALE !== 'undefined' && ERA_SCALE[eraKey]) || '']);
+    return list.some(function (x) { return String(x || '').toLowerCase() === want; });
   }
   // A button is "on" only when the person TAPPED it (and has not since
   // unticked one of its lines by hand). Judging "on" by "every line of that

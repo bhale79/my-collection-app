@@ -352,7 +352,7 @@ const GUIDES = {
         body: function () { return 'Photograph a whole shelf now and do the typing later. Photos wait here until you file them onto items; the app reads numbers off boxes and labels to help. <strong>Add photos…</strong> starts a batch.' + _tourSampleNote('photo-inbox', 'photos'); } },
       { before: function () { showPage('prefs'); if (typeof buildPrefsPage === 'function') buildPrefsPage(); return 900; },
         selector: '#prefs-content, #page-prefs', tab: _TOUR_TAB.prefs, title: 'Preferences',
-        body: '<strong>What I Collect</strong> lives here — tick the makers, scales and eras you care about and the catalogue keeps to them. Your Google Sheet and photo folder open from <strong>Account</strong>, and your settings follow you to every device.' },
+        body: '<strong>What I Collect</strong> lives here — tick the lines you collect (a scale button picks a whole scale at once) and the catalogue keeps to them. Your Google Sheet and photo folder open from <strong>Account</strong>, and your settings follow you to every device.' },
       { before: function () { showPage('dispatch', document.getElementById('nav-dispatch-btn')); return 900; },
         selector: '#db-board, #page-dispatch', tab: _TOUR_TAB.dispatch, title: 'The Dispatch Board',
         body: 'News from us — what changed in the app and what’s coming. New notes are marked until you’ve read them. It’s here in the side menu, and under your name at the top right as well.' },

@@ -1698,6 +1698,9 @@ function _smartDefaultEra() {
     var saved = localStorage.getItem('lv_era');
     // Session 154: only honor the saved era if it's still a valid ERAS key.
     if (saved && typeof ERAS !== 'undefined' && ERAS[saved]) return saved;
+    // v0.9.1909: a member who has saved LINES (What I collect) starts in the
+    // all-lines view; it loads only the lines they collect (plus what they own).
+    if (localStorage.getItem('lv_collect_lines')) return 'all';
     var rawM = _prefGet('lv_collect_mfrs', null);   // v0.9.1825: through the one reader
     var rawS = _prefGet('lv_collect_scales', null);
     var mfrs = [], scales = [];
@@ -1854,35 +1857,122 @@ function _prefBaseline(which) {
   return null;
 }
 
-// ── Era preferences: which eras the user collects (admin override) ──
-// Default: all eras enabled.
-function _getEnabledEras() {
-  return _prefEnabled('lv_collect_eras', 'lv_collect_eras_roster',
-                      Object.keys(ERAS), _prefBaseline('eras'));
+// ══ v0.9.1909 — WHAT I COLLECT IS ONE CHOICE: THE LINES A MEMBER TICKS ══════
+// Brad, 2026-10-09, after the "What do you collect" screen turned on 38 lines
+// for someone who ticked only Bachmann On30: one choice, everywhere.
+//
+// Before: THREE independent filters — a time period (Pre-War / Postwar /
+// Modern), a manufacturer list and a scale list — and a line was shown when
+// all three said yes. The setup screen asked about LINES ("Bachmann On30")
+// but stored only their PERIOD ("Modern"), with makers and scales left on
+// "everything", so every modern line came on. Preferences edited the three
+// filters directly, so the two screens could never agree about what was
+// ticked.
+//
+// Now the stored answer IS the list of lines (era keys), lv_collect_lines,
+// read and written here and nowhere else:
+//   rrCollectLineIds()      every line a member can pick (one list for the
+//                           picker AND the filter — lookup-only catalogs out)
+//   rrCollectedLines()      the lines this member collects
+//   rrSetCollectedLines(a)  save them (through _prefSet, so they ride the
+//                           account like every other preference)
+//   _isEraEnabled(era)      is this line collected?  (the one filter)
+// The period / maker / scale questions the rest of the app asks
+// (_isPeriodEnabled, _isManufacturerEnabled, _isScaleEnabled — the Master
+// Catalog pickers, the Tools page) are ANSWERED FROM the lines, so they can
+// never disagree with them.
+//
+// NOBODY'S VIEW CHANGES ON UPDATE: a member who has never saved lines but did
+// save the old three filters gets exactly the lines those filters show today
+// (_legacyCollectOn — the old rule, kept for this one purpose). Computed on
+// the fly rather than written at start-up, so a start-up can never race the
+// account's own copy; the first save from the new picker makes it lines.
+//
+// A line added to the app later is ON for everyone (the roster mechanism
+// above, the same rule makers and scales had — a new catalog is never hidden
+// by a list saved before it existed). What a member OWNS always loads anyway
+// (_erasToLoad below).
+var RR_COLLECT_KEY = 'lv_collect_lines';
+var RR_COLLECT_ROSTER_KEY = 'lv_collect_lines_roster';
+var RR_COLLECT_LEGACY_KEYS = ['lv_collect_eras', 'lv_collect_mfrs', 'lv_collect_scales'];
+function rrCollectLineIds() {
+  var eras = (typeof ERAS !== 'undefined') ? ERAS : {};
+  var ids = (typeof REAL_ERA_IDS !== 'undefined' && REAL_ERA_IDS.length)
+    ? REAL_ERA_IDS.slice()
+    : Object.keys(eras).filter(function (k) { return k !== 'all' && k !== 'placeholder'; });
+  return ids.filter(function (k) {
+    if (!eras[k]) return false;
+    return !(typeof LOOKUP_ONLY_ERAS !== 'undefined' && LOOKUP_ONLY_ERAS.indexOf(k) >= 0);
+  });
 }
-function _setEnabledEras(arr) {
-  // ── v0.9.1793: THESE NEVER FOLLOWED THE ACCOUNT ─────────────────────────
-  // v0.9.1779 moved "all eighteen preferences" onto the account, and the rule
-  // it set was that what syncs is exactly what is written through _prefSet.
-  // These two were written with a raw localStorage.setItem, so they were
-  // never in that set — which is why signing out loses what you collect, why
-  // the welcome tour asks again with "none chosen yet", and why a phone and a
-  // desktop have never agreed about it. [stated] Brad found it from the far
-  // end: "it starts me completely over."
-  //
-  // A sweep defined as "written through X" needs a check that nothing writes
-  // it any other way. There is one in prefs_account_sync_tests now.
-  try { _prefSet('lv_collect_eras', JSON.stringify(arr || [])); } catch(e) {}
-  _prefSaveRoster('lv_collect_eras_roster', Object.keys(ERAS));
+// A line's scales, as the scale ids WHAT_I_COLLECT.SCALES uses ('o', 'ho',
+// 'standard', 'on30' ...). Pre-War and MTH Tinplate are BOTH O and Standard
+// (ERA_SCALES_MULTI). The setup screen's scale buttons and the Master
+// Catalog's scale picker both ask this, so a button and the picker agree.
+function rrLineScales(era) {
+  var out = [];
+  function add(v) { v = String(v == null ? '' : v).toLowerCase().trim(); if (v && out.indexOf(v) < 0) out.push(v); }
+  var multi = (typeof ERA_SCALES_MULTI !== 'undefined') ? ERA_SCALES_MULTI[era] : null;
+  if (multi && multi.length) multi.forEach(add);
+  else if (typeof ERA_SCALE !== 'undefined') add(ERA_SCALE[era]);
+  try {
+    var wic = (typeof WHAT_I_COLLECT !== 'undefined' && WHAT_I_COLLECT.ERA_TO_SCALE) || {};
+    if (wic[era]) add(wic[era]);
+  } catch (e) {}
+  var known = (typeof WHAT_I_COLLECT !== 'undefined' && WHAT_I_COLLECT.SCALES) || null;
+  return known ? out.filter(function (x) { return !!known[x]; }) : out;
 }
-// v0.9.934 ─ Time-period helpers. 'prewar' / 'pw' / 'modern'.
-function _eraPeriod(era) {
-  if (era === 'prewar') return 'prewar';
-  if (era === 'pw' || era === 'pw_ho') return 'pw';
-  return 'modern';
+function rrCollectEverChosen() {
+  try {
+    if (_prefGet(RR_COLLECT_KEY, null)) return true;
+    return RR_COLLECT_LEGACY_KEYS.some(function (k) { return !!_prefGet(k, null); });
+  } catch (e) { return false; }
 }
-function _getEnabledPeriods() {
-  var saved = _getEnabledEras();   // may hold period keys or legacy era keys
+var _rrCollectMemo = { sig: null, val: null };
+function rrCollectedLines() {
+  var all = rrCollectLineIds();
+  var sig;
+  try {
+    sig = all.length + '|' + [RR_COLLECT_KEY, RR_COLLECT_ROSTER_KEY].concat(RR_COLLECT_LEGACY_KEYS)
+      .concat(['lv_collect_eras_roster', 'lv_collect_mfrs_roster', 'lv_collect_scales_roster'])
+      .map(function (k) { return localStorage.getItem(k) || ''; }).join('|');
+  } catch (e) { sig = null; }
+  if (sig !== null && sig === _rrCollectMemo.sig) return _rrCollectMemo.val.slice();
+  var out;
+  var raw = null;
+  try { raw = _prefGet(RR_COLLECT_KEY, null); } catch (e) {}
+  if (raw) {
+    out = _prefEnabled(RR_COLLECT_KEY, RR_COLLECT_ROSTER_KEY, all, null)
+      .filter(function (k) { return all.indexOf(k) >= 0; });
+  } else if (!rrCollectEverChosen()) {
+    out = all.slice();                                    // never chosen: everything
+  } else {
+    out = all.filter(_legacyCollectOn);                   // old filters: same view as before
+  }
+  if (!out.length) out = all.slice();                     // never strand anyone with nothing
+  _rrCollectMemo = { sig: sig, val: out.slice() };
+  return out;
+}
+function rrSetCollectedLines(arr) {
+  var all = rrCollectLineIds();
+  var clean = [];
+  (arr || []).forEach(function (k) { if (all.indexOf(k) >= 0 && clean.indexOf(k) < 0) clean.push(k); });
+  try { _prefSet(RR_COLLECT_KEY, JSON.stringify(clean)); } catch (e) {}
+  _prefSaveRoster(RR_COLLECT_ROSTER_KEY, all);
+  // An older copy of the app on another device still reads lv_collect_eras —
+  // keep it naming the same lines, so the two never tell different stories.
+  try { _prefSet('lv_collect_eras', JSON.stringify(clean)); } catch (e) {}
+  _prefSaveRoster('lv_collect_eras_roster', (typeof ERAS !== 'undefined') ? Object.keys(ERAS) : []);
+  _rrCollectMemo.sig = null;
+}
+// The names the rest of the app already calls — kept, now meaning lines.
+function _getEnabledEras() { return rrCollectedLines(); }
+function _setEnabledEras(arr) { rrSetCollectedLines(arr); }
+
+// ── the OLD three-filter rule, kept ONLY to convert a save made before v1909 ──
+function _legacyEnabledPeriods() {
+  var saved = _prefEnabled('lv_collect_eras', 'lv_collect_eras_roster',
+                           (typeof ERAS !== 'undefined') ? Object.keys(ERAS) : [], _prefBaseline('eras'));
   var set = {};
   for (var i = 0; i < saved.length; i++) {
     var e = saved[i];
@@ -1891,28 +1981,52 @@ function _getEnabledPeriods() {
   var out = Object.keys(set);
   return out.length ? out : ['prewar', 'pw', 'modern'];
 }
+function _legacyEnabledManufacturers() {
+  return _prefEnabled('lv_collect_mfrs', 'lv_collect_mfrs_roster',
+                      _allManufacturerIds(), _prefBaseline('manufacturers'));
+}
+function _legacyEnabledScales() {
+  return _prefEnabled('lv_collect_scales', 'lv_collect_scales_roster',
+                      _allScaleIds(), _prefBaseline('scales'));
+}
+function _legacyCollectOn(era) {
+  if (_legacyEnabledPeriods().indexOf(_eraPeriod(era)) < 0) return false;
+  var mfr = _manufacturerOfEra(era);
+  if (mfr && _legacyEnabledManufacturers().indexOf(mfr) < 0) return false;
+  var sc = _scaleOfEra(era);
+  if (sc === null) return true;
+  return _legacyEnabledScales().indexOf(sc) >= 0;
+}
+
+// v0.9.934 ─ Time-period helpers. 'prewar' / 'pw' / 'modern'.
+function _eraPeriod(era) {
+  if (era === 'prewar') return 'prewar';
+  if (era === 'pw' || era === 'pw_ho') return 'pw';
+  return 'modern';
+}
+// v0.9.1909: ANSWERED FROM THE LINES — a period is "collected" when at least
+// one collected line is in it. Never stored on its own any more.
+function _getEnabledPeriods() {
+  var set = {};
+  rrCollectedLines().forEach(function (e) { set[_eraPeriod(e)] = 1; });
+  var out = Object.keys(set);
+  return out.length ? out : ['prewar', 'pw', 'modern'];
+}
 function _isPeriodEnabled(p) { return _getEnabledPeriods().indexOf(p) >= 0; }
-if (typeof window !== 'undefined') { window._eraPeriod = _eraPeriod; window._getEnabledPeriods = _getEnabledPeriods; window._isPeriodEnabled = _isPeriodEnabled; }
+if (typeof window !== 'undefined') {
+  window._eraPeriod = _eraPeriod; window._getEnabledPeriods = _getEnabledPeriods; window._isPeriodEnabled = _isPeriodEnabled;
+  window.rrCollectLineIds = rrCollectLineIds; window.rrCollectedLines = rrCollectedLines;
+  window.rrSetCollectedLines = rrSetCollectedLines; window.rrLineScales = rrLineScales;
+  window.rrCollectEverChosen = rrCollectEverChosen;
+}
 
 function _isEraEnabled(era) {
   // 'all' meta-era is always available regardless of preferences
   if (era === 'all') return true;
   // v0.9.1749: a lookup-only era (the parts catalog) is never loaded for display.
   if (typeof LOOKUP_ONLY_ERAS !== 'undefined' && LOOKUP_ONLY_ERAS.indexOf(era) >= 0) return false;
-  // v0.9.934 (Brad): eras are TIME PERIODS (Pre-War / Postwar / Modern), not
-  // Lionel-specific. Every era maps to a period (_eraPeriod); every non-Lionel
-  // manufacturer is Modern by manufacture date. The saved era pref stores
-  // period keys (old saves with era keys are mapped transparently).
-  if (!_isPeriodEnabled(_eraPeriod(era))) return false;
-  var mfr = (typeof _manufacturerOfEra === 'function') ? _manufacturerOfEra(era) : null;
-  if (mfr && !_isManufacturerEnabled(mfr)) return false;
-  // Session 136: also gate by scale preference. An era is enabled only if its
-  // scale is also enabled. Mixed-scale eras (Pre-War) get null here and are
-  // always considered scale-enabled at the era level; per-item gauge filtering
-  // is the browse filter's job.
-  var sc = _scaleOfEra(era);
-  if (sc === null) return true;
-  return _isScaleEnabled(sc);
+  // v0.9.1909: the ONE filter — is this line one the member collects?
+  return rrCollectedLines().indexOf(era) >= 0;
 }
 
 // v0.9.928: on-demand master load for 'all' mode. Startup now loads only the
@@ -1963,6 +2077,26 @@ function _ensureEnabledErasLoaded() {
     });
   } catch (e) {}
 }
+// v0.9.1909: after "What I collect" is saved from Preferences — load any line
+// just turned on, then redraw what depends on it. ONE place, so the setup
+// screen and Preferences can never refresh differently.
+function rrCollectChanged() {
+  try { _rrCollectMemo.sig = null; } catch (e) {}
+  try { _ensureEnabledErasLoaded(); } catch (e) {}
+  try { if (typeof buildDashboard === 'function') buildDashboard(); } catch (e) {}
+  try { if (typeof renderBrowse === 'function') renderBrowse(); } catch (e) {}
+  try {
+    var pg = document.getElementById('page-prefs');
+    if (pg && pg.classList.contains('active') && typeof buildPrefsPage === 'function') {
+      var sum = document.getElementById('pref-collect-summary');
+      if (sum && typeof _prefCollectSummaryHtml === 'function') sum.innerHTML = _prefCollectSummaryHtml();
+      else buildPrefsPage();
+    }
+  } catch (e) {}
+  try { if (typeof showToast === 'function') showToast('Saved \u2014 the catalog now shows what you collect.', 2600); } catch (e) {}
+}
+if (typeof window !== 'undefined') window.rrCollectChanged = rrCollectChanged;
+
 // ── v0.9.1796: THE CATALOG OF AN ERA YOU OWN ITEMS IN IS ALWAYS LOADED ─────
 // What I Collect decides which catalogs sit on the browse SHELF. It must never
 // decide whether the app has the book it identifies your own trains with.
@@ -2034,20 +2168,19 @@ function _allScaleIds() {
   }
   return [];
 }
+// v0.9.1909: ANSWERED FROM THE LINES — a scale is "collected" when at least
+// one collected line is in it. The old stored scale list is read only by
+// _legacyEnabledScales, to convert a pre-v1909 save.
 function _getEnabledScales() {
-  return _prefEnabled('lv_collect_scales', 'lv_collect_scales_roster',
-                      _allScaleIds(), _prefBaseline('scales'));
-}
-function _setEnabledScales(arr) {
-  // v0.9.1793: the THIRD of the "What I collect" trio that was outside the
-  // sync path — see the note on _setEnabledEras. Eras, makers and scales all
-  // wrote raw, so all three were per-device while v1779 said otherwise.
-  try { _prefSet('lv_collect_scales', JSON.stringify(arr || [])); } catch(e) {}
-  _prefSaveRoster('lv_collect_scales_roster', _allScaleIds());
+  var out = [];
+  rrCollectedLines().forEach(function (e) {
+    rrLineScales(e).forEach(function (s) { if (out.indexOf(s) < 0) out.push(s); });
+  });
+  return out;
 }
 function _isScaleEnabled(scaleId) {
   if (!scaleId) return true; // unknown scale -> don't hide
-  return _getEnabledScales().indexOf(scaleId) >= 0;
+  return _getEnabledScales().indexOf(String(scaleId).toLowerCase()) >= 0;
 }
 // Era -> scale id. null for mixed-scale eras (Pre-War).
 function _scaleOfEra(era) {
@@ -2256,14 +2389,16 @@ function _allManufacturerIds() {
   }
   return [];
 }
+// v0.9.1909: ANSWERED FROM THE LINES — a maker is "collected" when at least
+// one collected line is theirs. The old stored maker list is read only by
+// _legacyEnabledManufacturers, to convert a pre-v1909 save.
 function _getEnabledManufacturers() {
-  return _prefEnabled('lv_collect_mfrs', 'lv_collect_mfrs_roster',
-                      _allManufacturerIds(), _prefBaseline('manufacturers'));
-}
-function _setEnabledManufacturers(arr) {
-  // v0.9.1793: same blind spot as _setEnabledEras above — see the note there.
-  try { _prefSet('lv_collect_mfrs', JSON.stringify(arr || [])); } catch(e) {}
-  _prefSaveRoster('lv_collect_mfrs_roster', _allManufacturerIds());
+  var out = [];
+  rrCollectedLines().forEach(function (e) {
+    var m = _manufacturerOfEra(e);
+    if (m && out.indexOf(m) < 0) out.push(m);
+  });
+  return out;
 }
 function _isManufacturerEnabled(mfrId) {
   if (!mfrId) return true; // unknown manufacturer -> don't hide

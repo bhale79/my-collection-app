@@ -240,7 +240,19 @@ console.log('\n== G. Every synced preference actually goes through _prefSet ==')
 {
   const PREFS = fs.readFileSync(path.join(__dirname, '..', 'app', 'prefs.js'), 'utf8');
   const ALL = APP + '\n' + PREFS;
-  const KEYS = ['lv_collect_eras', 'lv_collect_mfrs', 'lv_collect_scales'];
+  // v0.9.1909: "What I collect" is ONE value now — the lines (lv_collect_lines,
+  // written through _prefSet(RR_COLLECT_KEY …)). lv_collect_eras is still
+  // written beside it so an older copy of the app reads the same lines; the
+  // maker and scale lists are never written again (read only to convert).
+  const KEYS = ['lv_collect_eras'];
+  ok('lv_collect_lines is written through _prefSet (by its one constant)',
+     /var RR_COLLECT_KEY = 'lv_collect_lines';/.test(APP) && /_prefSet\(RR_COLLECT_KEY,/.test(APP));
+  ok('…and NOT with a raw localStorage.setItem anywhere',
+     !/localStorage\.setItem\((RR_COLLECT_KEY|'lv_collect_lines')/.test(ALL));
+  ['lv_collect_mfrs', 'lv_collect_scales'].forEach(function (k) {
+    ok(k + ' is retired — written nowhere (read only to convert an old save)',
+       !new RegExp("(_prefSet|localStorage\\.setItem)\\('" + k + "'").test(ALL));
+  });
 
   KEYS.forEach(function (k) {
     ok(k + ' is written through _prefSet',

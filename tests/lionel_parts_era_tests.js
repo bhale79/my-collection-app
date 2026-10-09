@@ -45,7 +45,10 @@ ok('the startup load goes through _erasToLoad, which asks _isEraEnabled and refu
    && /function _erasToLoad\([^)]*\) \{[\s\S]{0,300}_isEraEnabled\(e\)/.test(app)
    && /function _isLoadableEra\(e\) \{[\s\S]{0,200}LOOKUP_ONLY_ERAS\.indexOf\(e\) >= 0/.test(app));
 ok('the background full-catalog index takes REAL_ERA_IDS whole (so the parts tab IS fetched and cached for lookups)', /_buildAllErasLookupIndex[\s\S]*?REAL_ERA_IDS\.slice\(\)/.test(data));
-ok('the What I Collect picker skips lookup-only eras', /LOOKUP_ONLY_ERAS\.indexOf\(k\) < 0/.test(obj));
+// v0.9.1909: the picker takes its list from rrCollectLineIds (app.js) — the
+// SAME list the filter uses — and that one list leaves lookup-only eras out.
+ok('the What I Collect picker skips lookup-only eras', /rrCollectLineIds\(\)/.test(obj)
+   && /function rrCollectLineIds\(\) \{[\s\S]{0,500}LOOKUP_ONLY_ERAS\.indexOf\(k\) >= 0/.test(app));
 ok('the Yardmaster tab list still comes from REAL_ERA_IDS → ERA_TABS (Lionel Parts is a valid target tab)', /REAL_ERA_IDS\.forEach\(function \(id\) \{[\s\S]{0,200}var t = ERA_TABS\[id\]\[k\];/.test(rd('yardmaster.js')) && /itemShaped \|\| \['items'\]/.test(rd('yardmaster.js')));   /* v0.9.1754: the same derivation, now through MASTER_TAB_SHAPES' keys (items first) */
 
 section('The parts catalog columns are read by header');
