@@ -1017,7 +1017,8 @@ async function subCheck() {
                  && typeof _BETA_CODE !== 'undefined') ? _BETA_CODE : '',
       appVersion: (typeof APP_VERSION !== 'undefined') ? APP_VERSION : '',
       fresh: _subCheckoutPending() ? 1 : 0 });
-    if (!r || r.status !== 200 || !r.sub) return;          // fail-open
+    if (!r || r.status !== 200 || !r.sub) { _subNoAnswer(); return; }   // v0.9.1904: grace, then the no-check screen
+    _subRememberAnswer(r);                                 // v0.9.1904: the last answer, per account
     window._subState = r;
     // v0.9.1891: keep this account's feature list for the next load, and tell
     // whoever is listening (Maintenance, Preferences) that the answer is in.
@@ -1069,6 +1070,74 @@ function _subRememberOpen(isOpen) {
     localStorage.setItem(SUB_OPEN_KEY, JSON.stringify(list.slice(0, SUB_OPEN_MAX)));
   } catch (e) {}
 }
+// ── v0.9.1904: THE GRACE PERIOD (security review #4, Brad "yes" 2026-10-08) ──
+// Before: no answer from the backend = the app ran free (fail-open), forever —
+// blocking one web address was enough. Now each account's LAST answer is kept
+// on the device (by fingerprint, never the email itself) with its time:
+//   - no answer, last good answer under RR_SUB_GRACE_DAYS old → go by that
+//     answer (paying / trial / beta carry on; a blocked account stays blocked);
+//   - no answer and nothing newer than RR_SUB_GRACE_DAYS → the 'nocheck' screen:
+//     "couldn't check your subscription", Check again, own sheet + photos, sign
+//     out. Never "your subscription has ended" — a paying member must not be told that.
+//   - never answered on this device → the clock starts at the first miss.
+//   - before launch (last answer: enforcement off) → unchanged, fail-open.
+// Owners, recording mode and offline mode never reach here (subCheck / the gate
+// return first, or rrIsRealOwner in _subApply). A good answer resets everything.
+var SUB_LAST_KEY = 'rr_sub_last_v1';     // JSON { fingerprint: { at, miss, r } }
+function _subLastMap() {
+  try { var v = JSON.parse(localStorage.getItem(SUB_LAST_KEY) || '{}'); return (v && typeof v === 'object' && !Array.isArray(v)) ? v : {}; }
+  catch (e) { return {}; }
+}
+function _subLastSave(map) {
+  try {
+    var keys = Object.keys(map).sort(function (a, b) { return ((map[b] && (map[b].at || map[b].miss)) || 0) - ((map[a] && (map[a].at || map[a].miss)) || 0); });
+    var out = {};
+    keys.slice(0, SUB_OPEN_MAX).forEach(function (k) { out[k] = map[k]; });
+    localStorage.setItem(SUB_LAST_KEY, JSON.stringify(out));
+  } catch (e) {}
+}
+function _subGraceMs() {
+  var d = (typeof RR_SUB_GRACE_DAYS !== 'undefined') ? Number(RR_SUB_GRACE_DAYS) : 7;
+  return (isFinite(d) && d > 0 ? d : 7) * 864e5;
+}
+function _subRememberAnswer(r) {
+  var fp = _subFp();
+  if (!fp || !r) return;
+  var keep = {};
+  ['sub', 'enforce', 'level', 'features', 'payLink', 'renewLink', 'portalLink', 'showMode', 'trialEnds',
+   'daysLeft', 'paidThrough', 'cancelAtPeriodEnd', 'freeUntil', 'betaEnded', 'endedOn'].forEach(function (k) {
+    if (r[k] !== undefined) keep[k] = r[k];
+  });
+  var map = _subLastMap();
+  map[fp] = { at: Date.now(), miss: 0, r: keep };
+  _subLastSave(map);
+}
+function _subNoAnswer() {
+  var fp = _subFp();
+  if (!fp) return;                                         // not signed in: nothing to go by
+  try { if (typeof rrIsRealOwner === 'function' && rrIsRealOwner()) return; } catch (e) {}
+  try { if (typeof rrRecordingMode === 'function' && rrRecordingMode()) return; } catch (e) {}
+  var now = Date.now();
+  var map = _subLastMap();
+  var rec = map[fp] || { at: 0, miss: 0, r: null };
+  // Before launch (the last answer said enforcement is off) nothing changes:
+  // fail-open, as always. Everyone using the app then is a beta tester anyway.
+  if (rec.r && !rec.r.enforce) return;
+  if (!rec.at && !rec.miss) { rec.miss = now; map[fp] = rec; _subLastSave(map); }
+  var since = rec.at || rec.miss;
+  if (now - since > _subGraceMs()) {
+    window._readOnlyMode = true;
+    _subScreen('nocheck', null);
+    return;
+  }
+  if (rec.r && rec.r.sub) {                                // inside the grace: the last answer stands
+    var last = Object.assign({}, rec.r, { status: 200, stale: true });
+    window._subState = last;
+    _subApply(last);
+  }
+}
+if (typeof window !== 'undefined') { window._subNoAnswer = _subNoAnswer; window._subRememberAnswer = _subRememberAnswer; }
+
 function _subOpeningDone() {
   var el = document.getElementById('sub-screen');
   if (el && el.getAttribute('data-kind') === 'opening') el.remove();
@@ -1239,6 +1308,13 @@ function _subScreen(kind, r) {
   var big = 'display:block;width:100%;min-height:' + btnH + ';border-radius:' + btnR + ';border:none;background:var(--accent);color:var(--on-accent);font-size:' + body + ';font-weight:700;text-align:center;text-decoration:none;line-height:' + btnH + ';cursor:pointer;margin:1.1rem 0 0.4rem';
   var quiet = 'display:block;width:100%;min-height:44px;border-radius:' + btnR + ';border:1px solid var(--border);background:transparent;color:var(--text-mid);font-size:' + (u.linkFontPx || 16) + 'px;cursor:pointer;margin-top:0.6rem';
   var p = 'font-size:' + body + ';line-height:1.55;color:var(--text-mid);margin:0.7rem 0 0';
+  // "Your collection is still yours" — ONE copy, on the lock screen and the no-check screen.
+  var yours = '<div style="margin-top:1.4rem;padding-top:1.1rem;border-top:1px solid var(--border)">' +
+          '<div style="font-size:' + body + ';font-weight:700;color:var(--text)">Your collection is still yours</div>' +
+          '<p style="' + p + '">Everything you entered is in your own Google Sheet, and your photos are in your own Google Drive.</p>' +
+          (state.personalSheetId ? '<a href="https://docs.google.com/spreadsheets/d/' + _subEsc(state.personalSheetId) + '" target="_blank" rel="noopener" style="' + quiet + ';text-align:center;text-decoration:none;line-height:44px">Open my collection sheet ↗</a>' : '') +
+          '<button onclick="_prefsOpenPhotosFolder()" style="' + quiet + '">Open my photos folder ↗</button>' +
+        '</div>';
   var h = '';
   if (kind === 'welcome') {
     var trialEnd = new Date(Date.now() + 21 * 864e5);
@@ -1257,12 +1333,15 @@ function _subScreen(kind, r) {
     h = '<h1 style="font-size:' + head + ';margin:0;color:var(--text)">Your subscription has ended</h1>' +
         '<p style="' + p + '">Renew to keep building your collection — ' + _subEsc(price) + '.</p>' +
         '<a id="sub-go" href="' + _subEsc(_subCheckoutUrl(r.renewLink || r.payLink)) + '" style="' + big + '">Renew</a>' +
-        '<div style="margin-top:1.4rem;padding-top:1.1rem;border-top:1px solid var(--border)">' +
-          '<div style="font-size:' + body + ';font-weight:700;color:var(--text)">Your collection is still yours</div>' +
-          '<p style="' + p + '">Everything you entered is in your own Google Sheet, and your photos are in your own Google Drive.</p>' +
-          (state.personalSheetId ? '<a href="https://docs.google.com/spreadsheets/d/' + _subEsc(state.personalSheetId) + '" target="_blank" rel="noopener" style="' + quiet + ';text-align:center;text-decoration:none;line-height:44px">Open my collection sheet ↗</a>' : '') +
-          '<button onclick="_prefsOpenPhotosFolder()" style="' + quiet + '">Open my photos folder ↗</button>' +
-        '</div>';
+        yours;
+  } else if (kind === 'nocheck') {
+    // v0.9.1904: no answer from our server for RR_SUB_GRACE_DAYS — never the lock screen's words.
+    var gd = (typeof RR_SUB_GRACE_DAYS !== 'undefined') ? RR_SUB_GRACE_DAYS : 7;
+    h = '<h1 style="font-size:' + head + ';margin:0;color:var(--text)">We couldn\u2019t check your subscription</h1>' +
+        '<p style="' + p + '">The app hasn\u2019t been able to reach our server for more than ' + _subEsc(gd) + ' days to check your subscription. Connect to the internet and tap Check again.</p>' +
+        '<button id="sub-go" onclick="subCheck()" style="' + big + '">Check again</button>' +
+        '<p style="' + p + '">Still stuck? Email <a href="mailto:' + _subEsc(typeof ADMIN_EMAIL !== 'undefined' ? ADMIN_EMAIL : '') + '" style="color:var(--accent2)">' + _subEsc(typeof ADMIN_EMAIL !== 'undefined' ? ADMIN_EMAIL : '') + '</a>.</p>' +
+        yours;
   } else if (kind === 'opening') {
     // v0.9.1903 (Brad, after the v1900 phone test): "it should say opening your
     // collection if you have got one loaded yet. we should just show the logo

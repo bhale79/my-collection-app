@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.1903';
+const APP_VERSION = 'v0.9.1904';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -138,6 +138,12 @@ const RR_READONLY_TEXT = {
   expired: 'Your subscription has ended \u2014 renew to keep adding and editing.'
 };
 if (typeof window !== 'undefined') window.RR_READONLY_TEXT = RR_READONLY_TEXT;
+// v0.9.1904 (security review #4, Brad "yes" 2026-10-08): how long the app goes
+// by an account's LAST subscription answer when the backend can't be reached.
+// Past this, a "couldn't check your subscription" screen covers the app (never
+// "ended" — that would be a lie to a paying member). ONE place: vault.js reads it.
+const RR_SUB_GRACE_DAYS = 7;
+if (typeof window !== 'undefined') window.RR_SUB_GRACE_DAYS = RR_SUB_GRACE_DAYS;
 
 // v0.9.1300 (Brad): "keep collecting the data, just hide the page and the
 // collectors market button." The market UI is off until a future release —

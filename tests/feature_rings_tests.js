@@ -111,7 +111,7 @@ console.log('3. subCheck remembers and announces');
 const sc = vault.slice(vault.indexOf('async function subCheck()'), vault.indexOf('function _subApply('));
 ok('subCheck remembers the feature list after setting _subState', /window\._subState = r;[\s\S]{0,300}rrFeaturesRemember\(r\)/.test(sc));
 ok('subCheck announces rr:substate after applying', /_subApply\(r\);[\s\S]{0,200}dispatchEvent\(new CustomEvent\('rr:substate'/.test(sc));
-ok('still fail-open: a bad answer returns before any of it', /if \(!r \|\| r\.status !== 200 \|\| !r\.sub\) return;/.test(sc));
+ok('v0.9.1904: a bad answer goes to the grace period (_subNoAnswer) and returns before any of it', /if \(!r \|\| r\.status !== 200 \|\| !r\.sub\) \{ _subNoAnswer\(\); return; \}/.test(sc));
 
 // ── 4. Preferences "My Subscription" ──────────────────────────────────────
 console.log('4. Preferences — My Subscription');

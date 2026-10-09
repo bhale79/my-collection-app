@@ -202,7 +202,7 @@ ok('every checkout link goes through _subCheckoutUrl (email locked) — no raw p
 ok('PLANTED: a raw payLink link is caught', unlockedCheckout("'<a href=\"' + r.payLink + '\">'"));
 ok('_subCheckoutUrl uses locked_prefilled_email', /locked_prefilled_email=/.test(SUB));
 ok('PLANTED: an unlocked prefilled_email would fail that rule', !/locked_prefilled_email=/.test("base + '?prefilled_email=' + em"));
-ok('still fail-open: a bad answer returns before anything is shown', /if \(!r \|\| r\.status !== 200 \|\| !r\.sub\) return;/.test(SUB));
+ok('v0.9.1904: a bad answer goes to the grace period (_subNoAnswer) and returns before anything is shown', /if \(!r \|\| r\.status !== 200 \|\| !r\.sub\) \{ _subNoAnswer\(\); return; \}/.test(SUB));
 ok('the old "Subscribe — $75/yr" banner and "view-only" wording are gone', !/Subscribe — \$75\/yr|view-only\. Subscribe/.test(vault));
 
 setTimeout(() => {
