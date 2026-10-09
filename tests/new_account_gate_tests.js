@@ -78,7 +78,9 @@ function loadStartsGate(src) {                 // loadAllData starts the gate, n
   T('P4  the old "Opening your collection" words are caught', openingWords("h = '<h1>Opening your collection…</h1>';"));
   T('P3  the old 600 ms subscription check is caught', oldLoad !== rd('app-data.js') && !loadStartsGate(oldLoad));
 
-  const browser = await chromium.launch();
+  // the cloud workspace keeps its browser here; elsewhere Playwright finds its own
+  const ex = '/opt/pw-browsers/chromium';
+  const browser = await chromium.launch(fs.existsSync(ex) ? { executablePath: ex } : {});
   const pg = await browser.newPage({ viewport: { width: 412, height: 860 } });
   const errs = []; pg.on('pageerror', e => errs.push(e.message));
   await pg.route('**', r => r.request().url().startsWith('file://') ? r.continue() : r.abort());

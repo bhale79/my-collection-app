@@ -37,7 +37,9 @@ let pass = 0, fail = 0;
 function T(n, cond, detail) { console.log((cond ? 'PASS' : 'FAIL') + '  ' + n + (cond ? '' : '  -> ' + JSON.stringify(detail).slice(0, 400))); cond ? pass++ : fail++; }
 
 (async () => {
-  const browser = await chromium.launch();
+  // the cloud workspace keeps its browser here; elsewhere Playwright finds its own
+  const ex = '/opt/pw-browsers/chromium';
+  const browser = await chromium.launch(fs.existsSync(ex) ? { executablePath: ex } : {});
   const pg = await browser.newPage({ viewport: { width: 1400, height: 900 } });
   const errs = []; pg.on('pageerror', e => errs.push(e.message));
   await pg.route('**', r => r.request().url().startsWith('file://') ? r.continue() : r.abort());
