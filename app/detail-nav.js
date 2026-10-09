@@ -211,7 +211,19 @@
     try {
       // Same string the row itself would have run. Re-running it keeps every
       // origin flag (_detailReturn, wantMode) exactly as the list intended.
-      new Function(call).call(window);
+      // v0.9.1907 (security review #7): never a function built from text — the app's
+      // Content-Security-Policy has no 'unsafe-eval', and the walk-through on
+      // ?csp=test caught this exact line refusing to run (the arrows went
+      // dead). The text is handed to a DETACHED button as its onclick — the
+      // same kind of inline handler the row itself carried, which the policy
+      // allows — and the browser compiles it. Called with window as `this`,
+      // as before, and inside this try, so a failure still shows the toast.
+      // Detached, so nothing else ever hears a click.
+      var runner = document.createElement('button');
+      runner.setAttribute('onclick', call);
+      var fn = runner.onclick;
+      if (typeof fn !== 'function') throw new Error('row call did not compile');
+      fn.call(window);
       try { window.scrollTo({ top: 0, behavior: 'instant' }); } catch (eS) { window.scrollTo(0, 0); }
     } catch (err) {
       console.warn('[detail-nav] could not open the next item:', err);

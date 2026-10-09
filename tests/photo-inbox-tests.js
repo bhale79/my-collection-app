@@ -3808,10 +3808,12 @@ META_WRITES.length = 0; TOASTS.length = 0;
 
     // Re-running the row's own call is what preserves Want/Sale context and
     // the Back destination — nothing about origin is re-derived here.
+    // v0.9.1907: re-run as a compiled inline handler, never new Function —
+    // the Content-Security-Policy has no 'unsafe-eval' (tests/csp_tests.js).
     ok('navigation re-runs the row\'s own open call, keeping origin + wantMode intact',
-       /new Function\(call\)\.call\(window\)/.test(nav));
+       /runner\.setAttribute\('onclick', call\)/.test(nav) && /fn\.call\(window\)/.test(nav) && !/new Function/.test(nav));
     ok('position advances BEFORE the page redraws, so it shows its own place',
-       nav.indexOf('n.pos = next;') < nav.indexOf('new Function(call)'));
+       nav.indexOf('n.pos = next;') > 0 && nav.indexOf('n.pos = next;') < nav.indexOf("runner.setAttribute('onclick', call)"));
 
     // Keyboard: helpful at a desk, must never fire under a dialog or in a field.
     ok('arrow keys work on desktop',

@@ -156,6 +156,44 @@ function tab(search, stored) {
   ok('a flag that is merely similar does nothing (?csp=tested)', tab('?csp=tested').added.length === 0);
 }
 
+// ── E. no code built from text (the policy has no 'unsafe-eval') ────────
+section("E. no code built from text anywhere in the app");
+function textCode(files) {
+  const out = [];
+  files.forEach(f => {
+    const raw = typeof f === 'string' ? fs.readFileSync(path.join(APPDIR, f), 'utf8') : f.src;
+    const name = typeof f === 'string' ? f : f.name;
+    raw.split('\n').forEach((line, i) => {
+      const code = line.replace(/\/\/.*$/, '');
+      if (/new Function\s*\(|(^|[^\w$.])eval\s*\(|set(Timeout|Interval)\(\s*['"`]/.test(code)) out.push(name + ':' + (i + 1) + ' ' + line.trim().slice(0, 70));
+    });
+  });
+  return out;
+}
+const TEXT_CODE = textCode(fs.readdirSync(APPDIR).filter(f => /\.js$/.test(f)));
+ok('no new Function / eval / setTimeout("…") in app/*.js', TEXT_CODE.length === 0, TEXT_CODE);
+ok('a planted new Function is caught', textCode([{ name: 'p.js', src: "  new Function(call).call(window);" }]).length === 1);
+ok('a planted string timer is caught', textCode([{ name: 'p.js', src: "setTimeout('go()', 10);" }]).length === 1);
+{
+  // the Prev/Next arrows, run for real: the row's call text is compiled as an
+  // inline handler (stand-in browser: setAttribute('onclick') compiles it)
+  const NAV = fs.readFileSync(path.join(APPDIR, 'detail-nav.js'), 'utf8');
+  const box = { console: { warn() {} }, showToast: (m) => { box.toast = m; }, scrollTo() {}, ran: [] };
+  box.window = box;
+  box.document = {
+    addEventListener() {}, querySelector: () => null, getElementById: () => null,
+    createElement: () => { const el = { setAttribute(k, v) { if (k === 'onclick') { try { el.onclick = box.__compile(v); } catch (e) { el.onclick = null; } } } }; return el; },
+  };
+  vm.createContext(box);
+  box.__compile = vm.runInContext("(function (v) { return new Function('event', v); })", box);   // the page's own realm, like a browser
+  vm.runInContext(NAV, box);
+  box._rrNav = { items: [{ label: 'a', call: "ran.push('a')" }, { label: 'b', call: "ran.push('b:' + (this === window))" }, { label: 'c', call: "this is not code(" }], pos: 0, origin: 'probe' };
+  box.rrDetailNavGo(1);
+  ok('Next runs the next row\'s own call, with window as `this` (as before)', box.ran.join() === 'b:true' && box._rrNav.pos === 1, box.ran);
+  box.rrDetailNavGo(1);
+  ok('a call that will not compile shows the toast instead of failing silently', /Could not open that item/.test(box.toast || ''), box.toast);
+}
+
 // ── D. the guards can fail ─────────────────────────────────────────────
 section('D. the guards can fail');
 {
