@@ -19,7 +19,9 @@
 //      and nothing is said while the welcome / lock screen is up.
 //   C. the app (and the Dispatch Board) drew in the second or two before the
 //      subscription answer arrived. An account this device cannot vouch for
-//      now sees "Opening your collection…" until the answer lands — fail-open,
+//      now sees just the logo (v0.9.1903 — it said "Opening your collection…",
+//      but a new member has none: Brad, "we should just show the logo then
+//      switch to the welcome page") until the answer lands — fail-open,
 //      never longer than SUB_COVER_MAX_MS — and the Dispatch Board waits for
 //      the screen and for first-run setup.
 // Section P plants an offender for every source rule.
@@ -43,6 +45,9 @@ function plainUpdatesIn(src) {                 // set-up code must use sheetsSet
 function trialEndedWords(src) {                // the old wording, anywhere in live code
   return /trial has ended/i.test(strip(src));
 }
+function openingWords(src) {                  // v0.9.1903: the cover is the logo only
+  return /Opening your collection/i.test(strip(src));
+}
 function loadStartsGate(src) {                 // loadAllData starts the gate, no 600 ms delay
   const m = strip(src).match(/async function loadAllData\(\)\s*\{([\s\S]*?)\n\s*try \{\s*\n\s*loadUserDefinedTabs/);
   if (!m) return false;
@@ -60,6 +65,8 @@ function loadStartsGate(src) {                 // loadAllData starts the gate, n
   T('S4  the Master Key label is a set-up write', /sheetsSetupUpdate\(state\.personalSheetId, PERSONAL_TAB \+ '!' \+ personalColLetter\('masterKey'\)/.test(rd('app-data.js')));
   T('S5  the remembered-open list is kept at sign-out', /'rr_sub_open_v1'/.test(rd('config.js').split('const SIGNOUT_KEEP_KEYS')[1] || ''));
   T('S6  the wording lives in ONE place (config.js RR_READONLY_TEXT)', /const RR_READONLY_TEXT\s*=\s*\{/.test(rd('config.js')));
+  const saysOpening = appJs.filter(f => openingWords(rd(f)));
+  T('S7  no live code says "Opening your collection" (a new member has none)', saysOpening.length === 0, saysOpening);
 
   // ── P · planted offenders: every rule above can fail ─────────────────────
   console.log('\n== P · planted offenders ==');
@@ -68,6 +75,7 @@ function loadStartsGate(src) {                 // loadAllData starts the gate, n
   T('P2  the old "trial has ended" toast is caught', trialEndedWords("showToast('Your trial has ended — subscribe', 4000, true);"));
   const oldLoad = rd('app-data.js').replace(/try \{\s*\n\s*if \(typeof rrSubGateStart === 'function'\) rrSubGateStart\(\);\s*\n\s*else if \(typeof subCheck === 'function'\) subCheck\(\);\s*\n\s*\} catch \(e\) \{\}/,
     "setTimeout(function () { try { if (typeof subCheck === 'function') subCheck(); } catch (e) {} }, 600);");
+  T('P4  the old "Opening your collection" words are caught', openingWords("h = '<h1>Opening your collection…</h1>';"));
   T('P3  the old 600 ms subscription check is caught', oldLoad !== rd('app-data.js') && !loadStartsGate(oldLoad));
 
   const browser = await chromium.launch();
@@ -111,8 +119,15 @@ function loadStartsGate(src) {                 // loadAllData starts the gate, n
   // ── C · the phone sequence: sign in → (no flash) → welcome screen ──────
   console.log('\n== C · a never-subscribed account signs in ==');
   await pg.evaluate(a => { window._answer = a; window._subState = undefined; rrSubGateStart(); }, NONE);
-  T('C1  before the answer: the app is covered — "Opening your collection…"', (await screen()) === 'opening');
-  T('C1b  …and it says so in plain words', /Opening your collection/.test(await pg.evaluate(() => document.getElementById('sub-screen').innerText)));
+  T('C1  before the answer: the app is covered', (await screen()) === 'opening');
+  const cover = await pg.evaluate(() => {
+    const s = document.getElementById('sub-screen');
+    const img = s.querySelector('img');
+    return { text: (s.innerText || '').replace(/\s+/g, ' ').trim(), img: img ? img.getAttribute('src') : null,
+             buttons: s.querySelectorAll('button, a').length };
+  });
+  T('C1b  …by the logo only: the conductor and "The Rail Roster", no other words', cover.img === 'conductor.png' && /^the rail roster$/i.test(cover.text), cover);
+  T('C1c  …and nothing to press', cover.buttons === 0, cover);
   // the Dispatch Board tries to pop while the cover is up
   await pg.evaluate(() => {
     window._dbItems = [{ id: 'T1', type: 'News', title: 'Test news', message: 'Hello', date: null, expires: null }];

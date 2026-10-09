@@ -1038,7 +1038,7 @@ async function subCheck() {
 //   - an account this device last saw OPEN (beta / trial / active, or
 //     enforcement off) gets no cover and no wait — the everyday case;
 //   - anyone else (a first sign-in on this device, or an account last seen
-//     blocked) gets a plain "Opening your collection…" cover until the answer
+//     blocked) gets a plain cover — v0.9.1903: just the logo — until the answer
 //     lands. The Dispatch Board, the setup and the tour all hold while any
 //     #sub-screen is up, so nothing flashes.
 //   - fail-open: no answer → the cover goes when the check gives up, and in
@@ -1264,8 +1264,11 @@ function _subScreen(kind, r) {
           '<button onclick="_prefsOpenPhotosFolder()" style="' + quiet + '">Open my photos folder ↗</button>' +
         '</div>';
   } else if (kind === 'opening') {
-    h = '<h1 style="font-size:' + head + ';margin:0;color:var(--text)">Opening your collection…</h1>' +
-        '<p style="' + p + '">One moment.</p>';
+    // v0.9.1903 (Brad, after the v1900 phone test): "it should say opening your
+    // collection if you have got one loaded yet. we should just show the logo
+    // then switch to the welcome page". A new member has no collection yet —
+    // so no words at all: the sign-in screen's own conductor and wordmark.
+    h = '';
   } else if (kind === 'wait') {
     h = '<h1 style="font-size:' + head + ';margin:0;color:var(--text)">Setting up your subscription…</h1>' +
         '<p style="' + p + '">Thanks! Stripe is letting us know — this usually takes a few seconds.</p>';
@@ -1285,7 +1288,18 @@ function _subScreen(kind, r) {
   ov.setAttribute('aria-modal', 'true');
   // v0.9.1893: above everything (was 9980, under the setup screens at 9990).
   ov.style.cssText = 'position:fixed;inset:0;z-index:99999;background:var(--bg);display:flex;align-items:flex-start;justify-content:center;overflow-y:auto;padding:2rem 1rem;font-family:var(--font-body)';
-  ov.innerHTML = '<div style="max-width:520px;width:100%;background:var(--surface);border:1px solid var(--border);border-radius:' + ((u.cardRadiusPx || 14) + 'px') + ';padding:1.6rem 1.4rem">' + h + '</div>';
+  if (kind === 'opening') {
+    var mark = (typeof BRAND_WORDMARK_HTML === 'string') ? BRAND_WORDMARK_HTML
+             : 'The <span style="color:var(--t-accent)">Rail</span> Roster';
+    ov.style.alignItems = 'center';
+    ov.setAttribute('aria-label', 'The Rail Roster');
+    ov.innerHTML = '<div class="sub-logo" style="text-align:center">' +
+      '<img src="conductor.png" alt="" aria-hidden="true" style="height:120px;width:auto;display:block;margin:0 auto 0.7rem">' +
+      '<div style="font-family:var(--font-head);font-size:clamp(1.4rem, 8vw, 2rem);font-weight:700;color:var(--cream);letter-spacing:0.05em;text-transform:uppercase;line-height:1.05;white-space:nowrap">' + mark + '</div>' +
+      '</div>';
+  } else {
+    ov.innerHTML = '<div style="max-width:520px;width:100%;background:var(--surface);border:1px solid var(--border);border-radius:' + ((u.cardRadiusPx || 14) + 'px') + ';padding:1.6rem 1.4rem">' + h + '</div>';
+  }
   document.body.appendChild(ov);
 }
 if (typeof window !== 'undefined') {
