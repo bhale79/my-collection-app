@@ -9086,6 +9086,24 @@
       while ((mm = reAfter.exec(UP))) { namedByMaker[mm[1]] = 1; }
       while ((mm = reBefore.exec(UP))) { namedByMaker[mm[1]] = 1; }
     })();
+    // ══ v0.9.1901 — A ONE-DIGIT NUMBER, ONLY WHEN THE CAR SAYS SO ══════════
+    // Lionel's first items are numbered 1–9 (4U, 8E, 9E …): the No. 4 and No. 8
+    // trolleys, the No. 8 Standard Gauge electric. The token scan below drops
+    // every one-character token, so those could never be read. A loose digit
+    // is everywhere on a train ("4 WHEEL", "3 RAIL", a build date), so one is
+    // a lead ONLY stamped right after the maker's name ("LIONEL 8", "LIONEL
+    // LINES 4" — a gap of three characters, not the ten a longer number gets)
+    // or after "NO." ("NO. 8"), and never before RAIL / GAUGE / WHEEL / VOLT …
+    // It must still exist in the stamped catalogue (fm below), and it never
+    // outranks a confirmed number of two or more digits (the matched step).
+    var _oneDigit = {};
+    (function () {
+      var MAKER1 = '(?:[LI1][I1L]?[O0]NEL|LI[O0]NE)';
+      var NOT_UNIT = '(?![0-9A-Z]|\\s*-?\\s*(?:RAIL|GAUGE|WHEEL|AXLE|VOLT|WATT|AMP|INCH|IN\\b|PC|PIECE|CAR|TRUCK|SPEED|WAY))';
+      var re1 = new RegExp('(?:' + MAKER1 + '(?:[ ]?LINES)?[^0-9A-Z]{0,3}|(?:^|[^A-Z])NO\\.?\\s?)(\\d[A-Z]?)' + NOT_UNIT, 'g');
+      var m1;
+      while ((m1 = re1.exec(UP))) { _oneDigit[m1[1]] = 1; namedByMaker[m1[1]] = 1; }
+    })();
 
     // ══ ROAD NUMBERS AND WEIGHTS ARE TOO LONG TO BE CATALOG NUMBERS ════════
     // Postwar and prewar Lionel numbers top out at four digits — 6464 is about
@@ -9152,6 +9170,9 @@
       });
     var seen = {}, uniq = [];
     toks.forEach(function (c) { if (!seen[c]) { seen[c] = 1; uniq.push(c); } });
+    Object.keys(_oneDigit).forEach(function (c) {   // v0.9.1901: after every longer token
+      if (!seen[c] && !_isRejected(c)) { seen[c] = 1; uniq.push(c); }
+    });
     // v0.9.1069 — THE ERA IS NOW A FILTER, not a tiebreak. Brad's idea, taken
     // one step on. Until now a token counted as confirmed if it existed in ANY
     // catalog, which is how a capacity stamp on a Lionel Postwar car "confirmed"
@@ -9503,6 +9524,8 @@
     // catalog hit on more digits is far less likely to be a coincidence.
     var direct = null;
     var matched = uniq.filter(function (c) { return fm && (fm(c) || fm(c.replace(/^\d-/, ''))); });
+    // v0.9.1901: a one-digit lead counts only when nothing longer was confirmed.
+    if (matched.some(function (c) { return !_oneDigit[c]; })) matched = matched.filter(function (c) { return !_oneDigit[c]; });
     if (matched.length) {
       // A number the maker put its own name beside outranks everything, before
       // any length or specificity tie-break gets a say. Length was deciding this

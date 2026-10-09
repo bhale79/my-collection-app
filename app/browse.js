@@ -4494,10 +4494,15 @@ function _rrBrowseCore(_co) {
     });
     state.filteredData = _keyed.map(function(x) { return x.it; });
   }
-  // Step 3b: when mfr=any in 'all' meta-era mode, group by Lionel -> MTH -> Atlas,
-  // then by item number within each manufacturer. Applies to non-owned views only;
-  // My Collection has its own group-aware sort above.
-  if (!state.filters.owned && _currentEra === 'all' && _stp3b && _stp3b.manufacturer === 'any') {
+  // v0.9.1901: the Master Catalog is ALWAYS in catalog-number order
+  // (rrCompareCatalogKeys, app.js — the one order). Before, only Era All +
+  // Maker Any sorted, so picking a maker showed rows in tab-load order
+  // (Brad: 1008 on page 1, 004 and 4 pages later). Several makers showing
+  // (All + Any) still group Lionel -> MTH -> Atlas first, as before.
+  // Pre-War and Postwar mix by number ([stated] Brad 2026-10-08). Keys are
+  // worked out once per row; equal numbers keep their loaded order.
+  if (!state.filters.owned) {
+    var _byMaker = (_currentEra === 'all' && _stp3b && _stp3b.manufacturer === 'any');
     var _MFR_ORDER = { lionel: 1, mth: 2, atlas: 3 };
     var _mfrOf = function(it) {
       var m = (typeof _manufacturerOfItem === 'function') ? _manufacturerOfItem(it) : '';
@@ -4509,15 +4514,11 @@ function _rrBrowseCore(_co) {
       }
       return (m || '').toLowerCase();
     };
-    state.filteredData.sort(function(a, b) {
-      var aOrd = _MFR_ORDER[_mfrOf(a)] || 99;
-      var bOrd = _MFR_ORDER[_mfrOf(b)] || 99;
-      if (aOrd !== bOrd) return aOrd - bOrd;
-      var aNum = parseInt((a.itemNum||'').replace(/[^0-9]/g,'')) || 0;
-      var bNum = parseInt((b.itemNum||'').replace(/[^0-9]/g,'')) || 0;
-      if (aNum !== bNum) return aNum - bNum;
-      return (a.itemNum||'').localeCompare(b.itemNum||'');
+    var _ck = state.filteredData.map(function (it, i) {
+      return { it: it, i: i, k: rrCatalogNumberKey(it && it.itemNum), o: _byMaker ? (_MFR_ORDER[_mfrOf(it)] || 99) : 0 };
     });
+    _ck.sort(function (a, b) { return (a.o - b.o) || rrCompareCatalogKeys(a.k, b.k) || (a.i - b.i); });
+    state.filteredData = _ck.map(function (x) { return x.it; });
   }
   // v0.9.1668 (Brad: "9723 gave me 19723 first"): when searching, rank
   // EXACT item-number matches first, then numbers that START with the

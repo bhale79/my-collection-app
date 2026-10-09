@@ -1247,6 +1247,11 @@ function extractLionelNumber(text) {
     [/\b(\d{3,5}[A-Z]{1,2})\b/g, 60],
     [/\b(\d{4,5})\b/g, 40],
     [/\b(\d{2}[A-Z]{1,2})\b/g, 30],
+    // v0.9.1901: a ONE-digit number (Lionel's No. 1–9, 4U, 8E, 9E) only with its
+    // own label right before it — "No. 8", "#4", "Item 8", "Lionel 8E" — and
+    // never before rail / gauge / wheel / volt ("Lionel 3-rail" is not item 3).
+    // Lowest score of all: any longer number in the text wins over it.
+    [/(?:\bno\.?|#|\bitem|\bnumber|\bsku|\blionel)\s*[:\-]?\s*(\d[A-Z]?)\b(?![-\/.]?\s*(?:\d|rail|gauge|wheel|axle|volt|watt|amp|inch|in\b|pc|piece|car|truck|speed|way))/gi, 20],
   ];
   var _compRe = /\btender\b|issued with|came with|comes? with|includes?\b|paired with|matching parts|missing any|coupled|pulls? the/i;
   var _subjRe = /\blocomotive\b|\bengine\b|\bloco\b|\bdiesel\b|\bset\b/i;

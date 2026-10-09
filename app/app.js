@@ -1371,6 +1371,47 @@ function baseItemNum(n) {
   return normalizeItemNum(n).replace(/[-]?[PDTC]$/i, '');
 }
 
+// ── v0.9.1901 — THE catalog number order (Brad: "i should be seeing 004
+// first, then 4, before i see 1008") ───────────────────────────────────────
+// The Master Catalog sorted by number ONLY in Era All + Maker Any; every
+// narrower view showed rows in the order the tabs loaded (all of Postwar,
+// then Pre-War), and the one sort it had stripped dashes ("6-8359" became
+// 68359). This is the one order, by the number's VALUE:
+//   004 and 4 together (more leading zeros first: 004, 04, 4), then what
+//   follows the digits (8 < 8E, 1008 < 1008-50), a letter prefix after the
+//   plain number (6454 < X6454 — one letter only, Lionel's X/L/B/D),
+//   Lionel's 6-/7- product line read as the number after it (6-8359 sits
+//   with 8359). Anything that does not START with a number (OC1/2, CO-1,
+//   BB-billboards-001, ZW) comes after every number, in natural A-Z order.
+// [stated] Brad 2026-10-08: Pre-War and Postwar MIX by number — "a user can
+// use era if they want to get rid of one or the other". Rows with the SAME
+// number keep their loaded order (Array.prototype.sort is stable), so one
+// tab's variations stay together and in sheet order.
+function rrCatalogNumberKey(n) {
+  var raw = String(n == null ? '' : n).trim().toUpperCase();
+  // natural-order text: every digit run padded, so a plain < compares 2 < 10
+  // (Intl's numeric compare was 6x slower on 165,000 rows)
+  var nat = function (t) { return t.replace(/\d+/g, function (d) { return ('0000000000' + d).slice(-10); }); };
+  var s = raw.replace(/^[67]-(?=\d{4,5}\b)/, '');
+  var m = s.match(/^([A-Z]?)(\d+)(.*)$/);   // at most ONE letter before the digits (X6454, L430)
+  if (!m) return { has: 0, val: 0, zeros: 0, pre: '', line: 0, rest: nat(raw), raw: raw };
+  var digits = m[2], z = (digits.match(/^0+/) || [''])[0].length;
+  if (z === digits.length) z = digits.length - 1;   // "0" itself is not a leading zero
+  return { has: 1, val: parseInt(digits, 10), zeros: z, pre: m[1], line: s === raw ? 0 : 1, rest: nat(m[3]), raw: raw };
+}
+function rrCompareCatalogKeys(ka, kb) {
+  if (ka.has !== kb.has) return kb.has - ka.has;
+  if (ka.has) {
+    if (ka.val !== kb.val) return ka.val - kb.val;
+    if (ka.zeros !== kb.zeros) return kb.zeros - ka.zeros;
+    if (ka.pre !== kb.pre) return ka.pre === '' ? -1 : kb.pre === '' ? 1 : (ka.pre < kb.pre ? -1 : 1);
+    if (ka.line !== kb.line) return ka.line - kb.line;   // 8359 before 6-8359, as 6454 before X6454
+  }
+  if (ka.rest !== kb.rest) return ka.rest === '' ? -1 : kb.rest === '' ? 1 : (ka.rest < kb.rest ? -1 : 1);
+  return ka.raw === kb.raw ? 0 : (ka.raw < kb.raw ? -1 : 1);
+}
+function rrCompareCatalogNumbers(a, b) { return rrCompareCatalogKeys(rrCatalogNumberKey(a), rrCatalogNumberKey(b)); }
+
 // ── v0.9.1839 — the ONE eBay number rule ─────────────────────────────────────
 // Brad, v0.9.741: sellers type "lionel 2245", not "2245-P" — so an eBay search
 // drops the powered / dummy / B-unit suffix and the companion rows search the
