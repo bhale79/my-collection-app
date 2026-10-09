@@ -374,10 +374,42 @@ var ERR_REPORT_CFG = {
 
   // ── Screenshot upload (best-effort) ───────────────────────────────────
   // A Gmail compose URL cannot carry attachments, so images go to the user's
-  // own Drive with a view link — the same route share.js already uses for
-  // shared PDFs. If the user isn't signed in, or anything fails, we say so
-  // plainly and tell them to attach the images in Gmail by hand. The report
-  // still sends either way.
+  // own Drive and the report carries their links. If the user isn't signed
+  // in, or anything fails, we say so plainly and tell them to attach the
+  // images in Gmail by hand. The report still sends either way.
+  //
+  // v0.9.1905 (security review #6, Brad "yes" 2026-10-09): a screenshot is
+  // shared with the app's OWNERS ONLY — RR_OWNER_EMAILS in config.js, i.e.
+  // support@ and the inbox it forwards to ("share with my two addresses ...
+  // that's still only you") — never "anyone with the link". A screenshot can
+  // show someone's collection, values and name, and a report email can be
+  // forwarded. If Google will not share it that way, there is NO fallback to
+  // a public link: the user is asked to attach that picture themselves.
+  // Shared quietly first (no "shared with you" email); Google insists on the
+  // notice for an address with no Google account, so the second try sends it.
+  // tests/report_shots_tests.js runs this code and keeps the app's list of
+  // public-link places closed.
+  async function _shareShotWithOwners(id, token) {
+    var to = [];
+    try { to = (typeof RR_OWNER_EMAILS !== 'undefined' && Array.isArray(RR_OWNER_EMAILS)) ? RR_OWNER_EMAILS : []; } catch (e) {}
+    var shared = 0;
+    for (var k = 0; k < to.length; k++) {
+      var landed = false;
+      for (var q = 0; q < 2 && !landed; q++) {
+        try {
+          var r = await fetch('https://www.googleapis.com/drive/v3/files/' + id + '/permissions?fields=id&sendNotificationEmail=' + (q === 0 ? 'false' : 'true'), {
+            method: 'POST',
+            headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ role: 'reader', type: 'user', emailAddress: to[k] })
+          });
+          landed = !!(r && r.ok);
+        } catch (e) { /* try the next way, then the next owner */ }
+      }
+      if (landed) shared++;
+    }
+    return shared > 0;
+  }
+
   async function _uploadShots(files, onProgress) {
     var links = [];
     if (!files || !files.length) return links;
@@ -398,11 +430,10 @@ var ERR_REPORT_CFG = {
         });
         var j = await up.json();
         if (!j || !j.id) { links.push('(one image failed to upload — please attach it yourself)'); continue; }
-        await fetch('https://www.googleapis.com/drive/v3/files/' + j.id + '/permissions', {
-          method: 'POST',
-          headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ role: 'reader', type: 'anyone' })
-        });
+        if (!(await _shareShotWithOwners(j.id, token))) {
+          links.push('(one image could not be shared with us \u2014 please attach it to this email yourself)');
+          continue;
+        }
         links.push('https://drive.google.com/file/d/' + j.id + '/view');
       } catch (e) {
         links.push('(one image failed to upload — please attach it yourself)');
@@ -598,7 +629,7 @@ var ERR_REPORT_CFG = {
 
           '<label style="display:block;font-weight:700;font-size:0.85rem;margin-bottom:0.25rem">Screenshots (up to ' + ERR_REPORT_CFG.maxShots + ')</label>' +
           '<input type="file" id="err-shots" accept="image/*" multiple style="font-size:0.8rem;margin-bottom:0.3rem">' +
-          '<div id="err-shot-note" style="font-size:0.75rem;color:var(--text-dim);margin-bottom:0.8rem">They upload to your own Google Drive and the report carries the links.</div>' +
+          '<div id="err-shot-note" style="font-size:0.75rem;color:var(--text-dim);margin-bottom:0.8rem">They upload to your own Google Drive, and only The Rail Roster\u2019s support team can open them.</div>' +
 
           '<details style="margin-bottom:0.8rem">' +
             '<summary style="cursor:pointer;font-weight:700;font-size:0.85rem">See exactly what will be sent</summary>' +
