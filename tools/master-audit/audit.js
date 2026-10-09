@@ -198,6 +198,21 @@ async function readTab(A, tab, fixtureDir) {
 const YEAR_MIN = 1900;
 const YEAR_MAX = new Date().getFullYear() + 1;
 const ENTITY = /&(amp|quot|#\d+|lt|gt|apos|nbsp);/i;
+// Security review #5 (2026-10-08, Brad "yes"): the master is the ONE thing every
+// member's app shows, so web-page code in a cell — a tag, an on…= handler, or a
+// javascript:/vbscript:/data:text/html link — is the one way code could reach
+// every user's app. Plain text never needs any of these. Checked on EVERY text
+// field of the parsed row, not a hand-picked few.
+const MARKUP = [
+  /<\s*\/?\s*[a-z][a-z0-9-]*(\s[^>]*)?\/?\s*>/i,          // a tag: <b>, </i>, <img src=x>, <script>
+  /<\s*(script|img|iframe|svg|object|embed|style|link|meta)\b/i,   // the dangerous ones even unclosed
+  // an event handler (onerror=, onClick =) — the real event names only, so a
+  // catalog word that starts with "On" (OnTrack =) is never mistaken for one
+  /\bon(load|unload|beforeunload|error|abort|click|dblclick|contextmenu|auxclick|mouse[a-z]*|pointer[a-z]*|touch[a-z]*|key[a-z]*|focus[a-z]*|blur|change|input|submit|reset|select|search|invalid|toggle|show|drag[a-z]*|drop|wheel|scroll[a-z]*|resize|copy|cut|paste|animation[a-z]*|transition[a-z]*|begin|end|repeat|message|hashchange|popstate|storage|play[a-z]*|pause|ended|canplay[a-z]*|loadstart|loadeddata|loadedmetadata|progress|readystatechange|timeupdate|volumechange|seek[a-z]*|waiting)\s*=/i,
+  /\b(javascript|vbscript)\s*:/i,                            // a script link
+  /\bdata\s*:\s*text\/html/i,                                // an HTML data link
+];
+function markupIn(v) { const s = String(v == null ? '' : v); for (const re of MARKUP) { const m = s.match(re); if (m) return m[0]; } return ''; }
 // Rolling stock and engines — the kinds of row where a blank Road Name is
 // worth counting (accessories, track and paper have none). Counted per tab
 // in the coverage table, never flagged row by row: Lionel postwar and pre-war
@@ -279,6 +294,8 @@ const RULES = [
     test: m => /\bNo\.?$/.test(m.description.trim()) ? '…' + m.description.trim().slice(-30) : '' },
   { id: 'text-entity', sev: 'check', field: 'description', title: 'HTML leftovers (&amp; &quot; …) in a text cell',
     test: m => { for (const f of ['description', 'roadName', 'varDesc', 'notes', 'subType', 'originalDesc']) { if (ENTITY.test(m[f] || '')) return f + ': ' + (m[f].match(ENTITY) || [''])[0]; } return ''; } },
+  { id: 'text-markup', sev: 'check', field: 'description', title: 'web-page code (a tag, an on…= handler, a javascript: link) in a cell — the one way code could reach every member\'s app (security review #5)',
+    test: m => { for (const f of Object.keys(m)) { if (f.charAt(0) === '_' || typeof m[f] !== 'string') continue; const hit = markupIn(m[f]); if (hit) return f + ': ' + hit.slice(0, 40); } return ''; } },
   // ── the year ──
   { id: 'year-unreadable', sev: 'check', field: 'yearProd', title: 'year that is not a year or a range',
     test: m => { const r = m._yearRaw; if (!String(r || '').trim()) return ''; const t = _fmtYear(r); return yearsOf(t) === null ? JSON.stringify(String(r)) : ''; } },
@@ -550,4 +567,4 @@ if (require.main === module) {
   }).catch(e => { console.error('FAILED: ' + (e && e.stack || e)); process.exit(1); });
 }
 
-module.exports = { loadApp, auditTabs, parseCsv, checkTab, rowIdDuplicates, summarize, md, flagsCsv, flagKey, run, RULES, TAB_RULES, ALL_RULES, yearsOf, looksLikeDate, readTab, loadGids, gidMapFromHtml, exportUrl, htmlviewUrl, jsUnescape };
+module.exports = { markupIn, loadApp, auditTabs, parseCsv, checkTab, rowIdDuplicates, summarize, md, flagsCsv, flagKey, run, RULES, TAB_RULES, ALL_RULES, yearsOf, looksLikeDate, readTab, loadGids, gidMapFromHtml, exportUrl, htmlviewUrl, jsUnescape };

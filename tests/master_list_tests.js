@@ -63,6 +63,10 @@ const BAD = {
   'desc-short':         row({ itemNum: '9005', itemType: 'Boxcar', roadName: 'Erie', description: 'TTX' }),
   'desc-bare-no':       row({ itemNum: '9006', itemType: 'Steam Locomotive', roadName: 'Lionel Lines', description: 'Locomotive No' }),
   'text-entity':        row({ itemNum: '9007', itemType: 'Boxcar', roadName: 'Erie', description: 'Baltimore &amp; Ohio boxcar' }),
+  'text-markup':        row({ itemNum: '9024', itemType: 'Boxcar', roadName: 'Erie', description: 'Erie boxcar <img src=x onerror=alert(1)>' }),
+  'text-markup-notes':  row({ itemNum: '9025', itemType: 'Boxcar', roadName: 'Erie', description: 'markup hiding in the notes', notes: 'Click <b>here</b>' }),
+  'text-markup-link':   row({ itemNum: '9026', itemType: 'Boxcar', roadName: 'Erie', description: 'a script link', refLink: 'javascript:alert(1)' }),
+  'text-markup-clean':  row({ itemNum: '9027', itemType: 'Boxcar', roadName: 'Erie', description: 'Heron logo, 1 < 2 doors, ON = power on (plain words are never code)' }),
   'year-unreadable':    row({ itemNum: '9008', itemType: 'Boxcar', roadName: 'Erie', description: 'year is prose', yearProd: 'Postwar era' }),
   'year-out-of-range':  row({ itemNum: '9009', itemType: 'Boxcar', roadName: 'Erie', description: 'year from the future', yearProd: '2199' }),
   'year-backwards':     row({ itemNum: '9010', itemType: 'Boxcar', roadName: 'Erie', description: 'range runs backwards', yearProd: '1960-1950' }),
@@ -180,6 +184,13 @@ function writeFixture(dir, rows, header) {
   T('C12 desc-short', has('9005', 'desc-short'));
   T('C13 desc-bare-no', has('9006', 'desc-bare-no'));
   T('C14 text-entity names the field', has('9007', 'text-entity') && /^description: &amp;/.test(byNum['9007|text-entity'][0].note));
+  T('C14b text-markup: a tag + handler in the description, named', has('9024', 'text-markup') && /^description: <img/.test(byNum['9024|text-markup'][0].note), byNum['9024|text-markup']);
+  T('C14c text-markup: markup in ANY text field (notes)', has('9025', 'text-markup') && /^notes:/.test(byNum['9025|text-markup'][0].note), byNum['9025|text-markup']);
+  T('C14d text-markup: a javascript: link (link-bad fires too)', has('9026', 'text-markup') && has('9026', 'link-bad'));
+  T('C14e text-markup: plain words with < and "on =" are never flagged', !has('9027', 'text-markup'));
+  T('C14f markupIn on its own: every shape caught, prose not',
+    ['<script>x</script>', '<svg onload=1', 'a onmouseover = b', 'data:text/html,<b>', 'VBScript:msgbox', '</i>', 'ONLOAD=x', 'onClick = go()', 'x onfocusin=y'].every(s => audit.markupIn(s)) &&
+    ['Heron', 'No. 2343 <-> 2344 pair', 'Gauge 1 < 2', 'OnTrack =', 'Onset = 1950', 'conductor: on board', '3 > 2 axles'].every(s => !audit.markupIn(s)));
   T('C15 year-unreadable', has('9008', 'year-unreadable'));
   T('C16 year-out-of-range on 2199', has('9009', 'year-out-of-range'));
   T('C17 year-out-of-range on a backwards range', has('9010', 'year-out-of-range') && /backwards/.test(byNum['9010|year-out-of-range'][0].note));
