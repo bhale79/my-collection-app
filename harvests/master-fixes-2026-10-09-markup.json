@@ -1,0 +1,102 @@
+{
+ "what": "Master Version 2.25 — web-page markup removed from 10 Lionel MPC-Modern cells (security review #5 finding): 9 Description cells lose leftover <i>/<em> italic tags (words kept, runs of spaces made single); 6-25067 Original COTT Desc loses its stray < and > signs (the scanner text otherwise kept as imported)",
+ "stated": "Brad (2026-10-09): \"yes\" to cleaning up the 10 names the new text-markup audit check found; \"yes\" to the exact 10 changes as proposed (the Original COTT Desc judgment call included)",
+ "masterVersion": "2.25",
+ "date": "2026-10-09",
+ "planReadAt": "2026-10-09T15:00:22.248Z",
+ "cellFormat": "[tab, item number (column A), column header, old, new, sheet row as a hint, Row ID of the row]",
+ "cells": [
+  [
+   "Lionel MPC-Modern",
+   "6-25067",
+   "Original COTT Desc",
+   "g trucks and operating couplers ane 1. =~ e Metal frame SSS <p ee © Opening doors >< e Length: 10%”",
+   "g trucks and operating couplers ane 1. =~ e Metal frame SSS p ee © Opening doors e Length: 10%”",
+   260,
+   "ESMUCNHB8E"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-21199",
+   "Description",
+   "Santa Fe<i> Midnight Chief</i>  Streamliner 4-Pack",
+   "Santa Fe Midnight Chief Streamliner 4-Pack",
+   18696,
+   "TVKDHENWS2"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-21204",
+   "Description",
+   "Santa Fe<i> Midnight Chief</i>  Streamliner 2-Pack",
+   "Santa Fe Midnight Chief Streamliner 2-Pack",
+   18697,
+   "GU8SF2XDXY"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-21590",
+   "Description",
+   "Santa Fe<i> Midnight Chief</i>   2-Bay Hopper w/ Load",
+   "Santa Fe Midnight Chief 2-Bay Hopper w/ Load",
+   18819,
+   "NRNH8N778N"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-21591",
+   "Description",
+   "Santa Fe<i> Midnight Chief</i> Flatcar w/ Trailer",
+   "Santa Fe Midnight Chief Flatcar w/ Trailer",
+   18820,
+   "ZDTZPA9HQ5"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-21593",
+   "Description",
+   "Santa Fe<i> Midnight Chief</i>  Boxcar",
+   "Santa Fe Midnight Chief Boxcar",
+   18822,
+   "MKU8VBYS9U"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-21594",
+   "Description",
+   "NYC<i> Empire State Express</i> 15\" Aluminum Passenger Car 4-Pack",
+   "NYC Empire State Express 15\" Aluminum Passenger Car 4-Pack",
+   18823,
+   "RUTUDENQW7"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-22105",
+   "Description",
+   "NYC <i>Empire State Express</i> Die Cast Streamlined Hudson & Die Cast Tender  #5429",
+   "NYC Empire State Express Die Cast Streamlined Hudson & Die Cast Tender #5429",
+   18953,
+   "8TM2K78EEJ"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-22113",
+   "Description",
+   "NYC<i> Empire State Express</i> 15\" Aluminum Passenger Car 2-Pack",
+   "NYC Empire State Express 15\" Aluminum Passenger Car 2-Pack",
+   18954,
+   "JUJS3XAMGB"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "6-22433",
+   "Description",
+   "Pennsylvania <em>Broadway Limited</em> 18\" Aluminum 4-Pack",
+   "Pennsylvania Broadway Limited 18\" Aluminum 4-Pack",
+   19124,
+   "626E25A57E"
+  ]
+ ],
+ "why": "A tag in a catalog cell is the one way web-page code could reach every member's app; the master-audit text-markup rule (commit e4e9a9f) found these 10, none executable. A full scan of all 65 tabs and every column (6.6M cells) found these 10 plus one Master Version history note (left as written).",
+ "unchanged": "Every other cell on every tab; the Master Version 1.87 note that quotes a <p> tag."
+}
