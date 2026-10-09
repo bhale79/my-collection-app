@@ -1025,6 +1025,87 @@ async function subCheck() {
     _subApply(r);
     try { window.dispatchEvent(new CustomEvent('rr:substate', { detail: r })); } catch (e) {}
   } catch (e) { console.warn('[sub] check failed — fail-open', e && e.message); }
+  finally { _subOpeningDone(); }   // v0.9.1900: no answer = open (fail-open), never stuck behind the cover
+}
+
+// ── v0.9.1900: NO APP BEHIND THE WELCOME SCREEN (Brad's phone test) ──────────
+// "the first thing it does after i enter my google account is it flashes the
+// dispatch board. then it show the welcome to the rail roster page". The app
+// drew itself — and the Dispatch Board popped — in the second or two before
+// the subscription answer arrived. Now loadAllData() starts here instead of
+// firing subCheck 600 ms in:
+//   - the check goes out at once;
+//   - an account this device last saw OPEN (beta / trial / active, or
+//     enforcement off) gets no cover and no wait — the everyday case;
+//   - anyone else (a first sign-in on this device, or an account last seen
+//     blocked) gets a plain "Opening your collection…" cover until the answer
+//     lands. The Dispatch Board, the setup and the tour all hold while any
+//     #sub-screen is up, so nothing flashes.
+//   - fail-open: no answer → the cover goes when the check gives up, and in
+//     any case after SUB_COVER_MAX_MS. It can never strand anyone.
+var SUB_OPEN_KEY = 'rr_sub_open_v1';     // JSON list of account fingerprints (kept at sign-out)
+var SUB_OPEN_MAX = 20;
+var SUB_COVER_MAX_MS = 8000;
+function _subFp() {
+  try {
+    var em = (window.state && state.user && state.user.email) || '';
+    return (em && typeof rrAccountFingerprint === 'function') ? rrAccountFingerprint(em) : '';
+  } catch (e) { return ''; }
+}
+function _subOpenList() {
+  try { var v = JSON.parse(localStorage.getItem(SUB_OPEN_KEY) || '[]'); return Array.isArray(v) ? v : []; }
+  catch (e) { return []; }
+}
+function _subKnownOpen() {
+  var fp = _subFp();
+  return !!fp && _subOpenList().indexOf(fp) !== -1;
+}
+function _subRememberOpen(isOpen) {
+  var fp = _subFp();
+  if (!fp) return;
+  try {
+    var list = _subOpenList().filter(function (x) { return x !== fp; });
+    if (isOpen) list.unshift(fp);
+    localStorage.setItem(SUB_OPEN_KEY, JSON.stringify(list.slice(0, SUB_OPEN_MAX)));
+  } catch (e) {}
+}
+function _subOpeningDone() {
+  var el = document.getElementById('sub-screen');
+  if (el && el.getAttribute('data-kind') === 'opening') el.remove();
+}
+function rrSubGateStart() {
+  try {
+    var signedIn = !!(window.state && state.user && state.user.email);
+    var owner = false;
+    try { owner = typeof rrIsRealOwner === 'function' && rrIsRealOwner(); } catch (e) {}
+    var recording = false;
+    try { recording = typeof rrRecordingMode === 'function' && rrRecordingMode(); } catch (e) {}
+    if (signedIn && !window._offlineMode && !window._subState && !owner && !recording && !_subKnownOpen()) {
+      _subScreen('opening');
+      setTimeout(_subOpeningDone, SUB_COVER_MAX_MS);
+    }
+  } catch (e) {}
+  try { subCheck(); } catch (e) {}
+}
+
+// ── v0.9.1900: the read-only words, from ONE place (RR_READONLY_TEXT) ────────
+// Never "your trial has ended" to someone who never had one; silent while the
+// welcome / lock screen is up — that screen already says it, and anything
+// that tries to write behind it is the app, not the person.
+function rrReadOnlyWords() {
+  var t = (typeof RR_READONLY_TEXT !== 'undefined') ? RR_READONLY_TEXT : {};
+  var s = window._subState && window._subState.sub;
+  return (s === 'expired' ? t.expired : t.none) || '';
+}
+function rrReadOnlyToast() {
+  if (document.getElementById('sub-screen')) return;
+  var w = rrReadOnlyWords();
+  if (w && typeof showToast === 'function') showToast(w, 4000, true);
+}
+if (typeof window !== 'undefined') {
+  window.rrSubGateStart = rrSubGateStart;
+  window.rrReadOnlyWords = rrReadOnlyWords;
+  window.rrReadOnlyToast = rrReadOnlyToast;
 }
 
 // ── v0.9.1892: WHAT EACH ANSWER SHOWS (Brad, 2026-10-06 launch plan) ───────
@@ -1057,6 +1138,7 @@ function _subApply(r) {
   if (old) old.remove();
   _subScreenClose();
   window._readOnlyMode = false;
+  if (r) _subRememberOpen(!rrSubBlocks(r));                // v0.9.1900: next sign-in on this device knows
   if (!r || !r.enforce) return;                            // dark until launch
   try { if (typeof rrIsRealOwner === 'function' && rrIsRealOwner()) return; } catch (e) {}
   var paid = (r.sub === 'active' || r.sub === 'trial');
@@ -1181,6 +1263,9 @@ function _subScreen(kind, r) {
           (state.personalSheetId ? '<a href="https://docs.google.com/spreadsheets/d/' + _subEsc(state.personalSheetId) + '" target="_blank" rel="noopener" style="' + quiet + ';text-align:center;text-decoration:none;line-height:44px">Open my collection sheet ↗</a>' : '') +
           '<button onclick="_prefsOpenPhotosFolder()" style="' + quiet + '">Open my photos folder ↗</button>' +
         '</div>';
+  } else if (kind === 'opening') {
+    h = '<h1 style="font-size:' + head + ';margin:0;color:var(--text)">Opening your collection…</h1>' +
+        '<p style="' + p + '">One moment.</p>';
   } else if (kind === 'wait') {
     h = '<h1 style="font-size:' + head + ';margin:0;color:var(--text)">Setting up your subscription…</h1>' +
         '<p style="' + p + '">Thanks! Stripe is letting us know — this usually takes a few seconds.</p>';
@@ -1190,11 +1275,12 @@ function _subScreen(kind, r) {
         '<button id="sub-go" onclick="_subRetries=0;subCheck()" style="' + big + '">Check again</button>' +
         '<p style="' + p + '">Still stuck? Email <a href="mailto:' + _subEsc(typeof ADMIN_EMAIL !== 'undefined' ? ADMIN_EMAIL : '') + '" style="color:var(--accent2)">' + _subEsc(typeof ADMIN_EMAIL !== 'undefined' ? ADMIN_EMAIL : '') + '</a>.</p>';
   }
-  if (kind !== 'wait') {
+  if (kind !== 'wait' && kind !== 'opening') {
     h += '<button onclick="handleSignOut()" style="' + quiet + '">Sign out — use a different Google account</button>';
   }
   var ov = document.createElement('div');
   ov.id = 'sub-screen';
+  ov.setAttribute('data-kind', kind);
   ov.setAttribute('role', 'dialog');
   ov.setAttribute('aria-modal', 'true');
   // v0.9.1893: above everything (was 9980, under the setup screens at 9990).

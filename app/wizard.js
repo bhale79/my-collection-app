@@ -1226,7 +1226,7 @@ async function openWizard(tab) {
   // v0.9.840 (Phase C): no subscription = read-only. v0.9.1893: the welcome /
   // lock screen (vault.js) covers the app then, so this is only a backstop.
   if (window._readOnlyMode) {
-    if (typeof showToast === 'function') showToast('Start or renew your subscription to keep adding items.', 4000, true);
+    if (typeof rrReadOnlyToast === 'function') rrReadOnlyToast();   // v0.9.1900: one wording (RR_READONLY_TEXT)
     return;
   }
   // Session 154: Want lookups span the whole catalog — load every era first

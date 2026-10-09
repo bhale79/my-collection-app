@@ -84,7 +84,7 @@ function fakeSheets(cols, headerCells) {
 // ── the lifted setup world: rrEnsurePersonalGrid + ensurePersonalHeaders over the stand-in
 function setupWorld(S, setupSrc, sheetsSrc) {
   setupSrc = setupSrc || SETUP; sheetsSrc = sheetsSrc || SHEETS;
-  const sheetsLifted = grab(sheetsSrc, 'function _rrOfflineNow()') + '\n' + grab(sheetsSrc, 'async function sheetsUpdate(spreadsheetId, range, values)') + '\n' + grab(sheetsSrc, 'async function _rrGridHeal(');
+  const sheetsLifted = grab(sheetsSrc, 'function _rrOfflineNow()') + '\n' + grab(sheetsSrc, 'async function sheetsSetupUpdate(spreadsheetId, range, values)') + '\n' + grab(sheetsSrc, 'async function sheetsUpdate(spreadsheetId, range, values, opts)') + '\n' + grab(sheetsSrc, 'async function _rrGridHeal(');
   const batchGet = 'async function sheetsBatchGet(id, ranges) { const r = await fetch("https://sheets.googleapis.com/v4/spreadsheets/" + id + "/values:batchGet?" + ranges.map(x => "ranges=" + encodeURIComponent(x)).join("&")); return r.json(); }';
   const body = 'var _rrGridChecked = {}; var accessToken = "tok"; var window = { _rrDataRev: 0 }; var localStorage = { m: {}, getItem(k) { return k in this.m ? this.m[k] : null; }, setItem(k, v) { this.m[k] = String(v); } };\n'
     + 'const PERSONAL_TAB = "My Collection"; const PERSONAL_HEADERS = HEADERS; const SOLD_HEADERS = ["Sold A"]; const FOR_SALE_HEADERS = ["FS A"]; const WISHLIST_HEADERS = ["WU A"];\n'
@@ -125,7 +125,7 @@ function setupWorld(S, setupSrc, sheetsSrc) {
     const S2 = fakeSheets(WANT, HEADERS); const W2 = setupWorld(S2); await W2.ensurePersonalHeaders('SID');
     T('B3 a sheet already right: no widen, no header write, memo still set', !S2.log.some(l => /^append|My Collection!A2/.test(l) && /append|update/.test(l) && !/batchGet/.test(l)) && W2.localStorage.getItem('lv_pd_schema_ok') === String(WANT), S2.log);
     // PLANTED: the repair as it stood before v0.9.1881 — no widen before the header row
-    const planted = SETUP.replace('      await rrEnsurePersonalGrid(sheetId);\n      await sheetsUpdate(sheetId, PERSONAL_TAB', '      await sheetsUpdate(sheetId, PERSONAL_TAB');
+    const planted = SETUP.replace('      await rrEnsurePersonalGrid(sheetId);\n      await sheetsSetupUpdate(sheetId, PERSONAL_TAB', '      await sheetsSetupUpdate(sheetId, PERSONAL_TAB');
     T('B4 (planted offender is a real edit)', planted !== SETUP);
     // ...with the OLD sheetsUpdate too (no write heal): the two layers are proven apart — the heal alone catches it in B6
     const oldSheets = SHEETS.replace("if (json.error && typeof _rrGridHeal === 'function' && await _rrGridHeal(spreadsheetId, range, json)) { res = await _go(); json = await res.json(); }\n    if (json.error) {\n      console.error('sheetsUpdate error:'", "if (json.error) {\n      console.error('sheetsUpdate error:'");
@@ -170,7 +170,7 @@ function setupWorld(S, setupSrc, sheetsSrc) {
     T('C8 (planted offender is a real edit)', plantedSheets !== SHEETS);
     const S7 = fakeSheets(WANT - 1, HEADERS.slice(0, WANT - 1));
     const W7 = new Function('fetch', 'HEADERS', 'state', 'var _rrGridChecked = {}; var accessToken = "tok"; var window = {}; const PERSONAL_TAB = "My Collection"; const PERSONAL_HEADERS = HEADERS; function _rrWriteFailed(k, a, e) { return e; } async function _withTokenRetry(f) { return f(); } function _encodeRange(r) { return encodeURIComponent(r); } const console = { log() {}, warn() {}, error() {} };\n'
-      + grab(SETUP, 'async function rrEnsureGridColumns(spreadsheetId, tabTitle, wantCols)') + '\n' + grab(SETUP, 'async function rrEnsurePersonalGrid(sheetId, force)') + '\n' + grab(plantedSheets, 'function _rrOfflineNow()') + '\n' + grab(plantedSheets, 'async function sheetsUpdate(spreadsheetId, range, values)') + '\n' + grab(plantedSheets, 'async function _rrGridHeal(') + '\nreturn { sheetsUpdate };')(S7.fetch, HEADERS, { personalSheetId: 'SID' });
+      + grab(SETUP, 'async function rrEnsureGridColumns(spreadsheetId, tabTitle, wantCols)') + '\n' + grab(SETUP, 'async function rrEnsurePersonalGrid(sheetId, force)') + '\n' + grab(plantedSheets, 'function _rrOfflineNow()') + '\n' + grab(plantedSheets, 'async function sheetsUpdate(spreadsheetId, range, values, opts)') + '\n' + grab(plantedSheets, 'async function _rrGridHeal(') + '\nreturn { sheetsUpdate };')(S7.fetch, HEADERS, { personalSheetId: 'SID' });
     let e7 = ''; try { await W7.sheetsUpdate('SID', "My Collection!A7:" + colL(WANT) + "7", [row]); } catch (e) { e7 = e.message; }
     T('C9 PLANTED: the old sheetsUpdate — the save FAILS on the short sheet (what v0.9.1880 did)', /exceeds grid limits/.test(e7) && S7.cols === WANT - 1);
   }

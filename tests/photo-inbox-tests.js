@@ -10722,8 +10722,11 @@ META_WRITES.length = 0; TOASTS.length = 0;
        !/429/.test(say('Sheets API error 429: quota', 'your item')));
     ok('a permission problem points at the sheet being shared',
        /shared with this account/.test(say('Sheets API error 403: PERMISSION_DENIED', 'your item')));
-    ok('the trial gate keeps its own wording',
-       /trial has ended/.test(say('readonly', 'your item')));
+    // v0.9.1900: the read-only words come from RR_READONLY_TEXT by account
+    // state — never "trial has ended" to someone who never had one.
+    ok('the subscription gate keeps its own wording',
+       !/trial has ended/.test(say('readonly', 'your item')) &&
+       /free trial|subscription has ended|view-only/.test(say('readonly', 'your item')));
     ok('anything unrecognised still never shows the machine',
        !/token|JSON|position/i.test(say('Unexpected token < in JSON at position 0', 'your item')),
        say('Unexpected token < in JSON at position 0', 'your item'));
@@ -18596,7 +18599,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
       // lastIndexOf check. What must be true is that NO set precedes the last
       // write — so ask about the earliest one.
       const flagAt = ee.indexOf('_ensureEphemDone = true');
-      const lastWrite = ee.lastIndexOf('sheetsUpdate(');
+      const lastWrite = ee.lastIndexOf('sheetsSetupUpdate(');   // v0.9.1900: set-up writes go through sheetsSetupUpdate
       ok('270 the run-once flag is set AFTER the last write, not before it',
          flagAt > lastWrite && flagAt > 0, 'flag@' + flagAt + ' lastWrite@' + lastWrite);
       ok('270 …and it is set exactly once', (ee.match(/_ensureEphemDone = true/g) || []).length === 1);
@@ -18606,9 +18609,9 @@ META_WRITES.length = 0; TOASTS.length = 0;
       // (title + headers each) ride one Promise.all, and nothing is stamped
       // outside it.
       ok('270 the header stamps run concurrently, not one-at-a-time',
-         /await Promise\.all\(LIVE_TABS\.flatMap\(t => \[\s*\n\s*sheetsUpdate\(sheetId, t\.titleRange,\s*\[\[t\.title\]\]\),\s*\n\s*sheetsUpdate\(sheetId, t\.headerRange, \[t\.headers\]\),\s*\n\s*\]\)\);/.test(ee));
+         /await Promise\.all\(LIVE_TABS\.flatMap\(t => \[\s*\n\s*sheetsSetupUpdate\(sheetId, t\.titleRange,\s*\[\[t\.title\]\]\),\s*\n\s*sheetsSetupUpdate\(sheetId, t\.headerRange, \[t\.headers\]\),\s*\n\s*\]\)\);/.test(ee));
       ok('270 …and all eight are inside that one wait',
-         (ee.match(/sheetsUpdate\(/g) || []).length === 2 &&
+         (ee.match(/sheetsSetupUpdate\(/g) || []).length === 2 &&
          (ee.slice(ee.indexOf('const LIVE_TABS = ['), ee.indexOf('];', ee.indexOf('const LIVE_TABS = ['))).match(/\{ title: '/g) || []).length === 4);
 
       // ── (b) flags released in a finally ──

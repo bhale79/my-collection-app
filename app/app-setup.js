@@ -486,11 +486,11 @@ async function initPersonalSheet(sheetId) {
   const rows = data.values || [];
   if (rows.length === 0 || !rows[0] || rows[0].length === 0) {
     // Brand new sheet — write title row 1 and headers row 2
-    await sheetsUpdate(sheetId, PERSONAL_TAB + '!A1:A1', [['My Collection']]);
-    await sheetsUpdate(sheetId, PERSONAL_TAB + '!A2:' + _pdEnd + '2', [PERSONAL_HEADERS]);
+    await sheetsSetupUpdate(sheetId, PERSONAL_TAB + '!A1:A1', [['My Collection']]);
+    await sheetsSetupUpdate(sheetId, PERSONAL_TAB + '!A2:' + _pdEnd + '2', [PERSONAL_HEADERS]);
   } else if (rows.length === 1 || !rows[1] || rows[1].length < PERSONAL_HEADERS.length) {
     // Has title but missing/old headers — rewrite the full row 2
-    await sheetsUpdate(sheetId, PERSONAL_TAB + '!A2:' + _pdEnd + '2', [PERSONAL_HEADERS]);
+    await sheetsSetupUpdate(sheetId, PERSONAL_TAB + '!A2:' + _pdEnd + '2', [PERSONAL_HEADERS]);
   }
   // Get existing sheet tab names
   const metaRes = await fetch(
@@ -516,13 +516,13 @@ async function initPersonalSheet(sheetId) {
   }
 
   // Write headers to all tabs
-  await sheetsUpdate(sheetId, 'Sold!A1:A1',      [['Sold']]);
-  await sheetsUpdate(sheetId, 'Sold!A2:T2',      [SOLD_HEADERS]);
-  await sheetsUpdate(sheetId, 'For Sale!A1:A1',   [['For Sale']]);
-  await sheetsUpdate(sheetId, 'For Sale!A2:J2',   [FOR_SALE_HEADERS]);
+  await sheetsSetupUpdate(sheetId, 'Sold!A1:A1',      [['Sold']]);
+  await sheetsSetupUpdate(sheetId, 'Sold!A2:T2',      [SOLD_HEADERS]);
+  await sheetsSetupUpdate(sheetId, 'For Sale!A1:A1',   [['For Sale']]);
+  await sheetsSetupUpdate(sheetId, 'For Sale!A2:J2',   [FOR_SALE_HEADERS]);
   // Want-Upgrade combined (Session 161+): 9-col schema with List Type column.
-  await sheetsUpdate(sheetId, 'Want-Upgrade List!A1:A1', [['Want-Upgrade List']]);
-  await sheetsUpdate(sheetId, 'Want-Upgrade List!A2:I2', [WISHLIST_HEADERS]);
+  await sheetsSetupUpdate(sheetId, 'Want-Upgrade List!A1:A1', [['Want-Upgrade List']]);
+  await sheetsSetupUpdate(sheetId, 'Want-Upgrade List!A2:I2', [WISHLIST_HEADERS]);
 
   // Ephemera tabs
   await ensureEphemeraSheets(sheetId);
@@ -552,16 +552,16 @@ async function ensurePersonalHeaders(sheetId) {
       });
       // Write headers for newly created tabs
       if (!existingTabs.includes('Sold')) {
-        await sheetsUpdate(sheetId, 'Sold!A1:A1', [['Sold']]);
-        await sheetsUpdate(sheetId, 'Sold!A2:T2', [SOLD_HEADERS]);
+        await sheetsSetupUpdate(sheetId, 'Sold!A1:A1', [['Sold']]);
+        await sheetsSetupUpdate(sheetId, 'Sold!A2:T2', [SOLD_HEADERS]);
       }
       if (!existingTabs.includes('For Sale')) {
-        await sheetsUpdate(sheetId, 'For Sale!A1:A1', [['For Sale']]);
-        await sheetsUpdate(sheetId, 'For Sale!A2:J2', [FOR_SALE_HEADERS]);
+        await sheetsSetupUpdate(sheetId, 'For Sale!A1:A1', [['For Sale']]);
+        await sheetsSetupUpdate(sheetId, 'For Sale!A2:J2', [FOR_SALE_HEADERS]);
       }
       if (!existingTabs.includes('Want-Upgrade List')) {
-        await sheetsUpdate(sheetId, 'Want-Upgrade List!A1:A1', [['Want-Upgrade List']]);
-        await sheetsUpdate(sheetId, 'Want-Upgrade List!A2:I2', [WISHLIST_HEADERS]);
+        await sheetsSetupUpdate(sheetId, 'Want-Upgrade List!A1:A1', [['Want-Upgrade List']]);
+        await sheetsSetupUpdate(sheetId, 'Want-Upgrade List!A2:I2', [WISHLIST_HEADERS]);
       }
       console.log('[Setup] Created missing tabs:', toCreate.map(t => t.addSheet.properties.title).join(', '));
     }
@@ -618,7 +618,7 @@ async function ensurePersonalHeaders(sheetId) {
       // 400 that made this repair fail silently on every start since the
       // schema outgrew the sheet (Brad's 50-column sheet, 51-column schema).
       await rrEnsurePersonalGrid(sheetId);
-      await sheetsUpdate(sheetId, PERSONAL_TAB + '!A2:' + _pdEndHdr + '2', [PERSONAL_HEADERS]);
+      await sheetsSetupUpdate(sheetId, PERSONAL_TAB + '!A2:' + _pdEndHdr + '2', [PERSONAL_HEADERS]);
       console.log('[Headers] My Collection headers repaired');
     }
     // v0.9.1881: this device has seen the sheet carry the current schema —
@@ -629,7 +629,7 @@ async function ensurePersonalHeaders(sheetId) {
     // Also ensure row 1 title
     const title = _hdrVals[_R_TITLE][0] || '';
     if (title !== 'My Collection') {
-      await sheetsUpdate(sheetId, PERSONAL_TAB + '!A1', [['My Collection']]);
+      await sheetsSetupUpdate(sheetId, PERSONAL_TAB + '!A1', [['My Collection']]);
     }
 
     // Repair Want-Upgrade List headers if missing or wrong (combined tab, Session 161+).
@@ -637,8 +637,8 @@ async function ensurePersonalHeaders(sheetId) {
       const wuCurrent = _hdrVals[_R_WU];
       const wuNeedsUpdate = WISHLIST_HEADERS.some((h, i) => wuCurrent[i] !== h);
       if (wuNeedsUpdate) {
-        await sheetsUpdate(sheetId, 'Want-Upgrade List!A1:A1', [['Want-Upgrade List']]);
-        await sheetsUpdate(sheetId, 'Want-Upgrade List!A2:I2', [WISHLIST_HEADERS]);
+        await sheetsSetupUpdate(sheetId, 'Want-Upgrade List!A1:A1', [['Want-Upgrade List']]);
+        await sheetsSetupUpdate(sheetId, 'Want-Upgrade List!A2:I2', [WISHLIST_HEADERS]);
         console.log('[Headers] Want-Upgrade List headers repaired');
       }
     } catch(e) {
@@ -658,7 +658,7 @@ async function ensurePersonalHeaders(sheetId) {
         var _cur = _hdrVals[_t.range] || [];
         var _need = _t.headers.some(function(h, i) { return _cur[i] !== h; });
         if (_need) {
-          await sheetsUpdate(sheetId, _t.range, [_t.headers]);
+          await sheetsSetupUpdate(sheetId, _t.range, [_t.headers]);
           console.log('[Headers] ' + _t.name + ' headers repaired');
         }
       } catch(e) {
@@ -711,8 +711,8 @@ async function ensureEphemeraSheets(sheetId) {
     });
   }
   await Promise.all(LIVE_TABS.flatMap(t => [
-    sheetsUpdate(sheetId, t.titleRange,  [[t.title]]),
-    sheetsUpdate(sheetId, t.headerRange, [t.headers]),
+    sheetsSetupUpdate(sheetId, t.titleRange,  [[t.title]]),
+    sheetsSetupUpdate(sheetId, t.headerRange, [t.headers]),
   ]));
   // v0.9.1325: the run-once flag is the LAST thing here, on purpose.
   //
@@ -780,8 +780,8 @@ async function createPersonalSheet() {
   localStorage.setItem('lv_personal_id', state.personalSheetId);
 
   // 3. Write headers and create all tabs
-  await sheetsUpdate(state.personalSheetId, PERSONAL_TAB + '!A1:A1', [['My Collection']]);
-  await sheetsUpdate(state.personalSheetId, PERSONAL_TAB + '!A2:' + _pdColLetter(PERSONAL_HEADERS.length) + '2', [PERSONAL_HEADERS]);
+  await sheetsSetupUpdate(state.personalSheetId, PERSONAL_TAB + '!A1:A1', [['My Collection']]);
+  await sheetsSetupUpdate(state.personalSheetId, PERSONAL_TAB + '!A2:' + _pdColLetter(PERSONAL_HEADERS.length) + '2', [PERSONAL_HEADERS]);
   await initPersonalSheet(state.personalSheetId);
 
   // 4. Move the sheet file into the vault folder

@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.1899';
+const APP_VERSION = 'v0.9.1900';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -128,6 +128,16 @@ if (typeof window !== 'undefined') {
   window.RR_PRICE_TEXT = RR_PRICE_TEXT;
   window.RR_SHOW_PRICE_TEXT = RR_SHOW_PRICE_TEXT;
 }
+// v0.9.1900: what the app says when someone tries to add or edit while their
+// account is read-only (no subscription yet, or it has ended). ONE place —
+// sheets.js, the Add buttons, the wizard and the save-error wording all read
+// it through rrReadOnlyWords() in vault.js. Brad's phone test, 2026-10-08: a
+// brand-new account was told "Your trial has ended" — it had never started one.
+const RR_READONLY_TEXT = {
+  none:    'Start your free trial to add and edit your collection.',
+  expired: 'Your subscription has ended \u2014 renew to keep adding and editing.'
+};
+if (typeof window !== 'undefined') window.RR_READONLY_TEXT = RR_READONLY_TEXT;
 
 // v0.9.1300 (Brad): "keep collecting the data, just hide the page and the
 // collectors market button." The market UI is off until a future release —
@@ -782,6 +792,7 @@ const SIGNOUT_KEEP_KEYS = [
   // v0.9.1893: the "Scanning and photo ID" card the first Add an Item shows —
   // same per-account fingerprint scheme as lv_onboarded (app-misc.js).
   'lv_ai_usage_seen',
+  'rr_sub_open_v1',     // v0.9.1900: accounts this device last saw OPEN (no 'Opening' cover for them)
   'lv_ios_hint_dismissed',
   'rr_orient_tip_off',
   // Brad's diagnostics switch — already documented as per-device (see

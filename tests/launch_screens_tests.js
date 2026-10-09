@@ -189,7 +189,8 @@ ok('_rrShowFirstScreen goes straight to sign-in when the switch is off',
   ok('RUN: switch OFF, new visitor → sign-in screen, no invite screen', off.r === 'auth' && off.gate === 'none' && off.auth === 'flex', off);
   ok('RUN: switch ON (today), new visitor → invite screen, as before', on.r === 'gate' && on.gate === 'flex', on);
 }
-ok('the subscription check now runs 600 ms after load (was 2.5 s)', /subCheck\(\); \} catch \(e\) \{\} \}, 600\);/.test(data));
+// v0.9.1900: at once, through rrSubGateStart (was 600 ms; 2.5 s before that).
+ok('the subscription check starts at once through rrSubGateStart (was 600 ms)', /if \(typeof rrSubGateStart === 'function'\) rrSubGateStart\(\);/.test(data) && !/subCheck\(\); \} catch \(e\) \{\} \}, 600\);/.test(data));
 
 // ── 7. source rules, each with a planted offender ─────────────────────────
 console.log('7. source rules + planted offenders');

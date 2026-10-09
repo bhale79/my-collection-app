@@ -146,9 +146,11 @@ function ensureRig(src, tabsPresent, opts) {
   const sheetsUpdate = async (id, range, values) => { if (opts.failStamps) throw new Error('refused'); st.stamps.push({ range, values }); };
   const H = { IS_HEADERS: ['is'], SCIENCE_HEADERS: ['sc'], CONSTRUCTION_HEADERS: ['co'], MY_SETS_HEADERS: ['ms'],
               CATALOG_HEADERS: ['cat'], EPHEMERA_HEADERS: ['eph'], MOCKUP_HEADERS: ['mu'] };
-  const api = new Function('fetch', 'sheetsUpdate', 'accessToken', ...Object.keys(H),
+  // v0.9.1900: the set-up code writes through sheetsSetupUpdate (the read-only
+  // lock lets it through) — same stand-in under both names.
+  const api = new Function('fetch', 'sheetsUpdate', 'sheetsSetupUpdate', 'accessToken', ...Object.keys(H),
     'let _ensureEphemDone = false;\n' + fn + '\nreturn { run: ensureEphemeraSheets, flag: () => _ensureEphemDone };')
-    (fetchStub, sheetsUpdate, 'tok', ...Object.values(H));
+    (fetchStub, sheetsUpdate, sheetsUpdate, 'tok', ...Object.values(H));
   return { st, api };
 }
 const RETIRED = tabs.map(t => t.sheetTab);

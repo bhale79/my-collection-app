@@ -133,7 +133,14 @@ async function loadAllData() {
   // or lapsed account sees the welcome / lock screen, so it should not sit
   // behind the app for seconds. It is a separate request, so loading is not
   // slowed by it.
-  setTimeout(function () { try { if (typeof subCheck === 'function') subCheck(); } catch (e) {} }, 600);
+  // v0.9.1900: 600 ms → at once, through rrSubGateStart (vault.js), which also
+  // keeps the app covered for an account it cannot yet vouch for, so a new
+  // account sees the welcome screen and never the app or the Dispatch Board
+  // flashing first (Brad's phone test, 2026-10-08).
+  try {
+    if (typeof rrSubGateStart === 'function') rrSubGateStart();
+    else if (typeof subCheck === 'function') subCheck();
+  } catch (e) {}
   try {
     loadUserDefinedTabs();
     // Audit NEW #9: also sync from sheet metadata so custom tabs survive
@@ -2437,9 +2444,9 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
   // retries on a later load because the flag is only set on success.
   try {
     if (!localStorage.getItem('rr_mk_header_v1') && state.personalSheetId
-        && typeof personalColLetter === 'function' && typeof sheetsUpdate === 'function'
+        && typeof personalColLetter === 'function' && typeof sheetsSetupUpdate === 'function'
         && PERSONAL_FIELD_INDEX && PERSONAL_FIELD_INDEX.masterKey !== undefined) {
-      sheetsUpdate(state.personalSheetId, PERSONAL_TAB + '!' + personalColLetter('masterKey') + '2', [['Master Key']])
+      sheetsSetupUpdate(state.personalSheetId, PERSONAL_TAB + '!' + personalColLetter('masterKey') + '2', [['Master Key']])
         .then(function () { try { localStorage.setItem('rr_mk_header_v1', '1'); } catch (e) {} })
         .catch(function (e) { console.warn('[MasterKey] header label deferred:', e && e.message); });
     }

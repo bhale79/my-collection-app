@@ -530,7 +530,8 @@
     var tail = kept ? ' It is kept on this device and will go up on its own.' : '';
 
     if (raw === 'readonly') {
-      return 'Your trial has ended — subscribe to keep adding and editing.';
+      // v0.9.1900: one wording, by account state (RR_READONLY_TEXT via vault.js).
+      return (typeof rrReadOnlyWords === 'function' && rrReadOnlyWords()) || 'Your account is view-only right now.';
     }
     // v0.9.1267 (R3): a whole-row write was refused because that row no longer
     // holds the record we meant — the spreadsheet was changed somewhere else.

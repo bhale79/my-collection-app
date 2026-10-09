@@ -4995,7 +4995,7 @@ function addItemToWantList(idx) {
   // session there was nothing to open. Same offline/read-only guards as
   // openWizard, for the same reasons.
   // v0.9.1599: want-list adds work offline — the write records to the outbox.
-  if (window._readOnlyMode) { if (typeof showToast === 'function') showToast('Your trial has ended — subscribe to keep adding items', 4000, true); return; }
+  if (window._readOnlyMode) { if (typeof rrReadOnlyToast === 'function') rrReadOnlyToast(); return; }   // v0.9.1900: one wording
   if (typeof _buildWizardModal === 'function') _buildWizardModal();
   const _activePg = document.querySelector('.page.active');
   const _returnPage = window._rrLastPage || (_activePg ? _activePg.id.replace('page-', '') : 'browse');

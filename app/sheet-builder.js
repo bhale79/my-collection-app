@@ -1,6 +1,6 @@
 // ══════════════════════════════════════════════════════════════════
 // sheet-builder.js — Sheet formatting, Dashboard tab, Lock/Unlock
-// Depends on: accessToken, state, sheetsUpdate(), normalizeItemNum()
+// Depends on: accessToken, state, sheetsUpdate() + sheetsSetupUpdate() (v0.9.1900: every write here is set-up), normalizeItemNum()
 // All functions are non-destructive — never touch data rows (row 3+)
 // ══════════════════════════════════════════════════════════════════
 
@@ -571,9 +571,9 @@ async function applySheetFormatting(sheetId, opts) {
 
     // ── 9. Version stamp (only on success — guarded by above throw) ────
     // v18: label the new trailing Scale/Gauge column (idempotent full-header rewrite).
-    try { await sheetsUpdate(sheetId, "'My Collection'!A1", [PERSONAL_HEADERS]); }
+    try { await sheetsSetupUpdate(sheetId, "'My Collection'!A1", [PERSONAL_HEADERS]); }
     catch (eH) { console.warn('[SheetFormat] personal header rewrite failed:', eH); }
-    await sheetsUpdate(sheetId, SHEET_FORMAT_STAMP_CELL, [[SHEET_FORMAT_VER]]);
+    await sheetsSetupUpdate(sheetId, SHEET_FORMAT_STAMP_CELL, [[SHEET_FORMAT_VER]]);
     console.log('[SheetFormat] Applied v' + SHEET_FORMAT_VER);
 
     // Session 155: re-apply structural protections after formatting completes.
@@ -692,7 +692,7 @@ async function _writeDashboardContent(sheetId) {
 
   // Header (rows 1-3): mascot (A1) + title (B1, rich text below) + name/sync (B2/B3),
   // and the Quick Tab Buttons block on the RIGHT (cols F-I).
-  await sheetsUpdate(sheetId, 'Dashboard!A1:I3', [
+  await sheetsSetupUpdate(sheetId, 'Dashboard!A1:I3', [
     [`=IMAGE("${CONDUCTOR_HEADER_URL}",4,80,65)`, '', '', '', '', 'QUICK TAB BUTTONS', '', '', ''],
     ['', `${firstName}'s Collection`, '', '', '', _btn('My Collection', '📋  My Collection'), '', _btn('Want-Upgrade List', '🔎  Want / Upgrade'), ''],
     ['', `Last app sync: ${now}`, '', '', '', _btn('For Sale', '🏷️  For Sale'), '', _btn('Sold', '✅  Sold'), '']
@@ -763,7 +763,7 @@ async function _writeDashboardContent(sheetId) {
   }
   var footerRow = cursor;
   if (footerRow < TOTAL) body[footerRow][0] = 'Open The Rail Roster app to manage your collection  ·  read-only';
-  await sheetsUpdate(sheetId, 'Dashboard!A5:H' + (5 + TOTAL - 1), body);
+  await sheetsSetupUpdate(sheetId, 'Dashboard!A5:H' + (5 + TOTAL - 1), body);
 
   if (dId == null) return;
 

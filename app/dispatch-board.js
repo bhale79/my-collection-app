@@ -210,6 +210,15 @@ function _dbUpdateBadge() {
 }
 
 // ── Popup — newest unseen announcement, once per app open ───────
+// v0.9.1900 (Brad's phone test: "it flashes the dispatch board"): a signed-in
+// account that has not finished its first-run setup gets the setup and the
+// tour first — announcements wait until that is done.
+function _dbFirstRunPending() {
+  try {
+    if (!(window.state && state.user && state.user.email)) return false;
+    return typeof rrOnboardingSeenByCurrentAccount === 'function' && !rrOnboardingSeenByCurrentAccount();
+  } catch (e) { return false; }
+}
 function _dbMaybePopup() {
   if (_dbPopupShown) return;
   var unseen = _dbUnseen();
@@ -221,7 +230,8 @@ function _dbMaybePopup() {
       document.getElementById('gt-callout') ||
       document.getElementById('sub-screen') ||
       document.getElementById('onboarding-overlay') ||
-      document.getElementById('onboarding-map-overlay')) {
+      document.getElementById('onboarding-map-overlay') ||
+      _dbFirstRunPending()) {
     setTimeout(_dbMaybePopup, 15000);
     return;
   }

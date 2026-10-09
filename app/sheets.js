@@ -379,7 +379,21 @@ async function sheetsUpdateRow(spreadsheetId, range, values, expected) {
 }
 if (typeof window !== 'undefined') window.sheetsUpdateRow = sheetsUpdateRow;
 
-async function sheetsUpdate(spreadsheetId, range, values) {
+// v0.9.1900: the app's OWN set-up writes — a new sheet's titles and column
+// headers, header repairs, the sheet's formatting stamp and Dashboard tab —
+// go through sheetsSetupUpdate, which the read-only lock lets through. The
+// lock is there to stop a member's adds and edits while they are not
+// subscribed; it was also stopping the app from finishing a brand-new
+// member's sheet behind the welcome screen, and every blocked write popped a
+// red "Your trial has ended" (Brad's phone test, 2026-10-08). Nothing a
+// person types ever goes this way — only the set-up code in app-setup.js,
+// sheet-builder.js and the Master Key label in app-data.js.
+async function sheetsSetupUpdate(spreadsheetId, range, values) {
+  return sheetsUpdate(spreadsheetId, range, values, { setup: true });
+}
+if (typeof window !== 'undefined') window.sheetsSetupUpdate = sheetsSetupUpdate;
+
+async function sheetsUpdate(spreadsheetId, range, values, opts) {
   // v0.9.985 (perf): any write = data changed — invalidate cached page renders.
   try { window._rrDataRev = (window._rrDataRev || 0) + 1; } catch (e) {}
   // v0.9.1599 (Brad: work the lists at a train show with no wifi): an
@@ -391,9 +405,11 @@ async function sheetsUpdate(spreadsheetId, range, values) {
     if (typeof showToast === 'function') showToast('You\u2019re offline \u2014 saved on this device. It goes to your sheet when you\u2019re back on.', 3500);
     throw _rrWriteFailed('update', { sheetId: spreadsheetId, range: range, values: values }, new Error('offline'));
   }
-  // v0.9.840 (Phase C): lapsed trial/subscription = view-and-export-only.
-  if (window._readOnlyMode) {
-    if (typeof showToast === 'function') showToast('Your trial has ended — subscribe to keep adding and editing', 4000, true);
+  // v0.9.840 (Phase C): no subscription = view-and-export-only.
+  // v0.9.1900: except the app's own set-up writes (sheetsSetupUpdate above);
+  // the words come from ONE place (rrReadOnlyToast, vault.js).
+  if (window._readOnlyMode && !(opts && opts.setup)) {
+    if (typeof rrReadOnlyToast === 'function') rrReadOnlyToast();
     throw new Error('readonly');
   }
   const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${_encodeRange(range)}?valueInputOption=USER_ENTERED`;
@@ -443,9 +459,9 @@ async function sheetsAppend(spreadsheetId, range, values) {
     _rrWriteFailed('append', { sheetId: spreadsheetId, range: range, values: values }, new Error('offline'));
     return 0;
   }
-  // v0.9.840 (Phase C): lapsed trial/subscription = view-and-export-only.
+  // v0.9.840 (Phase C): no subscription = view-and-export-only.
   if (window._readOnlyMode) {
-    if (typeof showToast === 'function') showToast('Your trial has ended — subscribe to keep adding and editing', 4000, true);
+    if (typeof rrReadOnlyToast === 'function') rrReadOnlyToast();   // v0.9.1900: one wording
     throw new Error('readonly');
   }
   // Extract raw tab name from range (e.g. "For Sale!A:A" -> "For Sale")
@@ -518,7 +534,7 @@ async function sheetsClear(spreadsheetId, range) {
     throw new Error('offline');
   }
   if (window._readOnlyMode) {
-    if (typeof showToast === 'function') showToast('Your trial has ended — subscribe to keep adding and editing', 4000, true);
+    if (typeof rrReadOnlyToast === 'function') rrReadOnlyToast();   // v0.9.1900: one wording
     throw new Error('readonly');
   }
   const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${_encodeRange(range)}:clear`;
