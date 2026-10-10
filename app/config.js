@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.1916';
+const APP_VERSION = 'v0.9.1917';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -929,6 +929,22 @@ const RR_OWNER_EMAILS = ['bhale@ipd-llc.com', 'support@therailroster.com'];
 //           bytes. Wi-Fi keeps the sharper copy.
 const RR_LENS = { PHOTO_MAX_SIDE: 1600, PHOTO_QUALITY: 0.85, SHRINK_OVER_BYTES: 350000, COVER_MAX_MS: 90000,
                   CELL_MAX_SIDE: 1024, CELL_QUALITY: 0.72, CELL_SHRINK_OVER_BYTES: 60000 };
+
+// ── CRAWL RESULTS FILE (v0.9.1917) ───────────────────────────────────────
+// The scheduled crawls' one door into the Yardmaster's review queue. A crawl
+// writes its new items as ONE JSON file (this format), saves it in the PC's
+// Task38_crawl\crawl_inbox folder, and loads it through the Office's
+// "Load a crawl results file" box. ONE definition, read by yardmaster.js.
+//   FORMAT       the file's "format" value — a file without it is refused
+//   BATCH_ID_RE  a batch id: CB- then capitals, digits and dashes
+//                (e.g. CB-ATLAS-20261012). A batch id loads ONCE — loading the
+//                same file again is refused as "already loaded", nothing written
+//   ACTIONS      what a crawl row may propose: 'add' (a new catalog row) or
+//                'barcode' (a UPC pairing). Never both in one file — the
+//                Office commits them by different paths.
+//   MAX_ROWS / MAX_BYTES  a sane ceiling (the Marklin pull was 7,238 rows)
+const RR_CRAWL_FILE = { FORMAT: 'rr-crawl-batch-1', BATCH_ID_RE: /^CB-[A-Z0-9][A-Z0-9-]{2,60}$/,
+                        ACTIONS: ['add', 'barcode'], MAX_ROWS: 20000, MAX_BYTES: 10 * 1024 * 1024 };
 
 // ── REVIEW-QUEUE FLAGS: NOTES vs CHECKS (v0.9.1712, Session 95) ──────────
 // Brad, on the Yardmaster's review queue: "when it says 'maker still lists

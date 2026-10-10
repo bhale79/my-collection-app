@@ -459,10 +459,17 @@
         + (hidden.length ? '<button onclick="_ymToggleFinished()" style="' + _qbtn + '">' + (_ymShowFinished ? 'Hide finished' : 'Show ' + hidden.length + ' finished') + '</button>' : '')
         + '</div>'
       : '';
+    // v0.9.1917: the crawls' one door — a file box the Monday crawls load their findings through
+    var _cl = window.rrCrawlLoadLast;
+    var crawlBox = '<div id="ym-crawl-load" style="margin-top:0.7rem;padding-top:0.6rem;border-top:1px solid var(--border);font-size:0.95rem;color:var(--text-dim)">'
+      + '<label for="ym-crawl-file" style="color:var(--text-mid);margin-right:0.5rem">Load a crawl results file</label>'
+      + '<input type="file" id="ym-crawl-file" accept=".json,application/json" onchange="_ymCrawlLoadFile(this)" style="font-size:0.95rem;color:var(--text-mid);max-width:100%">'
+      + '<div id="ym-crawl-load-result" aria-live="polite" style="margin-top:0.35rem;color:' + (_cl ? (_cl.ok ? 'var(--green)' : 'var(--t-accent)') : 'var(--text-dim)') + '">'
+      + (_cl ? _esc(_cl.text) : 'The Monday crawls load their findings here; a file loads once.') + '</div></div>';
     html += _card('Catalog review queue' + (shown.length ? '' : ' — empty'),
       shown.length
-        ? brows + qfoot   // v0.9.1712: the "read-only for now" line is gone — verdicts have worked since v0.9.1625
-        : '<div style="color:var(--text-dim)">No crawl batches waiting. New sweeps land here automatically.</div>' + qfoot);
+        ? brows + qfoot + crawlBox   // v0.9.1712: the "read-only for now" line is gone — verdicts have worked since v0.9.1625
+        : '<div style="color:var(--text-dim)">No crawl batches waiting. New sweeps land here automatically.</div>' + qfoot + crawlBox);
 
     // 2 — CHORES
     var due = d.chores.filter(function (c) { return c.due; });
@@ -1231,6 +1238,139 @@
     } catch (e) {
       if (typeof showToast === 'function') showToast('Queue stopped: ' + ((e && /\u2014/.test(String(e.message))) ? e.message : 'the connection dropped \u2014 nothing was marked; try again'), 7000, true);
     } finally { _ymQueueBusy = false; }
+  };
+
+  // ── v0.9.1917: LOAD A CRAWL RESULTS FILE — the scheduled crawls' one door ──
+  // Brad (2026-10-10): the Oct 5 crawl could not work out how to fill this
+  // queue and left its findings as files. Now every crawl writes ONE JSON
+  // file in the RR_CRAWL_FILE format (config.js — the one definition) and
+  // hands it to the "Load a crawl results file" box below the queue. This
+  // is the ONLY code that turns a crawl file into queue rows:
+  //   • checked whole BEFORE anything is written — an unknown column, a
+  //     wrong action, a bad batch id: refused, nothing written;
+  //   • a batch id loads ONCE (the double-execution guard): the same file
+  //     again is answered "already loaded", nothing written — so a crawl
+  //     may safely re-offer a backlog file;
+  //   • the review rows go in FIRST, the batch line LAST — a batch with no
+  //     line is invisible, never half-shown; a cut-short load is detected
+  //     next time and refused rather than doubled;
+  //   • every column by HEADER NAME; nothing here touches the master sheet.
+  // The outcome is left in window.rrCrawlLoadLast and on the page, so the
+  // crawl reads it back and puts it in Brad's email.
+  function _ymCrawlCheck(obj, dh, today) {
+    var F = (typeof RR_CRAWL_FILE !== 'undefined') ? RR_CRAWL_FILE : null;
+    if (!F) return { error: 'the app is still loading its settings' };
+    if (!obj || typeof obj !== 'object' || Array.isArray(obj) || obj.format !== F.FORMAT) return { error: 'this is not a crawl results file (format ' + F.FORMAT + ')' };
+    var id = String(obj.batch_id || '');
+    if (!F.BATCH_ID_RE.test(id)) return { error: 'the batch id "' + id.slice(0, 70) + '" is not CB- followed by capitals, digits and dashes' };
+    var source = String(obj.source || '').trim(), label = String(obj.label || '').trim(), note = String(obj.note || '').trim();
+    if (!source || !label) return { error: 'the file has no source or no label' };
+    var created = /^\d{4}-\d{2}-\d{2}$/.test(String(obj.created || '')) ? String(obj.created) : today;
+    var rows = obj.rows;
+    if (!Array.isArray(rows) || !rows.length) return { error: 'the file has no rows' };
+    if (rows.length > F.MAX_ROWS) return { error: 'the file has ' + rows.length + ' rows — more than ' + F.MAX_ROWS };
+    dh = (dh || []).map(String);
+    if (['batch_id', 'delta_id', 'action', 'status'].some(function (h) { return dh.indexOf(h) < 0; })) return { error: 'the review queue’s header row is missing a column this needs' };
+    var own = { batch_id: 1, status: 1, decided: 1 };      // set here, never by a file
+    var unknown = {}, action = '', seenIds = {}, seenRows = {}, out = [], n = 0, bad = '';
+    rows.forEach(function (r, i) {
+      if (bad) return;
+      if (!r || typeof r !== 'object' || Array.isArray(r)) { bad = 'row ' + (i + 1) + ' is not a set of named columns'; return; }
+      Object.keys(r).forEach(function (k) { if (dh.indexOf(k) < 0 || own[k]) unknown[k] = 1; });
+      Object.keys(r).forEach(function (k) { if (r[k] != null && typeof r[k] === 'object') bad = 'row ' + (i + 1) + ' column ' + k + ' holds a list, not a value'; });
+      var a = String(r.action || '');
+      if (F.ACTIONS.indexOf(a) < 0) { bad = 'row ' + (i + 1) + ' has action "' + a.slice(0, 20) + '" — only ' + F.ACTIONS.join(' or '); return; }
+      if (action && a !== action) { bad = 'the file mixes ' + action + ' and ' + a + ' rows — the Office commits them separately, so they need separate files'; return; }
+      action = a;
+      if (!String(r.item_num || '').trim() && !String(r.flag || '').trim()) { bad = 'row ' + (i + 1) + ' has no item number and no flag saying why'; return; }
+      var did = String(r.delta_id || '').trim() || (id + '-' + String(++n).padStart(5, '0'));
+      if (seenIds[did]) { bad = 'the delta id ' + did + ' appears twice'; return; }
+      seenIds[did] = 1;
+      var cells = dh.map(function (h) {
+        if (h === 'batch_id') return id;
+        if (h === 'delta_id') return did;
+        if (h === 'status') return 'pending';
+        if (h === 'decided') return '';
+        return r[h] == null ? '' : String(r[h]);
+      });
+      var key = cells.filter(function (c, j) { return dh[j] !== 'delta_id'; }).join('\u0001');
+      if (seenRows[key]) { bad = 'row ' + (i + 1) + ' is an exact copy of row ' + seenRows[key]; return; }
+      seenRows[key] = i + 1;
+      out.push(cells);
+    });
+    var unk = Object.keys(unknown);
+    if (unk.length) return { error: 'the file has column' + (unk.length === 1 ? ' ' : 's ') + unk.slice(0, 5).join(', ') + ' that the review queue does not have (or sets itself)' };
+    if (bad) return { error: bad };
+    return { batch: { batch_id: id, source: source, created: created, label: label, status: 'pending', total: String(out.length), note: note }, rows: out, action: action };
+  }
+  window._ymCrawlCheck = _ymCrawlCheck;   // the tests run it
+  var _ymCrawlBusy = false;
+  window.rrCrawlLoadLast = window.rrCrawlLoadLast || null;
+  function _ymCrawlSay(ok, text, extra) {
+    var r = { ok: ok, text: text, at: new Date().toISOString() };
+    Object.keys(extra || {}).forEach(function (k) { r[k] = extra[k]; });
+    if (ok !== null) window.rrCrawlLoadLast = r;
+    var el = document.getElementById('ym-crawl-load-result');
+    if (el) { el.textContent = text; el.style.color = ok === false ? 'var(--t-accent)' : ok ? 'var(--green)' : 'var(--text-dim)'; }
+    if (ok !== null && typeof showToast === 'function') showToast(text, ok ? 5000 : 8000, ok === false);
+  }
+  window._ymCrawlLoadFile = async function (input) {
+    var f = input && input.files && input.files[0];
+    if (!_isOwner() || !f) return;
+    if (_ymCrawlBusy) { _ymCrawlSay(false, 'A crawl file is already loading — hold on.'); return; }
+    _ymCrawlBusy = true;
+    _ymCrawlSay(null, 'Loading ' + f.name + '…');
+    var F = (typeof RR_CRAWL_FILE !== 'undefined') ? RR_CRAWL_FILE : { MAX_BYTES: 10485760 };
+    var H = { Authorization: 'Bearer ' + window.accessToken, 'Content-Type': 'application/json' };
+    var SS = 'https://sheets.googleapis.com/v4/spreadsheets/' + YM.VAULT_ID;
+    var today = new Date().toISOString().slice(0, 10);
+    var getVals = async function (range) {
+      var r = await fetch(SS + '/values/' + encodeURIComponent(range), { headers: H });
+      if (!r.ok) throw new Error('could not read the review queue (HTTP ' + r.status + ') — nothing was loaded');
+      return (await r.json()).values || [];
+    };
+    var id = '';
+    try {
+      if (!window.accessToken) throw new Error('not signed in — nothing was loaded');
+      if (f.size > F.MAX_BYTES) throw new Error(f.name + ' is larger than ' + Math.round(F.MAX_BYTES / 1048576) + ' MB — nothing was loaded');
+      var obj;
+      try { obj = JSON.parse(await f.text()); } catch (e) { throw new Error(f.name + ' is not readable — nothing was loaded'); }
+      var dh = ((await getVals(YM.DELTAS_TAB + '!A1:AZ1'))[0] || []).map(String);
+      var bh = ((await getVals('crawl_batches!A1:Z1'))[0] || []).map(String);
+      if (bh.indexOf('batch_id') < 0) throw new Error('the crawl_batches header row has no batch_id — nothing was loaded');
+      var chk = _ymCrawlCheck(obj, dh, today);
+      if (chk.error) throw new Error(f.name + ': ' + chk.error + ' — nothing was loaded');
+      id = chk.batch.batch_id;
+      // the once-only guard: a batch line with this id = already loaded
+      var bcol = _ymColLetter(bh.indexOf('batch_id'));
+      var bids = await getVals('crawl_batches!' + bcol + '2:' + bcol);
+      if (bids.some(function (r) { return String(r[0] || '') === id; })) {
+        _ymCrawlSay(true, id + ' was already loaded — nothing written again.', { batch_id: id, rows: 0, already: true });
+        return;
+      }
+      // a cut-short earlier load: rows with this id but no batch line
+      var dcol = _ymColLetter(dh.indexOf('batch_id'));
+      var dids = await getVals(YM.DELTAS_TAB + '!' + dcol + '2:' + dcol);
+      if (dids.some(function (r) { return String(r[0] || '') === id; })) throw new Error('rows of ' + id + ' are already in the queue without its batch line — an earlier load was cut short. Nothing more was written; tell Claude');
+      var lastD = _ymColLetter(dh.length - 1), done = 0;
+      for (var i = 0; i < chk.rows.length; i += 500) {
+        var ap = await fetch(SS + '/values/' + encodeURIComponent(YM.DELTAS_TAB + '!A1:' + lastD) + ':append?valueInputOption=RAW&insertDataOption=INSERT_ROWS',
+          { method: 'POST', headers: H, body: JSON.stringify({ values: chk.rows.slice(i, i + 500) }) });
+        if (!ap.ok) throw new Error('stopped after ' + done + ' of ' + chk.rows.length + ' rows (HTTP ' + ap.status + '). The batch line was NOT written, so nothing shows in the queue; tell Claude');
+        done += chk.rows.slice(i, i + 500).length;
+      }
+      var brow = bh.map(function (h) { return chk.batch[h] == null ? '' : String(chk.batch[h]); });
+      var ab = await fetch(SS + '/values/' + encodeURIComponent('crawl_batches!A1:' + _ymColLetter(bh.length - 1)) + ':append?valueInputOption=RAW&insertDataOption=INSERT_ROWS',
+        { method: 'POST', headers: H, body: JSON.stringify({ values: [brow] }) });
+      if (!ab.ok) throw new Error('the ' + done + ' rows were written but the batch line was not (HTTP ' + ab.status + '); tell Claude');
+      _ymCrawlSay(true, 'Loaded ' + done + ' row' + (done === 1 ? '' : 's') + ' as “' + chk.batch.label + '” (' + id + ').', { batch_id: id, rows: done, already: false });
+      _ymReload();
+    } catch (e) {
+      _ymCrawlSay(false, 'Not loaded: ' + ((e && e.message) || 'the connection dropped — try again'), { batch_id: id, rows: 0 });
+    } finally {
+      _ymCrawlBusy = false;
+      try { if (input) input.value = ''; } catch (e) {}
+    }
   };
 
   // ── v0.9.1627: COMMIT — the cockpit's last mile ────────────────
