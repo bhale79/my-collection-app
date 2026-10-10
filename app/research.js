@@ -57,6 +57,26 @@
   function _ebaySoldUrl(itemNum, mfr, roadName, desc) {
     return _ebayCore(itemNum, mfr, roadName, desc, '&LH_Sold=1&LH_Complete=1');
   }
+  // v0.9.1918: the maker a catalog ROW is searched under — ONE answer for the
+  // Research card and for the Master Catalog's "Do you own this item?" box.
+  // rrSearchBrand (the brand follows the gauge, v0.9.1838), else the row's own
+  // maker, else its tab's maker.
+  function _rowSearchMaker(m) {
+    if (!m) return '';
+    var row = '';
+    try { row = m.manufacturer || ((typeof ERAS !== 'undefined' && ERAS[m._era]) ? ERAS[m._era].manufacturer : '') || ''; } catch (e) {}
+    var b = '';
+    try { if (typeof rrSearchBrand === 'function') b = rrSearchBrand(m) || ''; } catch (eB) {}
+    return b || row;
+  }
+  // v0.9.1918 (Brad: "the research button and ebay buttons should be clickable
+  // here so you don't have to try to add it to research it"): the eBay
+  // sold-listings link for a catalog row — the same builder and maker rule as
+  // the Research card's "eBay Sold Prices".
+  window.rrEbaySoldUrlForRow = function (m) {
+    if (!m) return '';
+    return _ebaySoldUrl(m.itemNum || '', _rowSearchMaker(m), m.roadName || '', m.description || '');
+  };
   // v0.9.737 (Brad): show-floor questions are "is this a good price, is it
   // rare, and are any for sale right now". Google's AI Overview answers the
   // first two (no API exists for it — we hand off exactly like Lens); an
@@ -141,7 +161,7 @@
     // item IS Lionel-made, so that note must not fire on it.
     var _gNum = itemNum;   // the Google searches spell the number the catalogs' way (6-84631); eBay keeps it bare (v0.9.740)
     if (m) {
-      try { if (typeof rrSearchBrand === 'function') mfr = rrSearchBrand(m) || mfr; } catch (eB) {}
+      mfr = _rowSearchMaker(m) || mfr;   // v0.9.1918: the one row-maker rule (shared with rrEbaySoldUrlForRow)
       try { if (typeof rrSearchNumber === 'function') _gNum = rrSearchNumber(m) || itemNum; } catch (eN) {}
     }
     // v0.9.1501: the card's Google button carries the matched ROW's period /

@@ -3727,15 +3727,20 @@ function renderWizardStep() {
     const _rpShow = (s.id === 'expectedPrice' || s.id === 'askingPrice')
       && (wizard.data.itemNum || (wizard.matchedItem || {}).itemNum);
     const _rpBtn = _rpShow
-      ? `<button type="button" onclick="_wizResearchPrice()" style="flex-shrink:0;padding:0.5rem 0.8rem;border-radius:8px;border:1.5px solid #2ecc71;background:var(--bg-card);background:color-mix(in srgb, rgb(46,204,113) 12%, var(--bg-card));color:var(--t-green);font-weight:700;font-size:0.82rem;cursor:pointer;font-family:var(--font-body)">🔍 Research</button><button type="button" onclick="_wizEbaySold()" style="flex-shrink:0;padding:0.5rem 0.8rem;border-radius:8px;border:1.5px solid #2980b9;background:var(--bg-card);background:color-mix(in srgb, rgb(41,128,185) 12%, var(--bg-card));color:var(--t-link);font-weight:700;font-size:0.82rem;cursor:pointer;font-family:var(--font-body)">eBay Sold Listings</button>`
+      ? `<span class="wiz-money-btns" style="display:flex;gap:0.5rem;flex-wrap:wrap;flex:0 0 auto;max-width:100%"><button type="button" onclick="_wizResearchPrice()" style="flex-shrink:0;padding:0.5rem 0.8rem;border-radius:8px;border:1.5px solid #2ecc71;background:var(--bg-card);background:color-mix(in srgb, rgb(46,204,113) 12%, var(--bg-card));color:var(--t-green);font-weight:700;font-size:0.82rem;cursor:pointer;font-family:var(--font-body)">🔍 Research</button><button type="button" onclick="_wizEbaySold()" style="flex-shrink:0;padding:0.5rem 0.8rem;border-radius:8px;border:1.5px solid #2980b9;background:var(--bg-card);background:color-mix(in srgb, rgb(41,128,185) 12%, var(--bg-card));color:var(--t-link);font-weight:700;font-size:0.82rem;cursor:pointer;font-family:var(--font-body)">eBay Sold Listings</button></span>`
       : '';
+    // v0.9.1918 (Brad's screenshot: the Research / eBay Sold Listings buttons ran
+    // past the right edge with a sideways scrollbar): the price field may
+    // shrink (min-width:0 — an input never shrinks below its own text width by
+    // default) and the row WRAPS, so the buttons drop under the field when
+    // there is no room, at any text size.
     body.innerHTML = `
       <div style="padding-top:0.75rem">
         ${_priceCtxHtml}
-        <div style="display:flex;align-items:center;gap:0.5rem;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.75rem 1rem">
+        <div id="wiz-money-row" style="display:flex;flex-wrap:wrap;align-items:center;gap:0.5rem;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.75rem 1rem">
           <span style="color:var(--text-dim);font-size:1.2rem">$</span>
           <input type="number" id="wiz-input" value="${val}" placeholder="${s.placeholder || '0.00'}" min="0" step="0.01"
-            style="flex:1;background:none;border:none;outline:none;color:var(--text);font-family:var(--font-body);font-size:1.1rem"
+            style="flex:1 1 6rem;min-width:0;background:none;border:none;outline:none;color:var(--text);font-family:var(--font-body);font-size:1.1rem"
             oninput="wizard.data['${s.id}']=this.value"
             onkeydown="if(event.key==='Enter')wizardNext()">
           ${_rpBtn}

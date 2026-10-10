@@ -4569,7 +4569,7 @@ function browseRowClick(event, idx) {
   box.appendChild(q);
   // Buttons
   const btnRow = document.createElement('div');
-  btnRow.style.cssText = 'display:flex;gap:0.75rem';
+  btnRow.style.cssText = 'display:flex;gap:0.75rem;flex-wrap:wrap';   // v0.9.1918: wraps at large text instead of pushing ✕ off the box
   const yesBtn = document.createElement('button');
   yesBtn.className = 'btn btn-primary';
   yesBtn.style.cssText = 'flex:1;background:var(--accent);border-color:var(--accent);font-weight:600';
@@ -4672,7 +4672,10 @@ function browseRowClick(event, idx) {
   };
   const cancelBtn = document.createElement('button');
   cancelBtn.className = 'btn btn-secondary';
-  cancelBtn.style.cssText = 'padding:0.6rem 0.9rem';
+  // v0.9.1918: the ✕ sits in the box's top-right corner — in the button row it
+  // was pushed off the box (and later onto a line of its own) at large text.
+  cancelBtn.style.cssText = 'position:absolute;top:0.75rem;right:0.75rem;padding:0.35rem 0.6rem;line-height:1';
+  cancelBtn.title = 'Close';
   cancelBtn.textContent = '✕';
   cancelBtn.onclick = function() { overlay.remove(); };
   // ── v0.9.1449 (Brad): the same green + Want List button the Sets pop-up
@@ -4694,8 +4697,40 @@ function browseRowClick(event, idx) {
     btnRow.appendChild(wantBtn);
   }
   btnRow.appendChild(viewBtn);
-  btnRow.appendChild(cancelBtn);
+  box.style.position = 'relative';
+  box.appendChild(cancelBtn);
   box.appendChild(btnRow);
+  // ── v0.9.1918 (Brad: "the research button and ebay buttons should be
+  // clickable here so you don't have to try to add it to research it"):
+  // Research opens the Research result card for THIS catalog row (Google Price
+  // Check, On eBay Now, eBay Sold Prices); eBay Sold Prices goes straight to
+  // the sold listings through the card's own link builder.
+  const lookRow = document.createElement('div');
+  lookRow.id = 'browse-add-prompt-look';
+  lookRow.style.cssText = 'display:flex;gap:0.75rem;flex-wrap:wrap;margin-top:0.75rem';
+  const resBtn = document.createElement('button');
+  resBtn.type = 'button';
+  resBtn.className = 'btn btn-secondary';
+  resBtn.style.cssText = 'flex:1 1 10rem;border:1.5px solid #2ecc71;background:rgba(46,204,113,0.12);color:var(--t-green);font-weight:600';
+  resBtn.textContent = '\ud83d\udd0d Research';
+  resBtn.onclick = function() {
+    overlay.remove();
+    if (typeof window._researchLookupTyped === 'function') window._researchLookupTyped(item.itemNum, { picked: item });
+    else if (typeof showToast === 'function') showToast('Research is still loading \u2014 try again', 3000, true);
+  };
+  const ebayBtn = document.createElement('button');
+  ebayBtn.type = 'button';
+  ebayBtn.className = 'btn btn-secondary';
+  ebayBtn.style.cssText = 'flex:1 1 10rem;border:1.5px solid #e67e22;background:rgba(230,126,34,0.12);color:var(--t-orange);font-weight:600';
+  ebayBtn.textContent = '\ud83d\udcb0 eBay Sold Prices';
+  ebayBtn.onclick = function() {
+    var url = (typeof window.rrEbaySoldUrlForRow === 'function') ? window.rrEbaySoldUrlForRow(item) : '';
+    if (!url) { if (typeof showToast === 'function') showToast('Research is still loading \u2014 try again', 3000, true); return; }
+    if (typeof window.rrOpenExternal === 'function') window.rrOpenExternal(url, 'eBay sold'); else window.open(url, '_blank', 'noopener');
+  };
+  lookRow.appendChild(resBtn);
+  lookRow.appendChild(ebayBtn);
+  box.appendChild(lookRow);
   overlay.appendChild(box);
   document.body.appendChild(overlay);
   if (window.BackStack && BackStack.wire) BackStack.wire(overlay); // v0.9.806 TODO-012: device Back closes this pop-up

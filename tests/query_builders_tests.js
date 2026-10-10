@@ -241,8 +241,14 @@ ok('the Google price search takes the number and brand it is handed and adds the
    q(rs.g('6-84631', 'Lionel', 'Santa Fe', 'Boxcar', '2019 O gauge')) === 'Lionel 6-84631 Santa Fe Boxcar 2019 O gauge sold prices value');
 // the card itself: source pins on the lines that decide what the buttons search
 const showCard = grabAt(research, 'function _showCard(res)');
+// v0.9.1918: the row-maker rule moved into ONE helper, _rowSearchMaker(m) —
+// shared by the card and rrEbaySoldUrlForRow (the "Do you own this item?" box).
+const rowMaker = grabAt(research, 'function _rowSearchMaker(m)');
 ok('the card takes the brand from rrSearchBrand once a catalog row matched (the gauge rule)…',
-   /if \(m\) \{[\s\S]{0,200}mfr = rrSearchBrand\(m\) \|\| mfr;/.test(showCard));
+   /if \(m\) \{[\s\S]{0,200}mfr = _rowSearchMaker\(m\) \|\| mfr;/.test(showCard) &&
+   /rrSearchBrand\(m\)/.test(rowMaker) && /return b \|\| row;/.test(rowMaker));
+ok('…and the box\'s eBay link asks the same helper (one rule, two buttons)',
+   /window\.rrEbaySoldUrlForRow = function \(m\)[\s\S]{0,200}_ebaySoldUrl\(m\.itemNum \|\| '', _rowSearchMaker\(m\)/.test(research));
 ok('…spells the Google number through rrSearchNumber and hands THAT to the price search',
    /_gNum = rrSearchNumber\(m\) \|\| itemNum;/.test(showCard) && /_googlePriceUrl\(_gNum, mfr, road, desc, _eraTerms\)/.test(showCard));
 ok('…while both eBay buttons keep the bare number (v0.9.740)',
