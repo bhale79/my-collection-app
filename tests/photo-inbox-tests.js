@@ -16797,13 +16797,15 @@ META_WRITES.length = 0; TOASTS.length = 0;
       // Session 85: the v1547 filter-bar rework rebuilt the chip row around a
       // _mainLevels list — section joins it only when the view is not owned.
       // Same behaviour, new shape.
+      // v0.9.1915: Section is a selector drawn first ("Items ▾", no ×), still
+      // only when the view is not owned.
       ok('243 the chip row drops the section level exactly when the view is owned',
          /var _phOwned = !!\(typeof state !== 'undefined' && state && state\.filters && state\.filters\.owned\);/.test(br43) &&
-         /if \(!_phOwned\) _mainLevels\.push\(\{ key: 'section'/.test(br43));
+         /if \(!_phOwned\) \{\s*html \+= '<button type="button" class="ph-section"/.test(br43));
       ok('243 …and the Type chip renders on My Collection regardless of stale section state',
          /if \(st2\.section === 'items' \|\| _phOwned\) \{/.test(br43));
-      ok('243 the Master Catalog keeps all four levels',
-         /_mainLevels/.test(br43) && /key: 'section'/.test(br43));
+      ok('243 the Master Catalog keeps all four levels (Section as its selector, v0.9.1915)',
+         /_mainLevels/.test(br43) && /_openLevelPicker\(\\'section\\'\)/.test(br43));
     })();
 
     // ═══════════════════════════════════════════════════════════

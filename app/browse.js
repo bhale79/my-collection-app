@@ -984,6 +984,16 @@ var _PH_SECTION_TO_TAB = {
   science: 'science', construction: 'construction', paper: 'paper',
   other: 'other', serviceTools: 'service', instrSheets: 'is',
 };
+// v0.9.1915 (Brad: "items should not have an x by it … it tells you what type
+// of item you are entering"): the words a collector reads for each catalog
+// section. ONE map; _phLabelFor('section', …) is the only reader. A section
+// missing here is spelled out from its key ("serviceTools" -> "Service Tools")
+// rather than shown raw.
+var _PH_SECTION_LABELS = {
+  items: 'Items', sets: 'Sets', catalogs: 'Catalogs', science: 'Science',
+  construction: 'Construction', paper: 'Paper', other: 'Other',
+  serviceTools: 'Service Tools', instrSheets: 'Instruction Sheets',
+};
 var _PH_TAB_TO_SECTION = {
   items: 'items', sets: 'sets', catalogs: 'catalogs',
   science: 'science', construction: 'construction', paper: 'paper',
@@ -1001,7 +1011,12 @@ function _phLabelFor(level, id) {
   if (level === 'manufacturer') return (WIC.MANUFACTURERS && WIC.MANUFACTURERS[id] && WIC.MANUFACTURERS[id].label) || id;
   if (level === 'scale')        return (WIC.SCALES && WIC.SCALES[id] && WIC.SCALES[id].label) || id;
   if (level === 'era')          return _ERA_PERIOD_LABELS[id] || id;
-  if (level === 'section')      return id ? (id.charAt(0).toUpperCase() + id.slice(1)) : 'Items';
+  if (level === 'section') {
+    if (!id) return _PH_SECTION_LABELS.items;
+    if (_PH_SECTION_LABELS[id]) return _PH_SECTION_LABELS[id];
+    var _sp = String(id).replace(/([a-z])([A-Z])/g, '$1 $2');
+    return _sp.charAt(0).toUpperCase() + _sp.slice(1);
+  }
   return id;
 }
 
@@ -1047,6 +1062,12 @@ function _renderHierarchyChips() {
                + 'background:var(--bg-card);color:var(--text-mid);font-family:var(--font-body);'
                + 'font-size:0.78rem;font-weight:600;cursor:pointer;display:inline-flex;'
                + 'align-items:center;gap:0.25rem;line-height:1;white-space:nowrap';
+  // v0.9.1915: the Section selector — square-ish corners and full-strength
+  // words so it never reads as a filter pill (round, blue, ×) or an idle chip.
+  var chipSection = 'height:30px;padding:0 0.75rem;border-radius:7px;border:1.5px solid var(--text-mid);'
+               + 'background:var(--bg-card);color:var(--text);font-family:var(--font-body);'
+               + 'font-size:0.8rem;font-weight:700;cursor:pointer;display:inline-flex;'
+               + 'align-items:center;gap:0.25rem;line-height:1;white-space:nowrap';
   var chipOn   = 'height:30px;padding:0 0.5rem 0 0.7rem;border-radius:999px;border:1.5px solid ' + _FON + ';'
                + 'background:' + _FON + ';color:#fff;font-family:var(--font-body);'
                + 'font-size:0.78rem;font-weight:600;cursor:pointer;display:inline-flex;'
@@ -1077,7 +1098,18 @@ function _renderHierarchyChips() {
     { key: 'scale',        idle: 'Scale' },
     { key: 'era',          idle: 'Era'   },
   ];
-  if (!_phOwned) _mainLevels.push({ key: 'section', idle: 'Section' });
+  // v0.9.1915 (Brad): Section is NOT a filter. It is which part of the catalog
+  // you are looking at — there is always exactly one — so it is drawn first, as
+  // a selector ("Items ▾"), with no × and never counted by Clear. Its old pill
+  // could not be cleared anyway (× "reset" to Items, where you already were),
+  // and because the label "Items" never matched the 'items' it was compared
+  // with, it always counted as a filter — so Clear showed with nothing set.
+  // Not on My Collection (v0.9.1295: the Show chips are the filter there).
+  if (!_phOwned) {
+    html += '<button type="button" class="ph-section" title="Which part of the catalog you are looking at — tap to switch" '
+      + 'onclick="_openLevelPicker(\'section\')" style="' + chipSection + '">'
+      + _rrEscAttr(_phLabelFor('section', st2.section)) + ' \u25be</button>';
+  }
   _mainLevels.forEach(function (lv) {
     var lbl = _phLabelFor(lv.key, st2[lv.key]);
     if (lv.key === 'manufacturer' && state.filters.ownMaker) lbl = state.filters.ownMaker;
@@ -1149,9 +1181,7 @@ function _phClearOne(which) {
   if (which === 'scale' || which === 'era') {
     if (typeof _setHierarchyChoice === 'function') return _setHierarchyChoice(which, 'any');
   }
-  if (which === 'section') {
-    if (typeof _setHierarchyChoice === 'function') return _setHierarchyChoice('section', 'items');
-  }
+  // (v0.9.1915: no 'section' here — the Section selector has no ×.)
   if (which === 'type') {
     if (typeof _setHierarchyChoice === 'function') return _setHierarchyChoice('type', '');
   }
@@ -1277,7 +1307,9 @@ if (typeof window !== 'undefined') {
 // v0.9.649 (Brad): one-tap reset of the whole filter hierarchy.
 function _clearHierarchyFilters() {
   var st = _phState();
-  st.manufacturer = 'any'; st.scale = 'any'; st.era = 'any'; st.section = 'items';
+  // v0.9.1915 (Brad): Clear clears FILTERS. The section you are looking at
+  // is not one, so it stays where it is.
+  st.manufacturer = 'any'; st.scale = 'any'; st.era = 'any';
   try { state.filters.ownMaker = ''; state.filters.subCollection = ''; state.filters.subType = ''; } catch (eOM) {}   // v0.9.1513/1521
   _phSave(st);
   var _ftSel = document.getElementById('filter-type');
@@ -1554,7 +1586,7 @@ function _openLevelPicker(level) {
   var head = level.charAt(0).toUpperCase() + level.slice(1);
   var heading = document.createElement('div');
   heading.style.cssText = 'font-weight:700;font-size:0.95rem;margin-bottom:0.55rem';
-  heading.textContent = 'Pick ' + head;
+  heading.textContent = (level === 'section') ? 'Show which part of the catalog' : ('Pick ' + head);   // v0.9.1915
   modal.appendChild(heading);
   options.forEach(function(opt) {
     if (opt.divider) {
