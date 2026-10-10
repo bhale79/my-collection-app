@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.1919';
+const APP_VERSION = 'v0.9.1920';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -1247,6 +1247,12 @@ function rrInventoryRows(rows) {
 //
 // Toggled from Preferences → Owner tools. Remembered per device, per browser.
 const RR_RECORDING_MODE_KEY = 'rr_recording_mode';
+// v0.9.1920 (Brad: "Yes, add the box"): what the app calls this person — the
+// greeting, the top-right account button, the account menu, the reports. Set in
+// Preferences → Account; blank = the Google account name. Saved with _prefSet, so
+// it follows the account to every device. Read ONLY through rrUserName /
+// rrGreetName (app.js).
+const RR_DISPLAY_NAME_KEY = 'lv_display_name';
 
 function rrRecordingMode() {
   try { return localStorage.getItem(RR_RECORDING_MODE_KEY) === '1'; } catch (e) { return false; }

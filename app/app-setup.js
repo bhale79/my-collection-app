@@ -369,10 +369,19 @@ function showApp() {
   // is rendered so the user doesn't see the auth screen flash back.
   if (typeof _hideSignInOverlayWhenAppReady === 'function') _hideSignInOverlayWhenAppReady();
   if (typeof tutShowHelpBtn === 'function') tutShowHelpBtn();
+  rrPaintGreeting();
+}
+
+// v0.9.1920: the greeting has ONE painter, so Preferences (and a name arriving
+// from another device) can repaint it. The name comes from rrGreetName (app.js):
+// the name typed in Preferences → Account, else Google's first name.
+function rrPaintGreeting() {
+  var el = document.getElementById('dash-greeting');
+  if (!el) return;
   const hr = new Date().getHours();
   const _greet = hr < 12 ? 'Good Morning' : hr < 17 ? 'Good Afternoon' : 'Good Evening';
-  const _name = (state.user?.name || '').split(' ')[0] || 'Collector';
-  document.getElementById('dash-greeting').innerHTML = _greet + ', <span style="color:var(--t-accent);font-size:138%;font-weight:700">' + _name + '</span>';
+  const _name = (typeof rrGreetName === 'function') ? rrGreetName() : ((state.user?.name || '').split(' ')[0] || 'Collector');
+  el.innerHTML = _greet + ', <span style="color:var(--t-accent);font-size:138%;font-weight:700">' + rrEsc(_name) + '</span>';
 }
 
 
@@ -380,12 +389,13 @@ function updateUserUI() {
   if (!state.user) return;
   var nameEl = document.getElementById('user-name');
   var avatarEl = document.getElementById('user-avatar');
-  if (nameEl) nameEl.textContent = state.user.name;
+  var _uName = (typeof rrUserName === 'function') ? rrUserName() : (state.user.name || '');   // v0.9.1920: the name from Preferences wins
+  if (nameEl) nameEl.textContent = _uName;
   if (avatarEl) {
     if (state.user.picture) {
       avatarEl.innerHTML = '<img src="' + state.user.picture + '" style="width:100%;height:100%;border-radius:50%;object-fit:cover" alt="">';
     } else {
-      avatarEl.textContent = state.user.name[0].toUpperCase();
+      avatarEl.textContent = (_uName || '?')[0].toUpperCase();
     }
   }
 }

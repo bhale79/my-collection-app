@@ -3746,6 +3746,23 @@ function _prefSet(key, val) {
 // sync, and every other device would fall in behind the newcomer — a fresh
 // daily count and a second Market contributor, the exact thing one-ticket-
 // per-account exists to end. Never for a value the user chose: that is _prefSet.
+// v0.9.1920 (Brad, booth: the greeting read "Good Evening, The" because the
+// support@ Google account is named "The Rail Roster"): THE two readers of what
+// the app calls this person. The name typed in Preferences wins; blank falls
+// back to Google's name. rrUserName → buttons, menus, reports (whole name);
+// rrGreetName → the Dashboard greeting (the typed name as typed, else Google's
+// first word, else "Collector"). Never read state.user.name for display.
+function rrUserName() {
+  var mine = '';
+  try { mine = String(_prefGet(typeof RR_DISPLAY_NAME_KEY !== 'undefined' ? RR_DISPLAY_NAME_KEY : 'lv_display_name', '') || '').trim(); } catch (e) {}
+  return mine || ((state && state.user && state.user.name) || '');
+}
+function rrGreetName() {
+  var mine = '';
+  try { mine = String(_prefGet(typeof RR_DISPLAY_NAME_KEY !== 'undefined' ? RR_DISPLAY_NAME_KEY : 'lv_display_name', '') || '').trim(); } catch (e) {}
+  if (mine) return mine;
+  return String((state && state.user && state.user.name) || '').trim().split(/\s+/)[0] || 'Collector';
+}
 function _prefSeed(key, val) {
   localStorage.setItem(key, val);
   try { localStorage.setItem(key + '__at', '0'); } catch (e) {}

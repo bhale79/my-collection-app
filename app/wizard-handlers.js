@@ -355,6 +355,11 @@ function _cdToggleError(colId, val) {
   });
 }
 
+// v0.9.1920: the review screen's ✓ (done editing) button — ONE copy, used by
+// every inline editor below (it was pasted five times).
+function _cfOkBtn(key) {
+  return '<button onclick="_confirmDoneEdit(\'' + key + '\')" style="padding:0.2rem 0.5rem;border-radius:5px;cursor:pointer;font-size:0.72rem;font-family:var(--font-body);border:1px solid #1e3a5f;background:#1e3a5f;color:#fff">✓</button>';
+}
 // Purchase & Value helpers
 // ── Confirm screen inline edit helpers ──
 function _confirmEdit(key) {
@@ -364,6 +369,24 @@ function _confirmEdit(key) {
   var curVal = String(wizard.data[key] || '');
   var escaped = curVal.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 
+  // v0.9.1920 (Brad, booth camera list #2: "Pick from your contacts"): the
+  // seller is a Contact ID. A free-text box here would overwrite the ID with
+  // typed words and cut the link to the contact, so the pencil opens the SAME
+  // list the Bought-from step uses (wizard.js _pvSellerEntries) — minus
+  // "Add someone new…", which belongs to that step's own form.
+  if (key === 'purchasedFrom' && typeof window._pvSellerEntries === 'function') {
+    var hs = '<div style="display:flex;align-items:center;gap:0.3rem">'
+      + '<select id="confirm-input-' + key + '" style="flex:1;background:var(--bg);border:1px solid var(--accent);border-radius:5px;padding:0.3rem 0.5rem;color:var(--text);font-family:var(--font-body);font-size:0.85rem;outline:none">';
+    window._pvSellerEntries(curVal).forEach(function (e) {
+      if (typeof PV_SELLER_NEW !== 'undefined' && e.v === PV_SELLER_NEW) return;
+      hs += '<option value="' + rrEsc(e.v) + '"' + (e.v === curVal ? ' selected' : '') + '>' + rrEsc(e.label) + '</option>';
+    });
+    hs += '</select>'
+      + _cfOkBtn(key) + '</div>';
+    valEl.innerHTML = hs;
+    btnEl.style.display = 'none';
+    return;
+  }
   // Yes/No fields
   if (window._cfYesNo && window._cfYesNo.indexOf(key) >= 0) {
     var opts = ['Yes','No'];
@@ -393,7 +416,7 @@ function _confirmEdit(key) {
     valEl.innerHTML = '<div style="display:flex;align-items:center;gap:0.4rem;width:100%">'
       + '<span id="confirm-slider-lbl-' + key + '" style="font-family:var(--font-head);font-size:1.1rem;color:var(--accent2);min-width:1.5rem;text-align:center">' + curVal + '</span>'
       + '<input type="range" min="1" max="10" value="' + curVal + '" style="flex:1;accent-color:var(--accent)" oninput="wizard.data[\'' + key + '\']=parseInt(this.value);document.getElementById(\'confirm-slider-lbl-' + key + '\').textContent=this.value">'
-      + '<button onclick="_confirmDoneEdit(\'' + key + '\')" style="padding:0.2rem 0.5rem;border-radius:5px;cursor:pointer;font-size:0.72rem;font-family:var(--font-body);border:1px solid #1e3a5f;background:#1e3a5f;color:#fff">✓</button></div>';
+      + _cfOkBtn(key) + '</div>';
     btnEl.style.display = 'none';
     return;
   }
@@ -402,7 +425,7 @@ function _confirmEdit(key) {
     valEl.innerHTML = '<div style="display:flex;align-items:center;gap:0.3rem">'
       + '<span style="color:var(--accent2)">$</span>'
       + '<input id="confirm-input-' + key + '" type="number" value="' + (curVal || '') + '" min="0" step="0.01" style="flex:1;background:var(--bg);border:1px solid var(--accent);border-radius:5px;padding:0.3rem 0.5rem;color:var(--text);font-family:var(--font-body);font-size:0.85rem;outline:none" onkeydown="if(event.key===\'Enter\')_confirmDoneEdit(\'' + key + '\')">'
-      + '<button onclick="_confirmDoneEdit(\'' + key + '\')" style="padding:0.2rem 0.5rem;border-radius:5px;cursor:pointer;font-size:0.72rem;font-family:var(--font-body);border:1px solid #1e3a5f;background:#1e3a5f;color:#fff">✓</button></div>';
+      + _cfOkBtn(key) + '</div>';
     btnEl.style.display = 'none';
     setTimeout(function(){ var inp = document.getElementById('confirm-input-' + key); if(inp) inp.focus(); }, 50);
     return;
@@ -411,14 +434,14 @@ function _confirmEdit(key) {
   if (window._cfDate && window._cfDate.indexOf(key) >= 0) {
     valEl.innerHTML = '<div style="display:flex;align-items:center;gap:0.3rem">'
       + '<div style="position:relative;display:flex;align-items:center;flex:1"><input id="confirm-input-' + key + '" type="date" value="' + (curVal || '') + '" style="width:100%;background:var(--bg);border:1px solid var(--accent);border-radius:5px;padding:0.3rem 2.2rem 0.3rem 0.5rem;color:var(--text);font-family:var(--font-body);font-size:0.85rem;outline:none;color-scheme:dark"><span onclick="event.preventDefault();event.stopPropagation();document.getElementById(\"confirm-input-' + key + '\").showPicker()" style="position:absolute;right:0.4rem;cursor:pointer;font-size:0.95rem;color:var(--accent2);background:none;border:none;padding:0.3rem;line-height:1;touch-action:manipulation">📅</span></div>'
-      + '<button onclick="_confirmDoneEdit(\'' + key + '\')" style="padding:0.2rem 0.5rem;border-radius:5px;cursor:pointer;font-size:0.72rem;font-family:var(--font-body);border:1px solid #1e3a5f;background:#1e3a5f;color:#fff">✓</button></div>';
+      + _cfOkBtn(key) + '</div>';
     btnEl.style.display = 'none';
     return;
   }
   // Default: text input
   valEl.innerHTML = '<div style="display:flex;align-items:center;gap:0.3rem">'
     + '<input id="confirm-input-' + key + '" type="text" value="' + escaped + '" style="flex:1;background:var(--bg);border:1px solid var(--accent);border-radius:5px;padding:0.3rem 0.5rem;color:var(--text);font-family:var(--font-body);font-size:0.85rem;outline:none" onkeydown="if(event.key===\'Enter\')_confirmDoneEdit(\'' + key + '\')">'
-    + '<button onclick="_confirmDoneEdit(\'' + key + '\')" style="padding:0.2rem 0.5rem;border-radius:5px;cursor:pointer;font-size:0.72rem;font-family:var(--font-body);border:1px solid #1e3a5f;background:#1e3a5f;color:#fff">✓</button></div>';
+    + _cfOkBtn(key) + '</div>';
   btnEl.style.display = 'none';
   setTimeout(function(){ var inp = document.getElementById('confirm-input-' + key); if(inp) inp.focus(); }, 50);
 }
@@ -441,6 +464,7 @@ function _confirmDoneEdit(key) {
   var v = wizard.data[key] || '';
   var isMoney = window._cfMoney && window._cfMoney.indexOf(key) >= 0;
   var dispVal = isMoney && parseFloat(v) ? _currencySymbol() + parseFloat(v).toLocaleString() : v;
+  if (key === 'purchasedFrom' && typeof window._ctLabel === 'function') dispVal = v ? window._ctLabel(v) : '— Not tracked —';   // v0.9.1920
   if (valEl) valEl.textContent = dispVal;
   if (btnEl) btnEl.style.display = '';
 }

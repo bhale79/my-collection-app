@@ -635,6 +635,9 @@ function _rrPullAccountPrefs() {
       if (!touched) return;
       try { if (typeof applyTheme === 'function') applyTheme(); } catch (e) {}
       try { if (typeof _applyCompactMode === 'function') _applyCompactMode(); } catch (e) {}
+      // v0.9.1920: a name typed on another device arrives here — repaint it.
+      try { if (typeof updateUserUI === 'function') updateUserUI(); } catch (e) {}
+      try { if (typeof rrPaintGreeting === 'function') rrPaintGreeting(); } catch (e) {}
     });
   } catch (e) { console.warn('prefs sync:', e); }
 }
@@ -1129,7 +1132,7 @@ function toggleAccountMenu() {
   var nameEl = document.getElementById('account-menu-name');
   var emailEl = document.getElementById('account-menu-email');
   var avatarEl = document.getElementById('account-menu-avatar');
-  if (nameEl) nameEl.textContent = u.name || '';
+  if (nameEl) nameEl.textContent = (typeof rrUserName === 'function') ? rrUserName() : (u.name || '');   // v0.9.1920
   if (emailEl) emailEl.textContent = u.email || '';
   if (avatarEl) {
     if (u.picture) {

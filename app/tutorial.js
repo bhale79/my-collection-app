@@ -466,7 +466,7 @@ const GUIDES = {
         body: 'Not sure which is yours? <strong>View ↗</strong> on any card opens that variation\'s reference page in a new tab so you can compare it against the real thing. <strong>Help me pick my variation</strong> asks you a few yes-or-no questions and narrows it down for you. And if you still cannot tell, <strong>No specific variation / not sure</strong> logs the item without one — you can set it later.' },
       { title: 'Then condition and the rest',
         watch: true, needs: function () { return _gtWizardOpen(); },
-        body: 'After the variation comes condition on a <strong>1 to 10</strong> scale, what you paid, and photos. Every field after the item number is optional — you can save with just the number and fill the rest in whenever you like.' },
+        body: 'After the variation comes condition on a <strong>1 to 10</strong> scale, what you paid, and photos. The one thing it insists on is an <strong>Est. Worth</strong> on the Purchase &amp; Value screen — everything else can be left blank and filled in later.' },   // v0.9.1920 (Brad, camera list #12): Est. Worth IS required (wizard.js _wizardNextCore)
       { before: function () { try { if (typeof _doCloseWizard === 'function') _doCloseWizard(); } catch (e) {} return 500; },
         selector: _gNav('filterOwned'), title: 'Where it lands',
         body: 'The last screen lists everything you entered — <strong>tap any line to edit it</strong> — and <strong>Save</strong> writes it straight to your Google Sheet. It appears here, in My Collection. If the wizard was still open I have closed it — this guide saved nothing.' }
@@ -508,7 +508,7 @@ const GUIDES = {
       { selector: '#pin-identify-btn', optional: true, title: 'Free first, always',
         body: 'Every photo is checked <strong>free</strong> before anything is spent. This reads printed numbers and barcodes across the whole inbox at no cost. Run it as often as you like.' },
       { title: 'What a reading looks like',
-        body: 'On a tile, <strong>2328?</strong> means fairly confident. <strong>best guess</strong> in orange means treat it with suspicion. <strong>could not read</strong> means it tried and found nothing. Check any of them against the item in your hand — this is a helper, not an oracle.' },
+        body: 'On a tile, a blue <strong>2328</strong> means the number was found in the catalog. <strong>best guess</strong> in orange means treat it with suspicion. <strong>could not read</strong> means it tried and found nothing. Check any of them against the item in your hand — this is a helper, not an oracle.' },
       { selector: '#pin-idall-btn', optional: true, title: 'When free is not enough',
         body: 'A closer read costs <strong>one photo ID per item</strong> from a daily allowance that refreshes overnight. This button does the whole backlog and tells you the cost before it starts.' },
       { title: 'Same read, three doors',
@@ -695,7 +695,7 @@ const GUIDES = {
         body: 'Tap any item in the list to open its own page. Everything after this happens there. I\'ll wait.' },
       { selector: '#detail-record-sale', optional: true,
         title: 'Record the sale',
-        body: 'Press <strong>Record Sale</strong> in the row of buttons under the item\'s name. Enter the price, the date, and the buyer or notes if you want them — only the price is required.' },
+        body: 'Press <strong>Record Sale</strong> in the row of buttons under the item\'s name. Enter what it sold for — that is the only thing required — and, if you like, the date and a note. If the item was on your For Sale list, it just asks for the final price and uses today\'s date.' },   // v0.9.1920 (camera list #12): there is no buyer field
       { selector: _gNav("showPage('sold'"), title: 'Where it goes',
         body: 'The item moves out of your active collection into <strong>Sold Items</strong>, and your totals update automatically. Nothing is deleted — the record and its photos stay.' }
     ]

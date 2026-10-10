@@ -82,7 +82,7 @@
             { do: 'On <b>Condition &amp; Details</b>, answer the five toggles — each one changes what you are asked next.',
               why: 'They are not decoration: ' + chip('Has Box') + ' Yes brings up box condition and box photos, ' + chip('Instr. Sheet') + ' Yes adds instruction-sheet photos, ' + chip('Master Box') + ' Yes adds master-box photos, ' + chip('Error Item') + ' Yes adds close-ups of the error, and ' + chip('All Original') + ' No opens a box to say what was changed.' },
             { do: 'Fill in <b>Purchase &amp; Value</b>.',
-              why: 'Rough answers are fine. Condition is 1–10 and editable later; price paid can stay blank.' },
+              why: 'Rough answers are fine. Condition is 1–10 and editable later; price paid can stay blank. Est. Worth is the one box it needs before it moves on.' },
             { do: 'Add photos, or press Next to skip.',
               why: 'They can be added later from the item\'s own page. Do not let a missing camera stop you finishing the entry.' },
             { do: 'Check the summary and save.',
@@ -295,7 +295,7 @@
           steps: [
             { do: 'On the For Sale page, press ' + chip('Mark as Sold', 'primary') + ' on its row.',
               why: 'It already knows the item and the asking price, so it only asks what it actually sold for.' },
-            { do: 'Enter the final price and the date.',
+            { do: 'Enter the final price — the date is filled in as today.',
               why: 'The asking price and the real price are both kept — the gap between them is worth knowing.' }
           ], notes: [] },
         { id: 'item', label: 'It is in my collection',

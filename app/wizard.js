@@ -2185,7 +2185,7 @@ window._pvSellerEntries = function (selectedId) {
   }).forEach(function (ct) {
     out.push({
       v: ct.id,
-      label: (ct.name || ct.business || ct.id) + (ct.business && ct.name ? ' — ' + ct.business : ''),
+      label: window._ctLabel ? window._ctLabel(ct.id) : (ct.name || ct.business || ct.id) + (ct.business && ct.name ? ' — ' + ct.business : ''),   // v0.9.1920: one formula (contacts.js _ctLabel)
       on: ct.id === selectedId
     });
   });
@@ -6323,7 +6323,24 @@ function renderWizardStep() {
       priority:'Priority', expectedPrice:'Expected Price',
       salePrice:'Sale Price', dateSold:'Date Sold',
       set_num:'Set Number',
+      purchasedFrom:'Bought From',   // v0.9.1920: shown as the contact's name, not its code
     };
+    // v0.9.1920 (Brad, booth camera list #10: "By role"): a diesel set's partner
+    // units are named for what they ARE — the same mapping as the photo-step
+    // titles (wizard-steps.js _unit2Role): on an AA the second unit is the dummy
+    // A unit, on AB/ABA it is the B unit; the third (ABA) is the dummy A unit.
+    // The rows that used to read "Unit2 item num" now read "B Unit"; the
+    // Powered/Dummy rows are skipped below (the role already says it).
+    (function () {
+      var g = wizard.data._itemGrouping || '';
+      if (g !== 'aa' && g !== 'ab' && g !== 'aba') return;
+      var r2 = g === 'aa' ? 'Dummy A Unit' : 'B Unit', r3 = 'Dummy A Unit';
+      _keyLabels.unit2ItemNum = r2; _keyLabels.unit3ItemNum = r3;
+      Object.keys(_keyLabels).forEach(function (k) {
+        if (/^unit2/.test(k)) _keyLabels[k] = _keyLabels[k].replace(/^Unit 2/, r2);
+        else if (/^unit3/.test(k)) _keyLabels[k] = _keyLabels[k].replace(/^Unit 3/, r3);
+      });
+    })();
     // v0.9.1585 (Brad: "instruction sheets is not on the final review page
     // before you see an item"): a collection item whose flow never visited
     // the details step answers the IS question HERE — No, unless a real
@@ -6333,7 +6350,7 @@ function renderWizardStep() {
         && !wizard.data._photoOnly && !wizard.data._setMode && !wizard.data.hasIS) {
       wizard.data.hasIS = 'No';
     }
-    const _skipKeys = new Set(['tab','itemCategory','_photoOnly','_tenderDone','_setDone','tenderMatch','setMatch','setType','unitPower','wantErrorPhotos','photosMasterBox','boxOnly','entryMode','_setId','_rawItemNum','matchedItem','_partialMatches','_partialQuery','_itemGrouping','_fromWantList','_fromWantKey','_returnPage','_manualEntry','_drivePhotos','_setMode','_setGroupId','_setFinalItems','_setItemIndex','_setItemsSaved','_setEntryMode','_resolvedSet','_setLocoNum','_setPrice','_setDate','_setWorth','_setCondition','_setHasBoxChecked','_setWantPhotos','_setPhotoThenSave','_prefilledCondition','_setQEPhotos','_setMemberPhotos','set_hasBox','set_boxCond','set_boxPhotos','set_notes','_suggestions_cache','_biBoxPhotoFile','_idItemPhotoFile','_boxAutoKnown','_completingQuickEntry','_existingGroupId','_fillItemMode','_wizSaveLock','_photoInventoryId','_addPhotoDriveId','_addPhotoDriveIds','_saveComplete','_era','suggestedRoadName','_manualEra','_alsoListForSale','_fromUpgradeList','_fromUpgradeKey','_cleanupWishlistMatches','_suggestedPricePaid','forSale_salePrice','forSale_dateListed','selectedForSaleKey','selectedSoldKey',
+    const _skipKeys = new Set(['tab','itemCategory','_photoOnly','_tenderDone','_setDone','tenderMatch','setMatch','setType','unitPower','unit2Power','unit3Power','wantErrorPhotos','photosMasterBox','boxOnly','entryMode','_setId','_rawItemNum','matchedItem','_partialMatches','_partialQuery','_itemGrouping','_fromWantList','_fromWantKey','_returnPage','_manualEntry','_drivePhotos','_setMode','_setGroupId','_setFinalItems','_setItemIndex','_setItemsSaved','_setEntryMode','_resolvedSet','_setLocoNum','_setPrice','_setDate','_setWorth','_setCondition','_setHasBoxChecked','_setWantPhotos','_setPhotoThenSave','_prefilledCondition','_setQEPhotos','_setMemberPhotos','set_hasBox','set_boxCond','set_boxPhotos','set_notes','_suggestions_cache','_biBoxPhotoFile','_idItemPhotoFile','_boxAutoKnown','_completingQuickEntry','_existingGroupId','_fillItemMode','_wizSaveLock','_photoInventoryId','_addPhotoDriveId','_addPhotoDriveIds','_saveComplete','_era','suggestedRoadName','_manualEra','_alsoListForSale','_fromUpgradeList','_fromUpgradeKey','_cleanupWishlistMatches','_suggestedPricePaid','forSale_salePrice','forSale_dateListed','selectedForSaleKey','selectedSoldKey',
       '_photoUploadsInFlight','_identifyMeta','_identifyMfrHints','_identifyScaleHint','_identifyTypeHint','_alreadyOwnedFyi',
       '_skipAllPhotos','_hasISExisting']);  // v0.9.906 + v1585: internal flags — never review rows
     // Skip set_num from summary if it's already shown in the header
@@ -6566,9 +6583,11 @@ function renderWizardStep() {
       var label = _keyLabels[k] || k.replace(/^(cat_|eph_)/,'').replace(/([A-Z])/g,' $1').replace(/_/g,' ').toLowerCase().replace(/^./,function(c){return c.toUpperCase();});
       var isMoney = _moneyKeys.indexOf(k) >= 0;
       var dispVal = isMoney && parseFloat(v) ? _currencySymbol() + parseFloat(v).toLocaleString() : v;
+      // v0.9.1920 (camera list #2): the seller is a Contact ID — show the person.
+      if (k === 'purchasedFrom' && typeof window._ctLabel === 'function') dispVal = window._ctLabel(v);
       confirmHtml += '<div style="display:flex;align-items:center;gap:0.4rem;padding:0.3rem 0.5rem;border-radius:6px;background:var(--surface2)">'
         + '<span style="color:var(--text-dim);min-width:120px;flex-shrink:0;font-size:0.78rem">' + label + '</span>'
-        + '<span id="confirm-val-' + k + '" style="flex:1;word-break:break-word">' + dispVal + '</span>'
+        + '<span id="confirm-val-' + k + '" style="flex:1;word-break:break-word">' + rrEsc(dispVal) + '</span>'
         + '<button onclick="_confirmEdit(\'' + k + '\')" id="confirm-edit-btn-' + k + '" title="Edit" style="flex-shrink:0;background:none;border:1px solid var(--border);border-radius:5px;padding:0.2rem 0.45rem;cursor:pointer;color:var(--text-dim);font-size:0.72rem;font-family:var(--font-body)">✏️</button>'
         + '</div>';
     });
@@ -7239,6 +7258,19 @@ async function _wizardNextCore() {
     if (g === 'aba') {
       if (!wizard.data.unit3Condition) wizard.data.unit3Condition = 7;
     }
+    // v0.9.1920 (Brad, booth camera list #9): the BOX sliders and the
+    // instruction-sheet slider show 7 too, but only moving one wrote it — so a
+    // box left at the shown 7 saved with no condition at all. Same commit as the
+    // item sliders above, for every piece the add covers (getItemSubjects, the
+    // one list of pieces). A box answered "No" after its slider was moved keeps
+    // no stray condition.
+    (typeof getItemSubjects === 'function' ? getItemSubjects(wizard.data) : [{ prefix: '' }]).forEach(function (sub) {
+      var p = sub.prefix, hk = p ? p + 'HasBox' : 'hasBox', ck = p ? p + 'BoxCond' : 'boxCond';
+      if (wizard.data[hk] === 'Yes' && !wizard.data[ck]) wizard.data[ck] = 7;
+      else if (wizard.data[hk] === 'No' && wizard.data[ck]) delete wizard.data[ck];
+    });
+    if (wizard.data.hasIS === 'Yes' && !wizard.data.is_condition) wizard.data.is_condition = 7;
+    else if (wizard.data.hasIS === 'No' && wizard.data.is_condition) delete wizard.data.is_condition;
     // For simplified types (Catalog/Paper/IS/Science/Construction) est worth is embedded and required
     const _valMaster = wizard.matchedItem || findMaster((wizard.data.itemNum||''), '', (typeof _wizMasterPrefer === 'function') ? _wizMasterPrefer() : null);   // v0.9.1483: hints
     const _valType = (_valMaster && _valMaster.itemType) ? _valMaster.itemType : '';

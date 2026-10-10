@@ -221,7 +221,7 @@
         // The instructions. Shown in full the FIRST time someone opens this
         // page — a tester who has never seen it needs them, and Brad does not
         // — then folded away and remembered per device.
-        '<div id="pin-help-text" style="display:none;font-size:0.8rem;color:var(--text-dim);line-height:1.5;margin-bottom:0.6rem">Drop photos anywhere below, or use Add photos. Get them ready at your own pace \u2014 crop, use \u201cGroup photos\u201d to put several shots of one item together, and \u201cTag maker/era/scale/type\u201d to say what photos are \u2014 then hit <b>Identify my items</b> to read them all. Photos you have tagged <b>Paper</b>, <b>Catalog</b> or <b>Other</b> are left out of that batch \u2014 there is rarely an item number to find on a drawing or a catalogue page, and on the paid read it would spend a photo ID for nothing. You can always tick any single photo and press Identify to read it anyway. Click a photo to review it \u2014 add the item, research it more, or discard the photo. Photos snapped with Quick Capture on your phone land here too.</div>' +
+        '<div id="pin-help-text" style="display:none;font-size:0.8rem;color:var(--text-dim);line-height:1.5;margin-bottom:0.6rem">' + (window.IS_MOBILE_UA ? 'Use <b>Add photos</b> to take pictures or pick them from your phone.' : 'Drop photos anywhere below, or use Add photos.') + ' Get them ready at your own pace \u2014 crop, use \u201cGroup photos\u201d to put several shots of one item together, and \u201cTag maker/era/scale/type\u201d to say what photos are \u2014 then hit <b>Identify my items</b> to read them all. Photos you have tagged <b>Paper</b>, <b>Catalog</b> or <b>Other</b> are left out of that batch \u2014 there is rarely an item number to find on a drawing or a catalogue page, and on the paid read it would spend a photo ID for nothing. You can always tick any single photo and press Identify to read it anyway. ' + (window.IS_MOBILE_UA ? 'Tap' : 'Click') + ' a photo to review it \u2014 add the item, research it more, or discard the photo. ' + (window.IS_MOBILE_UA ? 'Photos you take with Quick Capture land here too.' : 'Photos snapped with Quick Capture on your phone land here too.') + '</div>' +
         '<div id="pin-context-bar" style="display:none"></div>' +   // v0.9.1048 capture context
         '<div id="pin-tagbar" style="display:none"></div>' +        // v0.9.1057 tag mode
         '<div id="pin-toolbar" style="display:flex;flex-wrap:wrap;gap:0.4rem;align-items:center">' +
@@ -272,7 +272,7 @@
         // column count, and app.css's phone grouping mode (v0.9.1595) measures
         // itself against this 150px as "half the normal tile".
         '<div id="pin-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:0.6rem"></div>' +
-        '<div id="pin-empty" style="display:none;text-align:center;padding:3rem 1rem;color:var(--text-dim)"><div style="font-size:0.95rem;margin-bottom:0.3rem;font-weight:600">Inbox is empty</div><div style="font-size:0.8rem">Drag photos here from any folder, or click Add photos.</div></div>' +
+        '<div id="pin-empty" style="display:none;text-align:center;padding:3rem 1rem;color:var(--text-dim)"><div style="font-size:0.95rem;margin-bottom:0.3rem;font-weight:600">Inbox is empty</div><div style="font-size:0.8rem">' + (window.IS_MOBILE_UA ? 'Tap <b>Add photos</b> to take pictures or choose some from your phone.' : 'Drag photos here from any folder, or click Add photos.') + '</div></div>' +
       '</div>' +
       '<input type="file" id="pin-file-input" accept="image/*" multiple style="display:none">';
     anyPage.parentNode.appendChild(pg);
@@ -2347,7 +2347,7 @@
         when = '<span style="color:var(--info);font-weight:700">' + rrEsc(_pinGroupCaption(g)) + '</span> · ' + when;
       }
       else if (sug && sug.num && sug.guess) when = '<span style="color:#ffb454;font-weight:700">' + String(sug.num).replace(/</g, '&lt;') + ' · best guess</span> · ' + when;   // v0.9.898: hedged read, kept but marked
-      else if (sug && sug.num) when = '<span style="color:#7ec3ef;font-weight:700">' + String(sug.num).replace(/</g, '&lt;') + '?</span> · ' + when;
+      else if (sug && sug.num) when = '<span style="color:#7ec3ef;font-weight:700">' + String(sug.num).replace(/</g, '&lt;') + '</span> · ' + when;   // v0.9.1920 (Brad, camera list #4): a SURE read (found in the catalog) shows plain — the "?" made a confident answer look doubtful; doubtful reads have their own orange "best guess" above
       else if (_altN) when = '<span style="color:#ffb454;font-weight:700">' + _altN.replace(/</g, '&lt;') + ' · best guess</span> · ' + when;   // v0.9.902
       else if (sug && sug.tried) when = '<span style="color:#999">could not read</span> · ' + when;
       // v0.9.888 (Brad): click the photo = open the review (add / research /
@@ -6288,7 +6288,9 @@
           if (_bWrap.firstChild) _numEl.parentNode.insertBefore(_bWrap.firstChild, _numEl);
         }
       } catch (eB) {}
-      showToast('In the Google tab: Ctrl+A, Ctrl+C, then come back and press Ctrl+V', 4500);
+      showToast(window.IS_MOBILE_UA   // v0.9.1920 (camera list #6): phone wording on phones
+        ? 'In the Google tab, press and hold on Google\u2019s answer, choose Select all, then Copy \u2014 come back and paste it into the gold box'
+        : 'In the Google tab: Ctrl+A, Ctrl+C, then come back and press Ctrl+V', 4500);
     } catch (e) {
       console.warn('[Inbox] research-by-photo:', e);
       try { if (tab) tab.close(); } catch (e2) {}
@@ -6318,8 +6320,11 @@
       + 'background:var(--surface2);color:var(--accent2);font-family:var(--font-body);'
       + 'font-weight:700;font-size:0.82rem;cursor:pointer';
     return '<div id="pin-lens-banner" style="background:rgba(212,168,67,0.14);border:1.5px solid var(--accent2,#d4a843);border-radius:9px;padding:0.55rem 0.7rem;margin-bottom:0.6rem;font-size:0.8rem;color:var(--text-mid);line-height:1.45">' +
-      '<b>Waiting for Google\u2019s answer.</b> In the Google tab press <b>Ctrl+A</b> then <b>Ctrl+C</b>, ' +
-      'come back here and paste it into this box. (A snip works too \u2014 Win+Shift+S, then Ctrl+V anywhere on this card.)' +
+      (window.IS_MOBILE_UA   // v0.9.1920 (camera list #6)
+        ? '<b>Waiting for Google\u2019s answer.</b> In the Google tab, press and hold on the answer, choose <b>Select all</b>, then <b>Copy</b>. ' +
+          'Come back here, press and hold in this box and choose <b>Paste</b>.'
+        : '<b>Waiting for Google\u2019s answer.</b> In the Google tab press <b>Ctrl+A</b> then <b>Ctrl+C</b>, ' +
+          'come back here and paste it into this box. (A snip works too \u2014 Win+Shift+S, then Ctrl+V anywhere on this card.)') +
       '<textarea id="pin-lens-paste" spellcheck="false" placeholder="Paste Google\u2019s answer here\u2026" ' +
         'oninput="_pinLensPasteChanged()" style="' + box + '"></textarea>' +
       '<div style="display:flex;align-items:center;gap:0.6rem;margin-top:0.45rem;flex-wrap:wrap">' +
@@ -12130,9 +12135,12 @@
     // targets the leftovers it couldn't place. Show the exact count and make
     // clear it uses paid reads, so a batch never spends credits by surprise.
     var n = todo.length;
-    var msg = 'The free reader already tried every photo. <b>' + n + '</b> item' + (n === 1 ? '' : 's') +
-      ' couldn\'t be matched for free. Read ' + (n === 1 ? 'it' : 'them') +
-      ' now? This uses ' + n + ' of your photo ID' + (n === 1 ? '' : 's') + ' (1 per item).'
+    // v0.9.1920 (camera list #5): the list counts photos with no number yet —
+    // including ones the free read never saw — so no "already tried" claim.
+    var msg = '<b>' + n + '</b> item' + (n === 1 ? '' : 's') + (n === 1 ? ' doesn\'t' : ' don\'t') +
+      ' have a number yet. Read ' + (n === 1 ? 'it' : 'them') +
+      ' now with photo IDs? This uses ' + n + ' of your photo ID' + (n === 1 ? '' : 's') + ' (1 per item). '
+      + 'Tip: <b>Identify my items</b> is free \u2014 try it first.'
       + (_held ? ' <b>' + _held + '</b> more ' + (_held === 1 ? 'is' : 'are') + ' tagged Paper, Catalog or Other and ' + (_held === 1 ? 'is' : 'are') + " not in this batch — you can still read " + (_held === 1 ? 'it' : 'them') + ' one at a time.' : '');
     // The message above already states the cost; repeating "(44 tokens)" on the
     // button is the same ambiguity as the toolbar had — it reads like a balance.
@@ -12613,11 +12621,13 @@
             setTimeout(function () { _pinCountRefresh(); }, 0);
             var n = parseInt(localStorage.getItem(COUNT_KEY) || '0', 10) || 0;
             return { html: '<div class="stat-value" id="pin-card-value">' + n + '</div>'
-              + '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:1px">photo' + (n === 1 ? '' : 's') + ' waiting — click to file</div>' };
+              + '<div style="font-size:0.72rem;color:var(--text-dim);margin-top:1px">photo' + (n === 1 ? '' : 's') + ' waiting — ' + (window.IS_MOBILE_UA ? 'tap' : 'click') + ' to file</div>' };
           }
         });
       }
-      if (typeof _CARD_HELP !== 'undefined') _CARD_HELP.photoInbox = 'Photos waiting in your Photo Inbox — snapped with Batch Add on your phone, dragged in on desktop, or imported from Google Photos. Click the card to review and file them.';
+      if (typeof _CARD_HELP !== 'undefined') _CARD_HELP.photoInbox = window.IS_MOBILE_UA
+        ? 'Photos waiting in your Photo Inbox — snapped with Batch Add, or imported from Google Photos. Tap the card to review and file them.'
+        : 'Photos waiting in your Photo Inbox — snapped with Batch Add on your phone, dragged in on desktop, or imported from Google Photos. Click the card to review and file them.';
       if (typeof PANEL_CATALOG !== 'undefined' && PANEL_CATALOG.push && !PANEL_CATALOG.some(function (p) { return p.id === 'photoInbox'; })) {
         PANEL_CATALOG.push({
           id: 'photoInbox', label: 'Photo Inbox', icon: '📥',
@@ -13226,7 +13236,7 @@
       return;   // the refresh + the final word come from _qcAllLanded()
     }
     var msg = landed
-      ? (landed + ' photo' + (landed > 1 ? 's' : '') + ' in your inbox \u2014 file them at the desk')
+      ? (landed + ' photo' + (landed > 1 ? 's' : '') + ' in your inbox \u2014 open the Photo Inbox to file them whenever you\u2019re ready')   // v0.9.1920 (camera list #6): phone-only toast, no desk
       : '';
     if (rescued) {
       msg += (msg ? ' \u2014 ' : '')

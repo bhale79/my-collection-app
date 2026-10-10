@@ -73,7 +73,7 @@ async function _insurancePDF() {
   var pageW = doc.internal.pageSize.getWidth(), pageH = doc.internal.pageSize.getHeight();
   var M = 36, y = 0;
   var sym = (typeof _currencySymbol === 'function') ? _currencySymbol() : '$';
-  var owner = (state.user && state.user.name) ? state.user.name : '';
+  var owner = (typeof rrUserName === 'function') ? rrUserName() : ((state.user && state.user.name) ? state.user.name : '');   // v0.9.1920
   var dateStr = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
   var totalWorth = 0; items.forEach(function (pd) { totalWorth += parseFloat(pd.userEstWorth || 0) || 0; });
 
@@ -303,7 +303,7 @@ function _reportToHTML(type) {
   var esc = function (v) { return String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); };
   if (type === 'insurance') {
     var items = _repOwnedItems();
-    var owner = (state.user && state.user.name) ? state.user.name : '';
+    var owner = (typeof rrUserName === 'function') ? rrUserName() : ((state.user && state.user.name) ? state.user.name : '');   // v0.9.1920
     var dateStr = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
     var totalWorth = 0; items.forEach(function (pd) { totalWorth += parseFloat(pd.userEstWorth || 0) || 0; });
     var rows = items.map(function (pd) {

@@ -682,6 +682,17 @@
   }
   window._ctParseRows = _ctParseRows;
 
+  // v0.9.1920 (Brad, booth camera list #2): THE way to turn a saved Contact ID
+  // (an item's Purchased From) into words for a person to read. The Add
+  // wizard's last screen printed the raw "C-1728…" code. Same formula as the
+  // Bought-from dropdown: "Name — Business", or whichever one exists.
+  window._ctLabel = function (id) {
+    if (!id) return '';
+    var c = (state.contactsData || []).find(function (x) { return x && x.id === id; });
+    if (!c) return 'a saved contact';
+    return (c.name || c.business || c.id) + (c.business && c.name ? ' — ' + c.business : '');
+  };
+
   async function _load() {
     // v0.9.827 (TODO-003): offline — the phone snapshot already has them.
     if (window._offlineMode) { return state.contactsData || []; }

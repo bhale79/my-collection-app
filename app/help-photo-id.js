@@ -75,9 +75,13 @@
 
   window.rrPhotoIdHelpHtml = function () {
     return ''
-    + '<p style="' + _P + '"><b>We already tried, and it was free.</b></p>'
-    + '<p style="' + _P + '">The moment this photo landed in your inbox, we looked for a '
-      + 'printed number on it. That alone gets most items.</p>'
+    // v0.9.1920 (Brad, booth camera list #5): nothing reads a photo by itself
+    // any more (since v0.9.1297) — the free read runs when you press Identify
+    // my items. (The old opening claimed the read had already run, for free.)
+    + '<p style="' + _P + '"><b>Start with the free read.</b></p>'
+    + '<p style="' + _P + '">Press <b>Identify my items</b> on the inbox page and we look for a '
+      + 'printed number on every photo \u2014 free, as often as you like. That alone gets most items. '
+      + 'If this photo says nothing has been read yet, that\u2019s the first thing to try.</p>'
 
     + '<div style="' + _H2 + '">What we can usually read</div>'
     + '<ul style="' + _UL + '">'
@@ -171,9 +175,12 @@
         + _sp('The catch is that you have to carry the answer back yourself:')
         + '<div style="margin:0.5rem 0 0;padding:0.55rem 0.7rem;background:var(--surface2);'
           + 'border-radius:8px;font-size:0.82rem;color:var(--text);line-height:1.5">'
-          + 'In the Google tab: <b>Ctrl+A</b> (select all), then <b>Ctrl+C</b> (copy). Come back '
-          + 'here and press <b>Ctrl+V</b> in the paste box.</div>'
-        + _sp('Four keystrokes. If you don’t mind them, this costs you nothing.'))
+          + (window.IS_MOBILE_UA   // v0.9.1920 (camera list #6): phone wording on phones
+            ? 'In the Google tab: press and hold on the answer, choose <b>Select all</b>, then <b>Copy</b>. '
+              + 'Come back here, press and hold in the paste box and choose <b>Paste</b>.</div>'
+            : 'In the Google tab: <b>Ctrl+A</b> (select all), then <b>Ctrl+C</b> (copy). Come back '
+              + 'here and press <b>Ctrl+V</b> in the paste box.</div>')
+        + _sp((window.IS_MOBILE_UA ? 'A few taps.' : 'Four keystrokes.') + ' If you don’t mind them, this costs you nothing.'))
     + _step(4, 'Read this photo', '1 photo ID', false,
         _sp('A different reader looks at the whole photo — the shape, the colours, the lettering — '
           + 'not just printed text. About as good as the Google route, and it does the '
@@ -187,14 +194,14 @@
     // beta user would quote back the day they ship. The rest is true either way.
     + '<p style="' + _P + '">You get a set number of photo reads every day, included with the app. '
       + 'The count sits right under the buttons, and it starts over each night.</p>'
-    + '<p style="' + _P + '">Only <b>Read this photo</b> uses one. The first free read, re-scanning, '
+    + '<p style="' + _P + '">Only <b>Read this photo</b> uses one. <b>Identify my items</b>, re-scanning, '
       + 'Research Number and Google Search never do — you could use those all day.</p>'
     + '<p style="' + _P + '">If you’d rather never spend one, you can switch photo reads off '
       + 'entirely in <b>Preferences › Photo ID</b>.</p>'
 
     + '<div style="' + _H2 + '">The short version</div>'
     + '<table style="width:100%;border-collapse:collapse;font-size:0.84rem;margin-top:0.4rem">'
-      + _row('The first read, when the photo arrives', 'Free', false)
+      + _row('Identify my items (the first read)', 'Free', false)
       + _row('This is wrong — re-scan', 'Free', false)
       + _row('Research Number', 'Free', false)
       + _row('Google Search', 'Free', false)

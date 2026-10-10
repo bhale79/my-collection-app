@@ -3273,6 +3273,11 @@ function sellFromCollection(idx, pdKey) {
     _collectionPdKey: pdKey,
     _collectionRow: pd.row
   }, steps: getSteps('sold'), matchedItem: item };
+  // v0.9.1920 (Brad, booth camera list #3): the wizard window is built on first
+  // use. Right after a reload nothing had built it yet, so getElementById came
+  // back null and this button silently did nothing. Build it first, like
+  // listForSaleFromCollection and every other opener (tests/wizard_open_build_tests.js).
+  if (typeof _buildWizardModal === 'function') _buildWizardModal();
   document.getElementById('wizard-modal').classList.add('open');
   document.body.style.overflow = 'hidden';
   // Skip tab, itemNum, variation steps

@@ -3022,8 +3022,11 @@ META_WRITES.length = 0; TOASTS.length = 0;
       for (const ch of wz.slice(0, idx)) { if (ch === '{') d++; else if (ch === '}') d--; }
       ok('_wizFlowTitle is declared at TOP LEVEL, in scope of its caller', d === 0, 'depth=' + d);
     })();
-    ok('the research chooser asks the question in Brad\'s words',
-       /What Item Do You Want to Research\?/.test(rd5('barcode.js')));
+    // v0.9.1920 (Brad, booth camera list #7): the question belonged to Research,
+    // which has had its own title since v0.9.1913; the Add flow's photo screen
+    // now says what it is for — and the old question is gone from it.
+    ok('the Add flow\'s photo screen is titled for adding, not researching',
+       /📷 Identify Your Item from a Photo/.test(rd5('barcode.js')) && !/What Item Do You Want to Research\?/.test(rd5('barcode.js')));
   })();
 
   section('120. The accent top bar matches everywhere (v0.9.1145)');

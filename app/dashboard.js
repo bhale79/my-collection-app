@@ -1021,7 +1021,7 @@ function buildDashboard() {
         +   '</div>'
         +   '<div style="flex:1 1 300px;min-width:260px;border:1px solid var(--border);border-radius:10px;padding:0.9rem 1rem">'
         +     '<div style="font-weight:700;font-size:0.92rem;margin-bottom:0.3rem;color:var(--text)">Got a shelf to get through?</div>'
-        +     '<div style="font-size:0.82rem;color:var(--text-dim);line-height:1.5;margin-bottom:0.75rem">Photograph everything \u2014 boxes, side lettering, whatever is readable. The photos land in one place and the numbers get read off them in the background, for free. You confirm what it got right later.</div>'
+        +     '<div style="font-size:0.82rem;color:var(--text-dim);line-height:1.5;margin-bottom:0.75rem">Photograph everything \u2014 boxes, side lettering, whatever is readable. The photos land in one place. When you\u2019re ready, press <b>Identify my items</b> and the numbers are read off them for free \u2014 then you confirm what it got right.</div>'
         +     '<button onclick="window._pinGo && window._pinGo(document.getElementById(\'nav-photo-inbox\'))" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid #8b8e94;background:var(--bg-card);background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card));color:var(--t-link);font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer">Open the Photo Inbox</button>'
         +   '</div>'
         // v0.9.1508 (Brad): the third way in — people arriving with a list they

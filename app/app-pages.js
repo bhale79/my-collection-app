@@ -1229,10 +1229,10 @@ function moveWantToCollection(itemNum, variation) {
       wizard.data._itemGrouping = wizard.data._itemGrouping || 'single'; // default; user can change later via Edit Group
     }
     wizard.data.entryMode = wizard.data.entryMode || 'full'; // skips entryMode picker
-    // Pre-fill suggested condition + price from want entry's target hints
-    const _w = (state.wantData || {})[`${itemNum}|${variation}`] || {};
-    if (_w.targetCondition) wizard.data._prefilledCondition = _w.targetCondition;
-    if (_w.expectedPrice) wizard.data._suggestedPricePaid = _w.expectedPrice;
+    // v0.9.1920 (Brad, booth camera list #8): the want's target condition and
+    // target price are NOT carried into the item — "that is what you wanted;
+    // you may have settled or got something better". The two lines that sat
+    // here wrote fields no screen or save ever read, so they are gone.
 
     if (master) {
       wizard.matchedItem = master;
@@ -3221,6 +3221,12 @@ function _wuVarMaster(u) {
   return (typeof findMaster === 'function') ? findMaster(u.itemNum, u.variation || '', u) : null;
 }
 function _wuVarDesc(u, m) {
+  // v0.9.1920 (Brad, booth camera list): with NO variation picked, findMaster
+  // still hands back some row for the number, and that row's variation text was
+  // shown as if that variation had been chosen (6464-100 read "clear shell
+  // painted orange"). No variation → no variation description — the same rule
+  // app.js _lookupMasterVarDesc uses for collection rows. Desktop + phone share this.
+  if (!u || String(u.variation || '').trim() === '') return '';
   var vm = (m === undefined) ? _wuVarMaster(u) : m;
   return vm ? (vm.varDesc || vm.variationDesc || '') : '';
 }
@@ -4050,9 +4056,8 @@ function upgradeGotIt(ugKey) {
     wizard.data.itemCategory = 'lionel';
     wizard.data._itemGrouping = wizard.data._itemGrouping || 'single';
     wizard.data.entryMode = wizard.data.entryMode || 'full';
-    // Pre-fill suggested condition + price from upgrade target / max price
-    if (ug.targetCondition) wizard.data._prefilledCondition = ug.targetCondition;
-    if (ug.maxPrice) wizard.data._suggestedPricePaid = ug.maxPrice;
+    // v0.9.1920 (Brad): the upgrade's target condition / max price stay on the
+    // list — what you hoped for is not what you got (same rule as the want list).
     if (master) {
       wizard.matchedItem = master;
       if (!wizard.data._era) {

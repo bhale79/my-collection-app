@@ -174,6 +174,18 @@ function _prefsToggleRecordingMode(on) {
   }
 }
 
+// v0.9.1920 (Brad: "Yes, add the box"): Preferences → Account → Your name.
+// Saved through _prefSet (it follows the account to every device); blank =
+// back to the Google name. Repaints everything that shows the name at once.
+function _prefsSetDisplayName(v) {
+  try {
+    _prefSet(RR_DISPLAY_NAME_KEY, String(v || '').trim().slice(0, 40));
+    if (typeof updateUserUI === 'function') updateUserUI();
+    if (typeof rrPaintGreeting === 'function') rrPaintGreeting();
+    if (typeof showToast === 'function') showToast(String(v || '').trim() ? '\u2713 Name saved' : '\u2713 Using your Google name');
+  } catch (e) { if (typeof showToast === 'function') showToast('Could not save your name.', 3500, true); }
+}
+
 function buildPrefsPage() {
   try { _prefSyncPhotoReads(); } catch (e) {}   // v0.9.1775
   const el = document.getElementById('prefs-content');
@@ -224,6 +236,15 @@ function buildPrefsPage() {
           <div style="font-size:0.8rem;color:var(--text-dim);margin-top:0.1rem">${u.email || ''}</div>
         </div>
         <button class="pref-btn danger" onclick="handleSignOut()">Sign Out</button>
+      </div>
+      <div class="pref-row">
+        <div class="pref-row-label">
+          <strong>Your name</strong>
+          <span>What the app calls you — the greeting, the account button and your reports. Leave it blank to use your Google name.</span>
+        </div>
+        <input id="pref-display-name" type="text" maxlength="40" placeholder="${(u.name || '').replace(/"/g, '&quot;').replace(/</g, '&lt;')}" value="${String(_prefGet(RR_DISPLAY_NAME_KEY, '') || '').replace(/"/g, '&quot;').replace(/</g, '&lt;')}"
+          onchange="_prefsSetDisplayName(this.value)"
+          style="width:12rem;max-width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.45rem 0.6rem;color:var(--text);font-family:var(--font-body);font-size:0.88rem;box-sizing:border-box">
       </div>
       <div class="pref-row" id="pref-sub-row" style="${_prefsSubRowHtml() ? '' : 'display:none'}">${_prefsSubRowHtml()}</div>
       <div class="pref-row">

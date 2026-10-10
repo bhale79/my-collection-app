@@ -2820,7 +2820,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
           ? ('<div style="display:flex;align-items:center;justify-content:space-between;gap:0.5rem;margin-bottom:0.35rem">'
             + '<div class="rr-card-title" style="margin:0">📷 Research an Item</div>'
             + '<button type="button" data-bi="cancel" id="bi-close" aria-label="Close" style="flex-shrink:0;width:40px;height:40px;border-radius:50%;border:1.5px solid var(--border);background:var(--surface2);color:var(--text);font-size:1.15rem;line-height:1;cursor:pointer">\u2715</button></div>')
-          : '<div class="rr-card-title">📷 What Item Do You Want to Research?</div>')
+          : '<div class="rr-card-title">📷 Identify Your Item from a Photo</div>')   // v0.9.1920 (Brad, camera list #7): this is the ADD flow's screen — the research question was left here when v0.9.1913 gave Research its own title
         // v0.9.704 (Brad): desktops get NO camera UI — upload only. The webcam
         // was never useful for photographing boxes on a shelf, and phantom-touch
         // PCs were showing the whole mobile capture rig.
