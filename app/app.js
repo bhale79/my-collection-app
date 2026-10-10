@@ -217,6 +217,58 @@ async function personalWriteRow(rec, values) {
   );
 }
 
+// v0.9.1919 — THE way to build a whole-row UPDATE of an existing My Collection row.
+//
+// Brad's beta (found while scripting the booth video): "Update Info/Pictures →
+// Save All Changes" rebuilt the row from a hand-kept list of 34 fields, and the
+// row has 51. Every column added after that list was written came back BLANK on
+// every save — Purchased From, Your Grade, Your Description, Import Batch,
+// Location Detail, Shipper, Sub-collection, Custom 1–5, Scale/Gauge, the Era
+// override, the Stock Photo Link. The Quick Entry finish and the box re-save in
+// wizard-save.js had the same shape. Root cause: each whole-row save kept its OWN
+// column list, so a new column was wiped by every list nobody remembered to touch.
+//
+// The rule now: a whole-row update starts from EVERYTHING the record already
+// holds and lays the save's own fields over it.
+//   · a field the save names (any value but undefined, '' included) is WRITTEN —
+//     that is how a screen clears a value on purpose;
+//   · a field the save does not name is CARRIED from the record;
+//   · when the save changes the item number or variation, the columns that belong
+//     to the old catalog row (its descriptions, key, Row ID, type, road, stock
+//     photo) are NOT carried — buildPersonalRow derives them for the new row.
+// tests/full_row_carry_tests.js fills all 51 columns and saves through every
+// path; its scan fails any whole-row write that does not come through here.
+const RR_ITEM_BOUND_FIELDS = ['masterDescription', 'variationDescription', 'masterKey', 'masterRowId',
+  'itemType', 'subType', 'roadName', 'roadNumber', 'stockPhotoLink'];
+function rrCarryPersonalRow(rec, row, writtenKeys) {
+  const out = Array.isArray(row) ? row.slice() : buildPersonalRow(null);
+  if (!rec) return out;
+  const written = {};
+  (writtenKeys || []).forEach(k => { written[k] = true; });
+  // Same item? Only a NAMED item number / variation can change it. The row's cell
+  // may carry the leading ' that keeps Sheets from reading "800" as a number.
+  const _bare = v => String(v == null ? '' : v).trim().replace(/^'/, '');
+  const ii = PERSONAL_FIELD_INDEX.itemNum, vi = PERSONAL_FIELD_INDEX.variation;
+  const sameItem = (!written.itemNum || _bare(out[ii]) === _bare(rec.itemNum))
+                && (!written.variation || _bare(out[vi]) === _bare(rec.variation));
+  PERSONAL_SCHEMA.forEach((s, i) => {
+    if (written[s.field]) return;
+    if (!sameItem && RR_ITEM_BOUND_FIELDS.indexOf(s.field) >= 0) return;
+    let v = rec[s.field];
+    if (s.field === 'quickEntry') v = (v === true || v === 'Yes') ? 'Yes' : '';
+    if (v === undefined || v === null || v === '') return;
+    if (/^date\b/i.test(String(s.header || '')) && typeof rrDateForSheet === 'function') v = rrDateForSheet(v);
+    // the same TEXT guard buildPersonalRow gives these two, so a carried "0401-1" is never read as a date
+    if ((s.field === 'itemNum' || s.field === 'matchedTo') && String(v).charAt(0) !== "'") v = "'" + v;
+    out[i] = v;
+  });
+  return out;
+}
+function rrPersonalUpdateRow(rec, fields) {
+  const f = fields || {};
+  return rrCarryPersonalRow(rec, buildPersonalRow(f), Object.keys(f).filter(k => f[k] !== undefined));
+}
+
 // Master-description helpers (Session 156). Look up description/varDesc from
 // master data by itemNum (+ optional variation). Return '' for box rows
 // (itemNums ending in -BOX or -MBOX) so boxes don't inherit a parent's text.
@@ -369,6 +421,8 @@ if (typeof window !== 'undefined') {
   window.personalFullRowRange = personalFullRowRange;
   window.personalWriteRow = personalWriteRow;
   window.buildPersonalRow = buildPersonalRow;
+  window.rrCarryPersonalRow = rrCarryPersonalRow;     // v0.9.1919
+  window.rrPersonalUpdateRow = rrPersonalUpdateRow;   // v0.9.1919
   window._lookupMasterDesc = _lookupMasterDesc;
   window._lookupMasterVarDesc = _lookupMasterVarDesc;
 }

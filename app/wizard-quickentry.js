@@ -77,6 +77,9 @@ function completeQuickEntry(itemNum, variation, globalIdx, pdInvId) {
     if (pd.priceComplete) data.priceComplete = pd.priceComplete;
     if (pd.notes) data.notes = pd.notes;
     if (pd.datePurchased) data.datePurchased = pd.datePurchased;
+    // v0.9.1919: the save WRITES Bought From from the wizard (blank if unset), so
+    // it must start from the saved seller or finishing the entry erases it.
+    if (pd.purchasedFrom) data.purchasedFrom = pd.purchasedFrom;
     if (pd.userEstWorth) data.userEstWorth = pd.userEstWorth;
     if (pd.yearMade) data.yearMade = pd.yearMade;
     if (pd.location) data.location = pd.location;

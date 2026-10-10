@@ -1269,6 +1269,7 @@ async function saveWizardItem() {
 
   // Hoisted to function scope — used by both collection save and group box save blocks
   let row;
+  let _mainFields = null;   // v0.9.1919: what the main row WRITES, by name (the fill-item update carries the rest)
   let isSetSave = false;
   let isPairedSave = false;
   let setId = '';
@@ -1369,7 +1370,7 @@ async function saveWizardItem() {
         var _boNote = (d.notes || '').trim() || 'Box for ' + itemNum;
         if (_boDesc && _boNote === 'Box for ' + itemNum) _boNote += ' — ' + _boDesc;
         // Session 156: boxRow via buildPersonalRow
-        const boxRow = buildPersonalRow({
+        const _boxFields = {
           itemNum: boxItemNum,
           variation: _boVar,
           condition: d.boxCond || '',
@@ -1387,7 +1388,8 @@ async function saveWizardItem() {
           ..._rrUserFieldValues(d),
           era: _resolveSaveEra(),
           manufacturer: _getEraManufacturer(),
-        });
+        };
+        const boxRow = buildPersonalRow(_boxFields);
 
         // v0.9.1267 (R3): identity-checked — but this one asks rrRowStillIs
         // directly rather than going through personalWriteRow, because it has
@@ -1398,10 +1400,14 @@ async function saveWizardItem() {
         // the user nothing was saved would be untrue — the box gets saved either
         // way. So: no toast on this path, just a different destination.
         var _bxUpdated = false;
+        // v0.9.1919: an UPDATE carries every column this box save does not name
+        // (Purchased From, Custom 1–5, Import Batch …) from the row it replaces;
+        // quickEntry is named — finishing the entry clears the flag.
         if (existing && existing.row && existing.itemNum === boxItemNum) {
           _bxUpdated = await rrRowStillIs(state.personalSheetId, PERSONAL_TAB, existing.row,
                                           existing.itemNum, existing.inventoryId || '');
-          if (_bxUpdated) await sheetsUpdate(state.personalSheetId, personalFullRowRange(existing.row), [boxRow]);
+          if (_bxUpdated) await sheetsUpdate(state.personalSheetId, personalFullRowRange(existing.row),
+            [rrCarryPersonalRow(existing, boxRow, Object.keys(_boxFields).filter(k => _boxFields[k] !== undefined).concat(['quickEntry']))]);
           else console.warn('[box] row ' + existing.row + ' moved — appending a new box row instead.');
         }
         if (_bxUpdated) {
@@ -1450,7 +1456,9 @@ async function saveWizardItem() {
         // state.personalData which isn't updated mid-save.
         var _engineInvId = d._existingInventoryId || d._photoInventoryId || nextInventoryId();  // Session 165 hotfix: var, not const, so tender block at line 1206 can reference it
         // Session 156: paired engine row via buildPersonalRow
-        row = buildPersonalRow({
+        // v0.9.1919: the fields are kept by name so the fill-item UPDATE below
+        // can carry every column this save does not write.
+        _mainFields = {
           dateAdded: (typeof existing !== 'undefined' && existing) ? (existing.dateAdded || '') : undefined,   // v0.9.720: updates keep their date
           // v0.9.1198: the user CONFIRMED this catalog row in the wizard — the
           // one moment the match is certain. Store it; never re-guess it.
@@ -1488,7 +1496,8 @@ async function saveWizardItem() {
           ..._rrUserFieldValues(d),
           era: _resolveSaveEra(),
           manufacturer: _getEraManufacturer(),
-        });
+        };
+        row = buildPersonalRow(_mainFields);
       }
       // ── SET UNIT SAVE: if diesel set, save unit2 (and unit3) rows with shared Set ID ──
   isSetSave = d.setMatch === 'set-now';
@@ -1699,11 +1708,17 @@ async function saveWizardItem() {
         // believing it had saved. ROW_MOVED is the sentinel rrSaveError reads
         // to say "refresh" instead of "try again" — the toast is raised once,
         // by the caller, so no toast is raised here.
+        // v0.9.1919: the update carries every column this save does not write
+        // (Purchased From, Your Grade, Custom 1–5, Import Batch …) from the row it
+        // replaces. groupId / setId / matchedTo are set on the row after it is
+        // built, and quickEntry is cleared on purpose — all four count as written.
         if (!(await rrRowStillIs(state.personalSheetId, PERSONAL_TAB, existing.row,
                                  existing.itemNum, existing.inventoryId || ''))) {
           throw new Error('ROW_MOVED');
         }
-        await sheetsUpdate(state.personalSheetId, personalFullRowRange(existing.row), [row]);
+        await sheetsUpdate(state.personalSheetId, personalFullRowRange(existing.row),
+          [rrCarryPersonalRow(existing, row, Object.keys(_mainFields || {}).filter(k => _mainFields[k] !== undefined)
+            .concat(['groupId', 'setId', 'matchedTo', 'quickEntry']))]);
         _mainApRow = existing.row;
       } else {
         // Always append for a plain new collection add — never overwrite existing rows

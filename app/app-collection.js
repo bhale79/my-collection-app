@@ -4360,7 +4360,11 @@ function showItemPanel(idx, pdKey, mode) {
         pd.masterDescription = (_nm && _nm.description) ? String(_nm.description) : '';
         pd.variationDescription = (_nm && _nm.varDesc) ? String(_nm.varDesc) : '';
       }
-      const newRow = buildPersonalRow({
+      // v0.9.1919: through rrPersonalUpdateRow — every column this list does not
+      // name is CARRIED from the record. Before, the 17 columns missing here
+      // (Purchased From, Your Grade, Custom 1–5, Era override …) were blanked on
+      // every Save All Changes. Add nothing to this list just to keep it safe.
+      const newRow = rrPersonalUpdateRow(pd, {
         dateAdded: pd.dateAdded || '',   // v0.9.720: panel saves keep the original date
         itemNum: pd.itemNum || item.itemNum,   // v0.9.701: title is editable on manual items
         variation: _newVariation,
