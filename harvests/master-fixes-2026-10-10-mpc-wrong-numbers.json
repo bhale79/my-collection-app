@@ -1,0 +1,96 @@
+{
+ "what": "Master Version 2.29 — 3 Lionel MPC-Modern rows put on their right item numbers (found in the 2.27 book check): 82671 → 82674 UP Bathtub Gondola 2-pack (book prints 82674, Lionel agrees; the row had repeated 82677's Strasburg tank car); 84533 → 84538 NS 65' Mill Gondola \"195029\" (book prints 84538, Lionel agrees; the row had repeated 84539's 195065 gondola); 15513 → 15511 Phantom III Observation (the four Phantom III cars are 15508-15511; 15512 is the Phantom II 4-pack on Lionel's site). Row IDs unchanged.",
+ "stated": "Brad (2026-10-10): \"yes\" to fixing the three rows on the Wrong number tab of MPC_ROWS_TO_CHECK_RESULTS_2026-10-10.xlsx",
+ "masterVersion": "2.29",
+ "date": "2026-10-10",
+ "planReadAt": "2026-10-10T20:46:02Z public CSV export gid 1188187255 (22,316 lines)",
+ "cellFormat": "[tab, item number (column A) BEFORE the change, column header, old, new, sheet row as a hint, Row ID of the row]",
+ "counts": {
+  "cells": 9,
+  "rows": 3
+ },
+ "cells": [
+  [
+   "Lionel MPC-Modern",
+   "82671",
+   "Item Number",
+   "82671",
+   "82674",
+   13958,
+   "U43ZFUREEZ"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "82671",
+   "Item Type",
+   "Tank Car",
+   "Gondola",
+   13958,
+   "U43ZFUREEZ"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "82671",
+   "Sub-Type",
+   "Tank Car",
+   "Gondola",
+   13958,
+   "U43ZFUREEZ"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "82671",
+   "Road Name",
+   "",
+   "Union Pacific",
+   13958,
+   "U43ZFUREEZ"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "82671",
+   "Description",
+   "Strasburg 3-D Tank Car",
+   "UP Bathtub Gondola 2-pack",
+   13958,
+   "U43ZFUREEZ"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "82671",
+   "Year Produced",
+   "2016",
+   "2015",
+   13958,
+   "U43ZFUREEZ"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "84533",
+   "Item Number",
+   "84533",
+   "84538",
+   14852,
+   "A4NVZ8RV6X"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "84533",
+   "Description",
+   "NS 65' Mill Gondola \"195065\" (std 0)",
+   "NS 65' Mill Gondola \"195029\" (std 0)",
+   14852,
+   "A4NVZ8RV6X"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "15513",
+   "Item Number",
+   "15513",
+   "15511",
+   2556,
+   "ZSG3WEWD45"
+  ]
+ ],
+ "toPutBack": "Write each cell's old value back to its row (find by Row ID)."
+}
