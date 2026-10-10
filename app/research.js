@@ -191,6 +191,8 @@
       + '<div style="margin:0.75rem 0;padding:0.6rem 0.8rem;border-radius:9px;border:1.5px solid ' + (own > 0 ? '#2ecc71' : 'var(--border,#333)') + ';background:' + (own > 0 ? 'rgba(46,204,113,0.1)' : 'var(--surface2,#26262e)') + '">'
       +   '<span style="font-size:0.9rem;font-weight:700;color:' + (own > 0 ? 'var(--t-green)' : 'var(--text-mid,#aaa)') + '">'
       +   (own > 0 ? '✓ You own ' + own + ' of these' : 'You don’t own this one') + '</span></div>'
+      // v0.9.1910: owners see how long each step took (barcode.js builds it)
+      + ((typeof window.rrResearchTimingLine === 'function') ? window.rrResearchTimingLine() : '')
       // Market value (filled async)
       + '<div id="rs-market" style="margin-bottom:0.75rem;font-size:0.82rem;color:var(--text-mid,#aaa)">Checking community market value…</div>'
       // Actions

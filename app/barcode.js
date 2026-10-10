@@ -2649,7 +2649,16 @@ window.eraSupportsBarcode = eraSupportsBarcode;
     var types = (typeof TYPE_BUCKETS !== 'undefined' && Array.isArray(TYPE_BUCKETS))
       ? TYPE_BUCKETS.map(function (b) { return [b.id, b.label]; }) : [];
     var vT = sv('type');
-    var ss = 'flex:1;padding:0.45rem 0.5rem;border-radius:9px;border:1.5px solid var(--border,#444);background:var(--surface2,#1c2340);color:var(--text,#fff);font-size:0.85rem;min-width:0;font-family:var(--font-body,inherit)';
+    // v0.9.1910 (Brad: "the filters at the bottom on my mobile, the y on Any is
+    // cut off"): the four boxes were flex:1 + min-width:0 — a starting width of
+    // ZERO that could shrink below the words, so flex-wrap never wrapped and on
+    // a phone (whose selects are forced to 16px so iPhones don't zoom) all four
+    // squeezed onto one row at ~65px each. Now each box starts at the width its
+    // own longest choice needs (flex-basis auto) and may not shrink below it:
+    // they wrap onto a second / third row when the card is narrow and share a
+    // row when it is wide. No widths are typed in — a longer maker name added
+    // later sizes itself (tests/research_filters_timing_tests.js).
+    var ss = 'flex:1 1 auto;max-width:100%;padding:0.45rem 0.5rem;border-radius:9px;border:1.5px solid var(--border,#444);background:var(--surface2,#1c2340);color:var(--text,#fff);font-size:0.85rem;font-family:var(--font-body,inherit)';
     function opt(v, label, cur) { return '<option value="' + v + '"' + (v === cur && v ? ' selected' : '') + '>' + label + '</option>'; }
     return '<div style="display:flex;gap:0.4rem;margin-top:0.4rem;flex-wrap:wrap">'
       + '<select id="bi-quick-mfr" style="' + ss + '"><option value="">Any maker</option>'
@@ -2956,6 +2965,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
       navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: { ideal: 1920 } }, audio: false })
         .then(function (s) {
           stream = s; _biStream = s; video.srcObject = s;
+          _rtMark('camera ready');   // v0.9.1910
           stat.textContent = 'Aim at the box end — barcode + item number. Auto-captures when a barcode locks.';
           var nativeDet = _biHasBD ? new window.BarcodeDetector({ formats: ['ean_13', 'upc_a', 'ean_8', 'upc_e', 'code_128', 'code_39'] }) : null;
           if (!nativeDet) _loadZXing().catch(function () {});
@@ -2967,6 +2977,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
                   if (bcs && bcs.length) {
                     var bc = bcs[0];
                     if (bc.rawValue === lastRaw) confirmN++; else { lastRaw = bc.rawValue; confirmN = 1; }
+                    if (confirmN >= 2) _rtMark('barcode locked');   // v0.9.1910
                     if (confirmN >= 2 && !_autoSnapOn()) {
                       // Manual mode: hold the lock, hand the shutter to Brad.
                       heldBc = bc;
@@ -3161,9 +3172,89 @@ window.eraSupportsBarcode = eraSupportsBarcode;
     });
   }
 
+  // ══ v0.9.1910 — STEP TIMERS (Brad, 2026-10-09: "the speed of the research
+  // needs to be as fast as possible") ═══════════════════════════════════════
+  // Before anything is made faster, measure it on the real phone. Every run of
+  // the identify flow (Research, and Add's box scan — same flow) records how
+  // long each step took. Two kinds of time, kept apart on purpose:
+  //   • APP time — the app working: barcode, label reader start-up (a download
+  //     the first time), each label read, the photo reader, catalog checks.
+  //   • YOUR time — the app waiting on a person: aiming the camera, the crop
+  //     screen, a pick list, the confirm card. Steps named "you: …".
+  // A run is one openBoxIdentify call (a Retake stays in the same run). The
+  // last 25 runs are kept under rr_research_times_v1; for an owner they go
+  // through _prefSet so they reach the account and can be read on any device.
+  // Owners also see one small line on the research card. Nothing here changes
+  // what the flow does — it only watches.
+  var RT_KEY = 'rr_research_times_v1', RT_KEEP = 25;
+  var _rt = null;
+  function _rtNow() { try { return performance.now(); } catch (e) { return Date.now(); } }
+  function _rtOwner() {
+    try {
+      if (typeof window.rrRecordingMode === 'function' && window.rrRecordingMode()) return false;
+      return typeof rrIsRealOwner === 'function' && rrIsRealOwner();
+    } catch (e) { return false; }
+  }
+  function _rtStart(mode) { _rt = { at: new Date().toISOString(), mode: mode, t0: _rtNow(), steps: [], marks: {}, you: 0, done: false }; }
+  function _rtStep(name, ms) { if (_rt && !_rt.done && ms >= 0) _rt.steps.push([name, Math.round(ms)]); }
+  function _rtMark(name) { if (_rt && !_rt.done && !(name in _rt.marks)) _rt.marks[name] = Math.round(_rtNow() - _rt.t0); }
+  async function _rtTime(name, p) { var t = _rtNow(); try { return await p; } finally { _rtStep(name, _rtNow() - t); } }
+  async function _rtWait(name, p) {
+    var t = _rtNow();
+    try { return await p; }
+    finally { var ms = _rtNow() - t; if (_rt && !_rt.done) _rt.you += ms; _rtStep('you: ' + name, ms); }
+  }
+  function _rtEnd(outcome) {
+    if (!_rt || _rt.done) return null;
+    _rt.done = true;
+    var total = _rtNow() - _rt.t0;
+    var rec = { at: _rt.at, mode: _rt.mode, outcome: outcome, total: Math.round(total),
+                app: Math.round(total - _rt.you), you: Math.round(_rt.you),
+                steps: _rt.steps, marks: _rt.marks, mobile: !!window.IS_MOBILE_UA,
+                ver: (typeof APP_VERSION !== 'undefined' ? APP_VERSION : '') };
+    window._rrResearchLastTiming = rec;
+    try {
+      var list = JSON.parse(localStorage.getItem(RT_KEY) || '[]');
+      if (!Array.isArray(list)) list = [];
+      list.push(rec);
+      var s = JSON.stringify(list.slice(-RT_KEEP));
+      if (_rtOwner() && typeof _prefSet === 'function') _prefSet(RT_KEY, s);
+      else localStorage.setItem(RT_KEY, s);
+    } catch (e) {}
+    return rec;
+  }
+  // The research card's owner line — one place builds it (research.js asks).
+  window.rrResearchTimingLine = function (rec) {
+    try {
+      rec = rec || window._rrResearchLastTiming;
+      if (!rec || !_rtOwner()) return '';
+      var sec = function (ms) { return (Math.round(ms / 100) / 10).toFixed(1) + ' s'; };
+      var parts = (rec.steps || []).filter(function (s) { return s[0].indexOf('you: ') !== 0 && s[1] >= 50; })
+        .map(function (s) { return s[0] + ' ' + sec(s[1]); });
+      var mk = rec.marks || {};
+      var lock = ('barcode locked' in mk) ? ' · barcode locked at ' + sec(mk['barcode locked']) : '';
+      return '<div id="rs-timing" style="font-size:0.72rem;color:var(--text-dim,#888);line-height:1.45;margin:0.1rem 0 0.6rem">'
+        + '⏱ App time ' + sec(rec.app) + (parts.length ? ' (' + parts.join(' · ') + ')' : '')
+        + ' · waiting on you ' + sec(rec.you) + lock + '</div>';
+    } catch (e) { return ''; }
+  };
+
   // ── Phase 3: staged pipeline with visible status ──
   var _biStop = false;   // v0.9.897 (Brad): the Identifying screen had no way out
+  // v0.9.1910: the wrapper books what the named steps inside did not — the
+  // catalog look-ups and checks — so the steps always add up to the whole.
   async function _biPipeline(fullCanvas, workCanvas, lockedBc, eraHint, opts) {
+    var t = _rtNow(), you0 = _rt ? _rt.you : 0, n0 = _rt ? _rt.steps.length : 0;
+    try { return await _biPipelineCore(fullCanvas, workCanvas, lockedBc, eraHint, opts); }
+    finally {
+      if (_rt && !_rt.done) {
+        var named = 0;
+        for (var i = n0; i < _rt.steps.length; i++) if (_rt.steps[i][0].indexOf('you: ') !== 0) named += _rt.steps[i][1];
+        _rtStep('catalog & checks', (_rtNow() - t) - named - (_rt.you - you0));
+      }
+    }
+  }
+  async function _biPipelineCore(fullCanvas, workCanvas, lockedBc, eraHint, opts) {
     var d = _biOverlay(
       '<div style="width:100%;max-width:560px">'
       + '<div style="display:flex;align-items:center;justify-content:space-between;gap:0.5rem;margin:0.2rem 0 0.6rem">'
@@ -3195,6 +3286,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
 
     // Stage 1 — barcode (always from the FULL frame)
     st('bc', '<span class="bi-spin">⟳</span>', 'Barcode: looking…');
+    var _rtBc = _rtNow();   // v0.9.1910
     var bc = lockedBc, bcResult = null;
     if (!bc) {
       // v0.9.1468 WYSIWYG: hunt the user's CROP first; the viewfinder frame
@@ -3218,6 +3310,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         st('bc', '📊', 'Barcode: ' + bcTxt, '#2ecc71');
       } else st('bc', '📊', 'Barcode: ✓ ' + bc.rawValue, '#2ecc71');
     } else st('bc', '➖', 'Barcode: none found (fine for bare items)');
+    _rtStep('barcode', _rtNow() - _rtBc);
     if (_biStop) return { __biCancel: true };
 
     // Stage 2 — label / lettering OCR (from the WORK canvas = crop)
@@ -3225,8 +3318,8 @@ window.eraSupportsBarcode = eraSupportsBarcode;
     var ocrText = '';
     var _numsFromFullFrame = false;   // v0.9.1464: numbers read outside the user's crop
     try {
-      var T = await _ensureTesseract();
-      var o = await T.recognize(_bcPreprocessForOCR(workCanvas), 'eng', {});
+      var T = await _rtTime('label reader start', _ensureTesseract());
+      var o = await _rtTime('label read', T.recognize(_bcPreprocessForOCR(workCanvas), 'eng', {}));
       ocrText = (o && o.data && o.data.text) || '';
       // v0.9.1108 (Brad's MTH lamp-set box, phone flow): he cropped tight to
       // the barcode, slicing the printed 11-90012 in half at the crop edge.
@@ -3238,7 +3331,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
       // reader, no reads spent.
       if (!(_extractItemNumberCandidates(ocrText || '') || []).length && fullCanvas && workCanvas
           && (fullCanvas.width > workCanvas.width * 1.15 || fullCanvas.height > workCanvas.height * 1.15)) {
-        var o2 = await T.recognize(_bcPreprocessForOCR(fullCanvas), 'eng', {});
+        var o2 = await _rtTime('label read (whole photo)', T.recognize(_bcPreprocessForOCR(fullCanvas), 'eng', {}));
         var t2 = (o2 && o2.data && o2.data.text) || '';
         // v0.9.1464: these numbers came from OUTSIDE the user's crop — they
         // may belong to a neighboring box he deliberately cropped away.
@@ -3275,9 +3368,9 @@ window.eraSupportsBarcode = eraSupportsBarcode;
       st('master', '❓', _outsideCrop
         ? 'Catalog: a number was read OUTSIDE your crop — is it your item?'
         : 'Catalog: ' + _dnums.length + ' different numbers in the shot — which one is YOUR item?', _BC_AMBER);
-      var _pickN = await _biNumPicker(_dnums, _outsideCrop
+      var _pickN = await _rtWait('pick a number', _biNumPicker(_dnums, _outsideCrop
         ? 'Your crop had no readable number, but ' + _dnums.slice(0, 3).join(', ') + ' was read from the FULL photo (outside your crop). Is that your item?'
-        : null);
+        : null));
       if (_pickN === 'none' || _pickN === 'cancel') {
         out.ocrNums = []; rawCands = []; out.ocrDesc = '';
         st('master', '➖', 'Catalog: numbers skipped — identifying the item itself');
@@ -3300,7 +3393,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
       if (hits.length === 1) { pick = hits[0]; verified = 'label'; }
       else if (hits.length > 1) {
         st('master', '📖', 'Catalog: ' + hits.length + ' items match ' + n + ' — pick yours');
-        var ch = await showCandidatePicker(hits, { itemNum: n });
+        var ch = await _rtWait('pick the item', showCandidatePicker(hits, { itemNum: n }));
         if (ch && !ch.__notInList) { pick = ch; verified = 'label'; }
         else if (ch && ch.__notInList) { out.typedNum = ch.itemNum; }
         break;
@@ -3319,8 +3412,8 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         // read off the item itself.)
         var _lN = pick.itemNum, _bN = bcResult.masterItem.itemNum;
         st('master', '❓', 'Catalog: label reads ' + _lN + ', barcode decodes to ' + _bN + ' — which is YOUR item?', _BC_AMBER);
-        var _sel = await _biNumPicker([_lN + ' — from the label', _bN + ' — from the barcode'],
-          'The printed label reads <b>' + _lN + '</b> but the barcode decodes to <b>' + _bN + '</b>. Which is YOUR item?');
+        var _sel = await _rtWait('pick a number', _biNumPicker([_lN + ' — from the label', _bN + ' — from the barcode'],
+          'The printed label reads <b>' + _lN + '</b> but the barcode decodes to <b>' + _bN + '</b>. Which is YOUR item?'));
         if (_sel && String(_sel).indexOf(_bN) === 0) { pick = bcResult.masterItem; verified = 'barcode'; }
         else st('master', '📖', 'Catalog: ✓ using the label — ' + _lN, '#2ecc71');
       }
@@ -3330,7 +3423,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
       // barcode decode — it is a memory, and memories can be wrong.
       if (bcResult.masterItem) { pick = bcResult.masterItem; verified = bcResult.learnedMap ? 'learned' : 'barcode'; }
       else if (bcResult.multipleMatches) {
-        var ch2 = await showCandidatePicker(bcResult.candidates, bcResult);
+        var ch2 = await _rtWait('pick the item', showCandidatePicker(bcResult.candidates, bcResult));
         if (ch2 && !ch2.__notInList) { pick = ch2; verified = 'barcode'; }
         else if (ch2 && ch2.__notInList) { out.typedNum = ch2.itemNum; }
       }
@@ -3351,7 +3444,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
       st('master', '📖', 'Catalog: not there — adding ' + out.typedNum + ' manually');
       if (_biStop) return { __biCancel: true };
       st('ai', '<span class="bi-spin">⟳</span>', 'Close look: getting the details…');
-      var aiR0 = await _bcAiRescue(workCanvas, eraHint, out.why, out.bcMaker);
+      var aiR0 = await _rtTime('photo reader', _bcAiRescue(workCanvas, eraHint, out.why, out.bcMaker));
       st('ai', '🔍', aiR0 ? 'Close look: ✓ details read' : 'Close look: no extra details', aiR0 ? '#2ecc71' : null);
       return { handled: true, _boxPhoto: out.isBoxShot, itemNum: out.typedNum, variation: '', notInMaster: true,
                manufacturer: out.bcMaker || (aiR0 && aiR0.manufacturer) || '',
@@ -3390,7 +3483,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
       st('master', '📖', 'Catalog: ' + _printed + ' not in the catalog — adding manually', _BC_AMBER);
       if (_biStop) return { __biCancel: true };
       st('ai', '<span class="bi-spin">⟳</span>', 'Close look: getting the details…');
-      var aiP = await _bcAiRescue(workCanvas, eraHint, out.why, out.bcMaker);
+      var aiP = await _rtTime('photo reader', _bcAiRescue(workCanvas, eraHint, out.why, out.bcMaker));
       st('ai', '🔍', aiP ? 'Close look: ✓ details read' : 'Close look: no extra details', aiP ? '#2ecc71' : null);
       return { handled: true, _boxPhoto: out.isBoxShot, itemNum: _printed, variation: '', notInMaster: true,
                manufacturer: out.bcMaker || (aiP && aiP.manufacturer) || '',
@@ -3436,7 +3529,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
       return { __biFail: true, out: out };
     }
     st('ai', '<span class="bi-spin">⟳</span>', 'Close look: reading the photo…');
-    var aiR = await _bcAiRescue(workCanvas, eraHint, out.why, out.bcMaker);
+    var aiR = await _rtTime('photo reader', _bcAiRescue(workCanvas, eraHint, out.why, out.bcMaker));
     if (_biStop) return { __biCancel: true };
     if (aiR) {
       st('ai', '🔍', 'Close look: ✓ ' + (aiR.itemNum || aiR.description || 'details read'), '#2ecc71');
@@ -3529,25 +3622,27 @@ window.eraSupportsBarcode = eraSupportsBarcode;
       });
     };
     _biArmBack();
+    _rtStart(window._researchActive ? 'research' : 'add');   // v0.9.1910: step timers
     try {
       while (true) {
         // Re-arm each pass — a no-op unless a _biKill() popped it (which is
         // exactly the 'rescan'/'retake' case this fixes).
         _biArmBack();
-        var cap = await _biCapture();
+        var cap = await _rtWait('camera screen', _biCapture());
         if (!cap) { _biKill(); if (onCancel) onCancel(); return; }
         // v0.9.711 (Brad): Research quick lookup — typed number, no photo.
         if (cap.typedQuery) {
+          _rtEnd('typed');
           _biKill();
           if (typeof window._researchLookupTyped === 'function') window._researchLookupTyped(cap.typedQuery, { era: cap.typedEra || '', mfr: cap.typedMfr || '', scale: cap.typedScale || '', picked: cap.typedPick || null });
           else if (onCancel) onCancel();
           return;
         }
-        var cr = await _biCrop(cap.view, cap.lockedBc);
+        var cr = await _rtWait('crop screen', _biCrop(cap.view, cap.lockedBc));
         if (cr.action === 'retake') continue;
         if (cr.action === 'cancel') { _biKill(); if (onCancel) onCancel(); return; }
         if (cr.action === 'lens') {
-          var fL = await _biCanvasToFile(cr.work, 'lens-choice.jpg');
+          var fL = await _rtTime('photo prep', _biCanvasToFile(cr.work, 'lens-choice.jpg'));
           _biKill();
           if (typeof window._identifyOpenWithPhoto === 'function') window._identifyOpenWithPhoto(fL, true);
           else if (onCancel) onCancel();
@@ -3559,18 +3654,18 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         // v0.9.897: Stop pressed = plain cancel — back to the wizard, nothing filled.
         if (res && res.__biCancel) { _biKill(); if (onCancel) onCancel(); return; }
         if (res && res.__biFail) {
-          var choice = await _biFailCard(res.out);
+          var choice = await _rtWait('could not identify card', _biFailCard(res.out));
           if (choice === 'ai') {
             // same photo, one more shot at the AI (Gemini overload passes quickly)
             var res2 = await _biPipeline(cap.view || cap.raw, cr.work, cap.lockedBc, eraHint, { forceAi: true });   // v0.9.1473: explicit choice = consent to spend
             if (res2 && res2.__biCancel) { _biKill(); if (onCancel) onCancel(); return; }   // v0.9.897
             if (res2 && !res2.__biFail) { res = res2; }
-            else { var c2 = await _biFailCard(res2 && res2.out || {}); if (c2 === 'retake') continue; if (c2 === 'lens') choice = 'lens'; else { _biKill(); if (onCancel) onCancel(); return; } }
+            else { var c2 = await _rtWait('could not identify card', _biFailCard(res2 && res2.out || {})); if (c2 === 'retake') continue; if (c2 === 'lens') choice = 'lens'; else { _biKill(); if (onCancel) onCancel(); return; } }
           }
           if (res && res.__biFail && choice !== 'lens' && choice !== 'retake') { _biKill(); if (onCancel) onCancel(); return; }
           if (choice === 'retake') continue;
           if (choice === 'lens') {
-            var f = await _biCanvasToFile(cr.work, 'lens-failsafe.jpg');
+            var f = await _rtTime('photo prep', _biCanvasToFile(cr.work, 'lens-failsafe.jpg'));
             _biKill();
             if (typeof window._identifyOpenWithPhoto === 'function') window._identifyOpenWithPhoto(f, true);
             else if (onCancel) onCancel();
@@ -3582,11 +3677,11 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         // auto-attach it as the Box photo (Brad: "if I photographed the label,
         // I obviously have a box — and that photo IS the box detail picture").
         if (res && res._boxPhoto) {
-          try { res._boxPhotoFile = await _biCanvasToFile(cr.work, 'box-label.jpg'); } catch (eF) {}
+          try { res._boxPhotoFile = await _rtTime('photo prep', _biCanvasToFile(cr.work, 'box-label.jpg')); } catch (eF) {}
         } else if (res) {
           // v0.9.811 (TODO-011): item shot (not a box) — carry it too, so the
           // wizard auto-attaches it as the ITEM photo instead of dropping it.
-          try { res._itemPhotoFile = await _biCanvasToFile(cr.work, 'identify-shot.jpg'); } catch (eF2) {}
+          try { res._itemPhotoFile = await _rtTime('photo prep', _biCanvasToFile(cr.work, 'identify-shot.jpg')); } catch (eF2) {}
         }
         // Confirm before anything fills (house rule)
         _biKill();
@@ -3616,21 +3711,21 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         // no barcode lock can belong to a NEIGHBORING box on a shelf — offer an
         // ignore-the-numbers AI re-run right on the confirm card.
         var _aiOffer = !cap.lockedBc && !!res.itemNum && !res.aiGuess;
-        var cc = await _bcConfirmCard(_biInfoFor(res, _aiOffer));
+        var cc = await _rtWait('confirm card', _bcConfirmCard(_biInfoFor(res, _aiOffer)));
         if (cc === 'aionly') {
           var resA = await _biPipeline(cap.view || cap.raw, cr.work, null, eraHint, { ignoreNums: true, forceAi: true });   // v0.9.1473: explicit choice = consent to spend
           if (resA && resA.__biCancel) { _biKill(); if (onCancel) onCancel(); return; }   // v0.9.897
           if (resA && !resA.__biFail) {
-            if (resA._boxPhoto) { try { resA._boxPhotoFile = await _biCanvasToFile(cr.work, 'box-label.jpg'); } catch (eF3) {} }
-            else { try { resA._itemPhotoFile = await _biCanvasToFile(cr.work, 'identify-shot.jpg'); } catch (eF4) {} } // v0.9.811 TODO-011
+            if (resA._boxPhoto) { try { resA._boxPhotoFile = await _rtTime('photo prep', _biCanvasToFile(cr.work, 'box-label.jpg')); } catch (eF3) {} }
+            else { try { resA._itemPhotoFile = await _rtTime('photo prep', _biCanvasToFile(cr.work, 'identify-shot.jpg')); } catch (eF4) {} } // v0.9.811 TODO-011
             _biKill();
             res = resA;
-            cc = await _bcConfirmCard(_biInfoFor(res, false));
+            cc = await _rtWait('confirm card', _bcConfirmCard(_biInfoFor(res, false)));
           } else {
-            var cf = await _biFailCard((resA && resA.out) || {});
+            var cf = await _rtWait('could not identify card', _biFailCard((resA && resA.out) || {}));
             if (cf === 'retake') continue;
             if (cf === 'lens') {
-              var fA = await _biCanvasToFile(cr.work, 'lens-failsafe.jpg');
+              var fA = await _rtTime('photo prep', _biCanvasToFile(cr.work, 'lens-failsafe.jpg'));
               _biKill();
               if (typeof window._identifyOpenWithPhoto === 'function') window._identifyOpenWithPhoto(fA, true);
               else if (onCancel) onCancel();
@@ -3659,10 +3754,11 @@ window.eraSupportsBarcode = eraSupportsBarcode;
               }
             }
           } catch (eL) {}
+          _rtEnd('found');   // v0.9.1910: before the card draws, so it can show the times
           if (onScanned) onScanned(res); return;
         }
         if (cc === 'lens') {
-          var fC = await _biCanvasToFile(cr.work, 'lens-confirm.jpg');
+          var fC = await _rtTime('photo prep', _biCanvasToFile(cr.work, 'lens-confirm.jpg'));
           _biKill();
           if (typeof window._identifyOpenWithPhoto === 'function') window._identifyOpenWithPhoto(fC, true);
           else if (onCancel) onCancel();
@@ -3679,9 +3775,12 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         if (onCancel) onCancel(); return;
       }
     } catch (err) {
+      _rtEnd('error');
       _biKill();
       if (typeof showToast === 'function') showToast(rrSaveError(err, 'the read'), 4000, true);
       if (onCancel) onCancel();
+    } finally {
+      _rtEnd('stopped');   // v0.9.1910: every other way out (cancel, Lens, Stop) — a no-op after 'found'
     }
   }
   window.openBoxIdentify = openBoxIdentify;
