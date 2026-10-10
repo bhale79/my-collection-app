@@ -1019,18 +1019,24 @@ if (typeof window !== 'undefined') window.rrPhotoBytesChanged = function (fileId
 };
 var _rrThumbBanked = 0;
 var _RR_THUMB_BANK_CAP = 80;   // per session — a show day's worth, not a data bill
-async function _rrThumbShrink(bigBlob) {
+// v0.9.1911: ONE shrinker — the thumbnail bank (400 px) and the Google Lens
+// copy (RR_LENS) both use it. Never upscales; any failure hands back the
+// original, so a photo is never lost to a shrink.
+async function _rrShrinkImage(bigBlob, maxSide, quality) {
   try {
     var bmp = await createImageBitmap(bigBlob);
-    var scale = Math.min(1, 400 / Math.max(bmp.width || 400, bmp.height || 400));
+    var w = bmp.width || maxSide, h = bmp.height || maxSide;
+    var scale = Math.min(1, maxSide / Math.max(w, h));
     var c = document.createElement('canvas');
-    c.width = Math.max(1, Math.round((bmp.width || 400) * scale));
-    c.height = Math.max(1, Math.round((bmp.height || 400) * scale));
+    c.width = Math.max(1, Math.round(w * scale));
+    c.height = Math.max(1, Math.round(h * scale));
     c.getContext('2d').drawImage(bmp, 0, 0, c.width, c.height);
-    var small = await new Promise(function (r) { c.toBlob(r, 'image/jpeg', 0.8); });
-    return (small && small.size) ? small : bigBlob;
+    try { if (bmp.close) bmp.close(); } catch (eC) {}
+    var small = await new Promise(function (r) { c.toBlob(r, 'image/jpeg', quality); });
+    return (small && small.size && small.size < bigBlob.size) ? small : bigBlob;
   } catch (e) { return bigBlob; }
 }
+async function _rrThumbShrink(bigBlob) { return _rrShrinkImage(bigBlob, 400, 0.8); }
 function _rrThumbBank(fileId) {
   try {
     if (!window._rrThumbCache || _rrThumbTried[fileId]) return;
@@ -1893,12 +1899,26 @@ async function driveStageLensCopy(sourceFileId) {
 
 // A photo that exists only on this device (the wizard's camera shot):
 // uploaded once, stamped in the same request, published.
-async function driveStageLensPhoto(file) {
+// v0.9.1911: onStep(name, ms) — optional; the Lens flow times each step.
+async function driveStageLensPhoto(file, onStep) {
   if (!file) throw new Error('No photo to send to Lens');
+  var step = function (n, t0) { try { if (typeof onStep === 'function') onStep(n, Date.now() - t0); } catch (eS) {} };
   var key = 'file:' + (file.name || '') + ':' + (file.size || 0) + ':' + (file.lastModified || 0);
   var alive = _rrLensAlive(key);
   if (alive) return alive;
+  // v0.9.1911: Lens gets a SMALL copy (RR_LENS, config.js) — the upload and
+  // Google's fetch-back were the 25 s Brad waited. The key above is the
+  // original's, so a re-search within ten minutes still reuses the upload.
+  var t = Date.now();
+  var L = (typeof RR_LENS !== 'undefined') ? RR_LENS : { PHOTO_MAX_SIDE: 1600, PHOTO_QUALITY: 0.85, SHRINK_OVER_BYTES: 350000 };
+  if ((file.size || 0) > L.SHRINK_OVER_BYTES && /^image\//.test(file.type || 'image/')) {
+    var small = await _rrShrinkImage(file, L.PHOTO_MAX_SIDE, L.PHOTO_QUALITY);
+    if (small !== file) file = new File([small], (file.name || 'photo.jpg').replace(/\.[a-z0-9]+$/i, '') + '.jpg', { type: 'image/jpeg' });
+  }
+  step('lens: shrink photo', t);
+  t = Date.now();
   var stagingId = await _rrLensFolder();
+  step('lens: find folder', t);
   var name = 'lens_' + Date.now() + '_' + (file.name || 'photo.jpg').replace(/[^a-zA-Z0-9._-]/g, '_');
   // v0.9.1324: the same two appProperties the share machinery uses, so this
   // world-readable file is VISIBLE to rrSweepExpiredShares (and to the Shared
@@ -1906,9 +1926,13 @@ async function driveStageLensPhoto(file) {
   // used to be a 10-minute setTimeout; close the tab or let the phone sleep
   // and that timer died with the page, leaving the photo readable by anyone
   // with the link, forever. The sweeper runs at every app start.
+  t = Date.now();
   var uploaded = await driveUploadFile(file, name, stagingId, { appProperties: _rrLensStamp() });
   if (!uploaded || !uploaded.id) throw new Error('Lens staging upload failed');
+  step('lens: upload ' + Math.round((file.size || 0) / 1024) + ' KB', t);
+  t = Date.now();
   await _rrLensPublish(uploaded.id);
+  step('lens: share link', t);
   return _rrLensRemember(key, uploaded.id);
 }
 if (typeof window !== 'undefined') { window.driveStageLensCopy = driveStageLensCopy; window.driveStageLensPhoto = driveStageLensPhoto; }

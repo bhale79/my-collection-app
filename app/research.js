@@ -208,11 +208,11 @@
     if (window.BackStack) window.BackStack.push('research-card', _kill);
 
     var _b1 = document.getElementById('rs-ebay');
-    if (_b1) _b1.onclick = function () { window.open(_ebaySoldUrl(itemNum, mfr, road, desc), '_blank'); };
+    if (_b1) _b1.onclick = function () { window.rrOpenExternal(_ebaySoldUrl(itemNum, mfr, road, desc), 'eBay sold'); };   // v0.9.1911: opened on its own, timed
     var _bg = document.getElementById('rs-google');
-    if (_bg) _bg.onclick = function () { window.open(_googlePriceUrl(_gNum, mfr, road, desc, _eraTerms), '_blank'); };   // v0.9.1501: row era terms ride along; v1838: the catalogs' spelling of the number
+    if (_bg) _bg.onclick = function () { window.rrOpenExternal(_googlePriceUrl(_gNum, mfr, road, desc, _eraTerms), 'Google price'); };   // v0.9.1501: row era terms ride along; v1838: the catalogs' spelling of the number
     var _bn = document.getElementById('rs-ebay-now');
-    if (_bn) _bn.onclick = function () { window.open(_ebayActiveUrl(itemNum, mfr, road, desc), '_blank'); };
+    if (_bn) _bn.onclick = function () { window.rrOpenExternal(_ebayActiveUrl(itemNum, mfr, road, desc), 'eBay now'); };
     var _bw = document.getElementById('rs-want');
     if (_bw) _bw.onclick = function () {
       // v0.9.742 (Brad): straight into the normal want-list steps, item prefilled.
@@ -380,7 +380,7 @@
   // (same sold-listings URL as Research).
   if (typeof window.wantFindOnEbay !== 'function') {
     window.wantFindOnEbay = function (itemNum, roadName) {
-      window.open(_ebaySoldUrl(itemNum, '', roadName), '_blank');
+      window.rrOpenExternal(_ebaySoldUrl(itemNum, '', roadName), 'eBay sold');
     };
   }
 })();

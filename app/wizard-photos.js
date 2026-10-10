@@ -988,7 +988,12 @@ async function _identifyOpenLens() {
   var _lwVis = function () { if (document.hidden) _lwKill(); };
   var _lwKill = function () { var e2 = document.getElementById('id-lens-wait'); if (e2) e2.remove(); document.removeEventListener('visibilitychange', _lwVis); };
   document.addEventListener('visibilitychange', _lwVis);
-  setTimeout(_lwKill, 15000);
+  // v0.9.1911 (Brad: the screen "goes away", then the Photo ID screen sits
+  // there ~15 s): it closed itself after a fixed 15 s while the upload was
+  // still going. Now it stays until Google opens (the app is left), it fails,
+  // or the RR_LENS safety limit — never mid-upload.
+  setTimeout(_lwKill, (typeof RR_LENS !== 'undefined' && RR_LENS.COVER_MAX_MS) || 90000);
+  var _lensSteps = [], _lensT0 = Date.now();
   try {
     if (typeof driveStageLensPhoto !== 'function') {
       throw new Error('Drive integration not loaded — please refresh and try again');
@@ -996,7 +1001,7 @@ async function _identifyOpenLens() {
     // v0.9.1835: a camera shot exists only on this phone, so it is uploaded
     // once (with its cleanup stamp in the same request); searched again
     // inside ten minutes, the same copy is reused and the link opens at once.
-    const staged = await driveStageLensPhoto(_identifyPhotoFile);
+    const staged = await driveStageLensPhoto(_identifyPhotoFile, function (n, ms) { _lensSteps.push([n, ms]); });
     if (!staged.reused) {
       _identifyStagedFileId = staged.id;
       // Schedule auto-cleanup in 10 minutes so the public photo doesn't linger.
@@ -1057,7 +1062,11 @@ async function _identifyOpenLens() {
     // the box next to the photo. No clipboard, no "Add to your search".
     const url = 'https://lens.google.com/uploadbyurl?url=' + encodeURIComponent(staged.url)
       + (_hint ? '&q=' + encodeURIComponent(_hint) + '&lns_mode=mu' : '');
-    window.open(url, '_blank');
+    if (staged.reused) _lensSteps.push(['lens: photo already sent (reused)', 0]);
+    try { if (typeof window.rrTimingSave === 'function') window.rrTimingSave('lens', 'opened', _lensSteps, Date.now() - _lensT0); } catch (eTS) {}   // v0.9.1911
+    if (typeof window.rrOpenExternal === 'function') window.rrOpenExternal(url, 'Google Lens');
+    else window.open(url, '_blank', 'noopener');
+    setTimeout(_lwKill, 2500);   // v0.9.1911: Google is opening — the screen's job is done
     if (searchBtn) { searchBtn.disabled = false; searchBtn.innerHTML = origText; }
     // Save mfr hints on wizard.data so paste-back can bias master lookup later.
     if (typeof wizard !== 'undefined' && wizard && wizard.data) {
@@ -1078,7 +1087,7 @@ async function _identifyOpenLens() {
 function openGoogleLens() {
   // If photo is staged, do the smart flow. Otherwise fall back to plain Lens.
   if (_identifyPhotoFile) { _identifySearchLens(); return; }
-  window.open('https://lens.google.com', '_blank');
+  if (typeof window.rrOpenExternal === 'function') window.rrOpenExternal('https://lens.google.com', 'Google Lens'); else window.open('https://lens.google.com', '_blank', 'noopener');
 }
 
 function useIdentifiedItem() {

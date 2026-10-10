@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.1910';
+const APP_VERSION = 'v0.9.1911';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -912,6 +912,20 @@ const ADMIN_EMAIL  = 'support@therailroster.com';
 // source of truth. THIS is the list to edit.
 const RR_OWNER_EMAILS = ['bhale@ipd-llc.com', 'support@therailroster.com'];
 
+// ── GOOGLE LENS HAND-OFF (v0.9.1911) ─────────────────────────────────────
+// Brad, 2026-10-10: Lens took ~35 s on his phone — "sending your photo" for
+// ~10 s, the Photo ID screen for ~15 s, a white screen ~10 s. The photo went
+// to Drive at full size (up to 2200 px, JPEG 0.9); Lens fetches it back by
+// link, so every byte crossed the phone's connection AND Google's. Lens reads
+// a box end fine at 1600 px. The "Sending" screen also closed itself after a
+// fixed 15 s while the upload was still going.
+//   PHOTO_MAX_SIDE / PHOTO_QUALITY  the copy sent to Lens (the photo kept in
+//                                    the collection is never touched)
+//   SHRINK_OVER_BYTES               a photo already this small goes as is
+//   COVER_MAX_MS                    the "Sending" screen's safety limit — it
+//                                    normally closes when Google opens
+const RR_LENS = { PHOTO_MAX_SIDE: 1600, PHOTO_QUALITY: 0.85, SHRINK_OVER_BYTES: 350000, COVER_MAX_MS: 90000 };
+
 // ── REVIEW-QUEUE FLAGS: NOTES vs CHECKS (v0.9.1712, Session 95) ──────────
 // Brad, on the Yardmaster's review queue: "when it says 'maker still lists
 // it — may not be retired', why does this matter? … If I google it and it
@@ -1437,6 +1451,7 @@ try {
 
 try {
   window.RR_OWNER_EMAILS = RR_OWNER_EMAILS;
+  window.RR_LENS = RR_LENS;
   window.RR_FLAG_NOTES  = RR_FLAG_NOTES;
   window.rrFlagKind     = rrFlagKind;
   window.RR_NOT_TRAIN_MAKERS = RR_NOT_TRAIN_MAKERS;   // v0.9.1714

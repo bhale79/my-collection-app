@@ -64,6 +64,10 @@ function build(opts) {
       if (/\/permissions\?/.test(ep)) return { id: 'perm' };
       return {};
     },
+    // v0.9.1911: the staging block now shrinks a big camera shot first; the
+    // shrinker lives outside the block (tests/lens_speed_tests.js proves it in
+    // a real browser). Here it hands the photo back unchanged.
+    _rrShrinkImage: async (f) => f,
     driveUploadFile: async (file, name, folderId, extra) => { log.push(['upload', name, folderId, extra, file && file.size]); return { id: 'up-' + log.length }; },
     __tick: (ms) => { now += ms; },
   };
@@ -151,7 +155,7 @@ const asks = (sb) => sb.log.filter(e => e[0] !== 'folder');
     ok('a fresh copy arms the ten-minute cleanup; a reused one leaves the running timer alone', /if \(!staged\.reused\) setTimeout\(function \(\) \{ try \{ driveCleanupLensStaging\(staged\.id\); \} catch \(e\) \{\} \}, 10 \* 60 \* 1000\);/.test(inbox));
     ok('the button says what is happening in plain words', /'Sending to Google…'/.test(inbox) && !/Staging photo/.test(inbox));
     const wiz = grab(WZ, 'async function _identifyOpenLens()');   // the Lens half of the wizard's search (the reader-first half hands off to it)
-    ok('the wizard still uploads its camera shot (it is not in Drive yet)', /const staged = await driveStageLensPhoto\(_identifyPhotoFile\);/.test(wiz));
+    ok('the wizard still uploads its camera shot (it is not in Drive yet)', /const staged = await driveStageLensPhoto\(_identifyPhotoFile(?:, function \(n, ms\) \{ _lensSteps\.push\(\[n, ms\]\); \})?\);/.test(wiz));   // v0.9.1911: may carry the step timer
     ok('…and its link still carries the words', /uploadbyurl\?url=' \+ encodeURIComponent\(staged\.url\)\n\s*\+ \(_hint \? '&q=' \+ encodeURIComponent\(_hint\) \+ '&lns_mode=mu' : ''\);/.test(wiz));
     ok('…arming its cleanup only for a fresh upload', /if \(!staged\.reused\) \{\n\s*_identifyStagedFileId = staged\.id;/.test(wiz));
     ok('driveUploadFile grew an OPTIONAL fourth argument — every other caller is unchanged', /async function driveUploadFile\(file, name, folderId, extraMeta\)/.test(DRV) && /Object\.assign\(\{ name, parents: \[folderId\], mimeType: file\.type \}, extraMeta \|\| \{\}\)/.test(DRV));

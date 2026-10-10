@@ -3213,6 +3213,12 @@ window.eraSupportsBarcode = eraSupportsBarcode;
                 steps: _rt.steps, marks: _rt.marks, mobile: !!window.IS_MOBILE_UA,
                 ver: (typeof APP_VERSION !== 'undefined' ? APP_VERSION : '') };
     window._rrResearchLastTiming = rec;
+    _rtSave(rec);
+    return rec;
+  }
+  // v0.9.1911: the ONE writer of the timing list — the identify flow, the
+  // Lens hand-off and the outside links all land in the same 25.
+  function _rtSave(rec) {
     try {
       var list = JSON.parse(localStorage.getItem(RT_KEY) || '[]');
       if (!Array.isArray(list)) list = [];
@@ -3221,8 +3227,32 @@ window.eraSupportsBarcode = eraSupportsBarcode;
       if (_rtOwner() && typeof _prefSet === 'function') _prefSet(RT_KEY, s);
       else localStorage.setItem(RT_KEY, s);
     } catch (e) {}
-    return rec;
   }
+  // total: the whole wait when known (the steps are its breakdown), else their sum
+  window.rrTimingSave = function (mode, outcome, steps, total) {
+    var tot = 0; (steps || []).forEach(function (s) { tot += s[1] || 0; });
+    if (typeof total === 'number') tot = total;
+    _rtSave({ at: new Date().toISOString(), mode: mode, outcome: outcome, total: Math.round(tot), app: Math.round(tot), you: 0,
+              steps: steps || [], marks: {}, mobile: !!window.IS_MOBILE_UA, ver: (typeof APP_VERSION !== 'undefined' ? APP_VERSION : '') });
+  };
+  // ══ v0.9.1911 — OUTSIDE PAGES OPEN ON THEIR OWN (Brad: Google Price Check
+  // sat on a white screen ~30 s on his phone). Google / eBay / Lens open with
+  // 'noopener': the new page gets no handle back to the app, so the browser
+  // is free to run it as its own page instead of beside an 8 MB app — and an
+  // outside site can never reach into the app. Also timed: how long until the
+  // phone actually left the app (the part of the wait the app can see).
+  window.rrOpenExternal = function (url, label) {
+    var t0 = Date.now(), done = false;
+    var fin = function (outcome) {
+      if (done) return; done = true;
+      document.removeEventListener('visibilitychange', onVis);
+      window.rrTimingSave('link', outcome, [[(label || 'link') + ': until the app was left', Date.now() - t0]]);
+    };
+    var onVis = function () { if (document.hidden) fin(label || 'link'); };
+    document.addEventListener('visibilitychange', onVis);
+    setTimeout(function () { fin((label || 'link') + ' (app never left)'); }, 60000);
+    try { window.open(url, '_blank', 'noopener'); } catch (e) { fin((label || 'link') + ' (blocked)'); }
+  };
   // The research card's owner line — one place builds it (research.js asks).
   window.rrResearchTimingLine = function (rec) {
     try {
