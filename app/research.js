@@ -183,6 +183,8 @@
       // v0.9.1913: found straight from the barcode — its last digits shown, so
       // a lock held from the WRONG box is visible on sight (the v0.9.1464 rule)
       + (res.fromBarcode && res.rawBarcode ? '<div style="font-size:0.78rem;color:var(--t-green);margin-top:0.3rem">✓ Found from the barcode (…' + _esc(String(res.rawBarcode).slice(-5)) + ')</div>' : '')
+      // v0.9.1914: the barcode was not in the catalog; the printed number was
+      + (res.fromLabel ? '<div style="font-size:0.78rem;color:var(--t-green);margin-top:0.3rem">✓ Found from the number printed on the label' + (res.rawBarcode ? ' \u2014 its barcode (…' + _esc(String(res.rawBarcode).slice(-5)) + ') is saved for the catalog' : '') + '</div>' : '')
       // v0.9.1195 (Brad: "filters didn't stop it" — his call: show it, but say
       // so). A not-in-catalog result has no catalog row for the filter chips
       // to check against, so it shows regardless — this line stops that from
@@ -366,6 +368,9 @@
     if (num && typeof findMaster === 'function') {
       try { m = findMaster(num, '', meta.manufacturer ? { manufacturer: meta.manufacturer } : null); } catch (e) {}   // v0.9.1337: rank by known maker
     }
+    // v0.9.1914: Google Lens named it after a barcode the catalog did not know
+    // — pair that barcode with this item for review (rrBarcodePending, barcode.js)
+    try { if (num && window.rrBarcodePending) window.rrBarcodePending.resolve(num, meta.manufacturer || (m && m.manufacturer) || '', !!m); } catch (eBP) {}
     _showCard({
       itemNum: num,
       manufacturer: meta.manufacturer || (m && m.manufacturer) || '',

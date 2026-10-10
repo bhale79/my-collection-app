@@ -675,7 +675,11 @@ function _identifyLensReturnMode() {
   if (panel) { panel.scrollTop = 0; if (panel.parentElement) panel.parentElement.scrollTop = 0; }
 }
 
-window._identifyOpenWithPhoto = function (file, autoLens) {
+// v0.9.1914: opts.extraWords — words Lens gets on top of the filters (the
+// barcode digits when Research hands over a box the catalog did not know).
+var _identifyLensExtraWords = '';
+window._identifyOpenWithPhoto = function (file, autoLens, opts) {
+  _identifyLensExtraWords = (opts && opts.extraWords) ? String(opts.extraWords) : '';
   // v0.9.686: Research mode reaches this WITHOUT the wizard ever opening —
   // the identify modal (built lazily by _buildWizardModal) doesn't exist yet,
   // so openIdentify threw and the whole Lens handoff silently bailed to the
@@ -977,8 +981,9 @@ async function _identifyOpenLens() {
     if (_rsF.scale) _hScale = _rsF.scale;
     if (_rsF.type) _hType = _rsF.type;
   }
-  var _hint = [_hMfr, _hPeriod, _hScale ? (_hScale + ' gauge') : '', _hType || 'model train']
+  var _hint = [_hMfr, _hPeriod, _hScale ? (_hScale + ' gauge') : '', _hType || 'model train', _identifyLensExtraWords]   // v0.9.1914: + the barcode digits
     .filter(Boolean).join(' ').replace(/\s+/g, ' ').trim();
+  _identifyLensExtraWords = '';   // used once
   var _hSeen = {};
   _hint = _hint.split(' ').filter(function (w) {
     var k = w.toLowerCase().replace(/[^a-z0-9-]/g, '');

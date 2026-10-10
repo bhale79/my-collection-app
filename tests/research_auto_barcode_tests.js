@@ -12,8 +12,10 @@
 //      card at once: no countdown, no crop screen, no confirm card, no photo
 //      sent anywhere; the card says "Found from the barcode (…12345)"
 //   B. several real rows → the pick list, then the card
-//   C. NOT auto: a Lionel last-5 GUESS (fuzzy), a barcode not in the catalog,
-//      and the Add flow (it saves — it keeps photo + crop + confirm)
+//   C. NOT certain (a Lionel last-5 GUESS, not in the catalog) → v0.9.1914: the
+//      label is read, then Google Lens; the Add flow keeps photo+crop+confirm
+//   K. Brad's Lionel 2533502 (barcode 0 23922 06597 1): found from the label,
+//      the pairing saved; a Lens answer pairs too; Lens gets the digits
 //   D. each barcode is looked up once per camera screen
 //   E. the timings: the look-up is APP time, taken out of the camera wait
 //   L. Lens on cellular gets the smaller copy (RR_LENS.CELL_*); Wi-Fi the 1600
@@ -151,26 +153,97 @@ const ROW = (o) => Object.assign({ itemNum: '6-12345', description: 'Test boxcar
     await pg.close();
   }
 
-  console.log('\n== C · not auto ==');
+  console.log('\n== C · a barcode that does not name the item (v0.9.1914: the label, then Google Lens) ==');
   for (const c of [
     { name: 'C1  a Lionel last-5 GUESS (only a 7-digit row ends in 12345)', rows: [ROW({ itemNum: '2112345' })], code: LIONEL },
     { name: 'C2  a barcode not in the catalog', rows: [ROW({ itemNum: '6-99999' })], code: LIONEL },
-    { name: 'C3  the Add flow, even with an exact row', rows: [ROW()], code: LIONEL, add: true },
   ]) {
     const pg = await boot(c.rows);
-    await scan(pg, c.code, { add: c.add });
+    await pg.evaluate(() => { window.__lens = null; window._identifyOpenWithPhoto = function (f, auto, opts) { window.__lens = { name: f && f.name, auto: auto, words: opts && opts.extraWords }; }; });
+    await scan(pg, c.code);
     await pg.waitForTimeout(2500);
-    const r = await pg.evaluate(() => ({ card: !!document.getElementById('rs-overlay'), picker: !!document.getElementById('barcode-candidate-overlay'),
-      cam: !!document.getElementById('bi-video'), banner: (document.getElementById('bi-lockbanner') || {}).style ? document.getElementById('bi-lockbanner').style.display : '' ,
-      stat: (document.getElementById('bi-camstatus') || {}).textContent || '', added: !!window.__added }));
-    T(c.name + ' → the camera stays for the picture, as before', !r.card && !r.picker && !r.added && r.cam, r);
-    await pg.evaluate(() => { var b = document.querySelector('[data-bi="cancel"]'); if (b) b.click(); });
-    await pg.waitForTimeout(300);
-    if (c.name.indexOf('C2') === 0) {
-      const rec = await lastRec(pg) || {};
-      T('D1  …and that barcode was looked up ONCE in 2.5 s of holding it in view', (rec.steps || []).filter(s => s[0] === 'barcode look-up').length === 1, rec.steps);
-    }
+    const r = await pg.evaluate(() => ({ card: !!document.getElementById('rs-overlay'), lens: window.__lens, ocr: window.__ocr || 0, cam: !!document.getElementById('bi-video'),
+      pending: JSON.parse(localStorage.getItem('rr_bc_pending') || 'null') }));
+    T(c.name + ' → the label is read (no tap), finds nothing, and Google Lens gets the photo', !r.card && r.ocr === 1 && r.lens && r.lens.auto === true && !r.cam, r);
+    T(c.name.slice(0, 3) + ' …with the barcode digits as Lens words, and the barcode kept for the answer', r.lens && r.lens.words === '023922123456' && r.pending && r.pending.raw === '023922123456', r);
+    const rec = await lastRec(pg) || {};
+    T(c.name.slice(0, 3) + ' …recorded: looked up ONCE, label read, outcome lens', (rec.steps || []).filter(s => s[0] === 'barcode look-up').length === 1 && (rec.steps || []).some(s => s[0] === 'label read') && rec.outcome === 'lens', rec);
     await pg.close();
+  }
+  {
+    const pg = await boot([ROW()]);
+    await scan(pg, LIONEL, { add: true });
+    await pg.waitForTimeout(2500);
+    const r = await pg.evaluate(() => ({ card: !!document.getElementById('rs-overlay'), cam: !!document.getElementById('bi-video'), added: !!window.__added, ocr: window.__ocr || 0 }));
+    T('C3  the Add flow, even with an exact row → the camera stays for the picture, as before', !r.card && !r.added && r.cam && r.ocr === 0, r);
+    await pg.close();
+  }
+
+  console.log('\n== K · Brad\'s box: Lionel 2533502, barcode 0 23922 06597 1 ==');
+  const UP2692 = '023922065971';
+  {
+    const pg = await boot([ROW({ itemNum: '2533502', description: 'Union Pacific LEGACY ET44AC #2692', roadName: 'Union Pacific' })]);
+    await pg.evaluate(() => {
+      window.Tesseract = { recognize: async function () { window.__ocr = (window.__ocr || 0) + 1; return { data: { text: 'Union Pacific LEGACY ET44AC #2692\nLEGACY and Bluetooth Control\n0 23922 06597 1\n2533502\nAGES 14 AND OVER' } }; } };
+      window.vaultIsOptedIn = function () { return true; }; window.vaultPost = async function () { return null; };
+      localStorage.removeItem('rr_bcmap'); localStorage.removeItem('rr_bcpair_q');
+    });
+    await scan(pg, UP2692);
+    let card = false;
+    try { await pg.waitForSelector('#rs-overlay', { timeout: 6000 }); card = true; } catch (e) {}
+    const r = await pg.evaluate(() => ({ txt: (document.getElementById('rs-overlay') || {}).innerText || '', ocr: window.__ocr || 0,
+      map: JSON.parse(localStorage.getItem('rr_bcmap') || '{}'), q: JSON.parse(localStorage.getItem('rr_bcpair_q') || '[]') }));
+    T('K1  the barcode misses, the label\'s 2533502 is read, and its research card opens — no taps', card && /2533502/.test(r.txt) && r.ocr === 1, r.txt.slice(0, 200));
+    T('K2  the card says it came from the printed number, and that the barcode is saved', /Found from the number printed on the label/.test(r.txt) && /…65971/.test(r.txt), r.txt.slice(0, 400));
+    T('K3  the pairing 023922065971 → 2533502 is saved (Barcode Map) …', r.map['023922065971'] && r.map['023922065971'].n === '2533502', r.map);
+    T('K4  … and queued for the community catalog review (how: scan-label)', r.q.some(x => x.u === '023922065971' && x.n === '2533502' && x.h === 'scan-label'), r.q);
+    const rec = await lastRec(pg) || {};
+    T('K5  recorded as found, with the label read as app time', rec.outcome === 'found' && (rec.steps || []).some(s => s[0] === 'label read'), rec);
+    await pg.close();
+  }
+  {
+    // the label read finds nothing → Lens → Lens names it → the pairing is saved
+    const pg = await boot([ROW({ itemNum: '2533502', description: 'Union Pacific LEGACY ET44AC #2692' })]);
+    const r = await pg.evaluate(async (up) => {
+      window.vaultIsOptedIn = function () { return true; }; window.vaultPost = async function () { return null; };
+      localStorage.removeItem('rr_bcmap'); localStorage.removeItem('rr_bcpair_q');
+      window.rrBarcodePending.set(up, 'Lionel');
+      window._researchShowFromMeta('2533502', { manufacturer: 'Lionel' });
+      await new Promise(rs => setTimeout(rs, 300));
+      var after = localStorage.getItem('rr_bc_pending');
+      // an old hand-off (over 15 minutes) pairs nothing
+      localStorage.setItem('rr_bc_pending', JSON.stringify({ raw: '023922099999', mfr: 'Lionel', at: Date.now() - 16 * 60 * 1000 }));
+      var old = window.rrBarcodePending.resolve('2533502', 'Lionel', true);
+      return { map: JSON.parse(localStorage.getItem('rr_bcmap') || '{}'), q: JSON.parse(localStorage.getItem('rr_bcpair_q') || '[]'), after: after, old: old,
+               card: (document.getElementById('rs-overlay') || {}).innerText || '' };
+    }, UP2692);
+    T('K6  Google Lens names the item in Research → the barcode that sent it is paired (how: scan-lens)', r.map[UP2692] && r.map[UP2692].n === '2533502' && r.q.some(x => x.u === UP2692 && x.h === 'scan-lens') && /2533502/.test(r.card), r);
+    T('K7  …used once (cleared), and a hand-off older than 15 minutes pairs nothing', r.after === null && r.old === false && !r.map['023922099999'], r);
+    // Lens gets the barcode digits among its words
+    const w = await pg.evaluate(async (up) => {
+      localStorage.setItem('rr_lens_skip_intro', '1');
+      accessToken = 'test-token';
+      window._rrLensFolder = async function () { return 'folder-1'; };
+      window.driveUploadFile = async function () { return { id: 'f1' }; };
+      window.driveRequest = async function () { return {}; };
+      window.__opened = []; window.open = function (u) { window.__opened.push(String(u)); return null; };
+      window._researchActive = true;
+      var c = document.createElement('canvas'); c.width = 300; c.height = 200;
+      var b = await new Promise(rs => c.toBlob(rs, 'image/jpeg', 0.8));
+      window._identifyOpenWithPhoto(new File([b], 'lens-barcode.jpg', { type: 'image/jpeg', lastModified: 77 }), true, { extraWords: up });
+      for (var i = 0; i < 40 && !window.__opened.length; i++) await new Promise(rs => setTimeout(rs, 150));
+      var u = window.__opened.pop() || '';
+      return decodeURIComponent((u.split('&q=')[1] || '').split('&')[0]);
+    }, UP2692);
+    T('K8  Google Lens gets the barcode digits among its words', w.indexOf(UP2692) >= 0, w);
+    await pg.close();
+  }
+  {
+    const B = rd('barcode.js');
+    const rule = s => /info\.mfr === 'Lionel' && \/\^\\d\{7\}\$\/\.test\(want\)/.test(strip(fnBody(s, 'function _bcLearnAllowed(')));
+    const keeps = s => /return cands\.some\(/.test(fnBody(s, 'function _bcLearnAllowed('));
+    T('K9  the pairing guard lets a modern 7-digit Lionel number pair with a Lionel barcode, and still checks the rest', rule(B) && keeps(B));
+    T('K10 planted: without that clause the 2533502 pairing would be refused (caught)', !rule(B.replace("if (info.mfr === 'Lionel' && /^\\d{7}$/.test(want)) return true;", '')));
   }
 
   console.log('\n== U · the decluttered Research screen (v0.9.1913, Brad\'s list) ==');

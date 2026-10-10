@@ -1234,6 +1234,11 @@ window.eraSupportsBarcode = eraSupportsBarcode;
       var cands = (info.parse(upc) || {}).itemNumCandidates || [];
       if (!cands.length) return true;               // parser decodes nothing (MTH & co.)
       var want = String(itemNum || '').toLowerCase().replace(/^6-/, '');
+      // v0.9.1914 (Brad's Lionel 2533502, box barcode 0 23922 06597 1): a
+      // modern 7-digit Lionel number is never inside its UPC — the barcode
+      // carries a Lionel stock code — so there is nothing to cross-check and
+      // the pairing is exactly what the catalog is missing.
+      if (info.mfr === 'Lionel' && /^\d{7}$/.test(want)) return true;
       return cands.some(function (c) {
         return String(c || '').toLowerCase().replace(/^6-/, '') === want;
       });
@@ -2741,6 +2746,42 @@ window.eraSupportsBarcode = eraSupportsBarcode;
     if (window.BackStack) window.BackStack.pop('box-identify');
   }
 
+  // ══ v0.9.1914 — A BARCODE THE CATALOG DOES NOT KNOW (Brad: "if it captures
+  // the barcode … send that directly to google lens"; and the catalog gap:
+  // 6,279 modern 7-digit Lionel rows, none with its UPC) ═════════════════
+  // Research reads the printed number on the same picture first (free, works
+  // without signal once the reader has loaded); then Google Lens, with the
+  // barcode's digits among the words. Whichever names the item, the pairing
+  // barcode → item is SAVED for review (the Barcode Map tab + the community
+  // queue) — recording, never recalled during a scan (v0.9.1465).
+  var BC_PENDING_KEY = 'rr_bc_pending', BC_PENDING_MS = 15 * 60 * 1000;
+  window.rrBarcodePending = {
+    set: function (raw, mfr) { try { localStorage.setItem(BC_PENDING_KEY, JSON.stringify({ raw: String(raw || ''), mfr: String(mfr || ''), at: Date.now() })); } catch (e) {} },
+    clear: function () { try { localStorage.removeItem(BC_PENDING_KEY); } catch (e) {} },
+    // Lens named the item in Research: pair it with the barcode that sent it
+    resolve: function (itemNum, mfr, inMaster) {
+      try {
+        var p = JSON.parse(localStorage.getItem(BC_PENDING_KEY) || 'null');
+        localStorage.removeItem(BC_PENDING_KEY);
+        if (!p || !p.raw || !itemNum || Date.now() - (p.at || 0) > BC_PENDING_MS) return false;
+        if (!_bcLearnAllowed(p.raw, itemNum)) return false;
+        rrBcMapLearn(p.raw, itemNum, mfr || p.mfr || '', 'scan-lens', inMaster !== false);
+        return true;
+      } catch (e) { return false; }
+    },
+  };
+  // The item numbers printed on a label. A Lionel barcode proves the maker, so
+  // any free-standing 7-digit number counts too (the modern catalog numbers).
+  function _biLabelNums(text, bcMfr) {
+    var nums = (_extractItemNumberCandidates(text || '') || []).map(function (c) { return String((c && (c.raw || c.num || c.itemNum)) || c || '').trim(); });
+    if (_bcMfrKey(bcMfr) === 'lionel') {
+      var m7, re7 = /\b\d{7}\b/g;
+      while ((m7 = re7.exec(_stripUPCs(text || ''))) !== null) nums.push(m7[0]);
+    }
+    var seen = {};
+    return nums.filter(function (n) { if (!n || seen[n]) return false; seen[n] = 1; return true; });
+  }
+
   // v0.9.1913: when a barcode alone may answer a Research scan. Certain = one
   // EXACT catalog row (a Lionel last-5 guess is marked _fuzzy and does NOT
   // count), a hit in the catalog's own barcode column, or an MTH code; or a
@@ -3096,6 +3137,14 @@ window.eraSupportsBarcode = eraSupportsBarcode;
                         done({ raw: aFrame.raw, view: aFrame.view, lockedBc: bc, autoResearch: _auto });
                         return;
                       }
+                      // v0.9.1914 (Brad: Lionel 2533502 is in the catalog but its
+                      // barcode did not find it): the barcode did not name the
+                      // item for certain — take the picture now and read the
+                      // printed number on the label (it sits beside the barcode
+                      // on Lionel's labels); failing that, Google Lens. No taps.
+                      var lFrame = snapFrame();
+                      done({ raw: lFrame.raw, view: lFrame.view, lockedBc: bc, labelTry: _auto || { rawBarcode: bc.rawValue } });
+                      return;
                     }
                     if (confirmN >= 2 && !_autoSnapOn()) {
                       // Manual mode: hold the lock, hand the shutter to Brad.
@@ -3787,6 +3836,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
     };
     _biArmBack();
     _rtStart(window._researchActive ? 'research' : 'add');   // v0.9.1910: step timers
+    if (window._researchActive) window.rrBarcodePending.clear();   // v0.9.1914: a new Research starts clean
     try {
       while (true) {
         // Re-arm each pass — a no-op unless a _biKill() popped it (which is
@@ -3796,6 +3846,53 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         if (!cap) { _biKill(); if (onCancel) onCancel(); return; }
         // v0.9.1913: the barcode already named it (Research) — straight to
         // the result. Several rows → the same pick list the label path uses.
+        if (cap.labelTry) {
+          var lt = cap.labelTry, rawL = (cap.lockedBc && cap.lockedBc.rawValue) || lt.rawBarcode || '';
+          var mfrL = (lt.manufacturer && lt.manufacturer !== 'Unknown') ? lt.manufacturer : '';
+          _biOverlay('<div style="width:100%;max-width:560px;text-align:center;padding:1.2rem 0.5rem"><div style="font-size:2rem">\ud83d\udd0e</div>'
+            + '<div class="rr-card-title" style="margin:0.4rem 0">Reading the label\u2026</div>'
+            + '<div style="font-size:0.85rem;color:var(--text-mid)">The barcode (\u2026' + _bcEsc(String(rawL).slice(-5)) + ') is not in our catalog \u2014 reading the printed number.</div></div>');
+          var textL = '';
+          try {
+            var TL = await _rtTime('label reader start', _ensureTesseract());
+            var oL = await _rtTime('label read', TL.recognize(_bcPreprocessForOCR(cap.view || cap.raw), 'eng', {}));
+            textL = (oL && oL.data && oL.data.text) || '';
+          } catch (eL0) {}
+          var numsL = _biLabelNums(textL, mfrL);
+          var rowsL = [];
+          if (numsL.length) {
+            try { rowsL = await _rtTime('catalog & checks', _findMasterItemsExact(numsL)); } catch (eL1) {}
+            if (mfrL) rowsL = (rowsL || []).filter(function (m) { return _bcRowIsMfr(m, _bcMfrKey(mfrL)); });
+          }
+          if (rowsL && rowsL.length) {
+            var pickL = rowsL[0];
+            if (rowsL.length > 1) {
+              _biKill();
+              pickL = await _rtWait('pick the item', showCandidatePicker(rowsL, { itemNum: rowsL[0].itemNum }));
+              if (!pickL) { _biArmBack(); continue; }
+              if (pickL.__notInList) { _rtEnd('typed'); if (typeof window._researchLookupTyped === 'function') window._researchLookupTyped(pickL.itemNum, {}); else if (onCancel) onCancel(); return; }
+            }
+            var resL = { handled: true, itemNum: pickL.itemNum, variation: pickL.variation || '', masterItem: pickL,
+                         manufacturer: pickL.manufacturer || mfrL || '', roadName: pickL.roadName || '', description: pickL.description || '',
+                         rawBarcode: rawL, fromLabel: true, _boxPhoto: true };
+            try { resL._boxPhotoFile = await _rtTime('photo prep', _biCanvasToFile(cap.view || cap.raw, 'box-label.jpg')); } catch (eLP) {}
+            // the pairing the catalog is missing — saved for review
+            try { if (rawL && _bcLearnAllowed(rawL, pickL.itemNum)) rrBcMapLearn(rawL, pickL.itemNum, resL.manufacturer, 'scan-label', true); } catch (eLL) {}
+            _biKill();
+            _rtEnd('found');
+            if (onScanned) onScanned(resL);
+            return;
+          }
+          // nothing on the label either → Google Lens, the barcode digits among its words
+          var fLens = null;
+          try { fLens = await _rtTime('photo prep', _biCanvasToFile(cap.view || cap.raw, 'lens-barcode.jpg')); } catch (eLF) {}
+          window.rrBarcodePending.set(rawL, mfrL);
+          _biKill();
+          _rtEnd('lens');
+          if (fLens && typeof window._identifyOpenWithPhoto === 'function') window._identifyOpenWithPhoto(fLens, true, { extraWords: rawL });
+          else if (onCancel) onCancel();
+          return;
+        }
         if (cap.autoResearch) {
           var ar = cap.autoResearch, pickA = null;
           if (ar.multipleMatches) {
