@@ -3841,7 +3841,11 @@ META_WRITES.length = 0; TOASTS.length = 0;
       let JSDOM;
       try { JSDOM = require('jsdom').JSDOM; }
       catch (e) {
-        console.log('  SKIP  behavioural DOM run — jsdom not installed (npm i --no-save jsdom)');
+        // v0.9.1912 follow-up: this used to print SKIP and carry on, so the
+        // five arrow checks below sat silently unrun on every release from
+        // v0.9.1907 to v0.9.1912 — and were broken the whole time. A check
+        // that cannot run is a FAILURE, never a pass (npm install brings jsdom).
+        ok('DOM run: jsdom is installed (run npm install) — without it the arrow checks cannot run', false, 'jsdom missing');
         return;
       }
       const dom = new JSDOM('<!DOCTYPE html><body>'
@@ -3851,7 +3855,12 @@ META_WRITES.length = 0; TOASTS.length = 0;
         + '<tr><td onclick="_wantViewDetail(\'2343\',\'\')"><span class="item-num">2343</span></td></tr>'
         + '<tr><td onclick="_wantViewDetail(\'6017\',\'2\')"><span class="item-num">6017</span></td></tr>'
         + '<tr><td onclick="_wantViewDetail(\'726\',\'\')"><span class="item-num">726</span></td></tr>'
-        + '</tbody></table></div><div id="rr-detail-nav"></div></body>', { runScripts: 'outside-only' });
+        + '</tbody></table></div><div id="rr-detail-nav"></div></body>', { runScripts: 'dangerously' });
+      // 'dangerously' = inline onclick="…" handlers COMPILE, as in a real browser.
+      // Since v0.9.1907 the arrows hand the row's own onclick text to a detached
+      // button and let the browser compile it (no 'unsafe-eval' under the CSP);
+      // under 'outside-only' jsdom never compiles inline handlers, so every
+      // arrow press failed here while working in Chrome.
       const w = dom.window;
       const ran = [];
       w.showToast = function () {};
@@ -3862,6 +3871,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
       // Click the THIRD row.
       w.document.querySelectorAll('#tb tr')[2].querySelector('td[onclick]')
         .dispatchEvent(new w.Event('click', { bubbles: true }));
+      ran.length = 0;   // the row's own handler ran on that click (real-browser behaviour); count arrow opens only
 
       const n = w._rrNav;
       ok('DOM run: the whole visible list is captured, in display order',
@@ -3908,7 +3918,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
                      .concat([7, 8].map(i => card(i, false))).join('');
         const d = new JSDOM('<!DOCTYPE html><body><div class="page active" id="page-forsale">'
           + '<div id="fs-cards">' + html + '</div></div><div id="rr-detail-nav"></div></body>',
-          { runScripts: 'outside-only' });
+          { runScripts: 'dangerously' });   // inline handlers compile, as in Chrome (see above)
         const v = d.window;
         const opened = [];
         v.showToast = function () {}; v.scrollTo = function () {};
@@ -3918,6 +3928,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
         const els = v.document.querySelectorAll('#fs-cards > div');
 
         els[2].dispatchEvent(new v.Event('click', { bubbles: true }));
+        opened.length = 0;   // the row's own handler ran on that click; count arrow opens only
         ok('For Sale: an inventoryId row is recognised (it used to give NO arrows)',
            !!v._rrNav, v._rrNav ? '' : 'still null');
         ok('For Sale: the count is the whole list, not just the legacy rows',
@@ -3940,8 +3951,9 @@ META_WRITES.length = 0; TOASTS.length = 0;
           + '<div onclick="showItemDetailPage(1)"><span class="item-num">A</span></div>'
           + '<div onclick="showItemDetailPage(2)"><span class="item-num">B</span></div>'
           + '<div onclick="_someBrandNewOpener(3)"><span class="item-num">C</span></div>'
-          + '</div></div></body>', { runScripts: 'outside-only' });
+          + '</div></div></body>', { runScripts: 'dangerously' });
         const v = d.window;
+        v.showItemDetailPage = function () {}; v._someBrandNewOpener = function () {};
         const warns = [];
         v.console.warn = function () { warns.push(Array.prototype.join.call(arguments, ' ')); };
         v.eval(fs.readFileSync(pN.join(__dirname, '..', 'app', 'detail-nav.js'), 'utf8'));
