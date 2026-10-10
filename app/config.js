@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.1912';
+const APP_VERSION = 'v0.9.1913';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -924,7 +924,11 @@ const RR_OWNER_EMAILS = ['bhale@ipd-llc.com', 'support@therailroster.com'];
 //   SHRINK_OVER_BYTES               a photo already this small goes as is
 //   COVER_MAX_MS                    the "Sending" screen's safety limit — it
 //                                    normally closes when Google opens
-const RR_LENS = { PHOTO_MAX_SIDE: 1600, PHOTO_QUALITY: 0.85, SHRINK_OVER_BYTES: 350000, COVER_MAX_MS: 90000 };
+//   CELL_*  v0.9.1913 — on cellular (Brad's phone: 199 KB took 36 s to send;
+//           on Wi-Fi 107 KB took 1.3 s) a smaller copy, about a third of the
+//           bytes. Wi-Fi keeps the sharper copy.
+const RR_LENS = { PHOTO_MAX_SIDE: 1600, PHOTO_QUALITY: 0.85, SHRINK_OVER_BYTES: 350000, COVER_MAX_MS: 90000,
+                  CELL_MAX_SIDE: 1024, CELL_QUALITY: 0.72, CELL_SHRINK_OVER_BYTES: 60000 };
 
 // ── REVIEW-QUEUE FLAGS: NOTES vs CHECKS (v0.9.1712, Session 95) ──────────
 // Brad, on the Yardmaster's review queue: "when it says 'maker still lists

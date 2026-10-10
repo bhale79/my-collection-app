@@ -180,6 +180,9 @@
       + '</div>'
       + (_mfrNote ? '<div style="font-size:0.78rem;color:#e6a23c;margin-top:0.3rem">' + _esc(_mfrNote) + '</div>' : '')   // v0.9.1501: maker disagreement, said out loud
       + (res.notInMaster ? '<div style="font-size:0.78rem;color:#e6a23c;margin-top:0.3rem">Not in our catalog yet — details were read from the photo.</div>' : '')
+      // v0.9.1913: found straight from the barcode — its last digits shown, so
+      // a lock held from the WRONG box is visible on sight (the v0.9.1464 rule)
+      + (res.fromBarcode && res.rawBarcode ? '<div style="font-size:0.78rem;color:var(--t-green);margin-top:0.3rem">✓ Found from the barcode (…' + _esc(String(res.rawBarcode).slice(-5)) + ')</div>' : '')
       // v0.9.1195 (Brad: "filters didn't stop it" — his call: show it, but say
       // so). A not-in-catalog result has no catalog row for the filter chips
       // to check against, so it shows regardless — this line stops that from

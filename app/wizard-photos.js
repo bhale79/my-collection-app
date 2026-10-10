@@ -967,6 +967,16 @@ async function _identifyOpenLens() {
   if (!_hPeriod && _hAf && _hAf.years) _hPeriod = String(_hAf.years);
   var _hScale = String(_hW._searchFilterScale || '') || (document.getElementById('id-scale') || {}).value || ((_hAf && _hAf.scale) || '');
   var _hType = (document.getElementById('id-type') || {}).value || String(_hW._searchFilterType || '');
+  // v0.9.1913 ([stated] Brad: "yes" — the filters set on the Research screen
+  // go to Lens as words). They are on THIS screen, set on purpose, so the
+  // v0.9.1501 rule (no voice for the app-wide filter) still holds.
+  var _rsF = (_hResearch && typeof window.rrResearchFilters === 'function') ? window.rrResearchFilters() : null;
+  if (_rsF) {
+    if (_rsF.mfr) _hMfr = _rsF.mfr;
+    if (_rsF.period && _hPeriodMap[_rsF.period]) _hPeriod = _hPeriodMap[_rsF.period];
+    if (_rsF.scale) _hScale = _rsF.scale;
+    if (_rsF.type) _hType = _rsF.type;
+  }
   var _hint = [_hMfr, _hPeriod, _hScale ? (_hScale + ' gauge') : '', _hType || 'model train']
     .filter(Boolean).join(' ').replace(/\s+/g, ' ').trim();
   var _hSeen = {};

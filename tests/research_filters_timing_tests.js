@@ -14,8 +14,9 @@
 //   S. source sweeps: every wait on the person inside the identify flow is
 //      booked as YOUR time, every slow app step as APP time — a new picker or
 //      reader added later without its timer fails here
-//   R. a real run through the flow (photo → crop → Photo ID → confirm → the
-//      research card): the record, the owner's line on the card, the steps
+//   R. a real run through the flow (photo → crop → Photo ID → confirm). Since
+//      v0.9.1913 Research offers only Google Lens after a photo, so this runs
+//      through the Add flow's box scan — the same openBoxIdentify and timers: the record, the owner's line on the card, the steps
 //      adding up, what a non-owner and recording mode get, the 25-run cap,
 //      a cancelled run
 //   P. planted offenders for F and S
@@ -101,8 +102,8 @@ function flowTimed(src) {
   // choice's need must be ≤ the box's real width.
   const measure = () => {
     const sels = Array.from(document.querySelectorAll('#bi-overlay select[id^="bi-quick-"]'));
-    const card = document.querySelector('#bi-overlay .rr-card').getBoundingClientRect();
     return sels.map(function (s) {
+      const card = s.closest('.rr-card').getBoundingClientRect();   // v0.9.1913: the boxes live in the Filters pop-up
       const cs = getComputedStyle(s), w = s.getBoundingClientRect();
       const need = Array.from(s.options).map(function (o) {
         const p = document.createElement('select');
@@ -119,6 +120,7 @@ function flowTimed(src) {
     const pg = await boot(width);
     const r = await pg.evaluate(([plant, measureSrc]) => {
       openResearch();
+      document.getElementById('bi-filters-btn').click();   // v0.9.1913: one Filters button opens the four boxes
       if (plant) Array.from(document.querySelectorAll('#bi-overlay select[id^="bi-quick-"]')).forEach(function (s) { s.style.flex = '1'; s.style.minWidth = '0'; });   // the v1909 style
       return (new Function('return (' + measureSrc + ')()'))();
     }, [!!plantOld, measure.toString()]);
@@ -154,7 +156,11 @@ function flowTimed(src) {
       window.Tesseract = { recognize: function () { return new Promise(function (r) { setTimeout(function () { r({ data: { text: 'LIONEL\n2133031\nTEST HOPPER' } }); }, 300); }); } };
       state.masterAllRows = [{ itemNum: '2133031', description: 'Test hopper', roadName: 'Test Road', manufacturer: 'Lionel', _era: 'modern', variation: '' }];
       if (o.list) localStorage.setItem('rr_research_times_v1', JSON.stringify(o.list));
-      openResearch();
+      // v0.9.1913: Research offers Google Lens only after a photo (Brad), so the
+      // full Photo ID pipeline is timed through the Add flow's box scan — the
+      // same openBoxIdentify, the same timers.
+      window._researchActive = false; window.__found = null;
+      openBoxIdentify(function (r) { window.__found = r; }, function () {}, null);
     }, opts);
     const c = await pg.evaluateHandle(() => { const cv = document.createElement('canvas'); cv.width = 400; cv.height = 200; const g = cv.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, 400, 200); g.fillStyle = '#000'; g.font = '40px serif'; g.fillText('2133031', 40, 110); return cv.toDataURL('image/png'); });
     const b64 = (await c.jsonValue()).split(',')[1];
@@ -172,8 +178,9 @@ function flowTimed(src) {
     await pg.waitForSelector('[data-a="use"]', { timeout: 15000 });
     await pg.waitForTimeout(200);
     await pg.click('[data-a="use"]');
-    await pg.waitForSelector('#rs-overlay', { timeout: 8000 });
+    await pg.waitForFunction(() => !!window.__found, null, { timeout: 8000 });
   }
+  const lineOf = (pg) => pg.evaluate(() => { var d = document.createElement('div'); d.innerHTML = window.rrResearchTimingLine(window._rrResearchLastTiming) || ''; return d.textContent; });
   console.log('\n== R · a real run, timed ==');
   {
     const pg = await boot(1200, 'bhale@ipd-llc.com');
@@ -182,15 +189,15 @@ function flowTimed(src) {
       rec: window._rrResearchLastTiming,
       list: JSON.parse(localStorage.getItem('rr_research_times_v1') || '[]'),
       stamped: localStorage.getItem('rr_research_times_v1__at') !== null,
-      line: (document.getElementById('rs-timing') || {}).textContent || '',
-      card: (document.querySelector('#rs-overlay') || {}).textContent || '',
+      card: JSON.stringify(window.__found ? window.__found.itemNum : null),
     }));
+    r.line = await lineOf(pg);
     const rec = r.rec || {}, steps = rec.steps || [];
     const names = steps.map(s => s[0]);
     const app = steps.filter(s => s[0].indexOf('you: ') !== 0).reduce((a, s) => a + s[1], 0);
     const you = steps.filter(s => s[0].indexOf('you: ') === 0).reduce((a, s) => a + s[1], 0);
-    T('R1  the run reached the research card (item 2133031)', /2133031/.test(r.card), r.card.slice(0, 120));
-    T('R2  one record: research, found', rec.mode === 'research' && rec.outcome === 'found', { mode: rec.mode, outcome: rec.outcome });
+    T('R1  the run handed back item 2133031', /2133031/.test(r.card), r.card.slice(0, 120));
+    T('R2  one record: the box scan (add), found', rec.mode === 'add' && rec.outcome === 'found', { mode: rec.mode, outcome: rec.outcome });
     T('R3  the app steps are there: barcode, label reader start, label read, catalog & checks, photo prep',
       ['barcode', 'label reader start', 'label read', 'catalog & checks', 'photo prep'].every(n => names.indexOf(n) >= 0), names);
     T('R4  the label read took about the 300 ms it did', (function () { const s = steps.find(x => x[0] === 'label read'); return s && s[1] >= 280 && s[1] < 1500; })(), steps);
@@ -200,7 +207,7 @@ function flowTimed(src) {
     T('R8  the YOUR steps add up to "you"', Math.abs(you - rec.you) <= steps.length, { you: you, rec: rec.you });
     T('R9  the app steps add up to no more than the app time (nothing counted twice)', app <= rec.app + 5, { app: app, rec: rec.app });
     console.log('      card line: ' + r.line);
-    T('R10 the owner sees one line on the card with the app time and the label read', /App time \d+\.\d s/.test(r.line) && /label read 0\.\d s/.test(r.line) && /waiting on you \d+\.\d s/.test(r.line), r.line);
+    T('R10 the owner\'s card line says the app time and the label read', /App time \d+\.\d s/.test(r.line) && /label read 0\.\d s/.test(r.line) && /waiting on you \d+\.\d s/.test(r.line), r.line);
     T('R11 saved: the last runs, through _prefSet for an owner (reaches the account)', r.list.length === 1 && r.stamped, { n: r.list.length, stamped: r.stamped });
     T('R12 no page errors', pg._errs.length === 0, pg._errs);
     await pg.close();
@@ -208,8 +215,9 @@ function flowTimed(src) {
   {
     const pg = await boot(1200, 'stranger@example.com');
     await run(pg);
-    const r = await pg.evaluate(() => ({ line: !!document.getElementById('rs-timing'), n: JSON.parse(localStorage.getItem('rr_research_times_v1') || '[]').length, stamped: localStorage.getItem('rr_research_times_v1__at') !== null }));
-    T('R13 a member who is not an owner sees NO timing line', r.line === false, r);
+    const r = await pg.evaluate(() => ({ n: JSON.parse(localStorage.getItem('rr_research_times_v1') || '[]').length, stamped: localStorage.getItem('rr_research_times_v1__at') !== null }));
+    r.line = await lineOf(pg);
+    T('R13 a member who is not an owner gets NO timing line', r.line === '', r);
     T('R14 …the times stay on that device only (not pushed to the account)', r.n === 1 && !r.stamped, r);
     await pg.close();
   }
@@ -217,8 +225,8 @@ function flowTimed(src) {
     const pg = await boot(1200, 'bhale@ipd-llc.com');
     await pg.evaluate(() => { if (typeof rrSetRecordingMode === 'function') rrSetRecordingMode(true); else localStorage.setItem('rr_recording_mode', '1'); });
     await run(pg);
-    const r = await pg.evaluate(() => ({ line: !!document.getElementById('rs-timing') }));
-    T('R15 recording mode hides the line, even for the owner', r.line === false, r);
+    const r = { line: await lineOf(pg) };
+    T('R15 recording mode hides the line, even for the owner', r.line === '', r);
     await pg.close();
   }
   {

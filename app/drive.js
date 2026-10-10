@@ -1899,6 +1899,16 @@ async function driveStageLensCopy(sourceFileId) {
 
 // A photo that exists only on this device (the wizard's camera shot):
 // uploaded once, stamped in the same request, published.
+// v0.9.1913: is this phone on cellular (or asking to save data / on a slow
+// link)? Android Chrome says so through navigator.connection; a browser that
+// does not (iPhone Safari, desktops) answers "no" and gets the Wi-Fi copy.
+function _rrOnCellular() {
+  try {
+    var c = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+    if (!c) return false;
+    return c.type === 'cellular' || c.saveData === true || /(^|-)(2g|3g)$/.test(String(c.effectiveType || ''));
+  } catch (e) { return false; }
+}
 // v0.9.1911: onStep(name, ms) — optional; the Lens flow times each step.
 async function driveStageLensPhoto(file, onStep) {
   if (!file) throw new Error('No photo to send to Lens');
@@ -1911,11 +1921,15 @@ async function driveStageLensPhoto(file, onStep) {
   // original's, so a re-search within ten minutes still reuses the upload.
   var t = Date.now();
   var L = (typeof RR_LENS !== 'undefined') ? RR_LENS : { PHOTO_MAX_SIDE: 1600, PHOTO_QUALITY: 0.85, SHRINK_OVER_BYTES: 350000 };
-  if ((file.size || 0) > L.SHRINK_OVER_BYTES && /^image\//.test(file.type || 'image/')) {
-    var small = await _rrShrinkImage(file, L.PHOTO_MAX_SIDE, L.PHOTO_QUALITY);
+  // v0.9.1913: on cellular, the smaller copy (RR_LENS.CELL_*)
+  var cell = _rrOnCellular() && L.CELL_MAX_SIDE;
+  var side = cell ? L.CELL_MAX_SIDE : L.PHOTO_MAX_SIDE, qual = cell ? L.CELL_QUALITY : L.PHOTO_QUALITY;
+  var over = cell ? L.CELL_SHRINK_OVER_BYTES : L.SHRINK_OVER_BYTES;
+  if ((file.size || 0) > over && /^image\//.test(file.type || 'image/')) {
+    var small = await _rrShrinkImage(file, side, qual);
     if (small !== file) file = new File([small], (file.name || 'photo.jpg').replace(/\.[a-z0-9]+$/i, '') + '.jpg', { type: 'image/jpeg' });
   }
-  step('lens: shrink photo', t);
+  step(cell ? 'lens: shrink photo (cellular)' : 'lens: shrink photo', t);
   t = Date.now();
   var stagingId = await _rrLensFolder();
   step('lens: find folder', t);

@@ -2660,7 +2660,19 @@ window.eraSupportsBarcode = eraSupportsBarcode;
     // later sizes itself (tests/research_filters_timing_tests.js).
     var ss = 'flex:1 1 auto;max-width:100%;padding:0.45rem 0.5rem;border-radius:9px;border:1.5px solid var(--border,#444);background:var(--surface2,#1c2340);color:var(--text,#fff);font-size:0.85rem;font-family:var(--font-body,inherit)';
     function opt(v, label, cur) { return '<option value="' + v + '"' + (v === cur && v ? ' selected' : '') + '>' + label + '</option>'; }
-    return '<div style="display:flex;gap:0.4rem;margin-top:0.4rem;flex-wrap:wrap">'
+    // v0.9.1913 (Brad: "you have to scroll on my large phone to see all the
+    // filters, so maybe … 1 filter button that then pops up the 4 different
+    // filters"): ONE button that says what is on ("Filters: Lionel ·
+    // Postwar" — a forgotten filter is how "not found" happens), opening a
+    // small pop-up with the four boxes, Clear all and Done. The boxes keep
+    // their ids, so everything that reads them is unchanged.
+    return '<button type="button" data-bi="filters" id="bi-filters-btn" style="display:block;width:100%;margin-top:0.55rem;padding:0.6rem 0.8rem;border-radius:10px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body,inherit);font-size:0.9rem;text-align:left;cursor:pointer">'
+      + '\u2699 Filters: <span id="bi-filters-sum" style="font-weight:700;color:var(--gold)">' + _bcEsc(_biFilterSummary(vM, vE, vS, vT, eras, types)) + '</span></button>'
+      + '<div id="bi-filters-panel" style="display:none;position:fixed;inset:0;z-index:100001;background:var(--scrim);align-items:center;justify-content:center;padding:1rem;box-sizing:border-box">'
+      + '<div class="rr-card" style="width:100%;max-width:440px">'
+      + '<div class="rr-card-title" style="margin-bottom:0.3rem">Filters</div>'
+      + '<div style="font-size:0.8rem;color:var(--text-mid);line-height:1.45;margin-bottom:0.4rem">Narrow the Item # look-up. Google Lens gets them as words too (e.g. \u201cLionel postwar O gauge\u201d).</div>'
+      + '<div style="display:flex;gap:0.4rem;margin-top:0.4rem;flex-wrap:wrap">'
       + '<select id="bi-quick-mfr" style="' + ss + '"><option value="">Any maker</option>'
       +   mfrs.map(function (m) { return opt(m, m, vM); }).join('') + '</select>'
       + '<select id="bi-quick-era" style="' + ss + '"><option value="">Any era</option>'
@@ -2670,8 +2682,32 @@ window.eraSupportsBarcode = eraSupportsBarcode;
       + '<select id="bi-quick-type" style="' + ss + '"><option value="">Any type</option>'
       +   types.map(function (t) { return opt(t[0], t[1], vT); }).join('') + '</select>'
       + '</div>'
-      + '<div id="bi-quick-sug"></div>';
+      + '<div style="display:flex;gap:0.5rem;margin-top:0.8rem">'
+      + _biBtn({ act: 'filters-clear', txt: 'Clear all' }, 'background:var(--surface2);border:1.5px solid var(--border);color:var(--text);flex:1')
+      + _biBtn({ act: 'filters-done', txt: 'Done' }, 'background:var(--accent);border:1.5px solid var(--accent);color:var(--on-accent);flex:1')
+      + '</div></div></div>';
   }
+  // v0.9.1913: what the Filters button says — the picked choices' own words.
+  function _biFilterSummary(vM, vE, vS, vT, eras, types) {
+    var lab = function (list, v) { var hit = (list || []).filter(function (p) { return p[0] === v; })[0]; return hit ? hit[1] : v; };
+    var parts = [vM || '', vE ? lab(eras, vE) : '', vS ? (vS + ' scale') : '', vT ? lab(types, vT) : ''].filter(Boolean);
+    return parts.length ? parts.join(' \u00b7 ') : 'none';
+  }
+  function _biFilterSummaryLive(d) {
+    var g = function (k) { return d.querySelector('#bi-quick-' + k); };
+    var txt = function (el) { return (el && el.value) ? (el.options[el.selectedIndex] || {}).text || el.value : ''; };
+    var s = g('scale');
+    var parts = [txt(g('mfr')), txt(g('era')), (s && s.value) ? s.value + ' scale' : '', txt(g('type'))].filter(Boolean);
+    var el = d.querySelector('#bi-filters-sum'); if (el) el.textContent = parts.length ? parts.join(' \u00b7 ') : 'none';
+  }
+  // v0.9.1913: the Research filters, for Google Lens's words (wizard-photos.js
+  // asks). The one reader of lv_rsq_*: period 'pw' is named 'postwar' here.
+  window.rrResearchFilters = function () {
+    var sv = function (k) { try { return localStorage.getItem('lv_rsq_' + k) || ''; } catch (e) { return ''; } };
+    var e = sv('era');
+    return { mfr: sv('mfr'), period: e === 'pw' ? 'postwar' : e, scale: sv('scale'),
+             type: String(sv('type') || '').replace(/\s*\/\s*/g, ' ').trim() };
+  };
 
   function _biBtn(label, style) {
     return '<button data-bi="' + label.act + '" style="padding:0.7rem 1rem;border-radius:10px;font-family:var(--font-body,sans-serif);font-size:0.9rem;font-weight:600;cursor:pointer;' + (style || 'background:var(--surface2,#252848);border:1.5px solid var(--border,#444);color:var(--text,#fff)') + '">' + label.txt + '</button>';
@@ -2698,10 +2734,22 @@ window.eraSupportsBarcode = eraSupportsBarcode;
   }
   var _biStream = null, _biOnCancel = null, _biLastShot = null;
   function _biKill() {
+    try { if (window.BackStack && BackStack.has('bi-filters')) BackStack.pop('bi-filters'); } catch (eF) {}   // v0.9.1913
     var d = document.getElementById('bi-overlay'); if (d) d.remove();
     try { if (_biStream) { _biStream.getTracks().forEach(function (t) { t.stop(); }); _biStream = null; } } catch (e) {}
     _biOnCancel = null;
     if (window.BackStack) window.BackStack.pop('box-identify');
+  }
+
+  // v0.9.1913: when a barcode alone may answer a Research scan. Certain = one
+  // EXACT catalog row (a Lionel last-5 guess is marked _fuzzy and does NOT
+  // count), a hit in the catalog's own barcode column, or an MTH code; or a
+  // short list of real rows for the member to pick from. Anything else — a
+  // guess, not in the catalog, a maker we cannot decode — goes the usual way.
+  function _biAutoOk(r) {
+    if (!r || r.error) return false;
+    if (r.multipleMatches) return !!(r.candidates && r.candidates.length);
+    return !!(r.masterItem && r.itemNum && !r.notInMaster && !r.masterItem._fuzzy);
   }
 
   // ── Phase 1: camera (with live barcode lock) or gallery pick ──
@@ -2723,12 +2771,22 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         '<div style="width:100%;max-width:560px">'
         // v0.9.1143 (Brad): titles say what the user is DOING, in his words —
         // same convention as the wizard's new flow titles.
-        + '<div class="rr-card-title">📷 What Item Do You Want to Research?</div>'
+        // v0.9.1913 (Brad: "declutter the what item do you want to research
+        // page"): Research gets a short title with ✕ in the corner (no Cancel
+        // row), one line of tip, the boxed Item #, one Filters button. The
+        // Add flow's screen is unchanged apart from the button order.
+        + (window._researchActive
+          ? ('<div style="display:flex;align-items:center;justify-content:space-between;gap:0.5rem;margin-bottom:0.35rem">'
+            + '<div class="rr-card-title" style="margin:0">📷 Research an Item</div>'
+            + '<button type="button" data-bi="cancel" id="bi-close" aria-label="Close" style="flex-shrink:0;width:40px;height:40px;border-radius:50%;border:1.5px solid var(--border);background:var(--surface2);color:var(--text);font-size:1.15rem;line-height:1;cursor:pointer">\u2715</button></div>')
+          : '<div class="rr-card-title">📷 What Item Do You Want to Research?</div>')
         // v0.9.704 (Brad): desktops get NO camera UI — upload only. The webcam
         // was never useful for photographing boxes on a shelf, and phantom-touch
         // PCs were showing the whole mobile capture rig.
         + (window.IS_MOBILE_UA
-          ? ('<div id="bi-guide" style="color:#ffd27d;font-size:0.82rem;line-height:1.45;margin-bottom:0.5rem">Get the <b>barcode AND the printed item number</b> in the shot. No barcode? A clear shot of the box end/side with the number — or of the <b>item itself</b> (road name &amp; number visible). Already have a photo? Use <b>🖼 gallery</b> below.</div>'
+          ? ((window._researchActive
+              ? '<div id="bi-guide" style="color:var(--t-gold);font-size:0.84rem;line-height:1.45;margin-bottom:0.5rem">Point at the <b>barcode</b> \u2014 it looks the item up by itself. No barcode? Take a picture for <b>Google Lens</b>.</div>'
+              : '<div id="bi-guide" style="color:#ffd27d;font-size:0.82rem;line-height:1.45;margin-bottom:0.5rem">Get the <b>barcode AND the printed item number</b> in the shot. No barcode? A clear shot of the box end/side with the number — or of the <b>item itself</b> (road name &amp; number visible). Already have a photo? Use <b>🖼 gallery</b> below.</div>')
             + '<div style="position:relative;width:100%;aspect-ratio:4/3;border-radius:12px;background:#000;overflow:hidden"><video id="bi-video" autoplay playsinline style="width:100%;height:100%;object-fit:cover"></video>'
             // v0.9.1153 (Brad: "when you scan a barcode and it locks in, we need
             // to have a note pop up that says 'bar code read, you can take
@@ -2741,32 +2799,47 @@ window.eraSupportsBarcode = eraSupportsBarcode;
             +   'box-shadow:0 3px 14px rgba(0,0,0,0.45)">✓ Barcode read — you can take the picture now</div>'
             + '</div>'
             + '<div id="bi-camstatus" style="color:var(--text-dim,#999);font-size:0.8rem;min-height:1.2rem;margin:0.4rem 0">Starting camera…</div>'
+            // v0.9.1913 (Brad: "use last photo button should be to the right of
+            // the photo gallery button"): one row, Capture · Gallery · Last photo.
             + '<div style="display:flex;gap:0.5rem;flex-wrap:wrap">'
             + _biBtn({ act: 'snap', txt: '📸 Capture' }, 'background:var(--accent,#e8401c);border:1.5px solid var(--accent,#e8401c);color:#fff;flex:2')
-            + _biBtn({ act: 'gallery', txt: '🖼 Photo from gallery' })
-            + (_biLastShot ? _biBtn({ act: 'last', txt: '↩ Use last photo' }) : '')
-            + _biBtn({ act: 'cancel', txt: 'Cancel' })
+            + _biBtn({ act: 'gallery', txt: '🖼 Gallery' }, 'background:var(--surface2);border:1.5px solid var(--border);color:var(--text);flex:1')
+            + (_biLastShot ? _biBtn({ act: 'last', txt: '↩ Last photo' }, 'background:var(--surface2);border:1.5px solid var(--border);color:var(--text);flex:1') : '')
+            + (window._researchActive ? '' : _biBtn({ act: 'cancel', txt: 'Cancel' }))
             + '</div>')
-          : ('<div id="bi-guide" style="color:#ffd27d;font-size:0.82rem;line-height:1.45;margin-bottom:0.5rem">Pick a photo of the <b>box end/side with the printed number</b> — or of the <b>item itself</b> (road name &amp; number visible). Less background = better results.</div>'
+          : ((window._researchActive
+              ? '<div id="bi-guide" style="color:var(--t-gold);font-size:0.84rem;line-height:1.45;margin-bottom:0.5rem">Pick a photo for <b>Google Lens</b> \u2014 or type the item number below.</div>'
+              : '<div id="bi-guide" style="color:#ffd27d;font-size:0.82rem;line-height:1.45;margin-bottom:0.5rem">Pick a photo of the <b>box end/side with the printed number</b> — or of the <b>item itself</b> (road name &amp; number visible). Less background = better results.</div>')
             + '<div style="display:flex;gap:0.5rem;flex-wrap:wrap">'
             + _biBtn({ act: 'gallery', txt: '🖼 Choose a photo from this computer' }, 'background:var(--accent,#e8401c);border:1.5px solid var(--accent,#e8401c);color:#fff;flex:2')
             // v0.9.1014 (Brad): the Google Photos picker (same shared helper
             // the Photo Inbox uses) right beside the computer picker.
             + _biBtn({ act: 'gphotos', txt: '🖼️ From Google Photos' })
-            + _biBtn({ act: 'cancel', txt: 'Cancel' })
+            + (window._researchActive ? '' : _biBtn({ act: 'cancel', txt: 'Cancel' }))
             + '</div>'
             + '<div id="bi-gp-status" style="display:none;color:var(--text-mid,#bbb);font-size:0.8rem;margin-top:0.45rem"></div>'))
         + (window._researchActive
-          ? ('<div style="display:flex;gap:0.4rem;margin-top:0.6rem;align-items:stretch">'
-            + '<input id="bi-quick" type="text" placeholder="Know it? Type the item # (e.g. 148, 10-2210)…" style="flex:1;padding:0.55rem 0.7rem;border-radius:9px;border:1.5px solid var(--border,#444);background:var(--surface2,#1c2340);color:var(--text,#fff);font-family:var(--font-mono,monospace);font-size:0.9rem;min-width:0">'
-            + _biBtn({ act: 'quick', txt: 'Look up →' }, 'border:1.5px solid var(--gold,#d4a843);color:var(--gold,#d4a843)')
+          // v0.9.1913 (Brad: "the know it button should say 'item #' and maybe
+          // a box around it and the look up button so you know its together"):
+          // one outlined box — label, entry, Look up, and the suggestions right
+          // under the entry. The phone keyboard's Enter says Search; no
+          // auto-correct or auto-capitals mangling 6-12345 / 2343P.
+          ? ('<div id="bi-itembox" style="margin-top:0.7rem;padding:0.5rem 0.6rem 0.6rem;border:1.5px solid var(--gold);border-radius:11px">'
+            + '<label for="bi-quick" style="display:block;font-size:0.82rem;font-weight:700;color:var(--gold);margin-bottom:0.3rem">Item #</label>'
+            + '<div style="display:flex;gap:0.4rem;align-items:stretch">'
+            + '<input id="bi-quick" type="text" enterkeyhint="search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" placeholder="e.g. 6464-1" style="flex:1;padding:0.55rem 0.7rem;border-radius:9px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-mono,monospace);font-size:0.9rem;min-width:0">'
+            + _biBtn({ act: 'quick', txt: 'Look up →' }, 'background:var(--surface2);border:1.5px solid var(--gold);color:var(--gold)')
+            + '</div>'
+            + '<div id="bi-quick-sug"></div>'
             + '</div>'
             + _biQuickFilters())
           : '')
         // v0.9.1473 (Brad: "the auto capture line should not be in the desktop
         // app, mobile only. its confusing"): desktop is upload-only — there is
         // no camera, no barcode lock, nothing for this switch to control.
-        + (window.IS_MOBILE_UA
+        // v0.9.1913: not in Research — a barcode in the catalog looks itself
+        // up there, so the switch only confused. The Add flow keeps it.
+        + (window.IS_MOBILE_UA && !window._researchActive
           ? ('<label style="display:flex;align-items:center;gap:0.45rem;margin-top:0.5rem;cursor:pointer;user-select:none;color:var(--text-mid,#bbb);font-size:0.78rem">'
             + '<input id="bi-autosnap" class="rr-tap-box" type="checkbox" style="width:15px;height:15px;cursor:pointer;accent-color:var(--accent,#e8401c)"'
             + ((localStorage.getItem('rr_bi_autosnap') || '0') === '1' ? ' checked' : '') + '>'
@@ -2782,6 +2855,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
       // loop still finds and HOLDS the barcode, but the shutter is yours —
       // press Capture when the label is framed the way you want.
       var heldBc = null;
+      var autoTried = {};   // v0.9.1913: barcodes already looked up on this camera screen
       var heldSeenAt = 0;   // v0.9.1464: when the held barcode was last actually SEEN
       var _autoCk = d.querySelector('#bi-autosnap');
       if (_autoCk) _autoCk.addEventListener('change', function () {
@@ -2855,6 +2929,24 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         }
         if (act === 'last' && _biLastShot) done({ raw: _biLastShot.raw, view: _biLastShot.view, lockedBc: null });
         if (act === 'cancel') done(null);
+        // v0.9.1913: the Filters pop-up
+        // (the house rule: the device Back button closes it; a stray tap on
+        // the dimmed backdrop does nothing)
+        var _fp = d.querySelector('#bi-filters-panel');
+        if (act === 'filters' && _fp) {
+          _fp.style.display = 'flex';
+          try { if (window.BackStack && !BackStack.has('bi-filters')) BackStack.push('bi-filters', function () { _fp.style.display = 'none'; }); } catch (eB) {}
+        }
+        if (act === 'filters-done' && _fp) {
+          _fp.style.display = 'none';
+          try { if (window.BackStack && BackStack.has('bi-filters')) BackStack.pop('bi-filters'); } catch (eB2) {}
+        }
+        if (act === 'filters-clear') {
+          ['mfr', 'era', 'scale', 'type'].forEach(function (k) {
+            var el0 = d.querySelector('#bi-quick-' + k);
+            if (el0 && el0.value) { el0.value = ''; el0.dispatchEvent(new Event('change')); }
+          });
+        }
       });
       ['mfr', 'era', 'scale', 'type'].forEach(function (k) {   // v0.9.739: filters remember last pick
         var el = d.querySelector('#bi-quick-' + k);
@@ -2875,6 +2967,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
               if (_gk.length === 1 && _eraSel) { _eraSel.value = _gk[0]; localStorage.setItem('lv_rsq_era', _gk[0]); }
             } catch (e) {}
           }
+          _biFilterSummaryLive(d);   // v0.9.1913: the button says what is on
           if (typeof _biQuickSuggest === 'function') _biQuickSuggest(d);   // re-run suggestions with new filters
         });
       });
@@ -2966,7 +3059,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         .then(function (s) {
           stream = s; _biStream = s; video.srcObject = s;
           _rtMark('camera ready');   // v0.9.1910
-          stat.textContent = 'Aim at the box end — barcode + item number. Auto-captures when a barcode locks.';
+          stat.textContent = window._researchActive ? 'Camera ready.' : 'Aim at the box end — barcode + item number. Auto-captures when a barcode locks.';   // v0.9.1913
           var nativeDet = _biHasBD ? new window.BarcodeDetector({ formats: ['ean_13', 'upc_a', 'ean_8', 'upc_e', 'code_128', 'code_39'] }) : null;
           if (!nativeDet) _loadZXing().catch(function () {});
           (async function lockLoop() {
@@ -2978,6 +3071,32 @@ window.eraSupportsBarcode = eraSupportsBarcode;
                     var bc = bcs[0];
                     if (bc.rawValue === lastRaw) confirmN++; else { lastRaw = bc.rawValue; confirmN = 1; }
                     if (confirmN >= 2) _rtMark('barcode locked');   // v0.9.1910
+                    // ══ v0.9.1913 (Brad, 2026-10-09: "if i use it to scan a box and
+                    // it finds a barcode, it should go ahead and research it") ══
+                    // Research only (Add keeps its photo + crop + confirm — it
+                    // SAVES; Research only looks). The moment the lock holds,
+                    // the barcode is decoded right here (local, no photo sent
+                    // anywhere — fast on a show floor with no signal). If it
+                    // names the item for certain — an exact catalog row, the
+                    // catalog's own barcode column, an MTH code — or several
+                    // rows to pick from, the picture is taken and the flow goes
+                    // straight to the result: no countdown, no crop, no confirm.
+                    // A fuzzy guess or "not in the catalog" falls through to the
+                    // usual lock below (take the picture, read the label).
+                    // Each barcode is looked up once per camera screen.
+                    if (confirmN >= 2 && window._researchActive && !autoTried[bc.rawValue]) {
+                      autoTried[bc.rawValue] = 1;
+                      stat.style.color = 'var(--t-green)';
+                      stat.textContent = '\u2713 Barcode read \u2014 looking it up\u2026';
+                      var _auto = null;
+                      try { _auto = await _rtTime('barcode look-up', decodeBarcode(bc, null)); } catch (eA) {}
+                      if (stopLoop) return;
+                      if (_biAutoOk(_auto)) {
+                        var aFrame = snapFrame();
+                        done({ raw: aFrame.raw, view: aFrame.view, lockedBc: bc, autoResearch: _auto });
+                        return;
+                      }
+                    }
                     if (confirmN >= 2 && !_autoSnapOn()) {
                       // Manual mode: hold the lock, hand the shutter to Brad.
                       heldBc = bc;
@@ -3056,14 +3175,16 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         // v0.9.1464 (Brad: "cropping doesn't work"): the crop library failing
         // to load was SILENT — the flow just used the full photo. Say so.
         try { if (typeof showToast === 'function') showToast('Crop tool didn\u2019t load \u2014 using the whole photo.', 3000); } catch (eT) {}
-        resolve({ work: canvas, action: 'go' }); return;
+        resolve({ work: canvas, action: window._researchActive ? 'lens' : 'go' }); return;   // v0.9.1913: Research = Lens
       }
+      var _rsOnly = !!window._researchActive;   // v0.9.1913: Research → Google Lens only
       var d = _biOverlay(
         '<div style="width:100%;max-width:560px">'
         + '<div style="color:var(--text,#fff);font-family:var(--font-head,sans-serif);font-size:1.02rem;margin:0.2rem 0 0.35rem">✂ Crop (optional)'
         + (lockedBc ? ' <span style="font-size:0.72rem;background:rgba(46,204,113,0.15);border:1px solid #2ecc71;color:var(--t-green);border-radius:6px;padding:2px 7px;vertical-align:middle">Barcode ✓ locked</span>' : '')
         + '</div>'
-        + '<div style="color:#ffd27d;font-size:0.8rem;margin-bottom:0.45rem">Adjust the crop frame if you like (<b>less background = better results</b>) — leave it alone to use the whole photo. The barcode is always read from the full shot.</div>'
+        + (_rsOnly ? '<div style="color:var(--t-gold);font-size:0.8rem;margin-bottom:0.45rem">Crop to the item if you like \u2014 <b>less background helps Google Lens</b>. Leave it alone to send the whole photo.</div>'
+           : '<div style="color:#ffd27d;font-size:0.8rem;margin-bottom:0.45rem">Adjust the crop frame if you like (<b>less background = better results</b>) — leave it alone to use the whole photo. The barcode is always read from the full shot.</div>')
         // v0.9.1468 (Brad: "the crop buttons are hard to hit"): the eight
         // grab points grow to fingertip size, high-contrast. touch-action on
         // the wrapper keeps a drag from ever being read as a page gesture.
@@ -3085,6 +3206,15 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         + '<input id="bi-rot" type="range" min="-180" max="180" step="1" value="0" style="flex:1;accent-color:var(--accent,#e8401c)">'
         + '<span id="bi-rotv" style="color:var(--text-mid,#ccc);font-size:0.78rem;min-width:3.2em;text-align:right">0&deg;</span>'
         + '</div>'
+        + (_rsOnly
+          ? ('<div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-top:0.55rem">'
+            + _biBtn({ act: 'lens', txt: '🔍 Search with Google Lens' }, 'background:var(--accent);border:1.5px solid var(--accent);color:var(--on-accent);flex:1;min-width:0')
+            + '</div>'
+            + '<div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-top:0.5rem">'
+            + _biBtn({ act: 'retake', txt: 'Retake' })
+            + _biBtn({ act: 'cancel', txt: 'Cancel' })
+            + '</div></div>')
+          : (''
         + '<div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-top:0.55rem">'
         // v0.9.1474 (Brad: "no more little icons… the 19 of 20 reads left
         // should be on the button itself, don't need the rotate button, and
@@ -3109,7 +3239,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         + '<b style="color:#9ecbff">&bull; Google Lens</b> — free Google search by photo, better for <b>unmarked items</b>: buildings, promos, store brands, posters &amp; paper. Also the backup when Photo ID can\'t tell.'
         // v0.9.1474: the allowance count moved ONTO the Auto Read button
         // (span#bi-ai-left up there) — no separate row.
-        + '</div></div>');
+        + '</div></div>')));
       // v0.9.1015: remember the spending-switch choice the moment it changes.
       // v0.9.1473: bi-ai-opt checkbox removed — see the comment on the count
       // line above. rrAiSetOptOut still lives in Preferences.
@@ -3119,7 +3249,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
       // the rest of the app keeps its normal behavior, as Brad chose.
       // v0.9.1472: ask the relay for today's true reads-left the moment the
       // crop screen opens — fills the "checking…" placeholder above.
-      try { if (typeof rrAiQuotaRefresh === 'function') rrAiQuotaRefresh(); } catch (eQ) {}
+      try { if (!_rsOnly && typeof rrAiQuotaRefresh === 'function') rrAiQuotaRefresh(); } catch (eQ) {}   // v0.9.1913: no reads-left call when Research offers only Lens
       var _prevObBody = document.body.style.overscrollBehaviorY;
       var _prevObHtml = document.documentElement.style.overscrollBehaviorY;
       document.body.style.overscrollBehaviorY = 'contain';
@@ -3198,11 +3328,15 @@ window.eraSupportsBarcode = eraSupportsBarcode;
   function _rtStart(mode) { _rt = { at: new Date().toISOString(), mode: mode, t0: _rtNow(), steps: [], marks: {}, you: 0, done: false }; }
   function _rtStep(name, ms) { if (_rt && !_rt.done && ms >= 0) _rt.steps.push([name, Math.round(ms)]); }
   function _rtMark(name) { if (_rt && !_rt.done && !(name in _rt.marks)) _rt.marks[name] = Math.round(_rtNow() - _rt.t0); }
-  async function _rtTime(name, p) { var t = _rtNow(); try { return await p; } finally { _rtStep(name, _rtNow() - t); } }
+  // v0.9.1913: app work timed WHILE the app waits on a person (the barcode
+  // look-up runs inside the camera screen) is booked as app time and taken
+  // out of that wait — nothing is counted twice.
+  var _rtInner = 0;
+  async function _rtTime(name, p) { var t = _rtNow(); try { return await p; } finally { var ms = _rtNow() - t; _rtInner += ms; _rtStep(name, ms); } }
   async function _rtWait(name, p) {
-    var t = _rtNow();
+    var t = _rtNow(), in0 = _rtInner;
     try { return await p; }
-    finally { var ms = _rtNow() - t; if (_rt && !_rt.done) _rt.you += ms; _rtStep('you: ' + name, ms); }
+    finally { var ms = (_rtNow() - t) - (_rtInner - in0); if (ms < 0) ms = 0; if (_rt && !_rt.done) _rt.you += ms; _rtStep('you: ' + name, ms); }
   }
   function _rtEnd(outcome) {
     if (!_rt || _rt.done) return null;
@@ -3660,6 +3794,32 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         _biArmBack();
         var cap = await _rtWait('camera screen', _biCapture());
         if (!cap) { _biKill(); if (onCancel) onCancel(); return; }
+        // v0.9.1913: the barcode already named it (Research) — straight to
+        // the result. Several rows → the same pick list the label path uses.
+        if (cap.autoResearch) {
+          var ar = cap.autoResearch, pickA = null;
+          if (ar.multipleMatches) {
+            _biKill();
+            pickA = await _rtWait('pick the item', showCandidatePicker(ar.candidates, ar));
+            if (!pickA) { _biArmBack(); continue; }   // backed out of the list → the camera again
+            if (pickA.__notInList) {   // "not in this list" + a number typed → the typed look-up, as the Research box does
+              _rtEnd('typed');
+              if (typeof window._researchLookupTyped === 'function') window._researchLookupTyped(pickA.itemNum, {});
+              else if (onCancel) onCancel();
+              return;
+            }
+          }
+          var mA = pickA || ar.masterItem;
+          var resA0 = { handled: true, itemNum: mA.itemNum, variation: mA.variation || '', masterItem: mA,
+                        manufacturer: mA.manufacturer || ar.manufacturer || '', roadName: mA.roadName || '',
+                        description: mA.description || '', rawBarcode: (cap.lockedBc && cap.lockedBc.rawValue) || ar.rawBarcode || '',
+                        fromBarcode: true, _boxPhoto: true };
+          try { resA0._boxPhotoFile = await _rtTime('photo prep', _biCanvasToFile(cap.view || cap.raw, 'box-label.jpg')); } catch (eAP) {}
+          _biKill();
+          _rtEnd('found');
+          if (onScanned) onScanned(resA0);
+          return;
+        }
         // v0.9.711 (Brad): Research quick lookup — typed number, no photo.
         if (cap.typedQuery) {
           _rtEnd('typed');
