@@ -2928,3 +2928,8 @@ html[data-theme="high-contrast"] button[style*="#e74c3c"], html[data-theme="high
 .rr-cat-status-line { margin-top: 0.2rem; line-height: 1.2; }
 /* on its own line it may wrap rather than run past a narrow card */
 .rr-cat-status-line .rr-cat-status { white-space: normal; }
+
+/* v0.9.1916 (Brad: every Master Catalog column sorts except the descriptions):
+   a sortable heading underlines on hover; the arrow says which way. */
+.item-table th.rr-sortable:hover { text-decoration: underline; }
+.item-table th .rr-sort-arrow { font-size: 0.8em; }

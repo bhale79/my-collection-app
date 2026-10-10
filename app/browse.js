@@ -695,29 +695,214 @@ if (typeof window !== 'undefined') { window._renderCollectionHeader = _renderCol
 // Lionel eras use Road/Variation columns; Atlas uses Sub Type/Track-Power/MSRP;
 // MTH (Session 129) uses Road/Description/Category/Track-Power to surface the
 // Premier vs RailKing product-line distinction and rail configuration.
-function _atlasBrowseHeaders() {
-  return '<th>Mfr.</th><th style="width:110px;min-width:110px">Item #</th><th>Type</th><th>Sub Type</th><th style="width:99%">Description</th><th>Track/Power</th><th>MSRP</th><th>Year</th><th>Owned</th>';
+// v0.9.1916 (Brad: "all headers need to be sortable except description"):
+// the three layouts are ONE spec each. A column with a `kind` sorts; the
+// description columns carry none. p4–p7 are POSITIONS, not fields: in the
+// mixed (All) view an MTH or Atlas row shows its own fields in those cells,
+// so a position sorts by what each row SHOWS there (_browseCellFields).
+var _BROWSE_HEAD = {
+  lionel: [
+    { k: 'mfr', l: 'Mfr.', kind: 'text' }, { k: 'num', l: 'Item #', kind: 'num', st: 'width:110px;min-width:110px' },
+    { k: 'type', l: 'Type', kind: 'text' }, { k: 'p4', l: 'Road / Name', kind: 'text' },
+    { k: 'p5', l: 'Descr.', st: 'width:60%' }, { k: 'p6', l: 'Var.', kind: 'text' },
+    { k: 'p7', l: 'Var. Descr.', st: 'width:39%;min-width:140px' },
+    { k: 'year', l: 'Year', kind: 'year' }, { k: 'owned', l: 'Owned', kind: 'rank' } ],
+  mth: [
+    { k: 'mfr', l: 'Mfr.', kind: 'text' }, { k: 'num', l: 'Item #', kind: 'num', st: 'width:110px;min-width:110px' },
+    { k: 'type', l: 'Type', kind: 'text' }, { k: 'p4', l: 'Road / Name', kind: 'text' },
+    { k: 'p5', l: 'Descr.', st: 'width:99%' }, { k: 'p6', l: 'Category', kind: 'text' },
+    { k: 'p7', l: 'Track/Power', kind: 'text' },
+    { k: 'year', l: 'Year', kind: 'year' }, { k: 'owned', l: 'Owned', kind: 'rank' } ],
+  atlas: [
+    { k: 'mfr', l: 'Mfr.', kind: 'text' }, { k: 'num', l: 'Item #', kind: 'num', st: 'width:110px;min-width:110px' },
+    { k: 'type', l: 'Type', kind: 'text' }, { k: 'p4', l: 'Sub Type', kind: 'text' },
+    { k: 'p5', l: 'Description', st: 'width:99%' }, { k: 'p6', l: 'Track/Power', kind: 'text' },
+    { k: 'p7', l: 'MSRP', kind: 'money' },
+    { k: 'year', l: 'Year', kind: 'year' }, { k: 'owned', l: 'Owned', kind: 'rank' } ],
+};
+function _browseHeadShape() {
+  var era = (typeof _currentEra !== 'undefined') ? String(_currentEra || '') : '';
+  return era === 'atlas' ? 'atlas' : (era.indexOf('mth_') === 0 ? 'mth' : 'lionel');
 }
-function _lionelBrowseHeaders() {
-  // v0.9.985 (Brad): Descr. no longer hogs ALL spare width (was 99%) — Var.
-  // Descr. now gets a real share, so it widens with the window instead of
-  // wrapping into a skinny 3-line column on big screens.
-  return '<th>Mfr.</th><th style="width:110px;min-width:110px">Item #</th><th>Type</th><th>Road / Name</th><th style="width:60%">Descr.</th><th>Var.</th><th style="width:39%;min-width:140px">Var. Descr.</th><th>Year</th><th>Owned</th>';
+function _browseHeadHtml(shape) {
+  var cur = (typeof state !== 'undefined' && state && state._browseSort) || null;
+  return (_BROWSE_HEAD[shape] || _BROWSE_HEAD.lionel).map(function (c) {
+    if (!c.kind) return '<th' + (c.st ? ' style="' + c.st + '"' : '') + '>' + c.l + '</th>';
+    var on = !!(cur && cur.col === c.k);
+    var arrow = on ? (cur.dir === 'desc' ? ' ▼' : ' ▲') : '';
+    return '<th data-sort="' + c.k + '" class="rr-sortable' + (on ? ' rr-sorted' : '') + '" title="Sort by ' + c.l + '"'
+      + ' onclick="_browseSortBy(\'' + c.k + '\')" style="cursor:pointer;user-select:none;white-space:nowrap' + (c.st ? ';' + c.st : '') + '">'
+      + c.l + '<span class="rr-sort-arrow">' + arrow + '</span></th>';
+  }).join('');
 }
-function _mthBrowseHeaders() {
-  return '<th>Mfr.</th><th style="width:110px;min-width:110px">Item #</th><th>Type</th><th>Road / Name</th><th style="width:99%">Descr.</th><th>Category</th><th>Track/Power</th><th>Year</th><th>Owned</th>';
+function _atlasBrowseHeaders() { return _browseHeadHtml('atlas'); }
+function _lionelBrowseHeaders() { return _browseHeadHtml('lionel'); }
+function _mthBrowseHeaders() { return _browseHeadHtml('mth'); }
+// Click: ascending, then descending, then back to the normal catalog order.
+function _browseSortBy(col) {
+  var cur = state._browseSort;
+  if (!cur || cur.col !== col) state._browseSort = { col: col, dir: 'asc' };
+  else if (cur.dir === 'asc') state._browseSort = { col: col, dir: 'desc' };
+  else state._browseSort = null;
+  state.currentPage = 1;
+  _refreshBrowseHeaders();
+  if (typeof renderBrowse === 'function') renderBrowse();
 }
+if (typeof window !== 'undefined') window._browseSortBy = _browseSortBy;
+
+// Which field each row shows in positions p4..p7 — ONE answer, read by the
+// row builder AND the sorter, so a column always sorts by what it shows.
+function _browseCellFields(item) {
+  if ((_currentEra === 'atlas') || (item && item._tab === 'Atlas O')) {
+    return _currentEra === 'all' ? ['description', 'subType', 'trackPower', 'msrp']
+                                 : ['subType', 'description', 'trackPower', 'msrp'];
+  }
+  if ((_currentEra && _currentEra.indexOf('mth_') === 0) || (item && item._tab && item._tab.indexOf('MTH ') === 0)) {
+    return ['roadName', 'description', 'category', 'trackPower'];
+  }
+  return ['roadName', 'description', 'variation', 'varDesc'];
+}
+// The owned-column word for a catalog row, and its sort rank. ONE place for
+// the badge AND the sorter. pd = the row's personal record (_browseRowPd).
+// pd0 = what _rrBrowseCore's own _rrPdForRow found (a per-render closure —
+// it is NOT a global, so it is handed in); this applies the Manual rule.
+function _browseRowPd(item, pd0) {
+  return (pd0 && !item._personalOnly && String(pd0.era || '') === 'Manual') ? null : pd0;   // v0.9.718
+}
+function _browseBadgeOf(item, pd) {
+  var isOwned = item._personalOnly ? true : !!(pd && pd.owned);
+  var isWanted = !!(state.wantData && state.wantData[item.itemNum + '|' + item.variation]);
+  var inv = pd && pd.inventoryId ? pd.inventoryId : '';
+  var isForSale = !!(inv && state.forSaleData && state.forSaleData[inv]);
+  var isUpg = !!(inv && state.upgradeData && state.upgradeData[inv]);
+  if (isOwned) {
+    if (isForSale) return { cls: 'forsale', text: '🏷️ For Sale', rank: 1 };
+    if (isUpg) return { cls: 'yes', text: '↑ Upgrade', rank: 2 };
+    return { cls: 'yes', text: '✓ Owned', rank: 0 };
+  }
+  if (isWanted) return { cls: 'want', text: '★ Want', rank: 3 };
+  return { cls: 'no', text: '—', rank: null };   // blank: last either way
+}
+
+// ── v0.9.1916: the sort keys — ONE set, used by the big catalog table (from
+// the row's fields) and the section tables (from the cell's words). A blank
+// sorts LAST in both directions; ties keep the catalog order.
+function _rrNatKey(t) { return String(t).toLowerCase().replace(/\d+/g, function (d) { return ('0000000000' + d).slice(-10); }); }
+function rrSortKey(kind, v) {
+  if (kind === 'rank') return (v == null || v === '') ? null : Number(v);
+  var s = String(v == null ? '' : v).trim();
+  if (!s || s === '—' || s === '-' || s === '–') return null;
+  if (kind === 'num') return (typeof rrCatalogNumberKey === 'function') ? rrCatalogNumberKey(s) : _rrNatKey(s);
+  if (kind === 'year') { var y = s.match(/\b(1[89]\d\d|20\d\d)\b/); return y ? parseInt(y[1], 10) : null; }
+  if (kind === 'money') { var m = parseFloat(s.replace(/[^0-9.]/g, '')); return isNaN(m) ? null : m; }
+  if (kind === 'count') { var n = parseInt(s.replace(/[^0-9]/g, ''), 10); return isNaN(n) ? null : n; }
+  return _rrNatKey(s);
+}
+function rrSortCompare(kind, a, b) {
+  if (kind === 'num' && typeof a === 'object') return rrCompareCatalogKeys(a, b);
+  return a < b ? -1 : (a > b ? 1 : 0);
+}
+function rrSortList(list, keyOf, kind, dir) {
+  var keyed = (list || []).map(function (x, i) { return { x: x, i: i, k: keyOf(x) }; });
+  keyed.sort(function (a, b) {
+    var an = a.k == null, bn = b.k == null;
+    if (an || bn) return (an && bn) ? a.i - b.i : (an ? 1 : -1);
+    var c = rrSortCompare(kind, a.k, b.k);
+    if (c) return dir === 'desc' ? -c : c;
+    return a.i - b.i;
+  });
+  return keyed.map(function (e) { return e.x; });
+}
+if (typeof window !== 'undefined') { window.rrSortKey = rrSortKey; window.rrSortList = rrSortList; }
+// The value a catalog row shows in a column, for the sorter.
+function _browseSortValue(item, col, pdOf) {
+  if (col === 'mfr') {
+    var m = (typeof _manufacturerOfItem === 'function') ? (_manufacturerOfItem(item) || '') : '';
+    if (!m && item && item._tab) { var t = String(item._tab).toLowerCase(); m = t.indexOf('lionel') === 0 ? 'lionel' : t.indexOf('atlas') === 0 ? 'atlas' : t.indexOf('mth') === 0 ? 'mth' : ''; }
+    var WIC = (typeof window !== 'undefined' && window.WHAT_I_COLLECT) || {};
+    var mc = m && WIC.MANUFACTURERS && WIC.MANUFACTURERS[m.toLowerCase()];
+    return (mc && mc.label) || m;
+  }
+  if (col === 'num') return (typeof _displayItemNum === 'function') ? _displayItemNum(item) : item.itemNum;
+  if (col === 'type') return (typeof getTypeBucketLabel === 'function' ? getTypeBucketLabel(item) : item.itemType) || '';
+  if (col === 'year') return item.yearProd || '';
+  if (col === 'owned') return _browseBadgeOf(item, pdOf ? pdOf(item) : null).rank;
+  var pos = { p4: 0, p5: 1, p6: 2, p7: 3 }[col];
+  if (pos == null) return '';
+  return item[_browseCellFields(item)[pos]] || '';
+}
+function _browseSortKind(col) {
+  var spec = _BROWSE_HEAD[_browseHeadShape()] || _BROWSE_HEAD.lionel;
+  for (var i = 0; i < spec.length; i++) if (spec[i].k === col) return spec[i].kind || '';
+  return '';
+}
+
+// ── v0.9.1916: the SECTION tables (Sets, Catalogs, Instruction Sheets,
+// Science, Construction, Paper, Other, Service Tools) are drawn whole, not
+// paged, so a header click sorts the rows on the page with the same keys.
+// The order is remembered per table and put back after every redraw
+// (rrReapplyTableSort, called by each section renderer).
+var RR_SECTION_SORT_SKIP = { 'description': 1, 'descr.': 1, 'var. descr.': 1, 'var. description': 1 };
+function _rrSectionKindOf(label) {
+  var l = String(label || '').toLowerCase().replace(/[▲▼]/g, '').trim();
+  if (RR_SECTION_SORT_SKIP[l]) return '';
+  if (l === 'year') return 'year';
+  if (l === 'items' || l === 'variations') return 'count';
+  if (l === 'item #' || l === 'set #' || l === 'id' || l === 'is id') return 'num';
+  if (l === 'owned') return 'text';
+  return 'text';
+}
+var _rrSectionSort = {};   // tbody id -> { idx, dir }
+function rrReapplyTableSort(tbodyId) {
+  try {
+    var st = _rrSectionSort[tbodyId];
+    var tb = document.getElementById(tbodyId);
+    if (!tb) return;
+    var table = tb.closest('table');
+    var ths = table ? table.querySelectorAll('thead th') : [];
+    Array.prototype.forEach.call(ths, function (th, i) {
+      var kind = _rrSectionKindOf(th.textContent);
+      if (!kind) return;
+      th.classList.add('rr-sortable'); th.style.cursor = 'pointer'; th.style.userSelect = 'none';
+      th.title = 'Sort by ' + th.textContent.replace(/[▲▼]/g, '').trim();
+      var label = th.textContent.replace(/\s*[▲▼]\s*$/, '');
+      th.textContent = label + ((st && st.idx === i) ? (st.dir === 'desc' ? ' ▼' : ' ▲') : '');
+    });
+    if (!st) return;
+    var rows = Array.prototype.slice.call(tb.children);
+    if (rows.length < 2 || rows.some(function (r) { return r.cells.length < 2; })) return;   // the "No items found" row, a divider
+    var kind = _rrSectionKindOf(ths[st.idx] && ths[st.idx].textContent);
+    if (!kind) return;
+    var sorted = rrSortList(rows, function (r) { return rrSortKey(kind, r.cells[st.idx] ? r.cells[st.idx].textContent : ''); }, kind, st.dir);
+    sorted.forEach(function (r) { tb.appendChild(r); });
+  } catch (e) { console.warn('[sort] section table:', e); }
+}
+if (typeof window !== 'undefined') window.rrReapplyTableSort = rrReapplyTableSort;
+var RR_SECTION_TBODIES = ['browse-sets-tbody', 'catalogs-tbody', 'is-tbody', 'science-tbody', 'construction-tbody', 'paper-tbody', 'other-tbody', 'service-tbody'];
+if (typeof document !== 'undefined') document.addEventListener('click', function (e) {
+  var th = e.target && e.target.closest ? e.target.closest('th') : null;
+  if (!th) return;
+  var table = th.closest('table');
+  var tb = table && table.querySelector('tbody');
+  if (!tb || RR_SECTION_TBODIES.indexOf(tb.id) < 0) return;
+  if (typeof state !== 'undefined' && state && state.filters && state.filters.owned) return;   // Master Catalog only
+  var idx = Array.prototype.indexOf.call(th.parentNode.children, th);
+  if (!_rrSectionKindOf(th.textContent)) return;
+  var cur = _rrSectionSort[tb.id];
+  if (!cur || cur.idx !== idx) _rrSectionSort[tb.id] = { idx: idx, dir: 'asc' };
+  else if (cur.dir === 'asc') _rrSectionSort[tb.id] = { idx: idx, dir: 'desc' };
+  else delete _rrSectionSort[tb.id];
+  if (!_rrSectionSort[tb.id]) {
+    // back to the drawn order: redraw the section
+    var tab = { 'browse-sets-tbody': 'sets', 'catalogs-tbody': 'catalogs', 'is-tbody': 'is' }[tb.id] || tb.id.replace(/-tbody$/, '');
+    if (typeof renderBrowseTab === 'function') { try { renderBrowseTab(tab); } catch (e2) {} }
+    rrReapplyTableSort(tb.id);
+  } else rrReapplyTableSort(tb.id);
+});
 function _refreshBrowseHeaders() {
   var thead = document.querySelector('#page-browse .item-table thead tr');
   if (!thead) return;
-  var era = (typeof _currentEra !== 'undefined') ? _currentEra : '';
-  if (era === 'atlas') {
-    thead.innerHTML = _atlasBrowseHeaders();
-  } else if (era.indexOf('mth_') === 0) {
-    thead.innerHTML = _mthBrowseHeaders();
-  } else {
-    thead.innerHTML = _lionelBrowseHeaders();
-  }
+  thead.innerHTML = _browseHeadHtml(_browseHeadShape());   // v0.9.1916: one spec per layout, sortable
 }
 
 // ── Phase 5 Step 1: hierarchy chip row (visual preview) ──
@@ -2857,6 +3042,7 @@ function renderSetsTab() {
       ${inColl ? '<td onclick="event.stopPropagation()" style="text-align:right;white-space:nowrap">' + actionsHTML + '</td>' : ''}
     </tr>`;
   }).join('');
+  if (typeof rrReapplyTableSort === 'function' && !(state.filters && state.filters.owned)) rrReapplyTableSort('browse-sets-tbody');   // v0.9.1916: keep the clicked column's order
 }
 
 function renderCatalogsTab() {
@@ -2924,6 +3110,7 @@ function renderCatalogsTab() {
     ${inColl ? '<td onclick="event.stopPropagation()" style="text-align:right;white-space:nowrap">' + actionsHTML + '</td>' : ''}
   </tr>`;
   }).join('') + ephRows;
+  if (typeof rrReapplyTableSort === 'function' && !(state.filters && state.filters.owned)) rrReapplyTableSort('catalogs-tbody');   // v0.9.1916: keep the clicked column's order
 }
 
 function renderISTab() {
@@ -2991,6 +3178,7 @@ function renderISTab() {
     <td style="font-size:0.82rem;color:var(--text-mid)">${s.variations || '—'}</td>
   </tr>`;
   }).join('');
+  if (typeof rrReapplyTableSort === 'function' && !(state.filters && state.filters.owned)) rrReapplyTableSort('is-tbody');   // v0.9.1916: keep the clicked column's order
 }
 
 
@@ -3616,6 +3804,7 @@ function renderMasterSubTab(tabKey) {
       '<td class="text-dim">' + (item.yearProd || '—') + '</td>' +
     '</tr>';
   }).join('');
+  if (typeof rrReapplyTableSort === 'function' && !(state.filters && state.filters.owned)) rrReapplyTableSort(tabKey + '-tbody');   // v0.9.1916: keep the clicked column's order
 }
 
 function renderBrowse() { return _rrBrowseCore(null); }
@@ -3649,6 +3838,7 @@ function _rrBrowseCore(_co) {
       (typeof _phState === 'function' ? JSON.stringify(_phState() || null) : ''),
       state.currentPage, state.pageSize,
       JSON.stringify(state._collSort || null),
+      JSON.stringify(state._browseSort || null),   // v0.9.1916
       state._collSection || '',
       (window._rrDataRev || 0),
       (typeof _rrDataFingerprint === 'function' ? _rrDataFingerprint() : ''),
@@ -4552,6 +4742,14 @@ function _rrBrowseCore(_co) {
     });
     _ck.sort(function (a, b) { return (a.o - b.o) || rrCompareCatalogKeys(a.k, b.k) || (a.i - b.i); });
     state.filteredData = _ck.map(function (x) { return x.it; });
+    // v0.9.1916 (Brad): a clicked header sorts the WHOLE filtered list (not one
+    // page) by what that column shows; blanks last; ties keep catalog order.
+    var _bs = state._browseSort;
+    var _bsKind = _bs ? _browseSortKind(_bs.col) : '';
+    if (_bs && _bsKind) {
+      var _pdOf = function (it) { return _browseRowPd(it, _rrPdForRow(it)); };   // the same resolver the rows use
+      state.filteredData = rrSortList(state.filteredData, function (it) { return rrSortKey(_bsKind, _browseSortValue(it, _bs.col, _pdOf)); }, _bsKind, _bs.dir);
+    }
   }
   // v0.9.1668 (Brad: "9723 gave me 19723 first"): when searching, rank
   // EXACT item-number matches first, then numbers that START with the
@@ -4560,6 +4758,7 @@ function _rrBrowseCore(_co) {
   (function () {
     var q = String(state.filters.search || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
     if (!q || !Array.isArray(state.filteredData) || state.filteredData.length < 2) return;
+    if (!state.filters.owned && state._browseSort && state._browseSort.col) return;   // v0.9.1916: the clicked header's order wins
     var rank = function (r) {
       var n = String(r && r.itemNum || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
       if (!n) return 3;
@@ -5013,8 +5212,7 @@ function _rrBrowseCore(_co) {
         + ` <span style="color:var(--text-dim);font-size:0.82rem">· ${item.members.length} piece${item.members.length !== 1 ? 's' : ''}${_fWTxt ? ' · ' + _fWTxt : ''} · ${_fOpen ? 'tap to fold' : 'tap to see the pieces'}</span>`
         + `</td></tr>`;
     }
-    const _pd0 = _rrPdForRow(item);   // v0.9.1120: same resolver as the filter — adoption-aware
-    const pd = (_pd0 && !item._personalOnly && String(_pd0.era || '') === 'Manual') ? null : _pd0;   // v0.9.718
+    const pd = _browseRowPd(item, _rrPdForRow(item));   // v0.9.1120 adoption-aware resolver; v0.9.1916: the Manual rule shared with the sorter
     const isOwned = item._personalOnly ? true : (pd?.owned || false);
     const isWanted = !!state.wantData[`${item.itemNum}|${item.variation}`];
     const cond = pd?.condition ? parseInt(pd.condition) : null;
@@ -5045,8 +5243,9 @@ function _rrBrowseCore(_co) {
     const _outerInvId = pd && pd.inventoryId ? pd.inventoryId : '';
     const isForSale = !!(_outerInvId && state.forSaleData[_outerInvId]);
     const _isUpgradeM = !!(_outerInvId && state.upgradeData[_outerInvId]);
-    const badgeClass = isOwned ? (isForSale ? 'forsale' : 'yes') : isWanted ? 'want' : 'no';
-    const badgeText  = isOwned ? (isForSale ? '🏷️ For Sale' : (_isUpgradeM ? '↑ Upgrade' : '✓ Owned')) : isWanted ? '★ Want' : '—';
+    const _bdg = _browseBadgeOf(item, pd);   // v0.9.1916: ONE place for the word AND its sort rank
+    const badgeClass = _bdg.cls;
+    const badgeText  = _bdg.text;
     const _mv = parseFloat(item.marketVal);
     const marketVal  = item.marketVal && !isNaN(_mv) ? _currencySymbol() + _mv.toLocaleString() : '';
 
@@ -5259,28 +5458,13 @@ function _rrBrowseCore(_co) {
           <span id="cam-${_rrRowDomKey(item)}" style="margin-left:5px;font-size:0.85rem;cursor:pointer;display:none" onclick="event.stopPropagation();openPhotoFolder('${_rrAttrArg(item.itemNum)}','${_rrAttrArg(pd&&pd.photoItem?pd.photoItem:'')}')" title="Open photo folder">📷</span>
         </td>
         <td><span class="tag">${(typeof getTypeBucketLabel === 'function' ? getTypeBucketLabel(item) : item.itemType) || '—'}</span></td>
-        ${((_currentEra === 'atlas') || (item && item._tab === 'Atlas O')) ? (
-        _currentEra === 'all' ? `
-        <td>${item.description || '<span class="text-dim">—</span>'}${_statusHtml}</td>
-        <td>${item.subType || '<span class="text-dim">—</span>'}</td>
-        <td>${item.trackPower || '<span class="text-dim">—</span>'}</td>
-        <td class="text-dim">${item.msrp ? _currencySymbol() + parseFloat(String(item.msrp).replace(/[^0-9.]/g,'')).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}) : '—'}</td>
-        ` : `
-        <td>${item.subType || '<span class="text-dim">—</span>'}</td>
-        <td>${item.description || '<span class="text-dim">—</span>'}${_statusHtml}</td>
-        <td>${item.trackPower || '<span class="text-dim">—</span>'}</td>
-        <td class="text-dim">${item.msrp ? _currencySymbol() + parseFloat(String(item.msrp).replace(/[^0-9.]/g,'')).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}) : '—'}</td>
-        `) : (((_currentEra && _currentEra.indexOf('mth_') === 0) || (item && item._tab && item._tab.indexOf('MTH ') === 0)) ? `
-        <td>${item.roadName || '<span class="text-dim">—</span>'}</td>
-        <td>${item.description || '<span class="text-dim">—</span>'}${_statusHtml}</td>
-        <td>${item.category || '<span class="text-dim">—</span>'}</td>
-        <td>${item.trackPower || '<span class="text-dim">—</span>'}</td>
-        ` : `
-        <td>${item.roadName || '<span class="text-dim">—</span>'}</td>
-        <td>${item.description || '<span class="text-dim">—</span>'}${_statusHtml}</td>
-        <td>${item.variation || '<span class="text-dim">—</span>'}</td>
-        <td>${vdCell}</td>
-        `)}
+        ${_browseCellFields(item).map(function (f) {
+          // v0.9.1916: ONE field map for the cells AND the sorter (_browseCellFields).
+          if (f === 'description') return `<td>${item.description || '<span class="text-dim">—</span>'}${_statusHtml}</td>`;
+          if (f === 'varDesc') return `<td>${vdCell}</td>`;
+          if (f === 'msrp') return `<td class="text-dim">${item.msrp ? _currencySymbol() + parseFloat(String(item.msrp).replace(/[^0-9.]/g,'')).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}) : '—'}</td>`;
+          return `<td>${item[f] || '<span class="text-dim">—</span>'}</td>`;
+        }).join('')}
         <td class="text-dim">${item.yearProd || '—'}</td>
         <td><span class="owned-badge ${badgeClass}">${badgeText}</span></td>
       </tr>`;
