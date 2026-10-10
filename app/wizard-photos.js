@@ -412,10 +412,13 @@ function rrAnswerLeadNumber(txt) {
     if (/\d{3,5}[A-Z]{0,2}\s*,\s*(?:or\s+)?\d{3,5}/i.test(lead)) return '';
     if (/\d{3,5}[A-Z]{0,2}\s+or\s+\d{3,5}/i.test(lead)) return '';
     var num = '';
-    var m = lead.match(/(?:\bNo\.?|#)\s*(\d{1,2}-\d{3,5}[A-Z]{0,2}|\d{3,5}[A-Z]{0,2})\b/i);
+    // v0.9.1912 (Brad's 6343): keep the WHOLE number — 6464-325, 20-3132-1,
+    // 2431470 — the old pattern cut them to 6464 / 20-3132 / nothing.
+    var _NUM = '(\\d{2}-\\d{4,5}-\\d{1,3}|\\d{1,2}-\\d{3,5}[A-Z]{0,2}|\\d{7}(?:-\\d{2,3})?|\\d{3,5}-\\d{1,3}|\\d{3,5}[A-Z]{0,2})\\b(?!-\\d)';
+    var m = lead.match(new RegExp('(?:\\bNo\\.?|#)\\s*' + _NUM, 'i'));
     if (m) num = m[1];
     if (!num) {
-      m = lead.match(/\b(?:Lionel|MTH|Atlas|Marx|Williams|Weaver|K-?Line|American Flyer|Menards|RMT)\s+(\d{1,2}-\d{3,5}[A-Z]{0,2}|\d{3,5}[A-Z]{0,2})\b/i);
+      m = lead.match(new RegExp('\\b(?:Lionel|MTH|Atlas|Marx|Williams|Weaver|K-?Line|American Flyer|Menards|RMT)\\s+' + _NUM, 'i'));
       if (m) num = m[1];
     }
     num = String(num || '').toUpperCase();
@@ -1285,6 +1288,8 @@ function extractLionelNumber(text) {
       var sc = base;
       if (_compRe.test(before) || _compRe.test(after.slice(0, 26)) || /^\s*(square|whistling|tender)/i.test(after)) sc -= 25;
       if (/https?:|www\.|\.com|\//.test(before.slice(-24))) sc -= 15;
+      // v0.9.1912: "uses mold #6424-11" is a side mention, never the item.
+      if (/\bmold(?:ed)?\s*(?:#|no\.?|number)?\s*$/i.test(before.slice(-20))) sc -= 25;
       if (_subjRe.test(before) || _subjRe.test(after)) sc += 8;
       if (labeled) sc += 10;
       if (_seen[cand] == null || sc > _seen[cand]) _seen[cand] = sc;
@@ -1529,6 +1534,13 @@ function extractIdentifyMetadata(text, opts) {
   // Fallback: pattern-match against full text. BUT skip if the full text has a
   // dominant hedge phrase indicating the AI couldn't find a real SKU — in that
   // case extracting any bare number is more likely to be the cab# than an item#.
+  // v0.9.1912 (Brad's 6343 vs mold 6424-11): the answer's opening sentence
+  // names the item (v0.9.1502 rule) — it now decides HERE, before the
+  // whole-text picker, so every reader of an answer gets it from one place.
+  if (!out.itemNum && !_hasHedge(raw) && typeof rrAnswerLeadNumber === 'function') {
+    const leadNum = rrAnswerLeadNumber(raw);
+    if (leadNum) out.itemNum = leadNum;
+  }
   if (!out.itemNum && !_hasHedge(raw)) {
     const num = extractLionelNumber(raw);
     if (num) out.itemNum = num;
