@@ -1,0 +1,935 @@
+{
+ "what": "Master Version 2.27 — Lionel MPC-Modern: 34 rows given their own words after checking the 32 'rows to check next' against the book photos and Lionel. Book page 133 accessories 12716-12734 (each row had its neighbour's words), page 143 Alton Limited and Phantom III cars 15505-15510, page 267 35290/35293, page 291 Archive Collection boxcars 39243-39247, 1927140 and 1927510 from Lionel's pages, 1929904 Peel and Stick LED Lights 4-pack, 2238220/2238230 Chevrolet/Ford Personalized Boxcars, 2428490 Train Day boxcar. Only word columns change (Item Type, Sub-Type, Control, Road Name, Description, Year Produced); years from the book.",
+ "stated": "Brad (2026-10-10): \"check those for me\"; \"yes\" to writing the 34 word fixes as Master Version 2.27",
+ "masterVersion": "2.27",
+ "date": "2026-10-10",
+ "planReadAt": "2026-10-10T19:22:42Z public CSV export gid 1188187255 (22,337 lines); every old value matched",
+ "cellFormat": "[tab, item number (column A), column header, old, new, sheet row as a hint, Row ID of the row]",
+ "counts": {
+  "cells": 102,
+  "rows": 34
+ },
+ "cells": [
+  [
+   "Lionel MPC-Modern",
+   "12716",
+   "Sub-Type",
+   "",
+   "Tower",
+   1805,
+   "6Y2Z39BATQ"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "12716",
+   "Description",
+   "Illuminated Bumpers, set of 2",
+   "Searchlight Tower",
+   1805,
+   "6Y2Z39BATQ"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "12716",
+   "Year Produced",
+   "1987-2015",
+   "1987-1989, 1991-1992",
+   1805,
+   "6Y2Z39BATQ"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "12717",
+   "Item Type",
+   "Operating Freight",
+   "Accessory",
+   1806,
+   "FAAYT585N4"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "12717",
+   "Sub-Type",
+   "Searchlight Car",
+   "",
+   1806,
+   "FAAYT585N4"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "12717",
+   "Description",
+   "Searchlight Tower, 87-89",
+   "Nonilluminated Bumpers, set of 3",
+   1806,
+   "FAAYT585N4"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "12717",
+   "Year Produced",
+   "1991-1992",
+   "1987-2017",
+   1806,
+   "FAAYT585N4"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "12718",
+   "Sub-Type",
+   "",
+   "Building",
+   1807,
+   "R8K38T6KT5"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "12718",
+   "Description",
+   "Nonilluminated Bumpers, set of 3",
+   "Barrel Shed Kit",
+   1807,
+   "R8K38T6KT5"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "12718",
+   "Year Produced",
+   "1987-2017",
+   "1987-1999",
+   1807,
+   "R8K38T6KT5"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "12719",
+   "Sub-Type",
+   "Building",
+   "",
+   1808,
+   "5TPZ7N9Z66"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "12719",
+   "Description",
+   "Barrel Shed Kit",
+   "Animated Refreshment Stand",
+   1808,
+   "5TPZ7N9Z66"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "12719",
+   "Year Produced",
+   "1987-1999",
+   "1988-1989",
+   1808,
+   "5TPZ7N9Z66"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "12720",
+   "Sub-Type",
+   "",
+   "Beacon",
+   1809,
+   "SUCK9RPZGG"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "12720",
+   "Description",
+   "Animated Refreshment Stand",
+   "Rotary Beacon",
+   1809,
+   "SUCK9RPZGG"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "12721",
+   "Sub-Type",
+   "Beacon",
+   "Bridge",
+   1811,
+   "EBJG2T5EM3"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "12721",
+   "Description",
+   "Rotary Beacon",
+   "Illuminated Extension Bridge, rock piers",
+   1811,
+   "EBJG2T5EM3"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "12721",
+   "Year Produced",
+   "1988-1989",
+   "1989",
+   1811,
+   "EBJG2T5EM3"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "12722",
+   "Sub-Type",
+   "Bridge",
+   "Building",
+   1812,
+   "AKGEZJTSXK"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "12722",
+   "Description",
+   "Illuminated Extension Bridge, rock piers",
+   "Roadside Diner, smoke",
+   1812,
+   "AKGEZJTSXK"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "12722",
+   "Year Produced",
+   "1989",
+   "1988-1989",
+   1812,
+   "AKGEZJTSXK"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "12723",
+   "Item Type",
+   "Passenger Car",
+   "Accessory",
+   1813,
+   "W8DFN8FSHZ"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "12723",
+   "Sub-Type",
+   "Diner",
+   "Tower",
+   1813,
+   "W8DFN8FSHZ"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "12723",
+   "Description",
+   "Roadside Diner, smoke",
+   "Microwave Tower",
+   1813,
+   "W8DFN8FSHZ"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "12723",
+   "Year Produced",
+   "1988-1989",
+   "1988-1991, 1994-1995",
+   1813,
+   "W8DFN8FSHZ"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "12724",
+   "Sub-Type",
+   "Tower",
+   "Bridge",
+   1814,
+   "Q47ES5JNCR"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "12724",
+   "Description",
+   "Microwave Tower, 88-91",
+   "Double Signal Bridge",
+   1814,
+   "Q47ES5JNCR"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "12724",
+   "Year Produced",
+   "1994-1995",
+   "1988-1990",
+   1814,
+   "Q47ES5JNCR"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "12725",
+   "Item Type",
+   "Accessory",
+   "Intermodal",
+   1815,
+   "FFZHX6TD5C"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "12725",
+   "Sub-Type",
+   "Bridge",
+   "Tractor Trailer",
+   1815,
+   "FFZHX6TD5C"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "12725",
+   "Description",
+   "Double Signal Bridge",
+   "Lionel Tractor and Trailer",
+   1815,
+   "FFZHX6TD5C"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "12725",
+   "Year Produced",
+   "1988-1990",
+   "1988-1989",
+   1815,
+   "FFZHX6TD5C"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "12726",
+   "Item Type",
+   "Intermodal",
+   "Accessory",
+   1816,
+   "RJ6KUCESMR"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "12726",
+   "Sub-Type",
+   "Tractor Trailer",
+   "Kit",
+   1816,
+   "RJ6KUCESMR"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "12726",
+   "Description",
+   "Lionel Tractor and Trailer",
+   "Grain Elevator Kit",
+   1816,
+   "RJ6KUCESMR"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "12726",
+   "Year Produced",
+   "1988-1989",
+   "1988-1991, 1994-1999",
+   1816,
+   "RJ6KUCESMR"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "12727",
+   "Sub-Type",
+   "Kit",
+   "Semaphore",
+   1817,
+   "3DNB7BYG92"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "12727",
+   "Description",
+   "Grain Elevator Kit, 88-91",
+   "Operating Semaphore",
+   1817,
+   "3DNB7BYG92"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "12727",
+   "Year Produced",
+   "1994-1999",
+   "1989-1999",
+   1817,
+   "3DNB7BYG92"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "12728",
+   "Sub-Type",
+   "Semaphore",
+   "Station",
+   1818,
+   "FJNA743RZ5"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "12728",
+   "Description",
+   "Operating Semaphore",
+   "Illuminated Freight Station",
+   1818,
+   "FJNA743RZ5"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "12728",
+   "Year Produced",
+   "1989-1999",
+   "1989",
+   1818,
+   "FJNA743RZ5"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "12729",
+   "Sub-Type",
+   "Station",
+   "",
+   1819,
+   "RATWZZCFA3"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "12729",
+   "Description",
+   "Illuminated Freight Station",
+   "Mail Pickup Set",
+   1819,
+   "RATWZZCFA3"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "12729",
+   "Year Produced",
+   "1989",
+   "1988-1991, 1995",
+   1819,
+   "RATWZZCFA3"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "12733",
+   "Sub-Type",
+   "",
+   "Building",
+   1824,
+   "CZ5PPQH76Y"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "12733",
+   "Description",
+   "Coal Bag",
+   "Watchman Shanty Kit",
+   1824,
+   "CZ5PPQH76Y"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "12733",
+   "Year Produced",
+   "1988-2025",
+   "1988-1999",
+   1824,
+   "CZ5PPQH76Y"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "12734",
+   "Description",
+   "Watchman Shanty Kit",
+   "Passenger/Freight Station Kit",
+   1825,
+   "86HVGWVB8M"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "12734",
+   "Year Produced",
+   "1988-1999",
+   "1989-1999",
+   1825,
+   "86HVGWVB8M"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "15505",
+   "Sub-Type",
+   "Diner",
+   "Baggage",
+   2549,
+   "MWSW68ATTX"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "15505",
+   "Description",
+   "Alton Limited Diner, StationSounds",
+   "Alton Limited Heavyweight Baggage Car \"R.S. Brauer\"",
+   2549,
+   "MWSW68ATTX"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "15506",
+   "Sub-Type",
+   "Baggage",
+   "Coach",
+   2550,
+   "4NJYQR9MFT"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "15506",
+   "Description",
+   "Alton Limited Heavyweight Baggage Car \"R.S. Brauer,\" 03",
+   "Alton Limited Heavyweight Coach \"Oak Park\"",
+   2550,
+   "4NJYQR9MFT"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "15506",
+   "Year Produced",
+   "",
+   "2003",
+   2550,
+   "4NJYQR9MFT"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "15508",
+   "Sub-Type",
+   "",
+   "Baggage",
+   2552,
+   "47MH73BVR7"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "15508",
+   "Description",
+   "Phantom III Passenger Car 4-pack",
+   "Phantom III Baggage Car",
+   2552,
+   "47MH73BVR7"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "15509",
+   "Sub-Type",
+   "Baggage",
+   "Dome",
+   2553,
+   "VXU5XH4KPF"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "15509",
+   "Description",
+   "Phantom III Baggage Car",
+   "Phantom III Vista Dome",
+   2553,
+   "VXU5XH4KPF"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "15510",
+   "Sub-Type",
+   "Dome",
+   "Coach",
+   2554,
+   "DTA52FWQW6"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "15510",
+   "Description",
+   "Phantom III Vista Dome",
+   "Phantom III Coach",
+   2554,
+   "DTA52FWQW6"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "35290",
+   "Description",
+   "Polar Express Passenger Car Add-on 2-pack, 13-14",
+   "Polar Express Passenger Car Add-on 2-pack",
+   11022,
+   "HW6FCNFVRY"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "35290",
+   "Year Produced",
+   "2016",
+   "2013-2014, 2016",
+   11022,
+   "HW6FCNFVRY"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "35293",
+   "Item Type",
+   "Passenger Car",
+   "Boxcar",
+   11023,
+   "J4YZENQG8Y"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "35293",
+   "Sub-Type",
+   "",
+   "Boxcar",
+   11023,
+   "J4YZENQG8Y"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "35293",
+   "Road Name",
+   "Polar Express",
+   "",
+   11023,
+   "J4YZENQG8Y"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "35293",
+   "Description",
+   "Polar Express Passenger Car Add-on 2-pack, 13-14",
+   "Angela Trotta Thomas \"Toyland Express\" Boxcar",
+   11023,
+   "J4YZENQG8Y"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "35293",
+   "Year Produced",
+   "2016",
+   "2013",
+   11023,
+   "J4YZENQG8Y"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "39243",
+   "Item Type",
+   "Set",
+   "Boxcar",
+   11536,
+   "BF93FWP8AX"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "39243",
+   "Road Name",
+   "",
+   "Soo Line",
+   11536,
+   "BF93FWP8AX"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "39243",
+   "Description",
+   "Postwar \"6464\" Boxcar 3-pack #1, Archive Collection",
+   "Soo Line Boxcar, Archive Collection",
+   11536,
+   "BF93FWP8AX"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "39244",
+   "Road Name",
+   "Soo Line",
+   "Denver & Rio Grande Western",
+   11537,
+   "QEHAV6RB32"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "39244",
+   "Description",
+   "Soo Line Boxcar, Archive Collection",
+   "D&RGW Cookie Box Boxcar, Archive Collection",
+   11537,
+   "QEHAV6RB32"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "39245",
+   "Road Name",
+   "Denver & Rio Grande Western",
+   "",
+   11538,
+   "8BVWMRHUKB"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "39245",
+   "Description",
+   "D&RGW Cookie Box Boxcar, Archive Collection",
+   "Duluth, South Shore & Atlantic Boxcar, Archive Collection",
+   11538,
+   "8BVWMRHUKB"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "39246",
+   "Road Name",
+   "",
+   "Pennsylvania Railroad",
+   11539,
+   "BMQ8D3HH44"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "39246",
+   "Description",
+   "Duluth, South Shore & Atlantic Boxcar, Archive Collection",
+   "Century Club PRR Sharknose Diesel Boxcar",
+   11539,
+   "BMQ8D3HH44"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "39246",
+   "Year Produced",
+   "2003-2004",
+   "2000",
+   11539,
+   "BMQ8D3HH44"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "39247",
+   "Item Type",
+   "Diesel Locomotive",
+   "Boxcar",
+   11541,
+   "Y4MYKXU3NZ"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "39247",
+   "Sub-Type",
+   "",
+   "Boxcar",
+   11541,
+   "Y4MYKXU3NZ"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "39247",
+   "Control",
+   "Traditional",
+   "",
+   11541,
+   "Y4MYKXU3NZ"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "39247",
+   "Road Name",
+   "",
+   "New York Central",
+   11541,
+   "Y4MYKXU3NZ"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "39247",
+   "Description",
+   "Century Club PRR Sharknose Diesel Boxcar",
+   "NYC DD Boxcar \"6468\"",
+   11541,
+   "Y4MYKXU3NZ"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "39247",
+   "Year Produced",
+   "2000",
+   "2002-2003",
+   11541,
+   "Y4MYKXU3NZ"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "1927140",
+   "Item Type",
+   "Set",
+   "Passenger Car",
+   5315,
+   "QF8RYC8PR9"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "1927140",
+   "Road Name",
+   "New York Central",
+   "Southern Pacific",
+   5315,
+   "QF8RYC8PR9"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "1927140",
+   "Description",
+   "NYC Pacemaker 2-car Add-on Set",
+   "SP 18-inch Passenger Car 2-pack #4",
+   5315,
+   "QF8RYC8PR9"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "1927510",
+   "Sub-Type",
+   "Diner",
+   "",
+   5359,
+   "UKB68WBQPK"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "1927510",
+   "Road Name",
+   "Southern Railway",
+   "Missouri Pacific",
+   5359,
+   "UKB68WBQPK"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "1927510",
+   "Description",
+   "Southern Diner \"3168\" w/StationSounds",
+   "MP Sunshine Special 18-inch Passenger Car 2-pack #1",
+   5359,
+   "UKB68WBQPK"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "1929904",
+   "Description",
+   "Peel and Stick Lights, 15-pack",
+   "Peel and Stick LED Lights, 4-pack",
+   5487,
+   "XTVVZ3WPN5"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "1929904",
+   "Year Produced",
+   "2019",
+   "2019-2020",
+   5487,
+   "XTVVZ3WPN5"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2238220",
+   "Road Name",
+   "Milwaukee Road",
+   "",
+   8274,
+   "3HWQZ4W2GZ"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2238220",
+   "Description",
+   "MILW 175th Anniversary Boxcar",
+   "Chevrolet Personalized Boxcar",
+   8274,
+   "3HWQZ4W2GZ"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2238220",
+   "Year Produced",
+   "2022",
+   "2022-2023",
+   8274,
+   "3HWQZ4W2GZ"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2238230",
+   "Description",
+   "Chevrolet Personalized Boxcar",
+   "Ford Personalized Boxcar",
+   8275,
+   "YNB25KW69Z"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2238230",
+   "Year Produced",
+   "2022",
+   "2022-2023",
+   8275,
+   "YNB25KW69Z"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2428490",
+   "Item Type",
+   "Caboose",
+   "Boxcar",
+   9194,
+   "C496B9GJJU"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2428490",
+   "Sub-Type",
+   "Caboose",
+   "Boxcar",
+   9194,
+   "C496B9GJJU"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2428490",
+   "Road Name",
+   "Lionel Lines",
+   "",
+   9194,
+   "C496B9GJJU"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2428490",
+   "Description",
+   "LL NE5 Caboose",
+   "2024 National Lionel Train Day Boxcar",
+   9194,
+   "C496B9GJJU"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2428490",
+   "Year Produced",
+   "2024",
+   "2024-2025",
+   9194,
+   "C496B9GJJU"
+  ]
+ ],
+ "why": "Book photos: in the 7-digit section the book is right and the typed-in list paired some numbers with the wrong line (page curl puts each number about a line off its words near page edges). On pages 133 and 143 the numbers sit a line off their words; Lionel's own listings settle the direction (12714, 12717, 12730-12732; 15504, 15507, 15512, 15517). Full evidence per row: MPC_ROWS_TO_CHECK_RESULTS_2026-10-10.xlsx.",
+ "unchanged": "Waiting for Brad, one decision at a time: 21 extra rows whose number is not printed in the book (delete), 3 wrong numbers (82671->82674, 84533->84538, 15513->15511), 4 missing rows (12715, 35286, 39240, 84554), 12730 Santa Fe set vs Girder Bridge, duplicate 12729 Set row, second 39246 row, 6-26634 not in the book, 8 nearby misreads (1928815, 1928915, 1929010, 2024010-2024090).",
+ "toPutBack": "Write each cell's old value back to its row (find by item number + Row ID)."
+}
