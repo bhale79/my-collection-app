@@ -1131,6 +1131,9 @@ async function _loadDriveThumbFull(fileId, imgEl, containerEl) {
       headers: { Authorization: 'Bearer ' + accessToken }
     });
     if (!res.ok) {
+      // v0.9.1921: a file Drive cannot find for this account is forgotten from
+      // the remembered photo list (dashboard.js), so the tile heals next pass.
+      if ((res.status === 404 || res.status === 403) && typeof window.rrThumbForgetFid === 'function') window.rrThumbForgetFid(fileId);
       containerEl.innerHTML = '<span style="font-size:0.65rem;color:var(--text-dim)">⚠ ' + res.status + '</span>';
       return;
     }

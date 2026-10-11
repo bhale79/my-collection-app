@@ -1850,12 +1850,44 @@ function _dashFlushThumbs() {
 // ── v0.9.755 (Brad): photo cards — "thumbnails from my collection" ──
 // First photo file-id per item, cached on-device (lv_thumb_fids) so Drive is
 // asked ONCE per item ever; blob loading reuses drive.js loadDriveThumb.
+//
+// v0.9.1921 (Brad's screenshot from the booth demo: half the photo strip read
+// "⚠ 404"): the list is keyed by inventory ID — and inventory IDs are only
+// unique inside ONE collection sheet. His Chrome had held his own collection;
+// signed back in as the demo account (same inventory numbers, copied from his)
+// it kept showing HIS photos' file ids, which the demo account cannot open.
+// The list now belongs to the collection sheet it was built from
+// (lv_thumb_fids:<sheet id>); a different sheet starts its own. And a file id
+// that answers "not found" is forgotten (rrThumbForgetFid, called from
+// drive.js), so a dead tile heals on the next pass instead of staying dead.
+function _thumbFidKey() {
+  var sid = '';
+  try { sid = String((typeof state !== 'undefined' && state && state.personalSheetId) || '').trim(); } catch (e) {}
+  return 'lv_thumb_fids' + (sid ? ':' + sid : '');
+}
 function _thumbFids() {
-  if (!window._thumbFidCache) {
-    try { window._thumbFidCache = JSON.parse(localStorage.getItem('lv_thumb_fids') || '{}'); } catch (e) { window._thumbFidCache = {}; }
+  var key = _thumbFidKey();
+  if (!window._thumbFidCache || window._thumbFidCacheKey !== key) {
+    try { window._thumbFidCache = JSON.parse(localStorage.getItem(key) || '{}'); } catch (e) { window._thumbFidCache = {}; }
+    window._thumbFidCacheKey = key;
+    // the old one-list-for-everyone copy can't be trusted for any sheet — drop it once
+    if (key !== 'lv_thumb_fids') { try { localStorage.removeItem('lv_thumb_fids'); } catch (e) {} }
   }
   return window._thumbFidCache;
 }
+// v0.9.1921: a remembered file id that Drive says no longer exists (or this
+// account cannot see) — forget every item pointing at it, so the next draw
+// looks the item's photo up afresh.
+function rrThumbForgetFid(fid) {
+  try {
+    if (!fid) return 0;
+    var c = _thumbFids(), n = 0;
+    Object.keys(c).forEach(function (k) { if (c[k] === fid) { delete c[k]; n++; } });
+    if (n) { try { localStorage.setItem(_thumbFidKey(), JSON.stringify(c)); } catch (e) {} }
+    return n;
+  } catch (e) { return 0; }
+}
+if (typeof window !== 'undefined') window.rrThumbForgetFid = rrThumbForgetFid;
 // v0.9.1201 (structural audit #6): the cache above remembers each item's
 // first-photo file id FOREVER — "asked ONCE per item ever" was the design,
 // and nothing ever un-asked. Replace or add an item's photos and every list
@@ -1869,7 +1901,7 @@ function rrThumbBust(pdOrKey) {
     var c = _thumbFids();
     if (c[k] !== undefined) {
       delete c[k];
-      try { localStorage.setItem('lv_thumb_fids', JSON.stringify(c)); } catch (e) {}
+      try { localStorage.setItem(_thumbFidKey(), JSON.stringify(c)); } catch (e) {}
     }
   } catch (e) {}
 }
@@ -1889,7 +1921,7 @@ async function _thumbFor(pd) {
   if (!_link) return null;
   var files = await driveGetFolderPhotos(_link).catch(function () { return null; });
   var fid = files && files[0] && files[0].id;
-  if (fid) { c[k] = fid; try { localStorage.setItem('lv_thumb_fids', JSON.stringify(c)); } catch (e) {} }
+  if (fid) { c[k] = fid; try { localStorage.setItem(_thumbFidKey(), JSON.stringify(c)); } catch (e) {} }
   return fid || null;   // failures/empties NOT cached — retried next time
 }
 function _photoPds() {

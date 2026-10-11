@@ -7529,6 +7529,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
     const cache = JSON.parse(store.lv_thumb_fids);
     const ctx = {
       _thumbFids: function () { return cache; },
+      _thumbFidKey: function () { return 'lv_thumb_fids'; },   // v0.9.1921: the list is per collection sheet; no sheet here
       localStorage: { setItem: function (k, v) { store[k] = v; }, getItem: function (k) { return store[k]; } },
     };
     const bust = new Function(...Object.keys(ctx), '"use strict";' + bustSrc + '; return rrThumbBust;')(...Object.values(ctx));
