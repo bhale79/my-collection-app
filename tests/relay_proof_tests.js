@@ -62,17 +62,22 @@ const APP_FILES = fs.readdirSync(APPDIR).filter(f => f.endsWith('.js'));
 section('A. every relay call is in exactly one list');
 const V = vaultConfig(VAULT_SRC);
 const IDS = V.IDENTITY_ACTIONS || [], ANON = V.ANONYMOUS_ACTIONS || [];
+// v0.9.1924: a third list — the quiet renewal's calls carry their OWN key
+// (a one-time Google code, or this device's key), never the sign-in proof.
+const DEVK = V.DEVICE_KEY_ACTIONS || [];
 ok('both lists exist', IDS.length > 0 && ANON.length > 0, { IDS, ANON });
 ok('no call is in both lists', IDS.every(a => ANON.indexOf(a) < 0), IDS.filter(a => ANON.indexOf(a) >= 0));
+ok('no device-key call is in another list', DEVK.every(a => IDS.indexOf(a) < 0 && ANON.indexOf(a) < 0), DEVK);
+['auth_link', 'auth_renew', 'auth_unlink'].forEach(a => ok('"' + a + '" is a device-key call', DEVK.indexOf(a) >= 0));
 const sent = sentActions(APP_FILES);
 const actions = Object.keys(sent).sort();
 ok('found the app\'s relay calls (scan sanity)', actions.length >= 14, actions);
-actions.forEach(a => ok('"' + a + '" is classified', IDS.indexOf(a) >= 0 || ANON.indexOf(a) >= 0, sent[a]));
+actions.forEach(a => ok('"' + a + '" is classified', IDS.indexOf(a) >= 0 || ANON.indexOf(a) >= 0 || DEVK.indexOf(a) >= 0, sent[a]));
 ['heartbeat', 'submit', 'get_market', 'get_counts', 'delete_token', 'barcode_pair', 'image_wanted']
   .forEach(a => ok('"' + a + '" stays ANONYMOUS (Privacy page)', ANON.indexOf(a) >= 0));
 ['sub_check', 'ai_identify', 'ai_identify2', 'ai_verify_photo', 'ref_photo', 'ai_card', 'ai_quota', 'import_map']
   .forEach(a => ok('"' + a + '" carries the sign-in proof', IDS.indexOf(a) >= 0));
-ok('no listed call is dead (each list entry is really sent)', IDS.concat(ANON).every(a => sent[a]), IDS.concat(ANON).filter(a => !sent[a]));
+ok('no listed call is dead (each list entry is really sent)', IDS.concat(ANON, DEVK).every(a => sent[a]), IDS.concat(ANON, DEVK).filter(a => !sent[a]));
 
 // ── B. the REAL vaultPost ───────────────────────────────────────────────
 section('B. the real vaultPost');
@@ -107,6 +112,8 @@ async function runB(src) {
   r.hbProof = sb.posts[2] && ('gtoken' in sb.posts[2]);
   await sb.vaultPost({ action: 'submit', token: 'tkt', items: [], gtoken: 'smuggled' });
   r.smuggled = sb.posts[3] && ('gtoken' in sb.posts[3]);
+  await sb.vaultPost({ action: 'auth_renew', device: 'd', email: 'a@x.com' });
+  r.renewProof = sb.posts[4] && ('gtoken' in sb.posts[4]);
   // expired proof → renewed once, retried once with the new one
   sb = build(src, { answers: [{ status: 401, message: 'proof' }, { status: 200, sub: 'beta' }], renewAfterTicks: 3, newToken: 'ya29.second' });
   const out = await sb.vaultPost({ action: 'sub_check', email: 'a@x.com' });
@@ -135,6 +142,7 @@ async function runB(src) {
   ok('a photo read carries the sign-in proof', r.aiProof === 'ya29.first', r.aiProof);
   ok('the daily ping carries NO proof', r.hbProof === false);
   ok('a proof passed by a caller is stripped from an anonymous call', r.smuggled === false);
+  ok('the quiet renewal carries NO sign-in proof (it has its own key)', r.renewProof === false, r.renewProof);
   ok('expired proof → renewed through rrEnsureFreshToken once', r.renewCalls === 1, r.renewCalls);
   ok('…and the call retried ONCE with the new proof', r.retryCount === 2 && r.retryToken === 'ya29.second' && r.retryOut === 'beta', r);
   ok('no fresh proof arrives → one try only, the 401 comes back (no loop)', r.noFreshPosts === 1 && r.noFreshOut === 401, r);

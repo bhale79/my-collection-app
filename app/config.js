@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.1923';
+const APP_VERSION = 'v0.9.1924';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -1257,6 +1257,18 @@ const RR_DISPLAY_NAME_KEY = 'lv_display_name';
 // beside it with a fingerprint of the pass (app-auth.js _rrNoteGrantedScopes /
 // _rrPassHasScope). Survives a reload, never read against another pass.
 const RR_TOKEN_SCOPES_KEY = 'lv_token_scopes';
+// v0.9.1924 — THE QUIET RENEWAL (Brad: "a google screen flashes up and off
+// before you can read it … users have complained"). Google's pass lasts an hour
+// and a browser-only app can only renew it by opening Google's window — the
+// flash. With this on, the relay (v4.6) keeps a renewal key and hands the app a
+// fresh pass with no window (app-auth.js _rrWrapTokenClient). ONE switch:
+//   'off'    — today's behaviour, the window every hour
+//   'owners' — RR_OWNER_EMAILS only (the live check)
+//   'all'    — everyone
+// Whatever it says, a relay that cannot renew means the window, as today.
+const RR_QUIET_RENEW = 'off';
+const RR_RENEW_DEVICE_KEY = 'lv_renew_device';        // { device, email } — this device's key from the relay
+const RR_RENEW_NOKEY_KEY  = 'lv_renew_nokey_until';   // Google gave no renewal key: don't try again before this time
 
 function rrRecordingMode() {
   try { return localStorage.getItem(RR_RECORDING_MODE_KEY) === '1'; } catch (e) { return false; }

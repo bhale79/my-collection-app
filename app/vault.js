@@ -72,6 +72,11 @@ const VAULT = {
                      'ref_photo', 'ai_card', 'ai_quota', 'import_map'],
   ANONYMOUS_ACTIONS: ['heartbeat', 'submit', 'get_market', 'get_counts',
                       'delete_token', 'barcode_pair', 'image_wanted'],
+  // v0.9.1924 — the quiet renewal (relay v4.6). These carry their OWN key and
+  // never the sign-in proof: auth_link a one-time code from Google's window
+  // (the relay asks Google whose it is), auth_renew / auth_unlink this
+  // device's key. Usually the pass has run out when they are sent.
+  DEVICE_KEY_ACTIONS: ['auth_link', 'auth_renew', 'auth_unlink'],
   // How long to wait for Google to renew the proof when the relay says it
   // has expired, before trying ONCE more.
   PROOF_RENEW_WAIT_MS: 7000,
@@ -156,7 +161,7 @@ window.rrVaultTokenChanged = async function (oldToken, newToken) {
 function _vaultNeedsProof(action) {
   var a = String(action || '');
   if (VAULT.IDENTITY_ACTIONS.indexOf(a) >= 0) return true;
-  if (VAULT.ANONYMOUS_ACTIONS.indexOf(a) < 0) console.warn('[Vault] action in neither list:', a);
+  if (VAULT.ANONYMOUS_ACTIONS.indexOf(a) < 0 && (VAULT.DEVICE_KEY_ACTIONS || []).indexOf(a) < 0) console.warn('[Vault] action in no list:', a);
   return false;
 }
 // The current Google sign-in (access token) — '' when there is none.

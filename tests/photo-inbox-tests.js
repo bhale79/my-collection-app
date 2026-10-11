@@ -22907,8 +22907,10 @@ META_WRITES.length = 0; TOASTS.length = 0;
          /_rrAuthLog\('boot: token restored, ' \+/.test(au24) && /_rrAuthLog\('boot: stored token expired'\)/.test(au24), '');
       ok('324 every Google answer is logged — the error WITH its code, success with initial/refresh',
          /_rrAuthLog\('token error: ' \+/.test(au24) && /_rrAuthLog\('token ok \(' \+ \(isInitial \? 'initial' : 'refresh'\)/.test(au24), '');
-      ok('324 a quiet renewal logs its reason, and 6s of silence is logged too',
-         /_rrAuthLog\('renewing \(' \+ \(reason \|\| 'check'\)/.test(au24) && /_rrAuthLog\('quiet renew silent after 6s'\)/.test(au24), '');
+      // v0.9.1924 re-pin: the silence is still logged; its length is now
+      // 6 s for Google's window and 20 s when the relay renews (a cold start).
+      ok('324 a quiet renewal logs its reason, and the silence is logged too',
+         /_rrAuthLog\('renewing \(' \+ \(reason \|\| 'check'\)/.test(au24) && /_rrAuthLog\('quiet renew silent after ' \+ \(_waitMs \/ 1000\) \+ 's'\)/.test(au24), '');
       ok('324 the gesture layer logs arming, the tap retry, and every road to the card',
          /_rrAuthLog\('armed: retry on next tap'\)/.test(au24)
          && /_rrAuthLog\('tap retry: requesting token'\)/.test(au24)
@@ -22938,8 +22940,12 @@ META_WRITES.length = 0; TOASTS.length = 0;
          /_rrAuthLog\('reconnect card SHOWN'\)/.test(au24), '');
       ok('324 THE PRIME SUSPECT: the Reconnect tap and the 6s consent fallback are both logged',
          /_rrAuthLog\('Reconnect tapped/.test(au24) && /_rrAuthLog\('6s CONSENT FALLBACK: forcing account chooser'\)/.test(au24), '');
+      // v0.9.1924: the quiet-renewal door (_rrWrapTokenClient) holds two
+      // real.requestAccessToken( calls — its pass-throughs to Google's window,
+      // one per request, never an extra ask. The eight callers are unchanged.
       ok('324 instrumentation only — the keeper asks Google exactly as often as v1619 did',
-         (au24.match(/requestAccessToken\(/g) || []).length === 8, '');
+         (au24.match(/requestAccessToken\(/g) || []).length - (au24.match(/real\.requestAccessToken\(/g) || []).length === 8
+         && (au24.match(/real\.requestAccessToken\(/g) || []).length === 2, '');
     })();
 
     // ═══════════════════════════════════════════════════════════

@@ -434,7 +434,9 @@ function initGoogle() {
     return;
   }
 
-  tokenClient = google.accounts.oauth2.initTokenClient({
+  // v0.9.1924: wrapped — every quiet renewal goes through _rrWrapTokenClient
+  // (the relay, no window) before Google's window. Its closing `);` is below.
+  tokenClient = _rrWrapTokenClient(google.accounts.oauth2.initTokenClient({
     client_id: CLIENT_ID,
     scope: SCOPES,
     callback: onTokenReceived,
@@ -467,7 +469,7 @@ function initGoogle() {
         showToast('Google\u2019s sign-in window was blocked by the browser. Allow pop-ups for therailroster.com, or close and reopen the app.', 7000, true);
       }
     },
-  });
+  }));
 
   // Paint (or re-affirm) the first screen. On a normal load this already ran
   // at DOMContentLoaded and every line of it is a no-op the second time.
@@ -937,6 +939,200 @@ function _rrTokenUsable() {         // can he work RIGHT NOW? the only thing a u
 // Kept as the old name so nothing silently changes meaning under a caller
 // that has not been looked at. Every call site below was.
 function _rrTokenHealthy() { return _rrTokenFresh(); }
+// ═══ v0.9.1924 — THE QUIET RENEWAL ════════════════════════════════════════
+// Brad, 2026-10-11: "when working in the app a google screen flashes up and off
+// before you can read it. its super annoying and users have complained."
+// Google's pass lasts one hour, and a browser-only app can only renew it by
+// opening Google's window (tokenClient.requestAccessToken, prompt '') — which
+// approves instantly and closes itself. That is the flash. Google's own answer
+// (its "code model") is a server that keeps a long-lasting renewal key; relay
+// v4.6 is that server. So EVERY quiet renewal in the app goes through ONE door,
+// the wrapped tokenClient below (all ten call sites already call it):
+//   • this device has a key from the relay → ask the relay for a fresh pass
+//     (auth_renew). No window.
+//   • no key yet → open Google's CODE window instead of the token window (the
+//     same one window, inside the same click if there was one), hand the code
+//     to the relay (auth_link): the pass comes back AND the device is linked.
+//   • anything else, or the relay cannot help → exactly what the app did
+//     before: Google's token window. It can never be worse than today.
+// Only quiet renewals (prompt '' / none) take this door; sign-in, account
+// choice and consent screens go straight to Google as before. ONE switch,
+// RR_QUIET_RENEW in config.js.
+var _rrQuietDownUntil = 0;          // the relay could not help recently → use the window until then
+var _rrCodeClient = null, _rrCodeFor = '';
+var _RR_QUIET_DOWN_MS = 10 * 60 * 1000;
+var _RR_QUIET_UNSET_MS = 6 * 60 * 60 * 1000;     // relay has no secret yet — look again in 6 hours
+var _RR_QUIET_NOKEY_MS = 7 * 24 * 60 * 60 * 1000;
+
+function _rrQuietUser() {
+  try { return String((state && state.user && state.user.email) || '').trim().toLowerCase(); } catch (e) { return ''; }
+}
+function _rrQuietOn() {
+  var mode = (typeof RR_QUIET_RENEW !== 'undefined') ? RR_QUIET_RENEW : 'off';
+  if (mode === 'all') return !!_rrQuietUser();
+  if (mode === 'owners') {
+    var em = _rrQuietUser();
+    return !!em && (typeof RR_OWNER_EMAILS !== 'undefined') && RR_OWNER_EMAILS.indexOf(em) >= 0;
+  }
+  return false;
+}
+// This device's key — only if it belongs to the account signed in now.
+function _rrQuietDevice() {
+  try {
+    var j = JSON.parse(localStorage.getItem(RR_RENEW_DEVICE_KEY) || 'null');
+    if (j && j.device && j.email && String(j.email).toLowerCase() === _rrQuietUser()) return j;
+  } catch (e) {}
+  return null;
+}
+function _rrQuietStoredDevice() {
+  try { var j = JSON.parse(localStorage.getItem(RR_RENEW_DEVICE_KEY) || 'null'); return (j && j.device) ? j : null; } catch (e) { return null; }
+}
+function _rrQuietSave(device, email) {
+  try { localStorage.setItem(RR_RENEW_DEVICE_KEY, JSON.stringify({ device: String(device), email: String(email).toLowerCase() })); } catch (e) {}
+}
+function _rrQuietForget() { try { localStorage.removeItem(RR_RENEW_DEVICE_KEY); } catch (e) {} }
+function _rrQuietNoKeyUntil() {
+  try { return parseInt(localStorage.getItem(RR_RENEW_NOKEY_KEY) || '0', 10) || 0; } catch (e) { return 0; }
+}
+// The relay could not help: remember for how long, by what it said.
+function _rrQuietBackOff(out) {
+  var msg = out && out.message;
+  _rrQuietDownUntil = Date.now() + (msg === 'not_set_up' ? _RR_QUIET_UNSET_MS : _RR_QUIET_DOWN_MS);
+}
+// A pass from the relay goes down the SAME road as one from Google's window:
+// to whatever callback the token client holds RIGHT NOW. sheets.js, drive.js
+// and write-outbox.js swap tokenClient.callback for one request and restore
+// it in their own callback — a hard-coded onTokenReceived here would strand
+// them until their timeouts said "session expired".
+function _rrQuietPass(out, real) {
+  var resp = { access_token: out.access_token, expires_in: out.expires_in, scope: out.scope || '' };
+  var cb = (real && typeof real.callback === 'function') ? real.callback
+         : (typeof onTokenReceived === 'function' ? onTokenReceived : null);
+  if (cb) cb(resp);
+}
+function _rrQuietRenew(dev, real, opts) {
+  _rrAuthLog('quiet renewal: asking the relay');
+  var fallback = function (why) {
+    _rrAuthLog('quiet renewal failed (' + why + ') — using Google’s window');
+    try { real.requestAccessToken(opts); } catch (e) { _rrAuthLog('window request threw: ' + (e && e.message)); }
+  };
+  Promise.resolve(typeof vaultPost === 'function' ? vaultPost({ action: 'auth_renew', device: dev.device, email: dev.email }) : null)
+    .then(function (out) {
+      if (out && out.status === 200 && out.access_token) {
+        _rrAuthLog('quiet renewal ok — no window');
+        _rrQuietPass(out, real);
+        return;
+      }
+      var st = out ? out.status : 'no answer';
+      // The relay no longer knows this device (signed out elsewhere, or the
+      // person removed the app's access): forget the key; the next renewal
+      // links again.
+      if (out && (out.status === 404 || out.status === 409 || out.status === 410)) _rrQuietForget();
+      else _rrQuietBackOff(out);
+      fallback(st + (out && out.message ? ' ' + out.message : ''));
+    })
+    .catch(function (e) { _rrQuietBackOff(null); fallback('error ' + (e && e.message)); });
+}
+function _rrQuietLink(real, opts) {
+  var em = _rrQuietUser();
+  if (!_rrCodeClient || _rrCodeFor !== em) {
+    _rrCodeFor = em;
+    _rrCodeClient = google.accounts.oauth2.initCodeClient({
+      client_id: CLIENT_ID,
+      scope: SCOPES,
+      ux_mode: 'popup',
+      login_hint: em || undefined,
+      callback: function (resp) { _rrQuietOnCode(resp, real, opts); },
+      error_callback: function (err) {
+        var type = (err && (err.type || err.message)) || 'unknown';
+        _rrAuthLog('quiet link window FAILED: ' + type);
+        _rrQuietDownUntil = Date.now() + _RR_QUIET_DOWN_MS;
+        // The same as the token window failing: wait for a click.
+        _rrTokenRenewing = false;
+        try { _rrArmGestureRenew(); } catch (e) {}
+      },
+    });
+  }
+  _rrAuthLog('quiet renewal: linking this device (Google’s window, once)');
+  _rrCodeClient.requestCode();
+}
+function _rrQuietOnCode(resp, real, opts) {
+  if (!resp || resp.error || !resp.code) {
+    _rrAuthLog('quiet link answer: ' + ((resp && resp.error) || 'no code'));
+    _rrQuietDownUntil = Date.now() + _RR_QUIET_DOWN_MS;
+    _rrTokenRenewing = false;
+    try { _rrArmGestureRenew(); } catch (e) {}
+    return;
+  }
+  var em = _rrQuietUser();
+  var old = _rrQuietStoredDevice();
+  // old_device: a key this device holds for ANOTHER account — the relay forgets it.
+  Promise.resolve(typeof vaultPost === 'function'
+      ? vaultPost({ action: 'auth_link', code: resp.code, email: em, old_device: (old && old.device) || undefined })
+      : null)
+    .then(function (out) {
+      if (out && out.status === 200 && out.device && out.access_token) {
+        _rrQuietSave(out.device, out.email || em);
+        _rrAuthLog('quiet renewal: this device is linked — no more windows');
+        _rrQuietPass(out, real);
+        return;
+      }
+      if (out && out.status === 409 && out.message === 'no_key' && out.access_token) {
+        try { localStorage.setItem(RR_RENEW_NOKEY_KEY, String(Date.now() + _RR_QUIET_NOKEY_MS)); } catch (e) {}
+        _rrAuthLog('quiet link: Google gave no renewal key — keeping the window for now');
+        _rrQuietPass(out, real);
+        return;
+      }
+      _rrQuietBackOff(out);
+      _rrAuthLog('quiet link failed (' + (out ? out.status + ' ' + (out.message || '') : 'no answer') + ') — waiting for a click');
+      _rrTokenRenewing = false;
+      try { _rrArmGestureRenew(); } catch (e) {}
+    })
+    .catch(function (e) {
+      _rrQuietBackOff(null);
+      _rrAuthLog('quiet link error: ' + (e && e.message));
+      _rrTokenRenewing = false;
+      try { _rrArmGestureRenew(); } catch (e2) {}
+    });
+}
+// THE door. Every requestAccessToken in the app reaches Google through this.
+function _rrWrapTokenClient(real) {
+  return {
+    requestAccessToken: function (opts) {
+      opts = opts || {};
+      var quiet = (opts.prompt === '' || opts.prompt === undefined) && _rrQuietOn() && Date.now() >= _rrQuietDownUntil;
+      if (quiet) {
+        var dev = _rrQuietDevice();
+        if (dev) { _rrQuietRenew(dev, real, opts); return; }
+        if (Date.now() >= _rrQuietNoKeyUntil() && typeof google !== 'undefined' && google.accounts && google.accounts.oauth2 && google.accounts.oauth2.initCodeClient) {
+          _rrQuietLink(real, opts);
+          return;
+        }
+      }
+      real.requestAccessToken(opts);
+    },
+    // sheets.js / drive.js / write-outbox.js read and swap tokenClient.callback:
+    // it must stay the REAL client's callback, which Google's window answers.
+    get callback() { return real.callback; },
+    set callback(fn) { real.callback = fn; },
+    _real: real,
+  };
+}
+// Sign-out: the relay forgets THIS device. Never Google's revoke — that cancels
+// the app's whole permission for the account (it signed Brad out, 2026-10-10).
+function _rrQuietUnlink() {
+  var dev = _rrQuietStoredDevice();
+  if (!dev || typeof vaultPost !== 'function') return Promise.resolve();
+  var done = vaultPost({ action: 'auth_unlink', device: dev.device }).catch(function () {});
+  var cap = new Promise(function (r) { setTimeout(r, 3000); });
+  return Promise.race([done, cap]).then(function () { _rrQuietForget(); });
+}
+if (typeof window !== 'undefined') {
+  window._rrWrapTokenClient = _rrWrapTokenClient;
+  window._rrQuietOn = _rrQuietOn;
+  window._rrQuietDevice = _rrQuietDevice;
+}
+
 // The only place that asks Google for a token outside of first sign-in.
 function rrEnsureFreshToken(reason) {
   try {
@@ -949,13 +1145,16 @@ function rrEnsureFreshToken(reason) {
     tokenClient.requestAccessToken({ prompt: '', login_hint: hint });
     // If nothing comes back, the quiet path was blocked. Do not nag — wait
     // for a click and try again then, when the browser will allow it.
+    // v0.9.1924: the relay can take longer than Google's window to answer (a
+    // cold start), so its renewal gets 20 s before a click is waited for.
+    var _waitMs = (_rrQuietOn() && _rrQuietDevice()) ? 20000 : 6000;
     setTimeout(function () {
       if (_rrTokenRenewing && !_rrTokenHealthy()) {
         _rrTokenRenewing = false;
-        _rrAuthLog('quiet renew silent after 6s');
+        _rrAuthLog('quiet renew silent after ' + (_waitMs / 1000) + 's');
         _rrArmGestureRenew();
       }
-    }, 6000);
+    }, _waitMs);
   } catch (e) {
     _rrTokenRenewing = false;
     console.warn('[Auth] renew failed:', e && e.message);
@@ -991,6 +1190,8 @@ function _rrArmGestureRenew() {
     document.removeEventListener('click', go, true);
     document.removeEventListener('keydown', go, true);
     _rrTokenGestureArmed = false;
+    // v0.9.1924: a slow quiet renewal may have landed after this was armed.
+    if (_rrTokenFresh()) { _rrAuthLog('tap retry skipped: the pass already arrived'); return; }
     _rrAuthLog('tap retry: requesting token');
     try {
       _rrTokenRenewing = true;
@@ -1142,6 +1343,8 @@ async function handleSignOut() {
       );
       if (!go) { _signOutRunning = false; return; }
     }
+    // v0.9.1924: the relay forgets this device first (at most 3 s; never revoke).
+    try { await _rrQuietUnlink(); } catch (eU) {}
     var removed = rrClearAccountStorage();
     console.log('[Auth] Sign-out cleared ' + removed.length + ' stored key(s)');
   } catch (e) {
