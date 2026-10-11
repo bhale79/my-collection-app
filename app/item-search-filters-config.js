@@ -60,6 +60,7 @@ window.ITEM_SEARCH_FILTERS = {
     // _wpSellFilterRow in wizard-pickers.js, which used to hardcode 0.78rem
     // and render the same four dropdowns visibly smaller than these.
     fontPx:       17,
+    oneLineFontPx: 15,  // v0.9.1926: the one-line filter row on a computer (Brad: "fit all the filters onto 1 line")
     minHeightPx:  46,   // grew with the font — still ≥ the 44px tap minimum
     gapPx:        8,
   },

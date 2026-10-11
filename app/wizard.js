@@ -705,6 +705,13 @@ function _buildWizardModal() {
     document.addEventListener('focusin', function (e) {
       var body = document.getElementById('wizard-body');
       if (!body || !body.contains(e.target)) return;
+      // v0.9.1926 (Brad: "i have to scroll up to the beginning every time for
+      // some reason when you first click add"). This guard is for the PHONE
+      // keyboard — but computers have window.visualViewport too, so on a
+      // computer the item-number box's own auto-focus scrolled the window to
+      // put that box at the top, pushing the filters above it out of sight.
+      // A computer has no on-screen keyboard to dodge: stand down there.
+      if (!window.IS_MOBILE_UA) return;
       // v0.9.1033: was scrollIntoView({block:'center'}) — centring can't work
       // for a field near the END of the list (there is nothing below it to
       // scroll up), which is exactly where the item number field sits, so it
@@ -1604,11 +1611,17 @@ function _buildItemSearchFiltersDOM() {
 
   var container = document.createElement('div');
   var bar = document.createElement('div');
-  bar.style.cssText = 'display:flex;gap:' + (sz.gapPx || 8) + 'px;margin-bottom:0.5rem;flex-wrap:wrap';
+  // v0.9.1926 (Brad: "scale down the filters so we fit all the filters onto
+  // 1 line"): on a computer Manufacturer / Era / Type / Scale / Clear share ONE
+  // row — each drop-down takes an equal share and may shrink (min-width 0)
+  // instead of holding 130px and wrapping. A phone is too narrow: it wraps.
+  var _oneLine = !window.IS_MOBILE_UA && (wizard.tab === 'collection' || wizard.tab === 'want');
+  var _dropMin = _oneLine ? 0 : 130;
+  bar.style.cssText = 'display:flex;gap:' + (sz.gapPx || 8) + 'px;margin-bottom:0.5rem;flex-wrap:' + (_oneLine ? 'nowrap' : 'wrap');
 
   function mkDrop(fieldId, label, values, currentVal) {
     var wrap = document.createElement('div');
-    wrap.style.cssText = 'flex:1;min-width:130px';
+    wrap.style.cssText = 'flex:1 1 0;min-width:' + _dropMin + 'px';
     var opts = '<option value="">' + esc(ui.anyLabel || '(any)') + '</option>' +
       values.map(function(v) {
         var sel = v === currentVal ? ' selected' : '';
@@ -1616,9 +1629,10 @@ function _buildItemSearchFiltersDOM() {
       }).join('');
     wrap.innerHTML =
       '<div style="font-size:0.7rem;color:var(--text-dim);margin-bottom:0.2rem;' +
-        'letter-spacing:0.06em;text-transform:uppercase;font-weight:600">' + esc(label) + '</div>' +
+        'letter-spacing:' + (_oneLine ? '0.03em' : '0.06em') + ';text-transform:uppercase;font-weight:600;' +
+        'white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(label) + '</div>' +
       '<select id="' + fieldId + '" style="' +
-        'width:100%;padding:0.5rem 0.65rem;font-size:' + (sz.fontPx || 14) + 'px;' +
+        'width:100%;padding:' + (_oneLine ? '0.5rem 0.4rem' : '0.5rem 0.65rem') + ';font-size:' + (_oneLine ? (sz.oneLineFontPx || 15) : (sz.fontPx || 14)) + 'px;' +
         'background:var(--surface2);color:var(--text);border:1px solid var(--border);' +
         'border-radius:8px;min-height:' + (sz.minHeightPx || 44) + 'px' +
       '">' + opts + '</select>';
@@ -1628,7 +1642,7 @@ function _buildItemSearchFiltersDOM() {
   // mkDrop variant for value/label pairs (used by the Era dropdown).
   function mkDropPairs(fieldId, label, pairs, currentVal) {
     var wrap = document.createElement('div');
-    wrap.style.cssText = 'flex:1;min-width:130px';
+    wrap.style.cssText = 'flex:1 1 0;min-width:' + _dropMin + 'px';
     var opts = '<option value="">' + esc(ui.anyLabel || 'All') + '</option>' +
       pairs.map(function(p) {
         var sel = p.value === currentVal ? ' selected' : '';
@@ -1636,9 +1650,10 @@ function _buildItemSearchFiltersDOM() {
       }).join('');
     wrap.innerHTML =
       '<div style="font-size:0.7rem;color:var(--text-dim);margin-bottom:0.2rem;' +
-        'letter-spacing:0.06em;text-transform:uppercase;font-weight:600">' + esc(label) + '</div>' +
+        'letter-spacing:' + (_oneLine ? '0.03em' : '0.06em') + ';text-transform:uppercase;font-weight:600;' +
+        'white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(label) + '</div>' +
       '<select id="' + fieldId + '" style="' +
-        'width:100%;padding:0.5rem 0.65rem;font-size:' + (sz.fontPx || 14) + 'px;' +
+        'width:100%;padding:' + (_oneLine ? '0.5rem 0.4rem' : '0.5rem 0.65rem') + ';font-size:' + (_oneLine ? (sz.oneLineFontPx || 15) : (sz.fontPx || 14)) + 'px;' +
         'background:var(--surface2);color:var(--text);border:1px solid var(--border);' +
         'border-radius:8px;min-height:' + (sz.minHeightPx || 44) + 'px' +
       '">' + opts + '</select>';
@@ -1655,19 +1670,20 @@ function _buildItemSearchFiltersDOM() {
     // defaulting to "All". Road/Scale are intentionally omitted to keep it simple.
     // v0.9.715 (Brad): the WANT flow gets the same bar + Scale — picking from
     // the master list needs manufacturer / era / type / scale narrowing.
-    if (mfrs.length) bar.appendChild(mkDrop('wiz-search-mfr', 'Manufacturer', mfrs, wizard.data._searchFilterManufacturer || ''));
-    bar.appendChild(mkDropPairs('wiz-search-era', 'Era', _eraPairs, wizard.data._searchFilterPeriod || ''));
+    if (mfrs.length) { var _mfrW = mkDrop('wiz-search-mfr', 'Manufacturer', mfrs, wizard.data._searchFilterManufacturer || ''); if (_oneLine) _mfrW.style.flexGrow = '1.25'; bar.appendChild(_mfrW); }
+    var _eraW = mkDropPairs('wiz-search-era', 'Era', _eraPairs, wizard.data._searchFilterPeriod || ''); if (_oneLine) _eraW.style.flexGrow = '1.25'; bar.appendChild(_eraW);
     if (showType) bar.appendChild(mkDrop('wiz-search-type', ui.typeLabel || 'Type', types, wizard.data._searchFilterType || ''));
     // v0.9.1471 (Brad: "we need to add scale to the filter list. how did we
     // miss that?"): Session 176 omitted Scale "to keep it simple", v715 gave
     // it to the Want flow only — the collection flow's plumbing was already
     // wired (_searchFilterScale, the change listener, the suggestion filter)
     // with no dropdown writing it. Both flows get it now.
-    if (scales.length) bar.appendChild(mkDrop('wiz-search-scale', 'Scale', scales, wizard.data._searchFilterScale || ''));
+    // v0.9.1926: the one-line row gives the long words (maker, era) more room than the short ones (O, HO, S).
+    if (scales.length) { var _scW = mkDrop('wiz-search-scale', 'Scale', scales, wizard.data._searchFilterScale || ''); if (_oneLine) _scW.style.flexGrow = '0.75'; bar.appendChild(_scW); }
     // Clear-filters button (Manufacturer + Era are remembered between adds).
     var _clrWrap = document.createElement('div');
-    _clrWrap.style.cssText = 'display:flex;align-items:flex-end';
-    _clrWrap.innerHTML = '<button type="button" onclick="_clearAddFilters()" style="padding:0.5rem 0.8rem;font-size:13px;background:var(--surface2);color:var(--text-mid);border:1px solid var(--border);border-radius:8px;min-height:' + (sz.minHeightPx || 44) + 'px;cursor:pointer;white-space:nowrap">Clear filters</button>';
+    _clrWrap.style.cssText = 'display:flex;align-items:flex-end;flex:0 0 auto';
+    _clrWrap.innerHTML = '<button type="button" onclick="_clearAddFilters()" style="padding:0.5rem ' + (_oneLine ? '0.55rem' : '0.8rem') + ';font-size:' + (_oneLine ? '12px' : '13px') + ';background:var(--surface2);color:var(--text-mid);border:1px solid var(--border);border-radius:8px;min-height:' + (sz.minHeightPx || 44) + 'px;cursor:pointer;white-space:nowrap">Clear filters</button>';
     bar.appendChild(_clrWrap);
   } else {
     if (showType) bar.appendChild(mkDrop('wiz-search-type', ui.typeLabel || 'Type',       types, wizard.data._searchFilterType || ''));
@@ -1790,6 +1806,14 @@ function _wireItemSearchFilters() {
     if (typeSel) RoadTypeahead.attach(typeSel);
     if (roadSel) RoadTypeahead.attach(roadSel);
   }
+  // v0.9.1926: in the one-line row the Type box is narrow — "Type to filter…"
+  // cut off mid-word. It says what the other three say when nothing is picked.
+  try {
+    if (!window.IS_MOBILE_UA && typeSel && typeSel.parentNode) {
+      var _tyIn = typeSel.parentNode.querySelector('.road-ty-input');
+      if (_tyIn) _tyIn.placeholder = anyLabel;
+    }
+  } catch (eTy) {}
 }
 
 // Session 115: grouping-choice helpers called by inline onchange on the
@@ -5483,7 +5507,10 @@ function renderWizardStep() {
         if (inp) {
           // v0.9.669 (Brad): no auto-keyboard on phones — it buried the
           // Identify-by-Photo button. Wiring stays; only the focus is gated.
-          if (!window.IS_MOBILE_UA) inp.focus();
+          // v0.9.1926: the cursor goes in WITHOUT scrolling, and the step
+          // opens at the top — the filters above the box stay in view.
+          if (!window.IS_MOBILE_UA) { try { inp.focus({ preventScroll: true }); } catch (eF) { inp.focus(); } }
+          try { var _wb0 = document.getElementById('wizard-body'); if (_wb0) _wb0.scrollTop = 0; } catch (eS) {}
           inp.addEventListener('input', debounceItemLookup);
           if (inp.value) { updateItemSuggestions(inp.value); }
         }
