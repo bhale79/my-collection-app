@@ -823,7 +823,7 @@ window.rrDashSetSlotCard = function(slotIdx, cardId) {
 var MAX_CARDS = 6;   // v0.9.754 (Brad): "looks like we can fit a 6th small card" — the grid auto-fits, only this cap said no
 var _DEFAULT_SLOTS = [{id:'owned'},{id:'value'},{id:'eraProgress'},{id:'activity'},null,null];
 
-function _padSlots(arr) {   // v0.9.754: older saved layouts are length-5 — pad so "Add a stat card" reappears
+function _padSlots(arr) {   // v0.9.754: older saved layouts are length-5 — pad to MAX_CARDS (empty slots fill from Edit Dashboard)
   while (arr.length < MAX_CARDS) arr.push(null);
   return arr.slice(0, MAX_CARDS);
 }
@@ -1083,19 +1083,12 @@ function buildDashboard() {
   if (_statsGrid) {
     var slots = _getSlots();
     var activeSlots = slots.map(function(slot,i){return{slot:slot,i:i};}).filter(function(s){return s.slot!==null;});
+    // v0.9.1931 (Brad): "we don't need the +add a stat card, we have the edit
+    // dashboard button" — and "dont keep the one case, we always have the edit
+    // dashboard". No add buttons anywhere: Edit Dashboard is the one way in.
     if (activeSlots.length === 0) {
-      _statsGrid.innerHTML =
-        '<button onclick="openDashEditor()" style="display:flex;align-items:center;gap:0.5rem;padding:0.5rem 1rem;border-radius:8px;border:1.5px dashed var(--border,#2a3a5c);background:transparent;color:var(--text-dim);font-family:var(--font-body);font-size:0.82rem;cursor:pointer" ' +
-        'onmouseover="this.style.borderColor=\'var(--accent)\';this.style.color=\'var(--accent)\'" ' +
-        'onmouseout="this.style.borderColor=\'var(--border,#2a3a5c)\';this.style.color=\'var(--text-dim)\'">' +
-        '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>' +
-        'Add a stat card</button>';
-      _statsGrid.style.cssText = 'display:flex;padding:0.25rem 0;margin-bottom:0.5rem';
-      // v0.9.1423: no cards means the big "Add a stat card" button above IS the
-      // prompt — make sure the below-grid row isn't also showing one from a
-      // previous render, or you get two of them.
-      var _addRow0 = document.getElementById('stats-add-row');
-      if (_addRow0) _addRow0.innerHTML = '';
+      _statsGrid.innerHTML = '';
+      _statsGrid.style.cssText = 'display:none';
     } else {
       _statsGrid.style.cssText = '';
       var html = activeSlots.map(function(s) {
@@ -1123,21 +1116,6 @@ function buildDashboard() {
           + '</div>';
       }).join('');
       _statsGrid.innerHTML = html;
-      // v0.9.1423 (Brad): "Add a stat card" renders into its own row BELOW the
-      // grid, never inside it. When it lived inside with grid-column:1/-1 it
-      // put content in every auto-fit track, so none could collapse and the
-      // cards were pinned to their 120px minimum on the left. Outside, the
-      // unused tracks collapse and the cards spread evenly across the width.
-      var _addRow = document.getElementById('stats-add-row');
-      if (_addRow) {
-        _addRow.innerHTML = (activeSlots.length < MAX_CARDS)
-          ? '<div style="text-align:right;padding:0.15rem 0.1rem 0">'
-            + '<button onclick="openDashEditor()" style="background:none;border:none;color:var(--text-dim);font-size:0.75rem;font-family:var(--font-body);cursor:pointer;padding:0;opacity:0.6;display:inline-flex;align-items:center;gap:0.3rem" onmouseover="this.style.opacity=\'1\'" onmouseout="this.style.opacity=\'0.6\'">'
-            + '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>'
-            + ' Add a stat card</button>'
-            + '</div>'
-          : '';
-      }
     }
   }
 
@@ -1280,14 +1258,18 @@ function buildDashboard() {
     // OUTSIDE it, under the pictures, because the scroller clips its overflow
     // and anything inside it would be cut off.
     var _sBtn = 'width:26px;height:22px;border-radius:6px;border:1px solid var(--border);background:var(--surface2,var(--surface));color:var(--text-dim);font-family:var(--font-body);font-size:0.7rem;line-height:1;cursor:pointer;padding:0';
-    th.innerHTML = '<div class="panel" style="padding:0.55rem 0 0.4rem;margin-bottom:1.25rem">'
-      + '<div class="rr-ticker-wrap" style="overflow:hidden">'
+    // v0.9.1931 (Brad: "why is there a scroll bar again … get rid of the scoll
+    // on my large screen"): the speed arrows moved from UNDER the pictures to
+    // their RIGHT — the same three controls stacked ▲ / speed / ▼ — which gives
+    // the row of controls' height back to the big cards below.
+    th.innerHTML = '<div class="panel" style="padding:0.55rem 0.5rem 0.55rem 0;margin-bottom:1.25rem;display:flex;align-items:center;gap:0.5rem">'
+      + '<div class="rr-ticker-wrap" style="overflow:hidden;flex:1 1 auto;min-width:0">'
       +   '<div id="rr-ticker-track" class="rr-ticker-track"><div style="padding:0.5rem 1rem;color:var(--text-dim);font-size:0.78rem">Loading photos…</div></div>'
       + '</div>'
-      + '<div style="display:flex;align-items:center;justify-content:center;gap:0.35rem;padding-top:0.45rem">'
-      +   '<button id="rr-ticker-slower" onclick="_tickerSpeedStep(-1)" title="Slower" aria-label="Scroll the photos slower" style="' + _sBtn + '">▼</button>'
-      +   '<span id="rr-ticker-speed" style="min-width:2.6rem;text-align:center;font-size:0.68rem;color:var(--text-dim);font-family:var(--font-mono,monospace)"></span>'
+      + '<div id="rr-ticker-speedbox" style="flex:0 0 auto;display:flex;flex-direction:column;align-items:center;gap:0.25rem">'
       +   '<button id="rr-ticker-faster" onclick="_tickerSpeedStep(1)" title="Faster" aria-label="Scroll the photos faster" style="' + _sBtn + '">▲</button>'
+      +   '<span id="rr-ticker-speed" style="min-width:2.6rem;text-align:center;font-size:0.68rem;color:var(--text-dim);font-family:var(--font-mono,monospace)"></span>'
+      +   '<button id="rr-ticker-slower" onclick="_tickerSpeedStep(-1)" title="Slower" aria-label="Scroll the photos slower" style="' + _sBtn + '">▼</button>'
       + '</div>'
       + '</div>';
     if (typeof window._tickerFill === 'function') setTimeout(window._tickerFill, 0);
@@ -2564,7 +2546,15 @@ window._catCovSave = _catCovSave;
       for (var sc = host.parentElement; sc && sc !== document.body; sc = sc.parentElement) {
         if (sc.scrollTop) top += sc.scrollTop;
       }
-      var h = Math.max(minH, Math.floor(window.innerHeight - top - 16));
+      // v0.9.1931: leave exactly the scroll area's own bottom padding (24px on
+      // the main area) — the old fixed 16 left the page 8px too tall, which on
+      // its own put a scroll bar on a window where everything fitted.
+      var _padB = 16;
+      for (var _sp = host.parentElement; _sp && _sp !== document.body; _sp = _sp.parentElement) {
+        var _cs = getComputedStyle(_sp);
+        if (/(auto|scroll)/.test(_cs.overflowY)) { _padB = (parseFloat(_cs.paddingBottom) || 0) + 2; break; }
+      }
+      var h = Math.max(minH, Math.floor(window.innerHeight - top - _padB));
       host.style.setProperty('--dash-panel-h', h + 'px');
       Array.prototype.forEach.call(host.querySelectorAll('[id^="dash-panel-body-"]'), function (body) {
         var limit = body.getBoundingClientRect().bottom + 0.5;

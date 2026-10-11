@@ -338,7 +338,12 @@
   .main .filter-btn, .main .chip { background: #f0e6cc; color: #5a4e38; border-color: #d4c8a8; }
   .main .filter-btn:hover, .main .chip:hover { background: #e8ddc0; }
 
-  html, body { height: 100%; font-family: var(--font-body); background: var(--bg); color: var(--text); font-size: 16px; }
+  /* v0.9.1931 (Brad: "why is there a scroll bar again"): margin:0 HERE. The
+     global reset at the top of this file never reaches the page (the stray
+     <style> on line 1 swallows that first rule), so the browser's own 8px body
+     margin survived: #app is 100vh tall, the page was 16px taller than the
+     window, and a SECOND scroll bar sat outside the dashboard's own. */
+  html, body { margin: 0; height: 100%; font-family: var(--font-body); background: var(--bg); color: var(--text); font-size: 16px; }
 
   /* ── Accessibility: minimum font sizes for readability ─────── */
   /* Floor: nothing below 0.75rem (12px) for labels/badges, 0.85rem (13.6px) for body text */
@@ -1909,7 +1914,6 @@
   /* ── Landscape phone: hide dashboard stats/recent, show only buttons ── */
   @media (max-height: 500px) and (max-width: 900px) and (orientation: landscape) {
     #page-dashboard .stats-grid,
-    #page-dashboard #stats-add-row,
     #page-dashboard .two-col,
     #page-dashboard .page-title { display: none !important; }
     #page-dashboard .dash-btn-grid { margin-top: 0.5rem; }
@@ -2903,13 +2907,21 @@ html[data-theme="high-contrast"] button[style*="#e74c3c"], html[data-theme="high
    --dash-panel-h, set by dashboard.js to what is left of the window (never below
    --dash-panel-min-h). Anything that would be cut off is hidden whole
    (.rr-dash-overflow) — never half a row. Phones keep stacked, natural height. */
-#dash-panels-host { --dash-panel-min-h: 260px; }
+/* v0.9.1931 (Brad: "get rid of the scoll on my large screen, i guess we have to
+   keep it for the smaller screens"): 260 → 160. On a 1920×1080 screen at 125%
+   the cards now shrink to fit (a row fewer shows) instead of pushing the page
+   past the window; below this height a smaller window still scrolls. */
+#dash-panels-host { --dash-panel-min-h: 160px; }
 @media (min-width: 701px) {
   #dash-panels-host { align-items: stretch !important; }
   #dash-panels-host .panel { box-sizing: border-box; height: var(--dash-panel-h, auto); overflow: hidden; display: flex; flex-direction: column; }
   #dash-panels-host .panel > [id^="dash-panel-body-"] { flex: 1 1 auto; min-height: 0; overflow: hidden; }
 }
 #dash-panels-host .rr-dash-overflow { display: none !important; }
+/* v0.9.1931 (Brad: "the scroll left to right shows up sometimes too"): the
+   dashboard never scrolls sideways — everything on it is sized to the window.
+   Only this page: wide pages (catalog tables, reports) still scroll. */
+#page-dashboard { overflow-x: clip; }
 
 /* v0.9.1871 — the tour's SAMPLE pill (config.js rrSampleTag). Every sample row, card
    and photo wears it; the rows themselves are drawn by each page's own row code and

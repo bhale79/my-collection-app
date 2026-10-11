@@ -294,7 +294,7 @@ const GUIDES = {
         body: function () {
           if (document.getElementById('dash-card-0')) {
             // "up to 6": MAX_CARDS was raised to 6 in v0.9.754 at Brad's own request.
-            return 'These show key numbers about your collection. Use <strong>Edit Dashboard</strong> to change which stats appear, or <strong>Add a stat card</strong> for another one — collection value, counts by type, and more. You can show up to 6.';
+            return 'These show key numbers about your collection. Use <strong>Edit Dashboard</strong> to change which stats appear or add another one — collection value, counts by type, and more. You can show up to 6.';
           }
           return 'Your dashboard fills itself in as you add things. Until then it offers the two ways in: <strong>Add your first item</strong> if you know the number, or <strong>Open the Photo Inbox</strong> to photograph a shelf now and do the typing another day.';
         } },
