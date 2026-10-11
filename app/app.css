@@ -2787,6 +2787,17 @@ html[data-theme="high-contrast"] button[style*="#e74c3c"], html[data-theme="high
   font-family: var(--font-body);
 }
 .wiz-kin-btn:hover { border-color: var(--accent); }
+/* v0.9.1923: each relative carries its reference link beside it (3309-50) */
+.wiz-kin-row { display: flex; gap: 0.4rem; align-items: stretch; margin-bottom: 0.35rem; }
+.wiz-kin-row .wiz-kin-btn { flex: 1 1 auto; min-width: 0; margin-bottom: 0; }
+.wiz-kin-ref {
+  display: inline-flex; align-items: center; flex-shrink: 0; white-space: nowrap;
+  padding: 0.42rem 0.7rem; min-height: 34px; box-sizing: border-box;
+  border: 1px solid var(--border); border-radius: 8px; background: var(--surface2);
+  color: var(--accent2); font-family: var(--font-body); font-size: 0.78rem; font-weight: 600;
+  text-decoration: none;
+}
+.wiz-kin-ref:hover { border-color: var(--accent); }
 .wiz-kin-num {
   display: inline-block; font-family: var(--font-mono);
   font-size: 0.8rem; font-weight: 700; color: var(--t-accent); margin-right: 0.4rem;

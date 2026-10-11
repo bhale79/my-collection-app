@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.1922';
+const APP_VERSION = 'v0.9.1923';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -1253,6 +1253,10 @@ const RR_RECORDING_MODE_KEY = 'rr_recording_mode';
 // it follows the account to every device. Read ONLY through rrUserName /
 // rrGreetName (app.js).
 const RR_DISPLAY_NAME_KEY = 'lv_display_name';
+// v0.9.1923: which permissions Google granted for the pass in lv_token, stored
+// beside it with a fingerprint of the pass (app-auth.js _rrNoteGrantedScopes /
+// _rrPassHasScope). Survives a reload, never read against another pass.
+const RR_TOKEN_SCOPES_KEY = 'lv_token_scopes';
 
 function rrRecordingMode() {
   try { return localStorage.getItem(RR_RECORDING_MODE_KEY) === '1'; } catch (e) { return false; }

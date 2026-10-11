@@ -7553,10 +7553,11 @@ function _wizKinNoteHtml(num) {
     kin = kin.slice().sort(function (a, b) { return _rank(a) - _rank(b); });
     var shown = kin.slice(0, 2).map(function (k) {
       var blurb = (typeof rrKinBlurb === 'function') ? rrKinBlurb(k, 80) : '';
-      return '<button type="button" class="wiz-kin-btn" onclick="wizSwitchToKin(\'' + String(k).replace(/'/g, "\\'") + '\')">'
+      return '<div class="wiz-kin-row">'
+           + '<button type="button" class="wiz-kin-btn" onclick="wizSwitchToKin(\'' + String(k).replace(/'/g, "\\'") + '\')">'
            + '<span class="wiz-kin-num">' + k + '</span>'
            + (blurb ? '<span class="wiz-kin-desc">' + blurb + '</span>' : '')
-           + '</button>';
+           + '</button>' + _wizKinRefLink(k) + '</div>';
     }).join('');
     var more = kin.length > 2 ? '<div class="wiz-kin-more">and ' + (kin.length - 2) + ' more under this number</div>' : '';
     return '<div class="wiz-kin-note" id="wiz-kin-note">'
@@ -7565,6 +7566,30 @@ function _wizKinNoteHtml(num) {
   } catch (e) { return ''; }
 }
 if (typeof window !== 'undefined') window._wizKinNoteHtml = _wizKinNoteHtml;
+
+// v0.9.1923 (Brad, 3309 → 3309-50: "it doesn't have the cott link here for me
+// to see"): a relative is offered so he can CHECK it — and the check is the
+// reference page. Each relative row gets the same link the variation cards
+// carry: the row's own refLink, deep-linked by cottAnchorUrl, labelled by
+// resolveRefLabel (the one site table). A sibling of the button, never inside
+// it (a link inside a button is not a link), and only when the row has one.
+function _wizKinRefLink(k) {
+  try {
+    // The row through findMaster with the add's own era hint — never a
+    // number-only first find (Lionel, Flyer, MTH, Atlas and Marx reuse numbers).
+    var row = null;
+    try { if (typeof findMaster === 'function') row = findMaster(String(k), '', (typeof _wizMasterPrefer === 'function') ? _wizMasterPrefer() : null); } catch (eF) {}
+    if (!row && typeof rrKinRow === 'function') row = rrKinRow(k);
+    if (!row || !row.refLink) return '';
+    var url = (typeof window.cottAnchorUrl === 'function')
+      ? window.cottAnchorUrl(row.refLink, row.itemNum || k, window.cottRowWords ? window.cottRowWords(row) : '', row.variation || '')
+      : row.refLink;
+    var label = (typeof window.resolveRefLabel === 'function') ? window.resolveRefLabel(row.refLink) : 'View \u2197';
+    var esc = function (v) { return String(v).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); };
+    return '<a class="wiz-kin-ref" href="' + esc(url) + '" target="_blank" rel="noopener" onmousedown="event.preventDefault()">' + esc(label) + '</a>';
+  } catch (e) { return ''; }
+}
+if (typeof window !== 'undefined') window._wizKinRefLink = _wizKinRefLink;
 
 // Switching to a relative keeps everything already entered — the photo above
 // all — and re-derives the catalogue side for the new number. It clears the

@@ -6632,14 +6632,20 @@ META_WRITES.length = 0; TOASTS.length = 0;
     // Session 85: 3 → 4. The tender-help block ("Need help identifying the
     // tender you have?") gained an inline listing link; v1577 gave it the
     // 34px hit area the sibling check demands.
-    ok('the wizard has all four reference links accounted for',
-       spots.length === 4, 'found ' + spots.length);
+    // v0.9.1923: 4 → 5. The "Also catalogued separately" rows got their
+    // reference link (Brad, 3309-50). It is styled by class .wiz-kin-ref in
+    // app.css, so its hit area is read from THAT rule, not from inline style.
+    ok('the wizard has all five reference links accounted for',
+       spots.length === 5, 'found ' + spots.length);
+    const cssKin = (fs.readFileSync(require('path').join(__dirname, '..', 'app', 'app.css'), 'utf8').match(/\.wiz-kin-ref \{[^}]*\}/) || [''])[0];
+    const kinHit = /min-height: 34px/.test(cssKin), kinPad = /padding: 0\.4/.test(cssKin);
     const windows = spots.map(i => wz.slice(Math.max(0, i - 400), i + 700));
+    const isKin = w => /class="wiz-kin-ref"[^>]*$/.test(w.slice(0, 400));
     ok('EVERY one of them declares a real hit area',
-       windows.every(w => /min-height:34px/.test(w)),
-       windows.filter(w => !/min-height:34px/.test(w)).length + ' without');
+       windows.every(w => /min-height:34px/.test(w) || (isKin(w) && kinHit)),
+       windows.filter(w => !/min-height:34px/.test(w) && !(isKin(w) && kinHit)).length + ' without');
     ok('...and none of them is zero-padded any more',
-       windows.every(w => /padding:0\.4/.test(w)));
+       windows.every(w => /padding:0\.4/.test(w) || (isKin(w) && kinPad)));
   })();
 
   section('159. Cancel + Discard returns you where you came from (v0.9.1191)');
@@ -19026,8 +19032,10 @@ META_WRITES.length = 0; TOASTS.length = 0;
       ok('276 every stopPropagation\'d picker link also refuses focus-on-press (none left bare)',
          stopOnly === 0, stopOnly + ' unguarded');
       // v0.9.1882: + the catalog-entry card's see-it link (app-collection.js) — six
-      ok('276 the guarded set is the known six (5 stop+guard pairs, plus the single-item link)',
-         both === 5 && guards === 6, JSON.stringify({ both, guards }));
+      // v0.9.1923: + the "Also catalogued separately" row link (wizard.js) — seven.
+      // It sits BESIDE its button, not inside a card, so it needs no stopPropagation.
+      ok('276 the guarded set is the known seven (5 stop+guard pairs, the single-item link, the relative-row link)',
+         both === 5 && guards === 7, JSON.stringify({ both, guards }));
       // The wizard card link carries BOTH handlers — they stop DIFFERENT
       // failure modes (v1189 hit-area theft; v1335 focus-scroll theft).
       const wz = fs.readFileSync(p76.join(__dirname, '..', 'app', 'wizard.js'), 'utf8');

@@ -33,9 +33,43 @@ const _BETA_CODE = 'BETA2026';
 // was NOT granted. If the scope string is missing or unreadable for any
 // reason, the user proceeds exactly as before. A permissions checker that
 // locked out working users would be worse than the problem it solves.
-function _rrNoteGrantedScopes(s) {
-  if (typeof s === 'string' && s.trim()) window._rrGrantedScopes = s;
+function _rrNoteGrantedScopes(s, tok) {
+  if (typeof s === 'string' && s.trim()) {
+    window._rrGrantedScopes = s;
+    // v0.9.1923: remembered WITH the pass it belongs to, so it survives a
+    // reload (the pass itself is restored from lv_token) and can never be
+    // read against a different pass. See _rrPassHasScope.
+    if (tok) { try { localStorage.setItem(RR_TOKEN_SCOPES_KEY, JSON.stringify({ fp: _rrPassPrint(tok), scope: s })); } catch (e) {} }
+  }
 }
+// ── v0.9.1923: WHAT DOES THE PASS IN HAND CARRY? ─────────────────────────
+// Brad, 2026-10-11: "why does it keep asking me this" — Google's "wants
+// additional access … Google Photos" screen, every time he used Google
+// Photos, though he had clicked Continue. The app remembered a yes in a
+// variable (window._rrPhotosScoped) that every reload wiped, so after any
+// reload it asked Google again — and it never wrote down what Google's answer
+// actually granted. Now the answer is what Google said for THIS pass: the
+// `scope` string on every token response, stored beside the pass and checked
+// against a fingerprint of it. Asked synchronously on purpose: the Photos
+// button has already spent the click opening its tab, and an await before
+// Google's popup would let the browser block it.
+function _rrPassPrint(tok) { return String(tok || '').slice(-16); }
+function _rrPassScopes() {
+  var tok = (typeof accessToken !== 'undefined' && accessToken) || window.accessToken || '';
+  if (!tok) return '';
+  try {
+    var j = JSON.parse(localStorage.getItem(RR_TOKEN_SCOPES_KEY) || 'null');
+    if (j && j.fp === _rrPassPrint(tok) && typeof j.scope === 'string') return j.scope;
+  } catch (e) {}
+  return '';
+}
+function _rrPassHasScope(scope) {
+  return (' ' + _rrPassScopes() + ' ').indexOf(' ' + scope + ' ') >= 0;
+}
+function _rrScopeNames(s) {
+  return String(s || '').split(' ').filter(Boolean).map(function (x) { return x.split('/').pop(); }).join(', ') || 'unknown';
+}
+if (typeof window !== 'undefined') { window._rrPassHasScope = _rrPassHasScope; window._rrPassScopes = _rrPassScopes; }
 function _rrDriveScopeDenied() {
   var g = window._rrGrantedScopes;
   if (typeof g !== 'string' || !g.trim()) return false;  // unknown -> allow
@@ -91,6 +125,7 @@ function _rrRetryScopeConsent() {
   try {
     accessToken = null;
     window._rrGrantedScopes = null;
+    localStorage.removeItem(RR_TOKEN_SCOPES_KEY);
     localStorage.removeItem('lv_token');
     localStorage.removeItem('lv_token_expiry');
     sessionStorage.removeItem('lv_signing_in');
@@ -204,7 +239,7 @@ function _checkOAuthRedirect() {
 
     // Store the token
     accessToken = params.access_token;
-    _rrNoteGrantedScopes(params.scope);   // v0.9.998: what Google actually granted
+    _rrNoteGrantedScopes(params.scope, params.access_token);   // v0.9.998: what Google actually granted
     var expiresIn = parseInt(params.expires_in || '3600');
     localStorage.setItem('lv_token', accessToken);
     localStorage.setItem('lv_token_expiry', String(Date.now() + (expiresIn - 300) * 1000));
@@ -227,12 +262,17 @@ function _rrRequestExtraScope(extraScope, onDone) {
         if (resp && resp.access_token) {
           accessToken = resp.access_token;
           window.accessToken = accessToken;
+          // v0.9.1923: write down what Google granted for this pass, and do not
+          // call it a yes unless the permission asked for is actually in it.
+          _rrNoteGrantedScopes(resp.scope, resp.access_token);
+          var _gotIt = (typeof resp.scope !== 'string') || (' ' + resp.scope + ' ').indexOf(' ' + extraScope + ' ') >= 0;
+          _rrAuthLog('extra permission answer: ' + (_gotIt ? 'granted' : 'NOT granted') + ' (pass carries: ' + _rrScopeNames(resp.scope) + ')');
           try {
             var _ei = parseInt(resp.expires_in || '3600');
             localStorage.setItem('lv_token', accessToken);
             localStorage.setItem('lv_token_expiry', String(Date.now() + (_ei - 300) * 1000));
           } catch (eP) {}
-          if (onDone) onDone(true);
+          if (onDone) onDone(_gotIt);
         } else if (onDone) onDone(false);
       },
       // v0.9.1792: the same blind spot as the main client — a blocked or
@@ -249,26 +289,24 @@ function _rrRequestExtraScope(extraScope, onDone) {
     if (onDone) onDone(false);
   }
 }
+// One way to make sure the pass carries a permission, for every feature that
+// needs more than sign-in. v0.9.1923: asks GOOGLE'S ANSWER for the pass in
+// hand (_rrPassHasScope), never a remembered flag — the flags these replaced
+// (window._rrPhotosScoped / _rrSheetsScoped) were wiped by every reload.
+function _rrEnsureScope(scope, label) {
+  return new Promise(function (resolve) {
+    if (_rrPassHasScope(scope)) {
+      _rrAuthLog(label + ': this pass already carries it \u2014 not asking Google');
+      return resolve(true);
+    }
+    _rrAuthLog(label + ': asking Google (this pass carries: ' + _rrScopeNames(_rrPassScopes()) + ')');
+    _rrRequestExtraScope(scope, function (ok) { resolve(!!ok); });
+  });
+}
 // Google Photos picker (photo inbox + wizard slots)
-function _ensurePhotosScope() {
-  return new Promise(function (resolve) {
-    if (window._rrPhotosScoped) return resolve(true);
-    _rrRequestExtraScope(SCOPE_PHOTOS, function (ok) {
-      if (ok) window._rrPhotosScoped = true;
-      resolve(ok);
-    });
-  });
-}
+function _ensurePhotosScope() { return _rrEnsureScope(SCOPE_PHOTOS, 'Google Photos permission'); }
 // Full Sheets access — admin-only master-sheet tools (and maintenance work)
-function _ensureFullSheetsScope() {
-  return new Promise(function (resolve) {
-    if (window._rrSheetsScoped) return resolve(true);
-    _rrRequestExtraScope(SCOPE_SHEETS_FULL, function (ok) {
-      if (ok) window._rrSheetsScoped = true;
-      resolve(ok);
-    });
-  });
-}
+function _ensureFullSheetsScope() { return _rrEnsureScope(SCOPE_SHEETS_FULL, 'full sheet permission'); }
 if (typeof window !== 'undefined') {
   window._rrRequestExtraScope = _rrRequestExtraScope;
   window._ensurePhotosScope = _ensurePhotosScope;
@@ -678,7 +716,7 @@ function onTokenReceived(resp) {
   _tokenIsInitial = false; // all subsequent tokens are background refreshes
   _rrAuthLog('token ok (' + (isInitial ? 'initial' : 'refresh') + ')');
 
-  _rrNoteGrantedScopes(resp && resp.scope);   // v0.9.998: what Google actually granted
+  _rrNoteGrantedScopes(resp && resp.scope, resp && resp.access_token);   // v0.9.998: what Google actually granted
   accessToken = resp.access_token;
   // Persist token + expiry so it survives mobile page suspension
   localStorage.setItem('lv_token', accessToken);
