@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.1927';
+const APP_VERSION = 'v0.9.1928';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -1273,7 +1273,8 @@ const RR_TOKEN_SCOPES_KEY = 'lv_token_scopes';
 //   'owners' — RR_OWNER_EMAILS only (the live check)
 //   'all'    — everyone
 // Whatever it says, a relay that cannot renew means the window, as today.
-const RR_QUIET_RENEW = 'owners';
+// v0.9.1928 (Brad, after the 2-hour live check passed): everyone.
+const RR_QUIET_RENEW = 'all';
 const RR_RENEW_DEVICE_KEY = 'lv_renew_device';        // { device, email } — this device's key from the relay
 const RR_RENEW_NOKEY_KEY  = 'lv_renew_nokey_until';   // Google gave no renewal key: don't try again before this time
 
