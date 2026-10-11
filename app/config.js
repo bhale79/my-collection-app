@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.1929';
+const APP_VERSION = 'v0.9.1930';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -2945,6 +2945,14 @@ const RR_PIC_FIRST = {
   panelTitle: 'Your picture',
   panelNote: 'It goes in as the first photo when you reach the Photos step.',
   toast: '\ud83d\udcf7 Your picture was added as the first Item photo',
+  // v0.9.1930 (Brad: "it doesn't give me the option for google photos, just my
+  // pc harddrive"): the button asks where the picture is first.
+  chooserTitle: 'Add a picture',
+  fromComputer: '\ud83d\udcbb From this computer',
+  fromPhone: '\ud83d\udcf1 Take or pick on this phone',
+  fromGPhotos: '\u2601\ufe0f From Google Photos',
+  gpWaiting: 'Pick ONE photo in the Google Photos tab, press Done there, then come back \u2014 waiting\u2026',
+  gpFetching: 'Fetching the photo\u2026',
   sideMinWidth: 980,     // the window must be at least this wide for the side view
   sideWidthPx: 300,      // the side view's width
 };

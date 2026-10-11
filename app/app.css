@@ -2978,3 +2978,23 @@ html[data-theme="high-contrast"] button[style*="#e74c3c"], html[data-theme="high
   border: 1px solid var(--border); background: var(--surface2); color: var(--text);
   font-family: var(--font-body); font-size: 0.82rem; font-weight: 600;
 }
+
+/* v0.9.1930 — where is the picture? (wizard.js _wizPicFirstChoose) */
+.wiz-picfirst-choose {
+  position: fixed; inset: 0; z-index: 10070; display: flex; align-items: center;
+  justify-content: center; padding: 1rem; background: color-mix(in srgb, var(--bg) 75%, transparent);
+}
+.wiz-picfirst-card {
+  width: 100%; max-width: 360px; display: flex; flex-direction: column; gap: 0.6rem;
+  padding: 1.1rem; border-radius: 14px; border: 1px solid var(--border); background: var(--surface);
+}
+.wiz-picfirst-card-title { font-family: var(--font-head); font-size: 1.05rem; font-weight: 700; color: var(--text); }
+.wiz-picfirst-card button {
+  padding: 0.8rem; border-radius: 10px; cursor: pointer; text-align: left;
+  border: 1.5px solid var(--border); background: var(--surface2); color: var(--text);
+  font-family: var(--font-body); font-size: 0.95rem; font-weight: 600;
+}
+.wiz-picfirst-card button:disabled { opacity: 0.5; cursor: default; }
+.wiz-picfirst-card button.wiz-picfirst-cancel { text-align: center; color: var(--text-dim); font-weight: 500; }
+.wiz-picfirst-status { font-size: 0.82rem; color: var(--text-mid); line-height: 1.45; }
+.wiz-picfirst-status a { color: var(--t-link); font-weight: 700; }

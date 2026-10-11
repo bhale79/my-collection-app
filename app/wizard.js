@@ -1341,12 +1341,14 @@ function closeWizard() {
 }
 
 function _doCloseWizard() {
-  // v0.9.1929: the "Add a picture first" side view lives beside the modal.
-  try { var _pfp = document.getElementById('wiz-picfirst-panel'); if (_pfp) _pfp.remove(); } catch (ePF) {}
   // v0.9.1600: a pending photo-pairing that was not claimed by a save dies
   // with the wizard — otherwise a cancelled add would hand its photo to
   // whatever item the NEXT save happens to be.
   try { window._rrPendingStagePair = null; } catch (e) {}
+  // v0.9.1929/1930: the "Add a picture first" side view and chooser live
+  // beside the modal, so they are taken down with it.
+  try { var _pfp = document.getElementById('wiz-picfirst-panel'); if (_pfp) _pfp.remove(); } catch (ePF) {}
+  try { var _pfc = document.getElementById('wiz-picfirst-choose'); if (_pfc) _pfc.remove(); } catch (ePF) {}
   try { if (typeof _wizFieldFocusClose === 'function') _wizFieldFocusClose(); } catch (eF) {}
   // v0.9.1387 — a numberless inbox add that was CANCELLED leaves a staging
   // note keyed "__nonum__<time>", which can never match a real item and so
@@ -7960,8 +7962,89 @@ function _wizPicFirstBtn() {
   b.className = 'wiz-picfirst-btn' + (_wizPicFirstHas() ? ' is-set' : '');
   b.textContent = _wizPicFirstHas() ? RR_PIC_FIRST.buttonSet : RR_PIC_FIRST.button;
   b.title = _wizPicFirstHas() ? 'Choose a different picture' : 'Pick a picture of the item now; it goes in as its first photo';
-  b.onclick = function () { _wizPicFirstPick(); };
+  b.onclick = function () { _wizPicFirstChoose(); };
   return b;
+}
+// v0.9.1930 (Brad: "it doesn't give me the option for google photos, just my
+// pc harddrive"). Ask where the picture is: this computer (this phone) or
+// Google Photos — the SAME shared picker Photo ID and the Photo Inbox use
+// (drive.js rrGPhotosPickSession / rrGPhotosFile / rrGPhotosEnd).
+function _wizPicFirstChoose() {
+  var old = document.getElementById('wiz-picfirst-choose');
+  if (old) old.remove();
+  var ov = document.createElement('div');
+  ov.id = 'wiz-picfirst-choose';
+  ov.className = 'wiz-picfirst-choose';
+  var gpOk = typeof window.rrGPhotosPickSession === 'function';
+  ov.innerHTML =
+    '<div class="wiz-picfirst-card">' +
+      '<div class="wiz-picfirst-card-title">' + RR_PIC_FIRST.chooserTitle + '</div>' +
+      '<button type="button" data-pfc="local">' + (window.IS_MOBILE_UA ? RR_PIC_FIRST.fromPhone : RR_PIC_FIRST.fromComputer) + '</button>' +
+      (gpOk ? '<button type="button" data-pfc="gphotos">' + RR_PIC_FIRST.fromGPhotos + '</button>' : '') +
+      '<div class="wiz-picfirst-status" id="wiz-picfirst-status" style="display:none"></div>' +
+      '<button type="button" data-pfc="cancel" class="wiz-picfirst-cancel">Cancel</button>' +
+    '</div>';
+  var aborted = false;
+  var close = function () { aborted = true; try { ov.remove(); } catch (e) {} };
+  ov._pfAborted = function () { return aborted || !document.body.contains(ov); };
+  if (typeof window.rrDismissGuard === 'function') window.rrDismissGuard(ov, close);
+  document.body.appendChild(ov);
+  ov.querySelector('[data-pfc="local"]').onclick = function () { close(); _wizPicFirstPick(); };
+  ov.querySelector('[data-pfc="cancel"]').onclick = close;
+  var gp = ov.querySelector('[data-pfc="gphotos"]');
+  if (gp) gp.onclick = function () { _wizPicFirstGPhotos(ov, close); };   // inside the click: the picker tab opens now
+}
+function _wizPicFirstGPhotos(ov, close) {
+  var st = ov.querySelector('#wiz-picfirst-status');
+  var setSt = function (html) { if (st) { st.style.display = html ? 'block' : 'none'; st.innerHTML = html || ''; } };
+  Array.prototype.forEach.call(ov.querySelectorAll('[data-pfc="local"],[data-pfc="gphotos"]'), function (b) { b.disabled = true; });
+  setSt('Opening Google Photos\u2026');
+  window.rrGPhotosPickSession({
+    shouldAbort: ov._pfAborted,
+    onStatus: function () { if (!st || !st.querySelector('[data-pfc="opentab"]')) setSt(RR_PIC_FIRST.gpWaiting); },
+    // the browser blocked the tab — give the user something to click
+    // the browser blocked the tab — a button gives the fresh click a new tab needs
+    onNeedTab: function (uri) {
+      setSt('Your browser blocked the Google Photos tab. <button type="button" data-pfc="opentab">Open Google Photos</button> Pick one photo, press Done there, then come back.');
+      var ob = st && st.querySelector('[data-pfc="opentab"]');
+      if (ob) ob.onclick = function () { try { window.open(uri, '_blank', 'noopener'); } catch (e) {} };
+    },
+  }).then(async function (pick) {
+    if (ov._pfAborted()) { if (pick && pick.sessionId) window.rrGPhotosEnd(pick.sessionId, pick.auth); return; }
+    if (!pick || pick.error) {
+      close();
+      if (pick && pick.error === 'scope') showToast('Google Photos permission was not granted', 3500, true);
+      else if (pick && pick.error === 'timeout') showToast('Gave up waiting for Google Photos \u2014 try again', 3000, true);
+      else if (pick && pick.error !== 'cancelled') showToast('Google Photos picker error' + (pick.status ? ' (' + pick.status + ')' : '') + ' \u2014 try again', 3500, true);
+      return;
+    }
+    var ph = (pick.items || []).filter(function (m) { return String(m.type || '').toUpperCase() !== 'VIDEO'; });
+    if (!ph.length) { window.rrGPhotosEnd(pick.sessionId, pick.auth); close(); showToast('No photo was picked', 2500, true); return; }
+    if (ph.length > 1) showToast('Using the first photo you picked', 2500);
+    try {
+      setSt(RR_PIC_FIRST.gpFetching);
+      var f = await window.rrGPhotosFile(ph[0], pick.auth, 'google-photo.jpg');
+      window.rrGPhotosEnd(pick.sessionId, pick.auth);
+      if (ov._pfAborted()) return;
+      close();
+      _wizPicFirstTake(f);
+    } catch (eDl) {
+      window.rrGPhotosEnd(pick.sessionId, pick.auth);
+      close();
+      showToast('Could not fetch that photo from Google Photos \u2014 try again', 3500, true);
+    }
+  });
+}
+// The one place a chosen picture is taken in, wherever it came from.
+function _wizPicFirstTake(f) {
+  if (!f) return;
+  if (!/^image\//i.test(f.type || '') && !/\.(jpe?g|png|webp|heic|heif|gif)$/i.test(f.name || '')) {
+    if (typeof showToast === 'function') showToast('That file is not a picture', 2600, true);
+    return;
+  }
+  wizard.data._idItemPhotoFile = f;
+  wizard.data._picFirst = true;
+  _wizPicFirstRefresh();
 }
 function _wizPicFirstPick() {
   var inp = document.createElement('input');
@@ -7971,14 +8054,7 @@ function _wizPicFirstPick() {
   inp.onchange = function () {
     var f = inp.files && inp.files[0];
     try { inp.remove(); } catch (e) {}
-    if (!f) return;
-    if (!/^image\//i.test(f.type || '') && !/\.(jpe?g|png|webp|heic|heif|gif)$/i.test(f.name || '')) {
-      if (typeof showToast === 'function') showToast('That file is not a picture', 2600, true);
-      return;
-    }
-    wizard.data._idItemPhotoFile = f;
-    wizard.data._picFirst = true;
-    _wizPicFirstRefresh();
+    _wizPicFirstTake(f);
   };
   document.body.appendChild(inp);
   inp.click();
@@ -8033,12 +8109,13 @@ function _wizPicFirstSync() {
   p.querySelector('.wiz-picfirst-img').onclick = function () {
     if (typeof window._wizVarZoom === 'function') window._wizVarZoom(url);
   };
-  p.querySelector('[data-pf="change"]').onclick = function () { _wizPicFirstPick(); };
+  p.querySelector('[data-pf="change"]').onclick = function () { _wizPicFirstChoose(); };
   p.querySelector('[data-pf="remove"]').onclick = function () { _wizPicFirstRemove(); };
 }
 if (typeof window !== 'undefined') {
   window._wizPicFirstBtn = _wizPicFirstBtn;
   window._wizPicFirstPick = _wizPicFirstPick;
+  window._wizPicFirstChoose = _wizPicFirstChoose;
   window._wizPicFirstRemove = _wizPicFirstRemove;
   window._wizPicFirstSync = _wizPicFirstSync;
 }

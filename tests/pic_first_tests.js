@@ -22,6 +22,14 @@
 //       its own full-width line
 //   P8  a Want-list add has no button (it ends at no Photos step)
 //   P9  PLANTED: without the hand-off the picture never reaches the Photos step
+// v0.9.1930 (Brad: "it doesn't give me the option for google photos, just my pc
+// harddrive"):
+//   G1  the button asks where the picture is — this computer / Google Photos;
+//       Cancel takes nothing
+//   G2  Google Photos goes through the SHARED picker (drive.js), says what to do
+//       while it waits, closes its session, and the photo lands in the view box
+//   G3  …and goes in as the first Item photo at the Photos step
+//   G4  a phone reads "Take or pick on this phone"
 // ═══════════════════════════════════════════════════════════════════════════
 const fs = require('fs'), path = require('path');
 let chromium;
@@ -87,8 +95,11 @@ const peek = pg => pg.evaluate(() => {
     ups: window.__ups, toasts: window.__toasts,
   };
 });
+// v0.9.1930: the button first asks where the picture is
 async function pick(pg, file) {
-  const [fc] = await Promise.all([pg.waitForEvent('filechooser'), pg.click('#wiz-picfirst-btn')]);
+  await pg.click('#wiz-picfirst-btn');
+  await pg.waitForSelector('#wiz-picfirst-choose [data-pfc="local"]');
+  const [fc] = await Promise.all([pg.waitForEvent('filechooser'), pg.click('#wiz-picfirst-choose [data-pfc="local"]')]);
   await fc.setFiles(file);
   await pg.waitForTimeout(700);
 }
@@ -151,6 +162,39 @@ async function toPhotos(pg) {
       await pick(pg, JPG);
       s = await peek(pg);
       T('P7 …no side box; the header thumbnail shows the picture', !s.panel && s.hero && s.hero.vis && s.file, s);
+      await pg.evaluate(() => { _wizPicFirstRemove(); });
+      await pg.click('#wiz-picfirst-btn');
+      const phTxt = await pg.$eval('#wiz-picfirst-choose', e => e.innerText);
+      T('G4 a phone: the choices read "Take or pick on this phone" and "From Google Photos"', /Take or pick on this phone/.test(phTxt) && /From Google Photos/.test(phTxt), phTxt);
+      await pg.close();
+    }
+    // G1–G3 — v0.9.1930 (Brad: "it doesn't give me the option for google photos")
+    {
+      const { pg, net } = await open(browser, { w: 1536, h: 826 });
+      await pg.click('#wiz-picfirst-btn');
+      const txt = await pg.$eval('#wiz-picfirst-choose', e => e.innerText);
+      T('G1 the button asks where the picture is: this computer or Google Photos', /From this computer/.test(txt) && /From Google Photos/.test(txt), txt);
+      await pg.click('#wiz-picfirst-choose [data-pfc="cancel"]');
+      let s = await peek(pg);
+      T('G1 …Cancel closes it and takes nothing', !(await pg.$('#wiz-picfirst-choose')) && !s.file && !s.panel, s);
+      // the SHARED Google Photos picker (drive.js), answered as Google would
+      const b64 = fs.readFileSync(JPG).toString('base64');
+      await pg.evaluate(b64 => {
+        window.__gp = { calls: 0, ended: 0, fetched: 0 };
+        window.rrGPhotosPickSession = async function (o) { window.__gp.calls++; o.onStatus('waiting'); window.__gp.status = document.getElementById('wiz-picfirst-status').textContent; return { items: [{ type: 'PHOTO', mediaFile: { filename: 'IMG_6014.jpg' } }], auth: {}, sessionId: 'S1' }; };
+        window.rrGPhotosFile = async function (item, auth, fb) { window.__gp.fetched++; const bin = Uint8Array.from(atob(b64), c => c.charCodeAt(0)); return new File([bin], item.mediaFile.filename, { type: 'image/jpeg' }); };
+        window.rrGPhotosEnd = function () { window.__gp.ended++; };
+      }, b64);
+      await pg.click('#wiz-picfirst-btn');
+      await pg.click('#wiz-picfirst-choose [data-pfc="gphotos"]');
+      await pg.waitForTimeout(900);
+      s = await peek(pg);
+      const gp = await pg.evaluate(() => window.__gp);
+      T('G2 From Google Photos uses the shared picker, says what to do while it waits, and closes the session', gp.calls === 1 && gp.fetched === 1 && gp.ended === 1 && /Pick ONE photo/.test(gp.status || ''), gp);
+      T('G2 …the Google photo lands in the view box, the button says it is added', s.panel && s.panel.vis && s.panelImgW === 640 && /Picture added/.test(s.btnText) && !(await pg.$('#wiz-picfirst-choose')), s);
+      await toPhotos(pg);
+      s = await peek(pg);
+      T('G3 …and goes in as the first Item photo at the Photos step', s.ups.length === 1 && s.ups[0].name === 'IMG_6014.jpg' && s.ups[0].sid === 'photosItem', s.ups);
       await pg.close();
     }
     // P8 want list
