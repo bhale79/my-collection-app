@@ -55,7 +55,7 @@ async function boot(browser, o) {
     if (!u.startsWith('file://')) return r.abort();
     const bare = u.split('?')[0];
     if (o.mode && bare.endsWith('/app/config.js')) {
-      return r.fulfill({ body: CFG.replace("const RR_QUIET_RENEW = 'off';", "const RR_QUIET_RENEW = '" + o.mode + "';"), contentType: 'application/javascript' });
+      return r.fulfill({ body: CFG.replace(/const RR_QUIET_RENEW = '[a-z]+';/, "const RR_QUIET_RENEW = '" + o.mode + "';"), contentType: 'application/javascript' });
     }
     return r.continue();
   });
@@ -72,12 +72,13 @@ const peek = pg => pg.evaluate(() => ({
 }));
 
 (async () => {
-  T('B0 the switch ships OFF (on only after the relay is live and checked)', /const RR_QUIET_RENEW = 'off';/.test(CFG));
+  // v0.9.1925: relay v4.6 is live and set up — the switch ships 'owners' for the live check.
+  T('B0 the shipped switch is one of off / owners / all', /const RR_QUIET_RENEW = '(off|owners|all)';/.test(CFG), (CFG.match(/const RR_QUIET_RENEW = [^;]*;/) || [])[0]);
   const browser = await chromium.launch(fs.existsSync('/opt/pw-browsers/chromium') ? { executablePath: '/opt/pw-browsers/chromium' } : {});
   try {
     // B1
     {
-      const { pg, relay } = await boot(browser, { device: true });
+      const { pg, relay } = await boot(browser, { mode: 'off', device: true });
       const s = await peek(pg);
       T('B1 switch off → the expired pass is renewed through Google\'s window, as today', s.windows.length === 1 && s.windows[0].prompt === '' && s.windows[0].login_hint === 'bhale@ipd-llc.com', s);
       T('B1 …and the relay is never asked to renew', !relay.some(b => /^auth_/.test(b.action || '')), relay.map(b => b.action));
