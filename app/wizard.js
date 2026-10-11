@@ -1341,6 +1341,8 @@ function closeWizard() {
 }
 
 function _doCloseWizard() {
+  // v0.9.1929: the "Add a picture first" side view lives beside the modal.
+  try { var _pfp = document.getElementById('wiz-picfirst-panel'); if (_pfp) _pfp.remove(); } catch (ePF) {}
   // v0.9.1600: a pending photo-pairing that was not claimed by a save dies
   // with the wizard — otherwise a cancelled add would hand its photo to
   // whatever item the NEXT save happens to be.
@@ -2542,6 +2544,7 @@ function renderWizardStep() {
   document.getElementById('wizard-step-label').textContent =
     _wizFlowTitle() + ' · Step ' + current;   // v0.9.1822: no "of N" — see the pct note above
   _wizHeroPhotoSync();   // v0.9.1369 — the header thumbnail, on every step
+  try { _wizPicFirstSync(); } catch (ePF) {}   // v0.9.1929 — the side view, on every step
   _renderAddingBanner();
   const _titleText = typeof s.title === 'function' ? s.title(wizard.data) : s.title;
   const _titleEl = document.getElementById('wizard-title');
@@ -5055,12 +5058,15 @@ function renderWizardStep() {
       var _idTargetView = (s.id === 'manualPhotos') ? 'PHOTO-1' : ((s.id === 'photosItem' && views && views.length) ? views[0].key : null);
       if (_idTargetView && typeof uploadWizardPhoto === 'function') {
         var _idF = wizard.data._idItemPhotoFile;
+        var _idPicFirst = !!wizard.data._picFirst;   // v0.9.1929: chosen with "Add a picture first"
         delete wizard.data._idItemPhotoFile;
+        delete wizard.data._picFirst;
+        try { if (typeof _wizPicFirstSync === 'function') _wizPicFirstSync(); } catch (ePF) {}
         setTimeout(function () {
           try {
             var _idUp = uploadWizardPhoto(_idF, s.id, _idTargetView);
             if (_idUp && _idUp.catch) _idUp.catch(function (eU2) { showToast && showToast(rrSaveError(eU2, 'the item photo', { kept: false }) + ' Add it manually below.', 4500, true); });
-            showToast && showToast('\u{1F4F7} The photo you identified it from was added as the Item photo', 3200);
+            showToast && showToast(_idPicFirst ? RR_PIC_FIRST.toast : '\u{1F4F7} The photo you identified it from was added as the Item photo', 3200);
           } catch (eIP) { showToast && showToast('Photo attach failed — add it manually below', 4000, true); }
         }, 400);
       }
@@ -5433,6 +5439,15 @@ function renderWizardStep() {
           ">${_ingBoxOnly ? '&#10003;' : ''}</div>
           <span style="font-size:0.82rem;font-weight:600;white-space:nowrap;color:${_ingBoxOnly ? 'var(--accent2)' : 'var(--text-mid)'}">Box Only</span>
         </label>`;
+      // v0.9.1929 (Brad): "Add a picture first" — at the end of this row on a
+      // computer, its own line under it on a phone. Collection adds only (the
+      // flow that ends at a Photos step).
+      if (wizard.tab === 'collection' && typeof _wizPicFirstBtn === 'function') {
+        var _pfBtn = _wizPicFirstBtn();
+        if (window.IS_MOBILE_UA) { _pfBtn.style.width = '100%'; _pfBtn.style.marginTop = '0.5rem'; }
+        else _ingInputRow.appendChild(_pfBtn);
+        if (window.IS_MOBILE_UA) _ingInputRow._pfBtn = _pfBtn;
+      }
       // Session 176: Manufacturer / Era / Type filter bar above the search box.
       // v0.9.716 (Brad): the WANT flow uses this same itemNumGrouping screen
       // (Session 161+) — v715 patched the old text-step path that want no
@@ -5441,6 +5456,7 @@ function renderWizardStep() {
         try { var _ingFilters = _buildItemSearchFiltersDOM(); if (_ingFilters) _ingWrap.appendChild(_ingFilters); } catch(e) { console.warn('[add filters]', e); }
       }
       _ingWrap.appendChild(_ingInputRow);
+      if (_ingInputRow._pfBtn) _ingWrap.appendChild(_ingInputRow._pfBtn);   // v0.9.1929: phone — its own line
 
       // v0.9.1037 (Brad: "the picker is cut off on the right side"). The
       // suggestion list used to live INSIDE the input's column, which shares
@@ -7921,6 +7937,111 @@ window._wizHeroPhotoSync = function () {
     else window._wizVarZoom((im && im.src) || objUrl);
   };
 };
+
+// ── v0.9.1929 — ADD A PICTURE FIRST ─────────────────────────────────────
+// Brad: "sometime a person has pictures on the pc and they don't know the
+// order to hit the item number, so i want to have a button that says add a
+// picture first … it puts the picture in a view box to the right of the add
+// screen. then i can carry on." And: "we would put this picture in the right
+// side view when we get to pictures."
+// The picture rides in the SAME slot Photo ID's picture uses
+// (wizard.data._idItemPhotoFile), so the header thumbnail, the variation
+// step's side preview and the Photos step's hand-off all work unchanged —
+// nothing is uploaded until the Photos step puts it in as the first Item
+// photo. _picFirst marks where it came from (the wording, and Remove).
+function _wizPicFirstHas() {
+  var d = (typeof wizard !== 'undefined' && wizard && wizard.data) || {};
+  return !!(d._picFirst && d._idItemPhotoFile);
+}
+function _wizPicFirstBtn() {
+  var b = document.createElement('button');
+  b.type = 'button';
+  b.id = 'wiz-picfirst-btn';
+  b.className = 'wiz-picfirst-btn' + (_wizPicFirstHas() ? ' is-set' : '');
+  b.textContent = _wizPicFirstHas() ? RR_PIC_FIRST.buttonSet : RR_PIC_FIRST.button;
+  b.title = _wizPicFirstHas() ? 'Choose a different picture' : 'Pick a picture of the item now; it goes in as its first photo';
+  b.onclick = function () { _wizPicFirstPick(); };
+  return b;
+}
+function _wizPicFirstPick() {
+  var inp = document.createElement('input');
+  inp.type = 'file';
+  inp.accept = 'image/*';
+  inp.style.display = 'none';
+  inp.onchange = function () {
+    var f = inp.files && inp.files[0];
+    try { inp.remove(); } catch (e) {}
+    if (!f) return;
+    if (!/^image\//i.test(f.type || '') && !/\.(jpe?g|png|webp|heic|heif|gif)$/i.test(f.name || '')) {
+      if (typeof showToast === 'function') showToast('That file is not a picture', 2600, true);
+      return;
+    }
+    wizard.data._idItemPhotoFile = f;
+    wizard.data._picFirst = true;
+    _wizPicFirstRefresh();
+  };
+  document.body.appendChild(inp);
+  inp.click();
+}
+function _wizPicFirstRemove() {
+  if (wizard && wizard.data && wizard.data._picFirst) {
+    delete wizard.data._idItemPhotoFile;
+    delete wizard.data._picFirst;
+  }
+  _wizPicFirstRefresh();
+}
+// Button label, header thumbnail and side view — all from wizard.data.
+function _wizPicFirstRefresh() {
+  try {
+    var old = document.getElementById('wiz-picfirst-btn');
+    if (old) { var nb = _wizPicFirstBtn(); nb.style.cssText = old.style.cssText; old.parentNode.replaceChild(nb, old); }
+  } catch (e) {}
+  try { _wizHeroPhotoSync(); } catch (e) {}
+  _wizPicFirstSync();
+}
+// The view box to the right of the Add screen. A computer with room for it
+// only — on a phone (or a narrow window) the header thumbnail shows the same
+// picture at the top, one tap from full size.
+function _wizPicFirstSync() {
+  var ov = document.getElementById('wizard-modal');
+  var p = document.getElementById('wiz-picfirst-panel');
+  var f = _wizPicFirstHas() ? wizard.data._idItemPhotoFile : null;
+  var roomy = !window.IS_MOBILE_UA && (window.innerWidth || 0) >= RR_PIC_FIRST.sideMinWidth;
+  if (!ov || !f || !roomy) { if (p) p.remove(); return; }
+  var sig = (f.name || '') + '|' + f.size + '|' + (f.lastModified || 0);
+  if (p && p.getAttribute('data-sig') === sig) return;
+  if (!p) {
+    p = document.createElement('div');
+    p.id = 'wiz-picfirst-panel';
+    p.className = 'wiz-picfirst-panel';
+    p.style.width = RR_PIC_FIRST.sideWidthPx + 'px';
+    ov.appendChild(p);   // a flex sibling of the modal: the pair stays centred
+  }
+  p.setAttribute('data-sig', sig);
+  var url = '';
+  try { url = URL.createObjectURL(f); } catch (e) {}
+  p.innerHTML =
+    '<div class="wiz-picfirst-title">' + RR_PIC_FIRST.panelTitle + '</div>' +
+    '<div class="wiz-picfirst-img" title="Click to see it full size"><img alt="Your picture"></div>' +
+    '<div class="wiz-picfirst-note">' + RR_PIC_FIRST.panelNote + '</div>' +
+    '<div class="wiz-picfirst-acts">' +
+      '<button type="button" data-pf="change">Change</button>' +
+      '<button type="button" data-pf="remove">Remove</button>' +
+    '</div>';
+  var im = p.querySelector('img');
+  if (im && url) im.src = url;
+  p.querySelector('.wiz-picfirst-img').onclick = function () {
+    if (typeof window._wizVarZoom === 'function') window._wizVarZoom(url);
+  };
+  p.querySelector('[data-pf="change"]').onclick = function () { _wizPicFirstPick(); };
+  p.querySelector('[data-pf="remove"]').onclick = function () { _wizPicFirstRemove(); };
+}
+if (typeof window !== 'undefined') {
+  window._wizPicFirstBtn = _wizPicFirstBtn;
+  window._wizPicFirstPick = _wizPicFirstPick;
+  window._wizPicFirstRemove = _wizPicFirstRemove;
+  window._wizPicFirstSync = _wizPicFirstSync;
+}
 
 window._wizVarInsertPhoto = function (container) {
   if (!container || typeof wizard === 'undefined' || !wizard || !wizard.data) return;

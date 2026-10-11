@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.1928';
+const APP_VERSION = 'v0.9.1929';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -2932,3 +2932,19 @@ if (typeof document !== 'undefined' && document.addEventListener) {
     if (document.visibilityState === 'visible') window._rrCheckForUpdate();
   });
 }
+
+// v0.9.1929 — ADD A PICTURE FIRST (Brad, 2026-10-11): "sometime a person has
+// pictures on the pc and they don't know the order … a button that says add a
+// picture first … it puts the picture in a view box to the right of the add
+// screen. then i can carry on." ONE place for its words and sizes (wizard.js
+// _wizPicFirst*). The picture is held in the browser — nothing is uploaded —
+// until the Photos step, where it goes in as the first Item photo.
+const RR_PIC_FIRST = {
+  button: '\ud83d\udcf7 Add a picture first',
+  buttonSet: '\u2713 Picture added',
+  panelTitle: 'Your picture',
+  panelNote: 'It goes in as the first photo when you reach the Photos step.',
+  toast: '\ud83d\udcf7 Your picture was added as the first Item photo',
+  sideMinWidth: 980,     // the window must be at least this wide for the side view
+  sideWidthPx: 300,      // the side view's width
+};

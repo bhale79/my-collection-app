@@ -2944,3 +2944,37 @@ html[data-theme="high-contrast"] button[style*="#e74c3c"], html[data-theme="high
    a sortable heading underlines on hover; the arrow says which way. */
 .item-table th.rr-sortable:hover { text-decoration: underline; }
 .item-table th .rr-sort-arrow { font-size: 0.8em; }
+
+/* ══ v0.9.1929 — ADD A PICTURE FIRST (wizard.js _wizPicFirst*) ══════════════
+   The button sits at the end of the item-number row; the view box is a flex
+   sibling of the Add screen inside its overlay, so the two stay centred
+   together. Theme variables only — no colour literals (the ratchet). */
+.wiz-picfirst-btn {
+  flex-shrink: 0; padding: 0.75rem 0.8rem; border-radius: 8px; cursor: pointer;
+  border: 1.5px dashed var(--accent2); background: var(--surface2);
+  color: var(--accent2); font-family: var(--font-body); font-size: 0.82rem;
+  font-weight: 700; white-space: nowrap;
+}
+.wiz-picfirst-btn.is-set { border-style: solid; }
+.wiz-picfirst-panel {
+  flex: 0 0 auto; align-self: center; margin-left: 1rem; box-sizing: border-box;
+  max-height: 580px; display: flex; flex-direction: column; gap: 0.55rem;
+  padding: 0.9rem; border-radius: 16px; border: 1px solid var(--border);
+  background: var(--surface);
+}
+.wiz-picfirst-title {
+  font-family: var(--font-head); font-size: 0.78rem; font-weight: 700;
+  letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-mid);
+}
+.wiz-picfirst-img {
+  border-radius: 10px; overflow: hidden; background: var(--bg); cursor: zoom-in;
+  display: flex; align-items: center; justify-content: center; min-height: 160px;
+}
+.wiz-picfirst-img img { width: 100%; max-height: 400px; object-fit: contain; display: block; }
+.wiz-picfirst-note { font-size: 0.78rem; color: var(--text-dim); line-height: 1.45; }
+.wiz-picfirst-acts { display: flex; gap: 0.5rem; }
+.wiz-picfirst-acts button {
+  flex: 1; padding: 0.5rem; border-radius: 8px; cursor: pointer;
+  border: 1px solid var(--border); background: var(--surface2); color: var(--text);
+  font-family: var(--font-body); font-size: 0.82rem; font-weight: 600;
+}
