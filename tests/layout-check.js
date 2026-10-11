@@ -2086,6 +2086,9 @@ window.__pageReady = runSharedPhotos();
 <style>html,body{margin:0;height:100%}</style>
 </head><body><div class="main" style="height:620px"><div class="page active" id="page-photo-inbox"></div></div>
 <script>
+  // v0.9.1927: the markup asks photo-inbox.js's own _pinAr() (is Auto Read on?)
+  // — answer as a member without it, the launch audience.
+  function _pinAr() { return false; }
   document.getElementById('page-photo-inbox').innerHTML = ${markupExpr};
   // A tall grid, like a real inbox.
   var g = document.getElementById('pin-grid');
@@ -2192,6 +2195,9 @@ window.__pageReady = runSharedPhotos();
 <style>html,body{margin:0;height:100%}</style>
 </head><body><div class="main" style="height:620px"><div class="page active" id="page-photo-inbox"></div></div>
 <script>
+  // v0.9.1927: the markup asks photo-inbox.js's own _pinAr() (is Auto Read on?)
+  // — answer as a member without it, the launch audience.
+  function _pinAr() { return false; }
   document.getElementById('page-photo-inbox').innerHTML = ${markupExpr};
   ${helpSlice}
 </script></body></html>`);

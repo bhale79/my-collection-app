@@ -31,6 +31,10 @@
 
 (function () {
   'use strict';
+  // v0.9.1927 (Brad): "move the autoread button to beta testers only". Every
+  // paid read in this file asks this ONE question (ai-id.js rrAutoReadOn — the
+  // Vault features row 'auto_read'). The free reader is untouched.
+  function _pinAr() { return (typeof rrAutoReadOn === 'function') && !!rrAutoReadOn(); }
 
   // ══ v0.9.1178 — the bottom-sheet chrome, written once ═════════════════════
   // Three sheets in this file (Group as…, the era picker, and the new where-from
@@ -221,7 +225,7 @@
         // The instructions. Shown in full the FIRST time someone opens this
         // page — a tester who has never seen it needs them, and Brad does not
         // — then folded away and remembered per device.
-        '<div id="pin-help-text" style="display:none;font-size:0.8rem;color:var(--text-dim);line-height:1.5;margin-bottom:0.6rem">' + (window.IS_MOBILE_UA ? 'Use <b>Add photos</b> to take pictures or pick them from your phone.' : 'Drop photos anywhere below, or use Add photos.') + ' Get them ready at your own pace \u2014 crop, use \u201cGroup photos\u201d to put several shots of one item together, and \u201cTag maker/era/scale/type\u201d to say what photos are \u2014 then hit <b>Identify my items</b> to read them all. Photos you have tagged <b>Paper</b>, <b>Catalog</b> or <b>Other</b> are left out of that batch \u2014 there is rarely an item number to find on a drawing or a catalogue page, and on the paid read it would spend a photo ID for nothing. You can always tick any single photo and press Identify to read it anyway. ' + (window.IS_MOBILE_UA ? 'Tap' : 'Click') + ' a photo to review it \u2014 add the item, research it more, or discard the photo. ' + (window.IS_MOBILE_UA ? 'Photos you take with Quick Capture land here too.' : 'Photos snapped with Quick Capture on your phone land here too.') + '</div>' +
+        '<div id="pin-help-text" style="display:none;font-size:0.8rem;color:var(--text-dim);line-height:1.5;margin-bottom:0.6rem">' + (window.IS_MOBILE_UA ? 'Use <b>Add photos</b> to take pictures or pick them from your phone.' : 'Drop photos anywhere below, or use Add photos.') + ' Get them ready at your own pace \u2014 crop, use \u201cGroup photos\u201d to put several shots of one item together, and \u201cTag maker/era/scale/type\u201d to say what photos are \u2014 then hit <b>Identify my items</b> to read them all. Photos you have tagged <b>Paper</b>, <b>Catalog</b> or <b>Other</b> are left out of that batch \u2014 there is rarely an item number to find on a drawing or a catalogue page' + (_pinAr() ? ', and on the paid read it would spend a photo ID for nothing' : '') + '. You can always tick any single photo and press Identify to read it anyway. ' + (window.IS_MOBILE_UA ? 'Tap' : 'Click') + ' a photo to review it \u2014 add the item, research it more, or discard the photo. ' + (window.IS_MOBILE_UA ? 'Photos you take with Quick Capture land here too.' : 'Photos snapped with Quick Capture on your phone land here too.') + '</div>' +
         '<div id="pin-context-bar" style="display:none"></div>' +   // v0.9.1048 capture context
         '<div id="pin-tagbar" style="display:none"></div>' +        // v0.9.1057 tag mode
         '<div id="pin-toolbar" style="display:flex;flex-wrap:wrap;gap:0.4rem;align-items:center">' +
@@ -2809,7 +2813,7 @@
     // no ticks visible, no destructive button.
     if (db) db.style.display = (_selectMode && n) ? '' : 'none';
     if (ib) {
-      ib.style.display = (_selectMode && n) ? '' : 'none';
+      ib.style.display = (_selectMode && n && _pinAr()) ? '' : 'none';   // v0.9.1927: paid — beta feature
       // v0.9.1351: say the COST on the button, not only in the confirm dialog.
       // This is the same purchase as "Read this photo (1 photo ID)" on the card
       // and the toolbar's "Read the N still unread" — one word, "Read", for all
@@ -4037,6 +4041,7 @@
     var link = (lk.master && (lk.master.refLink || '')) || '';
     if (!lk.num || !/^https?:\/\//i.test(link)) return;
     if (typeof aiVerifyPhoto !== 'function') return;
+    if (!_pinAr()) return;   // v0.9.1927: the double-check is a paid read — beta feature
     var fid0 = _rvGroups[0].files[0].id;
     var key = fid0 + '|' + lk.num;
     var el = document.createElement('div');
@@ -4157,7 +4162,7 @@
         '<div style="font-size:0.84rem;color:var(--t-red);font-weight:700;line-height:1.45">✗ Your photo does NOT match the catalog listing' +
         (vr.differences && vr.differences.toLowerCase() !== 'none' ? ' — ' + esc(vr.differences) : '') + '</div>' +
         (vr.refItem ? '<div style="font-size:0.76rem;color:var(--text-dim);margin-top:0.15rem">Catalog photo shows: ' + esc(vr.refItem) + '</div>' : '') +
-        '<button onclick="_pinVerifyReident()" style="margin-top:0.4rem;padding:0.45rem 0.7rem;border-radius:8px;border:none;background:#f05008;color:#fff;font-family:var(--font-body);font-weight:700;font-size:0.78rem;cursor:pointer">Re-identify with this clue</button>';
+        (!_pinAr() ? '' : '<button onclick="_pinVerifyReident()" style="margin-top:0.4rem;padding:0.45rem 0.7rem;border-radius:8px;border:none;background:#f05008;color:#fff;font-family:var(--font-body);font-weight:700;font-size:0.78rem;cursor:pointer">Re-identify with this clue</button>');
       // The app has just said, in red, that this is the wrong item. Leaving Add
       // as the orange default invites the tap that files it anyway.
       _pinDemoteAdd(true);
@@ -4167,6 +4172,7 @@
     }
   }
   window._pinVerifyReident = async function () {
+    if (!_pinAr()) return;   // v0.9.1927: paid read — beta feature
     // v0.9.1418: this one already spoke, but only ever said "already
     // running" — which is a lie once the job is wedged. Through the shared
     // bounce it can offer the way out instead.
@@ -4987,6 +4993,8 @@
             // v0.9.1163: don't quote a price the app will not charge. With reads
             // switched off this button still said "(1 token)" and then reported a
             // failure, which is how Brad ended up thinking it was broken.
+            // v0.9.1927: the paid read is a beta feature — no button for everyone else.
+            (!_pinAr() ? '' :
             '<button id="pin-rv-idtoken" onclick="_pinReviewIdentify()" title="'
               + ((typeof rrAiOptedOut === 'function' && rrAiOptedOut())
                   ? 'Photo ID reads are off — turn them on in Preferences › Photo ID'
@@ -4994,9 +5002,9 @@
               + '" style="' + _gBtn + 'border:1.5px solid var(--accent2,#d4a843);background:var(--bg-card);background:color-mix(in srgb, rgb(212,168,67) 14%, var(--bg-card));color:var(--accent2,#d4a843)">'
               + ((typeof rrAiOptedOut === 'function' && rrAiOptedOut())
                   ? 'Read this photo (photo ID reads are off)'
-                  : 'Read this photo (1 photo ID)') + '</button>' +
+                  : 'Read this photo (1 photo ID)') + '</button>') +
           '</div>' +
-          _tokLine() +
+          (_pinAr() ? _tokLine() : '') +
           // v0.9.1181 (Brad): "a big button underneath the 2x2 grid buttons on
           // the right… what each button does and what it costs… the steps to
           // follow." The copy lives in help-photo-id.js.
@@ -5523,7 +5531,7 @@
     if (_weakTok) {
       return '<div style="margin-bottom:0.6rem;padding:0.6rem 0.75rem;border-left:3px solid var(--text-dim);background:var(--surface2);border-radius:0 8px 8px 0">'
         + '<div style="font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.03em;color:var(--text-dim);margin-bottom:0.25rem">No lettering picked up</div>'
-        + '<div style="font-size:0.92rem;color:var(--text);line-height:1.4">Nothing readable enough to name this item — try <b>Read this photo (1 photo ID)</b> or <b>Google Search</b>.</div>'
+        + '<div style="font-size:0.92rem;color:var(--text);line-height:1.4">Nothing readable enough to name this item — try ' + (_pinAr() ? '<b>Read this photo (1 photo ID)</b> or ' : '') + '<b>Google Search</b>.</div>'
         + _mismatch
         + _pinWhyHtml(s.raw, s.dbg, s)
         + '</div>';
@@ -6623,6 +6631,7 @@
   // token — no Google/Lens round-trip. The free reader already ran on drop, so
   // this goes straight to the paid read for the leftovers it couldn't place.
   window._pinReviewIdentify = async function () {
+    if (!_pinAr()) return;   // v0.9.1927: paid read — beta feature
     var gs = _rvGroups;
     if (!gs || !gs.length) { showToast('Open a photo first', 2500, true); return; }
     if (!_qcToken()) { showToast('Please sign in first', 3000, true); return; }
@@ -11266,7 +11275,7 @@
       if (!(r && r.num)) {
         showToast(_hadPaid
           ? 'The free reader could not pick out a number this time — your earlier identification has been kept, nothing was lost'
-          : 'The free reader could not pick out a number on this one — type it in, or use “Read this photo” for a closer look', 4500);
+          : (_pinAr() ? 'The free reader could not pick out a number on this one — type it in, or use “Read this photo” for a closer look' : 'The free reader could not pick out a number on this one — type it in, or try Google Search'), 4500);
       } else if (_hadPaid && !_keepPaid(r.num)) {
         // Only say this when it is TRUE: the old read named a different number,
         // so its maker/description really did describe a different item.
@@ -12115,6 +12124,7 @@
 
   window._pinIdentifyAll = async function () {
     if (_busy) { _pinBusyBounce(); return; }
+    if (!_pinAr()) return;   // v0.9.1927: paid read — beta feature
     if (!_qcToken()) { showToast('Please sign in first', 3000, true); return; }
     if (typeof aiIdentifyImage !== 'function') { showToast('Identify service not loaded — refresh and try again', 3000, true); return; }
     var ids = _ids();
@@ -12154,6 +12164,7 @@
   // That's the point: re-run a blank or wrong read with one click.
   window._pinIdentifySelected = async function () {
     if (_busy) { _pinBusyBounce(); return; }
+    if (!_pinAr()) return;   // v0.9.1927: paid read — beta feature
     if (!_qcToken()) { showToast('Please sign in first', 3000, true); return; }
     if (typeof aiIdentifyImage !== 'function') { showToast('Identify service not loaded — refresh and try again', 3000, true); return; }
     var gs = _selGroups();
@@ -12231,7 +12242,7 @@
           // achieving nothing. Anything that will fail identically for every
           // remaining group must STOP the run and say why.
           if (!ai.ok && (ai.reason === 'quota' || ai.reason === 'optout'
-                         || ai.reason === 'offline' || ai.reason === 'norelay')) {
+                         || ai.reason === 'offline' || ai.reason === 'norelay' || ai.reason === 'notbeta')) {
             var _mB = (typeof rrReadFailMessage === 'function') ? rrReadFailMessage(ai.reason) : '';
             showToast(_mB || "Stopped — the reader is unavailable", 4500, true);
             break;

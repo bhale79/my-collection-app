@@ -386,6 +386,9 @@ function buildPrefsPage() {
         </div>
       </div>
 
+      <!-- v0.9.1927 (Brad): the daily reads switch belongs to Auto Read, a beta
+           feature. Everyone else's Photo ID is free and has nothing to switch. -->
+      ${((typeof rrAutoReadOn === 'function') && rrAutoReadOn()) ? `
       <div style="font-size:0.78rem;font-weight:600;color:var(--text-mid);padding:0.75rem 0.2rem 0.35rem;letter-spacing:0.03em;text-transform:uppercase">Photo ID</div>
       <div class="pref-row" style="flex-direction:column;align-items:flex-start;gap:0.4rem">
         <label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;user-select:none;width:100%">
@@ -397,7 +400,7 @@ function buildPrefsPage() {
         </label>
         <div style="font-size:0.78rem;color:var(--text-dim);line-height:1.5">Every photo is checked free first — printed numbers and barcodes cost nothing. This only controls what happens when the free readers can't tell: on, the photo gets a closer read from your daily allowance; off, you're asked to type the number or search instead.</div>
         <div id="pref-ai-left" style="font-size:0.78rem;color:var(--accent2);font-weight:600">${(typeof rrAiRemainingLabel === 'function' && rrAiRemainingLabel()) || ((typeof rrAiOptedOut === 'function' && rrAiOptedOut()) ? 'Off — free readers only' : 'checking reads left…')}</div>
-      </div>
+      </div>` : ''}
 
       <!-- v0.9.1909 (Brad, 2026-10-09): ONE "What I collect" choice — the exact
            lines a member collects. It used to be three separate lists here

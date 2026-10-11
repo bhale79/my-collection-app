@@ -161,20 +161,30 @@ ok('BRAD\'S CLAIM: and removal clears the row rather than deleting it',
     }
 
     // ── THE PHOTO-ID HELP PANEL ─────────────────────────────────────────────
+    // v0.9.1927: the price belongs to Auto Read, a beta feature — rendered
+    // here as a beta tester sees it, then again as everyone else does.
     const pid = await page.evaluate(() => {
       if (typeof window.rrPhotoIdHelpHtml !== 'function') return { missing: true };
-      const html = window.rrPhotoIdHelpHtml();
+      const orig = window.rrFeatureOn;
+      window.rrFeatureOn = n => n === 'auto_read' ? true : orig(n);
+      let html;
+      try { html = window.rrPhotoIdHelpHtml(); } finally { window.rrFeatureOn = orig; }
+      const off = document.createElement('div');
+      window.rrFeatureOn = n => n === 'auto_read' ? false : orig(n);
+      try { off.innerHTML = window.rrPhotoIdHelpHtml(); } finally { window.rrFeatureOn = orig; }
       const d = document.createElement('div');
       d.innerHTML = html;
       const text = (d.textContent || '').replace(/\s+/g, ' ').trim();
       return { missing: false, chars: text.length,
                pricesTheRead: /1 photo ID/.test(text),
+               offHasNoPrice: !/photo ID/i.test(off.textContent || ''),
                saysFreeFirst: /free/i.test(text),
                brokenImg: Array.from(d.querySelectorAll('img')).filter(i => !i.getAttribute('src')).length };
     });
     ok('the photo-ID help panel renders', !pid.missing && pid.chars > 100, JSON.stringify(pid));
     if (!pid.missing) {
-      ok('…and it states the price the buttons charge', pid.pricesTheRead, JSON.stringify(pid));
+      ok('…and it states the price the buttons charge (beta tester)', pid.pricesTheRead, JSON.stringify(pid));
+      ok('…and without Auto Read it names no price at all', pid.offHasNoPrice, JSON.stringify(pid));
       ok('…and it still says the free read comes first', pid.saysFreeFirst, JSON.stringify(pid));
       ok('…and no image in it is missing its source', pid.brokenImg === 0, JSON.stringify(pid));
     }

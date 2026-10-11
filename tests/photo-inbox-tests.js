@@ -6155,7 +6155,17 @@ META_WRITES.length = 0; TOASTS.length = 0;
     eval(helpSrc);                                   // the real file, not a copy
     ok('the copy builder exists after loading the real file',
        typeof window.rrPhotoIdHelpHtml === 'function');
+    // v0.9.1927: "Read this photo" is Auto Read — a beta feature. The promises
+    // below are about the page a beta tester reads; everyone else's page is
+    // checked right after for the one thing it must not do: name a price.
+    const _arWas = globalThis.rrAutoReadOn;
+    globalThis.rrAutoReadOn = function () { return false; };
+    const htmlOff = window.rrPhotoIdHelpHtml();
+    globalThis.rrAutoReadOn = function () { return true; };
     const html = window.rrPhotoIdHelpHtml();
+    if (_arWas === undefined) delete globalThis.rrAutoReadOn; else globalThis.rrAutoReadOn = _arWas;
+    ok('without Auto Read the page names no price and no Preferences switch',
+       !/photo ID/i.test(htmlOff.replace(/<[^>]*>/g, ' ')) && htmlOff.indexOf('Preferences') < 0 && htmlOff.length > 3000);
     ok('it produces a real panel, not a stub', html.length > 4000);
 
     // ── the promises the wording must keep ──────────────────────────────────
@@ -6191,7 +6201,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
     const pin = fs.readFileSync(pH.join(__dirname, '..', 'app', 'photo-inbox.js'), 'utf8');
     const pinCode = pin.split('\n').filter(l => !/^\s*\/\//.test(l)).join('\n');
     ok('the button sits under the 2x2 grid, right where Brad pointed',
-       /_tokLine\(\) \+[\s\S]{0,700}How best to use these features/.test(pinCode));
+       /_tokLine\(\) : ''\) \+[\s\S]{0,700}How best to use these features/.test(pinCode));
     ok('the sheet opens ABOVE the review card, not behind it',
        /_PIN_SHEET_OV\.replace\('z-index:10050', 'z-index:10060'\)/.test(pinCode));
     ok('the arrow keys do not walk the group behind the open help sheet',
@@ -12151,7 +12161,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
       FakeCanvas.prototype.toDataURL = function () { return 'data:image/jpeg;base64,QUJD'; };
       const api = new Function(
         'window', 'localStorage', 'document', 'console', 'setTimeout',
-        'vaultGetToken', 'vaultPost', 'HTMLCanvasElement', 'HTMLVideoElement',
+        'vaultGetToken', 'vaultPost', 'HTMLCanvasElement', 'HTMLVideoElement', 'rrFeatureOn',
         aiSrc + '\n; return { one: aiIdentifyImage, two: aiIdentifyImage2, verify: aiVerifyPhoto };'
       )({},
         { getItem: function (k) { return (k in store) ? store[k] : null; },
@@ -12165,7 +12175,10 @@ META_WRITES.length = 0; TOASTS.length = 0;
         function (f) { f(); },
         function () { return 'tok'; },
         async function (p) { posts.push(p && p.action); return { status: 200, text: 'Match: yes' }; },
-        FakeCanvas, function () {});
+        FakeCanvas, function () {},
+        // v0.9.1927: a beta tester — Auto Read is theirs (auto_read_beta_tests.js
+        // proves everyone else is refused before the opt-out is even asked).
+        function (n) { return n === 'auto_read'; });
       return { api: api, posts: posts, photo: new FakeCanvas() };
     }
 
@@ -18733,7 +18746,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
       // intact. Assert the RULE: each button's visibility is gated on
       // _selectMode AND a count, never on the count alone.
       {
-        const _arm = /\.style\.display = \(_selectMode && n\) \? '' : 'none';/g;
+        const _arm = /\.style\.display = \(_selectMode && n(?: && _pinAr\(\))?\) \? '' : 'none';/g;   // v0.9.1927: Identify also needs Auto Read
         const _armed = (pi.match(_arm) || []).length;
         ok('270 Discard and Identify arm only in select mode, not on the count alone',
            _armed >= 2 && /if \(db\)/.test(pi) && /if \(ib\)/.test(pi),

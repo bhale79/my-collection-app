@@ -837,10 +837,13 @@ function _buildWizardModal() {
       // of the day's reads without a single screen having mentioned a price.
       // Named like every other button ("Photo ID") and carrying the same
       // remaining-count line barcode.js already renders.
-      +   '<button id="id-search-btn" type="button" disabled style="width:100%;padding:0.75rem;border-radius:9px;background:var(--surface2);border:1.5px solid var(--border);color:var(--text-dim);font-family:var(--font-head);font-size:0.95rem;letter-spacing:0.05em;cursor:not-allowed;margin-bottom:0.35rem">\ud83d\udd0d Photo ID \u2014 uses 1 photo ID read</button>'
-      +   '<div style="font-size:0.72rem;color:var(--text-dim);text-align:center;margin-bottom:0.5rem">'
-      +     '<span id="id-ai-left" style="color:var(--gold)">' + ((typeof rrAiRemainingLabel === 'function' && rrAiRemainingLabel()) || ((typeof rrAiOptedOut === 'function' && rrAiOptedOut()) ? '' : 'checking reads left\u2026')) + '</span>'
-      +   '</div>'
+      +   '<button id="id-search-btn" type="button" disabled style="width:100%;padding:0.75rem;border-radius:9px;background:var(--surface2);border:1.5px solid var(--border);color:var(--text-dim);font-family:var(--font-head);font-size:0.95rem;letter-spacing:0.05em;cursor:not-allowed;margin-bottom:0.35rem">' + (((typeof rrAutoReadOn === 'function') && rrAutoReadOn()) ? '\ud83d\udd0d Photo ID \u2014 uses 1 photo ID read' : '\ud83d\udd0d Photo ID \u2014 free') + '</button>'
+      // v0.9.1927: the reads-left line belongs to Auto Read (a beta feature).
+      +   (((typeof rrAutoReadOn === 'function') && rrAutoReadOn())
+          ? '<div style="font-size:0.72rem;color:var(--text-dim);text-align:center;margin-bottom:0.5rem">'
+            + '<span id="id-ai-left" style="color:var(--gold)">' + ((typeof rrAiRemainingLabel === 'function' && rrAiRemainingLabel()) || ((typeof rrAiOptedOut === 'function' && rrAiOptedOut()) ? '' : 'checking reads left\u2026')) + '</span>'
+            + '</div>'
+          : '<div style="height:0.3rem"></div>')
       +   '<button id="id-lens-btn" type="button" disabled style="width:100%;padding:0.6rem;border-radius:9px;background:var(--surface2);border:1.5px solid var(--border);color:var(--text);font-family:var(--font-head);font-size:0.9rem;letter-spacing:0.04em;cursor:not-allowed;opacity:0.55;margin-bottom:0.5rem">\ud83d\udd0d Search Google Lens \u2197</button>'
       +   '<button id="id-paste-btn" type="button" style="width:100%;padding:0.6rem;border-radius:9px;background:var(--bg-card);background:color-mix(in srgb, rgb(58,110,165) 15%, var(--bg-card));border:1.5px solid #3a6ea5;color:#cfe3ff;font-family:var(--font-head);font-size:0.9rem;letter-spacing:0.04em;cursor:pointer;margin-bottom:0.5rem">\ud83d\udccb Paste Lens Result</button>'
       +   '<button id="id-shot-btn" type="button" style="width:100%;padding:0.6rem;border-radius:9px;background:var(--bg-card);background:color-mix(in srgb, rgb(46,204,113) 12%, var(--bg-card));border:1.5px solid #2ecc71;color:#c9f5dc;font-family:var(--font-head);font-size:0.9rem;letter-spacing:0.04em;cursor:pointer;margin-bottom:0.5rem">\ud83d\udcf8 Read a Screenshot of the Results</button>'

@@ -886,7 +886,7 @@ async function _identifySearchLens() {
       var _free = await window.rrIdentifyFree(_identifyPhotoFile);
       if (_free && _free.itemNum && _identifyProcessText('Item Number: ' + _free.itemNum) === 'applied') {
         if (searchBtn) { searchBtn.disabled = false; searchBtn.innerHTML = origText; }
-        if (typeof showToast === 'function') showToast('Read it free from the photo — no photo ID used', 2800);
+        if (typeof showToast === 'function') showToast(((typeof rrAutoReadOn === 'function') && rrAutoReadOn()) ? 'Read it free from the photo — no photo ID used' : 'Read it from the photo', 2800);
         return;
       }
     } catch (e) {}
@@ -897,7 +897,9 @@ async function _identifySearchLens() {
   // prompt asks for, and the answer goes through the SAME single processor
   // (_identifyProcessText). Falls back to the Google Lens flow whenever the
   // AI can't pin down an item number, hits the daily cap, or errors out.
-  if (typeof aiIdentifyImage === 'function') {
+  // v0.9.1927: the in-app close look is Auto Read — a beta feature. Without it
+  // the free read above is followed straight by Google Lens.
+  if (typeof aiIdentifyImage === 'function' && (typeof rrAutoReadOn === 'function') && rrAutoReadOn()) {
     var _aiScale = (document.getElementById('id-scale') || {}).value || '';
     var _aiType  = (document.getElementById('id-type')  || {}).value || '';
     var _aiMfrCbs = document.querySelectorAll('#id-mfr-chips input[type="checkbox"]:checked');

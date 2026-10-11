@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.1926';
+const APP_VERSION = 'v0.9.1927';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -71,6 +71,13 @@ if (typeof window !== 'undefined') {
 //     replaces it. It is tied to the email, so a different person signing in
 //     on this browser never inherits it.
 const RR_FEATURES_CACHE_KEY = 'rr_features_v1';
+// v0.9.1927 (Brad, 2026-10-11: "move the autoread button to beta testers only
+// … i just don't think its worth it with the release coming out"): the PAID
+// photo reader (Auto Read — the daily photo ID reads) is a beta feature. Ring it
+// in the Vault `features` tab (auto_read | B = every beta tester). Read ONLY
+// through rrAutoReadOn() (ai-id.js). The barcode scanner and the free readers
+// are not affected.
+const RR_AUTO_READ_FEATURE = 'auto_read';
 function rrFeatureList() {
   try {
     var s = (typeof window !== 'undefined') && window._subState;

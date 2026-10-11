@@ -747,8 +747,13 @@ window.eraSupportsBarcode = eraSupportsBarcode;
   // ALL the parsing — no new parsing code here.
   // Returns a confirm-card result object, or null. reasonOut ({}) receives
   // the failure reason ('quota' | 'noconsent' | 'hedge' | 'nothing' | 'error').
+  // v0.9.1927 (Brad): Auto Read — the paid close look — is a beta feature.
+  // Every screen that would take one asks this first, so nobody else sees a
+  // "closer look" step that was never going to happen.
+  function _bcArOn() { return (typeof rrAutoReadOn === 'function') && !!rrAutoReadOn(); }
   async function _bcAiRescue(source, eraHint, reasonOut, mfrHint) {
     reasonOut = reasonOut || {};
+    if (!_bcArOn()) { reasonOut.reason = 'notbeta'; return null; }
     if (typeof aiIdentifyImage !== 'function') { reasonOut.reason = 'error'; return null; }
     try {
       var hints = {};
@@ -1079,7 +1084,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
                 // v0.9.655: 'Rescan' on a not-in-master card = tier-3 trigger.
                 // The user just said the read is wrong — let the AI look at the
                 // frame once before dropping them back into the scanner.
-                if (_res.notInMaster && typeof _bcAiRescue === 'function' && !_bcRescueTried['ai|' + bc.rawValue]) {
+                if (_res.notInMaster && typeof _bcAiRescue === 'function' && _bcArOn() && !_bcRescueTried['ai|' + bc.rawValue]) {
                   _bcRescueTried['ai|' + bc.rawValue] = 1;
                   _setStatus('🔍 Taking a closer look…', _BC_AMBER, 45000);
                   const _aiR3 = await _bcAiRescue(video, eraHint, {}, (_res && _res.manufacturer) || '');
@@ -1113,9 +1118,9 @@ window.eraSupportsBarcode = eraSupportsBarcode;
                 if (stopScanning) return;   // user hit Cancel / label button while OCR ran
                 // v0.9.655: Tier 3 — barcode dead end AND label OCR failed.
                 // Give the AI one look at the same frame before giving up.
-                _setStatus('🔍 Taking a closer look…', _BC_AMBER, 45000);
                 var _aiWhy = {};
-                const _aiR = await _bcAiRescue(video, eraHint, _aiWhy, (result && result.manufacturer) || '');
+                if (_bcArOn()) _setStatus('🔍 Taking a closer look…', _BC_AMBER, 45000);
+                const _aiR = _bcArOn() ? await _bcAiRescue(video, eraHint, _aiWhy, (result && result.manufacturer) || '') : null;
                 _bcStickyUntil = 0;
                 if (_aiR && !stopScanning) {
                   stopScanning = true;
@@ -1938,7 +1943,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         });
         var text = (ocr && ocr.data && ocr.data.text) || '';
         var cands = _extractItemNumberCandidates(text);
-        if (!cands.length && typeof _bcAiRescue === 'function') {
+        if (!cands.length && typeof _bcAiRescue === 'function' && _bcArOn()) {
           // v0.9.655: Tier 3 — OCR found no item number at all. The AI gets
           // the captured frame before we fall back to description-only.
           statusEl.textContent = '🔍 Taking a closer look…';
@@ -3227,6 +3232,9 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         resolve({ work: canvas, action: window._researchActive ? 'lens' : 'go' }); return;   // v0.9.1913: Research = Lens
       }
       var _rsOnly = !!window._researchActive;   // v0.9.1913: Research → Google Lens only
+      // v0.9.1927: Auto Read (the paid read) only for beta testers + owners —
+      // everyone else gets two readers: Photo ID (free) and Google Lens.
+      var _ar = (typeof rrAutoReadOn === 'function') && rrAutoReadOn();
       var d = _biOverlay(
         '<div style="width:100%;max-width:560px">'
         + '<div style="color:var(--text,#fff);font-family:var(--font-head,sans-serif);font-size:1.02rem;margin:0.2rem 0 0.35rem">✂ Crop (optional)'
@@ -3271,7 +3279,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         // readers, equal width, plain words, count living ON Auto Read.
         // Rotation is the slider's job alone now.
         + _biBtn({ act: 'go', txt: 'Photo ID<br><span style="font-size:0.68rem;font-weight:400;opacity:0.9">always free</span>' }, 'background:var(--accent,#e8401c);border:1.5px solid var(--accent,#e8401c);color:#fff;flex:1;min-width:0')
-        + _biBtn({ act: 'auto', txt: 'Auto Read<br><span id="bi-ai-left" style="font-size:0.68rem;font-weight:400;opacity:0.95">' + ((typeof rrAiRemainingLabel === 'function' && rrAiRemainingLabel()) || 'checking reads left\u2026') + '</span>' }, 'background:var(--surface2,#252848);border:1.5px solid var(--gold,#d4a843);color:var(--gold,#d4a843);flex:1;min-width:0')
+        + (!_ar ? '' : _biBtn({ act: 'auto', txt: 'Auto Read<br><span id="bi-ai-left" style="font-size:0.68rem;font-weight:400;opacity:0.95">' + ((typeof rrAiRemainingLabel === 'function' && rrAiRemainingLabel()) || 'checking reads left\u2026') + '</span>' }, 'background:var(--surface2,#252848);border:1.5px solid var(--gold,#d4a843);color:var(--gold,#d4a843);flex:1;min-width:0'))
         + _biBtn({ act: 'lens', txt: 'Google Lens<br><span style="font-size:0.68rem;font-weight:400;opacity:0.9">free Google search</span>' }, 'background:var(--surface2,#252848);border:1.5px solid var(--border,#444);color:var(--text,#fff);flex:1;min-width:0')
         + '</div>'
         + '<div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-top:0.5rem">'
@@ -3283,8 +3291,10 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         // now says what actually happens — the old text read like a barcode
         // scanner, hiding that this button IS the metered photo ID service.
         + '<div style="margin-top:0.55rem;padding:0.5rem 0.65rem;border-radius:9px;background:rgba(255,255,255,0.04);border:1px solid var(--border,#333);font-size:0.74rem;line-height:1.5;color:var(--text-mid,#bbb)">'
-        + '<b style="color:var(--t-accent)">&bull; Photo ID</b> — <b>always free</b>: reads the barcode and the printed number. If they can\'t tell, nothing is spent — you choose what happens next.<br>'
-        + '<b style="color:var(--gold,#d4a843)">&bull; Auto Read</b> — the closer look. Free readers run first; <b>one of your daily photo ID reads</b> is spent only if they can\'t tell. Best for unlettered or tricky items.<br>'
+        + (_ar
+          ? '<b style="color:var(--t-accent)">&bull; Photo ID</b> — <b>always free</b>: reads the barcode and the printed number. If they can\'t tell, nothing is spent — you choose what happens next.<br>'
+            + '<b style="color:var(--gold,#d4a843)">&bull; Auto Read</b> — the closer look. Free readers run first; <b>one of your daily photo ID reads</b> is spent only if they can\'t tell. Best for unlettered or tricky items.<br>'
+          : '<b style="color:var(--t-accent)">&bull; Photo ID</b> — <b>free</b>: reads the barcode and the printed number. If it can\'t tell, you choose what happens next.<br>')
         + '<b style="color:#9ecbff">&bull; Google Lens</b> — free Google search by photo, better for <b>unmarked items</b>: buildings, promos, store brands, posters &amp; paper. Also the backup when Photo ID can\'t tell.'
         // v0.9.1474: the allowance count moved ONTO the Auto Read button
         // (span#bi-ai-left up there) — no separate row.
@@ -3298,7 +3308,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
       // the rest of the app keeps its normal behavior, as Brad chose.
       // v0.9.1472: ask the relay for today's true reads-left the moment the
       // crop screen opens — fills the "checking…" placeholder above.
-      try { if (!_rsOnly && typeof rrAiQuotaRefresh === 'function') rrAiQuotaRefresh(); } catch (eQ) {}   // v0.9.1913: no reads-left call when Research offers only Lens
+      try { if (!_rsOnly && _ar && typeof rrAiQuotaRefresh === 'function') rrAiQuotaRefresh(); } catch (eQ) {}   // v0.9.1927: no count to fetch without Auto Read   // v0.9.1913: no reads-left call when Research offers only Lens
       var _prevObBody = document.body.style.overscrollBehaviorY;
       var _prevObHtml = document.documentElement.style.overscrollBehaviorY;
       document.body.style.overscrollBehaviorY = 'contain';
@@ -3656,9 +3666,12 @@ window.eraSupportsBarcode = eraSupportsBarcode;
     if (out.typedNum) {
       st('master', '📖', 'Catalog: not there — adding ' + out.typedNum + ' manually');
       if (_biStop) return { __biCancel: true };
-      st('ai', '<span class="bi-spin">⟳</span>', 'Close look: getting the details…');
-      var aiR0 = await _rtTime('photo reader', _bcAiRescue(workCanvas, eraHint, out.why, out.bcMaker));
-      st('ai', '🔍', aiR0 ? 'Close look: ✓ details read' : 'Close look: no extra details', aiR0 ? '#2ecc71' : null);
+      var aiR0 = null;
+      if (_bcArOn()) {   // v0.9.1927: the close look is Auto Read — beta feature
+        st('ai', '<span class="bi-spin">⟳</span>', 'Close look: getting the details…');
+        aiR0 = await _rtTime('photo reader', _bcAiRescue(workCanvas, eraHint, out.why, out.bcMaker));
+        st('ai', '🔍', aiR0 ? 'Close look: ✓ details read' : 'Close look: no extra details', aiR0 ? '#2ecc71' : null);
+      }
       return { handled: true, _boxPhoto: out.isBoxShot, itemNum: out.typedNum, variation: '', notInMaster: true,
                manufacturer: out.bcMaker || (aiR0 && aiR0.manufacturer) || '',
                labelDescription: (aiR0 && aiR0.labelDescription) || out.ocrDesc,
@@ -3695,9 +3708,12 @@ window.eraSupportsBarcode = eraSupportsBarcode;
       }
       st('master', '📖', 'Catalog: ' + _printed + ' not in the catalog — adding manually', _BC_AMBER);
       if (_biStop) return { __biCancel: true };
-      st('ai', '<span class="bi-spin">⟳</span>', 'Close look: getting the details…');
-      var aiP = await _rtTime('photo reader', _bcAiRescue(workCanvas, eraHint, out.why, out.bcMaker));
-      st('ai', '🔍', aiP ? 'Close look: ✓ details read' : 'Close look: no extra details', aiP ? '#2ecc71' : null);
+      var aiP = null;
+      if (_bcArOn()) {   // v0.9.1927: the close look is Auto Read — beta feature
+        st('ai', '<span class="bi-spin">⟳</span>', 'Close look: getting the details…');
+        aiP = await _rtTime('photo reader', _bcAiRescue(workCanvas, eraHint, out.why, out.bcMaker));
+        st('ai', '🔍', aiP ? 'Close look: ✓ details read' : 'Close look: no extra details', aiP ? '#2ecc71' : null);
+      }
       return { handled: true, _boxPhoto: out.isBoxShot, itemNum: _printed, variation: '', notInMaster: true,
                manufacturer: out.bcMaker || (aiP && aiP.manufacturer) || '',
                labelDescription: (aiP && (aiP.labelDescription || aiP.description)) || out.ocrDesc,
@@ -3731,6 +3747,12 @@ window.eraSupportsBarcode = eraSupportsBarcode;
     // v0.9.1473 (Brad): the paid read never runs as a silent tail of the
     // free Photo ID — only the 🤖 Auto Read button (or an explicit fail-card
     // choice) reaches it.
+    // v0.9.1927: Auto Read is a beta feature. Without it there is no close
+    // look to take — end here quietly, whatever the caller asked for.
+    if (!_bcArOn()) {
+      out.why.reason = 'notbeta';
+      return { __biFail: true, out: out };
+    }
     if (opts && opts.noAi && !opts.forceAi) {
       out.why.reason = 'freeonly';
       st('ai', '⏭', 'Close look: not run — Photo ID is the free pass. Auto Read takes the closer look.', 'var(--text-dim)');
@@ -3790,14 +3812,16 @@ window.eraSupportsBarcode = eraSupportsBarcode;
       // and don't offer "Take another look" (it would just skip again).
       var _optedOut = !!(out && out.why && out.why.reason === 'optout');
       var _freeOnly = !!(out && out.why && out.why.reason === 'freeonly');   // v0.9.1473
+      var _noAr = !((typeof rrAutoReadOn === 'function') && rrAutoReadOn());   // v0.9.1927: beta feature
       act.innerHTML =
         '<div style="width:100%;color:var(--text-mid,#ccc);font-size:0.82rem;margin-bottom:0.3rem">'
-        + (_optedOut ? 'The free readers couldn’t tell, and photo ID reads are turned off (see Preferences). You can:'
+        + (_noAr ? 'Photo ID couldn’t tell from this photo. You can:'
+           : _optedOut ? 'The free readers couldn’t tell, and photo ID reads are turned off (see Preferences). You can:'
            : _freeOnly ? 'The free readers couldn’t tell — nothing was spent. You can:'
            : 'No confident ID. You can:')
         + '</div>'
         + _biBtn({ act: 'retake', txt: '↺ Retake photo' }, 'background:var(--accent,#e8401c);border:1.5px solid var(--accent,#e8401c);color:#fff')
-        + (_optedOut ? '' : _biBtn({ act: 'ai', txt: _freeOnly ? 'Auto Read — may use 1 of your daily reads' : 'Take another look' }, _freeOnly ? 'border:1.5px solid var(--gold,#d4a843);color:var(--gold,#d4a843)' : undefined))
+        + ((_optedOut || _noAr) ? '' : _biBtn({ act: 'ai', txt: _freeOnly ? 'Auto Read — may use 1 of your daily reads' : 'Take another look' }, _freeOnly ? 'border:1.5px solid var(--gold,#d4a843);color:var(--gold,#d4a843)' : undefined))
         + _biBtn({ act: 'lens', txt: '🔍 Google Lens' })
         + _biBtn({ act: 'type', txt: '⌨ Type it in' })
         + _biBtn({ act: 'cancel', txt: 'Cancel' });
@@ -3997,7 +4021,8 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         // v0.9.691 (Brad's 0209-barrels case): a number read from LETTERING with
         // no barcode lock can belong to a NEIGHBORING box on a shelf — offer an
         // ignore-the-numbers AI re-run right on the confirm card.
-        var _aiOffer = !cap.lockedBc && !!res.itemNum && !res.aiGuess;
+        var _aiOffer = !cap.lockedBc && !!res.itemNum && !res.aiGuess
+          && (typeof rrAutoReadOn === 'function') && rrAutoReadOn();   // v0.9.1927: a paid read — beta feature
         var cc = await _rtWait('confirm card', _bcConfirmCard(_biInfoFor(res, _aiOffer)));
         if (cc === 'aionly') {
           var resA = await _biPipeline(cap.view || cap.raw, cr.work, null, eraHint, { ignoreNums: true, forceAi: true });   // v0.9.1473: explicit choice = consent to spend
@@ -4075,5 +4100,5 @@ window.eraSupportsBarcode = eraSupportsBarcode;
   window.openLabelScanner = openLabelScanner;
   window._ensureTesseract = _ensureTesseract;   // v0.9.672: screenshot-read path
   window._extractItemNumberCandidates = _extractItemNumberCandidates;
-  window._barcodeDebug = { decodeBarcode, findMasterItem, findMasterItems, showCandidatePicker, UPC_PREFIXES, _bcDescriptionGuess, _extractItemNumberCandidates };
+  window._barcodeDebug = { decodeBarcode, findMasterItem, findMasterItems, showCandidatePicker, UPC_PREFIXES, _bcDescriptionGuess, _extractItemNumberCandidates, _biCrop };   // _biCrop: v0.9.1927 auto_read_beta_tests opens the real crop screen
 })();

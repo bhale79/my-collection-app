@@ -87,17 +87,22 @@ function showAiUsageCard(force) {
   ov.id = 'rr-ai-usage-card';
   ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.78);z-index:99998;display:flex;align-items:flex-start;justify-content:center;padding:18px;overflow-y:auto';
   const admin = (typeof ADMIN_EMAIL !== 'undefined') ? ADMIN_EMAIL : 'support@therailroster.com';
+  // v0.9.1927 (Brad): Auto Read — the photo ID with a daily allowance — is a
+  // beta feature. Everyone else's Photo ID is free, so their card says so and
+  // never mentions an allowance they do not have.
+  const ar = (typeof rrAutoReadOn === 'function') && rrAutoReadOn();
   ov.innerHTML =
     '<div style="background:var(--surface,#1a1a2e);border:1px solid var(--border,#333);border-radius:16px;max-width:480px;width:100%;padding:20px 22px 18px;color:var(--text,#eee);font-family:var(--font-body,sans-serif);max-height:calc(100vh - 36px);overflow-y:auto;-webkit-overflow-scrolling:touch;margin:auto 0;box-shadow:0 12px 40px rgba(0,0,0,0.5)">'
     + '<div style="font-family:var(--font-head,sans-serif);font-size:1.25rem;text-align:center;font-weight:700;margin-bottom:4px">Scanning and photo ID</div>'
-    + '<div style="text-align:center;font-size:0.8rem;color:var(--text-dim,#888);margin-bottom:14px;letter-spacing:0.04em">Scanning is free. Photo ID is the one part with a limit.</div>'
+    + '<div style="text-align:center;font-size:0.8rem;color:var(--text-dim,#888);margin-bottom:14px;letter-spacing:0.04em">' + (ar ? 'Scanning is free. Photo ID is the one part with a limit.' : 'Scanning and Photo ID are both free.') + '</div>'
 
-    + '<div style="font-size:0.88rem;color:var(--text-mid,#bbb);line-height:1.55;margin-bottom:14px">Most items go in without using anything up \u2014 here\'s the difference.</div>'
+    + (ar ? '<div style="font-size:0.88rem;color:var(--text-mid,#bbb);line-height:1.55;margin-bottom:14px">Most items go in without using anything up \u2014 here\'s the difference.</div>' : '')
 
     + '<div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:12px;padding:10px 12px;background:var(--surface2,#222);border-radius:9px;border:1px solid var(--border,#333)">'
     +   '<div style="font-size:0.86rem;line-height:1.5"><strong style="color:var(--text,#eee)">Scanning is free and unlimited.</strong> Point the camera at a barcode or a printed label and the app reads it right on your own phone. Scan as much as you like \u2014 it never counts against anything.</div>'
     + '</div>'
 
+    + (ar ? (''
     + '<div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:12px;padding:10px 12px;background:var(--surface2,#222);border-radius:9px;border:1px solid var(--border,#333)">'
     +   '<div style="font-size:0.86rem;line-height:1.5"><strong style="color:var(--text,#eee)">Photo ID \u2014 a daily allowance.</strong> When there\'s no barcode and no label worth reading \u2014 an older piece, or one with no box \u2014 the app can work out what it is from a photo. That\'s a photo ID, and you get a set number every day. The app always shows how many you have left. The count resets overnight, the same photo twice is free, and a failed one is given back.</div>'
     + '</div>'
@@ -105,6 +110,11 @@ function showAiUsageCard(force) {
     + '<div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:18px;padding:10px 12px;background:var(--surface2,#222);border-radius:9px;border:1px solid var(--border,#333)">'
     +   '<div style="font-size:0.86rem;line-height:1.5"><strong style="color:var(--text,#eee)">Need more?</strong> Email <a href="mailto:' + admin + '" style="color:var(--accent2,#d4a843);text-decoration:none">' + admin + '</a> and we\'ll sort you out.</div>'
     + '</div>'
+      ) : (''
+    + '<div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:18px;padding:10px 12px;background:var(--surface2,#222);border-radius:9px;border:1px solid var(--border,#333)">'
+    +   '<div style="font-size:0.86rem;line-height:1.5"><strong style="color:var(--text,#eee)">Photo ID is free too.</strong> No barcode? Take a photo and the app reads the printed number on the item or its box. If it can\'t tell, you can type the number in or search for it.</div>'
+    + '</div>'
+      ))
 
     + '<div style="font-size:0.78rem;color:var(--text-dim,#888);line-height:1.5;margin-bottom:14px;text-align:center">Need this again? <strong>Help</strong> (in the side menu) \u2192 Scanning and photo ID.</div>'
 

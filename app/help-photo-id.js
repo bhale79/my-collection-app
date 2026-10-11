@@ -74,6 +74,10 @@
   }
 
   window.rrPhotoIdHelpHtml = function () {
+    // v0.9.1927 (Brad): "Read this photo" (Auto Read) is a beta feature. For
+    // everyone else this page describes only the free buttons they actually
+    // have — no step 4, no daily allowance, no Preferences switch.
+    var ar = (typeof rrAutoReadOn === 'function') && !!rrAutoReadOn();
     return ''
     // v0.9.1920 (Brad, booth camera list #5): nothing reads a photo by itself
     // any more (since v0.9.1297) — the free read runs when you press Identify
@@ -97,12 +101,12 @@
         + 'Either one is enough.')
 
     + '<div style="' + _H2 + '">What we leave out of a batch</div>'
-    + '<p style="' + _P + '">When you hit <b>Identify my items</b>, or read a batch with photo IDs, '
+    + '<p style="' + _P + '">When you hit <b>Identify my items</b>' + (ar ? ', or read a batch with photo IDs' : '') + ', '
       + 'we skip anything you have tagged <b>Paper</b>, <b>Catalog</b> or <b>Other</b>. There is '
       + 'rarely an item number to find on a blueprint or a catalogue page — and what a reader '
       + '<i>does</i> find there is usually a drawing number or one of twenty numbers on the page, '
-      + 'which then lands in your inbox as a wrong guess you have to clear. On the paid read it '
-      + 'would also spend a photo ID for nothing.</p>'
+      + 'which then lands in your inbox as a wrong guess you have to clear.' + (ar ? ' On the paid read it '
+      + 'would also spend a photo ID for nothing.' : '') + '</p>'
     + '<p style="' + _P + '"><b>You can still read any of them yourself.</b> Tick the corner circle '
       + 'on a single photo and press Identify, or open the photo and read it from there. The skip '
       + 'only applies to reading the whole inbox at once — it never stops you asking about one '
@@ -138,9 +142,11 @@
     + '<div style="background:var(--surface2);border:1.5px solid var(--accent);border-radius:10px;'
       + 'padding:0.7rem 0.85rem;font-size:0.86rem;margin:0.9rem 0;line-height:1.55">'
       + '<b>If your photo looks like one of those, don’t bother with the free reader or re-scan.</b> '
-      + 'Go straight to Google Search or Read this photo. Those two look at the shape, the colours '
+      + (ar ? 'Go straight to Google Search or Read this photo. Those two look at the shape, the colours '
       + 'and the whole item, not just printed text — so they’re the ones that can work with no '
       + 'number at all.</div>'
+      : 'Go straight to Google Search. It looks at the shape, the colours and the whole item, not '
+      + 'just printed text — so it’s the one that can work with no number at all.</div>')
 
     + '<p style="' + _P + '"><b>And we get it wrong sometimes.</b> The reader is as good as we can '
       + 'make it, but a wrong answer is not unusual. That’s normal — it’s why these buttons are '
@@ -157,8 +163,8 @@
     + '<p style="' + _P + '"><b>And it looks better.</b> This is the picture that shows up in your '
       + 'collection, on your For Sale list, and on anything you hand to a friend or a buyer. A tight '
       + 'shot looks like a catalog photo. A wide one looks like a snapshot of your basement.</p>'
-    + '<p style="' + _P + '">Worth doing before you reach for a photo ID, too — a bad crop is the '
-      + 'cheapest thing to fix, and it sometimes fixes the answer on its own.</p>'
+    + (ar ? '<p style="' + _P + '">Worth doing before you reach for a photo ID, too — a bad crop is the '
+      + 'cheapest thing to fix, and it sometimes fixes the answer on its own.</p>' : '')
     + _HR
 
     + '<div style="' + _H2 + '">If the answer is wrong, work down this list</div>'
@@ -181,13 +187,15 @@
             : 'In the Google tab: <b>Ctrl+A</b> (select all), then <b>Ctrl+C</b> (copy). Come back '
               + 'here and press <b>Ctrl+V</b> in the paste box.</div>')
         + _sp((window.IS_MOBILE_UA ? 'A few taps.' : 'Four keystrokes.') + ' If you don’t mind them, this costs you nothing.'))
+    + (ar ? (''
     + _step(4, 'Read this photo', '1 photo ID', false,
         _sp('A different reader looks at the whole photo — the shape, the colours, the lettering — '
           + 'not just printed text. About as good as the Google route, and it does the '
           + 'carrying-back for you. Use it when you’d rather not do the copy-paste, or when Google '
           + 'didn’t get there either.'))
-    + _HR
+    + _HR) : _HR)
 
+    + (ar ? (''
     + '<div style="' + _H2 + '">About photo IDs</div>'
     // "Nothing to buy." was here and was cut on 2026-07-30: purchased tokens are
     // planned (see BUY_MORE_TOKENS_TODO), and that is exactly the sentence a
@@ -198,6 +206,7 @@
       + 'Research Number and Google Search never do — you could use those all day.</p>'
     + '<p style="' + _P + '">If you’d rather never spend one, you can switch photo reads off '
       + 'entirely in <b>Preferences › Photo ID</b>.</p>'
+      ) : '')
 
     + '<div style="' + _H2 + '">The short version</div>'
     + '<table style="width:100%;border-collapse:collapse;font-size:0.84rem;margin-top:0.4rem">'
@@ -205,7 +214,7 @@
       + _row('This is wrong — re-scan', 'Free', false)
       + _row('Research Number', 'Free', false)
       + _row('Google Search', 'Free', false)
-      + _row('Read this photo', '1 photo ID', true)
+      + (ar ? _row('Read this photo', '1 photo ID', true) : '')
     + '</table>';
   };
 })();

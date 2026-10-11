@@ -193,8 +193,21 @@ async function aiPrepImage(src) {
 // If a fourth metered entry point is ever added, §211 fails until it calls
 // this too.
 function aiSpendBlocked() {
+  // v0.9.1927: Auto Read is a beta feature — for everyone else no paid read can
+  // happen anywhere, the automatic ones included (the Photo Inbox double-check,
+  // a pasted photo, the older scanner screens). Asked here, the one door.
+  if (!rrAutoReadOn()) return { ok: false, reason: 'notbeta' };
   return rrAiOptedOut() ? { ok: false, reason: 'optout' } : null;
 }
+// v0.9.1927: THE one reader of "may this person use Auto Read?" Every Auto Read
+// button, counter, legend line and help sentence asks this — nothing else.
+function rrAutoReadOn() {
+  try {
+    var f = (typeof RR_AUTO_READ_FEATURE !== 'undefined') ? RR_AUTO_READ_FEATURE : 'auto_read';
+    return (typeof rrFeatureOn === 'function') && !!rrFeatureOn(f);
+  } catch (e) { return false; }
+}
+if (typeof window !== 'undefined') window.rrAutoReadOn = rrAutoReadOn;
 
 // ── Main entry ──────────────────────────────────────────────
 // aiIdentifyImage(source, hints)
@@ -424,6 +437,7 @@ async function rrAiQuotaRefresh() {
   if (_rrQuotaBusy) return;
   try {
     if (rrAiOptedOut()) return;
+    if (!rrAutoReadOn()) return;   // v0.9.1927: no Auto Read, no count to show (and no relay call)
     if (typeof vaultGetToken !== 'function' || typeof vaultPost !== 'function') return;
     _rrQuotaBusy = true;
     var res = await vaultPost({ action: 'ai_quota', token: vaultGetToken() });
@@ -478,6 +492,9 @@ var _RR_READ_FAIL = {
 // could not tell" — the only case where the old message was ever accurate.
 function rrReadFailMessage(reason, fallback) {
   var r = String(reason || '');
+  // v0.9.1927: Auto Read is a beta feature. For everyone else a refused paid read
+  // is simply "the free reader could not tell" — the caller's own wording.
+  if (r === 'notbeta') return fallback || 'Could not read the number from that photo — try Google Search, or type the number';
   if (Object.prototype.hasOwnProperty.call(_RR_READ_FAIL, r)) return _RR_READ_FAIL[r];
   return fallback || 'Could not read that photo — try Google Search, or type the number';
 }
