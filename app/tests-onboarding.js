@@ -1168,16 +1168,18 @@
         return okMsg();
     }},
 
-    { name: '112 filters: reference link label resolves per URL (atlas.com → Atlas, cott → COTT, other → default)', fn: async function() {
+    { name: '112 filters: reference link wording configured; the site comes from the one hostname table', fn: async function() {
+        // v0.9.1922: the config used to carry its own site regexes, and its COTT
+        // one could never match cornucopiaoftoytrains.com (the real COTT). Now the
+        // config holds only the wording; browse.js _SITE_LABELS names the site.
         var c = window.ITEM_SEARCH_FILTERS || {};
         var ll = (c.ui || {}).linkLabel || {};
-        if (!ll.patterns || !ll.patterns.length) return fail('linkLabel.patterns missing');
-        var atlasHit = ll.patterns.some(function(p) { return p.match && p.match.test && p.match.test('https://www.atlasrr.com/items/123'); });
-        var cottHit  = ll.patterns.some(function(p) { return p.match && p.match.test && p.match.test('https://cott.somewhere/ref/6464'); });
-        if (!atlasHit) return fail('no pattern matched atlasrr.com URL');
-        if (!cottHit)  return fail('no pattern matched cott URL');
+        if (ll.patterns) return fail('linkLabel.patterns is back — a second site list; name sites in browse.js _SITE_LABELS');
+        if (!/\{site\}/.test(ll.shortFormat || '')) return fail('linkLabel.shortFormat missing {site}');
+        if (!/\{site\}/.test(ll.verboseFormat || '')) return fail('linkLabel.verboseFormat missing {site}');
         if (!(ll.defaultShort || ll.default)) return fail('linkLabel.defaultShort/default missing');
         if (!(ll.defaultVerbose || ll.default)) return fail('linkLabel.defaultVerbose/default missing');
+        if (typeof window._externalSiteLabel !== 'function') return fail('window._externalSiteLabel missing');
         return okMsg();
     }},
 
@@ -1185,7 +1187,9 @@
         if (typeof window.resolveRefLabel !== 'function') return fail('window.resolveRefLabel missing');
         var cases = [
           { url: 'https://www.atlasrr.com/x', expectShort: /atlas/i, expectVerbose: /view on .*atlas/i },
-          { url: 'http://cott.example/x',     expectShort: /cott/i,  expectVerbose: /view on .*cott/i  },
+          { url: 'https://cornucopiaoftoytrains.com/boxcars-a/#6014', expectShort: /^COTT/,  expectVerbose: /^View on COTT/  },
+          { url: 'https://www.findmylionel.com/x', expectShort: /^View/, expectVerbose: /^View reference/ },
+          { url: 'https://www.google.com/search?q=cott+6014', expectShort: /^Google/, expectVerbose: /^Search Google/ },
           { url: 'https://greenberg-books.example/x', expectShort: /view/i, expectVerbose: /view/i },
           { url: '',                           expectShort: /^$/,     expectVerbose: /^$/ },
         ];

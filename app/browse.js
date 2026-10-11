@@ -2199,6 +2199,9 @@ if (typeof window !== 'undefined') {
 //
 // Row counts measured live 2026-07-30 — kept here so the next person can see at a
 // glance which references actually carry the catalog.
+//
+// v0.9.1922: THE one site table. resolveRefLabel (item-search-filters-config.js,
+// the Add screens' "COTT ↗" buttons) reads it too, so a site is named here once.
 var _SITE_LABELS = [
   ['cornucopiaoftoytrains', 'COTT'],               // 5,811 — Cornucopia Of Toy Trains
   ['atlasrr',               'Atlas'],              // 46,527 (archive.atlasrr.com)
@@ -2221,8 +2224,15 @@ function _externalSiteLabel(url) {
   } catch (e) {
     host = String(url).toLowerCase();   // relative or malformed: previous behaviour
   }
+  // v0.9.1922: an entry with a dot is a whole domain and must END the host
+  // (www.lionel.com yes; findmylionel.com — 14 catalog rows, someone else's
+  // site — no, it used to read "Lionel"). A dotless entry ('atlasrr',
+  // 'mthtrains') still matches anywhere in the host.
   for (var i = 0; i < _SITE_LABELS.length; i++) {
-    if (host.indexOf(_SITE_LABELS[i][0]) >= 0) return _SITE_LABELS[i][1];
+    var part = _SITE_LABELS[i][0];
+    if (part.indexOf('.') >= 0
+        ? (host === part || host.slice(-(part.length + 1)) === '.' + part)
+        : host.indexOf(part) >= 0) return _SITE_LABELS[i][1];
   }
   return 'External';
 }

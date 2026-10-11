@@ -28,20 +28,22 @@ window.ITEM_SEARCH_FILTERS = {
     typeLabel:    'Type',
     roadLabel:    'Road name',
     hint:         'Pick a type or road to narrow the list — or just type to search.',
-    // Reference-link label resolution. Patterns are matched against the
-    // refLink URL in order; first match wins. Add a new source later by
-    // adding another pattern — no code changes.
+    // Reference-link label WORDING. Which site a link points at is decided
+    // in ONE place — _SITE_LABELS / _externalSiteLabel in browse.js, matched
+    // on the hostname (the Browse page and item pages use it too).
+    // v0.9.1922: this block used to carry its own site regexes, and its COTT
+    // one (/cott|collectorsoftinplate/) can never match COTT's real address,
+    // cornucopiaoftoytrains.com — so every COTT link on the Add screens read
+    // "View ↗" while the Browse page, reading the other table, said COTT.
+    // Two lists of the same fact; one was wrong. Now only the wording is here.
+    //   {site} is replaced by the site name ('COTT', 'Atlas', 'MTH', …).
     // `short` is used on compact rows (suggestion list, variation picker
     // buttons). `verbose` is used on standalone buttons (single-item
-    // refLink button). `label` is accepted as a legacy alias for `short`.
+    // refLink button).
     linkLabel: {
-      patterns: [
-        { match: /atlas(rr)?\.com/i,           short: 'Atlas \u2197', verbose: 'View on Atlas \u2197' },
-        { match: /cott|collectorsoftinplate/i, short: 'COTT \u2197',  verbose: 'View on COTT \u2197'  },
-        { match: /mthtrains/i,                  short: 'MTH \u2197',    verbose: 'View on MTH \u2197'    },
-        { match: /lionel\.com/i,                short: 'Lionel \u2197', verbose: 'View on Lionel \u2197' },
-        { match: /google\.com/i,                short: 'Google \u2197', verbose: 'Search Google \u2197' },
-      ],
+      shortFormat:    '{site} \u2197',
+      verboseFormat:  'View on {site} \u2197',
+      verboseBySite:  { Google: 'Search Google \u2197' },
       defaultShort:   'View \u2197',
       defaultVerbose: 'View reference \u2197',
       // Legacy alias — older callers may still read `default`.
@@ -137,24 +139,26 @@ window.ITEM_SEARCH_FILTERS = {
 // window.resolveRefLabel(url [, { verbose: true }])
 //   → 'Atlas ↗' / 'View on Atlas ↗' / 'COTT ↗' / 'View ↗' etc.
 //
-// Walks ITEM_SEARCH_FILTERS.ui.linkLabel.patterns; first match wins.
-// Falls back to defaultShort / defaultVerbose when nothing matches.
+// The site name comes from window._externalSiteLabel (browse.js) — the one
+// hostname table; the wording comes from ITEM_SEARCH_FILTERS.ui.linkLabel.
+// A site the table cannot name falls back to defaultShort / defaultVerbose.
 // Returns '' for an empty URL so callers can `if (label) …`.
 //
-// Used by wizard-suggestions.js (compact suggestion rows) and wizard.js
-// (single-item button, variation picker). Keeping resolution in ONE place
-// means "change how Atlas links are labeled" is a one-line edit in config.
+// Used by wizard-suggestions.js (compact suggestion rows), wizard.js
+// (single-item button, variation picker) and barcode.js.
 window.resolveRefLabel = function(url, opts) {
   if (!url) return '';
   var cfg = (window.ITEM_SEARCH_FILTERS && window.ITEM_SEARCH_FILTERS.ui) || {};
   var ll  = cfg.linkLabel || {};
   var wantVerbose = !!(opts && opts.verbose);
-  var patterns = ll.patterns || [];
-  for (var i = 0; i < patterns.length; i++) {
-    var p = patterns[i];
-    if (!p || !p.match || !p.match.test || !p.match.test(url)) continue;
-    if (wantVerbose) return p.verbose || p.short || p.label || '';
-    return p.short || p.label || '';
+  var site = (typeof window._externalSiteLabel === 'function') ? window._externalSiteLabel(url) : '';
+  if (site && site !== 'External') {
+    if (wantVerbose) {
+      var by = ll.verboseBySite || {};
+      if (by[site]) return by[site];
+      return String(ll.verboseFormat || 'View on {site} \u2197').replace('{site}', site);
+    }
+    return String(ll.shortFormat || '{site} \u2197').replace('{site}', site);
   }
   if (wantVerbose) return ll.defaultVerbose || ll.default || '';
   return ll.defaultShort || ll.default || '';

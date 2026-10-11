@@ -76,7 +76,7 @@ const LINK_ONLY = [
   'www.youtube.com', 'www.atlasrr.com', 'shop.atlasrr.com', 'download.atlasrr.com', 'www.lionelsupport.com',
   'www.lionelstore.com', 'www.lionel.com', 'www.lgb.com', 'www.get3rparts.com', 'static.maerklin.de',
   'reindeerpass.com', 'mthpartsandsales.com', 'estore.bachmanntrains.com', 'd2frr7198pxftr.cloudfront.net',
-  'greenberg-books.example', 'cott.somewhere',
+  'greenberg-books.example', 'www.findmylionel.com',   // v0.9.1922: tests-onboarding label cases (real COTT replaced cott.somewhere)
 ];
 function hostsIn(files) {
   const out = {};
