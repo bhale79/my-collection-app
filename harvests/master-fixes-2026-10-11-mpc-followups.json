@@ -1,0 +1,398 @@
+{
+ "what": "Master Version 2.31 — Lionel MPC-Modern follow-ups from the 2.27 book check: 12730 gets its own words (Lionel Girder Bridge, 1988-2003, 2008-2025 — book page 133 and Lionel 6-12730); 2024080 → 2025070 and 2024090 → 2025080 (the book prints the 2025 numbers; no row held them); 9 rows removed whose number the book does not print, each repeating a row that is already right: the second 12729 (Mail Pickup Set), the second 39246 (LCC 1983 — page 291 prints one 39246), 1928815, 1928915, 1929010, 2024010, 2024020, 2024070, and 6-26634 (2010 catalog scrape; Lionel lists this car only as 6-26639).",
+ "stated": "Brad (2026-10-11): \"approve the delete\" — for the whole edit on MPC_FOLLOWUPS_REVIEW_2026-10-11.xlsx (1 fix, 2 renumbers, 9 removals)",
+ "masterVersion": "2.31",
+ "date": "2026-10-11",
+ "tab": "Lionel MPC-Modern",
+ "planReadAt": "2026-10-12T01:32:43Z public CSV export gid 1188187255 (22320 lines)",
+ "cellFormat": "[tab, item number (column A) BEFORE the change, column header, old, new, sheet row as a hint, Row ID of the row]",
+ "counts": {
+  "cells": 9,
+  "cellRows": 3,
+  "rowsDeleted": 9
+ },
+ "cells": [
+  [
+   "Lionel MPC-Modern",
+   "12730",
+   "Item Type",
+   "Set",
+   "Accessory",
+   1821,
+   "GG96JGJH44"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "12730",
+   "Sub-Type",
+   "",
+   "Bridge",
+   1821,
+   "GG96JGJH44"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "12730",
+   "Control",
+   "Traditional",
+   "",
+   1821,
+   "GG96JGJH44"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "12730",
+   "Road Name",
+   "Santa Fe",
+   "",
+   1821,
+   "GG96JGJH44"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "12730",
+   "Description",
+   "Santa Fe Diesel Freight Set",
+   "Lionel Girder Bridge",
+   1821,
+   "GG96JGJH44"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "12730",
+   "Year Produced",
+   "",
+   "1988-2003, 2008-2025",
+   1821,
+   "GG96JGJH44"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "12730",
+   "Reference Link",
+   "",
+   "https://www.lionel.com/products/lionel-girder-bridge-6-12730/",
+   1821,
+   "GG96JGJH44"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2024080",
+   "Item Number",
+   "2024080",
+   "2025070",
+   6334,
+   "NFV9TQJDH7"
+  ],
+  [
+   "Lionel MPC-Modern",
+   "2024090",
+   "Item Number",
+   "2024090",
+   "2025080",
+   6335,
+   "EZXEZPCBU7"
+  ]
+ ],
+ "rows": [
+  {
+   "item": "12729",
+   "rowId": "3QXAVUU5YB",
+   "rowHint": 1820,
+   "fullRow": {
+    "Item Number": "12729",
+    "Item Type": "Set",
+    "Sub-Type": "",
+    "Unit": "",
+    "Powered/Dummy": "",
+    "Control": "",
+    "Road Name": "",
+    "Description": "Mail Pickup Set, 88-91",
+    "Gauge": "",
+    "Year Produced": "1995",
+    "Variation #": "",
+    "Variation Details": "",
+    "Reference Link": "",
+    "Notes": "",
+    "Est. Market Value": "",
+    "Source": "Greenberg Book",
+    "COTT Code": "",
+    "Original COTT Desc": "",
+    "Stamped Markings": "",
+    "Row ID": "3QXAVUU5YB"
+   },
+   "keeper": {
+    "item": "12729",
+    "rowId": "RATWZZCFA3",
+    "description": "Mail Pickup Set"
+   },
+   "why": "Second 12729 row; the 12729 accessory row already holds Mail Pickup Set with the book years."
+  },
+  {
+   "item": "39246",
+   "rowId": "8NYFDGA8MZ",
+   "rowHint": 11522,
+   "fullRow": {
+    "Item Number": "39246",
+    "Item Type": "Boxcar",
+    "Sub-Type": "Boxcar",
+    "Unit": "",
+    "Powered/Dummy": "",
+    "Control": "",
+    "Road Name": "Pennsylvania Railroad",
+    "Description": "PRR Sharknose Boxcar, LCC II",
+    "Gauge": "",
+    "Year Produced": "1983",
+    "Variation #": "2",
+    "Variation Details": "",
+    "Reference Link": "",
+    "Notes": "",
+    "Est. Market Value": "",
+    "Source": "Greenberg Book",
+    "COTT Code": "",
+    "Original COTT Desc": "",
+    "Stamped Markings": "",
+    "Row ID": "8NYFDGA8MZ"
+   },
+   "keeper": {
+    "item": "39246",
+    "rowId": "BMQ8D3HH44",
+    "description": "Century Club PRR Sharknose Diesel Boxcar"
+   },
+   "why": "The book prints ONE 39246 (Century Club PRR Sharknose Diesel Boxcar, 00) — photo of page 291. No LCC 1983 line there."
+  },
+  {
+   "item": "1928815",
+   "rowId": "6Z5S3552Y7",
+   "rowHint": 5464,
+   "fullRow": {
+    "Item Number": "1928815",
+    "Item Type": "Accessory",
+    "Sub-Type": "",
+    "Unit": "",
+    "Powered/Dummy": "",
+    "Control": "",
+    "Road Name": "",
+    "Description": "Peel and Stick Lights, 4-pack",
+    "Gauge": "",
+    "Year Produced": "2019",
+    "Variation #": "",
+    "Variation Details": "",
+    "Reference Link": "",
+    "Notes": "",
+    "Est. Market Value": "",
+    "Source": "Greenberg Book",
+    "COTT Code": "",
+    "Original COTT Desc": "",
+    "Stamped Markings": "",
+    "Row ID": "6Z5S3552Y7"
+   },
+   "keeper": {
+    "item": "1929804",
+    "rowId": "Q2ZPV5PTXS",
+    "description": "Peel and Stick Lights 4-Pack"
+   },
+   "why": "Misread of 1929804, which has its own row."
+  },
+  {
+   "item": "1928915",
+   "rowId": "EXK4FPHTJ7",
+   "rowHint": 5466,
+   "fullRow": {
+    "Item Number": "1928915",
+    "Item Type": "Accessory",
+    "Sub-Type": "",
+    "Unit": "",
+    "Powered/Dummy": "",
+    "Control": "",
+    "Road Name": "",
+    "Description": "Peel and Stick LED Lights, 4-pack",
+    "Gauge": "",
+    "Year Produced": "2019",
+    "Variation #": "",
+    "Variation Details": "",
+    "Reference Link": "",
+    "Notes": "",
+    "Est. Market Value": "",
+    "Source": "Greenberg Book",
+    "COTT Code": "",
+    "Original COTT Desc": "",
+    "Stamped Markings": "",
+    "Row ID": "EXK4FPHTJ7"
+   },
+   "keeper": {
+    "item": "1929904",
+    "rowId": "XTVVZ3WPN5",
+    "description": "Peel and Stick LED Lights, 4-pack"
+   },
+   "why": "Misread of 1929904, which has its own row (fixed in 2.27)."
+  },
+  {
+   "item": "1929010",
+   "rowId": "4E7HU82KMP",
+   "rowHint": 5468,
+   "fullRow": {
+    "Item Number": "1929010",
+    "Item Type": "Accessory",
+    "Sub-Type": "",
+    "Unit": "",
+    "Powered/Dummy": "",
+    "Control": "",
+    "Road Name": "",
+    "Description": "Peel and Stick LED Lights, 15-pack",
+    "Gauge": "",
+    "Year Produced": "2019",
+    "Variation #": "",
+    "Variation Details": "",
+    "Reference Link": "",
+    "Notes": "",
+    "Est. Market Value": "",
+    "Source": "Greenberg Book",
+    "COTT Code": "",
+    "Original COTT Desc": "",
+    "Stamped Markings": "",
+    "Row ID": "4E7HU82KMP"
+   },
+   "keeper": {
+    "item": "1929915",
+    "rowId": "3QN52VQC38",
+    "description": "Peel and Stick LED Lights 15-Pack"
+   },
+   "why": "Misread of 1929915, which has its own row."
+  },
+  {
+   "item": "2024010",
+   "rowId": "W8BZM987HG",
+   "rowHint": 6331,
+   "fullRow": {
+    "Item Number": "2024010",
+    "Item Type": "Track",
+    "Sub-Type": "",
+    "Unit": "",
+    "Powered/Dummy": "",
+    "Control": "",
+    "Road Name": "",
+    "Description": "Lighted FasTrack 10\" Straight, 4-pack",
+    "Gauge": "",
+    "Year Produced": "2020",
+    "Variation #": "",
+    "Variation Details": "",
+    "Reference Link": "",
+    "Notes": "",
+    "Est. Market Value": "",
+    "Source": "Greenberg Book",
+    "COTT Code": "",
+    "Original COTT Desc": "",
+    "Stamped Markings": "",
+    "Row ID": "W8BZM987HG"
+   },
+   "keeper": {
+    "item": "2025010",
+    "rowId": "7A9JWFCPH8",
+    "description": "Lighted FasTrack 10\" Straight 4-Pack"
+   },
+   "why": "Book prints 2025010, which has its own row."
+  },
+  {
+   "item": "2024020",
+   "rowId": "PDKFE25HDS",
+   "rowHint": 6332,
+   "fullRow": {
+    "Item Number": "2024020",
+    "Item Type": "Accessory",
+    "Sub-Type": "",
+    "Unit": "",
+    "Powered/Dummy": "",
+    "Control": "",
+    "Road Name": "",
+    "Description": "Lighted FasTrack O-36 Curve, 4-pack",
+    "Gauge": "",
+    "Year Produced": "2020",
+    "Variation #": "",
+    "Variation Details": "",
+    "Reference Link": "",
+    "Notes": "",
+    "Est. Market Value": "",
+    "Source": "Greenberg Book",
+    "COTT Code": "",
+    "Original COTT Desc": "",
+    "Stamped Markings": "",
+    "Row ID": "PDKFE25HDS"
+   },
+   "keeper": {
+    "item": "2025020",
+    "rowId": "BMP5J8HH9S",
+    "description": "Lighted FasTrack O36 Curve 4-Pack"
+   },
+   "why": "Book prints 2025020, which has its own row."
+  },
+  {
+   "item": "2024070",
+   "rowId": "TS9FRDWPKZ",
+   "rowHint": 6333,
+   "fullRow": {
+    "Item Number": "2024070",
+    "Item Type": "Accessory",
+    "Sub-Type": "Bridge",
+    "Unit": "",
+    "Powered/Dummy": "",
+    "Control": "",
+    "Road Name": "",
+    "Description": "Merry Christmas FasTrack Girder Bridge",
+    "Gauge": "",
+    "Year Produced": "2020",
+    "Variation #": "",
+    "Variation Details": "",
+    "Reference Link": "",
+    "Notes": "",
+    "Est. Market Value": "",
+    "Source": "Greenberg Book",
+    "COTT Code": "",
+    "Original COTT Desc": "",
+    "Stamped Markings": "",
+    "Row ID": "TS9FRDWPKZ"
+   },
+   "keeper": {
+    "item": "2025050",
+    "rowId": "88AAUDQ25R",
+    "description": "Merry Christmas FasTrack Girder Bridge"
+   },
+   "why": "Book prints 2025050, which has its own row."
+  },
+  {
+   "item": "6-26634",
+   "rowId": "TNS9GRRDAV",
+   "rowHint": 300,
+   "fullRow": {
+    "Item Number": "6-26634",
+    "Item Type": "Flatcar",
+    "Sub-Type": "",
+    "Unit": "",
+    "Powered/Dummy": "",
+    "Control": "",
+    "Road Name": "",
+    "Description": "Cities Service Three-Tier Auto Carrier",
+    "Gauge": "O Gauge",
+    "Year Produced": "2010",
+    "Variation #": "",
+    "Variation Details": "",
+    "Reference Link": "",
+    "Notes": "Catalog: 2010 Volume 1; 2010 Volume 2",
+    "Est. Market Value": "",
+    "Source": "2009-2010 Lionel catalog scrape",
+    "COTT Code": "",
+    "Original COTT Desc": "e and Joe Lumber Car “wice-Around” track ten 0-36 45-degree curves, nine 10” straights, ne termi- ©",
+    "Stamped Markings": "",
+    "Row ID": "TNS9GRRDAV"
+   },
+   "keeper": {
+    "item": "6-26639",
+    "rowId": "HNFFBQMX3K",
+    "description": "Cities Service Three-Tier Auto Carrier"
+   },
+   "why": "From the 2010 catalog scrape (its text is garbled). Lionel has this car only as 6-26639, which has its own row; 6-26634 turns up nowhere else."
+  }
+ ],
+ "order": "cells first (row numbers taken BEFORE any delete), then the deletes bottom-up in one batchUpdate",
+ "toPutBack": "Cells: write each old value back (find by Row ID). Rows: insert each fullRow back (every column, same Row ID) next to its keeper."
+}
