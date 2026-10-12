@@ -2129,6 +2129,8 @@ function _ensureEnabledErasLoaded() {
     REAL_ERA_IDS.forEach(function(e) {
       if (typeof _isEraEnabled === 'function' && _isEraEnabled(e)) _ensureEraLoaded(e);
     });
+    // v0.9.1934: a newly ticked line's dual-scale sibling comes too
+    Object.keys(_dualSiblingWants()).forEach(function (e) { _ensureEraLoaded(e); });
   } catch (e) {}
 }
 // v0.9.1909: after "What I collect" is saved from Preferences — load any line
@@ -2183,13 +2185,68 @@ function _isLoadableEra(e) {
   if (typeof REAL_ERA_IDS === 'undefined' || REAL_ERA_IDS.indexOf(e) < 0) return false;
   return !(typeof LOOKUP_ONLY_ERAS !== 'undefined' && LOOKUP_ONLY_ERAS.indexOf(e) >= 0);
 }
-// The eras loaded for display = ticked ∪ owned. ONE place decides it.
+// The eras loaded for display = ticked ∪ owned ∪ the dual-scale siblings of
+// a ticked line (v0.9.1934 — trimmed to their dual-scale rows on arrival,
+// rrDualScaleTrim). ONE place decides it.
 function _erasToLoad(allEras) {
   var owned = _ownedEraKeys();
+  var sib = _dualSiblingWants();
   return (allEras || []).filter(function (e) {
-    return (typeof _isEraEnabled === 'function' && _isEraEnabled(e)) || owned.indexOf(e) >= 0;
+    return (typeof _isEraEnabled === 'function' && _isEraEnabled(e)) || owned.indexOf(e) >= 0
+      || Object.prototype.hasOwnProperty.call(sib, e);
   });
 }
+// ── v0.9.1934 — DUAL-SCALE ROWS FOLLOW EITHER LINE ─────────────────────────
+// { siblingEra: [scales wanted from it] } for every sibling (config.js
+// RR_DUAL_SCALE_SIBLINGS) of a line the member collects, when the sibling is
+// not itself collected. Kato HO ticked, Kato N not → { kato_n: ['ho'] }.
+function _dualSiblingWants() {
+  var out = {};
+  try {
+    if (typeof RR_DUAL_SCALE_SIBLINGS === 'undefined' || typeof _isEraEnabled !== 'function') return out;
+    Object.keys(RR_DUAL_SCALE_SIBLINGS).forEach(function (e) {
+      if (!_isEraEnabled(e)) return;
+      var sc = _scaleOfEra(e);
+      if (!sc) return;
+      (RR_DUAL_SCALE_SIBLINGS[e] || []).forEach(function (s) {
+        if (_isEraEnabled(s)) return;
+        (out[s] = out[s] || []);
+        if (out[s].indexOf(sc) < 0) out[s].push(sc);
+      });
+    });
+  } catch (e) {}
+  return out;
+}
+// Is this catalog row on the shelf only because its own gauge names a scale
+// the member collects on its sibling line? (a Kato N "N/HO" row for a Kato HO
+// collector who does not collect Kato N)
+function rrDualScaleWanted(row, wants) {
+  if (!row || !row._era) return false;
+  var w = (wants || _dualSiblingWants())[row._era];
+  if (!w || !w.length) return false;
+  var gs = _scalesOfGauge(row.gauge);
+  for (var i = 0; i < w.length; i++) if (gs.indexOf(w[i]) >= 0) return true;
+  return false;
+}
+// A sibling loaded ONLY for its dual-scale rows keeps only those rows (an era
+// the member owns something in keeps every row, as before — owned rows must
+// resolve). Called where every catalog change passes (_rebuildMasterIndex).
+function rrDualScaleTrim(rows) {
+  var wants = _dualSiblingWants();
+  var eras = Object.keys(wants);
+  if (!eras.length || !Array.isArray(rows)) return rows;
+  var owned = _ownedEraKeys();
+  var only = eras.filter(function (e) { return owned.indexOf(e) < 0; });
+  if (!only.length) return rows;
+  var out = [], dropped = 0;
+  for (var i = 0; i < rows.length; i++) {
+    var r = rows[i];
+    if (r && r._era && only.indexOf(r._era) >= 0 && !rrDualScaleWanted(r, wants)) { dropped++; continue; }
+    out.push(r);
+  }
+  return dropped ? out : rows;
+}
+if (typeof window !== 'undefined') { window._dualSiblingWants = _dualSiblingWants; window.rrDualScaleWanted = rrDualScaleWanted; window.rrDualScaleTrim = rrDualScaleTrim; }
 // …and the other half: an era loaded ONLY because something is owned in it
 // stays OFF the browse shelf. Browse asks this; nothing else needs to.
 function _offShelfEras() {

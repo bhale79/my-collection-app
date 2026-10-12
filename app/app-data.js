@@ -804,7 +804,8 @@ function _rebuildMasterIndex() {
   const im = new Map();                  // v0.9.985 (perf): master row -> its index
   // v0.9.1884: the one check that a maker is never in the list twice.
   const rows0 = state.masterData || [];
-  const rows = rrDropDoubledCatalogRows(rows0);
+  // v0.9.1934: a sibling loaded only for its dual-scale rows keeps just those (app.js)
+  const rows = rrDropDoubledCatalogRows(typeof rrDualScaleTrim === 'function' ? rrDualScaleTrim(rows0) : rows0);
   if (rows !== rows0) state.masterData = rows;
   for (let i = 0; i < rows.length; i++) {
     const r = rows[i];

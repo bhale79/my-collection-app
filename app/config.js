@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.1933';
+const APP_VERSION = 'v0.9.1934';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -1750,6 +1750,14 @@ const REAL_ERA_IDS = ['pw', 'mpc', 'mod_ho', 'mod_s', 'af_gilbert', 'am_s', 'she
 // wants 30,000 screws in browse.
 const LOOKUP_ONLY_ERAS = ['lionel_parts', 'mth_parts', 'traintender_parts', 'lionelstore_parts', 'atlas_parts'];   // v0.9.1750: + MTH; v0.9.1755: + Train Tender; v0.9.1756: + Lionel's store; v0.9.1802: + Atlas
 if (typeof window !== 'undefined') window.LOOKUP_ONLY_ERAS = LOOKUP_ONLY_ERAS;
+// v0.9.1934 — DUAL-SCALE ROWS FOLLOW EITHER LINE (Brad: "yes" — keep ONE row,
+// show it to both). Kato sells power packs, turnout switches, cords and
+// UniJoiners for N and HO track; they live ONCE, on the Kato N tab, Gauge
+// "N/HO". Collecting the line on the LEFT also brings in the rows of the tab
+// on the RIGHT whose own gauge includes the left line's scale — and only
+// those rows (app.js rrDualScaleWanted / rrDualScaleTrim). One entry per pair.
+const RR_DUAL_SCALE_SIBLINGS = { kato_ho: ['kato_n'], kato_n: ['kato_ho'] };
+if (typeof window !== 'undefined') window.RR_DUAL_SCALE_SIBLINGS = RR_DUAL_SCALE_SIBLINGS;
 
 // ── Master sheet tab names per era ──
 // Session 154: scale per era — drives the want-list Scale filter (master

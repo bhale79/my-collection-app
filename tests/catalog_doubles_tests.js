@@ -70,7 +70,8 @@ section('B — _rebuildMasterIndex runs the check');
   const clean = state.masterData;
   rebuild();
   ok('B3  a clean list is left as the same array (the index map keys the row objects)', state.masterData === clean);
-  ok('B4  the guard sits in the reindex, before the index loop', /const rows0 = state\.masterData \|\| \[\];\s*const rows = rrDropDoubledCatalogRows\(rows0\);\s*if \(rows !== rows0\) state\.masterData = rows;/.test(grab(AD, 'function _rebuildMasterIndex()')));
+  // v0.9.1934: the dual-scale trim (app.js) may run inside the same call
+  ok('B4  the guard sits in the reindex, before the index loop', /const rows0 = state\.masterData \|\| \[\];\s*(\/\/[^\n]*\n\s*)?const rows = rrDropDoubledCatalogRows\((typeof rrDualScaleTrim === 'function' \? rrDualScaleTrim\(rows0\) : rows0|rows0)\);\s*if \(rows !== rows0\) state\.masterData = rows;/.test(grab(AD, 'function _rebuildMasterIndex()')));
   ok('B5  the holding pen and the on-demand load still reindex after every change (the guard rides on that)',
     /state\.masterData = \(state\.masterData \|\| \[\]\)\.filter\(function \(m\) \{ return !drop\.has\(m\._era\); \}\)\.concat\(incoming\);[\s\S]{0,900}_rebuildMasterIndex\(\);/.test(AJ)
     && /state\.masterData = \(state\.masterData \|\| \[\]\)\.concat\(arr\);\s*if \(typeof _rebuildMasterIndex === 'function'\) _rebuildMasterIndex\(\);/.test(AJ));
@@ -85,7 +86,8 @@ function plantedPen() {
 }
 function plantedNoGuard() {
   const s = AD;
-  const out = s.replace('const rows = rrDropDoubledCatalogRows(rows0);', 'const rows = rows0;');
+  // v0.9.1934: the dual-scale trim runs inside the same line (app.js rrDualScaleTrim)
+  const out = s.replace("const rows = rrDropDoubledCatalogRows(typeof rrDualScaleTrim === 'function' ? rrDualScaleTrim(rows0) : rows0);", 'const rows = rows0;');
   if (out === s) throw new Error('planted app-data.js: the guard line moved; update this test');
   return out;
 }

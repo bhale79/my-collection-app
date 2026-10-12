@@ -4302,9 +4302,10 @@ function _rrBrowseCore(_co) {
     if (_bvAdopt) _bvAdopt.forEach(function (a) { if (a && a.row) _ownedCandidates.add(a.row); });
   }
   const _offShelf = (!owned && typeof _offShelfEras === 'function') ? _offShelfEras() : new Set();
+  const _dualWants = (typeof _dualSiblingWants === 'function') ? _dualSiblingWants() : {};   // v0.9.1934
   const baseList = owned ? [...state.masterData, ...personalOnlyItems]
     : (_currentEra === 'all'
-        ? state.masterData.filter(function(m) { return ((m._tab && _allItemTabs.indexOf(m._tab) >= 0) || !m._tab) && !(m._era && _offShelf.has(m._era)); })
+        ? state.masterData.filter(function(m) { return ((m._tab && _allItemTabs.indexOf(m._tab) >= 0) || !m._tab) && !(m._era && _offShelf.has(m._era) && !(typeof rrDualScaleWanted === 'function' && rrDualScaleWanted(m, _dualWants))); })   // v0.9.1934: a sibling's dual-scale row is on the shelf
         : state.masterData.filter(function(m) { return m._tab === SHEET_TABS.items || !m._tab; }));
 
   // v0.9.985 (perf): ONE pass over the Sold list up front, instead of re-

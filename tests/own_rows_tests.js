@@ -63,6 +63,7 @@ const app = read('app.js'), dat = read('app-data.js');
   eval(app.match(/var RR_OWNED_ERAS_KEY = '[^']+';/)[0]);
   eval(grab(app, '_isLoadableEra'));
   eval(grab(app, '_ownedEraKeys'));
+  eval(grab(app, '_dualSiblingWants'));   // v0.9.1934: _erasToLoad asks it (no Kato line here → {})
   eval(grab(app, '_erasToLoad'));
   eval(grab(app, '_offShelfEras'));
   T('owned eras = pw + mpc only', _ownedEraKeys().join(','), 'mpc,pw');
