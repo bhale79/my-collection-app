@@ -214,6 +214,9 @@ FILES.forEach(function (f) {
     // has no markup by definition. Its own assertion below is that it
     // delegates to the guard and closes nothing.
     if (f === 'config.js' && /bindOverlayClose/.test(body)) return;
+    // v0.9.1932: "Which account?" has no Cancel ON PURPOSE — there is no third
+    // answer; its two buttons ("Use <new>" / "Go back to <old>") are the ways out.
+    if (f === 'app-auth.js' && /rr-account-hold/.test(body) && /data-acct="use"/.test(body) && /data-acct="back"/.test(body)) return;
     if (!WAYS.test(resolveCopy(decode(body), src))) trapped.push(f + ':' + (i + 1));
   });
 });
@@ -232,7 +235,8 @@ ok('every guarded overlay offers Cancel / Done / Close / ✕', trapped.length ==
 // v0.9.1897: 43 — the Lionel Service Manual viewer (maint-sm-viewer, maintenance.js).
 // v0.9.1898: 44 — the Parts diagrams pop-up beside Need-a-part (maint-diagrams-pop, maintenance.js).
 // v0.9.1930: 45 — "Add a picture first" asks where the picture is (wiz-picfirst-choose, wizard.js).
-ok('45 guarded call sites, and ONE helper behind them', sites === 45, String(sites));
+// v0.9.1932: 46 — "Which account?" (rr-account-hold, app-auth.js).
+ok('46 guarded call sites, and ONE helper behind them', sites === 46, String(sites));
 
 // nobody double-wires BackStack any more — the guard does it, once
 let dbl = 0;

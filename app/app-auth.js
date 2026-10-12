@@ -682,6 +682,125 @@ function _rrPullAccountPrefs() {
   } catch (e) { console.warn('prefs sync:', e); }
 }
 
+// ── v0.9.1932 — THE ACCOUNT CHECK ────────────────────────────────────────
+// Brad (2026-10-11): "i signed in using support@ on both my chrome users pages
+// … both dashboards say collector, but the first one uses my bhale collection,
+// the second one uses the support collection". The app remembered WHO used
+// this browser (lv_user) but never asked whose pass Google had just handed
+// back — renewals carry only a login_hint, and Google answers with whichever
+// account that browser is signed into. So one account's pass ran under the
+// other account's name, settings and saved sheet.
+// Now every pass is checked against lv_user BEFORE it is used. A match (or no
+// way to tell — offline) carries on as before. A different account stops
+// everything — nothing loads, nothing saves, no renewal windows — and asks one
+// question: "Use <new>" or "Go back to <old>".
+var _rrPassOwners = {};        // pass fingerprint -> { email, name } ('' = could not tell)
+var _rrAccountHold = null;     // { was, now, nowName, resp } while the question is up
+function _rrPassFp(tok) { return String(tok || '').slice(-32); }
+function _rrAccountWas() {
+  try { return String((state && state.user && state.user.email) || '').trim().toLowerCase(); } catch (e) { return ''; }
+}
+// true = use this pass now; false = it will come back here (lookup) or is held
+function _rrAccountGate(resp) {
+  var was = _rrAccountWas();
+  if (!was || !resp || !resp.access_token) return true;     // first sign-in: whoever it is, is the account
+  var fp = _rrPassFp(resp.access_token);
+  if (resp.email && !_rrPassOwners[fp]) _rrPassOwners[fp] = { email: String(resp.email).trim().toLowerCase(), name: '' };
+  var hit = _rrPassOwners[fp];
+  // a pass already checked on an earlier start needs no second lookup (a
+  // returning start restores its saved pass — no wait, works offline)
+  if (!hit) { try { var sv = JSON.parse(localStorage.getItem(RR_TOKEN_OWNER_KEY) || 'null'); if (sv && sv.fp === fp && sv.email) hit = _rrPassOwners[fp] = { email: sv.email, name: '' }; } catch (e) {} }
+  if (!hit) {
+    if (typeof fetch !== 'function') return true;
+    fetch('https://www.googleapis.com/oauth2/v3/userinfo', { headers: { Authorization: 'Bearer ' + resp.access_token } })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (info) { _rrPassOwners[fp] = { email: String((info && info.email) || '').trim().toLowerCase(), name: (info && (info.given_name || info.name)) || '' }; })
+      .catch(function () { _rrPassOwners[fp] = { email: '', name: '' }; })
+      .then(function () { onTokenReceived(resp); });
+    return false;
+  }
+  if (!hit.email) return true;                               // no way to tell (offline): as before
+  if (hit.email === was) {
+    try { localStorage.setItem(RR_TOKEN_OWNER_KEY, JSON.stringify({ fp: fp, email: hit.email })); } catch (e) {}
+    return true;
+  }
+  _rrAccountMismatch(was, hit, resp);
+  return false;
+}
+function _rrAccountMismatch(was, hit, resp) {
+  _rrAccountHold = { was: was, now: hit.email, nowName: hit.name || '', resp: resp };
+  _rrTokenRenewing = false;
+  if (window._tokenRefreshTimer) { clearTimeout(window._tokenRefreshTimer); window._tokenRefreshTimer = null; }
+  _rrAuthLog('ACCOUNT CHECK: the pass is ' + hit.email + ', this browser was used by ' + was + ' — held, asking');
+  try { if (typeof _hideSignInOverlayWhenAppReady === 'function') _hideSignInOverlayWhenAppReady(); } catch (e) {}
+  _rrAccountHoldShow();
+}
+function _rrAccountHoldShow() {
+  var h = _rrAccountHold;
+  if (!h) return;
+  var old = document.getElementById('rr-account-hold');
+  if (old) old.remove();
+  var esc = function (s) { return String(s || '').replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); };
+  var ov = document.createElement('div');
+  ov.id = 'rr-account-hold';
+  ov.className = 'rr-account-hold';
+  ov.innerHTML =
+    '<div class="rr-account-card" role="dialog" aria-labelledby="rr-account-title">' +
+      '<div class="rr-account-title" id="rr-account-title">' + RR_ACCOUNT_CHECK.title + '</div>' +
+      '<div class="rr-account-text">' + RR_ACCOUNT_CHECK.text.replace('{was}', '<b>' + esc(h.was) + '</b>').replace('{now}', '<b>' + esc(h.now) + '</b>') + '</div>' +
+      '<button type="button" class="rr-account-use" data-acct="use">' + RR_ACCOUNT_CHECK.use.replace('{now}', esc(h.now)) + '</button>' +
+      '<div class="rr-account-note">' + RR_ACCOUNT_CHECK.useNote.replace('{was}', esc(h.was)) + '</div>' +
+      '<button type="button" class="rr-account-back" data-acct="back">' + RR_ACCOUNT_CHECK.back.replace('{was}', esc(h.was)) + '</button>' +
+    '</div>';
+  // Back must not close it: there is no third answer.
+  if (typeof window.rrDismissGuard === 'function') window.rrDismissGuard(ov, function () {});
+  document.body.appendChild(ov);
+  ov.querySelector('[data-acct="use"]').onclick = function () { _rrAccountUseNew(); };
+  ov.querySelector('[data-acct="back"]').onclick = function () { _rrAccountGoBack(); };
+}
+// "Use <new>": this browser changes hands, exactly as signing out and in would
+// — the old account's local copies are cleared (its data is safe in its own
+// Google account), the new pass is kept, and the app starts again as <new>.
+async function _rrAccountUseNew() {
+  var h = _rrAccountHold;
+  if (!h) return;
+  try {
+    var pending = (typeof rrOutboxCount === 'function') ? rrOutboxCount() : 0;
+    if (pending > 0) {
+      var go = await appConfirm(RR_ACCOUNT_CHECK.pending.replace('{n}', String(pending)).replace('{was}', h.was),
+        { title: RR_ACCOUNT_CHECK.pendingTitle, ok: RR_ACCOUNT_CHECK.pendingOk, cancel: RR_ACCOUNT_CHECK.pendingCancel, danger: true });
+      if (!go) return;
+    }
+    if (typeof rrClearAccountStorage === 'function') rrClearAccountStorage();
+    localStorage.setItem('lv_user', JSON.stringify({ name: h.nowName || '', email: h.now }));
+    localStorage.setItem('lv_token', h.resp.access_token);
+    localStorage.setItem('lv_token_expiry', String(Date.now() + 55 * 60 * 1000));
+    localStorage.setItem(RR_TOKEN_OWNER_KEY, JSON.stringify({ fp: _rrPassFp(h.resp.access_token), email: h.now }));
+    _rrAuthLog('ACCOUNT CHECK: switched this browser to ' + h.now);
+  } catch (e) { console.warn('[Auth] account switch:', e); }
+  location.reload();
+}
+// "Go back to <old>": drop the other account's pass and ask for <old>'s —
+// through the same door as every renewal, so a linked device gets it from the
+// relay with no window; otherwise Google's account chooser opens on <old>.
+function _rrAccountGoBack() {
+  var h = _rrAccountHold;
+  if (!h) return;
+  _rrAccountHold = null;
+  try { delete _rrPassOwners[_rrPassFp(h.resp.access_token)]; } catch (e) {}
+  try { var ov = document.getElementById('rr-account-hold'); if (ov) ov.remove(); } catch (e) {}
+  _rrAuthLog('ACCOUNT CHECK: going back to ' + h.was);
+  try { tokenClient.requestAccessToken({ prompt: 'select_account', login_hint: h.was }); }
+  catch (e) { _rrAuthLog('account check: request threw ' + (e && e.message)); }
+}
+if (typeof window !== 'undefined') {
+  window._rrAccountGate = _rrAccountGate;
+  window._rrAccountUseNew = _rrAccountUseNew;
+  window._rrAccountGoBack = _rrAccountGoBack;
+  window._rrAccountHoldNow = function () { return _rrAccountHold; };
+  window._rrPassOwnersReset = function () { _rrPassOwners = {}; };   // tests: a fresh start's empty memory
+}
+
 function onTokenReceived(resp) {
   // Bugfix 2026-04-14: only clear the sign-in overlay on ERROR path.
   // On SUCCESS path, leave the overlay up until showApp() runs — otherwise
@@ -713,6 +832,10 @@ function onTokenReceived(resp) {
     }
     return;
   }
+
+  // v0.9.1932 — THE ACCOUNT CHECK. A pass is only taken if it belongs to the
+  // account this browser was last used by (see _rrAccountGate below).
+  if (!_rrAccountGate(resp)) return;
 
   const isInitial = _tokenIsInitial;
   _tokenIsInitial = false; // all subsequent tokens are background refreshes
@@ -1005,7 +1128,8 @@ function _rrQuietBackOff(out) {
 // it in their own callback — a hard-coded onTokenReceived here would strand
 // them until their timeouts said "session expired".
 function _rrQuietPass(out, real) {
-  var resp = { access_token: out.access_token, expires_in: out.expires_in, scope: out.scope || '' };
+  // v0.9.1932: the relay says whose pass it is — the account check needs no lookup
+  var resp = { access_token: out.access_token, expires_in: out.expires_in, scope: out.scope || '', email: out.email || '' };
   var cb = (real && typeof real.callback === 'function') ? real.callback
          : (typeof onTokenReceived === 'function' ? onTokenReceived : null);
   if (cb) cb(resp);
@@ -1137,6 +1261,7 @@ if (typeof window !== 'undefined') {
 function rrEnsureFreshToken(reason) {
   try {
     if (!state || !state.user) return;
+    if (_rrAccountHold) return;   // v0.9.1932: waiting on "which account?" — no renewal windows meanwhile
     if (_rrTokenHealthy() || _rrTokenRenewing) return;
     _rrTokenRenewing = true;
     var hint = (state.user && state.user.email) || '';

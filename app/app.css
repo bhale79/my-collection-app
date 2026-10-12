@@ -3010,3 +3010,23 @@ html[data-theme="high-contrast"] button[style*="#e74c3c"], html[data-theme="high
 .wiz-picfirst-card button.wiz-picfirst-cancel { text-align: center; color: var(--text-dim); font-weight: 500; }
 .wiz-picfirst-status { font-size: 0.82rem; color: var(--text-mid); line-height: 1.45; }
 .wiz-picfirst-status a { color: var(--t-link); font-weight: 700; }
+
+/* v0.9.1932 — "Which account?" (app-auth.js _rrAccountHoldShow). Above
+   everything, nothing behind it is reachable. Theme variables only. */
+.rr-account-hold {
+  position: fixed; inset: 0; z-index: 100000; display: flex; align-items: center;
+  justify-content: center; padding: 1rem; background: color-mix(in srgb, var(--bg) 88%, transparent);
+}
+.rr-account-card {
+  width: 100%; max-width: 440px; display: flex; flex-direction: column; gap: 0.7rem;
+  padding: 1.3rem; border-radius: 16px; border: 1px solid var(--border); background: var(--surface); color: var(--text);
+}
+.rr-account-title { font-family: var(--font-head); font-size: 1.25rem; font-weight: 700; }
+.rr-account-text { font-size: 0.92rem; line-height: 1.5; color: var(--text-mid); word-break: break-word; }
+.rr-account-card button {
+  padding: 0.8rem; border-radius: 10px; cursor: pointer; font-family: var(--font-body);
+  font-size: 0.95rem; font-weight: 700; word-break: break-word;
+}
+.rr-account-use { border: none; background: var(--accent); color: var(--on-accent); }
+.rr-account-back { border: 1.5px solid var(--border); background: var(--surface2); color: var(--text); }
+.rr-account-note { font-size: 0.78rem; line-height: 1.45; color: var(--text-dim); margin-top: -0.3rem; }

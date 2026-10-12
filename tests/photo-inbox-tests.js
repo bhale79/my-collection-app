@@ -19510,8 +19510,11 @@ META_WRITES.length = 0; TOASTS.length = 0;
       // v0.9.1838 (N5): 18 → 17. _pinVendorSearchURL — a site:-narrowed query
       // builder nothing called — was deleted rather than routed through the
       // shared brand rules (tests/query_builders_tests.js holds its tombstone).
-      ok('273 the unreachable-handler list is the known 17',
-         r.dead.length === 17,
+      // v0.9.1932: 17 → 19. _rrAccountHoldNow and _rrPassOwnersReset are the
+      // account check's read-out and reset for tests/account_check_tests.js —
+      // nothing on screen calls them, by design.
+      ok('273 the unreachable-handler list is the known 19',
+         r.dead.length === 19,
          r.dead.length + ': ' + r.dead.map(d => d.name).join(','));
       // None of them can be breaking a visible button, by construction: if any
       // onclick named them they would not be in this list at all.
@@ -22957,7 +22960,9 @@ META_WRITES.length = 0; TOASTS.length = 0;
       // real.requestAccessToken( calls — its pass-throughs to Google's window,
       // one per request, never an extra ask. The eight callers are unchanged.
       ok('324 instrumentation only — the keeper asks Google exactly as often as v1619 did',
-         (au24.match(/requestAccessToken\(/g) || []).length - (au24.match(/real\.requestAccessToken\(/g) || []).length === 8
+         // v0.9.1932: 8 → 9 — "Go back to <old>" on the account check asks for the
+         // old account's pass, once, from the person's own click.
+         (au24.match(/requestAccessToken\(/g) || []).length - (au24.match(/real\.requestAccessToken\(/g) || []).length === 9
          && (au24.match(/real\.requestAccessToken\(/g) || []).length === 2, '');
     })();
 

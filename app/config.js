@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.1931';
+const APP_VERSION = 'v0.9.1932';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -2955,4 +2955,21 @@ const RR_PIC_FIRST = {
   gpFetching: 'Fetching the photo\u2026',
   sideMinWidth: 980,     // the window must be at least this wide for the side view
   sideWidthPx: 300,      // the side view's width
+};
+
+// v0.9.1932 — THE ACCOUNT CHECK (app-auth.js _rrAccountGate). Brad: signing in
+// to support@ in a browser bhale@ used ran one account's pass under the other's
+// name, settings and sheet. Every pass is now checked against the account this
+// browser was last used by; a different one stops and asks. Its words, in one place.
+const RR_TOKEN_OWNER_KEY = 'lv_token_owner';   // { fp, email } — whose the saved pass is, once checked
+const RR_ACCOUNT_CHECK = {
+  title: 'Which account?',
+  text: 'This browser was last used by {was}, but Google just signed you in as {now}. Nothing has been loaded or saved while you choose.',
+  use: 'Use {now}',
+  useNote: 'Switches this browser over: that account\u2019s own collection and settings load. {was}\u2019s collection stays safe in its own Google account.',
+  back: 'Go back to {was}',
+  pending: '{n} change(s) for {was} have not saved to its sheet yet. Switching accounts will discard them.',
+  pendingTitle: 'Switch anyway?',
+  pendingOk: 'Switch',
+  pendingCancel: 'Stay',
 };
