@@ -82,7 +82,9 @@ T('B3  "Std Gauge" is Standard', g1('Std Gauge', ['standard']));
 T('B4  "Gauge 1", every "1:xx / 45 mm" (the adjustable ones too), "Large – Runs on 45mm Track", "G scale 1:29 (AML)" are G',
   ['Gauge 1', '1:20.3 / 45 mm', '1:32 / 45 mm', '1:29 / 45 mm', '1:19 / 45 mm', '1:24 / 45 mm', '1:13.7 / 45 mm', '1:19 / 45 or 32 mm', '1:19 / 45/32 mm', '1:19 / 45 (32) mm Adjustable', 'Large – Runs on 45mm Track', 'G scale 1:29 (AML)'].every(w => g1(w, ['g'])));
 T('B5  Bachmann\'s HOn30 sentence is HOn30', g1('Narrow Gauge HO Scale that runs on N Gauge (9mm) Track', ['hon30']));
-T('B6  LEFT UNKNOWN on purpose: 3¼", Toy, Multi-Scale, Suitable For Any Scale, N/HO', ['3¼"', 'Toy', 'Multi-Scale', 'Suitable For Any Scale', 'N/HO'].every(w => G(w).length === 0));
+T('B6  LEFT UNKNOWN on purpose: 3¼", Toy, Multi-Scale, Suitable For Any Scale', ['3¼"', 'Toy', 'Multi-Scale', 'Suitable For Any Scale'].every(w => G(w).length === 0));
+// v0.9.1933 (Brad: "yes"): Kato's N/HO pieces are BOTH, like Standard & O.
+T('B6b "N/HO" (and "N & HO", "HO/N") is N and HO', ['N/HO', 'N & HO', 'n and ho', 'HO/N', 'N Scale / HO Scale'].every(w => g1(w, ['n', 'ho'])) && G('NHO').length === 0 && G('N/H').length === 0);
 T('B7  the spellings that always worked still do', g1('O Gauge', ['o']) && g1('Standard', ['standard']) && g1('HO', ['ho']) && g1('S Gauge', ['s']) && g1('G', ['g']) && g1('N', ['n']) && g1('Z', ['z']) && g1('Standard & O', ['standard', 'o']) && g1('2-7/8', ['standard']) && g1('OO', ['standard']) && g1('', []));
 
 // ── C ────────────────────────────────────────────────────────────────────

@@ -2273,7 +2273,12 @@ function _scalesOfGauge(gauge) {
   // (Accucraft, AML) and Bachmann's "Large – Runs on 45mm Track" are G, the
   // 45 mm track; Bachmann's "Narrow Gauge HO Scale that runs on N Gauge
   // (9mm) Track" is HOn30. Left unknown on purpose: "3¼\"" (T-Reproductions'
-  // Buddy L track is no scale the app has), "Toy", "Multi-Scale", "N/HO".
+  // Buddy L track is no scale the app has), "Toy", "Multi-Scale".
+  // v0.9.1933 (Brad: "yes"): Kato's "N/HO" — power packs, turnout switches,
+  // cords and UniJoiners sold for both N and HO track — is BOTH, exactly as
+  // "Standard & O" is, so those items show under the N and the HO browse.
+  if (/^n(\s*(scale|gauge))?\s*(\/|&|and|\+)\s*ho(\s*(scale|gauge))?$/.test(g)
+      || /^ho(\s*(scale|gauge))?\s*(\/|&|and|\+)\s*n(\s*(scale|gauge))?$/.test(g)) return ['n', 'ho'];
   if (g === 'standard o' || g === 'super o' || g === 'super o gauge' || g === '027 gauge' || g === 'o27 gauge' || g === 'o-27 gauge') return ['o'];
   if (g === 'std gauge') return ['standard'];
   if (g === 'ho 1:87' || g === 'ho scale 1:87') return ['ho'];
@@ -2300,14 +2305,24 @@ function _scalesOfItem(item) {
   if (!item) return [];
   var era = _itemEraKey ? _itemEraKey(item) : ((item._era || item.era || '').toLowerCase());
   var eraScale = _scaleOfEra(era);
-  if (eraScale) return [eraScale];
-  return _scalesOfGauge(item.gauge);
+  var gs = _scalesOfGauge(item.gauge);
+  // v0.9.1933: a row whose own gauge names TWO scales, one of them its tab's,
+  // carries both (a Kato N row marked "N/HO" also shows under HO). Never
+  // narrower than the tab; never a scale the tab's gauge does not include.
+  if (eraScale) return (gs.length > 1 && gs.indexOf(eraScale) >= 0) ? gs : [eraScale];
+  return gs;
 }
 // Item -> ONE scale id. Uses _scaleOfEra first; falls back to the gauge field
 // for mixed-scale eras like Pre-War. Returns null if unknown OR two-gauge
-// (caller treats null as "don't know one answer").
+// (caller treats null as "don't know one answer"). v0.9.1933: a row on a
+// one-scale tab answers with the tab's scale, as it always did — the second
+// scale of an "N/HO" row widens the browse (_scalesOfItem), not the one answer.
 function _scaleOfItem(item) {
-  var a = _scalesOfItem(item);
+  if (!item) return null;
+  var era = _itemEraKey ? _itemEraKey(item) : ((item._era || item.era || '').toLowerCase());
+  var eraScale = _scaleOfEra(era);
+  if (eraScale) return eraScale;
+  var a = _scalesOfGauge(item.gauge);
   return a.length === 1 ? a[0] : null;
 }
 
