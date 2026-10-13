@@ -96,35 +96,11 @@ async function uploadWizardPhoto(file, stepId, viewKey) {
   // Create blob URL immediately for instant thumbnail display (before Drive upload)
   const blobThumb = URL.createObjectURL(file);
 
-  // Show thumbnail right away in the zone
+  // Show thumbnail right away in the zone — v0.9.1939: through the ONE slot
+  // painter (wizard.js _wizSlotPaint), the same one a redraw uses.
   const zone = document.querySelector(`.photo-drop-zone[data-view="${viewKey}"][data-sid="${stepId}"]`);
-  if (zone) {
-    zone.style.border = '2px dashed var(--accent2)';
-    zone.style.background = 'rgba(201,146,42,0.08)';
-    const img = document.createElement('img');
-    img.src = blobThumb;
-    img.style.cssText = 'width:100%;height:100%;object-fit:cover;position:absolute;inset:0;opacity:0.82';
-    const overlay = document.createElement('div');
-    overlay.style.cssText = 'position:absolute;inset:0;background:rgba(0,0,0,0.25)';
-    const lbl = document.createElement('div');
-    lbl.style.cssText = 'position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,0.65);font-size:0.68rem;color:#fff;padding:2px 3px;text-align:center;font-family:var(--font-head);letter-spacing:0.04em;text-transform:uppercase';
-    // Resolve friendly label from ITEM_VIEWS/BOX_VIEWS
-    const allViews = [...ITEM_VIEWS, ...BOX_VIEWS, ...(typeof ERROR_VIEWS !== 'undefined' ? ERROR_VIEWS : [])];
-    const viewDef = allViews.find(v => v.key === viewKey);
-    const viewLabel = viewDef ? viewDef.label : viewKey;
-    lbl.textContent = viewLabel;
-    zone.innerHTML = '';
-    zone.appendChild(img);
-    zone.appendChild(overlay);
-    zone.appendChild(lbl);
-    // Optional crop affordance (Brad): tap the ✂ to crop, ignore it to keep the
-    // full photo. Adds NO step for users who don't crop.
-    var _cropBtn = document.createElement('button');
-    _cropBtn.type = 'button'; _cropBtn.title = 'Crop photo'; _cropBtn.textContent = '\u2702';
-    _cropBtn.className = 'rr-tap';   // v0.9.1021: 44px tap target on phones
-    _cropBtn.style.cssText = 'position:absolute;top:3px;right:3px;z-index:6;width:26px;height:26px;border-radius:7px;border:none;background:rgba(0,0,0,0.62);color:#fff;font-size:14px;line-height:1;padding:0;cursor:pointer';
-    _cropBtn.onclick = function (e) { e.stopPropagation(); if (typeof _photoCropStart === 'function') _photoCropStart(file, stepId, viewKey, itemNum, blobThumb); };
-    zone.appendChild(_cropBtn);
+  if (zone && typeof window._wizSlotPaint === 'function') {
+    window._wizSlotPaint(zone, stepId, viewKey, { src: blobThumb, file: file, itemNum: itemNum, uploading: true });
     // Re-add progress spinner
     const prog2 = document.createElement('div');
     prog2.id = 'prog-' + stepId + '-' + viewKey;
@@ -182,6 +158,10 @@ async function uploadWizardPhoto(file, stepId, viewKey) {
           // edits that photo and not whichever one Drive lists first.
           if (!wizard.data._photoFileIds) wizard.data._photoFileIds = {};
           wizard.data._photoFileIds[stepId + '|' + viewKey] = up.id;
+          // v0.9.1939: the bytes just uploaded ARE this file — hand them to the
+          // session picture cache, so a redraw (a move, Next → Back) shows the
+          // photo at once by its id instead of going black.
+          try { if (typeof _blobCache !== 'undefined' && up.id && !_blobCache[up.id]) _blobCache[up.id] = blobThumb; } catch (eBC) {}
         });
       // Kept for the name-matching fallback on photos uploaded before ids
       // were recorded — see _photoCropStart.
@@ -195,19 +175,9 @@ async function uploadWizardPhoto(file, stepId, viewKey) {
     // (Armed only after the upload: a swap mid-upload would move nothing and
     // the finishing upload would then write into the slot it left.)
     if (zone && typeof window._wizArmSlotDrag === 'function') window._wizArmSlotDrag(zone, stepId, viewKey, stepId);
-    // Update label to show success, hide spinner
-    if (zone) {
-      const lbl = zone.querySelector('div:last-of-type');
-      const prog3 = document.getElementById('prog-' + stepId + '-' + viewKey);
-      if (prog3) prog3.style.display = 'none';
-      // Find the label div and update to friendly view name
-      const allViews2 = [...ITEM_VIEWS, ...BOX_VIEWS, ...(typeof ERROR_VIEWS !== 'undefined' ? ERROR_VIEWS : [])];
-      const viewDef2 = allViews2.find(v => v.key === viewKey);
-      const viewLabel2 = viewDef2 ? viewDef2.label : viewKey;
-      zone.querySelectorAll('div').forEach(d => {
-        if (d.style.cssText && d.style.cssText.includes('bottom:0')) d.textContent = viewLabel2;
-      });
-    }
+    // Done: the slot is painted as a finished photo (✓, no spinner) by the
+    // same painter a redraw uses (v0.9.1939), still from the copy in hand.
+    if (zone && typeof window._wizSlotPaint === 'function') window._wizSlotPaint(zone, stepId, viewKey, { src: blobThumb, file: file, itemNum: itemNum });
   } catch(e) {
     console.error('Photo upload failed:', e);
     showToast(rrSaveError(e, 'this photo'), 5000, true);

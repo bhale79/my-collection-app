@@ -4676,21 +4676,8 @@ function renderWizardStep() {
       div.onclick = function() { showPhotoSourcePicker(stepId, viewKey); };
 
       if (hasPic) {
-        const img = document.createElement('img');
-        img.loading = 'lazy';
-        img.src = url;
-        img.style.cssText = 'width:100%;height:100%;object-fit:cover;position:absolute;inset:0;opacity:0.82';
-        img.onerror = function() { this.style.display = 'none'; };
-        const overlay = document.createElement('div');
-        overlay.style.cssText = 'position:absolute;inset:0;background:rgba(0,0,0,0.25)';
-        const lbl = document.createElement('div');
-        lbl.style.cssText = 'position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,0.65);'
-          + 'font-size:0.68rem;color:#fff;padding:2px 3px;text-align:center;'
-          + 'font-family:var(--font-head);letter-spacing:0.04em;text-transform:uppercase';
-        lbl.textContent = abbr + ' \u2713';
-        div.appendChild(img);
-        div.appendChild(overlay);
-        div.appendChild(lbl);
+        // v0.9.1939: the ONE painter (never the stored link — that is the Drive folder).
+        _wizSlotPaint(div, stepId, viewKey, { label: label, abbr: abbr });
       } else if (inboxFid || exFid) {
         const img = document.createElement('img');
         img.style.cssText = 'width:100%;height:100%;object-fit:cover;position:absolute;inset:0;opacity:0.82';
@@ -6871,6 +6858,67 @@ function _wizArmSlotDrag(div, stepId, viewKey, stepDataId) {
   });
 }
 if (typeof window !== 'undefined') window._wizArmSlotDrag = _wizArmSlotDrag;
+
+// ── v0.9.1939: WHAT A PHOTO SLOT WITH A PICTURE LOOKS LIKE — one painter ─────
+// Brad (3309-50): "when i moved the photo from right side to front, the picture
+// turned black". A slot was painted two ways: the upload drew the picture from
+// the file in hand (and gave it a ✂ crop button); a REDRAW (every move, every
+// Next → Back) set the <img> to wizard.data[step][view] — which is the Drive
+// FOLDER link (driveUploadItemPhoto returns the folder) — so the picture failed,
+// hid itself, and left the dark overlay; and no ✂. Both now paint through here.
+// The picture: o.src when the caller holds it (the upload's own copy), else the
+// slot's photo by its file id through loadDriveThumb — which answers at once
+// from the session copy the upload left in _blobCache (and, after a crop, the
+// cropped copy rrPhotoBytesChanged put there), else from Drive. A folder link is
+// never used as a picture.
+function _wizSlotPaint(zone, stepId, viewKey, o) {
+  if (!zone) return null;
+  o = o || {};
+  var wd = (typeof wizard !== 'undefined' && wizard && wizard.data) || {};
+  var all = [].concat(typeof ITEM_VIEWS !== 'undefined' ? ITEM_VIEWS : [], typeof BOX_VIEWS !== 'undefined' ? BOX_VIEWS : [], typeof ERROR_VIEWS !== 'undefined' ? ERROR_VIEWS : []);
+  var def = all.filter(function (v) { return v.key === viewKey; })[0] || null;
+  var label = o.label || (def ? def.label : viewKey);
+  var abbr = o.abbr || (def ? (def.abbr || def.label) : viewKey);
+  zone.style.border = '2px dashed var(--accent2)';
+  zone.style.background = 'rgba(201,146,42,0.08)';
+  zone.innerHTML = '';
+  var img = document.createElement('img');
+  img.loading = 'lazy';
+  img.style.cssText = 'width:100%;height:100%;object-fit:cover;position:absolute;inset:0;opacity:0.82';
+  img.onerror = function () { this.style.display = 'none'; };
+  var fid = (wd._photoFileIds || {})[stepId + '|' + viewKey] || '';
+  if (o.src) img.src = o.src;
+  else if (fid && typeof loadDriveThumb === 'function') { try { loadDriveThumb(fid, img, zone, null, 'hi'); } catch (eT) {} }
+  else {
+    var url = (wd[stepId] && wd[stepId][viewKey]) || '';
+    if (url && !/drive\.google\.com\/drive\/folders\//.test(url)) img.src = url;
+  }
+  var overlay = document.createElement('div');
+  overlay.style.cssText = 'position:absolute;inset:0;background:rgba(0,0,0,0.25)';
+  var lbl = document.createElement('div');
+  lbl.setAttribute('data-slot-label', '1');
+  lbl.style.cssText = 'position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,0.65);'
+    + 'font-size:0.68rem;color:#fff;padding:2px 3px;text-align:center;'
+    + 'font-family:var(--font-head);letter-spacing:0.04em;text-transform:uppercase';
+  lbl.textContent = o.uploading ? label : (abbr + ' \u2713');
+  zone.appendChild(img);
+  zone.appendChild(overlay);
+  zone.appendChild(lbl);
+  // Optional crop affordance (Brad): tap the ✂ to crop, ignore it to keep the
+  // full photo. Adds NO step for users who don't crop. On every painted slot,
+  // not only a fresh upload (v0.9.1939).
+  var cropBtn = document.createElement('button');
+  cropBtn.type = 'button'; cropBtn.title = 'Crop photo'; cropBtn.textContent = '\u2702';
+  cropBtn.className = 'rr-tap';   // v0.9.1021: 44px tap target on phones
+  cropBtn.style.cssText = 'position:absolute;top:3px;right:3px;z-index:6;width:26px;height:26px;border-radius:7px;border:none;background:rgba(0,0,0,0.62);color:#fff;font-size:14px;line-height:1;padding:0;cursor:pointer';
+  cropBtn.onclick = function (e) {
+    e.stopPropagation();
+    if (typeof _photoCropStart === 'function') _photoCropStart(o.file || null, stepId, viewKey, o.itemNum || wd.itemNum || '', img.src || '');
+  };
+  zone.appendChild(cropBtn);
+  return img;
+}
+if (typeof window !== 'undefined') window._wizSlotPaint = _wizSlotPaint;
 
 // ── v0.9.1433: trade two photo slots' contents ─────────────────────────────
 // A slot can hold its picture two ways — an uploaded URL in

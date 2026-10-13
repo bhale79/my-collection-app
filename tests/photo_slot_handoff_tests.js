@@ -23,6 +23,13 @@
 //   S1  ONE place arms a drag (wizard.js _wizArmSlotDrag); both callers use it
 //   P1  PLANTED: the old views[0] line → H1 fails (lands in Top View)
 //   P2  PLANTED: the upload without its arm call → D1 fails (cannot drag)
+// v0.9.1939 — Brad: "when i moved the photo from right side to front, the picture
+// turned black". A redraw painted the slot from the stored Drive FOLDER link.
+//   B1  after a move the picture SHOWS in its new slot (not the folder link), with ✂
+//   B2  after a redraw (Next → Back) every uploaded picture still shows, with ✂
+//   B3  ✂ on a redrawn slot crops THAT slot's photo (its own file id)
+//   B4  ONE painter: the redraw and the upload both paint through _wizSlotPaint
+//   P3  PLANTED: the old redraw (img.src = the stored link) → B1 fails (black)
 // ═══════════════════════════════════════════════════════════════════════════
 const fs = require('fs'), path = require('path');
 let chromium;
@@ -97,7 +104,7 @@ async function open(browser, o) {
     if (stub) window.uploadWizardPhoto = async function (f, sid, view) { window.__ups.push({ name: f && f.name, sid, view }); return {}; };
     // Drive stood in for: the real upload code runs, nothing leaves the page
     let n = 0;
-    window.driveUploadItemPhoto = async function (file, itemNum, viewKey, invId, label, onUp) { n++; if (onUp) onUp({ id: 'fid-' + viewKey + '-' + n }); return 'https://drive.example/' + viewKey + '/' + n; };
+    window.driveUploadItemPhoto = async function (file, itemNum, viewKey, invId, label, onUp) { n++; if (onUp) onUp({ id: 'fid-' + viewKey + '-' + n }); return 'https://drive.google.com/drive/folders/FOLDER-' + viewKey; };   // like the real one: the FOLDER, never the photo
     window.driveRequest = async function () { return { name: '3309-50 X.jpg' }; };
     window.__toasts = [];
     const _st = window.showToast; window.showToast = function (m) { window.__toasts.push(String(m)); try { return _st.apply(this, arguments); } catch (e) {} };
@@ -123,6 +130,10 @@ const peek = pg => pg.evaluate(() => ({
   stored: Object.assign({}, wizard.data.photosItem || {}),
   ids: Object.assign({}, wizard.data._photoFileIds || {}),
   drag: Array.from(document.querySelectorAll('.photo-drop-zone[data-sid="photosItem"]')).reduce((o, z) => { o[z.dataset.view] = z.draggable; return o; }, {}),
+  pics: Array.from(document.querySelectorAll('.photo-drop-zone[data-sid="photosItem"]')).filter(z => (wizard.data.photosItem || {})[z.dataset.view]).reduce((o, z) => {
+    const i = z.querySelector('img');
+    o[z.dataset.view] = { shows: !!i && i.style.display !== 'none' && i.complete && i.naturalWidth > 0 && !/\/folders\//.test(i.src), crop: !!z.querySelector('button[title="Crop photo"]'), label: (z.querySelector('[data-slot-label]') || {}).textContent || '' };
+    return o; }, {}),
 }));
 
 (async () => {
@@ -186,6 +197,39 @@ const peek = pg => pg.evaluate(() => ({
       const s = await peek(pg);
       T('D2 a slot drawn with its picture still drags (the shared helper on the drawing path)', s.stored.RSV === 'https://drive.example/old' && !s.stored.TV, s);
       await pg.close(); }
+
+    // B: a moved / redrawn slot shows its picture (v0.9.1939)
+    const bRun = async (o) => {
+      const { pg, errs } = await open(browser, Object.assign({ b64 }, o || {}));
+      await toPhotos(pg);
+      await pg.evaluate(async () => { await uploadWizardPhoto(window.__file('a.jpg'), 'photosItem', 'RSV'); await uploadWizardPhoto(window.__file('b.jpg'), 'photosItem', 'TV'); });
+      await pg.waitForTimeout(400);
+      await pg.dragAndDrop('.photo-drop-zone[data-sid="photosItem"][data-view="RSV"]', '.photo-drop-zone[data-sid="photosItem"][data-view="FV"]');
+      await pg.waitForTimeout(700);
+      const moved = await peek(pg);
+      await pg.evaluate(() => { const st = getSteps(wizard.tab); wizard.step = st.findIndex(s => s.id === 'photosItem') + 1; renderWizardStep(); });
+      await pg.waitForTimeout(300);
+      await pg.evaluate(() => { const st = getSteps(wizard.tab); wizard.step = st.findIndex(s => s.id === 'photosItem'); renderWizardStep(); });
+      await pg.waitForTimeout(900);
+      const back = await peek(pg);
+      const crop = await pg.evaluate(() => { let got = null; window._photoCropStart = function (f, sid, v) { got = { sid, v, fid: (wizard.data._photoFileIds || {})[sid + '|' + v] }; }; const b = document.querySelector('.photo-drop-zone[data-sid="photosItem"][data-view="FV"] button[title="Crop photo"]'); if (b) b.click(); return got; });
+      await pg.close();
+      return { moved, back, crop, errs };
+    };
+    { const r = await bRun();
+      T('B1 after a move the picture SHOWS in its new slot (Front), with its ✂, labelled done', r.moved.pics.FV && r.moved.pics.FV.shows && r.moved.pics.FV.crop && /\u2713/.test(r.moved.pics.FV.label) && !r.moved.stored.RSV, r.moved);
+      T('B2 after Next → Back every uploaded picture still shows, each with its ✂', ['FV', 'TV'].every(v => r.back.pics[v] && r.back.pics[v].shows && r.back.pics[v].crop), r.back);
+      T('B3 ✂ on a redrawn slot crops THAT slot\'s photo (the file that moved there)', r.crop && r.crop.v === 'FV' && r.crop.fid === r.back.ids['photosItem|FV'] && /^fid-RSV-/.test(r.crop.fid), r.crop);
+      T('B1 …no page errors', r.errs.length === 0, r.errs); }
+    { const w = code(WIZ), p = code(WPH);
+      T('B4 ONE painter: the redraw and the upload both paint through _wizSlotPaint; no slot <img> takes the stored link',
+        /if \(hasPic\) \{\s*_wizSlotPaint\(div, stepId, viewKey/.test(w) && (p.match(/window\._wizSlotPaint\(zone, stepId, viewKey/g) || []).length === 2
+        && !/img\.src = url;/.test(w.slice(w.indexOf('function makePhotoSlot'), w.indexOf('function makePhotoSlot') + 9000)) && !/_cropBtn/.test(p)); }
+    { const good = "        _wizSlotPaint(div, stepId, viewKey, { label: label, abbr: abbr });";
+      if (WIZ.split(good).length !== 2) throw new Error('could not plant P3');
+      const old = "        { const img = document.createElement('img'); img.src = url; img.style.cssText = 'width:100%;height:100%;object-fit:cover;position:absolute;inset:0;opacity:0.82'; img.onerror = function() { this.style.display = 'none'; }; div.appendChild(img); const lb = document.createElement('div'); lb.setAttribute('data-slot-label','1'); lb.textContent = abbr + ' \\u2713'; div.appendChild(lb); }";
+      const r = await bRun({ wiz: WIZ.replace(good, old) });
+      T('P3 PLANTED: the old redraw (the stored Drive link as the picture) leaves the moved slot black — B1 would fail', r.moved.pics.FV && !r.moved.pics.FV.shows, r.moved.pics); }
 
     // P1 planted: the old views[0] hand-off
     { const old = "_wizHandOffView(views, stored, wizard.data._inboxSlotMap, s.id)";
