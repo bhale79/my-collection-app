@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.1936';
+const APP_VERSION = 'v0.9.1937';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -2544,9 +2544,29 @@ if (typeof window !== 'undefined') { window.RR_FEATURE_TABS = RR_FEATURE_TABS; w
 // The store is still lv_saved_locations, still an array — a location simply
 // grew a `details` array. Older entries have no `details` key at all and must
 // keep working exactly as they are, so every read defaults it.
+// v0.9.1937 (Brad: set up on one device, the other one was empty): the list
+// follows the ACCOUNT now — read through _prefGet, written ONLY by
+// rrSaveLocations below (through _prefSet), exactly like Sub Types. Two
+// devices that each built a list before this are COMBINED the first time they
+// meet (RR_PREF_UNION, drive.js rrPrefsMerge) — neither list is lost; after
+// that the newest change wins, so a removal sticks.
+var RR_LOCATIONS_KEY = 'lv_saved_locations';
+// The Storage Locations screen's words (prefs.js), in one place (v0.9.1937).
+var RR_LOC_SPOTS = {
+  button: 'Spots inside ({n}) \u25be',
+  buttonNone: '+ Add spots inside',
+  buttonOpen: 'Hide spots \u25b4',
+  buttonTitle: 'The spots inside this place \u2014 totes, shelves, closets',
+  inside: 'The spots inside this place \u2014 totes, shelves, closets. They are offered as Location Detail on any item stored here.',
+  addLabel: 'New spot inside {loc}',
+  intro: 'Add the places you keep your trains \u2014 rooms, buildings, storage units. Use \u201cSpots inside\u201d on a place to add the totes, shelves or closets in it. Both are offered when you add an item, so you stop typing them.',
+  introSpots: 'The spots inside each place \u2014 Downstairs closet, Tote 2. Type one under its place and press Add. A place that isn\u2019t listed yet: add it at the top first.',
+};
+if (typeof window !== 'undefined') window.RR_LOC_SPOTS = RR_LOC_SPOTS;
 window.rrSavedLocations = function () {
   try {
-    var a = JSON.parse(localStorage.getItem('lv_saved_locations') || '[]');
+    var raw = (typeof _prefGet === 'function') ? _prefGet(RR_LOCATIONS_KEY, '[]') : localStorage.getItem(RR_LOCATIONS_KEY);
+    var a = JSON.parse(raw || '[]');
     if (!Array.isArray(a)) return [];
     return a.map(function (l) {
       if (!l || typeof l !== 'object') return { name: String(l || ''), type: '', details: [] };
@@ -2554,6 +2574,50 @@ window.rrSavedLocations = function () {
     }).filter(function (l) { return l.name; });
   } catch (e) { return []; }
 };
+// THE writer (v0.9.1937). Takes the list as the screens hold it, keeps
+// name / type / details, drops blank names, and stores it through _prefSet so
+// the change follows the account.
+window.rrSaveLocations = function (arr) {
+  var out = (Array.isArray(arr) ? arr : []).map(function (l) {
+    if (!l || typeof l !== 'object') l = { name: String(l == null ? '' : l) };
+    return { name: String(l.name || '').trim(), type: l.type || '', details: Array.isArray(l.details) ? l.details.slice() : [] };
+  }).filter(function (l) { return l.name; });
+  var v = JSON.stringify(out);
+  if (typeof _prefSet === 'function') _prefSet(RR_LOCATIONS_KEY, v); else localStorage.setItem(RR_LOCATIONS_KEY, v);
+  return out;
+};
+// Two saved lists COMBINED (v0.9.1937) — used once, the first time a device's
+// own list meets the account's (rrPrefsMerge). Locations match by name and
+// spots inside by name, ignoring case and stray spaces; the account's order
+// first, then whatever only this device had. Takes and returns the stored
+// JSON text. Anything unreadable on one side: the other side's text.
+window.rrLocationsUnion = function (accountText, deviceText) {
+  var rd = function (t) { try { var a = JSON.parse(t || '[]'); return Array.isArray(a) ? a : null; } catch (e) { return null; } };
+  var A = rd(accountText), D = rd(deviceText);
+  if (!A) return D ? String(deviceText) : String(accountText || '[]');
+  if (!D) return String(accountText);
+  var key = function (x) { return String(x == null ? '' : x).trim().toLowerCase(); };
+  var out = [], byName = {};
+  A.concat(D).forEach(function (l) {
+    if (!l || typeof l !== 'object') l = { name: String(l == null ? '' : l) };
+    var n = String(l.name || '').trim(); if (!n) return;
+    var dets = Array.isArray(l.details) ? l.details : [];
+    var have = byName[key(n)];
+    if (!have) {
+      have = { name: n, type: l.type || '', details: [] };
+      byName[key(n)] = have; out.push(have);
+    } else if (!have.type && l.type) have.type = l.type;
+    dets.forEach(function (d) {
+      if (String(d == null ? '' : d).trim() === '') return;
+      if (!have.details.some(function (x) { return key(x) === key(d); })) have.details.push(d);
+    });
+  });
+  return JSON.stringify(out);
+};
+// The keys whose two device lists are COMBINED on first meeting instead of the
+// newer one replacing the other (drive.js rrPrefsMerge / _prefsLocalState).
+// ONE list; a key joins by being named here with its combiner.
+window.RR_PREF_UNION = { lv_saved_locations: function (a, d) { return window.rrLocationsUnion(a, d); } };
 // The details belonging to ONE location. An unknown or blank location returns
 // every detail the user has — a suggestion list that vanishes the moment you
 // mistype the location above it would be worse than useless.
@@ -2580,8 +2644,8 @@ window.rrLocationDetails = function (locationName) {
 // car, Repaint, Factory error…), kept in ONE place and read by the wizard's
 // chips, the edit panel's suggestions and Preferences → Sub Types. Stored
 // through _prefSet so it follows the ACCOUNT (the "what syncs" rule in
-// drive.js: exactly the keys written through _prefSet) — unlike
-// lv_saved_locations, which is still written raw and stays on one device.
+// drive.js: exactly the keys written through _prefSet) — and, since
+// v0.9.1937, so does lv_saved_locations (rrSaveLocations above).
 // Reads go through _prefGet (the one reader) when the app has loaded it.
 var RR_SUBTYPES_KEY = 'lv_saved_subtypes';
 window.rrSavedSubTypes = function () {
@@ -2984,6 +3048,14 @@ const RR_PIC_FIRST = {
   fromGPhotos: '\u2601\ufe0f From Google Photos',
   sideMinWidth: 980,     // the window must be at least this wide for the side view
   sideWidthPx: 300,      // the side view's width
+};
+
+// v0.9.1937 — WHERE a picture handed over from earlier lands at the Photos step
+// (the Photo ID picture, "Add a picture first"). wizard.js _wizHandOffView is
+// the one chooser; this is its one setting and its one sentence.
+const RR_PHOTO_HANDOFF = {
+  firstView: 'RSV',      // Right Side View — what the tip above the slots asks for
+  allFull: 'Every photo slot already has a picture, so your earlier picture was not added. Tap a slot to replace one.',
 };
 
 // v0.9.1932 — THE ACCOUNT CHECK (app-auth.js _rrAccountGate). Brad: signing in

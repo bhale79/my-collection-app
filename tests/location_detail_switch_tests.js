@@ -8,7 +8,8 @@
 // THE DESIGN he said "go" to: Location Detail's switch leaves Extra Columns
 // and sits directly under Track Storage Location in Preferences → Collection —
 // "Track Location Detail" — greyed out until Location tracking is on, and off
-// again when Location goes off. One Storage Locations → Manage keeps serving
+// again when Location goes off. (v0.9.1937: Storage Locations → Manage and Location Details → Manage
+// both open the ONE screen.) One Storage Locations → Manage keeps serving
 // both levels. Adding the Location Detail column on either table still flips
 // its switch (and turns Location on first, since a tote with no room is not
 // an address). Nothing else changes.
@@ -103,7 +104,8 @@ const SNAP = () => {
       out.rowOrder = Array.from(prefsEl.querySelectorAll('.pref-row-label strong')).map(s => s.textContent.trim()).filter(t => /Location|Sub Types|Extra Columns/.test(t));
       out.rowWords = (prefsEl.querySelector('#pref-row-locdetail .pref-row-label span') || {}).textContent || '';
       out.extraWords = Array.from(prefsEl.querySelectorAll('.pref-row-label')).filter(l => /Extra Columns/.test(l.textContent)).map(l => l.querySelector('span').textContent)[0] || '';
-      out.manageButtons = prefsEl.querySelectorAll('button[onclick*="_openLocationsModal"]').length;
+      out.manageButtons = Array.from(prefsEl.querySelectorAll('button[onclick*="_openLocationsModal"]')).map(b => b.getAttribute('onclick'));
+      out.otherLocScreens = Object.keys(window).filter(k => /^_open.*Loc.*Modal$/i.test(k) && k !== '_openLocationsModal');
       out.field = (f => ({ prefToggle: f.prefToggle, requires: f.requires }))(RR_USER_FIELDS.filter(x => x.key === 'locationDetail')[0]);
       out.fresh = snap();
       // Extra Columns does not list it any more
@@ -132,9 +134,13 @@ const SNAP = () => {
     T('A: no page errors', errs.join(' | '), '');
     T('A: the rows, in order — Track Location Detail sits right under Track Storage Location; Extra Columns no longer names it',
       [r.rowOrder, /^Shipper, Sub-collection/.test(r.extraWords)],
-      [['Track Storage Location', 'Track Location Detail', 'Storage Locations', 'Track Sub Types', 'Sub Types', 'Extra Columns'], true]);
+      [['Track Storage Location', 'Track Location Detail', 'Storage Locations', 'Location Details', 'Track Sub Types', 'Sub Types', 'Extra Columns'], true]);
     T('A: the row says what it is and what it needs', [/spot inside/.test(r.rowWords), /Needs Track Storage Location on/.test(r.rowWords)], [true, true]);
-    T('A: ONE Storage Locations → Manage serves both levels', r.manageButtons, 1);
+    // v0.9.1937 ([stated] Brad: "i can't set up or manage location detail like i can storage locations"):
+    // Location Details got its own Manage row, like Sub Types — but it is the SAME one screen,
+    // opened with the spots inside showing. Two doors, one screen, one list.
+    T('A: Storage Locations → Manage and Location Details → Manage open the ONE screen (spots showing for the second); no second screen exists',
+      [r.manageButtons, r.otherLocScreens], [['_openLocationsModal()', '_openLocationsModal({spots:true})'], []]);
     T('A: the field declares its switch and what it requires, once, in config.js', r.field, { prefToggle: 'locdetail', requires: { pref: 'lv_location_enabled', toggle: 'location', label: 'Track Storage Location' } });
     T('A: fresh — both off; the Detail switch is greyed out and cannot be thrown; nothing asked',
       [r.fresh.det, r.fresh.stored, r.fresh.asked, r.clickWhileOff.stored.detail, r.clickWhileOff.det.checked],

@@ -1638,8 +1638,16 @@ const PREFS_RETIRED = ['rr_crop_flash'];
 // inferred from the IO around it. `local` is the device's values, `stamps` when
 // each was last changed here, `remote` the file's {key:{v,t}} map.
 // Returns what to apply locally and what to push, and nothing else.
-function rrPrefsMerge(local, stamps, remote, now) {
+// v0.9.1937 — `unions` ({key: combine(accountText, deviceText)}, from config.js
+// RR_PREF_UNION) and `met` ({key: true} once this device has been reconciled
+// with the account for that key — stored locally as key + '__met'). A LIST the
+// user built on two devices before it synced (the saved storage locations) is
+// COMBINED the first time the two meet, so neither device's list is thrown
+// away; from then on the ordinary newest-wins rule below applies, so a removal
+// made on one device sticks on the other.
+function rrPrefsMerge(local, stamps, remote, now, unions, met) {
   local = local || {}; stamps = stamps || {}; remote = remote || {};
+  unions = unions || {}; met = met || {};
   const apply = {}, push = {};
   const keys = {};
   Object.keys(local).forEach(function (k) { keys[k] = 1; });
@@ -1647,6 +1655,18 @@ function rrPrefsMerge(local, stamps, remote, now) {
 
   Object.keys(keys).forEach(function (k) {
     const r = remote[k];
+    if (typeof unions[k] === 'function' && !met[k]) {
+      const MET = '__met';
+      const hasL = Object.prototype.hasOwnProperty.call(local, k);
+      apply[k + MET] = '1';
+      if (!r) { push[k] = { v: local[k], t: (Number(stamps[k]) || 0) > 0 ? Number(stamps[k]) : now }; return; }
+      if (!hasL) { apply[k] = r.v; apply[k + PREF_AT_SUFFIX] = String(r.t); return; }
+      const both = String(unions[k](r.v, local[k]));
+      if (both === String(r.v)) { apply[k] = r.v; apply[k + PREF_AT_SUFFIX] = String(r.t); return; }
+      apply[k] = both; apply[k + PREF_AT_SUFFIX] = String(now);
+      push[k] = { v: both, t: now };
+      return;
+    }
     const rt = (r && typeof r.t === 'number') ? r.t : -1;
     const hasLocal = Object.prototype.hasOwnProperty.call(local, k);
     const lt = hasLocal ? (Number(stamps[k]) || 0) : -1;
@@ -1715,8 +1735,12 @@ async function _prefsWrite(prefs) {
 }
 
 // Every key this device has ever set through _prefSet, and when.
+// v0.9.1937: plus every RR_PREF_UNION key this device holds even if it was
+// never stamped (the saved locations were written raw before v1937) — scored 0
+// — so the merge COMBINES it instead of the account's copy landing on top of
+// it unseen. `met` says which of those keys have already been combined once.
 function _prefsLocalState() {
-  const local = {}, stamps = {};
+  const local = {}, stamps = {}, met = {};
   try {
     for (let i = 0; i < localStorage.length; i++) {
       const k = localStorage.key(i);
@@ -1727,8 +1751,15 @@ function _prefsLocalState() {
       local[base] = v;
       stamps[base] = localStorage.getItem(k);
     }
+    const U = (typeof window !== 'undefined' && window.RR_PREF_UNION) || {};
+    Object.keys(U).forEach(function (k) {
+      if (localStorage.getItem(k + '__met') === '1') met[k] = true;
+      if (Object.prototype.hasOwnProperty.call(local, k)) return;
+      const v = localStorage.getItem(k);
+      if (v !== null) { local[k] = v; stamps[k] = '0'; }
+    });
   } catch (e) {}
-  return { local: local, stamps: stamps };
+  return { local: local, stamps: stamps, met: met };
 }
 
 // Drop the retired keys from this device and from the account's map. Returns
@@ -1750,7 +1781,7 @@ function _prefsApply(apply) {
     try {
       if (localStorage.getItem(k) === String(apply[k])) return;
       localStorage.setItem(k, String(apply[k]));
-      if (k.slice(-PREF_AT_SUFFIX.length) !== PREF_AT_SUFFIX) touched = true;
+      if (k.slice(-PREF_AT_SUFFIX.length) !== PREF_AT_SUFFIX && k.slice(-5) !== '__met') touched = true;
     } catch (e) {}
   });
   return touched;
@@ -1765,7 +1796,7 @@ window.rrPrefsSync = async function () {
     if (!got.ok) return false;                       // read failed: never write
     const dropped = _prefsRetire(got.prefs);         // v0.9.1830: retired keys leave both sides first
     const st = _prefsLocalState();
-    const m = rrPrefsMerge(st.local, st.stamps, got.prefs, Date.now());
+    const m = rrPrefsMerge(st.local, st.stamps, got.prefs, Date.now(), (window.RR_PREF_UNION || {}), st.met);
     // v0.9.1836: the Collector's Market / photo-ID ticket is ONE per account
     // now. When the merge hands this device a different one, vault.js is told
     // so the old ticket's data goes and the reads label follows the new one.

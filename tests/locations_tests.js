@@ -15,6 +15,8 @@ global.localStorage = {
 };
 global.window = global.window || {};
 // config.js is the whole app's config; pull out just the location helpers.
+// v0.9.1937: the key is named ONCE in config.js (RR_LOCATIONS_KEY) — read it from there.
+var RR_LOCATIONS_KEY = /var RR_LOCATIONS_KEY = '([^']+)'/.exec(require('fs').readFileSync(require('path').join(__dirname, '..', 'app', 'config.js'), 'utf8'))[1];
 const fs = require('fs'), path = require('path');
 const src = fs.readFileSync(path.join(__dirname, '..', 'app', 'config.js'), 'utf8');
 ['rrSavedLocations', 'rrLocationDetails', 'rrDatalistFor'].forEach(name => {

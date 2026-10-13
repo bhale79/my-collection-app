@@ -206,7 +206,8 @@ async function toPhotos(pg) {
     }
     // P9 planted: the hand-off block removed
     {
-      const planted = WIZ.replace("    if (wizard.data._idItemPhotoFile) {\n      var _idTargetView", "    if (false) {\n      var _idTargetView");
+      // v0.9.1937: the hand-off block now opens with a comment (Right Side View, _wizHandOffView).
+      const planted = WIZ.replace("    if (wizard.data._idItemPhotoFile) {\n      // v0.9.1937", "    if (false) {\n      // v0.9.1937");
       if (planted === WIZ) throw new Error('could not plant');
       const { pg } = await open(browser, { w: 1536, h: 826, wiz: planted });
       await pick(pg, JPG);

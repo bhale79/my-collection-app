@@ -4722,22 +4722,8 @@ function renderWizardStep() {
 
       // v0.9.1433: a slot with a picture can be picked up and dropped on a
       // sibling slot to trade places (see ondrop above).
-      if (hasPic || inboxFid) {
-        div.draggable = true;
-        div.ondragstart = function (e) {
-          try {
-            e.dataTransfer.setData('text/rr-slot', stepId + '|' + viewKey);
-            e.dataTransfer.effectAllowed = 'move';
-          } catch (eDS) {}
-        };
-        // v0.9.1614: on a touch screen HTML5 drag never fires — press-and-
-        // hold starts the pointer drag instead (a quick tap still opens the
-        // source picker; an early move is read as a scroll and lets go).
-        div.addEventListener('pointerdown', function (e) {
-          if (e.pointerType === 'mouse') return;
-          if (typeof window._wizTouchDragStart === 'function') window._wizTouchDragStart(e, div, stepId + '|' + viewKey, s.id);
-        });
-      }
+      // v0.9.1937: armed by the ONE helper the upload also calls.
+      if (hasPic || inboxFid) _wizArmSlotDrag(div, stepId, viewKey, s.id);
 
       const prog = document.createElement('div');
       prog.id = 'prog-' + stepId + '-' + viewKey;
@@ -5059,7 +5045,15 @@ function renderWizardStep() {
     // drop it into the Item slot automatically (manual flow PHOTO-1, or the
     // first view of the item photos step). Same pattern as the box shot below.
     if (wizard.data._idItemPhotoFile) {
-      var _idTargetView = (s.id === 'manualPhotos') ? 'PHOTO-1' : ((s.id === 'photosItem' && views && views.length) ? views[0].key : null);
+      // v0.9.1937 (Brad, 3309-50: "the picture … went to the top view and not
+      // the right side view"): it went to views[0], which is Top View on every
+      // train. The picture goes where the tip above the slots says to shoot —
+      // Right Side — through ONE chooser, _wizHandOffView (never into a slot
+      // that already holds a picture).
+      var _idTargetView = (s.id === 'manualPhotos') ? 'PHOTO-1' : ((s.id === 'photosItem' && views && views.length) ? _wizHandOffView(views, stored, wizard.data._inboxSlotMap, s.id) : null);
+      if (s.id === 'photosItem' && views && views.length && !_idTargetView) {
+        showToast && showToast(RR_PHOTO_HANDOFF.allFull, 4500, true);
+      }
       if (_idTargetView && typeof uploadWizardPhoto === 'function') {
         var _idF = wizard.data._idItemPhotoFile;
         var _idPicFirst = !!wizard.data._picFirst;   // v0.9.1929: chosen with "Add a picture first"
@@ -6828,6 +6822,55 @@ window.addEventListener('resize', function () {
     return r;
   };
 })();
+
+// ── v0.9.1937: WHICH slot a picture handed over from earlier lands in ───────
+// The Photo ID picture and the "Add a picture first" picture arrive at the
+// Photos step with no slot of their own. Right Side View first (the tip above
+// the slots says "photograph the right side", and Brad's v1929 words: "we would
+// put this picture in the right side view"); if Right Side already holds a
+// picture, the first EMPTY slot in drawing order; if every slot is full, '' —
+// the caller says so instead of writing over a picture the user chose.
+// A slot is full when it has an uploaded picture (stored[view]) or a Photo
+// Inbox picture dealt to it (inboxMap[stepId|view]).
+function _wizHandOffView(views, stored, inboxMap, stepId) {
+  views = views || []; stored = stored || {}; inboxMap = inboxMap || {};
+  var empty = function (k) { return !stored[k] && !inboxMap[stepId + '|' + k]; };
+  for (var i = 0; i < views.length; i++) {
+    if (views[i] && views[i].key === RR_PHOTO_HANDOFF.firstView && empty(views[i].key)) return views[i].key;
+  }
+  for (var j = 0; j < views.length; j++) {
+    if (views[j] && views[j].key && empty(views[j].key)) return views[j].key;
+  }
+  return '';
+}
+if (typeof window !== 'undefined') window._wizHandOffView = _wizHandOffView;
+
+// ── v0.9.1937: a slot with a picture can be DRAGGED — one place arms it ─────
+// Brad (3309-50): "i tried to drag the photo to the correct spot and i
+// couldn't". The drag was switched on only when the step was DRAWN with the
+// picture already in place; a picture that landed afterwards (any upload, the
+// Photo ID hand-off) got a thumbnail but no drag until the step was redrawn.
+// Both the drawing (makePhotoSlot) and the upload (uploadWizardPhoto,
+// wizard-photos.js) call this now. Arming twice is harmless (flag).
+function _wizArmSlotDrag(div, stepId, viewKey, stepDataId) {
+  if (!div || div.dataset.rrDragArmed === '1') return;
+  div.dataset.rrDragArmed = '1';
+  div.draggable = true;
+  div.addEventListener('dragstart', function (e) {
+    try {
+      e.dataTransfer.setData('text/rr-slot', stepId + '|' + viewKey);
+      e.dataTransfer.effectAllowed = 'move';
+    } catch (eDS) {}
+  });
+  // v0.9.1614: on a touch screen HTML5 drag never fires — press-and-hold
+  // starts the pointer drag instead (a quick tap still opens the source
+  // picker; an early move is read as a scroll and lets go).
+  div.addEventListener('pointerdown', function (e) {
+    if (e.pointerType === 'mouse') return;
+    if (typeof window._wizTouchDragStart === 'function') window._wizTouchDragStart(e, div, stepId + '|' + viewKey, stepDataId || stepId);
+  });
+}
+if (typeof window !== 'undefined') window._wizArmSlotDrag = _wizArmSlotDrag;
 
 // ── v0.9.1433: trade two photo slots' contents ─────────────────────────────
 // A slot can hold its picture two ways — an uploaded URL in

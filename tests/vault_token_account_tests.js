@@ -77,7 +77,8 @@ function build(opts) {
   return sb;
 }
 // the REAL merge
-const merge = new Function('PREF_AT_SUFFIX', grab(DRIVE, 'function rrPrefsMerge(local, stamps, remote, now)') + '\nreturn rrPrefsMerge;')('__at');
+// v0.9.1937: the merge's argument list grew (unions, met) — it is found by its name, never by the full signature.
+const merge = new Function('PREF_AT_SUFFIX', grab(DRIVE, 'function rrPrefsMerge(') + '\nreturn rrPrefsMerge;')('__at');
 
 (async () => {
   section('A. The ticket goes through the doors');
@@ -155,7 +156,7 @@ const merge = new Function('PREF_AT_SUFFIX', grab(DRIVE, 'function rrPrefsMerge(
       PREF_AT_SUFFIX: '__at',
     };
     vm.createContext(sb);
-    vm.runInContext(grab(DRIVE, 'function rrPrefsMerge(local, stamps, remote, now)') + '\n' + grab(DRIVE, 'function _prefsLocalState()') + '\n' + grab(DRIVE, 'function _prefsApply(apply)') + '\n' + sync, sb);
+    vm.runInContext(grab(DRIVE, 'function rrPrefsMerge(') + '\n' + grab(DRIVE, 'function _prefsLocalState()') + '\n' + grab(DRIVE, 'function _prefsApply(apply)') + '\n' + sync, sb);
     await sb.window.rrPrefsSync();
     ok('a real sync: the device adopts the account\'s ticket', ls.o.lv_vault_token === 'account00000' && ls.o.lv_vault_token__at === '4000', JSON.stringify(ls.o));
     ok('…and vault.js is told old → new', told.length === 1 && told[0][0] === 'legacy000000' && told[0][1] === 'account00000', JSON.stringify(told));

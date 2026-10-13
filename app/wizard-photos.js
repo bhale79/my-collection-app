@@ -190,6 +190,11 @@ async function uploadWizardPhoto(file, stepId, viewKey) {
     }
     if (!wizard.data[stepId]) wizard.data[stepId] = {};
     wizard.data[stepId][viewKey] = url;
+    // v0.9.1937: the picture is in wizard.data now, so the slot can be dragged
+    // to another view right away — the SAME helper the step's drawing uses.
+    // (Armed only after the upload: a swap mid-upload would move nothing and
+    // the finishing upload would then write into the slot it left.)
+    if (zone && typeof window._wizArmSlotDrag === 'function') window._wizArmSlotDrag(zone, stepId, viewKey, stepId);
     // Update label to show success, hide spinner
     if (zone) {
       const lbl = zone.querySelector('div:last-of-type');

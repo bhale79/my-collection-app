@@ -310,6 +310,13 @@ function buildPrefsPage() {
         <div class="pref-row-label"><strong>Storage Locations</strong><span>Set up your totes, shelves, rooms, etc. so you can tap one when adding items — and the spots inside each one</span></div>
         <button class="pref-btn" onclick="_openLocationsModal()">Manage</button>
       </div>
+      <!-- v0.9.1937 (Brad: "i can't set up or manage location detail like i can
+           storage locations"): its own Manage, like Sub Types. Same ONE screen
+           as Storage Locations, opened with the spots inside showing. -->
+      <div class="pref-row">
+        <div class="pref-row-label"><strong>Location Details</strong><span>Set up the spots inside each place — Downstairs closet, Tote 2 — so you can tap one when adding items</span></div>
+        <button class="pref-btn" onclick="_openLocationsModal({spots:true})">Manage</button>
+      </div>
       <!-- v0.9.1863 (Brad): Sub Types, set up like Storage Locations — a switch
            that makes the wizard ask, and a list you manage. The field itself is
            the subType entry in RR_USER_FIELDS (config.js); this toggle IS its
@@ -1075,11 +1082,11 @@ if (typeof window !== 'undefined') {
 // ── Storage Locations (managed flat list) ─────────────────────
 var LOCATION_TYPES = ['Tote','Shelf','Room','Building','Storage Unit','Display Case','Other'];
 function _locEsc(v){ return String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
-function _getSavedLocations(){
-  try { var a = JSON.parse(localStorage.getItem('lv_saved_locations') || '[]'); return Array.isArray(a) ? a : []; }
-  catch(e){ return []; }
-}
-function _setSavedLocations(arr){ localStorage.setItem('lv_saved_locations', JSON.stringify(arr || [])); }
+// v0.9.1937: the screen reads and writes through config.js's ONE reader and ONE
+// writer (rrSavedLocations / rrSaveLocations), so the list follows the account
+// like Sub Types — it used to be written raw here and stayed on one device.
+function _getSavedLocations(){ return (typeof rrSavedLocations === 'function') ? rrSavedLocations() : []; }
+function _setSavedLocations(arr){ if (typeof rrSaveLocations === 'function') rrSaveLocations(arr || []); }
 function _addSavedLocation(){
   var nameEl = document.getElementById('loc-new-name'); var typeEl = document.getElementById('loc-new-type');
   if (!nameEl) return;
@@ -1162,11 +1169,15 @@ function _renderLocList(){
     var open = !!_locOpen[i];
     var head = '<div style="display:flex;align-items:center;justify-content:space-between;gap:0.5rem;padding:0.5rem 0.65rem">'
       + '<div data-loc-open="' + i + '" style="cursor:pointer;flex:1">'
-      +   '<span style="color:var(--text-dim);font-size:0.75rem;display:inline-block;width:0.9rem">' + (open ? '\u25be' : '\u25b8') + '</span>'
       +   '<strong style="font-size:0.88rem;color:var(--text)">' + _locEsc(loc.name) + '</strong>'
       +   (loc.type ? ' <span style="font-size:0.72rem;color:var(--text-dim)">&middot; ' + _locEsc(loc.type) + '</span>' : '')
-      +   (dets.length ? ' <span style="font-size:0.72rem;color:var(--text-dim)">&middot; ' + dets.length + ' inside</span>' : '')
       + '</div>'
+      // v0.9.1937 (Brad: "i can't set up or manage location detail like i can
+      // storage locations"): the spots inside a place were reached only by
+      // clicking its name beside a tiny arrow. Now a plain button says so.
+      + '<button data-loc-spots="' + i + '" aria-expanded="' + (open ? 'true' : 'false') + '" title="' + _locEsc(RR_LOC_SPOTS.buttonTitle) + '" style="background:none;border:1px solid var(--accent2);'
+      +   'color:var(--text);border-radius:7px;font-size:0.72rem;cursor:pointer;padding:0.18rem 0.55rem;margin-right:0.35rem;white-space:nowrap">'
+      +   _locEsc(open ? RR_LOC_SPOTS.buttonOpen : (dets.length ? RR_LOC_SPOTS.button.replace('{n}', dets.length) : RR_LOC_SPOTS.buttonNone)) + '</button>'
       // v0.9.1555 (Brad: "we have a place in preferences to manage location so
       // we need to modify that as well"). A place you have set up should be
       // able to claim items — this starts the fill-a-column flow with the
@@ -1178,7 +1189,7 @@ function _renderLocList(){
     var body = '';
     if (open){
       body = '<div style="padding:0 0.65rem 0.6rem 1.55rem;border-top:1px solid var(--border)">'
-        + '<div style="font-size:0.75rem;color:var(--text-dim);margin:0.45rem 0 0.35rem">What\u2019s inside \u2014 totes, shelves, racks. These are offered as Location Detail on any item stored here.</div>'
+        + '<div style="font-size:0.75rem;color:var(--text-dim);margin:0.45rem 0 0.35rem">' + _locEsc(RR_LOC_SPOTS.inside) + '</div>'
         + dets.map(function(d, j){
             return '<div style="display:flex;align-items:center;justify-content:space-between;gap:0.5rem;padding:0.28rem 0.5rem;border:1px solid var(--border);border-radius:7px;margin-bottom:0.28rem;background:var(--bg)">'
               + '<span style="font-size:0.82rem;color:var(--text)">' + _locEsc(d) + '</span>'
@@ -1188,7 +1199,7 @@ function _renderLocList(){
               + '</span></div>';
           }).join('')
         + '<div style="display:flex;gap:0.4rem;margin-top:0.35rem">'
-        +   '<input id="loc-det-new-' + i + '" type="text" placeholder="e.g. Tote 12" style="flex:1;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.42rem 0.6rem;color:var(--text);font-family:var(--font-body);font-size:0.84rem;box-sizing:border-box">'
+        +   '<input id="loc-det-new-' + i + '" type="text" aria-label="' + _locEsc(RR_LOC_SPOTS.addLabel.replace('{loc}', function () { return loc.name; })) + '" placeholder="e.g. Tote 12" style="flex:1;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.42rem 0.6rem;color:var(--text);font-family:var(--font-body);font-size:0.84rem;box-sizing:border-box">'
         +   '<button data-locdet-add="' + i + '" class="pref-btn" style="font-size:0.8rem">Add</button>'
         + '</div></div>';
     }
@@ -1216,8 +1227,9 @@ function _renderLocList(){
       rrTagOpen('location', l.name, det);
     });
   });
-  el.querySelectorAll('[data-loc-open]').forEach(function(node){
-    node.addEventListener('click', function(){ _toggleLocOpen(parseInt(node.getAttribute('data-loc-open'),10)); });
+  el.querySelectorAll('[data-loc-open], [data-loc-spots]').forEach(function(node){
+    var at = node.hasAttribute('data-loc-spots') ? 'data-loc-spots' : 'data-loc-open';
+    node.addEventListener('click', function(){ _toggleLocOpen(parseInt(node.getAttribute(at),10)); });
   });
   el.querySelectorAll('[data-locdet-add]').forEach(function(btn){
     btn.addEventListener('click', function(){ _addLocDetail(parseInt(btn.getAttribute('data-locdet-add'),10)); });
@@ -1234,8 +1246,14 @@ function _renderLocList(){
     });
   });
 }
-function _openLocationsModal(){
+// v0.9.1937: ONE screen for both levels. Preferences → Location Details →
+// Manage opens it with every place opened up (opts.spots), so the spots inside
+// are right there; Storage Locations → Manage opens it as before.
+function _openLocationsModal(opts){
+  opts = opts || {};
   var old = document.getElementById('loc-setup-modal'); if (old) old.remove();
+  _locOpen = {};
+  if (opts.spots) _getSavedLocations().forEach(function (l, i) { _locOpen[i] = true; });
   var modal = document.createElement('div');
   modal.id = 'loc-setup-modal';
   modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem';
@@ -1247,7 +1265,7 @@ function _openLocationsModal(){
     +   '<button id="loc-close" style="background:none;border:none;color:var(--text);font-size:1.5rem;cursor:pointer;line-height:1">&times;</button>'
     + '</div>'
     + '<div style="padding:1rem 1.25rem;overflow:auto;flex:1">'
-    +   '<div style="font-size:0.82rem;color:var(--text-dim);line-height:1.5;margin-bottom:0.85rem">Add the places you keep your trains — rooms, buildings, storage units. Tap one to list what\u2019s inside it (totes, shelves, racks). Both levels are offered when you add an item, so you stop typing them.</div>'
+    +   '<div style="font-size:0.82rem;color:var(--text-dim);line-height:1.5;margin-bottom:0.85rem">' + _locEsc(opts.spots ? RR_LOC_SPOTS.introSpots : RR_LOC_SPOTS.intro) + '</div>'
     +   '<div style="display:flex;gap:0.4rem;flex-wrap:wrap;align-items:center">'
     +     '<input id="loc-new-name" type="text" placeholder="e.g. Tote A" style="flex:1;min-width:140px;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0.55rem 0.7rem;color:var(--text);font-family:var(--font-body);font-size:0.9rem;box-sizing:border-box">'
     +     '<select id="loc-new-type" class="pref-select" style="min-width:130px">' + typeOpts + '</select>'
