@@ -196,7 +196,7 @@
     'separate-sale-items|362-78|1': 'SSI362',
   };
 
-  window.cottAnchorUrl = function (refLink, itemNum, rowWords, variation) {
+  window.cottAnchorUrl = function _deep(refLink, itemNum, rowWords, variation) {
     try {
       var plain = _base(refLink, itemNum);          // today's answer
       // v0.9.1721: cottRowWords hands the road name over under its own name.
@@ -233,7 +233,42 @@
       if (slug.indexOf('motive-power') === 0) raw = raw.replace(/(\d)-?[PC]$/i, '$1');
       var norm = raw.toUpperCase().replace(/[^A-Z0-9]/g, '');
       var rec = page[norm];
-      if (!rec || !rec.a || !rec.a.length) return plain;
+      if (!rec || !rec.a || !rec.a.length) {
+        // v0.9.1938 — A DASHED NUMBER WITH NO SECTION OF ITS OWN GOES TO ITS
+        // MAIN NUMBER'S SECTION ON THE SAME PAGE.
+        // [stated] Brad, 2026-10-13 ("issue 5"): "why does the cott take you
+        // the general page and not the giraffe car section". 3376-160 links to
+        // postwar-cattle-cars-small, a page that is not in PREFIX, and COTT
+        // gives 3376-160 no id of its own — its write-up sits inside the 3376
+        // giraffe-car section, whose id is "3376" (read from the live page's
+        // [id] list 2026-10-13: 3370 3376 3386 3656 3656150 6473 6646 6656).
+        // So the number missed this map and the link opened at the page top.
+        // Now: the main number (the part before the dash) is asked the SAME
+        // questions, by this same function, and its answer is used only when
+        // it really jumps somewhere. Only when, together:
+        //   - today's link lands at the page top (no anchor at all) — a link
+        //     that already jumps somewhere is never moved by this step;
+        //   - no anchor was stored in the master's link;
+        //   - the number is <main>-<suffix> with a main of 2+ digits
+        //     (6-14270 style modern numbers never qualify);
+        //   - THIS page lists sections for the main number.
+        // If the main number has several sections and nothing picks one, its
+        // own heading (the id that IS the number) is used when the page has
+        // it. Otherwise the link stays exactly as it was: safe by design.
+        var _mn = (_stored || String(plain).indexOf('#') >= 0) ? null
+          : String(raw).toUpperCase().replace(/\s+/g, '').match(/^(\d{2,})-[A-Z0-9]+$/);
+        if (_mn && _mn[1] !== norm && page[_mn[1]] && page[_mn[1]].a && page[_mn[1]].a.length) {
+          var _via = _deep(refLink, _mn[1], rowWords, '');
+          if (String(_via).indexOf('#') >= 0) return _via;
+          var _ml = page[_mn[1]].a;
+          for (var _mi = 0; _mi < _ml.length; _mi++) {
+            if (String(_ml[_mi][0]).toUpperCase() === _mn[1]) {
+              return String(refLink).replace(/[#?].*$/, '').replace(/\/+$/, '') + '/#' + _ml[_mi][0];
+            }
+          }
+        }
+        return plain;
+      }
       var list = rec.a;
       var base = String(refLink).replace(/[#?].*$/, '').replace(/\/+$/, '');
 
