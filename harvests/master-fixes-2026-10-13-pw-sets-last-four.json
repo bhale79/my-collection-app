@@ -1,0 +1,277 @@
+{
+ "what": "Master Version 2.33 — the last four postwar sets on Lionel MPC-Modern go to Lionel PW - Sets. Two were already there under a wrong number: 2148B is corrected to 2149B (1949 Santa Fe 622 work train; the book and two boxed-set listings say 2149B) and 1538W to 1538WS (1955 2065 four-car passenger set), which also gets its missing fourth car, 2435 Elizabeth. Two are added at the bottom: 2222WS (1954 646 three-car passenger, $65) and 12502 (1962 Prairie-Rider Gift Pack). Then the four rows are removed from MPC-Modern.",
+ "stated": "Brad (2026-10-12): \"yes\" to adding the four sets to PW - Sets and removing them from MPC-Modern; (2026-10-13) \"yes\" to the corrected plan (2 renumbers + 2 adds + 4 removals)",
+ "masterVersion": "2.33",
+ "date": "2026-10-13",
+ "tabs": [
+  "Lionel PW - Sets",
+  "Lionel MPC-Modern"
+ ],
+ "planReadAt": "2026-10-13 public CSV exports: MPC-Modern gid 1188187255 (21,916 rows) and PW - Sets gid 840481543, both identical to the 2026-10-12 reads",
+ "sources": {
+  "2149B": [
+   "https://www.worthpoint.com/worthopedia/1949-lionel-set-2149b-santa-fe-622-535129876",
+   "https://www.invaluable.com/auction-lot/1949-lionel-postwar-2149-santa-fe-switcher-freigh-899-c-38445b2aca",
+   "book p520"
+  ],
+  "1538WS": [
+   "https://www.toytrains1.com/lionel_pw_ss.htm",
+   "https://postwarlionel.com/2065-hudson/",
+   "book p518"
+  ],
+  "2222WS": [
+   "https://www.trains.com/ctt/beginners/lionel-trains-a-look-at-1954-lionels-finest-year-the-last-of-three-parts/",
+   "https://www.ebay.com/itm/166846204020",
+   "book p520"
+  ],
+  "12502": [
+   "https://www.trainz.com/pages/lionels-general-type-steam-locomotives-and-1800s-themed-sets",
+   "https://www.worthpoint.com/worthopedia/lionel-12502-prairie-rider-gift-pack-142550654",
+   "https://www.stoutauctions.com/PDF/AuctionIN0115_2.pdf",
+   "book p523"
+  ]
+ },
+ "cellFormat": "[tab, set number (before), column header, old, new, sheet row as a hint, year] — PW - Sets has no Row ID column; find a row by set number + year",
+ "counts": {
+  "cells": 5,
+  "rowsAdded": 2,
+  "rowsDeleted": 4
+ },
+ "pwSetsHeader": [
+  "Set Number",
+  "Set Name",
+  "Year",
+  "Gauge",
+  "Retail Price",
+  "Steam Engine",
+  "Tender",
+  "Diesel/Electric Powered",
+  "Diesel B-Unit",
+  "Diesel A-Unit Dummy",
+  "Car 1",
+  "Car 2",
+  "Car 3",
+  "Car 4",
+  "Car 5",
+  "Car 6",
+  "Car 7",
+  "Accessory 1",
+  "Accessory 2",
+  "Accessory 3",
+  "Notes"
+ ],
+ "cells": [
+  [
+   "Lionel PW - Sets",
+   "2148B",
+   "Set Number",
+   "2148B",
+   "2149B",
+   102,
+   "1949"
+  ],
+  [
+   "Lionel PW - Sets",
+   "1538W",
+   "Set Number",
+   "1538W",
+   "1538WS",
+   209,
+   "1955"
+  ],
+  [
+   "Lionel PW - Sets",
+   "1538W",
+   "Car 3",
+   "2436",
+   "2435",
+   209,
+   "1955"
+  ],
+  [
+   "Lionel PW - Sets",
+   "1538W",
+   "Car 4",
+   "",
+   "2436",
+   209,
+   "1955"
+  ],
+  [
+   "Lionel PW - Sets",
+   "1538W",
+   "Notes",
+   "Also 512. 2065 4-6-4 Hudson. 2046W streamlined whistle tender. 2432 Clifton Vista Dome, 2434 Newark Pullman, 2436 Summit observation. Silver-with-red-letter passenger cars. Handsome set. 1033 90-watt transformer.",
+   "Also 512. 2065 4-6-4 Hudson. 2046W streamlined whistle tender. 2432 Clifton Vista Dome, 2434 Newark Pullman, 2435 Elizabeth Pullman, 2436 Summit observation. Silver-with-red-letter passenger cars. Handsome set. 1033 90-watt transformer.",
+   209,
+   "1955"
+  ]
+ ],
+ "rowsAdded": {
+  "tab": "Lionel PW - Sets",
+  "firstRowHint": 472,
+  "rows": [
+   [
+    "2222WS",
+    "Three-Car Passenger",
+    "1954",
+    "O",
+    "$65",
+    "646",
+    "2046W",
+    "",
+    "",
+    "",
+    "2530",
+    "2532",
+    "2531",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "646 4-6-4 medium Hudson with headlight, smoke and Magne-traction. 2046W whistle tender. 2530 Railway Express Agency baggage car, 2532 Silver Range Vista Dome, 2531 Silver Dawn observation. Extruded-aluminum streamlined cars; a scarce version of the 2530 has larger doors."
+   ],
+   [
+    "12502",
+    "Prairie-Rider Gift Pack",
+    "1962",
+    "O27",
+    "",
+    "1862",
+    "1862T",
+    "",
+    "",
+    "",
+    "3376",
+    "1877",
+    "1866",
+    "1865",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "Gift pack. 1862 4-4-0 General with headlight. 1862T tender. 3376 giraffe car, 1877 flatcar with horses (some packs came with a 6473 rodeo car instead), 1866 mail-baggage car, 1865 passenger car. No track or transformer. Original retail price not confirmed."
+   ]
+  ]
+ },
+ "deleted": [
+  {
+   "item": "12502",
+   "rowId": "K8CXHHMZEU",
+   "rowHint": 1723,
+   "fullRow": {
+    "Item Number": "12502",
+    "Item Type": "Set",
+    "Sub-Type": "",
+    "Unit": "",
+    "Powered/Dummy": "",
+    "Control": "",
+    "Road Name": "",
+    "Description": "Prairie-Rider Gift Pack",
+    "Gauge": "",
+    "Year Produced": "2021",
+    "Variation #": "",
+    "Variation Details": "",
+    "Reference Link": "",
+    "Notes": "",
+    "Est. Market Value": "",
+    "Source": "Greenberg Book",
+    "COTT Code": "",
+    "Original COTT Desc": "",
+    "Stamped Markings": "",
+    "Row ID": "K8CXHHMZEU"
+   },
+   "nowOnPWSets": "12502 (added)"
+  },
+  {
+   "item": "1538WS",
+   "rowId": "VUEBB2WR8C",
+   "rowHint": 2372,
+   "fullRow": {
+    "Item Number": "1538WS",
+    "Item Type": "Set",
+    "Sub-Type": "",
+    "Unit": "",
+    "Powered/Dummy": "",
+    "Control": "Traditional",
+    "Road Name": "",
+    "Description": "027 Steam Passenger Set",
+    "Gauge": "",
+    "Year Produced": "2019",
+    "Variation #": "",
+    "Variation Details": "",
+    "Reference Link": "",
+    "Notes": "",
+    "Est. Market Value": "",
+    "Source": "Greenberg Book",
+    "COTT Code": "",
+    "Original COTT Desc": "",
+    "Stamped Markings": "",
+    "Row ID": "VUEBB2WR8C"
+   },
+   "nowOnPWSets": "1538WS (was 1538W)"
+  },
+  {
+   "item": "2149B",
+   "rowId": "UYBBEXB736",
+   "rowHint": 7310,
+   "fullRow": {
+    "Item Number": "2149B",
+    "Item Type": "Set",
+    "Sub-Type": "",
+    "Unit": "",
+    "Powered/Dummy": "",
+    "Control": "Traditional",
+    "Road Name": "",
+    "Description": "Diesel Work Train Set",
+    "Gauge": "",
+    "Year Produced": "2018",
+    "Variation #": "",
+    "Variation Details": "",
+    "Reference Link": "",
+    "Notes": "",
+    "Est. Market Value": "",
+    "Source": "Greenberg Book",
+    "COTT Code": "",
+    "Original COTT Desc": "",
+    "Stamped Markings": "",
+    "Row ID": "UYBBEXB736"
+   },
+   "nowOnPWSets": "2149B (was 2148B)"
+  },
+  {
+   "item": "2222WS",
+   "rowId": "KTGYWQ7J58",
+   "rowHint": 7390,
+   "fullRow": {
+    "Item Number": "2222WS",
+    "Item Type": "Set",
+    "Sub-Type": "",
+    "Unit": "",
+    "Powered/Dummy": "",
+    "Control": "Traditional",
+    "Road Name": "",
+    "Description": "Steam Passenger Set",
+    "Gauge": "",
+    "Year Produced": "2018",
+    "Variation #": "",
+    "Variation Details": "",
+    "Reference Link": "",
+    "Notes": "",
+    "Est. Market Value": "",
+    "Source": "Greenberg Book",
+    "COTT Code": "",
+    "Original COTT Desc": "",
+    "Stamped Markings": "",
+    "Row ID": "KTGYWQ7J58"
+   },
+   "nowOnPWSets": "2222WS (added)"
+  }
+ ],
+ "toPutBack": "PW - Sets: write each old value back (row by set number + year), remove the two added rows. MPC-Modern: insert each fullRow back (every column, same Row ID)."
+}
