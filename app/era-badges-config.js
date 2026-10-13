@@ -80,6 +80,13 @@ const ERA_BADGES = {
     'Williams by Bachmann': { label: 'WbB', title: 'Williams by Bachmann' },
   },
 
+  // v0.9.1935: the "Also Sold As" chip — a product one maker built and sold
+  // under another maker's name (MTH's licensed Lionel Corporation Tinplate).
+  // Drawn from the row's own "Also Sold As" cell, beside the line badge.
+  // {brand} = the name's first word, {name} = the whole name, {maker} = who
+  // built it. Wording only; the rule lives in rrRowAlsoSoldBy (app.js).
+  alsoSoldAs: { label: 'as {brand}', title: 'Made by {maker} \u2014 sold as {name}' },
+
   // Tab-name → era-id mapping. Used when we only have the `_tab` string
   // (e.g. "Lionel PW - Items") and need to resolve back to an era.
   // Primary items tabs are auto-detected from ERA_TABS.*.items, but

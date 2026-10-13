@@ -1096,6 +1096,7 @@ function showItemDetailPage(idx, copyInvId, opts) {
     refLink: _baseItem ? _baseItem.refLink : '',
     // v0.9.1873: what rrCatalogStatus reads — the catalog row's status rides along
     deliveryStatus: _baseItem ? (_baseItem.deliveryStatus || '') : '',
+    alsoSoldAs: _baseItem ? (_baseItem.alsoSoldAs || '') : '',   // v0.9.1935: the "as Lionel" chip
     _era: _baseItem ? (_baseItem._era || '') : '',
     _tab: _baseItem ? (_baseItem._tab || '') : '',
   };
@@ -1239,6 +1240,7 @@ function showItemDetailPage(idx, copyInvId, opts) {
           ${it.itemType ? `<span class="tag">${it.itemType}</span>` : ''}
           ${it.yearProd ? `<span style="font-size:0.82rem;color:var(--text-dim)">${it.yearProd}</span>` : ''}
           ${(typeof rrCatalogStatusChip === 'function') ? rrCatalogStatusChip(it) : ''}
+          ${(typeof alsoSoldAsChipHTML === 'function') ? alsoSoldAsChipHTML(it, { size: 'lg' }) : ''}
         </div>
         <div style="font-size:1.05rem;color:var(--text);margin-bottom:0.2rem">${it.roadName || ''}</div>
         ${_isPhoneDetail ? '' : _descBlock + _maintSlot}

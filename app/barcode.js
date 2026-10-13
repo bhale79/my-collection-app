@@ -104,6 +104,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
     if (eraMfr && (eraMfr === want || want.indexOf(eraMfr) === 0)) return true;
     var rowMfr = _bcMfrKey(m && m.manufacturer);
     if (rowMfr && (rowMfr === want || want.indexOf(rowMfr) === 0 || rowMfr.indexOf(want) === 0)) return true;
+    if (typeof rrRowAlsoSoldBy === 'function' && rrRowAlsoSoldBy(m, want)) return true;   // v0.9.1935: Also Sold As
     return false;
   }
   // v0.9.1780. Right-maker rows first, everything else after, each of the

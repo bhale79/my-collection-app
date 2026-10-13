@@ -75,6 +75,11 @@
   // learn. Outlined chip, themed vars only (the colour ratchet stays
   // quiet), distinct at a glance from the solid era badges.
   function lineBadgeHTML(item, opts) {
+    // v0.9.1935: the "Also Sold As" chip rides with the line badge, so every
+    // place that shows one shows the other.
+    return _categoryLineBadge(item, opts) + alsoSoldAsChipHTML(item, opts);
+  }
+  function _categoryLineBadge(item, opts) {
     var cfg = window.ERA_BADGES || {};
     if (!cfg.enabled || !cfg.lineBadges) return '';
     var cat = item && item.category ? String(item.category).trim() : '';
@@ -94,6 +99,37 @@
       _escape(b.label || cat) + '</span>';
   }
   window.lineBadgeHTML = lineBadgeHTML;
+
+  // v0.9.1935 ([stated] Brad: "we need to figure out how someone can find
+  // them either way because it is confusing"). One chip per name in the
+  // row's "Also Sold As" cell: "as LIONEL", hover "Made by MTH — sold as
+  // Lionel Corporation". Same outlined themed chip as the line badge.
+  function alsoSoldAsChipHTML(item, opts) {
+    var cfg = window.ERA_BADGES || {};
+    if (!cfg.enabled || !cfg.alsoSoldAs) return '';
+    var names = (typeof rrAlsoSoldAsNames === 'function') ? rrAlsoSoldAsNames(item) : [];
+    if (!names.length) return '';
+    var maker = (typeof _brandOfItem === 'function') ? (_brandOfItem(item) || '') : '';
+    var size = (opts && opts.size) || 'sm';
+    var padY = size === 'lg' ? '3px' : '1px';
+    var padX = size === 'lg' ? '8px' : '5px';
+    var fontSize = size === 'lg' ? '0.7rem' : '0.62rem';
+    return names.map(function (name) {
+      var fill = function (t) {
+        return String(t || '').replace(/\{brand\}/g, name.split(/\s+/)[0])
+          .replace(/\{name\}/g, name).replace(/\{maker\}/g, maker || 'another maker');
+      };
+      return '<span class="era-badge line-badge also-sold-as" ' +
+        'title="' + _escape(fill(cfg.alsoSoldAs.title)) + '" ' +
+        'style="display:inline-block;padding:' + padY + ' ' + padX + ';' +
+        'border-radius:4px;font-size:' + fontSize + ';font-weight:700;' +
+        'letter-spacing:0.05em;text-transform:uppercase;background:transparent;' +
+        'border:1px solid var(--accent2);color:var(--accent2);' +
+        'vertical-align:middle;margin-left:4px;line-height:1;white-space:nowrap">' +
+        _escape(fill(cfg.alsoSoldAs.label)) + '</span>';
+    }).join('');
+  }
+  window.alsoSoldAsChipHTML = alsoSoldAsChipHTML;
 
   function _escape(s) {
     return String(s == null ? '' : s)

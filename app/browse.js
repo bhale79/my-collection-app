@@ -4514,7 +4514,8 @@ function _rrBrowseCore(_co) {
           else if (_tlc.indexOf('atlas') === 0) _itmMfr = 'atlas';
           else if (_tlc.indexOf('mth') === 0)   _itmMfr = 'mth';
         }
-        if (_itmMfr !== _stp3b.manufacturer) return false;
+        // v0.9.1935: a product carrying the chosen maker's name counts too ("Also Sold As").
+        if (_itmMfr !== _stp3b.manufacturer && !(typeof rrRowAlsoSoldBy === 'function' && rrRowAlsoSoldBy(item, _stp3b.manufacturer))) return false;
       }
       if (_stp3b.scale && _stp3b.scale !== 'any' && !state.filters.owned) {
         // v0.9.1805: a "Standard & O" item carries TWO scales and matches either.
@@ -4548,7 +4549,7 @@ function _rrBrowseCore(_co) {
       // notes column never joined the haystack — yourDescription and
       // yourGrade did in v1506, notes were simply missed. Owned rows only
       // (pd is null for the other 141K), so the cost is ~nothing.
-      const haystack = `${item.itemNum} ${item.roadName||''} ${item.description||''} ${item.itemType||''} ${item.category||''} ${(pd&&pd.yourDescription)||''} ${(pd&&pd.yourGrade)||''} ${(pd&&pd.notes)||''}`.toLowerCase();
+      const haystack = `${item.itemNum} ${item.roadName||''} ${item.description||''} ${item.itemType||''} ${item.category||''} ${item.alsoSoldAs||''} ${(pd&&pd.yourDescription)||''} ${(pd&&pd.yourGrade)||''} ${(pd&&pd.notes)||''}`.toLowerCase();
       if (!_aliasSearch(haystack, search)) return false;
     }
     return true;

@@ -2546,6 +2546,36 @@ function _manufacturerOfItem(item) {
   var era = (typeof _itemEraKey === 'function') ? _itemEraKey(item) : ((item._era || item.era || '').toLowerCase());
   return _manufacturerOfEra(era);
 }
+// ── v0.9.1935 — "Also Sold As" ─────────────────────────────────────────────
+// [stated] Brad 2026-10-13, on MTH's licensed "Lionel Corporation Tinplate"
+// trains (made by MTH, MTH's own 11- numbers, the Lionel name on them): "we
+// need to figure out how someone can find them either way because it is
+// confusing." They had been typed onto the Lionel tab a SECOND time.
+//
+// A row is MADE by one maker — the tab it sits on (or its own Manufacturer
+// cell); _manufacturerOfItem above is unchanged and still decides badges,
+// saves and the Lionel-only steps. The master's optional "Also Sold As"
+// column names any other maker whose name the product carries ("Lionel
+// Corporation"; several are separated by ";"). One item, one row, found
+// under EITHER maker: every maker FILTER asks rrRowAlsoSoldBy after its own
+// test (the scan in also_sold_as_tests fails one that doesn't).
+function rrAlsoSoldAsNames(row) {
+  if (!row || !row.alsoSoldAs) return [];
+  return String(row.alsoSoldAs).split(/\s*;\s*/).map(function (s) { return s.trim(); }).filter(Boolean);
+}
+function _rrMakerWord(s) { return String(s || '').toLowerCase().replace(/[^a-z0-9]/g, ''); }
+// want: a maker in any of the shapes the filters hold ('lionel', 'Lionel',
+// '3rd Rail'). A name counts when it IS that maker or starts with it
+// ("Lionel Corporation" is Lionel).
+function rrRowAlsoSoldBy(row, want) {
+  var w = _rrMakerWord(want);
+  if (!w) return false;
+  return rrAlsoSoldAsNames(row).some(function (n) {
+    var k = _rrMakerWord(n);
+    return k === w || k.indexOf(w) === 0;
+  });
+}
+if (typeof window !== 'undefined') { window.rrAlsoSoldAsNames = rrAlsoSoldAsNames; window.rrRowAlsoSoldBy = rrRowAlsoSoldBy; }
 // Brand LABEL for an item, derived from the master catalog (Lionel/MTH/Atlas/...).
 // Single source of truth for 'what brand is this item' on every SAVE path.
 // Returns '' when the item isn't in the catalog (manual entry) so callers fall back.

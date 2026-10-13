@@ -377,7 +377,9 @@ function updateItemSuggestions(query) {
         }
         // Session 173: case-insensitive — _manufacturerOfItem returns lowercase
         // ('lionel') while typed/dropdown values are capitalized ('Lionel').
-        if (String(_mMfr).toLowerCase() !== String(_effMfr).toLowerCase()) return;
+        // v0.9.1935: a product carrying the chosen maker's name counts too ("Also Sold As").
+        if (String(_mMfr).toLowerCase() !== String(_effMfr).toLowerCase()
+            && !(typeof rrRowAlsoSoldBy === 'function' && rrRowAlsoSoldBy(m, _effMfr))) return;
       }
       if (_effPeriod && _periodOfRow(m) !== _effPeriod) return;
       if (_filterScale) {
@@ -424,6 +426,7 @@ function updateItemSuggestions(query) {
           label:       m.itemNum,
           // v0.9.1873: what rrCatalogStatus reads (a cancelled MTH item says so)
           deliveryStatus: m.deliveryStatus || '',
+          alsoSoldAs:  m.alsoSoldAs  || '',   // v0.9.1935: the "as Lionel" chip below
           _era:        m._era || '',
           _tab:        m._tab || '',
         });
@@ -637,6 +640,12 @@ function updateItemSuggestions(query) {
         + 'padding:0.1rem 0.4rem;border-radius:4px;flex-shrink:0;white-space:nowrap';
       railSpan.textContent = _railLabel;
       line1.appendChild(railSpan);
+    }
+    // v0.9.1935: "as LIONEL" on an MTH-built Lionel Corporation item, so the
+    // row says why it turned up under either maker (the chip lives in era-badges.js).
+    if (c.alsoSoldAs && typeof alsoSoldAsChipHTML === 'function') {
+      var _asChip = alsoSoldAsChipHTML(c);
+      if (_asChip) line1.insertAdjacentHTML('beforeend', _asChip);
     }
 
     // Session 156: road name suppressed from Step 1 list — variations

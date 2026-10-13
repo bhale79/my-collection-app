@@ -382,6 +382,7 @@ function _wizPickMasterRow(numLC, rows) {
         try { rowMfr = String((typeof _manufacturerOfEra === 'function' && _manufacturerOfEra(m._era)) || '').toLowerCase().replace(/[^a-z0-9]/g, ''); } catch (e) {}
         if (rowMfr && rowMfr === mfrLC) sc += 4;
         else if (String(m._tab || '').toLowerCase().replace(/[^a-z0-9]/g, '').indexOf(mfrLC) === 0) sc += 4;
+        else if (typeof rrRowAlsoSoldBy === 'function' && rrRowAlsoSoldBy(m, mfrLC)) sc += 4;   // v0.9.1935: Also Sold As
       }
       if (sc > bestScore) { bestScore = sc; best = m; }
     });
@@ -2110,7 +2111,8 @@ function _renderAddingBanner() {
             if (_fm) {
               var _rm = '';
               try { _rm = String((typeof _manufacturerOfEra === 'function' && _manufacturerOfEra(_row._era)) || _row._tab || '').toLowerCase(); } catch (eM) {}
-              if (_rm && _rm.indexOf(_fm) < 0) continue;
+              if (_rm && _rm.indexOf(_fm) < 0
+                  && !(typeof rrRowAlsoSoldBy === 'function' && rrRowAlsoSoldBy(_row, _fm))) continue;   // v0.9.1935: Also Sold As
             }
             _better = _row; break;
           }
@@ -7254,7 +7256,8 @@ async function _wizardNextCore() {
               var _rm = '';
               try { _rm = String((typeof _manufacturerOfEra === 'function' && _manufacturerOfEra(m._era)) || '').toLowerCase().replace(/[^a-z0-9]/g, ''); } catch (e) {}
               var _tab = String(m._tab || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-              if (_rm !== _pfM && _tab.indexOf(_pfM) !== 0) return false;
+              if (_rm !== _pfM && _tab.indexOf(_pfM) !== 0
+                  && !(typeof rrRowAlsoSoldBy === 'function' && rrRowAlsoSoldBy(m, _pfM))) return false;   // v0.9.1935: Also Sold As
             }
             return true;
           });

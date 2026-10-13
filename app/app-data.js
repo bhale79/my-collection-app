@@ -665,6 +665,10 @@ const MASTER_COL_SPEC = [
   // tab from Master Version 2.20) — what an owned item saves as Master Row ID.
   // Format and minting: RR_ROW_ID_* / rrNewRowId (config.js). Blank until then.
   ['rowId',          null, ['rowid']],
+  // v0.9.1935: another maker whose NAME the product carries ("Lionel
+  // Corporation" on MTH's licensed tinplate) — optional column, added at the
+  // end of a tab. Read by rrAlsoSoldAsNames / rrRowAlsoSoldBy (app.js) only.
+  ['alsoSoldAs',     null, ['alsosoldas']],
 ];
 
 // Build a field -> column-index map from a sheet's header row.

@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.1934';
+const APP_VERSION = 'v0.9.1935';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -695,7 +695,7 @@ function varShortLabel(text, max) {
 //   • PERSONAL_CACHE_VER -> personal "My Collection" cache
 // (Read in app-data.js by _rrCatalogShapeCheck / _PERSONAL_CACHE_VER.)
 // ═══════════════════════════════════════════════════════════════
-const CATALOG_CACHE_VER  = '128';   // v0.9.1873: rows now carry Delivery Status (MTH) — and since v1873 a bump marks every saved catalog stale (_rrCatalogShapeCheck)
+const CATALOG_CACHE_VER  = '129';   // v0.9.1935: rows now carry Also Sold As. v0.9.1873: rows now carry Delivery Status (MTH) — and since v1873 a bump marks every saved catalog stale (_rrCatalogShapeCheck)
 const PERSONAL_CACHE_VER = 'pf2';   // v0.9.1843: section Types read through ephCanonType ("Other Lionel" → Memorabilia) — re-parse once
 
 // v0.9.1873: the LAST master column the app reads, in ONE place (app-data.js's
