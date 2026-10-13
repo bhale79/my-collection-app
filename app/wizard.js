@@ -7978,7 +7978,7 @@ function _wizPicFirstChoose() {
   var ov = document.createElement('div');
   ov.id = 'wiz-picfirst-choose';
   ov.className = 'wiz-picfirst-choose';
-  var gpOk = typeof window.rrGPhotosPickSession === 'function';
+  var gpOk = typeof window.rrGPhotosPickFiles === 'function';
   ov.innerHTML =
     '<div class="wiz-picfirst-card">' +
       '<div class="wiz-picfirst-card-title">' + RR_PIC_FIRST.chooserTitle + '</div>' +
@@ -7998,44 +7998,13 @@ function _wizPicFirstChoose() {
   if (gp) gp.onclick = function () { _wizPicFirstGPhotos(ov, close); };   // inside the click: the picker tab opens now
 }
 function _wizPicFirstGPhotos(ov, close) {
-  var st = ov.querySelector('#wiz-picfirst-status');
-  var setSt = function (html) { if (st) { st.style.display = html ? 'block' : 'none'; st.innerHTML = html || ''; } };
-  Array.prototype.forEach.call(ov.querySelectorAll('[data-pfc="local"],[data-pfc="gphotos"]'), function (b) { b.disabled = true; });
-  setSt('Opening Google Photos\u2026');
-  window.rrGPhotosPickSession({
-    shouldAbort: ov._pfAborted,
-    onStatus: function () { if (!st || !st.querySelector('[data-pfc="opentab"]')) setSt(RR_PIC_FIRST.gpWaiting); },
-    // the browser blocked the tab — give the user something to click
-    // the browser blocked the tab — a button gives the fresh click a new tab needs
-    onNeedTab: function (uri) {
-      setSt('Your browser blocked the Google Photos tab. <button type="button" data-pfc="opentab">Open Google Photos</button> Pick one photo, press Done there, then come back.');
-      var ob = st && st.querySelector('[data-pfc="opentab"]');
-      if (ob) ob.onclick = function () { try { window.open(uri, '_blank', 'noopener'); } catch (e) {} };
-    },
-  }).then(async function (pick) {
-    if (ov._pfAborted()) { if (pick && pick.sessionId) window.rrGPhotosEnd(pick.sessionId, pick.auth); return; }
-    if (!pick || pick.error) {
-      close();
-      if (pick && pick.error === 'scope') showToast('Google Photos permission was not granted', 3500, true);
-      else if (pick && pick.error === 'timeout') showToast('Gave up waiting for Google Photos \u2014 try again', 3000, true);
-      else if (pick && pick.error !== 'cancelled') showToast('Google Photos picker error' + (pick.status ? ' (' + pick.status + ')' : '') + ' \u2014 try again', 3500, true);
-      return;
-    }
-    var ph = (pick.items || []).filter(function (m) { return String(m.type || '').toUpperCase() !== 'VIDEO'; });
-    if (!ph.length) { window.rrGPhotosEnd(pick.sessionId, pick.auth); close(); showToast('No photo was picked', 2500, true); return; }
-    if (ph.length > 1) showToast('Using the first photo you picked', 2500);
-    try {
-      setSt(RR_PIC_FIRST.gpFetching);
-      var f = await window.rrGPhotosFile(ph[0], pick.auth, 'google-photo.jpg');
-      window.rrGPhotosEnd(pick.sessionId, pick.auth);
-      if (ov._pfAborted()) return;
-      close();
-      _wizPicFirstTake(f);
-    } catch (eDl) {
-      window.rrGPhotosEnd(pick.sessionId, pick.auth);
-      close();
-      showToast('Could not fetch that photo from Google Photos \u2014 try again', 3500, true);
-    }
+  // v0.9.1936 (Brad): the chooser steps aside and the shared waiting panel
+  // (drive.js rrGPhotosPickFiles) holds the screen until the photo is in hand.
+  close();
+  window.rrGPhotosPickFiles({ max: 1, fallbackName: 'google-photo.jpg' }).then(function (res) {
+    if (!res || res.error) { var m = window.rrGPhotosErrText(res); if (m) showToast(m, 3500, true); return; }
+    if (res.picked > 1) showToast(RR_GPHOTOS_WAIT.usingFirst, 2500);
+    _wizPicFirstTake(res.files[0]);
   });
 }
 // The one place a chosen picture is taken in, wherever it came from.

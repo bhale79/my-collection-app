@@ -181,7 +181,7 @@ async function toPhotos(pg) {
       const b64 = fs.readFileSync(JPG).toString('base64');
       await pg.evaluate(b64 => {
         window.__gp = { calls: 0, ended: 0, fetched: 0 };
-        window.rrGPhotosPickSession = async function (o) { window.__gp.calls++; o.onStatus('waiting'); window.__gp.status = document.getElementById('wiz-picfirst-status').textContent; return { items: [{ type: 'PHOTO', mediaFile: { filename: 'IMG_6014.jpg' } }], auth: {}, sessionId: 'S1' }; };
+        window.rrGPhotosPickSession = async function (o) { window.__gp.calls++; o.onStatus('waiting'); window.__gp.status = (document.getElementById('rr-gp-wait') || {}).textContent;   /* v0.9.1936: the shared waiting panel */ return { items: [{ type: 'PHOTO', mediaFile: { filename: 'IMG_6014.jpg' } }], auth: {}, sessionId: 'S1' }; };
         window.rrGPhotosFile = async function (item, auth, fb) { window.__gp.fetched++; const bin = Uint8Array.from(atob(b64), c => c.charCodeAt(0)); return new File([bin], item.mediaFile.filename, { type: 'image/jpeg' }); };
         window.rrGPhotosEnd = function () { window.__gp.ended++; };
       }, b64);

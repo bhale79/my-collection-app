@@ -23108,7 +23108,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
       ok('328 the tray exists and takes a MULTI-select from the computer',
          /_wizTrayMount/.test(wz28) && /_wizTrayMount/.test(wp28) && /multiple/.test(wp28.slice(wp28.indexOf('_wizTrayMount'))), '');
       ok('328 the Google Photos door reuses the one session picker',
-         /rrGPhotosPickSession/.test(wp28) && /rrGPhotosFile/.test(wp28), '');
+         /rrGPhotosPickFiles\(/.test(wp28) || (/rrGPhotosPickSession/.test(wp28) && /rrGPhotosFile/.test(wp28)), '');   // v0.9.1936: through rrGPhotosPickFiles
       ok('328 a dragged NEW file uploads through the standard path; an on-file photo RENAMES into its view',
          /_wizTrayDrop/.test(wp28) && /uploadWizardPhoto\(/.test(wp28.slice(wp28.indexOf('_wizTrayDrop')))
          && /rrView/.test(wp28.slice(wp28.indexOf('_wizTrayDrop'))), '');

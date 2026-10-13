@@ -2465,68 +2465,25 @@ function _ensureGPhotosBtn() {
 // until the user hits Done there → download the pick → hand it to the same
 // uploadWizardPhoto() path a computer file takes. Read-only scope; the app
 // only ever sees what was picked.
-async function _wizGPhotosPick() {
+// v0.9.1936: this used to be its OWN copy of the Google Photos session dance
+// (open tab, poll, download) — the shared one in drive.js had moved on (a
+// blocked-tab rescue, the waiting panel, the instant check on return) and this
+// copy had none of it. One door now: rrGPhotosPickFiles.
+function _wizGPhotosPick() {
   var sid = _pickerStepId, vk = _pickerViewKey;   // grab BEFORE close clears them
   closePhotoPicker();
   if (!sid || !vk) { showToast('Photo slot lost — please try again', 3000, true); return; }
   if (!window.accessToken) { showToast('Please sign in first', 3000, true); return; }
-  // Open the tab NOW (inside the click) so popup blockers stay quiet.
-  var tab = null;
-  try { tab = window.open('', '_blank'); } catch (e) {}
-  // v0.9.995: Google Photos permission is asked at the moment of use
-  // (incremental auth) — the default sign-in no longer includes it.
-  if (typeof _ensurePhotosScope === 'function') {
-    var _psOk = await _ensurePhotosScope();
-    if (!_psOk) { try { if (tab) tab.close(); } catch (e) {} showToast('Google Photos permission was not granted', 3500, true); return; }
-  }
-  try {
-    var auth = { Authorization: 'Bearer ' + window.accessToken };
-    var sRes = await fetch('https://photospicker.googleapis.com/v1/sessions', { method: 'POST', headers: Object.assign({ 'Content-Type': 'application/json' }, auth), body: '{}' });
-    if (!sRes.ok) {
-      try { if (tab) tab.close(); } catch (e) {}
-      if (sRes.status === 401 || sRes.status === 403) showToast('Google Photos needs its one-time setup — open Photo Inbox → From Google Photos for the steps', 6000, true);
-      else showToast('Google Photos picker error (' + sRes.status + ') — try again', 3500, true);
-      return;
-    }
-    var s = await sRes.json();
-    if (tab) { try { tab.location = s.pickerUri; } catch (e) { tab = null; } }
-    if (!tab) window.open(s.pickerUri, '_blank');
-    showToast('Pick a photo in the Google Photos tab that just opened, then press Done there', 5000);
-    var _ivOf = function (cfg) { try { var d = parseFloat(String((cfg || {}).pollInterval || '').replace('s', '')); return d > 0 ? Math.max(2000, d * 1000) : 0; } catch (e) { return 0; } };
-    var iv = _ivOf(s.pollingConfig) || 4000;
-    var picked = false, waited = 0;
-    while (!picked && waited < 600000) {
-      await new Promise(function (r) { setTimeout(r, iv); });
-      waited += iv;
-      var g = await fetch('https://photospicker.googleapis.com/v1/sessions/' + s.id, { headers: auth });
-      if (!g.ok) throw new Error('session poll ' + g.status);
-      var gs = await g.json();
-      if (gs.mediaItemsSet) picked = true;
-      iv = _ivOf(gs.pollingConfig) || iv;
-    }
-    if (!picked) { showToast('Gave up waiting for Google Photos — try again', 3500, true); return; }
-    var lRes = await fetch('https://photospicker.googleapis.com/v1/mediaItems?sessionId=' + encodeURIComponent(s.id) + '&pageSize=10', { headers: auth });
-    if (!lRes.ok) throw new Error('mediaItems list ' + lRes.status);
-    var lj = await lRes.json();
-    var items = (lj.mediaItems || []).filter(function (m) { return String(m.type || '').toUpperCase() !== 'VIDEO'; });
-    try { fetch('https://photospicker.googleapis.com/v1/sessions/' + s.id, { method: 'DELETE', headers: auth }); } catch (eDel) {}
-    if (!items.length) { showToast('No photo picked', 3000, true); return; }
-    if (items.length > 1) showToast('This slot takes one photo — using the first one you picked', 3500);
-    // If the wizard was closed while the picker tab was open, don't upload
-    // into a slot that no longer exists.
-    var wm = document.getElementById('wizard-modal');
-    if (!wm || !wm.classList.contains('open')) { showToast('The add-item window closed — photo not attached', 3500, true); return; }
-    var mf = items[0].mediaFile || {};
-    var bRes = await fetch(mf.baseUrl + '=d', { headers: auth });
-    if (!bRes.ok) throw new Error('download ' + bRes.status);
-    var blob = await bRes.blob();
-    var fname = String(mf.filename || 'photo.jpg').replace(/[^\w.\- ]+/g, '').slice(-60) || 'photo.jpg';
-    var file = new File([blob], fname, { type: mf.mimeType || 'image/jpeg' });
-    uploadWizardPhoto(file, sid, vk);
-  } catch (e) {
-    console.error('[Wizard] Google Photos pick:', e);
-    showToast('Google Photos import hit a snag — try again', 3500, true);
-  }
+  if (typeof window.rrGPhotosPickFiles !== 'function') { showToast('Google Photos isn\u2019t available right now', 3000, true); return; }
+  // If the wizard is closed while Google Photos is open, don't upload into a
+  // slot that no longer exists.
+  var wizGone = function () { var wm = document.getElementById('wizard-modal'); return !wm || !wm.classList.contains('open'); };
+  window.rrGPhotosPickFiles({ max: 1, fallbackName: 'photo.jpg', shouldAbort: wizGone }).then(function (res) {
+    if (wizGone()) { if (res && res.files) showToast('The add-item window closed — photo not attached', 3500, true); return; }
+    if (!res || res.error) { var m = window.rrGPhotosErrText(res); if (m) showToast(m, 3500, true); return; }
+    if (res.picked > 1) showToast('This slot takes one photo — using the first one you picked', 3500);
+    uploadWizardPhoto(res.files[0], sid, vk);
+  });
 }
 
 function pickerHandleFile(inputEl, isCamera) {
@@ -2805,24 +2762,13 @@ function _wizTrayRender(stepId) {
   };
   // Google Photos — the one session picker, multi-item
   box.querySelector('#wiz-tray-gp').onclick = function () {
-    if (typeof window.rrGPhotosPickSession !== 'function') { showToast('Google Photos isn\u2019t available right now', 3000, true); return; }
-    showToast('Pick photos in the Google Photos tab, press Done there, then come back', 4500);
-    window.rrGPhotosPickSession({}).then(async function (pick) {
-      if (!pick || pick.error) {
-        if (pick && pick.error === 'scope') showToast('Google Photos permission was not granted', 3500, true);
-        else if (pick && pick.error && pick.error !== 'cancelled') showToast('Google Photos picker error \u2014 try again', 3000, true);
-        return;
-      }
-      var ph = (pick.items || []).filter(function (x) { return String(x.type || '').toUpperCase() !== 'VIDEO'; }).slice(0, 12);
-      for (var i = 0; i < ph.length; i++) {
-        try {
-          var f = await window.rrGPhotosFile(ph[i], pick.auth, 'gphotos-' + (i + 1) + '.jpg');
-          if (f) d._wizTray.push({ k: 'local', file: f, url: URL.createObjectURL(f) });
-        } catch (eGP) {}
-      }
-      try { window.rrGPhotosEnd(pick.sessionId, pick.auth); } catch (eE) {}
+    if (typeof window.rrGPhotosPickFiles !== 'function') { showToast('Google Photos isn\u2019t available right now', 3000, true); return; }
+    // v0.9.1936: the shared waiting panel holds the screen until the photos are in.
+    window.rrGPhotosPickFiles({ max: 12 }).then(function (res) {
+      if (!res || res.error) { var m = window.rrGPhotosErrText(res); if (m) showToast(m, 3000, true); return; }
+      res.files.forEach(function (f) { d._wizTray.push({ k: 'local', file: f, url: URL.createObjectURL(f) }); });
       _wizTrayRender(stepId);
-      if (ph.length) showToast(ph.length + (ph.length === 1 ? ' photo' : ' photos') + ' in the tray \u2014 drag each onto its view', 3500);
+      showToast(res.files.length + (res.files.length === 1 ? ' photo' : ' photos') + ' in the tray \u2014 drag each onto its view', 3500);
     });
   };
   // drag: mouse = HTML5; touch = the v1614 press-and-hold

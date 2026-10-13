@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.1935';
+const APP_VERSION = 'v0.9.1936';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -2947,6 +2947,29 @@ if (typeof document !== 'undefined' && document.addEventListener) {
 // screen. then i can carry on." ONE place for its words and sizes (wizard.js
 // _wizPicFirst*). The picture is held in the browser — nothing is uploaded —
 // until the Photos step, where it goes in as the first Item photo.
+// v0.9.1936 — the Google Photos waiting panel (drive.js rrGPhotosPickFiles).
+// [stated] Brad 2026-10-13: "the app should switch to a 'waiting on photo to
+// upload' screen". Every word the panel and its error toasts say lives here.
+const RR_GPHOTOS_WAIT = {
+  title: 'Waiting for your photo from Google Photos',
+  titleMany: 'Waiting for your photos from Google Photos',
+  how: 'Pick ONE photo in Google Photos and press Done.',
+  howMany: 'Pick your photos in Google Photos and press Done.',
+  after: 'This screen moves on by itself once it arrives.',
+  opening: 'Opening Google Photos\u2026',
+  waiting: 'Waiting for you to press Done in Google Photos\u2026',
+  blocked: 'Your browser blocked the Google Photos tab \u2014 press Open Google Photos.',
+  fetching: 'Got it \u2014 bringing it in\u2026',
+  reopen: 'Open Google Photos',
+  cancel: 'Cancel',
+  usingFirst: 'Using the first photo you picked',
+  errSetup: 'Google Photos needs its one-time setup \u2014 open Photo Inbox \u2192 From Google Photos for the steps',
+  err_scope: 'Google Photos permission was not granted',
+  err_timeout: 'Gave up waiting for Google Photos \u2014 try again',
+  err_none: 'No photo was picked',
+  err_download: 'Could not fetch that photo from Google Photos \u2014 try again',
+  errOther: 'Google Photos picker error{status} \u2014 try again',
+};
 const RR_PIC_FIRST = {
   button: '\ud83d\udcf7 Add a picture first',
   buttonSet: '\u2713 Picture added',
@@ -2959,8 +2982,6 @@ const RR_PIC_FIRST = {
   fromComputer: '\ud83d\udcbb From this computer',
   fromPhone: '\ud83d\udcf1 Take or pick on this phone',
   fromGPhotos: '\u2601\ufe0f From Google Photos',
-  gpWaiting: 'Pick ONE photo in the Google Photos tab, press Done there, then come back \u2014 waiting\u2026',
-  gpFetching: 'Fetching the photo\u2026',
   sideMinWidth: 980,     // the window must be at least this wide for the side view
   sideWidthPx: 300,      // the side view's width
 };

@@ -1990,6 +1990,11 @@ async function rrGPhotosPickSession(opts) {
   } catch (e) { try { if (tab) tab.close(); } catch (e2) {} return { error: 'network' }; }
   if (!sRes.ok) { try { if (tab) tab.close(); } catch (e) {} return { error: 'session', status: sRes.status }; }
   var s = await sRes.json();
+  // v0.9.1936 (Brad: "i then have to manually switch back to the app"):
+  // Google's picker closes its own tab when the user presses Done if its
+  // address ends in /autoclose — the browser then drops them back on the app.
+  if (s.pickerUri && !/\/autoclose$/.test(s.pickerUri)) s.pickerUri = String(s.pickerUri).replace(/\/+$/, '') + '/autoclose';
+  if (typeof opts.onUri === 'function') { try { opts.onUri(s.pickerUri); } catch (e) {} }
   if (tab) { try { tab.location = s.pickerUri; } catch (e) { tab = null; } }
   // v0.9.1417 (beta tester 1, iPhone): this used to be a bare
   // `window.open(s.pickerUri, '_blank')`. That line runs AFTER the session
@@ -2015,9 +2020,32 @@ async function rrGPhotosPickSession(opts) {
   // inbox for the rest of the ten minutes with no reason on screen and no
   // Cancel to press. Repainting on every tick costs nothing (it is the same
   // string) and means the way out can never go missing for more than one poll.
+  // v0.9.1936 (Brad: "a few seconds it show the picture i selected"): the
+  // wait between asks is cut short the moment the app's tab is in front again
+  // (the user came back from Google Photos), so the answer is fetched at once.
+  var _nap = function (ms) {
+    return new Promise(function (resolve) {
+      var over = false;
+      var wake = function () {
+        if (over) return;
+        if (typeof document !== 'undefined' && document.visibilityState && document.visibilityState !== 'visible') return;
+        finish();
+      };
+      var finish = function () {
+        if (over) return;
+        over = true;
+        try { document.removeEventListener('visibilitychange', wake); } catch (e) {}
+        try { window.removeEventListener('focus', wake); } catch (e) {}
+        resolve();
+      };
+      try { document.addEventListener('visibilitychange', wake); } catch (e) {}
+      try { window.addEventListener('focus', wake); } catch (e) {}
+      setTimeout(finish, ms);
+    });
+  };
   onStatus('waiting');
   while (!picked && !shouldAbort() && waited < 600000) {
-    await new Promise(function (r) { setTimeout(r, iv); });
+    await _nap(iv);
     onStatus('waiting');
     waited += iv;
     var g;
@@ -2052,10 +2080,116 @@ async function rrGPhotosFile(item, auth, fallbackName) {
 function rrGPhotosEnd(sessionId, auth) {
   try { fetch('https://photospicker.googleapis.com/v1/sessions/' + sessionId, { method: 'DELETE', headers: auth }); } catch (e) {}
 }
+
+// ── v0.9.1936 — ONE way to bring photos in from Google Photos ─────────────
+// [stated] Brad 2026-10-13: "when i switch back to the app it show the google
+// photo button again, and a few seconds it show the picture i selected. so
+// for a few seconds, the user doesn't know to wait or to click or what to do
+// … the app should switch to a 'waiting on photo to upload' screen".
+// rrGPhotosPickFiles covers the screen with a waiting panel the moment Google
+// Photos opens and keeps it up — waiting, then "bringing your photo in" —
+// until the files are in hand, so the screen behind it is never mistaken for
+// a fresh start. Every caller but the Photo Inbox (which has its own waiting
+// line and Cancel) comes through here; the scan in gphotos_wait_tests fails a
+// new one that doesn't. Wording: RR_GPHOTOS_WAIT (config.js).
+//   opts: { max (1 = one photo), fallbackName, shouldAbort }
+//   -> { files: [File…], picked: n }  or  { error, status? }
+//      error: the session's own, plus 'cancelled' | 'none' | 'download'
+function _rrGPW() { return (typeof RR_GPHOTOS_WAIT !== 'undefined' && RR_GPHOTOS_WAIT) || {}; }
+function _rrGPWaitShow(many) {
+  var W = _rrGPW();
+  var old = document.getElementById('rr-gp-wait');
+  if (old) { try { old.remove(); } catch (e) {} }
+  if (!document.getElementById('rr-gp-wait-css')) {
+    var st = document.createElement('style');
+    st.id = 'rr-gp-wait-css';
+    st.textContent = '@keyframes rrGpSpin{to{transform:rotate(360deg)}}'
+      + '#rr-gp-wait .rr-gp-spin{width:42px;height:42px;border-radius:50%;border:4px solid var(--border);border-top-color:var(--accent);animation:rrGpSpin 0.9s linear infinite;margin:0 auto 0.9rem}'
+      + '#rr-gp-wait button{font-family:var(--font-body);font-size:1rem;font-weight:700;padding:0.65rem 1.2rem;border-radius:9px;cursor:pointer}';
+    document.head.appendChild(st);
+  }
+  var ov = document.createElement('div');
+  ov.id = 'rr-gp-wait';
+  ov.setAttribute('role', 'dialog');
+  ov.setAttribute('aria-live', 'polite');
+  ov.style.cssText = 'position:fixed;inset:0;z-index:100050;background:var(--scrim);display:flex;align-items:center;justify-content:center;padding:1rem';
+  ov.innerHTML =
+    '<div style="background:var(--surface);color:var(--text);border:1.5px solid var(--border);border-radius:14px;max-width:440px;width:100%;padding:1.4rem 1.3rem;text-align:center">'
+    + '<div class="rr-gp-spin"></div>'
+    + '<div data-gpw="title" style="font-family:var(--font-head);font-size:1.25rem;margin-bottom:0.6rem"></div>'
+    + '<div data-gpw="how" style="font-size:1rem;line-height:1.45;color:var(--text-mid);margin-bottom:0.5rem"></div>'
+    + '<div data-gpw="stage" style="font-size:0.95rem;font-weight:700;color:var(--accent2);min-height:1.4em;margin-bottom:1rem"></div>'
+    + '<div style="display:flex;gap:0.6rem;justify-content:center;flex-wrap:wrap">'
+    + '<button type="button" data-gpw="reopen" style="display:none;border:1.5px solid var(--accent2);background:transparent;color:var(--accent2)"></button>'
+    + '<button type="button" data-gpw="cancel" data-close="1" style="border:1.5px solid var(--border);background:var(--surface2);color:var(--text)"></button>'
+    + '</div></div>';
+  document.body.appendChild(ov);
+  var q = function (k) { return ov.querySelector('[data-gpw="' + k + '"]'); };
+  q('title').textContent = many ? (W.titleMany || '') : (W.title || '');
+  q('how').textContent = (many ? (W.howMany || '') : (W.how || '')) + ' ' + (W.after || '');
+  q('cancel').textContent = W.cancel || '';
+  q('reopen').textContent = W.reopen || '';
+  var panel = {
+    el: ov, cancelled: false, uri: '',
+    stage: function (k) { var t = q('stage'); if (t) t.textContent = W[k] || ''; if (k === 'fetching') { var r = q('reopen'); if (r) r.style.display = 'none'; } },
+    setUri: function (u) { panel.uri = u || ''; var r = q('reopen'); if (r && panel.uri) r.style.display = ''; },
+    close: function () { try { ov.remove(); } catch (e) {} },
+  };
+  q('reopen').onclick = function () { if (panel.uri) { try { window.open(panel.uri, '_blank'); } catch (e) {} } };
+  var cancel = function () { panel.cancelled = true; panel.close(); };
+  q('cancel').onclick = cancel;
+  if (typeof window.rrDismissGuard === 'function') window.rrDismissGuard(ov, cancel);   // Back = Cancel; a stray tap on the backdrop does nothing
+  panel.stage('opening');
+  return panel;
+}
+// Runs synchronously up to the session call, so Google Photos' tab still opens
+// inside the user's click (popup blockers stay quiet).
+function rrGPhotosPickFiles(opts) {
+  opts = opts || {};
+  var max = Math.max(1, opts.max || 1);
+  var panel = _rrGPWaitShow(max > 1);
+  var aborted = function () { return panel.cancelled || !!(opts.shouldAbort && opts.shouldAbort()); };
+  return window.rrGPhotosPickSession({
+    shouldAbort: aborted,
+    onStatus: function () { panel.stage('waiting'); },
+    onUri: function (u) { panel.setUri(u); },
+    onNeedTab: function (u) { panel.setUri(u); panel.stage('blocked'); },
+  }).then(async function (pick) {
+    try {
+      if (aborted()) { if (pick && pick.sessionId) window.rrGPhotosEnd(pick.sessionId, pick.auth); return { error: 'cancelled' }; }
+      if (!pick || pick.error) return pick || { error: 'session' };
+      var ph = (pick.items || []).filter(function (m) { return String(m.type || '').toUpperCase() !== 'VIDEO'; });
+      if (!ph.length) { window.rrGPhotosEnd(pick.sessionId, pick.auth); return { error: 'none' }; }
+      panel.stage('fetching');
+      var files = [];
+      try {
+        for (var i = 0; i < ph.length && i < max; i++) {
+          var f = await window.rrGPhotosFile(ph[i], pick.auth, max > 1 ? ('gphotos-' + (i + 1) + '.jpg') : (opts.fallbackName || 'photo.jpg'));
+          if (f) files.push(f);
+          if (aborted()) break;
+        }
+      } catch (eDl) { window.rrGPhotosEnd(pick.sessionId, pick.auth); return { error: 'download' }; }
+      window.rrGPhotosEnd(pick.sessionId, pick.auth);
+      if (aborted()) return { error: 'cancelled' };
+      if (!files.length) return { error: 'download' };
+      return { files: files, picked: ph.length };
+    } finally { panel.close(); }
+  }, function () { panel.close(); return { error: 'network' }; });
+}
+// What to tell the user about a result that brought nothing back ('' = say nothing).
+function rrGPhotosErrText(res) {
+  var W = _rrGPW(), e = res && res.error;
+  if (!e || e === 'cancelled') return '';
+  if (e === 'session' && (res.status === 401 || res.status === 403)) return W.errSetup || '';
+  if (W['err_' + e]) return W['err_' + e];
+  return String(W.errOther || '').replace('{status}', res.status ? ' (' + res.status + ')' : '');
+}
 if (typeof window !== 'undefined') {
   window.rrGPhotosPickSession = rrGPhotosPickSession;
   window.rrGPhotosFile = rrGPhotosFile;
   window.rrGPhotosEnd = rrGPhotosEnd;
+  window.rrGPhotosPickFiles = rrGPhotosPickFiles;
+  window.rrGPhotosErrText = rrGPhotosErrText;
 }
 
 // ══ v0.9.1177 — ONE thumbnail cell for every list ═════════════════════════

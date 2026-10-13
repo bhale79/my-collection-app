@@ -152,8 +152,10 @@ async function runPoll(driveSrc, opts) {
 
 // The pre-fix helper: onStatus once, bare window.open fallback.
 const drivePreFix = DRIVE
-  .replace(/  onStatus\('waiting'\);\n(  while \(!picked[^\n]*\n)    await new Promise\(function \(r\) \{ setTimeout\(r, iv\); \}\);\n    onStatus\('waiting'\);/,
-           "  onStatus('waiting');\n$1    await new Promise(function (r) { setTimeout(r, iv); });")
+  // v0.9.1936: the sleep line became `await _nap(iv);` (it wakes early when
+  // the app's tab is in front again) — either spelling is reconstructed.
+  .replace(/  onStatus\('waiting'\);\n(  while \(!picked[^\n]*\n)(    await (?:new Promise\(function \(r\) \{ setTimeout\(r, iv\); \}\)|_nap\(iv\));)\n    onStatus\('waiting'\);/,
+           "  onStatus('waiting');\n$1$2")
   .replace(/  if \(!tab\) \{\n    var _opened = null;[\s\S]*?\n  \}/,
            '  if (!tab) window.open(s.pickerUri, \'_blank\');');
 if (drivePreFix === DRIVE) {
@@ -224,8 +226,10 @@ if (drivePreFix === DRIVE) {
 
   // The other caller of the shared helper must survive the onStatus change.
   const BC = fs.readFileSync(APP('barcode.js'), 'utf8');
-  ok('barcode.js still drives the same helper and its onStatus is idempotent',
-     /rrGPhotosPickSession\(\{[\s\S]{0,300}onStatus: function \(\) \{ setSt\(/.test(BC));
+  // v0.9.1936: Photo ID now goes through rrGPhotosPickFiles, whose onStatus
+  // repaints the shared waiting panel (drive.js) — idempotent by construction.
+  ok('barcode.js still drives the shared helper (through rrGPhotosPickFiles)',
+     /rrGPhotosPickFiles\(\{/.test(BC) && /onStatus: function \(\) \{ panel\.stage\('waiting'\); \}/.test(DRIVE));
 
   console.log('\n' + (fail ? 'FAILED' : 'OK') + '  ' + pass + ' passed, ' + fail + ' failed');
   process.exit(fail ? 1 : 0);

@@ -2863,8 +2863,7 @@ window.eraSupportsBarcode = eraSupportsBarcode;
             // the Photo Inbox uses) right beside the computer picker.
             + _biBtn({ act: 'gphotos', txt: '🖼️ From Google Photos' })
             + (window._researchActive ? '' : _biBtn({ act: 'cancel', txt: 'Cancel' }))
-            + '</div>'
-            + '<div id="bi-gp-status" style="display:none;color:var(--text-mid,#bbb);font-size:0.8rem;margin-top:0.45rem"></div>'))
+            + '</div>'))   // v0.9.1936: the Google Photos wait shows on the shared panel, not a line here
         + (window._researchActive
           // v0.9.1913 (Brad: "the know it button should say 'item #' and maybe
           // a box around it and the look up button so you know its together"):
@@ -2934,38 +2933,17 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         if (act === 'gallery') d.querySelector('#bi-file').click();
         // v0.9.1014 (Brad): pick the identify shot straight from Google
         // Photos — same shared picker helper the Photo Inbox uses.
-        if (act === 'gphotos' && typeof window.rrGPhotosPickSession === 'function') {
+        if (act === 'gphotos' && typeof window.rrGPhotosPickFiles === 'function') {
+          // v0.9.1936 (Brad): the shared waiting panel covers this screen from
+          // the moment Google Photos opens until the photo is in hand, then the
+          // crop screen follows — never the capture screen looking untouched.
           (function () {
-            var stEl = d.querySelector('#bi-gp-status');
-            var setSt = function (m) { if (stEl) { stEl.style.display = m ? 'block' : 'none'; stEl.textContent = m || ''; } };
-            // If this capture screen is gone (user cancelled), stop the dance.
-            var goneAway = function () { return !document.body.contains(d); };
-            setSt('Opening Google Photos…');
-            window.rrGPhotosPickSession({
-              shouldAbort: goneAway,
-              onStatus: function () { setSt('Pick ONE photo in the Google Photos tab, press Done there, then come back — waiting…'); },
-            }).then(async function (pick) {
-              if (goneAway()) { if (pick && pick.sessionId) window.rrGPhotosEnd(pick.sessionId, pick.auth); return; }
-              if (!pick || pick.error) {
-                setSt('');
-                if (pick && pick.error === 'scope') showToast('Google Photos permission was not granted', 3500, true);
-                else if (pick && pick.error === 'timeout') showToast('Gave up waiting for the picker — try again', 3000, true);
-                else if (pick && pick.error !== 'cancelled') showToast('Google Photos picker error' + (pick.status ? ' (' + pick.status + ')' : '') + ' — try again', 3500, true);
-                return;
-              }
-              var ph = (pick.items || []).filter(function (m) { return String(m.type || '').toUpperCase() !== 'VIDEO'; });
-              if (!ph.length) { setSt(''); window.rrGPhotosEnd(pick.sessionId, pick.auth); showToast('No photo was picked', 2500, true); return; }
-              if (ph.length > 1) showToast('Using the first photo you picked', 2500);
-              try {
-                setSt('Fetching the photo…');
-                var f = await window.rrGPhotosFile(ph[0], pick.auth, 'gphotos.jpg');
-                window.rrGPhotosEnd(pick.sessionId, pick.auth);
-                setSt('');
-                if (!goneAway()) _biIngestFile(f);
-              } catch (eDl) {
-                setSt('');
-                showToast('Could not fetch that photo — try again', 3000, true);
-              }
+            var goneAway = function () { return !document.body.contains(d); };   // capture screen cancelled
+            window.rrGPhotosPickFiles({ max: 1, fallbackName: 'gphotos.jpg', shouldAbort: goneAway }).then(function (res) {
+              if (goneAway()) return;
+              if (!res || res.error) { var m = window.rrGPhotosErrText(res); if (m) showToast(m, 3500, true); return; }
+              if (res.picked > 1) showToast(RR_GPHOTOS_WAIT.usingFirst, 2500);
+              _biIngestFile(res.files[0]);
             });
           })();
         }

@@ -34,7 +34,14 @@
   };
 
   var _stack = [];               // array of { id: string, closeFn: function }
-  var _ignoreNextPopstate = false; // set when WE call history.back() in pop()
+  // v0.9.1936: a COUNT, not a flag. Each history.back() we make ourselves (in
+  // pop) fires one popstate a moment later. When two overlays closed in the
+  // same instant — the "Add a picture" chooser stepping aside for the Google
+  // Photos waiting panel, and the panel coming straight down again — both
+  // calls set the same true, the first popstate cleared it, and the SECOND
+  // was taken for the user pressing Back: it closed whatever sat below
+  // (pic_first_tests G2 caught it — the picture box vanished).
+  var _ignorePops = 0;             // self-made history.back() calls still to come
   var _inited = false;
 
   function _log() {
@@ -51,8 +58,8 @@
 
   function _onPopState(e) {
     // We called history.back() ourselves — swallow exactly one popstate.
-    if (_ignoreNextPopstate) {
-      _ignoreNextPopstate = false;
+    if (_ignorePops > 0) {
+      _ignorePops--;
       _log('ignoring self-triggered popstate');
       // Session 159: also stop propagation so app.js's dashboard back handler
       // doesn't see this and flash "Press back again to exit" after wizard close.
@@ -117,9 +124,9 @@
     _log('pop', id || '(top)', 'stack size now', _stack.length);
     // Rewind one history step to match the pushState we did on open,
     // so the next back press isn't a no-op for the user.
-    _ignoreNextPopstate = true;
+    _ignorePops++;
     try { history.back(); }
-    catch (e) { _ignoreNextPopstate = false; }
+    catch (e) { _ignorePops = Math.max(0, _ignorePops - 1); }
   }
 
   // Public — one-line wiring for modals that close by REMOVING their root
