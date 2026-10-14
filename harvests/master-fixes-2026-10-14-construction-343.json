@@ -1,0 +1,41 @@
+{
+ "what": "Master Version 2.42 — Lionel PW - Construction row 'No. 232 v2' (Row ID CRW3KRTUPC) is the No. 343 construction kit: its Description reads 'Lionel Construction Kit No. 343', its COTT Code SS0190 is the code COTT prints in its No. 343 section (PW - Items 343 v1 carries the same), and the tab had no 343 row. Item Number 232 → 343, Variation # 2 → 1, Reference Link #CON232 → #CON343. Every other cell of the row unchanged (Variation Details / Original COTT Desc keep their text — they quote COTT's shared 232/343/454 manual line).",
+ "stated": "Brad (2026-10-13/14): \"yes\" to fixing Construction 232 v2 as the 343 kit (number, variation, link) as Master Version 2.42",
+ "masterVersion": "2.42",
+ "date": "2026-10-14",
+ "planReadAt": "public CSV export of Lionel PW - Construction read 2026-10-14 (right before this record)",
+ "cellFormat": "[tab, item number (column A) BEFORE the edit, column header, old, new, sheet row as a hint, Row ID of the row]",
+ "counts": {
+  "cells": 3,
+  "rows": 1
+ },
+ "cells": [
+  [
+   "Lionel PW - Construction",
+   "232",
+   "Item Number",
+   "232",
+   "343",
+   6,
+   "CRW3KRTUPC"
+  ],
+  [
+   "Lionel PW - Construction",
+   "232",
+   "Variation #",
+   "2",
+   "1",
+   6,
+   "CRW3KRTUPC"
+  ],
+  [
+   "Lionel PW - Construction",
+   "232",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/construction-sets/#CON232",
+   "https://cornucopiaoftoytrains.com/construction-sets/#CON343",
+   6,
+   "CRW3KRTUPC"
+  ]
+ ]
+}
