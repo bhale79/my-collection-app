@@ -204,6 +204,15 @@ async function _rrGridHeal(spreadsheetId, range, json) {
     if (!/exceeds grid limits|tried writing to column/i.test(msg)) return false;
     if (typeof state === 'undefined' || !state || spreadsheetId !== state.personalSheetId) return false;
     var tab = String(range || '').split('!')[0].replace(/^'+|'+$/g, '');
+    // v0.9.1945: the Sold tab too. Sold To / Sold At (v0.9.1944) made it 22
+    // columns wide; a Sold tab narrower than that refused the header repair and
+    // the blanking Returned does. Same heal, same one retry.
+    if (tab === 'Sold' && typeof SOLD_HEADERS !== 'undefined' && typeof rrEnsureGridColumns === 'function') {
+      var okS = await rrEnsureGridColumns(spreadsheetId, 'Sold', SOLD_HEADERS.length);
+      var grew = !!(okS && okS.widened > 0);
+      if (grew) console.warn('[Sheets] Sold was narrower than its columns \u2014 widened, retrying the write');
+      return grew;
+    }
     if (typeof PERSONAL_TAB === 'undefined' || tab !== PERSONAL_TAB) return false;
     if (typeof rrEnsurePersonalGrid !== 'function') return false;
     var ok = await rrEnsurePersonalGrid(spreadsheetId, true);

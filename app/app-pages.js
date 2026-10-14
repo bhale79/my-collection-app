@@ -2647,6 +2647,65 @@ if (typeof window !== 'undefined') {
   window.rrSaleTag = rrSaleTag;
 }
 
+// A sale's date as YYYY-MM-DD, however it arrived: Sheets' day number (the
+// sheet is read UNFORMATTED, so a date comes back as 46309), an ISO string, or
+// an ISO date-time. '' when there is none.
+function _rrSaleISODate(v) {
+  var s = String(v == null ? '' : v).trim();
+  if (!s) return '';
+  if (/^\d{4,6}(\.\d+)?$/.test(s)) {
+    var d = new Date(Date.UTC(1899, 11, 30) + Math.floor(Number(s)) * 86400000);
+    return isNaN(d) ? s : d.toISOString().slice(0, 10);
+  }
+  var m = /^(\d{4}-\d{2}-\d{2})/.exec(s);
+  return m ? m[1] : s;
+}
+
+// Where is this sale on the Sold sheet RIGHT NOW? Read fresh, never the row it
+// was remembered at — a position is only true for the snapshot it came from.
+// Matched on what the sale IS: item number and Inventory ID, then the date
+// sold and the sale price to tell repeat sales of one copy apart.
+//   -> { row, num, invId }   the one row that is this sale
+//      { gone: true }        it is not on the sheet (already off — count it done)
+//      { why }               could not read the sheet, or could not tell which
+async function rrSaleFindSoldRow(sd) {
+  var num = String((sd && sd.itemNum) || '').trim();
+  var invId = String((sd && sd.inventoryId) || '').trim();
+  var date = _rrSaleISODate(sd && sd.dateSold);
+  var price = parseFloat(sd && sd.salePrice);
+  var got;
+  try { got = await sheetsGet(state.personalSheetId, 'Sold!A3:' + soldEndCol()); }
+  catch (e) { return { why: 'the Sold sheet could not be read' }; }
+  if (!got || got.error) return { why: 'the Sold sheet could not be read' };
+  var H = SOLD_HEADERS, iId = H.indexOf('Inventory ID'), iDate = H.indexOf('Date Sold'), iPrice = H.indexOf('Sale Price');
+  var cell = function (r, i) { return String(r[i] == null ? '' : r[i]).trim(); };
+  var hits = [];
+  ((got && got.values) || []).forEach(function (r, i) {
+    if (!r || cell(r, 0).replace(/^'/, '') !== num) return;
+    if (cell(r, iId) !== invId) return;
+    hits.push({ row: i + 3, date: _rrSaleISODate(r[iDate]), price: parseFloat(r[iPrice]), cells: r });
+  });
+  if (!hits.length) return { gone: true };
+  var exactHits = hits.filter(function (h) {
+    return (!date || h.date === date) && (isNaN(price) || h.price === price);
+  });
+  var atRow = function (list) { return list.filter(function (h) { return h.row === Number(sd && sd.row); }); };
+  // Nothing matches on date and price as well: only the row it was remembered
+  // at, still holding this copy, is trusted — another sale of the same copy
+  // (sold, returned, sold again) must never be taken back in its place.
+  var pool = exactHits.length ? exactHits : atRow(hits);
+  if (pool.length === 1) return { row: pool[0].row, num: num, invId: invId };
+  var same = atRow(pool);
+  if (same.length === 1) return { row: same[0].row, num: num, invId: invId };
+  if (pool.length > 1) {
+    // Two identical sales of the same copy: they are the same record twice, so
+    // either one is the one to take back.
+    return { row: pool[0].row, num: num, invId: invId };
+  }
+  return { why: 'the sale on the Sold sheet no longer matches this one' };
+}
+if (typeof window !== 'undefined') { window.rrSaleFindSoldRow = rrSaleFindSoldRow; window._rrSaleISODate = _rrSaleISODate; }
+
 // ── Returned ────────────────────────────────────────────────────────────────
 // Puts the sold copy back in My Collection and back on the For Sale list, then
 // takes the sale off Sold Items (a copy of it goes to Deleted Rows, like every
@@ -2677,7 +2736,9 @@ async function rrSaleReturned(key) {
 
     // 1 — what comes back
     var lines = (typeof rrTrashList === 'function') ? await rrTrashList(1000000) : [];
-    var exact = '[sale ' + id + ' ' + String(sd.dateSold || '').trim() + ']';
+    // A sale read from the sheet carries its date as Sheets' day number
+    // (46309); the tag was written with the ISO date — compare like with like.
+    var exact = '[sale ' + id + ' ' + _rrSaleISODate(sd.dateSold) + ']';
     var mine = lines.filter(function (l) { return l.why.indexOf(exact) >= 0; });
     // The date in the tag is the date the sale was RECORDED with; if it was
     // changed in the sheet since, fall back to this copy's unrestored tags.
@@ -2765,13 +2826,30 @@ async function rrSaleReturned(key) {
       } catch (eF) { fails.push(FS_TAB); }
     }
 
-    // 4 — only a sale that is fully back comes off Sold
-    var soldGone = false;
+    // 4 — only a sale that is fully back comes off Sold.
+    // v0.9.1945 (Brad's 115, 2026-10-14: "No. 115 is back, but the sale could
+    // not be taken off Sold Items"): this used the row number the sale was
+    // REMEMBERED at. The guarded writer refuses a row it cannot confirm — right
+    // for safety, and it left the sale stuck. Now the Sold sheet is read at
+    // this moment and the sale is found by what it IS (rrSaleFindSoldRow); one
+    // already gone from the sheet counts as done. And when the writer still
+    // refuses, its own reason is kept and said, instead of being covered by a
+    // general message (the first version threw that reason away).
+    var soldGone = false, soldWhy = '';
     if (!fails.length && collOk && fsOk) {
-      if (!(sd.row && sd.row !== 99999)) soldGone = true;     // never reached the sheet
-      else soldGone = await rrRemoveRowConfirmed(state.personalSheetId, 'Sold', sd.row, soldRowRange(sd.row),
+      var found = await rrSaleFindSoldRow(sd);
+      if (found.gone) soldGone = true;
+      else if (found.row) {
+        var said = [];
+        var _toast = window.showToast;
+        window.showToast = function (m) { said.push(String(m == null ? '' : m)); };   // hold the writer's own words for the message below
+        try {
+          soldGone = await rrRemoveRowConfirmed(state.personalSheetId, 'Sold', found.row, soldRowRange(found.row),
              [Array(SOLD_HEADERS.length).fill('')],
-             { num: num, invId: invId, why: 'returned — sale of ' + exact.slice(1, -1) + ' taken back' }, 'Sold list');
+             { num: found.num, invId: found.invId, why: 'returned \u2014 sale of ' + exact.slice(1, -1) + ' taken back' }, 'Sold list');
+        } finally { window.showToast = _toast; }
+        if (!soldGone) soldWhy = said.length ? said[said.length - 1] : '';
+      } else soldWhy = found.why || '';
       if (soldGone) delete state.soldData[key];
     }
     try { if (typeof loadPersonalData === 'function') await loadPersonalData(); } catch (eL) { console.warn('[returned] reload:', eL && eL.message); }
@@ -2784,9 +2862,20 @@ async function rrSaleReturned(key) {
       var what = [];
       if (!collOk || fails.some(function (t) { return t !== FS_TAB; })) what.push('not everything is back in My Collection');
       if (!fsOk || fails.indexOf(FS_TAB) >= 0) what.push('it is not back on the For Sale list');
-      if (!what.length) what.push('the sale could not be taken off Sold Items');
-      if (typeof showToast === 'function') showToast(fill(T.returnedPartial, what.join(' and ')), 8000, true);
-      try { showSoldDetailPage(key); } catch (e) {}
+      if (!what.length) what.push('the sale could not be taken off Sold Items' + (soldWhy ? ' (' + soldWhy.replace(/[.\s]+$/, '') + ')' : ''));
+      if (typeof showToast === 'function') showToast(fill(T.returnedPartial, what.join(' and ')), 12000, true);
+      // The reload above re-keys the Sold list by sheet row. Reopen THIS sale
+      // by what it is; if it cannot be told apart, go to the list.
+      var again = Object.keys(state.soldData || {}).filter(function (k) {
+        var x = state.soldData[k];
+        return x && String(x.itemNum || '') === num && String(x.inventoryId || '').trim() === invId
+          && _rrSaleISODate(x.dateSold) === _rrSaleISODate(sd.dateSold);
+      });
+      try {
+        if (again.length === 1) showSoldDetailPage(again[0]);
+        else if (state.soldData && state.soldData[key]) showSoldDetailPage(key);
+        else if (typeof showPage === 'function') showPage('sold');
+      } catch (e) {}
     }
     try { buildSoldPage(); } catch (e) {}
     try { if (typeof buildDashboard === 'function') buildDashboard(); } catch (e) {}

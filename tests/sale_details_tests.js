@@ -34,6 +34,10 @@
 //      shows who and where
 //   G  the sell wizard's last screen asks Sold to / Sold at too; its sale keeps
 //      the collection row and the listing under the tag; Returned undoes it
+//   I  Brad's 115 (v0.9.1945): Returned finds the sale on the Sold sheet by
+//      what it is, at that moment — a sale whose row moved still comes off and
+//      the row that moved in stays; one already gone counts as done; a refusal
+//      says its reason. PLANTED: the remembered row -> the moved sale is stuck
 //   H  Brad: "the sold at needs to remember these locations" — place buttons
 //      under Sold At: the Show Mode session, then the places he has used (most
 //      used first), then eBay / York Train Show / Flea market / Marketplace
@@ -129,6 +133,22 @@ function scanBuilderCalls(files) {
   T('A4 the Sold range ends where the headers do', box.end === 'V' && box.range === 'Sold!A9:V9', [box.end, box.range]);
   T('A4 the builder fills every column, Sold To and Sold At last',
     box.row && box.row.length === H.length && box.row[H.indexOf('Sold To')] === 'C-1' && box.row[H.indexOf('Sold At')] === 'York', box.row);
+  // A5 — a Sold tab narrower than its columns is widened once, then the write retried
+  {
+    const sh = all['sheets.js'];
+    const src = sh.slice(sh.indexOf('async function _rrGridHeal('), sh.indexOf('if (typeof window !== \'undefined\') window._rrGridHeal'));
+    const run = async (widened) => {
+      const calls = [];
+      const f = new Function('state', 'SOLD_HEADERS', 'PERSONAL_TAB', 'rrEnsureGridColumns', 'console', src + '; return _rrGridHeal;')(
+        { personalSheetId: 'SID' }, H, 'My Collection', async (id, tab, n) => { calls.push(tab + ' ' + n); return { cols: 20, widened }; }, { warn() {} });
+      const r = await f('SID', 'Sold!A2:V2', { error: { message: 'Range (Sold!A2:V2) exceeds grid limits. Max columns: 20' } });
+      return { r, calls };
+    };
+    Promise.all([run(2), run(0)]).then(([a, b]) => {
+      T('A5 a Sold write past the grid widens Sold to its ' + H.length + ' columns and retries once', a.r === true && a.calls.join() === 'Sold ' + H.length, a);
+      T('A5 …and does not retry when there was nothing to widen', b.r === false, b);
+    });
+  }
   const ad = all['app-data.js'];
   T('A4 the loader reads them where the headers put them',
     new RegExp('soldTo: _ss\\(r\\[' + H.indexOf('Sold To') + '\\]\\), soldAt: _ss\\(r\\[' + H.indexOf('Sold At') + '\\]\\)').test(ad)
@@ -442,6 +462,42 @@ async function markSold(pg, fill) {
     T('G Returned puts the wizard sale back — the row exactly, the listing, no question asked', G2.coll.length === 1 && JSON.stringify(G2.coll[0]) === JSON.stringify(world0.collRow)
       && G2.fs.length === 1 && G2.fs[0][3] === '450' && G2.sold === 0 && G2.asked === false, G2);
 
+    // ── I · Returned finds the sale by what it is (Brad's 115, v0.9.1945) ──
+    const recordOne = async () => {
+      await seed(pg);
+      await markSold(pg);
+      await pg.click('#rr-sale-dlg [data-sale="ok"]');
+      await pg.evaluate(() => window.__p);
+      await pg.evaluate(() => { window.appConfirm = async () => true; window.appPrompt = async () => '1'; window.__toasts = []; });
+      return pg.evaluate(() => Object.keys(state.soldData).find(k => state.soldData[k].itemNum === '2343'));
+    };
+    let iKey = await recordOne();
+    // somebody added a row above it on the Sold sheet: the remembered row now holds something else
+    await pg.evaluate(k => { const S = window.__S, r = state.soldData[k].row;
+      const other = new Array(SOLD_HEADERS.length).fill(''); other[0] = '2343'; other[5] = '99'; other[6] = '2025-01-01'; other[8] = '55';
+      S.tabs.Sold.splice(r - 1, 0, other); }, iKey);
+    await pg.evaluate(k => rrSaleReturned(k), iKey);
+    const I1 = await pg.evaluate(() => ({ sold: window.__S.get('Sold!A3:' + soldEndCol()).filter(r => r.length).map(r => [r[0], r[5], r[8]]),
+      toast: window.__toasts[window.__toasts.length - 1] }));
+    T('I a sale whose row moved on the Sold sheet is still found and taken off — the row that moved in is left alone',
+      JSON.stringify(I1.sold) === JSON.stringify([['6464-1', '35', ''], ['2343', '99', '55']]) && /is back in your collection/.test(I1.toast), I1);
+
+    iKey = await recordOne();
+    await pg.evaluate(k => { const S = window.__S, r = state.soldData[k].row; S.tabs.Sold[r - 1] = []; }, iKey);   // already off the sheet
+    await pg.evaluate(k => rrSaleReturned(k), iKey);
+    const I2 = await pg.evaluate(k => ({ inState: !!state.soldData[k], toast: window.__toasts[window.__toasts.length - 1],
+      coll: window.__S.get(PERSONAL_TAB + '!A3:BZ').filter(r => r.length).length }), iKey);
+    T('I a sale already gone from the Sold sheet counts as done', !I2.inState && I2.coll === 1 && /is back in your collection/.test(I2.toast), I2);
+
+    iKey = await recordOne();
+    await pg.evaluate(() => { window.__S.failAppendTo = 'Deleted Rows'; });   // the copy of the sale cannot be kept, so it is not removed
+    await pg.evaluate(k => rrSaleReturned(k), iKey);
+    const I3 = await pg.evaluate(k => ({ inState: !!state.soldData[k], toast: window.__toasts[window.__toasts.length - 1] }), iKey);
+    T('I when the sale still cannot come off, the message says WHY (not just that it failed)',
+      I3.inState && /could not be taken off Sold Items \(Nothing was removed/.test(I3.toast) && /save a copy/.test(I3.toast), I3);
+    T('I a sale date read from the sheet (a day number) matches its ISO date',
+      await pg.evaluate(() => _rrSaleISODate('46309') === '2026-10-14' && _rrSaleISODate('2026-10-14') === '2026-10-14' && _rrSaleISODate('2026-10-14T05:00:00Z') === '2026-10-14'));
+
     // ── H · the places remember: most-used first, spelled the way he uses most ──
     const H = await pg.evaluate(() => {
       const keep = state.soldData;
@@ -485,6 +541,26 @@ async function markSold(pg, fill) {
     const kept = await p.pg.evaluate(() => window.__S.get("'Deleted Rows'!A3:BZ").some(l => l[1] === 'My Collection'));
     T('B PLANTED: the old blanking line keeps no copy of the collection row (B would fail)', kept === false);
     await p.pg.close();
+
+    // ── PLANTED: Returned trusting the remembered row (v0.9.1944) ──
+    const ap = read('app-pages.js');
+    const oldFind = ap.replace('var found = await rrSaleFindSoldRow(sd);', 'var found = { row: sd.row, num: num, invId: invId };');
+    if (oldFind === ap) T('I PLANTED: could plant the remembered-row version', false);
+    else {
+      const q = await boot(browser, oldFind);
+      await seed(q.pg);
+      await markSold(q.pg);
+      await q.pg.click('#rr-sale-dlg [data-sale="ok"]');
+      await q.pg.evaluate(() => window.__p);
+      const qk = await q.pg.evaluate(() => { window.appConfirm = async () => true; window.__toasts = [];
+        const k = Object.keys(state.soldData).find(x => state.soldData[x].itemNum === '2343'); const r = state.soldData[k].row;
+        const other = new Array(SOLD_HEADERS.length).fill(''); other[0] = '2343'; other[5] = '99'; other[6] = '2025-01-01'; other[8] = '55';
+        window.__S.tabs.Sold.splice(r - 1, 0, other); return k; });
+      await q.pg.evaluate(k => rrSaleReturned(k), qk);
+      const stuck = await q.pg.evaluate(() => window.__S.get('Sold!A3:A').filter(r => r.length && r[0] === '2343').length);
+      T('I PLANTED: trusting the remembered row leaves the moved sale stuck on Sold (I would fail)', stuck === 2, stuck);
+      await q.pg.close();
+    }
   } finally { await browser.close(); }
   console.log('\n' + pass + ' passed, ' + fail + ' failed');
   if (fail) { console.log('SALE DETAILS TESTS FAILING'); process.exit(1); }
