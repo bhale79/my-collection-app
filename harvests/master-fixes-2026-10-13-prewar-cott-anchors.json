@@ -1,0 +1,401 @@
+{
+ "what": "Master Version 2.35 — 43 Lionel Pre-War Reference Link (COTT) anchors corrected. 8 pointed at the wrong section of their COTT page (the row's own description is word for word another section): 4 var D #21→#22, 254 var G #6→#7, 254 var I #8→#9, 254E var B #10→#11, 254E var E #14→#15, 254E var H #19→#20, 2660 var B #2→#3, 2203B var A #1→#1A. 35 pointed at an item's general heading while COTT has the exact variation's own section, word for word the row's description: lamp posts 53, 56, 57, 58, 59, 64, the 068 warning signs, the 1506 engines. Only the part after # changes; page, item, Row ID unchanged. Found by checking all 1,107 stored anchors on the 115 pages added in v0.9.1940 against each page's live section text (read 2026-10-13). Left alone: 600 var F (no exact section) and 5 rows whose words fit more than one section (1689T F, 1690 C, 250 A, 252 B, 217 G).",
+ "stated": "Brad (2026-10-13): \"yes\" to checking the hand-set COTT bookmarks that point one section off, then \"yes\" to writing all 43",
+ "masterVersion": "2.35",
+ "date": "2026-10-13",
+ "planReadAt": "2026-10-14T00:32:09Z public CSV export of Lionel Pre-War (2,838 lines, blank rows kept)",
+ "cellFormat": "[tab, item number (column A), column header, old, new, sheet row as a hint, Row ID of the row]",
+ "counts": {
+  "cells": 43,
+  "rows": 43
+ },
+ "cells": [
+  [
+   "Lionel Pre-War",
+   "4",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/prewar-no-254-engines/#21",
+   "https://cornucopiaoftoytrains.com/prewar-no-254-engines/#22",
+   30,
+   "NYA4MNJ4B8"
+  ],
+  [
+   "Lionel Pre-War",
+   "254",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/prewar-no-254-engines/#6",
+   "https://cornucopiaoftoytrains.com/prewar-no-254-engines/#7",
+   955,
+   "CZPV4AX5MB"
+  ],
+  [
+   "Lionel Pre-War",
+   "254",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/prewar-no-254-engines/#8",
+   "https://cornucopiaoftoytrains.com/prewar-no-254-engines/#9",
+   957,
+   "73KHJXFF7F"
+  ],
+  [
+   "Lionel Pre-War",
+   "254E",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/prewar-no-254-engines/#10",
+   "https://cornucopiaoftoytrains.com/prewar-no-254-engines/#11",
+   961,
+   "85ZN4UCJGV"
+  ],
+  [
+   "Lionel Pre-War",
+   "254E",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/prewar-no-254-engines/#14",
+   "https://cornucopiaoftoytrains.com/prewar-no-254-engines/#15",
+   964,
+   "KZDDASJM4Z"
+  ],
+  [
+   "Lionel Pre-War",
+   "254E",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/prewar-no-254-engines/#19",
+   "https://cornucopiaoftoytrains.com/prewar-no-254-engines/#20",
+   967,
+   "98YSVTWDBK"
+  ],
+  [
+   "Lionel Pre-War",
+   "2660",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/prewar-o-gauge-tinplate-2660-crane-cars/#2",
+   "https://cornucopiaoftoytrains.com/prewar-o-gauge-tinplate-2660-crane-cars/#3",
+   2646,
+   "SWUQNKHK8Z"
+  ],
+  [
+   "Lionel Pre-War",
+   "2203B",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/prewar-o-gauge-tinplate-no-201-no-203-0-6-0-steam-switchers/#1",
+   "https://cornucopiaoftoytrains.com/prewar-o-gauge-tinplate-no-201-no-203-0-6-0-steam-switchers/#1A",
+   2502,
+   "58WRSSSVBQ"
+  ],
+  [
+   "Lionel Pre-War",
+   "53",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/standard-gauge-accessories/#53",
+   "https://cornucopiaoftoytrains.com/standard-gauge-accessories/#531",
+   272,
+   "KMFRXGCC9E"
+  ],
+  [
+   "Lionel Pre-War",
+   "53",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/standard-gauge-accessories/#53",
+   "https://cornucopiaoftoytrains.com/standard-gauge-accessories/#532",
+   273,
+   "ERSN6ZKQAM"
+  ],
+  [
+   "Lionel Pre-War",
+   "56",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/standard-gauge-accessories/#56",
+   "https://cornucopiaoftoytrains.com/standard-gauge-accessories/#563",
+   290,
+   "R364WHNGPW"
+  ],
+  [
+   "Lionel Pre-War",
+   "56",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/standard-gauge-accessories/#56",
+   "https://cornucopiaoftoytrains.com/standard-gauge-accessories/#563",
+   291,
+   "626DS2H7NK"
+  ],
+  [
+   "Lionel Pre-War",
+   "57",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/standard-gauge-accessories/#57",
+   "https://cornucopiaoftoytrains.com/standard-gauge-accessories/#571",
+   298,
+   "WZDYGT9NDF"
+  ],
+  [
+   "Lionel Pre-War",
+   "57",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/standard-gauge-accessories/#57",
+   "https://cornucopiaoftoytrains.com/standard-gauge-accessories/#572",
+   299,
+   "UJ2E2RMS4A"
+  ],
+  [
+   "Lionel Pre-War",
+   "57",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/standard-gauge-accessories/#57",
+   "https://cornucopiaoftoytrains.com/standard-gauge-accessories/#573",
+   300,
+   "7KTGDPZUAB"
+  ],
+  [
+   "Lionel Pre-War",
+   "57",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/standard-gauge-accessories/#57",
+   "https://cornucopiaoftoytrains.com/standard-gauge-accessories/#574",
+   301,
+   "BWYVMZZVS8"
+  ],
+  [
+   "Lionel Pre-War",
+   "57",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/standard-gauge-accessories/#57",
+   "https://cornucopiaoftoytrains.com/standard-gauge-accessories/#575",
+   302,
+   "U3J9WDPD9K"
+  ],
+  [
+   "Lionel Pre-War",
+   "57",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/standard-gauge-accessories/#57",
+   "https://cornucopiaoftoytrains.com/standard-gauge-accessories/#576",
+   303,
+   "CC3NBHWT2Q"
+  ],
+  [
+   "Lionel Pre-War",
+   "57",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/standard-gauge-accessories/#57",
+   "https://cornucopiaoftoytrains.com/standard-gauge-accessories/#577",
+   304,
+   "SNEYP6AASU"
+  ],
+  [
+   "Lionel Pre-War",
+   "58",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/standard-gauge-accessories/#58",
+   "https://cornucopiaoftoytrains.com/standard-gauge-accessories/#581",
+   312,
+   "VDQXEWJWWP"
+  ],
+  [
+   "Lionel Pre-War",
+   "58",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/standard-gauge-accessories/#58",
+   "https://cornucopiaoftoytrains.com/standard-gauge-accessories/#584",
+   317,
+   "K9A6GYXGDK"
+  ],
+  [
+   "Lionel Pre-War",
+   "58",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/standard-gauge-accessories/#58",
+   "https://cornucopiaoftoytrains.com/standard-gauge-accessories/#585",
+   318,
+   "HQN2MP3Y7Y"
+  ],
+  [
+   "Lionel Pre-War",
+   "58",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/standard-gauge-accessories/#58",
+   "https://cornucopiaoftoytrains.com/standard-gauge-accessories/#586",
+   319,
+   "CS74HM6MMY"
+  ],
+  [
+   "Lionel Pre-War",
+   "58",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/standard-gauge-accessories/#58",
+   "https://cornucopiaoftoytrains.com/standard-gauge-accessories/#587",
+   320,
+   "DKYGT2GKSV"
+  ],
+  [
+   "Lionel Pre-War",
+   "59",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/standard-gauge-accessories/#59",
+   "https://cornucopiaoftoytrains.com/standard-gauge-accessories/#591",
+   322,
+   "DWTY27XFXZ"
+  ],
+  [
+   "Lionel Pre-War",
+   "59",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/standard-gauge-accessories/#59",
+   "https://cornucopiaoftoytrains.com/standard-gauge-accessories/#593",
+   323,
+   "YPWTJBDF5A"
+  ],
+  [
+   "Lionel Pre-War",
+   "59",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/standard-gauge-accessories/#59",
+   "https://cornucopiaoftoytrains.com/standard-gauge-accessories/#594",
+   324,
+   "6UGQA648RB"
+  ],
+  [
+   "Lionel Pre-War",
+   "59",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/standard-gauge-accessories/#59",
+   "https://cornucopiaoftoytrains.com/standard-gauge-accessories/#595",
+   325,
+   "VR45FJB42H"
+  ],
+  [
+   "Lionel Pre-War",
+   "59",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/standard-gauge-accessories/#59",
+   "https://cornucopiaoftoytrains.com/standard-gauge-accessories/#596",
+   326,
+   "UH9QXTEJFF"
+  ],
+  [
+   "Lionel Pre-War",
+   "64",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/standard-gauge-accessories/#64",
+   "https://cornucopiaoftoytrains.com/standard-gauge-accessories/#641",
+   349,
+   "S7262YAMNA"
+  ],
+  [
+   "Lionel Pre-War",
+   "64",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/standard-gauge-accessories/#64",
+   "https://cornucopiaoftoytrains.com/standard-gauge-accessories/#642",
+   350,
+   "P7738GUH3V"
+  ],
+  [
+   "Lionel Pre-War",
+   "068",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/standard-gauge-accessories/#068",
+   "https://cornucopiaoftoytrains.com/standard-gauge-accessories/#0681",
+   363,
+   "J6ZRCBRQGZ"
+  ],
+  [
+   "Lionel Pre-War",
+   "068",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/standard-gauge-accessories/#068",
+   "https://cornucopiaoftoytrains.com/standard-gauge-accessories/#0682",
+   364,
+   "TY2EP7QKMP"
+  ],
+  [
+   "Lionel Pre-War",
+   "068",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/standard-gauge-accessories/#068",
+   "https://cornucopiaoftoytrains.com/standard-gauge-accessories/#0683",
+   365,
+   "K9TPQGPSP6"
+  ],
+  [
+   "Lionel Pre-War",
+   "068",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/standard-gauge-accessories/#068",
+   "https://cornucopiaoftoytrains.com/standard-gauge-accessories/#0684",
+   366,
+   "299CKC23VU"
+  ],
+  [
+   "Lionel Pre-War",
+   "068",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/standard-gauge-accessories/#068",
+   "https://cornucopiaoftoytrains.com/standard-gauge-accessories/#0685",
+   367,
+   "RHPKQGBGBX"
+  ],
+  [
+   "Lionel Pre-War",
+   "068",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/standard-gauge-accessories/#068",
+   "https://cornucopiaoftoytrains.com/standard-gauge-accessories/#0686",
+   368,
+   "7H57WRHU9M"
+  ],
+  [
+   "Lionel Pre-War",
+   "068",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/standard-gauge-accessories/#068",
+   "https://cornucopiaoftoytrains.com/standard-gauge-accessories/#0687",
+   369,
+   "KSGSTA53CK"
+  ],
+  [
+   "Lionel Pre-War",
+   "068",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/standard-gauge-accessories/#068",
+   "https://cornucopiaoftoytrains.com/standard-gauge-accessories/#0688",
+   370,
+   "8W4B2YHF25"
+  ],
+  [
+   "Lionel Pre-War",
+   "068",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/standard-gauge-accessories/#068",
+   "https://cornucopiaoftoytrains.com/standard-gauge-accessories/#0689",
+   371,
+   "RDZYJJUP6F"
+  ],
+  [
+   "Lionel Pre-War",
+   "1506",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/prewar-o-gauge-mechanical-steam-engines/#1506",
+   "https://cornucopiaoftoytrains.com/prewar-o-gauge-mechanical-steam-engines/#1C",
+   2133,
+   "R7Y2VN95X4"
+  ],
+  [
+   "Lionel Pre-War",
+   "1506",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/prewar-o-gauge-mechanical-steam-engines/#1506",
+   "https://cornucopiaoftoytrains.com/prewar-o-gauge-mechanical-steam-engines/#2C",
+   2134,
+   "SSZ3RKBQGY"
+  ],
+  [
+   "Lionel Pre-War",
+   "1506",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/prewar-o-gauge-mechanical-steam-engines/#1506",
+   "https://cornucopiaoftoytrains.com/prewar-o-gauge-mechanical-steam-engines/#6C",
+   2135,
+   "5EWH4QHDV9"
+  ]
+ ]
+}
