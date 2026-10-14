@@ -18,7 +18,7 @@
 //   C  every screen — the cancelled item wears the tag, its made twin does not:
 //      Add (number list, Found line, variation step, variation cards, confirm
 //      card), Browse (desktop catalog, phone card, My Collection), item page,
-//      "Do you own this item?", View Details, the edit panel, the photo
+//      the catalog details screen (v1948), the edit panel, the photo
 //      reader's list + confirm card, the photo inbox's choices, the identify
 //      chooser, the research card, the want list (phone + desktop), the
 //      variation picker
@@ -152,26 +152,20 @@ async function screens(browser, planted) {
     const at = n => { showItemDetailPage(state.masterData.findIndex(m => m.itemNum === n)); return tags(document.getElementById('item-detail-content')); };
     return { cx: at(CX), mx: at(MX) };
   }, [CX, MX, TAGS]);
-  // C7 — "Do you own this item?" and its View Details
+  // C7 — the details screen a catalog row opens (v0.9.1948: the "Do you own
+  // this item?" box is retired; its View Details screen is what a row opens)
   R.prompt = await pg.evaluate(([CX, MX, TAGS]) => {
     const tags = eval(TAGS);
     const ev = { target: document.body, stopPropagation() {}, preventDefault() {} };
     const at = n => {
       browseRowClick(ev, state.masterData.findIndex(m => m.itemNum === n));
-      const p = document.getElementById('browse-add-prompt'); const t1 = tags(p);
-      const vb = p ? [...p.querySelectorAll('button')].find(b => b.textContent === 'View Details') : null;
-      let t2 = null, ds = null;
-      if (vb) {
-        vb.click();
-        const boxes = [...document.querySelectorAll('div')].filter(d => d.style && d.style.maxWidth === '520px' && /Item #/.test(d.textContent));
-        const box = boxes[boxes.length - 1];
-        t2 = tags(box);
-        const dsRow = box ? [...box.children].find(c => c.children.length >= 2 && c.children[0].textContent.trim() === 'Delivery Status') : null;
-        ds = dsRow ? dsRow.children[1].textContent : null;
-        if (box && box.parentNode) box.parentNode.remove();
-      }
-      if (p) p.remove();
-      return { prompt: t1, details: t2, row: ds ? ds.trim() : ds };
+      const ov = document.getElementById('rr-cat-details');
+      const box = ov ? ov.firstElementChild : null;
+      const t2 = tags(box);
+      const dsRow = box ? [...box.children].find(c => c.children.length >= 2 && c.children[0].textContent.trim() === 'Delivery Status') : null;
+      const ds = dsRow ? dsRow.children[1].textContent : null;
+      if (ov) ov.remove();
+      return { details: t2, row: ds ? ds.trim() : ds };
     };
     return { cx: at(CX), mx: at(MX) };
   }, [CX, MX, TAGS]);
@@ -344,8 +338,8 @@ async function screens(browser, planted) {
   T('C4 Add: the confirm card before saving', R.confirm, { found: true, cx: ONE, mx: [] });
   T('C5 Browse (desktop catalog rows)', [R.browse.rows >= 2, R.browse.cx, R.browse.mx], [true, ONE, []]);
   T('C6 the item page', R.detail, { cx: ONE, mx: [] });
-  T('C7 "Do you own this item?", then View Details (tag + MTH\'s own word on the Delivery Status row)', R.prompt,
-    { cx: { prompt: ONE, details: ONE, row: 'Cancelled' }, mx: { prompt: [], details: [], row: 'Delivered MAR. 2008' } });
+  T('C7 the details screen a row opens (tag + MTH\'s own word on the Delivery Status row)', R.prompt,
+    { cx: { details: ONE, row: 'Cancelled' }, mx: { details: [], row: 'Delivered MAR. 2008' } });
   T('C8 the photo reader: its "which one is it?" list (the always-dark tag) and its "use this?" card', R.reader,
     { cx: ONE, mx: [], dark: true, cardCx: ONE, cardMx: [] });
   T('C9 the photo inbox: "Could be one of these" choices', R.inbox, { n: 2, cx: ONE, mx: [] });

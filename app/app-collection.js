@@ -4542,210 +4542,172 @@ function browseRowClick(event, idx) {
     _showSpecialOwnedMenu(idx, item, _sciOwned.length > 0 ? _sciOwned : _conOwned);
     return;
   }
-  // Not owned — show quick prompt
-  const existing = document.getElementById('browse-add-prompt');
-  if (existing) existing.remove();
+  // Not owned — straight to its details.
+  // v0.9.1948 (Brad: "we dont need this page any more as the detail page has
+  // all of that"): the "Do you own this item?" box is gone. Its Add to
+  // Collection, + Want List and Research / eBay buttons all live on the
+  // details screen now (rrCatalogDetailsPopup, below).
+  rrCatalogDetailsPopup(idx);
+}
+
+// ── v0.9.1948 — THE Master Catalog details screen ───────────────────────────
+// Opened by clicking a catalog row you do not own, and by the Details button in
+// the Owned column (browse.js _browseOwnedCell). Brad, 2026-10-14: "add to the
+// right of the view on mth link, the research links that include google price
+// check, on ebay now, ebay sold. then below that add the add to my want list
+// and close". Words: CATALOG_DETAILS_TEXT (config.js). The three research links
+// come from the Research card's own builders (research.js rrResearchUrlsForRow),
+// so they open exactly what its buttons open.
+function rrCatalogDetailsPopup(idx) {
+  const item = state.masterData[idx];
+  if (!item) return;
+  const T = (typeof CATALOG_DETAILS_TEXT !== 'undefined' && CATALOG_DETAILS_TEXT) || {};
+  const old = document.getElementById('rr-cat-details');
+  if (old) old.remove();
   const overlay = document.createElement('div');
-  overlay.id = 'browse-add-prompt';
+  overlay.id = 'rr-cat-details';
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1.5rem';
-  bindOverlayClose(overlay, function() { overlay.remove(); });
+  const close = function () { overlay.remove(); };
+  rrDismissGuard(overlay, close);   // a backdrop click does nothing (Brad: "never close if you pick outside"); Back closes
   const box = document.createElement('div');
-  box.className = 'rr-card'; box.style.borderColor = 'rgba(232,64,28,0.4)';
-  // Header
-  const hdr = document.createElement('div');
-  hdr.style.cssText = 'font-family:var(--font-head);font-size:1.05rem;color:var(--t-accent);margin-bottom:0.25rem';
-  hdr.textContent = 'No. ' + item.itemNum + (item.variation ? ' — Var. ' + item.variation : '');
-  box.appendChild(hdr);
-  const sub = document.createElement('div');
-  sub.style.cssText = 'font-size:0.85rem;color:var(--text-mid);margin-bottom:0.25rem';
-  sub.textContent = item.roadName || item.itemType || '';
-  box.appendChild(sub);
-  // v0.9.1873: a cancelled item says so before "Do you own this item?"
+  box.style.cssText = 'background:var(--surface);border:1px solid var(--border);border-radius:14px;max-width:520px;width:100%;padding:1.75rem;position:relative;max-height:80vh;overflow-y:auto';
+  const closeX = document.createElement('button');
+  closeX.type = 'button';
+  closeX.setAttribute('data-close', '1');
+  closeX.title = T.close || 'Close';
+  closeX.textContent = '\u2715';
+  closeX.style.cssText = 'position:absolute;top:0.75rem;right:0.75rem;background:none;border:none;color:var(--text-dim);font-size:1.1rem;cursor:pointer';
+  closeX.onclick = close;
+  box.appendChild(closeX);
+  // v0.9.1873: the tag leads the details; the Delivery Status row below says MTH's own word
   if (typeof rrCatalogStatusChip === 'function') {
-    const _st = rrCatalogStatusChip(item, { block: true });
-    if (_st) { const stEl = document.createElement('div'); stEl.style.marginBottom = '0.35rem'; stEl.innerHTML = _st; box.appendChild(stEl); }
+    const _vst = rrCatalogStatusChip(item);
+    if (_vst) { const vstEl = document.createElement('div'); vstEl.style.cssText = 'margin:0 1.5rem 0.75rem 0'; vstEl.innerHTML = _vst; box.appendChild(vstEl); }
   }
-  if (item.yearProd) {
-    const yr = document.createElement('div');
-    yr.style.cssText = 'font-size:0.75rem;color:var(--text-dim);margin-bottom:1.25rem';
-    yr.textContent = item.yearProd + (item.itemType ? ' · ' + item.itemType : '');
-    box.appendChild(yr);
-  } else {
-    sub.style.marginBottom = '1.25rem';
-  }
-  // Question
-  const q = document.createElement('div');
-  q.style.cssText = 'font-size:0.9rem;color:var(--text);margin-bottom:1.25rem;font-weight:500';
-  q.textContent = 'Do you own this item?';
-  box.appendChild(q);
-  // Buttons
-  const btnRow = document.createElement('div');
-  btnRow.style.cssText = 'display:flex;gap:0.75rem;flex-wrap:wrap';   // v0.9.1918: wraps at large text instead of pushing ✕ off the box
-  const yesBtn = document.createElement('button');
-  yesBtn.className = 'btn btn-primary';
-  yesBtn.style.cssText = 'flex:1;background:var(--accent);border-color:var(--accent);font-weight:600';
-  yesBtn.textContent = '✓ Yes — Add to Collection';
-  yesBtn.onclick = function() { overlay.remove(); addFromBrowse(idx); };
-  const viewBtn = document.createElement('button');
-  viewBtn.className = 'btn btn-secondary';
-  viewBtn.style.cssText = 'flex:1';
-  viewBtn.textContent = 'View Details';
-  viewBtn.onclick = function() {
-    overlay.remove();
-    // Show description popup
-    const vdOverlay = document.createElement('div');
-    vdOverlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1.5rem';
-    rrDismissGuard(vdOverlay);   // v0.9.1790: a backdrop click does nothing (Brad: "never close if you pick outside")
-    const vdBox = document.createElement('div');
-    vdBox.style.cssText = 'background:var(--surface);border:1px solid var(--border);border-radius:14px;max-width:520px;width:100%;padding:1.75rem;position:relative;max-height:80vh;overflow-y:auto';
-    const closeBtn = document.createElement('button');
-    closeBtn.textContent = '✕';
-    closeBtn.style.cssText = 'position:absolute;top:0.75rem;right:0.75rem;background:none;border:none;color:var(--text-dim);font-size:1.1rem;cursor:pointer';
-    closeBtn.onclick = function() { vdOverlay.remove(); };
-    vdBox.appendChild(closeBtn);
-    // v0.9.1873: the tag leads the details; the Delivery Status row below says MTH's own word
-    if (typeof rrCatalogStatusChip === 'function') {
-      const _vst = rrCatalogStatusChip(item);
-      if (_vst) { const vstEl = document.createElement('div'); vstEl.style.cssText = 'margin:0 1.5rem 0.75rem 0'; vstEl.innerHTML = _vst; vdBox.appendChild(vstEl); }
-    }
-    const rows = [
-      ['Item #', item.itemNum + (item.variation ? ' — Var. ' + item.variation : '')],
-      ['Type', item.itemType || '—'],
-      ['Road / Name', item.roadName || '—'],
-      ['Year', item.yearProd || '—'],
-    ];
-    if (item.control) rows.push(['Control', item.control]);
-    if (item.gauge) rows.push(['Gauge', item.gauge]);
-    rows.push(['Market Value', item.marketVal ? _currencySymbol() + parseFloat(item.marketVal).toLocaleString() : '—']);
-    // Session 112: surface manufacturer-specific extra fields (Atlas category,
-    // rail power, MSRP, etc.) driven by CATALOG_DISPLAY.extraFields config.
-    // Row appears only when the field is populated on the master row.
-    if (typeof CATALOG_DISPLAY !== 'undefined' && Array.isArray(CATALOG_DISPLAY.extraFields)) {
-      CATALOG_DISPLAY.extraFields.forEach(function(fld) {
-        var v = item[fld.key];
-        if (v === undefined || v === null || v === '') return;
-        var display = String(v);
-        if (fld.format === 'money') {
-          var num = parseFloat(v);
-          if (!isNaN(num)) display = _currencySymbol() + num.toLocaleString();
-        }
-        rows.push([fld.label, display]);
-      });
-    }
-    rows.forEach(function(r) {
-      const row = document.createElement('div');
-      row.style.cssText = 'display:flex;gap:0.75rem;margin-bottom:0.4rem;font-size:0.85rem';
-      const lbl = document.createElement('span');
-      lbl.style.cssText = 'color:var(--text-dim);min-width:90px;flex-shrink:0';
-      lbl.textContent = r[0];
-      const val = document.createElement('span');
-      val.style.cssText = 'color:var(--text)';
-      val.textContent = r[1];
-      row.appendChild(lbl);
-      row.appendChild(val);
-      vdBox.appendChild(row);
+  const rows = [
+    ['Item #', item.itemNum + (item.variation ? ' — Var. ' + item.variation : '')],
+    ['Type', item.itemType || '—'],
+    ['Road / Name', item.roadName || '—'],
+    ['Year', item.yearProd || '—'],
+  ];
+  if (item.control) rows.push(['Control', item.control]);
+  if (item.gauge) rows.push(['Gauge', item.gauge]);
+  rows.push(['Market Value', item.marketVal ? _currencySymbol() + parseFloat(item.marketVal).toLocaleString() : '—']);
+  // Session 112: surface manufacturer-specific extra fields (Atlas category,
+  // rail power, MSRP, etc.) driven by CATALOG_DISPLAY.extraFields config.
+  // Row appears only when the field is populated on the master row.
+  if (typeof CATALOG_DISPLAY !== 'undefined' && Array.isArray(CATALOG_DISPLAY.extraFields)) {
+    CATALOG_DISPLAY.extraFields.forEach(function(fld) {
+      var v = item[fld.key];
+      if (v === undefined || v === null || v === '') return;
+      var display = String(v);
+      if (fld.format === 'money') {
+        var num = parseFloat(v);
+        if (!isNaN(num)) display = _currencySymbol() + num.toLocaleString();
+      }
+      rows.push([fld.label, display]);
     });
-    if (item.varDesc) {
-      const vdSec = document.createElement('div');
-      vdSec.style.cssText = 'margin-top:0.75rem;padding-top:0.75rem;border-top:1px solid var(--border);font-size:0.82rem;color:var(--text-mid);line-height:1.6;white-space:pre-line';
-      vdSec.innerHTML = '<span style="color:var(--accent2);font-weight:600">Variation: </span>' + item.varDesc;
-      vdBox.appendChild(vdSec);
-    }
-    if (item.description) {
-      const descSec = document.createElement('div');
-      descSec.style.cssText = 'margin-top:0.75rem;padding-top:0.75rem;border-top:1px solid var(--border);font-size:0.82rem;color:var(--text-mid);line-height:1.6';
-      descSec.textContent = item.description;
-      vdBox.appendChild(descSec);
-    }
-    var _detailUrl = (typeof _itemExternalLinkURL === 'function') ? _itemExternalLinkURL(item) : (item.refLink || '');
-    if (_detailUrl) {
-      const cottRow = document.createElement('div');
-      cottRow.style.cssText = 'margin-top:0.75rem;padding-top:0.75rem;border-top:1px solid var(--border)';
-      const cottA = document.createElement('a');
-      cottA.href = _detailUrl;
-      cottA.target = '_blank';
-      cottA.rel = 'noopener';
-      cottA.style.cssText = 'font-size:0.82rem;color:var(--t-link);text-decoration:none;display:inline-flex;align-items:center;gap:0.35rem';
-      cottA.innerHTML = 'View on ' + (typeof _externalSiteLabel === 'function' ? _externalSiteLabel(_detailUrl) : 'External') + ' <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15,3 21,3 21,9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>';
-      cottRow.appendChild(cottA);
-      vdBox.appendChild(cottRow);
-    }
-    // Add to collection button at bottom
-    const addBtn = document.createElement('button');
-    addBtn.className = 'btn btn-primary';
-    addBtn.style.cssText = 'margin-top:1.25rem;width:100%;background:var(--accent);border-color:var(--accent);line-height:1.25';
-    addBtn.innerHTML = '<span style="display:block;font-size:0.75em;opacity:0.85;font-weight:400;letter-spacing:0.03em">Add to</span><span style="display:block">Collection</span>';
-    addBtn.onclick = function() { vdOverlay.remove(); addFromBrowse(idx); };
-    vdBox.appendChild(addBtn);
-    vdOverlay.appendChild(vdBox);
-    document.body.appendChild(vdOverlay);
-    // v0.9.1790: BackStack is wired by rrDismissGuard above — one place, not two.
-  };
-  const cancelBtn = document.createElement('button');
-  cancelBtn.className = 'btn btn-secondary';
-  // v0.9.1918: the ✕ sits in the box's top-right corner — in the button row it
-  // was pushed off the box (and later onto a line of its own) at large text.
-  cancelBtn.style.cssText = 'position:absolute;top:0.75rem;right:0.75rem;padding:0.35rem 0.6rem;line-height:1';
-  cancelBtn.title = 'Close';
-  cancelBtn.textContent = '✕';
-  cancelBtn.onclick = function() { overlay.remove(); };
-  // ── v0.9.1449 (Brad): the same green + Want List button the Sets pop-up
-  // already has. Already-wanted shows a label instead, so the same item
-  // can't be wished for twice by accident.
-  const _wantedKey = String(item.itemNum) + '|' + String(item.variation || '');
-  btnRow.appendChild(yesBtn);
-  if (state.wantData && state.wantData[_wantedKey]) {
-    const wantedLbl = document.createElement('span');
-    wantedLbl.style.cssText = 'font-size:0.8rem;color:var(--t-green);align-self:center;white-space:nowrap;font-weight:600';
-    wantedLbl.textContent = '✓ On Want List';
-    btnRow.appendChild(wantedLbl);
+  }
+  rows.forEach(function(r) {
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;gap:0.75rem;margin-bottom:0.4rem;font-size:0.85rem';
+    const lbl = document.createElement('span');
+    lbl.style.cssText = 'color:var(--text-dim);min-width:90px;flex-shrink:0';
+    lbl.textContent = r[0];
+    const val = document.createElement('span');
+    val.style.cssText = 'color:var(--text)';
+    val.textContent = r[1];
+    row.appendChild(lbl);
+    row.appendChild(val);
+    box.appendChild(row);
+  });
+  if (item.varDesc) {
+    const vdSec = document.createElement('div');
+    vdSec.style.cssText = 'margin-top:0.75rem;padding-top:0.75rem;border-top:1px solid var(--border);font-size:0.82rem;color:var(--text-mid);line-height:1.6;white-space:pre-line';
+    vdSec.innerHTML = '<span style="color:var(--accent2);font-weight:600">Variation: </span>' + item.varDesc;
+    box.appendChild(vdSec);
+  }
+  if (item.description) {
+    const descSec = document.createElement('div');
+    descSec.style.cssText = 'margin-top:0.75rem;padding-top:0.75rem;border-top:1px solid var(--border);font-size:0.82rem;color:var(--text-mid);line-height:1.6';
+    descSec.textContent = item.description;
+    box.appendChild(descSec);
+  }
+  // The links line: View on <maker site>, then the three research links.
+  const linkIcon = ' <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15,3 21,3 21,9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>';
+  const linkCss = 'font-size:0.82rem;color:var(--t-link);text-decoration:none;display:inline-flex;align-items:center;gap:0.35rem;white-space:nowrap';
+  const links = document.createElement('div');
+  links.id = 'rr-cat-details-links';
+  links.style.cssText = 'margin-top:0.75rem;padding-top:0.75rem;border-top:1px solid var(--border);display:flex;flex-wrap:wrap;gap:0.5rem 1.1rem;align-items:center';
+  const detailUrl = (typeof _itemExternalLinkURL === 'function') ? _itemExternalLinkURL(item) : (item.refLink || '');
+  if (detailUrl) {
+    const a = document.createElement('a');
+    a.href = detailUrl; a.target = '_blank'; a.rel = 'noopener';
+    a.setAttribute('data-link', 'site');
+    a.style.cssText = linkCss;
+    a.innerHTML = 'View on ' + (typeof _externalSiteLabel === 'function' ? _externalSiteLabel(detailUrl) : 'External') + linkIcon;
+    links.appendChild(a);
+  }
+  const urls = (typeof window.rrResearchUrlsForRow === 'function') ? window.rrResearchUrlsForRow(item) : null;
+  if (urls) {
+    [['google', T.google, 'Google price'], ['ebayNow', T.ebayNow, 'eBay now'], ['ebaySold', T.ebaySold, 'eBay sold']].forEach(function (L) {
+      const a = document.createElement('a');
+      a.href = urls[L[0]]; a.target = '_blank'; a.rel = 'noopener';
+      a.setAttribute('data-link', L[0]);
+      a.style.cssText = linkCss;
+      a.innerHTML = rrEsc(L[1] || L[2]) + linkIcon;
+      // opened the way the Research card opens them (timed, on its own — v0.9.1911)
+      a.onclick = function (e) {
+        if (typeof window.rrOpenExternal === 'function') { e.preventDefault(); window.rrOpenExternal(urls[L[0]], L[2]); }
+      };
+      links.appendChild(a);
+    });
+  }
+  if (links.children.length) box.appendChild(links);
+  // Add to Collection
+  const addBtn = document.createElement('button');
+  addBtn.type = 'button';
+  addBtn.className = 'btn btn-primary';
+  addBtn.setAttribute('data-act', 'add');
+  addBtn.style.cssText = 'margin-top:1.25rem;width:100%;background:var(--accent);border-color:var(--accent);line-height:1.25';
+  addBtn.innerHTML = '<span style="display:block;font-size:0.75em;opacity:0.85;font-weight:400;letter-spacing:0.03em">Add to</span><span style="display:block">Collection</span>';
+  addBtn.onclick = function () { close(); addFromBrowse(idx); };
+  box.appendChild(addBtn);
+  // …then Add to My Want List and Close. Already wanted says so instead, so
+  // the same item can't be wished for twice by accident (v0.9.1449's rule).
+  const row2 = document.createElement('div');
+  row2.style.cssText = 'display:flex;gap:0.75rem;flex-wrap:wrap;margin-top:0.75rem';
+  const wanted = !!(state.wantData && state.wantData[String(item.itemNum) + '|' + String(item.variation || '')]);
+  if (wanted) {
+    const lbl = document.createElement('span');
+    lbl.setAttribute('data-act', 'wanted');
+    lbl.style.cssText = 'flex:1 1 10rem;font-size:0.9rem;color:var(--t-green);align-self:center;text-align:center;font-weight:600';
+    lbl.textContent = T.onWant || '\u2713 On Want List';
+    row2.appendChild(lbl);
   } else {
     const wantBtn = document.createElement('button');
+    wantBtn.type = 'button';
     wantBtn.className = 'btn btn-secondary';
-    wantBtn.style.cssText = 'flex:1;border:1.5px solid #2ecc71;background:rgba(46,204,113,0.12);color:var(--t-green);font-weight:600';
-    wantBtn.textContent = '+ Want List';
-    wantBtn.onclick = function() { overlay.remove(); addItemToWantList(idx); };
-    btnRow.appendChild(wantBtn);
+    wantBtn.setAttribute('data-act', 'want');
+    wantBtn.style.cssText = 'flex:1 1 10rem;border:1.5px solid #2ecc71;background:rgba(46,204,113,0.12);color:var(--t-green);font-weight:600';
+    wantBtn.textContent = T.want || '+ Add to My Want List';
+    wantBtn.onclick = function () { close(); addItemToWantList(idx); };
+    row2.appendChild(wantBtn);
   }
-  btnRow.appendChild(viewBtn);
-  box.style.position = 'relative';
-  box.appendChild(cancelBtn);
-  box.appendChild(btnRow);
-  // ── v0.9.1918 (Brad: "the research button and ebay buttons should be
-  // clickable here so you don't have to try to add it to research it"):
-  // Research opens the Research result card for THIS catalog row (Google Price
-  // Check, On eBay Now, eBay Sold Prices); eBay Sold Prices goes straight to
-  // the sold listings through the card's own link builder.
-  const lookRow = document.createElement('div');
-  lookRow.id = 'browse-add-prompt-look';
-  lookRow.style.cssText = 'display:flex;gap:0.75rem;flex-wrap:wrap;margin-top:0.75rem';
-  const resBtn = document.createElement('button');
-  resBtn.type = 'button';
-  resBtn.className = 'btn btn-secondary';
-  resBtn.style.cssText = 'flex:1 1 10rem;border:1.5px solid #2ecc71;background:rgba(46,204,113,0.12);color:var(--t-green);font-weight:600';
-  resBtn.textContent = '\ud83d\udd0d Research';
-  resBtn.onclick = function() {
-    overlay.remove();
-    if (typeof window._researchLookupTyped === 'function') window._researchLookupTyped(item.itemNum, { picked: item });
-    else if (typeof showToast === 'function') showToast('Research is still loading \u2014 try again', 3000, true);
-  };
-  const ebayBtn = document.createElement('button');
-  ebayBtn.type = 'button';
-  ebayBtn.className = 'btn btn-secondary';
-  ebayBtn.style.cssText = 'flex:1 1 10rem;border:1.5px solid #e67e22;background:rgba(230,126,34,0.12);color:var(--t-orange);font-weight:600';
-  ebayBtn.textContent = '\ud83d\udcb0 eBay Sold Prices';
-  ebayBtn.onclick = function() {
-    var url = (typeof window.rrEbaySoldUrlForRow === 'function') ? window.rrEbaySoldUrlForRow(item) : '';
-    if (!url) { if (typeof showToast === 'function') showToast('Research is still loading \u2014 try again', 3000, true); return; }
-    if (typeof window.rrOpenExternal === 'function') window.rrOpenExternal(url, 'eBay sold'); else window.open(url, '_blank', 'noopener');
-  };
-  lookRow.appendChild(resBtn);
-  lookRow.appendChild(ebayBtn);
-  box.appendChild(lookRow);
+  const closeBtn = document.createElement('button');
+  closeBtn.type = 'button';
+  closeBtn.className = 'btn btn-secondary';
+  closeBtn.setAttribute('data-act', 'close');
+  closeBtn.setAttribute('data-close', '1');
+  closeBtn.style.cssText = 'flex:1 1 10rem';
+  closeBtn.textContent = T.close || 'Close';
+  closeBtn.onclick = close;
+  row2.appendChild(closeBtn);
+  box.appendChild(row2);
   overlay.appendChild(box);
   document.body.appendChild(overlay);
-  if (window.BackStack && BackStack.wire) BackStack.wire(overlay); // v0.9.806 TODO-012: device Back closes this pop-up
 }
+if (typeof window !== 'undefined') window.rrCatalogDetailsPopup = rrCatalogDetailsPopup;
 
 // ── Detail popup for Sets, Catalogs, and Instruction Sheets ──
 function showRefItemPopup(type, idx) {

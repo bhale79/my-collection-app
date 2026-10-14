@@ -396,8 +396,8 @@
           why: 'Type set to Boxcar plus a road name gives you exactly the boxcars that road ran — a shopping list in two presses.' },
         { do: 'Watch the <b>Owned</b> column as you scroll.',
           why: 'It marks what is already yours, so the gaps in a series are visible at a glance. That is usually where the next purchase comes from.' },
-        { do: 'Click any row to open it, then use ' + chip('✓ Yes — Add to Collection', 'primary') + ' or the green ' + chip('+ Want List', 'green') + ' button.',
-          why: 'Straight from browsing to owning or wanting, without retyping the number.' },
+        { do: 'Click any row (or its ' + chip('Details') + ' button) to open its details, then use ' + chip('Add to Collection', 'primary') + ' or the green ' + chip('+ Add to My Want List', 'green') + ' button.',
+          why: 'Straight from browsing to owning or wanting, without retyping the number. The Google price check and eBay links beside the maker\u2019s link show what it sells for.' },
         { do: 'Press ' + chip('✕') + ' beside <b>Filters</b> to clear everything and start again.',
           why: 'Easy to forget an era filter is on and wonder why a search finds nothing.' }
       ],

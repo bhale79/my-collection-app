@@ -13,9 +13,13 @@
 // RULES held here, read off what the real app drew:
 //   A  the price row never overflows: at Brad's large text, in a narrow window,
 //      nothing sticks out and the buttons drop under the field
-//   B  the "Do you own this item?" box has Research + eBay Sold Prices
-//   C  Research opens the Research card for THAT catalog row
-//   D  eBay Sold Prices opens the SAME link the Research card's button opens
+//   B  (v0.9.1948) a catalog row you do not own opens its DETAILS screen — the
+//      "Do you own this item?" box is retired — with Google price check, On
+//      eBay now and eBay sold beside the maker's link, and Add to Collection,
+//      Add to My Want List and Close under them; nothing sticks out at large text
+//   C  Close closes; Want hands over to the want list; a wanted item says so
+//   D  the three links open the SAME links the Research card's buttons open
+//   E  the Owned column's "—" is a Details button opening that screen
 // Planted offenders (the old code served in place of the real file) must fail.
 // ═══════════════════════════════════════════════════════════════════════════
 const fs = require('fs'), path = require('path');
@@ -94,54 +98,84 @@ const PRICE_STEP = async (pg) => pg.evaluate(async () => {
     await pg.close();
   }
 
-  // ── B, C, D: the "Do you own this item?" box ──
+  // ── B, C, D: the Master Catalog details screen (v0.9.1948 — the "Do you own
+  // this item?" box is retired; Brad: "the detail page has all of that") ──
   {
     const { pg, errs } = await openApp(browser, 1400);
     const b = await pg.evaluate(() => {
       browseRowClick({ target: document.body }, 1);              // 2343, not owned
-      const box = document.getElementById('browse-add-prompt');
-      const look = document.getElementById('browse-add-prompt-look');
-      return { box: !!box, look: look ? Array.from(look.querySelectorAll('button')).map(x => x.textContent.trim()) : [] };
+      const box = document.getElementById('rr-cat-details');
+      const links = box ? Array.from(box.querySelectorAll('#rr-cat-details-links a')).map(a => a.getAttribute('data-link') + ':' + a.textContent.trim()) : [];
+      const acts = box ? Array.from(box.querySelectorAll('[data-act]')).map(x => x.getAttribute('data-act')) : [];
+      return { box: !!box, oldBox: !!document.getElementById('browse-add-prompt'), links, acts };
     });
-    T('B1 the box opens for a row you do not own', b.box, true);
-    T('B2 it has Research and eBay Sold Prices', b.look, ['🔍 Research', '💰 eBay Sold Prices']);
-    // at Brad's large text nothing in the box sticks out past its edge (the ✕
-    // was cut off before v0.9.1918 — the first row never wrapped)
+    T('B1 a row you do not own opens its details straight away', b.box, true);
+    T('B1b …and the "Do you own this item?" box is gone', b.oldBox, false);
+    T('B2 beside the maker\'s link: Google price check, On eBay now, eBay sold', b.links.filter(x => !/^site:/.test(x)), ['google:Google price check', 'ebayNow:On eBay now', 'ebaySold:eBay sold']);
+    T('B2b under them: Add to Collection, then Add to My Want List and Close', b.acts, ['add', 'want', 'close']);
     const sticks = await pg.evaluate(() => {
       document.documentElement.style.fontSize = '22px';
-      const box = document.querySelector('#browse-add-prompt > div'); const br = box.getBoundingClientRect();
-      return Array.from(box.querySelectorAll('button')).filter(x => x.getBoundingClientRect().right > br.right + 1).map(x => x.textContent.trim());
+      const box = document.querySelector('#rr-cat-details > div'); const br = box.getBoundingClientRect();
+      return Array.from(box.querySelectorAll('button, a')).filter(x => x.getBoundingClientRect().right > br.right + 1).map(x => x.textContent.trim());
     });
-    T('B3 at large text no button sticks out of the box', sticks, []);
-    const corner = await pg.evaluate(() => {
-      const box = document.querySelector('#browse-add-prompt > div'); const br = box.getBoundingClientRect();
-      const x = Array.from(box.children).find(c => c.tagName === 'BUTTON' && c.textContent.trim() === '✕');
-      if (!x) return 'no ✕';
-      const xr = x.getBoundingClientRect();
-      return (br.right - xr.right < 40 && xr.top - br.top < 40) ? 'top-right' : 'elsewhere';
-    });
-    T('B4 the ✕ sits in the box\'s top-right corner', corner, 'top-right');
+    T('B3 at large text nothing sticks out of the details screen', sticks, []);
+    await pg.evaluate(() => { document.documentElement.style.fontSize = ''; });
 
-    // D: the box's eBay link == the Research card's eBay link, same row
-    await pg.click('#browse-add-prompt-look button:nth-child(2)');
-    const fromBox = await pg.evaluate(() => window._opened.slice(-1)[0] || null);
-    T('D1 eBay Sold Prices opened a sold-listings link', !!(fromBox && /LH_Sold=1/.test(fromBox.url) && /2343/.test(decodeURIComponent(fromBox.url))), true);
-    T('D2 …named as an eBay sold search', fromBox && fromBox.what, 'eBay sold');
-
-    // C: Research opens the card for THIS row
-    await pg.click('#browse-add-prompt-look button:nth-child(1)');
+    // D: each link opens what the Research card's button opens, for the same row
+    const fromBox = {};
+    for (const k of ['google', 'ebayNow', 'ebaySold']) {
+      await pg.click('#rr-cat-details-links a[data-link="' + k + '"]');
+      fromBox[k] = await pg.evaluate(() => window._opened.slice(-1)[0] || null);
+    }
+    T('D1 eBay sold opened a sold-listings search for 2343', !!(fromBox.ebaySold && /LH_Sold=1/.test(fromBox.ebaySold.url) && /2343/.test(decodeURIComponent(fromBox.ebaySold.url))), true);
+    T('D2 …named the way the card names them', [fromBox.google && fromBox.google.what, fromBox.ebayNow && fromBox.ebayNow.what, fromBox.ebaySold && fromBox.ebaySold.what], ['Google price', 'eBay now', 'eBay sold']);
+    // the card for the same row
+    await pg.evaluate(() => { document.getElementById('rr-cat-details').remove(); window._researchLookupTyped(state.masterData[1].itemNum, { picked: state.masterData[1] }); });
     await pg.waitForTimeout(250);
+    const fromCard = {};
+    for (const [k, id] of [['google', 'rs-google'], ['ebayNow', 'rs-ebay-now'], ['ebaySold', 'rs-ebay']]) {
+      await pg.click('#' + id);
+      fromCard[k] = await pg.evaluate(() => window._opened.slice(-1)[0] || null);
+    }
+    T('D3 the details screen and the Research card open the SAME three links',
+      ['google', 'ebayNow', 'ebaySold'].map(k => !!(fromBox[k] && fromCard[k] && fromBox[k].url === fromCard[k].url)), [true, true, true]);
+    await pg.evaluate(() => { const o = document.getElementById('rs-overlay'); if (o) o.remove(); });
+
+    // C: Close closes; Add to My Want List hands over to the want list; a wanted item says so
     const c = await pg.evaluate(() => {
-      const ov = document.getElementById('rs-overlay');
-      return { card: !!ov, promptGone: !document.getElementById('browse-add-prompt'), num: ov ? (ov.textContent.match(/2343/) || [''])[0] : '' };
+      browseRowClick({ target: document.body }, 1);
+      document.querySelector('#rr-cat-details [data-act="close"]').click();
+      const closed = !document.getElementById('rr-cat-details');
+      let wantIdx = null; const keep = window.addItemToWantList; window.addItemToWantList = function (i) { wantIdx = i; };
+      browseRowClick({ target: document.body }, 1);
+      document.querySelector('#rr-cat-details [data-act="want"]').click();
+      window.addItemToWantList = keep;
+      state.wantData['2343|1'] = { itemNum: '2343', variation: '1' };
+      browseRowClick({ target: document.body }, 1);
+      const wanted = !!document.querySelector('#rr-cat-details [data-act="wanted"]') && !document.querySelector('#rr-cat-details [data-act="want"]');
+      document.getElementById('rr-cat-details').remove(); delete state.wantData['2343|1'];
+      return { closed, wantIdx, wanted };
     });
-    T('C1 Research opens the Research card', c.card, true);
-    T('C2 …for 2343', c.num, '2343');
-    T('C3 …and the question box closes', c.promptGone, true);
-    await pg.click('#rs-ebay');
-    const fromCard = await pg.evaluate(() => window._opened.slice(-1)[0] || null);
-    T('D3 the box and the card open the SAME eBay link', fromBox && fromCard && fromBox.url === fromCard.url, true);
-    T('page errors (box)', errs, []);
+    T('C1 Close closes the details screen', c.closed, true);
+    T('C2 Add to My Want List opens the want list for this row', c.wantIdx, 1);
+    T('C3 an item already on the want list says so instead of offering it twice', c.wanted, true);
+
+    // E: the Owned column — a Details button where the "—" was, opening the same screen
+    const e = await pg.evaluate(() => {
+      const cell = _browseOwnedCell({ cls: 'no', text: '—' }, 1);
+      const wantCell = _browseOwnedCell({ cls: 'want', text: '★ Want' }, 1);
+      const host = document.createElement('table'); host.innerHTML = '<tr onclick="window.__rowClicked=1"><td>' + cell + '</td></tr>'; document.body.appendChild(host);
+      window.__rowClicked = 0;
+      host.querySelector('button[data-details]').click();
+      const opened = !!document.getElementById('rr-cat-details');
+      const r = { text: host.querySelector('button').textContent, opened, rowClick: window.__rowClicked, wantKeeps: /★ Want/.test(wantCell) && !/data-details/.test(wantCell) };
+      host.remove(); const o = document.getElementById('rr-cat-details'); if (o) o.remove();
+      return r;
+    });
+    T('E1 the Owned column\'s "—" is a Details button', e.text, 'Details');
+    T('E2 …that opens the details screen (and not the row\'s own click)', [e.opened, e.rowClick], [true, 0]);
+    T('E3 an Owned / Want badge stays a badge', e.wantKeeps, true);
+    T('page errors (details)', errs, []);
     await pg.close();
   }
 
@@ -156,24 +190,22 @@ const PRICE_STEP = async (pg) => pg.evaluate(async () => {
     T('P1 planted: the old row is caught overflowing', r.sticks.length > 0 || r.rowOverflow || r.sideways, true);
     await pg.close();
   }
-  // P3: the old first row (no wrap) at large text — the ✕ sticks out
-  const p3 = COLL.replace("btnRow.style.cssText = 'display:flex;gap:0.75rem;flex-wrap:wrap';", "btnRow.style.cssText = 'display:flex;gap:0.75rem';")
-                 .replace("  box.style.position = 'relative';\n  box.appendChild(cancelBtn);\n  box.appendChild(btnRow);", "  btnRow.appendChild(cancelBtn);\n  box.appendChild(btnRow);")
-                 .replace("cancelBtn.style.cssText = 'position:absolute;top:0.75rem;right:0.75rem;padding:0.35rem 0.6rem;line-height:1';", "cancelBtn.style.cssText = 'padding:0.6rem 0.9rem';");
-  T('P3 planted source differs', p3 !== COLL, true);
-  {
-    const { pg } = await openApp(browser, 1400, { 'app-collection.js': p3 });
-    const st = await pg.evaluate(() => { document.documentElement.style.fontSize = '22px'; browseRowClick({ target: document.body }, 1); const box = document.querySelector('#browse-add-prompt > div'); const br = box.getBoundingClientRect(); return Array.from(box.querySelectorAll('button')).filter(x => x.getBoundingClientRect().right > br.right + 1).length; });
-    T('P3 planted: the unwrapped row is caught sticking out', st > 0, true);
-    await pg.close();
-  }
-  // P2: the box without the two buttons
-  const p2 = COLL.replace('  lookRow.appendChild(resBtn);\n  lookRow.appendChild(ebayBtn);\n  box.appendChild(lookRow);\n', '');
+  // P2: the details screen without its research links
+  const p2 = COLL.replace('  if (links.children.length) box.appendChild(links);\n', '');
   T('P2 planted source differs', p2 !== COLL, true);
   {
     const { pg } = await openApp(browser, 1400, { 'app-collection.js': p2 });
-    const n = await pg.evaluate(() => { browseRowClick({ target: document.body }, 1); const l = document.getElementById('browse-add-prompt-look'); return l ? l.querySelectorAll('button').length : 0; });
-    T('P2 planted: a box without the buttons is caught', n, 0);
+    const n = await pg.evaluate(() => { browseRowClick({ target: document.body }, 1); return document.querySelectorAll('#rr-cat-details-links a').length; });
+    T('P2 planted: a details screen without the links is caught', n, 0);
+    await pg.close();
+  }
+  // P3: the old row click (the "Do you own this item?" box) — no details screen
+  const p3 = COLL.replace('  rrCatalogDetailsPopup(idx);\n}', '  return;\n}');
+  T('P3 planted source differs', p3 !== COLL, true);
+  {
+    const { pg } = await openApp(browser, 1400, { 'app-collection.js': p3 });
+    const opened = await pg.evaluate(() => { browseRowClick({ target: document.body }, 1); return !!document.getElementById('rr-cat-details'); });
+    T('P3 planted: a row click that does not open the details is caught', opened, false);
     await pg.close();
   }
 

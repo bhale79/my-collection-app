@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.1947';
+const APP_VERSION = 'v0.9.1948';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -3079,6 +3079,20 @@ const RR_SALE_TEXT = {
   returnedPartial: 'No. {num} is back, but {what}. Nothing was lost \u2014 the sale is still on Sold Items. Refresh and try Returned again.',
   returnedBusy: 'Putting it back\u2026',
   returnedPart: 'Parts go back through the Parts Bin, not here.',
+};
+// v0.9.1948 — the Master Catalog details screen (app-collection.js
+// rrCatalogDetailsPopup) and the Details button in the catalog's Owned column
+// (browse.js _browseOwnedCell). Brad, 2026-10-14: the "—" there "should be the
+// details button", and the research links sit beside "View on MTH".
+const CATALOG_DETAILS_TEXT = {
+  details: 'Details',
+  detailsTitle: 'See this item\u2019s details, research links and Add buttons',
+  google: 'Google price check',
+  ebayNow: 'On eBay now',
+  ebaySold: 'eBay sold',
+  want: '+ Add to My Want List',
+  onWant: '\u2713 On Want List',
+  close: 'Close',
 };
 const RR_PIC_FIRST = {
   button: '\ud83d\udcf7 Add a picture first',

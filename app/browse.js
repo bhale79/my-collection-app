@@ -784,6 +784,24 @@ function _browseBadgeOf(item, pd) {
   return { cls: 'no', text: '—', rank: null };   // blank: last either way
 }
 
+// v0.9.1948 (Brad: "the - button should be the details button that brings up
+// the screen we just talked about"): the Owned cell of a catalog row. Owned,
+// For Sale, Upgrade and Want keep their badge; an item that is none of those
+// gets a Details button that opens the details screen (app-collection.js
+// rrCatalogDetailsPopup) without going through the row's own click.
+function _browseOwnedCell(bdg, globalIdx) {
+  bdg = bdg || { cls: 'no', text: '\u2014' };
+  if (bdg.cls === 'no' && Number(globalIdx) >= 0) {
+    var T = (typeof CATALOG_DETAILS_TEXT !== 'undefined' && CATALOG_DETAILS_TEXT) || {};
+    return '<button type="button" class="owned-badge no" data-details="' + Number(globalIdx) + '"'
+      + ' title="' + rrEsc(T.detailsTitle || '') + '"'
+      + ' onclick="event.stopPropagation();rrCatalogDetailsPopup(' + Number(globalIdx) + ')"'
+      + ' style="cursor:pointer;font-family:inherit;border:1px solid var(--border)">' + rrEsc(T.details || 'Details') + '</button>';
+  }
+  return '<span class="owned-badge ' + bdg.cls + '">' + bdg.text + '</span>';
+}
+if (typeof window !== 'undefined') window._browseOwnedCell = _browseOwnedCell;
+
 // ── v0.9.1916: the sort keys — ONE set, used by the big catalog table (from
 // the row's fields) and the section tables (from the cell's words). A blank
 // sorts LAST in both directions; ties keep the catalog order.
@@ -5484,7 +5502,7 @@ function _rrBrowseCore(_co) {
           return `<td>${item[f] || '<span class="text-dim">—</span>'}</td>`;
         }).join('')}
         <td class="text-dim">${item.yearProd || '—'}</td>
-        <td><span class="owned-badge ${badgeClass}">${badgeText}</span></td>
+        <td>${_browseOwnedCell(_bdg, globalIdx)}</td>
       </tr>`;
     }
   });

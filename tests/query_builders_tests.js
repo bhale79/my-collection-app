@@ -242,19 +242,25 @@ ok('the Google price search takes the number and brand it is handed and adds the
 // the card itself: source pins on the lines that decide what the buttons search
 const showCard = grabAt(research, 'function _showCard(res)');
 // v0.9.1918: the row-maker rule moved into ONE helper, _rowSearchMaker(m) —
-// shared by the card and rrEbaySoldUrlForRow (the "Do you own this item?" box).
+// shared by the card and (v0.9.1948) rrResearchUrlsForRow, the catalog details screen's links.
 const rowMaker = grabAt(research, 'function _rowSearchMaker(m)');
 ok('the card takes the brand from rrSearchBrand once a catalog row matched (the gauge rule)…',
    /if \(m\) \{[\s\S]{0,200}mfr = _rowSearchMaker\(m\) \|\| mfr;/.test(showCard) &&
    /rrSearchBrand\(m\)/.test(rowMaker) && /return b \|\| row;/.test(rowMaker));
-ok('…and the box\'s eBay link asks the same helper (one rule, two buttons)',
-   /window\.rrEbaySoldUrlForRow = function \(m\)[\s\S]{0,200}_ebaySoldUrl\(m\.itemNum \|\| '', _rowSearchMaker\(m\)/.test(research));
+ok('…and the details screen\'s links ask the same helper (one rule, every button)',
+   /window\.rrResearchUrlsForRow = function \(m\)[\s\S]{0,200}mfr = _rowSearchMaker\(m\)/.test(research) && !/rrEbaySoldUrlForRow = /.test(research));
 ok('…spells the Google number through rrSearchNumber and hands THAT to the price search',
    /_gNum = rrSearchNumber\(m\) \|\| itemNum;/.test(showCard) && /_googlePriceUrl\(_gNum, mfr, road, desc, _eraTerms\)/.test(showCard));
 ok('…while both eBay buttons keep the bare number (v0.9.740)',
    /_ebaySoldUrl\(itemNum, mfr, road, desc\)/.test(showCard) && /_ebayActiveUrl\(itemNum, mfr, road, desc\)/.test(showCard));
+// v0.9.1948: the era words moved into ONE helper, _rowEraTerms(m, year) — the card
+// and the Master Catalog details screen (rrResearchUrlsForRow) both ask it.
+const eraTerms = grabAt(research, 'function _rowEraTerms(m, year)');
 ok('…and the era words are prewar / postwar only — "modern era" is gone from the card',
-   /_pMap1 = \{ prewar: 'prewar', postwar: 'postwar' \};/.test(showCard) && !/modern era/.test(research));
+   /_pMap1 = \{ prewar: 'prewar', postwar: 'postwar' \};/.test(eraTerms) && /_eraTerms = m \? _rowEraTerms\(m, year\)/.test(showCard) && !/modern era/.test(research));
+ok('the details screen\'s three links come from the card\'s own builders, row maker and era words',
+   /window\.rrResearchUrlsForRow = function \(m\)[\s\S]{0,700}_googlePriceUrl\(gNum, mfr, road, desc, _rowEraTerms\(m,[\s\S]{0,200}_ebayActiveUrl\(n, mfr, road, desc\)[\s\S]{0,80}_ebaySoldUrl\(n, mfr, road, desc\)/.test(research)
+   && /var n = m\.itemNum \|\| '', mfr = _rowSearchMaker\(m\)/.test(research));
 
 // ── E · the wizard's price and eBay buttons (wizard.js) ─────────────────────
 section('E · the wizard\'s Research and eBay Sold buttons (wizard.js)');

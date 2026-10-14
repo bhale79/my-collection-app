@@ -58,7 +58,7 @@
     return _ebayCore(itemNum, mfr, roadName, desc, '&LH_Sold=1&LH_Complete=1');
   }
   // v0.9.1918: the maker a catalog ROW is searched under — ONE answer for the
-  // Research card and for the Master Catalog's "Do you own this item?" box.
+  // Research card and for the Master Catalog (its details screen, v0.9.1948).
   // rrSearchBrand (the brand follows the gauge, v0.9.1838), else the row's own
   // maker, else its tab's maker.
   function _rowSearchMaker(m) {
@@ -69,14 +69,8 @@
     try { if (typeof rrSearchBrand === 'function') b = rrSearchBrand(m) || ''; } catch (eB) {}
     return b || row;
   }
-  // v0.9.1918 (Brad: "the research button and ebay buttons should be clickable
-  // here so you don't have to try to add it to research it"): the eBay
-  // sold-listings link for a catalog row — the same builder and maker rule as
-  // the Research card's "eBay Sold Prices".
-  window.rrEbaySoldUrlForRow = function (m) {
-    if (!m) return '';
-    return _ebaySoldUrl(m.itemNum || '', _rowSearchMaker(m), m.roadName || '', m.description || '');
-  };
+  // (v0.9.1948: rrEbaySoldUrlForRow, the old "Do you own this item?" box's
+  // eBay link, went with the box — rrResearchUrlsForRow below gives all three.)
   // v0.9.737 (Brad): show-floor questions are "is this a good price, is it
   // rare, and are any for sale right now". Google's AI Overview answers the
   // first two (no API exists for it — we hand off exactly like Lens); an
@@ -92,6 +86,41 @@
   function _ebayActiveUrl(itemNum, mfr, roadName, desc) {
     return _ebayCore(itemNum, mfr, roadName, desc, '');
   }
+  // v0.9.1948: the period / year / scale a catalog ROW adds to its Google
+  // search (v0.9.1501, which said it lived in the card only). Pulled out so
+  // the card and the Master Catalog's details screen say the same thing.
+  function _rowEraTerms(m, year) {
+    if (!m) return '';
+    try {
+      // v0.9.1838 (N5): prewar and postwar only — "modern" is our internal era
+      // word and Google ignores it ("Missing: modern"); the year and scale still ride.
+      var _pMap1 = { prewar: 'prewar', postwar: 'postwar' };
+      var _per1 = '';
+      try { _per1 = (typeof _wizPeriodOfRow === 'function') ? (_wizPeriodOfRow(m) || '') : ''; } catch (eP1) {}
+      if (!_per1) { try { _per1 = (typeof _itemEraPeriod === 'function') ? (_itemEraPeriod(m) || '') : ''; } catch (eP2) {} }
+      var _sc1 = '';
+      try { _sc1 = String(m.gauge || ((typeof ERA_SCALE !== 'undefined' && m._era) ? (ERA_SCALE[m._era] || '') : '')).trim(); } catch (eS1) {}
+      return [_pMap1[_per1] || '', String(year || '').trim(), _sc1 ? (_sc1 + ' gauge') : ''].filter(Boolean).join(' ');
+    } catch (eET) { return ''; }
+  }
+  // v0.9.1948 (Brad, the Master Catalog details screen: "add to the right of
+  // the view on mth link, the research links that include google price check,
+  // on ebay now, ebay sold"): the card's three searches for ONE catalog row —
+  // the same builders, the same maker rule (_rowSearchMaker), the same number
+  // spelling for Google (rrSearchNumber) and the same row era terms — so the
+  // links on the details screen open exactly what the Research card's buttons do.
+  //   -> { google, ebayNow, ebaySold }   or null without a row
+  window.rrResearchUrlsForRow = function (m) {
+    if (!m) return null;
+    var n = m.itemNum || '', mfr = _rowSearchMaker(m), road = m.roadName || '', desc = m.description || '';
+    var gNum = n;
+    try { if (typeof rrSearchNumber === 'function') gNum = rrSearchNumber(m) || n; } catch (eN) {}
+    return {
+      google: _googlePriceUrl(gNum, mfr, road, desc, _rowEraTerms(m, m.yearProd || m.year || '')),
+      ebayNow: _ebayActiveUrl(n, mfr, road, desc),
+      ebaySold: _ebaySoldUrl(n, mfr, road, desc),
+    };
+  };
 
   // Count owned copies across ALL variations — a show find is "do I have
   // this item at all", not "this exact variation". P/T/C suffixes bridge
@@ -161,26 +190,13 @@
     // item IS Lionel-made, so that note must not fire on it.
     var _gNum = itemNum;   // the Google searches spell the number the catalogs' way (6-84631); eBay keeps it bare (v0.9.740)
     if (m) {
-      mfr = _rowSearchMaker(m) || mfr;   // v0.9.1918: the one row-maker rule (shared with rrEbaySoldUrlForRow)
+      mfr = _rowSearchMaker(m) || mfr;   // v0.9.1918: the one row-maker rule (shared with rrResearchUrlsForRow)
       try { if (typeof rrSearchNumber === 'function') _gNum = rrSearchNumber(m) || itemNum; } catch (eN) {}
     }
     // v0.9.1501: the card's Google button carries the matched ROW's period /
     // year / scale (the v0.9.1477+1484 idea, which this card never got).
     // From the row ONLY -- never the global filter. eBay untouched (v0.9.740).
-    var _eraTerms = '';
-    try {
-      if (m) {
-        // v0.9.1838 (N5): prewar and postwar only — "modern" is our internal era
-        // word and Google ignores it ("Missing: modern"); the year and scale still ride.
-        var _pMap1 = { prewar: 'prewar', postwar: 'postwar' };
-        var _per1 = '';
-        try { _per1 = (typeof _wizPeriodOfRow === 'function') ? (_wizPeriodOfRow(m) || '') : ''; } catch (eP1) {}
-        if (!_per1) { try { _per1 = (typeof _itemEraPeriod === 'function') ? (_itemEraPeriod(m) || '') : ''; } catch (eP2) {} }
-        var _sc1 = '';
-        try { _sc1 = String(m.gauge || ((typeof ERA_SCALE !== 'undefined' && m._era) ? (ERA_SCALE[m._era] || '') : '')).trim(); } catch (eS1) {}
-        _eraTerms = [_pMap1[_per1] || '', String(year || '').trim(), _sc1 ? (_sc1 + ' gauge') : ''].filter(Boolean).join(' ');
-      }
-    } catch (eET) {}
+    var _eraTerms = m ? _rowEraTerms(m, year) : '';   // v0.9.1948: one rule, shared with rrResearchUrlsForRow
     var own = _ownedCount(itemNum);
 
     var ov = document.createElement('div');
