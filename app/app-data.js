@@ -2317,6 +2317,62 @@ function _cachePersonalData() {
   }
 }
 
+// ══ v0.9.1941 — THE way a My Collection ROW becomes the record the app works with ══
+// Brad, recording the booth video: "i added 3 photos and they don't show up on
+// recent additions nor in the detail sheet" — and a reload brought them back.
+// The save wrote the photo-folder link to the sheet, then rebuilt the item in
+// memory from its OWN hand-kept list of 17 fields; the link was not on it (nor
+// were Box Photo, Master Row ID, Year Made and 25 more columns). Until the next
+// load the item looked photoless, so the detail page fell back to the item-
+// number folder (empty — the photos are in the copy's subfolder) and Recent
+// Additions had no thumbnail. Same disease as v0.9.1919: a hand-kept column
+// list that falls behind the row.
+// The rule now: the start-up load AND every save turn a row into a record HERE,
+// so the record in memory after a save is exactly what the next load will read.
+// A save hands over the row it WROTE (rrPersonalRecordFromWrittenRow strips the
+// leading ' TEXT guard the writer puts on Item Number / Matched To, which
+// Sheets itself strips — a load never sees it). tests/saved_record_tests.js.
+function rrPersonalRecordFromRow(r, rowNum) {
+  const obj = { row: rowNum, status: 'Owned', owned: true };
+  PERSONAL_SCHEMA.forEach((s, i) => {
+    // Phase 3j: coerce to string. UNFORMATTED_VALUE returns numbers/dates raw,
+    // but the rest of the app assumes string fields (e.g. .replace() on variation).
+    const v = r ? r[i] : undefined;
+    obj[s.field] = (v !== null && v !== undefined && v !== '') ? String(v) : '';
+  });
+  // Special: quickEntry stored as 'Yes'/'No' but consumed as boolean
+  obj.quickEntry = (obj.quickEntry === 'Yes');
+  // v0.9.1843: a non-train section's Type is read in ONE spelling — the
+  // one this release writes (EPHEMERA_TABS, config.js). A row typed
+  // "Other Lionel" by an older release is Memorabilia from here on; the
+  // sheet cell keeps its old word until the row is next saved. Trains
+  // and everything else pass through untouched.
+  if (typeof ephCanonType === 'function') obj.itemType = ephCanonType(obj.itemType);
+  return obj;
+}
+function rrPersonalRecordFromWrittenRow(row, rowNum) {
+  const cells = (row || []).map(v => (typeof v === 'string' && v.charAt(0) === "'") ? v.slice(1) : v);
+  return rrPersonalRecordFromRow(cells, rowNum);
+}
+// The record a SAVE puts in memory: the row it wrote, read as a load reads it.
+// `fill` holds what the save knows that the row may leave blank (the session's
+// era / maker words, a Box / Master Carton type, a temp key) — it fills ONLY a
+// blank; the written row always wins, so memory equals what a reload will show.
+function rrSavedRecord(writtenRow, rowNum, fill) {
+  const rec = rrPersonalRecordFromWrittenRow(writtenRow, rowNum);
+  Object.keys(fill || {}).forEach(k => {
+    if (k === 'row') return;
+    const v = rec[k];
+    if (v === undefined || v === null || v === '') rec[k] = fill[k];
+  });
+  return rec;
+}
+if (typeof window !== 'undefined') {
+  window.rrPersonalRecordFromRow = rrPersonalRecordFromRow;
+  window.rrPersonalRecordFromWrittenRow = rrPersonalRecordFromWrittenRow;
+  window.rrSavedRecord = rrSavedRecord;
+}
+
 async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
   // Use temporary objects — only commit to state if fetch succeeds
   // This prevents a failed/slow fetch from wiping items that were just saved
@@ -2426,21 +2482,8 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
       }
       key = _alt;
     }
-    const obj = { row: rowNum, status: 'Owned', owned: true };
-    PERSONAL_SCHEMA.forEach((s, i) => {
-      // Phase 3j: coerce to string. UNFORMATTED_VALUE returns numbers/dates raw,
-      // but the rest of the app assumes string fields (e.g. .replace() on variation).
-      obj[s.field] = (r[i] !== null && r[i] !== undefined && r[i] !== '') ? String(r[i]) : '';
-    });
-    // Special: quickEntry stored as 'Yes'/'No' but consumed as boolean
-    obj.quickEntry = (obj.quickEntry === 'Yes');
-    // v0.9.1843: a non-train section's Type is read in ONE spelling — the
-    // one this release writes (EPHEMERA_TABS, config.js). A row typed
-    // "Other Lionel" by an older release is Memorabilia from here on; the
-    // sheet cell keeps its old word until the row is next saved. Trains
-    // and everything else pass through untouched.
-    if (typeof ephCanonType === 'function') obj.itemType = ephCanonType(obj.itemType);
-    newPersonal[key] = obj;
+    // v0.9.1941: through THE one row reader (rrPersonalRecordFromRow, above) — the same one a save uses.
+    newPersonal[key] = rrPersonalRecordFromRow(r, rowNum);
   });
 
   // v0.9.1198: one-time, fire-and-forget — label the new Master Key column in

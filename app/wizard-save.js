@@ -191,7 +191,7 @@ async function _quickEntrySaveSet(condition, worth, photoFiles) {
 
     try {
       const actualRow = await sheetsAppend(state.personalSheetId, PERSONAL_TAB + '!A:A', [row]);
-      state.personalData[invId] = {
+      state.personalData[invId] = rrSavedRecord(row, actualRow, {
         row: actualRow, itemNum, variation, condition: String(condition),
         allOriginal: '', priceItem: isEngine ? worth : '', priceBox: '',
         priceComplete: '', hasBox: 'No', boxCondition: '', itemPhoto: photoLink,
@@ -199,7 +199,7 @@ async function _quickEntrySaveSet(condition, worth, photoFiles) {
         matchedTo: '', setId, yearMade: year, isError: '', errorDesc: '',
         quickEntry: 'Yes', inventoryId: invId, groupId, location: '',
         era: 'Postwar', manufacturer: _getEraManufacturer(), owned: true,
-      };
+      });
       _stampSaved(state.personalData[invId]);
       savedItems.push(itemNum);
     } catch(e) {
@@ -595,14 +595,14 @@ async function saveInstructionSheet() {
   });
   try {
     const _apRowIS = await sheetsAppend(state.personalSheetId, PERSONAL_TAB + '!A:A', [row]);
-    state.personalData[isStandaloneInvId] = {
+    state.personalData[isStandaloneInvId] = rrSavedRecord(row, _apRowIS || 0, {
       row: _apRowIS || 0, itemNum: _isItemNum, variation: '',   // v0.9.1196: 0 = honestly unknown, never a fake row
       status: 'Owned', owned: true,
       condition: d.is_condition||'', notes: _isNotes,
       photoItem: photoLink || '', matchedTo: linkedItem || '',
       priceItem: d.is_pricePaid||'', userEstWorth: d.is_estValue||'', yearMade: d.is_year||'',
       inventoryId: isStandaloneInvId, groupId: resolvedGroupId || '',
-    };
+    });
     _stampSaved(state.personalData[isStandaloneInvId]);
     showToast('✓ Instruction Sheet ' + (sheetNum || _isItemNum) + ' saved!');
     d._saveComplete = true;   // v0.9.689: closeWizard's discard-guard must not fire after a real save
@@ -838,7 +838,7 @@ async function saveEphemeraItem() {
   try {
     const actualRow = await sheetsAppend(state.personalSheetId, PERSONAL_TAB + '!A:A', [row]);
     // Add to local state as a regular owned collection item
-    const pdObj = {
+    const pdObj = rrSavedRecord(row, actualRow, {
       row: actualRow, status: 'Owned', owned: true,
       itemNum: ephItemNum, variation: '',
       manufacturer: d.eph_manufacturer || 'Lionel',
@@ -849,7 +849,7 @@ async function saveEphemeraItem() {
       yearMade: d.eph_year || '', inventoryId: _uniInvId, era: 'Manual',
       description: _uniDesc,
       dateAdded: new Date().toISOString().slice(0, 10),
-    };
+    });
     _stampSaved(pdObj);
     state.personalData[_uniInvId || (ephItemNum + '||' + actualRow)] = pdObj;
     if (typeof _cachePersonalData === 'function') _cachePersonalData();
@@ -1055,7 +1055,7 @@ async function _saveManualEntry() {
   // Optimistic state update — v0.9.695: record the ACTUAL row (the fake 99999
   // made every later update on this item fail with a Sheets "exceeds grid
   // limits" 400 — Brad's abacus photo/description case).
-  state.personalData[invId] = {
+  state.personalData[invId] = rrSavedRecord(row, _apRow || 0, {
     row: _apRow || 0, itemNum: displayId, variation: '',   // v0.9.1196
     status: 'Owned', owned: true,
     condition, allOriginal: '',
@@ -1072,7 +1072,7 @@ async function _saveManualEntry() {
     ..._rrUserFieldValues(d),
     itemType: itemType, roadName: roadName, roadNumber: roadNumber, description: description, customName: customName,
     era: 'Manual', manufacturer,
-  };
+  });
   _stampSaved(state.personalData[invId]);
 
   _cachePersonalData();
@@ -1400,14 +1400,17 @@ async function saveWizardItem() {
         // the user nothing was saved would be untrue — the box gets saved either
         // way. So: no toast on this path, just a different destination.
         var _bxUpdated = false;
+        var _bxWritten = boxRow;   // v0.9.1941: the row as written — the record in memory is built from it
         // v0.9.1919: an UPDATE carries every column this box save does not name
         // (Purchased From, Custom 1–5, Import Batch …) from the row it replaces;
         // quickEntry is named — finishing the entry clears the flag.
         if (existing && existing.row && existing.itemNum === boxItemNum) {
           _bxUpdated = await rrRowStillIs(state.personalSheetId, PERSONAL_TAB, existing.row,
                                           existing.itemNum, existing.inventoryId || '');
-          if (_bxUpdated) await sheetsUpdate(state.personalSheetId, personalFullRowRange(existing.row),
-            [rrCarryPersonalRow(existing, boxRow, Object.keys(_boxFields).filter(k => _boxFields[k] !== undefined).concat(['quickEntry']))]);
+          if (_bxUpdated) {
+            _bxWritten = rrCarryPersonalRow(existing, boxRow, Object.keys(_boxFields).filter(k => _boxFields[k] !== undefined).concat(['quickEntry']));
+            await sheetsUpdate(state.personalSheetId, personalFullRowRange(existing.row), [_bxWritten]);
+          }
           else console.warn('[box] row ' + existing.row + ' moved — appending a new box row instead.');
         }
         if (_bxUpdated) {
@@ -1417,7 +1420,7 @@ async function saveWizardItem() {
         }
 
         // Optimistic state update
-        state.personalData[boxInvId] = {
+        state.personalData[boxInvId] = rrSavedRecord(_bxWritten, _bxApRow || 0, {
           row: _bxApRow || 0, itemNum: boxItemNum, variation,
           status: 'Owned', owned: true,
           itemType: 'Box',
@@ -1431,7 +1434,7 @@ async function saveWizardItem() {
           location: d.location || '',
           ..._rrUserFieldValues(d),
           era: _resolveSaveEra(), manufacturer: ((typeof _brandOfItem === 'function' && _brandOfItem(itemNum)) || _getEraManufacturer()),
-        };
+        });
         _stampSaved(state.personalData[boxInvId]);
 
         d._saveComplete = true;
@@ -1698,6 +1701,9 @@ async function saveWizardItem() {
   } catch (eSP) {}
 
   var _mainApRow = 0;   // v0.9.1196: the sheet row this item actually landed on
+  // v0.9.1941: the row as WRITTEN (an update carries the old row's columns) —
+  // the in-memory record after the save is built from THIS, never a field list.
+  var _mainWrittenRow = (typeof row !== 'undefined') ? row : null;
   if (d._fillItemMode && existing?.row) {
         // Updating existing row with new item details (e.g. filling in a quick-entry row)
         //
@@ -1716,9 +1722,9 @@ async function saveWizardItem() {
                                  existing.itemNum, existing.inventoryId || ''))) {
           throw new Error('ROW_MOVED');
         }
-        await sheetsUpdate(state.personalSheetId, personalFullRowRange(existing.row),
-          [rrCarryPersonalRow(existing, row, Object.keys(_mainFields || {}).filter(k => _mainFields[k] !== undefined)
-            .concat(['groupId', 'setId', 'matchedTo', 'quickEntry']))]);
+        _mainWrittenRow = rrCarryPersonalRow(existing, row, Object.keys(_mainFields || {}).filter(k => _mainFields[k] !== undefined)
+            .concat(['groupId', 'setId', 'matchedTo', 'quickEntry']));
+        await sheetsUpdate(state.personalSheetId, personalFullRowRange(existing.row), [_mainWrittenRow]);
         _mainApRow = existing.row;
       } else {
         // Always append for a plain new collection add — never overwrite existing rows
@@ -2108,13 +2114,13 @@ async function saveWizardItem() {
           const _bx1ApRow = await sheetsAppend(state.personalSheetId, PERSONAL_TAB + '!A:A', [u1BoxRow]);   // v0.9.1196
           var _bxNote = 'Box for ' + itemNum;
           if (_bxDesc) _bxNote += ' — ' + _bxDesc;
-          state.personalData[u1BoxRow[PERSONAL_FIELD_INDEX.inventoryId]] = {
+          state.personalData[u1BoxRow[PERSONAL_FIELD_INDEX.inventoryId]] = rrSavedRecord(u1BoxRow, _bx1ApRow || 0, {
             row: _bx1ApRow || 0, itemNum: itemNum + '-BOX', variation: _bxVar,
             status: 'Owned', owned: true,
             condition: d.boxCond || row[PERSONAL_FIELD_INDEX.boxCond] || '', hasBox: 'Yes', boxCond: d.boxCond || row[PERSONAL_FIELD_INDEX.boxCond] || '',
             notes: _bxNote, matchedTo: itemNum,
             inventoryId: u1BoxRow[PERSONAL_FIELD_INDEX.inventoryId], groupId: groupId,
-          };
+          });
           _stampSaved(state.personalData[u1BoxRow[PERSONAL_FIELD_INDEX.inventoryId]]);
         }
         // Unit 2 box (set save)
@@ -2122,13 +2128,13 @@ async function saveWizardItem() {
           const u2Num = (d.unit2ItemNum || '').trim();
           const u2BoxRow = _buildGroupBoxRow(u2Num, d.unit2BoxCond || '', Object.values(d.photosUnit2Box || {}).find(v => v) || '', groupId, d.datePurchased, itemNum);
           const _bx2ApRow = await sheetsAppend(state.personalSheetId, PERSONAL_TAB + '!A:A', [u2BoxRow]);   // v0.9.1196
-          state.personalData[u2BoxRow[PERSONAL_FIELD_INDEX.inventoryId]] = {
+          state.personalData[u2BoxRow[PERSONAL_FIELD_INDEX.inventoryId]] = rrSavedRecord(u2BoxRow, _bx2ApRow || 0, {
             row: _bx2ApRow || 0, itemNum: u2Num + '-BOX', variation: '',
             status: 'Owned', owned: true,
             condition: d.unit2BoxCond || '', hasBox: 'Yes', boxCond: d.unit2BoxCond || '',
             notes: 'Box for ' + u2Num, matchedTo: u2Num,
             inventoryId: u2BoxRow[PERSONAL_FIELD_INDEX.inventoryId], groupId: groupId,
-          };
+          });
           _stampSaved(state.personalData[u2BoxRow[PERSONAL_FIELD_INDEX.inventoryId]]);
         }
         // Unit 3 box (ABA save)
@@ -2136,13 +2142,13 @@ async function saveWizardItem() {
           const u3Num = _pdSuffix((d.unit3ItemNum || _rawItemNum).trim(), d.unit3Power);
           const u3BoxRow = _buildGroupBoxRow(u3Num, d.unit3BoxCond || '', Object.values(d.photosUnit3Box || {}).find(v => v) || '', groupId, d.datePurchased, itemNum);
           const _bx3ApRow = await sheetsAppend(state.personalSheetId, PERSONAL_TAB + '!A:A', [u3BoxRow]);   // v0.9.1196
-          state.personalData[u3BoxRow[PERSONAL_FIELD_INDEX.inventoryId]] = {
+          state.personalData[u3BoxRow[PERSONAL_FIELD_INDEX.inventoryId]] = rrSavedRecord(u3BoxRow, _bx3ApRow || 0, {
             row: _bx3ApRow || 0, itemNum: u3Num + '-BOX', variation: '',
             status: 'Owned', owned: true,
             condition: d.unit3BoxCond || '', hasBox: 'Yes', boxCond: d.unit3BoxCond || '',
             notes: 'Box for ' + u3Num, matchedTo: u3Num,
             inventoryId: u3BoxRow[PERSONAL_FIELD_INDEX.inventoryId], groupId: groupId,
-          };
+          });
           _stampSaved(state.personalData[u3BoxRow[PERSONAL_FIELD_INDEX.inventoryId]]);
         }
         // Tender box (paired save)
@@ -2150,13 +2156,13 @@ async function saveWizardItem() {
           const tNum = d.tenderMatch.trim();
           const tBoxRow = _buildGroupBoxRow(tNum, d.tenderBoxCond || '', Object.values(d.photosTenderBox || {}).find(v => v) || '', groupId, d.datePurchased, itemNum);
           const _bxtApRow = await sheetsAppend(state.personalSheetId, PERSONAL_TAB + '!A:A', [tBoxRow]);   // v0.9.1196
-          state.personalData[tBoxRow[PERSONAL_FIELD_INDEX.inventoryId]] = {
+          state.personalData[tBoxRow[PERSONAL_FIELD_INDEX.inventoryId]] = rrSavedRecord(tBoxRow, _bxtApRow || 0, {
             row: _bxtApRow || 0, itemNum: tNum + '-BOX', variation: '',
             status: 'Owned', owned: true,
             condition: d.tenderBoxCond || '', hasBox: 'Yes', boxCond: d.tenderBoxCond || '',
             notes: 'Box for ' + tNum, matchedTo: tNum,
             inventoryId: tBoxRow[PERSONAL_FIELD_INDEX.inventoryId], groupId: groupId,
-          };
+          });
           _stampSaved(state.personalData[tBoxRow[PERSONAL_FIELD_INDEX.inventoryId]]);
         }
       } catch(e) { console.warn('Group box row save error:', e); }
@@ -2214,13 +2220,13 @@ async function saveWizardItem() {
           groupId: groupId,
         });
         const _isApRow2 = await sheetsAppend(state.personalSheetId, PERSONAL_TAB + '!A:A', [isRow]);   // v0.9.1196
-        state.personalData[isInvId] = {
+        state.personalData[isInvId] = rrSavedRecord(isRow, _isApRow2 || 0, {
           row: _isApRow2 || 0, itemNum: _isItemNum, variation: '',
           status: 'Owned', owned: true,
           condition: d.is_condition || '', notes: _isNotes,
           photoItem: isPhotoLink || '', matchedTo: itemNum,
           inventoryId: isInvId, groupId: groupId,
-        };
+        });
         _stampSaved(state.personalData[isInvId]);
       } catch(e) { console.warn('IS save error:', e); }
     }
@@ -2263,7 +2269,7 @@ async function saveWizardItem() {
         });
         const _mbApRow = await sheetsAppend(state.personalSheetId, PERSONAL_TAB + '!A:A', [mbRow]);   // v0.9.1196
         // Add to local state
-        state.personalData[mbInvId] = {
+        state.personalData[mbInvId] = rrSavedRecord(mbRow, _mbApRow || 0, {
           row: _mbApRow || 0, itemNum: mbItemNum, variation: '',
           status: 'Owned', owned: true,
           itemType: 'Master Carton',
@@ -2271,7 +2277,7 @@ async function saveWizardItem() {
           notes: (d.masterBoxNotes || '').trim() || 'Master box for ' + _rawItemNum + ' set',
           matchedTo: itemNum, setId: setId || '',
           inventoryId: mbInvId, groupId: groupId,
-        };
+        });
         _stampSaved(state.personalData[mbInvId]);
       } catch(e) { console.warn('Master box save error:', e); }
     }
@@ -2308,21 +2314,13 @@ async function saveWizardItem() {
       // Same shape and same fields as the main optimistic insert below.
       try {
         var _setOptId = (row && row[PERSONAL_FIELD_INDEX.inventoryId]) || ('temp_' + itemNum + '_' + _curIdx);
-        state.personalData[_setOptId] = {
-          row: _mainApRow || 0, itemNum: itemNum, variation: variation,   // v0.9.1196: set members get their real row too
-          status: 'Owned', owned: true,
-          condition: d.condition || '',
-          allOriginal: d.allOriginal || '',
-          priceItem: d.priceItem || '',
-          hasBox: d.hasBox || 'No',
-          boxCond: d.boxCond || '',
-          notes: d.notes || '',
-          datePurchased: d.datePurchased || '',
-          inventoryId: _setOptId, groupId: groupId || '',
+        // v0.9.1941: the member's record is the ROW it was written as, through the
+        // load's own reader — the same rule as the main insert below.
+        state.personalData[_setOptId] = rrSavedRecord(_mainWrittenRow || row, _mainApRow || 0, {
+          inventoryId: _setOptId, itemNum: itemNum, variation: variation, groupId: groupId || '',
           setId: (typeof setId !== 'undefined' ? (setId || '') : ''),
-          era: _resolveSaveEra(),
-          manufacturer: ((typeof _brandOfItem === 'function' && _brandOfItem(itemNum)) || _getEraManufacturer()),
-        };
+          era: _resolveSaveEra(), manufacturer: ((typeof _brandOfItem === 'function' && _brandOfItem(itemNum)) || _getEraManufacturer()),
+        });
         _stampSaved(state.personalData[_setOptId]);
       } catch (eOpt) { console.warn('[set] optimistic insert:', eOpt); }
       // v0.9.1122: THIS member is now on the sheet — arm its staged inbox
@@ -2484,23 +2482,17 @@ async function saveWizardItem() {
       delete state.personalData[d._fillTargetKey];
     }
     if (tab === 'collection') {
-      state.personalData[_optInvId] = {
-        row: _mainApRow || 0, itemNum, variation,   // v0.9.1196
-        status: 'Owned', owned: true,
-        condition: d.condition || '',
-        allOriginal: d.allOriginal || '',
-        priceItem: d.priceItem || '',
-        priceBox: d.priceBox || '',
-        priceComplete: d.priceComplete || '',
-        hasBox: d.hasBox || 'No',
-        boxCond: d.boxCond || '',
-        notes: d.notes || '',
-        datePurchased: d.datePurchased || '', purchasedFrom: d.purchasedFrom || '',
-        inventoryId: _optInvId, groupId: groupId || '',
-        location: d.location || '',
-        ..._rrUserFieldValues(d),
+      // v0.9.1941: the record is the ROW THIS SAVE WROTE, read by the same reader
+      // the start-up load uses (rrPersonalRecordFromRow, app-data.js) — so the
+      // photo folder, box photo, Master Row ID and every other column are in
+      // memory exactly as the next load will read them. The hand-kept field
+      // list that stood here dropped the photo link: Brad's three new photos
+      // showed nowhere until a reload. Only what a sheet row cannot carry is
+      // laid over it: the session's own era / maker words when the row's are blank.
+      state.personalData[_optInvId] = rrSavedRecord(_mainWrittenRow || row, _mainApRow || 0, {
+        inventoryId: _optInvId, itemNum: itemNum, variation: variation, groupId: groupId || '',
         era: _resolveSaveEra(), manufacturer: ((typeof _brandOfItem === 'function' && _brandOfItem(itemNum)) || _getEraManufacturer()),
-      };
+      });
       _stampSaved(state.personalData[_optInvId]);
     } else if (tab === 'sold') {
       var _osk = _newSoldKey();

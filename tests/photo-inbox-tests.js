@@ -2403,10 +2403,13 @@ META_WRITES.length = 0; TOASTS.length = 0;
   // Set members returned before the optimistic insert every other path gets.
   const _setHook = auW.slice(auW.indexOf('if (d._setMode && tab === \'collection\')'),
                              auW.indexOf('launchSetItemWizard();'));
+  // v0.9.1941: the member's record is built from the row it was written as
+  // (rrSavedRecord — the load's own reader, which marks it owned); the save's
+  // own words, the group included, fill whatever that row leaves blank.
   ok('a saved set member lands in memory, not just on the sheet',
-     /state\.personalData\[_setOptId\] = \{/.test(_setHook) && /owned: true/.test(_setHook));
+     /state\.personalData\[_setOptId\] = rrSavedRecord\(/.test(_setHook));
   ok('it carries the group so a cancel can find and remove it',
-     /inventoryId: _setOptId, groupId: groupId \|\| ''/.test(_setHook));
+     /inventoryId: _setOptId, itemNum: itemNum, variation: variation, groupId: groupId \|\| ''/.test(_setHook));
   ok('it is stamped like every other optimistic insert',
      /_stampSaved\(state\.personalData\[_setOptId\]\)/.test(_setHook));
   ok('the insert runs BEFORE the photo note is armed and flushed',
@@ -7162,7 +7165,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
     ok('the main collection save records its real row from BOTH branches',
        /_mainApRow = existing\.row;/.test(ws) && /_mainApRow = \(await sheetsAppend\(/.test(ws));
     ok('set members inherit that same real row',
-       /row: _mainApRow \|\| 0, itemNum: itemNum, variation: variation/.test(ws));
+       /state\.personalData\[_setOptId\] = rrSavedRecord\(_mainWrittenRow \|\| row, _mainApRow \|\| 0,/.test(ws));   // v0.9.1941
     ok('My Sets, Sold, For Sale and Want appends are all captured',
        /_msApRow = await sheetsAppend/.test(ws) && /_soldApRow = \(await sheetsAppend/.test(ws)
        && /_alfApRow = \(await sheetsAppend/.test(ws) && /_wuApRow = await sheetsAppend/.test(ws));
@@ -11046,7 +11049,7 @@ META_WRITES.length = 0; TOASTS.length = 0;
 
     // Run the REAL branch, sliced out of the file, against made-up rows.
     const start = src.indexOf("    const _invId = r[invIdCol] || '';");
-    const end   = src.indexOf('const obj = { row: rowNum', start);
+    const end   = src.indexOf('newPersonal[key] = rrPersonalRecordFromRow(r, rowNum);', start);   // v0.9.1941: the record itself is built by the one reader
     ok('the collision branch could be sliced out to run', start > 0 && end > start);
     const body = src.slice(start, end);
     const keyOf = new Function('r', 'rowNum', 'newPersonal', 'invIdCol', 'itemNumCol', 'varCol',
@@ -18446,9 +18449,11 @@ META_WRITES.length = 0; TOASTS.length = 0;
       // main-row path (verify, else throw ROW_MOVED). Anchor each by the
       // rrRowStillIs call feeding the same `existing` row.
       ok('268 …the box-row rewrite is fed by rrRowStillIs',
-         /_bxUpdated = await rrRowStillIs\([\s\S]{0,200}?if \(_bxUpdated\) await sheetsUpdate\(/.test(ws));
+         // v0.9.1941: the only thing between the check and the write is building the
+         // row it writes (kept, so the record in memory is built from it)
+         /_bxUpdated = await rrRowStillIs\([\s\S]{0,200}?if \(_bxUpdated\) \{\s*\n\s*_bxWritten = rrCarryPersonalRow\([^;]*\);\s*\n\s*await sheetsUpdate\(/.test(ws));
       ok('268 …the main-row rewrite verifies-or-throws ROW_MOVED first',
-         /await rrRowStillIs\([\s\S]{0,200}?\)\)\) \{\s*\n\s*throw new Error\('ROW_MOVED'\);\s*\n\s*\}\s*\n\s*await sheetsUpdate\(/.test(ws));
+         /await rrRowStillIs\([\s\S]{0,200}?\)\)\) \{\s*\n\s*throw new Error\('ROW_MOVED'\);\s*\n\s*\}\s*\n\s*_mainWrittenRow = rrCarryPersonalRow\([^;]*\);\s*\n\s*await sheetsUpdate\(/.test(ws));   // v0.9.1941
       // ── the backfills go through the guarded writer with itemNum identity
       //    and a deliberately empty invId ──
       const bkInv = /rrVerifiedRowUpdate\(state\.personalSheetId, PERSONAL_TAB, existingItem\.row,[\s\S]{0,200}?\[\[existingInvId\]\], \{ num: existingItem\.itemNum \|\| '', invId: '' \}, 'collection'\)/.test(ws);
