@@ -1,0 +1,32 @@
+{
+ "what": "Master Version 2.43 — Lionel PW - Items 404 v2 'Lionel Track and Small Parts Display' (Row ID F3HTYY2H2W): the row is right (COTT #DD404 'No. 404 Lionel Track and Small Parts Display, courtesy of the Stein Collection'), but the import filled its Variation Details with the captions of OTHER entries on COTT's dealer-displays page (No. 925 lubricant display, Lionel-Porter key wallet, D-20, D-21, SE-22 service clock) and its COTT Code with the key wallet's SS0342. COTT prints no code for the 404. Variation Details → 'no variation', COTT Code → blank. Original COTT Desc left as the import record. Seen, not changed: the key wallet, D-20, D-21, SE-22, D-165 and D-224 have no master rows (Brad's call next).",
+ "stated": "Brad (2026-10-14): \"yes\" to cleaning 404 v2 (Variation Details → no variation, COTT Code → blank) as Master Version 2.43",
+ "masterVersion": "2.43",
+ "date": "2026-10-14",
+ "planReadAt": "public CSV export of Lionel PW - Items read 2026-10-14 (right before this record)",
+ "cellFormat": "[tab, item number (column A), column header, old, new, sheet row as a hint, Row ID of the row]",
+ "counts": {
+  "cells": 2,
+  "rows": 1
+ },
+ "cells": [
+  [
+   "Lionel PW - Items",
+   "404",
+   "Variation Details",
+   "N0. 925 \"LIONEL TRAIN LUBRICANT\" DEALER DISPLAY\nLIONEL PORTER KEY WALLET\nDEALER DISPLAY No. D – 20 ACCESSORY DISPLAY PANEL\nDEALER DISPLAY No. D – 21 027 TRACK AND SWITCHES DISPLAY\nNo. SE-22 SERVICE SIGN, CLOCK",
+   "no variation",
+   1526,
+   "F3HTYY2H2W"
+  ],
+  [
+   "Lionel PW - Items",
+   "404",
+   "COTT Code",
+   "SS0342",
+   "",
+   1526,
+   "F3HTYY2H2W"
+  ]
+ ]
+}
