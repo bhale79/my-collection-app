@@ -1,0 +1,662 @@
+{
+ "what": "Master Version 2.38 — 72 Lionel PW - Items COTT Reference Link anchors set by COTT code. Each of these rows' words fit more than one COTT section; its own COTT Code (column 'COTT Code', e.g. B0076, P0062) appears in exactly one section of its COTT page (sections listing 4+ codes — comparison/summary sections — set aside), and that section names the item. 6464 boxcars (-100 … -900) → their type sections; 2432/2434/2435/2436 passenger cars → their year sections; X3464/X6454 → their box sections. Only the part after # changes; page, item, Row ID unchanged. Not settled: 12 rows whose code is in two type sections, 57 whose code is not on the page, 18 with no code, 6017-185 var 2 (a WordPress block- id).",
+ "stated": "Brad (2026-10-13): \"yes\" to running the COTT-code check on the 160 ambiguous rows, then \"yes\" to writing the 72",
+ "masterVersion": "2.38",
+ "date": "2026-10-13",
+ "planReadAt": "public CSV export of Lionel PW - Items read 2026-10-14 (right before this record)",
+ "cellFormat": "[tab, item number (column A), column header, old, new, sheet row as a hint, Row ID of the row]",
+ "counts": {
+  "cells": 72,
+  "rows": 72
+ },
+ "cells": [
+  [
+   "Lionel PW - Items",
+   "2432",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/passenger-small-plastic-passenger-cars-a/#PC2432",
+   "https://cornucopiaoftoytrains.com/passenger-small-plastic-passenger-cars-a/#243254",
+   880,
+   "2XUPGGFU7A"
+  ],
+  [
+   "Lionel PW - Items",
+   "2432",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/passenger-small-plastic-passenger-cars-a/#PC2432",
+   "https://cornucopiaoftoytrains.com/passenger-small-plastic-passenger-cars-a/#243255",
+   881,
+   "KTMEBF5FCK"
+  ],
+  [
+   "Lionel PW - Items",
+   "2432",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/passenger-small-plastic-passenger-cars-a/#PC2432",
+   "https://cornucopiaoftoytrains.com/passenger-small-plastic-passenger-cars-a/#243257",
+   882,
+   "AG8WZQ2NPW"
+  ],
+  [
+   "Lionel PW - Items",
+   "2434",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/passenger-small-plastic-passenger-cars-a/#PC2434",
+   "https://cornucopiaoftoytrains.com/passenger-small-plastic-passenger-cars-a/#243454",
+   883,
+   "KPV7UJB44U"
+  ],
+  [
+   "Lionel PW - Items",
+   "2434",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/passenger-small-plastic-passenger-cars-a/#PC2434",
+   "https://cornucopiaoftoytrains.com/passenger-small-plastic-passenger-cars-a/#243455",
+   884,
+   "V8EGHP7VQQ"
+  ],
+  [
+   "Lionel PW - Items",
+   "2434",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/passenger-small-plastic-passenger-cars-a/#PC2434",
+   "https://cornucopiaoftoytrains.com/passenger-small-plastic-passenger-cars-a/#243457",
+   885,
+   "2CF4Y5KU62"
+  ],
+  [
+   "Lionel PW - Items",
+   "2435",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/passenger-small-plastic-passenger-cars-a/#PC2435",
+   "https://cornucopiaoftoytrains.com/passenger-small-plastic-passenger-cars-a/#243554",
+   886,
+   "WX2KBPWHJ7"
+  ],
+  [
+   "Lionel PW - Items",
+   "2435",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/passenger-small-plastic-passenger-cars-a/#PC2435",
+   "https://cornucopiaoftoytrains.com/passenger-small-plastic-passenger-cars-a/#243555",
+   887,
+   "3VU3C5B3DM"
+  ],
+  [
+   "Lionel PW - Items",
+   "2435",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/passenger-small-plastic-passenger-cars-a/#PC2435",
+   "https://cornucopiaoftoytrains.com/passenger-small-plastic-passenger-cars-a/#243555",
+   888,
+   "FB7V44QXG7"
+  ],
+  [
+   "Lionel PW - Items",
+   "2436",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/passenger-small-plastic-passenger-cars-a/#PC2436",
+   "https://cornucopiaoftoytrains.com/passenger-small-plastic-passenger-cars-a/#243654",
+   889,
+   "Z3N36V6VV7"
+  ],
+  [
+   "Lionel PW - Items",
+   "2436",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/passenger-small-plastic-passenger-cars-a/#PC2436",
+   "https://cornucopiaoftoytrains.com/passenger-small-plastic-passenger-cars-a/#243655",
+   890,
+   "2D525UA2ZU"
+  ],
+  [
+   "Lionel PW - Items",
+   "2436",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/passenger-small-plastic-passenger-cars-a/#PC2436",
+   "https://cornucopiaoftoytrains.com/passenger-small-plastic-passenger-cars-a/#243657",
+   891,
+   "6DKDRT24BD"
+  ],
+  [
+   "Lionel PW - Items",
+   "6464-100",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/boxcars-6464-page-1-a/#6464100",
+   "https://cornucopiaoftoytrains.com/boxcars-6464-page-1-a/#100KW10",
+   2270,
+   "R3RJ9A9JCQ"
+  ],
+  [
+   "Lionel PW - Items",
+   "6464-100",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/boxcars-6464-page-1-a/#6464100",
+   "https://cornucopiaoftoytrains.com/boxcars-6464-page-1-a/#100KW10",
+   2271,
+   "E9VK2N23GY"
+  ],
+  [
+   "Lionel PW - Items",
+   "6464-125",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/boxcars-6464-page-1-a/#6464125",
+   "https://cornucopiaoftoytrains.com/boxcars-6464-page-1-a/#125KW33",
+   2277,
+   "QK3DJDVM8M"
+  ],
+  [
+   "Lionel PW - Items",
+   "6464-150",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/boxcars-6464-page-1-a/#6464150",
+   "https://cornucopiaoftoytrains.com/boxcars-6464-page-1-a/#150KW5",
+   2279,
+   "6V2KN925WZ"
+  ],
+  [
+   "Lionel PW - Items",
+   "6464-150",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/boxcars-6464-page-1-a/#6464150",
+   "https://cornucopiaoftoytrains.com/boxcars-6464-page-1-a/#150KW2",
+   2280,
+   "2G9W2U443G"
+  ],
+  [
+   "Lionel PW - Items",
+   "6464-150",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/boxcars-6464-page-1-a/#6464150",
+   "https://cornucopiaoftoytrains.com/boxcars-6464-page-1-a/#150KW15",
+   2281,
+   "3JWHETPW5Y"
+  ],
+  [
+   "Lionel PW - Items",
+   "6464-150",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/boxcars-6464-page-1-a/#6464150",
+   "https://cornucopiaoftoytrains.com/boxcars-6464-page-1-a/#150KW31",
+   2282,
+   "6968ARJECH"
+  ],
+  [
+   "Lionel PW - Items",
+   "6464-150",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/boxcars-6464-page-1-a/#6464150",
+   "https://cornucopiaoftoytrains.com/boxcars-6464-page-1-a/#150KW12",
+   2283,
+   "RZR4HN7AGT"
+  ],
+  [
+   "Lionel PW - Items",
+   "6464-150",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/boxcars-6464-page-1-a/#6464150",
+   "https://cornucopiaoftoytrains.com/boxcars-6464-page-1-a/#150KW9",
+   2284,
+   "HJUJ6HZGV7"
+  ],
+  [
+   "Lionel PW - Items",
+   "6464-150",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/boxcars-6464-page-1-a/#6464150",
+   "https://cornucopiaoftoytrains.com/boxcars-6464-page-1-a/#150KW41",
+   2285,
+   "QRUBJNY5B7"
+  ],
+  [
+   "Lionel PW - Items",
+   "6464-150",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/boxcars-6464-page-1-a/#6464150",
+   "https://cornucopiaoftoytrains.com/boxcars-6464-page-1-a/#150KW54",
+   2286,
+   "EKZHZWFKMH"
+  ],
+  [
+   "Lionel PW - Items",
+   "6464-150",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/boxcars-6464-page-1-a/#6464150",
+   "https://cornucopiaoftoytrains.com/boxcars-6464-page-1-a/#150KW48",
+   2287,
+   "ZSVG8DB3BH"
+  ],
+  [
+   "Lionel PW - Items",
+   "6464-150",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/boxcars-6464-page-1-a/#6464150",
+   "https://cornucopiaoftoytrains.com/boxcars-6464-page-1-a/#150KW59",
+   2289,
+   "R6DYVVQFEW"
+  ],
+  [
+   "Lionel PW - Items",
+   "6464-150",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/boxcars-6464-page-1-a/#6464150",
+   "https://cornucopiaoftoytrains.com/boxcars-6464-page-1-a/#150KW60",
+   2290,
+   "Y65EHEBAJ5"
+  ],
+  [
+   "Lionel PW - Items",
+   "6464-150",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/boxcars-6464-page-1-a/#6464150",
+   "https://cornucopiaoftoytrains.com/boxcars-6464-page-1-a/#150KW64",
+   2291,
+   "Y75MNXVPYX"
+  ],
+  [
+   "Lionel PW - Items",
+   "6464-175",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/boxcars-6464-page-1-a/#6464175",
+   "https://cornucopiaoftoytrains.com/boxcars-6464-page-1-a/#175KW8",
+   2294,
+   "RXCTSR89NP"
+  ],
+  [
+   "Lionel PW - Items",
+   "6464-175",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/boxcars-6464-page-1-a/#6464175",
+   "https://cornucopiaoftoytrains.com/boxcars-6464-page-1-a/#175KW2",
+   2295,
+   "S9Q4KJMMKV"
+  ],
+  [
+   "Lionel PW - Items",
+   "6464-175",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/boxcars-6464-page-1-a/#6464175",
+   "https://cornucopiaoftoytrains.com/boxcars-6464-page-1-a/#175KW1",
+   2296,
+   "CQCXM83H5C"
+  ],
+  [
+   "Lionel PW - Items",
+   "6464-175",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/boxcars-6464-page-1-a/#6464175",
+   "https://cornucopiaoftoytrains.com/boxcars-6464-page-1-a/#175KW9",
+   2297,
+   "H45K9BNQRB"
+  ],
+  [
+   "Lionel PW - Items",
+   "6464-225",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/boxcars-6464-page-1-a/#6464225",
+   "https://cornucopiaoftoytrains.com/boxcars-6464-page-1-a/#225KW4B",
+   2306,
+   "E22EUV4R7P"
+  ],
+  [
+   "Lionel PW - Items",
+   "6464-275",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/boxcars-6464-page-1-a/#6464275",
+   "https://cornucopiaoftoytrains.com/boxcars-6464-page-1-a/#275KW3",
+   2312,
+   "FW7XQ9Q47J"
+  ],
+  [
+   "Lionel PW - Items",
+   "6464-275",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/boxcars-6464-page-1-a/#6464275",
+   "https://cornucopiaoftoytrains.com/boxcars-6464-page-1-a/#275KW7",
+   2313,
+   "VHF4C7U335"
+  ],
+  [
+   "Lionel PW - Items",
+   "6464-275",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/boxcars-6464-page-1-a/#6464275",
+   "https://cornucopiaoftoytrains.com/boxcars-6464-page-1-a/#275KW10",
+   2314,
+   "BEWDBH78S7"
+  ],
+  [
+   "Lionel PW - Items",
+   "6464-275",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/boxcars-6464-page-1-a/#6464275",
+   "https://cornucopiaoftoytrains.com/boxcars-6464-page-1-a/#275KW17",
+   2316,
+   "TS4TY7Z5TG"
+  ],
+  [
+   "Lionel PW - Items",
+   "6464-300",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/boxcars-6464-page-1-a/#6464300",
+   "https://cornucopiaoftoytrains.com/boxcars-6464-page-1-a/#300KW11",
+   2319,
+   "D9BDAYJ63J"
+  ],
+  [
+   "Lionel PW - Items",
+   "6464-300",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/boxcars-6464-page-1-a/#6464300",
+   "https://cornucopiaoftoytrains.com/boxcars-6464-page-1-a/#300KW2",
+   2320,
+   "55FYJ5KCKM"
+  ],
+  [
+   "Lionel PW - Items",
+   "6464-300",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/boxcars-6464-page-1-a/#6464300",
+   "https://cornucopiaoftoytrains.com/boxcars-6464-page-1-a/#300KW4B",
+   2321,
+   "3PY9JFGCES"
+  ],
+  [
+   "Lionel PW - Items",
+   "6464-300",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/boxcars-6464-page-1-a/#6464300",
+   "https://cornucopiaoftoytrains.com/boxcars-6464-page-1-a/#300KW4",
+   2323,
+   "JRSCMEXMQF"
+  ],
+  [
+   "Lionel PW - Items",
+   "6464-300",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/boxcars-6464-page-1-a/#6464300",
+   "https://cornucopiaoftoytrains.com/boxcars-6464-page-1-a/#300KW19",
+   2324,
+   "XDK73GG5JD"
+  ],
+  [
+   "Lionel PW - Items",
+   "6464-300",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/boxcars-6464-page-1-a/#6464300",
+   "https://cornucopiaoftoytrains.com/boxcars-6464-page-1-a/#300KW13",
+   2325,
+   "KBRNCQYHG2"
+  ],
+  [
+   "Lionel PW - Items",
+   "6464-400",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/boxcars-6464-page-2a/#6464400",
+   "https://cornucopiaoftoytrains.com/boxcars-6464-page-2a/#400KW17",
+   2339,
+   "54A2VHPTKM"
+  ],
+  [
+   "Lionel PW - Items",
+   "6464-425",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/boxcars-6464-page-2a/#6464425",
+   "https://cornucopiaoftoytrains.com/boxcars-6464-page-2a/#425KW13",
+   2346,
+   "7Y3AERB6ZZ"
+  ],
+  [
+   "Lionel PW - Items",
+   "6464-425",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/boxcars-6464-page-2a/#6464425",
+   "https://cornucopiaoftoytrains.com/boxcars-6464-page-2a/#425KW2C",
+   2347,
+   "2HMCPQ743A"
+  ],
+  [
+   "Lionel PW - Items",
+   "6464-475",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/boxcars-6464-page-2a/#6464475",
+   "https://cornucopiaoftoytrains.com/boxcars-6464-page-2a/#475KW3",
+   2353,
+   "39YCJDDVUM"
+  ],
+  [
+   "Lionel PW - Items",
+   "6464-475",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/boxcars-6464-page-2a/#6464475",
+   "https://cornucopiaoftoytrains.com/boxcars-6464-page-2a/#475KW2",
+   2354,
+   "MRSQGWWSR3"
+  ],
+  [
+   "Lionel PW - Items",
+   "6464-475",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/boxcars-6464-page-2a/#6464475",
+   "https://cornucopiaoftoytrains.com/boxcars-6464-page-2a/#475KW12",
+   2357,
+   "ZM3E2M84NH"
+  ],
+  [
+   "Lionel PW - Items",
+   "6464-475",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/boxcars-6464-page-2a/#6464475",
+   "https://cornucopiaoftoytrains.com/boxcars-6464-page-2a/#475KW25",
+   2358,
+   "DGSYPB7T2N"
+  ],
+  [
+   "Lionel PW - Items",
+   "6464-475",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/boxcars-6464-page-2a/#6464475",
+   "https://cornucopiaoftoytrains.com/boxcars-6464-page-2a/#475KW26",
+   2359,
+   "9JXTD8AFK7"
+  ],
+  [
+   "Lionel PW - Items",
+   "6464-475",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/boxcars-6464-page-2a/#6464475",
+   "https://cornucopiaoftoytrains.com/boxcars-6464-page-2a/#475KW47",
+   2360,
+   "H7DD7H4JPY"
+  ],
+  [
+   "Lionel PW - Items",
+   "6464-475",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/boxcars-6464-page-2a/#6464475",
+   "https://cornucopiaoftoytrains.com/boxcars-6464-page-2a/#475KW28",
+   2361,
+   "6YQMZR8K2S"
+  ],
+  [
+   "Lionel PW - Items",
+   "6464-475",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/boxcars-6464-page-2a/#6464475",
+   "https://cornucopiaoftoytrains.com/boxcars-6464-page-2a/#475KW42",
+   2362,
+   "KN4NZ4H3WU"
+  ],
+  [
+   "Lionel PW - Items",
+   "6464-500",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/boxcars-6464-page-2a/#6464500",
+   "https://cornucopiaoftoytrains.com/boxcars-6464-page-2a/#500KW1",
+   2370,
+   "Z3Y83AT2U7"
+  ],
+  [
+   "Lionel PW - Items",
+   "6464-500",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/boxcars-6464-page-2a/#6464500",
+   "https://cornucopiaoftoytrains.com/boxcars-6464-page-2a/#500KW5",
+   2371,
+   "5YG6JE2DG3"
+  ],
+  [
+   "Lionel PW - Items",
+   "6464-500",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/boxcars-6464-page-2a/#6464500",
+   "https://cornucopiaoftoytrains.com/boxcars-6464-page-2a/#500KW3",
+   2372,
+   "GWARUYT9XD"
+  ],
+  [
+   "Lionel PW - Items",
+   "6464-500",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/boxcars-6464-page-2a/#6464500",
+   "https://cornucopiaoftoytrains.com/boxcars-6464-page-2a/#500KW1B",
+   2373,
+   "VM84PT858P"
+  ],
+  [
+   "Lionel PW - Items",
+   "6464-500",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/boxcars-6464-page-2a/#6464500",
+   "https://cornucopiaoftoytrains.com/boxcars-6464-page-2a/#500KW11",
+   2374,
+   "PCBEMW4W4Z"
+  ],
+  [
+   "Lionel PW - Items",
+   "6464-500",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/boxcars-6464-page-2a/#6464500",
+   "https://cornucopiaoftoytrains.com/boxcars-6464-page-2a/#500KW16",
+   2375,
+   "G7SSWP27V8"
+  ],
+  [
+   "Lionel PW - Items",
+   "6464-650",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/boxcars-6464-page-2a/#6464650",
+   "https://cornucopiaoftoytrains.com/boxcars-6464-page-2a/#650KW13",
+   2388,
+   "4WPTXDE7BU"
+  ],
+  [
+   "Lionel PW - Items",
+   "6464-650",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/boxcars-6464-page-2a/#6464650",
+   "https://cornucopiaoftoytrains.com/boxcars-6464-page-2a/#650KW10",
+   2390,
+   "7H5R739KWQ"
+  ],
+  [
+   "Lionel PW - Items",
+   "6464-75",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/boxcars-6464-page-1-a/#646475",
+   "https://cornucopiaoftoytrains.com/boxcars-6464-page-1-a/#75KW3",
+   2398,
+   "UFPWJPT42J"
+  ],
+  [
+   "Lionel PW - Items",
+   "6464-75",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/boxcars-6464-page-1-a/#646475",
+   "https://cornucopiaoftoytrains.com/boxcars-6464-page-1-a/#75KW3B",
+   2400,
+   "ZJ5ERBNUES"
+  ],
+  [
+   "Lionel PW - Items",
+   "6464-825",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/boxcars-6464-page-2a/#6464825",
+   "https://cornucopiaoftoytrains.com/boxcars-6464-page-2a/#825KW10",
+   2404,
+   "JVHSNBMSZX"
+  ],
+  [
+   "Lionel PW - Items",
+   "6464-900",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/boxcars-6464-page-2a/#6464900",
+   "https://cornucopiaoftoytrains.com/boxcars-6464-page-2a/#900KW6B",
+   2407,
+   "XNH7695VXV"
+  ],
+  [
+   "Lionel PW - Items",
+   "6464-900",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/boxcars-6464-page-2a/#6464900",
+   "https://cornucopiaoftoytrains.com/boxcars-6464-page-2a/#900KW6B",
+   2408,
+   "PAHF8ZPJ7Q"
+  ],
+  [
+   "Lionel PW - Items",
+   "X3464",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/boxcars-9-1-4-inch-with-operating-doors/#BOX3464",
+   "https://cornucopiaoftoytrains.com/boxcars-9-1-4-inch-with-operating-doors/#BOX3464T",
+   3381,
+   "9EEM9MTZ7V"
+  ],
+  [
+   "Lionel PW - Items",
+   "X3464",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/boxcars-9-1-4-inch-with-operating-doors/#BOX3464",
+   "https://cornucopiaoftoytrains.com/boxcars-9-1-4-inch-with-operating-doors/#BOX3464N",
+   3384,
+   "A7BQXY53SG"
+  ],
+  [
+   "Lionel PW - Items",
+   "X3464",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/boxcars-9-1-4-inch-with-operating-doors/#BOX3464",
+   "https://cornucopiaoftoytrains.com/boxcars-9-1-4-inch-with-operating-doors/#BOX3464N",
+   3385,
+   "S3AD6D5QFD"
+  ],
+  [
+   "Lionel PW - Items",
+   "X3464",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/boxcars-9-1-4-inch-with-operating-doors/#BOX3464",
+   "https://cornucopiaoftoytrains.com/boxcars-9-1-4-inch-with-operating-doors/#BOX3464N",
+   3387,
+   "9ZGN4BF572"
+  ],
+  [
+   "Lionel PW - Items",
+   "X3464",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/boxcars-9-1-4-inch-with-operating-doors/#BOX3464",
+   "https://cornucopiaoftoytrains.com/boxcars-9-1-4-inch-with-operating-doors/#BOX3464N",
+   3388,
+   "QD7VXYJ4J9"
+  ],
+  [
+   "Lionel PW - Items",
+   "X6454",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/boxcars-9-1-4-inch-with-operating-doors/#BOX6454",
+   "https://cornucopiaoftoytrains.com/boxcars-9-1-4-inch-with-operating-doors/#BOX6454E",
+   3407,
+   "G5VSCZ7T69"
+  ]
+ ]
+}
