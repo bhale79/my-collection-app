@@ -17491,7 +17491,10 @@ META_WRITES.length = 0; TOASTS.length = 0;
          url(F3, '2343') === url(F3, '2343'));
       // ── the map's own integrity ──
       const deep = win.COTT_DEEPLINK_MAP;
-      const slugs = Object.keys(deep);
+      // v0.9.1940: the 2026-10-13 harvest added pages of its own (COTT_DEEPLINK_ADDED);
+      // the 2026-08-03 report's numbers are about the pages IT read, so count those.
+      const added = win.COTT_DEEPLINK_ADDED || {};
+      const slugs = Object.keys(deep).filter(function (s) { return !Object.prototype.hasOwnProperty.call(added, s); });
       let nums = 0, anchors = 0, badShape = 0;
       slugs.forEach(function (s) {
         Object.keys(deep[s]).forEach(function (n) {
@@ -17504,6 +17507,17 @@ META_WRITES.length = 0; TOASTS.length = 0;
       ok('254 the map matches the harvest report: 76 pages, 572 numbers, 904 anchors, clean shape',
          slugs.length === 76 && nums === 572 && anchors === 904 && badShape === 0,
          slugs.length + ' pages, ' + nums + ' numbers, ' + anchors + ' anchors, ' + badShape + ' bad');
+      let addedBad = 0, addedN = 0;
+      Object.keys(added).forEach(function (s) {
+        Object.keys(deep[s] || {}).forEach(function (n) {
+          addedN++;
+          const rec = deep[s][n];
+          if (!(rec && rec.g === 0 && Array.isArray(rec.a) && rec.a.length)) addedBad++;
+        });
+      });
+      ok('254 the 2026-10-13 pages are in the map with a clean shape',
+         Object.keys(added).length > 0 && addedN > 0 && addedBad === 0,
+         Object.keys(added).length + ' pages, ' + addedN + ' numbers, ' + addedBad + ' bad');
       // ── row-words helper builds from the master row fields ──
       // v0.9.1721: cottRowWords also hands the road name over under its own
       // name, so the resolver can let the RAILROAD decide which section of a
