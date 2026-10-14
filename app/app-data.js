@@ -2385,6 +2385,7 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
   const newEphemera = { catalogs:{}, paper:{}, mockups:{}, other:{} };
   const newForSale = {};
   const newMySetsData = {};
+  const newUpgrade = {};   // v0.9.1946: collected, then committed by the same rule as the other lists
 
   // Perf 2026-04-14 (Phase B): split into primary + secondary fetches.
   // Primary tabs (5) are needed immediately for dashboard + list pages.
@@ -2400,6 +2401,21 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
     sheetsGet(sheetId, 'For Sale!A3:J').catch((e) => { console.warn('[For Sale load failed]', e && e.message); return {values:[], _failed:true}; }),
     sheetsGet(sheetId, 'Want-Upgrade List!A3:I').catch((e) => { console.warn('[Want-Upgrade load failed]', e && e.message); return {values:[], _failed:true}; }),
   ]);
+  // v0.9.1946 (Brad's ghost No. 115, 2026-10-14): sheetsGet hands back
+  // Google's reply without checking it, so an ERROR reply ({error: …}) looked
+  // like an empty list. That is half of why the commits below refused to
+  // believe any empty list: an empty list and a failed read looked alike.
+  // An error reply is a failed read now, and is treated as one.
+  [collRes, soldRes, forSaleRes, wishlistRes].forEach(function (r) {
+    if (r && r.error && !r._failed) {
+      console.warn('[Personal load] Google answered with an error — keeping what is on screen:', (r.error && r.error.message) || r.error);
+      r._failed = true; r.values = [];
+    }
+  });
+  // …and a real answer from Google always names the range it read — even
+  // when that range is empty ({range: 'Sold!A3:V1000', majorDimension: 'ROWS'}).
+  // That is how an empty list is told apart from a read that never landed.
+  const _plAnswered = function (r) { return !!(r && !r._failed && !r.error && typeof r.range === 'string'); };
   // Secondary tabs fire off in parallel, NOT awaited in the main flow
   const _secondaryFetch = Promise.all([
     // v0.9.992 (unified inventory Phase 5): the four ephemera tabs are
@@ -2573,7 +2589,7 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
       // v0.9.1251: same as For Sale above — the key is minted once and carried.
       const key = entry.inventoryId || ('legacy-row-' + _row);
       entry._key = key;
-      state.upgradeData[key] = entry;
+      newUpgrade[key] = entry;   // v0.9.1946: committed below, with the other lists
     } else {
       // Default to Want (covers 'Want', empty, or anything unrecognized)
       const key = `${_wu(r[0])}|${_wu(r[1])}`;
@@ -2649,14 +2665,37 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
   // inv-id hardening (v0.9.634): re-seed the inventory-ID watermark from the
   // freshly-loaded personal data so nextInventoryId() can never reuse a number.
   if (typeof _seedInvHwm === 'function') _seedInvHwm();
-  if (!soldRes._failed && (forceOverwrite || Object.keys(newSold).length > 0 || Object.keys(state.soldData).length === 0)) {
+  // v0.9.1946 (Brad's ghost No. 115): these three used to keep the OLD list
+  // whenever the new one came back empty — a guard against a read that went
+  // wrong. But Sold, For Sale and the Want list are emptied on purpose: take
+  // the last sale off (Returned, or Remove this sale record) and the sheet IS
+  // empty. The app kept showing the sale it had just removed, and pressing
+  // Returned on that ghost said the sale could not be taken off — because it
+  // was not there. A list Google says is empty is empty now; only a read that
+  // failed keeps what is on screen. (My Collection keeps the old guard: it is
+  // never emptied on purpose, and an empty collection is the one surprise
+  // nobody can afford.)
+  if (!soldRes._failed && (forceOverwrite || _plAnswered(soldRes) || Object.keys(newSold).length > 0 || Object.keys(state.soldData).length === 0)) {
     state.soldData = newSold;
   }
-  if (!forSaleRes._failed && (forceOverwrite || Object.keys(newForSale).length > 0 || Object.keys(state.forSaleData).length === 0)) {
+  if (!forSaleRes._failed && (forceOverwrite || _plAnswered(forSaleRes) || Object.keys(newForSale).length > 0 || Object.keys(state.forSaleData).length === 0)) {
     state.forSaleData = newForSale;
   }
-  if (!wishlistRes._failed && (forceOverwrite || Object.keys(newWant).length > 0 || Object.keys(state.wantData).length === 0)) {
+  if (!wishlistRes._failed && (forceOverwrite || _plAnswered(wishlistRes) || Object.keys(newWant).length > 0 || Object.keys(state.wantData).length === 0)) {
     state.wantData = newWant;
+  }
+  // The Upgrade half of the same tab was only ever ADDED to, so an upgrade
+  // taken off the sheet stayed on screen until a restart. Same rule now, and
+  // the same care the background refresh above takes: an upgrade still being
+  // saved (row 99999) is kept. A read that failed adds, as it always did.
+  if (!wishlistRes._failed && (forceOverwrite || _plAnswered(wishlistRes))) {
+    Object.keys(state.upgradeData || {}).forEach(function (k) {
+      var e = state.upgradeData[k];
+      if (e && e.row === 99999 && !newUpgrade[k]) newUpgrade[k] = e;
+    });
+    state.upgradeData = newUpgrade;
+  } else {
+    Object.keys(newUpgrade).forEach(function (k) { state.upgradeData[k] = newUpgrade[k]; });
   }
 
   // v0.9.824 (BUG-003, Brad's vanished collection): a FAILED fetch is NOT an

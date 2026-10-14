@@ -38,6 +38,10 @@
 //      what it is, at that moment — a sale whose row moved still comes off and
 //      the row that moved in stays; one already gone counts as done; a refusal
 //      says its reason. PLANTED: the remembered row -> the moved sale is stuck
+//   J  Brad's ghost No. 115 (v0.9.1946): the reload kept the OLD Sold list when
+//      the sheet came back empty, so the sale just taken off stayed on screen.
+//      An empty answer from Google is empty now (Sold, For Sale, Want, Upgrade);
+//      an error reply keeps what is on screen. PLANTED: the old guard -> ghost
 //   H  Brad: "the sold at needs to remember these locations" — place buttons
 //      under Sold At: the Show Mode session, then the places he has used (most
 //      used first), then eBay / York Train Show / Flea market / Marketplace
@@ -241,7 +245,12 @@ async function boot(browser, planted) {
         S.log.push('append ' + t + ' ' + at);
         return ok({ updates: { updatedRange: "'" + t + "'!A" + at + ':' + colL(body.values[0].length - 1) + (at + body.values.length - 1) } });
       }
-      if (method === 'GET') return ok({ range: decodeURIComponent(rg), values: get(rg) });
+      if (method === 'GET') {
+        if (S.failGet && parse(rg).t === S.failGet) return { ok: false, status: 503, json: async () => ({ error: { code: 503, message: 'The service is currently unavailable.' } }), text: async () => 'unavailable' };
+        const v = get(rg); const out = { range: decodeURIComponent(rg), majorDimension: 'ROWS' };
+        if (v.length) out.values = v;   // Google leaves "values" out of an empty range
+        return ok(out);
+      }
       if (method === 'PUT') { put(rg, body.values, raw); S.log.push('put ' + decodeURIComponent(rg)); return ok({ updatedCells: 1 }); }
       return ok({});
     };
@@ -498,6 +507,28 @@ async function markSold(pg, fill) {
     T('I a sale date read from the sheet (a day number) matches its ISO date',
       await pg.evaluate(() => _rrSaleISODate('46309') === '2026-10-14' && _rrSaleISODate('2026-10-14') === '2026-10-14' && _rrSaleISODate('2026-10-14T05:00:00Z') === '2026-10-14'));
 
+    // ── J · an emptied list is shown empty (Brad's ghost No. 115, v0.9.1946) ──
+    const ghosts = () => pg.evaluate(() => {
+      const S = window.__S;
+      S.tabs.Sold.length = 2; S.tabs['For Sale'].length = 2;
+      S.tabs['Want-Upgrade List'] = [['Want-Upgrade List'], WISHLIST_HEADERS.slice()];
+      state.soldData = { 'sold-opt-1': { row: 3, key: 'sold-opt-1', itemNum: '115', salePrice: '60' } };
+      state.forSaleData = { '163': { row: 8, itemNum: '115', inventoryId: '163', askingPrice: '75' } };
+      state.wantData = { '6464-1|': { row: 4, itemNum: '6464-1', variation: '' } };
+      state.upgradeData = { '41': { row: 5, itemNum: '2343', inventoryId: '41' }, '42': { row: 99999, itemNum: '726', inventoryId: '42' } };
+    });
+    await seed(pg); await ghosts();
+    await pg.evaluate(() => _loadPersonalFromSheets('SID'));
+    const J1 = await pg.evaluate(() => ({ sold: Object.keys(state.soldData), fs: Object.keys(state.forSaleData), want: Object.keys(state.wantData), up: Object.keys(state.upgradeData) }));
+    T('J the last sale taken off the sheet is gone from the screen too — no ghost', J1.sold.length === 0, J1);
+    T('J …the same for the last listing and the last want', J1.fs.length === 0 && J1.want.length === 0, J1);
+    T('J …an upgrade taken off the sheet goes; one still being saved (row 99999) stays', JSON.stringify(J1.up) === '["42"]', J1);
+    await seed(pg); await ghosts();
+    await pg.evaluate(() => { window.__S.failGet = 'Sold'; });
+    await pg.evaluate(() => _loadPersonalFromSheets('SID').catch(() => {}));
+    const J2 = await pg.evaluate(() => { window.__S.failGet = null; return Object.keys(state.soldData); });
+    T('J a read Google answered with an ERROR keeps what is on screen (it is not an empty list)', JSON.stringify(J2) === '["sold-opt-1"]', J2);
+
     // ── H · the places remember: most-used first, spelled the way he uses most ──
     const H = await pg.evaluate(() => {
       const keep = state.soldData;
@@ -517,6 +548,8 @@ async function markSold(pg, fill) {
 
     // ── F · the sold item's page ──
     await pg.evaluate(() => {
+      // the J loads above read the stand-in sheet's (empty) Contacts tab — put Bob back
+      state.contactsData = [{ id: 'C-1700000000001', name: 'Bob Smith', business: '' }, { id: 'C-1700000000002', name: 'Ann Lee', business: 'Lee Trains' }];
       state.soldData = {
         's-a': { row: 7, key: 's-a', itemNum: '2343', salePrice: '425', dateSold: '2026-10-14', soldTo: 'C-1700000000001', soldAt: 'Timonium Show', inventoryId: '7' },
         's-p': { row: 8, key: 's-p', itemNum: 'PART', salePrice: '5', dateSold: '2026-10-14', notes: 'Part from Parts Bin — coupler' },
@@ -541,6 +574,31 @@ async function markSold(pg, fill) {
     const kept = await p.pg.evaluate(() => window.__S.get("'Deleted Rows'!A3:BZ").some(l => l[1] === 'My Collection'));
     T('B PLANTED: the old blanking line keeps no copy of the collection row (B would fail)', kept === false);
     await p.pg.close();
+
+    // ── PLANTED: the old keep-the-old-list guard (v0.9.1945) ──
+    {
+      const ad = read('app-data.js');
+      const oldGuard = ad.replace("if (!soldRes._failed && (forceOverwrite || _plAnswered(soldRes) || ", "if (!soldRes._failed && (forceOverwrite || ");
+      if (oldGuard === ad) T('J PLANTED: could plant the old guard', false);
+      else {
+        const pj = await chromium.launch(fs.existsSync('/opt/pw-browsers/chromium') ? { executablePath: '/opt/pw-browsers/chromium' } : {});
+        const pgj = await pj.newPage();
+        await pgj.route('**', r => { const u = r.request().url(); if (!u.startsWith('file://')) return r.abort();
+          if (u.split('?')[0].endsWith('/app/app-data.js')) return r.fulfill({ body: oldGuard, contentType: 'application/javascript' }); return r.continue(); });
+        await pgj.goto('file://' + path.join(APP, 'index.html'), { waitUntil: 'domcontentloaded' });
+        await pgj.waitForTimeout(900);
+        const ghost = await pgj.evaluate(async () => {
+          state.personalSheetId = 'SID'; window.accessToken = 'tok'; accessToken = 'tok';
+          window.fetch = async (u) => ({ ok: true, status: 200, json: async () => ({ range: 'x!A3:V', majorDimension: 'ROWS' }), text: async () => '{}' });
+          window.showToast = function () {};
+          state.soldData = { 'sold-opt-1': { row: 3, itemNum: '115' } };
+          await _loadPersonalFromSheets('SID').catch(() => {});
+          return Object.keys(state.soldData).length;
+        });
+        T('J PLANTED: the old guard keeps the ghost sale (J would fail)', ghost === 1, ghost);
+        await pj.close();
+      }
+    }
 
     // ── PLANTED: Returned trusting the remembered row (v0.9.1944) ──
     const ap = read('app-pages.js');
