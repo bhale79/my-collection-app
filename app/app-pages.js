@@ -947,6 +947,7 @@ function ephemeraSold(tabId, rowKey) {
         <input type="date" id="eph-sold-date" value="${new Date().toISOString().slice(0,10)}"
           style="width:100%;padding:0.5rem 0.7rem;border-radius:7px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-family:var(--font-body);font-size:0.9rem;outline:none;box-sizing:border-box">
       </div>
+      <div id="eph-sale-fields">${typeof rrSaleFieldsHTML === 'function' ? rrSaleFieldsHTML('eph-sale', { soldAt: rrSaleShowName(), notes: title }, { notes: true }) : ''}</div>
       <div style="margin-bottom:1.1rem">
         <div class="field-label">Also remove from collection?</div>
         <div style="display:flex;gap:0.5rem">
@@ -963,11 +964,14 @@ function ephemeraSold(tabId, rowKey) {
     </div>`;
   document.body.appendChild(ov);
   if (window.BackStack && BackStack.wire) BackStack.wire(ov); // v0.9.805 TODO-012: device Back closes this pop-up
+  if (typeof rrSaleFieldsWire === 'function') rrSaleFieldsWire(ov, 'eph-sale');   // v0.9.1944
 
   document.getElementById('eph-sold-save').onclick = async () => {
     const salePrice = document.getElementById('eph-sold-price').value;
     const dateSold  = document.getElementById('eph-sold-date').value;
     const removeIt  = document.getElementById('eph-rm-yes').checked;
+    const _det = (typeof rrSaleFieldsRead === 'function') ? rrSaleFieldsRead(ov, 'eph-sale') : { notes: title };
+    const _saleTag = rrSaleTag(item.itemNum || label, dateSold);
     ov.remove();
     // Audit H4 fix: use _buildSoldRow helper for full 20-col schema.
     // The old 10-col write left cols K-T (allOriginal, hasBox, boxCond,
@@ -981,12 +985,13 @@ function ephemeraSold(tabId, rowKey) {
       pricePaid: item.estValue || '',
       salePrice: salePrice,
       dateSold: dateSold,
-      notes: title,
+      notes: _det.notes || '',
       inventoryId: '',
       manufacturer: ((typeof _brandOfItem === 'function' && _brandOfItem(item.itemNum)) || _getEraManufacturer()),
+      soldTo: _det.soldTo || '', soldAt: _det.soldAt || '',
     });
     try {
-      await sheetsAppend(state.personalSheetId, 'Sold!A:T', [row]);
+      await sheetsAppend(state.personalSheetId, 'Sold!A:' + soldEndCol(), [row]);
       // v0.9.1289: the fourteenth unguarded removal, and the one that hid the
       // longest — the R3-3 census looks for functions named remove/delete that
       // toast "Removed", and this one is called `ephemeraSold` and says
@@ -1010,7 +1015,7 @@ function ephemeraSold(tabId, rowKey) {
             const blanks = [Array(lastCol.charCodeAt(0) - 64).fill('')];
             _rmOk = await rrRemoveRowConfirmed(state.personalSheetId, _tabName, item.row,
               _tabName + '!A' + item.row + ':' + lastCol + item.row, blanks,
-              { num: item.itemNum || '' }, _tabName);
+              { num: item.itemNum || '', why: _saleTag }, _tabName);
             if (!_rmOk) _rmWhy = ' — but it is still in your collection. Refresh and try removing it.';
           }
         }
@@ -1496,6 +1501,8 @@ function buildSoldPage() {
       || (e._type||'').toLowerCase().includes(_sq)
       || (e.variation||'').toLowerCase().includes(_sq)
       || (e.notes||'').toLowerCase().includes(_sq)
+      || (e.soldAt||'').toLowerCase().includes(_sq)                       // v0.9.1944
+      || (e.soldTo ? rrSoldToLabel(e.soldTo).toLowerCase().includes(_sq) : false)
     );
   }
 
@@ -1592,6 +1599,7 @@ function buildSoldPage() {
             ${sd.variation ? `<span style="font-size:0.72rem;color:var(--text-dim);margin-left:0.4rem">${sd.variation}</span>` : ''}
             ${sd._roadName ? `<div style="font-size:0.82rem;color:var(--text);margin-top:0.1rem">${sd._roadName}</div>` : ''}
             <div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.15rem">${[sd._type, sd.condition ? 'Cond: '+sd.condition : '', _formatDate(sd.dateSold)].filter(Boolean).join(' · ')}</div>
+            ${_soldWhoWhere(sd) ? `<div style="font-size:0.74rem;color:var(--text-mid);margin-top:0.1rem">${_soldWhoWhere(sd)}</div>` : ''}
           </div>
           <div style="text-align:right;flex-shrink:0">
             ${sd.salePrice ? `<div style="font-family:var(--font-mono);color:var(--t-green);font-size:1.1rem;font-weight:600">$${parseFloat(sd.salePrice).toLocaleString()}</div>` : '<div style="color:var(--text-dim);font-size:0.8rem">No price</div>'}
@@ -1611,12 +1619,21 @@ function buildSoldPage() {
         <td>${sd.variation || '—'}</td>
         <td>${sd.condition || '—'}</td>
         <td class="market-val">${(sd._pairPrice || sd.salePrice) ? _currencySymbol() + parseFloat(sd._pairPrice || sd.salePrice).toLocaleString() : '—'}</td>
-        <td class="text-dim">${_formatDate(sd.dateSold) || '—'}</td>
+        <td class="text-dim">${_formatDate(sd.dateSold) || '—'}${_soldWhoWhere(sd) ? `<div style="font-size:0.72rem;color:var(--text-mid);margin-top:0.1rem">${_soldWhoWhere(sd)}</div>` : ''}</td>
       </tr>`;
     }).join('') : '<tr><td colspan="8"><div class="empty-state"><div class="empty-icon">💰</div><p>No sold items yet</p></div></td></tr>';
   }
 
   var _ns = document.getElementById('nav-sold'); if (_ns) _ns.textContent = Object.keys(state.soldData).length;
+}
+
+// v0.9.1944: "to Bob · York Train Show" under a sale on the Sold list — escaped.
+function _soldWhoWhere(sd) {
+  if (!sd) return '';
+  var bits = [];
+  if (sd.soldTo) bits.push('to ' + rrSoldToLabel(sd.soldTo));
+  if (sd.soldAt) bits.push(String(sd.soldAt));
+  return bits.length ? rrEsc(bits.join(' \u00b7 ')) : '';
 }
 
 // ── Sold-record detail view (Session 176) ──────────────────────────
@@ -1641,6 +1658,9 @@ function showSoldDetailPage(key) {
   var fields = [
     { label: 'Sale Price',     val: money(sd.salePrice) },
     { label: 'Date Sold',      val: sd.dateSold ? fmtDate(sd.dateSold) : null },
+    // v0.9.1944 — who and where (rrSoldToLabel turns a Contact ID into the person)
+    { label: 'Sold To',        val: sd.soldTo ? '<span data-sold-to>' + rrEsc(rrSoldToLabel(sd.soldTo)) + '</span>' : null },
+    { label: 'Sold At',        val: sd.soldAt ? rrEsc(sd.soldAt) : null },
     { label: 'Price Paid',     val: money(sd.priceItem) },
     { label: 'Condition',      val: sd.condition ? (sd.condition + '/10') : null },
     { label: 'All Original',   val: (sd.allOriginal && sd.allOriginal !== 'Unknown') ? sd.allOriginal : null },
@@ -1692,7 +1712,11 @@ function showSoldDetailPage(key) {
     +   '</div>'
     + '</div>';
 
+  // v0.9.1944 (Brad: "we also need a returned button that puts it back into
+  // the sale list"). Parts go back through the Parts Bin, so not for them.
+  var _isPartSale = /^Part from Parts Bin/.test(String(sd.notes || ''));
   html += '<div style="display:flex;gap:0.5rem;margin-bottom:1.5rem;flex-wrap:wrap">'
+    +   (_isPartSale ? '' : '<button onclick="rrSaleReturned(' + keyArg + ')" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid var(--accent2);background:var(--surface2);color:var(--accent2);font-family:var(--font-body);font-size:0.9rem;cursor:pointer;font-weight:700">' + rrEsc((_rrSaleT().returned) || 'Returned') + '</button>')
     +   '<button onclick="_removeSoldRecord(' + keyArg + ')" style="padding:0.5rem 0.9rem;border-radius:8px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text-dim);font-family:var(--font-body);font-size:0.82rem;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:0.4rem">'
     +     '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/></svg> Remove this sale record'
     +   '</button>'
@@ -1731,6 +1755,13 @@ function showSoldDetailPage(key) {
     + '</div>';
 
   container.innerHTML = html;
+  // Contacts not read yet this session: Sold To shows the person once they are.
+  if (sd.soldTo && !(state.contactsData || []).length && typeof window._ctLoadContacts === 'function') {
+    Promise.resolve(window._ctLoadContacts()).then(function () {
+      var el = container.querySelector('[data-sold-to]');
+      if (el) el.textContent = rrSoldToLabel(sd.soldTo);
+    }).catch(function () {});
+  }
 
   if (photoLink && typeof driveGetFolderPhotos === 'function') {
     driveGetFolderPhotos(photoLink).then(function(photos){
@@ -1761,7 +1792,7 @@ async function _removeSoldRecord(key) {
   // write looked identical to a successful one. Check and write are now the
   // same guarded call, which says why when either half refuses.
   if (sd.row && sd.row !== 99999) {
-    if (!(await rrRemoveRowConfirmed(state.personalSheetId, 'Sold', sd.row, 'Sold!A' + sd.row + ':T' + sd.row, [Array(20).fill('')], { num: sd.itemNum || '' }, 'Sold list'))) return;
+    if (!(await rrRemoveRowConfirmed(state.personalSheetId, 'Sold', sd.row, soldRowRange(sd.row), [Array(SOLD_HEADERS.length).fill('')], { num: sd.itemNum || '', invId: sd.inventoryId || '' }, 'Sold list'))) return;
   }
   delete state.soldData[key];
   if (typeof _cachePersonalData === 'function') _cachePersonalData();
@@ -2354,6 +2385,421 @@ async function _convertUpgradeToWantOnSell(soldInventoryId) {
 }
 if (typeof window !== 'undefined') window._convertUpgradeToWantOnSell = _convertUpgradeToWantOnSell;
 
+// ══ v0.9.1944 — SALE DETAILS, AND TAKING A SALE BACK ═══════════════════════
+// [stated] Brad, 2026-10-14, on the Record sale box: "we track sold price, but
+// we need to be able to track sold to: ex Bob, sold at: ex York Trainshow, sold
+// date:, and notes ex combined with the 6464-150" — and on the sold item's
+// page: "we also need a returned button that puts it back into the sale list".
+//
+// ONE set of fields for every way a sale is recorded — the For Sale list's
+// Mark sold, the sell wizard's last screen, the Parts Bin, and the two older
+// pop-ups for pieces that are not catalog items — so "Sold to" cannot be on
+// one of them and missing from the next. Words: RR_SALE_TEXT (config.js).
+//   rrSaleFieldsHTML(pfx, values, show)  the fields, as HTML
+//   rrSaleFieldsWire(root, pfx, onTo)    "Add someone new…" opens the contact form
+//   rrSaleFieldsRead(root, pfx)          -> { price, soldTo, soldAt, dateSold, notes }
+//   rrSaleDetailsDialog(opts)            the whole Record sale box -> values | null
+//
+// Sold To is saved as a Contact ID, like Bought From. Sold At is typed; the
+// places used before are offered, and a running Show Mode session fills it in.
+function _rrSaleT() { return (typeof RR_SALE_TEXT !== 'undefined' && RR_SALE_TEXT) || {}; }
+function _rrSaleE(v) {
+  return (typeof rrEsc === 'function') ? rrEsc(v)
+    : String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+function _rrSaleToday() { try { return new Date().toLocaleDateString('en-CA'); } catch (e) { return new Date().toISOString().slice(0, 10); } }
+
+// The running Show Mode session's name (show-mode.js keeps it), or ''.
+function rrSaleShowName() {
+  try {
+    var s = JSON.parse(localStorage.getItem('lv_show_session') || 'null');
+    return (s && s.name) ? String(s.name).trim() : '';
+  } catch (e) { return ''; }
+}
+// The places offered under Sold At, in order:
+//   1. the running Show Mode session, when there is one
+//   2. places this collector has sold at — the most-used first, then the most
+//      recent (read from the Sold sheet, so his phone and PC agree)
+//   3. the starting places (RR_SALE_TEXT.soldAtStart) not already listed
+// Each place once, whatever its capitals ("ebay" and "eBay" are one place,
+// spelled the way he used it most).
+function rrSaleSoldAtPlaces() {
+  var T = _rrSaleT();
+  var tally = {};   // lower-case -> { name, n, last, spell: {spelling: n} }
+  Object.values((typeof state !== 'undefined' && state && state.soldData) || {}).forEach(function (x) {
+    var p = String((x && x.soldAt) || '').trim();
+    if (!p) return;
+    var k = p.toLowerCase();
+    var t = tally[k] = tally[k] || { n: 0, last: '', spell: {} };
+    t.n++; t.spell[p] = (t.spell[p] || 0) + 1;
+    var d = String(x.dateSold || '');
+    if (d > t.last) t.last = d;
+  });
+  var used = Object.keys(tally).map(function (k) {
+    var t = tally[k];
+    var name = Object.keys(t.spell).sort(function (a, b) { return t.spell[b] - t.spell[a]; })[0];
+    return { name: name, n: t.n, last: t.last };
+  }).sort(function (a, b) { return (b.n - a.n) || b.last.localeCompare(a.last) || a.name.localeCompare(b.name); });
+  var seen = {}, out = [];
+  var add = function (p) {
+    p = String(p == null ? '' : p).trim();
+    if (!p || seen[p.toLowerCase()]) return;
+    seen[p.toLowerCase()] = 1; out.push(p);
+  };
+  add(rrSaleShowName());
+  used.forEach(function (u) { add(u.name); });
+  (T.soldAtStart || []).forEach(add);
+  return out.slice(0, 60);
+}
+// Sold To in words. A Contact ID becomes the person; anything typed into the
+// cell by hand is shown as it was typed.
+function rrSoldToLabel(v) {
+  v = String(v == null ? '' : v).trim();
+  if (!v) return '';
+  var known = ((typeof state !== 'undefined' && state && state.contactsData) || []).some(function (c) { return c && c.id === v; });
+  if (known || /^C-\d+$/.test(v)) return (typeof window._ctLabel === 'function') ? window._ctLabel(v) : v;
+  return v;
+}
+
+function _rrSaleToEntries(selectedId) {
+  var T = _rrSaleT();
+  var list = (typeof window._pvSellerEntries === 'function') ? window._pvSellerEntries(selectedId || '') : [{ v: '', label: '' }];
+  return list.map(function (e) { return { v: e.v, label: e.v === '' ? (T.soldToNone || '') : e.label }; });
+}
+
+function _rrSaleChip(on) {
+  return 'padding:0.4rem 0.75rem;border-radius:999px;font-family:var(--font-body);font-size:0.88rem;cursor:pointer;'
+    + (on ? 'border:1.5px solid var(--accent);background:var(--accent);color:var(--on-accent);font-weight:700'
+          : 'border:1.5px solid var(--border);background:var(--surface2);color:var(--text)');
+}
+function rrSaleFieldsHTML(pfx, v, show) {
+  v = v || {}; show = show || {};
+  var T = _rrSaleT(), E = _rrSaleE;
+  var lab = function (t, forId) {
+    return '<label for="' + forId + '" style="display:block;font-size:0.72rem;color:var(--text-dim);margin-bottom:0.2rem;text-transform:uppercase;letter-spacing:0.06em;font-weight:600">' + E(t) + '</label>';
+  };
+  var box = 'width:100%;box-sizing:border-box;padding:0.6rem 0.7rem;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:1rem';
+  var h = '';
+  if (show.price) {
+    h += '<div style="margin-bottom:0.75rem">' + lab(T.price, pfx + '-price')
+      + '<div style="display:flex;align-items:center;gap:0.4rem">'
+      + (show.prefix ? '<span style="font-size:1rem;color:var(--text-dim)">' + E(show.prefix) + '</span>' : '')
+      + '<input id="' + pfx + '-price" type="number" inputmode="decimal" step="any" min="0" value="' + E(v.price || '') + '" style="' + box + ';flex:1;font-family:var(--font-mono)">'
+      + '</div>'
+      + (show.priceHint ? '<div style="font-size:0.78rem;color:var(--text-dim);margin-top:0.25rem">' + E(T.priceHint) + '</div>' : '')
+      + '</div>';
+  }
+  var to = String(v.soldTo || '');
+  var _places = rrSaleSoldAtPlaces();
+  h += '<div style="margin-bottom:0.75rem">' + lab(T.soldTo, pfx + '-to')
+    + '<select id="' + pfx + '-to" style="' + box + '">'
+    + _rrSaleToEntries(to).map(function (e) {
+        return '<option value="' + E(e.v) + '"' + (e.v === to ? ' selected' : '') + '>' + E(e.label) + '</option>';
+      }).join('')
+    + '</select></div>';
+  h += '<div style="margin-bottom:0.75rem">' + lab(T.soldAt, pfx + '-at')
+    + '<input id="' + pfx + '-at" list="' + pfx + '-at-list" type="text" autocomplete="off" value="' + E(v.soldAt || '') + '" placeholder="' + E(T.soldAtPh) + '" style="' + box + '">'
+    + '<datalist id="' + pfx + '-at-list">'
+    + _places.map(function (p) { return '<option value="' + E(p) + '"></option>'; }).join('')
+    + '</datalist>'
+    // One tap fills it in — older collectors may never notice the type-ahead.
+    + '<div data-sale-places style="display:flex;flex-wrap:wrap;gap:0.35rem;margin-top:0.45rem">'
+    + _places.slice(0, T.soldAtButtons || 8).map(function (p) {
+        var on = String(v.soldAt || '').trim().toLowerCase() === p.toLowerCase();
+        return '<button type="button" data-sale-place="' + E(p) + '" aria-pressed="' + on + '" style="' + _rrSaleChip(on) + '">' + E(p) + '</button>';
+      }).join('')
+    + '</div></div>';
+  if (show.date) {
+    h += '<div style="margin-bottom:0.75rem">' + lab(T.date, pfx + '-date')
+      + '<input id="' + pfx + '-date" type="date" value="' + E(v.dateSold || _rrSaleToday()) + '" style="' + box + '">'
+      + '</div>';
+  }
+  if (show.notes) {
+    h += '<div style="margin-bottom:0.75rem">' + lab(T.notes, pfx + '-notes')
+      + '<textarea id="' + pfx + '-notes" rows="2" placeholder="' + E(T.notesPh) + '" style="' + box + ';resize:vertical;min-height:60px;font-size:0.92rem">' + E(v.notes || '') + '</textarea>'
+      + '</div>';
+  }
+  return h;
+}
+
+function rrSaleFieldsWire(root, pfx, onTo) {
+  // The place buttons: a tap fills Sold At (and tells anyone listening, like
+  // the wizard, through the box's own input event); typing lights the match.
+  var at = root && root.querySelector('#' + pfx + '-at');
+  var chips = root ? Array.prototype.slice.call(root.querySelectorAll('[data-sale-place]')) : [];
+  var light = function () {
+    var cur = at ? String(at.value || '').trim().toLowerCase() : '';
+    chips.forEach(function (b) {
+      var on = cur && String(b.getAttribute('data-sale-place')).toLowerCase() === cur;
+      b.style.cssText = _rrSaleChip(on); b.setAttribute('aria-pressed', on ? 'true' : 'false');
+    });
+  };
+  chips.forEach(function (b) {
+    b.addEventListener('click', function () {
+      if (!at) return;
+      at.value = b.getAttribute('data-sale-place');
+      try { at.dispatchEvent(new Event('input', { bubbles: true })); } catch (e) {}
+      light();
+    });
+  });
+  if (at) at.addEventListener('input', light);
+  var sel = root && root.querySelector('#' + pfx + '-to');
+  if (!sel) return;
+  var last = sel.value;
+  var refill = function (id) {
+    sel.innerHTML = '';
+    _rrSaleToEntries(id).forEach(function (e) {
+      var o = document.createElement('option');
+      o.value = e.v; o.textContent = e.label;
+      sel.appendChild(o);
+    });
+    sel.value = id || '';
+    last = sel.value;
+    if (onTo) onTo(sel.value);
+  };
+  sel.addEventListener('change', function () {
+    var NEW = (typeof PV_SELLER_NEW !== 'undefined') ? PV_SELLER_NEW : '__rr_new_contact__';
+    if (sel.value !== NEW) { last = sel.value; if (onTo) onTo(sel.value); return; }
+    // Put the box straight back, so walking away from the new contact leaves
+    // it reading what it read before.
+    sel.value = last;
+    if (typeof window._ctOpenEdit !== 'function') {
+      if (typeof showToast === 'function') showToast(_rrSaleT().contactsLoading || '', 3000, true);
+      return;
+    }
+    window._ctAfterSave = function (id) { if (document.body.contains(sel)) refill(id); };
+    window._ctOpenEdit();
+    // The contact form opens ON TOP of the sale box — nothing typed is lost.
+    var m = document.getElementById('ct-modal');
+    if (m) m.style.zIndex = '100070';
+  });
+  // Contacts not read yet this session: read them, then fill the list.
+  if (!((typeof state !== 'undefined' && state && state.contactsData) || []).length && typeof window._ctLoadContacts === 'function') {
+    Promise.resolve(window._ctLoadContacts()).then(function () {
+      if (document.body.contains(sel) && (state.contactsData || []).length) refill(sel.value);
+    }).catch(function () {});
+  }
+}
+
+function rrSaleFieldsRead(root, pfx) {
+  var g = function (k) { return root ? root.querySelector('#' + pfx + '-' + k) : null; };
+  var val = function (el) { return el ? String(el.value == null ? '' : el.value).trim() : ''; };
+  var to = val(g('to'));
+  if (to === ((typeof PV_SELLER_NEW !== 'undefined') ? PV_SELLER_NEW : '__rr_new_contact__')) to = '';
+  return { price: val(g('price')), soldTo: to, soldAt: val(g('at')), dateSold: val(g('date')), notes: val(g('notes')) };
+}
+
+// The Record sale box. opts: { subtitle, price, priceHint, notes, soldAt, title, ok }
+//   -> { price, soldTo, soldAt, dateSold, notes }   or null (Cancel / Back)
+function rrSaleDetailsDialog(opts) {
+  opts = opts || {};
+  var T = _rrSaleT(), E = _rrSaleE;
+  return new Promise(function (resolve) {
+    var old = document.getElementById('rr-sale-dlg');
+    if (old) { try { old.remove(); } catch (e) {} }
+    var ov = document.createElement('div');
+    ov.id = 'rr-sale-dlg';
+    ov.setAttribute('role', 'dialog');
+    ov.style.cssText = 'position:fixed;inset:0;z-index:100060;background:var(--scrim);display:flex;align-items:flex-start;justify-content:center;padding:1rem;overflow-y:auto';
+    var cur = (typeof _currencySymbol === 'function') ? _currencySymbol() : '$';
+    ov.innerHTML = '<div style="background:var(--surface);color:var(--text);border:1.5px solid var(--border);border-radius:14px;max-width:440px;width:100%;padding:1.2rem 1.2rem 1rem;margin:auto;font-family:var(--font-body)">'
+      + '<div style="font-family:var(--font-head);font-size:1.2rem;margin-bottom:0.2rem">' + E(opts.title || T.title) + '</div>'
+      + (opts.subtitle ? '<div style="font-size:0.92rem;color:var(--text-mid);margin-bottom:0.9rem">' + E(opts.subtitle) + '</div>' : '<div style="height:0.5rem"></div>')
+      + rrSaleFieldsHTML('rr-sale',
+          { price: opts.price, soldAt: (opts.soldAt != null ? opts.soldAt : rrSaleShowName()), notes: opts.notes, dateSold: opts.dateSold },
+          { price: true, prefix: cur, priceHint: !!opts.priceHint, date: true, notes: true })
+      + '<div style="display:flex;gap:0.6rem;margin-top:0.4rem">'
+      +   '<button type="button" data-close="1" data-sale="cancel" style="flex:1;padding:0.7rem;border-radius:9px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text);font-family:var(--font-body);font-size:1rem;cursor:pointer">' + E(T.cancel || 'Cancel') + '</button>'
+      +   '<button type="button" data-sale="ok" style="flex:2;padding:0.7rem;border-radius:9px;border:none;background:var(--accent);color:var(--on-accent);font-family:var(--font-body);font-size:1rem;font-weight:700;cursor:pointer">' + E(opts.ok || T.ok) + '</button>'
+      + '</div></div>';
+    document.body.appendChild(ov);
+    var finished = false;
+    var done = function (val) {
+      if (finished) return;
+      finished = true;
+      try { ov.remove(); } catch (e) {}
+      resolve(val);
+    };
+    ov.querySelector('[data-sale="cancel"]').onclick = function () { done(null); };
+    ov.querySelector('[data-sale="ok"]').onclick = function () { done(rrSaleFieldsRead(ov, 'rr-sale')); };
+    rrSaleFieldsWire(ov, 'rr-sale');
+    if (typeof window.rrDismissGuard === 'function') window.rrDismissGuard(ov, function () { done(null); });   // Back = Cancel; a stray tap outside does nothing
+    setTimeout(function () { var p = ov.querySelector('#rr-sale-price'); if (p) { try { p.focus(); p.select(); } catch (e) {} } }, 40);
+  });
+}
+
+// The tag a sale writes on every row it takes off the sheet, in Deleted Rows'
+// "What happened" column. Returned looks for it to put exactly those rows back.
+// Named by the copy's Inventory ID (its item number when it has none) and the
+// date sold, so a copy sold, returned and sold again gets a new set.
+function rrSaleTag(idOrNum, dateSold) {
+  return 'sold [sale ' + String(idOrNum == null ? '' : idOrNum).trim() + ' ' + String(dateSold || '').trim() + ']';
+}
+
+if (typeof window !== 'undefined') {
+  window.rrSaleShowName = rrSaleShowName;
+  window.rrSaleSoldAtPlaces = rrSaleSoldAtPlaces;
+  window.rrSoldToLabel = rrSoldToLabel;
+  window.rrSaleFieldsHTML = rrSaleFieldsHTML;
+  window.rrSaleFieldsWire = rrSaleFieldsWire;
+  window.rrSaleFieldsRead = rrSaleFieldsRead;
+  window.rrSaleDetailsDialog = rrSaleDetailsDialog;
+  window.rrSaleTag = rrSaleTag;
+}
+
+// ── Returned ────────────────────────────────────────────────────────────────
+// Puts the sold copy back in My Collection and back on the For Sale list, then
+// takes the sale off Sold Items (a copy of it goes to Deleted Rows, like every
+// removal). Order matters and is chosen so a failure part-way loses nothing:
+//   1. read Deleted Rows and work out what will come back
+//   2. a sale recorded before v0.9.1944 kept no copy of its listing — ask the
+//      asking price NOW, before anything is written (Cancel changes nothing)
+//   3. put the rows back (rrTrashRestore refuses a second copy of anything)
+//   4. only when everything is back, take the sale off Sold
+// A sale that was only half put back stays on Sold Items, and pressing Returned
+// again finishes the job: rows already back are marked in Deleted Rows and are
+// counted as done, never restored twice.
+var _rrReturnBusy = false;   // stability rule 4: one Returned at a time
+async function rrSaleReturned(key) {
+  var T = _rrSaleT();
+  var sd = (state.soldData || {})[key];
+  if (!sd) { if (typeof showToast === 'function') showToast('Sale record not found', 3000, true); return; }
+  if (/^Part from Parts Bin/.test(String(sd.notes || ''))) { if (typeof showToast === 'function') showToast(T.returnedPart || '', 4500, true); return; }
+  if (_rrReturnBusy) return;
+  var num = sd.itemNum || '';
+  var fill = function (s, extra) { return String(s || '').replace('{num}', num).replace('{what}', extra || ''); };
+  if (!(await appConfirm(fill(T.returnedAsk), { ok: T.returnedOk, title: T.returnedTitle }))) return;
+  _rrReturnBusy = true;
+  try {
+    var invId = String(sd.inventoryId || '').trim();
+    var id = invId || String(num).trim();
+    var FS_TAB = 'For Sale';
+
+    // 1 — what comes back
+    var lines = (typeof rrTrashList === 'function') ? await rrTrashList(1000000) : [];
+    var exact = '[sale ' + id + ' ' + String(sd.dateSold || '').trim() + ']';
+    var mine = lines.filter(function (l) { return l.why.indexOf(exact) >= 0; });
+    // The date in the tag is the date the sale was RECORDED with; if it was
+    // changed in the sheet since, fall back to this copy's unrestored tags.
+    if (!mine.length && id) mine = lines.filter(function (l) { return !l.restored && l.why.indexOf('[sale ' + id + ' ') >= 0; });
+    var collLines = mine.filter(function (l) { return l.tab !== FS_TAB; });
+    var fsLines = mine.filter(function (l) { return l.tab === FS_TAB; });
+    // A sale from before v0.9.1944 has no tags. The collection row and the
+    // listing may still be in Deleted Rows under this copy's Inventory ID
+    // (since v0.9.1762 every delete keeps a copy) — newest first.
+    if (!mine.length && invId) {
+      var lc = lines.filter(function (l) { return l.tab === PERSONAL_TAB && l.invId === invId; })[0];
+      var lf = lines.filter(function (l) { return l.tab === FS_TAB && l.invId === invId; })[0];
+      if (lc) collLines = [lc];
+      if (lf) fsLines = [lf];
+    }
+
+    // 2 — ask before writing anything
+    var asking = null;
+    var fsListed = invId && Object.values(state.forSaleData || {}).some(function (f) { return f && String(f.inventoryId || '') === invId; });
+    if (!fsLines.length && !fsListed) {
+      asking = await appPrompt(T.askPrice, sd.salePrice || '', { title: T.askPriceTitle, type: 'number',
+        prefix: (typeof _currencySymbol === 'function' ? _currencySymbol() : '$'), ok: T.returnedOk });
+      if (asking === null) return;   // nothing has been written
+    }
+    if (typeof showToast === 'function') showToast(T.returnedBusy || '', 2500);
+
+    // 3 — put it back
+    var fails = [], collOk = false, fsOk = !!fsListed;
+    // The row that IS the copy: by Inventory ID when it has one. Without one
+    // (an older non-catalog piece), whichever list it was taken off.
+    var leadLine = function (l) {
+      return invId ? (l.tab === PERSONAL_TAB && l.invId === invId)
+                   : (l.tab !== FS_TAB && l.tab !== 'Instruction Sheets');
+    };
+    for (var i = 0; i < collLines.length; i++) {
+      var l = collLines[i];
+      var r = l.restored ? { ok: true } : await rrTrashRestore(l.archiveRow);
+      var good = r && (r.ok || r.reason === 'present' || r.reason === 'already');
+      if (good && leadLine(l)) collOk = true;
+      if (!good) fails.push(l.tab);
+    }
+    if (!collOk && !fails.length) {
+      // Nothing of it in Deleted Rows: rebuild the row from the sale's own
+      // snapshot (Session 176 made every Sold row carry the item's details and
+      // photos for exactly this kind of day). Never a second copy: if this
+      // Inventory ID is already in My Collection, it is already back.
+      var present = false;
+      if (invId) {
+        try {
+          var col = await sheetsGet(state.personalSheetId, PERSONAL_TAB + '!' + personalColLetter('inventoryId') + ':' + personalColLetter('inventoryId'));
+          present = ((col && col.values) || []).some(function (x) { return String((x && x[0]) || '').trim() === invId; });
+        } catch (eP) { fails.push('My Collection'); }
+      }
+      if (!present && !fails.length) {
+        try {
+          var row = buildPersonalRow({
+            itemNum: num, variation: sd.variation || '', condition: sd.condition || '',
+            priceItem: sd.priceItem || '', inventoryId: invId || nextInventoryId(),
+            manufacturer: sd.manufacturer || '', allOriginal: sd.allOriginal || '',
+            hasBox: sd.hasBox || '', boxCond: sd.boxCond || '',
+            photoItem: sd.photoItem || '', photoBox: sd.photoBox || '',
+            userEstWorth: sd.userEstWorth || '', datePurchased: sd.datePurchased || '',
+            yearMade: sd.year || '',
+          });
+          await sheetsAppend(state.personalSheetId, PERSONAL_TAB + '!A:A', [row]);
+          collOk = true;
+        } catch (eR) { fails.push('My Collection'); }
+      } else if (present) collOk = true;
+    }
+    for (var j = 0; j < fsLines.length; j++) {
+      var f = fsLines[j];
+      var rf = f.restored ? { ok: true } : await rrTrashRestore(f.archiveRow);
+      if (rf && (rf.ok || rf.reason === 'present' || rf.reason === 'already')) fsOk = true;
+      else fails.push(FS_TAB);
+    }
+    if (asking !== null && !fsOk) {
+      try {
+        var fsRow = new Array(FOR_SALE_HEADERS.length).fill('');
+        fsRow[0] = num; fsRow[1] = sd.variation || ''; fsRow[2] = sd.condition || '';
+        fsRow[3] = String(asking).trim() || sd.salePrice || ''; fsRow[4] = _rrSaleToday();
+        fsRow[5] = ''; fsRow[6] = sd.priceItem || ''; fsRow[7] = sd.userEstWorth || '';
+        fsRow[8] = invId; fsRow[9] = sd.manufacturer || '';
+        await sheetsAppend(state.personalSheetId, FS_TAB + '!A:' + colLetter(FOR_SALE_HEADERS.length - 1), [fsRow]);
+        fsOk = true;
+      } catch (eF) { fails.push(FS_TAB); }
+    }
+
+    // 4 — only a sale that is fully back comes off Sold
+    var soldGone = false;
+    if (!fails.length && collOk && fsOk) {
+      if (!(sd.row && sd.row !== 99999)) soldGone = true;     // never reached the sheet
+      else soldGone = await rrRemoveRowConfirmed(state.personalSheetId, 'Sold', sd.row, soldRowRange(sd.row),
+             [Array(SOLD_HEADERS.length).fill('')],
+             { num: num, invId: invId, why: 'returned — sale of ' + exact.slice(1, -1) + ' taken back' }, 'Sold list');
+      if (soldGone) delete state.soldData[key];
+    }
+    try { if (typeof loadPersonalData === 'function') await loadPersonalData(); } catch (eL) { console.warn('[returned] reload:', eL && eL.message); }
+    try { if (typeof _cachePersonalData === 'function') _cachePersonalData(); } catch (e) {}
+    if (soldGone) {
+      if (typeof showPage === 'function') showPage('forsale');
+      try { if (typeof buildForSalePage === 'function') buildForSalePage(); } catch (e) {}
+      if (typeof showToast === 'function') showToast(fill(T.returnedDone), 5000);
+    } else {
+      var what = [];
+      if (!collOk || fails.some(function (t) { return t !== FS_TAB; })) what.push('not everything is back in My Collection');
+      if (!fsOk || fails.indexOf(FS_TAB) >= 0) what.push('it is not back on the For Sale list');
+      if (!what.length) what.push('the sale could not be taken off Sold Items');
+      if (typeof showToast === 'function') showToast(fill(T.returnedPartial, what.join(' and ')), 8000, true);
+      try { showSoldDetailPage(key); } catch (e) {}
+    }
+    try { buildSoldPage(); } catch (e) {}
+    try { if (typeof buildDashboard === 'function') buildDashboard(); } catch (e) {}
+  } catch (e) {
+    console.warn('[returned]', e);
+    if (typeof showToast === 'function') showToast((typeof rrSaveError === 'function') ? rrSaveError(e, 'putting it back') : 'Could not put it back — try again.', 6000, true);
+  } finally {
+    _rrReturnBusy = false;
+  }
+}
+if (typeof window !== 'undefined') window.rrSaleReturned = rrSaleReturned;
+
+var _rrSellBusy = false;   // v0.9.1944: Mark sold could be pressed twice while the first sale was still writing
 async function markForSaleAsSold(fsKey, askingPrice) {
   // v0.9.1252 (row-identity audit, finding 1): this used to fall back to {} on
   // a miss and carry on — appending a Sold row with a BLANK item number and a
@@ -2369,10 +2815,19 @@ async function markForSaleAsSold(fsKey, askingPrice) {
   }
   const itemNum = fs.itemNum || '';
   const variation = fs.variation || '';
-  const salePrice = await appPrompt('Enter the price it sold for. Leave blank to use the asking price.', askingPrice || '',
-        { title: 'Record sale', type: 'number', prefix: (typeof _currencySymbol === 'function' ? _currencySymbol() : '$'), ok: 'Mark sold' });
-  if (salePrice === null) return; // cancelled
-  const dateSold = new Date().toISOString().split('T')[0];
+  if (_rrSellBusy) return;   // stability rule 4: one sale at a time
+  // v0.9.1944: price, who, where, when and notes — one box (rrSaleDetailsDialog).
+  const _fsMaster = (typeof findMaster === 'function') ? (findMaster(itemNum, variation, fs) || {}) : {};
+  const _det = await rrSaleDetailsDialog({
+    subtitle: 'No. ' + itemNum + ((_fsMaster.roadName || _fsMaster.description) ? ' \u2014 ' + (_fsMaster.roadName || _fsMaster.description) : ''),
+    price: askingPrice || '', priceHint: true, notes: fs.notes || '',
+  });
+  if (!_det) return; // cancelled
+  _rrSellBusy = true;
+  try {
+  const salePrice = _det.price;
+  const dateSold = _det.dateSold || _rrSaleToday();
+  const _saleTag = rrSaleTag(fs.inventoryId || itemNum, dateSold);
   // Capture group members BEFORE the lead is deleted (we need its groupId link).
   const _grpMembers = (typeof window !== 'undefined' && typeof window._fsGroupMembers === 'function') ? window._fsGroupMembers(fs) : null;
 
@@ -2394,12 +2849,13 @@ async function markForSaleAsSold(fsKey, askingPrice) {
     pricePaid: fs.originalPrice || (collEntry && collEntry.priceItem) || '',
     salePrice: salePrice || askingPrice || '',
     dateSold: dateSold,
-    notes: fs.notes || '',
+    notes: _det.notes,
     inventoryId: fs.inventoryId || (collEntry && collEntry.inventoryId) || '',
     manufacturer: fs.manufacturer || (collEntry && collEntry.manufacturer) || '',
+    soldTo: _det.soldTo, soldAt: _det.soldAt,
     src: collEntry || {},
   });
-  const _soldApRow = (await sheetsAppend(state.personalSheetId, 'Sold!A:T', [soldRow])) || 0;   // v0.9.1196
+  const _soldApRow = (await sheetsAppend(state.personalSheetId, 'Sold!A:' + soldEndCol(), [soldRow])) || 0;   // v0.9.1196
 
   // If this sold copy had an Upgrade entry linked to it, convert to Want.
   await _convertUpgradeToWantOnSell(fs.inventoryId || (collEntry && collEntry.inventoryId));
@@ -2418,7 +2874,7 @@ async function markForSaleAsSold(fsKey, askingPrice) {
   // Remove from For Sale tab — Phase 3e: guard against synthetic row=99999
   // from optimistic local writes that never got the real sheet row written back.
   if (fs.row && fs.row > 0 && fs.row < 1000) {
-    _leadFsOk = await rrRemoveRowConfirmed(state.personalSheetId, 'For Sale', fs.row, `For Sale!A${fs.row}:J${fs.row}`, [['','','','','','','','','','']], { num: fs.itemNum || '', invId: fs.inventoryId || '' }, 'For Sale list');
+    _leadFsOk = await rrRemoveRowConfirmed(state.personalSheetId, 'For Sale', fs.row, `For Sale!A${fs.row}:J${fs.row}`, [['','','','','','','','','','']], { num: fs.itemNum || '', invId: fs.inventoryId || '', why: _saleTag }, 'For Sale list');
     if (!_leadFsOk) _fsStuck++;
   } else if (fs.inventoryId) {
     // Synthetic / unknown row — fetch the For Sale tab and find the real row by inventoryId
@@ -2432,7 +2888,7 @@ async function markForSaleAsSold(fsKey, askingPrice) {
       if (realRow > 0 && realRow < 1000) {
         // realRow was FOUND by inventoryId a moment ago, but the guard is kept
         // anyway — a delete can land between the lookup and this write.
-        _leadFsOk = await rrRemoveRowConfirmed(state.personalSheetId, 'For Sale', realRow, `For Sale!A${realRow}:J${realRow}`, [['','','','','','','','','','']], { num: fs.itemNum || '', invId: fs.inventoryId || '' }, 'For Sale list');
+        _leadFsOk = await rrRemoveRowConfirmed(state.personalSheetId, 'For Sale', realRow, `For Sale!A${realRow}:J${realRow}`, [['','','','','','','','','','']], { num: fs.itemNum || '', invId: fs.inventoryId || '', why: _saleTag }, 'For Sale list');
         if (!_leadFsOk) _fsStuck++;
       } else {
         // v0.9.1289: the row was not found at all. For the user that is the
@@ -2456,7 +2912,7 @@ async function markForSaleAsSold(fsKey, askingPrice) {
     // no toast at all and a For Sale row already blanked above with nothing on
     // screen to say so. Caught and counted now.
     let _ceOk = false;
-    try { _ceOk = await personalWriteRow(collEntry, personalBlankRow()); }
+    try { _ceOk = await rrPersonalRemoveRow(collEntry, _saleTag); }   // v0.9.1944: a copy is kept, so Returned can put it back
     catch (e) { if (typeof showToast === 'function') showToast(rrSaveError(e, 'the removal'), 4500, true); }
     if (_ceOk) delete state.personalData[collKey]; else _pdStuck++;
   }
@@ -2471,7 +2927,7 @@ async function markForSaleAsSold(fsKey, askingPrice) {
       // a write that THREW looked exactly like one that landed.
       var _mBlanked = true;
       if (_m.rec && _m.rec.row) {
-        try { _mBlanked = await personalWriteRow(_m.rec, personalBlankRow()); }
+        try { _mBlanked = await rrPersonalRemoveRow(_m.rec, _saleTag); }
         catch(e){ _mBlanked = false; if (typeof showToast === 'function') showToast(rrSaveError(e, 'the removal'), 4500, true); }
       }
       if (_mBlanked) delete state.personalData[_m.key]; else _pdStuck++;
@@ -2480,7 +2936,7 @@ async function markForSaleAsSold(fsKey, askingPrice) {
       // v0.9.1289: this one threw the answer away AND deleted the entry
       // unconditionally — the worst of the three shapes.
       let _isOk = true;
-      if (_m.rec && _m.rec.row) _isOk = await rrRemoveRowConfirmed(state.personalSheetId, 'Instruction Sheets', _m.rec.row, `Instruction Sheets!A${_m.rec.row}:K${_m.rec.row}`, [['','','','','','','','','','','']], { num: _m.rec.itemNum || '' }, 'Instruction Sheets list');
+      if (_m.rec && _m.rec.row) _isOk = await rrRemoveRowConfirmed(state.personalSheetId, 'Instruction Sheets', _m.rec.row, `Instruction Sheets!A${_m.rec.row}:K${_m.rec.row}`, [['','','','','','','','','','','']], { num: _m.rec.itemNum || '', why: _saleTag }, 'Instruction Sheets list');
       if (_isOk) { if (state.isData) delete state.isData[_m.key]; }
       else _isStuck++;
     }
@@ -2489,7 +2945,7 @@ async function markForSaleAsSold(fsKey, askingPrice) {
       if (_mk === fsKey) continue;
       // v0.9.1289: same again — answer discarded, entry dropped regardless.
       let _fOk = true;
-      if (_f.row) _fOk = await rrRemoveRowConfirmed(state.personalSheetId, 'For Sale', _f.row, `For Sale!A${_f.row}:J${_f.row}`, [['','','','','','','','','','']], { num: _f.itemNum || '', invId: _f.inventoryId || '' }, 'For Sale list');
+      if (_f.row) _fOk = await rrRemoveRowConfirmed(state.personalSheetId, 'For Sale', _f.row, `For Sale!A${_f.row}:J${_f.row}`, [['','','','','','','','','','']], { num: _f.itemNum || '', invId: _f.inventoryId || '', why: _saleTag }, 'For Sale list');
       if (_fOk) delete state.forSaleData[_mk]; else _fsStuck++;
     }
   }
@@ -2502,7 +2958,7 @@ async function markForSaleAsSold(fsKey, askingPrice) {
     // rather than throwing. Keeping it only made a real swallow look normal
     // sitting next to the ones that were fixed. It reports its own leftovers
     // now by keeping the box in state, which puts it back on the screen.
-    await _cleanupSoldItemBoxes(itemNum, (collEntry && collEntry.groupId) || fs.groupId);
+    await _cleanupSoldItemBoxes(itemNum, (collEntry && collEntry.groupId) || fs.groupId, _saleTag);
   }
   // Optimistic state update — unique key so each sale is its own row.
   var _osk = (typeof _newSoldKey === 'function') ? _newSoldKey() : ('sold-opt-' + Date.now());
@@ -2510,7 +2966,8 @@ async function markForSaleAsSold(fsKey, askingPrice) {
     row: _soldApRow, key: _osk, itemNum, variation,   // v0.9.1196
     condition: fs.condition || (collEntry && collEntry.condition) || '',
     priceItem: fs.originalPrice || (collEntry && collEntry.priceItem) || '',
-    salePrice: salePrice || askingPrice, dateSold, notes: fs.notes || '',
+    salePrice: salePrice || askingPrice, dateSold, notes: _det.notes,
+    soldTo: _det.soldTo, soldAt: _det.soldAt,
     photoItem: (collEntry && collEntry.photoItem) || '', photoBox: (collEntry && collEntry.photoBox) || '',
     roadName: (collEntry && collEntry.roadName) || '', description: (collEntry && collEntry.description) || '',
     userEstWorth: (collEntry && collEntry.userEstWorth) || '', hasBox: (collEntry && collEntry.hasBox) || '',
@@ -2538,6 +2995,7 @@ async function markForSaleAsSold(fsKey, askingPrice) {
   showToast('✓ Marked as sold!'
     + (_left.length ? ' The sale is recorded, but ' + _left.join(', ') + '. Refresh and try again.' : ''),
     _left.length ? 5500 : undefined);
+  } finally { _rrSellBusy = false; }
 }
 
 // Phase 3: signature is now (inventoryId). Called from My Collection row button.
@@ -2691,7 +3149,7 @@ async function removeForSaleAndCollection(fsKey) {
       // one that landed and the member was forgotten locally either way.
       let _mBlanked2 = true;
       if (_m.rec && _m.rec.row) {
-        try { _mBlanked2 = await personalWriteRow(_m.rec, personalBlankRow()); }
+        try { _mBlanked2 = await rrPersonalRemoveRow(_m.rec, 'removed from For Sale and the collection'); }   // v0.9.1944: a copy is kept first
         catch (e) { _mBlanked2 = false; if (typeof showToast === 'function') showToast(rrSaveError(e, 'the removal'), 4500, true); }
       }
       if (_mBlanked2) delete state.personalData[_m.key]; else _pdStuck++;
@@ -2708,7 +3166,7 @@ async function removeForSaleAndCollection(fsKey) {
     // already blanked above with nothing on screen to say so.
     let _ceBlanked = true;
     if (collEntry && collEntry.row) {
-      try { _ceBlanked = await personalWriteRow(collEntry, personalBlankRow()); }
+      try { _ceBlanked = await rrPersonalRemoveRow(collEntry, 'removed from For Sale and the collection'); }   // v0.9.1944: a copy is kept first
       catch (e) { _ceBlanked = false; if (typeof showToast === 'function') showToast(rrSaveError(e, 'the removal'), 4500, true); }
     }
     if (collKey && _ceBlanked) delete state.personalData[collKey]; else if (collEntry && collEntry.row && !_ceBlanked) _pdStuck++;

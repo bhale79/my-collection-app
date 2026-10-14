@@ -217,6 +217,36 @@ async function personalWriteRow(rec, values) {
   );
 }
 
+// v0.9.1944 — THE way to take a My Collection row off the sheet by blanking it.
+//
+// Brad asked for a Returned button on a sold item: "puts it back into the sale
+// list". To put a sold item back the way it was, the app needs the row it was
+// — and the sale paths blanked that row with personalWriteRow(…, blank) and
+// kept NO copy. That shape went around the v0.9.1762 rule ("nothing leaves the
+// sheet without a copy"), because the archive sits at the two gates in sheets.js
+// and a whole-row blank through sheetsUpdateRow is neither of them. Six places
+// did it — four in sales, two in "Remove from For Sale AND collection".
+//
+// So this is the third gate. Same order as the other two: confirm the row is
+// still the record we mean, keep a copy in Deleted Rows (with `why`, which is
+// how Returned finds it again), and only then blank it. No copy, no blank.
+// tests/sale_details_tests.js A1 fails the build if the old shape comes back.
+//   -> true when the row is gone and a copy is kept; false when it is still there
+//      (the user has been told why).
+async function rrPersonalRemoveRow(rec, why) {
+  if (!rec || !rec.row || rec.row === 99999) return false;
+  if (typeof rrRowStillIs === 'function'
+      && !(await rrRowStillIs(state.personalSheetId, PERSONAL_TAB, rec.row, rec.itemNum, rec.inventoryId || ''))) {
+    if (typeof rrRowMovedToast === 'function') rrRowMovedToast();
+    return false;
+  }
+  if (typeof rrArchiveRowBeforeRemoval === 'function'
+      && !(await rrArchiveRowBeforeRemoval(state.personalSheetId, PERSONAL_TAB, rec.row, why || 'removed',
+                                           { invId: rec.inventoryId || '', num: rec.itemNum || '' }))) return false;
+  return await personalWriteRow(rec, personalBlankRow());
+}
+if (typeof window !== 'undefined') window.rrPersonalRemoveRow = rrPersonalRemoveRow;
+
 // v0.9.1919 — THE way to build a whole-row UPDATE of an existing My Collection row.
 //
 // Brad's beta (found while scripting the booth video): "Update Info/Pictures →
@@ -432,8 +462,19 @@ const SOLD_HEADERS = [
   // Session 176: snapshot columns so each sale is a self-contained record
   // (kept even after the item leaves My Collection) — its own details + photos.
   'All Original','Has Box','Box Condition (1-10)','Item Photo Link','Box Photo Link',
-  'Road Name','Description','Est. Worth','Date Purchased','Year'
+  'Road Name','Description','Est. Worth','Date Purchased','Year',
+  // v0.9.1944 (Brad: "we need to be able to track sold to: ex Bob, sold at: ex
+  // York Trainshow"). At the END, like every new column (stability rule 7).
+  // Sold To holds a Contact ID, the same as Purchased From on My Collection,
+  // so renaming the contact never breaks the link; anything typed into the
+  // cell by hand is shown as typed.
+  'Sold To','Sold At'
 ];
+// The Sold tab's last column, worked out from the headers — never typed as a
+// letter. Every Sold range in the app comes from here (single source of truth):
+// the last time a column was added, eight places said 'T' by hand.
+function soldEndCol() { return colLetter(SOLD_HEADERS.length - 1); }
+function soldRowRange(row) { return 'Sold!A' + row + ':' + soldEndCol() + row; }
 const FOR_SALE_HEADERS = [
   'Item Number','Variation','Condition (1-10)','Asking Price',
   'Date Listed','Notes','Original Price Paid','Est. Worth','Inventory ID','Manufacturer'
@@ -1154,7 +1195,9 @@ function getGroupMembers(itemNum, invId) {
 // sell path behaves the same. Matches companions by explicit name AND groupId,
 // blanks the sheet row (keeps other rows' numbers valid) and drops the state
 // entry. Safe to call twice — a second call simply finds nothing.
-async function _cleanupSoldItemBoxes(leadItemNum, leadGroupId) {
+// v0.9.1944: saleTag — the sale's tag for Deleted Rows (rrSaleTag), so the
+// Returned button puts the box back with the item.
+async function _cleanupSoldItemBoxes(leadItemNum, leadGroupId, saleTag) {
   try {
     if (!state || !state.personalData) return 0;
     // v0.9.1238 (identity audit): the name test used to run REGARDLESS of the
@@ -1208,7 +1251,7 @@ async function _cleanupSoldItemBoxes(leadItemNum, leadGroupId) {
       // it still is on the sheet.
       var _bpBlanked = true;
       if (bp && bp.row && bp.row !== 99999) {
-        try { _bpBlanked = await personalWriteRow(bp, personalBlankRow()); }
+        try { _bpBlanked = await rrPersonalRemoveRow(bp, saleTag || 'sold \u2014 the box went with the item'); }
         catch(e) { _bpBlanked = false; console.warn('[Sold] box row write failed, keeping it:', e && e.message); }
       }
       if (_bpBlanked) delete state.personalData[keys[i]];
@@ -1242,7 +1285,7 @@ function _latestSale(itemNum, variation) {
 window._salesFor = _salesFor;
 window._latestSale = _latestSale;
 
-// Session 176: ONE builder for a 20-column Sold row so every sale path snapshots
+// Session 176: ONE builder for a Sold row (SOLD_HEADERS wide) so every sale path snapshots
 // the same details + photos. `opts.src` is the owned collection entry to copy
 // condition/box/photo/road/etc. from; explicit opts win over src.
 function _buildSoldRow(opts) {
@@ -1277,9 +1320,12 @@ function _buildSoldRow(opts) {
     pick(src.userEstWorth),
     pick(src.datePurchased),
     pick(src.yearMade, master.yearProd),
+    opts.soldTo || '',
+    opts.soldAt || '',
   ];
 }
 window._buildSoldRow = _buildSoldRow;
+if (typeof window !== 'undefined') { window.soldEndCol = soldEndCol; window.soldRowRange = soldRowRange; }
 // Unique transient key for an optimistic Sold entry (replaced by the row-based
 // key on the next data reload).
 function _newSoldKey() { return 'sold-opt-' + Date.now() + '-' + Math.floor(Math.random() * 100000); }

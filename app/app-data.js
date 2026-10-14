@@ -2396,7 +2396,7 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
     // gauge, dateAdded, purchasedFrom were saved but never loaded (why the
     // Date Added column always showed "—").
     sheetsGet(sheetId, PERSONAL_TAB + '!A3:' + personalColLetter(PERSONAL_SCHEMA[PERSONAL_SCHEMA.length - 1].field)).catch((e) => { console.warn('[My Collection load failed]', e && e.message); return {values:[], _failed:true}; }),
-    sheetsGet(sheetId, 'Sold!A3:T').catch((e) => { console.warn('[Sold load failed]', e && e.message); return {values:[], _failed:true}; }),
+    sheetsGet(sheetId, 'Sold!A3:' + soldEndCol()).catch((e) => { console.warn('[Sold load failed]', e && e.message); return {values:[], _failed:true}; }),
     sheetsGet(sheetId, 'For Sale!A3:J').catch((e) => { console.warn('[For Sale load failed]', e && e.message); return {values:[], _failed:true}; }),
     sheetsGet(sheetId, 'Want-Upgrade List!A3:I').catch((e) => { console.warn('[Want-Upgrade load failed]', e && e.message); return {values:[], _failed:true}; }),
   ]);
@@ -2517,6 +2517,7 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
       photoItem: _ss(r[13]), photoBox: _ss(r[14]),
       roadName: _ss(r[15]), description: _ss(r[16]),
       userEstWorth: _ss(r[17]), datePurchased: _ss(r[18]), year: _ss(r[19]),
+      soldTo: _ss(r[20]), soldAt: _ss(r[21]),   // v0.9.1944 — see SOLD_HEADERS
     };
   });
 

@@ -1890,9 +1890,14 @@ async function saveWizardItem() {
         salePrice: d.salePrice || '', dateSold: d.dateSold || '',
         notes: (d.notes || '').trim(),
         inventoryId: collectionEntry ? collectionEntry.inventoryId : '',
+        soldTo: d.soldTo || '', soldAt: (d.soldAt || '').trim(),   // v0.9.1944
         src: collectionEntry || {},
       });
-      var _soldApRow = (await sheetsAppend(state.personalSheetId, 'Sold!A:T', [row])) || 0;   // v0.9.1196
+      // v0.9.1944: every row this sale takes off the sheet is copied to Deleted
+      // Rows under this tag first, so Returned can put exactly those rows back.
+      var _soldInvIdForState = (collectionEntry && collectionEntry.inventoryId) || '';   // read by the optimistic Sold entry below
+      var _saleTag = rrSaleTag((collectionEntry && collectionEntry.inventoryId) || itemNum, row[6]);
+      var _soldApRow = (await sheetsAppend(state.personalSheetId, 'Sold!A:' + soldEndCol(), [row])) || 0;   // v0.9.1196
       // Bug 19 (Session 154): group sale — handle the other selected pieces
       // BEFORE deleting the lead row (clearing rows doesn't shift row numbers
       // the way a delete does, so companion rows stay valid).
@@ -1904,13 +1909,16 @@ async function saveWizardItem() {
           // memory, because it is still on the sheet — forgetting it here is how
           // an item disappears from the app while sitting in the spreadsheet.
           var _spBlanked = true;
-          if (_sp && _sp.row) { try { _spBlanked = await personalWriteRow(_sp, personalBlankRow()); } catch(e){} }
+          if (_sp && _sp.row) { try { _spBlanked = await rrPersonalRemoveRow(_sp, _saleTag); } catch(e){ _spBlanked = false; } }
           if (_spBlanked) delete state.personalData[_gs.sellPd[_i]];
         }
         for (var _j=0; _j<(_gs.sellIs||[]).length; _j++) {
           var _ip = (state.isData||{})[_gs.sellIs[_j]];
-          if (_ip && _ip.row) { try { await rrVerifiedRowUpdate(state.personalSheetId, 'Instruction Sheets', _ip.row, 'Instruction Sheets!A'+_ip.row+':K'+_ip.row, [['','','','','','','','','','','']], { num: _ip.itemNum || '' }, 'Instruction Sheets list'); } catch(e){} }
-          if (state.isData) delete state.isData[_gs.sellIs[_j]];
+          // v0.9.1944: through the gate that keeps a copy first, and only
+          // forgotten here once the sheet let go of it.
+          var _isGone = !(_ip && _ip.row);
+          if (_ip && _ip.row) { try { _isGone = await rrRemoveRowConfirmed(state.personalSheetId, 'Instruction Sheets', _ip.row, 'Instruction Sheets!A'+_ip.row+':K'+_ip.row, [['','','','','','','','','','','']], { num: _ip.itemNum || '', why: _saleTag }, 'Instruction Sheets list'); } catch(e){ _isGone = false; } }
+          if (state.isData && _isGone) delete state.isData[_gs.sellIs[_j]];
         }
         for (var _k=0; _k<(_gs.ungroupPd||[]).length; _k++) {
           var _up = state.personalData[_gs.ungroupPd[_k]];
@@ -1936,7 +1944,7 @@ async function saveWizardItem() {
       // box was never removed and stranded as an orphan -BOX row. Run this BEFORE
       // the lead row delete so the box's stored row number is still valid.
       if (typeof _cleanupSoldItemBoxes === 'function') {
-        try { await _cleanupSoldItemBoxes((collectionEntry && collectionEntry.itemNum) || itemNum, collectionEntry && collectionEntry.groupId); } catch(e) {}
+        try { await _cleanupSoldItemBoxes((collectionEntry && collectionEntry.itemNum) || itemNum, collectionEntry && collectionEntry.groupId, _saleTag); } catch(e) {}
       }
       // Delete the row from My Collection
       if (collectionEntry?.row) {
@@ -1946,7 +1954,8 @@ async function saveWizardItem() {
         // somebody else's 2343 instead is neither, so refusing is still right.
         const _soldGone = await sheetsDeleteRow(state.personalSheetId, PERSONAL_TAB, collectionEntry.row,
                                                 { itemNum: collectionEntry.itemNum || itemNum,
-                                                  inventoryId: collectionEntry.inventoryId || '' });
+                                                  inventoryId: collectionEntry.inventoryId || '',
+                                                  why: _saleTag });   // v0.9.1944: the copy in Deleted Rows carries the sale's tag
         if (!_soldGone) console.warn('[sold] My Collection row was not removed — it had moved.');
       }
       // Session 176: drop the sold item from state right away so Items-I-Own and the
@@ -1971,11 +1980,15 @@ async function saveWizardItem() {
         // Audit H10: guard 99999 placeholder rows. Try a fresh lookup before write.
         if (fsEntry && fsEntry.row && fsEntry.row !== 99999 && fsEntry.row < 100000) {
           try {
-            await rrVerifiedRowUpdate(state.personalSheetId, 'For Sale', fsEntry.row, `For Sale!A${fsEntry.row}:J${fsEntry.row}`, [['','','','','','','','','','']], { num: fsEntry.itemNum || '', invId: fsEntry.inventoryId || '' }, 'For Sale list');
+            // v0.9.1944: this cleared the listing with NO copy kept — the one
+            // removal in the sale paths the v0.9.1762 archive never saw. Now it
+            // goes through the gate, tagged, so Returned can put the listing back.
+            // …and the listing is only forgotten here once the sheet let go.
+            var _fsGone = await rrRemoveRowConfirmed(state.personalSheetId, 'For Sale', fsEntry.row, `For Sale!A${fsEntry.row}:J${fsEntry.row}`, [['','','','','','','','','','']], { num: fsEntry.itemNum || '', invId: fsEntry.inventoryId || '', why: _saleTag }, 'For Sale list');
+            if (_fsGone) delete state.forSaleData[fsKey];
           } catch (e) {
             console.warn('[H10] For Sale clear failed at row ' + fsEntry.row + ':', e && e.message);
           }
-          delete state.forSaleData[fsKey];
         } else if (fsEntry) {
           // synthetic row — just clean the in-memory entry; sheet row will be tidied on next Sync
           delete state.forSaleData[fsKey];
@@ -2503,6 +2516,8 @@ async function saveWizardItem() {
         salePrice: d.salePrice || '',
         dateSold: d.dateSold || (new Date().toISOString().split('T')[0]),
         notes: d.notes || '',
+        soldTo: d.soldTo || '', soldAt: (d.soldAt || '').trim(),   // v0.9.1944
+        inventoryId: (typeof _soldInvIdForState !== 'undefined' && _soldInvIdForState) || '',
       };
     } else if (tab === 'want') {
       state.wantData[`${itemNum}|${variation}`] = {

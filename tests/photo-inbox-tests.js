@@ -10051,10 +10051,13 @@ META_WRITES.length = 0; TOASTS.length = 0;
       // with the position and cannot be supplied separately, or forgotten.
       // It answers true when the write landed; a stub returning nothing would
       // mean "refused" and the code under test would correctly do nothing.
-      const n = new Function('state', 'personalWriteRow', 'personalBlankRow', 'console',
+      // v0.9.1944: …and through rrPersonalRemoveRow (app.js), which keeps a
+      // copy in Deleted Rows before it blanks — same record-in, true-out shape.
+      const n = new Function('state', 'personalWriteRow', 'personalBlankRow', 'console', 'rrPersonalRemoveRow',
         '"use strict";' + src)(
           { personalData: pdata, personalSheetId: 'S' },
-          (rec) => { blanked.push('R' + rec.row); return true; }, () => [], { warn() {} })(lead, gid);
+          (rec) => { blanked.push('R' + rec.row); return true; }, () => [], { warn() {} },
+          (rec) => { blanked.push('R' + rec.row); return true; })(lead, gid);
       Object.keys(pdata).forEach(k => { if (!(k in pdata)) removed.push(k); });
       return { n, blanked };
     };
@@ -15540,8 +15543,10 @@ META_WRITES.length = 0; TOASTS.length = 0;
         // pop-up (§206) — a census going DOWN because a screen was removed is
         // the healthy direction, and the number stays pinned so the next
         // change still has to be deliberate.
-        ok('234 the sweep really landed — 67 sites write through the one guarded writer',
-           wrapped === 67, String(wrapped));
+        // v0.9.1944: 67 → 68 — Returned (app-pages.js rrSaleReturned) takes the
+        // sale off Sold through rrRemoveRowConfirmed, a copy kept like every other.
+        ok('234 the sweep really landed — 68 sites write through the one guarded writer',
+           wrapped === 68, String(wrapped));
       }
     })();
 
@@ -16381,7 +16386,9 @@ META_WRITES.length = 0; TOASTS.length = 0;
            !/catch\s*\(\s*e\s*\)\s*\{\s*\}/.test(ms), 'empty catch still present');
         ok('238 …and every one of its five cleanups is answered for',
            (ms.match(/rrRemoveRowConfirmed\(/g) || []).length === 4 &&
-           (ms.match(/personalWriteRow\(/g) || []).length === 2,
+           // v0.9.1944: the two collection blanks go through rrPersonalRemoveRow
+           // now (app.js) — a copy kept first, so Returned can put them back.
+           (ms.match(/rrPersonalRemoveRow\(/g) || []).length === 2 && !/personalWriteRow\(/.test(ms),
            'cleanup count moved — check each one still reports back');
         ok('238 …and no list entry is dropped from the screen ahead of the sheet',
            ms.split('\n').filter(l =>
@@ -23270,12 +23277,15 @@ META_WRITES.length = 0; TOASTS.length = 0;
       ok('332 three actions, wired: Sold, Not for sale, Edit',
          /window\._maintFsPartSold = async function/.test(sec) && /window\._maintFsPartUnlist = async function/.test(sec) && /window\._maintFsPartEdit = function/.test(sec)
          && /btn\('_maintFsPartSold'/.test(sec) && /btn\('_maintFsPartUnlist'/.test(sec) && /btn\('_maintFsPartEdit'/.test(sec));
-      ok('332 Mark sold asks the price through the app\u2019s own prompt, defaulting to the asking price',
-         /appPrompt\('Enter the price it sold for\. Leave blank to use the asking price\.', b\.asking \|\| ''/.test(sec));
-      ok('332 the Sold row comes from the ONE builder every sale path uses, appended to Sold!A:T',
-         /_buildSoldRow\(\{ itemNum: b\.partNum \|\| 'PART'/.test(sec) && /sheetsAppend\(state\.personalSheetId, 'Sold!A:T', \[soldRow\]\)/.test(sec));
+      // v0.9.1944: the same Record sale box every sale uses (price, Sold to,
+      // Sold at, date, notes), and the Sold range from SOLD_HEADERS.
+      ok('332 Mark sold asks through the app\u2019s own Record sale box, starting from the asking price',
+         /rrSaleDetailsDialog\(\{ subtitle: [^\n]*price: b\.asking \|\| '', priceHint: true/.test(sec));
+      ok('332 the Sold row comes from the ONE builder every sale path uses, appended to the Sold range',
+         /_buildSoldRow\(\{ itemNum: b\.partNum \|\| 'PART'/.test(sec) && /sheetsAppend\(state\.personalSheetId, 'Sold!A:' \+ soldEndCol\(\), \[soldRow\]\)/.test(sec));
       ok('332 the sale is written BEFORE the bin is touched (a failed bin write cannot lose a sale)',
-         sec.indexOf("sheetsAppend(state.personalSheetId, 'Sold!A:T'") < sec.indexOf("rrVerifiedRowUpdate(state.personalSheetId, BIN_TAB, b.row, BIN_TAB + '!D'"));
+         sec.indexOf("sheetsAppend(state.personalSheetId, 'Sold!A:'") > 0
+         && sec.indexOf("sheetsAppend(state.personalSheetId, 'Sold!A:'") < sec.indexOf("rrVerifiedRowUpdate(state.personalSheetId, BIN_TAB, b.row, BIN_TAB + '!D'"));
       ok('332 the Sold row carries the marker Sold Items keys on, plus what was paid and the photo link',
          /FS_PART_NOTE = 'Part from Parts Bin'/.test(sec) && /pricePaid: b\.price \|\| ''/.test(sec) && /'; photo ' \+ b\.photo/.test(sec));
       ok('332 a single-file Drive link is NOT passed off as a photo FOLDER (photoItem stays blank)',

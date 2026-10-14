@@ -613,7 +613,10 @@ async function rrRemoveRowConfirmed(spreadsheetId, tab, rowNum, range, values, e
   try {
     // v0.9.1762: this shape blanks the row where it stands, which erases it
     // just as surely as a delete does. Same rule — keep a copy or don't remove.
-    if (!(await rrArchiveRowBeforeRemoval(spreadsheetId, tab, rowNum, 'cleared from ' + (what || tab), expect))) return false;
+    // v0.9.1944: a caller may name the reason (expect.why) — a sale tags its
+    // rows so the Returned button can find them again (app-pages.js).
+    const _why = (expect && typeof expect === 'object' && expect.why) ? String(expect.why) : ('cleared from ' + (what || tab));
+    if (!(await rrArchiveRowBeforeRemoval(spreadsheetId, tab, rowNum, _why, expect))) return false;
     return await rrVerifiedRowUpdate(spreadsheetId, tab, rowNum, range, values, expect, what);
   } catch (e) {
     if (typeof showToast === 'function') {
@@ -959,7 +962,7 @@ async function sheetsDeleteRow(spreadsheetId, sheetName, rowNumber, expected) {
   }
   // v0.9.1762: keep a copy before it goes. No copy, no delete — and the row is
   // read here, while it is still the record the guard above just confirmed.
-  if (!(await rrArchiveRowBeforeRemoval(spreadsheetId, sheetName, rowNumber, 'removed', _exp))) return false;
+  if (!(await rrArchiveRowBeforeRemoval(spreadsheetId, sheetName, rowNumber, _exp.why ? String(_exp.why) : 'removed', _exp))) return false;   // v0.9.1944: _exp.why — see rrRemoveRowConfirmed
   // v0.9.985 (perf): any write = data changed — invalidate cached page renders.
   try { window._rrDataRev = (window._rrDataRev || 0) + 1; } catch (e) {}
   // v0.9.1246: a delete moves every row beneath it, so every range write

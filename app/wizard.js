@@ -6391,7 +6391,7 @@ function renderWizardStep() {
     }
     const _skipKeys = new Set(['tab','itemCategory','_photoOnly','_tenderDone','_setDone','tenderMatch','setMatch','setType','unitPower','unit2Power','unit3Power','wantErrorPhotos','photosMasterBox','boxOnly','entryMode','_setId','_rawItemNum','matchedItem','_partialMatches','_partialQuery','_itemGrouping','_fromWantList','_fromWantKey','_returnPage','_manualEntry','_drivePhotos','_setMode','_setGroupId','_setFinalItems','_setItemIndex','_setItemsSaved','_setEntryMode','_resolvedSet','_setLocoNum','_setPrice','_setDate','_setWorth','_setCondition','_setHasBoxChecked','_setWantPhotos','_setPhotoThenSave','_prefilledCondition','_setQEPhotos','_setMemberPhotos','set_hasBox','set_boxCond','set_boxPhotos','set_notes','_suggestions_cache','_biBoxPhotoFile','_idItemPhotoFile','_boxAutoKnown','_completingQuickEntry','_existingGroupId','_fillItemMode','_wizSaveLock','_photoInventoryId','_addPhotoDriveId','_addPhotoDriveIds','_saveComplete','_era','suggestedRoadName','_manualEra','_alsoListForSale','_fromUpgradeList','_fromUpgradeKey','_cleanupWishlistMatches','_suggestedPricePaid','forSale_salePrice','forSale_dateListed','selectedForSaleKey','selectedSoldKey',
       '_photoUploadsInFlight','_identifyMeta','_identifyMfrHints','_identifyScaleHint','_identifyTypeHint','_alreadyOwnedFyi',
-      '_skipAllPhotos','_hasISExisting']);  // v0.9.906 + v1585: internal flags — never review rows
+      '_skipAllPhotos','soldTo','soldAt','_hasISExisting']);  // v0.9.906 + v1585: internal flags — never review rows
     // Skip set_num from summary if it's already shown in the header
     if (wizard.data._resolvedSet || wizard.data.set_num) _skipKeys.add('set_num');
     // Skip notes from summary for tabs that have inline notes on confirm step
@@ -6631,6 +6631,15 @@ function renderWizardStep() {
         + '</div>';
     });
     confirmHtml += '</div>';
+    // v0.9.1944 (Brad: "sold to: ex Bob, sold at: ex York Trainshow"): the same
+    // fields the Record sale box has (app-pages.js rrSaleFieldsHTML), so the
+    // two ways of recording a sale ask the same questions.
+    if (wizard.tab === 'sold' && typeof rrSaleFieldsHTML === 'function') {
+      if (wizard.data.soldAt === undefined && typeof rrSaleShowName === 'function') wizard.data.soldAt = rrSaleShowName();
+      confirmHtml += '<div id="wiz-sale-fields" style="margin-top:0.7rem">'
+        + rrSaleFieldsHTML('wiz-sale', { soldTo: wizard.data.soldTo || '', soldAt: wizard.data.soldAt || '' }, {})
+        + '</div>';
+    }
     // Inline notes for want/forsale/sold confirm — no separate notes step needed
     if (['want','forsale','sold'].includes(wizard.tab)) {
       const _cfNotes = wizard.data.notes || '';
@@ -6639,6 +6648,13 @@ function renderWizardStep() {
     }
     confirmHtml += '</div>';
     body.innerHTML = confirmHtml;
+    (function () {
+      var sf = document.getElementById('wiz-sale-fields');
+      if (!sf || typeof rrSaleFieldsWire !== 'function') return;
+      rrSaleFieldsWire(sf, 'wiz-sale', function (id) { wizard.data.soldTo = id; });
+      var at = sf.querySelector('#wiz-sale-at');
+      if (at) at.addEventListener('input', function () { wizard.data.soldAt = at.value; });
+    })();
   }
 
 }

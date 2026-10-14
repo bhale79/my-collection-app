@@ -3605,21 +3605,28 @@
     var b = (state.partsBin || []).find(function (x) { return x.id === id; });
     if (!b || _fsPartBusy) return;
     var cur = (typeof _currencySymbol === 'function') ? _currencySymbol() : '$';
-    var price = await appPrompt('Enter the price it sold for. Leave blank to use the asking price.', b.asking || '', { title: 'Record sale \u2014 ' + rrEsc(b.desc || b.partNum), type: 'number', prefix: cur, ok: 'Mark sold' });
-    if (price === null || price === undefined) return;
-    price = String(price).trim() || String(b.asking || '').trim();
+    // v0.9.1944: the same Record sale box as every other sale — price, who,
+    // where, when, notes (app-pages.js rrSaleDetailsDialog). The Sold row's
+    // notes still START with FS_PART_NOTE: that is how a part sale is known.
+    var _det = (typeof rrSaleDetailsDialog === 'function')
+      ? await rrSaleDetailsDialog({ subtitle: (b.partNum ? b.partNum + ' \u2014 ' : '') + (b.desc || ''), price: b.asking || '', priceHint: true, notes: b.notes || '' })
+      : null;
+    if (!_det) return;
+    var price = String(_det.price || '').trim() || String(b.asking || '').trim();
     _fsPartBusy = true;
     try {
-      var today = new Date().toISOString().split('T')[0];
-      var note = FS_PART_NOTE + (b.desc ? ' \u2014 ' + b.desc : '') + (b.notes ? '; ' + b.notes : '') + (b.photo ? '; photo ' + b.photo : '');
+      var today = _det.dateSold || new Date().toISOString().split('T')[0];
+      var note = FS_PART_NOTE + (b.desc ? ' \u2014 ' + b.desc : '') + (_det.notes ? '; ' + _det.notes : '') + (b.photo ? '; photo ' + b.photo : '');
       // 1 — the sale, first and unconditionally
       var soldRow = _buildSoldRow({ itemNum: b.partNum || 'PART', variation: '', copy: '1', pricePaid: b.price || '', salePrice: price, dateSold: today,
-                                    notes: note, inventoryId: '', manufacturer: '', src: { description: b.desc || '', datePurchased: b.dateAcq || '' } });
-      var apRow = (await sheetsAppend(state.personalSheetId, 'Sold!A:T', [soldRow])) || 0;
+                                    notes: note, inventoryId: '', manufacturer: '', soldTo: _det.soldTo, soldAt: _det.soldAt,
+                                    src: { description: b.desc || '', datePurchased: b.dateAcq || '' } });
+      var apRow = (await sheetsAppend(state.personalSheetId, 'Sold!A:' + soldEndCol(), [soldRow])) || 0;
       var k = (typeof _newSoldKey === 'function') ? _newSoldKey() : ('sold-opt-' + Date.now());
       state.soldData = state.soldData || {};
       state.soldData[k] = { row: apRow, key: k, itemNum: b.partNum || 'PART', variation: '', priceItem: b.price || '', salePrice: price, dateSold: today,
-                            notes: note, photoItem: '', description: b.desc || '', datePurchased: b.dateAcq || '', inventoryId: '', manufacturer: '' };
+                            notes: note, photoItem: '', description: b.desc || '', datePurchased: b.dateAcq || '', inventoryId: '', manufacturer: '',
+                            soldTo: _det.soldTo || '', soldAt: _det.soldAt || '' };
       // 2 — then the bin: one fewer, gone at zero
       var q = Math.max(0, (b.qty || 0) - 1);
       var ok;

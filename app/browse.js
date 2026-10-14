@@ -3496,6 +3496,9 @@ function _ncShowFsSoldModal(type, key, action) {
     +     '<input type="date" id="_nc-date" value="' + today + '" '
     +       'style="width:100%;padding:0.5rem 0.7rem;border-radius:7px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-family:var(--font-body);font-size:0.9rem;outline:none;box-sizing:border-box">'
     +   '</div>'
+    +   (isSold && typeof rrSaleFieldsHTML === 'function'   // v0.9.1944: Sold to / Sold at / Notes, the same fields every sale asks
+        ? '<div id="_nc-sale-fields">' + rrSaleFieldsHTML('nc-sale', { soldAt: rrSaleShowName(), notes: title }, { notes: true }) + '</div>'
+        : '')
     +   (isSold
         ? '<div style="margin-bottom:1.1rem">'
         +   '<div style="font-size:0.72rem;color:var(--text-dim);margin-bottom:0.2rem;text-transform:uppercase;letter-spacing:0.06em">Also remove from collection?</div>'
@@ -3514,11 +3517,13 @@ function _ncShowFsSoldModal(type, key, action) {
     + '</div>';
   document.body.appendChild(ov);
   if (window.BackStack && BackStack.wire) BackStack.wire(ov); // v0.9.807 TODO-012: device Back closes this pop-up
+  if (isSold && typeof rrSaleFieldsWire === 'function') rrSaleFieldsWire(ov, 'nc-sale');   // v0.9.1944
 
   document.getElementById('_nc-save').onclick = async function() {
     const price = document.getElementById('_nc-price').value;
     const date  = document.getElementById('_nc-date').value;
     const removeIt = isSold ? document.getElementById('_nc-rm-yes').checked : false;
+    const _det = (isSold && typeof rrSaleFieldsRead === 'function') ? rrSaleFieldsRead(ov, 'nc-sale') : { notes: title };
     ov.remove();
     try {
       if (isSold) {
@@ -3532,19 +3537,20 @@ function _ncShowFsSoldModal(type, key, action) {
               pricePaid: '',
               salePrice: price,
               dateSold: date,
-              notes: title,
+              notes: _det.notes || '',
               inventoryId: '',
               manufacturer: ((typeof _brandOfItem === 'function' && _brandOfItem(ids.itemNum)) || (typeof _getEraManufacturer === 'function' ? _getEraManufacturer() : '')),
+              soldTo: _det.soldTo || '', soldAt: _det.soldAt || '',
             })
           : [ ids.itemNum, ids.variation, '1', condition, '', price, date, title, '',
               ((typeof _brandOfItem === 'function' && _brandOfItem(ids.itemNum)) || (typeof _getEraManufacturer === 'function' ? _getEraManufacturer() : '')),
               '','','','','','','','','','' ];
-        await sheetsAppend(state.personalSheetId, 'Sold!A:T', [row]);
+        await sheetsAppend(state.personalSheetId, 'Sold!A:' + soldEndCol(), [row]);
         // v0.9.1288 (R3-3): the sale is recorded either way — that append is
         // already done. Only the "and take it out of my collection" half can
         // still be refused, so say which of the two happened rather than
         // showing one checkmark that covers for both.
-        var _srcGone = removeIt ? await _ncRemoveSourceRow(type, key) : true;
+        var _srcGone = removeIt ? await _ncRemoveSourceRow(type, key, rrSaleTag(ids.itemNum, date)) : true;
         showToast(_srcGone
           ? '✓ Marked as sold'
           : '✓ Marked as sold — but it is still in your collection. Refresh and remove it again.', 5500);
@@ -3578,7 +3584,7 @@ function _ncShowFsSoldModal(type, key, action) {
 // piece was dropped from the screen either way, so a refused removal looked
 // like the item had left the collection when it had not. The caller now says
 // which of the two happened.
-async function _ncRemoveSourceRow(type, key) {
+async function _ncRemoveSourceRow(type, key, why) {   // v0.9.1944: why — the sale's tag (rrSaleTag) for Deleted Rows
   const entry = _getNonLionelEntry(type, key);
   if (!entry) return false;
   const sheetMap = {
@@ -3593,7 +3599,7 @@ async function _ncRemoveSourceRow(type, key) {
   if (entry.row && typeof entry.row === 'number' && entry.row >= 3 && entry.row < 1000000) {
     const lastCol = String.fromCharCode(64 + cfg.cols);
     const blanks = [Array(cfg.cols).fill('')];
-    if (!(await rrRemoveRowConfirmed(state.personalSheetId, cfg.name, entry.row, cfg.name + '!A' + entry.row + ':' + lastCol + entry.row, blanks, { num: entry.setNum || entry.itemNum || '' }, 'collection'))) return false;
+    if (!(await rrRemoveRowConfirmed(state.personalSheetId, cfg.name, entry.row, cfg.name + '!A' + entry.row + ':' + lastCol + entry.row, blanks, { num: entry.setNum || entry.itemNum || '', why: why || '' }, 'collection'))) return false;
   }
   // Remove from local state
   if (type === 'science')      delete state.scienceData[key];

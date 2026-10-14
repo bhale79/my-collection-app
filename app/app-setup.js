@@ -527,7 +527,7 @@ async function initPersonalSheet(sheetId) {
 
   // Write headers to all tabs
   await sheetsSetupUpdate(sheetId, 'Sold!A1:A1',      [['Sold']]);
-  await sheetsSetupUpdate(sheetId, 'Sold!A2:T2',      [SOLD_HEADERS]);
+  await sheetsSetupUpdate(sheetId, 'Sold!A2:' + soldEndCol() + '2',      [SOLD_HEADERS]);
   await sheetsSetupUpdate(sheetId, 'For Sale!A1:A1',   [['For Sale']]);
   await sheetsSetupUpdate(sheetId, 'For Sale!A2:J2',   [FOR_SALE_HEADERS]);
   // Want-Upgrade combined (Session 161+): 9-col schema with List Type column.
@@ -563,7 +563,7 @@ async function ensurePersonalHeaders(sheetId) {
       // Write headers for newly created tabs
       if (!existingTabs.includes('Sold')) {
         await sheetsSetupUpdate(sheetId, 'Sold!A1:A1', [['Sold']]);
-        await sheetsSetupUpdate(sheetId, 'Sold!A2:T2', [SOLD_HEADERS]);
+        await sheetsSetupUpdate(sheetId, 'Sold!A2:' + soldEndCol() + '2', [SOLD_HEADERS]);
       }
       if (!existingTabs.includes('For Sale')) {
         await sheetsSetupUpdate(sheetId, 'For Sale!A1:A1', [['For Sale']]);
@@ -599,7 +599,7 @@ async function ensurePersonalHeaders(sheetId) {
     const _R_PD = PERSONAL_TAB + '!A2:' + _pdEndHdr + '2';
     const _R_TITLE = PERSONAL_TAB + '!A1';
     const _R_WU = 'Want-Upgrade List!A2:I2';
-    const _R_SOLD = 'Sold!A2:T2';
+    const _R_SOLD = 'Sold!A2:' + soldEndCol() + '2';
     const _R_FS = 'For Sale!A2:J2';
     var _hdrVals = {};
     try {
@@ -658,7 +658,7 @@ async function ensurePersonalHeaders(sheetId) {
     // Repair Sold / For Sale / Want List headers (Manufacturer column added — new users ok,
     // older users need this to pick up the schema change without data loss).
     var _tabsToCheck = [
-      { name: 'Sold',      range: 'Sold!A2:T2',      headers: SOLD_HEADERS     },
+      { name: 'Sold',      range: 'Sold!A2:' + soldEndCol() + '2',      headers: SOLD_HEADERS     },
       { name: 'For Sale',  range: 'For Sale!A2:J2',  headers: FOR_SALE_HEADERS },
 
     ];

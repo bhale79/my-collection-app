@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.1943';
+const APP_VERSION = 'v0.9.1944';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -3040,6 +3040,44 @@ const RR_GPHOTOS_WAIT = {
   err_none: 'No photo was picked',
   err_download: 'Could not fetch that photo from Google Photos \u2014 try again',
   errOther: 'Google Photos picker error{status} \u2014 try again',
+};
+// v0.9.1944 — RECORDING A SALE, AND TAKING ONE BACK (Brad, 2026-10-14):
+// "on record a sale, we track sold price, but we need to be able to track sold
+// to: ex Bob, sold at: ex York Trainshow, sold date:, and notes ex combined with
+// the 6464-150" — and "we also need a returned button that puts it back into
+// the sale list". Every word the sale dialog (app-pages.js rrSaleDetailsDialog),
+// the sell wizard's last screen and the Returned button say lives here.
+const RR_SALE_TEXT = {
+  title: 'Record sale',
+  price: 'Sold for',
+  priceHint: 'Leave blank to use the asking price.',
+  soldTo: 'Sold to',
+  soldToNone: '\u2014 Not tracked \u2014',
+  soldAt: 'Sold at',
+  soldAtPh: 'Tap a place below, or type one',
+  // v0.9.1944 (Brad: "the sold at needs to remember these locations cause most
+  // will be ebay, York Train show, fleamarket, marketplace etc."). The buttons
+  // under Sold At start with these; every place he types becomes a button too,
+  // the most-used first (read from the Sold sheet, so every device agrees).
+  soldAtStart: ['eBay', 'York Train Show', 'Flea market', 'Marketplace'],
+  soldAtButtons: 8,
+  date: 'Date sold',
+  notes: 'Notes',
+  notesPh: 'e.g. sold together with the 6464-150',
+  ok: 'Mark sold',
+  cancel: 'Cancel',
+  contactsLoading: 'Contacts are still loading \u2014 try again in a moment',
+  // Returned (the sold item's page)
+  returned: '\u21a9 Returned',
+  returnedTitle: 'Item returned',
+  returnedAsk: 'Put No. {num} back in My Collection and back on your For Sale list? The sale comes off Sold Items. A copy of it is kept in Deleted Rows.',
+  returnedOk: 'Put it back',
+  askPriceTitle: 'Asking price',
+  askPrice: 'This sale was recorded before the app kept a copy of the listing. What asking price should it go back on the For Sale list at?',
+  returnedDone: '\u2713 No. {num} is back in your collection and on your For Sale list',
+  returnedPartial: 'No. {num} is back, but {what}. Nothing was lost \u2014 the sale is still on Sold Items. Refresh and try Returned again.',
+  returnedBusy: 'Putting it back\u2026',
+  returnedPart: 'Parts go back through the Parts Bin, not here.',
 };
 const RR_PIC_FIRST = {
   button: '\ud83d\udcf7 Add a picture first',
