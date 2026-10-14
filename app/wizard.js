@@ -8208,7 +8208,10 @@ function _wizPicFirstSync() {
     '<div class="wiz-picfirst-acts">' +
       '<button type="button" data-pf="change">Change</button>' +
       '<button type="button" data-pf="remove">Remove</button>' +
-    '</div>';
+    '</div>' +
+    // v0.9.1950 (Brad: "have read picture button under the change/remove
+    // buttons"): Photo ID on THIS picture, no second pick.
+    '<button type="button" data-pf="read" class="wiz-picfirst-read">' + RR_PIC_FIRST.readBtn + '</button>';
   var im = p.querySelector('img');
   if (im && url) im.src = url;
   p.querySelector('.wiz-picfirst-img').onclick = function () {
@@ -8216,7 +8219,17 @@ function _wizPicFirstSync() {
   };
   p.querySelector('[data-pf="change"]').onclick = function () { _wizPicFirstChoose(); };
   p.querySelector('[data-pf="remove"]').onclick = function () { _wizPicFirstRemove(); };
+  p.querySelector('[data-pf="read"]').onclick = function () {
+    if (typeof _wizScanBarcode === 'function') _wizScanBarcode({ read: true });
+  };
 }
+// v0.9.1950 (Brad: "you hit photo id and then you have to select the photo
+// again"): the picture this add already holds, for Photo ID to open on —
+// or null, and Photo ID asks for one as it always has.
+function _wizPicFirstFile() {
+  return _wizPicFirstHas() ? wizard.data._idItemPhotoFile : null;
+}
+window._wizPicFirstFile = _wizPicFirstFile;
 if (typeof window !== 'undefined') {
   window._wizPicFirstBtn = _wizPicFirstBtn;
   window._wizPicFirstPick = _wizPicFirstPick;

@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.1949';
+const APP_VERSION = 'v0.9.1950';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -3117,8 +3117,18 @@ const RR_PIC_FIRST = {
   takePhoto: '\ud83d\udcf7 Take a picture',
   fromPhone: '\ud83d\uddbc\ufe0f Pick from this phone',
   fromGPhotos: '\u2601\ufe0f From Google Photos',
+  // v0.9.1950 (Brad: "have read picture button under the change/remove
+  // buttons"): reads the picture already added \u2014 no second pick.
+  readBtn: '\ud83d\udd0d Read picture',
   sideMinWidth: 980,     // the window must be at least this wide for the side view
   sideWidthPx: 300,      // the side view's width
+};
+
+// v0.9.1950 — Photo ID's closer look. When the quick look at the lettering
+// finds no number, the multi-pass reader (photo-inbox.js rrFreeReadBlob) gets
+// the same picture. Still free; only a catalog-confirmed number is kept.
+const RR_PHOTO_ID_CLOSER = {
+  reading: 'Lettering: reading closer (free)…',
 };
 
 // v0.9.1937 — WHERE a picture handed over from earlier lands at the Photos step

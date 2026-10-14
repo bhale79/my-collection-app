@@ -3001,6 +3001,12 @@ html[data-theme="high-contrast"] button[style*="#e74c3c"], html[data-theme="high
   border: 1px solid var(--border); background: var(--surface2); color: var(--text);
   font-family: var(--font-body); font-size: 0.82rem; font-weight: 600;
 }
+/* v0.9.1950 — Read picture, under Change / Remove */
+.wiz-picfirst-read {
+  width: 100%; padding: 0.55rem; border-radius: 8px; cursor: pointer;
+  border: 1.5px solid var(--accent); background: var(--accent); color: var(--on-accent, #fff);
+  font-family: var(--font-body); font-size: 0.85rem; font-weight: 700;
+}
 
 /* v0.9.1930 — where is the picture? (wizard.js _wizPicFirstChoose) */
 .wiz-picfirst-choose {

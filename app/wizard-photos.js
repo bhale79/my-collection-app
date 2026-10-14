@@ -2493,12 +2493,18 @@ function _eraForMfr(mfr) {
   return map[m] || '';
 }
 
-function _wizScanBarcode() {
+function _wizScanBarcode(opts) {
   if (typeof window.openBarcodeScanner !== 'function') {
     showToast && showToast('Barcode scanner not loaded', 3000, true);
     return;
   }
   const eraHint = (wizard && wizard.data && wizard.data._era) || '';
+  // v0.9.1950 (Brad: "if i hit photo id, should bring up the reader and google
+  // search using the uploaded picture"): a picture added first is the one
+  // Photo ID opens on — the crop screen with Photo ID and Google Lens — and
+  // the Read picture button ({ read: true }) reads it straight away.
+  var _heldPic = (typeof window._wizPicFirstFile === 'function') ? window._wizPicFirstFile() : null;
+  var _start = _heldPic ? { file: _heldPic, read: !!(opts && opts.read === true) } : null;
   (window.openBoxIdentify || window.openBarcodeScanner)(function(result) {
     // On successful scan: fill the item number field and advance if possible
     if (!wizard || !wizard.data) return;
@@ -2594,7 +2600,7 @@ function _wizScanBarcode() {
     }
   }, function() {
     // Cancelled — user can type the item# instead
-  }, eraHint);
+  }, eraHint, _start);
 }
 
 // ══════════════════════════════════════════════════════════════

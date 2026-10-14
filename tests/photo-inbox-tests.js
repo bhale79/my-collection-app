@@ -18824,7 +18824,10 @@ META_WRITES.length = 0; TOASTS.length = 0;
       // ── the device Back button survives a second pass ──
       ok('270 the identify overlay re-arms its Back entry each pass',
          // v0.9.1910: the capture is timed as YOUR time — still re-armed first
-         /_biArmBack\(\);\s*\n\s*var cap = await (?:_rtWait\('camera screen', )?_biCapture\(\)\)?;/.test(bc));
+         // v0.9.1950: a picture the add already holds can stand in for the
+         // camera on the first pass — the re-arm still comes first, every pass
+         (/_biArmBack\(\);\s*\n\s*var cap = await (?:_rtWait\('camera screen', )?_biCapture\(\)\)?;/.test(bc) ||
+          /_biArmBack\(\);\s*\n\s*var cap = null, _fromStart = false;[\s\S]{0,700}?if \(!cap\) cap = await _rtWait\('camera screen', _biCapture\(\)\);/.test(bc)));
       ok('270 …guarded by has() so re-arming cannot pile up history entries',
          /window\.BackStack\.has\('box-identify'\)\) return;/.test(bc));
       ok('270 …and BackStack really does expose has()',

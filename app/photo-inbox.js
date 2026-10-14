@@ -10769,6 +10769,12 @@
     if (out) out.raw = String(text || '').replace(/\s+/g, ' ').trim().slice(0, 180);
     return out;
   }
+  // v0.9.1950 (Brad's Woodruff 2-pack, "still can't read it"): Photo ID read
+  // the lettering ONE way and found nothing, while this reader — several ways,
+  // each checked against the catalog — read 1927690 off the same picture.
+  // ONE strong free reader for the whole app: Photo ID asks it here when its
+  // quick look comes back empty (barcode.js _biPipelineCore).
+  window.rrFreeReadBlob = _freeReadBlob;
 
   // ══ What the car SAYS versus what the number claims ══════════════════════
   // v0.9.1077b — this used to run only when the numbers had failed outright,

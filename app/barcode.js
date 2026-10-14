@@ -3575,6 +3575,24 @@ window.eraSupportsBarcode = eraSupportsBarcode;
     if (ocrText && !(rawCands || []).length && !(opts && opts.ignoreNums)) {
       try { rawCands = await _bcSevenDigitInCatalog(ocrText); } catch (e7) { rawCands = []; }
     }
+    // v0.9.1950 (Brad, same box: "still can't read it"). The quick look above
+    // reads the lettering ONE way; on his photo — black print on a red label,
+    // screen stripes across it — it found nothing at all, so the 7-digit rule
+    // never had a number to keep. The Photo Inbox's reader looks several ways
+    // (close-up thirds, flipped colors, digits only, color by color, white
+    // print) and stops when the catalog confirms one: it read 1927690 off the
+    // same picture. So when the quick look finds no number, the same picture
+    // goes to it before Photo ID gives up. Free; a number the catalog does not
+    // confirm is not kept. tests/photo_closer_1950_tests.js.
+    if (!(rawCands || []).length && !(opts && opts.ignoreNums) && typeof window.rrFreeReadBlob === 'function') {
+      st('ocr', '<span class="bi-spin">⟳</span>', RR_PHOTO_ID_CLOSER.reading);
+      try {
+        var _frBlob = await new Promise(function (res) { workCanvas.toBlob(res, 'image/jpeg', 0.95); });
+        var _fr = _frBlob ? await _rtTime('label read (closer)', window.rrFreeReadBlob(_frBlob, 2400, null)) : null;
+        if (_fr && _fr.matched && _fr.num) rawCands = [{ raw: String(_fr.num), mfr: '' }];
+      } catch (eFR) {}
+      if (_biStop) return { __biCancel: true };
+    }
     // v0.9.691: "Not this — identify the item by AI" re-run: printed numbers
     // in frame belong to NEIGHBORING items — ignore them all.
     if (opts && opts.ignoreNums) rawCands = [];
@@ -3844,7 +3862,28 @@ window.eraSupportsBarcode = eraSupportsBarcode;
   }
 
   // ── Public entry ──
-  async function openBoxIdentify(onScanned, onCancel, eraHint) {
+  // v0.9.1950 (Brad: "if you pick the add photo first, you can't use the free
+  // reader, you hit photo id and then you have to select the photo again"):
+  // start = { file, read }. With a file, the first pass skips the camera /
+  // picker and opens on that picture — the crop screen, with Photo ID and
+  // Google Lens. read:true (the "Read picture" button) goes straight to
+  // Photo ID on the whole picture. Retake still opens the camera as always.
+  function _biFileToCanvas(f) {
+    return new Promise(function (resolve) {
+      var img = new Image(), u = '';
+      img.onload = function () {
+        var c = document.createElement('canvas');
+        c.width = img.naturalWidth; c.height = img.naturalHeight;
+        c.getContext('2d').drawImage(img, 0, 0);
+        try { URL.revokeObjectURL(u); } catch (e) {}
+        resolve(c);
+      };
+      img.onerror = function () { try { URL.revokeObjectURL(u); } catch (e) {} resolve(null); };
+      try { u = URL.createObjectURL(f); img.src = u; } catch (e) { resolve(null); }
+    });
+  }
+  async function openBoxIdentify(onScanned, onCancel, eraHint, start) {
+    var _startFile = (start && start.file) || null, _startRead = !!(start && start.read);
     // v0.9.686 (Brad): device/browser BACK closes the identify overlay like
     // Cancel does, instead of navigating the app away underneath it.
     _biOnCancel = onCancel || null;
@@ -3877,7 +3916,14 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         // Re-arm each pass — a no-op unless a _biKill() popped it (which is
         // exactly the 'rescan'/'retake' case this fixes).
         _biArmBack();
-        var cap = await _rtWait('camera screen', _biCapture());
+        var cap = null, _fromStart = false;
+        if (_startFile) {
+          var _sc = await _rtTime('photo prep', _biFileToCanvas(_startFile));
+          _startFile = null;   // one pass only: Retake opens the camera
+          if (_sc) { cap = { raw: _sc, view: _sc, lockedBc: null }; _fromStart = true; }
+          else if (typeof showToast === 'function') showToast('That picture could not be opened — pick it again', 3000, true);
+        }
+        if (!cap) cap = await _rtWait('camera screen', _biCapture());
         if (!cap) { _biKill(); if (onCancel) onCancel(); return; }
         // v0.9.1913: the barcode already named it (Research) — straight to
         // the result. Several rows → the same pick list the label path uses.
@@ -3960,7 +4006,9 @@ window.eraSupportsBarcode = eraSupportsBarcode;
           else if (onCancel) onCancel();
           return;
         }
-        var cr = await _rtWait('crop screen', _biCrop(cap.view, cap.lockedBc));
+        var cr = (_fromStart && _startRead) ? { work: cap.view, action: 'go' }
+          : await _rtWait('crop screen', _biCrop(cap.view, cap.lockedBc));
+        _startRead = false;
         if (cr.action === 'retake') continue;
         if (cr.action === 'cancel') { _biKill(); if (onCancel) onCancel(); return; }
         if (cr.action === 'lens') {
@@ -3998,7 +4046,12 @@ window.eraSupportsBarcode = eraSupportsBarcode;
         // Box shot → carry the photo so the wizard can prefill has-box and
         // auto-attach it as the Box photo (Brad: "if I photographed the label,
         // I obviously have a box — and that photo IS the box detail picture").
-        if (res && res._boxPhoto) {
+        // v0.9.1950: a picture the add already holds ("Add a picture first")
+        // is not handed back as a second copy — it already goes in as the
+        // first photo. The box answer (has a box) is still carried.
+        if (_fromStart) {
+          if (res) res._fromHeldPicture = true;
+        } else if (res && res._boxPhoto) {
           try { res._boxPhotoFile = await _rtTime('photo prep', _biCanvasToFile(cr.work, 'box-label.jpg')); } catch (eF) {}
         } else if (res) {
           // v0.9.811 (TODO-011): item shot (not a box) — carry it too, so the
@@ -4039,7 +4092,8 @@ window.eraSupportsBarcode = eraSupportsBarcode;
           var resA = await _biPipeline(cap.view || cap.raw, cr.work, null, eraHint, { ignoreNums: true, forceAi: true });   // v0.9.1473: explicit choice = consent to spend
           if (resA && resA.__biCancel) { _biKill(); if (onCancel) onCancel(); return; }   // v0.9.897
           if (resA && !resA.__biFail) {
-            if (resA._boxPhoto) { try { resA._boxPhotoFile = await _rtTime('photo prep', _biCanvasToFile(cr.work, 'box-label.jpg')); } catch (eF3) {} }
+            if (_fromStart) resA._fromHeldPicture = true;   // v0.9.1950: no second copy
+            else if (resA._boxPhoto) { try { resA._boxPhotoFile = await _rtTime('photo prep', _biCanvasToFile(cr.work, 'box-label.jpg')); } catch (eF3) {} }
             else { try { resA._itemPhotoFile = await _rtTime('photo prep', _biCanvasToFile(cr.work, 'identify-shot.jpg')); } catch (eF4) {} } // v0.9.811 TODO-011
             _biKill();
             res = resA;
