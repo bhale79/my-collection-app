@@ -2373,6 +2373,27 @@ if (typeof window !== 'undefined') {
   window.rrSavedRecord = rrSavedRecord;
 }
 
+// v0.9.1947 — THE way to read one For Sale row into a listing. The loader
+// used it inline; Returned (app-pages.js) needs the same thing for the row it
+// just put back, so the list can show it without waiting for a reload. One
+// reader, so the two can never disagree about a column.
+//   -> { row, itemNum, …, inventoryId, manufacturer, _key }  (the storage key)
+function rrForSaleEntryFromRow(r, rowNum) {
+  r = r || [];
+  // Phase 3j: coerce numeric-from-UNFORMATTED_VALUE fields to strings
+  const _s = (v) => (v !== null && v !== undefined && v !== '') ? String(v) : '';
+  const entry = {
+    row: rowNum, itemNum: _s(r[0]), variation: _s(r[1]),
+    condition: _s(r[2]), askingPrice: _s(r[3]), dateListed: _s(r[4]),
+    notes: _s(r[5]), originalPrice: _s(r[6]), estWorth: _s(r[7]),
+    inventoryId: _s(r[8]),
+    manufacturer: _s(r[9]) || 'Lionel',
+  };
+  entry._key = entry.inventoryId || ('legacy-row-' + rowNum);
+  return entry;
+}
+if (typeof window !== 'undefined') window.rrForSaleEntryFromRow = rrForSaleEntryFromRow;
+
 async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
   // Use temporary objects — only commit to state if fetch succeeds
   // This prevents a failed/slow fetch from wiping items that were just saved
@@ -2543,15 +2564,7 @@ async function _loadPersonalFromSheets(sheetId, forceOverwrite) {
   (forSaleRes.values || []).forEach((r, idx) => {
     if (!r[0] || r[0] === 'Item Number') return;
     const _row = idx + 3;
-    // Phase 3j: coerce numeric-from-UNFORMATTED_VALUE fields to strings
-    const _s = (v) => (v !== null && v !== undefined && v !== '') ? String(v) : '';
-    const entry = {
-      row: _row, itemNum: _s(r[0]), variation: _s(r[1]),
-      condition: _s(r[2]), askingPrice: _s(r[3]), dateListed: _s(r[4]),
-      notes: _s(r[5]), originalPrice: _s(r[6]), estWorth: _s(r[7]),
-      inventoryId: _s(r[8]),
-      manufacturer: _s(r[9]) || 'Lionel',
-    };
+    const entry = rrForSaleEntryFromRow(r, _row);   // v0.9.1947: one reader — Returned builds its entry with it too
     // v0.9.1251 (row-identity audit, finding 8): mint the storage key ONCE and
     // carry it on the entry. It used to be recomputed later by _fsEntryKey()
     // from entry.row — but _adjustRowsAfterDelete mutates entry.row in place

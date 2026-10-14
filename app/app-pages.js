@@ -1470,6 +1470,7 @@ function buildSoldPage() {
 
   // Enrich with master data (with era filter)
   let soldEntries = Object.values(state.soldData)
+    .filter(sd => !(sd && sd._returnBusy))   // v0.9.1947: being taken back right now — off the list the moment Returned is pressed
     // v0.9.1691: a sold PART is not a catalog item — the era filter would hide
     // it everywhere but "All eras". Its Sold row says what it is; let it through.
     .filter(sd => /^Part from Parts Bin/.test(String(sd.notes || '')) || typeof _isInCurrentEra !== 'function' || _isInCurrentEra(sd.itemNum))
@@ -1624,7 +1625,7 @@ function buildSoldPage() {
     }).join('') : '<tr><td colspan="8"><div class="empty-state"><div class="empty-icon">💰</div><p>No sold items yet</p></div></td></tr>';
   }
 
-  var _ns = document.getElementById('nav-sold'); if (_ns) _ns.textContent = Object.keys(state.soldData).length;
+  var _ns = document.getElementById('nav-sold'); if (_ns) _ns.textContent = Object.values(state.soldData).filter(function (x) { return !(x && x._returnBusy); }).length;
 }
 
 // v0.9.1944: "to Bob · York Train Show" under a sale on the Sold list — escaped.
@@ -2063,6 +2064,7 @@ function buildForSalePage() {
   // His own import flagged 160 items for sale with no price and left him no
   // way to work through them. A promise on screen has to be true.
   let fsEntries = Object.values(state.forSaleData).filter(fs => {
+    if (fs && fs._saleBusy) return false;   // v0.9.1947: being sold right now — off the list the moment Mark sold is pressed
     if (state._fsNeedsPrice && parseFloat(fs.askingPrice) > 0) return false;
     // Grouped companions (box / instruction sheet) fold into their lead —
     // show and count the group as ONE item, like the collection list.
@@ -2681,7 +2683,10 @@ async function rrSaleFindSoldRow(sd) {
   var cell = function (r, i) { return String(r[i] == null ? '' : r[i]).trim(); };
   var hits = [];
   ((got && got.values) || []).forEach(function (r, i) {
-    if (!r || cell(r, 0).replace(/^'/, '') !== num) return;
+    // \x27 is the leading apostrophe that keeps Sheets from reading "800" as a
+    // number — written as a code so no quote mark sits inside the pattern
+    // (photo-inbox section 238 reads this file and takes one for a string).
+    if (!r || cell(r, 0).replace(/^\x27/, '') !== num) return;
     if (cell(r, iId) !== invId) return;
     hits.push({ row: i + 3, date: _rrSaleISODate(r[iDate]), price: parseFloat(r[iPrice]), cells: r });
   });
@@ -2705,6 +2710,35 @@ async function rrSaleFindSoldRow(sd) {
   return { why: 'the sale on the Sold sheet no longer matches this one' };
 }
 if (typeof window !== 'undefined') { window.rrSaleFindSoldRow = rrSaleFindSoldRow; window._rrSaleISODate = _rrSaleISODate; }
+
+// v0.9.1947 (Brad: "both screens should quickly change back to the sale or
+// sold list and not wait on anything to change"). A listing being sold, or a
+// sale being taken back, is hidden from its list the moment the button is
+// pressed — and comes back on its own if the sheet refuses. The mark is
+// NON-ENUMERABLE on purpose: the device copy of the lists (_cachePersonalData,
+// JSON) never saves it, so a mark can never outlive the moment and hide an
+// item for good.
+function _rrBusyMark(obj, flag, on) {
+  if (!obj) return;
+  if (on) Object.defineProperty(obj, flag, { value: true, configurable: true, enumerable: false, writable: true });
+  else if (Object.prototype.hasOwnProperty.call(obj, flag)) delete obj[flag];
+}
+// The lists, read FRESH from the sheet in the background and redrawn. Not
+// loadPersonalData — that puts the device's saved copy back first (taken before
+// the change, so the sale just taken back reappeared) and then waits up to
+// five minutes before asking the sheet.
+function _rrSaleRefreshLists() {
+  if (typeof _loadPersonalFromSheets !== 'function' || !state || !state.personalSheetId) return Promise.resolve(false);
+  // kept on window so a caller (or a test) can wait for it to land
+  return (window._rrSaleRefreshing = _loadPersonalFromSheets(state.personalSheetId, true).then(function () {
+    try { if (typeof _cachePersonalData === 'function') _cachePersonalData(); } catch (e) {}
+    try { buildSoldPage(); } catch (e) {}
+    try { buildForSalePage(); } catch (e) {}
+    try { if (typeof buildDashboard === 'function') buildDashboard(); } catch (e) {}
+    return true;
+  }).catch(function (e) { console.warn('[sale] background refresh:', e && e.message); return false; }));
+}
+if (typeof window !== 'undefined') { window._rrBusyMark = _rrBusyMark; window._rrSaleRefreshLists = _rrSaleRefreshLists; }
 
 // ── Returned ────────────────────────────────────────────────────────────────
 // Puts the sold copy back in My Collection and back on the For Sale list, then
@@ -2763,10 +2797,15 @@ async function rrSaleReturned(key) {
         prefix: (typeof _currencySymbol === 'function' ? _currencySymbol() : '$'), ok: T.returnedOk });
       if (asking === null) return;   // nothing has been written
     }
+    // v0.9.1947: back to the Sold list NOW, the sale already off it. The
+    // writes below run behind it; a refusal puts the sale back on the list.
+    _rrBusyMark(sd, '_returnBusy', true);
+    try { if (typeof showPage === 'function') showPage('sold'); buildSoldPage(); } catch (e) {}
     if (typeof showToast === 'function') showToast(T.returnedBusy || '', 2500);
 
     // 3 — put it back
     var fails = [], collOk = false, fsOk = !!fsListed;
+    var fsBack = [];   // the listing rows put back, to show on For Sale at once
     // The row that IS the copy: by Inventory ID when it has one. Without one
     // (an older non-catalog piece), whichever list it was taken off.
     var leadLine = function (l) {
@@ -2812,6 +2851,7 @@ async function rrSaleReturned(key) {
       var f = fsLines[j];
       var rf = f.restored ? { ok: true } : await rrTrashRestore(f.archiveRow);
       if (rf && (rf.ok || rf.reason === 'present' || rf.reason === 'already')) fsOk = true;
+      if (rf && rf.ok && rf.row) fsBack.push({ cells: f.cells, row: rf.row });
       else fails.push(FS_TAB);
     }
     if (asking !== null && !fsOk) {
@@ -2821,8 +2861,9 @@ async function rrSaleReturned(key) {
         fsRow[3] = String(asking).trim() || sd.salePrice || ''; fsRow[4] = _rrSaleToday();
         fsRow[5] = ''; fsRow[6] = sd.priceItem || ''; fsRow[7] = sd.userEstWorth || '';
         fsRow[8] = invId; fsRow[9] = sd.manufacturer || '';
-        await sheetsAppend(state.personalSheetId, FS_TAB + '!A:' + colLetter(FOR_SALE_HEADERS.length - 1), [fsRow]);
+        var fsAt = await sheetsAppend(state.personalSheetId, FS_TAB + '!A:' + colLetter(FOR_SALE_HEADERS.length - 1), [fsRow]);
         fsOk = true;
+        if (fsAt) fsBack.push({ cells: fsRow, row: fsAt });
       } catch (eF) { fails.push(FS_TAB); }
     }
 
@@ -2852,11 +2893,21 @@ async function rrSaleReturned(key) {
       } else soldWhy = found.why || '';
       if (soldGone) delete state.soldData[key];
     }
-    try { if (typeof loadPersonalData === 'function') await loadPersonalData(); } catch (eL) { console.warn('[returned] reload:', eL && eL.message); }
-    try { if (typeof _cachePersonalData === 'function') _cachePersonalData(); } catch (e) {}
+    // v0.9.1947: the lists change NOW from what was just written — the listing
+    // that came back goes on For Sale, the sale is already off Sold — and the
+    // sheet is read fresh behind it (_rrSaleRefreshLists) to settle row numbers
+    // and the collection.
     if (soldGone) {
-      if (typeof showPage === 'function') showPage('forsale');
-      try { if (typeof buildForSalePage === 'function') buildForSalePage(); } catch (e) {}
+      fsBack.forEach(function (x) {
+        var e = rrForSaleEntryFromRow(x.cells, x.row);
+        if (e && e.itemNum) state.forSaleData[e._key] = e;
+      });
+    }
+    _rrBusyMark(sd, '_returnBusy', false);
+    try { if (typeof _cachePersonalData === 'function') _cachePersonalData(); } catch (e) {}
+    try { buildSoldPage(); } catch (e) {}
+    try { buildForSalePage(); } catch (e) {}
+    if (soldGone) {
       if (typeof showToast === 'function') showToast(fill(T.returnedDone), 5000);
     } else {
       var what = [];
@@ -2864,27 +2915,17 @@ async function rrSaleReturned(key) {
       if (!fsOk || fails.indexOf(FS_TAB) >= 0) what.push('it is not back on the For Sale list');
       if (!what.length) what.push('the sale could not be taken off Sold Items' + (soldWhy ? ' (' + soldWhy.replace(/[.\s]+$/, '') + ')' : ''));
       if (typeof showToast === 'function') showToast(fill(T.returnedPartial, what.join(' and ')), 12000, true);
-      // The reload above re-keys the Sold list by sheet row. Reopen THIS sale
-      // by what it is; if it cannot be told apart, go to the list.
-      var again = Object.keys(state.soldData || {}).filter(function (k) {
-        var x = state.soldData[k];
-        return x && String(x.itemNum || '') === num && String(x.inventoryId || '').trim() === invId
-          && _rrSaleISODate(x.dateSold) === _rrSaleISODate(sd.dateSold);
-      });
-      try {
-        if (again.length === 1) showSoldDetailPage(again[0]);
-        else if (state.soldData && state.soldData[key]) showSoldDetailPage(key);
-        else if (typeof showPage === 'function') showPage('sold');
-      } catch (e) {}
     }
-    try { buildSoldPage(); } catch (e) {}
     try { if (typeof buildDashboard === 'function') buildDashboard(); } catch (e) {}
   } catch (e) {
     console.warn('[returned]', e);
     if (typeof showToast === 'function') showToast((typeof rrSaveError === 'function') ? rrSaveError(e, 'putting it back') : 'Could not put it back — try again.', 6000, true);
   } finally {
     _rrReturnBusy = false;
+    // Whatever happened, the sale is never left hidden.
+    if (sd && sd._returnBusy) { _rrBusyMark(sd, '_returnBusy', false); try { buildSoldPage(); } catch (e) {} }
   }
+  _rrSaleRefreshLists();   // fresh from the sheet, behind the screen
 }
 if (typeof window !== 'undefined') window.rrSaleReturned = rrSaleReturned;
 
@@ -2913,6 +2954,14 @@ async function markForSaleAsSold(fsKey, askingPrice) {
   });
   if (!_det) return; // cancelled
   _rrSellBusy = true;
+  // v0.9.1947 (Brad: "when i hit save on the item that i sold, it needs to go
+  // back to the sale list. right now it looks like the item didn't move"):
+  // the listing leaves the For Sale list NOW and the list is what you see; the
+  // sale is written behind it. A listing the sheet will not let go of comes
+  // back on the list by itself (the finally below), with the reason.
+  _rrBusyMark(fs, '_saleBusy', true);
+  try { if (typeof showPage === 'function') showPage('forsale'); buildForSalePage(); } catch (eNav) { console.warn('[Mark sold] list redraw:', eNav && eNav.message); }
+  if (typeof showToast === 'function') showToast(_rrSaleT().recording || '', 2500);
   try {
   const salePrice = _det.price;
   const dateSold = _det.dateSold || _rrSaleToday();
@@ -3069,6 +3118,7 @@ async function markForSaleAsSold(fsKey, askingPrice) {
   // The sale is recorded either way; a listing that would not clear stays on
   // the For Sale page, where it still truthfully is.
   if (_leadFsOk) delete state.forSaleData[fsKey];
+  _rrBusyMark(fs, '_saleBusy', false);   // still listed (it would not clear) = shown again
 
   _cachePersonalData();
 
@@ -3084,7 +3134,15 @@ async function markForSaleAsSold(fsKey, askingPrice) {
   showToast('✓ Marked as sold!'
     + (_left.length ? ' The sale is recorded, but ' + _left.join(', ') + '. Refresh and try again.' : ''),
     _left.length ? 5500 : undefined);
-  } finally { _rrSellBusy = false; }
+  } catch (eSale) {
+    // Nothing thrown here used to be caught: a failed sale write escaped the
+    // function with no word on screen. Say it, and put the listing back.
+    console.warn('[Mark sold]', eSale);
+    if (typeof showToast === 'function') showToast((typeof rrSaveError === 'function') ? rrSaveError(eSale, 'the sale') : 'The sale was not saved \u2014 try again.', 6000, true);
+  } finally {
+    _rrSellBusy = false;
+    if (fs && fs._saleBusy) { _rrBusyMark(fs, '_saleBusy', false); try { buildForSalePage(); } catch (eNav) { console.warn('[Mark sold] list redraw:', eNav && eNav.message); } }
+  }
 }
 
 // Phase 3: signature is now (inventoryId). Called from My Collection row button.

@@ -42,6 +42,11 @@
 //      the sheet came back empty, so the sale just taken off stayed on screen.
 //      An empty answer from Google is empty now (Sold, For Sale, Want, Upgrade);
 //      an error reply keeps what is on screen. PLANTED: the old guard -> ghost
+//   K  Brad (v0.9.1947): "both screens should quickly change back to the sale
+//      or sold list and not wait on anything to change" — Mark sold: off the
+//      For Sale list the moment it is pressed; Returned: back on the Sold list
+//      at once, the listing on For Sale as soon as it is written, a fresh read
+//      behind it; a sale that fails comes back on the list. PLANTED: no mark
 //   H  Brad: "the sold at needs to remember these locations" — place buttons
 //      under Sold At: the Show Mode session, then the places he has used (most
 //      used first), then eBay / York Train Show / Flea market / Marketplace
@@ -233,6 +238,7 @@ async function boot(browser, planted) {
         const ranges = [...u.matchAll(/ranges=([^&]+)/g)].map(m => decodeURIComponent(m[1]));
         return ok({ valueRanges: ranges.map(r => ({ range: r, values: get(r) })) });
       }
+      if (S.slow && method !== 'GET') await new Promise(r => setTimeout(r, S.slow));   // a slow connection: writes take a while
       const m = /\/values\/([^?]+)\?/.exec(u);
       if (!m) return ok({});
       let rg = m[1]; const raw = /valueInputOption=RAW/.test(u);
@@ -255,6 +261,8 @@ async function boot(browser, planted) {
       return ok({});
     };
     window.showToast = function (m) { (window.__toasts = window.__toasts || []).push(String(m)); };
+    // the sidebar's two counts (built at sign-in in the real app)
+    ['nav-forsale', 'nav-sold'].forEach(id => { if (!document.getElementById(id)) { const b = document.createElement('span'); b.id = id; document.body.appendChild(b); } });
     window.loadPersonalData = async function () {};
     state.personalSheetId = 'SID'; window.accessToken = 'tok'; accessToken = 'tok';
     state.contactsData = [{ id: 'C-1700000000001', name: 'Bob Smith', business: '' }, { id: 'C-1700000000002', name: 'Ann Lee', business: 'Lee Trains' }];
@@ -267,8 +275,13 @@ async function boot(browser, planted) {
 // The world every section starts from: one owned 2343 (Inventory ID 7) listed
 // for sale, and one earlier sale (at York) on the Sold tab.
 async function seed(pg) {
+  // a background refresh from the section before must land first, or it would
+  // overwrite this world half way through the next section
+  await pg.evaluate(() => Promise.resolve(window._rrSaleRefreshing).catch(() => {}));
   return pg.evaluate(() => {
     const S = window.__S; S.tabs = {};
+    // the contacts live on the sheet too, so a refresh reads them back
+    S.tabs.Contacts = [['ID', 'Name', 'Business'], ['C-1700000000001', 'Bob Smith', ''], ['C-1700000000002', 'Ann Lee', 'Lee Trains']];
     const F = PERSONAL_FIELD_INDEX;
     const rec = { owned: true, itemNum: '2343', variation: '', condition: '8', priceItem: '300', inventoryId: '7', manufacturer: 'Lionel',
       hasBox: 'Yes', boxCond: '7', photoItem: 'https://drive.test/item7', allOriginal: 'Yes', purchasedFrom: 'C-1700000000002', yourGrade: 'C8', custom3: 'shelf B', row: 3 };
@@ -399,7 +412,9 @@ async function markSold(pg, fill) {
       coll: window.__S.get(PERSONAL_TAB + '!A3:BZ').filter(r => r.length).length, fs: window.__S.get('For Sale!A3:J').filter(r => r.length).length,
       toast: window.__toasts[window.__toasts.length - 1] }));
     T('D the listing would not go back -> the sale stays on Sold and says so', D1.sold === 2 && D1.coll === 1 && D1.fs === 0 && /not back on the For Sale list/.test(D1.toast), D1);
-    await pg.evaluate(k => rrSaleReturned(k), dKey);
+    // the refresh behind the screen re-reads the Sold list (new keys) — open the sale again as a person would
+    const dKey2 = await pg.evaluate(async () => { await Promise.resolve(window._rrSaleRefreshing); return Object.keys(state.soldData).find(k => state.soldData[k].itemNum === '2343'); });
+    await pg.evaluate(k => rrSaleReturned(k), dKey2);
     const D2 = await pg.evaluate(() => ({ sold: window.__S.get('Sold!A3:' + soldEndCol()).filter(r => r.length).length,
       coll: window.__S.get(PERSONAL_TAB + '!A3:BZ').filter(r => r.length).length, fs: window.__S.get('For Sale!A3:J').filter(r => r.length).length }));
     T('D Returned again finishes it — one collection row, one listing, sale gone', D2.sold === 1 && D2.coll === 1 && D2.fs === 1, D2);
@@ -501,7 +516,9 @@ async function markSold(pg, fill) {
     iKey = await recordOne();
     await pg.evaluate(() => { window.__S.failAppendTo = 'Deleted Rows'; });   // the copy of the sale cannot be kept, so it is not removed
     await pg.evaluate(k => rrSaleReturned(k), iKey);
-    const I3 = await pg.evaluate(k => ({ inState: !!state.soldData[k], toast: window.__toasts[window.__toasts.length - 1] }), iKey);
+    const I3 = await pg.evaluate(async () => { await Promise.resolve(window._rrSaleRefreshing);
+      return { inState: Object.values(state.soldData).some(x => x.itemNum === '2343') && window.__S.get('Sold!A3:A').some(r => r[0] === '2343'),
+        toast: window.__toasts.filter(t => /could not be taken off/.test(t)).pop() || window.__toasts[window.__toasts.length - 1] }; });
     T('I when the sale still cannot come off, the message says WHY (not just that it failed)',
       I3.inState && /could not be taken off Sold Items \(Nothing was removed/.test(I3.toast) && /save a copy/.test(I3.toast), I3);
     T('I a sale date read from the sheet (a day number) matches its ISO date',
@@ -528,6 +545,50 @@ async function markSold(pg, fill) {
     await pg.evaluate(() => _loadPersonalFromSheets('SID').catch(() => {}));
     const J2 = await pg.evaluate(() => { window.__S.failGet = null; return Object.keys(state.soldData); });
     T('J a read Google answered with an ERROR keeps what is on screen (it is not an empty list)', JSON.stringify(J2) === '["sold-opt-1"]', J2);
+
+    // ── K · the screens change at once (Brad, v0.9.1947) ──
+    const listShows = (page) => pg.evaluate(p => ({ active: document.getElementById('page-' + p).classList.contains('active'),
+      has2343: /2343/.test(document.getElementById('page-' + p).textContent), fsN: document.getElementById('nav-forsale').textContent, soldN: document.getElementById('nav-sold').textContent }), page);
+    await seed(pg);
+    await pg.evaluate(() => { showPage('forsale'); buildForSalePage(); buildSoldPage(); window.__S.slow = 700; });
+    const k0 = await listShows('forsale');
+    await markSold(pg);
+    await pg.click('#rr-sale-dlg [data-sale="ok"]');
+    await pg.waitForTimeout(150);
+    const k1 = await listShows('forsale');
+    T('K Mark sold: the listing leaves the For Sale list the moment it is pressed, while the sale is still being written',
+      k0.has2343 && k1.active && !k1.has2343 && Number(k1.fsN) === Number(k0.fsN) - 1 && await pg.evaluate(() => window.__S.get('For Sale!A3:A3').length === 1), [k0, k1]);
+    await pg.evaluate(() => window.__p);
+    const k2 = await listShows('forsale');
+    T('K …and when the writes finish it stays off, the Sold count up by one', !k2.has2343 && k2.soldN === '2', k2);
+
+    // Returned: back on the Sold list at once, sale off it; the listing shows on For Sale as soon as it is written
+    const kKey = await pg.evaluate(() => { window.appConfirm = async () => true; showSoldDetailPage(Object.keys(state.soldData).find(k => state.soldData[k].itemNum === '2343'));
+      return Object.keys(state.soldData).find(k => state.soldData[k].itemNum === '2343'); });
+    await pg.evaluate(k => { window.__pr = rrSaleReturned(k); }, kKey);
+    await pg.waitForTimeout(150);
+    const k3 = await listShows('sold');
+    T('K Returned: back on the Sold list the moment it is pressed, the sale already off it and not counted', k3.active && !k3.has2343 && k3.soldN === '1', k3);
+    await pg.evaluate(() => window.__pr);
+    const k4 = await pg.evaluate(() => ({ fs: Object.values(state.forSaleData).filter(f => f.itemNum === '2343').length,
+      fsN: document.getElementById('nav-forsale').textContent, soldN: document.getElementById('nav-sold').textContent, onFsPage: /2343/.test(document.getElementById('page-forsale').textContent) }));
+    T('K …the listing is on For Sale as soon as it is written — no reload waited for — and Sold reads the earlier sale only',
+      k4.fs === 1 && k4.onFsPage && Number(k4.fsN) === Number(k2.fsN) + 1 && k4.soldN === '1', k4);
+    await pg.evaluate(() => Promise.resolve(window._rrSaleRefreshing));
+    const k5 = await pg.evaluate(() => ({ fs: Object.values(state.forSaleData).filter(f => f.itemNum === '2343').length, sold: Object.values(state.soldData).filter(x => x.itemNum === '2343').length, soldN: document.getElementById('nav-sold').textContent }));
+    T('K …and the fresh read from the sheet behind it agrees: one listing, no ghost sale', k5.fs === 1 && k5.sold === 0 && k5.soldN === '1', k5);
+
+    // a sale the sheet will not take: the listing comes back on its own, with the reason
+    await seed(pg);
+    await pg.evaluate(() => { showPage('forsale'); buildForSalePage(); window.__S.slow = 0; window.__S.failAppendTo = 'Sold'; });
+    await markSold(pg);
+    await pg.click('#rr-sale-dlg [data-sale="ok"]');
+    const kRes = await pg.evaluate(() => window.__p);
+    const k6 = await listShows('forsale');
+    const k6t = await pg.evaluate(() => window.__toasts.slice(-2));
+    T('K a sale that could not be written puts the listing back on the For Sale list and says so', kRes === 'done' && k6.has2343 && k6t.some(t => /sale|save|try/i.test(t)), [kRes, k6, k6t]);
+    T('K …and the "being sold" mark is never saved with the lists (it cannot hide an item for good)',
+      await pg.evaluate(() => { const f = state.forSaleData['7']; return !!f && !f._saleBusy && !JSON.stringify(f).includes('_saleBusy'); }));
 
     // ── H · the places remember: most-used first, spelled the way he uses most ──
     const H = await pg.evaluate(() => {
@@ -574,6 +635,25 @@ async function markSold(pg, fill) {
     const kept = await p.pg.evaluate(() => window.__S.get("'Deleted Rows'!A3:BZ").some(l => l[1] === 'My Collection'));
     T('B PLANTED: the old blanking line keeps no copy of the collection row (B would fail)', kept === false);
     await p.pg.close();
+
+    // ── PLANTED: no "busy" marks — the v0.9.1946 screens that waited ──
+    {
+      const ap0 = read('app-pages.js');
+      const slowScreens = ap0.replace("  _rrBusyMark(fs, '_saleBusy', true);\n", '').replace("    _rrBusyMark(sd, '_returnBusy', true);\n", '');
+      if (slowScreens === ap0 || (ap0.match(/_rrBusyMark\((fs|sd), '_(sale|return)Busy', true\);/g) || []).length !== 2) T('K PLANTED: could plant the waiting screens', false);
+      else {
+        const q = await boot(browser, slowScreens);
+        await seed(q.pg);
+        await q.pg.evaluate(() => { showPage('forsale'); buildForSalePage(); window.__S.slow = 700; });
+        await markSold(q.pg);
+        await q.pg.click('#rr-sale-dlg [data-sale="ok"]');
+        await q.pg.waitForTimeout(150);
+        const still = await q.pg.evaluate(() => /2343/.test(document.getElementById('page-forsale').textContent));
+        T('K PLANTED: without the mark the listing sits on the list while the sale is written (K would fail)', still === true, still);
+        await q.pg.evaluate(() => window.__p);
+        await q.pg.close();
+      }
+    }
 
     // ── PLANTED: the old keep-the-old-list guard (v0.9.1945) ──
     {

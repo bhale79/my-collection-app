@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.1946';
+const APP_VERSION = 'v0.9.1947';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -3067,6 +3067,7 @@ const RR_SALE_TEXT = {
   ok: 'Mark sold',
   cancel: 'Cancel',
   contactsLoading: 'Contacts are still loading \u2014 try again in a moment',
+  recording: 'Recording the sale\u2026',
   // Returned (the sold item's page)
   returned: '\u21a9 Returned',
   returnedTitle: 'Item returned',

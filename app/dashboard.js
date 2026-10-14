@@ -1119,7 +1119,7 @@ function buildDashboard() {
     }
   }
 
-  var soldCount = Object.keys(state.soldData).length;
+  var soldCount = Object.values(state.soldData).filter(function (x) { return !(x && x._returnBusy); }).length;   // v0.9.1947: a sale being taken back is not counted
   var wantCount = total - owned - soldCount;
   // (v0.9.1711: #nav-total is born nowhere; the sidebar shows #nav-owned only.)
   // Session 115: nav-owned counts ALL owned items across every collection
@@ -1150,7 +1150,7 @@ function buildDashboard() {
     _nw.textContent = _wishTotal > 0 ? _wishTotal.toLocaleString() : '—';
   }
   if (document.getElementById('nav-sold')) document.getElementById('nav-sold').textContent = soldCount;
-  var fsCount = Object.values(state.forSaleData).filter(function(fs){ return !(typeof window !== 'undefined' && typeof window._fsIsGroupedCompanion === 'function' && window._fsIsGroupedCompanion(fs)); }).length;
+  var fsCount = Object.values(state.forSaleData).filter(function(fs){ return !(fs && fs._saleBusy) && !(typeof window !== 'undefined' && typeof window._fsIsGroupedCompanion === 'function' && window._fsIsGroupedCompanion(fs)); }).length;   // v0.9.1947: + a listing being sold
   if (document.getElementById('nav-forsale')) document.getElementById('nav-forsale').textContent = fsCount;
 
 
