@@ -1,0 +1,32 @@
+{
+ "what": "Master Version 2.41 — Lionel PW - Items 6822-50 v4 (F0297) and v5 (F0318) Reference Link #FLAT682250 → #FLAT6828. On COTT's pw-flatcars-page-2 these two cars are titled 'No. 6822-50 Night Crew Searchlight Car 1968-1969' (plain white box with 6822 rubber stamped on both ends) and are written up directly under the rare No. 6828 Night Crew Searchlight Car (R9, F0315), sharing its bookmark — they have none of their own. #FLAT682250 opened on the 1963 cars, five write-ups above. The item numbers were right and are unchanged (the 2.40 note's 'COTT lists them under No. 6828' was a misreading of the shared bookmark).",
+ "stated": "Brad (2026-10-13): \"look at the cott site\" → \"yes\" to moving the two links to the 6828 bookmark",
+ "masterVersion": "2.41",
+ "date": "2026-10-13",
+ "planReadAt": "public CSV export of Lionel PW - Items read 2026-10-14 (right before this record)",
+ "cellFormat": "[tab, item number (column A), column header, old, new, sheet row as a hint, Row ID of the row]",
+ "counts": {
+  "cells": 2,
+  "rows": 2
+ },
+ "cells": [
+  [
+   "Lionel PW - Items",
+   "6822-50",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/pw-flatcars-page-2/#FLAT682250",
+   "https://cornucopiaoftoytrains.com/pw-flatcars-page-2/#FLAT6828",
+   2688,
+   "CMSHFKQB9Y"
+  ],
+  [
+   "Lionel PW - Items",
+   "6822-50",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/pw-flatcars-page-2/#FLAT682250",
+   "https://cornucopiaoftoytrains.com/pw-flatcars-page-2/#FLAT6828",
+   2689,
+   "8QE8H9ZUJF"
+  ]
+ ]
+}
