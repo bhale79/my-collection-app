@@ -2868,6 +2868,17 @@ html[data-theme="high-contrast"] button[style*="#e74c3c"], html[data-theme="high
   .maint-card, .rr-desk-zoom, .rr-card, .modal { zoom: 1.5; }
   .rr-card, .modal { max-height: calc(86dvh / 1.5) !important; }
 }
+/* v0.9.1943 (Brad, the photo inbox's review card on his laptop: "scale things
+   down so you get a decent photo to see. all the other text is large"): that
+   ONE card — the laptop layout, class pin-rv-card, 1200px and up — is shown one
+   step smaller than the other pop-ups, so the photo and every button fit
+   together. Change the step here: both lines of each block, like the rule above. */
+@media (min-width: 1000px) and (max-width: 1399px) {
+  .rr-card.pin-rv-card { zoom: 1.1; max-height: calc(86dvh / 1.1) !important; }
+}
+@media (min-width: 1400px) {
+  .rr-card.pin-rv-card { zoom: 1.25; max-height: calc(86dvh / 1.25) !important; }
+}
 
 /* ── v0.9.1806 (Brad: "increase the picture size and show the complete picture,
    not cut off on the sides") — THE row thumbnail. ONE place for its size and

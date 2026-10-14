@@ -15376,7 +15376,8 @@ META_WRITES.length = 0; TOASTS.length = 0;
       ok('233 the rail is built in ONE place and it carries the drag handle',
          (pin33.match(/data-dragfid="' \+ fidT \+ '"/g) || []).length === 1
          && /data-dragfid="' \+ fidT \+ '"/.test(_rail33)
-         && (pin33.match(/_pinRvRailHtml\(\d+\)/g) || []).length === 2,
+         // v0.9.1943: + the laptop card's side-by-side strip (_photoWide2) — 3 callers, one builder
+         && (pin33.match(/_pinRvRailHtml\(\d+\)/g) || []).length === 3,
          String((pin33.match(/data-dragfid="' \+ fidT \+ '"/g) || []).length));
       ok('233 …and it badges its FIRST photo as the main view',
          (pin33.match(/\(i === 0 \? '<div style="position:absolute;top:0;left:0;background:var\(--accent\)/g) || []).length === 1
@@ -22760,10 +22761,12 @@ META_WRITES.length = 0; TOASTS.length = 0;
          && /'EXTRA',\s*label: 'Detail 1'/.test(pi20) && /'EXTRA2',\s*label: 'Detail 2'/.test(pi20), '');
       // v0.9.1705 RE-PIN: the unused desktop panel is gone; the bar joins the
       // two layouts that exist (phone stack, wide layout) — definition + 2.
-      ok('320 the bar joins BOTH layouts (phone stack, wide layout)',
-         (pi20.match(/_pinRvViewsBarHtml\(\)/g) || []).length === 3
+      // v0.9.1943: + the laptop card, where it sits beside the photo strip (_photoWide2).
+      ok('320 the bar joins EVERY layout (phone stack, wide layout, laptop card)',
+         (pi20.match(/_pinRvViewsBarHtml\(\)/g) || []).length === 4
          && /var _stripHtml = [^\n]*_pinRvViewsBarHtml\(\)/.test(pi20)
-         && /var _photoWide = [^\n]*_pinRvViewsBarHtml\(\)/.test(pi20), '');
+         && /var _photoWide = [^\n]*_pinRvViewsBarHtml\(\)/.test(pi20)
+         && /var _photoWide2 = [\s\S]{0,400}_pinRvViewsBarHtml\(\)/.test(pi20), '');
       // functional: assign with a swap, on the REAL handler
       META_WRITES.length = 0;
       T.rvGroups = [{ key: 'gX', files: [
@@ -23742,14 +23745,17 @@ META_WRITES.length = 0; TOASTS.length = 0;
       ok('337 laptop: the two-column grid exists', iCols > 0 && /id="pin-rv-cols" style="display:grid;grid-template-columns:[^"]+"/.test(h));
       ok('337 laptop: ACT column comes first, READ second', iAct > iCols && iRead > iAct, iCols + '/' + iAct + '/' + iRead);
       const iAdd = h.indexOf('id="pin-rv-add"'), iHero = h.indexOf('id="pin-rv-main"'), iInfo = h.indexOf('id="pin-rv-info"');
-      ok('337 laptop: the photo is in the ACT column', iHero > iAct && iHero < iRead, String(iHero));
-      ok('337 laptop: the Add button is in the ACT column, under the photo', iAdd > iHero && iAdd < iRead, String(iAdd));
+      // v0.9.1943 (Brad: "you can [hardly] even see the photo"): the photo runs across the
+      // full width ABOVE the two columns; the buttons are in the ACT column under it.
+      const iTop = h.indexOf('id="pin-rv-top"');
+      ok('337 laptop: the photo sits above the columns, full width (v1943)', iTop > 0 && iHero > iTop && iHero < iCols, iTop + '/' + iHero + '/' + iCols);
+      ok('337 laptop: the Add button is in the ACT column, under the photo', iAdd > iAct && iAdd < iRead && iAdd > iHero, String(iAdd));
       ok('337 laptop: the catalog/owned/pick panel box is in the READ column', iInfo > iRead, String(iInfo));
       ok('337 laptop: BOTH columns may shrink and scroll on their own (min-height:0 + overflow-y:auto)',
          /id="pin-rv-act" style="[^"]*min-height:0[^"]*overflow-y:auto/.test(h)
          && /id="pin-rv-read" style="[^"]*min-height:0[^"]*overflow-y:auto/.test(h));
       ok('337 laptop: the grid itself can shrink inside the capped card', /id="pin-rv-cols" style="[^"]*min-height:0[^"]*flex:1/.test(h));
-      ok('337 laptop: the card is a flex column with overflow managed (rr-card-flex)', /class="rr-card rr-card-flex"/.test(h));
+      ok('337 laptop: the card is a flex column with overflow managed (rr-card-flex) and wears pin-rv-card (its own zoom step, v1943)', /class="rr-card rr-card-flex pin-rv-card"/.test(h));
       ok('337 laptop: the card is wide — up to 1500px, never past the screen', /max-width:min\(1500px,96vw\)/.test(h));
       ok('337 laptop: the picture is capped at 40vh, not 52', /max-height:40vh/.test(h) && !/max-height:52vh/.test(h));
       ok('337 laptop: every action button is present (nothing was dropped to make room)',
@@ -23771,8 +23777,8 @@ META_WRITES.length = 0; TOASTS.length = 0;
       const p37 = require('fs').readFileSync(SRC, 'utf8');
       ok('337 _wide2 is derived from _wide (a phone can never be "wide2")',
          /var _wide2 = _wide && \(window\.innerWidth \|\| 0\) >= 1200;/.test(p37));
-      ok('337 the hero cap is chosen on the ONE _photoWide line (the 3-occurrence pin above still holds)',
-         /var _photoWide = _pinRvHeroHtml\(_wide2 \? '40vh' : '52vh'\) \+ _pinRvRailHtml\(64\) \+ _pinRvViewsBarHtml\(\);/.test(p37));
+      ok('337 the hero cap is chosen on the ONE _heroWide line (the 3-occurrence pin above still holds)',
+         /var _heroWide = _pinRvHeroHtml\(_wide2 \? '40vh' : '52vh'\);\n    var _photoWide = _heroWide \+ _pinRvRailHtml\(64\) \+ _pinRvViewsBarHtml\(\);/.test(p37));
       ok('337 the body is picked in one place: wide2, else wide, else stacked',
          /\(_wide2 \? _wideBody2 : \(_wide \? _wideBody : _stripHtml \+ _controlsHtml\)\)/.test(p37));
 

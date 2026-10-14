@@ -84,7 +84,7 @@ async function run(browser, width, height, heroSrc, maxH) {
 
   console.log('\n== E · the source ==');
   T('E1  ONE builder, ONE mode: the phone and the desktop lines each pass only the cap',
-    /var _stripHtml = _pinRvHeroHtml\('40vh'\)/.test(PI) && /var _photoWide = _pinRvHeroHtml\(_wide2 \? '40vh' : '52vh'\)/.test(PI) && (PI.match(/_pinRvHeroHtml\(/g) || []).length === 3);
+    /var _stripHtml = _pinRvHeroHtml\('40vh'\)/.test(PI) && /var _heroWide = _pinRvHeroHtml\(_wide2 \? '40vh' : '52vh'\)/.test(PI) && (PI.match(/_pinRvHeroHtml\(/g) || []).length === 3);
   T('E2  no fixed-height mode is left in the builder', !/fixedH/.test(HERO) && !/height:' \+ /.test(HERO.replace(/max-height:' \+ /g, '')));
 
   console.log('\n' + (fail ? 'FAILED' : 'ALL PASS') + '  —  ' + pass + ' passed, ' + fail + ' failed');

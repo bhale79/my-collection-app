@@ -4793,6 +4793,30 @@
     try { window._pinReview(_rvKey || '', _rvGroups); } catch (e) {}
   };
 
+  // ══ v0.9.1943 — the laptop card's photo takes the room the buttons leave ══
+  // The laptop card (1200px and up) runs the photo across the top at up to its
+  // 40vh cap. On a shorter screen — Brad's laptop, where pop-ups are shown at
+  // 1.5x — photo + buttons can be taller than the card, and the ACT column
+  // would scroll and hide buttons. Measure that overflow and take it off the
+  // photo instead, never below 120px. The READ column counts too (what the
+  // photo said + the catalog details), so they are not cut off either. The
+  // cap itself is read back from the photo's own style the first time (one
+  // source: the _photoWide line).
+  function _pinRvFitHero() {
+    var img = document.getElementById('pin-rv-main'), act = document.getElementById('pin-rv-act');
+    var read = document.getElementById('pin-rv-read');
+    if (!img || !act || !document.getElementById('pin-rv-top')) return;   // the laptop card only
+    var box = img.parentElement;
+    if (!img.getAttribute('data-cap')) img.setAttribute('data-cap', img.style.maxHeight || '40vh');
+    var cap = img.getAttribute('data-cap');
+    img.style.maxHeight = cap; if (box) box.style.maxHeight = cap;
+    var over = Math.max(act.scrollHeight - act.clientHeight, read ? read.scrollHeight - read.clientHeight : 0);
+    if (over <= 1) return;
+    var h = Math.max(120, img.offsetHeight - over - 2);
+    img.style.maxHeight = h + 'px'; if (box) box.style.maxHeight = h + 'px';
+  }
+  try { window.addEventListener('resize', _pinRvFitHero); } catch (eRz) {}
+
   window._pinReview = function (key, only) {
     // v0.9.1735: a pick belongs to ONE photo. Clearing it on every card
     // opening is what stops "I have the Savings Bank one" from silently
@@ -4889,7 +4913,24 @@
     // with the daily token count beneath it. Same block on desktop and phone;
     // the two columns sit side by side when there's room and stack when narrow.
     var _lbl = 'font-size:0.74rem;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.03em;margin:0 0 0.5rem';
-    var _gBtn = 'padding:0.62rem 0.5rem;border-radius:9px;font-family:var(--font-body);font-weight:700;font-size:0.82rem;cursor:pointer;line-height:1.2;';
+    // ══ v0.9.1943 — ONE place for the size and shape of every button on this card ══
+    // Brad, laptop, 2026-10-14: "you can [hardly] even see the photo. scale things
+    // down so you get a decent photo to see. all the other text is large. the
+    // buttons could be put into a grid". Each button below carries only its
+    // COLOURS; its size and shape come from _rvBtn(kind). The laptop card (_wide2)
+    // gets the compact size; the phone and the 1000px card keep exactly the sizes
+    // they had (the second line of _RV_SIZE is those old numbers, unchanged).
+    var _RV_SIZE = _wide2
+      ? { add: 'padding:0.5rem 0.5rem;font-size:0.84rem;', main: 'padding:0.5rem 0.5rem;font-size:0.84rem;', grid: 'padding:0.5rem 0.5rem;font-size:0.84rem;' }
+      : { add: 'padding:0.72rem;font-size:0.93rem;', main: 'padding:0.68rem;font-size:0.9rem;', grid: 'padding:0.62rem 0.5rem;font-size:0.82rem;' };
+    // the stacked buttons' space between them; in the laptop grid the grid's gap does it
+    var _rvStackGap = _wide2 ? '' : 'margin-bottom:0.5rem;';
+    function _rvBtn(kind) {
+      return (kind === 'grid' ? 'border-radius:9px;' : 'width:100%;border-radius:10px;')
+        + 'font-family:var(--font-body);font-weight:700;cursor:pointer;'
+        + ((kind === 'grid' || _wide2) ? 'line-height:1.2;' : '') + _RV_SIZE[kind];
+    }
+    var _gBtn = _rvBtn('grid');
     // Offered, not entered. Tapping it fills the box and runs the lookup, which
     // is the same thing pre-filling did — except the user chose it.
     // v0.9.1833: [stated] Brad — "don't need the 6464 — use this as it adds to
@@ -4960,10 +5001,17 @@
       '<input id="pin-rv-num" list="pin-rv-list" type="text" value="' + sug.replace(/"/g, '&quot;') + '" placeholder="Item number — e.g. 2343 or 6464-1" autocomplete="off" spellcheck="false" oninput="_pinReviewLookup(this.value)" style="width:100%;box-sizing:border-box;padding:0.6rem 0.75rem;border:1px solid var(--border);border-radius:8px;background:var(--surface2);color:var(--text);font-family:var(--font-mono);font-size:1rem;margin-bottom:0.55rem">' +
       '<datalist id="pin-rv-list">' + opts + '</datalist>' +
       _pinAltChips() +
-      '<div style="display:flex;gap:1rem;align-items:flex-start;flex-wrap:wrap;margin-top:0.35rem">' +
+      // v0.9.1943: on the laptop card the four "what to do" buttons are a 2 x 2
+      // grid (#pin-rv-do) like the "not sure" grid beside them — two equal
+      // columns, so the buttons take half the height they did stacked and the
+      // photo above gets that room. Phone and the 1000px card: as before.
+      (_wide2
+        ? '<div id="pin-rv-btns" style="display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:1rem;align-items:start;margin-top:0.35rem">'
+        : '<div style="display:flex;gap:1rem;align-items:flex-start;flex-wrap:wrap;margin-top:0.35rem">') +
         '<div style="flex:1 1 240px;min-width:0">' +
           '<div style="' + _lbl + '">What do you want to do with it?</div>' +
           _setBtn +
+          (_wide2 ? '<div id="pin-rv-do" style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem">' : '') +
           // v0.9.1423 (Brad): ONE add button. The old pair — "Add to my
           // Collection" (dead without a number) next to "No item number —
           // enter it myself" — made the user diagnose their own situation and
@@ -4974,15 +5022,16 @@
           // tested lanes as before (v0.9.1387 kept the no-number lane
           // unconditional for exactly this reason); only the choosing moved
           // from the user to the code.
-          '<button id="pin-rv-add" onclick="' + (_routeSet ? '_pinAddSetFromGroup()' : '_pinAddItem()') + '" class="btn-primary" style="width:100%;padding:0.72rem;border-radius:10px;border:none;font-family:var(--font-body);font-weight:700;font-size:0.93rem;cursor:pointer;margin-bottom:0.5rem">'
+          '<button id="pin-rv-add" onclick="' + (_routeSet ? '_pinAddSetFromGroup()' : '_pinAddItem()') + '" class="btn-primary" style="' + _rvBtn('add') + 'border:none;' + _rvStackGap + '">'
             + ((_routeSet && _setGuess) ? 'Add set ' + rrEsc(_setGuess.setNum) + ' to my collection'
                : (_isGrp ? 'Add group to my collection' : 'Add to my Collection')) + '</button>' +
-          '<button id="pin-rv-sell" onclick="_pinSendForSale()" style="width:100%;padding:0.68rem;border-radius:10px;border:1.5px solid #d4a843;background:var(--bg-card);background:color-mix(in srgb, rgb(212,168,67) 12%, var(--bg-card));color:var(--t-gold);font-family:var(--font-body);font-weight:700;font-size:0.9rem;cursor:pointer;margin-bottom:0.5rem">' + (_isGrp ? 'Add group to my sales list' : 'Add to Sales List') + '</button>' +
+          '<button id="pin-rv-sell" onclick="_pinSendForSale()" style="' + _rvBtn('main') + 'border:1.5px solid #d4a843;background:var(--bg-card);background:color-mix(in srgb, rgb(212,168,67) 12%, var(--bg-card));color:var(--t-gold);' + _rvStackGap + '">' + (_isGrp ? 'Add group to my sales list' : 'Add to Sales List') + '</button>' +
           // v0.9.1498 (task #28, Brad): photos of an item he ALREADY owns get
           // a door to that copy -- the dormant v0.9.958 attach lane, revived
           // with a copy picker. Direct move, no wizard, no deferred note.
-          '<button id="pin-rv-attach" onclick="_pinAttachOwnedPick()" style="width:100%;padding:0.68rem;border-radius:10px;border:1.5px solid #2980b9;background:var(--bg-card);background:color-mix(in srgb, rgb(41,128,185) 12%, var(--bg-card));color:var(--t-link);font-family:var(--font-body);font-weight:700;font-size:0.9rem;cursor:pointer;margin-bottom:0.5rem">' + (_isGrp ? 'Add group to an item I already own' : 'Add to an existing item in my collection') + '</button>' +
-          '<button onclick="_pinReviewDiscard()" style="width:100%;padding:0.68rem;border-radius:10px;border:1.5px solid #8b8e94;background:var(--bg-card);background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card));color:var(--t-red);font-family:var(--font-body);font-weight:700;font-size:0.9rem;cursor:pointer">' + (_isGrp ? 'Discard group' : 'Discard Photo' + (n > 1 ? 's' : '')) + '</button>' +
+          '<button id="pin-rv-attach" onclick="_pinAttachOwnedPick()" style="' + _rvBtn('main') + 'border:1.5px solid #2980b9;background:var(--bg-card);background:color-mix(in srgb, rgb(41,128,185) 12%, var(--bg-card));color:var(--t-link);' + _rvStackGap + '">' + (_isGrp ? 'Add group to an item I already own' : 'Add to an existing item in my collection') + '</button>' +
+          '<button onclick="_pinReviewDiscard()" style="' + _rvBtn('main') + 'border:1.5px solid #8b8e94;background:var(--bg-card);background:color-mix(in srgb, rgb(139,142,148) 12%, var(--bg-card));color:var(--t-red)">' + (_isGrp ? 'Discard group' : 'Discard Photo' + (n > 1 ? 's' : '')) + '</button>' +
+          (_wide2 ? '</div>' : '') +
         '</div>' +
         '<div style="flex:1 1 240px;min-width:0">' +
           '<div style="' + _lbl + '">Not sure what it is?</div>' +
@@ -5008,10 +5057,9 @@
           // v0.9.1181 (Brad): "a big button underneath the 2x2 grid buttons on
           // the right… what each button does and what it costs… the steps to
           // follow." The copy lives in help-photo-id.js.
-          '<button onclick="_pinHelpOpen()" style="width:100%;margin-top:0.15rem;padding:0.72rem;'
-            + 'border-radius:10px;border:1.5px solid var(--info);background:var(--surface2);'
-            + 'color:var(--info);font-family:var(--font-body);font-weight:700;font-size:0.9rem;'
-            + 'cursor:pointer">How best to use these features</button>' +
+          '<button onclick="_pinHelpOpen()" style="' + (_wide2 ? _rvBtn('main') + 'margin-top:0.5rem;' : 'width:100%;margin-top:0.15rem;padding:0.72rem;'
+            + 'border-radius:10px;font-family:var(--font-body);font-weight:700;font-size:0.9rem;cursor:pointer;')
+            + 'border:1.5px solid var(--info);background:var(--surface2);color:var(--info)">How best to use these features</button>' +
         '</div>' +
       '</div>';
 
@@ -5095,7 +5143,16 @@
     // the middle full-width, and the action buttons run in a row across the
     // BOTTOM. (The old right-hand split panel — _panelHtml — was built on
     // every open and never used since v964; it is gone.)
-    var _photoWide = _pinRvHeroHtml(_wide2 ? '40vh' : '52vh') + _pinRvRailHtml(64) + _pinRvViewsBarHtml();
+    var _heroWide = _pinRvHeroHtml(_wide2 ? '40vh' : '52vh');
+    var _photoWide = _heroWide + _pinRvRailHtml(64) + _pinRvViewsBarHtml();
+    // v0.9.1943: on the laptop card the photo strip and the view-slot bar sit
+    // SIDE BY SIDE under the photo (one row of height instead of two), so an
+    // item with several photos still has every button on screen.
+    var _photoWide2 = _heroWide +
+      '<div id="pin-rv-strip" style="display:flex;gap:1rem;align-items:flex-start;min-width:0">' +
+        '<div style="flex:0 1 auto;min-width:0">' + _pinRvRailHtml(64) + '</div>' +
+        '<div style="flex:1 1 auto;min-width:0">' + _pinRvViewsBarHtml() + '</div>' +
+      '</div>';
     var _aiL = (_pinAiLine(_mainFid) || '') + _pinTagLineHtml(_mainFid), _chips = _pinAltChips();
     var _wideBtn = 'flex:1 1 160px;padding:0.72rem 0.6rem;border-radius:10px;font-family:var(--font-body);font-weight:700;font-size:0.9rem;cursor:pointer;';
     var _wideBody =
@@ -5115,11 +5172,18 @@
     // min-height:0 so the grid can shrink inside the capped card; the right
     // one scrolls, and the left one may too on a very short screen rather
     // than clipping a button.
+    // v0.9.1943 (Brad: "you can [hardly] even see the photo"): the photo leaves
+    // the left column and runs across the FULL width of the card on top — a
+    // long side shot of a car shows about twice as tall, every other shape at
+    // least as big as before. ACT (number + buttons) and READ sit under it.
     var _wideBody2 =
       (_pinLensGroups ? _pinLensBannerHtml() : '') +
-      '<div id="pin-rv-cols" style="display:grid;grid-template-columns:1.05fr 1fr;gap:1rem;min-height:0;flex:1">' +
+      // On a short screen photo + buttons can be taller than the card; then
+      // _pinRvFitHero takes the difference off the photo, so no button (and
+      // not the catalog details) is ever below the fold.
+      '<div id="pin-rv-top" style="flex-shrink:0">' + _photoWide2 + '</div>' +
+      '<div id="pin-rv-cols" style="display:grid;grid-template-columns:1.35fr 1fr;gap:1rem;min-height:0;flex:1">' +
         '<div id="pin-rv-act" style="display:flex;flex-direction:column;min-width:0;min-height:0;overflow-y:auto">' +
-          _photoWide +
           _btnArea +
         '</div>' +
         '<div id="pin-rv-read" style="min-width:0;min-height:0;overflow-y:auto;display:flex;flex-direction:column;gap:0.75rem">' +
@@ -5132,7 +5196,7 @@
     ov.id = 'pin-review-ov';
     ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem';
     ov.innerHTML =
-      '<div class="rr-card' + (_wide2 ? ' rr-card-flex' : '') + '"' + (_wide2 ? ' style="max-width:min(1500px,96vw)"' : (_wide ? ' style="max-width:820px"' : '')) + '>' +
+      '<div class="rr-card' + (_wide2 ? ' rr-card-flex pin-rv-card' : '') + '"' + (_wide2 ? ' style="max-width:min(1500px,96vw)"' : (_wide ? ' style="max-width:820px"' : '')) + '>' +
         '<div id="pin-rv-nav" style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.6rem">' +
           _pinRvNavHtml('prev') +
           '<div style="flex:1;min-width:0;font-family:var(--font-head);font-weight:700;font-size:1rem;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + _pinRvTitle(n) + '</div>' +
@@ -5143,6 +5207,13 @@
         (_wide2 ? _wideBody2 : (_wide ? _wideBody : _stripHtml + _controlsHtml)) +
       '</div>';
     document.body.appendChild(ov);
+    // v0.9.1943: the laptop card's photo takes the room the buttons leave —
+    // measured now and again every time the photo (re)loads (arrows, crop,
+    // a rail tap all swap its src).
+    try {
+      var _fitImg = _wide2 && document.getElementById('pin-rv-main');
+      if (_fitImg) { _fitImg.addEventListener('load', _pinRvFitHero); _pinRvFitHero(); }
+    } catch (eFit) {}
     // v0.9.1283 (Brad: "i need to be able to drag the pictures back and
     // forth. have a box on the first one that says 'main view'"). Wire every
     // thumb strip on the card. The first photo IS the main view — it leads

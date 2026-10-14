@@ -60,7 +60,7 @@ ok('the PHONE layout builds it (sized to the photo, capped at 40vh — v1829)',
 // v0.9.1739: the cap is 40vh on the two-column laptop card and 52vh on the
 // 900-1199 stacked one — still ONE line, still sized to the photo (null).
 ok('the DESKTOP layout builds it too (sized to the photo, as before)',
-   /var _photoWide = _pinRvHeroHtml\(_wide2 \? '40vh' : '52vh'\) \+ _pinRvRailHtml\(64\) \+ _pinRvViewsBarHtml\(\);/.test(PI), '');
+   /var _heroWide = _pinRvHeroHtml\(_wide2 \? '40vh' : '52vh'\);\n    var _photoWide = _heroWide \+ _pinRvRailHtml\(64\) \+ _pinRvViewsBarHtml\(\);/.test(PI), '');
 ok('its ✂ and 🔍 act on whatever is showing (data-rvbig), not on a fixed photo',
    /_pinCropPhoto\(document\.getElementById\(\\'pin-rv-main\\'\)\.getAttribute\(\\'data-rvbig\\'\)\)/.test(hero)
    && /_pinZoomPhoto\(document\.getElementById\(\\'pin-rv-main\\'\)\.getAttribute\(\\'data-rvbig\\'\)\)/.test(hero), '');
