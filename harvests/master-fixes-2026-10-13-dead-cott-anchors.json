@@ -1,0 +1,199 @@
+{
+ "what": "Master Version 2.37 — 20 dead COTT Reference Links repaired (the stored bookmark is no longer on COTT's page). Same page, new bookmark: 28-3 var 1 #BULB283→#BULB283b (18V clear lamp), var 2 →#283R (round lamp); 175 #SCIMICP175→#17560 (COTT code SS0298). Page moved by COTT: 10 Porter/Chemcraft chemistry sets (605 x4, 610 x2, 615, 616, 6105 x2) chemistry-sets → science-porter-chemcraft-1956-1960-metal-cabinets-cardboard-boxes, each to the section holding its own COTT code (605 var 3's #605BY no longer exists; its code SS0428 is in #605JRS); 260 Junior Research Lab → science-porter-microcraft-metal-cabinets/#26056 (SS0378); 127 → prewar-stations/#NO127STATION (COTT's prewar numerical index); 435 → prewar-accessories-power-stations (#NO435PS heading; var A #435, its text word for word); 442 → prewar-accessories-landscaped-dinner-no-442/ (the item's own page). Every new id read on the live page 2026-10-14.",
+ "stated": "Brad (2026-10-13): \"yes\" to finding new bookmarks for the dead ones, then \"yes\" to writing all 20",
+ "masterVersion": "2.37",
+ "date": "2026-10-13",
+ "planReadAt": "2026-10-14T01:01:12Z public CSV export of Lionel PW - Items, Lionel PW - Science, Lionel Pre-War",
+ "cellFormat": "[tab, item number (column A), column header, old, new, sheet row as a hint, Row ID of the row]",
+ "counts": {
+  "cells": 20,
+  "rows": 20,
+  "byTab": {
+   "Lionel PW - Items": 2,
+   "Lionel PW - Science": 12,
+   "Lionel Pre-War": 6
+  }
+ },
+ "cells": [
+  [
+   "Lionel PW - Items",
+   "28-3",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/bulbs-replacement-page-1/#BULB283",
+   "https://cornucopiaoftoytrains.com/bulbs-replacement-page-1/#BULB283b",
+   1094,
+   "4ZT2QDKJRC"
+  ],
+  [
+   "Lionel PW - Items",
+   "28-3",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/bulbs-replacement-page-1/#BULB283",
+   "https://cornucopiaoftoytrains.com/bulbs-replacement-page-1/#283R",
+   1095,
+   "YG4VSQMTDH"
+  ],
+  [
+   "Lionel PW - Science",
+   "175",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/science-porter-microcraft-metal-cabinets/#SCIMICP175",
+   "https://cornucopiaoftoytrains.com/science-porter-microcraft-metal-cabinets/#17560",
+   36,
+   "4EEEQN9Z9V"
+  ],
+  [
+   "Lionel PW - Science",
+   "260",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/microscope-sets-microcraft/#260",
+   "https://cornucopiaoftoytrains.com/science-porter-microcraft-metal-cabinets/#26056",
+   53,
+   "7Y8G5449TH"
+  ],
+  [
+   "Lionel PW - Science",
+   "605",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/chemistry-sets/#605",
+   "https://cornucopiaoftoytrains.com/science-porter-chemcraft-1956-1960-metal-cabinets-cardboard-boxes/#605",
+   82,
+   "Q6TK4PMXAH"
+  ],
+  [
+   "Lionel PW - Science",
+   "605",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/chemistry-sets/#605JRS",
+   "https://cornucopiaoftoytrains.com/science-porter-chemcraft-1956-1960-metal-cabinets-cardboard-boxes/#605JRS",
+   83,
+   "9MTRCEXGTP"
+  ],
+  [
+   "Lionel PW - Science",
+   "605",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/chemistry-sets/#605BY",
+   "https://cornucopiaoftoytrains.com/science-porter-chemcraft-1956-1960-metal-cabinets-cardboard-boxes/#605JRS",
+   84,
+   "J42QVY8GAX"
+  ],
+  [
+   "Lionel PW - Science",
+   "605",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/chemistry-sets/#605C",
+   "https://cornucopiaoftoytrains.com/science-porter-chemcraft-1956-1960-metal-cabinets-cardboard-boxes/#605C",
+   85,
+   "N5EDZ697CB"
+  ],
+  [
+   "Lionel PW - Science",
+   "610",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/chemistry-sets/#CHEMC610",
+   "https://cornucopiaoftoytrains.com/science-porter-chemcraft-1956-1960-metal-cabinets-cardboard-boxes/#CHEMC610",
+   88,
+   "4WWCHVS5YJ"
+  ],
+  [
+   "Lionel PW - Science",
+   "610 1956",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/chemistry-sets/#6103",
+   "https://cornucopiaoftoytrains.com/science-porter-chemcraft-1956-1960-metal-cabinets-cardboard-boxes/#6103",
+   89,
+   "ZCXNYA2SQW"
+  ],
+  [
+   "Lionel PW - Science",
+   "615",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/chemistry-sets/#615",
+   "https://cornucopiaoftoytrains.com/science-porter-chemcraft-1956-1960-metal-cabinets-cardboard-boxes/#615",
+   90,
+   "RCQV4QF3K6"
+  ],
+  [
+   "Lionel PW - Science",
+   "616",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/chemistry-sets/#616",
+   "https://cornucopiaoftoytrains.com/science-porter-chemcraft-1956-1960-metal-cabinets-cardboard-boxes/#616",
+   91,
+   "XZE72G29S3"
+  ],
+  [
+   "Lionel PW - Science",
+   "6105",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/chemistry-sets/#6105",
+   "https://cornucopiaoftoytrains.com/science-porter-chemcraft-1956-1960-metal-cabinets-cardboard-boxes/#6105",
+   115,
+   "QZQ7WTAJVW"
+  ],
+  [
+   "Lionel PW - Science",
+   "6105",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/chemistry-sets/#6105Z",
+   "https://cornucopiaoftoytrains.com/science-porter-chemcraft-1956-1960-metal-cabinets-cardboard-boxes/#6105Z",
+   116,
+   "YAUAFHFXWQ"
+  ],
+  [
+   "Lionel Pre-War",
+   "127",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/standard-gauge-accessories/#127",
+   "https://cornucopiaoftoytrains.com/prewar-stations/#NO127STATION",
+   530,
+   "6XU9KT2P9W"
+  ],
+  [
+   "Lionel Pre-War",
+   "127",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/standard-gauge-accessories/#127",
+   "https://cornucopiaoftoytrains.com/prewar-stations/#NO127STATION",
+   531,
+   "ZZ27CY7NMQ"
+  ],
+  [
+   "Lionel Pre-War",
+   "435",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/standard-gauge-accessories/#435",
+   "https://cornucopiaoftoytrains.com/prewar-accessories-power-stations/#NO435PS",
+   1250,
+   "UDT6PMP6DV"
+  ],
+  [
+   "Lionel Pre-War",
+   "435",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/standard-gauge-accessories/#435",
+   "https://cornucopiaoftoytrains.com/prewar-accessories-power-stations/#435",
+   1251,
+   "B4E3HM7EGN"
+  ],
+  [
+   "Lionel Pre-War",
+   "442",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/standard-gauge-accessories/#442",
+   "https://cornucopiaoftoytrains.com/prewar-accessories-landscaped-dinner-no-442/",
+   1269,
+   "JK6VNXQU4V"
+  ],
+  [
+   "Lionel Pre-War",
+   "442",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/standard-gauge-accessories/#442",
+   "https://cornucopiaoftoytrains.com/prewar-accessories-landscaped-dinner-no-442/",
+   1270,
+   "5AUW2AAKKG"
+  ]
+ ]
+}
