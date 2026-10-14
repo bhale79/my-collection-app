@@ -8110,6 +8110,8 @@ function _wizPicFirstChoose() {
   ov.innerHTML =
     '<div class="wiz-picfirst-card">' +
       '<div class="wiz-picfirst-card-title">' + RR_PIC_FIRST.chooserTitle + '</div>' +
+      // v0.9.1949: on a phone, the camera and the phone's pictures are two buttons
+      (window.IS_MOBILE_UA ? '<button type="button" data-pfc="camera">' + RR_PIC_FIRST.takePhoto + '</button>' : '') +
       '<button type="button" data-pfc="local">' + (window.IS_MOBILE_UA ? RR_PIC_FIRST.fromPhone : RR_PIC_FIRST.fromComputer) + '</button>' +
       (gpOk ? '<button type="button" data-pfc="gphotos">' + RR_PIC_FIRST.fromGPhotos + '</button>' : '') +
       '<div class="wiz-picfirst-status" id="wiz-picfirst-status" style="display:none"></div>' +
@@ -8121,6 +8123,8 @@ function _wizPicFirstChoose() {
   if (typeof window.rrDismissGuard === 'function') window.rrDismissGuard(ov, close);
   document.body.appendChild(ov);
   ov.querySelector('[data-pfc="local"]').onclick = function () { close(); _wizPicFirstPick(); };
+  var cam = ov.querySelector('[data-pfc="camera"]');
+  if (cam) cam.onclick = function () { close(); _wizPicFirstPick(true); };
   ov.querySelector('[data-pfc="cancel"]').onclick = close;
   var gp = ov.querySelector('[data-pfc="gphotos"]');
   if (gp) gp.onclick = function () { _wizPicFirstGPhotos(ov, close); };   // inside the click: the picker tab opens now
@@ -8146,10 +8150,11 @@ function _wizPicFirstTake(f) {
   wizard.data._picFirst = true;
   _wizPicFirstRefresh();
 }
-function _wizPicFirstPick() {
+function _wizPicFirstPick(camera) {
   var inp = document.createElement('input');
   inp.type = 'file';
   inp.accept = 'image/*';
+  if (camera) inp.setAttribute('capture', 'environment');   // v0.9.1949: the phone opens its camera
   inp.style.display = 'none';
   inp.onchange = function () {
     var f = inp.files && inp.files[0];

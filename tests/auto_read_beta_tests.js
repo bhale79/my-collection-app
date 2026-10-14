@@ -117,6 +117,10 @@ async function boot(browser, on) {
   await pg.goto('file://' + path.join(APP, 'index.html'), { waitUntil: 'domcontentloaded' });
   await pg.waitForTimeout(900);
   await pg.evaluate(on => {
+    // v0.9.1949: Auto Read is switched off for everyone (config.js
+    // RR_AUTO_READ_ON). This suite tests the feature itself, so it switches
+    // it on in its page and lets the ring decide, as the app would.
+    window.RR_AUTO_READ_ON = true;
     const orig = window.rrFeatureOn;
     window.rrFeatureOn = n => (n === 'auto_read') ? on : orig(n);
     try { localStorage.setItem('rr_ai_optout', '0'); } catch (e) {}

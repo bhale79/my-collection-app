@@ -29,7 +29,7 @@
 //   G2  Google Photos goes through the SHARED picker (drive.js), says what to do
 //       while it waits, closes its session, and the photo lands in the view box
 //   G3  …and goes in as the first Item photo at the Photos step
-//   G4  a phone reads "Take or pick on this phone"
+//   G4  a phone reads "Take a picture" + "Pick from this phone" (v0.9.1949)
 // ═══════════════════════════════════════════════════════════════════════════
 const fs = require('fs'), path = require('path');
 let chromium;
@@ -165,7 +165,8 @@ async function toPhotos(pg) {
       await pg.evaluate(() => { _wizPicFirstRemove(); });
       await pg.click('#wiz-picfirst-btn');
       const phTxt = await pg.$eval('#wiz-picfirst-choose', e => e.innerText);
-      T('G4 a phone: the choices read "Take or pick on this phone" and "From Google Photos"', /Take or pick on this phone/.test(phTxt) && /From Google Photos/.test(phTxt), phTxt);
+      // v0.9.1949: on a phone the camera has its own button (Brad: "you cant take a picture")
+      T('G4 a phone: the choices read "Take a picture", "Pick from this phone" and "From Google Photos"', /Take a picture/.test(phTxt) && /Pick from this phone/.test(phTxt) && /From Google Photos/.test(phTxt), phTxt);
       await pg.close();
     }
     // G1–G3 — v0.9.1930 (Brad: "it doesn't give me the option for google photos")

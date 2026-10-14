@@ -166,9 +166,11 @@ ok('BRAD\'S CLAIM: and removal clears the row rather than deleting it',
     const pid = await page.evaluate(() => {
       if (typeof window.rrPhotoIdHelpHtml !== 'function') return { missing: true };
       const orig = window.rrFeatureOn;
+      const sw = window.RR_AUTO_READ_ON;
+      window.RR_AUTO_READ_ON = true;   // v0.9.1949: off for everyone by default — switched on here to see the beta tester's page
       window.rrFeatureOn = n => n === 'auto_read' ? true : orig(n);
       let html;
-      try { html = window.rrPhotoIdHelpHtml(); } finally { window.rrFeatureOn = orig; }
+      try { html = window.rrPhotoIdHelpHtml(); } finally { window.rrFeatureOn = orig; window.RR_AUTO_READ_ON = sw; }
       const off = document.createElement('div');
       window.rrFeatureOn = n => n === 'auto_read' ? false : orig(n);
       try { off.innerHTML = window.rrPhotoIdHelpHtml(); } finally { window.rrFeatureOn = orig; }

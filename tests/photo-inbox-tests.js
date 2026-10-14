@@ -19540,8 +19540,10 @@ META_WRITES.length = 0; TOASTS.length = 0;
       // v0.9.1932: 17 → 19. _rrAccountHoldNow and _rrPassOwnersReset are the
       // account check's read-out and reset for tests/account_check_tests.js —
       // nothing on screen calls them, by design.
-      ok('273 the unreachable-handler list is the known 19',
-         r.dead.length === 19,
+      // v0.9.1949: 19 → 20. _biPipelineOnCanvas (barcode.js) is a test door —
+      // photo_fixes_1949_tests runs the real Photo ID stages on a canvas with it.
+      ok('273 the unreachable-handler list is the known 20',
+         r.dead.length === 20,
          r.dead.length + ': ' + r.dead.map(d => d.name).join(','));
       // None of them can be breaking a visible button, by construction: if any
       // onclick named them they would not be in this list at all.

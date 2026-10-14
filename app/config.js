@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.1948';
+const APP_VERSION = 'v0.9.1949';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -78,6 +78,13 @@ const RR_FEATURES_CACHE_KEY = 'rr_features_v1';
 // through rrAutoReadOn() (ai-id.js). The barcode scanner and the free readers
 // are not affected.
 const RR_AUTO_READ_FEATURE = 'auto_read';
+// v0.9.1949 (Brad, 2026-10-14: "the auto reader is supposed to be gone"): it
+// still showed on his two owner accounts — owners see every beta feature, and
+// support@ is the demo account people watch. OFF for everyone now, owners and
+// beta testers alike. Kept in the code: set this to true and the ring above
+// decides again (rrAutoReadOn, ai-id.js — the ONE reader). A `var` on purpose:
+// the suites that test Auto Read itself switch it on in their page.
+var RR_AUTO_READ_ON = false;
 function rrFeatureList() {
   try {
     var s = (typeof window !== 'undefined') && window._subState;
@@ -3104,7 +3111,11 @@ const RR_PIC_FIRST = {
   // pc harddrive"): the button asks where the picture is first.
   chooserTitle: 'Add a picture',
   fromComputer: '\ud83d\udcbb From this computer',
-  fromPhone: '\ud83d\udcf1 Take or pick on this phone',
+  // v0.9.1949 (Brad: "you cant take a picture, the button just takes you to
+  // the google photo picker"): a phone asked for "a picture" answers with its
+  // photo picker only — the camera needs its own button.
+  takePhoto: '\ud83d\udcf7 Take a picture',
+  fromPhone: '\ud83d\uddbc\ufe0f Pick from this phone',
   fromGPhotos: '\u2601\ufe0f From Google Photos',
   sideMinWidth: 980,     // the window must be at least this wide for the side view
   sideWidthPx: 300,      // the side view's width

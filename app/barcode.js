@@ -379,6 +379,25 @@ window.eraSupportsBarcode = eraSupportsBarcode;
   }
   // v0.9.640: EXACT matches aggregated across EVERY era (current + IDB caches),
   // so a postwar 6468-25 and a modern reissue can appear side by side.
+  // v0.9.1949 — bare 7-digit numbers read in the shot that the catalog knows.
+  // At most four are looked up (a carton can print many); UPC-shaped runs are
+  // stripped first, the same as every other number. -> [{ raw, mfr }]
+  async function _bcSevenDigitInCatalog(text) {
+    var clean = _stripUPCs(text || '');
+    var nums = [], seen = {}, m, re = /\b\d{7}\b/g;
+    while ((m = re.exec(clean)) !== null && nums.length < 4) { if (!seen[m[0]]) { seen[m[0]] = 1; nums.push(m[0]); } }
+    var out = [];
+    for (var i = 0; i < nums.length; i++) {
+      var hits = await _findMasterItemsAllEras([nums[i]]);
+      if (hits && hits.length) {
+        var mk = (hits[0] && (hits[0].manufacturer || '')) || 'Lionel';
+        out.push({ raw: nums[i], mfr: mk });
+      }
+    }
+    return out;
+  }
+  window._bcSevenDigitInCatalog = function (t) { return _bcSevenDigitInCatalog(t); };   // tests reach it here
+
   async function _findMasterItemsAllEras(candidates) {
     var out = [], seen = {};
     function addAll(arr, era) {
@@ -3456,6 +3475,9 @@ window.eraSupportsBarcode = eraSupportsBarcode;
       }
     }
   }
+  // v0.9.1949: a test runs Photo ID on a canvas it drew, with the real stages
+  // (photo_fixes_1949_tests). Nothing in the app calls it.
+  window._biPipelineOnCanvas = function (c, opts) { return _biPipeline(c, c, null, '', opts || {}); };
   async function _biPipelineCore(fullCanvas, workCanvas, lockedBc, eraHint, opts) {
     var d = _biOverlay(
       '<div style="width:100%;max-width:560px">'
@@ -3543,6 +3565,16 @@ window.eraSupportsBarcode = eraSupportsBarcode;
     } catch (e) {}
     if (_biStop) return { __biCancel: true };
     var rawCands = ocrText ? _extractItemNumberCandidates(ocrText) : [];
+    // v0.9.1949 (Brad's Woodruff 2-pack box end, "1927690" printed big and
+    // clear: "you should easily read this number"): a bare 7-digit number is
+    // only taken as Lionel's when "Lionel" is also in the shot — the July rule
+    // that keeps stray digits on crowded cartons out. This end of the box does
+    // not say Lionel, so the number was thrown away. When nothing else was
+    // read, a 7-digit number that IS in the catalog is kept: the catalog check
+    // is the safety the word was standing in for.
+    if (ocrText && !(rawCands || []).length && !(opts && opts.ignoreNums)) {
+      try { rawCands = await _bcSevenDigitInCatalog(ocrText); } catch (e7) { rawCands = []; }
+    }
     // v0.9.691: "Not this — identify the item by AI" re-run: printed numbers
     // in frame belong to NEIGHBORING items — ignore them all.
     if (opts && opts.ignoreNums) rawCands = [];

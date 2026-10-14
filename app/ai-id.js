@@ -203,6 +203,7 @@ function aiSpendBlocked() {
 // button, counter, legend line and help sentence asks this — nothing else.
 function rrAutoReadOn() {
   try {
+    if (typeof RR_AUTO_READ_ON !== 'undefined' && !RR_AUTO_READ_ON) return false;   // v0.9.1949: off for everyone (config.js)
     var f = (typeof RR_AUTO_READ_FEATURE !== 'undefined') ? RR_AUTO_READ_FEATURE : 'auto_read';
     return (typeof rrFeatureOn === 'function') && !!rrFeatureOn(f);
   } catch (e) { return false; }
