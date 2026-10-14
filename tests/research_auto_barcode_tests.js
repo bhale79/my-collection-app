@@ -225,7 +225,8 @@ const ROW = (o) => Object.assign({ itemNum: '6-12345', description: 'Test boxcar
       accessToken = 'test-token';
       window._rrLensFolder = async function () { return 'folder-1'; };
       window.driveUploadFile = async function () { return { id: 'f1' }; };
-      window.driveRequest = async function () { return {}; };
+      // like real Drive: the preview check (v0.9.1942) answers that the preview exists
+      window.driveRequest = async function (m, path) { return /hasThumbnail/.test(String(path)) ? { hasThumbnail: true, thumbnailLink: 'https://lh3.example/t' } : {}; };
       window.__opened = []; window.open = function (u) { window.__opened.push(String(u)); return null; };
       window._researchActive = true;
       var c = document.createElement('canvas'); c.width = 300; c.height = 200;
@@ -318,7 +319,8 @@ const ROW = (o) => Object.assign({ itemNum: '6-12345', description: 'Test boxcar
       accessToken = 'test-token';
       window._rrLensFolder = async function () { return 'folder-1'; };
       window.driveUploadFile = async function () { return { id: 'f1' }; };
-      window.driveRequest = async function () { return {}; };
+      // like real Drive: the preview check (v0.9.1942) answers that the preview exists
+      window.driveRequest = async function (m, path) { return /hasThumbnail/.test(String(path)) ? { hasThumbnail: true, thumbnailLink: 'https://lh3.example/t' } : {}; };
       window.__opened = []; window.open = function (u, t, f) { window.__opened.push(String(u)); return null; };
       var c = document.createElement('canvas'); c.width = 300; c.height = 200;
       var b = await new Promise(rs => c.toBlob(rs, 'image/jpeg', 0.8));
@@ -360,7 +362,8 @@ const ROW = (o) => Object.assign({ itemNum: '6-12345', description: 'Test boxcar
       window._ups = [];
       window._rrLensFolder = async function () { return 'folder-1'; };
       window.driveUploadFile = async function (file) { window._ups.push(file); return { id: 'f' + window._ups.length }; };
-      window.driveRequest = async function () { return {}; };
+      // like real Drive: the preview check (v0.9.1942) answers that the preview exists
+      window.driveRequest = async function (m, path) { return /hasThumbnail/.test(String(path)) ? { hasThumbnail: true, thumbnailLink: 'https://lh3.example/t' } : {}; };
       async function photo(w, h, n) {
         var c = document.createElement('canvas'); c.width = w; c.height = h;
         var g = c.getContext('2d'), img = g.createImageData(w, h);

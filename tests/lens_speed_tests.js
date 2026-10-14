@@ -93,7 +93,8 @@ function oneShrinker(drive) { return (strip(drive).match(/createImageBitmap\(/g)
     window._ups = []; window._perms = [];
     window._rrLensFolder = async function () { return 'folder-1'; };
     window.driveUploadFile = async function (file, name) { window._ups.push({ file: file, name: name, size: file.size, type: file.type }); await new Promise(r => setTimeout(r, window._upDelay || 0)); return { id: 'f' + window._ups.length }; };
-    window.driveRequest = async function (m, p) { window._perms.push(p); return {}; };
+    // v0.9.1942: Drive answers the preview check (the copy's preview exists)
+    window.driveRequest = async function (m, p) { if (/fields=hasThumbnail/.test(p)) return { hasThumbnail: true, thumbnailLink: 'https://lh3.example/t' }; window._perms.push(p); return {}; };
     window._opened = [];
     window.open = function (u, t, f) { window._opened.push([String(u).slice(0, 80), t, f]); return null; };
     // a noisy 3000x2000 photo — big as a phone shot
@@ -117,7 +118,7 @@ function oneShrinker(drive) { return (strip(drive).match(/createImageBitmap\(/g)
   });
   T('L1  a 3000x2000 photo goes to Lens at 1600 px on its long side', l1.dims[0] === 1600 && l1.dims[1] <= 1067 && l1.dims[1] >= 1066, l1.dims);
   T('L2  …as a JPEG, far fewer bytes (' + Math.round(l1.orig / 1024) + ' KB → ' + Math.round(l1.sent / 1024) + ' KB)', l1.type === 'image/jpeg' && l1.sent < l1.orig * 0.5, l1);
-  T('L3  every step is timed: shrink, folder, upload (with its size), share link', JSON.stringify(l1.steps.map(s => s.replace(/\d+ KB/, 'N KB'))) === '["lens: shrink photo","lens: find folder","lens: upload N KB","lens: share link"]', l1.steps);
+  T('L3  every step is timed: shrink, folder, upload (with its size), share link, preview ready (v0.9.1942)', JSON.stringify(l1.steps.map(s => s.replace(/\d+ KB/, 'N KB'))) === '["lens: shrink photo","lens: find folder","lens: upload N KB","lens: share link","lens: preview ready"]', l1.steps);
   T('L4  the copy is still made readable by link (Lens must fetch it)', l1.perm >= 1 && /^https:/.test(l1.url || ''), l1);
   const l5 = await pg.evaluate(async () => {
     var f = await _bigPhoto(3000, 2000); var n0 = _ups.length;

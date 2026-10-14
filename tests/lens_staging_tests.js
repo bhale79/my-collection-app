@@ -58,7 +58,18 @@ function build(opts) {
     driveCache: { vaultId: 'vault1', lensStagingId: null },
     Date: { now: () => now },
     driveFindOrCreateFolder: async (name, parent) => { log.push(['folder', name, parent]); return 'staging1'; },
+    // v0.9.1942: the preview check ("is Drive's preview of the copy ready?") is
+    // logged as 'preview' — ready at once unless opts.previewAfter says how many
+    // checks come back empty first ('never' = never ready).
+    RR_LENS: { READY_POLL_MS: 500, READY_MAX_MS: 2500 },
+    setTimeout: (f) => { Promise.resolve().then(f); return 0; },
+    __previews: 0,
     driveRequest: async (m, ep, body) => {
+      if (/fields=hasThumbnail/.test(ep)) {
+        log.push(['preview', ep]);
+        const nth = ++sb.__previews, after = opts.previewAfter == null ? 1 : opts.previewAfter;
+        return (after !== 'never' && nth >= after) ? { hasThumbnail: true, thumbnailLink: 'https://lh3.example/thumb' } : {};
+      }
       log.push([m, ep, body]);
       if (/\/copy\?/.test(ep)) return { id: 'copy-' + log.length };
       if (/\/permissions\?/.test(ep)) return { id: 'perm' };
@@ -76,7 +87,8 @@ function build(opts) {
   sb.log = log;
   return sb;
 }
-const asks = (sb) => sb.log.filter(e => e[0] !== 'folder');
+const asks = (sb) => sb.log.filter(e => e[0] !== 'folder' && e[0] !== 'preview');
+const previews = (sb) => sb.log.filter(e => e[0] === 'preview');
 
 (async () => {
   section('A. A photo already in Drive: copied on Google\'s side, nothing through the phone');
@@ -115,7 +127,7 @@ const asks = (sb) => sb.log.filter(e => e[0] !== 'folder');
     const sb = build();
     const file = { name: 'IMG_0042.jpg', size: 3400000, lastModified: 1700000000000, type: 'image/jpeg' };
     const r = await sb.photo(file);
-    const a = sb.log.filter(e => e[0] !== 'folder');
+    const a = asks(sb);
     ok('one upload, then the permission — no separate stamp call', a.length === 2 && a[0][0] === 'upload' && a[1][0] === 'POST' && /permissions/.test(a[1][1]), JSON.stringify(a.map(x => x.slice(0, 2))));
     ok('the stamp rides the upload\'s own metadata', a[0][3] && a[0][3].appProperties && a[0][3].appProperties.rrShared === '1' && /^\d+$/.test(a[0][3].appProperties.rrShareExp), JSON.stringify(a[0][3]));
     ok('it goes to the staging folder under a Lens name', a[0][2] === 'staging1' && /^lens_\d+_IMG_0042\.jpg$/.test(a[0][1]), a[0][1]);
@@ -160,6 +172,38 @@ const asks = (sb) => sb.log.filter(e => e[0] !== 'folder');
     ok('…arming its cleanup only for a fresh upload', /if \(!staged\.reused\) \{\n\s*_identifyStagedFileId = staged\.id;/.test(wiz));
     ok('driveUploadFile grew an OPTIONAL fourth argument — every other caller is unchanged', /async function driveUploadFile\(file, name, folderId, extraMeta\)/.test(DRV) && /Object\.assign\(\{ name, parents: \[folderId\], mimeType: file\.type \}, extraMeta \|\| \{\}\)/.test(DRV));
     ok('the sweeper still looks for the stamp the copy carries', /appProperties has \{ key='rrShared' and value='1' \}/.test(fs.readFileSync(path.join(__dirname, '..', 'app', 'share.js'), 'utf8')));
+  }
+
+  section('G. v0.9.1942 — Lens is handed the link only once Drive\'s preview exists');
+  {
+    // Brad: the first Lens search came back "your message was empty or cut off"
+    // (Google got the words, no picture); the retry — the same copy, seconds
+    // later — worked. Lens fetches Drive's PREVIEW, made a few seconds after.
+    const sbA = build({ previewAfter: 3 });
+    const r = await sbA.copy('inbox-photo-1');
+    const pa = previews(sbA);
+    ok('G1 a fresh inbox copy: Drive is asked about ITS preview until it exists (3 checks, ready on the 3rd)', pa.length === 3 && pa.every(e => /^\/files\/copy-\d+\?fields=hasThumbnail,thumbnailLink$/.test(e[1])) && r.reused === false, JSON.stringify(pa));
+    ok('G1b …and only after the copy is public (the order: copy, publish, preview ready)', sbA.log.findIndex(e => /permissions/.test(e[1] || '')) < sbA.log.findIndex(e => e[0] === 'preview'));
+    const sbB = build({ previewAfter: 2 });
+    const steps = [];
+    await sbB.photo({ name: 'IMG_7.jpg', size: 900, lastModified: 1, type: 'image/jpeg' }, function (n) { steps.push(n); });
+    ok('G2 a camera shot waits the same way (2 checks) and says so in its timed steps', previews(sbB).length === 2 && steps[steps.length - 1] === 'lens: preview ready', JSON.stringify(steps));
+    const sbC = build({ previewAfter: 'never' });
+    const stepsC = [];
+    const rc = await sbC.photo({ name: 'IMG_8.jpg', size: 900, lastModified: 1, type: 'image/jpeg' }, function (n) { stepsC.push(n); });
+    ok('G3 a preview that never comes: it gives up after READY_MAX_MS / READY_POLL_MS checks (5) and Lens still opens', previews(sbC).length === 5 && /thumbnail\?id=/.test(rc.url) && /not confirmed/.test(stepsC[stepsC.length - 1]), JSON.stringify(stepsC));
+    const before = previews(sbA).length;
+    await sbA.copy('inbox-photo-1');
+    ok('G4 a REUSED copy is old enough — no preview check, it opens at once', previews(sbA).length === before);
+    const cfg = fs.readFileSync(path.join(__dirname, '..', 'app', 'config.js'), 'utf8');
+    ok('G5 the wait lives in ONE place: RR_LENS.READY_POLL_MS / READY_MAX_MS (config.js), read by _rrLensWaitReady', /READY_POLL_MS: \d+, READY_MAX_MS: \d+/.test(cfg) && /L\.READY_POLL_MS/.test(DRV) && /L\.READY_MAX_MS/.test(DRV));
+    const src = stagingBlock(DRV);
+    const noWait = src.replace('  await _rrLensWaitReady(uploaded.id, onStep);   // v0.9.1942: Lens fetches the preview — wait until it exists\n', '')
+                      .replace('  await _rrLensWaitReady(copied.id);   // v0.9.1942\n', '');
+    ok('G6 planted offender changed the source (both waits removed)', noWait !== src && !/await _rrLensWaitReady\(/.test(noWait));
+    const sbP = build({ source: noWait, previewAfter: 3 });
+    await sbP.copy('inbox-photo-1');
+    ok('G7 PLANTED: without the wait the link goes out with NO preview check (Brad\'s empty search) — caught', previews(sbP).length === 0);
   }
 
   section('F. THE OFFENDERS, require red');

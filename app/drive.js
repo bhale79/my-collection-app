@@ -1916,6 +1916,31 @@ async function _rrLensPublish(id) {
   }
 }
 
+// ══ v0.9.1942 — WAIT FOR DRIVE'S PREVIEW BEFORE LENS FETCHES IT ═══════════
+// Lens fetches _rrLensUrl — Drive's PREVIEW of the copy — and Drive makes that
+// preview a few seconds after an upload or copy. Brad's first Lens search came
+// back "your message was empty or cut off" (Google got the words, no picture);
+// the retry, which reused the same copy seconds later, worked. So a NEW copy is
+// held until Drive says its preview exists (thumbnailLink), asked every
+// RR_LENS.READY_POLL_MS, at most RR_LENS.READY_MAX_MS — then Lens opens either
+// way, exactly as it did before. A reused copy is old enough already.
+// Returns true when Drive confirmed the preview, false when it gave up waiting.
+async function _rrLensWaitReady(id, onStep) {
+  var L = (typeof RR_LENS !== 'undefined') ? RR_LENS : {};
+  var every = L.READY_POLL_MS || 500, max = L.READY_MAX_MS || 10000;
+  var t0 = Date.now(), ready = false, tries = Math.max(1, Math.ceil(max / every));   // counted, not clocked
+  for (var n = 1; n <= tries; n++) {
+    try {
+      var f = await driveRequest('GET', '/files/' + encodeURIComponent(id) + '?fields=hasThumbnail,thumbnailLink');
+      if (f && f.thumbnailLink) { ready = true; break; }
+    } catch (e) { /* a refused check is not a reason to block the search */ }
+    if (n < tries) await new Promise(function (r) { setTimeout(r, every); });
+  }
+  try { if (typeof onStep === 'function') onStep(ready ? 'lens: preview ready' : 'lens: preview not confirmed (opened anyway)', Date.now() - t0); } catch (eS) {}
+  return ready;
+}
+if (typeof window !== 'undefined') window._rrLensWaitReady = _rrLensWaitReady;
+
 // A photo already in Drive: copied on Google's side, stamped in the same
 // request, published. Nothing is downloaded or uploaded by the device.
 async function driveStageLensCopy(sourceFileId) {
@@ -1928,6 +1953,7 @@ async function driveStageLensCopy(sourceFileId) {
     { name: 'lens_' + Date.now() + '_copy.jpg', parents: [stagingId], appProperties: _rrLensStamp() });
   if (!copied || !copied.id) throw new Error('Lens staging copy failed');
   await _rrLensPublish(copied.id);
+  await _rrLensWaitReady(copied.id);   // v0.9.1942
   return _rrLensRemember(key, copied.id);
 }
 
@@ -1981,6 +2007,7 @@ async function driveStageLensPhoto(file, onStep) {
   t = Date.now();
   await _rrLensPublish(uploaded.id);
   step('lens: share link', t);
+  await _rrLensWaitReady(uploaded.id, onStep);   // v0.9.1942: Lens fetches the preview — wait until it exists
   return _rrLensRemember(key, uploaded.id);
 }
 if (typeof window !== 'undefined') { window.driveStageLensCopy = driveStageLensCopy; window.driveStageLensPhoto = driveStageLensPhoto; }

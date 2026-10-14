@@ -1253,6 +1253,11 @@ async function openWizard(tab) {
   // Cancel returns the user to where they actually were, never a stray
   // Dashboard default.
   const _returnPage = window._rrLastPage || (_activePg ? _activePg.id.replace('page-', '') : 'dashboard');
+  // v0.9.1942 (Brad: "then i cancelled and tried again, and it still shows the
+  // picture. it shouldn't show anything as i haven't selected anything yet"):
+  // the Photo ID / Lens shot is held in window._idLastPhotoFile for the add it
+  // was taken in; a NEW add starts with none. _rrClearHeldIdPhoto is the one clear.
+  _rrClearHeldIdPhoto();
   wizard = { step: 0, tab: tab, data: { tab: tab, _returnPage: _returnPage }, steps: getSteps(tab), matchedItem: null };
   // Phase 2 streamline (Session post-216): for collection adds, default
   // itemCategory to 'lionel' so the category-picker step auto-skips. The
@@ -1346,6 +1351,9 @@ function _doCloseWizard() {
   // with the wizard — otherwise a cancelled add would hand its photo to
   // whatever item the NEXT save happens to be.
   try { window._rrPendingStagePair = null; } catch (e) {}
+  // v0.9.1942: likewise the Photo ID / Lens shot held for this add — a cancelled
+  // add's picture showed in the NEXT add's header (Brad's booth recording).
+  _rrClearHeldIdPhoto();
   // v0.9.1929/1930: the "Add a picture first" side view and chooser live
   // beside the modal, so they are taken down with it.
   try { var _pfp = document.getElementById('wiz-picfirst-panel'); if (_pfp) _pfp.remove(); } catch (ePF) {}
@@ -7976,6 +7984,19 @@ window._wizVarZoom = function (arg) {
     try { ov.remove(); } catch (e) {}
   });
 };
+
+// ── v0.9.1942 — the held Photo ID shot belongs to ONE add ────────────────
+// closeIdentify (wizard-photos.js) stashes the Photo ID / Lens picture in
+// window._idLastPhotoFile so the add that asked for it can attach it — and the
+// header thumbnail and the variation side view fall back to it until it is
+// handed over. Nothing cleared it when an add was CANCELLED, so the next add
+// showed a picture nobody had picked. Cleared when an add opens and when it
+// closes; within one add the hand-over works exactly as before.
+// tests/held_photo_tests.js.
+function _rrClearHeldIdPhoto() {
+  try { window._idLastPhotoFile = null; } catch (e) {}
+}
+window._rrClearHeldIdPhoto = _rrClearHeldIdPhoto;
 
 // ── v0.9.1369 — ONE answer to "which photos is this entry carrying?" ──────
 // Every caller asks here. The wizard can hold a photo three ways: a File just

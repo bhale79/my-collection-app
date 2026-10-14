@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.1941';
+const APP_VERSION = 'v0.9.1942';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -934,8 +934,15 @@ const RR_OWNER_EMAILS = ['bhale@ipd-llc.com', 'support@therailroster.com'];
 //   CELL_*  v0.9.1913 — on cellular (Brad's phone: 199 KB took 36 s to send;
 //           on Wi-Fi 107 KB took 1.3 s) a smaller copy, about a third of the
 //           bytes. Wi-Fi keeps the sharper copy.
+//   READY_*  v0.9.1942 — Lens fetches Drive's PREVIEW of the copy, and Drive
+//           makes that preview a few seconds after the upload: Brad's first
+//           Lens search arrived empty ("your message was empty or cut off"),
+//           the retry (same copy, seconds later) worked. The app now asks Drive
+//           every READY_POLL_MS whether the preview exists and opens Lens when it
+//           does — or after READY_MAX_MS regardless (today's behaviour).
 const RR_LENS = { PHOTO_MAX_SIDE: 1600, PHOTO_QUALITY: 0.85, SHRINK_OVER_BYTES: 350000, COVER_MAX_MS: 90000,
-                  CELL_MAX_SIDE: 1024, CELL_QUALITY: 0.72, CELL_SHRINK_OVER_BYTES: 60000 };
+                  CELL_MAX_SIDE: 1024, CELL_QUALITY: 0.72, CELL_SHRINK_OVER_BYTES: 60000,
+                  READY_POLL_MS: 500, READY_MAX_MS: 10000 };
 
 // ── CRAWL RESULTS FILE (v0.9.1917) ───────────────────────────────────────
 // The scheduled crawls' one door into the Yardmaster's review queue. A crawl
