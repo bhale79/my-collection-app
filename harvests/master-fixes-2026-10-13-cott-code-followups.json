@@ -1,0 +1,77 @@
+{
+ "what": "Master Version 2.40 — 7 cells from the 16 rows of the 2.39 COTT-code sweep whose code pointed at another section. 5 Reference Link anchors move to where COTT actually writes up that exact car/set: 6816 v1 → #FLATDOZ and 6817 v1 → #FLATSCR (the black-shell mold 6424-11 cars are written up in COTT's bulldozer / scraper load sections), 6822 v2 → #FLAT682250 (COTT writes the 1965 No. 6822 inside the 6822-50 section), 3656 v3 → #CARS (the cattle-car section, like v1-2/4-11 in 2.39), Science 21220 v1 → #CHEM21220WO (the row is the 'without number inside' lab, code SS0281). 2 COTT Code cells corrected: Science 22453-501 SS0334 → SS0172 (COTT prints SS0172 in the set's own section; SS0334 is an unnumbered 1965 microscope), Other 46500 SS0425 → blank (SS0425 is the Helios code, already on PW - Items 861 v1; COTT prints no code for the Movie-Jector). Left as they are: 3854 v1-2, 3665 v3 (already right). Brad's call, not changed: 6822-50 v4-5 (COTT lists them under No. 6828), Construction 232 v2 (is the 343 kit), 404 v2 (several dealer displays in one row), Science 21380 (COTT's section reads No. 21480), 715 (SS0432 sits on COTT's No. 5979 tube line; the master's 5979 row is a non-COTT 'Dealer Display').",
+ "stated": "Brad (2026-10-13): \"yes\" to looking into the 16 rows, then \"yes\" to writing the link moves and code fixes as Master Version 2.40 (715/5979 dropped before writing: the master's 5979 is not the tube)",
+ "masterVersion": "2.40",
+ "date": "2026-10-13",
+ "planReadAt": "public CSV export of Lionel PW - Items, PW - Science, PW - Other read 2026-10-14 (right before this record)",
+ "cellFormat": "[tab, item number (column A), column header, old, new, sheet row as a hint, Row ID of the row]",
+ "counts": {
+  "cells": 7,
+  "rows": 7
+ },
+ "cells": [
+  [
+   "Lionel PW - Items",
+   "6816",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/pw-flatcars-page-2/#FLAT6816",
+   "https://cornucopiaoftoytrains.com/pw-flatcars-page-2/#FLATDOZ",
+   2663,
+   "Z6FH7CPZ96"
+  ],
+  [
+   "Lionel PW - Items",
+   "6817",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/pw-flatcars-page-2/#FLAT6817",
+   "https://cornucopiaoftoytrains.com/pw-flatcars-page-2/#FLATSCR",
+   2667,
+   "6HYV9ZNFXY"
+  ],
+  [
+   "Lionel PW - Items",
+   "6822",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/pw-flatcars-page-2/#FLAT6822",
+   "https://cornucopiaoftoytrains.com/pw-flatcars-page-2/#FLAT682250",
+   2684,
+   "KMZ8HCJM4V"
+  ],
+  [
+   "Lionel PW - Items",
+   "3656",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/postwar-cattle-cars-small/#3656",
+   "https://cornucopiaoftoytrains.com/postwar-cattle-cars-small/#CARS",
+   1432,
+   "H6F7YDMNZY"
+  ],
+  [
+   "Lionel PW - Science",
+   "21220",
+   "Reference Link",
+   "https://cornucopiaoftoytrains.com/chemistry-sets-lionel/#CHEM21220",
+   "https://cornucopiaoftoytrains.com/chemistry-sets-lionel/#CHEM21220WO",
+   151,
+   "WN5JMDZ8PQ"
+  ],
+  [
+   "Lionel PW - Science",
+   "22453-501",
+   "COTT Code",
+   "SS0334",
+   "SS0172",
+   183,
+   "2A2Q34FC6S"
+  ],
+  [
+   "Lionel PW - Other",
+   "46500",
+   "COTT Code",
+   "SS0425",
+   "",
+   6,
+   "MDV6MKMN38"
+  ]
+ ]
+}
