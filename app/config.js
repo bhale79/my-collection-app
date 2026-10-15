@@ -3,7 +3,7 @@
 // If more than one file needs a constant, it goes HERE.
 // ═══════════════════════════════════════════════════════════════
 
-const APP_VERSION = 'v0.9.1950';
+const APP_VERSION = 'v0.9.1951';
 
 // v0.9.1148 (Session 185): Appearance editor visibility. TRUE = the
 // "Appearance" row shows in Preferences (Brad's skin-building tool).
@@ -3129,6 +3129,13 @@ const RR_PIC_FIRST = {
 // the same picture. Still free; only a catalog-confirmed number is kept.
 const RR_PHOTO_ID_CLOSER = {
   reading: 'Lettering: reading closer (free)…',
+  // v0.9.1951 (Brad's screenshot of the whole screen — the browser's own
+  // "2026" outvoted the box's 1927690): when the closer look reads numbers the
+  // catalog knows but confirms none, they are offered, longest first.
+  maxChoices: 4,
+  lettering: 'Lettering: read several numbers — not sure which is yours',
+  stage: 'Catalog: which number is YOUR item?',
+  choose: 'The closer look read these numbers in the picture, and the catalog knows each one. Which one is YOUR item?',
 };
 
 // v0.9.1937 — WHERE a picture handed over from earlier lands at the Photos step

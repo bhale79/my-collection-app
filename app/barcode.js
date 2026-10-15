@@ -398,6 +398,22 @@ window.eraSupportsBarcode = eraSupportsBarcode;
   }
   window._bcSevenDigitInCatalog = function (t) { return _bcSevenDigitInCatalog(t); };   // tests reach it here
 
+  // v0.9.1951 — the closer look read numbers but confirmed none. The ones the
+  // catalog knows (the reader already checked each: dbg.inEra / dbg.offEra,
+  // "1927690:mpc") become choices, LONGEST first — a 7-digit modern number is
+  // a far rarer accident than a 3-digit one — at most RR_PHOTO_ID_CLOSER
+  // .maxChoices. -> ['1927690', '2026', …]
+  function _bcCloserChoices(fr) {
+    var d = (fr && fr.dbg) || {}, seen = {}, out = [];
+    [].concat(d.inEra || [], d.offEra || []).forEach(function (v, i) {
+      var n = String(v || '').split(':')[0].trim();
+      if (n && !seen[n]) { seen[n] = 1; out.push({ n: n, i: i }); }
+    });
+    out.sort(function (a, b) { return (b.n.replace(/\D/g, '').length - a.n.replace(/\D/g, '').length) || (a.i - b.i); });
+    return out.slice(0, RR_PHOTO_ID_CLOSER.maxChoices).map(function (o) { return o.n; });
+  }
+  window._bcCloserChoices = _bcCloserChoices;   // tests reach it here
+
   async function _findMasterItemsAllEras(candidates) {
     var out = [], seen = {};
     function addAll(arr, era) {
@@ -3584,12 +3600,24 @@ window.eraSupportsBarcode = eraSupportsBarcode;
     // same picture. So when the quick look finds no number, the same picture
     // goes to it before Photo ID gives up. Free; a number the catalog does not
     // confirm is not kept. tests/photo_closer_1950_tests.js.
+    var _closerUnsure = false;   // v0.9.1951: the closer look read numbers but confirmed none
     if (!(rawCands || []).length && !(opts && opts.ignoreNums) && typeof window.rrFreeReadBlob === 'function') {
       st('ocr', '<span class="bi-spin">⟳</span>', RR_PHOTO_ID_CLOSER.reading);
       try {
         var _frBlob = await new Promise(function (res) { workCanvas.toBlob(res, 'image/jpeg', 0.95); });
         var _fr = _frBlob ? await _rtTime('label read (closer)', window.rrFreeReadBlob(_frBlob, 2400, null)) : null;
         if (_fr && _fr.matched && _fr.num) rawCands = [{ raw: String(_fr.num), mfr: '' }];
+        else if (_fr) {
+          // v0.9.1951 (Brad's screenshot of the whole screen: the browser's
+          // "IPD Jobs Reports 2026" and "2026 Timesheets" read 2026 twice and
+          // outvoted the box's 1927690, read once — nothing confirmed, so
+          // "no item number read"). The numbers it read that the CATALOG knows
+          // are offered as choices instead, longest first — the same "which
+          // one is YOUR item?" Photo ID asks of a shelf photo. Nothing is
+          // picked for him.
+          var _frKnown = _bcCloserChoices(_fr);
+          if (_frKnown.length) { rawCands = _frKnown.map(function (n) { return { raw: n, mfr: '' }; }); _closerUnsure = true; }
+        }
       } catch (eFR) {}
       if (_biStop) return { __biCancel: true };
     }
@@ -3604,6 +3632,8 @@ window.eraSupportsBarcode = eraSupportsBarcode;
     if (opts && opts.ignoreNums) out.ocrDesc = '';
     var kwMfr = ocrText ? _mfrFromKeywords(ocrText) : '';
     if (!out.bcMaker && kwMfr) out.bcMaker = kwMfr;
+    if (_closerUnsure && out.ocrNums.length) st('ocr', '🔤', RR_PHOTO_ID_CLOSER.lettering, _BC_AMBER);   // v0.9.1951: no green tick on a guess
+    else
     st('ocr', out.ocrNums.length ? '🔤' : '➖',
        'Lettering: ' + (out.ocrNums.length ? ('✓ found ' + out.ocrNums.slice(0, 3).join(', ')) : (ocrText ? 'no item number read' : 'nothing readable')),
        out.ocrNums.length ? '#2ecc71' : null);
@@ -3616,11 +3646,13 @@ window.eraSupportsBarcode = eraSupportsBarcode;
     var _dnums = Array.from(new Set(out.ocrNums));
     var _dbases = Array.from(new Set(_dnums.map(function (n) { return String(n).replace(/-\d{1,3}$/, '').replace(/[A-Z]{1,2}$/i, ''); })));
     var _outsideCrop = _numsFromFullFrame && _dnums.length > 0 && _dbases.length < 2;   // v0.9.1464
-    if (_dbases.length >= 2 || _outsideCrop) {
-      st('master', '❓', _outsideCrop
+    if (_dbases.length >= 2 || _outsideCrop || (_closerUnsure && _dnums.length)) {
+      st('master', '❓', _closerUnsure ? RR_PHOTO_ID_CLOSER.stage
+        : _outsideCrop
         ? 'Catalog: a number was read OUTSIDE your crop — is it your item?'
         : 'Catalog: ' + _dnums.length + ' different numbers in the shot — which one is YOUR item?', _BC_AMBER);
-      var _pickN = await _rtWait('pick a number', _biNumPicker(_dnums, _outsideCrop
+      var _pickN = await _rtWait('pick a number', _biNumPicker(_dnums, _closerUnsure ? RR_PHOTO_ID_CLOSER.choose
+        : _outsideCrop
         ? 'Your crop had no readable number, but ' + _dnums.slice(0, 3).join(', ') + ' was read from the FULL photo (outside your crop). Is that your item?'
         : null));
       if (_pickN === 'none' || _pickN === 'cancel') {
